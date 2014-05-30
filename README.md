@@ -1,6 +1,8 @@
-## [Telegram D](https://tdesktop.com) – Unofficial Telegram Desktop App
+## [Telegram D](https://tdesktop.com) â€“ Unofficial Telegram Desktop App
 
 This is complete source code and build instructions for alpha version of unofficial desktop client for [Telegram](https://telegram.org) messenger, based on [Telegram API](https://core.telegram.org/) and [MTProto](https://core.telegram.org/mtproto) secure protocol.
+
+Source code is published under GPL v3, license is available [here](https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE).
 
 ###Supported systems
 
@@ -28,7 +30,7 @@ Choose a folder for the future build, for example **D:\TBuild\**. There you will
 
 ###Clone source code
 
-By git – in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild** and run
+By git â€“ in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild** and run
 
      git clone https://github.com/telegramdesktop/tdesktop.git
 
@@ -50,10 +52,10 @@ Extract to **D:\TBuild\Libraries**
 
 #####Building library
 
-* Open in VS2013 **D:\TBuild\Libraries\lzma\C\Util\LzmaLib\LzmaLib.dsw** > One-way upgrade – **OK**
+* Open in VS2013 **D:\TBuild\Libraries\lzma\C\Util\LzmaLib\LzmaLib.dsw** > One-way upgrade â€“ **OK**
 * For **Debug** and **Release** configurations
-  * LzmaLib Properties > General > Configuration Type = **Static library (.lib)** – **OK**
-  * LzmaLib Properties > Librarian > General > Target Machine = **MachineX86 (/MACHINE:X86)** – **OK**
+  * LzmaLib Properties > General > Configuration Type = **Static library (.lib)** â€“ **OK**
+  * LzmaLib Properties > Librarian > General > Target Machine = **MachineX86 (/MACHINE:X86)** â€“ **OK**
 * Build Debug configuration
 * Build Release configuration
 
@@ -65,18 +67,18 @@ Extract to **D:\TBuild\Libraries\**
 
 #####Building library
 
-* Open in VS2013 **D:\TBuild\Libraries\zlib-1.2.8\contrib\vstudio\vc11\zlibvc.sln** > One-way upgrade – **OK**
+* Open in VS2013 **D:\TBuild\Libraries\zlib-1.2.8\contrib\vstudio\vc11\zlibvc.sln** > One-way upgrade â€“ **OK**
 * We are interested only in **zlibstat** project, but it depends on some custom pre-build step, so build all
 * For **Debug** configuration
-  * zlibstat Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded Debug (/MTd)** – **OK**
+  * zlibstat Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded Debug (/MTd)** â€“ **OK**
 * For **Release** configuration
-  * zlibstat Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded (/MT)** – **OK**
-* Build Solution for Debug configuration – only **zlibstat** project builds successfully
-* Build Solution for Release configuration – only **zlibstat** project builds successfully
+  * zlibstat Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded (/MT)** â€“ **OK**
+* Build Solution for Debug configuration â€“ only **zlibstat** project builds successfully
+* Build Solution for Release configuration â€“ only **zlibstat** project builds successfully
 
 ####libexif 0.6.20
 
-Get sources from https://github.com/telegramdesktop/libexif-0.6.20, by git – in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries** and run
+Get sources from https://github.com/telegramdesktop/libexif-0.6.20, by git â€“ in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries** and run
 
     git clone https://github.com/telegramdesktop/libexif-0.6.20.git
 
@@ -94,7 +96,7 @@ http://download.qt-project.org/official_releases/qt/5.3/5.3.0/single/qt-everywhe
 
 Extract to **D:\TBuild\Libraries\**, rename **qt-everywhere-opensource-src-5.3.0** to **QtStatic** to have **D:\TBuild\Libraries\QtStatic\qtbase\** folder
 
-Apply patch – copy (with overwrite!) everything from **D:\TBuild\tdesktop\\\_qt\_5\_3\_0\_patch\** to **D:\TBuild\Libraries\QtStatic\**
+Apply patch â€“ copy (with overwrite!) everything from **D:\TBuild\tdesktop\\\_qt\_5\_3\_0\_patch\** to **D:\TBuild\Libraries\QtStatic\**
 
 #####Building library
 
@@ -130,7 +132,7 @@ Close all VS2013 instances and install to default location
 * QT5 > Qt Options > Add
   * Version name: **QtStatic.5.3.0**
   * Path: **D:\TBuild\Libraries\QtStatic\qtbase**
-* Default Qt/Win version: **QtStatic.5.3.0** – **OK**
+* Default Qt/Win version: **QtStatic.5.3.0** â€“ **OK**
 * File > Open > Project/Solution > **D:\TBuild\tdesktop\Telegram.sln**
 * Build \ Build Solution (Debug and Release configurations)
 
@@ -146,7 +148,7 @@ little app, that is launched by Telegram when update is ready, replaces all file
 
 ####Packer
 
-compiles given files to single update file, compresses it with lzma and signs with a private key, it was not included to Telegram solution, because private key is inaccessible
+compiles given files to single update file, compresses it with lzma and signs with a private key, it is not built in **Debug** and **Release** configurations of Telegram solution, because private key is inaccessible
 
 ####Prepare
 
