@@ -29,6 +29,11 @@
       <Extensions>cpp;moc</Extensions>
       <SourceControlFiles>False</SourceControlFiles>
     </Filter>
+    <Filter Include="Generated Files\Deploy">
+      <UniqueIdentifier>{c08e3091-0ca0-4fa2-8486-5c07c09c61b2}</UniqueIdentifier>
+      <Extensions>cpp;moc</Extensions>
+      <SourceControlFiles>False</SourceControlFiles>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\_other\memain.cpp">
@@ -36,6 +41,9 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\_other\genemoji.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_genemoji.cpp">
+      <Filter>Generated Files\Deploy</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Debug\moc_genemoji.cpp">
       <Filter>Generated Files\Debug</Filter>

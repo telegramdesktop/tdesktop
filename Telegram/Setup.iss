@@ -3,9 +3,9 @@
 
 #define MyAppShortName "Telegram"
 #define MyAppName "Telegram Win (Unofficial)"
-#define MyAppVersion "0.4.18"
-#define MyAppVersionZero "0.4.18"
-#define MyAppFullVersion "0.4.18.0"
+#define MyAppVersion "0.5"
+#define MyAppVersionZero "0.5.0"
+#define MyAppFullVersion "0.5.0.0"
 #define MyAppPublisher "Telegram (Unofficial)"
 #define MyAppURL "https://tdesktop.com"
 #define MyAppExeName "Telegram.exe"
@@ -26,7 +26,7 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={userappdata}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
-OutputDir=.\..\Win32\Release
+OutputDir=.\..\Win32\Deploy
 OutputBaseFilename=tsetup.{#MyAppVersionZero}
 SetupIconFile=.\SourceFiles\art\iconround256.ico
 UninstallDisplayIcon={app}\Telegram.exe
@@ -44,8 +44,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; OnlyBelowVersion: 0,6.1
 
 [Files]
-Source: ".\..\Win32\Release\Telegram.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: ".\..\Win32\Release\Updater.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: ".\..\Win32\Deploy\Telegram.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: ".\..\Win32\Deploy\Updater.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]

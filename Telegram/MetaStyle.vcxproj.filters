@@ -29,6 +29,11 @@
       <Extensions>cpp;moc</Extensions>
       <SourceControlFiles>False</SourceControlFiles>
     </Filter>
+    <Filter Include="Generated Files\Deploy">
+      <UniqueIdentifier>{5366361d-c2b2-4ae4-929f-05d2d9f43860}</UniqueIdentifier>
+      <Extensions>cpp;moc</Extensions>
+      <SourceControlFiles>False</SourceControlFiles>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Telegram\SourceFiles\_other\genstyles.cpp">
@@ -36,6 +41,9 @@
     </ClCompile>
     <ClCompile Include="SourceFiles\_other\msmain.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_genstyles.cpp">
+      <Filter>Generated Files\Deploy</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Debug\moc_genstyles.cpp">
       <Filter>Generated Files\Debug</Filter>

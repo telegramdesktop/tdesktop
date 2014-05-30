@@ -3,6 +3,7 @@ Telegram/*.user
 Telegram.*.suo
 Telegram.sdf
 Telegram.opensdf
+Telegram/*.aps
 Win32/
 ipch/
 
