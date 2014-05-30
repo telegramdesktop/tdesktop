@@ -60,7 +60,7 @@ lng_connecting: "Подключение...";
 lng_reconnecting: "Переподключение %1 ...";
 lng_reconnecting_try_now: "Попробуйте снова";
 
-lng_status_offline: "оффлайн";
+lng_status_offline: "offline";
 lng_status_invisible: "невидимый";
 lng_status_lastseen: "последний заход {when}";
 lng_status_lastseen_now: "сейчас";
@@ -71,7 +71,7 @@ lng_status_lastseen_hours: "%1 часов назад";
 lng_status_lastseen_today: "сегодня в {time}";
 lng_status_lastseen_yesterday: "вчера в {time}";
 lng_status_lastseen_date: "{date}";
-lng_status_online: "онлайн";
+lng_status_online: "online";
 
 lng_chat_no_members: "Группа недоступна";
 lng_chat_members: "%1 человек(а)";
@@ -96,79 +96,79 @@ lng_phone_desc: "Пожалуйства введите код страны и н
 lng_phone_notreg: "Внимание: если у Вас нет аккаунта в Telegram,
 пожалуйста [b]зарегистрируйтесь[/b] с вашего [a href=\"https://telegram.org/\"]iOS / Android[/a] смартфона или {signup}здесь »{/signup}";
 lng_country_code: "Код страны";
-lng_bad_country_code: "Неверный код страны";
+lng_bad_country_code: "Неправильный код страны";
 lng_country_ph: "Поиск";
 lng_country_done: "Готово";
 lng_country_none: "Страна не найдена";
-lng_country_select: "Выбрать страну";
+lng_country_select: "Выберите страну";
 
 lng_code_ph: "Ваш код";
 lng_code_desc: "Мы отправили вам SMS-сообщение с кодом активации на Ваш телефон. Пожалуйста, введите его ниже.";
-lng_code_call: "Telegram will dial your number in %1:%2";
-lng_code_calling: "Requesting a call from Telegram...";
-lng_code_called: "Telegram dialed your number";
+lng_code_call: "Мы позвоним вам через %1:%2";
+lng_code_calling: "Звоним вам...";
+lng_code_called: "Мы звоним Вам на телефон";
 
-lng_bad_phone: "Invalid phone number. Please try again.";
-lng_bad_phone_noreg: "Phone number not registered.";
-lng_bad_code: "You have entered an invalid code. Please try again.";
-lng_bad_name: "Please enter your first and last name.";
-lng_bad_chat_title: "Please enter new chat title.";
-lng_bad_photo: "Bad image selected.";
+lng_bad_phone: "Неправильный номер телефона. Пожалуйста попробуйте снова.";
+lng_bad_phone_noreg: "Телефонный номер не зарегистрирован.";
+lng_bad_code: "Вы ввели неверный код. Попробуйте снова.";
+lng_bad_name: "Укажите ваше имя и фамилию.";
+lng_bad_chat_title: "Пожалуйста введите новое название чата.";
+lng_bad_photo: "Плохое качество фото.";
 
-lng_signup_title: "Information and photo";
-lng_signup_firstname: "First Name";
-lng_signup_lastname: "Last Name";
+lng_signup_title: "Информация и фото";
+lng_signup_firstname: "Имя (обязательно)";
+lng_signup_lastname: "Фамилия (не обязательно)";
 
-lng_dlg_filter: "Search";
-lng_dlg_new_group_name: "Group name";
-lng_dlg_create_group: "Create";
+lng_dlg_filter: "Найти";
+lng_dlg_new_group_name: "Название группы";
+lng_dlg_create_group: "Создать";
 
-lng_settings_profile: "Profile";
-lng_settings_edit: "Edit";
-lng_settings_save: "Save";
-lng_settings_cancel: "Cancel";
-lng_settings_upload: "Set Profile Photo";
-lng_settings_badsize: "This image has bad size, please try other.";
-lng_settings_crop_profile: "Select square area for your profile photo";
-lng_settings_uploading_photo: "Uploading photo...";
+lng_settings_profile: "Профиль";
+lng_settings_edit: "Редактировать";
+lng_settings_save: "Сохранить";
+lng_settings_cancel: "Отмена";
+lng_settings_upload: "Выбрать фотографию";
+lng_settings_badsize: "Это изображение плохого качества, попробуйте еще раз.";
+lng_settings_crop_profile: "Выберите часть фото которая будет отображаться в профиле";
+lng_settings_uploading_photo: "Загрузка фото...";
 
-lng_settings_section_notify: "Notifications";
-lng_settings_desktop_notify: "Desktop notifications";
-lng_settings_sound_notify: "Sound";
+lng_settings_section_notify: "Уведомления";
+lng_settings_desktop_notify: "Настольные уведомления";
+lng_settings_sound_notify: "Звук";
 
-lng_settings_section_general: "General";
-lng_settings_auto_update: "Update automatically";
-lng_settings_current_version: "Version {version}";
-lng_settings_check_now: "Check for updates";
-lng_settings_update_checking: "Checking for updates...";
-lng_settings_latest_installed: "Latest version is installed";
-lng_settings_downloading: "Downloading update {ready} / {total} Mb...";
-lng_settings_update_ready: "New version is ready";
-lng_settings_update_now: "Restart Now";
-lng_settings_update_fail: "Update check failed :(";
-lng_settings_workmode_tray: "Show tray icon";
-lng_settings_workmode_window: "Show taskbar icon";
-lng_settings_auto_start: "Launch Telegram when system starts";
-lng_settings_start_min: "Launch minimized";
-lng_settings_scale_label: "Interface scale";
-lng_settings_scale_auto: "Auto ({cur})";
+lng_settings_section_general: "Основные";
+lng_settings_auto_update: "Автоматическое обновление";
+lng_settings_current_version: "Версия {version}";
+lng_settings_check_now: "Проверить обновления";
+lng_settings_update_checking: "Проверка обновлений...";
+lng_settings_latest_installed: "Последняя версия уже установлена";
+lng_settings_downloading: "Загрузка обновления {ready} / {total} Mb...";
+lng_settings_update_ready: "Новая версия готова";
+lng_settings_update_now: "Перезапустить сейчас";
+lng_settings_update_fail: "Не удалось проверить обновления :(";
+lng_settings_workmode_tray: "Отображать иконку в трее";
+lng_settings_workmode_window: "Отображать значок на панели задач";
+lng_settings_auto_start: "Загружать Telegram во время загрузки системы";
+lng_settings_start_min: "Запускать свернуто";
+lng_settings_scale_label: "Размер интерфеса";
+lng_settings_scale_auto: "Авто ({cur})";
 
-lng_settings_section_chat: "Chat options";
-lng_settings_replace_emojis: "Replace emojis";
-lng_settings_view_emojis: "View list";
-lng_settings_emoji_list: "List of supported emojis";
-lng_settings_send_enter: "Send by Enter";
-lng_settings_send_ctrlenter: "Send by Ctrl+Enter";
-lng_settings_cats_and_dogs: "Allow cats and dogs";
+lng_settings_section_chat: "Опции чата";
+lng_settings_replace_emojis: "Заменить emojis";
+lng_settings_view_emojis: "Посмотреть список";
+lng_settings_emoji_list: "Список поддерживаемых emojis";
+lng_settings_send_enter: "Отправлять на Enter";
+lng_settings_send_ctrlenter: "Отправлять на Ctrl+Enter";
+lng_settings_cats_and_dogs: "Разрешить кошек и собак";
 
-lng_download_path_dont_ask: "Don't ask download path for each file";
-lng_download_path_label: "Download path: ";
-lng_download_path_temp: "temp folder";
-lng_download_path_clear: "Clear All";
-lng_download_path_header: "Choose download path";
-lng_download_path_temp_radio: "Temp folder, cleared on logout or uninstall";
-lng_download_path_dir_radio: "Custom folder, cleared only manually";
-lng_download_path_choose: "Choose download path";
+lng_download_path_dont_ask: "Не спрашивайте куда скачивать для каждого файла";
+lng_download_path_label: "Сохранять в: ";
+lng_download_path_temp: "временную папку";
+lng_download_path_clear: "Очистить все";
+lng_download_path_header: "Выбрать папку";
+lng_download_path_temp_radio: "Временная папка, очищается при завершении сеанса или удалении";
+lng_download_path_dir_radio: "Пользовательские папки, очищается только вручную";
+lng_download_path_choose: "Выберите папку для загрузки";
 lng_sure_clear_downloads: "Do you want to remove all downloaded files from temp folder? It is done automatically on logout or program uninstall.";
 lng_download_path_failed: "File download could not be started. It could happen because of a bad download location.
 
