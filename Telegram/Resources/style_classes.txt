@@ -1,0 +1,231 @@
+/*
+This file is part of Telegram Desktop,
+an unofficial desktop messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014 John Preston, https://tdesktop.com
+*/
+textStyle {
+	lnkFlags: font;
+	lnkOverFlags: font;
+	lnkColor: color;
+	lnkDownColor: color;
+	selectBG: color;
+	selectOverlay: color;
+	lineHeight: number;
+}
+
+linkButton {
+	color: color;
+	overColor: color;
+	downColor: color;
+	font: font;
+	overFont: font;
+}
+
+sysButton {
+	size: size;
+	img: sprite;
+	color: color;
+	overColor: color;
+	duration: number;
+}
+
+flatButton {
+	color: color;
+	overColor: color;
+	downColor: color;
+
+	bgColor: color;
+	overBgColor: color;
+	downBgColor: color;
+
+	width: number;
+	height: number;
+
+	textTop: number;
+	overTextTop: number;
+	downTextTop: number;
+
+	font: font;
+	overFont: font;
+	duration: number;
+	cursor: cursor;
+}
+
+iconedButton {
+	icon: sprite;
+	iconPos: point;
+	downIcon: sprite;
+	downIconPos: point;
+
+	color: color;
+	bgColor: color;
+	overBgColor: color;
+	width: number;
+	height: number;
+	font: font;
+
+	opacity: number;
+	overOpacity: number;
+
+	textPos: point;
+	downTextPos: point;
+
+	duration: number;
+	cursor: cursor;
+}
+
+flatCheckbox {
+	textColor: color;
+	bgColor: color;
+	disColor: color;
+
+	width: number;
+	height: number;
+	textTop: number;
+	textLeft: number;
+	font: font;
+	duration: number;
+	bgFunc: transition;
+	cursor: cursor;
+
+	disabledCursor: cursor;
+
+	imageRect: sprite;
+	chkImageRect: sprite;
+	overImageRect: sprite;
+	chkOverImageRect: sprite;
+	disImageRect: sprite;
+	chkDisImageRect: sprite;
+
+	imagePos: point;
+}
+
+flatInput {
+	textColor: color;
+	bgColor: color;
+	bgActive: color;
+	width: number;
+	height: number;
+	textMrg: margins;
+	align: align;
+	font: font;
+	cursor: cursor;
+
+	imgRect: sprite;
+	imgPos: point;
+
+	borderWidth: number;
+	borderColor: color;
+	borderActive: color;
+	borderError: color;
+
+	phColor: color;
+	phFocusColor: color;
+	phPos: point;
+	phAlign: align;
+	phShift: number;
+	phDuration: number;
+	phLeftFunc: transition;
+	phAlphaFunc: transition;
+	phColorFunc: transition;
+}
+
+flatTextarea {
+	textColor: color;
+	bgColor: color;
+	width: number;
+	textMrg: margins;
+	align: align;
+	font: font;
+	cursor: cursor;
+
+	phColor: color;
+	phFocusColor: color;
+	phPos: point;
+	phAlign: align;
+	phShift: number;
+	phDuration: number;
+	phLeftFunc: transition;
+	phAlphaFunc: transition;
+	phColorFunc: transition;
+}
+
+flatScroll {
+	barColor: color;
+	bgColor: color;
+	barOverColor: color;
+	bgOverColor: color;
+
+	round: number;
+
+	width: number;
+	minHeight: number;
+	deltax: number;
+	deltay: number;
+
+	topsh: number;
+	bottomsh: number;
+	shColor: color;
+
+	duration: number;
+	hiding: number;
+}
+
+countryInput {
+	width: number;
+	height: number;
+	top: number;
+	bgColor: color;
+	ptrSize: size;
+	textMrg: margins;
+	font: font;
+	align: align;
+}
+
+countryList {
+	notFoundColor: color;
+	notFoundFont: font;
+	
+	verticalMargin: number;
+
+	font: font;
+	codeFont: font;
+	rowHeight: number;
+	color: color;
+	codeColor: color;
+	bgColor: color;
+	bgHovered: color;
+	margin: number;
+	codeWidth: number;
+
+	borderMargin: number;
+	borderColor: color;
+	borderWidth: number;
+}
+
+slider {
+	color: color;
+	thikness: number;
+
+	width: number;
+	bar: sprite;
+}
+
+flatLabel {
+	font: font;
+	minWidth: number;
+	width: number;
+	align: align;
+}

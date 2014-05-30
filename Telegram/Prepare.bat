@@ -1,0 +1,1 @@
+Prepare.exe -path Telegram.exe -path Updater.exe

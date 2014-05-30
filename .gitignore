@@ -1,0 +1,14 @@
+Telegram/GeneratedFiles/
+Telegram/*.user
+Telegram.*.suo
+Telegram.sdf
+Telegram.opensdf
+Win32/
+ipch/
+
+Telegram/log.txt
+Telegram/data
+Telegram/data_config
+Telegram/DebugLogs/
+Telegram/tdata/
+Telegram/tdumps/

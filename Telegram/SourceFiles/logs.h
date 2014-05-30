@@ -1,0 +1,83 @@
+/*
+This file is part of Telegram Desktop,
+an unofficial desktop messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014 John Preston, https://tdesktop.com
+*/
+#pragma once
+
+#ifdef Q_OS_WIN
+#define OUTPUT_LOG(msg) (OutputDebugString((QString msg + "\n").toStdWString().c_str()))
+#endif
+
+#if (defined _DEBUG || defined _WITH_DEBUG)
+
+struct DebugLogMemoryBuffer {
+	DebugLogMemoryBuffer(const void *ptr, uint32 size) : p(ptr), s(size) {
+	}
+	QString str() const {
+		QString result;
+		const uchar *buf((const uchar*)p);
+		const char *hex = "0123456789ABCDEF";
+		result.reserve(s * 3);
+		for (uint32 i = 0; i < s; ++i) {
+			result += hex[(buf[i] >> 4)];
+			result += hex[buf[i] & 0x0F];
+			result += ' ';
+		}
+		result.chop(1);
+		return result;
+	}
+
+	const void *p;
+	uint32 s;
+};
+
+inline DebugLogMemoryBuffer mb(const void *ptr, uint32 size) {
+	return DebugLogMemoryBuffer(ptr, size);
+}
+
+void debugLogWrite(const char *file, int32 line, const QString &v);
+#define DEBUG_LOG(msg) (debugLogWrite(__FILE__, __LINE__, QString msg))
+//usage DEBUG_LOG(("log: %1 %2").arg(1).arg(2))
+
+void tcpLogWrite(const QString &v);
+#define TCP_LOG(msg) (tcpLogWrite(QString msg))
+//usage TCP_LOG(("log: %1 %2").arg(1).arg(2))
+
+void mtpLogWrite(int32 dc, const QString &v);
+#define MTP_LOG(dc, msg) (mtpLogWrite(dc, QString msg))
+//usage MTP_LOG(dc, ("log: %1 %2").arg(1).arg(2))
+
+#else
+#define DEBUG_LOG(msg) (void(0))
+#define TCP_LOG(msg) (void(0))
+#define MTP_LOG(dc, msg) (void(0))
+#endif
+
+inline const char *logBool(bool v) {
+	return v ? "[TRUE]" : "[FALSE]";
+}
+
+class MTPlong;
+QString logVectorLong(const QVector<MTPlong> &ids);
+
+#define LOG(msg) (logWrite(QString msg))
+//usage LOG(("log: %1 %2").arg(1).arg(2))
+
+void logWrite(const QString &v);
+
+void logsInit();
+void logsInitDebug();
+void logsClose();

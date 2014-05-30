@@ -1,0 +1,298 @@
+/*
+This file is part of Telegram Desktop,
+an unofficial desktop messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014 John Preston, https://tdesktop.com
+*/
+#include "packer.h"
+
+const char *publicKey = "\
+-----BEGIN RSA PUBLIC KEY-----\n\
+MIGJAoGBAMA4ViQrjkPZ9xj0lrer3r23JvxOnrtE8nI69XLGSr+sRERz9YnUptnU\n\
+BZpkIfKaRcl6XzNJiN28cVwO1Ui5JSa814UAiDHzWUqCaXUiUEQ6NmNTneiGx2sQ\n\
++9PKKlb8mmr3BB9A45ZNwLT6G9AK3+qkZLHojeSA+m84/a6GP4svAgMBAAE=\n\
+-----END RSA PUBLIC KEY-----\
+";
+
+extern const char *privateKey;
+#include "../../../../TelegramPrivate/packer_private.h" // RSA PRIVATE KEY for update signing
+
+// sha1 hash
+typedef unsigned char uchar;
+typedef unsigned int uint32;
+typedef signed int int32;
+namespace{
+    inline uint32 sha1Shift(uint32 v, uint32 shift) {
+        return ((v << shift) | (v >> (32 - shift)));
+    }
+    void sha1PartHash(uint32 *sha, uint32 *temp)
+    {
+        uint32 a = sha[0], b = sha[1], c = sha[2], d = sha[3], e = sha[4], round = 0;
+
+        #define _shiftswap(f, v) { \
+            uint32 t = sha1Shift(a, 5) + (f) + e + v + temp[round]; \
+			e = d; \
+			d = c; \
+			c = sha1Shift(b, 30); \
+			b = a; \
+			a = t; \
+            ++round; \
+		}
+		#define _shiftshiftswap(f, v) { \
+            temp[round] = sha1Shift((temp[round - 3] ^ temp[round - 8] ^ temp[round - 14] ^ temp[round - 16]), 1); \
+			_shiftswap(f, v) \
+		}
+
+        while (round < 16) _shiftswap((b & c) | (~b & d), 0x5a827999)
+        while (round < 20) _shiftshiftswap((b & c) | (~b & d), 0x5a827999)
+        while (round < 40) _shiftshiftswap(b ^ c ^ d, 0x6ed9eba1)
+        while (round < 60) _shiftshiftswap((b & c) | (b & d) | (c & d), 0x8f1bbcdc)
+        while (round < 80) _shiftshiftswap(b ^ c ^ d, 0xca62c1d6)
+
+        #undef _shiftshiftswap
+        #undef _shiftswap
+
+        sha[0] += a;
+        sha[1] += b;
+        sha[2] += c;
+        sha[3] += d;
+        sha[4] += e;
+    }
+}
+
+int32 *hashSha1(const void *data, uint32 len, void *dest) {
+	const uchar *buf = (const uchar *)data;
+
+    uint32 temp[80], block = 0, end;
+    uint32 sha[5] = {0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0};
+    for (end = block + 64; block + 64 <= len; end = block + 64) {
+        for (uint32 i = 0; block < end; block += 4) {
+            temp[i++] = (uint32) buf[block + 3]
+                    | (((uint32) buf[block + 2]) << 8)
+                    | (((uint32) buf[block + 1]) << 16)
+                    | (((uint32) buf[block]) << 24);
+        }
+        sha1PartHash(sha, temp);
+    }
+
+    end = len - block;
+	memset(temp, 0, sizeof(uint32) * 16);
+    uint32 last = 0;
+    for (; last < end; ++last) {
+        temp[last >> 2] |= (uint32)buf[last + block] << ((3 - (last & 0x03)) << 3);
+    }
+    temp[last >> 2] |= 0x80 << ((3 - (last & 3)) << 3);
+    if (end >= 56) {
+        sha1PartHash(sha, temp);
+		memset(temp, 0, sizeof(uint32) * 16);
+    }
+    temp[15] = len << 3;
+    sha1PartHash(sha, temp);
+
+	uchar *sha1To = (uchar*)dest;
+
+    for (int32 i = 19; i >= 0; --i) {
+        sha1To[i] = (sha[i >> 2] >> (((3 - i) & 0x03) << 3)) & 0xFF;
+    }
+
+	return (int32*)sha1To;
+}
+
+int main(int argc, char *argv[])
+{
+	QString remove;
+	int version = 0;
+	QFileInfoList files;
+	for (int i = 0; i < argc; ++i) {
+		if (string("-path") == argv[i] && i + 1 < argc) {
+			QString path = QString(argv[i + 1]);
+			QFileInfo info(path);
+			files.push_back(info);
+			if (remove.isEmpty()) remove = info.canonicalPath() + "/";
+		} else if (string("-version") == argv[i] && i + 1 < argc) {
+			version = QString(argv[i + 1]).toInt();
+		}
+	}
+
+	if (files.isEmpty() || remove.isEmpty() || version <= 1016 || version > 999999) { // not for release =)
+		cout << "Usage: Packer.exe -path {file} -version {version} OR Packer.exe -path {dir} -version {version}\n";
+		return 0;
+	}
+
+	bool hasDirs = true;
+	while (hasDirs) {
+		hasDirs = false;
+		for (QFileInfoList::iterator i = files.begin(); i != files.end(); ++i) {
+			QFileInfo info(*i);
+			QString fullPath = info.canonicalFilePath();
+			if (info.isDir()) {
+				hasDirs = true;
+				files.erase(i);
+				QDir d = QDir(info.absoluteFilePath());
+				QString fullDir = d.canonicalPath();
+				QStringList entries = d.entryList(QDir::Files | QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot);
+				files.append(d.entryInfoList(QDir::Files | QDir::Dirs | QDir::NoSymLinks | QDir::NoDotAndDotDot));
+				break;
+			} else if (!info.isReadable()) {
+				cout << "Can't read: " << info.absoluteFilePath().toUtf8().constData() << "\n";
+				return -1;
+			}
+		}
+	}
+	for (QFileInfoList::iterator i = files.begin(); i != files.end(); ++i) {
+		QFileInfo info(*i);
+		if (info.canonicalFilePath().indexOf(remove) != 0) {
+			cout << "Can't find '" << remove.toUtf8().constData() << "' in file '" << info.canonicalFilePath().toUtf8().constData() << "' :(\n";
+			return -1;
+		}
+	}
+
+	QByteArray result;
+	{
+		QBuffer buffer(&result);
+		buffer.open(QIODevice::WriteOnly);
+		QDataStream stream(&buffer);
+		stream.setVersion(QDataStream::Qt_5_1);
+
+		stream << quint32(version);
+
+		stream << quint32(files.size());
+		cout << "Found " << files.size() << " file" << (files.size() == 1 ? "" : "s") << "..\n";
+		for (QFileInfoList::iterator i = files.begin(); i != files.end(); ++i) {
+			QFileInfo info(*i);
+			QString fullName = info.canonicalFilePath();
+			QString name = fullName.mid(remove.length());
+			cout << name.toUtf8().constData() << " (" << info.size() << ")\n";
+
+			QFile f(fullName);
+			if (!f.open(QIODevice::ReadOnly)) {
+				cout << "Can't open '" << fullName.toUtf8().constData() << "' for read..\n";
+				return -1;
+			}
+			QByteArray inner = f.readAll();
+			stream << name << quint32(inner.size()) << inner;
+		}
+		if (stream.status() != QDataStream::Ok) {
+			cout << "Stream status is bad: " << stream.status() << "\n";
+			return -1;
+		}
+	}
+
+	int32 resultSize = result.size();
+	cout << "Compression start, size: " << resultSize << "\n";
+
+	QByteArray compressed, resultCheck;
+
+	const int32 hSigLen = 128, hShaLen = 20, hPropsLen = LZMA_PROPS_SIZE, hOriginalSizeLen = sizeof(int32), hSize = hSigLen + hShaLen + hPropsLen + hOriginalSizeLen; // header
+
+	compressed.resize(hSize + resultSize + 1024 * 1024); // rsa signature + sha1 + lzma props + max compressed size
+
+	size_t compressedLen = compressed.size() - hSize;
+	uchar outProps[LZMA_PROPS_SIZE];
+	size_t outPropsSize = LZMA_PROPS_SIZE;
+	int res = LzmaCompress((uchar*)(compressed.data() + hSize), &compressedLen, (const uchar*)(result.constData()), result.size(), (uchar*)(compressed.data() + hSigLen + hShaLen), &outPropsSize, 9, 64 * 1024 * 1024, 0, 0, 0, 0, 0);
+	if (res != SZ_OK) {
+		cout << "Error in compression: " << res << "\n";
+		return -1;
+	}
+	compressed.resize(hSize + compressedLen);
+	memcpy(compressed.data() + hSigLen + hShaLen + hPropsLen, &resultSize, hOriginalSizeLen);
+
+	cout << "Compressed to size: " << compressedLen << "\n";
+
+	cout << "Checking uncompressed..\n";
+
+	int32 resultCheckLen;
+	memcpy(&resultCheckLen, compressed.constData() + hSigLen + hShaLen + hPropsLen, hOriginalSizeLen);
+	if (resultCheckLen <= 0 || resultCheckLen > 1024 * 1024 * 1024) {
+		cout << "Bad result len: " << resultCheckLen << "\n";
+		return -1;
+	}
+	resultCheck.resize(resultCheckLen);
+
+	size_t resultLen = resultCheck.size();
+	SizeT srcLen = compressedLen;
+	int uncompressRes = LzmaUncompress((uchar*)resultCheck.data(), &resultLen, (const uchar*)(compressed.constData() + hSize), &srcLen, (const uchar*)(compressed.constData() + hSigLen + hShaLen), LZMA_PROPS_SIZE);
+	if (uncompressRes != SZ_OK) {
+		cout << "Uncompress failed: " << uncompressRes << "\n";
+		return -1;
+	}
+	if (resultLen != result.size()) {
+		cout << "Uncompress bad size: " << resultLen << ", was: " << result.size() << "\n";
+		return -1;
+	}
+	if (memcmp(result.constData(), resultCheck.constData(), resultLen)) {
+		cout << "Data differ :(\n";
+		return -1;
+	}
+	/**/
+	result = resultCheck = QByteArray();
+
+	cout << "Counting SHA1 hash..\n";
+
+	uchar sha1Buffer[20];
+	memcpy(compressed.data() + hSigLen, hashSha1(compressed.constData() + hSigLen + hShaLen, compressedLen + hPropsLen + hOriginalSizeLen, sha1Buffer), hShaLen); // count sha1
+
+	uint32 siglen = 0;
+
+	cout << "Signing..\n";
+	RSA *prKey = PEM_read_bio_RSAPrivateKey(BIO_new_mem_buf(const_cast<char*>(privateKey), -1), 0, 0, 0);
+	if (!prKey) {
+		cout << "Could not read RSA private key!\n";
+		return -1;
+	}
+	if (RSA_size(prKey) != hSigLen) {
+		RSA_free(prKey);
+		cout << "Bad private key, size: " << RSA_size(prKey) << "\n";
+		return -1;
+	}
+	if (RSA_sign(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (uchar*)(compressed.data()), &siglen, prKey) != 1) { // count signature
+		RSA_free(prKey);
+		cout << "Signing failed!\n";
+		return -1;
+	}
+	RSA_free(prKey);
+
+	if (siglen != hSigLen) {
+		cout << "Bad signature length: " << siglen << "\n";
+		return -1;
+	}
+
+	cout << "Checking signature..\n";
+	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(publicKey), -1), 0, 0, 0);
+	if (!pbKey) {
+		cout << "Could not read RSA public key!\n";
+		return -1;
+	}
+	if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), siglen, pbKey) != 1) { // verify signature
+		RSA_free(pbKey);
+		cout << "Signature verification failed!\n";
+		return -1;
+	}
+	cout << "Signature verified!\n";
+	RSA_free(pbKey);
+
+	QString outName(QString("tupdate%1").arg(version));
+	QFile out(outName);
+	if (!out.open(QIODevice::WriteOnly)) {
+		cout << "Can't open '" << outName.toUtf8().constData() << "' for write..\n";
+		return -1;
+	}
+	out.write(compressed);
+	out.close();
+
+	cout << "Update file '" << outName.toUtf8().constData() << "' written successfully!\n";
+
+	return 0;
+}

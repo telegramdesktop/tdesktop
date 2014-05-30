@@ -1,0 +1,40 @@
+<RCC>
+    <qresource prefix="/gui">
+        <file>art/segoe_ui.ttf</file>
+        <file>art/segoe_ui_semibold.ttf</file>
+        <file>art/segoe_wp_semibold.ttf</file>
+        <file>art/newmsg.wav</file>
+        <file>art/bg.png</file>
+        <file>art/bg_125x.png</file>
+        <file>art/bg_150x.png</file>
+        <file>art/bg_200x.png</file>
+        <file>art/sprite.png</file>
+        <file>art/sprite_125x.png</file>
+        <file>art/sprite_150x.png</file>
+        <file>art/sprite_200x.png</file>
+        <file>art/emoji.png</file>
+        <file>art/emoji_125x.png</file>
+        <file>art/emoji_150x.png</file>
+        <file>art/emoji_200x.png</file>
+        <file>art/blank.gif</file>
+        <file>art/iconround256.png</file>
+        <file>art/ThoolikaTrditionalUnicode.ttf</file>
+    </qresource>
+    <qresource prefix="/ava">
+        <file>art/chatcolor1.png</file>
+        <file>art/chatcolor2.png</file>
+        <file>art/chatcolor3.png</file>
+        <file>art/chatcolor4.png</file>
+        <file>art/usercolor1.png</file>
+        <file>art/usercolor2.png</file>
+        <file>art/usercolor3.png</file>
+        <file>art/usercolor4.png</file>
+        <file>art/usercolor5.png</file>
+        <file>art/usercolor6.png</file>
+        <file>art/usercolor7.png</file>
+        <file>art/usercolor8.png</file>
+    </qresource>
+    <qresource prefix="/qt-project.org">
+        <file>qmime/freedesktop.org.xml</file>
+    </qresource>
+</RCC>

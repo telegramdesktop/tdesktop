@@ -1,0 +1,772 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Generated Files">
+      <UniqueIdentifier>{71ED8ED8-ACB9-4CE9-BBE1-E00B30144E11}</UniqueIdentifier>
+      <Extensions>moc;h;cpp</Extensions>
+      <SourceControlFiles>False</SourceControlFiles>
+    </Filter>
+    <Filter Include="Generated Files\Debug">
+      <UniqueIdentifier>{4e5e8958-0a60-4117-8701-cbd387932d83}</UniqueIdentifier>
+      <Extensions>cpp;moc</Extensions>
+      <SourceControlFiles>False</SourceControlFiles>
+    </Filter>
+    <Filter Include="Generated Files\Release">
+      <UniqueIdentifier>{9c05f518-3867-45cb-b08c-19c0d32151c7}</UniqueIdentifier>
+      <Extensions>cpp;moc</Extensions>
+      <SourceControlFiles>False</SourceControlFiles>
+    </Filter>
+    <Filter Include="gui">
+      <UniqueIdentifier>{93203856-b459-49ec-8097-689d0feda013}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{D9D6E242-F8AF-46E4-B9FD-80ECBC20BA3E}</UniqueIdentifier>
+      <Extensions>qrc;*</Extensions>
+      <ParseFiles>false</ParseFiles>
+    </Filter>
+    <Filter Include="mtproto">
+      <UniqueIdentifier>{d01d021a-d92f-4ac3-9155-6d297fffe596}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;cxx;c;def</Extensions>
+    </Filter>
+    <Filter Include="boxes">
+      <UniqueIdentifier>{65fcb834-0002-4007-80c2-8bd6cbc63c93}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="intro">
+      <UniqueIdentifier>{08a48c4d-2526-4578-ad4b-db659e4eec8d}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="SourceFiles\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\stdafx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\logs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\mtpConnection.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\mtpSession.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\mtpDC.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\application.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\animation.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\button.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\flatbutton.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\qrc_telegram.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\flatinput.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\phoneinput.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\countrycodeinput.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\countryinput.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\scrollarea.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\mtp.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mainwidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\style_auto.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\app.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\window.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\mtpRPC.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\dialogswidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\history.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\historywidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\flattextarea.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\emoji_config.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\images.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\mtpFileLoader.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\layerwidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\localimageloader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\fileuploader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\flatcheckbox.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\profilewidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\twidget.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\style_core.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\supporttl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\boxshadow.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\pspecific_wnd.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\sysbuttons.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\title.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\aboutbox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\addcontactbox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\addparticipantbox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\confirmbox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\connectionbox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\contactsbox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\newgroupbox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\photocropbox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\photosendbox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\text.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\emojibox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\intro\intro.cpp">
+      <Filter>intro</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\intro\introcode.cpp">
+      <Filter>intro</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\intro\introphone.cpp">
+      <Filter>intro</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\intro\introsignup.cpp">
+      <Filter>intro</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\intro\introsteps.cpp">
+      <Filter>intro</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\dropdown.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\filedialog.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\settingswidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\settings.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\downloadpathbox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\gui\flatlabel.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\lang.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\langloaderplain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\types.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_aboutbox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_aboutbox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_addcontactbox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_addcontactbox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_addparticipantbox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_addparticipantbox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_animation.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_animation.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_application.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_application.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_button.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_button.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_confirmbox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_confirmbox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_connectionbox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_connectionbox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_contactsbox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_contactsbox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_countrycodeinput.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_countrycodeinput.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_countryinput.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_countryinput.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_dialogswidget.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_dialogswidget.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_downloadpathbox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_downloadpathbox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_dropdown.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_dropdown.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_emojibox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_emojibox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_fileuploader.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_fileuploader.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_flatbutton.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_flatbutton.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_flatcheckbox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_flatcheckbox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_flatinput.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_flatinput.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_flatlabel.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_flatlabel.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_flattextarea.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_flattextarea.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_historywidget.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_historywidget.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_intro.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_intro.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_introcode.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_introcode.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_introphone.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_introphone.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_introsignup.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_introsignup.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_layerwidget.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_layerwidget.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_localimageloader.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_localimageloader.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_mainwidget.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_mainwidget.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_mtp.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_mtp.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_mtpConnection.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_mtpConnection.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_mtpDC.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_mtpDC.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_mtpFileLoader.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_mtpFileLoader.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_mtpSession.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_mtpSession.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_newgroupbox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_newgroupbox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_phoneinput.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_phoneinput.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_photocropbox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_photocropbox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_photosendbox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_photosendbox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_profilewidget.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_profilewidget.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_pspecific_wnd.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_pspecific_wnd.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_scrollarea.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_scrollarea.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_settingswidget.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_settingswidget.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_sysbuttons.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_sysbuttons.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_title.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_title.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_twidget.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_twidget.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_window.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_window.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="SourceFiles\stdafx.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\types.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\mtproto\mtpCoreTypes.h">
+      <Filter>mtproto</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\mtproto\mtpScheme.h">
+      <Filter>mtproto</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\mtproto\mtpAuthKey.h">
+      <Filter>mtproto</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\config.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\logs.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\mtproto\mtpPublicRSA.h">
+      <Filter>mtproto</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\style_auto.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\style_classes.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\style.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\countries.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\mtproto\mtpRPC.h">
+      <Filter>mtproto</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\app.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\history.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\gui\emoji_config.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\gui\style_core.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\supporttl.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\gui\boxshadow.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\gui\text.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\intro\introsteps.h">
+      <Filter>intro</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\gui\filedialog.h">
+      <Filter>gui</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\settings.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\lang.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\langloaderplain.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\pspecific.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\mtproto\mtpSessionImpl.h">
+      <Filter>mtproto</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="SourceFiles\mtproto\mtpConnection.h">
+      <Filter>mtproto</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\mtproto\mtpSession.h">
+      <Filter>mtproto</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\mtproto\mtpDC.h">
+      <Filter>mtproto</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\application.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\gui\animation.h">
+      <Filter>gui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\gui\button.h">
+      <Filter>gui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\gui\flatbutton.h">
+      <Filter>gui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\telegram.qrc">
+      <Filter>Resource Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Resources\style_classes.txt" />
+    <CustomBuild Include="Resources\style.txt" />
+    <CustomBuild Include="SourceFiles\gui\flatinput.h">
+      <Filter>gui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\gui\phoneinput.h">
+      <Filter>gui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\gui\countrycodeinput.h">
+      <Filter>gui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\gui\countryinput.h">
+      <Filter>gui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\gui\scrollarea.h">
+      <Filter>gui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\mainwidget.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\window.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\dialogswidget.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\historywidget.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\gui\flattextarea.h">
+      <Filter>gui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\gui\images.h">
+      <Filter>gui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\mtproto\mtpFileLoader.h">
+      <Filter>mtproto</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\layerwidget.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\localimageloader.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\mtproto\mtp.h">
+      <Filter>mtproto</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\gui\flatcheckbox.h">
+      <Filter>gui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\fileuploader.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\profilewidget.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\gui\twidget.h">
+      <Filter>gui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\pspecific_wnd.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\sysbuttons.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\title.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\aboutbox.h">
+      <Filter>boxes</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\addcontactbox.h">
+      <Filter>boxes</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\addparticipantbox.h">
+      <Filter>boxes</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\confirmbox.h">
+      <Filter>boxes</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\connectionbox.h">
+      <Filter>boxes</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\contactsbox.h">
+      <Filter>boxes</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\newgroupbox.h">
+      <Filter>boxes</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\photocropbox.h">
+      <Filter>boxes</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\photosendbox.h">
+      <Filter>boxes</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\emojibox.h">
+      <Filter>boxes</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\intro\intro.h">
+      <Filter>intro</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\intro\introcode.h">
+      <Filter>intro</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\intro\introphone.h">
+      <Filter>intro</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\intro\introsignup.h">
+      <Filter>intro</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\dropdown.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\settingswidget.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\downloadpathbox.h">
+      <Filter>boxes</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\gui\flatlabel.h">
+      <Filter>gui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Resources\lang.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="SourceFiles\art\icon.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="SourceFiles\art\sysicons.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="SourceFiles\art\iconf.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="SourceFiles\art\iconround256.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Font Include="SourceFiles\art\segoe_ui.ttf">
+      <Filter>Resource Files</Filter>
+    </Font>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Telegram.rc" />
+  </ItemGroup>
+</Project>
