@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #pragma once
 
-static const int32 AppVersion = 5000;
-static const wchar_t *AppVersionStr = L"0.5.0";
+static const int32 AppVersion = 5001;
+static const wchar_t *AppVersionStr = L"0.5.1";
 static const wchar_t *AppName = L"Telegram Win (Unofficial)";
 static const wchar_t *AppId = L"{53F49750-6209-4FBF-9CA8-7A333C87D1ED}";
 
