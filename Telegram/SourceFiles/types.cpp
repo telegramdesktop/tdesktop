@@ -79,24 +79,54 @@ namespace {
 	QReadWriteLock unixtimeLock;
 	volatile int32 unixtimeDelta = 0;
 	volatile bool unixtimeWasSet = false;
-    volatile uint64 msgIdStart, msgIdLocal = 0;
+    volatile uint64 _msgIdStart, _msgIdLocal = 0, _msgIdMsStart;
 	uint32 _reqId = 0;
+
+	void _initMsgIdConstants() {
+#ifdef Q_OS_WIN
+		LARGE_INTEGER li;
+		QueryPerformanceCounter(&li);
+		_msgIdMsStart = li.QuadPart;
+#elif defined Q_OS_MAC
+		_msgIdMsStart = mach_absolute_time();
+#else
+		timespec ts;
+		clock_gettime(CLOCK_REALTIME, &ts);
+		_msgIdMsStart = 1000000000 * uint64(ts.tv_sec) + uint64(ts.tv_nsec);
+#endif
+
+		uint32 msgIdRand;
+		memset_rand(&msgIdRand, sizeof(uint32));
+		_msgIdStart = (((uint64)((uint32)unixtime()) << 32) | (uint64)msgIdRand);
+	}
 }
 
 int32 myunixtime() {
 	return (int32)time(NULL);
 }
 
-void unixtimeSet(int32 serverTime, bool force) {
-	QWriteLocker locker(&unixtimeLock);
-	if (force) {
-		DEBUG_LOG(("MTP Info: forced setting client unixtime to %1").arg(serverTime));
-	} else {
-		if (unixtimeWasSet) return;
-		DEBUG_LOG(("MTP Info: setting client unixtime to %1").arg(serverTime));
+void unixtimeInit() {
+	{
+		QWriteLocker locker(&unixtimeLock);
+		unixtimeWasSet = false;
+		unixtimeDelta = 0;
 	}
-	unixtimeWasSet = true;
-	unixtimeDelta = serverTime + 1 - myunixtime();
+	_initMsgIdConstants();
+}
+
+void unixtimeSet(int32 serverTime, bool force) {
+	{
+		QWriteLocker locker(&unixtimeLock);
+		if (force) {
+			DEBUG_LOG(("MTP Info: forced setting client unixtime to %1").arg(serverTime));
+		} else {
+			if (unixtimeWasSet) return;
+			DEBUG_LOG(("MTP Info: setting client unixtime to %1").arg(serverTime));
+		}
+		unixtimeWasSet = true;
+		unixtimeDelta = serverTime + 1 - myunixtime();
+	}
+	_initMsgIdConstants();
 }
 
 int32 unixtime() {
@@ -164,22 +194,9 @@ namespace {
 		}
 	};
 
-    class _MsgIdInitializer {
-        public:
-          _MsgIdInitializer() {
-              uint32 msgIdRand;
-              memset_rand(&msgIdRand, sizeof(uint32));
-              msgIdStart = (((uint64)((uint32)time(NULL)) << 32) | (uint64)msgIdRand);
-          }
-    };
-
 	void _msInitialize() {
 		static _MsInitializer _msInitializer;
 	}
-
-    void _msgIdInitialize() {
-        static _MsgIdInitializer _msgIdInitializer;
-    }
 
 	class _MsStarter {
 	public:
@@ -212,16 +229,13 @@ uint64 getms() {
 }
 
 uint64 msgid() {
-	_msInitialize();
-    _msgIdInitialize();
-
 #ifdef Q_OS_WIN
     LARGE_INTEGER li;
     QueryPerformanceCounter(&li);
-    uint64 result = msgIdStart + (uint64)floor((li.QuadPart - _msStart) * _msgIdCoef);
+    uint64 result = _msgIdStart + (uint64)floor((li.QuadPart - _msgIdMsStart) * _msgIdCoef);
 #elif defined Q_OS_MAC
     uint64 msCount = mach_absolute_time();
-    uint64 result = msgIdStart + (uint64)floor((msCount - _msStart) * _msgIdCoef);
+    uint64 result = _msgIdStart + (uint64)floor((msCount - _msgIdMsStart) * _msgIdCoef);
 #else
     uint64 result = 0;
     //TODO
@@ -229,8 +243,7 @@ uint64 msgid() {
 
 	result &= ~0x03L;
 
-	QWriteLocker locker(&unixtimeLock);
-	return result + ((uint64)unixtimeDelta << 32) + (msgIdLocal += 4);
+	return result + (_msgIdLocal += 4);
 }
 
 uint32 reqid() {

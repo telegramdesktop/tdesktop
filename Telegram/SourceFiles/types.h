@@ -70,6 +70,7 @@ private:
 class MTPint;
 
 int32 myunixtime();
+void unixtimeInit();
 void unixtimeSet(int32 servertime, bool force = false);
 int32 unixtime();
 int32 fromServerTime(const MTPint &serverTime);

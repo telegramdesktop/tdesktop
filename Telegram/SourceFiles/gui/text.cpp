@@ -1063,8 +1063,11 @@ public:
 						continue;
 					}
 
-					bool elidedLine = _elideLast && (_y + _lineHeight >= _yTo);
-					if (f != j && !elidedLine) {
+					int32 elidedLineHeight = qMax(_lineHeight, blockHeight);
+					bool elidedLine = _elideLast && (_y + elidedLineHeight >= _yTo);
+					if (elidedLine) {
+						_lineHeight = elidedLineHeight;
+					} else if (f != j) {
 						j = f;
 						_wLeft = f_wLeft;
 						_lineHeight = f_lineHeight;
@@ -1088,7 +1091,11 @@ public:
 				continue;
 			}
 
-			bool elidedLine = _elideLast && (_y + _lineHeight >= _yTo);
+			int32 elidedLineHeight = qMax(_lineHeight, blockHeight);
+			bool elidedLine = _elideLast && (_y + elidedLineHeight >= _yTo);
+			if (elidedLine) {
+				_lineHeight = elidedLineHeight;
+			}
 			if (!drawLine(elidedLine ? _blockEnd(_t, i, e) : b->from(), i, e)) return;
 			_y += _lineHeight;
 			_lineHeight = qMax(0, blockHeight);
@@ -1542,7 +1549,7 @@ public:
 	void elideSaveBlock(int32 blockIndex, ITextBlock *&_endBlock, int32 elideStart, int32 elideWidth) {
 		_elideSavedIndex = blockIndex;
 		_elideSavedBlock = _t->_blocks[blockIndex];
-		const_cast<Text*>(_t)->_blocks[blockIndex] = new SkipBlock(_t->_font, _t->_text, elideStart, elideWidth, _f->height, _elideSavedBlock->lnkIndex());
+		const_cast<Text*>(_t)->_blocks[blockIndex] = new TextBlock(_t->_font, _t->_text, QFIXED_MAX, elideStart, 0, _elideSavedBlock->flags(), _elideSavedBlock->color(), _elideSavedBlock->lnkIndex());
 		_blocksSize = blockIndex + 1;
 		_endBlock = (blockIndex + 1 < _t->_blocks.size() ? _t->_blocks[blockIndex + 1] : 0);
 	}
@@ -1654,9 +1661,11 @@ public:
 		lineLength += _Elide.size();
 
 		if (!repeat) {
-			for (; _t->_blocks[blockIndex] != _endBlock && _t->_blocks[blockIndex]->from() < elideStart; ++blockIndex) {
+			for (; blockIndex < _blocksSize && _t->_blocks[blockIndex] != _endBlock && _t->_blocks[blockIndex]->from() < elideStart; ++blockIndex) {
 			}
-			elideSaveBlock(blockIndex, _endBlock, elideStart, elideWidth);
+			if (blockIndex < _blocksSize) {
+				elideSaveBlock(blockIndex, _endBlock, elideStart, elideWidth);
+			}
 		}
 	}
 

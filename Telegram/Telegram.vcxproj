@@ -793,11 +793,11 @@
     </CustomBuild>
     <CustomBuild Include="Resources\style_classes.txt">
       <Outputs>.\GeneratedFiles\style_classes.h</Outputs>
-      <Command>"$(SolutionDir)$(Platform)\$(Configuration)Meta\MetaStyle.exe" -classes_in ".\Resources\style_classes.txt" -classes_out ".\GeneratedFiles\style_classes.h" -styles_in ".\Resources\style.txt" -styles_out ".\GeneratedFiles\style_auto.h"</Command>
+      <Command>"$(SolutionDir)$(Platform)\$(Configuration)Style\MetaStyle.exe" -classes_in ".\Resources\style_classes.txt" -classes_out ".\GeneratedFiles\style_classes.h" -styles_in ".\Resources\style.txt" -styles_out ".\GeneratedFiles\style_auto.h"</Command>
     </CustomBuild>
     <CustomBuild Include="Resources\style.txt">
       <Outputs>.\GeneratedFiles\style_auto.h</Outputs>
-      <Command>"$(SolutionDir)$(Platform)\$(Configuration)Meta\MetaStyle.exe" -classes_in ".\Resources\style_classes.txt" -classes_out ".\GeneratedFiles\style_classes.h" -styles_in ".\Resources\style.txt" -styles_out ".\GeneratedFiles\style_auto.h"</Command>
+      <Command>"$(SolutionDir)$(Platform)\$(Configuration)Style\MetaStyle.exe" -classes_in ".\Resources\style_classes.txt" -classes_out ".\GeneratedFiles\style_classes.h" -styles_in ".\Resources\style.txt" -styles_out ".\GeneratedFiles\style_auto.h"</Command>
     </CustomBuild>
     <CustomBuild Include="Resources\lang.txt">
       <Outputs>.\GeneratedFiles\lang.h</Outputs>
