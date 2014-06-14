@@ -22,7 +22,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 class Image {
 public:
 
-	Image(QByteArray format = "PNG") : forgot(false), format(format) {
+	Image(QByteArray format = "PNG") : format(format), forgot(false) {
 	}
 	virtual bool loaded() const {
 		return true;
@@ -33,7 +33,7 @@ public:
 	virtual int32 width() const = 0;
 	virtual int32 height() const = 0;
 
-	virtual void load(bool loadFirst = false, bool prior = true) {
+	virtual void load(bool /*loadFirst*/ = false, bool /*prior*/ = true) {
 	}
 
 	virtual void checkload() const {

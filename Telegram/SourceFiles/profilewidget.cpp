@@ -779,10 +779,10 @@ PeerData *ProfileWidget::peer() const {
 void ProfileWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back) {
 	_bgAnimCache = bgAnimCache;
 	_bgAnimTopBarCache = bgAnimTopBarCache;
-	_animCache = grab(rect());
-	App::main()->topBar()->showAll();
-	_animTopBarCache = App::main()->topBar()->grab(QRect(0, 0, width(), st::topBarHeight));
-	App::main()->topBar()->hideAll();
+	_animCache = myGrab(this, rect());
+	App::main()->topBar()->stopAnim();
+	_animTopBarCache = myGrab(App::main()->topBar(), QRect(0, 0, width(), st::topBarHeight));
+	App::main()->topBar()->startAnim();
 	_scroll.hide();
 	a_coord = back ? anim::ivalue(-st::introSlideShift, 0) : anim::ivalue(st::introSlideShift, 0);
 	a_alpha = anim::fvalue(0, 1);
@@ -806,7 +806,7 @@ bool ProfileWidget::animStep(float64 ms) {
 		a_coord.finish();
 		a_alpha.finish();
 		_bgAnimCache = _animCache = _animTopBarCache = _bgAnimTopBarCache = QPixmap();
-		App::main()->topBar()->showAll();
+		App::main()->topBar()->stopAnim();
 		_scroll.show();
 		activate();
 	} else {

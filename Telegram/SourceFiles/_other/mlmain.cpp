@@ -26,6 +26,20 @@ int main(int argc, char *argv[]) {
 			if (++i < argc) lang_out = argv[i];
 		}
 	}
+#ifdef Q_OS_MAC
+    if (QDir(QString()).absolutePath() == "/") {
+        QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
+        if (!first.isEmpty()) {
+            QFileInfo info(first);
+            if (info.exists()) {
+                QDir result(info.absolutePath() + "/../../..");
+                QString basePath = result.absolutePath() + '/';
+                lang_in = basePath + lang_in;
+                lang_out = basePath + lang_out;
+            }
+        }
+    }
+#endif
 	QObject *taskImpl = new GenLang(lang_in, lang_out);
 
 	QCoreApplication a(argc, argv);

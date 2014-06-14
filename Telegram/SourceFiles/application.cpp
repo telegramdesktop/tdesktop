@@ -70,9 +70,9 @@ namespace {
 	};
 }
 
-Application::Application(int argc, char *argv[]) : PsApplication(argc, argv),
+Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
     serverName(psServerPrefix() + cGUIDStr()), closing(false),
-	updateRequestId(0), updateThread(0), updateDownloader(0), updateReply(0) {
+	updateRequestId(0), updateReply(0), updateThread(0), updateDownloader(0) {
 	if (mainApp) {
 		DEBUG_LOG(("Application Error: another Application was created, terminating.."));
 		exit(0);
@@ -410,7 +410,7 @@ void Application::startUpdateCheck(bool forceWait) {
 			}
 		}
 	}
-	if (cManyInstance() && !cDebug()) return; // only main instance is updating
+	if (cManyInstance() && !cDebug() || cPlatform() == dbipMac) return; // only main instance is updating
 
 	if (sendRequest) {
 		QNetworkRequest checkVersion(QUrl(qsl("http://tdesktop.com/win/tupdates/current")));
@@ -498,6 +498,10 @@ void Application::startApp() {
 		App::writeUserConfig();
 		cSetNeedConfigResave(false);
 	}
+    if (devicePixelRatio() > 1) {
+        cSetRetina(true);
+        cSetRetinaFactor(devicePixelRatio());
+    }
 
 	window->createWinId();
 	window->init();

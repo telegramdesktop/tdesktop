@@ -1,4 +1,4 @@
-/*
+    /*
 This file is part of Telegram Desktop,
 an unofficial desktop messaging app, see https://telegram.org
 
@@ -26,7 +26,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "mainwidget.h"
 #include "boxes/confirmbox.h"
 
-TopBarWidget::TopBarWidget(MainWidget *w) : QWidget(w), a_over(0), _drawShadow(true), _selCount(0), _selStrWidth(0),
+TopBarWidget::TopBarWidget(MainWidget *w) : QWidget(w),
+    a_over(0), _drawShadow(true), _selCount(0), _selStrWidth(0), _animating(false),
 	_clearSelection(this, lang(lng_selected_clear), st::topBarButton),
 	_forward(this, lang(lng_selected_forward), st::topBarActionButton),
 	_delete(this, lang(lng_selected_delete), st::topBarActionButton),
@@ -182,14 +183,27 @@ void TopBarWidget::resizeEvent(QResizeEvent *e) {
 	if (!_addContact.isHidden()) _addContact.move(r -= _addContact.width(), 0);
 }
 
-void TopBarWidget::hideAll() {
+void TopBarWidget::startAnim() {
 	_edit.hide();
 	_leaveGroup.hide();
 	_addContact.hide();
 	_deleteContact.hide();
+    _clearSelection.hide();
+    _delete.hide();
+    _forward.hide();
+    _animating = true;
+}
+
+void TopBarWidget::stopAnim() {
+    _animating = false;
+    showAll();
 }
 
 void TopBarWidget::showAll() {
+    if (_animating) {
+        resizeEvent(0);
+        return;
+    }
 	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
 	if (p && (p->chat || p->asUser()->contact >= 0)) {
 		if (p->chat) {
@@ -679,11 +693,11 @@ void MainWidget::showPeer(const PeerId &peerId, bool back, bool force) {
 			dialogs.enableShadow(false);
 			if (peerId) {
 				_topBar.enableShadow(false);
-				animCache = grab(history.geometry());
+				animCache = myGrab(this, history.geometry());
 			} else {
-				animCache = grab(QRect(_dialogsWidth, 0, width() - _dialogsWidth, height()));
+				animCache = myGrab(this, QRect(_dialogsWidth, 0, width() - _dialogsWidth, height()));
 			}
-			animTopBarCache = grab(QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight));
+			animTopBarCache = myGrab(this, QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight));
 			dialogs.enableShadow();
 			_topBar.enableShadow();
 			history.show();
@@ -733,7 +747,7 @@ PeerData *MainWidget::profilePeer() {
 void MainWidget::showPeerProfile(const PeerData *peer, bool back) {
 	dialogs.enableShadow(false);
 	_topBar.enableShadow(false);
-	QPixmap animCache = grab(history.geometry()), animTopBarCache = grab(QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight));
+	QPixmap animCache = myGrab(this, history.geometry()), animTopBarCache = myGrab(this, QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight));
 	dialogs.enableShadow();
 	_topBar.enableShadow();
 	if (!back) {
@@ -958,7 +972,7 @@ void MainWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 
 	anim::stop(this);
 	showAll();
-	_animCache = grab(rect());
+	_animCache = myGrab(this, rect());
 
 	a_coord = back ? anim::ivalue(-st::introSlideShift, 0) : anim::ivalue(st::introSlideShift, 0);
 	a_alpha = anim::fvalue(0, 1);
@@ -1368,6 +1382,7 @@ void MainWidget::setOnline(int windowState) {
 	bool isOnline = App::wnd()->psIsOnline(windowState);
 	if (isOnline || windowState >= 0) {
 		onlineRequest = MTP::send(MTPaccount_UpdateStatus(MTP_bool(!isOnline)));
+        LOG(("App Info: Updating Online!"));
 	}
 	if (App::self()) App::self()->onlineTill = unixtime() + (isOnline ? 60 : -1);
 	if (profile) {
@@ -1385,7 +1400,7 @@ void MainWidget::mainStateChanged(Qt::WindowState state) {
 void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 	if (end <= from || !MTP::authedId()) return;
 
-	if (*from == mtpc_new_session_created) {
+	if (mtpTypeId(*from) == mtpc_new_session_created) {
 		MTPNewSession newSession(from, end);
 		updSeq = 0;
 		return getDifference();

@@ -70,6 +70,7 @@ private:
 class MTPint;
 
 int32 myunixtime();
+void unixtimeInit();
 void unixtimeSet(int32 servertime, bool force = false);
 int32 unixtime();
 int32 fromServerTime(const MTPint &serverTime);
@@ -266,6 +267,12 @@ enum DBIEmojiTab {
 	dbietObjects =  2,
 	dbietPlaces  =  3,
 	dbietSymbols =  4,
+};
+
+enum DBIPlatform {
+    dbipWindows  = 0,
+    dbipMac      = 1,
+    dbipLinux    = 2,
 };
 
 typedef enum {

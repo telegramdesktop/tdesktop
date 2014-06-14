@@ -31,7 +31,6 @@ namespace {
 	AuthExportRequests authExportRequests;
 
 	bool started = false;
-	bool loadingConfig = false;
 
 	uint32 layer;
 	
@@ -440,7 +439,9 @@ namespace MTP {
 		_localKey.setKey(key);
 	}
 
-	void start() {	
+	void start() {
+        unixtimeInit();
+        
 		if (!localKey().created()) {
 			LOG(("App Error: trying to start MTP without local key!"));
 			return;

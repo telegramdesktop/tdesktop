@@ -45,7 +45,7 @@ a_opacity(0, 1) {
 	resize(_width, _height);
 
 	showAll();
-	_cache = grab(rect());
+	_cache = myGrab(this, rect());
 	hideAll();
 }
 
@@ -120,7 +120,7 @@ void AboutBox::onClose() {
 void AboutBox::startHide() {
 	_hiding = true;
 	if (_cache.isNull()) {
-		_cache = grab(rect());
+		_cache = myGrab(this, rect());
 		hideAll();
 	}
 	a_opacity.start(0);

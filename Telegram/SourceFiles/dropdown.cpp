@@ -602,7 +602,7 @@ bool EmojiPan::animStep(float64 ms) {
 void EmojiPan::hideStart() {
 	if (_cache.isNull()) {
 		showAll();
-		_cache = grab(rect().marginsRemoved(st::dropdownPadding));
+		_cache = myGrab(this, rect().marginsRemoved(st::dropdownPadding));
 	}
 	hideAll();
 	_hiding = true;
@@ -621,7 +621,7 @@ void EmojiPan::showStart() {
 	}
 	if (_cache.isNull()) {
 		showAll();
-		_cache = grab(rect().marginsRemoved(st::dropdownPadding));
+		_cache = myGrab(this, rect().marginsRemoved(st::dropdownPadding));
 	}
 	hideAll();
 	_hiding = false;

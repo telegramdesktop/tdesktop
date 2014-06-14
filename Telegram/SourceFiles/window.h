@@ -122,8 +122,7 @@ public:
 
 	bool layerShown();
 
-	bool historyIsActive() const;
-	void checkHistoryActivation();
+	bool historyIsActive(int state = -1) const;
 
 	bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const;
 	bool getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const;
@@ -153,6 +152,8 @@ public:
 
 public slots:
 	
+	void checkHistoryActivation(int state = -1);
+    
 	void showSettings();
 	void layerHidden();
 	void updateTitleStatus();

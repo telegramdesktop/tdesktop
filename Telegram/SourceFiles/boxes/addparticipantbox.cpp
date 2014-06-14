@@ -532,7 +532,7 @@ AddParticipantBox::AddParticipantBox(ChatData *chat) : _inner(chat), _hiding(fal
 	connect(&_inner, SIGNAL(mustScrollTo(int,int)), &_scroll, SLOT(scrollToY(int,int)));
 
 	showAll();
-	_cache = grab(rect());
+	_cache = myGrab(this, rect());
 	hideAll();
 }
 
@@ -628,7 +628,7 @@ void AddParticipantBox::animStep(float64 dt) {
 void AddParticipantBox::startHide() {
 	_hiding = true;
 	if (_cache.isNull()) {
-		_cache = grab(rect());
+		_cache = myGrab(this, rect());
 		hideAll();
 	}
 	a_opacity.start(0);

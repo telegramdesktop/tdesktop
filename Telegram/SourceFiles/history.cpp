@@ -2693,6 +2693,20 @@ void HistoryMessage::drawInDialog(QPainter &p, const QRect &r, bool act, const H
 	}
 }
 
+QString HistoryMessage::notificationHeader() const {
+    return _history->peer->chat ? from()->name : QString();
+}
+
+QString HistoryMessage::notificationText() const {
+    QString msg(media ? media->inDialogsText() : _text.original(0, 0xFFFF, false));
+    if (msg.size() > 0xFF) msg = msg.mid(0, 0xFF) + qsl("..");
+// subtitle used
+//    if (_history->peer->chat || out()) {
+//        msg = lang(lng_message_with_from).replace(qsl("[c]"), QString()).replace(qsl("[/c]"), QString()).replace(qsl("{from}"), textRichPrepare((_from == App::self()) ? lang(lng_from_you) : _from->firstName)).replace(qsl("{message}"), textRichPrepare(msg));
+//    }
+    return msg;
+}
+
 HistoryMessage::~HistoryMessage() {
 	if (media) media->unregItem(this);
 	delete media;
@@ -3103,6 +3117,12 @@ void HistoryServiceMsg::drawInDialog(QPainter &p, const QRect &r, bool act, cons
 	cache.drawElided(p, tr.left(), tr.top(), tr.width(), tr.height() / st::dlgHistFont->height);
 }
 
+QString HistoryServiceMsg::notificationText() const {
+    QString msg = _text.original(0, 0xFFFF);
+    if (msg.size() > 0xFF) msg = msg.mid(0, 0xFF) + qsl("..");
+    return msg;
+}
+
 HistoryServiceMsg::~HistoryServiceMsg() {
 	delete media;
 }
@@ -3142,3 +3162,8 @@ int32 HistoryUnreadBar::resize(int32 width) {
 
 void HistoryUnreadBar::drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const {
 }
+
+QString HistoryUnreadBar::notificationText() const {
+    return QString();
+}
+

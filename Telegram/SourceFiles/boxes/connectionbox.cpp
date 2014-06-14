@@ -46,7 +46,7 @@ ConnectionBox::ConnectionBox() : _hiding(false),
 	_passwordInput.setEchoMode(QLineEdit::Password);
 
 	showAll();
-	_cache = grab(rect());
+	_cache = myGrab(this, rect());
 	hideAll();
 }
 
@@ -216,7 +216,7 @@ void ConnectionBox::onCancel() {
 void ConnectionBox::startHide() {
 	_hiding = true;
 	if (_cache.isNull()) {
-		_cache = grab(rect());
+		_cache = myGrab(this, rect());
 		hideAll();
 	}
 	a_opacity.start(0);

@@ -44,7 +44,8 @@ public:
 	bool animStep(float64 ms);
 	void enableShadow(bool enable = true);
 
-	void hideAll();
+	void startAnim();
+    void stopAnim();
 	void showAll();
 	void showSelected(uint32 selCount);
 
@@ -73,6 +74,8 @@ private:
 	uint32 _selCount;
 	QString _selStr;
 	int32 _selStrWidth;
+    
+    bool _animating;
 
 	FlatButton _clearSelection;
 	FlatButton _forward, _delete;

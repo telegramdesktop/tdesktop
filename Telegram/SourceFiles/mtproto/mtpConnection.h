@@ -28,7 +28,7 @@ inline bool mtpRequestData::isSentContainer(const mtpRequest &request) { // "req
 }
 inline bool mtpRequestData::isStateRequest(const mtpRequest &request) {
 	if (request->size() < 9) return false;
-	return ((*request)[8] == mtpc_msgs_state_req);
+	return (mtpTypeId((*request)[8]) == mtpc_msgs_state_req);
 }
 inline bool mtpRequestData::needAck(const mtpRequest &request) {
 	if (request->size() < 9) return false;
@@ -392,10 +392,10 @@ private:
 	// Auth key creation fields and methods
 	struct AuthKeyCreateData {
 		AuthKeyCreateData()
-		: retries(0)
-		, g(0)
-		, new_nonce(*(MTPint256*)((uchar*)new_nonce_buf))
+		: new_nonce(*(MTPint256*)((uchar*)new_nonce_buf))
 		, auth_key_aux_hash(*(MTPlong*)((uchar*)new_nonce_buf + 33))
+		, retries(0)
+		, g(0)
 		, req_num(0)
 		, msgs_sent(0) {
 			memset(new_nonce_buf, 0, sizeof(new_nonce_buf));

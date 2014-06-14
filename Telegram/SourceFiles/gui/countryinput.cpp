@@ -459,7 +459,7 @@ void CountrySelect::prepareAnimation(int to) {
 		a_coord.start(0);
 		af_coord = st::countriesShowFunc;
 	}
-	_cache = grab(QRect(_innerLeft, _innerTop, _innerWidth, _innerHeight));
+	_cache = myGrab(this, QRect(_innerLeft, _innerTop, _innerWidth, _innerHeight));
 	_scroll.hide();
 	_doneButton.hide();
 	_cancelButton.hide();

@@ -51,7 +51,7 @@ typedef uint64 mtpMsgId;
 typedef uint64 mtpPingId;
 
 typedef QVector<mtpPrime> mtpBuffer;
-typedef int32 mtpTypeId;
+typedef uint32 mtpTypeId;
 
 class mtpRequestData;
 class mtpRequest : public QSharedPointer<mtpRequestData> {
@@ -335,9 +335,9 @@ enum {
 //	mtpc_msg_copy = 0xe06046b2,
 	mtpc_gzip_packed = 0x3072cfa1
 };
-static const int32 mtpc_bytes = mtpc_string;
-static const int32 mtpc_core_message = -1; // undefined type, but is used
-static const uint32 mtpLayers[] = {
+static const mtpTypeId mtpc_bytes = mtpc_string;
+static const mtpTypeId mtpc_core_message = -1; // undefined type, but is used
+static const mtpTypeId mtpLayers[] = {
 	mtpc_invokeWithLayer1,
 	mtpc_invokeWithLayer2,
 	mtpc_invokeWithLayer3,
@@ -999,10 +999,10 @@ typedef MTPBoxed<MTPnull> MTPNull;
 
 QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpPrime cons = 0, uint32 level = 0, mtpPrime vcons = 0);
 
-inline QString mtpTextSerializeCore(const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons = 0) {
+inline QString mtpTextSerializeCore(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons, uint32 level, mtpPrime vcons = 0) {
 	QString add = QString(" ").repeated(level * 2);
 
-	switch (cons) {
+	switch (mtpTypeId(cons)) {
 	case mtpc_int: {
 		MTPint value(from, end, cons);
 	return QString("%1 [INT]").arg(value.v); }
@@ -1047,7 +1047,7 @@ inline QString mtpTextSerializeCore(const mtpPrime *&from, const mtpPrime *end, 
 		QString result;
 		if (cnt) {
 			result += "\n" + add;
-			for (uint32 i = 0; i < cnt; ++i) {
+			for (int32 i = 0; i < cnt; ++i) {
 				result += "  " + mtpTextSerialize(from, end, vcons, level + 1) + ",\n" + add;
 			}
 		} else {
@@ -1091,7 +1091,7 @@ inline QString mtpTextSerializeCore(const mtpPrime *&from, const mtpPrime *end, 
 
 	case mtpc_gzip_packed: {
 		MTPstring packed(from, end); // read packed string as serialized mtp string type
-		uint32 packedLen = packed.c_string().v.size(), unpackedChunk = packedLen, unpackedLen = 0;
+		uint32 packedLen = packed.c_string().v.size(), unpackedChunk = packedLen;
 		mtpBuffer result; // * 4 because of mtpPrime type
 		result.resize(0);
 
@@ -1132,7 +1132,7 @@ inline QString mtpTextSerializeCore(const mtpPrime *&from, const mtpPrime *end, 
 	return "[GZIPPED] " + mtpTextSerialize(newFrom, newEnd, 0, level); }
 
 	default: {
-		for (int i = 1; i < mtpLayerMax; ++i) {
+		for (uint32 i = 1; i < mtpLayerMax; ++i) {
 			if (cons == mtpLayers[i]) {
 				return QString("[LAYER%1] ").arg(i + 1) + mtpTextSerialize(from, end, 0, level);
 			}

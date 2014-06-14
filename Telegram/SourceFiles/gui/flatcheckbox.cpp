@@ -27,7 +27,7 @@ FlatCheckbox::FlatCheckbox(QWidget *parent, const QString &text, bool checked, c
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
 	setCursor(_st.cursor);
 	int32 w = _st.width, h = _st.height;
-	if (w <= 0) w = _st.textLeft + _st.font->m.width(_text);
+	if (w <= 0) w = _st.textLeft + _st.font->m.width(_text) + 1;
 	if (h <= 0) h = qMax(_st.font->height, _st.imageRect.height());
 	resize(QSize(w, h));
 }
@@ -86,6 +86,7 @@ void FlatCheckbox::paintEvent(QPaintEvent *e) {
 	QRect tRect(rect());
 	tRect.setTop(_st.textTop);
 	tRect.setLeft(_st.textLeft);
+//    p.drawText(_st.textLeft, _st.textTop + _st.font->ascent, _text);
 	p.drawText(tRect, _text, QTextOption(style::al_topleft));
 
 	if (_state & StateDisabled) {

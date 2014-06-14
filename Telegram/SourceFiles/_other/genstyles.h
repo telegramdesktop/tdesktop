@@ -34,19 +34,35 @@ using std::cout;
 using std::cerr;
 using std::exception;
 
-bool genStyles(const QString &classes_in, const QString &classes_out, const QString &styles_in, const QString &styles_out);
+class Exception : public exception {
+public:
+    
+    Exception(const QString &msg) : _msg(msg) {
+	}
+    
+    virtual const char *what() const throw() {
+        return _msg.toUtf8().constData();
+    }
+    virtual ~Exception() throw() {
+    }
+    
+private:
+	QString _msg;
+};
+
+bool genStyles(const QString &classes_in, const QString &classes_out, const QString &styles_in, const QString &styles_out, const QString &path_to_sprites);
 
 class GenStyles : public QObject {
     Q_OBJECT
 
 public:
-    GenStyles(const QString &classes_in, const QString &classes_out, const QString &styles_in, const QString styles_out) : QObject(0),
-	_classes_in(classes_in), _classes_out(classes_out), _styles_in(styles_in), _styles_out(styles_out) {
+    GenStyles(const QString &classes_in, const QString &classes_out, const QString &styles_in, const QString &styles_out, const QString &path_to_sprites) : QObject(0),
+	_classes_in(classes_in), _classes_out(classes_out), _styles_in(styles_in), _styles_out(styles_out), _path_to_sprites(path_to_sprites) {
 	}
 
 public slots:
 	void run()  {
-		if (genStyles(_classes_in, _classes_out, _styles_in, _styles_out)) {
+		if (genStyles(_classes_in, _classes_out, _styles_in, _styles_out, _path_to_sprites)) {
 			emit finished();
 		}
 	}
@@ -56,5 +72,5 @@ signals:
 
 private:
 
-	QString _classes_in, _classes_out, _styles_in, _styles_out;
+	QString _classes_in, _classes_out, _styles_in, _styles_out, _path_to_sprites;
 };

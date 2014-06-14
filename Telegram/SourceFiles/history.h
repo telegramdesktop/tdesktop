@@ -1026,6 +1026,10 @@ public:
 	}
 
 	virtual void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const = 0;
+    virtual QString notificationHeader() const {
+        return QString();
+    }
+    virtual QString notificationText() const = 0;
 	void markRead();
 
 	int32 y, id;
@@ -1275,7 +1279,9 @@ public:
 	bool getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const;
 
 	void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
-
+    QString notificationHeader() const;
+    QString notificationText() const;
+    
 	void updateMedia(const MTPMessageMedia &media) {
 		if (this->media) this->media->updateFrom(media);
 	}
@@ -1348,6 +1354,8 @@ public:
 	bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const;
 
 	void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
+    QString notificationText() const;
+
 	bool needCheck() const {
 		return false;
 	}
@@ -1402,6 +1410,8 @@ public:
 	int32 resize(int32 width);
 
 	void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
+    QString notificationText() const;
+
 	QString selectedText(uint32 selection) const {
 		return QString();
 	}

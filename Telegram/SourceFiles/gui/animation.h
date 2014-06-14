@@ -178,7 +178,7 @@ namespace anim {
 class Animated {
 public:
 
-	Animated() : animInProcess(false), animStarted(0) {
+	Animated() : animStarted(0), animInProcess(false) {
 	}
 
 	virtual bool animStep(float64 ms) = 0;

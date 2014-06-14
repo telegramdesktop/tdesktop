@@ -462,7 +462,7 @@ NewGroupBox::NewGroupBox() : _inner(), _hiding(false), _scroll(this, st::newGrou
 	connect(&_inner, SIGNAL(mustScrollTo(int,int)), &_scroll, SLOT(scrollToY(int,int)));
 
 	showAll();
-	_cache = grab(rect());
+	_cache = myGrab(this, rect());
 	hideAll();
 }
 
@@ -562,7 +562,7 @@ void NewGroupBox::animStep(float64 dt) {
 void NewGroupBox::startHide() {
 	_hiding = true;
 	if (_cache.isNull()) {
-		_cache = grab(rect());
+		_cache = myGrab(this, rect());
 		hideAll();
 	}
 	a_opacity.start(0);
@@ -617,7 +617,7 @@ CreateGroupBox::CreateGroupBox(const MTPVector<MTPInputUser> &users) : _users(us
 	resize(_width, _height);
 
 	showAll();
-	_cache = grab(rect());
+	_cache = myGrab(this, rect());
 	hideAll();
 }
 
@@ -754,7 +754,7 @@ void CreateGroupBox::onCancel() {
 void CreateGroupBox::startHide() {
 	_hiding = true;
 	if (_cache.isNull()) {
-		_cache = grab(rect());
+		_cache = myGrab(this, rect());
 		hideAll();
 	}
 	a_opacity.start(0);

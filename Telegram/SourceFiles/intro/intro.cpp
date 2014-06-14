@@ -122,14 +122,14 @@ void IntroWidget::onDoneStateChanged(int oldState, ButtonStateChangeSource sourc
 void IntroWidget::makeHideCache(int stage) {
 	if (stage < 0) stage = current;
 	int w = st::introSize.width(), h = st::introSize.height();
-	cacheForHide = stages[stage]->grab(QRect(st::introSlideShift, 0, w, h));
+	cacheForHide = myGrab(stages[stage], QRect(st::introSlideShift, 0, w, h));
 	cacheForHideInd = stage;
 }
 
 void IntroWidget::makeShowCache(int stage) {
 	if (stage < 0) stage = current + moving;
 	int w = st::introSize.width(), h = st::introSize.height();
-	cacheForShow = stages[stage]->grab(QRect(st::introSlideShift, 0, w, h));
+	cacheForShow = myGrab(stages[stage], QRect(st::introSlideShift, 0, w, h));
 	cacheForShowInd = stage;
 }
 
@@ -138,7 +138,7 @@ void IntroWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 
 	anim::stop(this);
 	stages[current]->show();
-	_animCache = grab(rect());
+	_animCache = myGrab(this, rect());
 
 	visibilityChanging = 1;
 	a_coord = back ? anim::ivalue(-st::introSlideShift, 0) : anim::ivalue(st::introSlideShift, 0);
@@ -213,9 +213,9 @@ void IntroWidget::paintEvent(QPaintEvent *e) {
 			p.drawPixmap(a_coord.current(), 0, _animCache);
 		} else {
 			p.setOpacity(cAlphaHide.current());
-			p.drawPixmap(stages[current]->x() + st::introSlideShift + xCoordHide.current(), stages[current]->y(), cacheForHide.width(), cacheForHide.height(), cacheForHide);
+			p.drawPixmap(stages[current]->x() + st::introSlideShift + xCoordHide.current(), stages[current]->y(), cacheForHide);
 			p.setOpacity(cAlphaShow.current());
-			p.drawPixmap(stages[current + moving]->x() + st::introSlideShift + xCoordShow.current(), stages[current + moving]->y(), cacheForShow.width(), cacheForShow.height(), cacheForShow);
+			p.drawPixmap(stages[current + moving]->x() + st::introSlideShift + xCoordShow.current(), stages[current + moving]->y(), cacheForShow);
 		}
 	}
 }

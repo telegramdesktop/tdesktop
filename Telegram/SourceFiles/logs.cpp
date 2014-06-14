@@ -70,6 +70,9 @@ void debugLogWrite(const char *file, int32 line, const QString &v) {
 #ifdef Q_OS_WIN
 		OutputDebugString(reinterpret_cast<const wchar_t *>(msg.utf16()));
 #endif
+#ifdef Q_OS_MAC
+        _outputDebugString(msg.toUtf8().constData());
+#endif
 	}
 }
 
@@ -113,6 +116,12 @@ void logWrite(const QString &v) {
 void logsInit() {
 	static _StreamCreator streamCreator;
 	if (mainLogStream) return;
+    
+#ifdef Q_OS_MAC
+    if (QDir(cWorkingDir()).absolutePath() == qsl("/")) {
+        cSetWorkingDir(cExeDir());
+    }
+#endif
 
 	QString oldDir = cWorkingDir();
 	mainLog.setFileName(cWorkingDir() + "log.txt");

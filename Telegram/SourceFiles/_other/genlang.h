@@ -35,6 +35,22 @@ using std::cout;
 using std::cerr;
 using std::exception;
 
+class Exception : public exception {
+public:
+    
+    Exception(const QString &msg) : _msg(msg) {
+	}
+    
+    virtual const char *what() const throw() {
+        return _msg.toUtf8().constData();
+    }
+    virtual ~Exception() throw() {
+    }
+    
+private:
+	QString _msg;
+};
+
 bool genLang(const QString &lang_in, const QString &lang_out);
 
 class GenLang : public QObject {

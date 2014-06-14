@@ -32,7 +32,7 @@ class Application : public PsApplication, public RPCSender {
 
 public:
 
-	Application(int argc, char *argv[]);
+	Application(int &argc, char **argv);
 	~Application();
 	
 	static Application *app();

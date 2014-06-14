@@ -96,17 +96,17 @@ QString scaleLabel(DBIScale scale) {
 }
 
 bool scaleIs(DBIScale scale) {
-	return cRealScale() == scale || cRealScale() == dbisAuto && cScreenScale() == scale;
+	return cRealScale() == scale || (cRealScale() == dbisAuto && cScreenScale() == scale);
 }
 
 SettingsInner::SettingsInner(Settings *parent) : QWidget(parent),
 	_self(App::self()),
 
 	// profile
-	_phoneText(_self ? App::formatPhone(_self->phone) : QString()),
-	_uploadPhoto(this, lang(lng_settings_upload), st::btnSetUpload),
-	_cancelPhoto(this, lang(lng_cancel)),
-	_nameOver(false), _photoOver(false), a_photo(0), _nameCache(_self ? _self->name : QString()),
+	_nameCache(_self ? _self->name : QString()),
+    _phoneText(_self ? App::formatPhone(_self->phone) : QString()),
+    _uploadPhoto(this, lang(lng_settings_upload), st::btnSetUpload),
+    _cancelPhoto(this, lang(lng_cancel)), _nameOver(false), _photoOver(false), a_photo(0),
 
 	// notifications
 	_desktopNotify(this, lang(lng_settings_desktop_notify), cDesktopNotify()),
@@ -1066,8 +1066,8 @@ void Settings::animShow(const QPixmap &bgAnimCache, bool back) {
 
 	anim::stop(this);
 	showAll();
-	_animCache = grab(rect());
-
+	_animCache = myGrab(this, rect());
+    
 	a_coord = back ? anim::ivalue(-st::introSlideShift, 0) : anim::ivalue(st::introSlideShift, 0);
 	a_alpha = anim::fvalue(0, 1);
 	a_bgCoord = back ? anim::ivalue(0, st::introSlideShift) : anim::ivalue(0, -st::introSlideShift);

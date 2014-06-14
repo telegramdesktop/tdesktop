@@ -686,6 +686,7 @@ void MTPautoConnection::httpSend(mtpBuffer &buffer) {
 
 	QNetworkRequest request(address);
 	request.setHeader(QNetworkRequest::ContentLengthHeader, QVariant(requestSize));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, QVariant(qsl("application/x-www-form-urlencoded")));
 
 	TCP_LOG(("HTTP Info: sending %1 len request %2").arg(requestSize).arg(mb(&buffer[2], requestSize).str()));
 	requests.insert(manager.post(request, QByteArray((const char*)(&buffer[2]), requestSize)));
@@ -945,6 +946,7 @@ void MTPhttpConnection::sendData(mtpBuffer &buffer) {
 
 	QNetworkRequest request(address);
 	request.setHeader(QNetworkRequest::ContentLengthHeader, QVariant(requestSize));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, QVariant(qsl("application/x-www-form-urlencoded")));
 
 	TCP_LOG(("HTTP Info: sending %1 len request %2").arg(requestSize).arg(mb(&buffer[2], requestSize).str()));
 	requests.insert(manager.post(request, QByteArray((const char*)(&buffer[2]), requestSize)));

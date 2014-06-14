@@ -25,7 +25,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "boxes/addcontactbox.h"
 #include "boxes/newgroupbox.h"
 
-DialogsListWidget::DialogsListWidget(QWidget *parent, MainWidget *main) : QWidget(parent), dialogs(false), contactsNoDialogs(true), contacts(true), contactSel(false), sel(0), filteredSel(-1), selByMouse(false) {
+DialogsListWidget::DialogsListWidget(QWidget *parent, MainWidget *main) : QWidget(parent),
+dialogs(false), contactsNoDialogs(true), contacts(true), sel(0), contactSel(false), selByMouse(false), filteredSel(-1) {
 	connect(main, SIGNAL(dialogToTop(const History::DialogLinks &)), this, SLOT(onDialogToTop(const History::DialogLinks &)));
 	connect(main, SIGNAL(peerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)), this, SLOT(onPeerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)));
 	connect(main, SIGNAL(peerPhotoChanged(PeerData *)), this, SLOT(onPeerPhotoChanged(PeerData *)));
@@ -84,6 +85,7 @@ void DialogsListWidget::mouseMoveEvent(QMouseEvent *e) {
 	lastMousePos = mapToGlobal(e->pos());
 	selByMouse = true;
 	onUpdateSelected(true);
+    repaint();
 }
 
 void DialogsListWidget::onUpdateSelected(bool force) {

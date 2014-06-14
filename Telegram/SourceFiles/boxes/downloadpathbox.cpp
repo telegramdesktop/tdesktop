@@ -42,7 +42,7 @@ DownloadPathBox::DownloadPathBox() : _hiding(false),
 	_dirInput.setCursorPosition(0);
 
 	showAll();
-	_cache = grab(rect());
+	_cache = myGrab(this, rect());
 	hideAll();
 }
 
@@ -182,7 +182,7 @@ void DownloadPathBox::onCancel() {
 void DownloadPathBox::startHide() {
 	_hiding = true;
 	if (_cache.isNull()) {
-		_cache = grab(rect());
+		_cache = myGrab(this, rect());
 		hideAll();
 	}
 	a_opacity.start(0);

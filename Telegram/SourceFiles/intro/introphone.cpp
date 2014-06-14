@@ -62,7 +62,7 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStage(parent), changed(false)
 	_signup.setLink(1, TextLinkPtr(new SignUpLink(this)));
 	_signup.hide();
 
-	_signupCache = _signup.grab(_signup.rect());
+	_signupCache = myGrab(&_signup, _signup.rect());
 
 	if (!country.onChooseCountry(intro()->currentCountry())) {
 		country.onChooseCountry(qsl("US"));

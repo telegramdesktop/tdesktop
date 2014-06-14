@@ -187,7 +187,7 @@ class PsApplication : public QApplication {
 
 public:
 
-	PsApplication(int argc, char *argv[]);
+	PsApplication(int &argc, char **argv);
 	void psInstallEventFilter();
 	~PsApplication();
 
@@ -246,7 +246,7 @@ QString psLocalServerPrefix();
 QString psCurrentCountry();
 QString psCurrentLanguage();
 QString psAppDataPath();
-QString psCurrentExeDirectory();
+QString psCurrentExeDirectory(int argc, char *argv[]);
 void psAutoStart(bool start, bool silent = false);
 
 int psCleanup();

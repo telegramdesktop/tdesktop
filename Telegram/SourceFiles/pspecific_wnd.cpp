@@ -1,3 +1,4 @@
+
 /*
 This file is part of Telegram Desktop,
 an unofficial desktop messaging app, see https://telegram.org
@@ -1878,7 +1879,7 @@ PsNotifyWindow::~PsNotifyWindow() {
 	if (App::wnd()) App::wnd()->psShowNextNotify(this);
 }
 
-PsApplication::PsApplication(int argc, char *argv[]) : QApplication(argc, argv) {
+PsApplication::PsApplication(int &argc, char **argv) : QApplication(argc, argv) {
 }
 
 void PsApplication::psInstallEventFilter() {
@@ -2444,12 +2445,12 @@ QString psAppDataPath() {
 	WCHAR wstrPath[maxFileLen];
 	if (GetEnvironmentVariable(L"APPDATA", wstrPath, maxFileLen)) {
 		QDir appData(QString::fromStdWString(std::wstring(wstrPath)));
-		return appData.absolutePath() + "/" + QString::fromWCharArray(AppName) + "/";
+		return appData.absolutePath() + '/' + QString::fromWCharArray(AppName) + '/';
 	}
 	return QString();
 }
 
-QString psCurrentExeDirectory() {
+QString psCurrentExeDirectory(int argc, char *argv[]) {
 	LPWSTR *args;
 	int argsCount;
 	args = CommandLineToArgvW(GetCommandLine(), &argsCount);

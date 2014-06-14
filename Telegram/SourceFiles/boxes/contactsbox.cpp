@@ -419,7 +419,7 @@ ContactsBox::ContactsBox() : _inner(), _hiding(false), _scroll(this, st::newGrou
 	connect(&_inner, SIGNAL(mustScrollTo(int,int)), &_scroll, SLOT(scrollToY(int,int)));
 
 	showAll();
-	_cache = grab(rect());
+	_cache = myGrab(this, rect());
 	hideAll();
 }
 
@@ -521,7 +521,7 @@ void ContactsBox::animStep(float64 dt) {
 void ContactsBox::startHide() {
 	_hiding = true;
 	if (_cache.isNull()) {
-		_cache = grab(rect());
+		_cache = myGrab(this, rect());
 		hideAll();
 	}
 	a_opacity.start(0);

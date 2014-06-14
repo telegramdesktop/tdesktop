@@ -65,9 +65,23 @@ RecentEmojiPreload gRecentEmojisPreload;
 
 QString gLangFile;
 
+bool gRetina = false;
+float64 gRetinaFactor = 1.;
+bool gCustomNotifies = false;
+
+#ifdef Q_OS_WIN
+DBIPlatform gPlatform = dbipWindows;
+#elif defined Q_OS_MAC
+DBIPlatform gPlatform = dbipMac;
+#elif defined Q_OS_LINUX
+DBIPlatform gPlatform = dbipLinux;
+#else
+#error Unknown platform
+#endif
+
 void settingsParseArgs(int argc, char *argv[]) {
-	gExeDir = psCurrentExeDirectory();
-	for (uint32 i = 0; i < argc; ++i) {
+	gExeDir = psCurrentExeDirectory(argc, argv);
+	for (int32 i = 0; i < argc; ++i) {
 		if (string("-release") == argv[i]) {
 			gTestMode = false;
 		} else if (string("-debug") == argv[i]) {

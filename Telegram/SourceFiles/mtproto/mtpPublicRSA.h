@@ -69,7 +69,7 @@ private:
 	}
 
 	struct mtpPublicRSAInner {
-		mtpPublicRSAInner(RSA *_prsa, uint64 _fp) : prsa(_prsa), fp(_fp), cnt(1) {
+		mtpPublicRSAInner(RSA *_prsa, uint64 _fp) : prsa(_prsa), cnt(1), fp(_fp) {
 		}
 		~mtpPublicRSAInner() {
 			RSA_free(prsa);

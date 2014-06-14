@@ -389,7 +389,7 @@ public:
 
 	void blockCreated() {
 		sumWidth += _t->_blocks.back()->f_width();
-		if (sumWidth.toInt() > stopAfterWidth) {
+		if (sumWidth.floor().toInt() > stopAfterWidth) {
 			sumFinished = true;
 		}
 	}
@@ -1187,8 +1187,8 @@ public:
 
 		QFixed x = _x;
 		if (_align & Qt::AlignHCenter) {
-			x += _wLeft.toInt() / 2;
-		} else if ((_align & Qt::AlignLeft) && _parDirection == Qt::RightToLeft || (_align & Qt::AlignRight) && _parDirection == Qt::LeftToRight) {
+			x += (_wLeft / 2).toInt();
+		} else if (((_align & Qt::AlignLeft) && _parDirection == Qt::RightToLeft) || ((_align & Qt::AlignRight) && _parDirection == Qt::LeftToRight)) {
 			x += _wLeft;
 		}
 
@@ -1475,16 +1475,13 @@ public:
 				return false;
 			} else if (_p) {
 				QTextCharFormat format;
-#ifdef Q_OS_WIN
 				QTextItemInt gf(glyphs.mid(glyphsStart, glyphsEnd - glyphsStart),
 								&_e->fnt, engine.layoutData->string.unicode() + itemStart,
 								itemEnd - itemStart, engine.fontEngine(si), format);
 				gf.logClusters = logClusters + itemStart - si.position;
 				gf.width = itemWidth;
 				gf.justified = false;
-                //TODO
 				gf.initWithScriptItem(si);
-#endif
 
 				if (_localFrom + itemStart < _selectedTo && _localFrom + itemEnd > _selectedFrom) {
 					QFixed selX = x, selWidth = itemWidth;
@@ -1526,10 +1523,7 @@ public:
 					_p->fillRect(QRectF(selX.toReal(), _y + _yDelta, selWidth.toReal(), _fontHeight), _textStyle->selectBG->b);
 				}
 
-#ifdef Q_OS_WIN
-                //TODO
 				_p->drawTextItem(QPointF(x.toReal(), textY), gf);
-#endif
 			}
 
 			x += itemWidth;

@@ -89,7 +89,7 @@ EmojiBox::EmojiBox() : _hiding(false),
 	resize(_width, _height);
 
 	showAll();
-	_cache = grab(rect());
+	_cache = myGrab(this, rect());
 	hideAll();
 }
 
@@ -186,7 +186,7 @@ void EmojiBox::onClose() {
 void EmojiBox::startHide() {
 	_hiding = true;
 	if (_cache.isNull()) {
-		_cache = grab(rect());
+		_cache = myGrab(this, rect());
 		hideAll();
 	}
 	a_opacity.start(0);

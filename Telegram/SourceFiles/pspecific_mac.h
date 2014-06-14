@@ -1,4 +1,23 @@
+/*
+This file is part of Telegram Desktop,
+an unofficial desktop messaging app, see https://telegram.org
+ 
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+ 
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+ 
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014 John Preston, https://tdesktop.com
+*/
 #pragma once
+
+#include "pspecific_mac_p.h"
 
 inline QString psServerPrefix() {
     return qsl("/tmp/");
@@ -10,44 +29,44 @@ inline void psCheckLocalSocket(const QString &serverName) {
 	}
 }
 
-/*
+
 class PsNotifyWindow : public QWidget, public Animated {
 	Q_OBJECT
-
+    
 public:
-
+    
 	PsNotifyWindow(HistoryItem *item, int32 x, int32 y);
-
+    
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void paintEvent(QPaintEvent *e);
-
+    
 	bool animStep(float64 ms);
 	void animHide(float64 duration, anim::transition func);
 	void startHiding();
 	void stopHiding();
 	void moveTo(int32 x, int32 y, int32 index = -1);
-
+    
 	void updatePeerPhoto();
-
+    
 	int32 index() const {
 		return history ? _index : -1;
 	}
-
+    
 	~PsNotifyWindow();
-
-public slots:
-
+    
+    public slots:
+    
 	void hideByTimer();
 	void checkLastInput();
-
+    
 	void unlinkHistory(History *hist = 0);
-
+    
 private:
-
-	DWORD started;
-
+    
+//	DWORD started;
+    
 	History *history;
 	IconedButton close;
 	QPixmap pm;
@@ -59,10 +78,19 @@ private:
 	anim::transition aOpacityFunc;
 	anim::ivalue aY;
 	ImagePtr peerPhoto;
-
+    
 };
 
-typedef QList<PsNotifyWindow*> PsNotifyWindows;*/
+typedef QList<PsNotifyWindow*> PsNotifyWindows;
+
+class MacPrivate : public PsMacWindowPrivate {
+public:
+    
+    void activeSpaceChanged();
+    void notifyClicked(unsigned long long peer);
+    void notifyReplied(unsigned long long peer, const char *str);
+    
+};
 
 class PsMainWindow : public QMainWindow {
 	Q_OBJECT
@@ -76,8 +104,6 @@ public:
 
 	void psInitFrameless();
 	void psInitSize();
-    //HWND psHwnd() const;
-    //HMENU psMenu() const;
 
 	void psFirstShow();
 	void psInitSysMenu();
@@ -88,9 +114,10 @@ public:
 	bool psHandleTitle();
 
 	void psFlash();
+    void psNotifySettingGot();
 
-	bool psIsActive() const;
-	bool psIsOnline(int windowState) const;
+	bool psIsActive(int state = -1) const;
+	bool psIsOnline(int state) const;
 
 	void psUpdateWorkmode();
 
@@ -99,18 +126,19 @@ public:
 		return false;
 	}
 
-    void psNotify(History *history);
+	void psNotify(History *history, MsgId msgId);
 	void psClearNotify(History *history = 0);
 	void psClearNotifyFast();
-    //void psShowNextNotify(PsNotifyWindow *remove = 0);
+	void psShowNextNotify(PsNotifyWindow *remove = 0);
+    void psActivateNotifies();
 	void psStopHiding();
 	void psStartHiding();
-    void psUpdateNotifies();
+	void psUpdateNotifies();
 
 	bool psPosInited() const {
 		return posInited;
 	}
-
+    
 	~PsMainWindow();
 
 public slots:
@@ -119,6 +147,7 @@ public slots:
 	void psUpdateCounter();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psIdleTimeout();
+	void psNotifyFire();
 
 protected:
 
@@ -128,23 +157,34 @@ protected:
     QImage icon16, icon32, icon256;
     virtual void setupTrayIcon() {
     }
-/*
-	typedef QSet<History*> NotifyHistories;
-	NotifyHistories notifyHistories;
+    
+	typedef QMap<MsgId, uint64> NotifyWhenMap;
+	typedef QMap<History*, NotifyWhenMap> NotifyWhenMaps;
+	NotifyWhenMaps notifyWhenMaps;
+	struct NotifyWaiter {
+		NotifyWaiter(MsgId msg, uint64 when) : msg(msg), when(when) {
+		}
+		MsgId msg;
+		uint64 when;
+	};
+	typedef QMap<History*, NotifyWaiter> NotifyWaiters;
+	NotifyWaiters notifyWaiters;
+	NotifyWaiters notifySettingWaiters;
+	QTimer notifyWaitTimer;
+    
+	typedef QSet<uint64> NotifyWhenAlert;
+	typedef QMap<History*, NotifyWhenAlert> NotifyWhenAlerts;
+	NotifyWhenAlerts notifyWhenAlerts;
+    
 	PsNotifyWindows notifyWindows;
 
-    QTimer psUpdatedPositionTimer;*/
+    QTimer psUpdatedPositionTimer;
 
-/*private:
-	HWND ps_hWnd;
-	HWND ps_tbHider_hWnd;
-	HMENU ps_menu;
-	HICON ps_iconBig, ps_iconSmall, ps_iconOverlay;
+private:
+    MacPrivate _private;
 
 	mutable bool psIdle;
 	mutable QTimer psIdleTimer;
-
-    void psDestroyIcons();*/
 };
 
 
@@ -153,7 +193,7 @@ class PsApplication : public QApplication {
 
 public:
 
-	PsApplication(int argc, char *argv[]);
+	PsApplication(int &argc, char **argv);
 	void psInstallEventFilter();
 	~PsApplication();
 
@@ -212,7 +252,7 @@ QString psLocalServerPrefix();
 QString psCurrentCountry();
 QString psCurrentLanguage();
 QString psAppDataPath();
-QString psCurrentExeDirectory();
+QString psCurrentExeDirectory(int argc, char *argv[]);
 void psAutoStart(bool start, bool silent = false);
 
 int psCleanup();

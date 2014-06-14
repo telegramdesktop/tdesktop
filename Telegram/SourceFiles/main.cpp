@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
 #endif
 
 	settingsParseArgs(argc, argv);
-	for (uint32 i = 0; i < argc; ++i) {
+	for (int32 i = 0; i < argc; ++i) {
 		if (string("-fixprevious") == argv[i]) {
 			return psFixPrevious();
 		} else if (string("-cleanup") == argv[i]) {

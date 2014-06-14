@@ -117,6 +117,7 @@ void Window::init() {
 	setWindowIcon(myIcon);
 
 	App::app()->installEventFilter(this);
+    connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(checkHistoryActivation()));
 
 	QPalette p(palette());
 	p.setColor(QPalette::Window, st::wndBG->c);
@@ -153,7 +154,7 @@ void Window::clearWidgets() {
 void Window::setupIntro(bool anim) {
 	if (intro && (intro->animating() || intro->isVisible()) && !main) return;
 
-	QPixmap bg = grab(QRect(0, st::titleHeight, width(), height() - st::titleHeight));
+	QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
 
 	clearWidgets();
 	intro = new IntroWidget(this);
@@ -172,7 +173,7 @@ void Window::getNotifySetting(const MTPInputNotifyPeer &peer, uint32 msWait) {
 }
 
 void Window::setupMain(bool anim) {
-	QPixmap bg = grab(QRect(0, st::titleHeight, width(), height() - st::titleHeight));
+	QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
 	clearWidgets();
 	main = new MainWidget(this);
 	main->move(0, st::titleHeight);
@@ -193,7 +194,7 @@ void Window::showSettings() {
 	if (settings) {
 		return hideSettings();
 	}
-	QPixmap bg = grab(QRect(0, st::titleHeight, width(), height() - st::titleHeight));
+	QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
 
 	if (intro) {
 		anim::stop(intro);
@@ -222,7 +223,7 @@ void Window::hideSettings(bool fast) {
 			main->show();
 		}
 	} else {
-		QPixmap bg = grab(QRect(0, st::titleHeight, width(), height() - st::titleHeight));
+		QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
 
 		anim::stop(settings);
 		settings->hide();
@@ -338,12 +339,12 @@ bool Window::layerShown() {
 	return !!layerBG || !!_topWidget;
 }
 
-bool Window::historyIsActive() const {
-	return psIsActive() && main && main->historyIsActive() && (!settings || !settings->isVisible());
+bool Window::historyIsActive(int state) const {
+    return psIsActive(state) && main && main->historyIsActive() && (!settings || !settings->isVisible());
 }
 
-void Window::checkHistoryActivation() {
-	if (main && MTP::authedId() && historyIsActive()) {
+void Window::checkHistoryActivation(int state) {
+	if (main && MTP::authedId() && historyIsActive(state)) {
 		main->historyWasRead();
 	}
 }
@@ -442,7 +443,7 @@ QRect Window::iconRect() const {
 
 bool Window::eventFilter(QObject *obj, QEvent *evt) {
 	if (obj == App::app() && (evt->type() == QEvent::ApplicationActivate)) {
-		checkHistoryActivation();
+        QTimer::singleShot(1, this, SLOT(checkHistoryActivation()));
 	}
 	return PsMainWindow::eventFilter(obj, evt);
 }
@@ -572,7 +573,7 @@ void Window::noTopWidget(QWidget *w) {
 
 void Window::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 	if (reason != QSystemTrayIcon::Context) {
-		activate();
+        activate();
 		setWindowIcon(myIcon);
 		psUpdateCounter();
 		if (App::main()) App::main()->setOnline(windowState());

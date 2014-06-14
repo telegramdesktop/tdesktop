@@ -1335,7 +1335,7 @@ void HistoryHider::mousePressEvent(QMouseEvent *e) {
 void HistoryHider::startHide() {
 	if (hiding) return;
 	hiding = true;
-	if (offered) cacheForAnim = grab(box);
+	if (offered) cacheForAnim = myGrab(this, box);
 	if (_forwardRequest) MTP::cancel(_forwardRequest);
 	aOpacity.start(0);
 	anim::start(this);
@@ -2028,10 +2028,10 @@ PeerData *HistoryWidget::activePeer() const {
 void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back) {
 	_bgAnimCache = bgAnimCache;
 	_bgAnimTopBarCache = bgAnimTopBarCache;
-	_animCache = grab(rect());
-	App::main()->topBar()->showAll();
-	_animTopBarCache = App::main()->topBar()->grab(QRect(0, 0, width(), st::topBarHeight));
-	App::main()->topBar()->hideAll();
+	_animCache = myGrab(this, rect());
+	App::main()->topBar()->stopAnim();
+	_animTopBarCache = myGrab(App::main()->topBar(), QRect(0, 0, width(), st::topBarHeight));
+	App::main()->topBar()->startAnim();
 	_scroll.hide();
 	_attachDocument.hide();
 	_attachPhoto.hide();
@@ -2057,7 +2057,7 @@ bool HistoryWidget::animStep(float64 ms) {
 		a_coord.finish();
 		a_alpha.finish();
 		_bgAnimCache = _animCache = _animTopBarCache = _bgAnimTopBarCache = QPixmap();
-		App::main()->topBar()->showAll();
+		App::main()->topBar()->stopAnim();
 		updateControlsVisibility();
 		if (hist && hist->unreadLoaded) {
 			_scroll.show();

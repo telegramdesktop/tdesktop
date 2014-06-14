@@ -17,8 +17,10 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #include "genstyles.h"
 
+#ifdef Q_OS_WIN
 #include <QtCore/QtPlugin>
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
+#endif
 
 enum ScalarType {
 	scNumber,
@@ -108,12 +110,12 @@ bool skipComment(const char *&from, const char *end) {
 }
 
 void readName(const char *&from, const char *end, string &token) {
-	if (from >= end) throw exception("Unexpected end of file!");
+	if (from >= end) throw Exception("Unexpected end of file!");
 
 	const char *start = from;
 	char ch = *from;
 	if (!((ch >= 'a' && ch <= 'z') || ((ch >= 'A') && (ch <= 'Z')))) {
-		throw exception("Unknown error :(");
+		throw Exception("Unknown error :(");
 	}
 	while (++from < end) {
 		ch = *from;
@@ -123,12 +125,12 @@ void readName(const char *&from, const char *end, string &token) {
 }
 
 void readString(const char *&from, const char *end, string &token) {
-	if (from + 1 >= end) throw exception("Unexpected end of file!");
+	if (from + 1 >= end) throw Exception("Unexpected end of file!");
 
 	token = "";
 	char border = *from;
 	if (border != '"' && border != '\'') {
-		throw exception("Unknown error :(");
+		throw Exception("Unknown error :(");
 	}
 
 	bool spec = false;
@@ -143,13 +145,13 @@ void readString(const char *&from, const char *end, string &token) {
 			} else if (*from == '\\' || *from == '"' || *from == '\'') {
 				token += *from;
 			} else {
-				throw exception(QString("Unexpected escaped character in string: %1").arg(*from).toUtf8().constData());
+				throw Exception(QString("Unexpected escaped character in string: %1").arg(*from));
 			}
 			spec = false;
 		} else {
 			token += *from;
 		}
-		if (++from >= end) throw exception("Unexpected end of file!");
+		if (++from >= end) throw Exception("Unexpected end of file!");
 	}
 	++from;
 }
@@ -162,20 +164,20 @@ char hexChar(char ch) {
 }
 
 void readColor(const char *&from, const char *end, string &token) {
-	if (from + 3 >= end) throw exception("Unexpected end of file!");
+	if (from + 3 >= end) throw Exception("Unexpected end of file!");
 
 	token.resize(8);
 
 	int len = 0;
 	for (const char *ch = from + 1; ch < end; ++ch) {
-		if (*ch >= '0' && *ch <= '9' || *ch >= 'A' && *ch <= 'F' || *ch >= 'a' && *ch <= 'f') {
+		if ((*ch >= '0' && *ch <= '9') || (*ch >= 'A' && *ch <= 'F') || (*ch >= 'a' && *ch <= 'f')) {
 			++len;
 		} else {
 			break;
 		}
 	}
 	if (len != 3 && len != 4 && len != 6 && len != 8) {
-		throw exception("Bad color token");
+		throw Exception("Bad color token");
 	}
 	if (len == 3 || len == 4) {
 		token[0] = token[1] = hexChar(*(++from));
@@ -204,21 +206,20 @@ void readColor(const char *&from, const char *end, string &token) {
 }
 
 void readNumber(const char *&from, const char *end, string &token) {
-	if (from >= end) throw exception("Unexpected end of file!");
+	if (from >= end) throw Exception("Unexpected end of file!");
 
 	bool neg = false;
 	if (*from == '-') {
 		neg = true;
-		if (++from >= end) throw exception("Unexpected end of file!");
+		if (++from >= end) throw Exception("Unexpected end of file!");
 	}
 
-	if (*from == '0' && from < end && *(from + 1) >= '0' && *(from + 1) <= '9') throw exception("Bad number token!");
+	if (*from == '0' && from < end && *(from + 1) >= '0' && *(from + 1) <= '9') throw Exception("Bad number token!");
 
-	bool wasDot = false;
 	token = neg ? "-" : "";
 	for (bool wasDot = false; from < end; ++from) {
 		if (*from == '.') {
-			if (wasDot) throw exception("Unexpected dot in number!");
+			if (wasDot) throw Exception("Unexpected dot in number!");
 			wasDot = true;
 		} else if (*from < '0' || *from > '9') {
 			break;
@@ -231,8 +232,8 @@ void readClassGenToken(const char *&from, const char *end, ClassGenTokenType &to
 	const char *start;
 	do {
 		start = from;
-		if (!skipWhitespaces(from, end)) throw exception("Unexpected end of file!");
-		if (!skipComment(from, end)) throw exception("Unexpected end of comment!");
+		if (!skipWhitespaces(from, end)) throw Exception("Unexpected end of file!");
+		if (!skipComment(from, end)) throw Exception("Unexpected end of comment!");
 	} while (start != from);
 
 	if ((*from >= 'a' && *from <= 'z') || ((*from >= 'A') && (*from <= 'Z'))) {
@@ -247,7 +248,7 @@ void readClassGenToken(const char *&from, const char *end, ClassGenTokenType &to
 	} else if (*from == '}') {
 		tokenType = csClassFinish;
 	} else {
-		throw exception("Could not parse token!");
+		throw Exception("Could not parse token!");
 	}
 	++from;
 	return;
@@ -289,7 +290,7 @@ bool genClasses(const QString &classes_in, const QString &classes_out) {
 				break;
 			}
 			if (type != csName) {
-				throw exception(QString("Unexpected token, type %1: %2").arg(type).arg(token.c_str()).toUtf8().constData());
+				throw Exception(QString("Unexpected token, type %1: %2").arg(type).arg(token.c_str()));
 			}
 
 			byIndex.push_back(ClassData());
@@ -298,14 +299,14 @@ bool genClasses(const QString &classes_in, const QString &classes_out) {
 			readClassGenToken(text, end, type, token);
 			if (type == csDelimeter) {
 				readClassGenToken(text, end, type, token);
-				if (type != csName) throw exception(QString("Unexpected token after '%1:', type %2").arg(cls.name.c_str()).arg(type).toUtf8().constData());
+				if (type != csName) throw Exception(QString("Unexpected token after '%1:', type %2").arg(cls.name.c_str()).arg(type));
 
 				QMap<string, int>::const_iterator i = byName.constFind(token);
-				if (i == byName.cend()) throw exception(QString("Parent class '%1' not found for class '%2'").arg(token.c_str()).arg(cls.name.c_str()).toUtf8().constData());
+				if (i == byName.cend()) throw Exception(QString("Parent class '%1' not found for class '%2'").arg(token.c_str()).arg(cls.name.c_str()));
 				cls.fields = byIndex[i.value()].fields;
 				readClassGenToken(text, end, type, token);
 			}
-			if (type != csClassStart) throw exception(QString("Unexpected token after '%1:%2', type %3").arg(cls.name.c_str()).arg(token.c_str()).arg(type).toUtf8().constData());
+			if (type != csClassStart) throw Exception(QString("Unexpected token after '%1:%2', type %3").arg(cls.name.c_str()).arg(token.c_str()).arg(type));
 
 			do {
 				string fname, ftype;
@@ -314,13 +315,13 @@ bool genClasses(const QString &classes_in, const QString &classes_out) {
 					byName.insert(cls.name, byIndex.size() - 1);
 					break;
 				}
-				if (type != csName) throw exception(QString("Unexpected token %1 while reading class '%2'").arg(type).arg(cls.name.c_str()).toUtf8().constData());
+				if (type != csName) throw Exception(QString("Unexpected token %1 while reading class '%2'").arg(type).arg(cls.name.c_str()));
 				readClassGenToken(text, end, type, token);
-				if (type != csDelimeter) throw exception(QString("Unexpected token %1 while reading field '%2' in class '%3'").arg(type).arg(fname.c_str()).arg(cls.name.c_str()).toUtf8().constData());
+				if (type != csDelimeter) throw Exception(QString("Unexpected token %1 while reading field '%2' in class '%3'").arg(type).arg(fname.c_str()).arg(cls.name.c_str()));
 				readClassGenToken(text, end, type, ftype);
-				if (type != csName) throw exception(QString("Unexpected token %1 while reading field '%2' in class '%3'").arg(type).arg(fname.c_str()).arg(cls.name.c_str()).toUtf8().constData());
+				if (type != csName) throw Exception(QString("Unexpected token %1 while reading field '%2' in class '%3'").arg(type).arg(fname.c_str()).arg(cls.name.c_str()));
 				readClassGenToken(text, end, type, token);
-				if (type != csFieldFinish) throw exception(QString("Unexpected token %1 while reading field '%2:%3' in class '%4'").arg(type).arg(fname.c_str()).arg(ftype.c_str()).arg(cls.name.c_str()).toUtf8().constData());
+				if (type != csFieldFinish) throw Exception(QString("Unexpected token %1 while reading field '%2:%3' in class '%4'").arg(type).arg(fname.c_str()).arg(ftype.c_str()).arg(cls.name.c_str()));
 
 				ScalarType typeIndex = scTypesCount;
 				for (int t = 0; t < scTypesCount; ++t) {
@@ -329,9 +330,9 @@ bool genClasses(const QString &classes_in, const QString &classes_out) {
 						break;
 					}
 				}
-				if (typeIndex == scTypesCount) throw exception(QString("Unknown field type %1 while reading field '%2' in class '%3'").arg(ftype.c_str()).arg(fname.c_str()).arg(cls.name.c_str()).toUtf8().constData());
+				if (typeIndex == scTypesCount) throw Exception(QString("Unknown field type %1 while reading field '%2' in class '%3'").arg(ftype.c_str()).arg(fname.c_str()).arg(cls.name.c_str()));
 				FieldTypesMap::const_iterator alr = cls.fields.find(fname);
-				if (alr != cls.fields.cend()) throw exception(QString("Redeclaration of field '%1' in class '%2'").arg(fname.c_str()).arg(cls.name.c_str()).toUtf8().constData());
+				if (alr != cls.fields.cend()) throw Exception(QString("Redeclaration of field '%1' in class '%2'").arg(fname.c_str()).arg(cls.name.c_str()));
 				cls.fields.insert(fname, typeIndex);
 			} while(true);
 		}
@@ -402,8 +403,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 			out.close();
 		}
 		cout << "Style classes compiled, writing " << byIndex.size() << " classes.\n";
-		if (!out.open(QIODevice::WriteOnly)) throw exception("Could not open style_classes.h for writing!");
-		if (out.write(outText) != outText.size()) throw exception("Could not open style_classes.h for writing!");
+		if (!out.open(QIODevice::WriteOnly)) throw Exception("Could not open style_classes.h for writing!");
+		if (out.write(outText) != outText.size()) throw Exception("Could not open style_classes.h for writing!");
 	} catch (exception &e) {
 		cout << e.what() << "\n";
 		QCoreApplication::exit(1);
@@ -439,8 +440,8 @@ void readStyleGenToken(const char *&from, const char *end, StyleGenTokenType &to
 	const char *start;
 	do {
 		start = from;
-		if (!skipWhitespaces(from, end)) throw exception("Unexpected end of file!");
-		if (!skipComment(from, end)) throw exception("Unexpected end of comment!");
+		if (!skipWhitespaces(from, end)) throw Exception("Unexpected end of file!");
+		if (!skipComment(from, end)) throw Exception("Unexpected end of comment!");
 	} while (start != from);
 
 	if ((*from >= 'a' && *from <= 'z') || ((*from >= 'A') && (*from <= 'Z'))) {
@@ -452,7 +453,7 @@ void readStyleGenToken(const char *&from, const char *end, StyleGenTokenType &to
 	} else if (*from == '#') {
 		tokenType = stColor;
 		return readColor(from, end, token);
-	} else if (*from == '.' || *from >= '0' && *from <= '9' || *from == '-') {
+	} else if (*from == '.' || (*from >= '0' && *from <= '9') || *from == '-') {
 		tokenType = stNumber;
 		return readNumber(from, end, token);
 	} else if (*from == ':') {
@@ -472,7 +473,7 @@ void readStyleGenToken(const char *&from, const char *end, StyleGenTokenType &to
 	} else if (*from == '/') {
 		tokenType = stVariant;
 	} else {
-		throw exception("Could not parse token!");
+		throw Exception("Could not parse token!");
 	}
 	++from;
 	return;
@@ -547,7 +548,7 @@ ScalarValue prepareString(int variant, const string &token) {
 	string result;
 	result.reserve(token.length() * 2);
 	result += "(qsl(\"";
-	for (int i = 0, l = token.length(); i < l; ++i) {
+	for (quint64 i = 0, l = token.length(); i < l; ++i) {
 		if (token[i] == '\n') {
 			result += "\\n";
 		} else if (token[i] == '\r') {
@@ -626,28 +627,28 @@ ScalarValue prepareColorRGB(int variant, const string &name, const char *&text, 
 	string token;
 	
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsStart) throw exception(QString("Unexpected token %1 while reading rgb() cons!").arg(type).toUtf8().constData());
+	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading rgb() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading rgb() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading rgb() cons!").arg(type));
 	string r = token;
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stComma) throw exception(QString("Unexpected token %1 while reading rgb() cons!").arg(type).toUtf8().constData());
+	if (type != stComma) throw Exception(QString("Unexpected token %1 while reading rgb() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading rgb() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading rgb() cons!").arg(type));
 	string g = token;
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stComma) throw exception(QString("Unexpected token %1 while reading rgb() cons!").arg(type).toUtf8().constData());
+	if (type != stComma) throw Exception(QString("Unexpected token %1 while reading rgb() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading rgb() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading rgb() cons!").arg(type));
 	string b = token;
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsFinish) throw exception(QString("Unexpected token %1 while reading rgb() cons!").arg(type).toUtf8().constData());
+	if (type != stConsFinish) throw Exception(QString("Unexpected token %1 while reading rgb() cons!").arg(type));
 
 	Color c;
 	c.color = QString("%1, %2, %3, 255").arg(r.c_str()).arg(g.c_str()).arg(b.c_str()).toUtf8().constData();
@@ -665,35 +666,35 @@ ScalarValue prepareColorRGBA(int variant, const string &name, const char *&text,
 	string token;
 	
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsStart) throw exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type).toUtf8().constData());
+	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type));
 	string r = token;
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stComma) throw exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type).toUtf8().constData());
+	if (type != stComma) throw Exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type));
 	string g = token;
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stComma) throw exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type).toUtf8().constData());
+	if (type != stComma) throw Exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type));
 	string b = token;
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stComma) throw exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type).toUtf8().constData());
+	if (type != stComma) throw Exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type));
 	string a = token;
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsFinish) throw exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type).toUtf8().constData());
+	if (type != stConsFinish) throw Exception(QString("Unexpected token %1 while reading rgba() cons!").arg(type));
 
 	Color c;
 	c.color = QString("%1, %2, %3, %4").arg(r.c_str()).arg(g.c_str()).arg(b.c_str()).arg(a.c_str()).toUtf8().constData();
@@ -711,39 +712,39 @@ ScalarValue prepareRect(int variant, const char *&text, const char *end) {
 	string token;
 	
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsStart) throw exception(QString("Unexpected token %1 while reading rect() cons!").arg(type).toUtf8().constData());
+	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading rect() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading rect() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading rect() cons!").arg(type));
 	string x = token;
 	bool xpx = readPxAfterNumber(text, end);
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stComma) throw exception(QString("Unexpected token %1 while reading rect() cons!").arg(type).toUtf8().constData());
+	if (type != stComma) throw Exception(QString("Unexpected token %1 while reading rect() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading rect() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading rect() cons!").arg(type));
 	string y = token;
 	bool ypx = readPxAfterNumber(text, end);
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stComma) throw exception(QString("Unexpected token %1 while reading rect() cons!").arg(type).toUtf8().constData());
+	if (type != stComma) throw Exception(QString("Unexpected token %1 while reading rect() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading rect() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading rect() cons!").arg(type));
 	string w = token;
 	bool wpx = readPxAfterNumber(text, end);
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stComma) throw exception(QString("Unexpected token %1 while reading rect() cons!").arg(type).toUtf8().constData());
+	if (type != stComma) throw Exception(QString("Unexpected token %1 while reading rect() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading rect() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading rect() cons!").arg(type));
 	string h = token;
 	bool hpx = readPxAfterNumber(text, end);
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsFinish) throw exception(QString("Unexpected token %1 while reading rect() cons!").arg(type).toUtf8().constData());
+	if (type != stConsFinish) throw Exception(QString("Unexpected token %1 while reading rect() cons!").arg(type));
 
 	ScalarValue r;
 	r[variant] = QString("(%1, %2, %3, %4)").arg(x.c_str()).arg(y.c_str()).arg(w.c_str()).arg(h.c_str()).toUtf8().constData();
@@ -762,42 +763,42 @@ ScalarValue prepareSprite(int variant, const char *&text, const char *end) {
 	StyleGenTokenType type;
 	string token;
 
-	if (variant) throw exception(QString("Unexpected variant in sprite rectangle!").toUtf8().constData());
+	if (variant) throw Exception(QString("Unexpected variant in sprite rectangle!"));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsStart) throw exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type).toUtf8().constData());
+	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type));
 	string x = token;
-	if (!readPxAfterNumber(text, end)) throw exception(QString("All number in sprite() cons must be in px!").toUtf8().constData());
+	if (!readPxAfterNumber(text, end)) throw Exception(QString("All number in sprite() cons must be in px!"));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stComma) throw exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type).toUtf8().constData());
+	if (type != stComma) throw Exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type));
 	string y = token;
-	if (!readPxAfterNumber(text, end)) throw exception(QString("All number in sprite() cons must be in px!").toUtf8().constData());
+	if (!readPxAfterNumber(text, end)) throw Exception(QString("All number in sprite() cons must be in px!"));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stComma) throw exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type).toUtf8().constData());
+	if (type != stComma) throw Exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type));
 	string w = token;
-	if (!readPxAfterNumber(text, end)) throw exception(QString("All number in sprite() cons must be in px!").toUtf8().constData());
+	if (!readPxAfterNumber(text, end)) throw Exception(QString("All number in sprite() cons must be in px!"));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stComma) throw exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type).toUtf8().constData());
+	if (type != stComma) throw Exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type));
 	string h = token;
-	if (!readPxAfterNumber(text, end)) throw exception(QString("All number in sprite() cons must be in px!").toUtf8().constData());
+	if (!readPxAfterNumber(text, end)) throw Exception(QString("All number in sprite() cons must be in px!"));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsFinish) throw exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type).toUtf8().constData());
+	if (type != stConsFinish) throw Exception(QString("Unexpected token %1 while reading sprite() cons!").arg(type));
 
 	ScalarValue r;
 	r[variant] = QString("(%1, %2, %3, %4)").arg(x.c_str()).arg(y.c_str()).arg(w.c_str()).arg(h.c_str()).toUtf8().constData();
@@ -816,14 +817,14 @@ ScalarValue prepareSprite(int variant, const char *&text, const char *end) {
 		}
 		if (i->first.intersects(sprite)) {
 			cout << QString("Sprites intersection, %1 intersects with %2").arg(i->second).arg(r[variant].c_str()).toUtf8().constData() << "\n";
-//			throw exception(QString("Sprites intersection, %1 intersects with %2").arg(i->second).arg(r[variant].c_str()).toUtf8().constData());
+//			throw Exception(QString("Sprites intersection, %1 intersects with %2").arg(i->second).arg(r[variant].c_str()));
 		}
 	}
 	if (!found) {
 		sprites.push_back(QPair<QRect, QString>(sprite, QString(r[variant].c_str())));
 
 		if (sprite.x() < 0 || sprite.y() < 0 || sprite.x() + sprite.width() > variantSprites[0].width() || sprite.y() + sprite.height() > variantSprites[0].height()) {
-			throw exception(QString("Bad sprite size %1").arg(r[variant].c_str()).toUtf8().constData());
+			throw Exception(QString("Bad sprite size %1").arg(r[variant].c_str()));
 		}
 
 		int varLast = variants[variantsCount - 1];
@@ -850,23 +851,23 @@ ScalarValue preparePoint(int variant, const char *&text, const char *end) {
 	string token;
 	
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsStart) throw exception(QString("Unexpected token %1 while reading point() cons!").arg(type).toUtf8().constData());
+	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading point() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading point() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading point() cons!").arg(type));
 	string x = token;
 	bool xpx = readPxAfterNumber(text, end);
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stComma) throw exception(QString("Unexpected token %1 while reading point() cons!").arg(type).toUtf8().constData());
+	if (type != stComma) throw Exception(QString("Unexpected token %1 while reading point() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading point() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading point() cons!").arg(type));
 	string y = token;
 	bool ypx = readPxAfterNumber(text, end);
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsFinish) throw exception(QString("Unexpected token %1 while reading point() cons!").arg(type).toUtf8().constData());
+	if (type != stConsFinish) throw Exception(QString("Unexpected token %1 while reading point() cons!").arg(type));
 
 	ScalarValue r;
 	r[variant] = QString("(%1, %2)").arg(x.c_str()).arg(y.c_str()).toUtf8().constData();
@@ -883,23 +884,23 @@ ScalarValue prepareSize(int variant, const char *&text, const char *end) {
 	string token;
 	
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsStart) throw exception(QString("Unexpected token %1 while reading size() cons!").arg(type).toUtf8().constData());
+	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading size() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading size() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading size() cons!").arg(type));
 	string x = token;
 	bool xpx = readPxAfterNumber(text, end);
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stComma) throw exception(QString("Unexpected token %1 while reading size() cons!").arg(type).toUtf8().constData());
+	if (type != stComma) throw Exception(QString("Unexpected token %1 while reading size() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading size() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading size() cons!").arg(type));
 	string y = token;
 	bool ypx = readPxAfterNumber(text, end);
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsFinish) throw exception(QString("Unexpected token %1 while reading size() cons!").arg(type).toUtf8().constData());
+	if (type != stConsFinish) throw Exception(QString("Unexpected token %1 while reading size() cons!").arg(type));
 
 	ScalarValue r;
 	r[variant] = QString("(%1, %2)").arg(x.c_str()).arg(y.c_str()).toUtf8().constData();
@@ -916,14 +917,14 @@ ScalarValue prepareTransition(int variant, const char *&text, const char *end) {
 	string token;
 	
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsStart) throw exception(QString("Unexpected token %1 while reading transition() cons!").arg(type).toUtf8().constData());
+	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading transition() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stName) throw exception(QString("Unexpected token %1 while reading transition() cons!").arg(type).toUtf8().constData());
+	if (type != stName) throw Exception(QString("Unexpected token %1 while reading transition() cons!").arg(type));
 	string func = token;
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsFinish) throw exception(QString("Unexpected token %1 while reading transition() cons!").arg(type).toUtf8().constData());
+	if (type != stConsFinish) throw Exception(QString("Unexpected token %1 while reading transition() cons!").arg(type));
 
 	return fillPrepareResult(variant, QString("(anim::%1)").arg(func.c_str()).toUtf8().constData());
 }
@@ -933,14 +934,14 @@ ScalarValue prepareCursor(int variant, const char *&text, const char *end) {
 	string token;
 	
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsStart) throw exception(QString("Unexpected token %1 while reading cursor() cons!").arg(type).toUtf8().constData());
+	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading cursor() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stName) throw exception(QString("Unexpected token %1 while reading cursor() cons!").arg(type).toUtf8().constData());
+	if (type != stName) throw Exception(QString("Unexpected token %1 while reading cursor() cons!").arg(type));
 	string func = token;
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsFinish) throw exception(QString("Unexpected token %1 while reading cursor() cons!").arg(type).toUtf8().constData());
+	if (type != stConsFinish) throw Exception(QString("Unexpected token %1 while reading cursor() cons!").arg(type));
 
 	return fillPrepareResult(variant, QString("(style::cur_%1)").arg(func.c_str()).toUtf8().constData());
 }
@@ -950,14 +951,14 @@ ScalarValue prepareAlign(int variant, const char *&text, const char *end) {
 	string token;
 	
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsStart) throw exception(QString("Unexpected token %1 while reading align() cons!").arg(type).toUtf8().constData());
+	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading align() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stName) throw exception(QString("Unexpected token %1 while reading align() cons!").arg(type).toUtf8().constData());
+	if (type != stName) throw Exception(QString("Unexpected token %1 while reading align() cons!").arg(type));
 	string func = token;
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsFinish) throw exception(QString("Unexpected token %1 while reading align() cons!").arg(type).toUtf8().constData());
+	if (type != stConsFinish) throw Exception(QString("Unexpected token %1 while reading align() cons!").arg(type));
 
 	return fillPrepareResult(variant, QString("(style::al_%1)").arg(func.c_str()).toUtf8().constData());
 }
@@ -967,39 +968,39 @@ ScalarValue prepareMargins(int variant, const char *&text, const char *end) {
 	string token;
 	
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsStart) throw exception(QString("Unexpected token %1 while reading margins() cons!").arg(type).toUtf8().constData());
+	if (type != stConsStart) throw Exception(QString("Unexpected token %1 while reading margins() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading margins() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading margins() cons!").arg(type));
 	string x = token;
 	bool xpx = readPxAfterNumber(text, end);
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stComma) throw exception(QString("Unexpected token %1 while reading margins() cons!").arg(type).toUtf8().constData());
+	if (type != stComma) throw Exception(QString("Unexpected token %1 while reading margins() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading margins() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading margins() cons!").arg(type));
 	string y = token;
 	bool ypx = readPxAfterNumber(text, end);
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stComma) throw exception(QString("Unexpected token %1 while reading margins() cons!").arg(type).toUtf8().constData());
+	if (type != stComma) throw Exception(QString("Unexpected token %1 while reading margins() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading margins() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading margins() cons!").arg(type));
 	string w = token;
 	bool wpx = readPxAfterNumber(text, end);
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stComma) throw exception(QString("Unexpected token %1 while reading margins() cons!").arg(type).toUtf8().constData());
+	if (type != stComma) throw Exception(QString("Unexpected token %1 while reading margins() cons!").arg(type));
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stNumber) throw exception(QString("Unexpected token %1 while reading margins() cons!").arg(type).toUtf8().constData());
+	if (type != stNumber) throw Exception(QString("Unexpected token %1 while reading margins() cons!").arg(type));
 	string h = token;
 	bool hpx = readPxAfterNumber(text, end);
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsFinish) throw exception(QString("Unexpected token %1 while reading margins() cons!").arg(type).toUtf8().constData());
+	if (type != stConsFinish) throw Exception(QString("Unexpected token %1 while reading margins() cons!").arg(type));
 
 	ScalarValue r;
 	r[variant] = QString("(%1, %2, %3, %4)").arg(x.c_str()).arg(y.c_str()).arg(w.c_str()).arg(h.c_str()).toUtf8().constData();
@@ -1046,7 +1047,7 @@ ScalarValue prepareFont(int variant, const string &name, const char *&text, cons
 	bool sizepx;
 
 	readStyleGenToken(text, end, type, token);
-	if (type != stConsStart) throw exception(QString("Unexpected token %1 (%2) while reading font() cons!").arg(type).arg(token.c_str()).toUtf8().constData());
+	if (type != stConsStart) throw Exception(QString("Unexpected token %1 (%2) while reading font() cons!").arg(type).arg(token.c_str()));
 
 	do {
 		readStyleGenToken(text, end, type, token);
@@ -1055,7 +1056,7 @@ ScalarValue prepareFont(int variant, const string &name, const char *&text, cons
 				size = token;
 				sizepx = readPxAfterNumber(text, end);
 			} else {
-				throw exception(QString("Unexpected second number %1 while reading font() cons!").arg(token.c_str()).toUtf8().constData());
+				throw Exception(QString("Unexpected second number %1 while reading font() cons!").arg(token.c_str()));
 			}
 		} else if (type == stName) {
 			int bit = 0;
@@ -1073,38 +1074,38 @@ ScalarValue prepareFont(int variant, const string &name, const char *&text, cons
 							sizeScalar = scalars[j.value()].second.second;
 //							size = findScalarVariant(scalars[j.value()].second.second, variant);
 						} else {
-							throw exception(QString("Unexpected second number %1 while reading font() cons!").arg(token.c_str()).toUtf8().constData());
+							throw Exception(QString("Unexpected second number %1 while reading font() cons!").arg(token.c_str()));
 						}
 					} else if (scalars[j.value()].second.first == scString) {
 						if (scalars[j.value()].second.second.empty()) {
-							throw exception(QString("Unexpected empty string %1 while reading font() cons!").arg(token.c_str()).toUtf8().constData());
+							throw Exception(QString("Unexpected empty string %1 while reading font() cons!").arg(token.c_str()));
 						} else if (!family.empty() || !familyScalar.empty()) {
-							throw exception(QString("Unexpected second string %1 while reading font() cons!").arg(token.c_str()).toUtf8().constData());
+							throw Exception(QString("Unexpected second string %1 while reading font() cons!").arg(token.c_str()));
 						}
 						familyScalar = scalars[j.value()].second.second;
 //						family = findScalarVariant(scalars[j.value()].second.second, variant);
 					} else {
-						throw exception(QString("Unexpected name token %1 type %2 while reading font() cons!").arg(token.c_str()).arg(scalars[j.value()].second.first).toUtf8().constData());
+						throw Exception(QString("Unexpected name token %1 type %2 while reading font() cons!").arg(token.c_str()).arg(scalars[j.value()].second.first));
 					}
 				} else {
-					throw exception(QString("Unexpected name token %1 while reading font() cons!").arg(token.c_str()).toUtf8().constData());
+					throw Exception(QString("Unexpected name token %1 while reading font() cons!").arg(token.c_str()));
 				}
 			}
 			if (flags & bit) {
-				throw exception(QString("Unexpected second time token %1 while reading font() cons!").arg(token.c_str()).toUtf8().constData());
+				throw Exception(QString("Unexpected second time token %1 while reading font() cons!").arg(token.c_str()));
 			}
 			flags |= bit;
 		} else if (type == stString) {
 			if (token.empty()) {
-				throw exception(QString("Unexpected empty string while reading font() cons!").toUtf8().constData());
+				throw Exception(QString("Unexpected empty string while reading font() cons!"));
 			} else if (!family.empty() || !familyScalar.empty()) {
-				throw exception(QString("Unexpected second string %1 while reading font() cons!").arg(token.c_str()).toUtf8().constData());
+				throw Exception(QString("Unexpected second string %1 while reading font() cons!").arg(token.c_str()));
 			}
 			family = token;
 		} else if (type == stConsFinish) {
 			break;
 		} else {
-			throw exception(QString("Unexpected token %1 while reading font() cons!").arg(type).toUtf8().constData());
+			throw Exception(QString("Unexpected token %1 while reading font() cons!").arg(type));
 		}
 	} while (true);
 
@@ -1113,20 +1114,20 @@ ScalarValue prepareFont(int variant, const string &name, const char *&text, cons
 		if (j != scalarsMap.cend()) {
 			if (scalars[j.value()].second.first == scString) {
 				if (scalars[j.value()].second.second.empty()) {
-					throw exception(QString("Unexpected empty string %1 while reading font() cons!").arg(token.c_str()).toUtf8().constData());
+					throw Exception(QString("Unexpected empty string %1 while reading font() cons!").arg(token.c_str()));
 				} else if (!family.empty() || !familyScalar.isEmpty()) {
-					throw exception(QString("Unexpected second string %1 while reading font() cons!").arg(token.c_str()).toUtf8().constData());
+					throw Exception(QString("Unexpected second string %1 while reading font() cons!").arg(token.c_str()));
 				}
 //				family = findScalarVariant(scalars[j.value()].second.second, variant);
 				familyScalar = scalars[j.value()].second.second;
 			} else {
-				throw exception(QString("Font family not found while reading font() cons!").toUtf8().constData());
+				throw Exception(QString("Font family not found while reading font() cons!"));
 			}
 		} else {
-			throw exception(QString("Font family not found while reading font() cons!").toUtf8().constData());
+			throw Exception(QString("Font family not found while reading font() cons!"));
 		}
 	}
-	if (size.empty() && sizeScalar.isEmpty()) throw exception(QString("Font size not found while reading font() cons!").toUtf8().constData());
+	if (size.empty() && sizeScalar.isEmpty()) throw Exception(QString("Font size not found while reading font() cons!"));
 
 	Font font;
 	font.family = familyScalar.empty() ? family : findScalarVariant(familyScalar, variant);
@@ -1232,7 +1233,7 @@ ScalarData readScalarElement(string name, const char *&text, const char *end, st
 			}
 		}
 	} else {
-		throw exception(QString("Unexpected token after '%1:', type %2").arg(name.c_str()).arg(type).toUtf8().constData());
+		throw Exception(QString("Unexpected token after '%1:', type %2").arg(name.c_str()).arg(type));
 	}
 	return result;
 }
@@ -1240,21 +1241,21 @@ ScalarData readScalarElement(string name, const char *&text, const char *end, st
 
 Scalar readScalarData(StyleGenTokenType &type, string &token, const char *&text, const char *end, string objName = string(), const Fields *objFields = 0) {
 	if (type != stName) {
-		throw exception(QString("Unexpected token, type %1: %2").arg(type).arg(token.c_str()).toUtf8().constData());
+		throw Exception(QString("Unexpected token, type %1: %2").arg(type).arg(token.c_str()));
 	}
 
 	string name = token;
 	if (!objFields) {
 		ByName::const_iterator i = objectsMap.constFind(name);
-		if (i != objectsMap.cend()) throw exception(QString("Redefinition of style object %1").arg(name.c_str()).toUtf8().constData());
+		if (i != objectsMap.cend()) throw Exception(QString("Redefinition of style object %1").arg(name.c_str()));
 
 		ByName::const_iterator j = scalarsMap.constFind(name);
-		if (j != scalarsMap.cend()) throw exception(QString("Redefinition of style scalar %1").arg(name.c_str()).toUtf8().constData());
+		if (j != scalarsMap.cend()) throw Exception(QString("Redefinition of style scalar %1").arg(name.c_str()));
 	}
 
 	readStyleGenToken(text, end, type, token);
 	if (type != stDelimeter) {
-		throw exception(QString("Unexpected token, type %1: %2").arg(type).arg(token.c_str()).toUtf8().constData());
+		throw Exception(QString("Unexpected token, type %1: %2").arg(type).arg(token.c_str()));
 	}
 
 	string fullName = objFields ? (objName + '.' + name) : name;
@@ -1266,19 +1267,19 @@ Scalar readScalarData(StyleGenTokenType &type, string &token, const char *&text,
 	while (type == stVariant) {
 		readStyleGenToken(text, end, type, token);
 		if (type != stNumber) {
-			throw exception(QString("Unexpected token '%1' reading variants of '%2' scalar").arg(token.c_str()).arg(name.c_str()).toUtf8().constData());
+			throw Exception(QString("Unexpected token '%1' reading variants of '%2' scalar").arg(token.c_str()).arg(name.c_str()));
 		}
 		int variant = QString(token.c_str()).toInt();
 		if (variant != 2 && variant != 3 && variant != 4) {
-			throw exception(QString("Unexpected variant index '%1' in '%2' scalar").arg(token.c_str()).arg(name.c_str()).toUtf8().constData());
+			throw Exception(QString("Unexpected variant index '%1' in '%2' scalar").arg(token.c_str()).arg(name.c_str()));
 		}
 		readStyleGenToken(text, end, type, token);
 		if (type != stDelimeter) {
-			throw exception(QString("Unexpected token '%1' reading variants of '%2' scalar, expected delimeter").arg(token.c_str()).arg(name.c_str()).toUtf8().constData());
+			throw Exception(QString("Unexpected token '%1' reading variants of '%2' scalar, expected delimeter").arg(token.c_str()).arg(name.c_str()));
 		}
 		ScalarData el = readScalarElement(name, text, end, objName, objFields, variant);
 		if (el.first != result.second.first) {
-			throw exception(QString("Type changed in variant for '%1'").arg(name.c_str()).toUtf8().constData());
+			throw Exception(QString("Type changed in variant for '%1'").arg(name.c_str()));
 		}
 		result.second.second.insert(variant, el.second[variant]);
 
@@ -1290,7 +1291,7 @@ Scalar readScalarData(StyleGenTokenType &type, string &token, const char *&text,
 string prepareObject(const string &cls, Fields fields, const string &obj, int variant) {
 	string result = "(";
 	Classes::const_iterator i = classes.constFind(cls);
-	if (i == classes.cend()) throw exception("Unknown error :(");
+	if (i == classes.cend()) throw Exception("Unknown error :(");
 
 	for (FieldTypesMap::const_iterator j = i.value().fields.cbegin(), e = i.value().fields.cend(); j != e;) {
 		result += "style::" + outputTypeNames[j.value()];
@@ -1299,7 +1300,7 @@ string prepareObject(const string &cls, Fields fields, const string &obj, int va
 		if (f == fields.end()) {
 			result += "()";
 		} else if (f.value().first != j.value()) {
-			throw exception(QString("Bad type of field %1 while parsing %2").arg(j.key().c_str()).arg(obj.c_str()).toUtf8().constData());
+			throw Exception(QString("Bad type of field %1 while parsing %2").arg(j.key().c_str()).arg(obj.c_str()));
 		} else {
 			result += findScalarVariant(f.value().second, variant);
 		}
@@ -1310,13 +1311,13 @@ string prepareObject(const string &cls, Fields fields, const string &obj, int va
 	}
 
 	if (fields.size()) {
-		throw exception(QString("Unknown fields found in %1, for example %2").arg(obj.c_str()).arg(fields.begin().key().c_str()).toUtf8().constData());
+		throw Exception(QString("Unknown fields found in %1, for example %2").arg(obj.c_str()).arg(fields.begin().key().c_str()));
 	}
 
 	return result + ", Qt::Uninitialized)";
 }
 
-bool genStyles(const QString &classes_in, const QString &classes_out, const QString &styles_in, const QString &styles_out) {
+bool genStyles(const QString &classes_in, const QString &classes_out, const QString &styles_in, const QString &styles_out, const QString &path_to_sprites) {
 	if (!genClasses(classes_in, classes_out)) return false;
 
 	QString styles_cpp = QString(styles_out).replace(".h", ".cpp");
@@ -1336,7 +1337,7 @@ bool genStyles(const QString &classes_in, const QString &classes_out, const QStr
 	QImage sprites[variantsCount];
 	variantSprites = sprites;
 
-	QString sprite0("./SourceFiles/art/sprite" + QString(variantPostfixes[0]) + ".png"), spriteLast("./SourceFiles/art/sprite" + QString(variantPostfixes[variantsCount - 1]) + ".png");
+	QString sprite0(path_to_sprites + "sprite" + QString(variantPostfixes[0]) + ".png"), spriteLast(path_to_sprites + "sprite" + QString(variantPostfixes[variantsCount - 1]) + ".png");
 	variantSprites[0] = QImage(sprite0);
 	for (int i = 1; i < variantsCount - 1; ++i) {
 		variantSprites[i] = QImage(adjustPx(variants[i], variantSprites[0].width(), true), adjustPx(variants[i], variantSprites[0].height(), true), QImage::Format_ARGB32_Premultiplied);
@@ -1400,7 +1401,7 @@ bool genStyles(const QString &classes_in, const QString &classes_out, const QStr
 			if (scalar.second.first != scTypesCount) {
 				scalarsMap.insert(scalar.first, scalars.size());
 				scalars.push_back(scalar);
-				if (type != stFieldFinish) throw exception(QString("Unexpected token after scalar %1, type %2").arg(name.c_str()).arg(type).toUtf8().constData());
+				if (type != stFieldFinish) throw Exception(QString("Unexpected token after scalar %1, type %2").arg(name.c_str()).arg(type));
 				continue;
 			}
 
@@ -1411,19 +1412,19 @@ bool genStyles(const QString &classes_in, const QString &classes_out, const QStr
 			obj.second.first = objType;
 
 			Classes::const_iterator c = classes.constFind(objType);
-			if (c == classes.cend()) throw exception(QString("Unknown type %1 used for object %2").arg(objType.c_str()).arg(name.c_str()).toUtf8().constData());
+			if (c == classes.cend()) throw Exception(QString("Unknown type %1 used for object %2").arg(objType.c_str()).arg(name.c_str()));
 			if (type == stConsStart) {
 				do {
 					readStyleGenToken(text, end, type, token);
 					string parent = token;
-					if (type != stName) throw exception(QString("Unexpected token %1 while parsing object %2").arg(type).arg(name.c_str()).toUtf8().constData());
+					if (type != stName) throw Exception(QString("Unexpected token %1 while parsing object %2").arg(type).arg(name.c_str()));
 
 					ByName::const_iterator p = objectsMap.constFind(parent);
-					if (p == objectsMap.cend()) throw exception(QString("Parent object %1 not found, while parsing object %2").arg(parent.c_str()).arg(name.c_str()).toUtf8().constData());
+					if (p == objectsMap.cend()) throw Exception(QString("Parent object %1 not found, while parsing object %2").arg(parent.c_str()).arg(name.c_str()));
 
 					const ObjectData &alr(objects[p.value()].second);
 					for (Fields::const_iterator f = alr.second.cbegin(), e = alr.second.cend(); f != e; ++f) {
-						Fields::const_iterator a = obj.second.second.constFind(f.key());
+//						Fields::const_iterator a = obj.second.second.constFind(f.key());
 //						if (a == obj.second.second.cend()) {
 							obj.second.second.insert(f.key(), f.value());
 							if (f.value().first == scFont) {
@@ -1440,11 +1441,11 @@ bool genStyles(const QString &classes_in, const QString &classes_out, const QStr
 
 					readStyleGenToken(text, end, type, token);
 					if (type == stConsFinish) break;
-					if (type != stComma) throw exception(QString("Unexpected token %1, expected , or ) while parsing object %2").arg(type).arg(name.c_str()).toUtf8().constData());
+					if (type != stComma) throw Exception(QString("Unexpected token %1, expected , or ) while parsing object %2").arg(type).arg(name.c_str()));
 				} while (true);
 				readStyleGenToken(text, end, type, token);
 			}
-			if (type != stObjectStart) throw exception(QString("Unexpected token %1, expected { while parsing object %2").arg(type).arg(name.c_str()).toUtf8().constData());
+			if (type != stObjectStart) throw Exception(QString("Unexpected token %1, expected { while parsing object %2").arg(type).arg(name.c_str()));
 
 			while (true) {
 				readStyleGenToken(text, end, type, token);
@@ -1459,11 +1460,11 @@ bool genStyles(const QString &classes_in, const QString &classes_out, const QStr
 				}
 
 				Scalar scalar = readScalarData(type, token, text, end, name, &obj.second.second);
-				if (scalar.second.first == scTypesCount) throw exception(QString("Unexpected type name %1 while parsing object %2").arg(scalar.second.second[0].c_str()).arg(name.c_str()).toUtf8().constData());
+				if (scalar.second.first == scTypesCount) throw Exception(QString("Unexpected type name %1 while parsing object %2").arg(scalar.second.second[0].c_str()).arg(name.c_str()));
 
 				obj.second.second.insert(scalar.first, scalar.second);
 
-				if (type != stFieldFinish) throw exception(QString("Unexpected token after scalar %1 in object %2, type %3").arg(scalar.first.c_str()).arg(name.c_str()).arg(type).toUtf8().constData());
+				if (type != stFieldFinish) throw Exception(QString("Unexpected token after scalar %1 in object %2, type %3").arg(scalar.first.c_str()).arg(name.c_str()).arg(type));
 			}
 		}
 
@@ -1559,7 +1560,6 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 
 				typedef QMap<string, int> FontFamilies;
 				FontFamilies fontFamilies;
-				int familyIndex = 0;
 
 				for (int i = 0, l = scalars.size(); i < l; ++i) {
 					Scalar &sc(scalars[i]);
@@ -1603,7 +1603,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 					bool found = false;
 					for (Named::iterator i = nmd.begin(), e = nmd.end(); i != e; ++i) {
 						if (i.key() == i.value().second) {
-							throw exception(QString("Object '%1' is equal to itself!").arg(i.key().c_str()).toUtf8().constData());
+							throw Exception(QString("Object '%1' is equal to itself!").arg(i.key().c_str()));
 						}
 						Named::const_iterator j = nmd.constFind(i.value().second);
 						if (j != nmd.cend()) {
@@ -1629,16 +1629,16 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 				if (j != scalarsMap.cend()) {
 					if (scalars[j.value()].second.first == scString) {
 						if (scalars[j.value()].second.second.empty()) {
-							throw exception(QString("Unexpected empty string in defaultFontFamily!").arg(token.c_str()).toUtf8().constData());
+							throw Exception(QString("Unexpected empty string in defaultFontFamily!").arg(token.c_str()));
 						}
 						string v = findScalarVariant(scalars[j.value()].second.second, variant);
 						tcpp << "\t\t\t_fontFamilies.push_back" << v.c_str() << ";\n";
 						fontFamilies.insert(v, familyIndex++);
 					} else {
-						throw exception(QString("defaultFontFamily has bad type!").toUtf8().constData());
+						throw Exception(QString("defaultFontFamily has bad type!"));
 					}
 				} else {
-					throw exception(QString("defaultFontFamily not found!").toUtf8().constData());
+					throw Exception(QString("defaultFontFamily not found!"));
 				}
 
 				Fonts &fnts(fonts[variant]);
@@ -1713,12 +1713,12 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 		}
 
 		for (int i = 1; i < variantsCount - 1; ++i) {
-			QString spritei("./SourceFiles/art/sprite" + QString(variantPostfixes[i]) + ".png"), spriteLast("./SourceFiles/art/sprite" + QString(variantPostfixes[i]) + ".png");
+			QString spritei(path_to_sprites + "sprite" + QString(variantPostfixes[i]) + ".png"), spriteLast(path_to_sprites + "sprite" + QString(variantPostfixes[i]) + ".png");
 			QByteArray sprite;
 			{
 				QBuffer sbuf(&sprite);
 				if (!variantSprites[i].save(&sbuf, "PNG")) {
-					throw exception(("Could not write intermediate sprite '" + spritei + "'!").toUtf8().constData());
+					throw Exception(("Could not write intermediate sprite '" + spritei + "'!"));
 				}
 			}
 			bool needResave = !QFileInfo(spritei).exists();
@@ -1736,21 +1736,21 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 			if (needResave) {
 				QFile sf(spritei);
 				if (!sf.open(QIODevice::WriteOnly)) {
-					throw exception(("Could not write intermediate sprite '" + spritei + "'!").toUtf8().constData());
+					throw Exception(("Could not write intermediate sprite '" + spritei + "'!"));
 				} else {
 					if (sf.write(sprite) != sprite.size()) {
-						throw exception(("Could not write intermediate sprite '" + spritei + "'!").toUtf8().constData());
+						throw Exception(("Could not write intermediate sprite '" + spritei + "'!"));
 					}
 				}
 			}
 		}
 		for (int i = 0; i < variantsCount; ++i) {
-			QString spritei("./SourceFiles/art/grid" + QString(variantPostfixes[i]) + ".png"), spriteLast("./SourceFiles/art/sprite" + QString(variantPostfixes[i]) + ".png");
+			QString spritei(path_to_sprites + "grid" + QString(variantPostfixes[i]) + ".png"), spriteLast(path_to_sprites + "sprite" + QString(variantPostfixes[i]) + ".png");
 			QByteArray grid;
 			{
 				QBuffer gbuf(&grid);
 				if (!variantGrids[i].save(&gbuf, "PNG")) {
-					throw exception(("Could not write intermediate grid '" + spritei + "'!").toUtf8().constData());
+					throw Exception(("Could not write intermediate grid '" + spritei + "'!"));
 				}
 			}
 			bool needResave = !QFileInfo(spritei).exists();
@@ -1768,10 +1768,10 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 			if (needResave) {
 				QFile gf(spritei);
 				if (!gf.open(QIODevice::WriteOnly)) {
-					throw exception(("Could not write intermediate grid '" + spritei + "'!").toUtf8().constData());
+					throw Exception(("Could not write intermediate grid '" + spritei + "'!"));
 				} else {
 					if (gf.write(grid) != grid.size()) {
-						throw exception(("Could not write intermediate grid '" + spritei + "'!").toUtf8().constData());
+						throw Exception(("Could not write intermediate grid '" + spritei + "'!"));
 					}
 				}
 			}
@@ -1790,8 +1790,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 		}
 		if (write_out) {
 			cout << "Style compiled, writing " << scalars.size() << " scalars and " << objects.size() << " objects.\n";
-			if (!out.open(QIODevice::WriteOnly)) throw exception("Could not open style_auto.h for writing!");
-			if (out.write(outText) != outText.size()) throw exception("Could not open style_auto.h for writing!");
+			if (!out.open(QIODevice::WriteOnly)) throw Exception("Could not open style_auto.h for writing!");
+			if (out.write(outText) != outText.size()) throw Exception("Could not open style_auto.h for writing!");
 		}
 		bool write_cpp = true;
 		if (cpp.open(QIODevice::ReadOnly)) {
@@ -1805,8 +1805,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 		}
 		if (write_cpp) {
 			if (!write_out) cout << "Style updated, writing " << scalars.size() << " scalars and " << objects.size() << " objects.\n";
-			if (!cpp.open(QIODevice::WriteOnly)) throw exception("Could not open style_auto.cpp for writing!");
-			if (cpp.write(cppText) != cppText.size()) throw exception("Could not open style_auto.cpp for writing!");
+			if (!cpp.open(QIODevice::WriteOnly)) throw Exception("Could not open style_auto.cpp for writing!");
+			if (cpp.write(cppText) != cppText.size()) throw Exception("Could not open style_auto.cpp for writing!");
 		}
 	} catch (exception &e) {
 		cout << e.what() << "\n";

@@ -126,8 +126,8 @@ private:
 struct TextWord {
 	TextWord() {
 	}
-	TextWord(uint16 from, QFixed width, QFixed rbearing, QFixed rpadding = 0) : from(from), width(width), rpadding(rpadding),
-		_rbearing(rbearing.value() > 0xFFFF ? 0xFFFF : (rbearing.value() < -0xFFFF ? -0xFFFF : rbearing.value())) {
+	TextWord(uint16 from, QFixed width, QFixed rbearing, QFixed rpadding = 0) : from(from), width(width),
+		_rbearing(rbearing.value() > 0x7FFF ? 0x7FFF : (rbearing.value() < -0x7FFF ? -0x7FFF : rbearing.value())), rpadding(rpadding) {
 	}
 	QFixed f_rbearing() const {
 		return QFixed::fromFixed(_rbearing);
@@ -342,7 +342,7 @@ public:
 	bool hasLinks() const;
 
 	int32 maxWidth() const {
-		return _maxWidth.toInt();
+		return _maxWidth.ceil().toInt();
 	}
 	int32 minHeight() const {
 		return _minHeight;
@@ -358,7 +358,7 @@ public:
 
 	QString original(uint16 selectedFrom = 0, uint16 selectedTo = 0xFFFF, bool expandLinks = true) const;
 
-	bool lastDots(uint32 dots, uint32 maxdots = 3) { // hack for typing animation
+	bool lastDots(uint32 dots, int32 maxdots = 3) { // hack for typing animation
 		if (_text.size() < maxdots) return false;
 
 		int32 nowDots = 0, from = _text.size() - maxdots, to = _text.size();

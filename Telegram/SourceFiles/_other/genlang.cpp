@@ -17,8 +17,10 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #include "genlang.h"
 
+#ifdef Q_OS_WIN
 #include <QtCore/QtPlugin>
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
+#endif
 
 typedef unsigned int uint32;
 
@@ -65,7 +67,7 @@ bool skipJunk(const char *&from, const char *end) {
 	do {
 		start = from;
 		if (!skipWhitespaces(from, end)) return false;
-		if (!skipComment(from, end)) throw exception("Unexpected end of comment!");
+		if (!skipComment(from, end)) throw Exception("Unexpected end of comment!");
 	} while (start != from);
 	return true;
 }
@@ -74,35 +76,35 @@ void readKeyValue(const char *&from, const char *end) {
 	if (!skipJunk(from, end)) return;
 
 	const char *nameStart = from;
-	while (from < end && (*from >= 'a' && *from <= 'z' || *from >= 'A' && *from <= 'Z' || *from == '_' || *from >= '0' && *from <= '9')) {
+	while (from < end && ((*from >= 'a' && *from <= 'z') || (*from >= 'A' && *from <= 'Z') || *from == '_' || (*from >= '0' && *from <= '9'))) {
 		++from;
 	}
 
-	QString varName = QString::fromUtf8(nameStart, from - nameStart);
+	QString varName = QString::fromUtf8(nameStart, int(from - nameStart));
 
-	if (!skipJunk(from, end)) throw exception("Unexpected end of file!");
-	if (*from != ':') throw exception(QString("':' expected after '%1'").arg(varName).toUtf8().constData());
+	if (!skipJunk(from, end)) throw Exception("Unexpected end of file!");
+	if (*from != ':') throw Exception(QString("':' expected after '%1'").arg(varName));
 
-	if (!skipJunk(++from, end)) throw exception("Unexpected end of file!");
-	if (*from != '"') throw exception(QString("Expected string after '%1:'").arg(varName).toUtf8().constData());
+	if (!skipJunk(++from, end)) throw Exception("Unexpected end of file!");
+	if (*from != '"') throw Exception(QString("Expected string after '%1:'").arg(varName));
 
 	QByteArray varValue;
 	const char *start = ++from;
 	while (from < end && *from != '"') {
 		if (*from == '\\') {
-			if (from + 1 >= end) throw exception("Unexpected end of file!");
+			if (from + 1 >= end) throw Exception("Unexpected end of file!");
 			if (*(from + 1) == '"' || *(from + 1) == '\\') {
-				if (from > start) varValue.append(start, from - start);
+				if (from > start) varValue.append(start, int(from - start));
 				start = ++from;
 			}
 		}
 		++from;
 	}
-	if (from >= end) throw exception("Unexpected end of file!");
-	if (from > start) varValue.append(start, from - start);
+	if (from >= end) throw Exception("Unexpected end of file!");
+	if (from > start) varValue.append(start, int(from - start));
 
-	if (!skipJunk(++from, end)) throw exception("Unexpected end of file!");
-	if (*from != ';') throw exception(QString("';' expected after '%1: \"value\"'").arg(varName).toUtf8().constData());
+	if (!skipJunk(++from, end)) throw Exception("Unexpected end of file!");
+	if (*from != ';') throw Exception(QString("';' expected after '%1: \"value\"'").arg(varName));
 
 	skipJunk(++from, end);
 
@@ -110,12 +112,12 @@ void readKeyValue(const char *&from, const char *end) {
 		if (varValue == "LTR" || varValue == "RTL") {
 			layoutDirection = QString::fromUtf8(varValue);
 		} else {
-			throw exception(QString("Unexpected value for 'direction' key: '%1'").arg(QString::fromUtf8(varValue)).toUtf8().constData());
+			throw Exception(QString("Unexpected value for 'direction' key: '%1'").arg(QString::fromUtf8(varValue)));
 		}
 	} else if (varName.midRef(0, 4) != "lng_") {
-		throw exception(QString("Bad key '%1'").arg(varName).toUtf8().constData());
+		throw Exception(QString("Bad key '%1'").arg(varName));
 	} else if (keys.constFind(varName) != keys.cend()) {
-		throw exception(QString("Key doubled '%1'").arg(varName).toUtf8().constData());
+		throw Exception(QString("Key doubled '%1'").arg(varName));
 	} else {
 		keys.insert(varName, QString::fromUtf8(varValue));
 		keysOrder.push_back(varName);
@@ -130,7 +132,7 @@ QString escapeCpp(const QString &key, QString value, bool wideChar) {
 	bool instr = false;
 	for (const QChar *ch = value.constData(), *e = value.constData() + value.size(); ch != e; ++ch) {
 		if (ch->unicode() < 32) {
-			throw exception(QString("Bad value for key '%1'").arg(key).toUtf8().constData());
+			throw Exception(QString("Bad value for key '%1'").arg(key));
 		} else if (ch->unicode() > 127) {
 			if (instr) {
 				res.append('"');
@@ -428,8 +430,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 		}
 		if (write_cpp) {
 			cout << "lang.cpp updated, writing " << keysOrder.size() << " rows.\n";
-			if (!cpp.open(QIODevice::WriteOnly)) throw exception("Could not open lang.cpp for writing!");
-			if (cpp.write(cppText) != cppText.size()) throw exception("Could not open lang.cpp for writing!");
+			if (!cpp.open(QIODevice::WriteOnly)) throw Exception("Could not open lang.cpp for writing!");
+			if (cpp.write(cppText) != cppText.size()) throw Exception("Could not open lang.cpp for writing!");
 		}
 		if (h.open(QIODevice::ReadOnly)) {
 			QByteArray wasH = h.readAll();
@@ -442,8 +444,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 		}
 		if (write_h) {
 			cout << "lang.h updated, writing " << keysOrder.size() << " rows.\n";
-			if (!h.open(QIODevice::WriteOnly)) throw exception("Could not open lang.h for writing!");
-			if (h.write(hText) != hText.size()) throw exception("Could not open lang.h for writing!");
+			if (!h.open(QIODevice::WriteOnly)) throw Exception("Could not open lang.h for writing!");
+			if (h.write(hText) != hText.size()) throw Exception("Could not open lang.h for writing!");
 		}
 	} catch (exception &e) {
 		cout << e.what() << "\n";

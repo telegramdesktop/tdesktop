@@ -189,13 +189,19 @@ with open('scheme.tl') as f:
 
       funcsText += '\tmtpTypeId type() const {\n\t\treturn mtpc_' + name + ';\n\t}\n'; # type id
 
-      funcsText += '\tvoid read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_' + name + ') {\n'; # read method
+      if (len(prmsList)):
+        funcsText += '\tvoid read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_' + name + ') {\n'; # read method
+      else:
+        funcsText += '\tvoid read(const mtpPrime *&/*from*/, const mtpPrime */*end*/, mtpTypeId /*cons*/ = mtpc_' + name + ') {\n'; # read method
       for k in prmsList:
         v = prms[k];
         funcsText += '\t\tv' + k + '.read(from, end);\n';
       funcsText += '\t}\n';
 
-      funcsText += '\tvoid write(mtpBuffer &to) const {\n'; # write method
+      if (len(prmsList)):
+        funcsText += '\tvoid write(mtpBuffer &to) const {\n'; # write method
+      else:
+        funcsText += '\tvoid write(mtpBuffer &/*to*/) const {\n'; # write method
       for k in prmsList:
         v = prms[k];
         funcsText += '\t\tv' + k + '.write(to);\n';
@@ -365,10 +371,10 @@ for restype in typesList:
       getters += '\t}\n';
 
       constructsText += '\texplicit MTP' + restype + '(MTPD' + name + ' *_data);\n'; # by-data type constructor
-      constructsInline += 'inline MTP' + restype + '::MTP' + restype + '(MTPD' + name + ' *_data) : ';
+      constructsInline += 'inline MTP' + restype + '::MTP' + restype + '(MTPD' + name + ' *_data) : mtpDataOwner(_data)';
       if (withType):
-        constructsInline += '_type(mtpc_' + name + '), ';
-      constructsInline += 'mtpDataOwner(_data) {\n}\n';
+        constructsInline += ', _type(mtpc_' + name + ')';
+      constructsInline += ' {\n}\n';
 
       dataText += '\tMTPD' + name + '('; # params constructor
       prmsStr = [];
@@ -532,7 +538,10 @@ for restype in typesList:
   inlineMethods += '}\n';
 
   typesText += '\tvoid write(mtpBuffer &to) const;\n'; # write method
-  inlineMethods += 'inline void MTP' + restype + '::write(mtpBuffer &to) const {\n'
+  if (len(writer)):
+    inlineMethods += 'inline void MTP' + restype + '::write(mtpBuffer &to) const {\n';
+  else:
+    inlineMethods += 'inline void MTP' + restype + '::write(mtpBuffer &/*to*/) const {\n';
   if (withType):
     inlineMethods += '\tswitch (_type) {\n';
     inlineMethods += writer;
@@ -546,9 +555,10 @@ for restype in typesList:
   typesText += '\nprivate:\n'; # private constructors
   if (withType): # by-type-id constructor
     typesText += '\texplicit MTP' + restype + '(mtpTypeId type);\n';
-    inlineMethods += 'inline MTP' + restype + '::MTP' + restype + '(mtpTypeId type) : _type(type)';
+    inlineMethods += 'inline MTP' + restype + '::MTP' + restype + '(mtpTypeId type) : ';
     if (withData):
-      inlineMethods += ', mtpDataOwner(0)';
+      inlineMethods += 'mtpDataOwner(0), ';
+    inlineMethods += '_type(type)';
     inlineMethods += ' {\n';
     inlineMethods += '\tswitch (type) {\n'; # type id check
     inlineMethods += switchLines;
@@ -583,7 +593,7 @@ textSerializeFull += '\t\t\t++from;\n';
 textSerializeFull += '\t\t\t++start;\n';
 textSerializeFull += '\t\t}\n\n';
 textSerializeFull += '\t\tQString result;\n';
-textSerializeFull += '\t\tswitch (cons) {\n' + textSerialize + '\t\t}\n\n';
+textSerializeFull += '\t\tswitch (mtpTypeId(cons)) {\n' + textSerialize + '\t\t}\n\n';
 textSerializeFull += '\t\treturn mtpTextSerializeCore(from, end, cons, level, vcons);\n';
 textSerializeFull += '\t} catch (Exception &e) {\n';
 textSerializeFull += '\t\tQString result = "(" + QString(e.what()) + QString("), cons: %1").arg(cons);\n';

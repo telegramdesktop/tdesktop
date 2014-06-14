@@ -9829,7 +9829,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_req_pq;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_req_pq) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_req_pq) {
 		vnonce.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -9873,7 +9873,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_req_DH_params;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_req_DH_params) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_req_DH_params) {
 		vnonce.read(from, end);
 		vserver_nonce.read(from, end);
 		vp.read(from, end);
@@ -9924,7 +9924,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_set_client_DH_params;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_set_client_DH_params) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_set_client_DH_params) {
 		vnonce.read(from, end);
 		vserver_nonce.read(from, end);
 		vencrypted_data.read(from, end);
@@ -9967,7 +9967,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_rpc_drop_answer;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_rpc_drop_answer) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_rpc_drop_answer) {
 		vreq_msg_id.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -10006,7 +10006,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_get_future_salts;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_get_future_salts) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_get_future_salts) {
 		vnum.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -10045,7 +10045,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_ping;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_ping) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_ping) {
 		vping_id.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -10085,7 +10085,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_ping_delay_disconnect;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_ping_delay_disconnect) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_ping_delay_disconnect) {
 		vping_id.read(from, end);
 		vdisconnect_delay.read(from, end);
 	}
@@ -10126,7 +10126,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_destroy_session;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_destroy_session) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_destroy_session) {
 		vsession_id.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -10169,7 +10169,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_register_saveDeveloperInfo;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_register_saveDeveloperInfo) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_register_saveDeveloperInfo) {
 		vname.read(from, end);
 		vemail.read(from, end);
 		vphone_number.read(from, end);
@@ -10218,7 +10218,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_invokeAfterMsg;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_invokeAfterMsg) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_invokeAfterMsg) {
 		vmsg_id.read(from, end);
 		vquery.read(from, end);
 	}
@@ -10260,7 +10260,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_invokeAfterMsgs;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_invokeAfterMsgs) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_invokeAfterMsgs) {
 		vmsg_ids.read(from, end);
 		vquery.read(from, end);
 	}
@@ -10300,7 +10300,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_auth_checkPhone;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_checkPhone) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_auth_checkPhone) {
 		vphone_number.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -10343,7 +10343,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_auth_sendCode;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_sendCode) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_auth_sendCode) {
 		vphone_number.read(from, end);
 		vsms_type.read(from, end);
 		vapi_id.read(from, end);
@@ -10391,7 +10391,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_auth_sendCall;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_sendCall) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_auth_sendCall) {
 		vphone_number.read(from, end);
 		vphone_code_hash.read(from, end);
 	}
@@ -10436,7 +10436,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_auth_signUp;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_signUp) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_auth_signUp) {
 		vphone_number.read(from, end);
 		vphone_code_hash.read(from, end);
 		vphone_code.read(from, end);
@@ -10485,7 +10485,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_auth_signIn;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_signIn) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_auth_signIn) {
 		vphone_number.read(from, end);
 		vphone_code_hash.read(from, end);
 		vphone_code.read(from, end);
@@ -10524,9 +10524,9 @@ public:
 	mtpTypeId type() const {
 		return mtpc_auth_logOut;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_logOut) {
+	void read(const mtpPrime *&/*from*/, const mtpPrime */*end*/, mtpTypeId /*cons*/ = mtpc_auth_logOut) {
 	}
-	void write(mtpBuffer &to) const {
+	void write(mtpBuffer &/*to*/) const {
 	}
 
 	typedef MTPBool ResponseType;
@@ -10555,9 +10555,9 @@ public:
 	mtpTypeId type() const {
 		return mtpc_auth_resetAuthorizations;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_resetAuthorizations) {
+	void read(const mtpPrime *&/*from*/, const mtpPrime */*end*/, mtpTypeId /*cons*/ = mtpc_auth_resetAuthorizations) {
 	}
-	void write(mtpBuffer &to) const {
+	void write(mtpBuffer &/*to*/) const {
 	}
 
 	typedef MTPBool ResponseType;
@@ -10591,7 +10591,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_auth_sendInvites;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_sendInvites) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_auth_sendInvites) {
 		vphone_numbers.read(from, end);
 		vmessage.read(from, end);
 	}
@@ -10632,7 +10632,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_auth_exportAuthorization;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_exportAuthorization) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_auth_exportAuthorization) {
 		vdc_id.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -10672,7 +10672,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_auth_importAuthorization;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_importAuthorization) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_auth_importAuthorization) {
 		vid.read(from, end);
 		vbytes.read(from, end);
 	}
@@ -10719,7 +10719,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_account_registerDevice;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_registerDevice) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_account_registerDevice) {
 		vtoken_type.read(from, end);
 		vtoken.read(from, end);
 		vdevice_model.read(from, end);
@@ -10771,7 +10771,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_account_unregisterDevice;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_unregisterDevice) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_account_unregisterDevice) {
 		vtoken_type.read(from, end);
 		vtoken.read(from, end);
 	}
@@ -10813,7 +10813,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_account_updateNotifySettings;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_updateNotifySettings) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_account_updateNotifySettings) {
 		vpeer.read(from, end);
 		vsettings.read(from, end);
 	}
@@ -10854,7 +10854,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_account_getNotifySettings;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getNotifySettings) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_account_getNotifySettings) {
 		vpeer.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -10889,9 +10889,9 @@ public:
 	mtpTypeId type() const {
 		return mtpc_account_resetNotifySettings;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_resetNotifySettings) {
+	void read(const mtpPrime *&/*from*/, const mtpPrime */*end*/, mtpTypeId /*cons*/ = mtpc_account_resetNotifySettings) {
 	}
-	void write(mtpBuffer &to) const {
+	void write(mtpBuffer &/*to*/) const {
 	}
 
 	typedef MTPBool ResponseType;
@@ -10925,7 +10925,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_account_updateProfile;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_updateProfile) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_account_updateProfile) {
 		vfirst_name.read(from, end);
 		vlast_name.read(from, end);
 	}
@@ -10966,7 +10966,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_account_updateStatus;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_updateStatus) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_account_updateStatus) {
 		voffline.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -11001,9 +11001,9 @@ public:
 	mtpTypeId type() const {
 		return mtpc_account_getWallPapers;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getWallPapers) {
+	void read(const mtpPrime *&/*from*/, const mtpPrime */*end*/, mtpTypeId /*cons*/ = mtpc_account_getWallPapers) {
 	}
-	void write(mtpBuffer &to) const {
+	void write(mtpBuffer &/*to*/) const {
 	}
 
 	typedef MTPVector<MTPWallPaper> ResponseType;
@@ -11036,7 +11036,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_users_getUsers;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_users_getUsers) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_users_getUsers) {
 		vid.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -11075,7 +11075,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_users_getFullUser;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_users_getFullUser) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_users_getFullUser) {
 		vid.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -11110,9 +11110,9 @@ public:
 	mtpTypeId type() const {
 		return mtpc_contacts_getStatuses;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_getStatuses) {
+	void read(const mtpPrime *&/*from*/, const mtpPrime */*end*/, mtpTypeId /*cons*/ = mtpc_contacts_getStatuses) {
 	}
-	void write(mtpBuffer &to) const {
+	void write(mtpBuffer &/*to*/) const {
 	}
 
 	typedef MTPVector<MTPContactStatus> ResponseType;
@@ -11145,7 +11145,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_contacts_getContacts;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_getContacts) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_contacts_getContacts) {
 		vhash.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -11185,7 +11185,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_contacts_importContacts;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_importContacts) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_contacts_importContacts) {
 		vcontacts.read(from, end);
 		vreplace.read(from, end);
 	}
@@ -11227,7 +11227,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_contacts_search;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_search) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_contacts_search) {
 		vq.read(from, end);
 		vlimit.read(from, end);
 	}
@@ -11268,7 +11268,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_contacts_getSuggested;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_getSuggested) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_contacts_getSuggested) {
 		vlimit.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -11307,7 +11307,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_contacts_deleteContact;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_deleteContact) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_contacts_deleteContact) {
 		vid.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -11346,7 +11346,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_contacts_deleteContacts;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_deleteContacts) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_contacts_deleteContacts) {
 		vid.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -11385,7 +11385,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_contacts_block;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_block) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_contacts_block) {
 		vid.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -11424,7 +11424,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_contacts_unblock;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_unblock) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_contacts_unblock) {
 		vid.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -11464,7 +11464,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_contacts_getBlocked;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_getBlocked) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_contacts_getBlocked) {
 		voffset.read(from, end);
 		vlimit.read(from, end);
 	}
@@ -11505,7 +11505,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_getMessages;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getMessages) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_getMessages) {
 		vid.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -11546,7 +11546,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_getDialogs;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getDialogs) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_getDialogs) {
 		voffset.read(from, end);
 		vmax_id.read(from, end);
 		vlimit.read(from, end);
@@ -11592,7 +11592,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_getHistory;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getHistory) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_getHistory) {
 		vpeer.read(from, end);
 		voffset.read(from, end);
 		vmax_id.read(from, end);
@@ -11644,7 +11644,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_search;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_search) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_search) {
 		vpeer.read(from, end);
 		vq.read(from, end);
 		vfilter.read(from, end);
@@ -11699,7 +11699,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_readHistory;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_readHistory) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_readHistory) {
 		vpeer.read(from, end);
 		vmax_id.read(from, end);
 		voffset.read(from, end);
@@ -11743,7 +11743,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_deleteHistory;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_deleteHistory) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_deleteHistory) {
 		vpeer.read(from, end);
 		voffset.read(from, end);
 	}
@@ -11784,7 +11784,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_deleteMessages;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_deleteMessages) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_deleteMessages) {
 		vid.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -11823,7 +11823,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_restoreMessages;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_restoreMessages) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_restoreMessages) {
 		vid.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -11862,7 +11862,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_receivedMessages;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_receivedMessages) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_receivedMessages) {
 		vmax_id.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -11902,7 +11902,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_setTyping;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_setTyping) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_setTyping) {
 		vpeer.read(from, end);
 		vtyping.read(from, end);
 	}
@@ -11945,7 +11945,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_sendMessage;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_sendMessage) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_sendMessage) {
 		vpeer.read(from, end);
 		vmessage.read(from, end);
 		vrandom_id.read(from, end);
@@ -11990,7 +11990,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_sendMedia;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_sendMedia) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_sendMedia) {
 		vpeer.read(from, end);
 		vmedia.read(from, end);
 		vrandom_id.read(from, end);
@@ -12034,7 +12034,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_forwardMessages;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_forwardMessages) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_forwardMessages) {
 		vpeer.read(from, end);
 		vid.read(from, end);
 	}
@@ -12075,7 +12075,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_getChats;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getChats) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_getChats) {
 		vid.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -12114,7 +12114,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_getFullChat;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getFullChat) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_getFullChat) {
 		vchat_id.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -12154,7 +12154,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_editChatTitle;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_editChatTitle) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_editChatTitle) {
 		vchat_id.read(from, end);
 		vtitle.read(from, end);
 	}
@@ -12196,7 +12196,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_editChatPhoto;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_editChatPhoto) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_editChatPhoto) {
 		vchat_id.read(from, end);
 		vphoto.read(from, end);
 	}
@@ -12239,7 +12239,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_addChatUser;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_addChatUser) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_addChatUser) {
 		vchat_id.read(from, end);
 		vuser_id.read(from, end);
 		vfwd_limit.read(from, end);
@@ -12283,7 +12283,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_deleteChatUser;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_deleteChatUser) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_deleteChatUser) {
 		vchat_id.read(from, end);
 		vuser_id.read(from, end);
 	}
@@ -12325,7 +12325,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_createChat;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_createChat) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_createChat) {
 		vusers.read(from, end);
 		vtitle.read(from, end);
 	}
@@ -12362,9 +12362,9 @@ public:
 	mtpTypeId type() const {
 		return mtpc_updates_getState;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_updates_getState) {
+	void read(const mtpPrime *&/*from*/, const mtpPrime */*end*/, mtpTypeId /*cons*/ = mtpc_updates_getState) {
 	}
-	void write(mtpBuffer &to) const {
+	void write(mtpBuffer &/*to*/) const {
 	}
 
 	typedef MTPupdates_State ResponseType;
@@ -12399,7 +12399,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_updates_getDifference;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_updates_getDifference) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_updates_getDifference) {
 		vpts.read(from, end);
 		vdate.read(from, end);
 		vqts.read(from, end);
@@ -12443,7 +12443,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_photos_updateProfilePhoto;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_updateProfilePhoto) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_photos_updateProfilePhoto) {
 		vid.read(from, end);
 		vcrop.read(from, end);
 	}
@@ -12487,7 +12487,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_photos_uploadProfilePhoto;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_uploadProfilePhoto) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_photos_uploadProfilePhoto) {
 		vfile.read(from, end);
 		vcaption.read(from, end);
 		vgeo_point.read(from, end);
@@ -12534,7 +12534,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_upload_saveFilePart;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_upload_saveFilePart) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_upload_saveFilePart) {
 		vfile_id.read(from, end);
 		vfile_part.read(from, end);
 		vbytes.read(from, end);
@@ -12579,7 +12579,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_upload_getFile;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_upload_getFile) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_upload_getFile) {
 		vlocation.read(from, end);
 		voffset.read(from, end);
 		vlimit.read(from, end);
@@ -12618,9 +12618,9 @@ public:
 	mtpTypeId type() const {
 		return mtpc_help_getConfig;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getConfig) {
+	void read(const mtpPrime *&/*from*/, const mtpPrime */*end*/, mtpTypeId /*cons*/ = mtpc_help_getConfig) {
 	}
-	void write(mtpBuffer &to) const {
+	void write(mtpBuffer &/*to*/) const {
 	}
 
 	typedef MTPConfig ResponseType;
@@ -12649,9 +12649,9 @@ public:
 	mtpTypeId type() const {
 		return mtpc_help_getNearestDc;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getNearestDc) {
+	void read(const mtpPrime *&/*from*/, const mtpPrime */*end*/, mtpTypeId /*cons*/ = mtpc_help_getNearestDc) {
 	}
-	void write(mtpBuffer &to) const {
+	void write(mtpBuffer &/*to*/) const {
 	}
 
 	typedef MTPNearestDc ResponseType;
@@ -12687,7 +12687,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_help_getAppUpdate;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getAppUpdate) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_help_getAppUpdate) {
 		vdevice_model.read(from, end);
 		vsystem_version.read(from, end);
 		vapp_version.read(from, end);
@@ -12732,7 +12732,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_help_saveAppLog;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_saveAppLog) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_help_saveAppLog) {
 		vevents.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -12771,7 +12771,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_help_getInviteText;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getInviteText) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_help_getInviteText) {
 		vlang_code.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -12813,7 +12813,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_photos_getUserPhotos;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_getUserPhotos) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_photos_getUserPhotos) {
 		vuser_id.read(from, end);
 		voffset.read(from, end);
 		vmax_id.read(from, end);
@@ -12860,7 +12860,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_forwardMessage;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_forwardMessage) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_forwardMessage) {
 		vpeer.read(from, end);
 		vid.read(from, end);
 		vrandom_id.read(from, end);
@@ -12905,7 +12905,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_sendBroadcast;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_sendBroadcast) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_sendBroadcast) {
 		vcontacts.read(from, end);
 		vmessage.read(from, end);
 		vmedia.read(from, end);
@@ -12950,7 +12950,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_geochats_getLocated;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_geochats_getLocated) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_geochats_getLocated) {
 		vgeo_point.read(from, end);
 		vradius.read(from, end);
 		vlimit.read(from, end);
@@ -12994,7 +12994,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_geochats_getRecents;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_geochats_getRecents) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_geochats_getRecents) {
 		voffset.read(from, end);
 		vlimit.read(from, end);
 	}
@@ -13035,7 +13035,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_geochats_checkin;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_geochats_checkin) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_geochats_checkin) {
 		vpeer.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -13074,7 +13074,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_geochats_getFullChat;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_geochats_getFullChat) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_geochats_getFullChat) {
 		vpeer.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -13115,7 +13115,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_geochats_editChatTitle;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_geochats_editChatTitle) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_geochats_editChatTitle) {
 		vpeer.read(from, end);
 		vtitle.read(from, end);
 		vaddress.read(from, end);
@@ -13159,7 +13159,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_geochats_editChatPhoto;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_geochats_editChatPhoto) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_geochats_editChatPhoto) {
 		vpeer.read(from, end);
 		vphoto.read(from, end);
 	}
@@ -13207,7 +13207,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_geochats_search;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_geochats_search) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_geochats_search) {
 		vpeer.read(from, end);
 		vq.read(from, end);
 		vfilter.read(from, end);
@@ -13263,7 +13263,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_geochats_getHistory;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_geochats_getHistory) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_geochats_getHistory) {
 		vpeer.read(from, end);
 		voffset.read(from, end);
 		vmax_id.read(from, end);
@@ -13309,7 +13309,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_geochats_setTyping;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_geochats_setTyping) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_geochats_setTyping) {
 		vpeer.read(from, end);
 		vtyping.read(from, end);
 	}
@@ -13352,7 +13352,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_geochats_sendMessage;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_geochats_sendMessage) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_geochats_sendMessage) {
 		vpeer.read(from, end);
 		vmessage.read(from, end);
 		vrandom_id.read(from, end);
@@ -13397,7 +13397,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_geochats_sendMedia;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_geochats_sendMedia) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_geochats_sendMedia) {
 		vpeer.read(from, end);
 		vmedia.read(from, end);
 		vrandom_id.read(from, end);
@@ -13443,7 +13443,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_geochats_createGeoChat;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_geochats_createGeoChat) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_geochats_createGeoChat) {
 		vtitle.read(from, end);
 		vgeo_point.read(from, end);
 		vaddress.read(from, end);
@@ -13489,7 +13489,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_getDhConfig;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getDhConfig) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_getDhConfig) {
 		vversion.read(from, end);
 		vrandom_length.read(from, end);
 	}
@@ -13532,7 +13532,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_requestEncryption;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_requestEncryption) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_requestEncryption) {
 		vuser_id.read(from, end);
 		vrandom_id.read(from, end);
 		vg_a.read(from, end);
@@ -13577,7 +13577,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_acceptEncryption;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_acceptEncryption) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_acceptEncryption) {
 		vpeer.read(from, end);
 		vg_b.read(from, end);
 		vkey_fingerprint.read(from, end);
@@ -13620,7 +13620,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_discardEncryption;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_discardEncryption) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_discardEncryption) {
 		vchat_id.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -13660,7 +13660,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_setEncryptedTyping;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_setEncryptedTyping) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_setEncryptedTyping) {
 		vpeer.read(from, end);
 		vtyping.read(from, end);
 	}
@@ -13702,7 +13702,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_readEncryptedHistory;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_readEncryptedHistory) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_readEncryptedHistory) {
 		vpeer.read(from, end);
 		vmax_date.read(from, end);
 	}
@@ -13745,7 +13745,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_sendEncrypted;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_sendEncrypted) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_sendEncrypted) {
 		vpeer.read(from, end);
 		vrandom_id.read(from, end);
 		vdata.read(from, end);
@@ -13791,7 +13791,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_sendEncryptedFile;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_sendEncryptedFile) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_sendEncryptedFile) {
 		vpeer.read(from, end);
 		vrandom_id.read(from, end);
 		vdata.read(from, end);
@@ -13838,7 +13838,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_sendEncryptedService;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_sendEncryptedService) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_sendEncryptedService) {
 		vpeer.read(from, end);
 		vrandom_id.read(from, end);
 		vdata.read(from, end);
@@ -13881,7 +13881,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_messages_receivedQueue;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_receivedQueue) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_messages_receivedQueue) {
 		vmax_qts.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
@@ -13923,7 +13923,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_upload_saveBigFilePart;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_upload_saveBigFilePart) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_upload_saveBigFilePart) {
 		vfile_id.read(from, end);
 		vfile_part.read(from, end);
 		vfile_total_parts.read(from, end);
@@ -13974,7 +13974,7 @@ public:
 	mtpTypeId type() const {
 		return mtpc_initConnection;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_initConnection) {
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_initConnection) {
 		vapi_id.read(from, end);
 		vdevice_model.read(from, end);
 		vsystem_version.read(from, end);
@@ -14018,9 +14018,9 @@ public:
 	mtpTypeId type() const {
 		return mtpc_help_getSupport;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getSupport) {
+	void read(const mtpPrime *&/*from*/, const mtpPrime */*end*/, mtpTypeId /*cons*/ = mtpc_help_getSupport) {
 	}
-	void write(mtpBuffer &to) const {
+	void write(mtpBuffer &/*to*/) const {
 	}
 
 	typedef MTPhelp_Support ResponseType;
@@ -14160,16 +14160,16 @@ inline void MTPserver_DH_Params::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPserver_DH_Params::MTPserver_DH_Params(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPserver_DH_Params::MTPserver_DH_Params(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_server_DH_params_fail: setData(new MTPDserver_DH_params_fail()); break;
 		case mtpc_server_DH_params_ok: setData(new MTPDserver_DH_params_ok()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPserver_DH_Params");
 	}
 }
-inline MTPserver_DH_Params::MTPserver_DH_Params(MTPDserver_DH_params_fail *_data) : _type(mtpc_server_DH_params_fail), mtpDataOwner(_data) {
+inline MTPserver_DH_Params::MTPserver_DH_Params(MTPDserver_DH_params_fail *_data) : mtpDataOwner(_data), _type(mtpc_server_DH_params_fail) {
 }
-inline MTPserver_DH_Params::MTPserver_DH_Params(MTPDserver_DH_params_ok *_data) : _type(mtpc_server_DH_params_ok), mtpDataOwner(_data) {
+inline MTPserver_DH_Params::MTPserver_DH_Params(MTPDserver_DH_params_ok *_data) : mtpDataOwner(_data), _type(mtpc_server_DH_params_ok) {
 }
 inline MTPserver_DH_Params MTP_server_DH_params_fail(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPint128 &_new_nonce_hash) {
 	return MTPserver_DH_Params(new MTPDserver_DH_params_fail(_nonce, _server_nonce, _new_nonce_hash));
@@ -14318,7 +14318,7 @@ inline void MTPset_client_DH_params_answer::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPset_client_DH_params_answer::MTPset_client_DH_params_answer(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPset_client_DH_params_answer::MTPset_client_DH_params_answer(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_dh_gen_ok: setData(new MTPDdh_gen_ok()); break;
 		case mtpc_dh_gen_retry: setData(new MTPDdh_gen_retry()); break;
@@ -14326,11 +14326,11 @@ inline MTPset_client_DH_params_answer::MTPset_client_DH_params_answer(mtpTypeId 
 		default: throw mtpErrorBadTypeId(type, "MTPset_client_DH_params_answer");
 	}
 }
-inline MTPset_client_DH_params_answer::MTPset_client_DH_params_answer(MTPDdh_gen_ok *_data) : _type(mtpc_dh_gen_ok), mtpDataOwner(_data) {
+inline MTPset_client_DH_params_answer::MTPset_client_DH_params_answer(MTPDdh_gen_ok *_data) : mtpDataOwner(_data), _type(mtpc_dh_gen_ok) {
 }
-inline MTPset_client_DH_params_answer::MTPset_client_DH_params_answer(MTPDdh_gen_retry *_data) : _type(mtpc_dh_gen_retry), mtpDataOwner(_data) {
+inline MTPset_client_DH_params_answer::MTPset_client_DH_params_answer(MTPDdh_gen_retry *_data) : mtpDataOwner(_data), _type(mtpc_dh_gen_retry) {
 }
-inline MTPset_client_DH_params_answer::MTPset_client_DH_params_answer(MTPDdh_gen_fail *_data) : _type(mtpc_dh_gen_fail), mtpDataOwner(_data) {
+inline MTPset_client_DH_params_answer::MTPset_client_DH_params_answer(MTPDdh_gen_fail *_data) : mtpDataOwner(_data), _type(mtpc_dh_gen_fail) {
 }
 inline MTPset_client_DH_params_answer MTP_dh_gen_ok(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPint128 &_new_nonce_hash1) {
 	return MTPset_client_DH_params_answer(new MTPDdh_gen_ok(_nonce, _server_nonce, _new_nonce_hash1));
@@ -14424,16 +14424,16 @@ inline void MTPbadMsgNotification::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPbadMsgNotification::MTPbadMsgNotification(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPbadMsgNotification::MTPbadMsgNotification(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_bad_msg_notification: setData(new MTPDbad_msg_notification()); break;
 		case mtpc_bad_server_salt: setData(new MTPDbad_server_salt()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPbadMsgNotification");
 	}
 }
-inline MTPbadMsgNotification::MTPbadMsgNotification(MTPDbad_msg_notification *_data) : _type(mtpc_bad_msg_notification), mtpDataOwner(_data) {
+inline MTPbadMsgNotification::MTPbadMsgNotification(MTPDbad_msg_notification *_data) : mtpDataOwner(_data), _type(mtpc_bad_msg_notification) {
 }
-inline MTPbadMsgNotification::MTPbadMsgNotification(MTPDbad_server_salt *_data) : _type(mtpc_bad_server_salt), mtpDataOwner(_data) {
+inline MTPbadMsgNotification::MTPbadMsgNotification(MTPDbad_server_salt *_data) : mtpDataOwner(_data), _type(mtpc_bad_server_salt) {
 }
 inline MTPbadMsgNotification MTP_bad_msg_notification(const MTPlong &_bad_msg_id, MTPint _bad_msg_seqno, MTPint _error_code) {
 	return MTPbadMsgNotification(new MTPDbad_msg_notification(_bad_msg_id, _bad_msg_seqno, _error_code));
@@ -14582,16 +14582,16 @@ inline void MTPmsgDetailedInfo::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPmsgDetailedInfo::MTPmsgDetailedInfo(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPmsgDetailedInfo::MTPmsgDetailedInfo(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_msg_detailed_info: setData(new MTPDmsg_detailed_info()); break;
 		case mtpc_msg_new_detailed_info: setData(new MTPDmsg_new_detailed_info()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmsgDetailedInfo");
 	}
 }
-inline MTPmsgDetailedInfo::MTPmsgDetailedInfo(MTPDmsg_detailed_info *_data) : _type(mtpc_msg_detailed_info), mtpDataOwner(_data) {
+inline MTPmsgDetailedInfo::MTPmsgDetailedInfo(MTPDmsg_detailed_info *_data) : mtpDataOwner(_data), _type(mtpc_msg_detailed_info) {
 }
-inline MTPmsgDetailedInfo::MTPmsgDetailedInfo(MTPDmsg_new_detailed_info *_data) : _type(mtpc_msg_new_detailed_info), mtpDataOwner(_data) {
+inline MTPmsgDetailedInfo::MTPmsgDetailedInfo(MTPDmsg_new_detailed_info *_data) : mtpDataOwner(_data), _type(mtpc_msg_new_detailed_info) {
 }
 inline MTPmsgDetailedInfo MTP_msg_detailed_info(const MTPlong &_msg_id, const MTPlong &_answer_msg_id, MTPint _bytes, MTPint _status) {
 	return MTPmsgDetailedInfo(new MTPDmsg_detailed_info(_msg_id, _answer_msg_id, _bytes, _status));
@@ -14694,7 +14694,7 @@ inline void MTPrpcDropAnswer::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPrpcDropAnswer::MTPrpcDropAnswer(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPrpcDropAnswer::MTPrpcDropAnswer(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_rpc_answer_unknown: break;
 		case mtpc_rpc_answer_dropped_running: break;
@@ -14702,7 +14702,7 @@ inline MTPrpcDropAnswer::MTPrpcDropAnswer(mtpTypeId type) : _type(type), mtpData
 		default: throw mtpErrorBadTypeId(type, "MTPrpcDropAnswer");
 	}
 }
-inline MTPrpcDropAnswer::MTPrpcDropAnswer(MTPDrpc_answer_dropped *_data) : _type(mtpc_rpc_answer_dropped), mtpDataOwner(_data) {
+inline MTPrpcDropAnswer::MTPrpcDropAnswer(MTPDrpc_answer_dropped *_data) : mtpDataOwner(_data), _type(mtpc_rpc_answer_dropped) {
 }
 inline MTPrpcDropAnswer MTP_rpc_answer_unknown() {
 	return MTPrpcDropAnswer(mtpc_rpc_answer_unknown);
@@ -14850,16 +14850,16 @@ inline void MTPdestroySessionRes::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPdestroySessionRes::MTPdestroySessionRes(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPdestroySessionRes::MTPdestroySessionRes(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_destroy_session_ok: setData(new MTPDdestroy_session_ok()); break;
 		case mtpc_destroy_session_none: setData(new MTPDdestroy_session_none()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPdestroySessionRes");
 	}
 }
-inline MTPdestroySessionRes::MTPdestroySessionRes(MTPDdestroy_session_ok *_data) : _type(mtpc_destroy_session_ok), mtpDataOwner(_data) {
+inline MTPdestroySessionRes::MTPdestroySessionRes(MTPDdestroy_session_ok *_data) : mtpDataOwner(_data), _type(mtpc_destroy_session_ok) {
 }
-inline MTPdestroySessionRes::MTPdestroySessionRes(MTPDdestroy_session_none *_data) : _type(mtpc_destroy_session_none), mtpDataOwner(_data) {
+inline MTPdestroySessionRes::MTPdestroySessionRes(MTPDdestroy_session_none *_data) : mtpDataOwner(_data), _type(mtpc_destroy_session_none) {
 }
 inline MTPdestroySessionRes MTP_destroy_session_ok(const MTPlong &_session_id) {
 	return MTPdestroySessionRes(new MTPDdestroy_session_ok(_session_id));
@@ -14992,7 +14992,7 @@ inline void MTPinputPeer::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPinputPeer::MTPinputPeer(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPinputPeer::MTPinputPeer(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_inputPeerEmpty: break;
 		case mtpc_inputPeerSelf: break;
@@ -15002,11 +15002,11 @@ inline MTPinputPeer::MTPinputPeer(mtpTypeId type) : _type(type), mtpDataOwner(0)
 		default: throw mtpErrorBadTypeId(type, "MTPinputPeer");
 	}
 }
-inline MTPinputPeer::MTPinputPeer(MTPDinputPeerContact *_data) : _type(mtpc_inputPeerContact), mtpDataOwner(_data) {
+inline MTPinputPeer::MTPinputPeer(MTPDinputPeerContact *_data) : mtpDataOwner(_data), _type(mtpc_inputPeerContact) {
 }
-inline MTPinputPeer::MTPinputPeer(MTPDinputPeerForeign *_data) : _type(mtpc_inputPeerForeign), mtpDataOwner(_data) {
+inline MTPinputPeer::MTPinputPeer(MTPDinputPeerForeign *_data) : mtpDataOwner(_data), _type(mtpc_inputPeerForeign) {
 }
-inline MTPinputPeer::MTPinputPeer(MTPDinputPeerChat *_data) : _type(mtpc_inputPeerChat), mtpDataOwner(_data) {
+inline MTPinputPeer::MTPinputPeer(MTPDinputPeerChat *_data) : mtpDataOwner(_data), _type(mtpc_inputPeerChat) {
 }
 inline MTPinputPeer MTP_inputPeerEmpty() {
 	return MTPinputPeer(mtpc_inputPeerEmpty);
@@ -15073,7 +15073,7 @@ inline void MTPinputUser::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPinputUser::MTPinputUser(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPinputUser::MTPinputUser(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_inputUserEmpty: break;
 		case mtpc_inputUserSelf: break;
@@ -15082,9 +15082,9 @@ inline MTPinputUser::MTPinputUser(mtpTypeId type) : _type(type), mtpDataOwner(0)
 		default: throw mtpErrorBadTypeId(type, "MTPinputUser");
 	}
 }
-inline MTPinputUser::MTPinputUser(MTPDinputUserContact *_data) : _type(mtpc_inputUserContact), mtpDataOwner(_data) {
+inline MTPinputUser::MTPinputUser(MTPDinputUserContact *_data) : mtpDataOwner(_data), _type(mtpc_inputUserContact) {
 }
-inline MTPinputUser::MTPinputUser(MTPDinputUserForeign *_data) : _type(mtpc_inputUserForeign), mtpDataOwner(_data) {
+inline MTPinputUser::MTPinputUser(MTPDinputUserForeign *_data) : mtpDataOwner(_data), _type(mtpc_inputUserForeign) {
 }
 inline MTPinputUser MTP_inputUserEmpty() {
 	return MTPinputUser(mtpc_inputUserEmpty);
@@ -15187,16 +15187,16 @@ inline void MTPinputFile::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPinputFile::MTPinputFile(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPinputFile::MTPinputFile(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_inputFile: setData(new MTPDinputFile()); break;
 		case mtpc_inputFileBig: setData(new MTPDinputFileBig()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputFile");
 	}
 }
-inline MTPinputFile::MTPinputFile(MTPDinputFile *_data) : _type(mtpc_inputFile), mtpDataOwner(_data) {
+inline MTPinputFile::MTPinputFile(MTPDinputFile *_data) : mtpDataOwner(_data), _type(mtpc_inputFile) {
 }
-inline MTPinputFile::MTPinputFile(MTPDinputFileBig *_data) : _type(mtpc_inputFileBig), mtpDataOwner(_data) {
+inline MTPinputFile::MTPinputFile(MTPDinputFileBig *_data) : mtpDataOwner(_data), _type(mtpc_inputFileBig) {
 }
 inline MTPinputFile MTP_inputFile(const MTPlong &_id, MTPint _parts, const MTPstring &_name, const MTPstring &_md5_checksum) {
 	return MTPinputFile(new MTPDinputFile(_id, _parts, _name, _md5_checksum));
@@ -15417,7 +15417,7 @@ inline void MTPinputMedia::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPinputMedia::MTPinputMedia(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPinputMedia::MTPinputMedia(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_inputMediaEmpty: break;
 		case mtpc_inputMediaUploadedPhoto: setData(new MTPDinputMediaUploadedPhoto()); break;
@@ -15435,29 +15435,29 @@ inline MTPinputMedia::MTPinputMedia(mtpTypeId type) : _type(type), mtpDataOwner(
 		default: throw mtpErrorBadTypeId(type, "MTPinputMedia");
 	}
 }
-inline MTPinputMedia::MTPinputMedia(MTPDinputMediaUploadedPhoto *_data) : _type(mtpc_inputMediaUploadedPhoto), mtpDataOwner(_data) {
+inline MTPinputMedia::MTPinputMedia(MTPDinputMediaUploadedPhoto *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaUploadedPhoto) {
 }
-inline MTPinputMedia::MTPinputMedia(MTPDinputMediaPhoto *_data) : _type(mtpc_inputMediaPhoto), mtpDataOwner(_data) {
+inline MTPinputMedia::MTPinputMedia(MTPDinputMediaPhoto *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaPhoto) {
 }
-inline MTPinputMedia::MTPinputMedia(MTPDinputMediaGeoPoint *_data) : _type(mtpc_inputMediaGeoPoint), mtpDataOwner(_data) {
+inline MTPinputMedia::MTPinputMedia(MTPDinputMediaGeoPoint *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaGeoPoint) {
 }
-inline MTPinputMedia::MTPinputMedia(MTPDinputMediaContact *_data) : _type(mtpc_inputMediaContact), mtpDataOwner(_data) {
+inline MTPinputMedia::MTPinputMedia(MTPDinputMediaContact *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaContact) {
 }
-inline MTPinputMedia::MTPinputMedia(MTPDinputMediaUploadedVideo *_data) : _type(mtpc_inputMediaUploadedVideo), mtpDataOwner(_data) {
+inline MTPinputMedia::MTPinputMedia(MTPDinputMediaUploadedVideo *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaUploadedVideo) {
 }
-inline MTPinputMedia::MTPinputMedia(MTPDinputMediaUploadedThumbVideo *_data) : _type(mtpc_inputMediaUploadedThumbVideo), mtpDataOwner(_data) {
+inline MTPinputMedia::MTPinputMedia(MTPDinputMediaUploadedThumbVideo *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaUploadedThumbVideo) {
 }
-inline MTPinputMedia::MTPinputMedia(MTPDinputMediaVideo *_data) : _type(mtpc_inputMediaVideo), mtpDataOwner(_data) {
+inline MTPinputMedia::MTPinputMedia(MTPDinputMediaVideo *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaVideo) {
 }
-inline MTPinputMedia::MTPinputMedia(MTPDinputMediaUploadedAudio *_data) : _type(mtpc_inputMediaUploadedAudio), mtpDataOwner(_data) {
+inline MTPinputMedia::MTPinputMedia(MTPDinputMediaUploadedAudio *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaUploadedAudio) {
 }
-inline MTPinputMedia::MTPinputMedia(MTPDinputMediaAudio *_data) : _type(mtpc_inputMediaAudio), mtpDataOwner(_data) {
+inline MTPinputMedia::MTPinputMedia(MTPDinputMediaAudio *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaAudio) {
 }
-inline MTPinputMedia::MTPinputMedia(MTPDinputMediaUploadedDocument *_data) : _type(mtpc_inputMediaUploadedDocument), mtpDataOwner(_data) {
+inline MTPinputMedia::MTPinputMedia(MTPDinputMediaUploadedDocument *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaUploadedDocument) {
 }
-inline MTPinputMedia::MTPinputMedia(MTPDinputMediaUploadedThumbDocument *_data) : _type(mtpc_inputMediaUploadedThumbDocument), mtpDataOwner(_data) {
+inline MTPinputMedia::MTPinputMedia(MTPDinputMediaUploadedThumbDocument *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaUploadedThumbDocument) {
 }
-inline MTPinputMedia::MTPinputMedia(MTPDinputMediaDocument *_data) : _type(mtpc_inputMediaDocument), mtpDataOwner(_data) {
+inline MTPinputMedia::MTPinputMedia(MTPDinputMediaDocument *_data) : mtpDataOwner(_data), _type(mtpc_inputMediaDocument) {
 }
 inline MTPinputMedia MTP_inputMediaEmpty() {
 	return MTPinputMedia(mtpc_inputMediaEmpty);
@@ -15549,7 +15549,7 @@ inline void MTPinputChatPhoto::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPinputChatPhoto::MTPinputChatPhoto(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPinputChatPhoto::MTPinputChatPhoto(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_inputChatPhotoEmpty: break;
 		case mtpc_inputChatUploadedPhoto: setData(new MTPDinputChatUploadedPhoto()); break;
@@ -15557,9 +15557,9 @@ inline MTPinputChatPhoto::MTPinputChatPhoto(mtpTypeId type) : _type(type), mtpDa
 		default: throw mtpErrorBadTypeId(type, "MTPinputChatPhoto");
 	}
 }
-inline MTPinputChatPhoto::MTPinputChatPhoto(MTPDinputChatUploadedPhoto *_data) : _type(mtpc_inputChatUploadedPhoto), mtpDataOwner(_data) {
+inline MTPinputChatPhoto::MTPinputChatPhoto(MTPDinputChatUploadedPhoto *_data) : mtpDataOwner(_data), _type(mtpc_inputChatUploadedPhoto) {
 }
-inline MTPinputChatPhoto::MTPinputChatPhoto(MTPDinputChatPhoto *_data) : _type(mtpc_inputChatPhoto), mtpDataOwner(_data) {
+inline MTPinputChatPhoto::MTPinputChatPhoto(MTPDinputChatPhoto *_data) : mtpDataOwner(_data), _type(mtpc_inputChatPhoto) {
 }
 inline MTPinputChatPhoto MTP_inputChatPhotoEmpty() {
 	return MTPinputChatPhoto(mtpc_inputChatPhotoEmpty);
@@ -15606,14 +15606,14 @@ inline void MTPinputGeoPoint::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPinputGeoPoint::MTPinputGeoPoint(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPinputGeoPoint::MTPinputGeoPoint(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_inputGeoPointEmpty: break;
 		case mtpc_inputGeoPoint: setData(new MTPDinputGeoPoint()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputGeoPoint");
 	}
 }
-inline MTPinputGeoPoint::MTPinputGeoPoint(MTPDinputGeoPoint *_data) : _type(mtpc_inputGeoPoint), mtpDataOwner(_data) {
+inline MTPinputGeoPoint::MTPinputGeoPoint(MTPDinputGeoPoint *_data) : mtpDataOwner(_data), _type(mtpc_inputGeoPoint) {
 }
 inline MTPinputGeoPoint MTP_inputGeoPointEmpty() {
 	return MTPinputGeoPoint(mtpc_inputGeoPointEmpty);
@@ -15657,14 +15657,14 @@ inline void MTPinputPhoto::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPinputPhoto::MTPinputPhoto(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPinputPhoto::MTPinputPhoto(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_inputPhotoEmpty: break;
 		case mtpc_inputPhoto: setData(new MTPDinputPhoto()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputPhoto");
 	}
 }
-inline MTPinputPhoto::MTPinputPhoto(MTPDinputPhoto *_data) : _type(mtpc_inputPhoto), mtpDataOwner(_data) {
+inline MTPinputPhoto::MTPinputPhoto(MTPDinputPhoto *_data) : mtpDataOwner(_data), _type(mtpc_inputPhoto) {
 }
 inline MTPinputPhoto MTP_inputPhotoEmpty() {
 	return MTPinputPhoto(mtpc_inputPhotoEmpty);
@@ -15708,14 +15708,14 @@ inline void MTPinputVideo::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPinputVideo::MTPinputVideo(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPinputVideo::MTPinputVideo(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_inputVideoEmpty: break;
 		case mtpc_inputVideo: setData(new MTPDinputVideo()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputVideo");
 	}
 }
-inline MTPinputVideo::MTPinputVideo(MTPDinputVideo *_data) : _type(mtpc_inputVideo), mtpDataOwner(_data) {
+inline MTPinputVideo::MTPinputVideo(MTPDinputVideo *_data) : mtpDataOwner(_data), _type(mtpc_inputVideo) {
 }
 inline MTPinputVideo MTP_inputVideoEmpty() {
 	return MTPinputVideo(mtpc_inputVideoEmpty);
@@ -15820,7 +15820,7 @@ inline void MTPinputFileLocation::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPinputFileLocation::MTPinputFileLocation(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPinputFileLocation::MTPinputFileLocation(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_inputFileLocation: setData(new MTPDinputFileLocation()); break;
 		case mtpc_inputVideoFileLocation: setData(new MTPDinputVideoFileLocation()); break;
@@ -15830,15 +15830,15 @@ inline MTPinputFileLocation::MTPinputFileLocation(mtpTypeId type) : _type(type),
 		default: throw mtpErrorBadTypeId(type, "MTPinputFileLocation");
 	}
 }
-inline MTPinputFileLocation::MTPinputFileLocation(MTPDinputFileLocation *_data) : _type(mtpc_inputFileLocation), mtpDataOwner(_data) {
+inline MTPinputFileLocation::MTPinputFileLocation(MTPDinputFileLocation *_data) : mtpDataOwner(_data), _type(mtpc_inputFileLocation) {
 }
-inline MTPinputFileLocation::MTPinputFileLocation(MTPDinputVideoFileLocation *_data) : _type(mtpc_inputVideoFileLocation), mtpDataOwner(_data) {
+inline MTPinputFileLocation::MTPinputFileLocation(MTPDinputVideoFileLocation *_data) : mtpDataOwner(_data), _type(mtpc_inputVideoFileLocation) {
 }
-inline MTPinputFileLocation::MTPinputFileLocation(MTPDinputEncryptedFileLocation *_data) : _type(mtpc_inputEncryptedFileLocation), mtpDataOwner(_data) {
+inline MTPinputFileLocation::MTPinputFileLocation(MTPDinputEncryptedFileLocation *_data) : mtpDataOwner(_data), _type(mtpc_inputEncryptedFileLocation) {
 }
-inline MTPinputFileLocation::MTPinputFileLocation(MTPDinputAudioFileLocation *_data) : _type(mtpc_inputAudioFileLocation), mtpDataOwner(_data) {
+inline MTPinputFileLocation::MTPinputFileLocation(MTPDinputAudioFileLocation *_data) : mtpDataOwner(_data), _type(mtpc_inputAudioFileLocation) {
 }
-inline MTPinputFileLocation::MTPinputFileLocation(MTPDinputDocumentFileLocation *_data) : _type(mtpc_inputDocumentFileLocation), mtpDataOwner(_data) {
+inline MTPinputFileLocation::MTPinputFileLocation(MTPDinputDocumentFileLocation *_data) : mtpDataOwner(_data), _type(mtpc_inputDocumentFileLocation) {
 }
 inline MTPinputFileLocation MTP_inputFileLocation(const MTPlong &_volume_id, MTPint _local_id, const MTPlong &_secret) {
 	return MTPinputFileLocation(new MTPDinputFileLocation(_volume_id, _local_id, _secret));
@@ -15893,14 +15893,14 @@ inline void MTPinputPhotoCrop::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPinputPhotoCrop::MTPinputPhotoCrop(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPinputPhotoCrop::MTPinputPhotoCrop(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_inputPhotoCropAuto: break;
 		case mtpc_inputPhotoCrop: setData(new MTPDinputPhotoCrop()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputPhotoCrop");
 	}
 }
-inline MTPinputPhotoCrop::MTPinputPhotoCrop(MTPDinputPhotoCrop *_data) : _type(mtpc_inputPhotoCrop), mtpDataOwner(_data) {
+inline MTPinputPhotoCrop::MTPinputPhotoCrop(MTPDinputPhotoCrop *_data) : mtpDataOwner(_data), _type(mtpc_inputPhotoCrop) {
 }
 inline MTPinputPhotoCrop MTP_inputPhotoCropAuto() {
 	return MTPinputPhotoCrop(mtpc_inputPhotoCropAuto);
@@ -15987,16 +15987,16 @@ inline void MTPpeer::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPpeer::MTPpeer(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPpeer::MTPpeer(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_peerUser: setData(new MTPDpeerUser()); break;
 		case mtpc_peerChat: setData(new MTPDpeerChat()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPpeer");
 	}
 }
-inline MTPpeer::MTPpeer(MTPDpeerUser *_data) : _type(mtpc_peerUser), mtpDataOwner(_data) {
+inline MTPpeer::MTPpeer(MTPDpeerUser *_data) : mtpDataOwner(_data), _type(mtpc_peerUser) {
 }
-inline MTPpeer::MTPpeer(MTPDpeerChat *_data) : _type(mtpc_peerChat), mtpDataOwner(_data) {
+inline MTPpeer::MTPpeer(MTPDpeerChat *_data) : mtpDataOwner(_data), _type(mtpc_peerChat) {
 }
 inline MTPpeer MTP_peerUser(MTPint _user_id) {
 	return MTPpeer(new MTPDpeerUser(_user_id));
@@ -16027,7 +16027,7 @@ inline void MTPstorage_fileType::read(const mtpPrime *&from, const mtpPrime *end
 		default: throw mtpErrorUnexpected(cons, "MTPstorage_fileType");
 	}
 }
-inline void MTPstorage_fileType::write(mtpBuffer &to) const {
+inline void MTPstorage_fileType::write(mtpBuffer &/*to*/) const {
 	switch (_type) {
 	}
 }
@@ -16132,16 +16132,16 @@ inline void MTPfileLocation::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPfileLocation::MTPfileLocation(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPfileLocation::MTPfileLocation(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_fileLocationUnavailable: setData(new MTPDfileLocationUnavailable()); break;
 		case mtpc_fileLocation: setData(new MTPDfileLocation()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPfileLocation");
 	}
 }
-inline MTPfileLocation::MTPfileLocation(MTPDfileLocationUnavailable *_data) : _type(mtpc_fileLocationUnavailable), mtpDataOwner(_data) {
+inline MTPfileLocation::MTPfileLocation(MTPDfileLocationUnavailable *_data) : mtpDataOwner(_data), _type(mtpc_fileLocationUnavailable) {
 }
-inline MTPfileLocation::MTPfileLocation(MTPDfileLocation *_data) : _type(mtpc_fileLocation), mtpDataOwner(_data) {
+inline MTPfileLocation::MTPfileLocation(MTPDfileLocation *_data) : mtpDataOwner(_data), _type(mtpc_fileLocation) {
 }
 inline MTPfileLocation MTP_fileLocationUnavailable(const MTPlong &_volume_id, MTPint _local_id, const MTPlong &_secret) {
 	return MTPfileLocation(new MTPDfileLocationUnavailable(_volume_id, _local_id, _secret));
@@ -16297,7 +16297,7 @@ inline void MTPuser::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPuser::MTPuser(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPuser::MTPuser(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_userEmpty: setData(new MTPDuserEmpty()); break;
 		case mtpc_userSelf: setData(new MTPDuserSelf()); break;
@@ -16308,17 +16308,17 @@ inline MTPuser::MTPuser(mtpTypeId type) : _type(type), mtpDataOwner(0) {
 		default: throw mtpErrorBadTypeId(type, "MTPuser");
 	}
 }
-inline MTPuser::MTPuser(MTPDuserEmpty *_data) : _type(mtpc_userEmpty), mtpDataOwner(_data) {
+inline MTPuser::MTPuser(MTPDuserEmpty *_data) : mtpDataOwner(_data), _type(mtpc_userEmpty) {
 }
-inline MTPuser::MTPuser(MTPDuserSelf *_data) : _type(mtpc_userSelf), mtpDataOwner(_data) {
+inline MTPuser::MTPuser(MTPDuserSelf *_data) : mtpDataOwner(_data), _type(mtpc_userSelf) {
 }
-inline MTPuser::MTPuser(MTPDuserContact *_data) : _type(mtpc_userContact), mtpDataOwner(_data) {
+inline MTPuser::MTPuser(MTPDuserContact *_data) : mtpDataOwner(_data), _type(mtpc_userContact) {
 }
-inline MTPuser::MTPuser(MTPDuserRequest *_data) : _type(mtpc_userRequest), mtpDataOwner(_data) {
+inline MTPuser::MTPuser(MTPDuserRequest *_data) : mtpDataOwner(_data), _type(mtpc_userRequest) {
 }
-inline MTPuser::MTPuser(MTPDuserForeign *_data) : _type(mtpc_userForeign), mtpDataOwner(_data) {
+inline MTPuser::MTPuser(MTPDuserForeign *_data) : mtpDataOwner(_data), _type(mtpc_userForeign) {
 }
-inline MTPuser::MTPuser(MTPDuserDeleted *_data) : _type(mtpc_userDeleted), mtpDataOwner(_data) {
+inline MTPuser::MTPuser(MTPDuserDeleted *_data) : mtpDataOwner(_data), _type(mtpc_userDeleted) {
 }
 inline MTPuser MTP_userEmpty(MTPint _id) {
 	return MTPuser(new MTPDuserEmpty(_id));
@@ -16376,14 +16376,14 @@ inline void MTPuserProfilePhoto::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPuserProfilePhoto::MTPuserProfilePhoto(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPuserProfilePhoto::MTPuserProfilePhoto(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_userProfilePhotoEmpty: break;
 		case mtpc_userProfilePhoto: setData(new MTPDuserProfilePhoto()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPuserProfilePhoto");
 	}
 }
-inline MTPuserProfilePhoto::MTPuserProfilePhoto(MTPDuserProfilePhoto *_data) : _type(mtpc_userProfilePhoto), mtpDataOwner(_data) {
+inline MTPuserProfilePhoto::MTPuserProfilePhoto(MTPDuserProfilePhoto *_data) : mtpDataOwner(_data), _type(mtpc_userProfilePhoto) {
 }
 inline MTPuserProfilePhoto MTP_userProfilePhotoEmpty() {
 	return MTPuserProfilePhoto(mtpc_userProfilePhotoEmpty);
@@ -16438,7 +16438,7 @@ inline void MTPuserStatus::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPuserStatus::MTPuserStatus(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPuserStatus::MTPuserStatus(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_userStatusEmpty: break;
 		case mtpc_userStatusOnline: setData(new MTPDuserStatusOnline()); break;
@@ -16446,9 +16446,9 @@ inline MTPuserStatus::MTPuserStatus(mtpTypeId type) : _type(type), mtpDataOwner(
 		default: throw mtpErrorBadTypeId(type, "MTPuserStatus");
 	}
 }
-inline MTPuserStatus::MTPuserStatus(MTPDuserStatusOnline *_data) : _type(mtpc_userStatusOnline), mtpDataOwner(_data) {
+inline MTPuserStatus::MTPuserStatus(MTPDuserStatusOnline *_data) : mtpDataOwner(_data), _type(mtpc_userStatusOnline) {
 }
-inline MTPuserStatus::MTPuserStatus(MTPDuserStatusOffline *_data) : _type(mtpc_userStatusOffline), mtpDataOwner(_data) {
+inline MTPuserStatus::MTPuserStatus(MTPDuserStatusOffline *_data) : mtpDataOwner(_data), _type(mtpc_userStatusOffline) {
 }
 inline MTPuserStatus MTP_userStatusEmpty() {
 	return MTPuserStatus(mtpc_userStatusEmpty);
@@ -16567,7 +16567,7 @@ inline void MTPchat::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPchat::MTPchat(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPchat::MTPchat(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_chatEmpty: setData(new MTPDchatEmpty()); break;
 		case mtpc_chat: setData(new MTPDchat()); break;
@@ -16576,13 +16576,13 @@ inline MTPchat::MTPchat(mtpTypeId type) : _type(type), mtpDataOwner(0) {
 		default: throw mtpErrorBadTypeId(type, "MTPchat");
 	}
 }
-inline MTPchat::MTPchat(MTPDchatEmpty *_data) : _type(mtpc_chatEmpty), mtpDataOwner(_data) {
+inline MTPchat::MTPchat(MTPDchatEmpty *_data) : mtpDataOwner(_data), _type(mtpc_chatEmpty) {
 }
-inline MTPchat::MTPchat(MTPDchat *_data) : _type(mtpc_chat), mtpDataOwner(_data) {
+inline MTPchat::MTPchat(MTPDchat *_data) : mtpDataOwner(_data), _type(mtpc_chat) {
 }
-inline MTPchat::MTPchat(MTPDchatForbidden *_data) : _type(mtpc_chatForbidden), mtpDataOwner(_data) {
+inline MTPchat::MTPchat(MTPDchatForbidden *_data) : mtpDataOwner(_data), _type(mtpc_chatForbidden) {
 }
-inline MTPchat::MTPchat(MTPDgeoChat *_data) : _type(mtpc_geoChat), mtpDataOwner(_data) {
+inline MTPchat::MTPchat(MTPDgeoChat *_data) : mtpDataOwner(_data), _type(mtpc_geoChat) {
 }
 inline MTPchat MTP_chatEmpty(MTPint _id) {
 	return MTPchat(new MTPDchatEmpty(_id));
@@ -16712,16 +16712,16 @@ inline void MTPchatParticipants::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPchatParticipants::MTPchatParticipants(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPchatParticipants::MTPchatParticipants(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_chatParticipantsForbidden: setData(new MTPDchatParticipantsForbidden()); break;
 		case mtpc_chatParticipants: setData(new MTPDchatParticipants()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPchatParticipants");
 	}
 }
-inline MTPchatParticipants::MTPchatParticipants(MTPDchatParticipantsForbidden *_data) : _type(mtpc_chatParticipantsForbidden), mtpDataOwner(_data) {
+inline MTPchatParticipants::MTPchatParticipants(MTPDchatParticipantsForbidden *_data) : mtpDataOwner(_data), _type(mtpc_chatParticipantsForbidden) {
 }
-inline MTPchatParticipants::MTPchatParticipants(MTPDchatParticipants *_data) : _type(mtpc_chatParticipants), mtpDataOwner(_data) {
+inline MTPchatParticipants::MTPchatParticipants(MTPDchatParticipants *_data) : mtpDataOwner(_data), _type(mtpc_chatParticipants) {
 }
 inline MTPchatParticipants MTP_chatParticipantsForbidden(MTPint _chat_id) {
 	return MTPchatParticipants(new MTPDchatParticipantsForbidden(_chat_id));
@@ -16765,14 +16765,14 @@ inline void MTPchatPhoto::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPchatPhoto::MTPchatPhoto(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPchatPhoto::MTPchatPhoto(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_chatPhotoEmpty: break;
 		case mtpc_chatPhoto: setData(new MTPDchatPhoto()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPchatPhoto");
 	}
 }
-inline MTPchatPhoto::MTPchatPhoto(MTPDchatPhoto *_data) : _type(mtpc_chatPhoto), mtpDataOwner(_data) {
+inline MTPchatPhoto::MTPchatPhoto(MTPDchatPhoto *_data) : mtpDataOwner(_data), _type(mtpc_chatPhoto) {
 }
 inline MTPchatPhoto MTP_chatPhotoEmpty() {
 	return MTPchatPhoto(mtpc_chatPhotoEmpty);
@@ -16896,7 +16896,7 @@ inline void MTPmessage::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPmessage::MTPmessage(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPmessage::MTPmessage(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_messageEmpty: setData(new MTPDmessageEmpty()); break;
 		case mtpc_message: setData(new MTPDmessage()); break;
@@ -16905,13 +16905,13 @@ inline MTPmessage::MTPmessage(mtpTypeId type) : _type(type), mtpDataOwner(0) {
 		default: throw mtpErrorBadTypeId(type, "MTPmessage");
 	}
 }
-inline MTPmessage::MTPmessage(MTPDmessageEmpty *_data) : _type(mtpc_messageEmpty), mtpDataOwner(_data) {
+inline MTPmessage::MTPmessage(MTPDmessageEmpty *_data) : mtpDataOwner(_data), _type(mtpc_messageEmpty) {
 }
-inline MTPmessage::MTPmessage(MTPDmessage *_data) : _type(mtpc_message), mtpDataOwner(_data) {
+inline MTPmessage::MTPmessage(MTPDmessage *_data) : mtpDataOwner(_data), _type(mtpc_message) {
 }
-inline MTPmessage::MTPmessage(MTPDmessageForwarded *_data) : _type(mtpc_messageForwarded), mtpDataOwner(_data) {
+inline MTPmessage::MTPmessage(MTPDmessageForwarded *_data) : mtpDataOwner(_data), _type(mtpc_messageForwarded) {
 }
-inline MTPmessage::MTPmessage(MTPDmessageService *_data) : _type(mtpc_messageService), mtpDataOwner(_data) {
+inline MTPmessage::MTPmessage(MTPDmessageService *_data) : mtpDataOwner(_data), _type(mtpc_messageService) {
 }
 inline MTPmessage MTP_messageEmpty(MTPint _id) {
 	return MTPmessage(new MTPDmessageEmpty(_id));
@@ -17043,7 +17043,7 @@ inline void MTPmessageMedia::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPmessageMedia::MTPmessageMedia(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPmessageMedia::MTPmessageMedia(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_messageMediaEmpty: break;
 		case mtpc_messageMediaPhoto: setData(new MTPDmessageMediaPhoto()); break;
@@ -17056,19 +17056,19 @@ inline MTPmessageMedia::MTPmessageMedia(mtpTypeId type) : _type(type), mtpDataOw
 		default: throw mtpErrorBadTypeId(type, "MTPmessageMedia");
 	}
 }
-inline MTPmessageMedia::MTPmessageMedia(MTPDmessageMediaPhoto *_data) : _type(mtpc_messageMediaPhoto), mtpDataOwner(_data) {
+inline MTPmessageMedia::MTPmessageMedia(MTPDmessageMediaPhoto *_data) : mtpDataOwner(_data), _type(mtpc_messageMediaPhoto) {
 }
-inline MTPmessageMedia::MTPmessageMedia(MTPDmessageMediaVideo *_data) : _type(mtpc_messageMediaVideo), mtpDataOwner(_data) {
+inline MTPmessageMedia::MTPmessageMedia(MTPDmessageMediaVideo *_data) : mtpDataOwner(_data), _type(mtpc_messageMediaVideo) {
 }
-inline MTPmessageMedia::MTPmessageMedia(MTPDmessageMediaGeo *_data) : _type(mtpc_messageMediaGeo), mtpDataOwner(_data) {
+inline MTPmessageMedia::MTPmessageMedia(MTPDmessageMediaGeo *_data) : mtpDataOwner(_data), _type(mtpc_messageMediaGeo) {
 }
-inline MTPmessageMedia::MTPmessageMedia(MTPDmessageMediaContact *_data) : _type(mtpc_messageMediaContact), mtpDataOwner(_data) {
+inline MTPmessageMedia::MTPmessageMedia(MTPDmessageMediaContact *_data) : mtpDataOwner(_data), _type(mtpc_messageMediaContact) {
 }
-inline MTPmessageMedia::MTPmessageMedia(MTPDmessageMediaUnsupported *_data) : _type(mtpc_messageMediaUnsupported), mtpDataOwner(_data) {
+inline MTPmessageMedia::MTPmessageMedia(MTPDmessageMediaUnsupported *_data) : mtpDataOwner(_data), _type(mtpc_messageMediaUnsupported) {
 }
-inline MTPmessageMedia::MTPmessageMedia(MTPDmessageMediaDocument *_data) : _type(mtpc_messageMediaDocument), mtpDataOwner(_data) {
+inline MTPmessageMedia::MTPmessageMedia(MTPDmessageMediaDocument *_data) : mtpDataOwner(_data), _type(mtpc_messageMediaDocument) {
 }
-inline MTPmessageMedia::MTPmessageMedia(MTPDmessageMediaAudio *_data) : _type(mtpc_messageMediaAudio), mtpDataOwner(_data) {
+inline MTPmessageMedia::MTPmessageMedia(MTPDmessageMediaAudio *_data) : mtpDataOwner(_data), _type(mtpc_messageMediaAudio) {
 }
 inline MTPmessageMedia MTP_messageMediaEmpty() {
 	return MTPmessageMedia(mtpc_messageMediaEmpty);
@@ -17199,7 +17199,7 @@ inline void MTPmessageAction::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPmessageAction::MTPmessageAction(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPmessageAction::MTPmessageAction(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_messageActionEmpty: break;
 		case mtpc_messageActionChatCreate: setData(new MTPDmessageActionChatCreate()); break;
@@ -17213,17 +17213,17 @@ inline MTPmessageAction::MTPmessageAction(mtpTypeId type) : _type(type), mtpData
 		default: throw mtpErrorBadTypeId(type, "MTPmessageAction");
 	}
 }
-inline MTPmessageAction::MTPmessageAction(MTPDmessageActionChatCreate *_data) : _type(mtpc_messageActionChatCreate), mtpDataOwner(_data) {
+inline MTPmessageAction::MTPmessageAction(MTPDmessageActionChatCreate *_data) : mtpDataOwner(_data), _type(mtpc_messageActionChatCreate) {
 }
-inline MTPmessageAction::MTPmessageAction(MTPDmessageActionChatEditTitle *_data) : _type(mtpc_messageActionChatEditTitle), mtpDataOwner(_data) {
+inline MTPmessageAction::MTPmessageAction(MTPDmessageActionChatEditTitle *_data) : mtpDataOwner(_data), _type(mtpc_messageActionChatEditTitle) {
 }
-inline MTPmessageAction::MTPmessageAction(MTPDmessageActionChatEditPhoto *_data) : _type(mtpc_messageActionChatEditPhoto), mtpDataOwner(_data) {
+inline MTPmessageAction::MTPmessageAction(MTPDmessageActionChatEditPhoto *_data) : mtpDataOwner(_data), _type(mtpc_messageActionChatEditPhoto) {
 }
-inline MTPmessageAction::MTPmessageAction(MTPDmessageActionChatAddUser *_data) : _type(mtpc_messageActionChatAddUser), mtpDataOwner(_data) {
+inline MTPmessageAction::MTPmessageAction(MTPDmessageActionChatAddUser *_data) : mtpDataOwner(_data), _type(mtpc_messageActionChatAddUser) {
 }
-inline MTPmessageAction::MTPmessageAction(MTPDmessageActionChatDeleteUser *_data) : _type(mtpc_messageActionChatDeleteUser), mtpDataOwner(_data) {
+inline MTPmessageAction::MTPmessageAction(MTPDmessageActionChatDeleteUser *_data) : mtpDataOwner(_data), _type(mtpc_messageActionChatDeleteUser) {
 }
-inline MTPmessageAction::MTPmessageAction(MTPDmessageActionGeoChatCreate *_data) : _type(mtpc_messageActionGeoChatCreate), mtpDataOwner(_data) {
+inline MTPmessageAction::MTPmessageAction(MTPDmessageActionGeoChatCreate *_data) : mtpDataOwner(_data), _type(mtpc_messageActionGeoChatCreate) {
 }
 inline MTPmessageAction MTP_messageActionEmpty() {
 	return MTPmessageAction(mtpc_messageActionEmpty);
@@ -17343,16 +17343,16 @@ inline void MTPphoto::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPphoto::MTPphoto(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPphoto::MTPphoto(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_photoEmpty: setData(new MTPDphotoEmpty()); break;
 		case mtpc_photo: setData(new MTPDphoto()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPphoto");
 	}
 }
-inline MTPphoto::MTPphoto(MTPDphotoEmpty *_data) : _type(mtpc_photoEmpty), mtpDataOwner(_data) {
+inline MTPphoto::MTPphoto(MTPDphotoEmpty *_data) : mtpDataOwner(_data), _type(mtpc_photoEmpty) {
 }
-inline MTPphoto::MTPphoto(MTPDphoto *_data) : _type(mtpc_photo), mtpDataOwner(_data) {
+inline MTPphoto::MTPphoto(MTPDphoto *_data) : mtpDataOwner(_data), _type(mtpc_photo) {
 }
 inline MTPphoto MTP_photoEmpty(const MTPlong &_id) {
 	return MTPphoto(new MTPDphotoEmpty(_id));
@@ -17435,7 +17435,7 @@ inline void MTPphotoSize::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPphotoSize::MTPphotoSize(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPphotoSize::MTPphotoSize(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_photoSizeEmpty: setData(new MTPDphotoSizeEmpty()); break;
 		case mtpc_photoSize: setData(new MTPDphotoSize()); break;
@@ -17443,11 +17443,11 @@ inline MTPphotoSize::MTPphotoSize(mtpTypeId type) : _type(type), mtpDataOwner(0)
 		default: throw mtpErrorBadTypeId(type, "MTPphotoSize");
 	}
 }
-inline MTPphotoSize::MTPphotoSize(MTPDphotoSizeEmpty *_data) : _type(mtpc_photoSizeEmpty), mtpDataOwner(_data) {
+inline MTPphotoSize::MTPphotoSize(MTPDphotoSizeEmpty *_data) : mtpDataOwner(_data), _type(mtpc_photoSizeEmpty) {
 }
-inline MTPphotoSize::MTPphotoSize(MTPDphotoSize *_data) : _type(mtpc_photoSize), mtpDataOwner(_data) {
+inline MTPphotoSize::MTPphotoSize(MTPDphotoSize *_data) : mtpDataOwner(_data), _type(mtpc_photoSize) {
 }
-inline MTPphotoSize::MTPphotoSize(MTPDphotoCachedSize *_data) : _type(mtpc_photoCachedSize), mtpDataOwner(_data) {
+inline MTPphotoSize::MTPphotoSize(MTPDphotoCachedSize *_data) : mtpDataOwner(_data), _type(mtpc_photoCachedSize) {
 }
 inline MTPphotoSize MTP_photoSizeEmpty(const MTPstring &_type) {
 	return MTPphotoSize(new MTPDphotoSizeEmpty(_type));
@@ -17526,16 +17526,16 @@ inline void MTPvideo::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPvideo::MTPvideo(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPvideo::MTPvideo(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_videoEmpty: setData(new MTPDvideoEmpty()); break;
 		case mtpc_video: setData(new MTPDvideo()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPvideo");
 	}
 }
-inline MTPvideo::MTPvideo(MTPDvideoEmpty *_data) : _type(mtpc_videoEmpty), mtpDataOwner(_data) {
+inline MTPvideo::MTPvideo(MTPDvideoEmpty *_data) : mtpDataOwner(_data), _type(mtpc_videoEmpty) {
 }
-inline MTPvideo::MTPvideo(MTPDvideo *_data) : _type(mtpc_video), mtpDataOwner(_data) {
+inline MTPvideo::MTPvideo(MTPDvideo *_data) : mtpDataOwner(_data), _type(mtpc_video) {
 }
 inline MTPvideo MTP_videoEmpty(const MTPlong &_id) {
 	return MTPvideo(new MTPDvideoEmpty(_id));
@@ -17579,14 +17579,14 @@ inline void MTPgeoPoint::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPgeoPoint::MTPgeoPoint(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPgeoPoint::MTPgeoPoint(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_geoPointEmpty: break;
 		case mtpc_geoPoint: setData(new MTPDgeoPoint()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPgeoPoint");
 	}
 }
-inline MTPgeoPoint::MTPgeoPoint(MTPDgeoPoint *_data) : _type(mtpc_geoPoint), mtpDataOwner(_data) {
+inline MTPgeoPoint::MTPgeoPoint(MTPDgeoPoint *_data) : mtpDataOwner(_data), _type(mtpc_geoPoint) {
 }
 inline MTPgeoPoint MTP_geoPointEmpty() {
 	return MTPgeoPoint(mtpc_geoPointEmpty);
@@ -17763,7 +17763,7 @@ inline void MTPinputNotifyPeer::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPinputNotifyPeer::MTPinputNotifyPeer(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPinputNotifyPeer::MTPinputNotifyPeer(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_inputNotifyPeer: setData(new MTPDinputNotifyPeer()); break;
 		case mtpc_inputNotifyUsers: break;
@@ -17773,9 +17773,9 @@ inline MTPinputNotifyPeer::MTPinputNotifyPeer(mtpTypeId type) : _type(type), mtp
 		default: throw mtpErrorBadTypeId(type, "MTPinputNotifyPeer");
 	}
 }
-inline MTPinputNotifyPeer::MTPinputNotifyPeer(MTPDinputNotifyPeer *_data) : _type(mtpc_inputNotifyPeer), mtpDataOwner(_data) {
+inline MTPinputNotifyPeer::MTPinputNotifyPeer(MTPDinputNotifyPeer *_data) : mtpDataOwner(_data), _type(mtpc_inputNotifyPeer) {
 }
-inline MTPinputNotifyPeer::MTPinputNotifyPeer(MTPDinputNotifyGeoChatPeer *_data) : _type(mtpc_inputNotifyGeoChatPeer), mtpDataOwner(_data) {
+inline MTPinputNotifyPeer::MTPinputNotifyPeer(MTPDinputNotifyGeoChatPeer *_data) : mtpDataOwner(_data), _type(mtpc_inputNotifyGeoChatPeer) {
 }
 inline MTPinputNotifyPeer MTP_inputNotifyPeer(const MTPInputPeer &_peer) {
 	return MTPinputNotifyPeer(new MTPDinputNotifyPeer(_peer));
@@ -17807,7 +17807,7 @@ inline void MTPinputPeerNotifyEvents::read(const mtpPrime *&from, const mtpPrime
 		default: throw mtpErrorUnexpected(cons, "MTPinputPeerNotifyEvents");
 	}
 }
-inline void MTPinputPeerNotifyEvents::write(mtpBuffer &to) const {
+inline void MTPinputPeerNotifyEvents::write(mtpBuffer &/*to*/) const {
 	switch (_type) {
 	}
 }
@@ -17872,7 +17872,7 @@ inline void MTPpeerNotifyEvents::read(const mtpPrime *&from, const mtpPrime *end
 		default: throw mtpErrorUnexpected(cons, "MTPpeerNotifyEvents");
 	}
 }
-inline void MTPpeerNotifyEvents::write(mtpBuffer &to) const {
+inline void MTPpeerNotifyEvents::write(mtpBuffer &/*to*/) const {
 	switch (_type) {
 	}
 }
@@ -17929,14 +17929,14 @@ inline void MTPpeerNotifySettings::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPpeerNotifySettings::MTPpeerNotifySettings(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPpeerNotifySettings::MTPpeerNotifySettings(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_peerNotifySettingsEmpty: break;
 		case mtpc_peerNotifySettings: setData(new MTPDpeerNotifySettings()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPpeerNotifySettings");
 	}
 }
-inline MTPpeerNotifySettings::MTPpeerNotifySettings(MTPDpeerNotifySettings *_data) : _type(mtpc_peerNotifySettings), mtpDataOwner(_data) {
+inline MTPpeerNotifySettings::MTPpeerNotifySettings(MTPDpeerNotifySettings *_data) : mtpDataOwner(_data), _type(mtpc_peerNotifySettings) {
 }
 inline MTPpeerNotifySettings MTP_peerNotifySettingsEmpty() {
 	return MTPpeerNotifySettings(mtpc_peerNotifySettingsEmpty);
@@ -18002,16 +18002,16 @@ inline void MTPwallPaper::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPwallPaper::MTPwallPaper(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPwallPaper::MTPwallPaper(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_wallPaper: setData(new MTPDwallPaper()); break;
 		case mtpc_wallPaperSolid: setData(new MTPDwallPaperSolid()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPwallPaper");
 	}
 }
-inline MTPwallPaper::MTPwallPaper(MTPDwallPaper *_data) : _type(mtpc_wallPaper), mtpDataOwner(_data) {
+inline MTPwallPaper::MTPwallPaper(MTPDwallPaper *_data) : mtpDataOwner(_data), _type(mtpc_wallPaper) {
 }
-inline MTPwallPaper::MTPwallPaper(MTPDwallPaperSolid *_data) : _type(mtpc_wallPaperSolid), mtpDataOwner(_data) {
+inline MTPwallPaper::MTPwallPaper(MTPDwallPaperSolid *_data) : mtpDataOwner(_data), _type(mtpc_wallPaperSolid) {
 }
 inline MTPwallPaper MTP_wallPaper(MTPint _id, const MTPstring &_title, const MTPVector<MTPPhotoSize> &_sizes, MTPint _color) {
 	return MTPwallPaper(new MTPDwallPaper(_id, _title, _sizes, _color));
@@ -18294,7 +18294,7 @@ inline void MTPcontacts_foreignLink::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPcontacts_foreignLink::MTPcontacts_foreignLink(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPcontacts_foreignLink::MTPcontacts_foreignLink(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_contacts_foreignLinkUnknown: break;
 		case mtpc_contacts_foreignLinkRequested: setData(new MTPDcontacts_foreignLinkRequested()); break;
@@ -18302,7 +18302,7 @@ inline MTPcontacts_foreignLink::MTPcontacts_foreignLink(mtpTypeId type) : _type(
 		default: throw mtpErrorBadTypeId(type, "MTPcontacts_foreignLink");
 	}
 }
-inline MTPcontacts_foreignLink::MTPcontacts_foreignLink(MTPDcontacts_foreignLinkRequested *_data) : _type(mtpc_contacts_foreignLinkRequested), mtpDataOwner(_data) {
+inline MTPcontacts_foreignLink::MTPcontacts_foreignLink(MTPDcontacts_foreignLinkRequested *_data) : mtpDataOwner(_data), _type(mtpc_contacts_foreignLinkRequested) {
 }
 inline MTPcontacts_foreignLink MTP_contacts_foreignLinkUnknown() {
 	return MTPcontacts_foreignLink(mtpc_contacts_foreignLinkUnknown);
@@ -18348,7 +18348,7 @@ inline void MTPcontacts_myLink::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPcontacts_myLink::MTPcontacts_myLink(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPcontacts_myLink::MTPcontacts_myLink(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_contacts_myLinkEmpty: break;
 		case mtpc_contacts_myLinkRequested: setData(new MTPDcontacts_myLinkRequested()); break;
@@ -18356,7 +18356,7 @@ inline MTPcontacts_myLink::MTPcontacts_myLink(mtpTypeId type) : _type(type), mtp
 		default: throw mtpErrorBadTypeId(type, "MTPcontacts_myLink");
 	}
 }
-inline MTPcontacts_myLink::MTPcontacts_myLink(MTPDcontacts_myLinkRequested *_data) : _type(mtpc_contacts_myLinkRequested), mtpDataOwner(_data) {
+inline MTPcontacts_myLink::MTPcontacts_myLink(MTPDcontacts_myLinkRequested *_data) : mtpDataOwner(_data), _type(mtpc_contacts_myLinkRequested) {
 }
 inline MTPcontacts_myLink MTP_contacts_myLinkEmpty() {
 	return MTPcontacts_myLink(mtpc_contacts_myLinkEmpty);
@@ -18434,14 +18434,14 @@ inline void MTPcontacts_contacts::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPcontacts_contacts::MTPcontacts_contacts(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPcontacts_contacts::MTPcontacts_contacts(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_contacts_contacts: setData(new MTPDcontacts_contacts()); break;
 		case mtpc_contacts_contactsNotModified: break;
 		default: throw mtpErrorBadTypeId(type, "MTPcontacts_contacts");
 	}
 }
-inline MTPcontacts_contacts::MTPcontacts_contacts(MTPDcontacts_contacts *_data) : _type(mtpc_contacts_contacts), mtpDataOwner(_data) {
+inline MTPcontacts_contacts::MTPcontacts_contacts(MTPDcontacts_contacts *_data) : mtpDataOwner(_data), _type(mtpc_contacts_contacts) {
 }
 inline MTPcontacts_contacts MTP_contacts_contacts(const MTPVector<MTPContact> &_contacts, const MTPVector<MTPUser> &_users) {
 	return MTPcontacts_contacts(new MTPDcontacts_contacts(_contacts, _users));
@@ -18532,16 +18532,16 @@ inline void MTPcontacts_blocked::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPcontacts_blocked::MTPcontacts_blocked(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPcontacts_blocked::MTPcontacts_blocked(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_contacts_blocked: setData(new MTPDcontacts_blocked()); break;
 		case mtpc_contacts_blockedSlice: setData(new MTPDcontacts_blockedSlice()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPcontacts_blocked");
 	}
 }
-inline MTPcontacts_blocked::MTPcontacts_blocked(MTPDcontacts_blocked *_data) : _type(mtpc_contacts_blocked), mtpDataOwner(_data) {
+inline MTPcontacts_blocked::MTPcontacts_blocked(MTPDcontacts_blocked *_data) : mtpDataOwner(_data), _type(mtpc_contacts_blocked) {
 }
-inline MTPcontacts_blocked::MTPcontacts_blocked(MTPDcontacts_blockedSlice *_data) : _type(mtpc_contacts_blockedSlice), mtpDataOwner(_data) {
+inline MTPcontacts_blocked::MTPcontacts_blocked(MTPDcontacts_blockedSlice *_data) : mtpDataOwner(_data), _type(mtpc_contacts_blockedSlice) {
 }
 inline MTPcontacts_blocked MTP_contacts_blocked(const MTPVector<MTPContactBlocked> &_blocked, const MTPVector<MTPUser> &_users) {
 	return MTPcontacts_blocked(new MTPDcontacts_blocked(_blocked, _users));
@@ -18667,16 +18667,16 @@ inline void MTPmessages_dialogs::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPmessages_dialogs::MTPmessages_dialogs(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPmessages_dialogs::MTPmessages_dialogs(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_messages_dialogs: setData(new MTPDmessages_dialogs()); break;
 		case mtpc_messages_dialogsSlice: setData(new MTPDmessages_dialogsSlice()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_dialogs");
 	}
 }
-inline MTPmessages_dialogs::MTPmessages_dialogs(MTPDmessages_dialogs *_data) : _type(mtpc_messages_dialogs), mtpDataOwner(_data) {
+inline MTPmessages_dialogs::MTPmessages_dialogs(MTPDmessages_dialogs *_data) : mtpDataOwner(_data), _type(mtpc_messages_dialogs) {
 }
-inline MTPmessages_dialogs::MTPmessages_dialogs(MTPDmessages_dialogsSlice *_data) : _type(mtpc_messages_dialogsSlice), mtpDataOwner(_data) {
+inline MTPmessages_dialogs::MTPmessages_dialogs(MTPDmessages_dialogsSlice *_data) : mtpDataOwner(_data), _type(mtpc_messages_dialogsSlice) {
 }
 inline MTPmessages_dialogs MTP_messages_dialogs(const MTPVector<MTPDialog> &_dialogs, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
 	return MTPmessages_dialogs(new MTPDmessages_dialogs(_dialogs, _messages, _chats, _users));
@@ -18740,16 +18740,16 @@ inline void MTPmessages_messages::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPmessages_messages::MTPmessages_messages(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPmessages_messages::MTPmessages_messages(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_messages_messages: setData(new MTPDmessages_messages()); break;
 		case mtpc_messages_messagesSlice: setData(new MTPDmessages_messagesSlice()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_messages");
 	}
 }
-inline MTPmessages_messages::MTPmessages_messages(MTPDmessages_messages *_data) : _type(mtpc_messages_messages), mtpDataOwner(_data) {
+inline MTPmessages_messages::MTPmessages_messages(MTPDmessages_messages *_data) : mtpDataOwner(_data), _type(mtpc_messages_messages) {
 }
-inline MTPmessages_messages::MTPmessages_messages(MTPDmessages_messagesSlice *_data) : _type(mtpc_messages_messagesSlice), mtpDataOwner(_data) {
+inline MTPmessages_messages::MTPmessages_messages(MTPDmessages_messagesSlice *_data) : mtpDataOwner(_data), _type(mtpc_messages_messagesSlice) {
 }
 inline MTPmessages_messages MTP_messages_messages(const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
 	return MTPmessages_messages(new MTPDmessages_messages(_messages, _chats, _users));
@@ -18795,14 +18795,14 @@ inline void MTPmessages_message::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPmessages_message::MTPmessages_message(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPmessages_message::MTPmessages_message(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_messages_messageEmpty: break;
 		case mtpc_messages_message: setData(new MTPDmessages_message()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_message");
 	}
 }
-inline MTPmessages_message::MTPmessages_message(MTPDmessages_message *_data) : _type(mtpc_messages_message), mtpDataOwner(_data) {
+inline MTPmessages_message::MTPmessages_message(MTPDmessages_message *_data) : mtpDataOwner(_data), _type(mtpc_messages_message) {
 }
 inline MTPmessages_message MTP_messages_messageEmpty() {
 	return MTPmessages_message(mtpc_messages_messageEmpty);
@@ -18874,16 +18874,16 @@ inline void MTPmessages_statedMessages::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPmessages_statedMessages::MTPmessages_statedMessages(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPmessages_statedMessages::MTPmessages_statedMessages(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_messages_statedMessages: setData(new MTPDmessages_statedMessages()); break;
 		case mtpc_messages_statedMessagesLinks: setData(new MTPDmessages_statedMessagesLinks()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_statedMessages");
 	}
 }
-inline MTPmessages_statedMessages::MTPmessages_statedMessages(MTPDmessages_statedMessages *_data) : _type(mtpc_messages_statedMessages), mtpDataOwner(_data) {
+inline MTPmessages_statedMessages::MTPmessages_statedMessages(MTPDmessages_statedMessages *_data) : mtpDataOwner(_data), _type(mtpc_messages_statedMessages) {
 }
-inline MTPmessages_statedMessages::MTPmessages_statedMessages(MTPDmessages_statedMessagesLinks *_data) : _type(mtpc_messages_statedMessagesLinks), mtpDataOwner(_data) {
+inline MTPmessages_statedMessages::MTPmessages_statedMessages(MTPDmessages_statedMessagesLinks *_data) : mtpDataOwner(_data), _type(mtpc_messages_statedMessagesLinks) {
 }
 inline MTPmessages_statedMessages MTP_messages_statedMessages(const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users, MTPint _pts, MTPint _seq) {
 	return MTPmessages_statedMessages(new MTPDmessages_statedMessages(_messages, _chats, _users, _pts, _seq));
@@ -18955,16 +18955,16 @@ inline void MTPmessages_statedMessage::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPmessages_statedMessage::MTPmessages_statedMessage(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPmessages_statedMessage::MTPmessages_statedMessage(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_messages_statedMessage: setData(new MTPDmessages_statedMessage()); break;
 		case mtpc_messages_statedMessageLink: setData(new MTPDmessages_statedMessageLink()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_statedMessage");
 	}
 }
-inline MTPmessages_statedMessage::MTPmessages_statedMessage(MTPDmessages_statedMessage *_data) : _type(mtpc_messages_statedMessage), mtpDataOwner(_data) {
+inline MTPmessages_statedMessage::MTPmessages_statedMessage(MTPDmessages_statedMessage *_data) : mtpDataOwner(_data), _type(mtpc_messages_statedMessage) {
 }
-inline MTPmessages_statedMessage::MTPmessages_statedMessage(MTPDmessages_statedMessageLink *_data) : _type(mtpc_messages_statedMessageLink), mtpDataOwner(_data) {
+inline MTPmessages_statedMessage::MTPmessages_statedMessage(MTPDmessages_statedMessageLink *_data) : mtpDataOwner(_data), _type(mtpc_messages_statedMessageLink) {
 }
 inline MTPmessages_statedMessage MTP_messages_statedMessage(const MTPMessage &_message, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users, MTPint _pts, MTPint _seq) {
 	return MTPmessages_statedMessage(new MTPDmessages_statedMessage(_message, _chats, _users, _pts, _seq));
@@ -19032,16 +19032,16 @@ inline void MTPmessages_sentMessage::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPmessages_sentMessage::MTPmessages_sentMessage(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPmessages_sentMessage::MTPmessages_sentMessage(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_messages_sentMessage: setData(new MTPDmessages_sentMessage()); break;
 		case mtpc_messages_sentMessageLink: setData(new MTPDmessages_sentMessageLink()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_sentMessage");
 	}
 }
-inline MTPmessages_sentMessage::MTPmessages_sentMessage(MTPDmessages_sentMessage *_data) : _type(mtpc_messages_sentMessage), mtpDataOwner(_data) {
+inline MTPmessages_sentMessage::MTPmessages_sentMessage(MTPDmessages_sentMessage *_data) : mtpDataOwner(_data), _type(mtpc_messages_sentMessage) {
 }
-inline MTPmessages_sentMessage::MTPmessages_sentMessage(MTPDmessages_sentMessageLink *_data) : _type(mtpc_messages_sentMessageLink), mtpDataOwner(_data) {
+inline MTPmessages_sentMessage::MTPmessages_sentMessage(MTPDmessages_sentMessageLink *_data) : mtpDataOwner(_data), _type(mtpc_messages_sentMessageLink) {
 }
 inline MTPmessages_sentMessage MTP_messages_sentMessage(MTPint _id, MTPint _date, MTPint _pts, MTPint _seq) {
 	return MTPmessages_sentMessage(new MTPDmessages_sentMessage(_id, _date, _pts, _seq));
@@ -19187,7 +19187,7 @@ inline void MTPmessagesFilter::read(const mtpPrime *&from, const mtpPrime *end, 
 		default: throw mtpErrorUnexpected(cons, "MTPmessagesFilter");
 	}
 }
-inline void MTPmessagesFilter::write(mtpBuffer &to) const {
+inline void MTPmessagesFilter::write(mtpBuffer &/*to*/) const {
 	switch (_type) {
 	}
 }
@@ -19619,7 +19619,7 @@ inline void MTPupdate::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPupdate::MTPupdate(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPupdate::MTPupdate(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_updateNewMessage: setData(new MTPDupdateNewMessage()); break;
 		case mtpc_updateMessageID: setData(new MTPDupdateMessageID()); break;
@@ -19649,55 +19649,55 @@ inline MTPupdate::MTPupdate(mtpTypeId type) : _type(type), mtpDataOwner(0) {
 		default: throw mtpErrorBadTypeId(type, "MTPupdate");
 	}
 }
-inline MTPupdate::MTPupdate(MTPDupdateNewMessage *_data) : _type(mtpc_updateNewMessage), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateNewMessage *_data) : mtpDataOwner(_data), _type(mtpc_updateNewMessage) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateMessageID *_data) : _type(mtpc_updateMessageID), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateMessageID *_data) : mtpDataOwner(_data), _type(mtpc_updateMessageID) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateReadMessages *_data) : _type(mtpc_updateReadMessages), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateReadMessages *_data) : mtpDataOwner(_data), _type(mtpc_updateReadMessages) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateDeleteMessages *_data) : _type(mtpc_updateDeleteMessages), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateDeleteMessages *_data) : mtpDataOwner(_data), _type(mtpc_updateDeleteMessages) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateRestoreMessages *_data) : _type(mtpc_updateRestoreMessages), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateRestoreMessages *_data) : mtpDataOwner(_data), _type(mtpc_updateRestoreMessages) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateUserTyping *_data) : _type(mtpc_updateUserTyping), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateUserTyping *_data) : mtpDataOwner(_data), _type(mtpc_updateUserTyping) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateChatUserTyping *_data) : _type(mtpc_updateChatUserTyping), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateChatUserTyping *_data) : mtpDataOwner(_data), _type(mtpc_updateChatUserTyping) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateChatParticipants *_data) : _type(mtpc_updateChatParticipants), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateChatParticipants *_data) : mtpDataOwner(_data), _type(mtpc_updateChatParticipants) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateUserStatus *_data) : _type(mtpc_updateUserStatus), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateUserStatus *_data) : mtpDataOwner(_data), _type(mtpc_updateUserStatus) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateUserName *_data) : _type(mtpc_updateUserName), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateUserName *_data) : mtpDataOwner(_data), _type(mtpc_updateUserName) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateUserPhoto *_data) : _type(mtpc_updateUserPhoto), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateUserPhoto *_data) : mtpDataOwner(_data), _type(mtpc_updateUserPhoto) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateContactRegistered *_data) : _type(mtpc_updateContactRegistered), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateContactRegistered *_data) : mtpDataOwner(_data), _type(mtpc_updateContactRegistered) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateContactLink *_data) : _type(mtpc_updateContactLink), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateContactLink *_data) : mtpDataOwner(_data), _type(mtpc_updateContactLink) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateActivation *_data) : _type(mtpc_updateActivation), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateActivation *_data) : mtpDataOwner(_data), _type(mtpc_updateActivation) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateNewAuthorization *_data) : _type(mtpc_updateNewAuthorization), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateNewAuthorization *_data) : mtpDataOwner(_data), _type(mtpc_updateNewAuthorization) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateNewGeoChatMessage *_data) : _type(mtpc_updateNewGeoChatMessage), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateNewGeoChatMessage *_data) : mtpDataOwner(_data), _type(mtpc_updateNewGeoChatMessage) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateNewEncryptedMessage *_data) : _type(mtpc_updateNewEncryptedMessage), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateNewEncryptedMessage *_data) : mtpDataOwner(_data), _type(mtpc_updateNewEncryptedMessage) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateEncryptedChatTyping *_data) : _type(mtpc_updateEncryptedChatTyping), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateEncryptedChatTyping *_data) : mtpDataOwner(_data), _type(mtpc_updateEncryptedChatTyping) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateEncryption *_data) : _type(mtpc_updateEncryption), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateEncryption *_data) : mtpDataOwner(_data), _type(mtpc_updateEncryption) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateEncryptedMessagesRead *_data) : _type(mtpc_updateEncryptedMessagesRead), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateEncryptedMessagesRead *_data) : mtpDataOwner(_data), _type(mtpc_updateEncryptedMessagesRead) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateChatParticipantAdd *_data) : _type(mtpc_updateChatParticipantAdd), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateChatParticipantAdd *_data) : mtpDataOwner(_data), _type(mtpc_updateChatParticipantAdd) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateChatParticipantDelete *_data) : _type(mtpc_updateChatParticipantDelete), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateChatParticipantDelete *_data) : mtpDataOwner(_data), _type(mtpc_updateChatParticipantDelete) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateDcOptions *_data) : _type(mtpc_updateDcOptions), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateDcOptions *_data) : mtpDataOwner(_data), _type(mtpc_updateDcOptions) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateUserBlocked *_data) : _type(mtpc_updateUserBlocked), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateUserBlocked *_data) : mtpDataOwner(_data), _type(mtpc_updateUserBlocked) {
 }
-inline MTPupdate::MTPupdate(MTPDupdateNotifySettings *_data) : _type(mtpc_updateNotifySettings), mtpDataOwner(_data) {
+inline MTPupdate::MTPupdate(MTPDupdateNotifySettings *_data) : mtpDataOwner(_data), _type(mtpc_updateNotifySettings) {
 }
 inline MTPupdate MTP_updateNewMessage(const MTPMessage &_message, MTPint _pts) {
 	return MTPupdate(new MTPDupdateNewMessage(_message, _pts));
@@ -19890,7 +19890,7 @@ inline void MTPupdates_difference::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPupdates_difference::MTPupdates_difference(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPupdates_difference::MTPupdates_difference(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_updates_differenceEmpty: setData(new MTPDupdates_differenceEmpty()); break;
 		case mtpc_updates_difference: setData(new MTPDupdates_difference()); break;
@@ -19898,11 +19898,11 @@ inline MTPupdates_difference::MTPupdates_difference(mtpTypeId type) : _type(type
 		default: throw mtpErrorBadTypeId(type, "MTPupdates_difference");
 	}
 }
-inline MTPupdates_difference::MTPupdates_difference(MTPDupdates_differenceEmpty *_data) : _type(mtpc_updates_differenceEmpty), mtpDataOwner(_data) {
+inline MTPupdates_difference::MTPupdates_difference(MTPDupdates_differenceEmpty *_data) : mtpDataOwner(_data), _type(mtpc_updates_differenceEmpty) {
 }
-inline MTPupdates_difference::MTPupdates_difference(MTPDupdates_difference *_data) : _type(mtpc_updates_difference), mtpDataOwner(_data) {
+inline MTPupdates_difference::MTPupdates_difference(MTPDupdates_difference *_data) : mtpDataOwner(_data), _type(mtpc_updates_difference) {
 }
-inline MTPupdates_difference::MTPupdates_difference(MTPDupdates_differenceSlice *_data) : _type(mtpc_updates_differenceSlice), mtpDataOwner(_data) {
+inline MTPupdates_difference::MTPupdates_difference(MTPDupdates_differenceSlice *_data) : mtpDataOwner(_data), _type(mtpc_updates_differenceSlice) {
 }
 inline MTPupdates_difference MTP_updates_differenceEmpty(MTPint _date, MTPint _seq) {
 	return MTPupdates_difference(new MTPDupdates_differenceEmpty(_date, _seq));
@@ -20041,7 +20041,7 @@ inline void MTPupdates::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPupdates::MTPupdates(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPupdates::MTPupdates(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_updatesTooLong: break;
 		case mtpc_updateShortMessage: setData(new MTPDupdateShortMessage()); break;
@@ -20052,15 +20052,15 @@ inline MTPupdates::MTPupdates(mtpTypeId type) : _type(type), mtpDataOwner(0) {
 		default: throw mtpErrorBadTypeId(type, "MTPupdates");
 	}
 }
-inline MTPupdates::MTPupdates(MTPDupdateShortMessage *_data) : _type(mtpc_updateShortMessage), mtpDataOwner(_data) {
+inline MTPupdates::MTPupdates(MTPDupdateShortMessage *_data) : mtpDataOwner(_data), _type(mtpc_updateShortMessage) {
 }
-inline MTPupdates::MTPupdates(MTPDupdateShortChatMessage *_data) : _type(mtpc_updateShortChatMessage), mtpDataOwner(_data) {
+inline MTPupdates::MTPupdates(MTPDupdateShortChatMessage *_data) : mtpDataOwner(_data), _type(mtpc_updateShortChatMessage) {
 }
-inline MTPupdates::MTPupdates(MTPDupdateShort *_data) : _type(mtpc_updateShort), mtpDataOwner(_data) {
+inline MTPupdates::MTPupdates(MTPDupdateShort *_data) : mtpDataOwner(_data), _type(mtpc_updateShort) {
 }
-inline MTPupdates::MTPupdates(MTPDupdatesCombined *_data) : _type(mtpc_updatesCombined), mtpDataOwner(_data) {
+inline MTPupdates::MTPupdates(MTPDupdatesCombined *_data) : mtpDataOwner(_data), _type(mtpc_updatesCombined) {
 }
-inline MTPupdates::MTPupdates(MTPDupdates *_data) : _type(mtpc_updates), mtpDataOwner(_data) {
+inline MTPupdates::MTPupdates(MTPDupdates *_data) : mtpDataOwner(_data), _type(mtpc_updates) {
 }
 inline MTPupdates MTP_updatesTooLong() {
 	return MTPupdates(mtpc_updatesTooLong);
@@ -20132,16 +20132,16 @@ inline void MTPphotos_photos::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPphotos_photos::MTPphotos_photos(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPphotos_photos::MTPphotos_photos(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_photos_photos: setData(new MTPDphotos_photos()); break;
 		case mtpc_photos_photosSlice: setData(new MTPDphotos_photosSlice()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPphotos_photos");
 	}
 }
-inline MTPphotos_photos::MTPphotos_photos(MTPDphotos_photos *_data) : _type(mtpc_photos_photos), mtpDataOwner(_data) {
+inline MTPphotos_photos::MTPphotos_photos(MTPDphotos_photos *_data) : mtpDataOwner(_data), _type(mtpc_photos_photos) {
 }
-inline MTPphotos_photos::MTPphotos_photos(MTPDphotos_photosSlice *_data) : _type(mtpc_photos_photosSlice), mtpDataOwner(_data) {
+inline MTPphotos_photos::MTPphotos_photos(MTPDphotos_photosSlice *_data) : mtpDataOwner(_data), _type(mtpc_photos_photosSlice) {
 }
 inline MTPphotos_photos MTP_photos_photos(const MTPVector<MTPPhoto> &_photos, const MTPVector<MTPUser> &_users) {
 	return MTPphotos_photos(new MTPDphotos_photos(_photos, _users));
@@ -20350,14 +20350,14 @@ inline void MTPhelp_appUpdate::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPhelp_appUpdate::MTPhelp_appUpdate(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPhelp_appUpdate::MTPhelp_appUpdate(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_help_appUpdate: setData(new MTPDhelp_appUpdate()); break;
 		case mtpc_help_noAppUpdate: break;
 		default: throw mtpErrorBadTypeId(type, "MTPhelp_appUpdate");
 	}
 }
-inline MTPhelp_appUpdate::MTPhelp_appUpdate(MTPDhelp_appUpdate *_data) : _type(mtpc_help_appUpdate), mtpDataOwner(_data) {
+inline MTPhelp_appUpdate::MTPhelp_appUpdate(MTPDhelp_appUpdate *_data) : mtpDataOwner(_data), _type(mtpc_help_appUpdate) {
 }
 inline MTPhelp_appUpdate MTP_help_appUpdate(MTPint _id, MTPBool _critical, const MTPstring &_url, const MTPstring &_text) {
 	return MTPhelp_appUpdate(new MTPDhelp_appUpdate(_id, _critical, _url, _text));
@@ -20500,7 +20500,7 @@ inline void MTPgeoChatMessage::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPgeoChatMessage::MTPgeoChatMessage(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPgeoChatMessage::MTPgeoChatMessage(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_geoChatMessageEmpty: setData(new MTPDgeoChatMessageEmpty()); break;
 		case mtpc_geoChatMessage: setData(new MTPDgeoChatMessage()); break;
@@ -20508,11 +20508,11 @@ inline MTPgeoChatMessage::MTPgeoChatMessage(mtpTypeId type) : _type(type), mtpDa
 		default: throw mtpErrorBadTypeId(type, "MTPgeoChatMessage");
 	}
 }
-inline MTPgeoChatMessage::MTPgeoChatMessage(MTPDgeoChatMessageEmpty *_data) : _type(mtpc_geoChatMessageEmpty), mtpDataOwner(_data) {
+inline MTPgeoChatMessage::MTPgeoChatMessage(MTPDgeoChatMessageEmpty *_data) : mtpDataOwner(_data), _type(mtpc_geoChatMessageEmpty) {
 }
-inline MTPgeoChatMessage::MTPgeoChatMessage(MTPDgeoChatMessage *_data) : _type(mtpc_geoChatMessage), mtpDataOwner(_data) {
+inline MTPgeoChatMessage::MTPgeoChatMessage(MTPDgeoChatMessage *_data) : mtpDataOwner(_data), _type(mtpc_geoChatMessage) {
 }
-inline MTPgeoChatMessage::MTPgeoChatMessage(MTPDgeoChatMessageService *_data) : _type(mtpc_geoChatMessageService), mtpDataOwner(_data) {
+inline MTPgeoChatMessage::MTPgeoChatMessage(MTPDgeoChatMessageService *_data) : mtpDataOwner(_data), _type(mtpc_geoChatMessageService) {
 }
 inline MTPgeoChatMessage MTP_geoChatMessageEmpty(MTPint _chat_id, MTPint _id) {
 	return MTPgeoChatMessage(new MTPDgeoChatMessageEmpty(_chat_id, _id));
@@ -20645,16 +20645,16 @@ inline void MTPgeochats_messages::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPgeochats_messages::MTPgeochats_messages(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPgeochats_messages::MTPgeochats_messages(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_geochats_messages: setData(new MTPDgeochats_messages()); break;
 		case mtpc_geochats_messagesSlice: setData(new MTPDgeochats_messagesSlice()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPgeochats_messages");
 	}
 }
-inline MTPgeochats_messages::MTPgeochats_messages(MTPDgeochats_messages *_data) : _type(mtpc_geochats_messages), mtpDataOwner(_data) {
+inline MTPgeochats_messages::MTPgeochats_messages(MTPDgeochats_messages *_data) : mtpDataOwner(_data), _type(mtpc_geochats_messages) {
 }
-inline MTPgeochats_messages::MTPgeochats_messages(MTPDgeochats_messagesSlice *_data) : _type(mtpc_geochats_messagesSlice), mtpDataOwner(_data) {
+inline MTPgeochats_messages::MTPgeochats_messages(MTPDgeochats_messagesSlice *_data) : mtpDataOwner(_data), _type(mtpc_geochats_messagesSlice) {
 }
 inline MTPgeochats_messages MTP_geochats_messages(const MTPVector<MTPGeoChatMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
 	return MTPgeochats_messages(new MTPDgeochats_messages(_messages, _chats, _users));
@@ -20777,7 +20777,7 @@ inline void MTPencryptedChat::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPencryptedChat::MTPencryptedChat(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPencryptedChat::MTPencryptedChat(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_encryptedChatEmpty: setData(new MTPDencryptedChatEmpty()); break;
 		case mtpc_encryptedChatWaiting: setData(new MTPDencryptedChatWaiting()); break;
@@ -20787,15 +20787,15 @@ inline MTPencryptedChat::MTPencryptedChat(mtpTypeId type) : _type(type), mtpData
 		default: throw mtpErrorBadTypeId(type, "MTPencryptedChat");
 	}
 }
-inline MTPencryptedChat::MTPencryptedChat(MTPDencryptedChatEmpty *_data) : _type(mtpc_encryptedChatEmpty), mtpDataOwner(_data) {
+inline MTPencryptedChat::MTPencryptedChat(MTPDencryptedChatEmpty *_data) : mtpDataOwner(_data), _type(mtpc_encryptedChatEmpty) {
 }
-inline MTPencryptedChat::MTPencryptedChat(MTPDencryptedChatWaiting *_data) : _type(mtpc_encryptedChatWaiting), mtpDataOwner(_data) {
+inline MTPencryptedChat::MTPencryptedChat(MTPDencryptedChatWaiting *_data) : mtpDataOwner(_data), _type(mtpc_encryptedChatWaiting) {
 }
-inline MTPencryptedChat::MTPencryptedChat(MTPDencryptedChatRequested *_data) : _type(mtpc_encryptedChatRequested), mtpDataOwner(_data) {
+inline MTPencryptedChat::MTPencryptedChat(MTPDencryptedChatRequested *_data) : mtpDataOwner(_data), _type(mtpc_encryptedChatRequested) {
 }
-inline MTPencryptedChat::MTPencryptedChat(MTPDencryptedChat *_data) : _type(mtpc_encryptedChat), mtpDataOwner(_data) {
+inline MTPencryptedChat::MTPencryptedChat(MTPDencryptedChat *_data) : mtpDataOwner(_data), _type(mtpc_encryptedChat) {
 }
-inline MTPencryptedChat::MTPencryptedChat(MTPDencryptedChatDiscarded *_data) : _type(mtpc_encryptedChatDiscarded), mtpDataOwner(_data) {
+inline MTPencryptedChat::MTPencryptedChat(MTPDencryptedChatDiscarded *_data) : mtpDataOwner(_data), _type(mtpc_encryptedChatDiscarded) {
 }
 inline MTPencryptedChat MTP_encryptedChatEmpty(MTPint _id) {
 	return MTPencryptedChat(new MTPDencryptedChatEmpty(_id));
@@ -20883,14 +20883,14 @@ inline void MTPencryptedFile::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPencryptedFile::MTPencryptedFile(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPencryptedFile::MTPencryptedFile(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_encryptedFileEmpty: break;
 		case mtpc_encryptedFile: setData(new MTPDencryptedFile()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPencryptedFile");
 	}
 }
-inline MTPencryptedFile::MTPencryptedFile(MTPDencryptedFile *_data) : _type(mtpc_encryptedFile), mtpDataOwner(_data) {
+inline MTPencryptedFile::MTPencryptedFile(MTPDencryptedFile *_data) : mtpDataOwner(_data), _type(mtpc_encryptedFile) {
 }
 inline MTPencryptedFile MTP_encryptedFileEmpty() {
 	return MTPencryptedFile(mtpc_encryptedFileEmpty);
@@ -20970,7 +20970,7 @@ inline void MTPinputEncryptedFile::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPinputEncryptedFile::MTPinputEncryptedFile(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPinputEncryptedFile::MTPinputEncryptedFile(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_inputEncryptedFileEmpty: break;
 		case mtpc_inputEncryptedFileUploaded: setData(new MTPDinputEncryptedFileUploaded()); break;
@@ -20979,11 +20979,11 @@ inline MTPinputEncryptedFile::MTPinputEncryptedFile(mtpTypeId type) : _type(type
 		default: throw mtpErrorBadTypeId(type, "MTPinputEncryptedFile");
 	}
 }
-inline MTPinputEncryptedFile::MTPinputEncryptedFile(MTPDinputEncryptedFileUploaded *_data) : _type(mtpc_inputEncryptedFileUploaded), mtpDataOwner(_data) {
+inline MTPinputEncryptedFile::MTPinputEncryptedFile(MTPDinputEncryptedFileUploaded *_data) : mtpDataOwner(_data), _type(mtpc_inputEncryptedFileUploaded) {
 }
-inline MTPinputEncryptedFile::MTPinputEncryptedFile(MTPDinputEncryptedFile *_data) : _type(mtpc_inputEncryptedFile), mtpDataOwner(_data) {
+inline MTPinputEncryptedFile::MTPinputEncryptedFile(MTPDinputEncryptedFile *_data) : mtpDataOwner(_data), _type(mtpc_inputEncryptedFile) {
 }
-inline MTPinputEncryptedFile::MTPinputEncryptedFile(MTPDinputEncryptedFileBigUploaded *_data) : _type(mtpc_inputEncryptedFileBigUploaded), mtpDataOwner(_data) {
+inline MTPinputEncryptedFile::MTPinputEncryptedFile(MTPDinputEncryptedFileBigUploaded *_data) : mtpDataOwner(_data), _type(mtpc_inputEncryptedFileBigUploaded) {
 }
 inline MTPinputEncryptedFile MTP_inputEncryptedFileEmpty() {
 	return MTPinputEncryptedFile(mtpc_inputEncryptedFileEmpty);
@@ -21057,16 +21057,16 @@ inline void MTPencryptedMessage::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPencryptedMessage::MTPencryptedMessage(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPencryptedMessage::MTPencryptedMessage(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_encryptedMessage: setData(new MTPDencryptedMessage()); break;
 		case mtpc_encryptedMessageService: setData(new MTPDencryptedMessageService()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPencryptedMessage");
 	}
 }
-inline MTPencryptedMessage::MTPencryptedMessage(MTPDencryptedMessage *_data) : _type(mtpc_encryptedMessage), mtpDataOwner(_data) {
+inline MTPencryptedMessage::MTPencryptedMessage(MTPDencryptedMessage *_data) : mtpDataOwner(_data), _type(mtpc_encryptedMessage) {
 }
-inline MTPencryptedMessage::MTPencryptedMessage(MTPDencryptedMessageService *_data) : _type(mtpc_encryptedMessageService), mtpDataOwner(_data) {
+inline MTPencryptedMessage::MTPencryptedMessage(MTPDencryptedMessageService *_data) : mtpDataOwner(_data), _type(mtpc_encryptedMessageService) {
 }
 inline MTPencryptedMessage MTP_encryptedMessage(const MTPlong &_random_id, MTPint _chat_id, MTPint _date, const MTPbytes &_bytes, const MTPEncryptedFile &_file) {
 	return MTPencryptedMessage(new MTPDencryptedMessage(_random_id, _chat_id, _date, _bytes, _file));
@@ -21159,16 +21159,16 @@ inline void MTPdecryptedMessage::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPdecryptedMessage::MTPdecryptedMessage(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPdecryptedMessage::MTPdecryptedMessage(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_decryptedMessage: setData(new MTPDdecryptedMessage()); break;
 		case mtpc_decryptedMessageService: setData(new MTPDdecryptedMessageService()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPdecryptedMessage");
 	}
 }
-inline MTPdecryptedMessage::MTPdecryptedMessage(MTPDdecryptedMessage *_data) : _type(mtpc_decryptedMessage), mtpDataOwner(_data) {
+inline MTPdecryptedMessage::MTPdecryptedMessage(MTPDdecryptedMessage *_data) : mtpDataOwner(_data), _type(mtpc_decryptedMessage) {
 }
-inline MTPdecryptedMessage::MTPdecryptedMessage(MTPDdecryptedMessageService *_data) : _type(mtpc_decryptedMessageService), mtpDataOwner(_data) {
+inline MTPdecryptedMessage::MTPdecryptedMessage(MTPDdecryptedMessageService *_data) : mtpDataOwner(_data), _type(mtpc_decryptedMessageService) {
 }
 inline MTPdecryptedMessage MTP_decryptedMessage(const MTPlong &_random_id, const MTPbytes &_random_bytes, const MTPstring &_message, const MTPDecryptedMessageMedia &_media) {
 	return MTPdecryptedMessage(new MTPDdecryptedMessage(_random_id, _random_bytes, _message, _media));
@@ -21337,7 +21337,7 @@ inline void MTPdecryptedMessageMedia::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPdecryptedMessageMedia::MTPdecryptedMessageMedia(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPdecryptedMessageMedia::MTPdecryptedMessageMedia(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_decryptedMessageMediaEmpty: break;
 		case mtpc_decryptedMessageMediaPhoto: setData(new MTPDdecryptedMessageMediaPhoto()); break;
@@ -21349,17 +21349,17 @@ inline MTPdecryptedMessageMedia::MTPdecryptedMessageMedia(mtpTypeId type) : _typ
 		default: throw mtpErrorBadTypeId(type, "MTPdecryptedMessageMedia");
 	}
 }
-inline MTPdecryptedMessageMedia::MTPdecryptedMessageMedia(MTPDdecryptedMessageMediaPhoto *_data) : _type(mtpc_decryptedMessageMediaPhoto), mtpDataOwner(_data) {
+inline MTPdecryptedMessageMedia::MTPdecryptedMessageMedia(MTPDdecryptedMessageMediaPhoto *_data) : mtpDataOwner(_data), _type(mtpc_decryptedMessageMediaPhoto) {
 }
-inline MTPdecryptedMessageMedia::MTPdecryptedMessageMedia(MTPDdecryptedMessageMediaVideo *_data) : _type(mtpc_decryptedMessageMediaVideo), mtpDataOwner(_data) {
+inline MTPdecryptedMessageMedia::MTPdecryptedMessageMedia(MTPDdecryptedMessageMediaVideo *_data) : mtpDataOwner(_data), _type(mtpc_decryptedMessageMediaVideo) {
 }
-inline MTPdecryptedMessageMedia::MTPdecryptedMessageMedia(MTPDdecryptedMessageMediaGeoPoint *_data) : _type(mtpc_decryptedMessageMediaGeoPoint), mtpDataOwner(_data) {
+inline MTPdecryptedMessageMedia::MTPdecryptedMessageMedia(MTPDdecryptedMessageMediaGeoPoint *_data) : mtpDataOwner(_data), _type(mtpc_decryptedMessageMediaGeoPoint) {
 }
-inline MTPdecryptedMessageMedia::MTPdecryptedMessageMedia(MTPDdecryptedMessageMediaContact *_data) : _type(mtpc_decryptedMessageMediaContact), mtpDataOwner(_data) {
+inline MTPdecryptedMessageMedia::MTPdecryptedMessageMedia(MTPDdecryptedMessageMediaContact *_data) : mtpDataOwner(_data), _type(mtpc_decryptedMessageMediaContact) {
 }
-inline MTPdecryptedMessageMedia::MTPdecryptedMessageMedia(MTPDdecryptedMessageMediaDocument *_data) : _type(mtpc_decryptedMessageMediaDocument), mtpDataOwner(_data) {
+inline MTPdecryptedMessageMedia::MTPdecryptedMessageMedia(MTPDdecryptedMessageMediaDocument *_data) : mtpDataOwner(_data), _type(mtpc_decryptedMessageMediaDocument) {
 }
-inline MTPdecryptedMessageMedia::MTPdecryptedMessageMedia(MTPDdecryptedMessageMediaAudio *_data) : _type(mtpc_decryptedMessageMediaAudio), mtpDataOwner(_data) {
+inline MTPdecryptedMessageMedia::MTPdecryptedMessageMedia(MTPDdecryptedMessageMediaAudio *_data) : mtpDataOwner(_data), _type(mtpc_decryptedMessageMediaAudio) {
 }
 inline MTPdecryptedMessageMedia MTP_decryptedMessageMediaEmpty() {
 	return MTPdecryptedMessageMedia(mtpc_decryptedMessageMediaEmpty);
@@ -21468,7 +21468,7 @@ inline void MTPdecryptedMessageAction::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPdecryptedMessageAction::MTPdecryptedMessageAction(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPdecryptedMessageAction::MTPdecryptedMessageAction(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_decryptedMessageActionSetMessageTTL: setData(new MTPDdecryptedMessageActionSetMessageTTL()); break;
 		case mtpc_decryptedMessageActionReadMessages: setData(new MTPDdecryptedMessageActionReadMessages()); break;
@@ -21479,15 +21479,15 @@ inline MTPdecryptedMessageAction::MTPdecryptedMessageAction(mtpTypeId type) : _t
 		default: throw mtpErrorBadTypeId(type, "MTPdecryptedMessageAction");
 	}
 }
-inline MTPdecryptedMessageAction::MTPdecryptedMessageAction(MTPDdecryptedMessageActionSetMessageTTL *_data) : _type(mtpc_decryptedMessageActionSetMessageTTL), mtpDataOwner(_data) {
+inline MTPdecryptedMessageAction::MTPdecryptedMessageAction(MTPDdecryptedMessageActionSetMessageTTL *_data) : mtpDataOwner(_data), _type(mtpc_decryptedMessageActionSetMessageTTL) {
 }
-inline MTPdecryptedMessageAction::MTPdecryptedMessageAction(MTPDdecryptedMessageActionReadMessages *_data) : _type(mtpc_decryptedMessageActionReadMessages), mtpDataOwner(_data) {
+inline MTPdecryptedMessageAction::MTPdecryptedMessageAction(MTPDdecryptedMessageActionReadMessages *_data) : mtpDataOwner(_data), _type(mtpc_decryptedMessageActionReadMessages) {
 }
-inline MTPdecryptedMessageAction::MTPdecryptedMessageAction(MTPDdecryptedMessageActionDeleteMessages *_data) : _type(mtpc_decryptedMessageActionDeleteMessages), mtpDataOwner(_data) {
+inline MTPdecryptedMessageAction::MTPdecryptedMessageAction(MTPDdecryptedMessageActionDeleteMessages *_data) : mtpDataOwner(_data), _type(mtpc_decryptedMessageActionDeleteMessages) {
 }
-inline MTPdecryptedMessageAction::MTPdecryptedMessageAction(MTPDdecryptedMessageActionScreenshotMessages *_data) : _type(mtpc_decryptedMessageActionScreenshotMessages), mtpDataOwner(_data) {
+inline MTPdecryptedMessageAction::MTPdecryptedMessageAction(MTPDdecryptedMessageActionScreenshotMessages *_data) : mtpDataOwner(_data), _type(mtpc_decryptedMessageActionScreenshotMessages) {
 }
-inline MTPdecryptedMessageAction::MTPdecryptedMessageAction(MTPDdecryptedMessageActionNotifyLayer *_data) : _type(mtpc_decryptedMessageActionNotifyLayer), mtpDataOwner(_data) {
+inline MTPdecryptedMessageAction::MTPdecryptedMessageAction(MTPDdecryptedMessageActionNotifyLayer *_data) : mtpDataOwner(_data), _type(mtpc_decryptedMessageActionNotifyLayer) {
 }
 inline MTPdecryptedMessageAction MTP_decryptedMessageActionSetMessageTTL(MTPint _ttl_seconds) {
 	return MTPdecryptedMessageAction(new MTPDdecryptedMessageActionSetMessageTTL(_ttl_seconds));
@@ -21559,16 +21559,16 @@ inline void MTPmessages_dhConfig::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPmessages_dhConfig::MTPmessages_dhConfig(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPmessages_dhConfig::MTPmessages_dhConfig(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_messages_dhConfigNotModified: setData(new MTPDmessages_dhConfigNotModified()); break;
 		case mtpc_messages_dhConfig: setData(new MTPDmessages_dhConfig()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_dhConfig");
 	}
 }
-inline MTPmessages_dhConfig::MTPmessages_dhConfig(MTPDmessages_dhConfigNotModified *_data) : _type(mtpc_messages_dhConfigNotModified), mtpDataOwner(_data) {
+inline MTPmessages_dhConfig::MTPmessages_dhConfig(MTPDmessages_dhConfigNotModified *_data) : mtpDataOwner(_data), _type(mtpc_messages_dhConfigNotModified) {
 }
-inline MTPmessages_dhConfig::MTPmessages_dhConfig(MTPDmessages_dhConfig *_data) : _type(mtpc_messages_dhConfig), mtpDataOwner(_data) {
+inline MTPmessages_dhConfig::MTPmessages_dhConfig(MTPDmessages_dhConfig *_data) : mtpDataOwner(_data), _type(mtpc_messages_dhConfig) {
 }
 inline MTPmessages_dhConfig MTP_messages_dhConfigNotModified(const MTPbytes &_random) {
 	return MTPmessages_dhConfig(new MTPDmessages_dhConfigNotModified(_random));
@@ -21624,16 +21624,16 @@ inline void MTPmessages_sentEncryptedMessage::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPmessages_sentEncryptedMessage::MTPmessages_sentEncryptedMessage(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPmessages_sentEncryptedMessage::MTPmessages_sentEncryptedMessage(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_messages_sentEncryptedMessage: setData(new MTPDmessages_sentEncryptedMessage()); break;
 		case mtpc_messages_sentEncryptedFile: setData(new MTPDmessages_sentEncryptedFile()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_sentEncryptedMessage");
 	}
 }
-inline MTPmessages_sentEncryptedMessage::MTPmessages_sentEncryptedMessage(MTPDmessages_sentEncryptedMessage *_data) : _type(mtpc_messages_sentEncryptedMessage), mtpDataOwner(_data) {
+inline MTPmessages_sentEncryptedMessage::MTPmessages_sentEncryptedMessage(MTPDmessages_sentEncryptedMessage *_data) : mtpDataOwner(_data), _type(mtpc_messages_sentEncryptedMessage) {
 }
-inline MTPmessages_sentEncryptedMessage::MTPmessages_sentEncryptedMessage(MTPDmessages_sentEncryptedFile *_data) : _type(mtpc_messages_sentEncryptedFile), mtpDataOwner(_data) {
+inline MTPmessages_sentEncryptedMessage::MTPmessages_sentEncryptedMessage(MTPDmessages_sentEncryptedFile *_data) : mtpDataOwner(_data), _type(mtpc_messages_sentEncryptedFile) {
 }
 inline MTPmessages_sentEncryptedMessage MTP_messages_sentEncryptedMessage(MTPint _date) {
 	return MTPmessages_sentEncryptedMessage(new MTPDmessages_sentEncryptedMessage(_date));
@@ -21677,14 +21677,14 @@ inline void MTPinputAudio::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPinputAudio::MTPinputAudio(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPinputAudio::MTPinputAudio(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_inputAudioEmpty: break;
 		case mtpc_inputAudio: setData(new MTPDinputAudio()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputAudio");
 	}
 }
-inline MTPinputAudio::MTPinputAudio(MTPDinputAudio *_data) : _type(mtpc_inputAudio), mtpDataOwner(_data) {
+inline MTPinputAudio::MTPinputAudio(MTPDinputAudio *_data) : mtpDataOwner(_data), _type(mtpc_inputAudio) {
 }
 inline MTPinputAudio MTP_inputAudioEmpty() {
 	return MTPinputAudio(mtpc_inputAudioEmpty);
@@ -21728,14 +21728,14 @@ inline void MTPinputDocument::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPinputDocument::MTPinputDocument(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPinputDocument::MTPinputDocument(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_inputDocumentEmpty: break;
 		case mtpc_inputDocument: setData(new MTPDinputDocument()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputDocument");
 	}
 }
-inline MTPinputDocument::MTPinputDocument(MTPDinputDocument *_data) : _type(mtpc_inputDocument), mtpDataOwner(_data) {
+inline MTPinputDocument::MTPinputDocument(MTPDinputDocument *_data) : mtpDataOwner(_data), _type(mtpc_inputDocument) {
 }
 inline MTPinputDocument MTP_inputDocumentEmpty() {
 	return MTPinputDocument(mtpc_inputDocumentEmpty);
@@ -21803,16 +21803,16 @@ inline void MTPaudio::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPaudio::MTPaudio(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPaudio::MTPaudio(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_audioEmpty: setData(new MTPDaudioEmpty()); break;
 		case mtpc_audio: setData(new MTPDaudio()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPaudio");
 	}
 }
-inline MTPaudio::MTPaudio(MTPDaudioEmpty *_data) : _type(mtpc_audioEmpty), mtpDataOwner(_data) {
+inline MTPaudio::MTPaudio(MTPDaudioEmpty *_data) : mtpDataOwner(_data), _type(mtpc_audioEmpty) {
 }
-inline MTPaudio::MTPaudio(MTPDaudio *_data) : _type(mtpc_audio), mtpDataOwner(_data) {
+inline MTPaudio::MTPaudio(MTPDaudio *_data) : mtpDataOwner(_data), _type(mtpc_audio) {
 }
 inline MTPaudio MTP_audioEmpty(const MTPlong &_id) {
 	return MTPaudio(new MTPDaudioEmpty(_id));
@@ -21882,16 +21882,16 @@ inline void MTPdocument::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPdocument::MTPdocument(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPdocument::MTPdocument(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_documentEmpty: setData(new MTPDdocumentEmpty()); break;
 		case mtpc_document: setData(new MTPDdocument()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPdocument");
 	}
 }
-inline MTPdocument::MTPdocument(MTPDdocumentEmpty *_data) : _type(mtpc_documentEmpty), mtpDataOwner(_data) {
+inline MTPdocument::MTPdocument(MTPDdocumentEmpty *_data) : mtpDataOwner(_data), _type(mtpc_documentEmpty) {
 }
-inline MTPdocument::MTPdocument(MTPDdocument *_data) : _type(mtpc_document), mtpDataOwner(_data) {
+inline MTPdocument::MTPdocument(MTPDdocument *_data) : mtpDataOwner(_data), _type(mtpc_document) {
 }
 inline MTPdocument MTP_documentEmpty(const MTPlong &_id) {
 	return MTPdocument(new MTPDdocumentEmpty(_id));
@@ -21964,7 +21964,7 @@ inline void MTPnotifyPeer::write(mtpBuffer &to) const {
 		} break;
 	}
 }
-inline MTPnotifyPeer::MTPnotifyPeer(mtpTypeId type) : _type(type), mtpDataOwner(0) {
+inline MTPnotifyPeer::MTPnotifyPeer(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_notifyPeer: setData(new MTPDnotifyPeer()); break;
 		case mtpc_notifyUsers: break;
@@ -21973,7 +21973,7 @@ inline MTPnotifyPeer::MTPnotifyPeer(mtpTypeId type) : _type(type), mtpDataOwner(
 		default: throw mtpErrorBadTypeId(type, "MTPnotifyPeer");
 	}
 }
-inline MTPnotifyPeer::MTPnotifyPeer(MTPDnotifyPeer *_data) : _type(mtpc_notifyPeer), mtpDataOwner(_data) {
+inline MTPnotifyPeer::MTPnotifyPeer(MTPDnotifyPeer *_data) : mtpDataOwner(_data), _type(mtpc_notifyPeer) {
 }
 inline MTPnotifyPeer MTP_notifyPeer(const MTPPeer &_peer) {
 	return MTPnotifyPeer(new MTPDnotifyPeer(_peer));
@@ -22006,51 +22006,23 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 		}
 
 		QString result;
-		switch (cons) {
-		case mtpc_messages_chatFull:
-			result += "\n" + add;
-			result += "  full_chat: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ messages_chatFull" + result + "}";
+		switch (mtpTypeId(cons)) {
+		case mtpc_userProfilePhotoEmpty:
+			result = " ";
+		return "{ userProfilePhotoEmpty" + result + "}";
 
-		case mtpc_messages_affectedHistory:
+		case mtpc_userProfilePhoto:
 			result += "\n" + add;
-			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ messages_affectedHistory" + result + "}";
+			result += "  photo_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  photo_small: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  photo_big: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ userProfilePhoto" + result + "}";
 
-		case mtpc_inputFileLocation:
+		case mtpc_rpc_error:
 			result += "\n" + add;
-			result += "  volume_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  local_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  secret: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ inputFileLocation" + result + "}";
-
-		case mtpc_inputVideoFileLocation:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ inputVideoFileLocation" + result + "}";
-
-		case mtpc_inputEncryptedFileLocation:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ inputEncryptedFileLocation" + result + "}";
-
-		case mtpc_inputAudioFileLocation:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ inputAudioFileLocation" + result + "}";
-
-		case mtpc_inputDocumentFileLocation:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ inputDocumentFileLocation" + result + "}";
+			result += "  error_code: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  error_message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ rpc_error" + result + "}";
 
 		case mtpc_dh_gen_ok:
 			result += "\n" + add;
@@ -22073,72 +22045,297 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  new_nonce_hash3: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
 		return "{ dh_gen_fail" + result + "}";
 
-		case mtpc_chatEmpty:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ chatEmpty" + result + "}";
-
-		case mtpc_chat:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  participants_count: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  left: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  version: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ chat" + result + "}";
-
-		case mtpc_chatForbidden:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ chatForbidden" + result + "}";
-
-		case mtpc_geoChat:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  address: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  venue: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  geo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  participants_count: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  checked_in: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  version: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ geoChat" + result + "}";
-
-		case mtpc_inputDocumentEmpty:
+		case mtpc_inputPeerEmpty:
 			result = " ";
-		return "{ inputDocumentEmpty" + result + "}";
+		return "{ inputPeerEmpty" + result + "}";
 
-		case mtpc_inputDocument:
+		case mtpc_inputPeerSelf:
+			result = " ";
+		return "{ inputPeerSelf" + result + "}";
+
+		case mtpc_inputPeerContact:
+			result += "\n" + add;
+			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ inputPeerContact" + result + "}";
+
+		case mtpc_inputPeerForeign:
+			result += "\n" + add;
+			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ inputPeerForeign" + result + "}";
+
+		case mtpc_inputPeerChat:
+			result += "\n" + add;
+			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ inputPeerChat" + result + "}";
+
+		case mtpc_photoEmpty:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ photoEmpty" + result + "}";
+
+		case mtpc_photo:
 			result += "\n" + add;
 			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
 			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ inputDocument" + result + "}";
+			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  caption: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  geo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  sizes: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ photo" + result + "}";
 
-		case mtpc_messages_statedMessage:
+		case mtpc_p_q_inner_data:
 			result += "\n" + add;
-			result += "  message: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  pq: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  p: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  q: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
+			result += "  server_nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
+			result += "  new_nonce: " + mtpTextSerialize(from, end, mtpc_int256, level + 1) + ",\n" + add;
+		return "{ p_q_inner_data" + result + "}";
+
+		case mtpc_client_DH_inner_data:
+			result += "\n" + add;
+			result += "  nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
+			result += "  server_nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
+			result += "  retry_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  g_b: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ client_DH_inner_data" + result + "}";
+
+		case mtpc_contacts_link:
+			result += "\n" + add;
+			result += "  my_link: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  foreign_link: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  user: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ contacts_link" + result + "}";
+
+		case mtpc_inputPhotoCropAuto:
+			result = " ";
+		return "{ inputPhotoCropAuto" + result + "}";
+
+		case mtpc_inputPhotoCrop:
+			result += "\n" + add;
+			result += "  crop_left: " + mtpTextSerialize(from, end, mtpc_double, level + 1) + ",\n" + add;
+			result += "  crop_top: " + mtpTextSerialize(from, end, mtpc_double, level + 1) + ",\n" + add;
+			result += "  crop_width: " + mtpTextSerialize(from, end, mtpc_double, level + 1) + ",\n" + add;
+		return "{ inputPhotoCrop" + result + "}";
+
+		case mtpc_inputFile:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  parts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  md5_checksum: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ inputFile" + result + "}";
+
+		case mtpc_inputFileBig:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  parts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ inputFileBig" + result + "}";
+
+		case mtpc_messageActionEmpty:
+			result = " ";
+		return "{ messageActionEmpty" + result + "}";
+
+		case mtpc_messageActionChatCreate:
+			result += "\n" + add;
+			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_int) + ",\n" + add;
+		return "{ messageActionChatCreate" + result + "}";
+
+		case mtpc_messageActionChatEditTitle:
+			result += "\n" + add;
+			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ messageActionChatEditTitle" + result + "}";
+
+		case mtpc_messageActionChatEditPhoto:
+			result += "\n" + add;
+			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ messageActionChatEditPhoto" + result + "}";
+
+		case mtpc_messageActionChatDeletePhoto:
+			result = " ";
+		return "{ messageActionChatDeletePhoto" + result + "}";
+
+		case mtpc_messageActionChatAddUser:
+			result += "\n" + add;
+			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ messageActionChatAddUser" + result + "}";
+
+		case mtpc_messageActionChatDeleteUser:
+			result += "\n" + add;
+			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ messageActionChatDeleteUser" + result + "}";
+
+		case mtpc_messageActionGeoChatCreate:
+			result += "\n" + add;
+			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  address: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ messageActionGeoChatCreate" + result + "}";
+
+		case mtpc_messageActionGeoChatCheckin:
+			result = " ";
+		return "{ messageActionGeoChatCheckin" + result + "}";
+
+		case mtpc_inputMessagesFilterEmpty:
+			result = " ";
+		return "{ inputMessagesFilterEmpty" + result + "}";
+
+		case mtpc_inputMessagesFilterPhotos:
+			result = " ";
+		return "{ inputMessagesFilterPhotos" + result + "}";
+
+		case mtpc_inputMessagesFilterVideo:
+			result = " ";
+		return "{ inputMessagesFilterVideo" + result + "}";
+
+		case mtpc_inputMessagesFilterPhotoVideo:
+			result = " ";
+		return "{ inputMessagesFilterPhotoVideo" + result + "}";
+
+		case mtpc_inputMessagesFilterDocument:
+			result = " ";
+		return "{ inputMessagesFilterDocument" + result + "}";
+
+		case mtpc_help_support:
+			result += "\n" + add;
+			result += "  phone_number: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  user: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ help_support" + result + "}";
+
+		case mtpc_contactFound:
+			result += "\n" + add;
+			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ contactFound" + result + "}";
+
+		case mtpc_future_salts:
+			result += "\n" + add;
+			result += "  req_msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  now: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  salts: " + mtpTextSerialize(from, end, mtpc_vector, level + 1, mtpc_future_salt) + ",\n" + add;
+		return "{ future_salts" + result + "}";
+
+		case mtpc_inputPhotoEmpty:
+			result = " ";
+		return "{ inputPhotoEmpty" + result + "}";
+
+		case mtpc_inputPhoto:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ inputPhoto" + result + "}";
+
+		case mtpc_chatParticipant:
+			result += "\n" + add;
+			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  inviter_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ chatParticipant" + result + "}";
+
+		case mtpc_auth_exportedAuthorization:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  bytes: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+		return "{ auth_exportedAuthorization" + result + "}";
+
+		case mtpc_contactStatus:
+			result += "\n" + add;
+			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  expires: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ contactStatus" + result + "}";
+
+		case mtpc_new_session_created:
+			result += "\n" + add;
+			result += "  first_msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  unique_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  server_salt: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ new_session_created" + result + "}";
+
+		case mtpc_geochats_located:
+			result += "\n" + add;
+			result += "  results: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
 			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
 			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ messages_statedMessage" + result + "}";
+		return "{ geochats_located" + result + "}";
 
-		case mtpc_messages_statedMessageLink:
+		case mtpc_updatesTooLong:
+			result = " ";
+		return "{ updatesTooLong" + result + "}";
+
+		case mtpc_updateShortMessage:
 			result += "\n" + add;
-			result += "  message: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  links: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  from_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
 			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
 			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ messages_statedMessageLink" + result + "}";
+		return "{ updateShortMessage" + result + "}";
+
+		case mtpc_updateShortChatMessage:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  from_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ updateShortChatMessage" + result + "}";
+
+		case mtpc_updateShort:
+			result += "\n" + add;
+			result += "  update: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ updateShort" + result + "}";
+
+		case mtpc_updatesCombined:
+			result += "\n" + add;
+			result += "  updates: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  seq_start: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ updatesCombined" + result + "}";
+
+		case mtpc_updates:
+			result += "\n" + add;
+			result += "  updates: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ updates" + result + "}";
+
+		case mtpc_future_salt:
+			result += "\n" + add;
+			result += "  valid_since: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  valid_until: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  salt: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ future_salt" + result + "}";
+
+		case mtpc_server_DH_inner_data:
+			result += "\n" + add;
+			result += "  nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
+			result += "  server_nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
+			result += "  g: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  dh_prime: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  g_a: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  server_time: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ server_DH_inner_data" + result + "}";
+
+		case mtpc_resPQ:
+			result += "\n" + add;
+			result += "  nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
+			result += "  server_nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
+			result += "  pq: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  server_public_key_fingerprints: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
+		return "{ resPQ" + result + "}";
 
 		case mtpc_upload_file:
 			result += "\n" + add;
@@ -22229,17 +22426,93 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
 		return "{ inputMediaDocument" + result + "}";
 
-		case mtpc_contact:
+		case mtpc_documentEmpty:
 			result += "\n" + add;
-			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  mutual: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ contact" + result + "}";
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ documentEmpty" + result + "}";
 
-		case mtpc_pong:
+		case mtpc_document:
 			result += "\n" + add;
-			result += "  msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  ping_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ pong" + result + "}";
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  file_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  mime_type: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  size: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  thumb: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  dc_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ document" + result + "}";
+
+		case mtpc_inputEncryptedFileEmpty:
+			result = " ";
+		return "{ inputEncryptedFileEmpty" + result + "}";
+
+		case mtpc_inputEncryptedFileUploaded:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  parts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  md5_checksum: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  key_fingerprint: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ inputEncryptedFileUploaded" + result + "}";
+
+		case mtpc_inputEncryptedFile:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ inputEncryptedFile" + result + "}";
+
+		case mtpc_inputEncryptedFileBigUploaded:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  parts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  key_fingerprint: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ inputEncryptedFileBigUploaded" + result + "}";
+
+		case mtpc_contacts_found:
+			result += "\n" + add;
+			result += "  results: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ contacts_found" + result + "}";
+
+		case mtpc_inputFileLocation:
+			result += "\n" + add;
+			result += "  volume_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  local_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  secret: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ inputFileLocation" + result + "}";
+
+		case mtpc_inputVideoFileLocation:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ inputVideoFileLocation" + result + "}";
+
+		case mtpc_inputEncryptedFileLocation:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ inputEncryptedFileLocation" + result + "}";
+
+		case mtpc_inputAudioFileLocation:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ inputAudioFileLocation" + result + "}";
+
+		case mtpc_inputDocumentFileLocation:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ inputDocumentFileLocation" + result + "}";
+
+		case mtpc_chatFull:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  participants: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  chat_photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  notify_settings: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ chatFull" + result + "}";
 
 		case mtpc_chatParticipantsForbidden:
 			result += "\n" + add;
@@ -22254,18 +22527,101 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  version: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
 		return "{ chatParticipants" + result + "}";
 
-		case mtpc_chatParticipant:
-			result += "\n" + add;
-			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  inviter_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ chatParticipant" + result + "}";
-
-		case mtpc_msgs_all_info:
+		case mtpc_msgs_ack:
 			result += "\n" + add;
 			result += "  msg_ids: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
-			result += "  info: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ msgs_all_info" + result + "}";
+		return "{ msgs_ack" + result + "}";
+
+		case mtpc_userFull:
+			result += "\n" + add;
+			result += "  user: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  link: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  profile_photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  notify_settings: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  blocked: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  real_first_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  real_last_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ userFull" + result + "}";
+
+		case mtpc_videoEmpty:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ videoEmpty" + result + "}";
+
+		case mtpc_video:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  caption: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  duration: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  mime_type: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  size: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  thumb: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  dc_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  w: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  h: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ video" + result + "}";
+
+		case mtpc_messageEmpty:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ messageEmpty" + result + "}";
+
+		case mtpc_message:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  from_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  to_id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  out: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  unread: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  media: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ message" + result + "}";
+
+		case mtpc_messageForwarded:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  fwd_from_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  fwd_date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  from_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  to_id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  out: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  unread: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  media: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ messageForwarded" + result + "}";
+
+		case mtpc_messageService:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  from_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  to_id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  out: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  unread: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  action: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ messageService" + result + "}";
+
+		case mtpc_notifyPeer:
+			result += "\n" + add;
+			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ notifyPeer" + result + "}";
+
+		case mtpc_notifyUsers:
+			result = " ";
+		return "{ notifyUsers" + result + "}";
+
+		case mtpc_notifyChats:
+			result = " ";
+		return "{ notifyChats" + result + "}";
+
+		case mtpc_notifyAll:
+			result = " ";
+		return "{ notifyAll" + result + "}";
 
 		case mtpc_messages_messageEmpty:
 			result = " ";
@@ -22278,42 +22634,38 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
 		return "{ messages_message" + result + "}";
 
-		case mtpc_nearestDc:
+		case mtpc_inputPhoneContact:
 			result += "\n" + add;
-			result += "  country: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  this_dc: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  nearest_dc: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ nearestDc" + result + "}";
+			result += "  client_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  phone: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  first_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  last_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ inputPhoneContact" + result + "}";
 
-		case mtpc_contacts_importedContacts:
-			result += "\n" + add;
-			result += "  imported: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  retry_contacts: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ contacts_importedContacts" + result + "}";
-
-		case mtpc_auth_exportedAuthorization:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  bytes: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
-		return "{ auth_exportedAuthorization" + result + "}";
-
-		case mtpc_inputPhotoCropAuto:
+		case mtpc_rpc_answer_unknown:
 			result = " ";
-		return "{ inputPhotoCropAuto" + result + "}";
+		return "{ rpc_answer_unknown" + result + "}";
 
-		case mtpc_inputPhotoCrop:
-			result += "\n" + add;
-			result += "  crop_left: " + mtpTextSerialize(from, end, mtpc_double, level + 1) + ",\n" + add;
-			result += "  crop_top: " + mtpTextSerialize(from, end, mtpc_double, level + 1) + ",\n" + add;
-			result += "  crop_width: " + mtpTextSerialize(from, end, mtpc_double, level + 1) + ",\n" + add;
-		return "{ inputPhotoCrop" + result + "}";
+		case mtpc_rpc_answer_dropped_running:
+			result = " ";
+		return "{ rpc_answer_dropped_running" + result + "}";
 
-		case mtpc_contactBlocked:
+		case mtpc_rpc_answer_dropped:
 			result += "\n" + add;
-			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ contactBlocked" + result + "}";
+			result += "  msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  seq_no: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  bytes: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ rpc_answer_dropped" + result + "}";
+
+		case mtpc_inputVideoEmpty:
+			result = " ";
+		return "{ inputVideoEmpty" + result + "}";
+
+		case mtpc_inputVideo:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ inputVideo" + result + "}";
 
 		case mtpc_decryptedMessageMediaEmpty:
 			result = " ";
@@ -22380,372 +22732,40 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  iv: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
 		return "{ decryptedMessageMediaAudio" + result + "}";
 
-		case mtpc_encryptedChatEmpty:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ encryptedChatEmpty" + result + "}";
-
-		case mtpc_encryptedChatWaiting:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  admin_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  participant_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ encryptedChatWaiting" + result + "}";
-
-		case mtpc_encryptedChatRequested:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  admin_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  participant_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  g_a: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
-		return "{ encryptedChatRequested" + result + "}";
-
-		case mtpc_encryptedChat:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  admin_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  participant_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  g_a_or_b: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
-			result += "  key_fingerprint: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ encryptedChat" + result + "}";
-
-		case mtpc_encryptedChatDiscarded:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ encryptedChatDiscarded" + result + "}";
-
-		case mtpc_server_DH_inner_data:
-			result += "\n" + add;
-			result += "  nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
-			result += "  server_nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
-			result += "  g: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  dh_prime: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  g_a: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  server_time: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ server_DH_inner_data" + result + "}";
-
-		case mtpc_bad_msg_notification:
-			result += "\n" + add;
-			result += "  bad_msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  bad_msg_seqno: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  error_code: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ bad_msg_notification" + result + "}";
-
-		case mtpc_bad_server_salt:
-			result += "\n" + add;
-			result += "  bad_msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  bad_msg_seqno: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  error_code: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  new_server_salt: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ bad_server_salt" + result + "}";
-
-		case mtpc_dcOption:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  hostname: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  ip_address: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  port: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ dcOption" + result + "}";
-
-		case mtpc_chatFull:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  participants: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  chat_photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  notify_settings: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ chatFull" + result + "}";
-
-		case mtpc_p_q_inner_data:
-			result += "\n" + add;
-			result += "  pq: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  p: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  q: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
-			result += "  server_nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
-			result += "  new_nonce: " + mtpTextSerialize(from, end, mtpc_int256, level + 1) + ",\n" + add;
-		return "{ p_q_inner_data" + result + "}";
-
-		case mtpc_msgs_state_req:
-			result += "\n" + add;
-			result += "  msg_ids: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
-		return "{ msgs_state_req" + result + "}";
-
-		case mtpc_chatLocated:
+		case mtpc_geoChatMessageEmpty:
 			result += "\n" + add;
 			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  distance: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ chatLocated" + result + "}";
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ geoChatMessageEmpty" + result + "}";
 
-		case mtpc_future_salt:
+		case mtpc_geoChatMessage:
 			result += "\n" + add;
-			result += "  valid_since: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  valid_until: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  salt: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ future_salt" + result + "}";
-
-		case mtpc_decryptedMessage:
-			result += "\n" + add;
-			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  random_bytes: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  from_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
 			result += "  message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
 			result += "  media: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ decryptedMessage" + result + "}";
+		return "{ geoChatMessage" + result + "}";
 
-		case mtpc_decryptedMessageService:
+		case mtpc_geoChatMessageService:
 			result += "\n" + add;
-			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  random_bytes: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  from_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
 			result += "  action: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ decryptedMessageService" + result + "}";
+		return "{ geoChatMessageService" + result + "}";
 
-		case mtpc_inputAudioEmpty:
+		case mtpc_geoPointEmpty:
 			result = " ";
-		return "{ inputAudioEmpty" + result + "}";
+		return "{ geoPointEmpty" + result + "}";
 
-		case mtpc_inputAudio:
+		case mtpc_geoPoint:
 			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ inputAudio" + result + "}";
-
-		case mtpc_encryptedMessage:
-			result += "\n" + add;
-			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  bytes: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
-			result += "  file: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ encryptedMessage" + result + "}";
-
-		case mtpc_encryptedMessageService:
-			result += "\n" + add;
-			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  bytes: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
-		return "{ encryptedMessageService" + result + "}";
-
-		case mtpc_geochats_messages:
-			result += "\n" + add;
-			result += "  messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ geochats_messages" + result + "}";
-
-		case mtpc_geochats_messagesSlice:
-			result += "\n" + add;
-			result += "  count: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ geochats_messagesSlice" + result + "}";
-
-		case mtpc_updates_differenceEmpty:
-			result += "\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ updates_differenceEmpty" + result + "}";
-
-		case mtpc_updates_difference:
-			result += "\n" + add;
-			result += "  new_messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  new_encrypted_messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  other_updates: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  state: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ updates_difference" + result + "}";
-
-		case mtpc_updates_differenceSlice:
-			result += "\n" + add;
-			result += "  new_messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  new_encrypted_messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  other_updates: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  intermediate_state: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ updates_differenceSlice" + result + "}";
-
-		case mtpc_userEmpty:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ userEmpty" + result + "}";
-
-		case mtpc_userSelf:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  first_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  last_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  phone: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  status: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  inactive: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ userSelf" + result + "}";
-
-		case mtpc_userContact:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  first_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  last_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  phone: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  status: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ userContact" + result + "}";
-
-		case mtpc_userRequest:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  first_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  last_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  phone: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  status: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ userRequest" + result + "}";
-
-		case mtpc_userForeign:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  first_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  last_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  status: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ userForeign" + result + "}";
-
-		case mtpc_userDeleted:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  first_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  last_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ userDeleted" + result + "}";
-
-		case mtpc_new_session_created:
-			result += "\n" + add;
-			result += "  first_msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  unique_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  server_salt: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ new_session_created" + result + "}";
-
-		case mtpc_inputPhotoEmpty:
-			result = " ";
-		return "{ inputPhotoEmpty" + result + "}";
-
-		case mtpc_inputPhoto:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ inputPhoto" + result + "}";
-
-		case mtpc_geochats_statedMessage:
-			result += "\n" + add;
-			result += "  message: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ geochats_statedMessage" + result + "}";
-
-		case mtpc_inputMessagesFilterEmpty:
-			result = " ";
-		return "{ inputMessagesFilterEmpty" + result + "}";
-
-		case mtpc_inputMessagesFilterPhotos:
-			result = " ";
-		return "{ inputMessagesFilterPhotos" + result + "}";
-
-		case mtpc_inputMessagesFilterVideo:
-			result = " ";
-		return "{ inputMessagesFilterVideo" + result + "}";
-
-		case mtpc_inputMessagesFilterPhotoVideo:
-			result = " ";
-		return "{ inputMessagesFilterPhotoVideo" + result + "}";
-
-		case mtpc_inputMessagesFilterDocument:
-			result = " ";
-		return "{ inputMessagesFilterDocument" + result + "}";
-
-		case mtpc_peerUser:
-			result += "\n" + add;
-			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ peerUser" + result + "}";
-
-		case mtpc_peerChat:
-			result += "\n" + add;
-			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ peerChat" + result + "}";
-
-		case mtpc_notifyPeer:
-			result += "\n" + add;
-			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ notifyPeer" + result + "}";
-
-		case mtpc_notifyUsers:
-			result = " ";
-		return "{ notifyUsers" + result + "}";
-
-		case mtpc_notifyChats:
-			result = " ";
-		return "{ notifyChats" + result + "}";
-
-		case mtpc_notifyAll:
-			result = " ";
-		return "{ notifyAll" + result + "}";
-
-		case mtpc_messages_sentMessage:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ messages_sentMessage" + result + "}";
-
-		case mtpc_messages_sentMessageLink:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  links: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ messages_sentMessageLink" + result + "}";
-
-		case mtpc_inputFile:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  parts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  md5_checksum: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ inputFile" + result + "}";
-
-		case mtpc_inputFileBig:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  parts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ inputFileBig" + result + "}";
-
-		case mtpc_inputAppEvent:
-			result += "\n" + add;
-			result += "  time: " + mtpTextSerialize(from, end, mtpc_double, level + 1) + ",\n" + add;
-			result += "  type: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  peer: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  data: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ inputAppEvent" + result + "}";
-
-		case mtpc_geochats_located:
-			result += "\n" + add;
-			result += "  results: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ geochats_located" + result + "}";
+			result += "  long: " + mtpTextSerialize(from, end, mtpc_double, level + 1) + ",\n" + add;
+			result += "  lat: " + mtpTextSerialize(from, end, mtpc_double, level + 1) + ",\n" + add;
+		return "{ geoPoint" + result + "}";
 
 		case mtpc_messages_dialogs:
 			result += "\n" + add;
@@ -22764,76 +22784,102 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
 		return "{ messages_dialogsSlice" + result + "}";
 
-		case mtpc_contacts_myLinkEmpty:
+		case mtpc_messages_dhConfigNotModified:
+			result += "\n" + add;
+			result += "  random: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+		return "{ messages_dhConfigNotModified" + result + "}";
+
+		case mtpc_messages_dhConfig:
+			result += "\n" + add;
+			result += "  g: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  p: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+			result += "  version: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  random: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+		return "{ messages_dhConfig" + result + "}";
+
+		case mtpc_peerUser:
+			result += "\n" + add;
+			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ peerUser" + result + "}";
+
+		case mtpc_peerChat:
+			result += "\n" + add;
+			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ peerChat" + result + "}";
+
+		case mtpc_server_DH_params_fail:
+			result += "\n" + add;
+			result += "  nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
+			result += "  server_nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
+			result += "  new_nonce_hash: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
+		return "{ server_DH_params_fail" + result + "}";
+
+		case mtpc_server_DH_params_ok:
+			result += "\n" + add;
+			result += "  nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
+			result += "  server_nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
+			result += "  encrypted_answer: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ server_DH_params_ok" + result + "}";
+
+		case mtpc_inputAppEvent:
+			result += "\n" + add;
+			result += "  time: " + mtpTextSerialize(from, end, mtpc_double, level + 1) + ",\n" + add;
+			result += "  type: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  peer: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  data: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ inputAppEvent" + result + "}";
+
+		case mtpc_photos_photo:
+			result += "\n" + add;
+			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ photos_photo" + result + "}";
+
+		case mtpc_peerNotifyEventsEmpty:
 			result = " ";
-		return "{ contacts_myLinkEmpty" + result + "}";
+		return "{ peerNotifyEventsEmpty" + result + "}";
 
-		case mtpc_contacts_myLinkRequested:
-			result += "\n" + add;
-			result += "  contact: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ contacts_myLinkRequested" + result + "}";
-
-		case mtpc_contacts_myLinkContact:
+		case mtpc_peerNotifyEventsAll:
 			result = " ";
-		return "{ contacts_myLinkContact" + result + "}";
+		return "{ peerNotifyEventsAll" + result + "}";
 
-		case mtpc_inputPeerNotifySettings:
+		case mtpc_nearestDc:
 			result += "\n" + add;
-			result += "  mute_until: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  sound: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  show_previews: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  events_mask: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ inputPeerNotifySettings" + result + "}";
+			result += "  country: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  this_dc: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  nearest_dc: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ nearestDc" + result + "}";
 
-		case mtpc_chatPhotoEmpty:
-			result = " ";
-		return "{ chatPhotoEmpty" + result + "}";
-
-		case mtpc_chatPhoto:
+		case mtpc_wallPaper:
 			result += "\n" + add;
-			result += "  photo_small: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  photo_big: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ chatPhoto" + result + "}";
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  sizes: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  color: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ wallPaper" + result + "}";
 
-		case mtpc_messages_sentEncryptedMessage:
+		case mtpc_wallPaperSolid:
 			result += "\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ messages_sentEncryptedMessage" + result + "}";
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  bg_color: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  color: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ wallPaperSolid" + result + "}";
 
-		case mtpc_messages_sentEncryptedFile:
+		case mtpc_geochats_messages:
 			result += "\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  file: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ messages_sentEncryptedFile" + result + "}";
+			result += "  messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ geochats_messages" + result + "}";
 
-		case mtpc_decryptedMessageActionSetMessageTTL:
+		case mtpc_geochats_messagesSlice:
 			result += "\n" + add;
-			result += "  ttl_seconds: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ decryptedMessageActionSetMessageTTL" + result + "}";
-
-		case mtpc_decryptedMessageActionReadMessages:
-			result += "\n" + add;
-			result += "  random_ids: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
-		return "{ decryptedMessageActionReadMessages" + result + "}";
-
-		case mtpc_decryptedMessageActionDeleteMessages:
-			result += "\n" + add;
-			result += "  random_ids: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
-		return "{ decryptedMessageActionDeleteMessages" + result + "}";
-
-		case mtpc_decryptedMessageActionScreenshotMessages:
-			result += "\n" + add;
-			result += "  random_ids: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
-		return "{ decryptedMessageActionScreenshotMessages" + result + "}";
-
-		case mtpc_decryptedMessageActionFlushHistory:
-			result = " ";
-		return "{ decryptedMessageActionFlushHistory" + result + "}";
-
-		case mtpc_decryptedMessageActionNotifyLayer:
-			result += "\n" + add;
-			result += "  layer: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ decryptedMessageActionNotifyLayer" + result + "}";
+			result += "  count: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ geochats_messagesSlice" + result + "}";
 
 		case mtpc_contacts_blocked:
 			result += "\n" + add;
@@ -22848,51 +22894,24 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
 		return "{ contacts_blockedSlice" + result + "}";
 
-		case mtpc_photoEmpty:
+		case mtpc_messages_statedMessage:
 			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ photoEmpty" + result + "}";
-
-		case mtpc_photo:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  caption: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  geo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  sizes: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ photo" + result + "}";
-
-		case mtpc_decryptedMessageLayer:
-			result += "\n" + add;
-			result += "  layer: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
 			result += "  message: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ decryptedMessageLayer" + result + "}";
+			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ messages_statedMessage" + result + "}";
 
-		case mtpc_encryptedFileEmpty:
-			result = " ";
-		return "{ encryptedFileEmpty" + result + "}";
-
-		case mtpc_encryptedFile:
+		case mtpc_messages_statedMessageLink:
 			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  size: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  dc_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  key_fingerprint: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ encryptedFile" + result + "}";
-
-		case mtpc_userFull:
-			result += "\n" + add;
-			result += "  user: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  link: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  profile_photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  notify_settings: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  blocked: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  real_first_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  real_last_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ userFull" + result + "}";
+			result += "  message: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  links: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ messages_statedMessageLink" + result + "}";
 
 		case mtpc_messageMediaEmpty:
 			result = " ";
@@ -22936,67 +22955,49 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  audio: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
 		return "{ messageMediaAudio" + result + "}";
 
-		case mtpc_help_inviteText:
+		case mtpc_inputGeoChat:
 			result += "\n" + add;
-			result += "  message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ help_inviteText" + result + "}";
+			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ inputGeoChat" + result + "}";
 
-		case mtpc_contactStatus:
-			result += "\n" + add;
-			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  expires: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ contactStatus" + result + "}";
-
-		case mtpc_messageEmpty:
+		case mtpc_help_appUpdate:
 			result += "\n" + add;
 			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ messageEmpty" + result + "}";
+			result += "  critical: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  url: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  text: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ help_appUpdate" + result + "}";
 
-		case mtpc_message:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  from_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  to_id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  out: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  unread: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  media: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ message" + result + "}";
+		case mtpc_help_noAppUpdate:
+			result = " ";
+		return "{ help_noAppUpdate" + result + "}";
 
-		case mtpc_messageForwarded:
+		case mtpc_updates_differenceEmpty:
 			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  fwd_from_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  fwd_date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  from_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  to_id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  out: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  unread: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  media: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ messageForwarded" + result + "}";
-
-		case mtpc_messageService:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  from_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  to_id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  out: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  unread: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  action: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ messageService" + result + "}";
-
-		case mtpc_updates_state:
-			result += "\n" + add;
-			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  qts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
 			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
 			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  unread_count: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ updates_state" + result + "}";
+		return "{ updates_differenceEmpty" + result + "}";
+
+		case mtpc_updates_difference:
+			result += "\n" + add;
+			result += "  new_messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  new_encrypted_messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  other_updates: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  state: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ updates_difference" + result + "}";
+
+		case mtpc_updates_differenceSlice:
+			result += "\n" + add;
+			result += "  new_messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  new_encrypted_messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  other_updates: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  intermediate_state: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ updates_differenceSlice" + result + "}";
 
 		case mtpc_msgs_state_info:
 			result += "\n" + add;
@@ -23004,11 +23005,249 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  info: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
 		return "{ msgs_state_info" + result + "}";
 
-		case mtpc_help_support:
+		case mtpc_msgs_state_req:
 			result += "\n" + add;
-			result += "  phone_number: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  user: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ help_support" + result + "}";
+			result += "  msg_ids: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
+		return "{ msgs_state_req" + result + "}";
+
+		case mtpc_msg_resend_req:
+			result += "\n" + add;
+			result += "  msg_ids: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
+		return "{ msg_resend_req" + result + "}";
+
+		case mtpc_inputDocumentEmpty:
+			result = " ";
+		return "{ inputDocumentEmpty" + result + "}";
+
+		case mtpc_inputDocument:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ inputDocument" + result + "}";
+
+		case mtpc_userStatusEmpty:
+			result = " ";
+		return "{ userStatusEmpty" + result + "}";
+
+		case mtpc_userStatusOnline:
+			result += "\n" + add;
+			result += "  expires: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ userStatusOnline" + result + "}";
+
+		case mtpc_userStatusOffline:
+			result += "\n" + add;
+			result += "  was_online: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ userStatusOffline" + result + "}";
+
+		case mtpc_photos_photos:
+			result += "\n" + add;
+			result += "  photos: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ photos_photos" + result + "}";
+
+		case mtpc_photos_photosSlice:
+			result += "\n" + add;
+			result += "  count: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  photos: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ photos_photosSlice" + result + "}";
+
+		case mtpc_decryptedMessage:
+			result += "\n" + add;
+			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  random_bytes: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+			result += "  message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  media: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ decryptedMessage" + result + "}";
+
+		case mtpc_decryptedMessageService:
+			result += "\n" + add;
+			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  random_bytes: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+			result += "  action: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ decryptedMessageService" + result + "}";
+
+		case mtpc_contacts_importedContacts:
+			result += "\n" + add;
+			result += "  imported: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  retry_contacts: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ contacts_importedContacts" + result + "}";
+
+		case mtpc_fileLocationUnavailable:
+			result += "\n" + add;
+			result += "  volume_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  local_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  secret: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ fileLocationUnavailable" + result + "}";
+
+		case mtpc_fileLocation:
+			result += "\n" + add;
+			result += "  dc_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  volume_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  local_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  secret: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ fileLocation" + result + "}";
+
+		case mtpc_photoSizeEmpty:
+			result += "\n" + add;
+			result += "  type: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ photoSizeEmpty" + result + "}";
+
+		case mtpc_photoSize:
+			result += "\n" + add;
+			result += "  type: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  location: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  w: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  h: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  size: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ photoSize" + result + "}";
+
+		case mtpc_photoCachedSize:
+			result += "\n" + add;
+			result += "  type: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  location: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  w: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  h: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  bytes: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+		return "{ photoCachedSize" + result + "}";
+
+		case mtpc_msg_detailed_info:
+			result += "\n" + add;
+			result += "  msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  answer_msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  bytes: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  status: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ msg_detailed_info" + result + "}";
+
+		case mtpc_msg_new_detailed_info:
+			result += "\n" + add;
+			result += "  answer_msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  bytes: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  status: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ msg_new_detailed_info" + result + "}";
+
+		case mtpc_inputChatPhotoEmpty:
+			result = " ";
+		return "{ inputChatPhotoEmpty" + result + "}";
+
+		case mtpc_inputChatUploadedPhoto:
+			result += "\n" + add;
+			result += "  file: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  crop: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ inputChatUploadedPhoto" + result + "}";
+
+		case mtpc_inputChatPhoto:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  crop: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ inputChatPhoto" + result + "}";
+
+		case mtpc_messages_sentMessage:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ messages_sentMessage" + result + "}";
+
+		case mtpc_messages_sentMessageLink:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  links: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ messages_sentMessageLink" + result + "}";
+
+		case mtpc_messages_chatFull:
+			result += "\n" + add;
+			result += "  full_chat: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ messages_chatFull" + result + "}";
+
+		case mtpc_geochats_statedMessage:
+			result += "\n" + add;
+			result += "  message: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ geochats_statedMessage" + result + "}";
+
+		case mtpc_chatPhotoEmpty:
+			result = " ";
+		return "{ chatPhotoEmpty" + result + "}";
+
+		case mtpc_chatPhoto:
+			result += "\n" + add;
+			result += "  photo_small: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  photo_big: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ chatPhoto" + result + "}";
+
+		case mtpc_encryptedMessage:
+			result += "\n" + add;
+			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  bytes: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+			result += "  file: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ encryptedMessage" + result + "}";
+
+		case mtpc_encryptedMessageService:
+			result += "\n" + add;
+			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  bytes: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+		return "{ encryptedMessageService" + result + "}";
+
+		case mtpc_destroy_session_ok:
+			result += "\n" + add;
+			result += "  session_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ destroy_session_ok" + result + "}";
+
+		case mtpc_destroy_session_none:
+			result += "\n" + add;
+			result += "  session_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ destroy_session_none" + result + "}";
+
+		case mtpc_http_wait:
+			result += "\n" + add;
+			result += "  max_delay: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  wait_after: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  max_wait: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ http_wait" + result + "}";
+
+		case mtpc_messages_sentEncryptedMessage:
+			result += "\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ messages_sentEncryptedMessage" + result + "}";
+
+		case mtpc_messages_sentEncryptedFile:
+			result += "\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  file: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ messages_sentEncryptedFile" + result + "}";
+
+		case mtpc_contacts_myLinkEmpty:
+			result = " ";
+		return "{ contacts_myLinkEmpty" + result + "}";
+
+		case mtpc_contacts_myLinkRequested:
+			result += "\n" + add;
+			result += "  contact: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ contacts_myLinkRequested" + result + "}";
+
+		case mtpc_contacts_myLinkContact:
+			result = " ";
+		return "{ contacts_myLinkContact" + result + "}";
+
+		case mtpc_inputEncryptedChat:
+			result += "\n" + add;
+			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ inputEncryptedChat" + result + "}";
 
 		case mtpc_messages_chats:
 			result += "\n" + add;
@@ -23016,28 +23255,219 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
 		return "{ messages_chats" + result + "}";
 
-		case mtpc_msgs_ack:
+		case mtpc_encryptedChatEmpty:
 			result += "\n" + add;
-			result += "  msg_ids: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
-		return "{ msgs_ack" + result + "}";
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ encryptedChatEmpty" + result + "}";
 
-		case mtpc_messages_dhConfigNotModified:
+		case mtpc_encryptedChatWaiting:
 			result += "\n" + add;
-			result += "  random: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
-		return "{ messages_dhConfigNotModified" + result + "}";
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  admin_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  participant_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ encryptedChatWaiting" + result + "}";
 
-		case mtpc_messages_dhConfig:
+		case mtpc_encryptedChatRequested:
 			result += "\n" + add;
-			result += "  g: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  p: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
-			result += "  version: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  random: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
-		return "{ messages_dhConfig" + result + "}";
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  admin_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  participant_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  g_a: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+		return "{ encryptedChatRequested" + result + "}";
 
-		case mtpc_contactFound:
+		case mtpc_encryptedChat:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  admin_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  participant_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  g_a_or_b: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+			result += "  key_fingerprint: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ encryptedChat" + result + "}";
+
+		case mtpc_encryptedChatDiscarded:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ encryptedChatDiscarded" + result + "}";
+
+		case mtpc_messages_messages:
+			result += "\n" + add;
+			result += "  messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ messages_messages" + result + "}";
+
+		case mtpc_messages_messagesSlice:
+			result += "\n" + add;
+			result += "  count: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ messages_messagesSlice" + result + "}";
+
+		case mtpc_auth_checkedPhone:
+			result += "\n" + add;
+			result += "  phone_registered: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  phone_invited: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ auth_checkedPhone" + result + "}";
+
+		case mtpc_contactSuggested:
 			result += "\n" + add;
 			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ contactFound" + result + "}";
+			result += "  mutual_contacts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ contactSuggested" + result + "}";
+
+		case mtpc_contacts_foreignLinkUnknown:
+			result = " ";
+		return "{ contacts_foreignLinkUnknown" + result + "}";
+
+		case mtpc_contacts_foreignLinkRequested:
+			result += "\n" + add;
+			result += "  has_phone: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ contacts_foreignLinkRequested" + result + "}";
+
+		case mtpc_contacts_foreignLinkMutual:
+			result = " ";
+		return "{ contacts_foreignLinkMutual" + result + "}";
+
+		case mtpc_inputAudioEmpty:
+			result = " ";
+		return "{ inputAudioEmpty" + result + "}";
+
+		case mtpc_inputAudio:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ inputAudio" + result + "}";
+
+		case mtpc_contacts_contacts:
+			result += "\n" + add;
+			result += "  contacts: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ contacts_contacts" + result + "}";
+
+		case mtpc_contacts_contactsNotModified:
+			result = " ";
+		return "{ contacts_contactsNotModified" + result + "}";
+
+		case mtpc_chatEmpty:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ chatEmpty" + result + "}";
+
+		case mtpc_chat:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  participants_count: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  left: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  version: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ chat" + result + "}";
+
+		case mtpc_chatForbidden:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ chatForbidden" + result + "}";
+
+		case mtpc_geoChat:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  address: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  venue: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  geo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  participants_count: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  checked_in: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  version: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ geoChat" + result + "}";
+
+		case mtpc_pong:
+			result += "\n" + add;
+			result += "  msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  ping_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ pong" + result + "}";
+
+		case mtpc_inputPeerNotifyEventsEmpty:
+			result = " ";
+		return "{ inputPeerNotifyEventsEmpty" + result + "}";
+
+		case mtpc_inputPeerNotifyEventsAll:
+			result = " ";
+		return "{ inputPeerNotifyEventsAll" + result + "}";
+
+		case mtpc_inputPeerNotifySettings:
+			result += "\n" + add;
+			result += "  mute_until: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  sound: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  show_previews: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  events_mask: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ inputPeerNotifySettings" + result + "}";
+
+		case mtpc_messages_affectedHistory:
+			result += "\n" + add;
+			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ messages_affectedHistory" + result + "}";
+
+		case mtpc_inputNotifyPeer:
+			result += "\n" + add;
+			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ inputNotifyPeer" + result + "}";
+
+		case mtpc_inputNotifyUsers:
+			result = " ";
+		return "{ inputNotifyUsers" + result + "}";
+
+		case mtpc_inputNotifyChats:
+			result = " ";
+		return "{ inputNotifyChats" + result + "}";
+
+		case mtpc_inputNotifyAll:
+			result = " ";
+		return "{ inputNotifyAll" + result + "}";
+
+		case mtpc_inputNotifyGeoChatPeer:
+			result += "\n" + add;
+			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ inputNotifyGeoChatPeer" + result + "}";
+
+		case mtpc_bad_msg_notification:
+			result += "\n" + add;
+			result += "  bad_msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  bad_msg_seqno: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  error_code: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ bad_msg_notification" + result + "}";
+
+		case mtpc_bad_server_salt:
+			result += "\n" + add;
+			result += "  bad_msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  bad_msg_seqno: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  error_code: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  new_server_salt: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ bad_server_salt" + result + "}";
+
+		case mtpc_config:
+			result += "\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  test_mode: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  this_dc: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  dc_options: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  chat_size_max: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  broadcast_size_max: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ config" + result + "}";
 
 		case mtpc_inputGeoPointEmpty:
 			result = " ";
@@ -23068,26 +23498,6 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
 		return "{ inputUserForeign" + result + "}";
 
-		case mtpc_rpc_error:
-			result += "\n" + add;
-			result += "  error_code: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  error_message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ rpc_error" + result + "}";
-
-		case mtpc_contacts_suggested:
-			result += "\n" + add;
-			result += "  results: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ contacts_suggested" + result + "}";
-
-		case mtpc_client_DH_inner_data:
-			result += "\n" + add;
-			result += "  nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
-			result += "  server_nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
-			result += "  retry_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  g_b: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ client_DH_inner_data" + result + "}";
-
 		case mtpc_dialog:
 			result += "\n" + add;
 			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
@@ -23096,338 +23506,19 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  notify_settings: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
 		return "{ dialog" + result + "}";
 
-		case mtpc_inputEncryptedFileEmpty:
-			result = " ";
-		return "{ inputEncryptedFileEmpty" + result + "}";
-
-		case mtpc_inputEncryptedFileUploaded:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  parts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  md5_checksum: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  key_fingerprint: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ inputEncryptedFileUploaded" + result + "}";
-
-		case mtpc_inputEncryptedFile:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ inputEncryptedFile" + result + "}";
-
-		case mtpc_inputEncryptedFileBigUploaded:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  parts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  key_fingerprint: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ inputEncryptedFileBigUploaded" + result + "}";
-
-		case mtpc_auth_checkedPhone:
-			result += "\n" + add;
-			result += "  phone_registered: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  phone_invited: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ auth_checkedPhone" + result + "}";
-
-		case mtpc_contactSuggested:
+		case mtpc_importedContact:
 			result += "\n" + add;
 			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  mutual_contacts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ contactSuggested" + result + "}";
+			result += "  client_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ importedContact" + result + "}";
 
-		case mtpc_photoSizeEmpty:
-			result += "\n" + add;
-			result += "  type: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ photoSizeEmpty" + result + "}";
-
-		case mtpc_photoSize:
-			result += "\n" + add;
-			result += "  type: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  location: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  w: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  h: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  size: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ photoSize" + result + "}";
-
-		case mtpc_photoCachedSize:
-			result += "\n" + add;
-			result += "  type: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  location: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  w: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  h: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  bytes: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
-		return "{ photoCachedSize" + result + "}";
-
-		case mtpc_rpc_answer_unknown:
-			result = " ";
-		return "{ rpc_answer_unknown" + result + "}";
-
-		case mtpc_rpc_answer_dropped_running:
-			result = " ";
-		return "{ rpc_answer_dropped_running" + result + "}";
-
-		case mtpc_rpc_answer_dropped:
-			result += "\n" + add;
-			result += "  msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  seq_no: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  bytes: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ rpc_answer_dropped" + result + "}";
-
-		case mtpc_inputNotifyPeer:
-			result += "\n" + add;
-			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ inputNotifyPeer" + result + "}";
-
-		case mtpc_inputNotifyUsers:
-			result = " ";
-		return "{ inputNotifyUsers" + result + "}";
-
-		case mtpc_inputNotifyChats:
-			result = " ";
-		return "{ inputNotifyChats" + result + "}";
-
-		case mtpc_inputNotifyAll:
-			result = " ";
-		return "{ inputNotifyAll" + result + "}";
-
-		case mtpc_inputNotifyGeoChatPeer:
-			result += "\n" + add;
-			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ inputNotifyGeoChatPeer" + result + "}";
-
-		case mtpc_geoPointEmpty:
-			result = " ";
-		return "{ geoPointEmpty" + result + "}";
-
-		case mtpc_geoPoint:
-			result += "\n" + add;
-			result += "  long: " + mtpTextSerialize(from, end, mtpc_double, level + 1) + ",\n" + add;
-			result += "  lat: " + mtpTextSerialize(from, end, mtpc_double, level + 1) + ",\n" + add;
-		return "{ geoPoint" + result + "}";
-
-		case mtpc_photos_photo:
-			result += "\n" + add;
-			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ photos_photo" + result + "}";
-
-		case mtpc_userStatusEmpty:
-			result = " ";
-		return "{ userStatusEmpty" + result + "}";
-
-		case mtpc_userStatusOnline:
-			result += "\n" + add;
-			result += "  expires: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ userStatusOnline" + result + "}";
-
-		case mtpc_userStatusOffline:
-			result += "\n" + add;
-			result += "  was_online: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ userStatusOffline" + result + "}";
-
-		case mtpc_contacts_found:
-			result += "\n" + add;
-			result += "  results: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ contacts_found" + result + "}";
-
-		case mtpc_contacts_contacts:
-			result += "\n" + add;
-			result += "  contacts: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ contacts_contacts" + result + "}";
-
-		case mtpc_contacts_contactsNotModified:
-			result = " ";
-		return "{ contacts_contactsNotModified" + result + "}";
-
-		case mtpc_userProfilePhotoEmpty:
-			result = " ";
-		return "{ userProfilePhotoEmpty" + result + "}";
-
-		case mtpc_userProfilePhoto:
-			result += "\n" + add;
-			result += "  photo_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  photo_small: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  photo_big: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ userProfilePhoto" + result + "}";
-
-		case mtpc_messageActionEmpty:
-			result = " ";
-		return "{ messageActionEmpty" + result + "}";
-
-		case mtpc_messageActionChatCreate:
-			result += "\n" + add;
-			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_int) + ",\n" + add;
-		return "{ messageActionChatCreate" + result + "}";
-
-		case mtpc_messageActionChatEditTitle:
-			result += "\n" + add;
-			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ messageActionChatEditTitle" + result + "}";
-
-		case mtpc_messageActionChatEditPhoto:
-			result += "\n" + add;
-			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ messageActionChatEditPhoto" + result + "}";
-
-		case mtpc_messageActionChatDeletePhoto:
-			result = " ";
-		return "{ messageActionChatDeletePhoto" + result + "}";
-
-		case mtpc_messageActionChatAddUser:
-			result += "\n" + add;
-			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ messageActionChatAddUser" + result + "}";
-
-		case mtpc_messageActionChatDeleteUser:
-			result += "\n" + add;
-			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ messageActionChatDeleteUser" + result + "}";
-
-		case mtpc_messageActionGeoChatCreate:
-			result += "\n" + add;
-			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  address: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ messageActionGeoChatCreate" + result + "}";
-
-		case mtpc_messageActionGeoChatCheckin:
-			result = " ";
-		return "{ messageActionGeoChatCheckin" + result + "}";
-
-		case mtpc_messages_statedMessages:
-			result += "\n" + add;
-			result += "  messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ messages_statedMessages" + result + "}";
-
-		case mtpc_messages_statedMessagesLinks:
-			result += "\n" + add;
-			result += "  messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  links: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ messages_statedMessagesLinks" + result + "}";
-
-		case mtpc_wallPaper:
+		case mtpc_dcOption:
 			result += "\n" + add;
 			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  sizes: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  color: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ wallPaper" + result + "}";
-
-		case mtpc_wallPaperSolid:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  bg_color: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  color: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ wallPaperSolid" + result + "}";
-
-		case mtpc_inputEncryptedChat:
-			result += "\n" + add;
-			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ inputEncryptedChat" + result + "}";
-
-		case mtpc_updatesTooLong:
-			result = " ";
-		return "{ updatesTooLong" + result + "}";
-
-		case mtpc_updateShortMessage:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  from_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ updateShortMessage" + result + "}";
-
-		case mtpc_updateShortChatMessage:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  from_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ updateShortChatMessage" + result + "}";
-
-		case mtpc_updateShort:
-			result += "\n" + add;
-			result += "  update: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ updateShort" + result + "}";
-
-		case mtpc_updatesCombined:
-			result += "\n" + add;
-			result += "  updates: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  seq_start: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ updatesCombined" + result + "}";
-
-		case mtpc_updates:
-			result += "\n" + add;
-			result += "  updates: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ updates" + result + "}";
-
-		case mtpc_videoEmpty:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ videoEmpty" + result + "}";
-
-		case mtpc_video:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  caption: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  duration: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  mime_type: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  size: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  thumb: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  dc_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  w: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  h: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ video" + result + "}";
-
-		case mtpc_inputPeerNotifyEventsEmpty:
-			result = " ";
-		return "{ inputPeerNotifyEventsEmpty" + result + "}";
-
-		case mtpc_inputPeerNotifyEventsAll:
-			result = " ";
-		return "{ inputPeerNotifyEventsAll" + result + "}";
-
-		case mtpc_messages_messages:
-			result += "\n" + add;
-			result += "  messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ messages_messages" + result + "}";
-
-		case mtpc_messages_messagesSlice:
-			result += "\n" + add;
-			result += "  count: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ messages_messagesSlice" + result + "}";
+			result += "  hostname: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  ip_address: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  port: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ dcOption" + result + "}";
 
 		case mtpc_updateNewMessage:
 			result += "\n" + add;
@@ -23583,6 +23674,170 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  notify_settings: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
 		return "{ updateNotifySettings" + result + "}";
 
+		case mtpc_decryptedMessageActionSetMessageTTL:
+			result += "\n" + add;
+			result += "  ttl_seconds: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ decryptedMessageActionSetMessageTTL" + result + "}";
+
+		case mtpc_decryptedMessageActionReadMessages:
+			result += "\n" + add;
+			result += "  random_ids: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
+		return "{ decryptedMessageActionReadMessages" + result + "}";
+
+		case mtpc_decryptedMessageActionDeleteMessages:
+			result += "\n" + add;
+			result += "  random_ids: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
+		return "{ decryptedMessageActionDeleteMessages" + result + "}";
+
+		case mtpc_decryptedMessageActionScreenshotMessages:
+			result += "\n" + add;
+			result += "  random_ids: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
+		return "{ decryptedMessageActionScreenshotMessages" + result + "}";
+
+		case mtpc_decryptedMessageActionFlushHistory:
+			result = " ";
+		return "{ decryptedMessageActionFlushHistory" + result + "}";
+
+		case mtpc_decryptedMessageActionNotifyLayer:
+			result += "\n" + add;
+			result += "  layer: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ decryptedMessageActionNotifyLayer" + result + "}";
+
+		case mtpc_peerNotifySettingsEmpty:
+			result = " ";
+		return "{ peerNotifySettingsEmpty" + result + "}";
+
+		case mtpc_peerNotifySettings:
+			result += "\n" + add;
+			result += "  mute_until: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  sound: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  show_previews: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  events_mask: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ peerNotifySettings" + result + "}";
+
+		case mtpc_userEmpty:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ userEmpty" + result + "}";
+
+		case mtpc_userSelf:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  first_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  last_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  phone: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  status: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  inactive: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ userSelf" + result + "}";
+
+		case mtpc_userContact:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  first_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  last_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  phone: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  status: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ userContact" + result + "}";
+
+		case mtpc_userRequest:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  first_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  last_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  phone: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  status: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ userRequest" + result + "}";
+
+		case mtpc_userForeign:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  first_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  last_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  status: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ userForeign" + result + "}";
+
+		case mtpc_userDeleted:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  first_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  last_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ userDeleted" + result + "}";
+
+		case mtpc_contacts_suggested:
+			result += "\n" + add;
+			result += "  results: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ contacts_suggested" + result + "}";
+
+		case mtpc_auth_authorization:
+			result += "\n" + add;
+			result += "  expires: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  user: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ auth_authorization" + result + "}";
+
+		case mtpc_messages_chat:
+			result += "\n" + add;
+			result += "  chat: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ messages_chat" + result + "}";
+
+		case mtpc_auth_sentCode:
+			result += "\n" + add;
+			result += "  phone_registered: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  phone_code_hash: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  send_call_timeout: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  is_password: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ auth_sentCode" + result + "}";
+
+		case mtpc_audioEmpty:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ audioEmpty" + result + "}";
+
+		case mtpc_audio:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  duration: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  mime_type: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  size: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  dc_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ audio" + result + "}";
+
+		case mtpc_messages_statedMessages:
+			result += "\n" + add;
+			result += "  messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ messages_statedMessages" + result + "}";
+
+		case mtpc_messages_statedMessagesLinks:
+			result += "\n" + add;
+			result += "  messages: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  chats: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  links: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ messages_statedMessagesLinks" + result + "}";
+
+		case mtpc_contactBlocked:
+			result += "\n" + add;
+			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ contactBlocked" + result + "}";
+
 		case mtpc_storage_fileUnknown:
 			result = " ";
 		return "{ storage_fileUnknown" + result + "}";
@@ -23623,551 +23878,62 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result = " ";
 		return "{ storage_fileWebp" + result + "}";
 
-		case mtpc_documentEmpty:
+		case mtpc_help_inviteText:
 			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ documentEmpty" + result + "}";
-
-		case mtpc_document:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  file_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  mime_type: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  size: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  thumb: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  dc_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ document" + result + "}";
-
-		case mtpc_resPQ:
-			result += "\n" + add;
-			result += "  nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
-			result += "  server_nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
-			result += "  pq: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  server_public_key_fingerprints: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
-		return "{ resPQ" + result + "}";
-
-		case mtpc_audioEmpty:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ audioEmpty" + result + "}";
-
-		case mtpc_audio:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  duration: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  mime_type: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  size: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  dc_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ audio" + result + "}";
-
-		case mtpc_fileLocationUnavailable:
-			result += "\n" + add;
-			result += "  volume_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  local_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  secret: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ fileLocationUnavailable" + result + "}";
-
-		case mtpc_fileLocation:
-			result += "\n" + add;
-			result += "  dc_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  volume_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  local_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  secret: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ fileLocation" + result + "}";
-
-		case mtpc_contacts_foreignLinkUnknown:
-			result = " ";
-		return "{ contacts_foreignLinkUnknown" + result + "}";
-
-		case mtpc_contacts_foreignLinkRequested:
-			result += "\n" + add;
-			result += "  has_phone: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ contacts_foreignLinkRequested" + result + "}";
-
-		case mtpc_contacts_foreignLinkMutual:
-			result = " ";
-		return "{ contacts_foreignLinkMutual" + result + "}";
-
-		case mtpc_inputVideoEmpty:
-			result = " ";
-		return "{ inputVideoEmpty" + result + "}";
-
-		case mtpc_inputVideo:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ inputVideo" + result + "}";
-
-		case mtpc_peerNotifySettingsEmpty:
-			result = " ";
-		return "{ peerNotifySettingsEmpty" + result + "}";
-
-		case mtpc_peerNotifySettings:
-			result += "\n" + add;
-			result += "  mute_until: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  sound: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  show_previews: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  events_mask: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ peerNotifySettings" + result + "}";
-
-		case mtpc_auth_sentCode:
-			result += "\n" + add;
-			result += "  phone_registered: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  phone_code_hash: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  send_call_timeout: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  is_password: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ auth_sentCode" + result + "}";
-
-		case mtpc_inputGeoChat:
-			result += "\n" + add;
-			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ inputGeoChat" + result + "}";
-
-		case mtpc_destroy_session_ok:
-			result += "\n" + add;
-			result += "  session_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ destroy_session_ok" + result + "}";
-
-		case mtpc_destroy_session_none:
-			result += "\n" + add;
-			result += "  session_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ destroy_session_none" + result + "}";
-
-		case mtpc_server_DH_params_fail:
-			result += "\n" + add;
-			result += "  nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
-			result += "  server_nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
-			result += "  new_nonce_hash: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
-		return "{ server_DH_params_fail" + result + "}";
-
-		case mtpc_server_DH_params_ok:
-			result += "\n" + add;
-			result += "  nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
-			result += "  server_nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
-			result += "  encrypted_answer: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ server_DH_params_ok" + result + "}";
-
-		case mtpc_auth_authorization:
-			result += "\n" + add;
-			result += "  expires: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  user: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ auth_authorization" + result + "}";
-
-		case mtpc_future_salts:
-			result += "\n" + add;
-			result += "  req_msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  now: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  salts: " + mtpTextSerialize(from, end, mtpc_vector, level + 1, mtpc_future_salt) + ",\n" + add;
-		return "{ future_salts" + result + "}";
-
-		case mtpc_geoChatMessageEmpty:
-			result += "\n" + add;
-			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ geoChatMessageEmpty" + result + "}";
-
-		case mtpc_geoChatMessage:
-			result += "\n" + add;
-			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  from_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
 			result += "  message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  media: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ geoChatMessage" + result + "}";
+		return "{ help_inviteText" + result + "}";
 
-		case mtpc_geoChatMessageService:
+		case mtpc_chatLocated:
 			result += "\n" + add;
 			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  from_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  action: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ geoChatMessageService" + result + "}";
+			result += "  distance: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ chatLocated" + result + "}";
 
-		case mtpc_help_appUpdate:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  critical: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  url: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  text: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ help_appUpdate" + result + "}";
-
-		case mtpc_help_noAppUpdate:
-			result = " ";
-		return "{ help_noAppUpdate" + result + "}";
-
-		case mtpc_peerNotifyEventsEmpty:
-			result = " ";
-		return "{ peerNotifyEventsEmpty" + result + "}";
-
-		case mtpc_peerNotifyEventsAll:
-			result = " ";
-		return "{ peerNotifyEventsAll" + result + "}";
-
-		case mtpc_inputPeerEmpty:
-			result = " ";
-		return "{ inputPeerEmpty" + result + "}";
-
-		case mtpc_inputPeerSelf:
-			result = " ";
-		return "{ inputPeerSelf" + result + "}";
-
-		case mtpc_inputPeerContact:
+		case mtpc_contact:
 			result += "\n" + add;
 			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ inputPeerContact" + result + "}";
+			result += "  mutual: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ contact" + result + "}";
 
-		case mtpc_inputPeerForeign:
+		case mtpc_decryptedMessageLayer:
 			result += "\n" + add;
-			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ inputPeerForeign" + result + "}";
+			result += "  layer: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  message: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ decryptedMessageLayer" + result + "}";
 
-		case mtpc_inputPeerChat:
-			result += "\n" + add;
-			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ inputPeerChat" + result + "}";
-
-		case mtpc_inputChatPhotoEmpty:
-			result = " ";
-		return "{ inputChatPhotoEmpty" + result + "}";
-
-		case mtpc_inputChatUploadedPhoto:
-			result += "\n" + add;
-			result += "  file: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  crop: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ inputChatUploadedPhoto" + result + "}";
-
-		case mtpc_inputChatPhoto:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  crop: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ inputChatPhoto" + result + "}";
-
-		case mtpc_messages_chat:
-			result += "\n" + add;
-			result += "  chat: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ messages_chat" + result + "}";
-
-		case mtpc_importedContact:
-			result += "\n" + add;
-			result += "  user_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  client_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ importedContact" + result + "}";
-
-		case mtpc_inputPhoneContact:
-			result += "\n" + add;
-			result += "  client_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  phone: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  first_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  last_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ inputPhoneContact" + result + "}";
-
-		case mtpc_http_wait:
-			result += "\n" + add;
-			result += "  max_delay: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  wait_after: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  max_wait: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ http_wait" + result + "}";
-
-		case mtpc_contacts_link:
-			result += "\n" + add;
-			result += "  my_link: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  foreign_link: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  user: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ contacts_link" + result + "}";
-
-		case mtpc_msg_resend_req:
-			result += "\n" + add;
-			result += "  msg_ids: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
-		return "{ msg_resend_req" + result + "}";
-
-		case mtpc_config:
-			result += "\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  test_mode: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  this_dc: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  dc_options: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  chat_size_max: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  broadcast_size_max: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ config" + result + "}";
-
-		case mtpc_msg_detailed_info:
-			result += "\n" + add;
-			result += "  msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  answer_msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  bytes: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  status: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ msg_detailed_info" + result + "}";
-
-		case mtpc_msg_new_detailed_info:
-			result += "\n" + add;
-			result += "  answer_msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  bytes: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  status: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ msg_new_detailed_info" + result + "}";
-
-		case mtpc_photos_photos:
-			result += "\n" + add;
-			result += "  photos: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ photos_photos" + result + "}";
-
-		case mtpc_photos_photosSlice:
-			result += "\n" + add;
-			result += "  count: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  photos: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ photos_photosSlice" + result + "}";
-
-		case mtpc_messages_readHistory:
-			result += "\n" + add;
-			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  max_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ messages_readHistory" + result + "}";
-
-		case mtpc_messages_deleteHistory:
-			result += "\n" + add;
-			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ messages_deleteHistory" + result + "}";
-
-		case mtpc_set_client_DH_params:
-			result += "\n" + add;
-			result += "  nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
-			result += "  server_nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
-			result += "  encrypted_data: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ set_client_DH_params" + result + "}";
-
-		case mtpc_messages_getDhConfig:
-			result += "\n" + add;
-			result += "  version: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  random_length: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ messages_getDhConfig" + result + "}";
-
-		case mtpc_geochats_getRecents:
-			result += "\n" + add;
-			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ geochats_getRecents" + result + "}";
-
-		case mtpc_geochats_search:
-			result += "\n" + add;
-			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  q: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  filter: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  min_date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  max_date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  max_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ geochats_search" + result + "}";
-
-		case mtpc_geochats_getHistory:
-			result += "\n" + add;
-			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  max_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ geochats_getHistory" + result + "}";
-
-		case mtpc_messages_receivedQueue:
-			result += "\n" + add;
-			result += "  max_qts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ messages_receivedQueue" + result + "}";
-
-		case mtpc_messages_sendMedia:
-			result += "\n" + add;
-			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  media: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ messages_sendMedia" + result + "}";
-
-		case mtpc_messages_editChatTitle:
-			result += "\n" + add;
-			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ messages_editChatTitle" + result + "}";
-
-		case mtpc_messages_editChatPhoto:
-			result += "\n" + add;
-			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ messages_editChatPhoto" + result + "}";
-
-		case mtpc_messages_addChatUser:
-			result += "\n" + add;
-			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  user_id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  fwd_limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ messages_addChatUser" + result + "}";
-
-		case mtpc_messages_deleteChatUser:
-			result += "\n" + add;
-			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  user_id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ messages_deleteChatUser" + result + "}";
-
-		case mtpc_messages_createChat:
-			result += "\n" + add;
-			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ messages_createChat" + result + "}";
-
-		case mtpc_messages_forwardMessage:
-			result += "\n" + add;
-			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ messages_forwardMessage" + result + "}";
-
-		case mtpc_users_getFullUser:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ users_getFullUser" + result + "}";
-
-		case mtpc_contacts_getBlocked:
-			result += "\n" + add;
-			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ contacts_getBlocked" + result + "}";
-
-		case mtpc_messages_getChats:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_int) + ",\n" + add;
-		return "{ messages_getChats" + result + "}";
-
-		case mtpc_contacts_getSuggested:
-			result += "\n" + add;
-			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ contacts_getSuggested" + result + "}";
-
-		case mtpc_auth_checkPhone:
-			result += "\n" + add;
-			result += "  phone_number: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ auth_checkPhone" + result + "}";
-
-		case mtpc_contacts_getContacts:
-			result += "\n" + add;
-			result += "  hash: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ contacts_getContacts" + result + "}";
-
-		case mtpc_rpc_drop_answer:
-			result += "\n" + add;
-			result += "  req_msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ rpc_drop_answer" + result + "}";
-
-		case mtpc_contacts_importContacts:
-			result += "\n" + add;
-			result += "  contacts: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  replace: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ contacts_importContacts" + result + "}";
-
-		case mtpc_auth_exportAuthorization:
-			result += "\n" + add;
-			result += "  dc_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ auth_exportAuthorization" + result + "}";
-
-		case mtpc_auth_sendCode:
-			result += "\n" + add;
-			result += "  phone_number: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  sms_type: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  api_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  api_hash: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  lang_code: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ auth_sendCode" + result + "}";
-
-		case mtpc_photos_uploadProfilePhoto:
-			result += "\n" + add;
-			result += "  file: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  caption: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  geo_point: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  crop: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ photos_uploadProfilePhoto" + result + "}";
-
-		case mtpc_upload_getFile:
-			result += "\n" + add;
-			result += "  location: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ upload_getFile" + result + "}";
-
-		case mtpc_contacts_search:
-			result += "\n" + add;
-			result += "  q: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ contacts_search" + result + "}";
-
-		case mtpc_help_getNearestDc:
-			result = " ";
-		return "{ help_getNearestDc" + result + "}";
-
-		case mtpc_messages_requestEncryption:
-			result += "\n" + add;
-			result += "  user_id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  g_a: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
-		return "{ messages_requestEncryption" + result + "}";
-
-		case mtpc_messages_acceptEncryption:
-			result += "\n" + add;
-			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  g_b: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
-			result += "  key_fingerprint: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ messages_acceptEncryption" + result + "}";
-
-		case mtpc_users_getUsers:
-			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ users_getUsers" + result + "}";
-
-		case mtpc_messages_forwardMessages:
-			result += "\n" + add;
-			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_int) + ",\n" + add;
-		return "{ messages_forwardMessages" + result + "}";
-
-		case mtpc_messages_sendBroadcast:
-			result += "\n" + add;
-			result += "  contacts: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  media: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ messages_sendBroadcast" + result + "}";
-
-		case mtpc_photos_getUserPhotos:
-			result += "\n" + add;
-			result += "  user_id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  max_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ photos_getUserPhotos" + result + "}";
-
-		case mtpc_updates_getDifference:
+		case mtpc_updates_state:
 			result += "\n" + add;
 			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
 			result += "  qts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ updates_getDifference" + result + "}";
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  seq: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  unread_count: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ updates_state" + result + "}";
 
-		case mtpc_account_updateProfile:
-			result += "\n" + add;
-			result += "  first_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  last_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ account_updateProfile" + result + "}";
-
-		case mtpc_account_getWallPapers:
+		case mtpc_encryptedFileEmpty:
 			result = " ";
-		return "{ account_getWallPapers" + result + "}";
+		return "{ encryptedFileEmpty" + result + "}";
+
+		case mtpc_encryptedFile:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  access_hash: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  size: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  dc_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  key_fingerprint: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ encryptedFile" + result + "}";
+
+		case mtpc_msgs_all_info:
+			result += "\n" + add;
+			result += "  msg_ids: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
+			result += "  info: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ msgs_all_info" + result + "}";
+
+		case mtpc_photos_updateProfilePhoto:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  crop: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ photos_updateProfilePhoto" + result + "}";
 
 		case mtpc_messages_getMessages:
 			result += "\n" + add;
@@ -24194,15 +23960,55 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
 		return "{ messages_search" + result + "}";
 
-		case mtpc_req_DH_params:
+		case mtpc_set_client_DH_params:
 			result += "\n" + add;
 			result += "  nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
 			result += "  server_nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
-			result += "  p: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  q: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  public_key_fingerprint: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
 			result += "  encrypted_data: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ req_DH_params" + result + "}";
+		return "{ set_client_DH_params" + result + "}";
+
+		case mtpc_contacts_getStatuses:
+			result = " ";
+		return "{ contacts_getStatuses" + result + "}";
+
+		case mtpc_auth_checkPhone:
+			result += "\n" + add;
+			result += "  phone_number: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ auth_checkPhone" + result + "}";
+
+		case mtpc_help_getAppUpdate:
+			result += "\n" + add;
+			result += "  device_model: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  system_version: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  app_version: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  lang_code: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ help_getAppUpdate" + result + "}";
+
+		case mtpc_updates_getDifference:
+			result += "\n" + add;
+			result += "  pts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  qts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ updates_getDifference" + result + "}";
+
+		case mtpc_help_getInviteText:
+			result += "\n" + add;
+			result += "  lang_code: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ help_getInviteText" + result + "}";
+
+		case mtpc_users_getFullUser:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ users_getFullUser" + result + "}";
+
+		case mtpc_updates_getState:
+			result = " ";
+		return "{ updates_getState" + result + "}";
+
+		case mtpc_contacts_getContacts:
+			result += "\n" + add;
+			result += "  hash: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ contacts_getContacts" + result + "}";
 
 		case mtpc_geochats_checkin:
 			result += "\n" + add;
@@ -24244,55 +24050,66 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  venue: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
 		return "{ geochats_createGeoChat" + result + "}";
 
-		case mtpc_req_pq:
+		case mtpc_ping:
 			result += "\n" + add;
-			result += "  nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
-		return "{ req_pq" + result + "}";
+			result += "  ping_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ ping" + result + "}";
 
-		case mtpc_invokeAfterMsg:
+		case mtpc_ping_delay_disconnect:
 			result += "\n" + add;
-			result += "  msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  query: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ invokeAfterMsg" + result + "}";
+			result += "  ping_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  disconnect_delay: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ ping_delay_disconnect" + result + "}";
 
-		case mtpc_invokeAfterMsgs:
-			result += "\n" + add;
-			result += "  msg_ids: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
-			result += "  query: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ invokeAfterMsgs" + result + "}";
-
-		case mtpc_initConnection:
-			result += "\n" + add;
-			result += "  api_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  device_model: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  system_version: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  app_version: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  lang_code: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  query: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ initConnection" + result + "}";
-
-		case mtpc_messages_sendMessage:
-			result += "\n" + add;
-			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ messages_sendMessage" + result + "}";
-
-		case mtpc_contacts_getStatuses:
+		case mtpc_help_getSupport:
 			result = " ";
-		return "{ contacts_getStatuses" + result + "}";
+		return "{ help_getSupport" + result + "}";
 
-		case mtpc_geochats_getLocated:
-			result += "\n" + add;
-			result += "  geo_point: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  radius: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ geochats_getLocated" + result + "}";
-
-		case mtpc_account_getNotifySettings:
+		case mtpc_messages_readHistory:
 			result += "\n" + add;
 			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ account_getNotifySettings" + result + "}";
+			result += "  max_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ messages_readHistory" + result + "}";
+
+		case mtpc_messages_deleteHistory:
+			result += "\n" + add;
+			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ messages_deleteHistory" + result + "}";
+
+		case mtpc_messages_deleteMessages:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_int) + ",\n" + add;
+		return "{ messages_deleteMessages" + result + "}";
+
+		case mtpc_messages_restoreMessages:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_int) + ",\n" + add;
+		return "{ messages_restoreMessages" + result + "}";
+
+		case mtpc_messages_receivedMessages:
+			result += "\n" + add;
+			result += "  max_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ messages_receivedMessages" + result + "}";
+
+		case mtpc_users_getUsers:
+			result += "\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ users_getUsers" + result + "}";
+
+		case mtpc_get_future_salts:
+			result += "\n" + add;
+			result += "  num: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ get_future_salts" + result + "}";
+
+		case mtpc_photos_getUserPhotos:
+			result += "\n" + add;
+			result += "  user_id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  max_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ photos_getUserPhotos" + result + "}";
 
 		case mtpc_register_saveDeveloperInfo:
 			result += "\n" + add;
@@ -24419,6 +24236,35 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  bytes: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
 		return "{ upload_saveBigFilePart" + result + "}";
 
+		case mtpc_req_pq:
+			result += "\n" + add;
+			result += "  nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
+		return "{ req_pq" + result + "}";
+
+		case mtpc_auth_exportAuthorization:
+			result += "\n" + add;
+			result += "  dc_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ auth_exportAuthorization" + result + "}";
+
+		case mtpc_contacts_importContacts:
+			result += "\n" + add;
+			result += "  contacts: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  replace: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ contacts_importContacts" + result + "}";
+
+		case mtpc_rpc_drop_answer:
+			result += "\n" + add;
+			result += "  req_msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ rpc_drop_answer" + result + "}";
+
+		case mtpc_help_getConfig:
+			result = " ";
+		return "{ help_getConfig" + result + "}";
+
+		case mtpc_help_getNearestDc:
+			result = " ";
+		return "{ help_getNearestDc" + result + "}";
+
 		case mtpc_messages_getDialogs:
 			result += "\n" + add;
 			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
@@ -24426,10 +24272,29 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
 		return "{ messages_getDialogs" + result + "}";
 
-		case mtpc_destroy_session:
+		case mtpc_account_getNotifySettings:
 			result += "\n" + add;
-			result += "  session_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ destroy_session" + result + "}";
+			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ account_getNotifySettings" + result + "}";
+
+		case mtpc_geochats_getLocated:
+			result += "\n" + add;
+			result += "  geo_point: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  radius: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ geochats_getLocated" + result + "}";
+
+		case mtpc_messages_getDhConfig:
+			result += "\n" + add;
+			result += "  version: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  random_length: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ messages_getDhConfig" + result + "}";
+
+		case mtpc_account_updateProfile:
+			result += "\n" + add;
+			result += "  first_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  last_name: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ account_updateProfile" + result + "}";
 
 		case mtpc_messages_getFullChat:
 			result += "\n" + add;
@@ -24441,41 +24306,20 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
 		return "{ geochats_getFullChat" + result + "}";
 
-		case mtpc_messages_sendEncrypted:
+		case mtpc_req_DH_params:
 			result += "\n" + add;
-			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  data: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
-		return "{ messages_sendEncrypted" + result + "}";
+			result += "  nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
+			result += "  server_nonce: " + mtpTextSerialize(from, end, mtpc_int128, level + 1) + ",\n" + add;
+			result += "  p: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  q: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  public_key_fingerprint: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  encrypted_data: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ req_DH_params" + result + "}";
 
-		case mtpc_messages_sendEncryptedFile:
+		case mtpc_contacts_getSuggested:
 			result += "\n" + add;
-			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  data: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
-			result += "  file: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ messages_sendEncryptedFile" + result + "}";
-
-		case mtpc_messages_sendEncryptedService:
-			result += "\n" + add;
-			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  data: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
-		return "{ messages_sendEncryptedService" + result + "}";
-
-		case mtpc_get_future_salts:
-			result += "\n" + add;
-			result += "  num: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ get_future_salts" + result + "}";
-
-		case mtpc_help_getInviteText:
-			result += "\n" + add;
-			result += "  lang_code: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ help_getInviteText" + result + "}";
-
-		case mtpc_help_getConfig:
-			result = " ";
-		return "{ help_getConfig" + result + "}";
+			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ contacts_getSuggested" + result + "}";
 
 		case mtpc_auth_signUp:
 			result += "\n" + add;
@@ -24499,58 +24343,214 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpP
 			result += "  bytes: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
 		return "{ auth_importAuthorization" + result + "}";
 
-		case mtpc_photos_updateProfilePhoto:
+		case mtpc_upload_getFile:
 			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  location: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ upload_getFile" + result + "}";
+
+		case mtpc_photos_uploadProfilePhoto:
+			result += "\n" + add;
+			result += "  file: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  caption: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  geo_point: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
 			result += "  crop: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-		return "{ photos_updateProfilePhoto" + result + "}";
+		return "{ photos_uploadProfilePhoto" + result + "}";
+
+		case mtpc_auth_sendCode:
+			result += "\n" + add;
+			result += "  phone_number: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  sms_type: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  api_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  api_hash: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  lang_code: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ auth_sendCode" + result + "}";
+
+		case mtpc_messages_forwardMessages:
+			result += "\n" + add;
+			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_int) + ",\n" + add;
+		return "{ messages_forwardMessages" + result + "}";
+
+		case mtpc_messages_sendBroadcast:
+			result += "\n" + add;
+			result += "  contacts: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  media: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ messages_sendBroadcast" + result + "}";
+
+		case mtpc_messages_receivedQueue:
+			result += "\n" + add;
+			result += "  max_qts: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ messages_receivedQueue" + result + "}";
+
+		case mtpc_contacts_search:
+			result += "\n" + add;
+			result += "  q: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ contacts_search" + result + "}";
+
+		case mtpc_messages_sendMessage:
+			result += "\n" + add;
+			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  message: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ messages_sendMessage" + result + "}";
+
+		case mtpc_geochats_getRecents:
+			result += "\n" + add;
+			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ geochats_getRecents" + result + "}";
+
+		case mtpc_geochats_search:
+			result += "\n" + add;
+			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  q: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+			result += "  filter: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  min_date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  max_date: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  max_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ geochats_search" + result + "}";
+
+		case mtpc_geochats_getHistory:
+			result += "\n" + add;
+			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  max_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ geochats_getHistory" + result + "}";
+
+		case mtpc_destroy_session:
+			result += "\n" + add;
+			result += "  session_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ destroy_session" + result + "}";
+
+		case mtpc_account_getWallPapers:
+			result = " ";
+		return "{ account_getWallPapers" + result + "}";
+
+		case mtpc_messages_sendEncrypted:
+			result += "\n" + add;
+			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  data: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+		return "{ messages_sendEncrypted" + result + "}";
+
+		case mtpc_messages_sendEncryptedFile:
+			result += "\n" + add;
+			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  data: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+			result += "  file: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ messages_sendEncryptedFile" + result + "}";
+
+		case mtpc_messages_sendEncryptedService:
+			result += "\n" + add;
+			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  data: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+		return "{ messages_sendEncryptedService" + result + "}";
+
+		case mtpc_contacts_getBlocked:
+			result += "\n" + add;
+			result += "  offset: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ contacts_getBlocked" + result + "}";
 
 		case mtpc_contacts_deleteContact:
 			result += "\n" + add;
 			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
 		return "{ contacts_deleteContact" + result + "}";
 
-		case mtpc_messages_deleteMessages:
+		case mtpc_invokeAfterMsg:
 			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_int) + ",\n" + add;
-		return "{ messages_deleteMessages" + result + "}";
+			result += "  msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+			result += "  query: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ invokeAfterMsg" + result + "}";
 
-		case mtpc_messages_restoreMessages:
+		case mtpc_invokeAfterMsgs:
 			result += "\n" + add;
-			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_int) + ",\n" + add;
-		return "{ messages_restoreMessages" + result + "}";
+			result += "  msg_ids: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_long) + ",\n" + add;
+			result += "  query: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ invokeAfterMsgs" + result + "}";
 
-		case mtpc_messages_receivedMessages:
+		case mtpc_initConnection:
 			result += "\n" + add;
-			result += "  max_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ messages_receivedMessages" + result + "}";
-
-		case mtpc_help_getAppUpdate:
-			result += "\n" + add;
+			result += "  api_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
 			result += "  device_model: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
 			result += "  system_version: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
 			result += "  app_version: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
 			result += "  lang_code: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-		return "{ help_getAppUpdate" + result + "}";
+			result += "  query: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ initConnection" + result + "}";
 
-		case mtpc_updates_getState:
-			result = " ";
-		return "{ updates_getState" + result + "}";
-
-		case mtpc_help_getSupport:
-			result = " ";
-		return "{ help_getSupport" + result + "}";
-
-		case mtpc_ping:
+		case mtpc_messages_getChats:
 			result += "\n" + add;
-			result += "  ping_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		return "{ ping" + result + "}";
+			result += "  id: " + mtpTextSerialize(from, end, 0, level + 1, mtpc_int) + ",\n" + add;
+		return "{ messages_getChats" + result + "}";
 
-		case mtpc_ping_delay_disconnect:
+		case mtpc_messages_sendMedia:
 			result += "\n" + add;
-			result += "  ping_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-			result += "  disconnect_delay: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		return "{ ping_delay_disconnect" + result + "}";
+			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  media: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ messages_sendMedia" + result + "}";
+
+		case mtpc_messages_editChatTitle:
+			result += "\n" + add;
+			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ messages_editChatTitle" + result + "}";
+
+		case mtpc_messages_editChatPhoto:
+			result += "\n" + add;
+			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  photo: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ messages_editChatPhoto" + result + "}";
+
+		case mtpc_messages_addChatUser:
+			result += "\n" + add;
+			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  user_id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  fwd_limit: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+		return "{ messages_addChatUser" + result + "}";
+
+		case mtpc_messages_deleteChatUser:
+			result += "\n" + add;
+			result += "  chat_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  user_id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+		return "{ messages_deleteChatUser" + result + "}";
+
+		case mtpc_messages_createChat:
+			result += "\n" + add;
+			result += "  users: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  title: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
+		return "{ messages_createChat" + result + "}";
+
+		case mtpc_messages_forwardMessage:
+			result += "\n" + add;
+			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ messages_forwardMessage" + result + "}";
+
+		case mtpc_messages_requestEncryption:
+			result += "\n" + add;
+			result += "  user_id: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  random_id: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
+			result += "  g_a: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+		return "{ messages_requestEncryption" + result + "}";
+
+		case mtpc_messages_acceptEncryption:
+			result += "\n" + add;
+			result += "  peer: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
+			result += "  g_b: " + mtpTextSerialize(from, end, mtpc_bytes, level + 1) + ",\n" + add;
+			result += "  key_fingerprint: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
+		return "{ messages_acceptEncryption" + result + "}";
 		}
 
 		return mtpTextSerializeCore(from, end, cons, level, vcons);
