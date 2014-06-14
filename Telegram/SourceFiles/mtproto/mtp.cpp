@@ -439,9 +439,9 @@ namespace MTP {
 		_localKey.setKey(key);
 	}
 
-	void start() {
+    void start() {
         unixtimeInit();
-        
+
 		if (!localKey().created()) {
 			LOG(("App Error: trying to start MTP without local key!"));
 			return;

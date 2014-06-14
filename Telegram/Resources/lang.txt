@@ -377,3 +377,5 @@ lng_about_text: "Unofficial free messaging app based on [a href=\"https://core.t
 This software is licensed under [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3,
 source code is available on [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 lng_about_done: "Done";
+
+// Keys finished

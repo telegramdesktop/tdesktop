@@ -587,7 +587,7 @@ namespace App {
 			break;
 			case mtpc_contacts_myLinkEmpty:
 			case mtpc_contacts_myLinkRequested:
-				if (myLink.c_contacts_myLinkRequested().vcontact.v) {
+				if (myLink.type() == mtpc_contacts_myLinkRequested && myLink.c_contacts_myLinkRequested().vcontact.v) {
 					user->contact = 1;
 				} else {
 					switch (foreignLink.type()) {

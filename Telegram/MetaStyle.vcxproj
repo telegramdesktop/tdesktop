@@ -102,16 +102,16 @@
     <_ProjectFileVersion>11.0.60610.1</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IntDir>$(SolutionDir)$(Platform)\$(Configuration)IntermediateMeta\</IntDir>
-    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)Meta\</OutDir>
+    <IntDir>$(SolutionDir)$(Platform)\$(Configuration)IntermediateStyle\</IntDir>
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)Style\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)Meta\</OutDir>
-    <IntDir>$(SolutionDir)$(Platform)\$(Configuration)IntermediateMeta\</IntDir>
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)Style\</OutDir>
+    <IntDir>$(SolutionDir)$(Platform)\$(Configuration)IntermediateStyle\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">
-    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)Meta\</OutDir>
-    <IntDir>$(SolutionDir)$(Platform)\$(Configuration)IntermediateMeta\</IntDir>
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)Style\</OutDir>
+    <IntDir>$(SolutionDir)$(Platform)\$(Configuration)IntermediateStyle\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
