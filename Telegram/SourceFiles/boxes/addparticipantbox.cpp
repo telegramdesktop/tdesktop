@@ -151,7 +151,7 @@ void AddParticipantInner::paintDialog(QPainter &p, DialogRow *row, bool sel) {
 	data->name.drawElided(p, left + st::profileListPhotoSize + st::profileListPadding.width(), st::profileListNameTop, width() - st::participantDelta - st::profileListPadding.width() * 2 - st::profileListPhotoSize - st::profileListPadding.width() * 2);
 
 	if (sel || data->check) {
-		p.drawPixmap(QPoint(width() - st::profileCheckRect.width() - st::profileCheckDeltaX, st::profileListPadding.height() + (st::profileListPhotoSize - st::profileCheckRect.height()) / 2 - st::profileCheckDeltaY), App::sprite(), (data->check ? st::profileCheckActiveRect : st::profileCheckRect));
+		p.drawPixmap(QPoint(width() - st::profileCheckRect.pxWidth() - st::profileCheckDeltaX, st::profileListPadding.height() + (st::profileListPhotoSize - st::profileCheckRect.pxHeight()) / 2 - st::profileCheckDeltaY), App::sprite(), (data->check ? st::profileCheckActiveRect : st::profileCheckRect));
 	}
 
 	p.setFont(st::profileSubFont->f);

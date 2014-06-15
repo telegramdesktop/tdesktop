@@ -1522,7 +1522,7 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, const QString &t
 	int32 dateX = _maxw - timeWidth - st::msgDateImgDelta - 2 * st::msgDateImgPadding.x();
 	int32 dateY = _height - st::msgDateFont->height - 2 * st::msgDateImgPadding.y() - st::msgDateImgDelta;
 	if (parent->out()) {
-		dateX -= st::msgCheckRect.width() + st::msgDateImgCheckSpace;
+		dateX -= st::msgCheckRect.pxWidth() + st::msgDateImgCheckSpace;
 	}
 	int32 dateW = _maxw - dateX - st::msgDateImgDelta;
 	int32 dateH = _height - dateY - st::msgDateImgDelta;
@@ -1532,7 +1532,7 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, const QString &t
 	p.setPen(st::msgDateImgColor->p);
 	p.drawText(dateX + st::msgDateImgPadding.x(), dateY + st::msgDateImgPadding.y() + st::msgDateFont->ascent, time);
 	if (out) {
-		QPoint iconPos(dateX - 2 + dateW - st::msgDateImgCheckSpace - st::msgCheckRect.width(), dateY + (dateH - st::msgCheckRect.height()) / 2);
+		QPoint iconPos(dateX - 2 + dateW - st::msgDateImgCheckSpace - st::msgCheckRect.pxWidth(), dateY + (dateH - st::msgCheckRect.pxHeight()) / 2);
 		const QRect *iconRect;
 		if (parent->id > 0) {
 			if (parent->unread()) {
@@ -1735,7 +1735,7 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, const QString &t
 
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
 	int32 twidth = width - tleft - st::mediaPadding.right();
-	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (out ? st::msgDateCheckSpace + st::msgCheckRect.width() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
+	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (out ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
 	int32 secondwidth = width - tleft - fullTimeWidth;
 
 	p.setFont(st::mediaFont->f);
@@ -1775,7 +1775,7 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, const QString &t
 
 	p.drawText(width + st::msgDateDelta.x() - fullTimeWidth + st::msgDateSpace, _height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->descent, time);
 	if (out) {
-		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.width(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.height());
+		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.pxWidth(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.pxHeight());
 		const QRect *iconRect;
 		if (parent->id > 0) {
 			if (parent->unread()) {
@@ -1857,7 +1857,7 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, const QString &t
 
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
 	int32 twidth = width - tleft - st::mediaPadding.right();
-	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (out ? st::msgDateCheckSpace + st::msgCheckRect.width() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
+	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (out ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
 	int32 secondwidth = width - tleft - fullTimeWidth;
 
 	p.setFont(st::mediaFont->f);
@@ -1897,7 +1897,7 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, const QString &t
 
 	p.drawText(width + st::msgDateDelta.x() - fullTimeWidth + st::msgDateSpace, _height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->descent, time);
 	if (out) {
-		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.width(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.height());
+		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.pxWidth(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.pxHeight());
 		const QRect *iconRect;
 		if (parent->id > 0) {
 			if (parent->unread()) {
@@ -2048,7 +2048,8 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, const QString
 	p.fillRect(0, _height, width, st::msgShadow, shadow->b);
 
 	if (_thumbw) {
-		p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), data->thumb->pix(_thumbw), QRect(_thumbx, _thumby, st::mediaThumbSize, st::mediaThumbSize));
+        int32 rf(cIntRetinaFactor());
+		p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), data->thumb->pix(_thumbw), QRect(_thumbx * rf, _thumby * rf, st::mediaThumbSize * rf, st::mediaThumbSize * rf));
 	} else {
 		p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), App::sprite(), (out ? st::mediaDocOutImg : st::mediaDocInImg));
 	}
@@ -2058,7 +2059,7 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, const QString
 
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
 	int32 twidth = width - tleft - st::mediaPadding.right();
-	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (out ? st::msgDateCheckSpace + st::msgCheckRect.width() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
+	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (out ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
 	int32 secondwidth = width - tleft - fullTimeWidth;
 
 	p.setFont(st::mediaFont->f);
@@ -2102,7 +2103,7 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, const QString
 
 	p.drawText(width + st::msgDateDelta.x() - fullTimeWidth + st::msgDateSpace, _height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->descent, time);
 	if (out) {
-		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.width(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.height());
+		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.pxWidth(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.pxHeight());
 		const QRect *iconRect;
 		if (parent->id > 0) {
 			if (parent->unread()) {
@@ -2197,7 +2198,7 @@ HistoryContact::HistoryContact(int32 userId, const QString &first, const QString
 
 void HistoryContact::initDimensions(const HistoryItem *parent, int32 timeWidth) {
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
-	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (parent->out() ? st::msgDateCheckSpace + st::msgCheckRect.width() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
+	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (parent->out() ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
 	if (name.maxWidth() + tleft + fullTimeWidth > _maxw) {
 		_maxw = name.maxWidth() + tleft + fullTimeWidth;
 	}
@@ -2256,7 +2257,7 @@ void HistoryContact::draw(QPainter &p, const HistoryItem *parent, const QString 
 
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
 	int32 twidth = width - tleft - st::mediaPadding.right();
-	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (out ? st::msgDateCheckSpace + st::msgCheckRect.width() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
+	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (out ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
 	int32 secondwidth = width - tleft - fullTimeWidth;
 
 	p.setFont(st::mediaFont->f);
@@ -2279,7 +2280,7 @@ void HistoryContact::draw(QPainter &p, const HistoryItem *parent, const QString 
 
 	p.drawText(width + st::msgDateDelta.x() - fullTimeWidth + st::msgDateSpace, _height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->descent, time);
 	if (out) {
-		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.width(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.height());
+		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.pxWidth(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.pxHeight());
 		const QRect *iconRect;
 		if (parent->id > 0) {
 			if (parent->unread()) {
@@ -2383,7 +2384,7 @@ void HistoryMessage::initDimensions(const QString &text) {
 		_maxw = media->maxWidth();
 		_minh = media->height();
 	} else {
-		timeWidth += st::msgDateSpace + (out() ? st::msgDateCheckSpace + st::msgCheckRect.width() : 0) - st::msgDateDelta.x();
+		timeWidth += st::msgDateSpace + (out() ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) - st::msgDateDelta.x();
 		_text.setText(st::msgFont, text + textcmdSkipBlock(timeWidth, st::msgDateFont->height - st::msgDateDelta.y()), _historyTextOptions);
 		_maxw = _text.maxWidth();
 		_minh = _text.minHeight();
@@ -2470,7 +2471,7 @@ void HistoryMessage::draw(QPainter &p, uint32 selection) const {
 
 		p.drawText(r.right() - st::msgPadding.right() + st::msgDateDelta.x() - timeWidth + st::msgDateSpace, r.bottom() - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->descent, time);
 		if (_out) {
-			QPoint iconPos(r.right() + 5 - st::msgPadding.right() - st::msgCheckRect.width(), r.bottom() + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.height());
+			QPoint iconPos(r.right() + 5 - st::msgPadding.right() - st::msgCheckRect.pxWidth(), r.bottom() + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.pxHeight());
 			const QRect *iconRect;
 			if (id > 0) {
 				if (unread()) {

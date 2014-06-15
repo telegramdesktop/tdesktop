@@ -1405,7 +1405,7 @@ public:
 							}
 						}
 					}
-					_p->drawPixmap(QPoint((glyphX + int(st::emojiPadding)).toInt(), _y + _yDelta + emojiY), App::emojis(), QRect(static_cast<EmojiBlock*>(currentBlock)->emoji->x, static_cast<EmojiBlock*>(currentBlock)->emoji->y, st::emojiSize, st::emojiSize));
+					_p->drawPixmap(QPoint((glyphX + int(st::emojiPadding)).toInt(), _y + _yDelta + emojiY), App::emojis(), QRect(static_cast<EmojiBlock*>(currentBlock)->emoji->x, static_cast<EmojiBlock*>(currentBlock)->emoji->y, st::emojiImgSize, st::emojiImgSize));
 //				} else if (_p && currentBlock->type() == TextBlockSkip) { // debug
 //					_p->fillRect(QRect(x.toInt(), _y, currentBlock->width(), static_cast<SkipBlock*>(currentBlock)->height()), QColor(0, 0, 0, 32));
 				}

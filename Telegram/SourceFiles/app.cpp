@@ -1204,9 +1204,11 @@ namespace App {
 
 		if (!::sprite) {
 			::sprite = new QPixmap(st::spriteFile);
+            if (cRetina()) ::sprite->setDevicePixelRatio(cRetinaFactor());
 		}
 		if (!::emojis) {
 			::emojis = new QPixmap(st::emojisFile);
+            if (cRetina()) ::emojis->setDevicePixelRatio(cRetinaFactor());
 		}
 		initEmoji();
 	}
@@ -1300,12 +1302,13 @@ namespace App {
 		EmojisMap *map = &(fontHeight == st::taDefFlat.font->height ? mainEmojisMap : otherEmojisMap[fontHeight]);
 		EmojisMap::const_iterator i = map->constFind(emoji->code);
 		if (i == map->cend()) {
-			QImage img(st::emojiSize + st::emojiPadding * 2, fontHeight, QImage::Format_ARGB32_Premultiplied);
+			QImage img(st::emojiImgSize + st::emojiPadding * cIntRetinaFactor() * 2, fontHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+            if (cRetina()) img.setDevicePixelRatio(cRetinaFactor());
 			{
 				QPainter p(&img);
 				p.setCompositionMode(QPainter::CompositionMode_Source);
 				p.fillRect(0, 0, img.width(), img.height(), Qt::transparent);
-				p.drawPixmap(QPoint(st::emojiPadding, (fontHeight - st::emojiSize) / 2), App::emojis(), QRect(emoji->x, emoji->y, st::emojiSize, st::emojiSize));
+				p.drawPixmap(QPoint(st::emojiPadding * cIntRetinaFactor(), (fontHeight * cIntRetinaFactor() - st::emojiImgSize) / 2), App::emojis(), QRect(emoji->x, emoji->y, st::emojiImgSize, st::emojiImgSize));
 			}
 			i = map->insert(emoji->code, QPixmap::fromImage(img));
 		}

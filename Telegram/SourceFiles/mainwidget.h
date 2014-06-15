@@ -187,9 +187,11 @@ public:
 	void deleteSelectedItems();
 	void clearSelectedItems();
 
-	QRect rectForTitleAnim() const;
-
 	DialogsIndexed &contactsList();
+    
+    void sendMessage(History *history, const QString &text);
+    
+    void readServerHistory(History *history, bool force = true);
 
 	~MainWidget();
 
@@ -233,6 +235,8 @@ public slots:
 
 private:
 
+    void partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result);
+    
 	uint64 failedObjId;
 	QString failedFileName;
 	void loadFailed(mtpFileLoader *loader, bool started, const char *retrySlot);
@@ -278,4 +282,7 @@ private:
 
 	QSet<PeerData*> updateNotifySettingPeers;
 	QTimer updateNotifySettingTimer;
+    
+    typedef QMap<PeerData*, mtpRequestId> ReadRequests;
+    ReadRequests _readRequests;
 };

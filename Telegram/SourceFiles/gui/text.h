@@ -18,7 +18,6 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #pragma once
 
 #include "gui/emoji_config.h"
-#include "gui/style_core.h"
 
 #include "../../../QtStatic/qtbase/src/gui/text/qfontengine_p.h"
 

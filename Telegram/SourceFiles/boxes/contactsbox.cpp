@@ -121,10 +121,10 @@ void ContactsInner::paintDialog(QPainter &p, DialogRow *row, bool sel) {
 	p.drawPixmap(left, st::profileListPadding.height(), user->photo->pix(st::profileListPhotoSize));
 
 	p.setPen(st::profileListNameColor->p);
-	data->name.drawElided(p, left + st::profileListPhotoSize + st::participantDelta, st::profileListNameTop, width() - st::profileListPadding.width() - st::profileListPhotoSize - st::profileListPadding.width() - st::participantDelta - st::scrollDef.width - st::contactsImg.width());
+	data->name.drawElided(p, left + st::profileListPhotoSize + st::participantDelta, st::profileListNameTop, width() - st::profileListPadding.width() - st::profileListPhotoSize - st::profileListPadding.width() - st::participantDelta - st::scrollDef.width - st::contactsImg.pxWidth());
 
 	if (sel) {
-		p.drawPixmap(QPoint(width() - st::contactsImg.width() - st::profileCheckDeltaX, st::profileListPadding.height() + (st::profileListPhotoSize - st::contactsImg.height()) / 2 - st::profileCheckDeltaY), App::sprite(), st::contactsImg);
+		p.drawPixmap(QPoint(width() - st::contactsImg.pxWidth() - st::profileCheckDeltaX, st::profileListPadding.height() + (st::profileListPhotoSize - st::contactsImg.pxHeight()) / 2 - st::profileCheckDeltaY), App::sprite(), st::contactsImg);
 	}
 
 	p.setFont(st::profileSubFont->f);

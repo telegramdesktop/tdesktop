@@ -32,6 +32,8 @@ public:
     void activateWnd(WId winId);
     void showNotify(unsigned long long peer, const char *utf8title, const char *subtitle, const char *utf8msg);
     void clearNotifies(unsigned long long peer = 0);
+    
+    void enableShadow(WId winId);
         
     virtual void activeSpaceChanged() {
     }

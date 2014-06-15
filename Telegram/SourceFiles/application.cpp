@@ -82,9 +82,10 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	installEventFilter(new _DebugWaiter(this));
 
 	QFontDatabase::addApplicationFont(qsl(":/gui/art/segoe_ui.ttf"));
+    QFontDatabase::addApplicationFont(qsl(":/gui/art/segoeuib.ttf"));
 	QFontDatabase::addApplicationFont(qsl(":/gui/art/segoe_ui_semibold.ttf"));
-	QFontDatabase::addApplicationFont(qsl(":/gui/art/segoe_wp_semibold.ttf"));
-	QFontDatabase::addApplicationFont(qsl(":/gui/art/ThoolikaTrditionalUnicode.ttf"));
+    QFontDatabase::addApplicationFont(qsl(":/gui/art/segoe_wp_semibold.ttf"));
+//	QFontDatabase::addApplicationFont(qsl(":/gui/art/ThoolikaTrditionalUnicode.ttf"));
 
 	float64 dpi = primaryScreen()->logicalDotsPerInch();
 	if (dpi <= 108) { // 0-96-108
@@ -96,6 +97,12 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	} else { // 168-192-inf
 		cSetScreenScale(dbisTwo);
 	}
+
+    if (devicePixelRatio() > 1) {
+        cSetRetina(true);
+        cSetRetinaFactor(devicePixelRatio());
+        cSetIntRetinaFactor(int32(cRetinaFactor()));
+    }
 
 	if (!cLangFile().isEmpty()) {
 		LangLoaderPlain loader(cLangFile());
@@ -498,10 +505,6 @@ void Application::startApp() {
 		App::writeUserConfig();
 		cSetNeedConfigResave(false);
 	}
-    if (devicePixelRatio() > 1) {
-        cSetRetina(true);
-        cSetRetinaFactor(devicePixelRatio());
-    }
 
 	window->createWinId();
 	window->init();

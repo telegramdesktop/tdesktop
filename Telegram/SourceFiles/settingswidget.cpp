@@ -32,7 +32,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 
 Slider::Slider(QWidget *parent, const style::slider &st, int32 count, int32 sel) : QWidget(parent),
 _count(count), _sel(snap(sel, 0, _count)), _wasSel(_sel), _st(st), _pressed(false) {
-	resize(_st.width, _st.bar.height());
+	resize(_st.width, _st.bar.pxHeight());
 	setCursor(style::cur_pointer);
 }
 
@@ -43,7 +43,7 @@ void Slider::mousePressEvent(QMouseEvent *e) {
 
 void Slider::mouseMoveEvent(QMouseEvent *e) {
 	if (_pressed) {
-		int32 newSel = snap(qRound((_count - 1) * float64(e->pos().x() - _st.bar.width() / 2) / (width() - _st.bar.width())), 0, _count - 1);
+		int32 newSel = snap(qRound((_count - 1) * float64(e->pos().x() - _st.bar.pxWidth() / 2) / (width() - _st.bar.pxWidth())), 0, _count - 1);
 		if (newSel != _sel) {
 			_sel = newSel;
 			update();
@@ -81,7 +81,7 @@ void Slider::paintEvent(QPaintEvent *e) {
 		p.drawLine(0, i, width() - 1, i);
 	}
 
-	int32 x = qFloor(_sel * float64(width() - _st.bar.width()) / (_count - 1)), y = (height() - _st.bar.height()) / 2;
+	int32 x = qFloor(_sel * float64(width() - _st.bar.pxWidth()) / (_count - 1)), y = (height() - _st.bar.pxHeight()) / 2;
 	p.drawPixmap(QPoint(x, y), App::sprite(), _st.bar);
 }
 
@@ -135,7 +135,7 @@ SettingsInner::SettingsInner(Settings *parent) : QWidget(parent),
 	_viewEmojis(this, lang(lng_settings_view_emojis)),
 
 	_enterSend(this, qsl("send_key"), 0, lang(lng_settings_send_enter), !cCtrlEnter()),
-	_ctrlEnterSend(this, qsl("send_key"), 1, lang(lng_settings_send_ctrlenter), cCtrlEnter()),
+_ctrlEnterSend(this, qsl("send_key"), 1, lang((cPlatform() == dbipMac) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), cCtrlEnter()),
 
 	_downloadPathWidth(st::linkFont->m.width(lang(lng_download_path_label))),
 	_dontAskDownloadPath(this, lang(lng_download_path_dont_ask), !cAskDownloadPath()),
@@ -345,36 +345,40 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	p.drawText(_left + st::setVersionLeft, top + st::setVersionTop + st::linkFont->ascent, textToDraw);
 	top += st::setVersionHeight;
 
-	top += _workmodeTray.height() + st::setLittleSkip;
-	top += _workmodeWindow.height() + st::setSectionSkip;
-
-	top += _autoStart.height() + st::setLittleSkip;
-	top += _startMinimized.height();
-
-	p.setFont(st::setHeaderFont->f);
-	p.setPen(st::setHeaderColor->p);
-	p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_scale_label));
-	top += st::setHeaderSkip;
-	top += _dpiAutoScale.height() + st::setLittleSkip;
-
-	top += _dpiSlider.height() + st::dpiFont4->height;
-	int32 sLeft = _dpiSlider.x() + _dpiWidth1 / 2, sWidth = _dpiSlider.width();
-	float64 sStep = (sWidth - _dpiWidth1 / 2 - _dpiWidth4 / 2) / float64(dbisScaleCount - 2);
-	p.setFont(st::dpiFont1->f);
-
-	p.setPen((scaleIs(dbisOne) ? st::dpiActive : st::dpiInactive)->p);
-	p.drawText(sLeft + qRound(0 * sStep) - _dpiWidth1 / 2, top - (st::dpiFont4->height - st::dpiFont1->height) / 2 - st::dpiFont1->descent, scaleLabel(dbisOne));
-	p.setFont(st::dpiFont2->f);
-	p.setPen((scaleIs(dbisOneAndQuarter) ? st::dpiActive : st::dpiInactive)->p);
-	p.drawText(sLeft + qRound(1 * sStep) - _dpiWidth2 / 2, top - (st::dpiFont4->height - st::dpiFont2->height) / 2 - st::dpiFont2->descent, scaleLabel(dbisOneAndQuarter));
-	p.setFont(st::dpiFont3->f);
-	p.setPen((scaleIs(dbisOneAndHalf) ? st::dpiActive : st::dpiInactive)->p);
-	p.drawText(sLeft + qRound(2 * sStep) - _dpiWidth3 / 2, top - (st::dpiFont4->height - st::dpiFont3->height) / 2 - st::dpiFont3->descent, scaleLabel(dbisOneAndHalf));
-	p.setFont(st::dpiFont4->f);
-	p.setPen((scaleIs(dbisTwo) ? st::dpiActive : st::dpiInactive)->p);
-	p.drawText(sLeft + qRound(3 * sStep) - _dpiWidth4 / 2, top - (st::dpiFont4->height - st::dpiFont4->height) / 2 - st::dpiFont4->descent, scaleLabel(dbisTwo));
-	p.setFont(st::linkFont->f);
-
+    if (cPlatform() == dbipWindows) {
+        top += _workmodeTray.height() + st::setLittleSkip;
+        top += _workmodeWindow.height() + st::setSectionSkip;
+        
+        top += _autoStart.height() + st::setLittleSkip;
+        top += _startMinimized.height();
+    }
+    
+    if (!cRetina()) {
+        p.setFont(st::setHeaderFont->f);
+        p.setPen(st::setHeaderColor->p);
+        p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_scale_label));
+        top += st::setHeaderSkip;
+        top += _dpiAutoScale.height() + st::setLittleSkip;
+        
+        top += _dpiSlider.height() + st::dpiFont4->height;
+        int32 sLeft = _dpiSlider.x() + _dpiWidth1 / 2, sWidth = _dpiSlider.width();
+        float64 sStep = (sWidth - _dpiWidth1 / 2 - _dpiWidth4 / 2) / float64(dbisScaleCount - 2);
+        p.setFont(st::dpiFont1->f);
+        
+        p.setPen((scaleIs(dbisOne) ? st::dpiActive : st::dpiInactive)->p);
+        p.drawText(sLeft + qRound(0 * sStep) - _dpiWidth1 / 2, top - (st::dpiFont4->height - st::dpiFont1->height) / 2 - st::dpiFont1->descent, scaleLabel(dbisOne));
+        p.setFont(st::dpiFont2->f);
+        p.setPen((scaleIs(dbisOneAndQuarter) ? st::dpiActive : st::dpiInactive)->p);
+        p.drawText(sLeft + qRound(1 * sStep) - _dpiWidth2 / 2, top - (st::dpiFont4->height - st::dpiFont2->height) / 2 - st::dpiFont2->descent, scaleLabel(dbisOneAndQuarter));
+        p.setFont(st::dpiFont3->f);
+        p.setPen((scaleIs(dbisOneAndHalf) ? st::dpiActive : st::dpiInactive)->p);
+        p.drawText(sLeft + qRound(2 * sStep) - _dpiWidth3 / 2, top - (st::dpiFont4->height - st::dpiFont3->height) / 2 - st::dpiFont3->descent, scaleLabel(dbisOneAndHalf));
+        p.setFont(st::dpiFont4->f);
+        p.setPen((scaleIs(dbisTwo) ? st::dpiActive : st::dpiInactive)->p);
+        p.drawText(sLeft + qRound(3 * sStep) - _dpiWidth4 / 2, top - (st::dpiFont4->height - st::dpiFont4->height) / 2 - st::dpiFont4->descent, scaleLabel(dbisTwo));
+        p.setFont(st::linkFont->f);
+    }
+    
 	if (_self) {
 		// chat options
 		p.setFont(st::setHeaderFont->f);
@@ -451,16 +455,19 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 	_restartNow.move(_left + st::setWidth - _restartNow.width(), top + st::setVersionTop);
 	top += st::setVersionHeight;
 
-	_workmodeTray.move(_left, top); top += _workmodeTray.height() + st::setLittleSkip;
-	_workmodeWindow.move(_left, top); top += _workmodeWindow.height() + st::setSectionSkip;
-
-	_autoStart.move(_left, top); top += _autoStart.height() + st::setLittleSkip;
-	_startMinimized.move(_left, top); top += _startMinimized.height();
-
-	top += st::setHeaderSkip;
-	_dpiAutoScale.move(_left, top); top += _dpiAutoScale.height() + st::setLittleSkip;
-	_dpiSlider.move(_left, top); top += _dpiSlider.height() + st::dpiFont4->height;
-
+    if (cPlatform() == dbipWindows) {
+        _workmodeTray.move(_left, top); top += _workmodeTray.height() + st::setLittleSkip;
+        _workmodeWindow.move(_left, top); top += _workmodeWindow.height() + st::setSectionSkip;
+        
+        _autoStart.move(_left, top); top += _autoStart.height() + st::setLittleSkip;
+        _startMinimized.move(_left, top); top += _startMinimized.height();
+    }
+    if (!cRetina()) {
+        top += st::setHeaderSkip;
+        _dpiAutoScale.move(_left, top); top += _dpiAutoScale.height() + st::setLittleSkip;
+        _dpiSlider.move(_left, top); top += _dpiSlider.height() + st::dpiFont4->height;
+    }
+    
 	// chat options
 	if (_self) {
 		top += st::setHeaderSkip;
@@ -625,14 +632,27 @@ void SettingsInner::showAll() {
 
 	// general
 	_autoUpdate.show();
-
-	_workmodeTray.show();
-	_workmodeWindow.show();
-
-	_autoStart.show();
 	setUpdatingState(_updatingState, true);
-	_startMinimized.show();
-	_dpiSlider.show();
+    if (cPlatform() == dbipWindows) {
+        _workmodeTray.show();
+        _workmodeWindow.show();
+
+        _autoStart.show();
+        _startMinimized.show();
+    } else {
+        _workmodeTray.hide();
+        _workmodeWindow.hide();
+        
+        _autoStart.hide();
+        _startMinimized.hide();
+    }
+    if (cRetina()) {
+        _dpiSlider.hide();
+        _dpiAutoScale.hide();
+    } else {
+        _dpiSlider.show();
+        _dpiAutoScale.show();
+    }
 
 	// chat options
 	if (_self) {

@@ -496,14 +496,50 @@ void MainWidget::clearSelectedItems() {
 	history.onClearSelected();
 }
 
-QRect MainWidget::rectForTitleAnim() const {
-	int w = width();
-	w -= history.x() + st::sysBtnDelta * 2 + st::sysCls.img.width() + st::sysRes.img.width() + st::sysMin.img.width();
-	return QRect(history.x(), 0, w, App::wnd()->getTitle()->height());
-}
-
 DialogsIndexed &MainWidget::contactsList() {
 	return dialogs.contactsList();
+}
+
+void MainWidget::sendMessage(History *hist, const QString &text) {
+    readServerHistory(hist);
+    QString msg = history.prepareMessage(text);
+	if (!msg.isEmpty()) {
+		MsgId newId = clientMsgId();
+		uint64 randomId = MTP::nonce<uint64>();
+        
+		App::historyRegRandom(randomId, newId);
+        
+		MTPstring msgText(MTP_string(msg));
+		hist->addToBack(MTP_message(MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTP_bool(true), MTP_bool(true), MTP_int(unixtime()), msgText, MTP_messageMediaEmpty()));
+		historyToDown(hist);
+		if (history.peer() == hist->peer) {
+            history.peerMessagesUpdated();
+        }
+        
+		MTP::send(MTPmessages_SendMessage(hist->peer->input, msgText, MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId));
+    }
+}
+
+void MainWidget::readServerHistory(History *hist, bool force) {
+    if (!hist || (!force && (!hist->unreadCount || !hist->unreadLoaded))) return;
+    
+    ReadRequests::const_iterator i = _readRequests.constFind(hist->peer);
+    if (i == _readRequests.cend()) {
+        hist->inboxRead(true);
+        _readRequests.insert(hist->peer, MTP::send(MTPmessages_ReadHistory(hist->peer->input, MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::partWasRead, hist->peer)));
+    }
+}
+
+void MainWidget::partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result) {
+	const MTPDmessages_affectedHistory &d(result.c_messages_affectedHistory());
+	App::main()->updUpdated(d.vpts.v, 0, 0, d.vseq.v);
+    
+	int32 offset = d.voffset.v;
+	if (!MTP::authedId() || offset <= 0) {
+        _readRequests.remove(peer);
+    } else {
+        _readRequests[peer] = MTP::send(MTPmessages_ReadHistory(peer->input, MTP_int(0), MTP_int(offset)), rpcDone(&MainWidget::partWasRead, peer));
+    }
 }
 
 void MainWidget::videoLoadProgress(mtpFileLoader *loader) {
@@ -619,7 +655,7 @@ void MainWidget::onParentResize(const QSize &newSize) {
 }
 
 void MainWidget::updateOnlineDisplay() {
-	history.updateOnlineDisplay(history.x(), width() - history.x() - st::sysBtnDelta * 2 - st::sysCls.img.width() - st::sysRes.img.width() - st::sysMin.img.width());
+	history.updateOnlineDisplay(history.x(), width() - history.x() - st::sysBtnDelta * 2 - st::sysCls.img.pxWidth() - st::sysRes.img.pxWidth() - st::sysMin.img.pxWidth());
 	if (profile) profile->updateOnlineDisplay();
 	if (App::wnd()->settingsWidget()) App::wnd()->settingsWidget()->updateOnlineDisplay();
 }

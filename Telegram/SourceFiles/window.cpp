@@ -43,20 +43,20 @@ void ConnectingWidget::set(const QString &text, const QString &reconnect) {
 	} else {
 		_reconnect.setText(reconnect);
 		_reconnect.show();
-		_reconnect.move(st::connectingPadding.left() + _textWidth, st::boxShadow.height() + st::connectingPadding.top());
+		_reconnect.move(st::connectingPadding.left() + _textWidth, st::boxShadow.pxHeight() + st::connectingPadding.top());
 		_reconnectWidth = _reconnect.width();
 	}
-	resize(st::connectingPadding.left() + _textWidth + _reconnectWidth + st::connectingPadding.right() + st::boxShadow.width(), st::boxShadow.height() + st::connectingPadding.top() + st::linkFont->height + st::connectingPadding.bottom());
+	resize(st::connectingPadding.left() + _textWidth + _reconnectWidth + st::connectingPadding.right() + st::boxShadow.pxWidth(), st::boxShadow.pxHeight() + st::connectingPadding.top() + st::linkFont->height + st::connectingPadding.bottom());
 	update();
 }
 void ConnectingWidget::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
-	_shadow.paint(p, QRect(0, st::boxShadow.height(), width() - st::boxShadow.width(), height() - st::boxShadow.height()), QPoint(0, 0), BoxShadow::Top | BoxShadow::Right);
-	p.fillRect(0, st::boxShadow.height(), width() - st::boxShadow.width(), height() - st::boxShadow.height(), st::connectingBG->b);
+	_shadow.paint(p, QRect(0, st::boxShadow.pxHeight(), width() - st::boxShadow.pxWidth(), height() - st::boxShadow.pxHeight()), QPoint(0, 0), BoxShadow::Top | BoxShadow::Right);
+	p.fillRect(0, st::boxShadow.pxHeight(), width() - st::boxShadow.pxWidth(), height() - st::boxShadow.pxHeight(), st::connectingBG->b);
 	p.setFont(st::linkFont->f);
 	p.setPen(st::connectingColor->p);
-	p.drawText(st::connectingPadding.left(), st::boxShadow.height() + st::connectingPadding.top() + st::linkFont->ascent, _text);
+	p.drawText(st::connectingPadding.left(), st::boxShadow.pxHeight() + st::connectingPadding.top() + st::linkFont->ascent, _text);
 }
 
 void ConnectingWidget::onReconnect() {
@@ -438,7 +438,7 @@ bool Window::getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) cons
 }
 
 QRect Window::iconRect() const {
-	return QRect(st::titleIconPos + title->geometry().topLeft(), st::titleIconRect.size());
+	return QRect(st::titleIconPos + title->geometry().topLeft(), st::titleIconRect.pxSize());
 }
 
 bool Window::eventFilter(QObject *obj, QEvent *evt) {

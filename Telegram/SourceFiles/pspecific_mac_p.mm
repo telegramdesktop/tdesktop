@@ -57,7 +57,9 @@ public:
     }
     
     void onNotifyReply(NSUserNotification *notification) {
-//        notification.response
+        NSNumber *peerObj = [[notification userInfo] objectForKey:@"peer"];
+        unsigned long long peerLong = [peerObj unsignedLongLongValue];
+        wnd->notifyReplied(peerLong, [[[notification response] string] UTF8String]);
     }
     
     ~PsMacWindowData() {
@@ -165,7 +167,7 @@ void PsMacWindowPrivate::showNotify(unsigned long long peer, const char *utf8tit
     [notification setInformativeText:msg];
     [msg release];
     
-//    [notification setHasReplyButton:YES];
+    [notification setHasReplyButton:YES];
 
     [notification setSoundName:nil];
     
@@ -173,6 +175,11 @@ void PsMacWindowPrivate::showNotify(unsigned long long peer, const char *utf8tit
     [center deliverNotification:notification];
     
     [notification release];
+}
+
+void PsMacWindowPrivate::enableShadow(WId winId) {
+//    [[(NSView*)winId window] setStyleMask:NSBorderlessWindowMask];
+//    [[(NSView*)winId window] setHasShadow:YES];
 }
 
 void PsMacWindowPrivate::clearNotifies(unsigned long long peer) {

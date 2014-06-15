@@ -72,7 +72,7 @@ void HistoryList::paintEvent(QPaintEvent *e) {
 	}
 
 	if (hist->isEmpty()) {
-		QPoint dogPos((width() - st::msgDogImg.width()) / 2, ((height() - st::msgDogImg.height()) * 4) / 9);
+		QPoint dogPos((width() - st::msgDogImg.pxWidth()) / 2, ((height() - st::msgDogImg.pxHeight()) * 4) / 9);
 		p.drawPixmap(dogPos, App::sprite(), st::msgDogImg);
 	} else {
 		adjustCurrent(r.top());
@@ -1746,20 +1746,7 @@ void HistoryWidget::historyToDown(History *history) {
 }
 
 void HistoryWidget::historyWasRead(bool force) {
-	if (histReadRequestId || !hist || !force && (!hist->unreadCount || !hist->unreadLoaded)) return;
-	hist->inboxRead(true);
-	histReadRequestId = MTP::send(MTPmessages_ReadHistory(histPeer->input, MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::partWasRead, histPeer));
-}
-
-void HistoryWidget::partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result) {
-	const MTPDmessages_affectedHistory &d(result.c_messages_affectedHistory());
-	App::main()->updUpdated(d.vpts.v, 0, 0, d.vseq.v);
-
-	histReadRequestId = 0;
-	int32 offset = d.voffset.v;
-	if (!MTP::authedId() || offset <= 0) return;
-
-	histReadRequestId = MTP::send(MTPmessages_ReadHistory(peer->input, MTP_int(0), MTP_int(offset)), rpcDone(&HistoryWidget::partWasRead, peer));
+    App::main()->readServerHistory(hist, force);
 }
 
 bool HistoryWidget::messagesFailed(const RPCError &e, mtpRequestId requestId) {
@@ -1906,9 +1893,7 @@ void HistoryWidget::onVisibleChanged() {
 	QTimer::singleShot(0, this, SLOT(onListScroll()));
 }
 
-QString HistoryWidget::prepareMessage() {
-	QString result = _field.getText();
-	
+QString HistoryWidget::prepareMessage(QString result) {
 	result = result.replace('\t', qsl(" "));
 
 	result = result.replace(" --", QString::fromUtf8(" \xe2\x80\x94"));
@@ -1922,7 +1907,7 @@ QString HistoryWidget::prepareMessage() {
 void HistoryWidget::onSend() {
 	if (!hist) return;
 
-	QString text = prepareMessage();
+	QString text = prepareMessage(_field.getText());
 	if (!text.isEmpty()) {
 		MsgId newId = clientMsgId();
 		uint64 randomId = MTP::nonce<uint64>();
@@ -2314,7 +2299,7 @@ void HistoryWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 
 	if (!decreaseWidth) {
 		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
-		p.drawPixmap(QPoint(width() - (st::topBarForwardPadding.right() + st::topBarForwardImg.width()) / 2, (st::topBarHeight - st::topBarForwardImg.height()) / 2), App::sprite(), st::topBarForwardImg);
+		p.drawPixmap(QPoint(width() - (st::topBarForwardPadding.right() + st::topBarForwardImg.pxWidth()) / 2, (st::topBarHeight - st::topBarForwardImg.pxHeight()) / 2), App::sprite(), st::topBarForwardImg);
 	}
 }
 
@@ -2790,11 +2775,11 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 				p.fillRect(0, _field.y() - st::sendPadding, width(), _field.height() + 2 * st::sendPadding, st::taMsgField.bgColor->b);
 			}
 		} else {
-			QPoint dogPos((width() - st::msgDogImg.width()) / 2, ((height() - _field.height() - 2 * st::sendPadding - st::msgDogImg.height()) * 4) / 9);
+			QPoint dogPos((width() - st::msgDogImg.pxWidth()) / 2, ((height() - _field.height() - 2 * st::sendPadding - st::msgDogImg.pxHeight()) * 4) / 9);
 			p.drawPixmap(dogPos, App::sprite(), st::msgDogImg);
 
 			int32 pointsCount = 8, w = pointsCount * (st::introPointWidth + 2 * st::introPointDelta), h = st::introPointHeight;
-			int32 pointsLeft = (width() - w) / 2 + st::introPointDelta - st::introPointLeft, pointsTop = dogPos.y() + (st::msgDogImg.height() * 6) / 5;
+			int32 pointsLeft = (width() - w) / 2 + st::introPointDelta - st::introPointLeft, pointsTop = dogPos.y() + (st::msgDogImg.pxHeight() * 6) / 5;
 
 			int32 curPoint = histRequestsCount % pointsCount;
 

@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/gui">
         <file>art/segoe_ui.ttf</file>
+        <file>art/segoeuib.ttf</file>
         <file>art/segoe_ui_semibold.ttf</file>
         <file>art/segoe_wp_semibold.ttf</file>
         <file>art/newmsg.wav</file>

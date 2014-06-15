@@ -348,7 +348,7 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 				p.drawRoundedRect(QRect(w, st::emojiPanSize), st::emojiPanRound, st::emojiPanRound);
 				p.setOpacity(1);
 			}
-			QRect r(_emojis[index]->x, _emojis[index]->y, st::emojiSize, st::emojiSize);
+			QRect r(_emojis[index]->x, _emojis[index]->y, st::emojiImgSize, st::emojiImgSize);
 			p.drawPixmap(w + QPoint((st::emojiPanSize.width() - st::emojiSize) / 2, (st::emojiPanSize.height() - st::emojiSize) / 2), App::emojis(), r);
 		}
 	}

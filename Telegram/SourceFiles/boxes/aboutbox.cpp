@@ -80,7 +80,7 @@ void AboutBox::paintEvent(QPaintEvent *e) {
 			// fill bg
 			p.fillRect(0, 0, _width, _height, st::boxBG->b);
 
-			p.drawPixmap(QPoint((_width - st::aboutIcon.width()) / 2, st::aboutIconTop), App::sprite(), st::aboutIcon);
+			p.drawPixmap(QPoint((_width - st::aboutIcon.pxWidth()) / 2, st::aboutIconTop), App::sprite(), st::aboutIcon);
 
 			p.setPen(st::black->p);
 			p.setFont(st::aboutHeaderFont->f);

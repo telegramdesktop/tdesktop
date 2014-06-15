@@ -132,6 +132,7 @@ DeclareReadSetting(QString, LangFile);
 
 DeclareSetting(bool, Retina);
 DeclareSetting(float64, RetinaFactor);
+DeclareSetting(int32, IntRetinaFactor);
 DeclareSetting(bool, CustomNotifies);
 
 DeclareReadSetting(DBIPlatform, Platform);

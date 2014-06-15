@@ -38,7 +38,7 @@
 		02F93BF511880983D3C57B84 /* dialogswidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = E466873F01ABA1E55E914489 /* dialogswidget.cpp */; settings = {ATTRIBUTES = (); }; };
 		03270F718426CFE84729079E /* flattextarea.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 5C7FD422BBEDA858D7237AE9 /* flattextarea.cpp */; settings = {ATTRIBUTES = (); }; };
 		06EABCC49D2EEE4076322BE7 /* moc_mtp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 924D4939FD169BB4B8AEB1C9 /* moc_mtp.cpp */; settings = {ATTRIBUTES = (); }; };
-		07C3AF26194336250016CFF1 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 07C3AF24194335ED0016CFF1 /* Images.xcassets */; };
+		0749CE69194D723400345D61 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 07C3AF24194335ED0016CFF1 /* Images.xcassets */; };
 		0A49F3A5DC0680FB31519670 /* phoneinput.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 7C8F9CA4FCE8AF8FCCCB961E /* phoneinput.cpp */; settings = {ATTRIBUTES = (); }; };
 		0CB7DE9A54CC9BF86FB7B5CA /* mtp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 6D50D70712776D7ED3B00E5C /* mtp.cpp */; settings = {ATTRIBUTES = (); }; };
 		0F0FC25286E16E5F78962FEE /* moc_newgroupbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 69FE16874104731CE2A66E0D /* moc_newgroupbox.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -1141,7 +1141,6 @@
 				87DF60DE337FB58864343E39 /* Resources */,
 				AF39DD055C3EF8226FBE929D /* Frameworks */,
 				FE0A091FDBFB3E9C31B7A1BD /* Products */,
-				07C3AF40194CCC310016CFF1 /* Preprocess copy-Info.plist */,
 			);
 			name = Telegram;
 			sourceTree = "<Group>";
@@ -1208,7 +1207,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				07C3AF26194336250016CFF1 /* Images.xcassets in Resources */,
+				0749CE69194D723400345D61 /* Images.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1491,7 +1490,7 @@
 					"/usr/local/Qt-5.3.0/plugins/imageformats",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
-				OBJROOT = ./../Mac/DebugIntermediate/;
+				OBJROOT = "./../Mac/$(CONFIGURATION)Intermediate";
 				OTHER_CFLAGS = (
 					"-pipe",
 					"-g",
@@ -1542,7 +1541,7 @@
 				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = "";
 				SDKROOT = macosx;
-				SYMROOT = ./;
+				SYMROOT = ./../Mac;
 			};
 			name = Release;
 		};
@@ -1595,7 +1594,7 @@
 					"/usr/local/Qt-5.3.0/plugins/imageformats",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
-				OBJROOT = ./../Mac/DebugIntermediate/;
+				OBJROOT = "./../Mac/$(CONFIGURATION)Intermediate";
 				OTHER_CFLAGS = (
 					"-pipe",
 					"-g",
@@ -1646,7 +1645,7 @@
 				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = _debug;
 				SDKROOT = macosx;
-				SYMROOT = ./;
+				SYMROOT = ./../Mac;
 			};
 			name = Debug;
 		};
@@ -1655,8 +1654,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 0.5.1;
+				CURRENT_PROJECT_VERSION = 0.5.2;
+				DYLIB_CURRENT_VERSION = 0.5.2;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
 				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				LLVM_LTO = YES;
@@ -1673,9 +1674,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.5.1;
+				CURRENT_PROJECT_VERSION = 0.5.2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DYLIB_CURRENT_VERSION = 0.5.2;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				OBJROOT = ./../Mac/DebugIntermediate;

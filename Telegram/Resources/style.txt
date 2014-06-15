@@ -19,8 +19,9 @@ defaultFontFamily: 'Segoe UI';
 //defaultFontFamily: 'ThoolikaTraditionalUnicode';
 semibold: 'Segoe WP Semibold';
 
-spriteFile: ':/gui/art/sprite.png' / 2:':/gui/art/sprite_125x.png' / 3:':/gui/art/sprite_150x.png' / 4:':/gui/art/sprite_200x.png';
-emojisFile: ':/gui/art/emoji.png' / 2:':/gui/art/emoji_125x.png' / 3:':/gui/art/emoji_150x.png' / 4:':/gui/art/emoji_200x.png';
+spriteFile: ':/gui/art/sprite.png' / 2:':/gui/art/sprite_125x.png' / 3:':/gui/art/sprite_150x.png' / 4:':/gui/art/sprite_200x.png'; // exceptional value for retina
+emojisFile: ':/gui/art/emoji.png' / 2:':/gui/art/emoji_125x.png' / 3:':/gui/art/emoji_150x.png' / 4:':/gui/art/emoji_200x.png'; // exceptional value for retina
+emojiImgSize: 16px; // exceptional value for retina
 emojiSize: 16px;
 emojiPadding: 1px;
 

@@ -134,7 +134,7 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 			p.drawRect(i, i, width() - 2 * i - 1, height() - 2 * i - 1);
 		}
 	}
-	if (_st.imgRect.width()) {
+	if (_st.imgRect.pxWidth()) {
 		p.drawPixmap(_st.imgPos, App::sprite(), _st.imgRect);
 	}
 

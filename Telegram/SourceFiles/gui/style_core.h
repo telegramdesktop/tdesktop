@@ -200,6 +200,32 @@ inline bool operator!=(const Font &a, const Font &b) {
 	typedef float64 number;
 	typedef QString string;
 	typedef QRect rect;
+    class sprite : public rect {
+    public:
+        sprite() {
+        }
+        sprite(int left, int top, int width, int height) : rect(left, top, width, height) {
+        }
+        inline int pxWidth() const {
+            return rect::width() / cIntRetinaFactor();
+        }
+        inline int pxHeight() const {
+            return rect::height() / cIntRetinaFactor();
+        }
+        inline QSize pxSize() const {
+            return rect::size() / cIntRetinaFactor();
+        }
+    private:
+        inline int width() const {
+            return rect::width();
+        }
+        inline int height() const {
+            return rect::height();
+        }
+        inline QSize size() const {
+            return rect::size();
+        }
+    };
 	typedef QPoint point;
 	typedef QSize size;
 	typedef anim::transition transition;

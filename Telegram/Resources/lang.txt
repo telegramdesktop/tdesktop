@@ -161,6 +161,7 @@ lng_settings_view_emojis: "View list";
 lng_settings_emoji_list: "List of supported emojis";
 lng_settings_send_enter: "Send by Enter";
 lng_settings_send_ctrlenter: "Send by Ctrl+Enter";
+lng_settings_send_cmdenter: "Send by Cmd+Enter";
 lng_settings_cats_and_dogs: "Allow cats and dogs";
 
 lng_download_path_dont_ask: "Don't ask download path for each file";
@@ -379,3 +380,4 @@ source code is available on [a href=\"https://github.com/telegramdesktop/tdeskto
 lng_about_done: "Done";
 
 // Keys finished
+

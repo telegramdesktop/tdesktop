@@ -26,7 +26,9 @@ namespace {
 void initEmoji() {
 	EmojiData *toFill = emojis = (EmojiData*)emojisData;
 
-	switch (cScale()) {
+    DBIScale emojiForScale = cRetina() ? dbisTwo : cScale();
+    
+	switch (emojiForScale) {
 
 	case dbisOne:
 		new (toFill++) EmojiData(176, 0, 169, 0, 1);

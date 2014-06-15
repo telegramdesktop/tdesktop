@@ -112,7 +112,9 @@ void MacPrivate::notifyClicked(unsigned long long peer) {
 }
 
 void MacPrivate::notifyReplied(unsigned long long peer, const char *str) {
+    History *history = App::history(PeerId(peer));
     
+    App::main()->sendMessage(history, QString::fromUtf8(str));
 }
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
@@ -283,7 +285,7 @@ void PsMainWindow::psInitFrameless() {
 	connect(&psUpdatedPositionTimer, SIGNAL(timeout()), this, SLOT(psSavePosition()));
 
 	if (frameless) {
-//		setWindowFlags(Qt::FramelessWindowHint);
+		//setWindowFlags(Qt::FramelessWindowHint);
 	}
 
     connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(psStateChanged(Qt::WindowState)));
@@ -348,6 +350,7 @@ void PsMainWindow::psFirstShow() {
 	bool showShadows = true;
 
 	show();
+    _private.enableShadow(winId());
 	if (cWindowPos().maximized) {
 		setWindowState(Qt::WindowMaximized);
 	}
@@ -371,7 +374,7 @@ void PsMainWindow::psFirstShow() {
 }
 
 bool PsMainWindow::psHandleTitle() {
-    return true;
+    return false;
 }
 
 void PsMainWindow::psInitSysMenu() {
@@ -685,10 +688,8 @@ PsNotifyWindow::PsNotifyWindow(HistoryItem *item, int32 x, int32 y) : history(it
 alphaDuration(st::notifyFastAnim), posDuration(st::notifyFastAnim), aY(y + st::notifyHeight + st::notifyDeltaY), close(this, st::notifyClose), aOpacityFunc(st::notifyFastAnimFunc) {
     
 	int32 w = st::notifyWidth, h = st::notifyHeight;
-	QImage img(w * cRetinaFactor(), h * cRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-    if (cRetina()) {
-        img.setDevicePixelRatio(cRetinaFactor());
-    }
+	QImage img(w * cIntRetinaFactor(), h * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+    if (cRetina()) img.setDevicePixelRatio(cRetinaFactor());
 	img.fill(st::notifyBG->c);
     
 	{

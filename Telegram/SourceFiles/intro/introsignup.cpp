@@ -124,7 +124,7 @@ void IntroSignup::paintEvent(QPaintEvent *e) {
 
 void IntroSignup::resizeEvent(QResizeEvent *e) {
 	textRect = QRect((width() - st::introTextSize.width()) / 2, 0, st::introTextSize.width(), st::introTextSize.height());
-	_phLeft = (width() - st::setPhotoImg.width()) / 2;
+	_phLeft = (width() - st::setPhotoImg.pxWidth()) / 2;
 	_phTop = st::introHeaderFont->height + st::introFinishSkip;
 	if (e->oldSize().width() != width()) {
 		int sumNext = st::btnIntroNext.width - st::btnIntroBack.width - st::btnIntroSep;
@@ -132,7 +132,7 @@ void IntroSignup::resizeEvent(QResizeEvent *e) {
 	}
 	if (e->oldSize().width() != width()) {
 		next.move((width() - next.width()) / 2, st::introSize.height() - st::btnIntroNext.height);
-		first.move((width() - first.width()) / 2, _phTop + st::setPhotoImg.height() + st::introFinishSkip);
+		first.move((width() - first.width()) / 2, _phTop + st::setPhotoImg.pxHeight() + st::introFinishSkip);
 		last.move((width() - last.width()) / 2, first.y() + first.height() + st::introFinishSkip);
 	}
 }

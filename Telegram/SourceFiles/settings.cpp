@@ -67,6 +67,7 @@ QString gLangFile;
 
 bool gRetina = false;
 float64 gRetinaFactor = 1.;
+int32 gIntRetinaFactor = 1;
 bool gCustomNotifies = false;
 
 #ifdef Q_OS_WIN

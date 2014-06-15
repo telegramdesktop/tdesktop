@@ -761,10 +761,10 @@ void ProfileWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 		p.drawPixmap(a_coord.current(), 0, _animTopBarCache);
 	} else {
 		p.setOpacity(st::topBarBackAlpha + (1 - st::topBarBackAlpha) * over);
-		p.drawPixmap(QPoint(st::topBarBackPadding.left(), (st::topBarHeight - st::topBarBackImg.height()) / 2), App::sprite(), st::topBarBackImg);
+		p.drawPixmap(QPoint(st::topBarBackPadding.left(), (st::topBarHeight - st::topBarBackImg.pxHeight()) / 2), App::sprite(), st::topBarBackImg);
 		p.setFont(st::topBarBackFont->f);
 		p.setPen(st::topBarBackColor->p);
-		p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.width() + st::topBarBackPadding.right(), (st::topBarHeight - st::titleFont->height) / 2 + st::titleFont->ascent, lang(peer()->chat ? lng_profile_group_info : lng_profile_info));
+		p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.pxWidth() + st::topBarBackPadding.right(), (st::topBarHeight - st::titleFont->height) / 2 + st::titleFont->ascent, lang(peer()->chat ? lng_profile_group_info : lng_profile_info));
 	}
 }
 

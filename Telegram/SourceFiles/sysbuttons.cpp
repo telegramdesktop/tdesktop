@@ -45,8 +45,8 @@ void SysBtn::onStateChange(int oldState, ButtonStateChangeSource source) {
 void SysBtn::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
-	int x = (width() - _st.img.width()) / 2, y = (height() - _st.img.height()) / 2;
-	p.fillRect(x, y, _st.img.width(), _st.img.height(), a_color.current());
+	int x = (width() - _st.img.pxWidth()) / 2, y = (height() - _st.img.pxHeight()) / 2;
+	p.fillRect(x, y, _st.img.pxWidth(), _st.img.pxHeight(), a_color.current());
 	p.drawPixmap(QPoint(x, y), App::sprite(), _st.img);
 }
 
