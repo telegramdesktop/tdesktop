@@ -270,8 +270,8 @@ void FlatTextarea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 	QString url = qsl("emoji://") + QString::number(emoji->code, 16);
 	document()->addResource(QTextDocument::ImageResource, QUrl(url), QVariant(img));
 	QTextImageFormat imageFormat;
-	imageFormat.setWidth(img.width());
-	imageFormat.setHeight(img.height());
+	imageFormat.setWidth(img.width() / cIntRetinaFactor());
+	imageFormat.setHeight(img.height() / cIntRetinaFactor());
 	imageFormat.setName(url);
 	imageFormat.setVerticalAlignment(QTextCharFormat::AlignBaseline);
 	c.insertImage(imageFormat);
