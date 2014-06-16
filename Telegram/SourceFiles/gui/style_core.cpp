@@ -23,7 +23,7 @@ namespace {
 }
 
 namespace style {
-	FontData::FontData(uint32 size, uint32 flags, uint32 family, Font *other) : _size(size), _flags(flags), _family(family), f(_fontFamilies[family]), m(f) {
+	FontData::FontData(uint32 size, uint32 flags, uint32 family, Font *other) : f(_fontFamilies[family]), m(f), _size(size), _flags(flags), _family(family) {
 		if (other) {
 			memcpy(modified, other, sizeof(modified));
 		} else {

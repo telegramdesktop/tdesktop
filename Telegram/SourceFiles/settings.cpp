@@ -70,6 +70,8 @@ float64 gRetinaFactor = 1.;
 int32 gIntRetinaFactor = 1;
 bool gCustomNotifies = false;
 
+uint64 gInstance = 0.;
+
 #ifdef Q_OS_WIN
 DBIPlatform gPlatform = dbipWindows;
 #elif defined Q_OS_MAC
@@ -81,6 +83,7 @@ DBIPlatform gPlatform = dbipLinux;
 #endif
 
 void settingsParseArgs(int argc, char *argv[]) {
+    memset_rand(&gInstance, sizeof(gInstance));
 	gExeDir = psCurrentExeDirectory(argc, argv);
 	for (int32 i = 0; i < argc; ++i) {
 		if (string("-release") == argv[i]) {

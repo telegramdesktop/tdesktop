@@ -126,9 +126,23 @@ BackgroundWidget::~BackgroundWidget() {
 	if (_hidden) _hidden->deleteLater();
 }
 
-LayerWidget::LayerWidget(QWidget *parent, PhotoData *photo, HistoryItem *item) : QWidget(parent), photo(photo), video(0),
-	aBackground(0), aOver(0), iX(App::wnd()->width() / 2), iY(App::wnd()->height() / 2), iW(0), iCoordFunc(anim::sineInOut), aOverFunc(anim::linear), aBackgroundFunc(anim::easeOutCirc), hiding(false),
-	_touchPress(false), _touchMove(false), _touchRightButton(false), _menu(0) {
+LayerWidget::LayerWidget(QWidget *parent, PhotoData *photo, HistoryItem *item) : QWidget(parent)
+, photo(photo)
+, video(0)
+, aBackground(0)
+, aOver(0)
+, iX(App::wnd()->width() / 2)
+, iY(App::wnd()->height() / 2)
+, iW(0)
+, iCoordFunc(anim::sineInOut)
+, aBackgroundFunc(anim::easeOutCirc)
+, aOverFunc(anim::linear)
+, hiding(false)
+, _touchPress(false)
+, _touchMove(false)
+, _touchRightButton(false)
+, _menu(0)
+{
 	int32 x, y, w;
 	if (App::wnd()->getPhotoCoords(photo, x, y, w)) {
 		iX = anim::ivalue(x);
@@ -149,9 +163,23 @@ LayerWidget::LayerWidget(QWidget *parent, PhotoData *photo, HistoryItem *item) :
 	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
 }
 
-LayerWidget::LayerWidget(QWidget *parent, VideoData *video, HistoryItem *item) : QWidget(parent), photo(0), video(video),
-	aBackground(0), aOver(0), iX(App::wnd()->width() / 2), iY(App::wnd()->height() / 2), iW(0), iCoordFunc(anim::sineInOut), aOverFunc(anim::linear), aBackgroundFunc(anim::easeOutCirc), hiding(false),
-	_touchPress(false), _touchMove(false), _touchRightButton(false), _menu(0) {
+LayerWidget::LayerWidget(QWidget *parent, VideoData *video, HistoryItem *item) : QWidget(parent)
+, photo(0)
+, video(video)
+, aBackground(0)
+, aOver(0)
+, iX(App::wnd()->width() / 2)
+, iY(App::wnd()->height() / 2)
+, iW(0)
+, iCoordFunc(anim::sineInOut)
+, aBackgroundFunc(anim::easeOutCirc)
+, aOverFunc(anim::linear)
+, hiding(false)
+, _touchPress(false)
+, _touchMove(false)
+, _touchRightButton(false)
+, _menu(0)
+{
 	int32 x, y, w;
 	if (App::wnd()->getVideoCoords(video, x, y, w)) {
 		iX = anim::ivalue(x);
@@ -279,7 +307,7 @@ void LayerWidget::keyPressEvent(QKeyEvent *e) {
 				photo->full->pix().toImage().save(file, "JPG");
 			}
 		}
-	} else if (photo && photo->full->loaded() && (e->key() == Qt::Key_Copy || e->key() == Qt::Key_C && e->modifiers().testFlag(Qt::ControlModifier))) {
+	} else if (photo && photo->full->loaded() && (e->key() == Qt::Key_Copy || (e->key() == Qt::Key_C && e->modifiers().testFlag(Qt::ControlModifier)))) {
 		QApplication::clipboard()->setPixmap(photo->full->pix());
 	}
 }
@@ -304,7 +332,7 @@ void LayerWidget::contextMenuEvent(QContextMenuEvent *e) {
 				_menu->addAction(lang(lng_context_forward_image), this, SLOT(forwardMessage()))->setEnabled(true);
 			}
 			_menu->addAction(lang(lng_context_delete_image), this, SLOT(deleteMessage()))->setEnabled(true);
-		} else if (App::self() && App::self()->photoId == photo->id || photo->chat && photo->chat->photoId == photo->id) {
+		} else if ((App::self() && App::self()->photoId == photo->id) || (photo->chat && photo->chat->photoId == photo->id)) {
 			_menu->addAction(lang(lng_context_delete_image), this, SLOT(deleteMessage()))->setEnabled(true);
 		}
 		_menu->setAttribute(Qt::WA_DeleteOnClose);

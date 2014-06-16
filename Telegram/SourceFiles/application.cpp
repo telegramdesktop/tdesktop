@@ -417,7 +417,7 @@ void Application::startUpdateCheck(bool forceWait) {
 			}
 		}
 	}
-	if (cManyInstance() && !cDebug() || cPlatform() == dbipMac) return; // only main instance is updating
+	if ((cManyInstance() && !cDebug()) || cPlatform() == dbipMac) return; // only main instance is updating
 
 	if (sendRequest) {
 		QNetworkRequest checkVersion(QUrl(qsl("http://tdesktop.com/win/tupdates/current")));

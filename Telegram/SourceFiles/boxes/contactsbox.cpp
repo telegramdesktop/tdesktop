@@ -395,11 +395,11 @@ void ContactsInner::selectSkipPage(int32 h, int32 dir) {
 	selectSkip(points * dir);
 }
 
-ContactsBox::ContactsBox() : _inner(), _hiding(false), _scroll(this, st::newGroupScroll),
+ContactsBox::ContactsBox() : _scroll(this, st::newGroupScroll), _inner(),
 	_addContact(this, lang(lng_add_contact_button), st::contactsAdd),
 	_filter(this, st::contactsFilter, lang(lng_participant_filter)),
 	_close(this, lang(lng_contacts_done), st::contactsClose),
-	a_opacity(0, 1) {
+	_hiding(false), a_opacity(0, 1) {
 
 	_width = st::participantWidth;
 	_height = App::wnd()->height() - st::boxPadding.top() - st::boxPadding.bottom();

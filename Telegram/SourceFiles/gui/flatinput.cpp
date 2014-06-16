@@ -41,9 +41,9 @@ namespace {
 	FlatInputStyle _flatInputStyle;
 }
 
-FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString &pholder, const QString &v) : QLineEdit(v, parent), _oldtext(v),
-	_st(st), _phVisible(!v.length()), _kev(0), a_borderColor(st.borderColor->c), a_bgColor(st.bgColor->c), _notingBene(0),
-	a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c) {
+FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString &pholder, const QString &v) : QLineEdit(v, parent), _oldtext(v), _kev(0), _phVisible(!v.length()),
+	a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c),
+    a_borderColor(st.borderColor->c), a_bgColor(st.bgColor->c), _notingBene(0), _st(st) {
 	resize(_st.width, _st.height);
 	
 	setFont(_st.font->f);

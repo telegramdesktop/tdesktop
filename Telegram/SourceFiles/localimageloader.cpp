@@ -19,7 +19,10 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "localimageloader.h"
 #include <libexif/exif-data.h>
 
-LocalImageLoaderPrivate::LocalImageLoaderPrivate(int32 currentUser, LocalImageLoader *loader, QThread *thread) : QObject(0), user(currentUser), loader(loader) {
+LocalImageLoaderPrivate::LocalImageLoaderPrivate(int32 currentUser, LocalImageLoader *loader, QThread *thread) : QObject(0)
+    , loader(loader)
+    , user(currentUser)
+{
 	moveToThread(thread);
 	connect(loader, SIGNAL(needToPrepare()), this, SLOT(prepareImages()));
 	connect(this, SIGNAL(imageReady()), loader, SLOT(onImageReady()));
@@ -101,7 +104,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 		filesize = 0;
 	}
 
-	if (img.isNull() && (type != ToPrepareDocument || !filesize) || type == ToPrepareAuto || img.isNull() && file.isEmpty() && data.isEmpty()) { // if could not decide what type
+	if ((img.isNull() && (type != ToPrepareDocument || !filesize)) || type == ToPrepareAuto || (img.isNull() && file.isEmpty() && data.isEmpty())) { // if could not decide what type
 		{
 			QMutexLocker lock(loader->toPrepareMutex());
 			ToPrepareMedias &list(loader->toPrepareMedias());

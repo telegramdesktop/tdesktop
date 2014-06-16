@@ -135,6 +135,8 @@ DeclareSetting(float64, RetinaFactor);
 DeclareSetting(int32, IntRetinaFactor);
 DeclareSetting(bool, CustomNotifies);
 
+DeclareReadSetting(uint64, Instance);
+
 DeclareReadSetting(DBIPlatform, Platform);
 
 void settingsParseArgs(int argc, char *argv[]);

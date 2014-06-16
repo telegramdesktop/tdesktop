@@ -101,6 +101,11 @@ public:
 }
 
 - (void) userNotificationCenter:(NSUserNotificationCenter *)center didActivateNotification:(NSUserNotification *)notification {
+    NSNumber *instObj = [[notification userInfo] objectForKey:@"inst"];
+    unsigned long long instLong = [instObj unsignedLongLongValue];
+    if (instLong != cInstance()) { // other app instance notification
+        return;
+    }
     if (notification.activationType == NSUserNotificationActivationTypeReplied){
         wnd->data->onNotifyReply(notification);
     } else if (notification.activationType == NSUserNotificationActivationTypeContentsClicked) {
@@ -151,7 +156,7 @@ void PsMacWindowPrivate::activateWnd(WId winId) {
 void PsMacWindowPrivate::showNotify(unsigned long long peer, const char *utf8title, const char *utf8subtitle, const char *utf8msg) {
     NSUserNotification *notification = [[NSUserNotification alloc] init];
     
-    NSDictionary *uinfo = [[NSDictionary alloc] initWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer],@"peer",nil];
+    NSDictionary *uinfo = [[NSDictionary alloc] initWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer],@"peer",[NSNumber numberWithUnsignedLongLong:cInstance()],@"inst",nil];
     [notification setUserInfo:uinfo];
     [uinfo release];
 

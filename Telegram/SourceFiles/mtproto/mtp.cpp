@@ -483,7 +483,7 @@ namespace MTP {
 		if (!started) return;
 
 		int32 m = mainSession->getDC();
-		if (!dc || m == dc || m && fromZeroOnly) return;
+		if (!dc || m == dc || (m && fromZeroOnly)) return;
 		mtpSetDC(dc);
 		mainSession = _mtp_internal::getSession(dc);
 	}

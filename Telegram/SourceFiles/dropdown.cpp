@@ -23,7 +23,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "lang.h"
 
 Dropdown::Dropdown(QWidget *parent) : TWidget(parent),
-	_shadow(st::dropdownShadow), a_opacity(0), _hiding(false) {
+	_hiding(false), a_opacity(0), _shadow(st::dropdownShadow) {
 	_width = st::dropdownPadding.left() + st::dropdownPadding.right();
 	_height = st::dropdownPadding.top() + st::dropdownPadding.bottom();
 	resize(_width, _height);
@@ -173,7 +173,7 @@ bool Dropdown::eventFilter(QObject *obj, QEvent *e) {
 }
 
 DragArea::DragArea(QWidget *parent) : TWidget(parent),
-	_shadow(st::boxShadow), a_opacity(0), a_color(st::dragColor->c), _hiding(false), _in(false) {
+	_hiding(false), _in(false), a_opacity(0), a_color(st::dragColor->c), _shadow(st::boxShadow) {
 	setMouseTracking(true);
 	setAcceptDrops(true);
 }
@@ -311,7 +311,7 @@ bool DragArea::animStep(float64 ms) {
 
 static const int emojiPerRow = 7, emojiRowsPerPage = 6;
 
-EmojiPanInner::EmojiPanInner(QWidget *parent) : QWidget(parent), _selected(-1), _pressedSel(-1), _tab(cEmojiTab()) {
+EmojiPanInner::EmojiPanInner(QWidget *parent) : QWidget(parent), _tab(cEmojiTab()), _selected(-1), _pressedSel(-1) {
 	resize(emojiPerRow * st::emojiPanSize.width(), emojiRowsPerPage * st::emojiPanSize.height() - st::emojiPanSub);
 	setMouseTracking(true);
 	setFocusPolicy(Qt::NoFocus);
@@ -481,13 +481,14 @@ void EmojiPanInner::showEmojiPack(DBIEmojiTab packIndex) {
 }
 
 EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent),
+_hiding(false), a_opacity(0), _shadow(st::dropdownShadow),
 _recent (this, qsl("emoji_group"), dbietRecent , QString(), cEmojiTab() == dbietRecent , st::rbEmojiRecent),
 _people (this, qsl("emoji_group"), dbietPeople , QString(), cEmojiTab() == dbietPeople , st::rbEmojiPeople),
 _nature (this, qsl("emoji_group"), dbietNature , QString(), cEmojiTab() == dbietNature , st::rbEmojiNature),
 _objects(this, qsl("emoji_group"), dbietObjects, QString(), cEmojiTab() == dbietObjects, st::rbEmojiObjects),
 _places (this, qsl("emoji_group"), dbietPlaces , QString(), cEmojiTab() == dbietPlaces , st::rbEmojiPlaces),
 _symbols(this, qsl("emoji_group"), dbietSymbols, QString(), cEmojiTab() == dbietSymbols, st::rbEmojiSymbols),
-_shadow(st::dropdownShadow), a_opacity(0), _hiding(false), _scroll(this, st::emojiScroll), _inner() {
+_scroll(this, st::emojiScroll), _inner() {
 	setFocusPolicy(Qt::NoFocus);
 	_scroll.setFocusPolicy(Qt::NoFocus);
 	_scroll.viewport()->setFocusPolicy(Qt::NoFocus);
@@ -666,9 +667,8 @@ void EmojiPan::hideAll() {
 }
 
 void EmojiPan::onTabChange() {
-	DBIEmojiTab newTab;
-	if (_recent.checked()) newTab = dbietRecent;
-	else if (_people.checked()) newTab = dbietPeople;
+	DBIEmojiTab newTab = dbietRecent;
+	if (_people.checked()) newTab = dbietPeople;
 	else if (_nature.checked()) newTab = dbietNature;
 	else if (_objects.checked()) newTab = dbietObjects;
 	else if (_places.checked()) newTab = dbietPlaces;

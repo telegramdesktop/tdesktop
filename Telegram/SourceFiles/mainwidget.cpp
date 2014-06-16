@@ -260,9 +260,9 @@ MainWidget *TopBarWidget::main() {
 	return static_cast<MainWidget*>(parentWidget());
 }
 
-MainWidget::MainWidget(Window *window) : QWidget(window), profile(0), _dialogsWidth(st::dlgMinWidth),
-	updPts(0), updDate(0), updQts(0), updSeq(0), updInited(false), failedObjId(0),
-	dialogs(this), history(this), onlineRequest(0), hider(0), _topBar(this) {
+MainWidget::MainWidget(Window *window) : QWidget(window), failedObjId(0), _dialogsWidth(st::dlgMinWidth),
+	dialogs(this), history(this), profile(0), _topBar(this), hider(0),
+    updPts(0), updDate(0), updQts(0), updSeq(0), updInited(false), onlineRequest(0) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
 	connect(window, SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
@@ -358,7 +358,7 @@ void MainWidget::dialogsActivate() {
 
 bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &e) {
 	if (e.type() == "CHAT_ID_INVALID") { // left this chat already
-		if (profile && profile->peer() == peer || profileStack.indexOf(peer) >= 0 || history.peer() == peer) {
+		if ((profile && profile->peer() == peer) || profileStack.indexOf(peer) >= 0 || history.peer() == peer) {
 			showPeer(0);
 		}
 		dialogs.removePeer(peer);
@@ -370,7 +370,7 @@ bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &e) {
 
 void MainWidget::deleteHistory(PeerData *peer, const MTPmessages_StatedMessage &result) {
 	sentFullDataReceived(0, result);
-	if (profile && profile->peer() == peer || profileStack.indexOf(peer) >= 0 || history.peer() == peer) {
+	if ((profile && profile->peer() == peer) || profileStack.indexOf(peer) >= 0 || history.peer() == peer) {
 		showPeer(0);
 	}
 	dialogs.removePeer(peer);
@@ -398,7 +398,7 @@ void MainWidget::deleteHistoryAndContact(UserData *user, const MTPcontacts_Link 
 	App::feedUsers(MTP_vector<MTPUser>(QVector<MTPUser>(1, d.vuser)));
 	App::feedUserLink(MTP_int(user->id & 0xFFFFFFFF), d.vmy_link, d.vforeign_link);
 
-	if (profile && profile->peer() == user || profileStack.indexOf(user) >= 0 || history.peer() == user) {
+	if ((profile && profile->peer() == user) || profileStack.indexOf(user) >= 0 || history.peer() == user) {
 		showPeer(0);
 	}
 	dialogs.removePeer(user);
@@ -472,7 +472,7 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 	if (!v) return;
 
 	if (v->isEmpty()) {
-		if (profile && profile->peer() == peer || profileStack.indexOf(peer) >= 0 || history.peer() == peer) {
+		if ((profile && profile->peer() == peer) || profileStack.indexOf(peer) >= 0 || history.peer() == peer) {
 			showPeer(0);
 		}
 		dialogs.removePeer(peer);
@@ -1113,7 +1113,7 @@ void MainWidget::onTopBarClick() {
 }
 
 void MainWidget::onPeerShown(PeerData *peer) {
-	if (profile || peer && peer->id) {
+	if (profile || (peer && peer->id)) {
 		_topBar.show();
 	} else {
 		_topBar.hide();

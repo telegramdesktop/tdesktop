@@ -28,7 +28,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "intro/intro.h"
 
 IntroSignup::IntroSignup(IntroWidget *parent) : IntroStage(parent),
-	next(this, lang(lng_intro_finish), st::btnIntroFinish), errorAlpha(0), a_photo(0),
+	errorAlpha(0), a_photo(0),
+    next(this, lang(lng_intro_finish), st::btnIntroFinish), 
 	first(this, st::inpIntroName, lang(lng_signup_firstname)),
 	last(this, st::inpIntroName, lang(lng_signup_lastname)) {
 	setVisible(false);

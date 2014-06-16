@@ -57,7 +57,7 @@ struct ChatData;
 struct UserData;
 struct PeerData {
 	PeerData(const PeerId &id);
-	~PeerData() {
+	virtual ~PeerData() {
 		if (notify != UnknownNotifySettings && notify != EmptyNotifySettings) {
 			delete notify;
 			notify = UnknownNotifySettings;
@@ -212,7 +212,7 @@ enum FileStatus {
 
 struct VideoData {
 	VideoData(const VideoId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0) :
-		id(id), access(access), user(user), date(date), duration(duration), w(w), h(h), thumb(thumb), dc(dc), size(size), openOnSave(0), loader(0), fileType(0), status(FileReady), uploadOffset(0) {
+		id(id), access(access), user(user), date(date), duration(duration), w(w), h(h), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), fileType(0), openOnSave(0), loader(0) {
 		memset(md5, 0, sizeof(md5));
 	}
 	void forget() {
@@ -314,7 +314,7 @@ public:
 
 struct AudioData {
 	AudioData(const AudioId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 dc = 0, int32 size = 0) : 
-		id(id), access(access), user(user), date(date), dc(dc), duration(duration), size(size), openOnSave(0), loader(0), status(FileReady), uploadOffset(0) {
+		id(id), access(access), user(user), date(date), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), loader(0) {
 		memset(md5, 0, sizeof(md5));
 	}
 	void forget() {
@@ -412,7 +412,7 @@ public:
 
 struct DocumentData {
 	DocumentData(const DocumentId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, const QString &name = QString(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0) :
-		id(id), access(access), user(user), date(date), name(name), mime(mime), thumb(thumb), dc(dc), size(size), openOnSave(0), loader(0), status(FileReady), uploadOffset(0) {
+		id(id), access(access), user(user), date(date), name(name), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), loader(0) {
 		memset(md5, 0, sizeof(md5));
 	}
 	void forget() {
@@ -628,7 +628,7 @@ struct History : public QList<HistoryBlock*> {
 };
 
 struct DialogsList {
-	DialogsList(bool sortByName) : end(&last), begin(&last), current(&last), byName(sortByName), count(0) {
+	DialogsList(bool sortByName) : begin(&last), end(&last), byName(sortByName), count(0), current(&last) {
 	}
 
 	void adjustCurrent(int32 y, int32 h) const {
@@ -985,7 +985,7 @@ public:
 		return _out;
 	}
 	bool unread() const {
-		if (_out && (id > 0 && id < _history->outboxReadTill) || !_out && id > 0 && id < _history->inboxReadTill) return false;
+		if ((_out && (id > 0 && id < _history->outboxReadTill)) || (!_out && id > 0 && id < _history->inboxReadTill)) return false;
 		return _unread;
 	}
 	virtual bool needCheck() const {

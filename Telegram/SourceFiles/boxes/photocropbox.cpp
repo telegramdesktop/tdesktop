@@ -25,10 +25,10 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "photocropbox.h"
 #include "fileuploader.h"
 
-PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer) : _img(img), _downState(0), _peerId(peer),
+PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer) : _downState(0),
 	_sendButton(this, lang(lng_settings_save), st::btnSelectDone),
 	_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
-	a_opacity(0, 1) {
+    _img(img), _peerId(peer), a_opacity(0, 1) {
 
 	connect(&_sendButton, SIGNAL(clicked()), this, SLOT(onSend()));
 	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onCancel()));

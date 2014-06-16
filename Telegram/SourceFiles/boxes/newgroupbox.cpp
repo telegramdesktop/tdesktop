@@ -438,11 +438,11 @@ QVector<MTPInputUser> NewGroupInner::selectedInputs() {
 	return result;
 }
 
-NewGroupBox::NewGroupBox() : _inner(), _hiding(false), _scroll(this, st::newGroupScroll),
+NewGroupBox::NewGroupBox() : _scroll(this, st::newGroupScroll), _inner(),
 	_filter(this, st::contactsFilter, lang(lng_participant_filter)),
 	_next(this, lang(lng_create_group_next), st::btnSelectDone),
 	_cancel(this, lang(lng_cancel), st::btnSelectCancel),
-	a_opacity(0, 1) {
+    _hiding(false),	a_opacity(0, 1) {
 
 	_width = st::participantWidth;
 	_height = App::wnd()->height() - st::boxPadding.top() - st::boxPadding.bottom();
@@ -596,11 +596,11 @@ NewGroupBox::~NewGroupBox() {
 }
 
 CreateGroupBox::CreateGroupBox(const MTPVector<MTPInputUser> &users) : _users(users),
-	_hiding(false), _createRequestId(0),
+	_createRequestId(0),
 	_name(this, st::newGroupName, lang(lng_dlg_new_group_name)),
 	_create(this, lang(lng_dlg_create_group), st::btnSelectDone),
 	_cancel(this, lang(lng_cancel), st::btnSelectCancel),
-	a_opacity(0, 1) {
+    _hiding(false),	a_opacity(0, 1) {
 	_width = st::addContactWidth;
 
 	_height = st::addContactTitleHeight + st::addContactPadding.top() + _name.height() + st::addContactPadding.bottom() + _create.height();

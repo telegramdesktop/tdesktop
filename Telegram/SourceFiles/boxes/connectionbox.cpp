@@ -22,17 +22,17 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "mainwidget.h"
 #include "window.h"
 
-ConnectionBox::ConnectionBox() : _hiding(false),
-	_hostInput(this, st::inpConnectionHost, lang(lng_connection_host_ph), cConnectionProxy().host),
-	_portInput(this, st::inpConnectionPort, lang(lng_connection_port_ph), QString::number(cConnectionProxy().port)),
-	_userInput(this, st::inpConnectionUser, lang(lng_connection_user_ph), cConnectionProxy().user),
+ConnectionBox::ConnectionBox() :
+    _saveButton(this, lang(lng_connection_save), st::btnSelectDone),
+    _cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
+    _hostInput(this, st::inpConnectionHost, lang(lng_connection_host_ph), cConnectionProxy().host),
+    _portInput(this, st::inpConnectionPort, lang(lng_connection_port_ph), QString::number(cConnectionProxy().port)),
+    _userInput(this, st::inpConnectionUser, lang(lng_connection_user_ph), cConnectionProxy().user),
 	_passwordInput(this, st::inpConnectionPassword, lang(lng_connection_password_ph), cConnectionProxy().password),
-	_saveButton(this, lang(lng_connection_save), st::btnSelectDone),
-	_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
 	_autoRadio(this, qsl("conn_type"), dbictAuto, lang(lng_connection_auto_rb), (cConnectionType() == dbictAuto)),
 	_httpProxyRadio(this, qsl("conn_type"), dbictHttpProxy, lang(lng_connection_http_proxy_rb), (cConnectionType() == dbictHttpProxy)),
 	_tcpProxyRadio(this, qsl("conn_type"), dbictTcpProxy, lang(lng_connection_tcp_proxy_rb), (cConnectionType() == dbictTcpProxy)),
-	a_opacity(0, 1) {
+	a_opacity(0, 1), _hiding(false) {
 
 	_width = st::addContactWidth;
 

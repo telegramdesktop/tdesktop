@@ -24,14 +24,14 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "window.h"
 
 AddContactBox::AddContactBox(QString fname, QString lname, QString phone) :
-	_hiding(false), _peer(0), _addRequest(0), _contactId(0),
-	_firstInput(this, st::inpAddContact, lang(lng_signup_firstname), fname),
-	_lastInput(this, st::inpAddContact, lang(lng_signup_lastname), lname),
-	_phoneInput(this, st::inpAddContact, lang(lng_contact_phone), phone.isEmpty() ? phone : App::formatPhone(phone)),
+	_peer(0),
 	_addButton(this, lang(lng_add_contact), st::btnSelectDone),
 	_retryButton(this, lang(lng_try_other_contact), st::btnSelectDone),
 	_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
-	a_opacity(0, 1) {
+    _firstInput(this, st::inpAddContact, lang(lng_signup_firstname), fname),
+    _lastInput(this, st::inpAddContact, lang(lng_signup_lastname), lname),
+    _phoneInput(this, st::inpAddContact, lang(lng_contact_phone), phone.isEmpty() ? phone : App::formatPhone(phone)),
+	_contactId(0), _addRequest(0), a_opacity(0, 1), _hiding(false) {
 
 	if (!phone.isEmpty()) {
 		_phoneInput.setDisabled(true);
@@ -41,14 +41,14 @@ AddContactBox::AddContactBox(QString fname, QString lname, QString phone) :
 }
 
 AddContactBox::AddContactBox(PeerData *peer) :
-	_hiding(false), _peer(peer), _addRequest(0), _contactId(0),
-	_firstInput(this, st::inpAddContact, lang(peer->chat ? lng_dlg_new_group_name : lng_signup_firstname), peer->chat ? peer->name : peer->asUser()->firstName),
-	_lastInput(this, st::inpAddContact, lang(lng_signup_lastname), peer->chat ? QString() : peer->asUser()->lastName),
-	_phoneInput(this, st::inpAddContact, lang(lng_contact_phone)),
+	_peer(peer),
 	_addButton(this, lang(lng_settings_save), st::btnSelectDone),
 	_retryButton(this, lang(lng_try_other_contact), st::btnSelectDone),
 	_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
-	a_opacity(0, 1) {
+    _firstInput(this, st::inpAddContact, lang(peer->chat ? lng_dlg_new_group_name : lng_signup_firstname), peer->chat ? peer->name : peer->asUser()->firstName),
+    _lastInput(this, st::inpAddContact, lang(lng_signup_lastname), peer->chat ? QString() : peer->asUser()->lastName),
+    _phoneInput(this, st::inpAddContact, lang(lng_contact_phone)),
+	_contactId(0), _addRequest(0), a_opacity(0, 1), _hiding(false) {
 
 	initBox();
 }
@@ -204,7 +204,7 @@ void AddContactBox::animStep(float64 dt) {
 		_cache = QPixmap();
 		if (!_hiding) {
 			showAll();
-			if (_firstInput.text().isEmpty() && _lastInput.text().isEmpty() || _phoneInput.isHidden() || !_phoneInput.isEnabled()) {
+			if ((_firstInput.text().isEmpty() && _lastInput.text().isEmpty()) || _phoneInput.isHidden() || !_phoneInput.isEnabled()) {
 				_firstInput.setFocus();
 			} else {
 				_phoneInput.setFocus();
@@ -238,7 +238,7 @@ void AddContactBox::onSend() {
 		_addRequest = MTP::send(MTPaccount_UpdateProfile(MTP_string(firstName), MTP_string(lastName)), rpcDone(&AddContactBox::onSaveSelfDone), rpcFail(&AddContactBox::onSaveSelfFail));
 	} else if (_peer) {
 		if (_peer->chat) {
-			_addRequest = MTP::send(MTPmessages_EditChatTitle(MTP_int(int32(_peer->id & 0xFFFFFFFF)), MTP_string(firstName)), rpcDone(&AddContactBox::onSaveChatDone), rpcFail(&AddContactBox::onSaveFail));
+			_addRequest = MTP::send(MTPmessages_EditChatTitle(MTP_int(App::chatFromPeer(_peer->id)), MTP_string(firstName)), rpcDone(&AddContactBox::onSaveChatDone), rpcFail(&AddContactBox::onSaveFail));
 		} else {
 			_contactId = MTP::nonce<uint64>();
 			QVector<MTPInputContact> v(1, MTP_inputPhoneContact(MTP_long(_contactId), MTP_string(_peer->asUser()->phone), MTP_string(firstName), MTP_string(lastName)));

@@ -21,14 +21,14 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "downloadpathbox.h"
 #include "gui/filedialog.h"
 
-DownloadPathBox::DownloadPathBox() : _hiding(false),
+DownloadPathBox::DownloadPathBox() :
 	_path(cDownloadPath()),
 	_tempRadio(this, qsl("dir_type"), 0, lang(lng_download_path_temp_radio), _path.isEmpty()),
 	_dirRadio(this, qsl("dir_type"), 1, lang(lng_download_path_dir_radio), !_path.isEmpty()),
 	_dirInput(this, st::inpDownloadDir, QString(), QDir::toNativeSeparators(_path)),
 	_saveButton(this, lang(lng_connection_save), st::btnSelectDone),
 	_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
-	a_opacity(0, 1) {
+	a_opacity(0, 1), _hiding(false) {
 
 	_width = st::addContactWidth;
 

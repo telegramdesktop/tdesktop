@@ -36,10 +36,12 @@ void ScrollShadow::changeVisibility(bool shown) {
 }
 
 ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::flatScroll *st) : QWidget(parent),
-	_st(st), _area(parent), _vertical(vert), _hideIn(-1),
+	_area(parent), _st(st), _vertical(vert),
 	_over(false), _overbar(false), _moving(false), _topSh(false), _bottomSh(false),
-	a_bg((_st->hiding ? st::transparent : _st->bgColor)->c), a_bar((_st->hiding ? st::transparent : _st->barColor)->c),
-	_connected(vert ? parent->verticalScrollBar() : parent->horizontalScrollBar()), _scrollMax(_connected->maximum()) {
+	_connected(vert ? parent->verticalScrollBar() : parent->horizontalScrollBar()),
+    _scrollMax(_connected->maximum()), _hideIn(-1),
+    a_bg((_st->hiding ? st::transparent : _st->bgColor)->c),
+    a_bar((_st->hiding ? st::transparent : _st->barColor)->c) {
 	recountSize();
 
 	_hideTimer.setSingleShot(true);
@@ -249,10 +251,12 @@ void ScrollBar::resizeEvent(QResizeEvent *e) {
 	updateBar();
 }
 
-ScrollArea::ScrollArea(QWidget *parent, const style::flatScroll &st, bool handleTouch) : QScrollArea(parent), _st(st), _touchEnabled(handleTouch),
+ScrollArea::ScrollArea(QWidget *parent, const style::flatScroll &st, bool handleTouch) : QScrollArea(parent),
+    _st(st),
 	hor(this, false, &_st), vert(this, true, &_st), topSh(this, &_st), bottomSh(this, &_st),
-	_touchScroll(false), _touchPress(false), _touchRightButton(false), _widgetAcceptsTouch(false),
-	_touchScrollState(TouchScrollManual), _touchPrevPosValid(false), _touchWaitingAcceleration(false), _touchSpeedTime(0), _touchAccelerationTime(0), _touchTime(0) {
+    _touchEnabled(handleTouch), _touchScroll(false), _touchPress(false), _touchRightButton(false),
+	_touchScrollState(TouchScrollManual), _touchPrevPosValid(false), _touchWaitingAcceleration(false),
+    _touchSpeedTime(0), _touchAccelerationTime(0), _touchTime(0), _widgetAcceptsTouch(false) {
 	connect(horizontalScrollBar(), SIGNAL(valueChanged(int)), this, SIGNAL(scrolled()));
 	connect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SIGNAL(scrolled()));
 	connect(&vert, SIGNAL(topShadowVisibility(bool)), &topSh, SLOT(changeVisibility(bool)));
@@ -365,8 +369,8 @@ void ScrollArea::touchUpdateSpeed() {
 			if (_touchScrollState == TouchScrollAuto) {
 				const int oldSpeedY = _touchSpeed.y();
 				const int oldSpeedX = _touchSpeed.x();
-				if ((oldSpeedY <= 0 && newSpeedY <= 0) || (oldSpeedY >= 0 && newSpeedY >= 0)
-					&& (oldSpeedX <= 0 && newSpeedX <= 0) || (oldSpeedX >= 0 && newSpeedX >= 0)) {
+				if ((oldSpeedY <= 0 && newSpeedY <= 0) || ((oldSpeedY >= 0 && newSpeedY >= 0)
+					&& (oldSpeedX <= 0 && newSpeedX <= 0)) || (oldSpeedX >= 0 && newSpeedX >= 0)) {
 					_touchSpeed.setY(snap((oldSpeedY + (newSpeedY / 4)), -MaxScrollAccelerated, +MaxScrollAccelerated));
 					_touchSpeed.setX(snap((oldSpeedX + (newSpeedX / 4)), -MaxScrollAccelerated, +MaxScrollAccelerated));
 				} else {

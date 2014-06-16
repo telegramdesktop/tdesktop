@@ -18,7 +18,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "stdafx.h"
 #include "fileuploader.h"
 
-FileUploader::FileUploader() : uploading(0), sentSize(0) {
+FileUploader::FileUploader() : sentSize(0), uploading(0) {
 	nextTimer.setSingleShot(true);
 	connect(&nextTimer, SIGNAL(timeout()), this, SLOT(sendNext()));
 }
@@ -116,7 +116,7 @@ void FileUploader::sendNext() {
 		} else {
 			toSend = i->media.data.mid(i->docSentParts * i->docPartSize, i->docPartSize);
 		}
-		if (toSend.size() > i->docPartSize || toSend.size() < i->docPartSize && i->docSentParts + 1 != i->docPartsCount) {
+		if (toSend.size() > i->docPartSize || (toSend.size() < i->docPartSize && i->docSentParts + 1 != i->docPartsCount)) {
 			currentFailed();
 			return;
 		}

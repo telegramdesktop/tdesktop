@@ -29,7 +29,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "layerwidget.h"
 #include "settingswidget.h"
 
-ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent), _reconnect(this, QString()), _shadow(st::boxShadow) {
+ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent), _shadow(st::boxShadow), _reconnect(this, QString()) {
 	set(text, reconnect);
 	connect(&_reconnect, SIGNAL(clicked()), this, SLOT(onReconnect()));
 }
@@ -77,8 +77,8 @@ void TempDirDeleter::onStart() {
 }
 
 Window::Window(QWidget *parent)	: PsMainWindow(parent),
-	dragging(false), intro(0), main(0), settings(0), layer(0), layerBG(0), myIcon(QPixmap::fromImage(icon256)), _topWidget(0),
-	_connecting(0), _inactivePress(false), _tempDeleter(0), _tempDeleterThread(0) {
+	intro(0), main(0), settings(0), layer(0), layerBG(0), _topWidget(0),
+	_connecting(0), _tempDeleter(0), _tempDeleterThread(0), myIcon(QPixmap::fromImage(icon256)), dragging(false), _inactivePress(false) {
 
 	if (objectName().isEmpty())
 		setObjectName(qsl("MainWindow"));
@@ -253,7 +253,7 @@ void Window::mtpStateChanged(int32 dc, int32 state) {
 
 void Window::updateTitleStatus() {
 	int32 state = MTP::dcstate();
-	if (state == MTProtoConnection::Connecting || state == MTProtoConnection::Disconnected || state < 0 && state > -600) {
+	if (state == MTProtoConnection::Connecting || state == MTProtoConnection::Disconnected || (state < 0 && state > -600)) {
 		if (main || getms() > 5000 || _connecting) {
 			showConnecting(lang(lng_connecting));
 		}
@@ -384,7 +384,7 @@ void Window::paintEvent(QPaintEvent *e) {
 HitTestType Window::hitTest(const QPoint &p) const {
 	int x(p.x()), y(p.y()), w(width()), h(height());
 	
-	const uint32 raw = psResizeRowWidth();
+	const int32 raw = psResizeRowWidth();
 	if (!windowState().testFlag(Qt::WindowMaximized)) {
 		if (y < raw) {
 			if (x < raw) {

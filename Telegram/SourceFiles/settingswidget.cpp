@@ -135,10 +135,10 @@ SettingsInner::SettingsInner(Settings *parent) : QWidget(parent),
 	_viewEmojis(this, lang(lng_settings_view_emojis)),
 
 	_enterSend(this, qsl("send_key"), 0, lang(lng_settings_send_enter), !cCtrlEnter()),
-_ctrlEnterSend(this, qsl("send_key"), 1, lang((cPlatform() == dbipMac) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), cCtrlEnter()),
+    _ctrlEnterSend(this, qsl("send_key"), 1, lang((cPlatform() == dbipMac) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), cCtrlEnter()),
 
-	_downloadPathWidth(st::linkFont->m.width(lang(lng_download_path_label))),
 	_dontAskDownloadPath(this, lang(lng_download_path_dont_ask), !cAskDownloadPath()),
+    _downloadPathWidth(st::linkFont->m.width(lang(lng_download_path_label))),
 	_downloadPathEdit(this, cDownloadPath().isEmpty() ? lang(lng_download_path_temp) : st::linkFont->m.elidedText(QDir::toNativeSeparators(cDownloadPath()), Qt::ElideRight, st::setWidth - st::setVersionLeft - _downloadPathWidth)),
 	_downloadPathClear(this, lang(lng_download_path_clear)),
 	_tempDirClearingWidth(st::linkFont->m.width(lang(lng_download_path_clearing))),
@@ -150,8 +150,8 @@ _ctrlEnterSend(this, qsl("send_key"), 1, lang((cPlatform() == dbipMac) ? lng_set
 	// advanced
 	_connectionType(this, lang(lng_connection_auto)),
 	_resetSessions(this, lang(lng_settings_reset)),
-	_resetDone(false),
-	_logOut(this, lang(lng_settings_logout), st::btnLogout)
+	_logOut(this, lang(lng_settings_logout), st::btnLogout),
+    _resetDone(false)
 {
 	if (_self) {
 		_nameText.setText(st::setNameFont, _nameCache, _textNameOptions);

@@ -45,8 +45,8 @@ namespace {
 }
 
 IntroWidget::IntroWidget(Window *window) : QWidget(window),
-	wnd(window), cacheForHideInd(0), cacheForShowInd(0), _callTimeout(60),
-	steps(new IntroSteps(this)), phone(0), code(0), signup(0), current(0), moving(0), visibilityChanging(0) {
+	cacheForHideInd(0), cacheForShowInd(0), wnd(window), steps(new IntroSteps(this)),
+    phone(0), code(0), signup(0), current(0), moving(0), visibilityChanging(0), _callTimeout(60) {
 	setGeometry(QRect(0, st::titleHeight, wnd->width(), wnd->height() - st::titleHeight));
 
 	countryForReg = psCurrentCountry();

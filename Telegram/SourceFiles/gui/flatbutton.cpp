@@ -19,9 +19,9 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "gui/flatbutton.h"
 
 FlatButton::FlatButton(QWidget *parent, const QString &text, const style::flatButton &st) : Button(parent),
-	_text(text), _opacity(1),
+	_text(text),
 	_st(st),
-	a_bg(st.bgColor->c), a_text(st.color->c) {
+	a_bg(st.bgColor->c), a_text(st.color->c), _opacity(1) {
 	if (_st.width < 0) {
 		_st.width = _st.font->m.width(text) - _st.width;
 	} else if (!_st.width) {
@@ -133,8 +133,8 @@ void LinkButton::onStateChange(int oldState, ButtonStateChangeSource source) {
 LinkButton::~LinkButton() {
 }
 
-IconedButton::IconedButton(QWidget *parent, const style::iconedButton &st, const QString &text) : Button(parent), _opacity(1),
-	_text(text), _st(st), a_opacity(_st.opacity), a_bg(_st.bgColor->c) {
+IconedButton::IconedButton(QWidget *parent, const style::iconedButton &st, const QString &text) : Button(parent),
+	_text(text), _st(st), a_opacity(_st.opacity), a_bg(_st.bgColor->c), _opacity(1) {
 
 	if (_st.width < 0) {
 		_st.width = _st.font->m.width(text) - _st.width;

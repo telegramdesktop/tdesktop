@@ -30,13 +30,30 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
-HistoryList::HistoryList(HistoryWidget *historyWidget, ScrollArea *scroll, History *history) : QWidget(0), 
-	historyWidget(historyWidget), scrollArea(scroll), hist(history), currentBlock(0), currentItem(0), _menu(0),
-	_dragAction(NoDrag), _dragItem(0), _dragSelFrom(0), _dragSelTo(0), _dragSelecting(false),
-	_dragSelType(TextSelectLetters), _dragWasInactive(false),
-	_touchScroll(false), _touchSelect(false), _touchInProgress(false),
-	_touchScrollState(TouchScrollManual), _touchPrevPosValid(false), _touchWaitingAcceleration(false), _touchSpeedTime(0), _touchAccelerationTime(0), _touchTime(0),
-	_cursor(style::cur_default) {
+HistoryList::HistoryList(HistoryWidget *historyWidget, ScrollArea *scroll, History *history) : QWidget(0)
+    , hist(history)
+    , historyWidget(historyWidget)
+    , scrollArea(scroll)
+    , currentBlock(0)
+    , currentItem(0)
+    , _cursor(style::cur_default)
+    , _dragAction(NoDrag)
+    , _dragSelType(TextSelectLetters)
+    , _dragItem(0)
+    , _dragWasInactive(false)
+    , _dragSelFrom(0)
+    , _dragSelTo(0)
+    , _dragSelecting(false)
+    , _touchScroll(false)
+    , _touchSelect(false)
+    , _touchInProgress(false)
+    , _touchScrollState(TouchScrollManual)
+    , _touchPrevPosValid(false)
+    , _touchWaitingAcceleration(false)
+    , _touchSpeedTime(0)
+    , _touchAccelerationTime(0)
+    , _touchTime(0)
+    , _menu(0) {
 
 	linkTipTimer.setSingleShot(true);
 	connect(&linkTipTimer, SIGNAL(timeout()), this, SLOT(showLinkTip()));
@@ -167,8 +184,8 @@ void HistoryList::touchUpdateSpeed() {
 			if (_touchScrollState == TouchScrollAuto) {
 				const int oldSpeedY = _touchSpeed.y();
 				const int oldSpeedX = _touchSpeed.x();
-				if ((oldSpeedY <= 0 && newSpeedY <= 0) || (oldSpeedY >= 0 && newSpeedY >= 0)
-					&& (oldSpeedX <= 0 && newSpeedX <= 0) || (oldSpeedX >= 0 && newSpeedX >= 0)) {
+				if ((oldSpeedY <= 0 && newSpeedY <= 0) || ((oldSpeedY >= 0 && newSpeedY >= 0)
+					&& (oldSpeedX <= 0 && newSpeedX <= 0)) || (oldSpeedX >= 0 && newSpeedX >= 0)) {
 					_touchSpeed.setY(snap((oldSpeedY + (newSpeedY / 4)), -MaxScrollAccelerated, +MaxScrollAccelerated));
 					_touchSpeed.setX(snap((oldSpeedX + (newSpeedX / 4)), -MaxScrollAccelerated, +MaxScrollAccelerated));
 				} else {
@@ -615,10 +632,10 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				_menu->addAction(lang(lng_context_save_image), this, SLOT(saveContextImage()))->setEnabled(true);
 				_menu->addAction(lang(lng_context_copy_image), this, SLOT(copyContextImage()))->setEnabled(true);
 			} else {
-				if (lnkVideo && lnkVideo->video()->loader || lnkAudio && lnkAudio->audio()->loader || lnkDocument && lnkDocument->document()->loader) {
+				if ((lnkVideo && lnkVideo->video()->loader) || (lnkAudio && lnkAudio->audio()->loader) || (lnkDocument && lnkDocument->document()->loader)) {
 					_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
 				} else {
-					if (lnkVideo && !lnkVideo->video()->already(true).isEmpty() || lnkAudio && !lnkAudio->audio()->already(true).isEmpty() || lnkDocument && !lnkDocument->document()->already(true).isEmpty()) {
+					if ((lnkVideo && !lnkVideo->video()->already(true).isEmpty()) || (lnkAudio && !lnkAudio->audio()->already(true).isEmpty()) || (lnkDocument && !lnkDocument->document()->already(true).isEmpty())) {
 						_menu->addAction(lang(lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 					}
 					_menu->addAction(lang(lnkVideo ? lng_context_open_video : (lnkAudio ? lng_context_open_audio : lng_context_open_document)), this, SLOT(openContextFile()))->setEnabled(true);
@@ -961,7 +978,7 @@ void HistoryList::fillSelectedItems(HistoryItemSet &sel, bool forDelete) {
 
 	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
 		HistoryItem *item = i.key();
-		if (item->itemType() == HistoryItem::MsgType && (item->id > 0 && !item->serviceMsg() || forDelete)) {
+		if (item->itemType() == HistoryItem::MsgType && ((item->id > 0 && !item->serviceMsg()) || forDelete)) {
 			sel.insert(item->y + item->block()->y, item);
 		}
 	}
@@ -1031,15 +1048,15 @@ void HistoryList::onUpdateSelected(bool force) {
 				_selected[_dragItem] = _dragItem->adjustSelection(qMin(second, _dragSymbol), qMax(second, _dragSymbol), _dragSelType);
 				updateDragSelection(0, 0, false);
 			} else {
-				bool selectingDown = (_dragItem->block()->y < item->block()->y) || (_dragItem->block() == item->block()) && (_dragItem->y < item->y || _dragItem == item && _dragStartPos.y() < m.y());
+				bool selectingDown = (_dragItem->block()->y < item->block()->y) || ((_dragItem->block() == item->block()) && (_dragItem->y < item->y || (_dragItem == item && _dragStartPos.y() < m.y())));
 				HistoryItem *dragSelFrom = _dragItem, *dragSelTo = item;
 				if (!dragSelFrom->hasPoint(_dragStartPos.x(), _dragStartPos.y())) { // maybe exclude dragSelFrom
 					if (selectingDown) {
-						if (_dragStartPos.y() >= dragSelFrom->height() - st::msgMargin.bottom() || (item == dragSelFrom) && (m.y() < _dragStartPos.y() + QApplication::startDragDistance())) {
+						if (_dragStartPos.y() >= dragSelFrom->height() - st::msgMargin.bottom() || ((item == dragSelFrom) && (m.y() < _dragStartPos.y() + QApplication::startDragDistance()))) {
 							dragSelFrom = (dragSelFrom == dragSelTo) ? 0 : nextItem(dragSelFrom);
 						}
 					} else {
-						if (_dragStartPos.y() < st::msgMargin.top() || (item == dragSelFrom) && (m.y() >= _dragStartPos.y() - QApplication::startDragDistance())) {
+						if (_dragStartPos.y() < st::msgMargin.top() || ((item == dragSelFrom) && (m.y() >= _dragStartPos.y() - QApplication::startDragDistance()))) {
 							dragSelFrom = (dragSelFrom == dragSelTo) ? 0 : prevItem(dragSelFrom);
 						}
 					}
@@ -1218,11 +1235,19 @@ void MessageField::focusInEvent(QFocusEvent *e) {
 	emit focused();
 }
 
-HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : QWidget(parent),
-	aOpacity(0, 1), aOpacityFunc(anim::easeOutCirc), hiding(false), offered(0), _forwardRequest(0),
-	toTextWidth(0), _forwardSelected(forwardSelected), sharedContact(0), shadow(st::boxShadow),
-	forwardButton(this, lang(lng_forward), st::btnSelectDone),
-	cancelButton(this, lang(lng_cancel), st::btnSelectCancel) {
+HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : QWidget(parent)
+    , sharedContact(0)
+    , _forwardSelected(forwardSelected)
+    , forwardButton(this, lang(lng_forward), st::btnSelectDone)
+    , cancelButton(this, lang(lng_cancel), st::btnSelectCancel)
+    , offered(0)
+    , aOpacity(0, 1)
+    , aOpacityFunc(anim::easeOutCirc)
+    , hiding(false)
+    , _forwardRequest(0)
+    , toTextWidth(0)
+    , shadow(st::boxShadow)
+{
 
 	connect(&forwardButton, SIGNAL(clicked()), this, SLOT(forward()));
 	connect(&cancelButton, SIGNAL(clicked()), this, SLOT(startHide()));
@@ -1234,11 +1259,19 @@ HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : QWidget(p
 	anim::start(this);
 }
 
-HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : QWidget(parent),
-	aOpacity(0, 1), aOpacityFunc(anim::easeOutCirc), hiding(false), offered(0), _forwardRequest(0),
-	toTextWidth(0), _forwardSelected(false), sharedContact(sharedContact), shadow(st::boxShadow),
-	forwardButton(this, lang(lng_forward), st::btnSelectDone),
-	cancelButton(this, lang(lng_cancel), st::btnSelectCancel) {
+HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : QWidget(parent)
+    , sharedContact(sharedContact)
+    , _forwardSelected(false)
+    , forwardButton(this, lang(lng_forward), st::btnSelectDone)
+    , cancelButton(this, lang(lng_cancel), st::btnSelectCancel)
+    , offered(0)
+    , aOpacity(0, 1)
+    , aOpacityFunc(anim::easeOutCirc)
+    , hiding(false)
+    , _forwardRequest(0)
+    , toTextWidth(0)
+    , shadow(st::boxShadow)
+{
 
 	connect(&forwardButton, SIGNAL(clicked()), this, SLOT(forward()));
 	connect(&cancelButton, SIGNAL(clicked()), this, SLOT(startHide()));
@@ -1382,7 +1415,7 @@ void HistoryHider::resizeEvent(QResizeEvent *e) {
 
 void HistoryHider::offerPeer(PeerId peer) {
 	offered = App::peer(peer);
-	toText.setText(st::boxFont, lang(sharedContact ? lng_forward_share_contact : lng_forward_confirm).replace(qsl("{recipient}"), offered->chat ? '«' + offered->name + '»' : offered->name), _textNameOptions);
+	toText.setText(st::boxFont, lang(sharedContact ? lng_forward_share_contact : lng_forward_confirm).replace(qsl("{recipient}"), offered->chat ? '\xAB' + offered->name + '\xBB' : offered->name), _textNameOptions);
 	toTextWidth = toText.maxWidth();
 	if (toTextWidth > box.width() - st::boxPadding.left() - st::boxPadding.right()) {
 		toTextWidth = box.width() - st::boxPadding.left() - st::boxPadding.right();
@@ -1402,14 +1435,38 @@ HistoryHider::~HistoryHider() {
 	parent()->noHider(this);
 }
 
-HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent), noTypingUpdate(false), serviceImageCacheSize(0),
-	_scroll(this, st::historyScroll, false), _list(0), histPeer(0), _activePeer(0), histOffset(0), histCount(-1),
-	hist(0), histPreloading(0), histReadRequestId(0), hiderOffered(false), _histInited(false),
-	_send(this, lang(lng_send_button), st::btnSend), histRequestsCount(0),
-	_attachDocument(this, st::btnAttachDocument), _attachPhoto(this, st::btnAttachPhoto), _attachEmoji(this, st::btnAttachEmoji),
-	confirmImageId(0), loadingChatId(0), loadingRequestId(0), titlePeerTextWidth(0),
-	_field(this, st::taMsgField, lang(lng_message_ph)), bg(st::msgBG), imageLoader(this),
-	_attachType(this), _emojiPan(this), _attachDrag(DragStateNone), _attachDragDocument(this), _attachDragPhoto(this), _scrollDelta(0) {
+HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
+    , histOffset(0)
+    , histCount(-1)
+    , histReadRequestId(0)
+    , histRequestsCount(0)
+    , histPeer(0)
+    , _activePeer(0)
+    , histPreloading(0)
+    , _scroll(this, st::historyScroll, false)
+    , _list(0)
+    , hist(0)
+    , _histInited(false)
+    , _send(this, lang(lng_send_button), st::btnSend)
+    , _attachDocument(this, st::btnAttachDocument)
+    , _attachPhoto(this, st::btnAttachPhoto)
+    , _attachEmoji(this, st::btnAttachEmoji)
+    , _field(this, st::taMsgField, lang(lng_message_ph))
+    , _attachType(this)
+    , _emojiPan(this)
+    , _attachDrag(DragStateNone)
+    , _attachDragDocument(this)
+    , _attachDragPhoto(this)
+    , imageLoader(this)
+    , noTypingUpdate(false)
+    , loadingChatId(0)
+    , loadingRequestId(0)
+    , serviceImageCacheSize(0)
+    , confirmImageId(0)
+    , titlePeerTextWidth(0)
+    , bg(st::msgBG)
+    , hiderOffered(false)
+    , _scrollDelta(0) {
 	_scroll.setFocusPolicy(Qt::NoFocus);
 
 	setAcceptDrops(true);
@@ -1462,7 +1519,7 @@ void HistoryWidget::onTextChange() {
 
 void HistoryWidget::updateTyping(bool typing) {
 	uint64 ms = getms() + 10000;
-	if (noTypingUpdate || !hist || typing && (hist->myTyping + 5000 > ms) || !typing && (hist->myTyping + 5000 <= ms)) return;
+	if (noTypingUpdate || !hist || (typing && (hist->myTyping + 5000 > ms)) || (!typing && (hist->myTyping + 5000 <= ms))) return;
 
 	hist->myTyping = typing ? ms : 0;
 	if (typing) MTP::send(MTPmessages_SetTyping(histPeer->input, MTP_bool(typing)));
@@ -1877,7 +1934,7 @@ void HistoryWidget::loadMessages() {
 void HistoryWidget::onListScroll() {
 	App::checkImageCacheSize();
 
-	if (histPreloading || !hist || (_list->isHidden() || _scroll.isHidden() || !App::wnd()->windowHandle()->isVisible()) && hist->unreadLoaded) {
+	if (histPreloading || !hist || ((_list->isHidden() || _scroll.isHidden() || !App::wnd()->windowHandle()->isVisible()) && hist->unreadLoaded)) {
 		checkUnreadLoaded(true);
 		return;
 	}
@@ -1951,7 +2008,7 @@ mtpRequestId HistoryWidget::onForward(const PeerId &peer, bool forwardSelected) 
 			newId = clientMsgId();
 			hist->addToBackForwarded(newId, msg);
 			MTP::send(MTPmessages_ForwardMessage(histPeer->input, MTP_int(item->id), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
-		} else if (srv || msg && msg->selectedText(FullItemSel).isEmpty()) {
+		} else if (srv || (msg && msg->selectedText(FullItemSel).isEmpty())) {
 	//		newId = clientMsgId();
 	//		MTP::send(MTPmessages_ForwardMessage(histPeer->input, MTP_int(item->id), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
 		} else if (msg) {
@@ -2407,7 +2464,6 @@ void HistoryWidget::onPhotoReady() {
 }
 
 void HistoryWidget::onPhotoFailed(quint64 id) {
-	id = id;
 }
 
 void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
@@ -2545,7 +2601,7 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void HistoryWidget::updateListSize(int32 addToY, bool initial) {
-	if (!hist || !_histInited && !initial) return;
+	if (!hist || (!_histInited && !initial)) return;
 
 	if (!App::wnd()->isVisible()) return; // scrollTopMax etc are not working after recountHeight()
 
@@ -2788,8 +2844,8 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 
 			// points
 			p.setOpacity(st::introPointAlpha);
-			int x = pointsLeft + st::introPointLeft;
-			for (uint32 i = 0; i < pointsCount; ++i) {
+			int32 x = pointsLeft + st::introPointLeft;
+			for (int32 i = 0; i < pointsCount; ++i) {
 				p.fillRect(x, pointsTop + st::introPointTop, st::introPointWidth, st::introPointHeight, st::introPointColor->b);
 				x += (st::introPointWidth + 2 * st::introPointDelta);
 			}

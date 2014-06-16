@@ -34,9 +34,8 @@ namespace {
 	class _TypeSizeCheckerHelper {
 	public:
 		_TypeSizeCheckerHelper() {
-#ifndef Q_OS_MAC
-			_BadTypeSize<T> field;
-#endif
+            int _BadTypeSize[N ? -1 : 1];
+            (void)sizeof(_BadTypeSize);
 		}
 	};
 
@@ -398,11 +397,11 @@ namespace {
 	}
 
 	inline uint32 _md5_F(uint32 x, uint32 y, uint32 z) {
-		return x & y | ~x & z;
+		return (x & y) | (~x & z);
 	}
 
 	inline uint32 _md5_G(uint32 x, uint32 y, uint32 z) {
-		return x & z | y & ~z;
+		return (x & z) | (y & ~z);
 	}
 
 	inline uint32 _md5_H(uint32 x, uint32 y, uint32 z) {

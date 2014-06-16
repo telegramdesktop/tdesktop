@@ -3558,7 +3558,7 @@ const EmojiData *getEmoji(uint32 code) {
 		return 0;
 	}
 
-	if (highCode == 35 || highCode >= 48 && highCode < 58) {
+	if (highCode == 35 || (highCode >= 48 && highCode < 58)) {
 		if ((code & 0xFFFF) != 0x20E3) return 0;
 
 		switch (code) {

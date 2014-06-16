@@ -22,8 +22,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "mainwidget.h"
 #include "window.h"
 
-AddParticipantInner::AddParticipantInner(ChatData *chat) : _chat(chat), _selCount(0),
-	_contacts(&App::main()->contactsList()), _sel(0), _filteredSel(-1), _mouseSel(false) {
+AddParticipantInner::AddParticipantInner(ChatData *chat) : _chat(chat),
+	_contacts(&App::main()->contactsList()), _sel(0), _filteredSel(-1), _mouseSel(false), _selCount(0) {
 	
 	_filter = qsl("a");
 	updateFilter();
@@ -507,12 +507,12 @@ void AddParticipantInner::selectSkipPage(int32 h, int32 dir) {
 	selectSkip(points * dir);
 }
 
-AddParticipantBox::AddParticipantBox(ChatData *chat) : _inner(chat), _hiding(false),
-	_scroll(this, st::newGroupScroll),
+AddParticipantBox::AddParticipantBox(ChatData *chat) :
+	_scroll(this, st::newGroupScroll), _inner(chat),
 	_filter(this, st::contactsFilter, lang(lng_participant_filter)),
 	_invite(this, lang(lng_participant_invite), st::btnSelectDone),
 	_cancel(this, lang(lng_cancel), st::btnSelectCancel),
-	a_opacity(0, 1), af_opacity(anim::linear) {
+	_hiding(false), a_opacity(0, 1), af_opacity(anim::linear) {
 
 	_width = st::participantWidth;
 	_height = App::wnd()->height() - st::boxPadding.top() - st::boxPadding.bottom();

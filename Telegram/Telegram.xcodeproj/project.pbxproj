@@ -38,6 +38,7 @@
 		02F93BF511880983D3C57B84 /* dialogswidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = E466873F01ABA1E55E914489 /* dialogswidget.cpp */; settings = {ATTRIBUTES = (); }; };
 		03270F718426CFE84729079E /* flattextarea.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 5C7FD422BBEDA858D7237AE9 /* flattextarea.cpp */; settings = {ATTRIBUTES = (); }; };
 		06EABCC49D2EEE4076322BE7 /* moc_mtp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 924D4939FD169BB4B8AEB1C9 /* moc_mtp.cpp */; settings = {ATTRIBUTES = (); }; };
+		07055CC4194EE85B0008DEF6 /* libcrypto.a in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 07055CC3194EE85B0008DEF6 /* libcrypto.a */; };
 		0749CE69194D723400345D61 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 07C3AF24194335ED0016CFF1 /* Images.xcassets */; };
 		0A49F3A5DC0680FB31519670 /* phoneinput.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 7C8F9CA4FCE8AF8FCCCB961E /* phoneinput.cpp */; settings = {ATTRIBUTES = (); }; };
 		0CB7DE9A54CC9BF86FB7B5CA /* mtp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 6D50D70712776D7ED3B00E5C /* mtp.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -224,6 +225,7 @@
 		047DAFB0A7DE92C63033A43C /* mainwidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = mainwidget.cpp; path = SourceFiles/mainwidget.cpp; sourceTree = "<absolute>"; };
 		060A694B42A4555240009936 /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qtga.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qtga.pri"; sourceTree = "<absolute>"; };
 		06E379415713F34B83F99C35 /* app.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = app.cpp; path = SourceFiles/app.cpp; sourceTree = "<absolute>"; };
+		07055CC3194EE85B0008DEF6 /* libcrypto.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libcrypto.a; path = "./../../Libraries/openssl-xcode/libcrypto.a"; sourceTree = "<group>"; };
 		075EB50EB07CF69FD62FB8DF /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_sql_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_sql_private.pri"; sourceTree = "<absolute>"; };
 		0771C4C94B623FC34BF62983 /* intro.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = intro.cpp; path = SourceFiles/intro/intro.cpp; sourceTree = "<absolute>"; };
 		07C3AF24194335ED0016CFF1 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Telegram/Images.xcassets; sourceTree = SOURCE_ROOT; };
@@ -593,6 +595,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				07055CC4194EE85B0008DEF6 /* libcrypto.a in Link Binary With Libraries */,
 				1BB705CDB741E2B7450201A5 /* Cocoa.framework in Link Binary With Libraries */,
 				B58956C9C026BD3A7FD9ECDF /* libexif.a in Link Binary With Libraries */,
 				328FD74542F6E2C873EE4D4B /* ApplicationServices.framework in Link Binary With Libraries */,
@@ -1069,6 +1072,7 @@
 		AF39DD055C3EF8226FBE929D /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				07055CC3194EE85B0008DEF6 /* libcrypto.a */,
 				AEA456A2F75ED9F5CDA7BCBE /* Cocoa.framework */,
 				4AF15B5A0A43EB62D6DAF211 /* libexif.a */,
 				DFD7912080BC557230093752 /* ApplicationServices.framework */,
@@ -1182,6 +1186,7 @@
 		6DB9C3763D02B1415CD9D565 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
+				LastUpgradeCheck = 0510;
 			};
 			buildConfigurationList = DAC4C1AA5EDEA1C85E9CA5E6 /* Build configuration list for PBXProject "Telegram" */;
 			compatibilityVersion = "Xcode 3.2";
@@ -1417,7 +1422,7 @@
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				OBJROOT = ./../Mac/DebugIntermediate;
-				PRODUCT_NAME = "Preprocess copy";
+				PRODUCT_NAME = "Meta Compile";
 				QT_LIBRARY_SUFFIX = _debug;
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
@@ -1435,7 +1440,7 @@
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				LLVM_LTO = YES;
 				OBJROOT = ./../Mac/ReleaseIntermediate;
-				PRODUCT_NAME = "Preprocess copy";
+				PRODUCT_NAME = "Meta Compile";
 				QT_LIBRARY_SUFFIX = "";
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
@@ -1445,8 +1450,13 @@
 		339EE1B2CC4FC24589A0EA95 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = x86_64;
 				CC = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = YES;
 				DYLIB_COMPATIBILITY_VERSION = 0.5;
 				DYLIB_CURRENT_VERSION = 0.5.1;
@@ -1456,6 +1466,9 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = SourceFiles/stdafx.h;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				HEADER_SEARCH_PATHS = (
 					./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.0/QtGui,
 					./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.0/QtCore,
@@ -1488,6 +1501,7 @@
 					"/usr/local/Qt-5.3.0/plugins/bearer",
 					"/usr/local/Qt-5.3.0/plugins/platforms",
 					"/usr/local/Qt-5.3.0/plugins/imageformats",
+					"./../../Libraries/openssl-xcode",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				OBJROOT = "./../Mac/$(CONFIGURATION)Intermediate";
@@ -1502,6 +1516,12 @@
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",
 					"-DQT_CORE_LIB",
+					"-Wno-unused-variable",
+					"-Wno-unused-parameter",
+					"-Wno-unused-function",
+					"-Wno-switch",
+					"-Wno-comment",
+					"-I./../../Libraries/openssl-xcode/include",
 				);
 				OTHER_CPLUSPLUSFLAGS = (
 					"-pipe",
@@ -1516,12 +1536,16 @@
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",
 					"-DQT_CORE_LIB",
+					"-Wno-unused-variable",
+					"-Wno-unused-parameter",
+					"-Wno-unused-function",
+					"-Wno-switch",
+					"-Wno-comment",
+					"-I./../../Libraries/openssl-xcode/include",
 				);
 				OTHER_LDFLAGS = (
 					"-headerpad_max_install_names",
 					"-stdlib=libc++",
-					"-lcrypto",
-					"-lssl",
 					"-L/usr/local/Qt-5.3.0/lib",
 					"-L/usr/local/Qt-5.3.0/plugins/mediaservice",
 					"-L/usr/local/Qt-5.3.0/plugins/audio",
@@ -1544,8 +1568,13 @@
 		3AA6C32AC930069E80220CF1 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ARCHS = x86_64;
 				CC = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 0.5;
@@ -1556,6 +1585,9 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = SourceFiles/stdafx.h;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				HEADER_SEARCH_PATHS = (
 					./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.0/QtGui,
 					./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.0/QtCore,
@@ -1588,9 +1620,11 @@
 					"/usr/local/Qt-5.3.0/plugins/bearer",
 					"/usr/local/Qt-5.3.0/plugins/platforms",
 					"/usr/local/Qt-5.3.0/plugins/imageformats",
+					"./../../Libraries/openssl-xcode",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				OBJROOT = "./../Mac/$(CONFIGURATION)Intermediate";
+				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CFLAGS = (
 					"-pipe",
 					"-g",
@@ -1603,6 +1637,12 @@
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",
 					"-DQT_CORE_LIB",
+					"-Wno-unused-variable",
+					"-Wno-unused-parameter",
+					"-Wno-unused-function",
+					"-Wno-switch",
+					"-Wno-comment",
+					"-I./../../Libraries/openssl-xcode/include",
 				);
 				OTHER_CPLUSPLUSFLAGS = (
 					"-pipe",
@@ -1618,12 +1658,16 @@
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",
 					"-DQT_CORE_LIB",
+					"-Wno-unused-variable",
+					"-Wno-unused-parameter",
+					"-Wno-unused-function",
+					"-Wno-switch",
+					"-Wno-comment",
+					"-I./../../Libraries/openssl-xcode/include",
 				);
 				OTHER_LDFLAGS = (
 					"-headerpad_max_install_names",
 					"-stdlib=libc++",
-					"-lcrypto",
-					"-lssl",
 					"-L/usr/local/Qt-5.3.0/lib",
 					"-L/usr/local/Qt-5.3.0/plugins/mediaservice",
 					"-L/usr/local/Qt-5.3.0/plugins/audio",
@@ -1647,6 +1691,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = YES;
 				CURRENT_PROJECT_VERSION = 0.5.2;
 				DYLIB_CURRENT_VERSION = 0.5.2;
@@ -1667,6 +1712,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 0.5.2;
 				DEBUG_INFORMATION_FORMAT = dwarf;

@@ -22,7 +22,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "flatcheckbox.h"
 
 FlatCheckbox::FlatCheckbox(QWidget *parent, const QString &text, bool checked, const style::flatCheckbox &st) : Button(parent),
-	_text(text), _checked(checked), _st(st), _opacity(1), a_over(0, 0) {
+	_st(st), a_over(0, 0), _text(text), _opacity(1), _checked(checked) {
 	connect(this, SIGNAL(clicked()), this, SLOT(onClicked()));
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
 	setCursor(_st.cursor);
@@ -92,7 +92,7 @@ void FlatCheckbox::paintEvent(QPaintEvent *e) {
 	if (_state & StateDisabled) {
 		QRect sRect(_checked ? _st.chkDisImageRect : _st.disImageRect);
 		p.drawPixmap(_st.imagePos, App::sprite(), sRect);
-	} else if (_checked && _st.chkImageRect == _st.chkOverImageRect || !_checked && _st.imageRect == _st.overImageRect) {
+	} else if ((_checked && _st.chkImageRect == _st.chkOverImageRect) || (!_checked && _st.imageRect == _st.overImageRect)) {
 		p.setOpacity(_opacity);
 		QRect sRect(_checked ? _st.chkImageRect : _st.imageRect);
 		p.drawPixmap(_st.imagePos, App::sprite(), sRect);
@@ -185,7 +185,7 @@ void RadiobuttonsGroup::remove(FlatRadiobutton * const &radio) {
 }
 
 FlatRadiobutton::FlatRadiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked, const style::flatCheckbox &st) :
-	FlatCheckbox(parent, text, checked, st), _value(value), _group(radioButtons.reg(group)) {
+	FlatCheckbox(parent, text, checked, st), _group(radioButtons.reg(group)), _value(value) {
 	_group->insert(this);
 	connect(this, SIGNAL(changed()), this, SLOT(onChanged()));
 	if (this->checked()) onChanged();

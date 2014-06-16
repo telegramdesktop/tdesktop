@@ -684,8 +684,8 @@ void PsMainWindow::psUpdateNotifies() {
     }
 }
 
-PsNotifyWindow::PsNotifyWindow(HistoryItem *item, int32 x, int32 y) : history(item->history()), aOpacity(0), _index(0), hiding(false),// started(GetTickCount()),
-alphaDuration(st::notifyFastAnim), posDuration(st::notifyFastAnim), aY(y + st::notifyHeight + st::notifyDeltaY), close(this, st::notifyClose), aOpacityFunc(st::notifyFastAnimFunc) {
+PsNotifyWindow::PsNotifyWindow(HistoryItem *item, int32 x, int32 y) : history(item->history()),// started(GetTickCount()),
+close(this, st::notifyClose), alphaDuration(st::notifyFastAnim), posDuration(st::notifyFastAnim), hiding(false), _index(0), aOpacity(0), aOpacityFunc(st::notifyFastAnimFunc), aY(y + st::notifyHeight + st::notifyDeltaY) {
     
 	int32 w = st::notifyWidth, h = st::notifyHeight;
 	QImage img(w * cIntRetinaFactor(), h * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);

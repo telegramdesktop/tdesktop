@@ -66,7 +66,7 @@ namespace {
 		if (!skipJunk(from, end)) return false;
 
 		const char *nameStart = from;
-		while (from < end && (*from >= 'a' && *from <= 'z' || *from >= 'A' && *from <= 'Z' || *from == '_' || *from >= '0' && *from <= '9')) {
+		while (from < end && ((*from >= 'a' && *from <= 'z') || (*from >= 'A' && *from <= 'Z') || *from == '_' || (*from >= '0' && *from <= '9'))) {
 			++from;
 		}
 

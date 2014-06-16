@@ -49,7 +49,8 @@ void TitleHider::setLevel(float64 level) {
 TitleWidget::TitleWidget(Window *window)
 	: QWidget(window)
 	, wnd(window)
-	, availWidth(460)
+    , hideLevel(0)
+    , hider(0)
 	, _settings(this, lang(lng_menu_settings), st::titleTextButton)
 	, _contacts(this, lang(lng_menu_contacts), st::titleTextButton)
 	, _about(this, lang(lng_menu_about), st::titleTextButton)
@@ -58,9 +59,9 @@ TitleWidget::TitleWidget(Window *window)
 	, _maximize(this, window)
 	, _restore(this, window)
 	, _close(this, window)
-	, lastMaximized(!(window->windowState() & Qt::WindowMaximized))
-	, hider(0)
-	, hideLevel(0) {
+    , availWidth(460)
+    , lastMaximized(!(window->windowState() & Qt::WindowMaximized))
+{
 
 	setGeometry(0, 0, wnd->width(), st::titleHeight);
 	stateChanged();
@@ -226,7 +227,7 @@ HitTestType TitleWidget::hitTest(const QPoint &p) {
 	} else if (x >= 0 && x < w && y >= 0 && y < h) {
 		if (false
 			|| _settings.geometry().contains(x, y)
-			|| !_contacts.isHidden() && _contacts.geometry().contains(x, y)
+			|| (!_contacts.isHidden() && _contacts.geometry().contains(x, y))
 			|| _about.geometry().contains(x, y)
 		) {
 			return HitTestClient;

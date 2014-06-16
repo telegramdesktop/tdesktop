@@ -25,7 +25,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "profilewidget.h"
 
 class Window;
-class DialogRow;
+struct DialogRow;
 class MainWidget;
 
 class TopBarWidget : public QWidget, public Animated {

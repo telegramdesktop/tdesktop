@@ -190,10 +190,10 @@ int64 imageCacheSize() {
 	return globalAquiredSize;
 }
 
-StorageImage::StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret) : loader(new mtpFileLoader(dc, volume, local, secret)), w(width), h(height) {
+StorageImage::StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret) : w(width), h(height), loader(new mtpFileLoader(dc, volume, local, secret)) {
 }
 
-StorageImage::StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, QByteArray &bytes) : loader(0), w(width), h(height) {
+StorageImage::StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, QByteArray &bytes) : w(width), h(height), loader(0) {
 	setData(bytes);
 }
 

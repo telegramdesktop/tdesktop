@@ -34,8 +34,10 @@ namespace {
 	LoaderQueues queues;
 }
 
-mtpFileLoader::mtpFileLoader(int32 dc, const int64 &volume, int32 local, const int64 &secret) : next(0), prev(0), inQueue(false), complete(false), requestId(0), priority(0), initialSize(0),
-	dc(dc), volume(volume), local(local), secret(secret), size(0), type(MTP_storage_fileUnknown()), locationType(0), id(0), access(0) {
+mtpFileLoader::mtpFileLoader(int32 dc, const int64 &volume, int32 local, const int64 &secret) : prev(0), next(0),
+    priority(0), inQueue(false), complete(false), requestId(0),
+    dc(dc), locationType(0), volume(volume), local(local), secret(secret),
+    id(0), access(0), initialSize(0), size(0), type(MTP_storage_fileUnknown()) {
 	LoaderQueues::iterator i = queues.find(dc);
 	if (i == queues.cend()) {
 		i = queues.insert(dc, mtpFileLoaderQueue());
@@ -43,8 +45,10 @@ mtpFileLoader::mtpFileLoader(int32 dc, const int64 &volume, int32 local, const i
 	queue = &i.value();
 }
 
-mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, mtpTypeId locType, const QString &to, int32 size) : next(0), prev(0), inQueue(false), complete(false), requestId(0), priority(0),
-	dc(dc), id(id), access(access), type(MTP_storage_fileUnknown()), locationType(locType), file(to), initialSize(size) {
+mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, mtpTypeId locType, const QString &to, int32 size) : prev(0), next(0),
+    priority(0), inQueue(false), complete(false), requestId(0),
+	dc(dc), locationType(locType),
+    id(id), access(access), file(to), initialSize(size), type(MTP_storage_fileUnknown()) {
 	LoaderQueues::iterator i = queues.find(MTP::dld + dc);
 	if (i == queues.cend()) {
 		i = queues.insert(MTP::dld + dc, mtpFileLoaderQueue());
@@ -145,7 +149,7 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result) {
 		const string &bytes(d.vbytes.c_string().v);
 		if (bytes.size()) {
 			if (file.isOpen()) {
-				if (file.write(bytes.data(), bytes.size()) != bytes.size()) {
+				if (file.write(bytes.data(), bytes.size()) != qint64(bytes.size())) {
 					return finishFail();
 				}
 			} else {
@@ -318,7 +322,7 @@ bool mtpFileLoader::loading() const {
 }
 
 void mtpFileLoader::started(bool loadFirst, bool prior) {
-	if (queue->queries >= MaxFileQueries && (!loadFirst || !prior) || complete) return;
+	if ((queue->queries >= MaxFileQueries && (!loadFirst || !prior)) || complete) return;
 	loadPart();
 }
 
