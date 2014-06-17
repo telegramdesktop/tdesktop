@@ -84,8 +84,6 @@ private:
 	RestoreBtn _restore;
 	CloseBtn _close;
 
-	int32 availWidth;
-
 	bool lastMaximized;
 
 };

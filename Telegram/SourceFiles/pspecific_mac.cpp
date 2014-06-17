@@ -130,7 +130,7 @@ posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/iconround
 }
 
 void PsMainWindow::psIdleTimeout() {
-    int64 idleTime = _idleTime();
+    int64 idleTime = objc_idleTime();
     if (idleTime >= 0) {
         if (idleTime <= IdleMsecs) {
             psIdle = false;
@@ -147,7 +147,7 @@ bool PsMainWindow::psIsOnline(int state) const {
 	} else if (!isVisible()) {
 		return false;
 	}
-    int64 idleTime = _idleTime();
+    int64 idleTime = objc_idleTime();
     LOG(("App Info: idle time %1").arg(idleTime));
     if (idleTime >= 0) {
         if (idleTime > IdleMsecs) {
@@ -1624,26 +1624,11 @@ void psPostprocessFile(const QString &name) {
 }
 
 void psOpenFile(const QString &name, bool openWith) {
-    /*std::wstring wname = QDir::toNativeSeparators(name).toStdWString();
-
-	if (openWith && useOpenAs) {
-		if (shOpenWithDialog) {
-			OPENASINFO info;
-			info.oaifInFlags = OAIF_ALLOW_REGISTRATION | OAIF_REGISTER_EXT | OAIF_EXEC;
-			info.pcszClass = NULL;
-			info.pcszFile = wname.c_str();
-			shOpenWithDialog(0, &info);
-		} else {
-			openAs_RunDLL(0, 0, wname.c_str(), SW_SHOWNORMAL);
-		}
-	} else {
-		ShellExecute(0, L"open", wname.c_str(), 0, 0, SW_SHOWNORMAL);
-    }*/
+    objc_openFile(name.toUtf8().constData(), openWith);
 }
 
 void psShowInFolder(const QString &name) {
-    //QString nameEscaped = QDir::toNativeSeparators(name).replace('"', qsl("\"\""));
-    //ShellExecute(0, 0, qsl("explorer").toStdWString().c_str(), (qsl("/select,") + nameEscaped).toStdWString().c_str(), 0, SW_SHOWNORMAL);
+    objc_showInFinder(name.toUtf8().constData(), QFileInfo(name).absolutePath().toUtf8().constData());
 }
 
 void psExecUpdater() {

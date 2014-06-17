@@ -48,6 +48,9 @@ public:
     
 };
 
-void _debugShowAlert(const char *utf8str);
-void _outputDebugString(const char *utf8str);
-int64 _idleTime();
+void objc_debugShowAlert(const char *utf8str);
+void objc_outputDebugString(const char *utf8str);
+int64 objc_idleTime();
+
+void objc_showInFinder(const char *utf8file, const char *utf8path);
+void objc_openFile(const char *utf8file, bool openwith);

@@ -18,9 +18,9 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "stdafx.h"
 #include "pspecific_mac_p.h"
 
-#include <AppKit/AppKit.h>
 #include <Cocoa/Cocoa.h>
 #include <IOKit/IOKitLib.h>
+#include <CoreFoundation/CFURL.h>
 
 @interface ObserverHelper : NSObject {
 }
@@ -201,7 +201,7 @@ void PsMacWindowPrivate::clearNotifies(unsigned long long peer) {
     }
 }
 
-void _debugShowAlert(const char *utf8str) {
+void objc_debugShowAlert(const char *utf8str) {
     NSString *text = [[NSString alloc] initWithUTF8String: utf8str];
     NSAlert *alert = [NSAlert alertWithMessageText:@"Debug Message" defaultButton:@"OK" alternateButton:nil otherButton:nil informativeTextWithFormat:@"%@", text];
     [alert runModal];
@@ -209,7 +209,7 @@ void _debugShowAlert(const char *utf8str) {
     [text release];
 }
 
-void _outputDebugString(const char *utf8str) {
+void objc_outputDebugString(const char *utf8str) {
     NSString *text = [[NSString alloc] initWithUTF8String:utf8str];
     NSLog(@"%@", text);
     [text release];
@@ -219,7 +219,7 @@ PsMacWindowPrivate::~PsMacWindowPrivate() {
     delete data;
 }
 
-int64 _idleTime() { // taken from https://github.com/trueinteractions/tint/issues/53
+int64 objc_idleTime() { // taken from https://github.com/trueinteractions/tint/issues/53
     CFMutableDictionaryRef properties = 0;
     CFTypeRef obj;
     mach_port_t masterPort;
@@ -267,4 +267,107 @@ int64 _idleTime() { // taken from https://github.com/trueinteractions/tint/issue
     IOObjectRelease(curObj);
     IOObjectRelease(iter);
     return (result == err) ? -1 : int64(result);
+}
+
+void objc_showInFinder(const char *utf8file, const char *utf8path) {
+    NSString *file = [[NSString alloc] initWithUTF8String:utf8file], *path = [[NSString alloc] initWithUTF8String:utf8path];
+    [[NSWorkspace sharedWorkspace] selectFile:file inFileViewerRootedAtPath:path];
+    [file release];
+    [path release];
+}
+
+@interface NSURL(CompareUrls)
+
+- (BOOL) isEquivalent:(NSURL *)aURL;
+
+@end
+
+@implementation NSURL(CompareUrls)
+
+- (BOOL) isEquivalent:(NSURL *)aURL {
+    if ([self isEqual:aURL]) return YES;
+    if ([[self scheme] caseInsensitiveCompare:[aURL scheme]] != NSOrderedSame) return NO;
+    if ([[self host] caseInsensitiveCompare:[aURL host]] != NSOrderedSame) return NO;
+    if ([[self path] compare:[aURL path]] != NSOrderedSame) return NO;
+    if ([[self port] compare:[aURL port]] != NSOrderedSame) return NO;
+    if ([[self query] compare:[aURL query]] != NSOrderedSame) return NO;
+    return YES;
+}
+
+@end
+
+@interface ChooseApplicationDelegate : NSObject<NSOpenSavePanelDelegate> {
+}
+
+- (id) init:(NSArray *)recommendedApps;
+- (BOOL) panel:(id)sender shouldEnableURL:(NSURL *)url;
+- (void) dealloc;
+
+@end
+
+@implementation ChooseApplicationDelegate {
+    BOOL onlyRecommended;
+    NSArray *apps;
+}
+
+- (id) init:(NSArray *)recommendedApps {
+    if (self = [super init]) {
+        onlyRecommended = YES;
+        apps = recommendedApps;
+    }
+    return self;
+}
+
+- (BOOL) panel:(id)sender shouldEnableURL:(NSURL *)url {
+    NSNumber *isDirectory;
+    if ([url getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil] && isDirectory != nil && [isDirectory boolValue]) {
+        if (onlyRecommended) {
+            CFStringRef ext = CFURLCopyPathExtension((CFURLRef)url);
+            NSNumber *isPackage;
+            if ([url getResourceValue:&isPackage forKey:NSURLIsPackageKey error:nil] && isPackage != nil && [isPackage boolValue]) {
+                if (apps) {
+                    for (id app in apps) {
+                        if ([(NSURL*)app isEquivalent:url]) {
+                            return YES;
+                        }
+                    }
+                }
+                return NO;
+            }
+        }
+        return YES;
+    }
+    return NO;
+}
+
+- (void) dealloc {
+    if (apps) {
+        [apps release];
+    }
+    [super dealloc];
+}
+
+@end
+
+void objc_openFile(const char *utf8file, bool openwith) {
+    NSString *file = [[NSString alloc] initWithUTF8String:utf8file];
+    if (openwith || [[NSWorkspace sharedWorkspace] openFile:file] == NO) {
+        NSURL *url = [NSURL fileURLWithPath:file];
+        NSArray *apps = (NSArray*)LSCopyApplicationURLsForURL(CFURLRef(url), kLSRolesAll);
+        
+        ChooseApplicationDelegate *delegate = [[ChooseApplicationDelegate alloc] init:apps];
+        NSOpenPanel *openPanel = [NSOpenPanel openPanel];
+        
+        [openPanel setCanChooseDirectories:NO];
+        [openPanel setCanChooseFiles:YES];
+        [openPanel setAllowsMultipleSelection:NO];
+        [openPanel setDelegate:delegate];
+        [openPanel setTitle:@"Choose Application"];
+        [openPanel setMessage:@"Choose an application to open the document \"blabla.png\"."];
+        if ([openPanel runModal] == NSOKButton) {
+            NSArray *result = [openPanel URLs];
+        }
+        [delegate release];
+    }
+    [file release];
 }

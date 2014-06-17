@@ -314,6 +314,7 @@ lng_context_copy_image: "Copy Image";
 lng_context_close_image: "Close Image";
 lng_context_cancel_download: "Cancel Download";
 lng_context_show_in_folder: "Show in Folder";
+lng_context_show_in_finder: "Show in Finder";
 lng_context_open_video: "Open Video";
 lng_context_save_video: "Save Video As...";
 lng_context_open_audio: "Open Audio";

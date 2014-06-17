@@ -59,7 +59,6 @@ TitleWidget::TitleWidget(Window *window)
 	, _maximize(this, window)
 	, _restore(this, window)
 	, _close(this, window)
-    , availWidth(460)
     , lastMaximized(!(window->windowState() & Qt::WindowMaximized))
 {
 

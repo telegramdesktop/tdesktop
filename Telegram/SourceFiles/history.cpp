@@ -1768,7 +1768,8 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, const QString &t
 	p.fillRect(0, _height, width, st::msgShadow, shadow->b);
 
 	if (_thumbw) {
-		p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), data->thumb->pix(_thumbw), QRect(_thumbx, _thumby, st::mediaThumbSize, st::mediaThumbSize));
+        int32 rf(cIntRetinaFactor());
+		p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), data->thumb->pix(_thumbw), QRect(_thumbx * rf, _thumby * rf, st::mediaThumbSize * rf, st::mediaThumbSize * rf));
 	} else {
 		p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), App::sprite(), (out ? st::mediaDocOutImg : st::mediaDocInImg));
 	}

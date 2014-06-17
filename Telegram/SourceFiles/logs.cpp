@@ -71,7 +71,7 @@ void debugLogWrite(const char *file, int32 line, const QString &v) {
 		OutputDebugString(reinterpret_cast<const wchar_t *>(msg.utf16()));
 #endif
 #ifdef Q_OS_MAC
-        _outputDebugString(msg.toUtf8().constData());
+        objc_outputDebugString(msg.toUtf8().constData());
 #endif
 	}
 }
