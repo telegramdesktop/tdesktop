@@ -15,9 +15,10 @@ GNU General Public License for more details.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014 John Preston, https://tdesktop.com
 */
-defaultFontFamily: 'Segoe UI';
-//defaultFontFamily: 'ThoolikaTraditionalUnicode';
-semibold: 'Segoe WP Semibold';
+defaultFontFamily: 'Open Sans';
+semibold: 'Open Sans Semibold';
+
+fsize: 13px;
 
 spriteFile: ':/gui/art/sprite.png' / 2:':/gui/art/sprite_125x.png' / 3:':/gui/art/sprite_150x.png' / 4:':/gui/art/sprite_200x.png';
 emojisFile: ':/gui/art/emoji.png' / 2:':/gui/art/emoji_125x.png' / 3:':/gui/art/emoji_150x.png' / 4:':/gui/art/emoji_200x.png';
@@ -70,7 +71,7 @@ titleGreen: #41a903;
 titleStatusColor: #999;
 titleTypingColor: #0080c0;
 
-statusFont: font(14px);
+statusFont: font(fsize);
 versionColor: #777;
 
 sysBtnDelta: 6px;
@@ -105,7 +106,7 @@ btnDefIconed: iconedButton {
 	color: white;
 	bgColor: white;
 	overBgColor: white;
-	font: font(14px);
+	font: font(fsize);
 
 	opacity: 0.78;
 	overOpacity: 1;
@@ -168,8 +169,8 @@ btnDefBack: flatButton(btnDefFlat) {
 	downBgColor: #b9b9b9;
 }
 
-linkFont: font(14px);
-linkOverFont: font(14px underline);
+linkFont: font(fsize);
+linkOverFont: font(fsize underline);
 btnDefLink: linkButton {
 	color: btnYesColor;
 	overColor: btnYesColor;
@@ -184,9 +185,9 @@ cbDefFlat: flatCheckbox {
 	disColor: #999;
 
 	height: 22px;
-	textTop: 0px;
+	textTop: 1px;
 	textLeft: 34px;
-	font: font(14px);
+	font: font(fsize);
 	duration: 200;
 	bgFunc: transition(easeOutCirc);
 	cursor: cursor(pointer);
@@ -292,7 +293,7 @@ scrollCountries: flatScroll(scrollDef) {
 lnkText: #0f7dc7;
 
 labelDefFlat: flatLabel {
-	font: font(14px);
+	font: font(fsize);
 	minWidth: 100px;
 	width: 0px;
 	align: align(left);
@@ -475,23 +476,23 @@ introErrLabel: flatLabel(labelDefFlat) {
 setWidth: 356px;
 setTop: 26px;
 setNameLeft: 3px;
-setNameTop: 0px;
-setNameFont: font(23px);
+setNameTop: 1px;
+setNameFont: font(22px);
 setPhoneFont: font(16px);
 setPhoneColor: #999;
-setPhoneTop: 38px;
+setPhoneTop: 39px;
 setPhoneLeft: 1px;
 setPhotoSize: 120px;
 setHeaderFont: font(20px);
 setHeaderColor: black;
 setHeaderSkip: 59px;
 setHeaderLeft: -1px;
-setHeaderTop: 21px;
+setHeaderTop: 22px;
 setLittleSkip: 9px;
 setSectionSkip: 25px;
 setVersionHeight: 41px;
 setVersionLeft: 36px;
-setVersionTop: 2px;
+setVersionTop: 3px;
 setVersionColor: #999;
 setBottom: 130px;
 setScroll: flatScroll(scrollDef) {
@@ -519,7 +520,7 @@ setTitleFrom: point(20px, 20px);
 setTitleFont: font(24px);
 setTitleColor: #000;
 setNameInput: flatInput(inpDefFlat) {
-	font: font(14px);
+	font: font(fsize);
 	height: 25px;
 	width: 170px;
 	textMrg: margins(3px, 3px, 3px, 3px);
@@ -527,7 +528,7 @@ setNameInput: flatInput(inpDefFlat) {
 setErrBG: #ffa5a5;
 setErrColor: #800000;
 setErrHeight: 30px;
-setErrFont: font(14px);
+setErrFont: font(fsize);
 
 btnSetUpload: flatButton(btnDefNext, btnDefBig) {
 	width: 206px;
@@ -591,7 +592,7 @@ dlgPaddingVer: 8px;
 dlgHeight: 62px;
 dlgPhotoPadding: 12px;
 
-dlgSep: 6px;
+dlgSep: 8px;
 
 dlgShadowColor: rgba(0, 0, 0, 24);//#ebebeb
 dlgShadow: 1px;
@@ -600,7 +601,7 @@ dlgMinWidth: 260px;
 dlgRichMinWidth: 150px;
 dlgMaxWidth: 540px;
 dlgFilter: flatInput(inpDefGray) {
-	font: font(14px);
+	font: font(fsize);
 	height: 34px;
 	bgColor: #f2f2f2;
 	phColor: #949494;
@@ -619,7 +620,7 @@ dlgScroll: flatScroll(scrollDef) {
 	topsh: 0px;
 	bottomsh: 0px;
 }
-dlgFont: font(14px);
+dlgFont: font(fsize);
 
 dlgDblCheckImg: sprite(302px, 23px, 17px, 11px);
 dlgCheckImg: sprite(320px, 23px, 17px, 11px);
@@ -631,19 +632,16 @@ dlgChatImg: sprite(302px, 51px, 16px, 11px);
 dlgActiveChatImg: sprite(322px, 51px, 16px, 11px);
 
 dlgChatImgLeft: 1px;
-dlgChatImgTop: 5px;
+dlgChatImgTop: 4px;
 dlgChatImgSkip: 22px;
 
 dlgCheckLeft: 5px;
-dlgCheckTop: 5px;
+dlgCheckTop: 4px;
 dlgCheckSkip: 3px;
 
-dlgFromFont: font(12px bold);
-dlgFromColor: #4981af;
-
-dlgHistFont: font(14px);
+dlgHistFont: font(fsize);
 dlgNameColor: #000;
-dlgNameTop: 1px;
+dlgNameTop: 2px;
 dlgSystemColor: #4981af;
 dlgTextColor: #888888;
 
@@ -669,7 +667,7 @@ dlgActiveDateColor: #d3e2ee;
 topBarHeight: 54px;
 topBarBG: white;
 topBarDuration: 200;
-topBarForwardPadding: margins(17px, 7px, 40px, 8px);
+topBarForwardPadding: margins(17px, 8px, 40px, 8px);
 topBarForwardAlpha: 0.6;
 topBarForwardImg: sprite(45px, 112px, 9px, 16px);
 topBarBackPadding: margins(15px, 7px, 9px, 7px);
@@ -689,20 +687,20 @@ topBarButton: flatButton(btnDefFlat) {
 	width: -40px;
 	height: 54px;
 
-	textTop: 18px;
-	overTextTop: 18px;
-	downTextTop: 19px;
+	textTop: 19px;
+	overTextTop: 19px;
+	downTextTop: 20px;
 
-	font: font(14px);
-	overFont: font(14px underline);
+	font: font(fsize);
+	overFont: font(fsize underline);
 }
 topBarActionButton: flatButton(btnDefNext, btnDefBig) {
 	textTop: 8px;
 	overTextTop: 8px;
 	downTextTop: 9px;
 
-	font: font(14px);
-	overFont: font(14px);
+	font: font(fsize);
+	overFont: font(fsize);
 	width: 101px;
 	height: 34px;
 }
@@ -711,10 +709,10 @@ topBarSelectedPos: point(18px, 18px);
 
 historyBG: #dfe4e8;
 msgMaxWidth: 550px;
-msgFont: font(14px);
-msgNameFont: font(14px semibold);
-msgServiceFont: font(14px semibold);
-msgServiceNameFont: font(14px semibold);
+msgFont: font(fsize);
+msgNameFont: font(fsize semibold);
+msgServiceFont: font(fsize semibold);
+msgServiceNameFont: font(fsize semibold);
 msgDateFont: font(13px);
 msgMinWidth: 190px;
 msgPhotoSize: 30px;
@@ -779,8 +777,8 @@ msgDogImg: sprite(213px, 93px, 126px, 126px);
 historyPadding: 10px;
 
 defaultTextStyle: textStyle {
-	lnkFlags: font(14px);
-	lnkOverFlags: font(14px underline);
+	lnkFlags: font(fsize);
+	lnkOverFlags: font(fsize underline);
 	lnkColor: btnYesColor;
 	lnkDownColor: btnYesHover;
 	selectBG: msgInSelectBG;
@@ -805,16 +803,16 @@ outTextStyle: textStyle(defaultTextStyle) {
 dlgTextStyle: textStyle(defaultTextStyle) {
 	lnkColor: dlgSystemColor;
 	lnkDownColor: dlgSystemColor;
-	lnkOverFlags: font(14px);
+	lnkOverFlags: font(fsize);
 }
 dlgActiveTextStyle: textStyle(defaultTextStyle) {
 	lnkColor: dlgActiveColor;
 	lnkDownColor: dlgActiveColor;
-	lnkOverFlags: font(14px);
+	lnkOverFlags: font(fsize);
 }
 
 mediaMaxWidth: 250px;
-mediaFont: font(14px);
+mediaFont: font(fsize);
 mediaPadding: margins(7px, 6px, 11px, 6px);
 mediaThumbSize: 48px;
 mediaDocOutImg: sprite(6px, 146px, 48px, 48px);
@@ -842,11 +840,11 @@ mediaSaveButton: flatButton(btnDefFlat) {
 	overTextTop: 7px;
 	downTextTop: 8px;
 
-	font: font(14px);
-	overFont: font(14px);
+	font: font(fsize);
+	overFont: font(fsize);
 }
 
-sendPadding: 8px;
+sendPadding: 9px;
 btnSend: flatButton(btnDefFlat) {
 	color: btnYesColor;
 	overColor: btnYesHover;
@@ -911,12 +909,12 @@ taMsgField: flatTextarea(taDefFlat) {
 	font: msgFont;
 }
 maxFieldHeight: 250px;
-minFieldHeight: 30px;
+minFieldHeight: 28px;
 
 newMsgSound: ':/gui/art/newmsg.wav';
 
 unreadBarHeight: 32px;
-unreadBarFont: font(14px semibold);
+unreadBarFont: font(fsize semibold);
 unreadBarBG: #fcfbfa;
 unreadBarBorder: titleShadowColor;
 unreadBarColor: #538bb4;
@@ -995,11 +993,11 @@ profileMaxWidth: 410px;
 profilePadding: margins(28px, 30px, 28px, 0px);
 profilePhotoSize: 120px;
 profileNameLeft: 21px;
-profileNameTop: -2px;
+profileNameTop: -1px;
 profileNameFont: font(20px);
 profileStatusLeft: 22px;
-profileStatusTop: 30px;
-profileStatusFont: font(14px);
+profileStatusTop: 31px;
+profileStatusFont: font(fsize);
 profilePhoneLeft: 20px;
 profilePhoneTop: 62px;
 profilePhoneFont: font(16px);
@@ -1009,20 +1007,20 @@ profileHeaderFont: font(20px);
 profileHeaderColor: black;
 profileHeaderSkip: 59px;
 profileHeaderLeft: -1px;
-profileHeaderTop: 21px;
+profileHeaderTop: 22px;
 
 profileListPhotoSize: 46px;
 profileListPadding: size(12px, 6px);
-profileListNameTop: 7px;
+profileListNameTop: 8px;
 profileListStatusBottom: 6px;
 profileHoverBG: #f1f1f1;
 profileActiveBG: #6294b9;
-profileSubFont: font(14px);
+profileSubFont: font(fsize);
 profileCheckRect: sprite(88px, 108px, 24px, 24px);
 profileCheckActiveRect: sprite(128px, 108px, 24px, 24px);
 profileCheckDeltaX: 18px;
 profileCheckDeltaY: 1px;
-profileListNameFont: font(14px semibold);
+profileListNameFont: font(fsize semibold);
 profileListNameColor: #000;
 profileOnlineColor: titleTypingColor;
 profileOfflineColor: titleStatusColor;
@@ -1136,7 +1134,7 @@ newGroupNamePadding: margins(12px, 15px, 12px, 13px);
 
 connectionSkip: 20px;
 inpConnectionHost: flatInput(inpDefGray) {
-	font: font(14px);
+	font: font(fsize);
 	height: 34px;
 	bgColor: #f2f2f2;
 	phColor: #949494;
@@ -1260,13 +1258,13 @@ dragPadding: margins(20px, 10px, 20px, 10px);
 
 dragHeight: 72px;
 
-selectedFont: font(14px);
+selectedFont: font(fsize);
 selectedColor: #777;
 selectedTop: 14px;
 
 downloadSkip: 20px;
 inpDownloadDir: flatInput(inpDefGray) {
-	font: font(14px);
+	font: font(fsize);
 	height: 34px;
 	bgColor: #fff;
 	textMrg: margins(5px, 2px, 5px, 4px);
@@ -1322,7 +1320,7 @@ rbEmoji: flatCheckbox {
 
 	textTop: 0px;
 	textLeft: 0px;
-	font: font(14px);
+	font: font(fsize);
 	duration: 200;
 	bgFunc: transition(easeOutCirc);
 	cursor: cursor(pointer);
@@ -1380,7 +1378,7 @@ rbEmojiSymbols: flatCheckbox(rbEmoji) {
 }
 emojiPanPadding: margins(10px, 5px, 0px, 5px);
 emojiPanSize: size(28px, 28px);
-emojiPanFont: font(14px);
+emojiPanFont: font(fsize);
 emojiPanText: #999;
 emojiPanSub: 0px;
 emojiPanDuration: 200;

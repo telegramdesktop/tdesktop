@@ -81,10 +81,9 @@ Application::Application(int argc, char *argv[]) : PsApplication(argc, argv),
 
 	installEventFilter(new _DebugWaiter(this));
 
-	QFontDatabase::addApplicationFont(qsl(":/gui/art/segoe_ui.ttf"));
-	QFontDatabase::addApplicationFont(qsl(":/gui/art/segoe_ui_semibold.ttf"));
-	QFontDatabase::addApplicationFont(qsl(":/gui/art/segoe_wp_semibold.ttf"));
-	QFontDatabase::addApplicationFont(qsl(":/gui/art/ThoolikaTrditionalUnicode.ttf"));
+	QFontDatabase::addApplicationFont(qsl(":/gui/art/OpenSans-Regular.ttf"));
+	QFontDatabase::addApplicationFont(qsl(":/gui/art/OpenSans-Bold.ttf"));
+	QFontDatabase::addApplicationFont(qsl(":/gui/art/OpenSans-Semibold.ttf"));
 
 	float64 dpi = primaryScreen()->logicalDotsPerInch();
 	if (dpi <= 108) { // 0-96-108

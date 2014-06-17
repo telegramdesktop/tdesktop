@@ -1,8 +1,8 @@
 <RCC>
     <qresource prefix="/gui">
-        <file>art/segoe_ui.ttf</file>
-        <file>art/segoe_ui_semibold.ttf</file>
-        <file>art/segoe_wp_semibold.ttf</file>
+        <file>art/OpenSans-Regular.ttf</file>
+        <file>art/OpenSans-Bold.ttf</file>
+        <file>art/OpenSans-Semibold.ttf</file>
         <file>art/newmsg.wav</file>
         <file>art/bg.png</file>
         <file>art/bg_125x.png</file>
@@ -18,7 +18,6 @@
         <file>art/emoji_200x.png</file>
         <file>art/blank.gif</file>
         <file>art/iconround256.png</file>
-        <file>art/ThoolikaTrditionalUnicode.ttf</file>
     </qresource>
     <qresource prefix="/ava">
         <file>art/chatcolor1.png</file>
