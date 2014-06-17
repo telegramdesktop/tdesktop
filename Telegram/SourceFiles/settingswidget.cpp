@@ -451,7 +451,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 	// general
 	top += st::setHeaderSkip;
 	_autoUpdate.move(_left, top);
-	_checkNow.move(_left + st::setWidth - _checkNow.width(), top); top += _autoUpdate.height();
+	_checkNow.move(_left + st::setWidth - _checkNow.width(), top + st::cbDefFlat.textTop); top += _autoUpdate.height();
 	_restartNow.move(_left + st::setWidth - _restartNow.width(), top + st::setVersionTop);
 	top += st::setVersionHeight;
 
