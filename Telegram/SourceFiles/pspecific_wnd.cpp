@@ -2639,6 +2639,9 @@ void psShowInFolder(const QString &name) {
 	ShellExecute(0, 0, qsl("explorer").toStdWString().c_str(), (qsl("/select,") + nameEscaped).toStdWString().c_str(), 0, SW_SHOWNORMAL);
 }
 
+void psFinish() {
+}
+
 void psExecUpdater() {
 	QString targs = qsl("-update");
 	if (cFromAutoStart()) targs += qsl(" -autostart");

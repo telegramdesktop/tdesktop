@@ -1385,3 +1385,13 @@ emojiPanSub: 0px;
 emojiPanDuration: 200;
 emojiPanHover: #f0f0f0;
 emojiPanRound: 2px;
+
+// Mac specific
+
+macAccessoryHeight: 90;
+macEnableFilterAdd: 2;
+macEnableFilterTop: 5;
+macSelectorTop: 6;
+macAlwaysThisAppTop: 4;
+macAppHintTop: 8;
+macCautionIconSize: size(16, 16);

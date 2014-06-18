@@ -259,3 +259,4 @@ void psExecTelegram();
 void psPostprocessFile(const QString &name);
 void psOpenFile(const QString &name, bool openWith = false);
 void psShowInFolder(const QString &name);
+void psFinish();

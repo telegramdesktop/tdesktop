@@ -271,7 +271,7 @@ void VideoOpenLink::onClick(Qt::MouseButton button) const {
 
 	QString already = data->already(true);
 	if (!already.isEmpty()) {
-		QDesktopServices::openUrl(QUrl::fromLocalFile(already));
+        psOpenFile(already);
 		return;
 	}
 	
@@ -331,7 +331,7 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 
 	QString already = data->already(true);
 	if (!already.isEmpty()) {
-		QDesktopServices::openUrl(QUrl::fromLocalFile(already));
+        psOpenFile(already);
 		return;
 	}
 	
@@ -391,7 +391,7 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 
 	QString already = data->already(true);
 	if (!already.isEmpty()) {
-		QDesktopServices::openUrl(QUrl::fromLocalFile(already));
+        psOpenFile(already);
 		return;
 	}
 	

@@ -54,3 +54,4 @@ int64 objc_idleTime();
 
 void objc_showInFinder(const char *utf8file, const char *utf8path);
 void objc_openFile(const char *utf8file, bool openwith);
+void objc_finish();

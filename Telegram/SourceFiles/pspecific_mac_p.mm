@@ -18,9 +18,46 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "stdafx.h"
 #include "pspecific_mac_p.h"
 
+#include "lang.h"
+
 #include <Cocoa/Cocoa.h>
 #include <IOKit/IOKitLib.h>
 #include <CoreFoundation/CFURL.h>
+
+class QNSString {
+public:
+    QNSString(const QString &str) : _str([[NSString alloc] initWithUTF8String:str.toUtf8().constData()]) {
+    }
+    QNSString &operator=(const QNSString &other) {
+        if (this != &other) {
+            [_str release];
+            _str = [other._str copy];
+        }
+        return *this;
+    }
+    QNSString(const QNSString &other) : _str([other._str copy]) {
+    }
+    ~QNSString() {
+        [_str release];
+    }
+
+    NSString *s() {
+        return _str;
+    }
+private:
+    NSString *_str;
+};
+
+typedef QMap<LangKey, QNSString> ObjcLang;
+ObjcLang objcLang;
+
+QNSString objc_lang(LangKey key) {
+    ObjcLang::const_iterator i = objcLang.constFind(key);
+    if (i == objcLang.cend()) {
+        i = objcLang.insert(key, lang(key));
+    }
+    return i.value();
+}
 
 @interface ObserverHelper : NSObject {
 }
@@ -299,8 +336,10 @@ void objc_showInFinder(const char *utf8file, const char *utf8path) {
 @interface ChooseApplicationDelegate : NSObject<NSOpenSavePanelDelegate> {
 }
 
-- (id) init:(NSArray *)recommendedApps;
+- (id) init:(NSArray *)recommendedApps withPanel:(NSOpenPanel *)creator withSelector:(NSPopUpButton *)menu withGood:(NSTextField *)goodLabel withBad:(NSTextField *)badLabel withIcon:(NSImageView *)badIcon withAccessory:(NSView *)acc;
 - (BOOL) panel:(id)sender shouldEnableURL:(NSURL *)url;
+- (void) panelSelectionDidChange:(id)sender;
+- (void) menuDidClose;
 - (void) dealloc;
 
 @end
@@ -308,14 +347,39 @@ void objc_showInFinder(const char *utf8file, const char *utf8path) {
 @implementation ChooseApplicationDelegate {
     BOOL onlyRecommended;
     NSArray *apps;
+    NSOpenPanel *panel;
+    NSPopUpButton *selector;
+    NSTextField *good, *bad;
+    NSImageView *icon;
+    NSString *recom;
+    NSView *accessory;
 }
 
-- (id) init:(NSArray *)recommendedApps {
+- (id) init:(NSArray *)recommendedApps withPanel:(NSOpenPanel *)creator withSelector:(NSPopUpButton *)menu withGood:(NSTextField *)goodLabel withBad:(NSTextField *)badLabel withIcon:(NSImageView *)badIcon withAccessory:(NSView *)acc {
     if (self = [super init]) {
         onlyRecommended = YES;
+        recom = [objc_lang(lng_mac_recommended_apps).s() copy];
         apps = recommendedApps;
+        panel = creator;
+        selector = menu;
+        good = goodLabel;
+        bad = badLabel;
+        icon = badIcon;
+        accessory = acc;
+        [selector setAction:@selector(menuDidClose)];
     }
     return self;
+}
+
+- (BOOL) isRecommended:(NSURL *)url {
+    if (apps) {
+        for (id app in apps) {
+            if ([(NSURL*)app isEquivalent:url]) {
+                return YES;
+            }
+        }
+    }
+    return NO;
 }
 
 - (BOOL) panel:(id)sender shouldEnableURL:(NSURL *)url {
@@ -325,14 +389,7 @@ void objc_showInFinder(const char *utf8file, const char *utf8path) {
             CFStringRef ext = CFURLCopyPathExtension((CFURLRef)url);
             NSNumber *isPackage;
             if ([url getResourceValue:&isPackage forKey:NSURLIsPackageKey error:nil] && isPackage != nil && [isPackage boolValue]) {
-                if (apps) {
-                    for (id app in apps) {
-                        if ([(NSURL*)app isEquivalent:url]) {
-                            return YES;
-                        }
-                    }
-                }
-                return NO;
+                return [self isRecommended:url];
             }
         }
         return YES;
@@ -340,9 +397,59 @@ void objc_showInFinder(const char *utf8file, const char *utf8path) {
     return NO;
 }
 
+- (void) panelSelectionDidChange:(id)sender {
+    NSArray *urls = [panel URLs];
+    if ([urls count]) {
+        if ([self isRecommended:[urls firstObject]]) {
+            [bad removeFromSuperview];
+            [icon removeFromSuperview];
+            [accessory addSubview:good];
+        } else {
+            [good removeFromSuperview];
+            [accessory addSubview:bad];
+            [accessory addSubview:icon];
+        }
+    } else {
+        [good removeFromSuperview];
+        [bad removeFromSuperview];
+        [icon removeFromSuperview];
+    }
+}
+
+- (void) menuDidClose {
+    onlyRecommended = [[[selector selectedItem] title] isEqualToString:recom];
+    [self refreshPanelTable];
+}
+
+- (BOOL) refreshDataInViews: (NSArray*)subviews {
+    for (id view in subviews) {
+        NSString *cls = [view className];
+        if ([cls isEqualToString:@"FI_TBrowserTableView"]) {
+            [view reloadData];
+        } else if ([cls isEqualToString:@"FI_TListView"] || [cls isEqualToString:@"FI_TIconView"]) {
+            [view reloadData];
+            return YES;
+        } else {
+            NSArray *next = [view subviews];
+            if ([next count] && [self refreshDataInViews:next]) {
+                return YES;
+            }
+        }
+    }
+    
+    return NO;
+}
+
+
+- (void) refreshPanelTable {
+    [self refreshDataInViews:[[panel contentView] subviews]];
+    [panel validateVisibleColumns];
+}
+
 - (void) dealloc {
     if (apps) {
         [apps release];
+        [recom release];
     }
     [super dealloc];
 }
@@ -352,22 +459,150 @@ void objc_showInFinder(const char *utf8file, const char *utf8path) {
 void objc_openFile(const char *utf8file, bool openwith) {
     NSString *file = [[NSString alloc] initWithUTF8String:utf8file];
     if (openwith || [[NSWorkspace sharedWorkspace] openFile:file] == NO) {
-        NSURL *url = [NSURL fileURLWithPath:file];
-        NSArray *apps = (NSArray*)LSCopyApplicationURLsForURL(CFURLRef(url), kLSRolesAll);
-        
-        ChooseApplicationDelegate *delegate = [[ChooseApplicationDelegate alloc] init:apps];
-        NSOpenPanel *openPanel = [NSOpenPanel openPanel];
-        
-        [openPanel setCanChooseDirectories:NO];
-        [openPanel setCanChooseFiles:YES];
-        [openPanel setAllowsMultipleSelection:NO];
-        [openPanel setDelegate:delegate];
-        [openPanel setTitle:@"Choose Application"];
-        [openPanel setMessage:@"Choose an application to open the document \"blabla.png\"."];
-        if ([openPanel runModal] == NSOKButton) {
-            NSArray *result = [openPanel URLs];
+        @try {
+            NSURL *url = [NSURL fileURLWithPath:file];
+            NSString *ext = [url pathExtension];
+            NSArray *names =[url pathComponents];
+            NSString *name = [names count] ? [names lastObject] : @"";
+            NSArray *apps = (NSArray*)LSCopyApplicationURLsForURL(CFURLRef(url), kLSRolesAll);
+            
+            NSOpenPanel *openPanel = [NSOpenPanel openPanel];
+            
+            NSView *accessory = [[NSView alloc] init];
+            
+            [openPanel setAccessoryView:accessory];
+            NSRect fullRect = [[accessory superview] frame];
+            fullRect.origin = NSMakePoint(0, 0);
+            fullRect.size.height = st::macAccessoryHeight;
+            [accessory setFrame:fullRect];
+            [accessory setAutoresizesSubviews:YES];
+            
+            NSPopUpButton *selector = [[NSPopUpButton alloc] init];
+            [accessory addSubview:selector];
+            [selector addItemWithTitle:objc_lang(lng_mac_recommended_apps).s()];
+            [selector addItemWithTitle:objc_lang(lng_mac_all_apps).s()];
+            [selector sizeToFit];
+            
+            NSTextField *enableLabel = [[NSTextField alloc] init];
+            [accessory addSubview:enableLabel];
+            [enableLabel setStringValue:objc_lang(lng_mac_enable_filter).s()];
+            [enableLabel setFont:[selector font]];
+            [enableLabel setBezeled:NO];
+            [enableLabel setDrawsBackground:NO];
+            [enableLabel setEditable:NO];
+            [enableLabel setSelectable:NO];
+            [enableLabel sizeToFit];
+
+            NSRect selectorFrame = [selector frame], enableFrame = [enableLabel frame];
+            enableFrame.size.width += st::macEnableFilterAdd;
+            enableFrame.origin.x = (fullRect.size.width - selectorFrame.size.width - enableFrame.size.width) / 2.;
+            selectorFrame.origin.x = (fullRect.size.width - selectorFrame.size.width + enableFrame.size.width) / 2.;
+            enableFrame.origin.y = fullRect.size.height - selectorFrame.size.height - st::macEnableFilterTop + (selectorFrame.size.height - enableFrame.size.height) / 2.;
+            selectorFrame.origin.y = fullRect.size.height - selectorFrame.size.height - st::macSelectorTop;
+            [enableLabel setFrame:enableFrame];
+            [enableLabel setAutoresizingMask:NSViewMinXMargin|NSViewMaxXMargin];
+            [selector setFrame:selectorFrame];
+            [selector setAutoresizingMask:NSViewMinXMargin|NSViewMaxXMargin];
+
+            NSButton *button = [[NSButton alloc] init];
+            [accessory addSubview:button];
+            [button setButtonType:NSSwitchButton];
+            [button setFont:[selector font]];
+            [button setTitle:objc_lang(lng_mac_always_open_with).s()];
+            [button sizeToFit];
+            NSRect alwaysRect = [button frame];
+            alwaysRect.origin.x = (fullRect.size.width - alwaysRect.size.width) / 2;
+            alwaysRect.origin.y = selectorFrame.origin.y - alwaysRect.size.height - st::macAlwaysThisAppTop;
+            [button setFrame:alwaysRect];
+            [button setAutoresizingMask:NSViewMinXMargin|NSViewMaxXMargin];
+            
+            NSTextField *goodLabel = [[NSTextField alloc] init];
+            [goodLabel setStringValue:[objc_lang(lng_mac_this_app_can_open).s() stringByReplacingOccurrencesOfString:@"{file}" withString:name]];
+            [goodLabel setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
+            [goodLabel setBezeled:NO];
+            [goodLabel setDrawsBackground:NO];
+            [goodLabel setEditable:NO];
+            [goodLabel setSelectable:NO];
+            [goodLabel sizeToFit];
+            NSRect goodFrame = [goodLabel frame];
+            goodFrame.origin.x = (fullRect.size.width - goodFrame.size.width) / 2.;
+            goodFrame.origin.y = alwaysRect.origin.y - goodFrame.size.height - st::macAppHintTop;
+            [goodLabel setFrame:goodFrame];
+            
+            NSTextField *badLabel = [[NSTextField alloc] init];
+            [badLabel setStringValue:[objc_lang(lng_mac_not_known_app).s() stringByReplacingOccurrencesOfString:@"{file}" withString:name]];
+            [badLabel setFont:[goodLabel font]];
+            [badLabel setBezeled:NO];
+            [badLabel setDrawsBackground:NO];
+            [badLabel setEditable:NO];
+            [badLabel setSelectable:NO];
+            [badLabel sizeToFit];
+            NSImageView *badIcon = [[NSImageView alloc] init];
+            NSImage *badImage = [NSImage imageNamed:NSImageNameCaution];
+            [badIcon setImage:badImage];
+            [badIcon setFrame:NSMakeRect(0, 0, st::macCautionIconSize.width(), st::macCautionIconSize.height())];
+            
+            NSRect badFrame = [badLabel frame], badIconFrame = [badIcon frame];
+            badFrame.origin.x = (fullRect.size.width - badFrame.size.width + badIconFrame.size.width) / 2.;
+            badIconFrame.origin.x = (fullRect.size.width - badFrame.size.width - badIconFrame.size.width) / 2.;
+            badFrame.origin.y = alwaysRect.origin.y - badFrame.size.height - st::macAppHintTop;
+            badIconFrame.origin.y = badFrame.origin.y;
+            [badLabel setFrame:badFrame];
+            [badIcon setFrame:badIconFrame];
+            
+            ChooseApplicationDelegate *delegate = [[ChooseApplicationDelegate alloc] init:apps withPanel:openPanel withSelector:selector withGood:goodLabel withBad:badLabel withIcon:badIcon withAccessory:accessory];
+            [openPanel setDelegate:delegate];
+            
+            [openPanel setCanChooseDirectories:NO];
+            [openPanel setCanChooseFiles:YES];
+            [openPanel setAllowsMultipleSelection:NO];
+            [openPanel setResolvesAliases:YES];
+            [openPanel setTitle:objc_lang(lng_mac_choose_app).s()];
+            [openPanel setMessage:[objc_lang(lng_mac_choose_text).s() stringByReplacingOccurrencesOfString:@"{file}" withString:name]];
+            
+            NSArray *appsPaths = [[NSFileManager defaultManager] URLsForDirectory:NSApplicationDirectory inDomains:NSLocalDomainMask];
+            if ([appsPaths count]) [openPanel setDirectoryURL:[appsPaths firstObject]];
+            [openPanel beginWithCompletionHandler:^(NSInteger result){
+                if (result == NSFileHandlingPanelOKButton) {
+                    if ([[openPanel URLs] count] > 0) {
+                        NSURL *app = [[openPanel URLs] objectAtIndex:0];
+                        NSString *path = [app path];
+                        if ([button state] == NSOnState) {
+                            NSArray *UTIs = (NSArray *)UTTypeCreateAllIdentifiersForTag(kUTTagClassFilenameExtension,
+                                                                                        (CFStringRef)ext,
+                                                                                        nil);
+                            for (NSString *UTI in UTIs) {
+                                LSSetDefaultRoleHandlerForContentType((CFStringRef)UTI,
+                                                                      kLSRolesEditor,
+                                                                      (CFStringRef)[[NSBundle bundleWithPath:path] bundleIdentifier]);
+                            }
+                            
+                            [UTIs release];
+                        }
+                        [[NSWorkspace sharedWorkspace] openFile:file withApplication:[app path]];
+                    }
+                }
+                [selector release];
+                [button release];
+                [enableLabel release];
+                [goodLabel release];
+                [badLabel release];
+                [badIcon release];
+                [accessory release];
+                [delegate release];
+            }];
         }
-        [delegate release];
+        @catch (NSException *exception) {
+            [[NSWorkspace sharedWorkspace] openFile:file];
+        }
+        @finally {
+        }
     }
     [file release];
+}
+
+void objc_finish() {
+    if (!objcLang.isEmpty()) {
+        objcLang.clear();
+    }
 }

@@ -380,5 +380,16 @@ This software is licensed under [a href=\"https://github.com/telegramdesktop/tde
 source code is available on [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 lng_about_done: "Done";
 
+// Mac specific
+
+lng_mac_choose_app: "Choose Application";
+lng_mac_choose_text: "Choose an application to open the document \"{file}\".";
+lng_mac_enable_filter: "Enable:";
+lng_mac_recommended_apps: "Recommended Applications";
+lng_mac_all_apps: "All Applications";
+lng_mac_always_open_with: "Always Open With";
+lng_mac_this_app_can_open: "This application can open \"{file}\".";
+lng_mac_not_known_app: "It's not known if this application can open \"{file}\".";
+
 // Keys finished
 

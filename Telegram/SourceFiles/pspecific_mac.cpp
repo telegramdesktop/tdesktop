@@ -1631,6 +1631,10 @@ void psShowInFolder(const QString &name) {
     objc_showInFinder(name.toUtf8().constData(), QFileInfo(name).absolutePath().toUtf8().constData());
 }
 
+void psFinish() {
+    objc_finish();
+}
+
 void psExecUpdater() {
     /*QString targs = qsl("-update");
 	if (cFromAutoStart()) targs += qsl(" -autostart");

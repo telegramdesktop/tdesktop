@@ -47,6 +47,8 @@ int main(int argc, char *argv[]) {
 
 	Application app(argc, argv);
 	int result = App::quiting() ? 0 : app.exec();
+    
+    psFinish();
 
 	DEBUG_LOG(("Application Info: Telegram done, result: %1").arg(result));
 
