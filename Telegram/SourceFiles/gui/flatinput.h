@@ -47,6 +47,8 @@ public:
 	QSize sizeHint() const;
 	QSize minimumSizeHint() const;
 
+	void customUpDown(bool isCustom);
+
 public slots:
 
 	void onTextChange(const QString &text);
@@ -70,6 +72,8 @@ private:
 
 	QString _ph, _oldtext;
 	QKeyEvent *_kev;
+
+	bool _customUpDown;
 
 	bool _phVisible;
 	anim::ivalue a_phLeft;

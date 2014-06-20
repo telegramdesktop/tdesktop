@@ -272,7 +272,6 @@ MainWidget::MainWidget(Window *window) : QWidget(window), failedObjId(0), _dialo
 	connect(this, SIGNAL(peerPhotoChanged(PeerData *)), this, SIGNAL(dialogsUpdated()));
 	connect(&noUpdatesTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
 	connect(&onlineTimer, SIGNAL(timeout()), this, SLOT(setOnline()));
-	connect(window->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(mainStateChanged(Qt::WindowState)));
 	connect(&onlineUpdater, SIGNAL(timeout()), this, SLOT(updateOnlineDisplay()));
 	connect(this, SIGNAL(peerUpdated(PeerData*)), &history, SLOT(peerUpdated(PeerData*)));
 	connect(&_topBar, SIGNAL(clicked()), this, SLOT(onTopBarClick()));

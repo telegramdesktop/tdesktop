@@ -736,6 +736,7 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
 	_filter.show();
 	_filter.move(st::dlgPaddingHor, st::dlgFilterPadding);
 	_filter.setFocusPolicy(Qt::StrongFocus);
+	_filter.customUpDown(true);
 	_addContact.hide();
 	_newGroup.show();
 	_newGroup.move(width() - _newGroup.width() - st::dlgPaddingHor, 0);

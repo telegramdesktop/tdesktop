@@ -444,6 +444,12 @@ QRect Window::iconRect() const {
 bool Window::eventFilter(QObject *obj, QEvent *evt) {
 	if (obj == App::app() && (evt->type() == QEvent::ApplicationActivate)) {
         QTimer::singleShot(1, this, SLOT(checkHistoryActivation()));
+	} else if (obj == this && evt->type() == QEvent::WindowStateChange) {
+		Qt::WindowState state = (windowState() & Qt::WindowMinimized) ? Qt::WindowMinimized : ((windowState() & Qt::WindowMaximized) ? Qt::WindowMaximized : ((windowState() & Qt::WindowFullScreen) ? Qt::WindowFullScreen : Qt::WindowNoState));
+		psStateChanged(state);
+		if (App::main()) {
+			App::main()->mainStateChanged(state);
+		}
 	}
 	return PsMainWindow::eventFilter(obj, evt);
 }

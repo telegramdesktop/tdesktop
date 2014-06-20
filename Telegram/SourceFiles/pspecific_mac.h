@@ -151,10 +151,12 @@ public slots:
 
 protected:
 
+	void psNotIdle() const;
+
 	bool posInited;
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
-    QImage icon16, icon32, icon256;
+    QImage icon256;
     virtual void setupTrayIcon() {
     }
     

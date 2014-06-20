@@ -119,25 +119,30 @@ void MacPrivate::notifyReplied(unsigned long long peer, const char *str) {
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
 posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/iconround256.png")) {
-    
-    //tbCreatedMsgId = RegisterWindowMessage(L"TaskbarButtonCreated");
-    icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
-    icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
     connect(&psIdleTimer, SIGNAL(timeout()), this, SLOT(psIdleTimeout()));
     psIdleTimer.setSingleShot(false);
 	connect(&notifyWaitTimer, SIGNAL(timeout()), this, SLOT(psNotifyFire()));
 	notifyWaitTimer.setSingleShot(true);
 }
 
+void PsMainWindow::psNotIdle() const {
+	psIdleTimer.stop();
+	if (psIdle) {
+		psIdle = false;
+		if (App::main()) App::main()->setOnline();
+		if (App::wnd()) App::wnd()->checkHistoryActivation();
+	}
+}
+
 void PsMainWindow::psIdleTimeout() {
     int64 idleTime = objc_idleTime();
     if (idleTime >= 0) {
         if (idleTime <= IdleMsecs) {
-            psIdle = false;
-            psIdleTimer.stop();
-            if (App::main()) App::main()->setOnline();
+			psNotIdle();
 		}
-    }
+    } else { // error
+		psNotIdle();
+	}
 }
 
 bool PsMainWindow::psIsOnline(int state) const {
@@ -157,16 +162,17 @@ bool PsMainWindow::psIsOnline(int state) const {
 			}
 			return false;
 		} else {
-			psIdle = false;
-			psIdleTimer.stop();
+			psNotIdle();
 		}
-    }
+    } else { // error
+		psNotIdle();
+	}
 	return true;
 }
 
 bool PsMainWindow::psIsActive(int state) const {
 	if (state < 0) state = this->windowState();
-    return isActiveWindow() && isVisible() && !(state & Qt::WindowMinimized);
+    return isActiveWindow() && isVisible() && !(state & Qt::WindowMinimized) && !psIdle;
 }
 
 void PsMainWindow::psRefreshTaskbarIcon() {

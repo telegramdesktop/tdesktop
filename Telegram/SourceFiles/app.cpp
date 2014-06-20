@@ -1225,7 +1225,9 @@ namespace App {
 		textlnkDown(TextLinkPtr());
 
 		if (completely) {
+			LOG(("Deleting sound.."));
 			delete newMsgSound;
+			LOG(("Sound deleted!"));
 			newMsgSound = 0;
 
 			delete ::sprite;

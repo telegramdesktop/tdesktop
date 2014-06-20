@@ -136,6 +136,8 @@ public slots:
 
 protected:
 
+	void psNotIdle() const;
+
 	bool posInited;
 	QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;

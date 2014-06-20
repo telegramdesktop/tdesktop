@@ -1979,6 +1979,8 @@ void HistoryWidget::onSend() {
 
 		MTP::send(MTPmessages_SendMessage(histInputPeer, msgText, MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId));
 		_field.setPlainText("");
+		if (!_attachType.isHidden()) _attachType.hideStart();
+		if (!_emojiPan.isHidden()) _emojiPan.hideStart();
 	}
 	_field.setFocus();
 }
