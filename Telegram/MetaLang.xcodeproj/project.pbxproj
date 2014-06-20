@@ -599,6 +599,7 @@
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)Lang$(EFFECTIVE_PLATFORM_NAME)";
 				COPY_PHASE_STRIP = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1.0;
 				DYLIB_CURRENT_VERSION = 1.0.0;
@@ -633,7 +634,7 @@
 					"/usr/local/Qt-5.3.0/plugins/imageformats",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
-				OBJROOT = ../Mac/DebugIntermediateLang/;
+				OBJROOT = ./../Mac/ReleaseIntermediateLang;
 				OTHER_CFLAGS = (
 					"-pipe",
 					"-g",
@@ -669,7 +670,7 @@
 				PRODUCT_NAME = MetaLang;
 				QT_LIBRARY_SUFFIX = "";
 				SDKROOT = macosx;
-				SYMROOT = ../Mac/ReleaseLang;
+				SYMROOT = ./../Mac;
 			};
 			name = Release;
 		};
@@ -683,6 +684,7 @@
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)Lang$(EFFECTIVE_PLATFORM_NAME)";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 1.0;
@@ -719,7 +721,7 @@
 					"/usr/local/Qt-5.3.0/plugins/imageformats",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.7;
-				OBJROOT = ../Mac/DebugIntermediateLang/;
+				OBJROOT = ./../Mac/DebugIntermediateLang;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CFLAGS = (
 					"-pipe",
@@ -756,7 +758,7 @@
 				PRODUCT_NAME = MetaLang;
 				QT_LIBRARY_SUFFIX = _debug;
 				SDKROOT = macosx;
-				SYMROOT = ../Mac/DebugLang;
+				SYMROOT = ./../Mac;
 			};
 			name = Debug;
 		};
@@ -764,7 +766,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
-				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)Lang$(EFFECTIVE_PLATFORM_NAME)";
 				COPY_PHASE_STRIP = YES;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				HEADER_SEARCH_PATHS = (
@@ -779,11 +780,9 @@
 					"/usr/local/Qt-5.3.0/mkspecs/macx-clang",
 				);
 				INSTALL_DIR = ../Mac/ReleaseLang/;
-				OBJROOT = ../Mac/ReleaseIntermediateLang;
 				PRODUCT_NAME = MetaLang;
 				QT_LIBRARY_SUFFIX = "";
 				SDKROOT = macosx;
-				SYMROOT = ./../Mac;
 			};
 			name = Release;
 		};
@@ -791,7 +790,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
-				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)Lang$(EFFECTIVE_PLATFORM_NAME)";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
@@ -808,11 +806,9 @@
 					"/usr/local/Qt-5.3.0/mkspecs/macx-clang",
 				);
 				INSTALL_DIR = ../Mac/DebugLang/;
-				OBJROOT = ../Mac/DebugIntermediateLang;
 				PRODUCT_NAME = MetaLang;
 				QT_LIBRARY_SUFFIX = _debug;
 				SDKROOT = macosx;
-				SYMROOT = ./../Mac;
 			};
 			name = Debug;
 		};

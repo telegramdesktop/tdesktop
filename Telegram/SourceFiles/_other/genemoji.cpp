@@ -17,8 +17,10 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #include "genemoji.h"
 
+#ifdef Q_OS_WIN
 #include <QtCore/QtPlugin>
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
+#endif
 
 typedef unsigned int uint32;
 
@@ -938,7 +940,7 @@ void writeEmojiCategory(QTextStream &tcpp, uint32 *emojiCategory, uint32 size, c
 	tcpp << "\t\tstatic QVector<EmojiPtr> v" << name << ";\n";
 	tcpp << "\t\tif (v" << name << ".isEmpty()) {\n";
 	tcpp << "\t\t\tv" << name << ".resize(" << size << ");\n";
-	for (int i = 0; i < size; ++i) {
+	for (uint32 i = 0; i < size; ++i) {
 		int index = 0;
 		for (EmojisData::const_iterator j = emojisData.cbegin(), e = emojisData.cend(); j != e; ++j) {
 			if (j->code == emojiCategory[i]) {
@@ -947,7 +949,7 @@ void writeEmojiCategory(QTextStream &tcpp, uint32 *emojiCategory, uint32 size, c
 			++index;
 		}
 		if (index == emojisData.size()) {
-			throw exception(QString("Could not find emoji from category '%1' with index %2, code %3").arg(name).arg(i).arg(emojiCategory[i]).toUtf8().constData());
+			throw Exception(QString("Could not find emoji from category '%1' with index %2, code %3").arg(name).arg(i).arg(emojiCategory[i]).toUtf8().constData());
 		}
 		tcpp << "\t\t\tv" << name << "[" << i << "] = &emojis[" << index << "];\n";
 	}
@@ -956,7 +958,7 @@ void writeEmojiCategory(QTextStream &tcpp, uint32 *emojiCategory, uint32 size, c
 	tcpp << "\t} break;\n\n";
 }
 
-bool genEmoji(QString emoji_in, const QString &emoji_out) {
+bool genEmoji(QString emoji_in, const QString &emoji_out, const QString &emoji_png) {
 	QDir d(emoji_in);
 	if (!d.exists()) {
 		cout << "Could not open emoji input dir '" << emoji_in.toUtf8().constData() << "'!\n";
@@ -1012,7 +1014,7 @@ bool genEmoji(QString emoji_in, const QString &emoji_out) {
 					if (data.code < min1) min1 = data.code;
 					if (data.code > max1) max1 = data.code;
 				}
-			} else if (high == 35 || high >= 48 && high < 58) { // digits
+			} else if (high == 35 || (high >= 48 && high < 58)) { // digits
 			} else {
 				if (data.code < min2) min2 = data.code;
 				if (data.code > max2) max2 = data.code;
@@ -1055,7 +1057,8 @@ bool genEmoji(QString emoji_in, const QString &emoji_out) {
 				cout << "Could not read image '" << name.toUtf8().constData() << "'!\n";
 			}
 		}
-		QString postfix = variantPostfix[variantIndex], emojif = "./SourceFiles/art/emoji" + postfix + ".png";
+		QString postfix = variantPostfix[variantIndex], emojif = emoji_png + postfix + ".png";
+		const char *tmp = emojif.toUtf8().constData();
 		QByteArray emojib;
 		{
 			QBuffer ebuf(&emojib);
@@ -1126,7 +1129,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 
 			tcpp << "void initEmoji() {\n";
 			tcpp << "\tEmojiData *toFill = emojis = (EmojiData*)emojisData;\n\n";
-			tcpp << "\tswitch (cScale()) {\n\n";
+			tcpp << "\tDBIScale emojiForScale = cRetina() ? dbisTwo : cScale();\n\n";
+			tcpp << "\tswitch (emojiForScale) {\n\n";
 			for (int variantIndex = 0; variantIndex < variantsCount; ++variantIndex) {
 				int imSize = imSizes[variantIndex];
 				tcpp << "\tcase " << variantNames[variantIndex] << ":\n";
@@ -1165,7 +1169,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 			tcpp << "\t\treturn 0;\n";
 			tcpp << "\t}\n\n";
 
-			tcpp << "\tif (highCode == 35 || highCode >= 48 && highCode < 58) {\n"; // digits
+			tcpp << "\tif (highCode == 35 || (highCode >= 48 && highCode < 58)) {\n"; // digits
 			tcpp << "\t\tif ((code & 0xFFFF) != 0x20E3) return 0;\n\n";
 			tcpp << "\t\tswitch (code) {\n";
 			for (; i != e; ++i) {
@@ -1194,7 +1198,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 			tcpp << "\tswitch (ch->unicode()) {\n";
 
 			QString tab("\t");
-			for (int i = 0; i < replacesCount; ++i) {
+			for (uint32 i = 0; i < replacesCount; ++i) {
 				QString key = QString::fromUtf8(replaces[i].replace);
 				replaceMap[key] = replaces[i].code;
 			}
@@ -1268,8 +1272,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 		}
 		if (write_cpp) {
 			cout << "Emoji updated, writing " << currentRow << " rows, full count " << emojisData.size() << " emojis.\n";
-			if (!cpp.open(QIODevice::WriteOnly)) throw exception("Could not open style_auto.cpp for writing!");
-			if (cpp.write(cppText) != cppText.size()) throw exception("Could not open style_auto.cpp for writing!");
+			if (!cpp.open(QIODevice::WriteOnly)) throw Exception("Could not open style_auto.cpp for writing!");
+			if (cpp.write(cppText) != cppText.size()) throw Exception("Could not open style_auto.cpp for writing!");
 		}/**/
 	} catch (exception &e) {
 		cout << e.what() << "\n";
