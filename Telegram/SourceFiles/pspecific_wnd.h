@@ -102,7 +102,7 @@ public:
 	void psFlash();
 	void psNotifySettingGot();
 
-	bool psIsActive() const;
+	bool psIsActive(int state = -1) const;
 	bool psIsOnline(int windowState) const;
 
 	void psUpdateWorkmode();

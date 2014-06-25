@@ -895,8 +895,9 @@ void PsMainWindow::psIdleTimeout() {
 	}
 }
 
-bool PsMainWindow::psIsActive() const {
-	return isActiveWindow() && isVisible() && !(windowState() & Qt::WindowMinimized) && !psIdle;
+bool PsMainWindow::psIsActive(int state) const {
+	if (state < 0) state = this->windowState();
+	return isActiveWindow() && isVisible() && !(state & Qt::WindowMinimized) && !psIdle;
 }
 
 bool PsMainWindow::psIsOnline(int windowState) const {
