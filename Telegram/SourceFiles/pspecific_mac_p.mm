@@ -26,21 +26,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 
 class QNSString {
 public:
-    QNSString(const QString &str) : _str([[NSString alloc] initWithUTF8String:str.toUtf8().constData()]) {
+    QNSString(const QString &str) : _str([NSString stringWithUTF8String:str.toUtf8().constData()]) {
     }
-    QNSString &operator=(const QNSString &other) {
-        if (this != &other) {
-            [_str release];
-            _str = [other._str copy];
-        }
-        return *this;
-    }
-    QNSString(const QNSString &other) : _str([other._str copy]) {
-    }
-    ~QNSString() {
-        [_str release];
-    }
-
     NSString *s() {
         return _str;
     }
@@ -163,10 +150,8 @@ PsMacWindowPrivate::PsMacWindowPrivate() : data(new PsMacWindowData(this)) {
     [center setDelegate:data->notifyHandler];
 }
 
-void PsMacWindowPrivate::setWindowBadge(const char *utf8str) {
-    NSString *badgeString = [[NSString alloc] initWithUTF8String:utf8str];
-    [[NSApp dockTile] setBadgeLabel:badgeString];
-    [badgeString release];
+void PsMacWindowPrivate::setWindowBadge(const QString &str) {
+    [[NSApp dockTile] setBadgeLabel:QNSString(str).s()];
 }
 
 void PsMacWindowPrivate::startBounce() {
@@ -190,25 +175,15 @@ void PsMacWindowPrivate::activateWnd(WId winId) {
     [wnd orderFront:wnd];
 }
 
-void PsMacWindowPrivate::showNotify(unsigned long long peer, const char *utf8title, const char *utf8subtitle, const char *utf8msg) {
+void PsMacWindowPrivate::showNotify(uint64 peer, const QString &title, const QString &subtitle, const QString &msg) {
     NSUserNotification *notification = [[NSUserNotification alloc] init];
     
-    NSDictionary *uinfo = [[NSDictionary alloc] initWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer],@"peer",[NSNumber numberWithUnsignedLongLong:cInstance()],@"inst",nil];
-    [notification setUserInfo:uinfo];
-    [uinfo release];
+    [notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer],@"peer",[NSNumber numberWithUnsignedLongLong:cInstance()],@"inst",nil]];
 
-    NSString *title = [[NSString alloc] initWithUTF8String:utf8title];
-    [notification setTitle:title];
-    [title release];
-    
-    NSString *subtitle = [[NSString alloc] initWithUTF8String:utf8subtitle];
-    [notification setSubtitle:subtitle];
-    [subtitle release];
+	[notification setTitle:QNSString(title).s()];
+    [notification setSubtitle:QNSString(subtitle).s()];
+    [notification setInformativeText:QNSString(msg).s()];
 
-    NSString *msg = [[NSString alloc] initWithUTF8String:utf8msg];
-    [notification setInformativeText:msg];
-    [msg release];
-    
     [notification setHasReplyButton:YES];
 
     [notification setSoundName:nil];
@@ -238,18 +213,12 @@ void PsMacWindowPrivate::clearNotifies(unsigned long long peer) {
     }
 }
 
-void objc_debugShowAlert(const char *utf8str) {
-    NSString *text = [[NSString alloc] initWithUTF8String: utf8str];
-    NSAlert *alert = [NSAlert alertWithMessageText:@"Debug Message" defaultButton:@"OK" alternateButton:nil otherButton:nil informativeTextWithFormat:@"%@", text];
-    [alert runModal];
-    [alert release];
-    [text release];
+void objc_debugShowAlert(const QString &str) {
+    [[NSAlert alertWithMessageText:@"Debug Message" defaultButton:@"OK" alternateButton:nil otherButton:nil informativeTextWithFormat:@"%@", QNSString(str).s()] runModal];
 }
 
-void objc_outputDebugString(const char *utf8str) {
-    NSString *text = [[NSString alloc] initWithUTF8String:utf8str];
-    NSLog(@"%@", text);
-    [text release];
+void objc_outputDebugString(const QString &str) {
+    NSLog(@"%@", QNSString(str).s());
 }
 
 PsMacWindowPrivate::~PsMacWindowPrivate() {
@@ -306,11 +275,8 @@ int64 objc_idleTime() { // taken from https://github.com/trueinteractions/tint/i
     return (result == err) ? -1 : int64(result);
 }
 
-void objc_showInFinder(const char *utf8file, const char *utf8path) {
-    NSString *file = [[NSString alloc] initWithUTF8String:utf8file], *path = [[NSString alloc] initWithUTF8String:utf8path];
-    [[NSWorkspace sharedWorkspace] selectFile:file inFileViewerRootedAtPath:path];
-    [file release];
-    [path release];
+void objc_showInFinder(const QString &file, const QString &path) {
+    [[NSWorkspace sharedWorkspace] selectFile:QNSString(file).s() inFileViewerRootedAtPath:QNSString(path).s()];
 }
 
 @interface NSURL(CompareUrls)
@@ -456,8 +422,8 @@ void objc_showInFinder(const char *utf8file, const char *utf8path) {
 
 @end
 
-void objc_openFile(const char *utf8file, bool openwith) {
-    NSString *file = [[NSString alloc] initWithUTF8String:utf8file];
+void objc_openFile(const QString &f, bool openwith) {
+    NSString *file = QNSString(f).s();
     if (openwith || [[NSWorkspace sharedWorkspace] openFile:file] == NO) {
         @try {
             NSURL *url = [NSURL fileURLWithPath:file];
@@ -558,7 +524,7 @@ void objc_openFile(const char *utf8file, bool openwith) {
             [openPanel setAllowsMultipleSelection:NO];
             [openPanel setResolvesAliases:YES];
             [openPanel setTitle:objc_lang(lng_mac_choose_app).s()];
-            [openPanel setMessage:[objc_lang(lng_mac_choose_text).s() stringByReplacingOccurrencesOfString:@"{file}" withString:name]];
+            [openPanel setMessage:[[objc_lang(lng_mac_choose_text).s() stringByReplacingOccurrencesOfString:@"{file}" withString:name] stringByAppendingFormat:@"%d", [[NSProcessInfo processInfo] processIdentifier]]];
             
             NSArray *appsPaths = [[NSFileManager defaultManager] URLsForDirectory:NSApplicationDirectory inDomains:NSLocalDomainMask];
             if ([appsPaths count]) [openPanel setDirectoryURL:[appsPaths firstObject]];
@@ -605,4 +571,94 @@ void objc_finish() {
     if (!objcLang.isEmpty()) {
         objcLang.clear();
     }
+}
+
+BOOL _execUpdater(BOOL update = YES) {
+	NSString *path = @"", *args = @"";
+	@try {
+		path = [[NSBundle mainBundle] bundlePath];
+		if (!path) {
+			LOG(("Could not get bundle path!!"));
+			return NO;
+		}
+		path = [path stringByAppendingString:@"/Contents/Frameworks/Updater"];
+
+		NSMutableArray *args = [[NSMutableArray alloc] initWithObjects:@"-workpath", QNSString(cWorkingDir()).s(), @"-tosettings", @"-procid", nil];
+		[args addObject:[NSString stringWithFormat:@"%d", [[NSProcessInfo processInfo] processIdentifier]]];
+		if (!update) [args addObject:@"-noupdate"];
+		if (cFromAutoStart()) [args addObject:@"-autostart"];
+		if (cDebug()) [args addObject:@"-debug"];
+		if (cDataFile() != (cTestMode() ? qsl("data_test") : qsl("data"))) {
+			[args addObject:@"-key"];
+			[args addObject:QNSString(cDataFile()).s()];
+		}
+
+		DEBUG_LOG(("Application Info: executing %1 %2").arg(QString::fromUtf8([path cStringUsingEncoding:NSUTF8StringEncoding])).arg(QString::fromUtf8([[args componentsJoinedByString:@" "] cStringUsingEncoding:NSUTF8StringEncoding])));
+		if (![NSTask launchedTaskWithLaunchPath:path arguments:args]) {
+			LOG(("Task not launched while executing %1 %2").arg(QString::fromUtf8([path cStringUsingEncoding:NSUTF8StringEncoding])).arg(QString::fromUtf8([[args componentsJoinedByString:@" "] cStringUsingEncoding:NSUTF8StringEncoding])));
+			return NO;
+		}
+	}
+	@catch (NSException *exception) {
+		LOG(("Exception caught while executing %1 %2").arg(QString::fromUtf8([path cStringUsingEncoding:NSUTF8StringEncoding])).arg(QString::fromUtf8([args cStringUsingEncoding:NSUTF8StringEncoding])));
+		return NO;
+	}
+	@finally {
+	}
+	return YES;
+}
+
+bool objc_execUpdater() {
+	return !!_execUpdater();
+}
+
+void objc_execTelegram() {
+	_execUpdater(NO);
+}
+
+void objc_activateProgram() {
+	[NSApp activateIgnoringOtherApps:YES];
+}
+
+bool objc_moveFile(const QString &from, const QString &to) {
+	NSString *f = QNSString(from).s(), *t = QNSString(to).s();
+	if ([[NSFileManager defaultManager] fileExistsAtPath:t]) {
+		NSData *data = [NSData dataWithContentsOfFile:f];
+		if (data) {
+			if ([data writeToFile:t atomically:YES]) {
+				if ([[NSFileManager defaultManager] removeItemAtPath:f error:nil]) {
+					return true;
+				}
+			}
+		}
+	} else {
+		if ([[NSFileManager defaultManager] moveItemAtPath:f toPath:t error:nil]) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void objc_deleteDir(const QString &dir) {
+	[[NSFileManager defaultManager] removeItemAtPath:QNSString(dir).s() error:nil];
+}
+
+QString objc_appDataPath() {
+	NSURL *url = [[NSFileManager defaultManager] URLForDirectory:NSApplicationSupportDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
+	if (url) {
+		return QString::fromUtf8([[url path] fileSystemRepresentation]) + '/' + QString::fromWCharArray(AppName) + '/';
+	}
+	return QString();
+}
+
+QString objc_currentCountry() {
+	NSLocale *currentLocale = [NSLocale currentLocale];  // get the current locale.
+	NSString *countryCode = [currentLocale objectForKey:NSLocaleCountryCode];
+	return countryCode ? QString::fromUtf8([countryCode cStringUsingEncoding:NSUTF8StringEncoding]) : QString();
+}
+
+QString objc_currentLang() {
+	NSLocale *currentLocale = [NSLocale currentLocale];  // get the current locale.
+	NSString *currentLang = [currentLocale objectForKey:NSLocaleLanguageCode];
+	return currentLang ? QString::fromUtf8([currentLang cStringUsingEncoding:NSUTF8StringEncoding]) : QString();
 }

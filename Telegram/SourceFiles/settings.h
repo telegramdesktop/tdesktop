@@ -138,5 +138,6 @@ DeclareSetting(bool, CustomNotifies);
 DeclareReadSetting(uint64, Instance);
 
 DeclareReadSetting(DBIPlatform, Platform);
+DeclareReadSetting(QUrl, UpdateURL);
 
 void settingsParseArgs(int argc, char *argv[]);

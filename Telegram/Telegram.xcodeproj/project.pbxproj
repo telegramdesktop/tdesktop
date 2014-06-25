@@ -202,6 +202,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		07084688195445A700B5AE3A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 07084684195445A600B5AE3A /* Updater.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 07084678195445A600B5AE3A;
+			remoteInfo = Updater;
+		};
 		07C3AF22194335970016CFF1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 6DB9C3763D02B1415CD9D565 /* Project object */;
@@ -226,6 +233,7 @@
 		060A694B42A4555240009936 /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qtga.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qtga.pri"; sourceTree = "<absolute>"; };
 		06E379415713F34B83F99C35 /* app.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = app.cpp; path = SourceFiles/app.cpp; sourceTree = "<absolute>"; };
 		07055CC3194EE85B0008DEF6 /* libcrypto.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libcrypto.a; path = "./../../Libraries/openssl-xcode/libcrypto.a"; sourceTree = "<group>"; };
+		07084684195445A600B5AE3A /* Updater.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = Updater.xcodeproj; sourceTree = SOURCE_ROOT; };
 		075EB50EB07CF69FD62FB8DF /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_sql_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_sql_private.pri"; sourceTree = "<absolute>"; };
 		0771C4C94B623FC34BF62983 /* intro.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = intro.cpp; path = SourceFiles/intro/intro.cpp; sourceTree = "<absolute>"; };
 		07C3AF24194335ED0016CFF1 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Telegram/Images.xcassets; sourceTree = SOURCE_ROOT; };
@@ -652,6 +660,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		07084685195445A600B5AE3A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				07084689195445A700B5AE3A /* Updater */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		130BDDB6FC4D60CF394D95AF /* GeneratedFiles */ = {
 			isa = PBXGroup;
 			children = (
@@ -1139,6 +1155,7 @@
 		E8C543AB96796ECAA2E65C57 /* Telegram */ = {
 			isa = PBXGroup;
 			children = (
+				07084684195445A600B5AE3A /* Updater.xcodeproj */,
 				2EB56BE3C2D93CDAB0C52E67 /* Sources */,
 				25B08E2869634E9BCBA333A2 /* Generated Sources */,
 				74B182DB50CB5611B5C1C297 /* Supporting Files */,
@@ -1198,6 +1215,12 @@
 			mainGroup = E8C543AB96796ECAA2E65C57 /* Telegram */;
 			productRefGroup = FE0A091FDBFB3E9C31B7A1BD /* Products */;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = 07084685195445A600B5AE3A /* Products */;
+					ProjectRef = 07084684195445A600B5AE3A /* Updater.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				7CCA95B9FCAD34D929431AD6 /* Telegram */,
@@ -1206,6 +1229,16 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		07084689195445A700B5AE3A /* Updater */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.executable";
+			path = Updater;
+			remoteRef = 07084688195445A700B5AE3A /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
 
 /* Begin PBXResourcesBuildPhase section */
 		07C3AF25194336160016CFF1 /* Resources */ = {
@@ -1476,7 +1509,7 @@
 					./../../Libraries/QtStatic/qtbase/include,
 					./SourceFiles,
 					./GeneratedFiles,
-					./../../Libraries/lzma/C,
+					/usr/local/include,
 					"./../../Libraries/libexif-0.6.20",
 					"/usr/local/Qt-5.3.0/include",
 					"/usr/local/Qt-5.3.0/include/QtMultimedia",
@@ -1512,6 +1545,7 @@
 					"-Wall",
 					"-W",
 					"-fPIE",
+					"-D_WITH_DEBUG",
 					"-DQT_MULTIMEDIA_LIB",
 					"-DQT_WIDGETS_LIB",
 					"-DQT_NETWORK_LIB",
@@ -1532,6 +1566,7 @@
 					"-Wall",
 					"-W",
 					"-fPIE",
+					"-D_WITH_DEBUG",
 					"-DQT_MULTIMEDIA_LIB",
 					"-DQT_WIDGETS_LIB",
 					"-DQT_NETWORK_LIB",
@@ -1558,6 +1593,7 @@
 					"-L/usr/local/Qt-5.3.0/plugins/imageformats",
 					"-lz",
 					"-lm",
+					"-llzma",
 				);
 				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = "";
@@ -1596,7 +1632,7 @@
 					./../../Libraries/QtStatic/qtbase/include,
 					./SourceFiles,
 					./GeneratedFiles,
-					./../../Libraries/lzma/C,
+					/usr/local/include,
 					"./../../Libraries/libexif-0.6.20",
 					"/usr/local/Qt-5.3.0/include",
 					"/usr/local/Qt-5.3.0/include/QtMultimedia",
@@ -1681,6 +1717,7 @@
 					"-L/usr/local/Qt-5.3.0/plugins/imageformats",
 					"-lz",
 					"-lm",
+					"-llzma",
 				);
 				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = _debug;

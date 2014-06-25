@@ -528,7 +528,7 @@ void DialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
 
 		// draw check
 		if (last->out() && last->needCheck()) {
-			const QRect *check;
+			const style::sprite *check;
 			if (last->id > 0) {
 				if (last->unread()) {
 					check = act ? &st::dlgActiveCheckImg : &st::dlgCheckImg;
@@ -538,7 +538,7 @@ void DialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
 			} else {
 				check = act ? &st::dlgActiveSendImg : &st::dlgSendImg;
 			}
-			rectForName.setWidth(rectForName.width() - check->width() - st::dlgCheckSkip);
+			rectForName.setWidth(rectForName.width() - check->pxWidth() - st::dlgCheckSkip);
 			p.drawPixmap(QPoint(rectForName.left() + rectForName.width() + st::dlgCheckLeft, rectForName.top() + st::dlgCheckTop), App::sprite(), *check);
 		}
 

@@ -34,63 +34,9 @@ namespace {
 		bool nativeEventFilter(const QByteArray &eventType, void *message, long *result) {
 			Window *wnd = Application::wnd();
 			if (!wnd) return false;
-/*
-			MSG *msg = (MSG*)message;
-			if (msg->message == WM_ENDSESSION) {
-				App::quit();
-				return false;
-			}
-			if (msg->hwnd == wnd->psHwnd() || msg->hwnd && !wnd->psHwnd()) {
-				return mainWindowEvent(msg->hwnd, msg->message, msg->wParam, msg->lParam, (LRESULT*)result);
-			}*/
+
 			return false;
 		}
-/*
-		bool mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LRESULT *result) {
-			if (tbCreatedMsgId && msg == tbCreatedMsgId) {
-				if (CoCreateInstance(CLSID_TaskbarList, NULL, CLSCTX_ALL, IID_ITaskbarList3, (void**)&tbListInterface) != S_OK) {
-					tbListInterface = 0;
-				}
-			}
-			switch (msg) {
-
-			case WM_DESTROY: {
-				App::quit();
-			} return false;
-
-			case WM_ACTIVATE: {
-				if (LOWORD(wParam) == WA_CLICKACTIVE) {
-					App::wnd()->inactivePress(true);
-				}
-			} return false;
-
-            case WM_SIZE: {
-				if (App::wnd()) {
-					if (wParam == SIZE_MAXIMIZED || wParam == SIZE_RESTORED || wParam == SIZE_MINIMIZED) {
-						if (wParam != SIZE_RESTORED || App::wnd()->windowState() != Qt::WindowNoState) {
-							Qt::WindowState state = Qt::WindowNoState;
-							if (wParam == SIZE_MAXIMIZED) {
-								state = Qt::WindowMaximized;
-							} else if (wParam == SIZE_MINIMIZED) {
-								state = Qt::WindowMinimized;
-							}
-							emit App::wnd()->windowHandle()->windowStateChanged(state);
-						} else {
-							App::wnd()->psUpdatedPosition();
-						}
-						int changes = (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED) ? _PsShadowHidden : (_PsShadowResized | _PsShadowShown);
-						_psShadowWindows.update(changes);
-					}
-				}
-			} return false;
-
-			case WM_MOVE: {
-				_psShadowWindows.update(_PsShadowMoved);
-				App::wnd()->psUpdatedPosition();
-			} return false;
-            }
-			return false;
-		}*/
 	};
     _PsEventFilter *_psEventFilter = 0;
 
@@ -176,50 +122,9 @@ bool PsMainWindow::psIsActive(int state) const {
 }
 
 void PsMainWindow::psRefreshTaskbarIcon() {
-    /*QWidget *w = new QWidget(this);
-	w->setWindowFlags(Qt::Tool | Qt::FramelessWindowHint);
-	w->setGeometry(x() + 1, y() + 1, 1, 1);
-	QPalette p(w->palette());
-	p.setColor(QPalette::Background, st::titleBG->c);
-	QWindow *wnd = w->windowHandle();
-	w->setPalette(p);
-	w->show();
-	w->activateWindow();
-    delete w;*/
 }
 
 void PsMainWindow::psUpdateWorkmode() {
-    /*switch (cWorkMode()) {
-	case dbiwmWindowAndTray: {
-		setupTrayIcon();
-		HWND psOwner = (HWND)GetWindowLong(ps_hWnd, GWL_HWNDPARENT);
-		if (psOwner) {
-			SetWindowLong(ps_hWnd, GWL_HWNDPARENT, 0);
-			psRefreshTaskbarIcon();
-		}
-	} break;
-
-	case dbiwmTrayOnly: {
-		setupTrayIcon();
-		HWND psOwner = (HWND)GetWindowLong(ps_hWnd, GWL_HWNDPARENT);
-		if (!psOwner) {
-			SetWindowLong(ps_hWnd, GWL_HWNDPARENT, (LONG)ps_tbHider_hWnd);
-		}
-	} break;
-
-	case dbiwmWindowOnly: {
-		if (trayIconMenu) trayIconMenu->deleteLater();
-		trayIconMenu = 0;
-		if (trayIcon) trayIcon->deleteLater();
-		trayIcon = 0;
-
-		HWND psOwner = (HWND)GetWindowLong(ps_hWnd, GWL_HWNDPARENT);
-		if (psOwner) {
-			SetWindowLong(ps_hWnd, GWL_HWNDPARENT, 0);
-			psRefreshTaskbarIcon();
-		}
-	} break;
-    }*/
 }
 
 void PsMainWindow::psUpdateCounter() {
@@ -228,59 +133,38 @@ void PsMainWindow::psUpdateCounter() {
     setWindowTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
 
     QString cnt = (counter < 1000) ? QString("%1").arg(counter) : QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
-    _private.setWindowBadge(counter ? cnt.toUtf8().constData() : "");
+    _private.setWindowBadge(counter ? cnt : QString());
 }
-
-/*namespace {
-	HMONITOR enumMonitor = 0;
-	RECT enumMonitorWork;
-
-	BOOL CALLBACK _monitorEnumProc(
-	  _In_  HMONITOR hMonitor,
-	  _In_  HDC hdcMonitor,
-	  _In_  LPRECT lprcMonitor,
-	  _In_  LPARAM dwData
-	) {
-		MONITORINFOEX info;
-		info.cbSize = sizeof(info);
-		GetMonitorInfo(hMonitor, &info);
-		if (dwData == hashCrc32(info.szDevice, sizeof(info.szDevice))) {
-			enumMonitor = hMonitor;
-			enumMonitorWork = info.rcWork;
-			return FALSE;
-		}
-		return TRUE;
-	}
-}*/
 
 void PsMainWindow::psInitSize() {
 	setMinimumWidth(st::wndMinWidth);
 	setMinimumHeight(st::wndMinHeight);
 
 	TWindowPos pos(cWindowPos());
-	if (cDebug()) { // temp while design
-		pos.w = 800;
-		pos.h = 600;
-	}
 	QRect avail(QDesktopWidget().availableGeometry());
 	bool maximized = false;
 	QRect geom(avail.x() + (avail.width() - st::wndDefWidth) / 2, avail.y() + (avail.height() - st::wndDefHeight) / 2, st::wndDefWidth, st::wndDefHeight);
 	if (pos.w && pos.h) {
-		if (pos.y < 0) pos.y = 0;
-        //enumMonitor = 0;
-        //EnumDisplayMonitors(0, 0, &_monitorEnumProc, pos.moncrc);
-        /*if (enumMonitor) {
-			int32 w = enumMonitorWork.right - enumMonitorWork.left, h = enumMonitorWork.bottom - enumMonitorWork.top;
-			if (w >= st::wndMinWidth && h >= st::wndMinHeight) {
-				if (pos.w > w) pos.w = w;
-				if (pos.h > h) pos.h = h;
-				pos.x += enumMonitorWork.left;
-				pos.y += enumMonitorWork.top;
-				if (pos.x < enumMonitorWork.right - 10 && pos.y < enumMonitorWork.bottom - 10) {
-					geom = QRect(pos.x, pos.y, pos.w, pos.h);
+		QList<QScreen*> screens = App::app()->screens();
+		for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
+			QByteArray name = (*i)->name().toUtf8();
+			if (pos.moncrc == hashCrc32(name.constData(), name.size())) {
+				QRect screen((*i)->geometry());
+				int32 w = screen.width(), h = screen.height();
+				if (w >= st::wndMinWidth && h >= st::wndMinHeight) {
+					if (pos.w > w) pos.w = w;
+					if (pos.h > h) pos.h = h;
+					pos.x += screen.x();
+					pos.y += screen.y();
+					if (pos.x < screen.x() + screen.width() - 10 && pos.y < screen.y() + screen.height() - 10) {
+						geom = QRect(pos.x, pos.y, pos.w, pos.h);
+					}
 				}
+				break;
 			}
-        }*/
+		}
+
+		if (pos.y < 0) pos.y = 0;
 		maximized = pos.maximized;
 	}
 	setGeometry(geom);
@@ -300,31 +184,36 @@ void PsMainWindow::psInitFrameless() {
 void PsMainWindow::psSavePosition(Qt::WindowState state) {
     if (state == Qt::WindowActive) state = windowHandle()->windowState();
 	if (state == Qt::WindowMinimized || !posInited) return;
-/*
+
 	TWindowPos pos(cWindowPos()), curPos = pos;
 
 	if (state == Qt::WindowMaximized) {
 		curPos.maximized = 1;
 	} else {
-		RECT w;
-		GetWindowRect(ps_hWnd, &w);
-		curPos.x = w.left;
-		curPos.y = w.top;
-		curPos.w = w.right - w.left;
-		curPos.h = w.bottom - w.top;
+		QRect r(geometry());
+		curPos.x = r.x();
+		curPos.y = r.y();
+		curPos.w = r.width();
+		curPos.h = r.height();
 		curPos.maximized = 0;
 	}
 
-	HMONITOR hMonitor = MonitorFromWindow(ps_hWnd, MONITOR_DEFAULTTONEAREST);
-	if (hMonitor) {
-		MONITORINFOEX info;
-		info.cbSize = sizeof(info);
-		GetMonitorInfo(hMonitor, &info);
-		if (!curPos.maximized) {
-			curPos.x -= info.rcWork.left;
-			curPos.y -= info.rcWork.top;
+	int px = curPos.x + curPos.w / 2, py = curPos.y + curPos.h / 2, d = 0;
+	QScreen *chosen = 0;
+	QList<QScreen*> screens = App::app()->screens();
+	for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
+		int dx = (*i)->geometry().x() + (*i)->geometry().width() / 2 - px; if (dx < 0) dx = -dx;
+		int dy = (*i)->geometry().y() + (*i)->geometry().height() / 2 - py; if (dy < 0) dy = -dy;
+		if (!chosen || dx + dy < d) {
+			d = dx + dy;
+			chosen = *i;
 		}
-		curPos.moncrc = hashCrc32(info.szDevice, sizeof(info.szDevice));
+	}
+	if (chosen) {
+		curPos.x -= chosen->geometry().x();
+		curPos.y -= chosen->geometry().y();
+		QByteArray name = chosen->name().toUtf8();
+		curPos.moncrc = hashCrc32(name.constData(), name.size());
 	}
 
 	if (curPos.w >= st::wndMinWidth && curPos.h >= st::wndMinHeight) {
@@ -332,20 +221,20 @@ void PsMainWindow::psSavePosition(Qt::WindowState state) {
 			cSetWindowPos(curPos);
 			App::writeConfig();
 		}
-    }*/
+    }
 }
 
 void PsMainWindow::psUpdatedPosition() {
-    //psUpdatedPositionTimer.start(4000);
+    psUpdatedPositionTimer.start(4000);
 }
 
 void PsMainWindow::psStateChanged(Qt::WindowState state) {
 	psUpdateSysMenu(state);
 	psUpdateMargins();
-    /*if (state == Qt::WindowMinimized && GetWindowLong(ps_hWnd, GWL_HWNDPARENT)) {
-		minimizeToTray();
-    }
-    psSavePosition(state);*/
+//    if (state == Qt::WindowMinimized && GetWindowLong(ps_hWnd, GWL_HWNDPARENT)) {
+//		minimizeToTray();
+//    }
+    psSavePosition(state);
 }
 
 void PsMainWindow::psFirstShow() {
@@ -620,7 +509,7 @@ void PsMainWindow::psShowNextNotify(PsNotifyWindow *remove) {
                     _private.showOverAll(notify->winId());
                     --count;
                 } else {
-                    _private.showNotify(notifyItem->history()->peer->id, notifyItem->history()->peer->name.toUtf8().constData(), notifyItem->notificationHeader().toUtf8().constData(), notifyItem->notificationText().toUtf8().constData());
+                    _private.showNotify(notifyItem->history()->peer->id, notifyItem->history()->peer->name, notifyItem->notificationHeader(), notifyItem->notificationText());
                 }
                 
 				uint64 ms = getms();
@@ -1083,23 +972,7 @@ void PsUpdateDownloader::partFailed(QNetworkReply::NetworkError e) {
 }
 
 void PsUpdateDownloader::deleteDir(const QString &dir) {
-    /*std::wstring wDir = QDir::toNativeSeparators(dir).toStdWString();
-	WCHAR path[4096];
-	memcpy(path, wDir.c_str(), (wDir.size() + 1) * sizeof(WCHAR));
-	path[wDir.size() + 1] = 0;
-	SHFILEOPSTRUCT file_op = {
-		NULL,
-		FO_DELETE,
-		path,
-		L"",
-		FOF_NOCONFIRMATION |
-		FOF_NOERRORUI |
-		FOF_SILENT,
-		false,
-		0,
-		L""
-	};
-    int res = SHFileOperation(&file_op);*/
+	objc_deleteDir(dir);
 }
 
 void PsUpdateDownloader::fatalFail() {
@@ -1111,15 +984,25 @@ void PsUpdateDownloader::clearAll() {
 	deleteDir(cWorkingDir() + qsl("tupdates"));
 }
 
+#ifdef Q_OS_WIN
+typedef DWORD VerInt;
+typedef WCHAR VerChar;
+#else
+typedef int VerInt;
+typedef wchar_t VerChar;
+#endif
+
 void PsUpdateDownloader::unpackUpdate() {
-    /*QByteArray packed;
+    QByteArray packed;
 	if (!outputFile.open(QIODevice::ReadOnly)) {
 		LOG(("Update Error: cant read updates file!"));
 		return fatalFail();
 	}
-
+#ifdef Q_OS_WIN // use Lzma SDK for win
 	const int32 hSigLen = 128, hShaLen = 20, hPropsLen = LZMA_PROPS_SIZE, hOriginalSizeLen = sizeof(int32), hSize = hSigLen + hShaLen + hPropsLen + hOriginalSizeLen; // header
-
+#else
+	const int32 hSigLen = 128, hShaLen = 20, hPropsLen = 0, hOriginalSizeLen = sizeof(int32), hSize = hSigLen + hShaLen + hOriginalSizeLen; // header
+#endif
 	QByteArray compressed = outputFile.readAll();
 	int32 compressedLen = compressed.size() - hSize;
 	if (compressedLen <= 0) {
@@ -1164,12 +1047,57 @@ void PsUpdateDownloader::unpackUpdate() {
 	uncompressed.resize(uncompressedLen);
 
 	size_t resultLen = uncompressed.size();
+#ifdef Q_OS_WIN // use Lzma SDK for win
 	SizeT srcLen = compressedLen;
 	int uncompressRes = LzmaUncompress((uchar*)uncompressed.data(), &resultLen, (const uchar*)(compressed.constData() + hSize), &srcLen, (const uchar*)(compressed.constData() + hSigLen + hShaLen), LZMA_PROPS_SIZE);
 	if (uncompressRes != SZ_OK) {
 		LOG(("Update Error: could not uncompress lzma, code: %1").arg(uncompressRes));
 		return fatalFail();
 	}
+#else
+	lzma_stream stream = LZMA_STREAM_INIT;
+
+	lzma_ret ret = lzma_stream_decoder(&stream, UINT64_MAX, LZMA_CONCATENATED);
+	if (ret != LZMA_OK) {
+		const char *msg;
+		switch (ret) {
+			case LZMA_MEM_ERROR: msg = "Memory allocation failed"; break;
+			case LZMA_OPTIONS_ERROR: msg = "Specified preset is not supported"; break;
+			case LZMA_UNSUPPORTED_CHECK: msg = "Specified integrity check is not supported"; break;
+			default: msg = "Unknown error, possibly a bug"; break;
+		}
+		LOG(("Error initializing the decoder: %1 (error code %2)").arg(msg).arg(ret));
+		return fatalFail();
+	}
+
+	stream.avail_in = compressedLen;
+	stream.next_in = (uint8_t*)(compressed.constData() + hSize);
+	stream.avail_out = resultLen;
+	stream.next_out = (uint8_t*)uncompressed.data();
+
+	lzma_ret res = lzma_code(&stream, LZMA_FINISH);
+	if (stream.avail_in) {
+		LOG(("Error in decompression, %1 bytes left in _in of %2 whole.").arg(stream.avail_in).arg(compressedLen));
+		return fatalFail();
+	} else if (stream.avail_out) {
+		LOG(("Error in decompression, %1 bytes free left in _out of %2 whole.").arg(stream.avail_out).arg(resultLen));
+		return fatalFail();
+	}
+	lzma_end(&stream);
+	if (res != LZMA_OK && res != LZMA_STREAM_END) {
+		const char *msg;
+		switch (res) {
+			case LZMA_MEM_ERROR: msg = "Memory allocation failed"; break;
+			case LZMA_FORMAT_ERROR: msg = "The input data is not in the .xz format"; break;
+			case LZMA_OPTIONS_ERROR: msg = "Unsupported compression options"; break;
+			case LZMA_DATA_ERROR: msg = "Compressed file is corrupt"; break;
+			case LZMA_BUF_ERROR: msg = "Compressed data is truncated or otherwise corrupt"; break;
+			default: msg = "Unknown error, possibly a bug"; break;
+		}
+		LOG(("Error in decompression: %1 (error code %2)").arg(msg).arg(res));
+		return fatalFail();
+	}
+#endif
 
 	tempDir.mkdir(tempDir.absolutePath());
 
@@ -1200,22 +1128,30 @@ void PsUpdateDownloader::unpackUpdate() {
 			LOG(("Update Error: update is empty!"));
 			return fatalFail();
 		}
-		for (int32 i = 0; i < filesCount; ++i) {
+		for (uint32 i = 0; i < filesCount; ++i) {
 			QString relativeName;
 			quint32 fileSize;
 			QByteArray fileInnerData;
+			bool executable = false;
 
 			stream >> relativeName >> fileSize >> fileInnerData;
+#if defined Q_OS_MAC || defined Q_OS_LINUX
+			stream >> executable;
+#endif
 			if (stream.status() != QDataStream::Ok) {
 				LOG(("Update Error: cant read file from downloaded stream, status: %1").arg(stream.status()));
 				return fatalFail();
 			}
-			if (fileSize != fileInnerData.size()) {
+			if (fileSize != quint32(fileInnerData.size())) {
 				LOG(("Update Error: bad file size %1 not matching data size %2").arg(fileSize).arg(fileInnerData.size()));
 				return fatalFail();
 			}
 
 			QFile f(tempDirPath + '/' + relativeName);
+			if (!QDir().mkpath(QFileInfo(f).absolutePath())) {
+				LOG(("Update Error: cant mkpath for file '%1'").arg(tempDirPath + '/' + relativeName));
+				return fatalFail();
+			}
 			if (!f.open(QIODevice::WriteOnly)) {
 				LOG(("Update Error: cant open file '%1' for writing").arg(tempDirPath + '/' + relativeName));
 				return fatalFail();
@@ -1226,13 +1162,19 @@ void PsUpdateDownloader::unpackUpdate() {
 				return fatalFail();
 			}
 			f.close();
+			if (executable) {
+				QFileDevice::Permissions p = f.permissions();
+				p |= QFileDevice::ExeOwner | QFileDevice::ExeUser | QFileDevice::ExeGroup | QFileDevice::ExeOther;
+				f.setPermissions(p);
+			}
 		}
 
 		// create tdata/version file
 		tempDir.mkdir(QDir(tempDirPath + qsl("/tdata")).absolutePath());
 		std::wstring versionString = ((version % 1000) ? QString("%1.%2.%3").arg(int(version / 1000000)).arg(int((version % 1000000) / 1000)).arg(int(version % 1000)) : QString("%1.%2").arg(int(version / 1000000)).arg(int((version % 1000000) / 1000))).toStdWString();
-		DWORD versionNum = DWORD(version), versionLen = DWORD(versionString.size() * sizeof(WCHAR));
-		WCHAR versionStr[32];
+
+		VerInt versionNum = VerInt(version), versionLen = VerInt(versionString.size() * sizeof(VerChar));
+		VerChar versionStr[32];
 		memcpy(versionStr, versionString.c_str(), versionLen);
 
 		QFile fVersion(tempDirPath + qsl("/tdata/version"));		
@@ -1240,8 +1182,8 @@ void PsUpdateDownloader::unpackUpdate() {
 			LOG(("Update Error: cant write version file '%1'").arg(tempDirPath + qsl("/version")));
 			return fatalFail();
 		}
-		fVersion.write((const char*)&versionNum, sizeof(DWORD));
-		fVersion.write((const char*)&versionLen, sizeof(DWORD));
+		fVersion.write((const char*)&versionNum, sizeof(VerInt));
+		fVersion.write((const char*)&versionLen, sizeof(VerInt));
 		fVersion.write((const char*)&versionStr[0], versionLen);
 		fVersion.close();
 	}
@@ -1253,7 +1195,7 @@ void PsUpdateDownloader::unpackUpdate() {
 	deleteDir(tempDirPath);
 	outputFile.remove();
 
-    emit App::app()->updateReady();*/
+    emit App::app()->updateReady();
 }
 
 PsUpdateDownloader::~PsUpdateDownloader() {
@@ -1261,208 +1203,22 @@ PsUpdateDownloader::~PsUpdateDownloader() {
 	reply = 0;
 }
 
-/*namespace {
-	BOOL CALLBACK _ActivateProcess(HWND hWnd, LPARAM lParam) {
-		uint64 &processId(*(uint64*)lParam);
-
-		DWORD dwProcessId;
-		::GetWindowThreadProcessId(hWnd, &dwProcessId);
-
-		if ((uint64)dwProcessId == processId) { // found top-level window
-			static const int32 nameBufSize = 1024;
-			WCHAR nameBuf[nameBufSize];
-			int32 len = GetWindowText(hWnd, nameBuf, nameBufSize);
-			if (len && len < nameBufSize) {
-				if (QRegularExpression(qsl("^Telegram(\\s*\\(\\d+\\))?$")).match(QString::fromStdWString(nameBuf)).hasMatch()) {
-					BOOL res = ::SetForegroundWindow(hWnd);
-					return FALSE;
-				}
-			}
-		}
-		return TRUE;
-	}
-}*/
-
 void psActivateProcess(uint64 pid) {
-    //::EnumWindows((WNDENUMPROC)_ActivateProcess, (LPARAM)&pid);
+	objc_activateProgram();
 }
 
 QString psCurrentCountry() {
-    /*int chCount = GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SISO3166CTRYNAME, 0, 0);
-	if (chCount && chCount < 128) {
-		WCHAR wstrCountry[128];
-		int len = GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SISO3166CTRYNAME, wstrCountry, chCount);
-		return len ? QString::fromStdWString(std::wstring(wstrCountry)) : QString::fromLatin1(DefaultCountry);
-	}
-    return QString::fromLatin1(DefaultCountry);*/
-    return QString("");
-    //TODO
+	QString country = objc_currentCountry();
+	return country.isEmpty() ? QString::fromLatin1(DefaultCountry) : country;
 }
 
-/*namespace {
-    QString langById(int lngId) {
-		int primary = lngId & 0xFF;
-		switch (primary) {
-			case 0x36: return qsl("af");
-			case 0x1C: return qsl("sq");
-			case 0x5E: return qsl("am");
-			case 0x01: return qsl("ar");
-			case 0x2B: return qsl("hy");
-			case 0x4D: return qsl("as");
-			case 0x2C: return qsl("az");
-			case 0x45: return qsl("bn");
-			case 0x6D: return qsl("ba");
-			case 0x2D: return qsl("eu");
-			case 0x23: return qsl("be");
-			case 0x1A:
-				if (lngId == LANG_CROATIAN) {
-					return qsl("hr");
-				} else if (lngId == LANG_BOSNIAN_NEUTRAL || lngId == LANG_BOSNIAN) {
-					return qsl("bs");
-				}
-				return qsl("sr");
-			break;
-			case 0x7E: return qsl("br");
-			case 0x02: return qsl("bg");
-			case 0x92: return qsl("ku");
-			case 0x03: return qsl("ca");
-			case 0x04: return qsl("zh");
-			case 0x83: return qsl("co");
-			case 0x05: return qsl("cs");
-			case 0x06: return qsl("da");
-			case 0x65: return qsl("dv");
-			case 0x13: return qsl("nl");
-			case 0x09: return qsl("en");
-			case 0x25: return qsl("et");
-			case 0x38: return qsl("fo");
-			case 0x0B: return qsl("fi");
-			case 0x0c: return qsl("fr");
-			case 0x62: return qsl("fy");
-			case 0x56: return qsl("gl");
-			case 0x37: return qsl("ka");
-			case 0x07: return qsl("de");
-			case 0x08: return qsl("el");
-			case 0x6F: return qsl("kl");
-			case 0x47: return qsl("gu");
-			case 0x68: return qsl("ha");
-			case 0x0D: return qsl("he");
-			case 0x39: return qsl("hi");
-			case 0x0E: return qsl("hu");
-			case 0x0F: return qsl("is");
-			case 0x70: return qsl("ig");
-			case 0x21: return qsl("id");
-			case 0x5D: return qsl("iu");
-			case 0x3C: return qsl("ga");
-			case 0x34: return qsl("xh");
-			case 0x35: return qsl("zu");
-			case 0x10: return qsl("it");
-			case 0x11: return qsl("ja");
-			case 0x4B: return qsl("kn");
-			case 0x3F: return qsl("kk");
-			case 0x53: return qsl("kh");
-			case 0x87: return qsl("rw");
-			case 0x12: return qsl("ko");
-			case 0x40: return qsl("ky");
-			case 0x54: return qsl("lo");
-			case 0x26: return qsl("lv");
-			case 0x27: return qsl("lt");
-			case 0x6E: return qsl("lb");
-			case 0x2F: return qsl("mk");
-			case 0x3E: return qsl("ms");
-			case 0x4C: return qsl("ml");
-			case 0x3A: return qsl("mt");
-			case 0x81: return qsl("mi");
-			case 0x4E: return qsl("mr");
-			case 0x50: return qsl("mn");
-			case 0x61: return qsl("ne");
-			case 0x14: return qsl("no");
-			case 0x82: return qsl("oc");
-			case 0x48: return qsl("or");
-			case 0x63: return qsl("ps");
-			case 0x29: return qsl("fa");
-			case 0x15: return qsl("pl");
-			case 0x16: return qsl("pt");
-			case 0x67: return qsl("ff");
-			case 0x46: return qsl("pa");
-			case 0x18: return qsl("ro");
-			case 0x17: return qsl("rm");
-			case 0x19: return qsl("ru");
-			case 0x3B: return qsl("se");
-			case 0x4F: return qsl("sa");
-			case 0x32: return qsl("tn");
-			case 0x59: return qsl("sd");
-			case 0x5B: return qsl("si");
-			case 0x1B: return qsl("sk");
-			case 0x24: return qsl("sl");
-			case 0x0A: return qsl("es");
-			case 0x41: return qsl("sw");
-			case 0x1D: return qsl("sv");
-			case 0x28: return qsl("tg");
-			case 0x49: return qsl("ta");
-			case 0x44: return qsl("tt");
-			case 0x4A: return qsl("te");
-			case 0x1E: return qsl("th");
-			case 0x51: return qsl("bo");
-			case 0x73: return qsl("ti");
-			case 0x1F: return qsl("tr");
-			case 0x42: return qsl("tk");
-			case 0x22: return qsl("uk");
-			case 0x20: return qsl("ur");
-			case 0x80: return qsl("ug");
-			case 0x43: return qsl("uz");
-			case 0x2A: return qsl("vi");
-			case 0x52: return qsl("cy");
-			case 0x88: return qsl("wo");
-			case 0x78: return qsl("ii");
-			case 0x6A: return qsl("yo");
-		}
-		return QString::fromLatin1(DefaultLanguage);
-	}
-}*/
-
 QString psCurrentLanguage() {
-/*	int chCount = GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SNAME, 0, 0);
-	if (chCount && chCount < 128) {
-		WCHAR wstrLocale[128];
-		int len = GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SNAME, wstrLocale, chCount);
-		if (!len) return QString::fromLatin1(DefaultLanguage);
-		QString locale = QString::fromStdWString(std::wstring(wstrLocale));
-		QRegularExpressionMatch m = QRegularExpression("(^|[^a-z])([a-z]{2})-").match(locale);
-		if (m.hasMatch()) {
-			return m.captured(2);
-		}
-	}
-	chCount = GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_ILANGUAGE, 0, 0);
-	if (chCount && chCount < 128) {
-		WCHAR wstrLocale[128];
-		int len = GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_ILANGUAGE, wstrLocale, chCount), lngId = 0;
-		if (len < 5) return QString::fromLatin1(DefaultLanguage);
-
-		for (int i = 0; i < 4; ++i) {
-			WCHAR ch = wstrLocale[i];
-			lngId *= 16;
-			if (ch >= WCHAR('0') && ch <= WCHAR('9')) {
-				lngId += (ch - WCHAR('0'));
-			} else if (ch >= WCHAR('A') && ch <= WCHAR('F')) {
-				lngId += (10 + ch - WCHAR('A'));
-			} else {
-				return QString::fromLatin1(DefaultLanguage);
-			}
-		}
-		return langById(lngId);
-	}
-    return QString::fromLatin1(DefaultLanguage);*/
-    return QString("en");
+	QString lng = objc_currentLang();
+	return lng.isEmpty() ? QString::fromLatin1(DefaultLanguage) : lng;
 }
 
 QString psAppDataPath() {
-    /*static const int maxFileLen = MAX_PATH * 10;
-	WCHAR wstrPath[maxFileLen];
-	if (GetEnvironmentVariable(L"APPDATA", wstrPath, maxFileLen)) {
-		QDir appData(QString::fromStdWString(std::wstring(wstrPath)));
-		return appData.absolutePath() + "/" + QString::fromWCharArray(AppName) + "/";
-    }*/
-	return QString();
+	return objc_appDataPath();
 }
 
 QString psCurrentExeDirectory(int argc, char *argv[]) {
@@ -1485,81 +1241,20 @@ void psDoCleanup() {
 }
 
 int psCleanup() {
-    /*__try
-	{
-		psDoCleanup();
-	}
-	__except(EXCEPTION_EXECUTE_HANDLER)
-	{
-		return 0;
-    }*/
+	psDoCleanup();
 	return 0;
 }
 
 void psDoFixPrevious() {
-    /*try {
-		static const int bufSize = 4096;
-		DWORD checkType, checkSize = bufSize * 2;
-		WCHAR checkStr[bufSize];
-
-		QString appId = QString::fromStdWString(AppId);
-		QString newKeyStr1 = QString("Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\%1_is1").arg(appId);
-		QString newKeyStr2 = QString("Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\%1_is1").arg(appId);
-		QString oldKeyStr1 = QString("SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\%1_is1").arg(appId);
-		QString oldKeyStr2 = QString("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\%1_is1").arg(appId);
-		HKEY newKey1, newKey2, oldKey1, oldKey2;
-		LSTATUS newKeyRes1 = RegOpenKeyEx(HKEY_CURRENT_USER, newKeyStr1.toStdWString().c_str(), 0, KEY_READ, &newKey1);
-		LSTATUS newKeyRes2 = RegOpenKeyEx(HKEY_CURRENT_USER, newKeyStr2.toStdWString().c_str(), 0, KEY_READ, &newKey2);
-		LSTATUS oldKeyRes1 = RegOpenKeyEx(HKEY_LOCAL_MACHINE, oldKeyStr1.toStdWString().c_str(), 0, KEY_READ, &oldKey1);
-		LSTATUS oldKeyRes2 = RegOpenKeyEx(HKEY_LOCAL_MACHINE, oldKeyStr2.toStdWString().c_str(), 0, KEY_READ, &oldKey2);
-		
-		bool existNew1 = (newKeyRes1 == ERROR_SUCCESS) && (RegQueryValueEx(newKey1, L"InstallDate", 0, &checkType, (BYTE*)checkStr, &checkSize) == ERROR_SUCCESS); checkSize = bufSize * 2;
-		bool existNew2 = (newKeyRes2 == ERROR_SUCCESS) && (RegQueryValueEx(newKey2, L"InstallDate", 0, &checkType, (BYTE*)checkStr, &checkSize) == ERROR_SUCCESS); checkSize = bufSize * 2;
-		bool existOld1 = (oldKeyRes1 == ERROR_SUCCESS) && (RegQueryValueEx(oldKey1, L"InstallDate", 0, &checkType, (BYTE*)checkStr, &checkSize) == ERROR_SUCCESS); checkSize = bufSize * 2;
-		bool existOld2 = (oldKeyRes2 == ERROR_SUCCESS) && (RegQueryValueEx(oldKey2, L"InstallDate", 0, &checkType, (BYTE*)checkStr, &checkSize) == ERROR_SUCCESS); checkSize = bufSize * 2;
-
-		if (newKeyRes1 == ERROR_SUCCESS) RegCloseKey(newKey1);
-		if (newKeyRes2 == ERROR_SUCCESS) RegCloseKey(newKey2);
-		if (oldKeyRes1 == ERROR_SUCCESS) RegCloseKey(oldKey1);
-		if (oldKeyRes2 == ERROR_SUCCESS) RegCloseKey(oldKey2);
-
-		if (existNew1 || existNew2) {
-			oldKeyRes1 = existOld1 ? RegDeleteKey(HKEY_LOCAL_MACHINE, oldKeyStr1.toStdWString().c_str()) : ERROR_SUCCESS;
-			oldKeyRes2 = existOld2 ? RegDeleteKey(HKEY_LOCAL_MACHINE, oldKeyStr2.toStdWString().c_str()) : ERROR_SUCCESS;
-		}
-
-		QString userDesktopLnk, commonDesktopLnk;
-		WCHAR userDesktopFolder[MAX_PATH], commonDesktopFolder[MAX_PATH];
-		HRESULT userDesktopRes = SHGetFolderPath(0, CSIDL_DESKTOPDIRECTORY, 0, SHGFP_TYPE_CURRENT, userDesktopFolder);
-		HRESULT commonDesktopRes = SHGetFolderPath(0, CSIDL_COMMON_DESKTOPDIRECTORY, 0, SHGFP_TYPE_CURRENT, commonDesktopFolder);
-		if (SUCCEEDED(userDesktopRes)) {
-			userDesktopLnk = QString::fromWCharArray(userDesktopFolder) + "\\Telegram.lnk";
-		}
-		if (SUCCEEDED(commonDesktopRes)) {
-			commonDesktopLnk = QString::fromWCharArray(commonDesktopFolder) + "\\Telegram.lnk";
-		}
-		QFile userDesktopFile(userDesktopLnk), commonDesktopFile(commonDesktopLnk);
-		if (QFile::exists(userDesktopLnk) && QFile::exists(commonDesktopLnk) && userDesktopLnk != commonDesktopLnk) {
-			bool removed = QFile::remove(commonDesktopLnk);
-		}
-	} catch (...) {
-    }*/
 }
 
 int psFixPrevious() {
-    /*__try
-	{
-		psDoFixPrevious();
-	}
-	__except(EXCEPTION_EXECUTE_HANDLER)
-	{
-		return 0;
-    }*/
+	psDoFixPrevious();
 	return 0;
 }
 
 bool psCheckReadyUpdate() {
-    /*QString readyPath = cWorkingDir() + qsl("tupdates/ready");
+    QString readyPath = cWorkingDir() + qsl("tupdates/ready");
 	if (!QDir(readyPath).exists()) {
 		return false;
 	}
@@ -1573,8 +1268,8 @@ bool psCheckReadyUpdate() {
 			PsUpdateDownloader::clearAll();
 			return false;
 		}
-		DWORD versionNum;
-		if (fVersion.read((char*)&versionNum, sizeof(DWORD)) != sizeof(DWORD)) {
+		VerInt versionNum;
+		if (fVersion.read((char*)&versionNum, sizeof(VerInt)) != sizeof(VerInt)) {
 			LOG(("Update Error: cant read version from file '%1'").arg(versionPath));
 			PsUpdateDownloader::clearAll();
 			return false;
@@ -1587,19 +1282,25 @@ bool psCheckReadyUpdate() {
 		}
 	}
 
+#ifdef Q_OS_WIN
 	QString curUpdater = (cExeDir() + "Updater.exe");
 	QFileInfo updater(cWorkingDir() + "tupdates/ready/Updater.exe");
+#elif defined Q_OS_MAC
+	QString curUpdater = (cExeDir() + "Telegram.app/Contents/Frameworks/Updater");
+	QFileInfo updater(cWorkingDir() + "tupdates/ready/Telegram.app/Contents/Frameworks/Updater");
+#endif
 	if (!updater.exists()) {
 		QFileInfo current(curUpdater);
 		if (!current.exists()) {
 			PsUpdateDownloader::clearAll();
 			return false;
 		}
-		if (CopyFile(current.absoluteFilePath().toStdWString().c_str(), updater.absoluteFilePath().toStdWString().c_str(), TRUE) == FALSE) {
+		if (!QFile(current.absoluteFilePath()).copy(updater.absoluteFilePath())) {
 			PsUpdateDownloader::clearAll();
 			return false;
 		}
 	}
+#ifdef Q_OS_WIN
 	if (CopyFile(updater.absoluteFilePath().toStdWString().c_str(), curUpdater.toStdWString().c_str(), FALSE) == FALSE) {
 		PsUpdateDownloader::clearAll();
 		return false;
@@ -1607,34 +1308,27 @@ bool psCheckReadyUpdate() {
 	if (DeleteFile(updater.absoluteFilePath().toStdWString().c_str()) == FALSE) {
 		PsUpdateDownloader::clearAll();
 		return false;
-    }*/
-    return false; // TODO
+    }
+#elif defined Q_OS_MAC
+	QFileInfo to(curUpdater);
+	QDir().mkpath(to.absolutePath());
+	if (!objc_moveFile(updater.absoluteFilePath(), curUpdater)) {
+		PsUpdateDownloader::clearAll();
+		return false;
+	}
+#endif
+    return true;
 }
 
 void psPostprocessFile(const QString &name) {
-    /*std::wstring zoneFile = QDir::toNativeSeparators(name).toStdWString() + L":Zone.Identifier";
-	HANDLE f = CreateFile(zoneFile.c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
-	if (f == INVALID_HANDLE_VALUE) { // :(
-		return;
-	}
-
-	const char data[] = "[ZoneTransfer]\r\nZoneId=3\r\n";
-
-	DWORD written = 0;
-	BOOL result = WriteFile(f, data, sizeof(data), &written, NULL);
-	CloseHandle(f);
-
-	if (!result || written != sizeof(data)) { // :(
-		return;
-    }*/
 }
 
 void psOpenFile(const QString &name, bool openWith) {
-    objc_openFile(name.toUtf8().constData(), openWith);
+    objc_openFile(name, openWith);
 }
 
 void psShowInFolder(const QString &name) {
-    objc_showInFinder(name.toUtf8().constData(), QFileInfo(name).absolutePath().toUtf8().constData());
+    objc_showInFinder(name, QFileInfo(name).absolutePath());
 }
 
 void psFinish() {
@@ -1642,69 +1336,15 @@ void psFinish() {
 }
 
 void psExecUpdater() {
-    /*QString targs = qsl("-update");
-	if (cFromAutoStart()) targs += qsl(" -autostart");
-	if (cDebug()) targs += qsl(" -debug");
-
-	QString updater(QDir::toNativeSeparators(cExeDir() + "Updater.exe")), wdir(QDir::toNativeSeparators(cWorkingDir()));
-
-	DEBUG_LOG(("Application Info: executing %1 %2").arg(cExeDir() + "Updater.exe").arg(targs));
-	HINSTANCE r = ShellExecute(0, 0, updater.toStdWString().c_str(), targs.toStdWString().c_str(), wdir.isEmpty() ? 0 : wdir.toStdWString().c_str(), SW_SHOWNORMAL);
-	if (long(r) < 32) {
-		DEBUG_LOG(("Application Error: failed to execute %1, working directory: '%2', result: %3").arg(updater).arg(wdir).arg(long(r)));
+	if (!objc_execUpdater()) {
 		QString readyPath = cWorkingDir() + qsl("tupdates/ready");
 		PsUpdateDownloader::deleteDir(readyPath);
-    }*/
+	}
 }
 
 void psExecTelegram() {
-    /*QString targs = qsl("-noupdate -tosettings");
-	if (cFromAutoStart()) targs += qsl(" -autostart");
-	if (cDebug()) targs += qsl(" -debug");
-	if (cDataFile() != (cTestMode() ? qsl("data_test") : qsl("data"))) targs += qsl(" -key \"") + cDataFile() + '"';
-
-	QString telegram(QDir::toNativeSeparators(cExeDir() + "Telegram.exe")), wdir(QDir::toNativeSeparators(cWorkingDir()));
-
-	DEBUG_LOG(("Application Info: executing %1 %2").arg(cExeDir() + "Telegram.exe").arg(targs));
-	HINSTANCE r = ShellExecute(0, 0, telegram.toStdWString().c_str(), targs.toStdWString().c_str(), wdir.isEmpty() ? 0 : wdir.toStdWString().c_str(), SW_SHOWNORMAL);
-	if (long(r) < 32) {
-		DEBUG_LOG(("Application Error: failed to execute %1, working directory: '%2', result: %3").arg(telegram).arg(wdir).arg(long(r)));
-    }*/
+	objc_execTelegram();
 }
 
 void psAutoStart(bool start, bool silent) {
-    /*WCHAR startupFolder[MAX_PATH];
-	HRESULT hres = SHGetFolderPath(0, CSIDL_STARTUP, 0, SHGFP_TYPE_CURRENT, startupFolder);
-	if (SUCCEEDED(hres)) {
-		QString lnk = QString::fromWCharArray(startupFolder) + "\\Telegram.lnk"; 
-		if (start) {
-			IShellLink* psl; 
-			hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl); 
-			if (SUCCEEDED(hres)) { 
-				IPersistFile* ppf; 
- 
-				QString exe = QDir::toNativeSeparators(QDir(cExeDir()).absolutePath() + "//Telegram.exe"), dir = QDir::toNativeSeparators(QDir(cWorkingDir()).absolutePath());
-				psl->SetArguments(L"-autostart");
-				psl->SetPath(exe.toStdWString().c_str());
-				psl->SetWorkingDirectory(dir.toStdWString().c_str());
-				psl->SetDescription(L"Telegram autorun link.\nYou can disable autorun in Telegram settings."); 
- 
-				hres = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf); 
- 
-				if (SUCCEEDED(hres)) { 
-					hres = ppf->Save(lnk.toStdWString().c_str(), TRUE); 
-					ppf->Release(); 
-				}  else {
-					if (!silent) LOG(("App Error: could not create interface IID_IPersistFile %1").arg(hres));
-				}
-				psl->Release(); 
-			} else {
-				if (!silent) LOG(("App Error: could not create instance of IID_IShellLink %1").arg(hres));
-			}
-		} else {
-			QFile::remove(lnk);
-		}
-	} else {
-		if (!silent) LOG(("App Error: could not get CSIDL_STARTUP folder %1").arg(hres));
-    }*/
 }

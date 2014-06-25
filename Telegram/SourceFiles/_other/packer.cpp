@@ -111,12 +111,26 @@ int32 *hashSha1(const void *data, uint32 len, void *dest) {
 
 int main(int argc, char *argv[])
 {
+	QString workDir;
+#ifdef Q_OS_MAC
+    if (QDir(QString()).absolutePath() == "/") {
+		QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
+		if (!first.isEmpty()) {
+			QFileInfo info(first);
+			if (info.exists()) {
+				QDir result(info.absolutePath() + "/../../..");
+				workDir = result.absolutePath() + '/';
+			}
+		}
+	}
+#endif
+
 	QString remove;
 	int version = 0;
 	QFileInfoList files;
 	for (int i = 0; i < argc; ++i) {
 		if (string("-path") == argv[i] && i + 1 < argc) {
-			QString path = QString(argv[i + 1]);
+			QString path = workDir + QString(argv[i + 1]);
 			QFileInfo info(path);
 			files.push_back(info);
 			if (remove.isEmpty()) remove = info.canonicalPath() + "/";
@@ -126,8 +140,12 @@ int main(int argc, char *argv[])
 	}
 
 	if (files.isEmpty() || remove.isEmpty() || version <= 1016 || version > 999999) { // not for release =)
+#ifdef Q_OS_WIN
 		cout << "Usage: Packer.exe -path {file} -version {version} OR Packer.exe -path {dir} -version {version}\n";
-		return 0;
+#elif defined Q_OS_MAC
+		cout << "Usage: Packer.app -path {file} -version {version} OR Packer.app -path {dir} -version {version}\n";
+#endif
+		return -1;
 	}
 
 	bool hasDirs = true;
@@ -147,6 +165,10 @@ int main(int argc, char *argv[])
 			} else if (!info.isReadable()) {
 				cout << "Can't read: " << info.absoluteFilePath().toUtf8().constData() << "\n";
 				return -1;
+			} else if (info.isHidden()) {
+				hasDirs = true;
+				files.erase(i);
+				break;
 			}
 		}
 	}
@@ -182,6 +204,9 @@ int main(int argc, char *argv[])
 			}
 			QByteArray inner = f.readAll();
 			stream << name << quint32(inner.size()) << inner;
+#if defined Q_OS_MAC || defined Q_OS_LINUX
+			stream << (QFileInfo(fullName).isExecutable() ? true : false);
+#endif
 		}
 		if (stream.status() != QDataStream::Ok) {
 			cout << "Stream status is bad: " << stream.status() << "\n";
@@ -193,20 +218,19 @@ int main(int argc, char *argv[])
 	cout << "Compression start, size: " << resultSize << "\n";
 
 	QByteArray compressed, resultCheck;
-
+#ifdef Q_OS_WIN // use Lzma SDK for win
 	const int32 hSigLen = 128, hShaLen = 20, hPropsLen = LZMA_PROPS_SIZE, hOriginalSizeLen = sizeof(int32), hSize = hSigLen + hShaLen + hPropsLen + hOriginalSizeLen; // header
 
 	compressed.resize(hSize + resultSize + 1024 * 1024); // rsa signature + sha1 + lzma props + max compressed size
 
 	size_t compressedLen = compressed.size() - hSize;
-	uchar outProps[LZMA_PROPS_SIZE];
 	size_t outPropsSize = LZMA_PROPS_SIZE;
 	int res = LzmaCompress((uchar*)(compressed.data() + hSize), &compressedLen, (const uchar*)(result.constData()), result.size(), (uchar*)(compressed.data() + hSigLen + hShaLen), &outPropsSize, 9, 64 * 1024 * 1024, 0, 0, 0, 0, 0);
 	if (res != SZ_OK) {
 		cout << "Error in compression: " << res << "\n";
 		return -1;
 	}
-	compressed.resize(hSize + compressedLen);
+	compressed.resize(int(hSize + compressedLen));
 	memcpy(compressed.data() + hSigLen + hShaLen + hPropsLen, &resultSize, hOriginalSizeLen);
 
 	cout << "Compressed to size: " << compressedLen << "\n";
@@ -228,10 +252,112 @@ int main(int argc, char *argv[])
 		cout << "Uncompress failed: " << uncompressRes << "\n";
 		return -1;
 	}
-	if (resultLen != result.size()) {
+	if (resultLen != size_t(result.size())) {
 		cout << "Uncompress bad size: " << resultLen << ", was: " << result.size() << "\n";
 		return -1;
 	}
+#else // use liblzma for others
+	const int32 hSigLen = 128, hShaLen = 20, hPropsLen = 0, hOriginalSizeLen = sizeof(int32), hSize = hSigLen + hShaLen + hOriginalSizeLen; // header
+
+	compressed.resize(hSize + resultSize + 1024 * 1024); // rsa signature + sha1 + lzma props + max compressed size
+
+	size_t compressedLen = compressed.size() - hSize;
+
+	lzma_stream stream = LZMA_STREAM_INIT;
+
+	int preset = 9 | LZMA_PRESET_EXTREME;
+	lzma_ret ret = lzma_easy_encoder(&stream, preset, LZMA_CHECK_CRC64);
+	if (ret != LZMA_OK) {
+		const char *msg;
+		switch (ret) {
+			case LZMA_MEM_ERROR: msg = "Memory allocation failed"; break;
+			case LZMA_OPTIONS_ERROR: msg = "Specified preset is not supported"; break;
+			case LZMA_UNSUPPORTED_CHECK: msg = "Specified integrity check is not supported"; break;
+			default: msg = "Unknown error, possibly a bug"; break;
+		}
+		cout << "Error initializing the encoder: " << msg << " (error code " << ret << ")\n";
+		return -1;
+	}
+
+	stream.avail_in = resultSize;
+	stream.next_in = (uint8_t*)result.constData();
+	stream.avail_out = compressedLen;
+	stream.next_out = (uint8_t*)(compressed.data() + hSize);
+
+	lzma_ret res = lzma_code(&stream, LZMA_FINISH);
+	compressedLen -= stream.avail_out;
+	lzma_end(&stream);
+	if (res != LZMA_OK && res != LZMA_STREAM_END) {
+		const char *msg;
+		switch (res) {
+			case LZMA_MEM_ERROR: msg = "Memory allocation failed"; break;
+			case LZMA_DATA_ERROR: msg = "File size limits exceeded"; break;
+			default: msg = "Unknown error, possibly a bug"; break;
+		}
+		cout << "Error in compression: " << msg << " (error code " << res << ")\n";
+		return -1;
+	}
+
+	compressed.resize(int(hSize + compressedLen));
+	memcpy(compressed.data() + hSigLen + hShaLen, &resultSize, hOriginalSizeLen);
+
+	cout << "Compressed to size: " << compressedLen << "\n";
+
+	cout << "Checking uncompressed..\n";
+
+	int32 resultCheckLen;
+	memcpy(&resultCheckLen, compressed.constData() + hSigLen + hShaLen, hOriginalSizeLen);
+	if (resultCheckLen <= 0 || resultCheckLen > 1024 * 1024 * 1024) {
+		cout << "Bad result len: " << resultCheckLen << "\n";
+		return -1;
+	}
+	resultCheck.resize(resultCheckLen);
+
+	size_t resultLen = resultCheck.size();
+
+	stream = LZMA_STREAM_INIT;
+
+	ret = lzma_stream_decoder(&stream, UINT64_MAX, LZMA_CONCATENATED);
+	if (ret != LZMA_OK) {
+		const char *msg;
+		switch (ret) {
+			case LZMA_MEM_ERROR: msg = "Memory allocation failed"; break;
+			case LZMA_OPTIONS_ERROR: msg = "Specified preset is not supported"; break;
+			case LZMA_UNSUPPORTED_CHECK: msg = "Specified integrity check is not supported"; break;
+			default: msg = "Unknown error, possibly a bug"; break;
+		}
+		cout << "Error initializing the decoder: " << msg << " (error code " << ret << ")\n";
+		return -1;
+	}
+
+	stream.avail_in = compressedLen;
+	stream.next_in = (uint8_t*)(compressed.constData() + hSize);
+	stream.avail_out = resultLen;
+	stream.next_out = (uint8_t*)resultCheck.data();
+
+	res = lzma_code(&stream, LZMA_FINISH);
+	if (stream.avail_in) {
+		cout << "Error in decompression, " << stream.avail_in << " bytes left in _in of " << compressedLen << " whole.\n";
+		return -1;
+	} else if (stream.avail_out) {
+		cout << "Error in decompression, " << stream.avail_out << " bytes free left in _out of " << resultLen << " whole.\n";
+		return -1;
+	}
+	lzma_end(&stream);
+	if (res != LZMA_OK && res != LZMA_STREAM_END) {
+		const char *msg;
+		switch (res) {
+			case LZMA_MEM_ERROR: msg = "Memory allocation failed"; break;
+			case LZMA_FORMAT_ERROR: msg = "The input data is not in the .xz format"; break;
+			case LZMA_OPTIONS_ERROR: msg = "Unsupported compression options"; break;
+			case LZMA_DATA_ERROR: msg = "Compressed file is corrupt"; break;
+			case LZMA_BUF_ERROR: msg = "Compressed data is truncated or otherwise corrupt"; break;
+			default: msg = "Unknown error, possibly a bug"; break;
+		}
+		cout << "Error in decompression: " << msg << " (error code " << res << ")\n";
+		return -1;
+	}
+#endif
 	if (memcmp(result.constData(), resultCheck.constData(), resultLen)) {
 		cout << "Data differ :(\n";
 		return -1;
@@ -242,7 +368,7 @@ int main(int argc, char *argv[])
 	cout << "Counting SHA1 hash..\n";
 
 	uchar sha1Buffer[20];
-	memcpy(compressed.data() + hSigLen, hashSha1(compressed.constData() + hSigLen + hShaLen, compressedLen + hPropsLen + hOriginalSizeLen, sha1Buffer), hShaLen); // count sha1
+	memcpy(compressed.data() + hSigLen, hashSha1(compressed.constData() + hSigLen + hShaLen, uint32(compressedLen + hPropsLen + hOriginalSizeLen), sha1Buffer), hShaLen); // count sha1
 
 	uint32 siglen = 0;
 
@@ -283,7 +409,15 @@ int main(int argc, char *argv[])
 	cout << "Signature verified!\n";
 	RSA_free(pbKey);
 
+#ifdef Q_OS_WIN
 	QString outName(QString("tupdate%1").arg(version));
+#elif defined Q_OS_MAC
+	QString outName(QString("tmacupd%1").arg(version));
+#elif defined Q_OS_LINUX
+	QString outName(QString("tlinuxupd%1").arg(version));
+#else
+#error Unknown platform!
+#endif
 	QFile out(outName);
 	if (!out.open(QIODevice::WriteOnly)) {
 		cout << "Can't open '" << outName.toUtf8().constData() << "' for write..\n";

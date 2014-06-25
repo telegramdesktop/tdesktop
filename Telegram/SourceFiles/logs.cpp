@@ -69,9 +69,8 @@ void debugLogWrite(const char *file, int32 line, const QString &v) {
 		debugLogStream->flush();
 #ifdef Q_OS_WIN
 		OutputDebugString(reinterpret_cast<const wchar_t *>(msg.utf16()));
-#endif
-#ifdef Q_OS_MAC
-        objc_outputDebugString(msg.toUtf8().constData());
+#elif defined Q_OS_MAC
+        objc_outputDebugString(msg);
 #endif
 	}
 }
@@ -118,9 +117,7 @@ void logsInit() {
 	if (mainLogStream) return;
     
 #ifdef Q_OS_MAC
-    if (QDir(cWorkingDir()).absolutePath() == qsl("/")) {
-        cSetWorkingDir(cExeDir());
-    }
+	cForceWorkingDir(psAppDataPath());
 #endif
 
 	QString oldDir = cWorkingDir();

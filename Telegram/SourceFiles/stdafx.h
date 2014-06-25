@@ -34,7 +34,11 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include <QtNetwork/QNetworkReply>
 #include <QtNetwork/QNetworkProxy>
 
+#ifdef Q_OS_WIN // use Lzma SDK for win
 #include <LzmaLib.h>
+#else
+#include <lzma.h>
+#endif
 
 #if defined Q_OS_WIN
 #define _NEED_WIN_GENERATE_DUMP

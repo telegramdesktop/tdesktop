@@ -450,6 +450,8 @@ bool Window::eventFilter(QObject *obj, QEvent *evt) {
 		if (App::main()) {
 			App::main()->mainStateChanged(state);
 		}
+	} else if (obj == this && (evt->type() == QEvent::Move || evt->type() == QEvent::Resize)) {
+		psUpdatedPosition();
 	}
 	return PsMainWindow::eventFilter(obj, evt);
 }
