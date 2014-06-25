@@ -1493,7 +1493,7 @@
 				COPY_PHASE_STRIP = YES;
 				CURRENT_PROJECT_VERSION = 0.5.4;
 				DYLIB_COMPATIBILITY_VERSION = 0.5;
-				DYLIB_CURRENT_VERSION = 0.5.4;
+				DYLIB_CURRENT_VERSION = 0.5.5;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_OPTIMIZATION_LEVEL = fast;
@@ -1557,6 +1557,7 @@
 					"-Wno-switch",
 					"-Wno-comment",
 					"-I./../../Libraries/openssl-xcode/include",
+					"-DCUSTOM_API_ID",
 				);
 				OTHER_CPLUSPLUSFLAGS = (
 					"-pipe",
@@ -1578,6 +1579,7 @@
 					"-Wno-switch",
 					"-Wno-comment",
 					"-I./../../Libraries/openssl-xcode/include",
+					"-DCUSTOM_API_ID",
 				);
 				OTHER_LDFLAGS = (
 					"-headerpad_max_install_names",
@@ -1616,7 +1618,7 @@
 				CURRENT_PROJECT_VERSION = 0.5.4;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 0.5;
-				DYLIB_CURRENT_VERSION = 0.5.4;
+				DYLIB_CURRENT_VERSION = 0.5.5;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
