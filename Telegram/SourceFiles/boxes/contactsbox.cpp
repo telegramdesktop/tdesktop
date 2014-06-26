@@ -24,7 +24,6 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "window.h"
 
 ContactsInner::ContactsInner() : _contacts(&App::main()->contactsList()), _sel(0), _filteredSel(-1), _mouseSel(false) {
-
 	_filter = qsl("a");
 	updateFilter();
 

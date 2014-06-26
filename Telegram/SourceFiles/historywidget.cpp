@@ -2352,7 +2352,9 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 	if (titlePeerText != text) {
 		titlePeerText = text;
 		titlePeerTextWidth = st::dlgHistFont->m.width(titlePeerText);
-		App::main()->topBar()->update();
+		if (App::main()) {
+			App::main()->topBar()->update();
+		}
 	}
 	updateOnlineDisplayTimer();
 }
