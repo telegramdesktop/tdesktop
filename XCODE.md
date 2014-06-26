@@ -24,11 +24,11 @@ or download in ZIP and extract to **/Users/user/TBuild/Libraries**, rename **ope
 
 http://www.openssl.org/source/ > Download [**openssl-1.0.1h.tar.gz**](http://www.openssl.org/source/openssl-1.0.1h.tar.gz) (4.3 Mb)
 
-Extract openssl-1.0.1h.tar.gz and copy everything from **openssl-1.0.1h** to **/Users/user/TBuild/Libraries/openssl-xcode** to have “/Users/user/TBuild/Libraries/openssl-xcode/include”
+Extract openssl-1.0.1h.tar.gz and copy everything from **openssl-1.0.1h** to **/Users/user/TBuild/Libraries/openssl-xcode** to have **/Users/user/TBuild/Libraries/openssl-xcode/include**
 
 #####Building library
 
-* Open **/Users/user/TBuild/Libraries/openssl-xcode/openssl.xcodeproj* with Xcode
+* Open **/Users/user/TBuild/Libraries/openssl-xcode/openssl.xcodeproj** with Xcode
 * Product > Build
 
 ####liblzma
@@ -94,4 +94,4 @@ building (**make** command) will take really long time.
 * Open MetaEmoji.xcodeproj and build for Debug (Release optionally)
 * Open MetaLang.xcodeproj and build for Debug (Release optionally)
 * Open Telegram.xcodeproj and build for Debug
-* Release Telegram build will require removing of **CUSTOM_API_ID** definition in Telegram target settings (Apple LLVM 5.1 - Custom Compiler Flags > Other C / C++ Flags > Release)
+* Release Telegram build will require removing **CUSTOM_API_ID** definition in Telegram target settings (Apple LLVM 5.1 - Custom Compiler Flags > Other C / C++ Flags > Release)

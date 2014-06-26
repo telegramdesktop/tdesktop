@@ -28,7 +28,7 @@ Only Windows and OS X systems are supported at this moment, Linux builds are on 
 
 ###[Build instructions for Visual Studio 2013](https://github.com/telegramdesktop/tdesktop/blob/master/MSVC.md)
 
-###[Build instructions for XCode 5.1.1](https://github.com/telegramdesktop/tdesktop/blob/master/MSVC.md)
+###[Build instructions for XCode 5.1.1](https://github.com/telegramdesktop/tdesktop/blob/master/XCODE.md)
 
 ##Projects in Telegram solution
 
