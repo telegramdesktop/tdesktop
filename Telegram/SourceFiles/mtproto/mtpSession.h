@@ -27,9 +27,9 @@ class MTPSessionData {
 public:
 	
 	MTPSessionData(MTProtoSession *creator)
-	: _session(0), _salt(0), fakeRequestId(-2000000000)
-	, _messagesSent(0), keyChecked(false)
-	, _owner(creator) {
+	: _session(0), _salt(0)
+	, _messagesSent(0), fakeRequestId(-2000000000)
+	, _owner(creator), keyChecked(false) {
 	}
 
 	void setSession(uint64 session) {

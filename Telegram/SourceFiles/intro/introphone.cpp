@@ -40,10 +40,13 @@ namespace {
 	};
 }
 
-IntroPhone::IntroPhone(IntroWidget *parent) : IntroStage(parent), changed(false),
+IntroPhone::IntroPhone(IntroWidget *parent) : IntroStage(parent),
+    errorAlpha(0), changed(false),
 	next(this, lang(lng_intro_next), st::btnIntroStart),
-	country(this, st::introCountry), errorAlpha(0), _signup(this, lang(lng_phone_notreg).replace(qsl("{signup}"), textcmdStartLink(1)).replace(qsl("{/signup}"), textcmdStopLink()), st::introErrLabel), _showSignup(false),
-	phone(this, st::inpIntroPhone, lang(lng_phone_ph)), code(this, st::inpIntroCountryCode) {
+	country(this, st::introCountry),
+	phone(this, st::inpIntroPhone, lang(lng_phone_ph)), code(this, st::inpIntroCountryCode),
+    _signup(this, lang(lng_phone_notreg).replace(qsl("{signup}"), textcmdStartLink(1)).replace(qsl("{/signup}"), textcmdStopLink()), st::introErrLabel),
+    _showSignup(false) {
 	setVisible(false);
 	setGeometry(parent->innerRect());
 

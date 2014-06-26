@@ -37,17 +37,17 @@ using std::exception;
 class Exception : public exception {
 public:
     
-    Exception(const QString &msg) : _msg(msg) {
+    Exception(const QString &msg) : _msg(msg.toUtf8()) {
 	}
     
     virtual const char *what() const throw() {
-        return _msg.toUtf8().constData();
+        return _msg.constData();
     }
     virtual ~Exception() throw() {
     }
     
 private:
-	QString _msg;
+	QByteArray _msg;
 };
 
 bool genStyles(const QString &classes_in, const QString &classes_out, const QString &styles_in, const QString &styles_out, const QString &path_to_sprites);

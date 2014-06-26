@@ -517,7 +517,7 @@ namespace {
 }
 
 MTPabstractTcpConnection::MTPabstractTcpConnection() :
-currentPos((char*)shortBuffer), packetRead(0), packetLeft(0), readingToShort(true), packetNum(0) {
+packetNum(0), packetRead(0), packetLeft(0), readingToShort(true), currentPos((char*)shortBuffer) {
 }
 
 void MTPabstractTcpConnection::socketRead() {
@@ -1033,22 +1033,22 @@ void MTProtoConnectionPrivate::createConn() {
 
 MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConnection *owner, MTPSessionData *data, uint32 _dc)
 	: QObject(0)
-	, dc(_dc)
-	, conn(0)
-	, retryTimeout(1)
-	, receiveDelay(MinReceiveDelay)
-	, firstSentAt(-1)
-	, oldConnection(true)
 	, _state(MTProtoConnection::Disconnected)
-	, _owner(owner)
-	, sessionData(data)
-	, keyId(0)
-	, pingId(0)
-	, toSendPingId(0)
-	, pingMsgId(0)
-	, restarted(false)
+    , dc(_dc)
+    , _owner(owner)
+    , conn(0)
+    , retryTimeout(1)
+    , oldConnection(true)
+    , receiveDelay(MinReceiveDelay)
+    , firstSentAt(-1)
 	, ackRequest(MTP_msgs_ack(MTPVector<MTPlong>()))
-	, myKeyLock(false)
+    , pingId(0)
+    , toSendPingId(0)
+    , pingMsgId(0)
+    , restarted(false)
+    , keyId(0)
+    , sessionData(data)
+    , myKeyLock(false)
 	, authKeyData(0) {
 
 	ackRequestData = &ackRequest._msgs_ack().vmsg_ids._vector().v;
@@ -1405,7 +1405,7 @@ void MTProtoConnectionPrivate::onReceivedSome() {
 		int32 ms = getms() - firstSentAt;
 		DEBUG_LOG(("MTP Info: response in %1ms, receiveDelay: %2ms").arg(ms).arg(receiveDelay));
 
-		if (ms > 0 && ms * 2 < receiveDelay) receiveDelay = qMax(ms * 2, int32(MinReceiveDelay));
+		if (ms > 0 && ms * 2 < int32(receiveDelay)) receiveDelay = qMax(ms * 2, int32(MinReceiveDelay));
 		firstSentAt = -1;
 	}
 }
@@ -1502,7 +1502,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 		uint32 seqNo = *(uint32*)&data[6], msgLen = *(uint32*)&data[7];
 		bool needAck = (seqNo & 0x01);
 
-		if (dataBuffer.size() < msgLen + 8 * sizeof(mtpPrime) || (msgLen & 0x03)) {
+		if (uint32(dataBuffer.size()) < msgLen + 8 * sizeof(mtpPrime) || (msgLen & 0x03)) {
 			LOG(("TCP Error: bad msg_len received %1, data size: %2").arg(msgLen).arg(dataBuffer.size()));
 			TCP_LOG(("TCP Error: bad message %1").arg(mb(encrypted, len * sizeof(mtpPrime)).str()));
 			conn->received().pop_front();
@@ -1987,7 +1987,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 		}
 
 		mtpRequestId requestId = wasSent(reqMsgId.v);
-		if (requestId && requestId != 0xFFFFFFFF) {
+		if (requestId && requestId != mtpRequestId(0xFFFFFFFF)) {
 			QWriteLocker locker(sessionData->haveReceivedMutex());
 			sessionData->haveReceivedMap().insert(requestId, response); // save rpc_result for processing in main mtp thread
 		} else {
@@ -2899,12 +2899,12 @@ bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResp
 }
 
 mtpRequestId MTProtoConnectionPrivate::wasSent(mtpMsgId msgId) const {
-	if (msgId == pingMsgId) return 0xFFFFFFFF;
+	if (msgId == pingMsgId) return mtpRequestId(0xFFFFFFFF);
 	{
 		QReadLocker locker(sessionData->haveSentMutex());
 		const mtpRequestMap &haveSent(sessionData->haveSentMap());
 		mtpRequestMap::const_iterator i = haveSent.constFind(msgId);
-		if (i != haveSent.cend()) return i.value()->requestId || 0xFFFFFFFF;
+		if (i != haveSent.cend()) return i.value()->requestId ? i.value()->requestId : mtpRequestId(0xFFFFFFFF);
 	}
 	{
 		QReadLocker locker(sessionData->toResendMutex());

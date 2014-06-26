@@ -53,8 +53,8 @@ bool skipComment(const char *&from, const char *end) {
 			while (from < end && *from != '\n' && *from != '\r') {
 				++from;
 			}
-			++from;
-			return (from < end);
+            if (from < end) ++from;
+			return true;
 		} else {
 			return true;
 		}

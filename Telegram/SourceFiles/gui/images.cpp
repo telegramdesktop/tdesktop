@@ -60,18 +60,16 @@ const QPixmap &Image::pix(int32 w, int32 h) const {
 	checkload();
 
 	if (w <= 0 || !width() || !height()) {
-        w = width() * cRetinaFactor();
+        w = width() * cIntRetinaFactor();
     } else if (cRetina()) {
-        w *= cRetinaFactor();
-        h *= cRetinaFactor();
+        w *= cIntRetinaFactor();
+        h *= cIntRetinaFactor();
     }
 	uint64 k = (uint64(w) << 32) | uint64(h);
 	Sizes::const_iterator i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		QPixmap p(pixNoCache(w, h, true));
-        if (cRetina()) {
-            p.setDevicePixelRatio(cRetinaFactor());
-        }
+        if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
 		if (!p.isNull()) {
 			globalAquiredSize += int64(p.width()) * p.height() * 4;
@@ -192,10 +190,10 @@ int64 imageCacheSize() {
 	return globalAquiredSize;
 }
 
-StorageImage::StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret) : loader(new mtpFileLoader(dc, volume, local, secret)), w(width), h(height) {
+StorageImage::StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret) : w(width), h(height), loader(new mtpFileLoader(dc, volume, local, secret)) {
 }
 
-StorageImage::StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, QByteArray &bytes) : loader(0), w(width), h(height) {
+StorageImage::StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, QByteArray &bytes) : w(width), h(height), loader(0) {
 	setData(bytes);
 }
 

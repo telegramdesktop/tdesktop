@@ -38,17 +38,17 @@ using std::exception;
 class Exception : public exception {
 public:
     
-    Exception(const QString &msg) : _msg(msg) {
+	Exception(const QString &msg) : _msg(msg.toUtf8()) {
 	}
     
     virtual const char *what() const throw() {
-        return _msg.toUtf8().constData();
+        return _msg.constData();
     }
     virtual ~Exception() throw() {
     }
     
 private:
-	QString _msg;
+	QByteArray _msg;
 };
 
 bool genLang(const QString &lang_in, const QString &lang_out);

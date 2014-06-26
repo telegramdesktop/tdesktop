@@ -311,6 +311,8 @@ public:
 	void noSelectingScroll();
 
 	bool touchScroll(const QPoint &delta);
+    
+	QString prepareMessage(QString text);
 
 	~HistoryWidget();
 
@@ -365,7 +367,6 @@ public slots:
 private:
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
-	void partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result);
 	void updateListSize(int32 addToY = 0, bool initial = false);
 	void addMessagesToFront(const QVector<MTPMessage> &messages);
 	void chatLoaded(const MTPmessages_ChatFull &res);
@@ -374,8 +375,6 @@ private:
 	DragState getDragState(const QMimeData *d);
 
 	void updateDragAreas();
-
-	QString prepareMessage();
 
 	int32 histOffset, histCount, histReadRequestId;
 	int32 histRequestsCount;

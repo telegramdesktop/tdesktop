@@ -41,9 +41,9 @@ namespace {
 	FlatInputStyle _flatInputStyle;
 }
 
-FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString &pholder, const QString &v) : QLineEdit(v, parent), _oldtext(v),
-	_st(st), _phVisible(!v.length()), _kev(0), a_borderColor(st.borderColor->c), a_bgColor(st.bgColor->c), _notingBene(0),
-	a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c) {
+FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString &pholder, const QString &v) : QLineEdit(v, parent), _oldtext(v), _kev(0), _customUpDown(false), _phVisible(!v.length()),
+	a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c),
+    a_borderColor(st.borderColor->c), a_bgColor(st.bgColor->c), _notingBene(0), _st(st) {
 	resize(_st.width, _st.height);
 	
 	setFont(_st.font->f);
@@ -65,6 +65,10 @@ FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString 
 	setAttribute(Qt::WA_AcceptTouchEvents);
 	_touchTimer.setSingleShot(true);
 	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
+}
+
+void FlatInput::customUpDown(bool custom) {
+	_customUpDown = custom;
 }
 
 void FlatInput::onTouchTimer() {
@@ -134,7 +138,7 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 			p.drawRect(i, i, width() - 2 * i - 1, height() - 2 * i - 1);
 		}
 	}
-	if (_st.imgRect.width()) {
+	if (_st.imgRect.pxWidth()) {
 		p.drawPixmap(_st.imgPos, App::sprite(), _st.imgRect);
 	}
 
@@ -231,7 +235,12 @@ void FlatInput::correctValue(QKeyEvent *e, const QString &was) {
 void FlatInput::keyPressEvent(QKeyEvent *e) {
 	QString was(text());
 	_kev = e;
-	QLineEdit::keyPressEvent(e);
+	if (_customUpDown && (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down)) {
+		e->ignore();
+	} else {
+		QLineEdit::keyPressEvent(e);
+	}
+
 	if (was == text()) { // call correct manually
 		correctValue(_kev, was);
 		_oldtext = text();

@@ -1,5 +1,9 @@
 /*
-This file is part of Telegram Desktop,
+Created from emoji config by '/MetaEmoji' project
+
+WARNING! All changes made in this file will be lost!
+
+This file is part of Telegram Desktop, 
 an unofficial desktop messaging app, see https://telegram.org
 
 Telegram Desktop is free software: you can redistribute it and/or modify
@@ -26,7 +30,9 @@ namespace {
 void initEmoji() {
 	EmojiData *toFill = emojis = (EmojiData*)emojisData;
 
-	switch (cScale()) {
+	DBIScale emojiForScale = cRetina() ? dbisTwo : cScale();
+
+	switch (emojiForScale) {
 
 	case dbisOne:
 		new (toFill++) EmojiData(176, 0, 169, 0, 1);
@@ -3556,7 +3562,7 @@ const EmojiData *getEmoji(uint32 code) {
 		return 0;
 	}
 
-	if (highCode == 35 || highCode >= 48 && highCode < 58) {
+	if (highCode == 35 || (highCode >= 48 && highCode < 58)) {
 		if ((code & 0xFFFF) != 0x20E3) return 0;
 
 		switch (code) {

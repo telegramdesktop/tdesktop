@@ -29,7 +29,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "layerwidget.h"
 #include "settingswidget.h"
 
-ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent), _reconnect(this, QString()), _shadow(st::boxShadow) {
+ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent), _shadow(st::boxShadow), _reconnect(this, QString()) {
 	set(text, reconnect);
 	connect(&_reconnect, SIGNAL(clicked()), this, SLOT(onReconnect()));
 }
@@ -43,20 +43,20 @@ void ConnectingWidget::set(const QString &text, const QString &reconnect) {
 	} else {
 		_reconnect.setText(reconnect);
 		_reconnect.show();
-		_reconnect.move(st::connectingPadding.left() + _textWidth, st::boxShadow.height() + st::connectingPadding.top());
+		_reconnect.move(st::connectingPadding.left() + _textWidth, st::boxShadow.pxHeight() + st::connectingPadding.top());
 		_reconnectWidth = _reconnect.width();
 	}
-	resize(st::connectingPadding.left() + _textWidth + _reconnectWidth + st::connectingPadding.right() + st::boxShadow.width(), st::boxShadow.height() + st::connectingPadding.top() + st::linkFont->height + st::connectingPadding.bottom());
+	resize(st::connectingPadding.left() + _textWidth + _reconnectWidth + st::connectingPadding.right() + st::boxShadow.pxWidth(), st::boxShadow.pxHeight() + st::connectingPadding.top() + st::linkFont->height + st::connectingPadding.bottom());
 	update();
 }
 void ConnectingWidget::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
-	_shadow.paint(p, QRect(0, st::boxShadow.height(), width() - st::boxShadow.width(), height() - st::boxShadow.height()), QPoint(0, 0), BoxShadow::Top | BoxShadow::Right);
-	p.fillRect(0, st::boxShadow.height(), width() - st::boxShadow.width(), height() - st::boxShadow.height(), st::connectingBG->b);
+	_shadow.paint(p, QRect(0, st::boxShadow.pxHeight(), width() - st::boxShadow.pxWidth(), height() - st::boxShadow.pxHeight()), QPoint(0, 0), BoxShadow::Top | BoxShadow::Right);
+	p.fillRect(0, st::boxShadow.pxHeight(), width() - st::boxShadow.pxWidth(), height() - st::boxShadow.pxHeight(), st::connectingBG->b);
 	p.setFont(st::linkFont->f);
 	p.setPen(st::connectingColor->p);
-	p.drawText(st::connectingPadding.left(), st::boxShadow.height() + st::connectingPadding.top() + st::linkFont->ascent, _text);
+	p.drawText(st::connectingPadding.left(), st::boxShadow.pxHeight() + st::connectingPadding.top() + st::linkFont->ascent, _text);
 }
 
 void ConnectingWidget::onReconnect() {
@@ -77,8 +77,8 @@ void TempDirDeleter::onStart() {
 }
 
 Window::Window(QWidget *parent)	: PsMainWindow(parent),
-	dragging(false), intro(0), main(0), settings(0), layer(0), layerBG(0), myIcon(QPixmap::fromImage(icon256)), _topWidget(0),
-	_connecting(0), _inactivePress(false), _tempDeleter(0), _tempDeleterThread(0) {
+	intro(0), main(0), settings(0), layer(0), layerBG(0), _topWidget(0),
+	_connecting(0), _tempDeleter(0), _tempDeleterThread(0), myIcon(QPixmap::fromImage(icon256)), dragging(false), _inactivePress(false) {
 
 	if (objectName().isEmpty())
 		setObjectName(qsl("MainWindow"));
@@ -253,7 +253,7 @@ void Window::mtpStateChanged(int32 dc, int32 state) {
 
 void Window::updateTitleStatus() {
 	int32 state = MTP::dcstate();
-	if (state == MTProtoConnection::Connecting || state == MTProtoConnection::Disconnected || state < 0 && state > -600) {
+	if (state == MTProtoConnection::Connecting || state == MTProtoConnection::Disconnected || (state < 0 && state > -600)) {
 		if (main || getms() > 5000 || _connecting) {
 			showConnecting(lang(lng_connecting));
 		}
@@ -384,7 +384,7 @@ void Window::paintEvent(QPaintEvent *e) {
 HitTestType Window::hitTest(const QPoint &p) const {
 	int x(p.x()), y(p.y()), w(width()), h(height());
 	
-	const uint32 raw = psResizeRowWidth();
+	const int32 raw = psResizeRowWidth();
 	if (!windowState().testFlag(Qt::WindowMaximized)) {
 		if (y < raw) {
 			if (x < raw) {
@@ -438,12 +438,20 @@ bool Window::getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) cons
 }
 
 QRect Window::iconRect() const {
-	return QRect(st::titleIconPos + title->geometry().topLeft(), st::titleIconRect.size());
+	return QRect(st::titleIconPos + title->geometry().topLeft(), st::titleIconRect.pxSize());
 }
 
 bool Window::eventFilter(QObject *obj, QEvent *evt) {
 	if (obj == App::app() && (evt->type() == QEvent::ApplicationActivate)) {
         QTimer::singleShot(1, this, SLOT(checkHistoryActivation()));
+	} else if (obj == this && evt->type() == QEvent::WindowStateChange) {
+		Qt::WindowState state = (windowState() & Qt::WindowMinimized) ? Qt::WindowMinimized : ((windowState() & Qt::WindowMaximized) ? Qt::WindowMaximized : ((windowState() & Qt::WindowFullScreen) ? Qt::WindowFullScreen : Qt::WindowNoState));
+		psStateChanged(state);
+		if (App::main()) {
+			App::main()->mainStateChanged(state);
+		}
+	} else if (obj == this && (evt->type() == QEvent::Move || evt->type() == QEvent::Resize)) {
+		psUpdatedPosition();
 	}
 	return PsMainWindow::eventFilter(obj, evt);
 }

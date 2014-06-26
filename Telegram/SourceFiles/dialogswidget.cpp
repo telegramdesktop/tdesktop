@@ -76,7 +76,7 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 }
 
 void DialogsListWidget::activate() {
-	if (filter.isEmpty() && !sel || !filter.isEmpty() && (filteredSel < 0 || filteredSel >= filtered.size())) {
+	if ((filter.isEmpty() && !sel) || (!filter.isEmpty() && (filteredSel < 0 || filteredSel >= filtered.size()))) {
 		selectSkip(1);
 	}
 }
@@ -90,7 +90,7 @@ void DialogsListWidget::mouseMoveEvent(QMouseEvent *e) {
 
 void DialogsListWidget::onUpdateSelected(bool force) {
 	QPoint mouse(mapFromGlobal(lastMousePos));
-	if (!force && !rect().contains(mouse) || !selByMouse) return;
+	if ((!force && !rect().contains(mouse)) || !selByMouse) return;
 
 	int w = width(), mouseY = mouse.y();
 	if (filter.isEmpty()) {
@@ -704,9 +704,19 @@ DialogsIndexed &DialogsListWidget::dialogsList() {
 	return dialogs;
 }
 
-DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent), _configLoaded(false), _drawShadow(true),
-scroll(this, st::dlgScroll), list(&scroll, parent), _filter(this, st::dlgFilter, lang(lng_dlg_filter)), dlgOffset(0), dlgCount(-1), dlgPreloading(0), contactsRequest(0),
-_newGroup(this, st::btnNewGroup), _addContact(this, st::btnAddContact) {
+DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
+, _configLoaded(false)
+, _drawShadow(true)
+, dlgOffset(0)
+, dlgCount(-1)
+, dlgPreloading(0)
+, contactsRequest(0)
+, _filter(this, st::dlgFilter, lang(lng_dlg_filter))
+, _newGroup(this, st::btnNewGroup)
+, _addContact(this, st::btnAddContact)
+, scroll(this, st::dlgScroll)
+, list(&scroll, parent)
+{
 	scroll.setWidget(&list);
 	scroll.setFocusPolicy(Qt::NoFocus);
 	connect(&list, SIGNAL(mustScrollTo(int, int)), &scroll, SLOT(scrollToY(int, int)));
@@ -726,6 +736,7 @@ _newGroup(this, st::btnNewGroup), _addContact(this, st::btnAddContact) {
 	_filter.show();
 	_filter.move(st::dlgPaddingHor, st::dlgFilterPadding);
 	_filter.setFocusPolicy(Qt::StrongFocus);
+	_filter.customUpDown(true);
 	_addContact.hide();
 	_newGroup.show();
 	_newGroup.move(width() - _newGroup.width() - st::dlgPaddingHor, 0);

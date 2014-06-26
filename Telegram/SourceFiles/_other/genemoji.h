@@ -37,19 +37,35 @@ using std::cout;
 using std::cerr;
 using std::exception;
 
-bool genEmoji(QString emoji_in, const QString &emoji_out);
+class Exception : public exception {
+public:
+
+    Exception(const QString &msg) : _msg(msg.toUtf8()) {
+	}
+
+    virtual const char *what() const throw() {
+        return _msg.constData();
+    }
+    virtual ~Exception() throw() {
+    }
+
+private:
+	QByteArray _msg;
+};
+
+bool genEmoji(QString emoji_in, const QString &emoji_out, const QString &emoji_png);
 
 class GenEmoji : public QObject {
 	Q_OBJECT
 
 public:
-	GenEmoji(const QString &emoji_in, const QString &emoji_out) : QObject(0),
-		_emoji_in(emoji_in), _emoji_out(emoji_out) {
+	GenEmoji(const QString &emoji_in, const QString &emoji_out, const QString &emoji_png) : QObject(0),
+		_emoji_in(emoji_in), _emoji_out(emoji_out), _emoji_png(emoji_png) {
 	}
 
 	public slots :
 		void run()  {
-			if (genEmoji(_emoji_in, _emoji_out)) {
+			if (genEmoji(_emoji_in, _emoji_out, _emoji_png)) {
 				emit finished();
 			}
 		}
@@ -59,5 +75,5 @@ signals:
 
 private:
 
-	QString _emoji_in, _emoji_out;
+	QString _emoji_in, _emoji_out, _emoji_png;
 };

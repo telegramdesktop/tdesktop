@@ -194,6 +194,3 @@ LIBS += ./../../Libraries/libexif-0.6.20/libexif/.libs/libexif.a
 RESOURCES += \
     ./SourceFiles/telegram.qrc
 
-CONFIG(debug, debug|release) {
-    DEFINES += _DEBUG
-}

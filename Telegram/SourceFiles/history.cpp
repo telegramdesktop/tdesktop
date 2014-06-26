@@ -120,8 +120,16 @@ void historyInit() {
 NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersPtr = UnknownNotifySettings, globalNotifyChatsPtr = UnknownNotifySettings;
 
-PeerData::PeerData(const PeerId &id) : id(id), access(0), chat(App::isChat(id)), loaded(false), notify(UnknownNotifySettings),
-	colorIndex(peerColorIndex(id)), color(peerColor(colorIndex)), photo(chat ? chatDefPhoto(colorIndex) : userDefPhoto(colorIndex)), nameVersion(0) {
+PeerData::PeerData(const PeerId &id) : id(id)
+, loaded(false)
+, chat(App::isChat(id))
+, access(0)
+, colorIndex(peerColorIndex(id))
+, color(peerColor(colorIndex))
+, photo(chat ? chatDefPhoto(colorIndex) : userDefPhoto(colorIndex))
+, nameVersion(0)
+, notify(UnknownNotifySettings)
+{
 }
 
 UserData *PeerData::asUser() {
@@ -259,11 +267,11 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 
 void VideoOpenLink::onClick(Qt::MouseButton button) const {
 	VideoData *data = video();
-	if (!data->user && !data->date || button != Qt::LeftButton) return;
+	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
 
 	QString already = data->already(true);
 	if (!already.isEmpty()) {
-		QDesktopServices::openUrl(QUrl::fromLocalFile(already));
+        psOpenFile(already);
 		return;
 	}
 	
@@ -304,7 +312,7 @@ void VideoSaveLink::onClick(Qt::MouseButton button) const {
 
 void VideoCancelLink::onClick(Qt::MouseButton button) const {
 	VideoData *data = video();
-	if (!data->user && !data->date || button != Qt::LeftButton) return;
+	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
 
 	data->cancel();
 }
@@ -319,11 +327,11 @@ void VideoData::save(const QString &toFile) {
 
 void AudioOpenLink::onClick(Qt::MouseButton button) const {
 	AudioData *data = audio();
-	if (!data->user && !data->date || button != Qt::LeftButton) return;
+	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
 
 	QString already = data->already(true);
 	if (!already.isEmpty()) {
-		QDesktopServices::openUrl(QUrl::fromLocalFile(already));
+        psOpenFile(already);
 		return;
 	}
 	
@@ -364,7 +372,7 @@ void AudioSaveLink::onClick(Qt::MouseButton button) const {
 
 void AudioCancelLink::onClick(Qt::MouseButton button) const {
 	AudioData *data = audio();
-	if (!data->user && !data->date || button != Qt::LeftButton) return;
+	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
 
 	data->cancel();
 }
@@ -379,11 +387,11 @@ void AudioData::save(const QString &toFile) {
 
 void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 	DocumentData *data = document();
-	if (!data->user && !data->date || button != Qt::LeftButton) return;
+	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
 
 	QString already = data->already(true);
 	if (!already.isEmpty()) {
-		QDesktopServices::openUrl(QUrl::fromLocalFile(already));
+        psOpenFile(already);
 		return;
 	}
 	
@@ -451,7 +459,7 @@ void DocumentSaveLink::onClick(Qt::MouseButton button) const {
 
 void DocumentCancelLink::onClick(Qt::MouseButton button) const {
 	DocumentData *data = document();
-	if (!data->user && !data->date || button != Qt::LeftButton) return;
+	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
 
 	data->cancel();
 }
@@ -520,7 +528,7 @@ void DialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
 
 		// draw check
 		if (last->out() && last->needCheck()) {
-			const QRect *check;
+			const style::sprite *check;
 			if (last->id > 0) {
 				if (last->unread()) {
 					check = act ? &st::dlgActiveCheckImg : &st::dlgCheckImg;
@@ -530,7 +538,7 @@ void DialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
 			} else {
 				check = act ? &st::dlgActiveSendImg : &st::dlgSendImg;
 			}
-			rectForName.setWidth(rectForName.width() - check->width() - st::dlgCheckSkip);
+			rectForName.setWidth(rectForName.width() - check->pxWidth() - st::dlgCheckSkip);
 			p.drawPixmap(QPoint(rectForName.left() + rectForName.width() + st::dlgCheckLeft, rectForName.top() + st::dlgCheckTop), App::sprite(), *check);
 		}
 
@@ -563,9 +571,26 @@ void DialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
 	history->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
-History::History(const PeerId &peerId) : width(0), height(0), myTyping(0), showFrom(0), unreadLoaded(true), unreadBar(0), notifyFrom(0),
-	msgCount(0), offset(0), peer(App::peer(peerId)), posInDialogs(0), unreadCount(0), inboxReadTill(0), outboxReadTill(0), lastWidth(0), lastScrollTop(History::ScrollMax),
-	lastItemTextCache(st::dlgRichMinWidth), textCachedFor(0), typingText(st::dlgRichMinWidth), mute(isNotifyMuted(peer->notify)) {
+History::History(const PeerId &peerId) : width(0), height(0)
+, msgCount(0)
+, offset(0)
+, unreadCount(0)
+, inboxReadTill(0)
+, outboxReadTill(0)
+, showFrom(0)
+, notifyFrom(0)
+, unreadBar(0)
+, unreadLoaded(true)
+, peer(App::peer(peerId))
+, lastWidth(0)
+, lastScrollTop(History::ScrollMax)
+, mute(isNotifyMuted(peer->notify))
+, textCachedFor(0)
+, lastItemTextCache(st::dlgRichMinWidth)
+, posInDialogs(0)
+, typingText(st::dlgRichMinWidth)
+, myTyping(0)
+{
 }
 
 void History::updateNameText() {
@@ -1360,7 +1385,7 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 				}
 			} else if (myIndex > 0) {
 				HistoryBlock *prevBlock = (*history)[myIndex - 1];
-				if (prevBlock->isEmpty() || (myIndex == 1) && (prevBlock->size() != 1 || (*prevBlock->cbegin())->itemType() != HistoryItem::DateType)) {
+				if (prevBlock->isEmpty() || ((myIndex == 1) && (prevBlock->size() != 1 || (*prevBlock->cbegin())->itemType() != HistoryItem::DateType))) {
 					LOG(("App Error: Found bad history, with no first date block: %1").arg((*history)[0]->size()));
 				} else if ((*prevBlock)[prevBlock->size() - 1]->itemType() == HistoryItem::DateType) {
 					(*prevBlock)[prevBlock->size() - 1]->destroy();
@@ -1411,8 +1436,16 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 	}
 }
 
-HistoryItem::HistoryItem(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime msgDate, int32 from) :
-	y(0), id(msgId), _history(history), _block(block), _out(out), _unread(unread), date(msgDate), _from(App::user(from)), _fromVersion(_from->nameVersion) {
+HistoryItem::HistoryItem(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime msgDate, int32 from) : y(0)
+, id(msgId)
+, date(msgDate)
+, _from(App::user(from))
+, _fromVersion(_from->nameVersion)
+, _history(history)
+, _block(block)
+, _out(out)
+, _unread(unread)
+{
 }
 
 void HistoryItem::markRead() {
@@ -1442,7 +1475,10 @@ HistoryItem *regItem(HistoryItem *item) {
 	return 0;
 }
 
-HistoryPhoto::HistoryPhoto(const MTPDphoto &photo, int32 width) : data(App::feedPhoto(photo)), w(width), openl(new PhotoLink(data)) {
+HistoryPhoto::HistoryPhoto(const MTPDphoto &photo, int32 width) : data(App::feedPhoto(photo))
+, openl(new PhotoLink(data))
+, w(width)
+{
 	int32 tw = data->full->width(), th = data->full->height();
 	if (!tw || !th) {
 		tw = th = 1;
@@ -1522,7 +1558,7 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, const QString &t
 	int32 dateX = _maxw - timeWidth - st::msgDateImgDelta - 2 * st::msgDateImgPadding.x();
 	int32 dateY = _height - st::msgDateFont->height - 2 * st::msgDateImgPadding.y() - st::msgDateImgDelta;
 	if (parent->out()) {
-		dateX -= st::msgCheckRect.width() + st::msgDateImgCheckSpace;
+		dateX -= st::msgCheckRect.pxWidth() + st::msgDateImgCheckSpace;
 	}
 	int32 dateW = _maxw - dateX - st::msgDateImgDelta;
 	int32 dateH = _height - dateY - st::msgDateImgDelta;
@@ -1532,7 +1568,7 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, const QString &t
 	p.setPen(st::msgDateImgColor->p);
 	p.drawText(dateX + st::msgDateImgPadding.x(), dateY + st::msgDateImgPadding.y() + st::msgDateFont->ascent, time);
 	if (out) {
-		QPoint iconPos(dateX - 2 + dateW - st::msgDateImgCheckSpace - st::msgCheckRect.width(), dateY + (dateH - st::msgCheckRect.height()) / 2);
+		QPoint iconPos(dateX - 2 + dateW - st::msgDateImgCheckSpace - st::msgCheckRect.pxWidth(), dateY + (dateH - st::msgCheckRect.pxHeight()) / 2);
 		const QRect *iconRect;
 		if (parent->id > 0) {
 			if (parent->unread()) {
@@ -1583,7 +1619,14 @@ QString formatDurationAndSizeText(qint64 duration, qint64 size) {
 
 int32 _downloadWidth = 0, _openWithWidth = 0, _cancelWidth = 0, _buttonWidth = 0;
 
-HistoryVideo::HistoryVideo(const MTPDvideo &video, int32 width) : data(App::feedVideo(video)), w(width), _openl(new VideoOpenLink(data)), _savel(new VideoSaveLink(data)), _cancell(new VideoCancelLink(data)), _dldDone(0), _uplDone(0) {
+HistoryVideo::HistoryVideo(const MTPDvideo &video, int32 width) : data(App::feedVideo(video))
+, _openl(new VideoOpenLink(data))
+, _savel(new VideoSaveLink(data))
+, _cancell(new VideoCancelLink(data))
+, w(width)
+, _dldDone(0)
+, _uplDone(0)
+{
 	_maxw = st::mediaMaxWidth;
 
 	_size = formatDurationAndSizeText(data->duration, data->size);
@@ -1725,7 +1768,8 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, const QString &t
 	p.fillRect(0, _height, width, st::msgShadow, shadow->b);
 
 	if (_thumbw) {
-		p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), data->thumb->pix(_thumbw), QRect(_thumbx, _thumby, st::mediaThumbSize, st::mediaThumbSize));
+        int32 rf(cIntRetinaFactor());
+		p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), data->thumb->pix(_thumbw), QRect(_thumbx * rf, _thumby * rf, st::mediaThumbSize * rf, st::mediaThumbSize * rf));
 	} else {
 		p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), App::sprite(), (out ? st::mediaDocOutImg : st::mediaDocInImg));
 	}
@@ -1735,7 +1779,7 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, const QString &t
 
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
 	int32 twidth = width - tleft - st::mediaPadding.right();
-	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (out ? st::msgDateCheckSpace + st::msgCheckRect.width() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
+	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (out ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
 	int32 secondwidth = width - tleft - fullTimeWidth;
 
 	p.setFont(st::mediaFont->f);
@@ -1775,7 +1819,7 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, const QString &t
 
 	p.drawText(width + st::msgDateDelta.x() - fullTimeWidth + st::msgDateSpace, _height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->descent, time);
 	if (out) {
-		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.width(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.height());
+		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.pxWidth(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.pxHeight());
 		const QRect *iconRect;
 		if (parent->id > 0) {
 			if (parent->unread()) {
@@ -1790,7 +1834,14 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, const QString &t
 	}
 }
 
-HistoryAudio::HistoryAudio(const MTPDaudio &audio, int32 width) : data(App::feedAudio(audio)), w(width), _openl(new AudioOpenLink(data)), _savel(new AudioSaveLink(data)), _cancell(new AudioCancelLink(data)), _dldDone(0), _uplDone(0) {
+HistoryAudio::HistoryAudio(const MTPDaudio &audio, int32 width) : data(App::feedAudio(audio))
+, _openl(new AudioOpenLink(data))
+, _savel(new AudioSaveLink(data))
+, _cancell(new AudioCancelLink(data))
+, w(width)
+, _dldDone(0)
+, _uplDone(0)
+{
 	_maxw = st::mediaMaxWidth;
 
 	_size = formatDurationAndSizeText(data->duration, data->size);
@@ -1857,7 +1908,7 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, const QString &t
 
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
 	int32 twidth = width - tleft - st::mediaPadding.right();
-	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (out ? st::msgDateCheckSpace + st::msgCheckRect.width() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
+	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (out ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
 	int32 secondwidth = width - tleft - fullTimeWidth;
 
 	p.setFont(st::mediaFont->f);
@@ -1897,7 +1948,7 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, const QString &t
 
 	p.drawText(width + st::msgDateDelta.x() - fullTimeWidth + st::msgDateSpace, _height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->descent, time);
 	if (out) {
-		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.width(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.height());
+		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.pxWidth(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.pxHeight());
 		const QRect *iconRect;
 		if (parent->id > 0) {
 			if (parent->unread()) {
@@ -1966,7 +2017,15 @@ HistoryMedia *HistoryAudio::clone() const {
 	return n;
 }
 
-HistoryDocument::HistoryDocument(const MTPDdocument &document, int32 width) : data(App::feedDocument(document)), w(width), _openl(new DocumentOpenLink(data)), _savel(new DocumentSaveLink(data)), _cancell(new DocumentCancelLink(data)), _name(data->name), _dldDone(0), _uplDone(0) {
+HistoryDocument::HistoryDocument(const MTPDdocument &document, int32 width) : data(App::feedDocument(document))
+, _openl(new DocumentOpenLink(data))
+, _savel(new DocumentSaveLink(data))
+, _cancell(new DocumentCancelLink(data))
+, w(width)
+, _name(data->name)
+, _dldDone(0)
+, _uplDone(0)
+{
 	_maxw = st::mediaMaxWidth;
 	_namew = st::mediaFont->m.width(_name.isEmpty() ? qsl("Document") : _name);
 
@@ -2048,7 +2107,8 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, const QString
 	p.fillRect(0, _height, width, st::msgShadow, shadow->b);
 
 	if (_thumbw) {
-		p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), data->thumb->pix(_thumbw), QRect(_thumbx, _thumby, st::mediaThumbSize, st::mediaThumbSize));
+        int32 rf(cIntRetinaFactor());
+		p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), data->thumb->pix(_thumbw), QRect(_thumbx * rf, _thumby * rf, st::mediaThumbSize * rf, st::mediaThumbSize * rf));
 	} else {
 		p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), App::sprite(), (out ? st::mediaDocOutImg : st::mediaDocInImg));
 	}
@@ -2058,7 +2118,7 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, const QString
 
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
 	int32 twidth = width - tleft - st::mediaPadding.right();
-	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (out ? st::msgDateCheckSpace + st::msgCheckRect.width() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
+	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (out ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
 	int32 secondwidth = width - tleft - fullTimeWidth;
 
 	p.setFont(st::mediaFont->f);
@@ -2102,7 +2162,7 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, const QString
 
 	p.drawText(width + st::msgDateDelta.x() - fullTimeWidth + st::msgDateSpace, _height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->descent, time);
 	if (out) {
-		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.width(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.height());
+		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.pxWidth(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.pxHeight());
 		const QRect *iconRect;
 		if (parent->id > 0) {
 			if (parent->unread()) {
@@ -2177,7 +2237,11 @@ HistoryMedia *HistoryDocument::clone() const {
 	return n;
 }
 
-HistoryContact::HistoryContact(int32 userId, const QString &first, const QString &last, const QString &phone) : userId(userId), phone(App::formatPhone(phone)), contact(App::userLoaded(userId)), w(0) {
+HistoryContact::HistoryContact(int32 userId, const QString &first, const QString &last, const QString &phone) : userId(userId)
+, w(0)
+, phone(App::formatPhone(phone))
+, contact(App::userLoaded(userId))
+{
 	_maxw = st::mediaMaxWidth;
 	name.setText(st::mediaFont, (first + ' ' + last).trimmed(), _textNameOptions);
 
@@ -2197,7 +2261,7 @@ HistoryContact::HistoryContact(int32 userId, const QString &first, const QString
 
 void HistoryContact::initDimensions(const HistoryItem *parent, int32 timeWidth) {
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
-	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (parent->out() ? st::msgDateCheckSpace + st::msgCheckRect.width() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
+	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (parent->out() ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
 	if (name.maxWidth() + tleft + fullTimeWidth > _maxw) {
 		_maxw = name.maxWidth() + tleft + fullTimeWidth;
 	}
@@ -2256,7 +2320,7 @@ void HistoryContact::draw(QPainter &p, const HistoryItem *parent, const QString 
 
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
 	int32 twidth = width - tleft - st::mediaPadding.right();
-	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (out ? st::msgDateCheckSpace + st::msgCheckRect.width() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
+	int32 fullTimeWidth = timeWidth + st::msgDateSpace + (out ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) + st::msgPadding.right() - st::msgDateDelta.x();
 	int32 secondwidth = width - tleft - fullTimeWidth;
 
 	p.setFont(st::mediaFont->f);
@@ -2279,7 +2343,7 @@ void HistoryContact::draw(QPainter &p, const HistoryItem *parent, const QString 
 
 	p.drawText(width + st::msgDateDelta.x() - fullTimeWidth + st::msgDateSpace, _height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->descent, time);
 	if (out) {
-		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.width(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.height());
+		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.pxWidth(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.pxHeight());
 		const QRect *iconRect;
 		if (parent->id > 0) {
 			if (parent->unread()) {
@@ -2295,7 +2359,12 @@ void HistoryContact::draw(QPainter &p, const HistoryItem *parent, const QString 
 }
 
 HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg) :
-	HistoryItem(history, block, msg.vid.v, msg.vout.v, msg.vunread.v, ::date(msg.vdate), msg.vfrom_id.v), media(0), _text(st::msgMinWidth), _textWidth(0), _textHeight(0) {
+	HistoryItem(history, block, msg.vid.v, msg.vout.v, msg.vunread.v, ::date(msg.vdate), msg.vfrom_id.v)
+, _text(st::msgMinWidth)
+, _textWidth(0)
+, _textHeight(0)
+, media(0)
+{
 	QString text(textClean(qs(msg.vmessage)));
 	initMedia(msg.vmedia, text);
 	initDimensions(text);
@@ -2314,14 +2383,24 @@ HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, const MTPD
 //}
 
 HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, const QString &msg, const MTPMessageMedia &media) :
-	HistoryItem(history, block, msgId, out, unread, date, from), media(0), _text(st::msgMinWidth), _textWidth(0), _textHeight(0) {
+	HistoryItem(history, block, msgId, out, unread, date, from)
+, _text(st::msgMinWidth)
+, _textWidth(0)
+, _textHeight(0)
+, media(0)
+{
 	QString text(msg);
 	initMedia(media, text);
 	initDimensions(text);
 }
 
 HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, const QString &msg, HistoryMedia *fromMedia) :
-	HistoryItem(history, block, msgId, out, unread, date, from), media(0), _text(st::msgMinWidth), _textWidth(0), _textHeight(0) {
+	HistoryItem(history, block, msgId, out, unread, date, from)
+, _text(st::msgMinWidth)
+, _textWidth(0)
+, _textHeight(0)
+, media(0)
+{
 	QString text(msg);
 	if (fromMedia) {
 		media = fromMedia->clone();
@@ -2383,7 +2462,7 @@ void HistoryMessage::initDimensions(const QString &text) {
 		_maxw = media->maxWidth();
 		_minh = media->height();
 	} else {
-		timeWidth += st::msgDateSpace + (out() ? st::msgDateCheckSpace + st::msgCheckRect.width() : 0) - st::msgDateDelta.x();
+		timeWidth += st::msgDateSpace + (out() ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) - st::msgDateDelta.x();
 		_text.setText(st::msgFont, text + textcmdSkipBlock(timeWidth, st::msgDateFont->height - st::msgDateDelta.y()), _historyTextOptions);
 		_maxw = _text.maxWidth();
 		_minh = _text.minHeight();
@@ -2470,7 +2549,7 @@ void HistoryMessage::draw(QPainter &p, uint32 selection) const {
 
 		p.drawText(r.right() - st::msgPadding.right() + st::msgDateDelta.x() - timeWidth + st::msgDateSpace, r.bottom() - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->descent, time);
 		if (_out) {
-			QPoint iconPos(r.right() + 5 - st::msgPadding.right() - st::msgCheckRect.width(), r.bottom() + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.height());
+			QPoint iconPos(r.right() + 5 - st::msgPadding.right() - st::msgCheckRect.pxWidth(), r.bottom() + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.pxHeight());
 			const QRect *iconRect;
 			if (id > 0) {
 				if (unread()) {
@@ -2712,17 +2791,23 @@ HistoryMessage::~HistoryMessage() {
 	delete media;
 }
 
-HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessageForwarded &msg) :
-	HistoryMessage(history, block, msg.vid.v, msg.vout.v, msg.vunread.v, ::date(msg.vdate), msg.vfrom_id.v, textClean(qs(msg.vmessage)), msg.vmedia),
-	fwdFrom(App::user(msg.vfwd_from_id.v)), fwdFromVersion(fwdFrom->nameVersion), fwdDate(::date(msg.vfwd_date)), fromWidth(st::msgServiceFont->m.width(lang(lng_forwarded_from))), fwdFromName(4096) {
+HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessageForwarded &msg) : HistoryMessage(history, block, msg.vid.v, msg.vout.v, msg.vunread.v, ::date(msg.vdate), msg.vfrom_id.v, textClean(qs(msg.vmessage)), msg.vmedia)
+, fwdDate(::date(msg.vfwd_date))
+, fwdFrom(App::user(msg.vfwd_from_id.v))
+, fwdFromName(4096)
+, fwdFromVersion(fwdFrom->nameVersion)
+, fromWidth(st::msgServiceFont->m.width(lang(lng_forwarded_from)))
+{
 	fwdNameUpdated();
 }
 
-HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, HistoryMessage *msg) :
-	HistoryMessage(history, block, id, true, true, ::date(unixtime()), MTP::authedId(), msg->HistoryMessage::selectedText(FullItemSel), msg->getMedia()),
-	fwdFrom(dynamic_cast<HistoryForwarded*>(msg) ? dynamic_cast<HistoryForwarded*>(msg)->fromForwarded() : msg->from()), fwdFromVersion(fwdFrom->nameVersion),
-	fwdDate(dynamic_cast<HistoryForwarded*>(msg) ? dynamic_cast<HistoryForwarded*>(msg)->dateForwarded() : msg->date),
-	fromWidth(st::msgServiceFont->m.width(lang(lng_forwarded_from))), fwdFromName(4096) {
+HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, HistoryMessage *msg) : HistoryMessage(history, block, id, true, true, ::date(unixtime()), MTP::authedId(), msg->HistoryMessage::selectedText(FullItemSel), msg->getMedia())
+, fwdDate(dynamic_cast<HistoryForwarded*>(msg) ? dynamic_cast<HistoryForwarded*>(msg)->dateForwarded() : msg->date)
+, fwdFrom(dynamic_cast<HistoryForwarded*>(msg) ? dynamic_cast<HistoryForwarded*>(msg)->fromForwarded() : msg->from())
+, fwdFromName(4096)
+, fwdFromVersion(fwdFrom->nameVersion)
+, fromWidth(st::msgServiceFont->m.width(lang(lng_forwarded_from)))
+{
 	fwdNameUpdated();
 }
 
@@ -2945,7 +3030,10 @@ QString HistoryServiceMsg::messageByAction(const MTPmessageAction &action, TextL
 }
 
 HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDmessageService &msg) :
-	HistoryItem(history, block, msg.vid.v, msg.vout.v, msg.vunread.v, ::date(msg.vdate), msg.vfrom_id.v), media(0), _text(st::msgMinWidth) {
+	HistoryItem(history, block, msg.vid.v, msg.vout.v, msg.vunread.v, ::date(msg.vdate), msg.vfrom_id.v)
+, _text(st::msgMinWidth)
+, media(0)
+{
 
 	TextLinkPtr second;
 	QString text(messageByAction(msg.vaction, second));
@@ -2975,7 +3063,10 @@ HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, cons
 }
 /**/
 HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, bool out, bool unread, HistoryMedia *media) :
-	HistoryItem(history, block, msgId, out, unread, date, 0), media(media), _text(st::msgServiceFont, msg, _historySrvOptions, st::dlgMinWidth) {
+	HistoryItem(history, block, msgId, out, unread, date, 0)
+, _text(st::msgServiceFont, msg, _historySrvOptions, st::dlgMinWidth)
+, media(media)
+{
 	_maxw = _text.maxWidth() + st::msgServicePadding.left() + st::msgServicePadding.right();
 	_minh = _text.minHeight();
 }

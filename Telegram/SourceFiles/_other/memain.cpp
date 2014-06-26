@@ -18,15 +18,32 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "memain.h"
 
 int main(int argc, char *argv[]) {
-	QString emoji_in("."), emoji_out("emoji_config.cpp");
+	QString emoji_in("."), emoji_out("emoji_config.cpp"), emoji_png("./SourceFiles/art/emoji");
 	for (int i = 0; i < argc; ++i) {
 		if (string("-emoji_in") == argv[i]) {
 			if (++i < argc) emoji_in = argv[i];
 		} else if (string("-emoji_out") == argv[i]) {
 			if (++i < argc) emoji_out = argv[i];
+		} else if (string("-emoji_png") == argv[i]) {
+			if (++i < argc) emoji_png = argv[i];
 		}
 	}
-	QObject *taskImpl = new GenEmoji(emoji_in, emoji_out);
+#ifdef Q_OS_MAC
+    if (QDir(QString()).absolutePath() == "/") {
+        QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
+        if (!first.isEmpty()) {
+            QFileInfo info(first);
+            if (info.exists()) {
+                QDir result(info.absolutePath() + "/../../..");
+                QString basePath = result.absolutePath() + '/';
+                emoji_in = basePath + emoji_in;
+                emoji_out = basePath + emoji_out;
+				emoji_png = basePath + emoji_png;
+            }
+        }
+    }
+#endif
+	QObject *taskImpl = new GenEmoji(emoji_in, emoji_out, emoji_png);
 
 	QGuiApplication a(argc, argv);
 

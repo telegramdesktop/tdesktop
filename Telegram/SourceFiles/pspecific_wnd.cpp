@@ -872,6 +872,15 @@ PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent), ps_hWnd(0), p
 	notifyWaitTimer.setSingleShot(true);
 }
 
+void PsMainWindow::psNotIdle() const {
+	psIdleTimer.stop();
+	if (psIdle) {
+		psIdle = false;
+		if (App::main()) App::main()->setOnline();
+		if (App::wnd()) App::wnd()->checkHistoryActivation();
+	}
+}
+
 void PsMainWindow::psIdleTimeout() {
 	LASTINPUTINFO lii;
 	lii.cbSize = sizeof(LASTINPUTINFO);
@@ -879,15 +888,16 @@ void PsMainWindow::psIdleTimeout() {
 	if (res) {
 		uint64 ticks = GetTickCount();
 		if (lii.dwTime >= ticks - IdleMsecs) {
-			psIdle = false;
-			psIdleTimer.stop();
-			if (App::main()) App::main()->setOnline();
+			psNotIdle();
 		}
+	} else { // error {
+		psNotIdle();
 	}
 }
 
-bool PsMainWindow::psIsActive() const {
-	return isActiveWindow() && isVisible() && !(windowState() & Qt::WindowMinimized);
+bool PsMainWindow::psIsActive(int state) const {
+	if (state < 0) state = this->windowState();
+	return isActiveWindow() && isVisible() && !(state & Qt::WindowMinimized) && !psIdle;
 }
 
 bool PsMainWindow::psIsOnline(int windowState) const {
@@ -909,9 +919,10 @@ bool PsMainWindow::psIsOnline(int windowState) const {
 			}
 			return false;
 		} else {
-			psIdle = false;
-			psIdleTimer.stop();
+			psNotIdle();
 		}
+	} else { // error
+		psNotIdle();
 	}
 	return true;
 }
@@ -2637,6 +2648,9 @@ void psOpenFile(const QString &name, bool openWith) {
 void psShowInFolder(const QString &name) {
 	QString nameEscaped = QDir::toNativeSeparators(name).replace('"', qsl("\"\""));
 	ShellExecute(0, 0, qsl("explorer").toStdWString().c_str(), (qsl("/select,") + nameEscaped).toStdWString().c_str(), 0, SW_SHOWNORMAL);
+}
+
+void psFinish() {
 }
 
 void psExecUpdater() {

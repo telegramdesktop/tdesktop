@@ -31,7 +31,7 @@ public:
 		return dynamic_cast<const TWidget*>(parentWidget());
 	}
 
-	virtual void leaveToChildEvent(QEvent */*e*/) { // e -- from enterEvent() of child TWidget
+	virtual void leaveToChildEvent(QEvent *e) { // e -- from enterEvent() of child TWidget
 	}
 
 protected:

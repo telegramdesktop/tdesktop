@@ -25,11 +25,11 @@ enum ToPrepareMediaType {
 };
 
 struct ToPrepareMedia {
-	ToPrepareMedia(const QString &file, const PeerId &peer, ToPrepareMediaType t) : file(file), peer(peer), id(MTP::nonce<PhotoId>()), type(t) {
+	ToPrepareMedia(const QString &file, const PeerId &peer, ToPrepareMediaType t) : id(MTP::nonce<PhotoId>()), file(file), peer(peer), type(t) {
 	}
-	ToPrepareMedia(const QImage &img, const PeerId &peer, ToPrepareMediaType t) : img(img), peer(peer), id(MTP::nonce<PhotoId>()), type(t) {
+	ToPrepareMedia(const QImage &img, const PeerId &peer, ToPrepareMediaType t) : id(MTP::nonce<PhotoId>()), img(img), peer(peer), type(t) {
 	}
-	ToPrepareMedia(const QByteArray &data, const PeerId &peer, ToPrepareMediaType t) : data(data), peer(peer), id(MTP::nonce<PhotoId>()), type(t) {
+	ToPrepareMedia(const QByteArray &data, const PeerId &peer, ToPrepareMediaType t) : id(MTP::nonce<PhotoId>()), data(data), peer(peer), type(t) {
 	}
 	PhotoId id;
 	QString file;
@@ -43,7 +43,7 @@ typedef QList<ToPrepareMedia> ToPrepareMedias;
 typedef QMap<int32, QByteArray> LocalFileParts;
 struct ReadyLocalMedia {
 	ReadyLocalMedia(ToPrepareMediaType type, const QString &file, const QString &filename, int32 filesize, const QByteArray &data, const uint64 &id, const uint64 &jpeg_id, const PeerId &peer, const MTPPhoto &photo, const PreparedPhotoThumbs &photoThumbs, const MTPDocument &document, const QByteArray &jpeg) :
-		type(type), file(file), filename(filename), filesize(filesize), data(data), id(id), jpeg_id(jpeg_id), peer(peer), photo(photo), photoThumbs(photoThumbs), document(document) {
+		type(type), file(file), filename(filename), filesize(filesize), data(data), id(id), jpeg_id(jpeg_id), peer(peer), photo(photo), document(document), photoThumbs(photoThumbs) {
 		if (!jpeg.isEmpty()) {
 			int32 size = jpeg.size();
 			for (int32 i = 0, part = 0; i < size; i += UploadPartSize, ++part) {

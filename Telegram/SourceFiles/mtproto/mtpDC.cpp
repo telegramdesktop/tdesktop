@@ -84,7 +84,7 @@ namespace {
 					continue;
 				}
 				uint32 dataLen = *(const uint32*)decrypted.constData();
-				if (dataLen > decrypted.size() || dataLen <= fullDataLen - 16 || dataLen < 4) {
+				if (dataLen > uint32(decrypted.size()) || dataLen <= fullDataLen - 16 || dataLen < 4) {
 					LOG(("MTP Error: bad decrypted part size: %1, fullDataLen: %2, decrypted size: %3").arg(dataLen).arg(fullDataLen).arg(decrypted.size()));
 					continue;
 				}
@@ -200,7 +200,7 @@ namespace {
 			DEBUG_LOG(("MTP Info: keys file opened for reading"));
 			int32 oldFound = readAuthKeys(keysFile);
 
-			if (gDCOptions.isEmpty() || mainDC && gDCOptions.find(mainDC) == gDCOptions.cend()) { // load first dc info
+			if (gDCOptions.isEmpty() || (mainDC && gDCOptions.find(mainDC) == gDCOptions.cend())) { // load first dc info
 				gDCOptions.insert(1, mtpDcOption(1, "", cFirstDCIp(), cFirstDCPort()));
 				userId = 0;
 				mainDC = 0;

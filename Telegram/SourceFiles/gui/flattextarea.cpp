@@ -20,10 +20,11 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 
 #include "flattextarea.h"
 
-FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(v, parent), _oldtext(v),
-	_st(st), _phVisible(!v.length()), _ph(pholder), _fakeMargin(0),
-	a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c),
-	_touchPress(false), _touchRightButton(false), _touchMove(false), _replacingEmojis(false) {
+FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(v, parent),
+	_ph(pholder), _oldtext(v), _phVisible(!v.length()),
+    a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c),
+    _st(st), _fakeMargin(0),
+    _touchPress(false), _touchRightButton(false), _touchMove(false), _replacingEmojis(false) {
 	setAcceptRichText(false);
 	resize(_st.width, _st.font->height);
 	
@@ -270,8 +271,8 @@ void FlatTextarea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 	QString url = qsl("emoji://") + QString::number(emoji->code, 16);
 	document()->addResource(QTextDocument::ImageResource, QUrl(url), QVariant(img));
 	QTextImageFormat imageFormat;
-	imageFormat.setWidth(img.width());
-	imageFormat.setHeight(img.height());
+	imageFormat.setWidth(img.width() / cIntRetinaFactor());
+	imageFormat.setHeight(img.height() / cIntRetinaFactor());
 	imageFormat.setName(url);
 	imageFormat.setVerticalAlignment(QTextCharFormat::AlignBaseline);
 	c.insertImage(imageFormat);
@@ -300,10 +301,10 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 
 				QString t(fragment.text());
 				for (const QChar *ch = t.constData(), *e = ch + t.size(); ch != e; ++ch) {
-					if (ch + 1 < e && (ch->isHighSurrogate() || (ch->unicode() >= 48 && ch->unicode() < 58 || ch->unicode() == 35) && (ch + 1)->unicode() == 0x20E3)) {
+					if (ch + 1 < e && (ch->isHighSurrogate() || (((ch->unicode() >= 48 && ch->unicode() < 58) || ch->unicode() == 35) && (ch + 1)->unicode() == 0x20E3))) {
 						emoji = getEmoji((ch->unicode() << 16) | (ch + 1)->unicode());
 						if (emoji) {
-							if (emoji->len == 4 && (ch + 3 >= e || (((ch + 2)->unicode() << 16) | (ch + 3)->unicode()) != emoji->code2)) {
+							if (emoji->len == 4 && (ch + 3 >= e || ((uint32((ch + 2)->unicode()) << 16) | uint32((ch + 3)->unicode())) != emoji->code2)) {
 								emoji = 0;
 							} else {
 								emojiPosition = p + (ch - t.constData());
@@ -438,7 +439,7 @@ QMimeData *FlatTextarea::createMimeDataFromSelection() const {
 
 void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 	bool shift = e->modifiers().testFlag(Qt::ShiftModifier);
-	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier), ctrlGood = ctrl && cCtrlEnter() || !ctrl && !shift && !cCtrlEnter();
+	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier), ctrlGood = (ctrl && cCtrlEnter()) || (!ctrl && !shift && !cCtrlEnter());
 	bool enter = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return);
 
 	if (enter && ctrlGood) {

@@ -19,7 +19,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 
 #include "boxshadow.h"
 
-BoxShadow::BoxShadow(const style::rect &topLeft) : _size(topLeft.width()) {
+BoxShadow::BoxShadow(const style::rect &topLeft) : _size(topLeft.width() / cIntRetinaFactor()) {
 	QImage cornersImage(_size * 2, _size * 2, QImage::Format_ARGB32_Premultiplied);
 	{
 		QPainter p(&cornersImage);

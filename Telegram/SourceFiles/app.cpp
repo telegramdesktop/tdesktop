@@ -156,6 +156,13 @@ namespace App {
 		return (peer_id & 0x100000000L) ? MTP_peerChat(MTP_int(int32(peer_id & 0xFFFFFFFFL))) : MTP_peerUser(MTP_int(int32(peer_id & 0xFFFFFFFFL)));
 	}
 
+    int32 userFromPeer(const PeerId &peer_id) {
+        return (peer_id & 0x100000000L) ? 0 : int32(peer_id & 0xFFFFFFFFL);
+    }
+    int32 chatFromPeer(const PeerId &peer_id) {
+        return (peer_id & 0x100000000L) ? int32(peer_id & 0xFFFFFFFFL) : 0;
+    }
+
 	int32 onlineWillChangeIn(int32 online, int32 now) {
 		if (online <= 0) return 86400;
 		if (online > now) {
@@ -314,7 +321,7 @@ namespace App {
 			case mtpc_userStatusOnline: data->onlineTill = status->c_userStatusOnline().vexpires.v; break;
 			}
 
-			if (data->contact < 0 && !data->phone.isEmpty() && data->id != MTP::authedId()) {
+			if (data->contact < 0 && !data->phone.isEmpty() && (data->id & 0xFFFFFFFF) != MTP::authedId()) {
 				data->contact = 0;
 			}
 			if (data->contact > 0 && !wasContact) {
@@ -605,7 +612,7 @@ namespace App {
 			}
 			if (user->contact > 0) {
 				if (!wasContact) {
-					App::main()->addNewContact(user->id & 0xFFFFFFFF, false);
+					App::main()->addNewContact(App::userFromPeer(user->id), false);
 					user->input = MTP_inputPeerContact(userId);
 					user->inputUser = MTP_inputUserContact(userId);
 				}
@@ -614,7 +621,7 @@ namespace App {
 					user->input = MTP_inputPeerForeign(userId, MTP_long(user->access));
 					user->inputUser = MTP_inputUserForeign(userId, MTP_long(user->access));
 				}
-				if (user->contact < 0 && !user->phone.isEmpty() && user->id != MTP::authedId()) {
+				if (user->contact < 0 && !user->phone.isEmpty() && App::userFromPeer(user->id) != MTP::authedId()) {
 					user->contact = 0;
 				}
 				if (wasContact) {
@@ -1204,9 +1211,11 @@ namespace App {
 
 		if (!::sprite) {
 			::sprite = new QPixmap(st::spriteFile);
+            if (cRetina()) ::sprite->setDevicePixelRatio(cRetinaFactor());
 		}
 		if (!::emojis) {
 			::emojis = new QPixmap(st::emojisFile);
+            if (cRetina()) ::emojis->setDevicePixelRatio(cRetinaFactor());
 		}
 		initEmoji();
 	}
@@ -1216,7 +1225,9 @@ namespace App {
 		textlnkDown(TextLinkPtr());
 
 		if (completely) {
+			LOG(("Deleting sound.."));
 			delete newMsgSound;
+			LOG(("Sound deleted!"));
 			newMsgSound = 0;
 
 			delete ::sprite;
@@ -1300,12 +1311,13 @@ namespace App {
 		EmojisMap *map = &(fontHeight == st::taDefFlat.font->height ? mainEmojisMap : otherEmojisMap[fontHeight]);
 		EmojisMap::const_iterator i = map->constFind(emoji->code);
 		if (i == map->cend()) {
-			QImage img(st::emojiSize + st::emojiPadding * 2, fontHeight, QImage::Format_ARGB32_Premultiplied);
+			QImage img(st::emojiImgSize + st::emojiPadding * cIntRetinaFactor() * 2, fontHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+            if (cRetina()) img.setDevicePixelRatio(cRetinaFactor());
 			{
 				QPainter p(&img);
 				p.setCompositionMode(QPainter::CompositionMode_Source);
 				p.fillRect(0, 0, img.width(), img.height(), Qt::transparent);
-				p.drawPixmap(QPoint(st::emojiPadding, (fontHeight - st::emojiSize) / 2), App::emojis(), QRect(emoji->x, emoji->y, st::emojiSize, st::emojiSize));
+				p.drawPixmap(QPoint(st::emojiPadding * cIntRetinaFactor(), (fontHeight * cIntRetinaFactor() - st::emojiImgSize) / 2), App::emojis(), QRect(emoji->x, emoji->y, st::emojiImgSize, st::emojiImgSize));
 			}
 			i = map->insert(emoji->code, QPixmap::fromImage(img));
 		}
@@ -1605,7 +1617,7 @@ namespace App {
 					continue;
 				}
 				uint32 dataLen = *(const uint32*)decrypted.constData();
-				if (dataLen > decrypted.size() || dataLen <= fullDataLen - 16 || dataLen < 4) {
+				if (dataLen > uint32(decrypted.size()) || dataLen <= fullDataLen - 16 || dataLen < 4) {
 					LOG(("App Error: bad decrypted part size: %1, fullDataLen: %2, decrypted size: %3").arg(dataLen).arg(fullDataLen).arg(decrypted.size()));
 					continue;
 				}
@@ -1771,7 +1783,7 @@ namespace App {
 		quint32 count;
 		stream >> count;
 
-		for (int32 i = 0; i < count; ++i) {
+		for (uint32 i = 0; i < count; ++i) {
 			readOneMuted(stream);
 		}
 	}

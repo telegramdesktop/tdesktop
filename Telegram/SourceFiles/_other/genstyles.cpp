@@ -60,7 +60,7 @@ string outputTypeNames[] = {
 	"color",
 	"point",
 	"rect",
-	"rect",
+	"sprite",
 	"size",
 	"transition",
 	"cursor",
@@ -1302,7 +1302,11 @@ string prepareObject(const string &cls, Fields fields, const string &obj, int va
 		} else if (f.value().first != j.value()) {
 			throw Exception(QString("Bad type of field %1 while parsing %2").arg(j.key().c_str()).arg(obj.c_str()));
 		} else {
-			result += findScalarVariant(f.value().second, variant);
+            if (variant == -1) { // retina
+                result += findScalarVariant(f.value().second, (j.value() == scSprite) ? 4 : 0);
+            } else {
+                result += findScalarVariant(f.value().second, variant);
+            }
 		}
 		fields.erase(f);
 		if (++j != e) {
@@ -1518,7 +1522,7 @@ GNU General Public License for more details.\n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
 Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 */\n";
-			tcpp << "#include \"stdafx.h\"\n#include \"style_auto.h\"\n\n";
+			tcpp << "#include \"stdafx.h\"\n#include \"style_auto.h\"\n\nnamespace {\n";
 			for (int i = 0, l = scalars.size(); i < l; ++i) {
 				Scalar &sc(scalars[i]);
 				tout << "\textern const style::" << outputTypeNames[sc.second.first].c_str() << " &" << sc.first.c_str() << ";\n";
@@ -1531,7 +1535,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 				tout << "\textern const style::" << obj.second.first.c_str() << " &" << obj.first.c_str() << ";\n";
 				tcpp << "\tstyle::" << obj.second.first.c_str() << " _" << obj.first.c_str() << prepareObject(obj.second.first, obj.second.second, obj.first, variant).c_str() << ";\n";
 			}
-			tout << "\n};\n";
+			tout << "};\n";
+            tcpp << "};\n";
 
 			tcpp << "\nnamespace st {\n";
 			for (int i = 0, l = scalars.size(); i < l; ++i) {
@@ -1543,15 +1548,33 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 				Object &obj(objects[i]);
 				tcpp << "\tconst style::" << obj.second.first.c_str() << " &" << obj.first.c_str() << "(_" << obj.first.c_str() << ");\n";
 			}
-			tcpp << "\n};\n";
+			tcpp << "};\n";
 
 			tcpp << "\nnamespace style {\n\n";
 			tcpp << "\tFontFamilies _fontFamilies;\n";
 			tcpp << "\tFontDatas _fontsMap;\n";
 			tcpp << "\tColorDatas _colorsMap;\n\n";
 			tcpp << "\tvoid startManager() {\n";
-
-			tcpp << "\n\t\tswitch (cScale()) {\n\n";
+            
+            tcpp << "\n\t\tif (cRetina()) {\n";
+            tcpp << "\t\t\tcSetRealScale(dbisOne);\n\n";
+            for (int i = 0, l = scalars.size(); i < l; ++i) {
+                Scalar &sc(scalars[i]);
+                if (sc.second.first == scSprite || sc.first == "spriteFile" || sc.first == "emojisFile" || sc.first == "emojiImgSize") {
+                    string v = findScalarVariant(sc.second.second, 4);
+                    if (v != findScalarVariant(sc.second.second, 0)) {
+                        tcpp << "\t\t\t_" << sc.first.c_str() << " = style::" << outputTypeNames[sc.second.first].c_str() << v.c_str() << ";\n";
+                    }
+                }
+            }
+            for (int i = 0, l = objects.size(); i < l; ++i) {
+                Object &obj(objects[i]);
+                string v = prepareObject(obj.second.first, obj.second.second, obj.first, -1); // retina
+                if (v != prepareObject(obj.second.first, obj.second.second, obj.first, 0)) {
+                    tcpp << "\t\t\t_" << obj.first.c_str() << " = style::" << obj.second.first.c_str() << v.c_str() << ";\n";
+                }
+            }
+            tcpp << "\t\t} else switch (cScale()) {\n\n";
 			for (int i = 1; i < variantsCount; ++i) {
 				variant = variants[i];
 				const char *varName = variantNames[i];

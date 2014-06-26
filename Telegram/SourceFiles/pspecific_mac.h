@@ -151,10 +151,12 @@ public slots:
 
 protected:
 
+	void psNotIdle() const;
+
 	bool posInited;
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
-    QImage icon16, icon32, icon256;
+    QImage icon256;
     virtual void setupTrayIcon() {
     }
     
@@ -265,3 +267,4 @@ void psExecTelegram();
 void psPostprocessFile(const QString &name);
 void psOpenFile(const QString &name, bool openWith = false);
 void psShowInFolder(const QString &name);
+void psFinish();

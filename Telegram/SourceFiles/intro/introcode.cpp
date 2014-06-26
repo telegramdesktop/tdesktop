@@ -67,10 +67,10 @@ void CodeInput::correctValue(QKeyEvent *e, const QString &was) {
 	if (strict) emit codeEntered();
 }
 
-IntroCode::IntroCode(IntroWidget *parent) : IntroStage(parent),
+IntroCode::IntroCode(IntroWidget *parent) : IntroStage(parent), errorAlpha(0),
 	next(this, lang(lng_intro_next), st::btnIntroNext),
 	back(this, lang(lng_intro_back), st::btnIntroBack),
-	code(this, st::inpIntroCode, lang(lng_code_ph)), errorAlpha(0), waitTillCall(intro()->getCallTimeout()) {
+	code(this, st::inpIntroCode, lang(lng_code_ph)), waitTillCall(intro()->getCallTimeout()) {
 	setVisible(false);
 	setGeometry(parent->innerRect());
 

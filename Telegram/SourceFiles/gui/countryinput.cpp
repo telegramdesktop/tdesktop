@@ -61,7 +61,7 @@ namespace {
 			CountriesByISO2::const_iterator already = countriesByISO2.constFind(info->iso2);
 			if (already != countriesByISO2.cend()) {
 				QString badISO = info->iso2;
-				badISO;
+				(void)badISO;
 			}
 			countriesByISO2.insert(info->iso2, info);
 		}
@@ -82,7 +82,7 @@ QString findValidCode(QString fullCode) {
 	return "";
 }
 
-CountryInput::CountryInput(QWidget *parent, const style::countryInput &st) : QWidget(parent), _st(st), _active(false), _select(0), _text(lang(lng_country_code)) {
+CountryInput::CountryInput(QWidget *parent, const style::countryInput &st) : QWidget(parent), _st(st), _active(false), _text(lang(lng_country_code)), _select(0) {
 	initCountries();
 
 	resize(_st.width, _st.height + _st.ptrSize.height());
@@ -204,8 +204,8 @@ CountryInput::~CountryInput() {
 	delete _select;
 }
 
-CountryList::CountryList(QWidget *parent, const style::countryList &st) : QWidget(parent), _sel(0), _mouseSel(false),
-	_st(st) {
+CountryList::CountryList(QWidget *parent, const style::countryList &st) : QWidget(parent), _sel(0),
+	_st(st), _mouseSel(false) {
 	CountriesByISO2::const_iterator l = countriesByISO2.constFind(lastValidISO);
 	bool seenLastValid = false;
 	int already = countriesAll.size();
@@ -338,7 +338,7 @@ void CountryList::mouseMoveEvent(QMouseEvent *e) {
 
 void CountryList::onUpdateSelected(bool force) {
 	QPoint p(mapFromGlobal(_mousePos));
-	if (!force && !rect().contains(p) || !_mouseSel) return;
+	if ((!force && !rect().contains(p)) || !_mouseSel) return;
 
 	int newSelected = p.y();
 	newSelected = (newSelected > _st.verticalMargin) ? (newSelected - _st.verticalMargin) / _st.rowHeight : 0;
@@ -413,11 +413,11 @@ QString CountryList::getSelectedCountry() const {
 }
 
 CountrySelect::CountrySelect() : QWidget(App::wnd()),
-	_scroll(this, st::scrollCountries), _list(&_scroll),
-	_filter(this, st::inpCountry, lang(lng_country_ph)),
-	_doneButton(this, lang(lng_country_done), st::btnSelectDone),
-	_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
-	_innerLeft(0), _innerTop(0), _innerWidth(0), _innerHeight(0), _result("none"),
+	_result("none"),
+    _filter(this, st::inpCountry, lang(lng_country_ph)), _scroll(this, st::scrollCountries), _list(&_scroll),
+    _doneButton(this, lang(lng_country_done), st::btnSelectDone),
+    _cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
+    _innerLeft(0), _innerTop(0), _innerWidth(0), _innerHeight(0),
 	a_alpha(0), a_bgAlpha(0), a_coord(st::countriesSlideShift), _shadow(st::boxShadow) {
 	setGeometry(App::wnd()->rect());
 	

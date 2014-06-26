@@ -24,14 +24,16 @@ public:
 
 	PsMacWindowPrivate();
 
-    void setWindowBadge(const char *utf8str);
+    void setWindowBadge(const QString &str);
     void startBounce();
     
     void holdOnTop(WId winId);
     void showOverAll(WId winId);
     void activateWnd(WId winId);
-    void showNotify(unsigned long long peer, const char *utf8title, const char *subtitle, const char *utf8msg);
-    void clearNotifies(unsigned long long peer = 0);
+    void showNotify(uint64 peer, const QString &title, const QString &subtitle, const QString &msg);
+    void clearNotifies(uint64 peer = 0);
+    
+    void enableShadow(WId winId);
         
     virtual void activeSpaceChanged() {
     }
@@ -46,6 +48,20 @@ public:
     
 };
 
-void _debugShowAlert(const char *utf8str);
-void _outputDebugString(const char *utf8str);
-int64 _idleTime();
+void objc_debugShowAlert(const QString &str);
+void objc_outputDebugString(const QString &str);
+int64 objc_idleTime();
+
+void objc_showInFinder(const QString &file, const QString &path);
+void objc_openFile(const QString &file, bool openwith);
+void objc_finish();
+bool objc_execUpdater();
+void objc_execTelegram();
+
+void objc_activateProgram();
+bool objc_moveFile(const QString &from, const QString &to);
+void objc_deleteDir(const QString &dir);
+
+QString objc_appDataPath();
+QString objc_currentCountry();
+QString objc_currentLang();

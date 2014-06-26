@@ -60,6 +60,8 @@ namespace App {
 		return peerFromUser(user_id.v);
 	}
 	MTPpeer peerToMTP(const PeerId &peer_id);
+    int32 userFromPeer(const PeerId &peer_id);
+    int32 chatFromPeer(const PeerId &peer_id);
 
 	int32 onlineWillChangeIn(int32 onlineOnServer, int32 nowOnServer);
 	QString onlineText(int32 onlineOnServer, int32 nowOnServer);

@@ -372,7 +372,7 @@ public:
 					} else if (ch == ')' || ch == ']' || ch == '}' || ch == '>') {
 						if (parenth.isEmpty()) break;
 						const QChar *q = parenth.pop(), open(*q);
-						if (ch == ')' && open != '(' || ch == ']' && open != '[' || ch == '}' && open != '{' || ch == '>' && open != '<') {
+						if ((ch == ')' && open != '(') || (ch == ']' && open != '[') || (ch == '}' && open != '{') || (ch == '>' && open != '<')) {
 							p = q;
 							break;
 						}
@@ -623,7 +623,7 @@ public:
 				ch = *ptr;
 				chInt = (chInt << 16) | ch.unicode();
 			}
-		} else if (ch >= 48 && ch < 58 || ch == 35) { // check for digit emoji
+		} else if ((ch >= 48 && ch < 58) || ch == 35) { // check for digit emoji
 			if (ptr + 1 < end && (ptr + 1)->unicode() == 0x20E3) {
 				_t->_text.push_back(ch);
 				skipBack = -1;
@@ -657,7 +657,7 @@ public:
 		if (!e) return;
 
 		if (e->len > 2) {
-			if (ptr + 2 >= end || e->code2 != (((ptr + 1)->unicode() << 16) | (ptr + 2)->unicode())) {
+			if (ptr + 2 >= end || e->code2 != ((uint32((ptr + 1)->unicode()) << 16) | uint32((ptr + 2)->unicode()))) {
 				return;
 			} else {
 				_t->_text.push_back(*++ptr);
@@ -669,8 +669,8 @@ public:
 		emoji = e;
 	}
 
-	TextParser(Text *t, const QString &text, const TextParseOptions &options) : _t(t), src(text), stopAfterWidth(QFIXED_MAX),
-		rich(options.flags & TextParseRichText), multiline(options.flags & TextParseMultiline), flags(0), lnkIndex(0), maxLnkIndex(0) {
+	TextParser(Text *t, const QString &text, const TextParseOptions &options) : _t(t), src(text),
+		rich(options.flags & TextParseRichText), multiline(options.flags & TextParseMultiline), maxLnkIndex(0), flags(0), lnkIndex(0), stopAfterWidth(QFIXED_MAX) {
 		int flags = options.flags;
 		if (options.maxw > 0 && options.maxh > 0) {
 			stopAfterWidth = ((options.maxh / _t->_font->height) + 1) * options.maxw;
@@ -884,7 +884,7 @@ public:
 		return _blockEnd(t, i, e) - (*i)->from();
 	}
 
-	TextPainter(QPainter *p, const Text *t) : _p(p), _t(t), _elideLast(false), _elideSavedBlock(0), _lnkResult(0), _inTextFlag(0), _getSymbol(0), _getSymbolAfter(0), _getSymbolUpon(0), _str(0) {
+	TextPainter(QPainter *p, const Text *t) : _p(p), _t(t), _elideLast(false), _str(0), _elideSavedBlock(0), _lnkResult(0), _inTextFlag(0), _getSymbol(0), _getSymbolAfter(0), _getSymbolUpon(0) {
 	}
 
 	void initNextParagraph(Text::TextBlocks::const_iterator i) {
@@ -1228,12 +1228,12 @@ public:
 		bool selectFromStart = (_selectedTo > _lineStart) && (_lineStart > 0) && (_selectedFrom <= _lineStart);
 		bool selectTillEnd = (_selectedTo >= _lineEnd) && (_lineEnd < _t->_text.size()) && (_selectedFrom < _lineEnd) && (!_endBlock || _endBlock->type() != TextBlockSkip);
 
-		if (selectFromStart && _parDirection == Qt::LeftToRight || selectTillEnd && _parDirection == Qt::RightToLeft) {
+		if ((selectFromStart && _parDirection == Qt::LeftToRight) || (selectTillEnd && _parDirection == Qt::RightToLeft)) {
 			if (x > _x) {
 				_p->fillRect(QRectF(_x.toReal(), _y + _yDelta, (x - _x).toReal(), _fontHeight), _textStyle->selectBG->b);
 			}
 		}
-		if (selectTillEnd && _parDirection == Qt::LeftToRight || selectFromStart && _parDirection == Qt::RightToLeft) {
+		if ((selectTillEnd && _parDirection == Qt::LeftToRight) || (selectFromStart && _parDirection == Qt::RightToLeft)) {
 			if (x < _x + _wLeft) {
 				_p->fillRect(QRectF((x + _w - _wLeft).toReal(), _y + _yDelta, (_x + _wLeft - x).toReal(), _fontHeight), _textStyle->selectBG->b);
 			}
@@ -1405,7 +1405,7 @@ public:
 							}
 						}
 					}
-					_p->drawPixmap(QPoint((glyphX + int(st::emojiPadding)).toInt(), _y + _yDelta + emojiY), App::emojis(), QRect(static_cast<EmojiBlock*>(currentBlock)->emoji->x, static_cast<EmojiBlock*>(currentBlock)->emoji->y, st::emojiSize, st::emojiSize));
+					_p->drawPixmap(QPoint((glyphX + int(st::emojiPadding)).toInt(), _y + _yDelta + emojiY), App::emojis(), QRect(static_cast<EmojiBlock*>(currentBlock)->emoji->x, static_cast<EmojiBlock*>(currentBlock)->emoji->y, st::emojiImgSize, st::emojiImgSize));
 //				} else if (_p && currentBlock->type() == TextBlockSkip) { // debug
 //					_p->fillRect(QRect(x.toInt(), _y, currentBlock->width(), static_cast<SkipBlock*>(currentBlock)->height()), QColor(0, 0, 0, 32));
 				}
@@ -1452,11 +1452,11 @@ public:
 					for (int charsCount = (ch2 - ch); ch < ch2; ++ch) {
 						QFixed shift1 = QFixed(2 * (charsCount - (ch2 - ch)) + 2) * gwidth / QFixed(2 * charsCount),
 						       shift2 = QFixed(2 * (charsCount - (ch2 - ch)) + 1) * gwidth / QFixed(2 * charsCount);
-						if (rtl && _lnkX >= tmpx - shift1 ||
-							!rtl && _lnkX < tmpx + shift1) {
+						if ((rtl && _lnkX >= tmpx - shift1) ||
+							(!rtl && _lnkX < tmpx + shift1)) {
 							*_getSymbol = _localFrom + itemStart + ch;
-							if (rtl && _lnkX >= tmpx - shift2 ||
-								!rtl && _lnkX < tmpx + shift2) {
+							if ((rtl && _lnkX >= tmpx - shift2) ||
+								(!rtl && _lnkX < tmpx + shift2)) {
 								*_getSymbolAfter = false;
 							} else {
 								*_getSymbolAfter = true;
@@ -2807,7 +2807,7 @@ namespace {
 class BlockParser {
 public:
 
-	BlockParser(QTextEngine *e, TextBlock *b, QFixed minResizeWidth, int32 blockFrom) : eng(e), block(b) {
+	BlockParser(QTextEngine *e, TextBlock *b, QFixed minResizeWidth, int32 blockFrom) : block(b), eng(e) {
 		parseWords(minResizeWidth, blockFrom);
 	}
 

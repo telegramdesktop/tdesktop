@@ -260,9 +260,9 @@ MainWidget *TopBarWidget::main() {
 	return static_cast<MainWidget*>(parentWidget());
 }
 
-MainWidget::MainWidget(Window *window) : QWidget(window), profile(0), _dialogsWidth(st::dlgMinWidth),
-	updPts(0), updDate(0), updQts(0), updSeq(0), updInited(false), failedObjId(0),
-	dialogs(this), history(this), onlineRequest(0), hider(0), _topBar(this) {
+MainWidget::MainWidget(Window *window) : QWidget(window), failedObjId(0), _dialogsWidth(st::dlgMinWidth),
+	dialogs(this), history(this), profile(0), _topBar(this), hider(0),
+    updPts(0), updDate(0), updQts(0), updSeq(0), updInited(false), onlineRequest(0) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
 	connect(window, SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
@@ -272,7 +272,6 @@ MainWidget::MainWidget(Window *window) : QWidget(window), profile(0), _dialogsWi
 	connect(this, SIGNAL(peerPhotoChanged(PeerData *)), this, SIGNAL(dialogsUpdated()));
 	connect(&noUpdatesTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
 	connect(&onlineTimer, SIGNAL(timeout()), this, SLOT(setOnline()));
-	connect(window->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(mainStateChanged(Qt::WindowState)));
 	connect(&onlineUpdater, SIGNAL(timeout()), this, SLOT(updateOnlineDisplay()));
 	connect(this, SIGNAL(peerUpdated(PeerData*)), &history, SLOT(peerUpdated(PeerData*)));
 	connect(&_topBar, SIGNAL(clicked()), this, SLOT(onTopBarClick()));
@@ -358,7 +357,7 @@ void MainWidget::dialogsActivate() {
 
 bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &e) {
 	if (e.type() == "CHAT_ID_INVALID") { // left this chat already
-		if (profile && profile->peer() == peer || profileStack.indexOf(peer) >= 0 || history.peer() == peer) {
+		if ((profile && profile->peer() == peer) || profileStack.indexOf(peer) >= 0 || history.peer() == peer) {
 			showPeer(0);
 		}
 		dialogs.removePeer(peer);
@@ -370,7 +369,7 @@ bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &e) {
 
 void MainWidget::deleteHistory(PeerData *peer, const MTPmessages_StatedMessage &result) {
 	sentFullDataReceived(0, result);
-	if (profile && profile->peer() == peer || profileStack.indexOf(peer) >= 0 || history.peer() == peer) {
+	if ((profile && profile->peer() == peer) || profileStack.indexOf(peer) >= 0 || history.peer() == peer) {
 		showPeer(0);
 	}
 	dialogs.removePeer(peer);
@@ -398,7 +397,7 @@ void MainWidget::deleteHistoryAndContact(UserData *user, const MTPcontacts_Link 
 	App::feedUsers(MTP_vector<MTPUser>(QVector<MTPUser>(1, d.vuser)));
 	App::feedUserLink(MTP_int(user->id & 0xFFFFFFFF), d.vmy_link, d.vforeign_link);
 
-	if (profile && profile->peer() == user || profileStack.indexOf(user) >= 0 || history.peer() == user) {
+	if ((profile && profile->peer() == user) || profileStack.indexOf(user) >= 0 || history.peer() == user) {
 		showPeer(0);
 	}
 	dialogs.removePeer(user);
@@ -472,7 +471,7 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 	if (!v) return;
 
 	if (v->isEmpty()) {
-		if (profile && profile->peer() == peer || profileStack.indexOf(peer) >= 0 || history.peer() == peer) {
+		if ((profile && profile->peer() == peer) || profileStack.indexOf(peer) >= 0 || history.peer() == peer) {
 			showPeer(0);
 		}
 		dialogs.removePeer(peer);
@@ -496,14 +495,50 @@ void MainWidget::clearSelectedItems() {
 	history.onClearSelected();
 }
 
-QRect MainWidget::rectForTitleAnim() const {
-	int w = width();
-	w -= history.x() + st::sysBtnDelta * 2 + st::sysCls.img.width() + st::sysRes.img.width() + st::sysMin.img.width();
-	return QRect(history.x(), 0, w, App::wnd()->getTitle()->height());
-}
-
 DialogsIndexed &MainWidget::contactsList() {
 	return dialogs.contactsList();
+}
+
+void MainWidget::sendMessage(History *hist, const QString &text) {
+    readServerHistory(hist);
+    QString msg = history.prepareMessage(text);
+	if (!msg.isEmpty()) {
+		MsgId newId = clientMsgId();
+		uint64 randomId = MTP::nonce<uint64>();
+        
+		App::historyRegRandom(randomId, newId);
+        
+		MTPstring msgText(MTP_string(msg));
+		hist->addToBack(MTP_message(MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTP_bool(true), MTP_bool(true), MTP_int(unixtime()), msgText, MTP_messageMediaEmpty()));
+		historyToDown(hist);
+		if (history.peer() == hist->peer) {
+            history.peerMessagesUpdated();
+        }
+        
+		MTP::send(MTPmessages_SendMessage(hist->peer->input, msgText, MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId));
+    }
+}
+
+void MainWidget::readServerHistory(History *hist, bool force) {
+    if (!hist || (!force && (!hist->unreadCount || !hist->unreadLoaded))) return;
+    
+    ReadRequests::const_iterator i = _readRequests.constFind(hist->peer);
+    if (i == _readRequests.cend()) {
+        hist->inboxRead(true);
+        _readRequests.insert(hist->peer, MTP::send(MTPmessages_ReadHistory(hist->peer->input, MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::partWasRead, hist->peer)));
+    }
+}
+
+void MainWidget::partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result) {
+	const MTPDmessages_affectedHistory &d(result.c_messages_affectedHistory());
+	App::main()->updUpdated(d.vpts.v, 0, 0, d.vseq.v);
+    
+	int32 offset = d.voffset.v;
+	if (!MTP::authedId() || offset <= 0) {
+        _readRequests.remove(peer);
+    } else {
+        _readRequests[peer] = MTP::send(MTPmessages_ReadHistory(peer->input, MTP_int(0), MTP_int(offset)), rpcDone(&MainWidget::partWasRead, peer));
+    }
 }
 
 void MainWidget::videoLoadProgress(mtpFileLoader *loader) {
@@ -619,7 +654,7 @@ void MainWidget::onParentResize(const QSize &newSize) {
 }
 
 void MainWidget::updateOnlineDisplay() {
-	history.updateOnlineDisplay(history.x(), width() - history.x() - st::sysBtnDelta * 2 - st::sysCls.img.width() - st::sysRes.img.width() - st::sysMin.img.width());
+	history.updateOnlineDisplay(history.x(), width() - history.x() - st::sysBtnDelta * 2 - st::sysCls.img.pxWidth() - st::sysRes.img.pxWidth() - st::sysMin.img.pxWidth());
 	if (profile) profile->updateOnlineDisplay();
 	if (App::wnd()->settingsWidget()) App::wnd()->settingsWidget()->updateOnlineDisplay();
 }
@@ -1077,7 +1112,7 @@ void MainWidget::onTopBarClick() {
 }
 
 void MainWidget::onPeerShown(PeerData *peer) {
-	if (profile || peer && peer->id) {
+	if (profile || (peer && peer->id)) {
 		_topBar.show();
 	} else {
 		_topBar.hide();

@@ -20,8 +20,9 @@ semibold: 'Open Sans Semibold';
 
 fsize: 13px;
 
-spriteFile: ':/gui/art/sprite.png' / 2:':/gui/art/sprite_125x.png' / 3:':/gui/art/sprite_150x.png' / 4:':/gui/art/sprite_200x.png';
-emojisFile: ':/gui/art/emoji.png' / 2:':/gui/art/emoji_125x.png' / 3:':/gui/art/emoji_150x.png' / 4:':/gui/art/emoji_200x.png';
+spriteFile: ':/gui/art/sprite.png' / 2:':/gui/art/sprite_125x.png' / 3:':/gui/art/sprite_150x.png' / 4:':/gui/art/sprite_200x.png'; // exceptional value for retina
+emojisFile: ':/gui/art/emoji.png' / 2:':/gui/art/emoji_125x.png' / 3:':/gui/art/emoji_150x.png' / 4:':/gui/art/emoji_200x.png'; // exceptional value for retina
+emojiImgSize: 16px; // exceptional value for retina
 emojiSize: 16px;
 emojiPadding: 1px;
 
@@ -1384,3 +1385,13 @@ emojiPanSub: 0px;
 emojiPanDuration: 200;
 emojiPanHover: #f0f0f0;
 emojiPanRound: 2px;
+
+// Mac specific
+
+macAccessoryHeight: 90;
+macEnableFilterAdd: 2;
+macEnableFilterTop: 5;
+macSelectorTop: 6;
+macAlwaysThisAppTop: 4;
+macAppHintTop: 8;
+macCautionIconSize: size(16, 16);

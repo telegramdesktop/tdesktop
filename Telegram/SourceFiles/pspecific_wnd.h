@@ -102,7 +102,7 @@ public:
 	void psFlash();
 	void psNotifySettingGot();
 
-	bool psIsActive() const;
+	bool psIsActive(int state = -1) const;
 	bool psIsOnline(int windowState) const;
 
 	void psUpdateWorkmode();
@@ -135,6 +135,8 @@ public slots:
 	void psNotifyFire();
 
 protected:
+
+	void psNotIdle() const;
 
 	bool posInited;
 	QSystemTrayIcon *trayIcon;
@@ -259,3 +261,4 @@ void psExecTelegram();
 void psPostprocessFile(const QString &name);
 void psOpenFile(const QString &name, bool openWith = false);
 void psShowInFolder(const QString &name);
+void psFinish();

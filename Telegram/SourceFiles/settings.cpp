@@ -67,19 +67,26 @@ QString gLangFile;
 
 bool gRetina = false;
 float64 gRetinaFactor = 1.;
+int32 gIntRetinaFactor = 1;
 bool gCustomNotifies = false;
+
+uint64 gInstance = 0.;
 
 #ifdef Q_OS_WIN
 DBIPlatform gPlatform = dbipWindows;
+QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/win/tupdates/current"));
 #elif defined Q_OS_MAC
 DBIPlatform gPlatform = dbipMac;
+QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/mac/tupdates/current"));
 #elif defined Q_OS_LINUX
 DBIPlatform gPlatform = dbipLinux;
+QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/linux/tupdates/current"));
 #else
 #error Unknown platform
 #endif
 
 void settingsParseArgs(int argc, char *argv[]) {
+    memset_rand(&gInstance, sizeof(gInstance));
 	gExeDir = psCurrentExeDirectory(argc, argv);
 	for (int32 i = 0; i < argc; ++i) {
 		if (string("-release") == argv[i]) {

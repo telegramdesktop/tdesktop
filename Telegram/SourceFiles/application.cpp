@@ -96,6 +96,12 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 		cSetScreenScale(dbisTwo);
 	}
 
+    if (devicePixelRatio() > 1) {
+        cSetRetina(true);
+        cSetRetinaFactor(devicePixelRatio());
+        cSetIntRetinaFactor(int32(cRetinaFactor()));
+    }
+
 	if (!cLangFile().isEmpty()) {
 		LangLoaderPlain loader(cLangFile());
 		if (!loader.errors().isEmpty()) {
@@ -177,7 +183,7 @@ void Application::updateGotCurrent() {
 		if (updates.exists()) {
 			QFileInfoList list = updates.entryInfoList(QDir::Files);
 			for (QFileInfoList::iterator i = list.begin(), e = list.end(); i != e; ++i) {
-				if (QRegularExpression("^tupdate\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
+				if (QRegularExpression("^(tupdate|tmacupd|tlinuxupd)\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
 					QFile(i->absoluteFilePath()).remove();
 				}
 			}
@@ -185,6 +191,7 @@ void Application::updateGotCurrent() {
 		emit updateLatest();
 	}
 	startUpdateCheck(true);
+	App::writeConfig();
 }
 
 void Application::updateFailedCurrent(QNetworkReply::NetworkError e) {
@@ -403,16 +410,16 @@ void Application::startUpdateCheck(bool forceWait) {
 		if (updates.exists()) {
 			QFileInfoList list = updates.entryInfoList(QDir::Files);
 			for (QFileInfoList::iterator i = list.begin(), e = list.end(); i != e; ++i) {
-				if (QRegularExpression("^tupdate\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
+				if (QRegularExpression("^(tupdate|tmacupd|tlinuxupd)\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
 					sendRequest = true;
 				}
 			}
 		}
 	}
-	if (cManyInstance() && !cDebug() || cPlatform() == dbipMac) return; // only main instance is updating
+	if ((cManyInstance() && !cDebug()) || cPlatform() == dbipLinux) return; // only main instance is updating
 
 	if (sendRequest) {
-		QNetworkRequest checkVersion(QUrl(qsl("http://tdesktop.com/win/tupdates/current")));
+		QNetworkRequest checkVersion(cUpdateURL());
 		if (updateReply) updateReply->deleteLater();
 
 		App::setProxySettings(updateManager);
@@ -497,10 +504,6 @@ void Application::startApp() {
 		App::writeUserConfig();
 		cSetNeedConfigResave(false);
 	}
-    if (devicePixelRatio() > 1) {
-        cSetRetina(true);
-        cSetRetinaFactor(devicePixelRatio());
-    }
 
 	window->createWinId();
 	window->init();

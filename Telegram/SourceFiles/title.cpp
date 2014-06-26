@@ -49,7 +49,8 @@ void TitleHider::setLevel(float64 level) {
 TitleWidget::TitleWidget(Window *window)
 	: QWidget(window)
 	, wnd(window)
-	, availWidth(460)
+    , hideLevel(0)
+    , hider(0)
 	, _settings(this, lang(lng_menu_settings), st::titleTextButton)
 	, _contacts(this, lang(lng_menu_contacts), st::titleTextButton)
 	, _about(this, lang(lng_menu_about), st::titleTextButton)
@@ -58,9 +59,8 @@ TitleWidget::TitleWidget(Window *window)
 	, _maximize(this, window)
 	, _restore(this, window)
 	, _close(this, window)
-	, lastMaximized(!(window->windowState() & Qt::WindowMaximized))
-	, hider(0)
-	, hideLevel(0) {
+    , lastMaximized(!(window->windowState() & Qt::WindowMaximized))
+{
 
 	setGeometry(0, 0, wnd->width(), st::titleHeight);
 	stateChanged();
@@ -76,6 +76,13 @@ TitleWidget::TitleWidget(Window *window)
 	connect(&_about, SIGNAL(clicked()), this, SLOT(onAbout()));
 	connect(wnd->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(stateChanged(Qt::WindowState)));
 	connect(App::app(), SIGNAL(updateReady()), this, SLOT(showUpdateBtn()));
+        
+    if (cPlatform() == dbipMac) {
+        _minimize.hide();
+        _maximize.hide();
+        _restore.hide();
+        _close.hide();
+    }
 }
 
 void TitleWidget::paintEvent(QPaintEvent *e) {
@@ -118,17 +125,19 @@ TitleWidget::~TitleWidget() {
 }
 
 void TitleWidget::resizeEvent(QResizeEvent *e) {
-	QPoint p(width() - (lastMaximized ? 0 : st::sysBtnDelta), 0);
+	QPoint p(width() - ((cPlatform() == dbipWindows && lastMaximized) ? 0 : st::sysBtnDelta), 0);
 	
-	p.setX(p.x() - _close.width());
-	_close.move(p);
-
-	p.setX(p.x() - _maximize.width());
-	_restore.move(p); _maximize.move(p);
-
-	p.setX(p.x() - _minimize.width());
-	_minimize.move(p);
-
+    if (cPlatform() != dbipMac) {
+        p.setX(p.x() - _close.width());
+        _close.move(p);
+        
+        p.setX(p.x() - _maximize.width());
+        _restore.move(p); _maximize.move(p);
+        
+        p.setX(p.x() - _minimize.width());
+        _minimize.move(p);
+    }
+    
 	if (!_update.isHidden()) {
 		p.setX(p.x() - _update.width());
 		_update.move(p);
@@ -184,6 +193,8 @@ void TitleWidget::maximizedChanged(bool maximized) {
 	if (lastMaximized == maximized) return;
 
 	lastMaximized = maximized;
+
+    if (cPlatform() == dbipMac) return;
 	if (maximized) {
 		_maximize.clearState();
 	} else {
@@ -202,7 +213,7 @@ HitTestType TitleWidget::hitTest(const QPoint &p) {
 	int x(p.x()), y(p.y()), w(width()), h(height() - st::titleShadow);
 	if (hider && x >= App::main()->dlgsWidth()) return HitTestNone;
 
-	if (x >= st::titleIconPos.x() && y >= st::titleIconPos.y() && x < st::titleIconPos.x() + st::titleIconRect.width() && y < st::titleIconPos.y() + st::titleIconRect.height()) {
+	if (x >= st::titleIconPos.x() && y >= st::titleIconPos.y() && x < st::titleIconPos.x() + st::titleIconRect.pxWidth() && y < st::titleIconPos.y() + st::titleIconRect.pxHeight()) {
 		return HitTestIcon;
 	} else if (false
 		|| (_update.hitTest(p - _update.geometry().topLeft()) == HitTestSysButton) && _update.isVisible()
@@ -215,7 +226,7 @@ HitTestType TitleWidget::hitTest(const QPoint &p) {
 	} else if (x >= 0 && x < w && y >= 0 && y < h) {
 		if (false
 			|| _settings.geometry().contains(x, y)
-			|| !_contacts.isHidden() && _contacts.geometry().contains(x, y)
+			|| (!_contacts.isHidden() && _contacts.geometry().contains(x, y))
 			|| _about.geometry().contains(x, y)
 		) {
 			return HitTestClient;

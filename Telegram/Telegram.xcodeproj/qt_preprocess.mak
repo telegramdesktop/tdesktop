@@ -65,15 +65,14 @@ GeneratedFiles/qrc_telegram.cpp: SourceFiles/telegram.qrc \
 		SourceFiles/art/bg_150x.png \
 		SourceFiles/art/sprite_200x.png \
 		SourceFiles/art/newmsg.wav \
-		SourceFiles/art/ThoolikaTrditionalUnicode.ttf \
 		SourceFiles/art/sprite_125x.png \
-		SourceFiles/art/segoe_wp_semibold.ttf \
 		SourceFiles/art/emoji_200x.png \
 		SourceFiles/art/bg_200x.png \
 		SourceFiles/art/emoji_125x.png \
-		SourceFiles/art/segoe_ui.ttf \
 		SourceFiles/art/bg_125x.png \
-		SourceFiles/art/segoe_ui_semibold.ttf \
+		SourceFiles/art/OpenSans-Regular.ttf \
+                SourceFiles/art/OpenSans-Bold.ttf \
+                SourceFiles/art/OpenSans-Semibold.ttf \
 		SourceFiles/qmime/freedesktop.org.xml \
 		SourceFiles/art/usercolor4.png \
 		SourceFiles/art/chatcolor1.png \

@@ -63,7 +63,7 @@ void MTPSessionData::clear() {
 }
 
 
-MTProtoSession::MTProtoSession() : data(this), dc(0), dcId(0), msSendCall(0), msWait(0) {
+MTProtoSession::MTProtoSession() : data(this), dcId(0), dc(0), msSendCall(0), msWait(0) {
 }
 
 void MTProtoSession::start(int32 dcenter, uint32 connects) {
@@ -158,7 +158,7 @@ void MTProtoSession::checkRequestsByTimer() {
 						stateRequestIds.push_back(MTP_long(i.key()));
 					}
 				}
-			} else if (unixtime() > (uint32)(i.key() >> 32) + MTPContainerLives) {
+			} else if (unixtime() > (int32)(i.key() >> 32) + MTPContainerLives) {
 				removingIds.reserve(haveSentCount);
 				removingIds.push_back(i.key());
 			}
@@ -216,7 +216,7 @@ int32 MTProtoSession::requestState(mtpRequestId requestId) const {
 				result = MTP::RequestConnecting;
 			}
 		} else if (s < 0) {
-			if (result < 0 && s > result || result == MTP::RequestSent) {
+			if ((result < 0 && s > result) || result == MTP::RequestSent) {
 				result = s;
 			}
 		}

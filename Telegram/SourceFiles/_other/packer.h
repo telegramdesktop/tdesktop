@@ -34,7 +34,11 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include <openssl/aes.h>
 #include <openssl/evp.h>
 
+#ifdef Q_OS_WIN // use Lzma SDK for win
 #include <LzmaLib.h>
+#else
+#include <lzma.h>
+#endif
 
 #include <string>
 #include <iostream>

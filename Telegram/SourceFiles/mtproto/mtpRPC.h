@@ -457,7 +457,7 @@ class RPCBindedDoneHandlerOwned : public RPCOwnedDoneHandler { // done(b, result
 	typedef TReturn (TReceiver::*CallbackType)(T, const TResponse &);
 
 public:
-    RPCBindedDoneHandlerOwned(T b, TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _b(b), _onDone(onDone) {
+    RPCBindedDoneHandlerOwned(T b, TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone), _b(b) {
 	}
 	virtual void operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) const {
 		if (_owner) (static_cast<TReceiver*>(_owner)->*_onDone)(_b, TResponse(from, end));
@@ -589,7 +589,7 @@ class RPCBindedFailHandlerOwned : public RPCOwnedFailHandler { // fail(b, error)
 	typedef bool (TReceiver::*CallbackType)(T, const RPCError &);
 
 public:
-	RPCBindedFailHandlerOwned(T b, TReceiver *receiver, CallbackType onFail) : RPCOwnedFailHandler(receiver), _b(b), _onFail(onFail) {
+	RPCBindedFailHandlerOwned(T b, TReceiver *receiver, CallbackType onFail) : RPCOwnedFailHandler(receiver), _onFail(onFail), _b(b) {
 	}
 	virtual bool operator()(mtpRequestId requestId, const RPCError &e) const {
 		return _owner ? (static_cast<TReceiver*>(_owner)->*_onFail)(_b, e) : true;
@@ -623,7 +623,7 @@ class RPCBindedFailHandlerOwnedNo : public RPCOwnedFailHandler { // fail(b)
 	typedef bool (TReceiver::*CallbackType)(T);
 
 public:
-	RPCBindedFailHandlerOwnedNo(T b, TReceiver *receiver, CallbackType onFail) : RPCOwnedFailHandler(receiver), _b(b), _onFail(onFail) {
+	RPCBindedFailHandlerOwnedNo(T b, TReceiver *receiver, CallbackType onFail) : RPCOwnedFailHandler(receiver), _onFail(onFail), _b(b) {
 	}
 	virtual bool operator()(mtpRequestId requestId, const RPCError &e) const {
 		return _owner ? (static_cast<TReceiver*>(_owner)->*_onFail)(_b) : true;
@@ -640,7 +640,7 @@ class RPCBindedFailHandlerOwnedNoReq : public RPCOwnedFailHandler { // fail(b, r
 	typedef bool (TReceiver::*CallbackType)(T, mtpRequestId);
 
 public:
-	RPCBindedFailHandlerOwnedNoReq(T b, TReceiver *receiver, CallbackType onFail) : RPCOwnedFailHandler(receiver), _b(b), _onFail(onFail) {
+	RPCBindedFailHandlerOwnedNoReq(T b, TReceiver *receiver, CallbackType onFail) : RPCOwnedFailHandler(receiver), _onFail(onFail), _b(b) {
 	}
 	virtual bool operator()(mtpRequestId requestId, const RPCError &e) const {
 		return _owner ? (static_cast<TReceiver*>(_owner)->*_onFail)(_b, requestId) : true;

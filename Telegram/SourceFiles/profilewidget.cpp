@@ -619,7 +619,7 @@ bool ProfileInner::animStep(float64 ms) {
 }
 
 bool ProfileInner::getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
-	if (_peerUser && photo->id == _peerUser->photoId || _peerChat && photo->id == _peerChat->photoId) {
+	if ((_peerUser && photo->id == _peerUser->photoId) || (_peerChat && photo->id == _peerChat->photoId)) {
 		x = _left;
 		y = st::profilePadding.top();
 		w = st::setPhotoSize;
@@ -704,8 +704,11 @@ void ProfileInner::showAll() {
 	resize(width(), h);
 }
 
-ProfileWidget::ProfileWidget(QWidget *parent, const PeerData *peer) : QWidget(parent),
-	_inner(this, &_scroll, peer), _scroll(this, st::setScroll), _showing(false) {
+ProfileWidget::ProfileWidget(QWidget *parent, const PeerData *peer) : QWidget(parent)
+    , _scroll(this, st::setScroll)
+    , _inner(this, &_scroll, peer)
+    , _showing(false)
+{
 	_scroll.setWidget(&_inner);
 	_scroll.move(0, 0);
 	_inner.move(0, 0);
@@ -761,10 +764,10 @@ void ProfileWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 		p.drawPixmap(a_coord.current(), 0, _animTopBarCache);
 	} else {
 		p.setOpacity(st::topBarBackAlpha + (1 - st::topBarBackAlpha) * over);
-		p.drawPixmap(QPoint(st::topBarBackPadding.left(), (st::topBarHeight - st::topBarBackImg.height()) / 2), App::sprite(), st::topBarBackImg);
+		p.drawPixmap(QPoint(st::topBarBackPadding.left(), (st::topBarHeight - st::topBarBackImg.pxHeight()) / 2), App::sprite(), st::topBarBackImg);
 		p.setFont(st::topBarBackFont->f);
 		p.setPen(st::topBarBackColor->p);
-		p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.width() + st::topBarBackPadding.right(), (st::topBarHeight - st::titleFont->height) / 2 + st::titleFont->ascent, lang(peer()->chat ? lng_profile_group_info : lng_profile_info));
+		p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.pxWidth() + st::topBarBackPadding.right(), (st::topBarHeight - st::titleFont->height) / 2 + st::titleFont->ascent, lang(peer()->chat ? lng_profile_group_info : lng_profile_info));
 	}
 }
 

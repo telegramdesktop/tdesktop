@@ -22,10 +22,10 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "mainwidget.h"
 #include "window.h"
 
-AboutBox::AboutBox() : _hiding(false),
-_text(this, lang(lng_about_text), st::aboutLabel, st::aboutTextStyle),
+AboutBox::AboutBox() :
 _done(this, lang(lng_about_done), st::aboutCloseButton),
-a_opacity(0, 1) {
+_text(this, lang(lng_about_text), st::aboutLabel, st::aboutTextStyle),
+_hiding(false), a_opacity(0, 1) {
 
 	_width = st::aboutWidth;
 	_height = st::aboutHeight;
@@ -80,7 +80,7 @@ void AboutBox::paintEvent(QPaintEvent *e) {
 			// fill bg
 			p.fillRect(0, 0, _width, _height, st::boxBG->b);
 
-			p.drawPixmap(QPoint((_width - st::aboutIcon.width()) / 2, st::aboutIconTop), App::sprite(), st::aboutIcon);
+			p.drawPixmap(QPoint((_width - st::aboutIcon.pxWidth()) / 2, st::aboutIconTop), App::sprite(), st::aboutIcon);
 
 			p.setPen(st::black->p);
 			p.setFont(st::aboutHeaderFont->f);
