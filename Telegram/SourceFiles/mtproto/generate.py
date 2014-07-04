@@ -189,19 +189,13 @@ with open('scheme.tl') as f:
 
       funcsText += '\tmtpTypeId type() const {\n\t\treturn mtpc_' + name + ';\n\t}\n'; # type id
 
-      if (len(prmsList)):
-        funcsText += '\tvoid read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId /*cons*/ = mtpc_' + name + ') {\n'; # read method
-      else:
-        funcsText += '\tvoid read(const mtpPrime *&/*from*/, const mtpPrime */*end*/, mtpTypeId /*cons*/ = mtpc_' + name + ') {\n'; # read method
+      funcsText += '\tvoid read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_' + name + ') {\n'; # read method
       for k in prmsList:
         v = prms[k];
         funcsText += '\t\tv' + k + '.read(from, end);\n';
       funcsText += '\t}\n';
 
-      if (len(prmsList)):
-        funcsText += '\tvoid write(mtpBuffer &to) const {\n'; # write method
-      else:
-        funcsText += '\tvoid write(mtpBuffer &/*to*/) const {\n'; # write method
+      funcsText += '\tvoid write(mtpBuffer &to) const {\n'; # write method
       for k in prmsList:
         v = prms[k];
         funcsText += '\t\tv' + k + '.write(to);\n';
@@ -538,10 +532,7 @@ for restype in typesList:
   inlineMethods += '}\n';
 
   typesText += '\tvoid write(mtpBuffer &to) const;\n'; # write method
-  if (len(writer)):
-    inlineMethods += 'inline void MTP' + restype + '::write(mtpBuffer &to) const {\n';
-  else:
-    inlineMethods += 'inline void MTP' + restype + '::write(mtpBuffer &/*to*/) const {\n';
+  inlineMethods += 'inline void MTP' + restype + '::write(mtpBuffer &to) const {\n';
   if (withType):
     inlineMethods += '\tswitch (_type) {\n';
     inlineMethods += writer;

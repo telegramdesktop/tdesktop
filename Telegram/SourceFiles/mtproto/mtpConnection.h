@@ -41,6 +41,7 @@ inline bool mtpRequestData::needAckByType(mtpTypeId type) {
 	case mtpc_http_wait:
 	case mtpc_bad_msg_notification:
 	case mtpc_msgs_all_info:
+	case mtpc_msgs_state_info:
 	case mtpc_msg_detailed_info:
 	case mtpc_msg_new_detailed_info:
 		return false;

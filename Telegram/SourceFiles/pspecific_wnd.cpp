@@ -1393,12 +1393,12 @@ PsMainWindow::~PsMainWindow() {
 }
 
 void PsMainWindow::psNotify(History *history, MsgId msgId) {
-	if (App::quiting() || !history->notifyFrom) return;
+	if (App::quiting() || !history->currentNotification()) return;
 
 	bool haveSetting = (history->peer->notify != UnknownNotifySettings);
 	if (haveSetting) {
 		if (history->peer->notify != EmptyNotifySettings && history->peer->notify->mute > unixtime()) {
-			history->clearNotifyFrom();
+			history->clearNotifications();
 			return;
 		}
 	} else {
@@ -1454,7 +1454,7 @@ void PsMainWindow::psClearNotify(History *history) {
 			(*i)->unlinkHistory();
 		}
 		for (NotifyWhenMaps::const_iterator i = notifyWhenMaps.cbegin(), e = notifyWhenMaps.cend(); i != e; ++i) {
-			i.key()->clearNotifyFrom();
+			i.key()->clearNotifications();
 		}
 		notifyWaiters.clear();
 		notifySettingWaiters.clear();
@@ -1588,24 +1588,24 @@ void PsMainWindow::psShowNextNotify(PsNotifyWindow *remove) {
 		NotifyWaiters::iterator notifyWaiter;
 		for (NotifyWaiters::iterator i = notifyWaiters.begin(); i != notifyWaiters.end(); ++i) {
 			History *history = i.key();
-			if (history->notifyFrom && history->notifyFrom->id != i.value().msg) {
+			if (history->currentNotification() && history->currentNotification()->id != i.value().msg) {
 				NotifyWhenMaps::iterator j = notifyWhenMaps.find(history);
 				if (j == notifyWhenMaps.end()) {
-					history->clearNotifyFrom();
+					history->clearNotifications();
 					i = notifyWaiters.erase(i);
 					continue;
 				}
 				do {
-					NotifyWhenMap::const_iterator k = j.value().constFind(history->notifyFrom->id);
+					NotifyWhenMap::const_iterator k = j.value().constFind(history->currentNotification()->id);
 					if (k != j.value().cend()) {
 						i.value().msg = k.key();
 						i.value().when = k.value();
 						break;
 					}
-					history->getNextNotifyFrom();
-				} while (history->notifyFrom);
+					history->skipNotification();
+				} while (history->currentNotification());
 			}
-			if (!history->notifyFrom) {
+			if (!history->currentNotification()) {
 				notifyWhenMaps.remove(history);
 				i = notifyWaiters.erase(i);
 				continue;
@@ -1613,7 +1613,7 @@ void PsMainWindow::psShowNextNotify(PsNotifyWindow *remove) {
 			uint64 when = i.value().when;
 			if (!notifyItem || next > when) {
 				next = when;
-				notifyItem = history->notifyFrom;
+				notifyItem = history->currentNotification();
 				notifyWaiter = i;
 			}
 		}
@@ -1631,25 +1631,25 @@ void PsMainWindow::psShowNextNotify(PsNotifyWindow *remove) {
 
 				uint64 ms = getms();
 				History *history = notifyItem->history();
-				history->getNextNotifyFrom();
+				history->skipNotification();
 				NotifyWhenMaps::iterator j = notifyWhenMaps.find(history);
-				if (j == notifyWhenMaps.end() || !history->notifyFrom) {
-					history->clearNotifyFrom();
+				if (j == notifyWhenMaps.end() || !history->currentNotification()) {
+					history->clearNotifications();
 					notifyWaiters.erase(notifyWaiter);
 					if (j != notifyWhenMaps.end()) notifyWhenMaps.erase(j);
 					continue;
 				}
 				j.value().remove(notifyItem->id);
 				do {
-					NotifyWhenMap::const_iterator k = j.value().constFind(history->notifyFrom->id);
+					NotifyWhenMap::const_iterator k = j.value().constFind(history->currentNotification()->id);
 					if (k != j.value().cend()) {
 						notifyWaiter.value().msg = k.key();
 						notifyWaiter.value().when = k.value();
 						break;
 					}
-					history->getNextNotifyFrom();
-				} while (history->notifyFrom);
-				if (!history->notifyFrom) {
+					history->skipNotification();
+				} while (history->currentNotification());
+				if (!history->currentNotification()) {
 					notifyWaiters.erase(notifyWaiter);
 					notifyWhenMaps.erase(j);
 					continue;
@@ -1829,7 +1829,7 @@ void PsNotifyWindow::mousePressEvent(QMouseEvent *e) {
 	} else if (history) {
 		App::wnd()->showFromTray();
 		App::wnd()->hideSettings();
-		App::main()->showPeer(history->peer->id, false, true);
+		App::main()->showPeer(history->peer->id, 0, false, true);
 		e->ignore();
 	}
 }

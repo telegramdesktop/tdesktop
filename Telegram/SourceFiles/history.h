@@ -527,8 +527,8 @@ struct Histories : public QHash<PeerId, History*> {
 		unreadFull = unreadMuted = 0;
 	}
 
-	PeerId addToBack(const MTPmessage &msg, bool newMsg = true);
-//	PeerId addToBack(const MTPgeoChatMessage &msg, bool newMsg = true);
+	HistoryItem *addToBack(const MTPmessage &msg, int msgState = 1); // 1 - new message, 0 - not new message, -1 - searched message
+//	HistoryItem *addToBack(const MTPgeoChatMessage &msg, bool newMsg = true);
 
 	typedef QMap<History*, uint64> TypingHistories; // when typing in this history started
 	TypingHistories typing;
@@ -551,6 +551,17 @@ struct DialogRow {
 	void *attached; // for any attached data, for example View in contacts list
 };
 
+struct FakeDialogRow {
+	FakeDialogRow(HistoryItem *item) : _item(item), _cacheFor(0), _cache(st::dlgRichMinWidth) {
+	}
+
+	void paint(QPainter &p, int32 w, bool act, bool sel) const;
+
+	HistoryItem *_item;
+	mutable const HistoryItem *_cacheFor;
+	mutable Text _cache;
+};
+
 class HistoryMedia;
 class HistoryMessage;
 class HistoryUnreadBar;
@@ -558,7 +569,7 @@ struct History : public QList<HistoryBlock*> {
 	History(const PeerId &peerId);
 
 	typedef QList<HistoryBlock*> Parent;
-	void clear();
+	void clear(bool leaveItems = false);
 	Parent::iterator erase(Parent::iterator i);
 	void blockResized(HistoryBlock *block, int32 dh);
 	void removeBlock(HistoryBlock *block);
@@ -567,16 +578,21 @@ struct History : public QList<HistoryBlock*> {
 		clear();
 	}
 
-	HistoryItem *createItem(HistoryBlock *block, const MTPmessage &msg, bool newMsg);
+	HistoryItem *createItem(HistoryBlock *block, const MTPmessage &msg, bool newMsg, bool returnExisting = false);
 	HistoryItem *createItemForwarded(HistoryBlock *block, MsgId id, HistoryMessage *msg);
 //	HistoryItem *createItem(HistoryBlock *block, const MTPgeoChatMessage &msg, bool newMsg);
-	void addToBackService(MsgId msgId, QDateTime date, const QString &text, bool out = false, bool unread = false, HistoryMedia *media = 0, bool newMsg = true);
-	void addToBack(const MTPmessage &msg, bool newMsg = true);
-	void addToBackForwarded(MsgId id, HistoryMessage *item);
-//	void addToBack(const MTPgeoChatMessage &msg, bool newMsg = true);
+	HistoryItem *addToBackService(MsgId msgId, QDateTime date, const QString &text, bool out = false, bool unread = false, HistoryMedia *media = 0, bool newMsg = true);
+	HistoryItem *addToBack(const MTPmessage &msg, bool newMsg = true);
+	HistoryItem *addToHistory(const MTPmessage &msg);
+	HistoryItem *addToBackForwarded(MsgId id, HistoryMessage *item);
+//	HistoryItem *addToBack(const MTPgeoChatMessage &msg, bool newMsg = true);
 	void addToFront(const QVector<MTPMessage> &slice);
+	void addToBack(const QVector<MTPMessage> &slice);
 	void createInitialDateBlock(const QDateTime &date);
-	void doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *adding, bool newMsg);
+	HistoryItem *doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *adding, bool newMsg);
+
+	void newItemAdded(HistoryItem *item);
+
 	void inboxRead(bool byThisInstance = false);
 	void outboxRead();
 
@@ -585,18 +601,66 @@ struct History : public QList<HistoryBlock*> {
 	void setMute(bool newMute);
 	void getNextShowFrom(HistoryBlock *block, int32 i);
 	void addUnreadBar();
-	void getNextNotifyFrom(HistoryBlock *block = 0, int32 i = 0);
-	void clearNotifyFrom();
+	void clearNotifications();
+
+	bool readyForWork() const; // all unread loaded or loaded around activeMsgId
+	bool loadedAtBottom() const; // last message is in the list
+	bool loadedAtTop() const; // nothing was added after loading history back
+
+	void fixLastMessage(bool wasAtBottom);
+
+	void loadAround(MsgId msgId);
+
+	MsgId minMsgId() const;
+	MsgId maxMsgId() const;
 
 	int32 geomResize(int32 newWidth, int32 *ytransform = 0); // return new size
-	int32 width, height, msgCount, offset, unreadCount;
+	int32 width, height, msgCount, unreadCount;
 	int32 inboxReadTill, outboxReadTill;
 	HistoryItem *showFrom;
-	HistoryItem *notifyFrom;
 	HistoryUnreadBar *unreadBar;
-	bool unreadLoaded;
 
 	PeerData *peer;
+	bool oldLoaded, newLoaded;
+	HistoryItem *last;
+	MsgId activeMsgId;
+
+	typedef QList<HistoryItem*> NotifyQueue;
+	NotifyQueue notifies;
+
+	void removeNotification(HistoryItem *item) {
+		if (!notifies.isEmpty()) {
+			for (NotifyQueue::iterator i = notifies.begin(), e = notifies.end(); i != e; ++i) {
+				if ((*i) == item) {
+					notifies.erase(i);
+					break;
+				}
+			}
+		}
+	}
+	HistoryItem *currentNotification() {
+		return notifies.isEmpty() ? 0 : notifies.front();
+	}
+	void skipNotification() {
+		if (!notifies.isEmpty()) {
+			notifies.pop_front();
+		}
+	}
+
+	void itemReplaced(HistoryItem *old, HistoryItem *item) {
+		if (!notifies.isEmpty()) {
+			for (NotifyQueue::iterator i = notifies.begin(), e = notifies.end(); i != e; ++i) {
+				if ((*i) == old) {
+					*i = item;
+					break;
+				}
+			}
+		}
+		if (last == old) {
+			last = item;
+		}
+		// showFrom can't be detached
+	}
 
 	QString draft;
 	QTextCursor draftCur;
@@ -911,7 +975,7 @@ struct HistoryBlock : public QVector<HistoryItem*> {
 	}
 
 	typedef QVector<HistoryItem*> Parent;
-	void clear();
+	void clear(bool leaveItems = false);
 	Parent::iterator erase(Parent::iterator i);
 	~HistoryBlock() {
 		clear();
@@ -979,7 +1043,18 @@ public:
 	}
 	void destroy() {
 		markRead();
-		_block->removeItem(this);
+		bool wasAtBottom = history()->loadedAtBottom();
+		_history->removeNotification(this);
+		detach();
+		if (history()->last == this) {
+			history()->fixLastMessage(wasAtBottom);
+		}
+		delete this;
+	}
+	void detach();
+	void detachFast();
+	bool detached() const {
+		return !_block;
 	}
 	bool out() const {
 		return _out;
@@ -1047,7 +1122,7 @@ protected:
 
 };
 
-HistoryItem *regItem(HistoryItem *item);
+HistoryItem *regItem(HistoryItem *item, bool returnExisting = false);
 
 enum HistoryMediaType {
 	MediaTypePhoto,

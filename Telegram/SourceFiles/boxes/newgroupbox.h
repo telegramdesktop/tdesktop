@@ -39,6 +39,7 @@ public:
 	void selectSkipPage(int32 h, int32 dir);
 
 	QVector<MTPInputUser> selectedInputs();
+	PeerData *selectedUser();
 
 	void loadProfilePhotos(int32 yFrom);
 

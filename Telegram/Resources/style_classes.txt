@@ -229,3 +229,20 @@ flatLabel {
 	width: number;
 	align: align;
 }
+
+switcher {
+	border: number;
+	borderColor: color;
+
+	bgColor: color;
+	bgHovered: color;
+	bgActive: color;
+
+	height: number;
+
+	font: font;
+	textColor: color;
+	activeColor: color;
+
+	duration: number;
+}

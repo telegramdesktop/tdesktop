@@ -210,7 +210,7 @@ void ContactsInner::chooseParticipant() {
 	}
 	if (r) {
 		App::wnd()->hideSettings(true);
-		App::main()->showPeer(r->history->peer->id, false, true);
+		App::main()->showPeer(r->history->peer->id, 0, false, true);
 		App::wnd()->hideLayer();
 	}
 

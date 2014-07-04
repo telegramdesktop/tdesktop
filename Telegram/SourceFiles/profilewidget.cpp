@@ -171,7 +171,7 @@ void ProfileInner::onClearHistory() {
 }
 
 void ProfileInner::onClearHistorySure() {
-	App::main()->showPeer(0, true);
+	App::main()->showPeer(0, 0, true);
 	App::wnd()->hideLayer();
 	App::main()->clearHistory(_peer);
 }
@@ -546,7 +546,7 @@ void ProfileInner::onKickConfirm() {
 
 void ProfileInner::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
-		App::main()->showPeer(0, true);
+		App::main()->showPeer(0, 0, true);
 	}
 }
 

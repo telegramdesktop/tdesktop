@@ -508,7 +508,7 @@ namespace App {
 			}
 		}
 		for (QMap<int32, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-			histories().addToBack(v[*i], newMsgs);
+			histories().addToBack(v[*i], newMsgs ? 1 : 0);
 		}
 	}
 
@@ -557,9 +557,6 @@ namespace App {
 			if (j != msgsData.cend()) {
 				History *h = (*j)->history();
 				(*j)->destroy();
-				if (h->isEmpty()) {
-					if (App::main()) App::main()->checkPeerHistory(h->peer);
-				}
 			}
 		}
 	}
@@ -1100,23 +1097,26 @@ namespace App {
 		return 0;
 	}
 
-	bool historyRegItem(HistoryItem *item) {
+	HistoryItem *historyRegItem(HistoryItem *item) {
 		MsgsData::const_iterator i = msgsData.constFind(item->id);
 		if (i == msgsData.cend()) {
 			msgsData.insert(item->id, item);
 			if (item->id > ::maxMsgId) ::maxMsgId = item->id;
-			return true;
+			return 0;
 		}
-		return (i.value() == item);
+		if (i.value() != item && !i.value()->block() && item->block()) { // replace search item
+			item->history()->itemReplaced(i.value(), item);
+			if (App::main()) {
+				emit App::main()->historyItemReplaced(i.value(), item);
+			}
+			delete i.value();
+			msgsData.insert(item->id, item);
+			return 0;
+		}
+		return (i.value() == item) ? 0 : i.value();
 	}
 
-	void historyUnregItem(HistoryItem *item) {
-		MsgsData::iterator i = msgsData.find(item->id);
-		if (i != msgsData.cend()) {
-			if (i.value() == item) {
-				msgsData.erase(i);
-			}
-		}
+	void historyItemDetached(HistoryItem *item) {
 		if (::hoveredItem == item) {
 			hoveredItem(0);
 		}
@@ -1135,13 +1135,32 @@ namespace App {
 		if (::mousedItem == item) {
 			mousedItem(0);
 		}
+	}
+
+	void historyUnregItem(HistoryItem *item) {
+		MsgsData::iterator i = msgsData.find(item->id);
+		if (i != msgsData.cend()) {
+			if (i.value() == item) {
+				msgsData.erase(i);
+			}
+		}
+		historyItemDetached(item);
 		if (App::main()) {
 			emit App::main()->historyItemDeleted(item);
 		}
 	}
 
 	void historyClearMsgs() {
+		QVector<HistoryItem*> toDelete;
+		for (MsgsData::const_iterator i = msgsData.cbegin(), e = msgsData.cend(); i != e; ++i) {
+			if ((*i)->detached()) {
+				toDelete.push_back(*i);
+			}
+		}
 		msgsData.clear();
+		for (int i = 0, l = toDelete.size(); i < l; ++i) {
+			delete toDelete[i];
+		}
 		::maxMsgId = 0;
 		::hoveredItem = ::pressedItem = ::hoveredLinkItem = ::pressedLinkItem = ::contextItem = 0;
 	}
@@ -1224,6 +1243,12 @@ namespace App {
 		textlnkOver(TextLinkPtr());
 		textlnkDown(TextLinkPtr());
 
+		if (completely && App::main()) {
+			App::main()->disconnect(SIGNAL(historyItemDeleted(HistoryItem *)));
+		}
+
+		histories().clear();
+
 		if (completely) {
 			LOG(("Deleting sound.."));
 			delete newMsgSound;
@@ -1241,12 +1266,6 @@ namespace App {
 		} else {
 			clearStorageImages();
 		}
-
-        if (App::main()) {
-            App::main()->disconnect(SIGNAL(historyItemDeleted(HistoryItem*)));
-        }
-
-		histories().clear();
 
 		serviceImageCacheSize = imageCacheSize();
 	}

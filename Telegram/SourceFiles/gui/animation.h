@@ -224,7 +224,7 @@ public:
 			}
 		} else {
 			if (!objs.size()) {
-				timer.start(7);
+				timer.start(AnimationTimerDelta);
 			}
 			objs.insert(obj);
 		}

@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #pragma once
 
-static const int32 AppVersion = 5005;
-static const wchar_t *AppVersionStr = L"0.5.5";
+static const int32 AppVersion = 5006;
+static const wchar_t *AppVersionStr = L"0.5.6";
 #ifdef Q_OS_WIN
 static const wchar_t *AppName = L"Telegram Win (Unofficial)";
 #else
@@ -56,7 +56,12 @@ enum {
 	LocalEncryptSaltSize = 32, // 256 bit
 	LocalEncryptKeySize = 256, // 2048 bit
 
+	AnimationTimerDelta = 7,
+
 	SaveRecentEmojisTimeout = 3000, // 3 secs
+
+	AutoSearchTimeout = 1500, // 1.5 secs
+	SearchPerPage = 50,
 };
 
 #ifdef Q_OS_WIN

@@ -438,6 +438,15 @@ QVector<MTPInputUser> NewGroupInner::selectedInputs() {
 	return result;
 }
 
+PeerData *NewGroupInner::selectedUser() {
+	for (ContactsData::const_iterator i = _contactsData.cbegin(), e = _contactsData.cend(); i != e; ++i) {
+		if (i.value()->check) {
+			return i.key();
+		}
+	}
+	return 0;
+}
+
 NewGroupBox::NewGroupBox() : _scroll(this, st::newGroupScroll), _inner(),
 	_filter(this, st::contactsFilter, lang(lng_participant_filter)),
 	_next(this, lang(lng_create_group_next), st::btnSelectDone),
@@ -579,13 +588,15 @@ void NewGroupBox::onClose() {
 
 void NewGroupBox::onNext() {
 	MTPVector<MTPInputUser> users(MTP_vector<MTPInputUser>(_inner.selectedInputs()));
-	if (users.c_vector().v.isEmpty()) {
+	const QVector<MTPInputUser> &v(users.c_vector().v);
+	if (v.isEmpty()) {
 		_filter.setFocus();
 		_filter.notaBene();
-		return;
+	} else if (v.size() == 1) {
+		App::main()->showPeer(_inner.selectedUser()->id);
+	} else {
+		App::wnd()->replaceLayer(new CreateGroupBox(users));
 	}
-
-	App::wnd()->replaceLayer(new CreateGroupBox(users));
 }
 
 void NewGroupBox::onScroll() {
