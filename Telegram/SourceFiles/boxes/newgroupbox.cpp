@@ -530,8 +530,7 @@ void NewGroupBox::paintEvent(QPaintEvent *e) {
 			p.fillRect(0, st::participantFilter.height, _width, st::scrollDef.topsh, st::scrollDef.shColor->b);
 
 			// paint button sep
-			p.setPen(st::btnSelectSep->p);
-			p.drawLine(st::btnSelectCancel.width, size().height() - st::btnSelectCancel.height, st::btnSelectCancel.width, size().height() - 1);
+			p.fillRect(st::btnSelectCancel.width, size().height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
 
 			// draw box title / text
 			p.setPen(st::black->p);
@@ -677,8 +676,7 @@ void CreateGroupBox::paintEvent(QPaintEvent *e) {
 			p.fillRect(0, _height - st::btnSelectCancel.height - st::scrollDef.bottomsh, _width, st::scrollDef.bottomsh, st::scrollDef.shColor->b);
 
 			// paint button sep
-			p.setPen(st::btnSelectSep->p);
-			p.drawLine(st::btnSelectCancel.width, _height - st::btnSelectCancel.height, st::btnSelectCancel.width, size().height() - 1);
+			p.fillRect(st::btnSelectCancel.width, _height - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
 
 			// draw box title / text
 			p.setPen(st::black->p);

@@ -171,7 +171,7 @@ enum {
 	NoUpdatesTimeout = 180 * 1000, // if nothing is received in 3 min we reconnect
 
 	MemoryForImageCache = 64 * 1024 * 1024, // after 64mb of unpacked images we try to clear some memory
-	NotifyWindows = 3, // 3 desktop notifies at the same time
+	NotifyWindowsCount = 3, // 3 desktop notifies at the same time
 	NotifyWaitTimeout = 1200, // 1.2 seconds timeout before notification
 	NotifySettingSaveTimeout = 1000, // wait 1 second before saving notify setting to server
 	UpdateChunk = 100 * 1024, // 100kb parts when downloading the update

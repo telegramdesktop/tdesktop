@@ -115,10 +115,10 @@ void Switcher::paintEvent(QPaintEvent *e) {
 		}
 	}
 	if (_st.border) {
-		p.setPen(_st.borderColor->p);
-		for (uint32 i = 0; i < _st.border; ++i) {
-			p.drawRect(i, i, width() - 2 * i - 1, height() - 2 * i - 1);
-		}
+		p.fillRect(0, 0, width() - _st.border, _st.border, _st.borderColor->b);
+		p.fillRect(width() - _st.border, 0, _st.border, height() - _st.border, _st.borderColor->b);
+		p.fillRect(_st.border, height() - _st.border, width() - _st.border, _st.border, _st.borderColor->b);
+		p.fillRect(0, _st.border, _st.border, height() - _st.border, _st.borderColor->b);
 	}
 }
 

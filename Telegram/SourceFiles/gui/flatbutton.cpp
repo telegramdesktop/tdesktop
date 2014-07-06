@@ -101,8 +101,7 @@ BottomButton::BottomButton(QWidget *w, const QString &t, const style::flatButton
 void BottomButton::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
-	p.setPen(st::scrollDef.shColor->p);
-	p.drawLine(0, 0, width(), 0);
+	p.fillRect(0, 0, width(), st::lineWidth, st::scrollDef.shColor->b);
 
 	FlatButton::paintEvent(e);
 }

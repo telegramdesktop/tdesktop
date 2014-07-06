@@ -167,7 +167,7 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result) {
 			}
 			removeFromQueue();
 			App::wnd()->update();
-			App::wnd()->psUpdateNotifies();
+			App::wnd()->notifyUpdateAll();
 		}
 		emit progress(this);
 	}

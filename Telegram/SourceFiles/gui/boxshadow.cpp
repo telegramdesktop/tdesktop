@@ -66,9 +66,9 @@ void BoxShadow::paint(QPainter &p, const QRect &box, const QPoint &shift, int32 
 	if (left && bottom) p.drawPixmap(box.left() - _size + minus + shift.x(), box.bottom() - minus + 1 + shift.y(), _corners, 0, _size, _size, _size);
 	for (int32 i = 1; i <= count; ++i) {
 		p.setPen(_colors[i - 1]->p);
-		if (top) p.drawLine(box.left() + (left ? minus : 0) + shift.x(), box.top() - count + i + shift.y(), box.right() - (right ? minus : 0) + shift.x(), box.top() - count + i + shift.y());
-		if (right) p.drawLine(box.right() + count - i + shift.x(), box.top() + (top ? minus : 0) + shift.y(), box.right() + count - i + shift.x(), box.bottom() - (bottom ? minus : 0) + shift.y());
-		if (bottom) p.drawLine(box.right() - (right ? minus : 0) + shift.x(), box.bottom() + count - i + shift.y(), box.left() + (left ? minus : 0) + shift.x(), box.bottom() + count - i + shift.y());
-		if (left) p.drawLine(box.left() - count + i + shift.x(), box.bottom() - (bottom ? minus : 0) + shift.y(), box.left() - count + i + shift.x(), box.top() + (top ? minus : 0) + shift.y());
+		if (top) p.fillRect(box.left() + (left ? minus : 0) + shift.x(), box.top() - count + i + shift.y(), box.width() - (right ? minus : 0) - (left ? minus : 0), st::lineWidth, _colors[i - 1]->b);
+		if (right) p.fillRect(box.right() + count - i + shift.x(), box.top() + (top ? minus : 0) + shift.y(), st::lineWidth, box.height() - (bottom ? minus : 0) - (top ? minus : 0), _colors[i - 1]->b);
+		if (bottom) p.fillRect(box.left() + (left ? minus : 0) + shift.x(), box.bottom() + count - i + shift.y(), box.width() - (right ? minus : 0) - (left ? minus : 0), st::lineWidth, _colors[i - 1]->b);
+		if (left) p.fillRect(box.left() - count + i + shift.x(), box.top() + (top ? minus : 0) + shift.y(), st::lineWidth, box.height() - (bottom ? minus : 0) - (top ? minus : 0), _colors[i - 1]->b);
 	}
 }

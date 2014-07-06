@@ -116,7 +116,7 @@ void logsInit() {
 	static _StreamCreator streamCreator;
 	if (mainLogStream) return;
     
-#ifdef Q_OS_MAC
+#if defined Q_OS_MAC && !defined _DEBUG
 	cForceWorkingDir(psAppDataPath());
 #endif
 

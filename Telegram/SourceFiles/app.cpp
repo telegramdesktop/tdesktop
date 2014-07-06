@@ -113,7 +113,7 @@ namespace App {
 		Window *w(wnd());
 		if (w) {
 			w->tempDirDelete();
-			w->psClearNotifyFast();
+			w->notifyClearFast();
 			w->setupIntro(true);
 		}
 		MainWidget *m(main());
@@ -1828,7 +1828,7 @@ namespace App {
 
 		setQuiting();
 		if (wnd()) {
-			wnd()->psClearNotifyFast();
+			wnd()->notifyClearFast();
 		}
 		if (app()) {
 			app()->quit();

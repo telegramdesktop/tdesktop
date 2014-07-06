@@ -40,6 +40,8 @@
 		06EABCC49D2EEE4076322BE7 /* moc_mtp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 924D4939FD169BB4B8AEB1C9 /* moc_mtp.cpp */; settings = {ATTRIBUTES = (); }; };
 		07055CC4194EE85B0008DEF6 /* libcrypto.a in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 07055CC3194EE85B0008DEF6 /* libcrypto.a */; };
 		0749CE69194D723400345D61 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 07C3AF24194335ED0016CFF1 /* Images.xcassets */; };
+		07C4753B1967DF1C00CAAFE9 /* switcher.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C475391967DF1C00CAAFE9 /* switcher.cpp */; };
+		07C4753F1967E37300CAAFE9 /* moc_switcher.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */; };
 		0A49F3A5DC0680FB31519670 /* phoneinput.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 7C8F9CA4FCE8AF8FCCCB961E /* phoneinput.cpp */; settings = {ATTRIBUTES = (); }; };
 		0CB7DE9A54CC9BF86FB7B5CA /* mtp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 6D50D70712776D7ED3B00E5C /* mtp.cpp */; settings = {ATTRIBUTES = (); }; };
 		0F0FC25286E16E5F78962FEE /* moc_newgroupbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 69FE16874104731CE2A66E0D /* moc_newgroupbox.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -241,6 +243,9 @@
 		07C3AF2819433ABF0016CFF1 /* lang.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = lang.txt; path = Resources/lang.txt; sourceTree = SOURCE_ROOT; };
 		07C3AF2919433ABF0016CFF1 /* style_classes.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = style_classes.txt; path = Resources/style_classes.txt; sourceTree = SOURCE_ROOT; };
 		07C3AF2A19433ABF0016CFF1 /* style.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = style.txt; path = Resources/style.txt; sourceTree = SOURCE_ROOT; };
+		07C475391967DF1C00CAAFE9 /* switcher.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = switcher.cpp; path = SourceFiles/gui/switcher.cpp; sourceTree = SOURCE_ROOT; };
+		07C4753A1967DF1C00CAAFE9 /* switcher.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = switcher.h; path = SourceFiles/gui/switcher.h; sourceTree = SOURCE_ROOT; };
+		07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_switcher.cpp; path = GeneratedFiles/Debug/moc_switcher.cpp; sourceTree = SOURCE_ROOT; };
 		08A7682548FB7E671FF03822 /* boxshadow.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = boxshadow.cpp; path = SourceFiles/gui/boxshadow.cpp; sourceTree = "<absolute>"; };
 		098EA7CE256AAFAE4A17EB77 /* introcode.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = introcode.h; path = SourceFiles/intro/introcode.h; sourceTree = "<absolute>"; };
 		09FD01F2BD652EB838A296D8 /* application.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = application.h; path = SourceFiles/application.h; sourceTree = "<absolute>"; };
@@ -757,6 +762,7 @@
 				7C8F9CA4FCE8AF8FCCCB961E /* phoneinput.cpp */,
 				6E1859D714E4471E053D90C9 /* scrollarea.cpp */,
 				420A06A32B66D250142B4B6D /* style_core.cpp */,
+				07C475391967DF1C00CAAFE9 /* switcher.cpp */,
 				135FD3715BFDC50AD7B00E04 /* text.cpp */,
 				BB1602EA641643DE565005B1 /* twidget.cpp */,
 				85FABD67716E36CD8B3CA4FA /* animation.h */,
@@ -775,6 +781,7 @@
 				F1B68FFCE8AE823F6D45EB06 /* phoneinput.h */,
 				83A36F229E897566E011B79E /* scrollarea.h */,
 				0FC38EE7F29EF895925A2C49 /* style_core.h */,
+				07C4753A1967DF1C00CAAFE9 /* switcher.h */,
 				6E8FD0ED1B60D43929944CD2 /* text.h */,
 				507CCEEC4CBA3E3BD6EEDED1 /* twidget.h */,
 			);
@@ -994,6 +1001,7 @@
 		801973D3334D0FCA849CF485 /* Debug */ = {
 			isa = PBXGroup;
 			children = (
+				07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */,
 				E181C525E21A16F2D4396CA7 /* moc_application.cpp */,
 				3B3ED09AB00290D78CF1181B /* moc_dialogswidget.cpp */,
 				AC9B5F6FB4B984C8D76F7AE2 /* moc_dropdown.cpp */,
@@ -1360,11 +1368,13 @@
 				E9F1CE7F9B18C7C85A50E62D /* style_auto.cpp in Compile Sources */,
 				EBE29731916DB43BF49FE7A4 /* aboutbox.cpp in Compile Sources */,
 				4426AF526AAD86D6F73CE36F /* addcontactbox.cpp in Compile Sources */,
+				07C4753B1967DF1C00CAAFE9 /* switcher.cpp in Compile Sources */,
 				830CB6F547B8C80A569A0271 /* addparticipantbox.cpp in Compile Sources */,
 				A0A6B97F7DBEC81004EC9461 /* confirmbox.cpp in Compile Sources */,
 				4FEA8F51B7BC7CAC71347A1A /* connectionbox.cpp in Compile Sources */,
 				298BFAB73BF182297584F96F /* contactsbox.cpp in Compile Sources */,
 				BA41D511A9BBCA09365DF88C /* downloadpathbox.cpp in Compile Sources */,
+				07C4753F1967E37300CAAFE9 /* moc_switcher.cpp in Compile Sources */,
 				3ABE4F9B2264F770D944106D /* emojibox.cpp in Compile Sources */,
 				7422A321DF80CF9FAC7CB51B /* newgroupbox.cpp in Compile Sources */,
 				77B998AC22A13EF3DDEE07AC /* photocropbox.cpp in Compile Sources */,
@@ -1491,9 +1501,9 @@
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 0.5.4;
+				CURRENT_PROJECT_VERSION = 0.5.6;
 				DYLIB_COMPATIBILITY_VERSION = 0.5;
-				DYLIB_CURRENT_VERSION = 0.5.5;
+				DYLIB_CURRENT_VERSION = 0.5.6;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_OPTIMIZATION_LEVEL = fast;
@@ -1615,10 +1625,10 @@
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.5.4;
+				CURRENT_PROJECT_VERSION = 0.5.6;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 0.5;
-				DYLIB_CURRENT_VERSION = 0.5.5;
+				DYLIB_CURRENT_VERSION = 0.5.6;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;

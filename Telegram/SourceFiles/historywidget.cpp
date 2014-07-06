@@ -554,7 +554,7 @@ void HistoryList::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void HistoryList::mouseDoubleClickEvent(QMouseEvent *e) {
-	if ((_dragAction == Selecting && !_selected.isEmpty() && _selected.cbegin().value() != FullItemSel || _dragAction == NoDrag && (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel)) && _dragSelType == TextSelectLetters && _dragItem) {
+	if (((_dragAction == Selecting && !_selected.isEmpty() && _selected.cbegin().value() != FullItemSel) || (_dragAction == NoDrag && (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel))) && _dragSelType == TextSelectLetters && _dragItem) {
 		bool afterDragSymbol, uponSelected;
 		uint16 symbol;
 		_dragItem->getSymbol(symbol, afterDragSymbol, uponSelected, _dragStartPos.x(), _dragStartPos.y());
@@ -1334,8 +1334,7 @@ void HistoryHider::paintEvent(QPaintEvent *e) {
 			p.fillRect(box.x(), box.y() + box.height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, box.width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
 
 			// paint button sep
-			p.setPen(st::btnSelectSep->p);
-			p.drawLine(box.x() + st::btnSelectCancel.width, box.y() + box.height() - st::btnSelectCancel.height, box.x() + st::btnSelectCancel.width, box.y() + box.height() - 1);
+			p.fillRect(box.x() + st::btnSelectCancel.width, box.y() + box.height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
 
 			p.setPen(st::black->p);
 			toText.drawElided(p, box.left() + (box.width() - toTextWidth) / 2, box.top() + st::boxPadding.top(), toTextWidth + 1);
@@ -1820,7 +1819,7 @@ void HistoryWidget::newUnreadMsg(History *history, MsgId msgId) {
 			}
 		} else {
 			if (hist != history) {
-				App::wnd()->psNotify(history, msgId);
+				App::wnd()->notifySchedule(history, msgId);
 			}
 			history->setUnreadCount(history->unreadCount + 1);
 		}
@@ -1830,7 +1829,7 @@ void HistoryWidget::newUnreadMsg(History *history, MsgId msgId) {
 				if (history->unreadBar) history->unreadBar->destroy();
 			}
 		}
-		App::wnd()->psNotify(history, msgId);
+		App::wnd()->notifySchedule(history, msgId);
 		history->setUnreadCount(history->unreadCount + 1);
 		history->lastWidth = 0;
 	}
@@ -1956,7 +1955,7 @@ void HistoryWidget::messagesReceived(const MTPmessages_Messages &messages, mtpRe
 		addMessagesToFront(histPreload);
 		histPreload.clear();
 		loadMessages();
-	} else if (down && histPreloadDown.size() || !down && histPreload.size()) {
+	} else if ((down && histPreloadDown.size()) || (!down && histPreload.size())) {
 		onListScroll();
 	} else if (down) {
 		loadMessagesDown();
@@ -2779,7 +2778,7 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown) 
 	}
 	if (!hist->readyForWork()) return;
 
-	if (!initial && !wasAtBottom || loadedDown) {
+	if ((!initial && !wasAtBottom) || loadedDown) {
 		_scroll.scrollToY(newSt + addToY);
 		return;
 	}

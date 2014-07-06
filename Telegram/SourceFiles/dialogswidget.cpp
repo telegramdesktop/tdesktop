@@ -1169,7 +1169,7 @@ void DialogsWidget::onFilterUpdate() {
 	list.onFilterUpdate(filterText);
 	DialogsListWidget::State s = list.state();
 	bool switcherVisible = (s != DialogsListWidget::DefaultState);
-	if (switcherVisible && _stateSwitcher.isHidden() || !switcherVisible && !_stateSwitcher.isHidden()) {
+	if ((switcherVisible && _stateSwitcher.isHidden()) || (!switcherVisible && !_stateSwitcher.isHidden())) {
 		if (switcherVisible) {
 			_stateSwitcher.show();
 		} else {
@@ -1232,10 +1232,7 @@ void DialogsWidget::keyPressEvent(QKeyEvent *e) {
 void DialogsWidget::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 	if (_drawShadow) {
-		p.setPen(st::dlgShadowColor->p);
-		for (int i = 0, w = width() - st::dlgShadow; i < st::dlgShadow; ++i) {
-			p.drawLine(w + i, 0, w + i, height());
-		}
+		p.fillRect(width() - st::dlgShadow, 0, st::dlgShadow, height(), st::dlgShadowColor->b);
 	}
 }
 

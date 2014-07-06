@@ -474,7 +474,7 @@ class RPCBindedDoneHandlerOwnedReq : public RPCOwnedDoneHandler { // done(b, res
 	typedef TReturn (TReceiver::*CallbackType)(T, const TResponse &, mtpRequestId);
 
 public:
-    RPCBindedDoneHandlerOwnedReq(T b, TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _b(b), _onDone(onDone) {
+    RPCBindedDoneHandlerOwnedReq(T b, TReceiver *receiver, CallbackType onDone) : RPCOwnedDoneHandler(receiver), _onDone(onDone), _b(b) {
 	}
 	virtual void operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) const {
 		if (_owner) (static_cast<TReceiver*>(_owner)->*_onDone)(_b, TResponse(from, end), requestId);

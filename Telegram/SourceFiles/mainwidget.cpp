@@ -155,10 +155,7 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 		int a = 0; // optimize shadow-only drawing
 	}
 	if (_drawShadow) {
-		p.setPen(st::titleShadowColor->p);
-		for (int32 i = 0; i < st::titleShadow; ++i) {
-			p.drawLine(st::titleShadow, st::topBarHeight + i, width(), st::topBarHeight + i);
-		}
+		p.fillRect(st::titleShadow, st::topBarHeight, width() - st::titleShadow, st::titleShadow, st::titleShadowColor->b);
 	}
 }
 
@@ -1314,7 +1311,7 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 		if (peerId) {
 			if (!history) history = App::history(peerId);
 			if (isNotifyMuted(setTo)) {
-				App::wnd()->psClearNotify(history);
+				App::wnd()->notifyClear(history);
 				history->setMute(true);
 			} else {
 				history->setMute(false);
@@ -1344,7 +1341,7 @@ void MainWidget::gotNotifySetting(MTPInputNotifyPeer peer, const MTPPeerNotifySe
 		}
 	break;
 	}
-	App::wnd()->psNotifySettingGot();
+	App::wnd()->notifySettingGot();
 }
 
 bool MainWidget::failNotifySetting(MTPInputNotifyPeer peer) {

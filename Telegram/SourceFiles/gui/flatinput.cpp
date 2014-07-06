@@ -133,10 +133,11 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 	p.fillRect(rect(), a_bgColor.current());
 	if (_st.borderWidth) {
-		p.setPen(a_borderColor.current());
-		for (uint32 i = 0; i < _st.borderWidth; ++i) {
-			p.drawRect(i, i, width() - 2 * i - 1, height() - 2 * i - 1);
-		}
+		QBrush b(a_borderColor.current());
+		p.fillRect(0, 0, width() - _st.borderWidth, _st.borderWidth, b);
+		p.fillRect(width() - _st.borderWidth, 0, _st.borderWidth, height() - _st.borderWidth, b);
+		p.fillRect(_st.borderWidth, height() - _st.borderWidth, width() - _st.borderWidth, _st.borderWidth, b);
+		p.fillRect(0, _st.borderWidth, _st.borderWidth, height() - _st.borderWidth, b);
 	}
 	if (_st.imgRect.pxWidth()) {
 		p.drawPixmap(_st.imgPos, App::sprite(), _st.imgRect);

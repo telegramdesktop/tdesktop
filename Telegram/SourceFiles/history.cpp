@@ -1253,7 +1253,7 @@ void History::inboxRead(bool byThisInstance) {
 	if (!dialogs.isEmpty()) {
 		if (App::main()) App::main()->dlgUpdated(dialogs[0]);
 	}
-	App::wnd()->psClearNotify(this);
+	App::wnd()->notifyClear(this);
 	clearNotifications();
 }
 
@@ -1392,7 +1392,7 @@ void History::loadAround(MsgId msgId) {
 			if (!loadedAtBottom()) {
 				clear(true);
 			}
-			newLoaded = isEmpty() || last && !last->detached();
+			newLoaded = isEmpty() || (last && !last->detached());
 		}
 	}
 }
@@ -3462,8 +3462,7 @@ void HistoryUnreadBar::setCount(int32 count) {
 
 void HistoryUnreadBar::draw(QPainter &p, uint32 selection) const {
 	p.fillRect(0, 1, _history->width, st::unreadBarHeight - 2, st::unreadBarBG->b);
-	p.setPen(st::unreadBarBorder->p);
-	p.drawLine(0, st::unreadBarHeight - 1, _history->width, st::unreadBarHeight - 1);
+	p.fillRect(0, st::unreadBarHeight - st::lineWidth, _history->width, st::lineWidth, st::unreadBarBorder->b);
 	p.setFont(st::unreadBarFont->f);
 	p.setPen(st::unreadBarColor->p);
 	p.drawText(QRect(0, 0, _history->width, st::unreadBarHeight - 1), text, style::al_center);
