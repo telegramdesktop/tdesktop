@@ -85,16 +85,6 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	QFontDatabase::addApplicationFont(qsl(":/gui/art/OpenSans-Bold.ttf"));
 	QFontDatabase::addApplicationFont(qsl(":/gui/art/OpenSans-Semibold.ttf"));
 
-		{
-			QImage img(800, 600, QImage::Format_ARGB32_Premultiplied);
-			QPainter p(&img);
-			QFont f;
-			f.setPixelSize(24);
-			f.setFamily("Open Sans Semibold");
-			p.setFont(f);
-			p.drawText(0, 0, "t");
-		}
-
 	float64 dpi = primaryScreen()->logicalDotsPerInch();
 	if (dpi <= 108) { // 0-96-108
 		cSetScreenScale(dbisOne);
