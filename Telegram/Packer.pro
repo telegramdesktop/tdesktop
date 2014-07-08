@@ -2,14 +2,14 @@ QT += core
 
 CONFIG(debug, debug|release) {
     DEFINES += _DEBUG
-    OBJECTS_DIR = ./../Mac/DebugIntermediatePacker
+    OBJECTS_DIR = ./../Linux/DebugIntermediatePacker
     MOC_DIR = ./GeneratedFiles/Debug
-    DESTDIR = ./../Mac/DebugPacker
+    DESTDIR = ./../Linux/DebugPacker
 }
 CONFIG(release, debug|release) {
-    OBJECTS_DIR = ./../Mac/ReleaseIntermediatePacker
+    OBJECTS_DIR = ./../Linux/ReleaseIntermediatePacker
     MOC_DIR = ./GeneratedFiles/Release
-    DESTDIR = ./../Mac/ReleasePacker
+    DESTDIR = ./../Linux/ReleasePacker
 }
 
 macx {

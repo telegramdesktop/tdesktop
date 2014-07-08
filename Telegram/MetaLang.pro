@@ -2,14 +2,14 @@ T += core
 
 CONFIG(debug, debug|release) {
     DEFINES += _DEBUG
-    OBJECTS_DIR = ./../Mac/DebugIntermediateLang
+    OBJECTS_DIR = ./../Linux/DebugIntermediateLang
     MOC_DIR = ./GeneratedFiles/Debug
-    DESTDIR = ./../Mac/DebugLang
+    DESTDIR = ./../Linux/DebugLang
 }
 CONFIG(release, debug|release) {
-    OBJECTS_DIR = ./../Mac/ReleaseIntermediateLang
+    OBJECTS_DIR = ./../Linux/ReleaseIntermediateLang
     MOC_DIR = ./GeneratedFiles/Release
-    DESTDIR = ./../Mac/ReleaseLang
+    DESTDIR = ./../Linux/ReleaseLang
 }
 
 macx {

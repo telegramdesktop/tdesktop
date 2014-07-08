@@ -23,3 +23,6 @@ Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
 Q_IMPORT_PLUGIN(QWindowsAudioPlugin)
 Q_IMPORT_PLUGIN(AccessibleFactory)
 #endif
+#ifdef Q_OS_LINUX
+Q_IMPORT_PLUGIN(QPulseAudioPlugin)
+#endif

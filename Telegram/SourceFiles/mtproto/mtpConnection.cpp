@@ -2756,12 +2756,12 @@ void MTProtoConnectionPrivate::authKeyCreated() {
 
 void MTProtoConnectionPrivate::clearAuthKeyData() {
 	if (authKeyData) {
-#ifdef Q_OS_WIN
-		SecureZeroMemory(authKeyData, sizeof(AuthKeyCreateData));
+#ifdef Q_OS_WIN // TODO
+//		SecureZeroMemory(authKeyData, sizeof(AuthKeyCreateData));
 #else
-        memset(authKeyData, 0, sizeof(AuthKeyCreateData));
+//        memset(authKeyData, 0, sizeof(AuthKeyCreateData));
 #endif
-		delete authKeyData;
+        delete authKeyData;
 		authKeyData = 0;
 	}
 }

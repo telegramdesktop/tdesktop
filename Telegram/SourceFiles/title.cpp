@@ -77,7 +77,7 @@ TitleWidget::TitleWidget(Window *window)
 	connect(wnd->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(stateChanged(Qt::WindowState)));
 	connect(App::app(), SIGNAL(updateReady()), this, SLOT(showUpdateBtn()));
         
-    if (cPlatform() == dbipMac) {
+    if (cPlatform() != dbipWindows) {
         _minimize.hide();
         _maximize.hide();
         _restore.hide();
@@ -127,7 +127,7 @@ TitleWidget::~TitleWidget() {
 void TitleWidget::resizeEvent(QResizeEvent *e) {
 	QPoint p(width() - ((cPlatform() == dbipWindows && lastMaximized) ? 0 : st::sysBtnDelta), 0);
 	
-    if (cPlatform() != dbipMac) {
+    if (cPlatform() == dbipWindows) {
         p.setX(p.x() - _close.width());
         _close.move(p);
         

@@ -2,14 +2,14 @@ QT += core
 
 CONFIG(debug, debug|release) {
     DEFINES += _DEBUG
-    OBJECTS_DIR = ./../Mac/DebugIntermediateEmoji
+    OBJECTS_DIR = ./../Linux/DebugIntermediateEmoji
     MOC_DIR = ./GeneratedFiles/Debug
-    DESTDIR = ./../Mac/DebugEmoji
+    DESTDIR = ./../Linux/DebugEmoji
 }
 CONFIG(release, debug|release) {
-    OBJECTS_DIR = ./../Mac/ReleaseIntermediateEmoji
+    OBJECTS_DIR = ./../Linux/ReleaseIntermediateEmoji
     MOC_DIR = ./GeneratedFiles/Release
-    DESTDIR = ./../Mac/ReleaseEmoji
+    DESTDIR = ./../Linux/ReleaseEmoji
 }
 
 macx {

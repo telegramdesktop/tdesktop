@@ -321,7 +321,7 @@ namespace App {
 			case mtpc_userStatusOnline: data->onlineTill = status->c_userStatusOnline().vexpires.v; break;
 			}
 
-			if (data->contact < 0 && !data->phone.isEmpty() && (data->id & 0xFFFFFFFF) != MTP::authedId()) {
+            if (data->contact < 0 && !data->phone.isEmpty() && int32(data->id & 0xFFFFFFFF) != MTP::authedId()) {
 				data->contact = 0;
 			}
 			if (data->contact > 0 && !wasContact) {

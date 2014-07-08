@@ -1,17 +1,19 @@
-QT += core gui widgets network multimedia
+QT += core gui network multimedia widgets
+
+CONFIG += plugin static
 
 CONFIG(debug, debug|release) {
     DEFINES += _DEBUG
-    OBJECTS_DIR = ./../Mac/DebugIntermediate
+    OBJECTS_DIR = ./../Linux/DebugIntermediate
     MOC_DIR = ./GeneratedFiles/Debug
     RCC_DIR = ./GeneratedFiles
-    DESTDIR = ./../Mac/Debug
+    DESTDIR = ./../Linux/Debug
 }
 CONFIG(release, debug|release) {
-    OBJECTS_DIR = ./../Mac/ReleaseIntermediate
+    OBJECTS_DIR = ./../Linux/ReleaseIntermediate
     MOC_DIR = ./GeneratedFiles/Release
     RCC_DIR = ./GeneratedFiles
-    DESTDIR = ./../Mac/Release
+    DESTDIR = ./../Linux/Release
 }
 
 macx {
@@ -19,6 +21,11 @@ macx {
     OBJECTIVE_SOURCES += ./SourceFiles/pspecific_mac_p.mm
     OBJECTIVE_HEADERS += ./SourceFiles/pspecific_mac_p.h
     QMAKE_LFLAGS += -framework Cocoa
+}
+
+linux {
+    SOURCES += ./SourceFiles/pspecific_linux.cpp
+    HEADERS += ./SourceFiles/pspecific_linux.h
 }
 
 SOURCES += \
@@ -180,17 +187,19 @@ CONFIG += precompile_header
 
 PRECOMPILED_HEADER = ./SourceFiles/stdafx.h
 
-INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.0/QtGui\
-               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.0/QtCore\
+QMAKE_CXXFLAGS += -fno-strict-aliasing
+QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter -Wno-unused-variable -Wno-switch -Wno-comment -Wno-unused-but-set-variable
+
+INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.1/QtGui\
+               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.1/QtCore\
                ./../../Libraries/QtStatic/qtbase/include\
                ./SourceFiles\
                ./GeneratedFiles\
-               ./../../Libraries/lzma/C\
-               ./../../Libraries/libexif-0.6.20
-
-LIBS += -lcrypto -lssl -lz
+               ./../../Libraries/libexif-0.6.20\
+               /usr/local/ssl/include
+LIBS += -L/usr/local/ssl/lib -lcrypto -lssl -lz -ldl -llzma
 LIBS += ./../../Libraries/libexif-0.6.20/libexif/.libs/libexif.a
-
+LIBS += ./../../Libraries/QtStatic/qtmultimedia/plugins/audio/libqtmedia_pulse.a
 RESOURCES += \
     ./SourceFiles/telegram.qrc
 
