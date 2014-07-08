@@ -182,13 +182,22 @@ static bool isMouseEvent(NSEvent *ev)
 
 - (void)detachFromPlatformWindow
 {
+    _platformWindow = 0;
     [self.window.delegate release];
     self.window.delegate = nil;
 }
 
 - (void)clearWindow
 {
-    _window = nil;
+    if (_window) {
+        QCocoaEventDispatcher *cocoaEventDispatcher = qobject_cast<QCocoaEventDispatcher *>(QGuiApplication::instance()->eventDispatcher());
+        if (cocoaEventDispatcher) {
+            QCocoaEventDispatcherPrivate *cocoaEventDispatcherPrivate = static_cast<QCocoaEventDispatcherPrivate *>(QObjectPrivate::get(cocoaEventDispatcher));
+            cocoaEventDispatcherPrivate->removeQueuedUserInputEvents([_window windowNumber]);
+        }
+
+        _window = nil;
+    }
 }
 
 - (void)dealloc
@@ -261,8 +270,6 @@ static bool isMouseEvent(NSEvent *ev)
 {
     [self close];
 
-    QCocoaIntegration::instance()->setWindow(self, 0);
-
     if (self.helper.grabbingMouse) {
         self.helper.releaseOnMouseUp = YES;
     } else {
@@ -329,7 +336,6 @@ static bool isMouseEvent(NSEvent *ev)
 {
     [self.helper detachFromPlatformWindow];
     [self close];
-    QCocoaIntegration::instance()->setWindow(self, 0);
     [self release];
 }
 
@@ -419,9 +425,6 @@ QCocoaWindow::~QCocoaWindow()
 #ifdef QT_COCOA_ENABLE_WINDOW_DEBUG
     qDebug() << "QCocoaWindow::~QCocoaWindow" << this;
 #endif
-
-    if (QCocoaIntegration *ci = QCocoaIntegration::instance())
-        ci->setWindow(m_nsWindow, 0);
 
     QCocoaAutoReleasePool pool;
     [m_nsWindow setContentView:nil];
@@ -1004,9 +1007,14 @@ bool QCocoaWindow::isExposed() const
 
 bool QCocoaWindow::isOpaque() const
 {
+    // OpenGL surfaces can be ordered either above(default) or below the NSWindow.
+    // When ordering below the window must be tranclucent.
+    static GLint openglSourfaceOrder = qt_mac_resolveOption(1, "QT_MAC_OPENGL_SURFACE_ORDER");
+
     bool translucent = (window()->format().alphaBufferSize() > 0
                         || window()->opacity() < 1
-                        || (m_qtView && [m_qtView hasMask]));
+                        || (m_qtView && [m_qtView hasMask]))
+                        || (surface()->supportsOpenGL() && openglSourfaceOrder == -1);
     return !translucent;
 }
 
@@ -1407,7 +1415,13 @@ QCocoaNSWindow * QCocoaWindow::createNSWindow()
     NSInteger level = windowLevel(flags);
     [createdWindow setLevel:level];
 
-    if (window()->format().alphaBufferSize() > 0) {
+    // OpenGL surfaces can be ordered either above(default) or below the NSWindow.
+    // When ordering below the window must be tranclucent and have a clear background color.
+    static GLint openglSourfaceOrder = qt_mac_resolveOption(1, "QT_MAC_OPENGL_SURFACE_ORDER");
+
+    bool isTranslucent = window()->format().alphaBufferSize() > 0
+                         || (surface()->supportsOpenGL() && openglSourfaceOrder == -1);
+    if (isTranslucent) {
         [createdWindow setBackgroundColor:[NSColor clearColor]];
         [createdWindow setOpaque:NO];
     }
@@ -1415,8 +1429,6 @@ QCocoaNSWindow * QCocoaWindow::createNSWindow()
     m_windowModality = window()->modality();
 
     applyContentBorderThickness(createdWindow);
-
-    QCocoaIntegration::instance()->setWindow(createdWindow, this);
 
     return createdWindow;
 }
@@ -1623,6 +1635,7 @@ void QCocoaWindow::applyContentBorderThickness(NSWindow *window)
 
     if (!m_drawContentBorderGradient) {
         [window setStyleMask:[window styleMask] & ~NSTexturedBackgroundWindowMask];
+        [[[window contentView] superview] setNeedsDisplay:YES];
         return;
     }
 
@@ -1653,6 +1666,8 @@ void QCocoaWindow::applyContentBorderThickness(NSWindow *window)
 
     [window setContentBorderThickness:effectiveBottomContentBorderThickness forEdge:NSMinYEdge];
     [window setAutorecalculatesContentBorderThickness:NO forEdge:NSMinYEdge];
+
+    [[[window contentView] superview] setNeedsDisplay:YES];
 }
 
 void QCocoaWindow::updateNSToolbar()

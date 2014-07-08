@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of the qmake application of the Qt Toolkit.
@@ -1116,7 +1116,7 @@ ProjectBuilderMakefileGenerator::writeMakeParts(QTextStream &t)
             //all files
             const ProStringList &files = project->values(ProKey(bundle_data[i] + ".files"));
             for(int file = 0; file < files.count(); file++) {
-                QString fn = files[file].toQString();
+                QString fn = fileFixify(files[file].toQString(), Option::output_dir, input_dir);
                 QString file_ref_key = keyFor("QMAKE_PBX_BUNDLE_DATA_FILE_REF." + bundle_data[i] + "-" + fn);
                 bundle_file_refs += file_ref_key;
                 t << "\t\t" << file_ref_key << " = {\n"
@@ -1390,9 +1390,13 @@ ProjectBuilderMakefileGenerator::writeMakeParts(QTextStream &t)
                    (project->first("TEMPLATE") == "lib" && !project->isActiveConfig("staticlib") &&
                     project->isActiveConfig("lib_bundle"))) {
                     QString plist = fileFixify(project->first("QMAKE_INFO_PLIST").toQString(), Option::output_dir, input_dir);
-                    if (plist.isEmpty())
+                    if (!plist.isEmpty()) {
+                        if (exists(plist))
+                            t << "\t\t\t\t" << writeSettings("INFOPLIST_FILE", plist) << ";\n";
+                        else
+                            warn_msg(WarnLogic, "Could not resolve Info.plist: '%s'. Check if QMAKE_INFO_PLIST points to a valid file.", plist.toLatin1().constData());
+                    } else {
                         plist = specdir() + QDir::separator() + "Info.plist." + project->first("TEMPLATE");
-                    if (exists(plist)) {
                         QFile plist_in_file(plist);
                         if (plist_in_file.open(QIODevice::ReadOnly)) {
                             QTextStream plist_in(&plist_in_file);
@@ -1415,21 +1419,19 @@ ProjectBuilderMakefileGenerator::writeMakeParts(QTextStream &t)
                             plist_in_text = plist_in_text.replace("@TYPEINFO@",
                                 (project->isEmpty("QMAKE_PKGINFO_TYPEINFO")
                                     ? QString::fromLatin1("????") : project->first("QMAKE_PKGINFO_TYPEINFO").left(4).toQString()));
-                            QString plist_dir;
-                            if (!project->isEmpty("PLIST_DIR"))
-                              plist_dir = project->first("PLIST_DIR").toQString();
-                            QString plist_in_filename = QFileInfo(plist_in_file).fileName();
-                            QFile plist_out_file(plist_dir + plist_in_filename);
 //                            QFile plist_out_file("Info.plist");
+							QString plist_dir;
+							if (!project->isEmpty("PLIST_DIR"))
+								plist_dir = project->first("PLIST_DIR").toQString();
+							QString plist_in_filename = QFileInfo(plist_in_file).fileName();
+							QFile plist_out_file(plist_dir + plist_in_filename);
                             if (plist_out_file.open(QIODevice::WriteOnly | QIODevice::Text)) {
                                 QTextStream plist_out(&plist_out_file);
                                 plist_out << plist_in_text;
 //                                t << "\t\t\t\t" << writeSettings("INFOPLIST_FILE", "Info.plist") << ";\n";
-                                t << "\t\t\t\t" << writeSettings("INFOPLIST_FILE", fixForOutput(plist_dir + plist_in_filename)) << ";\n";
-                            }
+								t << "\t\t\t\t" << writeSettings("INFOPLIST_FILE", fixForOutput(plist_dir + plist_in_filename)) << ";\n";
+							}
                         }
-                    } else {
-                        warn_msg(WarnLogic, "Could not resolve Info.plist: '%s'. Check if QMAKE_INFO_PLIST points to a valid file.", plist.toLatin1().constData());
                     }
                 }
 

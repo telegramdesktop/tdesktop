@@ -18,7 +18,7 @@ Only Windows and OS X systems are supported at this moment, Linux builds are on 
 
 ###Third-party
 
-* Qt 5.3.0, slightly patched ([GPL](http://qt-project.org/doc/qt-5/gpl.html))
+* Qt 5.3.1, slightly patched ([GPL](http://qt-project.org/doc/qt-5/gpl.html))
 * OpenSSL 1.0.1g ([OpenSSL License](https://www.openssl.org/source/license.html))
 * zlib 1.2.8 ([zlib License](http://www.zlib.net/zlib_license.html))
 * libexif 0.6.20 ([LGPL](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html))

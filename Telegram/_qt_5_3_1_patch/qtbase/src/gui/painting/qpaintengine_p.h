@@ -87,18 +87,18 @@ public:
         if (hasSystemTransform) {
             if (systemTransform.type() <= QTransform::TxTranslate)
                 systemClip.translate(qRound(systemTransform.dx()), qRound(systemTransform.dy()));
-            else {
-                // Transform the system clip region back from device pixels to device-independent pixels before
-                // applying systemTransform, which already has transform from device-independent pixels to device pixels
+			else {
+				// Transform the system clip region back from device pixels to device-independent pixels before
+				// applying systemTransform, which already has transform from device-independent pixels to device pixels
 #ifdef Q_OS_MAC
-                QTransform scaleTransform;
-                const qreal invDevicePixelRatio = 1. / pdev->devicePixelRatio();
-                scaleTransform.scale(invDevicePixelRatio, invDevicePixelRatio);
-                systemClip = systemTransform.map(scaleTransform.map(systemClip));
+				QTransform scaleTransform;
+				const qreal invDevicePixelRatio = 1. / pdev->devicePixelRatio();
+				scaleTransform.scale(invDevicePixelRatio, invDevicePixelRatio);
+				systemClip = systemTransform.map(scaleTransform.map(systemClip));
 #else
-                systemClip = systemTransform.map(systemClip);
+				systemClip = systemTransform.map(systemClip);
 #endif
-            }
+			}
         }
 
         // Make sure we're inside the viewport.

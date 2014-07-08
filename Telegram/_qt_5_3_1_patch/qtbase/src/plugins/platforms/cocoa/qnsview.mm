@@ -42,6 +42,7 @@
 #include <QtCore/qglobal.h>
 
 #include <Carbon/Carbon.h>
+#include <dlfcn.h>
 
 #include "qnsview.h"
 #include "qcocoawindow.h"
@@ -65,6 +66,9 @@
 
 static QTouchDevice *touchDevice = 0;
 
+// ### HACK Remove once 10.8 is unsupported
+static NSString *_q_NSWindowDidChangeOcclusionStateNotification = nil;
+
 @interface NSEvent (Qt_Compile_Leopard_DeviceDelta)
   - (CGFloat)deviceDeltaX;
   - (CGFloat)deviceDeltaY;
@@ -72,6 +76,13 @@ static QTouchDevice *touchDevice = 0;
 @end
 
 @implementation QNSView
+
++ (void)initialize
+{
+    NSString **notificationNameVar = (NSString **)dlsym(RTLD_NEXT, "NSWindowDidChangeOcclusionStateNotification");
+    if (notificationNameVar)
+        _q_NSWindowDidChangeOcclusionStateNotification = *notificationNameVar;
+}
 
 - (id) init
 {
@@ -189,6 +200,19 @@ static QTouchDevice *touchDevice = 0;
         QWindowSystemInterface::flushWindowSystemEvents();
     } else {
         m_platformWindow->m_contentViewIsEmbedded = false;
+    }
+}
+
+- (void)viewDidMoveToWindow
+{
+    if (self.window) {
+        // This is the case of QWidgetAction's generated QWidget inserted in an NSMenu.
+        // 10.9 and newer get the NSWindowDidChangeOcclusionStateNotification
+        if (!_q_NSWindowDidChangeOcclusionStateNotification
+            && [self.window.className isEqualToString:@"NSCarbonMenuWindow"])
+            m_platformWindow->exposeWindow();
+    } else {
+        m_platformWindow->obscureWindow();
     }
 }
 
@@ -319,12 +343,29 @@ static QTouchDevice *touchDevice = 0;
         [self notifyWindowStateChanged:newState];
         // NSWindowDidOrderOnScreenAndFinishAnimatingNotification is private API, and not
         // emitted in 10.6, so we bring back the old behavior for that case alone.
-        if (newState == Qt::WindowNoState/* && QSysInfo::QSysInfo::MacintoshVersion == QSysInfo::MV_10_6*/) // also not emitted if window restored from the app
+        if (newState == Qt::WindowNoState/* && QSysInfo::QSysInfo::MacintoshVersion == QSysInfo::MV_10_6*/)
             m_platformWindow->exposeWindow();
     } else if ([notificationName isEqualToString: @"NSWindowDidOrderOffScreenNotification"]) {
         m_platformWindow->obscureWindow();
     } else if ([notificationName isEqualToString: @"NSWindowDidOrderOnScreenAndFinishAnimatingNotification"]) {
         m_platformWindow->exposeWindow();
+    } else if (_q_NSWindowDidChangeOcclusionStateNotification
+               && [notificationName isEqualToString:_q_NSWindowDidChangeOcclusionStateNotification]) {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_9
+// ### HACK Remove the enum declaration, the warning disabling and the cast further down once 10.8 is unsupported
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wobjc-method-access"
+        enum { NSWindowOcclusionStateVisible = 1UL << 1 };
+#endif
+        // Older versions managed in -[QNSView viewDidMoveToWindow].
+        // Support QWidgetAction in NSMenu. Mavericks only sends this notification.
+        // Ideally we should support this in Qt as well, in order to disable animations
+        // when the window is occluded.
+        if ((NSUInteger)[self.window occlusionState] & NSWindowOcclusionStateVisible)
+            m_platformWindow->exposeWindow();
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_9
+#pragma clang diagnostic pop
+#endif
     } else if (notificationName == NSWindowDidChangeScreenNotification) {
         if (m_window) {
             NSUInteger screenIndex = [[NSScreen screens] indexOfObject:self.window.screen];
