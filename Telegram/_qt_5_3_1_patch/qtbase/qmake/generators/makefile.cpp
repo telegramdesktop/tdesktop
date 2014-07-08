@@ -370,7 +370,8 @@ MakefileGenerator::findFilesInVPATH(ProStringList l, uchar flags, const QString 
                     regex.remove(0, dir.length());
                 }
                 if(real_dir.isEmpty() || exists(real_dir)) {
-                    QStringList files = QDir(real_dir).entryList(QStringList(regex));
+                    QStringList files = QDir(real_dir).entryList(QStringList(regex),
+                                                QDir::NoDotAndDotDot | QDir::AllEntries);
                     if(files.isEmpty()) {
                         debug_msg(1, "%s:%d Failure to find %s in vpath (%s)",
                                   __FILE__, __LINE__,
@@ -383,8 +384,6 @@ MakefileGenerator::findFilesInVPATH(ProStringList l, uchar flags, const QString 
                         l.removeAt(val_it);
                         QString a;
                         for(int i = (int)files.count()-1; i >= 0; i--) {
-                            if(files[i] == "." || files[i] == "..")
-                                continue;
                             a = real_dir + files[i];
                             if(!(flags & VPATH_NoFixify))
                                 a = fileFixify(a);
@@ -1324,7 +1323,8 @@ MakefileGenerator::writeInstalls(QTextStream &t, bool noBuild)
                     continue;
                 }
                 QString local_dirstr = Option::fixPathToLocalOS(dirstr, true);
-                QStringList files = QDir(local_dirstr).entryList(QStringList(filestr));
+                QStringList files = QDir(local_dirstr).entryList(QStringList(filestr),
+                                            QDir::NoDotAndDotDot | QDir::AllEntries);
                 if (installConfigValues.contains("no_check_exist") && files.isEmpty()) {
                     QString dst_file = filePrefixRoot(root, dst_dir);
                     QString cmd;
@@ -1346,8 +1346,6 @@ MakefileGenerator::writeInstalls(QTextStream &t, bool noBuild)
                 }
                 for(int x = 0; x < files.count(); x++) {
                     QString file = files[x];
-                    if(file == "." || file == "..") //blah
-                        continue;
                     uninst.append(rm_dir_contents + " " + escapeFilePath(filePrefixRoot(root, fileFixify(dst_dir + file, FileFixifyAbsolute, false))));
                     QFileInfo fi(fileInfo(dirstr + file));
                     QString dst_file = filePrefixRoot(root, fileFixify(dst_dir, FileFixifyAbsolute, false));
@@ -3217,7 +3215,7 @@ MakefileGenerator::writePkgConfigFile()
     QString prefix = pkgConfigPrefix();
     QString libDir = project->first("QMAKE_PKGCONFIG_LIBDIR").toQString();
     if(libDir.isEmpty())
-        libDir = prefix + Option::dir_sep + "lib" + Option::dir_sep;
+        libDir = prefix + "/lib";
     QString includeDir = project->first("QMAKE_PKGCONFIG_INCDIR").toQString();
     if(includeDir.isEmpty())
         includeDir = prefix + "/include";
@@ -3284,10 +3282,12 @@ MakefileGenerator::writePkgConfigFile()
 
     // libs
     t << "Libs: ";
-    QString pkgConfiglibDir;
     QString pkgConfiglibName;
     if (target_mode == TARG_MAC_MODE && project->isActiveConfig("lib_bundle")) {
-        pkgConfiglibDir = "-F${libdir}";
+        if (libDir != QLatin1String("/System/Library/Frameworks")
+            && libDir != QLatin1String("/Library/Frameworks")) {
+            t << "-F${libdir} ";
+        }
         ProString bundle;
         if (!project->isEmpty("QMAKE_FRAMEWORK_BUNDLE_NAME"))
             bundle = unescapeFilePath(project->first("QMAKE_FRAMEWORK_BUNDLE_NAME"));
@@ -3298,12 +3298,13 @@ MakefileGenerator::writePkgConfigFile()
             bundle = bundle.left(suffix);
         pkgConfiglibName = "-framework " + bundle + " ";
     } else {
-        pkgConfiglibDir = "-L${libdir}";
+        if (!project->values("QMAKE_DEFAULT_LIBDIRS").contains(libDir))
+            t << "-L${libdir} ";
         pkgConfiglibName = "-l" + unescapeFilePath(project->first("QMAKE_ORIG_TARGET"));
         if (project->isActiveConfig("shared"))
             pkgConfiglibName += project->first("TARGET_VERSION_EXT").toQString();
     }
-    t << pkgConfiglibDir << " " << pkgConfiglibName << " \n";
+    t << pkgConfiglibName << " \n";
 
     ProStringList libs;
     if(!project->isEmpty("QMAKE_INTERNAL_PRL_LIBS")) {
@@ -3327,7 +3328,10 @@ MakefileGenerator::writePkgConfigFile()
       << varGlue("PRL_EXPORT_CXXFLAGS", "", " ", " ")
       << varGlue("QMAKE_PKGCONFIG_CFLAGS", "", " ", " ")
         //      << varGlue("DEFINES","-D"," -D"," ")
-      << "-I${includedir}\n";
+         ;
+    if (!project->values("QMAKE_DEFAULT_INCDIRS").contains(includeDir))
+        t << "-I${includedir}";
+    t << endl;
 
     // requires
     const QString requires = project->values("QMAKE_PKGCONFIG_REQUIRES").join(' ');

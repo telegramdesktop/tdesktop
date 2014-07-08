@@ -89,6 +89,11 @@ QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/linux/tupdates/current"));
 #endif
 
 void settingsParseArgs(int argc, char *argv[]) {
+	if (cPlatform() == dbipMac) {
+		gCustomNotifies = false;
+	} else {
+		gCustomNotifies = true;
+	}
     memset_rand(&gInstance, sizeof(gInstance));
 	gExeDir = psCurrentExeDirectory(argc, argv);
 	for (int32 i = 0; i < argc; ++i) {

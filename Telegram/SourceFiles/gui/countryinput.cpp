@@ -492,8 +492,7 @@ void CountrySelect::paintEvent(QPaintEvent *e) {
 			p.fillRect(_innerLeft, _innerTop + st::participantFilter.height, _innerWidth, st::scrollDef.topsh, st::scrollDef.shColor->b);
 
 			// paint button sep
-			p.setPen(st::btnSelectSep->p);
-			p.drawLine(_innerLeft + st::btnSelectCancel.width, _innerTop + _innerHeight - st::btnSelectCancel.height, _innerLeft + st::btnSelectCancel.width, _innerTop + _innerHeight - 1);
+			p.fillRect(_innerLeft + st::btnSelectCancel.width, _innerTop + _innerHeight - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
 
 			// draw box title / text
 			p.setPen(st::black->p);

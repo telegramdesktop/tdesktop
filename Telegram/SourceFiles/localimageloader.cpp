@@ -100,7 +100,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 		}
 	} else {
 		type = ToPreparePhoto; // only photo from QImage
-		filename = qsl("Photo.jpg");
+		filename = qsl("Untitled.jpg");
 		filesize = 0;
 	}
 

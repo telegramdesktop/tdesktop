@@ -40,6 +40,7 @@ public:
 	HistoryList(HistoryWidget *historyWidget, ScrollArea *scroll, History *history);
 
 	void messagesReceived(const QVector<MTPMessage> &messages);
+	void messagesReceivedDown(const QVector<MTPMessage> &messages);
 
 	bool event(QEvent *e); // calls touchEvent when necessary
 	void touchEvent(QTouchEvent *e);
@@ -251,6 +252,7 @@ public:
 	void messagesReceived(const MTPmessages_Messages &messages, mtpRequestId requestId);
 
 	void windowShown();
+	bool isActive() const;
 
 	void resizeEvent(QResizeEvent *e);
 	void keyPressEvent(QKeyEvent *e);
@@ -269,6 +271,7 @@ public:
 	void topBarClick();
 
 	void loadMessages();
+	void loadMessagesDown();
 	void peerMessagesUpdated(PeerId peer);
 	void peerMessagesUpdated();
 
@@ -300,6 +303,7 @@ public:
 
 	PeerData *peer() const;
 	PeerData *activePeer() const;
+	MsgId activeMsgId() const;
 
 	void animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
 	bool animStep(float64 ms);
@@ -313,6 +317,9 @@ public:
 	bool touchScroll(const QPoint &delta);
     
 	QString prepareMessage(QString text);
+
+	uint64 animActiveTime() const;
+	void stopAnimActive();
 
 	~HistoryWidget();
 
@@ -334,6 +341,7 @@ public slots:
 	void onDocumentFailed(MsgId msgId);
 
 	void onListScroll();
+	void onHistoryToEnd();
 	void onSend();
 
 	void onPhotoSelect();
@@ -343,7 +351,7 @@ public slots:
 
 	void onPhotoReady();
 	void onPhotoFailed(quint64 id);
-	void showPeer(const PeerId &peer, bool force = false, bool leaveActive = false);
+	void showPeer(const PeerId &peer, MsgId msgId = 0, bool force = false, bool leaveActive = false);
 	void activate();
 	void onTextChange();
 
@@ -364,11 +372,14 @@ public slots:
 	void onDeleteContextSure();
 	void onClearSelected();
 
+	void onAnimActiveStep();
+
 private:
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
-	void updateListSize(int32 addToY = 0, bool initial = false);
+	void updateListSize(int32 addToY = 0, bool initial = false, bool loadedDown = false);
 	void addMessagesToFront(const QVector<MTPMessage> &messages);
+	void addMessagesToBack(const QVector<MTPMessage> &messages);
 	void chatLoaded(const MTPmessages_ChatFull &res);
 
 	QStringList getMediasFromMime(const QMimeData *d);
@@ -376,17 +387,19 @@ private:
 
 	void updateDragAreas();
 
-	int32 histOffset, histCount, histReadRequestId;
 	int32 histRequestsCount;
-	PeerData *histPeer, *_activePeer;
+	PeerData *histPeer;
+	History *_activeHist;
 	MTPinputPeer histInputPeer;
-	mtpRequestId histPreloading;
-	QVector<MTPMessage> histPreload;
+	mtpRequestId histPreloading, histPreloadingDown;
+	QVector<MTPMessage> histPreload, histPreloadDown;
 
 	ScrollArea _scroll;
 	HistoryList *_list;
 	History *hist;
 	bool _histInited; // initial updateListSize() called
+
+	IconedButton _toHistoryEnd;
 
 	FlatButton _send;
 	IconedButton _attachDocument, _attachPhoto, _attachEmoji;
@@ -421,6 +434,9 @@ private:
 
 	QTimer _scrollTimer;
 	int32 _scrollDelta;
+
+	QTimer _animActiveTimer;
+	float64 _animActiveStart;
 
 };
 

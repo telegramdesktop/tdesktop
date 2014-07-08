@@ -66,6 +66,61 @@ signals:
 
 };
 
+
+class NotifyWindow : public QWidget, public Animated {
+	Q_OBJECT
+
+public:
+
+	NotifyWindow(HistoryItem *item, int32 x, int32 y);
+
+	void enterEvent(QEvent *e);
+	void leaveEvent(QEvent *e);
+	void mousePressEvent(QMouseEvent *e);
+	void paintEvent(QPaintEvent *e);
+
+	bool animStep(float64 ms);
+	void animHide(float64 duration, anim::transition func);
+	void startHiding();
+	void stopHiding();
+	void moveTo(int32 x, int32 y, int32 index = -1);
+
+	void updatePeerPhoto();
+
+	int32 index() const {
+		return history ? _index : -1;
+	}
+
+	~NotifyWindow();
+
+public slots:
+
+	void hideByTimer();
+	void checkLastInput();
+
+	void unlinkHistory(History *hist = 0);
+
+private:
+
+#ifdef Q_OS_WIN
+	DWORD started;
+#endif
+	History *history;
+	IconedButton close;
+	QPixmap pm;
+	float64 alphaDuration, posDuration;
+	QTimer hideTimer, inputTimer;
+	bool hiding;
+	int32 _index;
+	anim::fvalue aOpacity;
+	anim::transition aOpacityFunc;
+	anim::ivalue aY;
+	ImagePtr peerPhoto;
+
+};
+
+typedef QList<NotifyWindow*> NotifyWindows;
+
 class Window : public PsMainWindow {
 	Q_OBJECT
 
@@ -150,6 +205,16 @@ public:
 	TempDirState tempDirState();
 	void tempDirDelete();
 
+    void notifySettingGot();
+	void notifySchedule(History *history, MsgId msgId);
+	void notifyClear(History *history = 0);
+	void notifyClearFast();
+	void notifyShowNext(NotifyWindow *remove = 0);
+	void notifyStopHiding();
+	void notifyStartHiding();
+	void notifyUpdateAll();
+	void notifyActivateAll();
+
 public slots:
 	
 	void checkHistoryActivation(int state = -1);
@@ -165,6 +230,8 @@ public slots:
 
 	void onTempDirCleared();
 	void onTempDirClearFailed();
+
+	void notifyFire();
 	
 signals:
 
@@ -201,6 +268,27 @@ private:
 
 	bool _inactivePress;
 	QTimer _inactiveTimer;
+
+	typedef QMap<MsgId, uint64> NotifyWhenMap;
+	typedef QMap<History*, NotifyWhenMap> NotifyWhenMaps;
+	NotifyWhenMaps notifyWhenMaps;
+	struct NotifyWaiter {
+		NotifyWaiter(MsgId msg, uint64 when) : msg(msg), when(when) {
+		}
+		MsgId msg;
+		uint64 when;
+	};
+	typedef QMap<History*, NotifyWaiter> NotifyWaiters;
+	NotifyWaiters notifyWaiters;
+	NotifyWaiters notifySettingWaiters;
+	QTimer notifyWaitTimer;
+
+	typedef QSet<uint64> NotifyWhenAlert;
+	typedef QMap<History*, NotifyWhenAlert> NotifyWhenAlerts;
+	NotifyWhenAlerts notifyWhenAlerts;
+
+	NotifyWindows notifyWindows;
+
 
 };
 

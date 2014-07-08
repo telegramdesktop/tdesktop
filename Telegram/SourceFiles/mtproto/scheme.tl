@@ -30,6 +30,7 @@
 //invokeWithLayer12#dda60d3c query:!X = X;
 //invokeWithLayer13#427c8ea2 query:!X = X;
 //invokeWithLayer14#2b9b08fa query:!X = X;
+//invokeWithLayer15#b4418b64 query:!X = X;
 
 ///////////////////////////////
 /// Authorization key creation
@@ -121,6 +122,7 @@ register.saveDeveloperInfo#9a5f6e95 name:string email:string phone_number:string
 ///////////////////////////////
 
 ---types---
+
 
 
 inputPeerEmpty#7f3b18ea = InputPeer;
@@ -340,6 +342,7 @@ inputMessagesFilterPhotos#9609a51c = MessagesFilter;
 inputMessagesFilterVideo#9fc00e65 = MessagesFilter;
 inputMessagesFilterPhotoVideo#56e9f0e4 = MessagesFilter;
 inputMessagesFilterDocument#9eddf188 = MessagesFilter;
+inputMessagesFilterAudio#cfc87522 = MessagesFilter;
 
 updateNewMessage#13abdb3 message:Message pts:int = Update;
 updateMessageID#4e90bfd6 id:int random_id:long = Update;

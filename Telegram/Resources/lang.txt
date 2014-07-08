@@ -122,6 +122,8 @@ lng_signup_firstname: "First Name";
 lng_signup_lastname: "Last Name";
 
 lng_dlg_filter: "Search";
+lng_dlg_conversations: "Conversations";
+lng_dlg_messages: "Messages";
 lng_dlg_new_group_name: "Group name";
 lng_dlg_create_group: "Create";
 

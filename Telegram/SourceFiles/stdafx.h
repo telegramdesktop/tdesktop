@@ -56,6 +56,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "gui/flatinput.h"
 #include "gui/flattextarea.h"
 #include "gui/flatbutton.h"
+#include "gui/switcher.h"
 #include "gui/scrollarea.h"
 #include "gui/images.h"
 #include "gui/text.h"

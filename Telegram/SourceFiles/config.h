@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #pragma once
 
-static const int32 AppVersion = 5005;
-static const wchar_t *AppVersionStr = L"0.5.5";
+static const int32 AppVersion = 5006;
+static const wchar_t *AppVersionStr = L"0.5.6";
 #ifdef Q_OS_WIN
 static const wchar_t *AppName = L"Telegram Win (Unofficial)";
 #else
@@ -56,7 +56,12 @@ enum {
 	LocalEncryptSaltSize = 32, // 256 bit
 	LocalEncryptKeySize = 256, // 2048 bit
 
+	AnimationTimerDelta = 7,
+
 	SaveRecentEmojisTimeout = 3000, // 3 secs
+
+	AutoSearchTimeout = 1500, // 1.5 secs
+	SearchPerPage = 50,
 };
 
 #ifdef Q_OS_WIN
@@ -166,7 +171,7 @@ enum {
 	NoUpdatesTimeout = 180 * 1000, // if nothing is received in 3 min we reconnect
 
 	MemoryForImageCache = 64 * 1024 * 1024, // after 64mb of unpacked images we try to clear some memory
-	NotifyWindows = 3, // 3 desktop notifies at the same time
+	NotifyWindowsCount = 3, // 3 desktop notifies at the same time
 	NotifyWaitTimeout = 1200, // 1.2 seconds timeout before notification
 	NotifySettingSaveTimeout = 1000, // wait 1 second before saving notify setting to server
 	UpdateChunk = 100 * 1024, // 100kb parts when downloading the update

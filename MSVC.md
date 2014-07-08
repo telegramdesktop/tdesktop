@@ -66,13 +66,13 @@ or download in ZIP and extract to **D:\TBuild\Libraries\**, rename **libexif-0.6
 * Build Debug configuration
 * Build Release configuration
 
-####Qt 5.3.0, slightly patched
+####Qt 5.3.1, slightly patched
 
-http://download.qt-project.org/official_releases/qt/5.3/5.3.0/single/qt-everywhere-opensource-src-5.3.0.zip
+http://download.qt-project.org/official_releases/qt/5.3/5.3.1/single/qt-everywhere-opensource-src-5.3.1.zip
 
-Extract to **D:\TBuild\Libraries\**, rename **qt-everywhere-opensource-src-5.3.0** to **QtStatic** to have **D:\TBuild\Libraries\QtStatic\qtbase\** folder
+Extract to **D:\TBuild\Libraries\**, rename **qt-everywhere-opensource-src-5.3.1** to **QtStatic** to have **D:\TBuild\Libraries\QtStatic\qtbase\** folder
 
-Apply patch – copy (with overwrite!) everything from **D:\TBuild\tdesktop\\\_qt\_5\_3\_0\_patch\** to **D:\TBuild\Libraries\QtStatic\**
+Apply patch – copy (with overwrite!) everything from **D:\TBuild\tdesktop\\\_qt\_5\_3\_1\_patch\** to **D:\TBuild\Libraries\QtStatic\**
 
 #####Building library
 
@@ -106,8 +106,8 @@ Close all VS2013 instances and install to default location
 
 * Launch VS2013 for configuring Qt Addin
 * QT5 > Qt Options > Add
-  * Version name: **QtStatic.5.3.0**
+  * Version name: **QtStatic.5.3.1**
   * Path: **D:\TBuild\Libraries\QtStatic\qtbase**
-* Default Qt/Win version: **QtStatic.5.3.0** – **OK**
+* Default Qt/Win version: **QtStatic.5.3.1** – **OK**
 * File > Open > Project/Solution > **D:\TBuild\tdesktop\Telegram.sln**
 * Build \ Build Solution (Debug and Release configurations)

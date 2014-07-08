@@ -29,60 +29,6 @@ inline void psCheckLocalSocket(const QString &serverName) {
 	}
 }
 
-
-class PsNotifyWindow : public QWidget, public Animated {
-	Q_OBJECT
-    
-public:
-    
-	PsNotifyWindow(HistoryItem *item, int32 x, int32 y);
-    
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void paintEvent(QPaintEvent *e);
-    
-	bool animStep(float64 ms);
-	void animHide(float64 duration, anim::transition func);
-	void startHiding();
-	void stopHiding();
-	void moveTo(int32 x, int32 y, int32 index = -1);
-    
-	void updatePeerPhoto();
-    
-	int32 index() const {
-		return history ? _index : -1;
-	}
-    
-	~PsNotifyWindow();
-    
-    public slots:
-    
-	void hideByTimer();
-	void checkLastInput();
-    
-	void unlinkHistory(History *hist = 0);
-    
-private:
-    
-//	DWORD started;
-    
-	History *history;
-	IconedButton close;
-	QPixmap pm;
-	float64 alphaDuration, posDuration;
-	QTimer hideTimer, inputTimer;
-	bool hiding;
-	int32 _index;
-	anim::fvalue aOpacity;
-	anim::transition aOpacityFunc;
-	anim::ivalue aY;
-	ImagePtr peerPhoto;
-    
-};
-
-typedef QList<PsNotifyWindow*> PsNotifyWindows;
-
 class MacPrivate : public PsMacWindowPrivate {
 public:
     
@@ -91,6 +37,8 @@ public:
     void notifyReplied(unsigned long long peer, const char *str);
     
 };
+
+class NotifyWindow;
 
 class PsMainWindow : public QMainWindow {
 	Q_OBJECT
@@ -114,7 +62,6 @@ public:
 	bool psHandleTitle();
 
 	void psFlash();
-    void psNotifySettingGot();
 
 	bool psIsActive(int state = -1) const;
 	bool psIsOnline(int state) const;
@@ -126,19 +73,15 @@ public:
 		return false;
 	}
 
-	void psNotify(History *history, MsgId msgId);
-	void psClearNotify(History *history = 0);
-	void psClearNotifyFast();
-	void psShowNextNotify(PsNotifyWindow *remove = 0);
-    void psActivateNotifies();
-	void psStopHiding();
-	void psStartHiding();
-	void psUpdateNotifies();
-
 	bool psPosInited() const {
 		return posInited;
 	}
-    
+
+	void psActivateNotify(NotifyWindow *w);
+	void psClearNotifies(PeerId peerId = 0);
+	void psNotifyShown(NotifyWindow *w);
+	void psPlatformNotify(HistoryItem *item);
+
 	~PsMainWindow();
 
 public slots:
@@ -147,7 +90,6 @@ public slots:
 	void psUpdateCounter();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psIdleTimeout();
-	void psNotifyFire();
 
 protected:
 
@@ -159,26 +101,6 @@ protected:
     QImage icon256;
     virtual void setupTrayIcon() {
     }
-    
-	typedef QMap<MsgId, uint64> NotifyWhenMap;
-	typedef QMap<History*, NotifyWhenMap> NotifyWhenMaps;
-	NotifyWhenMaps notifyWhenMaps;
-	struct NotifyWaiter {
-		NotifyWaiter(MsgId msg, uint64 when) : msg(msg), when(when) {
-		}
-		MsgId msg;
-		uint64 when;
-	};
-	typedef QMap<History*, NotifyWaiter> NotifyWaiters;
-	NotifyWaiters notifyWaiters;
-	NotifyWaiters notifySettingWaiters;
-	QTimer notifyWaitTimer;
-    
-	typedef QSet<uint64> NotifyWhenAlert;
-	typedef QMap<History*, NotifyWhenAlert> NotifyWhenAlerts;
-	NotifyWhenAlerts notifyWhenAlerts;
-    
-	PsNotifyWindows notifyWindows;
 
     QTimer psUpdatedPositionTimer;
 
@@ -256,6 +178,8 @@ QString psCurrentLanguage();
 QString psAppDataPath();
 QString psCurrentExeDirectory(int argc, char *argv[]);
 void psAutoStart(bool start, bool silent = false);
+
+QRect psDesktopRect();
 
 int psCleanup();
 int psFixPrevious();

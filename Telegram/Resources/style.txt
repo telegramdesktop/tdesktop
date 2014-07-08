@@ -30,6 +30,8 @@ counterBG: #b42f35;
 counterMuteBG: #777;
 counterColor: #fff;
 
+lineWidth: 1px;
+
 transparent: rgba(255, 255, 255, 0);
 white: rgba(255, 255, 255, 255);
 black: rgba(0, 0, 0, 255);
@@ -153,11 +155,12 @@ btnDefBig: flatButton(btnDefFlat) {
 	overFont: font(23px);
 	height: 56px;
 }
+btnNextBG: #2fa9e2;
 btnDefNext: flatButton(btnDefFlat) {
 	color: white;
 	overColor: white;
 	downColor: white;
-	bgColor: #2fa9e2;
+	bgColor: btnNextBG;
 	overBgColor: #279ad0;
 	downBgColor: #279ad0;
 }
@@ -593,6 +596,23 @@ dlgPaddingVer: 8px;
 dlgHeight: 62px;
 dlgPhotoPadding: 12px;
 
+dlgState: switcher {
+	border: 2px;
+	borderColor: btnNextBG;
+
+	bgColor: #fff;
+	bgHovered: btnWhiteHover;
+	bgActive: btnNextBG;
+
+	height: 34px;
+
+	font: font(fsize);
+	textColor: btnYesColor;
+	activeColor: #fff;
+
+	duration: 200;
+}
+
 dlgSep: 8px;
 
 dlgShadowColor: rgba(0, 0, 0, 24);//#ebebeb
@@ -709,6 +729,24 @@ topBarActionSkip: 13px;
 topBarSelectedPos: point(18px, 18px); 
 
 historyBG: #dfe4e8;
+
+historyToEnd: iconedButton(btnDefIconed) {
+	bgColor: transparent;
+	overBgColor: transparent;
+
+	icon: sprite(252px, 41px, 44px, 44px);
+	iconPos: point(0px, 0px);
+	downIcon: sprite(252px, 41px, 44px, 44px);
+	downIconPos: point(0px, 0px);
+
+	width: 44px;
+	height: 44px;
+}
+historyToEndSkip: 10px;
+
+activeFadeInDuration: 500;
+activeFadeOutDuration: 3000;
+
 msgMaxWidth: 550px;
 msgFont: font(fsize);
 msgNameFont: font(fsize semibold);
@@ -765,9 +803,9 @@ msgDateSpace: 19px;
 msgDateCheckSpace: 4px;
 msgDateDelta: point(2px, 5px);
 
-msgImgSendingRect: sprite(280px, 40px, 20px, 20px);
+msgImgSendingRect: sprite(320px, 65px, 20px, 20px);
 msgImgCheckRect: sprite(280px, 20px, 20px, 20px);
-msgImgDblCheckRect: sprite(260px, 40px, 20px, 20px);
+msgImgDblCheckRect: sprite(300px, 65px, 20px, 20px);
 msgDateImgDelta: 4px;
 msgDateImgColor: #fff;
 msgDateImgBg: #00000054;
@@ -877,8 +915,8 @@ btnAttachDocument: iconedButton(btnDefIconed) {
 	height: 46px;
 }
 btnAttachPhoto: iconedButton(btnAttachDocument) {
-	icon: sprite(278px, 68px, 24px, 24px);
-	downIcon: sprite(278px, 68px, 24px, 24px);
+	icon: sprite(113px, 0px, 24px, 24px);
+	downIcon: sprite(113px, 0px, 24px, 24px);
 }
 btnAttachEmoji: iconedButton(btnAttachDocument) {
 	overBgColor: white;
@@ -957,9 +995,14 @@ btnAddContact: iconedButton(btnNewGroup) {
 	icon: sprite(188px, 93px, 18px, 18px);
 	downIcon: sprite(188px, 93px, 18px, 18px);
 }
+btnCancelSearch: iconedButton(btnNewGroup) {
+	icon: sprite(188px, 43px, 18px, 18px);
+	downIcon: sprite(188px, 43px, 18px, 18px);
+}
 
 notifyBG: white;
 notifyBorder: #f1f1f1;
+notifyBorderWidth: 1px;
 notifySlowHide: 4000;
 notifyPhotoSize: 62px;
 notifyPhotoPos: point(9px, 9px);
@@ -1245,8 +1288,8 @@ dropdownAttachDocument: iconedButton(btnAttachDocument) {
 	downTextPos: point(50px, 14px);
 }
 dropdownAttachPhoto: iconedButton(dropdownAttachDocument) {
-	icon: sprite(278px, 68px, 24px, 24px);
-	downIcon: sprite(278px, 68px, 24px, 24px);
+	icon: sprite(113px, 0px, 24px, 24px);
+	downIcon: sprite(113px, 0px, 24px, 24px);
 }
 
 dragFont: font(28px semibold);

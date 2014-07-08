@@ -438,6 +438,15 @@ QVector<MTPInputUser> NewGroupInner::selectedInputs() {
 	return result;
 }
 
+PeerData *NewGroupInner::selectedUser() {
+	for (ContactsData::const_iterator i = _contactsData.cbegin(), e = _contactsData.cend(); i != e; ++i) {
+		if (i.value()->check) {
+			return i.key();
+		}
+	}
+	return 0;
+}
+
 NewGroupBox::NewGroupBox() : _scroll(this, st::newGroupScroll), _inner(),
 	_filter(this, st::contactsFilter, lang(lng_participant_filter)),
 	_next(this, lang(lng_create_group_next), st::btnSelectDone),
@@ -521,8 +530,7 @@ void NewGroupBox::paintEvent(QPaintEvent *e) {
 			p.fillRect(0, st::participantFilter.height, _width, st::scrollDef.topsh, st::scrollDef.shColor->b);
 
 			// paint button sep
-			p.setPen(st::btnSelectSep->p);
-			p.drawLine(st::btnSelectCancel.width, size().height() - st::btnSelectCancel.height, st::btnSelectCancel.width, size().height() - 1);
+			p.fillRect(st::btnSelectCancel.width, size().height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
 
 			// draw box title / text
 			p.setPen(st::black->p);
@@ -579,13 +587,15 @@ void NewGroupBox::onClose() {
 
 void NewGroupBox::onNext() {
 	MTPVector<MTPInputUser> users(MTP_vector<MTPInputUser>(_inner.selectedInputs()));
-	if (users.c_vector().v.isEmpty()) {
+	const QVector<MTPInputUser> &v(users.c_vector().v);
+	if (v.isEmpty()) {
 		_filter.setFocus();
 		_filter.notaBene();
-		return;
+	} else if (v.size() == 1) {
+		App::main()->showPeer(_inner.selectedUser()->id);
+	} else {
+		App::wnd()->replaceLayer(new CreateGroupBox(users));
 	}
-
-	App::wnd()->replaceLayer(new CreateGroupBox(users));
 }
 
 void NewGroupBox::onScroll() {
@@ -666,8 +676,7 @@ void CreateGroupBox::paintEvent(QPaintEvent *e) {
 			p.fillRect(0, _height - st::btnSelectCancel.height - st::scrollDef.bottomsh, _width, st::scrollDef.bottomsh, st::scrollDef.shColor->b);
 
 			// paint button sep
-			p.setPen(st::btnSelectSep->p);
-			p.drawLine(st::btnSelectCancel.width, _height - st::btnSelectCancel.height, st::btnSelectCancel.width, size().height() - 1);
+			p.fillRect(st::btnSelectCancel.width, _height - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
 
 			// draw box title / text
 			p.setPen(st::black->p);

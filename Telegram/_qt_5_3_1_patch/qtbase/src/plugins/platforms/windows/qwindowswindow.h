@@ -282,7 +282,7 @@ private:
     inline void setParent_sys(const QPlatformWindow *parent);
     inline void updateTransientParent() const;
 	inline void clearTransientParent() const;
-	void destroyWindow();
+    void destroyWindow();
     inline bool isDropSiteEnabled() const { return m_dropTarget != 0; }
     void setDropSiteEnabled(bool enabled);
     void updateDropSite();

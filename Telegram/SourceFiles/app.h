@@ -116,7 +116,8 @@ namespace App {
 	History *history(const PeerId &peer, int32 unreadCnt = 0);
 	History *historyLoaded(const PeerId &peer);
 	HistoryItem *histItemById(MsgId itemId);
-	bool historyRegItem(HistoryItem *item);
+	HistoryItem *historyRegItem(HistoryItem *item);
+	void historyItemDetached(HistoryItem *item);
 	void historyUnregItem(HistoryItem *item);
 	void historyClearMsgs();
 	void historyClearItems();

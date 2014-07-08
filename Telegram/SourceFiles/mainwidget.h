@@ -134,6 +134,7 @@ public:
 	PeerData *peerAfter(const PeerData *peer);
 	PeerData *peer();
 	PeerData *activePeer();
+	MsgId activeMsgId();
 	PeerData *profilePeer();
 	void showPeerProfile(const PeerData *peer, bool back = false);
 	void showPeerBack();
@@ -193,6 +194,9 @@ public:
     
     void readServerHistory(History *history, bool force = true);
 
+	uint64 animActiveTime() const;
+	void stopAnimActive();
+
 	~MainWidget();
 
 signals:
@@ -201,6 +205,7 @@ signals:
 	void peerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 	void peerPhotoChanged(PeerData *peer);
 	void dialogRowReplaced(DialogRow *oldRow, DialogRow *newRow);
+	void historyItemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 	void dialogToTop(const History::DialogLinks &links);
 	void dialogsUpdated();
 	void historyItemDeleted(HistoryItem *item);
@@ -227,7 +232,7 @@ public slots:
 	void mainStateChanged(Qt::WindowState state);
 	void updateOnlineDisplay();
 
-	void showPeer(const PeerId &peer, bool back = false, bool force = false);
+	void showPeer(const PeerId &peer, MsgId msgId = 0, bool back = false, bool force = false);
 	void onTopBarClick();
 	void onPeerShown(PeerData *peer);
 

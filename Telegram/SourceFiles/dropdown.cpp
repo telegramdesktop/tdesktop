@@ -71,10 +71,8 @@ void Dropdown::paintEvent(QPaintEvent *e) {
 		int32 top = st::dropdownPadding.top() + _buttons.front()->height();
 		p.setPen(st::dropdownBorderColor->p);
 		for (int32 i = 1, s = _buttons.size(); i < s; ++i) {
-			for (int32 e = top + st::dropdownBorder; top < e; ++top) {
-				p.drawLine(st::dropdownPadding.left(), top, _width - st::dropdownPadding.right() - 1, top);
-			}
-			top += _buttons[i]->height();
+			p.fillRect(st::dropdownPadding.left(), top, _width - st::dropdownPadding.left() - st::dropdownPadding.right(), st::dropdownBorder, st::dropdownBorderColor->b);
+			top += st::dropdownBorder + _buttons[i]->height();
 		}
 	}
 }

@@ -115,6 +115,9 @@ void FileUploader::sendNext() {
 			}
 		} else {
 			toSend = i->media.data.mid(i->docSentParts * i->docPartSize, i->docPartSize);
+			if (i->media.type == ToPrepareDocument && i->docSentParts <= UseBigFilesFrom) {
+				i->docHash.feed(toSend.constData(), toSend.size());
+			}
 		}
 		if (toSend.size() > i->docPartSize || (toSend.size() < i->docPartSize && i->docSentParts + 1 != i->docPartsCount)) {
 			currentFailed();
