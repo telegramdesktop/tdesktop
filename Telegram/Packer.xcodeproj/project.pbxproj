@@ -25,7 +25,6 @@
 		1BB705CDB741E2B7450201A5 /* Cocoa.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = AEA456A2F75ED9F5CDA7BCBE /* Cocoa.framework */; };
 		328FD74542F6E2C873EE4D4B /* ApplicationServices.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = DFD7912080BC557230093752 /* ApplicationServices.framework */; };
 		496FD9CEEB508016AFB9F928 /* qico in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 8F500B5166907B6D9A7C3E3D /* qico */; };
-		52B661A713AE959F9084E291 /* packer_plugin_import.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = CB20BF73330AAF80B8BC8907 /* packer_plugin_import.cpp */; settings = {ATTRIBUTES = (); }; };
 		59789101736112A570B8EFE6 /* qjp2 in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = F0681BC551FC8A2B132FC646 /* qjp2 */; };
 		668DDDA0C55405E7FCFD6CA5 /* CoreServices.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 9742F24EE18EA44D52824F1E /* CoreServices.framework */; };
 		7CA5405B8503BFFC60932D2B /* qicns in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 31120EDB269DFF13E1D49847 /* qicns */; };
@@ -167,7 +166,6 @@
 		C4295BE59CCEBCDD16268349 /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qico.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qico.pri"; sourceTree = "<absolute>"; };
 		C505A18319B9B63C63877858 /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_script_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_script_private.pri"; sourceTree = "<absolute>"; };
 		C84546C18DCBB04166195DCF /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qtposition_positionpoll.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qtposition_positionpoll.pri"; sourceTree = "<absolute>"; };
-		CB20BF73330AAF80B8BC8907 /* packer_plugin_import.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = packer_plugin_import.cpp; sourceTree = "<absolute>"; };
 		CCF75CFFB857487FB18F99F9 /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qoffscreen.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qoffscreen.pri"; sourceTree = "<absolute>"; };
 		CE829DD126DD2B97E8D70A7A /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_scripttools.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_scripttools.pri"; sourceTree = "<absolute>"; };
 		CF86CD5BB01B9011E6B6FD3E /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_clucene_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_clucene_private.pri"; sourceTree = "<absolute>"; };
@@ -256,7 +254,6 @@
 			isa = PBXGroup;
 			children = (
 				73F2E45FDEB381A085D37A49 /* SourceFiles */,
-				CB20BF73330AAF80B8BC8907 /* packer_plugin_import.cpp */,
 			);
 			name = Sources;
 			sourceTree = "<Group>";
@@ -525,7 +522,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				EAA05789DF6EBAD24D3EFF96 /* packer.cpp in Compile Sources */,
-				52B661A713AE959F9084E291 /* packer_plugin_import.cpp in Compile Sources */,
 			);
 			name = "Compile Sources";
 			runOnlyForDeploymentPostprocessing = 0;

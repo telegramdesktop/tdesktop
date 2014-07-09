@@ -23,7 +23,6 @@
 
 /* Begin PBXBuildFile section */
 		0E4EEB1BFC9FA7662AD934C6 /* moc_genlang.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 680437016D61255E7F889A94 /* moc_genlang.cpp */; settings = {ATTRIBUTES = (); }; };
-		1677F0186F1CAD0E8B91FFF7 /* metalang_plugin_import.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 98B4CE8F50ACDC930E6A1148 /* metalang_plugin_import.cpp */; settings = {ATTRIBUTES = (); }; };
 		1A681B886F50EE30FBE62B4B /* Qt5PrintSupport in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = DBF506D10449BFABD45B82DA /* Qt5PrintSupport */; };
 		1BB705CDB741E2B7450201A5 /* Cocoa.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = AEA456A2F75ED9F5CDA7BCBE /* Cocoa.framework */; };
 		328FD74542F6E2C873EE4D4B /* ApplicationServices.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = DFD7912080BC557230093752 /* ApplicationServices.framework */; };
@@ -139,7 +138,6 @@
 		8F97C9CAE38CA3AFAC0B3953 /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_websockets.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_websockets.pri"; sourceTree = "<absolute>"; };
 		946BEA667170DC1A7A8F9DB0 /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qmng.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qmng.pri"; sourceTree = "<absolute>"; };
 		9742F24EE18EA44D52824F1E /* CoreServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreServices.framework; path = /System/Library/Frameworks/CoreServices.framework; sourceTree = "<absolute>"; };
-		98B4CE8F50ACDC930E6A1148 /* metalang_plugin_import.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = metalang_plugin_import.cpp; sourceTree = "<absolute>"; };
 		9A0BDF67E013BB4FFB8685B0 /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qqt7engine.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qqt7engine.pri"; sourceTree = "<absolute>"; };
 		9DFF62A901D70814B8A323D4 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = /System/Library/Frameworks/Carbon.framework; sourceTree = "<absolute>"; };
 		A022AF919D1977534CA66BB8 /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_widgets.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_widgets.pri"; sourceTree = "<absolute>"; };
@@ -270,7 +268,6 @@
 			isa = PBXGroup;
 			children = (
 				73F2E45FDEB381A085D37A49 /* SourceFiles */,
-				98B4CE8F50ACDC930E6A1148 /* metalang_plugin_import.cpp */,
 			);
 			name = Sources;
 			sourceTree = "<Group>";
@@ -572,7 +569,6 @@
 			files = (
 				B89F16FD30F4E782CC231D7B /* mlmain.cpp in Compile Sources */,
 				34D95ABDC12C1841CEF3B2E3 /* genlang.cpp in Compile Sources */,
-				1677F0186F1CAD0E8B91FFF7 /* metalang_plugin_import.cpp in Compile Sources */,
 				0E4EEB1BFC9FA7662AD934C6 /* moc_genlang.cpp in Compile Sources */,
 			);
 			name = "Compile Sources";

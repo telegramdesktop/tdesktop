@@ -167,7 +167,6 @@
 		D22929A2B8C5281567FCACDC /* Qt5PlatformSupport in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = E7B2F248E3F7970788F35BF5 /* Qt5PlatformSupport */; };
 		D3D955F61644264D27FC2796 /* qtaccessiblewidgets in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = A7782E2B07CB2D1D14F431B0 /* qtaccessiblewidgets */; };
 		D4639595C3BCF2A39D88DF6E /* SystemConfiguration.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = FF5BDAB0076F3391B219EA52 /* SystemConfiguration.framework */; };
-		D67628B07A49239E73C2150B /* telegram_plugin_import.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = FB0DCE17FF02138B3C1B1219 /* telegram_plugin_import.cpp */; settings = {ATTRIBUTES = (); }; };
 		D6874C00733283846ACA9AB2 /* moc_confirmbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = CE7FFE194127BD789A2C877A /* moc_confirmbox.cpp */; settings = {ATTRIBUTES = (); }; };
 		D7EF8F129FCCE9AB3F3F081F /* button.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 4D55B83DFDFE3D492CDBD27A /* button.cpp */; settings = {ATTRIBUTES = (); }; };
 		D846C6F212B438DC2FD5FF71 /* moc_dialogswidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 3B3ED09AB00290D78CF1181B /* moc_dialogswidget.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -593,7 +592,6 @@
 		F80095A026AF9453E9C2B8BD /* settingswidget.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = settingswidget.h; path = SourceFiles/settingswidget.h; sourceTree = "<absolute>"; };
 		F83F87F8A60C9DF666911D42 /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qsvg.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qsvg.pri"; sourceTree = "<absolute>"; };
 		F9BEAA743A908603687DA204 /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_xmlpatterns_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_xmlpatterns_private.pri"; sourceTree = "<absolute>"; };
-		FB0DCE17FF02138B3C1B1219 /* telegram_plugin_import.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = telegram_plugin_import.cpp; sourceTree = "<absolute>"; };
 		FB61F72601D91BF3AC730D20 /* mtpRPC.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = mtpRPC.h; path = SourceFiles/mtproto/mtpRPC.h; sourceTree = "<absolute>"; };
 		FCC237CA5AD60B9BA4447615 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = /System/Library/Frameworks/Foundation.framework; sourceTree = "<absolute>"; };
 		FD944B80F033DFE737D401A2 /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_help.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_help.pri"; sourceTree = "<absolute>"; };
@@ -722,7 +720,6 @@
 			children = (
 				73F2E45FDEB381A085D37A49 /* SourceFiles */,
 				130BDDB6FC4D60CF394D95AF /* GeneratedFiles */,
-				FB0DCE17FF02138B3C1B1219 /* telegram_plugin_import.cpp */,
 			);
 			name = Sources;
 			sourceTree = "<Group>";
@@ -1385,7 +1382,6 @@
 				4978DE680549639AE9AA9CA6 /* introsignup.cpp in Compile Sources */,
 				8B22E794EFF0EAFF964A3043 /* introsteps.cpp in Compile Sources */,
 				74343521EECC740F777DAFE6 /* pspecific_mac.cpp in Compile Sources */,
-				D67628B07A49239E73C2150B /* telegram_plugin_import.cpp in Compile Sources */,
 				26A81090DC8B5BCF7278FDFF /* qrc_telegram.cpp in Compile Sources */,
 				C1F9D5CA8AF3AD8EBC9D7310 /* moc_application.cpp in Compile Sources */,
 				D846C6F212B438DC2FD5FF71 /* moc_dialogswidget.cpp in Compile Sources */,

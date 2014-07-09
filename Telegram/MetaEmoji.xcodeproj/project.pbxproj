@@ -25,7 +25,6 @@
 		1BB705CDB741E2B7450201A5 /* Cocoa.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = AEA456A2F75ED9F5CDA7BCBE /* Cocoa.framework */; };
 		328FD74542F6E2C873EE4D4B /* ApplicationServices.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = DFD7912080BC557230093752 /* ApplicationServices.framework */; };
 		496FD9CEEB508016AFB9F928 /* qico in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 8F500B5166907B6D9A7C3E3D /* qico */; };
-		4B166C0FE4A3C31F5E3D05CE /* metaemoji_plugin_import.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = A9341A7B02F69BC5802268AA /* metaemoji_plugin_import.cpp */; settings = {ATTRIBUTES = (); }; };
 		59789101736112A570B8EFE6 /* qjp2 in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = F0681BC551FC8A2B132FC646 /* qjp2 */; };
 		668DDDA0C55405E7FCFD6CA5 /* CoreServices.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 9742F24EE18EA44D52824F1E /* CoreServices.framework */; };
 		7CA5405B8503BFFC60932D2B /* qicns in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 31120EDB269DFF13E1D49847 /* qicns */; };
@@ -144,7 +143,6 @@
 		A4D8AC60897F435C1C3B9D02 /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qtsensors_generic.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qtsensors_generic.pri"; sourceTree = "<absolute>"; };
 		A59F74CD76FDC2B4B9910E18 /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_scripttools_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_scripttools_private.pri"; sourceTree = "<absolute>"; };
 		A5B17ABEFBA1C2F43443D644 /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_macextras.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_macextras.pri"; sourceTree = "<absolute>"; };
-		A9341A7B02F69BC5802268AA /* metaemoji_plugin_import.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = metaemoji_plugin_import.cpp; sourceTree = "<absolute>"; };
 		A9E30FA27827990C5F182223 /* /usr/local/Qt-5.3.0/mkspecs/common/gcc-base-mac.conf */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/common/gcc-base-mac.conf"; sourceTree = "<absolute>"; };
 		AA73DC3C2901E2979FE8AD5B /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_xml.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_lib_xml.pri"; sourceTree = "<absolute>"; };
 		AB1C02DDBD8E88DD9A9AFDDD /* /usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qtsensorgestures_plugin.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.0/mkspecs/modules/qt_plugin_qtsensorgestures_plugin.pri"; sourceTree = "<absolute>"; };
@@ -269,7 +267,6 @@
 			isa = PBXGroup;
 			children = (
 				73F2E45FDEB381A085D37A49 /* SourceFiles */,
-				A9341A7B02F69BC5802268AA /* metaemoji_plugin_import.cpp */,
 			);
 			name = Sources;
 			sourceTree = "<Group>";
@@ -558,7 +555,6 @@
 			files = (
 				83425F7776C9E52C29BE0E6F /* memain.cpp in Compile Sources */,
 				C5357D951917482510CE3E54 /* genemoji.cpp in Compile Sources */,
-				4B166C0FE4A3C31F5E3D05CE /* metaemoji_plugin_import.cpp in Compile Sources */,
 				C4F1177BDAACCF1E50ACCED9 /* moc_genemoji.cpp in Compile Sources */,
 			);
 			name = "Compile Sources";

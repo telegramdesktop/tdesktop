@@ -17,9 +17,23 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #include "genemoji.h"
 
-#ifdef Q_OS_WIN
 #include <QtCore/QtPlugin>
+
+#ifdef Q_OS_WIN
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
+#endif
+
+#ifdef Q_OS_MAC
+Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)
+Q_IMPORT_PLUGIN(QDDSPlugin)
+Q_IMPORT_PLUGIN(QICNSPlugin)
+Q_IMPORT_PLUGIN(QICOPlugin)
+Q_IMPORT_PLUGIN(QJp2Plugin)
+Q_IMPORT_PLUGIN(QMngPlugin)
+Q_IMPORT_PLUGIN(QTgaPlugin)
+Q_IMPORT_PLUGIN(QTiffPlugin)
+Q_IMPORT_PLUGIN(QWbmpPlugin)
+Q_IMPORT_PLUGIN(QWebpPlugin)
 #endif
 
 typedef unsigned int uint32;
@@ -1058,7 +1072,6 @@ bool genEmoji(QString emoji_in, const QString &emoji_out, const QString &emoji_p
 			}
 		}
 		QString postfix = variantPostfix[variantIndex], emojif = emoji_png + postfix + ".png";
-		const char *tmp = emojif.toUtf8().constData();
 		QByteArray emojib;
 		{
 			QBuffer ebuf(&emojib);
