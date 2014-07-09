@@ -92,8 +92,6 @@ void AboutBox::paintEvent(QPaintEvent *e) {
 			p.setFont(st::aboutVersionFont->f);
 			p.setPen(st::aboutVersionColor->p);
 			p.drawText((_width - _versionWidth) / 2, st::aboutVersionTop + st::aboutVersionFont->ascent, _versionText);
-
-			p.drawText(10, 30, "t\n\nt\nt");
 		}
 	} else {
 		p.setOpacity(a_opacity.current());
