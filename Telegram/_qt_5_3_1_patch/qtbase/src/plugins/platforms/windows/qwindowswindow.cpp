@@ -1016,17 +1016,17 @@ QWindow *QWindowsWindow::topLevelOf(QWindow *w)
     while (QWindow *parent = w->parent())
         w = parent;
 
-    const QWindowsWindow *ww = static_cast<const QWindowsWindow *>(w->handle());
-
-    // In case the topmost parent is embedded, find next ancestor using native methods
-    if (ww->isEmbedded(0)) {
-        HWND parentHWND = GetAncestor(ww->handle(), GA_PARENT);
-        const HWND desktopHwnd = GetDesktopWindow();
-        const QWindowsContext *ctx = QWindowsContext::instance();
-        while (parentHWND && parentHWND != desktopHwnd) {
-            if (QWindowsWindow *ancestor = ctx->findPlatformWindow(parentHWND))
-                return topLevelOf(ancestor->window());
-            parentHWND = GetAncestor(parentHWND, GA_PARENT);
+    if (const QPlatformWindow *handle = w->handle()) {
+        const QWindowsWindow *ww = static_cast<const QWindowsWindow *>(handle);
+        if (ww->isEmbedded(0)) {
+            HWND parentHWND = GetAncestor(ww->handle(), GA_PARENT);
+            const HWND desktopHwnd = GetDesktopWindow();
+            const QWindowsContext *ctx = QWindowsContext::instance();
+            while (parentHWND && parentHWND != desktopHwnd) {
+                if (QWindowsWindow *ancestor = ctx->findPlatformWindow(parentHWND))
+                    return topLevelOf(ancestor->window());
+                parentHWND = GetAncestor(parentHWND, GA_PARENT);
+            }
         }
     }
     return w;
@@ -1949,7 +1949,10 @@ void QWindowsWindow::getSizeHints(MINMAXINFO *mmi) const
             && (m_data.flags & Qt::FramelessWindowHint)) {
         // This block fixes QTBUG-8361: Frameless windows shouldn't cover the
         // taskbar when maximized
-        if (const QScreen *screen = effectiveScreen(window())) {
+        const QScreen *screen = effectiveScreen(window());
+
+        // Documentation of MINMAXINFO states that it will only work for the primary screen
+        if (screen && screen == QGuiApplication::primaryScreen()) {
             mmi->ptMaxSize.y = screen->availableGeometry().height();
 
             // Width, because you can have the taskbar on the sides too.
@@ -1958,8 +1961,8 @@ void QWindowsWindow::getSizeHints(MINMAXINFO *mmi) const
             // If you have the taskbar on top, or on the left you don't want it at (0,0):
             mmi->ptMaxPosition.x = screen->availableGeometry().x();
             mmi->ptMaxPosition.y = screen->availableGeometry().y();
-        } else {
-            qWarning() << "Invalid screen";
+        } else if (!screen){
+            qWarning() << "effectiveScreen() returned a null screen";
         }
     }
 

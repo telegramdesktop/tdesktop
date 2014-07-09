@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
+** Copyright (C) 2014 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
 ** This file is part of the QtWidgets module of the Qt Toolkit.
@@ -71,6 +71,7 @@ extern bool qt_priv_ptr_valid;
 #endif
 #if defined(Q_OS_UNIX)
 #include <pwd.h>
+#include <unistd.h> // for pathconf() on OS X
 #elif defined(Q_OS_WIN)
 #  include <QtCore/qt_windows.h>
 #endif
@@ -1018,6 +1019,44 @@ QUrl QFileDialog::directoryUrl() const
         return QUrl::fromLocalFile(directory().absolutePath());
 }
 
+// FIXME Qt 5.4: Use upcoming QVolumeInfo class to determine this information?
+static inline bool isCaseSensitiveFileSystem(const QString &path)
+{
+    Q_UNUSED(path)
+#if defined(Q_OS_WIN)
+    // Return case insensitive unconditionally, even if someone has a case sensitive
+    // file system mounted, wrongly capitalized drive letters will cause mismatches.
+    return false;
+#elif defined(Q_OS_OSX)
+    return pathconf(QFile::encodeName(path).constData(), _PC_CASE_SENSITIVE);
+#else
+    return true;
+#endif
+}
+
+// Determine the file name to be set on the line edit from the path
+// passed to selectFile() in mode QFileDialog::AcceptSave.
+static inline QString fileFromPath(const QString &rootPath, QString path)
+{
+    if (!QFileInfo(path).isAbsolute())
+        return path;
+    if (path.startsWith(rootPath, isCaseSensitiveFileSystem(rootPath) ? Qt::CaseSensitive : Qt::CaseInsensitive))
+        path.remove(0, rootPath.size());
+
+    if (path.isEmpty())
+        return path;
+
+    if (path.at(0) == QDir::separator()
+#ifdef Q_OS_WIN
+            //On Windows both cases can happen
+            || path.at(0) == QLatin1Char('/')
+#endif
+            ) {
+            path.remove(0, 1);
+    }
+    return path;
+}
+
 /*!
     Selects the given \a filename in the file dialog.
 
@@ -1049,28 +1088,9 @@ void QFileDialog::selectFile(const QString &filename)
     }
 
     QModelIndex index = d->model->index(filename);
-    QString file;
-    if (!index.isValid()) {
-        // save as dialog where we want to input a default value
-        QString text = filename;
-        if (QFileInfo(filename).isAbsolute()) {
-            QString current = d->rootPath();
-            text.remove(current);
-            if (text.at(0) == QDir::separator()
-#ifdef Q_OS_WIN
-                //On Windows both cases can happen
-                || text.at(0) == QLatin1Char('/')
-#endif
-                )
-                text = text.remove(0,1);
-        }
-        file = text;
-    } else {
-        file = index.data().toString();
-    }
     d->qFileDialogUi->listView->selectionModel()->clear();
     if (!isVisible() || !d->lineEdit()->hasFocus())
-        d->lineEdit()->setText(file);
+        d->lineEdit()->setText(index.isValid() ? index.data().toString() : fileFromPath(d->rootPath(), filename));
 }
 
 /*!
@@ -1263,7 +1283,7 @@ QStringList QFileDialog::selectedFiles() const
     QStringList files;
     foreach (const QUrl &file, d->userSelectedFiles())
         files.append(file.toLocalFile());
-    if (files.isEmpty()) {
+    if (files.isEmpty() && d->usingWidgets()) {
         const FileMode fm = fileMode();
         if (fm != ExistingFile && fm != ExistingFiles)
             files.append(d->rootIndex().data(QFileSystemModel::FilePathRole).toString());
@@ -1615,7 +1635,7 @@ QFileDialog::ViewMode QFileDialog::viewMode() const
 {
     Q_D(const QFileDialog);
     if (!d->usingWidgets())
-        return QFileDialog::List;
+        return static_cast<QFileDialog::ViewMode>(d->options->viewMode());
     return (d->qFileDialogUi->stackedWidget->currentWidget() == d->qFileDialogUi->listView->parent() ? QFileDialog::List : QFileDialog::Detail);
 }
 
@@ -2123,6 +2143,11 @@ QString QFileDialog::getOpenFileName(QWidget *parent,
     return QString();
 }
 
+static inline QUrl dialogResultToUrl(const QString &file)
+{
+    return file.isEmpty() ? QUrl() : QUrl::fromLocalFile(file);
+}
+
 /*!
     This is a convenience static function that returns an existing file
     selected by the user. If the user presses Cancel, it returns an
@@ -2161,7 +2186,7 @@ QUrl QFileDialog::getOpenFileUrl(QWidget *parent,
     Q_UNUSED(supportedSchemes);
 
     // Falls back to local file
-    return QUrl::fromLocalFile(getOpenFileName(parent, caption, dir.toLocalFile(), filter, selectedFilter, options));
+    return dialogResultToUrl(getOpenFileName(parent, caption, dir.toLocalFile(), filter, selectedFilter, options));
 }
 
 /*!
@@ -2419,7 +2444,7 @@ QUrl QFileDialog::getSaveFileUrl(QWidget *parent,
     Q_UNUSED(supportedSchemes);
 
     // Falls back to local file
-    return QUrl::fromLocalFile(getSaveFileName(parent, caption, dir.toLocalFile(), filter, selectedFilter, options));
+    return dialogResultToUrl(getSaveFileName(parent, caption, dir.toLocalFile(), filter, selectedFilter, options));
 }
 
 /*!
@@ -2527,7 +2552,7 @@ QUrl QFileDialog::getExistingDirectoryUrl(QWidget *parent,
     Q_UNUSED(supportedSchemes);
 
     // Falls back to local file
-    return QUrl::fromLocalFile(getExistingDirectory(parent, caption, dir.toLocalFile(), options));
+    return dialogResultToUrl(getExistingDirectory(parent, caption, dir.toLocalFile(), options));
 }
 
 inline static QString _qt_get_directory(const QString &path)

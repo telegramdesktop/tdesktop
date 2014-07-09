@@ -182,7 +182,8 @@ static inline void qt_socket_getPortAndAddress(SOCKET socketDescriptor, const qt
         if (address) {
             QHostAddress a;
             a.setAddress(tmp);
-            a.setScopeId(QString::number(sa6->sin6_scope_id));
+            if (sa6->sin6_scope_id)
+                a.setScopeId(QString::number(sa6->sin6_scope_id));
             *address = a;
         }
         if (port)
