@@ -28,6 +28,39 @@ linux {
     HEADERS += ./SourceFiles/pspecific_linux.h
 }
 
+style_auto_cpp.target = ./GeneratedFiles/style_auto.cpp
+style_auto_cpp.depends = FORCE
+style_auto_cpp.commands = ./../Linux/DebugStyle/MetaStyle -classes_in ./Resources/style_classes.txt -classes_out ./GeneratedFiles/style_classes.h -styles_in ./Resources/style.txt -styles_out ./GeneratedFiles/style_auto.h -path_to_sprites ./SourceFiles/art/
+style_auto_cpp.depends = ./Resources/style.txt ./Resources/style_classes.txt
+
+style_auto_h.target = ./GeneratedFiles/style_auto.h
+style_auto_h.depends = FORCE
+style_auto_h.commands = ./../Linux/DebugStyle/MetaStyle -classes_in ./Resources/style_classes.txt -classes_out ./GeneratedFiles/style_classes.h -styles_in ./Resources/style.txt -styles_out ./GeneratedFiles/style_auto.h -path_to_sprites ./SourceFiles/art/
+style_auto_h.depends = ./Resources/style.txt ./Resources/style_classes.txt
+
+style_classes_h.target = ./GeneratedFiles/style_classes.h
+style_classes_h.depends = FORCE
+style_classes_h.commands = ./../Linux/DebugStyle/MetaStyle -classes_in ./Resources/style_classes.txt -classes_out ./GeneratedFiles/style_classes.h -styles_in ./Resources/style.txt -styles_out ./GeneratedFiles/style_auto.h -path_to_sprites ./SourceFiles/art/
+style_classes_h.depends = ./Resources/style.txt ./Resources/style_classes.txt
+
+lang_cpp.target = ./GeneratedFiles/lang.cpp
+lang_cpp.depends = FORCE
+lang_cpp.commands = ./../Linux/DebugLang/MetaLang -lang_in ./Resources/lang.txt -lang_out ./GeneratedFiles/lang
+lang_cpp.depends = ./Resources/lang.txt
+
+lang_h.target = ./GeneratedFiles/lang.h
+lang_h.depends = FORCE
+lang_h.commands = ./../Linux/DebugLang/MetaLang -lang_in ./Resources/lang.txt -lang_out ./GeneratedFiles/lang
+lang_h.depends = ./Resources/lang.txt
+
+hook.depends = style_auto_cpp style_auto_h style_classes_h lang_cpp lang_h
+CONFIG(debug,debug|release):hook.target = Makefile.Debug
+CONFIG(release,debug|release):hook.target = Makefile.Release
+
+QMAKE_EXTRA_TARGETS += style_auto_cpp style_auto_h style_classes_h lang_cpp lang_h hook
+
+PRE_TARGETDEPS += ./GeneratedFiles/style_auto.cpp ./GeneratedFiles/style_auto.h ./GeneratedFiles/style_classes.h ./GeneratedFiles/lang.h ./GeneratedFiles/lang.cpp
+
 SOURCES += \
     ./SourceFiles/main.cpp \
     ./SourceFiles/stdafx.cpp \
@@ -75,6 +108,7 @@ SOURCES += \
     ./SourceFiles/gui/style_core.cpp \
     ./SourceFiles/gui/text.cpp \
     ./SourceFiles/gui/twidget.cpp \
+    ./SourceFiles/gui/switcher.cpp \
     ./GeneratedFiles/lang.cpp \
     ./GeneratedFiles/style_auto.cpp \
     ./SourceFiles/boxes/aboutbox.cpp \
@@ -149,6 +183,7 @@ HEADERS += \
     ./SourceFiles/gui/style_core.h \
     ./SourceFiles/gui/text.h \
     ./SourceFiles/gui/twidget.h \
+    ./SourceFiles/gui/switcher.h \
     ./GeneratedFiles/lang.h \
     ./GeneratedFiles/style_auto.h \
     ./GeneratedFiles/style_classes.h \

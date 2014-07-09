@@ -216,7 +216,7 @@ HitTestType TitleWidget::hitTest(const QPoint &p) {
 	if (x >= st::titleIconPos.x() && y >= st::titleIconPos.y() && x < st::titleIconPos.x() + st::titleIconRect.pxWidth() && y < st::titleIconPos.y() + st::titleIconRect.pxHeight()) {
 		return HitTestIcon;
 	} else if (false
-		|| (_update.hitTest(p - _update.geometry().topLeft()) == HitTestSysButton) && _update.isVisible()
+        || (_update.hitTest(p - _update.geometry().topLeft()) == HitTestSysButton && _update.isVisible())
 		|| (_minimize.hitTest(p - _minimize.geometry().topLeft()) == HitTestSysButton)
 		|| (_maximize.hitTest(p - _maximize.geometry().topLeft()) == HitTestSysButton)
 		|| (_restore.hitTest(p - _restore.geometry().topLeft()) == HitTestSysButton)

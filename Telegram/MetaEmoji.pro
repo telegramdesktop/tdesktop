@@ -2,14 +2,14 @@ QT += core
 
 CONFIG(debug, debug|release) {
     DEFINES += _DEBUG
-    OBJECTS_DIR = ./../Linux/DebugIntermediateEmoji
+    OBJECTS_DIR = ./../DebugIntermediateEmoji
     MOC_DIR = ./GeneratedFiles/Debug
-    DESTDIR = ./../Linux/DebugEmoji
+    DESTDIR = ./../DebugEmoji
 }
 CONFIG(release, debug|release) {
-    OBJECTS_DIR = ./../Linux/ReleaseIntermediateEmoji
+    OBJECTS_DIR = ./../ReleaseIntermediateEmoji
     MOC_DIR = ./GeneratedFiles/Release
-    DESTDIR = ./../Linux/ReleaseEmoji
+    DESTDIR = ./../ReleaseEmoji
 }
 
 macx {
@@ -25,7 +25,7 @@ HEADERS += \
     ./SourceFiles/_other/memain.h \
     ./SourceFiles/_other/genemoji.h \
 
-INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.0/QtGui\
-               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.0/QtCore\
+INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.1/QtGui\
+               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.1/QtCore\
                ./../../Libraries/QtStatic/qtbase/include\
 

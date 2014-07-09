@@ -404,7 +404,7 @@ namespace {
 			LOG(("TCP Error: bad packet size %1").arg(size * sizeof(mtpPrime)));
 			return mtpBuffer(1, -500);
 		}
-		if (packet[0] != size * sizeof(mtpPrime)) {
+        if (packet[0] != int32(size * sizeof(mtpPrime))) {
 			LOG(("TCP Error: bad packet header"));
 			TCP_LOG(("TCP Error: bad packet header, packet: %1").arg(mb(packet, size * sizeof(mtpPrime)).str()));
 			return mtpBuffer(1, -500);

@@ -117,7 +117,7 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 
 	window = new Window();
 
-	psInstallEventFilter();
+    psInstallEventFilter();
 
 	updateCheckTimer.setSingleShot(true);
 

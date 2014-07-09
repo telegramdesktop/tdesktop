@@ -1,15 +1,15 @@
-T += core
+QT += core
 
 CONFIG(debug, debug|release) {
     DEFINES += _DEBUG
-    OBJECTS_DIR = ./../Linux/DebugIntermediateLang
+    OBJECTS_DIR = ./../DebugIntermediateLang
     MOC_DIR = ./GeneratedFiles/Debug
-    DESTDIR = ./../Linux/DebugLang
+    DESTDIR = ./../DebugLang
 }
 CONFIG(release, debug|release) {
-    OBJECTS_DIR = ./../Linux/ReleaseIntermediateLang
+    OBJECTS_DIR = ./../ReleaseIntermediateLang
     MOC_DIR = ./GeneratedFiles/Release
-    DESTDIR = ./../Linux/ReleaseLang
+    DESTDIR = ./../ReleaseLang
 }
 
 macx {
@@ -25,7 +25,7 @@ HEADERS += \
     ./SourceFiles/_other/mlmain.h \
     ./SourceFiles/_other/genlang.h \
 
-INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.0/QtGui\
-               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.0/QtCore\
+INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.1/QtGui\
+               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.1/QtCore\
                ./../../Libraries/QtStatic/qtbase/include\
 
