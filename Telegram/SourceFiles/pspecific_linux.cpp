@@ -738,7 +738,7 @@ QString psCurrentExeDirectory(int argc, char *argv[]) {
     if (!first.isEmpty()) {
         QFileInfo info(first);
         if (info.exists()) {
-            QDir result(info.absolutePath() + qsl("/../../.."));
+            QDir result(info.absolutePath());
             return result.absolutePath() + '/';
         }
     }
@@ -839,10 +839,13 @@ void psPostprocessFile(const QString &name) {
 }
 
 void psOpenFile(const QString &name, bool openWith) {
+    QDesktopServices::openUrl(QUrl::fromLocalFile(name));
     //objc_openFile(name, openWith);
 }
 
 void psShowInFolder(const QString &name) {
+    QDesktopServices::openUrl(QFileInfo(name).absoluteDir().absolutePath());
+//    system(("nautilus " + QFileInfo(name).absoluteDir().absolutePath()).toUtf8().constData());
     //objc_showInFinder(name, QFileInfo(name).absolutePath());
 }
 
@@ -850,15 +853,46 @@ void psFinish() {
     //objc_finish();
 }
 
+bool _execUpdater(bool update = true) {
+    static const int MaxArgsCount = 128, MaxLen = 65536;
+    char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key";
+    char p_datafile[MaxLen] = {0};
+    int argIndex = 0;
+    if (!update) {
+        args[argIndex++] = p_noupdate;
+        args[argIndex++] = p_tosettings;
+    }
+    if (cFromAutoStart()) args[argIndex++] = p_autostart;
+    if (cDebug()) args[argIndex++] = p_debug;
+    if (cDataFile() != (cTestMode() ? qsl("data_test") : qsl("data"))) {
+        QByteArray dataf = cDataFile().toUtf8();
+        if (dataf.size() < MaxLen) {
+            memcpy(p_datafile, dataf.constData(), dataf.size());
+            args[argIndex++] = p_key;
+            args[argIndex++] = p_datafile;
+        }
+    }
+    char path[MaxLen] = {0};
+    QByteArray data((cExeDir() + "Updater").toUtf8());
+    memcpy(path, data.constData(), data.size());
+
+    pid_t pid = fork();
+    switch (pid) {
+    case -1: return false;
+    case 0: execv(path, args); return false;
+    }
+    return true;
+}
+
 void psExecUpdater() {
-    if (true /*!objc_execUpdater()*/) {
+    if (!_execUpdater()) {
 		QString readyPath = cWorkingDir() + qsl("tupdates/ready");
 		PsUpdateDownloader::deleteDir(readyPath);
 	}
 }
 
 void psExecTelegram() {
-    //objc_execTelegram();
+    _execUpdater(false);
 }
 
 void psAutoStart(bool start, bool silent) {

@@ -1058,7 +1058,6 @@ bool genEmoji(QString emoji_in, const QString &emoji_out, const QString &emoji_p
 			}
 		}
 		QString postfix = variantPostfix[variantIndex], emojif = emoji_png + postfix + ".png";
-		const char *tmp = emojif.toUtf8().constData();
 		QByteArray emojib;
 		{
 			QBuffer ebuf(&emojib);

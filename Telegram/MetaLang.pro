@@ -12,6 +12,8 @@ CONFIG(release, debug|release) {
     DESTDIR = ./../ReleaseLang
 }
 
+CONFIG += plugin static
+
 macx {
     QMAKE_INFO_PLIST = ./SourceFiles/_other/Lang.plist
     QMAKE_LFLAGS += -framework Cocoa
