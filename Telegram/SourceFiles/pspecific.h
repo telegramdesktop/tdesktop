@@ -26,7 +26,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #endif
 
 #ifdef Q_OS_LINUX
-
+#include "pspecific_linux.h"
 #endif
 
 #ifdef Q_OS_WIN

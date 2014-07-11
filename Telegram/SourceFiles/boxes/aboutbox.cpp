@@ -84,14 +84,14 @@ void AboutBox::paintEvent(QPaintEvent *e) {
 
 			p.setPen(st::black->p);
 			p.setFont(st::aboutHeaderFont->f);
-			p.drawText((_width - (_headerWidth + _subheaderWidth)) / 2, st::aboutHeaderTop + st::aboutHeaderFont->ascent, qsl("Telegram"));
+            p.drawText((_width - (_headerWidth + _subheaderWidth)) / 2, st::aboutHeaderTop + st::aboutHeaderFont->ascent, qsl("Telegram"));
 
 			p.setFont(st::aboutSubheaderFont->f);
-			p.drawText((_width - (_headerWidth + _subheaderWidth)) / 2 + _headerWidth, st::aboutHeaderTop + st::aboutSubheaderFont->ascent, qsl("Desktop"));
+            p.drawText((_width - (_headerWidth + _subheaderWidth)) / 2 + _headerWidth, st::aboutHeaderTop + st::aboutSubheaderFont->ascent, qsl("Desktop"));
 
 			p.setFont(st::aboutVersionFont->f);
 			p.setPen(st::aboutVersionColor->p);
-			p.drawText((_width - _versionWidth) / 2, st::aboutVersionTop + st::aboutVersionFont->ascent, _versionText);
+            p.drawText((_width - _versionWidth) / 2, st::aboutVersionTop + st::aboutVersionFont->ascent, _versionText);
 		}
 	} else {
 		p.setOpacity(a_opacity.current());

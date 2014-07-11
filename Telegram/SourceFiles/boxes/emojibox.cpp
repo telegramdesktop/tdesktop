@@ -98,7 +98,7 @@ void EmojiBox::fillBlocks() {
 	for (uint32 i = 0; i < replacesCount; ++i) {
 		Block block(getEmoji(replaces[i].code), QString::fromUtf8(replaces[i].replace));
 		currentRow.push_back(block);
-		if (currentRow.size() == replacesInRow) {
+        if (uint32(currentRow.size()) == replacesInRow) {
 			_blocks.push_back(currentRow);
 			currentRow.resize(0);
 		}

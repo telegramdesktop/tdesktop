@@ -22,9 +22,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
 Q_IMPORT_PLUGIN(QWindowsAudioPlugin)
 Q_IMPORT_PLUGIN(AccessibleFactory)
-#endif
-
-#ifdef Q_OS_MAC
+#elif defined Q_OS_MAC
 //Q_IMPORT_PLUGIN(AVFServicePlugin)
 Q_IMPORT_PLUGIN(AVFMediaPlayerServicePlugin)
 Q_IMPORT_PLUGIN(QT7ServicePlugin)
@@ -44,4 +42,6 @@ Q_IMPORT_PLUGIN(QTgaPlugin)
 Q_IMPORT_PLUGIN(QTiffPlugin)
 Q_IMPORT_PLUGIN(QWbmpPlugin)
 Q_IMPORT_PLUGIN(QWebpPlugin)
+#elif defined Q_OS_LINUX
+Q_IMPORT_PLUGIN(QPulseAudioPlugin)
 #endif
