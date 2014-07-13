@@ -33,14 +33,13 @@ Extract openssl-1.0.1h.tar.gz and copy everything from **openssl-1.0.1h** to **/
 
 ####liblzma
 
-http://tukaani.org/xz/ > Download [**xz-5.0.5.tar.gz](http://tukaani.org/xz/xz-5.0.5.tar.gz)
+http://tukaani.org/xz/ > Download [**xz-5.0.5.tar.gz**](http://tukaani.org/xz/xz-5.0.5.tar.gz)
 
 Extract to **/Users/user/TBuild/Libraries**
 
 #####Building library
 
-* in Terminal go to **/Users/user/TBuild/Libraries/xz-5.0.5**
-* there run
+In Terminal go to **/Users/user/TBuild/Libraries/xz-5.0.5** and there run
 
     ./configure
     make
@@ -60,8 +59,7 @@ or download in ZIP and extract to **/Users/user/TBuild/Libraries**, rename **lib
 
 #####Building library
 
-* in Terminal go to **/Users/user/TBuild/Libraries/libexif-0.6.20**
-* there run
+In Terminal go to **/Users/user/TBuild/Libraries/libexif-0.6.20** and there run
 
     ./configure
     make
@@ -77,8 +75,7 @@ Apply patch – copy (with overwrite!) everything from **/Users/user/TBuild/tdes
 
 #####Building library
 
-* in Terminal go to **/Users/user/TBuild/Libraries/QtStatic**
-* there run
+In Terminal go to **/Users/user/TBuild/Libraries/QtStatic** and there run
 
     ./configure -debug-and-release -opensource -static -opengl desktop -nomake examples -platform macx-clang
     y

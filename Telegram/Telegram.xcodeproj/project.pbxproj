@@ -1601,7 +1601,7 @@
 					"-L/usr/local/Qt-5.3.1/plugins/imageformats",
 					"-lz",
 					"-lm",
-					"-llzma",
+					/usr/local/lib/liblzma.a,
 				);
 				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = "";
@@ -1725,7 +1725,7 @@
 					"-L/usr/local/Qt-5.3.1/plugins/imageformats",
 					"-lz",
 					"-lm",
-					"-llzma",
+					/usr/local/lib/liblzma.a,
 				);
 				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = _debug;
