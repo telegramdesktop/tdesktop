@@ -960,9 +960,9 @@ unreadBarColor: #538bb4;
 
 searchedBarHeight: unreadBarHeight;
 searchedBarFont: unreadBarFont;
-searchedBarBG: #f1f1f1;
+searchedBarBG: #ebeef1;
 searchedBarBorder: unreadBarBorder;
-searchedBarColor: #aaa;
+searchedBarColor: #a2aeb7;
 
 layerSlideDuration: 200;
 layerHideDuration: 200;
