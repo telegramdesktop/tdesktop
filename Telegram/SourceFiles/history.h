@@ -610,6 +610,7 @@ struct History : public QList<HistoryBlock*> {
 	void fixLastMessage(bool wasAtBottom);
 
 	void loadAround(MsgId msgId);
+	bool canShowAround(MsgId msgId) const;
 
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;

@@ -1455,6 +1455,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
     , _scroll(this, st::historyScroll, false)
     , _list(0)
     , hist(0)
+	, _loadingAroundId(-1)
+	, _loadingAroundRequest(0)
     , _histInited(false)
 	, _toHistoryEnd(this, st::historyToEnd)
     , _send(this, lang(lng_send_button), st::btnSend)
@@ -1583,29 +1585,49 @@ void HistoryWidget::chatLoaded(const MTPmessages_ChatFull &res) {
 	peerUpdated(App::chat(peerId));
 }
 
+void HistoryWidget::clearLoadingAround() {
+	_loadingAroundId = -1;
+	if (_loadingAroundRequest) {
+		MTP::cancel(_loadingAroundRequest);
+		_loadingAroundRequest = 0;
+	}
+}
+
 void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool leaveActive) {
 	if (App::main()->selectingPeer() && !force) {
 		hiderOffered = true;
 		App::main()->offerPeer(peer);
 		return;
 	}
-	if (peer) {
+	if (peer && !msgId) {
 		App::main()->dialogsClear();
 	}
 	if (hist) {
 		if (histPeer->id == peer) {
-			if (hist->unreadBar) hist->unreadBar->destroy();
 			if (msgId != hist->activeMsgId) {
+				if (!force && !hist->canShowAround(msgId)) {
+					if (_loadingAroundId != msgId) {
+						clearLoadingAround();
+						_loadingAroundId = msgId;
+						loadMessagesAround();
+					}
+					return;
+				}
 				hist->loadAround(msgId);
 				if (histPreloading) MTP::cancel(histPreloading);
 				if (histPreloadingDown) MTP::cancel(histPreloadingDown);
 				histPreloading = histPreloadingDown = 0;
 			}
+			if (hist->unreadBar) hist->unreadBar->destroy();
 			checkUnreadLoaded();
+
+			clearLoadingAround();
 			return activate();
 		}
 		updateTyping(false);
 	}
+	clearLoadingAround();
+
 	if (_list) {
 		if (!histPreload.isEmpty()) {
 			_list->messagesReceived(histPreload);
@@ -1852,13 +1874,15 @@ bool HistoryWidget::messagesFailed(const RPCError &e, mtpRequestId requestId) {
 		histPreloading = 0;
 	} else if (histPreloadingDown == requestId) {
 		histPreloadingDown = 0;
+	} else if (_loadingAroundRequest == requestId) {
+		_loadingAroundRequest = 0;
 	}
 	return true;
 }
 
 void HistoryWidget::messagesReceived(const MTPmessages_Messages &messages, mtpRequestId requestId) {
 	if (!hist) {
-		histPreloading = histPreloadingDown = 0;
+		histPreloading = histPreloadingDown = _loadingAroundRequest = 0;
 		return;
 	}
 
@@ -1908,6 +1932,17 @@ void HistoryWidget::messagesReceived(const MTPmessages_Messages &messages, mtpRe
 		histPreloadingDown = 0;
 		down = true;
 	} else {
+		if (_loadingAroundRequest == requestId) {
+			_loadingAroundRequest = 0;
+			hist->loadAround(_loadingAroundId);
+			if (hist->isEmpty()) {
+				addMessagesToFront(*histList);
+			}
+			if (histPreloading) MTP::cancel(histPreloading);
+			if (histPreloadingDown) MTP::cancel(histPreloadingDown);
+			histPreloading = histPreloadingDown = 0;
+			showPeer(hist->peer->id, _loadingAroundId, true);
+		}
 		return;
 	}
 
@@ -2042,6 +2077,16 @@ void HistoryWidget::loadMessagesDown() {
 	} else {
 		checkUnreadLoaded(true);
 	}
+}
+
+void HistoryWidget::loadMessagesAround() {
+	if (!hist || _loadingAroundRequest || _loadingAroundId < 0) return;
+
+	int32 offset = 0, loadCount = MessagesPerPage;
+	if (_loadingAroundId) {
+		offset = -loadCount / 2;
+	}
+	_loadingAroundRequest = MTP::send(MTPmessages_GetHistory(histInputPeer, MTP_int(offset), MTP_int(_loadingAroundId), MTP_int(loadCount)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
 }
 
 void HistoryWidget::onListScroll() {

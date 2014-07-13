@@ -908,21 +908,7 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="SourceFiles\art\icon.png">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="SourceFiles\art\sysicons.png">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="SourceFiles\art\iconf.png">
-      <Filter>Resource Files</Filter>
-    </Image>
     <Image Include="SourceFiles\art\iconround256.ico" />
-  </ItemGroup>
-  <ItemGroup>
-    <Font Include="SourceFiles\art\segoe_ui.ttf">
-      <Filter>Resource Files</Filter>
-    </Font>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Telegram.rc" />

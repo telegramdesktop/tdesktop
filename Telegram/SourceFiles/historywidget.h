@@ -272,6 +272,7 @@ public:
 
 	void loadMessages();
 	void loadMessagesDown();
+	void loadMessagesAround();
 	void peerMessagesUpdated(PeerId peer);
 	void peerMessagesUpdated();
 
@@ -352,6 +353,7 @@ public slots:
 	void onPhotoReady();
 	void onPhotoFailed(quint64 id);
 	void showPeer(const PeerId &peer, MsgId msgId = 0, bool force = false, bool leaveActive = false);
+	void clearLoadingAround();
 	void activate();
 	void onTextChange();
 
@@ -393,6 +395,9 @@ private:
 	MTPinputPeer histInputPeer;
 	mtpRequestId histPreloading, histPreloadingDown;
 	QVector<MTPMessage> histPreload, histPreloadDown;
+
+	int32 _loadingAroundId;
+	mtpRequestId _loadingAroundRequest;
 
 	ScrollArea _scroll;
 	HistoryList *_list;

@@ -958,6 +958,12 @@ unreadBarBG: #fcfbfa;
 unreadBarBorder: titleShadowColor;
 unreadBarColor: #538bb4;
 
+searchedBarHeight: unreadBarHeight;
+searchedBarFont: unreadBarFont;
+searchedBarBG: #f1f1f1;
+searchedBarBorder: unreadBarBorder;
+searchedBarColor: #aaa;
+
 layerSlideDuration: 200;
 layerHideDuration: 200;
 layerPadding: margins(10px, 10px, 10px, 10px);

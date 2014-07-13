@@ -1397,6 +1397,18 @@ void History::loadAround(MsgId msgId) {
 	}
 }
 
+bool History::canShowAround(MsgId msgId) const {
+	if (activeMsgId != msgId) {
+		if (msgId) {
+			HistoryItem *item = App::histItemById(msgId);
+			return item && item->block();
+		} else {
+			return loadedAtBottom();
+		}
+	}
+	return true;
+}
+
 MsgId History::minMsgId() const {
 	for (const_iterator i = cbegin(), e = cend(); i != e; ++i) {
 		for (HistoryBlock::const_iterator j = (*i)->cbegin(), en = (*i)->cend(); j != en; ++j) {
@@ -3461,11 +3473,11 @@ void HistoryUnreadBar::setCount(int32 count) {
 }
 
 void HistoryUnreadBar::draw(QPainter &p, uint32 selection) const {
-	p.fillRect(0, 1, _history->width, st::unreadBarHeight - 2, st::unreadBarBG->b);
+	p.fillRect(0, st::lineWidth, _history->width, st::unreadBarHeight - 2 * st::lineWidth, st::unreadBarBG->b);
 	p.fillRect(0, st::unreadBarHeight - st::lineWidth, _history->width, st::lineWidth, st::unreadBarBorder->b);
 	p.setFont(st::unreadBarFont->f);
 	p.setPen(st::unreadBarColor->p);
-	p.drawText(QRect(0, 0, _history->width, st::unreadBarHeight - 1), text, style::al_center);
+	p.drawText(QRect(0, 0, _history->width, st::unreadBarHeight - st::lineWidth), text, style::al_center);
 }
 
 int32 HistoryUnreadBar::resize(int32 width) {

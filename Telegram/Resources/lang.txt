@@ -382,6 +382,10 @@ This software is licensed under [a href=\"https://github.com/telegramdesktop/tde
 source code is available on [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 lng_about_done: "Done";
 
+lng_search_no_results: "No messages found";
+lng_search_one_result: "Found {count} message";
+lng_search_n_results: "Found {count} messages";
+
 // Mac specific
 
 lng_mac_choose_app: "Choose Application";

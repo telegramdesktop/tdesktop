@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #pragma once
 
-static const int32 AppVersion = 5006;
-static const wchar_t *AppVersionStr = L"0.5.6";
+static const int32 AppVersion = 5007;
+static const wchar_t *AppVersionStr = L"0.5.7";
 #ifdef Q_OS_WIN
 static const wchar_t *AppName = L"Telegram Win (Unofficial)";
 #else
@@ -60,7 +60,7 @@ enum {
 
 	SaveRecentEmojisTimeout = 3000, // 3 secs
 
-	AutoSearchTimeout = 1500, // 1.5 secs
+	AutoSearchTimeout = 900, // 0.9 secs
 	SearchPerPage = 50,
 };
 
@@ -116,10 +116,20 @@ static const char *ApiHash = "344583e45741c457fe1862106095a5eb";
 #endif
 
 inline const char *cApiDeviceModel() {
+#ifdef Q_OS_WIN
 	return "x86 desktop";
+#else
+	return "x64 desktop";
+#endif
 }
 inline const char *cApiSystemVersion() {
+#ifdef Q_OS_WIN
 	return "windows";
+#elif defined Q_OS_MAC
+	return "os x";
+#elif defined Q_OS_LINUX
+	return "linux";
+#endif
 }
 inline QString cApiAppVersion() {
 	return QString::number(AppVersion);

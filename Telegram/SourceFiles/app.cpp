@@ -133,7 +133,7 @@ namespace App {
 	}
 
 	void logOut() {
-		MTP::send(MTPauth_LogOut(), rpcDone(&loggedOut), rpcFail(&loggedOut));
+		MTP::logoutKeys(rpcDone(&loggedOut), rpcFail(&loggedOut));
 	}
 
 	PeerId peerFromMTP(const MTPPeer &peer_id) {
