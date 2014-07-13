@@ -23,7 +23,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "application.h"
 #include "fileuploader.h"
 #include "mainwidget.h"
-#include <QtMultimedia/QSoundEffect>
+//#include <QtMultimedia/QSoundEffect>
 #include <libexif/exif-data.h>
 
 namespace {
@@ -61,7 +61,7 @@ namespace {
 
 	HistoryItem *hoveredItem = 0, *pressedItem = 0, *hoveredLinkItem = 0, *pressedLinkItem = 0, *contextItem = 0, *mousedItem = 0;
 
-	QSoundEffect *newMsgSound = 0;
+//	QSoundEffect *newMsgSound = 0;
 	QPixmap *sprite = 0, *emojis = 0;
 
 	typedef QMap<uint32, QPixmap> EmojisMap;
@@ -321,7 +321,7 @@ namespace App {
 			case mtpc_userStatusOnline: data->onlineTill = status->c_userStatusOnline().vexpires.v; break;
 			}
 
-			if (data->contact < 0 && !data->phone.isEmpty() && (data->id & 0xFFFFFFFF) != MTP::authedId()) {
+            if (data->contact < 0 && !data->phone.isEmpty() && int32(data->id & 0xFFFFFFFF) != MTP::authedId()) {
 				data->contact = 0;
 			}
 			if (data->contact > 0 && !wasContact) {
@@ -1222,11 +1222,11 @@ namespace App {
 
 	void initMedia() {
 		deinitMedia(false);
-		if (!newMsgSound) {
-			newMsgSound = new QSoundEffect();
-			newMsgSound->setSource(QUrl::fromLocalFile(st::newMsgSound));
-			newMsgSound->setVolume(1);
-		}
+//		if (!newMsgSound) {
+//			newMsgSound = new QSoundEffect();
+//			newMsgSound->setSource(QUrl::fromLocalFile(st::newMsgSound));
+//			newMsgSound->setVolume(1);
+//		}
 
 		if (!::sprite) {
 			::sprite = new QPixmap(st::spriteFile);
@@ -1251,9 +1251,9 @@ namespace App {
 
 		if (completely) {
 			LOG(("Deleting sound.."));
-			delete newMsgSound;
+//			delete newMsgSound;
 			LOG(("Sound deleted!"));
-			newMsgSound = 0;
+//			newMsgSound = 0;
 
 			delete ::sprite;
 			::sprite = 0;
@@ -1344,7 +1344,7 @@ namespace App {
 	}
 
 	void playSound() {
-		if (cSoundNotify() && newMsgSound) newMsgSound->play();
+//		if (cSoundNotify() && newMsgSound) newMsgSound->play();
 	}
 
 	void writeConfig() {

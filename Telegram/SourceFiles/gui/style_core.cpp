@@ -32,7 +32,7 @@ namespace style {
 		modified[_flags] = Font(this);
 
 		f.setPixelSize(size);
-		f.setBold(_flags & FontBold);
+        f.setBold(_flags & FontBold);
 		f.setItalic(_flags & FontItalic);
 		f.setUnderline(_flags & FontUnderline);
 		f.setStyleStrategy(QFont::PreferQuality);

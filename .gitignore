@@ -25,3 +25,7 @@ ipch/
 /Mac/
 /Telegram/*.xcodeproj/xcuserdata/
 /Telegram/*.xcodeproj/project.xcworkspace/
+
+/Telegram/*.user.*
+/Linux/
+/Telegram/Makefile

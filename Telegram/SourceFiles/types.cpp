@@ -17,11 +17,10 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #include "stdafx.h"
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_WIN
+#elif defined Q_OS_MAC
 #include <mach/mach_time.h>
-#endif
-
-#ifdef Q_OS_LINUX
+#else
 #include <time.h>
 #endif
 
@@ -175,8 +174,10 @@ namespace {
             _msStart = mach_absolute_time();
 #else
             timespec ts;
-            clock_gettime(CLOCK_REALTIME, &ts);
-            _msStart = 1000000000 * uint64(ts.tv_sec) + uint64(ts.tv_nsec);
+            clock_gettime(CLOCK_MONOTONIC, &ts);
+            //_msFreq = 1 / 1000000.;
+            _msgIdCoef = float64(0xFFFF0000L) / 1000000000.;
+            _msStart = 1000 * uint64(ts.tv_sec) + (uint64(ts.tv_nsec) / 1000000);
 #endif
 
 			srand((uint32)(_msStart & 0xFFFFFFFFL));
@@ -217,13 +218,13 @@ uint64 getms() {
    return (uint64)((msCount - _msStart) * _msFreq);
 #else
     timespec ts;
-    int res = clock_gettime(CLOCK_REALTIME, &ts);
+    int res = clock_gettime(CLOCK_MONOTONIC, &ts);
     if (res != 0) {
         LOG(("Bad clock_gettime result: %1").arg(res));
         return 0;
     }
-    uint64 msCount = 1000000000 * uint64(ts.tv_sec) + uint64(ts.tv_nsec);
-    return (uint64)((msCount - _msStart) / 1000000);
+    uint64 msCount = 1000 * uint64(ts.tv_sec) + (uint64(ts.tv_nsec) / 1000000);
+    return (uint64)(msCount - _msStart);
 #endif
 }
 
@@ -236,8 +237,10 @@ uint64 msgid() {
     uint64 msCount = mach_absolute_time();
     uint64 result = _msgIdStart + (uint64)floor((msCount - _msgIdMsStart) * _msgIdCoef);
 #else
-    uint64 result = 0;
-    //TODO
+    timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    uint64 msCount = 1000000000 * uint64(ts.tv_sec) + uint64(ts.tv_nsec);
+    uint64 result = _msgIdStart + (uint64)floor((msCount - _msgIdMsStart) * _msgIdCoef);
 #endif
 
 	result &= ~0x03L;

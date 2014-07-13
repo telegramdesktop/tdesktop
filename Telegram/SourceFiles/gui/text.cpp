@@ -1245,9 +1245,9 @@ public:
 				break;
 			}
 		}/**/
-		for (; _lineEnd > _lineStart + 1; --_lineEnd) {
+        for (; _lineEnd > _lineStart; --_lineEnd) {
 			QChar ch = _t->_text.at(_lineEnd - 1);
-			if (ch != QChar::Space && ch != QChar::LineFeed) {
+            if ((ch != QChar::Space || _lineEnd == _lineStart + 1) && ch != QChar::LineFeed) {
 				break;
 			}
 		}/**/

@@ -130,7 +130,7 @@ namespace {
 
 	bool onErrorDefault(mtpRequestId requestId, const RPCError &error) {
 		const QString &err(error.type());
-		QRegularExpressionMatch m;;
+        QRegularExpressionMatch m;
 		if ((m = QRegularExpression("^(FILE|PHONE|NETWORK|USER)_MIGRATE_(\\d+)$").match(err)).hasMatch()) {
 			if (!requestId) return false;
 

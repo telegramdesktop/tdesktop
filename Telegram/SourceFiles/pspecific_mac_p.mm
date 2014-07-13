@@ -564,7 +564,6 @@ void objc_openFile(const QString &f, bool openwith) {
         @finally {
         }
     }
-    [file release];
 }
 
 void objc_finish() {

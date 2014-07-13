@@ -117,7 +117,7 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 
 	window = new Window();
 
-	psInstallEventFilter();
+    psInstallEventFilter();
 
 	updateCheckTimer.setSingleShot(true);
 
@@ -143,7 +143,8 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 }
 
 void Application::onAppUpdate(const MTPhelp_AppUpdate &response) {
-	updateRequestId = 0;
+    updateRequestId = 0;
+
 	cSetLastUpdateCheck(unixtime());
 	App::writeConfig();
 	if (response.type() == mtpc_help_noAppUpdate) {
