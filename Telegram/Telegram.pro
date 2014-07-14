@@ -1,20 +1,19 @@
-QT += core gui network widgets
-#QT += multimedia
+QT += core gui network multimedia widgets
 
 CONFIG += plugin static
 
 CONFIG(debug, debug|release) {
     DEFINES += _DEBUG
     OBJECTS_DIR = ./../DebugIntermediate
-    MOC_DIR = ./GeneratedFiles/Debug
-    RCC_DIR = ./GeneratedFiles
+    MOC_DIR = ./GenFiles/Debug
+    RCC_DIR = ./GenFiles
     DESTDIR = ./../Debug
 }
 CONFIG(release, debug|release) {
     DEFINES += CUSTOM_API_ID
     OBJECTS_DIR = ./../ReleaseIntermediate
-    MOC_DIR = ./GeneratedFiles/Release
-    RCC_DIR = ./GeneratedFiles
+    MOC_DIR = ./GenFiles/Release
+    RCC_DIR = ./GenFiles
     DESTDIR = ./../Release
 }
 
@@ -30,29 +29,29 @@ linux {
     HEADERS += ./SourceFiles/pspecific_linux.h
 }
 
-style_auto_cpp.target = ./../../Telegram/GeneratedFiles/style_auto.cpp
+style_auto_cpp.target = ./GeneratedFiles/style_auto.cpp
 style_auto_cpp.depends = FORCE
-style_auto_cpp.commands = ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
+style_auto_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
 style_auto_cpp.depends = ./../../Telegram/Resources/style.txt ./../../Telegram/Resources/style_classes.txt
 
-style_auto_h.target = ./../../Telegram/GeneratedFiles/style_auto.h
+style_auto_h.target = ./GeneratedFiles/style_auto.h
 style_auto_h.depends = FORCE
-style_auto_h.commands = ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
+style_auto_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
 style_auto_h.depends = ./../../Telegram/Resources/style.txt ./../../Telegram/Resources/style_classes.txt
 
-style_classes_h.target = ./../../Telegram/GeneratedFiles/style_classes.h
+style_classes_h.target = ./GeneratedFiles/style_classes.h
 style_classes_h.depends = FORCE
-style_classes_h.commands = ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
+style_classes_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
 style_classes_h.depends = ./../../Telegram/Resources/style.txt ./../../Telegram/Resources/style_classes.txt
 
-lang_cpp.target = ./../../Telegram/GeneratedFiles/lang.cpp
+lang_cpp.target = ./GeneratedFiles/lang.cpp
 lang_cpp.depends = FORCE
-lang_cpp.commands = ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.txt -lang_out ./../../Telegram/GeneratedFiles/lang
+lang_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.txt -lang_out ./../../Telegram/GeneratedFiles/lang
 lang_cpp.depends = ./../../Telegram/Resources/lang.txt
 
-lang_h.target = ./../../Telegram/GeneratedFiles/lang.h
+lang_h.target = ./GeneratedFiles/lang.h
 lang_h.depends = FORCE
-lang_h.commands = ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.txt -lang_out ./../../Telegram/GeneratedFiles/lang
+lang_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.txt -lang_out ./../../Telegram/GeneratedFiles/lang
 lang_h.depends = ./../../Telegram/Resources/lang.txt
 
 hook.depends = style_auto_cpp style_auto_h style_classes_h lang_cpp lang_h
@@ -62,6 +61,8 @@ CONFIG(release,debug|release):hook.target = Makefile.Release
 QMAKE_EXTRA_TARGETS += style_auto_cpp style_auto_h style_classes_h lang_cpp lang_h hook
 
 PRE_TARGETDEPS += ./GeneratedFiles/style_auto.cpp ./GeneratedFiles/style_auto.h ./GeneratedFiles/style_classes.h ./GeneratedFiles/lang.h ./GeneratedFiles/lang.cpp
+
+CONFIG(release,debug|release):QMAKE_PRE_LINK = ./../../Telegram/FixMake.sh
 
 SOURCES += \
     ./SourceFiles/main.cpp \
@@ -224,19 +225,31 @@ CONFIG += precompile_header
 
 PRECOMPILED_HEADER = ./SourceFiles/stdafx.h
 
-QMAKE_CXXFLAGS += -fno-strict-aliasing
 QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter -Wno-unused-variable -Wno-switch -Wno-comment -Wno-unused-but-set-variable
+
+CONFIG(release, debug|release) {
+    QMAKE_CXXFLAGS_RELEASE -= -O2
+    QMAKE_CXXFLAGS_RELEASE += -Ofast -flto -fno-strict-aliasing
+    QMAKE_LFLAGS_RELEASE -= -O1
+    QMAKE_LFLAGS_RELEASE += -Ofast -flto
+}
 
 INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.1/QtGui\
                ./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.1/QtCore\
                ./../../Libraries/QtStatic/qtbase/include\
                ./SourceFiles\
                ./GeneratedFiles\
+               ./../../Telegram/GeneratedFiles\ # qmake bug?.. Sometimes ./GeneratedFiles does not mean this path :(
                ./../../Libraries/libexif-0.6.20\
                /usr/local/ssl/include
-LIBS += -L/usr/local/ssl/lib -lcrypto -lssl -lz -ldl -llzma
+LIBS += -L/usr/local/ssl/lib -lcrypto -lssl -lz -ldl -llzma -lpulse
 LIBS += ./../../../Libraries/libexif-0.6.20/libexif/.libs/libexif.a
 LIBS += ./../../../Libraries/QtStatic/qtmultimedia/plugins/audio/libqtmedia_pulse.a
 RESOURCES += \
-    ./SourceFiles/telegram.qrc
+    ./SourceFiles/telegram_linux.qrc
+
+OTHER_FILES += \
+    Resources/style_classes.txt \
+    Resources/style.txt \
+    Resources/lang.txt
 

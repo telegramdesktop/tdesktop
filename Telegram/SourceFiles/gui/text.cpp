@@ -2716,6 +2716,9 @@ void Text::clean() {
 namespace {
 
 	struct ScriptLine {
+        ScriptLine() : length(0), textWidth(0) {
+        }
+
 		int32 length;
 		QFixed textWidth;
 	};

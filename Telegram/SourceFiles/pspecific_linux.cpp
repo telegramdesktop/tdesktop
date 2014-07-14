@@ -22,6 +22,12 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "application.h"
 #include "mainwidget.h"
 
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <cstdlib>
+#include <unistd.h>
+#include <dirent.h>
+
 namespace {
 	bool frameless = true;
 	bool finished = true;
@@ -483,8 +489,39 @@ void PsUpdateDownloader::partFailed(QNetworkReply::NetworkError e) {
 	emit App::app()->updateFailed();
 }
 
+bool _removeDirectory(const QString &path) { // from http://stackoverflow.com/questions/2256945/removing-a-non-empty-directory-programmatically-in-c-or-c
+    QByteArray pathRaw = path.toUtf8();
+    DIR *d = opendir(pathRaw.constData());
+    if (!d) return false;
+
+    while (struct dirent *p = readdir(d)) {
+        /* Skip the names "." and ".." as we don't want to recurse on them. */
+        if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
+
+        QString fname = path + '/' + p->d_name;
+        QByteArray fnameRaw = fname.toUtf8();
+        struct stat statbuf;
+        if (!stat(fnameRaw.constData(), &statbuf)) {
+            if (S_ISDIR(statbuf.st_mode)) {
+                if (!_removeDirectory(fname)) {
+                    closedir(d);
+                    return false;
+                }
+            } else {
+                if (unlink(fnameRaw.constData())) {
+                    closedir(d);
+                    return false;
+                }
+            }
+        }
+    }
+    closedir(d);
+
+    return !rmdir(pathRaw.constData());
+}
+
 void PsUpdateDownloader::deleteDir(const QString &dir) {
-//	objc_deleteDir(dir);
+    _removeDirectory(dir);
 }
 
 void PsUpdateDownloader::fatalFail() {
@@ -765,6 +802,54 @@ int psFixPrevious() {
 	return 0;
 }
 
+#ifdef Q_OS_LINUX
+bool moveFile(const char *from, const char *to) {
+    FILE *ffrom = fopen(from, "rb"), *fto = fopen(to, "wb");
+    if (!ffrom) {
+        if (fto) fclose(fto);
+        return false;
+    }
+    if (!fto) {
+        fclose(ffrom);
+        return false;
+    }
+    static const int BufSize = 65536;
+    char buf[BufSize];
+    while (size_t size = fread(buf, 1, BufSize, ffrom)) {
+        fwrite(buf, 1, size, fto);
+    }
+
+    struct stat fst; // from http://stackoverflow.com/questions/5486774/keeping-fileowner-and-permissions-after-copying-file-in-c
+    //let's say this wont fail since you already worked OK on that fp
+    if (fstat(fileno(ffrom), &fst) != 0) {
+        fclose(ffrom);
+        fclose(fto);
+        return false;
+    }
+    //update to the same uid/gid
+    if (fchown(fileno(fto), fst.st_uid, fst.st_gid) != 0) {
+        fclose(ffrom);
+        fclose(fto);
+        return false;
+    }
+    //update the permissions
+    if (fchmod(fileno(fto), fst.st_mode) != 0) {
+        fclose(ffrom);
+        fclose(fto);
+        return false;
+    }
+
+    fclose(ffrom);
+    fclose(fto);
+
+    if (unlink(from)) {
+        return false;
+    }
+
+    return true;
+}
+#endif
+
 bool psCheckReadyUpdate() {
     QString readyPath = cWorkingDir() + qsl("tupdates/ready");
 	if (!QDir(readyPath).exists()) {
@@ -801,8 +886,8 @@ bool psCheckReadyUpdate() {
 	QString curUpdater = (cExeDir() + "Telegram.app/Contents/Frameworks/Updater");
 	QFileInfo updater(cWorkingDir() + "tupdates/ready/Telegram.app/Contents/Frameworks/Updater");
 #elif defined Q_OS_LINUX
-    QString curUpdater;
-    QFileInfo updater;
+    QString curUpdater = (cExeDir() + "Updater");
+    QFileInfo updater(cWorkingDir() + "tupdates/ready/Updater");
 #endif
 	if (!updater.exists()) {
 		QFileInfo current(curUpdater);
@@ -831,6 +916,12 @@ bool psCheckReadyUpdate() {
 		PsUpdateDownloader::clearAll();
 		return false;
 	}
+#elif defined Q_OS_LINUX
+    QFileInfo to(curUpdater);
+    if (!moveFile(updater.absoluteFilePath().toUtf8().constData(), curUpdater.toUtf8().constData())) {
+        PsUpdateDownloader::clearAll();
+        return false;
+    }
 #endif
     return true;
 }
@@ -854,10 +945,16 @@ void psFinish() {
 }
 
 bool _execUpdater(bool update = true) {
-    static const int MaxArgsCount = 128, MaxLen = 65536;
+    static const int MaxLen = 65536, MaxArgsCount = 128;
+
+    char path[MaxLen] = {0};
+    QByteArray data((cExeDir() + "Updater").toUtf8());
+    memcpy(path, data.constData(), data.size());
+
     char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key";
     char p_datafile[MaxLen] = {0};
     int argIndex = 0;
+    args[argIndex++] = path;
     if (!update) {
         args[argIndex++] = p_noupdate;
         args[argIndex++] = p_tosettings;
@@ -872,9 +969,6 @@ bool _execUpdater(bool update = true) {
             args[argIndex++] = p_datafile;
         }
     }
-    char path[MaxLen] = {0};
-    QByteArray data((cExeDir() + "Updater").toUtf8());
-    memcpy(path, data.constData(), data.size());
 
     pid_t pid = fork();
     switch (pid) {

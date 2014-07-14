@@ -34,6 +34,59 @@ using std::string;
 using std::deque;
 using std::cout;
 
+bool do_mkdir(const char *path) { // from http://stackoverflow.com/questions/675039/how-can-i-create-directory-tree-in-c-linux
+    struct stat statbuf;
+    if (stat(path, &statbuf) != 0) {
+        /* Directory does not exist. EEXIST for race condition */
+        if (mkdir(path, S_IRWXU) != 0 && errno != EEXIST) return false;
+    } else if (!S_ISDIR(statbuf.st_mode)) {
+        errno = ENOTDIR;
+        return false;
+    }
+
+    return true;
+}
+
+bool _debug = false;
+
+FILE *_logFile = 0;
+void openLog() {
+    if (!_debug || _logFile) return;
+
+    if (!do_mkdir("DebugLogs")) {
+        return;
+    }
+
+    time_t timer;
+
+    time(&timer);
+    struct tm *t = localtime(&timer);
+
+    static const int maxFileLen = 65536;
+    char logName[maxFileLen];
+    sprintf(logName, "DebugLogs/%04d%02d%02d_%02d%02d%02d_upd.txt",
+        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
+    _logFile = fopen(logName, "w");
+}
+
+void closeLog() {
+    if (!_logFile) return;
+
+    fclose(_logFile);
+    _logFile = 0;
+}
+
+void writeLog(const char *format, ...) {
+    if (!_logFile) return;
+
+    va_list args;
+    va_start(args, format);
+    vfprintf(_logFile, format, args);
+    fprintf(_logFile, "\n");
+    fflush(_logFile);
+    va_end(args);
+}
+
 bool copyFile(const char *from, const char *to) {
     FILE *ffrom = fopen(from, "rb"), *fto = fopen(to, "wb");
     if (!ffrom) {
@@ -78,7 +131,12 @@ bool copyFile(const char *from, const char *to) {
 
 bool remove_directory(const string &path) { // from http://stackoverflow.com/questions/2256945/removing-a-non-empty-directory-programmatically-in-c-or-c
     DIR *d = opendir(path.c_str());
-    if (!d) return false;
+    writeLog("Removing dir '%s'", path.c_str());
+
+    if (!d) {
+        writeLog("Could not open dir '%s'", path.c_str());
+        return false;
+    }
 
     while (struct dirent *p = readdir(d)) {
         /* Skip the names "." and ".." as we don't want to recurse on them. */
@@ -86,36 +144,29 @@ bool remove_directory(const string &path) { // from http://stackoverflow.com/que
 
         string fname = path + '/' + p->d_name;
         struct stat statbuf;
-        if (stat(fname.c_str(), &statbuf) != 0) {
+        writeLog("Trying to get stat() for '%s'", fname.c_str());
+        if (!stat(fname.c_str(), &statbuf)) {
             if (S_ISDIR(statbuf.st_mode)) {
-                if (remove_directory(fname.c_str())) {
+                if (!remove_directory(fname.c_str())) {
                     closedir(d);
                     return false;
                 }
             } else {
+                writeLog("Unlinking file '%s'", fname.c_str());
                 if (unlink(fname.c_str())) {
+                    writeLog("Failed to unlink '%s'", fname.c_str());
                     closedir(d);
                     return false;
                 }
             }
+        } else {
+            writeLog("Failed to call stat() on '%s'", fname.c_str());
         }
     }
     closedir(d);
 
+    writeLog("Finally removing dir '%s'", path.c_str());
     return !rmdir(path.c_str());
-}
-
-bool do_mkdir(const char *path) { // from http://stackoverflow.com/questions/675039/how-can-i-create-directory-tree-in-c-linux
-    struct stat statbuf;
-    if (stat(path, &statbuf) != 0) {
-        /* Directory does not exist. EEXIST for race condition */
-        if (mkdir(path, S_IRWXU) != 0 && errno != EEXIST) return false;
-    } else if (!S_ISDIR(statbuf.st_mode)) {
-        errno = ENOTDIR;
-        return false;
-    }
-
-    return true;
 }
 
 bool mkpath(const char *path) {
@@ -140,52 +191,12 @@ bool mkpath(const char *path) {
     return do_mkdir(path);
 }
 
-bool _debug = false;
-
 string exeName, exeDir;
 
 bool equal(string a, string b) {
     std::transform(a.begin(), a.end(), a.begin(), ::tolower);
     std::transform(b.begin(), b.end(), b.begin(), ::tolower);
     return a == b;
-}
-
-FILE *_logFile = 0;
-void openLog() {
-	if (!_debug || _logFile) return;
-
-    if (!do_mkdir("DebugLogs")) {
-        return;
-	}
-
-    time_t timer;
-
-    time(&timer);
-    struct tm *t = localtime(&timer);
-
-    static const int maxFileLen = 65536;
-    char logName[maxFileLen];
-    sprintf(logName, "DebugLogs/%04d%02d%02d_%02d%02d%02d_upd.txt",
-        t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
-    _logFile = fopen(logName, "w");
-}
-
-void closeLog() {
-	if (!_logFile) return;
-
-    fclose(_logFile);
-	_logFile = 0;
-}
-
-void writeLog(const char *format, ...) {
-    if (!_logFile) return;
-
-    va_list args;
-    va_start(args, format);
-    vfprintf(_logFile, format, args);
-    fprintf(_logFile, "\n");
-    fflush(_logFile);
-    va_end(args);
 }
 
 void delFolder() {
@@ -291,11 +302,11 @@ int main(int argc, char *argv[]) {
 
     writeLog("Updater started..");
 
-    bool needupdate = false, autostart = false, debug = false, tosettings = false;
+    bool needupdate = true, autostart = false, debug = false, tosettings = false;
     char *key = 0;
     for (int i = 1; i < argc; ++i) {
-        if (equal(argv[i], "-update")) {
-            needupdate = true;
+        if (equal(argv[i], "-noupdate")) {
+            needupdate = false;
         } else if (equal(argv[i], "-autostart")) {
             autostart = true;
         } else if (equal(argv[i], "-debug")) {
@@ -326,9 +337,14 @@ int main(int argc, char *argv[]) {
         writeLog("Error: short exe name!");
     }
 
-    static const int MaxArgsCount = 128;
+    static const int MaxLen = 65536, MaxArgsCount = 128;
+
+    char path[MaxLen] = {0};
+    strcpy(path, (exeDir + "Telegram").c_str());
+
     char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key";
     int argIndex = 0;
+    args[argIndex++] = path;
     args[argIndex++] = p_noupdate;
     if (autostart) args[argIndex++] = p_autostart;
     if (debug) args[argIndex++] = p_debug;
@@ -341,7 +357,7 @@ int main(int argc, char *argv[]) {
     pid_t pid = fork();
     switch (pid) {
     case -1: writeLog("fork() failed!"); return 1;
-    case 0: execv((exeDir + "Telegram").c_str(), args); return 1;
+    case 0: execv(path, args); return 1;
     }
 
     writeLog("Executed Telegram, closing log and quiting..");
