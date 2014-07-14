@@ -27,7 +27,7 @@ public:
 	DialogsListWidget(QWidget *parent, MainWidget *main);
 
 	void dialogsReceived(const QVector<MTPDialog> &dialogs);
-	void searchReceived(const QVector<MTPMessage> &messages, bool fromStart);
+	void searchReceived(const QVector<MTPMessage> &messages, bool fromStart, int32 fullCount);
 	void showMore(int32 pixels);
 
 	void activate();
@@ -119,12 +119,9 @@ private:
 	int32 filteredSel;
 
 	SearchResults searchResults;
-	int32 searchedSel;
+	int32 searchedCount, searchedSel;
 
 	State _state;
-
-	QTimer _updateSearchTimer;
-	QString _searchQuery;
 
 	QPoint lastMousePos;
 
@@ -191,10 +188,9 @@ public slots:
 	void onNewGroup();
 	void onCancelSearch();
 
-	void onStateChange();
-
 	void onDialogToTopFrom(int movedFrom);
-	void onSearchMessages(bool force = false);
+	bool onSearchMessages(bool searchCache = false);
+	void onNeedSearchMessages();
 
 private:
 
@@ -213,13 +209,19 @@ private:
 	mtpRequestId contactsRequest;
 
 	FlatInput _filter;
-	Switcher _stateSwitcher;
 	IconedButton _newGroup, _addContact, _cancelSearch;
 	ScrollArea scroll;
 	DialogsListWidget list;
 
+	QTimer _searchTimer;
 	QString _searchQuery;
 	bool _searchFull;
 	mtpRequestId _searchRequest;
+
+	typedef QMap<QString, MTPmessages_Messages> SearchCache;
+	SearchCache _searchCache;
+
+	typedef QMap<mtpRequestId, QString> SearchQueries;
+	SearchQueries _searchQueries;
 
 };

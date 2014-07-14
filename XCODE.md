@@ -33,14 +33,13 @@ Extract openssl-1.0.1h.tar.gz and copy everything from **openssl-1.0.1h** to **/
 
 ####liblzma
 
-http://tukaani.org/xz/ > Download [**xz-5.0.5.tar.gz](http://tukaani.org/xz/xz-5.0.5.tar.gz)
+http://tukaani.org/xz/ > Download [**xz-5.0.5.tar.gz**](http://tukaani.org/xz/xz-5.0.5.tar.gz)
 
 Extract to **/Users/user/TBuild/Libraries**
 
 #####Building library
 
-* in Terminal go to **/Users/user/TBuild/Libraries/xz-5.0.5**
-* there run
+In Terminal go to **/Users/user/TBuild/Libraries/xz-5.0.5** and there run
 
     ./configure
     make
@@ -60,25 +59,23 @@ or download in ZIP and extract to **/Users/user/TBuild/Libraries**, rename **lib
 
 #####Building library
 
-* in Terminal go to **/Users/user/TBuild/Libraries/libexif-0.6.20**
-* there run
+In Terminal go to **/Users/user/TBuild/Libraries/libexif-0.6.20** and there run
 
     ./configure
     make
     sudo make install
 
-####Qt 5.3.0, slightly patched
+####Qt 5.3.1, slightly patched
 
-http://download.qt-project.org/official_releases/qt/5.3/5.3.0/single/qt-everywhere-opensource-src-5.3.0.tar.gz
+http://download.qt-project.org/official_releases/qt/5.3/5.3.1/single/qt-everywhere-opensource-src-5.3.1.tar.gz
 
-Extract to **/Users/user/TBuild/Libraries**, rename **qt-everywhere-opensource-src-5.3.0** to **QtStatic** to have **/Users/user/TBuild/Libraries/QtStatic/qtbase** folder
+Extract to **/Users/user/TBuild/Libraries**, rename **qt-everywhere-opensource-src-5.3.1** to **QtStatic** to have **/Users/user/TBuild/Libraries/QtStatic/qtbase** folder
 
-Apply patch – copy (with overwrite!) everything from **/Users/user/TBuild/tdesktop/\_qt\_5\_3\_0\_patch/** to **/Users/user/TBuild/Libraries/QtStatic/**
+Apply patch – copy (with overwrite!) everything from **/Users/user/TBuild/tdesktop/\_qt\_5\_3\_1\_patch/** to **/Users/user/TBuild/Libraries/QtStatic/**
 
 #####Building library
 
-* in Terminal go to **/Users/user/TBuild/Libraries/QtStatic**
-* there run
+In Terminal go to **/Users/user/TBuild/Libraries/QtStatic** and there run
 
     ./configure -debug-and-release -opensource -static -opengl desktop -nomake examples -platform macx-clang
     y

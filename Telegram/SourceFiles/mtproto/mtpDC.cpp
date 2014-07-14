@@ -323,6 +323,19 @@ int32 mtpMainDC() {
 	return mainDC;
 }
 
+void mtpLogoutOtherDCs() {
+	QList<int32> dcs;
+	{
+		QMutexLocker lock(&_keysMapForWriteMutex);
+		dcs = _keysMapForWrite.keys();
+	}
+	for (int32 i = 0, cnt = dcs.size(); i != cnt; ++i) {
+		if (dcs[i] != MTP::maindc()) {
+			MTP::send(MTPauth_LogOut(), RPCResponseHandler(), dcs[i]);
+		}
+	}
+}
+
 void mtpSetDC(int32 dc) {
 	if (dc != mainDC) {
 		mainDC = dc;

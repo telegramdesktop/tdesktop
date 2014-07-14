@@ -566,6 +566,11 @@ namespace MTP {
 		return mtpAuthed();
 	}
 
+	void logoutKeys(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail) {
+		mtpRequestId req = MTP::send(MTPauth_LogOut(), onDone, onFail);
+		mtpLogoutOtherDCs();
+	}
+
 	void setGlobalDoneHandler(RPCDoneHandlerPtr handler) {
 		globalHandler.onDone = handler;
 	}

@@ -112,7 +112,7 @@ namespace {
 
 	const QRegularExpression reDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=])(?:([a-zA-Z]+)://)?((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){1,5}([A-Za-zрф\\-\\d]{2,22}))"));
 	const QRegularExpression reMailName(QString::fromUtf8("[a-zA-Z\\-_\\.0-9]{1,256}$"));
-	const QRegularExpression reMailStart(QString::fromUtf8("[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
+	const QRegularExpression reMailStart(QString::fromUtf8("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
 	QSet<int32> validProtocols, validTopDomains;
 	void initLinkSets();
 

@@ -93,6 +93,7 @@ namespace MTP {
 
 	void authed(int32 uid);
 	int32 authedId();
+	void logoutKeys(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
 
 	void setGlobalDoneHandler(RPCDoneHandlerPtr handler);
 	void setGlobalFailHandler(RPCFailHandlerPtr handler);

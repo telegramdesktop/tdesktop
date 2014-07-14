@@ -97,6 +97,7 @@ const mtpDcOptions &mtpDCOptions();
 MTProtoDCMap &mtpDCMap();
 bool mtpNeedConfig();
 int32 mtpMainDC();
+void mtpLogoutOtherDCs();
 void mtpSetDC(int32 dc);
 uint32 mtpMaxChatSize();
 

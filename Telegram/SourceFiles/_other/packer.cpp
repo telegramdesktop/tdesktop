@@ -17,6 +17,21 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #include "packer.h"
 
+#include <QtPlugin>
+
+#ifdef Q_OS_MAC
+Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)
+Q_IMPORT_PLUGIN(QDDSPlugin)
+Q_IMPORT_PLUGIN(QICNSPlugin)
+Q_IMPORT_PLUGIN(QICOPlugin)
+Q_IMPORT_PLUGIN(QJp2Plugin)
+Q_IMPORT_PLUGIN(QMngPlugin)
+Q_IMPORT_PLUGIN(QTgaPlugin)
+Q_IMPORT_PLUGIN(QTiffPlugin)
+Q_IMPORT_PLUGIN(QWbmpPlugin)
+Q_IMPORT_PLUGIN(QWebpPlugin)
+#endif
+
 const char *publicKey = "\
 -----BEGIN RSA PUBLIC KEY-----\n\
 MIGJAoGBAMA4ViQrjkPZ9xj0lrer3r23JvxOnrtE8nI69XLGSr+sRERz9YnUptnU\n\
