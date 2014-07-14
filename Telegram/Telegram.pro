@@ -225,17 +225,24 @@ CONFIG += precompile_header
 
 PRECOMPILED_HEADER = ./SourceFiles/stdafx.h
 
-QMAKE_CXXFLAGS += -fno-strict-aliasing
 QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter -Wno-unused-variable -Wno-switch -Wno-comment -Wno-unused-but-set-variable
+
+CONFIG(release, debug|release) {
+    QMAKE_CXXFLAGS_RELEASE -= -O2
+    QMAKE_CXXFLAGS_RELEASE += -Ofast -flto -fno-strict-aliasing
+    QMAKE_LFLAGS_RELEASE -= -O1
+    QMAKE_LFLAGS_RELEASE += -Ofast -flto
+}
 
 INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.1/QtGui\
                ./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.1/QtCore\
                ./../../Libraries/QtStatic/qtbase/include\
                ./SourceFiles\
                ./GeneratedFiles\
+               ./../../Telegram/GeneratedFiles\ # qmake bug?.. Sometimes ./GeneratedFiles does not mean this path :(
                ./../../Libraries/libexif-0.6.20\
                /usr/local/ssl/include
-LIBS += -L/usr/local/ssl/lib -lcrypto -lssl -lz -ldl -llzma
+LIBS += -L/usr/local/ssl/lib -lcrypto -lssl -lz -ldl -llzma -lpulse
 LIBS += ./../../../Libraries/libexif-0.6.20/libexif/.libs/libexif.a
 LIBS += ./../../../Libraries/QtStatic/qtmultimedia/plugins/audio/libqtmedia_pulse.a
 RESOURCES += \

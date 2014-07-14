@@ -35,7 +35,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 	QImage img;
 	QByteArray data;
 	PeerId peer;
-	uint64 id, jpeg_id;
+    uint64 id, jpeg_id = 0;
 	ToPrepareMediaType type;
 	{
 		QMutexLocker lock(loader->toPrepareMutex());

@@ -91,4 +91,5 @@ building (**make** command) will take really long time.
 * Open MetaEmoji.xcodeproj and build for Debug (Release optionally)
 * Open MetaLang.xcodeproj and build for Debug (Release optionally)
 * Open Telegram.xcodeproj and build for Debug
+* Build Updater target as well, it is required for Telegram relaunch
 * Release Telegram build will require removing **CUSTOM_API_ID** definition in Telegram target settings (Apple LLVM 5.1 - Custom Compiler Flags > Other C / C++ Flags > Release)

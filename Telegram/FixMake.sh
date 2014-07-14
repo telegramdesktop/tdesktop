@@ -8,5 +8,5 @@ sed -i 's/\-lxcb\-shm/\/usr\/lib\/x86_64\-linux\-gnu\/libxcb\-shm\.a/g' Makefile
 sed -i 's/\-lxcb\-randr/\/usr\/lib\/x86_64\-linux\-gnu\/libxcb\-randr\.a/g' Makefile
 sed -i 's/\-lxcb\-shape/\/usr\/lib\/x86_64\-linux\-gnu\/libxcb\-shape\.a/g' Makefile
 sed -i 's/\-llzma/\/usr\/local\/lib\/liblzma\.a/g' Makefile
-#sed -i 's/\-lX11\-xcb/\/usr\/lib\/x86_64\-linux\-gnu\/libX11\-xcb\.a/g' Makefile
-#sed -i 's/\-lX11/\/usr\/lib\/x86_64\-linux\-gnu\/libX11\.a/g' Makefile
+sed -i 's/\-lglib\-2\.0/\/usr\/lib\/x86_64\-linux\-gnu\/libglib\-2\.0\.a/g' Makefile
+
