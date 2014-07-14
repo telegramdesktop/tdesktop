@@ -25,6 +25,7 @@ Only Windows and OS X systems are supported at this moment, Linux builds are on 
 * LZMA SDK 9.20 ([public domain](http://www.7-zip.org/sdk.html))
 * liblzma ([public domain](http://tukaani.org/xz/))
 * Open Sans font ([Apache License](http://www.apache.org/licenses/LICENSE-2.0.html))
+* DejaVu Sans font ([Free license](http://dejavu-fonts.org/wiki/License))
 
 ###[Build instructions for Visual Studio 2013](https://github.com/telegramdesktop/tdesktop/blob/master/MSVC.md)
 

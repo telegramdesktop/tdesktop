@@ -37,4 +37,7 @@
     <qresource prefix="/qt-project.org">
         <file>qmime/freedesktop.org.xml</file>
     </qresource>
+    <qresource prefix="/qt">
+        <file>etc/qt.conf</file>
+    </qresource>
 </RCC>

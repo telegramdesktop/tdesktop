@@ -31,7 +31,7 @@ LocalImageLoaderPrivate::LocalImageLoaderPrivate(int32 currentUser, LocalImageLo
 
 void LocalImageLoaderPrivate::prepareImages() {
 	QString file, filename, mime;
-	int32 filesize;
+    int32 filesize = 0;
 	QImage img;
 	QByteArray data;
 	PeerId peer;

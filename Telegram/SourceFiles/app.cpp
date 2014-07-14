@@ -23,7 +23,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "application.h"
 #include "fileuploader.h"
 #include "mainwidget.h"
-//#include <QtMultimedia/QSoundEffect>
+#include <QtMultimedia/QSoundEffect>
 #include <libexif/exif-data.h>
 
 namespace {
@@ -61,7 +61,7 @@ namespace {
 
 	HistoryItem *hoveredItem = 0, *pressedItem = 0, *hoveredLinkItem = 0, *pressedLinkItem = 0, *contextItem = 0, *mousedItem = 0;
 
-//	QSoundEffect *newMsgSound = 0;
+    QSoundEffect *newMsgSound = 0;
 	QPixmap *sprite = 0, *emojis = 0;
 
 	typedef QMap<uint32, QPixmap> EmojisMap;
@@ -221,7 +221,7 @@ namespace App {
 		const QVector<MTPUser> &v(users.c_vector().v);
 		for (QVector<MTPUser>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 			const MTPuser &user(*i);
-			UserData *data;
+            UserData *data = 0;
 			bool wasContact = false;
 			const MTPUserStatus *status = 0;
 
@@ -315,6 +315,8 @@ namespace App {
 			} break;
 			}
 
+            if (!data) continue;
+
 			data->loaded = true;
 			if (status) switch (status->type()) {
 			case mtpc_userStatusOffline: data->onlineTill = status->c_userStatusOffline().vwas_online.v; break;
@@ -338,7 +340,7 @@ namespace App {
 		const QVector<MTPChat> &v(chats.c_vector().v);
 		for (QVector<MTPChat>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 			const MTPchat &chat(*i);
-			ChatData *data;
+            ChatData *data = 0;
 			QString title;
 			switch (chat.type()) {
 			case mtpc_chat: {
@@ -1222,11 +1224,11 @@ namespace App {
 
 	void initMedia() {
 		deinitMedia(false);
-//		if (!newMsgSound) {
-//			newMsgSound = new QSoundEffect();
-//			newMsgSound->setSource(QUrl::fromLocalFile(st::newMsgSound));
-//			newMsgSound->setVolume(1);
-//		}
+        if (!newMsgSound) {
+            newMsgSound = new QSoundEffect();
+            newMsgSound->setSource(QUrl::fromLocalFile(st::newMsgSound));
+            newMsgSound->setVolume(1);
+        }
 
 		if (!::sprite) {
 			::sprite = new QPixmap(st::spriteFile);
@@ -1251,9 +1253,9 @@ namespace App {
 
 		if (completely) {
 			LOG(("Deleting sound.."));
-//			delete newMsgSound;
+            delete newMsgSound;
 			LOG(("Sound deleted!"));
-//			newMsgSound = 0;
+            newMsgSound = 0;
 
 			delete ::sprite;
 			::sprite = 0;
@@ -1344,7 +1346,7 @@ namespace App {
 	}
 
 	void playSound() {
-//		if (cSoundNotify() && newMsgSound) newMsgSound->play();
+        if (cSoundNotify() && newMsgSound) newMsgSound->play();
 	}
 
 	void writeConfig() {
