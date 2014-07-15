@@ -31,8 +31,8 @@ if [ ! -f "./../Mac/Release/Telegram.app/Contents/Frameworks/Updater" ]; then
   exit 1
 fi
 
-if [ ! -f "./../Mac/Release/Telegram.dmg" ]; then
-  echo "Telegram.dmg not found!"
+if [ ! -f "./../Mac/Release/Telegram.app.dmg" ]; then
+  echo "Telegram.app.dmg not found!"
   exit 1
 fi
 
@@ -46,8 +46,10 @@ fi
 echo "Copying Telegram.app and tmacupd$AppVersion to deploy/$AppVersionStr..";
 mkdir "./../Mac/Release/deploy/$AppVersionStr"
 mkdir "./../Mac/Release/deploy/$AppVersionStr/Telegram"
-mv ./../Mac/Release/Telegram.app ./../Mac/Release/deploy/$AppVersionStr/Telegram/
+cp -r ./../Mac/Release/Telegram.app ./../Mac/Release/deploy/$AppVersionStr/Telegram/
+rm ./../Mac/Release/Telegram.app/Contents/MacOS/Telegram
+rm ./../Mac/Release/Telegram.app/Contents/Frameworks/Updater
 mv ./../Mac/Release/tmacupd$AppVersion ./../Mac/Release/deploy/$AppVersionStr/
-mv ./../Mac/Release/Telegram.dmg ./../Mac/Release/deploy/$AppVersionStr/tsetup.$AppVersionStr.dmg
+mv ./../Mac/Release/Telegram.app.dmg ./../Mac/Release/deploy/$AppVersionStr/tsetup.$AppVersionStr.dmg
 echo "Version $AppVersionStr prepared!";
 

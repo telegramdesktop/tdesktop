@@ -70,9 +70,10 @@ GeneratedFiles/qrc_telegram.cpp: SourceFiles/telegram.qrc \
 		SourceFiles/art/bg_200x.png \
 		SourceFiles/art/emoji_125x.png \
 		SourceFiles/art/bg_125x.png \
-		SourceFiles/art/OpenSans-Regular.ttf \
-                SourceFiles/art/OpenSans-Bold.ttf \
-                SourceFiles/art/OpenSans-Semibold.ttf \
+		SourceFiles/art/fonts/DejaVuSans.ttf \
+		SourceFiles/art/fonts/OpenSans-Regular.ttf \
+                SourceFiles/art/fonts/OpenSans-Bold.ttf \
+                SourceFiles/art/fonts/OpenSans-Semibold.ttf \
 		SourceFiles/qmime/freedesktop.org.xml \
 		SourceFiles/art/usercolor4.png \
 		SourceFiles/art/chatcolor1.png \
