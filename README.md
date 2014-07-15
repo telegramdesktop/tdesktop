@@ -15,6 +15,9 @@ Only Windows and OS X systems are supported at this moment, Linux builds are on 
 * Windows 8.1 (**not** RT)
 * OS X 10.9
 * OS X 10.7-10.8 (not tested)
+* Ubuntu 13.04
+* Ubuntu 14.04
+* Fedora (not tested)
 
 ###Third-party
 
@@ -30,6 +33,8 @@ Only Windows and OS X systems are supported at this moment, Linux builds are on 
 ###[Build instructions for Visual Studio 2013](https://github.com/telegramdesktop/tdesktop/blob/master/MSVC.md)
 
 ###[Build instructions for XCode 5.1.1](https://github.com/telegramdesktop/tdesktop/blob/master/XCODE.md)
+
+###[Build instructions for Qt Creator 2.7 Ubuntu](https://github.com/telegramdesktop/tdesktop/blob/master/QTCREATOR.md)
 
 ##Projects in Telegram solution
 
