@@ -1472,6 +1472,7 @@ void History::clear(bool leaveItems) {
 	setMsgCount(0);
 	if (!leaveItems) {
 		setUnreadCount(0);
+		last = 0;
 	}
 	height = 0;
 	oldLoaded = false;

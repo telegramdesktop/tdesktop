@@ -19,6 +19,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "text.h"
 
 #include "lang.h"
+#include "app.h"
 
 #include <private/qharfbuzz_p.h>
 
@@ -111,8 +112,9 @@ namespace {
 	}
 
 	const QRegularExpression reDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=])(?:([a-zA-Z]+)://)?((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){1,5}([A-Za-zрф\\-\\d]{2,22}))"));
-	const QRegularExpression reMailName(QString::fromUtf8("[a-zA-Z\\-_\\.0-9]{1,256}$"));
-	const QRegularExpression reMailStart(QString::fromUtf8("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
+	const QRegularExpression reMailName(qsl("[a-zA-Z\\-_\\.0-9]{1,256}$"));
+	const QRegularExpression reMailStart(qsl("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
+	const QRegularExpression reHashtag(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[A-Za-z_\\.0-9]{4,20}([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"));
 	QSet<int32> validProtocols, validTopDomains;
 	void initLinkSets();
 
@@ -298,7 +300,7 @@ public:
 		return Qt::LayoutDirectionAuto;
 	}
 
-	void prepareLinks() { // support emails!
+	void prepareLinks() { // support emails and hashtags!
 		if (validProtocols.empty()) {
 			initLinkSets();
 		}
@@ -313,73 +315,98 @@ public:
 				}
 			}
 			QRegularExpressionMatch mDomain = reDomain.match(src, offset);
-			if (!mDomain.hasMatch()) break;
-
-			int32 domainOffset = mDomain.capturedStart(), domainEnd = mDomain.capturedEnd();
-			if (domainOffset > nextCmd) {
-				const QChar *after = skipCommand(srcData + nextCmd, srcData + len);
-				if (after > srcData + nextCmd && domainOffset < (after - srcData)) {
-					nextCmd = offset = after - srcData;
-					continue;
-				}
-			}
-
-			QString protocol = mDomain.captured(1).toLower();
-			QString topDomain = mDomain.captured(3).toLower();
-				
-			bool isProtocolValid = protocol.isEmpty() || validProtocols.contains(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
-			bool isTopDomainValid = validTopDomains.contains(hashCrc32(topDomain.constData(), topDomain.size() * sizeof(QChar)));
-
-			if (!isProtocolValid || !isTopDomainValid) {
-				offset = domainEnd;
-				continue;
-			}
+			QRegularExpressionMatch mHashtag = reHashtag.match(src, offset);
+			if (!mDomain.hasMatch() && !mHashtag.hasMatch()) break;
 
 			LinkRange link;
-			if (protocol.isEmpty() && domainOffset > offset + 1 && *(start + domainOffset - 1) == QChar('@')) {
-				QString forMailName = src.mid(offset, domainOffset - offset - 1);
-				QRegularExpressionMatch mMailName = reMailName.match(forMailName);
-				if (mMailName.hasMatch()) {
-					int32 mailOffset = offset + mMailName.capturedStart();
-					if (mailOffset < offset) {
-						mailOffset = offset;
-					}
-					link.from = start + mailOffset;
-					link.len = domainEnd - mailOffset;
+			int32 domainOffset = mDomain.hasMatch() ? mDomain.capturedStart() : INT_MAX,
+			      domainEnd = mDomain.hasMatch() ? mDomain.capturedEnd() : INT_MAX,
+			      hashtagOffset = mHashtag.hasMatch() ? mHashtag.capturedStart() : INT_MAX,
+			      hashtagEnd = mHashtag.hasMatch() ? mHashtag.capturedEnd() : INT_MAX;
+			if (mHashtag.hasMatch()) {
+				if (!mHashtag.capturedRef(1).isEmpty()) {
+					++hashtagOffset;
+				}
+				if (!mHashtag.capturedRef(2).isEmpty()) {
+					--hashtagEnd;
 				}
 			}
-			if (!link.from || !link.len) {
-				link.from = start + domainOffset;
-
-				QStack<const QChar*> parenth;
-				const QChar *p = start + mDomain.capturedEnd();
-				for (; p < end; ++p) {
-					QChar ch(*p);
-					if (chIsLinkEnd(ch)) break; // link finished
-					if (chIsAlmostLinkEnd(ch)) {
-						const QChar *endTest = p + 1;
-						while (endTest < end && chIsAlmostLinkEnd(*endTest)) {
-							++endTest;
-						}
-						if (endTest >= end || chIsLinkEnd(*endTest)) {
-							break; // link finished at p
-						}
-						p = endTest;
-						ch = *p;
-					}
-					if (ch == '(' || ch == '[' || ch == '{' || ch == '<') {
-						parenth.push(p);
-					} else if (ch == ')' || ch == ']' || ch == '}' || ch == '>') {
-						if (parenth.isEmpty()) break;
-						const QChar *q = parenth.pop(), open(*q);
-						if ((ch == ')' && open != '(') || (ch == ']' && open != '[') || (ch == '}' && open != '{') || (ch == '>' && open != '<')) {
-							p = q;
-							break;
-						}
+			if (hashtagOffset < domainOffset) {
+				if (hashtagOffset > nextCmd) {
+					const QChar *after = skipCommand(srcData + nextCmd, srcData + len);
+					if (after > srcData + nextCmd && hashtagOffset < (after - srcData)) {
+						nextCmd = offset = after - srcData;
+						continue;
 					}
 				}
 
-				link.len = p - link.from;
+				link.from = start + hashtagOffset;
+				link.len = start + hashtagEnd - link.from;
+			} else {
+				if (domainOffset > nextCmd) {
+					const QChar *after = skipCommand(srcData + nextCmd, srcData + len);
+					if (after > srcData + nextCmd && domainOffset < (after - srcData)) {
+						nextCmd = offset = after - srcData;
+						continue;
+					}
+				}
+
+				QString protocol = mDomain.captured(1).toLower();
+				QString topDomain = mDomain.captured(3).toLower();
+
+				bool isProtocolValid = protocol.isEmpty() || validProtocols.contains(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
+				bool isTopDomainValid = validTopDomains.contains(hashCrc32(topDomain.constData(), topDomain.size() * sizeof(QChar)));
+
+				if (!isProtocolValid || !isTopDomainValid) {
+					offset = domainEnd;
+					continue;
+				}
+
+				if (protocol.isEmpty() && domainOffset > offset + 1 && *(start + domainOffset - 1) == QChar('@')) {
+					QString forMailName = src.mid(offset, domainOffset - offset - 1);
+					QRegularExpressionMatch mMailName = reMailName.match(forMailName);
+					if (mMailName.hasMatch()) {
+						int32 mailOffset = offset + mMailName.capturedStart();
+						if (mailOffset < offset) {
+							mailOffset = offset;
+						}
+						link.from = start + mailOffset;
+						link.len = domainEnd - mailOffset;
+					}
+				}
+				if (!link.from || !link.len) {
+					link.from = start + domainOffset;
+
+					QStack<const QChar*> parenth;
+					const QChar *p = start + mDomain.capturedEnd();
+					for (; p < end; ++p) {
+						QChar ch(*p);
+						if (chIsLinkEnd(ch)) break; // link finished
+						if (chIsAlmostLinkEnd(ch)) {
+							const QChar *endTest = p + 1;
+							while (endTest < end && chIsAlmostLinkEnd(*endTest)) {
+								++endTest;
+							}
+							if (endTest >= end || chIsLinkEnd(*endTest)) {
+								break; // link finished at p
+							}
+							p = endTest;
+							ch = *p;
+						}
+						if (ch == '(' || ch == '[' || ch == '{' || ch == '<') {
+							parenth.push(p);
+						} else if (ch == ')' || ch == ']' || ch == '}' || ch == '>') {
+							if (parenth.isEmpty()) break;
+							const QChar *q = parenth.pop(), open(*q);
+							if ((ch == ')' && open != '(') || (ch == ']' && open != '[') || (ch == '}' && open != '{') || (ch == '>' && open != '<')) {
+								p = q;
+								break;
+							}
+						}
+					}
+
+					link.len = p - link.from;
+				}
 			}
 			lnkRanges.push_back(link);
 
@@ -421,9 +448,12 @@ public:
 	}
 
 	void getLinkData(const QString &original, QString &result, int32 &fullDisplayed) {
-		if (reMailStart.match(original).hasMatch()) {
+		if (!original.isEmpty() && original.at(0) == '#') {
 			result = original;
-			fullDisplayed = -1;
+			fullDisplayed = -2; // hashtag
+		} else if (reMailStart.match(original).hasMatch()) {
+			result = original;
+			fullDisplayed = -1; // email
 		} else {
 			QUrl url(original), good(url.isValid() ? url.toEncoded() : "");
 			QString readable = good.isValid() ? good.toDisplayString() : original;
@@ -725,7 +755,9 @@ public:
 					_t->_links.resize(lnkIndex);
 					const TextLinkData &data(links[lnkIndex - maxLnkIndex - 1]);
 					TextLinkPtr lnk;
-					if (data.fullDisplayed < 0) { // email
+					if (data.fullDisplayed < -1) { // hashtag
+						lnk = TextLinkPtr(new HashtagLink(data.url));
+					} else if (data.fullDisplayed < 0) { // email
 						lnk = TextLinkPtr(new EmailLink(data.url));
 					} else {
 						lnk = TextLinkPtr(new TextLink(data.url, data.fullDisplayed > 0));
@@ -755,7 +787,7 @@ private:
 		TextLinkData(const QString &url = QString(), int32 fullDisplayed = 1) : url(url), fullDisplayed(fullDisplayed) {
 		}
 		QString url;
-		int32 fullDisplayed; // < 0 - email
+		int32 fullDisplayed; // -2 - hashtag, -1 - email
 	};
 	typedef QVector<TextLinkData> TextLinks;
 	TextLinks links;
@@ -872,6 +904,12 @@ namespace {
 		start = stop;
 	}
 
+}
+
+void HashtagLink::onClick(Qt::MouseButton button) const {
+	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
+		App::searchByHashtag(_tag);
+	}
 }
 
 class TextPainter {

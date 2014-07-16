@@ -536,6 +536,10 @@ void MainWidget::stopAnimActive() {
 	history.stopAnimActive();
 }
 
+void MainWidget::searchMessages(const QString &query) {
+	dialogs.searchMessages(query);
+}
+
 void MainWidget::partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result) {
 	const MTPDmessages_affectedHistory &d(result.c_messages_affectedHistory());
 	App::main()->updUpdated(d.vpts.v, 0, 0, d.vseq.v);

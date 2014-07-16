@@ -1118,6 +1118,16 @@ void DialogsWidget::onNeedSearchMessages() {
 	}
 }
 
+void DialogsWidget::searchMessages(const QString &query) {
+	if (_filter.text() != query) {
+		_filter.setText(query);
+		_filter.updatePlaceholder();
+		onFilterUpdate();
+		_searchTimer.stop();
+		onSearchMessages();
+	}
+}
+
 void DialogsWidget::onSearchMore(MsgId minMsgId) {
 	if (!_searchRequest && !_searchFull) {
 		_searchRequest = MTP::send(MTPmessages_Search(MTP_inputPeerEmpty(), MTP_string(_searchQuery), MTP_inputMessagesFilterEmpty(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(minMsgId), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, !minMsgId), rpcFail(&DialogsWidget::searchFailed));

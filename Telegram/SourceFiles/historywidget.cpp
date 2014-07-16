@@ -630,6 +630,13 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		_menu->addAction(lang(lng_context_open_email), this, SLOT(openContextUrl()))->setEnabled(true);
 		_menu->addAction(lang(lng_context_copy_email), this, SLOT(copyContextUrl()))->setEnabled(true);
+	} else if (_contextMenuLnk && dynamic_cast<HashtagLink*>(_contextMenuLnk.data())) {
+		_menu = new QMenu(historyWidget);
+		if (isUponSelected > 0) {
+			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
+		}
+		_menu->addAction(lang(lng_context_open_hashtag), this, SLOT(openContextUrl()))->setEnabled(true);
+		_menu->addAction(lang(lng_context_copy_hashtag), this, SLOT(copyContextUrl()))->setEnabled(true);
 	} else {
         PhotoLink *lnkPhoto = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
         VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());

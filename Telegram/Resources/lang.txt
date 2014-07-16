@@ -308,6 +308,8 @@ lng_context_open_link: "Open Link";
 lng_context_copy_link: "Copy Link";
 lng_context_open_email: "Write to this address";
 lng_context_copy_email: "Copy email address";
+lng_context_open_hashtag: "Search by hashtag";
+lng_context_copy_hashtag: "Copy hashtag";
 lng_context_open_image: "Open Image";
 lng_context_save_image: "Save Image As...";
 lng_context_forward_image: "Forward Image";

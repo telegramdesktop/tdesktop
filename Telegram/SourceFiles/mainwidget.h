@@ -197,6 +197,8 @@ public:
 	uint64 animActiveTime() const;
 	void stopAnimActive();
 
+	void searchMessages(const QString &query);
+
 	~MainWidget();
 
 signals:

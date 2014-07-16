@@ -170,6 +170,7 @@ public:
 
 	void enableShadow(bool enable = true);
 	
+	void searchMessages(const QString &query);
 	void onSearchMore(MsgId minMsgId);
 	void clearFiltered();
 

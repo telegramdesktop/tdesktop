@@ -187,4 +187,6 @@ namespace App {
 	void setProxySettings(QNetworkAccessManager &manager);
 	void setProxySettings(QTcpSocket &socket);
 
+	void searchByHashtag(const QString &tag);
+
 };

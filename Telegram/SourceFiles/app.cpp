@@ -1955,4 +1955,10 @@ namespace App {
 		}
 	}	
 
+	void searchByHashtag(const QString &tag) {
+		if (App::main()) {
+			App::main()->searchMessages(tag);
+		}
+	}
+
 }

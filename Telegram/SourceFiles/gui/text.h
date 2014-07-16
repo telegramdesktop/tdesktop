@@ -288,6 +288,32 @@ private:
 
 };
 
+class HashtagLink : public ITextLink {
+public:
+
+	HashtagLink(const QString &tag) : _tag(tag) {
+	}
+
+	const QString &text() const {
+		return _tag;
+	}
+
+	void onClick(Qt::MouseButton button) const;
+
+	const QString &readable() const {
+		return _tag;
+	}
+
+	QString encoded() const {
+		return _tag;
+	}
+
+private:
+
+	QString _tag;
+
+};
+
 static const QChar TextCommand(0x0010);
 enum TextCommands {
 	TextCommandBold        = 0x01,
