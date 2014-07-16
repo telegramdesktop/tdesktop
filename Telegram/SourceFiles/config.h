@@ -59,6 +59,7 @@ enum {
 	AnimationTimerDelta = 7,
 
 	SaveRecentEmojisTimeout = 3000, // 3 secs
+	SaveWindowPositionTimeout = 1000, // 1 sec
 
 	AutoSearchTimeout = 900, // 0.9 secs
 	SearchPerPage = 50,

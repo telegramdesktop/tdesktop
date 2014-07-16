@@ -223,7 +223,7 @@ void PsMainWindow::psSavePosition(Qt::WindowState state) {
 }
 
 void PsMainWindow::psUpdatedPosition() {
-    psUpdatedPositionTimer.start(4000);
+    psUpdatedPositionTimer.start(SaveWindowPositionTimeout);
 }
 
 void PsMainWindow::psStateChanged(Qt::WindowState state) {
