@@ -94,6 +94,7 @@ Install some packages for Qt (see **/home/user/TBuild/Libraries/QtStatic/qtbase/
     sudo apt-get install libxcb-keysyms1-dev
     sudo apt-get install libxcb-icccm4-dev
     sudo apt-get install libxcb-render-util0-dev
+    sudo apt-get install libxcb-util0-dev
     sudo apt-get install libxrender-dev
     sudo apt-get install libpulse-dev
 
