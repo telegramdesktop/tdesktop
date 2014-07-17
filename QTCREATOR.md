@@ -1,10 +1,18 @@
-##Build instructions for Qt Creator 2.7 under Ubuntu 14.04
+##Build instructions for Qt Creator 3.1.2 under Ubuntu 14.04
 
 ###Prepare
 
 * Install git by command **sudo apt-get install git** in Terminal
 * Install g++ by command **sudo apt-get install g++** in Terminal
-* Install Qt Creator from Ubuntu Software Center
+* Install Qt Creator from [**Downloads page**](https://qt-project.org/downloads)
+
+For 32 bit Ubuntu you need to install g++ version 4.8 manually by such commands
+
+* sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+* sudo apt-get update
+* sudo apt-get install gcc-4.8 g++-4.8
+* sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.8 20
+* sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 20
 
 ###Prepare folder
 
@@ -20,63 +28,9 @@ or download in ZIP and extract to **/home/user/TBuild** rename **tdesktop-master
 
 ###Prepare libraries
 
-####OpenSSL 1.0.1g
+Install dev libraries
 
-http://www.openssl.org/source/ > Download [**openssl-1.0.1h.tar.gz**](http://www.openssl.org/source/openssl-1.0.1h.tar.gz) (4.3 Mb)
-
-Extract openssl-1.0.1h.tar.gz to **/home/user/TBuild/Libraries**
-
-#####Building library
-
-In Terminal go to **/home/user/TBuild/Libraries/openssl-1.0.1h** and there run
-
-    ./config
-    make
-    sudo make install
-
-####liblzma
-
-http://tukaani.org/xz/ > Download [**xz-5.0.5.tar.gz**](http://tukaani.org/xz/xz-5.0.5.tar.gz)
-
-Extract to **/home/user/TBuild/Libraries**
-
-#####Building library
-
-In Terminal go to **/home/user/TBuild/Libraries/xz-5.0.5** and there run
-
-    ./configure
-    make
-    sudo make install
-
-####zlib 1.2.8
-
-http://zlib.net/ > Download [**zlib source code, version 1.2.8, tar.gz format**](http://zlib.net/zlib-1.2.8.tar.gz)
-
-Extract to **/home/user/TBuild/Libraries**
-
-#####Building library
-
-In Terminal go to **/home/user/TBuild/Libraries/zlib-1.2.8** and there run
-
-    ./configure
-    make
-    sudo make install
-
-####libexif 0.6.20
-
-Get sources from https://github.com/telegramdesktop/libexif-0.6.20, by git – in Terminal go to **/home/user/TBuild/Libraries** and run
-
-    git clone https://github.com/telegramdesktop/libexif-0.6.20.git
-
-or download in ZIP and extract to **/home/user/TBuild/Libraries**, rename **libexif-0.6.20-master** to **libexif-0.6.20** to have **/home/user/TBuild/Libraries/libexif-0.6.20/configure** script
-
-#####Building library
-
-In Terminal go to **/home/user/TBuild/Libraries/libexif-0.6.20** and there run
-
-    ./configure
-    make
-    sudo make install
+    sudo apt-get install libexif-dev liblzma-dev libz-dev libssl-dev
 
 ####Qt 5.3.1, slightly patched
 
@@ -90,13 +44,7 @@ Apply patch – copy (with overwrite!) everything from **/home/user/TBuild/tdesk
 
 Install some packages for Qt (see **/home/user/TBuild/Libraries/QtStatic/qtbase/src/plugins/platforms/xcb/README**)
 
-    sudo apt-get install libxcb-image0-dev
-    sudo apt-get install libxcb-keysyms1-dev
-    sudo apt-get install libxcb-icccm4-dev
-    sudo apt-get install libxcb-render-util0-dev
-    sudo apt-get install libxcb-util0-dev
-    sudo apt-get install libxrender-dev
-    sudo apt-get install libpulse-dev
+    sudo apt-get install libxcb1-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-icccm4-dev libxcb-render-util0-dev libxcb-util0-dev libxrender-dev libpulse-dev libxcb-sync0-dev libxcb-xfixes0-dev libxcb-randr0-dev libx11-xcb-dev
 
 In Terminal go to **/home/user/TBuild/Libraries/QtStatic** and there run
 
@@ -106,12 +54,6 @@ In Terminal go to **/home/user/TBuild/Libraries/QtStatic** and there run
     sudo make install
 
 building (**make** command) will take really long time.
-
-In Ubuntu under Parallels Desktop there was a problem with libGL, bad symlink **/usr/lib/x86_64-linux-gnu/mesa/libGL.so** to unexisting file, had to fix it manually like this
-
-    sudo ln -sf libGL.so.1 /usr/lib/x86_64-linux-gnu/mesa/libGL.so
-    
-because only **/usr/lib/x86_64-linux-gnu/mesa/libGL.so.1** existed.
 
 #####Building pulseaudio plugin
 
@@ -130,4 +72,4 @@ In Terminal go to **/home/user/TBuild/Libraries/QtStatic/qtmultimedia/src/plugin
 * Open MetaLang.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateLang** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateLang** and build for Debug
 * Open Telegram.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediate** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediate** and build for Debug
 * Open Updater.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateUpdater** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateUpdater** and build for Debug
-* Release Telegram build will require removing **CUSTOM_API_ID** definition in Telegram.pro project and may require changing paths in **/home/user/TBuild/tdesktop/Telegram/FixMake.sh** for static library linking fix
+* Release Telegram build will require removing **CUSTOM_API_ID** definition in Telegram.pro project and may require changing paths in **/home/user/TBuild/tdesktop/Telegram/FixMake.sh** or **/home/user/TBuild/tdesktop/Telegram/FixMake32.sh** for static library linking fix

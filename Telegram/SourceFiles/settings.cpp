@@ -81,8 +81,11 @@ QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/win/tupdates/current"));
 #elif defined Q_OS_MAC
 DBIPlatform gPlatform = dbipMac;
 QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/mac/tupdates/current"));
-#elif defined Q_OS_LINUX
-DBIPlatform gPlatform = dbipLinux;
+#elif defined Q_OS_LINUX32
+DBIPlatform gPlatform = dbipLinux32;
+QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/linux32/tupdates/current"));
+#elif defined Q_OS_LINUX64
+DBIPlatform gPlatform = dbipLinux64;
 QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/linux/tupdates/current"));
 #else
 #error Unknown platform

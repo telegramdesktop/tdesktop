@@ -194,7 +194,7 @@ void TitleWidget::maximizedChanged(bool maximized) {
 
 	lastMaximized = maximized;
 
-    if (cPlatform() == dbipMac) return;
+    if (cPlatform() != dbipWindows) return;
 	if (maximized) {
 		_maximize.clearState();
 	} else {

@@ -62,7 +62,19 @@ QMAKE_EXTRA_TARGETS += style_auto_cpp style_auto_h style_classes_h lang_cpp lang
 
 PRE_TARGETDEPS += ./GeneratedFiles/style_auto.cpp ./GeneratedFiles/style_auto.h ./GeneratedFiles/style_classes.h ./GeneratedFiles/lang.h ./GeneratedFiles/lang.cpp
 
-CONFIG(release,debug|release):QMAKE_PRE_LINK = ./../../Telegram/FixMake.sh
+unix {
+    linux-g++:QMAKE_TARGET.arch = $$QMAKE_HOST.arch
+    linux-g++-32:QMAKE_TARGET.arch = x86
+    linux-g++-64:QMAKE_TARGET.arch = x86_64
+
+    contains(QMAKE_TARGET.arch, x86_64) {
+        CONFIG(release,debug|release):QMAKE_PRE_LINK = ./../../Telegram/FixMake.sh
+        DEFINES += Q_OS_LINUX64
+    } else {
+        CONFIG(release,debug|release):QMAKE_PRE_LINK = ./../../Telegram/FixMake32.sh
+        DEFINES += Q_OS_LINUX32
+    }
+}
 
 SOURCES += \
     ./SourceFiles/main.cpp \
@@ -238,12 +250,8 @@ INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.1/QtGui\
                ./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.1/QtCore\
                ./../../Libraries/QtStatic/qtbase/include\
                ./SourceFiles\
-               ./GeneratedFiles\
-               ./../../Telegram/GeneratedFiles\ # qmake bug?.. Sometimes ./GeneratedFiles does not mean this path :(
-               ./../../Libraries/libexif-0.6.20\
-               /usr/local/ssl/include
-LIBS += -L/usr/local/ssl/lib -lcrypto -lssl -lz -ldl -llzma -lpulse
-LIBS += ./../../../Libraries/libexif-0.6.20/libexif/.libs/libexif.a
+               ./GeneratedFiles
+LIBS += -lcrypto -lssl -lz -ldl -llzma -lpulse -lexif
 LIBS += ./../../../Libraries/QtStatic/qtmultimedia/plugins/audio/libqtmedia_pulse.a
 RESOURCES += \
     ./SourceFiles/telegram_linux.qrc

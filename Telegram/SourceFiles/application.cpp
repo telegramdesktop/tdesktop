@@ -185,7 +185,7 @@ void Application::updateGotCurrent() {
 		if (updates.exists()) {
 			QFileInfoList list = updates.entryInfoList(QDir::Files);
 			for (QFileInfoList::iterator i = list.begin(), e = list.end(); i != e; ++i) {
-				if (QRegularExpression("^(tupdate|tmacupd|tlinuxupd)\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
+                if (QRegularExpression("^(tupdate|tmacupd|tlinuxupd|tlinux32upd)\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
 					QFile(i->absoluteFilePath()).remove();
 				}
 			}
@@ -412,7 +412,7 @@ void Application::startUpdateCheck(bool forceWait) {
 		if (updates.exists()) {
 			QFileInfoList list = updates.entryInfoList(QDir::Files);
 			for (QFileInfoList::iterator i = list.begin(), e = list.end(); i != e; ++i) {
-				if (QRegularExpression("^(tupdate|tmacupd|tlinuxupd)\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
+                if (QRegularExpression("^(tupdate|tmacupd|tlinuxupd|tlinux32upd)\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
 					sendRequest = true;
 				}
 			}

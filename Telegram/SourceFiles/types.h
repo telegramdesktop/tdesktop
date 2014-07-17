@@ -272,7 +272,8 @@ enum DBIEmojiTab {
 enum DBIPlatform {
     dbipWindows  = 0,
     dbipMac      = 1,
-    dbipLinux    = 2,
+    dbipLinux64  = 2,
+    dbipLinux32  = 3,
 };
 
 typedef enum {

@@ -6,7 +6,7 @@ if [ -d "./../Linux/Release/deploy/$AppVersionStr" ]; then
   exit 1
 fi
 
-if [ -f "./../Linux/Release/tlinuxupd$AppVersion" ]; then
+if [ -f "./../Linux/Release/tlinux32upd$AppVersion" ]; then
   echo "Update file for version $AppVersion already exists!"
   exit 1
 fi
@@ -28,12 +28,12 @@ echo "Packer done!"
 if [ ! -d "./../Linux/Release/deploy" ]; then
   mkdir "./../Linux/Release/deploy"
 fi
-echo "Copying Telegram, Updater and tlinuxupd$AppVersion to deploy/$AppVersionStr..";
+echo "Copying Telegram, Updater and tlinux32upd$AppVersion to deploy/$AppVersionStr..";
 mkdir "./../Linux/Release/deploy/$AppVersionStr"
 mkdir "./../Linux/Release/deploy/$AppVersionStr/Telegram"
 mv ./../Linux/Release/Telegram ./../Linux/Release/deploy/$AppVersionStr/Telegram/
 mv ./../Linux/Release/Updater ./../Linux/Release/deploy/$AppVersionStr/Telegram/
-mv ./../Linux/Release/tlinuxupd$AppVersion ./../Linux/Release/deploy/$AppVersionStr/
-cd ./../Linux/Release/deploy/$AppVersionStr && tar -czvf tsetup.$AppVersionStr.tar.gz Telegram/ && cd ./../../../../Telegram
+mv ./../Linux/Release/tlinux32upd$AppVersion ./../Linux/Release/deploy/$AppVersionStr/
+cd ./../Linux/Release/deploy/$AppVersionStr && tar -cJvf tsetup32.$AppVersionStr.tar.xz Telegram/ && cd ./../../../../Telegram
 echo "Version $AppVersionStr prepared!";
 

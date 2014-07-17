@@ -90,6 +90,7 @@ ReplaceMap replaceMap;
 
 static const int variantsCount = 4, variants[] = { 0, 2, 3, 4 }, inRow = 40, imSizes[] = { 16, 20, 24, 32 };
 static const char *variantPostfix[] = { "", "_125x", "_150x", "_200x" };
+static const char *shortNames[] = { "One", "OneAndQuarter", "OneAndHalf", "Two" };
 static const char *variantNames[] = { "dbisOne", "dbisOneAndQuarter", "dbisOneAndHalf", "dbisTwo" };
 
 typedef QMap<uint32, EmojiData> EmojisData;
@@ -1092,7 +1093,7 @@ bool genEmoji(QString emoji_in, const QString &emoji_out, const QString &emoji_p
 				}
 			}
 		}
-		if (needResave) {
+        if (needResave) {
 			QFile ef(emojif);
 			if (!ef.open(QIODevice::WriteOnly)) {
 				cout << "Could not save 'emoji" << postfix.toUtf8().constData() << ".png'!\n";
@@ -1140,20 +1141,24 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 			tcpp << "\tchar emojisData[sizeof(EmojiData) * " << emojisData.size() << "];\n";
 			tcpp << "}\n\n";
 
+            for (int variantIndex = 0; variantIndex < variantsCount; ++variantIndex) {
+                int imSize = imSizes[variantIndex];
+                tcpp << "void initEmoji" << shortNames[variantIndex] << "() {\n";
+                tcpp << "\tEmojiData *toFill = emojis = (EmojiData*)emojisData;\n\n";
+                for (EmojisData::const_iterator i = emojisData.cbegin(), e = emojisData.cend(); i != e; ++i) {
+                    int len = i->code2 ? 4 : ((i->code >> 16) ? 2 : 1);
+                    tcpp << "\tnew (toFill++) EmojiData(" << (i->x * imSize) << ", " << (i->y * imSize) << ", " << i->code << "U, " << i->code2 << "U, " << len << ");\n";
+                }
+                tcpp << "}\n\n";
+            }
+
 			tcpp << "void initEmoji() {\n";
-			tcpp << "\tEmojiData *toFill = emojis = (EmojiData*)emojisData;\n\n";
 			tcpp << "\tDBIScale emojiForScale = cRetina() ? dbisTwo : cScale();\n\n";
-			tcpp << "\tswitch (emojiForScale) {\n\n";
-			for (int variantIndex = 0; variantIndex < variantsCount; ++variantIndex) {
-				int imSize = imSizes[variantIndex];
-				tcpp << "\tcase " << variantNames[variantIndex] << ":\n";
-				for (EmojisData::const_iterator i = emojisData.cbegin(), e = emojisData.cend(); i != e; ++i) {
-					int len = i->code2 ? 4 : ((i->code >> 16) ? 2 : 1);
-					tcpp << "\t\tnew (toFill++) EmojiData(" << (i->x * imSize) << ", " << (i->y * imSize) << ", " << i->code << ", " << i->code2 << ", " << len << ");\n";
-				}
-				tcpp << "\tbreak;\n\n";
-			}
-			tcpp << "\t};\n";
+            tcpp << "\tswitch (emojiForScale) {\n";
+            for (int variantIndex = 0; variantIndex < variantsCount; ++variantIndex) {
+                tcpp << "\t\tcase " << variantNames[variantIndex] << ": initEmoji" << shortNames[variantIndex] << "(); break;\n";
+            }
+            tcpp << "\t};\n";
 			tcpp << "};\n\n";
 
 			tcpp << "const EmojiData *getEmoji(uint32 code) {\n"; // getter
@@ -1169,37 +1174,37 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 				if (i->code2) break;
 				if (i->code != 169 && i->code != 174) break;
 
-				tcpp << "\t\t\tcase " << i->code << ": return &emojis[" << (index++) << "];\n";
+                tcpp << "\t\t\tcase " << i->code << "U: return &emojis[" << (index++) << "];\n";
 			}
 			tcpp << "\t\t}\n\n";
-			tcpp << "\t\tif (code < " << min1 << " || code > " << max1 << ") return 0;\n\n";
+            tcpp << "\t\tif (code < " << min1 << "U || code > " << max1 << "U) return 0;\n\n";
 			tcpp << "\t\tswitch (code) {\n";
 			for (; i != e; ++i) {
 				if (i->code2 || (i->code >> 16)) break;
-				tcpp << "\t\t\tcase " << i->code << ": return &emojis[" << (index++) << "];\n";
+                tcpp << "\t\t\tcase " << i->code << "U: return &emojis[" << (index++) << "];\n";
 			}
 			tcpp << "\t\t}\n\n";
 			tcpp << "\t\treturn 0;\n";
 			tcpp << "\t}\n\n";
 
 			tcpp << "\tif (highCode == 35 || (highCode >= 48 && highCode < 58)) {\n"; // digits
-			tcpp << "\t\tif ((code & 0xFFFF) != 0x20E3) return 0;\n\n";
+            tcpp << "\t\tif ((code & 0xFFFF) != 0x20E3) return 0;\n\n";
 			tcpp << "\t\tswitch (code) {\n";
 			for (; i != e; ++i) {
 				if (i->code2) break;
 				uint32 high = i->code >> 16;
 				if (high != 35 && (high < 48 || high >= 58)) break;
 
-				tcpp << "\t\t\tcase " << i->code << ": return &emojis[" << (index++) << "];\n";
+                tcpp << "\t\t\tcase " << i->code << "U: return &emojis[" << (index++) << "];\n";
 			}
 			tcpp << "\t\t}\n\n";
 			tcpp << "\t\treturn 0;\n";
 			tcpp << "\t}\n\n";
 
-			tcpp << "\tif (code < " << min2 << " || code > " << max2 << ") return 0;\n\n";
+            tcpp << "\tif (code < " << min2 << "U || code > " << max2 << "U) return 0;\n\n";
 			tcpp << "\tswitch (code) {\n";
 			for (; i != e; ++i) {
-				tcpp << "\tcase " << i->code << ": return &emojis[" << (index++) << "];\n";
+                tcpp << "\tcase " << i->code << "U: return &emojis[" << (index++) << "];\n";
 			}
 			tcpp << "\t}\n\n";
 
@@ -1241,7 +1246,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 				}
 				tcpp << tab.repeated(1 + chars.size()) << "newEmojiEnd = ch + " << chars.size() << ";\n";
 				tcpp << tab.repeated(1 + chars.size()) << "if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {\n";
-				tcpp << tab.repeated(1 + chars.size()) << "\temojiCode = " << i.value() << ";\n";
+                tcpp << tab.repeated(1 + chars.size()) << "\temojiCode = " << i.value() << "U;\n";
 				tcpp << tab.repeated(1 + chars.size()) << "\treturn;\n";
 				tcpp << tab.repeated(1 + chars.size()) << "}\n";
 			}

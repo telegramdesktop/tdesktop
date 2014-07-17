@@ -423,14 +423,14 @@ int main(int argc, char *argv[])
 	}
 	cout << "Signature verified!\n";
 	RSA_free(pbKey);
-
 #ifdef Q_OS_WIN
 	QString outName(QString("tupdate%1").arg(version));
 #elif defined Q_OS_MAC
 	QString outName(QString("tmacupd%1").arg(version));
-#elif defined Q_OS_LINUX
-	QString outName(QString("tlinuxupd%1").arg(version));
-#else
+#elif defined Q_OS_LINUX32
+    QString outName(QString("tlinux32upd%1").arg(version));
+#elif defined Q_OS_LINUX64
+    QString outName(QString("tlinuxupd%1").arg(version));
 #error Unknown platform!
 #endif
 	QFile out(outName);

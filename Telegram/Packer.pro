@@ -23,10 +23,20 @@ SOURCES += \
 HEADERS += \
     ./SourceFiles/_other/packer.h \
 
+unix {
+    linux-g++:QMAKE_TARGET.arch = $$QMAKE_HOST.arch
+    linux-g++-32:QMAKE_TARGET.arch = x86
+    linux-g++-64:QMAKE_TARGET.arch = x86_64
+
+    contains(QMAKE_TARGET.arch, x86_64) {
+        DEFINES += Q_OS_LINUX64
+    } else {
+        DEFINES += Q_OS_LINUX32
+    }
+}
+
 INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.1/QtGui\
                ./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.1/QtCore\
-               ./../../Libraries/QtStatic/qtbase/include\
-               ./../../Libraries/lzma/C\
-               /usr/local/ssl/include
+               ./../../Libraries/QtStatic/qtbase/include
 
-LIBS += -L/usr/local/ssl/lib -lcrypto -lssl -lz -llzma
+LIBS += -lcrypto -lssl -lz -llzma
