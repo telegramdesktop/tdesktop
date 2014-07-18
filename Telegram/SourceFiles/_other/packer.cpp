@@ -431,6 +431,7 @@ int main(int argc, char *argv[])
     QString outName(QString("tlinux32upd%1").arg(version));
 #elif defined Q_OS_LINUX64
     QString outName(QString("tlinuxupd%1").arg(version));
+#else
 #error Unknown platform!
 #endif
 	QFile out(outName);

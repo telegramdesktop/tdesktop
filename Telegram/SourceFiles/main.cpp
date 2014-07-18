@@ -41,7 +41,12 @@ int main(int argc, char *argv[]) {
 	}
 
 	DEBUG_LOG(("Application Info: Telegram started, test mode: %1, exe dir: %2").arg(logBool(cTestMode())).arg(cExeDir()));
-	if (cDebug()) LOG(("Application Info: Telegram started in debug mode"));
+	if (cDebug()) {
+		LOG(("Application Info: Telegram started in debug mode"));
+		for (int32 i = 0; i < argc; ++i) {
+			LOG(("Argument: %1").arg(QString::fromLocal8Bit(argv[i])));
+		}
+	}
 
 	DEBUG_LOG(("Application Info: ideal thread count: %1, using %2 connections per session").arg(QThread::idealThreadCount()).arg(cConnectionsInSession()));
 

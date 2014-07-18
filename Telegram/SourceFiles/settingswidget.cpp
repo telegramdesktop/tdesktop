@@ -106,6 +106,8 @@ SettingsInner::SettingsInner(Settings *parent) : QWidget(parent),
 
 	// notifications
 	_desktopNotify(this, lang(lng_settings_desktop_notify), cDesktopNotify()),
+	_senderName(this, lang(lng_settings_show_name), cNotifyView() <= dbinvShowName),
+	_messagePreview(this, lang(lng_settings_show_preview), cNotifyView() <= dbinvShowPreview),
 	_soundNotify(this, lang(lng_settings_sound_notify), cSoundNotify()),
 
 	// general
@@ -118,6 +120,7 @@ SettingsInner::SettingsInner(Settings *parent) : QWidget(parent),
 
 	_autoStart(this, lang(lng_settings_auto_start), cAutoStart()),
 	_startMinimized(this, lang(lng_settings_start_min), cStartMinimized()),
+	_sendToMenu(this, lang(lng_settings_add_sendto), cSendToMenu()),
 
 	_dpiAutoScale(this, lang(lng_settings_scale_auto).replace(qsl("{cur}"), scaleLabel(cScreenScale())), (cConfigScale() == dbisAuto)),
 	_dpiSlider(this, st::dpiSlider, dbisScaleCount - 1, cEvalScale(cConfigScale()) - 1),
@@ -167,7 +170,11 @@ SettingsInner::SettingsInner(Settings *parent) : QWidget(parent),
 	connect(App::app(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUpdateFail(PeerId)));
 
 	// notifications
+	_senderName.setDisabled(!_desktopNotify.checked());
+	_messagePreview.setDisabled(_senderName.disabled() || !_senderName.checked());
 	connect(&_desktopNotify, SIGNAL(changed()), this, SLOT(onDesktopNotify()));
+	connect(&_senderName, SIGNAL(changed()), this, SLOT(onSenderName()));
+	connect(&_messagePreview, SIGNAL(changed()), this, SLOT(onMessagePreview()));
 	connect(&_soundNotify, SIGNAL(changed()), this, SLOT(onSoundNotify()));
 
 	// general
@@ -181,6 +188,7 @@ SettingsInner::SettingsInner(Settings *parent) : QWidget(parent),
 	_startMinimized.setDisabled(!_autoStart.checked());
 	connect(&_autoStart, SIGNAL(changed()), this, SLOT(onAutoStart()));
 	connect(&_startMinimized, SIGNAL(changed()), this, SLOT(onStartMinimized()));
+	connect(&_sendToMenu, SIGNAL(changed()), this, SLOT(onSendToMenu()));
 
 	connect(&_dpiAutoScale, SIGNAL(changed()), this, SLOT(onScaleAuto()));
 	connect(&_dpiSlider, SIGNAL(changed(int32)), this, SLOT(onScaleChange()));
@@ -313,6 +321,8 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		top += st::setHeaderSkip;
 
 		top += _desktopNotify.height() + st::setLittleSkip;
+		top += _senderName.height() + st::setLittleSkip;
+		top += _messagePreview.height() + st::setSectionSkip;
 		top += _soundNotify.height();
 	}
 
@@ -346,7 +356,9 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
         top += _workmodeWindow.height() + st::setSectionSkip;
         
         top += _autoStart.height() + st::setLittleSkip;
-        top += _startMinimized.height();
+        top += _startMinimized.height() + st::setSectionSkip;
+
+		top += _sendToMenu.height();
     }
     
     if (!cRetina()) {
@@ -441,6 +453,8 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		// notifications
 		top += st::setHeaderSkip;
 		_desktopNotify.move(_left, top); top += _desktopNotify.height() + st::setLittleSkip;
+		_senderName.move(_left, top); top += _senderName.height() + st::setLittleSkip;
+		_messagePreview.move(_left, top); top += _messagePreview.height() + st::setSectionSkip;
 		_soundNotify.move(_left, top); top += _soundNotify.height();
 	}
 
@@ -456,7 +470,9 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
         _workmodeWindow.move(_left, top); top += _workmodeWindow.height() + st::setSectionSkip;
         
         _autoStart.move(_left, top); top += _autoStart.height() + st::setLittleSkip;
-        _startMinimized.move(_left, top); top += _startMinimized.height();
+        _startMinimized.move(_left, top); top += _startMinimized.height() + st::setSectionSkip;
+
+		_sendToMenu.move(_left, top); top += _sendToMenu.height();
     }
     if (!cRetina()) {
         top += st::setHeaderSkip;
@@ -620,9 +636,13 @@ void SettingsInner::showAll() {
 	// notifications
 	if (_self) {
 		_desktopNotify.show();
+		_senderName.show();
+		_messagePreview.show();
 		_soundNotify.show();
 	} else {
 		_desktopNotify.hide();
+		_senderName.hide();
+		_messagePreview.hide();
 		_soundNotify.hide();
 	}
 
@@ -635,13 +655,17 @@ void SettingsInner::showAll() {
 
         _autoStart.show();
         _startMinimized.show();
+
+		_sendToMenu.show();
     } else {
         _workmodeTray.hide();
         _workmodeWindow.hide();
         
         _autoStart.hide();
         _startMinimized.hide();
-    }
+
+		_sendToMenu.show();
+	}
     if (cRetina()) {
         _dpiSlider.hide();
         _dpiAutoScale.hide();
@@ -843,6 +867,12 @@ void SettingsInner::onStartMinimized() {
 	App::writeConfig();
 }
 
+void SettingsInner::onSendToMenu() {
+	cSetSendToMenu(_sendToMenu.checked());
+	psSendToMenu(_sendToMenu.checked());
+	App::writeConfig();
+}
+
 void SettingsInner::onScaleAuto() {
 	DBIScale newScale = _dpiAutoScale.checked() ? dbisAuto : cEvalScale(cConfigScale());
 	if (newScale == cScreenScale()) {
@@ -905,8 +935,43 @@ void SettingsInner::onDesktopNotify() {
 	cSetDesktopNotify(_desktopNotify.checked());
 	if (!_desktopNotify.checked()) {
 		App::wnd()->notifyClear();
+		_senderName.setDisabled(true);
+		_messagePreview.setDisabled(true);
+		App::writeUserConfig();
+	} else {
+		_senderName.setDisabled(false);
+		_messagePreview.setDisabled(!_senderName.checked());
+		App::writeUserConfig();
+	}
+}
+
+void SettingsInner::onSenderName() {
+	_messagePreview.setDisabled(!_senderName.checked());
+	if (!_senderName.checked() && _messagePreview.checked()) {
+		_messagePreview.setChecked(false);
+	} else {
+		if (_messagePreview.checked()) {
+			cSetNotifyView(dbinvShowPreview);
+		} else if (_senderName.checked()) {
+			cSetNotifyView(dbinvShowName);
+		} else {
+			cSetNotifyView(dbinvShowNothing);
+		}
+		App::writeUserConfig();
+		App::wnd()->notifyUpdateAll();
+	}
+}
+
+void SettingsInner::onMessagePreview() {
+	if (_messagePreview.checked()) {
+		cSetNotifyView(dbinvShowPreview);
+	} else if (_senderName.checked()) {
+		cSetNotifyView(dbinvShowName);
+	} else {
+		cSetNotifyView(dbinvShowNothing);
 	}
 	App::writeUserConfig();
+	App::wnd()->notifyUpdateAll();
 }
 
 void SettingsInner::onReplaceEmojis() {

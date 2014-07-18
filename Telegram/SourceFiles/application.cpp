@@ -73,6 +73,12 @@ namespace {
 Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
     serverName(psServerPrefix() + cGUIDStr()), closing(false),
 	updateRequestId(0), updateReply(0), updateThread(0), updateDownloader(0) {
+
+	QByteArray d(QDir((cPlatform() == dbipWindows ? cExeDir() : cWorkingDir()).toLower()).absolutePath().toUtf8());
+	char h[33] = { 0 };
+	hashMd5Hex(d.constData(), d.size(), h);
+	serverName = psServerPrefix() + h + '-' + cGUIDStr();
+
 	if (mainApp) {
 		DEBUG_LOG(("Application Error: another Application was created, terminating.."));
 		exit(0);
@@ -435,10 +441,57 @@ void Application::startUpdateCheck(bool forceWait) {
 	}
 }
 
+namespace {
+	QChar _toHex(ushort v) {
+		v = v & 0x000F;
+		return QChar::fromLatin1((v >= 10) ? ('a' + (v - 10)) : ('0' + v));
+	}
+	ushort _fromHex(QChar c) {
+		return ((c.unicode() >= uchar('a')) ? (c.unicode() - uchar('a') + 10) : (c.unicode() - uchar('0'))) & 0x000F;
+	}
+
+	QString _escapeTo7bit(const QString &str) {
+		QString result;
+		result.reserve(str.size() * 2);
+		for (int i = 0, l = str.size(); i != l; ++i) {
+			QChar ch(str.at(i));
+			ushort uch(ch.unicode());
+			if (uch < 32 || uch > 127 || uch == ushort(uchar('%'))) {
+				result.append('%').append(_toHex(uch >> 12)).append(_toHex(uch >> 8)).append(_toHex(uch >> 4)).append(_toHex(uch));
+			} else {
+				result.append(ch);
+			}
+		}
+		return result;
+	}
+
+	QString _escapeFrom7bit(const QString &str) {
+		QString result;
+		result.reserve(str.size());
+		for (int i = 0, l = str.size(); i != l; ++i) {
+			QChar ch(str.at(i));
+			if (ch == QChar::fromLatin1('%') && i + 4 < l) {
+				result.append(QChar(ushort((_fromHex(str.at(i + 1)) << 12) | (_fromHex(str.at(i + 2)) << 8) | (_fromHex(str.at(i + 3)) << 4) | _fromHex(str.at(i + 4)))));
+				i += 4;
+			} else {
+				result.append(ch);
+			}
+		}
+		return result;
+	}
+}
+
 void Application::socketConnected() {
 	DEBUG_LOG(("Application Info: socket connected, this is not the first application instance, sending show command.."));
 	closing = true;
-	socket.write("CMD:show;");
+	QString commands;
+	const QStringList &lst(cSendPaths());
+	for (QStringList::const_iterator i = lst.cbegin(), e = lst.cend(); i != e; ++i) {
+		commands += qsl("SEND:") + _escapeTo7bit(*i) + ';';
+	}
+	commands += qsl("CMD:show;");
+	DEBUG_LOG(("Application Info: writing commands %1").arg(commands));
+	socket.write(commands.toLocal8Bit());
 }
 
 void Application::socketWritten(qint64/* bytes*/) {
@@ -482,7 +535,7 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 	psCheckLocalSocket(serverName);
   
 	if (!server.listen(serverName)) {
-		DEBUG_LOG(("Application Error: failed to start listening to %1 server").arg(serverName));
+		DEBUG_LOG(("Application Error: failed to start listening to %1 server, error %2").arg(serverName).arg(int(server.serverError())));
 		return App::quit();
 	}
 
@@ -551,10 +604,11 @@ void Application::newInstanceConnected() {
 }
 
 void Application::readClients() {
+	QStringList toSend;
 	for (ClientSockets::iterator i = clients.begin(), e = clients.end(); i != e; ++i) {
 		i->second.append(i->first->readAll());
 		if (i->second.size()) {
-			QString cmds(i->second);
+			QString cmds(QString::fromLocal8Bit(i->second));
 			int32 from = 0, l = cmds.length();
 			for (int32 to = cmds.indexOf(QChar(';'), from); to >= from; to = (from < l) ? cmds.indexOf(QChar(';'), from) : -1) {
 				QStringRef cmd(&cmds, from, to - from);
@@ -562,6 +616,10 @@ void Application::readClients() {
 					execExternal(cmds.mid(from + 4, to - from - 4));
 					QByteArray response(QString("RES:%1;").arg(QCoreApplication::applicationPid()).toUtf8());
 					i->first->write(response.data(), response.size());
+				} else if (cmd.indexOf("SEND:") == 0) {
+					if (cSendPaths().isEmpty()) {
+						toSend.append(_escapeFrom7bit(cmds.mid(from + 5, to - from - 5)));
+					}
 				} else {
 					LOG(("Application Error: unknown command %1 passed in local socket").arg(QString(cmd.constData(), cmd.length())));
 				}
@@ -570,6 +628,16 @@ void Application::readClients() {
 			if (from > 0) {
 				i->second = i->second.mid(from);
 			}
+		}
+	}
+	if (!toSend.isEmpty()) {
+		QStringList paths(cSendPaths());
+		paths.append(toSend);
+		cSetSendPaths(paths);
+	}
+	if (!cSendPaths().isEmpty()) {
+		if (App::wnd()) {
+			App::wnd()->sendPaths();
 		}
 	}
 }

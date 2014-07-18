@@ -317,7 +317,10 @@ void PsMainWindow::psNotifyShown(NotifyWindow *w) {
 }
 
 void PsMainWindow::psPlatformNotify(HistoryItem *item) {
-	_private.showNotify(item->history()->peer->id, item->history()->peer->name, item->notificationHeader(), item->notificationText());
+	QString title = (cNotifyView() <= dbinvShowName) ? item->history()->peer->name : lang(lng_notification_title);
+	QString subtitle = (cNotifyView() <= dbinvShowName) ? item->notificationHeader() : QString();
+	QString msg = (cNotifyView() <= dbinvShowPreview) ? item->notificationText() : lang(lng_notification_preview);
+	_private.showNotify(item->history()->peer->id, title, subtitle, msg, (cNotifyView() <= dbinvShowPreview));
 }
 
 PsApplication::PsApplication(int &argc, char **argv) : QApplication(argc, argv) {
@@ -776,6 +779,7 @@ QString psCurrentExeDirectory(int argc, char *argv[]) {
 void psDoCleanup() {
 	try {
 		psAutoStart(false, true);
+		psSendToMenu(false, true);
 	} catch (...) {
 	}
 }
@@ -887,4 +891,7 @@ void psExecTelegram() {
 }
 
 void psAutoStart(bool start, bool silent) {
+}
+
+void psSendToMenu(bool send, bool silent) {
 }

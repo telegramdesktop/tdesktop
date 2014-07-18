@@ -1043,7 +1043,7 @@ public:
 		return _block;
 	}
 	void destroy() {
-		markRead();
+		if (!out()) markRead();
 		bool wasAtBottom = history()->loadedAtBottom();
 		_history->removeNotification(this);
 		detach();

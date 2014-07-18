@@ -25,12 +25,16 @@ bool gManyInstance = false;
 QString gKeyFile;
 QString gWorkingDir, gExeDir;
 
+QStringList gSendPaths;
+
 QString gDialogLastPath, gDialogHelperPath; // optimize QFileDialog
 
 bool gSoundNotify = true;
 bool gDesktopNotify = true;
+DBINotifyView gNotifyView = dbinvShowPreview;
 bool gStartMinimized = false;
 bool gAutoStart = false;
+bool gSendToMenu = false;
 bool gAutoUpdate = true;
 TWindowPos gWindowPos;
 bool gFromAutoStart = false;
@@ -107,7 +111,7 @@ void settingsParseArgs(int argc, char *argv[]) {
 		} else if (string("-many") == argv[i]) {
 			gManyInstance = true;
 		} else if (string("-key") == argv[i] && i + 1 < argc) {
-			gKeyFile = QString(argv[i + 1]);
+			gKeyFile = QString::fromLocal8Bit(argv[++i]);
 		} else if (string("-autostart") == argv[i]) {
 			gFromAutoStart = true;
 		} else if (string("-noupdate") == argv[i]) {
@@ -115,7 +119,11 @@ void settingsParseArgs(int argc, char *argv[]) {
 		} else if (string("-tosettings") == argv[i]) {
 			gStartToSettings = true;
 		} else if (string("-lang") == argv[i] && i + 1 < argc) {
-			gLangFile = QString(argv[i + 1]);
+			gLangFile = QString(argv[++i]);
+		} else if (string("-sendpath") == argv[i] && i + 1 < argc) {
+			for (++i; i < argc; ++i) {
+				gSendPaths.push_back(QString::fromLocal8Bit(argv[i]));
+			}
 		}
 	}
 }

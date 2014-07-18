@@ -212,6 +212,8 @@ enum DataBlockId {
 	dbiLoggedPhoneNumber = 25,
 	dbiMutedPeers = 26,
 // 27 reserved
+	dbiNotifyView = 28,
+	dbiSendToMenu = 29,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -222,6 +224,12 @@ enum DataBlockId {
 enum DBISendKey {
 	dbiskEnter = 0,
 	dbiskCtrlEnter = 1,
+};
+
+enum DBINotifyView {
+	dbinvShowPreview = 0,
+	dbinvShowName = 1,
+	dbinvShowNothing = 2,
 };
 
 enum DBIWorkMode {

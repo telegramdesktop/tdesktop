@@ -175,7 +175,7 @@ void PsMacWindowPrivate::activateWnd(WId winId) {
     [wnd orderFront:wnd];
 }
 
-void PsMacWindowPrivate::showNotify(uint64 peer, const QString &title, const QString &subtitle, const QString &msg) {
+void PsMacWindowPrivate::showNotify(uint64 peer, const QString &title, const QString &subtitle, const QString &msg, bool withReply) {
     NSUserNotification *notification = [[NSUserNotification alloc] init];
     
     [notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer],@"peer",[NSNumber numberWithUnsignedLongLong:cInstance()],@"inst",nil]];
@@ -184,7 +184,7 @@ void PsMacWindowPrivate::showNotify(uint64 peer, const QString &title, const QSt
     [notification setSubtitle:QNSString(subtitle).s()];
     [notification setInformativeText:QNSString(msg).s()];
 
-    [notification setHasReplyButton:YES];
+    if (withReply) [notification setHasReplyButton:YES];
 
     [notification setSoundName:nil];
     

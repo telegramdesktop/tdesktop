@@ -85,7 +85,10 @@ public:
 	void stopHiding();
 	void moveTo(int32 x, int32 y, int32 index = -1);
 
+	void updateNotifyDisplay();
 	void updatePeerPhoto();
+
+	void itemRemoved(HistoryItem *del);
 
 	int32 index() const {
 		return history ? _index : -1;
@@ -106,6 +109,7 @@ private:
 	DWORD started;
 #endif
 	History *history;
+	HistoryItem *item;
 	IconedButton close;
 	QPixmap pm;
 	float64 alphaDuration, posDuration;
@@ -210,10 +214,16 @@ public:
 	void notifyClear(History *history = 0);
 	void notifyClearFast();
 	void notifyShowNext(NotifyWindow *remove = 0);
+	void notifyItemRemoved(HistoryItem *item);
 	void notifyStopHiding();
 	void notifyStartHiding();
+	void notifyUpdateAllPhotos();
 	void notifyUpdateAll();
 	void notifyActivateAll();
+
+	QImage iconLarge() const;
+
+	void sendPaths();
 
 public slots:
 	

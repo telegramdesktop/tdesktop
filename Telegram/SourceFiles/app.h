@@ -64,7 +64,7 @@ namespace App {
     int32 chatFromPeer(const PeerId &peer_id);
 
 	int32 onlineWillChangeIn(int32 onlineOnServer, int32 nowOnServer);
-	QString onlineText(int32 onlineOnServer, int32 nowOnServer);
+	QString onlineText(int32 onlineOnServer, int32 nowOnServer, bool precise = false);
 
 	void feedUsers(const MTPVector<MTPUser> &users);
 	void feedChats(const MTPVector<MTPChat> &chats);

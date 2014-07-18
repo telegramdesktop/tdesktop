@@ -1256,8 +1256,9 @@ void MessageField::focusInEvent(QFocusEvent *e) {
 }
 
 HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : QWidget(parent)
-    , sharedContact(0)
+    , _sharedContact(0)
     , _forwardSelected(forwardSelected)
+	, _sendPath(false)
     , forwardButton(this, lang(lng_forward), st::btnSelectDone)
     , cancelButton(this, lang(lng_cancel), st::btnSelectCancel)
     , offered(0)
@@ -1268,21 +1269,14 @@ HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : QWidget(p
     , toTextWidth(0)
     , shadow(st::boxShadow)
 {
-
-	connect(&forwardButton, SIGNAL(clicked()), this, SLOT(forward()));
-	connect(&cancelButton, SIGNAL(clicked()), this, SLOT(startHide()));
-	connect(App::wnd()->getTitle(), SIGNAL(hiderClicked()), this, SLOT(startHide()));
-
-	_chooseWidth = st::forwardFont->m.width(lang(lng_forward_choose));
-
-	resizeEvent(0);
-	anim::start(this);
+	init();
 }
 
 HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : QWidget(parent)
-    , sharedContact(sharedContact)
+    , _sharedContact(sharedContact)
     , _forwardSelected(false)
-    , forwardButton(this, lang(lng_forward), st::btnSelectDone)
+	, _sendPath(false)
+	, forwardButton(this, lang(lng_forward_send), st::btnSelectDone)
     , cancelButton(this, lang(lng_cancel), st::btnSelectCancel)
     , offered(0)
     , aOpacity(0, 1)
@@ -1292,7 +1286,27 @@ HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : QWidge
     , toTextWidth(0)
     , shadow(st::boxShadow)
 {
+	init();
+}
 
+HistoryHider::HistoryHider(MainWidget *parent) : QWidget(parent)
+, _sharedContact(0)
+, _forwardSelected(false)
+, _sendPath(true)
+, forwardButton(this, lang(lng_forward_send), st::btnSelectDone)
+, cancelButton(this, lang(lng_cancel), st::btnSelectCancel)
+, offered(0)
+, aOpacity(0, 1)
+, aOpacityFunc(anim::easeOutCirc)
+, hiding(false)
+, _forwardRequest(0)
+, toTextWidth(0)
+, shadow(st::boxShadow)
+{
+	init();
+}
+
+void HistoryHider::init() {
 	connect(&forwardButton, SIGNAL(clicked()), this, SLOT(forward()));
 	connect(&cancelButton, SIGNAL(clicked()), this, SLOT(startHide()));
 	connect(App::wnd()->getTitle(), SIGNAL(hiderClicked()), this, SLOT(startHide()));
@@ -1397,8 +1411,10 @@ void HistoryHider::forward() {
 	if (_forwardRequest) return;
 
 	if (!hiding && offered) {
-		if (sharedContact) {
-			parent()->onShareContact(offered->id, sharedContact);
+		if (_sharedContact) {
+			parent()->onShareContact(offered->id, _sharedContact);
+		} else if (_sendPath) {
+			parent()->onSendPaths(offered->id);
 		} else {
 			_forwardRequest = parent()->onForward(offered->id, _forwardSelected);
 		}
@@ -1434,7 +1450,24 @@ void HistoryHider::resizeEvent(QResizeEvent *e) {
 
 void HistoryHider::offerPeer(PeerId peer) {
 	offered = App::peer(peer);
-	toText.setText(st::boxFont, lang(sharedContact ? lng_forward_share_contact : lng_forward_confirm).replace(qsl("{recipient}"), offered->chat ? '\xAB' + offered->name + '\xBB' : offered->name), _textNameOptions);
+	QString phrase;
+	if (_sharedContact) {
+		phrase = lang(lng_forward_share_contact);
+	} else if (_sendPath) {
+		if (cSendPaths().size() > 1) {
+			phrase = lang(lng_forward_send_files_confirm);
+		} else {
+			QString name(QFileInfo(cSendPaths().front()).fileName());
+			if (name.size() > 10) {
+				name = name.mid(0, 8) + '.' + '.';
+			}
+			phrase = lang(lng_forward_send_file_confirm).replace(qsl("{name}"), name);
+		}
+	} else {
+		phrase = lang(lng_forward_confirm);
+	}
+
+	toText.setText(st::boxFont, phrase.replace(qsl("{recipient}"), offered->chat ? '\xAB' + offered->name + '\xBB' : offered->name), _textNameOptions);
 	toTextWidth = toText.maxWidth();
 	if (toTextWidth > box.width() - st::boxPadding.left() - st::boxPadding.right()) {
 		toTextWidth = box.width() - st::boxPadding.left() - st::boxPadding.right();
@@ -1450,6 +1483,7 @@ bool HistoryHider::wasOffered() const {
 }
 
 HistoryHider::~HistoryHider() {
+	if (_sendPath) cSetSendPaths(QStringList());
 	if (App::wnd()) App::wnd()->getTitle()->setHideLevel(0);
 	parent()->noHider(this);
 }
@@ -2242,6 +2276,13 @@ void HistoryWidget::onShareContact(const PeerId &peer, UserData *contact) {
 	peerMessagesUpdated();
 }
 
+void HistoryWidget::onSendPaths(const PeerId &peer) {
+	App::main()->showPeer(peer, 0, false, true);
+	if (!hist) return;
+
+	uploadMedias(cSendPaths(), ToPrepareDocument);
+}
+
 PeerData *HistoryWidget::peer() const {
 	return histPeer;
 }
@@ -2908,6 +2949,9 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		_scroll.scrollToY(_scroll.scrollTop() + _scroll.height() / 10);
 	} else if (e->key() == Qt::Key_Up) {
 		_scroll.scrollToY(_scroll.scrollTop() - _scroll.height() / 10);
+	} else if ((e->key() == Qt::Key_Tab || e->key() == Qt::Key_Backtab) && (e->modifiers() & Qt::ControlModifier)) {
+		PeerData *p = ((e->modifiers() & Qt::ShiftModifier) || e->key() == Qt::Key_Backtab) ? App::main()->peerBefore(histPeer) : App::main()->peerAfter(histPeer);
+		if (p) App::main()->showPeer(p->id);
 	} else {
 		e->ignore();
 	}
@@ -3028,10 +3072,12 @@ void HistoryWidget::updateTopBarSelection() {
 	App::main()->topBar()->showSelected(_selCount > 0 ? _selCount : 0);
 	updateControlsVisibility();
 	updateListSize();
-	if (_selCount) {
-		_list->setFocus();
-	} else {
-		_field.setFocus();
+	if (!App::wnd()->layerShown()) {
+		if (_selCount) {
+			_list->setFocus();
+		} else {
+			_field.setFocus();
+		}
 	}
 	App::main()->topBar()->update();
 	update();

@@ -54,6 +54,7 @@ DeclareSetting(QString, LoggedPhoneNumber);
 DeclareReadSetting(uint32, ConnectionsInSession);
 DeclareSetting(bool, AutoStart);
 DeclareSetting(bool, StartMinimized);
+DeclareSetting(bool, SendToMenu);
 DeclareReadSetting(bool, FromAutoStart);
 DeclareSetting(QString, WorkingDir);
 inline void cForceWorkingDir(const QString &newDir) {
@@ -72,6 +73,7 @@ DeclareSetting(bool, CatsAndDogs);
 DeclareSetting(bool, SoundNotify);
 DeclareSetting(bool, NeedConfigResave);
 DeclareSetting(bool, DesktopNotify);
+DeclareSetting(DBINotifyView, NotifyView);
 DeclareSetting(bool, AutoUpdate);
 
 struct TWindowPos {
@@ -129,6 +131,8 @@ DeclareSetting(RecentEmojiPreload, RecentEmojisPreload);
 const RecentEmojiPack &cGetRecentEmojis();
 
 DeclareReadSetting(QString, LangFile);
+
+DeclareSetting(QStringList, SendPaths);
 
 DeclareSetting(bool, Retina);
 DeclareSetting(float64, RetinaFactor);

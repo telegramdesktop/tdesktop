@@ -2011,6 +2011,7 @@ QString psCurrentExeDirectory(int argc, char *argv[]) {
 void psDoCleanup() {
 	try {
 		psAutoStart(false, true);
+		psSendToMenu(false, true);
 	} catch (...) {
 	}
 }
@@ -2217,32 +2218,32 @@ void psExecTelegram() {
 	}
 }
 
-void psAutoStart(bool start, bool silent) {
+void _manageAppLnk(bool create, bool silent, int path_csidl, const wchar_t *args, const wchar_t *description) {
 	WCHAR startupFolder[MAX_PATH];
-	HRESULT hres = SHGetFolderPath(0, CSIDL_STARTUP, 0, SHGFP_TYPE_CURRENT, startupFolder);
+	HRESULT hres = SHGetFolderPath(0, path_csidl, 0, SHGFP_TYPE_CURRENT, startupFolder);
 	if (SUCCEEDED(hres)) {
-		QString lnk = QString::fromWCharArray(startupFolder) + "\\Telegram.lnk"; 
-		if (start) {
-			IShellLink* psl; 
-			hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl); 
-			if (SUCCEEDED(hres)) { 
-				IPersistFile* ppf; 
- 
+		QString lnk = QString::fromWCharArray(startupFolder) + "\\Telegram.lnk";
+		if (create) {
+			IShellLink* psl;
+			hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
+			if (SUCCEEDED(hres)) {
+				IPersistFile* ppf;
+
 				QString exe = QDir::toNativeSeparators(QDir(cExeDir()).absolutePath() + "//Telegram.exe"), dir = QDir::toNativeSeparators(QDir(cWorkingDir()).absolutePath());
-				psl->SetArguments(L"-autostart");
+				psl->SetArguments(args);
 				psl->SetPath(exe.toStdWString().c_str());
 				psl->SetWorkingDirectory(dir.toStdWString().c_str());
-				psl->SetDescription(L"Telegram autorun link.\nYou can disable autorun in Telegram settings."); 
- 
-				hres = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf); 
- 
-				if (SUCCEEDED(hres)) { 
-					hres = ppf->Save(lnk.toStdWString().c_str(), TRUE); 
-					ppf->Release(); 
-				}  else {
+				psl->SetDescription(description);
+
+				hres = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf);
+
+				if (SUCCEEDED(hres)) {
+					hres = ppf->Save(lnk.toStdWString().c_str(), TRUE);
+					ppf->Release();
+				} else {
 					if (!silent) LOG(("App Error: could not create interface IID_IPersistFile %1").arg(hres));
 				}
-				psl->Release(); 
+				psl->Release();
 			} else {
 				if (!silent) LOG(("App Error: could not create instance of IID_IShellLink %1").arg(hres));
 			}
@@ -2250,8 +2251,16 @@ void psAutoStart(bool start, bool silent) {
 			QFile::remove(lnk);
 		}
 	} else {
-		if (!silent) LOG(("App Error: could not get CSIDL_STARTUP folder %1").arg(hres));
+		if (!silent) LOG(("App Error: could not get CSIDL %1 folder %2").arg(path_csidl).arg(hres));
 	}
+}
+
+void psAutoStart(bool start, bool silent) {
+	_manageAppLnk(start, silent, CSIDL_STARTUP, L"-autostart", L"Telegram autorun link.\nYou can disable autorun in Telegram settings.");
+}
+
+void psSendToMenu(bool send, bool silent) {
+	_manageAppLnk(send, silent, CSIDL_SENDTO, L"-sendpath", L"Telegram send to link.\nYou can disable send to menu item in Telegram settings.");
 }
 
 #ifdef _NEED_WIN_GENERATE_DUMP

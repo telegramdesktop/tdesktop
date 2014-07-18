@@ -325,7 +325,7 @@ void ProfileInner::reorderParticipants() {
 	} else {
 		_participants.clear();
 		if (_peerUser) {
-			_onlineText = App::onlineText(_peerUser->onlineTill, t);
+			_onlineText = App::onlineText(_peerUser->onlineTill, t, true);
 		} else {
 			_onlineText = lang(lng_chat_no_members);
 		}

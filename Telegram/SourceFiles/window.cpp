@@ -77,7 +77,7 @@ void TempDirDeleter::onStart() {
 }
 
 
-NotifyWindow::NotifyWindow(HistoryItem *item, int32 x, int32 y) : history(item->history())
+NotifyWindow::NotifyWindow(HistoryItem *item, int32 x, int32 y) : item(item), history(item->history())
 #ifdef Q_OS_WIN
 , started(GetTickCount())
 #endif
@@ -90,52 +90,7 @@ NotifyWindow::NotifyWindow(HistoryItem *item, int32 x, int32 y) : history(item->
 , aOpacityFunc(st::notifyFastAnimFunc)
 , aY(y + st::notifyHeight + st::notifyDeltaY) {
 
-	int32 w = st::notifyWidth, h = st::notifyHeight;
-	QImage img(w * cIntRetinaFactor(), h * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-    if (cRetina()) img.setDevicePixelRatio(cRetinaFactor());
-	img.fill(st::notifyBG->c);
-
-	{
-		QPainter p(&img);
-		p.fillRect(0, 0, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
-		p.fillRect(w - st::notifyBorderWidth, 0, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
-		p.fillRect(st::notifyBorderWidth, h - st::notifyBorderWidth, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
-		p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
-
-		if (history->peer->photo->loaded()) {
-			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), history->peer->photo->pix(st::notifyPhotoSize));
-		} else {
-			MTP::clearLoaderPriorities();
-			peerPhoto = history->peer->photo;
-			peerPhoto->load(true, true);
-		}
-
-		int32 itemWidth = w - st::notifyPhotoPos.x() - st::notifyPhotoSize - st::notifyTextLeft - st::notifyClosePos.x() - st::notifyClose.width;
-
-		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
-		if (history->peer->chat) {
-			p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgLeft, rectForName.top() + st::dlgChatImgTop), App::sprite(), st::dlgChatImg);
-			rectForName.setLeft(rectForName.left() + st::dlgChatImgSkip);
-		}
-
-		QDateTime now(QDateTime::currentDateTime()), lastTime(item->date);
-		QDate nowDate(now.date()), lastDate(lastTime.date());
-		QString dt = lastTime.toString(qsl("hh:mm"));
-		int32 dtWidth = st::dlgHistFont->m.width(dt);
-		rectForName.setWidth(rectForName.width() - dtWidth - st::dlgDateSkip);
-		p.setFont(st::dlgDateFont->f);
-		p.setPen(st::dlgDateColor->p);
-		p.drawText(rectForName.left() + rectForName.width() + st::dlgDateSkip, rectForName.top() + st::dlgHistFont->ascent, dt);
-
-		const HistoryItem *textCachedFor = 0;
-		Text itemTextCache(itemWidth);
-		bool active = false;
-		item->drawInDialog(p, QRect(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height, itemWidth, 2 * st::dlgFont->height), active, textCachedFor, itemTextCache);
-
-		p.setPen(st::dlgNameColor->p);
-		history->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
-	}
-	pm = QPixmap::fromImage(img);
+	updateNotifyDisplay();
 
 	hideTimer.setSingleShot(true);
 	connect(&hideTimer, SIGNAL(timeout()), this, SLOT(hideByTimer()));
@@ -145,7 +100,7 @@ NotifyWindow::NotifyWindow(HistoryItem *item, int32 x, int32 y) : history(item->
 
 	connect(&close, SIGNAL(clicked()), this, SLOT(unlinkHistory()));
 	close.setAcceptBoth(true);
-	close.move(w - st::notifyClose.width - st::notifyClosePos.x(), st::notifyClosePos.y());
+	close.move(st::notifyWidth - st::notifyClose.width - st::notifyClosePos.x(), st::notifyClosePos.y());
 	close.show();
 
 	aY.start(y);
@@ -196,6 +151,78 @@ void NotifyWindow::moveTo(int32 x, int32 y, int32 index) {
 	anim::start(this);
 }
 
+void NotifyWindow::updateNotifyDisplay() {
+	if (!item) return;
+
+	int32 w = st::notifyWidth, h = st::notifyHeight;
+	QImage img(w * cIntRetinaFactor(), h * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	if (cRetina()) img.setDevicePixelRatio(cRetinaFactor());
+	img.fill(st::notifyBG->c);
+
+	{
+		QPainter p(&img);
+		p.fillRect(0, 0, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
+		p.fillRect(w - st::notifyBorderWidth, 0, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
+		p.fillRect(st::notifyBorderWidth, h - st::notifyBorderWidth, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
+		p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
+
+		if (cNotifyView() <= dbinvShowName) {
+			if (history->peer->photo->loaded()) {
+				p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), history->peer->photo->pix(st::notifyPhotoSize));
+			} else {
+				MTP::clearLoaderPriorities();
+				peerPhoto = history->peer->photo;
+				peerPhoto->load(true, true);
+			}
+		} else {
+			static QPixmap icon = QPixmap::fromImage(App::wnd()->iconLarge().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), icon);
+		}
+
+		int32 itemWidth = w - st::notifyPhotoPos.x() - st::notifyPhotoSize - st::notifyTextLeft - st::notifyClosePos.x() - st::notifyClose.width;
+
+		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
+		if (cNotifyView() <= dbinvShowName) {
+			if (history->peer->chat) {
+				p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgLeft, rectForName.top() + st::dlgChatImgTop), App::sprite(), st::dlgChatImg);
+				rectForName.setLeft(rectForName.left() + st::dlgChatImgSkip);
+			}
+		}
+
+		QDateTime now(QDateTime::currentDateTime()), lastTime(item->date);
+		QDate nowDate(now.date()), lastDate(lastTime.date());
+		QString dt = lastTime.toString(qsl("hh:mm"));
+		int32 dtWidth = st::dlgHistFont->m.width(dt);
+		rectForName.setWidth(rectForName.width() - dtWidth - st::dlgDateSkip);
+		p.setFont(st::dlgDateFont->f);
+		p.setPen(st::dlgDateColor->p);
+		p.drawText(rectForName.left() + rectForName.width() + st::dlgDateSkip, rectForName.top() + st::dlgHistFont->ascent, dt);
+
+		if (cNotifyView() <= dbinvShowPreview) {
+			const HistoryItem *textCachedFor = 0;
+			Text itemTextCache(itemWidth);
+			bool active = false;
+			item->drawInDialog(p, QRect(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height, itemWidth, 2 * st::dlgFont->height), active, textCachedFor, itemTextCache);
+		} else {
+			static QString notifyText = st::dlgHistFont->m.elidedText(lang(lng_notification_preview), Qt::ElideRight, itemWidth);
+			p.setPen(st::dlgSystemColor->p);
+			p.drawText(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height + st::dlgHistFont->ascent, notifyText);
+		}
+
+		p.setPen(st::dlgNameColor->p);
+		if (cNotifyView() <= dbinvShowName) {
+			history->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+		} else {
+			p.setFont(st::msgNameFont->f);
+			static QString notifyTitle = st::msgNameFont->m.elidedText(lang(lng_notification_title), Qt::ElideRight, rectForName.width());
+			p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, notifyTitle);
+		}
+	}
+
+	pm = QPixmap::fromImage(img);
+	update();
+}
+
 void NotifyWindow::updatePeerPhoto() {
 	if (!peerPhoto->isNull() && peerPhoto->loaded()) {
 		QImage img(pm.toImage());
@@ -209,10 +236,17 @@ void NotifyWindow::updatePeerPhoto() {
 	}
 }
 
+void NotifyWindow::itemRemoved(HistoryItem *del) {
+	if (item == del) {
+		unlinkHistory();
+	}
+}
+
 void NotifyWindow::unlinkHistory(History *hist) {
 	if (!hist || hist == history) {
 		animHide(st::notifyFastAnim, st::notifyFastAnimFunc);
 		history = 0;
+		item = 0;
 		App::wnd()->notifyShowNext();
 	}
 }
@@ -559,10 +593,13 @@ void Window::hideLayer() {
 	if (layerBG) {
 		layerBG->onClose();
 	}
+	if (layer) {
+		layer->startHide();
+	}
 }
 
 bool Window::layerShown() {
-	return !!layerBG || !!_topWidget;
+	return !!layer || !!layerBG || !!_topWidget;
 }
 
 bool Window::historyIsActive(int state) const {
@@ -1118,6 +1155,14 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 	}
 }
 
+void Window::notifyItemRemoved(HistoryItem *item) {
+	if (cCustomNotifies()) {
+		for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
+			(*i)->itemRemoved(item);
+		}
+	}
+}
+
 void Window::notifyStopHiding() {
     if (cCustomNotifies()) {
         for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
@@ -1134,12 +1179,21 @@ void Window::notifyStartHiding() {
     }
 }
 
-void Window::notifyUpdateAll() {
+void Window::notifyUpdateAllPhotos() {
     if (cCustomNotifies()) {
         for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
             (*i)->updatePeerPhoto();
         }
     }
+}
+
+void Window::notifyUpdateAll() {
+	if (cCustomNotifies()) {
+		for (NotifyWindows::const_iterator i = notifyWindows.cbegin(), e = notifyWindows.cend(); i != e; ++i) {
+			(*i)->updateNotifyDisplay();
+		}
+	}
+	psClearNotifies();
 }
 
 void Window::notifyActivateAll() {
@@ -1148,6 +1202,23 @@ void Window::notifyActivateAll() {
             psActivateNotify(*i);
         }
     }
+}
+
+QImage Window::iconLarge() const {
+	return icon256;
+}
+
+void Window::sendPaths() {
+	if (settings) {
+		hideSettings();
+	} else {
+		if (layerShown()) {
+			hideLayer();
+		}
+		if (main && !main->animating()) {
+			main->activate();
+		}
+	}
 }
 
 Window::~Window() {

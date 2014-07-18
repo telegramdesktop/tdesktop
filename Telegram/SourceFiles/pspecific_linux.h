@@ -166,6 +166,7 @@ QString psCurrentLanguage();
 QString psAppDataPath();
 QString psCurrentExeDirectory(int argc, char *argv[]);
 void psAutoStart(bool start, bool silent = false);
+void psSendToMenu(bool send, bool silent = false);
 
 QRect psDesktopRect();
 

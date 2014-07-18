@@ -1,5 +1,5 @@
-AppVersionStr=0.5.8
-AppVersion=5008
+AppVersionStr=0.5.9
+AppVersion=5009
 
 if [ -d "./../Mac/Release/deploy/$AppVersionStr" ]; then
   echo "Deploy folder for version $AppVersionStr already exists!"
@@ -27,7 +27,7 @@ if [ ! -f "./../Mac/Release/Telegram.app/Contents/MacOS/Telegram" ]; then
 fi
 
 if [ ! -f "./../Mac/Release/Telegram.app/Contents/Frameworks/Updater" ]; then
-  echo "Icon.icns not found in Resources!"
+  echo "Updater not found in Frameworks!"
   exit 1
 fi
 

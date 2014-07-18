@@ -71,6 +71,7 @@ lng_status_lastseen_hours: "%1 hours ago";
 lng_status_lastseen_today: "today at {time}";
 lng_status_lastseen_yesterday: "yesterday at {time}";
 lng_status_lastseen_date: "{date}";
+lng_status_lastseen_date_time: "{date} at {time}";
 lng_status_online: "online";
 
 lng_chat_no_members: "Group is unaccessible";
@@ -138,7 +139,12 @@ lng_settings_uploading_photo: "Uploading photo...";
 
 lng_settings_section_notify: "Notifications";
 lng_settings_desktop_notify: "Desktop notifications";
-lng_settings_sound_notify: "Sound";
+lng_settings_show_name: "Show sender's name";
+lng_settings_show_preview: "Show message preview";
+lng_settings_sound_notify: "Sound notification";
+
+lng_notification_title: "Telegram Desktop";
+lng_notification_preview: "You have a new message";
 
 lng_settings_section_general: "General";
 lng_settings_auto_update: "Update automatically";
@@ -154,6 +160,7 @@ lng_settings_workmode_tray: "Show tray icon";
 lng_settings_workmode_window: "Show taskbar icon";
 lng_settings_auto_start: "Launch Telegram when system starts";
 lng_settings_start_min: "Launch minimized";
+lng_settings_add_sendto: "Place Telegram in «Send to» menu";
 lng_settings_scale_label: "Interface scale";
 lng_settings_scale_auto: "Auto ({cur})";
 
@@ -338,7 +345,10 @@ lng_really_send_image: "Do you want to send this image?";
 lng_forward_choose: "Choose recipient...";
 lng_forward_confirm: "Forward to {recipient}?";
 lng_forward_share_contact: "Share contact to {recipient}?";
+lng_forward_send_file_confirm: "Send «{name}» to {recipient}?";
+lng_forward_send_files_confirm: "Send selected files to {recipient}?";
 lng_forward: "Forward";
+lng_forward_send: "Send";
 
 lng_contact_phone: "Phone number";
 lng_enter_contact_data: "New Contact";

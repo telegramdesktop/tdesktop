@@ -3,9 +3,9 @@
 
 #define MyAppShortName "Telegram"
 #define MyAppName "Telegram Win (Unofficial)"
-#define MyAppVersion "0.5.8"
-#define MyAppVersionZero "0.5.8"
-#define MyAppFullVersion "0.5.8.0"
+#define MyAppVersion "0.5.9"
+#define MyAppVersionZero "0.5.9"
+#define MyAppFullVersion "0.5.9.0"
 #define MyAppPublisher "Telegram (Unofficial)"
 #define MyAppURL "https://tdesktop.com"
 #define MyAppExeName "Telegram.exe"

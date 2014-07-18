@@ -24,19 +24,18 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 
 AboutBox::AboutBox() :
 _done(this, lang(lng_about_done), st::aboutCloseButton),
+_version(this, qsl("[a href=\"https://tdesktop.com/#version_history\"]") + textClean(lang(lng_about_version).replace(qsl("{version}"), QString::fromWCharArray(AppVersionStr))) + qsl("[/a]"), st::aboutVersion, st::defaultTextStyle),
 _text(this, lang(lng_about_text), st::aboutLabel, st::aboutTextStyle),
 _hiding(false), a_opacity(0, 1) {
-
+	
 	_width = st::aboutWidth;
 	_height = st::aboutHeight;
 
+	_version.move(0, st::aboutVersionTop);
 	_text.move(0, st::aboutTextTop);
 
 	_headerWidth = st::aboutHeaderFont->m.width(qsl("Telegram "));
 	_subheaderWidth = st::aboutSubheaderFont->m.width(qsl("Desktop"));
-
-	_versionText = lang(lng_about_version).replace(qsl("{version}"), QString::fromWCharArray(AppVersionStr));
-	_versionWidth = st::aboutVersionFont->m.width(_versionText);
 
 	_done.move(0, _height - _done.height());
 
@@ -51,11 +50,13 @@ _hiding(false), a_opacity(0, 1) {
 
 void AboutBox::hideAll() {
 	_done.hide();
+	_version.hide();
 	_text.hide();
 }
 
 void AboutBox::showAll() {
 	_done.show();
+	_version.show();
 	_text.show();
 }
 
@@ -88,10 +89,6 @@ void AboutBox::paintEvent(QPaintEvent *e) {
 
 			p.setFont(st::aboutSubheaderFont->f);
             p.drawText((_width - (_headerWidth + _subheaderWidth)) / 2 + _headerWidth, st::aboutHeaderTop + st::aboutSubheaderFont->ascent, qsl("Desktop"));
-
-			p.setFont(st::aboutVersionFont->f);
-			p.setPen(st::aboutVersionColor->p);
-            p.drawText((_width - _versionWidth) / 2, st::aboutVersionTop + st::aboutVersionFont->ascent, _versionText);
 		}
 	} else {
 		p.setOpacity(a_opacity.current());

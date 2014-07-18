@@ -785,6 +785,7 @@ QString psCurrentExeDirectory(int argc, char *argv[]) {
 void psDoCleanup() {
 	try {
 		psAutoStart(false, true);
+		psSendToMenu(false, true);
 	} catch (...) {
 	}
 }
@@ -990,4 +991,7 @@ void psExecTelegram() {
 }
 
 void psAutoStart(bool start, bool silent) {
+}
+
+void psSendToMenu(bool send, bool silent) {
 }

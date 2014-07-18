@@ -43,11 +43,8 @@ private:
 
 	int32 _width, _height;
 	BottomButton _done;
-	FlatLabel _text;
+	FlatLabel _version, _text;
 	int32 _headerWidth, _subheaderWidth;
-
-	QString _versionText;
-	int32 _versionWidth;
 
 	bool _hiding;
 	QPixmap _cache;

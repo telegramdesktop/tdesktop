@@ -192,8 +192,9 @@ class HistoryHider : public QWidget, public Animated {
 
 public:
 
-	HistoryHider(MainWidget *parent, bool forwardSelected);
-	HistoryHider(MainWidget *parent, UserData *sharedContact);
+	HistoryHider(MainWidget *parent, bool forwardSelected); // forward messages
+	HistoryHider(MainWidget *parent, UserData *sharedContact); // share contact
+	HistoryHider(MainWidget *parent); // send path from command line argument
 
 	bool animStep(float64 ms);
 
@@ -217,10 +218,11 @@ public slots:
 
 private:
 
+	void init();
 	MainWidget *parent();
 
-	UserData *sharedContact;
-	bool _forwardSelected;
+	UserData *_sharedContact;
+	bool _forwardSelected, _sendPath;
 
 	FlatButton forwardButton;
 	FlatButton cancelButton;
@@ -301,6 +303,7 @@ public:
 
 	mtpRequestId onForward(const PeerId &peer, bool forwardSelected);
 	void onShareContact(const PeerId &peer, UserData *contact);
+	void onSendPaths(const PeerId &peer);
 
 	PeerData *peer() const;
 	PeerData *activePeer() const;

@@ -301,6 +301,10 @@ void MainWidget::onShareContact(const PeerId &peer, UserData *contact) {
 	history.onShareContact(peer, contact);
 }
 
+void MainWidget::onSendPaths(const PeerId &peer) {
+	history.onSendPaths(peer);
+}
+
 void MainWidget::noHider(HistoryHider *destroyed) {
 	if (hider == destroyed) {
 		hider = 0;
@@ -1380,10 +1384,17 @@ void MainWidget::activate() {
 			} else {
 				dialogs.activate();
 			}
-		} else if (history.peer()) {
-			history.activate();
 		} else {
-			dialogs.activate();
+			if (!cSendPaths().isEmpty()) {
+				hider = new HistoryHider(this);
+				hider->show();
+				resizeEvent(0);
+				dialogs.activate();
+			} else if (history.peer()) {
+				history.activate();
+			} else {
+				dialogs.activate();
+			}
 		}
 	}
 	App::wnd()->fixOrder();

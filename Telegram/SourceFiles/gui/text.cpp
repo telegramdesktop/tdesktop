@@ -112,6 +112,7 @@ namespace {
 	}
 
 	const QRegularExpression reDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=])(?:([a-zA-Z]+)://)?((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){1,5}([A-Za-zрф\\-\\d]{2,22}))"));
+	const QRegularExpression reExplicitDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=])(?:([a-zA-Z]+)://)((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){0,5}([A-Za-zрф\\-\\d]{2,22}))"));
 	const QRegularExpression reMailName(qsl("[a-zA-Z\\-_\\.0-9]{1,256}$"));
 	const QRegularExpression reMailStart(qsl("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
 	const QRegularExpression reHashtag(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[A-Za-z_\\.0-9]{4,20}([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"));
@@ -315,12 +316,15 @@ public:
 				}
 			}
 			QRegularExpressionMatch mDomain = reDomain.match(src, offset);
+			QRegularExpressionMatch mExplicitDomain = reExplicitDomain.match(src, offset);
 			QRegularExpressionMatch mHashtag = reHashtag.match(src, offset);
-			if (!mDomain.hasMatch() && !mHashtag.hasMatch()) break;
+			if (!mDomain.hasMatch() && !mExplicitDomain.hasMatch() && !mHashtag.hasMatch()) break;
 
 			LinkRange link;
 			int32 domainOffset = mDomain.hasMatch() ? mDomain.capturedStart() : INT_MAX,
 			      domainEnd = mDomain.hasMatch() ? mDomain.capturedEnd() : INT_MAX,
+				  explicitDomainOffset = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedStart() : INT_MAX,
+				  explicitDomainEnd = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedEnd() : INT_MAX,
 			      hashtagOffset = mHashtag.hasMatch() ? mHashtag.capturedStart() : INT_MAX,
 			      hashtagEnd = mHashtag.hasMatch() ? mHashtag.capturedEnd() : INT_MAX;
 			if (mHashtag.hasMatch()) {
@@ -330,6 +334,11 @@ public:
 				if (!mHashtag.capturedRef(2).isEmpty()) {
 					--hashtagEnd;
 				}
+			}
+			if (explicitDomainOffset < domainOffset) {
+				domainOffset = explicitDomainOffset;
+				domainEnd = explicitDomainEnd;
+				mDomain = mExplicitDomain;
 			}
 			if (hashtagOffset < domainOffset) {
 				if (hashtagOffset > nextCmd) {
@@ -355,7 +364,7 @@ public:
 				QString topDomain = mDomain.captured(3).toLower();
 
 				bool isProtocolValid = protocol.isEmpty() || validProtocols.contains(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
-				bool isTopDomainValid = validTopDomains.contains(hashCrc32(topDomain.constData(), topDomain.size() * sizeof(QChar)));
+				bool isTopDomainValid = !protocol.isEmpty() || validTopDomains.contains(hashCrc32(topDomain.constData(), topDomain.size() * sizeof(QChar)));
 
 				if (!isProtocolValid || !isTopDomainValid) {
 					offset = domainEnd;

@@ -159,6 +159,7 @@ public:
 	void noHider(HistoryHider *destroyed);
 	mtpRequestId onForward(const PeerId &peer, bool forwardSelected);
 	void onShareContact(const PeerId &peer, UserData *contact);
+	void onSendPaths(const PeerId &peer);
 	bool selectingPeer();
 	void offerPeer(PeerId peer);
 	void hidePeerSelect();

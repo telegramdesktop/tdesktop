@@ -6,18 +6,17 @@ Source code is published under GPL v3, license is available [here](https://githu
 
 ###Supported systems
 
-Only Windows and OS X systems are supported at this moment, Linux builds are on their way.
-
 * Windows XP
 * Windows Vista
 * Windows 7
 * Windows 8 (**not** RT)
 * Windows 8.1 (**not** RT)
+* OS X 10.7
+* OS X 10.8
 * OS X 10.9
-* OS X 10.7-10.8 (not tested)
+* Ubuntu 12.04
 * Ubuntu 13.04
 * Ubuntu 14.04
-* Fedora (not tested)
 
 ###Third-party
 
@@ -34,7 +33,7 @@ Only Windows and OS X systems are supported at this moment, Linux builds are on 
 
 ###[Build instructions for XCode 5.1.1](https://github.com/telegramdesktop/tdesktop/blob/master/XCODE.md)
 
-###[Build instructions for Qt Creator 2.7 Ubuntu](https://github.com/telegramdesktop/tdesktop/blob/master/QTCREATOR.md)
+###[Build instructions for Qt Creator 3.1.2 Ubuntu](https://github.com/telegramdesktop/tdesktop/blob/master/QTCREATOR.md)
 
 ##Projects in Telegram solution
 

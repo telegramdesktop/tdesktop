@@ -198,19 +198,20 @@ cbDefFlat: flatCheckbox {
 
 	disabledCursor: cursor(default);
 
-	imageRect: sprite(144px, 68px, 22px, 22px);
-	chkImageRect: sprite(119px, 68px, 22px, 22px);
-	overImageRect: sprite(144px, 68px, 22px, 22px);
-	chkOverImageRect: sprite(119px, 68px, 22px, 22px);
-	disImageRect: sprite(193px, 68px, 22px, 22px);
-	chkDisImageRect: sprite(193px, 68px, 22px, 22px);
+	imageRect: sprite(140px, 68px, 22px, 22px);
+	chkImageRect: sprite(115px, 68px, 22px, 22px);
+	overImageRect: sprite(140px, 68px, 22px, 22px);
+	chkOverImageRect: sprite(115px, 68px, 22px, 22px);
+	disImageRect: sprite(140px, 43px, 22px, 22px);
+	chkDisImageRect: sprite(115px, 43px, 22px, 22px);
 
 	imagePos: point(0px, 0px);
 }
 
 rbDefFlat: flatCheckbox(cbDefFlat) {
-	chkImageRect: sprite(169px, 68px, 22px, 22px);
-	chkOverImageRect: sprite(169px, 68px, 22px, 22px);
+	chkImageRect: sprite(165px, 68px, 22px, 22px);
+	chkOverImageRect: sprite(165px, 68px, 22px, 22px);
+	chkDisImageRect: sprite(165px, 43px, 22px, 22px);
 }
 
 inpDefFont: font(17px);
@@ -1243,8 +1244,11 @@ aboutHeight: 441px;
 aboutHeaderFont: font(24px semibold);
 aboutSubheaderFont: font(24px);
 aboutHeaderTop: 139px;
-aboutVersionFont: font(16px);
-aboutVersionColor: #999;
+aboutVersion: flatLabel(labelDefFlat) {
+	font: font(16px);
+	width: aboutWidth;
+	align: align(center);
+}
 aboutVersionTop: 178px;
 aboutTextFont: font(15px);
 aboutTextTop: 221px;

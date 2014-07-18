@@ -180,14 +180,25 @@ namespace App {
 		return dNow.secsTo(dTomorrow);
 	}
 
-	QString onlineText(int32 online, int32 now) {
+	QString onlineText(int32 online, int32 now, bool precise) {
 		if (!online) return lang(lng_status_offline);
 		if (online < 0) return lang(lng_status_invisible);
 		if (online > now) {
 			return lang(lng_status_online);
 		}
-		int32 minutes = (now - online) / 60;
 		QString when;
+		if (precise) {
+			QDateTime dOnline(date(online)), dNow(date(now));
+			if (dOnline.date() == dNow.date()) {
+				when = lang(lng_status_lastseen_today).replace(qsl("{time}"), dOnline.time().toString(qsl("hh:mm")));
+			} else if (dOnline.date().addDays(1) == dNow.date()) {
+				when = lang(lng_status_lastseen_yesterday).replace(qsl("{time}"), dOnline.time().toString(qsl("hh:mm")));
+			} else {
+				when = lang(lng_status_lastseen_date_time).replace(qsl("{date}"), dOnline.date().toString(qsl("dd.MM.yy"))).replace(qsl("{time}"), dOnline.time().toString(qsl("hh:mm")));
+			}
+			return lang(lng_status_lastseen).replace(qsl("{when}"), when);
+		}
+		int32 minutes = (now - online) / 60;
 		if (!minutes) {
 			when = lang(lng_status_lastseen_now);
 		} else if (minutes == 1) {
@@ -210,9 +221,6 @@ namespace App {
 					when = lang(lng_status_lastseen_date).replace(qsl("{date}"), dOnline.date().toString(qsl("dd.MM.yy")));
 				}
 			}
-		}
-		if (when.isEmpty()) {
-			int a = 0;
 		}
 		return lang(lng_status_lastseen).replace(qsl("{when}"), when);
 	}
@@ -1137,6 +1145,9 @@ namespace App {
 		if (::mousedItem == item) {
 			mousedItem(0);
 		}
+		if (App::wnd()) {
+			App::wnd()->notifyItemRemoved(item);
+		}
 	}
 
 	void historyUnregItem(HistoryItem *item) {
@@ -1360,6 +1371,7 @@ namespace App {
 
 			configStream << quint32(dbiAutoStart) << qint32(cAutoStart());
 			configStream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
+			configStream << quint32(dbiSendToMenu) << qint32(cSendToMenu());
 			configStream << quint32(dbiWorkMode) << qint32(cWorkMode());
 			configStream << quint32(dbiSeenTrayTooltip) << qint32(cSeenTrayTooltip());
 			configStream << quint32(dbiAutoUpdate) << qint32(cAutoUpdate());
@@ -1419,6 +1431,12 @@ namespace App {
 					qint32 v;
 					configStream >> v;
 					cSetStartMinimized(v == 1);
+				} break;
+
+				case dbiSendToMenu: {
+					qint32 v;
+					configStream >> v;
+					cSetSendToMenu(v == 1);
 				} break;
 
 				case dbiSoundNotify: {
@@ -1542,6 +1560,7 @@ namespace App {
 				stream << quint32(dbiDefaultAttach) << qint32(cDefaultAttach());
 				stream << quint32(dbiSoundNotify) << qint32(cSoundNotify());
 				stream << quint32(dbiDesktopNotify) << qint32(cDesktopNotify());
+				stream << quint32(dbiNotifyView) << qint32(cNotifyView());
 				stream << quint32(dbiAskDownloadPath) << qint32(cAskDownloadPath());
 				stream << quint32(dbiDownloadPath) << (cAskDownloadPath() ? QString() : cDownloadPath());
 				stream << quint32(dbiEmojiTab) << qint32(cEmojiTab());
@@ -1703,6 +1722,16 @@ namespace App {
 				stream >> v;
 				cSetDesktopNotify(v == 1);
 			} break;
+
+			case dbiNotifyView: {
+				qint32 v;
+				stream >> v;
+				switch (v) {
+				case dbinvShowNothing: cSetNotifyView(dbinvShowNothing); break;
+				case dbinvShowName: cSetNotifyView(dbinvShowName); break;
+				default: cSetNotifyView(dbinvShowPreview); break;
+				}
+			}
 
 			case dbiAskDownloadPath: {
 				qint32 v;

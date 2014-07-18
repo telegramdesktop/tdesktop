@@ -38,6 +38,6 @@
         <file>qmime/freedesktop.org.xml</file>
     </qresource>
     <qresource prefix="/qt">
-        <file>etc/qt.conf</file>
+        <file alias="etc/qt.conf">etc/qt_linux.conf</file>
     </qresource>
 </RCC>

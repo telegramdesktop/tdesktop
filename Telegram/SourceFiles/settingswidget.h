@@ -99,12 +99,15 @@ public slots:
 
 	void onAutoStart();
 	void onStartMinimized();
+	void onSendToMenu();
 
 	void onScaleAuto();
 	void onScaleChange();
 
 	void onSoundNotify();
 	void onDesktopNotify();
+	void onSenderName();
+	void onMessagePreview();
 
 	void onReplaceEmojis();
 	void onViewEmojis();
@@ -158,13 +161,13 @@ private:
 	QString _errorText;
 
 	// notifications
-	FlatCheckbox _desktopNotify, _soundNotify;
+	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _soundNotify;
 
 	// general
 	FlatCheckbox _autoUpdate;
 	LinkButton _checkNow, _restartNow;
 	FlatCheckbox _workmodeTray, _workmodeWindow;
-	FlatCheckbox _autoStart, _startMinimized;
+	FlatCheckbox _autoStart, _startMinimized, _sendToMenu;
 	FlatCheckbox _dpiAutoScale;
 	Slider _dpiSlider;
 	int32 _dpiWidth1, _dpiWidth2, _dpiWidth3, _dpiWidth4;
