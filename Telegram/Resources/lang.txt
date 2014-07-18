@@ -141,7 +141,7 @@ lng_settings_section_notify: "Notifications";
 lng_settings_desktop_notify: "Desktop notifications";
 lng_settings_show_name: "Show sender's name";
 lng_settings_show_preview: "Show message preview";
-lng_settings_sound_notify: "Sound notification";
+lng_settings_sound_notify: "Play sound";
 
 lng_notification_title: "Telegram Desktop";
 lng_notification_preview: "You have a new message";

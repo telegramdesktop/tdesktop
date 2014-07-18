@@ -446,7 +446,7 @@ void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 		emit submitted();
 	} else if (e->key() == Qt::Key_Escape) {
 		emit cancelled();
-	} else if (e->key() == Qt::Key_Tab || ctrl && e->key() == Qt::Key_Backtab) {
+	} else if (e->key() == Qt::Key_Tab || (ctrl && e->key() == Qt::Key_Backtab)) {
 		if (ctrl) {
 			e->ignore();
 		} else {

@@ -77,7 +77,7 @@ void TempDirDeleter::onStart() {
 }
 
 
-NotifyWindow::NotifyWindow(HistoryItem *item, int32 x, int32 y) : item(item), history(item->history())
+NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y) : history(msg->history()), item(msg)
 #ifdef Q_OS_WIN
 , started(GetTickCount())
 #endif

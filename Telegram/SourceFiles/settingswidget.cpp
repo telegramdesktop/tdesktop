@@ -664,7 +664,7 @@ void SettingsInner::showAll() {
         _autoStart.hide();
         _startMinimized.hide();
 
-		_sendToMenu.show();
+		_sendToMenu.hide();
 	}
     if (cRetina()) {
         _dpiSlider.hide();
