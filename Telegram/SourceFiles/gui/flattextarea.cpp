@@ -439,7 +439,7 @@ QMimeData *FlatTextarea::createMimeDataFromSelection() const {
 
 void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 	bool shift = e->modifiers().testFlag(Qt::ShiftModifier);
-	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier), ctrlGood = (ctrl && cCtrlEnter()) || (!ctrl && !shift && !cCtrlEnter());
+	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier), ctrlGood = (ctrl && cCtrlEnter()) || (!ctrl && !shift && !cCtrlEnter());
 	bool enter = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return);
 
 	if (enter && ctrlGood) {

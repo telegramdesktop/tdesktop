@@ -1385,7 +1385,11 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
                 && qtKey == Qt::Key_Period) {
             [self handleKeyEvent:nsevent eventType:int(QEvent::KeyPress)];
             return YES;
-        }
+        } else if ([nsevent modifierFlags] & NSControlKeyMask && (qtKey == Qt::Key_Tab || qtKey == Qt::Key_Backtab)) {
+			[self handleKeyEvent:nsevent eventType:int(QEvent::KeyPress)];
+			return YES;
+		}
+
     }
     return [super performKeyEquivalent:nsevent];
 }

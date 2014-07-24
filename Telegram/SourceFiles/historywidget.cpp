@@ -2932,14 +2932,14 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		e->ignore();
 	} else if (e->key() == Qt::Key_PageDown) {
-		if (e->modifiers() & Qt::ControlModifier) {
+		if ((e->modifiers() & Qt::ControlModifier) || (e->modifiers() & Qt::MetaModifier)) {
 			PeerData *after = App::main()->peerAfter(histPeer);
 			if (after) App::main()->showPeer(after->id);
 		} else {
 			_scroll.scrollToY(_scroll.scrollTop() + _scroll.height());
 		}
 	} else if (e->key() == Qt::Key_PageUp) {
-		if (e->modifiers() & Qt::ControlModifier) {
+		if ((e->modifiers() & Qt::ControlModifier) || (e->modifiers() & Qt::MetaModifier)) {
 			PeerData *before = App::main()->peerBefore(histPeer);
 			if (before) App::main()->showPeer(before->id);
 		} else {
@@ -2949,7 +2949,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		_scroll.scrollToY(_scroll.scrollTop() + _scroll.height() / 10);
 	} else if (e->key() == Qt::Key_Up) {
 		_scroll.scrollToY(_scroll.scrollTop() - _scroll.height() / 10);
-	} else if ((e->key() == Qt::Key_Tab || e->key() == Qt::Key_Backtab) && (e->modifiers() & Qt::ControlModifier)) {
+	} else if ((e->key() == Qt::Key_Tab || e->key() == Qt::Key_Backtab) && ((e->modifiers() & Qt::ControlModifier) || (e->modifiers() & Qt::MetaModifier))) {
 		PeerData *p = ((e->modifiers() & Qt::ShiftModifier) || e->key() == Qt::Key_Backtab) ? App::main()->peerBefore(histPeer) : App::main()->peerAfter(histPeer);
 		if (p) App::main()->showPeer(p->id);
 	} else {
