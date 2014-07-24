@@ -22,7 +22,7 @@ Choose a folder for the future build, for example **/home/user/TBuild** There yo
 
 By git – in Terminal go to **/home/user/TBuild** and run
 
-     git clone https://github.com/telegramdesktop/tdesktop.git
+    git clone https://github.com/telegramdesktop/tdesktop.git
 
 or download in ZIP and extract to **/home/user/TBuild** rename **tdesktop-master** to **tdesktop** to have **/home/user/TBuild/tdesktop/Telegram/Telegram.pro** project
 
@@ -44,11 +44,11 @@ Apply patch – copy (with overwrite!) everything from **/home/user/TBuild/tdesk
 
 Install some packages for Qt (see **/home/user/TBuild/Libraries/QtStatic/qtbase/src/plugins/platforms/xcb/README**)
 
-    sudo apt-get install libxcb1-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-icccm4-dev libxcb-render-util0-dev libxcb-util0-dev libxrender-dev libpulse-dev libxcb-sync0-dev libxcb-xfixes0-dev libxcb-randr0-dev libx11-xcb-dev
+    sudo apt-get install libxcb1-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-icccm4-dev libxcb-render-util0-dev libxcb-util0-dev libxrender-dev libasound-dev libpulse-dev libxcb-sync0-dev libxcb-xfixes0-dev libxcb-randr0-dev libx11-xcb-dev
 
 In Terminal go to **/home/user/TBuild/Libraries/QtStatic** and there run
 
-    ./configure -release -opensource -no-opengl -static -nomake examples -skip qtquick1 -skip qtdeclarative
+    ./configure -release -opensource -confirm-license -qt-xcb -no-opengl -static -nomake examples -skip qtquick1 -skip qtdeclarative
     y
     make
     sudo make install

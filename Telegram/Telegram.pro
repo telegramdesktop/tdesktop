@@ -251,8 +251,8 @@ INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.1/QtGui\
                ./../../Libraries/QtStatic/qtbase/include\
                ./SourceFiles\
                ./GeneratedFiles
-LIBS += -lcrypto -lssl -lz -ldl -llzma -lpulse -lexif
-LIBS += ./../../../Libraries/QtStatic/qtmultimedia/plugins/audio/libqtmedia_pulse.a
+LIBS += -lcrypto -lssl -lz -ldl -llzma -lexif
+
 RESOURCES += \
     ./SourceFiles/telegram_linux.qrc
 
@@ -260,4 +260,3 @@ OTHER_FILES += \
     Resources/style_classes.txt \
     Resources/style.txt \
     Resources/lang.txt
-

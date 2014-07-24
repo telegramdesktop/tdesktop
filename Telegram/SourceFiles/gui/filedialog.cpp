@@ -62,14 +62,36 @@ void filedialogInit() {
 	}
 }
 
-// multipleFiles: 1 - multi open, 0 - single open, -1 - single save
+// multipleFiles: 1 - multi open, 0 - single open, -1 - single save, -2 - select dir
 bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, int multipleFiles, const QString &startFile = QString()) {
-	filedialogInit();
+#if defined Q_OS_LINUX || defined Q_OS_MAC // use native
+    remoteContent = QByteArray();
+    QString file;
+    if (multipleFiles >= 0) {
+        files = QFileDialog::getOpenFileNames(App::wnd(), caption, startFile, filter);
+        return !files.isEmpty();
+    } else if (multipleFiles < -1) {
+        file = QFileDialog::getExistingDirectory(App::wnd(), caption);
+    } else if (multipleFiles < 0) {
+        file = QFileDialog::getSaveFileName(App::wnd(), caption, startFile, filter);
+    } else {
+        file = QFileDialog::getOpenFileName(App::wnd(), caption, startFile, filter);
+    }
+    if (file.isEmpty()) {
+        files = QStringList();
+        return false;
+    } else {
+        files = QStringList(file);
+        return true;
+    }
+#endif
+
+    filedialogInit();
 
 	// hack for fast non-native dialog create
 	QFileDialog dialog(App::wnd(), caption, cDialogHelperPathFinal(), filter);
 
-	dialog.setModal(true);
+    dialog.setModal(true);
 	if (multipleFiles >= 0) { // open file or files
 		dialog.setFileMode(multipleFiles ? QFileDialog::ExistingFiles : QFileDialog::ExistingFile);
 		dialog.setAcceptMode(QFileDialog::AcceptOpen);

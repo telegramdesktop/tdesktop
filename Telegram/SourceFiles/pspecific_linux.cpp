@@ -27,6 +27,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include <cstdlib>
 #include <unistd.h>
 #include <dirent.h>
+#include <pwd.h>
 
 namespace {
 	bool frameless = true;
@@ -767,7 +768,11 @@ QString psCurrentLanguage() {
 }
 
 QString psAppDataPath() {
-    return QString();//objc_appDataPath();
+    struct passwd *pw = getpwuid(getuid());
+    if (pw && pw->pw_dir && strlen(pw->pw_dir)) {
+        return QString::fromLocal8Bit(pw->pw_dir) + qsl("/.TelegramDesktop/");
+    }
+    return QString();
 }
 
 QString psCurrentExeDirectory(int argc, char *argv[]) {

@@ -118,12 +118,61 @@ void logWrite(const QString &v) {
 void logsInit() {
 	static _StreamCreator streamCreator;
 	if (mainLogStream) return;
-    
-#if defined Q_OS_MAC && !defined _DEBUG
-	cForceWorkingDir(psAppDataPath());
+
+    QString wasDir = cWorkingDir();
+#if (defined Q_OS_MAC || defined Q_OS_LINUX) && !defined _DEBUG
+    cForceWorkingDir(psAppDataPath());
+#ifdef Q_OS_LINUX // fix first version
+    {
+        QFile data(wasDir + "data"), dataConfig(wasDir + "data_config"), tdataConfig(wasDir + "tdata/config");
+        if (data.exists() && dataConfig.exists() && !QFileInfo(cWorkingDir() + "data").exists() && !QFileInfo(cWorkingDir() + "data_config").exists()) { // move to home dir
+            LOG(("Copying data to home dir '%1' from '%2'").arg(cWorkingDir()).arg(wasDir));
+            if (data.copy(cWorkingDir() + "data")) {
+                LOG(("Copied 'data' to home dir"));
+                if (dataConfig.copy(cWorkingDir() + "data_config")) {
+                    LOG(("Copied 'data_config' to home dir"));
+                    bool tdataGood = true;
+                    if (tdataConfig.exists()) {
+                        tdataGood = false;
+                        QDir().mkpath(cWorkingDir() + "tdata");
+                        if (tdataConfig.copy(cWorkingDir() + "tdata/config")) {
+                            LOG(("Copied 'tdata/config' to home dir"));
+                            tdataGood = true;
+                        } else {
+                            LOG(("Copied 'data' and 'data_config', but could not copy 'tdata/config'!"));
+                        }
+                    }
+                    if (tdataGood) {
+                        if (data.remove()) {
+                            LOG(("Removed 'data'"));
+                        } else {
+                            LOG(("Could not remove 'data'"));
+                        }
+                        if (dataConfig.remove()) {
+                            LOG(("Removed 'data_config'"));
+                        } else {
+                            LOG(("Could not remove 'data_config'"));
+                        }
+                        if (!tdataConfig.exists() || tdataConfig.remove()) {
+                            LOG(("Removed 'tdata/config'"));
+                            LOG(("Could not remove 'tdata/config'"));
+                        } else {
+                        }
+                        QDir().rmdir(wasDir + "tdata");
+                    }
+                } else {
+                    LOG(("Copied 'data', but could not copy 'data_config'!!"));
+                }
+            } else {
+                LOG(("Could not copy 'data'!"));
+            }
+        }
+    }
+#endif
 #endif
 
-	QString oldDir = cWorkingDir();
+    QString rightDir = cWorkingDir();
+    cForceWorkingDir(rightDir);
 	mainLog.setFileName(cWorkingDir() + "log.txt");
 	mainLog.open(QIODevice::WriteOnly | QIODevice::Text);
 	if (!mainLog.isOpen()) {
@@ -141,7 +190,7 @@ void logsInit() {
 		mainLogStream->setDevice(&mainLog);
 		mainLogStream->setCodec("UTF-8");
 	} else {
-		cForceWorkingDir(oldDir);
+        cForceWorkingDir(rightDir);
 	}
 	cForceWorkingDir(QDir(cWorkingDir()).absolutePath() + '/');
 	if (cDebug()) logsInitDebug();
