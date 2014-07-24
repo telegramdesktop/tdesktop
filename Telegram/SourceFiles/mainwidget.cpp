@@ -1384,7 +1384,7 @@ void MainWidget::activate() {
 			} else {
 				dialogs.activate();
 			}
-		} else {
+        } else if (App::wnd() && !App::wnd()->layerShown()) {
 			if (!cSendPaths().isEmpty()) {
 				hider = new HistoryHider(this);
 				hider->show();

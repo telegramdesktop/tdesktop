@@ -107,7 +107,7 @@ NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y) : history(msg->hi
 	setGeometry(x, aY.current(), st::notifyWidth, st::notifyHeight);
 
 	aOpacity.start(1);
-	setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint);
+    setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint | Qt::X11BypassWindowManagerHint);
     setAttribute(Qt::WA_MacAlwaysShowToolWindow);
 
 	show();
