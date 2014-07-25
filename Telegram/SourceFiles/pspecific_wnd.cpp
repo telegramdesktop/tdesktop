@@ -2209,9 +2209,9 @@ void psExecTelegram() {
 	if (cDebug()) targs += qsl(" -debug");
 	if (cDataFile() != (cTestMode() ? qsl("data_test") : qsl("data"))) targs += qsl(" -key \"") + cDataFile() + '"';
 
-	QString telegram(QDir::toNativeSeparators(cExeDir() + "Telegram.exe")), wdir(QDir::toNativeSeparators(cWorkingDir()));
+	QString telegram(QDir::toNativeSeparators(cExeDir() + QString::fromWCharArray(AppFile) + qsl(".exe"))), wdir(QDir::toNativeSeparators(cWorkingDir()));
 
-	DEBUG_LOG(("Application Info: executing %1 %2").arg(cExeDir() + "Telegram.exe").arg(targs));
+	DEBUG_LOG(("Application Info: executing %1 %2").arg(cExeDir() + QString::fromWCharArray(AppFile) + qsl(".exe")).arg(targs));
 	HINSTANCE r = ShellExecute(0, 0, telegram.toStdWString().c_str(), targs.toStdWString().c_str(), wdir.isEmpty() ? 0 : wdir.toStdWString().c_str(), SW_SHOWNORMAL);
 	if (long(r) < 32) {
 		DEBUG_LOG(("Application Error: failed to execute %1, working directory: '%2', result: %3").arg(telegram).arg(wdir).arg(long(r)));
@@ -2222,14 +2222,14 @@ void _manageAppLnk(bool create, bool silent, int path_csidl, const wchar_t *args
 	WCHAR startupFolder[MAX_PATH];
 	HRESULT hres = SHGetFolderPath(0, path_csidl, 0, SHGFP_TYPE_CURRENT, startupFolder);
 	if (SUCCEEDED(hres)) {
-		QString lnk = QString::fromWCharArray(startupFolder) + "\\Telegram.lnk";
+		QString lnk = QString::fromWCharArray(startupFolder) + '\\' + QString::fromWCharArray(AppFile) + qsl(".lnk");
 		if (create) {
 			IShellLink* psl;
 			hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
 			if (SUCCEEDED(hres)) {
 				IPersistFile* ppf;
 
-				QString exe = QDir::toNativeSeparators(QDir(cExeDir()).absolutePath() + "//Telegram.exe"), dir = QDir::toNativeSeparators(QDir(cWorkingDir()).absolutePath());
+				QString exe = QDir::toNativeSeparators(QDir(cExeDir()).absolutePath() + '/' + QString::fromWCharArray(AppFile) + qsl(".exe")), dir = QDir::toNativeSeparators(QDir(cWorkingDir()).absolutePath());
 				psl->SetArguments(args);
 				psl->SetPath(exe.toStdWString().c_str());
 				psl->SetWorkingDirectory(dir.toStdWString().c_str());
@@ -2264,7 +2264,7 @@ void psSendToMenu(bool send, bool silent) {
 }
 
 #ifdef _NEED_WIN_GENERATE_DUMP
-static const WCHAR *_programName = L"Telegram Win (Unofficial)"; // folder in APPDATA, if current path is unavailable for writing
+static const WCHAR *_programName = AppName; // folder in APPDATA, if current path is unavailable for writing
 static const WCHAR *_exeName = L"Telegram.exe";
 
 LPTOP_LEVEL_EXCEPTION_FILTER _oldWndExceptionFilter = 0;

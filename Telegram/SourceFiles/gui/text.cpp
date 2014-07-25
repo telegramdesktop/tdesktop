@@ -111,8 +111,8 @@ namespace {
 		return false;
 	}
 
-	const QRegularExpression reDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=])(?:([a-zA-Z]+)://)?((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){1,5}([A-Za-zрф\\-\\d]{2,22}))"));
-	const QRegularExpression reExplicitDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=])(?:([a-zA-Z]+)://)((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){0,5}([A-Za-zрф\\-\\d]{2,22}))"));
+	const QRegularExpression reDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=])(?:([a-zA-Z]+)://)?((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){1,5}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"));
+	const QRegularExpression reExplicitDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=])(?:([a-zA-Z]+)://)((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){0,5}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"));
 	const QRegularExpression reMailName(qsl("[a-zA-Z\\-_\\.0-9]{1,256}$"));
 	const QRegularExpression reMailStart(qsl("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
 	const QRegularExpression reHashtag(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[A-Za-z_\\.0-9]{4,20}([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"));
@@ -387,7 +387,7 @@ public:
 					link.from = start + domainOffset;
 
 					QStack<const QChar*> parenth;
-					const QChar *p = start + mDomain.capturedEnd();
+					const QChar *domainEnd = start + mDomain.capturedEnd(), *p = domainEnd;
 					for (; p < end; ++p) {
 						QChar ch(*p);
 						if (chIsLinkEnd(ch)) break; // link finished
@@ -413,7 +413,12 @@ public:
 							}
 						}
 					}
-
+					if (p > domainEnd) { // check, that domain ended
+						if (domainEnd->unicode() != '/') {
+							offset = domainEnd - start;
+							continue;
+						}
+					}
 					link.len = p - link.from;
 				}
 			}
@@ -2380,7 +2385,6 @@ void Text::setText(style::font font, const QString &text, const TextParseOptions
 	if (!_textStyle) _initDefault();
 	_font = font;
 	clean();
-	
 	{
 		TextParser parser(this, text, options);
 	}
