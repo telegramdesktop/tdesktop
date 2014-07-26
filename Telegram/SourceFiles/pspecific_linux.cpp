@@ -923,7 +923,6 @@ bool psCheckReadyUpdate() {
 		return false;
 	}
 #elif defined Q_OS_LINUX
-    QFileInfo to(curUpdater);
     if (!moveFile(updater.absoluteFilePath().toUtf8().constData(), curUpdater.toUtf8().constData())) {
         PsUpdateDownloader::clearAll();
         return false;
@@ -957,8 +956,8 @@ bool _execUpdater(bool update = true) {
     QByteArray data((cExeDir() + "Updater").toUtf8());
     memcpy(path, data.constData(), data.size());
 
-    char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key";
-    char p_datafile[MaxLen] = {0};
+    char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key", p_path[] = "-workpath";
+    char p_datafile[MaxLen] = {0}, p_pathbuf[MaxLen] = {0};
     int argIndex = 0;
     args[argIndex++] = path;
     if (!update) {
@@ -974,6 +973,12 @@ bool _execUpdater(bool update = true) {
             args[argIndex++] = p_key;
             args[argIndex++] = p_datafile;
         }
+    }
+    QByteArray pathf = cWorkingDir().toLocal8Bit();
+    if (pathf.size() < MaxLen) {
+        memcpy(p_pathbuf, pathf.constData(), pathf.size());
+        args[argIndex++] = p_path;
+        args[argIndex++] = p_pathbuf;
     }
 
     pid_t pid = fork();

@@ -21,6 +21,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include <cstdlib>
 #include <unistd.h>
 #include <dirent.h>
+#include <pwd.h>
 #include <string>
 #include <deque>
 #include <cstring>
@@ -191,7 +192,7 @@ bool mkpath(const char *path) {
     return do_mkdir(path);
 }
 
-string exeName, exeDir;
+string exeName, exeDir, workDir;
 
 bool equal(string a, string b) {
     std::transform(a.begin(), a.end(), a.begin(), ::tolower);
@@ -200,7 +201,7 @@ bool equal(string a, string b) {
 }
 
 void delFolder() {
-    string delPath = "tupdates/ready", delFolder = "tupdates";
+    string delPath = workDir + "tupdates/ready", delFolder = workDir + "tupdates";
     writeLog("Fully clearing path '%s'..", delPath.c_str());
     if (!remove_directory(delPath)) {
         writeLog("Error: failed to clear path! :(");
@@ -211,7 +212,7 @@ void delFolder() {
 bool update() {
     writeLog("Update started..");
 
-    string updDir = "tupdates/ready";
+    string updDir = workDir + "tupdates/ready";
 
     deque<string> dirs;
 	dirs.push_back(updDir);
@@ -293,16 +294,17 @@ bool update() {
     }
 
     writeLog("Update succeed! Clearing folder..");
-	delFolder();
+    delFolder();
 	return true;
 }
 
 int main(int argc, char *argv[]) {
-	openLog();
+    openLog();
 
     writeLog("Updater started..");
 
     bool needupdate = true, autostart = false, debug = false, tosettings = false;
+
     char *key = 0;
     for (int i = 1; i < argc; ++i) {
         if (equal(argv[i], "-noupdate")) {
@@ -316,6 +318,8 @@ int main(int argc, char *argv[]) {
             tosettings = true;
         } else if (equal(argv[i], "-key") && ++i < argc) {
             key = argv[i];
+        } else if (equal(argv[i], "-workpath") && ++i < argc) {
+            workDir = argv[i];
         }
     }
     if (needupdate) writeLog("Need to update!");
@@ -328,6 +332,37 @@ int main(int argc, char *argv[]) {
             exeDir = exeName.substr(0, exeName.size() - 7);
             writeLog("Exe dir is: %s", exeDir.c_str());
             if (needupdate) {
+                if (workDir.empty()) { // old app launched
+                    writeLog("No workdir, trying to figure it out");
+                    struct passwd *pw = getpwuid(getuid());
+                    if (pw && pw->pw_dir && strlen(pw->pw_dir)) {
+                        string tryDir = pw->pw_dir + string("/.TelegramDesktop/");
+                        struct stat statbuf;
+                        writeLog("Trying to use '%s' as workDir, getting stat() for tupdates/ready", tryDir.c_str());
+                        if (!stat((tryDir + "tupdates/ready").c_str(), &statbuf)) {
+                            writeLog("Stat got");
+                            if (S_ISDIR(statbuf.st_mode)) {
+                                writeLog("It is directory, using home work dir");
+                                workDir = tryDir;
+                            }
+                        }
+                    }
+                    if (workDir.empty()) {
+                        workDir = exeDir;
+
+                        struct stat statbuf;
+                        writeLog("Trying to use current as workDir, getting stat() for tupdates/ready");
+                        if (!stat("tupdates/ready", &statbuf)) {
+                            writeLog("Stat got");
+                            if (S_ISDIR(statbuf.st_mode)) {
+                                writeLog("It is directory, using current dir");
+                                workDir = string();
+                            }
+                        }
+                    }
+                } else {
+                    writeLog("Passed workpath is '%s'", workDir.c_str());
+                }
                 update();
             }
         } else {
