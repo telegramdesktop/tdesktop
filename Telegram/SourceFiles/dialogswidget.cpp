@@ -39,7 +39,7 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	bool trivial = (rect() == r);
 
-	QPainter p(this); 
+	QPainter p(this);
 	if (!trivial) {
 		p.setClipRect(r);
 	}
@@ -57,7 +57,7 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
 		if (filterResults.isEmpty()) {
-			// .. paint no dialogs 
+			// .. paint no dialogs
 		} else {
 			int32 from = r.top() / int32(st::dlgHeight);
 			if (from < 0) {
@@ -442,7 +442,7 @@ DialogsListWidget::~DialogsListWidget() {
 	clearSearchResults();
 }
 
-void DialogsListWidget::clearSearchResults() {	
+void DialogsListWidget::clearSearchResults() {
 	if (!searchResults.isEmpty()) {
 		for (SearchResults::const_iterator i = searchResults.cbegin(), e = searchResults.cend(); i != e; ++i) {
 			delete *i;
@@ -777,7 +777,7 @@ void DialogsListWidget::loadPeerPhotos(int32 yFrom) {
 		if (from < filterResults.size()) {
 			int32 to = (yTo / int32(st::dlgHeight)) + 1, w = width();
 			if (to > filterResults.size()) to = filterResults.size();
-			
+
 			for (; from < to; ++from) {
 				filterResults[from]->history->peer->photo->load();
 			}

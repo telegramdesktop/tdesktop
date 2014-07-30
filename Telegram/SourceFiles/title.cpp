@@ -76,7 +76,7 @@ TitleWidget::TitleWidget(Window *window)
 	connect(&_about, SIGNAL(clicked()), this, SLOT(onAbout()));
 	connect(wnd->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(stateChanged(Qt::WindowState)));
 	connect(App::app(), SIGNAL(updateReady()), this, SLOT(showUpdateBtn()));
-        
+
     if (cPlatform() != dbipWindows) {
         _minimize.hide();
         _maximize.hide();
@@ -126,18 +126,18 @@ TitleWidget::~TitleWidget() {
 
 void TitleWidget::resizeEvent(QResizeEvent *e) {
 	QPoint p(width() - ((cPlatform() == dbipWindows && lastMaximized) ? 0 : st::sysBtnDelta), 0);
-	
+
     if (cPlatform() == dbipWindows) {
         p.setX(p.x() - _close.width());
         _close.move(p);
-        
+
         p.setX(p.x() - _maximize.width());
         _restore.move(p); _maximize.move(p);
-        
+
         p.setX(p.x() - _minimize.width());
         _minimize.move(p);
     }
-    
+
 	if (!_update.isHidden()) {
 		p.setX(p.x() - _update.width());
 		_update.move(p);

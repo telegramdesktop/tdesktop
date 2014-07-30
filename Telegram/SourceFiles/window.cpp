@@ -646,7 +646,7 @@ void Window::paintEvent(QPaintEvent *e) {
 
 HitTestType Window::hitTest(const QPoint &p) const {
 	int x(p.x()), y(p.y()), w(width()), h(height());
-	
+
 	const int32 raw = psResizeRowWidth();
 	if (!windowState().testFlag(Qt::WindowMaximized)) {
 		if (y < raw) {
@@ -724,7 +724,7 @@ void Window::mouseMoveEvent(QMouseEvent *e) {
 		if (dragging) {
 			if (windowState().testFlag(Qt::WindowMaximized)) {
 				setWindowState(windowState() & ~Qt::WindowMaximized);
-				
+
 				dragStart = e->globalPos() - frameGeometry().topLeft();
 			} else {
 				move(e->globalPos() - dragStart);
@@ -774,7 +774,7 @@ void Window::setupTrayIcon() {
 	}
 	psUpdateCounter();
 	trayIcon->show();
-}	
+}
 
 void Window::quitFromTray() {
 	App::quit();

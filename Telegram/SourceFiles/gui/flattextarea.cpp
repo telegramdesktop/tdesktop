@@ -27,10 +27,10 @@ FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const
     _touchPress(false), _touchRightButton(false), _touchMove(false), _replacingEmojis(false) {
 	setAcceptRichText(false);
 	resize(_st.width, _st.font->height);
-	
+
 	setFont(_st.font->f);
 	setAlignment(_st.align);
-	
+
 	_phelided = _st.font->m.elidedText(_ph, Qt::ElideRight, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1);
 
 	QPalette p(palette());

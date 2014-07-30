@@ -236,7 +236,7 @@ void IntroPhone::phoneCheckDone(const MTPauth_CheckedPhone &result) {
 void IntroPhone::phoneSubmitDone(const MTPauth_SentCode &result) {
 	stopCheck();
 	enableAll(false);
-	
+
 	const MTPDauth_sentCode &d(result.c_auth_sentCode());
 	intro()->setPhone(sentPhone, d.vphone_code_hash.c_string().v.c_str(), d.vphone_registered.v);
 	intro()->setCallTimeout(result.c_auth_sentCode().vsend_call_timeout.v);

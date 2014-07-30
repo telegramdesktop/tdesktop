@@ -506,9 +506,9 @@ void MainWidget::sendMessage(History *hist, const QString &text) {
 	if (!msg.isEmpty()) {
 		MsgId newId = clientMsgId();
 		uint64 randomId = MTP::nonce<uint64>();
-        
+
 		App::historyRegRandom(randomId, newId);
-        
+
 		hist->loadAround(0);
 
 		MTPstring msgText(MTP_string(msg));
@@ -517,14 +517,14 @@ void MainWidget::sendMessage(History *hist, const QString &text) {
 		if (history.peer() == hist->peer) {
             history.peerMessagesUpdated();
         }
-        
+
 		MTP::send(MTPmessages_SendMessage(hist->peer->input, msgText, MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId));
     }
 }
 
 void MainWidget::readServerHistory(History *hist, bool force) {
 	if (!hist || (!force && (!hist->unreadCount || !hist->readyForWork()))) return;
-    
+
     ReadRequests::const_iterator i = _readRequests.constFind(hist->peer);
     if (i == _readRequests.cend()) {
         hist->inboxRead(true);
@@ -547,7 +547,7 @@ void MainWidget::searchMessages(const QString &query) {
 void MainWidget::partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result) {
 	const MTPDmessages_affectedHistory &d(result.c_messages_affectedHistory());
 	App::main()->updUpdated(d.vpts.v, 0, 0, d.vseq.v);
-    
+
 	int32 offset = d.voffset.v;
 	if (!MTP::authedId() || offset <= 0) {
         _readRequests.remove(peer);
@@ -1481,7 +1481,7 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 				App::feedChats(d.vchats);
 				App::feedUsers(d.vusers);
 				feedUpdates(d.vupdates);
-				
+
 				updSetState(updPts, d.vdate.v, updQts, d.vseq.v);
 			} break;
 
@@ -1500,7 +1500,7 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 
 			case mtpc_updateShort: {
 				const MTPDupdateShort &d(updates.c_updateShort());
-				
+
 				feedUpdate(d.vupdate);
 
 				updSetState(updPts, d.vdate.v, updQts, updSeq);

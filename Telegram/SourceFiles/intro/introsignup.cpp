@@ -29,7 +29,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 
 IntroSignup::IntroSignup(IntroWidget *parent) : IntroStage(parent),
 	errorAlpha(0), a_photo(0),
-    next(this, lang(lng_intro_finish), st::btnIntroFinish), 
+    next(this, lang(lng_intro_finish), st::btnIntroFinish),
 	first(this, st::inpIntroName, lang(lng_signup_firstname)),
 	last(this, st::inpIntroName, lang(lng_signup_lastname)) {
 	setVisible(false);

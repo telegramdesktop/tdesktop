@@ -332,7 +332,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_general));
 	top += st::setHeaderSkip;
 
-	top += _autoUpdate.height(); 
+	top += _autoUpdate.height();
 	QString textToDraw;
 	if (cAutoUpdate()) {
 		switch (_updatingState) {
@@ -354,25 +354,25 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
     if (cPlatform() == dbipWindows) {
         top += _workmodeTray.height() + st::setLittleSkip;
         top += _workmodeWindow.height() + st::setSectionSkip;
-        
+
         top += _autoStart.height() + st::setLittleSkip;
         top += _startMinimized.height() + st::setSectionSkip;
 
 		top += _sendToMenu.height();
     }
-    
+
     if (!cRetina()) {
         p.setFont(st::setHeaderFont->f);
         p.setPen(st::setHeaderColor->p);
         p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_scale_label));
         top += st::setHeaderSkip;
         top += _dpiAutoScale.height() + st::setLittleSkip;
-        
+
         top += _dpiSlider.height() + st::dpiFont4->height;
         int32 sLeft = _dpiSlider.x() + _dpiWidth1 / 2, sWidth = _dpiSlider.width();
         float64 sStep = (sWidth - _dpiWidth1 / 2 - _dpiWidth4 / 2) / float64(dbisScaleCount - 2);
         p.setFont(st::dpiFont1->f);
-        
+
         p.setPen((scaleIs(dbisOne) ? st::dpiActive : st::dpiInactive)->p);
         p.drawText(sLeft + qRound(0 * sStep) - _dpiWidth1 / 2, top - (st::dpiFont4->height - st::dpiFont1->height) / 2 - st::dpiFont1->descent, scaleLabel(dbisOne));
         p.setFont(st::dpiFont2->f);
@@ -386,7 +386,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
         p.drawText(sLeft + qRound(3 * sStep) - _dpiWidth4 / 2, top - (st::dpiFont4->height - st::dpiFont4->height) / 2 - st::dpiFont4->descent, scaleLabel(dbisTwo));
         p.setFont(st::linkFont->f);
     }
-    
+
 	if (_self) {
 		// chat options
 		p.setFont(st::setHeaderFont->f);
@@ -422,7 +422,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 
 		top += _catsAndDogs.height();
 	}
-	
+
 	// advanced
 	p.setFont(st::setHeaderFont->f);
 	p.setPen(st::setHeaderColor->p);
@@ -468,7 +468,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
     if (cPlatform() == dbipWindows) {
         _workmodeTray.move(_left, top); top += _workmodeTray.height() + st::setLittleSkip;
         _workmodeWindow.move(_left, top); top += _workmodeWindow.height() + st::setSectionSkip;
-        
+
         _autoStart.move(_left, top); top += _autoStart.height() + st::setLittleSkip;
         _startMinimized.move(_left, top); top += _startMinimized.height() + st::setSectionSkip;
 
@@ -479,7 +479,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
         _dpiAutoScale.move(_left, top); top += _dpiAutoScale.height() + st::setLittleSkip;
         _dpiSlider.move(_left, top); top += _dpiSlider.height() + st::dpiFont4->height;
     }
-    
+
 	// chat options
 	if (_self) {
 		top += st::setHeaderSkip;
@@ -660,7 +660,7 @@ void SettingsInner::showAll() {
     } else {
         _workmodeTray.hide();
         _workmodeWindow.hide();
-        
+
         _autoStart.hide();
         _startMinimized.hide();
 
@@ -739,7 +739,7 @@ void SettingsInner::onUpdatePhotoCancel() {
 void SettingsInner::onUpdatePhoto() {
 	saveError();
 
-	QStringList imgExtensions(cImgExtensions());	
+	QStringList imgExtensions(cImgExtensions());
 	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
 
 	QImage img;
@@ -1148,7 +1148,7 @@ void Settings::animShow(const QPixmap &bgAnimCache, bool back) {
 	anim::stop(this);
 	showAll();
 	_animCache = myGrab(this, rect());
-    
+
 	a_coord = back ? anim::ivalue(-st::introSlideShift, 0) : anim::ivalue(st::introSlideShift, 0);
 	a_alpha = anim::fvalue(0, 1);
 	a_bgCoord = back ? anim::ivalue(0, st::introSlideShift) : anim::ivalue(0, -st::introSlideShift);

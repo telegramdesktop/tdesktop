@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
 			result = app.exec();
 		}
 	}
-    
+
     psFinish();
 
 	DEBUG_LOG(("Application Info: Telegram done, result: %1").arg(result));
