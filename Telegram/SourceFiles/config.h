@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #pragma once
 
-static const int32 AppVersion = 5011;
-static const wchar_t *AppVersionStr = L"0.5.11";
+static const int32 AppVersion = 5012;
+static const wchar_t *AppVersionStr = L"0.5.12";
 #ifdef Q_OS_WIN
 static const wchar_t *AppName = L"Telegram Win (Unofficial)";
 #else

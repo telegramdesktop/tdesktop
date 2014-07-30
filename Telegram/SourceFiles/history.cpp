@@ -227,6 +227,13 @@ void PhotoLink::onClick(Qt::MouseButton button) const {
 }
 
 QString saveFileName(const QString &title, const QString &filter, const QString &prefix, QString name, bool savingAs, const QDir &dir = QDir()) {
+#ifdef Q_OS_WIN
+	name = name.replace(QRegularExpression(qsl("[\\\\\\/\\:\\*\\?\\\"\\<\\>\\|]")), qsl("_"));
+#elif defined Q_OS_MAC
+	name = name.replace(QRegularExpression(qsl("[\\:]")), qsl("_"));
+#elif defined Q_OS_LINUX
+	name = name.replace(QRegularExpression(qsl("[\\/]")), qsl("_"));
+#endif
 	if (cAskDownloadPath() || savingAs) {
 		if (!name.isEmpty() && name.at(0) == QChar::fromLatin1('.')) {
 			name = filedialogDefaultName(prefix, name);
