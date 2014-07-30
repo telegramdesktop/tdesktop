@@ -120,9 +120,15 @@ void logsInit() {
 	if (mainLogStream) return;
 
     QString wasDir = cWorkingDir();
-#if (defined Q_OS_MAC || defined Q_OS_LINUX) && !defined _DEBUG
+#if (defined Q_OS_MAC || defined Q_OS_LINUX)
+
+#ifdef _DEBUG
+    cForceWorkingDir(cExeDir());
+#else
     cForceWorkingDir(psAppDataPath());
-#ifdef Q_OS_LINUX // fix first version
+#endif
+
+#if (defined Q_OS_LINUX && !defined _DEBUG) // fix first version
     {
         QFile data(wasDir + "data"), dataConfig(wasDir + "data_config"), tdataConfig(wasDir + "tdata/config");
         if (data.exists() && dataConfig.exists() && !QFileInfo(cWorkingDir() + "data").exists() && !QFileInfo(cWorkingDir() + "data_config").exists()) { // move to home dir
