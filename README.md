@@ -20,7 +20,7 @@ Source code is published under GPL v3, license is available [here](https://githu
 
 ###Third-party
 
-* Qt 5.3.1, slightly patched ([GPL](http://qt-project.org/doc/qt-5/gpl.html))
+* Qt 5.3.1, slightly patched ([LGPL](http://qt-project.org/doc/qt-5/lgpl.html))
 * OpenSSL 1.0.1g ([OpenSSL License](https://www.openssl.org/source/license.html))
 * zlib 1.2.8 ([zlib License](http://www.zlib.net/zlib_license.html))
 * libexif 0.6.20 ([LGPL](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html))
