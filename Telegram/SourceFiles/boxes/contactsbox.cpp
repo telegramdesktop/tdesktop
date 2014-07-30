@@ -53,7 +53,7 @@ void ContactsInner::peerUpdated(PeerData *peer) {
 			_contactsData.erase(i);
 		}
 	}
-		
+
 	parentWidget()->update();
 }
 
@@ -227,7 +227,7 @@ void ContactsInner::updateSel() {
 		if (newSel != _sel) {
 			_sel = newSel;
 			parentWidget()->update();
-		}		
+		}
 	} else {
 		int32 newFilteredSel = (p.y() >= 0 && rect().contains(p)) ? (p.y() / rh) : -1;
 		if (newFilteredSel != _filteredSel) {

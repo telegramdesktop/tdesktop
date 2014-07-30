@@ -120,7 +120,7 @@ namespace {
 				DEBUG_LOG(("BigNum Error: bad g_aResult export len (%1)").arg(resultLen));
 				return false;
 			}
-			
+
 			BN_add_word(&bn_g_a, 1); // check g_a < dh_prime - 1
 			if (BN_cmp(&bn_g_a, &bnModul) >= 0) {
 				DEBUG_LOG(("BigNum Error: bad g_a >= dh_prime - 1"));
@@ -720,7 +720,7 @@ void MTPautoConnection::connectToServer(const QString &addr, int32 port) {
 	DEBUG_LOG(("Connection Info: sending fake req_pq through http transport"));
 
 	httpSend(buffer);
-	
+
 	sock.connectToHost(QHostAddress(addr), port);
 	connect(&sock, SIGNAL(readyRead()), this, SLOT(socketRead()));
 }
@@ -941,7 +941,7 @@ void MTPhttpConnection::sendData(mtpBuffer &buffer) {
 		emit error();
 		return;
 	}
-	
+
 	int32 requestSize = (buffer.size() - 3) * sizeof(mtpPrime);
 
 	QNetworkRequest request(address);
@@ -1262,7 +1262,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 			for (mtpPreRequestMap::iterator i = toSend.begin(), e = toSend.end(); i != e; ++i) {
 				mtpRequest &req(i.value());
 				mtpMsgId msgId = prepareToSend(req);
-				*(haveSentArr++) = msgId;				
+				*(haveSentArr++) = msgId;
 
 				if (req->requestId) {
 					if (mtpRequestData::needAck(req)) {
@@ -1475,7 +1475,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 		return restart();
 	}
 
-	
+
 	while (conn->received().size()) {
 		const mtpBuffer &encryptedBuf(conn->received().front());
 		uint32 len = encryptedBuf.size();
@@ -1495,7 +1495,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 		mtpPrime *data((mtpPrime*)dataBuffer.data()), *msg = data + 8;
 		const mtpPrime *from(msg), *end;
 		MTPint128 msgKey(*(MTPint128*)(encrypted + 2));
-		
+
 		aesDecrypt(encrypted + 6, data, dataBuffer.size(), key, msgKey);
 
 		uint64 serverSalt = *(uint64*)&data[0], session = *(uint64*)&data[2], msgId = *(uint64*)&data[4];
@@ -1600,7 +1600,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 				DEBUG_LOG(("MTP Info: emitting needToReceive() - need to parse in another thread, haveReceivedMap.size() = %1").arg(sessionData->haveReceivedMap().size()));
 			}
 		}
-		
+
 		if (emitSignal) {
 			emit needToReceive();
 		}
@@ -1715,7 +1715,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 		LOG(("Message Info: bad message notification received (error_code %3) for msg_id = %1, seq_no = %2").arg(data.vbad_msg_id.v).arg(data.vbad_msg_seqno.v).arg(data.verror_code.v));
 
 		bool needResend = (data.verror_code.v == 16 || data.verror_code.v == 17); // bad msg_id
-		
+
 		mtpMsgId resendId = data.vbad_msg_id.v;
 		if (!wasSent(resendId)) {
 			DEBUG_LOG(("Message Error: such message was not sent recently %1").arg(resendId));
@@ -1826,7 +1826,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 	case mtpc_msgs_state_info: {
 		MTPMsgsStateInfo msg(from, end);
 		const MTPDmsgs_state_info &data(msg.c_msgs_state_info());
-		
+
 		uint64 reqMsgId = data.vreq_msg_id.v;
 		const string &states(data.vinfo.c_string().v);
 
@@ -1940,7 +1940,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 			sessionData->owner()->send(resendRequest);
 		}
 	} return 1;
-	
+
 	case mtpc_msg_resend_req: {
 		MTPMsgResendReq msg(from, end);
 		const QVector<MTPlong> &ids(msg.c_msg_resend_req().vmsg_ids.c_vector().v);
@@ -2020,7 +2020,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 
 		mtpBuffer update(end - from);
 		if (end > from) memcpy(update.data(), from, (end - from) * sizeof(mtpPrime));
-		
+
 		QWriteLocker locker(sessionData->haveReceivedMutex());
 		mtpResponseMap &haveReceived(sessionData->haveReceivedMap());
 		mtpRequestId fakeRequestId = sessionData->nextFakeRequestId();
@@ -2040,7 +2040,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 		MTPPong msg(from, end);
 		const MTPDpong &data(msg.c_pong());
 		DEBUG_LOG(("Message Info: pong received, msg_id: %1, ping_id: %2").arg(data.vmsg_id.v).arg(data.vping_id.v));
-		
+
 		if (!wasSent(data.vmsg_id.v)) {
 			DEBUG_LOG(("Message Error: such msg_id %1 ping_id %2 was not sent recently").arg(data.vmsg_id.v).arg(data.vping_id.v));
 			return 0;
@@ -2077,7 +2077,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 
 	mtpBuffer update(end - from);
 	if (end > from) memcpy(update.data(), from, (end - from) * sizeof(mtpPrime));
-		
+
 	QWriteLocker locker(sessionData->haveReceivedMutex());
 	mtpResponseMap &haveReceived(sessionData->haveReceivedMap());
 	mtpRequestId fakeRequestId = sessionData->nextFakeRequestId();
@@ -2237,7 +2237,7 @@ void MTProtoConnectionPrivate::handleMsgsStates(const QVector<MTPlong> &ids, con
 		DEBUG_LOG(("Message Info: void ids vector in handleMsgsStates()"));
 		return;
 	}
-			
+
 	acked.reserve(acked.size() + idsCount);
 
 	for (uint32 i = 0, count = idsCount; i < count; ++i) {
@@ -2536,7 +2536,7 @@ void MTProtoConnectionPrivate::dhParamsAnswered() {
 			DEBUG_LOG(("AuthKey Error: dh_prime %1, g_a %2").arg(mb(&dhPrime[0], dhPrime.length()).str()).arg(mb(&g_a[0], g_a.length()).str()));
 			return restart();
 		}
-		
+
 		// check that dhPrime and (dhPrime - 1) / 2 are really prime using openssl BIGNUM methods
 		_BigNumPrimeTest bnPrimeTest;
 		if (!bnPrimeTest.isPrimeAndGood(&dhPrime[0], MTPMillerRabinIterCount, dh_inner_data.vg.v)) {
@@ -2610,7 +2610,7 @@ void MTProtoConnectionPrivate::dhClientParamsSend() {
 	MTPSet_client_DH_params req_client_DH_params;
 	req_client_DH_params.vnonce = authKeyData->nonce;
 	req_client_DH_params.vserver_nonce = authKeyData->server_nonce;
-		
+
 	string &sdhEncString(req_client_DH_params.vencrypted_data._string().v);
 
 	uint32 client_dh_inner_size = client_dh_inner.size(), encSize = (client_dh_inner_size >> 2) + 5, encFullSize = encSize;
@@ -2852,7 +2852,7 @@ bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResp
 
 	uint32 messageSize = mtpRequestData::messageSize(request);
 	if (messageSize < 5 || fullSize < messageSize + 4) return false;
-	
+
 	ReadLockerAttempt lock(sessionData->keyMutex());
 	if (!lock) {
 		DEBUG_LOG(("MTP Info: could not lock key for read in sendBuffer(), dc %1, restarting..").arg(dc));
@@ -2886,7 +2886,7 @@ bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResp
 	*((MTPint128*)&result[4]) = msgKey;
 
 	aesEncrypt(request->constData(), &result[8], fullSize * sizeof(mtpPrime), key, msgKey);
-	
+
 	DEBUG_LOG(("MTP Info: sending request, size: %1, num: %2, time: %3").arg(fullSize + 6).arg((*request)[4]).arg((*request)[5]));
 
 	conn->sendData(result);

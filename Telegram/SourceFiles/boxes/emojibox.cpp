@@ -71,7 +71,7 @@ EmojiBox::EmojiBox() : _done(this, lang(lng_about_done), st::aboutCloseButton),
 	fillBlocks();
 
 	_blockHeight = st::emojiReplaceInnerHeight;
-	
+
 	_width = _blocks[0].size() * st::emojiReplaceWidth + (st::emojiReplaceWidth - st::emojiSize);
 
 	_height = st::boxPadding.top() + st::boxFont->height;

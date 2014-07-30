@@ -74,7 +74,7 @@ void FileUploader::sendNext() {
 	if (!uploading) {
 		uploading = i.key();
 	} else if (i == queue.end()) {
-		i = queue.begin(); 
+		i = queue.begin();
 		uploading = i.key();
 	}
 	if (i->media.parts.isEmpty()) {
@@ -135,7 +135,7 @@ void FileUploader::sendNext() {
 		i->docSentParts++;
 	} else {
 		LocalFileParts::iterator part = i->media.parts.begin();
-	
+
 		mtpRequestId requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(i->media.jpeg_id), MTP_int(part.key()), MTP_string(part.value())), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::upl);
 		requestsSent.insert(requestId, part.value());
 		sentSize += part.value().size();

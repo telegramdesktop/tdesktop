@@ -83,7 +83,7 @@ void PhotoSendBox::parentResized() {
 void PhotoSendBox::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 	p.setOpacity(a_opacity.current());
-	
+
 	// fill bg
 	p.fillRect(QRect(QPoint(0, 0), size()), st::boxBG->b);
 

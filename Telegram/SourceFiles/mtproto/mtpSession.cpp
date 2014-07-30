@@ -76,7 +76,7 @@ void MTProtoSession::start(int32 dcenter, uint32 connects) {
 	} else if (connects > 4) {
 		connects = 4;
 	}
-	
+
 	msSendCall = msWait = 0;
 
 	connect(&timeouter, SIGNAL(timeout()), this, SLOT(checkRequestsByTimer()));
@@ -91,7 +91,7 @@ void MTProtoSession::start(int32 dcenter, uint32 connects) {
 	MTProtoDCMap &dcs(mtpDCMap());
 
 	connections.reserve(connects);
-	for (uint32 i = 0; i < connects; ++i) {	
+	for (uint32 i = 0; i < connects; ++i) {
 		connections.push_back(new MTProtoConnection());
 		dcId = connections.back()->start(&data, dcenter);
 		if (!dcId) {
@@ -279,7 +279,7 @@ mtpRequestId MTProtoSession::resend(mtpMsgId msgId, uint64 msCanWait, bool force
 			if (sendMsgStateInfo) {
 				char cantResend[2] = {1, 0};
 				DEBUG_LOG(("Message Info: cant resend %1, request not found").arg(msgId));
-					
+
 				return send(MTP_msgs_state_info(MTP_long(msgId), MTP_string(string(cantResend, cantResend + 1))));
 			}
 			return 0;

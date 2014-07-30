@@ -410,7 +410,7 @@ void Application::stopUpdate() {
 void Application::startUpdateCheck(bool forceWait) {
 	updateCheckTimer.stop();
 	if (updateRequestId || updateThread || updateReply || !cAutoUpdate()) return;
-	
+
 	int32 updateInSecs = cLastUpdateCheck() + 3600 + (rand() % 3600) - unixtime();
 	bool sendRequest = (updateInSecs <= 0 || updateInSecs > 7200);
 	if (!sendRequest && !forceWait) {
@@ -533,7 +533,7 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 	socket.close();
 
 	psCheckLocalSocket(serverName);
-  
+
 	if (!server.listen(serverName)) {
 		DEBUG_LOG(("Application Error: failed to start listening to %1 server, error %2").arg(serverName).arg(int(server.serverError())));
 		return App::quit();
@@ -567,7 +567,7 @@ void Application::startApp() {
 
 	MTP::setLayer(mtpLayerMax);
 	MTP::start();
-	
+
 	MTP::setStateChangedHandler(mtpStateChanged);
 
 	App::initMedia();

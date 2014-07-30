@@ -157,7 +157,7 @@ LayerWidget::LayerWidget(QWidget *parent, PhotoData *photo, HistoryItem *item) :
 	show();
 	setFocus();
 	App::contextItem(item);
-	
+
 	setAttribute(Qt::WA_AcceptTouchEvents);
 	_touchTimer.setSingleShot(true);
 	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));

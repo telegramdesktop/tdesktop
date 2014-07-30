@@ -240,7 +240,7 @@ void HistoryList::touchEvent(QTouchEvent *e) {
 		_touchPrevPos = _touchPos;
 		_touchPos = e->touchPoints().cbegin()->screenPos().toPoint();
 	}
-	
+
 	switch (e->type()) {
 	case QEvent::TouchBegin:
 		if (_touchInProgress) return;
@@ -569,7 +569,7 @@ void HistoryList::mouseDoubleClickEvent(QMouseEvent *e) {
 					_selected.clear();
 				}
 				_selected.insert(_dragItem, selStatus);
-			} 
+			}
 			mouseMoveEvent(e);
 
 	        _trippleClickPoint = e->globalPos();
@@ -746,7 +746,7 @@ void HistoryList::copyContextUrl() {
 void HistoryList::saveContextImage() {
     PhotoLink *lnk = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
 	if (!lnk) return;
-	
+
 	PhotoData *photo = lnk->photo();
 	if (!photo || !photo->date || !photo->full->loaded()) return;
 
@@ -761,7 +761,7 @@ void HistoryList::saveContextImage() {
 void HistoryList::copyContextImage() {
     PhotoLink *lnk = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
 	if (!lnk) return;
-	
+
 	PhotoData *photo = lnk->photo();
 	if (!photo || !photo->date || !photo->full->loaded()) return;
 
@@ -818,7 +818,7 @@ void HistoryList::copyContextText() {
 
 bool HistoryList::getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
 	HistoryItem *hoveredItem = App::hoveredLinkItem();
-	if (hoveredItem && hoveredItem->getPhotoCoords(photo, x, y, w)) {		
+	if (hoveredItem && hoveredItem->getPhotoCoords(photo, x, y, w)) {
 		y += height() - hist->height - st::historyPadding + hoveredItem->block()->y + hoveredItem->y;
 		return true;
 	}
@@ -827,7 +827,7 @@ bool HistoryList::getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w)
 
 bool HistoryList::getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const {
 	HistoryItem *hoveredItem = App::hoveredItem();
-	if (hoveredItem && hoveredItem->getVideoCoords(video, x, y, w)) {		
+	if (hoveredItem && hoveredItem->getVideoCoords(video, x, y, w)) {
 		y += height() - hist->height - st::historyPadding + hoveredItem->block()->y + hoveredItem->y;
 		return true;
 	}
@@ -1050,7 +1050,7 @@ void HistoryList::onUpdateSelected(bool force) {
 		} else if (inText && (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel)) {
 			cur = style::cur_text;
 		}
-	} else {		
+	} else {
 		if (item != _dragItem || (m - _dragStartPos).manhattanLength() >= QApplication::startDragDistance()) {
 			if (_dragAction == PrepareDrag) {
 				_dragAction = Dragging;
@@ -1137,7 +1137,7 @@ void HistoryList::updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dra
 		force = true;
 	}
 	if (!force) return;
-	
+
 	parentWidget()->update();
 }
 
@@ -1211,7 +1211,7 @@ void MessageField::onChange() {
 	} else if (newh < st::minFieldHeight) {
 		newh = st::minFieldHeight;
 	}
-	
+
 	if (height() != newh) {
 		resize(width(), newh);
 		emit resized();
@@ -1472,7 +1472,7 @@ void HistoryHider::offerPeer(PeerId peer) {
 	if (toTextWidth > box.width() - st::boxPadding.left() - st::boxPadding.right()) {
 		toTextWidth = box.width() - st::boxPadding.left() - st::boxPadding.right();
 	}
-	
+
 	resizeEvent(0);
 	update();
 	setFocus();
@@ -1761,7 +1761,7 @@ void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool l
 		checkUnreadLoaded();
 
 		App::main()->peerUpdated(histPeer);
-		
+
 		noTypingUpdate = true;
 		_field.setPlainText(hist->draft);
 		_field.setFocus();
@@ -2178,7 +2178,7 @@ void HistoryWidget::onSend() {
 	if (!text.isEmpty()) {
 		MsgId newId = clientMsgId();
 		uint64 randomId = MTP::nonce<uint64>();
-	
+
 		App::historyRegRandom(randomId, newId);
 
 		hist->loadAround(0);
@@ -2217,7 +2217,7 @@ mtpRequestId HistoryWidget::onForward(const PeerId &peer, bool forwardSelected) 
 		HistoryMessage *msg = dynamic_cast<HistoryMessage*>(item);
 		HistoryServiceMsg *srv = dynamic_cast<HistoryServiceMsg*>(item);
 		MsgId newId = 0;
-	
+
 		hist->loadAround(0);
 		if (item->id > 0 && msg) {
 			newId = clientMsgId();
@@ -2267,7 +2267,7 @@ void HistoryWidget::onShareContact(const PeerId &peer, UserData *contact) {
 	hist->loadAround(0);
 
 	hist->addToBack(MTP_message(MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(histPeer->id), MTP_bool(true), MTP_bool(true), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(contact->phone), MTP_string(contact->firstName), MTP_string(contact->lastName), MTP_int(int32(contact->id & 0xFFFFFFFF)))));
-	
+
 	MTP::send(MTPmessages_SendMedia(histPeer->input, MTP_inputMediaContact(MTP_string(contact->phone), MTP_string(contact->firstName), MTP_string(contact->lastName)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
 
 	App::historyRegRandom(randomId, newId);
@@ -2368,7 +2368,7 @@ void HistoryWidget::onPhotoSelect() {
 	}
 
 	QStringList photoExtensions(cPhotoExtensions());
-	QStringList imgExtensions(cImgExtensions());	
+	QStringList imgExtensions(cImgExtensions());
 	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;Photo files (*") + photoExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
 
 	QStringList files;
@@ -2396,7 +2396,7 @@ void HistoryWidget::onDocumentSelect() {
 	}
 
 	QStringList photoExtensions(cPhotoExtensions());
-	QStringList imgExtensions(cImgExtensions());	
+	QStringList imgExtensions(cImgExtensions());
 	QString filter(qsl("All files (*.*);;Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;Photo files (*") + photoExtensions.join(qsl(" *")) + qsl(")"));
 
 	QStringList files;
@@ -2534,7 +2534,7 @@ void HistoryWidget::onPhotoDrop(QDropEvent *e) {
 	if (e->mimeData()->hasImage()) {
 		QImage image = qvariant_cast<QImage>(e->mimeData()->imageData());
 		if (image.isNull()) return;
-		
+
 		uploadImage(image);
 	} else {
 		QStringList files = getMediasFromMime(e->mimeData());

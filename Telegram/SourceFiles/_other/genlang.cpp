@@ -365,7 +365,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 					}
 					do {
 						if (key == current) break;
-							
+
 						QChar ich = i.key().at(current.size());
 						tcpp << tab.repeated(current.size() - 3) << "case '" << ich << "':\n";
 						if (j == e || ich != ((j.key().size() > depth) ? j.key().at(depth) : 0)) {
