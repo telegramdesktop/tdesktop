@@ -252,6 +252,7 @@ INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.1/QtGui\
                ./SourceFiles\
                ./GeneratedFiles
 LIBS += -lcrypto -lssl -lz -ldl -llzma -lexif
+LIBS += ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a
 
 RESOURCES += \
     ./SourceFiles/telegram_linux.qrc
