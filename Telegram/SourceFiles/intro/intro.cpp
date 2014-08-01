@@ -288,6 +288,12 @@ void IntroWidget::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
+void IntroWidget::rpcInvalidate() {
+	if (phone) phone->rpcInvalidate();
+	if (code) code->rpcInvalidate();
+	if (signup) signup->rpcInvalidate();
+}
+
 IntroWidget::~IntroWidget() {
 	delete steps;
 	delete phone;

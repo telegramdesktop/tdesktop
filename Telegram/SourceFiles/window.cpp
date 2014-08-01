@@ -395,18 +395,21 @@ void Window::clearWidgets() {
 		anim::stop(settings);
 		settings->hide();
 		settings->deleteLater();
+		settings->rpcInvalidate();
 		settings = 0;
 	}
 	if (main) {
 		anim::stop(main);
 		main->hide();
 		main->deleteLater();
+		main->rpcInvalidate();
 		main = 0;
 	}
 	if (intro) {
 		anim::stop(intro);
 		intro->hide();
 		intro->deleteLater();
+		intro->rpcInvalidate();
 		intro = 0;
 	}
 }
@@ -463,7 +466,7 @@ void Window::showSettings() {
 		anim::stop(main);
 		main->hide();
 	}
-	settings = new Settings(this);
+	settings = new SettingsWidget(this);
 	settings->animShow(bg);
 
 	fixOrder();
@@ -476,6 +479,7 @@ void Window::hideSettings(bool fast) {
 		anim::stop(settings);
 		settings->hide();
 		settings->deleteLater();
+		settings->rpcInvalidate();
 		settings = 0;
 		if (intro) {
 			intro->show();
@@ -488,6 +492,7 @@ void Window::hideSettings(bool fast) {
 		anim::stop(settings);
 		settings->hide();
 		settings->deleteLater();
+		settings->rpcInvalidate();
 		settings = 0;
 		if (intro) {
 			intro->animShow(bg, true);
@@ -533,7 +538,7 @@ MainWidget *Window::mainWidget() {
 	return main;
 }
 
-Settings *Window::settingsWidget() {
+SettingsWidget *Window::settingsWidget() {
 	return settings;
 }
 
@@ -798,7 +803,7 @@ void Window::noIntro(IntroWidget *was) {
 	}
 }
 
-void Window::noSettings(Settings *was) {
+void Window::noSettings(SettingsWidget *was) {
 	if (was == settings) {
 		settings = 0;
 	}

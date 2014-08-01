@@ -57,6 +57,8 @@ public:
 
 	void finish(const MTPUser &user, const QImage &photo = QImage());
 
+	void rpcInvalidate();
+
 	~IntroWidget();
 
 public slots:

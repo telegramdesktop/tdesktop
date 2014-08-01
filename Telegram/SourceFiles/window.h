@@ -25,7 +25,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 class TitleWidget;
 class IntroWidget;
 class MainWidget;
-class Settings;
+class SettingsWidget;
 class LayerWidget;
 class BackgroundWidget;
 class LayeredWidget;
@@ -165,7 +165,7 @@ public:
 	
 	IntroWidget *introWidget();
 	MainWidget *mainWidget();
-	Settings *settingsWidget();
+	SettingsWidget *settingsWidget();
 
 	void showConnecting(const QString &text, const QString &reconnect = QString());
 	void hideConnecting();
@@ -191,7 +191,7 @@ public:
 	void activate();
 
 	void noIntro(IntroWidget *was);
-	void noSettings(Settings *was);
+	void noSettings(SettingsWidget *was);
 	void noMain(MainWidget *was);
 	void noLayer(LayerWidget *was);
 	void noBox(BackgroundWidget *was);
@@ -259,7 +259,7 @@ private:
 	TitleWidget *title;
 	IntroWidget *intro;
 	MainWidget *main;
-	Settings *settings;
+	SettingsWidget *settings;
 	LayerWidget *layer;
 	BackgroundWidget *layerBG;
 

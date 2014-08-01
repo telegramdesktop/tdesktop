@@ -332,7 +332,8 @@ private:
 
 	void createConn();
 
-	mtpMsgId prepareToSend(mtpRequest &request);
+	mtpMsgId prepareToSend(mtpRequest &request, mtpMsgId currentLastId);
+	mtpMsgId replaceMsgId(mtpRequest &request, mtpMsgId newId);
 
 	bool sendRequest(mtpRequest &request, bool needAnyResponse);
 	mtpRequestId wasSent(mtpMsgId msgId) const;
@@ -346,6 +347,9 @@ private:
 	bool setState(int32 state, int32 ifState = MTProtoConnection::UpdateAlways);
 	mutable QReadWriteLock stateMutex;
 	int32 _state;
+
+	bool _needSessionReset;
+	void resetSession();
 
 	uint32 dc;
 	MTProtoConnection *_owner;

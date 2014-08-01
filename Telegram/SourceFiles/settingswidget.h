@@ -59,7 +59,7 @@ class SettingsInner : public QWidget, public RPCSender, public Animated {
 
 public:
 
-	SettingsInner(Settings *parent);
+	SettingsInner(SettingsWidget *parent);
 
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
@@ -218,12 +218,12 @@ private:
 
 };
 
-class Settings : public QWidget, public Animated {
+class SettingsWidget : public QWidget, public Animated {
 	Q_OBJECT
 
 public:
 
-	Settings(Window *parent);
+	SettingsWidget(Window *parent);
 
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
@@ -238,7 +238,9 @@ public:
 	void updateOnlineDisplay();
 	void updateConnectionType();
 
-	~Settings();
+	void rpcInvalidate();
+
+	~SettingsWidget();
 
 public slots:
 

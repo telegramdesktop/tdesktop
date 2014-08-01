@@ -654,9 +654,28 @@ private:
 
 class RPCSender {
 	typedef QSet<RPCOwnedDoneHandler*> DoneHandlers;
-	DoneHandlers doneHandlers;
+	DoneHandlers _rpcDoneHandlers;
 	typedef QSet<RPCOwnedFailHandler*> FailHandlers;
-	FailHandlers failHandlers;
+	FailHandlers _rpcFailHandlers;
+
+	void _rpcRegHandler(RPCOwnedDoneHandler *handler) {
+		_rpcDoneHandlers.insert(handler);
+	}
+
+	void _rpcUnregHandler(RPCOwnedDoneHandler *handler) {
+		_rpcDoneHandlers.remove(handler);
+	}
+
+	void _rpcRegHandler(RPCOwnedFailHandler *handler) {
+		_rpcFailHandlers.insert(handler);
+	}
+
+	void _rpcUnregHandler(RPCOwnedFailHandler *handler) {
+		_rpcFailHandlers.remove(handler);
+	}
+
+	friend class RPCOwnedDoneHandler;
+	friend class RPCOwnedFailHandler;
 
 public:
 
@@ -760,29 +779,19 @@ public:
 		return RPCFailHandlerPtr(new RPCBindedFailHandlerOwnedNo<T, TReceiver>(b, static_cast<TReceiver*>(this), onFail));
 	}
 
-	void regHandler(RPCOwnedDoneHandler *handler) {
-		doneHandlers.insert(handler);
-	}
-
-	void unregHandler(RPCOwnedDoneHandler *handler) {
-		doneHandlers.remove(handler);
-	}
-
-	void regHandler(RPCOwnedFailHandler *handler) {
-		failHandlers.insert(handler);
-	}
-
-	void unregHandler(RPCOwnedFailHandler *handler) {
-		failHandlers.remove(handler);
+	void rpcInvalidate() {
+		for (DoneHandlers::iterator i = _rpcDoneHandlers.begin(), e = _rpcDoneHandlers.end(); i != e; ++i) {
+			(*i)->invalidate();
+		}
+		_rpcDoneHandlers.clear();
+		for (FailHandlers::iterator i = _rpcFailHandlers.begin(), e = _rpcFailHandlers.end(); i != e; ++i) {
+			(*i)->invalidate();
+		}
+		_rpcFailHandlers.clear();
 	}
 
 	~RPCSender() {
-		for (DoneHandlers::iterator i = doneHandlers.begin(), e = doneHandlers.end(); i != e; ++i) {
-			(*i)->invalidate();
-		}
-		for (FailHandlers::iterator i = failHandlers.begin(), e = failHandlers.end(); i != e; ++i) {
-			(*i)->invalidate();
-		}
+		rpcInvalidate();
 	}
 
 };

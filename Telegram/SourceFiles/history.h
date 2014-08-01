@@ -227,6 +227,7 @@ struct VideoData {
 		if (l) {
 			l->cancel();
 			l->deleteLater();
+			l->rpcInvalidate();
 		}
 		fileName = QString();
 		modDate = QDateTime();
@@ -241,6 +242,7 @@ struct VideoData {
 			modDate = fileName.isEmpty() ? QDateTime() : QFileInfo(fileName).lastModified();
 		}
 		loader->deleteLater();
+		loader->rpcInvalidate();
 		loader = 0;
 	}
 
@@ -328,6 +330,7 @@ struct AudioData {
 		if (l) {
 			l->cancel();
 			l->deleteLater();
+			l->rpcInvalidate();
 		}
 		fileName = QString();
 		modDate = QDateTime();
@@ -342,6 +345,7 @@ struct AudioData {
 			modDate = fileName.isEmpty() ? QDateTime() : QFileInfo(fileName).lastModified();
 		}
 		loader->deleteLater();
+		loader->rpcInvalidate();
 		loader = 0;
 	}
 
@@ -427,6 +431,7 @@ struct DocumentData {
 		if (l) {
 			l->cancel();
 			l->deleteLater();
+			l->rpcInvalidate();
 		}
 		fileName = QString();
 		modDate = QDateTime();
@@ -441,6 +446,7 @@ struct DocumentData {
 			modDate = fileName.isEmpty() ? QDateTime() : QFileInfo(fileName).lastModified();
 		}
 		loader->deleteLater();
+		loader->rpcInvalidate();
 		loader = 0;
 	}
 

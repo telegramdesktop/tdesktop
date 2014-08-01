@@ -19,17 +19,17 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "mtproto/mtpRPC.h"
 
 RPCOwnedDoneHandler::RPCOwnedDoneHandler(RPCSender *owner) : _owner(owner) {
-	_owner->regHandler(this);
+	_owner->_rpcRegHandler(this);
 }
 
 RPCOwnedDoneHandler::~RPCOwnedDoneHandler() {
-	if (_owner) _owner->unregHandler(this);
+	if (_owner) _owner->_rpcUnregHandler(this);
 }
 
 RPCOwnedFailHandler::RPCOwnedFailHandler(RPCSender *owner) : _owner(owner) {
-	_owner->regHandler(this);
+	_owner->_rpcRegHandler(this);
 }
 
 RPCOwnedFailHandler::~RPCOwnedFailHandler() {
-	if (_owner) _owner->unregHandler(this);
+	if (_owner) _owner->_rpcUnregHandler(this);
 }

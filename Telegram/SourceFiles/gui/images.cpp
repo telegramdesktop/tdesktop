@@ -230,6 +230,7 @@ bool StorageImage::check() const {
 		h = data.height();
 		invalidateSizeCache();
 		loader->deleteLater();
+		loader->rpcInvalidate();
 		loader = 0;
 
 		saved = bytes;
@@ -256,6 +257,7 @@ void StorageImage::setData(QByteArray &bytes, const QByteArray &format) {
 	invalidateSizeCache();
 	if (loader) {
 		loader->deleteLater();
+		loader->rpcInvalidate();
 		loader = 0;
 	}
 	this->saved = bytes;
@@ -269,6 +271,7 @@ StorageImage::~StorageImage() {
 	}
 	if (loader) {
 		loader->deleteLater();
+		loader->rpcInvalidate();
 		loader = 0;
 	}
 }

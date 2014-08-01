@@ -22,7 +22,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 class Application;
 class Window;
 class MainWidget;
-class Settings;
+class SettingsWidget;
 class Font;
 class Color;
 class FileUploader;
@@ -38,7 +38,7 @@ namespace App {
 	Application *app();
 	Window *wnd();
 	MainWidget *main();
-	Settings *settings();
+	SettingsWidget *settings();
 	FileUploader *uploader();
 
 	void showSettings();

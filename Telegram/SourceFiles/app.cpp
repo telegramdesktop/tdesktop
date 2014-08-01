@@ -95,7 +95,7 @@ namespace App {
 		return w ? w->mainWidget() : 0;
 	}
 
-	Settings *settings() {
+	SettingsWidget *settings() {
 		Window *w(wnd());
 		return w ? w->settingsWidget() : 0;
 	}

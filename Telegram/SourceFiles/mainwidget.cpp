@@ -756,7 +756,10 @@ void MainWidget::showPeer(const PeerId &peerId, MsgId msgId, bool back, bool for
 	history.showPeer(peerId, msgId, force);
 	if (force || !selectingPeer()) {
 		if (profile) {
-			if (profile) profile->deleteLater();
+			if (profile) {
+				profile->deleteLater();
+				profile->rpcInvalidate();
+			}
 			profile = 0;
 			profileStack.clear();
 			if (!history.peer() || !history.peer()->id) {
@@ -811,7 +814,10 @@ void MainWidget::showPeerProfile(const PeerData *peer, bool back) {
 			profileStack.push_back(history.peer());
 		}
 	}
-	if (profile) profile->deleteLater();
+	if (profile) {
+		profile->deleteLater();
+		profile->rpcInvalidate();
+	}
 	profile = new ProfileWidget(this, peer);
 	_topBar.show();
 	resizeEvent(0);

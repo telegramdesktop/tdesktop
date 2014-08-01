@@ -1034,7 +1034,8 @@ void MTProtoConnectionPrivate::createConn() {
 MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConnection *owner, MTPSessionData *data, uint32 _dc)
 	: QObject(0)
 	, _state(MTProtoConnection::Disconnected)
-    , dc(_dc)
+	, _needSessionReset(false)
+	, dc(_dc)
     , _owner(owner)
     , conn(0)
     , retryTimeout(1)
@@ -1137,7 +1138,118 @@ bool MTProtoConnectionPrivate::setState(int32 state, int32 ifState) {
 	return true;
 }
 
-mtpMsgId MTProtoConnectionPrivate::prepareToSend(mtpRequest &request) {
+void MTProtoConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
+	_needSessionReset = false;
+
+	QWriteLocker locker1(sessionData->haveSentMutex());
+	QWriteLocker locker2(sessionData->toResendMutex());
+	QWriteLocker locker3(sessionData->toSendMutex());
+	QWriteLocker locker4(sessionData->wereAckedMutex());
+	mtpRequestMap &haveSent(sessionData->haveSentMap());
+	mtpRequestIdsMap &toResend(sessionData->toResendMap());
+	mtpPreRequestMap &toSend(sessionData->toSendMap());
+	mtpRequestIdsMap &wereAcked(sessionData->wereAckedMap());
+
+	mtpMsgId newId = msgid();
+	mtpRequestMap setSeqNumbers;
+	typedef QMap<mtpMsgId, mtpMsgId> Replaces;
+	Replaces replaces;
+	for (mtpRequestMap::const_iterator i = haveSent.cbegin(), e = haveSent.cend(); i != e; ++i) {
+		if (!mtpRequestData::isSentContainer(i.value())) {
+			if (!*(mtpMsgId*)(i.value()->constData() + 4)) continue;
+
+			mtpMsgId id = i.key();
+			if (id > newId) {
+				while (true) {
+					if (toResend.constFind(newId) == toResend.cend() && wereAcked.constFind(newId) == wereAcked.cend() && haveSent.constFind(newId) == haveSent.cend()) {
+						break;
+					}
+					mtpMsgId m = msgid();
+					if (m <= newId) break; // wtf
+
+					newId = m;
+				}
+
+				MTP_LOG(dc, ("Replacing msgId %1 to %2!").arg(id).arg(newId));
+				replaces.insert(id, newId);
+				id = newId;
+				*(mtpMsgId*)(i.value()->data() + 4) = id;
+			}
+			setSeqNumbers.insert(id, i.value());
+		}
+	}
+	for (mtpRequestIdsMap::const_iterator i = toResend.cbegin(), e = toResend.cend(); i != e; ++i) { // collect all non-container requests
+		mtpPreRequestMap::const_iterator j = toSend.constFind(i.value());
+		if (j == toSend.cend()) continue;
+
+		if (!mtpRequestData::isSentContainer(j.value())) {
+			if (!*(mtpMsgId*)(j.value()->constData() + 4)) continue;
+
+			mtpMsgId id = i.key();
+			if (id > newId) {
+				while (true) {
+					if (toResend.constFind(newId) == toResend.cend() && wereAcked.constFind(newId) == wereAcked.cend() && haveSent.constFind(newId) == haveSent.cend()) {
+						break;
+					}
+					mtpMsgId m = msgid();
+					if (m <= newId) break; // wtf
+
+					newId = m;
+				}
+
+				MTP_LOG(dc, ("Replacing msgId %1 to %2!").arg(id).arg(newId));
+				replaces.insert(id, newId);
+				id = newId;
+				*(mtpMsgId*)(j.value()->data() + 4) = id;
+			}
+			setSeqNumbers.insert(id, j.value());
+		}
+	}
+
+	uint64 session = MTP::nonce<uint64>();
+	DEBUG_LOG(("MTP Info: creating new session after bad_msg_notification, setting random server_session %1").arg(session));
+	sessionData->setSession(session);
+
+	for (mtpRequestMap::const_iterator i = setSeqNumbers.cbegin(), e = setSeqNumbers.cend(); i != e; ++i) { // generate new seq_numbers
+		bool wasNeedAck = (*(i.value()->data() + 6) & 1);
+		*(i.value()->data() + 6) = sessionData->nextRequestSeqNumber(wasNeedAck);
+	}
+	if (!replaces.isEmpty()) {
+		for (Replaces::const_iterator i = replaces.cbegin(), e = replaces.cend(); i != e; ++i) { // replace msgIds keys in all data structs
+			mtpRequestMap::iterator j = haveSent.find(i.key());
+			if (j != haveSent.cend()) {
+				mtpRequest req = j.value();
+				haveSent.erase(j);
+				haveSent.insert(i.value(), req);
+			}
+			mtpRequestIdsMap::iterator k = toResend.find(i.key());
+			if (k != toResend.cend()) {
+				mtpRequestId req = k.value();
+				toResend.erase(k);
+				toResend.insert(i.value(), req);
+			}
+			k = wereAcked.find(i.key());
+			if (k != wereAcked.cend()) {
+				mtpRequestId req = k.value();
+				wereAcked.erase(k);
+				wereAcked.insert(i.value(), req);
+			}
+		}
+		for (mtpRequestMap::const_iterator i = haveSent.cbegin(), e = haveSent.cend(); i != e; ++i) { // replace msgIds in saved containers
+			if (mtpRequestData::isSentContainer(i.value())) {
+				mtpMsgId *ids = (mtpMsgId *)(i.value()->data() + 8);
+				for (uint32 j = 0, l = (i.value()->size() - 8) >> 1; j < l; ++j) {
+					Replaces::const_iterator k = replaces.constFind(ids[j]);
+					if (k != replaces.cend()) {
+						ids[j] = k.value();
+					}
+				}
+			}
+		}
+	}
+}
+
+mtpMsgId MTProtoConnectionPrivate::prepareToSend(mtpRequest &request, mtpMsgId currentLastId) {
 	if (request->size() < 9) return 0;
 	mtpMsgId msgId = *(mtpMsgId*)(request->constData() + 4);
 	if (msgId) { // resending this request
@@ -1148,10 +1260,73 @@ mtpMsgId MTProtoConnectionPrivate::prepareToSend(mtpRequest &request) {
 			toResend.erase(i);
 		}
 	} else {
-		msgId = *(mtpMsgId*)(request->data() + 4) = msgid();
+		msgId = *(mtpMsgId*)(request->data() + 4) = currentLastId;
 		*(request->data() + 6) = sessionData->nextRequestSeqNumber(mtpRequestData::needAck(request));
 	}
 	return msgId;
+}
+
+mtpMsgId MTProtoConnectionPrivate::replaceMsgId(mtpRequest &request, mtpMsgId newId) {
+	if (request->size() < 9) return 0;
+
+	mtpMsgId oldMsgId = *(mtpMsgId*)(request->constData() + 4);
+	if (oldMsgId != newId) {
+		if (oldMsgId) {
+			QWriteLocker locker(sessionData->toResendMutex());
+			// haveSentMutex() and wereAckedMutex() were locked in tryToSend()
+
+			mtpRequestIdsMap &toResend(sessionData->toResendMap());
+			mtpRequestIdsMap &wereAcked(sessionData->wereAckedMap());
+			mtpRequestMap &haveSent(sessionData->haveSentMap());
+
+			while (true) {
+				if (toResend.constFind(newId) == toResend.cend() && wereAcked.constFind(newId) == wereAcked.cend() && haveSent.constFind(newId) == haveSent.cend()) {
+					break;
+				}
+				mtpMsgId m = msgid();
+				if (m <= newId) break; // wtf
+				
+				newId = m;
+			}
+
+			mtpRequestIdsMap::iterator i = toResend.find(oldMsgId);
+			if (i != toResend.cend()) {
+				mtpRequestId req = i.value();
+				toResend.erase(i);
+				toResend.insert(newId, req);
+			}
+
+			mtpRequestIdsMap::iterator j = wereAcked.find(oldMsgId);
+			if (j != wereAcked.cend()) {
+				mtpRequestId req = j.value();
+				wereAcked.erase(j);
+				wereAcked.insert(newId, req);
+			}
+
+			mtpRequestMap::iterator k = haveSent.find(oldMsgId);
+			if (k != haveSent.cend()) {
+				mtpRequest req = k.value();
+				haveSent.erase(k);
+				haveSent.insert(newId, req);
+			}
+
+			for (k = haveSent.begin(); k != haveSent.cend(); ++k) {
+				mtpRequest req(k.value());
+				if (mtpRequestData::isSentContainer(req)) {
+					mtpMsgId *ids = (mtpMsgId *)(req->data() + 8);
+					for (uint32 i = 0, l = (req->size() - 8) >> 1; i < l; ++i) {
+						if (ids[i] == oldMsgId) {
+							ids[i] = newId;
+						}
+					}
+				}
+			}
+		} else {
+			*(request->data() + 6) = sessionData->nextRequestSeqNumber(mtpRequestData::needAck(request));
+		}
+		*(mtpMsgId*)(request->data() + 4) = newId;
+	}
+	return newId;
 }
 
 void MTProtoConnectionPrivate::tryToSend() {
@@ -1211,7 +1386,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 				locker1.unlock();
 			}
 
-			mtpMsgId msgId = prepareToSend(toSendRequest);
+			mtpMsgId msgId = prepareToSend(toSendRequest, msgid());
 			if (havePrepend) pingMsgId = msgId;
 
 			if (toSendRequest->requestId) {
@@ -1237,10 +1412,12 @@ void MTProtoConnectionPrivate::tryToSend() {
 			toSendRequest->push_back(mtpc_msg_container);
 			toSendRequest->push_back(toSendCount);
 
-			QWriteLocker locker2(sessionData->haveSentMutex());
+			mtpMsgId bigMsgId = msgid(); // check for a valid container
+
+			QWriteLocker locker2(sessionData->haveSentMutex()); // the fact of this lock is used in replaceMsgId()
 			mtpRequestMap &haveSent(sessionData->haveSentMap());
 
-			QWriteLocker locker3(sessionData->wereAckedMutex());
+			QWriteLocker locker3(sessionData->wereAckedMutex()); // the fact of this lock is used in replaceMsgId()
 			mtpRequestIdsMap &wereAcked(sessionData->wereAckedMap());
 
 			mtpRequest haveSentIdsWrap(mtpRequestData::prepare(idsWrapSize)); // prepare "request-like" wrap for msgId vector
@@ -1249,7 +1426,9 @@ void MTProtoConnectionPrivate::tryToSend() {
 			mtpMsgId *haveSentArr = (mtpMsgId*)(haveSentIdsWrap->data() + 8);
 
 			if (havePrepend) {
-				mtpMsgId msgId = prepareToSend(prepend);
+				mtpMsgId msgId = prepareToSend(prepend, bigMsgId);
+				if (msgId > bigMsgId) msgId = replaceMsgId(prepend, bigMsgId);
+				if (msgId >= bigMsgId) bigMsgId = msgid();
 				*(haveSentArr++) = msgId;
 				if (havePrepend) pingMsgId = msgId;
 
@@ -1261,8 +1440,10 @@ void MTProtoConnectionPrivate::tryToSend() {
 			}
 			for (mtpPreRequestMap::iterator i = toSend.begin(), e = toSend.end(); i != e; ++i) {
 				mtpRequest &req(i.value());
-				mtpMsgId msgId = prepareToSend(req);
-				*(haveSentArr++) = msgId;				
+				mtpMsgId msgId = prepareToSend(req, bigMsgId);
+				if (msgId > bigMsgId) msgId = replaceMsgId(req, bigMsgId);
+				if (msgId >= bigMsgId) bigMsgId = msgid();
+				*(haveSentArr++) = msgId;
 
 				if (req->requestId) {
 					if (mtpRequestData::needAck(req)) {
@@ -1279,7 +1460,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 				memcpy(toSendRequest->data() + from, req->constData() + 4, len * sizeof(mtpPrime));
 			}
 
-			mtpMsgId contMsgId = prepareToSend(toSendRequest);
+			mtpMsgId contMsgId = prepareToSend(toSendRequest, bigMsgId);
 			*(mtpMsgId*)(haveSentIdsWrap->data() + 4) = contMsgId;
 			(*haveSentIdsWrap)[6] = 0; // for container, msDate = 0, seqNo = 0
 			haveSent.insert(contMsgId, haveSentIdsWrap);
@@ -1372,6 +1553,9 @@ void MTProtoConnectionPrivate::restart(bool maybeBadKey) {
 	}
 
 	doDisconnect();
+	if (_needSessionReset) {
+		resetSession();
+	}
 	restarted = true;
 	if (retryTimer.isActive()) return;
 
@@ -1564,7 +1748,9 @@ void MTProtoConnectionPrivate::handleReceived() {
 		int32 res = 1; // if no need to handle, then succeed
 		end = data + 8 + (msgLen >> 2);
 		const mtpPrime *sfrom(data + 4);
-		MTP_LOG(dc, ("Recv: ") + mtpTextSerialize(sfrom, end, mtpc_core_message));
+		if (cDebug()) {
+			MTP_LOG(dc, ("Recv: ") + mtpTextSerialize(sfrom, end, mtpc_core_message));
+		}
 
 		bool needToHandle = false;
 		{
@@ -1606,6 +1792,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 		}
 
 		if (res < 0) {
+			_needSessionReset = (res < -1);
 			return restart();
 		}
 
@@ -1714,29 +1901,71 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 		const MTPDbad_msg_notification &data(msg.c_bad_msg_notification());
 		LOG(("Message Info: bad message notification received (error_code %3) for msg_id = %1, seq_no = %2").arg(data.vbad_msg_id.v).arg(data.vbad_msg_seqno.v).arg(data.verror_code.v));
 
-		bool needResend = (data.verror_code.v == 16 || data.verror_code.v == 17); // bad msg_id
-		
-		mtpMsgId resendId = data.vbad_msg_id.v;
-		if (!wasSent(resendId)) {
-			DEBUG_LOG(("Message Error: such message was not sent recently %1").arg(resendId));
-			return (badTime ? 0 : 1);
-		}
+		int32 errorCode = data.verror_code.v;
+		if (errorCode == 16 || errorCode == 17 || errorCode == 32 || errorCode == 33 || errorCode == 64) { // can handle
+			bool needResend = (errorCode == 16 || errorCode == 17); // bad msg_id
+			if (errorCode == 64) { // bad container!
+				needResend = true;
+				if (cDebug()) {
+					mtpRequest request;
+					{
+						QWriteLocker locker(sessionData->haveSentMutex());
+						mtpRequestMap &haveSent(sessionData->haveSentMap());
 
-		if (needResend) { // bad msg_id
-			if (serverSalt) sessionData->setSalt(serverSalt);
-			unixtimeSet(serverTime, true);
+						mtpRequestMap::iterator i = haveSent.find(msgId);
+						if (i == haveSent.end()) {
+							LOG(("Message Error: Container not found!"));
+						}
 
-			DEBUG_LOG(("Message Info: unixtime updated, now %1, resending in container..").arg(serverTime));
-
-			resend(resendId, 0, true);
-		} else {
-			if (badTime) {
-				if (serverSalt) sessionData->setSalt(serverSalt);
-				unixtimeSet(serverTime);
-				badTime = false;
+						request = i.value();
+					}
+					if (request) {
+						if (mtpRequestData::isSentContainer(request)) {
+							QStringList lst;
+							const mtpMsgId *ids = (const mtpMsgId *)(request->constData() + 8);
+							for (uint32 i = 0, l = (request->size() - 8) >> 1; i < l; ++i) {
+								lst.push_back(QString::number(ids[i]));
+							}
+							LOG(("Message Info: bad container received! messages: %1").arg(lst.join(',')));
+						} else {
+							LOG(("Message Error: bad container received, but request is not a container!"));
+						}
+					}
+				}
 			}
-			LOG(("Message Error: bad message notification received, msgId %1, error_code %2").arg(data.vbad_msg_id.v).arg(data.verror_code.v));
-			return -1;
+
+			mtpMsgId resendId = data.vbad_msg_id.v;
+			if (!wasSent(resendId)) {
+				DEBUG_LOG(("Message Error: such message was not sent recently %1").arg(resendId));
+				return (badTime ? 0 : 1);
+			}
+
+			if (needResend) { // bad msg_id
+				if (serverSalt) sessionData->setSalt(serverSalt);
+				unixtimeSet(serverTime, true);
+
+				DEBUG_LOG(("Message Info: unixtime updated, now %1, resending in container..").arg(serverTime));
+
+				resend(resendId, 0, true);
+			} else { // must create new session, because msg_id and msg_seqno are inconsistent
+				if (badTime) {
+					if (serverSalt) sessionData->setSalt(serverSalt);
+					unixtimeSet(serverTime);
+					badTime = false;
+				}
+				LOG(("Message Info: bad message notification received, msgId %1, error_code %2").arg(data.vbad_msg_id.v).arg(errorCode));
+				return -2;
+			}
+		} else { // fatal (except 48, but it must not get here)
+			mtpMsgId resendId = data.vbad_msg_id.v;
+			mtpRequestId requestId = wasSent(resendId);
+			if (requestId) {
+				LOG(("Message Error: bad message notification received, msgId %1, error_code %2, fatal: clearing callbacks").arg(data.vbad_msg_id.v).arg(errorCode));
+				_mtp_internal::clearCallbacksDelayed(RPCCallbackClears(1, RPCCallbackClear(requestId, -errorCode)));
+			} else {
+				DEBUG_LOG(("Message Error: such message was not sent recently %1").arg(resendId));
+			}
+			return (badTime ? 0 : 1);
 		}
 	} return 1;
 
@@ -1855,8 +2084,13 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 		}
 		try {
 			const mtpPrime *rFrom = requestBuffer->constData() + 8, *rEnd = requestBuffer->constData() + requestBuffer->size();
-			MTPMsgsStateReq request(rFrom, rEnd);
-			handleMsgsStates(request.c_msgs_state_req().vmsg_ids.c_vector().v, states, toAck);
+			if (*rFrom == mtpc_msgs_state_req) {
+				MTPMsgsStateReq request(rFrom, rEnd);
+				handleMsgsStates(request.c_msgs_state_req().vmsg_ids.c_vector().v, states, toAck);
+			} else {
+				MTPMsgResendReq request(rFrom, rEnd);
+				handleMsgsStates(request.c_msg_resend_req().vmsg_ids.c_vector().v, states, toAck);
+			}
 		} catch(Exception &e) {
 			LOG(("Message Error: could not parse sent msgs_state_req"));
 			throw;
@@ -2279,7 +2513,6 @@ mtpRequestId MTProtoConnectionPrivate::resend(mtpMsgId msgId, uint64 msCanWait, 
 	if (msgId == pingMsgId) return 0xFFFFFFFF;
 	return sessionData->owner()->resend(msgId, msCanWait, forceContainer, sendMsgStateInfo);
 }
-
 
 void MTProtoConnectionPrivate::onConnected() {
 	disconnect(conn, SIGNAL(connected()), this, SLOT(onConnected()));
@@ -2874,7 +3107,9 @@ bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResp
 	memcpy(request->data() + 2, &session, 2 * sizeof(mtpPrime));
 
 	const mtpPrime *from = request->constData() + 4;
-	MTP_LOG(dc, ("Send: ") + mtpTextSerialize(from, from + messageSize, mtpc_core_message));
+	if (cDebug()) {
+		MTP_LOG(dc, ("Send: ") + mtpTextSerialize(from, from + messageSize, mtpc_core_message));
+	}
 
 	uchar encryptedSHA[20];
 	MTPint128 &msgKey(*(MTPint128*)(encryptedSHA + 4));

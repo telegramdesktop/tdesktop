@@ -95,7 +95,7 @@ bool scaleIs(DBIScale scale) {
 	return cRealScale() == scale || (cRealScale() == dbisAuto && cScreenScale() == scale);
 }
 
-SettingsInner::SettingsInner(Settings *parent) : QWidget(parent),
+SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_self(App::self()),
 
 	// profile
@@ -1126,7 +1126,7 @@ void SettingsInner::onPhotoUpdateDone(PeerId peer) {
 	update();
 }
 
-Settings::Settings(Window *parent) : QWidget(parent),
+SettingsWidget::SettingsWidget(Window *parent) : QWidget(parent),
 	_scroll(this, st::setScroll), _inner(this), _close(this, st::setClose) {
 	_scroll.setWidget(&_inner);
 
@@ -1138,11 +1138,11 @@ Settings::Settings(Window *parent) : QWidget(parent),
 	showAll();
 }
 
-void Settings::onParentResize(const QSize &newSize) {
+void SettingsWidget::onParentResize(const QSize &newSize) {
 	resize(newSize);
 }
 
-void Settings::animShow(const QPixmap &bgAnimCache, bool back) {
+void SettingsWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 	_bgAnimCache = bgAnimCache;
 
 	anim::stop(this);
@@ -1159,7 +1159,7 @@ void Settings::animShow(const QPixmap &bgAnimCache, bool back) {
 	show();
 }
 
-bool Settings::animStep(float64 ms) {
+bool SettingsWidget::animStep(float64 ms) {
 	float64 fullDuration = st::introSlideDelta + st::introSlideDuration, dt = ms / fullDuration;
 	float64 dt1 = (ms > st::introSlideDuration) ? 1 : (ms / st::introSlideDuration), dt2 = (ms > st::introSlideDelta) ? (ms - st::introSlideDelta) / (st::introSlideDuration) : 0;
 	bool res = true;
@@ -1184,7 +1184,7 @@ bool Settings::animStep(float64 ms) {
 	return res;
 }
 
-void Settings::paintEvent(QPaintEvent *e) {
+void SettingsWidget::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	bool trivial = (rect() == r);
 
@@ -1202,32 +1202,32 @@ void Settings::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void Settings::showAll() {
+void SettingsWidget::showAll() {
 	_scroll.show();
 	_inner.show();
 	_inner.showAll();
 	_close.show();
 }
 
-void Settings::hideAll() {
+void SettingsWidget::hideAll() {
 	_scroll.hide();
 	_close.hide();
 }
 
-void Settings::resizeEvent(QResizeEvent *e) {
+void SettingsWidget::resizeEvent(QResizeEvent *e) {
 	_scroll.resize(size());
 	_inner.updateSize(width());
 	_close.move(st::setClosePos.x(), st::setClosePos.y());
 }
 
-void Settings::dragEnterEvent(QDragEnterEvent *e) {
+void SettingsWidget::dragEnterEvent(QDragEnterEvent *e) {
 
 }
 
-void Settings::dropEvent(QDropEvent *e) {
+void SettingsWidget::dropEvent(QDropEvent *e) {
 }
 
-bool Settings::getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
+bool SettingsWidget::getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
 	if (_inner.getPhotoCoords(photo, x, y, w)) {
 		x += _inner.x();
 		y += _inner.y();
@@ -1236,14 +1236,18 @@ bool Settings::getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) co
 	return false;
 }
 
-void Settings::updateOnlineDisplay() {
+void SettingsWidget::updateOnlineDisplay() {
 	_inner.updateOnlineDisplay();
 }
 
-void Settings::updateConnectionType() {
+void SettingsWidget::updateConnectionType() {
 	_inner.updateConnectionType();
 }
 
-Settings::~Settings() {
+void SettingsWidget::rpcInvalidate() {
+	_inner.rpcInvalidate();
+}
+
+SettingsWidget::~SettingsWidget() {
 	if (App::wnd()) App::wnd()->noSettings(this);
 }

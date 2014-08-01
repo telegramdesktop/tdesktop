@@ -129,6 +129,11 @@ inline char *hashMd5Hex(const void *data, uint32 len, void *dest) { // dest = pt
 
 void memset_rand(void *data, uint32 len);
 
+template <typename T>
+inline void memsetrnd(T &value) {
+	memset_rand(&value, sizeof(value));
+}
+
 class ReadLockerAttempt {
 public:
 
