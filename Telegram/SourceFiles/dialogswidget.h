@@ -195,9 +195,6 @@ public slots:
 
 private:
 
-	void loadConfig();
-	bool _configLoaded;
-
 	bool _drawShadow;
 
 	void unreadCountsReceived(const QVector<MTPDialog> &dialogs);

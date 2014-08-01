@@ -797,3 +797,4 @@ public:
 };
 
 typedef void (*MTPStateChangedHandler)(int32 dcId, int32 state);
+typedef void(*MTPSessionResetHandler)(int32 dcId);

@@ -239,6 +239,7 @@ public slots:
 	void tryToReceive();
 	void checkRequestsByTimer();
 	void onConnectionStateChange(qint32 newState);
+	void onResetDone();
 
 private:
 	

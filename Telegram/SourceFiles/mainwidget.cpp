@@ -1734,5 +1734,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const MTPDupdateNotifySettings &d(update.c_updateNotifySettings());
 		applyNotifySetting(d.vpeer, d.vnotify_settings);
 	} break;
+
+	case mtpc_updateDcOptions: {
+		const MTPDupdateDcOptions &d(update.c_updateDcOptions());
+		MTP::updateDcOptions(d.vdc_options.c_vector().v);
+	} break;
 	}
 }

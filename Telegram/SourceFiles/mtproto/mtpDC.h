@@ -83,15 +83,28 @@ class MTProtoConfigLoader : public QObject {
 
 public:
 
+	MTProtoConfigLoader();
 	void load();
+	void done();
+
+public slots:
+
+	void enumDC();
 
 signals:
 
 	void loaded();
 
+private:
+
+	QTimer _enumDCTimer;
+	int32 _enumCurrent;
+	mtpRequestId _enumRequest;
+
 };
 
 MTProtoConfigLoader *mtpConfigLoader();
+void mtpDestroyConfigLoader();
 
 const mtpDcOptions &mtpDCOptions();
 MTProtoDCMap &mtpDCMap();
@@ -108,3 +121,5 @@ void mtpAuthed(int32 uid);
 
 void mtpWriteConfig(QDataStream &stream);
 bool mtpReadConfigElem(int32 blockId, QDataStream &stream);
+
+void mtpUpdateDcOptions(const QVector<MTPDcOption> &options);

@@ -38,6 +38,7 @@ namespace _mtp_internal {
 	void execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end);
 	void globalCallback(const mtpPrime *from, const mtpPrime *end);
 	void onStateChange(int32 dc, int32 state);
+	void onSessionReset(int32 dc);
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err); // return true if need to clean request data
 	inline bool rpcErrorOccured(mtpRequestId requestId, const RPCResponseHandler &handler, const RPCError &err) {
 		return rpcErrorOccured(requestId, handler.onFail, err);
@@ -59,9 +60,11 @@ namespace MTP {
 
 	static const uint32 dld = 1 * _mtp_internal::dcShift; // send(req, callbacks, MTP::dld + dc) - for download
 	static const uint32 upl = 2 * _mtp_internal::dcShift; // send(req, callbacks, MTP::upl + dc) - for upload
+	static const uint32 cfg = 3 * _mtp_internal::dcShift; // send(MTPhelp_GetConfig(), MTP::cfg + dc) - for dc enum
 
 	void start();
 	void restart();
+	void restart(int32 dcMask);
 
 	void setLayer(uint32 layer);
 
@@ -79,6 +82,7 @@ namespace MTP {
 		return send(request, RPCResponseHandler(onDone, onFail), dc, msCanWait);
 	}
 	void cancel(mtpRequestId req);
+	void killSession(int32 dc);
 	
 	enum {
 		RequestSent = 0,
@@ -98,7 +102,10 @@ namespace MTP {
 	void setGlobalDoneHandler(RPCDoneHandlerPtr handler);
 	void setGlobalFailHandler(RPCFailHandlerPtr handler);
 	void setStateChangedHandler(MTPStateChangedHandler handler);
+	void setSessionResetHandler(MTPSessionResetHandler handler);
 	void clearGlobalHandlers();
+
+	void updateDcOptions(const QVector<MTPDcOption> &options);
 
 	template <typename T>
 	T nonce() {

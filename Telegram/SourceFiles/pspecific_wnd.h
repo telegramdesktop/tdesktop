@@ -86,7 +86,7 @@ protected:
 	bool posInited;
 	QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
-	QImage icon16, icon32, icon256;
+	QImage icon16, icon32, icon64, icon256;
 	virtual void setupTrayIcon() {
 	}
 

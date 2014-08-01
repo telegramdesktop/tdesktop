@@ -866,6 +866,7 @@ PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent), ps_hWnd(0), p
 	tbCreatedMsgId = RegisterWindowMessage(L"TaskbarButtonCreated");
 	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
+	icon64 = icon256.scaledToWidth(64, Qt::SmoothTransformation);
 	connect(&psIdleTimer, SIGNAL(timeout()), this, SLOT(psIdleTimeout()));
 	psIdleTimer.setSingleShot(false);
 }
@@ -986,9 +987,9 @@ void PsMainWindow::psUpdateCounter() {
 	int32 counter = App::histories().unreadFull;
 	style::color bg = (App::histories().unreadMuted < counter) ? st::counterBG : st::counterMuteBG;
 	QIcon icon;
-	QImage cicon16(icon16), cicon32(icon32);
+	QImage cicon16(icon16), cicon32(icon32), cicon64(icon64);
 	if (counter > 0) {
-		{
+		if (!tbListInterface) {
 			QString cnt = (counter < 1000) ? QString("%1").arg(counter) : QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
 			QPainter p16(&cicon16);
 			p16.setBrush(bg->b);
@@ -1017,12 +1018,26 @@ void PsMainWindow::psUpdateCounter() {
 			p32.setFont(f->f);
 			p32.drawText(32 - w - d, f->ascent - 1, cnt);
 		}
+		if (!tbListInterface) {
+			QString cnt = (counter < 10000) ? QString("%1").arg(counter) : ((counter < 1000000) ? QString("%1K").arg(counter / 1000) : QString("%1M").arg(counter / 1000000));
+			QPainter p64(&cicon64);
+			style::font f(18);
+			int32 w = f->m.width(cnt), d = 6, r = 12;
+			p64.setBrush(bg->b);
+			p64.setPen(Qt::NoPen);
+			p64.setRenderHint(QPainter::Antialiasing);
+			p64.drawRoundedRect(QRect(64 - w - d * 2, 0, w + d * 2, f->height - 1), r, r);
+			p64.setPen(st::counterColor->p);
+			p64.setFont(f->f);
+			p64.drawText(64 - w - d, f->ascent - 1, cnt);
+		}
 	}
 	icon.addPixmap(QPixmap::fromImage(cicon16));
 	icon.addPixmap(QPixmap::fromImage(cicon32));
+	icon.addPixmap(QPixmap::fromImage(cicon64));
 	if (trayIcon) {
 		QIcon ticon;
-		QImage ticon16(icon16);
+		QImage ticon16(icon16), ticon32(icon32);
 		if (counter > 0) {
 			QString cnt = (counter < 1000) ? QString("%1").arg(counter) : QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
 			{
@@ -1040,9 +1055,22 @@ void PsMainWindow::psUpdateCounter() {
 
 				p16.drawText(16 - w - d, 16 - f->height + f->ascent, cnt);
 			}
+			{
+				QString cnt = (counter < 10000) ? QString("%1").arg(counter) : ((counter < 1000000) ? QString("%1K").arg(counter / 1000) : QString("%1M").arg(counter / 1000000));
+				QPainter p32(&ticon32);
+				style::font f(10);
+				int32 w = f->m.width(cnt), d = 3, r = 6;
+				p32.setBrush(bg->b);
+				p32.setPen(Qt::NoPen);
+				p32.setRenderHint(QPainter::Antialiasing);
+				p32.drawRoundedRect(QRect(32 - w - d * 2, 0, w + d * 2, f->height - 1), r, r);
+				p32.setPen(st::counterColor->p);
+				p32.setFont(f->f);
+				p32.drawText(32 - w - d, f->ascent - 1, cnt);
+			}
 		}
 		ticon.addPixmap(QPixmap::fromImage(ticon16));
-		ticon.addPixmap(QPixmap::fromImage(cicon32));
+		ticon.addPixmap(QPixmap::fromImage(ticon32));
 		trayIcon->setIcon(ticon);
 	}
 
@@ -1055,9 +1083,10 @@ void PsMainWindow::psUpdateCounter() {
 	if (tbListInterface) {
 		if (counter > 0) {
 			QString cnt = (counter < 1000) ? QString("%1").arg(counter) : QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
-			QImage oicon16(16, 16, QImage::Format_ARGB32);
+			QImage oicon16(16, 16, QImage::Format_ARGB32), oicon32(32, 32, QImage::Format_ARGB32);
 			int32 cntSize = cnt.size();
 			oicon16.fill(st::transparent->c);
+			oicon32.fill(st::transparent->c);
 			{
 				QPainter p16(&oicon16);
 				p16.setBrush(bg->b);
@@ -1073,7 +1102,24 @@ void PsMainWindow::psUpdateCounter() {
 
 				p16.drawText(16 - w - d, 16 - f->height + f->ascent, cnt);
 			}
-			QIcon oicon(QPixmap::fromImage(oicon16));
+			{
+				QPainter p32(&oicon32);
+				p32.setBrush(bg->b);
+				p32.setPen(Qt::NoPen);
+				p32.setRenderHint(QPainter::Antialiasing);
+				int32 fontSize = (cntSize < 2) ? 22 : ((cntSize < 3) ? 20 : 16);
+				style::font f(fontSize);
+				int32 w = f->m.width(cnt), d = (cntSize < 2) ? 9 : ((cntSize < 3) ? 4 : 4), r = (cntSize < 2) ? 16 : ((cntSize < 3) ? 14 : 6);
+				p32.drawRoundedRect(QRect(32 - w - d * 2, 32 - f->height, w + d * 2, f->height), r, r);
+				p32.setFont(f->f);
+
+				p32.setPen(st::counterColor->p);
+
+				p32.drawText(32 - w - d, 32 - f->height + f->ascent, cnt);
+			}
+			QIcon oicon;
+			oicon.addPixmap(QPixmap::fromImage(oicon16));
+			oicon.addPixmap(QPixmap::fromImage(oicon32));
 			ps_iconOverlay = _qt_createHIcon(oicon, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
 		}
 		QString description = counter > 0 ? QString("%1 unread messages").arg(counter) : qsl("No unread messages");

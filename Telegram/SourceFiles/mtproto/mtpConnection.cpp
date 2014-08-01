@@ -1086,6 +1086,7 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
 	connect(this, SIGNAL(needToReceive()), sessionData->owner(), SLOT(tryToReceive()));
 	connect(this, SIGNAL(stateChanged(qint32)), sessionData->owner(), SLOT(onConnectionStateChange(qint32)));
 	connect(sessionData->owner(), SIGNAL(needToSend()), this, SLOT(tryToSend()));
+	connect(this, SIGNAL(sessionResetDone()), sessionData->owner(), SLOT(onResetDone()));
 
 	oldConnectionTimer.setSingleShot(true);
 	connCheckTimer.setSingleShot(true);
@@ -1247,6 +1248,8 @@ void MTProtoConnectionPrivate::resetSession() { // recreate all msg_id and msg_s
 			}
 		}
 	}
+
+	emit sessionResetDone();
 }
 
 mtpMsgId MTProtoConnectionPrivate::prepareToSend(mtpRequest &request, mtpMsgId currentLastId) {

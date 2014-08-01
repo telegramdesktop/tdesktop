@@ -292,6 +292,7 @@ signals:
 	void needToReceive();
 	void needToRestart();
 	void stateChanged(qint32 newState);
+	void sessionResetDone();
 
 public slots:
 

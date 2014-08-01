@@ -20,10 +20,10 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "mtp.h"
 
 namespace {
-
+	
 	MTProtoDCMap gDCs;
 	bool configLoadedOnce = false;
-	int32 mainDC = 1;
+	int32 mainDC = 2;
 	int userId = 0;
 	mtpDcOptions gDCOptions;
 
@@ -201,13 +201,15 @@ namespace {
 			int32 oldFound = readAuthKeys(keysFile);
 
 			if (gDCOptions.isEmpty() || (mainDC && gDCOptions.find(mainDC) == gDCOptions.cend())) { // load first dc info
-				gDCOptions.insert(1, mtpDcOption(1, "", cFirstDCIp(), cFirstDCPort()));
+				const BuiltInDc *bdcs = builtInDcs();
+				for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
+					gDCOptions.insert(bdcs[i].id, mtpDcOption(bdcs[i].id, "", bdcs[i].ip, bdcs[i].port));
+					DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
+				}
 				userId = 0;
-				mainDC = 0;
-				DEBUG_LOG(("MTP Info: first DC connect options: %1:%2").arg(cFirstDCIp()).arg(cFirstDCPort()));
+				mainDC = (gDCOptions.constFind(2) == gDCOptions.cend()) ? gDCOptions.begin().key() : 2;
 			} else {
-				configLoadedOnce = true;
-				DEBUG_LOG(("MTP Info: config loaded, dc option count: %1").arg(gDCOptions.size()));
+				DEBUG_LOG(("MTP Info: config from local, dc option count: %1").arg(gDCOptions.size()));
 			}
 
 			if (oldFound > 0) {
@@ -219,8 +221,11 @@ namespace {
 			}
 		} else {
 			DEBUG_LOG(("MTP Info: could not open keys file for reading"));
-			gDCOptions.insert(1, mtpDcOption(1, "", cFirstDCIp(), cFirstDCPort()));
-			DEBUG_LOG(("MTP Info: first DC connect options: %1:%2").arg(cFirstDCIp()).arg(cFirstDCPort()));
+			const BuiltInDc *bdcs = builtInDcs();
+			for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
+				gDCOptions.insert(bdcs[i].id, mtpDcOption(bdcs[i].id, "", bdcs[i].ip, bdcs[i].port));
+				DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
+			}
 		}
 	}
 
@@ -392,7 +397,7 @@ void MTProtoDC::destroyKey() {
 }
 
 namespace {
-	MTProtoConfigLoader configLoader;
+	MTProtoConfigLoader *configLoader = 0;
 	bool loadingConfig = false;
 	void configLoaded(const MTPConfig &result) {
 		loadingConfig = false;
@@ -401,21 +406,13 @@ namespace {
 
 		DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max.v).arg(data.vdate.v).arg(data.vtest_mode.v).arg(data.vthis_dc.v).arg(data.vdc_options.c_vector().v.size()));
 
-		QSet<int32> already;
-		const QVector<MTPDcOption> &options(data.vdc_options.c_vector().v);
-		for (QVector<MTPDcOption>::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
-			const MTPDdcOption &optData(i->c_dcOption());
-			if (already.constFind(optData.vid.v) == already.cend()) {
-				already.insert(optData.vid.v);
-				gDCOptions.insert(optData.vid.v, mtpDcOption(optData.vid.v, optData.vhostname.c_string().v, optData.vip_address.c_string().v, optData.vport.v));
-			}
-		}
+		mtpUpdateDcOptions(data.vdc_options.c_vector().v);
 		cSetMaxGroupCount(data.vchat_size_max.v);
 
 		configLoadedOnce = true;
 		App::writeUserConfig();
 
-		emit mtpConfigLoader()->loaded();
+		mtpConfigLoader()->done();
 	}
 	bool configFailed(const RPCError &err) {
 		loadingConfig = false;
@@ -424,16 +421,77 @@ namespace {
 	}
 };
 
+void mtpUpdateDcOptions(const QVector<MTPDcOption> &options) {
+	QSet<int32> already, restart;
+	for (QVector<MTPDcOption>::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
+		const MTPDdcOption &optData(i->c_dcOption());
+		if (already.constFind(optData.vid.v) == already.cend()) {
+			already.insert(optData.vid.v);
+			mtpDcOptions::const_iterator a = gDCOptions.constFind(optData.vid.v);
+			if (a != gDCOptions.cend()) {
+				if (a.value().ip != optData.vip_address.c_string().v || a.value().port != optData.vport.v) {
+					restart.insert(optData.vid.v);
+				}
+			}
+			gDCOptions.insert(optData.vid.v, mtpDcOption(optData.vid.v, optData.vhostname.c_string().v, optData.vip_address.c_string().v, optData.vport.v));
+		}
+	}
+	for (QSet<int32>::const_iterator i = restart.cbegin(), e = restart.cend(); i != e; ++i) {
+		MTP::restart(*i);
+	}
+}
+
+MTProtoConfigLoader::MTProtoConfigLoader() : _enumCurrent(0), _enumRequest(0) {
+	connect(&_enumDCTimer, SIGNAL(timeout()), this, SLOT(enumDC()));
+	_enumDCTimer.setSingleShot(true);
+}
+
 void MTProtoConfigLoader::load() {
 	if (loadingConfig) return;
 	loadingConfig = true;
 
-	MTPhelp_GetConfig request;
-	MTP::send(request, rpcDone(configLoaded), rpcFail(configFailed));
+	MTP::send(MTPhelp_GetConfig(), rpcDone(configLoaded), rpcFail(configFailed));
+
+	_enumDCTimer.start(MTPEnumDCTimeout);
+}
+
+void MTProtoConfigLoader::done() {
+	_enumDCTimer.stop();
+	if (_enumRequest) MTP::cancel(_enumRequest);
+	if (_enumCurrent) MTP::killSession(_enumCurrent);
+	emit loaded();
+}
+
+void MTProtoConfigLoader::enumDC() {
+	if (!loadingConfig) return;
+
+	if (_enumRequest) MTP::cancel(_enumRequest);
+
+	if (!_enumCurrent) {
+		_enumCurrent = mainDC;
+	} else {
+		MTP::killSession(MTP::cfg + _enumCurrent);
+	}
+	for (mtpDcOptions::const_iterator i = gDCOptions.cbegin(), e = gDCOptions.cend(); i != e; ++i) {
+		if (i.key() == _enumCurrent) {
+			_enumCurrent = (++i == e) ? gDCOptions.cbegin().key() : i.key();
+			break;
+		}
+	}
+
+	_enumRequest = MTP::send(MTPhelp_GetConfig(), rpcDone(configLoaded), rpcFail(configFailed), MTP::cfg + _enumCurrent);
+
+	_enumDCTimer.start(MTPEnumDCTimeout);
 }
 
 MTProtoConfigLoader *mtpConfigLoader() {
-	return &configLoader;
+	if (!configLoader) configLoader = new MTProtoConfigLoader();
+	return configLoader;
+}
+
+void mtpDestroyConfigLoader() {
+	delete configLoader;
+	configLoader = 0;
 }
 
 void mtpWriteConfig(QDataStream &stream) {

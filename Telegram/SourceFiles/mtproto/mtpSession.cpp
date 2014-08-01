@@ -197,6 +197,10 @@ void MTProtoSession::onConnectionStateChange(qint32 newState) {
 	_mtp_internal::onStateChange(dcId, newState);
 }
 
+void MTProtoSession::onResetDone() {
+	_mtp_internal::onSessionReset(dcId);
+}
+
 void MTProtoSession::cancel(mtpRequestId requestId) {
 	QWriteLocker locker(data.toSendMutex());
 	mtpPreRequestMap &toSend(data.toSendMap());

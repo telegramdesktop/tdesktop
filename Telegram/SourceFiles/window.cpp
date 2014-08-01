@@ -573,7 +573,9 @@ void Window::showConnecting(const QString &text, const QString &reconnect) {
 		_connecting->set(text, reconnect);
 	} else {
 		_connecting = new ConnectingWidget(this, text, reconnect);
+		_connecting->show();
 		resizeEvent(0);
+		fixOrder();
 	}
 }
 

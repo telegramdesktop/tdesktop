@@ -53,6 +53,7 @@ namespace {
 
 	RPCResponseHandler globalHandler;
 	MTPStateChangedHandler stateChangedHandler = 0;
+	MTPSessionResetHandler sessionResetHandler = 0;
 	_mtp_internal::RequestResender *resender = 0;
 
 	mtpAuthKey _localKey;
@@ -342,6 +343,9 @@ namespace _mtp_internal {
 	void execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) {
 		ParserMap::iterator i = parserMap.find(requestId);
 		if (i != parserMap.cend()) {
+			RPCResponseHandler h(i.value());
+			parserMap.erase(i);
+
 			DEBUG_LOG(("RPC Info: found parser for request %1, trying to parse response..").arg(requestId));
 			try {
 				if (from >= end) throw mtpErrorInsufficient();
@@ -349,18 +353,17 @@ namespace _mtp_internal {
 				if (*from == mtpc_rpc_error) {
 					RPCError err(MTPRpcError(from, end));
 					DEBUG_LOG(("RPC Info: error received, code %1, type %2, description: %3").arg(err.code()).arg(err.type()).arg(err.description()));
-					if (!rpcErrorOccured(requestId, i.value(), err)) {
+					if (!rpcErrorOccured(requestId, h, err)) {
 						return;
 					}
 				} else {
-					if (i.value().onDone) (*i.value().onDone)(requestId, from, end);
+					if (h.onDone) (*h.onDone)(requestId, from, end);
 				}
 			} catch (Exception &e) {
-				if (!rpcErrorOccured(requestId, i.value(), rpcClientError("RESPONSE_PARSE_FAILED", QString("exception text: ") + e.what()))) {
+				if (!rpcErrorOccured(requestId, h, rpcClientError("RESPONSE_PARSE_FAILED", QString("exception text: ") + e.what()))) {
 					return;
 				}
 			}
-			parserMap.erase(i);
 			requestMap.remove(requestId);
 		} else {
 			DEBUG_LOG(("RPC Info: parser not found for %1").arg(requestId));
@@ -374,6 +377,10 @@ namespace _mtp_internal {
 
 	void onStateChange(int32 dc, int32 state) {
 		if (stateChangedHandler) stateChangedHandler(dc, state);
+	}
+
+	void onSessionReset(int32 dc) {
+		if (sessionResetHandler) sessionResetHandler(dc);
 	}
 
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err) { // return true if need to clean request data
@@ -469,6 +476,15 @@ namespace MTP {
 			(*i)->restart();
 		}
 	}
+	void restart(int32 dcMask) {
+		if (!started) return;
+
+		for (Sessions::const_iterator i = sessions.cbegin(), e = sessions.cend(); i != e; ++i) {
+			if ((*i)->getDC() % _mtp_internal::dcShift == dcMask % _mtp_internal::dcShift) {
+				(*i)->restart();
+			}
+		}
+	}
 
 	void setLayer(uint32 l) {
 		if (l > mtpLayerMax) {
@@ -538,6 +554,14 @@ namespace MTP {
 		_mtp_internal::clearCallbacks(requestId);
 	}
 
+	void killSession(int32 dc) {
+		Sessions::iterator i = sessions.find(dc);
+		if (i != sessions.end()) {
+			i.value()->stop();
+			sessions.erase(i);
+		}
+	}
+
 	int32 state(mtpRequestId requestId) {
 		if (requestId > 0) {
 			QMutexLocker locker(&requestByDCLock);
@@ -556,6 +580,7 @@ namespace MTP {
 		}
 		delete resender;
 		resender = 0;
+		mtpDestroyConfigLoader();
 	}
 
 	void authed(int32 uid) {
@@ -583,10 +608,20 @@ namespace MTP {
 		stateChangedHandler = handler;
 	}
 
+	void setSessionResetHandler(MTPSessionResetHandler handler) {
+		sessionResetHandler = handler;
+	}
+
 	void clearGlobalHandlers() {
 		setGlobalDoneHandler(RPCDoneHandlerPtr());
 		setGlobalFailHandler(RPCFailHandlerPtr());
 		setStateChangedHandler(0);
+		setSessionResetHandler(0);
+	}
+
+	void updateDcOptions(const QVector<MTPDcOption> &options) {
+		mtpUpdateDcOptions(options);
+		App::writeUserConfig();
 	}
 
 	void writeConfig(QDataStream &stream) {

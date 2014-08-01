@@ -39,6 +39,12 @@ namespace {
 		}
 	}
 
+	void mtpSessionReset(int32 dc) {
+		if (App::main() && dc == MTP::maindc()) {
+			App::main()->getDifference();
+		}
+	}
+
 	class _DebugWaiter : public QObject {
 	public:
 
@@ -569,6 +575,7 @@ void Application::startApp() {
 	MTP::start();
 	
 	MTP::setStateChangedHandler(mtpStateChanged);
+	MTP::setSessionResetHandler(mtpSessionReset);
 
 	App::initMedia();
 

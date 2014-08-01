@@ -906,7 +906,6 @@ DialogsListWidget::SearchResults &DialogsListWidget::searchList() {
 }
 
 DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
-, _configLoaded(false)
 , _drawShadow(true)
 , dlgOffset(0)
 , dlgCount(-1)
@@ -1070,7 +1069,6 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs) {
 		}
 	} else {
 		dlgCount = dlgOffset;
-		loadConfig();
 	}
 
 	dlgPreloading = 0;
@@ -1137,19 +1135,9 @@ void DialogsWidget::onSearchMore(MsgId minMsgId) {
 	}
 }
 
-void DialogsWidget::loadConfig() {
-	if (!_configLoaded) {
-		mtpConfigLoader()->load();
-		_configLoaded = true;
-	}
-}
-
 void DialogsWidget::loadDialogs() {
 	if (dlgPreloading) return;
-	if (dlgCount >= 0 && dlgOffset >= dlgCount) {
-		loadConfig();
-		return;
-	}
+	if (dlgCount >= 0 && dlgOffset >= dlgCount) return;
 
 	int32 loadCount = dlgOffset ? DialogsPerPage : DialogsFirstLoad;
 	dlgPreloading = MTP::send(MTPmessages_GetDialogs(MTP_int(dlgOffset), MTP_int(0), MTP_int(loadCount)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));

@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #pragma once
 
-static const int32 AppVersion = 5012;
-static const wchar_t *AppVersionStr = L"0.5.12";
+static const int32 AppVersion = 5013;
+static const wchar_t *AppVersionStr = L"0.5.13";
 #ifdef Q_OS_WIN
 static const wchar_t *AppName = L"Telegram Win (Unofficial)";
 #else
@@ -41,6 +41,8 @@ enum {
 	MTPConnectionOldTimeout = 192000, // 192 seconds
 	MTPTcpConnectionWaitTimeout = 3000, // 3 seconds waiting for tcp, until we accept http
 	MTPMillerRabinIterCount = 30, // 30 Miller-Rabin iterations for dh_prime primality check
+
+	MTPEnumDCTimeout = 4000, // 4 seconds timeout for help_getConfig to work (them move to other dc)
 
 	MinReceiveDelay = 1000, // 1 seconds
 	MaxSelectedItems = 100,
@@ -94,12 +96,30 @@ Slv8kg9qv1m6XHVQY3PnEw+QQtqSIXklHwIDAQAB\n\
 	return keys;
 }
 
-inline const char *cFirstDCIp() {
-	return cTestMode() ? "173.240.5.253" : "173.240.5.1";
+struct BuiltInDc {
+	int id;
+	const char *ip;
+	int port;
+};
+
+static const BuiltInDc _builtInDcs[] = {
+		{ 1, "173.240.5.1", 443 },
+		{ 2, "149.154.167.50", 443 },
+		{ 3, "174.140.142.6", 443 },
+		{ 4, "149.154.167.90", 443 },
+		{ 5, "116.51.22.2", 443 }
+};
+
+static const BuiltInDc _builtInTestDcs[] = {
+		{ 1, "173.240.5.253", 443 }
+};
+
+inline const BuiltInDc *builtInDcs() {
+	return cTestMode() ? _builtInTestDcs : _builtInDcs;
 }
 
-inline int32 cFirstDCPort() {
-	return 443;
+inline int builtInDcsCount() {
+	return (cTestMode() ? sizeof(_builtInTestDcs) : sizeof(_builtInDcs)) / sizeof(BuiltInDc);
 }
 
 static const char *UpdatesPublicKey = "\
