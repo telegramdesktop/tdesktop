@@ -1859,7 +1859,7 @@ namespace App {
 
 		setQuiting();
 		if (wnd()) {
-			wnd()->notifyClearFast();
+			wnd()->quit();
 		}
 		if (app()) {
 			app()->quit();

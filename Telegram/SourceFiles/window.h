@@ -22,6 +22,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "pspecific.h"
 #include "gui/boxshadow.h"
 
+class MediaView;
 class TitleWidget;
 class IntroWidget;
 class MainWidget;
@@ -209,6 +210,8 @@ public:
 	TempDirState tempDirState();
 	void tempDirDelete();
 
+	void quit();
+
     void notifySettingGot();
 	void notifySchedule(History *history, MsgId msgId);
 	void notifyClear(History *history = 0);
@@ -299,7 +302,7 @@ private:
 
 	NotifyWindows notifyWindows;
 
-
+	MediaView *_mediaView;
 };
 
 #endif // MAINWINDOW_H

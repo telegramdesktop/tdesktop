@@ -29,6 +29,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "layerwidget.h"
 #include "settingswidget.h"
 
+#include "mediaview.h"
+
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent), _shadow(st::boxShadow), _reconnect(this, QString()) {
 	set(text, reconnect);
 	connect(&_reconnect, SIGNAL(clicked()), this, SLOT(onReconnect()));
@@ -334,7 +336,7 @@ NotifyWindow::~NotifyWindow() {
 }
 
 Window::Window(QWidget *parent)	: PsMainWindow(parent),
-	intro(0), main(0), settings(0), layer(0), layerBG(0), _topWidget(0),
+	intro(0), main(0), settings(0), layer(0), layerBG(0), _topWidget(0), _mediaView(0),
 	_connecting(0), _tempDeleter(0), _tempDeleterThread(0), myIcon(QPixmap::fromImage(icon256)), dragging(false), _inactivePress(false) {
 
 	if (objectName().isEmpty())
@@ -450,6 +452,8 @@ void Window::setupMain(bool anim) {
 	fixOrder();
 
 	updateTitleStatus();
+
+	_mediaView = new MediaView();
 }
 
 void Window::showSettings() {
@@ -549,7 +553,10 @@ void Window::showPhoto(const PhotoLink *lnk, HistoryItem *item) {
 
 void Window::showPhoto(PhotoData *photo, HistoryItem *item) {
 	layerHidden();
-	layer = new LayerWidget(this, photo, item);
+	_mediaView->showPhoto(photo, QRect());
+	_mediaView->activateWindow();
+	_mediaView->setFocus();
+//	layer = new LayerWidget(this, photo, item);
 }
 
 PhotoData *Window::photoShown() {
@@ -624,6 +631,7 @@ void Window::layerHidden() {
 	layer = 0;
 	if (layerBG) layerBG->deleteLater();
 	layerBG = 0;
+	if (_mediaView) _mediaView->hide();
 	if (main) main->setInnerFocus();
 }
 
@@ -920,6 +928,12 @@ void Window::onTempDirClearFailed() {
 	emit tempDirClearFailed();
 }
 
+void Window::quit() {
+	delete _mediaView;
+	_mediaView = 0;
+	notifyClearFast();
+}
+
 void Window::notifySchedule(History *history, MsgId msgId) {
 	if (App::quiting() || !history->currentNotification()) return;
 
@@ -1192,6 +1206,7 @@ void Window::notifyUpdateAllPhotos() {
             (*i)->updatePeerPhoto();
         }
     }
+	if (_mediaView) _mediaView->update();
 }
 
 void Window::notifyUpdateAll() {
@@ -1233,6 +1248,7 @@ Window::~Window() {
 	delete _tempDeleter;
 	delete _tempDeleterThread;
 	delete _connecting;
+	delete _mediaView;
 	delete trayIcon;
 	delete trayIconMenu;
 	delete intro;

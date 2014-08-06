@@ -1439,6 +1439,12 @@ emojiPanDuration: 200;
 emojiPanHover: #f0f0f0;
 emojiPanRound: 2px;
 
+medviewNavBarWidth: 200px;
+medviewTopSkip: 50px;
+medviewBottomSkip: 50px;
+medviewLightOpacity: 0.75;
+medviewMinWidth: 600;
+
 // Mac specific
 
 macAccessoryHeight: 90;
