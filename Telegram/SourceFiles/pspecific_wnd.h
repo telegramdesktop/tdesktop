@@ -102,6 +102,7 @@ private:
 	mutable QTimer psIdleTimer;
 
 	void psDestroyIcons();
+	QImage psIconWithCounter(int size, int count, style::color bg, bool smallIcon);
 };
 
 #ifdef _NEED_WIN_GENERATE_DUMP

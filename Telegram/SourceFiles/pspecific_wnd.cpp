@@ -983,144 +983,125 @@ static HICON _qt_createHIcon(const QIcon &icon, int xSize, int ySize) {
     return 0;
 }
 
+QImage PsMainWindow::psIconWithCounter(int size, int count, style::color bg, bool smallIcon) {
+	bool layer = false;
+	if (size < 0) {
+		size = -size;
+		layer = true;
+	}
+	if (layer) {
+		if (size != 16) size = 32;
+
+		QString cnt = (count < 1000) ? QString("%1").arg(count) : QString("..%1").arg(count % 100, 2, 10, QChar('0'));
+		QImage result(size, size, QImage::Format_ARGB32);
+		int32 cntSize = cnt.size();
+		result.fill(st::transparent->c);
+		{
+			QPainter p(&result);
+			p.setBrush(bg->b);
+			p.setPen(Qt::NoPen);
+			p.setRenderHint(QPainter::Antialiasing);
+			int32 fontSize;
+			if (size == 8) {
+				fontSize = 6;
+			} else if (size == 16) {
+				fontSize = (cntSize < 2) ? 11 : ((cntSize < 3) ? 11 : 8);
+			} else {
+				fontSize = (cntSize < 2) ? 22 : ((cntSize < 3) ? 20 : 16);
+			}
+			style::font f(fontSize);
+			int32 w = f->m.width(cnt), d, r;
+			if (size == 8) {
+				d = (cntSize < 2) ? 2 : 1;
+				r = (cntSize < 2) ? 4 : 3;
+			} else if (size == 16) {
+				d = (cntSize < 2) ? 5 : ((cntSize < 3) ? 2 : 1);
+				r = (cntSize < 2) ? 8 : ((cntSize < 3) ? 7 : 3);
+			} else {
+				d = (cntSize < 2) ? 9 : ((cntSize < 3) ? 4 : 2);
+				r = (cntSize < 2) ? 16 : ((cntSize < 3) ? 14 : 8);
+			}
+			p.drawRoundedRect(QRect(size - w - d * 2, size - f->height, w + d * 2, f->height), r, r);
+			p.setFont(f->f);
+
+			p.setPen(st::counterColor->p);
+
+			p.drawText(size - w - d, size - f->height + f->ascent, cnt);
+		}
+		return result;
+	} else {
+		if (size != 16 && size != 32) size = 64;
+	}
+
+	QImage img((size == 16) ? icon16 : (size == 32 ? icon32 : icon64));
+	if (!count) return img;
+
+	if (smallIcon) {
+		QPainter p(&img);
+
+		QString cnt = (count < 100) ? QString("%1").arg(count) : QString("..%1").arg(count % 10, 1, 10, QChar('0'));
+		int32 cntSize = cnt.size();
+
+		p.setBrush(bg->b);
+		p.setPen(Qt::NoPen);
+		p.setRenderHint(QPainter::Antialiasing);
+		int32 fontSize;
+		if (size == 16) {
+			fontSize = 8;
+		} else if (size == 32) {
+			fontSize = (cntSize < 2) ? 12 : ((smallIcon || cntSize < 3) ? 12 : 10);
+		} else {
+			fontSize = (cntSize < 2) ? 22 : ((smallIcon || cntSize < 3) ? 22 : 16);
+		}
+		style::font f(fontSize);
+		int32 w = f->m.width(cnt), d, r;
+		if (size == 16) {
+			d = (cntSize < 2) ? 2 : 1;
+			r = (cntSize < 2) ? 4 : 3;
+		} else if (size == 32) {
+			d = (cntSize < 2) ? 5 : ((smallIcon || cntSize < 3) ? 2 : 1);
+			r = (cntSize < 2) ? 8 : ((smallIcon || cntSize < 3) ? 7 : 3);
+		} else {
+			d = (cntSize < 2) ? 9 : ((smallIcon || cntSize < 3) ? 4 : 2);
+			r = (cntSize < 2) ? 16 : ((smallIcon || cntSize < 3) ? 14 : 8);
+		}
+		p.drawRoundedRect(QRect(size - w - d * 2, size - f->height, w + d * 2, f->height), r, r);
+		p.setFont(f->f);
+
+		p.setPen(st::counterColor->p);
+
+		p.drawText(size - w - d, size - f->height + f->ascent, cnt);
+	} else {
+		QPainter p(&img);
+		p.drawPixmap(size / 2, size / 2, QPixmap::fromImage(psIconWithCounter(-size / 2, count, bg, false)));
+	}
+	return img;
+}
+
 void PsMainWindow::psUpdateCounter() {
 	int32 counter = App::histories().unreadFull;
 	style::color bg = (App::histories().unreadMuted < counter) ? st::counterBG : st::counterMuteBG;
-	QIcon icon;
-	QImage cicon16(icon16), cicon32(icon32), cicon64(icon64);
-	if (counter > 0) {
-		if (!tbListInterface) {
-			QString cnt = (counter < 1000) ? QString("%1").arg(counter) : QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
-			QPainter p16(&cicon16);
-			p16.setBrush(bg->b);
-			p16.setPen(Qt::NoPen);
-			p16.setRenderHint(QPainter::Antialiasing);
-			int32 fontSize = 8;
-			style::font f(fontSize);
-			int32 w = f->m.width(cnt), d = 2, r = 3;
-			p16.drawRoundedRect(QRect(16 - w - d * 2, 16 - f->height, w + d * 2, f->height), r, r);
-			p16.setFont(f->f);
-
-			p16.setPen(st::counterColor->p);
-
-			p16.drawText(16 - w - d, 16 - f->height + f->ascent, cnt);
-		}
-		if (!tbListInterface) {
-			QString cnt = (counter < 10000) ? QString("%1").arg(counter) : ((counter < 1000000) ? QString("%1K").arg(counter / 1000) : QString("%1M").arg(counter / 1000000));
-			QPainter p32(&cicon32);
-			style::font f(10);
-			int32 w = f->m.width(cnt), d = 3, r = 6;
-			p32.setBrush(bg->b);
-			p32.setPen(Qt::NoPen);
-			p32.setRenderHint(QPainter::Antialiasing);
-			p32.drawRoundedRect(QRect(32 - w - d * 2, 0, w + d * 2, f->height - 1), r, r);
-			p32.setPen(st::counterColor->p);
-			p32.setFont(f->f);
-			p32.drawText(32 - w - d, f->ascent - 1, cnt);
-		}
-		if (!tbListInterface) {
-			QString cnt = (counter < 10000) ? QString("%1").arg(counter) : ((counter < 1000000) ? QString("%1K").arg(counter / 1000) : QString("%1M").arg(counter / 1000000));
-			QPainter p64(&cicon64);
-			style::font f(18);
-			int32 w = f->m.width(cnt), d = 6, r = 12;
-			p64.setBrush(bg->b);
-			p64.setPen(Qt::NoPen);
-			p64.setRenderHint(QPainter::Antialiasing);
-			p64.drawRoundedRect(QRect(64 - w - d * 2, 0, w + d * 2, f->height - 1), r, r);
-			p64.setPen(st::counterColor->p);
-			p64.setFont(f->f);
-			p64.drawText(64 - w - d, f->ascent - 1, cnt);
-		}
-	}
-	icon.addPixmap(QPixmap::fromImage(cicon16));
-	icon.addPixmap(QPixmap::fromImage(cicon32));
-	icon.addPixmap(QPixmap::fromImage(cicon64));
+	QIcon iconSmall, iconBig;
+	iconSmall.addPixmap(QPixmap::fromImage(psIconWithCounter(16, counter, bg, true)));
+	iconSmall.addPixmap(QPixmap::fromImage(psIconWithCounter(32, counter, bg, true)));
+	iconBig.addPixmap(QPixmap::fromImage(psIconWithCounter(32, tbListInterface ? 0 : counter, bg, false)));
+	iconBig.addPixmap(QPixmap::fromImage(psIconWithCounter(64, tbListInterface ? 0 : counter, bg, false)));
 	if (trayIcon) {
-		QIcon ticon;
-		QImage ticon16(icon16), ticon32(icon32);
-		if (counter > 0) {
-			QString cnt = (counter < 1000) ? QString("%1").arg(counter) : QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
-			{
-				QPainter p16(&ticon16);
-				p16.setBrush(bg->b);
-				p16.setPen(Qt::NoPen);
-				p16.setRenderHint(QPainter::Antialiasing);
-				int32 fontSize = 8;
-				style::font f(fontSize);
-				int32 w = f->m.width(cnt), d = 2, r = 3;
-				p16.drawRoundedRect(QRect(16 - w - d * 2, 16 - f->height, w + d * 2, f->height), r, r);
-				p16.setFont(f->f);
-
-				p16.setPen(st::counterColor->p);
-
-				p16.drawText(16 - w - d, 16 - f->height + f->ascent, cnt);
-			}
-			{
-				QString cnt = (counter < 10000) ? QString("%1").arg(counter) : ((counter < 1000000) ? QString("%1K").arg(counter / 1000) : QString("%1M").arg(counter / 1000000));
-				QPainter p32(&ticon32);
-				style::font f(10);
-				int32 w = f->m.width(cnt), d = 3, r = 6;
-				p32.setBrush(bg->b);
-				p32.setPen(Qt::NoPen);
-				p32.setRenderHint(QPainter::Antialiasing);
-				p32.drawRoundedRect(QRect(32 - w - d * 2, 0, w + d * 2, f->height - 1), r, r);
-				p32.setPen(st::counterColor->p);
-				p32.setFont(f->f);
-				p32.drawText(32 - w - d, f->ascent - 1, cnt);
-			}
-		}
-		ticon.addPixmap(QPixmap::fromImage(ticon16));
-		ticon.addPixmap(QPixmap::fromImage(ticon32));
-		trayIcon->setIcon(ticon);
+		trayIcon->setIcon(iconSmall);
 	}
 
 	setWindowTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
 	psDestroyIcons();
-    ps_iconSmall = _qt_createHIcon(icon, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
-    ps_iconBig = _qt_createHIcon(icon, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON));
+    ps_iconSmall = _qt_createHIcon(iconSmall, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
+    ps_iconBig = _qt_createHIcon(iconBig, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON));
     SendMessage(ps_hWnd, WM_SETICON, 0, (LPARAM)ps_iconSmall);
 	SendMessage(ps_hWnd, WM_SETICON, 1, (LPARAM)(ps_iconBig ? ps_iconBig : ps_iconSmall));
 	if (tbListInterface) {
 		if (counter > 0) {
-			QString cnt = (counter < 1000) ? QString("%1").arg(counter) : QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
-			QImage oicon16(16, 16, QImage::Format_ARGB32), oicon32(32, 32, QImage::Format_ARGB32);
-			int32 cntSize = cnt.size();
-			oicon16.fill(st::transparent->c);
-			oicon32.fill(st::transparent->c);
-			{
-				QPainter p16(&oicon16);
-				p16.setBrush(bg->b);
-				p16.setPen(Qt::NoPen);
-				p16.setRenderHint(QPainter::Antialiasing);
-				int32 fontSize = (cntSize < 2) ? 12 : ((cntSize < 3) ? 12 : 8);
-				style::font f(fontSize);
-				int32 w = f->m.width(cnt), d = (cntSize < 2) ? 5 : ((cntSize < 3) ? 2 : 2), r = (cntSize < 2) ? 8 : ((cntSize < 3) ? 7 : 3);
-				p16.drawRoundedRect(QRect(16 - w - d * 2, 16 - f->height, w + d * 2, f->height), r, r);
-				p16.setFont(f->f);
-
-				p16.setPen(st::counterColor->p);
-
-				p16.drawText(16 - w - d, 16 - f->height + f->ascent, cnt);
-			}
-			{
-				QPainter p32(&oicon32);
-				p32.setBrush(bg->b);
-				p32.setPen(Qt::NoPen);
-				p32.setRenderHint(QPainter::Antialiasing);
-				int32 fontSize = (cntSize < 2) ? 22 : ((cntSize < 3) ? 20 : 16);
-				style::font f(fontSize);
-				int32 w = f->m.width(cnt), d = (cntSize < 2) ? 9 : ((cntSize < 3) ? 4 : 4), r = (cntSize < 2) ? 16 : ((cntSize < 3) ? 14 : 6);
-				p32.drawRoundedRect(QRect(32 - w - d * 2, 32 - f->height, w + d * 2, f->height), r, r);
-				p32.setFont(f->f);
-
-				p32.setPen(st::counterColor->p);
-
-				p32.drawText(32 - w - d, 32 - f->height + f->ascent, cnt);
-			}
-			QIcon oicon;
-			oicon.addPixmap(QPixmap::fromImage(oicon16));
-			oicon.addPixmap(QPixmap::fromImage(oicon32));
-			ps_iconOverlay = _qt_createHIcon(oicon, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
+			QIcon iconOverlay;
+			iconOverlay.addPixmap(QPixmap::fromImage(psIconWithCounter(-16, counter, bg, false)));
+			iconOverlay.addPixmap(QPixmap::fromImage(psIconWithCounter(-32, counter, bg, false)));
+			ps_iconOverlay = _qt_createHIcon(iconOverlay, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
 		}
 		QString description = counter > 0 ? QString("%1 unread messages").arg(counter) : qsl("No unread messages");
 		static WCHAR descriptionArr[1024];
