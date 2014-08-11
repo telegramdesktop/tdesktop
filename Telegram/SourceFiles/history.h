@@ -135,8 +135,9 @@ private:
 	const PeerData *_peer;
 };
 
+struct PhotoData;
 struct UserData : public PeerData {
-	UserData(const PeerId &id) : PeerData(id), lnk(new PeerLink(this)), onlineTill(0), contact(-1) {
+	UserData(const PeerId &id) : PeerData(id), lnk(new PeerLink(this)), onlineTill(0), contact(-1), photosCount(-1) {
 	}
 	void setPhoto(const MTPUserProfilePhoto &photo);
 	void setName(const QString &first, const QString &last, const QString &phoneName);
@@ -151,6 +152,10 @@ struct UserData : public PeerData {
 	TextLinkPtr lnk;
 	int32 onlineTill;
 	int32 contact; // -1 - not contact, cant add (self, empty, deleted, foreign), 0 - not contact, can add (request), 1 - contact
+
+	typedef QList<PhotoData*> Photos;
+	Photos photos;
+	int32 photosCount; // -1 not loaded, 0 all loaded
 };
 
 struct ChatData : public PeerData {
@@ -193,15 +198,21 @@ struct PhotoData {
 
 class PhotoLink : public ITextLink {
 public:
-	PhotoLink(PhotoData *photo) : _photo(photo) {
+	PhotoLink(PhotoData *photo) : _photo(photo), _peer(0) {
+	}
+	PhotoLink(PhotoData *photo, PeerData *peer) : _photo(photo), _peer(peer) {
 	}
 	void onClick(Qt::MouseButton button) const;
 	PhotoData *photo() const {
 		return _photo;
 	}
+	PeerData *peer() const {
+		return _peer;
+	}
 
 private:
 	PhotoData *_photo;
+	PeerData *_peer;
 };
 
 enum FileStatus {
@@ -695,6 +706,12 @@ struct History : public QList<HistoryBlock*> {
 	bool updateTyping(uint64 ms = 0, uint32 dots = 0, bool force = false);
 	uint64 myTyping;
 
+	typedef QList<MsgId> MediaOverview;
+	typedef QSet<MsgId> MediaOverviewIds;
+	MediaOverview _photosOverview;
+	MediaOverviewIds _photosOverviewIds;
+	int32 _photosOverviewCount; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
+
 	static const int32 ScrollMax = INT_MAX;
 };
 
@@ -1018,6 +1035,7 @@ protected:
 
 };
 
+class HistoryMedia;
 class HistoryItem : public HistoryElem {
 public:
 
@@ -1048,16 +1066,7 @@ public:
 	const HistoryBlock *block() const {
 		return _block;
 	}
-	void destroy() {
-		if (!out()) markRead();
-		bool wasAtBottom = history()->loadedAtBottom();
-		_history->removeNotification(this);
-		detach();
-		if (history()->last == this) {
-			history()->fixLastMessage(wasAtBottom);
-		}
-		delete this;
-	}
+	void destroy();
 	void detach();
 	void detachFast();
 	bool detached() const {
@@ -1116,6 +1125,10 @@ public:
 
 	int32 y, id;
 	QDateTime date;
+
+	virtual HistoryMedia *getMedia(bool inOverview = false) const {
+		return 0;
+	}
 
 	virtual ~HistoryItem();
 
@@ -1177,6 +1190,9 @@ class HistoryPhoto : public HistoryMedia {
 public:
 
 	HistoryPhoto(const MTPDphoto &photo, int32 width = 0);
+	HistoryPhoto(PeerData *chat, const MTPDphoto &photo, int32 width = 0);
+
+	void init();
 
 	void draw(QPainter &p, const HistoryItem *parent, const QString &time, int32 timeWidth, bool selected) const;
 	int32 resize(int32 width);
@@ -1188,6 +1204,10 @@ public:
 	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent) const;
 	bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const;
 	HistoryMedia *clone() const;
+
+	PhotoData *photo() const {
+		return data;
+	}
 
 private:
 	PhotoData *data;
@@ -1369,7 +1389,7 @@ public:
 	}
 
 	QString selectedText(uint32 selection) const;
-	HistoryMedia *getMedia() const;
+	HistoryMedia *getMedia(bool inOverview = false) const;
 
 	~HistoryMessage();
 
@@ -1445,6 +1465,8 @@ public:
 		return true;
 	}
 	QString selectedText(uint32 selection) const;
+
+	HistoryMedia *getMedia(bool inOverview = false) const;
 
 	~HistoryServiceMsg();
 

@@ -141,6 +141,7 @@ public:
 	QRect historyRect() const;
 
 	void confirmSendImage(const ReadyLocalMedia &img);
+	void confirmSendImageUncompressed();
 	void cancelSendImage();
 
 	void destroyData();

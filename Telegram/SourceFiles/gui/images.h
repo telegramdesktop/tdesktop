@@ -28,7 +28,9 @@ public:
 		return true;
 	}
 	const QPixmap &pix(int32 w = 0, int32 h = 0) const;
+	const QPixmap &pixBlurred(int32 w = 0, int32 h = 0) const;
 	QPixmap pixNoCache(int32 w = 0, int32 h = 0, bool smooth = false) const;
+	QPixmap pixBlurredNoCache(int32 w, int32 h = 0) const;
 
 	virtual int32 width() const = 0;
 	virtual int32 height() const = 0;

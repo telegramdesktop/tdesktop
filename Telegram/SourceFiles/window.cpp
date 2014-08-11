@@ -336,7 +336,7 @@ NotifyWindow::~NotifyWindow() {
 }
 
 Window::Window(QWidget *parent)	: PsMainWindow(parent),
-	intro(0), main(0), settings(0), layer(0), layerBG(0), _topWidget(0),
+	intro(0), main(0), settings(0), layerBG(0), _topWidget(0),
 	_connecting(0), _tempDeleter(0), _tempDeleterThread(0), myIcon(QPixmap::fromImage(icon256)), dragging(false), _inactivePress(false), _mediaView(0) {
 
 	if (objectName().isEmpty())
@@ -389,6 +389,10 @@ void Window::init() {
 
 	psInitSize();
 	psUpdateWorkmode();
+}
+
+QWidget *Window::filedialogParent() {
+	return (_mediaView && _mediaView->isVisible()) ? (QWidget*)_mediaView : (QWidget*)this;
 }
 
 void Window::clearWidgets() {
@@ -547,29 +551,23 @@ SettingsWidget *Window::settingsWidget() {
 }
 
 void Window::showPhoto(const PhotoLink *lnk, HistoryItem *item) {
-	return showPhoto(lnk->photo(), item);
+	return lnk->peer() ? showPhoto(lnk->photo(), lnk->peer()) : showPhoto(lnk->photo(), item);
 }
-
 
 void Window::showPhoto(PhotoData *photo, HistoryItem *item) {
 	layerHidden();
-	_mediaView->showPhoto(photo, QRect());
+	_mediaView->showPhoto(photo, item);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
-//	layer = new LayerWidget(this, photo, item);
 }
 
-PhotoData *Window::photoShown() {
-	return layer ? layer->photoShown() : 0;
-}
-
-/*
-void Window::showVideo(const VideoOpenLink *lnk, HistoryItem *item) {
+void Window::showPhoto(PhotoData *photo, PeerData *peer) {
 	layerHidden();
-	VideoData *video = App::video(lnk->video());
-	layer = new LayerWidget(this, video, item);
+	_mediaView->showPhoto(photo, peer);
+	_mediaView->activateWindow();
+	_mediaView->setFocus();
 }
-/**/
+
 void Window::showLayer(LayeredWidget *w) {
 	layerHidden();
 	layerBG = new BackgroundWidget(this, w);
@@ -594,8 +592,6 @@ void Window::hideConnecting() {
 }
 
 void Window::replaceLayer(LayeredWidget *w) {
-	if (layer) layer->deleteLater();
-	layer = 0;
 	if (layerBG) {
 		layerBG->replaceInner(w);
 	} else {
@@ -607,13 +603,13 @@ void Window::hideLayer() {
 	if (layerBG) {
 		layerBG->onClose();
 	}
-	if (layer) {
-		layer->startHide();
+	if (_mediaView && !_mediaView->isHidden()) {
+		_mediaView->hide();
 	}
 }
 
 bool Window::layerShown() {
-	return !!layer || !!layerBG || !!_topWidget;
+	return !!layerBG || !!_topWidget;
 }
 
 bool Window::historyIsActive(int state) const {
@@ -627,11 +623,9 @@ void Window::checkHistoryActivation(int state) {
 }
 
 void Window::layerHidden() {
-	if (layer) layer->deleteLater();
-	layer = 0;
 	if (layerBG) layerBG->deleteLater();
 	layerBG = 0;
-	if (_mediaView) _mediaView->hide();
+	if (_mediaView && !_mediaView->isHidden()) _mediaView->hide();
 	if (main) main->setInnerFocus();
 }
 
@@ -685,7 +679,7 @@ HitTestType Window::hitTest(const QPoint &p) const {
 		}
 	}
 	HitTestType titleTest = title->hitTest(p - title->geometry().topLeft());
-	if (titleTest && (!layer || titleTest != HitTestCaption)) {
+	if (titleTest) {
 		return titleTest;
 	} else if (x >= 0 && y >= 0 && x < w && y < h) {
 		return HitTestClient;
@@ -826,13 +820,6 @@ void Window::noMain(MainWidget *was) {
 	}
 }
 
-void Window::noLayer(LayerWidget *was) {
-	if (was == layer) {
-		layer = 0;
-	}
-	fixOrder();
-}
-
 void Window::noBox(BackgroundWidget *was) {
 	if (was == layerBG) {
 		layerBG = 0;
@@ -841,7 +828,6 @@ void Window::noBox(BackgroundWidget *was) {
 
 void Window::fixOrder() {
 	title->raise();
-	if (layer) layer->raise();
 	if (layerBG) layerBG->raise();
 	if (_topWidget) _topWidget->raise();
 	if (_connecting) _connecting->raise();
@@ -890,7 +876,6 @@ TitleWidget *Window::getTitle() {
 
 void Window::resizeEvent(QResizeEvent *e) {
 	title->setGeometry(QRect(0, 0, width(), st::titleHeight + st::titleShadow));
-	if (layer) layer->resize(width(), height());
 	if (layerBG) layerBG->resize(width(), height());
 	if (_connecting) _connecting->setGeometry(0, height() - _connecting->height(), _connecting->width(), _connecting->height());
 	emit resized(QSize(width(), height() - st::titleHeight));
@@ -1206,7 +1191,7 @@ void Window::notifyUpdateAllPhotos() {
             (*i)->updatePeerPhoto();
         }
     }
-	if (_mediaView) _mediaView->update();
+	if (_mediaView) _mediaView->updateControls();
 }
 
 void Window::notifyUpdateAll() {
@@ -1231,6 +1216,7 @@ QImage Window::iconLarge() const {
 }
 
 void Window::sendPaths() {
+	if (_mediaView && !_mediaView->isHidden()) _mediaView->hide();
 	if (settings) {
 		hideSettings();
 	} else {
@@ -1243,6 +1229,16 @@ void Window::sendPaths() {
 	}
 }
 
+void Window::mediaOverviewUpdated(PeerData *peer) {
+	if (!_mediaView || _mediaView->isHidden()) return;
+	_mediaView->mediaOverviewUpdated(peer);
+}
+
+void Window::changingMsgId(HistoryItem *row, MsgId newId) {
+	if (!_mediaView || _mediaView->isHidden()) return;
+	_mediaView->changingMsgId(row, newId);
+}
+
 Window::~Window() {
     notifyClearFast();
 	delete _tempDeleter;
@@ -1253,6 +1249,5 @@ Window::~Window() {
 	delete trayIconMenu;
 	delete intro;
 	delete main;
-	delete layer;
 	delete settings;
 }

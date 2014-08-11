@@ -291,6 +291,7 @@ public:
 
 	void destroyData();
 	void uploadImage(const QImage &img);
+	void uploadConfirmImageUncompressed();
 	void uploadMedias(const QStringList &files, ToPrepareMediaType type);
 	void uploadMedia(const QByteArray &fileContent, ToPrepareMediaType type);
 	void confirmSendImage(const ReadyLocalMedia &img);
@@ -427,6 +428,7 @@ private:
 	mtpRequestId loadingRequestId;
 
 	int64 serviceImageCacheSize;
+	QImage confirmImage;
 	PhotoId confirmImageId;
 
 	QString titlePeerText;

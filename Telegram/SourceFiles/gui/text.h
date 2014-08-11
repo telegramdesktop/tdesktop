@@ -373,6 +373,8 @@ public:
 		return _minHeight;
 	}
 
+	void replaceFont(style::font f); // does not recount anything, use at your own risk!
+
 	void draw(QPainter &p, int32 left, int32 top, int32 width, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, uint16 selectedFrom = 0, uint16 selectedTo = 0) const;
 	void drawElided(QPainter &p, int32 left, int32 top, int32 width, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1) const;
 

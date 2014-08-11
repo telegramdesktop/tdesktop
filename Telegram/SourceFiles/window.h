@@ -27,7 +27,6 @@ class TitleWidget;
 class IntroWidget;
 class MainWidget;
 class SettingsWidget;
-class LayerWidget;
 class BackgroundWidget;
 class LayeredWidget;
 
@@ -135,6 +134,8 @@ public:
 
 	void init();
 
+	QWidget *filedialogParent();
+
 	bool eventFilter(QObject *obj, QEvent *evt);
 
 	void inactivePress(bool inactive);
@@ -173,9 +174,8 @@ public:
 
 	void hideSettings(bool fast = false);
 	void showPhoto(const PhotoLink *lnk, HistoryItem *item = 0);
-	void showPhoto(PhotoData *photo, HistoryItem *item = 0);
-//	void showVideo(const VideoOpenLink *lnk, HistoryItem *item = 0);
-	PhotoData *photoShown();
+	void showPhoto(PhotoData *photo, HistoryItem *item);
+	void showPhoto(PhotoData *photo, PeerData *item);
 	void showLayer(LayeredWidget *w);
 	void replaceLayer(LayeredWidget *w);
 	void hideLayer();
@@ -194,7 +194,6 @@ public:
 	void noIntro(IntroWidget *was);
 	void noSettings(SettingsWidget *was);
 	void noMain(MainWidget *was);
-	void noLayer(LayerWidget *was);
 	void noBox(BackgroundWidget *was);
 
 	void topWidget(QWidget *w);
@@ -227,6 +226,9 @@ public:
 	QImage iconLarge() const;
 
 	void sendPaths();
+
+	void mediaOverviewUpdated(PeerData *peer);
+	void changingMsgId(HistoryItem *row, MsgId newId);
 
 public slots:
 	
@@ -263,7 +265,6 @@ private:
 	IntroWidget *intro;
 	MainWidget *main;
 	SettingsWidget *settings;
-	LayerWidget *layer;
 	BackgroundWidget *layerBG;
 
 	QWidget *_topWidget; // temp hack for CountrySelect
