@@ -61,8 +61,7 @@ void MediaView::moveToScreen() {
 	if (!geom.contains(_avail)) {
 		_avail = geom;
 	}
-	_avail.setX(_avail.x() - geom.x());
-	_avail.setY(_avail.y() - geom.y());
+	_avail.moveTo(0, 0);
 	_maxWidth = _avail.width() - 2 * st::medviewNavBarWidth;
 	_maxHeight = _avail.height() - st::medviewTopSkip - st::medviewBottomSkip;
 	_leftNav = QRect(0, 0, st::medviewNavBarWidth, height());
