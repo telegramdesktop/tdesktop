@@ -677,10 +677,10 @@ void MediaView::touchEvent(QTouchEvent *e) {
 				contextMenuEvent(&contextEvent);
 			}
 		} else if (_touchMove) {
-			if ((!_leftNavVisible || !_leftNav.contains(_touchStart)) && (!_rightNavVisible && !_rightNav.contains(_touchStart))) {
+			if ((!_leftNavVisible || !_leftNav.contains(mapFromGlobal(_touchStart))) && (!_rightNavVisible || !_rightNav.contains(mapFromGlobal(_touchStart)))) {
 				QPoint d = (e->touchPoints().cbegin()->screenPos().toPoint() - _touchStart);
 				if (d.x() * d.x() > d.y() * d.y() && (d.x() > st::medviewSwipeDistance || d.x() < -st::medviewSwipeDistance)) {
-					moveToPhoto(d.x() > 0 ? 1 : -1);
+					moveToPhoto(d.x() > 0 ? -1 : 1);
 				}
 			}
 		}
@@ -699,6 +699,15 @@ bool MediaView::event(QEvent *e) {
 	if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
 		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
 		if (ev->device()->type() == QTouchDevice::TouchScreen) {
+			if (!ev->touchPoints().isEmpty()) {
+				QPoint p(mapFromGlobal(ev->touchPoints().cbegin()->screenPos().toPoint()));
+				if ((!_close.isHidden() && _close.geometry().contains(p)) ||
+				    (!_save.isHidden() && _save.geometry().contains(p)) ||
+				    (!_forward.isHidden() && _forward.geometry().contains(p)) ||
+					(!_delete.isHidden() && _delete.geometry().contains(p))) {
+					return QWidget::event(e);
+				}
+			}
 			touchEvent(ev);
 			return true;
 		}
