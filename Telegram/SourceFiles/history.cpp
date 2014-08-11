@@ -223,7 +223,9 @@ void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) {
 }
 
 void PhotoLink::onClick(Qt::MouseButton button) const {
-	if (button == Qt::LeftButton) App::wnd()->showPhoto(this, App::hoveredLinkItem());
+	if (button == Qt::LeftButton) {
+		App::wnd()->showPhoto(this, App::hoveredLinkItem());
+	}
 }
 
 QString saveFileName(const QString &title, const QString &filter, const QString &prefix, QString name, bool savingAs, const QDir &dir = QDir()) {
@@ -657,6 +659,7 @@ History::History(const PeerId &peerId) : width(0), height(0)
 , posInDialogs(0)
 , typingText(st::dlgRichMinWidth)
 , myTyping(0)
+, _photosOverviewCount(-1) // not loaded yet
 {
 }
 
@@ -1081,6 +1084,14 @@ HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *
 	if (newMsg) {
 		newItemAdded(adding);
 	}
+	HistoryMedia *media = adding->getMedia(true);
+	if (media && media->type() == MediaTypePhoto) {
+		if (_photosOverviewIds.constFind(adding->id) == _photosOverviewIds.cend()) {
+			_photosOverview.push_front(adding->id);
+			_photosOverviewIds.insert(adding->id);
+			if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer);
+		}
+	}
 	return adding;
 }
 
@@ -1163,6 +1174,20 @@ void History::addToFront(const QVector<MTPMessage> &slice) {
 		push_front(block);
 		addToH += block->height;
 		++skip;
+
+		if (loadedAtBottom()) { // add photos to overview
+			for (int32 i = block->size(); i > 0; --i) {
+				HistoryItem *item = (*block)[i - 1];
+				HistoryMedia *media = item->getMedia(true);
+				if (media && media->type() == MediaTypePhoto) {
+					if (_photosOverviewIds.constFind(item->id) == _photosOverviewIds.cend()) {
+						_photosOverview.push_front(item->id);
+						_photosOverviewIds.insert(item->id);
+					}
+				}
+			}
+			if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer);
+		}
 	} else {
 		delete block;
 	}
@@ -1225,6 +1250,7 @@ void History::addToBack(const QVector<MTPMessage> &slice) {
 		}
 		if (i == e) break;
 	}
+	bool wasLoadedAtBottom = loadedAtBottom();
 	if (block->size()) {
 		block->y = height;
 		push_back(block);
@@ -1233,6 +1259,23 @@ void History::addToBack(const QVector<MTPMessage> &slice) {
 		newLoaded = true;
 		fixLastMessage(true);
 		delete block;
+	}
+	if (!wasLoadedAtBottom && loadedAtBottom()) { // add all loaded photos to overview
+		_photosOverview.clear();
+		_photosOverviewIds.clear();
+		_photosOverviewCount = -1; // full count unknown
+		for (int32 i = 0; i < size(); ++i) {
+			HistoryBlock *b = (*this)[i];
+			for (int32 j = 0; j < b->size(); ++j) {
+				HistoryItem *item = (*b)[j];
+				HistoryMedia *media = item->getMedia(true);
+				if (media && media->type() == MediaTypePhoto) {
+					_photosOverview.push_back(item->id);
+					_photosOverviewIds.insert(item->id);
+				}
+			}
+		}
+		if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer);
 	}
 	if (wasEmpty && !isEmpty()) {
 		HistoryBlock *dateBlock = new HistoryBlock(this);
@@ -1469,6 +1512,10 @@ void History::clear(bool leaveItems) {
 	if (showFrom) {
 		showFrom = 0;
 	}
+	_photosOverview.clear();
+	_photosOverviewIds.clear();
+	_photosOverviewCount = -1; // full count unknown
+	if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer);
 	for (Parent::const_iterator i = cbegin(), e = cend(); i != e; ++i) {
 		if (leaveItems) {
 			(*i)->clear(true);
@@ -1664,6 +1711,31 @@ void HistoryItem::markRead() {
 	}
 }
 
+void HistoryItem::destroy() {
+	if (!out()) markRead();
+	bool wasAtBottom = history()->loadedAtBottom();
+	_history->removeNotification(this);
+	detach();
+	if (history()->last == this) {
+		history()->fixLastMessage(wasAtBottom);
+	}
+	HistoryMedia *m = getMedia(true);
+	if (m && m->type() == MediaTypePhoto && !history()->_photosOverviewIds.isEmpty()) {
+		History::MediaOverviewIds::iterator i = history()->_photosOverviewIds.find(id);
+		if (i != history()->_photosOverviewIds.cend()) {
+			history()->_photosOverviewIds.erase(i);
+			for (History::MediaOverview::iterator i = history()->_photosOverview.begin(), e = history()->_photosOverview.end(); i != e; ++i) {
+				if ((*i) == id) {
+					history()->_photosOverview.erase(i);
+					break;
+				}
+			}
+			if (App::wnd()) App::wnd()->mediaOverviewUpdated(history()->peer);
+		}
+	}
+	delete this;
+}
+
 void HistoryItem::detach() {
 	if (_history && _history->unreadBar == this) {
 		_history->unreadBar = 0;
@@ -1705,8 +1777,17 @@ HistoryItem *regItem(HistoryItem *item, bool returnExisting) {
 
 HistoryPhoto::HistoryPhoto(const MTPDphoto &photo, int32 width) : data(App::feedPhoto(photo))
 , openl(new PhotoLink(data))
-, w(width)
-{
+, w(width) {
+	init();
+}
+
+HistoryPhoto::HistoryPhoto(PeerData *chat, const MTPDphoto &photo, int32 width) : data(App::feedPhoto(photo))
+, openl(new PhotoLink(data, chat))
+, w(width) {
+	init();
+}
+
+void HistoryPhoto::init() {
 	int32 tw = data->full->width(), th = data->full->height();
 	if (!tw || !th) {
 		tw = th = 1;
@@ -1767,11 +1848,11 @@ HistoryMedia *HistoryPhoto::clone() const {
 void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, const QString &time, int32 timeWidth, bool selected) const {
 	data->full->load(false, false);
 	bool out = parent->out();
-	if (parent != App::contextItem() || App::wnd()->photoShown() != data) {
+	if (parent != App::contextItem()/* || App::wnd()->photoShown() != data*/) {
 		if (data->full->loaded()) {
 			p.drawPixmap(0, 0, data->full->pix(_maxw, _height));
 		} else {
-			p.drawPixmap(0, 0, data->thumb->pix(_maxw, _height));
+			p.drawPixmap(0, 0, data->thumb->pixBlurred(_maxw, _height));
 		}
 
 		if (selected) {
@@ -2718,7 +2799,7 @@ QString HistoryMessage::selectedText(uint32 selection) const {
 	return _text.original(selectedFrom, selectedTo);
 }
 
-HistoryMedia *HistoryMessage::getMedia() const {
+HistoryMedia *HistoryMessage::getMedia(bool inOverview) const {
 	return media;
 }
 
@@ -3030,7 +3111,9 @@ QString HistoryMessage::notificationText() const {
 }
 
 HistoryMessage::~HistoryMessage() {
-	if (media) media->unregItem(this);
+	if (media) {
+		media->unregItem(this);
+	}
 	delete media;
 }
 
@@ -3249,7 +3332,7 @@ QString HistoryServiceMsg::messageByAction(const MTPmessageAction &action, TextL
 	case mtpc_messageActionChatEditPhoto: {
 		const MTPDmessageActionChatEditPhoto &d(action.c_messageActionChatEditPhoto());
 		if (d.vphoto.type() == mtpc_photo) {
-			media = new HistoryPhoto(d.vphoto.c_photo(), 100);
+			media = new HistoryPhoto(history()->peer, d.vphoto.c_photo(), 100);
 		}
 		return lang(lng_action_changed_photo);
 	} break;
@@ -3455,6 +3538,10 @@ QString HistoryServiceMsg::notificationText() const {
     QString msg = _text.original(0, 0xFFFF);
     if (msg.size() > 0xFF) msg = msg.mid(0, 0xFF) + qsl("..");
     return msg;
+}
+
+HistoryMedia *HistoryServiceMsg::getMedia(bool inOverview) const {
+	return inOverview ? 0 : media;
 }
 
 HistoryServiceMsg::~HistoryServiceMsg() {

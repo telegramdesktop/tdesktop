@@ -58,8 +58,9 @@ namespace anim {
 		const float64 &current() const {
 			return _cur;
 		}
-		void update(const float64 &dt, transition func) {
+		fvalue &update(const float64 &dt, transition func) {
 			_cur = _from + (*func)(_delta, dt);
+			return *this;
 		}
 		void finish() {
 			_cur = _from + _delta;
@@ -92,8 +93,9 @@ namespace anim {
 		int32 current() const {
 			return _cur;
 		}
-		void update(const float64 &dt, transition func) {
+		ivalue &update(const float64 &dt, transition func) {
 			_cur = qRound(_from + (*func)(_delta, dt));
+			return *this;
 		}
 		void finish() {
 			_cur = qRound(_from + _delta);
@@ -143,11 +145,12 @@ namespace anim {
 		const QColor &current() const {
 			return _cur;
 		}
-		void update(const float64 &dt, transition func) {
+		cvalue &update(const float64 &dt, transition func) {
 			_cur.setRedF(_from_r + (*func)(_delta_r, dt));
 			_cur.setGreenF(_from_g + (*func)(_delta_g, dt));
 			_cur.setBlueF(_from_b + (*func)(_delta_b, dt));
 			_cur.setAlphaF(_from_a + (*func)(_delta_a, dt));
+			return *this;
 		}
 		void finish() {
 			_cur.setRedF(_from_r + _delta_r);

@@ -17,6 +17,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #include "stdafx.h"
 #include "localimageloader.h"
+#include "gui/filedialog.h"
 #include <libexif/exif-data.h>
 
 LocalImageLoaderPrivate::LocalImageLoaderPrivate(int32 currentUser, LocalImageLoader *loader, QThread *thread) : QObject(0)
@@ -99,9 +100,20 @@ void LocalImageLoaderPrivate::prepareImages() {
 			filesize = data.size();
 		}
 	} else {
-		type = ToPreparePhoto; // only photo from QImage
-		filename = qsl("Untitled.jpg");
-		filesize = 0;
+		if (type == ToPrepareDocument) {
+			filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
+			QMimeType mimeType = QMimeDatabase().mimeTypeForName("image/png");
+			data = QByteArray();
+			{
+				QBuffer b(&data);
+				img.save(&b, "PNG");
+			}
+			filesize = data.size();
+		} else {
+			type = ToPreparePhoto; // only photo from QImage
+			filename = qsl("Untitled.jpg");
+			filesize = 0;
+		}
 	}
 
 	if ((img.isNull() && (type != ToPrepareDocument || !filesize)) || type == ToPrepareAuto || (img.isNull() && file.isEmpty() && data.isEmpty())) { // if could not decide what type

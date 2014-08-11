@@ -341,6 +341,7 @@ lng_context_forward_selected: "Forward Selected";
 lng_context_delete_selected: "Delete Selected";
 lng_context_clear_selection: "Clear Selection";
 lng_really_send_image: "Do you want to send this image?";
+lng_send_image_compressed: "Send compressed image";
 
 lng_forward_choose: "Choose recipient...";
 lng_forward_confirm: "Forward to {recipient}?";
@@ -397,6 +398,15 @@ lng_about_done: "Done";
 lng_search_no_results: "No messages found";
 lng_search_one_result: "Found {count} message";
 lng_search_n_results: "Found {count} messages";
+
+lng_mediaview_close: "Close";
+lng_mediaview_save: "Save as";
+lng_mediaview_forward: "Forward";
+lng_mediaview_delete: "Delete";
+lng_mediaview_single_photo: "Single Photo";
+lng_mediaview_group_photo: "Group Photo";
+lng_mediaview_profile_photo: "Profile Photo";
+lng_mediaview_n_of_count: "{n} of {count}";
 
 // Mac specific
 

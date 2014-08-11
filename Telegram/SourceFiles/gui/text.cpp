@@ -2642,6 +2642,10 @@ int32 Text::countHeight(int32 w) const {
 	return result;
 }
 
+void Text::replaceFont(style::font f) {
+	_font = f;
+}
+
 void Text::draw(QPainter &painter, int32 left, int32 top, int32 w, style::align align, int32 yFrom, int32 yTo, uint16 selectedFrom, uint16 selectedTo) const {
 //	painter.fillRect(QRect(left, top, w, countHeight(w)), QColor(0, 0, 0, 32)); // debug
 	TextPainter p(&painter, this);

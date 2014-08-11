@@ -155,7 +155,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	if (_self) {
 		_nameText.setText(st::setNameFont, _nameCache, _textNameOptions);
 		PhotoData *selfPhoto = _self->photoId ? App::photo(_self->photoId) : 0;
-		if (selfPhoto && selfPhoto->date) _photoLink = TextLinkPtr(new PhotoLink(selfPhoto));
+		if (selfPhoto && selfPhoto->date) _photoLink = TextLinkPtr(new PhotoLink(selfPhoto, _self));
 		MTP::send(MTPusers_GetFullUser(_self->inputUser), rpcDone(&SettingsInner::gotFullSelf));
 
 		connect(App::main(), SIGNAL(peerPhotoChanged(PeerData *)), this, SLOT(peerUpdated(PeerData *)));
@@ -257,7 +257,7 @@ void SettingsInner::peerUpdated(PeerData *data) {
 		if (_self->photoId) {
 			PhotoData *selfPhoto = App::photo(_self->photoId);
 			if (selfPhoto->date) {
-				_photoLink = TextLinkPtr(new PhotoLink(selfPhoto));
+				_photoLink = TextLinkPtr(new PhotoLink(selfPhoto, _self));
 			} else {
 				_photoLink = TextLinkPtr();
 				MTP::send(MTPusers_GetFullUser(_self->inputUser), rpcDone(&SettingsInner::gotFullSelf));
@@ -612,7 +612,7 @@ void SettingsInner::gotFullSelf(const MTPUserFull &self) {
 	App::feedUsers(MTP_vector<MTPUser>(QVector<MTPUser>(1, self.c_userFull().vuser)));
 	PhotoData *selfPhoto = _self->photoId ? App::photo(_self->photoId) : 0;
 	if (selfPhoto && selfPhoto->date) {
-		_photoLink = TextLinkPtr(new PhotoLink(selfPhoto));
+		_photoLink = TextLinkPtr(new PhotoLink(selfPhoto, _self));
 	} else {
 		_photoLink = TextLinkPtr();
 	}

@@ -24,6 +24,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "photosendbox.h"
 
 PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(img),
+	_compressed(this, lang(lng_send_image_compressed), true),
 	_sendButton(this, lang(lng_send_button), st::btnSelectDone),
 	_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
 	a_opacity(0, 1) {
@@ -48,7 +49,7 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(img),
 	if (_thumb.width() < _thumbw) {
 		_thumbw = (_thumb.width() > 20) ? _thumb.width() : 20;
 	}
-	int32 maxthumbh = qRound(1.5 * _thumbw);
+	int32 maxthumbh = qMin(qRound(1.5 * _thumbw), int(st::confirmMaxHeight));
 	_thumbh = qRound(th * float64(_thumbw) / tw);
 	if (_thumbh > maxthumbh) {
 		_thumbw = qRound(_thumbw * float64(maxthumbh) / _thumbh);
@@ -57,7 +58,7 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(img),
 			_thumbw = 10;
 		}
 	}
-	_height = _thumbh + st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::boxPadding.bottom() + _sendButton.height();
+	_height = _thumbh + st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::boxPadding.bottom() + _compressed.height() + _sendButton.height();
 
 	_thumb = QPixmap::fromImage(_thumb.toImage().scaled(_thumbw, _thumbh, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 
@@ -77,6 +78,7 @@ void PhotoSendBox::parentResized() {
 	setGeometry((s.width() - _width) / 2, (s.height() - _height) / 2, _width, _height);
 	_sendButton.move(_width - _sendButton.width(), _height - _sendButton.height());
 	_cancelButton.move(0, _height - _cancelButton.height());
+	_compressed.move((width() - _compressed.width()) / 2, _height - _cancelButton.height() - _compressed.height() - st::confirmCompressedSkip);
 	update();
 }
 
@@ -107,11 +109,16 @@ void PhotoSendBox::animStep(float64 ms) {
 	}
 	_sendButton.setOpacity(a_opacity.current());
 	_cancelButton.setOpacity(a_opacity.current());
+	_compressed.setOpacity(a_opacity.current());
 	update();
 }
 
 void PhotoSendBox::onSend() {
-	if (App::main()) App::main()->confirmSendImage(_img);
+	if (_compressed.checked()) {
+		if (App::main()) App::main()->confirmSendImage(_img);
+	} else {
+		if (App::main()) App::main()->confirmSendImageUncompressed();
+	}
 	emit closed();
 }
 

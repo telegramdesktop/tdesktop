@@ -42,6 +42,7 @@ private:
 
 	ReadyLocalMedia _img;
 	int32 _width, _height, _thumbw, _thumbh;
+	FlatCheckbox _compressed;
 	FlatButton _sendButton, _cancelButton;
 	QPixmap _thumb;
 

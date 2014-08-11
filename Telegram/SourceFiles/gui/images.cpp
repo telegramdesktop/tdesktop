@@ -78,6 +78,92 @@ const QPixmap &Image::pix(int32 w, int32 h) const {
 	return i.value();
 }
 
+const QPixmap &Image::pixBlurred(int32 w, int32 h) const {
+	restore();
+	checkload();
+
+	if (w <= 0 || !width() || !height()) {
+		w = width() * cIntRetinaFactor();
+	} else if (cRetina()) {
+		w *= cIntRetinaFactor();
+		h *= cIntRetinaFactor();
+	}
+	uint64 k = 0x8000000000000000L | (uint64(w) << 32) | uint64(h);
+	Sizes::const_iterator i = _sizesCache.constFind(k);
+	if (i == _sizesCache.cend()) {
+		QPixmap p(pixBlurredNoCache(w, h));
+		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
+		i = _sizesCache.insert(k, p);
+		if (!p.isNull()) {
+			globalAquiredSize += int64(p.width()) * p.height() * 4;
+		}
+	}
+	return i.value();
+}
+
+QPixmap Image::pixBlurredNoCache(int32 w, int32 h) const {
+	return pixNoCache(w, h);
+	restore();
+	loaded();
+
+	const QPixmap &p(pixData());
+	if (p.isNull()) return blank()->pix();
+
+	QImage img;
+	if (h <= 0) {
+		img = p.toImage().scaledToWidth(w, Qt::SmoothTransformation);
+	} else {
+		img = p.toImage().scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+	}
+	QImage::Format fmt = img.format();
+	if (fmt != QImage::Format_RGB32 && fmt != QImage::Format_ARGB32 && fmt != QImage::Format_ARGB32_Premultiplied) {
+		QImage tmp(img.width(), img.height(), QImage::Format_ARGB32);
+		{
+			QPainter p(&tmp);
+			p.drawImage(0, 0, img);
+		}
+		img = tmp;
+	}
+	QImage fromimg = img;
+
+	uchar *bits = img.bits();
+	const uchar *from = fromimg.bits();
+	if (bits && from) {
+		int width = img.width(), height = img.height();
+		for (int i = 0; i < width; ++i) {
+			for (int j = 0; j < height; ++j) {
+				uint32 a = 0, b = 0, c = 0;
+				for (int index = i - 32; index < i + 32; ++index) {
+					int fullindex = 4 * (j * width + ((index < 0) ? 0 : (index >= width ? (width - 1) : index))), coef = 4;
+					a += from[fullindex + 1] * coef;
+					b += from[fullindex + 2] * coef;
+					c += from[fullindex + 3] * coef;
+				}
+				int fullindex = 4 * (j * width + i);
+				bits[fullindex + 1] = uchar(a >> 8);
+				bits[fullindex + 2] = uchar(b >> 8);
+				bits[fullindex + 3] = uchar(c >> 8);
+			}
+		}
+		for (int i = 0; i < width; ++i) {
+			for (int j = 0; j < height; ++j) {
+				uint32 a = 0, b = 0, c = 0;
+				for (int index = j - 32; index < j + 32; ++index) {
+					int fullindex = 4 * (((index < 0) ? 0 : (index >= height ? (height - 1) : index)) * width + i), coef = 4;
+					a += from[fullindex + 1] * coef;
+					b += from[fullindex + 2] * coef;
+					c += from[fullindex + 3] * coef;
+				}
+				int fullindex = 4 * (j * width + i);
+				bits[fullindex + 1] = uchar(a >> 8);
+				bits[fullindex + 2] = uchar(b >> 8);
+				bits[fullindex + 3] = uchar(c >> 8);
+			}
+		}
+	}
+	return QPixmap::fromImage(img);
+}
+
 QPixmap Image::pixNoCache(int32 w, int32 h, bool smooth) const {
 	restore();
 	loaded();

@@ -2669,7 +2669,17 @@ void HistoryWidget::uploadImage(const QImage &img) {
 	if (!hist || confirmImageId) return;
 
 	App::wnd()->activateWindow();
+	confirmImage = img;
 	confirmImageId = imageLoader.append(img, histPeer->id, ToPreparePhoto);
+}
+
+void HistoryWidget::uploadConfirmImageUncompressed() {
+	if (!hist || !confirmImageId || confirmImage.isNull()) return;
+
+	App::wnd()->activateWindow();
+	imageLoader.append(confirmImage, histPeer->id, ToPrepareDocument);
+	confirmImageId = 0;
+	confirmImage = QImage();
 }
 
 void HistoryWidget::uploadMedias(const QStringList &files, ToPrepareMediaType type) {
@@ -2706,6 +2716,7 @@ void HistoryWidget::onPhotoFailed(quint64 id) {
 void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
 	if (img.id == confirmImageId) {
 		confirmImageId = 0;
+		confirmImage = QImage();
 	}
 	MsgId newId = clientMsgId();
 
@@ -2737,6 +2748,7 @@ void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
 
 void HistoryWidget::cancelSendImage() {
 	confirmImageId = 0;
+	confirmImage = QImage();
 }
 
 void HistoryWidget::onPhotoUploaded(MsgId newId, const MTPInputFile &file) {

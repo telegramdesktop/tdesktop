@@ -62,7 +62,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	} else if (_peerChat->photoId) {
 		PhotoData *ph = App::photo(_peerChat->photoId);
 		if (ph->date) {
-			_photoLink = TextLinkPtr(new PhotoLink(ph));
+			_photoLink = TextLinkPtr(new PhotoLink(ph, _peer));
 		}
 	} else {
 		_loadingId = MTP::send(MTPmessages_GetFullChat(App::peerToMTP(_peerChat->id).c_peerChat().vchat_id), rpcDone(&ProfileInner::gotFullChat));
@@ -213,7 +213,7 @@ void ProfileInner::gotFullUser(const MTPUserFull &user) {
 	App::feedUsers(MTP_vector<MTPUser>(QVector<MTPUser>(1, d.vuser)));
 	PhotoData *userPhoto = _peerUser->photoId ? App::photo(_peerUser->photoId) : 0;
 	if (userPhoto && userPhoto->date) {
-		_photoLink = TextLinkPtr(new PhotoLink(userPhoto));
+		_photoLink = TextLinkPtr(new PhotoLink(userPhoto, _peer));
 	} else {
 		_photoLink = TextLinkPtr();
 	}
@@ -249,7 +249,7 @@ void ProfileInner::peerUpdated(PeerData *data) {
 		} else {
 			if (_peerChat->photoId) photo = App::photo(_peerChat->photoId);
 		}
-		_photoLink = (photo && photo->date) ? TextLinkPtr(new PhotoLink(photo)) : TextLinkPtr();
+		_photoLink = (photo && photo->date) ? TextLinkPtr(new PhotoLink(photo, _peer)) : TextLinkPtr();
 		if (_peer->name != _nameCache) {
 			_nameCache = _peer->name;
 			_nameText.setText(st::profileNameFont, _nameCache, _textNameOptions);

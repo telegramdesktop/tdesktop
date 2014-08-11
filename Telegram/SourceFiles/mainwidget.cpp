@@ -678,6 +678,10 @@ void MainWidget::confirmSendImage(const ReadyLocalMedia &img) {
 	history.confirmSendImage(img);
 }
 
+void MainWidget::confirmSendImageUncompressed() {
+	history.uploadConfirmImageUncompressed();
+}
+
 void MainWidget::cancelSendImage() {
 	history.cancelSendImage();
 }
@@ -802,6 +806,9 @@ PeerData *MainWidget::profilePeer() {
 }
 
 void MainWidget::showPeerProfile(const PeerData *peer, bool back) {
+	App::wnd()->hideSettings();
+	if (profile && profile->peer() == peer) return;
+
 	dialogs.enableShadow(false);
 	_topBar.enableShadow(false);
 	QPixmap animCache = myGrab(this, history.geometry()), animTopBarCache = myGrab(this, QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight));
@@ -1573,9 +1580,24 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			HistoryItem *msgRow = App::histItemById(msg);
 			if (msgRow) {
 				App::historyUnregItem(msgRow);
+				History *h = msgRow->history();
+				History::MediaOverviewIds::iterator i = h->_photosOverviewIds.find(msgRow->id);
+				if (i != h->_photosOverviewIds.cend()) {
+					h->_photosOverviewIds.erase(i);
+					if (h->_photosOverviewIds.constFind(d.vid.v) == h->_photosOverviewIds.cend()) {
+						h->_photosOverviewIds.insert(d.vid.v);
+						for (int32 i = 0, l = h->_photosOverview.size(); i != l; ++i) {
+							if (h->_photosOverview.at(i) == msgRow->id) {
+								h->_photosOverview[i] = d.vid.v;
+								break;
+							}
+						}
+					}
+				}
+				if (App::wnd()) App::wnd()->changingMsgId(msgRow, d.vid.v);
 				msgRow->id = d.vid.v;
 				if (!App::historyRegItem(msgRow)) {
-					msgUpdated(msgRow->history()->peer->id, msgRow);
+					msgUpdated(h->peer->id, msgRow);
 				} else {
 					msgRow->destroy();
 					history.peerMessagesUpdated();
@@ -1668,14 +1690,27 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (user) {
 			user->setPhoto(d.vphoto);
 			user->photo->load();
-			if (false && !d.vprevious.v && d.vuser_id.v != MTP::authedId() && d.vphoto.type() == mtpc_userProfilePhoto) {
-				MTPPhoto photo(App::photoFromUserPhoto(MTP_int(user->id & 0xFFFFFFFF), d.vdate, d.vphoto));
-				HistoryMedia *media = new HistoryPhoto(photo.c_photo(), 100);
-				if (App::history(user->id)->loadedAtBottom()) {
-					App::history(user->id)->addToBackService(clientMsgId(), date(d.vdate), lang(lng_action_user_photo).replace(qsl("{from}"), user->name), false, true, media);
+			if (d.vprevious.v) {
+				user->photosCount = -1;
+				user->photos.clear();
+			} else {
+				if (user->photoId) {
+					if (user->photosCount > 0) ++user->photosCount;
+					user->photos.push_front(App::photo(user->photoId));
+				} else {
+					user->photosCount = -1;
+					user->photos.clear();
+				}
+				if (false && d.vuser_id.v != MTP::authedId() && d.vphoto.type() == mtpc_userProfilePhoto) {
+					MTPPhoto photo(App::photoFromUserPhoto(MTP_int(user->id & 0xFFFFFFFF), d.vdate, d.vphoto));
+					HistoryMedia *media = new HistoryPhoto(photo.c_photo(), 100);
+					if (App::history(user->id)->loadedAtBottom()) {
+						App::history(user->id)->addToBackService(clientMsgId(), date(d.vdate), lang(lng_action_user_photo).replace(qsl("{from}"), user->name), false, true, media);
+					}
 				}
 			}
 			if (App::main()) App::main()->peerUpdated(user);
+			if (App::wnd()) App::wnd()->mediaOverviewUpdated(user);
 		}
 	} break;
 

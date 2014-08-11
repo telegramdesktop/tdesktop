@@ -23,4 +23,4 @@ bool filedialogGetOpenFile(QString &file, QByteArray &remoteContent, const QStri
 bool filedialogGetSaveFile(QString &file, const QString &caption, const QString &filter, const QString &startName);
 bool filedialogGetDir(QString &dir, const QString &caption);
 
-QString filedialogDefaultName(const QString &prefix, const QString &extension, const QString &path = QString());
+QString filedialogDefaultName(const QString &prefix, const QString &extension, const QString &path = QString(), bool skipExistance = false);

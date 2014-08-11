@@ -68,14 +68,14 @@ bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QS
     remoteContent = QByteArray();
     QString file;
     if (multipleFiles >= 0) {
-        files = QFileDialog::getOpenFileNames(App::wnd(), caption, startFile, filter);
+		files = QFileDialog::getOpenFileNames(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, startFile, filter);
         return !files.isEmpty();
     } else if (multipleFiles < -1) {
-        file = QFileDialog::getExistingDirectory(App::wnd(), caption);
+		file = QFileDialog::getExistingDirectory(App::wnd() ? App::wnd()->filedialogParent() : 0, caption);
     } else if (multipleFiles < 0) {
-        file = QFileDialog::getSaveFileName(App::wnd(), caption, startFile, filter);
+		file = QFileDialog::getSaveFileName(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, startFile, filter);
     } else {
-        file = QFileDialog::getOpenFileName(App::wnd(), caption, startFile, filter);
+		file = QFileDialog::getOpenFileName(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, startFile, filter);
     }
     if (file.isEmpty()) {
         files = QStringList();
@@ -89,7 +89,7 @@ bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QS
     filedialogInit();
 
 	// hack for fast non-native dialog create
-	QFileDialog dialog(App::wnd(), caption, cDialogHelperPathFinal(), filter);
+	QFileDialog dialog(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, cDialogHelperPathFinal(), filter);
 
     dialog.setModal(true);
 	if (multipleFiles >= 0) { // open file or files
@@ -171,7 +171,7 @@ bool filedialogGetDir(QString &dir, const QString &caption) {
 	return result;
 }
 
-QString filedialogDefaultName(const QString &prefix, const QString &extension, const QString &path) {
+QString filedialogDefaultName(const QString &prefix, const QString &extension, const QString &path, bool skipExistance) {
 	filedialogInit();
 
 	time_t t = time(NULL);
@@ -180,11 +180,17 @@ QString filedialogDefaultName(const QString &prefix, const QString &extension, c
 
 	QChar zero('0');
 
-	QDir dir(path.isEmpty() ? cDialogLastPath() : path);
+	QString name;
 	QString base = prefix + QString("_%1-%2-%3_%4-%5-%6").arg(tm.tm_year + 1900).arg(tm.tm_mon + 1, 2, 10, zero).arg(tm.tm_mday, 2, 10, zero).arg(tm.tm_hour, 2, 10, zero).arg(tm.tm_min, 2, 10, zero).arg(tm.tm_sec, 2, 10, zero);
-	QString nameBase = dir.absolutePath() + '/' + base, name = nameBase + extension;
-	for (int i = 0; QFileInfo(name).exists(); ++i) {
-		name = nameBase + QString(" (%1)").arg(i + 2) + extension;
+	if (skipExistance) {
+		name = base + extension;
+	} else {
+		QDir dir(path.isEmpty() ? cDialogLastPath() : path);
+		QString nameBase = dir.absolutePath() + '/' + base;
+		name = nameBase + extension;
+		for (int i = 0; QFileInfo(name).exists(); ++i) {
+			name = nameBase + QString(" (%1)").arg(i + 2) + extension;
+		}
 	}
 	return name;
 }

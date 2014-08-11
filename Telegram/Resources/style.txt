@@ -975,6 +975,8 @@ boxBG: white;//rgb(228, 233, 240);
 boxGrayTitle: #777;
 
 confirmWidth: 364px;
+confirmMaxHeight: 320px;
+confirmCompressedSkip: 10px;
 addContactWidth: 364px;
 addContactPadding: margins(18px, 24px, 18px, 24px);
 addContactDelta: 14px;
@@ -1439,11 +1441,45 @@ emojiPanDuration: 200;
 emojiPanHover: #f0f0f0;
 emojiPanRound: 2px;
 
-medviewNavBarWidth: 200px;
-medviewTopSkip: 50px;
-medviewBottomSkip: 50px;
-medviewLightOpacity: 0.75;
+medviewNavBarWidth: 120px;
+medviewTopSkip: 66px;
+medviewBottomSkip: 66px;
+medviewMainWidth: 600px;
+medviewLightOpacity: 0.7;
+medviewDarkOpacity: 0.8;
+medviewLightNav: 0.5;
+medviewHeaderFont: font(semibold 18px);
+medviewDateFont: font(fsize);
+medviewNameTop: 3px;
+medviewDateTop: 25px;
+medviewHeaderColor: #ffffffc0;
+medviewNameColor: medviewHeaderColor;
+medviewNameOverColor: #fff;
+medviewDarkNav: 1;
 medviewMinWidth: 600;
+medviewLeft: sprite(0px, 340px, 22px, 40px);
+medviewRight: sprite(22px, 340px, 22px, 40px);
+medviewDeltaFromLastAction: 5px;
+medviewSwipeDistance: 80px;
+medviewButton: flatButton(btnDefFlat) {
+	color: #ffffff80;
+	overColor: #fff;
+	downColor: #fff;
+
+	bgColor: #0000;
+	overBgColor: #00000055;
+	downBgColor: #00000055;
+
+	width: 100px;
+	height: 46px;
+
+	textTop: 13px;
+	overTextTop: 13px;
+	downTextTop: 14px;
+
+	font: font(16px);
+	overFont: font(16px);
+}
 
 // Mac specific
 

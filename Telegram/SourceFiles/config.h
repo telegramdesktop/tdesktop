@@ -66,6 +66,8 @@ enum {
 
 	AutoSearchTimeout = 900, // 0.9 secs
 	SearchPerPage = 50,
+	MediaOverviewStartPerPage = 5,
+	MediaOverviewPreloadCount = 4,
 };
 
 #ifdef Q_OS_WIN
