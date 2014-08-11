@@ -1087,8 +1087,9 @@ HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *
 	HistoryMedia *media = adding->getMedia(true);
 	if (media && media->type() == MediaTypePhoto) {
 		if (_photosOverviewIds.constFind(adding->id) == _photosOverviewIds.cend()) {
-			_photosOverview.push_front(adding->id);
+			_photosOverview.push_back(adding->id);
 			_photosOverviewIds.insert(adding->id);
+			if (_photosOverviewCount > 0) ++_photosOverviewCount;
 			if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer);
 		}
 	}
@@ -1727,6 +1728,12 @@ void HistoryItem::destroy() {
 			for (History::MediaOverview::iterator i = history()->_photosOverview.begin(), e = history()->_photosOverview.end(); i != e; ++i) {
 				if ((*i) == id) {
 					history()->_photosOverview.erase(i);
+					if (history()->_photosOverviewCount > 0) {
+						--history()->_photosOverviewCount;
+						if (!history()->_photosOverviewCount) {
+							history()->_photosOverviewCount = -1;
+						}
+					}
 					break;
 				}
 			}
@@ -1848,7 +1855,7 @@ HistoryMedia *HistoryPhoto::clone() const {
 void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, const QString &time, int32 timeWidth, bool selected) const {
 	data->full->load(false, false);
 	bool out = parent->out();
-	if (parent != App::contextItem()/* || App::wnd()->photoShown() != data*/) {
+	if (parent != App::contextItem() || /*App::wnd()->photoShown() != data*/ true) {
 		if (data->full->loaded()) {
 			p.drawPixmap(0, 0, data->full->pix(_maxw, _height));
 		} else {
