@@ -25,7 +25,6 @@ MediaView::MediaView() : QWidget(App::wnd()),
 _photo(0), _maxWidth(0), _maxHeight(0), _x(0), _y(0), _w(0) {
 	setWindowFlags(Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::Tool | Qt::NoDropShadowWindowHint);
 	moveToScreen();
-	setAttribute(Qt::WA_PaintOnScreen, true);
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
 	hide();
@@ -64,6 +63,7 @@ void MediaView::showPhoto(PhotoData *photo, const QRect &opaque) {
 	_y = (height() - h) / 2;
 	if (isHidden()) {
 		moveToScreen();
+#ifdef Q_OS_WIN
 		bool wm = testAttribute(Qt::WA_Mapped), wv = testAttribute(Qt::WA_WState_Visible);
 		if (!wm) setAttribute(Qt::WA_Mapped, true);
 		if (!wv) setAttribute(Qt::WA_WState_Visible, true);
@@ -72,6 +72,7 @@ void MediaView::showPhoto(PhotoData *photo, const QRect &opaque) {
 		event(&e);
 		if (!wm) setAttribute(Qt::WA_Mapped, false);
 		if (!wv) setAttribute(Qt::WA_WState_Visible, false);
+#endif
 		show();
 	}
 	update();
@@ -79,10 +80,15 @@ void MediaView::showPhoto(PhotoData *photo, const QRect &opaque) {
 
 void MediaView::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
+
+	QPainter::CompositionMode m = p.compositionMode();
+	p.setCompositionMode(QPainter::CompositionMode_Source);
 	p.setOpacity(st::medviewLightOpacity);
 	p.fillRect(QRect(0, 0, st::medviewNavBarWidth, height()), st::black->b);
 	p.fillRect(QRect(width() - st::medviewNavBarWidth, 0, st::medviewNavBarWidth, height()), st::black->b);
 	p.fillRect(QRect(st::medviewNavBarWidth, 0, width() - 2 * st::medviewNavBarWidth, height()), st::black->b);
+	p.setCompositionMode(m);
+
 	p.setOpacity(1);
 	p.drawPixmap(_x, _y, (_photo->full->loaded() ? _photo->full : _photo->thumb)->pixNoCache(_w, 0, true));
 }

@@ -336,8 +336,8 @@ NotifyWindow::~NotifyWindow() {
 }
 
 Window::Window(QWidget *parent)	: PsMainWindow(parent),
-	intro(0), main(0), settings(0), layer(0), layerBG(0), _topWidget(0), _mediaView(0),
-	_connecting(0), _tempDeleter(0), _tempDeleterThread(0), myIcon(QPixmap::fromImage(icon256)), dragging(false), _inactivePress(false) {
+	intro(0), main(0), settings(0), layer(0), layerBG(0), _topWidget(0),
+	_connecting(0), _tempDeleter(0), _tempDeleterThread(0), myIcon(QPixmap::fromImage(icon256)), dragging(false), _inactivePress(false), _mediaView(0) {
 
 	if (objectName().isEmpty())
 		setObjectName(qsl("MainWindow"));

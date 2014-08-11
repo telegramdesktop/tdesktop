@@ -2087,7 +2087,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 		}
 		try {
 			const mtpPrime *rFrom = requestBuffer->constData() + 8, *rEnd = requestBuffer->constData() + requestBuffer->size();
-			if (*rFrom == mtpc_msgs_state_req) {
+			if (mtpTypeId(*rFrom) == mtpc_msgs_state_req) {
 				MTPMsgsStateReq request(rFrom, rEnd);
 				handleMsgsStates(request.c_msgs_state_req().vmsg_ids.c_vector().v, states, toAck);
 			} else {

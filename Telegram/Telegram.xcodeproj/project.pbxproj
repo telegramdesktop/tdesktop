@@ -40,6 +40,8 @@
 		06EABCC49D2EEE4076322BE7 /* moc_mtp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 924D4939FD169BB4B8AEB1C9 /* moc_mtp.cpp */; settings = {ATTRIBUTES = (); }; };
 		07055CC4194EE85B0008DEF6 /* libcrypto.a in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 07055CC3194EE85B0008DEF6 /* libcrypto.a */; };
 		0749CE69194D723400345D61 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 07C3AF24194335ED0016CFF1 /* Images.xcassets */; };
+		07A69332199277BA0099CB9F /* mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A69330199277BA0099CB9F /* mediaview.cpp */; };
+		07A6933519927B160099CB9F /* moc_mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A6933419927B160099CB9F /* moc_mediaview.cpp */; };
 		07C4753B1967DF1C00CAAFE9 /* switcher.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C475391967DF1C00CAAFE9 /* switcher.cpp */; };
 		07C4753F1967E37300CAAFE9 /* moc_switcher.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */; };
 		0A49F3A5DC0680FB31519670 /* phoneinput.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 7C8F9CA4FCE8AF8FCCCB961E /* phoneinput.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -236,6 +238,9 @@
 		07084684195445A600B5AE3A /* Updater.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = Updater.xcodeproj; sourceTree = SOURCE_ROOT; };
 		075EB50EB07CF69FD62FB8DF /* /usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_sql_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_sql_private.pri"; sourceTree = "<absolute>"; };
 		0771C4C94B623FC34BF62983 /* intro.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = intro.cpp; path = SourceFiles/intro/intro.cpp; sourceTree = "<absolute>"; };
+		07A69330199277BA0099CB9F /* mediaview.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mediaview.cpp; path = SourceFiles/mediaview.cpp; sourceTree = SOURCE_ROOT; };
+		07A69331199277BA0099CB9F /* mediaview.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = mediaview.h; path = SourceFiles/mediaview.h; sourceTree = SOURCE_ROOT; };
+		07A6933419927B160099CB9F /* moc_mediaview.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_mediaview.cpp; path = GeneratedFiles/Debug/moc_mediaview.cpp; sourceTree = SOURCE_ROOT; };
 		07C3AF24194335ED0016CFF1 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Telegram/Images.xcassets; sourceTree = SOURCE_ROOT; };
 		07C3AF27194336B90016CFF1 /* pspecific_mac_p.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = pspecific_mac_p.h; path = SourceFiles/pspecific_mac_p.h; sourceTree = SOURCE_ROOT; };
 		07C3AF2819433ABF0016CFF1 /* lang.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = lang.txt; path = Resources/lang.txt; sourceTree = SOURCE_ROOT; };
@@ -814,6 +819,7 @@
 				A83D2C19F756D3371E5999A8 /* historywidget.cpp */,
 				AF5776B0652744978B7DF6D3 /* langloaderplain.cpp */,
 				5A9B4C6C59856143F3D0DE53 /* layerwidget.cpp */,
+				07A69330199277BA0099CB9F /* mediaview.cpp */,
 				CF32DF59C7823E4F3397EF3C /* profilewidget.cpp */,
 				5A7F88F9C7F08D3DDE6EEF6B /* localimageloader.cpp */,
 				974DB34EEB8F83B91614C0B0 /* logs.cpp */,
@@ -843,6 +849,7 @@
 				C63C6D083EBEB13A60256DF3 /* historywidget.h */,
 				25CA12A22B83B0B038C5B5DE /* langloaderplain.h */,
 				6C86B6E6AB1857B735B720D6 /* layerwidget.h */,
+				07A69331199277BA0099CB9F /* mediaview.h */,
 				220B97F8F62C720E6059A64B /* profilewidget.h */,
 				AD0C395D671BC024083A5FC7 /* localimageloader.h */,
 				0CAA815FFFEDCD84808E11F5 /* logs.h */,
@@ -1003,6 +1010,7 @@
 				3D54A9F3266BB8739520E3FB /* moc_fileuploader.cpp */,
 				2C99425D7670941EAF07B453 /* moc_historywidget.cpp */,
 				1FE45A67215BEA2434F588E8 /* moc_layerwidget.cpp */,
+				07A6933419927B160099CB9F /* moc_mediaview.cpp */,
 				48003469151B9DDE82E851FB /* moc_profilewidget.cpp */,
 				1D7899ACAA9F973CADFA34C1 /* moc_localimageloader.cpp */,
 				3A220FD1AE5AD9FE3DC073A4 /* moc_mainwidget.cpp */,
@@ -1207,6 +1215,11 @@
 			isa = PBXProject;
 			attributes = {
 				LastUpgradeCheck = 0510;
+				TargetAttributes = {
+					7CCA95B9FCAD34D929431AD6 = {
+						DevelopmentTeam = 63FLR8MQA9;
+					};
+				};
 			};
 			buildConfigurationList = DAC4C1AA5EDEA1C85E9CA5E6 /* Build configuration list for PBXProject "Telegram" */;
 			compatibilityVersion = "Xcode 3.2";
@@ -1398,6 +1411,8 @@
 				8F6F5D7F82036331E8C6DAE6 /* moc_mtpConnection.cpp in Compile Sources */,
 				B780F9E21269259B90A1F32A /* moc_mtpDC.cpp in Compile Sources */,
 				2A500B102B7CE80F3EB6E13E /* moc_mtpFileLoader.cpp in Compile Sources */,
+				07A6933519927B160099CB9F /* moc_mediaview.cpp in Compile Sources */,
+				07A69332199277BA0099CB9F /* mediaview.cpp in Compile Sources */,
 				9A523F51135FD4E2464673A6 /* moc_mtpSession.cpp in Compile Sources */,
 				C329997D36D34D568CE16C9A /* moc_animation.cpp in Compile Sources */,
 				B2F5B08BFFBBE7E37D3863BB /* moc_button.cpp in Compile Sources */,
@@ -1494,15 +1509,19 @@
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = YES;
+				CODE_SIGN_IDENTITY = "Developer ID Application: John Preston (63FLR8MQA9)";
+				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 0.5.13;
+				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 0.5;
 				DYLIB_CURRENT_VERSION = 0.5.13;
 				FRAMEWORK_SEARCH_PATHS = "";
-				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
 				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = SourceFiles/stdafx.h;
+				GCC_STRICT_ALIASING = NO;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
@@ -1626,9 +1645,11 @@
 				DYLIB_CURRENT_VERSION = 0.5.13;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = SourceFiles/stdafx.h;
+				GCC_STRICT_ALIASING = NO;
 				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
@@ -1738,15 +1759,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Developer ID Application";
 				COMBINE_HIDPI_IMAGES = YES;
-				COPY_PHASE_STRIP = YES;
-				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
-				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
-				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				LLVM_LTO = YES;
 				OBJROOT = ./../Mac/ReleaseIntermediate;
-				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = "";
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
@@ -1757,15 +1774,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "Developer ID Application";
 				COMBINE_HIDPI_IMAGES = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
-				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
-				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				OBJROOT = ./../Mac/DebugIntermediate;
-				PRODUCT_NAME = Telegram;
 				QT_LIBRARY_SUFFIX = _debug;
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
