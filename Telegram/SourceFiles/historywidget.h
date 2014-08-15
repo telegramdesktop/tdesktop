@@ -309,6 +309,8 @@ public:
 	PeerData *peer() const;
 	PeerData *activePeer() const;
 	MsgId activeMsgId() const;
+	int32 lastWidth() const;
+	int32 lastScrollTop() const;
 
 	void animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
 	bool animStep(float64 ms);

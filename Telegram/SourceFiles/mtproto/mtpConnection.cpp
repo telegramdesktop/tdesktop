@@ -1953,7 +1953,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 			} else { // must create new session, because msg_id and msg_seqno are inconsistent
 				if (badTime) {
 					if (serverSalt) sessionData->setSalt(serverSalt);
-					unixtimeSet(serverTime);
+					unixtimeSet(serverTime, true);
 					badTime = false;
 				}
 				LOG(("Message Info: bad message notification received, msgId %1, error_code %2").arg(data.vbad_msg_id.v).arg(errorCode));
@@ -2073,7 +2073,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 				return (badTime ? 0 : 1);
 			}
 			if (serverSalt) sessionData->setSalt(serverSalt); // requestsFixTimeSalt with no lookup
-			unixtimeSet(serverTime);
+			unixtimeSet(serverTime, true);
 
 			DEBUG_LOG(("Message Info: unixtime updated from mtpc_msgs_state_info, now %1").arg(serverTime));
 
@@ -2130,9 +2130,9 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 		QVector<MTPlong> ids(1, data.vmsg_id);
 		if (badTime) {
 			if (requestsFixTimeSalt(ids, serverTime, serverSalt)) {
-				DEBUG_LOG(("Message Info: error, such message was not sent recently %1").arg(data.vmsg_id.v));
 				badTime = false;
 			} else {
+				DEBUG_LOG(("Message Info: error, such message was not sent recently %1").arg(data.vmsg_id.v));
 				return 0;
 			}
 		}
@@ -2203,9 +2203,9 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 		QVector<MTPlong> ids(1, reqMsgId);
 		if (badTime) {
 			if (requestsFixTimeSalt(ids, serverTime, serverSalt)) {
-				DEBUG_LOG(("Message Info: error, such message was not sent recently %1").arg(reqMsgId.v));
 				badTime = false;
 			} else {
+				DEBUG_LOG(("Message Info: error, such message was not sent recently %1").arg(reqMsgId.v));
 				return 0;
 			}
 		}
@@ -2309,7 +2309,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 
 	if (badTime) {
 		DEBUG_LOG(("Message Error: bad time in updates cons"));
-		return 0;
+		return -1;
 	}
 
 	mtpBuffer update(end - from);
@@ -2380,7 +2380,7 @@ bool MTProtoConnectionPrivate::requestsFixTimeSalt(const QVector<MTPlong> &ids, 
 	for (uint32 i = 0; i < idsCount; ++i) {
 		if (wasSent(ids[i].v)) {// found such msg_id in recent acked requests or in recent sent requests
 			if (serverSalt) sessionData->setSalt(serverSalt);
-			unixtimeSet(serverTime);
+			unixtimeSet(serverTime, true);
 			return true;
 		}
 	}

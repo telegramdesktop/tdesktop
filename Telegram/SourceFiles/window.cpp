@@ -687,28 +687,6 @@ HitTestType Window::hitTest(const QPoint &p) const {
 	return HitTestNone;
 }
 
-bool Window::getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
-	if (main && main->getPhotoCoords(photo, x, y, w)) {
-		x += main->x();
-		y += main->y();
-		return true;
-	} else if (settings && settings->getPhotoCoords(photo, x, y, w)) {
-		x += main->x();
-		y += main->y();
-		return true;
-	}
-	return false;
-}
-
-bool Window::getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const {
-	if (main && main->getVideoCoords(video, x, y, w)) {
-		x += main->x();
-		y += main->y();
-		return true;
-	}
-	return false;
-}
-
 QRect Window::iconRect() const {
 	return QRect(st::titleIconPos + title->geometry().topLeft(), st::titleIconRect.pxSize());
 }
@@ -933,7 +911,7 @@ void Window::notifySchedule(History *history, MsgId msgId) {
 	}
 
 	uint64 ms = getms() + NotifyWaitTimeout;
-	notifyWhenAlerts[history].insert(ms);
+	notifyWhenAlerts[history].insert(ms, NullType());
 	if (cDesktopNotify()) {
 		NotifyWhenMaps::iterator i = notifyWhenMaps.find(history);
 		if (i == notifyWhenMaps.end()) {
@@ -1027,7 +1005,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 	uint64 ms = getms(), nextAlert = 0;
 	bool alert = false;
 	for (NotifyWhenAlerts::iterator i = notifyWhenAlerts.begin(); i != notifyWhenAlerts.end();) {
-		while (!i.value().isEmpty() && *i.value().begin() <= ms) {
+		while (!i.value().isEmpty() && i.value().begin().key() <= ms) {
 			i.value().erase(i.value().begin());
 			NotifySettingsPtr n = i.key()->peer->notify;
 			if (n == EmptyNotifySettings || (n != UnknownNotifySettings && n->mute <= unixtime())) {
@@ -1037,8 +1015,8 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 		if (i.value().isEmpty()) {
 			i = notifyWhenAlerts.erase(i);
 		} else {
-			if (!nextAlert || nextAlert > *i.value().begin()) {
-				nextAlert = *i.value().begin();
+			if (!nextAlert || nextAlert > i.value().begin().key()) {
+				nextAlert = i.value().begin().key();
 			}
 			++i;
 		}
@@ -1230,6 +1208,7 @@ void Window::sendPaths() {
 }
 
 void Window::mediaOverviewUpdated(PeerData *peer) {
+	if (main) main->mediaOverviewUpdated(peer);
 	if (!_mediaView || _mediaView->isHidden()) return;
 	_mediaView->mediaOverviewUpdated(peer);
 }

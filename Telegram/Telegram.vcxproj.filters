@@ -680,6 +680,18 @@
     <ClCompile Include="GeneratedFiles\Release\moc_mediaview.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_overviewwidget.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\overviewwidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_overviewwidget.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_overviewwidget.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -919,6 +931,9 @@
       <Filter>gui</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\mediaview.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\overviewwidget.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
   </ItemGroup>

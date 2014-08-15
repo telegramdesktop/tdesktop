@@ -184,9 +184,6 @@ public:
 
 	bool historyIsActive(int state = -1) const;
 
-	bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const;
-	bool getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const;
-
 	bool minimizeToTray();
 
 	void activate();
@@ -297,7 +294,7 @@ private:
 	NotifyWaiters notifySettingWaiters;
 	QTimer notifyWaitTimer;
 
-	typedef QSet<uint64> NotifyWhenAlert;
+	typedef QMap<uint64, NullType> NotifyWhenAlert;
 	typedef QMap<History*, NotifyWhenAlert> NotifyWhenAlerts;
 	NotifyWhenAlerts notifyWhenAlerts;
 

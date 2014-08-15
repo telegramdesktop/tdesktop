@@ -23,6 +23,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "dialogswidget.h"
 #include "historywidget.h"
 #include "profilewidget.h"
+#include "overviewwidget.h"
 
 class Window;
 struct DialogRow;
@@ -83,6 +84,75 @@ private:
 
 };
 
+enum StackItemType {
+	HistoryStackItem,
+	ProfileStackItem,
+	OverviewStackItem,
+};
+
+class StackItem {
+public:
+	StackItem(PeerData *peer) : peer(peer) {
+	}
+	virtual StackItemType type() const = 0;
+	virtual ~StackItem() {
+	}
+	PeerData *peer;
+};
+
+class StackItemHistory : public StackItem {
+public:
+	StackItemHistory(PeerData *peer, int32 lastWidth, int32 lastScrollTop) : StackItem(peer), lastWidth(lastWidth), lastScrollTop(lastScrollTop) {
+	}
+	StackItemType type() const {
+		return HistoryStackItem;
+	}
+	int32 lastWidth, lastScrollTop;
+};
+
+class StackItemProfile : public StackItem {
+public:
+	StackItemProfile(PeerData *peer, int32 lastScrollTop, bool allMediaShown) : StackItem(peer), lastScrollTop(lastScrollTop), allMediaShown(allMediaShown) {
+	}
+	StackItemType type() const {
+		return ProfileStackItem;
+	}
+	int32 lastScrollTop;
+	bool allMediaShown;
+};
+
+class StackItemOverview : public StackItem {
+public:
+	StackItemOverview(PeerData *peer, MediaOverviewType mediaType, int32 lastWidth, int32 lastScrollTop) : StackItem(peer), mediaType(mediaType), lastWidth(lastWidth), lastScrollTop(lastScrollTop) {
+	}
+	StackItemType type() const {
+		return OverviewStackItem;
+	}
+	MediaOverviewType mediaType;
+	int32 lastWidth, lastScrollTop;
+};
+
+class StackItems : public QVector<StackItem*> {
+public:
+	bool contains(PeerData *peer) const {
+		for (int32 i = 0, l = size(); i < l; ++i) {
+			if (at(i)->peer == peer) {
+				return true;
+			}
+		}
+		return false;
+	}
+	void clear() {
+		for (int32 i = 0, l = size(); i < l; ++i) {
+			delete at(i);
+		}
+		QVector<StackItem*>::clear();
+	}
+	~StackItems() {
+		clear();
+	}
+};
+
 class MainWidget : public QWidget, public Animated, public RPCSender {
 	Q_OBJECT
 
@@ -128,16 +198,15 @@ public:
 	void updUpdated(int32 pts, int32 date, int32 qts, int32 seq);
 	void historyWasRead();
 
-	bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const;
-	bool getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const;
 	PeerData *peerBefore(const PeerData *peer);
 	PeerData *peerAfter(const PeerData *peer);
 	PeerData *peer();
 	PeerData *activePeer();
 	MsgId activeMsgId();
 	PeerData *profilePeer();
-	void showPeerProfile(const PeerData *peer, bool back = false);
-	void showPeerBack();
+	void showPeerProfile(const PeerData *peer, bool back = false, int32 lastScrollTop = -1, bool allMediaShown = false);
+	void showMediaOverview(const PeerData *peer, MediaOverviewType type, bool back = false, int32 lastScrollTop = -1);
+	void showBackFromStack();
 	QRect historyRect() const;
 
 	void confirmSendImage(const ReadyLocalMedia &img);
@@ -200,6 +269,10 @@ public:
 	void stopAnimActive();
 
 	void searchMessages(const QString &query);
+	void preloadOverviews(PeerData *peer);
+	void mediaOverviewUpdated(PeerData *peer);
+
+	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);
 
 	~MainWidget();
 
@@ -245,7 +318,8 @@ public slots:
 private:
 
     void partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result);
-    
+	void photosLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req);
+
 	uint64 failedObjId;
 	QString failedFileName;
 	void loadFailed(mtpFileLoader *loader, bool started, const char *retrySlot);
@@ -266,6 +340,9 @@ private:
 	void hideAll();
 	void showAll();
 
+	void overviewPreloaded(PeerData *data, const MTPmessages_Messages &result, mtpRequestId req);
+	bool overviewFailed(PeerData *data, const RPCError &error, mtpRequestId req);
+
 	QPixmap _animCache, _bgAnimCache;
 	anim::ivalue a_coord, a_bgCoord;
 	anim::fvalue a_alpha, a_bgAlpha;
@@ -276,9 +353,10 @@ private:
 	DialogsWidget dialogs;
 	HistoryWidget history;
 	ProfileWidget *profile;
+	OverviewWidget *overview;
 	TopBarWidget _topBar;
 	HistoryHider *hider;
-	QVector<PeerData*> profileStack;
+	StackItems _stack;
 	QPixmap profileAnimCache;
 
 	int updPts, updDate, updQts, updSeq;
@@ -294,4 +372,7 @@ private:
     
     typedef QMap<PeerData*, mtpRequestId> ReadRequests;
     ReadRequests _readRequests;
+
+	typedef QMap<PeerData*, mtpRequestId> OverviewsPreload;
+	OverviewsPreload _overviewPreload[OverviewCount], _overviewLoad[OverviewCount];
 };

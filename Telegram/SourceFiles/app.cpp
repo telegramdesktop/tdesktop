@@ -667,40 +667,44 @@ namespace App {
 	}
 
 	PhotoData *feedPhoto(const MTPPhoto &photo, const PreparedPhotoThumbs &thumbs) {
-		const QPixmap *thumb = 0, *full = 0;
-		int32 thumbLevel = -1, fullLevel = -1;
+		const QPixmap *thumb = 0, *medium = 0, *full = 0;
+		int32 thumbLevel = -1, mediumLevel = -1, fullLevel = -1;
 		for (PreparedPhotoThumbs::const_iterator i = thumbs.cbegin(), e = thumbs.cend(); i != e; ++i) {
-			int32 newThumbLevel = -1, newFullLevel = -1;
+			int32 newThumbLevel = -1, newMediumLevel = -1, newFullLevel = -1;
 			switch (i.key()) {
-			case 's': newThumbLevel = 0; newFullLevel = 4; break; // box 100x100
-			case 'm': newThumbLevel = 2; newFullLevel = 3; break; // box 320x320
-			case 'x': newThumbLevel = 5; newFullLevel = 0; break; // box 800x800
-			case 'y': newThumbLevel = 6; newFullLevel = 1; break; // box 1280x1280
-			case 'w': newThumbLevel = 8; newFullLevel = 2; break; // box 2560x2560
-			case 'a': newThumbLevel = 1; newFullLevel = 8; break; // crop 160x160
-			case 'b': newThumbLevel = 3; newFullLevel = 7; break; // crop 320x320
-			case 'c': newThumbLevel = 4; newFullLevel = 6; break; // crop 640x640
-			case 'd': newThumbLevel = 7; newFullLevel = 5; break; // crop 1280x1280
+			case 's': newThumbLevel = 0; newMediumLevel = 5; newFullLevel = 4; break; // box 100x100
+			case 'm': newThumbLevel = 2; newMediumLevel = 0; newFullLevel = 3; break; // box 320x320
+			case 'x': newThumbLevel = 5; newMediumLevel = 3; newFullLevel = 0; break; // box 800x800
+			case 'y': newThumbLevel = 6; newMediumLevel = 6; newFullLevel = 1; break; // box 1280x1280
+			case 'w': newThumbLevel = 8; newMediumLevel = 8; newFullLevel = 2; break; // box 2560x2560
+			case 'a': newThumbLevel = 1; newMediumLevel = 4; newFullLevel = 8; break; // crop 160x160
+			case 'b': newThumbLevel = 3; newMediumLevel = 1; newFullLevel = 7; break; // crop 320x320
+			case 'c': newThumbLevel = 4; newMediumLevel = 2; newFullLevel = 6; break; // crop 640x640
+			case 'd': newThumbLevel = 7; newMediumLevel = 7; newFullLevel = 5; break; // crop 1280x1280
 			}
-			if (newThumbLevel < 0 || newFullLevel < 0) {
+			if (newThumbLevel < 0 || newMediumLevel < 0 || newFullLevel < 0) {
 				continue;
 			}
 			if (thumbLevel < 0 || newThumbLevel < thumbLevel) {
 				thumbLevel = newThumbLevel;
 				thumb = &i.value();
 			}
+			if (mediumLevel < 0 || newMediumLevel < mediumLevel) {
+				mediumLevel = newMediumLevel;
+				medium = &i.value();
+			}
 			if (fullLevel < 0 || newFullLevel < fullLevel) {
 				fullLevel = newFullLevel;
 				full = &i.value();
 			}
 		}
-		if (!thumb || !full) {
+		if (!thumb || !medium || !full) {
 			return App::photo(0);
 		}
 		switch (photo.type()) {
 		case mtpc_photo: {
 			const MTPDphoto &ph(photo.c_photo());
-			return App::photo(ph.vid.v, 0, ph.vaccess_hash.v, ph.vuser_id.v, ph.vdate.v, ImagePtr(*thumb, "JPG"), ImagePtr(*full, "JPG"));
+			return App::photo(ph.vid.v, 0, ph.vaccess_hash.v, ph.vuser_id.v, ph.vdate.v, ImagePtr(*thumb, "JPG"), ImagePtr(*medium, "JPG"), ImagePtr(*full, "JPG"));
 		} break;
 		case mtpc_photoEmpty: return App::photo(photo.c_photoEmpty().vid.v);
 		}
@@ -709,8 +713,8 @@ namespace App {
 
 	PhotoData *feedPhoto(const MTPDphoto &photo, PhotoData *convert) {
 		const QVector<MTPPhotoSize> &sizes(photo.vsizes.c_vector().v);
-		const MTPPhotoSize *thumb = 0, *full = 0;
-		int32 thumbLevel = -1, fullLevel = -1;
+		const MTPPhotoSize *thumb = 0, *medium = 0, *full = 0;
+		int32 thumbLevel = -1, mediumLevel = -1, fullLevel = -1;
 		for (QVector<MTPPhotoSize>::const_iterator i = sizes.cbegin(), e = sizes.cend(); i != e; ++i) {
 			char size = 0;
 			switch (i->type()) {
@@ -726,32 +730,36 @@ namespace App {
 			}
 			if (!size) continue;
 
-			int32 newThumbLevel = -1, newFullLevel = -1;
+			int32 newThumbLevel = -1, newMediumLevel = -1, newFullLevel = -1;
 			switch (size) {
-			case 's': newThumbLevel = 0; newFullLevel = 4; break; // box 100x100
-			case 'm': newThumbLevel = 2; newFullLevel = 3; break; // box 320x320
-			case 'x': newThumbLevel = 5; newFullLevel = 0; break; // box 800x800
-			case 'y': newThumbLevel = 6; newFullLevel = 1; break; // box 1280x1280
-			case 'w': newThumbLevel = 8; newFullLevel = 2; break; // box 2560x2560
-			case 'a': newThumbLevel = 1; newFullLevel = 8; break; // crop 160x160
-			case 'b': newThumbLevel = 3; newFullLevel = 7; break; // crop 320x320
-			case 'c': newThumbLevel = 4; newFullLevel = 6; break; // crop 640x640
-			case 'd': newThumbLevel = 7; newFullLevel = 5; break; // crop 1280x1280
+			case 's': newThumbLevel = 0; newMediumLevel = 5; newFullLevel = 4; break; // box 100x100
+			case 'm': newThumbLevel = 2; newMediumLevel = 0; newFullLevel = 3; break; // box 320x320
+			case 'x': newThumbLevel = 5; newMediumLevel = 3; newFullLevel = 0; break; // box 800x800
+			case 'y': newThumbLevel = 6; newMediumLevel = 6; newFullLevel = 1; break; // box 1280x1280
+			case 'w': newThumbLevel = 8; newMediumLevel = 8; newFullLevel = 2; break; // box 2560x2560
+			case 'a': newThumbLevel = 1; newMediumLevel = 4; newFullLevel = 8; break; // crop 160x160
+			case 'b': newThumbLevel = 3; newMediumLevel = 1; newFullLevel = 7; break; // crop 320x320
+			case 'c': newThumbLevel = 4; newMediumLevel = 2; newFullLevel = 6; break; // crop 640x640
+			case 'd': newThumbLevel = 7; newMediumLevel = 7; newFullLevel = 5; break; // crop 1280x1280
 			}
-			if (newThumbLevel < 0 || newFullLevel < 0) {
+			if (newThumbLevel < 0 || newMediumLevel < 0 || newFullLevel < 0) {
 				continue;
 			}
 			if (thumbLevel < 0 || newThumbLevel < thumbLevel) {
 				thumbLevel = newThumbLevel;
 				thumb = &(*i);
 			}
+			if (mediumLevel < 0 || newMediumLevel < mediumLevel) {
+				mediumLevel = newMediumLevel;
+				medium = &(*i);
+			}
 			if (fullLevel < 0 || newFullLevel < fullLevel) {
 				fullLevel = newFullLevel;
 				full = &(*i);
 			}
 		}
-		if (thumb && full) {
-			return App::photo(photo.vid.v, convert, photo.vaccess_hash.v, photo.vuser_id.v, photo.vdate.v, App::image(*thumb), App::image(*full));
+		if (thumb && medium && full) {
+			return App::photo(photo.vid.v, convert, photo.vaccess_hash.v, photo.vuser_id.v, photo.vdate.v, App::image(*thumb), App::image(*medium), App::image(*full));
 		}
 		return App::photo(photo.vid.v, convert);
 	}
@@ -850,7 +858,7 @@ namespace App {
 		return App::peer(App::peerFromChat(chat))->asChat();
 	}
 
-	PhotoData *photo(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 user, int32 date, const ImagePtr &thumb, const ImagePtr &full) {
+	PhotoData *photo(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 user, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full) {
 		if (convert) {
 			if (convert->id != photo) {
 				PhotosData::iterator i = photosData.find(convert->id);
@@ -864,6 +872,7 @@ namespace App {
 				convert->user = user;
 				convert->date = date;
 				convert->thumb = thumb;
+				convert->medium = medium;
 				convert->full = full;
 			}
 		}
@@ -874,7 +883,7 @@ namespace App {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new PhotoData(photo, access, user, date, thumb, full);
+				result = new PhotoData(photo, access, user, date, thumb, medium, full);
 			}
 			photosData.insert(photo, result);
 		} else {
@@ -884,6 +893,7 @@ namespace App {
 				result->user = user;
 				result->date = date;
 				result->thumb = thumb;
+				result->medium = medium;
 				result->full = full;
 			}
 			inLastIter = lastPhotosMap.find(result);

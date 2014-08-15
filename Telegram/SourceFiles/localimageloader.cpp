@@ -142,6 +142,10 @@ void LocalImageLoaderPrivate::prepareImages() {
 			photoThumbs.insert('s', thumb);
 			photoSizes.push_back(MTP_photoSize(MTP_string("s"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
 
+			QPixmap medium = (w > 320 || h > 320) ? QPixmap::fromImage(img.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(img);
+			photoThumbs.insert('m', medium);
+			photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
+
 			QPixmap full = (w > 800 || h > 800) ? QPixmap::fromImage(img.scaled(800, 800, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(img);
 			photoThumbs.insert('x', full);
 			photoSizes.push_back(MTP_photoSize(MTP_string("x"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));

@@ -17,6 +17,9 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #pragma once
 
+struct NullType {
+};
+
 //typedef unsigned char uchar; // Qt has uchar
 typedef qint16 int16;
 typedef quint16 uint16;

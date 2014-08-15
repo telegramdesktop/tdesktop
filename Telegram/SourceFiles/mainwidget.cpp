@@ -258,7 +258,7 @@ MainWidget *TopBarWidget::main() {
 }
 
 MainWidget::MainWidget(Window *window) : QWidget(window), failedObjId(0), _dialogsWidth(st::dlgMinWidth),
-	dialogs(this), history(this), profile(0), _topBar(this), hider(0),
+	dialogs(this), history(this), profile(0), overview(0), _topBar(this), hider(0),
     updPts(0), updDate(0), updQts(0), updSeq(0), updInited(false), onlineRequest(0) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
@@ -358,7 +358,7 @@ void MainWidget::dialogsActivate() {
 
 bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &e) {
 	if (e.type() == "CHAT_ID_INVALID") { // left this chat already
-		if ((profile && profile->peer() == peer) || profileStack.indexOf(peer) >= 0 || history.peer() == peer) {
+		if ((profile && profile->peer() == peer) || (overview && overview->peer() == peer) || _stack.contains(peer) || history.peer() == peer) {
 			showPeer(0);
 		}
 		dialogs.removePeer(peer);
@@ -370,7 +370,7 @@ bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &e) {
 
 void MainWidget::deleteHistory(PeerData *peer, const MTPmessages_StatedMessage &result) {
 	sentFullDataReceived(0, result);
-	if ((profile && profile->peer() == peer) || profileStack.indexOf(peer) >= 0 || history.peer() == peer) {
+	if ((profile && profile->peer() == peer) || (overview && overview->peer() == peer) || _stack.contains(peer) || history.peer() == peer) {
 		showPeer(0);
 	}
 	dialogs.removePeer(peer);
@@ -398,7 +398,7 @@ void MainWidget::deleteHistoryAndContact(UserData *user, const MTPcontacts_Link 
 	App::feedUsers(MTP_vector<MTPUser>(QVector<MTPUser>(1, d.vuser)));
 	App::feedUserLink(MTP_int(user->id & 0xFFFFFFFF), d.vmy_link, d.vforeign_link);
 
-	if ((profile && profile->peer() == user) || profileStack.indexOf(user) >= 0 || history.peer() == user) {
+	if ((profile && profile->peer() == user) || (overview && overview->peer() == user) || _stack.contains(user) || history.peer() == user) {
 		showPeer(0);
 	}
 	dialogs.removePeer(user);
@@ -472,7 +472,7 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 	if (!v) return;
 
 	if (v->isEmpty()) {
-		if ((profile && profile->peer() == peer) || profileStack.indexOf(peer) >= 0 || history.peer() == peer) {
+		if ((profile && profile->peer() == peer) || (overview && overview->peer() == peer) || _stack.contains(peer) || history.peer() == peer) {
 			showPeer(0);
 		}
 		dialogs.removePeer(peer);
@@ -544,6 +544,170 @@ void MainWidget::searchMessages(const QString &query) {
 	dialogs.searchMessages(query);
 }
 
+void MainWidget::preloadOverviews(PeerData *peer) {
+	History *h = App::history(peer->id);
+	bool sending[OverviewCount] = { false };
+	for (int32 i = 0; i < OverviewCount; ++i) {
+		if (h->_overviewCount[i] < 0) {
+			if (_overviewPreload[i].constFind(peer) == _overviewPreload[i].cend()) {
+				sending[i] = true;
+			}
+		}
+	}
+	int32 last = OverviewCount;
+	while (last > 0) {
+		if (sending[--last]) break;
+	}
+	for (int32 i = 0; i < OverviewCount; ++i) {
+		if (sending[i]) {
+			MediaOverviewType type = MediaOverviewType(i);
+			MTPMessagesFilter filter = typeToMediaFilter(type);
+			if (type == OverviewCount) break;
+
+			_overviewPreload[i].insert(peer, MTP::send(MTPmessages_Search(peer->input, MTP_string(""), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::overviewPreloaded, peer), rpcFail(&MainWidget::overviewFailed, peer), 0, (i == last) ? 0 : 10));
+		}
+	}
+}
+
+void MainWidget::overviewPreloaded(PeerData *peer, const MTPmessages_Messages &result, mtpRequestId req) {
+	MediaOverviewType type = OverviewCount;
+	for (int32 i = 0; i < OverviewCount; ++i) {
+		OverviewsPreload::iterator j = _overviewPreload[i].find(peer);
+		if (j != _overviewPreload[i].end() && j.value() == req) {
+			type = MediaOverviewType(i);
+			_overviewPreload[i].erase(j);
+			break;
+		}
+	}
+
+	if (type == OverviewCount) return;
+
+	History *h = App::history(peer->id);
+	switch (result.type()) {
+	case mtpc_messages_messages: {
+		const MTPDmessages_messages &d(result.c_messages_messages());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		h->_overviewCount[type] = 0;
+	} break;
+
+	case mtpc_messages_messagesSlice: {
+		const MTPDmessages_messagesSlice &d(result.c_messages_messagesSlice());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		h->_overviewCount[type] = d.vcount.v;
+	} break;
+
+	default: return;
+	}
+
+	if (h->_overviewCount[type] > 0) {
+		for (History::MediaOverviewIds::const_iterator i = h->_overviewIds[type].cbegin(), e = h->_overviewIds[type].cend(); i != e; ++i) {
+			if (i.key() < 0) {
+				++h->_overviewCount[type];
+			} else {
+				break;
+			}
+		}
+	}
+
+	mediaOverviewUpdated(peer);
+}
+
+void MainWidget::mediaOverviewUpdated(PeerData *peer) {
+	if (profile) profile->mediaOverviewUpdated(peer);
+	if (overview) overview->mediaOverviewUpdated(peer);
+}
+
+bool MainWidget::overviewFailed(PeerData *peer, const RPCError &error, mtpRequestId req) {
+	MediaOverviewType type = OverviewCount;
+	for (int32 i = 0; i < OverviewCount; ++i) {
+		OverviewsPreload::iterator j = _overviewPreload[i].find(peer);
+		if (j != _overviewPreload[i].end() && j.value() == req) {
+			_overviewPreload[i].erase(j);
+			break;
+		}
+	}
+	return true;
+}
+
+void MainWidget::loadMediaBack(PeerData *peer, MediaOverviewType type, bool many) {
+	if (_overviewLoad[type].constFind(peer) != _overviewLoad[type].cend()) return;
+
+	MsgId minId = 0;
+	History *hist = App::history(peer->id);
+	if (hist->_overviewCount[type] == 0) return; // all loaded
+
+	for (History::MediaOverviewIds::const_iterator i = hist->_overviewIds[type].cbegin(), e = hist->_overviewIds[type].cend(); i != e; ++i) {
+		if (i.key() > 0) {
+			minId = i.key();
+			break;
+		}
+	}
+	int32 limit = many ? SearchManyPerPage : (hist->_overview[type].size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
+	MTPMessagesFilter filter = typeToMediaFilter(type);
+	if (type == OverviewCount) return;
+
+	_overviewLoad[type].insert(hist->peer, MTP::send(MTPmessages_Search(hist->peer->input, MTPstring(), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(minId), MTP_int(limit)), rpcDone(&MainWidget::photosLoaded, hist)));
+}
+
+void MainWidget::photosLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req) {
+	OverviewsPreload::iterator it;
+	MediaOverviewType type = OverviewCount;
+	for (int32 i = 0; i < OverviewCount; ++i) {
+		it = _overviewLoad[i].find(h->peer);
+		if (it != _overviewLoad[i].cend()) {
+			type = MediaOverviewType(i);
+			_overviewLoad[i].erase(it);
+			break;
+		}
+	}
+	if (type == OverviewCount) return;
+
+	const QVector<MTPMessage> *v = 0;
+	switch (msgs.type()) {
+	case mtpc_messages_messages: {
+		const MTPDmessages_messages &d(msgs.c_messages_messages());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		v = &d.vmessages.c_vector().v;
+		h->_overviewCount[type] = 0;
+	} break;
+
+	case mtpc_messages_messagesSlice: {
+		const MTPDmessages_messagesSlice &d(msgs.c_messages_messagesSlice());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		h->_overviewCount[type] = d.vcount.v;
+		v = &d.vmessages.c_vector().v;
+	} break;
+
+	default: return;
+	}
+
+	if (h->_overviewCount[type] > 0) {
+		for (History::MediaOverviewIds::const_iterator i = h->_overviewIds[type].cbegin(), e = h->_overviewIds[type].cend(); i != e; ++i) {
+			if (i.key() < 0) {
+				++h->_overviewCount[type];
+			} else {
+				break;
+			}
+		}
+	}
+	if (v->isEmpty()) {
+		h->_overviewCount[type] = 0;
+	}
+
+	for (QVector<MTPMessage>::const_iterator i = v->cbegin(), e = v->cend(); i != e; ++i) {
+		HistoryItem *item = App::histories().addToBack(*i, -1);
+		if (item && h->_overviewIds[type].constFind(item->id) == h->_overviewIds[type].cend()) {
+			h->_overviewIds[type].insert(item->id, NullType());
+			h->_overview[type].push_front(item->id);
+		}
+	}
+	if (App::wnd()) App::wnd()->mediaOverviewUpdated(h->peer);
+}
+
 void MainWidget::partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result) {
 	const MTPDmessages_affectedHistory &d(result.c_messages_affectedHistory());
 	App::main()->updUpdated(d.vpts.v, 0, 0, d.vseq.v);
@@ -571,7 +735,7 @@ void MainWidget::videoLoadProgress(mtpFileLoader *loader) {
 	VideoItems::const_iterator i = items.constFind(video);
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			history.msgUpdated(j.key()->history()->peer->id, j.key());
+			msgUpdated(j.key()->history()->peer->id, j.key());
 		}
 	}
 }
@@ -615,7 +779,7 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 	AudioItems::const_iterator i = items.constFind(audio);
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			history.msgUpdated(j.key()->history()->peer->id, j.key());
+			msgUpdated(j.key()->history()->peer->id, j.key());
 		}
 	}
 }
@@ -647,7 +811,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 	DocumentItems::const_iterator i = items.constFind(document);
 	if (i != items.cend()) {
 		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			history.msgUpdated(j.key()->history()->peer->id, j.key());
+			msgUpdated(j.key()->history()->peer->id, j.key());
 		}
 	}
 }
@@ -710,30 +874,8 @@ void MainWidget::createDialogAtTop(History *history, int32 unreadCount) {
 	dialogs.createDialogAtTop(history, unreadCount);
 }
 
-bool MainWidget::getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
-	if (history.getPhotoCoords(photo, x, y, w)) {
-		x += history.x();
-		y += history.y();
-		return true;
-	} else if (profile && profile->getPhotoCoords(photo, x, y, w)) {
-		x += profile->x();
-		y += profile->y();
-		return true;
-	}
-	return false;
-}
-
-bool MainWidget::getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const {
-	if (history.getVideoCoords(video, x, y, w)) {
-		x += history.x();
-		y += history.y();
-		return true;
-	}
-	return false;
-}
-
 void MainWidget::showPeer(const PeerId &peerId, MsgId msgId, bool back, bool force) {
-	if (!back && profileStack.size() == 1 && profileStack[0]->id == peerId) {
+	if (!back && _stack.size() == 1 && _stack[0]->type() == HistoryStackItem && _stack[0]->peer->id == peerId) {
 		back = true;
 	}
 	App::wnd()->hideLayer();
@@ -743,7 +885,7 @@ void MainWidget::showPeer(const PeerId &peerId, MsgId msgId, bool back, bool for
 		hider = 0;
 	}
 	if (force || !selectingPeer()) {
-		if (history.isHidden() && profile) {
+		if (history.isHidden() && (profile || overview)) {
 			dialogs.enableShadow(false);
 			if (peerId) {
 				_topBar.enableShadow(false);
@@ -759,13 +901,19 @@ void MainWidget::showPeer(const PeerId &peerId, MsgId msgId, bool back, bool for
 	}
 	history.showPeer(peerId, msgId, force);
 	if (force || !selectingPeer()) {
-		if (profile) {
+		if (profile || overview) {
 			if (profile) {
 				profile->deleteLater();
 				profile->rpcInvalidate();
+				profile = 0;
 			}
-			profile = 0;
-			profileStack.clear();
+			if (overview) {
+				overview->clear();
+				overview->deleteLater();
+				overview->rpcInvalidate();
+				overview = 0;
+			}
+			_stack.clear();
 			if (!history.peer() || !history.peer()->id) {
 				_topBar.hide();
 				resizeEvent(0);
@@ -805,7 +953,52 @@ PeerData *MainWidget::profilePeer() {
 	return profile ? profile->peer() : 0;
 }
 
-void MainWidget::showPeerProfile(const PeerData *peer, bool back) {
+void MainWidget::showMediaOverview(const PeerData *peer, MediaOverviewType type, bool back, int32 lastScrollTop) {
+	App::wnd()->hideSettings();
+	if (overview && overview->peer() == peer) {
+		if (overview->type() != type) {
+			overview->switchType(type);
+		}
+		return;
+	}
+
+	dialogs.enableShadow(false);
+	_topBar.enableShadow(false);
+	QPixmap animCache = myGrab(this, history.geometry()), animTopBarCache = myGrab(this, QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight));
+	dialogs.enableShadow();
+	_topBar.enableShadow();
+	if (!back) {
+		if (overview) {
+			_stack.push_back(new StackItemOverview(overview->peer(), overview->type(), overview->lastWidth(), overview->lastScrollTop()));
+		} else if (profile) {
+			_stack.push_back(new StackItemProfile(profile->peer(), profile->lastScrollTop(), profile->allMediaShown()));
+		} else {
+			_stack.push_back(new StackItemHistory(history.peer(), history.lastWidth(), history.lastScrollTop()));
+		}
+	}
+	if (overview) {
+		overview->clear();
+		overview->deleteLater();
+		overview->rpcInvalidate();
+	}
+	if (profile) {
+		profile->deleteLater();
+		profile->rpcInvalidate();
+		profile = 0;
+	}
+	overview = new OverviewWidget(this, peer, type);
+	_topBar.show();
+	resizeEvent(0);
+	overview->animShow(animCache, animTopBarCache, back, lastScrollTop);
+	history.animStop();
+	history.showPeer(0, 0, false, true);
+	history.hide();
+	_topBar.raise();
+	dialogs.raise();
+	if (hider) hider->raise();
+}
+
+void MainWidget::showPeerProfile(const PeerData *peer, bool back, int32 lastScrollTop, bool allMediaShown) {
 	App::wnd()->hideSettings();
 	if (profile && profile->peer() == peer) return;
 
@@ -815,11 +1008,19 @@ void MainWidget::showPeerProfile(const PeerData *peer, bool back) {
 	dialogs.enableShadow();
 	_topBar.enableShadow();
 	if (!back) {
-		if (profile) {
-			profileStack.push_back(profile->peer());
+		if (overview) {
+			_stack.push_back(new StackItemOverview(overview->peer(), overview->type(), overview->lastWidth(), overview->lastScrollTop()));
+		} else if (profile) {
+			_stack.push_back(new StackItemProfile(profile->peer(), profile->lastScrollTop(), profile->allMediaShown()));
 		} else {
-			profileStack.push_back(history.peer());
+			_stack.push_back(new StackItemHistory(history.peer(), history.lastWidth(), history.lastScrollTop()));
 		}
+	}
+	if (overview) {
+		overview->clear();
+		overview->deleteLater();
+		overview->rpcInvalidate();
+		overview = 0;
 	}
 	if (profile) {
 		profile->deleteLater();
@@ -828,7 +1029,7 @@ void MainWidget::showPeerProfile(const PeerData *peer, bool back) {
 	profile = new ProfileWidget(this, peer);
 	_topBar.show();
 	resizeEvent(0);
-	profile->animShow(animCache, animTopBarCache, back);
+	profile->animShow(animCache, animTopBarCache, back, lastScrollTop, allMediaShown);
 	history.animStop();
 	history.showPeer(0, 0, false, true);
 	history.hide();
@@ -837,15 +1038,21 @@ void MainWidget::showPeerProfile(const PeerData *peer, bool back) {
 	if (hider) hider->raise();
 }
 
-void MainWidget::showPeerBack() {
-	if (profileStack.isEmpty() || selectingPeer()) return;
-	PeerData *peer = profileStack.back();
-	profileStack.pop_back();
-	if (profileStack.isEmpty()) {
-		showPeer(peer->id, App::main()->activeMsgId(), true);
-	} else {
-		showPeerProfile(peer, true);
+void MainWidget::showBackFromStack() {
+	if (_stack.isEmpty() || selectingPeer()) return;
+	StackItem *item = _stack.back();
+	_stack.pop_back();
+	if (item->type() == HistoryStackItem) {
+		StackItemHistory *histItem = static_cast<StackItemHistory*>(item);
+		showPeer(histItem->peer->id, App::main()->activeMsgId(), true);
+	} else if (item->type() == ProfileStackItem) {
+		StackItemProfile *profItem = static_cast<StackItemProfile*>(item);
+		showPeerProfile(profItem->peer, true, profItem->lastScrollTop, profItem->allMediaShown);
+	} else if (item->type() == OverviewStackItem) {
+		StackItemOverview *overItem = static_cast<StackItemOverview*>(item);
+		showMediaOverview(overItem->peer, overItem->mediaType, true, overItem->lastScrollTop);
 	}
+	delete item;
 }
 
 QRect MainWidget::historyRect() const {
@@ -1008,10 +1215,10 @@ void MainWidget::forwardDone(PeerId peer, const MTPmessages_StatedMessages &resu
 }
 
 void MainWidget::msgUpdated(PeerId peer, HistoryItem *msg) {
+	if (!msg) return;
 	history.msgUpdated(peer, msg);
-	if (!msg->history()->dialogs.isEmpty()) {
-		dialogs.dlgUpdated(msg->history()->dialogs[0]);
-	}
+	if (!msg->history()->dialogs.isEmpty()) dialogs.dlgUpdated(msg->history()->dialogs[0]);
+	if (overview) overview->msgUpdated(peer, msg);
 }
 
 void MainWidget::historyToDown(History *hist) {
@@ -1094,17 +1301,22 @@ void MainWidget::hideAll() {
 	if (profile) {
 		profile->hide();
 	}
+	if (overview) {
+		overview->hide();
+	}
 	_topBar.hide();
 }
 
 void MainWidget::showAll() {
 	dialogs.show();
-	if (profile) {
+	if (overview) {
+		overview->show();
+	} else if(profile) {
 		profile->show();
 	} else {
 		history.show();
 	}
-	if (profile || history.peer()) {
+	if (profile || overview || history.peer()) {
 		_topBar.show();
 	}
 	App::wnd()->checkHistoryActivation();
@@ -1117,6 +1329,7 @@ void MainWidget::resizeEvent(QResizeEvent *e) {
 	_topBar.setGeometry(_dialogsWidth, 0, width() - _dialogsWidth, st::topBarHeight + st::titleShadow);
 	history.setGeometry(_dialogsWidth, tbh, width() - _dialogsWidth, height() - tbh);
 	if (profile) profile->setGeometry(history.geometry());
+	if (overview) overview->setGeometry(history.geometry());
 	if (hider) hider->setGeometry(QRect(_dialogsWidth, 0, width() - _dialogsWidth, height()));
 }
 
@@ -1126,6 +1339,8 @@ void MainWidget::keyPressEvent(QKeyEvent *e) {
 void MainWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
 	if (profile) {
 		profile->paintTopBar(p, over, decreaseWidth);
+	} else if (overview) {
+		overview->paintTopBar(p, over, decreaseWidth);
 	} else {
 		history.paintTopBar(p, over, decreaseWidth);
 	}
@@ -1138,13 +1353,15 @@ TopBarWidget *MainWidget::topBar() {
 void MainWidget::onTopBarClick() {
 	if (profile) {
 		profile->topBarClick();
+	} else if (overview) {
+		overview->topBarClick();
 	} else {
 		history.topBarClick();
 	}
 }
 
 void MainWidget::onPeerShown(PeerData *peer) {
-	if (profile || (peer && peer->id)) {
+	if (profile || overview || (peer && peer->id)) {
 		_topBar.show();
 	} else {
 		_topBar.hide();
@@ -1390,7 +1607,7 @@ void MainWidget::updateNotifySetting(PeerData *peer, bool enabled) {
 }
 
 void MainWidget::activate() {
-	if (!profile) {
+	if (!profile && !overview) {
 		if (hider) {
 			if (hider->wasOffered()) {
 				hider->setFocus();
@@ -1433,7 +1650,7 @@ bool MainWidget::isActive() const {
 }
 
 bool MainWidget::historyIsActive() const {
-	return isActive() && !profile && history.isActive();
+	return isActive() && !profile && !overview && history.isActive();
 }
 
 int32 MainWidget::dlgsWidth() const {
@@ -1581,15 +1798,17 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (msgRow) {
 				App::historyUnregItem(msgRow);
 				History *h = msgRow->history();
-				History::MediaOverviewIds::iterator i = h->_photosOverviewIds.find(msgRow->id);
-				if (i != h->_photosOverviewIds.cend()) {
-					h->_photosOverviewIds.erase(i);
-					if (h->_photosOverviewIds.constFind(d.vid.v) == h->_photosOverviewIds.cend()) {
-						h->_photosOverviewIds.insert(d.vid.v);
-						for (int32 i = 0, l = h->_photosOverview.size(); i != l; ++i) {
-							if (h->_photosOverview.at(i) == msgRow->id) {
-								h->_photosOverview[i] = d.vid.v;
-								break;
+				for (int32 i = 0; i < OverviewCount; ++i) {
+					History::MediaOverviewIds::iterator j = h->_overviewIds[i].find(msgRow->id);
+					if (j != h->_overviewIds[i].cend()) {
+						h->_overviewIds[i].erase(j);
+						if (h->_overviewIds[i].constFind(d.vid.v) == h->_overviewIds[i].cend()) {
+							h->_overviewIds[i].insert(d.vid.v, NullType());
+							for (int32 k = 0, l = h->_overview[i].size(); k != l; ++k) {
+								if (h->_overview[i].at(k) == msgRow->id) {
+									h->_overview[i][k] = d.vid.v;
+									break;
+								}
 							}
 						}
 					}

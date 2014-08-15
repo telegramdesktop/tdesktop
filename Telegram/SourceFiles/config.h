@@ -66,6 +66,7 @@ enum {
 
 	AutoSearchTimeout = 900, // 0.9 secs
 	SearchPerPage = 50,
+	SearchManyPerPage = 100,
 	MediaOverviewStartPerPage = 5,
 	MediaOverviewPreloadCount = 4,
 };

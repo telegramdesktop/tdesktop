@@ -35,6 +35,8 @@ public:
 
 	bool event(QEvent *e);
 
+	void hide();
+
 	void updateOver(const QPoint &mpos);
 
 	void showPhoto(PhotoData *photo, HistoryItem *context);

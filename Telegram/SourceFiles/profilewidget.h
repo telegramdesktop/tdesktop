@@ -39,9 +39,8 @@ public:
 
 	bool animStep(float64 ms);
 
-	bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const;
-
 	PeerData *peer() const;
+	bool allMediaShown() const;
 	
 	void gotFullUser(const MTPUserFull &user);
 	void gotFullChat(const MTPmessages_ChatFull &res);
@@ -55,6 +54,7 @@ public:
 	void loadProfilePhotos(int32 yFrom);
 
 	void updateNotifySettings();
+	void mediaOverviewUpdated(PeerData *peer);
 
 	~ProfileInner();
 	
@@ -83,6 +83,12 @@ public slots:
 
 	void onKickConfirm();
 
+	void onMediaShowAll();
+	void onMediaPhotos();
+	void onMediaVideos();
+	void onMediaDocuments();
+	void onMediaAudios();
+
 private:
 
 	void showAll();
@@ -93,6 +99,7 @@ private:
 	PeerData *_peer;
 	UserData *_peerUser;
 	ChatData *_peerChat;
+	History *_hist;
 	bool _chatAdmin;
 
 	int32 _width, _left;
@@ -115,6 +122,12 @@ private:
 	FlatCheckbox _enableNotifications;
 	LinkButton _clearHistory;
 
+	// shared media
+	bool _allMediaTypes;
+	LinkButton _mediaShowAll, _mediaPhotos, _mediaVideos, _mediaDocuments, _mediaAudios;
+	LinkButton *_mediaLinks[OverviewCount];
+	QString overviewLinkText(int32 type, int32 count);
+
 	// participants
 	int32 _pHeight;
 	int32 _kickWidth, _selectedRow, _lastPreload;
@@ -135,7 +148,7 @@ private:
 
 	QPoint _lastPos;
 
-	QString _onlineText;
+	QString _onlineText;	
 
 };
 
@@ -152,20 +165,21 @@ public:
     void dragEnterEvent(QDragEnterEvent *e);
     void dropEvent(QDropEvent *e);
 
-	bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const;
-
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
 	void topBarClick();
 
 	PeerData *peer() const;
+	int32 lastScrollTop() const;
+	bool allMediaShown() const;
 
-	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
+	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1, bool allMediaShown = false);
 	bool animStep(float64 ms);
 
 	void updateOnlineDisplay();
 	void updateOnlineDisplayTimer();
 
 	void updateNotifySettings();
+	void mediaOverviewUpdated(PeerData *peer);
 
 	~ProfileWidget();
 

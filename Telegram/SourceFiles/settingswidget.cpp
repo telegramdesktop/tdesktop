@@ -578,16 +578,6 @@ void SettingsInner::updateSize(int32 newWidth) {
 	}
 }
 
-bool SettingsInner::getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
-	if (photo->id == _self->photoId) {
-		x = _left;
-		y = st::setTop;
-		w = st::setPhotoSize;
-		return true;
-	}
-	return false;
-}
-
 void SettingsInner::updateOnlineDisplay() {
 }
 
@@ -1225,15 +1215,6 @@ void SettingsWidget::dragEnterEvent(QDragEnterEvent *e) {
 }
 
 void SettingsWidget::dropEvent(QDropEvent *e) {
-}
-
-bool SettingsWidget::getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
-	if (_inner.getPhotoCoords(photo, x, y, w)) {
-		x += _inner.x();
-		y += _inner.y();
-		return true;
-	}
-	return false;
 }
 
 void SettingsWidget::updateOnlineDisplay() {

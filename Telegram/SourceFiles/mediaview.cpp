@@ -75,13 +75,14 @@ void MediaView::moveToScreen() {
 void MediaView::mediaOverviewUpdated(PeerData *peer) {
 	if (_history && _history->peer == peer) {
 		_index = -1;
-		for (int i = 0, l = _history->_photosOverview.size(); i < l; ++i) {
-			if (_history->_photosOverview.at(i) == _msgid) {
+		for (int i = 0, l = _history->_overview[OverviewPhotos].size(); i < l; ++i) {
+			if (_history->_overview[OverviewPhotos].at(i) == _msgid) {
 				_index = i;
 				break;
 			}
 		}
 		updateControls();
+		preloadPhotos(0);
 	} else if (_user == peer) {
 		_index = -1;
 		for (int i = 0, l = _user->photos.size(); i < l; ++i) {
@@ -91,6 +92,7 @@ void MediaView::mediaOverviewUpdated(PeerData *peer) {
 			}
 		}
 		updateControls();
+		preloadPhotos(0);
 	}
 }
 
@@ -141,9 +143,9 @@ void MediaView::updateControls() {
 	_nameNav = QRect(_forward.x() + _forward.width() + (maxWidth - nameWidth) / 2, _forward.y() + st::medviewNameTop, nameWidth, st::msgNameFont->height);
 	_dateNav = QRect(_forward.x() + _forward.width() + (maxWidth - dateWidth) / 2, _forward.y() + st::medviewDateTop, dateWidth, st::medviewDateFont->height);
 	updateHeader();
-	_leftNavVisible = (_index > 0 || (_index == 0 && _history && _history->_photosOverview.size() < _history->_photosOverviewCount));
+	_leftNavVisible = (_index > 0 || (_index == 0 && _history && _history->_overview[OverviewPhotos].size() < _history->_overviewCount[OverviewPhotos]));
 	_rightNavVisible = (_index >= 0 && (
-		(_history && _index + 1 < _history->_photosOverview.size()) ||
+		(_history && _index + 1 < _history->_overview[OverviewPhotos].size()) ||
 		(_user && (_index + 1 < _user->photos.size() || _index + 1 < _user->photosCount))));
 	updateOver(mapFromGlobal(QCursor::pos()));
 	update();
@@ -228,7 +230,7 @@ void MediaView::onCopy() {
 }
 
 void MediaView::showPhoto(PhotoData *photo, HistoryItem *context) {
-	_history = context->history();
+	_history = context ? context->history() : 0;
 	_peer = 0;
 	_user = 0;
 
@@ -242,15 +244,15 @@ void MediaView::showPhoto(PhotoData *photo, HistoryItem *context) {
 	setCursor(style::cur_default);
 
 	_index = -1;
-	_msgid = context->id;
-	for (int i = 0, l = _history->_photosOverview.size(); i < l; ++i) {
-		if (_history->_photosOverview.at(i) == _msgid) {
+	_msgid = context ? context->id : 0;
+	for (int i = 0, l = _history->_overview[OverviewPhotos].size(); i < l; ++i) {
+		if (_history->_overview[OverviewPhotos].at(i) == _msgid) {
 			_index = i;
 			break;
 		}
 	}
 
-	if (_history->_photosOverviewCount < 0) {
+	if (_history->_overviewCount[OverviewPhotos] < 0) {
 		loadPhotosBack();
 	}
 
@@ -443,9 +445,9 @@ void MediaView::moveToPhoto(int32 delta) {
 
 	int32 newIndex = _index + delta;
 	if (_history) {
-		if (newIndex >= 0 && newIndex < _history->_photosOverview.size()) {
+		if (newIndex >= 0 && newIndex < _history->_overview[OverviewPhotos].size()) {
 			_index = newIndex;
-			if (HistoryItem *item = App::histItemById(_history->_photosOverview[_index])) {
+			if (HistoryItem *item = App::histItemById(_history->_overview[OverviewPhotos][_index])) {
 				_msgid = item->id;
 				HistoryPhoto *photo = dynamic_cast<HistoryPhoto*>(item->getMedia());
 				if (photo) {
@@ -472,16 +474,24 @@ void MediaView::moveToPhoto(int32 delta) {
 void MediaView::preloadPhotos(int32 delta) {
 	if (_index < 0) return;
 
-	int32 from = _index + (delta ? delta : -1), to = _index + (delta ? delta * MediaOverviewPreloadCount : 1);
+	int32 from = _index + (delta ? delta : -1), to = _index + (delta ? delta * MediaOverviewPreloadCount : 1), forget = _index - delta * 2;
 	if (from > to) qSwap(from, to);
 	if (_history) {
 		for (int32 i = from; i <= to; ++i) {
-			if (i >= 0 && i < _history->_photosOverview.size() && i != _index) {
-				if (HistoryItem *item = App::histItemById(_history->_photosOverview[i])) {
+			if (i >= 0 && i < _history->_overview[OverviewPhotos].size() && i != _index) {
+				if (HistoryItem *item = App::histItemById(_history->_overview[OverviewPhotos][i])) {
 					HistoryPhoto *photo = dynamic_cast<HistoryPhoto*>(item->getMedia());
 					if (photo) {
 						photo->photo()->full->load();
 					}
+				}
+			}
+		}
+		if (forget >= 0 && forget < _history->_overview[OverviewPhotos].size() && forget != _index) {
+			if (HistoryItem *item = App::histItemById(_history->_overview[OverviewPhotos][forget])) {
+				HistoryMedia *media = item->getMedia();
+				if (media && media->type() == MediaTypePhoto) {
+					static_cast<HistoryPhoto*>(media)->photo()->forget();
 				}
 			}
 		}
@@ -495,6 +505,9 @@ void MediaView::preloadPhotos(int32 delta) {
 			if (i >= 0 && i < _user->photos.size() && i != _index) {
 				_user->photos[i]->full->load();
 			}
+		}
+		if (forget >= 0 && forget < _user->photos.size() && forget != _index) {
+			_user->photos[forget]->forget();
 		}
 	}
 }
@@ -714,6 +727,14 @@ bool MediaView::event(QEvent *e) {
 	return QWidget::event(e);
 }
 
+void MediaView::hide() {
+	_close.clearState();
+	_save.clearState();
+	_forward.clearState();
+	_delete.clearState();
+	QWidget::hide();
+}
+
 void MediaView::onMenuDestroy(QObject *obj) {
 	if (_menu == obj) {
 		_menu = 0;
@@ -742,70 +763,12 @@ void MediaView::onTouchTimer() {
 void MediaView::loadPhotosBack() {
 	if (_loadRequest || _index < 0) return;
 
-	if (_history && _history->_photosOverviewCount != 0) {
-		MsgId minId = 0;
-		for (History::MediaOverviewIds::const_iterator i = _history->_photosOverviewIds.cbegin(), e = _history->_photosOverviewIds.cend(); i != e; ++i) {
-			if (*i > 0) {
-				minId = *i;
-				break;
-			}
-		}
-		int32 limit = (_index < MediaOverviewStartPerPage && _history->_photosOverview.size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
-		_loadRequest = MTP::send(MTPmessages_Search(_history->peer->input, MTPstring(), MTP_inputMessagesFilterPhotos(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(minId), MTP_int(limit)), rpcDone(&MediaView::photosLoaded, _history));
+	if (_history && _history->_overviewCount[OverviewPhotos] != 0) {
+		if (App::main()) App::main()->loadMediaBack(_history->peer, OverviewPhotos);
 	} else if (_user && _user->photosCount != 0) {
 		int32 limit = (_index < MediaOverviewStartPerPage && _user->photos.size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
 		_loadRequest = MTP::send(MTPphotos_GetUserPhotos(_user->inputUser, MTP_int(_user->photos.size()), MTP_int(0), MTP_int(limit)), rpcDone(&MediaView::userPhotosLoaded, _user));
 	}
-}
-
-void MediaView::photosLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req) {
-	if (req == _loadRequest) {
-		_loadRequest = 0;
-	}
-
-	const QVector<MTPMessage> *v = 0;
-	switch (msgs.type()) {
-	case mtpc_messages_messages: {
-		const MTPDmessages_messages &d(msgs.c_messages_messages());
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		v = &d.vmessages.c_vector().v;
-		h->_photosOverviewCount = 0;
-	} break;
-
-	case mtpc_messages_messagesSlice: {
-		const MTPDmessages_messagesSlice &d(msgs.c_messages_messagesSlice());
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		h->_photosOverviewCount = d.vcount.v;
-		v = &d.vmessages.c_vector().v;
-	} break;
-
-	default: return;
-	}
-
-	if (h->_photosOverviewCount > 0) {
-		for (History::MediaOverviewIds::const_iterator i = h->_photosOverviewIds.cbegin(), e = h->_photosOverviewIds.cend(); i != e; ++i) {
-			if (*i < 0) {
-				++h->_photosOverviewCount;
-			} else {
-				break;
-			}
-		}
-	}
-	if (v->isEmpty()) {
-		h->_photosOverviewCount = 0;
-	}
-
-	for (QVector<MTPMessage>::const_iterator i = v->cbegin(), e = v->cend(); i != e; ++i) {
-		HistoryItem *item = App::histories().addToBack(*i, -1);
-		if (item && h->_photosOverviewIds.constFind(item->id) == h->_photosOverviewIds.cend()) {
-			h->_photosOverviewIds.insert(item->id);
-			h->_photosOverview.push_front(item->id);
-		}
-	}
-	if (App::wnd()) App::wnd()->mediaOverviewUpdated(h->peer);
-	preloadPhotos(0);
 }
 
 void MediaView::userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mtpRequestId req) {
@@ -842,14 +805,13 @@ void MediaView::userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mt
 		u->photos.push_back(photo);
 	}
 	if (App::wnd()) App::wnd()->mediaOverviewUpdated(u);
-	preloadPhotos(0);
 }
 
 void MediaView::updateHeader() {
 	int32 index = _index, count = 0;
 	if (_history) {
-		count = _history->_photosOverviewCount ? _history->_photosOverviewCount : _history->_photosOverview.size();
-		if (index >= 0) index += count - _history->_photosOverview.size();
+		count = _history->_overviewCount[OverviewPhotos] ? _history->_overviewCount[OverviewPhotos] : _history->_overview[OverviewPhotos].size();
+		if (index >= 0) index += count - _history->_overview[OverviewPhotos].size();
 	} else if (_user) {
 		count = _user->photosCount ? _user->photosCount : _user->photos.size();
 	}

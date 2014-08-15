@@ -44,6 +44,9 @@ namespace {
 	typedef QList<DelayedRequest> DelayedRequestsList;
 	DelayedRequestsList delayedRequests;
 
+	typedef QSet<mtpRequestId> BadGuestDCRequests;
+	BadGuestDCRequests badGuestDCRequests;
+
 	typedef QVector<mtpRequestId> DCAuthWaiters;
 	typedef QMap<int32, DCAuthWaiters> AuthWaiters;
 	AuthWaiters authWaiters;
@@ -131,6 +134,7 @@ namespace {
 
 	bool onErrorDefault(mtpRequestId requestId, const RPCError &error) {
 		const QString &err(error.type());
+		bool badGuestDC = (error.code() == 400) && (err == qsl("FILE_ID_INVALID"));
         QRegularExpressionMatch m;
 		if ((m = QRegularExpression("^(FILE|PHONE|NETWORK|USER)_MIGRATE_(\\d+)$").match(err)).hasMatch()) {
 			if (!requestId) return false;
@@ -185,7 +189,7 @@ namespace {
 			if (resender) resender->checkDelayed();
 
 			return true;
-		} else if (error.code() == 401) {
+		} else if (error.code() == 401 || (badGuestDC && badGuestDCRequests.constFind(requestId) == badGuestDCRequests.cend())) {
 			int32 dc = 0;
 			{
 				QMutexLocker locker(&requestByDCLock);
@@ -198,7 +202,7 @@ namespace {
 			}
 			int32 newdc = abs(dc) % _mtp_internal::dcShift;
 			if (!newdc || newdc == mtpMainDC() || !MTP::authedId()) {
-				if (globalHandler.onFail) (*globalHandler.onFail)(requestId, error); // auth failed in main dc
+				if (!badGuestDC && globalHandler.onFail) (*globalHandler.onFail)(requestId, error); // auth failed in main dc
 				return false;
 			}
 
@@ -208,6 +212,7 @@ namespace {
 				authExportRequests.insert(MTP::send(MTPauth_ExportAuthorization(MTP_int(newdc)), rpcDone(exportDone), rpcFail(exportFail)), newdc);
 			}
 			waiters.push_back(requestId);
+			if (badGuestDC) badGuestDCRequests.insert(requestId);
 			return true;
 		} else if (err == qsl("CONNECTION_NOT_INITED") || err == qsl("CONNECTION_LAYER_INVALID")) {
 			RequestMap::const_iterator i = requestMap.constFind(requestId);
@@ -230,6 +235,7 @@ namespace {
 			_mtp_internal::getSession(dc < 0 ? (-dc) : dc)->sendPreparedWithInit(i.value());
 			return true;
 		}
+		if (badGuestDC) badGuestDCRequests.remove(requestId);
 		return false;
 	}
 
@@ -354,6 +360,7 @@ namespace _mtp_internal {
 					RPCError err(MTPRpcError(from, end));
 					DEBUG_LOG(("RPC Info: error received, code %1, type %2, description: %3").arg(err.code()).arg(err.type()).arg(err.description()));
 					if (!rpcErrorOccured(requestId, h, err)) {
+						parserMap.insert(requestId, h);
 						return;
 					}
 				} else {
@@ -361,6 +368,7 @@ namespace _mtp_internal {
 				}
 			} catch (Exception &e) {
 				if (!rpcErrorOccured(requestId, h, rpcClientError("RESPONSE_PARSE_FAILED", QString("exception text: ") + e.what()))) {
+					parserMap.insert(requestId, h);
 					return;
 				}
 			}

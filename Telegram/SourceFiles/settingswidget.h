@@ -71,7 +71,6 @@ public:
 	bool animStep(float64 ms);
 
 	void updateSize(int32 newWidth);
-	bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const;
 
 	void updateOnlineDisplay();
 
@@ -229,8 +228,6 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void dragEnterEvent(QDragEnterEvent *e);
 	void dropEvent(QDropEvent *e);
-
-	bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const;
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
 	bool animStep(float64 ms);

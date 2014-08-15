@@ -30,7 +30,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 
 ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const PeerData *peer) : TWidget(0),
 	_profile(profile), _scroll(scroll), _peer(App::peer(peer->id)),
-	_peerUser(_peer->chat ? 0 : _peer->asUser()), _peerChat(_peer->chat ? _peer->asChat() : 0),
+	_peerUser(_peer->chat ? 0 : _peer->asUser()), _peerChat(_peer->chat ? _peer->asChat() : 0), _hist(App::history(peer->id)),
 	_chatAdmin(_peerChat ? (_peerChat->admin == MTP::authedId()) : false),
 
 	// profile
@@ -47,6 +47,14 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	// settings
 	_enableNotifications(this, lang(lng_profile_enable_notifications)),
 	_clearHistory(this, lang(lng_profile_clear_history)),
+
+	// shared media
+	_allMediaTypes(false),
+	_mediaShowAll(this, lang(lng_profile_show_all_types)),
+	_mediaPhotos(this, QString()),
+	_mediaVideos(this, QString()),
+	_mediaDocuments(this, QString()),
+	_mediaAudios(this, QString()),
 
 	// participants
 	_pHeight(st::profileListPhotoSize + st::profileListPadding.height() * 2),
@@ -88,6 +96,18 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	connect(&_enableNotifications, SIGNAL(clicked()), this, SLOT(onEnableNotifications()));
 	connect(&_clearHistory, SIGNAL(clicked()), this, SLOT(onClearHistory()));
 
+	// shared media
+	connect(&_mediaShowAll, SIGNAL(clicked()), this, SLOT(onMediaShowAll()));
+	connect(&_mediaPhotos, SIGNAL(clicked()), this, SLOT(onMediaPhotos()));
+	connect(&_mediaVideos, SIGNAL(clicked()), this, SLOT(onMediaVideos()));
+	connect(&_mediaDocuments, SIGNAL(clicked()), this, SLOT(onMediaDocuments()));
+	connect(&_mediaAudios, SIGNAL(clicked()), this, SLOT(onMediaAudios()));
+	_mediaLinks[OverviewPhotos] = &_mediaPhotos;
+	_mediaLinks[OverviewVideos] = &_mediaVideos;
+	_mediaLinks[OverviewDocuments] = &_mediaDocuments;
+	_mediaLinks[OverviewAudios] = &_mediaAudios;
+	App::main()->preloadOverviews(_peer);
+
 	App::contextItem(0);
 
 	resizeEvent(0);
@@ -119,7 +139,7 @@ void ProfileInner::loadProfilePhotos(int32 yFrom) {
 	int32 yTo = yFrom + (parentWidget() ? parentWidget()->height() : App::wnd()->height()) * 5;
 	MTP::clearLoaderPriorities();
 
-	int32 partfrom = (_enableNotifications.y() + _enableNotifications.height()) + st::profileHeaderSkip;
+	int32 partfrom = _mediaAudios.y() + _mediaAudios.height() + st::profileHeaderSkip;
 	yFrom -= partfrom;
 	yTo -= partfrom;
 
@@ -204,6 +224,28 @@ void ProfileInner::onPhotoUpdateDone(PeerId peer) {
 	saveError();
 	showAll();
 	update();
+}
+
+void ProfileInner::onMediaShowAll() {
+	_allMediaTypes = true;
+	resizeEvent(0);
+	showAll();
+}
+
+void ProfileInner::onMediaPhotos() {
+	App::main()->showMediaOverview(_peer, OverviewPhotos);
+}
+
+void ProfileInner::onMediaVideos() {
+	App::main()->showMediaOverview(_peer, OverviewVideos);
+}
+
+void ProfileInner::onMediaDocuments() {
+	App::main()->showMediaOverview(_peer, OverviewDocuments);
+}
+
+void ProfileInner::onMediaAudios() {
+	App::main()->showMediaOverview(_peer, OverviewAudios);
 }
 
 void ProfileInner::gotFullUser(const MTPUserFull &user) {
@@ -407,6 +449,45 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 
 	top += _enableNotifications.height();
 
+	// shared media
+	p.setFont(st::profileHeaderFont->f);
+	p.setPen(st::profileHeaderColor->p);
+	p.drawText(_left + st::profileHeaderLeft, top + st::profileHeaderTop + st::profileHeaderFont->ascent, lang(lng_profile_shared_media));
+	top += st::profileHeaderSkip;
+
+	p.setFont(st::linkFont->f);
+	p.setPen(st::black->p);
+	int oneState = 0; // < 0 - loading, 0 - no media, > 0 - link shown
+	for (int i = 0; i < OverviewCount; ++i) {
+		int32 count = (_hist->_overviewCount[i] > 0) ? _hist->_overviewCount[i] : (_hist->_overviewCount[i] == 0 ? _hist->_overview[i].size() : -1);
+		if (count < 0) {
+			if (!oneState) oneState = count;
+			if (!_allMediaTypes) {
+				p.drawText(_left, top + st::linkFont->ascent, lang(lng_profile_loading));
+				break;
+			}
+		} else if (count > 0) {
+			oneState = count;
+			if (!_allMediaTypes) {
+				break;
+			}
+			top += _mediaLinks[i]->height() + st::setLittleSkip;
+		}
+	}
+	if (_allMediaTypes) {
+		if (oneState > 0) {
+			top -= st::setLittleSkip;
+		} else {
+			p.drawText(_left, top + st::linkFont->ascent, lang(oneState < 0 ? lng_profile_loading : lng_profile_no_media));
+			top += _mediaLinks[OverviewPhotos]->height();
+		}
+	} else {
+		if (!oneState) {
+			p.drawText(_left, top + st::linkFont->ascent, lang(lng_profile_no_media));
+		}
+		top += _mediaLinks[OverviewPhotos]->height();
+	}
+
 	// participants
 	if (_peerChat && (_peerChat->count > 0 || !_participants.isEmpty())) {
 		QString sectionHeader = lang(_participants.isEmpty() ? lng_profile_loading : lng_profile_participants_section);
@@ -486,7 +567,7 @@ void ProfileInner::updateSelected() {
 
 	QPoint lp = mapFromGlobal(_lastPos);
 
-	int32 partfrom = (_enableNotifications.y() + _enableNotifications.height()) + st::profileHeaderSkip;
+	int32 partfrom = _mediaAudios.y() + _mediaAudios.height() + st::profileHeaderSkip;
 	int32 newSelected = (lp.x() >= _left - st::profileListPadding.width() && lp.x() < _left + _width + st::profileListPadding.width() && lp.y() >= partfrom) ? (lp.y() - partfrom) / _pHeight : -1;
 
 	UserData *newKickOver = 0;
@@ -591,6 +672,25 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	// settings
 	top += st::profileHeaderSkip;
 	_enableNotifications.move(_left, top); top += _enableNotifications.height();
+
+	// shared media
+	top += st::profileHeaderSkip;
+
+	_mediaShowAll.move(_left + _width - _mediaShowAll.width(), top);
+	int wasCount = 0; // < 0 - loading, 0 - no media, > 0 - link shown
+	for (int i = 0; i < OverviewCount; ++i) {
+		if (_allMediaTypes) {
+			int32 count = (_hist->_overviewCount[i] > 0) ? _hist->_overviewCount[i] : (_hist->_overviewCount[i] == 0 ? _hist->_overview[i].size() : -1);
+			if (count > 0) {
+				if (wasCount) top += _mediaLinks[i]->height() + st::setLittleSkip;
+				wasCount = count;
+			}
+		}
+		_mediaLinks[i]->move(_left, top);
+	}
+	top += _mediaLinks[OverviewPhotos]->height();
+
+	// participants
 	if (_peerChat && (_peerChat->count > 0 || !_participants.isEmpty())) {
 		top += st::profileHeaderSkip;
 		if (!_participants.isEmpty()) {
@@ -618,18 +718,12 @@ bool ProfileInner::animStep(float64 ms) {
 	return res;
 }
 
-bool ProfileInner::getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
-	if ((_peerUser && photo->id == _peerUser->photoId) || (_peerChat && photo->id == _peerChat->photoId)) {
-		x = _left;
-		y = st::profilePadding.top();
-		w = st::setPhotoSize;
-		return true;
-	}
-	return false;
-}
-
 PeerData *ProfileInner::peer() const {
 	return _peer;
+}
+
+bool ProfileInner::allMediaShown() const {
+	return _allMediaTypes;
 }
 
 ProfileInner::~ProfileInner() {
@@ -647,6 +741,13 @@ void ProfileInner::deleteContextImage() {
 
 void ProfileInner::updateNotifySettings() {
 	_enableNotifications.setChecked(_peer->notify == EmptyNotifySettings || _peer->notify == UnknownNotifySettings || _peer->notify->mute < unixtime());
+}
+
+void ProfileInner::mediaOverviewUpdated(PeerData *peer) {
+	if (peer == _peer) {
+		resizeEvent(0);
+		showAll();
+	}
 }
 
 void ProfileInner::showAll() {
@@ -688,13 +789,47 @@ void ProfileInner::showAll() {
 	}
 	updateNotifySettings();
 
+	// shared media
+	bool first = false, wasCount = false, manyCounts = false;
+	for (int i = 0; i < OverviewCount; ++i) {
+		int32 count = (_hist->_overviewCount[i] > 0) ? _hist->_overviewCount[i] : (_hist->_overviewCount[i] == 0 ? _hist->_overview[i].size() : -1);
+		if (count > 0) {
+			if (wasCount) {
+				manyCounts = true;
+			} else {
+				wasCount = true;
+			}
+		}
+		if (!first || _allMediaTypes) {
+			if (count > 0 || count < 0) {
+				first = true;
+			} else if (!_allMediaTypes) {
+				_mediaLinks[i]->hide();
+				continue;
+			}
+			if (count > 0) {
+				_mediaLinks[i]->setText(overviewLinkText(i, count));
+				_mediaLinks[i]->show();
+			} else {
+				_mediaLinks[i]->hide();
+			}
+		} else {
+			_mediaLinks[i]->hide();
+		}
+	}
+	if (_allMediaTypes || !manyCounts) {
+		_mediaShowAll.hide();
+	} else {
+		_mediaShowAll.show();
+	}
+
 	// participants
 	reorderParticipants();
 	int32 h;
 	if (_peerUser) {
 		h = _clearHistory.y() + _clearHistory.height() + st::profileHeaderSkip;
 	} else {
-		h = _enableNotifications.y() + _enableNotifications.height() + st::profileHeaderSkip;
+		h = _mediaAudios.y() + _mediaAudios.height() + st::profileHeaderSkip;
 		if (!_participants.isEmpty()) {
 			h += st::profileHeaderSkip + _participants.size() * _pHeight;
 		} else if (_peerChat->count > 0) {
@@ -702,6 +837,17 @@ void ProfileInner::showAll() {
 		}
 	}
 	resize(width(), h);
+}
+
+QString ProfileInner::overviewLinkText(int32 type, int32 count) {
+	LangKey key = lng_keys_cnt;
+	switch (type) {
+	case OverviewPhotos: key = (count > 1) ? lng_profile_photos : lng_profile_photo; break;
+	case OverviewVideos: key = (count > 1) ? lng_profile_videos : lng_profile_video; break;
+	case OverviewDocuments: key = (count > 1) ? lng_profile_documents : lng_profile_document; break;
+	case OverviewAudios: key = (count > 1) ? lng_profile_audios : lng_profile_audio; break;
+	}
+	return lang(key).replace(qsl("{count}"), QString::number(count));
 }
 
 ProfileWidget::ProfileWidget(QWidget *parent, const PeerData *peer) : QWidget(parent)
@@ -747,15 +893,6 @@ void ProfileWidget::dragEnterEvent(QDragEnterEvent *e) {
 void ProfileWidget::dropEvent(QDropEvent *e) {
 }
 
-bool ProfileWidget::getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
-	if (_inner.getPhotoCoords(photo, x, y, w)) {
-		x += _inner.x();
-		y += _inner.y();
-		return true;
-	}
-	return false;
-}
-
 void ProfileWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
 	if (animating() && _showing) {
 		p.setOpacity(a_bgAlpha.current());
@@ -772,16 +909,26 @@ void ProfileWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 }
 
 void ProfileWidget::topBarClick() {
-	App::main()->showPeerBack();
+	App::main()->showBackFromStack();
 }
 
 PeerData *ProfileWidget::peer() const {
 	return _inner.peer();
 }
 
-void ProfileWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back) {
+int32 ProfileWidget::lastScrollTop() const {
+	return _scroll.scrollTop();
+}
+
+bool ProfileWidget::allMediaShown() const {
+	return _inner.allMediaShown();
+}
+
+void ProfileWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back, int32 lastScrollTop, bool allMediaShown) {
 	_bgAnimCache = bgAnimCache;
 	_bgAnimTopBarCache = bgAnimTopBarCache;
+	if (allMediaShown) _inner.onMediaShowAll();
+	if (lastScrollTop >= 0) _scroll.scrollToY(lastScrollTop);
 	_animCache = myGrab(this, rect());
 	App::main()->topBar()->stopAnim();
 	_animTopBarCache = myGrab(App::main()->topBar(), QRect(0, 0, width(), st::topBarHeight));
@@ -834,6 +981,10 @@ void ProfileWidget::updateOnlineDisplayTimer() {
 
 void ProfileWidget::updateNotifySettings() {
 	_inner.updateNotifySettings();
+}
+
+void ProfileWidget::mediaOverviewUpdated(PeerData *peer) {
+	_inner.mediaOverviewUpdated(peer);
 }
 
 ProfileWidget::~ProfileWidget() {

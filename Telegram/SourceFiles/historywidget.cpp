@@ -2198,7 +2198,7 @@ void HistoryWidget::onSend() {
 }
 
 mtpRequestId HistoryWidget::onForward(const PeerId &peer, bool forwardSelected) {
-	if (!_list) return 0;
+	if (forwardSelected && !_list) return 0;
 
 	HistoryItemSet toForward;
 	if (forwardSelected) {
@@ -2293,6 +2293,14 @@ PeerData *HistoryWidget::activePeer() const {
 
 MsgId HistoryWidget::activeMsgId() const {
 	return hist ? hist->activeMsgId : (_activeHist ? _activeHist->activeMsgId : 0);
+}
+
+int32 HistoryWidget::lastWidth() const {
+	return width();
+}
+
+int32 HistoryWidget::lastScrollTop() const {
+	return _scroll.scrollTop();
 }
 
 void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back) {

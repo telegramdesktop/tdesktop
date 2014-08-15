@@ -1481,6 +1481,9 @@ medviewButton: flatButton(btnDefFlat) {
 	overFont: font(16px);
 }
 
+overviewPhotoSkip: 10px;
+overviewPhotoMinSize: 100px;
+
 // Mac specific
 
 macAccessoryHeight: 90;
