@@ -16,6 +16,11 @@ if [ ! -d "./../Mac/Release/Telegram.app" ]; then
   exit 1
 fi
 
+if [ ! -d "./../Mac/Release/Telegram.app/Contents/_CodeSignature" ]; then
+  echo "Telegram signature not found!"
+  exit 1
+fi
+
 if [ ! -f "./../Mac/Release/Telegram.app/Contents/Resources/Icon.icns" ]; then
   echo "Icon.icns not found in Resources!"
   exit 1
