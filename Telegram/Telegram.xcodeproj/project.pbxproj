@@ -39,6 +39,8 @@
 		03270F718426CFE84729079E /* flattextarea.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 5C7FD422BBEDA858D7237AE9 /* flattextarea.cpp */; settings = {ATTRIBUTES = (); }; };
 		06EABCC49D2EEE4076322BE7 /* moc_mtp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 924D4939FD169BB4B8AEB1C9 /* moc_mtp.cpp */; settings = {ATTRIBUTES = (); }; };
 		07055CC4194EE85B0008DEF6 /* libcrypto.a in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 07055CC3194EE85B0008DEF6 /* libcrypto.a */; };
+		0732E4A9199E262300D50FE7 /* overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4A7199E262300D50FE7 /* overviewwidget.cpp */; };
+		0732E4AC199E268A00D50FE7 /* moc_overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */; };
 		0749CE69194D723400345D61 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 07C3AF24194335ED0016CFF1 /* Images.xcassets */; };
 		07A69332199277BA0099CB9F /* mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A69330199277BA0099CB9F /* mediaview.cpp */; };
 		07A6933519927B160099CB9F /* moc_mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A6933419927B160099CB9F /* moc_mediaview.cpp */; };
@@ -236,6 +238,9 @@
 		06E379415713F34B83F99C35 /* app.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = app.cpp; path = SourceFiles/app.cpp; sourceTree = "<absolute>"; };
 		07055CC3194EE85B0008DEF6 /* libcrypto.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libcrypto.a; path = "./../../Libraries/openssl-xcode/libcrypto.a"; sourceTree = "<group>"; };
 		07084684195445A600B5AE3A /* Updater.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = Updater.xcodeproj; sourceTree = SOURCE_ROOT; };
+		0732E4A7199E262300D50FE7 /* overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = overviewwidget.cpp; path = SourceFiles/overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
+		0732E4A8199E262300D50FE7 /* overviewwidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = overviewwidget.h; path = SourceFiles/overviewwidget.h; sourceTree = SOURCE_ROOT; };
+		0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_overviewwidget.cpp; path = GeneratedFiles/Debug/moc_overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
 		075EB50EB07CF69FD62FB8DF /* /usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_sql_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_sql_private.pri"; sourceTree = "<absolute>"; };
 		0771C4C94B623FC34BF62983 /* intro.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = intro.cpp; path = SourceFiles/intro/intro.cpp; sourceTree = "<absolute>"; };
 		07A69330199277BA0099CB9F /* mediaview.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mediaview.cpp; path = SourceFiles/mediaview.cpp; sourceTree = SOURCE_ROOT; };
@@ -820,6 +825,7 @@
 				AF5776B0652744978B7DF6D3 /* langloaderplain.cpp */,
 				5A9B4C6C59856143F3D0DE53 /* layerwidget.cpp */,
 				07A69330199277BA0099CB9F /* mediaview.cpp */,
+				0732E4A7199E262300D50FE7 /* overviewwidget.cpp */,
 				CF32DF59C7823E4F3397EF3C /* profilewidget.cpp */,
 				5A7F88F9C7F08D3DDE6EEF6B /* localimageloader.cpp */,
 				974DB34EEB8F83B91614C0B0 /* logs.cpp */,
@@ -850,6 +856,7 @@
 				25CA12A22B83B0B038C5B5DE /* langloaderplain.h */,
 				6C86B6E6AB1857B735B720D6 /* layerwidget.h */,
 				07A69331199277BA0099CB9F /* mediaview.h */,
+				0732E4A8199E262300D50FE7 /* overviewwidget.h */,
 				220B97F8F62C720E6059A64B /* profilewidget.h */,
 				AD0C395D671BC024083A5FC7 /* localimageloader.h */,
 				0CAA815FFFEDCD84808E11F5 /* logs.h */,
@@ -1003,6 +1010,7 @@
 		801973D3334D0FCA849CF485 /* Debug */ = {
 			isa = PBXGroup;
 			children = (
+				0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */,
 				07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */,
 				E181C525E21A16F2D4396CA7 /* moc_application.cpp */,
 				3B3ED09AB00290D78CF1181B /* moc_dialogswidget.cpp */,
@@ -1334,6 +1342,7 @@
 				6EF5A4ECC0EF19EA016EBA3E /* dropdown.cpp in Compile Sources */,
 				6E4DB0CBEF415196AFD4149F /* fileuploader.cpp in Compile Sources */,
 				700925F3B2C6163D38140CEA /* history.cpp in Compile Sources */,
+				0732E4A9199E262300D50FE7 /* overviewwidget.cpp in Compile Sources */,
 				1DF53374E3B6A31661548D08 /* historywidget.cpp in Compile Sources */,
 				37A3C6C782A0E4BC7B09536B /* langloaderplain.cpp in Compile Sources */,
 				19A66ECD6EE2F8356F27D32D /* layerwidget.cpp in Compile Sources */,
@@ -1360,6 +1369,7 @@
 				B3CD52E504409DC1B560024F /* countrycodeinput.cpp in Compile Sources */,
 				C03447C9A7D9FF73463B8BB5 /* countryinput.cpp in Compile Sources */,
 				CDB0266A8B7CB20A95266BCD /* emoji_config.cpp in Compile Sources */,
+				0732E4AC199E268A00D50FE7 /* moc_overviewwidget.cpp in Compile Sources */,
 				7C2B2DEE467A4C4679F1C3C9 /* filedialog.cpp in Compile Sources */,
 				832C50BFD7D09AF042A51D4F /* flatbutton.cpp in Compile Sources */,
 				B91D13BCC3963CB9C12D24A4 /* flatcheckbox.cpp in Compile Sources */,

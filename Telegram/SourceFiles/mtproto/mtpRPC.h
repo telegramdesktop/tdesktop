@@ -606,7 +606,7 @@ class RPCBindedFailHandlerOwnedReq : public RPCOwnedFailHandler { // fail(b, err
 	typedef bool (TReceiver::*CallbackType)(T, const RPCError &, mtpRequestId);
 
 public:
-	RPCBindedFailHandlerOwnedReq(T b, TReceiver *receiver, CallbackType onFail) : RPCOwnedFailHandler(receiver), _b(b), _onFail(onFail) {
+	RPCBindedFailHandlerOwnedReq(T b, TReceiver *receiver, CallbackType onFail) : RPCOwnedFailHandler(receiver), _onFail(onFail), _b(b) {
 	}
 	virtual bool operator()(mtpRequestId requestId, const RPCError &e) const {
 		return _owner ? (static_cast<TReceiver*>(_owner)->*_onFail)(_b, e, requestId) : true;

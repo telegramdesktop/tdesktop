@@ -728,11 +728,11 @@ bool MediaView::event(QEvent *e) {
 }
 
 void MediaView::hide() {
+	QWidget::hide();
 	_close.clearState();
 	_save.clearState();
 	_forward.clearState();
 	_delete.clearState();
-	QWidget::hide();
 }
 
 void MediaView::onMenuDestroy(QObject *obj) {

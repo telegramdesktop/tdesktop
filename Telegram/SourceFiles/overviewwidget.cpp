@@ -629,7 +629,7 @@ void OverviewWidget::clear() {
 void OverviewWidget::onScroll() {
 	MTP::clearLoaderPriorities();
 	bool nearBottom = _scroll.scrollTop() + _scroll.height() * 5 > _scroll.scrollTopMax(), nearTop = _scroll.scrollTop() < _scroll.height() * 5;
-	if (nearBottom && type() == OverviewPhotos || nearTop && type() != OverviewPhotos) {
+	if ((nearBottom && type() == OverviewPhotos) || (nearTop && type() != OverviewPhotos)) {
 		if (App::main()) {
 			App::main()->loadMediaBack(peer(), type(), true);
 		}
