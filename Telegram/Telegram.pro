@@ -89,6 +89,7 @@ SOURCES += \
     ./SourceFiles/langloaderplain.cpp \
     ./SourceFiles/layerwidget.cpp \
     ./SourceFiles/mediaview.cpp \
+    ./SourceFiles/overviewwidget.cpp \
     ./SourceFiles/profilewidget.cpp \
     ./SourceFiles/localimageloader.cpp \
     ./SourceFiles/logs.cpp \
@@ -158,6 +159,7 @@ HEADERS += \
     ./SourceFiles/langloaderplain.h \
     ./SourceFiles/layerwidget.h \
     ./SourceFiles/mediaview.h \
+    ./SourceFiles/overviewwidget.h \
     ./SourceFiles/profilewidget.h \
     ./SourceFiles/localimageloader.h \
     ./SourceFiles/logs.h \

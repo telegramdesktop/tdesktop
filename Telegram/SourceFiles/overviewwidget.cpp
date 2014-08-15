@@ -65,9 +65,9 @@ QPixmap OverviewInner::genPix(PhotoData *photo, int32 size) {
 	size *= cIntRetinaFactor();
 	QImage img = (photo->full->loaded() ? photo->full : (photo->medium->loaded() ? photo->medium : photo->thumb))->pix().toImage();
 	if (img.width() > img.height()) {
-		img = img.scaled(img.width() * size / img.height(), size, Qt::KeepAspectRatioByExpanding, Qt::FastTransformation);
+        img = img.scaled(img.width() * size / img.height(), size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 	} else {
-		img = img.scaled(size, img.height() * size / img.width(), Qt::KeepAspectRatioByExpanding, Qt::FastTransformation);
+        img = img.scaled(size, img.height() * size / img.width(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 	}
 	img.setDevicePixelRatio(cRetinaFactor());
 	photo->forget();
@@ -377,14 +377,17 @@ void OverviewInner::contextMenuEvent(QContextMenuEvent *e) {
 int32 OverviewInner::resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeight) {
 	if (width() == nwidth && minHeight == _minHeight) return scrollTop;
 	_minHeight = minHeight;
-	if (_resizeIndex < 0) {
+    if (_type == OverviewPhotos && _resizeIndex < 0) {
 		_resizeIndex = _photosInRow * (scrollTop / int32(_vsize + st::overviewPhotoSkip));
 		_resizeSkip = scrollTop - (scrollTop / int32(_vsize + st::overviewPhotoSkip)) * int32(_vsize + st::overviewPhotoSkip);
 	}
 	resize(nwidth, height() > _minHeight ? height() : _minHeight);
 	showAll();
-	int32 newRow = _resizeIndex / _photosInRow;
-	return newRow * int32(_vsize + st::overviewPhotoSkip) + _resizeSkip;
+    if (_type == OverviewPhotos) {
+        int32 newRow = _resizeIndex / _photosInRow;
+        return newRow * int32(_vsize + st::overviewPhotoSkip) + _resizeSkip;
+    }
+    return scrollTop;
 }
 
 void OverviewInner::dropResizeIndex() {
@@ -674,7 +677,10 @@ void OverviewWidget::paintEvent(QPaintEvent *e) {
 }
 
 void OverviewWidget::scrollBy(int32 add) {
+    bool wasHidden = _scroll.isHidden();
+    if (wasHidden) _scroll.show();
 	_scroll.scrollToY(_scroll.scrollTop() + add);
+    if (wasHidden) _scroll.hide();
 }
 
 void OverviewWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
