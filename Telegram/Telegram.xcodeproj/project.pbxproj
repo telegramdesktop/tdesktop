@@ -1509,7 +1509,7 @@
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_IDENTITY = "Developer ID Application: John Preston (63FLR8MQA9)";
+				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 0.5.15;
 				DEBUG_INFORMATION_FORMAT = dwarf;
@@ -1638,6 +1638,7 @@
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 0.5.15;
 				DEBUG_INFORMATION_FORMAT = dwarf;
@@ -1759,7 +1760,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				LLVM_LTO = YES;
@@ -1774,7 +1775,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				OBJROOT = ./../Mac/DebugIntermediate;
@@ -1794,7 +1795,7 @@
 				07C3AF3F194CCC310016CFF1 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
+			defaultConfigurationName = Release;
 		};
 		6CC3B5D2136C7CD6A5CF5A59 /* Build configuration list for PBXNativeTarget "Telegram" */ = {
 			isa = XCConfigurationList;
@@ -1803,7 +1804,7 @@
 				6666AA5E688052234F6758D8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
+			defaultConfigurationName = Release;
 		};
 		DAC4C1AA5EDEA1C85E9CA5E6 /* Build configuration list for PBXProject "Telegram" */ = {
 			isa = XCConfigurationList;
@@ -1812,7 +1813,7 @@
 				339EE1B2CC4FC24589A0EA95 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
