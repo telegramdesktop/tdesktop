@@ -614,6 +614,7 @@ OverviewWidget::OverviewWidget(QWidget *parent, const PeerData *peer, MediaOverv
 	, _noDropResizeIndex(false)
 	, _bg(st::msgBG)
     , _showing(false)
+	, _scrollSetAfterShow(0)
 {
 	_scroll.setWidget(&_inner);
 	_scroll.move(0, 0);
@@ -677,10 +678,11 @@ void OverviewWidget::paintEvent(QPaintEvent *e) {
 }
 
 void OverviewWidget::scrollBy(int32 add) {
-    bool wasHidden = _scroll.isHidden();
-    if (wasHidden) _scroll.show();
-	_scroll.scrollToY(_scroll.scrollTop() + add);
-    if (wasHidden) _scroll.hide();
+	if (_scroll.isHidden()) {
+		_scrollSetAfterShow += add;
+	} else {
+		_scroll.scrollToY(_scroll.scrollTop() + add);
+	}
 }
 
 void OverviewWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
@@ -736,6 +738,7 @@ void OverviewWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimT
 	App::main()->topBar()->stopAnim();
 	_animTopBarCache = myGrab(App::main()->topBar(), QRect(0, 0, width(), st::topBarHeight));
 	App::main()->topBar()->startAnim();
+	_scrollSetAfterShow = _scroll.scrollTop();
 	_scroll.hide();
 	a_coord = back ? anim::ivalue(-st::introSlideShift, 0) : anim::ivalue(st::introSlideShift, 0);
 	a_alpha = anim::fvalue(0, 1);
@@ -761,6 +764,7 @@ bool OverviewWidget::animStep(float64 ms) {
 		_bgAnimCache = _animCache = _animTopBarCache = _bgAnimTopBarCache = QPixmap();
 		App::main()->topBar()->stopAnim();
 		_scroll.show();
+		_scroll.scrollToY(_scrollSetAfterShow);
 		activate();
 		onScroll();
 	} else {

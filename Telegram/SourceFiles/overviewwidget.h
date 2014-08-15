@@ -161,5 +161,7 @@ private:
 	anim::ivalue a_coord, a_bgCoord;
 	anim::fvalue a_alpha, a_bgAlpha;
 
+	int32 _scrollSetAfterShow;
+
 };
 
