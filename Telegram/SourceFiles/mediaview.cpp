@@ -25,7 +25,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "gui/filedialog.h"
 
 MediaView::MediaView() : QWidget(App::wnd()),
-_photo(0), _leftNavVisible(false), _rightNavVisible(false), _maxWidth(0), _maxHeight(0), _x(0), _y(0), _w(0), _full(false),
+_photo(0), _leftNavVisible(false), _rightNavVisible(false), _maxWidth(0), _maxHeight(0), _x(0), _y(0), _w(0), _full(-1),
 _history(0), _peer(0), _user(0), _from(0), _index(-1), _msgid(0), _loadRequest(0), _over(OverNone), _down(OverNone), _lastAction(-st::medviewDeltaFromLastAction, -st::medviewDeltaFromLastAction),
 _close(this, lang(lng_mediaview_close), st::medviewButton),
 _save(this, lang(lng_mediaview_save), st::medviewButton),
@@ -299,7 +299,7 @@ void MediaView::showPhoto(PhotoData *photo) {
 	_photo = photo;
 	MTP::clearLoaderPriorities();
 	_photo->full->load();
-	_full = false;
+	_full = -1;
 	_current = QPixmap();
 	_w = photo->full->width();
 	_down = OverNone;
@@ -308,6 +308,9 @@ void MediaView::showPhoto(PhotoData *photo) {
 	case dbisOneAndQuarter: _w = qRound(float64(_w) * 1.25 - 0.01); h = qRound(float64(h) * 1.25 - 0.01); break;
 	case dbisOneAndHalf: _w = qRound(float64(_w) * 1.5 - 0.01); h = qRound(float64(h) * 1.5 - 0.01); break;
 	case dbisTwo: _w *= 2; h *= 2; break;
+	}
+	if (isHidden()) {
+		moveToScreen();
 	}
 	if (_w > _maxWidth) {
 		h = qRound(h * _maxWidth / float64(_w));
@@ -322,7 +325,6 @@ void MediaView::showPhoto(PhotoData *photo) {
 	_from = App::user(_photo->user);
 	updateControls();
 	if (isHidden()) {
-		moveToScreen();
 #ifdef Q_OS_WIN
 		bool wm = testAttribute(Qt::WA_Mapped), wv = testAttribute(Qt::WA_WState_Visible);
 		if (!wm) setAttribute(Qt::WA_Mapped, true);
@@ -415,11 +417,17 @@ void MediaView::paintEvent(QPaintEvent *e) {
 
 	// photo
 	p.setOpacity(1);
-	if (!_full && _photo->full->loaded()) {
-		_current = _photo->full->pixNoCache(_w, 0, true);
-		_full = true;
+	if (_full <= 0 && _photo->full->loaded()) {
+		_current = _photo->full->pixNoCache(_w * cIntRetinaFactor(), 0, true);
+		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+		_full = 1;
+	} else if (_full < 0 && _photo->medium->loaded()) {
+		_current = _photo->medium->pixBlurredNoCache(_w * cIntRetinaFactor());
+		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+		_full = 0;
 	} else if (_current.isNull() && _photo->thumb->loaded()) {
-		_current = _photo->thumb->pixBlurredNoCache(_w);
+		_current = _photo->thumb->pixBlurredNoCache(_w * cIntRetinaFactor());
+		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 	}
 	if (QRect(_x, _y, _current.width() / cIntRetinaFactor(), _current.height() / cIntRetinaFactor()).intersects(r)) {
 		p.drawPixmap(_x, _y, _current);

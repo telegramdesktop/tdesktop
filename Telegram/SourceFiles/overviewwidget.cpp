@@ -733,6 +733,7 @@ int32 OverviewWidget::lastScrollTop() const {
 void OverviewWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back, int32 lastScrollTop) {
 	_bgAnimCache = bgAnimCache;
 	_bgAnimTopBarCache = bgAnimTopBarCache;
+	resizeEvent(0);
 	_scroll.scrollToY(lastScrollTop < 0 ? (type() == OverviewPhotos ? 0 : _scroll.scrollTopMax()) : lastScrollTop);
 	_animCache = myGrab(this, rect());
 	App::main()->topBar()->stopAnim();

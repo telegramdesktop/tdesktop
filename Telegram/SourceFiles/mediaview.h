@@ -84,7 +84,7 @@ private:
 
 	int32 _maxWidth, _maxHeight, _x, _y, _w;
 	QPixmap _current;
-	bool _full;
+	int32 _full; // -1 - thumb, 0 - medium, 1 - full
 
 	History *_history; // if conversation photos overview
 	PeerData *_peer;

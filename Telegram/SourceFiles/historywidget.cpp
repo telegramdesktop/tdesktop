@@ -88,8 +88,6 @@ void HistoryList::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 	if (!trivial) {
 		p.setClipRect(r);
-	} else {
-		bool nt = true;
 	}
 
 	if (hist->isEmpty()) {
