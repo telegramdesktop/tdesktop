@@ -323,7 +323,7 @@ void HistoryList::mouseMoveEvent(QMouseEvent *e) {
 
 void HistoryList::dragActionUpdate(const QPoint &screenPos) {
 	_dragPos = screenPos;
-	onUpdateSelected(true);
+	onUpdateSelected();
 }
 
 void HistoryList::touchScrollUpdated(const QPoint &screenPos) {
@@ -470,7 +470,7 @@ void HistoryList::itemRemoved(HistoryItem *item) {
 		update();
 	}
 
-	onUpdateSelected(true);
+	onUpdateSelected();
 
 	if (_dragSelFrom == item) _dragSelFrom = 0;
 	if (_dragSelTo == item) _dragSelTo = 0;
@@ -833,7 +833,7 @@ bool HistoryList::getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w)
 }
 
 void HistoryList::resizeEvent(QResizeEvent *e) {
-	onUpdateSelected(true);
+	onUpdateSelected();
 }
 
 QString HistoryList::getSelectedText() const {
@@ -891,6 +891,7 @@ void HistoryList::updateSize() {
 }
 
 void HistoryList::enterEvent(QEvent *e) {
+	return QWidget::enterEvent(e);
 }
 
 void HistoryList::leaveEvent(QEvent *e) {
@@ -905,6 +906,7 @@ void HistoryList::leaveEvent(QEvent *e) {
 			setCursor(_cursor);
 		}
 	}
+	return QWidget::leaveEvent(e);
 }
 
 HistoryList::~HistoryList() {
@@ -991,7 +993,7 @@ void HistoryList::clearSelectedItems(bool onlyTextSelection) {
 	}
 }
 
-void HistoryList::fillSelectedItems(HistoryItemSet &sel, bool forDelete) {
+void HistoryList::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
 	if (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel) return;
 
 	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
@@ -1007,7 +1009,7 @@ void HistoryList::onTouchSelect() {
 	dragActionStart(_touchPos);
 }
 
-void HistoryList::onUpdateSelected(bool force) {
+void HistoryList::onUpdateSelected() {
 	if (hist->isEmpty()) return;
 
 	QPoint mousePos(mapFromGlobal(_dragPos));
@@ -2195,13 +2197,8 @@ void HistoryWidget::onSend() {
 	_field.setFocus();
 }
 
-mtpRequestId HistoryWidget::onForward(const PeerId &peer, bool forwardSelected) {
-	if (forwardSelected && !_list) return 0;
-
-	HistoryItemSet toForward;
-	if (forwardSelected) {
-		_list->fillSelectedItems(toForward, false);
-	} else if (App::contextItem()) {
+mtpRequestId HistoryWidget::onForward(const PeerId &peer, SelectedItemSet toForward) {
+	if (toForward.isEmpty() && App::contextItem()) {
 		toForward.insert(0, App::contextItem());
 	}
 	if (toForward.isEmpty()) return 0;
@@ -2247,7 +2244,7 @@ mtpRequestId HistoryWidget::onForward(const PeerId &peer, bool forwardSelected) 
 
 	QVector<MTPint> ids;
 	ids.reserve(toForward.size());
-	for (HistoryItemSet::const_iterator i = toForward.cbegin(), e = toForward.cend(); i != e; ++i) {
+	for (SelectedItemSet::const_iterator i = toForward.cbegin(), e = toForward.cend(); i != e; ++i) {
 		ids.push_back(MTP_int(i.value()->id));
 	}
 	return MTP::send(MTPmessages_ForwardMessages(toPeer->input, MTP_vector<MTPint>(ids)), App::main()->rpcDone(&MainWidget::forwardDone, peer));
@@ -3013,7 +3010,7 @@ void HistoryWidget::onForwardSelected() {
 void HistoryWidget::onDeleteSelected() {
 	if (!_list) return;
 
-	HistoryItemSet sel;
+	SelectedItemSet sel;
 	_list->fillSelectedItems(sel);
 	if (sel.isEmpty()) return;
 
@@ -3023,12 +3020,12 @@ void HistoryWidget::onDeleteSelected() {
 void HistoryWidget::onDeleteSelectedSure() {
 	if (!_list) return;
 
-	HistoryItemSet sel;
+	SelectedItemSet sel;
 	_list->fillSelectedItems(sel);
 	if (sel.isEmpty()) return;
 
 	QVector<MTPint> ids;
-	for (HistoryItemSet::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
+	for (SelectedItemSet::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
 		if (i.value()->id > 0) {
 			ids.push_back(MTP_int(i.value()->id));
 		}
@@ -3039,7 +3036,7 @@ void HistoryWidget::onDeleteSelectedSure() {
 	}
 
 	onClearSelected();
-	for (HistoryItemSet::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
+	for (SelectedItemSet::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
 		i.value()->destroy();
 	}
 	App::wnd()->hideLayer();
@@ -3076,6 +3073,10 @@ uint64 HistoryWidget::animActiveTime() const {
 
 void HistoryWidget::stopAnimActive() {
 	_animActiveTimer.stop();
+}
+
+void HistoryWidget::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
+	if (_list) _list->fillSelectedItems(sel, forDelete);
 }
 
 void HistoryWidget::updateTopBarSelection() {

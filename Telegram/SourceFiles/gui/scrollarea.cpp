@@ -404,8 +404,10 @@ bool ScrollArea::eventFilter(QObject *obj, QEvent *e) {
 		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
 		if (_touchEnabled && ev->device()->type() == QTouchDevice::TouchScreen) {
 			if (obj == widget()) {
-				touchEvent(ev);
-				return true;
+				if (ev->type() != QEvent::TouchBegin || ev->touchPoints().isEmpty() || !widget() || !widget()->childAt(widget()->mapFromGlobal(ev->touchPoints().cbegin()->screenPos().toPoint()))) {
+					touchEvent(ev);
+					return true;
+				}
 			}
 		}
 	}
@@ -416,8 +418,10 @@ bool ScrollArea::viewportEvent(QEvent *e) {
 	if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
 		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
 		if (_touchEnabled && ev->device()->type() == QTouchDevice::TouchScreen) {
-			touchEvent(ev);
-			return true;
+			if (ev->type() != QEvent::TouchBegin || ev->touchPoints().isEmpty() || !widget() || !widget()->childAt(widget()->mapFromGlobal(ev->touchPoints().cbegin()->screenPos().toPoint()))) {
+				touchEvent(ev);
+				return true;
+			}
 		}
 	}
 	return QScrollArea::viewportEvent(e);

@@ -294,7 +294,18 @@ MainWidget::MainWidget(Window *window) : QWidget(window), failedObjId(0), _dialo
 }
 
 mtpRequestId MainWidget::onForward(const PeerId &peer, bool forwardSelected) {
-	return history.onForward(peer, forwardSelected);
+	SelectedItemSet selected;
+	if (forwardSelected) {
+		if (overview) {
+			overview->fillSelectedItems(selected, false);
+		} else {
+			history.fillSelectedItems(selected, false);
+		}
+		if (selected.isEmpty()) {
+			return 0;
+		}
+	}
+	return history.onForward(peer, selected);
 }
 
 void MainWidget::onShareContact(const PeerId &peer, UserData *contact) {
@@ -322,9 +333,9 @@ void MainWidget::deleteLayer(int32 selectedCount) {
 	QString str(lang((selectedCount < -1) ? lng_selected_cancel_sure_this : (selectedCount < 0 ? lng_selected_delete_sure_this : (selectedCount > 1 ? lng_selected_delete_sure_5 : lng_selected_delete_sure_1))));
 	ConfirmBox *box = new ConfirmBox((selectedCount < 0) ? str : str.arg(selectedCount), lang(lng_selected_delete_confirm));
 	if (selectedCount < 0) {
-		connect(box, SIGNAL(confirmed()), &history, SLOT(onDeleteContextSure()));
+		connect(box, SIGNAL(confirmed()), overview ? overview : static_cast<QWidget*>(&history), SLOT(onDeleteContextSure()));
 	} else {
-		connect(box, SIGNAL(confirmed()), &history, SLOT(onDeleteSelectedSure()));
+		connect(box, SIGNAL(confirmed()), overview ? overview : static_cast<QWidget*>(&history), SLOT(onDeleteSelectedSure()));
 	}
 	App::wnd()->showLayer(box);
 }
@@ -485,15 +496,27 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 }
 
 void MainWidget::forwardSelectedItems() {
-	history.onForwardSelected();
+	if (overview) {
+		overview->onForwardSelected();
+	} else {
+		history.onForwardSelected();
+	}
 }
 
 void MainWidget::deleteSelectedItems() {
-	history.onDeleteSelected();
+	if (overview) {
+		overview->onDeleteSelected();
+	} else {
+		history.onDeleteSelected();
+	}
 }
 
 void MainWidget::clearSelectedItems() {
-	history.onClearSelected();
+	if (overview) {
+		overview->onClearSelected();
+	} else {
+		history.onClearSelected();
+	}
 }
 
 DialogsIndexed &MainWidget::contactsList() {
@@ -903,11 +926,13 @@ void MainWidget::showPeer(const PeerId &peerId, MsgId msgId, bool back, bool for
 	if (force || !selectingPeer()) {
 		if (profile || overview) {
 			if (profile) {
+				profile->hide();
 				profile->deleteLater();
 				profile->rpcInvalidate();
 				profile = 0;
 			}
 			if (overview) {
+				overview->hide();
 				overview->clear();
 				overview->deleteLater();
 				overview->rpcInvalidate();
@@ -977,11 +1002,13 @@ void MainWidget::showMediaOverview(const PeerData *peer, MediaOverviewType type,
 		}
 	}
 	if (overview) {
+		overview->hide();
 		overview->clear();
 		overview->deleteLater();
 		overview->rpcInvalidate();
 	}
 	if (profile) {
+		profile->hide();
 		profile->deleteLater();
 		profile->rpcInvalidate();
 		profile = 0;
@@ -1017,12 +1044,14 @@ void MainWidget::showPeerProfile(const PeerData *peer, bool back, int32 lastScro
 		}
 	}
 	if (overview) {
+		overview->hide();
 		overview->clear();
 		overview->deleteLater();
 		overview->rpcInvalidate();
 		overview = 0;
 	}
 	if (profile) {
+		profile->hide();
 		profile->deleteLater();
 		profile->rpcInvalidate();
 	}

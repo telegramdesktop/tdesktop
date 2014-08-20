@@ -29,8 +29,6 @@ enum DragState {
 	DragStateImage      = 0x03,
 };
 
-typedef QMap<int32, HistoryItem*> HistoryItemSet;
-
 class HistoryWidget;
 class HistoryList : public QWidget {
 	Q_OBJECT
@@ -75,13 +73,13 @@ public:
 
 	void getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const;
 	void clearSelectedItems(bool onlyTextSelection = false);
-	void fillSelectedItems(HistoryItemSet &sel, bool forDelete = true);
+	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
 
 	~HistoryList();
 	
 public slots:
 
-	void onUpdateSelected(bool force = false);
+	void onUpdateSelected();
 	void onParentGeometryChanged();
 
 	void showLinkTip();
@@ -302,7 +300,7 @@ public:
 	void updateOnlineDisplay(int32 x, int32 w);
 	void updateOnlineDisplayTimer();
 
-	mtpRequestId onForward(const PeerId &peer, bool forwardSelected);
+	mtpRequestId onForward(const PeerId &peer, SelectedItemSet toForward);
 	void onShareContact(const PeerId &peer, UserData *contact);
 	void onSendPaths(const PeerId &peer);
 
@@ -327,6 +325,8 @@ public:
 
 	uint64 animActiveTime() const;
 	void stopAnimActive();
+
+	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
 
 	~HistoryWidget();
 

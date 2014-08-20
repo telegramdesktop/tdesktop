@@ -18,7 +18,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #pragma once
 
 class OverviewWidget;
-class OverviewInner : public TWidget, public RPCSender {
+class OverviewInner : public QWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -28,6 +28,7 @@ public:
 	void clear();
 
 	bool event(QEvent *e);
+	void touchEvent(QTouchEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
@@ -35,9 +36,17 @@ public:
 	void keyPressEvent(QKeyEvent *e);
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
-	void leaveToChildEvent(QEvent *e);
 	void resizeEvent(QResizeEvent *e);
-	void contextMenuEvent(QContextMenuEvent *e);
+
+	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
+
+	void dragActionStart(const QPoint &screenPos, Qt::MouseButton button = Qt::LeftButton);
+	void dragActionUpdate(const QPoint &screenPos);
+	void dragActionFinish(const QPoint &screenPos, Qt::MouseButton button = Qt::LeftButton);
+	void dragActionCancel();
+
+	void touchScrollUpdated(const QPoint &screenPos);
+	QPoint mapMouseToItem(QPoint p, MsgId itemId, int32 itemIndex);
 
 	int32 resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeight); // returns new scroll top
 	void dropResizeIndex();
@@ -49,11 +58,15 @@ public:
 	void mediaOverviewUpdated();
 	void msgUpdated(HistoryItem *msg);
 
+	void getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const;
+	void clearSelectedItems(bool onlyTextSelection = false);
+	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
+
 	~OverviewInner();
 
 public slots:
 
-	void updateSelected();
+	void onUpdateSelected();
 
 	void openContextUrl();
 	void cancelContextDownload();
@@ -66,8 +79,30 @@ public slots:
 	void forwardMessage();
 
 	void onMenuDestroy(QObject *obj);
+	void onTouchSelect();
+	void onTouchScrollTimer();
 
 private:
+
+	void fixItemIndex(int32 &current, MsgId msgId) const;
+	bool itemHasPoint(MsgId msgId, int32 index, int32 x, int32 y) const;
+	int32 itemHeight(MsgId msgId, int32 index) const;
+	void moveToNextItem(MsgId &msgId, int32 &index, MsgId upTo, int32 delta) const;
+
+	void updateDragSelection(MsgId dragSelFrom, int32 dragSelFromIndex, MsgId dragSelTo, int32 dragSelToIndex, bool dragSelecting);
+
+	void updateMsg(HistoryItem *item);
+	void updateMsg(MsgId itemId, int32 itemIndex);
+
+	void touchResetSpeed();
+	void touchUpdateSpeed();
+	void touchDeaccelerate(int32 elapsed);
+
+	//void adjustCurrent(int32 y);
+	//HistoryItem *prevItem(HistoryItem *item);
+	//HistoryItem *nextItem(HistoryItem *item);
+	//void updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting, bool force = false);
+	void applyDragSelection();
 
 	QPixmap genPix(PhotoData *photo, int32 size);
 	void showAll();
@@ -79,12 +114,9 @@ private:
 	PeerData *_peer;
 	MediaOverviewType _type;
 	History *_hist;
-	QMenu *_menu;
-
-	TextLinkPtr _contextMenuLnk;
-
+	
 	// photos
-	int32 _photosInRow, _vsize;
+	int32 _photosInRow, _photosToAdd, _vsize;
 	typedef struct {
 		int32 vsize;
 		bool medium;
@@ -105,9 +137,45 @@ private:
 	} CachedItem;
 	typedef QVector<CachedItem> CachedItems;
 	CachedItems _items;
-	int32 _width, _height, _minHeight;
+	int32 _width, _height, _minHeight, _addToY;
 
-	QPoint _lastPos;
+	// selection support, like in HistoryWidget
+	Qt::CursorShape _cursor;
+	typedef QMap<MsgId, uint32> SelectedItems;
+	SelectedItems _selected;
+	enum DragAction {
+		NoDrag = 0x00,
+		PrepareDrag = 0x01,
+		Dragging = 0x02,
+		PrepareSelect = 0x03,
+		Selecting = 0x04,
+	};
+	DragAction _dragAction;
+	QPoint _dragStartPos, _dragPos;
+	MsgId _dragItem;
+	int32 _dragItemIndex;
+	MsgId _mousedItem;
+	int32 _mousedItemIndex;
+	uint16 _dragSymbol;
+	bool _dragWasInactive;
+
+	TextLinkPtr _contextMenuLnk;
+
+	MsgId _dragSelFrom, _dragSelTo;
+	int32 _dragSelFromIndex, _dragSelToIndex;
+	bool _dragSelecting;
+
+	bool _touchScroll, _touchSelect, _touchInProgress;
+	QPoint _touchStart, _touchPrevPos, _touchPos;
+	QTimer _touchSelectTimer;
+
+	TouchScrollState _touchScrollState;
+	bool _touchPrevPosValid, _touchWaitingAcceleration;
+	QPoint _touchSpeed;
+	uint64 _touchSpeedTime, _touchAccelerationTime, _touchTime;
+	QTimer _touchScrollTimer;
+
+	QMenu *_menu;
 };
 
 class OverviewWidget : public QWidget, public RPCSender, public Animated {
@@ -121,6 +189,7 @@ public:
 
 	void resizeEvent(QResizeEvent *e);
 	void paintEvent(QPaintEvent *e);
+	void contextMenuEvent(QContextMenuEvent *e);
 
 	void scrollBy(int32 add);
 
@@ -130,6 +199,8 @@ public:
 	PeerData *peer() const;
 	MediaOverviewType type() const;
 	void switchType(MediaOverviewType type);
+	void updateTopBarSelection();
+
 	int32 lastWidth() const;
 	int32 lastScrollTop() const;
 
@@ -139,12 +210,29 @@ public:
 	void mediaOverviewUpdated(PeerData *peer);
 	void msgUpdated(PeerId peer, HistoryItem *msg);
 
+	QPoint clampMousePosition(QPoint point);
+
+	void checkSelectingScroll(QPoint point);
+	void noSelectingScroll();
+
+	bool touchScroll(const QPoint &delta);
+	
+	void fillSelectedItems(SelectedItemSet &sel, bool forDelete);
+
 	~OverviewWidget();
 
 public slots:
 
 	void activate();
 	void onScroll();
+
+	void onScrollTimer();
+
+	void onForwardSelected();
+	void onDeleteSelected();
+	void onDeleteSelectedSure();
+	void onDeleteContextSure();
+	void onClearSelected();
 
 private:
 
@@ -162,6 +250,11 @@ private:
 	anim::fvalue a_alpha, a_bgAlpha;
 
 	int32 _scrollSetAfterShow;
+
+	QTimer _scrollTimer;
+	int32 _scrollDelta;
+
+	int32 _selCount;
 
 };
 

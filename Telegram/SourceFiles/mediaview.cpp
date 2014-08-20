@@ -719,17 +719,10 @@ bool MediaView::event(QEvent *e) {
 	if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
 		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
 		if (ev->device()->type() == QTouchDevice::TouchScreen) {
-			if (!ev->touchPoints().isEmpty()) {
-				QPoint p(mapFromGlobal(ev->touchPoints().cbegin()->screenPos().toPoint()));
-				if ((!_close.isHidden() && _close.geometry().contains(p)) ||
-				    (!_save.isHidden() && _save.geometry().contains(p)) ||
-				    (!_forward.isHidden() && _forward.geometry().contains(p)) ||
-					(!_delete.isHidden() && _delete.geometry().contains(p))) {
-					return QWidget::event(e);
-				}
+			if (ev->type() != QEvent::TouchBegin || ev->touchPoints().isEmpty() || !childAt(mapFromGlobal(ev->touchPoints().cbegin()->screenPos().toPoint()))) {
+				touchEvent(ev);
+				return true;
 			}
-			touchEvent(ev);
-			return true;
 		}
 	}
 	return QWidget::event(e);

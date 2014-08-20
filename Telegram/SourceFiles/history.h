@@ -29,6 +29,8 @@ void historyInit();
 class HistoryItem;
 static const uint32 FullItemSel = 0xFFFFFFFF;
 
+typedef QMap<int32, HistoryItem*> SelectedItemSet;
+
 extern TextParseOptions _textNameOptions;
 
 struct NotifySettings {

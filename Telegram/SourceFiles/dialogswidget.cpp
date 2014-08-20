@@ -115,7 +115,7 @@ void DialogsListWidget::mouseMoveEvent(QMouseEvent *e) {
 	lastMousePos = mapToGlobal(e->pos());
 	selByMouse = true;
 	onUpdateSelected(true);
-    repaint();
+    update();
 }
 
 void DialogsListWidget::onUpdateSelected(bool force) {
