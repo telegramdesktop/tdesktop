@@ -271,6 +271,7 @@ public:
 	void searchMessages(const QString &query);
 	void preloadOverviews(PeerData *peer);
 	void mediaOverviewUpdated(PeerData *peer);
+	void changingMsgId(HistoryItem *row, MsgId newId);
 
 	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);
 

@@ -1214,6 +1214,7 @@ void Window::mediaOverviewUpdated(PeerData *peer) {
 }
 
 void Window::changingMsgId(HistoryItem *row, MsgId newId) {
+	if (main) main->changingMsgId(row, newId);
 	if (!_mediaView || _mediaView->isHidden()) return;
 	_mediaView->changingMsgId(row, newId);
 }

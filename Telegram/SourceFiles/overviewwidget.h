@@ -56,6 +56,7 @@ public:
 	void switchType(MediaOverviewType type);
 
 	void mediaOverviewUpdated();
+	void changingMsgId(HistoryItem *row, MsgId newId);
 	void msgUpdated(HistoryItem *msg);
 
 	void getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const;
@@ -81,6 +82,8 @@ public slots:
 	void onMenuDestroy(QObject *obj);
 	void onTouchSelect();
 	void onTouchScrollTimer();
+
+	void itemRemoved(HistoryItem *item);
 
 private:
 
@@ -208,6 +211,7 @@ public:
 	bool animStep(float64 ms);
 
 	void mediaOverviewUpdated(PeerData *peer);
+	void changingMsgId(HistoryItem *row, MsgId newId);
 	void msgUpdated(PeerId peer, HistoryItem *msg);
 
 	QPoint clampMousePosition(QPoint point);

@@ -50,6 +50,7 @@ public:
 signals:
 
 	void mustScrollTo(int ymin, int ymax);
+	void selectAllQuery();
 
 public slots:
 

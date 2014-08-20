@@ -467,7 +467,7 @@ void HistoryList::itemRemoved(HistoryItem *item) {
 	SelectedItems::iterator i = _selected.find(item);
 	if (i != _selected.cend()) {
 		_selected.erase(i);
-		update();
+		historyWidget->updateTopBarSelection();
 	}
 
 	onUpdateSelected();
@@ -475,8 +475,6 @@ void HistoryList::itemRemoved(HistoryItem *item) {
 	if (_dragSelFrom == item) _dragSelFrom = 0;
 	if (_dragSelTo == item) _dragSelTo = 0;
 	updateDragSelection(_dragSelFrom, _dragSelTo, _dragSelecting, true);
-
-	parentWidget()->update();
 }
 
 void HistoryList::dragActionFinish(const QPoint &screenPos, Qt::MouseButton button) {
@@ -1154,8 +1152,8 @@ void HistoryList::applyDragSelection() {
 				HistoryBlock *block = (*hist)[fromblock];
 				for (int32 cnt = (fromblock < toblock) ? block->size() : (toitem + 1); fromitem < cnt; ++fromitem) {
 					HistoryItem *item = (*block)[fromitem];
+					SelectedItems::iterator i = _selected.find(item);
 					if (item->id > 0 && !item->serviceMsg()) {
-						SelectedItems::iterator i = _selected.find(item);
 						if (i == _selected.cend()) {
 							if (_selected.size() >= MaxSelectedItems) break;
 							_selected.insert(item, FullItemSel);
@@ -1163,7 +1161,6 @@ void HistoryList::applyDragSelection() {
 							*i = FullItemSel;
 						}
 					} else {
-						SelectedItems::iterator i = _selected.find(item);
 						if (i != _selected.cend()) {
 							_selected.erase(i);
 						}

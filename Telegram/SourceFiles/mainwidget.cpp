@@ -642,6 +642,10 @@ void MainWidget::mediaOverviewUpdated(PeerData *peer) {
 	if (overview) overview->mediaOverviewUpdated(peer);
 }
 
+void MainWidget::changingMsgId(HistoryItem *row, MsgId newId) {
+	if (overview) overview->changingMsgId(row, newId);
+}
+
 bool MainWidget::overviewFailed(PeerData *peer, const RPCError &error, mtpRequestId req) {
 	MediaOverviewType type = OverviewCount;
 	for (int32 i = 0; i < OverviewCount; ++i) {

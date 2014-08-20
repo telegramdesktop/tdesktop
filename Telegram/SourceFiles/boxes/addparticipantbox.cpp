@@ -242,18 +242,7 @@ void AddParticipantInner::chooseParticipant() {
 		changeCheckState(row);
 
 		PeerData *peer = row->history->peer;
-		updateFilter();
-
-		for (_sel = _contacts->list.begin; _sel != _contacts->list.end; _sel = _sel->next) {
-			if (_sel->history->peer == peer) {
-				break;
-			}
-		}
-		if (_sel == _contacts->list.end) {
-			_sel = 0;
-		} else {
-			emit mustScrollTo(_sel->pos * rh, (_sel->pos + 1) * rh);
-		}
+		emit selectAllQuery();
 	}
 	parentWidget()->update();
 }
@@ -530,6 +519,7 @@ AddParticipantBox::AddParticipantBox(ChatData *chat) :
 	connect(&_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
 	connect(&_filter, SIGNAL(cancelled()), this, SIGNAL(onClose()));
 	connect(&_inner, SIGNAL(mustScrollTo(int,int)), &_scroll, SLOT(scrollToY(int,int)));
+	connect(&_inner, SIGNAL(selectAllQuery()), &_filter, SLOT(selectAll()));
 
 	showAll();
 	_cache = myGrab(this, rect());
