@@ -392,6 +392,7 @@ void OverviewInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton but
 				_selected.insert(_dragItem, selStatus);
 				_dragAction = Selecting;
 				updateMsg(_dragItem, _dragItemIndex);
+				_overview->updateTopBarSelection();
 			} else {
 				_dragAction = PrepareSelect;
 			}
@@ -521,6 +522,7 @@ void OverviewInner::applyDragSelection() {
 	}
 	_dragSelFrom = _dragSelTo = 0;
 	_dragSelFromIndex = _dragSelToIndex = -1;
+	_overview->updateTopBarSelection();
 }
 
 QPoint OverviewInner::mapMouseToItem(QPoint p, MsgId itemId, int32 itemIndex) {
@@ -1562,11 +1564,13 @@ void OverviewWidget::updateTopBarSelection() {
 	int32 selectedForForward, selectedForDelete;
 	_inner.getSelectionState(selectedForForward, selectedForDelete);
 	_selCount = selectedForDelete ? selectedForDelete : selectedForForward;
-	App::main()->topBar()->showSelected(_selCount > 0 ? _selCount : 0);
-	if (!App::wnd()->layerShown()) {
+	if (App::main()) {
+		App::main()->topBar()->showSelected(_selCount > 0 ? _selCount : 0);
+		App::main()->topBar()->update();
+	}
+	if (App::wnd() && !App::wnd()->layerShown()) {
 		_inner.setFocus();
 	}
-	App::main()->topBar()->update();
 	update();
 }
 
@@ -1652,6 +1656,8 @@ void OverviewWidget::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
 }
 
 OverviewWidget::~OverviewWidget() {
+	onClearSelected();
+	updateTopBarSelection();
 }
 
 void OverviewWidget::activate() {
