@@ -245,15 +245,17 @@ void MediaView::showPhoto(PhotoData *photo, HistoryItem *context) {
 
 	_index = -1;
 	_msgid = context ? context->id : 0;
-	for (int i = 0, l = _history->_overview[OverviewPhotos].size(); i < l; ++i) {
-		if (_history->_overview[OverviewPhotos].at(i) == _msgid) {
-			_index = i;
-			break;
+	if (_history) {
+		for (int i = 0, l = _history->_overview[OverviewPhotos].size(); i < l; ++i) {
+			if (_history->_overview[OverviewPhotos].at(i) == _msgid) {
+				_index = i;
+				break;
+			}
 		}
-	}
 
-	if (_history->_overviewCount[OverviewPhotos] < 0) {
-		loadPhotosBack();
+		if (_history->_overviewCount[OverviewPhotos] < 0) {
+			loadPhotosBack();
+		}
 	}
 
 	showPhoto(photo);

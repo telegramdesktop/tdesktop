@@ -241,9 +241,9 @@ lng_profile_no_media: "No media in this conversation.";
 lng_profile_photo: "{count} photo »";
 lng_profile_photos: "{count} photos »";
 lng_profile_photos_header: "Photos overview";
-lng_profile_video: "{count} videofile »";
-lng_profile_videos: "{count} videofiles »";
-lng_profile_videos_header: "Videofiles overview";
+lng_profile_video: "{count} video file »";
+lng_profile_videos: "{count} video files »";
+lng_profile_videos_header: "Video files overview";
 lng_profile_document: "{count} document »";
 lng_profile_documents: "{count} documents »";
 lng_profile_documents_header: "Documents overview";
@@ -288,21 +288,27 @@ lng_action_checked_in: "{from} checked in";
 lng_forwarded_from: "Forwarded from ";
 
 lng_attach_failed: "Failed";
-lng_attach_file: "File";
+lng_attach_file: "Document";
 lng_attach_photo: "Photo";
+
+lng_media_type: "Media type";
+lng_media_type_photos: "Photos";
+lng_media_type_videos: "Video files";
+lng_media_type_documents: "Documents";
+lng_media_type_audios: "Voice messages";
 
 lng_media_open_with: "Open With";
 lng_media_download: "Download";
 lng_media_cancel: "Cancel";
-lng_media_video: "Video";
-lng_media_audio: "Audio";
+lng_media_video: "Video file";
+lng_media_audio: "Voice message";
 
 lng_in_dlg_photo: "Photo";
 lng_in_dlg_video: "Video";
 lng_in_dlg_geo: "Map";
 lng_in_dlg_contact: "Contact";
 lng_in_dlg_audio: "Audio";
-lng_in_dlg_document: "File";
+lng_in_dlg_document: "Document";
 
 lng_send_button: "Send";
 lng_message_ph: "Write a message...";

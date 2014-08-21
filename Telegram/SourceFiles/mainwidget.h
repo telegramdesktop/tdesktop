@@ -50,6 +50,8 @@ public:
 	void showAll();
 	void showSelected(uint32 selCount);
 
+	FlatButton *mediaTypeButton();
+
 public slots:
 
 	void onForwardSelection();
@@ -81,6 +83,7 @@ private:
 	FlatButton _clearSelection;
 	FlatButton _forward, _delete;
 	FlatButton _edit, _leaveGroup, _addContact, _deleteContact;
+	FlatButton _mediaType;
 
 };
 
@@ -204,8 +207,9 @@ public:
 	PeerData *activePeer();
 	MsgId activeMsgId();
 	PeerData *profilePeer();
-	void showPeerProfile(const PeerData *peer, bool back = false, int32 lastScrollTop = -1, bool allMediaShown = false);
-	void showMediaOverview(const PeerData *peer, MediaOverviewType type, bool back = false, int32 lastScrollTop = -1);
+	bool mediaTypeSwitch();
+	void showPeerProfile(PeerData *peer, bool back = false, int32 lastScrollTop = -1, bool allMediaShown = false);
+	void showMediaOverview(PeerData *peer, MediaOverviewType type, bool back = false, int32 lastScrollTop = -1);
 	void showBackFromStack();
 	QRect historyRect() const;
 
@@ -316,6 +320,11 @@ public slots:
 
 	void onUpdateNotifySettings();
 
+	void onPhotosSelect();
+	void onVideosSelect();
+	void onDocumentsSelect();
+	void onAudiosSelect();
+
 private:
 
     void partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result);
@@ -359,6 +368,9 @@ private:
 	HistoryHider *hider;
 	StackItems _stack;
 	QPixmap profileAnimCache;
+
+	Dropdown _mediaType;
+	int32 _mediaTypeMask;
 
 	int updPts, updDate, updQts, updSeq;
 	bool updInited;

@@ -24,9 +24,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 
 Dropdown::Dropdown(QWidget *parent) : TWidget(parent),
 	_hiding(false), a_opacity(0), _shadow(st::dropdownShadow) {
-	_width = st::dropdownPadding.left() + st::dropdownPadding.right();
-	_height = st::dropdownPadding.top() + st::dropdownPadding.bottom();
-	resize(_width, _height);
+	resetButtons();
 
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
@@ -46,6 +44,16 @@ IconedButton *Dropdown::addButton(IconedButton *button) {
 	resize(_width, _height);
 
 	return button;
+}
+
+void Dropdown::resetButtons() {
+	_width = st::dropdownPadding.left() + st::dropdownPadding.right();
+	_height = st::dropdownPadding.top() + st::dropdownPadding.bottom();
+	resize(_width, _height);
+	for (int32 i = 0, l = _buttons.size(); i < l; ++i) {
+		delete _buttons[i];
+	}
+	_buttons.clear();
 }
 
 void Dropdown::resizeEvent(QResizeEvent *e) {

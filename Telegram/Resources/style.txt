@@ -1303,6 +1303,20 @@ dropdownAttachPhoto: iconedButton(dropdownAttachDocument) {
 	icon: sprite(113px, 0px, 24px, 24px);
 	downIcon: sprite(113px, 0px, 24px, 24px);
 }
+dropdownMediaPhotos: iconedButton(dropdownAttachPhoto) {
+	width: 200px;
+}
+dropdownMediaVideos: iconedButton(dropdownMediaPhotos) {
+	icon: sprite(79px, 348px, 24px, 24px);
+	downIcon: sprite(79px, 348px, 24px, 24px);
+}
+dropdownMediaDocuments: iconedButton(dropdownAttachDocument) {
+	width: 200px;
+}
+dropdownMediaAudios: iconedButton(dropdownMediaDocuments) {
+	icon: sprite(49px, 348px, 24px, 24px);
+	downIcon: sprite(49px, 348px, 24px, 24px);
+}
 
 dragFont: font(28px semibold);
 dragSubfont: font(20px semibold);

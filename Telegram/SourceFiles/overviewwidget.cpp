@@ -381,7 +381,23 @@ void OverviewInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton but
 	if (_dragAction == NoDrag && _dragItem) {
 		bool afterDragSymbol = false , uponSymbol = false;
 		uint16 symbol = 0;
-		_dragAction = PrepareSelect; // start items select
+		if (textlnkDown()) {
+			_dragSymbol = symbol;
+			uint32 selStatus = (_dragSymbol << 16) | _dragSymbol;
+			if (selStatus != FullItemSel && (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel)) {
+				if (!_selected.isEmpty()) {
+					updateMsg(_selected.cbegin().key(), -1);
+					_selected.clear();
+				}
+				_selected.insert(_dragItem, selStatus);
+				_dragAction = Selecting;
+				updateMsg(_dragItem, _dragItemIndex);
+			} else {
+				_dragAction = PrepareSelect;
+			}
+		} else {
+			_dragAction = PrepareSelect; // start items select
+		}
 	}
 
 	if (!_dragItem) {
@@ -831,66 +847,73 @@ void OverviewInner::onUpdateSelected() {
 		}
 		cur = textlnkDown() ? style::cur_pointer : style::cur_default;
 		if (_dragAction == Selecting) {
-			bool selectingDown = (_type == OverviewPhotos ? (_mousedItemIndex > _dragItemIndex) : (_mousedItemIndex < _dragItemIndex)) || (_mousedItemIndex == _dragItemIndex && (_type == OverviewPhotos ? (_dragStartPos.x() < m.x()) : (_dragStartPos.y() < m.y())));
-			MsgId dragSelFrom = _dragItem, dragSelTo = _mousedItem;
-			int32 dragSelFromIndex = _dragItemIndex, dragSelToIndex = _mousedItemIndex;
-			if (!itemHasPoint(dragSelFrom, dragSelFromIndex, _dragStartPos.x(), _dragStartPos.y())) { // maybe exclude dragSelFrom
-				if (selectingDown) {
-					if (_type == OverviewPhotos) {
-						if (_dragStartPos.x() >= _vsize || ((_mousedItem == dragSelFrom) && (m.x() < _dragStartPos.x() + QApplication::startDragDistance()))) {
-							moveToNextItem(dragSelFrom, dragSelFromIndex, dragSelTo, 1);
+			if (_mousedItem == _dragItem && lnk && !_selected.isEmpty() && _selected.cbegin().value() != FullItemSel) {
+				bool afterSymbol = false, uponSymbol = false;
+				uint16 second = 0;
+				_selected[_dragItem] = 0;
+				updateDragSelection(0, -1, 0, -1, false);
+			} else {
+				bool selectingDown = (_type == OverviewPhotos ? (_mousedItemIndex > _dragItemIndex) : (_mousedItemIndex < _dragItemIndex)) || (_mousedItemIndex == _dragItemIndex && (_type == OverviewPhotos ? (_dragStartPos.x() < m.x()) : (_dragStartPos.y() < m.y())));
+				MsgId dragSelFrom = _dragItem, dragSelTo = _mousedItem;
+				int32 dragSelFromIndex = _dragItemIndex, dragSelToIndex = _mousedItemIndex;
+				if (!itemHasPoint(dragSelFrom, dragSelFromIndex, _dragStartPos.x(), _dragStartPos.y())) { // maybe exclude dragSelFrom
+					if (selectingDown) {
+						if (_type == OverviewPhotos) {
+							if (_dragStartPos.x() >= _vsize || ((_mousedItem == dragSelFrom) && (m.x() < _dragStartPos.x() + QApplication::startDragDistance()))) {
+								moveToNextItem(dragSelFrom, dragSelFromIndex, dragSelTo, 1);
+							}
+						} else {
+							if (_dragStartPos.y() >= (itemHeight(dragSelFrom, dragSelFromIndex) - st::msgMargin.bottom()) || ((_mousedItem == dragSelFrom) && (m.y() < _dragStartPos.y() + QApplication::startDragDistance()))) {
+								moveToNextItem(dragSelFrom, dragSelFromIndex, dragSelTo, -1);
+							}
 						}
 					} else {
-						if (_dragStartPos.y() >= (itemHeight(dragSelFrom, dragSelFromIndex) - st::msgMargin.bottom()) || ((_mousedItem == dragSelFrom) && (m.y() < _dragStartPos.y() + QApplication::startDragDistance()))) {
-							moveToNextItem(dragSelFrom, dragSelFromIndex, dragSelTo, -1);
-						}
-					}
-				} else {
-					if (_type == OverviewPhotos) {
-						if (_dragStartPos.x() < 0 || ((_mousedItem == dragSelFrom) && (m.x() >= _dragStartPos.x() - QApplication::startDragDistance()))) {
-							moveToNextItem(dragSelFrom, dragSelFromIndex, dragSelTo, -1);
-						}
-					} else {
-						if (_dragStartPos.y() < st::msgMargin.top() || ((_mousedItem == dragSelFrom) && (m.y() >= _dragStartPos.y() - QApplication::startDragDistance()))) {
-							moveToNextItem(dragSelFrom, dragSelFromIndex, dragSelTo, 1);
-						}
-					}
-				}
-			}
-			if (_dragItem != _mousedItem) { // maybe exclude dragSelTo
-				if (selectingDown) {
-					if (_type == OverviewPhotos) {
-						if (m.x() < 0) {
-							moveToNextItem(dragSelTo, dragSelToIndex, dragSelFrom, -1);
-						}
-					} else {
-						if (m.y() < st::msgMargin.top()) {
-							moveToNextItem(dragSelTo, dragSelToIndex, dragSelFrom, 1);
-						}
-					}
-				} else {
-					if (_type == OverviewPhotos) {
-						if (m.x() >= _vsize) {
-							moveToNextItem(dragSelTo, dragSelToIndex, dragSelFrom, 1);
-						}
-					} else {
-						if (m.y() >= itemHeight(dragSelTo, dragSelToIndex) - st::msgMargin.bottom()) {
-							moveToNextItem(dragSelTo, dragSelToIndex, dragSelFrom, -1);
+						if (_type == OverviewPhotos) {
+							if (_dragStartPos.x() < 0 || ((_mousedItem == dragSelFrom) && (m.x() >= _dragStartPos.x() - QApplication::startDragDistance()))) {
+								moveToNextItem(dragSelFrom, dragSelFromIndex, dragSelTo, -1);
+							}
+						} else {
+							if (_dragStartPos.y() < st::msgMargin.top() || ((_mousedItem == dragSelFrom) && (m.y() >= _dragStartPos.y() - QApplication::startDragDistance()))) {
+								moveToNextItem(dragSelFrom, dragSelFromIndex, dragSelTo, 1);
+							}
 						}
 					}
 				}
+				if (_dragItem != _mousedItem) { // maybe exclude dragSelTo
+					if (selectingDown) {
+						if (_type == OverviewPhotos) {
+							if (m.x() < 0) {
+								moveToNextItem(dragSelTo, dragSelToIndex, dragSelFrom, -1);
+							}
+						} else {
+							if (m.y() < st::msgMargin.top()) {
+								moveToNextItem(dragSelTo, dragSelToIndex, dragSelFrom, 1);
+							}
+						}
+					} else {
+						if (_type == OverviewPhotos) {
+							if (m.x() >= _vsize) {
+								moveToNextItem(dragSelTo, dragSelToIndex, dragSelFrom, 1);
+							}
+						} else {
+							if (m.y() >= itemHeight(dragSelTo, dragSelToIndex) - st::msgMargin.bottom()) {
+								moveToNextItem(dragSelTo, dragSelToIndex, dragSelFrom, -1);
+							}
+						}
+					}
+				}
+				bool dragSelecting = false;
+				MsgId dragFirstAffected = dragSelFrom;
+				int32 dragFirstAffectedIndex = dragSelFromIndex;
+				while (dragFirstAffectedIndex >= 0 && dragFirstAffected <= 0) {
+					moveToNextItem(dragFirstAffected, dragFirstAffectedIndex, dragSelTo, ((selectingDown && (_type == OverviewPhotos)) || (!selectingDown && (_type != OverviewPhotos))) ? -1 : 1);
+				}
+				if (dragFirstAffectedIndex >= 0) {
+					SelectedItems::const_iterator i = _selected.constFind(dragFirstAffected);
+					dragSelecting = (i == _selected.cend() || i.value() != FullItemSel);
+				}
+				updateDragSelection(dragSelFrom, dragSelFromIndex, dragSelTo, dragSelToIndex, dragSelecting);
 			}
-			bool dragSelecting = false;
-			MsgId dragFirstAffected = dragSelFrom;
-			int32 dragFirstAffectedIndex = dragSelFromIndex;
-			while (dragFirstAffectedIndex >= 0 && dragFirstAffected <= 0) {
-				moveToNextItem(dragFirstAffected, dragFirstAffectedIndex, dragSelTo, ((selectingDown && (_type == OverviewPhotos)) || (!selectingDown && (_type != OverviewPhotos))) ? -1 : 1);
-			}
-			if (dragFirstAffectedIndex >= 0) {
-				SelectedItems::const_iterator i = _selected.constFind(dragFirstAffected);
-				dragSelecting = (i == _selected.cend() || i.value() != FullItemSel);
-			}
-			updateDragSelection(dragSelFrom, dragSelFromIndex, dragSelTo, dragSelToIndex, dragSelecting);
 		} else if (_dragAction == Dragging) {
 		}
 
@@ -987,6 +1010,23 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		dragActionUpdate(e->globalPos());
 	}
 
+	// -2 - has full selected items, but not over, 0 - no selection, 2 - over full selected items
+	int32 isUponSelected = 0, hasSelected = 0;
+	if (!_selected.isEmpty()) {
+		isUponSelected = -1;
+		if (_selected.cbegin().value() == FullItemSel) {
+			hasSelected = 2;
+			if (App::hoveredLinkItem() && _selected.constFind(App::hoveredLinkItem()->id) != _selected.cend()) {
+				isUponSelected = 2;
+			} else {
+				isUponSelected = -2;
+			}
+		}
+	}
+	if (showFromTouch && hasSelected && isUponSelected < hasSelected) {
+		isUponSelected = hasSelected;
+	}
+
 	_contextMenuLnk = textlnkOver();
 	PhotoLink *lnkPhoto = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
 	VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
@@ -1010,13 +1050,17 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				_menu->addAction(lang(lnkVideo ? lng_context_save_video : (lnkAudio ? lng_context_save_audio : lng_context_save_document)), this, SLOT(saveContextFile()))->setEnabled(true);
 			}
 		}
-		if (App::hoveredLinkItem()) {
+		if (isUponSelected > 1) {
+			_menu->addAction(lang(lng_context_forward_selected), _overview, SLOT(onForwardSelected()));
+			_menu->addAction(lang(lng_context_delete_selected), _overview, SLOT(onDeleteSelected()));
+			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
+		} else if (isUponSelected != -2 && App::hoveredLinkItem()) {
 			if (dynamic_cast<HistoryMessage*>(App::hoveredLinkItem())) {
 				_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
 			}
 			_menu->addAction(lang(lng_context_delete_msg), this, SLOT(deleteMessage()))->setEnabled(true);
-			App::contextItem(App::hoveredLinkItem());
 		}
+		App::contextItem(App::hoveredLinkItem());
 	}
 	if (_menu) {
 		_menu->setAttribute(Qt::WA_DeleteOnClose);
@@ -1029,6 +1073,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 int32 OverviewInner::resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeight) {
 	if (width() == nwidth && minHeight == _minHeight) return scrollTop;
 	_minHeight = minHeight;
+	_addToY = (_height < _minHeight) ? (_minHeight - _height) : 0;
 	if (_type == OverviewPhotos && _resizeIndex < 0) {
 		_resizeIndex = _photosInRow * ((scrollTop + minHeight) / int32(_vsize + st::overviewPhotoSkip)) + _photosInRow - 1;
 		_resizeSkip = (scrollTop + minHeight) - ((scrollTop + minHeight) / int32(_vsize + st::overviewPhotoSkip)) * int32(_vsize + st::overviewPhotoSkip);
@@ -1055,7 +1100,14 @@ MediaOverviewType OverviewInner::type() const {
 }
 
 void OverviewInner::switchType(MediaOverviewType type) {
-	_type = type;
+	if (_type != type) {
+		_selected.clear();
+		_dragItemIndex = _mousedItemIndex = _dragSelFromIndex = _dragSelToIndex = -1;
+		_dragItem = _mousedItem = _dragSelFrom = _dragSelTo = 0;
+		_items.clear();
+		_cached.clear();
+		_type = type;
+	}
 	mediaOverviewUpdated();
 	if (App::wnd()) App::wnd()->update();
 }
@@ -1502,6 +1554,8 @@ void OverviewWidget::switchType(MediaOverviewType type) {
 	_selCount = 0;
 	App::main()->topBar()->showSelected(0);
 	updateTopBarSelection();
+	_scroll.scrollToY(_scroll.scrollTopMax());
+	onScroll();
 }
 
 void OverviewWidget::updateTopBarSelection() {
@@ -1577,6 +1631,7 @@ void OverviewWidget::mediaOverviewUpdated(PeerData *p) {
 	if (peer() == p) {
 		_inner.mediaOverviewUpdated();
 		onScroll();
+		updateTopBarSelection();
 	}
 }
 
@@ -1700,4 +1755,3 @@ void OverviewWidget::onDeleteContextSure() {
 void OverviewWidget::onClearSelected() {
 	_inner.clearSelectedItems();
 }
-

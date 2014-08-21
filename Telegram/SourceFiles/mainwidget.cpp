@@ -34,7 +34,8 @@ TopBarWidget::TopBarWidget(MainWidget *w) : QWidget(w),
 	_edit(this, lang(lng_profile_edit_contact), st::topBarButton),
 	_leaveGroup(this, lang(lng_profile_delete_and_exit), st::topBarButton),
 	_addContact(this, lang(lng_profile_add_contact), st::topBarButton),
-	_deleteContact(this, lang(lng_profile_delete_contact), st::topBarButton) {
+	_deleteContact(this, lang(lng_profile_delete_contact), st::topBarButton),
+	_mediaType(this, lang(lng_media_type), st::topBarButton) {
 
 	connect(&_forward, SIGNAL(clicked()), this, SLOT(onForwardSelection()));
 	connect(&_delete, SIGNAL(clicked()), this, SLOT(onDeleteSelection()));
@@ -178,6 +179,7 @@ void TopBarWidget::resizeEvent(QResizeEvent *e) {
 	if (!_leaveGroup.isHidden()) _leaveGroup.move(r -= _leaveGroup.width(), 0);
 	if (!_edit.isHidden()) _edit.move(r -= _edit.width(), 0);
 	if (!_addContact.isHidden()) _addContact.move(r -= _addContact.width(), 0);
+	if (!_mediaType.isHidden()) _mediaType.move(r -= _mediaType.width(), 0);
 }
 
 void TopBarWidget::startAnim() {
@@ -188,6 +190,7 @@ void TopBarWidget::startAnim() {
     _clearSelection.hide();
     _delete.hide();
     _forward.hide();
+	_mediaType.hide();
     _animating = true;
 }
 
@@ -226,6 +229,7 @@ void TopBarWidget::showAll() {
 		_clearSelection.hide();
 		_delete.hide();
 		_forward.hide();
+		_mediaType.hide();
 	} else {
 		_edit.hide();
 		_leaveGroup.hide();
@@ -235,10 +239,16 @@ void TopBarWidget::showAll() {
 			_clearSelection.show();
 			_delete.show();
 			_forward.show();
+			_mediaType.hide();
 		} else {
 			_clearSelection.hide();
 			_delete.hide();
 			_forward.hide();
+			if (App::main() && App::main()->mediaTypeSwitch()) {
+				_mediaType.show();
+			} else {
+				_mediaType.hide();
+			}
 		}
 	}
 	resizeEvent(0);
@@ -253,13 +263,17 @@ void TopBarWidget::showSelected(uint32 selCount) {
 	showAll();
 }
 
+FlatButton *TopBarWidget::mediaTypeButton() {
+	return &_mediaType;
+}
+
 MainWidget *TopBarWidget::main() {
 	return static_cast<MainWidget*>(parentWidget());
 }
 
 MainWidget::MainWidget(Window *window) : QWidget(window), failedObjId(0), _dialogsWidth(st::dlgMinWidth),
-	dialogs(this), history(this), profile(0), overview(0), _topBar(this), hider(0),
-    updPts(0), updDate(0), updQts(0), updSeq(0), updInited(false), onlineRequest(0) {
+dialogs(this), history(this), profile(0), overview(0), _topBar(this), hider(0), _mediaType(this), _mediaTypeMask(0),
+	updPts(0), updDate(0), updQts(0), updSeq(0), updInited(false), onlineRequest(0) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
 	connect(window, SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
@@ -286,8 +300,12 @@ MainWidget::MainWidget(Window *window) : QWidget(window), failedObjId(0), _dialo
 
 	_topBar.raise();
 	dialogs.raise();
+	_mediaType.raise();
 
 	MTP::setGlobalFailHandler(rpcFail(&MainWidget::updateFail));
+
+	_mediaType.hide();
+	_topBar.mediaTypeButton()->installEventFilter(&_mediaType);
 
 	show();
 	setFocus();
@@ -639,7 +657,35 @@ void MainWidget::overviewPreloaded(PeerData *peer, const MTPmessages_Messages &r
 
 void MainWidget::mediaOverviewUpdated(PeerData *peer) {
 	if (profile) profile->mediaOverviewUpdated(peer);
-	if (overview) overview->mediaOverviewUpdated(peer);
+	if (overview && overview->peer() == peer) {
+		overview->mediaOverviewUpdated(peer);
+
+		int32 mask = 0;
+		History *h = peer ? App::historyLoaded(peer->id) : 0;
+		if (h) {
+			for (int32 i = 0; i < OverviewCount; ++i) {
+				if (!h->_overview[i].isEmpty() || h->_overviewCount[i] > 0 || i == overview->type()) {
+					mask |= (1 << i);
+				}
+			}
+		}
+		if (mask != _mediaTypeMask) {
+			_mediaType.resetButtons();
+			for (int32 i = 0; i < OverviewCount; ++i) {
+				if (mask & (1 << i)) {
+					switch (i) {
+					case OverviewPhotos: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaPhotos, lang(lng_media_type_photos))), SIGNAL(clicked()), this, SLOT(onPhotosSelect())); break;
+					case OverviewVideos: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaVideos, lang(lng_media_type_videos))), SIGNAL(clicked()), this, SLOT(onVideosSelect())); break;
+					case OverviewDocuments: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaDocuments, lang(lng_media_type_documents))), SIGNAL(clicked()), this, SLOT(onDocumentsSelect())); break;
+					case OverviewAudios: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaAudios, lang(lng_media_type_audios))), SIGNAL(clicked()), this, SLOT(onAudiosSelect())); break;
+					}
+				}
+			}
+			_mediaTypeMask = mask;
+			_mediaType.move(width() - _mediaType.width(), st::topBarHeight);
+			overview->updateTopBarSelection();
+		}
+	}
 }
 
 void MainWidget::changingMsgId(HistoryItem *row, MsgId newId) {
@@ -982,7 +1028,18 @@ PeerData *MainWidget::profilePeer() {
 	return profile ? profile->peer() : 0;
 }
 
-void MainWidget::showMediaOverview(const PeerData *peer, MediaOverviewType type, bool back, int32 lastScrollTop) {
+bool MainWidget::mediaTypeSwitch() {
+	if (!overview) return false;
+
+	for (int32 i = 0; i < OverviewCount; ++i) {
+		if (!(_mediaTypeMask & ~(1 << i))) {
+			return false;
+		}
+	}
+	return true;
+}
+
+void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool back, int32 lastScrollTop) {
 	App::wnd()->hideSettings();
 	if (overview && overview->peer() == peer) {
 		if (overview->type() != type) {
@@ -1018,6 +1075,8 @@ void MainWidget::showMediaOverview(const PeerData *peer, MediaOverviewType type,
 		profile = 0;
 	}
 	overview = new OverviewWidget(this, peer, type);
+	_mediaTypeMask = 0;
+	mediaOverviewUpdated(peer);
 	_topBar.show();
 	resizeEvent(0);
 	overview->animShow(animCache, animTopBarCache, back, lastScrollTop);
@@ -1026,10 +1085,11 @@ void MainWidget::showMediaOverview(const PeerData *peer, MediaOverviewType type,
 	history.hide();
 	_topBar.raise();
 	dialogs.raise();
+	_mediaType.raise();
 	if (hider) hider->raise();
 }
 
-void MainWidget::showPeerProfile(const PeerData *peer, bool back, int32 lastScrollTop, bool allMediaShown) {
+void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop, bool allMediaShown) {
 	App::wnd()->hideSettings();
 	if (profile && profile->peer() == peer) return;
 
@@ -1068,6 +1128,7 @@ void MainWidget::showPeerProfile(const PeerData *peer, bool back, int32 lastScro
 	history.hide();
 	_topBar.raise();
 	dialogs.raise();
+	_mediaType.raise();
 	if (hider) hider->raise();
 }
 
@@ -1338,6 +1399,7 @@ void MainWidget::hideAll() {
 		overview->hide();
 	}
 	_topBar.hide();
+	_mediaType.hide();
 }
 
 void MainWidget::showAll() {
@@ -1360,6 +1422,7 @@ void MainWidget::resizeEvent(QResizeEvent *e) {
 	int32 tbh = _topBar.isHidden() ? 0 : st::topBarHeight;
 	dialogs.setGeometry(0, 0, _dialogsWidth + st::dlgShadow, height());
 	_topBar.setGeometry(_dialogsWidth, 0, width() - _dialogsWidth, st::topBarHeight + st::titleShadow);
+	_mediaType.move(width() - _mediaType.width(), st::topBarHeight);
 	history.setGeometry(_dialogsWidth, tbh, width() - _dialogsWidth, height() - tbh);
 	if (profile) profile->setGeometry(history.geometry());
 	if (overview) overview->setGeometry(history.geometry());
@@ -1377,6 +1440,26 @@ void MainWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
 	} else {
 		history.paintTopBar(p, over, decreaseWidth);
 	}
+}
+
+void MainWidget::onPhotosSelect() {
+	if (overview) overview->switchType(OverviewPhotos);
+	_mediaType.hideStart();
+}
+
+void MainWidget::onVideosSelect() {
+	if (overview) overview->switchType(OverviewVideos);
+	_mediaType.hideStart();
+}
+
+void MainWidget::onDocumentsSelect() {
+	if (overview) overview->switchType(OverviewDocuments);
+	_mediaType.hideStart();
+}
+
+void MainWidget::onAudiosSelect() {
+	if (overview) overview->switchType(OverviewAudios);
+	_mediaType.hideStart();
 }
 
 TopBarWidget *MainWidget::topBar() {

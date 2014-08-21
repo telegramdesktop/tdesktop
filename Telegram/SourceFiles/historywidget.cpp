@@ -241,6 +241,10 @@ void HistoryList::touchEvent(QTouchEvent *e) {
 	
 	switch (e->type()) {
 	case QEvent::TouchBegin:
+		if (_menu) {
+			e->accept();
+			return; // ignore mouse press, that was hiding context menu
+		}
 		if (_touchInProgress) return;
 		if (e->touchPoints().isEmpty()) return;
 

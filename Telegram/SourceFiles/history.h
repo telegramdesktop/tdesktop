@@ -126,15 +126,15 @@ struct PeerData {
 
 class PeerLink : public ITextLink {
 public:
-	PeerLink(const PeerData *peer) : _peer(peer) {
+	PeerLink(PeerData *peer) : _peer(peer) {
 	}
 	void onClick(Qt::MouseButton button) const;
-	const PeerData *peer() const {
+	PeerData *peer() const {
 		return _peer;
 	}
 
 private:
-	const PeerData *_peer;
+	PeerData *_peer;
 };
 
 struct PhotoData;

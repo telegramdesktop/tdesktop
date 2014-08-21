@@ -28,6 +28,7 @@ public:
 	Dropdown(QWidget *parent);
 
 	IconedButton *addButton(IconedButton *button);
+	void resetButtons();
 
 	void resizeEvent(QResizeEvent *e);
 	void paintEvent(QPaintEvent *e);

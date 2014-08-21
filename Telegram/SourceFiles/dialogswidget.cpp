@@ -461,7 +461,7 @@ void DialogsListWidget::onItemReplaced(HistoryItem *oldItem, HistoryItem *newIte
 
 void DialogsListWidget::onItemRemoved(HistoryItem *item) {
 	int wasCount = searchResults.size();
-	for (int i = 0; i < searchResults.size(); ++i) {
+	for (int i = 0; i < searchResults.size();) {
 		if (searchResults[i]->_item == item) {
 			searchResults.remove(i);
 		} else {
