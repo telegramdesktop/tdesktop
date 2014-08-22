@@ -998,18 +998,26 @@ void MainWidget::showPeer(const PeerId &peerId, MsgId msgId, bool back, bool for
 			}
 		}
 	}
-	dialogs.scrollToPeer(peerId);
+	dialogs.scrollToPeer(peerId, msgId);
 	dialogs.update();
 }
 
-PeerData *MainWidget::peerBefore(const PeerData *peer) {
-	if (selectingPeer()) return 0;
-	return dialogs.peerBefore(peer);
+void MainWidget::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) {
+	if (selectingPeer()) {
+		outPeer = 0;
+		outMsg = 0;
+		return;
+	}
+	dialogs.peerBefore(inPeer, inMsg, outPeer, outMsg);
 }
 
-PeerData *MainWidget::peerAfter(const PeerData *peer) {
-	if (selectingPeer()) return 0;
-	return dialogs.peerAfter(peer);
+void MainWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) {
+	if (selectingPeer()) {
+		outPeer = 0;
+		outMsg = 0;
+		return;
+	}
+	dialogs.peerAfter(inPeer, inMsg, outPeer, outMsg);
 }
 
 PeerData *MainWidget::peer() {

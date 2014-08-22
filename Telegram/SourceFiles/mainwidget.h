@@ -201,8 +201,8 @@ public:
 	void updUpdated(int32 pts, int32 date, int32 qts, int32 seq);
 	void historyWasRead();
 
-	PeerData *peerBefore(const PeerData *peer);
-	PeerData *peerAfter(const PeerData *peer);
+	void peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
+	void peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
 	PeerData *peer();
 	PeerData *activePeer();
 	MsgId activeMsgId();

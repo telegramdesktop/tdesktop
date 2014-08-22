@@ -58,15 +58,16 @@ public:
 
 	void destroyData();
 
-	PeerData *peerBefore(const PeerData *peer) const;
-	PeerData *peerAfter(const PeerData *peer) const;
-	void scrollToPeer(const PeerId &peer);
-	
+	void peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const;
+	void peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const;
+	void scrollToPeer(const PeerId &peer, MsgId msgId);
+
 	typedef QVector<FakeDialogRow*> SearchResults;
 
 	DialogsIndexed &contactsList();
 	DialogsIndexed &dialogsList();
 	SearchResults &searchList();
+	MsgId lastSearchId() const;
 
 	void setMouseSel(bool msel, bool toTop = false);
 
@@ -121,6 +122,8 @@ private:
 	SearchResults searchResults;
 	int32 searchedCount, searchedSel;
 
+	MsgId _lastSearchId;
+
 	State _state;
 
 	QPoint lastMousePos;
@@ -159,9 +162,9 @@ public:
 
 	void destroyData();
 
-	PeerData *peerBefore(const PeerData *peer) const;
-	PeerData *peerAfter(const PeerData *peer) const;
-	void scrollToPeer(const PeerId &peer);
+	void peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const;
+	void peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const;
+	void scrollToPeer(const PeerId &peer, MsgId msgId);
 
 	void removePeer(PeerData *peer);
 	void removeContact(UserData *user);

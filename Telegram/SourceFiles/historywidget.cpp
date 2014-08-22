@@ -2949,15 +2949,19 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		e->ignore();
 	} else if (e->key() == Qt::Key_PageDown) {
 		if ((e->modifiers() & Qt::ControlModifier) || (e->modifiers() & Qt::MetaModifier)) {
-			PeerData *after = App::main()->peerAfter(histPeer);
-			if (after) App::main()->showPeer(after->id);
+			PeerData *after = 0;
+			MsgId afterMsgId = 0;
+			App::main()->peerAfter(histPeer, hist ? hist->activeMsgId : 0, after, afterMsgId);
+			if (after) App::main()->showPeer(after->id, afterMsgId);
 		} else {
 			_scroll.scrollToY(_scroll.scrollTop() + _scroll.height());
 		}
 	} else if (e->key() == Qt::Key_PageUp) {
 		if ((e->modifiers() & Qt::ControlModifier) || (e->modifiers() & Qt::MetaModifier)) {
-			PeerData *before = App::main()->peerBefore(histPeer);
-			if (before) App::main()->showPeer(before->id);
+			PeerData *before = 0;
+			MsgId beforeMsgId = 0;
+			App::main()->peerBefore(histPeer, hist ? hist->activeMsgId : 0, before, beforeMsgId);
+			if (before) App::main()->showPeer(before->id, beforeMsgId);
 		} else {
 			_scroll.scrollToY(_scroll.scrollTop() - _scroll.height());
 		}
@@ -2966,8 +2970,14 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_Up) {
 		_scroll.scrollToY(_scroll.scrollTop() - _scroll.height() / 10);
 	} else if ((e->key() == Qt::Key_Tab || e->key() == Qt::Key_Backtab) && ((e->modifiers() & Qt::ControlModifier) || (e->modifiers() & Qt::MetaModifier))) {
-		PeerData *p = ((e->modifiers() & Qt::ShiftModifier) || e->key() == Qt::Key_Backtab) ? App::main()->peerBefore(histPeer) : App::main()->peerAfter(histPeer);
-		if (p) App::main()->showPeer(p->id);
+		PeerData *p = 0;
+		MsgId m = 0;
+		if ((e->modifiers() & Qt::ShiftModifier) || e->key() == Qt::Key_Backtab) {
+			App::main()->peerBefore(histPeer, hist ? hist->activeMsgId : 0, p, m);
+		} else {
+			App::main()->peerAfter(histPeer, hist ? hist->activeMsgId : 0, p, m);
+		}
+		if (p) App::main()->showPeer(p->id, m);
 	} else {
 		e->ignore();
 	}
