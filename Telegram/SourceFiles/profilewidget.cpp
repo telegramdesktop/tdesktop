@@ -62,7 +62,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	_selectedRow(-1), _lastPreload(0), _contactId(0),
 	_kickOver(0), _kickDown(0), _kickConfirm(0),
 	
-	_loadingId(0) {
+	_loadingId(0), _menu(0) {
 
 	if (_peerUser) {
 		_phoneText = _peerUser->phone.isEmpty() ? QString() : App::formatPhone(_peerUser->phone);
@@ -703,6 +703,31 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 }
 
 void ProfileInner::contextMenuEvent(QContextMenuEvent *e) {
+	if (_menu) {
+		_menu->deleteLater();
+		_menu = 0;
+	}
+	if (!_phoneText.isEmpty()) {
+		QRect info(_left + st::profilePhotoSize + st::profilePhoneLeft, st::profilePadding.top(), _width - st::profilePhotoSize - st::profilePhoneLeft, st::profilePhotoSize);
+		if (info.contains(mapFromGlobal(e->globalPos()))) {
+			_menu = new QMenu(this);
+			_menu->addAction(lang(lng_profile_copy_phone), this, SLOT(onCopyPhone()))->setEnabled(true);
+			_menu->setAttribute(Qt::WA_DeleteOnClose);
+			connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
+			_menu->popup(e->globalPos());
+			e->accept();
+		}
+	}
+}
+
+void ProfileInner::onMenuDestroy(QObject *obj) {
+	if (_menu == obj) {
+		_menu = 0;
+	}
+}
+
+void ProfileInner::onCopyPhone() {
+	QApplication::clipboard()->setText(_phoneText);
 }
 
 bool ProfileInner::animStep(float64 ms) {

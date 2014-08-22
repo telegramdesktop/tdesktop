@@ -89,6 +89,9 @@ public slots:
 	void onMediaDocuments();
 	void onMediaAudios();
 
+	void onMenuDestroy(QObject *obj);
+	void onCopyPhone();
+
 private:
 
 	void showAll();
@@ -148,7 +151,8 @@ private:
 
 	QPoint _lastPos;
 
-	QString _onlineText;	
+	QString _onlineText;
+	QMenu *_menu;
 
 };
 

@@ -26,6 +26,7 @@ class PhotoSendBox : public LayeredWidget {
 public:
 
 	PhotoSendBox(const ReadyLocalMedia &img);
+	PhotoSendBox(const QString &phone, const QString &fname, const QString &lname);
 	void parentResized();
 	void animStep(float64 ms);
 	void keyPressEvent(QKeyEvent *e);
@@ -40,13 +41,15 @@ public slots:
 
 private:
 
-	ReadyLocalMedia _img;
+	ReadyLocalMedia *_img;
 	int32 _width, _height, _thumbx, _thumby, _thumbw, _thumbh;
 	QString _name, _size;
 	int32 _namew, _textw;
 	FlatCheckbox _compressed;
 	FlatButton _sendButton, _cancelButton;
 	QPixmap _thumb;
+
+	QString _phone, _fname, _lname;
 
 	anim::fvalue a_opacity;
 

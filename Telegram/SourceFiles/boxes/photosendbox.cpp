@@ -23,7 +23,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "mainwidget.h"
 #include "photosendbox.h"
 
-PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(img),
+PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(new ReadyLocalMedia(img)),
 	_thumbx(0), _thumby(0), _thumbw(0), _thumbh(0), _namew(0), _textw(0),
 	_compressed(this, lang(lng_send_image_compressed), true),
 	_sendButton(this, lang(lng_send_button), st::btnSelectDone),
@@ -33,9 +33,9 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(img),
 	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onCancel()));
 
 	_width = st::confirmWidth;
-	if (img.type == ToPreparePhoto) {
+	if (_img->type == ToPreparePhoto) {
 		int32 maxW = 0, maxH = 0;
-		for (PreparedPhotoThumbs::const_iterator i = img.photoThumbs.cbegin(), e = img.photoThumbs.cend(); i != e; ++i) {
+		for (PreparedPhotoThumbs::const_iterator i = _img->photoThumbs.cbegin(), e = _img->photoThumbs.cend(); i != e; ++i) {
 			if (i->width() >= maxW && i->height() >= maxH) {
 				_thumb = *i;
 				maxW = _thumb.width();
@@ -64,8 +64,8 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(img),
 		_thumb = QPixmap::fromImage(_thumb.toImage().scaled(_thumbw, _thumbh, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 	} else {
 		_compressed.hide();
-		if (!img.photoThumbs.isEmpty()) {
-			_thumb = img.photoThumbs.cbegin().value();
+		if (!_img->photoThumbs.isEmpty()) {
+			_thumb = _img->photoThumbs.cbegin().value();
 			int32 tw = _thumb.width(), th = _thumb.height();
 			if (_thumb.isNull() || !tw || !th) {
 				_thumbw = _thumbx = _thumby = 0;
@@ -85,14 +85,37 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(img),
 		}
 		_height = st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom() + st::boxPadding.bottom() + _sendButton.height();
 
-		_name = img.filename;
+		_name = _img->filename;
 		_namew = st::mediaFont->m.width(_name);
-		_size = formatSizeText(img.filesize);
+		_size = formatSizeText(_img->filesize);
 		_textw = qMax(_namew, st::mediaFont->m.width(_size));
 	}
 
 	resize(_width, _height);
 }
+
+PhotoSendBox::PhotoSendBox(const QString &phone, const QString &fname, const QString &lname) : _img(0),
+_thumbx(0), _thumby(0), _thumbw(0), _thumbh(0), _namew(0), _textw(0),
+_compressed(this, lang(lng_send_image_compressed), true),
+_sendButton(this, lang(lng_send_button), st::btnSelectDone),
+_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
+_phone(phone), _fname(fname), _lname(lname),
+a_opacity(0, 1) {
+	connect(&_sendButton, SIGNAL(clicked()), this, SLOT(onSend()));
+	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onCancel()));
+
+	_width = st::confirmWidth;
+	_compressed.hide();
+	_height = st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom() + st::boxPadding.bottom() + _sendButton.height();
+
+	_name = _fname + QChar(' ') + _lname;
+	_namew = st::mediaFont->m.width(_name);
+	_size = _phone;
+	_textw = qMax(_namew, st::mediaFont->m.width(_size));
+
+	resize(_width, _height);
+}
+
 
 void PhotoSendBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
@@ -126,11 +149,11 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 
 	p.setFont(st::boxFont->f);
 	p.setPen(st::boxGrayTitle->p);
-	if (_img.type == ToPreparePhoto) {
+	if (_img && _img->type == ToPreparePhoto) {
 		p.drawText(QRect(st::boxPadding.left(), st::boxPadding.top(), _width - st::boxPadding.left() - st::boxPadding.right(), st::boxFont->height), lang(lng_really_send_image), style::al_center);
 		p.drawPixmap((_width - _thumbw) / 2, st::boxPadding.top() * 2 + st::boxFont->height, _thumb);
 	} else {
-		p.drawText(QRect(st::boxPadding.left(), st::boxPadding.top(), _width - st::boxPadding.left() - st::boxPadding.right(), st::boxFont->height), lang(lng_really_send_file), style::al_center);
+		p.drawText(QRect(st::boxPadding.left(), st::boxPadding.top(), _width - st::boxPadding.left() - st::boxPadding.right(), st::boxFont->height), lang(_img ? lng_really_send_file : lng_really_share_contact), style::al_center);
 
 		int32 w = _width - st::boxPadding.left() - st::boxPadding.right(), h = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
 		int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
@@ -146,8 +169,10 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 		if (_thumbw) {
 			int32 rf(cIntRetinaFactor());
 			p.drawPixmap(QPoint(x + st::mediaPadding.left(), y + st::mediaPadding.top()), _thumb, QRect(_thumbx * rf, _thumby * rf, st::mediaThumbSize * rf, st::mediaThumbSize * rf));
-		} else {
+		} else if (_img) {
 			p.drawPixmap(QPoint(x + st::mediaPadding.left(), y + st::mediaPadding.top()), App::sprite(), st::mediaDocOutImg);
+		} else {
+			p.drawPixmap(x + st::mediaPadding.left(), y + st::mediaPadding.top(), userDefPhoto(1)->pix(st::mediaThumbSize));
 		}
 
 		p.setFont(st::mediaFont->f);
@@ -176,8 +201,10 @@ void PhotoSendBox::animStep(float64 ms) {
 }
 
 void PhotoSendBox::onSend() {
-	if (_compressed.isHidden() || _compressed.checked()) {
-		if (App::main()) App::main()->confirmSendImage(_img);
+	if (!_img) {
+		if (App::main()) App::main()->confirmShareContact(_phone, _fname, _lname);
+	} else if (_compressed.isHidden() || _compressed.checked()) {
+		if (App::main()) App::main()->confirmSendImage(*_img);
 	} else {
 		if (App::main()) App::main()->confirmSendImageUncompressed();
 	}
@@ -195,5 +222,6 @@ void PhotoSendBox::startHide() {
 }
 
 PhotoSendBox::~PhotoSendBox() {
+	delete _img;
 	if (App::main()) App::main()->cancelSendImage();
 }

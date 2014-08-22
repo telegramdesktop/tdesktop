@@ -213,6 +213,7 @@ public:
 	void showBackFromStack();
 	QRect historyRect() const;
 
+	void confirmShareContact(const QString &phone, const QString &fname, const QString &lname);
 	void confirmSendImage(const ReadyLocalMedia &img);
 	void confirmSendImageUncompressed();
 	void cancelSendImage();

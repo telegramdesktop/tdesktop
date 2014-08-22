@@ -251,6 +251,7 @@ lng_profile_audio: "{count} voice message »";
 lng_profile_audios: "{count} voice messages »";
 lng_profile_audios_header: "Voice messages overview";
 lng_profile_show_all_types: "Show all types";
+lng_profile_copy_phone: "Copy phone number";
 
 lng_participant_filter: "Search";
 lng_participant_invite: "Invite";
@@ -364,6 +365,7 @@ lng_context_delete_selected: "Delete Selected";
 lng_context_clear_selection: "Clear Selection";
 lng_really_send_image: "Do you want to send this image?";
 lng_really_send_file: "Do you want to send this file?";
+lng_really_share_contact: "Do you want to share this contact?";
 lng_send_image_compressed: "Send compressed image";
 
 lng_forward_choose: "Choose recipient...";

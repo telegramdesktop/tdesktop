@@ -911,6 +911,10 @@ void MainWidget::updateOnlineDisplay() {
 	if (App::wnd()->settingsWidget()) App::wnd()->settingsWidget()->updateOnlineDisplay();
 }
 
+void MainWidget::confirmShareContact(const QString &phone, const QString &fname, const QString &lname) {
+	history.confirmShareContact(phone, fname, lname);
+}
+
 void MainWidget::confirmSendImage(const ReadyLocalMedia &img) {
 	history.confirmSendImage(img);
 }
@@ -1211,14 +1215,14 @@ void MainWidget::sentDataReceived(uint64 randomId, const MTPmessages_SentMessage
 }
 
 void MainWidget::sentFullDataReceived(uint64 randomId, const MTPmessages_StatedMessage &result) {
+	const MTPMessage *msg = 0;
+	MsgId msgId = 0;
 	if (randomId) {
-		const MTPMessage *msg = 0;
 		switch (result.type()) {
 		case mtpc_messages_statedMessage: msg = &result.c_messages_statedMessage().vmessage; break;
 		case mtpc_messages_statedMessageLink: msg = &result.c_messages_statedMessageLink().vmessage; break;
 		}
 		if (msg) {
-			MsgId msgId = 0;
 			switch (msg->type()) {
 			case mtpc_message: msgId = msg->c_message().vid.v; break;
 			case mtpc_messageEmpty: msgId = msg->c_messageEmpty().vid.v; break;
@@ -1227,7 +1231,6 @@ void MainWidget::sentFullDataReceived(uint64 randomId, const MTPmessages_StatedM
 			}
 			if (msgId) {
 				feedUpdate(MTP_updateMessageID(MTP_int(msgId), MTP_long(randomId))); // ignore real date
-				App::feedMessageMedia(msgId, *msg);
 			}
 		}
 	}
@@ -1236,12 +1239,14 @@ void MainWidget::sentFullDataReceived(uint64 randomId, const MTPmessages_StatedM
 	case mtpc_messages_statedMessage: {
 		const MTPDmessages_statedMessage &d(result.c_messages_statedMessage());
 
+		App::feedChats(d.vchats);
+		App::feedUsers(d.vusers);
+		if (msg && msgId) {
+			App::feedMessageMedia(msgId, *msg);
+		}
 		if (updInited && d.vseq.v) {
 			if (d.vseq.v <= updSeq || d.vseq.v > updSeq + 1) return getDifference();
 		}
-
-		App::feedChats(d.vchats);
-		App::feedUsers(d.vusers);
 		if (!randomId) {
 			feedUpdate(MTP_updateNewMessage(d.vmessage, d.vpts));
 		}
@@ -1253,12 +1258,14 @@ void MainWidget::sentFullDataReceived(uint64 randomId, const MTPmessages_StatedM
 	case mtpc_messages_statedMessageLink: {
 		const MTPDmessages_statedMessageLink &d(result.c_messages_statedMessageLink());
 
+		App::feedChats(d.vchats);
+		App::feedUsers(d.vusers);
+		if (msg && msgId) {
+			App::feedMessageMedia(msgId, *msg);
+		}
 		if (updInited && d.vseq.v) {
 			if (d.vseq.v <= updSeq || d.vseq.v > updSeq + 1) return getDifference();
 		}
-
-		App::feedChats(d.vchats);
-		App::feedUsers(d.vusers);
 		if (!randomId) {
 			feedUpdate(MTP_updateNewMessage(d.vmessage, d.vpts));
 		}

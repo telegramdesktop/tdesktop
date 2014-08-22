@@ -2258,14 +2258,18 @@ void HistoryWidget::onShareContact(const PeerId &peer, UserData *contact) {
 	App::main()->showPeer(peer, 0, false, true);
 	if (!hist) return;
 
+	shareContact(contact->phone, contact->firstName, contact->lastName, int32(contact->id & 0xFFFFFFFF));
+}
+
+void HistoryWidget::shareContact(const QString &phone, const QString &fname, const QString &lname, int32 userId) {
 	uint64 randomId = MTP::nonce<uint64>();
 	MsgId newId = clientMsgId();
 
 	hist->loadAround(0);
 
-	hist->addToBack(MTP_message(MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(histPeer->id), MTP_bool(true), MTP_bool(true), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(contact->phone), MTP_string(contact->firstName), MTP_string(contact->lastName), MTP_int(int32(contact->id & 0xFFFFFFFF)))));
+	hist->addToBack(MTP_message(MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(histPeer->id), MTP_bool(true), MTP_bool(true), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId))));
 	
-	MTP::send(MTPmessages_SendMedia(histPeer->input, MTP_inputMediaContact(MTP_string(contact->phone), MTP_string(contact->firstName), MTP_string(contact->lastName)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
+	MTP::send(MTPmessages_SendMedia(histPeer->input, MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
 
 	App::historyRegRandom(randomId, newId);
 	App::main()->historyToDown(hist);
@@ -2687,6 +2691,15 @@ void HistoryWidget::uploadFile(const QString &file, bool withText) {
 	confirmImageId = imageLoader.append(file, histPeer->id, ToPrepareDocument);
 }
 
+void HistoryWidget::shareContactConfirmation(const QString &phone, const QString &fname, const QString &lname, bool withText) {
+	if (!hist || confirmImageId) return;
+
+	App::wnd()->activateWindow();
+	confirmWithText = withText;
+	confirmImageId = -1;
+	App::wnd()->showLayer(new PhotoSendBox(phone, fname, lname));
+}
+
 void HistoryWidget::uploadConfirmImageUncompressed() {
 	if (!hist || !confirmImageId || confirmImage.isNull()) return;
 
@@ -2726,6 +2739,18 @@ void HistoryWidget::onPhotoReady() {
 }
 
 void HistoryWidget::onPhotoFailed(quint64 id) {
+}
+
+void HistoryWidget::confirmShareContact(const QString &phone, const QString &fname, const QString &lname) {
+	if (-1 == confirmImageId) {
+		if (confirmWithText) {
+			onSend();
+		}
+		confirmImageId = 0;
+		confirmWithText = false;
+		confirmImage = QImage();
+	}
+	shareContact(phone, fname, lname);
 }
 
 void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
@@ -3003,7 +3028,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 void HistoryWidget::onFieldTabbed() {
 	QString v = _field.getText(), t = supportTemplate(v.trimmed());
 	if (!t.isEmpty()) {
-		bool isImg = t.startsWith(qsl("img:")), isFile = t.startsWith(qsl("file:"));
+		bool isImg = t.startsWith(qsl("img:")), isFile = t.startsWith(qsl("file:")), isContact = t.startsWith(qsl("contact:"));
 		if (isImg || isFile) {
 			QString fname = t.mid(isImg ? 4 : 5).trimmed(), text;
 			int32 lineEnd = fname.indexOf(QChar('\n'));
@@ -3020,6 +3045,20 @@ void HistoryWidget::onFieldTabbed() {
 			} else {
 				_field.setPlainText(text);
 				uploadFile(cWorkingDir() + fname, !text.isEmpty());
+			}
+		} else if (isContact) {
+			QString contact = t.mid(8).trimmed(), text;
+			int32 lineEnd = contact.indexOf(QChar('\n'));
+			if (lineEnd > 0) {
+				text = contact.mid(lineEnd + 1).trimmed();
+				contact = contact.mid(0, lineEnd).trimmed();
+			}
+			QStringList data = contact.split(QChar(' '));
+			if (data.size() > 1) {
+				_field.setPlainText(text);
+
+				QString phone = data.at(0).trimmed(), fname = data.at(1).trimmed(), lname = (data.size() > 2) ? data.at(2).trimmed() : QString();
+				shareContactConfirmation(phone, fname, lname, !text.isEmpty());
 			}
 		} else {
 			_field.setPlainText(t);

@@ -55,6 +55,10 @@ inline bool isNotifyMuted(NotifySettingsPtr settings) {
 	return (settings->mute > unixtime());
 }
 
+style::color peerColor(int32 index);
+ImagePtr userDefPhoto(int32 index);
+ImagePtr chatDefPhoto(int32 index);
+
 struct ChatData;
 struct UserData;
 struct PeerData {
@@ -1402,6 +1406,8 @@ public:
 	bool hasPoint(int32 x, int32 y, int32 width) const;
 	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width) const;
 	HistoryMedia *clone() const;
+
+	void updateFrom(const MTPMessageMedia &media);
 
 private:
 	int32 userId;

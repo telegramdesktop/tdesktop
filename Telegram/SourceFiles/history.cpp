@@ -39,46 +39,45 @@ TextParseOptions _textDlgOptions = {
 	Qt::LayoutDirectionAuto, // lang-dependent
 };
 
+style::color peerColor(int32 index) {
+	static const style::color peerColors[8] = {
+		style::color(st::color1),
+		style::color(st::color2),
+		style::color(st::color3),
+		style::color(st::color4),
+		style::color(st::color5),
+		style::color(st::color6),
+		style::color(st::color7),
+		style::color(st::color8)
+	};
+	return peerColors[index];
+}
+
+ImagePtr userDefPhoto(int32 index) {
+	static const ImagePtr userDefPhotos[8] = {
+		ImagePtr(":/ava/art/usercolor1.png"),
+		ImagePtr(":/ava/art/usercolor2.png"),
+		ImagePtr(":/ava/art/usercolor3.png"),
+		ImagePtr(":/ava/art/usercolor4.png"),
+		ImagePtr(":/ava/art/usercolor5.png"),
+		ImagePtr(":/ava/art/usercolor6.png"),
+		ImagePtr(":/ava/art/usercolor7.png"),
+		ImagePtr(":/ava/art/usercolor8.png")
+	};
+	return userDefPhotos[index];
+}
+
+ImagePtr chatDefPhoto(int32 index) {
+	static const ImagePtr chatDefPhotos[4] = {
+		ImagePtr(":/ava/art/chatcolor1.png"),
+		ImagePtr(":/ava/art/chatcolor2.png"),
+		ImagePtr(":/ava/art/chatcolor3.png"),
+		ImagePtr(":/ava/art/chatcolor4.png")
+	};
+	return chatDefPhotos[index];
+}
 
 namespace {
-	style::color peerColor(int32 index) {
-		static const style::color peerColors[8] = {
-			style::color(st::color1),
-			style::color(st::color2),
-			style::color(st::color3),
-			style::color(st::color4),
-			style::color(st::color5),
-			style::color(st::color6),
-			style::color(st::color7),
-			style::color(st::color8)
-		};
-		return peerColors[index];
-	}
-
-	ImagePtr userDefPhoto(int32 index) {
-		static const ImagePtr userDefPhotos[8] = {
-			ImagePtr(":/ava/art/usercolor1.png"),
-			ImagePtr(":/ava/art/usercolor2.png"),
-			ImagePtr(":/ava/art/usercolor3.png"),
-			ImagePtr(":/ava/art/usercolor4.png"),
-			ImagePtr(":/ava/art/usercolor5.png"),
-			ImagePtr(":/ava/art/usercolor6.png"),
-			ImagePtr(":/ava/art/usercolor7.png"),
-			ImagePtr(":/ava/art/usercolor8.png")
-		};
-		return userDefPhotos[index];
-	}
-
-	ImagePtr chatDefPhoto(int32 index) {
-		static const ImagePtr chatDefPhotos[4] = {
-			ImagePtr(":/ava/art/chatcolor1.png"),
-			ImagePtr(":/ava/art/chatcolor2.png"),
-			ImagePtr(":/ava/art/chatcolor3.png"),
-			ImagePtr(":/ava/art/chatcolor4.png")
-		};
-		return chatDefPhotos[index];
-	}
-
 	int32 peerColorIndex(const PeerId &peer) {
 		int32 myId(MTP::authedId()), peerId(peer & 0xFFFFFFFFL);
 		bool chat = (peer & 0x100000000L);
@@ -2693,6 +2692,22 @@ void HistoryContact::draw(QPainter &p, const HistoryItem *parent, bool selected,
 			iconRect = &st::msgSendingRect;
 		}
 		p.drawPixmap(iconPos, App::sprite(), *iconRect);
+	}
+}
+
+void HistoryContact::updateFrom(const MTPMessageMedia &media) {
+	if (media.type() == mtpc_messageMediaContact) {
+		userId = media.c_messageMediaContact().vuser_id.v;
+		contact = App::userLoaded(userId);
+		if (contact) {
+			if (contact->phone.isEmpty()) {
+				contact->setPhone(phone);
+			}
+			if (contact->contact < 0) {
+				contact->contact = 0;
+			}
+			contact->photo->load();
+		}
 	}
 }
 
