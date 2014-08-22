@@ -3019,7 +3019,7 @@ void HistoryWidget::onFieldTabbed() {
 				}
 			} else {
 				_field.setPlainText(text);
-				uploadFile(fname, !text.isEmpty());
+				uploadFile(cWorkingDir() + fname, !text.isEmpty());
 			}
 		} else {
 			_field.setPlainText(t);
