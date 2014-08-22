@@ -288,7 +288,8 @@ public:
 	void updateTyping(bool typing = true);
 
 	void destroyData();
-	void uploadImage(const QImage &img);
+	void uploadImage(const QImage &img, bool withText = false);
+	void uploadFile(const QString &file, bool withText = false); // with confirmation
 	void uploadConfirmImageUncompressed();
 	void uploadMedias(const QStringList &files, ToPrepareMediaType type);
 	void uploadMedia(const QByteArray &fileContent, ToPrepareMediaType type);
@@ -432,6 +433,7 @@ private:
 	int64 serviceImageCacheSize;
 	QImage confirmImage;
 	PhotoId confirmImageId;
+	bool confirmWithText;
 
 	QString titlePeerText;
 	int32 titlePeerTextWidth;

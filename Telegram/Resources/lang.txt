@@ -363,6 +363,7 @@ lng_context_forward_selected: "Forward Selected";
 lng_context_delete_selected: "Delete Selected";
 lng_context_clear_selection: "Clear Selection";
 lng_really_send_image: "Do you want to send this image?";
+lng_really_send_file: "Do you want to send this file?";
 lng_send_image_compressed: "Send compressed image";
 
 lng_forward_choose: "Choose recipient...";

@@ -2120,7 +2120,7 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 
 	p.setFont(st::mediaFont->f);
 	p.setPen(st::black->c);
-	p.drawText(tleft, st::mediaPadding.top() + 3 + st::mediaFont->ascent, lang(lng_media_video));
+	p.drawText(tleft, st::mediaPadding.top() + st::mediaNameTop + st::mediaFont->ascent, lang(lng_media_video));
 
 	QString statusText;
 
@@ -2146,7 +2146,7 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 			statusText = _size;
 		}
 	}
-	p.drawText(tleft, st::mediaPadding.top() + st::mediaThumbSize - 3 - st::mediaFont->descent, statusText);
+	p.drawText(tleft, st::mediaPadding.top() + st::mediaThumbSize - st::mediaDetailsShift - st::mediaFont->descent, statusText);
 
 	p.setFont(st::msgDateFont->f);
 
@@ -2249,7 +2249,7 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 
 	p.setFont(st::mediaFont->f);
 	p.setPen(st::black->c);
-	p.drawText(tleft, st::mediaPadding.top() + 3 + st::mediaFont->ascent, lang(lng_media_audio));
+	p.drawText(tleft, st::mediaPadding.top() + st::mediaNameTop + st::mediaFont->ascent, lang(lng_media_audio));
 
 	QString statusText;
 
@@ -2275,7 +2275,7 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 			statusText = _size;
 		}
 	}
-	p.drawText(tleft, st::mediaPadding.top() + st::mediaThumbSize - 3 - st::mediaFont->descent, statusText);
+	p.drawText(tleft, st::mediaPadding.top() + st::mediaThumbSize - st::mediaDetailsShift - st::mediaFont->descent, statusText);
 
 	p.setFont(st::msgDateFont->f);
 
@@ -2460,9 +2460,9 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 	p.setFont(st::mediaFont->f);
 	p.setPen(st::black->c);
 	if (twidth < _namew) {
-		p.drawText(tleft, st::mediaPadding.top() + 3 + st::mediaFont->ascent, st::mediaFont->m.elidedText(_name, Qt::ElideRight, twidth));
+		p.drawText(tleft, st::mediaPadding.top() + st::mediaNameTop + st::mediaFont->ascent, st::mediaFont->m.elidedText(_name, Qt::ElideRight, twidth));
 	} else {
-		p.drawText(tleft, st::mediaPadding.top() + 3 + st::mediaFont->ascent, _name);
+		p.drawText(tleft, st::mediaPadding.top() + st::mediaNameTop + st::mediaFont->ascent, _name);
 	}
 
 	QString statusText;
@@ -2489,7 +2489,7 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 			statusText = _size;
 		}
 	}
-	p.drawText(tleft, st::mediaPadding.top() + st::mediaThumbSize - 3 - st::mediaFont->descent, statusText);
+	p.drawText(tleft, st::mediaPadding.top() + st::mediaThumbSize - st::mediaDetailsShift - st::mediaFont->descent, statusText);
 
 	p.setFont(st::msgDateFont->f);
 
@@ -2664,15 +2664,15 @@ void HistoryContact::draw(QPainter &p, const HistoryItem *parent, bool selected,
 	p.setFont(st::mediaFont->f);
 	p.setPen(st::black->c);
 	if (twidth < phonew) {
-		p.drawText(tleft, st::mediaPadding.top() + 3 + st::mediaFont->ascent, st::mediaFont->m.elidedText(phone, Qt::ElideRight, twidth));
+		p.drawText(tleft, st::mediaPadding.top() + st::mediaNameTop + st::mediaFont->ascent, st::mediaFont->m.elidedText(phone, Qt::ElideRight, twidth));
 	} else {
-		p.drawText(tleft, st::mediaPadding.top() + 3 + st::mediaFont->ascent, phone);
+		p.drawText(tleft, st::mediaPadding.top() + st::mediaNameTop + st::mediaFont->ascent, phone);
 	}
 
 	style::color status(selected ? (out ? st::mediaOutSelectColor : st::mediaInSelectColor) : (out ? st::mediaOutColor : st::mediaInColor));
 	p.setPen(status->p);
 
-	name.drawElided(p, tleft, st::mediaPadding.top() + st::mediaThumbSize - 3 - st::mediaFont->height, secondwidth);
+	name.drawElided(p, tleft, st::mediaPadding.top() + st::mediaThumbSize - st::mediaDetailsShift - st::mediaFont->height, secondwidth);
 
 	p.setFont(st::msgDateFont->f);
 

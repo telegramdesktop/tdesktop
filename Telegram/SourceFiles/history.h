@@ -1272,6 +1272,8 @@ private:
 	int32 w;
 };
 
+QString formatSizeText(qint64 size);
+
 class HistoryVideo : public HistoryMedia {
 public:
 

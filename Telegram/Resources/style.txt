@@ -855,6 +855,8 @@ mediaMaxWidth: 250px;
 mediaFont: font(fsize);
 mediaPadding: margins(7px, 6px, 11px, 6px);
 mediaThumbSize: 48px;
+mediaNameTop: 3px;
+mediaDetailsShift: 3px;
 mediaDocOutImg: sprite(6px, 146px, 48px, 48px);
 mediaDocInImg: sprite(56px, 146px, 48px, 48px);
 mediaAudioOutImg: sprite(106px, 146px, 48px, 48px);

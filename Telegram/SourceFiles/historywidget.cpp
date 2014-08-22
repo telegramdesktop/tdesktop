@@ -1517,6 +1517,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
     , loadingRequestId(0)
     , serviceImageCacheSize(0)
     , confirmImageId(0)
+	, confirmWithText(false)
     , titlePeerTextWidth(0)
     , bg(st::msgBG)
     , hiderOffered(false)
@@ -2669,12 +2670,21 @@ void HistoryWidget::onFieldFocused() {
 	if (_list) _list->clearSelectedItems(true);
 }
 
-void HistoryWidget::uploadImage(const QImage &img) {
+void HistoryWidget::uploadImage(const QImage &img, bool withText) {
 	if (!hist || confirmImageId) return;
 
 	App::wnd()->activateWindow();
 	confirmImage = img;
+	confirmWithText = withText;
 	confirmImageId = imageLoader.append(img, histPeer->id, ToPreparePhoto);
+}
+
+void HistoryWidget::uploadFile(const QString &file, bool withText) {
+	if (!hist || confirmImageId) return;
+
+	App::wnd()->activateWindow();
+	confirmWithText = withText;
+	confirmImageId = imageLoader.append(file, histPeer->id, ToPrepareDocument);
 }
 
 void HistoryWidget::uploadConfirmImageUncompressed() {
@@ -2683,6 +2693,7 @@ void HistoryWidget::uploadConfirmImageUncompressed() {
 	App::wnd()->activateWindow();
 	imageLoader.append(confirmImage, histPeer->id, ToPrepareDocument);
 	confirmImageId = 0;
+	confirmWithText = false;
 	confirmImage = QImage();
 }
 
@@ -2719,7 +2730,11 @@ void HistoryWidget::onPhotoFailed(quint64 id) {
 
 void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
 	if (img.id == confirmImageId) {
+		if (confirmWithText) {
+			onSend();
+		}
 		confirmImageId = 0;
+		confirmWithText = false;
 		confirmImage = QImage();
 	}
 	MsgId newId = clientMsgId();
@@ -2751,7 +2766,9 @@ void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
 }
 
 void HistoryWidget::cancelSendImage() {
+	if (confirmImageId && confirmWithText) _field.setPlainText(QString());
 	confirmImageId = 0;
+	confirmWithText = false;
 	confirmImage = QImage();
 }
 
@@ -2986,11 +3003,23 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 void HistoryWidget::onFieldTabbed() {
 	QString v = _field.getText(), t = supportTemplate(v.trimmed());
 	if (!t.isEmpty()) {
-		if (t.indexOf(qsl("img:")) == 0) {
-			QImage img(cWorkingDir() + t.mid(4).trimmed());
-			if (!img.isNull()) {
-				_field.setPlainText(QString());
-				uploadImage(img);
+		bool isImg = (t.indexOf(qsl("img:")) == 0), isFile = (t.indexOf(qsl("file:")) == 0);
+		if (isImg || isFile) {
+			QString fname = t.mid(isImg ? 4 : 5).trimmed(), text;
+			int32 lineEnd = fname.indexOf(QChar('\n'));
+			if (lineEnd > 0) {
+				text = fname.mid(lineEnd + 1).trimmed();
+				fname = fname.mid(0, lineEnd).trimmed();
+			}
+			if (isImg) {
+				QImage img(cWorkingDir() + fname);
+				if (!img.isNull()) {
+					_field.setPlainText(text);
+					uploadImage(img, !text.isEmpty());
+				}
+			} else {
+				_field.setPlainText(text);
+				uploadFile(fname, !text.isEmpty());
 			}
 		} else {
 			_field.setPlainText(t);

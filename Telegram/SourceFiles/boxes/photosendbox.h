@@ -41,7 +41,9 @@ public slots:
 private:
 
 	ReadyLocalMedia _img;
-	int32 _width, _height, _thumbw, _thumbh;
+	int32 _width, _height, _thumbx, _thumby, _thumbw, _thumbh;
+	QString _name, _size;
+	int32 _namew, _textw;
 	FlatCheckbox _compressed;
 	FlatButton _sendButton, _cancelButton;
 	QPixmap _thumb;
