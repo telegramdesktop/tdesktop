@@ -285,7 +285,7 @@ void ContactsInner::updateFilter(QString filter) {
 						for (fi = fb; fi != fe; ++fi) {
 							QString filterName(*fi);
 							for (ni = nb; ni != ne; ++ni) {
-								if ((*ni).indexOf(*fi) == 0) {
+								if (ni->startsWith(*fi)) {
 									break;
 								}
 							}

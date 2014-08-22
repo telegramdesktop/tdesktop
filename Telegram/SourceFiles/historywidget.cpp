@@ -3003,7 +3003,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 void HistoryWidget::onFieldTabbed() {
 	QString v = _field.getText(), t = supportTemplate(v.trimmed());
 	if (!t.isEmpty()) {
-		bool isImg = (t.indexOf(qsl("img:")) == 0), isFile = (t.indexOf(qsl("file:")) == 0);
+		bool isImg = t.startsWith(qsl("img:")), isFile = t.startsWith(qsl("file:"));
 		if (isImg || isFile) {
 			QString fname = t.mid(isImg ? 4 : 5).trimmed(), text;
 			int32 lineEnd = fname.indexOf(QChar('\n'));

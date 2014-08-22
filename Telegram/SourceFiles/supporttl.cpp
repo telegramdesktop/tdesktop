@@ -36,58 +36,72 @@ namespace {
 }
 
 void readSupportTemplates() {
-	QFile f(cWorkingDir() + qsl("support_tl.txt"));
-	if (!f.open(QIODevice::ReadOnly)) return;
+	QStringList files(cWorkingDir() + qsl("support_tl.txt"));
+	QDir supp(cWorkingDir() + qsl("tsupport"));
+	if (supp.exists()) {
+		QStringList all = supp.entryList(QDir::Files);
+		for (QStringList::const_iterator i = all.cbegin(), e = all.cend(); i != e; ++i) {
+			if (i->startsWith(qsl("tl_"))) {
+				files.push_back(cWorkingDir() + qsl("tsupport/") + *i);
+			}
+		}
+	}
 
 	typedef QList<QByteArray> TemplatesLines;
-	TemplatesLines lines = f.readAll().split('\n');
-
-	f.close();
-
 	enum ReadingState {
 		ReadingNone = 0,
 		ReadingKeys = 1,
 		ReadingValue = 2,
 		ReadingMoreValue = 3,
 	};
-	ReadingState state = ReadingNone;
-	QStringList keys;
-	QString value;
-	for (TemplatesLines::const_iterator i = lines.cbegin(), e = lines.cend(); i != e; ++i) {
-		QString line = QString::fromUtf8(*i).trimmed();
-		QRegularExpressionMatch m = QRegularExpression(qsl("^\\{([A-Z_]+)\\}$")).match(line);
-		if (m.hasMatch()) {
-			saveTemplate(keys, value);
 
-			QString token = m.captured(1);
-			if (token == qsl("KEYS")) {
-				keys.clear();
-				state = ReadingKeys;
-			} else if (token == qsl("VALUE")) {
-				state = ReadingValue;
-			} else {
-				keys.clear();
-				state = ReadingNone;
+	for (QStringList::const_iterator i = files.cbegin(), e = files.cend(); i != e; ++i) {
+		QFile f(*i);
+		if (!f.open(QIODevice::ReadOnly)) continue;
+
+		TemplatesLines lines = f.readAll().split('\n');
+
+		f.close();
+
+		ReadingState state = ReadingNone;
+		QStringList keys;
+		QString value;
+		for (TemplatesLines::const_iterator i = lines.cbegin(), e = lines.cend(); i != e; ++i) {
+			QString line = QString::fromUtf8(*i).trimmed();
+			QRegularExpressionMatch m = QRegularExpression(qsl("^\\{([A-Z_]+)\\}$")).match(line);
+			if (m.hasMatch()) {
+				saveTemplate(keys, value);
+
+				QString token = m.captured(1);
+				if (token == qsl("KEYS")) {
+					keys.clear();
+					state = ReadingKeys;
+				} else if (token == qsl("VALUE")) {
+					state = ReadingValue;
+				} else {
+					keys.clear();
+					state = ReadingNone;
+				}
+				continue;
 			}
-			continue;
-		}
 
-		switch (state) {
-		case ReadingKeys:
-			if (!line.isEmpty()) {
-				keys.push_back(line);
+			switch (state) {
+			case ReadingKeys:
+				if (!line.isEmpty()) {
+					keys.push_back(line);
+				}
+				break;
+
+			case ReadingMoreValue:
+				value += '\n';
+			case ReadingValue:
+				value += line;
+				state = ReadingMoreValue;
+				break;
 			}
-		break;
-
-		case ReadingMoreValue:
-			value += '\n';
-		case ReadingValue:
-			value += line;
-			state = ReadingMoreValue;
-		break;
 		}
+		saveTemplate(keys, value);
 	}
-	saveTemplate(keys, value);
 }
 
 const QString &supportTemplate(const QString &key) {

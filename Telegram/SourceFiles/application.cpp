@@ -623,11 +623,11 @@ void Application::readClients() {
 			int32 from = 0, l = cmds.length();
 			for (int32 to = cmds.indexOf(QChar(';'), from); to >= from; to = (from < l) ? cmds.indexOf(QChar(';'), from) : -1) {
 				QStringRef cmd(&cmds, from, to - from);
-				if (cmd.indexOf("CMD:") == 0) {
+				if (cmd.startsWith(qsl("CMD:"))) {
 					execExternal(cmds.mid(from + 4, to - from - 4));
-					QByteArray response(QString("RES:%1;").arg(QCoreApplication::applicationPid()).toUtf8());
+					QByteArray response(qsl("RES:%1;").arg(QCoreApplication::applicationPid()).toUtf8());
 					i->first->write(response.data(), response.size());
-				} else if (cmd.indexOf("SEND:") == 0) {
+				} else if (cmd.startsWith(qsl("SEND:"))) {
 					if (cSendPaths().isEmpty()) {
 						toSend.append(_escapeFrom7bit(cmds.mid(from + 5, to - from - 5)));
 					}

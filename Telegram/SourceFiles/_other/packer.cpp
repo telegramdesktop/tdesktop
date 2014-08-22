@@ -189,7 +189,7 @@ int main(int argc, char *argv[])
 	}
 	for (QFileInfoList::iterator i = files.begin(); i != files.end(); ++i) {
 		QFileInfo info(*i);
-		if (info.canonicalFilePath().indexOf(remove) != 0) {
+		if (!info.canonicalFilePath().startsWith(remove)) {
 			cout << "Can't find '" << remove.toUtf8().constData() << "' in file '" << info.canonicalFilePath().toUtf8().constData() << "' :(\n";
 			return -1;
 		}
