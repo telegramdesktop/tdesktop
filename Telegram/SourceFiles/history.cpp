@@ -26,6 +26,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "window.h"
 #include "gui/filedialog.h"
 
+#include "audio.h"
+
 TextParseOptions _textNameOptions = {
 	0, // flags
 	4096, // maxw
@@ -338,8 +340,20 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
 
 	QString already = data->already(true);
-	if (!already.isEmpty()) {
-        psOpenFile(already);
+	bool play = audioVoice();
+	if (!already.isEmpty() || !data->data.isEmpty() && play) {
+		if (play) {
+			AudioData *playing = 0;
+			VoiceMessageState playingState = VoiceMessageStopped;
+			audioVoice()->currentState(&playing, &playingState);
+			if (playing == data && playingState != VoiceMessageStopped) {
+				audioVoice()->pauseresume();
+			} else {
+				audioVoice()->play(data);
+			}
+		} else {
+			psOpenFile(already);
+		}
 		return;
 	}
 	
@@ -387,7 +401,7 @@ void AudioCancelLink::onClick(Qt::MouseButton button) const {
 
 void AudioData::save(const QString &toFile) {
 	cancel(true);
-	loader = new mtpFileLoader(dc, id, access, mtpc_inputAudioFileLocation, toFile, size);
+	loader = new mtpFileLoader(dc, id, access, mtpc_inputAudioFileLocation, toFile, size, (size < AudioVoiceMsgInMemory));
 	loader->connect(loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(audioLoadProgress(mtpFileLoader*)));
 	loader->connect(loader, SIGNAL(failed(mtpFileLoader*,bool)), App::main(), SLOT(audioLoadFailed(mtpFileLoader*,bool)));
 	loader->start();
@@ -2206,9 +2220,13 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	if (width < 0) width = w;
 	if (width < 1) return;
 
-	bool out = parent->out(), hovered, pressed;
+	bool out = parent->out(), hovered, pressed, already = !data->already().isEmpty(), hasdata = !data->data.isEmpty();
 	if (width >= _maxw) {
 		width = _maxw;
+	}
+
+	if (!data->loader && data->status != FileFailed && !already && !hasdata && data->size < AudioVoiceMsgInMemory) {
+		data->save(QString());
 	}
 
 	if (!out) { // draw Download / Save As button
@@ -2224,8 +2242,8 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		
 		p.setPen((hovered ? st::mediaSaveButton.overColor : st::mediaSaveButton.color)->p);
 		p.setFont(st::mediaSaveButton.font->f);
-		QString btnText(lang(data->loader ? lng_media_cancel : (data->already().isEmpty() ? lng_media_download : lng_media_open_with)));
-		int32 btnTextWidth = data->loader ? _cancelWidth : (data->already().isEmpty() ? _downloadWidth : _openWithWidth);
+		QString btnText(lang(data->loader ? lng_media_cancel : (already ? lng_media_open_with : lng_media_download)));
+		int32 btnTextWidth = data->loader ? _cancelWidth : (already ? _openWithWidth : _downloadWidth);
 		p.drawText(btnx + (btnw - btnTextWidth) / 2, btny + (pressed ? st::mediaSaveButton.downTextTop : st::mediaSaveButton.textTop) + st::mediaSaveButton.font->ascent, btnText);
 		width -= btnw + st::mediaSaveDelta;
 	}
@@ -2236,7 +2254,20 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	style::color shadow(selected ? (out ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out ? st::msgOutShadow : st::msgInShadow));
 	p.fillRect(0, _height, width, st::msgShadow, shadow->b);
 
-	p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), App::sprite(), (out ? st::mediaAudioOutImg : st::mediaAudioInImg));
+	AudioData *playing = 0;
+	VoiceMessageState playingState = VoiceMessageStopped;
+	int64 playingPosition = 0, playingDuration = 0;
+	if (audioVoice()) {
+		audioVoice()->currentState(&playing, &playingState, &playingPosition, &playingDuration);
+	}
+	QRect img;
+	if (already || hasdata) {
+		bool showPause = (playing == data) && (playingState == VoiceMessagePlaying || playingState == VoiceMessageResuming || playingState == VoiceMessageStarting);
+		img = out ? (showPause ? st::mediaPauseOutImg : st::mediaPlayOutImg) : (showPause ? st::mediaPauseInImg : st::mediaPlayInImg);
+	} else {
+		img = out ? st::mediaAudioOutImg : st::mediaAudioInImg;
+	}
+	p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), App::sprite(), img);
 	if (selected) {
 		p.fillRect(st::mediaPadding.left(), st::mediaPadding.top(), st::mediaThumbSize, st::mediaThumbSize, (out ? st::msgOutSelectOverlay : st::msgInSelectOverlay)->b);
 	}
@@ -2254,28 +2285,34 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 
 	style::color status(selected ? (out ? st::mediaOutSelectColor : st::mediaInSelectColor) : (out ? st::mediaOutColor : st::mediaInColor));
 	p.setPen(status->p);
-
-	if (data->loader) {
-		if (_dldTextCache.isEmpty() || _dldDone != data->loader->currentOffset()) {
-			_dldDone = data->loader->currentOffset();
-			_dldTextCache = formatDownloadText(_dldDone, data->size);
-		}
-		statusText = _dldTextCache;
-	} else {
-		if (data->status == FileFailed) {
-			statusText = lang(lng_attach_failed);
-		} else if (data->status == FileUploading) {
-			if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
-				_uplDone = data->uploadOffset;
-				_uplTextCache = formatDownloadText(_uplDone, data->size);
-			}
-			statusText = _uplTextCache;
+	if (already || hasdata) {
+		if (playing == data && playingState != VoiceMessageStopped) {
+			statusText = formatDurationText(playingPosition / AudioVoiceMsgFrequency);
 		} else {
-			statusText = _size;
+			statusText = formatDurationText(data->duration);
+		}
+	} else {
+		if (data->loader) {
+			if (_dldTextCache.isEmpty() || _dldDone != data->loader->currentOffset()) {
+				_dldDone = data->loader->currentOffset();
+				_dldTextCache = formatDownloadText(_dldDone, data->size);
+			}
+			statusText = _dldTextCache;
+		} else {
+			if (data->status == FileFailed) {
+				statusText = lang(lng_attach_failed);
+			} else if (data->status == FileUploading) {
+				if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
+					_uplDone = data->uploadOffset;
+					_uplTextCache = formatDownloadText(_uplDone, data->size);
+				}
+				statusText = _uplTextCache;
+			} else {
+				statusText = _size;
+			}
 		}
 	}
 	p.drawText(tleft, st::mediaPadding.top() + st::mediaThumbSize - st::mediaDetailsShift - st::mediaFont->descent, statusText);
-
 	p.setFont(st::msgDateFont->f);
 
 	style::color date(selected ? (out ? st::msgOutSelectDateColor : st::msgInSelectDateColor) : (out ? st::msgOutDateColor : st::msgInDateColor));

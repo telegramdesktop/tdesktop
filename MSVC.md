@@ -66,6 +66,57 @@ or download in ZIP and extract to **D:\TBuild\Libraries\**, rename **libexif-0.6
 * Build Debug configuration
 * Build Release configuration
 
+####OpenAL Soft
+
+Get sources by git in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries** and run
+
+    git clone git://repo.or.cz/openal-soft.git
+
+to have **D:\TBuild\Libraries\openal-soft\CMakeLists.txt**
+
+#####Building library
+
+* Install [CMake](http://www.cmake.org/)
+* Go in **cmd** to **D:\TBuild\Libraries\openal-soft\build\**
+* Run **cmake -G "Visual Studio 12 2013" -D LIBTYPE:STRING=STATIC ..**
+* Open in VS2013 **D:\TBuild\Libraries\openal-soft\build\OpenAL.sln**
+* For **Debug** configuration
+  * OpenAL32 Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded Debug (/MTd)** – **OK**
+  * common Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded Debug (/MTd)** – **OK**
+* For **Release** configuration
+  * OpenAL32 Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded (/MT)** – **OK**
+  * common Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded (/MT)** – **OK**
+
+####libogg 1.3.2
+
+Get sources from http://xiph.org/downloads/ in [ZIP](http://downloads.xiph.org/releases/ogg/libogg-1.3.2.zip) and extract to **D:\TBuild\Libraries\**
+
+#####Building library
+
+* Open in VS2013 **D:\TBuild\Libraries\libogg-1.3.2\win32\VS2010\libogg_static.sln** > One-way upgrade – **OK**
+* Build Debug configuration
+* Build Release configuration
+
+####Opus codec, opusfile
+
+Get sources by git in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries** and run
+
+    git clone git://git.opus-codec.org/opus.git
+    git clone git://git.xiph.org/opusfile.git
+
+to have **D:\TBuild\Libraries\opus\**
+
+#####Building libraries
+
+* Open in VS2013 **D:\TBuild\Libraries\opus\win32\VS2010\opus.sln** > One-way upgrade – **OK**
+* Build Debug configuration
+* Build Release configuration
+* Open in VS2013 **D:\TBuild\Libraries\opusfile\win32\VS2010\opusfile.sln** > One-way upgrade – **OK**
+* For **Debug** and **Release** configurations
+  * opusfile > C/C++ > General > Additional include directories > Add **../../../libogg-1.3.2/include;**
+* Build Debug configuration
+* Build Release configuration
+
 ####Qt 5.3.1, slightly patched
 
 http://download.qt-project.org/official_releases/qt/5.3/5.3.1/single/qt-everywhere-opensource-src-5.3.1.zip

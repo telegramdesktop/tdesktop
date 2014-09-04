@@ -46,9 +46,20 @@ mtpFileLoader::mtpFileLoader(int32 dc, const int64 &volume, int32 local, const i
 }
 
 mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, mtpTypeId locType, const QString &to, int32 size) : prev(0), next(0),
-    priority(0), inQueue(false), complete(false), requestId(0),
-	dc(dc), locationType(locType),
-    id(id), access(access), file(to), initialSize(size), type(MTP_storage_fileUnknown()) {
+priority(0), inQueue(false), complete(false), requestId(0),
+dc(dc), locationType(locType),
+id(id), access(access), file(to), duplicateInData(false), initialSize(size), type(MTP_storage_fileUnknown()) {
+	LoaderQueues::iterator i = queues.find(MTP::dld + dc);
+	if (i == queues.cend()) {
+		i = queues.insert(MTP::dld + dc, mtpFileLoaderQueue());
+	}
+	queue = &i.value();
+}
+
+mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, mtpTypeId locType, const QString &to, int32 size, bool todata) : prev(0), next(0),
+priority(0), inQueue(false), complete(false), requestId(0),
+dc(dc), locationType(locType),
+id(id), access(access), file(to), duplicateInData(todata), initialSize(size), type(MTP_storage_fileUnknown()) {
 	LoaderQueues::iterator i = queues.find(MTP::dld + dc);
 	if (i == queues.cend()) {
 		i = queues.insert(MTP::dld + dc, mtpFileLoaderQueue());
@@ -84,6 +95,12 @@ int32 mtpFileLoader::currentOffset() const {
 
 int32 mtpFileLoader::fullSize() const {
 	return size;
+}
+
+void mtpFileLoader::setFileName(const QString &fname) {
+	if (duplicateInData && file.fileName().isEmpty()) {
+		file.setFileName(fname);
+	}
 }
 
 uint64 mtpFileLoader::objId() const {
@@ -159,6 +176,14 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result) {
 		if (bytes.size() && !(bytes.size() % 1024)) { // good next offset
 //			offset += bytes.size();
 		} else {
+			if (duplicateInData && !file.fileName().isEmpty()) {
+				if (!file.open(QIODevice::WriteOnly)) {
+					return finishFail();
+				}
+				if (file.write(data) != qint64(data.size())) {
+					return finishFail();
+				}
+			}
 			type = d.vtype;
 			complete = true;
 			if (file.isOpen()) {
@@ -204,7 +229,7 @@ void mtpFileLoader::pause() {
 void mtpFileLoader::start(bool loadFirst, bool prior) {
 	if (complete) return;
 
-	if (!file.fileName().isEmpty()) {
+	if (!file.fileName().isEmpty() && !duplicateInData) {
 		if (!file.open(QIODevice::WriteOnly)) {
 			finishFail();
 			return;

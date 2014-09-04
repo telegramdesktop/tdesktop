@@ -20,10 +20,10 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 
 #include "app.h"
 
+#include "audio.h"
 #include "application.h"
 #include "fileuploader.h"
 #include "mainwidget.h"
-#include <QtMultimedia/QSoundEffect>
 #include <libexif/exif-data.h>
 
 namespace {
@@ -61,7 +61,6 @@ namespace {
 
 	HistoryItem *hoveredItem = 0, *pressedItem = 0, *hoveredLinkItem = 0, *pressedLinkItem = 0, *contextItem = 0, *mousedItem = 0;
 
-    QSoundEffect *newMsgSound = 0;
 	QPixmap *sprite = 0, *emojis = 0;
 
 	typedef QMap<uint32, QPixmap> EmojisMap;
@@ -1245,11 +1244,7 @@ namespace App {
 
 	void initMedia() {
 		deinitMedia(false);
-        if (!newMsgSound) {
-            newMsgSound = new QSoundEffect();
-            newMsgSound->setSource(QUrl::fromLocalFile(st::newMsgSound));
-            newMsgSound->setVolume(1);
-        }
+		audioInit();
 
 		if (!::sprite) {
 			::sprite = new QPixmap(st::spriteFile);
@@ -1273,10 +1268,7 @@ namespace App {
 		histories().clear();
 
 		if (completely) {
-			LOG(("Deleting sound.."));
-            delete newMsgSound;
-			LOG(("Sound deleted!"));
-            newMsgSound = 0;
+			audioFinish();
 
 			delete ::sprite;
 			::sprite = 0;
@@ -1367,7 +1359,7 @@ namespace App {
 	}
 
 	void playSound() {
-        if (cSoundNotify() && newMsgSound) newMsgSound->play();
+		if (cSoundNotify()) audioPlayNotify();
 	}
 
 	void writeConfig() {
@@ -1741,7 +1733,7 @@ namespace App {
 				case dbinvShowName: cSetNotifyView(dbinvShowName); break;
 				default: cSetNotifyView(dbinvShowPreview); break;
 				}
-			}
+			} break;
 
 			case dbiAskDownloadPath: {
 				qint32 v;

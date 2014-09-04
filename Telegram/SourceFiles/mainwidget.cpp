@@ -26,6 +26,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "mainwidget.h"
 #include "boxes/confirmbox.h"
 
+#include "audio.h"
+
 TopBarWidget::TopBarWidget(MainWidget *w) : QWidget(w),
     a_over(0), _drawShadow(true), _selCount(0), _selStrWidth(0), _animating(false),
 	_clearSelection(this, lang(lng_selected_clear), st::topBarButton),
@@ -288,6 +290,10 @@ dialogs(this), history(this), profile(0), overview(0), _topBar(this), hider(0), 
 	connect(&_topBar, SIGNAL(clicked()), this, SLOT(onTopBarClick()));
 	connect(&history, SIGNAL(peerShown(PeerData*)), this, SLOT(onPeerShown(PeerData*)));
 	connect(&updateNotifySettingTimer, SIGNAL(timeout()), this, SLOT(onUpdateNotifySettings()));
+	if (audioVoice()) {
+		connect(audioVoice(), SIGNAL(updated(AudioData*)), this, SLOT(audioPlayProgress(AudioData*)));
+		connect(audioVoice(), SIGNAL(stopped(AudioData*)), this, SLOT(audioPlayProgress(AudioData*)));
+	}
 
 	noUpdatesTimer.setSingleShot(true);
 	onlineTimer.setSingleShot(true);
@@ -843,8 +849,20 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 		if (audio->loader->done()) {
 			audio->finish();
 			QString already = audio->already();
-			if (!already.isEmpty() && audio->openOnSave) {
-				psOpenFile(already, audio->openOnSave < 0);
+			bool play = audio->openOnSave > 0 && audioVoice();
+			if (!already.isEmpty() && audio->openOnSave || !audio->data.isEmpty() && play) {
+				if (play) {
+					AudioData *playing = 0;
+					VoiceMessageState state = VoiceMessageStopped;
+					audioVoice()->currentState(&playing, &state);
+					if (playing == audio && state != VoiceMessageStopped) {
+						audioVoice()->pauseresume();
+					} else {
+						audioVoice()->play(audio);
+					}
+				} else {
+					psOpenFile(already, audio->openOnSave < 0);
+				}
 			}
 		}
 	}
@@ -857,10 +875,23 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 	}
 }
 
+void MainWidget::audioPlayProgress(AudioData *audio) {
+	const AudioItems &items(App::audioItems());
+	AudioItems::const_iterator i = items.constFind(audio);
+	if (i != items.cend()) {
+		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
+			msgUpdated(j.key()->history()->peer->id, j.key());
+		}
+	}
+}
+
 void MainWidget::audioLoadFailed(mtpFileLoader *loader, bool started) {
 	loadFailed(loader, started, SLOT(audioLoadRetry()));
 	AudioData *audio = App::audio(loader->objId());
-	if (audio && audio->loader) audio->finish();
+	if (audio) {
+		audio->status = FileFailed;
+		if (audio->loader) audio->finish();
+	}
 }
 
 void MainWidget::audioLoadRetry() {

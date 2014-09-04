@@ -26,6 +26,9 @@ Source code is published under GPL v3, license is available [here](https://githu
 * libexif 0.6.20 ([LGPL](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html))
 * LZMA SDK 9.20 ([public domain](http://www.7-zip.org/sdk.html))
 * liblzma ([public domain](http://tukaani.org/xz/))
+* OpenAL Soft ([LGPL](http://kcat.strangesoft.net/openal.html))
+* Opus codec, opusfile ([BSD license](http://www.opus-codec.org/license/))
+* libogg ([BSD license](http://www.xiph.org/downloads/))
 * Open Sans font ([Apache License](http://www.apache.org/licenses/LICENSE-2.0.html))
 * DejaVu Sans font ([Free license](http://dejavu-fonts.org/wiki/License))
 

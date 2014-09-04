@@ -362,6 +362,7 @@ struct AudioData {
 		if (loader->done()) {
 			fileName = loader->fileName();
 			modDate = fileName.isEmpty() ? QDateTime() : QFileInfo(fileName).lastModified();
+			data = loader->bytes();
 		}
 		loader->deleteLater();
 		loader->rpcInvalidate();
@@ -396,6 +397,7 @@ struct AudioData {
 	mtpFileLoader *loader;
 	QString fileName;
 	QDateTime modDate;
+	QByteArray data;
 	int32 md5[8];
 };
 

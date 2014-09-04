@@ -29,6 +29,7 @@ public:
 
 	mtpFileLoader(int32 dc, const int64 &volume, int32 local, const int64 &secret);
 	mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, mtpTypeId locType, const QString &to, int32 size);
+	mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, mtpTypeId locType, const QString &to, int32 size, bool todata);
 	bool done() const;
 	mtpTypeId fileType() const;
 	const QByteArray &bytes() const;
@@ -36,6 +37,8 @@ public:
 	float64 currentProgress() const;
 	int32 currentOffset() const;
 	int32 fullSize() const;
+
+	void setFileName(const QString &filename); // set filename for duplicateInData loader
 
 	void pause();
 	void start(bool loadFirst = false, bool prior = true);
@@ -78,6 +81,7 @@ private:
 	uint64 id; // for other locations
 	uint64 access;
 	QFile file;
+	bool duplicateInData;
 	int32 initialSize;
 
 	QByteArray data;

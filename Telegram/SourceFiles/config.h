@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #pragma once
 
-static const int32 AppVersion = 5017;
-static const wchar_t *AppVersionStr = L"0.5.17";
+static const int32 AppVersion = 5018;
+static const wchar_t *AppVersionStr = L"0.5.18";
 #ifdef Q_OS_WIN
 static const wchar_t *AppName = L"Telegram Win (Unofficial)";
 #else
@@ -69,6 +69,17 @@ enum {
 	SearchManyPerPage = 100,
 	MediaOverviewStartPerPage = 5,
 	MediaOverviewPreloadCount = 4,
+
+	AudioVoiceMsgSimultaneously = 4,
+	AudioCheckPositionTimeout = 100, // 100ms per check audio pos
+	AudioCheckPositionDelta = 4800, // update position called each 4800 samples
+	AudioFadeTimeout = 10, // 10ms
+	AudioFadeDuration = 500,
+	AudioPreloadSamples = 5 * 48000, // preload next part if less than 5 seconds remains
+	AudioVoiceMsgFrequency = 48000, // 48 kHz
+	AudioVoiceMsgChannels = 2, // stereo
+	AudioVoiceMsgBufferSize = 1024 * 1024, // 1 Mb buffers
+	AudioVoiceMsgInMemory = 256 * 1024, // 256 kb audio is hold in memory and auto loaded
 };
 
 #ifdef Q_OS_WIN

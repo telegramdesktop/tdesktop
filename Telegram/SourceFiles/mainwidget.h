@@ -301,6 +301,7 @@ public slots:
 	void audioLoadProgress(mtpFileLoader *loader);
 	void audioLoadFailed(mtpFileLoader *loader, bool started);
 	void audioLoadRetry();
+	void audioPlayProgress(AudioData *audio);
 	void documentLoadProgress(mtpFileLoader *loader);
 	void documentLoadFailed(mtpFileLoader *loader, bool started);
 	void documentLoadRetry();

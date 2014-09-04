@@ -307,7 +307,7 @@ bool StorageImage::check() const {
 			globalAquiredSize -= int64(data.width()) * data.height() * 4;
 		}
 		QByteArray bytes = loader->bytes();
-      data = QPixmap::fromImage(App::readImage(bytes, &format), Qt::ColorOnly);
+		data = QPixmap::fromImage(App::readImage(bytes, &format), Qt::ColorOnly);
 		if (!data.isNull()) {
 			globalAquiredSize += int64(data.width()) * data.height() * 4;
 		}
