@@ -850,7 +850,7 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 			audio->finish();
 			QString already = audio->already();
 			bool play = audio->openOnSave > 0 && audioVoice();
-			if (!already.isEmpty() && audio->openOnSave || !audio->data.isEmpty() && play) {
+			if ((!already.isEmpty() && audio->openOnSave) || (!audio->data.isEmpty() && play)) {
 				if (play) {
 					AudioData *playing = 0;
 					VoiceMessageState state = VoiceMessageStopped;

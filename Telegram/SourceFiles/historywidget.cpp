@@ -2696,7 +2696,7 @@ void HistoryWidget::shareContactConfirmation(const QString &phone, const QString
 
 	App::wnd()->activateWindow();
 	confirmWithText = withText;
-	confirmImageId = -1;
+	confirmImageId = 0xFFFFFFFFFFFFFFFFL;
 	App::wnd()->showLayer(new PhotoSendBox(phone, fname, lname));
 }
 
@@ -2742,7 +2742,7 @@ void HistoryWidget::onPhotoFailed(quint64 id) {
 }
 
 void HistoryWidget::confirmShareContact(const QString &phone, const QString &fname, const QString &lname) {
-	if (-1 == confirmImageId) {
+	if (0xFFFFFFFFFFFFFFFFL == confirmImageId) {
 		if (confirmWithText) {
 			onSend();
 		}

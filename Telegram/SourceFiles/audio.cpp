@@ -20,6 +20,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 
 #include <AL/al.h>
 #include <AL/alc.h>
+#include <opusfile.h>
+#include <ogg/ogg.h>
 
 namespace {
 	ALCdevice *audioDevice = 0;
@@ -47,9 +49,6 @@ bool _checkALError() {
 	}
 	return true;
 }
-
-#include <opusfile.h>
-#include <ogg/ogg.h>
 
 void audioInit() {
 	if (audioDevice) return;
@@ -90,11 +89,11 @@ void audioInit() {
 	if (blob.size() < 44) return audioFinish();
 
 	if (*((const uint32*)(data + 0)) != 0x46464952) return audioFinish(); // ChunkID - "RIFF"
-	if (*((const uint32*)(data + 4)) != blob.size() - 8) return audioFinish(); // ChunkSize
+	if (*((const uint32*)(data + 4)) != uint32(blob.size() - 8)) return audioFinish(); // ChunkSize
 	if (*((const uint32*)(data + 8)) != 0x45564157) return audioFinish(); // Format - "WAVE"
 	if (*((const uint32*)(data + 12)) != 0x20746d66) return audioFinish(); // Subchunk1ID - "fmt "
 	uint32 subchunk1Size = *((const uint32*)(data + 16)), extra = subchunk1Size - 16;
-	if (subchunk1Size < 16 || extra && extra < 2) return audioFinish();
+	if (subchunk1Size < 16 || (extra && extra < 2)) return audioFinish();
 	if (*((const uint16*)(data + 20)) != 1) return audioFinish(); // AudioFormat - PCM (1)
 
 	uint16 numChannels = *((const uint16*)(data + 22));
@@ -115,7 +114,7 @@ void audioInit() {
 	if (extra) {
 		uint16 extraSize = *((const uint16*)(data + 36));
 		if (extraSize + 2 != extra) return audioFinish();
-		if (blob.size() < 44 + extra) return audioFinish();
+		if (uint32(blob.size()) < 44 + extra) return audioFinish();
 	}
 
 	if (*((const uint32*)(data + extra + 36)) != 0x61746164) return audioFinish(); // Subchunk2ID - "data"
@@ -123,7 +122,7 @@ void audioInit() {
 	if (subchunk2Size % (numChannels * bytesPerSample)) return audioFinish();
 	uint32 numSamples = subchunk2Size / (numChannels * bytesPerSample);
 
-	if (blob.size() < 44 + extra + subchunk2Size) return audioFinish();
+	if (uint32(blob.size()) < 44 + extra + subchunk2Size) return audioFinish();
 	data += 44 + extra;
 
 	ALenum format = 0;

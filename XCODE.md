@@ -65,6 +65,60 @@ In Terminal go to **/Users/user/TBuild/Libraries/libexif-0.6.20** and there run
     make
     sudo make install
 
+####OpenAL Soft
+
+Get sources by git – in Terminal go to **/Users/user/TBuild/Libraries** and run
+
+    git clone git://repo.or.cz/openal-soft.git
+
+to have **/Users/user/TBuild/Libraries/openal-soft/CMakeLists.txt**
+
+#####Building library
+
+In Terminal go to **/Users/user/TBuild/Libraries/openal-soft/build** and there run
+
+    cmake -D LIBTYPE:STRING=STATIC ..
+    make
+    sudo make install
+
+####libogg 1.3.2
+
+Get sources from http://xiph.org/downloads/ – in [ZIP](http://downloads.xiph.org/releases/ogg/libogg-1.3.2.zip) and extract to **/Users/user/TBuild/Libraries**
+
+#####Building library
+
+In Terminal go to **/Users/user/TBuild/Libraries/libogg-1.3.2** and there run
+
+    ./configure
+    make
+    sudo make install
+
+####Opus codec, opusfile
+
+Download sources [opus-1.1.tar.gz](http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz) and [opusfile-0.6.tar.gz](http://downloads.xiph.org/releases/opus/opusfile-0.6.tar.gz) from http://www.opus-codec.org/downloads/, extract to **/Users/user/TBuild/Libraries** and rename to have **/Users/user/TBuild/Libraries/opus/configure** and **/Users/user/TBuild/Libraries/opusfile/configure**
+
+#####Building libraries
+
+Download [pkg-config 0.28](http://pkgconfig.freedesktop.org/releases/pkg-config-0.28.tar.gz) from http://pkg-config.freedesktop.org, extract it to **/Users/user/TBuild/Libraries**
+
+In Terminal go to **/Users/user/TBuild/Libraries/pkg-config-0.28** and run
+
+    ./configure --with-internal-glib
+    make
+    sudo make install
+
+then go to **/Users/user/TBuild/Libraries/opus** and there run
+
+    ./configure
+    make
+    sudo make install
+
+then go to **/Users/user/TBuild/Libraries/opusfile** and there run
+
+    ./configure
+    make
+    sudo make install
+
 ####Qt 5.3.1, slightly patched
 
 http://download.qt-project.org/official_releases/qt/5.3/5.3.1/single/qt-everywhere-opensource-src-5.3.1.tar.gz

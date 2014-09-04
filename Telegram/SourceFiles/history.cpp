@@ -341,7 +341,7 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 
 	QString already = data->already(true);
 	bool play = audioVoice();
-	if (!already.isEmpty() || !data->data.isEmpty() && play) {
+	if (!already.isEmpty() || (!data->data.isEmpty() && play)) {
 		if (play) {
 			AudioData *playing = 0;
 			VoiceMessageState playingState = VoiceMessageStopped;

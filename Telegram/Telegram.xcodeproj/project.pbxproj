@@ -46,6 +46,8 @@
 		07A6933519927B160099CB9F /* moc_mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A6933419927B160099CB9F /* moc_mediaview.cpp */; };
 		07C4753B1967DF1C00CAAFE9 /* switcher.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C475391967DF1C00CAAFE9 /* switcher.cpp */; };
 		07C4753F1967E37300CAAFE9 /* moc_switcher.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */; };
+		07D7034B19B8755A00C4EED2 /* audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D7034919B8755A00C4EED2 /* audio.cpp */; };
+		07D703BB19B88FB900C4EED2 /* moc_audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D703BA19B88FB900C4EED2 /* moc_audio.cpp */; };
 		0A49F3A5DC0680FB31519670 /* phoneinput.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 7C8F9CA4FCE8AF8FCCCB961E /* phoneinput.cpp */; settings = {ATTRIBUTES = (); }; };
 		0CB7DE9A54CC9BF86FB7B5CA /* mtp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 6D50D70712776D7ED3B00E5C /* mtp.cpp */; settings = {ATTRIBUTES = (); }; };
 		0F0FC25286E16E5F78962FEE /* moc_newgroupbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 69FE16874104731CE2A66E0D /* moc_newgroupbox.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -254,6 +256,9 @@
 		07C475391967DF1C00CAAFE9 /* switcher.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = switcher.cpp; path = SourceFiles/gui/switcher.cpp; sourceTree = SOURCE_ROOT; };
 		07C4753A1967DF1C00CAAFE9 /* switcher.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = switcher.h; path = SourceFiles/gui/switcher.h; sourceTree = SOURCE_ROOT; };
 		07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_switcher.cpp; path = GeneratedFiles/Debug/moc_switcher.cpp; sourceTree = SOURCE_ROOT; };
+		07D7034919B8755A00C4EED2 /* audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = audio.cpp; path = SourceFiles/audio.cpp; sourceTree = SOURCE_ROOT; };
+		07D7034A19B8755A00C4EED2 /* audio.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = audio.h; path = SourceFiles/audio.h; sourceTree = SOURCE_ROOT; };
+		07D703BA19B88FB900C4EED2 /* moc_audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_audio.cpp; path = GeneratedFiles/Debug/moc_audio.cpp; sourceTree = SOURCE_ROOT; };
 		08A7682548FB7E671FF03822 /* boxshadow.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = boxshadow.cpp; path = SourceFiles/gui/boxshadow.cpp; sourceTree = "<absolute>"; };
 		098EA7CE256AAFAE4A17EB77 /* introcode.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = introcode.h; path = SourceFiles/intro/introcode.h; sourceTree = "<absolute>"; };
 		09FD01F2BD652EB838A296D8 /* application.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = application.h; path = SourceFiles/application.h; sourceTree = "<absolute>"; };
@@ -817,6 +822,7 @@
 				5A5431331A13AA7B07414240 /* stdafx.cpp */,
 				06E379415713F34B83F99C35 /* app.cpp */,
 				C20F9DD8C7B031B8E20D5653 /* application.cpp */,
+				07D7034919B8755A00C4EED2 /* audio.cpp */,
 				E466873F01ABA1E55E914489 /* dialogswidget.cpp */,
 				710C982FC773400941B3AFBC /* dropdown.cpp */,
 				9B36BB8C5B8CA7B07F3F35F0 /* fileuploader.cpp */,
@@ -846,6 +852,7 @@
 				6011DDB120E1B2D4803E129A /* stdafx.h */,
 				C19DF71B273A4843553518F2 /* app.h */,
 				09FD01F2BD652EB838A296D8 /* application.h */,
+				07D7034A19B8755A00C4EED2 /* audio.h */,
 				24F7D3E789E91B10E422C116 /* config.h */,
 				206B4F5CBD5354BCE19FF32F /* countries.h */,
 				55B4A93DD455EED91C899A8E /* dialogswidget.h */,
@@ -1010,6 +1017,7 @@
 		801973D3334D0FCA849CF485 /* Debug */ = {
 			isa = PBXGroup;
 			children = (
+				07D703BA19B88FB900C4EED2 /* moc_audio.cpp */,
 				0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */,
 				07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */,
 				E181C525E21A16F2D4396CA7 /* moc_application.cpp */,
@@ -1386,6 +1394,7 @@
 				E9F1CE7F9B18C7C85A50E62D /* style_auto.cpp in Compile Sources */,
 				EBE29731916DB43BF49FE7A4 /* aboutbox.cpp in Compile Sources */,
 				4426AF526AAD86D6F73CE36F /* addcontactbox.cpp in Compile Sources */,
+				07D7034B19B8755A00C4EED2 /* audio.cpp in Compile Sources */,
 				07C4753B1967DF1C00CAAFE9 /* switcher.cpp in Compile Sources */,
 				830CB6F547B8C80A569A0271 /* addparticipantbox.cpp in Compile Sources */,
 				A0A6B97F7DBEC81004EC9461 /* confirmbox.cpp in Compile Sources */,
@@ -1394,6 +1403,7 @@
 				BA41D511A9BBCA09365DF88C /* downloadpathbox.cpp in Compile Sources */,
 				07C4753F1967E37300CAAFE9 /* moc_switcher.cpp in Compile Sources */,
 				3ABE4F9B2264F770D944106D /* emojibox.cpp in Compile Sources */,
+				07D703BB19B88FB900C4EED2 /* moc_audio.cpp in Compile Sources */,
 				7422A321DF80CF9FAC7CB51B /* newgroupbox.cpp in Compile Sources */,
 				77B998AC22A13EF3DDEE07AC /* photocropbox.cpp in Compile Sources */,
 				F278C423357CA99797EA30AB /* photosendbox.cpp in Compile Sources */,
@@ -1543,6 +1553,10 @@
 					./SourceFiles,
 					./GeneratedFiles,
 					/usr/local/include,
+					"./../../Libraries/libogg-1.3.2/include",
+					./../../Libraries/opus/include,
+					./../../Libraries/opusfile/include,
+					"./../../Libraries/openal-soft/include",
 					"./../../Libraries/libexif-0.6.20",
 					"/usr/local/Qt-5.3.1/include",
 					"/usr/local/Qt-5.3.1/include/QtMultimedia",
@@ -1628,6 +1642,10 @@
 					"-L/usr/local/Qt-5.3.1/plugins/imageformats",
 					"-lz",
 					"-lm",
+					/usr/local/lib/libopenal.a,
+					/usr/local/lib/libopusfile.a,
+					/usr/local/lib/libopus.a,
+					/usr/local/lib/libogg.a,
 					/usr/local/lib/liblzma.a,
 					/usr/local/lib/libexif.a,
 				);
@@ -1672,6 +1690,10 @@
 					./SourceFiles,
 					./GeneratedFiles,
 					/usr/local/include,
+					"./../../Libraries/libogg-1.3.2/include",
+					./../../Libraries/opus/include,
+					./../../Libraries/opusfile/include,
+					"./../../Libraries/openal-soft/include",
 					"./../../Libraries/libexif-0.6.20",
 					"/usr/local/Qt-5.3.1/include",
 					"/usr/local/Qt-5.3.1/include/QtMultimedia",
@@ -1756,6 +1778,10 @@
 					"-L/usr/local/Qt-5.3.1/plugins/imageformats",
 					"-lz",
 					"-lm",
+					/usr/local/lib/libopenal.a,
+					/usr/local/lib/libopusfile.a,
+					/usr/local/lib/libopus.a,
+					/usr/local/lib/libogg.a,
 					/usr/local/lib/liblzma.a,
 					/usr/local/lib/libexif.a,
 				);

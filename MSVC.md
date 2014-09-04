@@ -68,7 +68,7 @@ or download in ZIP and extract to **D:\TBuild\Libraries\**, rename **libexif-0.6
 
 ####OpenAL Soft
 
-Get sources by git in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries** and run
+Get sources by git – in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries** and run
 
     git clone git://repo.or.cz/openal-soft.git
 
@@ -89,7 +89,7 @@ to have **D:\TBuild\Libraries\openal-soft\CMakeLists.txt**
 
 ####libogg 1.3.2
 
-Get sources from http://xiph.org/downloads/ in [ZIP](http://downloads.xiph.org/releases/ogg/libogg-1.3.2.zip) and extract to **D:\TBuild\Libraries\**
+Get sources from http://xiph.org/downloads/ – in [ZIP](http://downloads.xiph.org/releases/ogg/libogg-1.3.2.zip) and extract to **D:\TBuild\Libraries\**
 
 #####Building library
 
@@ -99,12 +99,12 @@ Get sources from http://xiph.org/downloads/ in [ZIP](http://downloads.xiph.org/r
 
 ####Opus codec, opusfile
 
-Get sources by git in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries** and run
+Get sources by git – in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries** and run
 
     git clone git://git.opus-codec.org/opus.git
     git clone git://git.xiph.org/opusfile.git
 
-to have **D:\TBuild\Libraries\opus\**
+to have **D:\TBuild\Libraries\opus\win32**
 
 #####Building libraries
 
