@@ -30,7 +30,19 @@ or download in ZIP and extract to **/home/user/TBuild** rename **tdesktop-master
 
 Install dev libraries
 
-    sudo apt-get install libexif-dev liblzma-dev libz-dev libssl-dev
+    sudo apt-get install libexif-dev liblzma-dev libz-dev libssl-dev libogg-dev libopus-dev libopusfile-dev
+
+Install OpenAL Soft
+
+In Terminal go to **/home/user/TBuild/Libraries** and run
+
+    git clone git://repo.or.cz/openal-soft.git
+
+then go to **/home/user/TBuild/Libraries/openal-soft/build** and run 
+
+    cmake -D LIBTYPE:STRING=STATIC ..
+    make
+    sudo make install
 
 ####Qt 5.3.1, slightly patched
 

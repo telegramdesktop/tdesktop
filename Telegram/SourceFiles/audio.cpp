@@ -113,7 +113,7 @@ void audioInit() {
 
 	if (extra) {
 		uint16 extraSize = *((const uint16*)(data + 36));
-		if (extraSize + 2 != extra) return audioFinish();
+        if (uint32(extraSize + 2) != extra) return audioFinish();
 		if (uint32(blob.size()) < 44 + extra) return audioFinish();
 	}
 
@@ -546,7 +546,7 @@ void VoiceMessagesLoader::onLoad(AudioData *audio) {
 	}
 
 	bool finished = false;
-	DEBUG_LOG(("Audio Info: reading buffer for file '%1', data size '%2', current pcm_offset %2").arg(l->fname).arg(l->data.size()).arg(l->pcm_offset));
+    DEBUG_LOG(("Audio Info: reading buffer for file '%1', data size '%2', current pcm_offset %3").arg(l->fname).arg(l->data.size()).arg(l->pcm_offset));
 
 	QByteArray result;
 	int64 samplesAdded = 0;

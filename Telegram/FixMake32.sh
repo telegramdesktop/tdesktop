@@ -14,4 +14,7 @@ sed -i 's/\-lssl/\/usr\/lib\/i386\-linux\-gnu\/libssl\.a/g' Makefile
 sed -i 's/\-lcrypto/\/usr\/lib\/i386\-linux\-gnu\/libcrypto\.a/g' Makefile
 sed -i 's/\-lexif/\/usr\/lib\/i386\-linux\-gnu\/libexif\.a/g' Makefile
 sed -i 's/\-lglib\-2\.0/\/usr\/lib\/i386\-linux\-gnu\/libglib\-2\.0\.a/g' Makefile
-
+sed -i 's/\-lopusfile/\/usr\/lib\/libopusfile\.a/g' Makefile
+sed -i 's/\-lopus/\/usr\/lib\/i386\-linux\-gnu\/libopus\.a/g' Makefile
+sed -i 's/\-lopenal/\/usr\/local\/lib\/libopenal\.a/g' Makefile
+sed -i 's/\-logg/\/usr\/lib\/i386\-linux\-gnu\/libogg\.a/g' Makefile

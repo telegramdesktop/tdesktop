@@ -1,4 +1,4 @@
-QT += core gui network multimedia widgets
+QT += core gui network widgets
 
 CONFIG += plugin static
 
@@ -81,6 +81,7 @@ SOURCES += \
     ./SourceFiles/stdafx.cpp \
     ./SourceFiles/app.cpp \
     ./SourceFiles/application.cpp \
+    ./SourceFiles/audio.cpp \
     ./SourceFiles/dialogswidget.cpp \
     ./SourceFiles/dropdown.cpp \
     ./SourceFiles/fileuploader.cpp \
@@ -149,6 +150,7 @@ HEADERS += \
     ./SourceFiles/stdafx.h \
     ./SourceFiles/app.h \
     ./SourceFiles/application.h \
+    ./SourceFiles/audio.h \
     ./SourceFiles/config.h \
     ./SourceFiles/countries.h \
     ./SourceFiles/dialogswidget.h \
@@ -253,9 +255,10 @@ CONFIG(release, debug|release) {
 INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.1/QtGui\
                ./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.1/QtCore\
                ./../../Libraries/QtStatic/qtbase/include\
+               /usr/include/opus\
                ./SourceFiles\
                ./GeneratedFiles
-LIBS += -lcrypto -lssl -lz -ldl -llzma -lexif
+LIBS += -lcrypto -lssl -lz -ldl -llzma -lexif -lopus -lopusfile -logg -lopenal
 LIBS += ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a
 
 RESOURCES += \
