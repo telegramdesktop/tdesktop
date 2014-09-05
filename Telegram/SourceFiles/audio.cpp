@@ -663,7 +663,7 @@ void VoiceMessagesLoader::onLoad(AudioData *audio) {
 		alSourceQueueBuffers(m.source, 1, m.buffers + m.nextBuffer);
 		m.skipEnd -= samplesAdded;
 
-		m.nextBuffer = (m.nextBuffer + 1) & 3;
+		m.nextBuffer = (m.nextBuffer + 1) % 3;
 
 		if (!_checkALError()) {
 			m.state = VoiceMessageStopped;

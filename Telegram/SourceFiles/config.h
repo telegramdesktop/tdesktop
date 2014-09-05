@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #pragma once
 
-static const int32 AppVersion = 5018;
-static const wchar_t *AppVersionStr = L"0.5.18";
+static const int32 AppVersion = 5019;
+static const wchar_t *AppVersionStr = L"0.5.19";
 #ifdef Q_OS_WIN
 static const wchar_t *AppName = L"Telegram Win (Unofficial)";
 #else
@@ -79,7 +79,7 @@ enum {
 	AudioVoiceMsgFrequency = 48000, // 48 kHz
 	AudioVoiceMsgChannels = 2, // stereo
 	AudioVoiceMsgBufferSize = 1024 * 1024, // 1 Mb buffers
-	AudioVoiceMsgInMemory = 256 * 1024, // 256 kb audio is hold in memory and auto loaded
+	AudioVoiceMsgInMemory = 1024 * 1024, // 1 Mb audio is hold in memory and auto loaded
 };
 
 #ifdef Q_OS_WIN
