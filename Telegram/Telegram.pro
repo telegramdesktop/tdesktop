@@ -255,7 +255,7 @@ CONFIG(release, debug|release) {
 INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.1/QtGui\
                ./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.1/QtCore\
                ./../../Libraries/QtStatic/qtbase/include\
-               /usr/include/opus\
+               /usr/local/include/opus\
                ./SourceFiles\
                ./GeneratedFiles
 LIBS += -lcrypto -lssl -lz -ldl -llzma -lexif -lopus -lopusfile -logg -lopenal
