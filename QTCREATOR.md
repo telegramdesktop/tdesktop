@@ -30,9 +30,43 @@ or download in ZIP and extract to **/home/user/TBuild** rename **tdesktop-master
 
 Install dev libraries
 
-    sudo apt-get install libexif-dev liblzma-dev libz-dev libssl-dev libogg-dev libopus-dev libopusfile-dev
+    sudo apt-get install libexif-dev liblzma-dev libz-dev libssl-dev
 
-Install OpenAL Soft
+Install audio libraries
+
+####libogg-1.3.2
+
+[Download libogg-1.3.2 sources](http://downloads.xiph.org/releases/ogg/libogg-1.3.2.tar.xz) from http://xiph.org/downloads, extract to **/home/user/TBuild/Libraries**, go to **/home/user/TBuild/Libraries/libogg-1.3.2** and run
+
+    ./configure
+    make
+    sudo make install
+
+####Opus codec 1.1
+
+[Download opus-1.1 sources](http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz) from http://www.opus-codec.org/downloads, extract to **/home/user/TBuild/Libraries**, go to **/home/user/TBuild/Libraries/opus-1.1** and run
+
+    ./configure
+    make
+    sudo make install
+
+####opusfile-0.6
+
+[Download opusfile-0.6 sources](http://downloads.xiph.org/releases/opus/opusfile-0.6.tar.gz) from http://www.opus-codec.org/downloads, extract to **/home/user/TBuild/Libraries**, go to **/home/user/TBuild/Libraries/opusfile-0.6** and run
+
+    ./configure
+    make
+    sudo make install
+
+####PortAudio 19
+
+[Download portaudio sources](http://www.portaudio.com/archives/pa_stable_v19_20140130.tgz) from **http://www.portaudio.com/download.html**, extract to **/home/user/TBuild/Libraries**, go to **/home/user/TBuild/Libraries/portaudio** and run
+
+    ./configure
+    make
+    sudo make install
+
+####OpenAL Soft
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
@@ -40,6 +74,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
 
 then go to **/home/user/TBuild/Libraries/openal-soft/build** and run 
 
+    sudo apt-get install cmake
     cmake -D LIBTYPE:STRING=STATIC ..
     make
     sudo make install
@@ -61,7 +96,6 @@ Install some packages for Qt (see **/home/user/TBuild/Libraries/QtStatic/qtbase/
 In Terminal go to **/home/user/TBuild/Libraries/QtStatic** and there run
 
     ./configure -release -opensource -confirm-license -qt-xcb -no-opengl -static -nomake examples -skip qtquick1 -skip qtdeclarative
-    y
     make
     sudo make install
 

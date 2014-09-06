@@ -137,8 +137,7 @@ There go to Qt directory
 
 and after that run configure
 
-    configure -debug-and-release -opensource -static -opengl desktop -mp -nomake examples -platform win32-msvc2013
-    y
+    configure -debug-and-release -opensource -confirm-license -static -opengl desktop -mp -nomake examples -platform win32-msvc2013
 
 to configure Qt build. After configuration is complete run
 

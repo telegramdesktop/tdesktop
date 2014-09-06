@@ -131,8 +131,7 @@ Apply patch – copy (with overwrite!) everything from **/Users/user/TBuild/tdes
 
 In Terminal go to **/Users/user/TBuild/Libraries/QtStatic** and there run
 
-    ./configure -debug-and-release -opensource -static -opengl desktop -nomake examples -platform macx-clang
-    y
+    ./configure -debug-and-release -opensource -confirm-license -static -opengl desktop -nomake examples -platform macx-clang
     make
     sudo make install
 
