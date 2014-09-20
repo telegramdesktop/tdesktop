@@ -339,6 +339,10 @@ Window::Window(QWidget *parent)	: PsMainWindow(parent),
 	intro(0), main(0), settings(0), layerBG(0), _topWidget(0),
 	_connecting(0), _tempDeleter(0), _tempDeleterThread(0), myIcon(QPixmap::fromImage(icon256)), dragging(false), _inactivePress(false), _mediaView(0) {
 
+	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
+	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
+	icon64 = icon256.scaledToWidth(64, Qt::SmoothTransformation);
+
 	if (objectName().isEmpty())
 		setObjectName(qsl("MainWindow"));
 	resize(st::wndDefWidth, st::wndDefHeight);
@@ -730,7 +734,7 @@ bool Window::minimizeToTray() {
 	if (App::quiting() || !trayIcon) return false;
 
 	hide();
-	if (!cSeenTrayTooltip()) {
+	if (cPlatform() != dbipMac && !cSeenTrayTooltip()) {
 		trayIcon->showMessage(QString::fromStdWString(AppName), lang(lng_tray_icon_text), QSystemTrayIcon::Information, 10000);
 		cSetSeenTrayTooltip(true);
 		App::writeConfig();
@@ -752,16 +756,21 @@ void Window::setupTrayIcon() {
 
 		if (trayIcon) trayIcon->deleteLater();
 		trayIcon = new QSystemTrayIcon(this);
-		trayIcon->setIcon(this->windowIcon());
+
+		trayIcon->setIcon(QIcon(QPixmap::fromImage(iconLarge())));
 		trayIcon->setContextMenu(trayIconMenu);
 		trayIcon->setToolTip(QString::fromStdWString(AppName));
 
-		connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)));
-		connect(trayIcon, SIGNAL(messageClicked()), this, SLOT(showFromTray()));
+		if (cPlatform() != dbipMac) {
+			connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)));
+			connect(trayIcon, SIGNAL(messageClicked()), this, SLOT(showFromTray()));
+		}
 	}
 	psUpdateCounter();
+
 	trayIcon->show();
-}	
+	psUpdateDelegate();
+}
 
 void Window::quitFromTray() {
 	App::quit();
@@ -1191,6 +1200,102 @@ void Window::notifyActivateAll() {
 
 QImage Window::iconLarge() const {
 	return icon256;
+}
+
+
+QImage Window::iconWithCounter(int size, int count, style::color bg, bool smallIcon) {
+	bool layer = false;
+	if (size < 0) {
+		size = -size;
+		layer = true;
+	}
+	if (layer) {
+		if (size != 16) size = 32;
+
+		QString cnt = (count < 1000) ? QString("%1").arg(count) : QString("..%1").arg(count % 100, 2, 10, QChar('0'));
+		QImage result(size, size, QImage::Format_ARGB32);
+		int32 cntSize = cnt.size();
+		result.fill(st::transparent->c);
+		{
+			QPainter p(&result);
+			p.setBrush(bg->b);
+			p.setPen(Qt::NoPen);
+			p.setRenderHint(QPainter::Antialiasing);
+			int32 fontSize;
+			if (size == 8) {
+				fontSize = 6;
+			} else if (size == 16) {
+				fontSize = (cntSize < 2) ? 11 : ((cntSize < 3) ? 11 : 8);
+			} else {
+				fontSize = (cntSize < 2) ? 22 : ((cntSize < 3) ? 20 : 16);
+			}
+			style::font f(fontSize);
+			int32 w = f->m.width(cnt), d, r;
+			if (size == 8) {
+				d = (cntSize < 2) ? 2 : 1;
+				r = (cntSize < 2) ? 4 : 3;
+			} else if (size == 16) {
+				d = (cntSize < 2) ? 5 : ((cntSize < 3) ? 2 : 1);
+				r = (cntSize < 2) ? 8 : ((cntSize < 3) ? 7 : 3);
+			} else {
+				d = (cntSize < 2) ? 9 : ((cntSize < 3) ? 4 : 2);
+				r = (cntSize < 2) ? 16 : ((cntSize < 3) ? 14 : 8);
+			}
+			p.drawRoundedRect(QRect(size - w - d * 2, size - f->height, w + d * 2, f->height), r, r);
+			p.setFont(f->f);
+
+			p.setPen(st::counterColor->p);
+
+			p.drawText(size - w - d, size - f->height + f->ascent, cnt);
+		}
+		return result;
+	} else {
+		if (size != 16 && size != 32) size = 64;
+	}
+
+	QImage img((size == 16) ? icon16 : (size == 32 ? icon32 : icon64));
+	if (!count) return img;
+
+	if (smallIcon) {
+		QPainter p(&img);
+
+		QString cnt = (count < 100) ? QString("%1").arg(count) : QString("..%1").arg(count % 10, 1, 10, QChar('0'));
+		int32 cntSize = cnt.size();
+
+		p.setBrush(bg->b);
+		p.setPen(Qt::NoPen);
+		p.setRenderHint(QPainter::Antialiasing);
+		int32 fontSize;
+		if (size == 16) {
+			fontSize = 8;
+		} else if (size == 32) {
+			fontSize = (cntSize < 2) ? 12 : ((smallIcon || cntSize < 3) ? 12 : 10);
+		} else {
+			fontSize = (cntSize < 2) ? 22 : ((smallIcon || cntSize < 3) ? 22 : 16);
+		}
+		style::font f(fontSize);
+		int32 w = f->m.width(cnt), d, r;
+		if (size == 16) {
+			d = (cntSize < 2) ? 2 : 1;
+			r = (cntSize < 2) ? 4 : 3;
+		} else if (size == 32) {
+			d = (cntSize < 2) ? 5 : ((smallIcon || cntSize < 3) ? 2 : 1);
+			r = (cntSize < 2) ? 8 : ((smallIcon || cntSize < 3) ? 7 : 3);
+		} else {
+			d = (cntSize < 2) ? 9 : ((smallIcon || cntSize < 3) ? 4 : 2);
+			r = (cntSize < 2) ? 16 : ((smallIcon || cntSize < 3) ? 14 : 8);
+		}
+		p.drawRoundedRect(QRect(size - w - d * 2, size - f->height, w + d * 2, f->height), r, r);
+		p.setFont(f->f);
+
+		p.setPen(st::counterColor->p);
+
+		p.drawText(size - w - d, size - f->height + f->ascent, cnt);
+	} else {
+		QPainter p(&img);
+		p.drawPixmap(size / 2, size / 2, QPixmap::fromImage(iconWithCounter(-size / 2, count, bg, false)));
+	}
+	return img;
 }
 
 void Window::sendPaths() {

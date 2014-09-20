@@ -18,7 +18,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "memain.h"
 
 int main(int argc, char *argv[]) {
-	QString emoji_in("."), emoji_out("emoji_config.cpp"), emoji_png("./SourceFiles/art/emoji");
+	QString emoji_in("./SourceFiles/art/emojisprite_"), emoji_out("./SourceFiles/gui/emoji_config.cpp"), emoji_png("./SourceFiles/art/emoji");
 	for (int i = 0; i < argc; ++i) {
 		if (string("-emoji_in") == argv[i]) {
 			if (++i < argc) emoji_in = argv[i];

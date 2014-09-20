@@ -50,6 +50,7 @@ int main(int argc, char *argv[]) {
 
 	DEBUG_LOG(("Application Info: ideal thread count: %1, using %2 connections per session").arg(QThread::idealThreadCount()).arg(cConnectionsInSession()));
 
+	psStart();
 	int result = 0;
 	{
 		Application app(argc, argv);
@@ -57,7 +58,6 @@ int main(int argc, char *argv[]) {
 			result = app.exec();
 		}
 	}
-    
     psFinish();
 
 	DEBUG_LOG(("Application Info: Telegram done, result: %1").arg(result));

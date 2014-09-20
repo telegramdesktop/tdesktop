@@ -256,6 +256,10 @@ protected:
 	void setupTrayIcon();
 
 private:
+
+	QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon);
+	QImage icon16, icon32, icon64;
+
 	QWidget *centralwidget;
 
 	TitleWidget *title;

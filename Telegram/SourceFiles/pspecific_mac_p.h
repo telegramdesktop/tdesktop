@@ -26,6 +26,8 @@ public:
 
     void setWindowBadge(const QString &str);
     void startBounce();
+
+	void updateDelegate();
     
     void holdOnTop(WId winId);
     void showOverAll(WId winId);
@@ -54,6 +56,7 @@ int64 objc_idleTime();
 
 void objc_showInFinder(const QString &file, const QString &path);
 void objc_openFile(const QString &file, bool openwith);
+void objc_start();
 void objc_finish();
 bool objc_execUpdater();
 void objc_execTelegram();

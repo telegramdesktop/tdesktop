@@ -120,6 +120,9 @@ void PsMainWindow::psUpdateCounter() {
     //_private.setWindowBadge(counter ? cnt : QString());
 }
 
+void PsMainWindow::psUpdateDelegate() {
+}
+
 void PsMainWindow::psInitSize() {
 	setMinimumWidth(st::wndMinWidth);
 	setMinimumHeight(st::wndMinHeight);
@@ -945,8 +948,10 @@ void psShowInFolder(const QString &name) {
     //objc_showInFinder(name, QFileInfo(name).absolutePath());
 }
 
+void psStart() {
+}
+
 void psFinish() {
-    //objc_finish();
 }
 
 bool _execUpdater(bool update = true) {

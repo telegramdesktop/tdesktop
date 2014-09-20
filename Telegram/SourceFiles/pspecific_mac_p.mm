@@ -1,4 +1,4 @@
-/*
+	/*
 This file is part of Telegram Desktop,
 an unofficial desktop messaging app, see https://telegram.org
  
@@ -18,11 +18,32 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "stdafx.h"
 #include "pspecific_mac_p.h"
 
+#include "window.h"
+
 #include "lang.h"
 
 #include <Cocoa/Cocoa.h>
 #include <IOKit/IOKitLib.h>
 #include <CoreFoundation/CFURL.h>
+
+@interface ApplicationDelegate : NSObject<NSApplicationDelegate> {
+}
+
+- (BOOL)applicationShouldHandleReopen:(NSApplication *)theApplication hasVisibleWindows:(BOOL)flag;
+
+@end
+
+@implementation ApplicationDelegate {
+}
+
+- (BOOL)applicationShouldHandleReopen:(NSApplication *)theApplication hasVisibleWindows:(BOOL)flag {
+	if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
+	return YES;
+}
+
+@end
+
+ApplicationDelegate *_sharedDelegate = nil;
 
 class QNSString {
 public:
@@ -39,6 +60,8 @@ typedef QMap<LangKey, QNSString> ObjcLang;
 ObjcLang objcLang;
 
 QNSString objc_lang(LangKey key) {
+	return QNSString(lang(key));
+
     ObjcLang::const_iterator i = objcLang.constFind(key);
     if (i == objcLang.cend()) {
         i = objcLang.insert(key, lang(key));
@@ -146,8 +169,6 @@ public:
 
 PsMacWindowPrivate::PsMacWindowPrivate() : data(new PsMacWindowData(this)) {
     [[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:data->observerHelper selector:@selector(activeSpaceDidChange:) name:NSWorkspaceActiveSpaceDidChangeNotification object:nil];
-    NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
-    [center setDelegate:data->notifyHandler];
 }
 
 void PsMacWindowPrivate::setWindowBadge(const QString &str) {
@@ -156,6 +177,11 @@ void PsMacWindowPrivate::setWindowBadge(const QString &str) {
 
 void PsMacWindowPrivate::startBounce() {
     [NSApp requestUserAttention:NSInformationalRequest];
+}
+
+void PsMacWindowPrivate::updateDelegate() {
+    NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
+    [center setDelegate:data->notifyHandler];
 }
 
 void PsMacWindowPrivate::holdOnTop(WId winId) {
@@ -481,7 +507,6 @@ void objc_openFile(const QString &f, bool openwith) {
             alwaysRect.origin.y = selectorFrame.origin.y - alwaysRect.size.height - st::macAlwaysThisAppTop;
             [button setFrame:alwaysRect];
             [button setAutoresizingMask:NSViewMinXMargin|NSViewMaxXMargin];
-            
             NSTextField *goodLabel = [[NSTextField alloc] init];
             [goodLabel setStringValue:[objc_lang(lng_mac_this_app_can_open).s() stringByReplacingOccurrencesOfString:@"{file}" withString:name]];
             [goodLabel setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
@@ -566,7 +591,13 @@ void objc_openFile(const QString &f, bool openwith) {
     }
 }
 
+void objc_start() {
+	_sharedDelegate = [[ApplicationDelegate alloc] init];
+	[[NSApplication sharedApplication] setDelegate:_sharedDelegate];
+}
+
 void objc_finish() {
+	[_sharedDelegate release];
     if (!objcLang.isEmpty()) {
         objcLang.clear();
     }

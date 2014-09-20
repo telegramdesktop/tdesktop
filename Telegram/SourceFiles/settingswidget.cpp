@@ -359,8 +359,10 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
         top += _startMinimized.height() + st::setSectionSkip;
 
 		top += _sendToMenu.height();
-    }
-    
+	} else if (cPlatform() == dbipMac) {
+		top += _workmodeTray.height();
+	}
+
     if (!cRetina()) {
         p.setFont(st::setHeaderFont->f);
         p.setPen(st::setHeaderColor->p);
@@ -473,7 +475,9 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
         _startMinimized.move(_left, top); top += _startMinimized.height() + st::setSectionSkip;
 
 		_sendToMenu.move(_left, top); top += _sendToMenu.height();
-    }
+	} else if (cPlatform() == dbipMac) {
+		_workmodeTray.move(_left, top); top += _workmodeTray.height();
+	}
     if (!cRetina()) {
         top += st::setHeaderSkip;
         _dpiAutoScale.move(_left, top); top += _dpiAutoScale.height() + st::setLittleSkip;
@@ -648,7 +652,11 @@ void SettingsInner::showAll() {
 
 		_sendToMenu.show();
     } else {
-        _workmodeTray.hide();
+		if (cPlatform() == dbipMac) {
+			_workmodeTray.show();
+		} else {
+			_workmodeTray.hide();
+		}
         _workmodeWindow.hide();
         
         _autoStart.hide();
@@ -815,7 +823,7 @@ void SettingsInner::onConnectionType() {
 }
 
 void SettingsInner::onWorkmodeTray() {
-	if (!_workmodeTray.checked() && !_workmodeWindow.checked()) {
+	if ((!_workmodeTray.checked() || cPlatform() != dbipWindows) && !_workmodeWindow.checked()) {
 		_workmodeWindow.setChecked(true);
 	}
 	DBIWorkMode newMode = (_workmodeTray.checked() && _workmodeWindow.checked()) ? dbiwmWindowAndTray : (_workmodeTray.checked() ? dbiwmTrayOnly : dbiwmWindowOnly);
