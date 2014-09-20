@@ -121,7 +121,7 @@ static const BuiltInDc _builtInDcs[] = {
 		{ 2, "149.154.167.50", 443 },
 		{ 3, "174.140.142.6", 443 },
 		{ 4, "149.154.167.90", 443 },
-		{ 5, "116.51.22.2", 443 }
+		{ 5, "149.154.171.5", 443 }
 };
 
 static const BuiltInDc _builtInTestDcs[] = {

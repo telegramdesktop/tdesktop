@@ -222,6 +222,7 @@ enum DataBlockId {
 // 27 reserved
 	dbiNotifyView = 28,
 	dbiSendToMenu = 29,
+	dbiCompressPastedImage = 30,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,

@@ -1565,6 +1565,7 @@ namespace App {
 				stream << quint32(dbiNotifyView) << qint32(cNotifyView());
 				stream << quint32(dbiAskDownloadPath) << qint32(cAskDownloadPath());
 				stream << quint32(dbiDownloadPath) << (cAskDownloadPath() ? QString() : cDownloadPath());
+				stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());
 				stream << quint32(dbiEmojiTab) << qint32(cEmojiTab());
 
 				RecentEmojiPreload v;
@@ -1745,6 +1746,12 @@ namespace App {
 				QString v;
 				stream >> v;
 				cSetDownloadPath(v);
+			} break;
+
+			case dbiCompressPastedImage: {
+				qint32 v;
+				stream >> v;
+				cSetCompressPastedImage(v == 1);
 			} break;
 
 			case dbiEmojiTab: {

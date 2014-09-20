@@ -101,20 +101,20 @@ const QPixmap &Image::pixBlurred(int32 w, int32 h) const {
 	return i.value();
 }
 
+namespace {
+	static inline uint64 _blurGetColors(const uchar *p) {
+		return p[0] + (p[1] << 16) + ((uint64)p[2] << 32);
+	}
+}
+
 QPixmap Image::pixBlurredNoCache(int32 w, int32 h) const {
-	return pixNoCache(w, h);
 	restore();
 	loaded();
 
 	const QPixmap &p(pixData());
 	if (p.isNull()) return blank()->pix();
 
-	QImage img;
-	if (h <= 0) {
-		img = p.toImage().scaledToWidth(w, Qt::SmoothTransformation);
-	} else {
-		img = p.toImage().scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-	}
+	QImage img = p.toImage();
 	QImage::Format fmt = img.format();
 	if (fmt != QImage::Format_RGB32 && fmt != QImage::Format_ARGB32 && fmt != QImage::Format_ARGB32_Premultiplied) {
 		QImage tmp(img.width(), img.height(), QImage::Format_ARGB32);
@@ -124,43 +124,100 @@ QPixmap Image::pixBlurredNoCache(int32 w, int32 h) const {
 		}
 		img = tmp;
 	}
-	QImage fromimg = img;
 
-	uchar *bits = img.bits();
-	const uchar *from = fromimg.bits();
-	if (bits && from) {
-		int width = img.width(), height = img.height();
-		for (int i = 0; i < width; ++i) {
-			for (int j = 0; j < height; ++j) {
-				uint32 a = 0, b = 0, c = 0;
-				for (int index = i - 32; index < i + 32; ++index) {
-					int fullindex = 4 * (j * width + ((index < 0) ? 0 : (index >= width ? (width - 1) : index))), coef = 4;
-					a += from[fullindex + 1] * coef;
-					b += from[fullindex + 2] * coef;
-					c += from[fullindex + 3] * coef;
+	uchar *pix = img.bits();
+	if (pix) {
+		const int w = img.width(), h = img.height(), stride = w * 4;
+		const int radius = 7;
+		const int r1 = radius + 1;
+		const int div = radius * 2 + 1;
+
+		if (radius < 16 && div < w && div < h && stride <= w * 4) {
+			uint64 *rgb = new uint64[w * h];
+
+			int x, y, i;
+
+			int yw = 0;
+			const int we = w - r1;
+			for (y = 0; y < h; y++) {
+				uint64 cur = _blurGetColors(&pix[yw]);
+				uint64 rgballsum = -radius * cur;
+				uint64 rgbsum = cur * ((r1 * (r1 + 1)) >> 1);
+
+				for (i = 1; i <= radius; i++) {
+					uint64 cur = _blurGetColors(&pix[yw + i * 4]);
+					rgbsum += cur * (r1 - i);
+					rgballsum += cur;
 				}
-				int fullindex = 4 * (j * width + i);
-				bits[fullindex + 1] = uchar(a >> 8);
-				bits[fullindex + 2] = uchar(b >> 8);
-				bits[fullindex + 3] = uchar(c >> 8);
-			}
-		}
-		for (int i = 0; i < width; ++i) {
-			for (int j = 0; j < height; ++j) {
-				uint32 a = 0, b = 0, c = 0;
-				for (int index = j - 32; index < j + 32; ++index) {
-					int fullindex = 4 * (((index < 0) ? 0 : (index >= height ? (height - 1) : index)) * width + i), coef = 4;
-					a += from[fullindex + 1] * coef;
-					b += from[fullindex + 2] * coef;
-					c += from[fullindex + 3] * coef;
+
+				x = 0;
+
+#define update(start, middle, end) \
+	rgb[y * w + x] = (rgbsum >> 6) & 0x00FF00FF00FF00FFLL; \
+	rgballsum += _blurGetColors(&pix[yw + (start) * 4]) - 2 * _blurGetColors(&pix[yw + (middle) * 4]) + _blurGetColors(&pix[yw + (end) * 4]); \
+	rgbsum += rgballsum; \
+	x++;
+
+				while (x < r1) {
+					update(0, x, x + r1);
 				}
-				int fullindex = 4 * (j * width + i);
-				bits[fullindex + 1] = uchar(a >> 8);
-				bits[fullindex + 2] = uchar(b >> 8);
-				bits[fullindex + 3] = uchar(c >> 8);
+				while (x < we) {
+					update(x - r1, x, x + r1);
+				}
+				while (x < w) {
+					update(x - r1, x, w - 1);
+				}
+
+#undef update
+
+				yw += stride;
 			}
+
+			const int he = h - r1;
+			for (x = 0; x < w; x++) {
+				uint64 rgballsum = -radius * rgb[x];
+				uint64 rgbsum = rgb[x] * ((r1 * (r1 + 1)) >> 1);
+				for (i = 1; i <= radius; i++) {
+					rgbsum += rgb[i * w + x] * (r1 - i);
+					rgballsum += rgb[i * w + x];
+				}
+
+				y = 0;
+				int yi = x * 4;
+
+#define update(start, middle, end) \
+	uint64 res = rgbsum >> 6; \
+	pix[yi] = res & 0xFF; \
+	pix[yi + 1] = (res >> 16) & 0xFF; \
+	pix[yi + 2] = (res >> 32) & 0xFF; \
+	rgballsum += rgb[x + (start) * w] - 2 * rgb[x + (middle) * w] + rgb[x + (end) * w]; \
+	rgbsum += rgballsum; \
+	y++; \
+	yi += stride;
+
+				while (y < r1) {
+					update(0, y, y + r1);
+				}
+				while (y < he) {
+					update(y - r1, y, y + r1);
+				}
+				while (y < h) {
+					update(y - r1, y, h - 1);
+				}
+
+#undef update
+			}
+
+			delete[] rgb;
 		}
 	}
+
+	if (h <= 0) {
+		img = img.scaledToWidth(w, Qt::SmoothTransformation);
+	} else {
+		img = img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+	}
+
 	return QPixmap::fromImage(img);
 }
 

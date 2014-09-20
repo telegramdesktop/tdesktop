@@ -102,6 +102,7 @@ DeclareSetting(QByteArray, LocalSalt);
 DeclareSetting(DBIScale, RealScale);
 DeclareSetting(DBIScale, ScreenScale);
 DeclareSetting(DBIScale, ConfigScale);
+DeclareSetting(bool, CompressPastedImage);
 
 inline DBIScale cEvalScale(DBIScale scale) {
 	return (scale == dbisAuto) ? cScreenScale() : scale;

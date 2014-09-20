@@ -478,9 +478,6 @@ void ContactsBox::paintEvent(QPaintEvent *e) {
 			// paint shadows
 			p.fillRect(0, _addContact.height(), _width, st::scrollDef.topsh, st::scrollDef.shColor->b);
 
-			// paint button sep
-			p.fillRect(st::btnSelectCancel.width, size().height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
-
 			// draw box title / text
 			p.setPen(st::black->p);
 			p.setFont(st::addContactTitleFont->f);

@@ -25,7 +25,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 
 PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(new ReadyLocalMedia(img)),
 	_thumbx(0), _thumby(0), _thumbw(0), _thumbh(0), _namew(0), _textw(0),
-	_compressed(this, lang(lng_send_image_compressed), true),
+	_compressed(this, lang(lng_send_image_compressed), cCompressPastedImage()),
 	_sendButton(this, lang(lng_send_button), st::btnSelectDone),
 	_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
 	a_opacity(0, 1) {
@@ -203,10 +203,16 @@ void PhotoSendBox::animStep(float64 ms) {
 void PhotoSendBox::onSend() {
 	if (!_img) {
 		if (App::main()) App::main()->confirmShareContact(_phone, _fname, _lname);
-	} else if (_compressed.isHidden() || _compressed.checked()) {
-		if (App::main()) App::main()->confirmSendImage(*_img);
 	} else {
-		if (App::main()) App::main()->confirmSendImageUncompressed();
+		if (!_compressed.isHidden()) {
+			cSetCompressPastedImage(_compressed.checked());
+			App::writeUserConfig();
+		}
+		if (_compressed.isHidden() || _compressed.checked()) {
+			if (App::main()) App::main()->confirmSendImage(*_img);
+		} else {
+			if (App::main()) App::main()->confirmSendImageUncompressed();
+		}
 	}
 	emit closed();
 }

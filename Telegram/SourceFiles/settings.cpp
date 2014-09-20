@@ -62,6 +62,7 @@ QString gLoggedPhoneNumber;
 
 QByteArray gLocalSalt;
 DBIScale gRealScale = dbisAuto, gScreenScale = dbisOne, gConfigScale = dbisAuto;
+bool gCompressPastedImage = true;
 
 DBIEmojiTab gEmojiTab = dbietPeople;
 RecentEmojiPack gRecentEmojis;
