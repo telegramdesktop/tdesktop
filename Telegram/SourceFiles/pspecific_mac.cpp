@@ -123,6 +123,19 @@ void PsMainWindow::psRefreshTaskbarIcon() {
 }
 
 void PsMainWindow::psUpdateWorkmode() {
+	switch (cWorkMode()) {
+		case dbiwmWindowAndTray:
+		case dbiwmTrayOnly: {
+			setupTrayIcon();
+		} break;
+
+		case dbiwmWindowOnly: {
+			if (trayIconMenu) trayIconMenu->deleteLater();
+			trayIconMenu = 0;
+			if (trayIcon) trayIcon->deleteLater();
+			trayIcon = 0;
+		} break;
+	}
 }
 
 void PsMainWindow::psUpdateCounter() {
@@ -132,6 +145,18 @@ void PsMainWindow::psUpdateCounter() {
 
     QString cnt = (counter < 1000) ? QString("%1").arg(counter) : QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
     _private.setWindowBadge(counter ? cnt : QString());
+
+	if (trayIcon) {
+		style::color bg = (App::histories().unreadMuted < counter) ? st::counterBG : st::counterMuteBG;
+		QIcon iconSmall;
+		iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(16, counter, bg, true)));
+		iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(32, counter, bg, true)));
+		trayIcon->setIcon(iconSmall);
+	}
+}
+
+void PsMainWindow::psUpdateDelegate() {
+	_private.updateDelegate();
 }
 
 void PsMainWindow::psInitSize() {
@@ -873,6 +898,10 @@ void psOpenFile(const QString &name, bool openWith) {
 
 void psShowInFolder(const QString &name) {
     objc_showInFinder(name, QFileInfo(name).absolutePath());
+}
+
+void psStart() {
+	objc_start();
 }
 
 void psFinish() {

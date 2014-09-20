@@ -76,6 +76,7 @@ public slots:
 
 	void psStateChanged(Qt::WindowState state);
 	void psUpdateCounter();
+	void psUpdateDelegate();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psIdleTimeout();
 
@@ -86,9 +87,9 @@ protected:
 	bool posInited;
 	QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
-	QImage icon16, icon32, icon64, icon256;
-	virtual void setupTrayIcon() {
-	}
+
+	virtual void setupTrayIcon() = 0;
+	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
 
 	QTimer psUpdatedPositionTimer;
 
@@ -102,7 +103,6 @@ private:
 	mutable QTimer psIdleTimer;
 
 	void psDestroyIcons();
-	QImage psIconWithCounter(int size, int count, style::color bg, bool smallIcon);
 };
 
 #ifdef _NEED_WIN_GENERATE_DUMP
@@ -190,4 +190,5 @@ void psExecTelegram();
 void psPostprocessFile(const QString &name);
 void psOpenFile(const QString &name, bool openWith = false);
 void psShowInFolder(const QString &name);
+void psStart();
 void psFinish();
