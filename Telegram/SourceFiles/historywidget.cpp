@@ -870,7 +870,7 @@ QString HistoryList::getSelectedText() const {
 void HistoryList::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		historyWidget->onClearSelected();
-	} else if (e == QKeySequence::Copy && !_selected.isEmpty() && _selected.cbegin().value() != FullItemSel) {
+	} else if (e == QKeySequence::Copy && !_selected.isEmpty()) {
 		copySelectedText();
 	} else if (e == QKeySequence::Delete) {
 		historyWidget->onDeleteSelected();

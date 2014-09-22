@@ -19,7 +19,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 
 extern bool gDebug;
 inline bool cDebug() {
-#ifdef _DEBUG
+#if defined _DEBUG && !defined Q_OS_MAC
 	return true;
 #elif defined _WITH_DEBUG
 	return gDebug;

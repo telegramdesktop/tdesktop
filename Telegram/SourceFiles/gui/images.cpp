@@ -107,14 +107,7 @@ namespace {
 	}
 }
 
-QPixmap Image::pixBlurredNoCache(int32 w, int32 h) const {
-	restore();
-	loaded();
-
-	const QPixmap &p(pixData());
-	if (p.isNull()) return blank()->pix();
-
-	QImage img = p.toImage();
+QImage imageBlur(QImage img) {
 	QImage::Format fmt = img.format();
 	if (fmt != QImage::Format_RGB32 && fmt != QImage::Format_ARGB32 && fmt != QImage::Format_ARGB32_Premultiplied) {
 		QImage tmp(img.width(), img.height(), QImage::Format_ARGB32);
@@ -153,10 +146,10 @@ QPixmap Image::pixBlurredNoCache(int32 w, int32 h) const {
 				x = 0;
 
 #define update(start, middle, end) \
-	rgb[y * w + x] = (rgbsum >> 6) & 0x00FF00FF00FF00FFLL; \
-	rgballsum += _blurGetColors(&pix[yw + (start) * 4]) - 2 * _blurGetColors(&pix[yw + (middle) * 4]) + _blurGetColors(&pix[yw + (end) * 4]); \
-	rgbsum += rgballsum; \
-	x++;
+rgb[y * w + x] = (rgbsum >> 6) & 0x00FF00FF00FF00FFLL; \
+rgballsum += _blurGetColors(&pix[yw + (start) * 4]) - 2 * _blurGetColors(&pix[yw + (middle) * 4]) + _blurGetColors(&pix[yw + (end) * 4]); \
+rgbsum += rgballsum; \
+x++;
 
 				while (x < r1) {
 					update(0, x, x + r1);
@@ -186,14 +179,14 @@ QPixmap Image::pixBlurredNoCache(int32 w, int32 h) const {
 				int yi = x * 4;
 
 #define update(start, middle, end) \
-	uint64 res = rgbsum >> 6; \
-	pix[yi] = res & 0xFF; \
-	pix[yi + 1] = (res >> 16) & 0xFF; \
-	pix[yi + 2] = (res >> 32) & 0xFF; \
-	rgballsum += rgb[x + (start) * w] - 2 * rgb[x + (middle) * w] + rgb[x + (end) * w]; \
-	rgbsum += rgballsum; \
-	y++; \
-	yi += stride;
+uint64 res = rgbsum >> 6; \
+pix[yi] = res & 0xFF; \
+pix[yi + 1] = (res >> 16) & 0xFF; \
+pix[yi + 2] = (res >> 32) & 0xFF; \
+rgballsum += rgb[x + (start) * w] - 2 * rgb[x + (middle) * w] + rgb[x + (end) * w]; \
+rgbsum += rgballsum; \
+y++; \
+yi += stride;
 
 				while (y < r1) {
 					update(0, y, y + r1);
@@ -207,11 +200,21 @@ QPixmap Image::pixBlurredNoCache(int32 w, int32 h) const {
 
 #undef update
 			}
-
+			
 			delete[] rgb;
 		}
 	}
+	return img;
+}
 
+QPixmap Image::pixBlurredNoCache(int32 w, int32 h) const {
+	restore();
+	loaded();
+
+	const QPixmap &p(pixData());
+	if (p.isNull()) return blank()->pix();
+
+	QImage img = imageBlur(p.toImage());
 	if (h <= 0) {
 		img = img.scaledToWidth(w, Qt::SmoothTransformation);
 	} else {

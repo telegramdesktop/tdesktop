@@ -22,8 +22,9 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "application.h"
 
 void filedialogInit() {
-	// hack to restore previous dir without hurting performance
 	if (cDialogLastPath().isEmpty()) {
+#ifdef Q_OS_WIN
+		// hack to restore previous dir without hurting performance
 		QSettings settings(QSettings::UserScope, QLatin1String("QtProject"));
 		settings.beginGroup(QLatin1String("Qt"));
 		QByteArray sd = settings.value(QLatin1String("filedialog")).toByteArray();
@@ -59,16 +60,21 @@ void filedialogInit() {
 				cSetDialogHelperPath(temppath.absolutePath());
 			}
 		}
+#else
+		cSetDialogLastPath(QStandardPaths::writableLocation(QStandardPaths::DownloadLocation));
+#endif
 	}
 }
 
 // multipleFiles: 1 - multi open, 0 - single open, -1 - single save, -2 - select dir
-bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, int multipleFiles, const QString &startFile = QString()) {
+bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, int multipleFiles, QString startFile = QString()) {
 #if defined Q_OS_LINUX || defined Q_OS_MAC // use native
     remoteContent = QByteArray();
     QString file;
     if (multipleFiles >= 0) {
 		files = QFileDialog::getOpenFileNames(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, startFile, filter);
+		QString path = files.isEmpty() ? QString() : QFileInfo(files.back()).absoluteDir().absolutePath();
+		if (!path.isEmpty()) cSetDialogLastPath(path);
         return !files.isEmpty();
     } else if (multipleFiles < -1) {
 		file = QFileDialog::getExistingDirectory(App::wnd() ? App::wnd()->filedialogParent() : 0, caption);
@@ -81,6 +87,8 @@ bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QS
         files = QStringList();
         return false;
     } else {
+		QString path = QFileInfo(file).absoluteDir().absolutePath();
+		if (!path.isEmpty()) cSetDialogLastPath(path);
         files = QStringList(file);
         return true;
     }

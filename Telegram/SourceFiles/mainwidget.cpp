@@ -970,9 +970,15 @@ void MainWidget::setInnerFocus() {
 	if (hider || !history.peer()) {
 		if (hider && hider->wasOffered()) {
 			hider->setFocus();
+		} else if (overview) {
+			overview->activate();
+		} else if (profile) {
+			profile->activate();
 		} else {
 			dialogs.setInnerFocus();
 		}
+	} else if (profile) {
+		profile->setFocus();
 	} else {
 		history.activate();
 	}

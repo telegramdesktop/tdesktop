@@ -19,6 +19,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 
 #include <QtGui/QPixmap>
 
+QImage imageBlur(QImage img);
+
 class Image {
 public:
 

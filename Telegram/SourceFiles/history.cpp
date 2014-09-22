@@ -2287,7 +2287,7 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	p.setPen(status->p);
 	if (already || hasdata) {
 		if (playing == data && playingState != VoiceMessageStopped) {
-			statusText = formatDurationText(playingPosition / AudioVoiceMsgFrequency);
+			statusText = formatDurationText(playingPosition / AudioVoiceMsgFrequency) + qsl(" / ") + formatDurationText(playingDuration / AudioVoiceMsgFrequency);
 		} else {
 			statusText = formatDurationText(data->duration);
 		}

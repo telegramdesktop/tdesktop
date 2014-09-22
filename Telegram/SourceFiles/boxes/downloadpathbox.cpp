@@ -157,7 +157,9 @@ void DownloadPathBox::onEditPath() {
 
 	filedialogInit();
 	QString path, lastPath = cDialogLastPath();
-	if (!cDownloadPath().isEmpty()) cSetDialogLastPath(cDownloadPath());
+	if (!cDownloadPath().isEmpty()) {
+		cSetDialogLastPath(cDownloadPath());
+	}
 	if (filedialogGetDir(path, lang(lng_download_path_choose))) {
 		if (!path.isEmpty()) {
 			_path = path + '/';

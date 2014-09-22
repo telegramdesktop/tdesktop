@@ -547,6 +547,9 @@ void OverviewInner::clear() {
 QPixmap OverviewInner::genPix(PhotoData *photo, int32 size) {
 	size *= cIntRetinaFactor();
 	QImage img = (photo->full->loaded() ? photo->full : (photo->medium->loaded() ? photo->medium : photo->thumb))->pix().toImage();
+	if (!photo->full->loaded() && !photo->medium->loaded()) {
+		img = imageBlur(img);
+	}
 	if (img.width() > img.height()) {
         img = img.scaled(img.width() * size / img.height(), size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 	} else {
