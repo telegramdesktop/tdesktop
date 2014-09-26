@@ -1,3 +1,4 @@
+
 /*
 This file is part of Telegram Desktop,
 an unofficial desktop messaging app, see https://telegram.org
@@ -57,9 +58,6 @@ public:
 	void psUpdateWorkmode();
 
 	void psRefreshTaskbarIcon();
-	virtual bool minimizeToTray() {
-		return false;
-	}
 
 	bool psPosInited() const {
 		return posInited;
@@ -170,7 +168,7 @@ private:
 
 };
 
-void psActivateProcess(uint64 pid);
+void psActivateProcess(uint64 pid = 0);
 QString psLocalServerPrefix();
 QString psCurrentCountry();
 QString psCurrentLanguage();

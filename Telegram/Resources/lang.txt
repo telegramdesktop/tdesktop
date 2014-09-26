@@ -24,6 +24,7 @@ lng_menu_settings: "Settings";
 lng_menu_about: "About";
 
 lng_open_from_tray: "Open Telegram";
+lng_minimize_to_tray: "Minimize to tray";
 lng_quit_from_tray: "Quit Telegram";
 lng_tray_icon_text: "Telegram is still running here,
 you can change this from settings page.

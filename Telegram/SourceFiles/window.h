@@ -184,8 +184,6 @@ public:
 
 	bool historyIsActive(int state = -1) const;
 
-	bool minimizeToTray();
-
 	void activate();
 
 	void noIntro(IntroWidget *was);
@@ -234,8 +232,10 @@ public slots:
 	void showSettings();
 	void layerHidden();
 	void updateTitleStatus();
+
 	void quitFromTray();
 	void showFromTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
+	bool minimizeToTray();
 	void toggleTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
 
 	void onInactiveTimer();
@@ -244,7 +244,8 @@ public slots:
 	void onTempDirClearFailed();
 
 	void notifyFire();
-	
+	void updateTrayMenu(int windowState = -1);
+
 signals:
 
 	void resized(const QSize &size);
@@ -257,6 +258,7 @@ protected:
 
 private:
 
+	void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color);
 	QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon);
 	QImage icon16, icon32, icon64;
 

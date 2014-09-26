@@ -624,6 +624,7 @@ void Window::checkHistoryActivation(int state) {
 	if (main && MTP::authedId() && historyIsActive(state)) {
 		main->historyWasRead();
 	}
+	QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
 }
 
 void Window::layerHidden() {
@@ -740,36 +741,51 @@ bool Window::minimizeToTray() {
 		App::writeConfig();
 	}
 	if (App::main()) App::main()->setOnline(windowState());
+	updateTrayMenu();
 	return true;
 }
 
 void Window::setupTrayIcon() {
 	if (!trayIcon) {
-		if (trayIconMenu) trayIconMenu->deleteLater();
-		trayIconMenu = new QMenu(this);
-		trayIconMenu->setFont(QFont("Tahoma"));
-		QAction *a;
-		a = trayIconMenu->addAction(lang(lng_open_from_tray), this, SLOT(showFromTray()));
-		a->setEnabled(true);
-		a = trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()));
-		a->setEnabled(true);
-
 		if (trayIcon) trayIcon->deleteLater();
 		trayIcon = new QSystemTrayIcon(this);
+#ifdef Q_OS_MAC
+		QIcon icon(QPixmap::fromImage(psTrayIcon()));
+		icon.addPixmap(QPixmap::fromImage(psTrayIcon(true)), QIcon::Selected);
+#else
+		QIcon icon(QPixmap::fromImage(iconLarge()));
+#endif
 
-		trayIcon->setIcon(QIcon(QPixmap::fromImage(iconLarge())));
-		trayIcon->setContextMenu(trayIconMenu);
+		trayIcon->setIcon(icon);
 		trayIcon->setToolTip(QString::fromStdWString(AppName));
-
+		connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)), Qt::UniqueConnection);
 		if (cPlatform() != dbipMac) {
-			connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)));
 			connect(trayIcon, SIGNAL(messageClicked()), this, SLOT(showFromTray()));
 		}
+		updateTrayMenu();
 	}
 	psUpdateCounter();
 
 	trayIcon->show();
 	psUpdateDelegate();
+}
+
+void Window::updateTrayMenu(int windowState) {
+	bool active = psIsActive(windowState);
+	if (trayIconMenu) {
+		trayIconMenu->deleteLater();
+		trayIconMenu = 0;
+	}
+	if (active || cPlatform() != dbipMac) {
+		trayIconMenu = new QMenu(this);
+		trayIconMenu->setFont(QFont("Tahoma"));
+		QAction *a;
+		a = trayIconMenu->addAction(lang(active ? lng_minimize_to_tray : lng_open_from_tray), this, active ? SLOT(minimizeToTray()) : SLOT(showFromTray()));
+		a->setEnabled(true);
+		a = trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()));
+		a->setEnabled(true);
+	}
+	trayIcon->setContextMenu(trayIconMenu);
 }
 
 void Window::quitFromTray() {
@@ -780,6 +796,7 @@ void Window::activate() {
 	bool wasHidden = !isVisible();
 	setWindowState(windowState() & ~Qt::WindowMinimized);
 	setVisible(true);
+	psActivateProcess();
 	activateWindow();
 	if (wasHidden) {
 		if (main) {
@@ -836,10 +853,12 @@ void Window::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 		setWindowIcon(myIcon);
 		psUpdateCounter();
 		if (App::main()) App::main()->setOnline(windowState());
+		QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
 	}
 }
 
 void Window::toggleTray(QSystemTrayIcon::ActivationReason reason) {
+	if (trayIconMenu && cPlatform() == dbipMac) return;
 	if (reason != QSystemTrayIcon::Context) {
 		if (psIsActive()) {
 			minimizeToTray();
@@ -1202,6 +1221,43 @@ QImage Window::iconLarge() const {
 	return icon256;
 }
 
+void Window::placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) {
+	QPainter p(&img);
+
+	QString cnt = (count < 100) ? QString("%1").arg(count) : QString("..%1").arg(count % 10, 1, 10, QChar('0'));
+	int32 cntSize = cnt.size();
+
+	p.setBrush(bg->b);
+	p.setPen(Qt::NoPen);
+	p.setRenderHint(QPainter::Antialiasing);
+	int32 fontSize;
+	if (size == 16) {
+		fontSize = 8;
+	} else if (size == 32) {
+		fontSize = (cntSize < 2) ? 12 : 12;
+	} else {
+		fontSize = (cntSize < 2) ? 22 : 22;
+	}
+	style::font f(fontSize);
+	int32 w = f->m.width(cnt), d, r;
+	if (size == 16) {
+		d = (cntSize < 2) ? 2 : 1;
+		r = (cntSize < 2) ? 4 : 3;
+	} else if (size == 32) {
+		d = (cntSize < 2) ? 5 : 2;
+		r = (cntSize < 2) ? 8 : 7;
+	} else {
+		d = (cntSize < 2) ? 9 : 4;
+		r = (cntSize < 2) ? 16 : 14;
+	}
+	p.drawRoundedRect(QRect(shift.x() + size - w - d * 2, shift.y() + size - f->height, w + d * 2, f->height), r, r);
+	p.setFont(f->f);
+
+	p.setPen(color->p);
+
+	p.drawText(shift.x() + size - w - d, shift.y() + size - f->height + f->ascent, cnt);
+
+}
 
 QImage Window::iconWithCounter(int size, int count, style::color bg, bool smallIcon) {
 	bool layer = false;
@@ -1257,40 +1313,7 @@ QImage Window::iconWithCounter(int size, int count, style::color bg, bool smallI
 	if (!count) return img;
 
 	if (smallIcon) {
-		QPainter p(&img);
-
-		QString cnt = (count < 100) ? QString("%1").arg(count) : QString("..%1").arg(count % 10, 1, 10, QChar('0'));
-		int32 cntSize = cnt.size();
-
-		p.setBrush(bg->b);
-		p.setPen(Qt::NoPen);
-		p.setRenderHint(QPainter::Antialiasing);
-		int32 fontSize;
-		if (size == 16) {
-			fontSize = 8;
-		} else if (size == 32) {
-			fontSize = (cntSize < 2) ? 12 : ((smallIcon || cntSize < 3) ? 12 : 10);
-		} else {
-			fontSize = (cntSize < 2) ? 22 : ((smallIcon || cntSize < 3) ? 22 : 16);
-		}
-		style::font f(fontSize);
-		int32 w = f->m.width(cnt), d, r;
-		if (size == 16) {
-			d = (cntSize < 2) ? 2 : 1;
-			r = (cntSize < 2) ? 4 : 3;
-		} else if (size == 32) {
-			d = (cntSize < 2) ? 5 : ((smallIcon || cntSize < 3) ? 2 : 1);
-			r = (cntSize < 2) ? 8 : ((smallIcon || cntSize < 3) ? 7 : 3);
-		} else {
-			d = (cntSize < 2) ? 9 : ((smallIcon || cntSize < 3) ? 4 : 2);
-			r = (cntSize < 2) ? 16 : ((smallIcon || cntSize < 3) ? 14 : 8);
-		}
-		p.drawRoundedRect(QRect(size - w - d * 2, size - f->height, w + d * 2, f->height), r, r);
-		p.setFont(f->f);
-
-		p.setPen(st::counterColor->p);
-
-		p.drawText(size - w - d, size - f->height + f->ascent, cnt);
+		placeSmallCounter(img, size, count, bg, QPoint(), st::counterColor);
 	} else {
 		QPainter p(&img);
 		p.drawPixmap(size / 2, size / 2, QPixmap::fromImage(iconWithCounter(-size / 2, count, bg, false)));

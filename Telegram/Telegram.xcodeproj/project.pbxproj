@@ -42,6 +42,8 @@
 		0732E4A9199E262300D50FE7 /* overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4A7199E262300D50FE7 /* overviewwidget.cpp */; };
 		0732E4AC199E268A00D50FE7 /* moc_overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */; };
 		0749CE69194D723400345D61 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 07C3AF24194335ED0016CFF1 /* Images.xcassets */; };
+		074FCB8E19D36851004C6EB2 /* contextmenu.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074FCB8C19D36851004C6EB2 /* contextmenu.cpp */; };
+		074FCB9119D36E60004C6EB2 /* moc_contextmenu.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074FCB9019D36E60004C6EB2 /* moc_contextmenu.cpp */; };
 		07A69332199277BA0099CB9F /* mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A69330199277BA0099CB9F /* mediaview.cpp */; };
 		07A6933519927B160099CB9F /* moc_mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A6933419927B160099CB9F /* moc_mediaview.cpp */; };
 		07C4753B1967DF1C00CAAFE9 /* switcher.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C475391967DF1C00CAAFE9 /* switcher.cpp */; };
@@ -243,6 +245,9 @@
 		0732E4A7199E262300D50FE7 /* overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = overviewwidget.cpp; path = SourceFiles/overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
 		0732E4A8199E262300D50FE7 /* overviewwidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = overviewwidget.h; path = SourceFiles/overviewwidget.h; sourceTree = SOURCE_ROOT; };
 		0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_overviewwidget.cpp; path = GeneratedFiles/Debug/moc_overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
+		074FCB8C19D36851004C6EB2 /* contextmenu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = contextmenu.cpp; path = SourceFiles/gui/contextmenu.cpp; sourceTree = SOURCE_ROOT; };
+		074FCB8D19D36851004C6EB2 /* contextmenu.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = contextmenu.h; path = SourceFiles/gui/contextmenu.h; sourceTree = SOURCE_ROOT; };
+		074FCB9019D36E60004C6EB2 /* moc_contextmenu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_contextmenu.cpp; path = GeneratedFiles/Debug/moc_contextmenu.cpp; sourceTree = SOURCE_ROOT; };
 		075EB50EB07CF69FD62FB8DF /* /usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_sql_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_sql_private.pri"; sourceTree = "<absolute>"; };
 		0771C4C94B623FC34BF62983 /* intro.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = intro.cpp; path = SourceFiles/intro/intro.cpp; sourceTree = "<absolute>"; };
 		07A69330199277BA0099CB9F /* mediaview.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mediaview.cpp; path = SourceFiles/mediaview.cpp; sourceTree = SOURCE_ROOT; };
@@ -758,6 +763,7 @@
 				D3FE9C29B6A61D7C3C4B731B /* animation.cpp */,
 				08A7682548FB7E671FF03822 /* boxshadow.cpp */,
 				4D55B83DFDFE3D492CDBD27A /* button.cpp */,
+				074FCB8C19D36851004C6EB2 /* contextmenu.cpp */,
 				751C8D0E0BE6D16937B77A2C /* countrycodeinput.cpp */,
 				3E329D4547CC23585307FA32 /* countryinput.cpp */,
 				B3062303CE8F4EB9325CB3DC /* emoji_config.cpp */,
@@ -777,6 +783,7 @@
 				85FABD67716E36CD8B3CA4FA /* animation.h */,
 				BDAB6725B830DEE896DC0F55 /* boxshadow.h */,
 				4604687EBA85611C9E8A9CDF /* button.h */,
+				074FCB8D19D36851004C6EB2 /* contextmenu.h */,
 				60C0061633AC4244EA634B2A /* countrycodeinput.h */,
 				6868ADA9E9A9801B2BA92B97 /* countryinput.h */,
 				19618554524B8D928F13940D /* emoji_config.h */,
@@ -1016,6 +1023,7 @@
 		801973D3334D0FCA849CF485 /* Debug */ = {
 			isa = PBXGroup;
 			children = (
+				074FCB9019D36E60004C6EB2 /* moc_contextmenu.cpp */,
 				07D703BA19B88FB900C4EED2 /* moc_audio.cpp */,
 				0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */,
 				07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */,
@@ -1366,6 +1374,7 @@
 				68FFEB7CA30BF0149161B809 /* window.cpp in Compile Sources */,
 				0CB7DE9A54CC9BF86FB7B5CA /* mtp.cpp in Compile Sources */,
 				DF259E9677CC63AF8754032B /* mtpConnection.cpp in Compile Sources */,
+				074FCB9119D36E60004C6EB2 /* moc_contextmenu.cpp in Compile Sources */,
 				B6346B66B0A2228A91D8A5D9 /* mtpDC.cpp in Compile Sources */,
 				B8CA3E1E11A7E0E7DF9E1CDE /* mtpFileLoader.cpp in Compile Sources */,
 				99F0A9B2AFE5ABDCBFC04510 /* mtpRPC.cpp in Compile Sources */,
@@ -1387,6 +1396,7 @@
 				0A49F3A5DC0680FB31519670 /* phoneinput.cpp in Compile Sources */,
 				ADE99904299B99EB6135E8D9 /* scrollarea.cpp in Compile Sources */,
 				90085DF442550A0845D5AF37 /* style_core.cpp in Compile Sources */,
+				074FCB8E19D36851004C6EB2 /* contextmenu.cpp in Compile Sources */,
 				3AA6E7264581F82856FB37F7 /* text.cpp in Compile Sources */,
 				FCE6518C548DF7BC82228A4A /* twidget.cpp in Compile Sources */,
 				F91C59BECCE70070B06E8385 /* lang.cpp in Compile Sources */,

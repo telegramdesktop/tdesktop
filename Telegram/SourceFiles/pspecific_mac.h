@@ -69,9 +69,6 @@ public:
 	void psUpdateWorkmode();
 
 	void psRefreshTaskbarIcon();
-	virtual bool minimizeToTray() {
-		return false;
-	}
 
 	bool psPosInited() const {
 		return posInited;
@@ -95,13 +92,17 @@ public slots:
 protected:
 
 	void psNotIdle() const;
+	QImage psTrayIcon(bool selected = false) const;
 
 	bool posInited;
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
     QImage icon256;
 
+	QImage trayImg, trayImgSel;
+
 	virtual void setupTrayIcon() = 0;
+	virtual void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) = 0;
 	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
 
     QTimer psUpdatedPositionTimer;
@@ -173,7 +174,7 @@ private:
 
 };
 
-void psActivateProcess(uint64 pid);
+void psActivateProcess(uint64 pid = 0);
 QString psLocalServerPrefix();
 QString psCurrentCountry();
 QString psCurrentLanguage();

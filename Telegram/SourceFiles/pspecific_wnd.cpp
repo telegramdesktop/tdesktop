@@ -1135,7 +1135,7 @@ void PsMainWindow::psStateChanged(Qt::WindowState state) {
 	psUpdateSysMenu(state);
 	psUpdateMargins();
 	if (state == Qt::WindowMinimized && GetWindowLong(ps_hWnd, GWL_HWNDPARENT)) {
-		minimizeToTray();
+		App::wnd()->minimizeToTray();
 	}
 	psSavePosition(state);
 }
@@ -1748,7 +1748,9 @@ namespace {
 }
 
 void psActivateProcess(uint64 pid) {
-	::EnumWindows((WNDENUMPROC)_ActivateProcess, (LPARAM)&pid);
+	if (pid) {
+		::EnumWindows((WNDENUMPROC)_ActivateProcess, (LPARAM)&pid);
+	}
 }
 
 QString psCurrentCountry() {

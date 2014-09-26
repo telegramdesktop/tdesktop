@@ -61,6 +61,13 @@ namespace {
 				case 3: if (ev->key() == Qt::Key_F11) _debugState = 4; else if (ev->key() != Qt::Key_F10) _debugState = 0; break;
 				case 4: if (ev->key() == Qt::Key_F12) offerDebug(); if (ev->key() != Qt::Key_F11) _debugState = 0; break;
 				}
+
+				if (cPlatform() == dbipMac && ev->key() == Qt::Key_W && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
+					if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+						App::wnd()->minimizeToTray();
+						return true;
+					}
+				}
 			}
 			return QObject::eventFilter(o, e);
 		}

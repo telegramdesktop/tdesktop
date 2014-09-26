@@ -59,9 +59,6 @@ public:
 	void psUpdateWorkmode();
 
 	void psRefreshTaskbarIcon();
-	virtual bool minimizeToTray() {
-		return false;
-	}
 
 	bool psPosInited() const {
 		return posInited;
@@ -161,7 +158,7 @@ private:
 
 };
 
-void psActivateProcess(uint64 pid);
+void psActivateProcess(uint64 pid = 0);
 QString psLocalServerPrefix();
 QString psCurrentCountry();
 QString psCurrentLanguage();

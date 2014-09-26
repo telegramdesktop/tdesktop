@@ -65,6 +65,9 @@ void MacPrivate::notifyReplied(unsigned long long peer, const char *str) {
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
 posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/iconround256.png")) {
+	QImage tray(qsl(":/gui/art/osxtray.png"));
+	trayImg = tray.copy(0, cRetina() ? 0 : tray.width() / 2, tray.width() / (cRetina() ? 2 : 4), tray.width() / (cRetina() ? 2 : 4));
+	trayImgSel = tray.copy(tray.width() / (cRetina() ? 2 : 4), cRetina() ? 0 : tray.width() / 2, tray.width() / (cRetina() ? 2 : 4), tray.width() / (cRetina() ? 2 : 4));
     connect(&psIdleTimer, SIGNAL(timeout()), this, SLOT(psIdleTimeout()));
     psIdleTimer.setSingleShot(false);
 }
@@ -76,6 +79,10 @@ void PsMainWindow::psNotIdle() const {
 		if (App::main()) App::main()->setOnline();
 		if (App::wnd()) App::wnd()->checkHistoryActivation();
 	}
+}
+
+QImage PsMainWindow::psTrayIcon(bool selected) const {
+	return selected ? trayImgSel : trayImg;
 }
 
 void PsMainWindow::psIdleTimeout() {
@@ -138,6 +145,41 @@ void PsMainWindow::psUpdateWorkmode() {
 	}
 }
 
+void _placeCounter(QImage &img, int size, int count, style::color bg, style::color color) {
+	if (!count) return;
+
+	QPainter p(&img);
+	QString cnt = (count < 100) ? QString("%1").arg(count) : QString("..%1").arg(count % 100, 2, 10, QChar('0'));
+	int32 cntSize = cnt.size();
+
+	p.setBrush(bg->b);
+	p.setPen(Qt::NoPen);
+	p.setRenderHint(QPainter::Antialiasing);
+	int32 fontSize, skip;
+	if (size == 22) {
+		skip = 1;
+		fontSize = 8;
+	} else {
+		skip = 2;
+		fontSize = 16;
+	}
+	style::font f(fontSize);
+	int32 w = f->m.width(cnt), d, r;
+	if (size == 22) {
+		d = (cntSize < 2) ? 3 : 2;
+		r = (cntSize < 2) ? 6 : 5;
+	} else {
+		d = (cntSize < 2) ? 6 : 5;
+		r = (cntSize < 2) ? 9 : 11;
+	}
+	p.drawRoundedRect(QRect(size - w - d * 2 - skip, size - f->height - skip, w + d * 2, f->height), r, r);
+
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+	p.setFont(f->f);
+	p.setPen(color->p);
+	p.drawText(size - w - d - skip, size - f->height + f->ascent - skip, cnt);
+}
+
 void PsMainWindow::psUpdateCounter() {
 	int32 counter = App::histories().unreadFull;
 
@@ -148,10 +190,16 @@ void PsMainWindow::psUpdateCounter() {
 
 	if (trayIcon) {
 		style::color bg = (App::histories().unreadMuted < counter) ? st::counterBG : st::counterMuteBG;
-		QIcon iconSmall;
-		iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(16, counter, bg, true)));
-		iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(32, counter, bg, true)));
-		trayIcon->setIcon(iconSmall);
+		QIcon icon;
+		QImage img(psTrayIcon()), imgsel(psTrayIcon(true));
+		img.detach();
+		imgsel.detach();
+		int32 size = cRetina() ? 44 : 22;
+		_placeCounter(img, size, counter, bg, st::counterColor);
+		_placeCounter(imgsel, size, counter, st::white, st::counterMacInvColor);
+		icon.addPixmap(QPixmap::fromImage(img));
+		icon.addPixmap(QPixmap::fromImage(imgsel), QIcon::Selected);
+		trayIcon->setIcon(icon);
 	}
 }
 
@@ -255,7 +303,7 @@ void PsMainWindow::psStateChanged(Qt::WindowState state) {
 	psUpdateSysMenu(state);
 	psUpdateMargins();
 //    if (state == Qt::WindowMinimized && GetWindowLong(ps_hWnd, GWL_HWNDPARENT)) {
-//		minimizeToTray();
+//		App::wnd()->minimizeToTray();
 //    }
     psSavePosition(state);
 }

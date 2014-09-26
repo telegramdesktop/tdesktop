@@ -102,7 +102,7 @@ QT_USE_NAMESPACE
     QCocoaSystemTrayIcon *systray;
     NSStatusItem *item;
     QCocoaMenu *menu;
-    bool menuVisible;
+    bool menuVisible, iconSelected;
     QIcon icon;
     QT_MANGLE_NAMESPACE(QNSImageView) *imageCell;
 }
@@ -124,6 +124,7 @@ QT_USE_NAMESPACE
     QT_MANGLE_NAMESPACE(QNSStatusItem) *parent;
 }
 -(id)initWithParent:(QT_MANGLE_NAMESPACE(QNSStatusItem)*)myParent;
+-(void)updateIconSelection;
 -(void)menuTrackingDone:(NSNotification*)notification;
 -(void)mousePressed:(NSEvent *)mouseEvent button:(Qt::MouseButton)mouseButton;
 @end
@@ -202,13 +203,11 @@ void QCocoaSystemTrayIcon::updateIcon(const QIcon &icon)
 
     m_sys->item->icon = icon;
 
-    const bool menuVisible = m_sys->item->menu && m_sys->item->menuVisible;
-
     CGFloat hgt = [[[NSApplication sharedApplication] mainMenu] menuBarHeight];
-	const short scale = (hgt - 6) * _devicePixelRatio();
+	const short scale = hgt * _devicePixelRatio();
 
     QPixmap pm = m_sys->item->icon.pixmap(QSize(scale, scale),
-                                          menuVisible ? QIcon::Selected : QIcon::Normal);
+                                          m_sys->item->iconSelected ? QIcon::Selected : QIcon::Normal);
     if (pm.isNull()) {
         pm = QPixmap(scale, scale);
         pm.fill(Qt::transparent);
@@ -330,24 +329,30 @@ QT_END_NAMESPACE
     return self;
 }
 
+-(void)updateIconSelection
+{
+	CGFloat hgt = [[[NSApplication sharedApplication] mainMenu] menuBarHeight];
+	const short scale = hgt * _devicePixelRatio();
+	QPixmap pm = parent->icon.pixmap(QSize(scale, scale),
+									 parent->iconSelected ? QIcon::Selected : QIcon::Normal);
+	if (pm.isNull()) {
+		pm = QPixmap(scale, scale);
+		pm.fill(Qt::transparent);
+	}
+	NSImage *nsaltimage = static_cast<NSImage *>(qt_mac_create_nsimage(pm));
+	[self setImage: nsaltimage];
+	[nsaltimage release];
+}
+
 -(void)menuTrackingDone:(NSNotification*)notification
 {
     Q_UNUSED(notification);
     down = NO;
 
-    CGFloat hgt = [[[NSApplication sharedApplication] mainMenu] menuBarHeight];
-    const short scale = (hgt - 6) * _devicePixelRatio();
+	parent->menuVisible = false;
 
-    QPixmap pm = parent->icon.pixmap(QSize(scale, scale), QIcon::Normal);
-    if (pm.isNull()) {
-        pm = QPixmap(scale, scale);
-        pm.fill(Qt::transparent);
-    }
-    NSImage *nsaltimage = static_cast<NSImage *>(qt_mac_create_nsimage(pm));
-    [self setImage: nsaltimage];
-    [nsaltimage release];
-
-    parent->menuVisible = false;
+	parent->iconSelected = false;
+	[self updateIconSelection];
 
     [self setNeedsDisplay:YES];
 }
@@ -358,25 +363,15 @@ QT_END_NAMESPACE
     int clickCount = [mouseEvent clickCount];
     [self setNeedsDisplay:YES];
 
-    CGFloat hgt = [[[NSApplication sharedApplication] mainMenu] menuBarHeight];
-    const short scale = (hgt - 6) * _devicePixelRatio();
+	parent->iconSelected = (clickCount != 2) && parent->menu;
+	[self updateIconSelection];
 
-    QPixmap pm = parent->icon.pixmap(QSize(scale, scale),
-                                     parent->menuVisible ? QIcon::Selected : QIcon::Normal);
-    if (pm.isNull()) {
-        pm = QPixmap(scale, scale);
-        pm.fill(Qt::transparent);
-    }
-    NSImage *nsaltimage = static_cast<NSImage *>(qt_mac_create_nsimage(pm));
-    [self setImage: nsaltimage];
-    [nsaltimage release];
-
-    if (clickCount == 2) {
-        [self menuTrackingDone:nil];
-        [parent doubleClickSelector:self];
-    } else {
-        [parent triggerSelector:self button:mouseButton];
-    }
+	if (clickCount == 2) {
+		[self menuTrackingDone:nil];
+		[parent doubleClickSelector:self];
+	} else {
+		[parent triggerSelector:self button:mouseButton];
+	}
 }
 
 -(void)mouseDown:(NSEvent *)mouseEvent
@@ -388,6 +383,9 @@ QT_END_NAMESPACE
 {
     Q_UNUSED(mouseEvent);
     [self menuTrackingDone:nil];
+
+	parent->iconSelected = false;
+	[self updateIconSelection];
 }
 
 - (void)rightMouseDown:(NSEvent *)mouseEvent
@@ -399,6 +397,9 @@ QT_END_NAMESPACE
 {
     Q_UNUSED(mouseEvent);
     [self menuTrackingDone:nil];
+
+	parent->iconSelected = false;
+	[self updateIconSelection];
 }
 
 - (void)otherMouseDown:(NSEvent *)mouseEvent
@@ -413,7 +414,7 @@ QT_END_NAMESPACE
 }
 
 -(void)drawRect:(NSRect)rect {
-    [[parent item] drawStatusBarBackgroundInRect:rect withHighlight:down];
+	[[parent item] drawStatusBarBackgroundInRect:rect withHighlight:parent->menu ? down : NO];
     [super drawRect:rect];
 }
 @end
