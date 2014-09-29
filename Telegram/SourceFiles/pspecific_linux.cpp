@@ -75,6 +75,9 @@ void PsMainWindow::psIdleTimeout() {
 	}
 }
 
+void PsMainWindow::psShowTrayMenu() {
+}
+
 bool PsMainWindow::psIsOnline(int state) const {
 	if (state < 0) state = this->windowState();
 	if (state & Qt::WindowMinimized) {
@@ -1009,4 +1012,7 @@ void psAutoStart(bool start, bool silent) {
 }
 
 void psSendToMenu(bool send, bool silent) {
+}
+
+void psUpdateOverlayed(QWidget *widget) {
 }

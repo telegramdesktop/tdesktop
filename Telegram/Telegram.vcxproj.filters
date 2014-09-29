@@ -704,6 +704,18 @@
     <ClCompile Include="GeneratedFiles\Release\moc_audio.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\gui\contextmenu.cpp">
+      <Filter>gui</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_contextmenu.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_contextmenu.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_contextmenu.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -950,6 +962,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\audio.h">
       <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\gui\contextmenu.h">
+      <Filter>gui</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

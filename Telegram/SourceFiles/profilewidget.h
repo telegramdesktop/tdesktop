@@ -152,7 +152,7 @@ private:
 	QPoint _lastPos;
 
 	QString _onlineText;
-	QMenu *_menu;
+	ContextMenu *_menu;
 
 };
 

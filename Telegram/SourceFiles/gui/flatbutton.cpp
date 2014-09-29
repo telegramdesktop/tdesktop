@@ -150,6 +150,11 @@ void IconedButton::setOpacity(float64 opacity) {
 	update();
 }
 
+void IconedButton::setText(const QString &text) {
+	_text = text;
+	update();
+}
+
 bool IconedButton::animStep(float64 ms) {
 	float64 dt = ms / _st.duration;
 	bool res = true;

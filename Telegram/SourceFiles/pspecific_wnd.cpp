@@ -891,6 +891,10 @@ void PsMainWindow::psIdleTimeout() {
 	}
 }
 
+void PsMainWindow::psShowTrayMenu() {
+	trayIconMenu->popup(QCursor::pos());
+}
+
 bool PsMainWindow::psIsActive(int state) const {
 	if (state < 0) state = this->windowState();
 	return isActiveWindow() && isVisible() && !(state & Qt::WindowMinimized) && !psIdle;
@@ -956,9 +960,10 @@ void PsMainWindow::psUpdateWorkmode() {
 	} break;
 
 	case dbiwmWindowOnly: {
-		if (trayIconMenu) trayIconMenu->deleteLater();
-		trayIconMenu = 0;
-		if (trayIcon) trayIcon->deleteLater();
+		if (trayIcon) {
+			trayIcon->setContextMenu(0);
+			trayIcon->deleteLater();
+		}
 		trayIcon = 0;
 
 		HWND psOwner = (HWND)GetWindowLong(ps_hWnd, GWL_HWNDPARENT);
@@ -2198,6 +2203,17 @@ void psAutoStart(bool start, bool silent) {
 
 void psSendToMenu(bool send, bool silent) {
 	_manageAppLnk(send, silent, CSIDL_SENDTO, L"-sendpath", L"Telegram send to link.\nYou can disable send to menu item in Telegram settings.");
+}
+
+void psUpdateOverlayed(TWidget *widget) {
+	bool wm = widget->testAttribute(Qt::WA_Mapped), wv = widget->testAttribute(Qt::WA_WState_Visible);
+	if (!wm) widget->setAttribute(Qt::WA_Mapped, true);
+	if (!wv) widget->setAttribute(Qt::WA_WState_Visible, true);
+	widget->update();
+	QEvent e(QEvent::UpdateRequest);
+	widget->event(&e);
+	if (!wm) widget->setAttribute(Qt::WA_Mapped, false);
+	if (!wv) widget->setAttribute(Qt::WA_WState_Visible, false);
 }
 
 #ifdef _NEED_WIN_GENERATE_DUMP

@@ -710,9 +710,9 @@ void ProfileInner::contextMenuEvent(QContextMenuEvent *e) {
 	if (!_phoneText.isEmpty()) {
 		QRect info(_left + st::profilePhotoSize + st::profilePhoneLeft, st::profilePadding.top(), _width - st::profilePhotoSize - st::profilePhoneLeft, st::profilePhotoSize);
 		if (info.contains(mapFromGlobal(e->globalPos()))) {
-			_menu = new QMenu(this);
+			_menu = new ContextMenu(this);
 			_menu->addAction(lang(lng_profile_copy_phone), this, SLOT(onCopyPhone()))->setEnabled(true);
-			_menu->setAttribute(Qt::WA_DeleteOnClose);
+			_menu->deleteOnHide();
 			connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
 			_menu->popup(e->globalPos());
 			e->accept();

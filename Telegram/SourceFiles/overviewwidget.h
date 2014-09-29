@@ -178,7 +178,7 @@ private:
 	uint64 _touchSpeedTime, _touchAccelerationTime, _touchTime;
 	QTimer _touchScrollTimer;
 
-	QMenu *_menu;
+	ContextMenu *_menu;
 };
 
 class OverviewWidget : public QWidget, public RPCSender, public Animated {

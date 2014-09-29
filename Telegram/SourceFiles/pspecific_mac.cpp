@@ -96,6 +96,9 @@ void PsMainWindow::psIdleTimeout() {
 	}
 }
 
+void PsMainWindow::psShowTrayMenu() {
+}
+
 bool PsMainWindow::psIsOnline(int state) const {
 	if (state < 0) state = this->windowState();
 	if (state & Qt::WindowMinimized) {
@@ -137,9 +140,10 @@ void PsMainWindow::psUpdateWorkmode() {
 		} break;
 
 		case dbiwmWindowOnly: {
-			if (trayIconMenu) trayIconMenu->deleteLater();
-			trayIconMenu = 0;
-			if (trayIcon) trayIcon->deleteLater();
+			if (trayIcon) {
+				trayIcon->setContextMenu(0);
+				trayIcon->deleteLater();
+			}
 			trayIcon = 0;
 		} break;
 	}
@@ -971,4 +975,7 @@ void psAutoStart(bool start, bool silent) {
 }
 
 void psSendToMenu(bool send, bool silent) {
+}
+
+void psUpdateOverlayed(QWidget *widget) {
 }

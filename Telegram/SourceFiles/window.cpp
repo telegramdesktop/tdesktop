@@ -335,16 +335,17 @@ NotifyWindow::~NotifyWindow() {
 	if (App::wnd()) App::wnd()->notifyShowNext(this);
 }
 
-Window::Window(QWidget *parent)	: PsMainWindow(parent),
-	intro(0), main(0), settings(0), layerBG(0), _topWidget(0),
-	_connecting(0), _tempDeleter(0), _tempDeleterThread(0), myIcon(QPixmap::fromImage(icon256)), dragging(false), _inactivePress(false), _mediaView(0) {
+Window::Window(QWidget *parent) : PsMainWindow(parent),
+intro(0), main(0), settings(0), layerBG(0), _topWidget(0),
+_connecting(0), _tempDeleter(0), _tempDeleterThread(0), myIcon(QPixmap::fromImage(icon256)), dragging(false), _inactivePress(false), _mediaView(0) {
 
 	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
 	icon64 = icon256.scaledToWidth(64, Qt::SmoothTransformation);
 
-	if (objectName().isEmpty())
+	if (objectName().isEmpty()) {
 		setObjectName(qsl("MainWindow"));
+	}
 	resize(st::wndDefWidth, st::wndDefHeight);
 	setWindowOpacity(1);
 	setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
@@ -393,6 +394,21 @@ void Window::init() {
 
 	psInitSize();
 	psUpdateWorkmode();
+}
+
+void Window::firstShow() {
+#ifdef Q_OS_WIN
+	trayIconMenu = new ContextMenu(this);
+#else
+	trayIconMenu = new QMenu(this);
+	trayIconMenu->setFont(QFont("Tahoma"));
+#endif
+	trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
+	trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
+
+	psFirstShow();
+
+	updateTrayMenu();
 }
 
 QWidget *Window::filedialogParent() {
@@ -770,22 +786,17 @@ void Window::setupTrayIcon() {
 	psUpdateDelegate();
 }
 
-void Window::updateTrayMenu(int windowState) {
-	bool active = psIsActive(windowState);
-	if (trayIconMenu) {
-		trayIconMenu->deleteLater();
-		trayIconMenu = 0;
-	}
-	if (active || cPlatform() != dbipMac) {
-		trayIconMenu = new QMenu(this);
-		trayIconMenu->setFont(QFont("Tahoma"));
-		QAction *a;
-		a = trayIconMenu->addAction(lang(active ? lng_minimize_to_tray : lng_open_from_tray), this, active ? SLOT(minimizeToTray()) : SLOT(showFromTray()));
-		a->setEnabled(true);
-		a = trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()));
-		a->setEnabled(true);
-	}
-	trayIcon->setContextMenu(trayIconMenu);
+void Window::updateTrayMenu(bool force) {
+	if (!trayIconMenu || cPlatform() == dbipWindows && !force) return;
+
+	bool active = psIsActive();
+	QAction *first = trayIconMenu->actions().at(0);
+	first->setText(lang(active ? lng_minimize_to_tray : lng_open_from_tray));
+	disconnect(first, SIGNAL(triggered(bool)), 0, 0);
+	connect(first, SIGNAL(triggered(bool)), this, active ? SLOT(minimizeToTray()) : SLOT(showFromTray()));
+#ifndef Q_OS_WIN
+	trayIcon->setContextMenu((active || cPlatform() != dbipMac) ? trayIconMenu : 0);
+#endif
 }
 
 void Window::quitFromTray() {
@@ -859,7 +870,10 @@ void Window::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 
 void Window::toggleTray(QSystemTrayIcon::ActivationReason reason) {
 	if (trayIconMenu && cPlatform() == dbipMac) return;
-	if (reason != QSystemTrayIcon::Context) {
+	if (reason == QSystemTrayIcon::Context) {
+		updateTrayMenu(true);
+		QTimer::singleShot(1, this, SLOT(psShowTrayMenu()));
+	} else {
 		if (psIsActive()) {
 			minimizeToTray();
 		} else {

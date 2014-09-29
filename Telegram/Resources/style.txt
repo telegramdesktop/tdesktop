@@ -1514,3 +1514,20 @@ macSelectorTop: 6;
 macAlwaysThisAppTop: 4;
 macAppHintTop: 8;
 macCautionIconSize: size(16, 16);
+
+btnContext: iconedButton(btnDefIconed) {
+	bgColor: white;
+	overBgColor: btnWhiteHover;
+	font: font(14px);
+
+	opacity: 1;
+	overOpacity: 1;
+
+	width: 172px;
+	height: 36px;
+
+	color: black;
+
+	textPos: point(16px, 7px);
+	downTextPos: point(16px, 8px);
+}

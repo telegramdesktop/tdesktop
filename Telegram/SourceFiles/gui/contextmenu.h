@@ -18,24 +18,34 @@
 #pragma once
 
 #include <QtWidgets/QWidget>
+#include "gui/boxshadow.h"
 
-class FlatButton;
-
-class ContextMenu : public QWidget, public Animated {
+class ContextMenu : public TWidget, public Animated {
 	Q_OBJECT
 
 public:
 
-	ContextMenu(QWidget *parent);
-	FlatButton *addButton(FlatButton *button);
-	void resetButtons();
+	ContextMenu(QWidget *parent, const style::iconedButton &st = st::btnContext);
+	QAction *addAction(const QString &text, const QObject *receiver, const char* member);
+	void resetActions();
+
+	typedef QVector<QAction*> Actions;
+	Actions &actions();
 
 	void resizeEvent(QResizeEvent *e);
 	void paintEvent(QPaintEvent *e);
+	void keyPressEvent(QKeyEvent *e);
+
+	void focusOutEvent(QFocusEvent *e);
 
 	void fastHide();
 
 	bool animStep(float64 ms);
+
+	void deleteOnHide();
+	void popup(const QPoint &p);
+
+	~ContextMenu();
 
 public slots:
 
@@ -44,16 +54,31 @@ public slots:
 
 	void showStart();
 
+	void actionChanged();
+
+	void onActiveChanged();
+	void buttonStateChanged(int oldState, ButtonStateChangeSource source);
+
 private:
 
+	void clearActions();
 	void adjustButtons();
 
-	typedef QVector<FlatButton*> Buttons;
+	typedef QVector<IconedButton*> Buttons;
 	Buttons _buttons;
+
+	Actions _actions;
 
 	int32 _width, _height;
 	bool _hiding;
 
+	const style::iconedButton &_buttonStyle;
+
+	BoxShadow _shadow;
+	int32 _selected;
+
 	anim::fvalue a_opacity;
+
+	bool _deleteOnHide;
 
 };

@@ -77,6 +77,7 @@ public slots:
 	void psUpdateDelegate();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psIdleTimeout();
+	void psShowTrayMenu();
 
 protected:
 
@@ -84,7 +85,7 @@ protected:
 
 	bool posInited;
 	QSystemTrayIcon *trayIcon;
-    QMenu *trayIconMenu;
+	ContextMenu *trayIconMenu;
 	QImage icon256;
 
 	virtual void setupTrayIcon() = 0;
@@ -191,3 +192,5 @@ void psOpenFile(const QString &name, bool openWith = false);
 void psShowInFolder(const QString &name);
 void psStart();
 void psFinish();
+
+void psUpdateOverlayed(TWidget *widget);

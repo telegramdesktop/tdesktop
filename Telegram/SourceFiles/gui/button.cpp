@@ -24,21 +24,13 @@ Button::Button(QWidget *parent) : TWidget(parent), _state(StateNone), _acceptBot
 void Button::leaveEvent(QEvent *e) {
 	if (_state & StateDown) return;
 
-	if (_state & StateOver) {
-		int oldState = _state;
-		_state &= ~StateOver;
-		emit stateChanged(oldState, ButtonByHover);
-	}
+	setOver(false, ButtonByHover);
 	setMouseTracking(false);
 	return TWidget::leaveEvent(e);
 }
 
 void Button::enterEvent(QEvent *e) {
-	if (!(_state & StateOver)) {
-		int oldState = _state;
-		_state |= StateOver;
-		emit stateChanged(oldState, ButtonByHover);
-	}
+	setOver(true, ButtonByHover);
 	setMouseTracking(true);
 	return TWidget::enterEvent(e);
 }
@@ -64,17 +56,9 @@ void Button::mousePressEvent(QMouseEvent *e) {
 
 void Button::mouseMoveEvent(QMouseEvent *e) {
 	if (rect().contains(e->pos())) {
-		if (!(_state & StateOver)) {
-			int oldState = _state;
-			_state |= StateOver;
-			emit stateChanged(oldState, ButtonByHover);
-		}
+		setOver(true, ButtonByHover);
 	} else {
-		if (_state & StateOver) {
-			int oldState = _state;
-			_state &= ~StateOver;
-			emit stateChanged(oldState, ButtonByHover);
-		}
+		setOver(false, ButtonByHover);
 	}
 }
 
@@ -88,6 +72,18 @@ void Button::mouseReleaseEvent(QMouseEvent *e) {
 		} else {
 			leaveEvent(e);
 		}
+	}
+}
+
+void Button::setOver(bool over, ButtonStateChangeSource source) {
+	if (over && !(_state & StateOver)) {
+		int oldState = _state;
+		_state |= StateOver;
+		emit stateChanged(oldState, source);
+	} else if (!over && (_state & StateOver)) {
+		int oldState = _state;
+		_state &= ~StateOver;
+		emit stateChanged(oldState, source);
 	}
 }
 

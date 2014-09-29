@@ -17,7 +17,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #pragma once
 
-class MediaView : public QWidget, public RPCSender, public Animated {
+class MediaView : public TWidget, public RPCSender, public Animated {
 	Q_OBJECT
 
 public:
@@ -107,7 +107,7 @@ private:
 	QPoint _lastAction;
 
 	FlatButton _close, _save, _forward, _delete;
-	QMenu *_menu;
+	ContextMenu *_menu;
 	bool _receiveMouse;
 
 	bool _touchPress, _touchMove, _touchRightButton;

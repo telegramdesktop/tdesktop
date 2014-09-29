@@ -24,7 +24,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "application.h"
 #include "gui/filedialog.h"
 
-MediaView::MediaView() : QWidget(App::wnd()),
+MediaView::MediaView() : TWidget(App::wnd()),
 _photo(0), _leftNavVisible(false), _rightNavVisible(false), _maxWidth(0), _maxHeight(0), _x(0), _y(0), _w(0), _full(-1),
 _history(0), _peer(0), _user(0), _from(0), _index(-1), _msgid(0), _loadRequest(0), _over(OverNone), _down(OverNone), _lastAction(-st::medviewDeltaFromLastAction, -st::medviewDeltaFromLastAction),
 _close(this, lang(lng_mediaview_close), st::medviewButton),
@@ -327,16 +327,7 @@ void MediaView::showPhoto(PhotoData *photo) {
 	_from = App::user(_photo->user);
 	updateControls();
 	if (isHidden()) {
-#ifdef Q_OS_WIN
-		bool wm = testAttribute(Qt::WA_Mapped), wv = testAttribute(Qt::WA_WState_Visible);
-		if (!wm) setAttribute(Qt::WA_Mapped, true);
-		if (!wv) setAttribute(Qt::WA_WState_Visible, true);
-		update();
-		QEvent e(QEvent::UpdateRequest);
-		event(&e);
-		if (!wm) setAttribute(Qt::WA_Mapped, false);
-		if (!wv) setAttribute(Qt::WA_WState_Visible, false);
-#endif
+		psUpdateOverlayed(this);
 		show();
 	}
 }
@@ -647,7 +638,7 @@ void MediaView::contextMenuEvent(QContextMenuEvent *e) {
 			_menu->deleteLater();
 			_menu = 0;
 		}
-		_menu = new QMenu(this);
+		_menu = new ContextMenu(this);
 		_menu->addAction(lang(lng_context_save_image), this, SLOT(onSave()))->setEnabled(true);
 		_menu->addAction(lang(lng_context_copy_image), this, SLOT(onCopy()))->setEnabled(true);
 		_menu->addAction(lang(lng_context_close_image), this, SLOT(onClose()))->setEnabled(true);
@@ -657,7 +648,7 @@ void MediaView::contextMenuEvent(QContextMenuEvent *e) {
 		} else if ((App::self() && App::self()->photoId == _photo->id) || (_photo->chat && _photo->chat->photoId == _photo->id)) {
 			_menu->addAction(lang(lng_context_delete_image), this, SLOT(onDelete()))->setEnabled(true);
 		}
-		_menu->setAttribute(Qt::WA_DeleteOnClose);
+		_menu->deleteOnHide();
 		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
 		_menu->popup(e->globalPos());
 		e->accept();

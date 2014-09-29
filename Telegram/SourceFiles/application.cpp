@@ -596,7 +596,7 @@ void Application::startApp() {
 		window->setupIntro(false);
 	}
 
-	window->psFirstShow();
+	window->firstShow();
 
 	if (cStartToSettings()) {
 		window->showSettings();

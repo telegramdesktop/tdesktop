@@ -155,7 +155,7 @@ private:
 	uint64 _touchSpeedTime, _touchAccelerationTime, _touchTime;
 	QTimer _touchScrollTimer;
 
-	QMenu *_menu;
+	ContextMenu *_menu;
 
 };
 

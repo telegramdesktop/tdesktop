@@ -50,6 +50,7 @@ public:
 	int getState() const;
 
 	void setDisabled(bool disabled = true);
+	void setOver(bool over, ButtonStateChangeSource source = ButtonByUser);
 	bool disabled() const {
 		return (_state & StateDisabled);
 	}

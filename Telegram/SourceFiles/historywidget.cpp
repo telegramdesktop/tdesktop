@@ -617,21 +617,21 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 	_contextMenuLnk = textlnkOver();
     if (_contextMenuLnk && dynamic_cast<TextLink*>(_contextMenuLnk.data())) {
-		_menu = new QMenu(historyWidget);
+		_menu = new ContextMenu(historyWidget);
 		if (isUponSelected > 0) {
 			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
 		}
 		_menu->addAction(lang(lng_context_open_link), this, SLOT(openContextUrl()))->setEnabled(true);
 		_menu->addAction(lang(lng_context_copy_link), this, SLOT(copyContextUrl()))->setEnabled(true);
     } else if (_contextMenuLnk && dynamic_cast<EmailLink*>(_contextMenuLnk.data())) {
-		_menu = new QMenu(historyWidget);
+		_menu = new ContextMenu(historyWidget);
 		if (isUponSelected > 0) {
 			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
 		}
 		_menu->addAction(lang(lng_context_open_email), this, SLOT(openContextUrl()))->setEnabled(true);
 		_menu->addAction(lang(lng_context_copy_email), this, SLOT(copyContextUrl()))->setEnabled(true);
 	} else if (_contextMenuLnk && dynamic_cast<HashtagLink*>(_contextMenuLnk.data())) {
-		_menu = new QMenu(historyWidget);
+		_menu = new ContextMenu(historyWidget);
 		if (isUponSelected > 0) {
 			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
 		}
@@ -643,7 +643,7 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
         AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
         DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
 		if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument) {
-			_menu = new QMenu(historyWidget);
+			_menu = new ContextMenu(historyWidget);
 			if (isUponSelected > 0) {
 				_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
 			}
@@ -682,29 +682,29 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			HistoryServiceMsg *srv = dynamic_cast<HistoryServiceMsg*>(item);
 
 			if (isUponSelected > 0) {
-				if (!_menu) _menu = new QMenu(this);
+				if (!_menu) _menu = new ContextMenu(this);
 				_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
 			} else if (item && !isUponSelected && !_contextMenuLnk) {
 				QString contextMenuText = item->selectedText(FullItemSel);
 				if (!contextMenuText.isEmpty()) {
-					if (!_menu) _menu = new QMenu(this);
+					if (!_menu) _menu = new ContextMenu(this);
 					_menu->addAction(lang(lng_context_copy_text), this, SLOT(copyContextText()))->setEnabled(true);
 				}
 			}
 
 			if (isUponSelected > 1) {
-				if (!_menu) _menu = new QMenu(this);
+				if (!_menu) _menu = new ContextMenu(this);
 				_menu->addAction(lang(lng_context_forward_selected), historyWidget, SLOT(onForwardSelected()));
 				_menu->addAction(lang(lng_context_delete_selected), historyWidget, SLOT(onDeleteSelected()));
 				_menu->addAction(lang(lng_context_clear_selection), historyWidget, SLOT(onClearSelected()));
 			} else if (isUponSelected != -2) {
 				if (canForward) {
-					if (!_menu) _menu = new QMenu(this);
+					if (!_menu) _menu = new ContextMenu(this);
 					_menu->addAction(lang(lng_context_forward_msg), historyWidget, SLOT(forwardMessage()))->setEnabled(true);
 				}
 
 				if (canDelete) {
-					if (!_menu) _menu = new QMenu(this);
+					if (!_menu) _menu = new ContextMenu(this);
 					_menu->addAction(lang((msg && msg->uploading()) ? lng_context_cancel_upload : lng_context_delete_msg), historyWidget, SLOT(deleteMessage()))->setEnabled(true);
 				}
 			}
@@ -712,7 +712,7 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	}
 	if (_menu) {
-		_menu->setAttribute(Qt::WA_DeleteOnClose);
+		_menu->deleteOnHide();
 		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
 		_menu->popup(e->globalPos());
 		e->accept();

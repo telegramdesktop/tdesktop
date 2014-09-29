@@ -133,6 +133,7 @@ public:
 	~Window();
 
 	void init();
+	void firstShow();
 
 	QWidget *filedialogParent();
 
@@ -244,7 +245,7 @@ public slots:
 	void onTempDirClearFailed();
 
 	void notifyFire();
-	void updateTrayMenu(int windowState = -1);
+	void updateTrayMenu(bool force = false);
 
 signals:
 

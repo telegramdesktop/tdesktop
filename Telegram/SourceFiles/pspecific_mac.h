@@ -88,6 +88,7 @@ public slots:
 	void psUpdateDelegate();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psIdleTimeout();
+	void psShowTrayMenu();
 
 protected:
 
@@ -197,3 +198,5 @@ void psOpenFile(const QString &name, bool openWith = false);
 void psShowInFolder(const QString &name);
 void psStart();
 void psFinish();
+
+void psUpdateOverlayed(QWidget *widget);
