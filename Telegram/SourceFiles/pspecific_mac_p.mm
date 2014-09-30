@@ -681,6 +681,14 @@ QString objc_appDataPath() {
 	return QString();
 }
 
+QString objc_downloadPath() {
+	NSURL *url = [[NSFileManager defaultManager] URLForDirectory:NSDownloadsDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
+	if (url) {
+		return QString::fromUtf8([[url path] fileSystemRepresentation]) + '/' + QString::fromWCharArray(AppName) + '/';
+	}
+	return QString();
+}
+
 QString objc_currentCountry() {
 	NSLocale *currentLocale = [NSLocale currentLocale];  // get the current locale.
 	NSString *countryCode = [currentLocale objectForKey:NSLocaleCountryCode];

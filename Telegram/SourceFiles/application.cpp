@@ -348,6 +348,11 @@ void Application::onEnableDebugMode() {
 	if (!cDebug()) {
 		logsInitDebug();
 		cSetDebug(true);
+		QFile f(cWorkingDir() + qsl("tdata/withdebug"));
+		if (f.open(QIODevice::WriteOnly)) {
+			f.write("1");
+			f.close();
+		}
 	}
 	App::wnd()->hideLayer();
 }

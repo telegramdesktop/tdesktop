@@ -47,7 +47,7 @@ private:
 
 	QString _path;
 
-	FlatRadiobutton _tempRadio, _dirRadio;
+	FlatRadiobutton _defaultRadio, _tempRadio, _dirRadio;
 	FlatInput _dirInput;
 	FlatButton _saveButton, _cancelButton;
 

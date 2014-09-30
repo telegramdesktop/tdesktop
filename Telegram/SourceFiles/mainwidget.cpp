@@ -548,7 +548,7 @@ DialogsIndexed &MainWidget::contactsList() {
 }
 
 void MainWidget::sendMessage(History *hist, const QString &text) {
-    readServerHistory(hist);
+    readServerHistory(hist, false);
     QString msg = history.prepareMessage(text);
 	if (!msg.isEmpty()) {
 		MsgId newId = clientMsgId();
@@ -1360,7 +1360,7 @@ void MainWidget::forwardDone(PeerId peer, const MTPmessages_StatedMessages &resu
 	history.onClearSelected();
 }
 
-void MainWidget::msgUpdated(PeerId peer, HistoryItem *msg) {
+void MainWidget::msgUpdated(PeerId peer, const HistoryItem *msg) {
 	if (!msg) return;
 	history.msgUpdated(peer, msg);
 	if (!msg->history()->dialogs.isEmpty()) dialogs.dlgUpdated(msg->history()->dialogs[0]);

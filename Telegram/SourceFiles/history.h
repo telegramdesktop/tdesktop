@@ -564,7 +564,6 @@ struct Histories : public QHash<PeerId, History*> {
 };
 
 struct HistoryBlock;
-class HistoryItem;
 
 struct DialogRow {
 	DialogRow(History *history = 0, DialogRow *prev = 0, DialogRow *next = 0, int32 pos = 0) : prev(prev), next(next), history(history), pos(pos), attached(0) {
@@ -1055,7 +1054,6 @@ struct DialogsIndexed {
 	DialogsIndex index;
 };
 
-class HistoryItem;
 struct HistoryBlock : public QVector<HistoryItem*> {
 	HistoryBlock(History *hist) : y(0), height(0), history(hist) {
 	}
@@ -1096,6 +1094,20 @@ protected:
 	mutable int32 _height, _maxw, _minh;
 
 };
+
+class ItemAnimations : public Animated {
+public:
+
+	bool animStep(float64 ms);
+	uint64 animate(const HistoryItem *item, uint64 ms);
+	void remove(const HistoryItem *item);
+
+private:
+	typedef QMap<const HistoryItem*, uint64> Animations;
+	Animations _animations;
+};
+
+ItemAnimations &itemAnimations();
 
 class HistoryMedia;
 class HistoryItem : public HistoryElem {
@@ -1197,6 +1209,9 @@ public:
 	virtual int32 timeWidth() const {
 		return 0;
 	}
+	virtual bool animating() const {
+		return false;
+	}
 
 	virtual ~HistoryItem();
 
@@ -1242,6 +1257,10 @@ public:
 
 	virtual void updateFrom(const MTPMessageMedia &media) {
 	}
+	
+	virtual bool animating() const {
+		return false;
+	}
 
 };
 
@@ -1270,6 +1289,11 @@ public:
 
 	TextLinkPtr lnk() const {
 		return openl;
+	}
+
+	virtual bool animating() const {
+		if (data->full->loaded()) return false;
+		return data->full->loading() ? true : !data->medium->loaded();
 	}
 
 private:
@@ -1464,6 +1488,9 @@ public:
 	int32 timeWidth() const {
 		return _timeWidth;
 	}
+	virtual bool animating() const {
+		return _media ? _media->animating() : false;
+	}
 
 	~HistoryMessage();
 
@@ -1541,6 +1568,10 @@ public:
 	QString selectedText(uint32 selection) const;
 
 	HistoryMedia *getMedia(bool inOverview = false) const;
+
+	virtual bool animating() const {
+		return _media ? _media->animating() : false;
+	}
 
 	~HistoryServiceMsg();
 

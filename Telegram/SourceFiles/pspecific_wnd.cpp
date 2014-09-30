@@ -1933,6 +1933,20 @@ QString psAppDataPath() {
 	return QString();
 }
 
+QString psAppDataPathOld() {
+	static const int maxFileLen = MAX_PATH * 10;
+	WCHAR wstrPath[maxFileLen];
+	if (GetEnvironmentVariable(L"APPDATA", wstrPath, maxFileLen)) {
+		QDir appData(QString::fromStdWString(std::wstring(wstrPath)));
+		return appData.absolutePath() + '/' + QString::fromWCharArray(AppNameOld) + '/';
+	}
+	return QString();
+}
+
+QString psDownloadPath() {
+	return QStandardPaths::writableLocation(QStandardPaths::DownloadLocation) + '/' + QString::fromWCharArray(AppName) + '/';
+}
+
 QString psCurrentExeDirectory(int argc, char *argv[]) {
 	LPWSTR *args;
 	int argsCount;

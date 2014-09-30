@@ -22,6 +22,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 namespace {
 	QFile debugLog, tcpLog, mtpLog, mainLog;
 	QTextStream *debugLogStream = 0, *tcpLogStream = 0, *mtpLogStream = 0, *mainLogStream = 0;
+	int32 part = -1;
 	QChar zero('0');
 
 	QMutex debugLogMutex, mainLogMutex;
@@ -65,6 +66,9 @@ void debugLogWrite(const char *file, int32 line, const QString &v) {
 
 	{
 		QMutexLocker lock(&debugLogMutex);
+
+		logsInitDebug(); // maybe need to reopen new file
+
 		QString msg(QString("%1 %2 (%3 : %4)\n").arg(debugLogEntryStart()).arg(v).arg(file).arg(line));
 		(*debugLogStream) << msg;
 		debugLogStream->flush();
@@ -83,6 +87,9 @@ void tcpLogWrite(const QString &v) {
 
 	{
 		QMutexLocker lock(&debugLogMutex);
+
+		logsInitDebug(); // maybe need to reopen new file
+
 		(*tcpLogStream) << QString("%1 %2\n").arg(debugLogEntryStart()).arg(v);
 		tcpLogStream->flush();
 	}
@@ -93,6 +100,9 @@ void mtpLogWrite(int32 dc, const QString &v) {
 
 	{
 		QMutexLocker lock(&debugLogMutex);
+
+		logsInitDebug(); // maybe need to reopen new file
+
 		(*mtpLogStream) << QString("%1 (dc:%2) %3\n").arg(debugLogEntryStart()).arg(dc).arg(v);
 		mtpLogStream->flush();
 	}
@@ -115,6 +125,52 @@ void logWrite(const QString &v) {
 	if (cDebug()) debugLogWrite("logs", 0, v);
 }
 
+void moveOldDataFiles(const QString &wasDir) {
+	QFile data(wasDir + "data"), dataConfig(wasDir + "data_config"), tdataConfig(wasDir + "tdata/config");
+	if (data.exists() && dataConfig.exists() && !QFileInfo(cWorkingDir() + "data").exists() && !QFileInfo(cWorkingDir() + "data_config").exists()) { // move to home dir
+		LOG(("Copying data to home dir '%1' from '%2'").arg(cWorkingDir()).arg(wasDir));
+		if (data.copy(cWorkingDir() + "data")) {
+			LOG(("Copied 'data' to home dir"));
+			if (dataConfig.copy(cWorkingDir() + "data_config")) {
+				LOG(("Copied 'data_config' to home dir"));
+				bool tdataGood = true;
+				if (tdataConfig.exists()) {
+					tdataGood = false;
+					QDir().mkpath(cWorkingDir() + "tdata");
+					if (tdataConfig.copy(cWorkingDir() + "tdata/config")) {
+						LOG(("Copied 'tdata/config' to home dir"));
+						tdataGood = true;
+					} else {
+						LOG(("Copied 'data' and 'data_config', but could not copy 'tdata/config'!"));
+					}
+				}
+				if (tdataGood) {
+					if (data.remove()) {
+						LOG(("Removed 'data'"));
+					} else {
+						LOG(("Could not remove 'data'"));
+					}
+					if (dataConfig.remove()) {
+						LOG(("Removed 'data_config'"));
+					} else {
+						LOG(("Could not remove 'data_config'"));
+					}
+					if (!tdataConfig.exists() || tdataConfig.remove()) {
+						LOG(("Removed 'tdata/config'"));
+						LOG(("Could not remove 'tdata/config'"));
+					} else {
+					}
+					QDir().rmdir(wasDir + "tdata");
+				}
+			} else {
+				LOG(("Copied 'data', but could not copy 'data_config'!!"));
+			}
+		} else {
+			LOG(("Could not copy 'data'!"));
+		}
+	}
+}
+
 void logsInit() {
 	static _StreamCreator streamCreator;
 	if (mainLogStream) return;
@@ -129,51 +185,7 @@ void logsInit() {
 #endif
 
 #if (defined Q_OS_LINUX && !defined _DEBUG) // fix first version
-    {
-        QFile data(wasDir + "data"), dataConfig(wasDir + "data_config"), tdataConfig(wasDir + "tdata/config");
-        if (data.exists() && dataConfig.exists() && !QFileInfo(cWorkingDir() + "data").exists() && !QFileInfo(cWorkingDir() + "data_config").exists()) { // move to home dir
-            LOG(("Copying data to home dir '%1' from '%2'").arg(cWorkingDir()).arg(wasDir));
-            if (data.copy(cWorkingDir() + "data")) {
-                LOG(("Copied 'data' to home dir"));
-                if (dataConfig.copy(cWorkingDir() + "data_config")) {
-                    LOG(("Copied 'data_config' to home dir"));
-                    bool tdataGood = true;
-                    if (tdataConfig.exists()) {
-                        tdataGood = false;
-                        QDir().mkpath(cWorkingDir() + "tdata");
-                        if (tdataConfig.copy(cWorkingDir() + "tdata/config")) {
-                            LOG(("Copied 'tdata/config' to home dir"));
-                            tdataGood = true;
-                        } else {
-                            LOG(("Copied 'data' and 'data_config', but could not copy 'tdata/config'!"));
-                        }
-                    }
-                    if (tdataGood) {
-                        if (data.remove()) {
-                            LOG(("Removed 'data'"));
-                        } else {
-                            LOG(("Could not remove 'data'"));
-                        }
-                        if (dataConfig.remove()) {
-                            LOG(("Removed 'data_config'"));
-                        } else {
-                            LOG(("Could not remove 'data_config'"));
-                        }
-                        if (!tdataConfig.exists() || tdataConfig.remove()) {
-                            LOG(("Removed 'tdata/config'"));
-                            LOG(("Could not remove 'tdata/config'"));
-                        } else {
-                        }
-                        QDir().rmdir(wasDir + "tdata");
-                    }
-                } else {
-                    LOG(("Copied 'data', but could not copy 'data_config'!!"));
-                }
-            } else {
-                LOG(("Could not copy 'data'!"));
-            }
-        }
-    }
+	moveOldDataFiles(wasDir);
 #endif
 #endif
 
@@ -199,40 +211,103 @@ void logsInit() {
         cForceWorkingDir(rightDir);
 	}
 	cForceWorkingDir(QDir(cWorkingDir()).absolutePath() + '/');
-	if (cDebug()) logsInitDebug();
+#ifdef Q_OS_WIN
+	if (cWorkingDir() == psAppDataPath()) { // fix old "Telegram Win (Unofficial)" version
+		moveOldDataFiles(psAppDataPathOld());
+	}
+#endif
+	if (cDebug()) {
+		logsInitDebug();
+	} else if (QFile(cWorkingDir() + qsl("tdata/withdebug")).exists()) {
+		logsInitDebug();
+		cSetDebug(true);
+	}
 }
 
 void logsInitDebug() {
-	if (debugLogStream) return;
-
 	time_t t = time(NULL);
 	struct tm tm;
-    mylocaltime(&tm, &t);
+	mylocaltime(&tm, &t);
 
-	QString logPrefix = QString("%1%2%3_%4%5%6_").arg(tm.tm_year + 1900).arg(tm.tm_mon + 1, 2, 10, zero).arg(tm.tm_mday, 2, 10, zero).arg(tm.tm_hour, 2, 10, zero).arg(tm.tm_min, 2, 10, zero).arg(tm.tm_sec, 2, 10, zero);
+	static const int switchEach = 15; // minutes
+	int32 newPart = (tm.tm_min + tm.tm_hour * 60) / switchEach;
+	if (newPart == part) return;
 
-	debugLog.setFileName(cWorkingDir() + "DebugLogs/" + logPrefix + "log.txt");
-	if (!debugLog.open(QIODevice::WriteOnly | QIODevice::Text)) {
+	part = newPart;
+
+	int32 dayIndex = (tm.tm_year + 1900) * 10000 + (tm.tm_mon + 1) * 100 + tm.tm_mday;
+	QString logPostfix = QString("_%4_%5").arg((part * switchEach) / 60, 2, 10, zero).arg((part * switchEach) % 60, 2, 10, zero);
+
+	if (debugLogStream) {
+		delete debugLogStream;
+		debugLogStream = 0;
+		debugLog.close();
+	}
+	debugLog.setFileName(cWorkingDir() + qsl("DebugLogs/log") + logPostfix + qsl(".txt"));
+	QIODevice::OpenMode debugLogMode = QIODevice::WriteOnly | QIODevice::Text;
+	if (debugLog.exists()) {
+		if (debugLog.open(QIODevice::ReadOnly | QIODevice::Text)) {
+			if (QString::fromUtf8(debugLog.readLine()).toInt() == dayIndex) {
+				debugLogMode |= QIODevice::Append;
+			}
+			debugLog.close();
+		}
+	}
+	if (!debugLog.open(debugLogMode)) {
 		QDir dir(QDir::current());
-		dir.mkdir(cWorkingDir() + "DebugLogs");
-		debugLog.open(QIODevice::WriteOnly | QIODevice::Text);
+		dir.mkdir(cWorkingDir() + qsl("DebugLogs"));
+		debugLog.open(debugLogMode);
 	}
 	if (debugLog.isOpen()) {
 		debugLogStream = new QTextStream();
 		debugLogStream->setDevice(&debugLog);
 		debugLogStream->setCodec("UTF-8");
+		(*debugLogStream) << ((debugLogMode & QIODevice::Append) ? qsl("----------------------------------------------------------------\nNEW LOGGING INSTANCE STARTED!!!\n----------------------------------------------------------------\n") : qsl("%1\n").arg(dayIndex));
+		debugLogStream->flush();
 	}
-	tcpLog.setFileName(cWorkingDir() + "DebugLogs/" + logPrefix + "tcp.txt");
-	if (tcpLog.open(QIODevice::WriteOnly | QIODevice::Text)) {
+	if (tcpLogStream) {
+		delete tcpLogStream;
+		tcpLogStream = 0;
+		tcpLog.close();
+	}
+	tcpLog.setFileName(cWorkingDir() + qsl("DebugLogs/tcp") + logPostfix + qsl(".txt"));
+	QIODevice::OpenMode tcpLogMode = QIODevice::WriteOnly | QIODevice::Text;
+	if (tcpLog.exists()) {
+		if (tcpLog.open(QIODevice::ReadOnly | QIODevice::Text)) {
+			if (QString::fromUtf8(tcpLog.readLine()).toInt() == dayIndex) {
+				tcpLogMode |= QIODevice::Append;
+			}
+			tcpLog.close();
+		}
+	}
+	if (tcpLog.open(tcpLogMode)) {
 		tcpLogStream = new QTextStream();
 		tcpLogStream->setDevice(&tcpLog);
 		tcpLogStream->setCodec("UTF-8");
+		(*tcpLogStream) << ((tcpLogMode & QIODevice::Append) ? qsl("----------------------------------------------------------------\nNEW LOGGING INSTANCE STARTED!!!\n----------------------------------------------------------------\n") : qsl("%1\n").arg(dayIndex));
+		tcpLogStream->flush();
 	}
-	mtpLog.setFileName(cWorkingDir() + "DebugLogs/" + logPrefix + "mtp.txt");
-	if (mtpLog.open(QIODevice::WriteOnly | QIODevice::Text)) {
+	if (mtpLogStream) {
+		delete mtpLogStream;
+		mtpLogStream = 0;
+		mtpLog.close();
+	}
+	mtpLog.setFileName(cWorkingDir() + qsl("DebugLogs/mtp") + logPostfix + qsl(".txt"));
+	QIODevice::OpenMode mtpLogMode = QIODevice::WriteOnly | QIODevice::Text;
+	if (mtpLog.exists()) {
+		if (mtpLog.open(QIODevice::ReadOnly | QIODevice::Text)) {
+			if (QString::fromUtf8(mtpLog.readLine()).toInt() == dayIndex) {
+				mtpLogMode |= QIODevice::Append;
+			}
+			mtpLog.close();
+		}
+	}
+	if (mtpLog.open(mtpLogMode)) {
 		mtpLogStream = new QTextStream();
 		mtpLogStream->setDevice(&mtpLog);
 		mtpLogStream->setCodec("UTF-8");
+		(*mtpLogStream) << ((mtpLogMode & QIODevice::Append) ? qsl("----------------------------------------------------------------\nNEW LOGGING INSTANCE STARTED!!!\n----------------------------------------------------------------\n") : qsl("%1\n").arg(dayIndex));
+		mtpLogStream->flush();
 	}
 }
 

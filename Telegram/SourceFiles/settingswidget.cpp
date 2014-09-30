@@ -138,7 +138,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 
 	_dontAskDownloadPath(this, lang(lng_download_path_dont_ask), !cAskDownloadPath()),
     _downloadPathWidth(st::linkFont->m.width(lang(lng_download_path_label))),
-	_downloadPathEdit(this, cDownloadPath().isEmpty() ? lang(lng_download_path_temp) : st::linkFont->m.elidedText(QDir::toNativeSeparators(cDownloadPath()), Qt::ElideRight, st::setWidth - st::setVersionLeft - _downloadPathWidth)),
+	_downloadPathEdit(this, cDownloadPath().isEmpty() ? lang(lng_download_path_default) : ((cDownloadPath() == qsl("tmp")) ? lang(lng_download_path_temp) : st::linkFont->m.elidedText(QDir::toNativeSeparators(cDownloadPath()), Qt::ElideRight, st::setWidth - st::setVersionLeft - _downloadPathWidth))),
 	_downloadPathClear(this, lang(lng_download_path_clear)),
 	_tempDirClearingWidth(st::linkFont->m.width(lang(lng_download_path_clearing))),
 	_tempDirClearedWidth(st::linkFont->m.width(lang(lng_download_path_cleared))),
@@ -406,7 +406,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 			p.setFont(st::linkFont->f);
 			p.setPen(st::black->p);
 			p.drawText(_left + st::setVersionLeft, top + st::linkFont->ascent, lang(lng_download_path_label));
-			if (cDownloadPath().isEmpty()) {
+			if (cDownloadPath() == qsl("tmp")) {
 				QString clearText;
 				int32 clearWidth = 0;
 				switch (_tempDirClearState) {
@@ -495,7 +495,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		if (!cAskDownloadPath()) {
 			top += st::setLittleSkip;
 			_downloadPathEdit.move(_left + st::setVersionLeft + _downloadPathWidth, top);
-			if (cDownloadPath().isEmpty()) {
+			if (cDownloadPath() == qsl("tmp")) {
 				_downloadPathClear.move(_left + st::setWidth - _downloadPathClear.width(), top);
 			}
 			top += _downloadPathEdit.height();
@@ -689,7 +689,7 @@ void SettingsInner::showAll() {
 			_downloadPathClear.hide();
 		} else {
 			_downloadPathEdit.show();
-			if (cDownloadPath().isEmpty() && _tempDirClearState == TempDirExists) { // dir exists, not clearing right now
+			if (cDownloadPath() == qsl("tmp") && _tempDirClearState == TempDirExists) { // dir exists, not clearing right now
 				_downloadPathClear.show();
 			} else {
 				_downloadPathClear.hide();
@@ -1022,7 +1022,15 @@ void SettingsInner::onDownloadPathEdit() {
 }
 
 void SettingsInner::onDownloadPathEdited() {
-	_downloadPathEdit.setText(cDownloadPath().isEmpty() ? lang(lng_download_path_temp) : st::linkFont->m.elidedText(QDir::toNativeSeparators(cDownloadPath()), Qt::ElideRight, st::setWidth - st::setVersionLeft - _downloadPathWidth));
+	QString path;
+	if (cDownloadPath().isEmpty()) {
+		path = lang(lng_download_path_default);
+	} else if (cDownloadPath() == qsl("tmp")) {
+		path = lang(lng_download_path_temp);
+	} else {
+		path = st::linkFont->m.elidedText(QDir::toNativeSeparators(cDownloadPath()), Qt::ElideRight, st::setWidth - st::setVersionLeft - _downloadPathWidth);
+	}
+	_downloadPathEdit.setText(path);
 	showAll();
 }
 

@@ -29,6 +29,9 @@ public:
 	virtual bool loaded() const {
 		return true;
 	}
+	virtual bool loading() const {
+		return false;
+	}
 	const QPixmap &pix(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixBlurred(int32 w = 0, int32 h = 0) const;
 	QPixmap pixNoCache(int32 w = 0, int32 h = 0, bool smooth = false) const;
@@ -110,6 +113,9 @@ public:
 	int32 width() const;
 	int32 height() const;
 	bool loaded() const;
+	bool loading() const {
+		return loader ? loader->loading() : false;
+	}
 	void setData(QByteArray &bytes, const QByteArray &format = "JPG");
 
 	void load(bool loadFirst = false, bool prior = true) {

@@ -66,6 +66,8 @@ public slots:
 	void onCheckActive();
 	void onTouchTimer();
 
+	void updateImage();
+
 private:
 
 	void showPhoto(PhotoData *photo);
@@ -81,6 +83,8 @@ private:
 	QRect _avail, _leftNav, _rightNav, _nameNav, _dateNav;
 	bool _leftNavVisible, _rightNavVisible;
 	QString _dateText;
+
+	uint64 _animStarted;
 
 	int32 _maxWidth, _maxHeight, _x, _y, _w;
 	QPixmap _current;

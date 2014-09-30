@@ -636,6 +636,27 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 						size = w;
 					}
 
+					if (!quality) {
+						uint64 dt = itemAnimations().animate(item, getms());
+						int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
+
+						int32 x = pos.x() + (size - st::overviewLoader.width()) / 2, y = pos.y() + (size - st::overviewLoader.height()) / 2;
+						p.fillRect(x, y, st::overviewLoader.width(), st::overviewLoader.height(), st::photoLoaderBg->b);
+						x += (st::overviewLoader.width() - cnt * st::overviewLoaderPoint.width() - (cnt - 1) * st::overviewLoaderSkip) / 2;
+						y += (st::overviewLoader.height() - st::overviewLoaderPoint.height()) / 2;
+						QColor c(st::white->c);
+						QBrush b(c);
+						for (int32 i = 0; i < cnt; ++i) {
+							t -= delta;
+							while (t < 0) t += period;
+
+							float64 alpha = (t >= st::photoLoaderDuration1 + st::photoLoaderDuration2) ? 0 : ((t > st::photoLoaderDuration1 ? ((st::photoLoaderDuration1 + st::photoLoaderDuration2 - t) / st::photoLoaderDuration2) : (t / st::photoLoaderDuration1)));
+							c.setAlphaF(st::photoLoaderAlphaMin + alpha * (1 - st::photoLoaderAlphaMin));
+							b.setColor(c);
+							p.fillRect(x + i * (st::overviewLoaderPoint.width() + st::overviewLoaderSkip), y, st::overviewLoaderPoint.width(), st::overviewLoaderPoint.height(), b);
+						}
+					}
+
 					uint32 sel = 0;
 					if (index >= selfrom && index <= selto) {
 						sel = (_dragSelecting && item->id > 0) ? FullItemSel : 0;
@@ -1059,11 +1080,14 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_forward_selected), _overview, SLOT(onForwardSelected()));
 			_menu->addAction(lang(lng_context_delete_selected), _overview, SLOT(onDeleteSelected()));
 			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
-		} else if (isUponSelected != -2 && App::hoveredLinkItem()) {
-			if (dynamic_cast<HistoryMessage*>(App::hoveredLinkItem())) {
-				_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
+		} else if (App::hoveredLinkItem()) {
+			if (isUponSelected != -2) {
+				if (dynamic_cast<HistoryMessage*>(App::hoveredLinkItem())) {
+					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
+				}
+				_menu->addAction(lang(lng_context_delete_msg), this, SLOT(deleteMessage()))->setEnabled(true);
 			}
-			_menu->addAction(lang(lng_context_delete_msg), this, SLOT(deleteMessage()))->setEnabled(true);
+			_menu->addAction(lang(lng_context_select_msg), this, SLOT(selectMessage()))->setEnabled(true);
 		}
 		App::contextItem(App::hoveredLinkItem());
 	}
@@ -1144,6 +1168,20 @@ void OverviewInner::deleteMessage() {
 
 	HistoryMessage *msg = dynamic_cast<HistoryMessage*>(item);
 	App::main()->deleteLayer((msg && msg->uploading()) ? -2 : -1);
+}
+
+void OverviewInner::selectMessage() {
+	HistoryItem *item = App::contextItem();
+	if (!item || item->itemType() != HistoryItem::MsgType) return;
+
+	if (!_selected.isEmpty() && _selected.cbegin().value() != FullItemSel) {
+		_selected.clear();
+	} else if (_selected.size() == MaxSelectedItems && _selected.constFind(item->id) == _selected.cend()) {
+		return;
+	}
+	_selected.insert(item->id, FullItemSel);
+	_overview->updateTopBarSelection();
+	_overview->update();
 }
 
 void OverviewInner::cancelContextDownload() {
@@ -1381,7 +1419,7 @@ void OverviewInner::itemRemoved(HistoryItem *item) {
 	parentWidget()->update();
 }
 
-void OverviewInner::msgUpdated(HistoryItem *msg) {
+void OverviewInner::msgUpdated(const HistoryItem *msg) {
 	if (!msg || _hist != msg->history()) return;
 	MsgId msgid = msg->id;
 	if (_hist->_overviewIds[_type].constFind(msgid) != _hist->_overviewIds[_type].cend()) {
@@ -1648,7 +1686,7 @@ void OverviewWidget::changingMsgId(HistoryItem *row, MsgId newId) {
 	}
 }
 
-void OverviewWidget::msgUpdated(PeerId p, HistoryItem *msg) {
+void OverviewWidget::msgUpdated(PeerId p, const HistoryItem *msg) {
 	if (peer()->id == p) {
 		_inner.msgUpdated(msg);
 	}

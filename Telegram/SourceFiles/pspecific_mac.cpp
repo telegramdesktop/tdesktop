@@ -841,6 +841,10 @@ QString psAppDataPath() {
 	return objc_appDataPath();
 }
 
+QString psDownloadPath() {
+	return objc_downloadPath();
+}
+
 QString psCurrentExeDirectory(int argc, char *argv[]) {
     QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
     if (!first.isEmpty()) {

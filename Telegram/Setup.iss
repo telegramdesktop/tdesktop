@@ -2,11 +2,11 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppShortName "Telegram"
-#define MyAppName "Telegram Win (Unofficial)"
-#define MyAppVersion "0.5.21"
-#define MyAppVersionZero "0.5.21"
-#define MyAppFullVersion "0.5.21.0"
-#define MyAppPublisher "Telegram (Unofficial)"
+#define MyAppName "Telegram Desktop"
+#define MyAppVersion "0.6"
+#define MyAppVersionZero "0.6.0"
+#define MyAppFullVersion "0.6.0.0"
+#define MyAppPublisher "Telegram Messenger LLP"
 #define MyAppURL "https://tdesktop.com"
 #define MyAppExeName "Telegram.exe"
 #define MyAppId "53F49750-6209-4FBF-9CA8-7A333C87D1ED"

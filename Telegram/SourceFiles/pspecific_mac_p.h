@@ -66,6 +66,7 @@ bool objc_moveFile(const QString &from, const QString &to);
 void objc_deleteDir(const QString &dir);
 
 QString objc_appDataPath();
+QString objc_downloadPath();
 QString objc_currentCountry();
 QString objc_currentLang();
 QString objc_convertFileUrl(const QString &url);
