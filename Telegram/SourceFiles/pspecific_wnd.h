@@ -194,3 +194,6 @@ void psStart();
 void psFinish();
 
 void psUpdateOverlayed(TWidget *widget);
+inline QString psConvertFileUrl(const QString &url) {
+	return url;
+}

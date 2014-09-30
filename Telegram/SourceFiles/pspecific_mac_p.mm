@@ -692,3 +692,12 @@ QString objc_currentLang() {
 	NSString *currentLang = [currentLocale objectForKey:NSLocaleLanguageCode];
 	return currentLang ? QString::fromUtf8([currentLang cStringUsingEncoding:NSUTF8StringEncoding]) : QString();
 }
+
+QString objc_convertFileUrl(const QString &url) {
+	NSString *nsurl = [[[NSURL URLWithString: [NSString stringWithUTF8String: (qsl("file://") + url).toUtf8().constData()]] filePathURL] absoluteString];
+	if (!nsurl) return QString();
+
+	QString result = QString::fromUtf8([nsurl cStringUsingEncoding:NSUTF8StringEncoding]);
+	return result.startsWith(qsl("file://")) ? result.mid(7) : result;
+}
+

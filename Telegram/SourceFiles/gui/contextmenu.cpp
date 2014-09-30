@@ -127,6 +127,11 @@ void ContextMenu::resizeEvent(QResizeEvent *e) {
 void ContextMenu::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
+	QPainter::CompositionMode m = p.compositionMode();
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+	p.fillRect(e->rect(), st::transparent->b);
+	p.setCompositionMode(m);
+
 	if (animating()) {
 		p.setOpacity(a_opacity.current());
 	}

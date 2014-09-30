@@ -68,3 +68,4 @@ void objc_deleteDir(const QString &dir);
 QString objc_appDataPath();
 QString objc_currentCountry();
 QString objc_currentLang();
+QString objc_convertFileUrl(const QString &url);

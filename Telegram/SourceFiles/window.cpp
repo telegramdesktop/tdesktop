@@ -787,7 +787,7 @@ void Window::setupTrayIcon() {
 }
 
 void Window::updateTrayMenu(bool force) {
-	if (!trayIconMenu || cPlatform() == dbipWindows && !force) return;
+	if (!trayIconMenu || (cPlatform() == dbipWindows && !force)) return;
 
 	bool active = psIsActive();
 	QAction *first = trayIconMenu->actions().at(0);
@@ -869,7 +869,7 @@ void Window::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 }
 
 void Window::toggleTray(QSystemTrayIcon::ActivationReason reason) {
-	if (trayIconMenu && cPlatform() == dbipMac) return;
+	if (cPlatform() == dbipMac && psIsActive()) return;
 	if (reason == QSystemTrayIcon::Context) {
 		updateTrayMenu(true);
 		QTimer::singleShot(1, this, SLOT(psShowTrayMenu()));

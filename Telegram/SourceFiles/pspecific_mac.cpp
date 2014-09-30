@@ -979,3 +979,7 @@ void psSendToMenu(bool send, bool silent) {
 
 void psUpdateOverlayed(QWidget *widget) {
 }
+
+QString psConvertFileUrl(const QString &url) {
+	return objc_convertFileUrl(url);
+}

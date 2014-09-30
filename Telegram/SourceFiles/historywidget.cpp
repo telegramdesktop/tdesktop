@@ -2471,6 +2471,8 @@ DragState HistoryWidget::getDragState(const QMimeData *d) {
 		if (!i->isLocalFile()) return DragStateNone;
 
 		QString file(i->toLocalFile());
+		if (file.startsWith(qsl("/.file/id="))) file = psConvertFileUrl(file);
+
 		quint64 s = QFileInfo(file).size();
 		if (s >= MaxUploadDocumentSize) {
 			return DragStateNone;
@@ -3283,6 +3285,8 @@ QStringList HistoryWidget::getMediasFromMime(const QMimeData *d) {
 		if (!i->isLocalFile()) return QStringList();
 
 		QString file(i->toLocalFile());
+		if (file.startsWith(qsl("/.file/id="))) file = psConvertFileUrl(file);
+
 		QFileInfo info(file);
 		uint64 s = info.size();
 		if (s >= MaxUploadDocumentSize) {

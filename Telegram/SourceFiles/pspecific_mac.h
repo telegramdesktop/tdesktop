@@ -200,3 +200,4 @@ void psStart();
 void psFinish();
 
 void psUpdateOverlayed(QWidget *widget);
+QString psConvertFileUrl(const QString &url);
