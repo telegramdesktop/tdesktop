@@ -1942,11 +1942,11 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		} else {
 			pix = data->thumb->pixBlurred(width);
 		}
-		if (pix.height() >= _height) {
-			p.drawPixmap(QPoint(0, 0), pix, QRect(0, (pix.height() - _height) / 2, width, _height));
+		if (pix.height() >= _height * cIntRetinaFactor()) {
+			p.drawPixmap(QPoint(0, 0), pix, QRect(0, (pix.height() - _height * cIntRetinaFactor()) / 2, width * cIntRetinaFactor(), _height * cIntRetinaFactor()));
 		} else {
-			int32 usewidth = (width * pix.height()) / _height;
-			p.drawPixmap(QRect(0, 0, width, _height), pix, QRect((width - usewidth) / 2, 0, usewidth, pix.height()));
+			int32 usewidth = (width * pix.height()) / (_height * cIntRetinaFactor());
+			p.drawPixmap(QRect(0, 0, width, _height), pix, QRect((width - usewidth) * cIntRetinaFactor() / 2, 0, usewidth * cIntRetinaFactor(), pix.height()));
 		}
 		if (!full) {
 			uint64 dt = itemAnimations().animate(parent, getms());
