@@ -787,7 +787,7 @@ void Window::setupTrayIcon() {
 }
 
 void Window::updateTrayMenu(bool force) {
-	if (!trayIconMenu || (cPlatform() == dbipWindows && !force)) return;
+    if (!trayIconMenu || (cPlatform() == dbipWindows && !force) || cPlatform() == dbipLinux32 || cPlatform() == dbipLinux64) return;
 
 	bool active = psIsActive();
 	QAction *first = trayIconMenu->actions().at(0);
