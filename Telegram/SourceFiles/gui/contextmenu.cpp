@@ -23,7 +23,7 @@
 
 #include "lang.h"
 
-ContextMenu::ContextMenu(QWidget *parent, const style::iconedButton &st) : TWidget(parent),
+ContextMenu::ContextMenu(QWidget *parent, const style::iconedButton &st) : TWidget(0),
 _hiding(false), _buttonStyle(st), _shadow(st::dropdownShadow), _selected(-1), a_opacity(0), _deleteOnHide(false) {
 	resetActions();
 
@@ -207,7 +207,6 @@ void ContextMenu::showStart() {
 	a_opacity.start(1);
 	anim::start(this);
 	animStep(0);
-	setParent(0);
 	psUpdateOverlayed(this);
 	show();
 	windowHandle()->requestActivate();
