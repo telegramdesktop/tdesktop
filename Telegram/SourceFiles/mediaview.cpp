@@ -25,7 +25,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "gui/filedialog.h"
 
 MediaView::MediaView() : TWidget(App::wnd()),
-_photo(0), _leftNavVisible(false), _rightNavVisible(false), _maxWidth(0), _maxHeight(0), _x(0), _y(0), _w(0), _full(-1),
+_photo(0), _leftNavVisible(false), _rightNavVisible(false), _animStarted(getms()), _maxWidth(0), _maxHeight(0), _x(0), _y(0), _w(0), _full(-1),
 _history(0), _peer(0), _user(0), _from(0), _index(-1), _msgid(0), _loadRequest(0), _over(OverNone), _down(OverNone), _lastAction(-st::medviewDeltaFromLastAction, -st::medviewDeltaFromLastAction),
 _close(this, lang(lng_mediaview_close), st::medviewButton),
 _save(this, lang(lng_mediaview_save), st::medviewButton),
@@ -422,8 +422,30 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		_current = _photo->thumb->pixBlurredNoCache(_w * cIntRetinaFactor());
 		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 	}
-	if (QRect(_x, _y, _current.width() / cIntRetinaFactor(), _current.height() / cIntRetinaFactor()).intersects(r)) {
+	int32 h = _current.height() / cIntRetinaFactor();
+	if (QRect(_x, _y, _w, h).intersects(r)) {
 		p.drawPixmap(_x, _y, _current);
+		if (_full < 1) {
+			uint64 dt = getms() - _animStarted;
+			int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
+
+			int32 x = _x + (_w - st::mediaviewLoader.width()) / 2, y = _y + (h - st::mediaviewLoader.height()) / 2;
+			p.fillRect(x, y, st::mediaviewLoader.width(), st::mediaviewLoader.height(), st::photoLoaderBg->b);
+			x += (st::mediaviewLoader.width() - cnt * st::mediaviewLoaderPoint.width() - (cnt - 1) * st::mediaviewLoaderSkip) / 2;
+			y += (st::mediaviewLoader.height() - st::mediaviewLoaderPoint.height()) / 2;
+			QColor c(st::white->c);
+			QBrush b(c);
+			for (int32 i = 0; i < cnt; ++i) {
+				t -= delta;
+				while (t < 0) t += period;
+
+				float64 alpha = (t >= st::photoLoaderDuration1 + st::photoLoaderDuration2) ? 0 : ((t > st::photoLoaderDuration1 ? ((st::photoLoaderDuration1 + st::photoLoaderDuration2 - t) / st::photoLoaderDuration2) : (t / st::photoLoaderDuration1)));
+				c.setAlphaF(st::photoLoaderAlphaMin + alpha * (1 - st::photoLoaderAlphaMin));
+				b.setColor(c);
+				p.fillRect(x + i * (st::mediaviewLoaderPoint.width() + st::mediaviewLoaderSkip), y, st::mediaviewLoaderPoint.width(), st::mediaviewLoaderPoint.height(), b);
+			}
+			QTimer::singleShot(AnimationTimerDelta, this, SLOT(updateImage()));
+		}
 	}
 }
 
@@ -632,7 +654,7 @@ void MediaView::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void MediaView::contextMenuEvent(QContextMenuEvent *e) {
-	if (_photo && _photo->full->loaded() && (e->reason() != QContextMenuEvent::Mouse || QRect(_x, _y, _current.width() / cIntRetinaFactor(), _current.height() / cIntRetinaFactor()).contains(e->pos()))) {
+	if (_photo && _photo->full->loaded() && (e->reason() != QContextMenuEvent::Mouse || QRect(_x, _y, _w, _current.height() / cIntRetinaFactor()).contains(e->pos()))) {
 		
 		if (_menu) {
 			_menu->deleteLater();
@@ -752,6 +774,12 @@ void MediaView::onCheckActive() {
 
 void MediaView::onTouchTimer() {
 	_touchRightButton = true;
+}
+
+void MediaView::updateImage() {
+	if (_current.isNull()) return;
+
+	update(_x, _y, _w, _current.height() / cIntRetinaFactor());
 }
 
 void MediaView::loadPhotosBack() {

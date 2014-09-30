@@ -66,7 +66,7 @@ public:
 	int32 recountHeight();
 	void updateSize();
 
-	void updateMsg(HistoryItem *msg);
+	void updateMsg(const HistoryItem *msg);
 
 	bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const;
 	bool getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const;
@@ -74,6 +74,7 @@ public:
 	void getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const;
 	void clearSelectedItems(bool onlyTextSelection = false);
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
+	void selectItem(HistoryItem *item);
 
 	~HistoryList();
 	
@@ -276,7 +277,7 @@ public:
 	void peerMessagesUpdated(PeerId peer);
 	void peerMessagesUpdated();
 
-	void msgUpdated(PeerId peer, HistoryItem *msg);
+	void msgUpdated(PeerId peer, const HistoryItem *msg);
 	void newUnreadMsg(History *history, MsgId msgId);
 	void historyToDown(History *history);
 	void historyWasRead(bool force = true);
@@ -372,8 +373,9 @@ public slots:
 
 	void onVisibleChanged();
 
-	void forwardMessage();
 	void deleteMessage();
+	void forwardMessage();
+	void selectMessage();
 
 	void onFieldFocused();
 	void onFieldResize();

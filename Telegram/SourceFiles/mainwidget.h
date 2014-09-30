@@ -193,7 +193,7 @@ public:
 	void sentFullDataReceived(uint64 randomId, const MTPmessages_StatedMessage &result); // randomId = 0 - new message, <> 0 - already added new message
 	void sentFullDatasReceived(const MTPmessages_StatedMessages &result);
 	void forwardDone(PeerId peer, const MTPmessages_StatedMessages &result);
-	void msgUpdated(PeerId peer, HistoryItem *msg);
+	void msgUpdated(PeerId peer, const HistoryItem *msg);
 	void historyToDown(History *hist);
 	void dialogsToUp();
 	void dialogsClear(); // after showing peer history

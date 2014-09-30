@@ -57,7 +57,7 @@ public:
 
 	void mediaOverviewUpdated();
 	void changingMsgId(HistoryItem *row, MsgId newId);
-	void msgUpdated(HistoryItem *msg);
+	void msgUpdated(const HistoryItem *msg);
 
 	void getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const;
 	void clearSelectedItems(bool onlyTextSelection = false);
@@ -78,6 +78,7 @@ public slots:
 	void goToMessage();
 	void deleteMessage();
 	void forwardMessage();
+	void selectMessage();
 
 	void onMenuDestroy(QObject *obj);
 	void onTouchSelect();
@@ -212,7 +213,7 @@ public:
 
 	void mediaOverviewUpdated(PeerData *peer);
 	void changingMsgId(HistoryItem *row, MsgId newId);
-	void msgUpdated(PeerId peer, HistoryItem *msg);
+	void msgUpdated(PeerId peer, const HistoryItem *msg);
 
 	QPoint clampMousePosition(QPoint point);
 

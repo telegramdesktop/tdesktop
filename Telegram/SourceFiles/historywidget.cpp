@@ -76,7 +76,7 @@ void HistoryList::messagesReceivedDown(const QVector<MTPMessage> &messages) {
 	hist->addToBack(messages);
 }
 
-void HistoryList::updateMsg(HistoryItem *msg) {
+void HistoryList::updateMsg(const HistoryItem *msg) {
 	if (!msg || msg->detached() || !hist || hist != msg->history()) return;
 	update(0, height() - hist->height - st::historyPadding + msg->block()->y + msg->y, width(), msg->height());
 }
@@ -666,11 +666,14 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				_menu->addAction(lang(lng_context_forward_selected), historyWidget, SLOT(onForwardSelected()));
 				_menu->addAction(lang(lng_context_delete_selected), historyWidget, SLOT(onDeleteSelected()));
 				_menu->addAction(lang(lng_context_clear_selection), historyWidget, SLOT(onClearSelected()));
-			} else if (isUponSelected != -2 && App::hoveredLinkItem()) {
-				if (dynamic_cast<HistoryMessage*>(App::hoveredLinkItem())) {
-					_menu->addAction(lang(lng_context_forward_msg), historyWidget, SLOT(forwardMessage()))->setEnabled(true);
+			} else if (App::hoveredLinkItem()) {
+				if (isUponSelected != -2) {
+					if (dynamic_cast<HistoryMessage*>(App::hoveredLinkItem())) {
+						_menu->addAction(lang(lng_context_forward_msg), historyWidget, SLOT(forwardMessage()))->setEnabled(true);
+					}
+					_menu->addAction(lang(lng_context_delete_msg), historyWidget, SLOT(deleteMessage()))->setEnabled(true);
 				}
-				_menu->addAction(lang(lng_context_delete_msg), historyWidget, SLOT(deleteMessage()))->setEnabled(true);
+				_menu->addAction(lang(lng_context_select_msg), historyWidget, SLOT(selectMessage()))->setEnabled(true);
 				App::contextItem(App::hoveredLinkItem());
 			}
 		} else { // maybe cursor on some text history item?
@@ -697,16 +700,18 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				_menu->addAction(lang(lng_context_forward_selected), historyWidget, SLOT(onForwardSelected()));
 				_menu->addAction(lang(lng_context_delete_selected), historyWidget, SLOT(onDeleteSelected()));
 				_menu->addAction(lang(lng_context_clear_selection), historyWidget, SLOT(onClearSelected()));
-			} else if (isUponSelected != -2) {
-				if (canForward) {
-					if (!_menu) _menu = new ContextMenu(this);
-					_menu->addAction(lang(lng_context_forward_msg), historyWidget, SLOT(forwardMessage()))->setEnabled(true);
-				}
+			} else {
+				if (!_menu) _menu = new ContextMenu(this);
+				if (isUponSelected != -2) {
+					if (canForward) {
+						_menu->addAction(lang(lng_context_forward_msg), historyWidget, SLOT(forwardMessage()))->setEnabled(true);
+					}
 
-				if (canDelete) {
-					if (!_menu) _menu = new ContextMenu(this);
-					_menu->addAction(lang((msg && msg->uploading()) ? lng_context_cancel_upload : lng_context_delete_msg), historyWidget, SLOT(deleteMessage()))->setEnabled(true);
+					if (canDelete) {
+						_menu->addAction(lang((msg && msg->uploading()) ? lng_context_cancel_upload : lng_context_delete_msg), historyWidget, SLOT(deleteMessage()))->setEnabled(true);
+					}
 				}
+				_menu->addAction(lang(lng_context_select_msg), historyWidget, SLOT(selectMessage()))->setEnabled(true);
 			}
 			App::contextItem(item);
 		}
@@ -1004,6 +1009,17 @@ void HistoryList::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
 			sel.insert(item->y + item->block()->y, item);
 		}
 	}
+}
+
+void HistoryList::selectItem(HistoryItem *item) {
+	if (!_selected.isEmpty() && _selected.cbegin().value() != FullItemSel) {
+		_selected.clear();
+	} else if (_selected.size() == MaxSelectedItems && _selected.constFind(item) == _selected.cend()) {
+		return;
+	}
+	_selected.insert(item, FullItemSel);
+	historyWidget->updateTopBarSelection();
+	historyWidget->update();
 }
 
 void HistoryList::onTouchSelect() {
@@ -2178,6 +2194,8 @@ void HistoryWidget::onSend() {
 
 	QString text = prepareMessage(_field.getText());
 	if (!text.isEmpty()) {
+		App::main()->readServerHistory(hist, false);
+
 		MsgId newId = clientMsgId();
 		uint64 randomId = MTP::nonce<uint64>();
 	
@@ -2217,6 +2235,8 @@ mtpRequestId HistoryWidget::onForward(const PeerId &peer, SelectedItemSet toForw
 	
 		hist->loadAround(0);
 		if (item->id > 0 && msg) {
+			App::main()->readServerHistory(item->history(), false);
+
 			newId = clientMsgId();
 			hist->addToBackForwarded(newId, msg);
 			MTP::send(MTPmessages_ForwardMessage(histPeer->input, MTP_int(item->id), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
@@ -2224,6 +2244,8 @@ mtpRequestId HistoryWidget::onForward(const PeerId &peer, SelectedItemSet toForw
 	//		newId = clientMsgId();
 	//		MTP::send(MTPmessages_ForwardMessage(histPeer->input, MTP_int(item->id), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
 		} else if (msg) {
+			App::main()->readServerHistory(item->history(), false);
+
 			newId = clientMsgId();
 
 			MTPstring msgText(MTP_string(msg->selectedText(FullItemSel)));
@@ -2244,6 +2266,8 @@ mtpRequestId HistoryWidget::onForward(const PeerId &peer, SelectedItemSet toForw
 	PeerData *toPeer = App::peerLoaded(peer);
 	if (!toPeer) return 0;
 
+	App::main()->readServerHistory(App::history(toPeer->id), false);
+
 	QVector<MTPint> ids;
 	ids.reserve(toForward.size());
 	for (SelectedItemSet::const_iterator i = toForward.cbegin(), e = toForward.cend(); i != e; ++i) {
@@ -2262,6 +2286,8 @@ void HistoryWidget::onShareContact(const PeerId &peer, UserData *contact) {
 }
 
 void HistoryWidget::shareContact(const QString &phone, const QString &fname, const QString &lname, int32 userId) {
+	App::main()->readServerHistory(hist, false);
+
 	uint64 randomId = MTP::nonce<uint64>();
 	MsgId newId = clientMsgId();
 
@@ -2574,6 +2600,13 @@ void HistoryWidget::forwardMessage() {
 	App::main()->forwardLayer();
 }
 
+void HistoryWidget::selectMessage() {
+	HistoryItem *item = App::contextItem();
+	if (!item || item->itemType() != HistoryItem::MsgType) return;
+
+	if (_list) _list->selectItem(item);
+}
+
 void HistoryWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
 	if (animating()) {
 		p.setOpacity(a_bgAlpha.current());
@@ -2801,6 +2834,8 @@ void HistoryWidget::onPhotoUploaded(MsgId newId, const MTPInputFile &file) {
 	if (!MTP::authedId()) return;
 	HistoryItem *item = App::histItemById(newId);
 	if (item) {
+		//App::main()->readServerHistory(item->history(), false);
+
 		uint64 randomId = MTP::nonce<uint64>();
 		App::historyRegRandom(randomId, newId);
 		MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_inputMediaUploadedPhoto(file), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
@@ -2813,6 +2848,8 @@ void HistoryWidget::onDocumentUploaded(MsgId newId, const MTPInputFile &file) {
 	if (item) {
 		HistoryDocument *media = dynamic_cast<HistoryDocument*>(item->getMedia());
 		if (media) {
+			//App::main()->readServerHistory(item->history(), false);
+
 			uint64 randomId = MTP::nonce<uint64>();
 			App::historyRegRandom(randomId, newId);
 			DocumentData *document = media->document();
@@ -2827,6 +2864,8 @@ void HistoryWidget::onThumbDocumentUploaded(MsgId newId, const MTPInputFile &fil
 	if (item) {
 		HistoryDocument *media = dynamic_cast<HistoryDocument*>(item->getMedia());
 		if (media) {
+			//App::main()->readServerHistory(item->history(), false);
+
 			uint64 randomId = MTP::nonce<uint64>();
 			App::historyRegRandom(randomId, newId);
 			DocumentData *document = media->document();
@@ -2861,7 +2900,7 @@ void HistoryWidget::peerMessagesUpdated() {
 	if (_list) updateListSize();
 }
 
-void HistoryWidget::msgUpdated(PeerId peer, HistoryItem *msg) {
+void HistoryWidget::msgUpdated(PeerId peer, const HistoryItem *msg) {
 	if (histPeer && _list && peer == histPeer->id) {
 		_list->updateMsg(msg);
 	}

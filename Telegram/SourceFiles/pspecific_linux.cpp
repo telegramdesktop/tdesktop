@@ -781,6 +781,10 @@ QString psAppDataPath() {
     return QString();
 }
 
+QString psDownloadPath() {
+	return QStandardPaths::writableLocation(QStandardPaths::DownloadLocation) + '/' + QString::fromWCharArray(AppName) + '/';
+}
+
 QString psCurrentExeDirectory(int argc, char *argv[]) {
     QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
     if (!first.isEmpty()) {

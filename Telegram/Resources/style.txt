@@ -1531,3 +1531,25 @@ btnContext: iconedButton(btnDefIconed) {
 	textPos: point(16px, 7px);
 	downTextPos: point(16px, 8px);
 }
+
+photoLoader: size(52px, 22px);
+photoLoaderBg: #00000054;
+photoLoaderCnt: 3;
+photoLoaderPoint: size(6px, 6px);
+photoLoaderSkip: 6px;
+photoLoaderPeriod: 600; // ms full period
+photoLoaderDelta: 150; // ms between points
+photoLoaderDuration1: 150; // ms fade in
+photoLoaderDuration2: 150; // ms fade out
+photoLoaderAlphaMin: 0.1; // not less than that
+
+overviewLoader: size(34px, 14px);
+overviewLoaderPoint: size(4px, 4px);
+overviewLoaderSkip: 4px;
+
+mediaviewLoader: size(78px, 33px);
+mediaviewLoaderPoint: size(9px, 9px);
+mediaviewLoaderSkip: 9px;
+
+minPhotoWidth: 90px;
+minPhotoHeight: 90px;

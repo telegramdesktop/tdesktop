@@ -247,7 +247,14 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 		return filedialogGetSaveFile(name, title, filter, name) ? name : QString();
 	}
 
-	QString path = cDownloadPath().isEmpty() ? cTempDir() : cDownloadPath();
+	QString path;
+	if (cDownloadPath().isEmpty()) {
+		path = psDownloadPath();
+	} else if (cDownloadPath() == qsl("tmp")) {
+		path = cTempDir();
+	} else {
+		path = cDownloadPath();
+	}
 	if (name.isEmpty()) name = qsl(".unknown");
 	if (name.at(0) == QChar::fromLatin1('.')) {
 		if (!QDir().exists(path)) QDir().mkpath(path);
@@ -1126,7 +1133,7 @@ void History::newItemAdded(HistoryItem *item) {
 		}
 	}
 	if (item->out()) {
-		inboxRead(false);
+//		inboxRead(false);
 		if (unreadBar) unreadBar->destroy();
 	} else if (item->unread()) {
 		notifies.push_back(item);
@@ -1716,6 +1723,42 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 	}
 }
 
+bool ItemAnimations::animStep(float64 ms) {
+	for (Animations::iterator i = _animations.begin(); i != _animations.end();) {
+		const HistoryItem *item = i.key();
+		if (item->animating()) {
+			App::main()->msgUpdated(item->history()->peer->id, item);
+			++i;
+		} else {
+			i = _animations.erase(i);
+		}
+	}
+	return !_animations.isEmpty();
+}
+
+uint64 ItemAnimations::animate(const HistoryItem *item, uint64 ms) {
+	if (_animations.isEmpty()) {
+		_animations.insert(item, ms);
+		anim::start(this);
+		return 0;
+	}
+	Animations::const_iterator i = _animations.constFind(item);
+	if (i == _animations.cend()) i = _animations.insert(item, ms);
+	return ms - i.value();
+}
+
+void ItemAnimations::remove(const HistoryItem *item) {
+	_animations.remove(item);
+}
+
+namespace {
+	ItemAnimations _itemAnimations;
+}
+
+ItemAnimations &itemAnimations() {
+	return _itemAnimations;
+}
+
 HistoryItem::HistoryItem(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime msgDate, int32 from) : y(0)
 , id(msgId)
 , date(msgDate)
@@ -1795,6 +1838,7 @@ void HistoryItem::detachFast() {
 }
 
 HistoryItem::~HistoryItem() {
+	itemAnimations().remove(this);
 	App::historyUnregItem(this);
 	if (id < 0) {
 		App::app()->uploader()->cancel(id);
@@ -1830,7 +1874,7 @@ void HistoryPhoto::init() {
 	}
 	int32 thumbw = st::msgMinWidth + st::msgPadding.left() + st::msgPadding.right() - 2, maxthumbh = qRound(1.5 * thumbw);
 	if (data->full->width() < thumbw) {
-		thumbw = (data->full->width() > 20) ? data->full->width() : 20;
+		thumbw = (data->full->width() > st::minPhotoWidth) ? data->full->width() : st::minPhotoWidth;
 	}
 	if (!w) {
 		w = thumbw;
@@ -1839,9 +1883,12 @@ void HistoryPhoto::init() {
 	if (thumbh > maxthumbh) {
 		w = qRound(w * float64(maxthumbh) / thumbh);
 		thumbh = maxthumbh;
-		if (w < 10) {
-			w = 10;
+		if (w < st::minPhotoWidth) {
+			w = st::minPhotoWidth;
 		}
+	}
+	if (thumbh < st::minPhotoHeight) {
+		thumbh = st::minPhotoHeight;
 	}
 	_maxw = w;
 	_height = _minh = thumbh;
@@ -1888,10 +1935,38 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	data->full->load(false, false);
 	bool out = parent->out();
 	if (parent != App::contextItem() || /*App::wnd()->photoShown() != data*/ true) {
-		if (data->full->loaded()) {
-			p.drawPixmap(0, 0, data->full->pix(width, _height));
+		bool full = data->full->loaded();
+		QPixmap pix;
+		if (full) {
+			pix = data->full->pix(width);
 		} else {
-			p.drawPixmap(0, 0, data->thumb->pixBlurred(width, _height));
+			pix = data->thumb->pixBlurred(width);
+		}
+		if (pix.height() >= _height) {
+			p.drawPixmap(QPoint(0, 0), pix, QRect(0, (pix.height() - _height) / 2, width, _height));
+		} else {
+			int32 usewidth = (width * pix.height()) / _height;
+			p.drawPixmap(QRect(0, 0, width, _height), pix, QRect((width - usewidth) / 2, 0, usewidth, pix.height()));
+		}
+		if (!full) {
+			uint64 dt = itemAnimations().animate(parent, getms());
+			int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
+
+			int32 x = (width - st::photoLoader.width()) / 2, y = (_height - st::photoLoader.height()) / 2;
+			p.fillRect(x, y, st::photoLoader.width(), st::photoLoader.height(), st::photoLoaderBg->b);
+			x += (st::photoLoader.width() - cnt * st::photoLoaderPoint.width() - (cnt - 1) * st::photoLoaderSkip) / 2;
+			y += (st::photoLoader.height() - st::photoLoaderPoint.height()) / 2;
+			QColor c(st::white->c);
+			QBrush b(c);
+			for (int32 i = 0; i < cnt; ++i) {
+				t -= delta;
+				while (t < 0) t += period;
+				
+				float64 alpha = (t >= st::photoLoaderDuration1 + st::photoLoaderDuration2) ? 0 : ((t > st::photoLoaderDuration1 ? ((st::photoLoaderDuration1 + st::photoLoaderDuration2 - t) / st::photoLoaderDuration2) : (t / st::photoLoaderDuration1)));
+				c.setAlphaF(st::photoLoaderAlphaMin + alpha * (1 - st::photoLoaderAlphaMin));
+				b.setColor(c);
+				p.fillRect(x + i * (st::photoLoaderPoint.width() + st::photoLoaderSkip), y, st::photoLoaderPoint.width(), st::photoLoaderPoint.height(), b);
+			}
 		}
 
 		if (selected) {

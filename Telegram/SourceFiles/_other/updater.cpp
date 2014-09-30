@@ -271,12 +271,16 @@ void updateRegistry() {
 							if (GetFullPathName(L".", bufSize, exp, 0) < bufSize) {
 								wstring installpath = locationStr, mypath = exp;
 								if (installpath == mypath + L"\\" || true) { // always update reg info, if we found it
-									WCHAR nameStr[bufSize], dateStr[bufSize];
+									WCHAR nameStr[bufSize], dateStr[bufSize], publisherStr[bufSize], icongroupStr[bufSize];
 									SYSTEMTIME stLocalTime;
 									GetLocalTime(&stLocalTime);
 									RegSetValueEx(rkey, L"DisplayVersion", 0, REG_SZ, (BYTE*)versionStr, ((versionLen / 2) + 1) * sizeof(WCHAR));
-									wsprintf(nameStr, L"Telegram Win (Unofficial) version %s", versionStr);
+									wsprintf(nameStr, L"Telegram Desktop version %s", versionStr);
 									RegSetValueEx(rkey, L"DisplayName", 0, REG_SZ, (BYTE*)nameStr, (wcslen(nameStr) + 1) * sizeof(WCHAR));
+									wsprintf(publisherStr, L"Telegram Messenger LLP");
+									RegSetValueEx(rkey, L"Publisher", 0, REG_SZ, (BYTE*)publisherStr, (wcslen(publisherStr) + 1) * sizeof(WCHAR));
+									wsprintf(icongroupStr, L"Telegram Desktop");
+									RegSetValueEx(rkey, L"Inno Setup: Icon Group", 0, REG_SZ, (BYTE*)icongroupStr, (wcslen(icongroupStr) + 1) * sizeof(WCHAR));
 									wsprintf(dateStr, L"%04d%02d%02d", stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay);
 									RegSetValueEx(rkey, L"InstallDate", 0, REG_SZ, (BYTE*)dateStr, (wcslen(dateStr) + 1) * sizeof(WCHAR));
 
@@ -358,7 +362,7 @@ int APIENTRY WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdParama
 }
 
 #ifdef _NEED_WIN_GENERATE_DUMP
-static const WCHAR *_programName = L"Telegram Win (Unofficial)"; // folder in APPDATA, if current path is unavailable for writing
+static const WCHAR *_programName = L"Telegram Desktop"; // folder in APPDATA, if current path is unavailable for writing
 static const WCHAR *_exeName = L"Updater.exe";
 
 LPTOP_LEVEL_EXCEPTION_FILTER _oldWndExceptionFilter = 0;

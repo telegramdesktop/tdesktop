@@ -174,6 +174,8 @@ QString psLocalServerPrefix();
 QString psCurrentCountry();
 QString psCurrentLanguage();
 QString psAppDataPath();
+QString psAppDataPathOld();
+QString psDownloadPath();
 QString psCurrentExeDirectory(int argc, char *argv[]);
 void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);
