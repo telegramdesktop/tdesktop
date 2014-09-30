@@ -795,7 +795,9 @@ void Window::updateTrayMenu(bool force) {
 	disconnect(first, SIGNAL(triggered(bool)), 0, 0);
 	connect(first, SIGNAL(triggered(bool)), this, active ? SLOT(minimizeToTray()) : SLOT(showFromTray()));
 #ifndef Q_OS_WIN
-	trayIcon->setContextMenu((active || cPlatform() != dbipMac) ? trayIconMenu : 0);
+	if (trayIcon) {
+		trayIcon->setContextMenu((active || cPlatform() != dbipMac) ? trayIconMenu : 0);
+	}
 #endif
 }
 

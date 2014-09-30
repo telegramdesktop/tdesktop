@@ -133,19 +133,13 @@ void PsMainWindow::psRefreshTaskbarIcon() {
 }
 
 void PsMainWindow::psUpdateWorkmode() {
-	switch (cWorkMode()) {
-		case dbiwmWindowAndTray:
-		case dbiwmTrayOnly: {
-			setupTrayIcon();
-		} break;
-
-		case dbiwmWindowOnly: {
-			if (trayIcon) {
-				trayIcon->setContextMenu(0);
-				trayIcon->deleteLater();
-			}
-			trayIcon = 0;
-		} break;
+	setupTrayIcon();
+	if (cWorkMode() == dbiwmWindowOnly) {
+		if (trayIcon) {
+			trayIcon->setContextMenu(0);
+			trayIcon->deleteLater();
+		}
+		trayIcon = 0;
 	}
 }
 

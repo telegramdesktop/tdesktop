@@ -635,6 +635,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 						p.drawPixmap(pos, pix, QRect(0, (h - w) / 2, w, w));
 						size = w;
 					}
+					size /= cIntRetinaFactor();
 
 					if (!quality) {
 						uint64 dt = itemAnimations().animate(item, getms());
