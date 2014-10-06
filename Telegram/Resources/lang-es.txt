@@ -1,0 +1,455 @@
+/*
+This file is part of Telegram Desktop,
+an unofficial desktop messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014 John Preston, https://tdesktop.com
+*/
+
+/* Spanish translation by Javier Santos (@fjaviersantos) | Traducción al Español por Javier Santos (@fjaviersantos) */
+
+direction: "LTR";
+
+lng_maintitle: "Telegram D";
+
+lng_menu_contacts: "Contactos";
+lng_menu_settings: "Ajustes";
+lng_menu_about: "Acerca de";
+
+lng_open_from_tray: "Abrir Telegram";
+lng_minimize_to_tray: "Minimizar a la bandeja";
+lng_quit_from_tray: "Cerrar Telegram";
+lng_tray_icon_text: "Telegram sigue funcionando,
+puedes cambiarlo desde la página de configuración.
+
+Si este icono desaparece del menú de la bandeja,
+puedes arrastrarlo de vuelta desde los iconos ocultos.";
+
+lng_month1: "Enero";
+lng_month2: "Febrero";
+lng_month3: "Marzo";
+lng_month4: "Abril";
+lng_month5: "Mayo";
+lng_month6: "Junio";
+lng_month7: "Julio";
+lng_month8: "Augosto";
+lng_month9: "Septiembre";
+lng_month10: "Octubre";
+lng_month11: "Noviembre";
+lng_month12: "Diciembre";
+
+lng_weekday1: "Lu";
+lng_weekday2: "Ma";
+lng_weekday3: "Mi";
+lng_weekday4: "Ju";
+lng_weekday5: "Vi";
+lng_weekday6: "Sa";
+lng_weekday7: "Do";
+
+lng_month_day: "{day} {month}";
+
+lng_cancel: "Cancelar";
+lng_continue: "Continuar";
+lng_connecting: "Conectando...";
+lng_reconnecting: "Reconectar en %1 s...";
+lng_reconnecting_try_now: "Intentar ahora";
+
+lng_status_offline: "desconectado";
+lng_status_invisible: "invisible";
+lng_status_lastseen: "visto por última vez {when}";
+lng_status_lastseen_now: "justo ahora";
+lng_status_lastseen_minute: "hace %1 minuto";
+lng_status_lastseen_minutes: "hace %1 minutos";
+lng_status_lastseen_hour: "hace %1 hora";
+lng_status_lastseen_hours: "hace %1 horas";
+lng_status_lastseen_today: "hoy a las {time}";
+lng_status_lastseen_yesterday: "ayer a las {time}";
+lng_status_lastseen_date: "{date}";
+lng_status_lastseen_date_time: "{date} a las {time}";
+lng_status_online: "en línea";
+
+lng_chat_no_members: "Grupo inaccesible";
+lng_chat_members: "%1 miembros";
+lng_chat_members_online: "%1 miembros, %2 en línea";
+
+lng_server_error: "Error interno del servidor.";
+lng_flood_error: "Demasiados intentos.  Por favor inténtalo de nuevo más tarde.";
+lng_deleted: "Desconocido";
+
+lng_intro1: "Bienvenido a un cliente de [b]escritorio[/b] no oficial
+del servicio de mensajería [b]Telegram[/b].";
+lng_intro2: "Visita [a href=\"https://telegram.org/\"]telegram.org[/a] para leer más.";
+lng_start_msgs: "Empezar a chatear";
+
+lng_intro_back: "Atrás";
+lng_intro_next: "Siguiente";
+lng_intro_finish: "Finalizar";
+
+lng_phone_ph: "Tu número de teléfono";
+lng_phone_title: "Tu teléfono";
+lng_phone_desc: "Por favor confirma tu código de país y
+escribe tu número de teléfono.";
+lng_phone_notreg: "Nota: si no tienes una cuenta de Telegram creada todavía,
+por favor [b]regístrate[/b] desde [a href=\"https://telegram.org/\"]iOS / Android[/a] o {signup}aquí »{/signup}";
+lng_country_code: "Código de país";
+lng_bad_country_code: "Código de país incorrecto";
+lng_country_ph: "Buscar";
+lng_country_done: "Hecho";
+lng_country_none: "País no encontrado";
+lng_country_select: "Seleccioná el país";
+
+lng_code_ph: "Tu código";
+lng_code_desc: "Te hemos enviado un SMS con el código
+de activación a tu teléfono. Por favor escríbelo a continuación.";
+lng_code_call: "Telegram te llamará en %1:%2";
+lng_code_calling: "Solucitando una llamada desde Telegram...";
+lng_code_called: "Telegram realizó una llamada";
+
+lng_bad_phone: "El número de teléfono no es correcto. Por favor inténtalo de nuevo.";
+lng_bad_phone_noreg: "Número de teléfono no registrado.";
+lng_bad_code: "Has introducido un código no válido. Por favor inténtalo de nuevo.";
+lng_bad_name: "Por favor introduce nombre y apellido.";
+lng_bad_chat_title: "Por favor introduce un nuevo título de chat.";
+lng_bad_photo: "La imagen seleccionada no es buena.";
+
+lng_signup_title: "Información e imagen";
+lng_signup_firstname: "Nombre";
+lng_signup_lastname: "Apellido";
+
+lng_dlg_filter: "Buscar";
+lng_dlg_conversations: "Conversaciones";
+lng_dlg_messages: "Mensajes";
+lng_dlg_new_group_name: "Nombre de grupo";
+lng_dlg_create_group: "Crear";
+
+lng_settings_profile: "Perfil";
+lng_settings_edit: "Editar";
+lng_settings_save: "Guardar";
+lng_settings_cancel: "Cancelar";
+lng_settings_upload: "Establecer foto de perfil";
+lng_settings_badsize: "Esta imagen no tiene un buen tamaño, por favor selecciona otra.";
+lng_settings_crop_profile: "Seleccionar área cuadrada para tu foto de perfil";
+lng_settings_uploading_photo: "Subiendo foto...";
+
+lng_settings_section_notify: "Notificaciones";
+lng_settings_desktop_notify: "Notificaciones de escritorio";
+lng_settings_show_name: "Mostrar nombre del remitente";
+lng_settings_show_preview: "Mostrar previsualización del mensaje";
+lng_settings_sound_notify: "Reproducir sonido";
+
+lng_notification_title: "Telegram Desktop";
+lng_notification_preview: "Tienes un nuevo mensaje";
+
+lng_settings_section_general: "General";
+lng_settings_auto_update: "Actualizar automáticamente";
+lng_settings_current_version: "Versión {version}";
+lng_settings_check_now: "Buscar actualizaciones";
+lng_settings_update_checking: "Buscando actualizaciones...";
+lng_settings_latest_installed: "La última versión está instalada";
+lng_settings_downloading: "Descargando actualización {ready} / {total} Mb...";
+lng_settings_update_ready: "La nueva versión está preparada";
+lng_settings_update_now: "Reiniciar ahora";
+lng_settings_update_fail: "La comprobación de actualización falló :(";
+lng_settings_workmode_tray: "Mostrar icono en la bandeja";
+lng_settings_workmode_window: "Mostrar icono en la barra de tareas";
+lng_settings_auto_start: "Iniciar Telegram al iniciar el sistema";
+lng_settings_start_min: "Iniciar minimizado";
+lng_settings_add_sendto: "Colocar Telegram en el menú «Enviar a»";
+lng_settings_scale_label: "Escala de interfaz";
+lng_settings_scale_auto: "Auto ({cur})";
+
+lng_settings_section_chat: "Opciones de chat";
+lng_settings_replace_emojis: "Sustituir emojis";
+lng_settings_view_emojis: "Ver lista";
+lng_settings_emoji_list: "Lista de emojis soportados";
+lng_settings_send_enter: "Enviar con Enter";
+lng_settings_send_ctrlenter: "Enviar con Ctrl+Enter";
+lng_settings_send_cmdenter: "Enviar con Cmd+Enter";
+lng_settings_cats_and_dogs: "Permitir gatos y perros";
+
+lng_download_path_dont_ask: "No preguntar por la ruta de descarga para cada archivo";
+lng_download_path_label: "Carpeta de descarga: ";
+lng_download_path_temp: "carpeta temp";
+lng_download_path_default: "carpeta por defecto";
+lng_download_path_clear: "Limpiar todo";
+lng_download_path_header: "Escoger carpeta de descarga";
+lng_download_path_default_radio: "La carpeta de Telegram en el sistema es «Descargas»";
+lng_download_path_temp_radio: "Carpeta temp, limpiada al salir o desinstalar";
+lng_download_path_dir_radio: "Carpeta personalizada, limpiada solo manualmente";
+lng_download_path_choose: "Escoger carpeta de descarga";
+lng_sure_clear_downloads: "¿Quieres eliminar todos los archivos descargados desde la carpeta temp? Se hace automáticamente al salir o desinstalar el programa.";
+lng_download_path_failed: "La descarga del archivo no puede empezar. Podría ser porque la ruta de descarga no es correcta.
+
+Puedes cambiar la carpeta de descarga en los Ajustes.";
+lng_download_path_settings: "Ir a Ajustes";
+lng_download_finish_failed: "La descarga del archivo no se ha terminado.
+
+¿Quiéres intentarlo de nuevo?";
+lng_download_path_clearing: "Limpiando...";
+lng_download_path_cleared: "¡Limpiado!";
+lng_download_path_clear_failed: "Limpieza fallada :(";
+
+lng_settings_section_advanced: "Avanzado";
+lng_connection_type: "Tipo de conexión:";
+lng_connection_auto_connecting: "Por defecto (conectando..)";
+lng_connection_auto: "Por defecto ({type} usado)";
+lng_connection_http_proxy: "HTTP con proxy";
+lng_connection_tcp_proxy: "TCP con proxy";
+lng_connection_header: "Tipo de conexión";
+lng_connection_auto_rb: "Auto (TCP si está disponible o HTTP)";
+lng_connection_http_proxy_rb: "HTTP con http-proxy personalizado";
+lng_connection_tcp_proxy_rb: "TCP con socks5-proxy personalizado";
+lng_connection_host_ph: "Hostname";
+lng_connection_port_ph: "Puerto";
+lng_connection_user_ph: "Nombre de usuario";
+lng_connection_password_ph: "Contraseña";
+lng_connection_save: "Guardar";
+lng_settings_reset: "Restablecer otras sesiones";
+lng_settings_reset_done: "Sesiones restablecidas correctamente";
+lng_settings_logout: "Cerrar sesión";
+
+lng_settings_need_restart: "Necesitas reiniciar para aplicar
+alguna de la nuevas configuraciones. ¿Reiniciar ahora?";
+lng_settings_restart_now: "Reiniciar";
+lng_settings_restart_later: "Luego";
+
+lng_profile_settings_section: "Ajustes";
+lng_profile_participants_section: "Participantes";
+lng_profile_info: "Información de Contacto";
+lng_profile_group_info: "Información de Grupo";
+lng_profile_add_contact: "Añadir Contacto";
+lng_profile_edit_contact: "Editar";
+lng_profile_edit_group: "Editar";
+lng_profile_phone: "Teléfono: {phone}";
+lng_profile_enable_notifications: "Notificaciones";
+lng_profile_clear_history: "Limpiar historial";
+lng_profile_send_message: "Enviar Mensaje";
+lng_profile_share_contact: "Compartir Contacto";
+lng_profile_delete_contact: "Eliminar";
+lng_profile_set_group_photo: "Establecer Foto";
+lng_profile_add_participant: "Añadir Miembro";
+lng_profile_delete_and_exit: "Salir";
+lng_profile_kick: "Expulsar";
+lng_profile_sure_kick: "¿Expulsar {user} del grupo?";
+lng_profile_loading: "Cargando...";
+lng_profile_shared_media: "Multimedia compartida";
+lng_profile_no_media: "No hay multimedia en esta conversación.";
+lng_profile_photo: "{count} imagen »";
+lng_profile_photos: "{count} imágenes »";
+lng_profile_photos_header: "Vista general de imágenes";
+lng_profile_video: "{count} archivo de vídeo »";
+lng_profile_videos: "{count} archivos de vídeo »";
+lng_profile_videos_header: "Vista general de archivos de vídeo";
+lng_profile_document: "{count} documento »";
+lng_profile_documents: "{count} documentos »";
+lng_profile_documents_header: "Vista general de documentos";
+lng_profile_audio: "{count} mensaje de voz »";
+lng_profile_audios: "{count} mensajes de voz »";
+lng_profile_audios_header: "Vista general de mensajes de voz";
+lng_profile_show_all_types: "Mostrar todos los tipos";
+lng_profile_copy_phone: "Copiar número de teléfono";
+
+lng_participant_filter: "Buscar";
+lng_participant_invite: "Invitar";
+lng_create_new_group: "Nuevo Grupo";
+lng_create_group_next: "Siguiente";
+lng_create_group_title: "Nuevo Grupo";
+
+lng_sure_delete_contact: "¿Estás seguro, quieres eliminar {contact} de tu lista de contactos?";
+lng_sure_delete_history: "¿Estás seguro, quieres eliminar todo el historial de mensaje con {contact}?
+
+Esta acción no se puede deshacer.";
+
+lng_sure_delete_and_exit: "¿Estás seguro, quieres eliminar todo el historial de mensaje y salir «{group}»?
+
+Esta acción no se puede deshacer.";
+
+lng_sure_enable_debug: "¿Quiéres activar el modo DEBUG?
+
+Todos los eventos de la red se registrarán.";
+
+lng_message_empty: "(vacío)";
+
+lng_action_add_user: "{from} añadió a {user}";
+lng_action_kick_user: "{from} expulsó a {user}";
+lng_action_user_left: "{from} dejó el grupo";
+lng_action_user_joined: "{from} se unió al grupo";
+lng_action_user_photo: "{from} añadió una nueva foto de perfil";
+lng_action_user_registered: "{from} se acaba de unir a Telegram";
+lng_action_removed_photo: "{from} eliminó la foto de grupo";
+lng_action_changed_photo: "{from} cambió la foto de grupo";
+lng_action_changed_title: "{from} cambió el nombre de grupo a «{title}»";
+lng_action_created_chat: "{from} creó el grupo «{title}»";
+lng_action_checked_in: "{from} comprobado";
+
+lng_forwarded_from: "Reenviado desde ";
+
+lng_attach_failed: "Falló";
+lng_attach_file: "Documento";
+lng_attach_photo: "Foto";
+
+lng_media_type: "Tipo de medio";
+lng_media_type_photos: "Fotos";
+lng_media_type_videos: "Archivos de vídeo";
+lng_media_type_documents: "Documentos";
+lng_media_type_audios: "Mensajes de voz";
+
+lng_media_open_with: "Open With";
+lng_media_download: "Download";
+lng_media_cancel: "Cancel";
+lng_media_video: "Video file";
+lng_media_audio: "Voice message";
+
+lng_in_dlg_photo: "Foto";
+lng_in_dlg_video: "Vídeo";
+lng_in_dlg_geo: "Mapa";
+lng_in_dlg_contact: "Contacto";
+lng_in_dlg_audio: "Audio";
+lng_in_dlg_document: "Documento";
+
+lng_send_button: "Enviar";
+lng_message_ph: "Escribir un mensaje...";
+lng_empty_history: "";
+lng_willbe_history: "Por favor selecciona un chat para empezar a hablar";
+lng_message_with_from: "[c]{from}:[/c] {message}";
+lng_from_you: "Tú";
+
+lng_typing: "escribiendo";
+lng_user_typing: "{user} está escribiendo";
+lng_users_typing: "{user1} y {user2} están escribiendo";
+lng_many_typing: "{n} están escribiendo";
+lng_unread_bar: "%1 mensajes no leídos";
+
+lng_maps_point: "Localización";
+lng_save_photo: "Guardar imagen";
+lng_save_video: "Guardar vídeo";
+lng_save_audio: "Guardar audio";
+lng_save_document: "Guardar documento";
+lng_save_downloaded: "{ready} / {total} {mb}";
+lng_duration_and_size: "{duration}, {size}";
+lng_choose_images: "Escoger imágenes";
+
+lng_context_open_link: "Abrir enlace";
+lng_context_copy_link: "Copiar enlace";
+lng_context_open_email: "Escribir a esta dirección";
+lng_context_copy_email: "Copiar dirección de correo";
+lng_context_open_hashtag: "Buscar por hashtag";
+lng_context_copy_hashtag: "Copiar hashtag";
+lng_context_open_image: "Abrir imagen";
+lng_context_save_image: "Guardar imagen como...";
+lng_context_forward_image: "Reenviar imagen";
+lng_context_delete_image: "Eliminar imagen";
+lng_context_copy_image: "Copiar imagen";
+lng_context_close_image: "Cerrar imagen";
+lng_context_cancel_download: "Cancelar descarga";
+lng_context_show_in_folder: "Mostrar en carpeta";
+lng_context_show_in_finder: "Mostrar en Finder";
+lng_context_open_video: "Abrir vídeo";
+lng_context_save_video: "Guardar vídeo como...";
+lng_context_open_audio: "Abrir audio";
+lng_context_save_audio: "Guardar audio como...";
+lng_context_open_document: "Abrir archivo";
+lng_context_save_document: "Guardar archivo como...";
+lng_context_copy_text: "Copiar mensaje de texto";
+lng_context_to_msg: "Ir al mensaje";
+lng_context_forward_msg: "Reenviar mensaje";
+lng_context_delete_msg: "Eliminar mensaje";
+lng_context_select_msg: "Seleccionar mensaje";
+lng_context_cancel_upload: "Cancelar subida";
+lng_context_copy_selected: "Copiar texto seleccionado";
+lng_context_forward_selected: "Reenviar seleccionado";
+lng_context_delete_selected: "Eliminar seleccionado";
+lng_context_clear_selection: "Limpiar selección";
+lng_really_send_image: "¿Quiéres enviar esta imagen?";
+lng_really_send_file: "¿Quiéres enviar este archivo?";
+lng_really_share_contact: "¿Quiéres compartir este contacto?";
+lng_send_image_compressed: "Enviar imagen comprimida";
+
+lng_forward_choose: "Escoger destinatario...";
+lng_forward_confirm: "Reenviar a {recipient}?";
+lng_forward_share_contact: "Compartir contacto a {recipient}?";
+lng_forward_send_file_confirm: "Enviar «{name}» a {recipient}?";
+lng_forward_send_files_confirm: "Enviar archivos seleccionados a {recipient}?";
+lng_forward: "Reenviar";
+lng_forward_send: "Enviar";
+
+lng_contact_phone: "Número de teléfono";
+lng_enter_contact_data: "Nuevo contacto";
+lng_edit_group_title: "Editar nombre de grupo";
+lng_edit_contact_title: "Editar nombre de contacto";
+lng_edit_self_title: "Editar tu nombre";
+lng_confirm_contact_data: "Nuevo contacto";
+lng_add_contact: "Crear";
+lng_add_contact_button: "Añadir contacto";
+lng_contacts_header: "Contactos";
+lng_contact_not_joined: "Desafortunadamente {name} no se ha unido todavía a Telegram, pero puedes enviarle una invitación.
+
+Te notificaremos sobre si alguno de tus contactos se usen a Telegram.";
+lng_try_other_contact: "Intentar otro";
+lng_contacts_done: "Cancelar";
+
+lng_drag_images_here: "Soltar imágenes aquí";
+lng_drag_photos_here: "Soltar fotos aquí";
+lng_drag_files_here: "Soltar archivos aquí";
+
+lng_drag_to_send_quick: "para enviarlos de forma rápida";
+lng_drag_to_send_no_compression: "para enviarlos sin compresión";
+lng_drag_to_send_documents: "para enviarlos como documentos";
+
+lng_selected_clear: "Cancelar";
+lng_selected_delete: "Eliminar";
+lng_selected_forward: "Reenviar";
+lng_selected_count_1: "%1 mensaje";
+lng_selected_count_5: "%1 mensajes";
+lng_selected_cancel_sure_this: "¿Quiéres cancelar esta subida?";
+lng_selected_delete_sure_this: "¿Quiéres eliminar este mensaje?";
+lng_selected_delete_sure_1: "¿Quiéres eliminar %1 mensaje?";
+lng_selected_delete_sure_5: "¿Quiéres eliminar %1 mensajes?";
+lng_selected_delete_confirm: "Eliminar";
+
+lng_emoji_no_recent: "Emojis recientes aparecerán aquí";
+
+lng_about_version: "Versión {version}";
+lng_about_text: "Aplicación de mensajería gratuita no oficial basado en [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] y
+[a href=\"https://core.telegram.org/api\"]Telegram API[/a] para velocidad y seguridad
+
+Este software está asociado a la licencia [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versión 3,
+el código fuente está disponible en [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a]. Traducción al Español ofrecida por [a href=\"https://twitter.com/fjaviersantos"]Javier Santos[/a].";
+lng_about_done: "Hecho";
+
+lng_search_no_results: "No hay mensajes encontrados";
+lng_search_one_result: "Encontrado {count} mensaje";
+lng_search_n_results: "Encontrado {count} mensajes";
+
+lng_mediaview_close: "Cerrar";
+lng_mediaview_save: "Guardar como";
+lng_mediaview_forward: "Reenviar";
+lng_mediaview_delete: "Eliminar";
+lng_mediaview_single_photo: "Foto individual";
+lng_mediaview_group_photo: "Foto de grupo";
+lng_mediaview_profile_photo: "Foto de perfil";
+lng_mediaview_n_of_count: "{n} de {count}";
+
+// Mac specific
+
+lng_mac_choose_app: "Escoger aplicación";
+lng_mac_choose_text: "Escoger una aplicación para abrir el documento \"{file}\".";
+lng_mac_enable_filter: "Activar:";
+lng_mac_recommended_apps: "Aplicaciones recomendadas";
+lng_mac_all_apps: "Todas las aplicaciones";
+lng_mac_always_open_with: "Abrir siempre con";
+lng_mac_this_app_can_open: "Estas aplicaciones pueden abrir \"{file}\".";
+lng_mac_not_known_app: "Se desconoce si esta aplicación puede abrir \"{file}\".";
+
+// Keys finished
+
