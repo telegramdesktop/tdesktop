@@ -334,7 +334,7 @@ void DialogsListWidget::onPeerPhotoChanged(PeerData *peer) {
 }
 
 void DialogsListWidget::onFilterUpdate(QString newFilter, bool force) {
-	newFilter = textAccentFold(newFilter.trimmed().toLower());
+	newFilter = textSearchKey(newFilter);
 	if (newFilter != filter || force) {
 		QStringList f;
 		if (!newFilter.isEmpty()) {
@@ -466,6 +466,7 @@ void DialogsListWidget::onItemRemoved(HistoryItem *item) {
 	for (int i = 0; i < searchResults.size();) {
 		if (searchResults[i]->_item == item) {
 			searchResults.remove(i);
+			if (searchedCount > 0) --searchedCount;
 		} else {
 			++i;
 		}

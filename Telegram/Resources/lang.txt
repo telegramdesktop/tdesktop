@@ -357,6 +357,9 @@ lng_context_open_audio: "Open Audio";
 lng_context_save_audio: "Save Audio As...";
 lng_context_open_document: "Open File";
 lng_context_save_document: "Save File As...";
+lng_context_forward_file: "Forward File";
+lng_context_delete_file: "Delete File";
+lng_context_close_file: "Close File";
 lng_context_copy_text: "Copy Message Text";
 lng_context_to_msg: "Go To Message";
 lng_context_forward_msg: "Forward Message";
@@ -436,6 +439,7 @@ lng_mediaview_single_photo: "Single Photo";
 lng_mediaview_group_photo: "Group Photo";
 lng_mediaview_profile_photo: "Profile Photo";
 lng_mediaview_n_of_count: "{n} of {count}";
+lng_mediaview_doc_image: "Document";
 
 // Mac specific
 

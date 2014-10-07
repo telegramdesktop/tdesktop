@@ -297,6 +297,7 @@ void VideoOpenLink::onClick(Qt::MouseButton button) const {
 	QString filename = saveFileName(lang(lng_save_video), qsl("MOV Video (*.mov);;All files (*.*)"), qsl("video"), qsl(".mov"), false);
 	if (!filename.isEmpty()) {
 		data->openOnSave = 1;
+		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
 		data->save(filename);
 	}
 }
@@ -316,7 +317,10 @@ void VideoSaveLink::doSave(bool forceSavingAs) const {
 		QString filename = saveFileName(lang(lng_save_video), qsl("MOV Video (*.mov);;All files (*.*)"), qsl("video"), name, forceSavingAs, alreadyDir);
 		if (!filename.isEmpty()) {
 			if (forceSavingAs) data->cancel();
-			if (!already.isEmpty()) data->openOnSave = -1;
+			if (!already.isEmpty()) {
+				data->openOnSave = -1;
+				data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
+			}
 			data->save(filename);
 		}
 	}
@@ -369,6 +373,7 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 	QString filename = saveFileName(lang(lng_save_audio), qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), qsl(".ogg"), false);
 	if (!filename.isEmpty()) {
 		data->openOnSave = 1;
+		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
 		data->save(filename);
 	}
 }
@@ -388,7 +393,10 @@ void AudioSaveLink::doSave(bool forceSavingAs) const {
 		QString filename = saveFileName(lang(lng_save_audio), qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), name, forceSavingAs, alreadyDir);
 		if (!filename.isEmpty()) {
 			if (forceSavingAs) data->cancel();
-			if (!already.isEmpty()) data->openOnSave = -1;
+			if (!already.isEmpty()) {
+				data->openOnSave = -1;
+				data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
+			}
 			data->save(filename);
 		}
 	}
@@ -420,7 +428,21 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 
 	QString already = data->already(true);
 	if (!already.isEmpty()) {
-        psOpenFile(already);
+		bool showInMediaView = false;
+		if (data->size < MediaViewImageSizeLimit) {
+			QMimeType mime = QMimeDatabase().mimeTypeForName(data->mime);
+			QString name = mime.name().toLower(), fname = already.toLower();
+			if (name == qsl("image/jpeg") || name == qsl("image/jpg") || name == qsl("image/png")) {
+				showInMediaView = true;
+			} else if (fname.endsWith(qsl(".jpeg")) || fname.endsWith(qsl(".jpg")) || fname.endsWith(qsl(".png"))) {
+				showInMediaView = name.isEmpty();
+			}
+		}
+		if (showInMediaView) {
+			App::wnd()->showDocument(data, App::hoveredLinkItem());
+		} else {
+			psOpenFile(already);
+		}
 		return;
 	}
 	
@@ -443,6 +465,7 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 	QString filename = saveFileName(lang(lng_save_document), filter, qsl("doc"), name, false);
 	if (!filename.isEmpty()) {
 		data->openOnSave = 1;
+		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
 		data->save(filename);
 	}
 }
@@ -475,7 +498,10 @@ void DocumentSaveLink::doSave(bool forceSavingAs) const {
 		QString filename = saveFileName(lang(lng_save_document), filter, qsl("doc"), name, forceSavingAs, alreadyDir);
 		if (!filename.isEmpty()) {
 			if (forceSavingAs) data->cancel();
-			if (!already.isEmpty()) data->openOnSave = -1;
+			if (!already.isEmpty()) {
+				data->openOnSave = -1;
+				data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
+			}
 			data->save(filename);
 		}
 	}
@@ -2644,7 +2670,7 @@ int32 HistoryDocument::resize(int32 width) {
 }
 
 const QString HistoryDocument::inDialogsText() const {
-	return lang(lng_in_dlg_document);
+	return data->name.isEmpty() ? lang(lng_in_dlg_document) : data->name;
 }
 
 bool HistoryDocument::hasPoint(int32 x, int32 y, int32 width) const {
@@ -3237,12 +3263,14 @@ void HistoryMessage::drawInDialog(QPainter &p, const QRect &r, bool act, const H
 	if (cacheFor != this) {
 		cacheFor = this;
 		QString msg(_media ? _media->inDialogsText() : _text.original(0, 0xFFFF, false));
-		TextCustomTagsMap custom;
 		if (_history->peer->chat || out()) {
+			TextCustomTagsMap custom;
 			custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
 			msg = lang(lng_message_with_from).replace(qsl("{from}"), textRichPrepare((_from == App::self()) ? lang(lng_from_you) : _from->firstName)).replace(qsl("{message}"), textRichPrepare(msg));
+			cache.setRichText(st::dlgHistFont, msg, _textDlgOptions, custom);
+		} else {
+			cache.setText(st::dlgHistFont, msg, _textDlgOptions);
 		}
-		cache.setRichText(st::dlgHistFont, msg, _textDlgOptions, custom);
 	}
 	if (r.width()) {
 		textstyleSet(&(act ? st::dlgActiveTextStyle : st::dlgTextStyle));
@@ -3488,7 +3516,7 @@ QString HistoryServiceMsg::messageByAction(const MTPmessageAction &action, TextL
 	case mtpc_messageActionChatEditPhoto: {
 		const MTPDmessageActionChatEditPhoto &d(action.c_messageActionChatEditPhoto());
 		if (d.vphoto.type() == mtpc_photo) {
-			_media = new HistoryPhoto(history()->peer, d.vphoto.c_photo(), 100);
+			_media = new HistoryPhoto(history()->peer, d.vphoto.c_photo(), st::msgServicePhotoWidth);
 		}
 		return lang(lng_action_changed_photo);
 	} break;

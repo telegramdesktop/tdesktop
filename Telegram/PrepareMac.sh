@@ -1,5 +1,5 @@
-AppVersionStr=0.6.1
-AppVersion=6001
+AppVersionStr=0.6.2
+AppVersion=6002
 
 if [ -d "./../Mac/Release/deploy/$AppVersionStr" ]; then
   echo "Deploy folder for version $AppVersionStr already exists!"

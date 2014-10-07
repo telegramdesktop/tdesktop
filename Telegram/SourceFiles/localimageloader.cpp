@@ -103,6 +103,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 		if (type == ToPrepareDocument) {
 			filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
 			QMimeType mimeType = QMimeDatabase().mimeTypeForName("image/png");
+			mime = mimeType.name();
 			data = QByteArray();
 			{
 				QBuffer b(&data);

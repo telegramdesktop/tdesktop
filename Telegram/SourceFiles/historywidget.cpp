@@ -3067,7 +3067,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 }
 
 void HistoryWidget::onFieldTabbed() {
-	QString v = _field.getText(), t = supportTemplate(v.trimmed());
+	QString v = _field.getText(), t = supportTemplate(v);
 	if (!t.isEmpty()) {
 		bool isImg = t.startsWith(qsl("img:")), isFile = t.startsWith(qsl("file:")), isContact = t.startsWith(qsl("contact:"));
 		if (isImg || isFile) {
@@ -3098,7 +3098,7 @@ void HistoryWidget::onFieldTabbed() {
 			if (data.size() > 1) {
 				_field.setPlainText(text);
 
-				QString phone = data.at(0).trimmed(), fname = data.at(1).trimmed(), lname = (data.size() > 2) ? data.at(2).trimmed() : QString();
+				QString phone = data.at(0).trimmed(), fname = data.at(1).trimmed(), lname = (data.size() > 2) ? static_cast<QStringList>(data.mid(2)).join(QChar(' ')).trimmed() : QString();
 				shareContactConfirmation(phone, fname, lname, !text.isEmpty());
 			}
 		} else {

@@ -231,7 +231,7 @@ enum FileStatus {
 
 struct VideoData {
 	VideoData(const VideoId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0) :
-		id(id), access(access), user(user), date(date), duration(duration), w(w), h(h), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), fileType(0), openOnSave(0), loader(0) {
+		id(id), access(access), user(user), date(date), duration(duration), w(w), h(h), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), fileType(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
 		memset(md5, 0, sizeof(md5));
 	}
 	void forget() {
@@ -251,7 +251,7 @@ struct VideoData {
 		fileName = QString();
 		modDate = QDateTime();
 		if (!beforeDownload) {
-			openOnSave = 0;
+			openOnSave = openOnSaveMsgId = 0;
 		}
 	}
 
@@ -292,7 +292,7 @@ struct VideoData {
 	int32 uploadOffset;
 
 	mtpTypeId fileType;
-	int32 openOnSave;
+	int32 openOnSave, openOnSaveMsgId;
 	mtpFileLoader *loader;
 	QString fileName;
 	QDateTime modDate;
@@ -335,7 +335,7 @@ public:
 
 struct AudioData {
 	AudioData(const AudioId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 dc = 0, int32 size = 0) : 
-		id(id), access(access), user(user), date(date), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), loader(0) {
+		id(id), access(access), user(user), date(date), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
 		memset(md5, 0, sizeof(md5));
 	}
 	void forget() {
@@ -354,7 +354,7 @@ struct AudioData {
 		fileName = QString();
 		modDate = QDateTime();
 		if (!beforeDownload) {
-			openOnSave = 0;
+			openOnSave = openOnSaveMsgId = 0;
 		}
 	}
 
@@ -393,7 +393,7 @@ struct AudioData {
 	FileStatus status;
 	int32 uploadOffset;
 
-	int32 openOnSave;
+	int32 openOnSave, openOnSaveMsgId;
 	mtpFileLoader *loader;
 	QString fileName;
 	QDateTime modDate;
@@ -437,7 +437,7 @@ public:
 
 struct DocumentData {
 	DocumentData(const DocumentId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, const QString &name = QString(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0) :
-		id(id), access(access), user(user), date(date), name(name), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), loader(0) {
+		id(id), access(access), user(user), date(date), name(name), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
 		memset(md5, 0, sizeof(md5));
 	}
 	void forget() {
@@ -457,7 +457,7 @@ struct DocumentData {
 		fileName = QString();
 		modDate = QDateTime();
 		if (!beforeDownload) {
-			openOnSave = 0;
+			openOnSave = openOnSaveMsgId = 0;
 		}
 	}
 
@@ -496,7 +496,7 @@ struct DocumentData {
 	FileStatus status;
 	int32 uploadOffset;
 
-	int32 openOnSave;
+	int32 openOnSave, openOnSaveMsgId;
 	mtpFileLoader *loader;
 	QString fileName;
 	QDateTime modDate;

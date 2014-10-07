@@ -25,7 +25,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "gui/filedialog.h"
 
 MediaView::MediaView() : TWidget(App::wnd()),
-_photo(0), _leftNavVisible(false), _rightNavVisible(false), _animStarted(getms()), _maxWidth(0), _maxHeight(0), _x(0), _y(0), _w(0), _full(-1),
+_photo(0), _doc(0), _leftNavVisible(false), _rightNavVisible(false), _animStarted(getms()), _maxWidth(0), _maxHeight(0), _width(0),
+_x(0), _y(0), _w(0), _h(0), _xStart(0), _yStart(0), _zoom(0), _pressed(false), _dragging(0), _full(-1),
 _history(0), _peer(0), _user(0), _from(0), _index(-1), _msgid(0), _loadRequest(0), _over(OverNone), _down(OverNone), _lastAction(-st::medviewDeltaFromLastAction, -st::medviewDeltaFromLastAction),
 _close(this, lang(lng_mediaview_close), st::medviewButton),
 _save(this, lang(lng_mediaview_save), st::medviewButton),
@@ -66,6 +67,11 @@ void MediaView::moveToScreen() {
 	_maxHeight = _avail.height() - st::medviewTopSkip - st::medviewBottomSkip;
 	_leftNav = QRect(0, 0, st::medviewNavBarWidth, height());
 	_rightNav = QRect(width() - st::medviewNavBarWidth, 0, st::medviewNavBarWidth, height());
+
+	int32 w = st::medviewMainWidth + (st::medviewTopSkip - _save.height()), l = _avail.x() + (_avail.width() - w) / 2;
+	_topActions = QRect(l, _avail.y(), w, st::medviewTopSkip);
+	_bottomActions = QRect(l, _avail.y() + _avail.height() - st::medviewBottomSkip, w, st::medviewBottomSkip);
+
 	_close.move(_avail.x() + (_avail.width() + st::medviewMainWidth) / 2 - _close.width(), _avail.y() + (st::medviewTopSkip - _close.height()) / 2);
 	_save.move(_avail.x() + (_avail.width() - st::medviewMainWidth) / 2, _avail.y() + (st::medviewTopSkip - _save.height()) / 2);
 	_delete.move(_avail.x() + (_avail.width() + st::medviewMainWidth) / 2 - _delete.width(), _avail.y() + _avail.height() - (st::medviewTopSkip + _delete.height()) / 2);
@@ -73,6 +79,7 @@ void MediaView::moveToScreen() {
 }
 
 void MediaView::mediaOverviewUpdated(PeerData *peer) {
+	if (!_photo) return;
 	if (_history && _history->peer == peer) {
 		_index = -1;
 		for (int i = 0, l = _history->_overview[OverviewPhotos].size(); i < l; ++i) {
@@ -104,10 +111,10 @@ void MediaView::changingMsgId(HistoryItem *row, MsgId newId) {
 }
 
 void MediaView::updateControls() {
-	if (!_photo) return;
+	if (!_photo && !_doc) return;
 
 	_close.show();
-	if (_photo->full->loaded()) {
+	if (_photo && _photo->full->loaded() || _doc && !_doc->already(true).isEmpty()) {
 		_save.show();
 	} else {
 		_save.hide();
@@ -122,13 +129,13 @@ void MediaView::updateControls() {
 		_delete.show();
 	} else {
 		_forward.hide();
-		if ((App::self() && _photo && App::self()->photoId == _photo->id) || (_photo->chat && _photo->chat->photoId == _photo->id)) {
+		if (_photo && ((App::self() && App::self()->photoId == _photo->id) || (_photo->chat && _photo->chat->photoId == _photo->id))) {
 			_delete.show();
 		} else {
 			_delete.hide();
 		}
 	}
-	QDateTime d(date(_photo->date)), dNow(date(unixtime()));
+	QDateTime d(date(_photo ? _photo->date : _doc->date)), dNow(date(unixtime()));
 	if (d.date() == dNow.date()) {
 		_dateText = lang(lng_status_lastseen_today).replace(qsl("{time}"), d.time().toString(qsl("hh:mm")));
 	} else if (d.date().addDays(1) == dNow.date()) {
@@ -143,8 +150,8 @@ void MediaView::updateControls() {
 	_nameNav = QRect(_forward.x() + _forward.width() + (maxWidth - nameWidth) / 2, _forward.y() + st::medviewNameTop, nameWidth, st::msgNameFont->height);
 	_dateNav = QRect(_forward.x() + _forward.width() + (maxWidth - dateWidth) / 2, _forward.y() + st::medviewDateTop, dateWidth, st::medviewDateFont->height);
 	updateHeader();
-	_leftNavVisible = (_index > 0 || (_index == 0 && _history && _history->_overview[OverviewPhotos].size() < _history->_overviewCount[OverviewPhotos]));
-	_rightNavVisible = (_index >= 0 && (
+	_leftNavVisible = _photo && (_index > 0 || (_index == 0 && _history && _history->_overview[OverviewPhotos].size() < _history->_overviewCount[OverviewPhotos]));
+	_rightNavVisible = _photo && (_index >= 0 && (
 		(_history && _index + 1 < _history->_overview[OverviewPhotos].size()) ||
 		(_user && (_index + 1 < _user->photos.size() || _index + 1 < _user->photosCount))));
 	updateOver(mapFromGlobal(QCursor::pos()));
@@ -183,14 +190,32 @@ void MediaView::onClose() {
 }
 
 void MediaView::onSave() {
-	if (!_photo || !_photo->full->loaded()) return;
+	if (_doc) {
+		QString cur = _doc->already(true), file;
+		if (cur.isEmpty()) {
+			_save.hide();
+			return;
+		}
+		if (filedialogGetSaveFile(file, lang(lng_save_photo), qsl("JPEG Image (*.jpg);;All files (*.*)"), cur)) {
+			if (!file.isEmpty() && file != cur) {
+				QFile(cur).copy(file);
+			}
+		}
+	} else {
+		if (!_photo || !_photo->full->loaded()) return;
 
-	QString file;
-	if (filedialogGetSaveFile(file, lang(lng_save_photo), qsl("JPEG Image (*.jpg);;All files (*.*)"), filedialogDefaultName(qsl("photo"), qsl(".jpg")))) {
-		if (!file.isEmpty()) {
-			_photo->full->pix().toImage().save(file, "JPG");
+		QString file;
+		if (filedialogGetSaveFile(file, lang(lng_save_photo), qsl("JPEG Image (*.jpg);;All files (*.*)"), filedialogDefaultName(qsl("photo"), qsl(".jpg")))) {
+			if (!file.isEmpty()) {
+				_photo->full->pix().toImage().save(file, "JPG");
+			}
 		}
 	}
+}
+
+void MediaView::onShowInFolder() {
+	QString already(_doc->already(true));
+	if (!already.isEmpty()) psShowInFolder(already);
 }
 
 void MediaView::onForward() {
@@ -224,9 +249,13 @@ void MediaView::onDelete() {
 }
 
 void MediaView::onCopy() {
-	if (!_photo || !_photo->full->loaded()) return;
+	if (_doc) {
+		QApplication::clipboard()->setPixmap(_current);
+	} else {
+		if (!_photo || !_photo->full->loaded()) return;
 
-	QApplication::clipboard()->setPixmap(_photo->full->pix());
+		QApplication::clipboard()->setPixmap(_photo->full->pix());
+	}
 }
 
 void MediaView::showPhoto(PhotoData *photo, HistoryItem *context) {
@@ -236,6 +265,9 @@ void MediaView::showPhoto(PhotoData *photo, HistoryItem *context) {
 
 	_loadRequest = 0;
 	_over = OverNone;
+	_pressed = false;
+	_dragging = 0;
+	setCursor(style::cur_default);
 	if (!_animations.isEmpty()) {
 		_animations.clear();
 		anim::stop(this);
@@ -297,33 +329,78 @@ void MediaView::showPhoto(PhotoData *photo, PeerData *context) {
 	preloadPhotos(0);
 }
 
+void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
+	_photo = 0;
+	_history = context ? context->history() : 0;
+	_peer = 0;
+	_user = 0;
+	_zoom = 0;
+	_msgid = context ? context->id : 0;
+	_index = -1;
+	_loadRequest = 0;
+	_over = OverNone;
+	_pressed = false;
+	_dragging = 0;
+	setCursor(style::cur_default);
+	if (!_animations.isEmpty()) {
+		_animations.clear();
+		anim::stop(this);
+	}
+	if (!_animOpacities.isEmpty()) _animOpacities.clear();
+	setCursor(style::cur_default);
+
+	QString name = doc->already();
+	_current = name.isEmpty() ? QPixmap() : QPixmap(name);
+	_current.setDevicePixelRatio(cRetinaFactor());
+	_doc = doc;
+	_down = OverNone;
+	if (isHidden()) {
+		moveToScreen();
+	}
+	_w = _current.width() / cIntRetinaFactor();
+	_h = _current.height() / cIntRetinaFactor();
+	_x = _avail.x() + (_avail.width() - _w) / 2;
+	_y = _avail.y() + (_avail.height() - _h) / 2;
+	_width = _w;
+	_from = App::user(_doc->user);
+	_full = 1;
+	updateControls();
+	if (isHidden()) {
+		psUpdateOverlayed(this);
+		show();
+	}
+}
+
 void MediaView::showPhoto(PhotoData *photo) {
 	_photo = photo;
+	_doc = 0;
+	_zoom = 0;
 	MTP::clearLoaderPriorities();
 	_photo->full->load();
 	_full = -1;
 	_current = QPixmap();
-	_w = photo->full->width();
 	_down = OverNone;
-	int h = photo->full->height();
+	_w = photo->full->width();
+	_h = photo->full->height();
 	switch (cScale()) {
-	case dbisOneAndQuarter: _w = qRound(float64(_w) * 1.25 - 0.01); h = qRound(float64(h) * 1.25 - 0.01); break;
-	case dbisOneAndHalf: _w = qRound(float64(_w) * 1.5 - 0.01); h = qRound(float64(h) * 1.5 - 0.01); break;
-	case dbisTwo: _w *= 2; h *= 2; break;
+	case dbisOneAndQuarter: _w = qRound(float64(_w) * 1.25 - 0.01); _h = qRound(float64(_h) * 1.25 - 0.01); break;
+	case dbisOneAndHalf: _w = qRound(float64(_w) * 1.5 - 0.01); _h = qRound(float64(_h) * 1.5 - 0.01); break;
+	case dbisTwo: _w *= 2; _h *= 2; break;
 	}
 	if (isHidden()) {
 		moveToScreen();
 	}
 	if (_w > _maxWidth) {
-		h = qRound(h * _maxWidth / float64(_w));
+		_h = qRound(_h * _maxWidth / float64(_w));
 		_w = _maxWidth;
 	}
-	if (h > _maxHeight) {
-		_w = qRound(_w * _maxHeight / float64(h));
-		h = _maxHeight;
+	if (_h > _maxHeight) {
+		_w = qRound(_w * _maxHeight / float64(_h));
+		_h = _maxHeight;
 	}
 	_x = _avail.x() + (_avail.width() - _w) / 2;
-	_y = _avail.y() + (_avail.height() - h) / 2;
+	_y = _avail.y() + (_avail.height() - _h) / 2;
+	_width = _w;
 	_from = App::user(_photo->user);
 	updateControls();
 	if (isHidden()) {
@@ -369,24 +446,80 @@ void MediaView::paintEvent(QPaintEvent *e) {
 	}
 
 	p.setCompositionMode(m);
-
-	// header
 	p.setOpacity(1);
-	p.setPen(st::medviewHeaderColor->p);
-	p.setFont(st::medviewHeaderFont->f);
-	QRect r_header(_save.x() + _save.width(), _save.y(), _close.x() - _save.x() - _save.width(), _save.height());
-	if (r_header.intersects(r)) p.drawText(r_header, _header, style::al_center);
 
-	// name
-	p.setPen(nameDateColor(overLevel(OverName)));
-	if (_over == OverName) _from->nameText.replaceFont(st::msgNameFont->underline());
-	if (_nameNav.intersects(r)) _from->nameText.drawElided(p, _nameNav.left(), _nameNav.top(), _nameNav.width());
-	if (_over == OverName) _from->nameText.replaceFont(st::msgNameFont);
+	// photo
+	if (_photo) {
+		if (_full <= 0 && _photo->full->loaded()) {
+			_current = _photo->full->pixNoCache(_width * cIntRetinaFactor(), 0, true);
+			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+			_full = 1;
+		} else if (_full < 0 && _photo->medium->loaded()) {
+			_current = _photo->medium->pixBlurredNoCache(_width * cIntRetinaFactor());
+			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+			_full = 0;
+		} else if (_current.isNull() && _photo->thumb->loaded()) {
+			_current = _photo->thumb->pixBlurredNoCache(_width * cIntRetinaFactor());
+			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
+		}
+	}
+	if (_photo || !_current.isNull()) {
+		QRect imgRect(_x, _y, _w, _h);
+		if (imgRect.intersects(r)) {
+			if (_zoom) {
+				bool was = (p.renderHints() & QPainter::SmoothPixmapTransform);
+				if (!was) p.setRenderHint(QPainter::SmoothPixmapTransform);
+				p.drawPixmap(QRect(_x, _y, _w, _h), _current);
+				if (!was) p.setRenderHint(QPainter::SmoothPixmapTransform, false);
+			} else {
+				p.drawPixmap(_x, _y, _current);
+			}
+			if (imgRect.intersects(_topActions)) {
+				p.setOpacity(st::medviewControlsBgOpacity);
+				p.fillRect(imgRect.intersected(_topActions), st::black->b);
+				p.setOpacity(1);
+			}
+			if (imgRect.intersects(_bottomActions)) {
+				p.setOpacity(st::medviewControlsBgOpacity);
+				p.fillRect(imgRect.intersected(_bottomActions), st::black->b);
+				p.setOpacity(1);
+			}
+			if (_leftNavVisible && imgRect.intersects(_leftNav)) {
+				float64 o = overLevel(OverLeftNav);
+				p.setOpacity(o * st::medviewDarkOpacity + (1 - o) * st::medviewControlsBgOpacity);
+				p.fillRect(imgRect.intersected(_leftNav), st::black->b);
+				p.setOpacity(1);
+			}
+			if (_rightNavVisible && imgRect.intersects(_rightNav)) {
+				float64 o = overLevel(OverRightNav);
+				p.setOpacity(o * st::medviewDarkOpacity + (1 - o) * st::medviewControlsBgOpacity);
+				p.fillRect(imgRect.intersected(_rightNav), st::black->b);
+				p.setOpacity(1);
+			}
+			if (_full < 1) {
+				uint64 dt = getms() - _animStarted;
+				int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
 
-	// date
-	p.setPen(nameDateColor(overLevel(OverDate)));
-	p.setFont((_over == OverDate ? st::medviewDateFont->underline() : st::medviewDateFont)->f);
-	if (_dateNav.intersects(r)) p.drawText(_dateNav.left(), _dateNav.top() + st::medviewDateFont->ascent, _dateText);
+				int32 x = _avail.x() + (_avail.width() - st::mediaviewLoader.width()) / 2, y = _avail.y() + (_avail.height() - st::mediaviewLoader.height()) / 2;
+				p.fillRect(x, y, st::mediaviewLoader.width(), st::mediaviewLoader.height(), st::photoLoaderBg->b);
+				x += (st::mediaviewLoader.width() - cnt * st::mediaviewLoaderPoint.width() - (cnt - 1) * st::mediaviewLoaderSkip) / 2;
+				y += (st::mediaviewLoader.height() - st::mediaviewLoaderPoint.height()) / 2;
+				QColor c(st::white->c);
+				QBrush b(c);
+				for (int32 i = 0; i < cnt; ++i) {
+					t -= delta;
+					while (t < 0) t += period;
+
+					float64 alpha = (t >= st::photoLoaderDuration1 + st::photoLoaderDuration2) ? 0 : ((t > st::photoLoaderDuration1 ? ((st::photoLoaderDuration1 + st::photoLoaderDuration2 - t) / st::photoLoaderDuration2) : (t / st::photoLoaderDuration1)));
+					c.setAlphaF(st::photoLoaderAlphaMin + alpha * (1 - st::photoLoaderAlphaMin));
+					b.setColor(c);
+					p.fillRect(x + i * (st::mediaviewLoaderPoint.width() + st::mediaviewLoaderSkip), y, st::mediaviewLoaderPoint.width(), st::mediaviewLoaderPoint.height(), b);
+				}
+				QTimer::singleShot(AnimationTimerDelta, this, SLOT(updateImage()));
+			}
+		}
+	}
+
 
 	// left nav bar
 	if (_leftNavVisible) {
@@ -407,46 +540,24 @@ void MediaView::paintEvent(QPaintEvent *e) {
 			p.drawPixmap(p_right, App::sprite(), st::medviewRight);
 		}
 	}
-
-	// photo
 	p.setOpacity(1);
-	if (_full <= 0 && _photo->full->loaded()) {
-		_current = _photo->full->pixNoCache(_w * cIntRetinaFactor(), 0, true);
-		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
-		_full = 1;
-	} else if (_full < 0 && _photo->medium->loaded()) {
-		_current = _photo->medium->pixBlurredNoCache(_w * cIntRetinaFactor());
-		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
-		_full = 0;
-	} else if (_current.isNull() && _photo->thumb->loaded()) {
-		_current = _photo->thumb->pixBlurredNoCache(_w * cIntRetinaFactor());
-		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
-	}
-	int32 h = _current.height() / cIntRetinaFactor();
-	if (QRect(_x, _y, _w, h).intersects(r)) {
-		p.drawPixmap(_x, _y, _current);
-		if (_full < 1) {
-			uint64 dt = getms() - _animStarted;
-			int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
 
-			int32 x = _x + (_w - st::mediaviewLoader.width()) / 2, y = _y + (h - st::mediaviewLoader.height()) / 2;
-			p.fillRect(x, y, st::mediaviewLoader.width(), st::mediaviewLoader.height(), st::photoLoaderBg->b);
-			x += (st::mediaviewLoader.width() - cnt * st::mediaviewLoaderPoint.width() - (cnt - 1) * st::mediaviewLoaderSkip) / 2;
-			y += (st::mediaviewLoader.height() - st::mediaviewLoaderPoint.height()) / 2;
-			QColor c(st::white->c);
-			QBrush b(c);
-			for (int32 i = 0; i < cnt; ++i) {
-				t -= delta;
-				while (t < 0) t += period;
+	// header
+	p.setPen(st::medviewHeaderColor->p);
+	p.setFont(st::medviewHeaderFont->f);
+	QRect r_header(_save.x() + _save.width(), _save.y(), _close.x() - _save.x() - _save.width(), _save.height());
+	if (r_header.intersects(r)) p.drawText(r_header, _header, style::al_center);
 
-				float64 alpha = (t >= st::photoLoaderDuration1 + st::photoLoaderDuration2) ? 0 : ((t > st::photoLoaderDuration1 ? ((st::photoLoaderDuration1 + st::photoLoaderDuration2 - t) / st::photoLoaderDuration2) : (t / st::photoLoaderDuration1)));
-				c.setAlphaF(st::photoLoaderAlphaMin + alpha * (1 - st::photoLoaderAlphaMin));
-				b.setColor(c);
-				p.fillRect(x + i * (st::mediaviewLoaderPoint.width() + st::mediaviewLoaderSkip), y, st::mediaviewLoaderPoint.width(), st::mediaviewLoaderPoint.height(), b);
-			}
-			QTimer::singleShot(AnimationTimerDelta, this, SLOT(updateImage()));
-		}
-	}
+	// name
+	p.setPen(nameDateColor(overLevel(OverName)));
+	if (_over == OverName) _from->nameText.replaceFont(st::msgNameFont->underline());
+	if (_nameNav.intersects(r)) _from->nameText.drawElided(p, _nameNav.left(), _nameNav.top(), _nameNav.width());
+	if (_over == OverName) _from->nameText.replaceFont(st::msgNameFont);
+
+	// date
+	p.setPen(nameDateColor(overLevel(OverDate)));
+	p.setFont((_over == OverDate ? st::medviewDateFont->underline() : st::medviewDateFont)->f);
+	if (_dateNav.intersects(r)) p.drawText(_dateNav.left(), _dateNav.top() + st::medviewDateFont->ascent, _dateText);
 }
 
 void MediaView::keyPressEvent(QKeyEvent *e) {
@@ -460,11 +571,62 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 		moveToPhoto(-1);
 	} else if (e->key() == Qt::Key_Right) {
 		moveToPhoto(1);
+	} else if (e->modifiers().testFlag(Qt::ControlModifier) && (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore || e->key() == Qt::Key_0)) {
+		int32 newZoom = _zoom;
+		if (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal) {
+			if (newZoom < MaxZoomLevel) ++newZoom;
+		} else if (e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore) {
+			if (newZoom > -MaxZoomLevel) --newZoom;
+		} else {
+			newZoom = 0;
+			_x = -_width / 2;
+			_y = -(_current.height() / cIntRetinaFactor()) / 2;
+			if (_zoom >= 0) {
+				_x *= _zoom + 1;
+				_y *= _zoom + 1;
+			} else {
+				_x /= -_zoom + 1;
+				_y /= -_zoom + 1;
+			}
+			_x += _avail.width() / 2;
+			_y += _avail.height() / 2;
+			update();
+		}
+		while (newZoom < 0 && (-newZoom + 1) > _w || (-newZoom + 1) > _h) {
+			++newZoom;
+		}
+		if (_zoom != newZoom) {
+			float64 nx, ny;
+			_w = _current.width() / cIntRetinaFactor();
+			_h = _current.height() / cIntRetinaFactor();
+			if (_zoom >= 0) {
+				nx = (_x - _avail.width() / 2.) / float64(_zoom + 1);
+				ny = (_y - _avail.height() / 2.) / float64(_zoom + 1);
+			} else {
+				nx = (_x - _avail.width() / 2.) * float64(-_zoom + 1);
+				ny = (_y - _avail.height() / 2.) * float64(-_zoom + 1);
+			}
+			_zoom = newZoom;
+			if (_zoom > 0) {
+				_w *= _zoom + 1;
+				_h *= _zoom + 1;
+				_x = int32(nx * (_zoom + 1) + _avail.width() / 2.);
+				_y = int32(ny * (_zoom + 1) + _avail.height() / 2.);
+			} else {
+				_w /= (-_zoom + 1);
+				_h /= (-_zoom + 1);
+				_x = int32(nx / (-_zoom + 1) + _avail.width() / 2.);
+				_y = int32(ny / (-_zoom + 1) + _avail.height() / 2.);
+			}
+			snapXY();
+
+			update();
+		}
 	}
 }
 
 void MediaView::moveToPhoto(int32 delta) {
-	if (_index < 0) return;
+	if (_index < 0 || !_photo) return;
 
 	int32 newIndex = _index + delta;
 	if (_history) {
@@ -495,7 +657,7 @@ void MediaView::moveToPhoto(int32 delta) {
 }
 
 void MediaView::preloadPhotos(int32 delta) {
-	if (_index < 0) return;
+	if (_index < 0 || !_photo) return;
 
 	int32 from = _index + (delta ? delta : -1), to = _index + (delta ? delta * MediaOverviewPreloadCount : 1), forget = _index - delta * 2;
 	if (from > to) qSwap(from, to);
@@ -551,21 +713,52 @@ void MediaView::mousePressEvent(QMouseEvent *e) {
 			_down = OverName;
 		} else if (_over == OverDate) {
 			_down = OverDate;
-		} else {
-			int32 w = st::medviewMainWidth + (st::medviewTopSkip - _save.height()), l = _avail.x() + (_avail.width() - w) / 2;
-			if (!QRect(l, _avail.y(), w, st::medviewTopSkip).contains(e->pos()) && !QRect(l, _avail.y() + _avail.height() - st::medviewBottomSkip, w, st::medviewBottomSkip).contains(e->pos())) {
-				if ((e->pos() - _lastAction).manhattanLength() >= st::medviewDeltaFromLastAction) {
-					onClose();
-				}
-			}
+		} else if (!_topActions.contains(e->pos()) && !_bottomActions.contains(e->pos())) {
+			_pressed = true;
+			_dragging = 0;
+			setCursor(style::cur_default);
+			_mStart = e->pos();
+			_xStart = _x;
+			_yStart = _y;
 		}
 	}
+}
+
+void MediaView::snapXY() {
+	int32 xmin = _avail.x() + _avail.width() - _w - st::medviewNavBarWidth, xmax = _avail.x() + st::medviewNavBarWidth;
+	int32 ymin = _avail.y() + _avail.height() - _h - st::medviewTopSkip, ymax = _avail.y() + st::medviewTopSkip;
+	if (xmin > _avail.x() + ((_avail.width() - _w) / 2)) xmin = _avail.x() + ((_avail.width() - _w) / 2);
+	if (xmax < _avail.x() + ((_avail.width() - _w) / 2)) xmax = _avail.x() + ((_avail.width() - _w) / 2);
+	if (ymin > _avail.y() + ((_avail.height() - _h) / 2)) ymin = _avail.y() + ((_avail.height() - _h) / 2);
+	if (ymax < _avail.y() + ((_avail.height() - _h) / 2)) ymax = _avail.y() + ((_avail.height() - _h) / 2);
+	if (_x < xmin) _x = xmin;
+	if (_x > xmax) _x = xmax;
+	if (_y < ymin) _y = ymin;
+	if (_y > ymax) _y = ymax;
 }
 
 void MediaView::mouseMoveEvent(QMouseEvent *e) {
 	updateOver(e->pos());
 	if (_lastAction.x() >= 0 && (e->pos() - _lastAction).manhattanLength() >= st::medviewDeltaFromLastAction) {
 		_lastAction = QPoint(-st::medviewDeltaFromLastAction, -st::medviewDeltaFromLastAction);
+	}
+	if (_pressed) {
+		if (!_dragging && (e->pos() - _mStart).manhattanLength() >= QApplication::startDragDistance()) {
+			_dragging = QRect(_x, _y, _w, _h).contains(_mStart) ? 1 : -1;
+			if (_dragging > 0) {
+				if (_w > _avail.width() - 2 * st::medviewNavBarWidth || _h > _avail.height() - 2 * st::medviewTopSkip) {
+					setCursor(style::cur_sizeall);
+				} else {
+					setCursor(style::cur_default);
+				}
+			}
+		}
+		if (_dragging > 0) {
+			_x = _xStart + (e->pos() - _mStart).x();
+			_y = _yStart + (e->pos() - _mStart).y();
+			snapXY();
+			update();
+		}
 	}
 }
 
@@ -604,6 +797,8 @@ bool MediaView::updateOverState(OverState newState) {
 }
 
 void MediaView::updateOver(const QPoint &pos) {
+	if (_pressed || _dragging) return;
+
 	if (_leftNavVisible && _leftNav.contains(pos)) {
 		if (!updateOverState(OverLeftNav)) {
 			update(_leftNav);
@@ -649,13 +844,26 @@ void MediaView::mouseReleaseEvent(QMouseEvent *e) {
 				if (App::main()) App::main()->showPeer(item->history()->peer->id, _msgid, false, true);
 			}
 		}
+	} else if (_pressed) {
+		if (_dragging) {
+			if (_dragging > 0) {
+				_x = _xStart + (e->pos() - _mStart).x();
+				_y = _yStart + (e->pos() - _mStart).y();
+				snapXY();
+				update();
+			}
+			_dragging = 0;
+			setCursor(style::cur_default);
+		} else if ((e->pos() - _lastAction).manhattanLength() >= st::medviewDeltaFromLastAction) {
+			onClose();
+		}
+		_pressed = false;
 	}
 	_down = OverNone;
 }
 
 void MediaView::contextMenuEvent(QContextMenuEvent *e) {
-	if (_photo && _photo->full->loaded() && (e->reason() != QContextMenuEvent::Mouse || QRect(_x, _y, _w, _current.height() / cIntRetinaFactor()).contains(e->pos()))) {
-		
+	if (_photo && _photo->full->loaded() && (e->reason() != QContextMenuEvent::Mouse || QRect(_x, _y, _w, _h).contains(e->pos()))) {
 		if (_menu) {
 			_menu->deleteLater();
 			_menu = 0;
@@ -669,6 +877,25 @@ void MediaView::contextMenuEvent(QContextMenuEvent *e) {
 			_menu->addAction(lang(lng_context_delete_image), this, SLOT(onDelete()))->setEnabled(true);
 		} else if ((App::self() && App::self()->photoId == _photo->id) || (_photo->chat && _photo->chat->photoId == _photo->id)) {
 			_menu->addAction(lang(lng_context_delete_image), this, SLOT(onDelete()))->setEnabled(true);
+		}
+		_menu->deleteOnHide();
+		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
+		_menu->popup(e->globalPos());
+		e->accept();
+	} else if (_doc && (e->reason() != QContextMenuEvent::Mouse || QRect(_x, _y, _w, _h).contains(e->pos()))) {
+		if (_menu) {
+			_menu->deleteLater();
+			_menu = 0;
+		}
+		_menu = new ContextMenu(this);
+		if (!_doc->already(true).isEmpty()) {
+			_menu->addAction(lang(cPlatform() == dbipMac ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(onShowInFolder()))->setEnabled(true);
+		}
+		_menu->addAction(lang(lng_context_save_document), this, SLOT(onSave()))->setEnabled(true);
+		_menu->addAction(lang(lng_context_close_file), this, SLOT(onClose()))->setEnabled(true);
+		if (_msgid) {
+			_menu->addAction(lang(lng_context_forward_file), this, SLOT(onForward()))->setEnabled(true);
+			_menu->addAction(lang(lng_context_delete_file), this, SLOT(onDelete()))->setEnabled(true);
 		}
 		_menu->deleteOnHide();
 		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
@@ -779,11 +1006,11 @@ void MediaView::onTouchTimer() {
 void MediaView::updateImage() {
 	if (_current.isNull()) return;
 
-	update(_x, _y, _w, _current.height() / cIntRetinaFactor());
+	update(_x, _y, _w, _h);
 }
 
 void MediaView::loadPhotosBack() {
-	if (_loadRequest || _index < 0) return;
+	if (_loadRequest || _index < 0 || !_photo) return;
 
 	if (_history && _history->_overviewCount[OverviewPhotos] != 0) {
 		if (App::main()) App::main()->loadMediaBack(_history->peer, OverviewPhotos);
@@ -830,6 +1057,11 @@ void MediaView::userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mt
 }
 
 void MediaView::updateHeader() {
+	if (!_photo) {
+		_header = lang(lng_mediaview_doc_image);
+		return;
+	}
+
 	int32 index = _index, count = 0;
 	if (_history) {
 		count = _history->_overviewCount[OverviewPhotos] ? _history->_overviewCount[OverviewPhotos] : _history->_overview[OverviewPhotos].size();

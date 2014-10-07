@@ -265,14 +265,52 @@ QString textcmdStopColor() {
 	return result.append(TextCommand).append(QChar(TextCommandNoColor)).append(TextCommand);
 }
 
-class TextParser {
-	struct LinkRange {
-		LinkRange() : from(0), len(0) {
-		}
-		const QChar *from;
-		int32 len;
-	};
+const QChar *skipCommand(const QChar *from, const QChar *end, bool canLink = true) {
+	const QChar *result = from + 1;
+	if (*from != TextCommand || result >= end) return from;
 
+	ushort cmd = result->unicode();
+	++result;
+	if (result >= end) return from;
+
+	switch (cmd) {
+	case TextCommandBold:
+	case TextCommandNoBold:
+	case TextCommandItalic:
+	case TextCommandNoItalic:
+	case TextCommandUnderline:
+	case TextCommandNoUnderline:
+	case TextCommandNoColor:
+		break;
+
+	case TextCommandLinkIndex:
+		if (result->unicode() > 0x7FFF) return from;
+		++result;
+		break;
+
+	case TextCommandLinkText: {
+		ushort len = result->unicode();
+		if (len >= 4096 || !canLink) return from;
+		result += len + 1;
+	} break;
+
+	case TextCommandColor: {
+		const QChar *e = result + 4;
+		if (e >= end) return from;
+
+		for (; result < e; ++result) {
+			if (result->unicode() >= 256) return from;
+		}
+	} break;
+
+	case TextCommandSkipBlock:
+		result += 2;
+		break;
+	}
+	return (result < end && *result == TextCommand) ? (result + 1) : from;
+}
+
+class TextParser {
 public:
 	
 	static Qt::LayoutDirection stringDirection(const QString &str, int32 from, int32 to) {
@@ -299,133 +337,6 @@ public:
 			++p;
 		}
 		return Qt::LayoutDirectionAuto;
-	}
-
-	void prepareLinks() { // support emails and hashtags!
-		if (validProtocols.empty()) {
-			initLinkSets();
-		}
-		int32 len = src.size(), nextCmd = rich ? 0 : len;
-		const QChar *srcData = src.unicode();
-		for (int32 offset = 0; offset < len; ) {
-			if (nextCmd <= offset) {
-				for (nextCmd = offset; nextCmd < len; ++nextCmd) {
-					if (*(srcData + nextCmd) == TextCommand) {
-						break;
-					}
-				}
-			}
-			QRegularExpressionMatch mDomain = reDomain.match(src, offset);
-			QRegularExpressionMatch mExplicitDomain = reExplicitDomain.match(src, offset);
-			QRegularExpressionMatch mHashtag = reHashtag.match(src, offset);
-			if (!mDomain.hasMatch() && !mExplicitDomain.hasMatch() && !mHashtag.hasMatch()) break;
-
-			LinkRange link;
-			int32 domainOffset = mDomain.hasMatch() ? mDomain.capturedStart() : INT_MAX,
-			      domainEnd = mDomain.hasMatch() ? mDomain.capturedEnd() : INT_MAX,
-				  explicitDomainOffset = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedStart() : INT_MAX,
-				  explicitDomainEnd = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedEnd() : INT_MAX,
-			      hashtagOffset = mHashtag.hasMatch() ? mHashtag.capturedStart() : INT_MAX,
-			      hashtagEnd = mHashtag.hasMatch() ? mHashtag.capturedEnd() : INT_MAX;
-			if (mHashtag.hasMatch()) {
-				if (!mHashtag.capturedRef(1).isEmpty()) {
-					++hashtagOffset;
-				}
-				if (!mHashtag.capturedRef(2).isEmpty()) {
-					--hashtagEnd;
-				}
-			}
-			if (explicitDomainOffset < domainOffset) {
-				domainOffset = explicitDomainOffset;
-				domainEnd = explicitDomainEnd;
-				mDomain = mExplicitDomain;
-			}
-			if (hashtagOffset < domainOffset) {
-				if (hashtagOffset > nextCmd) {
-					const QChar *after = skipCommand(srcData + nextCmd, srcData + len);
-					if (after > srcData + nextCmd && hashtagOffset < (after - srcData)) {
-						nextCmd = offset = after - srcData;
-						continue;
-					}
-				}
-
-				link.from = start + hashtagOffset;
-				link.len = start + hashtagEnd - link.from;
-			} else {
-				if (domainOffset > nextCmd) {
-					const QChar *after = skipCommand(srcData + nextCmd, srcData + len);
-					if (after > srcData + nextCmd && domainOffset < (after - srcData)) {
-						nextCmd = offset = after - srcData;
-						continue;
-					}
-				}
-
-				QString protocol = mDomain.captured(1).toLower();
-				QString topDomain = mDomain.captured(3).toLower();
-
-				bool isProtocolValid = protocol.isEmpty() || validProtocols.contains(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
-				bool isTopDomainValid = !protocol.isEmpty() || validTopDomains.contains(hashCrc32(topDomain.constData(), topDomain.size() * sizeof(QChar)));
-
-				if (!isProtocolValid || !isTopDomainValid) {
-					offset = domainEnd;
-					continue;
-				}
-
-				if (protocol.isEmpty() && domainOffset > offset + 1 && *(start + domainOffset - 1) == QChar('@')) {
-					QString forMailName = src.mid(offset, domainOffset - offset - 1);
-					QRegularExpressionMatch mMailName = reMailName.match(forMailName);
-					if (mMailName.hasMatch()) {
-						int32 mailOffset = offset + mMailName.capturedStart();
-						if (mailOffset < offset) {
-							mailOffset = offset;
-						}
-						link.from = start + mailOffset;
-						link.len = domainEnd - mailOffset;
-					}
-				}
-				if (!link.from || !link.len) {
-					link.from = start + domainOffset;
-
-					QStack<const QChar*> parenth;
-					const QChar *domainEnd = start + mDomain.capturedEnd(), *p = domainEnd;
-					for (; p < end; ++p) {
-						QChar ch(*p);
-						if (chIsLinkEnd(ch)) break; // link finished
-						if (chIsAlmostLinkEnd(ch)) {
-							const QChar *endTest = p + 1;
-							while (endTest < end && chIsAlmostLinkEnd(*endTest)) {
-								++endTest;
-							}
-							if (endTest >= end || chIsLinkEnd(*endTest)) {
-								break; // link finished at p
-							}
-							p = endTest;
-							ch = *p;
-						}
-						if (ch == '(' || ch == '[' || ch == '{' || ch == '<') {
-							parenth.push(p);
-						} else if (ch == ')' || ch == ']' || ch == '}' || ch == '>') {
-							if (parenth.isEmpty()) break;
-							const QChar *q = parenth.pop(), open(*q);
-							if ((ch == ')' && open != '(') || (ch == ']' && open != '[') || (ch == '}' && open != '{') || (ch == '>' && open != '<')) {
-								p = q;
-								break;
-							}
-						}
-					}
-					if (p > domainEnd) { // check, that domain ended
-						if (domainEnd->unicode() != '/') {
-							offset = domainEnd - start;
-							continue;
-						}
-					}
-					link.len = p - link.from;
-				}
-			}
-			lnkRanges.push_back(link);
-
-			offset = (link.from - start) + link.len;
-		}
 	}
 
 	void blockCreated() {
@@ -500,53 +411,8 @@ public:
 		return true;
 	}
 	
-	const QChar *skipCommand(const QChar *from, const QChar *end) {
-		const QChar *result = from + 1;
-		if (*from != TextCommand || result >= end) return from;
-
-		ushort cmd = result->unicode();
-		++result;
-		if (result >= end) return from;
-
-		switch (cmd) {
-		case TextCommandBold:
-		case TextCommandNoBold:
-		case TextCommandItalic:
-		case TextCommandNoItalic:
-		case TextCommandUnderline:
-		case TextCommandNoUnderline:
-		case TextCommandNoColor:
-		break;
-
-		case TextCommandLinkIndex:
-			if (result->unicode() > 0x7FFF) return from;
-			++result;
-		break;
-
-		case TextCommandLinkText: {
-			ushort len = result->unicode();
-			if (len >= 4096 || links.size() >= 0x7FFF) return from;
-			result += len + 1;
-		} break;
-
-		case TextCommandColor: {
-			const QChar *e = result + 4;
-			if (e >= end) return from;
-			
-			for (; result < e; ++result) {
-				if (result->unicode() >= 256) return from;
-			}
-		} break;
-
-		case TextCommandSkipBlock:
-			result += 2;
-		break;
-		}
-		return (result < end && *result == TextCommand) ? (result + 1) : from;
-	}
-
 	bool readCommand() {
-		const QChar *afterCmd = skipCommand(ptr, end);
+		const QChar *afterCmd = skipCommand(ptr, end, links.size() < 0x7FFF);
 		if (afterCmd == ptr) {
 			return false;
 		}
@@ -724,7 +590,7 @@ public:
 		end = start + src.size();
 
 		if (options.flags & TextParseLinks) {
-			prepareLinks();
+			lnkRanges = textParseLinks(src, rich);
 		}
 
 		while (start != end && chIsTrimmed(*start, rich)) {
@@ -793,7 +659,6 @@ private:
 	const QChar *start, *end, *ptr;
 	bool rich, multiline;
 
-	typedef QVector<LinkRange> LinkRanges;
 	LinkRanges lnkRanges;
 	const LinkRange *waitingLink, *linksEnd;
 
@@ -4101,4 +3966,138 @@ QString textAccentFold(const QString &text) {
 		}
 	}
 	return (i < result.size()) ? result.mid(0, i) : result;
+}
+
+QString textSearchKey(const QString &text) {
+	return textAccentFold(text.trimmed().toLower());
+}
+
+LinkRanges textParseLinks(const QString &text, bool rich) {
+	LinkRanges lnkRanges;
+
+	if (validProtocols.empty()) {
+		initLinkSets();
+	}
+	int32 len = text.size(), nextCmd = rich ? 0 : len;
+	const QChar *start = text.unicode(), *end = start + text.size();
+	for (int32 offset = 0, matchOffset = offset; offset < len;) {
+		if (nextCmd <= offset) {
+			for (nextCmd = offset; nextCmd < len; ++nextCmd) {
+				if (*(start + nextCmd) == TextCommand) {
+					break;
+				}
+			}
+		}
+		QRegularExpressionMatch mDomain = reDomain.match(text, matchOffset);
+		QRegularExpressionMatch mExplicitDomain = reExplicitDomain.match(text, matchOffset);
+		QRegularExpressionMatch mHashtag = reHashtag.match(text, matchOffset);
+		if (!mDomain.hasMatch() && !mExplicitDomain.hasMatch() && !mHashtag.hasMatch()) break;
+
+		LinkRange link;
+		int32 domainOffset = mDomain.hasMatch() ? mDomain.capturedStart() : INT_MAX,
+			domainEnd = mDomain.hasMatch() ? mDomain.capturedEnd() : INT_MAX,
+			explicitDomainOffset = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedStart() : INT_MAX,
+			explicitDomainEnd = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedEnd() : INT_MAX,
+			hashtagOffset = mHashtag.hasMatch() ? mHashtag.capturedStart() : INT_MAX,
+			hashtagEnd = mHashtag.hasMatch() ? mHashtag.capturedEnd() : INT_MAX;
+		if (mHashtag.hasMatch()) {
+			if (!mHashtag.capturedRef(1).isEmpty()) {
+				++hashtagOffset;
+			}
+			if (!mHashtag.capturedRef(2).isEmpty()) {
+				--hashtagEnd;
+			}
+		}
+		if (explicitDomainOffset < domainOffset) {
+			domainOffset = explicitDomainOffset;
+			domainEnd = explicitDomainEnd;
+			mDomain = mExplicitDomain;
+		}
+		if (hashtagOffset < domainOffset) {
+			if (hashtagOffset > nextCmd) {
+				const QChar *after = skipCommand(start + nextCmd, start + len);
+				if (after > start + nextCmd && hashtagOffset < (after - start)) {
+					nextCmd = offset = matchOffset = after - start;
+					continue;
+				}
+			}
+
+			link.from = start + hashtagOffset;
+			link.len = start + hashtagEnd - link.from;
+		} else {
+			if (domainOffset > nextCmd) {
+				const QChar *after = skipCommand(start + nextCmd, start + len);
+				if (after > start + nextCmd && domainOffset < (after - start)) {
+					nextCmd = offset = matchOffset = after - start;
+					continue;
+				}
+			}
+
+			QString protocol = mDomain.captured(1).toLower();
+			QString topDomain = mDomain.captured(3).toLower();
+
+			bool isProtocolValid = protocol.isEmpty() || validProtocols.contains(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
+			bool isTopDomainValid = !protocol.isEmpty() || validTopDomains.contains(hashCrc32(topDomain.constData(), topDomain.size() * sizeof(QChar)));
+
+			if (protocol.isEmpty() && domainOffset > offset + 1 && *(start + domainOffset - 1) == QChar('@')) {
+				QString forMailName = text.mid(offset, domainOffset - offset - 1);
+				QRegularExpressionMatch mMailName = reMailName.match(forMailName);
+				if (mMailName.hasMatch()) {
+					int32 mailOffset = offset + mMailName.capturedStart();
+					if (mailOffset < offset) {
+						mailOffset = offset;
+					}
+					link.from = start + mailOffset;
+					link.len = domainEnd - mailOffset;
+				}
+			}
+			if (!link.from || !link.len) {
+				if (!isProtocolValid || !isTopDomainValid) {
+					matchOffset = domainEnd;
+					continue;
+				}
+				link.from = start + domainOffset;
+
+				QStack<const QChar*> parenth;
+				const QChar *domainEnd = start + mDomain.capturedEnd(), *p = domainEnd;
+				for (; p < end; ++p) {
+					QChar ch(*p);
+					if (chIsLinkEnd(ch)) break; // link finished
+					if (chIsAlmostLinkEnd(ch)) {
+						const QChar *endTest = p + 1;
+						while (endTest < end && chIsAlmostLinkEnd(*endTest)) {
+							++endTest;
+						}
+						if (endTest >= end || chIsLinkEnd(*endTest)) {
+							break; // link finished at p
+						}
+						p = endTest;
+						ch = *p;
+					}
+					if (ch == '(' || ch == '[' || ch == '{' || ch == '<') {
+						parenth.push(p);
+					} else if (ch == ')' || ch == ']' || ch == '}' || ch == '>') {
+						if (parenth.isEmpty()) break;
+						const QChar *q = parenth.pop(), open(*q);
+						if ((ch == ')' && open != '(') || (ch == ']' && open != '[') || (ch == '}' && open != '{') || (ch == '>' && open != '<')) {
+							p = q;
+							break;
+						}
+					}
+				}
+				if (p > domainEnd) { // check, that domain ended
+					if (domainEnd->unicode() != '/') {
+						matchOffset = domainEnd - start;
+						continue;
+					}
+				}
+				link.len = p - link.from;
+			}
+		}
+		lnkRanges.push_back(link);
+
+		offset = matchOffset = (link.from - start) + link.len;
+	}
+
+	return lnkRanges;
 }

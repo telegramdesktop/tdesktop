@@ -17,6 +17,22 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #pragma once
 
+// text preprocess
+QString textClean(const QString &text);
+QString textRichPrepare(const QString &text);
+QString textOneLine(const QString &text, bool trim = true, bool rich = false);
+QString textAccentFold(const QString &text);
+QString textSearchKey(const QString &text);
+
+struct LinkRange {
+	LinkRange() : from(0), len(0) {
+	}
+	const QChar *from;
+	int32 len;
+};
+typedef QVector<LinkRange> LinkRanges;
+LinkRanges textParseLinks(const QString &text, bool rich = false);
+
 #include "gui/emoji_config.h"
 
 #include "../../../QtStatic/qtbase/src/gui/text/qfontengine_p.h"
@@ -437,12 +453,6 @@ void textstyleSet(const style::textStyle *style);
 inline void textstyleRestore() {
 	textstyleSet(0);
 }
-
-// text preprocess
-QString textClean(const QString &text);
-QString textRichPrepare(const QString &text);
-QString textOneLine(const QString &text, bool trim = true, bool rich = false);
-QString textAccentFold(const QString &text);
 
 // textlnk
 void textlnkOver(const TextLinkPtr &lnk);

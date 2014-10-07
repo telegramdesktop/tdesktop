@@ -17,6 +17,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #pragma once
 
+#include "gui/text.h"
+
 void initEmoji();
 EmojiPtr getEmoji(uint32 code);
 
@@ -38,7 +40,9 @@ inline bool emojiEdge(const QChar *ch) {
 
 inline QString replaceEmojis(const QString &text) {
 	QString result;
-	const QChar *emojiEnd = text.unicode(), *e = text.cend();
+	LinkRanges lnkRanges = textParseLinks(text);
+	int32 currentLink = 0, lnkCount = lnkRanges.size();
+	const QChar *emojiStart = text.unicode(), *emojiEnd = emojiStart, *e = text.cend();
 	bool canFindEmoji = true, consumePrevious = false;
 	for (const QChar *ch = emojiEnd; ch != e;) {
 		uint32 emojiCode = 0;
@@ -46,7 +50,15 @@ inline QString replaceEmojis(const QString &text) {
 		if (canFindEmoji) {
 			findEmoji(ch, e, newEmojiEnd, emojiCode);
 		}
-		if (emojiCode) {
+		
+		while (currentLink < lnkCount && ch >= lnkRanges[currentLink].from + lnkRanges[currentLink].len) {
+			++currentLink;
+		}
+		if (emojiCode &&
+		    (ch == emojiStart || !ch->isLetterOrNumber() || !(ch - 1)->isLetterOrNumber()) &&
+		    (newEmojiEnd == e || !newEmojiEnd->isLetterOrNumber() || newEmojiEnd == emojiStart || !(newEmojiEnd - 1)->isLetterOrNumber()) &&
+			(currentLink >= lnkCount || (ch < lnkRanges[currentLink].from && newEmojiEnd <= lnkRanges[currentLink].from) || (ch >= lnkRanges[currentLink].from + lnkRanges[currentLink].len && newEmojiEnd > lnkRanges[currentLink].from + lnkRanges[currentLink].len))
+		) {
 //			if (newEmojiEnd < e && newEmojiEnd->unicode() == ' ') ++newEmojiEnd;
 			if (result.isEmpty()) result.reserve(text.size());
 			if (ch > emojiEnd + (consumePrevious ? 1 : 0)) {

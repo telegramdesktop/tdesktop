@@ -41,6 +41,7 @@ public:
 
 	void showPhoto(PhotoData *photo, HistoryItem *context);
 	void showPhoto(PhotoData *photo, PeerData *context);
+	void showDocument(DocumentData *doc, HistoryItem *context);
 	void moveToScreen();
 	void moveToPhoto(int32 delta);
 	void preloadPhotos(int32 delta);
@@ -57,6 +58,7 @@ public slots:
 
 	void onClose();
 	void onSave();
+	void onShowInFolder();
 	void onForward();
 	void onDelete();
 	void onCopy();
@@ -77,16 +79,22 @@ private:
 	void userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mtpRequestId req);
 
 	void updateHeader();
+	void snapXY();
 
 	QTimer _timer;
 	PhotoData *_photo;
-	QRect _avail, _leftNav, _rightNav, _nameNav, _dateNav;
+	DocumentData *_doc;
+	QRect _avail, _leftNav, _rightNav, _nameNav, _dateNav, _topActions, _bottomActions;
 	bool _leftNavVisible, _rightNavVisible;
 	QString _dateText;
 
 	uint64 _animStarted;
 
-	int32 _maxWidth, _maxHeight, _x, _y, _w;
+	int32 _maxWidth, _maxHeight, _width, _x, _y, _w, _h, _xStart, _yStart;
+	int32 _zoom; // < 0 - out, 0 - none, > 0 - in
+	QPoint _mStart;
+	bool _pressed;
+	int32 _dragging;
 	QPixmap _current;
 	int32 _full; // -1 - thumb, 0 - medium, 1 - full
 

@@ -244,8 +244,8 @@ void ContextMenu::popup(const QPoint &p) {
 	if (w.y() + height() - st::dropdownPadding.bottom() > r.y() + r.height()) {
 		w.setY(p.y() - height() + st::dropdownPadding.bottom());
 	}
-	if (w.y() < 0) {
-		w.setY(0);
+	if (w.y() < r.y()) {
+		w.setY(r.y());
 	}
 	move(w);
 	showStart();

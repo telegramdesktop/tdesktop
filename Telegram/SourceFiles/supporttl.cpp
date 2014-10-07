@@ -28,7 +28,7 @@ namespace {
 				value = value.mid(0, value.size() - 1);
 			}
 			for (QStringList::const_iterator i = keys.cbegin(), e = keys.cend(); i != e; ++i) {
-				_supportTemplates[*i] = value;
+				_supportTemplates[textSearchKey(*i)] = value;
 			}
 		}
 		value = QString();
@@ -105,7 +105,7 @@ void readSupportTemplates() {
 }
 
 const QString &supportTemplate(const QString &key) {
-	SupportTemplates::const_iterator i = _supportTemplates.constFind(key);
+	SupportTemplates::const_iterator i = _supportTemplates.constFind(textSearchKey(key));
 	if (i != _supportTemplates.cend()) {
 		return *i;
 	}

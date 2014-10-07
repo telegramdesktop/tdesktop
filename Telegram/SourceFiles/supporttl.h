@@ -18,4 +18,4 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #pragma once
 
 void readSupportTemplates();
-const QString &supportTemplate(const QString &word);
+const QString &supportTemplate(const QString &key);

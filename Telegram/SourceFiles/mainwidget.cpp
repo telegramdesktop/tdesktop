@@ -907,7 +907,21 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 			document->finish();
 			QString already = document->already();
 			if (!already.isEmpty() && document->openOnSave) {
-				psOpenFile(already, document->openOnSave < 0);
+				bool showInMediaView = false;
+				if (document->openOnSave > 0 && document->size < MediaViewImageSizeLimit) {
+					QMimeType mime = QMimeDatabase().mimeTypeForName(document->mime);
+					QString name = mime.name().toLower(), fname = already.toLower();;
+					if (name == qsl("image/jpeg") || name == qsl("image/png")) {
+						showInMediaView = true;
+					} else if (fname.endsWith(qsl(".jpeg")) || fname.endsWith(qsl(".jpg")) || fname.endsWith(qsl(".png"))) {
+						showInMediaView = name.isEmpty();
+					}
+				}
+				if (showInMediaView) {
+					App::wnd()->showDocument(document, App::histItemById(document->openOnSaveMsgId));
+				} else {
+					psOpenFile(already, document->openOnSave < 0);
+				}
 			}
 		}
 	}

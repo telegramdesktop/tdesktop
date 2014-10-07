@@ -588,6 +588,13 @@ void Window::showPhoto(PhotoData *photo, PeerData *peer) {
 	_mediaView->setFocus();
 }
 
+void Window::showDocument(DocumentData *doc, HistoryItem *item) {
+	layerHidden();
+	_mediaView->showDocument(doc, item);
+	_mediaView->activateWindow();
+	_mediaView->setFocus();
+}
+
 void Window::showLayer(LayeredWidget *w) {
 	layerHidden();
 	layerBG = new BackgroundWidget(this, w);
