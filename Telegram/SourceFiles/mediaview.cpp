@@ -114,7 +114,7 @@ void MediaView::updateControls() {
 	if (!_photo && !_doc) return;
 
 	_close.show();
-	if (_photo && _photo->full->loaded() || _doc && !_doc->already(true).isEmpty()) {
+	if ((_photo && _photo->full->loaded()) || (_doc && !_doc->already(true).isEmpty())) {
 		_save.show();
 	} else {
 		_save.hide();
@@ -579,8 +579,8 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 			if (newZoom > -MaxZoomLevel) --newZoom;
 		} else {
 			newZoom = 0;
-			_x = -_width / 2;
-			_y = -(_current.height() / cIntRetinaFactor()) / 2;
+			_x = _avail.x() - _width / 2;
+			_y = _avail.y() - (_current.height() / cIntRetinaFactor()) / 2;
 			if (_zoom >= 0) {
 				_x *= _zoom + 1;
 				_y *= _zoom + 1;
@@ -592,7 +592,7 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 			_y += _avail.height() / 2;
 			update();
 		}
-		while (newZoom < 0 && (-newZoom + 1) > _w || (-newZoom + 1) > _h) {
+		while ((newZoom < 0 && (-newZoom + 1) > _w) || (-newZoom + 1) > _h) {
 			++newZoom;
 		}
 		if (_zoom != newZoom) {
