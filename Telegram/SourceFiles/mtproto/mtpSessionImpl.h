@@ -52,7 +52,7 @@ public:
 
     void operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) const {
         _dc->setConnectionInited();
-        return (*_ondone)(requestId, from, end);
+        if (_ondone) (*_ondone)(requestId, from, end);
     }
 
 private:
