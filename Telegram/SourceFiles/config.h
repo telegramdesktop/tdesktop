@@ -82,6 +82,8 @@ enum {
 
 	MediaViewImageSizeLimit = 10 * 1024 * 1024, // show up to 10mb jpg/png docs in mediaview
 	MaxZoomLevel = 7, // x8
+
+	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
 };
 
 #ifdef Q_OS_WIN

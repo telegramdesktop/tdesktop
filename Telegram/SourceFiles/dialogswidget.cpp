@@ -1283,10 +1283,10 @@ void DialogsWidget::onListScroll() {
 	list.loadPeerPhotos(scroll.scrollTop());
 	if (list.state() == DialogsListWidget::SearchedState) {
 		DialogsListWidget::SearchResults &res(list.searchList());
-		if (scroll.scrollTop() > res.size() * st::dlgHeight - 2 * scroll.height()) {
+		if (scroll.scrollTop() > res.size() * st::dlgHeight - PreloadHeightsCount * scroll.height()) {
 			onSearchMore(list.lastSearchId());
 		}
-	} else if (scroll.scrollTop() > list.dialogsList().list.count * st::dlgHeight - scroll.height()) {
+	} else if (scroll.scrollTop() > list.dialogsList().list.count * st::dlgHeight - PreloadHeightsCount * scroll.height()) {
 		loadDialogs();
 	}
 }

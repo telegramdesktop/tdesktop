@@ -2094,7 +2094,7 @@ void HistoryWidget::loadMessages() {
 			return;
 		}
 	}
-	if (!histPreloading && (!hist->readyForWork() || _scroll.scrollTop() < 3 * _scroll.height())) {
+	if (!histPreloading && (!hist->readyForWork() || _scroll.scrollTop() < PreloadHeightsCount * _scroll.height())) {
 		MsgId min = hist->minMsgId();
 		int32 offset = 0, loadCount = min ? MessagesPerPage : MessagesFirstLoad;
 		if (!min && hist->activeMsgId) {
@@ -2125,7 +2125,7 @@ void HistoryWidget::loadMessagesDown() {
 			return;
 		}
 	}
-	if (!histPreloadingDown && hist->readyForWork() && (_scroll.scrollTop() + 3 * _scroll.height() > _scroll.scrollTopMax())) {
+	if (!histPreloadingDown && hist->readyForWork() && (_scroll.scrollTop() + PreloadHeightsCount * _scroll.height() > _scroll.scrollTopMax())) {
 		MsgId max = hist->maxMsgId();
 		if (max) {
 			int32 loadCount = MessagesPerPage, offset = -loadCount;
@@ -2156,11 +2156,11 @@ void HistoryWidget::onListScroll() {
 		return;
 	}
 
-	if (hist->readyForWork() && (_scroll.scrollTop() + 3 * _scroll.height() > _scroll.scrollTopMax())) {
+	if (hist->readyForWork() && (_scroll.scrollTop() + PreloadHeightsCount * _scroll.height() > _scroll.scrollTopMax())) {
 		loadMessagesDown();
 	}
 
-	if (!hist->readyForWork() || _scroll.scrollTop() < 3 * _scroll.height()) {
+	if (!hist->readyForWork() || _scroll.scrollTop() < PreloadHeightsCount * _scroll.height()) {
 		loadMessages();
 	} else {
 		checkUnreadLoaded(true);
