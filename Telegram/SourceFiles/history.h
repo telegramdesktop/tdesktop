@@ -1178,12 +1178,6 @@ public:
 	virtual uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const {
 		return (from << 16) | to;
 	}
-	virtual bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
-		return false;
-	}
-	virtual bool getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const {
-		return false;
-	}
 	virtual int32 itemType() const {
 		return MsgType;
 	}
@@ -1245,12 +1239,6 @@ public:
 	}
 	virtual TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const = 0;
 	virtual void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const = 0;
-	virtual bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
-		return false;
-	}
-	virtual bool getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const {
-		return false;
-	}
 	virtual bool uploading() const {
 		return false;
 	}
@@ -1288,7 +1276,6 @@ public:
 	const QString inDialogsText() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const;
 	HistoryMedia *clone() const;
 
 	PhotoData *photo() const {
@@ -1326,7 +1313,6 @@ public:
 	const QString inDialogsText() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	bool getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const;
 	bool uploading() const {
 		return (data->status == FileUploading);
 	}
@@ -1475,8 +1461,6 @@ public:
 	uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const {
 		return _text.adjustSelection(from, to, type);
 	}
-	bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const;
-	bool getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const;
 
 	void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
     QString notificationHeader() const;
@@ -1563,7 +1547,6 @@ public:
 	uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const {
 		return _text.adjustSelection(from, to, type);
 	}
-	bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const;
 
 	void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
     QString notificationText() const;

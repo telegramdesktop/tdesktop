@@ -1175,7 +1175,9 @@ namespace App {
 			}
 		}
 		historyItemDetached(item);
-		if (App::main()) App::main()->itemRemoved(item);
+		if (App::main() && !App::quiting()) {
+			App::main()->itemRemoved(item);
+		}
 	}
 
 	void historyClearMsgs() {

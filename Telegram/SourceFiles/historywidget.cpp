@@ -463,14 +463,16 @@ void HistoryList::dragActionCancel() {
 }
 
 void HistoryList::itemRemoved(HistoryItem *item) {
-	if (_dragItem == item) {
-		dragActionCancel();
-	}
-
 	SelectedItems::iterator i = _selected.find(item);
 	if (i != _selected.cend()) {
 		_selected.erase(i);
 		historyWidget->updateTopBarSelection();
+	}
+
+	if (_dragAction == NoDrag) return;
+	
+	if (_dragItem == item) {
+		dragActionCancel();
 	}
 
 	onUpdateSelected();
@@ -834,24 +836,6 @@ void HistoryList::copyContextText() {
 	if (!contextMenuText.isEmpty()) {
 		QApplication::clipboard()->setText(contextMenuText);
 	}
-}
-
-bool HistoryList::getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
-	HistoryItem *hoveredItem = App::hoveredLinkItem();
-	if (hoveredItem && hoveredItem->getPhotoCoords(photo, x, y, w)) {		
-		y += height() - hist->height - st::historyPadding + hoveredItem->block()->y + hoveredItem->y;
-		return true;
-	}
-	return false;
-}
-
-bool HistoryList::getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const {
-	HistoryItem *hoveredItem = App::hoveredItem();
-	if (hoveredItem && hoveredItem->getVideoCoords(video, x, y, w)) {		
-		y += height() - hist->height - st::historyPadding + hoveredItem->block()->y + hoveredItem->y;
-		return true;
-	}
-	return false;
 }
 
 void HistoryList::resizeEvent(QResizeEvent *e) {
@@ -3321,24 +3305,6 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		p.setFont(font->f);
 		p.drawText(tr.left() + st::msgPadding.left(), tr.top() + st::msgServicePadding.top() + 1 + font->ascent, lang(lng_willbe_history));
 	}
-}
-
-bool HistoryWidget::getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
-	if (_list && _list->getPhotoCoords(photo, x, y, w)) {
-		x += _list->x();
-		y += _list->y();
-		return true;
-	}
-	return false;
-}
-
-bool HistoryWidget::getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const {
-	if (_list && _list->getVideoCoords(video, x, y, w)) {
-		x += _list->x();
-		y += _list->y();
-		return true;
-	}
-	return false;
 }
 
 QRect HistoryWidget::historyRect() const {

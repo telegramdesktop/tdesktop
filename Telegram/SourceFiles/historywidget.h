@@ -68,9 +68,6 @@ public:
 
 	void updateMsg(const HistoryItem *msg);
 
-	bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const;
-	bool getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const;
-
 	void getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const;
 	void clearSelectedItems(bool onlyTextSelection = false);
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
@@ -283,8 +280,6 @@ public:
 	void historyToDown(History *history);
 	void historyWasRead(bool force = true);
 
-	bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const;
-	bool getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const;
 	QRect historyRect() const;
 
 	void updateTyping(bool typing = true);

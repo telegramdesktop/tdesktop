@@ -223,7 +223,7 @@ namespace {
 		}
 
 		~AnimatedGif() {
-			stop();
+			stop(true);
 		}
 
 		HistoryItem *msg;
@@ -2091,16 +2091,6 @@ TextLinkPtr HistoryPhoto::getLink(int32 x, int32 y, const HistoryItem *parent, i
 	return TextLinkPtr();
 }
 
-bool HistoryPhoto::getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
-	if (data == photo) {
-		w = this->w;
-		x = 0;
-		y = 0;
-		return true;
-	}
-	return false;
-}
-
 HistoryMedia *HistoryPhoto::clone() const {
 	return new HistoryPhoto(*this);
 }
@@ -2306,16 +2296,6 @@ TextLinkPtr HistoryVideo::getLink(int32 x, int32 y, const HistoryItem *parent, i
 		return _openl;
 	}
 	return TextLinkPtr();
-}
-
-bool HistoryVideo::getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const {
-	if (data == video) {
-		w = this->w;
-		x = 0;
-		y = 0;
-		return true;
-	}
-	return false;
 }
 
 HistoryMedia *HistoryVideo::clone() const {
@@ -3199,10 +3179,11 @@ void HistoryMessage::draw(QPainter &p, uint32 selection) const {
 		fromNameUpdated();
 		_fromVersion = _from->nameVersion;
 	}
-	int32 left = _out ? st::msgMargin.right() : st::msgMargin.left(), width = _history->width - st::msgMargin.left() - st::msgMargin.right();
-	if (width > st::msgMaxWidth) {
-		if (_out) left += width - st::msgMaxWidth;
-		width = st::msgMaxWidth;
+	int32 left = _out ? st::msgMargin.right() : st::msgMargin.left(), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
+	if (_media && _media->maxWidth() > mwidth) mwidth = _media->maxWidth();
+	if (width > mwidth) {
+		if (_out) left += width - mwidth;
+		width = mwidth;
 	}
 
 	if (!_out && _history->peer->chat) {
@@ -3304,10 +3285,11 @@ int32 HistoryMessage::resize(int32 width, bool dontRecountText, const HistoryIte
 }
 
 bool HistoryMessage::hasPoint(int32 x, int32 y) const {
-	int32 left = _out ? st::msgMargin.right() : st::msgMargin.left(), width = _history->width - st::msgMargin.left() - st::msgMargin.right();
-	if (width > st::msgMaxWidth) {
-		if (_out) left += width - st::msgMaxWidth;
-		width = st::msgMaxWidth;
+	int32 left = _out ? st::msgMargin.right() : st::msgMargin.left(), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
+	if (_media && _media->maxWidth() > mwidth) mwidth = _media->maxWidth();
+	if (width > mwidth) {
+		if (_out) left += width - mwidth;
+		width = mwidth;
 	}
 
 	if (!_out && _history->peer->chat) { // from user left photo
@@ -3330,10 +3312,11 @@ void HistoryMessage::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) 
 	inText = false;
 	lnk = TextLinkPtr();
 
-	int32 left = _out ? st::msgMargin.right() : st::msgMargin.left(), width = _history->width - st::msgMargin.left() - st::msgMargin.right();
-	if (width > st::msgMaxWidth) {
-		if (_out) left += width - st::msgMaxWidth;
-		width = st::msgMaxWidth;
+	int32 left = _out ? st::msgMargin.right() : st::msgMargin.left(), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
+	if (_media && _media->maxWidth() > mwidth) mwidth = _media->maxWidth();
+	if (width > mwidth) {
+		if (_out) left += width - mwidth;
+		width = mwidth;
 	}
 
 	if (!_out && _history->peer->chat) { // from user left photo
@@ -3370,6 +3353,7 @@ void HistoryMessage::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x,
 	symbol = 0;
 	after = false;
 	upon = false;
+	if (_media) return;
 
 	int32 left = _out ? st::msgMargin.right() : st::msgMargin.left(), width = _history->width - st::msgMargin.left() - st::msgMargin.right();
 	if (width > st::msgMaxWidth) {
@@ -3387,69 +3371,12 @@ void HistoryMessage::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x,
 		if (_out) left += width - _maxw;
 		width = _maxw;
 	}
-	if (_media) {
-		return;
-	}
 	QRect r(left, st::msgMargin.top(), width, _height - st::msgMargin.top() - st::msgMargin.bottom());
 	if (!_out && _history->peer->chat) { // from user left name
 		r.setTop(r.top() + st::msgNameFont->height);
 	}
 	QRect trect(r.marginsAdded(-st::msgPadding));
 	_text.getSymbol(symbol, after, upon, x - trect.x(), y - trect.y(), trect.width());
-}
-
-bool HistoryMessage::getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
-	int32 left = _out ? st::msgMargin.right() : st::msgMargin.left(), width = _history->width - st::msgMargin.left() - st::msgMargin.right();
-	if (width > st::msgMaxWidth) {
-		if (_out) left += width - st::msgMaxWidth;
-		width = st::msgMaxWidth;
-	}
-
-	if (!_out && _history->peer->chat) {
-//		width -= st::msgPhotoSkip;
-		left += st::msgPhotoSkip;
-	}
-	if (width < 1) return false;
-
-	if (width >= _maxw) {
-		if (_out) left += width - _maxw;
-		width = _maxw;
-	}
-	if (_media) {
-		if (_media->getPhotoCoords(photo, x, y, w)) {
-			x += left;
-			y += st::msgMargin.top();
-			return true;
-		}
-	}
-	return false;
-}
-
-bool HistoryMessage::getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const {
-	int32 left = _out ? st::msgMargin.right() : st::msgMargin.left(), width = _history->width - st::msgMargin.left() - st::msgMargin.right();
-	if (width > st::msgMaxWidth) {
-		if (_out) left += width - st::msgMaxWidth;
-		width = st::msgMaxWidth;
-	}
-
-	if (!_out && _history->peer->chat) {
-//		width -= st::msgPhotoSkip;
-		left += st::msgPhotoSkip;
-	}
-	if (width < 1) return false;
-
-	if (width >= _maxw) {
-		if (_out) left += width - _maxw;
-		width = _maxw;
-	}
-	if (_media) {
-		if (_media->getVideoCoords(video, x, y, w)) {
-			x += left;
-			y += st::msgMargin.top();
-			return true;
-		}
-	}
-	return false;
 }
 
 void HistoryMessage::drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const {
@@ -3888,23 +3815,6 @@ void HistoryServiceMsg::getSymbol(uint16 &symbol, bool &after, bool &upon, int32
 	}
 	QRect trect(QRect(left, st::msgServiceMargin.top(), width, height).marginsAdded(-st::msgServicePadding));
 	return _text.getSymbol(symbol, after, upon, x - trect.x(), y - trect.y(), trect.width(), Qt::AlignCenter);
-}
-
-bool HistoryServiceMsg::getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
-	int32 left = st::msgServiceMargin.left(), width = _history->width - st::msgServiceMargin.left() - st::msgServiceMargin.left(), height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom(); // two small margins
-	if (width < 1) return false;
-
-	if (_media) {
-		height -= st::msgServiceMargin.top() + _media->height();
-	}
-	if (_media) {
-		if (_media->getPhotoCoords(photo, x, y, w)) {
-			x += st::msgServiceMargin.left() + (width - _media->maxWidth()) / 2;
-			y += st::msgServiceMargin.top() + height + st::msgServicePadding.top();
-			return true;
-		}
-	}
-	return false;
 }
 
 void HistoryServiceMsg::drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const {
