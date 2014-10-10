@@ -174,7 +174,7 @@ bool OverviewInner::itemHasPoint(MsgId msgId, int32 index, int32 x, int32 y) con
 			if (!out && _hist->peer->chat) {
 				left += st::msgPhotoSkip;
 			}
-			return media->hasPoint(x - left, y - st::msgMargin.top(), w);
+			return media->hasPoint(x - left, y - st::msgMargin.top(), item, w);
 		}
 	}
 	return false;
@@ -235,7 +235,8 @@ void OverviewInner::updateMsg(MsgId itemId, int32 itemIndex) {
 		} else {
 			HistoryItem *item = App::histItemById(itemId);
 			HistoryMedia *media = item ? item->getMedia(true) : 0;
-			if (media) update(0, _addToY + _height - _items[itemIndex].y, _width, media->height() + st::msgMargin.top() + st::msgMargin.bottom());
+			int32 w = _width - st::msgMargin.left() - st::msgMargin.right();
+			if (media) update(0, _addToY + _height - _items[itemIndex].y, _width, media->countHeight(item, w) + st::msgMargin.top() + st::msgMargin.bottom());
 		}
 	}
 }
@@ -405,8 +406,6 @@ void OverviewInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton but
 		_dragAction = NoDrag;
 	} else if (_dragAction == NoDrag) {
 		_dragItem = 0;
-	} else {
-		connect(App::main(), SIGNAL(historyItemDeleted(HistoryItem*)), this, SLOT(itemRemoved(HistoryItem*)), Qt::UniqueConnection);
 	}
 }
 
@@ -414,6 +413,8 @@ void OverviewInner::dragActionCancel() {
 	_dragItem = 0;
 	_dragItemIndex = -1;
 	_dragAction = NoDrag;
+	_dragSelFrom = _dragSelTo = 0;
+	_dragSelFromIndex = _dragSelToIndex = -1;
 	_dragStartPos = QPoint(0, 0);
 	_overview->noSelectingScroll();
 }
@@ -439,6 +440,8 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 	}
 	if (needClick) {
 		needClick->onClick(button);
+		dragActionCancel();
+		return;
 	}
 	if (_dragAction == PrepareSelect && !needClick && !_dragWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel) {
 		SelectedItems::iterator i = _selected.find(_dragItem);
@@ -691,7 +694,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 						bool out = item->out();
 						int32 mw = media->maxWidth(), left = (out ? st::msgMargin.right() : st::msgMargin.left()) + (out && mw < w ? (w - mw) : 0);
 						if (!out && _hist->peer->chat) {
-							p.drawPixmap(left, media->height() - st::msgPhotoSize, item->from()->photo->pix(st::msgPhotoSize));
+							p.drawPixmap(left, media->countHeight(item, w) - st::msgPhotoSize, item->from()->photo->pix(st::msgPhotoSize));
 							left += st::msgPhotoSkip;
 						}
 
@@ -823,7 +826,7 @@ void OverviewInner::onUpdateSelected() {
 						bool out = item->out();
 						int32 mw = media->maxWidth(), left = (out ? st::msgMargin.right() : st::msgMargin.left()) + (out && mw < w ? (w - mw) : 0);
 						if (!out && _hist->peer->chat) {
-							if (QRect(left, y + st::msgMargin.top() + media->height() - st::msgPhotoSize, st::msgPhotoSize, st::msgPhotoSize).contains(m)) {
+							if (QRect(left, y + st::msgMargin.top() + media->countHeight(item, w) - st::msgPhotoSize, st::msgPhotoSize, st::msgPhotoSize).contains(m)) {
 								lnk = item->from()->lnk;
 							}
 							left += st::msgPhotoSkip;
@@ -1334,7 +1337,8 @@ void OverviewInner::mediaOverviewUpdated() {
 			} else {
 				prevDate = date;
 			}
-			y += media->height() + st::msgMargin.top() + st::msgMargin.bottom(); // item height
+			int32 w = _width - st::msgMargin.left() - st::msgMargin.right();
+			y += media->countHeight(item, w) + st::msgMargin.top() + st::msgMargin.bottom(); // item height
 			if (_items.size() > in) {
 				_items[in].msgid = msgid;
 				_items[in].date = date;
@@ -1420,6 +1424,40 @@ void OverviewInner::itemRemoved(HistoryItem *item) {
 	parentWidget()->update();
 }
 
+void OverviewInner::itemResized(HistoryItem *item) {
+	if (_type != OverviewPhotos) {
+		HistoryMedia *media = item ? item->getMedia(true) : 0;
+		if (!media) return;
+
+		for (int32 i = 0, l = _items.size(); i < l; ++i) {
+			if (_items[i].msgid == item->id) {
+				int32 from = 0;
+				if (i > 0) from = _items[i - 1].y;
+
+				int32 oldh = _items[i].y - from;
+				int32 w = _width - st::msgMargin.left() - st::msgMargin.right();
+				int32 newh = media->countHeight(item, w) + st::msgMargin.top() + st::msgMargin.bottom(); // item height
+				if (oldh != newh) {
+					newh -= oldh;
+					for (int32 j = i; j < l; ++j) {
+						_items[j].y += newh;
+					}
+					_height = _items[l - 1].y;
+					_addToY = (_height < _minHeight) ? (_minHeight - _height) : 0;
+					resize(width(), _minHeight > _height ? _minHeight : _height);
+					if (_addToY + _height - from > _scroll->scrollTop() + _scroll->height()) {
+						_scroll->scrollToY(_addToY + _height - from - _scroll->height());
+					}
+					if (_addToY + _height - _items[i].y < _scroll->scrollTop()) {
+						_scroll->scrollToY(_addToY + _height - _items[i].y);
+					}
+				}
+				break;
+			}
+		}
+	}
+}
+
 void OverviewInner::msgUpdated(const HistoryItem *msg) {
 	if (!msg || _hist != msg->history()) return;
 	MsgId msgid = msg->id;
@@ -1436,7 +1474,8 @@ void OverviewInner::msgUpdated(const HistoryItem *msg) {
 			for (int32 i = 0, l = _items.size(); i != l; ++i) {
 				if (_items[i].msgid == msgid) {
 					HistoryMedia *media = msg->getMedia(true);
-					if (media) update(0, _addToY + _height - _items[i].y, _width, media->height() + st::msgMargin.top() + st::msgMargin.bottom());
+					int32 w = _width - st::msgMargin.left() - st::msgMargin.right();
+					if (media) update(0, _addToY + _height - _items[i].y, _width, media->countHeight(msg, w) + st::msgMargin.top() + st::msgMargin.bottom());
 					break;
 				}
 			}
@@ -1534,7 +1573,9 @@ void OverviewWidget::paintEvent(QPaintEvent *e) {
 	}
 
 	QRect r(e->rect());
-	if (cCatsAndDogs()) {
+	if (type() == OverviewPhotos) {
+		p.fillRect(r, st::white->b);
+	} else if (cCatsAndDogs()) {
 		int32 i_from = r.left() / _bg.width(), i_to = (r.left() + r.width() - 1) / _bg.width() + 1;
 		int32 j_from = r.top() / _bg.height(), j_to = (r.top() + r.height() - 1) / _bg.height() + 1;
 		for (int32 i = i_from; i < i_to; ++i) {
@@ -1625,6 +1666,7 @@ int32 OverviewWidget::lastScrollTop() const {
 }
 
 void OverviewWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back, int32 lastScrollTop) {
+	stopGif();
 	_bgAnimCache = bgAnimCache;
 	_bgAnimTopBarCache = bgAnimTopBarCache;
 	resizeEvent(0);
@@ -1690,6 +1732,18 @@ void OverviewWidget::changingMsgId(HistoryItem *row, MsgId newId) {
 void OverviewWidget::msgUpdated(PeerId p, const HistoryItem *msg) {
 	if (peer()->id == p) {
 		_inner.msgUpdated(msg);
+	}
+}
+
+void OverviewWidget::itemRemoved(HistoryItem *row) {
+	if (row->history()->peer == peer()) {
+		_inner.itemRemoved(row);
+	}
+}
+
+void OverviewWidget::itemResized(HistoryItem *row) {
+	if (row->history()->peer == peer()) {
+		_inner.itemResized(row);
 	}
 }
 

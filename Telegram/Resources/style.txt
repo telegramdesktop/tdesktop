@@ -244,9 +244,9 @@ inpDefFlat: flatInput {
 }
 
 inpDefGray: flatInput(inpDefFlat) {
-	bgColor: #ebebeb;
+	bgColor: #f2f2f2;
 	borderWidth: 2px;
-	borderColor: #ebebeb;
+	borderColor: #f2f2f2;
 	borderActive: #80cff9;
 	borderError: #ed8080;
 	phColor: #808080;
@@ -374,7 +374,7 @@ introCountry: countryInput {
 	width: 300px;
 	height: 41px;
 	top: 24px;
-	bgColor: #ebebeb;
+	bgColor: #f2f2f2;
 	ptrSize: size(15px, 8px);
 	textMrg: margins(16px, 5px, 16px, 15px);
 	font: inpDefFont;
@@ -446,7 +446,7 @@ countryList: countryList {
 	color: #000;
 	codeColor: #aaaaaa;//rgb(20, 136, 210);
 	bgColor: #FFF;
-	bgHovered: #f1f1f1;
+	bgHovered: #f5f5f5;
 	margin: 13px;
 	codeWidth: 60px;
 
@@ -873,13 +873,13 @@ mediaInSelectColor: msgInSelectDateColor;
 mediaOutSelectColor: msgOutSelectDateColor;
 mediaSaveDelta: 14px; // between bubble and download
 mediaSaveButton: flatButton(btnDefFlat) {
-	color: btnYesColor;
-	overColor: btnYesHover;
-	downColor: btnYesHover;
+	color: #507da2;
+	overColor: #507da2;
+	downColor: #507da2;
 
 	bgColor: white;
-	overBgColor: btnWhiteHover;
-	downBgColor: btnWhiteHover;
+	overBgColor: #f5f8fa;
+	downBgColor: #f5f8fa;
 
 	width: -28px;
 	height: 34px;
@@ -1074,7 +1074,7 @@ profileListPhotoSize: 46px;
 profileListPadding: size(12px, 6px);
 profileListNameTop: 8px;
 profileListStatusBottom: 6px;
-profileHoverBG: #f1f1f1;
+profileHoverBG: #f5f5f5;
 profileActiveBG: #6294b9;
 profileSubFont: font(fsize);
 profileCheckRect: sprite(88px, 108px, 24px, 24px);
@@ -1223,7 +1223,7 @@ contactsClose: flatButton {
 	overColor: btnYesHover;
 	downColor: btnYesHover;
 
-	bgColor: #fffe;
+	bgColor: white;
 	overBgColor: white;
 	downBgColor: white;
 

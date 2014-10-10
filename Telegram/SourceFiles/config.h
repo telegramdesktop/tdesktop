@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #pragma once
 
-static const int32 AppVersion = 6002;
-static const wchar_t *AppVersionStr = L"0.6.2";
+static const int32 AppVersion = 6003;
+static const wchar_t *AppVersionStr = L"0.6.3";
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -80,7 +80,7 @@ enum {
 	AudioVoiceMsgBufferSize = 1024 * 1024, // 1 Mb buffers
 	AudioVoiceMsgInMemory = 1024 * 1024, // 1 Mb audio is hold in memory and auto loaded
 
-	MediaViewImageSizeLimit = 10 * 1024 * 1024, // show up to 10mb jpg/png docs in mediaview
+	MediaViewImageSizeLimit = 100 * 1024 * 1024, // show up to 100mb jpg/png/gif docs in app
 	MaxZoomLevel = 7, // x8
 
 	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request

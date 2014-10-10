@@ -112,10 +112,157 @@ namespace {
 		_historySrvOptions.dir = _textNameOptions.dir = _textDlgOptions.dir = langDir();
 		_textDlgOptions.maxw = st::dlgMaxWidth * 2;
 	}
+
+	class AnimatedGif : public Animated {
+	public:
+
+		AnimatedGif() : msg(0), reader(0), w(0), h(0), frame(0), framesCount(0), duration(0) {
+		}
+
+		bool animStep(float64 ms) {
+			int32 f = frame;
+			while (f < frames.size() && ms > delays[f]) {
+				++f;
+				if (f == frames.size() && frames.size() < framesCount) {
+					if (reader->read(&img)) {
+						int64 d = reader->nextImageDelay(), delay = delays[f - 1];
+						if (!d) d = 1;
+						delay += d;
+						frames.push_back(QPixmap::fromImage(img.size() == QSize(w, h) ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)));
+						delays.push_back(delay);
+						for (int32 i = 0; i < frames.size(); ++i) {
+							if (!frames[i].isNull()) {
+								frames[i] = QPixmap();
+								break;
+							}
+						}
+					} else {
+						framesCount = frames.size();
+					}
+				}
+				if (f == frames.size()) {
+					if (!duration) {
+						duration = delays.isEmpty() ? 1 : delays.back();
+					}
+
+					f = 0;
+					for (int32 i = 0, s = delays.size() - 1; i <= s; ++i) {
+						delays[i] += duration;
+					}
+					if (frames[f].isNull()) {
+						QString fname = reader->fileName();
+						delete reader;
+						reader = new QImageReader(fname);
+					}
+				}
+				if (frames[f].isNull() && reader->read(&img)) {
+					frames[f] = QPixmap::fromImage(img.size() == QSize(w, h) ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+				}
+			}
+			if (frame != f) {
+				frame = f;
+				if (App::main()) App::main()->msgUpdated(msg->history()->peer->id, msg);
+			}
+			return true;
+		}
+
+		void start(HistoryItem *row, const QString &file) {
+			if (reader) {
+				stop();
+			}
+			reader = new QImageReader(file);
+			if (!reader->canRead() || !reader->supportsAnimation()) {
+				stop();
+				return;
+			}
+
+			QSize s = reader->size();
+			w = s.width();
+			h = s.height();
+			framesCount = reader->imageCount();
+			if (!w || !h || !framesCount) {
+				stop();
+				return;
+			}
+
+			frames.reserve(framesCount);
+			delays.reserve(framesCount);
+			
+			int32 sizeLeft = MediaViewImageSizeLimit, delay = 0;
+			for (bool read = reader->read(&img); read; read = reader->read(&img)) {
+				sizeLeft -= w * h * 4;
+				frames.push_back(QPixmap::fromImage(img.size() == s ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)));
+				int32 d = reader->nextImageDelay();
+				if (!d) d = 1;
+				delay += d;
+				delays.push_back(delay);
+				if (sizeLeft < 0) break;
+			}
+
+			msg = row;
+
+			anim::start(this);
+			msg->initDimensions();
+			App::main()->itemResized(msg);
+		}
+
+		void stop(bool onItemRemoved = false) {
+			delete reader;
+			reader = 0;
+			HistoryItem *row = msg;
+			msg = 0;
+			frames.clear();
+			delays.clear();
+			w = h = frame = framesCount = duration = 0;
+
+			anim::stop(this);
+			if (row && !onItemRemoved) {
+				row->initDimensions();
+				if (App::main()) App::main()->itemResized(row);
+			}
+		}
+
+		~AnimatedGif() {
+			stop();
+		}
+
+		HistoryItem *msg;
+		QImage img;
+		QImageReader *reader;
+		QVector<QPixmap> frames;
+		QVector<int64> delays;
+		int32 w, h, frame, framesCount, duration;
+	};
+
+	AnimatedGif animated;
 }
 
 void historyInit() {
 	_initTextOptions();
+}
+
+void startGif(HistoryItem *row, const QString &file) {
+	if (row == animated.msg) {
+		stopGif();
+	} else {
+		animated.start(row, file);
+	}
+}
+
+void itemReplacedGif(HistoryItem *oldItem, HistoryItem *newItem) {
+	if (oldItem == animated.msg) {
+		animated.msg = newItem;
+	}
+}
+
+void itemRemovedGif(HistoryItem *item) {
+	if (item == animated.msg) {
+		animated.stop(true);
+	}
+}
+
+void stopGif() {
+	animated.stop();
 }
 
 NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
@@ -428,18 +575,17 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 
 	QString already = data->already(true);
 	if (!already.isEmpty()) {
-		bool showInMediaView = false;
 		if (data->size < MediaViewImageSizeLimit) {
-			QMimeType mime = QMimeDatabase().mimeTypeForName(data->mime);
-			QString name = mime.name().toLower(), fname = already.toLower();
-			if (name == qsl("image/jpeg") || name == qsl("image/jpg") || name == qsl("image/png")) {
-				showInMediaView = true;
-			} else if (fname.endsWith(qsl(".jpeg")) || fname.endsWith(qsl(".jpg")) || fname.endsWith(qsl(".png"))) {
-				showInMediaView = name.isEmpty();
+			QImageReader reader(already);
+			if (reader.canRead()) {
+				if (reader.supportsAnimation() && reader.imageCount() > 1 && App::hoveredLinkItem()) {
+					startGif(App::hoveredLinkItem(), already);
+				} else {
+					App::wnd()->showDocument(data, QPixmap::fromImage(reader.read()), App::hoveredLinkItem());
+				}
+			} else {
+				psOpenFile(already);
 			}
-		}
-		if (showInMediaView) {
-			App::wnd()->showDocument(data, App::hoveredLinkItem());
 		} else {
 			psOpenFile(already);
 		}
@@ -1543,8 +1689,8 @@ MsgId History::maxMsgId() const {
 	return 0;
 }
 
-int32 History::geomResize(int32 newWidth, int32 *ytransform) {
-	if (width != newWidth) {
+int32 History::geomResize(int32 newWidth, int32 *ytransform, bool dontRecountText) {
+	if (width != newWidth || dontRecountText) {
 		int32 y = 0;
 		for (iterator i = begin(), e = end(); i != e; ++i) {
 			HistoryBlock *block = *i;
@@ -1553,7 +1699,7 @@ int32 History::geomResize(int32 newWidth, int32 *ytransform) {
 			if (block->y != y) {
 				block->y = y;
 			}
-			y += block->geomResize(newWidth, ytransform);
+			y += block->geomResize(newWidth, ytransform, dontRecountText);
 			if (updTransform) {
 				*ytransform += block->y;
 				ytransform = 0;
@@ -1627,14 +1773,14 @@ void History::removeBlock(HistoryBlock *block) {
 	delete block;
 }
 
-int32 HistoryBlock::geomResize(int32 newWidth, int32 *ytransform) {
+int32 HistoryBlock::geomResize(int32 newWidth, int32 *ytransform, bool dontRecountText) {
 	int32 y = 0;
 	for (iterator i = begin(), e = end(); i != e; ++i) {
 		HistoryItem *item = *i;
 		bool updTransform = ytransform && (*ytransform >= item->y) && (*ytransform < item->y + item->height());
 		if (updTransform) *ytransform -= item->y;
 		item->y = y;
-		y += item->resize(newWidth);
+		y += item->resize(newWidth, dontRecountText);
 		if (updTransform) {
 			*ytransform += item->y;
 			ytransform = 0;
@@ -1894,6 +2040,10 @@ HistoryPhoto::HistoryPhoto(PeerData *chat, const MTPDphoto &photo, int32 width) 
 }
 
 void HistoryPhoto::init() {
+	data->thumb->load();
+}
+
+void HistoryPhoto::initDimensions(const HistoryItem *parent) {
 	int32 tw = data->full->width(), th = data->full->height();
 	if (!tw || !th) {
 		tw = th = 1;
@@ -1918,10 +2068,9 @@ void HistoryPhoto::init() {
 	}
 	_maxw = w;
 	_height = _minh = thumbh;
-	data->thumb->load();
 }
 
-int32 HistoryPhoto::resize(int32 nwidth) {
+int32 HistoryPhoto::resize(int32 nwidth, bool dontRecountText, const HistoryItem *parent) {
 	return _height;
 }
 
@@ -1929,7 +2078,7 @@ const QString HistoryPhoto::inDialogsText() const {
 	return lang(lng_in_dlg_photo);
 }
 
-bool HistoryPhoto::hasPoint(int32 x, int32 y, int32 width) const {
+bool HistoryPhoto::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = _maxw;
 	return (x >= 0 && y >= 0 && x < width && y < _height);
 }
@@ -2077,11 +2226,7 @@ HistoryVideo::HistoryVideo(const MTPDvideo &video, int32 width) : data(App::feed
 , _dldDone(0)
 , _uplDone(0)
 {
-	_maxw = st::mediaMaxWidth;
-
 	_size = formatDurationAndSizeText(data->duration, data->size);
-
-	_height = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
 
 	if (!_openWithWidth) {
 		_downloadWidth = st::mediaSaveButton.font->m.width(lang(lng_media_download));
@@ -2106,15 +2251,13 @@ HistoryVideo::HistoryVideo(const MTPDvideo &video, int32 width) : data(App::feed
 	}
 }
 
-void HistoryVideo::reinit() {
-	_maxw = st::mediaMaxWidth;
-}
-
 void HistoryVideo::initDimensions(const HistoryItem *parent) {
+	_maxw = st::mediaMaxWidth;
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
 	if (!parent->out()) { // add Download / Save As button
 		_maxw += st::mediaSaveDelta + _buttonWidth;
 	}
+	_height = _minh = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
 }
 
 void HistoryVideo::regItem(HistoryItem *item) {
@@ -2125,7 +2268,7 @@ void HistoryVideo::unregItem(HistoryItem *item) {
 	App::unregVideoItem(data, item);
 }
 
-int32 HistoryVideo::resize(int32 nwidth) {
+int32 HistoryVideo::resize(int32 nwidth, bool dontRecountText, const HistoryItem *parent) {
 	w = nwidth;
 	return _height;
 }
@@ -2134,7 +2277,7 @@ const QString HistoryVideo::inDialogsText() const {
 	return lang(lng_in_dlg_video);
 }
 
-bool HistoryVideo::hasPoint(int32 x, int32 y, int32 width) const {
+bool HistoryVideo::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 	if (width >= _maxw) {
 		width = _maxw;
@@ -2176,9 +2319,7 @@ bool HistoryVideo::getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w
 }
 
 HistoryMedia *HistoryVideo::clone() const {
-	HistoryVideo *n = new HistoryVideo(*this);
-	n->reinit();
-	return n;
+	return new HistoryVideo(*this);
 }
 
 void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const {
@@ -2292,11 +2433,7 @@ HistoryAudio::HistoryAudio(const MTPDaudio &audio, int32 width) : data(App::feed
 , _dldDone(0)
 , _uplDone(0)
 {
-	_maxw = st::mediaMaxWidth;
-
 	_size = formatDurationAndSizeText(data->duration, data->size);
-
-	_height = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
 
 	if (!_openWithWidth) {
 		_downloadWidth = st::mediaSaveButton.font->m.width(lang(lng_media_download));
@@ -2306,15 +2443,14 @@ HistoryAudio::HistoryAudio(const MTPDaudio &audio, int32 width) : data(App::feed
 	}
 }
 
-void HistoryAudio::reinit() {
-	_maxw = st::mediaMaxWidth;
-}
-
 void HistoryAudio::initDimensions(const HistoryItem *parent) {
+	_maxw = st::mediaMaxWidth;
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
 	if (!parent->out()) { // add Download / Save As button
 		_maxw += st::mediaSaveDelta + _buttonWidth;
 	}
+
+	_height = _minh = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
 }
 
 void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const {
@@ -2444,7 +2580,7 @@ void HistoryAudio::unregItem(HistoryItem *item) {
 	App::unregAudioItem(data, item);
 }
 
-int32 HistoryAudio::resize(int32 nwidth) {
+int32 HistoryAudio::resize(int32 nwidth, bool dontRecountText, const HistoryItem *parent) {
 	w = nwidth;
 	return _height;
 }
@@ -2453,7 +2589,7 @@ const QString HistoryAudio::inDialogsText() const {
 	return lang(lng_in_dlg_audio);
 }
 
-bool HistoryAudio::hasPoint(int32 x, int32 y, int32 width) const {
+bool HistoryAudio::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 	if (width >= _maxw) {
 		width = _maxw;
@@ -2485,9 +2621,7 @@ TextLinkPtr HistoryAudio::getLink(int32 x, int32 y, const HistoryItem *parent, i
 }
 
 HistoryMedia *HistoryAudio::clone() const {
-	HistoryAudio *n = new HistoryAudio(*this);
-	n->reinit();
-	return n;
+	return new HistoryAudio(*this);
 }
 
 HistoryDocument::HistoryDocument(const MTPDdocument &document, int32 width) : data(App::feedDocument(document))
@@ -2499,12 +2633,11 @@ HistoryDocument::HistoryDocument(const MTPDdocument &document, int32 width) : da
 , _dldDone(0)
 , _uplDone(0)
 {
-	_maxw = st::mediaMaxWidth;
 	_namew = st::mediaFont->m.width(_name.isEmpty() ? qsl("Document") : _name);
 
 	_size = formatSizeText(data->size);
 
-	_height = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
+	_height = _minh = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
 
 	if (!_openWithWidth) {
 		_downloadWidth = st::mediaSaveButton.font->m.width(lang(lng_media_download));
@@ -2529,17 +2662,21 @@ HistoryDocument::HistoryDocument(const MTPDdocument &document, int32 width) : da
 	}
 }
 
-void HistoryDocument::reinit() {
-	_maxw = st::mediaMaxWidth;
-}
-
 void HistoryDocument::initDimensions(const HistoryItem *parent) {
-	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
-	if (_namew + tleft + st::mediaPadding.right() > _maxw) {
-		_maxw = _namew + tleft + st::mediaPadding.right();
-	}
-	if (!parent->out()) { // add Download / Save As button
-		_maxw += st::mediaSaveDelta + _buttonWidth;
+	if (parent == animated.msg) {
+		_maxw = animated.w;
+		_minh = animated.h;
+		_height = resize(w, true, parent);
+	} else {
+		_maxw = st::mediaMaxWidth;
+		int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
+		if (_namew + tleft + st::mediaPadding.right() > _maxw) {
+			_maxw = _namew + tleft + st::mediaPadding.right();
+		}
+		if (!parent->out()) { // add Download / Save As button
+			_maxw += st::mediaSaveDelta + _buttonWidth;
+		}
+		_height = _minh = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
 	}
 }
 
@@ -2547,9 +2684,29 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 	if (width < 0) width = w;
 	if (width < 1) return;
 
+	bool out = parent->out(), hovered, pressed;
+	if (parent == animated.msg) {
+		if (width >= animated.w) {
+			p.drawPixmap(0, 0, animated.frames[animated.frame]);
+			if (selected) {
+				p.fillRect(0, 0, animated.w, animated.h, (out ? st::msgOutSelectOverlay : st::msgInSelectOverlay)->b);
+			}
+		} else {
+			bool s = p.renderHints().testFlag(QPainter::SmoothPixmapTransform);
+			if (!s) p.setRenderHint(QPainter::SmoothPixmapTransform);
+			int32 h = (width == w) ? _height : (width * animated.h / animated.w);
+			if (h < 1) h = 1;
+			p.drawPixmap(QRect(0, 0, width, h), animated.frames[animated.frame]);
+			if (!s) p.setRenderHint(QPainter::SmoothPixmapTransform, false);
+			if (selected) {
+				p.fillRect(0, 0, width, h, (out ? st::msgOutSelectOverlay : st::msgInSelectOverlay)->b);
+			}
+		}
+		return;
+	}
+
 	data->thumb->checkload();
 
-	bool out = parent->out(), hovered, pressed;
 	if (width >= _maxw) {
 		width = _maxw;
 	}
@@ -2664,8 +2821,15 @@ void HistoryDocument::updateFrom(const MTPMessageMedia &media) {
 	}
 }
 
-int32 HistoryDocument::resize(int32 width) {
+int32 HistoryDocument::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
 	w = width;
+	if (parent == animated.msg) {
+		_height = animated.h;
+		if (animated.w > w) {
+			_height = (w * _height / animated.w);
+			if (_height <= 0) _height = 1;
+		}
+	}
 	return _height;
 }
 
@@ -2673,12 +2837,30 @@ const QString HistoryDocument::inDialogsText() const {
 	return data->name.isEmpty() ? lang(lng_in_dlg_document) : data->name;
 }
 
-bool HistoryDocument::hasPoint(int32 x, int32 y, int32 width) const {
+bool HistoryDocument::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 	if (width >= _maxw) {
 		width = _maxw;
 	}
+	if (parent == animated.msg) {
+		int32 h = (width == w) ? _height : (width * animated.h / animated.w);
+		if (h < 1) h = 1;
+		return (x >= 0 && y >= 0 && x < width && y < h);
+	}
 	return (x >= 0 && y >= 0 && x < width && y < _height);
+}
+
+int32 HistoryDocument::countHeight(const HistoryItem *parent, int32 width) const {
+	if (width < 0) width = w;
+	if (width >= _maxw) {
+		width = _maxw;
+	}
+	if (parent == animated.msg) {
+		int32 h = (width == w) ? _height : (width * animated.h / animated.w);
+		if (h < 1) h = 1;
+		return h;
+	}
+	return _height;
 }
 
 TextLinkPtr HistoryDocument::getLink(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
@@ -2688,6 +2870,11 @@ TextLinkPtr HistoryDocument::getLink(int32 x, int32 y, const HistoryItem *parent
 	bool out = parent->out(), hovered, pressed;
 	if (width >= _maxw) {
 		width = _maxw;
+	}
+	if (parent == animated.msg) {
+		int32 h = (width == w) ? _height : (width * animated.h / animated.w);
+		if (h < 1) h = 1;
+		return (x >= 0 && y >= 0 && x < width && y < h) ? _openl : TextLinkPtr();
 	}
 
 	if (!out) { // draw Download / Save As button
@@ -2705,9 +2892,7 @@ TextLinkPtr HistoryDocument::getLink(int32 x, int32 y, const HistoryItem *parent
 }
 
 HistoryMedia *HistoryDocument::clone() const {
-	HistoryDocument *n = new HistoryDocument(*this);
-	n->reinit();
-	return n;
+	return new HistoryDocument(*this);
 }
 
 HistoryContact::HistoryContact(int32 userId, const QString &first, const QString &last, const QString &phone) : userId(userId)
@@ -2743,7 +2928,7 @@ void HistoryContact::initDimensions(const HistoryItem *parent) {
 	}
 }
 
-int32 HistoryContact::resize(int32 nwidth) {
+int32 HistoryContact::resize(int32 nwidth, bool dontRecountText, const HistoryItem *parent) {
 	w = nwidth;
 	return _height;
 }
@@ -2752,7 +2937,7 @@ const QString HistoryContact::inDialogsText() const {
 	return lang(lng_in_dlg_contact);
 }
 
-bool HistoryContact::hasPoint(int32 x, int32 y, int32 width) const {
+bool HistoryContact::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 	return (x >= 0 && y <= 0 && x < w && y < _height);
 }
@@ -2948,13 +3133,19 @@ void HistoryMessage::initMedia(const MTPMessageMedia &media, QString &currentTex
 void HistoryMessage::initDimensions(const QString &text) {
 	_time = date.toString(qsl("hh:mm"));
 	_timeWidth = st::msgDateFont->m.width(_time);
+	if (!_media) {
+		_timeWidth += st::msgDateSpace + (out() ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) - st::msgDateDelta.x();
+		_text.setText(st::msgFont, text + textcmdSkipBlock(_timeWidth, st::msgDateFont->height - st::msgDateDelta.y()), _historyTextOptions);
+	}
+	initDimensions();
+}
+
+void HistoryMessage::initDimensions(const HistoryItem *parent) {
 	if (_media) {
 		_media->initDimensions(this);
 		_maxw = _media->maxWidth();
 		_minh = _media->height();
 	} else {
-		_timeWidth += st::msgDateSpace + (out() ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) - st::msgDateDelta.x();
-		_text.setText(st::msgFont, text + textcmdSkipBlock(_timeWidth, st::msgDateFont->height - st::msgDateDelta.y()), _historyTextOptions);
 		_maxw = _text.maxWidth();
 		_minh = _text.minHeight();
 		_maxw += st::msgPadding.left() + st::msgPadding.right();
@@ -3081,11 +3272,13 @@ void HistoryMessage::drawMessageText(QPainter &p, const QRect &trect, uint32 sel
 	textstyleRestore();
 }
 
-int32 HistoryMessage::resize(int32 width) {
+int32 HistoryMessage::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
 	width -= st::msgMargin.left() + st::msgMargin.right();
 	if (_media) {
-		_height = _media->resize(width);
+		_height = _media->resize(width, dontRecountText, this);
 	} else {
+		if (dontRecountText) return _height;
+
 		if (width < st::msgPadding.left() + st::msgPadding.right() + 1) {
 			width = st::msgPadding.left() + st::msgPadding.right() + 1;
 		} else if (width > st::msgMaxWidth) {
@@ -3127,7 +3320,7 @@ bool HistoryMessage::hasPoint(int32 x, int32 y) const {
 		width = _maxw;
 	}
 	if (_media) {
-		return _media->hasPoint(x - left, y - st::msgMargin.top());
+		return _media->hasPoint(x - left, y - st::msgMargin.top(), this);
 	}
 	QRect r(left, st::msgMargin.top(), width, _height - st::msgMargin.top() - st::msgMargin.bottom());
 	return r.contains(x, y);
@@ -3365,9 +3558,9 @@ void HistoryForwarded::drawMessageText(QPainter &p, const QRect &trect, uint32 s
 	HistoryMessage::drawMessageText(p, realtrect, selection);
 }
 
-int32 HistoryForwarded::resize(int32 width) {
-	HistoryMessage::resize(width);
-	if (!_media) {
+int32 HistoryForwarded::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+	HistoryMessage::resize(width, dontRecountText, parent);
+	if (!_media && !dontRecountText) {
 		int32 h1 = 0, h2 = st::msgServiceNameFont->height;
 		_height += h1 + (h1 > h2 ? h1 : h2);
 	}
@@ -3558,8 +3751,7 @@ HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, cons
 	if (second) {
 		_text.setLink(2, second);
 	}
-	_maxw = _text.maxWidth() + st::msgServicePadding.left() + st::msgServicePadding.right();
-	_minh = _text.minHeight();
+	initDimensions();
 }
 /*
 HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDgeoChatMessageService &msg) :
@@ -3577,8 +3769,13 @@ HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, MsgI
 , _text(st::msgServiceFont, msg, _historySrvOptions, st::dlgMinWidth)
 , _media(media)
 {
+	initDimensions();
+}
+
+void HistoryServiceMsg::initDimensions(const HistoryItem *parent) {
 	_maxw = _text.maxWidth() + st::msgServicePadding.left() + st::msgServicePadding.right();
 	_minh = _text.minHeight();
+	if (_media) _media->initDimensions();
 }
 
 QString HistoryServiceMsg::selectedText(uint32 selection) const {
@@ -3626,7 +3823,9 @@ void HistoryServiceMsg::draw(QPainter &p, uint32 selection) const {
 	textstyleRestore();
 }
 
-int32 HistoryServiceMsg::resize(int32 width) {
+int32 HistoryServiceMsg::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+	if (dontRecountText) return _height;
+
 	width -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
 	if (width < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) width = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
 
@@ -3741,6 +3940,10 @@ HistoryItem *createDayServiceMsg(History *history, HistoryBlock *block, QDateTim
 
 HistoryUnreadBar::HistoryUnreadBar(History *history, HistoryBlock *block, int32 count, const QDateTime &date) : HistoryItem(history, block, clientMsgId(), false, false, date, 0), freezed(false) {
 	setCount(count);
+	initDimensions();
+}
+
+void HistoryUnreadBar::initDimensions(const HistoryItem *parent) {
 	_maxw = st::msgPadding.left() + st::msgPadding.right() + 1;
 	_minh = st::unreadBarHeight;
 }
@@ -3759,7 +3962,7 @@ void HistoryUnreadBar::draw(QPainter &p, uint32 selection) const {
 	p.drawText(QRect(0, 0, _history->width, st::unreadBarHeight - st::lineWidth), text, style::al_center);
 }
 
-int32 HistoryUnreadBar::resize(int32 width) {
+int32 HistoryUnreadBar::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
 	_height = st::unreadBarHeight;
 	return _height;
 }

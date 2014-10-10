@@ -950,6 +950,7 @@ bool ProfileWidget::allMediaShown() const {
 }
 
 void ProfileWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back, int32 lastScrollTop, bool allMediaShown) {
+	stopGif();
 	_bgAnimCache = bgAnimCache;
 	_bgAnimTopBarCache = bgAnimTopBarCache;
 	if (allMediaShown) _inner.onMediaShowAll();

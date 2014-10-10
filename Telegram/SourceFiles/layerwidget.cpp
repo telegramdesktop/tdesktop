@@ -57,6 +57,7 @@ void BackgroundWidget::keyPressEvent(QKeyEvent *e) {
 }
 
 void BackgroundWidget::mousePressEvent(QMouseEvent *e) {
+	onClose();
 }
 
 void BackgroundWidget::onClose() {

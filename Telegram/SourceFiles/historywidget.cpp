@@ -451,8 +451,6 @@ void HistoryList::dragActionStart(const QPoint &screenPos, Qt::MouseButton butto
 		_dragAction = NoDrag;
 	} else if (_dragAction == NoDrag) {
 		_dragItem = 0;
-	} else {
-		connect(App::main(), SIGNAL(historyItemDeleted(HistoryItem*)), this, SLOT(itemRemoved(HistoryItem*)), Qt::UniqueConnection);
 	}
 }
 
@@ -460,6 +458,7 @@ void HistoryList::dragActionCancel() {
 	_dragItem = 0;
 	_dragAction = NoDrag;
 	_dragStartPos = QPoint(0, 0);
+	_dragSelFrom = _dragSelTo = 0;
 	historyWidget->noSelectingScroll();
 }
 
@@ -479,6 +478,20 @@ void HistoryList::itemRemoved(HistoryItem *item) {
 	if (_dragSelFrom == item) _dragSelFrom = 0;
 	if (_dragSelTo == item) _dragSelTo = 0;
 	updateDragSelection(_dragSelFrom, _dragSelTo, _dragSelecting, true);
+}
+
+void HistoryList::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
+	if (_dragItem == oldItem) _dragItem = newItem;
+
+	SelectedItems::iterator i = _selected.find(oldItem);
+	if (i != _selected.cend()) {
+		uint32 v = i.value();
+		_selected.erase(i);
+		_selected.insert(newItem, v);
+	}
+
+	if (_dragSelFrom == oldItem) _dragSelFrom = newItem;
+	if (_dragSelTo == oldItem) _dragSelTo = newItem;
 }
 
 void HistoryList::dragActionFinish(const QPoint &screenPos, Qt::MouseButton button) {
@@ -506,6 +519,8 @@ void HistoryList::dragActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 	}
 	if (needClick) {
 		needClick->onClick(button);
+		dragActionCancel();
+		return;
 	}
 	if (_dragAction == PrepareSelect && !needClick && !_dragWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel) {
 		SelectedItems::iterator i = _selected.find(_dragItem);
@@ -882,9 +897,9 @@ void HistoryList::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-int32 HistoryList::recountHeight() {
+int32 HistoryList::recountHeight(bool dontRecountText) {
 	int32 st = hist->lastScrollTop;
-	hist->geomResize(scrollArea->width(), &st);
+	hist->geomResize(scrollArea->width(), &st, dontRecountText);
 	return st;
 }
 
@@ -1006,7 +1021,7 @@ void HistoryList::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
 	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
 		HistoryItem *item = i.key();
 		if (item->itemType() == HistoryItem::MsgType && ((item->id > 0 && !item->serviceMsg()) || forDelete)) {
-			sel.insert(item->y + item->block()->y, item);
+			sel.insert(item->id, item);
 		}
 	}
 }
@@ -1685,6 +1700,7 @@ void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool l
 		}
 		updateTyping(false);
 	}
+	stopGif();
 	clearLoadingAround();
 
 	if (_list) {
@@ -2944,7 +2960,19 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	}
 }
 
-void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown) {
+void HistoryWidget::itemRemoved(HistoryItem *item) {
+	if (_list) _list->itemRemoved(item);
+}
+
+void HistoryWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
+	if (_list) _list->itemReplaced(oldItem, newItem);
+}
+
+void HistoryWidget::itemResized(HistoryItem *row) {
+	updateListSize(0, false, false, row);
+}
+
+void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, HistoryItem *resizedItem) {
 	if (!hist || (!_histInited && !initial)) return;
 
 	if (!App::wnd()->isVisible()) return; // scrollTopMax etc are not working after recountHeight()
@@ -2959,12 +2987,22 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown) 
 	if (!initial) {
 		hist->lastScrollTop = _scroll.scrollTop();
 	}
-	int32 newSt = _list->recountHeight();
+	int32 newSt = _list->recountHeight(!!resizedItem);
 	bool washidden = _scroll.isHidden();
 	if (washidden) {
 		_scroll.show();
 	}
 	_list->updateSize();
+	if (resizedItem && !resizedItem->detached()) {
+		int32 firstItemY = _list->height() - hist->height - st::historyPadding;
+		if (newSt + _scroll.height() < firstItemY + resizedItem->block()->y + resizedItem->y + resizedItem->height()) {
+			newSt = firstItemY + resizedItem->block()->y + resizedItem->y + resizedItem->height() - _scroll.height();
+		}
+		if (newSt > firstItemY + resizedItem->block()->y + resizedItem->y) {
+			newSt = firstItemY + resizedItem->block()->y + resizedItem->y;
+		}
+		wasAtBottom = false;
+	}
 	if (washidden) {
 		_scroll.hide();
 	}

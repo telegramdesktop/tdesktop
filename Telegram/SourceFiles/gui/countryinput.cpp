@@ -302,7 +302,7 @@ void CountryList::paintEvent(QPaintEvent *e) {
 
 	int l = countriesNow->size();
 	if (l) {
-		int from = (r.top() > _st.verticalMargin) ? (r.top() - _st.verticalMargin) / _st.rowHeight : 0, to = from + r.height() / _st.rowHeight + 1;
+		int from = (r.top() > _st.verticalMargin) ? (r.top() - _st.verticalMargin) / _st.rowHeight : 0, to = from + (r.height() / _st.rowHeight) + 2;
 		if (to >= l) {
 			if (from >= l) return;
 			to = l;
@@ -515,6 +515,12 @@ void CountrySelect::keyPressEvent(QKeyEvent *e) {
 		_list.selectSkipPage(_scroll.height(), 1);
 	} else if (e->key() == Qt::Key_PageUp) {
 		_list.selectSkipPage(_scroll.height(), -1);
+	}
+}
+
+void CountrySelect::mousePressEvent(QMouseEvent *e) {
+	if (!QRect(_innerLeft, _innerTop, _innerWidth, _innerHeight).contains(e->pos())) {
+		onCountryCancel();
 	}
 }
 

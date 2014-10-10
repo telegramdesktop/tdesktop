@@ -121,6 +121,7 @@ public:
 
 	void paintEvent(QPaintEvent *e);
 	void keyPressEvent(QKeyEvent *e);
+	void mousePressEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
 	bool animStep(float64 ms);

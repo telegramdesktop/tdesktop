@@ -1116,6 +1116,17 @@ namespace App {
 		return 0;
 	}
 
+	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
+		newItem->history()->itemReplaced(oldItem, newItem);
+		if (App::main()) App::main()->itemReplaced(oldItem, newItem);
+		if (App::hoveredItem() == oldItem) App::hoveredItem(newItem);
+		if (App::pressedItem() == oldItem) App::pressedItem(newItem);
+		if (App::hoveredLinkItem() == oldItem) App::hoveredLinkItem(newItem);
+		if (App::pressedLinkItem() == oldItem) App::pressedLinkItem(newItem);
+		if (App::contextItem() == oldItem) App::contextItem(newItem);
+		if (App::mousedItem() == oldItem) App::mousedItem(newItem);
+	}
+
 	HistoryItem *historyRegItem(HistoryItem *item) {
 		MsgsData::const_iterator i = msgsData.constFind(item->id);
 		if (i == msgsData.cend()) {
@@ -1124,10 +1135,7 @@ namespace App {
 			return 0;
 		}
 		if (i.value() != item && !i.value()->block() && item->block()) { // replace search item
-			item->history()->itemReplaced(i.value(), item);
-			if (App::main()) {
-				emit App::main()->historyItemReplaced(i.value(), item);
-			}
+			itemReplaced(i.value(), item);
 			delete i.value();
 			msgsData.insert(item->id, item);
 			return 0;
@@ -1167,9 +1175,7 @@ namespace App {
 			}
 		}
 		historyItemDetached(item);
-		if (App::main()) {
-			emit App::main()->historyItemDeleted(item);
-		}
+		if (App::main()) App::main()->itemRemoved(item);
 	}
 
 	void historyClearMsgs() {
@@ -1260,10 +1266,6 @@ namespace App {
 	void deinitMedia(bool completely) {
 		textlnkOver(TextLinkPtr());
 		textlnkDown(TextLinkPtr());
-
-		if (completely && App::main()) {
-			App::main()->disconnect(SIGNAL(historyItemDeleted(HistoryItem *)));
-		}
 
 		histories().clear();
 
@@ -1860,7 +1862,7 @@ namespace App {
 
 	bool isValidPhone(QString phone) {
 		phone = phone.replace(QRegularExpression(qsl("[^\\d]")), QString());
-		return phone.length() >= 8 || phone == qsl("777") || phone == qsl("333") || phone == qsl("42") || phone == qsl("111");
+		return phone.length() >= 8 || phone == qsl("777") || phone == qsl("333") || phone == qsl("111") || (phone.startsWith(qsl("42")) && (phone.length() == 2 || phone.length() == 5));
 	}
 
 	void quit() {

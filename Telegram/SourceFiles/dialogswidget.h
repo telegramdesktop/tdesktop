@@ -80,6 +80,8 @@ public:
 	State state() const;
 
 	void onFilterUpdate(QString newFilter, bool force = false);
+	void itemRemoved(HistoryItem *item);
+	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
 	~DialogsListWidget();
 
@@ -91,9 +93,6 @@ public slots:
 	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 	void onPeerPhotoChanged(PeerData *peer);
 	void onDialogRowReplaced(DialogRow *oldRow, DialogRow *newRow);
-
-	void onItemRemoved(HistoryItem *item);
-	void onItemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
 signals:
 
@@ -176,6 +175,9 @@ public:
 	void searchMessages(const QString &query);
 	void onSearchMore(MsgId minMsgId);
 	void clearFiltered();
+
+	void itemRemoved(HistoryItem *item);
+	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
 signals:
 

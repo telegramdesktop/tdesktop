@@ -58,6 +58,8 @@ public:
 	void mediaOverviewUpdated();
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void msgUpdated(const HistoryItem *msg);
+	void itemRemoved(HistoryItem *item);
+	void itemResized(HistoryItem *item);
 
 	void getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const;
 	void clearSelectedItems(bool onlyTextSelection = false);
@@ -84,8 +86,6 @@ public slots:
 	void onTouchSelect();
 	void onTouchScrollTimer();
 
-	void itemRemoved(HistoryItem *item);
-
 private:
 
 	void fixItemIndex(int32 &current, MsgId msgId) const;
@@ -102,10 +102,6 @@ private:
 	void touchUpdateSpeed();
 	void touchDeaccelerate(int32 elapsed);
 
-	//void adjustCurrent(int32 y);
-	//HistoryItem *prevItem(HistoryItem *item);
-	//HistoryItem *nextItem(HistoryItem *item);
-	//void updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting, bool force = false);
 	void applyDragSelection();
 
 	QPixmap genPix(PhotoData *photo, int32 size);
@@ -214,6 +210,8 @@ public:
 	void mediaOverviewUpdated(PeerData *peer);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void msgUpdated(PeerId peer, const HistoryItem *msg);
+	void itemRemoved(HistoryItem *item);
+	void itemResized(HistoryItem *row);
 
 	QPoint clampMousePosition(QPoint point);
 

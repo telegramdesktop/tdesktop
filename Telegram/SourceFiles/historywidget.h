@@ -63,7 +63,7 @@ public:
 	void touchScrollUpdated(const QPoint &screenPos);
 	QPoint mapMouseToItem(QPoint p, HistoryItem *item);
 
-	int32 recountHeight();
+	int32 recountHeight(bool dontRecountText);
 	void updateSize();
 
 	void updateMsg(const HistoryItem *msg);
@@ -76,6 +76,9 @@ public:
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
 	void selectItem(HistoryItem *item);
 
+	void itemRemoved(HistoryItem *item);
+	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
+
 	~HistoryList();
 	
 public slots:
@@ -84,8 +87,6 @@ public slots:
 	void onParentGeometryChanged();
 
 	void showLinkTip();
-
-	void itemRemoved(HistoryItem *item);
 
 	void openContextUrl();
 	void copyContextUrl();
@@ -333,6 +334,9 @@ public:
 	void stopAnimActive();
 
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
+	void itemRemoved(HistoryItem *item);
+	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
+	void itemResized(HistoryItem *item);
 
 	~HistoryWidget();
 
@@ -392,7 +396,7 @@ public slots:
 private:
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
-	void updateListSize(int32 addToY = 0, bool initial = false, bool loadedDown = false);
+	void updateListSize(int32 addToY = 0, bool initial = false, bool loadedDown = false, HistoryItem *resizedItem = 0);
 	void addMessagesToFront(const QVector<MTPMessage> &messages);
 	void addMessagesToBack(const QVector<MTPMessage> &messages);
 	void chatLoaded(const MTPmessages_ChatFull &res);

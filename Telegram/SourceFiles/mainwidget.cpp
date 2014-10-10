@@ -698,6 +698,31 @@ void MainWidget::changingMsgId(HistoryItem *row, MsgId newId) {
 	if (overview) overview->changingMsgId(row, newId);
 }
 
+void MainWidget::itemRemoved(HistoryItem *item) {
+	dialogs.itemRemoved(item);
+	if (history.peer() == item->history()->peer) {
+		history.itemRemoved(item);
+	}
+	itemRemovedGif(item);
+}
+
+void MainWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
+	dialogs.itemReplaced(oldItem, newItem);
+	if (history.peer() == newItem->history()->peer) {
+		history.itemReplaced(oldItem, newItem);
+	}
+	itemReplacedGif(oldItem, newItem);
+}
+
+void MainWidget::itemResized(HistoryItem *row) {
+	if (history.peer() == row->history()->peer && !row->detached()) {
+		history.itemResized(row);
+	}
+	if (overview) {
+		overview->itemResized(row);
+	}
+}
+
 bool MainWidget::overviewFailed(PeerData *peer, const RPCError &error, mtpRequestId req) {
 	MediaOverviewType type = OverviewCount;
 	for (int32 i = 0; i < OverviewCount; ++i) {
@@ -907,18 +932,18 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 			document->finish();
 			QString already = document->already();
 			if (!already.isEmpty() && document->openOnSave) {
-				bool showInMediaView = false;
 				if (document->openOnSave > 0 && document->size < MediaViewImageSizeLimit) {
-					QMimeType mime = QMimeDatabase().mimeTypeForName(document->mime);
-					QString name = mime.name().toLower(), fname = already.toLower();;
-					if (name == qsl("image/jpeg") || name == qsl("image/png")) {
-						showInMediaView = true;
-					} else if (fname.endsWith(qsl(".jpeg")) || fname.endsWith(qsl(".jpg")) || fname.endsWith(qsl(".png"))) {
-						showInMediaView = name.isEmpty();
+					QImageReader reader(already);
+					if (reader.canRead()) {
+						HistoryItem *item = App::histItemById(document->openOnSaveMsgId);
+						if (reader.supportsAnimation() && reader.imageCount() > 1 && item) {
+							startGif(item, already);
+						} else {
+							App::wnd()->showDocument(document, QPixmap::fromImage(reader.read()), item);
+						}
+					} else {
+						psOpenFile(already);
 					}
-				}
-				if (showInMediaView) {
-					App::wnd()->showDocument(document, App::histItemById(document->openOnSaveMsgId));
 				} else {
 					psOpenFile(already, document->openOnSave < 0);
 				}

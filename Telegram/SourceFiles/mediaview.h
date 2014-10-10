@@ -41,7 +41,7 @@ public:
 
 	void showPhoto(PhotoData *photo, HistoryItem *context);
 	void showPhoto(PhotoData *photo, PeerData *context);
-	void showDocument(DocumentData *doc, HistoryItem *context);
+	void showDocument(DocumentData *doc, QPixmap pix, HistoryItem *context);
 	void moveToScreen();
 	void moveToPhoto(int32 delta);
 	void preloadPhotos(int32 delta);

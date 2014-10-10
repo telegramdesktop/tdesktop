@@ -27,6 +27,12 @@ typedef int32 MsgId;
 void historyInit();
 
 class HistoryItem;
+
+void startGif(HistoryItem *row, const QString &file);
+void itemRemovedGif(HistoryItem *item);
+void itemReplacedGif(HistoryItem *oldItem, HistoryItem *newItem);
+void stopGif();
+
 static const uint32 FullItemSel = 0xFFFFFFFF;
 
 typedef QMap<int32, HistoryItem*> SelectedItemSet;
@@ -692,7 +698,7 @@ struct History : public QList<HistoryBlock*> {
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
 
-	int32 geomResize(int32 newWidth, int32 *ytransform = 0); // return new size
+	int32 geomResize(int32 newWidth, int32 *ytransform = 0, bool dontRecountText = false); // return new size
 	int32 width, height, msgCount, unreadCount;
 	int32 inboxReadTill, outboxReadTill;
 	HistoryItem *showFrom;
@@ -1066,7 +1072,7 @@ struct HistoryBlock : public QVector<HistoryItem*> {
 	}
 	void removeItem(HistoryItem *item);
 
-	int32 geomResize(int32 newWidth, int32 *ytransform); // return new size
+	int32 geomResize(int32 newWidth, int32 *ytransform, bool dontRecountText); // return new size
 	int32 y, height;
 	History *history;
 };
@@ -1077,7 +1083,8 @@ public:
 	HistoryElem() : _height(0), _maxw(0) {
 	}
 
-	virtual int32 resize(int32 width) = 0; // return new height
+	virtual void initDimensions(const HistoryItem *parent = 0) = 0;
+	virtual int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0) = 0; // return new height
 
 	int32 height() const {
 		return _height;
@@ -1230,12 +1237,12 @@ HistoryItem *regItem(HistoryItem *item, bool returnExisting = false);
 class HistoryMedia : public HistoryElem {
 public:
 
-	virtual void initDimensions(const HistoryItem *parent) {
-	}
-
 	virtual HistoryMediaType type() const = 0;
 	virtual const QString inDialogsText() const = 0;
-	virtual bool hasPoint(int32 x, int32 y, int32 width = -1) const = 0;
+	virtual bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const = 0;
+	virtual int32 countHeight(const HistoryItem *parent, int32 width = -1) const {
+		return height();
+	}
 	virtual TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const = 0;
 	virtual void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const = 0;
 	virtual bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const {
@@ -1271,14 +1278,15 @@ public:
 	HistoryPhoto(PeerData *chat, const MTPDphoto &photo, int32 width = 0);
 
 	void init();
+	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
-	int32 resize(int32 width);
+	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	HistoryMediaType type() const {
 		return MediaTypePhoto;
 	}
 	const QString inDialogsText() const;
-	bool hasPoint(int32 x, int32 y, int32 width = -1) const;
+	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	bool getPhotoCoords(PhotoData *photo, int32 &x, int32 &y, int32 &w) const;
 	HistoryMedia *clone() const;
@@ -1308,16 +1316,15 @@ class HistoryVideo : public HistoryMedia {
 public:
 
 	HistoryVideo(const MTPDvideo &video, int32 width = 0);
-	void reinit();
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
-	int32 resize(int32 width);
+	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	HistoryMediaType type() const {
 		return MediaTypeVideo;
 	}
 	const QString inDialogsText() const;
-	bool hasPoint(int32 x, int32 y, int32 width = -1) const;
+	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	bool getVideoCoords(VideoData *video, int32 &x, int32 &y, int32 &w) const;
 	bool uploading() const {
@@ -1344,16 +1351,15 @@ class HistoryAudio : public HistoryMedia {
 public:
 
 	HistoryAudio(const MTPDaudio &audio, int32 width = 0);
-	void reinit();
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
-	int32 resize(int32 width);
+	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	HistoryMediaType type() const {
 		return MediaTypeAudio;
 	}
 	const QString inDialogsText() const;
-	bool hasPoint(int32 x, int32 y, int32 width = -1) const;
+	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	bool uploading() const {
 		return (data->status == FileUploading);
@@ -1378,16 +1384,16 @@ class HistoryDocument : public HistoryMedia {
 public:
 
 	HistoryDocument(const MTPDdocument &document, int32 width = 0);
-	void reinit();
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
-	int32 resize(int32 width);
+	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	HistoryMediaType type() const {
 		return MediaTypeDocument;
 	}
 	const QString inDialogsText() const;
-	bool hasPoint(int32 x, int32 y, int32 width = -1) const;
+	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	int32 countHeight(const HistoryItem *parent, int32 width = -1) const;
 	bool uploading() const {
 		return (data->status == FileUploading);
 	}
@@ -1424,12 +1430,12 @@ public:
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const;
-	int32 resize(int32 width);
+	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	HistoryMediaType type() const {
 		return MediaTypeContact;
 	}
 	const QString inDialogsText() const;
-	bool hasPoint(int32 x, int32 y, int32 width) const;
+	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const;
 	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width) const;
 	HistoryMedia *clone() const;
 
@@ -1453,6 +1459,7 @@ public:
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, const QString &msg, HistoryMedia *media);
 
 	void initMedia(const MTPMessageMedia &media, QString &currentText);
+	void initDimensions(const HistoryItem *parent = 0);
 	void initDimensions(const QString &text);
 	void fromNameUpdated() const;
 
@@ -1461,7 +1468,7 @@ public:
 	void draw(QPainter &p, uint32 selection) const;
 	virtual void drawMessageText(QPainter &p, const QRect &trect, uint32 selection) const;
 
-	int32 resize(int32 width);
+	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
@@ -1516,7 +1523,7 @@ public:
 
 	void draw(QPainter &p, uint32 selection) const;
 	void drawMessageText(QPainter &p, const QRect &trect, uint32 selection) const;
-	int32 resize(int32 width);
+	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
@@ -1546,8 +1553,10 @@ public:
 //	HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDgeoChatMessageService &msg);
 	HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, bool out = false, bool unread = false, HistoryMedia *media = 0);
 
+	void initDimensions(const HistoryItem *parent = 0);
+
 	void draw(QPainter &p, uint32 selection) const;
-	int32 resize(int32 width);
+	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
@@ -1613,10 +1622,12 @@ public:
 
 	HistoryUnreadBar(History *history, HistoryBlock *block, int32 count, const QDateTime &date);
 
+	void initDimensions(const HistoryItem *parent = 0);
+
 	void setCount(int32 count);
 
 	void draw(QPainter &p, uint32 selection) const;
-	int32 resize(int32 width);
+	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 
 	void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
     QString notificationText() const;

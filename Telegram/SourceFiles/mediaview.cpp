@@ -329,7 +329,7 @@ void MediaView::showPhoto(PhotoData *photo, PeerData *context) {
 	preloadPhotos(0);
 }
 
-void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
+void MediaView::showDocument(DocumentData *doc, QPixmap pix, HistoryItem *context) {
 	_photo = 0;
 	_history = context ? context->history() : 0;
 	_peer = 0;
@@ -350,7 +350,7 @@ void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 	setCursor(style::cur_default);
 
 	QString name = doc->already();
-	_current = name.isEmpty() ? QPixmap() : QPixmap(name);
+	_current = pix;
 	_current.setDevicePixelRatio(cRetinaFactor());
 	_doc = doc;
 	_down = OverNone;

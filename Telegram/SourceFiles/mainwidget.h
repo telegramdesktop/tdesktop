@@ -277,6 +277,9 @@ public:
 	void preloadOverviews(PeerData *peer);
 	void mediaOverviewUpdated(PeerData *peer);
 	void changingMsgId(HistoryItem *row, MsgId newId);
+	void itemRemoved(HistoryItem *item);
+	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
+	void itemResized(HistoryItem *row);
 
 	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);
 
@@ -288,10 +291,8 @@ signals:
 	void peerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 	void peerPhotoChanged(PeerData *peer);
 	void dialogRowReplaced(DialogRow *oldRow, DialogRow *newRow);
-	void historyItemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 	void dialogToTop(const History::DialogLinks &links);
 	void dialogsUpdated();
-	void historyItemDeleted(HistoryItem *item);
 
 public slots:
 

@@ -31,8 +31,6 @@ dialogs(false), contactsNoDialogs(true), contacts(true), sel(0), contactSel(fals
 	connect(main, SIGNAL(peerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)), this, SLOT(onPeerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)));
 	connect(main, SIGNAL(peerPhotoChanged(PeerData *)), this, SLOT(onPeerPhotoChanged(PeerData *)));
 	connect(main, SIGNAL(dialogRowReplaced(DialogRow *, DialogRow *)), this, SLOT(onDialogRowReplaced(DialogRow *, DialogRow *)));
-	connect(main, SIGNAL(historyItemReplaced(HistoryItem *, HistoryItem *)), this, SLOT(onItemReplaced(HistoryItem *, HistoryItem *)));
-	connect(main, SIGNAL(historyItemDeleted(HistoryItem *)), this, SLOT(onItemRemoved(HistoryItem *)));
 }
 
 void DialogsListWidget::paintEvent(QPaintEvent *e) {
@@ -453,7 +451,7 @@ void DialogsListWidget::clearSearchResults() {
 	_lastSearchId = 0;
 }
 
-void DialogsListWidget::onItemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
+void DialogsListWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 	for (int i = 0; i < searchResults.size(); ++i) {
 		if (searchResults[i]->_item == oldItem) {
 			searchResults[i]->_item = newItem;
@@ -461,7 +459,7 @@ void DialogsListWidget::onItemReplaced(HistoryItem *oldItem, HistoryItem *newIte
 	}
 }
 
-void DialogsListWidget::onItemRemoved(HistoryItem *item) {
+void DialogsListWidget::itemRemoved(HistoryItem *item) {
 	int wasCount = searchResults.size();
 	for (int i = 0; i < searchResults.size();) {
 		if (searchResults[i]->_item == item) {
@@ -1086,6 +1084,14 @@ void DialogsWidget::onCancel() {
 
 void DialogsWidget::clearFiltered() {
 	onCancel();
+}
+
+void DialogsWidget::itemRemoved(HistoryItem *item) {
+	list.itemRemoved(item);
+}
+
+void DialogsWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
+	list.itemReplaced(oldItem, newItem);
 }
 
 void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
