@@ -288,10 +288,10 @@ public:
 	void uploadImage(const QImage &img, bool withText = false);
 	void uploadFile(const QString &file, bool withText = false); // with confirmation
 	void shareContactConfirmation(const QString &phone, const QString &fname, const QString &lname, bool withText = false);
-	void uploadConfirmImageUncompressed();
+	void uploadConfirmImageUncompressed(bool ctrlShiftEnter);
 	void uploadMedias(const QStringList &files, ToPrepareMediaType type);
 	void uploadMedia(const QByteArray &fileContent, ToPrepareMediaType type);
-	void confirmShareContact(const QString &phone, const QString &fname, const QString &lname);
+	void confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname);
 	void confirmSendImage(const ReadyLocalMedia &img);
 	void cancelSendImage();
 
@@ -304,7 +304,7 @@ public:
 	void onShareContact(const PeerId &peer, UserData *contact);
 	void onSendPaths(const PeerId &peer);
 
-	void shareContact(const QString &phone, const QString &fname, const QString &lname, int32 userId = 0);
+	void shareContact(const PeerId &peer, const QString &phone, const QString &fname, const QString &lname, int32 userId = 0);
 
 	PeerData *peer() const;
 	PeerData *activePeer() const;

@@ -25,11 +25,11 @@ enum ToPrepareMediaType {
 };
 
 struct ToPrepareMedia {
-	ToPrepareMedia(const QString &file, const PeerId &peer, ToPrepareMediaType t) : id(MTP::nonce<PhotoId>()), file(file), peer(peer), type(t) {
+	ToPrepareMedia(const QString &file, const PeerId &peer, ToPrepareMediaType t, bool ctrlShiftEnter) : id(MTP::nonce<PhotoId>()), file(file), peer(peer), type(t), ctrlShiftEnter(ctrlShiftEnter) {
 	}
-	ToPrepareMedia(const QImage &img, const PeerId &peer, ToPrepareMediaType t) : id(MTP::nonce<PhotoId>()), img(img), peer(peer), type(t) {
+	ToPrepareMedia(const QImage &img, const PeerId &peer, ToPrepareMediaType t, bool ctrlShiftEnter) : id(MTP::nonce<PhotoId>()), img(img), peer(peer), type(t), ctrlShiftEnter(ctrlShiftEnter) {
 	}
-	ToPrepareMedia(const QByteArray &data, const PeerId &peer, ToPrepareMediaType t) : id(MTP::nonce<PhotoId>()), data(data), peer(peer), type(t) {
+	ToPrepareMedia(const QByteArray &data, const PeerId &peer, ToPrepareMediaType t, bool ctrlShiftEnter) : id(MTP::nonce<PhotoId>()), data(data), peer(peer), type(t), ctrlShiftEnter(ctrlShiftEnter) {
 	}
 	PhotoId id;
 	QString file;
@@ -37,13 +37,14 @@ struct ToPrepareMedia {
 	QByteArray data;
 	PeerId peer;
 	ToPrepareMediaType type;
+	bool ctrlShiftEnter;
 };
 typedef QList<ToPrepareMedia> ToPrepareMedias;
 
 typedef QMap<int32, QByteArray> LocalFileParts;
 struct ReadyLocalMedia {
-	ReadyLocalMedia(ToPrepareMediaType type, const QString &file, const QString &filename, int32 filesize, const QByteArray &data, const uint64 &id, const uint64 &jpeg_id, const PeerId &peer, const MTPPhoto &photo, const PreparedPhotoThumbs &photoThumbs, const MTPDocument &document, const QByteArray &jpeg) :
-		type(type), file(file), filename(filename), filesize(filesize), data(data), id(id), jpeg_id(jpeg_id), peer(peer), photo(photo), document(document), photoThumbs(photoThumbs) {
+	ReadyLocalMedia(ToPrepareMediaType type, const QString &file, const QString &filename, int32 filesize, const QByteArray &data, const uint64 &id, const uint64 &jpeg_id, const PeerId &peer, const MTPPhoto &photo, const PreparedPhotoThumbs &photoThumbs, const MTPDocument &document, const QByteArray &jpeg, bool ctrlShiftEnter) :
+		type(type), file(file), filename(filename), filesize(filesize), data(data), id(id), jpeg_id(jpeg_id), peer(peer), photo(photo), document(document), photoThumbs(photoThumbs), ctrlShiftEnter(ctrlShiftEnter) {
 		if (!jpeg.isEmpty()) {
 			int32 size = jpeg.size();
 			for (int32 i = 0, part = 0; i < size; i += UploadPartSize, ++part) {
@@ -65,6 +66,8 @@ struct ReadyLocalMedia {
 	PreparedPhotoThumbs photoThumbs;
 	LocalFileParts parts;
 	QByteArray jpeg_md5;
+
+	bool ctrlShiftEnter;
 };
 typedef QList<ReadyLocalMedia> ReadyLocalMedias;
 
@@ -101,7 +104,7 @@ public:
 	LocalImageLoader(QObject *parent);
 	void append(const QStringList &files, const PeerId &peer, ToPrepareMediaType t = ToPrepareAuto);
 	PhotoId append(const QByteArray &img, const PeerId &peer, ToPrepareMediaType t = ToPrepareAuto);
-	PhotoId append(const QImage &img, const PeerId &peer, ToPrepareMediaType t = ToPreparePhoto);
+	PhotoId append(const QImage &img, const PeerId &peer, ToPrepareMediaType t = ToPreparePhoto, bool ctrlShiftEnter = false);
 	PhotoId append(const QString &file, const PeerId &peer, ToPrepareMediaType t = ToPrepareAuto);
 
 	QMutex *readyMutex();

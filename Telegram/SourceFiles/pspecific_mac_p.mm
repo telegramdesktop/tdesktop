@@ -709,10 +709,9 @@ QString objc_currentLang() {
 }
 
 QString objc_convertFileUrl(const QString &url) {
-	NSString *nsurl = [[[NSURL URLWithString: [NSString stringWithUTF8String: (qsl("file://") + url).toUtf8().constData()]] filePathURL] absoluteString];
+	NSString *nsurl = [[[NSURL URLWithString: [NSString stringWithUTF8String: (qsl("file://") + url).toUtf8().constData()]] filePathURL] path];
 	if (!nsurl) return QString();
 
-	QString result = QString::fromUtf8([nsurl cStringUsingEncoding:NSUTF8StringEncoding]);
-	return result.startsWith(qsl("file://")) ? result.mid(7) : result;
+	return QString::fromUtf8([nsurl cStringUsingEncoding:NSUTF8StringEncoding]);
 }
 

@@ -36,7 +36,7 @@ public:
 
 public slots:
 
-	void onSend();
+	void onSend(bool ctrlShiftEnter = false);
 	void onCancel();
 
 private:

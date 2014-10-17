@@ -119,7 +119,7 @@ a_opacity(0, 1) {
 
 void PhotoSendBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		onSend();
+		onSend((e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier)) && e->modifiers().testFlag(Qt::ShiftModifier));
 	} else if (e->key() == Qt::Key_Escape) {
 		onCancel();
 	}
@@ -200,18 +200,19 @@ void PhotoSendBox::animStep(float64 ms) {
 	update();
 }
 
-void PhotoSendBox::onSend() {
+void PhotoSendBox::onSend(bool ctrlShiftEnter) {
 	if (!_img) {
-		if (App::main()) App::main()->confirmShareContact(_phone, _fname, _lname);
+		if (App::main()) App::main()->confirmShareContact(ctrlShiftEnter, _phone, _fname, _lname);
 	} else {
 		if (!_compressed.isHidden()) {
 			cSetCompressPastedImage(_compressed.checked());
 			App::writeUserConfig();
 		}
 		if (_compressed.isHidden() || _compressed.checked()) {
+			_img->ctrlShiftEnter = ctrlShiftEnter;
 			if (App::main()) App::main()->confirmSendImage(*_img);
 		} else {
-			if (App::main()) App::main()->confirmSendImageUncompressed();
+			if (App::main()) App::main()->confirmSendImageUncompressed(ctrlShiftEnter);
 		}
 	}
 	emit closed();
