@@ -2235,7 +2235,7 @@ mtpRequestId HistoryWidget::onForward(const PeerId &peer, SelectedItemSet toForw
 	
 		hist->loadAround(0);
 		if (item->id > 0 && msg) {
-			App::main()->readServerHistory(item->history(), false);
+			App::main()->readServerHistory(hist, false);
 
 			newId = clientMsgId();
 			hist->addToBackForwarded(newId, msg);
@@ -2244,7 +2244,7 @@ mtpRequestId HistoryWidget::onForward(const PeerId &peer, SelectedItemSet toForw
 	//		newId = clientMsgId();
 	//		MTP::send(MTPmessages_ForwardMessage(histPeer->input, MTP_int(item->id), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
 		} else if (msg) {
-			App::main()->readServerHistory(item->history(), false);
+			App::main()->readServerHistory(hist, false);
 
 			newId = clientMsgId();
 
