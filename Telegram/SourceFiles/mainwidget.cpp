@@ -981,16 +981,16 @@ void MainWidget::updateOnlineDisplay() {
 	if (App::wnd()->settingsWidget()) App::wnd()->settingsWidget()->updateOnlineDisplay();
 }
 
-void MainWidget::confirmShareContact(const QString &phone, const QString &fname, const QString &lname) {
-	history.confirmShareContact(phone, fname, lname);
+void MainWidget::confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname) {
+	history.confirmShareContact(ctrlShiftEnter, phone, fname, lname);
 }
 
-void MainWidget::confirmSendImage(const ReadyLocalMedia &img) {
-	history.confirmSendImage(img);
+void MainWidget::confirmSendImage(bool ctrlShiftEnter, const ReadyLocalMedia &img) {
+	history.confirmSendImage(ctrlShiftEnter, img);
 }
 
-void MainWidget::confirmSendImageUncompressed() {
-	history.uploadConfirmImageUncompressed();
+void MainWidget::confirmSendImageUncompressed(bool ctrlShiftEnter) {
+	history.uploadConfirmImageUncompressed(ctrlShiftEnter);
 }
 
 void MainWidget::cancelSendImage() {

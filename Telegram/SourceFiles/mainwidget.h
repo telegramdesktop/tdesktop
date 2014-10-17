@@ -213,9 +213,9 @@ public:
 	void showBackFromStack();
 	QRect historyRect() const;
 
-	void confirmShareContact(const QString &phone, const QString &fname, const QString &lname);
-	void confirmSendImage(const ReadyLocalMedia &img);
-	void confirmSendImageUncompressed();
+	void confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname);
+	void confirmSendImage(bool ctrlShiftEnter, const ReadyLocalMedia &img);
+	void confirmSendImageUncompressed(bool ctrlShiftEnter);
 	void cancelSendImage();
 
 	void destroyData();
