@@ -214,7 +214,7 @@ public:
 	QRect historyRect() const;
 
 	void confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname);
-	void confirmSendImage(bool ctrlShiftEnter, const ReadyLocalMedia &img);
+	void confirmSendImage(const ReadyLocalMedia &img);
 	void confirmSendImageUncompressed(bool ctrlShiftEnter);
 	void cancelSendImage();
 

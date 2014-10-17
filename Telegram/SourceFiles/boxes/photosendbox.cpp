@@ -209,7 +209,8 @@ void PhotoSendBox::onSend(bool ctrlShiftEnter) {
 			App::writeUserConfig();
 		}
 		if (_compressed.isHidden() || _compressed.checked()) {
-			if (App::main()) App::main()->confirmSendImage(ctrlShiftEnter, *_img);
+			_img->ctrlShiftEnter = ctrlShiftEnter;
+			if (App::main()) App::main()->confirmSendImage(*_img);
 		} else {
 			if (App::main()) App::main()->confirmSendImageUncompressed(ctrlShiftEnter);
 		}

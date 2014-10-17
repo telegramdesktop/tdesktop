@@ -985,8 +985,8 @@ void MainWidget::confirmShareContact(bool ctrlShiftEnter, const QString &phone, 
 	history.confirmShareContact(ctrlShiftEnter, phone, fname, lname);
 }
 
-void MainWidget::confirmSendImage(bool ctrlShiftEnter, const ReadyLocalMedia &img) {
-	history.confirmSendImage(ctrlShiftEnter, img);
+void MainWidget::confirmSendImage(const ReadyLocalMedia &img) {
+	history.confirmSendImage(img);
 }
 
 void MainWidget::confirmSendImageUncompressed(bool ctrlShiftEnter) {

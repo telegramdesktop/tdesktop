@@ -2746,7 +2746,7 @@ void HistoryWidget::uploadConfirmImageUncompressed(bool ctrlShiftEnter) {
 	if (confirmWithText) {
 		onSend(ctrlShiftEnter);
 	}
-	imageLoader.append(confirmImage, peerId, ToPrepareDocument);
+	imageLoader.append(confirmImage, peerId, ToPrepareDocument, ctrlShiftEnter);
 	confirmImageId = 0;
 	confirmWithText = false;
 	confirmImage = QImage();
@@ -2774,7 +2774,7 @@ void HistoryWidget::onPhotoReady() {
 		if (i->id == confirmImageId) {
 			App::wnd()->showLayer(new PhotoSendBox(*i));
 		} else {
-			confirmSendImage(false, *i);
+			confirmSendImage(*i);
 		}
 	}
 	list.clear();
@@ -2798,10 +2798,10 @@ void HistoryWidget::confirmShareContact(bool ctrlShiftEnter, const QString &phon
 	shareContact(peerId, phone, fname, lname);
 }
 
-void HistoryWidget::confirmSendImage(bool ctrlShiftEnter, const ReadyLocalMedia &img) {
+void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
 	if (img.id == confirmImageId) {
 		if (confirmWithText) {
-			onSend(ctrlShiftEnter);
+			onSend(img.ctrlShiftEnter);
 		}
 		confirmImageId = 0;
 		confirmWithText = false;

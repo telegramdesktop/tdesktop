@@ -292,7 +292,7 @@ public:
 	void uploadMedias(const QStringList &files, ToPrepareMediaType type);
 	void uploadMedia(const QByteArray &fileContent, ToPrepareMediaType type);
 	void confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname);
-	void confirmSendImage(bool ctrlShiftEnter, const ReadyLocalMedia &img);
+	void confirmSendImage(const ReadyLocalMedia &img);
 	void cancelSendImage();
 
 	void checkUnreadLoaded(bool checkOnlyShow = false);
