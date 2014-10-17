@@ -189,7 +189,7 @@ QString filedialogDefaultName(const QString &prefix, const QString &extension, c
 	QChar zero('0');
 
 	QString name;
-	QString base = prefix + QString("_%1-%2-%3_%4-%5-%6").arg(tm.tm_year + 1900).arg(tm.tm_mon + 1, 2, 10, zero).arg(tm.tm_mday, 2, 10, zero).arg(tm.tm_hour, 2, 10, zero).arg(tm.tm_min, 2, 10, zero).arg(tm.tm_sec, 2, 10, zero);
+	QString base = prefix + qsl("_%1-%2-%3_%4-%5-%6").arg(tm.tm_year + 1900).arg(tm.tm_mon + 1, 2, 10, zero).arg(tm.tm_mday, 2, 10, zero).arg(tm.tm_hour, 2, 10, zero).arg(tm.tm_min, 2, 10, zero).arg(tm.tm_sec, 2, 10, zero);
 	if (skipExistance) {
 		name = base + extension;
 	} else {
@@ -197,8 +197,23 @@ QString filedialogDefaultName(const QString &prefix, const QString &extension, c
 		QString nameBase = dir.absolutePath() + '/' + base;
 		name = nameBase + extension;
 		for (int i = 0; QFileInfo(name).exists(); ++i) {
-			name = nameBase + QString(" (%1)").arg(i + 2) + extension;
+			name = nameBase + qsl(" (%1)").arg(i + 2) + extension;
 		}
 	}
 	return name;
+}
+
+QString filedialogNextFilename(const QString &name, const QString &cur, const QString &path) {
+	QDir dir(path.isEmpty() ? cDialogLastPath() : path);
+	int32 extIndex = name.lastIndexOf('.');
+	QString prefix = name, extension;
+	if (extIndex >= 0) {
+		extension = name.mid(extIndex);
+		prefix = name.mid(0, extIndex);
+	}
+	QString nameBase = dir.absolutePath() + '/' + prefix, result = nameBase + extension;
+	for (int i = 0; result.toLower() != cur.toLower() && QFileInfo(result).exists(); ++i) {
+		result = nameBase + qsl(" (%1)").arg(i + 2) + extension;
+	}
+	return result;
 }

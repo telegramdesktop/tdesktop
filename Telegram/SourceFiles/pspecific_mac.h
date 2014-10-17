@@ -186,6 +186,8 @@ void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);
 
 QRect psDesktopRect();
+void psShowOverAll(QWidget *w, bool canFocus = true);
+void psBringToBack(QWidget *w);
 
 int psCleanup();
 int psFixPrevious();

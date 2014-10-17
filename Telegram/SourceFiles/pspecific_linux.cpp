@@ -293,6 +293,12 @@ QRect psDesktopRect() {
     return _monitorRect;
 }
 
+void psShowOverAll(QWidget *w, bool canFocus) {
+}
+
+void psBringToBack(QWidget *w) {
+}
+
 void PsMainWindow::psActivateNotify(NotifyWindow *w) {
 }
 

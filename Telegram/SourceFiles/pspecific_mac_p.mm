@@ -184,19 +184,26 @@ void PsMacWindowPrivate::updateDelegate() {
     [center setDelegate:data->notifyHandler];
 }
 
-void PsMacWindowPrivate::holdOnTop(WId winId) {
+void objc_holdOnTop(WId winId) {
     NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
     [wnd setHidesOnDeactivate:NO];
 }
 
-void PsMacWindowPrivate::showOverAll(WId winId) {
+void objc_showOverAll(WId winId, bool canFocus) {
     NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
-    [wnd setLevel:NSFloatingWindowLevel];
-    [wnd setStyleMask:NSUtilityWindowMask | NSNonactivatingPanelMask];
-    [wnd setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces|NSWindowCollectionBehaviorFullScreenAuxiliary|NSWindowCollectionBehaviorIgnoresCycle];
+	[wnd setLevel:NSPopUpMenuWindowLevel];
+	if (!canFocus) {
+		[wnd setStyleMask:NSUtilityWindowMask | NSNonactivatingPanelMask];
+		[wnd setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces|NSWindowCollectionBehaviorFullScreenAuxiliary|NSWindowCollectionBehaviorIgnoresCycle];
+	}
 }
 
-void PsMacWindowPrivate::activateWnd(WId winId) {
+void objc_bringToBack(WId winId) {
+	NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
+	[wnd setLevel:NSModalPanelWindowLevel];
+}
+
+void objc_activateWnd(WId winId) {
     NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
     [wnd orderFront:wnd];
 }

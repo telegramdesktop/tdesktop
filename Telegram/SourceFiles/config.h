@@ -84,6 +84,8 @@ enum {
 	MaxZoomLevel = 7, // x8
 
 	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
+	EmojiPadPerRow = 7,
+	EmojiPadRowsPerPage = 6,
 };
 
 #ifdef Q_OS_WIN

@@ -106,9 +106,10 @@ public slots:
 private:
 
 	QString _text;
-	int32 _textWidth;
 
 	style::iconedButton _st;
+	int32 _width;
+
 	anim::fvalue a_opacity;
 	anim::cvalue a_bg;
 

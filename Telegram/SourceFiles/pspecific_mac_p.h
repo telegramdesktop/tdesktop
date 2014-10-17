@@ -29,9 +29,6 @@ public:
 
 	void updateDelegate();
     
-    void holdOnTop(WId winId);
-    void showOverAll(WId winId);
-    void activateWnd(WId winId);
     void showNotify(uint64 peer, const QString &title, const QString &subtitle, const QString &msg, bool withReply);
     void clearNotifies(uint64 peer = 0);
     
@@ -49,6 +46,11 @@ public:
     PsMacWindowData *data;
     
 };
+
+void objc_holdOnTop(WId winId);
+void objc_showOverAll(WId winId, bool canFocus = true);
+void objc_bringToBack(WId winId);
+void objc_activateWnd(WId winId);
 
 void objc_debugShowAlert(const QString &str);
 void objc_outputDebugString(const QString &str);

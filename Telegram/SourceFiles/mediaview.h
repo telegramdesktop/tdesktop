@@ -52,15 +52,19 @@ public:
 
 	bool animStep(float64 dt);
 
+	void showSaveMsgFile();
+
 	~MediaView();
 
 public slots:
 
 	void onClose();
 	void onSave();
+	void onDownload();
 	void onShowInFolder();
 	void onForward();
 	void onDelete();
+	void onOverview();
 	void onCopy();
 	void onMenuDestroy(QObject *obj);
 	void receiveMouse();
@@ -79,12 +83,14 @@ private:
 	void userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mtpRequestId req);
 
 	void updateHeader();
+	void updatePolaroid();
 	void snapXY();
 
 	QTimer _timer;
 	PhotoData *_photo;
 	DocumentData *_doc;
-	QRect _avail, _leftNav, _rightNav, _nameNav, _dateNav, _topActions, _bottomActions;
+	QRect _avail, _leftNav, _rightNav, _bottomBar, _nameNav, _dateNav, _polaroidOut, _polaroidIn;
+	int32 _availBottom;
 	bool _leftNavVisible, _rightNavVisible;
 	QString _dateText;
 
@@ -101,6 +107,7 @@ private:
 	History *_history; // if conversation photos overview
 	PeerData *_peer;
 	UserData *_user, *_from; // if user profile photos overview
+	Text _fromName;
 	int32 _index; // index in photos array, -1 if just photo
 	MsgId _msgid; // msgId of current photo
 
@@ -118,13 +125,20 @@ private:
 	OverState _over, _down;
 	QPoint _lastAction;
 
-	FlatButton _close, _save, _forward, _delete;
+	IconedButton _close, _save, _forward, _delete, _overview;
 	ContextMenu *_menu;
 	bool _receiveMouse;
 
 	bool _touchPress, _touchMove, _touchRightButton;
 	QTimer _touchTimer;
 	QPoint _touchStart;
+
+	QString _saveMsgFilename;
+	uint64 _saveMsgStarted;
+	anim::fvalue _saveMsgOpacity;
+	QRect _saveMsg;
+	QTimer _saveMsgUpdater;
+	Text _saveMsgText;
 
 	typedef QMap<OverState, uint64> Showing;
 	Showing _animations;
@@ -133,5 +147,6 @@ private:
 
 	bool updateOverState(OverState newState);
 	float64 overLevel(OverState control);
-	QColor nameDateColor(float64 over);
+	QColor overColor(const QColor &a, float64 ca, const QColor &b, float64 cb);
+
 };

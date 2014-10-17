@@ -363,7 +363,7 @@ void PsMainWindow::psClearNotifies(PeerId peerId) {
 }
 
 void PsMainWindow::psActivateNotify(NotifyWindow *w) {
-	_private.activateWnd(w->winId());
+	objc_activateWnd(w->winId());
 }
 
 namespace {
@@ -380,11 +380,19 @@ QRect psDesktopRect() {
 	return _monitorRect;
 }
 
+void psShowOverAll(QWidget *w, bool canFocus) {
+	objc_showOverAll(w->winId(), canFocus);
+}
+
+void psBringToBack(QWidget *w) {
+	objc_bringToBack(w->winId());
+}
+
 void PsMainWindow::psNotifyShown(NotifyWindow *w) {
 	w->hide();
-	_private.holdOnTop(w->winId());
+	objc_holdOnTop(w->winId());
 	w->show();
-	_private.showOverAll(w->winId());
+	psShowOverAll(w, false);
 }
 
 void PsMainWindow::psPlatformNotify(HistoryItem *item) {

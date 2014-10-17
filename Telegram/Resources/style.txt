@@ -841,6 +841,10 @@ outTextStyle: textStyle(defaultTextStyle) {
 	selectBG: msgOutSelectBG;
 	selectOverlay: msgOutSelectOverlay;
 }
+medviewSaveAsTextStyle: textStyle(defaultTextStyle) {
+	lnkColor: #91d9ff;
+	lnkDownColor: #91d9ff;
+}
 
 dlgTextStyle: textStyle(defaultTextStyle) {
 	lnkColor: dlgSystemColor;
@@ -1463,46 +1467,109 @@ emojiPanDuration: 200;
 emojiPanHover: #f0f0f0;
 emojiPanRound: 2px;
 
-medviewNavBarWidth: 120px;
-medviewTopSkip: 66px;
-medviewBottomSkip: 66px;
-medviewMainWidth: 600px;
-medviewControlsBgOpacity: 0.5;
-medviewLightOpacity: 0.7;
-medviewDarkOpacity: 0.8;
+medviewNavBarWidth: 132px;
 medviewLightNav: 0.5;
-medviewHeaderFont: font(semibold 18px);
-medviewDateFont: font(fsize);
-medviewNameTop: 3px;
-medviewDateTop: 25px;
-medviewHeaderColor: #ffffffc0;
-medviewNameColor: medviewHeaderColor;
-medviewNameOverColor: #fff;
 medviewDarkNav: 1;
-medviewMinWidth: 600;
-medviewLeft: sprite(0px, 340px, 22px, 40px);
-medviewRight: sprite(22px, 340px, 22px, 40px);
+medviewHeaderFont: font(semibold 18px);
+medviewNameFont: font(16px);
+medviewDateFont: font(14px);
+medviewNameTop: 13px;
+medviewDateTop: 39px;
+medviewLeft: sprite(340px, 79px, 28px, 48px);
+medviewRight: sprite(368px, 79px, 28px, 48px);
 medviewDeltaFromLastAction: 5px;
 medviewSwipeDistance: 80px;
-medviewButton: flatButton(btnDefFlat) {
-	color: #ffffff80;
-	overColor: #fff;
-	downColor: #fff;
 
+medviewSaveMsgCheck: sprite(341px, 174px, 22px, 18px);
+medviewSaveMsgFont: font(16px);
+medviewSaveMsgPadding: margins(55px, 19px, 29px, 20px);
+medviewSaveMsgCheckPos: point(23px, 21px);
+medviewSaveMsgRadius: 3px;
+medviewSaveMsgShowing: 200;
+medviewSaveMsgShown: 2000;
+medviewSaveMsgHiding: 2500;
+medviewSaveMsg: #000000b2;
+
+medviewOverview: iconedButton(btnDefIconed) {
 	bgColor: #0000;
-	overBgColor: #00000055;
-	downBgColor: #00000055;
-
-	width: 100px;
-	height: 46px;
-
-	textTop: 13px;
-	overTextTop: 13px;
-	downTextTop: 14px;
-
+	overBgColor: #00000040;
 	font: font(16px);
-	overFont: font(16px);
+
+	opacity: 0.77;
+	overOpacity: 1;
+
+	icon: sprite(340px, 129px, 19px, 19px);
+	iconPos: point(16px, 14px);
+	downIcon: sprite(340px, 129px, 19px, 19px);
+	downIconPos: point(16px, 14px);
+
+	width: -69px;
+	height: 47px;
+
+	color: white;
+
+	textPos: point(51px, 13px);
+	downTextPos: point(51px, 14px);
 }
+medviewForward: iconedButton(medviewOverview) {
+	icon: sprite(357px, 58px, 22px, 17px);
+	iconPos: point(16px, 15px);
+	downIcon: sprite(357px, 58px, 22px, 17px);
+	downIconPos: point(16px, 15px);
+
+	width: -69px;
+}
+medviewDelete: iconedButton(medviewForward) {
+	icon: sprite(340px, 58px, 15px, 19px);
+	iconPos: point(16px, 14px);
+	downIcon: sprite(340px, 58px, 15px, 19px);
+	downIconPos: point(16px, 14px);
+}
+medviewClose: iconedButton(medviewOverview) {
+	icon: sprite(340px, 0px, 56px, 56px);
+	iconPos: point(0px, 0px);
+	downIcon: sprite(340px, 0px, 56px, 56px);
+	downIconPos: point(0px, 0px);
+
+	opacity: 0.6;
+
+	width: 56px;
+	height: 56px;
+}
+medviewBottomBar: 87px;
+medviewBG: #272727D9;
+medviewBottomBG: #272727;
+medviewNavOpacity: 0.6;
+medviewCloseOpacity: 0.6;
+medviewNavBGOpacity: 0.4;
+medviewNavOverOpacity: 1;
+medviewCloseOverOpacity: 1;
+medviewNameColor: black;
+medviewDateColor: #999;
+medviewSaveAs: iconedButton(medviewOverview) {
+	bgColor: #38abe6;
+	overBgColor: #299fdc;
+
+	opacity: 1;
+
+	icon: sprite(361px, 129px, 12px, 19px);
+	iconPos: point(18px, 15px);
+	downIcon: sprite(361px, 129px, 12px, 19px);
+	downIconPos: point(18px, 15px);
+
+	width: -62px;
+	height: 47px;
+
+	textPos: point(44px, 13px);
+	downTextPos: point(44px, 14px);
+}
+medviewSaveAsDisabledOpacity: 0.8;
+medviewPolaroid: margins(17px, 18px, 17px, 72px);
+medviewPolaroidMin: size(480px, 360px);
+medviewDocumentSprite: sprite(341px, 150px, 20px, 22px);
+medviewDocumentSpritePos: point(16px, 13px);
+medviewPhotoSprite: sprite(363px, 150px, 23px, 20px);
+medviewPhotoSpritePos: point(14px, 14px);
 
 overviewPhotoSkip: 10px;
 overviewPhotoMinSize: 100px;

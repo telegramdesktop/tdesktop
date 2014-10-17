@@ -1546,7 +1546,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
 	connect(&_send, SIGNAL(clicked()), this, SLOT(onSend()));
 	connect(&_attachDocument, SIGNAL(clicked()), this, SLOT(onDocumentSelect()));
 	connect(&_attachPhoto, SIGNAL(clicked()), this, SLOT(onPhotoSelect()));
-	connect(&_field, SIGNAL(submitted()), this, SLOT(onSend()));
+	connect(&_field, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
 	connect(&_field, SIGNAL(cancelled()), this, SIGNAL(cancelled()));
 	connect(&_field, SIGNAL(tabbed()), this, SLOT(onFieldTabbed()));
 	connect(&_field, SIGNAL(resized()), this, SLOT(onFieldResize()));
@@ -2189,7 +2189,7 @@ void HistoryWidget::onHistoryToEnd() {
 	}
 }
 
-void HistoryWidget::onSend() {
+void HistoryWidget::onSend(bool ctrlShiftEnter) {
 	if (!hist) return;
 
 	QString text = prepareMessage(_field.getText());

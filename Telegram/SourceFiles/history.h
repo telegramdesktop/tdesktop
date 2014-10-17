@@ -37,7 +37,7 @@ static const uint32 FullItemSel = 0xFFFFFFFF;
 
 typedef QMap<int32, HistoryItem*> SelectedItemSet;
 
-extern TextParseOptions _textNameOptions;
+extern TextParseOptions _textNameOptions, _textDlgOptions;
 
 struct NotifySettings {
 	NotifySettings() : mute(0), sound("default"), previews(true), events(1) {

@@ -453,8 +453,6 @@ void VideoSaveLink::doSave(bool forceSavingAs) const {
 	VideoData *data = video();
 	if (!data->user && !data->date) return;
 
-	bool openingWith = !data->already().isEmpty();
-
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
 		psOpenFile(already, true);
@@ -463,8 +461,9 @@ void VideoSaveLink::doSave(bool forceSavingAs) const {
 		QString name = already.isEmpty() ? QString(".mov") : already;
 		QString filename = saveFileName(lang(lng_save_video), qsl("MOV Video (*.mov);;All files (*.*)"), qsl("video"), name, forceSavingAs, alreadyDir);
 		if (!filename.isEmpty()) {
-			if (forceSavingAs) data->cancel();
-			if (!already.isEmpty()) {
+			if (forceSavingAs) {
+				data->cancel();
+			} else if (!already.isEmpty()) {
 				data->openOnSave = -1;
 				data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
 			}
@@ -529,8 +528,6 @@ void AudioSaveLink::doSave(bool forceSavingAs) const {
 	AudioData *data = audio();
 	if (!data->user && !data->date) return;
 
-	bool openingWith = !data->already().isEmpty();
-
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
 		psOpenFile(already, true);
@@ -539,8 +536,9 @@ void AudioSaveLink::doSave(bool forceSavingAs) const {
 		QString name = already.isEmpty() ? QString(".ogg") : already;
 		QString filename = saveFileName(lang(lng_save_audio), qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), name, forceSavingAs, alreadyDir);
 		if (!filename.isEmpty()) {
-			if (forceSavingAs) data->cancel();
-			if (!already.isEmpty()) {
+			if (forceSavingAs) {
+				data->cancel();
+			} else if (!already.isEmpty()) {
 				data->openOnSave = -1;
 				data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
 			}
@@ -620,8 +618,6 @@ void DocumentSaveLink::doSave(bool forceSavingAs) const {
 	DocumentData *data = document();
 	if (!data->user && !data->date) return;
 
-	bool openingWith = !data->already().isEmpty();
-
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
 		psOpenFile(already, true);
@@ -643,8 +639,9 @@ void DocumentSaveLink::doSave(bool forceSavingAs) const {
 
 		QString filename = saveFileName(lang(lng_save_document), filter, qsl("doc"), name, forceSavingAs, alreadyDir);
 		if (!filename.isEmpty()) {
-			if (forceSavingAs) data->cancel();
-			if (!already.isEmpty()) {
+			if (forceSavingAs) {
+				data->cancel();
+			} else if (!already.isEmpty()) {
 				data->openOnSave = -1;
 				data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
 			}

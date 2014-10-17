@@ -60,7 +60,7 @@ public slots:
 signals:
 
 	void changed();
-	void submitted();
+	void submitted(bool ctrlShiftEnter);
 	void cancelled();
 	void tabbed();
 

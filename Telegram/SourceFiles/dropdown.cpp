@@ -315,10 +315,8 @@ bool DragArea::animStep(float64 ms) {
 	return res;
 }
 
-static const int emojiPerRow = 7, emojiRowsPerPage = 6;
-
 EmojiPanInner::EmojiPanInner(QWidget *parent) : QWidget(parent), _tab(cEmojiTab()), _selected(-1), _pressedSel(-1) {
-	resize(emojiPerRow * st::emojiPanSize.width(), emojiRowsPerPage * st::emojiPanSize.height() - st::emojiPanSub);
+	resize(EmojiPadPerRow * st::emojiPanSize.width(), EmojiPadRowsPerPage * st::emojiPanSize.height() - st::emojiPanSub);
 	setMouseTracking(true);
 	setFocusPolicy(Qt::NoFocus);
 	_saveConfigTimer.setSingleShot(true);
@@ -337,11 +335,11 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 
 	QRect r = e ? e->rect() : rect();
 
-	int32 rows = (size / emojiPerRow) + ((size % emojiPerRow) ? 1 : 0);
+	int32 rows = (size / EmojiPadPerRow) + ((size % EmojiPadPerRow) ? 1 : 0);
 	int32 fromrow = qMax(qFloor(r.top() / st::emojiPanSize.height()), 0), torow = qMin(qCeil(r.bottom() / st::emojiPanSize.height()) + 1, rows);
 	for (int32 i = fromrow; i < torow; ++i) {
-		for (int32 j = 0; j < emojiPerRow; ++j) {
-			int32 index = i * emojiPerRow + j;
+		for (int32 j = 0; j < EmojiPadPerRow; ++j) {
+			int32 index = i * EmojiPadPerRow + j;
 			if (index >= size) break;
 
 			float64 hover = _hovers[index];
@@ -395,7 +393,7 @@ void EmojiPanInner::mouseReleaseEvent(QMouseEvent *e) {
 			}
 		}
 		if (i == e) {
-			while (recent.size() >= emojiPerRow * emojiRowsPerPage) recent.pop_back();
+			while (recent.size() >= EmojiPadPerRow * EmojiPadRowsPerPage) recent.pop_back();
 			recent.push_back(qMakePair(emoji, 1));
 			for (i = recent.end() - 1; i != recent.begin(); --i) {
 				if ((i - 1)->second > i->second) {
@@ -428,8 +426,8 @@ void EmojiPanInner::leaveEvent(QEvent *e) {
 void EmojiPanInner::updateSelected() {
 	int32 selIndex = -1;
 	QPoint p(mapFromGlobal(_lastMousePos));
-	if (p.x() >= 0 && p.y() >= 0 && p.x() < emojiPerRow * st::emojiPanSize.width()) {
-		selIndex = qFloor(p.y() / st::emojiPanSize.height()) * emojiPerRow + qFloor(p.x() / st::emojiPanSize.width());
+	if (p.x() >= 0 && p.y() >= 0 && p.x() < EmojiPadPerRow * st::emojiPanSize.width()) {
+		selIndex = qFloor(p.y() / st::emojiPanSize.height()) * EmojiPadPerRow + qFloor(p.x() / st::emojiPanSize.width());
 		if (selIndex >= _emojis.size()) {
 			selIndex = -1;
 		}
@@ -479,7 +477,7 @@ void EmojiPanInner::showEmojiPack(DBIEmojiTab packIndex) {
 	_emojiAnimations.clear();
 	_selected = _pressedSel = -1;
 	int32 size = _emojis.size();
-	int32 h = qMax(((size / emojiPerRow) + ((size % emojiPerRow) ? 1 : 0)) * st::emojiPanSize.height(), emojiRowsPerPage * st::emojiPanSize.height() - int(st::emojiPanSub));
+	int32 h = qMax(((size / EmojiPadPerRow) + ((size % EmojiPadPerRow) ? 1 : 0)) * st::emojiPanSize.height(), EmojiPadRowsPerPage * st::emojiPanSize.height() - int(st::emojiPanSub));
 	resize(width(), h);
 	_lastMousePos = QCursor::pos();
 	updateSelected();
@@ -501,7 +499,7 @@ _scroll(this, st::emojiScroll), _inner() {
 
 	_inner.showEmojiPack(cEmojiTab());
 
-	_scroll.setGeometry(st::dropdownPadding.left() + st::emojiPanPadding.left(), st::dropdownPadding.top() + _recent.height() + st::emojiPanPadding.top(), st::emojiPanPadding.left() + _inner.width() + st::emojiPanPadding.right(), emojiRowsPerPage * st::emojiPanSize.height() - st::emojiPanSub);
+	_scroll.setGeometry(st::dropdownPadding.left() + st::emojiPanPadding.left(), st::dropdownPadding.top() + _recent.height() + st::emojiPanPadding.top(), st::emojiPanPadding.left() + _inner.width() + st::emojiPanPadding.right(), EmojiPadRowsPerPage * st::emojiPanSize.height() - st::emojiPanSub);
 	_scroll.setWidget(&_inner);
 
 	_width = st::dropdownPadding.left() + st::emojiPanPadding.left() + _scroll.width() + st::emojiPanPadding.right() + st::dropdownPadding.right();

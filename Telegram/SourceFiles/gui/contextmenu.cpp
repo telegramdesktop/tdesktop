@@ -209,6 +209,7 @@ void ContextMenu::showStart() {
 	animStep(0);
 	psUpdateOverlayed(this);
 	show();
+	psShowOverAll(this);
 	windowHandle()->requestActivate();
 	activateWindow();
 	setFocus();

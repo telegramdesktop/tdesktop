@@ -64,7 +64,7 @@ QByteArray gLocalSalt;
 DBIScale gRealScale = dbisAuto, gScreenScale = dbisOne, gConfigScale = dbisAuto;
 bool gCompressPastedImage = true;
 
-DBIEmojiTab gEmojiTab = dbietPeople;
+DBIEmojiTab gEmojiTab = dbietRecent;
 RecentEmojiPack gRecentEmojis;
 RecentEmojiPreload gRecentEmojisPreload;
 
@@ -130,16 +130,70 @@ void settingsParseArgs(int argc, char *argv[]) {
 }
 
 const RecentEmojiPack &cGetRecentEmojis() {
-	if (cRecentEmojis().isEmpty() && !cRecentEmojisPreload().isEmpty()) {
-		RecentEmojiPreload p(cRecentEmojisPreload());
-		cSetRecentEmojisPreload(RecentEmojiPreload());
+	if (cRecentEmojis().isEmpty()) {
 		RecentEmojiPack r;
-		r.reserve(p.size());
-		for (RecentEmojiPreload::const_iterator i = p.cbegin(), e = p.cend(); i != e; ++i) {
-			EmojiPtr ep(getEmoji(i->first));
-			if (ep) {
-				r.push_back(qMakePair(ep, i->second));
+		if (!cRecentEmojisPreload().isEmpty()) {
+			RecentEmojiPreload p(cRecentEmojisPreload());
+			cSetRecentEmojisPreload(RecentEmojiPreload());
+			r.reserve(p.size());
+			for (RecentEmojiPreload::const_iterator i = p.cbegin(), e = p.cend(); i != e; ++i) {
+				EmojiPtr ep(getEmoji(i->first));
+				if (ep) {
+					r.push_back(qMakePair(ep, i->second));
+				}
 			}
+		}
+		uint32 defaultRecent[] = {
+			0xD83DDE02,
+			0xD83DDE18,
+			0x2764,
+			0xD83DDE0D,
+			0xD83DDE0A,
+			0xD83DDE01,
+			0xD83DDC4D,
+			0x263A,
+			0xD83DDE14,
+			0xD83DDE04,
+			0xD83DDE2D,
+			0xD83DDC8B,
+			0xD83DDE12,
+			0xD83DDE33,
+			0xD83DDE1C,
+			0xD83DDE48,
+			0xD83DDE09,
+			0xD83DDE03,
+			0xD83DDE22,
+			0xD83DDE1D,
+			0xD83DDE31,
+			0xD83DDE21,
+			0xD83DDE0F,
+			0xD83DDE1E,
+			0xD83DDE05,
+			0xD83DDE1A,
+			0xD83DDE4A,
+			0xD83DDE0C,
+			0xD83DDE00,
+			0xD83DDE0B,
+			0xD83DDE06,
+			0xD83DDC4C,
+			0xD83DDE10,
+			0xD83DDE15,
+		};
+		for (int32 i = 0, s = sizeof(defaultRecent) / sizeof(defaultRecent[0]); i < s; ++i) {
+			if (r.size() >= EmojiPadPerRow * EmojiPadRowsPerPage) break;
+
+			EmojiPtr ep(getEmoji(defaultRecent[i]));
+			if (!ep) continue;
+
+			int32 j = 0, l = r.size();
+			for (; j < l; ++j) {
+				if (r[j].first == ep) {
+					break;
+				}
+			}
+			if (j < l) continue;
+
+			r.push_back(qMakePair(ep, 1));
 		}
 		cSetRecentEmojis(r);
 	}

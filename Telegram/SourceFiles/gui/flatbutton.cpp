@@ -133,15 +133,15 @@ LinkButton::~LinkButton() {
 }
 
 IconedButton::IconedButton(QWidget *parent, const style::iconedButton &st, const QString &text) : Button(parent),
-	_text(text), _st(st), a_opacity(_st.opacity), a_bg(_st.bgColor->c), _opacity(1) {
+	_text(text), _st(st), _width(_st.width), a_opacity(_st.opacity), a_bg(_st.bgColor->c), _opacity(1) {
 
-	if (_st.width < 0) {
-		_st.width = _st.font->m.width(text) - _st.width;
-	} else if (!_st.width) {
-		_st.width = _st.font->m.width(text) + _st.height - _st.font->height;
+	if (_width < 0) {
+		_width = _st.font->m.width(text) - _width;
+	} else if (!_width) {
+		_width = _st.font->m.width(text) + _st.height - _st.font->height;
 	}
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
-	resize(_st.width, _st.height);
+	resize(_width, _st.height);
 	setCursor(_st.cursor);
 }
 
@@ -151,8 +151,16 @@ void IconedButton::setOpacity(float64 opacity) {
 }
 
 void IconedButton::setText(const QString &text) {
-	_text = text;
-	update();
+	if (_text != text) {
+		_text = text;
+		if (_st.width < 0) {
+			_width = _st.font->m.width(text) - _st.width;
+		} else if (!_st.width) {
+			_width = _st.font->m.width(text) + _st.height - _st.font->height;
+		}
+		resize(_width, _st.height);
+		update();
+	}
 }
 
 bool IconedButton::animStep(float64 ms) {

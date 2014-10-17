@@ -671,7 +671,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 						}
 					}
 					if (sel == FullItemSel) {
-						p.fillRect(QRect(pos.x(), pos.y(), size / cIntRetinaFactor(), size / cIntRetinaFactor()), st::msgInSelectOverlay->b);
+						p.fillRect(QRect(pos.x(), pos.y(), size, size), st::msgInSelectOverlay->b);
 					}
 				} break;
 				}

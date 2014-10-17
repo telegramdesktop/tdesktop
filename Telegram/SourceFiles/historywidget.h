@@ -354,7 +354,7 @@ public slots:
 
 	void onListScroll();
 	void onHistoryToEnd();
-	void onSend();
+	void onSend(bool ctrlShiftEnter = false);
 
 	void onPhotoSelect();
 	void onDocumentSelect();

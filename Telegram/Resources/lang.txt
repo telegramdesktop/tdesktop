@@ -431,15 +431,16 @@ lng_search_no_results: "No messages found";
 lng_search_one_result: "Found {count} message";
 lng_search_n_results: "Found {count} messages";
 
-lng_mediaview_close: "Close";
-lng_mediaview_save: "Save as";
+lng_mediaview_save: "Download";
 lng_mediaview_forward: "Forward";
 lng_mediaview_delete: "Delete";
 lng_mediaview_single_photo: "Single Photo";
 lng_mediaview_group_photo: "Group Photo";
 lng_mediaview_profile_photo: "Profile Photo";
-lng_mediaview_n_of_count: "{n} of {count}";
+lng_mediaview_n_of_count: "Photo {n} of {count}";
 lng_mediaview_doc_image: "Document";
+
+lng_mediaview_saved: "Image was saved to your [c]Downloads[/c] folder";
 
 // Mac specific
 
