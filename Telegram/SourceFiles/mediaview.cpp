@@ -618,10 +618,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 					}
 					float64 progress = (hidingDt >= 0) ? (hidingDt / st::medviewSaveMsgHiding) : (dt / st::medviewSaveMsgShowing);
 					_saveMsgOpacity.update(qMin(progress, 1.), anim::linear);
-					if (hidingDt >= 0) {
-						objc_outputDebugString(QString("Now updating hiding, dt: %1, progress: %2, opacity: %3").arg(hidingDt).arg(hidingDt >= 0 ? (hidingDt / st::medviewSaveMsgHiding) : (dt / st::medviewSaveMsgShowing)).arg(_saveMsgOpacity.current()));
-					}
-					if (_saveMsgOpacity.current() > 0) {
+                    if (_saveMsgOpacity.current() > 0) {
 						p.setOpacity(_saveMsgOpacity.current());
 						p.setBrush(st::medviewSaveMsg->b);
 						p.setPen(Qt::NoPen);
@@ -635,7 +632,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 						p.setOpacity(1);
 					}
 					if (_full >= 1) {
-						uint64 nextFrame = (dt < st::medviewSaveMsgShowing || hidingDt >= 0 || true) ? AnimationTimerDelta : (st::medviewSaveMsgShowing + st::medviewSaveMsgShown + 1 - dt);
+                        uint64 nextFrame = (dt < st::medviewSaveMsgShowing || hidingDt >= 0) ? int(AnimationTimerDelta) : (st::medviewSaveMsgShowing + st::medviewSaveMsgShown + 1 - dt);
 						_saveMsgUpdater.start(nextFrame);
 					}
 				} else {
@@ -945,7 +942,9 @@ bool MediaView::updateOverState(OverState newState) {
 void MediaView::updateOver(const QPoint &pos) {
 	TextLinkPtr lnk;
 	bool inText;
-	_saveMsgText.getState(lnk, inText, pos.x() - _saveMsg.x() - st::medviewSaveMsgPadding.left(), pos.y() - _saveMsg.y() - st::medviewSaveMsgPadding.top(), _saveMsg.width() - st::medviewSaveMsgPadding.left() - st::medviewSaveMsgPadding.right());
+    if (_saveMsgStarted) {
+        _saveMsgText.getState(lnk, inText, pos.x() - _saveMsg.x() - st::medviewSaveMsgPadding.left(), pos.y() - _saveMsg.y() - st::medviewSaveMsgPadding.top(), _saveMsg.width() - st::medviewSaveMsgPadding.left() - st::medviewSaveMsgPadding.right());
+    }
 	if (lnk != textlnkOver()) {
 		textlnkOver(lnk);
 		setCursor((textlnkOver() || textlnkDown()) ? style::cur_pointer : style::cur_default);

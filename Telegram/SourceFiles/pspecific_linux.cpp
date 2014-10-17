@@ -294,9 +294,11 @@ QRect psDesktopRect() {
 }
 
 void psShowOverAll(QWidget *w, bool canFocus) {
+    w->show();
 }
 
 void psBringToBack(QWidget *w) {
+    w->hide();
 }
 
 void PsMainWindow::psActivateNotify(NotifyWindow *w) {
@@ -956,8 +958,9 @@ void psOpenFile(const QString &name, bool openWith) {
 }
 
 void psShowInFolder(const QString &name) {
-    QDesktopServices::openUrl(QFileInfo(name).absoluteDir().absolutePath());
-//    system(("nautilus " + QFileInfo(name).absoluteDir().absolutePath()).toUtf8().constData());
+//    QDesktopServices::openUrl(QFileInfo(name).absoluteDir().absolutePath());
+    App::wnd()->layerHidden();
+    system(("nautilus \"" + QFileInfo(name).absoluteDir().absolutePath() + "\"").toUtf8().constData());
     //objc_showInFinder(name, QFileInfo(name).absolutePath());
 }
 
