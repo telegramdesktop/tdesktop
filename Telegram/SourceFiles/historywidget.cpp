@@ -2235,7 +2235,7 @@ mtpRequestId HistoryWidget::onForward(const PeerId &peer, SelectedItemSet toForw
 	
 		hist->loadAround(0);
 		if (item->id > 0 && msg) {
-			App::main()->readServerHistory(item->history(), false);
+			App::main()->readServerHistory(hist, false);
 
 			newId = clientMsgId();
 			hist->addToBackForwarded(newId, msg);
@@ -2244,7 +2244,7 @@ mtpRequestId HistoryWidget::onForward(const PeerId &peer, SelectedItemSet toForw
 	//		newId = clientMsgId();
 	//		MTP::send(MTPmessages_ForwardMessage(histPeer->input, MTP_int(item->id), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
 		} else if (msg) {
-			App::main()->readServerHistory(item->history(), false);
+			App::main()->readServerHistory(hist, false);
 
 			newId = clientMsgId();
 
@@ -2282,25 +2282,28 @@ void HistoryWidget::onShareContact(const PeerId &peer, UserData *contact) {
 	App::main()->showPeer(peer, 0, false, true);
 	if (!hist) return;
 
-	shareContact(contact->phone, contact->firstName, contact->lastName, int32(contact->id & 0xFFFFFFFF));
+	shareContact(peer, contact->phone, contact->firstName, contact->lastName, int32(contact->id & 0xFFFFFFFF));
 }
 
-void HistoryWidget::shareContact(const QString &phone, const QString &fname, const QString &lname, int32 userId) {
-	App::main()->readServerHistory(hist, false);
+void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const QString &fname, const QString &lname, int32 userId) {
+	History *h = App::history(peer);
+	App::main()->readServerHistory(h, false);
 
 	uint64 randomId = MTP::nonce<uint64>();
 	MsgId newId = clientMsgId();
 
-	hist->loadAround(0);
+	h->loadAround(0);
 
-	hist->addToBack(MTP_message(MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(histPeer->id), MTP_bool(true), MTP_bool(true), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId))));
+	h->addToBack(MTP_message(MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(peer), MTP_bool(true), MTP_bool(true), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId))));
 	
-	MTP::send(MTPmessages_SendMedia(histPeer->input, MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
+	MTP::send(MTPmessages_SendMedia(App::peer(peer)->input, MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
 
 	App::historyRegRandom(randomId, newId);
-	App::main()->historyToDown(hist);
+	if (hist && histPeer && peer == histPeer->id) {
+		App::main()->historyToDown(hist);
+	}
 	App::main()->dialogsToUp();
-	peerMessagesUpdated();
+	peerMessagesUpdated(peer);
 }
 
 void HistoryWidget::onSendPaths(const PeerId &peer) {
@@ -2735,11 +2738,15 @@ void HistoryWidget::shareContactConfirmation(const QString &phone, const QString
 	App::wnd()->showLayer(new PhotoSendBox(phone, fname, lname));
 }
 
-void HistoryWidget::uploadConfirmImageUncompressed() {
+void HistoryWidget::uploadConfirmImageUncompressed(bool ctrlShiftEnter) {
 	if (!hist || !confirmImageId || confirmImage.isNull()) return;
 
 	App::wnd()->activateWindow();
-	imageLoader.append(confirmImage, histPeer->id, ToPrepareDocument);
+	PeerId peerId = histPeer->id;
+	if (confirmWithText) {
+		onSend(ctrlShiftEnter);
+	}
+	imageLoader.append(confirmImage, peerId, ToPrepareDocument, ctrlShiftEnter);
 	confirmImageId = 0;
 	confirmWithText = false;
 	confirmImage = QImage();
@@ -2776,22 +2783,25 @@ void HistoryWidget::onPhotoReady() {
 void HistoryWidget::onPhotoFailed(quint64 id) {
 }
 
-void HistoryWidget::confirmShareContact(const QString &phone, const QString &fname, const QString &lname) {
+void HistoryWidget::confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname) {
+	if (!histPeer) return;
+
+	PeerId peerId = histPeer->id;
 	if (0xFFFFFFFFFFFFFFFFL == confirmImageId) {
 		if (confirmWithText) {
-			onSend();
+			onSend(ctrlShiftEnter);
 		}
 		confirmImageId = 0;
 		confirmWithText = false;
 		confirmImage = QImage();
 	}
-	shareContact(phone, fname, lname);
+	shareContact(peerId, phone, fname, lname);
 }
 
 void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
 	if (img.id == confirmImageId) {
 		if (confirmWithText) {
-			onSend();
+			onSend(img.ctrlShiftEnter);
 		}
 		confirmImageId = 0;
 		confirmWithText = false;

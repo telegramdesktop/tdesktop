@@ -245,7 +245,7 @@ CONFIG += precompile_header
 
 PRECOMPILED_HEADER = ./SourceFiles/stdafx.h
 
-QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter -Wno-unused-variable -Wno-switch -Wno-comment -Wno-unused-but-set-variable
+QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-result -Wno-unused-parameter -Wno-unused-variable -Wno-switch -Wno-comment -Wno-unused-but-set-variable
 
 CONFIG(release, debug|release) {
     QMAKE_CXXFLAGS_RELEASE -= -O2
