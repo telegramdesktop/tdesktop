@@ -999,150 +999,52 @@ typedef MTPBoxed<MTPnull> MTPNull;
 // Human-readable text serialization
 #if (defined _DEBUG || defined _WITH_DEBUG)
 
-QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpPrime cons = 0, uint32 level = 0, mtpPrime vcons = 0);
+template <typename Type>
+QString mtpWrapNumber(Type number, int32 base = 10) {
+	return QString::number(number, base);
+}
 
-inline QString mtpTextSerializeCore(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons, uint32 level, mtpPrime vcons = 0) {
-	QString add = QString(" ").repeated(level * 2);
-
-	switch (mtpTypeId(cons)) {
-	case mtpc_int: {
-		MTPint value(from, end, cons);
-	return QString("%1 [INT]").arg(value.v); }
-		
-	case mtpc_long: {
-		MTPlong value(from, end, cons);
-	return QString("%2 [LONG]").arg(value.v); }
-
-	case mtpc_int128: {
-		MTPint128 value(from, end, cons);
-	return QString("%1 * 2^64 + %2 [INT128]").arg(value.h).arg(value.l); }
-
-	case mtpc_int256: {
-		MTPint256 value(from, end, cons);
-	return QString("%1 * 2^192 + %2 * 2^128 + %3 * 2^64 + %4 [INT256]").arg(value.h.h).arg(value.h.l).arg(value.l.h).arg(value.l.l); }
-
-	case mtpc_double: {
-		MTPdouble value(from, end, cons);
-	return QString("%1 [DOUBLE]").arg(value.v); }
-
-	case mtpc_string: {
-		MTPstring value(from, end, cons);
-		QByteArray strUtf8(value.c_string().v.c_str(), value.c_string().v.length());
-		QString str = QString::fromUtf8(strUtf8);
-		if (str.toUtf8() == strUtf8) {
-			str = QString("\"%1\" [STRING]").arg(str.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n"));
-		} else {
-			str = mb(strUtf8.constData(), strUtf8.size()).str() + QString(" [%1 BYTES]").arg(strUtf8.size());
-		}
-	return str; }
-
-	case mtpc_boolTrue:
-	case mtpc_boolFalse: {
-		MTPbool value(from, end, cons);
-	return (value.v ? "[TRUE]" : "[FALSE]"); }
-
-	case mtpc_vector: {
-		if (from >= end) {
-			throw Exception("from >= end in vector");
-		}
-		int32 cnt = *(from++);
-		QString result;
-		if (cnt) {
-			result += "\n" + add;
-			for (int32 i = 0; i < cnt; ++i) {
-				result += "  " + mtpTextSerialize(from, end, vcons, level + 1) + ",\n" + add;
-			}
-		} else {
-			result = " ";
-		}
-	return QString("[ vector<%1>").arg(vcons) + result + "]"; }
-		
-	case mtpc_error: {
-		QString result;
-		result += "\n" + add;
-		result += "  code: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		result += "  text: " + mtpTextSerialize(from, end, mtpc_string, level + 1) + ",\n" + add;
-	return "{ error" + result + "}"; }
-
-	case mtpc_null: {
-		QString result;
-		result = " ";
-	return "{ null" + result + "}"; }
-
-	case mtpc_rpc_result: {
-		QString result;
-		result += "\n" + add;
-		result += "  req_msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		result += "  result: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-	return "{ rpc_result" + result + "}"; }
-
-	case mtpc_msg_container: {
-		QString result;
-		result += "\n" + add;
-		result += "  messages: " + mtpTextSerialize(from, end, mtpc_vector, level + 1, mtpc_core_message) + ",\n" + add;
-	return "{ msg_container" + result + "}"; }
-
-	case mtpc_core_message: {
-		QString result;
-		result += "\n" + add;
-		result += "  msg_id: " + mtpTextSerialize(from, end, mtpc_long, level + 1) + ",\n" + add;
-		result += "  seq_no: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		result += "  bytes: " + mtpTextSerialize(from, end, mtpc_int, level + 1) + ",\n" + add;
-		result += "  body: " + mtpTextSerialize(from, end, 0, level + 1) + ",\n" + add;
-	return "{ core_message" + result + "}"; }
-
-	case mtpc_gzip_packed: {
-		MTPstring packed(from, end); // read packed string as serialized mtp string type
-		uint32 packedLen = packed.c_string().v.size(), unpackedChunk = packedLen;
-		mtpBuffer result; // * 4 because of mtpPrime type
-		result.resize(0);
-
-		z_stream stream;
-		stream.zalloc = 0;
-		stream.zfree = 0;
-		stream.opaque = 0;
-		stream.avail_in = 0;
-		stream.next_in = 0;
-		int res = inflateInit2(&stream, 16 + MAX_WBITS);
-		if (res != Z_OK) {
-			throw Exception(QString("ungzip init, code: %1").arg(res));
-		}
-		stream.avail_in = packedLen;
-		stream.next_in = (Bytef*)&packed._string().v[0];
-		stream.avail_out = 0;
-		while (!stream.avail_out) {
-			result.resize(result.size() + unpackedChunk);
-			stream.avail_out = unpackedChunk * sizeof(mtpPrime);
-			stream.next_out = (Bytef*)&result[result.size() - unpackedChunk];
-			int res = inflate(&stream, Z_NO_FLUSH);
-			if (res != Z_OK && res != Z_STREAM_END) {
-				inflateEnd(&stream);
-				throw Exception(QString("ungzip unpack, code: %1").arg(res));
-			}
-		}
-		if (stream.avail_out & 0x03) {
-			uint32 badSize = result.size() * sizeof(mtpPrime) - stream.avail_out;
-			throw Exception(QString("ungzip bad length, size: %1").arg(badSize));
-		}
-		result.resize(result.size() - (stream.avail_out >> 2));
-		inflateEnd(&stream);
-
-		if (!result.size()) {
-			throw Exception("ungzip void data");
-		}
-		const mtpPrime *newFrom = result.constData(), *newEnd = result.constData() + result.size();
-	return "[GZIPPED] " + mtpTextSerialize(newFrom, newEnd, 0, level); }
-
-	default: {
-		for (uint32 i = 1; i < mtpLayerMax; ++i) {
-			if (cons == mtpLayers[i]) {
-				return QString("[LAYER%1] ").arg(i + 1) + mtpTextSerialize(from, end, 0, level);
-			}
-		}
+struct MTPStringLogger {
+	MTPStringLogger() : p(new char[MTPDebugBufferSize]), size(0), alloced(MTPDebugBufferSize) {
 	}
+	~MTPStringLogger() {
+		delete[] p;
 	}
 
-	throw Exception(QString("unknown cons %1").arg(cons));
+	MTPStringLogger &add(const QString &data) {
+		QByteArray d = data.toUtf8();
+		return add(d.constData(), d.size());
+	}
+
+	MTPStringLogger &add(const char *data, int32 len = -1) {
+		if (len < 0) len = strlen(data);
+		if (!len) return (*this);
+
+		if (size + len > alloced) {
+			int32 newsize = size + len;
+			if (newsize % MTPDebugBufferSize) newsize += MTPDebugBufferSize - (newsize % MTPDebugBufferSize);
+			char *b = new char[newsize];
+			memcpy(b, p, size);
+			alloced = newsize;
+			delete p;
+			p = b;
+		}
+		memcpy(p + size, data, len);
+		size += len;
+		return (*this);
+	}
+	char *p;
+	int32 size, alloced;
+};
+
+void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons = 0, uint32 level = 0, mtpPrime vcons = 0);
+
+void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons, uint32 level, mtpPrime vcons = 0);
+
+inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end) {
+	MTPStringLogger to;
+	mtpTextSerializeType(to, from, end, mtpc_core_message);
+	return QString::fromUtf8(to.p, to.size);
 }
 
 #endif

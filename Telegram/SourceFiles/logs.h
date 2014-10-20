@@ -49,15 +49,15 @@ inline DebugLogMemoryBuffer mb(const void *ptr, uint32 size) {
 }
 
 void debugLogWrite(const char *file, int32 line, const QString &v);
-#define DEBUG_LOG(msg) (debugLogWrite(__FILE__, __LINE__, QString msg))
+#define DEBUG_LOG(msg) { if (cDebug()) debugLogWrite(__FILE__, __LINE__, QString msg); }
 //usage DEBUG_LOG(("log: %1 %2").arg(1).arg(2))
 
 void tcpLogWrite(const QString &v);
-#define TCP_LOG(msg) (tcpLogWrite(QString msg))
+#define TCP_LOG(msg) { if (cDebug()) tcpLogWrite(QString msg); }
 //usage TCP_LOG(("log: %1 %2").arg(1).arg(2))
 
 void mtpLogWrite(int32 dc, const QString &v);
-#define MTP_LOG(dc, msg) (mtpLogWrite(dc, QString msg))
+#define MTP_LOG(dc, msg) { if (cDebug()) mtpLogWrite(dc, QString msg); }
 //usage MTP_LOG(dc, ("log: %1 %2").arg(1).arg(2))
 
 #else

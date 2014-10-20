@@ -1751,9 +1751,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 		int32 res = 1; // if no need to handle, then succeed
 		end = data + 8 + (msgLen >> 2);
 		const mtpPrime *sfrom(data + 4);
-		if (cDebug()) {
-			MTP_LOG(dc, ("Recv: ") + mtpTextSerialize(sfrom, end, mtpc_core_message));
-		}
+		MTP_LOG(dc, ("Recv: ") + mtpTextSerialize(sfrom, end));
 
 		bool needToHandle = false;
 		{
@@ -3110,9 +3108,7 @@ bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResp
 	memcpy(request->data() + 2, &session, 2 * sizeof(mtpPrime));
 
 	const mtpPrime *from = request->constData() + 4;
-	if (cDebug()) {
-		MTP_LOG(dc, ("Send: ") + mtpTextSerialize(from, from + messageSize, mtpc_core_message));
-	}
+	MTP_LOG(dc, ("Send: ") + mtpTextSerialize(from, from + messageSize));
 
 	uchar encryptedSHA[20];
 	MTPint128 &msgKey(*(MTPint128*)(encryptedSHA + 4));

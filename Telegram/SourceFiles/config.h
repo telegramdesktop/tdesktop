@@ -43,6 +43,8 @@ enum {
 
 	MTPEnumDCTimeout = 4000, // 4 seconds timeout for help_getConfig to work (them move to other dc)
 
+	MTPDebugBufferSize = 1024 * 1024, // 1 mb start size
+
 	MinReceiveDelay = 1000, // 1 seconds
 	MaxSelectedItems = 100,
 

@@ -716,6 +716,12 @@
     <ClCompile Include="GeneratedFiles\Release\moc_contextmenu.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\mtpCoreTypes.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\mtproto\mtpScheme.cpp">
+      <Filter>mtproto</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">

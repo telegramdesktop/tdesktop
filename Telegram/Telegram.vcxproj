@@ -821,9 +821,11 @@
     <ClCompile Include="SourceFiles\mediaview.cpp" />
     <ClCompile Include="SourceFiles\mtproto\mtp.cpp" />
     <ClCompile Include="SourceFiles\mtproto\mtpConnection.cpp" />
+    <ClCompile Include="SourceFiles\mtproto\mtpCoreTypes.cpp" />
     <ClCompile Include="SourceFiles\mtproto\mtpDC.cpp" />
     <ClCompile Include="SourceFiles\mtproto\mtpFileLoader.cpp" />
     <ClCompile Include="SourceFiles\mtproto\mtpRPC.cpp" />
+    <ClCompile Include="SourceFiles\mtproto\mtpScheme.cpp" />
     <ClCompile Include="SourceFiles\mtproto\mtpSession.cpp" />
     <ClCompile Include="SourceFiles\overviewwidget.cpp" />
     <ClCompile Include="SourceFiles\profilewidget.cpp" />

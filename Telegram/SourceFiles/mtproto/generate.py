@@ -256,11 +256,12 @@ def addTextSerialize(dct):
       if len(result):
         result += '\n';
       result += '\t\tcase mtpc_' + name + ':\n';
+      result += '\t\t\tto.add("{ ' + name + '");\n';
       if (len(prms)):
-        result += '\t\t\tresult += "\\n" + add;\n';
+        result += '\t\t\tto.add("\\n").add(add);\n';
         for k in prmsList:
           v = prms[k];
-          result += '\t\t\tresult += "  ' + k + ': " + mtpTextSerialize(from, end';
+          result += '\t\t\tto.add("  ' + k + ': "); mtpTextSerializeType(to, from, end';
           vtypeget = re.match(r'^[Vv]ector<MTP([A-Za-z0-9\._]+)>', v);
           if (vtypeget):
             if (not re.match(r'^[A-Z]', v)):
@@ -298,10 +299,10 @@ def addTextSerialize(dct):
           else:
             if (not vtypeget):
               result += ', 0, level + 1';
-          result += ') + ",\\n" + add;\n';
+          result += '); to.add(",\\n").add(add);\n';
       else:
-        result += '\t\t\tresult = " ";\n';
-      result += '\t\treturn "{ ' + name + '" + result + "}";\n';
+        result += '\t\t\tto.add(" ");\n';
+      result += '\t\t\tto.add("}");\n\t\tbreak;\n';
   return result;
 
 textSerialize += addTextSerialize(typesDict) + '\n';
@@ -571,7 +572,7 @@ for restype in typesList:
   inlineMethods += creatorsText;
   typesText += 'typedef MTPBoxed<MTP' + restype + '> MTP' + resType + ';\n'; # boxed type definition
 
-textSerializeFull = '\ninline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons) {\n';
+textSerializeFull = '\nvoid mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons) {\n';
 textSerializeFull += '\tQString add = QString(" ").repeated(level * 2);\n\n';
 textSerializeFull += '\tconst mtpPrime *start = from;\n';
 textSerializeFull += '\ttry {\n';
@@ -583,14 +584,13 @@ textSerializeFull += '\t\t\tcons = *from;\n';
 textSerializeFull += '\t\t\t++from;\n';
 textSerializeFull += '\t\t\t++start;\n';
 textSerializeFull += '\t\t}\n\n';
-textSerializeFull += '\t\tQString result;\n';
-textSerializeFull += '\t\tswitch (mtpTypeId(cons)) {\n' + textSerialize + '\t\t}\n\n';
-textSerializeFull += '\t\treturn mtpTextSerializeCore(from, end, cons, level, vcons);\n';
+textSerializeFull += '\t\tswitch (mtpTypeId(cons)) {\n' + textSerialize;
+textSerializeFull += '\n\n\t\tdefault:\n\t\t\tmtpTextSerializeCore(to, from, end, cons, level, vcons);\n\t\tbreak;\n\t\t}\n\n';
 textSerializeFull += '\t} catch (Exception &e) {\n';
-textSerializeFull += '\t\tQString result = "(" + QString(e.what()) + QString("), cons: %1").arg(cons);\n';
-textSerializeFull += '\t\tif (vcons) result += QString(", vcons: %1").arg(vcons);\n';
-textSerializeFull += '\t\tresult += ", " + mb(start, (end - start) * sizeof(mtpPrime)).str();\n';
-textSerializeFull += '\t\treturn "[ERROR] " + result;\n';
+textSerializeFull += '\t\tto.add("[ERROR] ");\n';
+textSerializeFull += '\t\tto.add("(").add(e.what()).add("), cons: 0x").add(mtpWrapNumber(cons, 16));\n';
+textSerializeFull += '\t\tif (vcons) to.add(", vcons: 0x").add(mtpWrapNumber(vcons));\n';
+textSerializeFull += '\t\tto.add(", ").add(mb(start, (end - start) * sizeof(mtpPrime)).str());\n';
 textSerializeFull += '\t}\n';
 textSerializeFull += '}\n';
 
@@ -601,6 +601,32 @@ out.write('\n// Type classes definitions\n' + typesText);
 out.write('\n// Type constructors with data\n' + dataTexts);
 out.write('\n// RPC methods\n' + funcsText);
 out.write('\n// Inline methods definition\n' + inlineMethods);
-out.write('\n// Human-readable text serialization\n#if (defined _DEBUG || defined _WITH_DEBUG)\n' + textSerializeFull + '\n#endif\n');
+out.write('\n// Human-readable text serialization\n#if (defined _DEBUG || defined _WITH_DEBUG)\n\nvoid mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons);\n\n#endif\n');
+
+outCpp = open('mtpScheme.cpp', 'w');
+outCpp.write('/*\n');
+outCpp.write('Created from \'/SourceFiles/mtproto/scheme.tl\' by \'/SourceFiles/mtproto/generate.py\' script\n\n');
+outCpp.write('WARNING! All changes made in this file will be lost!\n\n');
+outCpp.write('This file is part of Telegram Desktop,\n');
+outCpp.write('an unofficial desktop messaging app, see https://telegram.org\n');
+outCpp.write('\n');
+outCpp.write('Telegram Desktop is free software: you can redistribute it and/or modify\n');
+outCpp.write('it under the terms of the GNU General Public License as published by\n');
+outCpp.write('the Free Software Foundation, either version 3 of the License, or\n');
+outCpp.write('(at your option) any later version.\n');
+outCpp.write('\n');
+outCpp.write('It is distributed in the hope that it will be useful,\n');
+outCpp.write('but WITHOUT ANY WARRANTY; without even the implied warranty of\n');
+outCpp.write('MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n');
+outCpp.write('GNU General Public License for more details.\n');
+outCpp.write('\n');
+outCpp.write('Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n');
+outCpp.write('Copyright (c) 2014 John Preston, https://tdesktop.com\n');
+outCpp.write('*/\n');
+outCpp.write('#include "stdafx.h"\n#include "mtpScheme.h"\n\n');
+outCpp.write('#if (defined _DEBUG || defined _WITH_DEBUG)\n\n');
+outCpp.write(textSerializeFull + '\n#endif\n');
+
+print('Done, written {0} constructors, {1} functions.'.format(consts, funcs));
 
 print('Done, written {0} constructors, {1} functions.'.format(consts, funcs));
