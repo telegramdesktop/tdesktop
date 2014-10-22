@@ -97,6 +97,8 @@ bool scaleIs(DBIScale scale) {
 }
 
 SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
+	_self(App::self()),
+
 	// profile
 	_nameCache(self() ? self()->name : QString()),
     _uploadPhoto(this, lang(lng_settings_upload), st::btnSetUpload),

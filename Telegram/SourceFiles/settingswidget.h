@@ -147,8 +147,9 @@ private:
 
 	void setScale(DBIScale newScale);
 
+	UserData *_self;
 	UserData *self() const {
-		return App::self();
+		return App::self() ? _self : static_cast<UserData*>(0);
 	}
 	int32 _left;
 

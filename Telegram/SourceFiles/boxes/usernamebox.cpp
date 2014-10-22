@@ -207,7 +207,7 @@ void UsernameBox::onUpdateDone(const MTPUser &user) {
 bool UsernameBox::onUpdateFail(const RPCError &error) {
 	_saveRequest = 0;
 	QString err(error.type()), name = getName();
-	if (err == "USERNAME_NOT_MODIFIED") {
+	if (err == "USERNAME_NOT_MODIFIED" || _sentUsername == textOneLine(name)) {
 		App::self()->setName(textOneLine(App::self()->firstName), textOneLine(App::self()->lastName), textOneLine(App::self()->nameOrPhone), textOneLine(name));
 		emit closed();
 		return true;
