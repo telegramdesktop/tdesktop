@@ -18,6 +18,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "stdafx.h"
 #include "mtpCoreTypes.h"
 
+#if defined _DEBUG || defined _WITH_DEBUG
+
 QString mtpWrapNumber(float64 number) {
 	return QString::number(number);
 }
@@ -180,3 +182,5 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 	} break;
 	}
 }
+
+#endif
