@@ -141,6 +141,7 @@ SOURCES += \
     ./SourceFiles/boxes/newgroupbox.cpp \
     ./SourceFiles/boxes/photocropbox.cpp \
     ./SourceFiles/boxes/photosendbox.cpp \
+    ./SourceFiles/boxes/usernamebox.cpp \
     ./SourceFiles/intro/intro.cpp \
     ./SourceFiles/intro/introcode.cpp \
     ./SourceFiles/intro/introphone.cpp \
@@ -221,6 +222,7 @@ HEADERS += \
     ./SourceFiles/boxes/newgroupbox.h \
     ./SourceFiles/boxes/photocropbox.h \
     ./SourceFiles/boxes/photosendbox.h \
+    ./SourceFiles/boxes/usernamebox.h \
     ./SourceFiles/intro/intro.h \
     ./SourceFiles/intro/introcode.h \
     ./SourceFiles/intro/introphone.h \
