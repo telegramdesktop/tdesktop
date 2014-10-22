@@ -172,6 +172,7 @@ public:
 
 	void showConnecting(const QString &text, const QString &reconnect = QString());
 	void hideConnecting();
+	bool connectingVisible() const;
 
 	void hideSettings(bool fast = false);
 	void showPhoto(const PhotoLink *lnk, HistoryItem *item = 0);

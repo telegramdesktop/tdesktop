@@ -19,55 +19,63 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 
 #include "layerwidget.h"
 
-class AddContactBox : public LayeredWidget, public RPCSender {
+class UsernameInput : public FlatInput {
+public:
+
+	UsernameInput(QWidget *parent, const style::flatInput &st, const QString &ph = QString(), const QString &val = QString());
+
+protected:
+
+	void correctValue(QKeyEvent *e, const QString &was);
+
+};
+
+class UsernameBox : public LayeredWidget, public RPCSender {
 	Q_OBJECT
 
 public:
 
-	AddContactBox(QString fname = QString(), QString lname = QString(), QString phone = QString());
-	AddContactBox(PeerData *peer);
+	UsernameBox();
 	void parentResized();
 	void animStep(float64 dt);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void startHide();
-	~AddContactBox();
+	~UsernameBox();
 
 public slots:
 
-	void onSend();
-	void onRetry();
+	void onSave();
 	void onCancel();
+	
+	void onCheck();
+	void onChanged();
 
 private:
 
 	void hideAll();
 	void showAll();
 
-	void onImportDone(const MTPcontacts_ImportedContacts &res);
+	void onUpdateDone(const MTPUser &result);
+	bool onUpdateFail(const RPCError &error);
 
-	void onSaveSelfDone(const MTPUser &user);
-	bool onSaveSelfFail(const RPCError &error);
+	void onCheckDone(const MTPBool &result);
+	bool onCheckFail(const RPCError &error);
 
-	void onSaveChatDone(const MTPmessages_StatedMessage &result);
-	void onSaveUserDone(const MTPcontacts_ImportedContacts &res);
-	bool onSaveFail(const RPCError &e);
-
+	QString getName() const;
 	void initBox();
 
-	PeerData *_peer;
-	QString _boxTitle;
-
 	int32 _width, _height;
-	FlatButton _addButton, _retryButton, _cancelButton;
-	FlatInput _firstInput, _lastInput, _phoneInput;
-
-	uint64 _contactId;
+	FlatButton _saveButton, _cancelButton;
+	UsernameInput _usernameInput;
 
 	QPixmap _cache;
 
-	mtpRequestId _addRequest;
-	QString _sentName;
+	mtpRequestId _saveRequest, _checkRequest;
+	QString _sentUsername, _errorText;
+
+	Text _about;
+	QTimer _checkTimer;
 
 	anim::fvalue a_opacity;
 	bool _hiding;

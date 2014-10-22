@@ -31,6 +31,9 @@
 //invokeWithLayer13#427c8ea2 query:!X = X;
 //invokeWithLayer14#2b9b08fa query:!X = X;
 //invokeWithLayer15#b4418b64 query:!X = X;
+//invokeWithLayer16#cf5f0987 query:!X = X;
+//invokeWithLayer17#50858a19 query:!X = X;
+//invokeWithLayer18#1c900537 query:!X = X;
 
 ///////////////////////////////
 /// Authorization key creation
@@ -123,8 +126,6 @@ register.saveDeveloperInfo#9a5f6e95 name:string email:string phone_number:string
 
 ---types---
 
-
-
 inputPeerEmpty#7f3b18ea = InputPeer;
 inputPeerSelf#7da07ec9 = InputPeer;
 inputPeerContact#1023dbe8 user_id:int = InputPeer;
@@ -188,11 +189,11 @@ fileLocationUnavailable#7c596b46 volume_id:long local_id:int secret:long = FileL
 fileLocation#53d69076 dc_id:int volume_id:long local_id:int secret:long = FileLocation;
 
 userEmpty#200250ba id:int = User;
-userSelf#720535ec id:int first_name:string last_name:string phone:string photo:UserProfilePhoto status:UserStatus inactive:Bool = User;
-userContact#f2fb8319 id:int first_name:string last_name:string access_hash:long phone:string photo:UserProfilePhoto status:UserStatus = User;
-userRequest#22e8ceb0 id:int first_name:string last_name:string access_hash:long phone:string photo:UserProfilePhoto status:UserStatus = User;
-userForeign#5214c89d id:int first_name:string last_name:string access_hash:long photo:UserProfilePhoto status:UserStatus = User;
-userDeleted#b29ad7cc id:int first_name:string last_name:string = User;
+userSelf#7007b451 id:int first_name:string last_name:string username:string phone:string photo:UserProfilePhoto status:UserStatus inactive:Bool = User;
+userContact#cab35e18 id:int first_name:string last_name:string username:string access_hash:long phone:string photo:UserProfilePhoto status:UserStatus = User;
+userRequest#d9ccc4ef id:int first_name:string last_name:string username:string access_hash:long phone:string photo:UserProfilePhoto status:UserStatus = User;
+userForeign#75cf7a8 id:int first_name:string last_name:string username:string access_hash:long photo:UserProfilePhoto status:UserStatus = User;
+userDeleted#d6016d7a id:int first_name:string last_name:string username:string = User;
 
 userProfilePhotoEmpty#4f11bae1 = UserProfilePhoto;
 userProfilePhoto#d559d8c8 photo_id:long photo_small:FileLocation photo_big:FileLocation = UserProfilePhoto;
@@ -216,9 +217,9 @@ chatPhotoEmpty#37c1011c = ChatPhoto;
 chatPhoto#6153276a photo_small:FileLocation photo_big:FileLocation = ChatPhoto;
 
 messageEmpty#83e5de54 id:int = Message;
-message#22eb6aba id:int from_id:int to_id:Peer out:Bool unread:Bool date:int message:string media:MessageMedia = Message;
-messageForwarded#5f46804 id:int fwd_from_id:int fwd_date:int from_id:int to_id:Peer out:Bool unread:Bool date:int message:string media:MessageMedia = Message;
-messageService#9f8d60bb id:int from_id:int to_id:Peer out:Bool unread:Bool date:int action:MessageAction = Message;
+message#567699b3 flags:int id:int from_id:int to_id:Peer date:int message:string media:MessageMedia = Message;
+messageForwarded#a367e716 flags:int id:int fwd_from_id:int fwd_date:int from_id:int to_id:Peer date:int message:string media:MessageMedia = Message;
+messageService#1d86f70e flags:int id:int from_id:int to_id:Peer date:int action:MessageAction = Message;
 
 messageMediaEmpty#3ded6320 = MessageMedia;
 messageMediaPhoto#c8c45a2a photo:Photo = MessageMedia;
@@ -284,8 +285,6 @@ importedContact#d0028438 user_id:int client_id:long = ImportedContact;
 
 contactBlocked#561bc879 user_id:int date:int = ContactBlocked;
 
-contactFound#ea879f95 user_id:int = ContactFound;
-
 contactSuggested#3de191a1 user_id:int mutual_contacts:int = ContactSuggested;
 
 contactStatus#aa77b873 user_id:int expires:int = ContactStatus;
@@ -309,8 +308,6 @@ contacts.importedContacts#ad524315 imported:Vector<ImportedContact> retry_contac
 
 contacts.blocked#1c138d15 blocked:Vector<ContactBlocked> users:Vector<User> = contacts.Blocked;
 contacts.blockedSlice#900802a1 count:int blocked:Vector<ContactBlocked> users:Vector<User> = contacts.Blocked;
-
-contacts.found#566000e results:Vector<ContactFound> users:Vector<User> = contacts.Found;
 
 contacts.suggested#5649dcc5 results:Vector<ContactSuggested> users:Vector<User> = contacts.Suggested;
 
@@ -349,11 +346,11 @@ updateMessageID#4e90bfd6 id:int random_id:long = Update;
 updateReadMessages#c6649e31 messages:Vector<int> pts:int = Update;
 updateDeleteMessages#a92bfe26 messages:Vector<int> pts:int = Update;
 updateRestoreMessages#d15de04d messages:Vector<int> pts:int = Update;
-updateUserTyping#6baa8508 user_id:int = Update;
-updateChatUserTyping#3c46cfe6 chat_id:int user_id:int = Update;
+updateUserTyping#5c486927 user_id:int action:SendMessageAction = Update;
+updateChatUserTyping#9a65ea1f chat_id:int user_id:int action:SendMessageAction = Update;
 updateChatParticipants#7761198 participants:ChatParticipants = Update;
 updateUserStatus#1bfbd823 user_id:int status:UserStatus = Update;
-updateUserName#da22d9ad user_id:int first_name:string last_name:string = Update;
+updateUserName#a7332b73 user_id:int first_name:string last_name:string username:string = Update;
 updateUserPhoto#95313b0c user_id:int date:int photo:UserProfilePhoto previous:Bool = Update;
 updateContactRegistered#2575bbb9 user_id:int date:int = Update;
 updateContactLink#51a48a9a user_id:int my_link:contacts.MyLink foreign_link:contacts.ForeignLink = Update;
@@ -446,19 +443,6 @@ inputEncryptedFileLocation#f5235d55 id:long access_hash:long = InputFileLocation
 encryptedMessage#ed18c118 random_id:long chat_id:int date:int bytes:bytes file:EncryptedFile = EncryptedMessage;
 encryptedMessageService#23734b06 random_id:long chat_id:int date:int bytes:bytes = EncryptedMessage;
 
-decryptedMessageLayer#99a438cf layer:int message:DecryptedMessage = DecryptedMessageLayer;
-
-decryptedMessage#1f814f1f random_id:long random_bytes:bytes message:string media:DecryptedMessageMedia = DecryptedMessage;
-decryptedMessageService#aa48327d random_id:long random_bytes:bytes action:DecryptedMessageAction = DecryptedMessage;
-
-decryptedMessageMediaEmpty#89f5c4a = DecryptedMessageMedia;
-decryptedMessageMediaPhoto#32798a8c thumb:bytes thumb_w:int thumb_h:int w:int h:int size:int key:bytes iv:bytes = DecryptedMessageMedia;
-decryptedMessageMediaVideo#524a415d thumb:bytes thumb_w:int thumb_h:int duration:int mime_type:string w:int h:int size:int key:bytes iv:bytes = DecryptedMessageMedia;
-decryptedMessageMediaGeoPoint#35480a59 lat:double long:double = DecryptedMessageMedia;
-decryptedMessageMediaContact#588a0a97 phone_number:string first_name:string last_name:string user_id:int = DecryptedMessageMedia;
-
-decryptedMessageActionSetMessageTTL#a1733aec ttl_seconds:int = DecryptedMessageAction;
-
 messages.dhConfigNotModified#c0e24635 random:bytes = messages.DhConfig;
 messages.dhConfig#2c221edd g:int p:bytes version:int random:bytes = messages.DhConfig;
 
@@ -491,9 +475,6 @@ inputDocument#18798952 id:long access_hash:long = InputDocument;
 inputAudioFileLocation#74dc404d id:long access_hash:long = InputFileLocation;
 inputDocumentFileLocation#4e45abe9 id:long access_hash:long = InputFileLocation;
 
-decryptedMessageMediaDocument#b095434b thumb:bytes thumb_w:int thumb_h:int file_name:string mime_type:string size:int key:bytes iv:bytes = DecryptedMessageMedia;
-decryptedMessageMediaAudio#57e0a9cb duration:int mime_type:string size:int key:bytes iv:bytes = DecryptedMessageMedia;
-
 audioEmpty#586988d8 id:long = Audio;
 audio#c7ac6496 id:long access_hash:long user_id:int date:int duration:int mime_type:string size:int dc_id:int = Audio;
 
@@ -502,12 +483,6 @@ document#9efc6326 id:long access_hash:long user_id:int date:int file_name:string
 
 help.support#17c6b5f6 phone_number:string user:User = help.Support;
 
-decryptedMessageActionReadMessages#c4f40be random_ids:Vector<long> = DecryptedMessageAction;
-decryptedMessageActionDeleteMessages#65614304 random_ids:Vector<long> = DecryptedMessageAction;
-decryptedMessageActionScreenshotMessages#8ac1f475 random_ids:Vector<long> = DecryptedMessageAction;
-decryptedMessageActionFlushHistory#6719e45c = DecryptedMessageAction;
-decryptedMessageActionNotifyLayer#f3048883 layer:int = DecryptedMessageAction;
-
 notifyPeer#9fd40bd8 peer:Peer = NotifyPeer;
 notifyUsers#b4c83b4c = NotifyPeer;
 notifyChats#c007cec3 = NotifyPeer;
@@ -515,6 +490,25 @@ notifyAll#74d07c60 = NotifyPeer;
 
 updateUserBlocked#80ece81a user_id:int blocked:Bool = Update;
 updateNotifySettings#bec268ef peer:NotifyPeer notify_settings:PeerNotifySettings = Update;
+
+auth.sentAppCode#e325edcf phone_registered:Bool phone_code_hash:string send_call_timeout:int is_password:Bool = auth.SentCode;
+
+sendMessageTypingAction#16bf744e = SendMessageAction;
+sendMessageCancelAction#fd5ec8f5 = SendMessageAction;
+sendMessageRecordVideoAction#a187d66f = SendMessageAction;
+sendMessageUploadVideoAction#92042ff7 = SendMessageAction;
+sendMessageRecordAudioAction#d52f73f7 = SendMessageAction;
+sendMessageUploadAudioAction#e6ac8a6f = SendMessageAction;
+sendMessageUploadPhotoAction#990a3c1a = SendMessageAction;
+sendMessageUploadDocumentAction#8faee98e = SendMessageAction;
+sendMessageGeoLocationAction#176f8ba1 = SendMessageAction;
+sendMessageChooseContactAction#628cbc6f = SendMessageAction;
+
+contactFound#ea879f95 user_id:int = ContactFound;
+
+contacts.found#566000e results:Vector<ContactFound> users:Vector<User> = contacts.Found;
+
+updateServiceNotification#382dd3e4 type:string message:string media:MessageMedia popup:Bool = Update;
 
 ---functions---
 
@@ -532,6 +526,7 @@ auth.resetAuthorizations#9fab0d1a = Bool;
 auth.sendInvites#771c1d97 phone_numbers:Vector<string> message:string = Bool;
 auth.exportAuthorization#e5bfffcd dc_id:int = auth.ExportedAuthorization;
 auth.importAuthorization#e3ef9613 id:int bytes:bytes = auth.Authorization;
+auth.bindTempAuthKey#cdd42a05 perm_auth_key_id:long nonce:long expires_at:int encrypted_message:bytes = Bool;
 
 account.registerDevice#446c712c token_type:int token:string device_model:string system_version:string app_version:string app_sandbox:Bool lang_code:string = Bool;
 account.unregisterDevice#65c55b40 token_type:int token:string = Bool;
@@ -548,24 +543,25 @@ users.getFullUser#ca30a5b1 id:InputUser = UserFull;
 contacts.getStatuses#c4a353ee = Vector<ContactStatus>;
 contacts.getContacts#22c6aa08 hash:string = contacts.Contacts;
 contacts.importContacts#da30b32d contacts:Vector<InputContact> replace:Bool = contacts.ImportedContacts;
-contacts.search#11f812d8 q:string limit:int = contacts.Found;
 contacts.getSuggested#cd773428 limit:int = contacts.Suggested;
 contacts.deleteContact#8e953744 id:InputUser = contacts.Link;
 contacts.deleteContacts#59ab389e id:Vector<InputUser> = Bool;
 contacts.block#332b49fc id:InputUser = Bool;
 contacts.unblock#e54100bd id:InputUser = Bool;
 contacts.getBlocked#f57c350f offset:int limit:int = contacts.Blocked;
+contacts.exportCard#84e53737 = Vector<int>;
+contacts.importCard#4fe196fe export_card:Vector<int> = User;
 
 messages.getMessages#4222fa74 id:Vector<int> = messages.Messages;
 messages.getDialogs#eccf1df6 offset:int max_id:int limit:int = messages.Dialogs;
 messages.getHistory#92a1df2f peer:InputPeer offset:int max_id:int limit:int = messages.Messages;
 messages.search#7e9f2ab peer:InputPeer q:string filter:MessagesFilter min_date:int max_date:int offset:int max_id:int limit:int = messages.Messages;
-messages.readHistory#b04f2510 peer:InputPeer max_id:int offset:int = messages.AffectedHistory;
+messages.readHistory#eed884c6 peer:InputPeer max_id:int offset:int read_contents:Bool = messages.AffectedHistory;
 messages.deleteHistory#f4f8fb61 peer:InputPeer offset:int = messages.AffectedHistory;
 messages.deleteMessages#14f2dd0a id:Vector<int> = Vector<int>;
 messages.restoreMessages#395f9d7e id:Vector<int> = Vector<int>;
 messages.receivedMessages#28abcb68 max_id:int = Vector<int>;
-messages.setTyping#719839e9 peer:InputPeer typing:Bool = Bool;
+messages.setTyping#a3825e50 peer:InputPeer action:SendMessageAction = Bool;
 messages.sendMessage#4cde0aab peer:InputPeer message:string random_id:long = messages.SentMessage;
 messages.sendMedia#a3c85d76 peer:InputPeer media:InputMedia random_id:long = messages.StatedMessage;
 messages.forwardMessages#514cd10f peer:InputPeer id:Vector<int> = messages.StatedMessages;
@@ -626,3 +622,12 @@ upload.saveBigFilePart#de7b673d file_id:long file_part:int file_total_parts:int 
 initConnection#69796de9 api_id:int device_model:string system_version:string app_version:string lang_code:string query:!X = X;
 
 help.getSupport#9cdf08cd = help.Support;
+
+auth.sendSms#da9f3e8 phone_number:string phone_code_hash:string = Bool;
+
+messages.readMessageContents#354b5bc2 id:Vector<int> = Vector<int>;
+
+account.checkUsername#2714d86c username:string = Bool;
+account.updateUsername#3e0bdd7c username:string = User;
+
+contacts.search#11f812d8 q:string limit:int = contacts.Found;

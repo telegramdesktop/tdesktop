@@ -306,7 +306,9 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone)
 	NameFirstChars oldChars = chars;
 	fillNames();
 	App::history(id)->updateNameText();
-	emit App::main()->peerNameChanged(this, oldNames, oldChars);
+	if (App::main()) {
+		emit App::main()->peerNameChanged(this, oldNames, oldChars);
+	}
 	nameUpdated();
 }
 
@@ -326,9 +328,38 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) {
 	emit App::main()->peerPhotoChanged(this);
 }
 
-void UserData::setName(const QString &first, const QString &last, const QString &phoneName) {
+void PeerData::fillNames() {
+	names.clear();
+	chars.clear();
+	QString toIndex = textAccentFold(name);
+	if (nameOrPhone != name) {
+		toIndex += ' ' + textAccentFold(nameOrPhone);
+	}
+	if (!chat) {
+		toIndex += ' ' + textAccentFold(asUser()->username);
+	}
+	if (cRussianLetters().match(toIndex).hasMatch()) {
+		toIndex += ' ' + translitRusEng(toIndex);
+	}
+	toIndex += ' ' + rusKeyboardLayoutSwitch(toIndex);
+
+	QStringList namesList = toIndex.toLower().split(cWordSplit(), QString::SkipEmptyParts);
+	for (QStringList::const_iterator i = namesList.cbegin(), e = namesList.cend(); i != e; ++i) {
+		names.insert(*i);
+		chars.insert(i->at(0));
+	}
+}
+
+
+void UserData::setName(const QString &first, const QString &last, const QString &phoneName, const QString &usern) {
 	bool updName = !first.isEmpty() || !last.isEmpty();
 
+	if (username != usern) {
+		username = usern;
+		if (App::main()) {
+			App::main()->peerUsernameChanged(this);
+		}
+	}
 	if (updName && first.trimmed().isEmpty()) {
 		firstName = last;
 		lastName = QString();
@@ -338,7 +369,7 @@ void UserData::setName(const QString &first, const QString &last, const QString 
 			firstName = first;
 			lastName = last;
 		}
-		updateName(firstName + qsl(" ") + lastName, phoneName);
+		updateName(firstName + ' ' + lastName, phoneName);
 	}
 }
 
@@ -1290,16 +1321,20 @@ HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *
 	return adding;
 }
 
+void History::unregTyping(UserData *from) {
+	TypingUsers::iterator i = typing.find(from);
+	if (i != typing.end()) {
+		uint64 ms = getms();
+		i.value() = ms;
+		updateTyping(ms, 0, true);
+		App::main()->topBar()->update();
+	}
+}
+
 void History::newItemAdded(HistoryItem *item) {
 	App::checkImageCacheSize();
 	if (item->from()) {
-		TypingUsers::iterator i = typing.find(item->from());
-		if (i != typing.end()) {
-			uint64 ms = getms();
-			i.value() = ms;
-			updateTyping(ms, 0, true);
-			App::main()->topBar()->update();
-		}
+		unregTyping(item->from());
 	}
 	if (item->out()) {
 //		inboxRead(false);
@@ -3012,7 +3047,7 @@ void HistoryContact::updateFrom(const MTPMessageMedia &media) {
 }
 
 HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg) :
-	HistoryItem(history, block, msg.vid.v, msg.vout.v, msg.vunread.v, ::date(msg.vdate), msg.vfrom_id.v)
+	HistoryItem(history, block, msg.vid.v, (msg.vflags.v & 0x02), (msg.vflags.v & 0x01), ::date(msg.vdate), msg.vfrom_id.v)
 , _text(st::msgMinWidth)
 , _textWidth(0)
 , _textHeight(0)
@@ -3418,7 +3453,7 @@ HistoryMessage::~HistoryMessage() {
 	delete _media;
 }
 
-HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessageForwarded &msg) : HistoryMessage(history, block, msg.vid.v, msg.vout.v, msg.vunread.v, ::date(msg.vdate), msg.vfrom_id.v, textClean(qs(msg.vmessage)), msg.vmedia)
+HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessageForwarded &msg) : HistoryMessage(history, block, msg.vid.v, (msg.vflags.v & 0x02), (msg.vflags.v & 0x01), ::date(msg.vdate), msg.vfrom_id.v, textClean(qs(msg.vmessage)), msg.vmedia)
 , fwdDate(::date(msg.vfwd_date))
 , fwdFrom(App::user(msg.vfwd_from_id.v))
 , fwdFromName(4096)
@@ -3657,7 +3692,7 @@ QString HistoryServiceMsg::messageByAction(const MTPmessageAction &action, TextL
 }
 
 HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDmessageService &msg) :
-	HistoryItem(history, block, msg.vid.v, msg.vout.v, msg.vunread.v, ::date(msg.vdate), msg.vfrom_id.v)
+	HistoryItem(history, block, msg.vid.v, (msg.vflags.v & 0x02), (msg.vflags.v & 0x01), ::date(msg.vdate), msg.vfrom_id.v)
 , _text(st::msgMinWidth)
 , _media(0)
 {

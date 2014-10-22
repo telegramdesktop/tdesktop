@@ -88,6 +88,11 @@ enum {
 	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
 	EmojiPadPerRow = 7,
 	EmojiPadRowsPerPage = 6,
+
+	SearchPeopleLimit = 5,
+	MinUsernameLength = 5,
+	MaxUsernameLength = 32,
+	UsernameCheckTimeout = 200,
 };
 
 #ifdef Q_OS_WIN

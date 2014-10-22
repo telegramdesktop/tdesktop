@@ -84,28 +84,7 @@ struct PeerData {
 
 	void updateName(const QString &newName, const QString &newNameOrPhone);
 
-	void fillNames() {
-		names.clear();
-		chars.clear();
-		QString toIndex = textAccentFold(name);
-		if (nameOrPhone != name) {
-			toIndex += qsl(" ") + textAccentFold(nameOrPhone);
-		}
-		if (cRussianLetters().match(toIndex).hasMatch()) {
-			toIndex += qsl(" ") + translitRusEng(toIndex);
-		}
-		toIndex += qsl(" ") + rusKeyboardLayoutSwitch(toIndex);
-
-		if (name.midRef(0, 8) == "Telegram") {
-			int a = 0;
-		}
-
-		QStringList namesList = toIndex.toLower().split(cWordSplit(), QString::SkipEmptyParts);
-		for (QStringList::const_iterator i = namesList.cbegin(), e = namesList.cend(); i != e; ++i) {
-			names.insert(*i);
-			chars.insert(i->at(0));
-		}
-	}
+	void fillNames();
 
 	virtual void nameUpdated() {
 	}
@@ -152,12 +131,13 @@ struct UserData : public PeerData {
 	UserData(const PeerId &id) : PeerData(id), lnk(new PeerLink(this)), onlineTill(0), contact(-1), photosCount(-1) {
 	}
 	void setPhoto(const MTPUserProfilePhoto &photo);
-	void setName(const QString &first, const QString &last, const QString &phoneName);
+	void setName(const QString &first, const QString &last, const QString &phoneName, const QString &username);
 	void setPhone(const QString &newPhone);
 	void nameUpdated();
 
 	QString firstName;
 	QString lastName;
+	QString username;
 	QString phone;
 	Text nameText;
 	PhotoId photoId;
@@ -675,6 +655,7 @@ struct History : public QList<HistoryBlock*> {
 	HistoryItem *doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *adding, bool newMsg);
 
 	void newItemAdded(HistoryItem *item);
+	void unregTyping(UserData *from);
 
 	void inboxRead(bool byThisInstance = false);
 	void outboxRead();

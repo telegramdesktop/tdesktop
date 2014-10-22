@@ -28,6 +28,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "boxes/emojibox.h"
 #include "boxes/confirmbox.h"
 #include "boxes/downloadpathbox.h"
+#include "boxes/usernamebox.h"
 #include "gui/filedialog.h"
 
 Slider::Slider(QWidget *parent, const style::slider &st, int32 count, int32 sel) : QWidget(parent),
@@ -96,13 +97,18 @@ bool scaleIs(DBIScale scale) {
 }
 
 SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
-	_self(App::self()),
-
 	// profile
-	_nameCache(_self ? _self->name : QString()),
-    _phoneText(_self ? App::formatPhone(_self->phone) : QString()),
+	_nameCache(self() ? self()->name : QString()),
     _uploadPhoto(this, lang(lng_settings_upload), st::btnSetUpload),
     _cancelPhoto(this, lang(lng_cancel)), _nameOver(false), _photoOver(false), a_photo(0),
+
+	// contact info
+	_phoneText(self() ? App::formatPhone(self()->phone) : QString()),
+	_usernameText((self() && !self()->username.isEmpty()) ? ('@' + self()->username) : QString()),
+	_phoneLeft(st::linkFont->m.width(lang(lng_settings_phone_number)) + st::linkFont->spacew),
+	_usernameLeft(st::linkFont->m.width(lang(lng_settings_username)) + st::linkFont->spacew),
+	_chooseUsername(this, lang(lng_settings_choose_username)),
+	_changeUsername(this, lang(lng_settings_change_username)),
 
 	// notifications
 	_desktopNotify(this, lang(lng_settings_desktop_notify), cDesktopNotify()),
@@ -152,11 +158,11 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_logOut(this, lang(lng_settings_logout), st::btnLogout),
     _resetDone(false)
 {
-	if (_self) {
+	if (self()) {
 		_nameText.setText(st::setNameFont, _nameCache, _textNameOptions);
-		PhotoData *selfPhoto = _self->photoId ? App::photo(_self->photoId) : 0;
-		if (selfPhoto && selfPhoto->date) _photoLink = TextLinkPtr(new PhotoLink(selfPhoto, _self));
-		MTP::send(MTPusers_GetFullUser(_self->inputUser), rpcDone(&SettingsInner::gotFullSelf));
+		PhotoData *selfPhoto = self()->photoId ? App::photo(self()->photoId) : 0;
+		if (selfPhoto && selfPhoto->date) _photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
+		MTP::send(MTPusers_GetFullUser(self()->inputUser), rpcDone(&SettingsInner::gotFullSelf));
 
 		connect(App::main(), SIGNAL(peerPhotoChanged(PeerData *)), this, SLOT(peerUpdated(PeerData *)));
 		connect(App::main(), SIGNAL(peerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)), this, SLOT(peerUpdated(PeerData *)));
@@ -168,6 +174,10 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 
 	connect(App::app(), SIGNAL(peerPhotoDone(PeerId)), this, SLOT(onPhotoUpdateDone(PeerId)));
 	connect(App::app(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUpdateFail(PeerId)));
+
+	// contact info
+	connect(&_chooseUsername, SIGNAL(clicked()), this, SLOT(onUsername()));
+	connect(&_changeUsername, SIGNAL(clicked()), this, SLOT(onUsername()));
 
 	// notifications
 	_senderName.setDisabled(!_desktopNotify.checked());
@@ -253,21 +263,21 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 }
 
 void SettingsInner::peerUpdated(PeerData *data) {
-	if (_self && data == _self) {
-		if (_self->photoId) {
-			PhotoData *selfPhoto = App::photo(_self->photoId);
+	if (self() && data == self()) {
+		if (self()->photoId) {
+			PhotoData *selfPhoto = App::photo(self()->photoId);
 			if (selfPhoto->date) {
-				_photoLink = TextLinkPtr(new PhotoLink(selfPhoto, _self));
+				_photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
 			} else {
 				_photoLink = TextLinkPtr();
-				MTP::send(MTPusers_GetFullUser(_self->inputUser), rpcDone(&SettingsInner::gotFullSelf));
+				MTP::send(MTPusers_GetFullUser(self()->inputUser), rpcDone(&SettingsInner::gotFullSelf));
 			}
 		} else {
 			_photoLink = TextLinkPtr();
 		}
 
-		if (_nameCache != _self->name) {
-			_nameCache = _self->name;
+		if (_nameCache != self()->name) {
+			_nameCache = self()->name;
 			_nameText.setText(st::setNameFont, _nameCache, _textNameOptions);
 			update();
 		}
@@ -280,7 +290,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	p.setClipRect(e->rect());
 
 	int32 top = 0;
-	if (_self) {
+	if (self()) {
 		// profile
 		top += st::setTop;
 
@@ -288,14 +298,11 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		if (!_cancelPhoto.isHidden()) {
 			p.setFont(st::linkFont->f);
 			p.setPen(st::black->p);
-			p.drawText(_uploadPhoto.x() + st::setPhoneLeft, _cancelPhoto.y() + st::linkFont->ascent, lang(lng_settings_uploading_photo));
+			p.drawText(_uploadPhoto.x() + st::setStatusLeft, _cancelPhoto.y() + st::linkFont->ascent, lang(lng_settings_uploading_photo));
 		}
-		p.setFont(st::setPhoneFont->f);
-		p.setPen(st::setPhoneColor->p);
-		p.drawText(_uploadPhoto.x() + st::setPhoneLeft, top + st::setPhoneTop + st::setPhoneFont->ascent, _phoneText);
 
 		if (_photoLink) {
-			p.drawPixmap(_left, top, _self->photo->pix(st::setPhotoSize));
+			p.drawPixmap(_left, top, self()->photo->pix(st::setPhotoSize));
 		} else {
 			if (a_photo.current() < 1) {
 				p.drawPixmap(QPoint(_left, top), App::sprite(), st::setPhotoImg);
@@ -306,6 +313,12 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 				p.setOpacity(1);
 			}
 		}
+
+		p.setFont(st::setStatusFont->f);
+		bool connecting = App::wnd()->connectingVisible();
+		p.setPen((connecting ? st::profileOfflineColor : st::profileOnlineColor)->p);
+		p.drawText(_uploadPhoto.x() + st::setStatusLeft, top + st::setStatusTop + st::setStatusFont->ascent, lang(connecting ? lng_status_connecting : lng_status_online));
+
 		top += st::setPhotoSize;
 
 		if (!_errorText.isEmpty()) {
@@ -313,6 +326,24 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 			p.setPen(st::setErrColor->p);
 			p.drawText(QRect(_uploadPhoto.x(), _uploadPhoto.y() + _uploadPhoto.height() + st::setLittleSkip, _uploadPhoto.width(), st::setErrFont->height), _errorText, style::al_center);
 		}
+
+		// contact info
+		p.setFont(st::setHeaderFont->f);
+		p.setPen(st::setHeaderColor->p);
+		p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_contact_info));
+		top += st::setHeaderSkip;
+
+		p.setFont(st::linkFont->f);
+		p.setPen(st::black->p);
+		p.drawText(_left, top + st::linkFont->ascent, lang(lng_settings_phone_number));
+		p.drawText(_left + _phoneLeft, top + st::linkFont->ascent, _phoneText);
+		top += st::linkFont->height + st::setLittleSkip;
+
+		p.drawText(_left, top + st::linkFont->ascent, lang(lng_settings_username));
+		if (!_usernameText.isEmpty()) {
+			p.drawText(_left + _usernameLeft, top + st::linkFont->ascent, _usernameText);
+		}
+		top += st::linkFont->height;
 
 		// notifications
 		p.setFont(st::setHeaderFont->f);
@@ -389,7 +420,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
         p.setFont(st::linkFont->f);
     }
     
-	if (_self) {
+	if (self()) {
 		// chat options
 		p.setFont(st::setHeaderFont->f);
 		p.setPen(st::setHeaderColor->p);
@@ -435,7 +466,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	p.setPen(st::black->p);
 	p.drawText(_left + st::setHeaderLeft, _connectionType.y() + st::linkFont->ascent, _connectionTypeText);
 
-	if (_self && _resetDone) {
+	if (self() && _resetDone) {
 		p.drawText(_resetSessions.x(), _resetSessions.y() + st::linkFont->ascent, lang(lng_settings_reset_done));
 	}
 }
@@ -445,12 +476,18 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 
 	int32 top = 0;
 
-	if (_self) {
+	if (self()) {
 		// profile
 		top += st::setTop;
 		top += st::setPhotoSize;
 		_uploadPhoto.move(_left + st::setWidth - _uploadPhoto.width(), top - _uploadPhoto.height());
 		_cancelPhoto.move(_left + st::setWidth - _cancelPhoto.width(), top - _uploadPhoto.height() + st::btnSetUpload.textTop + st::btnSetUpload.font->ascent - st::linkFont->ascent);
+
+		// contact info
+		top += st::setHeaderSkip;
+		top += st::linkFont->height + st::setLittleSkip;
+		_chooseUsername.move(_left + _usernameLeft, top);
+		_changeUsername.move(_left + st::setWidth - _changeUsername.width(), top); top += st::linkFont->height;
 
 		// notifications
 		top += st::setHeaderSkip;
@@ -485,7 +522,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
     }
     
 	// chat options
-	if (_self) {
+	if (self()) {
 		top += st::setHeaderSkip;
 		_viewEmojis.move(_left + st::setWidth - _viewEmojis.width(), top + st::cbDefFlat.textTop);
 		_replaceEmojis.move(_left, top); top += _replaceEmojis.height() + st::setSectionSkip;
@@ -507,7 +544,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 	// advanced
 	top += st::setHeaderSkip;
 	_connectionType.move(_left + st::setHeaderLeft + _connectionTypeWidth, top); top += _connectionType.height() + st::setLittleSkip;
-	if (_self) {
+	if (self()) {
 		_resetSessions.move(_left, top); top += _resetSessions.height() + st::setSectionSkip;
 		_logOut.move(_left, top);
 	}
@@ -520,7 +557,7 @@ void SettingsInner::keyPressEvent(QKeyEvent *e) {
 }
 
 void SettingsInner::mouseMoveEvent(QMouseEvent *e) {
-	if (!_self) {
+	if (!self()) {
 		setCursor(style::cur_default);
 	} else {
 		bool nameOver = QRect(_uploadPhoto.x() + st::setNameLeft, st::setTop + st::setNameTop, qMin(_uploadPhoto.width() - int(st::setNameLeft), _nameText.maxWidth()), st::setNameFont->height).contains(e->pos());
@@ -543,14 +580,14 @@ void SettingsInner::mouseMoveEvent(QMouseEvent *e) {
 
 void SettingsInner::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
-	if (!_self) {
+	if (!self()) {
 		return;
 	}
 	if (QRect(_uploadPhoto.x() + st::setNameLeft, st::setTop + st::setNameTop, qMin(_uploadPhoto.width() - int(st::setNameLeft), _nameText.maxWidth()), st::setNameFont->height).contains(e->pos())) {
-		App::wnd()->showLayer(new AddContactBox(_self));
+		App::wnd()->showLayer(new AddContactBox(self()));
 	} else if (QRect(_left, st::setTop, st::setPhotoSize, st::setPhotoSize).contains(e->pos())) {
 		if (_photoLink) {
-			App::photo(_self->photoId)->full->load();
+			App::photo(self()->photoId)->full->load();
 			_photoLink->onClick(e->button());
 		} else {
 			onUpdatePhoto();
@@ -600,22 +637,28 @@ void SettingsInner::updateConnectionType() {
 	}
 }
 
-void SettingsInner::gotFullSelf(const MTPUserFull &self) {
-	if (!_self) return;
-	App::feedPhoto(self.c_userFull().vprofile_photo);
-	App::feedUsers(MTP_vector<MTPUser>(QVector<MTPUser>(1, self.c_userFull().vuser)));
-	PhotoData *selfPhoto = _self->photoId ? App::photo(_self->photoId) : 0;
+void SettingsInner::gotFullSelf(const MTPUserFull &selfFull) {
+	if (!self()) return;
+	App::feedPhoto(selfFull.c_userFull().vprofile_photo);
+	App::feedUsers(MTP_vector<MTPUser>(QVector<MTPUser>(1, selfFull.c_userFull().vuser)));
+	PhotoData *selfPhoto = self()->photoId ? App::photo(self()->photoId) : 0;
 	if (selfPhoto && selfPhoto->date) {
-		_photoLink = TextLinkPtr(new PhotoLink(selfPhoto, _self));
+		_photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
 	} else {
 		_photoLink = TextLinkPtr();
 	}
 }
 
+void SettingsInner::usernameChanged() {
+	_usernameText = (self() && !self()->username.isEmpty()) ? ('@' + self()->username) : QString();
+	showAll();
+	update();
+}
+
 void SettingsInner::showAll() {
 	// profile
-	if (_self) {
-		if (App::app()->isPhotoUpdating(_self->id)) {
+	if (self()) {
+		if (App::app()->isPhotoUpdating(self()->id)) {
 			_cancelPhoto.show();
 			_uploadPhoto.hide();
 		} else {
@@ -627,8 +670,22 @@ void SettingsInner::showAll() {
 		_cancelPhoto.hide();
 	}
 
+	// contact info
+	if (self()) {
+		if (self()->username.isEmpty()) {
+			_chooseUsername.show();
+			_changeUsername.hide();
+		} else {
+			_chooseUsername.hide();
+			_changeUsername.show();
+		}
+	} else {
+		_chooseUsername.hide();
+		_changeUsername.hide();
+	}
+
 	// notifications
-	if (_self) {
+	if (self()) {
 		_desktopNotify.show();
 		_senderName.show();
 		_messagePreview.show();
@@ -673,7 +730,7 @@ void SettingsInner::showAll() {
     }
 
 	// chat options
-	if (_self) {
+	if (self()) {
 		_replaceEmojis.show();
 		if (cReplaceEmojis()) {
 			_viewEmojis.show();
@@ -707,7 +764,7 @@ void SettingsInner::showAll() {
 	}
 
 	// advanced
-	if (_self) {
+	if (self()) {
 		if (_resetDone) {
 			_resetSessions.hide();
 		} else {
@@ -727,8 +784,8 @@ void SettingsInner::saveError(const QString &str) {
 }
 
 void SettingsInner::onUpdatePhotoCancel() {
-	if (_self) {
-		App::app()->cancelPhotoUpdate(_self->id);
+	if (self()) {
+		App::app()->cancelPhotoUpdate(self()->id);
 	}
 	showAll();
 	update();
@@ -759,7 +816,7 @@ void SettingsInner::onUpdatePhoto() {
 		saveError(lang(lng_bad_photo));
 		return;
 	}
-	PhotoCropBox *box = new PhotoCropBox(img, _self->id);
+	PhotoCropBox *box = new PhotoCropBox(img, self()->id);
 	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUpdateStart()));
 	App::wnd()->showLayer(box);
 }
@@ -819,6 +876,12 @@ void SettingsInner::onRestartNow() {
 void SettingsInner::onConnectionType() {
 	ConnectionBox *box = new ConnectionBox();
 	connect(box, SIGNAL(closed()), this, SLOT(updateConnectionType()), Qt::QueuedConnection);
+	App::wnd()->showLayer(box);
+}
+
+void SettingsInner::onUsername() {
+	UsernameBox *box = new UsernameBox();
+	connect(box, SIGNAL(closed()), this, SLOT(usernameChanged()));
 	App::wnd()->showLayer(box);
 }
 
@@ -1120,14 +1183,14 @@ void SettingsInner::onPhotoUpdateStart() {
 }
 
 void SettingsInner::onPhotoUpdateFail(PeerId peer) {
-	if (!_self || _self->id != peer) return;
+	if (!self() || self()->id != peer) return;
 	saveError(lang(lng_bad_photo));
 	showAll();
 	update();
 }
 
 void SettingsInner::onPhotoUpdateDone(PeerId peer) {
-	if (!_self || _self->id != peer) return;
+	if (!self() || self()->id != peer) return;
 	showAll();
 	update();
 }
@@ -1243,6 +1306,10 @@ void SettingsWidget::updateConnectionType() {
 
 void SettingsWidget::rpcInvalidate() {
 	_inner.rpcInvalidate();
+}
+
+void SettingsWidget::usernameChanged() {
+	_inner.usernameChanged();
 }
 
 SettingsWidget::~SettingsWidget() {

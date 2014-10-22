@@ -196,7 +196,6 @@ public:
 	void msgUpdated(PeerId peer, const HistoryItem *msg);
 	void historyToDown(History *hist);
 	void dialogsToUp();
-	void dialogsClear(); // after showing peer history
 	void newUnreadMsg(History *history, MsgId msgId);
 	void updUpdated(int32 pts, int32 date, int32 qts, int32 seq);
 	void historyWasRead();
@@ -282,6 +281,7 @@ public:
 	void itemResized(HistoryItem *row);
 
 	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);
+	void peerUsernameChanged(PeerData *peer);
 
 	~MainWidget();
 

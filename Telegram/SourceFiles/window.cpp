@@ -609,6 +609,11 @@ void Window::showConnecting(const QString &text, const QString &reconnect) {
 		resizeEvent(0);
 		fixOrder();
 	}
+	if (settings) settings->update();
+}
+
+bool Window::connectingVisible() const {
+	return _connecting && !_connecting->isHidden();
 }
 
 void Window::hideConnecting() {
@@ -616,6 +621,7 @@ void Window::hideConnecting() {
 		_connecting->deleteLater();
 		_connecting = 0;
 	}
+	if (settings) settings->update();
 }
 
 void Window::replaceLayer(LayeredWidget *w) {

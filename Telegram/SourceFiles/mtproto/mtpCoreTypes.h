@@ -329,6 +329,9 @@ enum {
 	mtpc_invokeWithLayer13 = 0x427c8ea2,
 	mtpc_invokeWithLayer14 = 0x2b9b08fa,
 	mtpc_invokeWithLayer15 = 0xb4418b64,
+	mtpc_invokeWithLayer16 = 0xcf5f0987,
+	mtpc_invokeWithLayer17 = 0x50858a19,
+	mtpc_invokeWithLayer18 = 0x1c900537,
 
 	// manually parsed
 	mtpc_rpc_result = 0xf35c6d01,
@@ -354,6 +357,9 @@ static const mtpTypeId mtpLayers[] = {
 	mtpc_invokeWithLayer13,
 	mtpc_invokeWithLayer14,
 	mtpc_invokeWithLayer15,
+	mtpc_invokeWithLayer16,
+	mtpc_invokeWithLayer17,
+	mtpc_invokeWithLayer18,
 }, mtpLayerMax = sizeof(mtpLayers) / sizeof(mtpLayers[0]);
 
 template <typename bareT>

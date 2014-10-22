@@ -1600,7 +1600,7 @@ void HistoryWidget::updateTyping(bool typing) {
 	if (noTypingUpdate || !hist || (typing && (hist->myTyping + 5000 > ms)) || (!typing && (hist->myTyping + 5000 <= ms))) return;
 
 	hist->myTyping = typing ? ms : 0;
-	if (typing) MTP::send(MTPmessages_SetTyping(histPeer->input, MTP_bool(typing)));
+	if (typing) MTP::send(MTPmessages_SetTyping(histPeer->input, typing ? MTP_sendMessageTypingAction() : MTP_sendMessageCancelAction()));
 }
 
 void HistoryWidget::activate() {
@@ -1656,9 +1656,6 @@ void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool l
 		hiderOffered = true;
 		App::main()->offerPeer(peer);
 		return;
-	}
-	if (peer && !msgId) {
-		App::main()->dialogsClear();
 	}
 	if (hist) {
 		if (histPeer->id == peer) {
@@ -2204,7 +2201,8 @@ void HistoryWidget::onSend(bool ctrlShiftEnter) {
 		hist->loadAround(0);
 
 		MTPstring msgText(MTP_string(text));
-		hist->addToBack(MTP_message(MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(histPeer->id), MTP_bool(true), MTP_bool(true), MTP_int(unixtime()), msgText, MTP_messageMediaEmpty()));
+		int32 flags = 0x01 | 0x02; // unread, out
+		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(histPeer->id), MTP_int(unixtime()), msgText, MTP_messageMediaEmpty()));
 		App::main()->historyToDown(hist);
 		App::main()->dialogsToUp();
 		peerMessagesUpdated();
@@ -2250,7 +2248,8 @@ mtpRequestId HistoryWidget::onForward(const PeerId &peer, SelectedItemSet toForw
 
 			MTPstring msgText(MTP_string(msg->selectedText(FullItemSel)));
 
-			hist->addToBack(MTP_message(MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(histPeer->id), MTP_bool(true), MTP_bool(true), MTP_int(unixtime()), msgText, MTP_messageMediaEmpty()));
+			int32 flags = 0x01 | 0x02; // unread, out
+			hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(histPeer->id), MTP_int(unixtime()), msgText, MTP_messageMediaEmpty()));
 			MTP::send(MTPmessages_SendMessage(histPeer->input, msgText, MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId));
 		}
 		if (newId) {
@@ -2294,7 +2293,8 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 
 	h->loadAround(0);
 
-	h->addToBack(MTP_message(MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(peer), MTP_bool(true), MTP_bool(true), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId))));
+	int32 flags = 0x01 | 0x02; // unread, out
+	h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(peer), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId))));
 	
 	MTP::send(MTPmessages_SendMedia(App::peer(peer)->input, MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
 
@@ -2822,10 +2822,12 @@ void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
 	History *h = App::history(img.peer);
 	if (img.type == ToPreparePhoto) {
 		h->loadAround(0);
-		h->addToBack(MTP_message(MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(img.peer), MTP_bool(true), MTP_bool(true), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(img.photo)));
+		int32 flags = 0x01 | 0x02; // unread, out
+		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(img.peer), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(img.photo)));
 	} else if (img.type == ToPrepareDocument) {
 		h->loadAround(0);
-		h->addToBack(MTP_message(MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(img.peer), MTP_bool(true), MTP_bool(true), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(img.document)));
+		int32 flags = 0x01 | 0x02; // unread, out
+		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(img.peer), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(img.document)));
 	}
 
 	if (hist && histPeer && img.peer == histPeer->id) {

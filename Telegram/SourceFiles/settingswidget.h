@@ -80,6 +80,7 @@ public:
 
 public slots:
 
+	void usernameChanged();
 	void updateConnectionType();
 
 	void peerUpdated(PeerData *data);
@@ -92,6 +93,8 @@ public slots:
 	void onRestartNow();
 
 	void onConnectionType();
+
+	void onUsername();
 
 	void onWorkmodeTray();
 	void onWorkmodeWindow();
@@ -144,13 +147,14 @@ private:
 
 	void setScale(DBIScale newScale);
 
-	UserData *_self;
+	UserData *self() const {
+		return App::self();
+	}
 	int32 _left;
 
 	// profile
 	Text _nameText;
 	QString _nameCache;
-	QString _phoneText;
 	TextLinkPtr _photoLink;
 	FlatButton _uploadPhoto;
 	LinkButton _cancelPhoto;
@@ -158,6 +162,11 @@ private:
 	anim::fvalue a_photo;
 
 	QString _errorText;
+
+	// contact info
+	QString _phoneText, _usernameText;
+	int32 _phoneLeft, _usernameLeft;
+	LinkButton _chooseUsername, _changeUsername;
 
 	// notifications
 	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _soundNotify;
@@ -236,6 +245,7 @@ public:
 	void updateConnectionType();
 
 	void rpcInvalidate();
+	void usernameChanged();
 
 	~SettingsWidget();
 

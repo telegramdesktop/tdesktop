@@ -484,10 +484,9 @@ setTop: 26px;
 setNameLeft: 3px;
 setNameTop: 1px;
 setNameFont: font(22px);
-setPhoneFont: font(16px);
-setPhoneColor: #999;
-setPhoneTop: 39px;
-setPhoneLeft: 1px;
+setStatusTop: 39px;
+setStatusLeft: 1px;
+setStatusFont: font(16px);
 setPhotoSize: 120px;
 setHeaderFont: font(20px);
 setHeaderColor: black;
@@ -1622,3 +1621,17 @@ mediaviewLoaderSkip: 9px;
 
 minPhotoWidth: 90px;
 minPhotoHeight: 90px;
+
+usernameFont: font(14px);
+usernameColor: #777;
+usernameWidth: 336px;
+usernameSkip: 32px;
+usernameInput: flatInput(inpAddContact) {
+	bgColor: transparent;
+}
+usernameDone: flatButton(btnSelectDone) {
+	width: 168px;
+}
+usernameCancel: flatButton(btnSelectCancel) {
+	width: 167px;
+}

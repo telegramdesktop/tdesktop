@@ -240,7 +240,7 @@ namespace App {
 				data = App::user(peer);
 				data->input = MTP_inputPeerContact(d.vid);
 				data->inputUser = MTP_inputUserContact(d.vid);
-				data->setName(lang(lng_deleted), QString(), QString());
+				data->setName(lang(lng_deleted), QString(), QString(), QString());
 				data->setPhoto(MTP_userProfilePhotoEmpty());
 				data->access = 0;
 				wasContact = (data->contact > 0);
@@ -253,7 +253,7 @@ namespace App {
 				data = App::user(peer);
 				data->input = MTP_inputPeerContact(d.vid);
 				data->inputUser = MTP_inputUserContact(d.vid);
-				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString());
+				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString(), textOneLine(qs(d.vusername)));
 				data->setPhoto(MTP_userProfilePhotoEmpty());
 				data->access = 0;
 				wasContact = (data->contact > 0);
@@ -266,7 +266,7 @@ namespace App {
 				data = App::user(peer);
 				data->input = MTP_inputPeerSelf();
 				data->inputUser = MTP_inputUserSelf();
-				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString());
+				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString(), textOneLine(qs(d.vusername)));
 				data->setPhoto(d.vphoto);
 				data->setPhone(qs(d.vphone));
 				data->access = 0;
@@ -283,7 +283,7 @@ namespace App {
 				data = App::user(peer);
 				data->input = MTP_inputPeerContact(d.vid);
 				data->inputUser = MTP_inputUserContact(d.vid);
-				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString());
+				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString(), textOneLine(qs(d.vusername)));
 				data->setPhoto(d.vphoto);
 				data->setPhone(qs(d.vphone));
 				data->access = d.vaccess_hash.v;
@@ -299,7 +299,7 @@ namespace App {
 				data->input = MTP_inputPeerForeign(d.vid, d.vaccess_hash);
 				data->inputUser = MTP_inputUserForeign(d.vid, d.vaccess_hash);
 				data->setPhone(qs(d.vphone));
-				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), (data->id != 333000 && !data->phone.isEmpty()) ? formatPhone(data->phone) : QString());
+				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), (data->id != 333000 && !data->phone.isEmpty()) ? formatPhone(data->phone) : QString(), textOneLine(qs(d.vusername)));
 				data->setPhoto(d.vphoto);
 				data->access = d.vaccess_hash.v;
 				wasContact = (data->contact > 0);
@@ -313,7 +313,7 @@ namespace App {
 				data = App::user(peer);
 				data->input = MTP_inputPeerForeign(d.vid, d.vaccess_hash);
 				data->inputUser = MTP_inputUserForeign(d.vid, d.vaccess_hash);
-				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString());
+				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString(), textOneLine(qs(d.vusername)));
 				data->setPhoto(d.vphoto);
 				data->access = d.vaccess_hash.v;
 				wasContact = (data->contact > 0);
@@ -634,7 +634,7 @@ namespace App {
 					App::main()->removeContact(user);
 				}
 			}
-			user->setName(textOneLine(user->firstName), textOneLine(user->lastName), (user->contact || user->id == 333000 || user->phone.isEmpty()) ? QString() : App::formatPhone(user->phone));
+			user->setName(textOneLine(user->firstName), textOneLine(user->lastName), (user->contact || user->id == 333000 || user->phone.isEmpty()) ? QString() : App::formatPhone(user->phone), textOneLine(user->username));
 			if (App::main()) App::main()->peerUpdated(user);
 		}
 	}

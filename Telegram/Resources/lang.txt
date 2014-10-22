@@ -57,8 +57,8 @@ lng_month_day: "{month} {day}";
 
 lng_cancel: "Cancel";
 lng_continue: "Continue";
-lng_connecting: "Connecting...";
-lng_reconnecting: "Reconnect in %1 s...";
+lng_connecting: "Connecting..";
+lng_reconnecting: "Reconnect in %1 s..";
 lng_reconnecting_try_now: "Try now";
 
 lng_status_offline: "offline";
@@ -74,6 +74,7 @@ lng_status_lastseen_yesterday: "yesterday at {time}";
 lng_status_lastseen_date: "{date}";
 lng_status_lastseen_date_time: "{date} at {time}";
 lng_status_online: "online";
+lng_status_connecting: "connecting..";
 
 lng_chat_no_members: "Group is unaccessible";
 lng_chat_members: "%1 members";
@@ -109,7 +110,7 @@ lng_code_ph: "Your code";
 lng_code_desc: "We have sent you an SMS with activation
 code to your phone. Please enter it below.";
 lng_code_call: "Telegram will dial your number in %1:%2";
-lng_code_calling: "Requesting a call from Telegram...";
+lng_code_calling: "Requesting a call from Telegram..";
 lng_code_called: "Telegram dialed your number";
 
 lng_bad_phone: "Invalid phone number. Please try again.";
@@ -136,7 +137,25 @@ lng_settings_cancel: "Cancel";
 lng_settings_upload: "Set Profile Photo";
 lng_settings_badsize: "This image has bad size, please try other.";
 lng_settings_crop_profile: "Select square area for your profile photo";
-lng_settings_uploading_photo: "Uploading photo...";
+lng_settings_uploading_photo: "Uploading photo..";
+
+lng_username_title: "Change username";
+lng_username_about: "You can choose a username on Telegram.
+If you do, other people will be able to find
+you by this username and contact you
+without knowing your phone number.
+
+You can use a-z, 0-9 and underscores.
+Minimum length is 5 characters.";
+lng_username_invalid: "This name is invalid.";
+lng_username_occupied: "This name is already occupied.";
+lng_username_too_short: "This name is too short.";
+
+lng_settings_section_contact_info: "Contact info";
+lng_settings_phone_number: "Phone number:";
+lng_settings_username: "Username:";
+lng_settings_choose_username: "choose username";
+lng_settings_change_username: "Change";
 
 lng_settings_section_notify: "Notifications";
 lng_settings_desktop_notify: "Desktop notifications";
@@ -151,9 +170,9 @@ lng_settings_section_general: "General";
 lng_settings_auto_update: "Update automatically";
 lng_settings_current_version: "Version {version}";
 lng_settings_check_now: "Check for updates";
-lng_settings_update_checking: "Checking for updates...";
+lng_settings_update_checking: "Checking for updates..";
 lng_settings_latest_installed: "Latest version is installed";
-lng_settings_downloading: "Downloading update {ready} / {total} Mb...";
+lng_settings_downloading: "Downloading update {ready} / {total} Mb..";
 lng_settings_update_ready: "New version is ready";
 lng_settings_update_now: "Restart Now";
 lng_settings_update_fail: "Update check failed :(";
@@ -192,7 +211,7 @@ lng_download_path_settings: "Go to Settings";
 lng_download_finish_failed: "File download could not be finished.
 
 Would you like to try again?";
-lng_download_path_clearing: "Clearing...";
+lng_download_path_clearing: "Clearing..";
 lng_download_path_cleared: "Cleared!";
 lng_download_path_clear_failed: "Clear failed :(";
 
@@ -238,7 +257,7 @@ lng_profile_add_participant: "Add Member";
 lng_profile_delete_and_exit: "Leave";
 lng_profile_kick: "Kick";
 lng_profile_sure_kick: "Kick {user} from the group?";
-lng_profile_loading: "Loading...";
+lng_profile_loading: "Loading..";
 lng_profile_shared_media: "Shared media";
 lng_profile_no_media: "No media in this conversation.";
 lng_profile_photo: "{count} photo »";
@@ -315,7 +334,7 @@ lng_in_dlg_audio: "Audio";
 lng_in_dlg_document: "Document";
 
 lng_send_button: "Send";
-lng_message_ph: "Write a message...";
+lng_message_ph: "Write a message..";
 lng_empty_history: "";
 lng_willbe_history: "Please select chat to start messaging";
 lng_message_with_from: "[c]{from}:[/c] {message}";
@@ -343,7 +362,7 @@ lng_context_copy_email: "Copy email address";
 lng_context_open_hashtag: "Search by hashtag";
 lng_context_copy_hashtag: "Copy hashtag";
 lng_context_open_image: "Open Image";
-lng_context_save_image: "Save Image As...";
+lng_context_save_image: "Save Image As..";
 lng_context_forward_image: "Forward Image";
 lng_context_delete_image: "Delete Image";
 lng_context_copy_image: "Copy Image";
@@ -352,11 +371,11 @@ lng_context_cancel_download: "Cancel Download";
 lng_context_show_in_folder: "Show in Folder";
 lng_context_show_in_finder: "Show in Finder";
 lng_context_open_video: "Open Video";
-lng_context_save_video: "Save Video As...";
+lng_context_save_video: "Save Video As..";
 lng_context_open_audio: "Open Audio";
-lng_context_save_audio: "Save Audio As...";
+lng_context_save_audio: "Save Audio As..";
 lng_context_open_document: "Open File";
-lng_context_save_document: "Save File As...";
+lng_context_save_document: "Save File As..";
 lng_context_forward_file: "Forward File";
 lng_context_delete_file: "Delete File";
 lng_context_close_file: "Close File";
@@ -375,7 +394,7 @@ lng_really_send_file: "Do you want to send this file?";
 lng_really_share_contact: "Do you want to share this contact?";
 lng_send_image_compressed: "Send compressed image";
 
-lng_forward_choose: "Choose recipient...";
+lng_forward_choose: "Choose recipient..";
 lng_forward_confirm: "Forward to {recipient}?";
 lng_forward_share_contact: "Share contact to {recipient}?";
 lng_forward_send_file_confirm: "Send «{name}» to {recipient}?";
@@ -430,6 +449,7 @@ lng_about_done: "Done";
 lng_search_no_results: "No messages found";
 lng_search_one_result: "Found {count} message";
 lng_search_n_results: "Found {count} messages";
+lng_search_global_results: "Global search results";
 
 lng_mediaview_save: "Download";
 lng_mediaview_forward: "Forward";

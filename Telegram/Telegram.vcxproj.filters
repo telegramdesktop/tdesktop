@@ -722,6 +722,18 @@
     <ClCompile Include="SourceFiles\mtproto\mtpScheme.cpp">
       <Filter>mtproto</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\usernamebox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_usernamebox.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_usernamebox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_usernamebox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -971,6 +983,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\gui\contextmenu.h">
       <Filter>gui</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\usernamebox.h">
+      <Filter>boxes</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

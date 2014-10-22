@@ -414,21 +414,27 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	_nameText.drawElided(p, _left + st::profilePhotoSize + st::profileNameLeft, top + st::profileNameTop, _width - st::profilePhotoSize - st::profileNameLeft);
 
 	p.setFont(st::profileStatusFont->f);
+	int32 addbyname = 0;
+	if (_peerUser && !_peerUser->username.isEmpty()) {
+		addbyname = st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
+		p.setPen(st::black->p);
+		p.drawText(_left + st::profilePhotoSize + st::profileStatusLeft, top + st::profileStatusTop + st::linkFont->ascent, '@' + _peerUser->username);
+	}
 	p.setPen((_peerUser && _peerUser->onlineTill >= l_time ? st::profileOnlineColor : st::profileOfflineColor)->p);
-	p.drawText(_left + st::profilePhotoSize + st::profileStatusLeft, top + st::profileStatusTop + st::linkFont->ascent, _onlineText);
+	p.drawText(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop + st::linkFont->ascent, _onlineText);
 	if (!_cancelPhoto.isHidden()) {
-		p.drawText(_left + st::profilePhotoSize + st::profilePhoneLeft, _cancelPhoto.y() + st::linkFont->ascent, lang(lng_settings_uploading_photo));
+		p.drawText(_left + st::profilePhotoSize + st::profilePhoneLeft, _cancelPhoto.y() + addbyname + st::linkFont->ascent, lang(lng_settings_uploading_photo));
 	}
 
 	if (!_errorText.isEmpty()) {
 		p.setFont(st::setErrFont->f);
 		p.setPen(st::setErrColor->p);
-		p.drawText(_left + st::profilePhotoSize + st::profilePhoneLeft, top + st::profilePhoneTop + st::profilePhoneFont->ascent, _errorText);
+		p.drawText(_left + st::profilePhotoSize + st::profilePhoneLeft, top + addbyname + st::profilePhoneTop + st::profilePhoneFont->ascent, _errorText);
 	}
 	if (!_phoneText.isEmpty()) {
 		p.setPen(st::black->p);
 		p.setFont(st::linkFont->f);
-		p.drawText(_left + st::profilePhotoSize + st::profilePhoneLeft, top + st::profilePhoneTop + st::profilePhoneFont->ascent, _phoneText);
+		p.drawText(_left + st::profilePhotoSize + st::profilePhoneLeft, top + addbyname + st::profilePhoneTop + st::profilePhoneFont->ascent, _phoneText);
 	}
 	top += st::profilePhotoSize;
 	top += st::profileButtonTop;

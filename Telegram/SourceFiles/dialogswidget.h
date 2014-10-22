@@ -28,6 +28,7 @@ public:
 
 	void dialogsReceived(const QVector<MTPDialog> &dialogs);
 	void searchReceived(const QVector<MTPMessage> &messages, bool fromStart, int32 fullCount);
+	void peopleReceived(const QVector<MTPContactFound> &people);
 	void showMore(int32 pixels);
 
 	void activate();
@@ -40,6 +41,8 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
+
+	void peopleResultPaint(UserData *user, QPainter &p, int32 w, bool act, bool sel) const;
 
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
@@ -62,10 +65,14 @@ public:
 	void peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const;
 	void scrollToPeer(const PeerId &peer, MsgId msgId);
 
+	typedef QVector<DialogRow*> FilteredDialogs;
+	typedef QVector<UserData*> PeopleResults;
 	typedef QVector<FakeDialogRow*> SearchResults;
 
 	DialogsIndexed &contactsList();
 	DialogsIndexed &dialogsList();
+	FilteredDialogs &filteredList();
+	PeopleResults &peopleList();
 	SearchResults &searchList();
 	MsgId lastSearchId() const;
 
@@ -96,15 +103,15 @@ public slots:
 
 signals:
 
-	void peerChosen(const PeerId &, MsgId);
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
 	void dialogToTopFrom(int movedFrom);
 	void searchMessages();
+	void searchResultChosen();
 
 private:
 
 	void addDialog(const MTPDdialog &dialog);
-	void clearSearchResults();
+	void clearSearchResults(bool clearPeople = true);
 
 	DialogsIndexed dialogs;
 	DialogsIndexed contactsNoDialogs;
@@ -114,12 +121,14 @@ private:
 	bool selByMouse;
 
 	QString filter;
-	typedef QVector<DialogRow*> FilteredDialogs;
 	FilteredDialogs filterResults;
 	int32 filteredSel;
 
 	SearchResults searchResults;
 	int32 searchedCount, searchedSel;
+
+	PeopleResults peopleResults;
+	int32 peopleSel;
 
 	MsgId _lastSearchId;
 
@@ -140,6 +149,7 @@ public:
 	void dialogsReceived(const MTPmessages_Dialogs &dialogs);
 	void contactsReceived(const MTPcontacts_Contacts &contacts);
 	void searchReceived(bool fromStart, const MTPmessages_Messages &result, mtpRequestId req);
+	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
 	bool addNewContact(int32 uid, bool show = true);
 	
 	void resizeEvent(QResizeEvent *e);
@@ -174,14 +184,12 @@ public:
 	
 	void searchMessages(const QString &query);
 	void onSearchMore(MsgId minMsgId);
-	void clearFiltered();
 
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
 signals:
 
-	void peerChosen(const PeerId &, MsgId);
 	void cancelled();
 
 public slots:
@@ -206,6 +214,7 @@ private:
 	bool dialogsFailed(const RPCError &e);
 	bool contactsFailed();
 	bool searchFailed(const RPCError &error, mtpRequestId req);
+	bool peopleFailed(const RPCError &error, mtpRequestId req);
 
 	int32 dlgOffset, dlgCount;
 	mtpRequestId dlgPreloading;
@@ -217,14 +226,20 @@ private:
 	DialogsListWidget list;
 
 	QTimer _searchTimer;
-	QString _searchQuery;
-	bool _searchFull;
-	mtpRequestId _searchRequest;
+	QString _searchQuery, _peopleQuery;
+	bool _searchFull, _peopleFull;
+	mtpRequestId _searchRequest, _peopleRequest;
 
 	typedef QMap<QString, MTPmessages_Messages> SearchCache;
 	SearchCache _searchCache;
 
 	typedef QMap<mtpRequestId, QString> SearchQueries;
 	SearchQueries _searchQueries;
+
+	typedef QMap<QString, MTPcontacts_Found> PeopleCache;
+	PeopleCache _peopleCache;
+
+	typedef QMap<mtpRequestId, QString> PeopleQueries;
+	PeopleQueries _peopleQueries;
 
 };

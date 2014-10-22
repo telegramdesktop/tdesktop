@@ -256,10 +256,11 @@ void AddContactBox::onSaveSelfDone(const MTPUser &user) {
 }
 
 bool AddContactBox::onSaveSelfFail(const RPCError &error) {
+	_addRequest = 0;
 	QString err(error.type());
 	QString firstName = textOneLine(_firstInput.text()), lastName = textOneLine(_lastInput.text());
 	if (err == "NAME_NOT_MODIFIED") {
-		App::self()->setName(firstName, lastName, firstName + ' ' + lastName);
+		App::self()->setName(firstName, lastName, firstName + ' ' + lastName, textOneLine(App::self()->username));
 		emit closed();
 		return true;
 	} else if (err == "FIRSTNAME_INVALID") {
@@ -276,6 +277,7 @@ bool AddContactBox::onSaveSelfFail(const RPCError &error) {
 }
 
 bool AddContactBox::onSaveFail(const RPCError &error) {
+	_addRequest = 0;
 	QString err(error.type());
 	QString firstName = _firstInput.text().trimmed(), lastName = _lastInput.text().trimmed();
 	if (err == "CHAT_TITLE_NOT_MODIFIED") {

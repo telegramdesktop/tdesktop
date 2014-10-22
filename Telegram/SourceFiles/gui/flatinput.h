@@ -27,7 +27,6 @@ class FlatInput : public QLineEdit, public Animated {
 public:
 
 	FlatInput(QWidget *parent, const style::flatInput &st, const QString &ph = QString(), const QString &val = QString());
-	QString val() const;
 
 	bool event(QEvent *e);
 	void touchEvent(QTouchEvent *e);

@@ -279,7 +279,6 @@ dialogs(this), history(this), profile(0), overview(0), _topBar(this), hider(0), 
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
 	connect(window, SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
-	connect(&dialogs, SIGNAL(peerChosen(const PeerId &, MsgId)), this, SLOT(showPeer(const PeerId &, MsgId)));
 	connect(&dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(&history, SIGNAL(cancelled()), &dialogs, SLOT(activate()));
 	connect(this, SIGNAL(peerPhotoChanged(PeerData *)), this, SIGNAL(dialogsUpdated()));
@@ -559,7 +558,8 @@ void MainWidget::sendMessage(History *hist, const QString &text) {
 		hist->loadAround(0);
 
 		MTPstring msgText(MTP_string(msg));
-		hist->addToBack(MTP_message(MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTP_bool(true), MTP_bool(true), MTP_int(unixtime()), msgText, MTP_messageMediaEmpty()));
+		int32 flags = 0x01 | 0x02; // unread, out
+		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTP_int(unixtime()), msgText, MTP_messageMediaEmpty()));
 		historyToDown(hist);
 		if (history.peer() == hist->peer) {
             history.peerMessagesUpdated();
@@ -575,7 +575,7 @@ void MainWidget::readServerHistory(History *hist, bool force) {
     ReadRequests::const_iterator i = _readRequests.constFind(hist->peer);
     if (i == _readRequests.cend()) {
         hist->inboxRead(true);
-        _readRequests.insert(hist->peer, MTP::send(MTPmessages_ReadHistory(hist->peer->input, MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::partWasRead, hist->peer)));
+        _readRequests.insert(hist->peer, MTP::send(MTPmessages_ReadHistory(hist->peer->input, MTP_int(0), MTP_int(0), MTP_bool(true)), rpcDone(&MainWidget::partWasRead, hist->peer)));
     }
 }
 
@@ -755,6 +755,15 @@ void MainWidget::loadMediaBack(PeerData *peer, MediaOverviewType type, bool many
 	_overviewLoad[type].insert(hist->peer, MTP::send(MTPmessages_Search(hist->peer->input, MTPstring(), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(minId), MTP_int(limit)), rpcDone(&MainWidget::photosLoaded, hist)));
 }
 
+void MainWidget::peerUsernameChanged(PeerData *peer) {
+	if (profile && profile->peer() == peer) {
+		profile->update();
+	}
+	if (App::settings() && peer == App::self()) {
+		App::settings()->usernameChanged();
+	}
+}
+
 void MainWidget::photosLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req) {
 	OverviewsPreload::iterator it;
 	MediaOverviewType type = OverviewCount;
@@ -820,7 +829,7 @@ void MainWidget::partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &
 	if (!MTP::authedId() || offset <= 0) {
         _readRequests.remove(peer);
     } else {
-        _readRequests[peer] = MTP::send(MTPmessages_ReadHistory(peer->input, MTP_int(0), MTP_int(offset)), rpcDone(&MainWidget::partWasRead, peer));
+        _readRequests[peer] = MTP::send(MTPmessages_ReadHistory(peer->input, MTP_int(0), MTP_int(offset), MTP_bool(true)), rpcDone(&MainWidget::partWasRead, peer));
     }
 }
 
@@ -1414,10 +1423,6 @@ void MainWidget::dialogsToUp() {
 	dialogs.dialogsToUp();
 }
 
-void MainWidget::dialogsClear() {
-	dialogs.clearFiltered();
-}
-
 void MainWidget::newUnreadMsg(History *hist, MsgId msgId) {
 	history.newUnreadMsg(hist, msgId);
 }
@@ -1950,7 +1955,8 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 				}
 
 				if (!App::userLoaded(d.vfrom_id.v)) return getDifference();
-				HistoryItem *item = App::histories().addToBack(MTP_message(d.vid, d.vfrom_id, MTP_peerUser(MTP_int(MTP::authedId())), MTP_bool(false), MTP_bool(true), d.vdate, d.vmessage, MTP_messageMediaEmpty()));
+				int32 flags = 0x01; // unread
+				HistoryItem *item = App::histories().addToBack(MTP_message(MTP_int(flags), d.vid, d.vfrom_id, MTP_peerUser(MTP_int(MTP::authedId())), d.vdate, d.vmessage, MTP_messageMediaEmpty()));
 				if (item) {
 					history.peerMessagesUpdated(item->history()->peer->id);
 				}
@@ -1965,7 +1971,8 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 				}
 
 				if (!App::chatLoaded(d.vchat_id.v) || !App::userLoaded(d.vfrom_id.v)) return getDifference();
-				HistoryItem *item = App::histories().addToBack(MTP_message(d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), MTP_bool(false), MTP_bool(true), d.vdate, d.vmessage, MTP_messageMediaEmpty()));
+				int32 flags = 0x01; // unread
+				HistoryItem *item = App::histories().addToBack(MTP_message(MTP_int(flags), d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), d.vdate, d.vmessage, MTP_messageMediaEmpty()));
 				if (item) {
 					history.peerMessagesUpdated(item->history()->peer->id);
 				}
@@ -2056,7 +2063,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		History *history = App::historyLoaded(App::peerFromUser(d.vuser_id));
 		UserData *user = App::userLoaded(d.vuser_id.v);
 		if (history && user) {
-			dialogs.regTyping(history, user);
+			if (d.vaction.type() == mtpc_sendMessageTypingAction) {
+				dialogs.regTyping(history, user);
+			} else if (d.vaction.type() == mtpc_sendMessageCancelAction) {
+				history->unregTyping(user);
+			}
 		}
 	} break;
 
@@ -2105,7 +2116,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const MTPDupdateUserName &d(update.c_updateUserName());
 		UserData *user = App::userLoaded(d.vuser_id.v);
 		if (user && user->contact <= 0) {
-			user->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), user->nameOrPhone);
+			user->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), user->nameOrPhone, textOneLine(qs(d.vusername)));
 			if (App::main()) App::main()->peerUpdated(user);
 		}
 	} break;
@@ -2199,6 +2210,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateDcOptions: {
 		const MTPDupdateDcOptions &d(update.c_updateDcOptions());
 		MTP::updateDcOptions(d.vdc_options.c_vector().v);
+	} break;
+
+	case mtpc_updateServiceNotification: {
+		const MTPDupdateServiceNotification &d(update.c_updateServiceNotification());
+		//
 	} break;
 	}
 }
