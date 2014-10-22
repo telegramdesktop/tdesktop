@@ -1,5 +1,5 @@
-AppVersionStr=0.6.4
-AppVersion=6004
+AppVersionStr=0.6.5
+AppVersion=6005
 
 if [ ! -f "./../Win32/Deploy/deploy/$AppVersionStr/tupdate$AppVersion" ]; then
     echo "tupdate$AppVersion not found!"
