@@ -10,7 +10,7 @@ CONFIG(debug, debug|release) {
     DESTDIR = ./../Debug
 }
 CONFIG(release, debug|release) {
-    DEFINES += CUSTOM_API_ID
+    DEFINES += _WITH_DEBUG CUSTOM_API_ID
     OBJECTS_DIR = ./../ReleaseIntermediate
     MOC_DIR = ./GenFiles/Release
     RCC_DIR = ./GenFiles
@@ -104,9 +104,11 @@ SOURCES += \
     ./SourceFiles/window.cpp \
     ./SourceFiles/mtproto/mtp.cpp \
     ./SourceFiles/mtproto/mtpConnection.cpp \
+    ./SourceFiles/mtproto/mtpCoreTypes.cpp \
     ./SourceFiles/mtproto/mtpDC.cpp \
     ./SourceFiles/mtproto/mtpFileLoader.cpp \
     ./SourceFiles/mtproto/mtpRPC.cpp \
+    ./SourceFiles/mtproto/mtpScheme.cpp \
     ./SourceFiles/mtproto/mtpSession.cpp \
     ./SourceFiles/gui/animation.cpp \
     ./SourceFiles/gui/boxshadow.cpp \
