@@ -50,6 +50,10 @@
 		07C4753F1967E37300CAAFE9 /* moc_switcher.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */; };
 		07D7034B19B8755A00C4EED2 /* audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D7034919B8755A00C4EED2 /* audio.cpp */; };
 		07D703BB19B88FB900C4EED2 /* moc_audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D703BA19B88FB900C4EED2 /* moc_audio.cpp */; };
+		07D8509419F5C97E00623D75 /* mtpCoreTypes.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D8509219F5C97E00623D75 /* mtpCoreTypes.cpp */; };
+		07D8509519F5C97E00623D75 /* mtpScheme.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D8509319F5C97E00623D75 /* mtpScheme.cpp */; };
+		07D8509919F8320900623D75 /* usernamebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D8509719F8320900623D75 /* usernamebox.cpp */; };
+		07D8510819F8340A00623D75 /* moc_usernamebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D8510719F8340A00623D75 /* moc_usernamebox.cpp */; };
 		0A49F3A5DC0680FB31519670 /* phoneinput.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 7C8F9CA4FCE8AF8FCCCB961E /* phoneinput.cpp */; settings = {ATTRIBUTES = (); }; };
 		0CB7DE9A54CC9BF86FB7B5CA /* mtp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 6D50D70712776D7ED3B00E5C /* mtp.cpp */; settings = {ATTRIBUTES = (); }; };
 		0F0FC25286E16E5F78962FEE /* moc_newgroupbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 69FE16874104731CE2A66E0D /* moc_newgroupbox.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -264,6 +268,11 @@
 		07D7034919B8755A00C4EED2 /* audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = audio.cpp; path = SourceFiles/audio.cpp; sourceTree = SOURCE_ROOT; };
 		07D7034A19B8755A00C4EED2 /* audio.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = audio.h; path = SourceFiles/audio.h; sourceTree = SOURCE_ROOT; };
 		07D703BA19B88FB900C4EED2 /* moc_audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_audio.cpp; path = GeneratedFiles/Debug/moc_audio.cpp; sourceTree = SOURCE_ROOT; };
+		07D8509219F5C97E00623D75 /* mtpCoreTypes.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mtpCoreTypes.cpp; path = SourceFiles/mtproto/mtpCoreTypes.cpp; sourceTree = SOURCE_ROOT; };
+		07D8509319F5C97E00623D75 /* mtpScheme.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mtpScheme.cpp; path = SourceFiles/mtproto/mtpScheme.cpp; sourceTree = SOURCE_ROOT; };
+		07D8509719F8320900623D75 /* usernamebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = usernamebox.cpp; path = SourceFiles/boxes/usernamebox.cpp; sourceTree = SOURCE_ROOT; };
+		07D8509819F8320900623D75 /* usernamebox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = usernamebox.h; path = SourceFiles/boxes/usernamebox.h; sourceTree = SOURCE_ROOT; };
+		07D8510719F8340A00623D75 /* moc_usernamebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_usernamebox.cpp; path = GeneratedFiles/Debug/moc_usernamebox.cpp; sourceTree = SOURCE_ROOT; };
 		08A7682548FB7E671FF03822 /* boxshadow.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = boxshadow.cpp; path = SourceFiles/gui/boxshadow.cpp; sourceTree = "<absolute>"; };
 		098EA7CE256AAFAE4A17EB77 /* introcode.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = introcode.h; path = SourceFiles/intro/introcode.h; sourceTree = "<absolute>"; };
 		09FD01F2BD652EB838A296D8 /* application.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = application.h; path = SourceFiles/application.h; sourceTree = "<absolute>"; };
@@ -706,9 +715,11 @@
 			children = (
 				6D50D70712776D7ED3B00E5C /* mtp.cpp */,
 				B8D9AFA42E8633154A9817A2 /* mtpConnection.cpp */,
+				07D8509219F5C97E00623D75 /* mtpCoreTypes.cpp */,
 				315C7FACB4A9E18AA95486CA /* mtpDC.cpp */,
 				01D6341DC31FE5997F7BB159 /* mtpFileLoader.cpp */,
 				89F92B278CA31C393E245056 /* mtpRPC.cpp */,
+				07D8509319F5C97E00623D75 /* mtpScheme.cpp */,
 				0FBED3C6654EA3753EB39831 /* mtpSession.cpp */,
 				EC4D4A7398CAAD47386D9CA0 /* mtpSessionImpl.h */,
 				8880067F9BFD46108777E134 /* mtp.h */,
@@ -1023,6 +1034,7 @@
 		801973D3334D0FCA849CF485 /* Debug */ = {
 			isa = PBXGroup;
 			children = (
+				07D8510719F8340A00623D75 /* moc_usernamebox.cpp */,
 				074FCB9019D36E60004C6EB2 /* moc_contextmenu.cpp */,
 				07D703BA19B88FB900C4EED2 /* moc_audio.cpp */,
 				0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */,
@@ -1104,6 +1116,7 @@
 				5FCB7CBBAF4AE338D4B05C76 /* newgroupbox.cpp */,
 				E908A6C86F93FA27DF70866C /* photocropbox.cpp */,
 				D1C9C77F1318F5A55C9BF289 /* photosendbox.cpp */,
+				07D8509719F8320900623D75 /* usernamebox.cpp */,
 				143405635D04698F421A12EA /* aboutbox.h */,
 				7CDE9D7CB2C729BC3612372B /* addcontactbox.h */,
 				245F3B3B43CC450EBA6650B5 /* addparticipantbox.h */,
@@ -1115,6 +1128,7 @@
 				FF66B5DCBB004CD8703F0207 /* newgroupbox.h */,
 				14437BFDCD58FF1742EF1B35 /* photocropbox.h */,
 				0BDE09020E45EFA57DCB2E25 /* photosendbox.h */,
+				07D8509819F8320900623D75 /* usernamebox.h */,
 			);
 			name = boxes;
 			sourceTree = "<Group>";
@@ -1432,9 +1446,11 @@
 				C14E6C902F6435B3149ECD64 /* moc_profilewidget.cpp in Compile Sources */,
 				98E4F55DB5D8E64AB9F08C83 /* moc_localimageloader.cpp in Compile Sources */,
 				A24E4B5B683764E07683ECEC /* moc_mainwidget.cpp in Compile Sources */,
+				07D8509919F8320900623D75 /* usernamebox.cpp in Compile Sources */,
 				A469EC9C4C367E0B773A9BB7 /* moc_settingswidget.cpp in Compile Sources */,
 				FD2FE0C564A7389A2E609EC7 /* moc_sysbuttons.cpp in Compile Sources */,
 				E97B3CFAB59B49BACFFC5F7C /* moc_title.cpp in Compile Sources */,
+				07D8510819F8340A00623D75 /* moc_usernamebox.cpp in Compile Sources */,
 				9A0D5DDC7816FC2538EB6A96 /* moc_window.cpp in Compile Sources */,
 				06EABCC49D2EEE4076322BE7 /* moc_mtp.cpp in Compile Sources */,
 				8F6F5D7F82036331E8C6DAE6 /* moc_mtpConnection.cpp in Compile Sources */,
@@ -1468,7 +1484,9 @@
 				AC6C131416AEC557C854BA70 /* moc_photosendbox.cpp in Compile Sources */,
 				0F7872E39EA570249D420912 /* moc_intro.cpp in Compile Sources */,
 				4F27F5F76AA3F78C8CA27339 /* moc_introcode.cpp in Compile Sources */,
+				07D8509519F5C97E00623D75 /* mtpScheme.cpp in Compile Sources */,
 				0250AB6761AC71A2E3155EEA /* moc_introphone.cpp in Compile Sources */,
+				07D8509419F5C97E00623D75 /* mtpCoreTypes.cpp in Compile Sources */,
 				2EF5D0AC9A18F9FE9B8A1ACA /* moc_introsignup.cpp in Compile Sources */,
 				8C4BA0DB55E2C40DE5F5E990 /* moc_pspecific_mac.cpp in Compile Sources */,
 				FA603B17F803E8D6B55C2F2B /* pspecific_mac_p.mm in Compile Sources */,
