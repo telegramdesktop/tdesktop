@@ -72,7 +72,7 @@ private:
 	QPixmap _cache;
 
 	mtpRequestId _saveRequest, _checkRequest;
-	QString _sentUsername, _errorText;
+	QString _sentUsername, _checkUsername, _errorText;
 
 	Text _about;
 	QTimer _checkTimer;
