@@ -151,12 +151,25 @@ void DialogsListWidget::peopleResultPaint(UserData *user, QPainter &p, int32 w, 
 		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgLeft, rectForName.top() + st::dlgChatImgTop), App::sprite(), (act ? st::dlgActiveChatImg : st::dlgChatImg));
 		rectForName.setLeft(rectForName.left() + st::dlgChatImgSkip);
 	}
-
-	// draw unread
+	
 	QRect tr(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth, st::dlgFont->height);
-	p.setPen((act ? st::dlgActiveColor : st::dlgSystemColor)->p);
 	p.setFont(st::dlgHistFont->f);
-	p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->m.elidedText('@' + user->username, Qt::ElideRight, tr.width()));
+	if (!act && user->username.toLower().startsWith(peopleQuery)) {
+		QString first = '@' + user->username.mid(0, peopleQuery.size()), second = user->username.mid(peopleQuery.size());
+		int32 w = st::dlgHistFont->m.width(first);
+		if (w >= tr.width()) {
+			p.setPen(st::dlgSystemColor->p);
+			p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->m.elidedText(first, Qt::ElideRight, tr.width()));
+		} else {
+			p.setPen(st::dlgSystemColor->p);
+			p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, first);
+			p.setPen(st::dlgTextColor->p);
+			p.drawText(tr.left() + w, tr.top() + st::dlgHistFont->ascent, second);
+		}
+	} else {
+		p.setPen((act ? st::dlgActiveColor : st::dlgSystemColor)->p);
+		p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->m.elidedText('@' + user->username, Qt::ElideRight, tr.width()));
+	}
 
 	p.setPen((act ? st::dlgActiveColor : st::dlgNameColor)->p);
 	history->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
@@ -587,7 +600,8 @@ void DialogsListWidget::searchReceived(const QVector<MTPMessage> &messages, bool
 	refresh();
 }
 
-void DialogsListWidget::peopleReceived(const QVector<MTPContactFound> &people) {
+void DialogsListWidget::peopleReceived(const QString &query, const QVector<MTPContactFound> &people) {
+	peopleQuery = query.toLower().trimmed();
 	peopleResults.clear();
 	peopleResults.reserve(people.size());
 	for (QVector<MTPContactFound>::const_iterator i = people.cbegin(), e = people.cend(); i != e; ++i) {
@@ -1435,10 +1449,12 @@ void DialogsWidget::searchReceived(bool fromStart, const MTPmessages_Messages &r
 }
 
 void DialogsWidget::peopleReceived(const MTPcontacts_Found &result, mtpRequestId req) {
+	QString q = _peopleQuery;
 	if (list.state() == DialogsListWidget::FilteredState || list.state() == DialogsListWidget::SearchedState) {
 		PeopleQueries::iterator i = _peopleQueries.find(req);
 		if (i != _peopleQueries.cend()) {
-			_peopleCache[i.value()] = result;
+			q = i.value();
+			_peopleCache[q] = result;
 			_peopleQueries.erase(i);
 		}
 	}
@@ -1447,7 +1463,7 @@ void DialogsWidget::peopleReceived(const MTPcontacts_Found &result, mtpRequestId
 		switch (result.type()) {
 		case mtpc_contacts_found: {
 			App::feedUsers(result.c_contacts_found().vusers);
-			list.peopleReceived(result.c_contacts_found().vresults.c_vector().v);
+			list.peopleReceived(q, result.c_contacts_found().vresults.c_vector().v);
 		} break;
 		}
 

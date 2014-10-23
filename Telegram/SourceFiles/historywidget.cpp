@@ -2173,8 +2173,8 @@ QString HistoryWidget::prepareMessage(QString result) {
 
 	result = result.replace(" --", QString::fromUtf8(" \xe2\x80\x94"));
 	result = result.replace("-- ", QString::fromUtf8("\xe2\x80\x94 "));
-	result = result.replace("<<", qsl("\xab"));
-    result = result.replace(">>", qsl("\xbb"));
+	result = result.replace("<<", QString::fromUtf8("\xc2\xab"));
+	result = result.replace(">>", QString::fromUtf8("\xc2\xbb"));
 
 	return (cReplaceEmojis() ? replaceEmojis(result) : result).trimmed();
 }

@@ -28,7 +28,7 @@ public:
 
 	void dialogsReceived(const QVector<MTPDialog> &dialogs);
 	void searchReceived(const QVector<MTPMessage> &messages, bool fromStart, int32 fullCount);
-	void peopleReceived(const QVector<MTPContactFound> &people);
+	void peopleReceived(const QString &query, const QVector<MTPContactFound> &people);
 	void showMore(int32 pixels);
 
 	void activate();
@@ -127,6 +127,7 @@ private:
 	SearchResults searchResults;
 	int32 searchedCount, searchedSel;
 
+	QString peopleQuery;
 	PeopleResults peopleResults;
 	int32 peopleSel;
 
