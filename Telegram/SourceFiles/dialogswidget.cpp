@@ -164,7 +164,7 @@ void DialogsListWidget::peopleResultPaint(UserData *user, QPainter &p, int32 w, 
 			p.setPen(st::dlgSystemColor->p);
 			p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, first);
 			p.setPen(st::dlgTextColor->p);
-			p.drawText(tr.left() + w, tr.top() + st::dlgHistFont->ascent, second);
+			p.drawText(tr.left() + w, tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->m.elidedText(second, Qt::ElideRight, tr.width() - w));
 		}
 	} else {
 		p.setPen((act ? st::dlgActiveColor : st::dlgSystemColor)->p);

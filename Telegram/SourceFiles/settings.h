@@ -19,9 +19,9 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 
 extern bool gDebug;
 inline bool cDebug() {
-#if defined _DEBUG && !defined Q_OS_MAC
+#if defined _DEBUG
 	return true;
-#elif defined _WITH_DEBUG || (defined _DEBUG && defined Q_OS_MAC)
+#elif defined _WITH_DEBUG
 	return gDebug;
 #else
 	return false;

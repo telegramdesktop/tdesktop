@@ -25,8 +25,6 @@ QString mtpWrapNumber(float64 number) {
 }
 
 void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons, uint32 level, mtpPrime vcons) {
-	QString add = QString(" ").repeated(level * 2);
-
 	switch (mtpTypeId(cons)) {
 	case mtpc_int: {
 		MTPint value(from, end, cons);
@@ -77,11 +75,11 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 		int32 cnt = *(from++);
 		to.add("[ vector<0x").add(mtpWrapNumber(vcons, 16)).add(">");
 		if (cnt) {
-			to.add("\n").add(add);
+			to.add("\n").addSpaces(level);
 			for (int32 i = 0; i < cnt; ++i) {
 				to.add("  ");
 				mtpTextSerializeType(to, from, end, vcons, level + 1);
-				to.add(",\n").add(add);
+				to.add(",\n").addSpaces(level);
 			}
 		} else {
 			to.add(" ");
@@ -91,9 +89,9 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 
 	case mtpc_error: {
 		to.add("{ error");
-		to.add("\n").add(add);
-		to.add("  code: "); mtpTextSerializeType(to, from, end, mtpc_int, level + 1); to.add(",\n").add(add);
-		to.add("  text: "); mtpTextSerializeType(to, from, end, mtpc_string, level + 1); to.add(",\n").add(add);
+		to.add("\n").addSpaces(level);
+		to.add("  code: "); mtpTextSerializeType(to, from, end, mtpc_int, level + 1); to.add(",\n").addSpaces(level);
+		to.add("  text: "); mtpTextSerializeType(to, from, end, mtpc_string, level + 1); to.add(",\n").addSpaces(level);
 		to.add("}");
 	} break;
 
@@ -105,26 +103,26 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 
 	case mtpc_rpc_result: {
 		to.add("{ rpc_result");
-		to.add("\n").add(add);
-		to.add("  req_msg_id: "); mtpTextSerializeType(to, from, end, mtpc_long, level + 1); to.add(",\n").add(add);
-		to.add("  result: "); mtpTextSerializeType(to, from, end, 0, level + 1); to.add(",\n").add(add);
+		to.add("\n").addSpaces(level);
+		to.add("  req_msg_id: "); mtpTextSerializeType(to, from, end, mtpc_long, level + 1); to.add(",\n").addSpaces(level);
+		to.add("  result: "); mtpTextSerializeType(to, from, end, 0, level + 1); to.add(",\n").addSpaces(level);
 		to.add("}");
 	} break;
 
 	case mtpc_msg_container: {
 		to.add("{ msg_container");
-		to.add("\n").add(add);
-		to.add("  messages: "); mtpTextSerializeType(to, from, end, mtpc_vector, level + 1, mtpc_core_message); to.add(",\n").add(add);
+		to.add("\n").addSpaces(level);
+		to.add("  messages: "); mtpTextSerializeType(to, from, end, mtpc_vector, level + 1, mtpc_core_message); to.add(",\n").addSpaces(level);
 		to.add("}");
 	} break;
 
 	case mtpc_core_message: {
 		to.add("{ core_message");
-		to.add("\n").add(add);
-		to.add("  msg_id: "); mtpTextSerializeType(to, from, end, mtpc_long, level + 1); to.add(",\n").add(add);
-		to.add("  seq_no: "); mtpTextSerializeType(to, from, end, mtpc_int, level + 1); to.add(",\n").add(add);
-		to.add("  bytes: "); mtpTextSerializeType(to, from, end, mtpc_int, level + 1); to.add(",\n").add(add);
-		to.add("  body: "); mtpTextSerializeType(to, from, end, 0, level + 1); to.add(",\n").add(add);
+		to.add("\n").addSpaces(level);
+		to.add("  msg_id: "); mtpTextSerializeType(to, from, end, mtpc_long, level + 1); to.add(",\n").addSpaces(level);
+		to.add("  seq_no: "); mtpTextSerializeType(to, from, end, mtpc_int, level + 1); to.add(",\n").addSpaces(level);
+		to.add("  bytes: "); mtpTextSerializeType(to, from, end, mtpc_int, level + 1); to.add(",\n").addSpaces(level);
+		to.add("  body: "); mtpTextSerializeType(to, from, end, 0, level + 1); to.add(",\n").addSpaces(level);
 		to.add("}");
 	} break;
 

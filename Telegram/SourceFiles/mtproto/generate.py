@@ -255,21 +255,25 @@ def addTextSerialize(dct):
 
       if len(result):
         result += '\n';
-      result += '\t\tcase mtpc_' + name + ':\n';
-      result += '\t\t\tto.add("{ ' + name + '");\n';
+      result += '\t\t\tcase mtpc_' + name + ':\n';
       if (len(prms)):
-        result += '\t\t\tto.add("\\n").add(add);\n';
+        result += '\t\t\t\tif (stage) {\n';
+        result += '\t\t\t\t\tto.add(",\\n").addSpaces(lev);\n';
+        result += '\t\t\t\t} else {\n';
+        result += '\t\t\t\t\tto.add("{ ' + name + '");\n';
+        result += '\t\t\t\t\tto.add("\\n").addSpaces(lev);\n';
+        result += '\t\t\t\t}\n';
+        result += '\t\t\t\tswitch (stage) {\n';
+        stage = 0;
         for k in prmsList:
           v = prms[k];
-          result += '\t\t\tto.add("  ' + k + ': "); mtpTextSerializeType(to, from, end';
+          result += '\t\t\t\tcase ' + str(stage) + ': to.add("  ' + k + ': "); ++stages.back(); types.push_back(';
           vtypeget = re.match(r'^[Vv]ector<MTP([A-Za-z0-9\._]+)>', v);
           if (vtypeget):
             if (not re.match(r'^[A-Z]', v)):
-              result += ', mtpc_vector';
+              result += 'mtpc_vector';
             else:
-              result += ', 0';
-            result += ', level + 1';
-
+              result += '0';
             restype = vtypeget.group(1);
             try:
               if boxed[restype]:
@@ -291,18 +295,26 @@ def addTextSerialize(dct):
               if (len(conses) > 1):
                 print('Complex bare type found: "' + restype + '" trying to serialize "' + k + '" of type "' + v + '"');
                 continue;
-              result += ', mtpc_' + conses[0][0];
+              if (vtypeget):
+                result += '); vtypes.push_back(';
+              result += 'mtpc_' + conses[0][0];
+              if (not vtypeget):
+                result += '); vtypes.push_back(0';
             except KeyError:
-              result += ', mtpc_' + restype;
-            if (not vtypeget):
-              result += ', level + 1';
+              if (vtypeget):
+                result += '); vtypes.push_back(';
+              result += 'mtpc_' + restype;
+              if (not vtypeget):
+                result += '); vtypes.push_back(0';
           else:
-            if (not vtypeget):
-              result += ', 0, level + 1';
-          result += '); to.add(",\\n").add(add);\n';
+            result += '0); vtypes.push_back(0';
+          result += '); stages.push_back(0); break;\n';
+          stage = stage + 1;
+        result += '\t\t\t\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); break;\n';
+        result += '\t\t\t\t}\n';
       else:
-        result += '\t\t\tto.add(" ");\n';
-      result += '\t\t\tto.add("}");\n\t\tbreak;\n';
+        result += '\t\t\t\tto.add("{ ' + name + ' }"); types.pop_back(); vtypes.pop_back(); stages.pop_back();\n';
+      result += '\t\t\tbreak;\n';
   return result;
 
 textSerialize += addTextSerialize(typesDict) + '\n';
@@ -573,23 +585,39 @@ for restype in typesList:
   typesText += 'typedef MTPBoxed<MTP' + restype + '> MTP' + resType + ';\n'; # boxed type definition
 
 textSerializeFull = '\nvoid mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons) {\n';
-textSerializeFull += '\tQString add = QString(" ").repeated(level * 2);\n\n';
+textSerializeFull += '\tQVector<mtpTypeId> types, vtypes;\n';
+textSerializeFull += '\tQVector<int32> stages;\n';
+textSerializeFull += '\ttypes.reserve(20); vtypes.reserve(20); stages.reserve(20);\n';
+textSerializeFull += '\ttypes.push_back(mtpTypeId(cons)); vtypes.push_back(mtpTypeId(vcons)); stages.push_back(0);\n\n';
 textSerializeFull += '\tconst mtpPrime *start = from;\n';
+textSerializeFull += '\tmtpTypeId type = cons, vtype = vcons;\n';
+textSerializeFull += '\tint32 stage = 0;\n';
 textSerializeFull += '\ttry {\n';
-textSerializeFull += '\t\tif (!cons) {\n';
-textSerializeFull += '\t\t\tif (from >= end) {\n';
-textSerializeFull += '\t\t\t\tthrow Exception("from >= 2");\n';
+textSerializeFull += '\t\twhile (!types.isEmpty()) {\n';
+textSerializeFull += '\t\t\ttype = types.back();\n';
+textSerializeFull += '\t\t\tvtype = vtypes.back();\n';
+textSerializeFull += '\t\t\tstage = stages.back();\n';
+textSerializeFull += '\t\t\tif (!type) {\n';
+textSerializeFull += '\t\t\t\tif (from >= end) {\n';
+textSerializeFull += '\t\t\t\t\tthrow Exception("from >= end");\n';
+textSerializeFull += '\t\t\t\t} else if (stage) {\n';
+textSerializeFull += '\t\t\t\t\tthrow Exception("unknown type on stage > 0");\n';
+textSerializeFull += '\t\t\t\t}\n';
+textSerializeFull += '\t\t\t\ttypes.back() = type = *from;\n';
+textSerializeFull += '\t\t\t\tstart = ++from;\n';
+textSerializeFull += '\t\t\t}\n\n';
+textSerializeFull += '\t\t\tint32 lev = level + types.size() - 1;\n';
+textSerializeFull += '\t\t\tswitch (type) {\n' + textSerialize + '\n';
+textSerializeFull += '\t\t\tdefault:\n';
+textSerializeFull += '\t\t\t\tmtpTextSerializeCore(to, from, end, type, lev, vtype);\n';
+textSerializeFull += '\t\t\t\ttypes.pop_back(); vtypes.pop_back(); stages.pop_back();\n';
+textSerializeFull += '\t\t\tbreak;\n';
 textSerializeFull += '\t\t\t}\n';
-textSerializeFull += '\t\t\tcons = *from;\n';
-textSerializeFull += '\t\t\t++from;\n';
-textSerializeFull += '\t\t\t++start;\n';
-textSerializeFull += '\t\t}\n\n';
-textSerializeFull += '\t\tswitch (mtpTypeId(cons)) {\n' + textSerialize;
-textSerializeFull += '\n\n\t\tdefault:\n\t\t\tmtpTextSerializeCore(to, from, end, cons, level, vcons);\n\t\tbreak;\n\t\t}\n\n';
+textSerializeFull += '\t\t}\n';
 textSerializeFull += '\t} catch (Exception &e) {\n';
 textSerializeFull += '\t\tto.add("[ERROR] ");\n';
-textSerializeFull += '\t\tto.add("(").add(e.what()).add("), cons: 0x").add(mtpWrapNumber(cons, 16));\n';
-textSerializeFull += '\t\tif (vcons) to.add(", vcons: 0x").add(mtpWrapNumber(vcons));\n';
+textSerializeFull += '\t\tto.add("(").add(e.what()).add("), cons: 0x").add(mtpWrapNumber(type, 16));\n';
+textSerializeFull += '\t\tif (vtype) to.add(", vcons: 0x").add(mtpWrapNumber(vtype));\n';
 textSerializeFull += '\t\tto.add(", ").add(mb(start, (end - start) * sizeof(mtpPrime)).str());\n';
 textSerializeFull += '\t}\n';
 textSerializeFull += '}\n';

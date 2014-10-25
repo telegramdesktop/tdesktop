@@ -1026,18 +1026,34 @@ struct MTPStringLogger {
 		if (len < 0) len = strlen(data);
 		if (!len) return (*this);
 
-		if (size + len > alloced) {
-			int32 newsize = size + len;
-			if (newsize % MTPDebugBufferSize) newsize += MTPDebugBufferSize - (newsize % MTPDebugBufferSize);
-			char *b = new char[newsize];
-			memcpy(b, p, size);
-			alloced = newsize;
-			delete p;
-			p = b;
-		}
+		ensureLength(len);
 		memcpy(p + size, data, len);
 		size += len;
 		return (*this);
+	}
+
+	MTPStringLogger &addSpaces(int32 level) {
+		int32 len = level * 2;
+		if (!len) return (*this);
+
+		ensureLength(len);
+		for (char *ptr = p + size, *end = ptr + len; ptr != end; ++ptr) {
+			*ptr = ' ';
+		}
+		size += len;
+		return (*this);
+	}
+
+	void ensureLength(int32 add) {
+		if (size + add <= alloced) return;
+
+		int32 newsize = size + add;
+		if (newsize % MTPDebugBufferSize) newsize += MTPDebugBufferSize - (newsize % MTPDebugBufferSize);
+		char *b = new char[newsize];
+		memcpy(b, p, size);
+		alloced = newsize;
+		delete p;
+		p = b;
 	}
 	char *p;
 	int32 size, alloced;

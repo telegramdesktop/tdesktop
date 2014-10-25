@@ -334,7 +334,7 @@ QString MTProtoConnection::transport() const {
 namespace {
 	mtpBuffer _handleHttpResponse(QNetworkReply *reply) {
 		QByteArray response = reply->readAll();
-		TCP_LOG(("HTTP Info: read %1 bytes %2").arg(response.size()).arg(mb(response.constData(), response.size()).str()));
+		TCP_LOG(("HTTP Info: read %1 bytes").arg(response.size()));
 
 		if (response.isEmpty()) return mtpBuffer();
 
@@ -544,7 +544,7 @@ void MTPabstractTcpConnection::socketRead() {
 		}
 		int32 bytes = (int32)sock.read(readTo, toRead);
 		if (bytes > 0) {
-			TCP_LOG(("TCP Info: read %1 bytes %2").arg(bytes).arg(mb(readTo, bytes).str()));
+			TCP_LOG(("TCP Info: read %1 bytes").arg(bytes));
 
 			packetRead += bytes;
 			currentPos += bytes;
@@ -676,7 +676,7 @@ void MTPautoConnection::tcpSend(mtpBuffer &buffer) {
 	buffer[0] = len;
 	buffer[1] = packetNum++;
 	buffer[size - 1] = hashCrc32(&buffer[0], len - 4);
-	TCP_LOG(("TCP Info: write %1 packet %2 bytes %3").arg(packetNum).arg(len).arg(mb(&buffer[0], len).str()));
+	TCP_LOG(("TCP Info: write %1 packet %2 bytes").arg(packetNum).arg(len));
 
 	sock.write((const char*)&buffer[0], len);
 }
@@ -688,7 +688,7 @@ void MTPautoConnection::httpSend(mtpBuffer &buffer) {
 	request.setHeader(QNetworkRequest::ContentLengthHeader, QVariant(requestSize));
     request.setHeader(QNetworkRequest::ContentTypeHeader, QVariant(qsl("application/x-www-form-urlencoded")));
 
-	TCP_LOG(("HTTP Info: sending %1 len request %2").arg(requestSize).arg(mb(&buffer[2], requestSize).str()));
+	TCP_LOG(("HTTP Info: sending %1 len request").arg(requestSize));
 	requests.insert(manager.post(request, QByteArray((const char*)(&buffer[2]), requestSize)));
 }
 
@@ -1702,7 +1702,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 			conn->received().pop_front();
 			return restart();
 		}
-		TCP_LOG(("TCP Info: decrypted message %1,%2,%3 is %4").arg(msgId).arg(seqNo).arg(logBool(needAck)).arg(mb(data, msgLen + 8 * sizeof(mtpPrime)).str()));
+		TCP_LOG(("TCP Info: decrypted message %1,%2,%3 is %4 len").arg(msgId).arg(seqNo).arg(logBool(needAck)).arg(msgLen + 8 * sizeof(mtpPrime)));
 
 		uint64 serverSession = sessionData->getSession();
 		if (session != serverSession) {
