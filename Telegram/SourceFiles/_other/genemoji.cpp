@@ -52,38 +52,38 @@ struct EmojiReplace {
 };
 
 EmojiReplace replaces[] = {
-	{0xD83DDE0A, ":-)"},
-	{0xD83DDE03, ":-D"},
-	{0xD83DDE09, ";-)"},
-	{0xD83DDE06, "xD"},
-	{0xD83DDE1C, ";-P"},
-	{0xD83DDE0B, ":-p"},
-	{0xD83DDE0D, "8-)"},
-	{0xD83DDE0E, "B-)"},
-	{0xD83DDE12, ":-("},
-	{0xD83DDE0F, ":]"},
-	{0xD83DDE14, "3("},
-	{0xD83DDE22, ":'("},
-	{0xD83DDE2D, ":_("},
-	{0xD83DDE29, ":(("},
-	{0xD83DDE28, ":o"},
-	{0xD83DDE10, ":|"},
-	{0xD83DDE0C, "3-)"},
-	{0xD83DDE20, ">("},
-	{0xD83DDE21, ">(("},
-	{0xD83DDE07, "O:)"},
-	{0xD83DDE30, ";o"},
-	{0xD83DDE33, "8|"},
-	{0xD83DDE32, "8o"},
-	{0xD83DDE37, ":X"},
-	{0xD83DDE1A, ":-*"},
-	{0xD83DDE08, "}:)"},
-	{0x2764, "<3"},
-	{0xD83DDC4D, ":like:"},
-	{0xD83DDC4E, ":dislike:"},
-	{0x261D, ":up:"},
-	{0x270C, ":v:"},
-	{0xD83DDC4C, ":ok:"}
+	{0xD83DDE0AU, ":-)"},
+	{0xD83DDE03U, ":-D"},
+	{0xD83DDE09U, ";-)"},
+	{0xD83DDE06U, "xD"},
+	{0xD83DDE1CU, ";-P"},
+	{0xD83DDE0BU, ":-p"},
+	{0xD83DDE0DU, "8-)"},
+	{0xD83DDE0EU, "B-)"},
+	{0xD83DDE12U, ":-("},
+	{0xD83DDE0FU, ":]"},
+	{0xD83DDE14U, "3("},
+	{0xD83DDE22U, ":'("},
+	{0xD83DDE2DU, ":_("},
+	{0xD83DDE29U, ":(("},
+	{0xD83DDE28U, ":o"},
+	{0xD83DDE10U, ":|"},
+	{0xD83DDE0CU, "3-)"},
+	{0xD83DDE20U, ">("},
+	{0xD83DDE21U, ">(("},
+	{0xD83DDE07U, "O:)"},
+	{0xD83DDE30U, ";o"},
+	{0xD83DDE33U, "8|"},
+	{0xD83DDE32U, "8o"},
+	{0xD83DDE37U, ":X"},
+	{0xD83DDE1AU, ":-*"},
+	{0xD83DDE08U, "}:)"},
+	{0x2764FE0FU, "<3"},
+	{0xD83DDC4DU, ":like:"},
+	{0xD83DDC4EU, ":dislike:"},
+	{0x261DFE0FU, ":up:"},
+	{0x270CFE0FU, ":v:"},
+	{0xD83DDC4CU, ":ok:"}
 };
 const uint32 replacesCount = sizeof(replaces) / sizeof(EmojiReplace);
 typedef QMap<QString, uint32> ReplaceMap;
@@ -102,7 +102,7 @@ uint64 emojiCategory0[] = {
 	0xD83DDE03LLU,
 	0xD83DDE00LLU,
 	0xD83DDE0ALLU,
-	0x263ALLU,
+	0x263AFE0FLLU,
 	0xD83DDE09LLU,
 	0xD83DDE0DLLU,
 	0xD83DDE18LLU,
@@ -208,7 +208,7 @@ uint64 emojiCategory0[] = {
 	0xD83DDC4CLLU,
 	0xD83DDC4ALLU,
 	0x270ALLU,
-	0x270CLLU,
+	0x270CFE0FLLU,
 	0xD83DDC4BLLU,
 	0x270BLLU,
 	0xD83DDC50LLU,
@@ -218,7 +218,7 @@ uint64 emojiCategory0[] = {
 	0xD83DDC48LLU,
 	0xD83DDE4CLLU,
 	0xD83DDE4FLLU,
-	0x261DLLU,
+	0x261DFE0FLLU,
 	0xD83DDC4FLLU,
 	0xD83DDCAALLU,
 	0xD83DDEB6LLU,
@@ -270,7 +270,7 @@ uint64 emojiCategory0[] = {
 	0xD83DDC99LLU,
 	0xD83DDC9CLLU,
 	0xD83DDC9ALLU,
-	0x2764LLU,
+	0x2764FE0FLLU,
 	0xD83DDC94LLU,
 	0xD83DDC97LLU,
 	0xD83DDC93LLU,
@@ -395,12 +395,12 @@ uint64 emojiCategory1[] = {
 	0xD83CDF0CLLU,
 	0xD83CDF20LLU,
 	0x2B50LLU,
-	0x2600LLU,
+	0x2600FE0FLLU,
 	0x26C5LLU,
-	0x2601LLU,
+	0x2601FE0FLLU,
 	0x26A1LLU,
 	0x2614LLU,
-	0x2744LLU,
+	0x2744FE0FLLU,
 	0x26C4LLU,
 	0xD83CDF00LLU,
 	0xD83CDF01LLU,
@@ -440,7 +440,7 @@ uint64 emojiCategory2[] = {
 	0xD83DDCBELLU,
 	0xD83DDCBBLLU,
 	0xD83DDCF1LLU,
-	0x260ELLU,
+	0x260EFE0FLLU,
 	0xD83DDCDELLU,
 	0xD83DDCDFLLU,
 	0xD83DDCE0LLU,
@@ -497,7 +497,7 @@ uint64 emojiCategory2[] = {
 	0xD83DDCE7LLU,
 	0xD83DDCE5LLU,
 	0xD83DDCE4LLU,
-	0x2709LLU,
+	0x2709FE0FLLU,
 	0xD83DDCE9LLU,
 	0xD83DDCE8LLU,
 	0xD83DDCEFLLU,
@@ -521,11 +521,11 @@ uint64 emojiCategory2[] = {
 	0xD83DDCC7LLU,
 	0xD83DDCC1LLU,
 	0xD83DDCC2LLU,
-	0x2702LLU,
+	0x2702FE0FLLU,
 	0xD83DDCCCLLU,
 	0xD83DDCCELLU,
-	0x2712LLU,
-	0x270FLLU,
+	0x2712FE0FLLU,
+	0x270FFE0FLLU,
 	0xD83DDCCFLLU,
 	0xD83DDCD0LLU,
 	0xD83DDCD5LLU,
@@ -564,7 +564,7 @@ uint64 emojiCategory2[] = {
 	0xD83CDFC8LLU,
 	0xD83CDFC0LLU,
 	0x26BDLLU,
-	0x26BELLU,
+	0x26BEFE0FLLU,
 	0xD83CDFBELLU,
 	0xD83CDFB1LLU,
 	0xD83CDFC9LLU,
@@ -680,7 +680,7 @@ uint64 emojiCategory3[] = {
 	0xD83DDEA3LLU,
 	0x2693LLU,
 	0xD83DDE80LLU,
-	0x2708LLU,
+	0x2708FE0FLLU,
 	0xD83DDCBALLU,
 	0xD83DDE81LLU,
 	0xD83DDE82LLU,
@@ -721,13 +721,13 @@ uint64 emojiCategory3[] = {
 	0xD83CDFABLLU,
 	0xD83DDEA6LLU,
 	0xD83DDEA5LLU,
-	0x26A0LLU,
+	0x26A0FE0FLLU,
 	0xD83DDEA7LLU,
 	0xD83DDD30LLU,
 	0x26FDLLU,
 	0xD83CDFEELLU,
 	0xD83CDFB0LLU,
-	0x2668LLU,
+	0x2668FE0FLLU,
 	0xD83DDDFFLLU,
 	0xD83CDFAALLU,
 	0xD83CDFADLLU,
@@ -760,33 +760,33 @@ uint64 emojiCategory4[] = {
 	0xD83DDD22LLU,
 	0x2320E3LLU,
 	0xD83DDD23LLU,
-	0x2B06LLU,
-	0x2B07LLU,
-	0x2B05LLU,
-	0x27A1LLU,
+	0x2B06FE0FLLU,
+	0x2B07FE0FLLU,
+	0x2B05FE0FLLU,
+	0x27A1FE0FLLU,
 	0xD83DDD20LLU,
 	0xD83DDD21LLU,
 	0xD83DDD24LLU,
-	0x2197LLU,
-	0x2196LLU,
-	0x2198LLU,
-	0x2199LLU,
-	0x2194LLU,
-	0x2195LLU,
+	0x2197FE0FLLU,
+	0x2196FE0FLLU,
+	0x2198FE0FLLU,
+	0x2199FE0FLLU,
+	0x2194FE0FLLU,
+	0x2195FE0FLLU,
 	0xD83DDD04LLU,
-	0x25C0LLU,
-	0x25B6LLU,
+	0x25C0FE0FLLU,
+	0x25B6FE0FLLU,
 	0xD83DDD3CLLU,
 	0xD83DDD3DLLU,
-	0x21A9LLU,
-	0x21AALLU,
-	0x2139LLU,
+	0x21A9FE0FLLU,
+	0x21AAFE0FLLU,
+	0x2139FE0FLLU,
 	0x23EALLU,
 	0x23E9LLU,
 	0x23EBLLU,
 	0x23ECLLU,
-	0x2935LLU,
-	0x2934LLU,
+	0x2935FE0FLLU,
+	0x2934FE0FLLU,
 	0xD83CDD97LLU,
 	0xD83DDD00LLU,
 	0xD83DDD01LLU,
@@ -822,14 +822,14 @@ uint64 emojiCategory4[] = {
 	0xD83CDE37LLU,
 	0xD83CDE38LLU,
 	0xD83CDE02LLU,
-	0x24C2LLU,
+	0x24C2FE0FLLU,
 	0xD83DDEC2LLU,
 	0xD83DDEC4LLU,
 	0xD83DDEC5LLU,
 	0xD83DDEC3LLU,
 	0xD83CDE51LLU,
-	0x3299LLU,
-	0x3297LLU,
+	0x3299FE0FLLU,
+	0x3297FE0FLLU,
 	0xD83CDD91LLU,
 	0xD83CDD98LLU,
 	0xD83CDD94LLU,
@@ -842,11 +842,11 @@ uint64 emojiCategory4[] = {
 	0xD83DDEB7LLU,
 	0xD83DDEB8LLU,
 	0x26D4LLU,
-	0x2733LLU,
-	0x2747LLU,
+	0x2733FE0FLLU,
+	0x2747FE0FLLU,
 	0x274ELLU,
 	0x2705LLU,
-	0x2734LLU,
+	0x2734FE0FLLU,
 	0xD83DDC9FLLU,
 	0xD83CDD9ALLU,
 	0xD83DDCF3LLU,
@@ -857,7 +857,7 @@ uint64 emojiCategory4[] = {
 	0xD83CDD7ELLU,
 	0xD83DDCA0LLU,
 	0x27BFLLU,
-	0x267BLLU,
+	0x267BFE0FLLU,
 	0x2648LLU,
 	0x2649LLU,
 	0x264ALLU,
@@ -880,8 +880,8 @@ uint64 emojiCategory4[] = {
 	0xAELLU,
 	0x2122LLU,
 	0x274CLLU,
-	0x203CLLU,
-	0x2049LLU,
+	0x203CFE0FLLU,
+	0x2049FE0FLLU,
 	0x2757LLU,
 	0x2753LLU,
 	0x2755LLU,
@@ -921,26 +921,26 @@ uint64 emojiCategory4[] = {
 	0x2795LLU,
 	0x2796LLU,
 	0x2797LLU,
-	0x2660LLU,
-	0x2665LLU,
-	0x2663LLU,
-	0x2666LLU,
+	0x2660FE0FLLU,
+	0x2665FE0FLLU,
+	0x2663FE0FLLU,
+	0x2666FE0FLLU,
 	0xD83DDCAELLU,
 	0xD83DDCAFLLU,
-	0x2714LLU,
-	0x2611LLU,
+	0x2714FE0FLLU,
+	0x2611FE0FLLU,
 	0xD83DDD18LLU,
 	0xD83DDD17LLU,
 	0x27B0LLU,
 	0x3030LLU,
-	0x303DLLU,
+	0x303DFE0FLLU,
 	0xD83DDD31LLU,
-	0x25FCLLU,
-	0x25FBLLU,
+	0x25FCFE0FLLU,
+	0x25FBFE0FLLU,
 	0x25FELLU,
 	0x25FDLLU,
-	0x25AALLU,
-	0x25ABLLU,
+	0x25AAFE0FLLU,
+	0x25ABFE0FLLU,
 	0xD83DDD3ALLU,
 	0xD83DDD32LLU,
 	0xD83DDD33LLU,
@@ -955,6 +955,62 @@ uint64 emojiCategory4[] = {
 	0xD83DDD37LLU,
 	0xD83DDD38LLU,
 	0xD83DDD39LLU,
+};
+
+uint64 emojiClones[] = {
+	0x263ALLU,
+	0x270CLLU,
+	0x261DLLU,
+	0x2764LLU,
+	0x2600LLU,
+	0x2601LLU,
+	0x2744LLU,
+	0x260ELLU,
+	0x2709LLU,
+	0x2702LLU,
+	0x2712LLU,
+	0x270FLLU,
+	0x26BELLU,
+	0x2708LLU,
+	0x26A0LLU,
+	0x2668LLU,
+	0x2B06LLU,
+	0x2B07LLU,
+	0x2B05LLU,
+	0x27A1LLU,
+	0x2197LLU,
+	0x2196LLU,
+	0x2198LLU,
+	0x2199LLU,
+	0x2194LLU,
+	0x2195LLU,
+	0x25C0LLU,
+	0x25B6LLU,
+	0x21A9LLU,
+	0x21AALLU,
+	0x2139LLU,
+	0x2935LLU,
+	0x2934LLU,
+	0x24C2LLU,
+	0x3299LLU,
+	0x3297LLU,
+	0x2733LLU,
+	0x2747LLU,
+	0x2734LLU,
+	0x267BLLU,
+	0x203CLLU,
+	0x2049LLU,
+	0x2660LLU,
+	0x2665LLU,
+	0x2663LLU,
+	0x2666LLU,
+	0x2714LLU,
+	0x2611LLU,
+	0x303DLLU,
+	0x25FCLLU,
+	0x25FBLLU,
+	0x25AALLU,
+	0x25ABLLU,
 };
 
 uint32 firstCode(uint64 fullCode) {
@@ -990,7 +1046,7 @@ void writeEmojiCategory(QTextStream &tcpp, uint64 *emojiCategory, uint32 size, c
 
 bool genEmoji(QString emoji_in, const QString &emoji_out, const QString &emoji_png) {
 	int currentRow = 0, currentColumn = 0;
-	uint32 min1 = 0xFFFFFFFF, max1 = 0, min2 = 0xFFFFFFFF, max2 = 0;
+	uint32 min1 = 0xFFFFFFFFU, max1 = 0, min2 = 0xFFFFFFFFU, max2 = 0, min3 = 0xFFFFFFFFU, max3 = 0;
 
 	QImage sprites[5];
 	int emojisInRow[] = { 27, 29, 33, 34, 34 };	// [[7,27],[4,29],[7,33],[3,34],[6,34]]
@@ -1044,8 +1100,13 @@ bool genEmoji(QString emoji_in, const QString &emoji_out, const QString &emoji_p
 				}
 			} else if (high == 35 || (high >= 48 && high < 58)) { // digits
 			} else {
-				if (data.code < min2) min2 = data.code;
-				if (data.code > max2) max2 = data.code;
+				if (high < 0xD000) {
+					if (data.code < min2) min2 = data.code;
+					if (data.code > max2) max2 = data.code;
+				} else {
+					if (data.code < min3) min3 = data.code;
+					if (data.code > max3) max3 = data.code;
+				}
 			}
 			EmojisData::const_iterator k = emojisData.constFind(data.code);
 			if (k != emojisData.cend()) {
@@ -1107,6 +1168,25 @@ bool genEmoji(QString emoji_in, const QString &emoji_out, const QString &emoji_p
 				}
 			}
 		}
+	}
+
+	for (int i = 0, l = sizeof(emojiClones) / sizeof(emojiClones[0]); i < l; ++i) {
+		uint64 cloneCode = emojiClones[i], originalCode = (cloneCode << 16) | 0xFE0F;
+		EmojisData::const_iterator j = emojisData.constFind(originalCode);
+		if (j == emojisData.cend()) {
+			cout << "Could not find data for emoji clone 0x" << QString::number(cloneCode, 16).toUpper().toUtf8().constData() << "!\n";
+			return false;
+		}
+		EmojiData clone;
+		clone.code = firstCode(cloneCode);
+		clone.code2 = secondCode(cloneCode);
+		clone.category = -1;
+		clone.index = -1;
+		clone.x = j->x;
+		clone.y = j->y;
+		emojisData.insert(cloneCode, clone);
+		if (clone.code < min1) min1 = clone.code;
+		if (clone.code > max1) max1 = clone.code;
 	}
 
 	try {
@@ -1203,7 +1283,18 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 			tcpp << "\t\treturn 0;\n";
 			tcpp << "\t}\n\n";
 
-            tcpp << "\tif (code < 0x" << QString("%1").arg(min2, 0, 16).toUpper().toUtf8().constData() << "U || code > 0x" << QString("%1").arg(max2, 0, 16).toUpper().toUtf8().constData() << "U) return 0;\n\n";
+			tcpp << "\tif (code >= 0x" << QString("%1").arg(min2, 0, 16).toUpper().toUtf8().constData() << "U && code <= 0x" << QString("%1").arg(max2, 0, 16).toUpper().toUtf8().constData() << "U) {\n";
+			tcpp << "\t\tif ((code & 0xFFFFU) != 0xFE0F) return 0;\n\n";
+			tcpp << "\t\tswitch (code) {\n";
+			for (; i != e; ++i) {
+				if (i->code2 || ((i->code >> 16) >= 0xD000)) break;
+				tcpp << "\t\t\tcase 0x" << QString("%1").arg(i->code, 0, 16).toUpper().toUtf8().constData() << "U: return &emojis[" << (index++) << "];\n";
+			}
+			tcpp << "\t\t}\n\n";
+			tcpp << "\t\treturn 0;\n";
+			tcpp << "\t}\n\n";
+
+            tcpp << "\tif (code < 0x" << QString("%1").arg(min3, 0, 16).toUpper().toUtf8().constData() << "U || code > 0x" << QString("%1").arg(max3, 0, 16).toUpper().toUtf8().constData() << "U) return 0;\n\n";
 			tcpp << "\tswitch (code) {\n";
 			for (; i != e; ++i) {
                 tcpp << "\tcase 0x" << QString("%1").arg(i->code, 0, 16).toUpper().toUtf8().constData() << "U: return &emojis[" << (index++) << "];\n";
@@ -1248,7 +1339,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com\n\
 				}
 				tcpp << tab.repeated(1 + chars.size()) << "newEmojiEnd = ch + " << chars.size() << ";\n";
 				tcpp << tab.repeated(1 + chars.size()) << "if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {\n";
-                tcpp << tab.repeated(1 + chars.size()) << "\temojiCode = " << i.value() << "U;\n";
+                tcpp << tab.repeated(1 + chars.size()) << "\temojiCode = 0x" << QString("%1").arg(i.value(), 0, 16).toUpper().toUtf8().constData() << "U;\n";
 				tcpp << tab.repeated(1 + chars.size()) << "\treturn;\n";
 				tcpp << tab.repeated(1 + chars.size()) << "}\n";
 			}

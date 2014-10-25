@@ -118,6 +118,10 @@ QRect FlatTextarea::getTextRect() const {
 	return rect().marginsRemoved(_st.textMrg + st::textRectMargins);
 }
 
+int32 FlatTextarea::fakeMargin() const {
+	return _fakeMargin;
+}
+
 void FlatTextarea::paintEvent(QPaintEvent *e) {
 	QPainter p(viewport());
 	p.fillRect(rect(), _st.bgColor->b);
@@ -301,7 +305,7 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 
 				QString t(fragment.text());
 				for (const QChar *ch = t.constData(), *e = ch + t.size(); ch != e; ++ch) {
-					if (ch + 1 < e && (ch->isHighSurrogate() || (((ch->unicode() >= 48 && ch->unicode() < 58) || ch->unicode() == 35) && (ch + 1)->unicode() == 0x20E3))) {
+					if (ch + 1 < e && (ch->isHighSurrogate() || (((ch->unicode() >= 48 && ch->unicode() < 58) || ch->unicode() == 35) && (ch + 1)->unicode() == 0x20E3) || (ch + 1)->unicode() == 0xFE0F)) {
 						emoji = getEmoji((ch->unicode() << 16) | (ch + 1)->unicode());
 						if (emoji) {
 							if (emoji->len == 4 && (ch + 3 >= e || ((uint32((ch + 2)->unicode()) << 16) | uint32((ch + 3)->unicode())) != emoji->code2)) {

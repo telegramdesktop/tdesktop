@@ -29,7 +29,7 @@ namespace {
 		return ch.isSpace() || (ch < 32 && !(rich && ch == TextCommand)) || (ch == QChar::ParagraphSeparator) || (ch == QChar::LineSeparator) || (ch == QChar::ObjectReplacementCharacter) || (ch == QChar::SoftHyphen) || (ch == QChar::CarriageReturn) || (ch == QChar::Tabulation);
 	}
 	inline bool chIsBad(QChar ch) {
-		return (ch == 0) || (ch >= 8232 && ch < 8239) || (ch >= 65024 && ch < 65040) || (ch >= 127 && ch < 160 && ch != 156);
+		return (ch == 0) || (ch >= 8232 && ch < 8239) || (ch >= 65024 && ch < 65040 && ch != 65039) || (ch >= 127 && ch < 160 && ch != 156);
 	}
 	inline bool chIsTrimmed(QChar ch, bool rich = false) {
 		return (!rich || ch != TextCommand) && (chIsSpace(ch) || chIsBad(ch));
@@ -541,6 +541,12 @@ public:
 				ch = *ptr;
 				chInt = (chInt << 16) | 0x20E3;
 			}
+		} else if (ptr + 1 < end && (ptr + 1)->unicode() == 0xFE0F) { // check for 32bit not surrogate emoji
+			_t->_text.push_back(ch);
+			skipBack = -1;
+			++ptr;
+			ch = *ptr;
+			chInt = (chInt << 16) | 0xFE0F;
 		}
 
 		lastSkipped = skip;

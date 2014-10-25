@@ -1221,7 +1221,7 @@ MessageField::MessageField(HistoryWidget *history, const style::flatTextarea &st
 }
 
 void MessageField::onChange() {
-	int newh = ceil(document()->size().height());
+	int newh = ceil(document()->size().height()) + 2 * fakeMargin();
 	if (newh > st::maxFieldHeight) {
 		newh = st::maxFieldHeight;
 	} else if (newh < st::minFieldHeight) {

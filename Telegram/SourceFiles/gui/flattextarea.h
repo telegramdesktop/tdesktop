@@ -41,6 +41,7 @@ public:
 	void updatePlaceholder();
 
 	QRect getTextRect() const;
+	int32 fakeMargin() const;
 
 	bool animStep(float64 ms);
 
