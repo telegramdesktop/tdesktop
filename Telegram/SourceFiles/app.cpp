@@ -1566,6 +1566,7 @@ namespace App {
 				stream << quint32(dbiDefaultAttach) << qint32(cDefaultAttach());
 				stream << quint32(dbiSoundNotify) << qint32(cSoundNotify());
 				stream << quint32(dbiDesktopNotify) << qint32(cDesktopNotify());
+				stream << quint32(dbiFlashWindow) << qint32(cFlashWindow());
 				stream << quint32(dbiNotifyView) << qint32(cNotifyView());
 				stream << quint32(dbiAskDownloadPath) << qint32(cAskDownloadPath());
 				stream << quint32(dbiDownloadPath) << (cAskDownloadPath() ? QString() : cDownloadPath());
@@ -1728,6 +1729,12 @@ namespace App {
 				qint32 v;
 				stream >> v;
 				cSetDesktopNotify(v == 1);
+			} break;
+
+			case dbiFlashWindow: {
+				qint32 v;
+				stream >> v;
+				cSetFlashWindow(v == 1);
 			} break;
 
 			case dbiNotifyView: {

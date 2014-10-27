@@ -1079,7 +1079,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 		}
 	}
 	if (alert) {
-		psFlash();
+		if (cFlashWindow()) psFlash();
 		App::playSound();
 	}
 
