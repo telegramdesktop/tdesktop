@@ -19,8 +19,11 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "fileuploader.h"
 
 FileUploader::FileUploader() : sentSize(0), uploading(0) {
+	memset(sentSizes, 0, sizeof(sentSizes));
 	nextTimer.setSingleShot(true);
 	connect(&nextTimer, SIGNAL(timeout()), this, SLOT(sendNext()));
+	killSessionsTimer.setSingleShot(true);
+	connect(&killSessionsTimer, SIGNAL(timeout()), this, SLOT(killSessions()));
 }
 
 void FileUploader::uploadMedia(MsgId msgId, const ReadyLocalMedia &media) {
@@ -60,22 +63,48 @@ void FileUploader::currentFailed() {
 
 	requestsSent.clear();
 	docRequestsSent.clear();
-	queue.remove(uploading);
+	dcMap.clear();
 	uploading = 0;
 	sentSize = 0;
+	for (int i = 0; i < MTPUploadSessionsCount; ++i) {
+		sentSizes[i] = 0;
+	}
 
 	sendNext();
 }
 
-void FileUploader::sendNext() {
-	if (sentSize >= MaxUploadFileParallelSize || queue.isEmpty()) return;
+void FileUploader::killSessions() {
+	for (int i = 0; i < MTPUploadSessionsCount; ++i) {
+		MTP::killSession(MTP::upl[i]);
+	}
+}
 
+void FileUploader::sendNext() {
+	if (sentSize >= MaxUploadFileParallelSize) return;
+
+	bool killing = killSessionsTimer.isActive();
+	if (queue.isEmpty()) {
+		if (!killing) {
+			killSessionsTimer.start(MTPKillFileSessionTimeout);
+		}
+		return;
+	}
+
+	if (killing) {
+		killSessionsTimer.stop();
+	}
 	Queue::iterator i = uploading ? queue.find(uploading) : queue.begin();
 	if (!uploading) {
 		uploading = i.key();
 	} else if (i == queue.end()) {
 		i = queue.begin(); 
 		uploading = i.key();
+	}
+	int todc = 0;
+	for (int dc = 1; dc < MTPUploadSessionsCount; ++dc) {
+		if (sentSizes[dc] < sentSizes[todc]) {
+			todc = dc;
+		}
 	}
 	if (i->media.parts.isEmpty()) {
 		if (i->docSentParts >= i->docPartsCount) {
@@ -125,20 +154,24 @@ void FileUploader::sendNext() {
 		}
 		mtpRequestId requestId;
 		if (i->docSize > UseBigFilesFrom) {
-			requestId = MTP::send(MTPupload_SaveBigFilePart(MTP_long(i->media.id), MTP_int(i->docSentParts), MTP_int(i->docPartsCount), MTP_string(toSend)), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::upl);
+			requestId = MTP::send(MTPupload_SaveBigFilePart(MTP_long(i->media.id), MTP_int(i->docSentParts), MTP_int(i->docPartsCount), MTP_string(toSend)), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::upl[todc]);
 		} else {
-			requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(i->media.id), MTP_int(i->docSentParts), MTP_string(toSend)), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::upl);
+			requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(i->media.id), MTP_int(i->docSentParts), MTP_string(toSend)), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::upl[todc]);
 		}
 		docRequestsSent.insert(requestId, i->docSentParts);
+		dcMap.insert(requestId, todc);
 		sentSize += i->docPartSize;
+		sentSizes[todc] += i->docPartSize;
 
 		i->docSentParts++;
 	} else {
 		LocalFileParts::iterator part = i->media.parts.begin();
 	
-		mtpRequestId requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(i->media.jpeg_id), MTP_int(part.key()), MTP_string(part.value())), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::upl);
+		mtpRequestId requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(i->media.jpeg_id), MTP_int(part.key()), MTP_string(part.value())), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::upl[todc]);
 		requestsSent.insert(requestId, part.value());
+		dcMap.insert(requestId, todc);
 		sentSize += part.value().size();
+		sentSizes[todc] += part.value().size();
 
 		i->media.parts.erase(part);
 	}
@@ -168,7 +201,13 @@ void FileUploader::clear() {
 		MTP::cancel(i.key());
 	}
 	docRequestsSent.clear();
+	dcMap.clear();
 	sentSize = 0;
+	for (int32 i = 0; i < MTPUploadSessionsCount; ++i) {
+		MTP::killSession(MTP::upl[i]);
+		sentSizes[i] = 0;
+	}
+	killSessionsTimer.stop();
 }
 
 void FileUploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
@@ -182,12 +221,22 @@ void FileUploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 			currentFailed();
 			return;
 		} else {
+			QMap<mtpRequestId, int32>::iterator dcIt = dcMap.find(requestId);
+			if (dcIt == dcMap.cend()) { // must not happen
+				currentFailed();
+				return;
+			}
+			int32 dc = dcIt.value();
+			dcMap.erase(dcIt);
+
 			Queue::const_iterator k = queue.constFind(uploading);
 			if (i != requestsSent.cend()) {
 				sentSize -= i.value().size();
+				sentSizes[dc] -= i.value().size();
 				requestsSent.erase(i);
 			} else {
 				sentSize -= k->docPartSize;
+				sentSizes[dc] -= k->docPartSize;
 				docRequestsSent.erase(j);
 			}
 			if (k->media.type == ToPreparePhoto) {

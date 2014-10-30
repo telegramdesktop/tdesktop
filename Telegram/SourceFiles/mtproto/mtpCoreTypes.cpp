@@ -57,8 +57,10 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 		QString str = QString::fromUtf8(strUtf8);
 		if (str.toUtf8() == strUtf8) {
 			to.add("\"").add(str.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n")).add("\" [STRING]");
-		} else {
+		} else if (strUtf8.size() < 64) {
 			to.add(mb(strUtf8.constData(), strUtf8.size()).str()).add(" [").add(mtpWrapNumber(strUtf8.size())).add(" BYTES]");
+		} else {
+			to.add(mb(strUtf8.constData(), 16).str()).add(".. [").add(mtpWrapNumber(strUtf8.size())).add(" BYTES]");
 		}
 	} break;
 

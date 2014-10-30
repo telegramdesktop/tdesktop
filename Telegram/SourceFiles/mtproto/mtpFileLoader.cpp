@@ -19,8 +19,17 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "mainwidget.h"
 #include "window.h"
 
+#include "application.h"
+
 namespace {
 	int32 _priority = 1;
+	struct DataRequested {
+		DataRequested() {
+			memset(v, 0, sizeof(v));
+		}
+		int64 v[MTPDownloadSessionsCount];
+	};
+	QMap<int32, DataRequested> _dataRequested;
 }
 struct mtpFileLoaderQueue {
 	mtpFileLoaderQueue() : queries(0), start(0), end(0) {
@@ -34,10 +43,10 @@ namespace {
 	LoaderQueues queues;
 }
 
-mtpFileLoader::mtpFileLoader(int32 dc, const int64 &volume, int32 local, const int64 &secret) : prev(0), next(0),
-    priority(0), inQueue(false), complete(false), requestId(0),
-    dc(dc), locationType(0), volume(volume), local(local), secret(secret),
-    id(0), access(0), initialSize(0), size(0), type(MTP_storage_fileUnknown()) {
+mtpFileLoader::mtpFileLoader(int32 dc, const int64 &volume, int32 local, const int64 &secret, int32 size) : prev(0), next(0),
+priority(0), inQueue(false), complete(false), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
+dc(dc), locationType(0), volume(volume), local(local), secret(secret),
+id(0), access(0), size(size), type(MTP_storage_fileUnknown()) {
 	LoaderQueues::iterator i = queues.find(dc);
 	if (i == queues.cend()) {
 		i = queues.insert(dc, mtpFileLoaderQueue());
@@ -46,23 +55,23 @@ mtpFileLoader::mtpFileLoader(int32 dc, const int64 &volume, int32 local, const i
 }
 
 mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, mtpTypeId locType, const QString &to, int32 size) : prev(0), next(0),
-priority(0), inQueue(false), complete(false), requestId(0),
+priority(0), inQueue(false), complete(false), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
 dc(dc), locationType(locType),
-id(id), access(access), file(to), duplicateInData(false), initialSize(size), type(MTP_storage_fileUnknown()) {
-	LoaderQueues::iterator i = queues.find(MTP::dld + dc);
+id(id), access(access), file(to), duplicateInData(false), size(size), type(MTP_storage_fileUnknown()) {
+	LoaderQueues::iterator i = queues.find(MTP::dld[0] + dc);
 	if (i == queues.cend()) {
-		i = queues.insert(MTP::dld + dc, mtpFileLoaderQueue());
+		i = queues.insert(MTP::dld[0] + dc, mtpFileLoaderQueue());
 	}
 	queue = &i.value();
 }
 
 mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, mtpTypeId locType, const QString &to, int32 size, bool todata) : prev(0), next(0),
-priority(0), inQueue(false), complete(false), requestId(0),
+priority(0), inQueue(false), complete(false), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
 dc(dc), locationType(locType),
-id(id), access(access), file(to), duplicateInData(todata), initialSize(size), type(MTP_storage_fileUnknown()) {
-	LoaderQueues::iterator i = queues.find(MTP::dld + dc);
+id(id), access(access), file(to), duplicateInData(todata), size(size), type(MTP_storage_fileUnknown()) {
+	LoaderQueues::iterator i = queues.find(MTP::dld[0] + dc);
 	if (i == queues.cend()) {
-		i = queues.insert(MTP::dld + dc, mtpFileLoaderQueue());
+		i = queues.insert(MTP::dld[0] + dc, mtpFileLoaderQueue());
 	}
 	queue = &i.value();
 }
@@ -89,8 +98,8 @@ float64 mtpFileLoader::currentProgress() const {
 	return float64(currentOffset()) / fullSize();
 }
 
-int32 mtpFileLoader::currentOffset() const {
-	return file.isOpen() ? file.size() : data.size();
+int32 mtpFileLoader::currentOffset(bool includeSkipped) const {
+	return (file.isOpen() ? file.size() : data.size()) - (includeSkipped ? 0 : skippedBytes);
 }
 
 int32 mtpFileLoader::fullSize() const {
@@ -109,17 +118,18 @@ uint64 mtpFileLoader::objId() const {
 
 void mtpFileLoader::loadNext() {
 	if (queue->queries >= MaxFileQueries) return;
-	for (mtpFileLoader *i = queue->start; i; i = i->next) {
-		if (i->loadPart() && queue->queries >= MaxFileQueries) return;
+	for (mtpFileLoader *i = queue->start; i;) {
+		if (i->loadPart()) {
+			if (queue->queries >= MaxFileQueries) return;
+		} else {
+			i = i->next;
+		}
 	}
 }
 
 void mtpFileLoader::finishFail() {
-	bool started = currentOffset() > 0;
-	if (requestId) {
-		requestId = 0;
-		--queue->queries;
-	}
+	bool started = currentOffset(true) > 0;
+	cancelRequests();
 	type = MTP_storage_fileUnknown();
 	complete = true;
 	if (file.isOpen()) {
@@ -133,7 +143,8 @@ void mtpFileLoader::finishFail() {
 }
 
 bool mtpFileLoader::loadPart() {
-	if (complete || requestId) return false;
+	if (complete || lastComplete || !requests.isEmpty() && !size) return false;
+	if (size && nextRequestOffset >= size) return false;
 
 	int32 limit = DocumentDownloadPartSize;
 	MTPInputFileLocation loc;
@@ -148,54 +159,100 @@ bool mtpFileLoader::loadPart() {
 	break;
 	}
 
-	++queue->queries;
-	int32 offset = currentOffset();
+	int32 offset = nextRequestOffset, dcIndex = 0;
+	DataRequested &dr(_dataRequested[dc]);
+	if (size) {
+		for (int32 i = 1; i < MTPDownloadSessionsCount; ++i) {
+			if (dr.v[i] < dr.v[dcIndex]) {
+				dcIndex = i;
+			}
+		}
+	}
+
+	if (dcIndex) {
+		App::app()->killDownloadSessionsStop(dc);
+	}
+
 	MTPupload_GetFile request(MTPupload_getFile(loc, MTP_int(offset), MTP_int(limit)));
-	requestId = MTP::send(request, rpcDone(&mtpFileLoader::partLoaded, offset), rpcFail(&mtpFileLoader::partFailed), MTP::dld + dc, 50);
+	mtpRequestId reqId = MTP::send(request, rpcDone(&mtpFileLoader::partLoaded, offset), rpcFail(&mtpFileLoader::partFailed), MTP::dld[dcIndex] + dc, 50);
+
+	++queue->queries;
+	dr.v[dcIndex] += limit;
+	requests.insert(reqId, dcIndex);
+	nextRequestOffset += limit;
+
 	return true;
 }
 
-void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result) {
-	if (requestId) {
-		--queue->queries;
-		requestId = 0;
-	}
-	if (offset == currentOffset()) {
-		int32 limit = locationType ? DocumentDownloadPartSize : DownloadPartSize;
-		const MTPDupload_file &d(result.c_upload_file());
-		const string &bytes(d.vbytes.c_string().v);
-		if (bytes.size()) {
-			if (file.isOpen()) {
-				if (file.write(bytes.data(), bytes.size()) != qint64(bytes.size())) {
-					return finishFail();
-				}
-			} else {
-				data.append(bytes.data(), bytes.size());
+void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRequestId req) {
+	Requests::iterator i = requests.find(req);
+	if (i == requests.cend()) return;
+
+	int32 limit = locationType ? DocumentDownloadPartSize : DownloadPartSize;
+	int32 dcIndex = i.value();
+	_dataRequested[dc].v[dcIndex] -= limit;
+
+	--queue->queries;
+	requests.erase(i);
+
+	const MTPDupload_file &d(result.c_upload_file());
+	const string &bytes(d.vbytes.c_string().v);
+	if (bytes.size()) {
+		if (file.isOpen()) {
+			int64 fsize = file.size();
+			if (offset < fsize) {
+				skippedBytes -= bytes.size();
+			} else if (offset > fsize) {
+				skippedBytes += offset - fsize;
 			}
-		}
-		if (bytes.size() && !(bytes.size() % 1024)) { // good next offset
-//			offset += bytes.size();
+			file.seek(offset);
+			if (file.write(bytes.data(), bytes.size()) != qint64(bytes.size())) {
+				return finishFail();
+			}
 		} else {
-			if (duplicateInData && !file.fileName().isEmpty()) {
-				if (!file.open(QIODevice::WriteOnly)) {
-					return finishFail();
-				}
-				if (file.write(data) != qint64(data.size())) {
-					return finishFail();
-				}
+			data.reserve(offset + bytes.size());
+			if (offset > data.size()) {
+				skippedBytes += offset - data.size();
+				data.resize(offset);
 			}
-			type = d.vtype;
-			complete = true;
-			if (file.isOpen()) {
-				file.close();
-				psPostprocessFile(QFileInfo(file).absoluteFilePath());
+			if (offset == data.size()) {
+				data.append(bytes.data(), bytes.size());
+			} else {
+				skippedBytes -= bytes.size();
+				if (offset + bytes.size() > data.size()) {
+					data.resize(offset + bytes.size());
+				}
+				memcpy(data.data() + offset, bytes.data(), bytes.size());
 			}
-			removeFromQueue();
-			App::wnd()->update();
-			App::wnd()->notifyUpdateAllPhotos();
 		}
-		emit progress(this);
 	}
+	if (!bytes.size() || (bytes.size() % 1024)) { // bad next offset
+		lastComplete = true;
+	}
+	if (requests.isEmpty() && (lastComplete || (size && nextRequestOffset >= size))) {
+		if (duplicateInData && !file.fileName().isEmpty()) {
+			if (!file.open(QIODevice::WriteOnly)) {
+				return finishFail();
+			}
+			if (file.write(data) != qint64(data.size())) {
+				return finishFail();
+			}
+		}
+		type = d.vtype;
+		complete = true;
+		if (file.isOpen()) {
+			file.close();
+			psPostprocessFile(QFileInfo(file).absoluteFilePath());
+		}
+		removeFromQueue();
+		App::wnd()->update();
+		App::wnd()->notifyUpdateAllPhotos();
+
+		if (!queue->queries && dcIndex) {
+			App::app()->killDownloadSessionsStart(dc);
+		}
+	}
+	emit progress(this);
 	loadNext();
 }
 
@@ -325,11 +382,7 @@ void mtpFileLoader::start(bool loadFirst, bool prior) {
 }
 
 void mtpFileLoader::cancel() {
-	bool started = currentOffset() > 0;
-	if (requestId) {
-		requestId = 0;
-		--queue->queries;
-	}
+	cancelRequests();
 	type = MTP_storage_fileUnknown();
 	complete = true;
 	if (file.isOpen()) {
@@ -340,6 +393,26 @@ void mtpFileLoader::cancel() {
 	file.setFileName(QString());
 	emit progress(this);
 	loadNext();
+}
+
+void mtpFileLoader::cancelRequests() {
+	if (requests.isEmpty()) return;
+
+	int32 limit = locationType ? DocumentDownloadPartSize : DownloadPartSize;
+	bool wasIndex = false;
+	DataRequested &dr(_dataRequested[dc]);
+	for (Requests::const_iterator i = requests.cbegin(), e = requests.cend(); i != e; ++i) {
+		MTP::cancel(i.key());
+		int32 dcIndex = i.value();
+		dr.v[dcIndex] -= limit;
+		if (dcIndex) wasIndex = true;
+	}
+	queue->queries -= requests.size();
+	requests.clear();
+
+	if (!queue->queries && wasIndex) {
+		App::app()->killDownloadSessionsStart(dc);
+	}
 }
 
 bool mtpFileLoader::loading() const {
@@ -353,6 +426,7 @@ void mtpFileLoader::started(bool loadFirst, bool prior) {
 
 mtpFileLoader::~mtpFileLoader() {
 	removeFromQueue();
+	cancelRequests();
 }
 
 namespace MTP {

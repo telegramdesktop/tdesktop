@@ -531,7 +531,7 @@ namespace App {
 			const MTPDphotoSize &d(size.c_photoSize());
 			if (d.vlocation.type() == mtpc_fileLocation) {
 				const MTPDfileLocation &l(d.vlocation.c_fileLocation());
-				return ImagePtr(d.vw.v, d.vh.v, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v);
+				return ImagePtr(d.vw.v, d.vh.v, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v, d.vsize.v);
 			}
 		} break;
 		case mtpc_photoCachedSize: {

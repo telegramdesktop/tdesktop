@@ -154,6 +154,9 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	connect(&writeUserConfigTimer, SIGNAL(timeout()), this, SLOT(onWriteUserConfig()));
 	writeUserConfigTimer.setSingleShot(true);
 
+	killDownloadSessionsTimer.setSingleShot(true);
+	connect(&killDownloadSessionsTimer, SIGNAL(timeout()), this, SLOT(killDownloadSessions()));
+
     if (cManyInstance()) {
 		startApp();
 	} else {
@@ -326,8 +329,44 @@ void Application::writeUserConfigIn(uint64 ms) {
 	}
 }
 
+void Application::killDownloadSessionsStart(int32 dc) {
+	if (killDownloadSessionTimes.constFind(dc) == killDownloadSessionTimes.cend()) {
+		killDownloadSessionTimes.insert(dc, getms() + MTPKillFileSessionTimeout);
+	}
+	if (!killDownloadSessionsTimer.isActive()) {
+		killDownloadSessionsTimer.start(MTPKillFileSessionTimeout + 5);
+	}
+}
+
+void Application::killDownloadSessionsStop(int32 dc) {
+	killDownloadSessionTimes.remove(dc);
+	if (killDownloadSessionTimes.isEmpty() && killDownloadSessionsTimer.isActive()) {
+		killDownloadSessionsTimer.stop();
+	}
+}
+
 void Application::onWriteUserConfig() {
 	App::writeUserConfig();
+}
+
+void Application::killDownloadSessions() {
+	uint64 ms = getms(), left = MTPKillFileSessionTimeout;
+	for (QMap<int32, uint64>::iterator i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {
+		if (i.value() <= ms) {
+			for (int j = 1; j < MTPDownloadSessionsCount; ++j) {
+				MTP::killSession(MTP::dld[j] + i.key());
+			}
+			i = killDownloadSessionTimes.erase(i);
+		} else {
+			if (i.value() - ms < left) {
+				left = i.value() - ms;
+			}
+			++i;
+		}
+	}
+	if (!killDownloadSessionTimes.isEmpty()) {
+		killDownloadSessionsTimer.start(left);
+	}
 }
 
 void Application::photoUpdated(MsgId msgId, const MTPInputFile &file) {

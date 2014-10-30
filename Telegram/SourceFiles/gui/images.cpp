@@ -336,7 +336,7 @@ int64 imageCacheSize() {
 	return globalAquiredSize;
 }
 
-StorageImage::StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret) : w(width), h(height), loader(new mtpFileLoader(dc, volume, local, secret)) {
+StorageImage::StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, int32 size) : w(width), h(height), loader(new mtpFileLoader(dc, volume, local, secret, size)) {
 }
 
 StorageImage::StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, QByteArray &bytes) : w(width), h(height), loader(0) {
@@ -427,11 +427,11 @@ bool StorageImage::loaded() const {
 	return check();
 }
 
-StorageImage *getImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret) {
+StorageImage *getImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, int32 size) {
 	QByteArray key(storageKey(dc, volume, local, secret));
 	StorageImages::const_iterator i = storageImages.constFind(key);
 	if (i == storageImages.cend()) {
-		i = storageImages.insert(key, new StorageImage(width, height, dc, volume, local, secret));
+		i = storageImages.insert(key, new StorageImage(width, height, dc, volume, local, secret, size));
 	}
 	return i.value();
 }

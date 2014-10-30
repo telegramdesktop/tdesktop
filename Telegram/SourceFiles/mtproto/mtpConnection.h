@@ -374,7 +374,7 @@ private:
 	bool requestsFixTimeSalt(const QVector<MTPlong> &ids, int32 serverTime, uint64 serverSalt);
 	
 	// remove msgs with such ids from sessionData->haveSent, add to sessionData->wereAcked
-	void requestsAcked(const QVector<MTPlong> &ids);
+	void requestsAcked(const QVector<MTPlong> &ids, bool byResponse = false);
 
 	mtpPingId pingId, toSendPingId;
 	mtpMsgId pingMsgId;

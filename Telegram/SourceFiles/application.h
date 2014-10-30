@@ -70,6 +70,9 @@ public:
 
 	void writeUserConfigIn(uint64 ms);
 
+	void killDownloadSessionsStart(int32 dc);
+	void killDownloadSessionsStop(int32 dc);
+
 signals:
 
 	void peerPhotoDone(PeerId peer);
@@ -100,9 +103,14 @@ public slots:
 	void onEnableDebugMode();
 	void onWriteUserConfig();
 
+	void killDownloadSessions();
+
 private:
 
 	QMap<MsgId, PeerId> photoUpdates;
+
+	QMap<int32, uint64> killDownloadSessionTimes;
+	QTimer killDownloadSessionsTimer;
 
 	void startApp();
 

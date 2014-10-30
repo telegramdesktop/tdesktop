@@ -36,6 +36,7 @@ namespace {
 	
 	typedef QMap<mtpRequestId, RPCResponseHandler> ParserMap;
 	ParserMap parserMap;
+	QMutex parserMapLock;
 
 	typedef QMap<mtpRequestId, mtpRequest> RequestMap;
 	RequestMap requestMap;
@@ -268,6 +269,8 @@ namespace _mtp_internal {
 	}
 
 	void unregisterRequest(mtpRequestId requestId) {
+		requestMap.remove(requestId);
+
 		QMutexLocker locker(&requestByDCLock);
 		RequestsByDC::iterator i = requestsByDC.find(requestId);
 		if (i != requestsByDC.end()) {
@@ -283,9 +286,10 @@ namespace _mtp_internal {
 		mtpRequestId res = reqid();
 		request->requestId = res;
 		if (parser.onDone || parser.onFail) {
+			QMutexLocker locker(&parserMapLock);
 			parserMap.insert(res, parser);
-			requestMap.insert(res, request);
 		}
+		requestMap.insert(res, request);
 		return res;
 	}
 
@@ -298,14 +302,21 @@ namespace _mtp_internal {
 	}
 
 	void clearCallbacks(mtpRequestId requestId, int32 errorCode) {
-		ParserMap::iterator i = parserMap.find(requestId);
-		if (i != parserMap.end()) {
-			if (errorCode) {
-				rpcErrorOccured(requestId, i.value(), rpcClientError("CLEAR_CALLBACK", QString("did not handle request %1, error code %2").arg(requestId).arg(errorCode)));
+		RPCResponseHandler h;
+		bool found = false;
+		{
+			QMutexLocker locker(&parserMapLock);
+			ParserMap::iterator i = parserMap.find(requestId);
+			if (i != parserMap.end()) {
+				h = i.value();
+				found = true;
+
+				parserMap.erase(i);
 			}
-			parserMap.erase(i);
 		}
-		requestMap.remove(requestId);
+		if (errorCode && found) {
+			rpcErrorOccured(requestId, h, rpcClientError("CLEAR_CALLBACK", QString("did not handle request %1, error code %2").arg(requestId).arg(errorCode)));
+		}
 		_mtp_internal::unregisterRequest(requestId);
 	}
 
@@ -336,6 +347,7 @@ namespace _mtp_internal {
 		if (!toClear.isEmpty()) {
 			for (RPCCallbackClears::iterator i = toClear.begin(), e = toClear.end(); i != e; ++i) {
 				if (cDebug()) {
+					QMutexLocker locker(&parserMapLock);
 					if (parserMap.find(i->requestId) != parserMap.end()) {
 						DEBUG_LOG(("RPC Info: clearing delayed callback %1, error code %2").arg(i->requestId).arg(i->errorCode));
 					}
@@ -347,12 +359,18 @@ namespace _mtp_internal {
 	}
 
 	void execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) {
-		ParserMap::iterator i = parserMap.find(requestId);
-		if (i != parserMap.cend()) {
-			RPCResponseHandler h(i.value());
-			parserMap.erase(i);
+		RPCResponseHandler h;
+		{
+			QMutexLocker locker(&parserMapLock);
+			ParserMap::iterator i = parserMap.find(requestId);
+			if (i != parserMap.cend()) {
+				h = i.value();
+				parserMap.erase(i);
 
-			DEBUG_LOG(("RPC Info: found parser for request %1, trying to parse response..").arg(requestId));
+				DEBUG_LOG(("RPC Info: found parser for request %1, trying to parse response..").arg(requestId));
+			}
+		}
+		if (h.onDone || h.onFail) {
 			try {
 				if (from >= end) throw mtpErrorInsufficient();
 
@@ -360,6 +378,7 @@ namespace _mtp_internal {
 					RPCError err(MTPRpcError(from, end));
 					DEBUG_LOG(("RPC Info: error received, code %1, type %2, description: %3").arg(err.code()).arg(err.type()).arg(err.description()));
 					if (!rpcErrorOccured(requestId, h, err)) {
+						QMutexLocker locker(&parserMapLock);
 						parserMap.insert(requestId, h);
 						return;
 					}
@@ -368,15 +387,21 @@ namespace _mtp_internal {
 				}
 			} catch (Exception &e) {
 				if (!rpcErrorOccured(requestId, h, rpcClientError("RESPONSE_PARSE_FAILED", QString("exception text: ") + e.what()))) {
+					QMutexLocker locker(&parserMapLock);
 					parserMap.insert(requestId, h);
 					return;
 				}
 			}
-			requestMap.remove(requestId);
 		} else {
 			DEBUG_LOG(("RPC Info: parser not found for %1").arg(requestId));
 		}
 		unregisterRequest(requestId);
+	}
+
+	bool hasCallbacks(mtpRequestId requestId) {
+		QMutexLocker locker(&parserMapLock);
+		ParserMap::iterator i = parserMap.find(requestId);
+		return (i != parserMap.cend());
 	}
 
 	void globalCallback(const mtpPrime *from, const mtpPrime *end) {

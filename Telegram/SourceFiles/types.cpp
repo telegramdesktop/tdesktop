@@ -123,6 +123,7 @@ void unixtimeSet(int32 serverTime, bool force) {
 		}
 		unixtimeWasSet = true;
 		unixtimeDelta = serverTime + 1 - myunixtime();
+		DEBUG_LOG(("MTP Info: now unixtimeDelta is %1").arg(unixtimeDelta));
 	}
 	_initMsgIdConstants();
 }

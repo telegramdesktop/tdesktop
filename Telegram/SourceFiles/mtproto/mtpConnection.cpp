@@ -679,6 +679,15 @@ void MTPautoConnection::tcpSend(mtpBuffer &buffer) {
 	TCP_LOG(("TCP Info: write %1 packet %2 bytes").arg(packetNum).arg(len));
 
 	sock.write((const char*)&buffer[0], len);
+	//int64 b = sock.bytesToWrite();
+	//if (b > 100000) {
+	//	int a = 0;
+	//}
+	//sock.flush();
+	//int64 b2 = sock.bytesToWrite();
+	//if (b2 > 0) {
+	//	TCP_LOG(("TCP Info: writing many, %1 left to write").arg(b2));
+	//}
 }
 
 void MTPautoConnection::httpSend(mtpBuffer &buffer) {
@@ -1576,6 +1585,11 @@ void MTProtoConnectionPrivate::onSentSome(uint64 size) {
 				DEBUG_LOG(("Checking connect for request with size %1 bytes, delay will be %2").arg(size).arg(remain));
 			}
 		}
+		if (dc >= MTP::upl[0] && dc < MTP::upl[MTPUploadSessionsCount - 1] + _mtp_internal::dcShift) {
+			remain *= MTPUploadSessionsCount;
+		} else if (dc >= MTP::dld[0] && dc < MTP::dld[MTPDownloadSessionsCount - 1] + _mtp_internal::dcShift) {
+			remain *= MTPDownloadSessionsCount;
+		}
 		connCheckTimer.start(remain);
 	}
 	if (!firstSentAt) firstSentAt = getms();
@@ -2070,15 +2084,19 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 				DEBUG_LOG(("Message Error: such message was not sent recently %1").arg(reqMsgId));
 				return (badTime ? 0 : 1);
 			}
-			if (serverSalt) sessionData->setSalt(serverSalt); // requestsFixTimeSalt with no lookup
-			unixtimeSet(serverTime, true);
+			if (badTime) {
+				if (serverSalt) sessionData->setSalt(serverSalt); // requestsFixTimeSalt with no lookup
+				unixtimeSet(serverTime, true);
 
-			DEBUG_LOG(("Message Info: unixtime updated from mtpc_msgs_state_info, now %1").arg(serverTime));
+				DEBUG_LOG(("Message Info: unixtime updated from mtpc_msgs_state_info, now %1").arg(serverTime));
 
-			badTime = false;
+				badTime = false;
+			}
 			requestBuffer = replyTo.value();
 		}
-		QVector<MTPlong> toAck(1, MTP_long(reqMsgId));
+		QVector<MTPlong> toAckReq(1, MTP_long(reqMsgId)), toAck;
+		requestsAcked(toAck, true);
+
 		if (requestBuffer->size() < 9) {
 			LOG(("Message Error: bad request %1 found in requestMap, size: %2").arg(reqMsgId).arg(requestBuffer->size()));
 			return -1;
@@ -2207,7 +2225,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 				return 0;
 			}
 		}
-		requestsAcked(ids);
+		requestsAcked(ids, true);
 
 		if (typeId == mtpc_gzip_packed) {
 			DEBUG_LOG(("RPC Info: gzip container"));
@@ -2294,7 +2312,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 				return 0;
 			}
 		}
-		requestsAcked(ids);
+		requestsAcked(ids, true);
 
 		retryTimeout = 1; // reset restart() timer
 	} return 1;
@@ -2385,7 +2403,7 @@ bool MTProtoConnectionPrivate::requestsFixTimeSalt(const QVector<MTPlong> &ids, 
 	return false;
 }
 
-void MTProtoConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids) {
+void MTProtoConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byResponse) {
 	uint32 idsCount = ids.size();
 
 	DEBUG_LOG(("Message Info: requests acked, ids %1").arg(logVectorLong(ids)));
@@ -2412,10 +2430,20 @@ void MTProtoConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids) {
 						for (uint32 j = 0; j < inContCount; ++j) {
 							toAckMore.push_back(MTP_long(*(inContId++)));
 						}
+						haveSent.erase(req);
 					} else {
-						wereAcked.insert(msgId, req.value()->requestId);
+						mtpRequestId reqId = req.value()->requestId;
+						bool moveToAcked = byResponse;
+						if (!moveToAcked) { // ignore ACK, if we need a response (if we have a handler)
+							moveToAcked = !_mtp_internal::hasCallbacks(reqId);
+						}
+						if (moveToAcked) {
+							wereAcked.insert(msgId, reqId);
+							haveSent.erase(req);
+						} else {
+							DEBUG_LOG(("Message Info: ignoring ACK for msgId %1 because request %2 requires a response").arg(msgId).arg(reqId));
+						}
 					}
-					haveSent.erase(req);
 				} else {
 					DEBUG_LOG(("Message Info: msgId %1 was not found in recent sent, while acking requests, searching in resend..").arg(msgId));
 					QWriteLocker locker3(sessionData->toResendMutex());
@@ -2423,21 +2451,29 @@ void MTProtoConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids) {
 					mtpRequestIdsMap::iterator reqIt = toResend.find(msgId);
 					if (reqIt != toResend.cend()) {
 						mtpRequestId reqId = reqIt.value();
-						QWriteLocker locker4(sessionData->toSendMutex());
-						mtpPreRequestMap &toSend(sessionData->toSendMap());
-						mtpPreRequestMap::iterator req = toSend.find(reqId);
-						if (req != toSend.cend()) {
-							wereAcked.insert(msgId, req.value()->requestId);
-							if (req.value()->requestId != reqId) {
-								DEBUG_LOG(("Message Error: for msgId %1 found resent request, requestId %2, contains requestId %3").arg(msgId).arg(reqId).arg(req.value()->requestId));
-							} else {
-								DEBUG_LOG(("Message Info: acked msgId %1 that was prepared to resend, requestId %2").arg(msgId).arg(reqId));
-							}
-							toSend.erase(req);
-						} else {
-							DEBUG_LOG(("Message Info: msgId %1 was found in recent resent, requestId %2 was not found in prepared to send").arg(msgId));
+						bool moveToAcked = byResponse;
+						if (!moveToAcked) { // ignore ACK, if we need a response (if we have a handler)
+							moveToAcked = !_mtp_internal::hasCallbacks(reqId);
 						}
-						toResend.erase(reqIt);
+						if (moveToAcked) {
+							QWriteLocker locker4(sessionData->toSendMutex());
+							mtpPreRequestMap &toSend(sessionData->toSendMap());
+							mtpPreRequestMap::iterator req = toSend.find(reqId);
+							if (req != toSend.cend()) {
+								wereAcked.insert(msgId, req.value()->requestId);
+								if (req.value()->requestId != reqId) {
+									DEBUG_LOG(("Message Error: for msgId %1 found resent request, requestId %2, contains requestId %3").arg(msgId).arg(reqId).arg(req.value()->requestId));
+								} else {
+									DEBUG_LOG(("Message Info: acked msgId %1 that was prepared to resend, requestId %2").arg(msgId).arg(reqId));
+								}
+								toSend.erase(req);
+							} else {
+								DEBUG_LOG(("Message Info: msgId %1 was found in recent resent, requestId %2 was not found in prepared to send").arg(msgId));
+							}
+							toResend.erase(reqIt);
+						} else {
+							DEBUG_LOG(("Message Info: ignoring ACK for msgId %1 because request %2 requires a response").arg(msgId).arg(reqId));
+						}
 					} else {
 						DEBUG_LOG(("Message Info: msgId %1 was not found in recent resent either").arg(msgId));
 					}

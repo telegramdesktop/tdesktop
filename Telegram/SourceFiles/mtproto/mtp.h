@@ -36,6 +36,7 @@ namespace _mtp_internal {
 	void clearCallbacksDelayed(const RPCCallbackClears &requestIds);
 	void performDelayedClear();
 	void execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end);
+	bool hasCallbacks(mtpRequestId requestId);
 	void globalCallback(const mtpPrime *from, const mtpPrime *end);
 	void onStateChange(int32 dc, int32 state);
 	void onSessionReset(int32 dc);
@@ -58,9 +59,19 @@ namespace MTP {
 	mtpAuthKey &localKey();
 	void createLocalKey(const QByteArray &pass, QByteArray *salt = 0);
 
-	static const uint32 dld = 1 * _mtp_internal::dcShift; // send(req, callbacks, MTP::dld + dc) - for download
-	static const uint32 upl = 2 * _mtp_internal::dcShift; // send(req, callbacks, MTP::upl + dc) - for upload
-	static const uint32 cfg = 3 * _mtp_internal::dcShift; // send(MTPhelp_GetConfig(), MTP::cfg + dc) - for dc enum
+	static const uint32 cfg = 1 * _mtp_internal::dcShift; // send(MTPhelp_GetConfig(), MTP::cfg + dc) - for dc enum
+	static const uint32 dld[MTPDownloadSessionsCount] = { // send(req, callbacks, MTP::dld[i] + dc) - for download
+		0x10 * _mtp_internal::dcShift,
+		0x11 * _mtp_internal::dcShift,
+		0x12 * _mtp_internal::dcShift,
+		0x13 * _mtp_internal::dcShift,
+	};
+	static const uint32 upl[MTPUploadSessionsCount] = { // send(req, callbacks, MTP::upl[i] + dc) - for upload
+		0x20 * _mtp_internal::dcShift,
+		0x21 * _mtp_internal::dcShift,
+		0x22 * _mtp_internal::dcShift,
+		0x23 * _mtp_internal::dcShift,
+	};
 
 	void start();
 	void restart();

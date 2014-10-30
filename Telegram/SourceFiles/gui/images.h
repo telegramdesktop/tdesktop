@@ -107,7 +107,7 @@ LocalImage *getImage(const QPixmap &pixmap, QByteArray format);
 class StorageImage : public Image {
 public:
 
-	StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret);
+	StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, int32 size = 0);
 	StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, QByteArray &bytes);
 	
 	int32 width() const;
@@ -155,7 +155,7 @@ private:
 	mutable mtpFileLoader *loader;
 };
 
-StorageImage *getImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret);
+StorageImage *getImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, int32 size = 0);
 StorageImage *getImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, const QByteArray &bytes);
 Image *getImage(int32 width, int32 height, const MTPFileLocation &location);
 
@@ -166,7 +166,7 @@ public:
 	}
 	ImagePtr(const QPixmap &pixmap, QByteArray format) : Parent(getImage(pixmap, format)) {
 	}
-	ImagePtr(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret) : Parent(getImage(width, height, dc, volume, local, secret)) {
+	ImagePtr(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, int32 size = 0) : Parent(getImage(width, height, dc, volume, local, secret, size)) {
 	}
 	ImagePtr(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, const QByteArray &bytes) : Parent(getImage(width, height, dc, volume, local, secret, bytes)) {
 	}
