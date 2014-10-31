@@ -143,7 +143,7 @@ void mtpFileLoader::finishFail() {
 }
 
 bool mtpFileLoader::loadPart() {
-	if (complete || lastComplete || !requests.isEmpty() && !size) return false;
+	if (complete || lastComplete || (!requests.isEmpty() && !size)) return false;
 	if (size && nextRequestOffset >= size) return false;
 
 	int32 limit = DocumentDownloadPartSize;
@@ -219,7 +219,7 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 				data.append(bytes.data(), bytes.size());
 			} else {
 				skippedBytes -= bytes.size();
-				if (offset + bytes.size() > data.size()) {
+				if (int64(offset + bytes.size()) > data.size()) {
 					data.resize(offset + bytes.size());
 				}
 				memcpy(data.data() + offset, bytes.data(), bytes.size());
