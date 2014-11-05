@@ -1848,7 +1848,7 @@ void OverviewWidget::onDeleteContextSure() {
 	}
 
 	if (item->id > 0) {
-		MTP::send(MTPmessages_DeleteMessages(MTP_vector<MTPint>(QVector<MTPint>(1, MTP_int(item->id)))));
+		MTP::send(MTPmessages_DeleteMessages(MTP_vector<MTPint>(1, MTP_int(item->id))));
 	}
 	item->destroy();
 	App::wnd()->hideLayer();

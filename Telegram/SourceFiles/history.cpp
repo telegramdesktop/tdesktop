@@ -874,6 +874,7 @@ History::History(const PeerId &peerId) : width(0), height(0)
 , lastWidth(0)
 , lastScrollTop(History::ScrollMax)
 , mute(isNotifyMuted(peer->notify))
+, sendRequestId(0)
 , textCachedFor(0)
 , lastItemTextCache(st::dlgRichMinWidth)
 , posInDialogs(0)
@@ -1337,7 +1338,6 @@ void History::newItemAdded(HistoryItem *item) {
 		unregTyping(item->from());
 	}
 	if (item->out()) {
-//		inboxRead(false);
 		if (unreadBar) unreadBar->destroy();
 	} else if (item->unread()) {
 		notifies.push_back(item);
@@ -1529,13 +1529,13 @@ void History::addToBack(const QVector<MTPMessage> &slice) {
 	}
 }
 
-void History::inboxRead(bool byThisInstance) {
+void History::inboxRead(HistoryItem *wasRead) {
 	if (unreadCount) {
-		if (!byThisInstance && loadedAtBottom()) App::main()->historyToDown(this);
+		if (wasRead && loadedAtBottom()) App::main()->historyToDown(this);
 		setUnreadCount(0);
 	}
 	if (!isEmpty()) {
-		int32 till = back()->back()->id;
+		int32 till = (wasRead ? wasRead : back()->back())->id;
 		if (inboxReadTill < till) inboxReadTill = till;
 	}
 	if (!dialogs.isEmpty()) {
@@ -1545,9 +1545,9 @@ void History::inboxRead(bool byThisInstance) {
 	clearNotifications();
 }
 
-void History::outboxRead() {
+void History::outboxRead(HistoryItem *wasRead) {
 	if (!isEmpty()) {
-		int32 till = back()->back()->id;
+		int32 till = wasRead->id;
 		if (outboxReadTill < till) outboxReadTill = till;
 	}
 }
@@ -1978,9 +1978,9 @@ HistoryItem::HistoryItem(History *history, HistoryBlock *block, MsgId msgId, boo
 void HistoryItem::markRead() {
 	if (_unread) {
 		if (_out) {
-			_history->outboxRead();
+			_history->outboxRead(this);
 		} else {
-			_history->inboxRead();
+			_history->inboxRead(this);
 		}
 		App::main()->msgUpdated(_history->peer->id, this);
 		_unread = false;

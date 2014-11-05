@@ -1536,7 +1536,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
     , titlePeerTextWidth(0)
     , bg(st::msgBG)
     , hiderOffered(false)
-    , _scrollDelta(0) {
+    , _scrollDelta(0)
+	, _typingRequest(0) {
 	_scroll.setFocusPolicy(Qt::NoFocus);
 
 	setAcceptDrops(true);
@@ -1557,8 +1558,11 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
 	connect(App::wnd()->windowHandle(), SIGNAL(visibleChanged(bool)), this, SLOT(onVisibleChanged()));
 	connect(&_scrollTimer, SIGNAL(timeout()), this, SLOT(onScrollTimer()));
 	connect(&_emojiPan, SIGNAL(emojiSelected(EmojiPtr)), &_field, SLOT(onEmojiInsert(EmojiPtr)));
+	connect(&_typingStopTimer, SIGNAL(timeout()), this, SLOT(cancelTyping()));
 
 	_scrollTimer.setSingleShot(false);
+
+	_typingStopTimer.setSingleShot(true);
 
 	_animActiveTimer.setSingleShot(false);
 	connect(&_animActiveTimer, SIGNAL(timeout()), this, SLOT(onAnimActiveStep()));
@@ -1595,12 +1599,29 @@ void HistoryWidget::onTextChange() {
 	updateTyping();
 }
 
+void HistoryWidget::cancelTyping() {
+	if (_typingRequest) {
+		MTP::cancel(_typingRequest);
+		_typingRequest = 0;
+	}
+}
+
 void HistoryWidget::updateTyping(bool typing) {
 	uint64 ms = getms() + 10000;
 	if (noTypingUpdate || !hist || (typing && (hist->myTyping + 5000 > ms)) || (!typing && (hist->myTyping + 5000 <= ms))) return;
 
 	hist->myTyping = typing ? ms : 0;
-	if (typing) MTP::send(MTPmessages_SetTyping(histPeer->input, typing ? MTP_sendMessageTypingAction() : MTP_sendMessageCancelAction()));
+	cancelTyping();
+	if (typing) {
+		_typingRequest = MTP::send(MTPmessages_SetTyping(histPeer->input, typing ? MTP_sendMessageTypingAction() : MTP_sendMessageCancelAction()), rpcDone(&HistoryWidget::typingDone));
+		_typingStopTimer.start(5000);
+	}
+}
+
+void HistoryWidget::typingDone(const MTPBool &result, mtpRequestId req) {
+	if (_typingRequest == req) {
+		_typingRequest = 0;
+	}
 }
 
 void HistoryWidget::activate() {
@@ -1778,7 +1799,7 @@ void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool l
 		App::main()->peerUpdated(histPeer);
 		
 		noTypingUpdate = true;
-		_field.setPlainText(hist->draft);
+		setFieldText(hist->draft);
 		_field.setFocus();
 		if (!hist->draft.isEmpty()) {
 			_field.setTextCursor(hist->draftCur);
@@ -2192,26 +2213,15 @@ void HistoryWidget::onSend(bool ctrlShiftEnter) {
 	QString text = prepareMessage(_field.getText());
 	if (!text.isEmpty()) {
 		App::main()->readServerHistory(hist, false);
-
-		MsgId newId = clientMsgId();
-		uint64 randomId = MTP::nonce<uint64>();
-	
-		App::historyRegRandom(randomId, newId);
-
 		hist->loadAround(0);
 
-		MTPstring msgText(MTP_string(text));
-		int32 flags = 0x01 | 0x02; // unread, out
-		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(histPeer->id), MTP_int(unixtime()), msgText, MTP_messageMediaEmpty()));
-		App::main()->historyToDown(hist);
-		App::main()->dialogsToUp();
-		peerMessagesUpdated();
+		App::main()->sendPreparedText(hist, prepareMessage(_field.getText()));
 
-		MTP::send(MTPmessages_SendMessage(histInputPeer, msgText, MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId));
-		_field.setPlainText("");
+		setFieldText(QString());
 		if (!_attachType.isHidden()) _attachType.hideStart();
 		if (!_emojiPan.isHidden()) _emojiPan.hideStart();
 	}
+
 	_field.setFocus();
 }
 
@@ -2237,10 +2247,10 @@ mtpRequestId HistoryWidget::onForward(const PeerId &peer, SelectedItemSet toForw
 
 			newId = clientMsgId();
 			hist->addToBackForwarded(newId, msg);
-			MTP::send(MTPmessages_ForwardMessage(histPeer->input, MTP_int(item->id), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
+			hist->sendRequestId = MTP::send(MTPmessages_ForwardMessage(histPeer->input, MTP_int(item->id), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 		} else if (srv || (msg && msg->selectedText(FullItemSel).isEmpty())) {
 	//		newId = clientMsgId();
-	//		MTP::send(MTPmessages_ForwardMessage(histPeer->input, MTP_int(item->id), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
+	//		hist->sendRequestId = MTP::send(MTPmessages_ForwardMessage(histPeer->input, MTP_int(item->id), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 		} else if (msg) {
 			App::main()->readServerHistory(hist, false);
 
@@ -2250,7 +2260,7 @@ mtpRequestId HistoryWidget::onForward(const PeerId &peer, SelectedItemSet toForw
 
 			int32 flags = 0x01 | 0x02; // unread, out
 			hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(histPeer->id), MTP_int(unixtime()), msgText, MTP_messageMediaEmpty()));
-			MTP::send(MTPmessages_SendMessage(histPeer->input, msgText, MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId));
+			hist->sendRequestId = MTP::send(MTPmessages_SendMessage(histPeer->input, msgText, MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 		}
 		if (newId) {
 			App::historyRegRandom(randomId, newId);
@@ -2265,14 +2275,16 @@ mtpRequestId HistoryWidget::onForward(const PeerId &peer, SelectedItemSet toForw
 	PeerData *toPeer = App::peerLoaded(peer);
 	if (!toPeer) return 0;
 
-	App::main()->readServerHistory(App::history(toPeer->id), false);
+	History *hist = App::history(peer);
+	App::main()->readServerHistory(hist, false);
 
 	QVector<MTPint> ids;
 	ids.reserve(toForward.size());
 	for (SelectedItemSet::const_iterator i = toForward.cbegin(), e = toForward.cend(); i != e; ++i) {
 		ids.push_back(MTP_int(i.value()->id));
 	}
-	return MTP::send(MTPmessages_ForwardMessages(toPeer->input, MTP_vector<MTPint>(ids)), App::main()->rpcDone(&MainWidget::forwardDone, peer));
+	hist->sendRequestId = MTP::send(MTPmessages_ForwardMessages(toPeer->input, MTP_vector<MTPint>(ids)), App::main()->rpcDone(&MainWidget::forwardDone, peer), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+	return hist->sendRequestId;
 }
 
 void HistoryWidget::onShareContact(const PeerId &peer, UserData *contact) {
@@ -2296,7 +2308,7 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 	int32 flags = 0x01 | 0x02; // unread, out
 	h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(peer), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId))));
 	
-	MTP::send(MTPmessages_SendMedia(App::peer(peer)->input, MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
+	h->sendRequestId = MTP::send(MTPmessages_SendMedia(App::peer(peer)->input, MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 
 	App::historyRegRandom(randomId, newId);
 	if (hist && histPeer && peer == histPeer->id) {
@@ -2838,7 +2850,7 @@ void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
 }
 
 void HistoryWidget::cancelSendImage() {
-	if (confirmImageId && confirmWithText) _field.setPlainText(QString());
+	if (confirmImageId && confirmWithText) setFieldText(QString());
 	confirmImageId = 0;
 	confirmWithText = false;
 	confirmImage = QImage();
@@ -2852,7 +2864,8 @@ void HistoryWidget::onPhotoUploaded(MsgId newId, const MTPInputFile &file) {
 
 		uint64 randomId = MTP::nonce<uint64>();
 		App::historyRegRandom(randomId, newId);
-		MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_inputMediaUploadedPhoto(file), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
+		History *hist = item->history();
+		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_inputMediaUploadedPhoto(file), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 	}
 }
 
@@ -2867,7 +2880,8 @@ void HistoryWidget::onDocumentUploaded(MsgId newId, const MTPInputFile &file) {
 			uint64 randomId = MTP::nonce<uint64>();
 			App::historyRegRandom(randomId, newId);
 			DocumentData *document = media->document();
-			MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_inputMediaUploadedDocument(file, MTP_string(document->name), MTP_string(document->mime)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
+			History *hist = item->history();
+			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_inputMediaUploadedDocument(file, MTP_string(document->name), MTP_string(document->mime)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 		}
 	}
 }
@@ -2883,7 +2897,8 @@ void HistoryWidget::onThumbDocumentUploaded(MsgId newId, const MTPInputFile &fil
 			uint64 randomId = MTP::nonce<uint64>();
 			App::historyRegRandom(randomId, newId);
 			DocumentData *document = media->document();
-			MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_inputMediaUploadedThumbDocument(file, thumb, MTP_string(document->name), MTP_string(document->mime)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId));
+			History *hist = item->history();
+			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_inputMediaUploadedThumbDocument(file, thumb, MTP_string(document->name), MTP_string(document->mime)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 		}
 	}
 }
@@ -3114,11 +3129,11 @@ void HistoryWidget::onFieldTabbed() {
 			if (isImg) {
 				QImage img(cWorkingDir() + fname);
 				if (!img.isNull()) {
-					_field.setPlainText(text);
+					setFieldText(text);
 					uploadImage(img, !text.isEmpty());
 				}
 			} else {
-				_field.setPlainText(text);
+				setFieldText(text);
 				uploadFile(cWorkingDir() + fname, !text.isEmpty());
 			}
 		} else if (isContact) {
@@ -3130,18 +3145,23 @@ void HistoryWidget::onFieldTabbed() {
 			}
 			QStringList data = contact.split(QChar(' '));
 			if (data.size() > 1) {
-				_field.setPlainText(text);
-
+				setFieldText(text);
 				QString phone = data.at(0).trimmed(), fname = data.at(1).trimmed(), lname = (data.size() > 2) ? static_cast<QStringList>(data.mid(2)).join(QChar(' ')).trimmed() : QString();
 				shareContactConfirmation(phone, fname, lname, !text.isEmpty());
 			}
 		} else {
-			_field.setPlainText(t);
+			setFieldText(t);
 			QTextCursor c = _field.textCursor();
 			c.movePosition(QTextCursor::End);
 			_field.setTextCursor(c);
 		}
 	}
+}
+
+void HistoryWidget::setFieldText(const QString &text) {
+	noTypingUpdate = true;
+	_field.setPlainText(text);
+	noTypingUpdate = false;
 }
 
 void HistoryWidget::peerUpdated(PeerData *data) {
@@ -3203,7 +3223,7 @@ void HistoryWidget::onDeleteContextSure() {
 	}
 
 	if (item->id > 0) {
-		MTP::send(MTPmessages_DeleteMessages(MTP_vector<MTPint>(QVector<MTPint>(1, MTP_int(item->id)))));
+		MTP::send(MTPmessages_DeleteMessages(MTP_vector<MTPint>(1, MTP_int(item->id))));
 	}
 	item->destroy();
 	App::wnd()->hideLayer();

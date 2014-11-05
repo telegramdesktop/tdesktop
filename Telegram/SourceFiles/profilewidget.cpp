@@ -252,7 +252,7 @@ void ProfileInner::gotFullUser(const MTPUserFull &user) {
 	_loadingId = 0;
 	const MTPDuserFull &d(user.c_userFull());
 	App::feedPhoto(d.vprofile_photo);
-	App::feedUsers(MTP_vector<MTPUser>(QVector<MTPUser>(1, d.vuser)));
+	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
 	PhotoData *userPhoto = _peerUser->photoId ? App::photo(_peerUser->photoId) : 0;
 	if (userPhoto && userPhoto->date) {
 		_photoLink = TextLinkPtr(new PhotoLink(userPhoto, _peer));

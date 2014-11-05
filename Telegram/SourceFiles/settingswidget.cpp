@@ -642,7 +642,7 @@ void SettingsInner::updateConnectionType() {
 void SettingsInner::gotFullSelf(const MTPUserFull &selfFull) {
 	if (!self()) return;
 	App::feedPhoto(selfFull.c_userFull().vprofile_photo);
-	App::feedUsers(MTP_vector<MTPUser>(QVector<MTPUser>(1, selfFull.c_userFull().vuser)));
+	App::feedUsers(MTP_vector<MTPUser>(1, selfFull.c_userFull().vuser));
 	PhotoData *selfPhoto = self()->photoId ? App::photo(self()->photoId) : 0;
 	if (selfPhoto && selfPhoto->date) {
 		_photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));

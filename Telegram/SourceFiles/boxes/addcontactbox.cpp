@@ -251,7 +251,7 @@ void AddContactBox::onSend() {
 }
 
 void AddContactBox::onSaveSelfDone(const MTPUser &user) {
-	App::feedUsers(MTP_vector<MTPUser>(QVector<MTPUser>(1, user)));
+	App::feedUsers(MTP_vector<MTPUser>(1, user));
 	emit closed();
 }
 

@@ -31,7 +31,8 @@ namespace _mtp_internal {
 	static const uint32 dcShift = 10000;
 
 	mtpRequestId storeRequest(mtpRequest &request, const RPCResponseHandler &parser);
-	void replaceRequest(mtpRequest &newRequest, const mtpRequest &oldRequest);
+	mtpRequest getRequest(mtpRequestId req);
+	void wrapInvokeAfter(mtpRequest &to, const mtpRequest &from, const mtpRequestMap &haveSent);
 	void clearCallbacks(mtpRequestId requestId, int32 errorCode = RPCError::NoError); // 0 - do not toggle onError callback
 	void clearCallbacksDelayed(const RPCCallbackClears &requestIds);
 	void performDelayedClear();
@@ -85,12 +86,12 @@ namespace MTP {
 	QString dctransport(int32 dc = 0);
 	void initdc(int32 dc);
 	template <typename TRequest>
-	inline mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), int32 dc = 0, uint64 msCanWait = 0) {
-		return _mtp_internal::getSession(dc)->send(request, callbacks, msCanWait, _mtp_internal::getLayer(), !dc);
+	inline mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), int32 dc = 0, uint64 msCanWait = 0, mtpRequestId after = 0) {
+		return _mtp_internal::getSession(dc)->send(request, callbacks, msCanWait, _mtp_internal::getLayer(), !dc, after);
 	}
 	template <typename TRequest>
-	inline mtpRequestId send(const TRequest &request, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail = RPCFailHandlerPtr(), int32 dc = 0, uint64 msCanWait = 0) {
-		return send(request, RPCResponseHandler(onDone, onFail), dc, msCanWait);
+	inline mtpRequestId send(const TRequest &request, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail = RPCFailHandlerPtr(), int32 dc = 0, uint64 msCanWait = 0, mtpRequestId after = 0) {
+		return send(request, RPCResponseHandler(onDone, onFail), dc, msCanWait, after);
 	}
 	void cancel(mtpRequestId req);
 	void killSession(int32 dc);

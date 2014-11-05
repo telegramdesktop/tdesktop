@@ -333,6 +333,7 @@ private:
 
 	void createConn();
 
+	mtpMsgId placeToContainer(mtpRequest &toSendRequest, mtpMsgId &bigMsgId, mtpMsgId *&haveSentArr, mtpRequest &req);
 	mtpMsgId prepareToSend(mtpRequest &request, mtpMsgId currentLastId);
 	mtpMsgId replaceMsgId(mtpRequest &request, mtpMsgId newId);
 
@@ -367,8 +368,7 @@ private:
 	uint32 receiveDelay;
 	int64 firstSentAt;
 
-	MTPMsgsAck ackRequest;
-	QVector<MTPlong> *ackRequestData;
+	QVector<MTPlong> ackRequestData, resendRequestData;
 
 	// if badTime received - search for ids in sessionData->haveSent and sessionData->wereAcked and sync time/salt, return true if found
 	bool requestsFixTimeSalt(const QVector<MTPlong> &ids, int32 serverTime, uint64 serverSalt);
@@ -417,10 +417,8 @@ private:
 		uint32 retries;
 		MTPlong retry_id;
 
-		string dh_prime;
 		int32 g;
-		string g_a;
-
+		
 		uchar aesKey[32], aesIV[32];
 		uint32 auth_key[64];
 		MTPlong auth_key_hash;
@@ -428,7 +426,13 @@ private:
 		uint32 req_num; // sent not encrypted request number
 		uint32 msgs_sent;
 	};
+	struct AuthKeyCreateStrings {
+		QByteArray dh_prime;
+		QByteArray g_a;
+	};
 	AuthKeyCreateData *authKeyData;
+	AuthKeyCreateStrings *authKeyStrings;
+
 	void dhClientParamsSend();
 	void authKeyCreated();
 	void clearAuthKeyData();

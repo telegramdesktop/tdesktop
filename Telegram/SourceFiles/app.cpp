@@ -574,7 +574,7 @@ namespace App {
 		const QVector<MTPcontacts_Link> &v(links.c_vector().v);
 		for (QVector<MTPcontacts_Link>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 			const MTPDcontacts_link &dv(i->c_contacts_link());
-			feedUsers(MTP_vector<MTPUser>(QVector<MTPUser>(1, dv.vuser)));
+			feedUsers(MTP_vector<MTPUser>(1, dv.vuser));
 			MTPint userId(MTP_int(0));
 			switch (dv.vuser.type()) {
 			case mtpc_userEmpty: userId = dv.vuser.c_userEmpty().vid; break;

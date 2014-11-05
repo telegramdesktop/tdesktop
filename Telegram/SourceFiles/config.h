@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #pragma once
 
-static const int32 AppVersion = 6006;
-static const wchar_t *AppVersionStr = L"0.6.6";
+static const int32 AppVersion = 6007;
+static const wchar_t *AppVersionStr = L"0.6.7";
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -34,6 +34,7 @@ enum {
 	MTPIdsBufferSize = 400, // received msgIds and wereAcked msgIds count stored
 	MTPCheckResendTimeout = 10000, // how much time passed from send till we resend request or check it's state, in ms
 	MTPCheckResendWaiting = 1000, // how much time to wait for some more requests, when resending request or checking it's state, in ms
+	MTPAckSendWaiting = 10000, // how much time to wait for some more requests, when sending msg acks
 	MTPResendThreshold = 1, // how much ints should message contain for us not to resend, but to check it's state
 	MTPContainerLives = 600, // container lives 10 minutes in haveSent map
 	MTPMaxReceiveDelay = 64000, // 64 seconds
@@ -97,6 +98,8 @@ enum {
 	MinUsernameLength = 5,
 	MaxUsernameLength = 32,
 	UsernameCheckTimeout = 200,
+
+	MaxMessageSize = 4096,
 };
 
 #ifdef Q_OS_WIN
@@ -232,6 +235,7 @@ enum {
 
 	MaxPhotosInMemory = 50, // try to clear some memory after 50 photos are created
 	NoUpdatesTimeout = 180 * 1000, // if nothing is received in 3 min we reconnect
+	WaitForSeqTimeout = 1000, // 1s wait for skipped seq in updates
 
 	MemoryForImageCache = 64 * 1024 * 1024, // after 64mb of unpacked images we try to clear some memory
 	NotifyWindowsCount = 3, // 3 desktop notifies at the same time

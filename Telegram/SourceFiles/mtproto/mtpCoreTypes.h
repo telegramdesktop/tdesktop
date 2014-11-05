@@ -75,13 +75,15 @@ public:
 	// in haveSent: = 0 - container with msgIds, > 0 - when was sent
 	uint64 msDate;
 	mtpRequestId requestId;
+	mtpRequest after;
 
-	mtpRequestData(bool/* sure*/) : msDate(0) {
+	mtpRequestData(bool/* sure*/) : msDate(0), requestId(0) {
 	}
 
-	static mtpRequest prepare(uint32 requestSize) {
+	static mtpRequest prepare(uint32 requestSize, uint32 maxSize = 0) {
+		if (!maxSize) maxSize = requestSize;
 		mtpRequest result(new mtpRequestData(true));
-		result->reserve(8 + requestSize + _padding(requestSize)); // 2: salt, 2: session_id, 2: msg_id, 1: seq_no, 1: message_length
+		result->reserve(8 + maxSize + _padding(maxSize)); // 2: salt, 2: session_id, 2: msg_id, 1: seq_no, 1: message_length
 		result->resize(7);
 		result->push_back(requestSize << 2);
 		return result;
@@ -150,8 +152,8 @@ public:
 
 typedef QMap<mtpRequestId, mtpRequest> mtpPreRequestMap;
 typedef QMap<mtpMsgId, mtpRequest> mtpRequestMap;
-
-class mtpMsgIdsSet : public QMap<mtpMsgId, bool> {
+typedef QMap<mtpMsgId, bool> mtpMsgIdsSet;
+class mtpMsgIdsMap : public QMap<mtpMsgId, bool> {
 public:	
 	typedef QMap<mtpMsgId, bool> ParentType;
 
@@ -172,12 +174,12 @@ public:
 	}
 
 	mtpMsgId min() const {
-		return size() ? cbegin().key() : 0;
+		return isEmpty() ? 0 : cbegin().key();
 	}
 
 	mtpMsgId max() const {
 		ParentType::const_iterator e(cend());
-		return size() ? (--e).key() : 0;
+		return isEmpty() ? 0 : (--e).key();
 	}
 };
 
@@ -815,6 +817,8 @@ public:
 	}
 	MTPDvector(uint32 count) : v(count) {
 	}
+	MTPDvector(uint32 count, const T &value) : v(count, value) {
+	}
 	MTPDvector(const QVector<T> &vec) : v(vec) {
 	}
 
@@ -828,6 +832,9 @@ template <typename T>
 class MTPvector;
 template <typename T>
 MTPvector<T> MTP_vector(uint32 count);
+
+template <typename T>
+MTPvector<T> MTP_vector(uint32 count, const T &value);
 
 template <typename T>
 MTPvector<T> MTP_vector(const QVector<T> &v);
@@ -886,12 +893,17 @@ private:
 	}
 
 	friend MTPvector<T> MTP_vector<T>(uint32 count);
+	friend MTPvector<T> MTP_vector<T>(uint32 count, const T &value);
 	friend MTPvector<T> MTP_vector<T>(const QVector<T> &v);
 	typedef typename MTPDvector<T>::VType VType;
 };
 template <typename T>
 inline MTPvector<T> MTP_vector(uint32 count) {
 	return MTPvector<T>(new MTPDvector<T>(count));
+}
+template <typename T>
+inline MTPvector<T> MTP_vector(uint32 count, const T &value) {
+	return MTPvector<T>(new MTPDvector<T>(count, value));
 }
 template <typename T>
 inline MTPvector<T> MTP_vector(const QVector<T> &v) {
@@ -903,6 +915,8 @@ public:
 	MTPVector() {
 	}
 	MTPVector(uint32 count) : MTPBoxed<MTPvector<T> >(MTP_vector<T>(count)) {
+	}
+	MTPVector(uint32 count, const T &value) : MTPBoxed<MTPvector<T> >(MTP_vector<T>(count, value)) {
 	}
 	MTPVector(const MTPvector<T> &v) : MTPBoxed<MTPvector<T> >(v) {
 	}

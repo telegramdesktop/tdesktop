@@ -98,6 +98,9 @@ public:
 	QReadWriteLock *haveReceivedMutex() const {
 		return &haveReceivedLock;
 	}
+	QReadWriteLock *stateRequestMutex() const {
+		return &stateRequestLock;
+	}
 
 	mtpPreRequestMap &toSendMap() {
 		return toSend;
@@ -117,10 +120,10 @@ public:
 	const mtpRequestIdsMap &toResendMap() const {
 		return toResend;
 	}
-	mtpMsgIdsSet &receivedIdsSet() {
+	mtpMsgIdsMap &receivedIdsSet() {
 		return receivedIds;
 	}
-	const mtpMsgIdsSet &receivedIdsSet() const {
+	const mtpMsgIdsMap &receivedIdsSet() const {
 		return receivedIds;
 	}
 	mtpRequestIdsMap &wereAckedMap() {
@@ -134,6 +137,12 @@ public:
 	}
 	const mtpResponseMap &haveReceivedMap() const {
 		return haveReceived;
+	}
+	mtpMsgIdsSet &stateRequestMap() {
+		return stateRequest;
+	}
+	const mtpMsgIdsSet &stateRequestMap() const {
+		return stateRequest;
 	}
 
 	mtpRequestId nextFakeRequestId() { // must be locked by haveReceivedMutex()
@@ -175,9 +184,10 @@ private:
 	mtpPreRequestMap toSend; // map of request_id -> request, that is waiting to be sent
 	mtpRequestMap haveSent; // map of msg_id -> request, that was sent, msDate = 0 for msgs_state_req (no resend / state req), msDate = 0, seqNo = 0 for containers
 	mtpRequestIdsMap toResend; // map of msg_id -> request_id, that request_id -> request lies in toSend and is waiting to be resent
-	mtpMsgIdsSet receivedIds; // set of received msg_id's, for checking new msg_ids
+	mtpMsgIdsMap receivedIds; // set of received msg_id's, for checking new msg_ids
 	mtpRequestIdsMap wereAcked; // map of msg_id -> request_id, this msg_ids already were acked or do not need ack
 	mtpResponseMap haveReceived; // map of request_id -> response, that should be processed in other thread
+	mtpMsgIdsSet stateRequest; // set of msg_id's, whose state should be requested
 
 	// mutexes
 	mutable QReadWriteLock lock;
@@ -187,6 +197,7 @@ private:
 	mutable QReadWriteLock receivedIdsLock;
 	mutable QReadWriteLock wereAckedLock;
 	mutable QReadWriteLock haveReceivedLock;
+	mutable QReadWriteLock stateRequestLock;
 
 };
 
@@ -209,9 +220,10 @@ public:
 	void destroyKey();
 
 	template <typename TRequest>
-	mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), uint64 msCanWait = 0, uint32 layer = 0, bool toMainDC = false); // send mtp request
+	mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), uint64 msCanWait = 0, uint32 layer = 0, bool toMainDC = false, mtpRequestId after = 0); // send mtp request
+	void sendAnything(uint64 msCanWait);
 
-	void cancel(mtpRequestId requestId);
+	void cancel(mtpRequestId requestId, mtpMsgId msgId);
 	int32 requestState(mtpRequestId requestId) const;
 	int32 getState() const;
 	QString transport() const;
@@ -244,7 +256,7 @@ public slots:
 private:
 	
 	template <typename TRequest>
-	mtpRequestId sendFirst(const MTPInitConnection<TRequest> &request, RPCResponseHandler callbacks = RPCResponseHandler(), uint64 msCanWait = 0, uint32 layer = 0, bool toMainDC = false); // send first mtp request
+	mtpRequestId sendFirst(const MTPInitConnection<TRequest> &request, RPCResponseHandler callbacks = RPCResponseHandler(), uint64 msCanWait = 0, uint32 layer = 0, bool toMainDC = false, mtpRequestId after = 0); // send first mtp request
 
 	typedef QList<MTProtoConnection*> MTProtoConnections;
 	MTProtoConnections connections;

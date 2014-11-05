@@ -283,6 +283,7 @@ public:
 	QRect historyRect() const;
 
 	void updateTyping(bool typing = true);
+	void typingDone(const MTPBool &result, mtpRequestId req);
 
 	void destroyData();
 	void uploadImage(const QImage &img, bool withText = false);
@@ -344,6 +345,8 @@ public slots:
 
 	void peerUpdated(PeerData *data);
 
+	void cancelTyping();
+
 	void onPhotoUploaded(MsgId msgId, const MTPInputFile &file);
 	void onDocumentUploaded(MsgId msgId, const MTPInputFile &file);
 	void onThumbDocumentUploaded(MsgId msgId, const MTPInputFile &file, const MTPInputFile &thumb);
@@ -395,6 +398,8 @@ private:
 	void addMessagesToFront(const QVector<MTPMessage> &messages);
 	void addMessagesToBack(const QVector<MTPMessage> &messages);
 	void chatLoaded(const MTPmessages_ChatFull &res);
+
+	void setFieldText(const QString &text);
 
 	QStringList getMediasFromMime(const QMimeData *d);
 	DragState getDragState(const QMimeData *d);
@@ -456,6 +461,9 @@ private:
 
 	QTimer _animActiveTimer;
 	float64 _animActiveStart;
+
+	mtpRequestId _typingRequest;
+	QTimer _typingStopTimer;
 
 };
 

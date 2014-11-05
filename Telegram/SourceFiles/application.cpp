@@ -331,10 +331,10 @@ void Application::writeUserConfigIn(uint64 ms) {
 
 void Application::killDownloadSessionsStart(int32 dc) {
 	if (killDownloadSessionTimes.constFind(dc) == killDownloadSessionTimes.cend()) {
-		killDownloadSessionTimes.insert(dc, getms() + MTPKillFileSessionTimeout);
+		killDownloadSessionTimes.insert(dc, getms() + MTPAckSendWaiting + MTPKillFileSessionTimeout);
 	}
 	if (!killDownloadSessionsTimer.isActive()) {
-		killDownloadSessionsTimer.start(MTPKillFileSessionTimeout + 5);
+		killDownloadSessionsTimer.start(MTPAckSendWaiting + MTPKillFileSessionTimeout + 5);
 	}
 }
 
@@ -350,7 +350,7 @@ void Application::onWriteUserConfig() {
 }
 
 void Application::killDownloadSessions() {
-	uint64 ms = getms(), left = MTPKillFileSessionTimeout;
+	uint64 ms = getms(), left = MTPAckSendWaiting + MTPKillFileSessionTimeout;
 	for (QMap<int32, uint64>::iterator i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {
 		if (i.value() <= ms) {
 			for (int j = 1; j < MTPDownloadSessionsCount; ++j) {
@@ -378,7 +378,8 @@ void Application::photoUpdated(MsgId msgId, const MTPInputFile &file) {
 		if (peer == App::self()->id) {
 			MTP::send(MTPphotos_UploadProfilePhoto(file, MTP_string(""), MTP_inputGeoPointEmpty(), MTP_inputPhotoCrop(MTP_double(0), MTP_double(0), MTP_double(100))), rpcDone(&Application::selfPhotoDone), rpcFail(&Application::peerPhotoFail, peer));
 		} else {
-			MTP::send(MTPmessages_EditChatPhoto(MTP_int(peer & 0xFFFFFFFF), MTP_inputChatUploadedPhoto(file, MTP_inputPhotoCrop(MTP_double(0), MTP_double(0), MTP_double(100)))), rpcDone(&Application::chatPhotoDone, peer), rpcFail(&Application::peerPhotoFail, peer));
+			History *hist = App::history(peer);
+			hist->sendRequestId = MTP::send(MTPmessages_EditChatPhoto(MTP_int(peer & 0xFFFFFFFF), MTP_inputChatUploadedPhoto(file, MTP_inputPhotoCrop(MTP_double(0), MTP_double(0), MTP_double(100)))), rpcDone(&Application::chatPhotoDone, peer), rpcFail(&Application::peerPhotoFail, peer), 0, 0, hist->sendRequestId);
 		}
 	}
 }

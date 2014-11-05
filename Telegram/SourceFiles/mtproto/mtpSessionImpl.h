@@ -18,11 +18,11 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #pragma once
 
 template <typename TRequest>
-mtpRequestId MTProtoSession::send(const TRequest &request, RPCResponseHandler callbacks, uint64 msCanWait, uint32 layer, bool toMainDC) {
+mtpRequestId MTProtoSession::send(const TRequest &request, RPCResponseHandler callbacks, uint64 msCanWait, uint32 layer, bool toMainDC, mtpRequestId after) {
     mtpRequestId requestId = 0;
     if (layer && dc->needConnectionInit()) {
         MTPInitConnection<TRequest> requestWrap(MTPinitConnection<TRequest>(MTP_int(ApiId), MTP_string(cApiDeviceModel()), MTP_string(cApiSystemVersion()), MTP_string(cApiAppVersion()), MTP_string(ApiLang), request));
-        return sendFirst(requestWrap, callbacks, msCanWait, layer, toMainDC);
+        return sendFirst(requestWrap, callbacks, msCanWait, layer, toMainDC, after);
     }
     try {
         uint32 requestSize = request.size() >> 2;
@@ -34,7 +34,8 @@ mtpRequestId MTProtoSession::send(const TRequest &request, RPCResponseHandler ca
         DEBUG_LOG(("MTP Info: adding request to toSendMap, msCanWait %1").arg(msCanWait));
 
         reqSerialized->msDate = getms(); // > 0 - can send without container
-        requestId = _mtp_internal::storeRequest(reqSerialized, callbacks);
+		if (after) reqSerialized->after = _mtp_internal::getRequest(after);
+		requestId = _mtp_internal::storeRequest(reqSerialized, callbacks);
 
         sendPrepared(reqSerialized, msCanWait);
     } catch (Exception &e) {
@@ -61,7 +62,7 @@ private:
 };
 
 template <typename TRequest>
-mtpRequestId MTProtoSession::sendFirst(const MTPInitConnection<TRequest> &request, RPCResponseHandler callbacks, uint64 msCanWait, uint32 layer, bool toMainDC) {
+mtpRequestId MTProtoSession::sendFirst(const MTPInitConnection<TRequest> &request, RPCResponseHandler callbacks, uint64 msCanWait, uint32 layer, bool toMainDC, mtpRequestId after) {
     mtpRequestId requestId = 0;
     try {
         uint32 requestSize = request.size() >> 2;
@@ -72,7 +73,8 @@ mtpRequestId MTProtoSession::sendFirst(const MTPInitConnection<TRequest> &reques
         DEBUG_LOG(("MTP Info: adding wrapped to init connection request to toSendMap, msCanWait %1").arg(msCanWait));
         callbacks.onDone = RPCDoneHandlerPtr(new RPCWrappedDcDoneHandler(dc, callbacks.onDone));
         reqSerialized->msDate = getms(); // > 0 - can send without container
-        requestId = _mtp_internal::storeRequest(reqSerialized, callbacks);
+		if (after) reqSerialized->after = _mtp_internal::getRequest(after);
+		requestId = _mtp_internal::storeRequest(reqSerialized, callbacks);
 
         sendPrepared(reqSerialized, msCanWait);
     } catch (Exception &e) {

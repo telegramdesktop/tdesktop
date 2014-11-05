@@ -657,8 +657,8 @@ struct History : public QList<HistoryBlock*> {
 	void newItemAdded(HistoryItem *item);
 	void unregTyping(UserData *from);
 
-	void inboxRead(bool byThisInstance = false);
-	void outboxRead();
+	void inboxRead(HistoryItem *wasRead);
+	void outboxRead(HistoryItem *wasRead);
 
 	void setUnreadCount(int32 newUnreadCount, bool psUpdate = true);
 	void setMsgCount(int32 newMsgCount);
@@ -731,6 +731,8 @@ struct History : public QList<HistoryBlock*> {
 	QTextCursor draftCur;
 	int32 lastWidth, lastScrollTop;
 	bool mute;
+
+	mtpRequestId sendRequestId;
 
 	// for dialog drawing
 	Text nameText;

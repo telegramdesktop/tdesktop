@@ -101,6 +101,28 @@ namespace {
 		}
 		return false;
 	}
+	inline bool chIsSentenceEnd(QChar ch) {
+		switch (ch.unicode()) {
+		case '.':
+		case '?':
+		case '!':
+			return true;
+		default:
+			break;
+		}
+		return false;
+	}
+	inline bool chIsSentencePartEnd(QChar ch) {
+		switch (ch.unicode()) {
+		case ',':
+		case ':':
+		case ';':
+			return true;
+		default:
+			break;
+		}
+		return false;
+	}
 	inline bool chIsParagraphSeparator(QChar ch) {
 		switch (ch.unicode()) {
 		case QChar::LineFeed:
@@ -3976,6 +3998,74 @@ QString textAccentFold(const QString &text) {
 
 QString textSearchKey(const QString &text) {
 	return textAccentFold(text.trimmed().toLower());
+}
+
+bool textSplit(QString &sendingText, QString &leftText, int32 limit) {
+	if (leftText.isEmpty() || !limit) return false;
+
+	LinkRanges lnkRanges = textParseLinks(leftText);
+	int32 currentLink = 0, lnkCount = lnkRanges.size();
+
+	int32 s = 0, half = limit / 2, goodLevel = 0;
+	for (const QChar *start = leftText.constData(), *ch = start, *end = leftText.constEnd(), *good = ch; ch != end; ++ch, ++s) {
+		while (currentLink < lnkCount && ch >= lnkRanges[currentLink].from + lnkRanges[currentLink].len) {
+			++currentLink;
+		}
+
+		bool inLink = (currentLink < lnkCount) && (ch > lnkRanges[currentLink].from) && (ch < lnkRanges[currentLink].from + lnkRanges[currentLink].len);
+		if (s > half) {
+			if (inLink) {
+				if (!goodLevel) good = ch;
+			} else {
+				if (chIsNewline(*ch)) {
+					if (ch + 1 < end && chIsNewline(*(ch + 1)) && goodLevel <= 7) {
+						goodLevel = 7;
+						good = ch;
+					} else if (goodLevel <= 6) {
+						goodLevel = 6;
+						good = ch;
+					}
+				} else if (chIsSpace(*ch)) {
+					if (chIsSentenceEnd(*(ch - 1)) && goodLevel <= 5) {
+						goodLevel = 5;
+						good = ch;
+					} else if (chIsSentencePartEnd(*(ch - 1)) && goodLevel <= 4) {
+						goodLevel = 4;
+						good = ch;
+					} else if (goodLevel <= 3) {
+						goodLevel = 3;
+						good = ch;
+					}
+				} else if (chIsWordSeparator(*(ch - 1)) && goodLevel <= 2) {
+					goodLevel = 2;
+					good = ch;
+				} else if (goodLevel <= 1) {
+					goodLevel = 1;
+					good = ch;
+				}
+			}
+		}
+		if (ch->isHighSurrogate()) {
+			if (ch + 1 < end && (ch + 1)->isLowSurrogate()) {
+				++ch;
+			}
+		} else {
+			if (ch + 1 < end && ((((ch->unicode() >= 48 && ch->unicode() < 58) || ch->unicode() == 35) && (ch + 1)->unicode() == 0x20E3) || (ch + 1)->unicode() == 0xFE0F)) {
+				if (getEmoji((ch->unicode() << 16) | (ch + 1)->unicode())) {
+					++ch;
+					++s;
+				}
+			}
+		}
+		if (s >= limit) {
+			sendingText = leftText.mid(0, good - start);
+			leftText = leftText.mid(good - start);
+			return true;
+		}
+	}
+	sendingText = leftText;
+	leftText = QString();
+	return true;
 }
 
 LinkRanges textParseLinks(const QString &text, bool rich) {

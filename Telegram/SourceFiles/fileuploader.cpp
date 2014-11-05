@@ -85,7 +85,7 @@ void FileUploader::sendNext() {
 	bool killing = killSessionsTimer.isActive();
 	if (queue.isEmpty()) {
 		if (!killing) {
-			killSessionsTimer.start(MTPKillFileSessionTimeout);
+			killSessionsTimer.start(MTPAckSendWaiting + MTPKillFileSessionTimeout);
 		}
 		return;
 	}

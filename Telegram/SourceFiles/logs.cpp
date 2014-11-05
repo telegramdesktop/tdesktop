@@ -344,3 +344,12 @@ QString logVectorLong(const QVector<MTPlong> &ids) {
 	}
 	return idsStr + "]";
 }
+
+QString logVectorLong(const QVector<uint64> &ids) {
+	if (!ids.size()) return "[void list]";
+	QString idsStr = QString("[%1").arg(*ids.cbegin());
+	for (QVector<uint64>::const_iterator i = ids.cbegin() + 1, e = ids.cend(); i != e; ++i) {
+		idsStr += QString(", %2").arg(*i);
+	}
+	return idsStr + "]";
+}

@@ -469,7 +469,7 @@ void Window::setupMain(bool anim) {
 	if (anim) {
 		main->animShow(bg);
 	} else {
-		MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(QVector<MTPInputUser>(1, MTP_inputUserSelf()))), main->rpcDone(&MainWidget::startFull));
+		MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(1, MTP_inputUserSelf())), main->rpcDone(&MainWidget::startFull));
 		main->activate();
 	}
 

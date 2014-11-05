@@ -23,6 +23,7 @@ QString textRichPrepare(const QString &text);
 QString textOneLine(const QString &text, bool trim = true, bool rich = false);
 QString textAccentFold(const QString &text);
 QString textSearchKey(const QString &text);
+bool textSplit(QString &sendingText, QString &leftText, int32 limit);
 
 struct LinkRange {
 	LinkRange() : from(0), len(0) {

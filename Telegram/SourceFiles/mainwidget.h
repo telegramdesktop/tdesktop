@@ -197,7 +197,7 @@ public:
 	void historyToDown(History *hist);
 	void dialogsToUp();
 	void newUnreadMsg(History *history, MsgId msgId);
-	void updUpdated(int32 pts, int32 date, int32 qts, int32 seq);
+	void updUpdated(int32 pts, int32 seq);
 	void historyWasRead();
 
 	void peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
@@ -266,6 +266,7 @@ public:
 	DialogsIndexed &contactsList();
     
     void sendMessage(History *history, const QString &text);
+	void sendPreparedText(History *hist, const QString &text);
     
     void readServerHistory(History *history, bool force = true);
 
@@ -312,6 +313,7 @@ public slots:
 
 	void onParentResize(const QSize &newSize);
 	void getDifference();
+	void getDifferenceForce();
 
 	void setOnline(int windowState = -1);
 	void mainStateChanged(Qt::WindowState state);
@@ -348,6 +350,7 @@ private:
 	void feedUpdate(const MTPUpdate &update);
 
 	void updateReceived(const mtpPrime *from, const mtpPrime *end);
+	void handleUpdates(const MTPUpdates &updates);
 	bool updateFail(const RPCError &e);
 
 	void hideAll();
@@ -391,4 +394,14 @@ private:
 
 	typedef QMap<PeerData*, mtpRequestId> OverviewsPreload;
 	OverviewsPreload _overviewPreload[OverviewCount], _overviewLoad[OverviewCount];
+
+	QMap<int32, MTPUpdates> _bySeqUpdates;
+	QMap<int32, MTPmessages_SentMessage> _bySeqSentMessage;
+	QMap<int32, MTPmessages_StatedMessage> _bySeqStatedMessage;
+	QMap<int32, MTPmessages_StatedMessages> _bySeqStatedMessages;
+	QMap<int32, int32> _bySeqPart;
+	QTimer _bySeqTimer;
+
+	int32 _failDifferenceTimeout; // growing timeout for getDifference calls, if it fails
+	QTimer _failDifferenceTimer;
 };

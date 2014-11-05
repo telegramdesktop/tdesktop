@@ -72,6 +72,7 @@ inline const char *logBool(bool v) {
 
 class MTPlong;
 QString logVectorLong(const QVector<MTPlong> &ids);
+QString logVectorLong(const QVector<uint64> &ids);
 
 #define LOG(msg) (logWrite(QString msg))
 //usage LOG(("log: %1 %2").arg(1).arg(2))

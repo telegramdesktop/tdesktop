@@ -133,12 +133,35 @@ void MTProtoSession::stop() {
 	}
 }
 
-void MTProtoSession::checkRequestsByTimer() {
-	MTPMsgsStateReq stateRequest(MTP_msgs_state_req(MTP_vector<MTPlong>(0)));
-	QVector<MTPlong> &stateRequestIds(stateRequest._msgs_state_req().vmsg_ids._vector().v);
+void MTProtoSession::sendAnything(uint64 msCanWait) {
+	uint64 ms = getms();
+	if (msSendCall) {
+		if (ms > msSendCall + msWait) {
+			msWait = 0;
+		} else {
+			msWait = (msSendCall + msWait) - ms;
+			if (msWait > msCanWait) {
+				msWait = msCanWait;
+			}
+		}
+	} else {
+		msWait = msCanWait;
+	}
+	if (msWait) {
+		msSendCall = ms;
+		emit startSendTimer(msWait);
+		DEBUG_LOG(("MTP Info: can wait for %1ms from current %2").arg(msWait).arg(msSendCall));
+	} else {
+		emit stopSendTimer();
+		msSendCall = 0;
+		emit needToSendAsync();
+	}
+}
 
+void MTProtoSession::checkRequestsByTimer() {
 	QVector<mtpMsgId> resendingIds;
 	QVector<mtpMsgId> removingIds; // remove very old (10 minutes) containers and resend requests
+	QVector<mtpMsgId> stateRequestIds;
 
 	{
 		QReadLocker locker(data.haveSentMutex());
@@ -155,7 +178,7 @@ void MTProtoSession::checkRequestsByTimer() {
 					} else {
 						req->msDate = ms;
 						stateRequestIds.reserve(haveSentCount);
-						stateRequestIds.push_back(MTP_long(i.key()));
+						stateRequestIds.push_back(i.key());
 					}
 				}
 			} else if (unixtime() > (int32)(i.key() >> 32) + MTPContainerLives) {
@@ -167,19 +190,26 @@ void MTProtoSession::checkRequestsByTimer() {
 
 	if (stateRequestIds.size()) {
 		DEBUG_LOG(("MTP Info: requesting state of msgs: %1").arg(logVectorLong(stateRequestIds)));
-		send(stateRequest, RPCResponseHandler(), MTPCheckResendWaiting);
+		{
+			QWriteLocker locker(data.stateRequestMutex());
+			for (uint32 i = 0, l = stateRequestIds.size(); i < l; ++i) {
+				data.stateRequestMap().insert(stateRequestIds[i], true);
+			}
+		}
+		sendAnything(MTPCheckResendWaiting);
 	}
-	for (uint32 i = 0, l = resendingIds.size(); i < l; ++i) {
-		DEBUG_LOG(("MTP Info: resending request %1").arg(resendingIds[i]));
-		resend(resendingIds[i], MTPCheckResendWaiting);
+	if (!resendingIds.isEmpty()) {
+		for (uint32 i = 0, l = resendingIds.size(); i < l; ++i) {
+			DEBUG_LOG(("MTP Info: resending request %1").arg(resendingIds[i]));
+			resend(resendingIds[i], MTPCheckResendWaiting);
+		}
 	}
-	uint32 removingIdsCount = removingIds.size();
-	if (removingIdsCount) {
+	if (!removingIds.isEmpty()) {
 		RPCCallbackClears clearCallbacks;
 		{
 			QWriteLocker locker(data.haveSentMutex());
 			mtpRequestMap &haveSent(data.haveSentMap());
-			for (uint32 i = 0; i < removingIdsCount; ++i) {
+			for (uint32 i = 0, l = removingIds.size(); i < l; ++i) {
 				mtpRequestMap::iterator j = haveSent.find(removingIds[i]);
 				if (j != haveSent.cend()) {
 					if (j.value()->requestId) {
@@ -201,11 +231,15 @@ void MTProtoSession::onResetDone() {
 	_mtp_internal::onSessionReset(dcId);
 }
 
-void MTProtoSession::cancel(mtpRequestId requestId) {
-	QWriteLocker locker(data.toSendMutex());
-	mtpPreRequestMap &toSend(data.toSendMap());
-	mtpPreRequestMap::iterator i = toSend.find(requestId);
-	if (i != toSend.end()) toSend.erase(i);
+void MTProtoSession::cancel(mtpRequestId requestId, mtpMsgId msgId) {
+	if (requestId) {
+		QWriteLocker locker(data.toSendMutex());
+		data.toSendMap().remove(requestId);
+	}
+	if (msgId) {
+		QWriteLocker locker(data.haveSentMutex());
+		data.haveSentMap().remove(msgId);
+	}
 }
 
 int32 MTProtoSession::requestState(mtpRequestId requestId) const {
@@ -340,28 +374,7 @@ void MTProtoSession::sendPrepared(const mtpRequest &request, uint64 msCanWait, b
 
 	DEBUG_LOG(("MTP Info: added, requestId %1").arg(request->requestId));
 
-	uint64 ms = getms();
-	if (msSendCall) {
-		if (ms > msSendCall + msWait) {
-			msWait = 0;
-		} else {
-			msWait = (msSendCall + msWait) - ms;
-			if (msWait > msCanWait) {
-				msWait = msCanWait;
-			}
-		}
-	} else {
-		msWait = msCanWait;
-	}
-	if (msWait) {
-		msSendCall = ms;
-		emit startSendTimer(msWait);
-		DEBUG_LOG(("MTP Info: can wait for %1ms from current %2").arg(msWait).arg(msSendCall));
-	} else {
-		emit stopSendTimer();
-		msSendCall = 0;
-		emit needToSendAsync();
-	}
+	sendAnything(msCanWait);
 }
 
 void MTProtoSession::sendPreparedWithInit(const mtpRequest &request, uint64 msCanWait) { // returns true, if emit of needToSend() is needed
@@ -369,14 +382,16 @@ void MTProtoSession::sendPreparedWithInit(const mtpRequest &request, uint64 msCa
 		sendPrepared(request, msCanWait, false);
 		return;
 	}
-	MTPInitConnection<mtpRequest> requestWrap(MTPinitConnection<mtpRequest>(MTP_int(ApiId), MTP_string(cApiDeviceModel()), MTP_string(cApiSystemVersion()), MTP_string(cApiAppVersion()), MTP_string(ApiLang), request));
-	uint32 requestSize = requestWrap.size() >> 2;
-	mtpRequest reqSerialized(mtpRequestData::prepare(requestSize));
-	requestWrap.write(*reqSerialized);
-
-	reqSerialized->msDate = getms(); // > 0 - can send without container
-	_mtp_internal::replaceRequest(reqSerialized, request);
-	sendPrepared(reqSerialized, msCanWait);
+	{
+		MTPInitConnection<mtpRequest> requestWrap(MTPinitConnection<mtpRequest>(MTP_int(ApiId), MTP_string(cApiDeviceModel()), MTP_string(cApiSystemVersion()), MTP_string(cApiAppVersion()), MTP_string(ApiLang), request));
+		uint32 requestSize = requestWrap.size() >> 2;
+		mtpRequest reqSerialized(mtpRequestData::prepare(requestSize));
+		requestWrap.write(*reqSerialized);
+		request->resize(reqSerialized->size());
+		memcpy(request->data(), reqSerialized->constData(), reqSerialized->size());
+	}
+	request->msDate = getms(); // > 0 - can send without container
+	sendPrepared(request, msCanWait);
 }
 
 QReadWriteLock *MTProtoSession::keyMutex() const {
