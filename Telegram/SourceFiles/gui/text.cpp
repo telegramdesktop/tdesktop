@@ -3203,6 +3203,7 @@ namespace {
 		regOneTopDomain(qsl("name"));
 		regOneTopDomain(qsl("net"));
 		regOneTopDomain(qsl("org"));
+		regOneTopDomain(qsl("ovh"));
 		regOneTopDomain(qsl("post"));
 		regOneTopDomain(qsl("pro"));
 		regOneTopDomain(qsl("tel"));
