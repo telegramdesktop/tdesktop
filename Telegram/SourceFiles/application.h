@@ -73,6 +73,8 @@ public:
 	void killDownloadSessionsStart(int32 dc);
 	void killDownloadSessionsStop(int32 dc);
 
+	void checkLocalTime();
+
 signals:
 
 	void peerPhotoDone(PeerId peer);
@@ -104,13 +106,14 @@ public slots:
 	void onWriteUserConfig();
 
 	void killDownloadSessions();
+	void onAppStateChanged(Qt::ApplicationState state);
 
 private:
 
 	QMap<MsgId, PeerId> photoUpdates;
 
 	QMap<int32, uint64> killDownloadSessionTimes;
-	QTimer killDownloadSessionsTimer;
+	SingleTimer killDownloadSessionsTimer;
 
 	void startApp();
 
@@ -131,7 +134,7 @@ private:
 	mtpRequestId updateRequestId;
 	QNetworkAccessManager updateManager;
 	QNetworkReply *updateReply;
-	QTimer updateCheckTimer;
+	SingleTimer updateCheckTimer;
 	QThread *updateThread;
 	PsUpdateDownloader *updateDownloader;
 

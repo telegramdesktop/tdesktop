@@ -150,7 +150,8 @@ MTPint toServerTime(const int32 &clientTime) {
 namespace {
 	float64 _msFreq;
 	float64 _msgIdCoef;
-    int64 _msStart = 0;
+    int64 _msStart = 0, _msAddToMsStart = 0, _msAddToUnixtime = 0;
+	int32 _timeStart = 0;
 
 	class _MsInitializer {
 	public:
@@ -180,7 +181,7 @@ namespace {
             _msgIdCoef = float64(0xFFFF0000L) / 1000000000.;
             _msStart = 1000 * uint64(ts.tv_sec) + (uint64(ts.tv_nsec) / 1000000);
 #endif
-
+			_timeStart = myunixtime();
 			srand((uint32)(_msStart & 0xFFFFFFFFL));
 			if (!RAND_status()) { // should be always inited in all modern OS
 				char buf[16];
@@ -208,15 +209,28 @@ namespace {
 	_MsStarter _msStarter;
 }
 
-uint64 getms() {
+bool checkms() {
+	int64 unixms = (myunixtime() - _timeStart) * 1000LL + _msAddToUnixtime;
+	int64 ms = int64(getms(true));
+	if (ms > unixms + 1000LL) {
+		_msAddToUnixtime = ((ms - unixms) / 1000LL) * 1000LL;
+	} else if (unixms > ms + 1000LL) {
+		_msAddToMsStart += ((unixms - ms) / 1000LL) * 1000LL;
+		adjustSingleTimers();
+		return true;
+	}
+	return false;
+}
+
+uint64 getms(bool checked) {
     _msInitialize();
 #ifdef Q_OS_WIN
     LARGE_INTEGER li;
     QueryPerformanceCounter(&li);
-    return (uint64)((li.QuadPart - _msStart) * _msFreq);
+	return (uint64)((li.QuadPart - _msStart) * _msFreq) + (checked ? _msAddToMsStart : 0);
 #elif defined Q_OS_MAC
    uint64 msCount = mach_absolute_time();
-   return (uint64)((msCount - _msStart) * _msFreq);
+   return (uint64)((msCount - _msStart) * _msFreq) + (checked ? _msAddToMsStart : 0);
 #else
     timespec ts;
     int res = clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -225,8 +239,26 @@ uint64 getms() {
         return 0;
     }
     uint64 msCount = 1000 * uint64(ts.tv_sec) + (uint64(ts.tv_nsec) / 1000000);
-    return (uint64)(msCount - _msStart);
+    return (uint64)(msCount - _msStart) + (checked ? _msAddToMsStart : 0);
 #endif
+}
+
+namespace {
+	QSet<SingleTimer*> _activeSingleTimers;
+}
+
+void regSingleTimer(SingleTimer *timer) {
+	_activeSingleTimers.insert(timer);
+}
+
+void unregSingleTimer(SingleTimer *timer) {
+	_activeSingleTimers.remove(timer);
+}
+
+void adjustSingleTimers() {
+	for (QSet<SingleTimer*>::const_iterator i = _activeSingleTimers.cbegin(), e = _activeSingleTimers.cend(); i != e; ++i) {
+		emit (*i)->callAdjust();
+	}
 }
 
 uint64 msgid() {

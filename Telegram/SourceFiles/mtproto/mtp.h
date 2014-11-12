@@ -49,9 +49,17 @@ namespace _mtp_internal {
 	class RequestResender : public QObject {
 		Q_OBJECT
 
+	public:
+
+		RequestResender();
+
 	public slots:
 
 		void checkDelayed();
+
+	private:
+
+		SingleTimer _timer;
 	};
 };
 

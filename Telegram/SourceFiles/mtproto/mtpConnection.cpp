@@ -1094,10 +1094,6 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
 	connect(this, SIGNAL(stateChanged(qint32)), sessionData->owner(), SLOT(onConnectionStateChange(qint32)));
 	connect(sessionData->owner(), SIGNAL(needToSend()), this, SLOT(tryToSend()));
 	connect(this, SIGNAL(sessionResetDone()), sessionData->owner(), SLOT(onResetDone()));
-
-	oldConnectionTimer.setSingleShot(true);
-	connCheckTimer.setSingleShot(true);
-	retryTimer.setSingleShot(true);
 }
 
 void MTProtoConnectionPrivate::onConfigLoaded() {
@@ -1113,7 +1109,7 @@ int32 MTProtoConnectionPrivate::getState() const {
 	int32 result = _state;
 	if (_state < 0) {
 		if (retryTimer.isActive()) {
-			result = int32(getms() - retryWillFinish);
+			result = int32(getms(true) - retryWillFinish);
 			if (result >= 0) {
 				result = -1;
 			}
@@ -1140,7 +1136,7 @@ bool MTProtoConnectionPrivate::setState(int32 state, int32 ifState) {
 	if (state < 0) {
 		retryTimeout = -state;
 		retryTimer.start(retryTimeout);
-		retryWillFinish = getms() + retryTimeout;
+		retryWillFinish = getms(true) + retryTimeout;
 	}
 	emit stateChanged(state);
 	return true;
@@ -1374,7 +1370,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 		pingRequest = mtpRequestData::prepare(pingSize);
 		ping.write(*pingRequest);
 
-		pingRequest->msDate = getms(); // > 0 - can send without container
+		pingRequest->msDate = getms(true); // > 0 - can send without container
 		pingRequest->requestId = 0; // dont add to haveSent / wereAcked maps
 
 		pingId = toSendPingId;
@@ -1394,7 +1390,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 		ackRequest = mtpRequestData::prepare(ack.size() >> 2);
 		ack.write(*ackRequest);
 
-		ackRequest->msDate = getms(); // > 0 - can send without container
+		ackRequest->msDate = getms(true); // > 0 - can send without container
 		ackRequest->requestId = 0; // dont add to haveSent / wereAcked maps
 
 		ackRequestData.clear();
@@ -1405,7 +1401,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 		resendRequest = mtpRequestData::prepare(resend.size() >> 2);
 		resend.write(*resendRequest);
 
-		resendRequest->msDate = getms(); // > 0 - can send without container
+		resendRequest->msDate = getms(true); // > 0 - can send without container
 		resendRequest->requestId = 0; // dont add to haveSent / wereAcked maps
 
 		resendRequestData.clear();
@@ -1429,7 +1425,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 			stateRequest = mtpRequestData::prepare(req.size() >> 2);
 			req.write(*stateRequest);
 
-			stateRequest->msDate = getms(); // > 0 - can send without container
+			stateRequest->msDate = getms(true); // > 0 - can send without container
 			stateRequest->requestId = reqid();// add to haveSent / wereAcked maps, but don't add to requestMap
 		}
 	}
@@ -1468,7 +1464,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 
 			if (toSendRequest->requestId) {
 				if (mtpRequestData::needAck(toSendRequest)) {
-					toSendRequest->msDate = mtpRequestData::isStateRequest(toSendRequest) ? 0 : getms();
+					toSendRequest->msDate = mtpRequestData::isStateRequest(toSendRequest) ? 0 : getms(true);
 
 					QWriteLocker locker2(sessionData->haveSentMutex());
 					mtpRequestMap &haveSent(sessionData->haveSentMap());
@@ -1529,7 +1525,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 				bool added = false;
 				if (req->requestId) {
 					if (mtpRequestData::needAck(req)) {
-						req->msDate = mtpRequestData::isStateRequest(req) ? 0 : getms();
+						req->msDate = mtpRequestData::isStateRequest(req) ? 0 : getms(true);
 						if (req->after) {
 							_mtp_internal::wrapInvokeAfter(toSendRequest, req, haveSent);
 							added = true;
@@ -1675,7 +1671,7 @@ void MTProtoConnectionPrivate::onSentSome(uint64 size) {
 		}
 		connCheckTimer.start(remain);
 	}
-	if (!firstSentAt) firstSentAt = getms();
+	if (!firstSentAt) firstSentAt = getms(true);
 }
 
 void MTProtoConnectionPrivate::onReceivedSome() {
@@ -1686,7 +1682,7 @@ void MTProtoConnectionPrivate::onReceivedSome() {
 	oldConnectionTimer.start(MTPConnectionOldTimeout);
 	connCheckTimer.stop();
 	if (firstSentAt > 0) {
-		int32 ms = getms() - firstSentAt;
+		int32 ms = getms(true) - firstSentAt;
 		DEBUG_LOG(("MTP Info: response in %1ms, receiveDelay: %2ms").arg(ms).arg(receiveDelay));
 
 		if (ms > 0 && ms * 2 < int32(receiveDelay)) receiveDelay = qMax(ms * 2, int32(MinReceiveDelay));

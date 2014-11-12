@@ -269,7 +269,7 @@ private:
 	uint64 msSendCall, msWait;
 
 	QTimer timeouter;
-	QTimer sender;
+	SingleTimer sender;
 
 };
 

@@ -359,7 +359,6 @@ _connecting(0), _tempDeleter(0), _tempDeleterThread(0), myIcon(QPixmap::fromImag
 	connect(&_inactiveTimer, SIGNAL(timeout()), this, SLOT(onInactiveTimer()));
 
 	connect(&notifyWaitTimer, SIGNAL(timeout()), this, SLOT(notifyFire()));
-	notifyWaitTimer.setSingleShot(true);
 }
 
 void Window::inactivePress(bool inactive) {
@@ -967,7 +966,7 @@ void Window::notifySchedule(History *history, MsgId msgId) {
 		App::wnd()->getNotifySetting(MTP_inputNotifyPeer(history->peer->input));
 	}
 
-	uint64 ms = getms() + NotifyWaitTimeout;
+	uint64 ms = getms(true) + NotifyWaitTimeout;
 	notifyWhenAlerts[history].insert(ms, NullType());
 	if (cDesktopNotify()) {
 		NotifyWhenMaps::iterator i = notifyWhenMaps.find(history);
@@ -1059,7 +1058,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 		}
 	}
 
-	uint64 ms = getms(), nextAlert = 0;
+	uint64 ms = getms(true), nextAlert = 0;
 	bool alert = false;
 	for (NotifyWhenAlerts::iterator i = notifyWhenAlerts.begin(); i != notifyWhenAlerts.end();) {
 		while (!i.value().isEmpty() && i.value().begin().key() <= ms) {
@@ -1153,7 +1152,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
                 }
 
 
-				uint64 ms = getms();
+				uint64 ms = getms(true);
 				History *history = notifyItem->history();
 				history->skipNotification();
 				NotifyWhenMaps::iterator j = notifyWhenMaps.find(history);

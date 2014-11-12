@@ -372,7 +372,7 @@ namespace {
 }
 
 QRect psDesktopRect() {
-	uint64 tnow = getms();
+	uint64 tnow = getms(true);
 	if (tnow > _monitorLastGot + 1000 || tnow < _monitorLastGot) {
 		_monitorLastGot = tnow;
 		_monitorRect = QApplication::desktop()->availableGeometry(App::wnd());

@@ -443,7 +443,6 @@ void mtpUpdateDcOptions(const QVector<MTPDcOption> &options) {
 
 MTProtoConfigLoader::MTProtoConfigLoader() : _enumCurrent(0), _enumRequest(0) {
 	connect(&_enumDCTimer, SIGNAL(timeout()), this, SLOT(enumDC()));
-	_enumDCTimer.setSingleShot(true);
 }
 
 void MTProtoConfigLoader::load() {

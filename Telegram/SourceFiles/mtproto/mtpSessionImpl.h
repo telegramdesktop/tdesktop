@@ -33,7 +33,7 @@ mtpRequestId MTProtoSession::send(const TRequest &request, RPCResponseHandler ca
 
         DEBUG_LOG(("MTP Info: adding request to toSendMap, msCanWait %1").arg(msCanWait));
 
-        reqSerialized->msDate = getms(); // > 0 - can send without container
+        reqSerialized->msDate = getms(true); // > 0 - can send without container
 		if (after) reqSerialized->after = _mtp_internal::getRequest(after);
 		requestId = _mtp_internal::storeRequest(reqSerialized, callbacks);
 
@@ -72,7 +72,7 @@ mtpRequestId MTProtoSession::sendFirst(const MTPInitConnection<TRequest> &reques
 
         DEBUG_LOG(("MTP Info: adding wrapped to init connection request to toSendMap, msCanWait %1").arg(msCanWait));
         callbacks.onDone = RPCDoneHandlerPtr(new RPCWrappedDcDoneHandler(dc, callbacks.onDone));
-        reqSerialized->msDate = getms(); // > 0 - can send without container
+        reqSerialized->msDate = getms(true); // > 0 - can send without container
 		if (after) reqSerialized->after = _mtp_internal::getRequest(after);
 		requestId = _mtp_internal::storeRequest(reqSerialized, callbacks);
 

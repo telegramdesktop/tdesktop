@@ -1212,7 +1212,7 @@ void DialogsWidget::setInnerFocus() {
 }
 
 void DialogsWidget::regTyping(History *history, UserData *user) {
-	uint64 ms = getms();
+	uint64 ms = getms(true);
 	history->typing[user] = ms + 6000;
 
 	Histories::TypingHistories::const_iterator i = App::histories().typing.find(history);
@@ -1226,7 +1226,7 @@ void DialogsWidget::regTyping(History *history, UserData *user) {
 }
 
 bool DialogsWidget::animStep(float64) {
-	uint64 ms = getms();
+	uint64 ms = getms(true);
 	Histories::TypingHistories &typing(App::histories().typing);
 	for (Histories::TypingHistories::iterator i = typing.begin(), e = typing.end(); i != e;) {
 		uint32 typingFrame = (ms - i.value()) / 150;

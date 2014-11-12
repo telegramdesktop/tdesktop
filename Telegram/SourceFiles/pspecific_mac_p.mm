@@ -19,6 +19,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "pspecific_mac_p.h"
 
 #include "window.h"
+#include "application.h"
 
 #include "lang.h"
 
@@ -30,6 +31,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 }
 
 - (BOOL)applicationShouldHandleReopen:(NSApplication *)theApplication hasVisibleWindows:(BOOL)flag;
+- (void)applicationDidBecomeActive:(NSNotification *)aNotification;
+- (void)receiveWakeNote:(NSNotification*)note;
 
 @end
 
@@ -39,6 +42,14 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 - (BOOL)applicationShouldHandleReopen:(NSApplication *)theApplication hasVisibleWindows:(BOOL)flag {
 	if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
 	return YES;
+}
+
+- (void)applicationDidBecomeActive:(NSNotification *)aNotification {
+	if (App::app()) App::app()->checkLocalTime();
+}
+
+- (void)receiveWakeNote:(NSNotification*)aNotification {
+	if (App::app()) App::app()->checkLocalTime();
 }
 
 @end
@@ -601,6 +612,9 @@ void objc_openFile(const QString &f, bool openwith) {
 void objc_start() {
 	_sharedDelegate = [[ApplicationDelegate alloc] init];
 	[[NSApplication sharedApplication] setDelegate:_sharedDelegate];
+	[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver: _sharedDelegate
+														   selector: @selector(receiveWakeNote:)
+															   name: NSWorkspaceDidWakeNotification object: NULL];
 }
 
 void objc_finish() {

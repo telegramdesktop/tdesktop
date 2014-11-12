@@ -275,7 +275,7 @@ MainWidget *TopBarWidget::main() {
 
 MainWidget::MainWidget(Window *window) : QWidget(window), failedObjId(0), _dialogsWidth(st::dlgMinWidth),
 dialogs(this), history(this), profile(0), overview(0), _topBar(this), hider(0), _mediaType(this), _mediaTypeMask(0),
-updPts(0), updDate(0), updQts(-1), updSeq(0), updInited(false), onlineRequest(0), _failDifferenceTimeout(1) {
+updPts(0), updDate(0), updQts(-1), updSeq(0), updInited(false), onlineRequest(0), _failDifferenceTimeout(1), _lastUpdateTime(0) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
 	connect(window, SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
@@ -295,13 +295,6 @@ updPts(0), updDate(0), updQts(-1), updSeq(0), updInited(false), onlineRequest(0)
 		connect(audioVoice(), SIGNAL(updated(AudioData*)), this, SLOT(audioPlayProgress(AudioData*)));
 		connect(audioVoice(), SIGNAL(stopped(AudioData*)), this, SLOT(audioPlayProgress(AudioData*)));
 	}
-
-	noUpdatesTimer.setSingleShot(true);
-	onlineTimer.setSingleShot(true);
-	onlineUpdater.setSingleShot(true);
-	updateNotifySettingTimer.setSingleShot(true);
-	_bySeqTimer.setSingleShot(true);
-	_failDifferenceTimer.setSingleShot(true);
 
 	dialogs.show();
 	history.show();
@@ -768,6 +761,14 @@ void MainWidget::peerUsernameChanged(PeerData *peer) {
 	}
 	if (App::settings() && peer == App::self()) {
 		App::settings()->usernameChanged();
+	}
+}
+
+void MainWidget::checkLastUpdate(bool afterSleep) {
+	uint64 n = getms(true);
+	LOG(("Checking last update!.. last update %1, now %2, noUpdatesTimer %3, remains %4").arg(_lastUpdateTime).arg(n).arg(noUpdatesTimer.isActive() ? 1 : 0).arg(noUpdatesTimer.remainingTime()));
+	if (_lastUpdateTime && n > _lastUpdateTime + (afterSleep ? NoUpdatesAfterSleepTimeout : NoUpdatesTimeout)) {
+		getDifference();
 	}
 }
 
@@ -1728,7 +1729,9 @@ void MainWidget::gotState(const MTPupdates_State &state) {
 	updSetState(d.vpts.v, d.vdate.v, d.vqts.v, d.vseq.v);
 
 	MTP::setGlobalDoneHandler(rpcDone(&MainWidget::updateReceived));
+	_lastUpdateTime = getms(true);
 	noUpdatesTimer.start(NoUpdatesTimeout);
+	LOG(("Started no updates timeout, %1").arg(_lastUpdateTime));
 	updInited = true;
 
 	dialogs.loadDialogs();
@@ -1744,7 +1747,9 @@ void MainWidget::gotDifference(const MTPupdates_Difference &diff) {
 		updSetState(updPts, d.vdate.v, updQts, d.vseq.v);
 
 		MTP::setGlobalDoneHandler(rpcDone(&MainWidget::updateReceived));
+		_lastUpdateTime = getms(true);
 		noUpdatesTimer.start(NoUpdatesTimeout);
+		LOG(("Started no updates timeout, %1").arg(_lastUpdateTime));
 		updInited = true;
 	} break;
 	case mtpc_updates_differenceSlice: {
@@ -1771,7 +1776,7 @@ void MainWidget::updUpdated(int32 pts, int32 seq) {
 	if (!updInited) return;
 	if (seq && (seq < updSeq || seq > updSeq + 1)) {
 		_bySeqPart.insert(seq, pts);
-		return _bySeqTimer.start();
+		return _bySeqTimer.start(WaitForSeqTimeout);
 	}
 	updSetState(pts, 0, 0, seq);
 }
@@ -1800,6 +1805,7 @@ void MainWidget::getDifferenceForce() {
 }
 
 void MainWidget::getDifference() {
+	LOG(("Getting difference! no updates timer: %1, remains: %2").arg(noUpdatesTimer.isActive() ? 1 : 0).arg(noUpdatesTimer.remainingTime()));
 	if (!updInited) return;
 
 	_bySeqUpdates.clear();
@@ -1812,6 +1818,7 @@ void MainWidget::getDifference() {
 	noUpdatesTimer.stop();
 	_failDifferenceTimer.stop();
 
+	LOG(("Getting difference for %1, %2").arg(updPts).arg(updDate));
 	updInited = false;
 	MTP::setGlobalDoneHandler(RPCDoneHandlerPtr(0));
 	MTP::send(MTPupdates_GetDifference(MTP_int(updPts), MTP_int(updDate), MTP_int(updQts)), rpcDone(&MainWidget::gotDifference), rpcFail(&MainWidget::failDifference));
@@ -2031,7 +2038,9 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 		try {
 			MTPUpdates updates(from, end);
 
+			_lastUpdateTime = getms(true);
 			noUpdatesTimer.start(NoUpdatesTimeout);
+			LOG(("Started no updates timeout, %1").arg(_lastUpdateTime));
 
 			handleUpdates(updates);
 		} catch(mtpErrorUnexpected &e) { // just some other type

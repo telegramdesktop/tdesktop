@@ -139,8 +139,6 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 
     psInstallEventFilter();
 
-	updateCheckTimer.setSingleShot(true);
-
 	connect(&socket, SIGNAL(connected()), this, SLOT(socketConnected()));
 	connect(&socket, SIGNAL(disconnected()), this, SLOT(socketDisconnected()));
 	connect(&socket, SIGNAL(error(QLocalSocket::LocalSocketError)), this, SLOT(socketError(QLocalSocket::LocalSocketError)));
@@ -151,10 +149,10 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	connect(&updateCheckTimer, SIGNAL(timeout()), this, SLOT(startUpdateCheck()));
 	connect(this, SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
 	connect(this, SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
+	connect(this, SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
 	connect(&writeUserConfigTimer, SIGNAL(timeout()), this, SLOT(onWriteUserConfig()));
 	writeUserConfigTimer.setSingleShot(true);
 
-	killDownloadSessionsTimer.setSingleShot(true);
 	connect(&killDownloadSessionsTimer, SIGNAL(timeout()), this, SLOT(killDownloadSessions()));
 
     if (cManyInstance()) {
@@ -345,8 +343,16 @@ void Application::killDownloadSessionsStop(int32 dc) {
 	}
 }
 
+void Application::checkLocalTime() {
+	if (App::main()) App::main()->checkLastUpdate(checkms());
+}
+
 void Application::onWriteUserConfig() {
 	App::writeUserConfig();
+}
+
+void Application::onAppStateChanged(Qt::ApplicationState state) {
+	checkLocalTime();
 }
 
 void Application::killDownloadSessions() {

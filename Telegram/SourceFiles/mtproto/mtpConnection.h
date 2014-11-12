@@ -357,14 +357,14 @@ private:
 	MTProtoConnection *_owner;
 	MTPabstractConnection *conn;
 
-	QTimer retryTimer; // exp retry timer
+	SingleTimer retryTimer; // exp retry timer
 	uint32 retryTimeout;
 	quint64 retryWillFinish;
 
-	QTimer oldConnectionTimer;
+	SingleTimer oldConnectionTimer;
 	bool oldConnection;
 
-	QTimer connCheckTimer;
+	SingleTimer connCheckTimer;
 	uint32 receiveDelay;
 	int64 firstSentAt;
 

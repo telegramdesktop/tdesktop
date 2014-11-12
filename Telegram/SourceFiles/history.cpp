@@ -891,7 +891,7 @@ void History::updateNameText() {
 }
 
 bool History::updateTyping(uint64 ms, uint32 dots, bool force) {
-	if (!ms) ms = getms();
+	if (!ms) ms = getms(true);
 	bool changed = force;
 	for (TypingUsers::iterator i = typing.begin(), e = typing.end(); i != e;) {
 		if (ms >= i.value()) {
@@ -1325,7 +1325,7 @@ HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *
 void History::unregTyping(UserData *from) {
 	TypingUsers::iterator i = typing.find(from);
 	if (i != typing.end()) {
-		uint64 ms = getms();
+		uint64 ms = getms(true);
 		i.value() = ms;
 		updateTyping(ms, 0, true);
 		App::main()->topBar()->update();

@@ -1,5 +1,9 @@
-AppVersionStr=0.6.7
-AppVersion=6007
+AppVersionStr=0.6.8
+AppVersion=6008
+
+echo ""
+echo "Preparing version $AppVersionStr.."
+echo ""
 
 if [ -d "./../Mac/Release/deploy/$AppVersionStr" ]; then
   echo "Deploy folder for version $AppVersionStr already exists!"
@@ -36,18 +40,20 @@ if [ ! -f "./../Mac/Release/Telegram.app/Contents/Frameworks/Updater" ]; then
   exit 1
 fi
 
-if [ ! -f "./../Mac/Release/Telegram.app.dmg" ]; then
-  echo "Telegram.app.dmg not found!"
-  exit 1
-fi
-
-echo "Preparing version $AppVersionStr, executing Packer.."
+cd ./../Mac/Release && codesign --force --deep --sign "Developer ID Application: John Preston" Telegram.app && cd ./../../Telegram
+cd ./../Mac/Release
+temppath=`hdiutil attach -readwrite tsetup.dmg | awk -F "\t" 'END {print $3}'`
+cp -R ./Telegram.app "$temppath/"
+bless --folder "$temppath/" --openfolder "$temppath/"
+hdiutil detach "$temppath"
+hdiutil convert tsetup.dmg -format UDZO -imagekey zlib-level=9 -ov -o tsetup.$AppVersionStr.dmg
+cd ./../../Telegram
 cd ./../Mac/Release && ./Packer.app/Contents/MacOS/Packer -path Telegram.app -version $AppVersion && cd ./../../Telegram
-echo "Packer done!"
 
 if [ ! -d "./../Mac/Release/deploy/" ]; then
   mkdir "./../Mac/Release/deploy"
 fi
+
 echo "Copying Telegram.app and tmacupd$AppVersion to deploy/$AppVersionStr..";
 mkdir "./../Mac/Release/deploy/$AppVersionStr"
 mkdir "./../Mac/Release/deploy/$AppVersionStr/Telegram"
@@ -55,6 +61,6 @@ cp -r ./../Mac/Release/Telegram.app ./../Mac/Release/deploy/$AppVersionStr/Teleg
 rm ./../Mac/Release/Telegram.app/Contents/MacOS/Telegram
 rm ./../Mac/Release/Telegram.app/Contents/Frameworks/Updater
 mv ./../Mac/Release/tmacupd$AppVersion ./../Mac/Release/deploy/$AppVersionStr/
-mv ./../Mac/Release/Telegram.app.dmg ./../Mac/Release/deploy/$AppVersionStr/tsetup.$AppVersionStr.dmg
+mv ./../Mac/Release/tsetup.$AppVersionStr.dmg ./../Mac/Release/deploy/$AppVersionStr/tsetup.$AppVersionStr.dmg
 echo "Version $AppVersionStr prepared!";
 

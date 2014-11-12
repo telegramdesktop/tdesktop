@@ -1607,7 +1607,7 @@ void HistoryWidget::cancelTyping() {
 }
 
 void HistoryWidget::updateTyping(bool typing) {
-	uint64 ms = getms() + 10000;
+	uint64 ms = getms(true) + 10000;
 	if (noTypingUpdate || !hist || (typing && (hist->myTyping + 5000 > ms)) || (!typing && (hist->myTyping + 5000 <= ms))) return;
 
 	hist->myTyping = typing ? ms : 0;

@@ -97,7 +97,7 @@ signals:
 
 private:
 
-	QTimer _enumDCTimer;
+	SingleTimer _enumDCTimer;
 	int32 _enumCurrent;
 	mtpRequestId _enumRequest;
 

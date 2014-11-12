@@ -86,7 +86,6 @@ void MTProtoSession::start(int32 dcenter, uint32 connects) {
 	connect(this, SIGNAL(startSendTimer(int)), &sender, SLOT(start(int)));
 	connect(this, SIGNAL(stopSendTimer()), &sender, SLOT(stop()));
 	connect(this, SIGNAL(needToSendAsync()), this, SIGNAL(needToSend()));
-	sender.setSingleShot(true);
 
 	MTProtoDCMap &dcs(mtpDCMap());
 
@@ -134,7 +133,7 @@ void MTProtoSession::stop() {
 }
 
 void MTProtoSession::sendAnything(uint64 msCanWait) {
-	uint64 ms = getms();
+	uint64 ms = getms(true);
 	if (msSendCall) {
 		if (ms > msSendCall + msWait) {
 			msWait = 0;
@@ -167,7 +166,7 @@ void MTProtoSession::checkRequestsByTimer() {
 		QReadLocker locker(data.haveSentMutex());
 		mtpRequestMap &haveSent(data.haveSentMap());
 		uint32 haveSentCount(haveSent.size());
-		uint64 ms = getms();
+		uint64 ms = getms(true);
 		for (mtpRequestMap::iterator i = haveSent.begin(), e = haveSent.end(); i != e; ++i) {
 			mtpRequest &req(i.value());
 			if (req->msDate > 0) {
@@ -334,7 +333,7 @@ mtpRequestId MTProtoSession::resend(mtpMsgId msgId, uint64 msCanWait, bool force
 		}
 		return 0xFFFFFFFF;
 	} else if (!mtpRequestData::isStateRequest(request)) {
-		request->msDate = forceContainer ? 0 : getms();
+		request->msDate = forceContainer ? 0 : getms(true);
 		sendPrepared(request, msCanWait, false);
 		{
 			QWriteLocker locker(data.toResendMutex());
@@ -390,7 +389,7 @@ void MTProtoSession::sendPreparedWithInit(const mtpRequest &request, uint64 msCa
 		request->resize(reqSerialized->size());
 		memcpy(request->data(), reqSerialized->constData(), reqSerialized->size());
 	}
-	request->msDate = getms(); // > 0 - can send without container
+	request->msDate = getms(true); // > 0 - can send without container
 	sendPrepared(request, msCanWait);
 }
 

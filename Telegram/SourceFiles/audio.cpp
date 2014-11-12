@@ -348,7 +348,6 @@ void VoiceMessagesFader::onTimer() {
 	VoiceMessages *voice = audioVoice();
 	if (!voice) return;
 
-	uint64 ms = getms();
 	for (int32 i = 0; i < AudioVoiceMsgSimultaneously; ++i) {
 		VoiceMessages::Msg &m(voice->_data[i]);
 		if (m.state == VoiceMessageStopped || m.state == VoiceMessagePaused || !m.source) continue;

@@ -187,7 +187,7 @@ namespace {
 			if (!requestId) return false;
 			
 			int32 secs = m.captured(1).toInt();
-			uint64 sendAt = getms() + secs * 1000 + 10;
+			uint64 sendAt = getms(true) + secs * 1000 + 10;
 			DelayedRequestsList::iterator i = delayedRequests.begin(), e = delayedRequests.end();
 			for (; i != e; ++i) {
 				if (i->first == requestId) return true;
@@ -521,8 +521,12 @@ namespace _mtp_internal {
 		return true;
 	}
 
+	RequestResender::RequestResender() {
+		connect(&_timer, SIGNAL(timeout()), this, SLOT(checkDelayed()));
+	}
+
 	void RequestResender::checkDelayed() {
-		uint64 now = getms();
+		uint64 now = getms(true);
 		while (!delayedRequests.isEmpty() && now >= delayedRequests.front().second) {
 			mtpRequestId requestId = delayedRequests.front().first;
 			delayedRequests.pop_front();
@@ -553,7 +557,7 @@ namespace _mtp_internal {
 		}
 
 		if (!delayedRequests.isEmpty()) {
-			QTimer::singleShot(delayedRequests.front().second - now, this, SLOT(checkDelayed()));
+			_timer.start(delayedRequests.front().second - now);
 		}
 	}
 };

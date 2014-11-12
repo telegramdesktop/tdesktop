@@ -284,6 +284,8 @@ public:
 	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);
 	void peerUsernameChanged(PeerData *peer);
 
+	void checkLastUpdate(bool afterSleep);
+
 	~MainWidget();
 
 signals:
@@ -380,14 +382,14 @@ private:
 
 	int updPts, updDate, updQts, updSeq;
 	bool updInited;
-	QTimer noUpdatesTimer;
+	SingleTimer noUpdatesTimer;
 
 	mtpRequestId onlineRequest;
-	QTimer onlineTimer;
-	QTimer onlineUpdater;
+	SingleTimer onlineTimer;
+	SingleTimer onlineUpdater;
 
 	QSet<PeerData*> updateNotifySettingPeers;
-	QTimer updateNotifySettingTimer;
+	SingleTimer updateNotifySettingTimer;
     
     typedef QMap<PeerData*, mtpRequestId> ReadRequests;
     ReadRequests _readRequests;
@@ -400,8 +402,10 @@ private:
 	QMap<int32, MTPmessages_StatedMessage> _bySeqStatedMessage;
 	QMap<int32, MTPmessages_StatedMessages> _bySeqStatedMessages;
 	QMap<int32, int32> _bySeqPart;
-	QTimer _bySeqTimer;
+	SingleTimer _bySeqTimer;
 
 	int32 _failDifferenceTimeout; // growing timeout for getDifference calls, if it fails
-	QTimer _failDifferenceTimer;
+	SingleTimer _failDifferenceTimer;
+
+	uint64 _lastUpdateTime;
 };
