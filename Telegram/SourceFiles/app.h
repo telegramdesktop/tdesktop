@@ -102,13 +102,11 @@ namespace App {
 	ChatData *chat(int32 chat);
 	QString peerName(const PeerData *peer, bool forDialogs = false);
 	PhotoData *photo(const PhotoId &photo, PhotoData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, const ImagePtr &thumb = ImagePtr(), const ImagePtr &medium = ImagePtr(), const ImagePtr &full = ImagePtr());
-	void forgetPhotos();
 	VideoData *video(const VideoId &video, VideoData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
-	void forgetVideos();
 	AudioData *audio(const AudioId &audio, AudioData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 dc = 0, int32 size = 0);
-	void forgetAudios();
 	DocumentData *document(const DocumentId &document, DocumentData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, const QString &name = QString(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
-	void forgetDocuments();
+	ImageLinkData *imageLink(const QString &imageLink, ImageLinkType type = InvalidImageLink, const QString &url = QString());
+	void forgetMedia();
 
 	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo);
 

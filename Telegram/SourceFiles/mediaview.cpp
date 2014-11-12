@@ -472,13 +472,8 @@ void MediaView::showPhoto(PhotoData *photo) {
 	_full = -1;
 	_current = QPixmap();
 	_down = OverNone;
-	_w = photo->full->width();
-	_h = photo->full->height();
-	switch (cScale()) {
-	case dbisOneAndQuarter: _w = qRound(float64(_w) * 1.25 - 0.01); _h = qRound(float64(_h) * 1.25 - 0.01); break;
-	case dbisOneAndHalf: _w = qRound(float64(_w) * 1.5 - 0.01); _h = qRound(float64(_h) * 1.5 - 0.01); break;
-	case dbisTwo: _w *= 2; _h *= 2; break;
-	}
+	_w = convertScale(photo->full->width());
+	_h = convertScale(photo->full->height());
 	if (isHidden()) {
 		moveToScreen();
 	}

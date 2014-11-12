@@ -1,4 +1,3 @@
-
 /*
 This file is part of Telegram Desktop,
 an unofficial desktop messaging app, see https://telegram.org
@@ -230,7 +229,7 @@ namespace {
 					destroy();
 					return false;
 				}
-		
+
 				hwnds[i] = CreateWindowEx(WS_EX_LAYERED | WS_EX_TOOLWINDOW, _cn, 0, WS_POPUP, 0, 0, 0, 0, 0, 0, appinst, 0);
 				if (!hwnds[i]) {
 					DEBUG_LOG(("Application Error: could not create shadow window class %1, error: %2").arg(i).arg(GetLastError()));

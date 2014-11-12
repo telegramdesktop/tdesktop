@@ -633,6 +633,7 @@ void Application::startApp() {
 	MTP::setStateChangedHandler(mtpStateChanged);
 	MTP::setSessionResetHandler(mtpSessionReset);
 
+	initImageLinkManager();
 	App::initMedia();
 
 	if (MTP::authedId()) {
@@ -746,6 +747,7 @@ Application::~Application() {
 	socket.close();
 	closeApplication();
 	App::deinitMedia();
+	deinitImageLinkManager();
 	mainApp = 0;
 	delete updateReply;
 	delete ::uploader;

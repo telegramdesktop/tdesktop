@@ -1765,10 +1765,7 @@ void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool l
 	App::mousedItem(0);
 
 	if (peer) {
-		App::forgetPhotos();
-		App::forgetVideos();
-		App::forgetAudios();
-		App::forgetDocuments();
+		App::forgetMedia();
 		serviceImageCacheSize = imageCacheSize();
 		MTP::clearLoaderPriorities();
 		histInputPeer = histPeer->input;
@@ -3213,6 +3210,9 @@ void HistoryWidget::onDeleteSelectedSure() {
 	for (SelectedItemSet::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
 		i.value()->destroy();
 	}
+	if (App::main() && App::main()->peer() == peer()) {
+		App::main()->itemResized(0);
+	}
 	App::wnd()->hideLayer();
 }
 
@@ -3226,6 +3226,9 @@ void HistoryWidget::onDeleteContextSure() {
 		MTP::send(MTPmessages_DeleteMessages(MTP_vector<MTPint>(1, MTP_int(item->id))));
 	}
 	item->destroy();
+	if (App::main() && App::main()->peer() == peer()) {
+		App::main()->itemResized(0);
+	}
 	App::wnd()->hideLayer();
 }
 

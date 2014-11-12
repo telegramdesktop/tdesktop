@@ -205,6 +205,7 @@ void ConnectionBox::onSave() {
 	}
 	App::writeConfig();
 	MTP::restart();
+	reinitImageLinkManager();
 	emit closed();
 }
 

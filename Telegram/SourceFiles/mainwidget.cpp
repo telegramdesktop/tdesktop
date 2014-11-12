@@ -722,7 +722,7 @@ void MainWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 }
 
 void MainWidget::itemResized(HistoryItem *row) {
-	if (history.peer() == row->history()->peer && !row->detached()) {
+	if (!row || history.peer() == row->history()->peer && !row->detached()) {
 		history.itemResized(row);
 	}
 	if (overview) {
@@ -1117,7 +1117,7 @@ void MainWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPe
 }
 
 PeerData *MainWidget::peer() {
-	return history.peer();
+	return overview ? overview->peer() : history.peer();
 }
 
 PeerData *MainWidget::activePeer() {

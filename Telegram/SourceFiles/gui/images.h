@@ -34,6 +34,8 @@ public:
 	}
 	const QPixmap &pix(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixBlurred(int32 w = 0, int32 h = 0) const;
+	const QPixmap &pixSingle(int32 w = 0, int32 h = 0) const;
+	const QPixmap &pixBlurredSingle(int32 w = 0, int32 h = 0) const;
 	QPixmap pixNoCache(int32 w = 0, int32 h = 0, bool smooth = false) const;
 	QPixmap pixBlurredNoCache(int32 w, int32 h = 0) const;
 

@@ -199,7 +199,7 @@ QString FlatTextarea::getText(int32 start, int32 end) const {
 			QString t(fragment.text());
 			if (!full) {
 				if (p < start) {
-					t = t.mid(start - p, end - start - p);
+					t = t.mid(start - p, end - start);
 				} else if (e > end) {
 					t = t.mid(0, end - p);
 				}
