@@ -1451,6 +1451,7 @@ void OverviewInner::itemResized(HistoryItem *item) {
 					if (_addToY + _height - _items[i].y < _scroll->scrollTop()) {
 						_scroll->scrollToY(_addToY + _height - _items[i].y);
 					}
+					parentWidget()->update();
 				}
 				break;
 			}
@@ -1742,7 +1743,7 @@ void OverviewWidget::itemRemoved(HistoryItem *row) {
 }
 
 void OverviewWidget::itemResized(HistoryItem *row) {
-	if (row->history()->peer == peer()) {
+	if (!row || row->history()->peer == peer()) {
 		_inner.itemResized(row);
 	}
 }
@@ -1838,6 +1839,9 @@ void OverviewWidget::onDeleteSelectedSure() {
 	for (SelectedItemSet::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
 		i.value()->destroy();
 	}
+	if (App::main() && App::main()->peer() == peer()) {
+		App::main()->itemResized(0);
+	}
 	App::wnd()->hideLayer();
 }
 
@@ -1851,6 +1855,9 @@ void OverviewWidget::onDeleteContextSure() {
 		MTP::send(MTPmessages_DeleteMessages(MTP_vector<MTPint>(1, MTP_int(item->id))));
 	}
 	item->destroy();
+	if (App::main() && App::main()->peer() == peer()) {
+		App::main()->itemResized(0);
+	}
 	App::wnd()->hideLayer();
 }
 

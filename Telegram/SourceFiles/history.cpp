@@ -2076,33 +2076,49 @@ void HistoryPhoto::init() {
 }
 
 void HistoryPhoto::initDimensions(const HistoryItem *parent) {
-	int32 tw = data->full->width(), th = data->full->height();
+	int32 tw = convertScale(data->full->width()), th = convertScale(data->full->height());
 	if (!tw || !th) {
 		tw = th = 1;
 	}
-	int32 thumbw = st::msgMinWidth + st::msgPadding.left() + st::msgPadding.right() - 2, maxthumbh = qRound(1.5 * thumbw);
-	if (data->full->width() < thumbw) {
-		thumbw = (data->full->width() > st::minPhotoWidth) ? data->full->width() : st::minPhotoWidth;
-	}
-	if (!w) {
-		w = thumbw;
-	}
-	int32 thumbh = qRound(th * float64(w) / tw);
+	int32 thumbw = qMax(tw, int32(st::minPhotoWidth)), maxthumbh = thumbw;
+	int32 thumbh = qRound(th * float64(thumbw) / tw);
 	if (thumbh > maxthumbh) {
-		w = qRound(w * float64(maxthumbh) / thumbh);
+		thumbw = qRound(thumbw * float64(maxthumbh) / thumbh);
 		thumbh = maxthumbh;
-		if (w < st::minPhotoWidth) {
-			w = st::minPhotoWidth;
+		if (thumbw < st::minPhotoWidth) {
+			thumbw = st::minPhotoWidth;
 		}
 	}
 	if (thumbh < st::minPhotoHeight) {
 		thumbh = st::minPhotoHeight;
 	}
+	if (!w) {
+		w = thumbw;
+	}
 	_maxw = w;
 	_height = _minh = thumbh;
 }
 
-int32 HistoryPhoto::resize(int32 nwidth, bool dontRecountText, const HistoryItem *parent) {
+int32 HistoryPhoto::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+	w = width;
+
+	int32 tw = convertScale(data->full->width()), th = convertScale(data->full->height());
+	_height = th;
+	if (tw > w) {
+		_height = (w * _height / tw);
+	} else {
+		w = tw;
+	}
+	if (_height > width) {
+		w = (w * width) / _height;
+		_height = width;
+	}
+	if (w < st::minPhotoWidth) {
+		w = st::minPhotoWidth;
+	}
+	if (_height < st::minPhotoHeight) {
+		_height = st::minPhotoHeight;
+	}
 	return _height;
 }
 
@@ -2111,12 +2127,12 @@ const QString HistoryPhoto::inDialogsText() const {
 }
 
 bool HistoryPhoto::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
-	if (width < 0) width = _maxw;
+	if (width < 0) width = w;
 	return (x >= 0 && y >= 0 && x < width && y < _height);
 }
 
 TextLinkPtr HistoryPhoto::getLink(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
-	if (width < 0) width = _maxw;
+	if (width < 0) width = w;
 	if (x >= 0 && y >= 0 && x < width && y < _height) {
 		return openl;
 	}
@@ -2128,50 +2144,48 @@ HistoryMedia *HistoryPhoto::clone() const {
 }
 
 void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const {
-	if (width < 0) width = _maxw;
+	if (width < 0) width = w;
 	data->full->load(false, false);
 	bool out = parent->out();
-	if (parent != App::contextItem() || /*App::wnd()->photoShown() != data*/ true) {
-		bool full = data->full->loaded();
-		QPixmap pix;
-		if (full) {
-			pix = data->full->pix(width);
-		} else {
-			pix = data->thumb->pixBlurred(width);
-		}
-		if (pix.height() >= _height * cIntRetinaFactor()) {
-			p.drawPixmap(QPoint(0, 0), pix, QRect(0, (pix.height() - _height * cIntRetinaFactor()) / 2, width * cIntRetinaFactor(), _height * cIntRetinaFactor()));
-		} else {
-			int32 usewidth = (width * pix.height()) / (_height * cIntRetinaFactor());
-			p.drawPixmap(QRect(0, 0, width, _height), pix, QRect((width - usewidth) * cIntRetinaFactor() / 2, 0, usewidth * cIntRetinaFactor(), pix.height()));
-		}
-		if (!full) {
-			uint64 dt = itemAnimations().animate(parent, getms());
-			int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
-
-			int32 x = (width - st::photoLoader.width()) / 2, y = (_height - st::photoLoader.height()) / 2;
-			p.fillRect(x, y, st::photoLoader.width(), st::photoLoader.height(), st::photoLoaderBg->b);
-			x += (st::photoLoader.width() - cnt * st::photoLoaderPoint.width() - (cnt - 1) * st::photoLoaderSkip) / 2;
-			y += (st::photoLoader.height() - st::photoLoaderPoint.height()) / 2;
-			QColor c(st::white->c);
-			QBrush b(c);
-			for (int32 i = 0; i < cnt; ++i) {
-				t -= delta;
-				while (t < 0) t += period;
-				
-				float64 alpha = (t >= st::photoLoaderDuration1 + st::photoLoaderDuration2) ? 0 : ((t > st::photoLoaderDuration1 ? ((st::photoLoaderDuration1 + st::photoLoaderDuration2 - t) / st::photoLoaderDuration2) : (t / st::photoLoaderDuration1)));
-				c.setAlphaF(st::photoLoaderAlphaMin + alpha * (1 - st::photoLoaderAlphaMin));
-				b.setColor(c);
-				p.fillRect(x + i * (st::photoLoaderPoint.width() + st::photoLoaderSkip), y, st::photoLoaderPoint.width(), st::photoLoaderPoint.height(), b);
-			}
-		}
-
-		if (selected) {
-			p.fillRect(0, 0, width, _height, textstyleCurrent()->selectOverlay->b);
-		}
-		style::color shadow(selected ? st::msgInSelectShadow : st::msgInShadow);
-		p.fillRect(0, _height, width, st::msgShadow, shadow->b);
+	bool full = data->full->loaded();
+	QPixmap pix;
+	if (full) {
+		pix = data->full->pixSingle(width);
+	} else {
+		pix = data->thumb->pixBlurredSingle(width);
 	}
+	if (pix.height() >= _height * cIntRetinaFactor()) {
+		p.drawPixmap(QPoint(0, 0), pix, QRect(0, (pix.height() - _height * cIntRetinaFactor()) / 2, width * cIntRetinaFactor(), _height * cIntRetinaFactor()));
+	} else {
+		int32 usewidth = (width * pix.height()) / (_height * cIntRetinaFactor());
+		p.drawPixmap(QRect(0, 0, width, _height), pix, QRect((width - usewidth) * cIntRetinaFactor() / 2, 0, usewidth * cIntRetinaFactor(), pix.height()));
+	}
+	if (!full) {
+		uint64 dt = itemAnimations().animate(parent, getms());
+		int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
+
+		int32 x = (width - st::photoLoader.width()) / 2, y = (_height - st::photoLoader.height()) / 2;
+		p.fillRect(x, y, st::photoLoader.width(), st::photoLoader.height(), st::photoLoaderBg->b);
+		x += (st::photoLoader.width() - cnt * st::photoLoaderPoint.width() - (cnt - 1) * st::photoLoaderSkip) / 2;
+		y += (st::photoLoader.height() - st::photoLoaderPoint.height()) / 2;
+		QColor c(st::white->c);
+		QBrush b(c);
+		for (int32 i = 0; i < cnt; ++i) {
+			t -= delta;
+			while (t < 0) t += period;
+				
+			float64 alpha = (t >= st::photoLoaderDuration1 + st::photoLoaderDuration2) ? 0 : ((t > st::photoLoaderDuration1 ? ((st::photoLoaderDuration1 + st::photoLoaderDuration2 - t) / st::photoLoaderDuration2) : (t / st::photoLoaderDuration1)));
+			c.setAlphaF(st::photoLoaderAlphaMin + alpha * (1 - st::photoLoaderAlphaMin));
+			b.setColor(c);
+			p.fillRect(x + i * (st::photoLoaderPoint.width() + st::photoLoaderSkip), y, st::photoLoaderPoint.width(), st::photoLoaderPoint.height(), b);
+		}
+	}
+
+	if (selected) {
+		p.fillRect(0, 0, width, _height, textstyleCurrent()->selectOverlay->b);
+	}
+	style::color shadow(selected ? st::msgInSelectShadow : st::msgInShadow);
+	p.fillRect(0, _height, width, st::msgShadow, shadow->b);
 
 	// date
 	QString time(parent->time());
@@ -2290,8 +2304,8 @@ void HistoryVideo::unregItem(HistoryItem *item) {
 	App::unregVideoItem(data, item);
 }
 
-int32 HistoryVideo::resize(int32 nwidth, bool dontRecountText, const HistoryItem *parent) {
-	w = nwidth;
+int32 HistoryVideo::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+	w = width;
 	return _height;
 }
 
@@ -2592,8 +2606,8 @@ void HistoryAudio::unregItem(HistoryItem *item) {
 	App::unregAudioItem(data, item);
 }
 
-int32 HistoryAudio::resize(int32 nwidth, bool dontRecountText, const HistoryItem *parent) {
-	w = nwidth;
+int32 HistoryAudio::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+	w = width;
 	return _height;
 }
 
@@ -2940,8 +2954,8 @@ void HistoryContact::initDimensions(const HistoryItem *parent) {
 	}
 }
 
-int32 HistoryContact::resize(int32 nwidth, bool dontRecountText, const HistoryItem *parent) {
-	w = nwidth;
+int32 HistoryContact::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+	w = width;
 	return _height;
 }
 
@@ -3046,6 +3060,498 @@ void HistoryContact::updateFrom(const MTPMessageMedia &media) {
 	}
 }
 
+namespace {
+	QRegularExpression reYouTube1(qsl("^(https?://)?(www\\.)?youtube\\.com/watch\\?v=([a-z0-9_-]+)(&|$)"), QRegularExpression::CaseInsensitiveOption);
+	QRegularExpression reYouTube2(qsl("^(https?://)?(www\\.)?youtu\\.be/([a-z0-9_-]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption);
+	QRegularExpression reInstagram(qsl("^(https?://)?(www\\.)?instagram\\.com/p/([a-z0-9_-]+)(/|$)"), QRegularExpression::CaseInsensitiveOption);
+
+	ImageLinkManager manager;
+}
+
+void ImageLinkManager::init() {
+	if (manager) delete manager;
+	manager = new QNetworkAccessManager();
+	App::setProxySettings(*manager);
+	void onFinished(QNetworkReply *reply);
+	void onFailed(QNetworkReply *reply);
+	connect(manager, SIGNAL(authenticationRequired(QNetworkReply*, QAuthenticator*)), this, SLOT(onFailed(QNetworkReply*)));
+	connect(manager, SIGNAL(sslErrors(QNetworkReply*, const QList<QSslError>&errors)), this, SLOT(onFailed(QNetworkReply*)));
+	connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(onFinished(QNetworkReply*)));
+
+	if (black) delete black;
+	QImage b(cIntRetinaFactor(), cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	{
+		QPainter p(&b);
+		p.fillRect(QRect(0, 0, cIntRetinaFactor(), cIntRetinaFactor()), st::white->b);
+	}
+	QPixmap p = QPixmap::fromImage(b);
+	p.setDevicePixelRatio(cRetinaFactor());
+	black = new ImagePtr(p, "PNG");
+}
+
+void ImageLinkManager::reinit() {
+	if (manager) App::setProxySettings(*manager);
+}
+
+void ImageLinkManager::deinit() {
+	if (manager) {
+		delete manager;
+		manager = 0;
+	}
+	if (black) {
+		delete black;
+		black = 0;
+	}
+	dataLoadings.clear();
+	imageLoadings.clear();
+}
+
+void initImageLinkManager() {
+	manager.init();
+}
+
+void reinitImageLinkManager() {
+	manager.reinit();
+}
+
+void deinitImageLinkManager() {
+	manager.deinit();
+}
+
+void ImageLinkManager::getData(ImageLinkData *data) {
+	if (!manager) {
+		DEBUG_LOG(("App Error: getting image link data without manager init!"));
+		return failed(data);
+	}
+
+	QString url;
+	switch (data->type) {
+	case YouTubeLink: {
+		url = qsl("https://gdata.youtube.com/feeds/api/videos/") + data->id.mid(8) + qsl("?v=2&alt=json");
+		QNetworkReply *reply = manager->get(QNetworkRequest(QUrl(url)));
+		dataLoadings[reply] = data;
+	} break;
+	case InstagramLink: {
+		//url = qsl("https://api.instagram.com/oembed?url=http://instagr.am/p/") + data->id.mid(10) + '/';
+		url = qsl("https://instagram.com/p/") + data->id.mid(10) + qsl("/media/?size=l");
+		QNetworkReply *reply = manager->get(QNetworkRequest(QUrl(url)));
+		imageLoadings[reply] = data;
+	} break;
+	default: {
+		data->loading = false;
+		data->thumb = *black;
+	} break;
+	}
+}
+
+void ImageLinkManager::onFinished(QNetworkReply *reply) {
+	if (!manager) return;
+	if (reply->error() != QNetworkReply::NoError) return onFailed(reply);
+
+	QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
+	if (statusCode.isValid()) {
+		int status = statusCode.toInt();
+		if (status == 301 || status == 302) {
+			QString loc = reply->header(QNetworkRequest::LocationHeader).toString();
+			if (!loc.isEmpty()) {
+				QMap<QNetworkReply*, ImageLinkData*>::iterator i = dataLoadings.find(reply);
+				if (i != dataLoadings.cend()) {
+					ImageLinkData *d = i.value();
+					if (serverRedirects.constFind(d) == serverRedirects.cend()) {
+						serverRedirects.insert(d, 1);
+					} else if (++serverRedirects[d] > MaxHttpRedirects) {
+						DEBUG_LOG(("Network Error: Too many HTTP redirects in onFinished() for image link: %1").arg(loc));
+						return onFailed(reply);
+					}
+					dataLoadings.erase(i);
+					dataLoadings.insert(manager->get(QNetworkRequest(loc)), d);
+					return;
+				} else if ((i = imageLoadings.find(reply)) != imageLoadings.cend()) {
+					ImageLinkData *d = i.value();
+					if (serverRedirects.constFind(d) == serverRedirects.cend()) {
+						serverRedirects.insert(d, 1);
+					} else if (++serverRedirects[d] > MaxHttpRedirects) {
+						DEBUG_LOG(("Network Error: Too many HTTP redirects in onFinished() for image link: %1").arg(loc));
+						return onFailed(reply);
+					}
+					imageLoadings.erase(i);
+					imageLoadings.insert(manager->get(QNetworkRequest(loc)), d);
+					return;
+				}
+			}
+		}
+		if (status != 200) {
+			DEBUG_LOG(("Network Error: Bad HTTP status received in onFinished() for image link: %1").arg(status));
+			return onFailed(reply);
+		}
+	}
+
+	ImageLinkData *d = 0;
+	QMap<QNetworkReply*, ImageLinkData*>::iterator i = dataLoadings.find(reply);
+	if (i != dataLoadings.cend()) {
+		d = i.value();
+		dataLoadings.erase(i);
+
+		QJsonParseError e;
+		QJsonDocument doc = QJsonDocument::fromJson(reply->readAll(), &e);
+		if (e.error != QJsonParseError::NoError) {
+			DEBUG_LOG(("JSON Error: Bad json received in onFinished() for image link"));
+			return onFailed(reply);
+		}
+		QJsonObject obj = doc.object();
+		switch (d->type) {
+		case YouTubeLink: {
+			QString thumb;
+			int32 seconds = 0;
+			QJsonObject::const_iterator entryIt = obj.constFind(qsl("entry"));
+			if (entryIt != obj.constEnd() && entryIt.value().isObject()) {
+				QJsonObject entry = entryIt.value().toObject();
+				QJsonObject::const_iterator mediaIt = entry.constFind(qsl("media$group"));
+				if (mediaIt != entry.constEnd() && mediaIt.value().isObject()) {
+					QJsonObject media = mediaIt.value().toObject();
+
+					// title from media
+					QJsonObject::const_iterator titleIt = media.constFind(qsl("media$title"));
+					if (titleIt != media.constEnd() && titleIt.value().isObject()) {
+						QJsonObject title = titleIt.value().toObject();
+						QJsonObject::const_iterator tIt = title.constFind(qsl("$t"));
+						if (tIt != title.constEnd() && tIt.value().isString()) {
+							d->title = tIt.value().toString();
+						}
+					}
+
+					// thumb
+					QJsonObject::const_iterator thumbnailsIt = media.constFind(qsl("media$thumbnail"));
+					int32 bestLevel = 0;
+					if (thumbnailsIt != media.constEnd() && thumbnailsIt.value().isArray()) {
+						QJsonArray thumbnails = thumbnailsIt.value().toArray();
+						for (int32 i = 0, l = thumbnails.size(); i < l; ++i) {
+							QJsonValue thumbnailVal = thumbnails.at(i);
+							if (!thumbnailVal.isObject()) continue;
+							
+							QJsonObject thumbnail = thumbnailVal.toObject();
+							QJsonObject::const_iterator urlIt = thumbnail.constFind(qsl("url"));
+							if (urlIt == thumbnail.constEnd() || !urlIt.value().isString()) continue;
+
+							int32 level = 0;
+							if (thumbnail.constFind(qsl("time")) == thumbnail.constEnd()) {
+								level += 10;
+							}
+							QJsonObject::const_iterator wIt = thumbnail.constFind(qsl("width"));
+							if (wIt != thumbnail.constEnd()) {
+								int32 w = 0;
+								if (wIt.value().isDouble()) {
+									w = qMax(qRound(wIt.value().toDouble()), 0);
+								} else if (wIt.value().isString()) {
+									w = qMax(qRound(wIt.value().toString().toDouble()), 0);
+								}
+								switch (w) {
+								case 640: level += 4; break;
+								case 480: level += 3; break;
+								case 320: level += 2; break;
+								case 120: level += 1; break;
+								}
+							}
+							if (level > bestLevel) {
+								thumb = urlIt.value().toString();
+								bestLevel = level;
+							}
+						}
+					}
+
+					// duration
+					QJsonObject::const_iterator durationIt = media.constFind(qsl("yt$duration"));
+					if (durationIt != media.constEnd() && durationIt.value().isObject()) {
+						QJsonObject duration = durationIt.value().toObject();
+						QJsonObject::const_iterator secondsIt = duration.constFind(qsl("seconds"));
+						if (secondsIt != duration.constEnd()) {
+							if (secondsIt.value().isDouble()) {
+								seconds = qRound(secondsIt.value().toDouble());
+							} else if (secondsIt.value().isString()) {
+								seconds = qRound(secondsIt.value().toString().toDouble());
+							}
+						}
+					}
+				}
+
+				// title field
+				if (d->title.isEmpty()) {
+					QJsonObject::const_iterator titleIt = entry.constFind(qsl("title"));
+					if (titleIt != entry.constEnd() && titleIt.value().isObject()) {
+						QJsonObject title = titleIt.value().toObject();
+						QJsonObject::const_iterator tIt = title.constFind(qsl("$t"));
+						if (tIt != title.constEnd() && tIt.value().isString()) {
+							d->title = tIt.value().toString();
+						}
+					}
+				}
+			}
+
+			if (seconds > 0) {
+				d->duration = formatDurationText(seconds);
+			}
+			if (thumb.isEmpty()) {
+				d->loading = false;
+				d->thumb = *black;
+				serverRedirects.remove(d);
+			} else {
+				imageLoadings.insert(manager->get(QNetworkRequest(thumb)), d);
+			}
+		} break;
+
+		case InstagramLink: {
+			d->loading = false;
+			d->thumb = *black;
+			serverRedirects.remove(d);
+		} break;
+		}
+
+		if (App::main()) App::main()->update();
+	} else {
+		i = imageLoadings.find(reply);
+		if (i != imageLoadings.cend()) {
+			d = i.value();
+			imageLoadings.erase(i);
+
+			QPixmap thumb;
+			QByteArray format;
+			QByteArray data(reply->readAll());
+			{
+				QBuffer buffer(&data);
+				QImageReader reader(&buffer);
+				thumb = QPixmap::fromImageReader(&reader, Qt::ColorOnly);
+				format = reader.format();
+				if (format.isEmpty()) format = QByteArray("JPG");
+			}
+			d->loading = false;
+			d->thumb = thumb.isNull() ? (*black) : ImagePtr(thumb, format);
+			serverRedirects.remove(d);
+			if (App::main()) App::main()->update();
+		}
+	}
+}
+
+void ImageLinkManager::onFailed(QNetworkReply *reply) {
+	if (!manager) return;
+
+	ImageLinkData *d = 0;
+	QMap<QNetworkReply*, ImageLinkData*>::iterator i = dataLoadings.find(reply);
+	if (i != dataLoadings.cend()) {
+		d = i.value();
+		dataLoadings.erase(i);
+	} else {
+		i = imageLoadings.find(reply);
+		if (i != imageLoadings.cend()) {
+			d = i.value();
+			imageLoadings.erase(i);
+		}
+	}
+	DEBUG_LOG(("Network Error: failed to get data for image link %1, error %2").arg(d ? d->id : 0).arg(reply->errorString()));
+	if (d) {
+		d->loading = false;
+		d->thumb = *black;
+		serverRedirects.remove(d);
+	}
+}
+
+void ImageLinkManager::failed(ImageLinkData *data) {
+
+}
+
+void ImageLinkData::load() {
+	if (!thumb->isNull()) return thumb->load(false, false);
+	if (loading) return;
+
+	loading = true;
+	manager.getData(this);
+}
+
+HistoryImageLink::HistoryImageLink(const QString &url, int32 width) : w(width) {
+	QRegularExpressionMatch m = reYouTube1.match(url);
+	if (!m.hasMatch()) m = reYouTube2.match(url);
+	if (m.hasMatch()) {
+		data = App::imageLink(qsl("youtube:") + m.captured(3), YouTubeLink, url);
+	} else {
+		m = reInstagram.match(url);
+		if (m.hasMatch()) {
+			data = App::imageLink(qsl("instagram:") + m.captured(3), InstagramLink, url);
+		} else {
+			data = 0;
+		}
+	}
+}
+
+int32 HistoryImageLink::fullWidth() const {
+	if (data) {
+		switch (data->type) {
+		case YouTubeLink: return 640;
+		case InstagramLink: return 640;
+		}
+	}
+	return st::minPhotoWidth;
+}
+
+int32 HistoryImageLink::fullHeight() const {
+	if (data) {
+		switch (data->type) {
+		case YouTubeLink: return 480;
+		case InstagramLink: return 640;
+		}
+	}
+	return st::minPhotoHeight;
+}
+
+void HistoryImageLink::initDimensions(const HistoryItem *parent) {
+	int32 tw = convertScale(fullWidth()), th = convertScale(fullHeight());
+	int32 thumbw = qMax(tw, int32(st::minPhotoWidth)), maxthumbh = thumbw;
+	int32 thumbh = qRound(th * float64(thumbw) / tw);
+	if (thumbh > maxthumbh) {
+		thumbw = qRound(thumbw * float64(maxthumbh) / thumbh);
+		thumbh = maxthumbh;
+		if (thumbw < st::minPhotoWidth) {
+			thumbw = st::minPhotoWidth;
+		}
+	}
+	if (thumbh < st::minPhotoHeight) {
+		thumbh = st::minPhotoHeight;
+	}
+	if (!w) {
+		w = thumbw;
+	}
+	_maxw = w;
+	_height = _minh = thumbh;
+}
+
+void HistoryImageLink::draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const {
+	if (width < 0) width = w;
+
+	data->load();
+	bool out = parent->out();
+	QPixmap toDraw;
+	if (data && !data->thumb->isNull()) {
+		int32 w = data->thumb->width(), h = data->thumb->height();
+		if (width * h == _height * w) {
+			p.drawPixmap(QPoint(0, 0), data->thumb->pixSingle(width));
+		} else {
+			p.fillRect(QRect(0, 0, width, _height), st::black->b);
+			if (width * h > _height * w) {
+				int32 nw = _height * w / h;
+				p.drawPixmap(QPoint((width - nw) / 2, 0), data->thumb->pixSingle(nw, _height));
+			} else {
+				int32 nh = width * h / w;
+				p.drawPixmap(QPoint(0, (_height - nh) / 2), data->thumb->pixSingle(width, nh));
+			}
+		}
+	} else {
+		p.fillRect(QRect(0, 0, width, _height), st::black->b);
+	}
+	if (data) {
+		switch (data->type) {
+		case YouTubeLink: p.drawPixmap(QPoint((width - st::youtubeIcon.pxWidth()) / 2, (_height - st::youtubeIcon.pxHeight()) / 2), App::sprite(), st::youtubeIcon); break;
+		case InstagramLink: p.drawPixmap(QPoint((width - st::instagramIcon.pxWidth()) / 2, (_height - st::instagramIcon.pxHeight()) / 2), App::sprite(), st::instagramIcon); break;
+		}
+		if (!data->title.isEmpty() || !data->duration.isEmpty()) {
+			p.fillRect(0, 0, width, st::msgDateFont->height + 2 * st::msgDateImgPadding.y(), st::msgDateImgBg->b);
+			p.setFont(st::msgDateFont->f);
+			p.setPen(st::msgDateImgColor->p);
+			int32 titleWidth = width - 2 * st::msgDateImgPadding.x();
+			if (!data->duration.isEmpty()) {
+				int32 durationWidth = st::msgDateFont->m.width(data->duration);
+				p.drawText(width - st::msgDateImgPadding.x() - durationWidth, st::msgDateImgPadding.y() + st::msgDateFont->ascent, data->duration);
+				titleWidth -= durationWidth + st::msgDateImgPadding.x();
+			}
+			if (!data->title.isEmpty()) {
+				p.drawText(st::msgDateImgPadding.x(), st::msgDateImgPadding.y() + st::msgDateFont->ascent, st::msgDateFont->m.elidedText(data->title, Qt::ElideRight, titleWidth));
+			}
+		}
+	}
+	if (selected) {
+		p.fillRect(0, 0, width, _height, textstyleCurrent()->selectOverlay->b);
+	}
+	style::color shadow(selected ? st::msgInSelectShadow : st::msgInShadow);
+	p.fillRect(0, _height, width, st::msgShadow, shadow->b);
+
+	// date
+	QString time(parent->time());
+	if (time.isEmpty()) return;
+	int32 dateX = width - parent->timeWidth() - st::msgDateImgDelta - 2 * st::msgDateImgPadding.x();
+	int32 dateY = _height - st::msgDateFont->height - 2 * st::msgDateImgPadding.y() - st::msgDateImgDelta;
+	if (parent->out()) {
+		dateX -= st::msgCheckRect.pxWidth() + st::msgDateImgCheckSpace;
+	}
+	int32 dateW = width - dateX - st::msgDateImgDelta;
+	int32 dateH = _height - dateY - st::msgDateImgDelta;
+
+	p.fillRect(dateX, dateY, dateW, dateH, st::msgDateImgBg->b);
+	p.setFont(st::msgDateFont->f);
+	p.setPen(st::msgDateImgColor->p);
+	p.drawText(dateX + st::msgDateImgPadding.x(), dateY + st::msgDateImgPadding.y() + st::msgDateFont->ascent, time);
+	if (out) {
+		QPoint iconPos(dateX - 2 + dateW - st::msgDateImgCheckSpace - st::msgCheckRect.pxWidth(), dateY + (dateH - st::msgCheckRect.pxHeight()) / 2);
+		const QRect *iconRect;
+		if (parent->id > 0) {
+			if (parent->unread()) {
+				iconRect = &st::msgImgCheckRect;
+			} else {
+				iconRect = &st::msgImgDblCheckRect;
+			}
+		} else {
+			iconRect = &st::msgImgSendingRect;
+		}
+		p.drawPixmap(iconPos, App::sprite(), *iconRect);
+	}
+}
+
+int32 HistoryImageLink::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+	w = width;
+
+	int32 tw = convertScale(fullWidth()), th = convertScale(fullHeight());
+	_height = th;
+	if (tw > w) {
+		_height = (w * _height / tw);
+	} else {
+		w = tw;
+	}
+	if (_height > width) {
+		w = (w * width) / _height;
+		_height = width;
+	}
+	if (w < st::minPhotoWidth) {
+		w = st::minPhotoWidth;
+	}
+	if (_height < st::minPhotoHeight) {
+		_height = st::minPhotoHeight;
+	}
+	return _height;
+}
+
+const QString HistoryImageLink::inDialogsText() const {
+	if (data) {
+		switch (data->type) {
+		case YouTubeLink: return qsl("YouTube Video");
+		case InstagramLink: return qsl("Instagram Link");
+		}
+	}
+	return QString();
+}
+
+bool HistoryImageLink::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+	if (width < 0) width = w;
+	return (x >= 0 && y >= 0 && x < width && y < _height);
+}
+
+TextLinkPtr HistoryImageLink::getLink(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+	if (width < 0) width = w;
+	if (x >= 0 && y >= 0 && x < width && y < _height && data) {
+		return data->openl;
+	}
+	return TextLinkPtr();
+}
+
+HistoryMedia *HistoryImageLink::clone() const {
+	return new HistoryImageLink(*this);
+}
+
 HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg) :
 	HistoryItem(history, block, msg.vid.v, (msg.vflags.v & 0x02), (msg.vflags.v & 0x01), ::date(msg.vdate), msg.vfrom_id.v)
 , _text(st::msgMinWidth)
@@ -3099,7 +3605,13 @@ HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgI
 
 void HistoryMessage::initMedia(const MTPMessageMedia &media, QString &currentText) {
 	switch (media.type()) {
-	case mtpc_messageMediaEmpty: break;
+	case mtpc_messageMediaEmpty: {
+		QString lnk = currentText.trimmed();
+		if (reYouTube1.match(currentText).hasMatch() || reYouTube2.match(currentText).hasMatch() || reInstagram.match(currentText).hasMatch()) {
+			_media = new HistoryImageLink(lnk);
+			currentText = QString();
+		}
+	} break;
 	case mtpc_messageMediaContact: {
 		const MTPDmessageMediaContact &d(media.c_messageMediaContact());
 		_media = new HistoryContact(d.vuser_id.v, qs(d.vfirst_name), qs(d.vlast_name), qs(d.vphone_number));

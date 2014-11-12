@@ -188,6 +188,9 @@ struct PhotoData {
 	ImagePtr full;
 	ChatData *chat; // for chat photos connection
 	// geo, caption
+
+	int32 cachew;
+	QPixmap cache;
 };
 
 class PhotoLink : public ITextLink {
@@ -581,6 +584,7 @@ enum HistoryMediaType {
 	MediaTypeContact,
 	MediaTypeAudio,
 	MediaTypeDocument,
+	MediaTypeImageLink,
 
 	MediaTypeCount
 };
@@ -1416,6 +1420,80 @@ private:
 	Text name;
 	QString phone;
 	UserData *contact;
+};
+
+void initImageLinkManager();
+void reinitImageLinkManager();
+void deinitImageLinkManager();
+
+enum ImageLinkType {
+	InvalidImageLink = 0,
+	YouTubeLink,
+	InstagramLink
+};
+struct ImageLinkData {
+	ImageLinkData(const QString &id) : id(id), type(InvalidImageLink), loading(false) {
+	}
+
+	QString id;
+	QString title, duration;
+	ImagePtr thumb;
+	TextLinkPtr openl;
+	ImageLinkType type;
+	bool loading;
+
+	void load();
+};
+
+class ImageLinkManager : public QObject {
+	Q_OBJECT
+public:
+	ImageLinkManager() : manager(0), black(0) {
+	}
+	void init();
+	void reinit();
+	void deinit();
+
+	void getData(ImageLinkData *data);
+
+	~ImageLinkManager() {
+		deinit();
+	}
+
+public slots:
+	void onFinished(QNetworkReply *reply);
+	void onFailed(QNetworkReply *reply);
+
+private:
+	void failed(ImageLinkData *data);
+
+	QNetworkAccessManager *manager;
+	QMap<QNetworkReply*, ImageLinkData*> dataLoadings, imageLoadings;
+	QMap<ImageLinkData*, int32> serverRedirects;
+	ImagePtr *black;
+};
+
+class HistoryImageLink : public HistoryMedia {
+public:
+
+	HistoryImageLink(const QString &url, int32 width = 0);
+	int32 fullWidth() const;
+	int32 fullHeight() const;
+	void initDimensions(const HistoryItem *parent);
+
+	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
+	HistoryMediaType type() const {
+		return MediaTypeImageLink;
+	}
+	const QString inDialogsText() const;
+	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	HistoryMedia *clone() const;
+
+private:
+	ImageLinkData *data;
+	int32 w;
 };
 
 class HistoryMessage : public HistoryItem {

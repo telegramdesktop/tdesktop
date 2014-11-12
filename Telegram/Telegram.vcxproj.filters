@@ -734,6 +734,15 @@
     <ClCompile Include="GeneratedFiles\Release\moc_usernamebox.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_history.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_history.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_history.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -776,9 +785,6 @@
       <Filter>mtproto</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\app.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\history.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\gui\emoji_config.h">
@@ -986,6 +992,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\boxes\usernamebox.h">
       <Filter>boxes</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\history.h">
+      <Filter>Source Files</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

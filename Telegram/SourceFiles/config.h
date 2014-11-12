@@ -100,6 +100,7 @@ enum {
 	UsernameCheckTimeout = 200,
 
 	MaxMessageSize = 4096,
+	MaxHttpRedirects = 5, // when getting external data/images
 };
 
 #ifdef Q_OS_WIN

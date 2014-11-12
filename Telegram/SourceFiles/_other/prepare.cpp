@@ -94,6 +94,5 @@ int main(int argc, char *argv[])
 		}
 	}
 	int res = prepare(f, paths);
-	system("PAUSE");
 	return res;
 }
