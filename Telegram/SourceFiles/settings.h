@@ -104,22 +104,21 @@ DeclareSetting(DBIScale, ScreenScale);
 DeclareSetting(DBIScale, ConfigScale);
 DeclareSetting(bool, CompressPastedImage);
 
-template <typename T>
-T convertScale(T v) {
-	switch (cScale()) {
-	case dbisOneAndQuarter: return qRound(float64(v) * 1.25 - 0.01);
-	case dbisOneAndHalf: return qRound(float64(v) * 1.5 - 0.01);
-	case dbisTwo: return v * 2;
-	}
-	return v;
-}
-
-
 inline DBIScale cEvalScale(DBIScale scale) {
 	return (scale == dbisAuto) ? cScreenScale() : scale;
 }
 inline DBIScale cScale() {
 	return cEvalScale(cRealScale());
+}
+
+template <typename T>
+T convertScale(T v) {
+	switch (cScale()) {
+		case dbisOneAndQuarter: return qRound(float64(v) * 1.25 - 0.01);
+		case dbisOneAndHalf: return qRound(float64(v) * 1.5 - 0.01);
+		case dbisTwo: return v * 2;
+	}
+	return v;
 }
 
 DeclareSetting(DBIEmojiTab, EmojiTab);

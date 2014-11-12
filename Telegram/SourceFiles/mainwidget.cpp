@@ -715,7 +715,7 @@ void MainWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 }
 
 void MainWidget::itemResized(HistoryItem *row) {
-	if (!row || history.peer() == row->history()->peer && !row->detached()) {
+	if (!row || (history.peer() == row->history()->peer && !row->detached())) {
 		history.itemResized(row);
 	}
 	if (overview) {

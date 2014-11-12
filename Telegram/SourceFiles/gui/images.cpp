@@ -113,7 +113,7 @@ const QPixmap &Image::pixSingle(int32 w, int32 h) const {
 	}
 	uint64 k = 0LL;
 	Sizes::const_iterator i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend() || i->width() != w || h && i->height() != h) {
+	if (i == _sizesCache.cend() || i->width() != w || (h && i->height() != h)) {
 		if (i != _sizesCache.cend()) {
 			globalAquiredSize -= int64(i->width()) * i->height() * 4;
 		}
@@ -139,7 +139,7 @@ const QPixmap &Image::pixBlurredSingle(int32 w, int32 h) const {
 	}
 	uint64 k = 0x8000000000000000LL | 0LL;
 	Sizes::const_iterator i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend() || i->width() != w || h && i->height() != h) {
+	if (i == _sizesCache.cend() || i->width() != w || (h && i->height() != h)) {
 		if (i != _sizesCache.cend()) {
 			globalAquiredSize -= int64(i->width()) * i->height() * 4;
 		}

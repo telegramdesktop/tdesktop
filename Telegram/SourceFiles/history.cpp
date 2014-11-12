@@ -3072,8 +3072,7 @@ void ImageLinkManager::init() {
 	if (manager) delete manager;
 	manager = new QNetworkAccessManager();
 	App::setProxySettings(*manager);
-	void onFinished(QNetworkReply *reply);
-	void onFailed(QNetworkReply *reply);
+
 	connect(manager, SIGNAL(authenticationRequired(QNetworkReply*, QAuthenticator*)), this, SLOT(onFailed(QNetworkReply*)));
 	connect(manager, SIGNAL(sslErrors(QNetworkReply*, const QList<QSslError>&errors)), this, SLOT(onFailed(QNetworkReply*)));
 	connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(onFinished(QNetworkReply*)));
@@ -3138,8 +3137,7 @@ void ImageLinkManager::getData(ImageLinkData *data) {
 		imageLoadings[reply] = data;
 	} break;
 	default: {
-		data->loading = false;
-		data->thumb = *black;
+		failed(data);
 	} break;
 	}
 }
@@ -3291,18 +3289,14 @@ void ImageLinkManager::onFinished(QNetworkReply *reply) {
 				d->duration = formatDurationText(seconds);
 			}
 			if (thumb.isEmpty()) {
-				d->loading = false;
-				d->thumb = *black;
-				serverRedirects.remove(d);
+				failed(d);
 			} else {
 				imageLoadings.insert(manager->get(QNetworkRequest(thumb)), d);
 			}
 		} break;
 
 		case InstagramLink: {
-			d->loading = false;
-			d->thumb = *black;
-			serverRedirects.remove(d);
+			failed(d);
 		} break;
 		}
 
@@ -3348,14 +3342,14 @@ void ImageLinkManager::onFailed(QNetworkReply *reply) {
 	}
 	DEBUG_LOG(("Network Error: failed to get data for image link %1, error %2").arg(d ? d->id : 0).arg(reply->errorString()));
 	if (d) {
-		d->loading = false;
-		d->thumb = *black;
-		serverRedirects.remove(d);
+		failed(d);
 	}
 }
 
 void ImageLinkManager::failed(ImageLinkData *data) {
-
+	data->loading = false;
+	data->thumb = *black;
+	serverRedirects.remove(data);
 }
 
 void ImageLinkData::load() {
