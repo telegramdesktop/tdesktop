@@ -115,7 +115,7 @@ void PsMainWindow::psUpdateWorkmode() {
 }
 
 void PsMainWindow::psUpdateCounter() {
-	setWindowIcon(myIcon);
+    setWindowIcon(wndIcon);
 
 	int32 counter = App::histories().unreadFull;
 
