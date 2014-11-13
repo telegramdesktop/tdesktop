@@ -99,6 +99,7 @@ protected:
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
     QImage icon256;
+	QIcon wndIcon;
 
 	QImage trayImg, trayImgSel;
 

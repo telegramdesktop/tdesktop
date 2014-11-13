@@ -64,7 +64,7 @@ void MacPrivate::notifyReplied(unsigned long long peer, const char *str) {
 }
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
-posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/iconround256.png")) {
+posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/iconround256.png")), wndIcon(QPixmap(qsl(":/gui/art/iconbig128.png"))) {
 	QImage tray(qsl(":/gui/art/osxtray.png"));
 	trayImg = tray.copy(0, cRetina() ? 0 : tray.width() / 2, tray.width() / (cRetina() ? 2 : 4), tray.width() / (cRetina() ? 2 : 4));
 	trayImgSel = tray.copy(tray.width() / (cRetina() ? 2 : 4), cRetina() ? 0 : tray.width() / 2, tray.width() / (cRetina() ? 2 : 4), tray.width() / (cRetina() ? 2 : 4));
@@ -141,6 +141,7 @@ void PsMainWindow::psUpdateWorkmode() {
 		}
 		trayIcon = 0;
 	}
+	setWindowIcon(wndIcon);
 }
 
 void _placeCounter(QImage &img, int size, int count, style::color bg, style::color color) {
@@ -182,6 +183,7 @@ void PsMainWindow::psUpdateCounter() {
 	int32 counter = App::histories().unreadFull;
 
     setWindowTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
+	setWindowIcon(wndIcon);
 
     QString cnt = (counter < 1000) ? QString("%1").arg(counter) : QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
     _private.setWindowBadge(counter ? cnt : QString());

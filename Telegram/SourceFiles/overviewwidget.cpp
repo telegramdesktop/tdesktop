@@ -553,10 +553,14 @@ QPixmap OverviewInner::genPix(PhotoData *photo, int32 size) {
 	if (!photo->full->loaded() && !photo->medium->loaded()) {
 		img = imageBlur(img);
 	}
-	if (img.width() > img.height()) {
-        img = img.scaled(img.width() * size / img.height(), size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+	if (img.width() == img.height()) {
+		if (img.width() != size) {
+			img = img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+		}
+	} else if (img.width() > img.height()) {
+        img = img.copy((img.width() - img.height()) / 2, 0, img.height(), img.height()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 	} else {
-        img = img.scaled(size, img.height() * size / img.width(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+        img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 	}
 	img.setDevicePixelRatio(cRetinaFactor());
 	photo->forget();
@@ -625,26 +629,13 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 						it->vsize = _vsize;
 						it->pix = genPix(photo, _vsize);
 					}
-					QPixmap &pix(it->pix);
 					QPoint pos(int32(i * w + st::overviewPhotoSkip), _addToY + row * (_vsize + st::overviewPhotoSkip) + st::overviewPhotoSkip);
-					int32 w = pix.width(), h = pix.height(), size;
-					if (w == h) {
-						p.drawPixmap(pos, pix);
-						size = w;
-					} else if (w > h) {
-						p.drawPixmap(pos, pix, QRect((w - h) / 2, 0, h, h));
-						size = h;
-					} else {
-						p.drawPixmap(pos, pix, QRect(0, (h - w) / 2, w, w));
-						size = w;
-					}
-					size /= cIntRetinaFactor();
-
+					p.drawPixmap(pos, it->pix);
 					if (!quality) {
 						uint64 dt = itemAnimations().animate(item, getms());
 						int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
 
-						int32 x = pos.x() + (size - st::overviewLoader.width()) / 2, y = pos.y() + (size - st::overviewLoader.height()) / 2;
+						int32 x = pos.x() + (_vsize - st::overviewLoader.width()) / 2, y = pos.y() + (_vsize - st::overviewLoader.height()) / 2;
 						p.fillRect(x, y, st::overviewLoader.width(), st::overviewLoader.height(), st::photoLoaderBg->b);
 						x += (st::overviewLoader.width() - cnt * st::overviewLoaderPoint.width() - (cnt - 1) * st::overviewLoaderSkip) / 2;
 						y += (st::overviewLoader.height() - st::overviewLoaderPoint.height()) / 2;
@@ -671,7 +662,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 						}
 					}
 					if (sel == FullItemSel) {
-						p.fillRect(QRect(pos.x(), pos.y(), size, size), st::msgInSelectOverlay->b);
+						p.fillRect(QRect(pos.x(), pos.y(), _vsize, _vsize), st::msgInSelectOverlay->b);
 					}
 				} break;
 				}

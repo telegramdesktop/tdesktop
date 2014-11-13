@@ -167,7 +167,7 @@ static bool isMouseEvent(NSEvent *ev)
     if (!self.window.delegate)
         return; // Already detached, pending NSAppKitDefined event
 
-    if (pw && pw->frameStrutEventsEnabled() && pw->m_synchedWindowState != Qt::WindowMinimized && isMouseEvent(theEvent)) {
+    if (pw && pw->frameStrutEventsEnabled() && pw->m_synchedWindowState != Qt::WindowMinimized && pw->m_isExposed && isMouseEvent(theEvent)) {
         NSPoint loc = [theEvent locationInWindow];
         NSRect windowFrame = [self.window legacyConvertRectFromScreen:[self.window frame]];
         NSRect contentFrame = [[self.window contentView] frame];
@@ -903,6 +903,14 @@ void QCocoaWindow::setWindowFilePath(const QString &filePath)
     [m_nsWindow setRepresentedFilename: fi.exists() ? QCFString::toNSString(filePath) : @""];
 }
 
+qreal _win_devicePixelRatio() {
+	qreal result = 1.0;
+	foreach (QScreen *screen, QGuiApplication::screens()) {
+		result = qMax(result, screen->devicePixelRatio());
+	}
+	return result;
+}
+
 void QCocoaWindow::setWindowIcon(const QIcon &icon)
 {
     QCocoaAutoReleasePool pool;
@@ -918,7 +926,8 @@ void QCocoaWindow::setWindowIcon(const QIcon &icon)
     if (icon.isNull()) {
         [iconButton setImage:nil];
     } else {
-        QPixmap pixmap = icon.pixmap(QSize(22, 22));
+		CGFloat hgt = 16. * _win_devicePixelRatio();
+        QPixmap pixmap = icon.pixmap(QSize(hgt, hgt));
         NSImage *image = static_cast<NSImage *>(qt_mac_create_nsimage(pixmap));
         [iconButton setImage:image];
         [image release];

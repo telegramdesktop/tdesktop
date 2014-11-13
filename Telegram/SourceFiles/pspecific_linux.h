@@ -88,6 +88,7 @@ protected:
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
     QImage icon256;
+	QIcon wndIcon;
 
 	virtual void setupTrayIcon() = 0;
 	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
