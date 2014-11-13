@@ -1755,7 +1755,7 @@ void History::clear(bool leaveItems) {
 		_overview[i].clear();
 		_overviewIds[i].clear();
 	}
-	if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer);
+	if (App::wnd() && !App::quiting()) App::wnd()->mediaOverviewUpdated(peer);
 	for (Parent::const_iterator i = cbegin(), e = cend(); i != e; ++i) {
 		if (leaveItems) {
 			(*i)->clear(true);

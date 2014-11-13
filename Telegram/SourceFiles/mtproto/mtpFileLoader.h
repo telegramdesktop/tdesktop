@@ -89,6 +89,8 @@ private:
 	uint64 id; // for other locations
 	uint64 access;
 	QFile file;
+	QString fname;
+	bool fileIsOpen;
 	bool duplicateInData;
 
 	QByteArray data;

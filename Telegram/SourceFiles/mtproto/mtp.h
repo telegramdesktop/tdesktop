@@ -95,7 +95,10 @@ namespace MTP {
 	void initdc(int32 dc);
 	template <typename TRequest>
 	inline mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), int32 dc = 0, uint64 msCanWait = 0, mtpRequestId after = 0) {
-		return _mtp_internal::getSession(dc)->send(request, callbacks, msCanWait, _mtp_internal::getLayer(), !dc, after);
+		MTProtoSessionPtr session = _mtp_internal::getSession(dc);
+		if (!session) return 0;
+		
+		return session->send(request, callbacks, msCanWait, _mtp_internal::getLayer(), !dc, after);
 	}
 	template <typename TRequest>
 	inline mtpRequestId send(const TRequest &request, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail = RPCFailHandlerPtr(), int32 dc = 0, uint64 msCanWait = 0, mtpRequestId after = 0) {

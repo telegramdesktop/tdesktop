@@ -281,8 +281,6 @@ private:
 
 	void clearWidgets();
 
-	QIcon myIcon;
-
 	bool dragging;
 	QPoint dragStart;
 

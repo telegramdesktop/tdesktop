@@ -337,7 +337,7 @@ NotifyWindow::~NotifyWindow() {
 
 Window::Window(QWidget *parent) : PsMainWindow(parent),
 intro(0), main(0), settings(0), layerBG(0), _topWidget(0),
-_connecting(0), _tempDeleter(0), _tempDeleterThread(0), myIcon(QPixmap::fromImage(icon256)), dragging(false), _inactivePress(false), _mediaView(0) {
+_connecting(0), _tempDeleter(0), _tempDeleterThread(0), dragging(false), _inactivePress(false), _mediaView(0) {
 
 	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
@@ -380,7 +380,7 @@ void Window::onInactiveTimer() {
 
 void Window::init() {
 	psInitFrameless();
-	setWindowIcon(myIcon);
+	setWindowIcon(wndIcon);
 
 	App::app()->installEventFilter(this);
     connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(checkHistoryActivation()));
@@ -875,7 +875,6 @@ void Window::noTopWidget(QWidget *w) {
 void Window::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 	if (reason != QSystemTrayIcon::Context) {
         activate();
-		setWindowIcon(myIcon);
 		psUpdateCounter();
 		if (App::main()) App::main()->setOnline(windowState());
 		QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
