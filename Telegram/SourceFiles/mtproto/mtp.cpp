@@ -726,6 +726,8 @@ namespace MTP {
 		for (Sessions::iterator i = sessions.begin(), e = sessions.end(); i != e; ++i) {
 			i.value()->stop();
 		}
+		sessions.clear();
+		mainSession = MTProtoSessionPtr();
 		delete resender;
 		resender = 0;
 		mtpDestroyConfigLoader();

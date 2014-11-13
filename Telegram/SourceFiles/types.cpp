@@ -245,13 +245,16 @@ uint64 getms(bool checked) {
 
 namespace {
 	QSet<SingleTimer*> _activeSingleTimers;
+	QMutex _activeSingleTimersMutex;
 }
 
 void regSingleTimer(SingleTimer *timer) {
+	QMutexLocker lock(&_activeSingleTimersMutex);
 	_activeSingleTimers.insert(timer);
 }
 
 void unregSingleTimer(SingleTimer *timer) {
+	QMutexLocker lock(&_activeSingleTimersMutex);
 	_activeSingleTimers.remove(timer);
 }
 

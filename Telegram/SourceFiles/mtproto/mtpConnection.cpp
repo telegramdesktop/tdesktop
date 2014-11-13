@@ -309,6 +309,7 @@ void MTProtoConnection::restart() {
 }
 
 void MTProtoConnection::stop() {
+	data->stop();
 	thread->quit();
 }
 
@@ -1356,7 +1357,10 @@ mtpMsgId MTProtoConnectionPrivate::placeToContainer(mtpRequest &toSendRequest, m
 }
 
 void MTProtoConnectionPrivate::tryToSend() {
-	if (!conn) return;
+	QReadLocker lockFinished(&sessionDataMutex);
+	if (!sessionData || !conn) {
+		return;
+	}
 
 	bool prependOnly = false;
 	mtpRequest pingRequest;
@@ -1563,6 +1567,9 @@ void MTProtoConnectionPrivate::tryToSend() {
 }
 
 void MTProtoConnectionPrivate::retryByTimer() {
+	QReadLocker lockFinished(&sessionDataMutex);
+	if (!sessionData) return;
+
 	if (retryTimeout < 3) {
 		++retryTimeout;
 	} else if (retryTimeout == 3) {
@@ -1625,6 +1632,9 @@ void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 }
 
 void MTProtoConnectionPrivate::restart(bool maybeBadKey) {
+	QReadLocker lockFinished(&sessionDataMutex);
+	if (!sessionData) return;
+
 	DEBUG_LOG(("MTP Info: restarting MTProtoConnection, maybe bad key = %1").arg(logBool(maybeBadKey)));
 
 	connCheckTimer.stop();
@@ -1739,6 +1749,9 @@ void MTProtoConnectionPrivate::doFinish() {
 }
 
 void MTProtoConnectionPrivate::handleReceived() {
+	QReadLocker lockFinished(&sessionDataMutex);
+	if (!sessionData) return;
+
 	onReceivedSome();
 
 	ReadLockerAttempt lock(sessionData->keyMutex());
@@ -2630,6 +2643,9 @@ mtpRequestId MTProtoConnectionPrivate::resend(mtpMsgId msgId, uint64 msCanWait, 
 }
 
 void MTProtoConnectionPrivate::onConnected() {
+	QReadLocker lockFinished(&sessionDataMutex);
+	if (!sessionData) return;
+
 	disconnect(conn, SIGNAL(connected()), this, SLOT(onConnected()));
 	if (!conn->isConnected()) {
 		LOG(("Connection Error: not connected in onConnected(), state: %1").arg(conn->debugState()));
@@ -2669,7 +2685,8 @@ void MTProtoConnectionPrivate::onConnected() {
 }
 
 bool MTProtoConnectionPrivate::updateAuthKey() 	{
-	if (!conn) return false;
+	QReadLocker lockFinished(&sessionDataMutex);
+	if (!sessionData || !conn) return false;
 
 	DEBUG_LOG(("AuthKey Info: MTProtoConnection updating key from MTProtoSession, dc %1").arg(dc));
 	uint64 newKeyId = 0;
@@ -2989,6 +3006,9 @@ void MTProtoConnectionPrivate::dhClientParamsSend() {
 }
 
 void MTProtoConnectionPrivate::dhClientParamsAnswered() {
+	QReadLocker lockFinished(&sessionDataMutex);
+	if (!sessionData) return;
+
 	disconnect(conn, SIGNAL(receivedData()), this, SLOT(dhClientParamsAnswered()));
 	DEBUG_LOG(("AuthKey Info: receiving Req_client_DH_params answer.."));
 
@@ -3283,6 +3303,9 @@ void MTProtoConnectionPrivate::lockKey() {
 }
 
 void MTProtoConnectionPrivate::unlockKey() {
+	QReadLocker lockFinished(&sessionDataMutex);
+	if (!sessionData) return;
+
 	if (myKeyLock) {
 		myKeyLock = false;
 		sessionData->keyMutex()->unlock();
@@ -3291,6 +3314,11 @@ void MTProtoConnectionPrivate::unlockKey() {
 
 MTProtoConnectionPrivate::~MTProtoConnectionPrivate() {
 	doDisconnect();
+}
+
+void MTProtoConnectionPrivate::stop() {
+	QWriteLocker lockFinished(&sessionDataMutex);
+	sessionData = 0;
 }
 
 MTProtoConnection::~MTProtoConnection() {

@@ -282,6 +282,8 @@ public:
 	MTProtoConnectionPrivate(QThread *thread, MTProtoConnection *owner, MTPSessionData *data, uint32 dc);
 	~MTProtoConnectionPrivate();
 
+	void stop();
+
 	int32 getDC() const;
 
 	int32 getState() const;
@@ -390,6 +392,7 @@ private:
 	bool restarted;
 
 	uint64 keyId;
+	QReadWriteLock sessionDataMutex;
 	MTPSessionData *sessionData;
 	bool myKeyLock;
 	void lockKey();

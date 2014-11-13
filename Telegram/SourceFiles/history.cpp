@@ -3122,7 +3122,6 @@ void ImageLinkManager::getData(ImageLinkData *data) {
 		DEBUG_LOG(("App Error: getting image link data without manager init!"));
 		return failed(data);
 	}
-
 	QString url;
 	switch (data->type) {
 	case YouTubeLink: {
@@ -3133,6 +3132,19 @@ void ImageLinkManager::getData(ImageLinkData *data) {
 	case InstagramLink: {
 		//url = qsl("https://api.instagram.com/oembed?url=http://instagr.am/p/") + data->id.mid(10) + '/';
 		url = qsl("https://instagram.com/p/") + data->id.mid(10) + qsl("/media/?size=l");
+		QNetworkReply *reply = manager->get(QNetworkRequest(QUrl(url)));
+		imageLoadings[reply] = data;
+	} break;
+	case GoogleMapsLink: {
+		int32 w = st::locationSize.width(), h = st::locationSize.height();
+		int32 zoom = 13, scale = 1;
+		if (cScale() == dbisTwo || cRetina()) {
+			scale = 2;
+		} else {
+			w = convertScale(w);
+			h = convertScale(h);
+		}
+		url = qsl("https://maps.googleapis.com/maps/api/staticmap?center=") + data->id.mid(9) + qsl("&zoom=%1&size=%2x%3&maptype=roadmap&scale=%4&markers=color:red|size:big|").arg(zoom).arg(w).arg(h).arg(scale) + data->id.mid(9) + qsl("&sensor=false");
 		QNetworkReply *reply = manager->get(QNetworkRequest(QUrl(url)));
 		imageLoadings[reply] = data;
 	} break;
@@ -3295,9 +3307,8 @@ void ImageLinkManager::onFinished(QNetworkReply *reply) {
 			}
 		} break;
 
-		case InstagramLink: {
-			failed(d);
-		} break;
+		case InstagramLink: failed(d); break;
+		case GoogleMapsLink: failed(d); break;
 		}
 
 		if (App::main()) App::main()->update();
@@ -3315,6 +3326,7 @@ void ImageLinkManager::onFinished(QNetworkReply *reply) {
 				QImageReader reader(&buffer);
 				thumb = QPixmap::fromImageReader(&reader, Qt::ColorOnly);
 				format = reader.format();
+				thumb.setDevicePixelRatio(cRetinaFactor());
 				if (format.isEmpty()) format = QByteArray("JPG");
 			}
 			d->loading = false;
@@ -3361,16 +3373,20 @@ void ImageLinkData::load() {
 }
 
 HistoryImageLink::HistoryImageLink(const QString &url, int32 width) : w(width) {
-	QRegularExpressionMatch m = reYouTube1.match(url);
-	if (!m.hasMatch()) m = reYouTube2.match(url);
-	if (m.hasMatch()) {
-		data = App::imageLink(qsl("youtube:") + m.captured(3), YouTubeLink, url);
+	if (url.startsWith(qsl("location:"))) {
+		data = App::imageLink(url, GoogleMapsLink, qsl("https://maps.google.com/maps?q=") + url.mid(9) + qsl("&ll=") + url.mid(9) + qsl("&z=17"));
 	} else {
-		m = reInstagram.match(url);
+		QRegularExpressionMatch m = reYouTube1.match(url);
+		if (!m.hasMatch()) m = reYouTube2.match(url);
 		if (m.hasMatch()) {
-			data = App::imageLink(qsl("instagram:") + m.captured(3), InstagramLink, url);
+			data = App::imageLink(qsl("youtube:") + m.captured(3), YouTubeLink, url);
 		} else {
-			data = 0;
+			m = reInstagram.match(url);
+			if (m.hasMatch()) {
+				data = App::imageLink(qsl("instagram:") + m.captured(3), InstagramLink, url);
+			} else {
+				data = 0;
+			}
 		}
 	}
 }
@@ -3380,6 +3396,7 @@ int32 HistoryImageLink::fullWidth() const {
 		switch (data->type) {
 		case YouTubeLink: return 640;
 		case InstagramLink: return 640;
+		case GoogleMapsLink: return st::locationSize.width();
 		}
 	}
 	return st::minPhotoWidth;
@@ -3390,6 +3407,7 @@ int32 HistoryImageLink::fullHeight() const {
 		switch (data->type) {
 		case YouTubeLink: return 480;
 		case InstagramLink: return 640;
+		case GoogleMapsLink: return st::locationSize.height();
 		}
 	}
 	return st::minPhotoHeight;
@@ -3424,8 +3442,8 @@ void HistoryImageLink::draw(QPainter &p, const HistoryItem *parent, bool selecte
 	QPixmap toDraw;
 	if (data && !data->thumb->isNull()) {
 		int32 w = data->thumb->width(), h = data->thumb->height();
-		if (width * h == _height * w) {
-			p.drawPixmap(QPoint(0, 0), data->thumb->pixSingle(width));
+		if (width * h == _height * w || (w == convertScale(fullWidth()) && h == convertScale(fullHeight()))) {
+			p.drawPixmap(QPoint(0, 0), data->thumb->pixSingle(width, _height));
 		} else {
 			p.fillRect(QRect(0, 0, width, _height), st::black->b);
 			if (width * h > _height * w) {
@@ -3524,6 +3542,7 @@ const QString HistoryImageLink::inDialogsText() const {
 		switch (data->type) {
 		case YouTubeLink: return qsl("YouTube Video");
 		case InstagramLink: return qsl("Instagram Link");
+		case GoogleMapsLink: return lang(lng_maps_point);
 		}
 	}
 	return QString();
@@ -3614,8 +3633,7 @@ void HistoryMessage::initMedia(const MTPMessageMedia &media, QString &currentTex
 		const MTPGeoPoint &point(media.c_messageMediaGeo().vgeo);
 		if (point.type() == mtpc_geoPoint) {
 			const MTPDgeoPoint &d(point.c_geoPoint());
-			QString ll = QString("%1,%2").arg(d.vlat.v).arg(d.vlong.v);
-			currentText.append(QChar('\n') + textcmdLink(qsl("https://maps.google.com/maps?q=") + ll + qsl("&ll=") + ll + qsl("&z=17"), lang(lng_maps_point)));
+			_media = new HistoryImageLink(qsl("location:%1,%2").arg(d.vlat.v).arg(d.vlong.v));
 		}
 	} break;
 	case mtpc_messageMediaPhoto: {

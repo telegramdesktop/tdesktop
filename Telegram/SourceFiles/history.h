@@ -1429,7 +1429,8 @@ void deinitImageLinkManager();
 enum ImageLinkType {
 	InvalidImageLink = 0,
 	YouTubeLink,
-	InstagramLink
+	InstagramLink,
+	GoogleMapsLink
 };
 struct ImageLinkData {
 	ImageLinkData(const QString &id) : id(id), type(InvalidImageLink), loading(false) {
