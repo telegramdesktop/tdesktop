@@ -55,6 +55,8 @@ public:
 	MediaOverviewType type() const;
 	void switchType(MediaOverviewType type);
 
+	void setSelectMode(bool enabled);
+
 	void mediaOverviewUpdated();
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void msgUpdated(const HistoryItem *msg);
@@ -124,6 +126,7 @@ private:
 	} CachedSize;
 	typedef QMap<PhotoData*, CachedSize> CachedSizes;
 	CachedSizes _cached;
+	bool _selMode;
 
 	// other
 	typedef struct _CachedItem {

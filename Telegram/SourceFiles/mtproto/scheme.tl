@@ -13,7 +13,6 @@
 /////////////////// Layer cons
 ///////////////////////////////
 
-
 //invokeAfterMsg#cb9f372d msg_id:long query:!X = X;
 //invokeAfterMsgs#3dc4b4f0 msg_ids:Vector<long> query:!X = X;
 //invokeWithLayer1#53835315 query:!X = X;
@@ -34,6 +33,7 @@
 //invokeWithLayer16#cf5f0987 query:!X = X;
 //invokeWithLayer17#50858a19 query:!X = X;
 //invokeWithLayer18#1c900537 query:!X = X;
+//invokeWithLayer#da9b0d0d layer:int query:!X = X; // after 18 layer
 
 ///////////////////////////////
 /// Authorization key creation
@@ -287,7 +287,7 @@ contactBlocked#561bc879 user_id:int date:int = ContactBlocked;
 
 contactSuggested#3de191a1 user_id:int mutual_contacts:int = ContactSuggested;
 
-contactStatus#aa77b873 user_id:int expires:int = ContactStatus;
+contactStatus#d3680c61 user_id:int status:UserStatus = ContactStatus;
 
 chatLocated#3631cf4c chat_id:int distance:int = ChatLocated;
 
@@ -510,6 +510,34 @@ contacts.found#566000e results:Vector<ContactFound> users:Vector<User> = contact
 
 updateServiceNotification#382dd3e4 type:string message:string media:MessageMedia popup:Bool = Update;
 
+userStatusRecently#e26f42f1 = UserStatus;
+userStatusLastWeek#7bf09fc = UserStatus;
+userStatusLastMonth#77ebc742 = UserStatus;
+
+updatePrivacy#ee3b272a key:PrivacyKey rules:Vector<PrivacyRule> = Update;
+
+inputPrivacyKeyStatusTimestamp#4f96cb18 = InputPrivacyKey;
+
+privacyKeyStatusTimestamp#bc2eab30 = PrivacyKey;
+
+inputPrivacyValueAllowContacts#d09e07b = InputPrivacyRule;
+inputPrivacyValueAllowAll#184b35ce = InputPrivacyRule;
+inputPrivacyValueAllowUsers#131cc67f users:Vector<InputUser> = InputPrivacyRule;
+inputPrivacyValueDisallowContacts#ba52007 = InputPrivacyRule;
+inputPrivacyValueDisallowAll#d66b66c9 = InputPrivacyRule;
+inputPrivacyValueDisallowUsers#90110467 users:Vector<InputUser> = InputPrivacyRule;
+
+privacyValueAllowContacts#fffe1bac = PrivacyRule;
+privacyValueAllowAll#65427b82 = PrivacyRule;
+privacyValueAllowUsers#4d5bbe0c users:Vector<int> = PrivacyRule;
+privacyValueDisallowContacts#f888fa1a = PrivacyRule;
+privacyValueDisallowAll#8b73e763 = PrivacyRule;
+privacyValueDisallowUsers#c7f49b7 users:Vector<int> = PrivacyRule;
+
+account.privacyRules#554abb6f rules:Vector<PrivacyRule> users:Vector<User> = account.PrivacyRules;
+
+accountDaysTTL#b8d0afdf days:int = AccountDaysTTL;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d msg_id:long query:!X = X;
@@ -631,3 +659,9 @@ account.checkUsername#2714d86c username:string = Bool;
 account.updateUsername#3e0bdd7c username:string = User;
 
 contacts.search#11f812d8 q:string limit:int = contacts.Found;
+
+account.getPrivacy#dadbc950 key:InputPrivacyKey = account.PrivacyRules;
+account.setPrivacy#c9f81ce8 key:InputPrivacyKey rules:Vector<InputPrivacyRule> = account.PrivacyRules;
+account.deleteAccount#418d4e0b reason:string = Bool;
+account.getAccountTTL#8fc711d = AccountDaysTTL;
+account.setAccountTTL#2442485e ttl:AccountDaysTTL = Bool;

@@ -113,8 +113,11 @@ void MTProtoSession::start(int32 dcenter, uint32 connects) {
 
 			ReadLockerAttempt lock(keyMutex());
 			data.setKey(lock ? dc->getKey() : mtpAuthKeyPtr(0));
-
+			if (lock && dc->connectionInited()) {
+				data.setLayerWasInited(true);
+			}
 			connect(dc.data(), SIGNAL(authKeyCreated()), this, SLOT(authKeyCreatedForDC()));
+			connect(dc.data(), SIGNAL(layerWasInited(bool)), this, SLOT(layerWasInitedForDC(bool)));
 		}
 	}
 }
@@ -376,21 +379,9 @@ void MTProtoSession::sendPrepared(const mtpRequest &request, uint64 msCanWait, b
 	sendAnything(msCanWait);
 }
 
-void MTProtoSession::sendPreparedWithInit(const mtpRequest &request, uint64 msCanWait) { // returns true, if emit of needToSend() is needed
-	if (request->size() > 8 && request->at(8) == mtpc_initConnection) {
-		sendPrepared(request, msCanWait, false);
-		return;
-	}
-	{
-		MTPInitConnection<mtpRequest> requestWrap(MTPinitConnection<mtpRequest>(MTP_int(ApiId), MTP_string(cApiDeviceModel()), MTP_string(cApiSystemVersion()), MTP_string(cApiAppVersion()), MTP_string(ApiLang), request));
-		uint32 requestSize = requestWrap.size() >> 2;
-		mtpRequest reqSerialized(mtpRequestData::prepare(requestSize));
-		requestWrap.write(*reqSerialized);
-		request->resize(reqSerialized->size());
-		memcpy(request->data(), reqSerialized->constData(), reqSerialized->size());
-	}
-	request->msDate = getms(true); // > 0 - can send without container
-	sendPrepared(request, msCanWait);
+void MTProtoSession::sendPreparedWithInit(const mtpRequest &request, uint64 msCanWait) {
+	request->needsLayer = true;
+	sendPrepared(request, msCanWait, false);
 }
 
 QReadWriteLock *MTProtoSession::keyMutex() const {
@@ -403,9 +394,20 @@ void MTProtoSession::authKeyCreatedForDC() {
 	emit authKeyCreated();
 }
 
-void MTProtoSession::keyCreated(const mtpAuthKeyPtr &key) {
+void MTProtoSession::notifyKeyCreated(const mtpAuthKeyPtr &key) {
 	DEBUG_LOG(("AuthKey Info: MTProtoSession::keyCreated(), setting, dc %1").arg(dcId));
 	dc->setKey(key);
+}
+
+void MTProtoSession::layerWasInitedForDC(bool wasInited) {
+	DEBUG_LOG(("MTP Info: MTProtoSession::layerWasInitedForDC slot, dc %1").arg(dcId));
+	data.setLayerWasInited(wasInited);
+}
+
+void MTProtoSession::notifyLayerInited(bool wasInited) {
+	DEBUG_LOG(("MTP Info: emitting MTProtoDC::layerWasInited(%1), dc %2").arg(logBool(wasInited)).arg(dcId));
+	dc->setConnectionInited(wasInited);
+	emit dc->layerWasInited(wasInited);
 }
 
 void MTProtoSession::destroyKey() {

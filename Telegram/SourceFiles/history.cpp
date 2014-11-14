@@ -296,12 +296,13 @@ const ChatData *PeerData::asChat() const {
 	return chat ? static_cast<const ChatData *>(this) : App::chat(id | 0x100000000L);
 }
 
-void PeerData::updateName(const QString &newName, const QString &newNameOrPhone) {
-	if (name == newName && nameOrPhone == newNameOrPhone) return;
+void PeerData::updateName(const QString &newName, const QString &newNameOrPhone, const QString &newUsername) {
+	if (name == newName && nameOrPhone == newNameOrPhone && (chat || asUser()->username == newUsername)) return;
 
 	++nameVersion;
 	name = newName;
 	nameOrPhone = newNameOrPhone;
+	if (!chat) asUser()->username = newUsername;
 	Names oldNames = names;
 	NameFirstChars oldChars = chars;
 	fillNames();
@@ -352,24 +353,23 @@ void PeerData::fillNames() {
 
 
 void UserData::setName(const QString &first, const QString &last, const QString &phoneName, const QString &usern) {
-	bool updName = !first.isEmpty() || !last.isEmpty();
-
-	if (username != usern) {
-		username = usern;
-		if (App::main()) {
-			App::main()->peerUsernameChanged(this);
-		}
-	}
+	bool updName = !first.isEmpty() || !last.isEmpty(), updUsername = (username != usern);
+	
 	if (updName && first.trimmed().isEmpty()) {
 		firstName = last;
 		lastName = QString();
-		updateName(firstName, phoneName);
+		updateName(firstName, phoneName, usern);
 	} else {
 		if (updName) {
 			firstName = first;
 			lastName = last;
 		}
-		updateName(firstName + ' ' + lastName, phoneName);
+		updateName(firstName + ' ' + lastName, phoneName, usern);
+	}
+	if (updUsername) {
+		if (App::main()) {
+			App::main()->peerUsernameChanged(this);
+		}
 	}
 }
 
@@ -1168,7 +1168,7 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 			case mtpc_messageActionChatEditTitle: {
 				const MTPDmessageActionChatEditTitle &d(action.c_messageActionChatEditTitle());
 				ChatData *chat = peer->asChat();
-				if (chat) chat->updateName(qs(d.vtitle), QString());
+				if (chat) chat->updateName(qs(d.vtitle), QString(), QString());
 			} break;
 			}
 		}
@@ -3074,7 +3074,7 @@ void ImageLinkManager::init() {
 	App::setProxySettings(*manager);
 
 	connect(manager, SIGNAL(authenticationRequired(QNetworkReply*, QAuthenticator*)), this, SLOT(onFailed(QNetworkReply*)));
-	connect(manager, SIGNAL(sslErrors(QNetworkReply*, const QList<QSslError>&errors)), this, SLOT(onFailed(QNetworkReply*)));
+	connect(manager, SIGNAL(sslErrors(QNetworkReply*, const QList<QSslError>&)), this, SLOT(onFailed(QNetworkReply*)));
 	connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(onFinished(QNetworkReply*)));
 
 	if (black) delete black;

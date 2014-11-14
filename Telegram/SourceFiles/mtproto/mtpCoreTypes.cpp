@@ -172,11 +172,19 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 	} break;
 
 	default: {
-		for (uint32 i = 1; i < mtpLayerMax; ++i) {
+		for (uint32 i = 1; i < mtpLayerMaxSingle; ++i) {
 			if (cons == mtpLayers[i]) {
 				to.add("[LAYER").add(mtpWrapNumber(i + 1)).add("] "); mtpTextSerializeType(to, from, end, 0, level);
 				return;
 			}
+		}
+		if (cons == mtpc_invokeWithLayer) {
+			if (from >= end) {
+				throw Exception("from >= end in invokeWithLayer");
+			}
+			int32 layer = *(from++);
+			to.add("[LAYER").add(mtpWrapNumber(layer)).add("] "); mtpTextSerializeType(to, from, end, 0, level);
+			return;
 		}
 		throw Exception(QString("unknown cons 0x%1").arg(cons, 0, 16));
 	} break;

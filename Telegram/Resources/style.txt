@@ -1572,6 +1572,9 @@ medviewPhotoSpritePos: point(14px, 14px);
 
 overviewPhotoSkip: 10px;
 overviewPhotoMinSize: 100px;
+overviewPhotoCheck: sprite(245px, 308px, 32px, 32px);
+overviewPhotoChecked: sprite(278px, 308px, 32px, 32px);
+overviewPhotoSelectOverlay: #0a7bb03f;
 
 // Mac specific
 

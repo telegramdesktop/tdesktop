@@ -633,7 +633,6 @@ void Application::startApp() {
 
 	readSupportTemplates();
 
-	MTP::setLayer(mtpLayerMax);
 	MTP::start();
 	
 	MTP::setStateChangedHandler(mtpStateChanged);

@@ -28,8 +28,8 @@ public:
 	
 	MTPSessionData(MTProtoSession *creator)
 	: _session(0), _salt(0)
-	, _messagesSent(0), fakeRequestId(-2000000000)
-	, _owner(creator), keyChecked(false) {
+	, _messagesSent(0), _fakeRequestId(-2000000000)
+	, _owner(creator), _keyChecked(false), _layerInited(false) {
 	}
 
 	void setSession(uint64 session) {
@@ -45,6 +45,14 @@ public:
 		QReadLocker locker(&lock);
 		return _session;
 	}
+	bool layerWasInited() const {
+		QReadLocker locker(&lock);
+		return _layerInited;
+	}
+	void setLayerWasInited(bool was) {
+		QWriteLocker locker(&lock);
+		_layerInited = was;
+	}
 
 	void setSalt(uint64 salt) {
 		QWriteLocker locker(&lock);
@@ -56,26 +64,31 @@ public:
 	}
 
 	const mtpAuthKeyPtr &getKey() const {
-		return authKey;
+		return _authKey;
 	}
 	void setKey(const mtpAuthKeyPtr &key) {
-		if (authKey != key) {
+		if (_authKey != key) {
 			uint64 session;
 			memsetrnd(session);
-			authKey = key;
+			_authKey = key;
 
 			DEBUG_LOG(("MTP Info: new auth key set in SessionData, id %1, setting random server_session %2").arg(key ? key->keyId() : 0).arg(session));
-			setSession(session);
+			QWriteLocker locker(&lock);
+			if (_session != session) {
+				_session = session;
+				_messagesSent = 0;
+			}
+			_layerInited = false;
 		}
 	}
 
 	bool isCheckedKey() const {
 		QReadLocker locker(&lock);
-		return keyChecked;
+		return _keyChecked;
 	}
 	void setCheckedKey(bool checked) {
 		QWriteLocker locker(&lock);
-		keyChecked = checked;
+		_keyChecked = checked;
 	}
 
 	QReadWriteLock *keyMutex() const;
@@ -147,11 +160,11 @@ public:
 
 	mtpRequestId nextFakeRequestId() { // must be locked by haveReceivedMutex()
 		if (haveReceived.isEmpty() || haveReceived.cbegin().key() > 0) {
-			fakeRequestId = -2000000000;
+			_fakeRequestId = -2000000000;
 		} else {
-			++fakeRequestId;
+			++_fakeRequestId;
 		}
-		return fakeRequestId;
+		return _fakeRequestId;
 	}
 
 	MTProtoSession *owner() {
@@ -174,12 +187,12 @@ private:
 	uint64 _session, _salt;
 
 	uint32 _messagesSent;
-	mtpRequestId fakeRequestId;
+	mtpRequestId _fakeRequestId;
 
 	MTProtoSession *_owner;
 
-	mtpAuthKeyPtr authKey;
-	bool keyChecked;
+	mtpAuthKeyPtr _authKey;
+	bool _keyChecked, _layerInited;
 
 	mtpPreRequestMap toSend; // map of request_id -> request, that is waiting to be sent
 	mtpRequestMap haveSent; // map of msg_id -> request, that was sent, msDate = 0 for msgs_state_req (no resend / state req), msDate = 0, seqNo = 0 for containers
@@ -216,11 +229,12 @@ public:
 	~MTProtoSession();
 
 	QReadWriteLock *keyMutex() const;
-	void keyCreated(const mtpAuthKeyPtr &key);
+	void notifyKeyCreated(const mtpAuthKeyPtr &key);
 	void destroyKey();
+	void notifyLayerInited(bool wasInited);
 
 	template <typename TRequest>
-	mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), uint64 msCanWait = 0, uint32 layer = 0, bool toMainDC = false, mtpRequestId after = 0); // send mtp request
+	mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), uint64 msCanWait = 0, bool needsLayer = false, bool toMainDC = false, mtpRequestId after = 0); // send mtp request
 	void sendAnything(uint64 msCanWait);
 
 	void cancel(mtpRequestId requestId, mtpMsgId msgId);
@@ -247,6 +261,7 @@ signals:
 public slots:
 
 	void authKeyCreatedForDC();
+	void layerWasInitedForDC(bool wasInited);
 
 	void tryToReceive();
 	void checkRequestsByTimer();
@@ -255,9 +270,6 @@ public slots:
 
 private:
 	
-	template <typename TRequest>
-	mtpRequestId sendFirst(const MTPInitConnection<TRequest> &request, RPCResponseHandler callbacks = RPCResponseHandler(), uint64 msCanWait = 0, uint32 layer = 0, bool toMainDC = false, mtpRequestId after = 0); // send first mtp request
-
 	typedef QList<MTProtoConnection*> MTProtoConnections;
 	MTProtoConnections connections;
 	

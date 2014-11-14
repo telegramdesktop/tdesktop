@@ -61,7 +61,10 @@ lng_connecting: "Connecting..";
 lng_reconnecting: "Reconnect in %1 s..";
 lng_reconnecting_try_now: "Try now";
 
-lng_status_offline: "offline";
+lng_status_offline: "last seen a long time ago";
+lng_status_recently: "last seen recently";
+lng_status_last_week: "last seen within a week";
+lng_status_last_month: "last seen within a month";
 lng_status_invisible: "invisible";
 lng_status_lastseen: "last seen {when}";
 lng_status_lastseen_now: "just now";

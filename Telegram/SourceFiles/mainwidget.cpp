@@ -2252,6 +2252,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (user) {
 				switch (d.vstatus.type()) {
 				case mtpc_userStatusEmpty: user->onlineTill = 0; break;
+				case mtpc_userStatusRecently: user->onlineTill = -2; break;
+				case mtpc_userStatusLastWeek: user->onlineTill = -3; break;
+				case mtpc_userStatusLastMonth: user->onlineTill = -4; break;
 				case mtpc_userStatusOffline: user->onlineTill = d.vstatus.c_userStatusOffline().vwas_online.v; break;
 				case mtpc_userStatusOnline: user->onlineTill = d.vstatus.c_userStatusOnline().vexpires.v; break;
 				}
@@ -2263,8 +2266,12 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateUserName: {
 		const MTPDupdateUserName &d(update.c_updateUserName());
 		UserData *user = App::userLoaded(d.vuser_id.v);
-		if (user && user->contact <= 0) {
-			user->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), user->nameOrPhone, textOneLine(qs(d.vusername)));
+		if (user) {
+			if (user->contact <= 0) {
+				user->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), user->nameOrPhone, textOneLine(qs(d.vusername)));
+			} else {
+				user->setName(textOneLine(user->firstName), textOneLine(user->lastName), user->nameOrPhone, textOneLine(qs(d.vusername)));
+			}
 			if (App::main()) App::main()->peerUpdated(user);
 		}
 	} break;

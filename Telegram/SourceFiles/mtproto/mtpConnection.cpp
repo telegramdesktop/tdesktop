@@ -473,7 +473,7 @@ namespace {
 	mtpBuffer _preparePQFake(const MTPint128 &nonce) {
 		MTPReq_pq req_pq(nonce);
 		mtpBuffer buffer;
-		uint32 requestSize = req_pq.size() >> 2;
+		uint32 requestSize = req_pq.innerLength() >> 2;
 
 		buffer.resize(0);
 		buffer.reserve(8 + requestSize);
@@ -604,7 +604,7 @@ void MTPabstractTcpConnection::socketRead() {
 }
 
 MTPautoConnection::MTPautoConnection(QThread *thread) : status(WaitingBoth),
-tcpNonce(MTP::nonce<MTPint128>()), httpNonce(MTP::nonce<MTPint128>()) {
+tcpNonce(MTP::nonce<MTPint128>()), httpNonce(MTP::nonce<MTPint128>()), _tcpTimeout(1) {
 	moveToThread(thread);
 
 	manager.moveToThread(thread);
@@ -613,6 +613,9 @@ tcpNonce(MTP::nonce<MTPint128>()), httpNonce(MTP::nonce<MTPint128>()) {
 	httpStartTimer.moveToThread(thread);
 	httpStartTimer.setSingleShot(true);
 	connect(&httpStartTimer, SIGNAL(timeout()), this, SLOT(onHttpStart()));
+	tcpTimeoutTimer.moveToThread(thread);
+	tcpTimeoutTimer.setSingleShot(true);
+	connect(&tcpTimeoutTimer, SIGNAL(timeout()), this, SLOT(onTcpTimeoutTimer()));
 
 	sock.moveToThread(thread);
 	sock.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
@@ -627,7 +630,7 @@ void MTPautoConnection::onHttpStart() {
 	if (status == HttpReady) {
 		DEBUG_LOG(("Connection Info: Http-transport chosen by timer"));
 		status = UsingHttp;
-		sock.disconnect();
+		sock.disconnectFromHost();
 		emit connected();
 	}
 }
@@ -638,13 +641,37 @@ void MTPautoConnection::onSocketConnected() {
 
 		DEBUG_LOG(("Connection Info: sending fake req_pq through tcp transport"));
 
+		if (_tcpTimeout < 0) _tcpTimeout = -_tcpTimeout;
+		tcpTimeoutTimer.start(_tcpTimeout * 1000);
+
 		tcpSend(buffer);
 	} else if (status == WaitingHttp || status == UsingHttp) {
-		sock.disconnect();
+		sock.disconnectFromHost();
+	}
+}
+
+void MTPautoConnection::onTcpTimeoutTimer() {
+	if (status == HttpReady || status == WaitingBoth || status == WaitingTcp) {
+		if (_tcpTimeout < 64) _tcpTimeout *= 2;
+		_tcpTimeout = -_tcpTimeout;
+
+		QAbstractSocket::SocketState state = sock.state();
+		if (state == QAbstractSocket::ConnectedState || state == QAbstractSocket::ConnectingState || state == QAbstractSocket::HostLookupState) {
+			sock.disconnectFromHost();
+		} else if (state != QAbstractSocket::ClosingState) {
+			sock.connectToHost(QHostAddress(_addr), _port);
+		}
 	}
 }
 
 void MTPautoConnection::onSocketDisconnected() {
+	if (_tcpTimeout < 0) {
+		_tcpTimeout = -_tcpTimeout;
+		if (status == HttpReady || status == WaitingBoth || status == WaitingTcp) {
+			sock.connectToHost(QHostAddress(_addr), _port);
+			return;
+		}
+	}
 	if (status == WaitingBoth) {
 		status = WaitingHttp;
 	} else if (status == WaitingTcp || status == UsingTcp) {
@@ -725,14 +752,17 @@ void MTPautoConnection::connectToServer(const QString &addr, int32 port) {
 	address = QUrl(qsl("http://%1:%2/api").arg(addr).arg(80));//not port - always 80 port for http transport
 	connect(&manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(requestFinished(QNetworkReply*)));
 
+	_addr = addr;
+	_port = port;
+
+	connect(&sock, SIGNAL(readyRead()), this, SLOT(socketRead()));
+	sock.connectToHost(QHostAddress(_addr), _port);
+
 	mtpBuffer buffer(_preparePQFake(httpNonce));
 
 	DEBUG_LOG(("Connection Info: sending fake req_pq through http transport"));
 
 	httpSend(buffer);
-	
-	sock.connectToHost(QHostAddress(addr), port);
-	connect(&sock, SIGNAL(readyRead()), this, SLOT(socketRead()));
 }
 
 bool MTPautoConnection::isConnected() {
@@ -766,7 +796,7 @@ void MTPautoConnection::requestFinished(QNetworkReply *reply) {
 						} else {
 							DEBUG_LOG(("Connection Info: Http-transport chosen by pq-response, awaited"));
 							status = UsingHttp;
-							sock.disconnect();
+							sock.disconnectFromHost();
 							emit connected();
 						}
 					}
@@ -786,7 +816,7 @@ void MTPautoConnection::requestFinished(QNetworkReply *reply) {
 			return;
 		}
 
-		bool mayBeBadKey = _handleHttpError(reply);
+		bool mayBeBadKey = _handleHttpError(reply) && _sentEncrypted;
 		if (status == WaitingBoth) {
 			status = WaitingTcp;
 		} else if (status == WaitingHttp || status == UsingHttp) {
@@ -802,14 +832,15 @@ void MTPautoConnection::socketPacket(mtpPrime *packet, uint32 size) {
 	if (data.size() == 1) {
 		if (status == WaitingBoth) {
 			status = WaitingHttp;
-			sock.disconnect();
+			sock.disconnectFromHost();
 		} else if (status == HttpReady) {
 			DEBUG_LOG(("Connection Info: Http-transport chosen by bad tcp response, ready"));
 			status = UsingHttp;
-			sock.disconnect();
+			sock.disconnectFromHost();
 			emit connected();
 		} else if (status == WaitingTcp || status == UsingTcp) {
-			emit error(data[0] == -404);
+			bool mayBeBadKey = (data[0] == -404) && _sentEncrypted;
+			emit error(mayBeBadKey);
 		} else {
 			LOG(("Strange Tcp Error; status %1").arg(status));
 		}
@@ -817,6 +848,7 @@ void MTPautoConnection::socketPacket(mtpPrime *packet, uint32 size) {
 		receivedQueue.push_back(data);
 		emit receivedData();
 	} else if (status == WaitingBoth || status == WaitingTcp || status == HttpReady) {
+		tcpTimeoutTimer.stop();
 		try {
 			MTPResPQ res_pq = _readPQFakeReply(data);
 			const MTPDresPQ &res_pq_data(res_pq.c_resPQ());
@@ -828,11 +860,11 @@ void MTPautoConnection::socketPacket(mtpPrime *packet, uint32 size) {
 		} catch (Exception &e) {
 			if (status == WaitingBoth) {
 				status = WaitingHttp;
-				sock.disconnect();
+				sock.disconnectFromHost();
 			} else if (status == HttpReady) {
 				DEBUG_LOG(("Connection Info: Http-transport chosen by bad tcp response, awaited"));
 				status = UsingHttp;
-				sock.disconnect();
+				sock.disconnectFromHost();
 				emit connected();
 			} else {
 				emit error();
@@ -907,14 +939,15 @@ void MTPtcpConnection::disconnectFromServer() {
 }
 
 void MTPtcpConnection::connectToServer(const QString &addr, int32 port) {
-	sock.connectToHost(QHostAddress(addr), port);
 	connect(&sock, SIGNAL(readyRead()), this, SLOT(socketRead()));
+	sock.connectToHost(QHostAddress(addr), port);
 }
 
 void MTPtcpConnection::socketPacket(mtpPrime *packet, uint32 size) {
 	mtpBuffer data = _handleTcpResponse(packet, size);
 	if (data.size() == 1) {
-		emit error(data[0] == -404);
+		bool mayBeBadKey = (data[0] == -404) && _sentEncrypted;
+		emit error(mayBeBadKey);
 	}
 
 	receivedQueue.push_back(data);
@@ -1002,7 +1035,7 @@ void MTPhttpConnection::requestFinished(QNetworkReply *reply) {
 			return;
 		}
 
-		bool mayBeBadKey = _handleHttpError(reply);
+		bool mayBeBadKey = _handleHttpError(reply) && _sentEncrypted;
 
 		emit error(mayBeBadKey);
 	}
@@ -1362,6 +1395,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 		return;
 	}
 
+	bool needsLayer = !sessionData->layerWasInited();
 	bool prependOnly = false;
 	mtpRequest pingRequest;
 	if (toSendPingId) {
@@ -1370,7 +1404,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 		prependOnly = (getState() != MTProtoConnection::Connected);
 		DEBUG_LOG(("MTP Info: sending ping, ping_id: %1, prepend_only: %2").arg(ping.vping_id.v).arg(prependOnly ? "[TRUE]" : "[FALSE]"));
 
-		uint32 pingSize = ping.size() >> 2; // copy from MTProtoSession::send
+		uint32 pingSize = ping.innerLength() >> 2; // copy from MTProtoSession::send
 		pingRequest = mtpRequestData::prepare(pingSize);
 		ping.write(*pingRequest);
 
@@ -1391,7 +1425,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 	if (!prependOnly && !ackRequestData.isEmpty()) {
 		MTPMsgsAck ack(MTP_msgs_ack(MTP_vector<MTPlong>(ackRequestData)));
 
-		ackRequest = mtpRequestData::prepare(ack.size() >> 2);
+		ackRequest = mtpRequestData::prepare(ack.innerLength() >> 2);
 		ack.write(*ackRequest);
 
 		ackRequest->msDate = getms(true); // > 0 - can send without container
@@ -1402,7 +1436,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 	if (!prependOnly && !resendRequestData.isEmpty()) {
 		MTPMsgResendReq resend(MTP_msg_resend_req(MTP_vector<MTPlong>(resendRequestData)));
 
-		resendRequest = mtpRequestData::prepare(resend.size() >> 2);
+		resendRequest = mtpRequestData::prepare(resend.innerLength() >> 2);
 		resend.write(*resendRequest);
 
 		resendRequest->msDate = getms(true); // > 0 - can send without container
@@ -1426,12 +1460,20 @@ void MTProtoConnectionPrivate::tryToSend() {
 		if (!stateReq.isEmpty()) {
 			MTPMsgsStateReq req(MTP_msgs_state_req(MTP_vector<MTPlong>(stateReq)));
 
-			stateRequest = mtpRequestData::prepare(req.size() >> 2);
+			stateRequest = mtpRequestData::prepare(req.innerLength() >> 2);
 			req.write(*stateRequest);
 
 			stateRequest->msDate = getms(true); // > 0 - can send without container
 			stateRequest->requestId = reqid();// add to haveSent / wereAcked maps, but don't add to requestMap
 		}
+	}
+
+	MTPInitConnection<mtpRequest> initWrapperImpl, *initWrapper = &initWrapperImpl;
+	int32 initSize = 0, initSizeInInts = 0;
+	if (needsLayer) {
+		initWrapperImpl = MTPInitConnection<mtpRequest>(MTP_int(ApiId), MTP_string(cApiDeviceModel()), MTP_string(cApiSystemVersion()), MTP_string(cApiAppVersion()), MTP_string(ApiLang), mtpRequest());
+		initSizeInInts = (initWrapper->innerLength() >> 2) + 2;
+		initSize = initSizeInInts * sizeof(mtpPrime);
 	}
 
 	bool needAnyResponse = false;
@@ -1473,12 +1515,25 @@ void MTProtoConnectionPrivate::tryToSend() {
 					QWriteLocker locker2(sessionData->haveSentMutex());
 					mtpRequestMap &haveSent(sessionData->haveSentMap());
 					haveSent.insert(msgId, toSendRequest);
+
+					if (needsLayer && !toSendRequest->needsLayer) needsLayer = false;
 					if (toSendRequest->after) {
-						int32 toSendSize = toSendRequest->at(7) >> 2;
+						int32 toSendSize = toSendRequest.innerLength() >> 2;
 						mtpRequest wrappedRequest(mtpRequestData::prepare(toSendSize, toSendSize + 3)); // cons + msg_id
 						wrappedRequest->resize(4);
 						memcpy(wrappedRequest->data(), toSendRequest->constData(), 4 * sizeof(mtpPrime));
 						_mtp_internal::wrapInvokeAfter(wrappedRequest, toSendRequest, haveSent);
+						toSendRequest = wrappedRequest;
+					}
+					if (needsLayer) {
+						int32 noWrapSize = (toSendRequest.innerLength() >> 2), toSendSize = noWrapSize + initSizeInInts;
+						mtpRequest wrappedRequest(mtpRequestData::prepare(toSendSize));
+						memcpy(wrappedRequest->data(), toSendRequest->constData(), 7 * sizeof(mtpPrime)); // all except length
+						wrappedRequest->push_back(mtpc_invokeWithLayer);
+						wrappedRequest->push_back(mtpCurrentLayer);
+						initWrapper->write(*wrappedRequest);
+						wrappedRequest->resize(wrappedRequest->size() + noWrapSize);
+						memcpy(wrappedRequest->data() + wrappedRequest->size() - noWrapSize, toSendRequest->constData() + 8, noWrapSize * sizeof(mtpPrime));
 						toSendRequest = wrappedRequest;
 					}
 
@@ -1489,6 +1544,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 				}
 			}
 		} else { // send in container
+			bool willNeedInit = false;
 			uint32 containerSize = 1 + 1, idsWrapSize = (toSendCount << 1); // cons + vector size, idsWrapSize - size of "request-like" wrap for msgId vector
 			if (pingRequest) containerSize += mtpRequestData::messageSize(pingRequest);
 			if (ackRequest) containerSize += mtpRequestData::messageSize(ackRequest);
@@ -1496,6 +1552,17 @@ void MTProtoConnectionPrivate::tryToSend() {
 			if (stateRequest) containerSize += mtpRequestData::messageSize(stateRequest);
 			for (mtpPreRequestMap::iterator i = toSend.begin(), e = toSend.end(); i != e; ++i) {
 				containerSize += mtpRequestData::messageSize(i.value());
+				if (needsLayer && i.value()->needsLayer) {
+					containerSize += initSizeInInts;
+					willNeedInit = true;
+				}
+			}
+			mtpBuffer initSerialized;
+			if (willNeedInit) {
+				initSerialized.reserve(initSizeInInts);
+				initSerialized.push_back(mtpc_invokeWithLayer);
+				initSerialized.push_back(mtpCurrentLayer);
+				initWrapper->write(initSerialized);
 			}
 			toSendRequest = mtpRequestData::prepare(containerSize, containerSize + 3 * toSend.size()); // prepare container + each in invoke after
 			toSendRequest->push_back(mtpc_msg_container);
@@ -1530,8 +1597,20 @@ void MTProtoConnectionPrivate::tryToSend() {
 				if (req->requestId) {
 					if (mtpRequestData::needAck(req)) {
 						req->msDate = mtpRequestData::isStateRequest(req) ? 0 : getms(true);
+						int32 reqNeedsLayer = (needsLayer && req->needsLayer) ? toSendRequest->size() : 0;
 						if (req->after) {
-							_mtp_internal::wrapInvokeAfter(toSendRequest, req, haveSent);
+							_mtp_internal::wrapInvokeAfter(toSendRequest, req, haveSent, reqNeedsLayer ? initSizeInInts : 0);
+							if (reqNeedsLayer) {
+								memcpy(toSendRequest->data() + reqNeedsLayer + 4, initSerialized.constData(), initSize);
+								*(toSendRequest->data() + reqNeedsLayer + 3) += initSize;
+							}
+							added = true;
+						} else if (reqNeedsLayer) {
+							toSendRequest->resize(reqNeedsLayer + initSizeInInts + mtpRequestData::messageSize(req));
+							memcpy(toSendRequest->data() + reqNeedsLayer, req->constData() + 4, 4 * sizeof(mtpPrime));
+							memcpy(toSendRequest->data() + reqNeedsLayer + 4, initSerialized.constData(), initSize);
+							memcpy(toSendRequest->data() + reqNeedsLayer + 4 + initSizeInInts, req->constData() + 8, req.innerLength());
+							*(toSendRequest->data() + reqNeedsLayer + 3) += initSize;
 							added = true;
 						}
 						haveSent.insert(msgId, req);
@@ -2329,6 +2408,10 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 			response.resize(end - from);
 			memcpy(response.data(), from, (end - from) * sizeof(mtpPrime));
 		}
+		if (!sessionData->layerWasInited()) {
+			sessionData->setLayerWasInited(true);
+			sessionData->owner()->notifyLayerInited(true);
+		}
 
 		mtpRequestId requestId = wasSent(reqMsgId.v);
 		if (requestId && requestId != mtpRequestId(0xFFFFFFFF)) {
@@ -2787,7 +2870,7 @@ void MTProtoConnectionPrivate::pqAnswered() {
 
 	string &dhEncString(req_DH_params.vencrypted_data._string().v);
 
-	uint32 p_q_inner_size = p_q_inner.size(), encSize = (p_q_inner_size >> 2) + 6;
+	uint32 p_q_inner_size = p_q_inner.innerLength(), encSize = (p_q_inner_size >> 2) + 6;
 	if (encSize >= 65) {
 		mtpBuffer tmp;
 		tmp.reserve(encSize);
@@ -2854,7 +2937,7 @@ void MTProtoConnectionPrivate::dhParamsAnswered() {
 			return restart();
 		}
 
-		uint32 nlen = authKeyData->new_nonce.size(), slen = authKeyData->server_nonce.size();
+		uint32 nlen = authKeyData->new_nonce.innerLength(), slen = authKeyData->server_nonce.innerLength();
 		uchar tmp_aes[1024], sha1ns[20], sha1sn[20], sha1nn[20];
 		memcpy(tmp_aes, &authKeyData->new_nonce, nlen);
 		memcpy(tmp_aes + nlen, &authKeyData->server_nonce, slen);
@@ -2979,7 +3062,7 @@ void MTProtoConnectionPrivate::dhClientParamsSend() {
 		
 	string &sdhEncString(req_client_DH_params.vencrypted_data._string().v);
 
-	uint32 client_dh_inner_size = client_dh_inner.size(), encSize = (client_dh_inner_size >> 2) + 5, encFullSize = encSize;
+	uint32 client_dh_inner_size = client_dh_inner.innerLength(), encSize = (client_dh_inner_size >> 2) + 5, encFullSize = encSize;
 	if (encSize & 0x03) {
 		encFullSize += 4 - (encSize & 0x03);
 	}
@@ -3047,7 +3130,7 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 
 		DEBUG_LOG(("AuthKey Info: auth key gen succeed, id: %1, server salt: %2, auth key: %3").arg(authKey->keyId()).arg(serverSalt).arg(mb(authKeyData->auth_key, 256).str()));
 
-		sessionData->owner()->keyCreated(authKey); // slot will call authKeyCreated()
+		sessionData->owner()->notifyKeyCreated(authKey); // slot will call authKeyCreated()
 		sessionData->clear();
 		unlockKey();
 	} return;
@@ -3146,7 +3229,7 @@ void MTProtoConnectionPrivate::sendPing() {
 }
 
 void MTProtoConnectionPrivate::onError(bool mayBeBadKey) {
-	MTP_LOG(dc, ("Restarting after error.."));
+	MTP_LOG(dc, ("Restarting after error, maybe bad key: %1..").arg(logBool(mayBeBadKey)));
 	return restart(mayBeBadKey);
 }
 
@@ -3157,7 +3240,7 @@ template <typename TRequest>
 void MTProtoConnectionPrivate::sendRequestNotSecure(const TRequest &request) {
 	try {
 		mtpBuffer buffer;
-		uint32 requestSize = request.size() >> 2;
+		uint32 requestSize = request.innerLength() >> 2;
 
 		buffer.resize(0);
 		buffer.reserve(8 + requestSize);
@@ -3264,6 +3347,7 @@ bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResp
 	
 	DEBUG_LOG(("MTP Info: sending request, size: %1, num: %2, time: %3").arg(fullSize + 6).arg((*request)[4]).arg((*request)[5]));
 
+	conn->setSentEncrypted();
 	conn->sendData(result);
 
 	if (needAnyResponse) {

@@ -1548,7 +1548,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
 	connect(&_attachDocument, SIGNAL(clicked()), this, SLOT(onDocumentSelect()));
 	connect(&_attachPhoto, SIGNAL(clicked()), this, SLOT(onPhotoSelect()));
 	connect(&_field, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
-	connect(&_field, SIGNAL(cancelled()), this, SIGNAL(cancelled()));
+	connect(&_field, SIGNAL(cancelled()), this, SLOT(onCancel()));
 	connect(&_field, SIGNAL(tabbed()), this, SLOT(onFieldTabbed()));
 	connect(&_field, SIGNAL(resized()), this, SLOT(onFieldResize()));
 	connect(&_field, SIGNAL(focused()), this, SLOT(onFieldFocused()));
@@ -3159,6 +3159,11 @@ void HistoryWidget::setFieldText(const QString &text) {
 	noTypingUpdate = true;
 	_field.setPlainText(text);
 	noTypingUpdate = false;
+}
+
+void HistoryWidget::onCancel() {
+	showPeer(0);
+	emit cancelled();
 }
 
 void HistoryWidget::peerUpdated(PeerData *data) {

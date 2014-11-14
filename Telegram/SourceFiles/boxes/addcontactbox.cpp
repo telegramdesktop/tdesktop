@@ -281,7 +281,7 @@ bool AddContactBox::onSaveFail(const RPCError &error) {
 	QString err(error.type());
 	QString firstName = _firstInput.text().trimmed(), lastName = _lastInput.text().trimmed();
 	if (err == "CHAT_TITLE_NOT_MODIFIED") {
-		_peer->updateName(firstName, QString());
+		_peer->updateName(firstName, QString(), QString());
 		emit closed();
 		return true;
 	} else if (err == "NO_CHAT_TITLE") {

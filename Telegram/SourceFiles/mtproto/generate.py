@@ -177,11 +177,11 @@ with open('scheme.tl') as f:
         funcsText += '\tMTP' + name + '(' + ', '.join(prmsStr) + ') : ' + ', '.join(prmsInit) + ' {\n\t}\n';
       funcsText += '\n';
 
-      funcsText += '\tuint32 size() const {\n'; # count size
+      funcsText += '\tuint32 innerLength() const {\n'; # count size
       size = [];
       for k in prmsList:
         v = prms[k];
-        size.append('v' + k + '.size()');
+        size.append('v' + k + '.innerLength()');
       if (not len(size)):
         size.append('0');
       funcsText += '\t\treturn ' + ' + '.join(size) + ';\n';
@@ -402,7 +402,7 @@ for restype in typesList:
           writeText += '\t\t';
         readText += '\tv.v' + paramName + '.read(from, end);\n';
         writeText += '\tv.v' + paramName + '.write(to);\n';
-        sizeList.append('v.v' + paramName + '.size()');
+        sizeList.append('v.v' + paramName + '.innerLength()');
 
       forwards += 'class MTPD' + name + ';\n'; # data class forward declaration
 
@@ -505,8 +505,8 @@ for restype in typesList:
   if (withData):
     typesText += getters;
 
-  typesText += '\n\tuint32 size() const;\n'; # size method
-  inlineMethods += '\ninline uint32 MTP' + restype + '::size() const {\n';
+  typesText += '\n\tuint32 innerLength() const;\n'; # size method
+  inlineMethods += '\ninline uint32 MTP' + restype + '::innerLength() const {\n';
   if (withType and sizeCases):
     inlineMethods += '\tswitch (_type) {\n';
     inlineMethods += sizeCases;

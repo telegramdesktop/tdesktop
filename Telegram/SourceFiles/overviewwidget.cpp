@@ -40,6 +40,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, const
 	, _hist(App::history(peer->id))
 	, _photosInRow(1)
 	, _photosToAdd(0)
+	, _selMode(false)
 	, _width(0)
 	, _height(0)
 	, _minHeight(0)
@@ -425,7 +426,7 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 	dragActionUpdate(screenPos);
 
 	if (textlnkOver()) {
-		if (textlnkDown() == textlnkOver() && _dragAction != Dragging) {
+		if (textlnkDown() == textlnkOver() && _dragAction != Dragging && !_selMode) {
 			needClick = textlnkDown();
 		}
 	}
@@ -662,7 +663,10 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 						}
 					}
 					if (sel == FullItemSel) {
-						p.fillRect(QRect(pos.x(), pos.y(), _vsize, _vsize), st::msgInSelectOverlay->b);
+						p.fillRect(QRect(pos.x(), pos.y(), _vsize, _vsize), st::overviewPhotoSelectOverlay->b);
+						p.drawPixmap(QPoint(pos.x() + _vsize - st::overviewPhotoChecked.pxWidth(), pos.y() + _vsize - st::overviewPhotoChecked.pxHeight()), App::sprite(), st::overviewPhotoChecked);
+					} else if (_selMode/* || (selfrom < count && selfrom <= selto && 0 <= selto)*/) {
+						p.drawPixmap(QPoint(pos.x() + _vsize - st::overviewPhotoChecked.pxWidth(), pos.y() + _vsize - st::overviewPhotoChecked.pxHeight()), App::sprite(), st::overviewPhotoCheck);
 					}
 				} break;
 				}
@@ -1134,6 +1138,10 @@ void OverviewInner::switchType(MediaOverviewType type) {
 	}
 	mediaOverviewUpdated();
 	if (App::wnd()) App::wnd()->update();
+}
+
+void OverviewInner::setSelectMode(bool enabled) {
+	_selMode = enabled;
 }
 
 void OverviewInner::openContextUrl() {
@@ -1620,6 +1628,8 @@ MediaOverviewType OverviewWidget::type() const {
 }
 
 void OverviewWidget::switchType(MediaOverviewType type) {
+	_selCount = 0;
+	_inner.setSelectMode(false);
 	_inner.switchType(type);
 	switch (type) {
 	case OverviewPhotos: _header = lang(lng_profile_photos_header); break;
@@ -1628,7 +1638,6 @@ void OverviewWidget::switchType(MediaOverviewType type) {
 	case OverviewAudios: _header = lang(lng_profile_audios_header); break;
 	}
 	noSelectingScroll();
-	_selCount = 0;
 	App::main()->topBar()->showSelected(0);
 	updateTopBarSelection();
 	_scroll.scrollToY(_scroll.scrollTopMax());
@@ -1639,6 +1648,7 @@ void OverviewWidget::updateTopBarSelection() {
 	int32 selectedForForward, selectedForDelete;
 	_inner.getSelectionState(selectedForForward, selectedForDelete);
 	_selCount = selectedForDelete ? selectedForDelete : selectedForForward;
+	_inner.setSelectMode(_selCount > 0);
 	if (App::main()) {
 		App::main()->topBar()->showSelected(_selCount > 0 ? _selCount : 0);
 		App::main()->topBar()->update();

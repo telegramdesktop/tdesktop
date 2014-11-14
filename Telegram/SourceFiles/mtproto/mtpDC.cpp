@@ -350,7 +350,7 @@ void mtpSetDC(int32 dc) {
 	}
 }
 
-MTProtoDC::MTProtoDC(int32 id, const mtpAuthKeyPtr &key) : _id(id), _key(key), _connectionInited(false), _connectionInitSent(false) {
+MTProtoDC::MTProtoDC(int32 id, const mtpAuthKeyPtr &key) : _id(id), _key(key), _connectionInited(false) {
 	connect(this, SIGNAL(authKeyCreated()), this, SLOT(authKeyWrite()), Qt::QueuedConnection);
 
 	QMutexLocker lock(&_keysMapForWriteMutex);
@@ -371,6 +371,7 @@ void MTProtoDC::authKeyWrite() {
 void MTProtoDC::setKey(const mtpAuthKeyPtr &key) {
 	DEBUG_LOG(("AuthKey Info: MTProtoDC::setKey(%1), emitting authKeyCreated, dc %2").arg(key ? key->keyId() : 0).arg(_id));
 	_key = key;
+	_connectionInited = false;
 	emit authKeyCreated();
 
 	QMutexLocker lock(&_keysMapForWriteMutex);

@@ -18,22 +18,17 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #pragma once
 
 template <typename TRequest>
-mtpRequestId MTProtoSession::send(const TRequest &request, RPCResponseHandler callbacks, uint64 msCanWait, uint32 layer, bool toMainDC, mtpRequestId after) {
+mtpRequestId MTProtoSession::send(const TRequest &request, RPCResponseHandler callbacks, uint64 msCanWait, bool needsLayer, bool toMainDC, mtpRequestId after) {
     mtpRequestId requestId = 0;
-    if (layer && dc->needConnectionInit()) {
-        MTPInitConnection<TRequest> requestWrap(MTPinitConnection<TRequest>(MTP_int(ApiId), MTP_string(cApiDeviceModel()), MTP_string(cApiSystemVersion()), MTP_string(cApiAppVersion()), MTP_string(ApiLang), request));
-        return sendFirst(requestWrap, callbacks, msCanWait, layer, toMainDC, after);
-    }
     try {
-        uint32 requestSize = request.size() >> 2;
-        if (dc->connectionInited()) layer = 0;
-        mtpRequest reqSerialized(mtpRequestData::prepare(requestSize + (layer ? 1 : 0)));
-        if (layer) reqSerialized->push_back(mtpLayers[layer]);
+		uint32 requestSize = request.innerLength() >> 2;
+		mtpRequest reqSerialized(mtpRequestData::prepare(requestSize));
         request.write(*reqSerialized);
 
         DEBUG_LOG(("MTP Info: adding request to toSendMap, msCanWait %1").arg(msCanWait));
 
         reqSerialized->msDate = getms(true); // > 0 - can send without container
+		reqSerialized->needsLayer = needsLayer;
 		if (after) reqSerialized->after = _mtp_internal::getRequest(after);
 		requestId = _mtp_internal::storeRequest(reqSerialized, callbacks);
 
@@ -43,46 +38,5 @@ mtpRequestId MTProtoSession::send(const TRequest &request, RPCResponseHandler ca
         _mtp_internal::rpcErrorOccured(requestId, callbacks, rpcClientError("NO_REQUEST_ID", QString("send() failed to queue request, exception: %1").arg(e.what())));
     }
     if (requestId) _mtp_internal::registerRequest(requestId, toMainDC ? -getDC() : getDC());
-    return requestId;
-}
-
-class RPCWrappedDcDoneHandler : public RPCAbstractDoneHandler {
-public:
-    RPCWrappedDcDoneHandler(const MTProtoDCPtr &dc, const RPCDoneHandlerPtr &ondone) : _dc(dc), _ondone(ondone) {
-    }
-
-    void operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) const {
-        _dc->setConnectionInited();
-        if (_ondone) (*_ondone)(requestId, from, end);
-    }
-
-private:
-    MTProtoDCPtr _dc;
-    RPCDoneHandlerPtr _ondone;
-};
-
-template <typename TRequest>
-mtpRequestId MTProtoSession::sendFirst(const MTPInitConnection<TRequest> &request, RPCResponseHandler callbacks, uint64 msCanWait, uint32 layer, bool toMainDC, mtpRequestId after) {
-    mtpRequestId requestId = 0;
-    try {
-        uint32 requestSize = request.size() >> 2;
-        mtpRequest reqSerialized(mtpRequestData::prepare(requestSize + (layer ? 1 : 0)));
-        if (layer) reqSerialized->push_back(mtpLayers[layer]);
-        request.write(*reqSerialized);
-
-        DEBUG_LOG(("MTP Info: adding wrapped to init connection request to toSendMap, msCanWait %1").arg(msCanWait));
-        callbacks.onDone = RPCDoneHandlerPtr(new RPCWrappedDcDoneHandler(dc, callbacks.onDone));
-        reqSerialized->msDate = getms(true); // > 0 - can send without container
-		if (after) reqSerialized->after = _mtp_internal::getRequest(after);
-		requestId = _mtp_internal::storeRequest(reqSerialized, callbacks);
-
-        sendPrepared(reqSerialized, msCanWait);
-    } catch (Exception &e) {
-        requestId = 0;
-        _mtp_internal::rpcErrorOccured(requestId, callbacks, rpcClientError("NO_REQUEST_ID", QString("sendFirst() failed to queue request, exception: %1").arg(e.what())));
-    }
-    if (requestId) {
-        _mtp_internal::registerRequest(requestId, toMainDC ? -getDC() : getDC());
-    }
     return requestId;
 }

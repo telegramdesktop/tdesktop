@@ -231,6 +231,7 @@ void AddParticipantInner::mousePressEvent(QMouseEvent *e) {
 }
 
 void AddParticipantInner::chooseParticipant() {
+	_time = unixtime();
 	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2, from;
 	if (_filter.isEmpty()) {
 		if (!_sel || contactData(_sel)->inchat) return;
@@ -293,6 +294,7 @@ void AddParticipantInner::updateSel() {
 }
 
 void AddParticipantInner::updateFilter(QString filter) {
+	_time = unixtime();
 	QStringList f;
 	if (!filter.isEmpty()) {
 		QStringList filterList = filter.split(cWordSplit(), QString::SkipEmptyParts);
@@ -405,6 +407,7 @@ AddParticipantInner::~AddParticipantInner() {
 }
 
 void AddParticipantInner::selectSkip(int32 dir) {
+	_time = unixtime();
 	_mouseSel = false;
 	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2, origDir = dir;
 	if (_filter.isEmpty()) {

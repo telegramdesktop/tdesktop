@@ -106,6 +106,13 @@ class MTPabstractConnection : public QObject {
 
 public:
 
+	MTPabstractConnection() : _sentEncrypted(false) {
+	}
+
+	void setSentEncrypted() {
+		_sentEncrypted = true;
+	}
+
 	virtual void sendData(mtpBuffer &buffer) = 0; // has size + 3, buffer[0] = len, buffer[1] = packetnum, buffer[last] = crc32
 	virtual void disconnectFromServer() = 0;
 	virtual void connectToServer(const QString &addr, int32 port) = 0;
@@ -135,6 +142,7 @@ signals:
 protected:
 
     BuffersQueue receivedQueue; // list of received packets, not processed yet
+	bool _sentEncrypted;
 
 };
 
@@ -189,6 +197,8 @@ public slots:
 	void onSocketDisconnected();
 	void onHttpStart();
 
+	void onTcpTimeoutTimer();
+
 protected:
 
 	void socketPacket(mtpPrime *packet, uint32 packetSize);
@@ -214,6 +224,10 @@ private:
 
 	typedef QSet<QNetworkReply*> Requests;
 	Requests requests;
+
+	QString _addr;
+	int32 _port, _tcpTimeout;
+	QTimer tcpTimeoutTimer;
 
 };
 

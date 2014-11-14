@@ -29,13 +29,6 @@ public:
 	void setKey(const mtpAuthKeyPtr &key);
 	void destroyKey();
 
-	bool needConnectionInit() {
-		QMutexLocker lock(&initLock);
-		if (_connectionInited || _connectionInitSent) return false;
-		_connectionInitSent = true;
-		return true;
-	}
-
 	bool connectionInited() const {
 		QMutexLocker lock(&initLock);
 		bool res = _connectionInited;
@@ -49,6 +42,7 @@ public:
 signals:
 
 	void authKeyCreated();
+	void layerWasInited(bool was);
 
 private slots:
 
@@ -61,7 +55,6 @@ private:
 	int32 _id;
 	mtpAuthKeyPtr _key;
 	bool _connectionInited;
-	bool _connectionInitSent;
 };
 
 typedef QSharedPointer<MTProtoDC> MTProtoDCPtr;

@@ -3975,7 +3975,7 @@ QString textAccentFold(const QString &text) {
 			continue;
 		}
 		if (ch->isHighSurrogate() && ch + 1 < e && (ch + 1)->isLowSurrogate()) {
-			QChar noAccent = QChar::surrogateToUcs4(*ch, *(ch + 1));
+			QChar noAccent = chNoAccent(QChar::surrogateToUcs4(*ch, *(ch + 1)));
 			if (noAccent.unicode() > 0) {
 				copying = true;
 				result[i] = noAccent;

@@ -183,8 +183,15 @@ namespace App {
 	}
 
 	QString onlineText(int32 online, int32 now, bool precise) {
-		if (!online) return lang(lng_status_offline);
-		if (online < 0) return lang(lng_status_invisible);
+		if (online <= 0) {
+			switch (online) {
+			case 0: return lang(lng_status_offline);
+			case -2: return lang(lng_status_recently);
+			case -3: return lang(lng_status_last_week);
+			case -4: return lang(lng_status_last_month);
+			}
+			return lang(lng_status_invisible);
+		}
 		if (online > now) {
 			return lang(lng_status_online);
 		}
@@ -329,6 +336,10 @@ namespace App {
 
 			data->loaded = true;
 			if (status) switch (status->type()) {
+			case mtpc_userStatusEmpty: data->onlineTill = 0; break;
+			case mtpc_userStatusRecently: data->onlineTill = -2; break;
+			case mtpc_userStatusLastWeek: data->onlineTill = -3; break;
+			case mtpc_userStatusLastMonth: data->onlineTill = -4; break;
 			case mtpc_userStatusOffline: data->onlineTill = status->c_userStatusOffline().vwas_online.v; break;
 			case mtpc_userStatusOnline: data->onlineTill = status->c_userStatusOnline().vexpires.v; break;
 			}
@@ -408,7 +419,7 @@ namespace App {
 			if (!data) continue;
 
 			data->loaded = true;
-			data->updateName(title.trimmed(), QString());
+			data->updateName(title.trimmed(), QString(), QString());
 
 			if (App::main()) App::main()->peerUpdated(data);
 		}

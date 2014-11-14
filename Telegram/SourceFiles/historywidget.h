@@ -343,6 +343,8 @@ signals:
 
 public slots:
 
+	void onCancel();
+
 	void peerUpdated(PeerData *data);
 
 	void cancelTyping();

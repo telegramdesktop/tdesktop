@@ -350,10 +350,6 @@ namespace _mtp_internal {
 		requestsByDC.remove(requestId);
 	}
 
-	uint32 getLayer() {
-		return layer;
-	}
-
 	mtpRequestId storeRequest(mtpRequest &request, const RPCResponseHandler &parser) {
 		mtpRequestId res = reqid();
 		request->requestId = res;
@@ -379,20 +375,25 @@ namespace _mtp_internal {
 		return req;
 	}
 
-	void wrapInvokeAfter(mtpRequest &to, const mtpRequest &from, const mtpRequestMap &haveSent) {
+	void wrapInvokeAfter(mtpRequest &to, const mtpRequest &from, const mtpRequestMap &haveSent, int32 skipBeforeRequest) {
 		mtpMsgId afterId(*(mtpMsgId*)(from->after->data() + 4));
 		mtpRequestMap::const_iterator i = afterId ? haveSent.constFind(afterId) : haveSent.cend();
-		int32 size = to->size(), len = (*from)[7] >> 2, headlen = 4, fulllen = headlen + len;
+		int32 size = to->size(), lenInInts = (from.innerLength() >> 2), headlen = 4, fulllen = headlen + lenInInts;
 		if (i == haveSent.constEnd()) { // no invoke after or such msg was not sent or was completed recently
-			to->resize(size + fulllen);
-			memcpy(to->data() + size, from->constData() + 4, fulllen * sizeof(mtpPrime));
+			to->resize(size + fulllen + skipBeforeRequest);
+			if (skipBeforeRequest) {
+				memcpy(to->data() + size, from->constData() + 4, headlen * sizeof(mtpPrime));
+				memcpy(to->data() + size + headlen + skipBeforeRequest, from->constData() + 4 + headlen, lenInInts * sizeof(mtpPrime));
+			} else {
+				memcpy(to->data() + size, from->constData() + 4, fulllen * sizeof(mtpPrime));
+			}
 		} else {
-			to->resize(size + fulllen + 3);
+			to->resize(size + fulllen + skipBeforeRequest + 3);
 			memcpy(to->data() + size, from->constData() + 4, headlen * sizeof(mtpPrime));
 			(*to)[size + 3] += 3 * sizeof(mtpPrime);
-			*((mtpTypeId*)&((*to)[size + headlen])) = mtpc_invokeAfterMsg;
-			memcpy(to->data() + size + headlen + 1, &afterId, 2 * sizeof(mtpPrime));
-			memcpy(to->data() + size + headlen + 3, from->constData() + 4 + headlen, len * sizeof(mtpPrime));
+			*((mtpTypeId*)&((*to)[size + headlen + skipBeforeRequest])) = mtpc_invokeAfterMsg;
+			memcpy(to->data() + size + headlen + skipBeforeRequest + 1, &afterId, 2 * sizeof(mtpPrime));
+			memcpy(to->data() + size + headlen + skipBeforeRequest + 3, from->constData() + 4 + headlen, lenInInts * sizeof(mtpPrime));
 			if (size + 3 != 7) (*to)[7] += 3 * sizeof(mtpPrime);
 		}
 	}
@@ -622,15 +623,6 @@ namespace MTP {
 				(*i)->restart();
 			}
 		}
-	}
-
-	void setLayer(uint32 l) {
-		if (l > mtpLayerMax) {
-			l = mtpLayerMax;
-		} else if (!l) {
-			l = 1;
-		}
-		layer = l - 1;
 	}
 
 	void setdc(int32 dc, bool fromZeroOnly) {

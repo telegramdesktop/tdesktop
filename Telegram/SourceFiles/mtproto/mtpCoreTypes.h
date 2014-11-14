@@ -62,7 +62,7 @@ public:
     explicit mtpRequest(mtpRequestData *ptr) : QSharedPointer<mtpRequestData>(ptr) {
 	}
 
-	uint32 size() const;
+	uint32 innerLength() const;
 	void write(mtpBuffer &to) const;
 
 	typedef void ResponseType; // don't know real response type =(
@@ -74,10 +74,12 @@ public:
 	// in toSend: = 0 - must send in container, > 0 - can send without container
 	// in haveSent: = 0 - container with msgIds, > 0 - when was sent
 	uint64 msDate;
+
 	mtpRequestId requestId;
 	mtpRequest after;
+	bool needsLayer;
 
-	mtpRequestData(bool/* sure*/) : msDate(0), requestId(0) {
+	mtpRequestData(bool/* sure*/) : msDate(0), requestId(0), needsLayer(false) {
 	}
 
 	static mtpRequest prepare(uint32 requestSize, uint32 maxSize = 0) {
@@ -92,7 +94,7 @@ public:
 	static void padding(mtpRequest &request) {
 		if (request->size() < 9) return;
 
-		uint32 requestSize = ((*request)[7] >> 2), padding = _padding(requestSize), fullSize = 8 + requestSize + padding; // 2: salt, 2: session_id, 2: msg_id, 1: seq_no, 1: message_length
+		uint32 requestSize = (request.innerLength() >> 2), padding = _padding(requestSize), fullSize = 8 + requestSize + padding; // 2: salt, 2: session_id, 2: msg_id, 1: seq_no, 1: message_length
         if (uint32(request->size()) != fullSize) {
 			request->resize(fullSize);
 			if (padding) {
@@ -103,7 +105,7 @@ public:
 
 	static uint32 messageSize(const mtpRequest &request) {
 		if (request->size() < 9) return 0;
-		return 4 + ((*request)[7] >> 2); // 2: msg_id, 1: seq_no, q: message_length
+		return 4 + (request.innerLength() >> 2); // 2: msg_id, 1: seq_no, q: message_length
 	}
 
 	static bool isSentContainer(const mtpRequest &request); // "request-like" wrap for msgIds vector
@@ -119,7 +121,7 @@ private:
 
 };
 
-inline uint32 mtpRequest::size() const { // for template MTP requests and MTPBoxed instanciation
+inline uint32 mtpRequest::innerLength() const { // for template MTP requests and MTPBoxed instanciation
     mtpRequestData *value = data();
 	if (!value || value->size() < 9) return 0;
 	return value->at(7);
@@ -128,7 +130,7 @@ inline uint32 mtpRequest::size() const { // for template MTP requests and MTPBox
 inline void mtpRequest::write(mtpBuffer &to) const {
     mtpRequestData *value = data();
 	if (!value || value->size() < 9) return;
-	uint32 was = to.size(), s = size() / sizeof(mtpPrime);
+	uint32 was = to.size(), s = innerLength() / sizeof(mtpPrime);
 	to.resize(was + s);
     memcpy(to.data() + was, value->constData() + 8, s * sizeof(mtpPrime));
 }
@@ -335,6 +337,8 @@ enum {
 	mtpc_invokeWithLayer17 = 0x50858a19,
 	mtpc_invokeWithLayer18 = 0x1c900537,
 
+	mtpc_invokeWithLayer   = 0xda9b0d0d, // after 18 layer
+
 	// manually parsed
 	mtpc_rpc_result = 0xf35c6d01,
 	mtpc_msg_container = 0x73f1f8dc,
@@ -362,7 +366,8 @@ static const mtpTypeId mtpLayers[] = {
 	mtpc_invokeWithLayer16,
 	mtpc_invokeWithLayer17,
 	mtpc_invokeWithLayer18,
-}, mtpLayerMax = sizeof(mtpLayers) / sizeof(mtpLayers[0]);
+}, mtpLayerMaxSingle = sizeof(mtpLayers) / sizeof(mtpLayers[0]);
+static const mtpPrime mtpCurrentLayer = 19;
 
 template <typename bareT>
 class MTPBoxed : public bareT {
@@ -386,8 +391,8 @@ public:
 		return *this;
 	}
 
-	uint32 size() const {
-		return sizeof(mtpTypeId) + bareT::size();
+	uint32 innerLength() const {
+		return sizeof(mtpTypeId) + bareT::innerLength();
 	}
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) {
 		if (from + 1 > end) throw mtpErrorInsufficient();
@@ -414,7 +419,7 @@ public:
 		read(from, end, cons);
 	}
 
-	uint32 size() const {
+	uint32 innerLength() const {
 		return sizeof(int32);
 	}
 	mtpTypeId type() const {
@@ -457,7 +462,7 @@ public:
 		read(from, end, cons);
 	}
 
-	uint32 size() const {
+	uint32 innerLength() const {
 		return sizeof(uint64);
 	}
 	mtpTypeId type() const {
@@ -503,7 +508,7 @@ public:
 		read(from, end, cons);
 	}
 
-	uint32 size() const {
+	uint32 innerLength() const {
 		return sizeof(uint64) + sizeof(uint64);
 	}
 	mtpTypeId type() const {
@@ -552,8 +557,8 @@ public:
 		read(from, end, cons);
 	}
 
-	uint32 size() const {
-		return l.size() + h.size();
+	uint32 innerLength() const {
+		return l.innerLength() + h.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_int256;
@@ -596,7 +601,7 @@ public:
 		read(from, end, cons);
 	}
 
-	uint32 size() const {
+	uint32 innerLength() const {
 		return sizeof(float64);
 	}
 	mtpTypeId type() const {
@@ -666,7 +671,7 @@ public:
 		return *(const MTPDstring*)data;
 	}
 
-	uint32 size() const {
+	uint32 innerLength() const {
 		uint32 l = c_string().v.length();
 		if (l < 254) {
 			l += 1;
@@ -770,7 +775,7 @@ public:
 		read(from, end, cons);
 	}
 
-	uint32 size() const {
+	uint32 innerLength() const {
 		return 0;
 	}
 	mtpTypeId type() const {
@@ -858,10 +863,10 @@ public:
 		return *(const MTPDvector<T>*)data;
 	}
 
-	uint32 size() const {
+	uint32 innerLength() const {
 		uint32 result(sizeof(uint32));
         for (typename VType::const_iterator i = c_vector().v.cbegin(), e = c_vector().v.cend(); i != e; ++i) {
-			result += i->size();
+			result += i->innerLength();
 		}
 		return result;
 	}
@@ -961,8 +966,8 @@ public:
 		return *(const MTPDerror*)data;
 	}
 
-	uint32 size() const {
-		return c_error().vcode.size() + c_error().vtext.size();
+	uint32 innerLength() const {
+		return c_error().vcode.innerLength() + c_error().vtext.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_error;
@@ -999,7 +1004,7 @@ public:
 		read(from, end, cons);
 	}
 
-	uint32 size() const {
+	uint32 innerLength() const {
 		return 0;
 	}
 	mtpTypeId type() const {

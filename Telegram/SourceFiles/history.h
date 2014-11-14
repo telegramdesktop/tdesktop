@@ -82,7 +82,7 @@ struct PeerData {
 	ChatData *asChat();
 	const ChatData *asChat() const;
 
-	void updateName(const QString &newName, const QString &newNameOrPhone);
+	void updateName(const QString &newName, const QString &newNameOrPhone, const QString &newUsername);
 
 	void fillNames();
 
