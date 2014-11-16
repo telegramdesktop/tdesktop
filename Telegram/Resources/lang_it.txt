@@ -48,7 +48,7 @@ lng_month12: "Dicembre";
 
 lng_weekday1: "Lun";
 lng_weekday2: "Mar";
-lng_weekday3: "Wer";
+lng_weekday3: "Mer";
 lng_weekday4: "Gio";
 lng_weekday5: "Ven";
 lng_weekday6: "Sab";
