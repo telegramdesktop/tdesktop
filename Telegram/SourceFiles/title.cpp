@@ -63,12 +63,11 @@ TitleWidget::TitleWidget(Window *window)
 {
 
 	setGeometry(0, 0, wnd->width(), st::titleHeight);
-	stateChanged();
-
 	_update.hide();
 	if (App::app()->updatingState() == Application::UpdatingReady) {
 		showUpdateBtn();
 	}
+	stateChanged();
 
 	connect(&_settings, SIGNAL(clicked()), window, SLOT(showSettings()));
 	connect(&_contacts, SIGNAL(clicked()), this, SLOT(onContacts()));
