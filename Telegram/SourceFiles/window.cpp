@@ -28,6 +28,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "mainwidget.h"
 #include "layerwidget.h"
 #include "settingswidget.h"
+#include "boxes/confirmbox.h"
 
 #include "mediaview.h"
 
@@ -480,6 +481,8 @@ void Window::setupMain(bool anim) {
 }
 
 void Window::showSettings() {
+	if (isHidden()) showFromTray();
+
 	App::wnd()->hideLayer();
 	if (settings) {
 		return hideSettings();
@@ -770,6 +773,7 @@ bool Window::minimizeToTray() {
 	}
 	if (App::main()) App::main()->setOnline(windowState());
 	updateTrayMenu();
+	updateGlobalMenu();
 	return true;
 }
 
@@ -810,6 +814,30 @@ void Window::updateTrayMenu(bool force) {
 	if (trayIcon) {
 		trayIcon->setContextMenu((active || cPlatform() != dbipMac) ? trayIconMenu : 0);
 	}
+#endif
+}
+
+void Window::onShowNewGroup() {
+	if (isHidden()) showFromTray();
+
+	if (main) main->showNewGroup();
+}
+
+void Window::onLogout() {
+	if (isHidden()) showFromTray();
+
+	ConfirmBox *box = new ConfirmBox(lang(lng_sure_logout));
+	connect(box, SIGNAL(confirmed()), this, SLOT(onLogoutSure()));
+	App::wnd()->showLayer(box);
+}
+
+void Window::onLogoutSure() {
+	App::logOut();
+}
+
+void Window::updateGlobalMenu() {
+#ifdef Q_OS_MAC
+	psMacUpdateMenu();
 #endif
 }
 
@@ -878,6 +906,7 @@ void Window::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 		psUpdateCounter();
 		if (App::main()) App::main()->setOnline(windowState());
 		QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
+		QTimer::singleShot(1, this, SLOT(updateGlobalMenu()));
 	}
 }
 

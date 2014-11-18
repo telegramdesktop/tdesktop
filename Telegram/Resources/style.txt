@@ -29,7 +29,7 @@ emojiPadding: 0px;
 counterBG: #f23c34;
 counterMuteBG: #888;
 counterColor: #fff;
-counterMacInvColor: #045fd5;
+counterMacInvColor: #ffffff01;
 
 lineWidth: 1px;
 

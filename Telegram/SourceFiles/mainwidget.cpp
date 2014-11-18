@@ -766,10 +766,13 @@ void MainWidget::peerUsernameChanged(PeerData *peer) {
 
 void MainWidget::checkLastUpdate(bool afterSleep) {
 	uint64 n = getms(true);
-	LOG(("Checking last update!.. last update %1, now %2, noUpdatesTimer %3, remains %4").arg(_lastUpdateTime).arg(n).arg(noUpdatesTimer.isActive() ? 1 : 0).arg(noUpdatesTimer.remainingTime()));
 	if (_lastUpdateTime && n > _lastUpdateTime + (afterSleep ? NoUpdatesAfterSleepTimeout : NoUpdatesTimeout)) {
 		getDifference();
 	}
+}
+
+void MainWidget::showNewGroup() {
+	dialogs.onNewGroup();
 }
 
 void MainWidget::photosLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req) {

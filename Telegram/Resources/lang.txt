@@ -236,6 +236,7 @@ lng_connection_save: "Save";
 lng_settings_reset: "Reset other sessions";
 lng_settings_reset_done: "Sessions reset done";
 lng_settings_logout: "Log Out";
+lng_sure_logout: "Are you sure you want to log out?";
 
 lng_settings_need_restart: "You need to restart for applying
 some of the new settings. Restart now?";
@@ -476,5 +477,21 @@ lng_mac_always_open_with: "Always Open With";
 lng_mac_this_app_can_open: "This application can open \"{file}\".";
 lng_mac_not_known_app: "It's not known if this application can open \"{file}\".";
 
-// Keys finished
+lng_mac_menu_about: "About Telegram";
+lng_mac_menu_preferences: "Preferences...";
+lng_mac_menu_file: "File";
+lng_mac_menu_logout: "Log Out";
+lng_mac_menu_edit: "Edit";
+lng_mac_menu_undo: "Undo";
+lng_mac_menu_redo: "Redo";
+lng_mac_menu_cut: "Cut";
+lng_mac_menu_copy: "Copy";
+lng_mac_menu_paste: "Paste";
+lng_mac_menu_delete: "Delete";
+lng_mac_menu_select_all: "Select All";
+lng_mac_menu_window: "Window";
+lng_mac_menu_contacts: "Contacts";
+lng_mac_menu_new_group: "New Group";
+lng_mac_menu_show: "Show Telegram";
 
+// Keys finished

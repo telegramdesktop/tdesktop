@@ -239,7 +239,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	// advanced
 	connect(&_connectionType, SIGNAL(clicked()), this, SLOT(onConnectionType()));
 	connect(&_resetSessions, SIGNAL(clicked()), this, SLOT(onResetSessions()));
-	connect(&_logOut, SIGNAL(clicked()), this, SLOT(onLogout()));
+	connect(&_logOut, SIGNAL(clicked()), App::wnd(), SLOT(onLogout()));
 
 	_connectionTypeText = lang(lng_connection_type) + ' ';
 	_connectionTypeWidth = st::linkFont->m.width(_connectionTypeText);
@@ -821,10 +821,6 @@ void SettingsInner::onUpdatePhoto() {
 	PhotoCropBox *box = new PhotoCropBox(img, self()->id);
 	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUpdateStart()));
 	App::wnd()->showLayer(box);
-}
-
-void SettingsInner::onLogout() {
-	App::logOut();
 }
 
 void SettingsInner::onResetSessions() {

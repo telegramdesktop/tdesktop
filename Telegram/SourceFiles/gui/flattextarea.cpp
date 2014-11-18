@@ -19,11 +19,12 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "style.h"
 
 #include "flattextarea.h"
+#include "window.h"
 
 FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(v, parent),
 	_ph(pholder), _oldtext(v), _phVisible(!v.length()),
     a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c),
-    _st(st), _fakeMargin(0),
+    _st(st), _undoAvailable(false), _redoAvailable(false), _fakeMargin(0),
     _touchPress(false), _touchRightButton(false), _touchMove(false), _replacingEmojis(false) {
 	setAcceptRichText(false);
 	resize(_st.width, _st.font->height);
@@ -58,6 +59,9 @@ FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const
 
 	connect(document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(onDocumentContentsChange(int, int, int)));
 	connect(document(), SIGNAL(contentsChanged()), this, SLOT(onDocumentContentsChanged()));
+	connect(this, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
+	connect(this, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
+	if (App::wnd()) connect(this, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
 }
 
 void FlatTextarea::onTouchTimer() {
@@ -268,6 +272,14 @@ bool FlatTextarea::hasText() const {
 	return (from.next() != till);
 }
 
+bool FlatTextarea::isUndoAvailable() const {
+	return _undoAvailable;
+}
+
+bool FlatTextarea::isRedoAvailable() const {
+	return _redoAvailable;
+}
+
 void FlatTextarea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 	c.removeSelectedText();
 
@@ -398,6 +410,17 @@ void FlatTextarea::onDocumentContentsChanged() {
 		emit changed();
 	}
 	updatePlaceholder();
+	if (App::wnd()) App::wnd()->updateGlobalMenu();
+}
+
+void FlatTextarea::onUndoAvailable(bool avail) {
+	_undoAvailable = avail;
+	if (App::wnd()) App::wnd()->updateGlobalMenu();
+}
+
+void FlatTextarea::onRedoAvailable(bool avail) {
+	_redoAvailable = avail;
+	if (App::wnd()) App::wnd()->updateGlobalMenu();
 }
 
 bool FlatTextarea::animStep(float64 ms) {

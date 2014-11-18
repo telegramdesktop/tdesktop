@@ -139,5 +139,5 @@ private:
 	PsUpdateDownloader *updateDownloader;
 
 	QTimer writeUserConfigTimer;
-	
+
 };

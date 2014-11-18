@@ -19,6 +19,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "style.h"
 
 #include "flatinput.h"
+#include "window.h"
 
 namespace {
 	class FlatInputStyle : public QCommonStyle {
@@ -57,6 +58,7 @@ FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString 
 
 	connect(this, SIGNAL(textChanged(const QString &)), this, SLOT(onTextChange(const QString &)));
 	connect(this, SIGNAL(textEdited(const QString &)), this, SLOT(onTextEdited()));
+	if (App::wnd()) connect(this, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
 
 	setStyle(&_flatInputStyle);
 	setTextMargins(0, 0, 0, 0);
@@ -262,10 +264,12 @@ void FlatInput::onTextEdited() {
 	_oldtext = text();
 	if (was != _oldtext) emit changed();
 	updatePlaceholder();
+	if (App::wnd()) App::wnd()->updateGlobalMenu();
 }
 
 void FlatInput::onTextChange(const QString &text) {
 	_oldtext = text;
+	if (App::wnd()) App::wnd()->updateGlobalMenu();
 }
 
 void FlatInput::notaBene() {
