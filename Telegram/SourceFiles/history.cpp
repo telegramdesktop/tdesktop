@@ -2105,6 +2105,10 @@ int32 HistoryPhoto::resize(int32 width, bool dontRecountText, const HistoryItem 
 		th = (st::maxMediaSize * th) / tw;
 		tw = st::maxMediaSize;
 	}
+	if (th > st::maxMediaSize) {
+		tw = (st::maxMediaSize * tw) / th;
+		th = st::maxMediaSize;
+	}
 	_height = th;
 	if (tw > w) {
 		_height = (w * _height / tw);

@@ -1,6 +1,6 @@
 @echo OFF
 
-set "AppVersionStr=0.6.9"
+set "AppVersionStr=0.6.10"
 echo.
 echo Preparing version %AppVersionStr%..
 echo.

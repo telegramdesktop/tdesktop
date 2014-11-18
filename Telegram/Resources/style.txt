@@ -1625,7 +1625,7 @@ mediaviewLoaderSkip: 9px;
 
 minPhotoWidth: 90px;
 minPhotoHeight: 90px;
-maxMediaSize: 400px;
+maxMediaSize: 420px;
 
 usernameFont: font(14px);
 usernameColor: #777;
