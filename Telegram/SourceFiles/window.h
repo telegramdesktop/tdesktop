@@ -249,6 +249,11 @@ public slots:
 	void notifyFire();
 	void updateTrayMenu(bool force = false);
 
+	void onShowNewGroup();
+	void onLogout();
+	void onLogoutSure();
+	void updateGlobalMenu(); // for OS X top menu
+
 signals:
 
 	void resized(const QSize &size);

@@ -36,6 +36,8 @@ public:
         
     virtual void activeSpaceChanged() {
     }
+	virtual void darkModeChanged() {
+	}
     virtual void notifyClicked(unsigned long long peer) {
     }
     virtual void notifyReplied(unsigned long long peer, const char *str) {
@@ -48,6 +50,7 @@ public:
 };
 
 void objc_holdOnTop(WId winId);
+bool objc_darkMode();
 void objc_showOverAll(WId winId, bool canFocus = true);
 void objc_bringToBack(WId winId);
 void objc_activateWnd(WId winId);

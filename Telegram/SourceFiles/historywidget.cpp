@@ -976,6 +976,14 @@ HistoryItem *HistoryList::nextItem(HistoryItem *item) {
 	return 0;
 }
 
+bool HistoryList::canCopySelected() const {
+	return !_selected.isEmpty();
+}
+
+bool HistoryList::canDeleteSelected() const {
+	return !_selected.isEmpty() && (_selected.cbegin().value() == FullItemSel);
+}
+
 void HistoryList::getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const {
 	selectedForForward = selectedForDelete = 0;
 	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {

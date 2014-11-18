@@ -51,12 +51,18 @@ public:
 	QString getText(int32 start = 0, int32 end = -1) const;
 	bool hasText() const;
 
+	bool isUndoAvailable() const;
+	bool isRedoAvailable() const;
+
 public slots:
 
 	void onTouchTimer();
 
 	void onDocumentContentsChange(int position, int charsRemoved, int charsAdded);
 	void onDocumentContentsChanged();
+
+	void onUndoAvailable(bool avail);
+	void onRedoAvailable(bool avail);
 
 signals:
 
@@ -81,6 +87,8 @@ private:
 	anim::fvalue a_phAlpha;
 	anim::cvalue a_phColor;
 	style::flatTextarea _st;
+
+	bool _undoAvailable, _redoAvailable;
 
 	int32 _fakeMargin;
 

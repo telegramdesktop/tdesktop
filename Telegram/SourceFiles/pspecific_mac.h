@@ -33,6 +33,7 @@ class MacPrivate : public PsMacWindowPrivate {
 public:
     
     void activeSpaceChanged();
+	void darkModeChanged();
     void notifyClicked(unsigned long long peer);
     void notifyReplied(unsigned long long peer, const char *str);
     
@@ -79,6 +80,8 @@ public:
 	void psNotifyShown(NotifyWindow *w);
 	void psPlatformNotify(HistoryItem *item);
 
+	bool eventFilter(QObject *obj, QEvent *evt);
+
 	~PsMainWindow();
 
 public slots:
@@ -90,10 +93,20 @@ public slots:
 	void psIdleTimeout();
 	void psShowTrayMenu();
 
+	void psMacUndo();
+	void psMacRedo();
+	void psMacCut();
+	void psMacCopy();
+	void psMacPaste();
+	void psMacDelete();
+	void psMacSelectAll();
+
 protected:
 
 	void psNotIdle() const;
 	QImage psTrayIcon(bool selected = false) const;
+
+	void psMacUpdateMenu();
 
 	bool posInited;
     QSystemTrayIcon *trayIcon;
@@ -114,6 +127,10 @@ private:
 
 	mutable bool psIdle;
 	mutable QTimer psIdleTimer;
+
+	QMenuBar psMainMenu;
+	QAction *psLogout, *psUndo, *psRedo, *psCut, *psCopy, *psPaste, *psDelete, *psSelectAll, *psContacts, *psNewGroup, *psShowTelegram;
+
 };
 
 

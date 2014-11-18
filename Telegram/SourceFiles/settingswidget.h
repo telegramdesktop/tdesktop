@@ -133,7 +133,6 @@ public slots:
 	void onUpdateReady();
 	void onUpdateFailed();
 
-	void onLogout();
 	void onResetSessions();
 
 	void onPhotoUpdateDone(PeerId peer);

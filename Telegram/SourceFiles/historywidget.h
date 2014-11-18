@@ -68,6 +68,9 @@ public:
 
 	void updateMsg(const HistoryItem *msg);
 
+	bool canCopySelected() const;
+	bool canDeleteSelected() const;
+
 	void getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const;
 	void clearSelectedItems(bool onlyTextSelection = false);
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);

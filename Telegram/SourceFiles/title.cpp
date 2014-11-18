@@ -117,11 +117,14 @@ void TitleWidget::setHideLevel(float64 level) {
 }
 
 void TitleWidget::onContacts() {
+	if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
+
 	if (!App::self()) return;
 	App::wnd()->showLayer(new ContactsBox());
 }
 
 void TitleWidget::onAbout() {
+	if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
 	App::wnd()->showLayer(new AboutBox());
 }
 

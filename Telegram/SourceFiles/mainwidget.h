@@ -285,6 +285,7 @@ public:
 	void peerUsernameChanged(PeerData *peer);
 
 	void checkLastUpdate(bool afterSleep);
+	void showNewGroup();
 
 	~MainWidget();
 

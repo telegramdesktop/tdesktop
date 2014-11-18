@@ -85,6 +85,7 @@ QNSString objc_lang(LangKey key) {
 
 - (id) init:(PsMacWindowPrivate *)aWnd;
 - (void) activeSpaceDidChange:(NSNotification *)aNotification;
+- (void) darkModeChanged:(NSNotification *)aNotification;
 
 @end
 
@@ -145,6 +146,10 @@ public:
     wnd->activeSpaceChanged();
 }
 
+- (void) darkModeChanged:(NSNotification *)aNotification {
+	wnd->darkModeChanged();
+}
+
 @end
 
 @implementation NotifyHandler {
@@ -180,6 +185,7 @@ public:
 
 PsMacWindowPrivate::PsMacWindowPrivate() : data(new PsMacWindowData(this)) {
     [[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:data->observerHelper selector:@selector(activeSpaceDidChange:) name:NSWorkspaceActiveSpaceDidChangeNotification object:nil];
+	[[NSDistributedNotificationCenter defaultCenter] addObserver:data->observerHelper selector:@selector(darkModeChanged:) name:@"AppleInterfaceThemeChangedNotification" object:nil];
 }
 
 void PsMacWindowPrivate::setWindowBadge(const QString &str) {
@@ -198,6 +204,13 @@ void PsMacWindowPrivate::updateDelegate() {
 void objc_holdOnTop(WId winId) {
     NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
     [wnd setHidesOnDeactivate:NO];
+}
+
+bool objc_darkMode() {
+	NSDictionary *dict = [[NSUserDefaults standardUserDefaults] persistentDomainForName:NSGlobalDomain];
+	id style = [dict objectForKey:@"AppleInterfaceStyle"];
+	BOOL darkModeOn = ( style && [style isKindOfClass:[NSString class]] && NSOrderedSame == [style caseInsensitiveCompare:@"dark"] );
+	return darkModeOn ? true : false;
 }
 
 void objc_showOverAll(WId winId, bool canFocus) {

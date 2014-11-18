@@ -309,7 +309,10 @@ namespace App {
 				data->contact = -1;
 				status = &d.vstatus;
 
-				::self = data;
+				if (::self != data) {
+					::self = data;
+					if (App::wnd()) App::wnd()->updateGlobalMenu();
+				}
 			} break;
 			case mtpc_userContact: {
 				const MTPDuserContact &d(user.c_userContact());
@@ -1278,6 +1281,7 @@ namespace App {
 		lastPhotos.clear();
 		lastPhotosMap.clear();
 		::self = 0;
+		if (App::wnd()) App::wnd()->updateGlobalMenu();
 	}
 /* // don't delete history without deleting its' peerdata
 	void deleteHistory(const PeerId &peer) {
