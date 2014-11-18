@@ -36,7 +36,7 @@ private:
 
 };
 
-class TitleWidget : public QWidget {
+class TitleWidget : public QWidget, public Animated {
 	Q_OBJECT
 
 public:
@@ -48,11 +48,13 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void mouseDoubleClickEvent(QMouseEvent *e);
 
-	void maximizedChanged(bool maximized);
+	void maximizedChanged(bool maximized, bool force = false);
 
 	HitTestType hitTest(const QPoint &p);
 
 	void setHideLevel(float64 level);
+
+	bool animStep(float64 ms);
 
 	~TitleWidget();
 
@@ -75,6 +77,8 @@ private:
 
 	float64 hideLevel;
 	TitleHider *hider;
+
+	float64 _lastUpdateMs;
 
 	FlatButton _settings, _contacts, _about;
 

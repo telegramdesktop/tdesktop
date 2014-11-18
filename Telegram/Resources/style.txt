@@ -86,6 +86,7 @@ sysUpd: sysButton {
 	overColor: white;
 	duration: 150;
 }
+updateBlinkDuration: 500;
 sysMin: sysButton(sysUpd) {
 	img: sprite(207px, 1px, 19px, 19px);
 }
@@ -1624,6 +1625,7 @@ mediaviewLoaderSkip: 9px;
 
 minPhotoWidth: 90px;
 minPhotoHeight: 90px;
+maxMediaSize: 400px;
 
 usernameFont: font(14px);
 usernameColor: #777;

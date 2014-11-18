@@ -1218,11 +1218,18 @@ HistoryItem *regItem(HistoryItem *item, bool returnExisting = false);
 class HistoryMedia : public HistoryElem {
 public:
 
+	HistoryMedia(int32 width = 0) : w(width) {
+	}
+
 	virtual HistoryMediaType type() const = 0;
 	virtual const QString inDialogsText() const = 0;
 	virtual bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const = 0;
 	virtual int32 countHeight(const HistoryItem *parent, int32 width = -1) const {
 		return height();
+	}
+	virtual int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0) {
+		w = qMin(width, _maxw);
+		return _height;
 	}
 	virtual TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const = 0;
 	virtual void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const = 0;
@@ -1243,6 +1250,14 @@ public:
 	virtual bool animating() const {
 		return false;
 	}
+
+	int32 currentWidth() const {
+		return w;
+	}
+
+protected:
+
+	int32 w;
 
 };
 
@@ -1281,7 +1296,7 @@ public:
 private:
 	PhotoData *data;
 	TextLinkPtr openl;
-	int32 w;
+
 };
 
 QString formatSizeText(qint64 size);
@@ -1293,7 +1308,6 @@ public:
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
-	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	HistoryMediaType type() const {
 		return MediaTypeVideo;
 	}
@@ -1311,8 +1325,7 @@ public:
 private:
 	VideoData *data;
 	TextLinkPtr _openl, _savel, _cancell;
-	int32 w;
-
+	
 	QString _size;
 	int32 _thumbw, _thumbx, _thumby;
 
@@ -1327,7 +1340,6 @@ public:
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
-	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	HistoryMediaType type() const {
 		return MediaTypeAudio;
 	}
@@ -1345,7 +1357,6 @@ public:
 private:
 	AudioData *data;
 	TextLinkPtr _openl, _savel, _cancell;
-	int32 w;
 
 	QString _size;
 
@@ -1386,7 +1397,6 @@ private:
 
 	DocumentData *data;
 	TextLinkPtr _openl, _savel, _cancell;
-	int32 w;
 
 	int32 _namew;
 	QString _name, _size;
@@ -1494,7 +1504,7 @@ public:
 
 private:
 	ImageLinkData *data;
-	int32 w;
+
 };
 
 class HistoryMessage : public HistoryItem {

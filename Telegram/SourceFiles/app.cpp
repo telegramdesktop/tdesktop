@@ -165,6 +165,31 @@ namespace App {
         return (peer_id & 0x100000000L) ? int32(peer_id & 0xFFFFFFFFL) : 0;
     }
 
+	int32 onlineForSort(int32 online, int32 now) {
+		if (online <= 0) {
+			switch (online) {
+			case -2: {
+				QDate yesterday(date(now).date());
+				yesterday.addDays(-1);
+				return int32(QDateTime(yesterday).toTime_t());
+			} break;
+
+			case -3: {
+				QDate weekago(date(now).date());
+				weekago.addDays(-7);
+				return int32(QDateTime(weekago).toTime_t());
+			} break;
+
+			case -4: {
+				QDate monthago(date(now).date());
+				monthago.addDays(-30);
+				return int32(QDateTime(monthago).toTime_t());
+			} break;
+			}
+		}
+		return online;
+	}
+
 	int32 onlineWillChangeIn(int32 online, int32 now) {
 		if (online <= 0) return 86400;
 		if (online > now) {

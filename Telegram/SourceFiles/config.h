@@ -37,6 +37,7 @@ enum {
 	MTPAckSendWaiting = 10000, // how much time to wait for some more requests, when sending msg acks
 	MTPResendThreshold = 1, // how much ints should message contain for us not to resend, but to check it's state
 	MTPContainerLives = 600, // container lives 10 minutes in haveSent map
+	MTPMinReceiveDelay = 4000, // 4 seconds
 	MTPMaxReceiveDelay = 64000, // 64 seconds
 	MTPConnectionOldTimeout = 192000, // 192 seconds
 	MTPTcpConnectionWaitTimeout = 3000, // 3 seconds waiting for tcp, until we accept http
@@ -50,7 +51,6 @@ enum {
 
 	MTPDebugBufferSize = 1024 * 1024, // 1 mb start size
 
-	MinReceiveDelay = 1000, // 1 seconds
 	MaxSelectedItems = 100,
 
 	MaxPhoneTailLength = 18, // rest of the phone number, without country code (seen 12 at least)

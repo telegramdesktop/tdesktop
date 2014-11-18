@@ -309,8 +309,8 @@ void MTProtoConnection::restart() {
 }
 
 void MTProtoConnection::stop() {
-	data->stop();
-	thread->quit();
+	if (data) data->stop();
+	if (thread) thread->quit();
 }
 
 void MTProtoConnection::stopped() {
@@ -604,7 +604,7 @@ void MTPabstractTcpConnection::socketRead() {
 }
 
 MTPautoConnection::MTPautoConnection(QThread *thread) : status(WaitingBoth),
-tcpNonce(MTP::nonce<MTPint128>()), httpNonce(MTP::nonce<MTPint128>()), _tcpTimeout(1) {
+tcpNonce(MTP::nonce<MTPint128>()), httpNonce(MTP::nonce<MTPint128>()), _tcpTimeout(MTPMinReceiveDelay) {
 	moveToThread(thread);
 
 	manager.moveToThread(thread);
@@ -642,7 +642,7 @@ void MTPautoConnection::onSocketConnected() {
 		DEBUG_LOG(("Connection Info: sending fake req_pq through tcp transport"));
 
 		if (_tcpTimeout < 0) _tcpTimeout = -_tcpTimeout;
-		tcpTimeoutTimer.start(_tcpTimeout * 1000);
+		tcpTimeoutTimer.start(_tcpTimeout);
 
 		tcpSend(buffer);
 	} else if (status == WaitingHttp || status == UsingHttp) {
@@ -652,7 +652,7 @@ void MTPautoConnection::onSocketConnected() {
 
 void MTPautoConnection::onTcpTimeoutTimer() {
 	if (status == HttpReady || status == WaitingBoth || status == WaitingTcp) {
-		if (_tcpTimeout < 64) _tcpTimeout *= 2;
+		if (_tcpTimeout < MTPMaxReceiveDelay) _tcpTimeout *= 2;
 		_tcpTimeout = -_tcpTimeout;
 
 		QAbstractSocket::SocketState state = sock.state();
@@ -1083,7 +1083,7 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
     , conn(0)
     , retryTimeout(1)
     , oldConnection(true)
-    , receiveDelay(MinReceiveDelay)
+    , receiveDelay(MTPMinReceiveDelay)
     , firstSentAt(-1)
     , pingId(0)
     , toSendPingId(0)
@@ -1774,14 +1774,14 @@ void MTProtoConnectionPrivate::onReceivedSome() {
 		int32 ms = getms(true) - firstSentAt;
 		DEBUG_LOG(("MTP Info: response in %1ms, receiveDelay: %2ms").arg(ms).arg(receiveDelay));
 
-		if (ms > 0 && ms * 2 < int32(receiveDelay)) receiveDelay = qMax(ms * 2, int32(MinReceiveDelay));
+		if (ms > 0 && ms * 2 < int32(receiveDelay)) receiveDelay = qMax(ms * 2, int32(MTPMinReceiveDelay));
 		firstSentAt = -1;
 	}
 }
 
 void MTProtoConnectionPrivate::onOldConnection() {
 	oldConnection = true;
-	receiveDelay = MinReceiveDelay;
+	receiveDelay = MTPMinReceiveDelay;
 	DEBUG_LOG(("This connection marked as old! delay now %1ms").arg(receiveDelay));
 }
 

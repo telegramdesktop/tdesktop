@@ -22,6 +22,7 @@ lng_maintitle: "Telegram D";
 lng_menu_contacts: "Contacts";
 lng_menu_settings: "Settings";
 lng_menu_about: "About";
+lng_menu_update: "Update";
 
 lng_open_from_tray: "Open Telegram";
 lng_minimize_to_tray: "Minimize to tray";

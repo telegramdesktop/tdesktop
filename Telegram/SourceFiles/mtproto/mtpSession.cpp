@@ -129,7 +129,7 @@ void MTProtoSession::restart() {
 }
 
 void MTProtoSession::stop() {
-	while (connections.size()) {
+	while (!connections.isEmpty()) {
 		connections.back()->stop();
 		connections.pop_back();
 	}

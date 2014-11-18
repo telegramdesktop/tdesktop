@@ -340,13 +340,13 @@ void ProfileInner::reorderParticipants() {
 		UserData *self = App::self();
 		for (ChatData::Participants::const_iterator i = _peerChat->participants.cbegin(), e = _peerChat->participants.cend(); i != e; ++i) {
 			UserData *user = i.key();
-			int32 until = user->onlineTill;
+			int32 until = App::onlineForSort(user->onlineTill, t);
 			Participants::iterator before = _participants.begin();
 			if (user != self) {
 				if (before != _participants.end() && (*before) == self) {
 					++before;
 				}
-				while (before != _participants.end() && (*before)->onlineTill >= until) {
+				while (before != _participants.end() && App::onlineForSort((*before)->onlineTill, t) >= until) {
 					++before;
 				}
 			}

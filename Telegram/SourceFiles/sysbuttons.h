@@ -28,11 +28,13 @@ class SysBtn : public Button, public Animated {
 
 public:
 
-	SysBtn(QWidget *parent, const style::sysButton &st);
+	SysBtn(QWidget *parent, const style::sysButton &st, const QString &text = QString());
 
 	void paintEvent(QPaintEvent *e);
 
 	HitTestType hitTest(const QPoint &p) const;
+
+	void setOverLevel(float64 level);
 
 	bool animStep(float64 ms);
 
@@ -44,6 +46,8 @@ protected:
 
 	style::sysButton _st;
 	anim::cvalue a_color;
+	float64 _overLevel;
+	QString _text;
 
 };
 
@@ -116,7 +120,7 @@ class UpdateBtn : public SysBtn {
 
 public:
 
-	UpdateBtn(QWidget *parent, Window *window);
+	UpdateBtn(QWidget *parent, Window *window, const QString &text = QString());
 
 public slots:
 
