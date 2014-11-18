@@ -1,5 +1,5 @@
-AppVersionStr=0.6.10
-AppVersion=6010
+AppVersionStr=0.6.11
+AppVersion=6011
 
 if [ -d "./../Linux/Release/deploy/$AppVersionStr" ]; then
   echo "Deploy folder for version $AppVersionStr already exists!"

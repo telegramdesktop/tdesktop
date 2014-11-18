@@ -3849,7 +3849,10 @@ int32 HistoryMessage::resize(int32 width, bool dontRecountText, const HistoryIte
 
 bool HistoryMessage::hasPoint(int32 x, int32 y) const {
 	int32 left = _out ? st::msgMargin.right() : st::msgMargin.left(), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
-	if (_media && _media->maxWidth() > mwidth) mwidth = _media->maxWidth();
+	if (_media) {
+		if (_media->maxWidth() > mwidth) mwidth = _media->maxWidth();
+		if (_media->currentWidth() < mwidth) mwidth = _media->currentWidth();
+	}
 	if (width > mwidth) {
 		if (_out) left += width - mwidth;
 		width = mwidth;
@@ -3876,7 +3879,10 @@ void HistoryMessage::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) 
 	lnk = TextLinkPtr();
 
 	int32 left = _out ? st::msgMargin.right() : st::msgMargin.left(), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
-	if (_media && _media->maxWidth() > mwidth) mwidth = _media->maxWidth();
+	if (_media) {
+		if (_media->maxWidth() > mwidth) mwidth = _media->maxWidth();
+		if (_media->currentWidth() < mwidth) mwidth = _media->currentWidth();
+	}
 	if (width > mwidth) {
 		if (_out) left += width - mwidth;
 		width = mwidth;

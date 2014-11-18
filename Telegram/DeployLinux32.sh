@@ -1,5 +1,5 @@
-AppVersionStr=0.6.10
-AppVersion=6010
+AppVersionStr=0.6.11
+AppVersion=6011
 
 if [ ! -f "./../Linux/Release/deploy/$AppVersionStr/tlinux32upd$AppVersion" ]; then
     echo "tlinux32upd$AppVersion not found!"
