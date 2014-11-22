@@ -93,6 +93,7 @@ SOURCES += \
     ./SourceFiles/overviewwidget.cpp \
     ./SourceFiles/profilewidget.cpp \
     ./SourceFiles/localimageloader.cpp \
+    ./SourceFiles/localstorage.cpp \
     ./SourceFiles/logs.cpp \
     ./SourceFiles/mainwidget.cpp \
     ./SourceFiles/settings.cpp \
@@ -168,6 +169,7 @@ HEADERS += \
     ./SourceFiles/overviewwidget.h \
     ./SourceFiles/profilewidget.h \
     ./SourceFiles/localimageloader.h \
+    ./SourceFiles/localstorage.h \
     ./SourceFiles/logs.h \
     ./SourceFiles/mainwidget.h \
     ./SourceFiles/settings.h \

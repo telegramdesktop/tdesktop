@@ -235,7 +235,6 @@ public:
 
 	template <typename TRequest>
 	mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), uint64 msCanWait = 0, bool needsLayer = false, bool toMainDC = false, mtpRequestId after = 0); // send mtp request
-	void sendAnything(uint64 msCanWait);
 
 	void cancel(mtpRequestId requestId, mtpMsgId msgId);
 	int32 requestState(mtpRequestId requestId) const;
@@ -253,10 +252,6 @@ signals:
 	void authKeyCreated();
 
 	void needToSend();
-	void needToSendAsync(); // emit this signal, to emit needToSend() in MTProtoSession thread
-
-	void startSendTimer(int msec); // manipulating timer from all threads
-	void stopSendTimer();
 
 public slots:
 
@@ -267,6 +262,8 @@ public slots:
 	void checkRequestsByTimer();
 	void onConnectionStateChange(qint32 newState);
 	void onResetDone();
+
+	void sendAnything(quint64 msCanWait);
 
 private:
 	

@@ -118,7 +118,7 @@ AddParticipantInner::ContactData *AddParticipantInner::contactData(DialogRow *ro
 			data->inchat = _chat->participants.constFind(user) != _chat->participants.cend();
 			data->check = false;
 			data->name.setText(st::profileListNameFont, user->name, _textNameOptions);
-			data->online = App::onlineText(user->onlineTill, _time);
+			data->online = App::onlineText(user, _time);
 		} else {
 			data = i.value();
 		}

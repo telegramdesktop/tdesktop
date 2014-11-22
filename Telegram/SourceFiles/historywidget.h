@@ -396,6 +396,9 @@ public slots:
 
 	void onAnimActiveStep();
 
+	void onDraftSaveDelayed();
+	void onDraftSave(bool delayed = false);
+
 private:
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
@@ -404,6 +407,7 @@ private:
 	void addMessagesToBack(const QVector<MTPMessage> &messages);
 	void chatLoaded(const MTPmessages_ChatFull &res);
 
+	void writeDraft(const QString *text = 0, const MessageCursor *cursor = 0);
 	void setFieldText(const QString &text);
 
 	QStringList getMediasFromMime(const QMimeData *d);
@@ -440,7 +444,7 @@ private:
 	int32 _selCount; // < 0 - text selected, focus list, not _field
 
 	LocalImageLoader imageLoader;
-	bool noTypingUpdate;
+	bool _synthedTextUpdate;
 
 	PeerId loadingChatId;
 	mtpRequestId loadingRequestId;
@@ -469,6 +473,10 @@ private:
 
 	mtpRequestId _typingRequest;
 	QTimer _typingStopTimer;
+
+	uint64 _saveDraftStart;
+	bool _saveDraftText;
+	QTimer _saveDraftTimer;
 
 };
 

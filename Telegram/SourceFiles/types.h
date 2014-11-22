@@ -101,45 +101,19 @@ inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
 bool checkms(); // returns true if time has changed
 uint64 getms(bool checked = false);
 
-class SingleTimer;
-void regSingleTimer(SingleTimer *timer);
-void unregSingleTimer(SingleTimer *timer);
-void adjustSingleTimers();
-
 class SingleTimer : public QTimer { // single shot timer with check
 	Q_OBJECT
 	
 public:
 
-	SingleTimer() : _finishing(0) {
-		QTimer::setSingleShot(true);
-		connect(this, SIGNAL(callAdjust()), this, SLOT(adjust()));
-		connect(this, SIGNAL(timeout()), this, SLOT(unreg()));
-	}
-
-	void start(int msec) {
-		_finishing = getms(true) + (msec < 0 ? 0 : uint64(msec));
-		QTimer::start(msec);
-		regSingleTimer(this);
-	}
-	void stop() {
-		QTimer::stop();
-		unreg();
-	}
+	SingleTimer();
 
 	void setSingleShot(bool); // is not available
 	void start(); // is not available
 
-	~SingleTimer() {
-		unreg();
-	}
-
-signals:
-
-	void callAdjust();
-
 public slots:
 
+	void start(int msec);
 	void adjust() {
 		uint64 n = getms(true);
 		if (isActive()) {
@@ -150,12 +124,10 @@ public slots:
 			}
 		}
 	}
-	void unreg() {
-		unregSingleTimer(this);
-	}
 
 private:
 	uint64 _finishing;
+	bool _inited;
 
 };
 

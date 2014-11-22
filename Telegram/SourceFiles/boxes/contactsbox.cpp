@@ -98,7 +98,7 @@ ContactsInner::ContactData *ContactsInner::contactData(DialogRow *row) {
 		if (i == _contactsData.cend()) {
 			_contactsData.insert(user, data = new ContactData());
 			data->name.setText(st::profileListNameFont, user->name, _textNameOptions);
-			data->online = App::onlineText(user->onlineTill, _time);
+			data->online = App::onlineText(user, _time);
 		} else {
 			data = i.value();
 		}

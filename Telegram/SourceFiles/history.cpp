@@ -27,6 +27,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "gui/filedialog.h"
 
 #include "audio.h"
+#include "localstorage.h"
 
 TextParseOptions _textNameOptions = {
 	0, // flags
@@ -2132,6 +2133,10 @@ const QString HistoryPhoto::inDialogsText() const {
 	return lang(lng_in_dlg_photo);
 }
 
+const QString HistoryPhoto::inHistoryText() const {
+	return qsl("[ ") + lang(lng_in_dlg_photo) + qsl(" ]");
+}
+
 bool HistoryPhoto::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 	return (x >= 0 && y >= 0 && x < width && y < _height);
@@ -2147,6 +2152,40 @@ TextLinkPtr HistoryPhoto::getLink(int32 x, int32 y, const HistoryItem *parent, i
 
 HistoryMedia *HistoryPhoto::clone() const {
 	return new HistoryPhoto(*this);
+}
+
+void HistoryPhoto::updateFrom(const MTPMessageMedia &media) {
+	if (media.type() == mtpc_messageMediaPhoto) {
+		const MTPPhoto &photo(media.c_messageMediaPhoto().vphoto);
+		if (photo.type() == mtpc_photo) {
+			const QVector<MTPPhotoSize> &sizes(photo.c_photo().vsizes.c_vector().v);
+			for (QVector<MTPPhotoSize>::const_iterator i = sizes.cbegin(), e = sizes.cend(); i != e; ++i) {
+				char size = 0;
+				const MTPFileLocation *loc = 0;
+				switch (i->type()) {
+				case mtpc_photoSize: {
+					const string &s(i->c_photoSize().vtype.c_string().v);
+					loc = &i->c_photoSize().vlocation;
+					if (s.size()) size = s[0];
+				} break;
+
+				case mtpc_photoCachedSize: {
+					const string &s(i->c_photoCachedSize().vtype.c_string().v);
+					loc = &i->c_photoSize().vlocation;
+					if (s.size()) size = s[0];
+				} break;
+				}
+				if (!loc || loc->type() != mtpc_fileLocation) continue;
+				if (size == 's') {
+					Local::writeImage(storageKey(loc->c_fileLocation()), data->thumb);
+				} else if (size == 'm') {
+					Local::writeImage(storageKey(loc->c_fileLocation()), data->medium);
+				} else if (size == 'x') {
+					Local::writeImage(storageKey(loc->c_fileLocation()), data->full);
+				}
+			}
+		}
+	}
 }
 
 void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const {
@@ -2312,6 +2351,10 @@ void HistoryVideo::unregItem(HistoryItem *item) {
 
 const QString HistoryVideo::inDialogsText() const {
 	return lang(lng_in_dlg_video);
+}
+
+const QString HistoryVideo::inHistoryText() const {
+	return qsl("[ ") + lang(lng_in_dlg_video) + qsl(" ]");
 }
 
 bool HistoryVideo::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
@@ -2611,6 +2654,10 @@ const QString HistoryAudio::inDialogsText() const {
 	return lang(lng_in_dlg_audio);
 }
 
+const QString HistoryAudio::inHistoryText() const {
+	return qsl("[ ") + lang(lng_in_dlg_audio) + qsl(" ]");
+}
+
 bool HistoryAudio::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 	if (width >= _maxw) {
@@ -2862,6 +2909,10 @@ const QString HistoryDocument::inDialogsText() const {
 	return data->name.isEmpty() ? lang(lng_in_dlg_document) : data->name;
 }
 
+const QString HistoryDocument::inHistoryText() const {
+	return qsl("[ ") + lang(lng_in_dlg_document) + (data->name.isEmpty() ? QString() : (qsl(" : ") + data->name)) + qsl(" ]");
+}
+
 bool HistoryDocument::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 	if (width >= _maxw) {
@@ -2962,6 +3013,10 @@ const QString HistoryContact::inDialogsText() const {
 	return lang(lng_in_dlg_contact);
 }
 
+const QString HistoryContact::inHistoryText() const {
+	return qsl("[ ") + lang(lng_in_dlg_contact) + qsl(" : ") + name.original(0, 0xFFFF, false) + qsl(", ") + phone + qsl(" ]");
+}
+
 bool HistoryContact::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 	return (x >= 0 && y <= 0 && x < w && y < _height);
@@ -3060,7 +3115,7 @@ void HistoryContact::updateFrom(const MTPMessageMedia &media) {
 }
 
 namespace {
-	QRegularExpression reYouTube1(qsl("^(https?://)?(www\\.)?youtube\\.com/watch\\?v=([a-z0-9_-]+)(&|$)"), QRegularExpression::CaseInsensitiveOption);
+	QRegularExpression reYouTube1(qsl("^(https?://)?(www\\.|m\\.)?youtube\\.com/watch\\?([^#]+&)?v=([a-z0-9_-]+)(&|$)"), QRegularExpression::CaseInsensitiveOption);
 	QRegularExpression reYouTube2(qsl("^(https?://)?(www\\.)?youtu\\.be/([a-z0-9_-]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption);
 	QRegularExpression reInstagram(qsl("^(https?://)?(www\\.)?instagram\\.com/p/([a-z0-9_-]+)(/|$)"), QRegularExpression::CaseInsensitiveOption);
 
@@ -3373,15 +3428,23 @@ void ImageLinkData::load() {
 
 HistoryImageLink::HistoryImageLink(const QString &url, int32 width) : HistoryMedia(width) {
 	if (url.startsWith(qsl("location:"))) {
-		data = App::imageLink(url, GoogleMapsLink, qsl("https://maps.google.com/maps?q=") + url.mid(9) + qsl("&ll=") + url.mid(9) + qsl("&z=17"));
+		QString lnk = qsl("https://maps.google.com/maps?q=") + url.mid(9) + qsl("&ll=") + url.mid(9) + qsl("&z=17");
+		link.reset(new TextLink(lnk));
+		data = App::imageLink(url, GoogleMapsLink, lnk);
 	} else {
+		int matchIndex = 4;
 		QRegularExpressionMatch m = reYouTube1.match(url);
-		if (!m.hasMatch()) m = reYouTube2.match(url);
+		if (!m.hasMatch()) {
+			m = reYouTube2.match(url);
+			matchIndex = 3;
+		}
 		if (m.hasMatch()) {
-			data = App::imageLink(qsl("youtube:") + m.captured(3), YouTubeLink, url);
+			link.reset(new TextLink(url));
+			data = App::imageLink(qsl("youtube:") + m.captured(matchIndex), YouTubeLink, url);
 		} else {
 			m = reInstagram.match(url);
 			if (m.hasMatch()) {
+				link.reset(new TextLink(url));
 				data = App::imageLink(qsl("instagram:") + m.captured(3), InstagramLink, url);
 				data->title = qsl("instagram.com/p/") + m.captured(3);
 			} else {
@@ -3552,6 +3615,17 @@ const QString HistoryImageLink::inDialogsText() const {
 	return QString();
 }
 
+const QString HistoryImageLink::inHistoryText() const {
+	if (data) {
+		switch (data->type) {
+		case YouTubeLink: return qsl("[ YouTube Video : ") + link->text() + qsl(" ]");
+		case InstagramLink: return qsl("[ Instagram Link : ") + link->text() + qsl(" ]");
+		case GoogleMapsLink: return qsl("[ ") + lang(lng_maps_point) + qsl(" : ") + link->text() + qsl(" ]");
+		}
+	}
+	return qsl("[ Link : ") + link->text() + qsl(" ]");
+}
+
 bool HistoryImageLink::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 	return (x >= 0 && y >= 0 && x < width && y < _height);
@@ -3560,7 +3634,7 @@ bool HistoryImageLink::hasPoint(int32 x, int32 y, const HistoryItem *parent, int
 TextLinkPtr HistoryImageLink::getLink(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 	if (x >= 0 && y >= 0 && x < width && y < _height && data) {
-		return data->openl;
+		return link;
 	}
 	return TextLinkPtr();
 }
@@ -3705,7 +3779,7 @@ bool HistoryMessage::uploading() const {
 
 QString HistoryMessage::selectedText(uint32 selection) const {
 	if (_media && selection == FullItemSel) {
-		return _text.original(0, 0xFFFF) + '[' + _media->inDialogsText() + ']';
+		return _text.original(0, 0xFFFF) + _media->inHistoryText();
 	}
 	uint16 selectedFrom = (selection == FullItemSel) ? 0 : (selection >> 16) & 0xFFFF;
 	uint16 selectedTo = (selection == FullItemSel) ? 0xFFFF : (selection & 0xFFFF);

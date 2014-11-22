@@ -26,6 +26,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "mainwidget.h"
 #include <libexif/exif-data.h>
 
+#include "localstorage.h"
+
 namespace {
 	bool quiting = false;
 
@@ -114,7 +116,7 @@ namespace App {
 	bool loggedOut() {
 		Window *w(wnd());
 		if (w) {
-			w->tempDirDelete();
+			w->tempDirDelete(Local::ClearManagerAll);
 			w->notifyClearFast();
 			w->setupIntro(true);
 		}
@@ -170,7 +172,7 @@ namespace App {
 			switch (online) {
 			case -2: {
 				QDate yesterday(date(now).date());
-				yesterday.addDays(-1);
+				yesterday.addDays(-3);
 				return int32(QDateTime(yesterday).toTime_t());
 			} break;
 
@@ -207,7 +209,11 @@ namespace App {
 		return dNow.secsTo(dTomorrow);
 	}
 
-	QString onlineText(int32 online, int32 now, bool precise) {
+	QString onlineText(UserData *user, int32 now, bool precise) {
+		if (isServiceUser(user->id)) {
+			return lang(lng_status_service_notifications);
+		}
+		int32 online = user->onlineTill;
 		if (online <= 0) {
 			switch (online) {
 			case 0: return lang(lng_status_offline);
@@ -337,7 +343,7 @@ namespace App {
 				data->input = MTP_inputPeerForeign(d.vid, d.vaccess_hash);
 				data->inputUser = MTP_inputUserForeign(d.vid, d.vaccess_hash);
 				data->setPhone(qs(d.vphone));
-				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), (data->id != 333000 && !data->phone.isEmpty()) ? formatPhone(data->phone) : QString(), textOneLine(qs(d.vusername)));
+				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), (!isServiceUser(data->id) && !data->phone.isEmpty()) ? formatPhone(data->phone) : QString(), textOneLine(qs(d.vusername)));
 				data->setPhoto(d.vphoto);
 				data->access = d.vaccess_hash.v;
 				wasContact = (data->contact > 0);
@@ -683,7 +689,7 @@ namespace App {
 					App::main()->removeContact(user);
 				}
 			}
-			user->setName(textOneLine(user->firstName), textOneLine(user->lastName), (user->contact || user->id == 333000 || user->phone.isEmpty()) ? QString() : App::formatPhone(user->phone), textOneLine(user->username));
+			user->setName(textOneLine(user->firstName), textOneLine(user->lastName), (user->contact || isServiceUser(user->id) || user->phone.isEmpty()) ? QString() : App::formatPhone(user->phone), textOneLine(user->username));
 			if (App::main()) App::main()->peerUpdated(user);
 		}
 	}
@@ -1103,7 +1109,6 @@ namespace App {
 			result = new ImageLinkData(imageLink);
 			imageLinksData.insert(imageLink, result);
 			result->type = type;
-			result->openl = TextLinkPtr(new TextLink(url));
 		} else {
 			result = i.value();
 		}
@@ -1655,7 +1660,7 @@ namespace App {
 			}
 			QByteArray encrypted(16 + fullSize, Qt::Uninitialized); // 128bit of sha1 - key128, sizeof(data), data
 			hashSha1(toEncrypt.constData(), toEncrypt.size(), encrypted.data());
-			aesEncryptLocal(toEncrypt.constData(), encrypted.data() + 16, fullSize, &MTP::localKey(), encrypted.constData());
+			aesEncryptLocal(toEncrypt.constData(), encrypted.data() + 16, fullSize, &Local::oldKey(), encrypted.constData());
 
 			DEBUG_LOG(("App Info: writing user config file"));
 			QDataStream configStream(&configFile);
@@ -1706,7 +1711,7 @@ namespace App {
 				}
 
 				cSetLocalSalt(salt);
-				MTP::createLocalKey(QByteArray(), &salt);
+				Local::createOldKey(&salt);
 
 				if (data.size() <= 16 || (data.size() & 0x0F)) {
 					LOG(("App Error: bad encrypted part size: %1").arg(data.size()));
@@ -1715,7 +1720,7 @@ namespace App {
 				uint32 fullDataLen = data.size() - 16;
 				decrypted.resize(fullDataLen);
 				const char *dataKey = data.constData(), *encrypted = data.constData() + 16;
-				aesDecryptLocal(encrypted, decrypted.data(), fullDataLen, &MTP::localKey(), dataKey);
+				aesDecryptLocal(encrypted, decrypted.data(), fullDataLen, &Local::oldKey(), dataKey);
 				uchar sha1Buffer[20];
 				if (memcmp(hashSha1(decrypted.constData(), decrypted.size(), sha1Buffer), dataKey, 16)) {
 					LOG(("App Error: bad decrypt key, data from user-config not decrypted"));
@@ -1941,7 +1946,6 @@ namespace App {
 	void setQuiting() {
 		::quiting = true;
 	}
-
 
     QImage readImage(QByteArray data, QByteArray *format) {
         QByteArray tmpFormat;

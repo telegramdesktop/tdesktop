@@ -17,6 +17,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #include "stdafx.h"
 
+#include "application.h"
+
 #ifdef Q_OS_WIN
 #elif defined Q_OS_MAC
 #include <mach/mach_time.h>
@@ -216,7 +218,7 @@ bool checkms() {
 		_msAddToUnixtime = ((ms - unixms) / 1000LL) * 1000LL;
 	} else if (unixms > ms + 1000LL) {
 		_msAddToMsStart += ((unixms - ms) / 1000LL) * 1000LL;
-		adjustSingleTimers();
+		if (App::app()) emit App::app()->adjustSingleTimers();
 		return true;
 	}
 	return false;
@@ -243,26 +245,23 @@ uint64 getms(bool checked) {
 #endif
 }
 
-namespace {
-	QSet<SingleTimer*> _activeSingleTimers;
-	QMutex _activeSingleTimersMutex;
-}
-
-void regSingleTimer(SingleTimer *timer) {
-	QMutexLocker lock(&_activeSingleTimersMutex);
-	_activeSingleTimers.insert(timer);
-}
-
-void unregSingleTimer(SingleTimer *timer) {
-	QMutexLocker lock(&_activeSingleTimersMutex);
-	_activeSingleTimers.remove(timer);
-}
-
-void adjustSingleTimers() {
-	for (QSet<SingleTimer*>::const_iterator i = _activeSingleTimers.cbegin(), e = _activeSingleTimers.cend(); i != e; ++i) {
-		emit (*i)->callAdjust();
+SingleTimer::SingleTimer() : _finishing(0), _inited(false) {
+	QTimer::setSingleShot(true);
+	if (App::app()) {
+		connect(App::app(), SIGNAL(adjustSingleTimers()), this, SLOT(adjust()));
+		_inited = true;
 	}
 }
+
+void SingleTimer::start(int msec) {
+	_finishing = getms(true) + (msec < 0 ? 0 : uint64(msec));
+	if (!_inited && App::app()) {
+		connect(App::app(), SIGNAL(adjustSingleTimers()), this, SLOT(adjust()));
+		_inited = true;
+	}
+	QTimer::start(msec);
+}
+
 
 uint64 msgid() {
 #ifdef Q_OS_WIN

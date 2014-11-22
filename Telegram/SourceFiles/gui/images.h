@@ -53,6 +53,13 @@ public:
 	void forget() const;
 	void restore() const;
 
+	QByteArray savedFormat() const {
+		return format;
+	}
+	QByteArray savedData() const {
+		return saved;
+	}
+
 	virtual ~Image() {
 		invalidateSizeCache();
 	}
@@ -106,6 +113,24 @@ private:
 LocalImage *getImage(const QString &file);
 LocalImage *getImage(const QPixmap &pixmap, QByteArray format);
 
+typedef QPair<uint64, uint64> StorageKey;
+inline uint64 storageMix32To64(int32 a, int32 b) {
+	return (uint64(*reinterpret_cast<uint32*>(&a)) << 32) | uint64(*reinterpret_cast<uint32*>(&b));
+}
+inline StorageKey storageKey(int32 dc, const int64 &volume, int32 local) {
+	return StorageKey(storageMix32To64(dc, local), volume);
+}
+inline StorageKey storageKey(const MTPDfileLocation &location) {
+	return storageKey(location.vdc_id.v, location.vvolume_id.v, location.vlocal_id.v);
+}
+struct StorageImageSaved {
+	StorageImageSaved() : type(mtpc_storage_fileUnknown) {
+	}
+	StorageImageSaved(mtpTypeId type, const QByteArray &data) : type(type), data(data) {
+	}
+	mtpTypeId type;
+	QByteArray data;
+};
 class StorageImage : public Image {
 public:
 
@@ -123,7 +148,7 @@ public:
 	void load(bool loadFirst = false, bool prior = true) {
 		if (loader) {
 			loader->start(loadFirst, prior);
-			check();
+			if (loader) check();
 		}
 	}
 	void checkload() const {
@@ -131,7 +156,7 @@ public:
 			if (!loader->loading()) {
 				loader->start(true);
 			}
-			check();
+			if (loader) check();
 		}
 	}
 

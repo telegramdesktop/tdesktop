@@ -83,9 +83,6 @@ void MTProtoSession::start(int32 dcenter, uint32 connects) {
 	timeouter.start(1000);
 
 	connect(&sender, SIGNAL(timeout()), this, SIGNAL(needToSend()));
-	connect(this, SIGNAL(startSendTimer(int)), &sender, SLOT(start(int)));
-	connect(this, SIGNAL(stopSendTimer()), &sender, SLOT(stop()));
-	connect(this, SIGNAL(needToSendAsync()), this, SIGNAL(needToSend()));
 
 	MTProtoDCMap &dcs(mtpDCMap());
 
@@ -135,7 +132,7 @@ void MTProtoSession::stop() {
 	}
 }
 
-void MTProtoSession::sendAnything(uint64 msCanWait) {
+void MTProtoSession::sendAnything(quint64 msCanWait) {
 	uint64 ms = getms(true);
 	if (msSendCall) {
 		if (ms > msSendCall + msWait) {
@@ -150,13 +147,14 @@ void MTProtoSession::sendAnything(uint64 msCanWait) {
 		msWait = msCanWait;
 	}
 	if (msWait) {
+		DEBUG_LOG(("MTP Info: dc %1 can wait for %2ms from current %3").arg(dcId).arg(msWait).arg(msSendCall));
 		msSendCall = ms;
-		emit startSendTimer(msWait);
-		DEBUG_LOG(("MTP Info: can wait for %1ms from current %2").arg(msWait).arg(msSendCall));
+		sender.start(msWait);
 	} else {
-		emit stopSendTimer();
+		DEBUG_LOG(("MTP Info: dc %1 stopped send timer, can wait for %2ms from current %3").arg(dcId).arg(msWait).arg(msSendCall));
+		sender.stop();
 		msSendCall = 0;
-		emit needToSendAsync();
+		emit needToSend();
 	}
 }
 

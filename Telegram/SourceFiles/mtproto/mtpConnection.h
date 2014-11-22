@@ -309,6 +309,8 @@ signals:
 	void needToRestart();
 	void stateChanged(qint32 newState);
 	void sessionResetDone();
+	void needToSendAsync();
+	void sendAnythingAsync(quint64);
 
 public slots:
 

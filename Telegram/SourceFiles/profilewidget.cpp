@@ -367,7 +367,7 @@ void ProfileInner::reorderParticipants() {
 	} else {
 		_participants.clear();
 		if (_peerUser) {
-			_onlineText = App::onlineText(_peerUser->onlineTill, t, true);
+			_onlineText = App::onlineText(_peerUser, t, true);
 		} else {
 			_onlineText = lang(lng_chat_no_members);
 		}
@@ -520,7 +520,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 				if (!data) {
 					data = _participantsData[cnt] = new ParticipantData();
 					data->name.setText(st::profileListNameFont, user->name, _textNameOptions);
-					data->online = App::onlineText(user->onlineTill, l_time);
+					data->online = App::onlineText(user, l_time);
 					data->cankick = (user != App::self()) && (_chatAdmin || (_peerChat->cankick.constFind(user) != _peerChat->cankick.cend()));
 				}
 				p.setPen(st::profileListNameColor->p);

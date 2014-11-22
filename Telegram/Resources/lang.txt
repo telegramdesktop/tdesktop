@@ -62,6 +62,7 @@ lng_connecting: "Connecting..";
 lng_reconnecting: "Reconnect in %1 s..";
 lng_reconnecting_try_now: "Try now";
 
+lng_status_service_notifications: "service notifications";
 lng_status_offline: "last seen a long time ago";
 lng_status_recently: "last seen recently";
 lng_status_last_week: "last seen within a week";
@@ -218,6 +219,15 @@ Would you like to try again?";
 lng_download_path_clearing: "Clearing..";
 lng_download_path_cleared: "Cleared!";
 lng_download_path_clear_failed: "Clear failed :(";
+
+lng_settings_section_cache: "Local storage";
+lng_settings_no_images_cached: "No cached images found!";
+lng_settings_image_cached: "Cached: {count} image, {size}";
+lng_settings_images_cached: "Cached: {count} images, {size}";
+lng_local_images_clear: "Clear All";
+lng_local_images_clearing: "Clearing..";
+lng_local_images_cleared: "Cleared!";
+lng_local_images_clear_failed: "Clear failed :(";
 
 lng_settings_section_advanced: "Advanced";
 lng_connection_type: "Connection type:";

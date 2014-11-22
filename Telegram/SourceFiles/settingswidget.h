@@ -122,10 +122,12 @@ public slots:
 	void onDownloadPathEdited();
 	void onDownloadPathClear();
 	void onDownloadPathClearSure();
-	void onTempDirCleared();
-	void onTempDirClearFailed();
+	void onTempDirCleared(int task);
+	void onTempDirClearFailed(int task);
 
 	void onCatsAndDogs();
+
+	void onLocalImagesClear();
 
 	void onUpdateChecking();
 	void onUpdateLatest();
@@ -211,6 +213,11 @@ private:
 	};
 	TempDirClearState _tempDirClearState;
 	FlatCheckbox _catsAndDogs;
+
+	// local storage
+	LinkButton _localImagesClear;
+	int32 _imagesClearingWidth, _imagesClearedWidth, _imagesClearFailedWidth;
+	TempDirClearState _imagesClearState;
 
 	// advanced
 	LinkButton _connectionType, _resetSessions;
