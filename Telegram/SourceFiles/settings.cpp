@@ -138,46 +138,63 @@ const RecentEmojiPack &cGetRecentEmojis() {
 			r.reserve(p.size());
 			for (RecentEmojiPreload::const_iterator i = p.cbegin(), e = p.cend(); i != e; ++i) {
 				EmojiPtr ep(getEmoji(i->first));
+				if (i->first < 0xFFFFU) {
+					EmojiPtr good(getEmoji((i->first << 16) | 0xFE0FU));
+					if (good) {
+						ep = good;
+					}
+				}
 				if (ep) {
+					if ((ep->code & 0xFFFFU) == 0xFE0FU) {
+						int32 j = 0, l = r.size();
+						for (; j < l; ++j) {
+							if (r[j].first->code == i->first) {
+								break;
+							}
+						}
+						if (j < l) {
+							continue;
+						}
+					}
 					r.push_back(qMakePair(ep, i->second));
 				}
 			}
 		}
 		uint32 defaultRecent[] = {
-			0xD83DDE02,
-			0xD83DDE18,
-			0x2764,
-			0xD83DDE0D,
-			0xD83DDE0A,
-			0xD83DDE01,
-			0xD83DDC4D,
-			0x263A,
-			0xD83DDE14,
-			0xD83DDE04,
-			0xD83DDE2D,
-			0xD83DDC8B,
-			0xD83DDE12,
-			0xD83DDE33,
-			0xD83DDE1C,
-			0xD83DDE48,
-			0xD83DDE09,
-			0xD83DDE03,
-			0xD83DDE22,
-			0xD83DDE1D,
-			0xD83DDE31,
-			0xD83DDE21,
-			0xD83DDE0F,
-			0xD83DDE1E,
-			0xD83DDE05,
-			0xD83DDE1A,
-			0xD83DDE4A,
-			0xD83DDE0C,
-			0xD83DDE00,
-			0xD83DDE0B,
-			0xD83DDE06,
-			0xD83DDC4C,
-			0xD83DDE10,
-			0xD83DDE15,
+			0xD83DDE02U,
+			0xD83DDE18U,
+			0x2764FE0FU,
+			0xD83DDE0DU,
+			0xD83DDE0AU,
+			0xD83DDE01U,
+			0xD83DDC4DU,
+			0x263AFE0FU,
+			0xD83DDE14U,
+			0xD83DDE04U,
+			0xD83DDE2DU,
+			0xD83DDC8BU,
+			0xD83DDE12U,
+			0xD83DDE33U,
+			0xD83DDE1CU,
+			0xD83DDE48U,
+			0xD83DDE09U,
+			0xD83DDE03U,
+			0xD83DDE22U,
+			0xD83DDE1DU,
+			0xD83DDE31U,
+			0xD83DDE21U,
+			0xD83DDE0FU,
+			0xD83DDE1EU,
+			0xD83DDE05U,
+			0xD83DDE1AU,
+			0xD83DDE4AU,
+			0xD83DDE0CU,
+			0xD83DDE00U,
+			0xD83DDE0BU,
+			0xD83DDE06U,
+			0xD83DDC4CU,
+			0xD83DDE10U,
+			0xD83DDE15U,
 		};
 		for (int32 i = 0, s = sizeof(defaultRecent) / sizeof(defaultRecent[0]); i < s; ++i) {
 			if (r.size() >= EmojiPadPerRow * EmojiPadRowsPerPage) break;
