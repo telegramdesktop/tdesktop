@@ -1,5 +1,5 @@
-AppVersionStr=0.6.12
-AppVersion=6012
+AppVersion=`./Version.sh | awk -F " " '{print $1}'`
+AppVersionStr=`./Version.sh | awk -F " " '{print $2}'`
 
 if [ ! -f "./../Mac/Release/deploy/$AppVersionStr/tmacupd$AppVersion" ]; then
     echo "tmacupd$AppVersion not found!"
