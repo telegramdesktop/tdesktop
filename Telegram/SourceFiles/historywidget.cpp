@@ -1540,8 +1540,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
     , hiderOffered(false)
     , _scrollDelta(0)
 	, _typingRequest(0)
-	, _saveDraftText(false)
-	, _saveDraftStart(0) {
+	, _saveDraftStart(0)
+	, _saveDraftText(false) {
 	_scroll.setFocusPolicy(Qt::NoFocus);
 
 	setAcceptDrops(true);

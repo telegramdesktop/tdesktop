@@ -47,6 +47,8 @@
 		07539B1D1A1416AF00083EFC /* moc_history.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07539B1C1A1416AF00083EFC /* moc_history.cpp */; };
 		07A69332199277BA0099CB9F /* mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A69330199277BA0099CB9F /* mediaview.cpp */; };
 		07A6933519927B160099CB9F /* moc_mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A6933419927B160099CB9F /* moc_mediaview.cpp */; };
+		07BE850F1A2093C9008ACB9F /* localstorage.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07BE850D1A2093C9008ACB9F /* localstorage.cpp */; };
+		07BE85121A20961F008ACB9F /* moc_localstorage.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07BE85111A20961F008ACB9F /* moc_localstorage.cpp */; };
 		07C4753B1967DF1C00CAAFE9 /* switcher.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C475391967DF1C00CAAFE9 /* switcher.cpp */; };
 		07C4753F1967E37300CAAFE9 /* moc_switcher.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */; };
 		07D7034B19B8755A00C4EED2 /* audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D7034919B8755A00C4EED2 /* audio.cpp */; };
@@ -260,6 +262,9 @@
 		07A69330199277BA0099CB9F /* mediaview.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mediaview.cpp; path = SourceFiles/mediaview.cpp; sourceTree = SOURCE_ROOT; };
 		07A69331199277BA0099CB9F /* mediaview.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = mediaview.h; path = SourceFiles/mediaview.h; sourceTree = SOURCE_ROOT; };
 		07A6933419927B160099CB9F /* moc_mediaview.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_mediaview.cpp; path = GeneratedFiles/Debug/moc_mediaview.cpp; sourceTree = SOURCE_ROOT; };
+		07BE850D1A2093C9008ACB9F /* localstorage.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = localstorage.cpp; path = SourceFiles/localstorage.cpp; sourceTree = SOURCE_ROOT; };
+		07BE850E1A2093C9008ACB9F /* localstorage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = localstorage.h; path = SourceFiles/localstorage.h; sourceTree = SOURCE_ROOT; };
+		07BE85111A20961F008ACB9F /* moc_localstorage.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_localstorage.cpp; path = GeneratedFiles/Debug/moc_localstorage.cpp; sourceTree = SOURCE_ROOT; };
 		07C3AF24194335ED0016CFF1 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Telegram/Images.xcassets; sourceTree = SOURCE_ROOT; };
 		07C3AF27194336B90016CFF1 /* pspecific_mac_p.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = pspecific_mac_p.h; path = SourceFiles/pspecific_mac_p.h; sourceTree = SOURCE_ROOT; };
 		07C3AF2819433ABF0016CFF1 /* lang.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = lang.txt; path = Resources/lang.txt; sourceTree = SOURCE_ROOT; };
@@ -853,6 +858,7 @@
 				0732E4A7199E262300D50FE7 /* overviewwidget.cpp */,
 				CF32DF59C7823E4F3397EF3C /* profilewidget.cpp */,
 				5A7F88F9C7F08D3DDE6EEF6B /* localimageloader.cpp */,
+				07BE850D1A2093C9008ACB9F /* localstorage.cpp */,
 				974DB34EEB8F83B91614C0B0 /* logs.cpp */,
 				047DAFB0A7DE92C63033A43C /* mainwidget.cpp */,
 				8A28F7789408AA839F48A5F2 /* settings.cpp */,
@@ -885,6 +891,7 @@
 				0732E4A8199E262300D50FE7 /* overviewwidget.h */,
 				220B97F8F62C720E6059A64B /* profilewidget.h */,
 				AD0C395D671BC024083A5FC7 /* localimageloader.h */,
+				07BE850E1A2093C9008ACB9F /* localstorage.h */,
 				0CAA815FFFEDCD84808E11F5 /* logs.h */,
 				FE8FD20832B4C226E345CFBA /* mainwidget.h */,
 				2EA58EF6CDF368B0132BAEB9 /* settings.h */,
@@ -1036,6 +1043,7 @@
 		801973D3334D0FCA849CF485 /* Debug */ = {
 			isa = PBXGroup;
 			children = (
+				07BE85111A20961F008ACB9F /* moc_localstorage.cpp */,
 				07539B1C1A1416AF00083EFC /* moc_history.cpp */,
 				074756181A1372C600CA07F7 /* moc_types.cpp */,
 				07D8510719F8340A00623D75 /* moc_usernamebox.cpp */,
@@ -1402,6 +1410,7 @@
 				D7EF8F129FCCE9AB3F3F081F /* button.cpp in Compile Sources */,
 				B3CD52E504409DC1B560024F /* countrycodeinput.cpp in Compile Sources */,
 				C03447C9A7D9FF73463B8BB5 /* countryinput.cpp in Compile Sources */,
+				07BE850F1A2093C9008ACB9F /* localstorage.cpp in Compile Sources */,
 				CDB0266A8B7CB20A95266BCD /* emoji_config.cpp in Compile Sources */,
 				0732E4AC199E268A00D50FE7 /* moc_overviewwidget.cpp in Compile Sources */,
 				7C2B2DEE467A4C4679F1C3C9 /* filedialog.cpp in Compile Sources */,
@@ -1483,6 +1492,7 @@
 				D6874C00733283846ACA9AB2 /* moc_confirmbox.cpp in Compile Sources */,
 				ED2557A57C6782721DC494AF /* moc_connectionbox.cpp in Compile Sources */,
 				5FC914F652D1B16FDA8F0634 /* moc_contactsbox.cpp in Compile Sources */,
+				07BE85121A20961F008ACB9F /* moc_localstorage.cpp in Compile Sources */,
 				49C3C1BF153F7FC078A25CE4 /* moc_downloadpathbox.cpp in Compile Sources */,
 				9D294F23E02CFDF22C288382 /* moc_emojibox.cpp in Compile Sources */,
 				0F0FC25286E16E5F78962FEE /* moc_newgroupbox.cpp in Compile Sources */,

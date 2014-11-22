@@ -57,7 +57,7 @@ namespace Local {
 		ClearManagerImages = 0x02,
 	};
 
-	class ClearManagerData;
+	struct ClearManagerData;
 	class ClearManager : public QObject {
 		Q_OBJECT
 
