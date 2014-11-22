@@ -1,6 +1,9 @@
 @echo OFF
 
+set "AppVersionStrSmall=0.6.12"
 set "AppVersionStr=0.6.12"
+set "AppVersionStrFull=0.6.12"
+
 echo.
 echo Preparing version %AppVersionStr%..
 echo.
@@ -14,7 +17,7 @@ if %errorlevel% neq 0 goto error1
 call ..\..\..\TelegramPrivate\Sign.bat Updater.exe
 if %errorlevel% neq 0 goto error1
 
-iscc ..\..\Telegram\Setup.iss
+iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppFullVersion=%AppVersionStrFull% ..\..\Telegram\Setup.iss
 if %errorlevel% neq 0 goto error1
 
 call ..\..\..\TelegramPrivate\Sign.bat tsetup.%AppVersionStr%.exe
