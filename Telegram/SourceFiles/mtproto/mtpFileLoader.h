@@ -60,7 +60,7 @@ signals:
 private:
 
 	mtpFileLoaderQueue *queue;
-	bool inQueue, complete;
+	bool inQueue, complete, triedLocal;
 	
 	void cancelRequests();
 
@@ -96,6 +96,6 @@ private:
 	QByteArray data;
 
 	int32 size;
-	MTPstorage_FileType type;
+	mtpTypeId type;
 
 };

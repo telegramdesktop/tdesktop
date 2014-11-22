@@ -29,6 +29,9 @@ class MainWidget;
 class SettingsWidget;
 class BackgroundWidget;
 class LayeredWidget;
+namespace Local {
+	class ClearManager;
+}
 
 class ConnectingWidget : public QWidget {
 	Q_OBJECT
@@ -51,21 +54,6 @@ private:
 	LinkButton _reconnect;
 
 };
-
-class TempDirDeleter : public QObject {
-	Q_OBJECT
-public:
-	TempDirDeleter(QThread *thread);
-
-public slots:
-	void onStart();
-
-signals:
-	void succeed();
-	void failed();
-
-};
-
 
 class NotifyWindow : public QWidget, public Animated {
 	Q_OBJECT
@@ -205,7 +193,8 @@ public:
 		TempDirEmpty,
 	};
 	TempDirState tempDirState();
-	void tempDirDelete();
+	TempDirState localImagesState();
+	void tempDirDelete(int task);
 
 	void quit();
 
@@ -243,8 +232,8 @@ public slots:
 
 	void onInactiveTimer();
 
-	void onTempDirCleared();
-	void onTempDirClearFailed();
+	void onClearFinished(int task, void *manager);
+	void onClearFailed(int task, void *manager);
 
 	void notifyFire();
 	void updateTrayMenu(bool force = false);
@@ -257,8 +246,8 @@ public slots:
 signals:
 
 	void resized(const QSize &size);
-	void tempDirCleared();
-	void tempDirClearFailed();
+	void tempDirCleared(int task);
+	void tempDirClearFailed(int task);
 
 protected:
 
@@ -281,8 +270,7 @@ private:
 	QWidget *_topWidget; // temp hack for CountrySelect
 	ConnectingWidget *_connecting;
 
-	TempDirDeleter *_tempDeleter;
-	QThread *_tempDeleterThread;
+	Local::ClearManager *_clearManager;
 
 	void clearWidgets();
 

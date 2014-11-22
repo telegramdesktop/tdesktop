@@ -18,6 +18,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "stdafx.h"
 #include "mtp.h"
 
+#include "localstorage.h"
+
 namespace {
 	typedef QMap<int32, MTProtoSessionPtr> Sessions;
 	Sessions sessions;
@@ -60,8 +62,6 @@ namespace {
 	MTPStateChangedHandler stateChangedHandler = 0;
 	MTPSessionResetHandler sessionResetHandler = 0;
 	_mtp_internal::RequestResender *resender = 0;
-
-	mtpAuthKey _localKey;
 
 	void importDone(const MTPauth_Authorization &result, mtpRequestId req) {
 		QMutexLocker locker1(&requestByDCLock);
@@ -564,31 +564,11 @@ namespace _mtp_internal {
 };
 
 namespace MTP {
-	mtpAuthKey &localKey() {
-		return _localKey;
-	}
-
-	void createLocalKey(const QByteArray &pass, QByteArray *salt) {
-		uchar key[LocalEncryptKeySize] = { 0 };
-		int32 iterCount = pass.size() ? LocalEncryptIterCount : LocalEncryptNoPwdIterCount; // dont slow down for no password
-		QByteArray newSalt;
-		if (!salt) {
-			newSalt.resize(LocalEncryptSaltSize);
-			memset_rand(newSalt.data(), newSalt.size());
-			salt = &newSalt;
-
-			cSetLocalSalt(newSalt);
-		}
-
-		PKCS5_PBKDF2_HMAC_SHA1(pass.constData(), pass.size(), (uchar*)salt->data(), salt->size(), iterCount, LocalEncryptKeySize, key);
-
-		_localKey.setKey(key);
-	}
 
     void start() {
         unixtimeInit();
 
-		if (!localKey().created()) {
+		if (!Local::oldKey().created()) {
 			LOG(("App Error: trying to start MTP without local key!"));
 			return;
 		}

@@ -63,9 +63,6 @@ namespace _mtp_internal {
 
 namespace MTP {
 
-	mtpAuthKey &localKey();
-	void createLocalKey(const QByteArray &pass, QByteArray *salt = 0);
-
 	static const uint32 cfg = 1 * _mtp_internal::dcShift; // send(MTPhelp_GetConfig(), MTP::cfg + dc) - for dc enum
 	static const uint32 dld[MTPDownloadSessionsCount] = { // send(req, callbacks, MTP::dld[i] + dc) - for download
 		0x10 * _mtp_internal::dcShift,

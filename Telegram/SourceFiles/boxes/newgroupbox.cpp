@@ -99,7 +99,7 @@ NewGroupInner::ContactData *NewGroupInner::contactData(DialogRow *row) {
 			_contactsData.insert(user, data = new ContactData());
 			data->check = false;
 			data->name.setText(st::profileListNameFont, user->name, _textNameOptions);
-			data->online = App::onlineText(user->onlineTill, _time);
+			data->online = App::onlineText(user, _time);
 		} else {
 			data = i.value();
 		}

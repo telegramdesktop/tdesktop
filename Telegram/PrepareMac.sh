@@ -1,5 +1,5 @@
-AppVersionStr=0.6.11
-AppVersion=6011
+AppVersionStr=0.6.12
+AppVersion=6012
 
 echo ""
 echo "Preparing version $AppVersionStr.."

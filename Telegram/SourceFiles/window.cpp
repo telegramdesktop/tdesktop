@@ -31,6 +31,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "boxes/confirmbox.h"
 
 #include "mediaview.h"
+#include "localstorage.h"
 
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : QWidget(parent), _shadow(st::boxShadow), _reconnect(this, QString()) {
 	set(text, reconnect);
@@ -65,20 +66,6 @@ void ConnectingWidget::paintEvent(QPaintEvent *e) {
 void ConnectingWidget::onReconnect() {
 	MTP::restart();
 }
-
-TempDirDeleter::TempDirDeleter(QThread *thread) {
-	moveToThread(thread);
-	connect(thread, SIGNAL(started()), this, SLOT(onStart()));
-}
-
-void TempDirDeleter::onStart() {
-	if (QDir(cTempDir()).removeRecursively()) {
-		emit succeed();
-	} else {
-		emit failed();
-	}
-}
-
 
 NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y) : history(msg->history()), item(msg)
 #ifdef Q_OS_WIN
@@ -338,7 +325,7 @@ NotifyWindow::~NotifyWindow() {
 
 Window::Window(QWidget *parent) : PsMainWindow(parent),
 intro(0), main(0), settings(0), layerBG(0), _topWidget(0),
-_connecting(0), _tempDeleter(0), _tempDeleterThread(0), dragging(false), _inactivePress(false), _mediaView(0) {
+_connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _mediaView(0) {
 
 	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
@@ -944,40 +931,56 @@ void Window::resizeEvent(QResizeEvent *e) {
 }
 
 Window::TempDirState Window::tempDirState() {
-	if (_tempDeleter) {
+	if (_clearManager && _clearManager->hasTask(Local::ClearManagerDownloads)) {
 		return TempDirRemoving;
 	}
 	return QDir(cTempDir()).exists() ? TempDirExists : TempDirEmpty;
 }
 
-void Window::tempDirDelete() {
-	if (_tempDeleter) return;
-	_tempDeleterThread = new QThread();
-	_tempDeleter = new TempDirDeleter(_tempDeleterThread);
-	connect(_tempDeleter, SIGNAL(succeed()), this, SLOT(onTempDirCleared()));
-	connect(_tempDeleter, SIGNAL(failed()), this, SLOT(onTempDirClearFailed()));
-	_tempDeleterThread->start();
+Window::TempDirState Window::localImagesState() {
+	if (_clearManager && _clearManager->hasTask(Local::ClearManagerImages)) {
+		return TempDirRemoving;
+	}
+	return Local::hasImages() ? TempDirExists : TempDirEmpty;
 }
 
-void Window::onTempDirCleared() {
-	_tempDeleter->deleteLater();
-	_tempDeleter = 0;
-	_tempDeleterThread->deleteLater();
-	_tempDeleterThread = 0;
-	emit tempDirCleared();
+void Window::tempDirDelete(int task) {
+	if (_clearManager) {
+		if (_clearManager->addTask(task)) {
+			return;
+		} else {
+			_clearManager->deleteLater();
+			_clearManager = 0;
+		}
+	}
+	_clearManager = new Local::ClearManager();
+	_clearManager->addTask(task);
+	connect(_clearManager, SIGNAL(succeed(int,void*)), this, SLOT(onClearFinished(int,void*)));
+	connect(_clearManager, SIGNAL(failed(int,void*)), this, SLOT(onClearFailed(int,void*)));
+	_clearManager->start();
 }
 
-void Window::onTempDirClearFailed() {
-	_tempDeleter->deleteLater();
-	_tempDeleter = 0;
-	_tempDeleterThread->deleteLater();
-	_tempDeleterThread = 0;
-	emit tempDirClearFailed();
+void Window::onClearFinished(int task, void *manager) {
+	if (manager && manager == _clearManager) {
+		_clearManager->deleteLater();
+		_clearManager = 0;
+	}
+	emit tempDirCleared(task);
+}
+
+void Window::onClearFailed(int task, void *manager) {
+	if (manager && manager == _clearManager) {
+		_clearManager->deleteLater();
+		_clearManager = 0;
+	}
+	emit tempDirClearFailed(task);
 }
 
 void Window::quit() {
 	delete _mediaView;
 	_mediaView = 0;
+	delete main;
+	main = 0;
 	notifyClearFast();
 }
 
@@ -1405,8 +1408,7 @@ void Window::changingMsgId(HistoryItem *row, MsgId newId) {
 
 Window::~Window() {
     notifyClearFast();
-	delete _tempDeleter;
-	delete _tempDeleterThread;
+	delete _clearManager;
 	delete _connecting;
 	delete _mediaView;
 	delete trayIcon;

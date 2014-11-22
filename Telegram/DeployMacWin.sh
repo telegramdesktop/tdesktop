@@ -1,5 +1,5 @@
-AppVersionStr=0.6.11
-AppVersion=6011
+AppVersionStr=0.6.12
+AppVersion=6012
 
 if [ ! -f "./../Mac/Release/deploy/$AppVersionStr/tmacupd$AppVersion" ]; then
     echo "tmacupd$AppVersion not found!"

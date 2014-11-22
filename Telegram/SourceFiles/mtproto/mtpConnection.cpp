@@ -707,15 +707,6 @@ void MTPautoConnection::tcpSend(mtpBuffer &buffer) {
 	TCP_LOG(("TCP Info: write %1 packet %2 bytes").arg(packetNum).arg(len));
 
 	sock.write((const char*)&buffer[0], len);
-	//int64 b = sock.bytesToWrite();
-	//if (b > 100000) {
-	//	int a = 0;
-	//}
-	//sock.flush();
-	//int64 b2 = sock.bytesToWrite();
-	//if (b2 > 0) {
-	//	TCP_LOG(("TCP Info: writing many, %1 left to write").arg(b2));
-	//}
 }
 
 void MTPautoConnection::httpSend(mtpBuffer &buffer) {
@@ -1127,7 +1118,9 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
 	connect(this, SIGNAL(needToReceive()), sessionData->owner(), SLOT(tryToReceive()));
 	connect(this, SIGNAL(stateChanged(qint32)), sessionData->owner(), SLOT(onConnectionStateChange(qint32)));
 	connect(sessionData->owner(), SIGNAL(needToSend()), this, SLOT(tryToSend()));
+	connect(this, SIGNAL(needToSendAsync()), sessionData->owner(), SIGNAL(needToSend()));
 	connect(this, SIGNAL(sessionResetDone()), sessionData->owner(), SLOT(onResetDone()));
+	connect(this, SIGNAL(sendAnythingAsync(quint64)), sessionData->owner(), SLOT(sendAnything(quint64)));
 }
 
 void MTProtoConnectionPrivate::onConfigLoaded() {
@@ -1415,7 +1408,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 		toSendPingId = 0;
 	} else {
 		int32 st = getState();
-		DEBUG_LOG(("MTP Info: trying to send after ping, state: %1").arg(st));
+		DEBUG_LOG(("MTP Info: dc %1 trying to send after ping, state: %2").arg(dc).arg(st));
 		if (st != MTProtoConnection::Connected) {
 			return; // just do nothing, if is not connected yet
 		}
@@ -1960,7 +1953,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 		uint32 toAckSize = ackRequestData.size();
 		if (toAckSize) {
 			DEBUG_LOG(("MTP Info: will send %1 acks, ids: %2").arg(toAckSize).arg(logVectorLong(ackRequestData)));
-			sessionData->owner()->sendAnything(MTPAckSendWaiting);
+			emit sendAnythingAsync(MTPAckSendWaiting);
 		}
 
 		bool emitSignal = false;
@@ -1988,7 +1981,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 
 		if (!wasConnected) {
 			if (getState() == MTProtoConnection::Connected) {
-				emit sessionData->owner()->needToSendAsync();
+				emit needToSendAsync();
 			}
 		}
 	}
@@ -3199,7 +3192,7 @@ void MTProtoConnectionPrivate::authKeyCreated() {
 
 	toSendPingId = MTP::nonce<uint64>(); // get server_salt
 
-	emit sessionData->owner()->needToSendAsync();
+	emit needToSendAsync();
 
 //	disconnect(&pinger, SIGNAL(timeout()), 0, 0);
 //	connect(&pinger, SIGNAL(timeout()), this, SLOT(sendPing()));

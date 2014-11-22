@@ -28,6 +28,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "fileuploader.h"
 #include "supporttl.h"
 
+#include "localstorage.h"
+
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
 HistoryList::HistoryList(HistoryWidget *historyWidget, ScrollArea *scroll, History *history) : QWidget(0)
@@ -633,106 +635,98 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	}
 
 	_contextMenuLnk = textlnkOver();
-    if (_contextMenuLnk && dynamic_cast<TextLink*>(_contextMenuLnk.data())) {
+    PhotoLink *lnkPhoto = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
+    VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
+    AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
+    DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
+	if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument) {
 		_menu = new ContextMenu(historyWidget);
 		if (isUponSelected > 0) {
 			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
 		}
-		_menu->addAction(lang(lng_context_open_link), this, SLOT(openContextUrl()))->setEnabled(true);
-		_menu->addAction(lang(lng_context_copy_link), this, SLOT(copyContextUrl()))->setEnabled(true);
-    } else if (_contextMenuLnk && dynamic_cast<EmailLink*>(_contextMenuLnk.data())) {
-		_menu = new ContextMenu(historyWidget);
-		if (isUponSelected > 0) {
-			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
-		}
-		_menu->addAction(lang(lng_context_open_email), this, SLOT(openContextUrl()))->setEnabled(true);
-		_menu->addAction(lang(lng_context_copy_email), this, SLOT(copyContextUrl()))->setEnabled(true);
-	} else if (_contextMenuLnk && dynamic_cast<HashtagLink*>(_contextMenuLnk.data())) {
-		_menu = new ContextMenu(historyWidget);
-		if (isUponSelected > 0) {
-			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
-		}
-		_menu->addAction(lang(lng_context_open_hashtag), this, SLOT(openContextUrl()))->setEnabled(true);
-		_menu->addAction(lang(lng_context_copy_hashtag), this, SLOT(copyContextUrl()))->setEnabled(true);
-	} else {
-        PhotoLink *lnkPhoto = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
-        VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
-        AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
-        DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-		if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument) {
-			_menu = new ContextMenu(historyWidget);
-			if (isUponSelected > 0) {
-				_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
-			}
-			if (lnkPhoto) {
-				_menu->addAction(lang(lng_context_open_image), this, SLOT(openContextUrl()))->setEnabled(true);
-				_menu->addAction(lang(lng_context_save_image), this, SLOT(saveContextImage()))->setEnabled(true);
-				_menu->addAction(lang(lng_context_copy_image), this, SLOT(copyContextImage()))->setEnabled(true);
+		if (lnkPhoto) {
+			_menu->addAction(lang(lng_context_open_image), this, SLOT(openContextUrl()))->setEnabled(true);
+			_menu->addAction(lang(lng_context_save_image), this, SLOT(saveContextImage()))->setEnabled(true);
+			_menu->addAction(lang(lng_context_copy_image), this, SLOT(copyContextImage()))->setEnabled(true);
+		} else {
+			if ((lnkVideo && lnkVideo->video()->loader) || (lnkAudio && lnkAudio->audio()->loader) || (lnkDocument && lnkDocument->document()->loader)) {
+				_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
 			} else {
-				if ((lnkVideo && lnkVideo->video()->loader) || (lnkAudio && lnkAudio->audio()->loader) || (lnkDocument && lnkDocument->document()->loader)) {
-					_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
-				} else {
-					if ((lnkVideo && !lnkVideo->video()->already(true).isEmpty()) || (lnkAudio && !lnkAudio->audio()->already(true).isEmpty()) || (lnkDocument && !lnkDocument->document()->already(true).isEmpty())) {
-						_menu->addAction(lang(cPlatform() == dbipMac ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
-					}
-					_menu->addAction(lang(lnkVideo ? lng_context_open_video : (lnkAudio ? lng_context_open_audio : lng_context_open_document)), this, SLOT(openContextFile()))->setEnabled(true);
-					_menu->addAction(lang(lnkVideo ? lng_context_save_video : (lnkAudio ? lng_context_save_audio : lng_context_save_document)), this, SLOT(saveContextFile()))->setEnabled(true);
+				if ((lnkVideo && !lnkVideo->video()->already(true).isEmpty()) || (lnkAudio && !lnkAudio->audio()->already(true).isEmpty()) || (lnkDocument && !lnkDocument->document()->already(true).isEmpty())) {
+					_menu->addAction(lang(cPlatform() == dbipMac ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 				}
+				_menu->addAction(lang(lnkVideo ? lng_context_open_video : (lnkAudio ? lng_context_open_audio : lng_context_open_document)), this, SLOT(openContextFile()))->setEnabled(true);
+				_menu->addAction(lang(lnkVideo ? lng_context_save_video : (lnkAudio ? lng_context_save_audio : lng_context_save_document)), this, SLOT(saveContextFile()))->setEnabled(true);
 			}
-			if (isUponSelected > 1) {
-				_menu->addAction(lang(lng_context_forward_selected), historyWidget, SLOT(onForwardSelected()));
-				_menu->addAction(lang(lng_context_delete_selected), historyWidget, SLOT(onDeleteSelected()));
-				_menu->addAction(lang(lng_context_clear_selection), historyWidget, SLOT(onClearSelected()));
-			} else if (App::hoveredLinkItem()) {
-				if (isUponSelected != -2) {
-					if (dynamic_cast<HistoryMessage*>(App::hoveredLinkItem())) {
-						_menu->addAction(lang(lng_context_forward_msg), historyWidget, SLOT(forwardMessage()))->setEnabled(true);
-					}
-					_menu->addAction(lang(lng_context_delete_msg), historyWidget, SLOT(deleteMessage()))->setEnabled(true);
-				}
-				_menu->addAction(lang(lng_context_select_msg), historyWidget, SLOT(selectMessage()))->setEnabled(true);
-				App::contextItem(App::hoveredLinkItem());
-			}
-		} else { // maybe cursor on some text history item?
-			HistoryItem *item = App::hoveredItem() ? App::hoveredItem() : App::hoveredLinkItem();
-			bool canDelete = (item && item->itemType() == HistoryItem::MsgType);
-			bool canForward = canDelete && (item->id > 0) && !item->serviceMsg();
-
-			HistoryMessage *msg = dynamic_cast<HistoryMessage*>(item);
-			HistoryServiceMsg *srv = dynamic_cast<HistoryServiceMsg*>(item);
-
-			if (isUponSelected > 0) {
-				if (!_menu) _menu = new ContextMenu(this);
-				_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
-			} else if (item && !isUponSelected && !_contextMenuLnk) {
-				QString contextMenuText = item->selectedText(FullItemSel);
-				if (!contextMenuText.isEmpty()) {
-					if (!_menu) _menu = new ContextMenu(this);
-					_menu->addAction(lang(lng_context_copy_text), this, SLOT(copyContextText()))->setEnabled(true);
-				}
-			}
-
-			if (isUponSelected > 1) {
-				if (!_menu) _menu = new ContextMenu(this);
-				_menu->addAction(lang(lng_context_forward_selected), historyWidget, SLOT(onForwardSelected()));
-				_menu->addAction(lang(lng_context_delete_selected), historyWidget, SLOT(onDeleteSelected()));
-				_menu->addAction(lang(lng_context_clear_selection), historyWidget, SLOT(onClearSelected()));
-			} else {
-				if (!_menu) _menu = new ContextMenu(this);
-				if (isUponSelected != -2) {
-					if (canForward) {
-						_menu->addAction(lang(lng_context_forward_msg), historyWidget, SLOT(forwardMessage()))->setEnabled(true);
-					}
-
-					if (canDelete) {
-						_menu->addAction(lang((msg && msg->uploading()) ? lng_context_cancel_upload : lng_context_delete_msg), historyWidget, SLOT(deleteMessage()))->setEnabled(true);
-					}
-				}
-				_menu->addAction(lang(lng_context_select_msg), historyWidget, SLOT(selectMessage()))->setEnabled(true);
-			}
-			App::contextItem(item);
 		}
+		if (isUponSelected > 1) {
+			_menu->addAction(lang(lng_context_forward_selected), historyWidget, SLOT(onForwardSelected()));
+			_menu->addAction(lang(lng_context_delete_selected), historyWidget, SLOT(onDeleteSelected()));
+			_menu->addAction(lang(lng_context_clear_selection), historyWidget, SLOT(onClearSelected()));
+		} else if (App::hoveredLinkItem()) {
+			if (isUponSelected != -2) {
+				if (dynamic_cast<HistoryMessage*>(App::hoveredLinkItem())) {
+					_menu->addAction(lang(lng_context_forward_msg), historyWidget, SLOT(forwardMessage()))->setEnabled(true);
+				}
+				_menu->addAction(lang(lng_context_delete_msg), historyWidget, SLOT(deleteMessage()))->setEnabled(true);
+			}
+			_menu->addAction(lang(lng_context_select_msg), historyWidget, SLOT(selectMessage()))->setEnabled(true);
+			App::contextItem(App::hoveredLinkItem());
+		}
+	} else { // maybe cursor on some text history item?
+		HistoryItem *item = App::hoveredItem() ? App::hoveredItem() : App::hoveredLinkItem();
+		bool canDelete = (item && item->itemType() == HistoryItem::MsgType);
+		bool canForward = canDelete && (item->id > 0) && !item->serviceMsg();
+
+		HistoryMessage *msg = dynamic_cast<HistoryMessage*>(item);
+		HistoryServiceMsg *srv = dynamic_cast<HistoryServiceMsg*>(item);
+
+		if (isUponSelected > 0) {
+			if (!_menu) _menu = new ContextMenu(this);
+			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
+		} else if (item && !isUponSelected && !_contextMenuLnk) {
+			QString contextMenuText = item->selectedText(FullItemSel);
+			if (!contextMenuText.isEmpty()) {
+				if (!_menu) _menu = new ContextMenu(this);
+				_menu->addAction(lang(lng_context_copy_text), this, SLOT(copyContextText()))->setEnabled(true);
+			}
+		}
+
+		if (_contextMenuLnk && dynamic_cast<TextLink*>(_contextMenuLnk.data())) {
+			if (!_menu) _menu = new ContextMenu(historyWidget);
+			_menu->addAction(lang(lng_context_open_link), this, SLOT(openContextUrl()))->setEnabled(true);
+			_menu->addAction(lang(lng_context_copy_link), this, SLOT(copyContextUrl()))->setEnabled(true);
+		} else if (_contextMenuLnk && dynamic_cast<EmailLink*>(_contextMenuLnk.data())) {
+			if (!_menu) _menu = new ContextMenu(historyWidget);
+			_menu->addAction(lang(lng_context_open_email), this, SLOT(openContextUrl()))->setEnabled(true);
+			_menu->addAction(lang(lng_context_copy_email), this, SLOT(copyContextUrl()))->setEnabled(true);
+		} else if (_contextMenuLnk && dynamic_cast<HashtagLink*>(_contextMenuLnk.data())) {
+			if (!_menu) _menu = new ContextMenu(historyWidget);
+			_menu->addAction(lang(lng_context_open_hashtag), this, SLOT(openContextUrl()))->setEnabled(true);
+			_menu->addAction(lang(lng_context_copy_hashtag), this, SLOT(copyContextUrl()))->setEnabled(true);
+		} else {
+		}
+		if (isUponSelected > 1) {
+			if (!_menu) _menu = new ContextMenu(this);
+			_menu->addAction(lang(lng_context_forward_selected), historyWidget, SLOT(onForwardSelected()));
+			_menu->addAction(lang(lng_context_delete_selected), historyWidget, SLOT(onDeleteSelected()));
+			_menu->addAction(lang(lng_context_clear_selection), historyWidget, SLOT(onClearSelected()));
+		} else {
+			if (!_menu) _menu = new ContextMenu(this);
+			if (isUponSelected != -2) {
+				if (canForward) {
+					_menu->addAction(lang(lng_context_forward_msg), historyWidget, SLOT(forwardMessage()))->setEnabled(true);
+				}
+
+				if (canDelete) {
+					_menu->addAction(lang((msg && msg->uploading()) ? lng_context_cancel_upload : lng_context_delete_msg), historyWidget, SLOT(deleteMessage()))->setEnabled(true);
+				}
+			}
+			_menu->addAction(lang(lng_context_select_msg), historyWidget, SLOT(selectMessage()))->setEnabled(true);
+		}
+		App::contextItem(item);
 	}
+
 	if (_menu) {
 		_menu->deleteOnHide();
 		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
@@ -1535,7 +1529,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
     , _attachDragDocument(this)
     , _attachDragPhoto(this)
     , imageLoader(this)
-    , noTypingUpdate(false)
+	, _synthedTextUpdate(false)
     , loadingChatId(0)
     , loadingRequestId(0)
     , serviceImageCacheSize(0)
@@ -1545,7 +1539,9 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
     , bg(st::msgBG)
     , hiderOffered(false)
     , _scrollDelta(0)
-	, _typingRequest(0) {
+	, _typingRequest(0)
+	, _saveDraftText(false)
+	, _saveDraftStart(0) {
 	_scroll.setFocusPolicy(Qt::NoFocus);
 
 	setAcceptDrops(true);
@@ -1574,6 +1570,11 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
 
 	_animActiveTimer.setSingleShot(false);
 	connect(&_animActiveTimer, SIGNAL(timeout()), this, SLOT(onAnimActiveStep()));
+
+	_saveDraftTimer.setSingleShot(true);
+	connect(&_saveDraftTimer, SIGNAL(timeout()), this, SLOT(onDraftSave()));
+	connect(_field.verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onDraftSaveDelayed()));
+	connect(&_field, SIGNAL(cursorPositionChanged()), this, SLOT(onDraftSaveDelayed()));
 
 	_scroll.hide();
 	_scroll.move(0, 0);
@@ -1605,6 +1606,43 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
 
 void HistoryWidget::onTextChange() {
 	updateTyping();
+
+	if (!hist || _synthedTextUpdate) return;
+	_saveDraftText = true;
+	onDraftSave(true);
+}
+
+void HistoryWidget::onDraftSaveDelayed() {
+	if (!hist || _synthedTextUpdate) return;
+	if (!_field.textCursor().anchor() && !_field.textCursor().position() && !_field.verticalScrollBar()->value()) {
+		if (!Local::hasDraftPositions(hist->peer->id)) return;
+	}
+	onDraftSave(true);
+}
+
+void HistoryWidget::onDraftSave(bool delayed) {
+	if (!hist) return;
+	if (delayed) {
+		uint64 ms = getms();
+		if (!_saveDraftStart) {
+			_saveDraftStart = ms;
+			return _saveDraftTimer.start(SaveDraftTimeout);
+		} else if (ms - _saveDraftStart < SaveDraftAnywayTimeout) {
+			return _saveDraftTimer.start(SaveDraftTimeout);
+		}
+	}
+	writeDraft();
+}
+
+void HistoryWidget::writeDraft(const QString *text, const MessageCursor *cursor) {
+	bool save = hist && (_saveDraftStart > 0);
+	_saveDraftStart = 0;
+	_saveDraftTimer.stop();
+	if (_saveDraftText) {
+		if (save) Local::writeDraft(hist->peer->id, text ? (*text) : _field.getText());
+		_saveDraftText = false;
+	}
+	if (save) Local::writeDraftPositions(hist->peer->id, cursor ? (*cursor) : MessageCursor(_field));
 }
 
 void HistoryWidget::cancelTyping() {
@@ -1616,7 +1654,7 @@ void HistoryWidget::cancelTyping() {
 
 void HistoryWidget::updateTyping(bool typing) {
 	uint64 ms = getms(true) + 10000;
-	if (noTypingUpdate || !hist || (typing && (hist->myTyping + 5000 > ms)) || (!typing && (hist->myTyping + 5000 <= ms))) return;
+	if (_synthedTextUpdate || !hist || (typing && (hist->myTyping + 5000 > ms)) || (!typing && (hist->myTyping + 5000 <= ms))) return;
 
 	hist->myTyping = typing ? ms : 0;
 	cancelTyping();
@@ -1725,7 +1763,10 @@ void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool l
 	}
 	if (hist) {
 		hist->draft = _field.getText();
-		hist->draftCur = _field.textCursor();
+		hist->draftCursor.fillFrom(_field);
+
+		writeDraft(&hist->draft, &hist->draftCursor);
+
 		if (hist->readyForWork() && _scroll.scrollTop() + 1 <= _scroll.scrollTopMax()) {
 			hist->lastWidth = _list->width();
 		} else {
@@ -1803,13 +1844,19 @@ void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool l
 
 		App::main()->peerUpdated(histPeer);
 		
-		noTypingUpdate = true;
-		setFieldText(hist->draft);
-		_field.setFocus();
 		if (!hist->draft.isEmpty()) {
-			_field.setTextCursor(hist->draftCur);
+			setFieldText(hist->draft);
+			_field.setFocus();
+			hist->draftCursor.applyTo(_field, &_synthedTextUpdate);
+		} else {
+			QString draft = Local::readDraft(hist->peer->id);
+			setFieldText(draft);
+			_field.setFocus();
+			if (!draft.isEmpty()) {
+				MessageCursor cur = Local::readDraftPositions(hist->peer->id);
+				cur.applyTo(_field, &_synthedTextUpdate);
+			}
 		}
-		noTypingUpdate = false;
 
 		connect(&_scroll, SIGNAL(geometryChanged()), _list, SLOT(onParentGeometryChanged()));
 		connect(&_scroll, SIGNAL(scrolled()), _list, SLOT(onUpdateSelected()));
@@ -2223,6 +2270,10 @@ void HistoryWidget::onSend(bool ctrlShiftEnter) {
 		App::main()->sendPreparedText(hist, prepareMessage(_field.getText()));
 
 		setFieldText(QString());
+		_saveDraftText = true;
+		_saveDraftStart = getms();
+		onDraftSave();
+
 		if (!_attachType.isHidden()) _attachType.hideStart();
 		if (!_emojiPan.isHidden()) _emojiPan.hideStart();
 	}
@@ -2688,7 +2739,7 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 			}
 		}
 	} else {
-		text = App::onlineText(histPeer->asUser()->onlineTill, t);
+		text = App::onlineText(histPeer->asUser(), t);
 	}
 	if (titlePeerText != text) {
 		titlePeerText = text;
@@ -3164,9 +3215,9 @@ void HistoryWidget::onFieldTabbed() {
 }
 
 void HistoryWidget::setFieldText(const QString &text) {
-	noTypingUpdate = true;
+	_synthedTextUpdate = true;
 	_field.setPlainText(text);
-	noTypingUpdate = false;
+	_synthedTextUpdate = false;
 }
 
 void HistoryWidget::onCancel() {

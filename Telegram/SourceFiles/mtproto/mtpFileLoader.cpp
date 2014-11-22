@@ -20,6 +20,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "window.h"
 
 #include "application.h"
+#include "localstorage.h"
 
 namespace {
 	int32 _priority = 1;
@@ -44,9 +45,9 @@ namespace {
 }
 
 mtpFileLoader::mtpFileLoader(int32 dc, const int64 &volume, int32 local, const int64 &secret, int32 size) : prev(0), next(0),
-priority(0), inQueue(false), complete(false), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
+priority(0), inQueue(false), complete(false), triedLocal(false), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
 dc(dc), locationType(0), volume(volume), local(local), secret(secret),
-id(0), access(0), fileIsOpen(false), size(size), type(MTP_storage_fileUnknown()) {
+id(0), access(0), fileIsOpen(false), size(size), type(mtpc_storage_fileUnknown) {
 	LoaderQueues::iterator i = queues.find(dc);
 	if (i == queues.cend()) {
 		i = queues.insert(dc, mtpFileLoaderQueue());
@@ -55,9 +56,9 @@ id(0), access(0), fileIsOpen(false), size(size), type(MTP_storage_fileUnknown())
 }
 
 mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, mtpTypeId locType, const QString &to, int32 size) : prev(0), next(0),
-priority(0), inQueue(false), complete(false), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
+priority(0), inQueue(false), complete(false), triedLocal(false), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
 dc(dc), locationType(locType),
-id(id), access(access), file(to), fname(to), fileIsOpen(false), duplicateInData(false), size(size), type(MTP_storage_fileUnknown()) {
+id(id), access(access), file(to), fname(to), fileIsOpen(false), duplicateInData(false), size(size), type(mtpc_storage_fileUnknown) {
 	LoaderQueues::iterator i = queues.find(MTP::dld[0] + dc);
 	if (i == queues.cend()) {
 		i = queues.insert(MTP::dld[0] + dc, mtpFileLoaderQueue());
@@ -66,9 +67,9 @@ id(id), access(access), file(to), fname(to), fileIsOpen(false), duplicateInData(
 }
 
 mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, mtpTypeId locType, const QString &to, int32 size, bool todata) : prev(0), next(0),
-priority(0), inQueue(false), complete(false), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
+priority(0), inQueue(false), complete(false), triedLocal(false), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
 dc(dc), locationType(locType),
-id(id), access(access), file(to), fname(to), fileIsOpen(false), duplicateInData(todata), size(size), type(MTP_storage_fileUnknown()) {
+id(id), access(access), file(to), fname(to), fileIsOpen(false), duplicateInData(todata), size(size), type(mtpc_storage_fileUnknown) {
 	LoaderQueues::iterator i = queues.find(MTP::dld[0] + dc);
 	if (i == queues.cend()) {
 		i = queues.insert(MTP::dld[0] + dc, mtpFileLoaderQueue());
@@ -85,7 +86,7 @@ bool mtpFileLoader::done() const {
 }
 
 mtpTypeId mtpFileLoader::fileType() const {
-	return type.type();
+	return type;
 }
 
 const QByteArray &mtpFileLoader::bytes() const {
@@ -130,7 +131,7 @@ void mtpFileLoader::loadNext() {
 void mtpFileLoader::finishFail() {
 	bool started = currentOffset(true) > 0;
 	cancelRequests();
-	type = MTP_storage_fileUnknown();
+	type = mtpc_storage_fileUnknown;
 	complete = true;
 	if (fileIsOpen) {
 		file.close();
@@ -186,7 +187,7 @@ bool mtpFileLoader::loadPart() {
 
 void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRequestId req) {
 	Requests::iterator i = requests.find(req);
-	if (i == requests.cend()) return;
+	if (i == requests.cend()) return loadNext();
 
 	int32 limit = locationType ? DocumentDownloadPartSize : DownloadPartSize;
 	int32 dcIndex = i.value();
@@ -239,7 +240,7 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 				return finishFail();
 			}
 		}
-		type = d.vtype;
+		type = d.vtype.type();
 		complete = true;
 		if (fileIsOpen) {
 			file.close();
@@ -249,9 +250,12 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 		removeFromQueue();
 		App::wnd()->update();
 		App::wnd()->notifyUpdateAllPhotos();
-
 		if (!queue->queries && dcIndex) {
 			App::app()->killDownloadSessionsStart(dc);
+		}
+
+		if (!locationType && triedLocal && (fname.isEmpty() || duplicateInData)) {
+			Local::writeImage(storageKey(dc, volume, local), StorageImageSaved(type, data));
 		}
 	}
 	emit progress(this);
@@ -287,12 +291,38 @@ void mtpFileLoader::pause() {
 
 void mtpFileLoader::start(bool loadFirst, bool prior) {
 	if (complete) return;
+	if (!locationType && !triedLocal) {
+		triedLocal = true;
+		StorageImageSaved cached = Local::readImage(storageKey(dc, volume, local));
+		if (cached.type != mtpc_storage_fileUnknown) {
+			data = cached.data;
+			if (!fname.isEmpty() && duplicateInData) {
+				if (!fileIsOpen) fileIsOpen = file.open(QIODevice::WriteOnly);
+				if (!fileIsOpen) {
+					return finishFail();
+				}
+				if (file.write(data) != qint64(data.size())) {
+					return finishFail();
+				}
+			}
+			type = cached.type;
+			complete = true;
+			if (fileIsOpen) {
+				file.close();
+				fileIsOpen = false;
+				psPostprocessFile(QFileInfo(file).absoluteFilePath());
+			}
+			App::wnd()->update();
+			App::wnd()->notifyUpdateAllPhotos();
+			emit progress(this);
+			return loadNext();
+		}
+	}
 
 	if (!fname.isEmpty() && !duplicateInData && !fileIsOpen) {
 		fileIsOpen = file.open(QIODevice::WriteOnly);
 		if (!fileIsOpen) {
-			finishFail();
-			return;
+			return finishFail();
 		}
 	}
 
@@ -386,7 +416,7 @@ void mtpFileLoader::start(bool loadFirst, bool prior) {
 
 void mtpFileLoader::cancel() {
 	cancelRequests();
-	type = MTP_storage_fileUnknown();
+	type = mtpc_storage_fileUnknown;
 	complete = true;
 	if (fileIsOpen) {
 		file.close();

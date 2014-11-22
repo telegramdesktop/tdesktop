@@ -143,7 +143,7 @@ void TopBarWidget::enableShadow(bool enable) {
 
 void TopBarWidget::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
-	if (e->rect().top() < st::topBarHeight) {
+	if (e->rect().top() < st::topBarHeight) { // optimize shadow-only drawing
 		p.fillRect(QRect(0, 0, width(), st::topBarHeight), st::topBarBG->b);
 		if (_clearSelection.isHidden()) {
 			p.save();
@@ -154,8 +154,6 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 			p.setPen(st::btnDefLink.color->p);
 			p.drawText(st::topBarSelectedPos.x(), st::topBarSelectedPos.y() + st::linkFont->ascent, _selStr);
 		}
-	} else {
-		int a = 0; // optimize shadow-only drawing
 	}
 	if (_drawShadow) {
 		p.fillRect(st::titleShadow, st::topBarHeight, width() - st::titleShadow, st::titleShadow, st::titleShadowColor->b);
@@ -1734,7 +1732,6 @@ void MainWidget::gotState(const MTPupdates_State &state) {
 	MTP::setGlobalDoneHandler(rpcDone(&MainWidget::updateReceived));
 	_lastUpdateTime = getms(true);
 	noUpdatesTimer.start(NoUpdatesTimeout);
-	LOG(("Started no updates timeout, %1").arg(_lastUpdateTime));
 	updInited = true;
 
 	dialogs.loadDialogs();
@@ -1752,7 +1749,7 @@ void MainWidget::gotDifference(const MTPupdates_Difference &diff) {
 		MTP::setGlobalDoneHandler(rpcDone(&MainWidget::updateReceived));
 		_lastUpdateTime = getms(true);
 		noUpdatesTimer.start(NoUpdatesTimeout);
-		LOG(("Started no updates timeout, %1").arg(_lastUpdateTime));
+
 		updInited = true;
 	} break;
 	case mtpc_updates_differenceSlice: {
@@ -2000,6 +1997,8 @@ int32 MainWidget::dlgsWidth() const {
 }
 
 MainWidget::~MainWidget() {
+	if (App::main() == this) history.showPeer(0, 0, true);
+
 	delete hider;
 	MTP::clearGlobalHandlers();
 	App::deinitMedia(false);
@@ -2043,7 +2042,6 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 
 			_lastUpdateTime = getms(true);
 			noUpdatesTimer.start(NoUpdatesTimeout);
-			LOG(("Started no updates timeout, %1").arg(_lastUpdateTime));
 
 			handleUpdates(updates);
 		} catch(mtpErrorUnexpected &e) { // just some other type

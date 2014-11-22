@@ -629,6 +629,34 @@ inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	return MTPMessagesFilter();
 }
 
+struct MessageCursor {
+	MessageCursor() : position(0), anchor(0), scroll(QFIXED_MAX) {
+	}
+	MessageCursor(int position, int anchor, int scroll) : position(position), anchor(anchor), scroll(scroll) {
+	}
+	MessageCursor(const QTextEdit &edit) {
+		fillFrom(edit);
+	}
+	void fillFrom(const QTextEdit &edit) {
+		QTextCursor c = edit.textCursor();
+		position = c.position();
+		anchor = c.anchor();
+		QScrollBar *s = edit.verticalScrollBar();
+		scroll = s ? s->value() : QFIXED_MAX;
+	}
+	void applyTo(QTextEdit &edit, bool *lock = 0) {
+		if (lock) *lock = true;
+		QTextCursor c = edit.textCursor();
+		c.setPosition(anchor, QTextCursor::MoveAnchor);
+		c.setPosition(position, QTextCursor::KeepAnchor);
+		edit.setTextCursor(c);
+		QScrollBar *s = edit.verticalScrollBar();
+		if (s) s->setValue(scroll);
+		if (lock) *lock = false;
+	}
+	int position, anchor, scroll;
+};
+
 class HistoryMedia;
 class HistoryMessage;
 class HistoryUnreadBar;
@@ -732,7 +760,7 @@ struct History : public QList<HistoryBlock*> {
 	}
 
 	QString draft;
-	QTextCursor draftCur;
+	MessageCursor draftCursor;
 	int32 lastWidth, lastScrollTop;
 	bool mute;
 
@@ -1223,6 +1251,7 @@ public:
 
 	virtual HistoryMediaType type() const = 0;
 	virtual const QString inDialogsText() const = 0;
+	virtual const QString inHistoryText() const = 0;
 	virtual bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const = 0;
 	virtual int32 countHeight(const HistoryItem *parent, int32 width = -1) const {
 		return height();
@@ -1276,6 +1305,7 @@ public:
 		return MediaTypePhoto;
 	}
 	const QString inDialogsText() const;
+	const QString inHistoryText() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	HistoryMedia *clone() const;
@@ -1283,6 +1313,8 @@ public:
 	PhotoData *photo() const {
 		return data;
 	}
+
+	void updateFrom(const MTPMessageMedia &media);
 
 	TextLinkPtr lnk() const {
 		return openl;
@@ -1312,6 +1344,7 @@ public:
 		return MediaTypeVideo;
 	}
 	const QString inDialogsText() const;
+	const QString inHistoryText() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	bool uploading() const {
@@ -1344,6 +1377,7 @@ public:
 		return MediaTypeAudio;
 	}
 	const QString inDialogsText() const;
+	const QString inHistoryText() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	bool uploading() const {
@@ -1376,6 +1410,7 @@ public:
 		return MediaTypeDocument;
 	}
 	const QString inDialogsText() const;
+	const QString inHistoryText() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	int32 countHeight(const HistoryItem *parent, int32 width = -1) const;
 	bool uploading() const {
@@ -1418,6 +1453,7 @@ public:
 		return MediaTypeContact;
 	}
 	const QString inDialogsText() const;
+	const QString inHistoryText() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const;
 	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width) const;
 	HistoryMedia *clone() const;
@@ -1426,7 +1462,7 @@ public:
 
 private:
 	int32 userId;
-	int32 w, phonew;
+	int32 phonew;
 	Text name;
 	QString phone;
 	UserData *contact;
@@ -1449,7 +1485,6 @@ struct ImageLinkData {
 	QString id;
 	QString title, duration;
 	ImagePtr thumb;
-	TextLinkPtr openl;
 	ImageLinkType type;
 	bool loading;
 
@@ -1498,12 +1533,14 @@ public:
 		return MediaTypeImageLink;
 	}
 	const QString inDialogsText() const;
+	const QString inHistoryText() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	HistoryMedia *clone() const;
 
 private:
 	ImageLinkData *data;
+	TextLinkPtr link;
 
 };
 

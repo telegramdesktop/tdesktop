@@ -752,6 +752,18 @@
     <ClCompile Include="GeneratedFiles\Release\moc_types.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\localstorage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_localstorage.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_localstorage.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_localstorage.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1003,6 +1015,9 @@
       <Filter>Source Files</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\types.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\localstorage.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
   </ItemGroup>

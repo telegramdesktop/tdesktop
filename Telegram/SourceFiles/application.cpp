@@ -28,6 +28,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "boxes/confirmbox.h"
 #include "langloaderplain.h"
 
+#include "localstorage.h"
+
 namespace {
 	Application *mainApp = 0;
 	FileUploader *uploader = 0;
@@ -131,6 +133,7 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 		}
 	}
 
+	Local::start();
 	style::startManager();
 	anim::startManager();
 	historyInit();
@@ -617,9 +620,11 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 }
 
 void Application::startApp() {
+	Local::ReadMapState state = Local::readMap(QByteArray());
+
 	App::readUserConfig();
-	if (!MTP::localKey().created()) {
-		MTP::createLocalKey(QByteArray());
+	if (!Local::oldKey().created()) {
+		Local::createOldKey();
 		cSetNeedConfigResave(true);
 	}
 	if (cNeedConfigResave()) {
@@ -765,6 +770,7 @@ Application::~Application() {
 	delete window;
 
 	style::stopManager();
+	Local::stop();
 }
 
 Application *Application::app() {

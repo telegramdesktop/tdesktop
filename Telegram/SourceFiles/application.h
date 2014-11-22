@@ -80,6 +80,8 @@ signals:
 	void peerPhotoDone(PeerId peer);
 	void peerPhotoFail(PeerId peer);
 
+	void adjustSingleTimers();
+
 public slots:
 
 	void startUpdateCheck(bool forceWait = false);

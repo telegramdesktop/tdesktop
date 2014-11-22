@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 #pragma once
 
-static const int32 AppVersion = 6011;
-static const wchar_t *AppVersionStr = L"0.6.11";
+static const int32 AppVersion = 6012;
+static const wchar_t *AppVersionStr = L"0.6.12";
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -101,7 +101,15 @@ enum {
 
 	MaxMessageSize = 4096,
 	MaxHttpRedirects = 5, // when getting external data/images
+
+	WriteMapTimeout = 1000,
+	SaveDraftTimeout = 1000, // save draft after 1 secs of not changing text
+	SaveDraftAnywayTimeout = 5000, // or save anyway each 5 secs
 };
+
+inline bool isServiceUser(uint64 id) {
+	return (id == 333000) || (id == 777000);
+}
 
 #ifdef Q_OS_WIN
 inline const GUID &cGUID() {

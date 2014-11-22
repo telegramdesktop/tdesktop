@@ -29,17 +29,8 @@ namespace {
 		return img;
 	}
 
-	typedef QMap<QByteArray, StorageImage*> StorageImages;
+	typedef QMap<StorageKey, StorageImage*> StorageImages;
 	StorageImages storageImages;
-
-	QByteArray storageKey(int32 dc, const int64 &volume, int32 local, const int64 &secret) {
-		QByteArray result(24, Qt::Uninitialized);
-		memcpy(result.data(), &dc, 4);
-		memcpy(result.data() + 4, &volume, 8);
-		memcpy(result.data() + 12, &local, 4);
-		memcpy(result.data() + 16, &secret, 8);
-		return result;
-	}
 
 	int64 globalAquiredSize = 0;
 }
@@ -480,7 +471,7 @@ bool StorageImage::loaded() const {
 }
 
 StorageImage *getImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, int32 size) {
-	QByteArray key(storageKey(dc, volume, local, secret));
+	StorageKey key(storageKey(dc, volume, local));
 	StorageImages::const_iterator i = storageImages.constFind(key);
 	if (i == storageImages.cend()) {
 		i = storageImages.insert(key, new StorageImage(width, height, dc, volume, local, secret, size));
@@ -489,7 +480,7 @@ StorageImage *getImage(int32 width, int32 height, int32 dc, const int64 &volume,
 }
 
 StorageImage *getImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, const QByteArray &bytes) {
-	QByteArray key(storageKey(dc, volume, local, secret));
+	StorageKey key(storageKey(dc, volume, local));
 	StorageImages::const_iterator i = storageImages.constFind(key);
     if (i == storageImages.cend()) {
         QByteArray bytesArr(bytes);

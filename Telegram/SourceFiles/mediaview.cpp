@@ -468,7 +468,6 @@ void MediaView::showPhoto(PhotoData *photo) {
 	_doc = 0;
 	_zoom = 0;
 	MTP::clearLoaderPriorities();
-	_photo->full->load();
 	_full = -1;
 	_current = QPixmap();
 	_down = OverNone;
@@ -490,6 +489,7 @@ void MediaView::showPhoto(PhotoData *photo) {
 	_width = _w;
 	_from = App::user(_photo->user);
 	updateControls();
+	_photo->full->load();
 	if (isHidden()) {
 		psUpdateOverlayed(this);
 		show();

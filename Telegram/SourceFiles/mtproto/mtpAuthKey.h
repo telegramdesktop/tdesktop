@@ -48,7 +48,7 @@ public:
 		return _keyId;
 	}
 
-	void prepareAES(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &aesIV, bool send = true) {
+	void prepareAES(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &aesIV, bool send = true) const {
 		if (!_isset) throw mtpErrorKeyNotReady(QString("prepareAES(.., %1)").arg(logBool(send)));
 
 		uint32 x = send ? 0 : 8;
@@ -112,14 +112,14 @@ inline void aesEncrypt(const void *src, void *dst, uint32 len, void *key, void *
 	AES_ige_encrypt((const uchar*)src, (uchar*)dst, len, &aes, aes_iv, AES_ENCRYPT);
 }
 
-inline void aesEncrypt(const void *src, void *dst, uint32 len, mtpAuthKeyPtr authKey, const MTPint128 &msgKey) {
+inline void aesEncrypt(const void *src, void *dst, uint32 len, const mtpAuthKeyPtr &authKey, const MTPint128 &msgKey) {
 	MTPint256 aesKey, aesIV;
 	authKey->prepareAES(msgKey, aesKey, aesIV);
 
 	return aesEncrypt(src, dst, len, &aesKey, &aesIV);
 }
 
-inline void aesEncryptLocal(const void *src, void *dst, uint32 len, mtpAuthKey *authKey, const void *key128) {
+inline void aesEncryptLocal(const void *src, void *dst, uint32 len, const mtpAuthKey *authKey, const void *key128) {
 	MTPint256 aesKey, aesIV;
 	authKey->prepareAES(*(const MTPint128*)key128, aesKey, aesIV, false);
 
@@ -136,14 +136,14 @@ inline void aesDecrypt(const void *src, void *dst, uint32 len, void *key, void *
 	AES_ige_encrypt((const uchar*)src, (uchar*)dst, len, &aes, aes_iv, AES_DECRYPT);
 }
 
-inline void aesDecrypt(const void *src, void *dst, uint32 len, mtpAuthKeyPtr authKey, const MTPint128 &msgKey) {
+inline void aesDecrypt(const void *src, void *dst, uint32 len, const mtpAuthKeyPtr &authKey, const MTPint128 &msgKey) {
 	MTPint256 aesKey, aesIV;
 	authKey->prepareAES(msgKey, aesKey, aesIV, false);
 
 	return aesDecrypt(src, dst, len, &aesKey, &aesIV);
 }
 
-inline void aesDecryptLocal(const void *src, void *dst, uint32 len, mtpAuthKey *authKey, const void *key128) {
+inline void aesDecryptLocal(const void *src, void *dst, uint32 len, const mtpAuthKey *authKey, const void *key128) {
 	MTPint256 aesKey, aesIV;
 	authKey->prepareAES(*(const MTPint128*)key128, aesKey, aesIV, false);
 
