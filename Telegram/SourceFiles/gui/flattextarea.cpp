@@ -227,7 +227,7 @@ QString FlatTextarea::getText(int32 start, int32 end) const {
 							uint32 index = imageName.mid(8).toUInt(0, 16);
 							const EmojiData *emoji = getEmoji(index);
 							if (emoji) {
-								emojiText.reserve(emoji->len);
+								emojiText.reserve(emoji->len + (emoji->postfix ? 1 : 0));
 								switch (emoji->len) {
 								case 1: emojiText.append(QChar(emoji->code & 0xFFFF)); break;
 								case 2:
@@ -241,6 +241,7 @@ QString FlatTextarea::getText(int32 start, int32 end) const {
 									emojiText.append(QChar(emoji->code2 & 0xFFFF));
 								break;
 								}
+								if (emoji->postfix) emojiText.append(QChar(emoji->postfix));
 							}
 						}
 					}
@@ -295,7 +296,7 @@ void FlatTextarea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 }
 
 void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
-	int32 emojiPosition = 0;
+	int32 emojiPosition = 0, emojiLen = 0;
 	const EmojiData *emoji = 0;
 
 	QTextDocument *doc(document());
@@ -317,13 +318,14 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 
 				QString t(fragment.text());
 				for (const QChar *ch = t.constData(), *e = ch + t.size(); ch != e; ++ch) {
-					if (ch + 1 < e && (ch->isHighSurrogate() || (((ch->unicode() >= 48 && ch->unicode() < 58) || ch->unicode() == 35) && (ch + 1)->unicode() == 0x20E3) || (ch + 1)->unicode() == 0xFE0F)) {
+					if (ch + 1 < e && (ch->isHighSurrogate() || (((ch->unicode() >= 48 && ch->unicode() < 58) || ch->unicode() == 35) && (ch + 1)->unicode() == 0x20E3))) {
 						emoji = getEmoji((ch->unicode() << 16) | (ch + 1)->unicode());
 						if (emoji) {
 							if (emoji->len == 4 && (ch + 3 >= e || ((uint32((ch + 2)->unicode()) << 16) | uint32((ch + 3)->unicode())) != emoji->code2)) {
 								emoji = 0;
 							} else {
 								emojiPosition = p + (ch - t.constData());
+								emojiLen = emoji->len + ((ch + emoji->len < e && (ch + emoji->len)->unicode() == 0xFE0F) ? 1 : 0);
 								break;
 							}
 						}
@@ -332,6 +334,7 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 						emoji = getEmoji(ch->unicode());
 						if (emoji) {
 							emojiPosition = p + (ch - t.constData());
+							emojiLen = emoji->len + ((ch + emoji->len < e && (ch + emoji->len)->unicode() == 0xFE0F) ? 1 : 0);
 							break;
 						}
 					}
@@ -342,7 +345,7 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 		}
 		if (emoji) {
 			QTextCursor c(doc->docHandle(), emojiPosition);
-			c.setPosition(emojiPosition + emoji->len, QTextCursor::KeepAnchor);
+			c.setPosition(emojiPosition + emojiLen, QTextCursor::KeepAnchor);
 			int32 removedUpto = c.position();
 
 			insertEmoji(emoji, c);

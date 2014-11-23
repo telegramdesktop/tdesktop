@@ -124,11 +124,12 @@ T convertScale(T v) {
 DeclareSetting(DBIEmojiTab, EmojiTab);
 
 struct EmojiData {
-	EmojiData(int32 x, int32 y, uint32 code, uint32 code2, int32 len) : x(x), y(y), code(code), code2(code2), len(len) {
+	EmojiData(uint16 x, uint16 y, uint32 code, uint32 code2, uint16 len, uint16 postfix = 0) : x(x), y(y), code(code), code2(code2), len(len), postfix(postfix) {
 	}
-	int32 x, y;
+	uint16 x, y;
 	uint32 code, code2;
-	int32 len;
+	uint16 len;
+	uint16 postfix;
 };
 
 typedef const EmojiData *EmojiPtr;
