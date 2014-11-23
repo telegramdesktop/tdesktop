@@ -1475,6 +1475,7 @@ void deinitImageLinkManager();
 enum ImageLinkType {
 	InvalidImageLink = 0,
 	YouTubeLink,
+	VimeoLink,
 	InstagramLink,
 	GoogleMapsLink
 };

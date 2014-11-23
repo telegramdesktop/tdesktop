@@ -3115,9 +3115,10 @@ void HistoryContact::updateFrom(const MTPMessageMedia &media) {
 }
 
 namespace {
-	QRegularExpression reYouTube1(qsl("^(https?://)?(www\\.|m\\.)?youtube\\.com/watch\\?([^#]+&)?v=([a-z0-9_-]+)(&|$)"), QRegularExpression::CaseInsensitiveOption);
-	QRegularExpression reYouTube2(qsl("^(https?://)?(www\\.)?youtu\\.be/([a-z0-9_-]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption);
-	QRegularExpression reInstagram(qsl("^(https?://)?(www\\.)?instagram\\.com/p/([a-z0-9_-]+)(/|$)"), QRegularExpression::CaseInsensitiveOption);
+	QRegularExpression reYouTube1(qsl("^(https?://)?(www\\.|m\\.)?youtube\\.com/watch\\?([^#]+&)?v=([a-z0-9_-]+)(&[^\\s]*)?$"), QRegularExpression::CaseInsensitiveOption);
+	QRegularExpression reYouTube2(qsl("^(https?://)?(www\\.)?youtu\\.be/([a-z0-9_-]+)([/\\?][^\\s]*)?$"), QRegularExpression::CaseInsensitiveOption);
+	QRegularExpression reInstagram(qsl("^(https?://)?(www\\.)?instagram\\.com/p/([a-z0-9_-]+)([/\\?][^\\s]*)?$"), QRegularExpression::CaseInsensitiveOption);
+	QRegularExpression reVimeo(qsl("^(https?://)?(www\\.)?vimeo\\.com/([0-9]+)([/\\?][^\\s]*)?$"), QRegularExpression::CaseInsensitiveOption);
 
 	ImageLinkManager manager;
 }
@@ -3180,6 +3181,11 @@ void ImageLinkManager::getData(ImageLinkData *data) {
 	switch (data->type) {
 	case YouTubeLink: {
 		url = qsl("https://gdata.youtube.com/feeds/api/videos/") + data->id.mid(8) + qsl("?v=2&alt=json");
+		QNetworkReply *reply = manager->get(QNetworkRequest(QUrl(url)));
+		dataLoadings[reply] = data;
+	} break;
+	case VimeoLink: {
+		url = qsl("https://vimeo.com/api/v2/video/") + data->id.mid(6) + qsl(".json");
 		QNetworkReply *reply = manager->get(QNetworkRequest(QUrl(url)));
 		dataLoadings[reply] = data;
 	} break;
@@ -3262,9 +3268,9 @@ void ImageLinkManager::onFinished(QNetworkReply *reply) {
 			DEBUG_LOG(("JSON Error: Bad json received in onFinished() for image link"));
 			return onFailed(reply);
 		}
-		QJsonObject obj = doc.object();
 		switch (d->type) {
 		case YouTubeLink: {
+			QJsonObject obj = doc.object();
 			QString thumb;
 			int32 seconds = 0;
 			QJsonObject::const_iterator entryIt = obj.constFind(qsl("entry"));
@@ -3360,6 +3366,39 @@ void ImageLinkManager::onFinished(QNetworkReply *reply) {
 				imageLoadings.insert(manager->get(QNetworkRequest(thumb)), d);
 			}
 		} break;
+		
+		case VimeoLink: {
+			QString thumb;
+			int32 seconds = 0;
+			QJsonArray arr = doc.array();
+			if (!arr.isEmpty()) {
+				QJsonObject obj = arr.at(0).toObject();
+				QJsonObject::const_iterator titleIt = obj.constFind(qsl("title"));
+				if (titleIt != obj.constEnd() && titleIt.value().isString()) {
+					d->title = titleIt.value().toString();
+				}
+				QJsonObject::const_iterator thumbnailsIt = obj.constFind(qsl("thumbnail_large"));
+				if (thumbnailsIt != obj.constEnd() && thumbnailsIt.value().isString()) {
+					thumb = thumbnailsIt.value().toString();
+				}
+				QJsonObject::const_iterator secondsIt = obj.constFind(qsl("duration"));
+				if (secondsIt != obj.constEnd()) {
+					if (secondsIt.value().isDouble()) {
+						seconds = qRound(secondsIt.value().toDouble());
+					} else if (secondsIt.value().isString()) {
+						seconds = qRound(secondsIt.value().toString().toDouble());
+					}
+				}
+			}
+			if (seconds > 0) {
+				d->duration = formatDurationText(seconds);
+			}
+			if (thumb.isEmpty()) {
+				failed(d);
+			} else {
+				imageLoadings.insert(manager->get(QNetworkRequest(thumb)), d);
+			}
+		} break;
 
 		case InstagramLink: failed(d); break;
 		case GoogleMapsLink: failed(d); break;
@@ -3430,8 +3469,11 @@ HistoryImageLink::HistoryImageLink(const QString &url, int32 width) : HistoryMed
 	if (url.startsWith(qsl("location:"))) {
 		QString lnk = qsl("https://maps.google.com/maps?q=") + url.mid(9) + qsl("&ll=") + url.mid(9) + qsl("&z=17");
 		link.reset(new TextLink(lnk));
+
 		data = App::imageLink(url, GoogleMapsLink, lnk);
 	} else {
+		link.reset(new TextLink(url));
+
 		int matchIndex = 4;
 		QRegularExpressionMatch m = reYouTube1.match(url);
 		if (!m.hasMatch()) {
@@ -3439,16 +3481,19 @@ HistoryImageLink::HistoryImageLink(const QString &url, int32 width) : HistoryMed
 			matchIndex = 3;
 		}
 		if (m.hasMatch()) {
-			link.reset(new TextLink(url));
 			data = App::imageLink(qsl("youtube:") + m.captured(matchIndex), YouTubeLink, url);
 		} else {
-			m = reInstagram.match(url);
+			m = reVimeo.match(url);
 			if (m.hasMatch()) {
-				link.reset(new TextLink(url));
-				data = App::imageLink(qsl("instagram:") + m.captured(3), InstagramLink, url);
-				data->title = qsl("instagram.com/p/") + m.captured(3);
+				data = App::imageLink(qsl("vimeo:") + m.captured(3), VimeoLink, url);
 			} else {
-				data = 0;
+				m = reInstagram.match(url);
+				if (m.hasMatch()) {
+					data = App::imageLink(qsl("instagram:") + m.captured(3), InstagramLink, url);
+					data->title = qsl("instagram.com/p/") + m.captured(3);
+				} else {
+					data = 0;
+				}
 			}
 		}
 	}
@@ -3458,6 +3503,7 @@ int32 HistoryImageLink::fullWidth() const {
 	if (data) {
 		switch (data->type) {
 		case YouTubeLink: return 640;
+		case VimeoLink: return 640;
 		case InstagramLink: return 640;
 		case GoogleMapsLink: return st::locationSize.width();
 		}
@@ -3469,6 +3515,7 @@ int32 HistoryImageLink::fullHeight() const {
 	if (data) {
 		switch (data->type) {
 		case YouTubeLink: return 480;
+		case VimeoLink: return 480;
 		case InstagramLink: return 640;
 		case GoogleMapsLink: return st::locationSize.height();
 		}
@@ -3523,7 +3570,7 @@ void HistoryImageLink::draw(QPainter &p, const HistoryItem *parent, bool selecte
 	if (data) {
 		switch (data->type) {
 		case YouTubeLink: p.drawPixmap(QPoint((width - st::youtubeIcon.pxWidth()) / 2, (_height - st::youtubeIcon.pxHeight()) / 2), App::sprite(), st::youtubeIcon); break;
-//		case InstagramLink: p.drawPixmap(QPoint((width - st::instagramIcon.pxWidth()) / 2, (_height - st::instagramIcon.pxHeight()) / 2), App::sprite(), st::instagramIcon); break;
+		case VimeoLink: p.drawPixmap(QPoint((width - st::youtubeIcon.pxWidth()) / 2, (_height - st::youtubeIcon.pxHeight()) / 2), App::sprite(), st::vimeoIcon); break;
 		}
 		if (!data->title.isEmpty() || !data->duration.isEmpty()) {
 			p.fillRect(0, 0, width, st::msgDateFont->height + 2 * st::msgDateImgPadding.y(), st::msgDateImgBg->b);
@@ -3608,6 +3655,7 @@ const QString HistoryImageLink::inDialogsText() const {
 	if (data) {
 		switch (data->type) {
 		case YouTubeLink: return qsl("YouTube Video");
+		case VimeoLink: return qsl("Vimeo Video");
 		case InstagramLink: return qsl("Instagram Link");
 		case GoogleMapsLink: return lang(lng_maps_point);
 		}
@@ -3619,6 +3667,7 @@ const QString HistoryImageLink::inHistoryText() const {
 	if (data) {
 		switch (data->type) {
 		case YouTubeLink: return qsl("[ YouTube Video : ") + link->text() + qsl(" ]");
+		case VimeoLink: return qsl("[ Vimeo Video : ") + link->text() + qsl(" ]");
 		case InstagramLink: return qsl("[ Instagram Link : ") + link->text() + qsl(" ]");
 		case GoogleMapsLink: return qsl("[ ") + lang(lng_maps_point) + qsl(" : ") + link->text() + qsl(" ]");
 		}
@@ -3698,7 +3747,7 @@ void HistoryMessage::initMedia(const MTPMessageMedia &media, QString &currentTex
 	switch (media.type()) {
 	case mtpc_messageMediaEmpty: {
 		QString lnk = currentText.trimmed();
-		if (reYouTube1.match(currentText).hasMatch() || reYouTube2.match(currentText).hasMatch() || reInstagram.match(currentText).hasMatch()) {
+		if (reYouTube1.match(currentText).hasMatch() || reYouTube2.match(currentText).hasMatch() || reInstagram.match(currentText).hasMatch() || reVimeo.match(currentText).hasMatch()) {
 			_media = new HistoryImageLink(lnk);
 			currentText = QString();
 		}

@@ -88,7 +88,7 @@ NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y) : history(msg->hi
 	inputTimer.setSingleShot(true);
 	connect(&inputTimer, SIGNAL(timeout()), this, SLOT(checkLastInput()));
 
-	connect(&close, SIGNAL(clicked()), this, SLOT(unlinkHistory()));
+	connect(&close, SIGNAL(clicked()), this, SLOT(unlinkHistoryAndNotify()));
 	close.setAcceptBoth(true);
 	close.move(st::notifyWidth - st::notifyClose.width - st::notifyClosePos.x(), st::notifyClosePos.y());
 	close.show();
@@ -228,8 +228,13 @@ void NotifyWindow::updatePeerPhoto() {
 
 void NotifyWindow::itemRemoved(HistoryItem *del) {
 	if (item == del) {
-		unlinkHistory();
+		unlinkHistoryAndNotify();
 	}
+}
+
+void NotifyWindow::unlinkHistoryAndNotify() {
+	unlinkHistory();
+	App::wnd()->notifyShowNext();
 }
 
 void NotifyWindow::unlinkHistory(History *hist) {
@@ -237,7 +242,6 @@ void NotifyWindow::unlinkHistory(History *hist) {
 		animHide(st::notifyFastAnim, st::notifyFastAnimFunc);
 		history = 0;
 		item = 0;
-		App::wnd()->notifyShowNext();
 	}
 }
 
@@ -258,7 +262,7 @@ void NotifyWindow::startHiding() {
 void NotifyWindow::mousePressEvent(QMouseEvent *e) {
 	if (!history) return;
 	if (e->button() == Qt::RightButton) {
-		unlinkHistory();
+		unlinkHistoryAndNotify();
 	} else if (history) {
 		App::wnd()->showFromTray();
 		App::wnd()->hideSettings();
@@ -1045,6 +1049,7 @@ void Window::notifyClear(History *history) {
 	psClearNotifies(history->peer->id);
 	notifyWhenMaps.remove(history);
 	notifyWhenAlerts.remove(history);
+	notifyShowNext();
 }
 
 void Window::notifyClearFast() {

@@ -1742,7 +1742,8 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="SourceFiles\art\iconround256.ico" />
+    <Image Include="sourcefiles\art\icon2.ico" />
+    <Image Include="SourceFiles\art\icon256.ico" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Telegram.rc" />

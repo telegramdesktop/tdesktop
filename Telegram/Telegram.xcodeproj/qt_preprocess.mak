@@ -62,7 +62,7 @@ GeneratedFiles/qrc_telegram.cpp: SourceFiles/telegram.qrc \
 		SourceFiles/art/bg.png \
 		SourceFiles/art/sprite_150x.png \
 		SourceFiles/art/sprite.png \
-		SourceFiles/art/iconround256.png \
+		SourceFiles/art/icon256.png \
 		SourceFiles/art/emoji_150x.png \
 		SourceFiles/art/bg_150x.png \
 		SourceFiles/art/sprite_200x.png \

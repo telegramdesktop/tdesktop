@@ -73,7 +73,7 @@ void debugLogWrite(const char *file, int32 line, const QString &v) {
 		(*debugLogStream) << msg;
 		debugLogStream->flush();
 #ifdef Q_OS_WIN
-		OutputDebugString(reinterpret_cast<const wchar_t *>(msg.utf16()));
+//		OutputDebugString(reinterpret_cast<const wchar_t *>(msg.utf16()));
 #elif defined Q_OS_MAC
         objc_outputDebugString(msg);
 #elif defined Q_OS_LINUX && defined _DEBUG

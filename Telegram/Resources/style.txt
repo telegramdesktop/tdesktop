@@ -1642,5 +1642,5 @@ usernameCancel: flatButton(btnSelectCancel) {
 }
 
 youtubeIcon: sprite(336px, 221px, 60px, 60px);
-instagramIcon: sprite(336px, 283px, 60px, 60px);
+vimeoIcon: sprite(336px, 283px, 60px, 60px);
 locationSize: size(320, 240);

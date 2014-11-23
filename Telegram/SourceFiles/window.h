@@ -82,6 +82,8 @@ public:
 		return history ? _index : -1;
 	}
 
+	void unlinkHistory(History *hist = 0);
+
 	~NotifyWindow();
 
 public slots:
@@ -89,7 +91,7 @@ public slots:
 	void hideByTimer();
 	void checkLastInput();
 
-	void unlinkHistory(History *hist = 0);
+	void unlinkHistoryAndNotify();
 
 private:
 
