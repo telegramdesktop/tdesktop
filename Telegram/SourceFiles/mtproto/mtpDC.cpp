@@ -460,7 +460,7 @@ void MTProtoConfigLoader::load() {
 void MTProtoConfigLoader::done() {
 	_enumDCTimer.stop();
 	if (_enumRequest) MTP::cancel(_enumRequest);
-	if (_enumCurrent) MTP::killSession(_enumCurrent);
+	if (_enumCurrent) MTP::killSession(MTP::cfg + _enumCurrent);
 	emit loaded();
 }
 

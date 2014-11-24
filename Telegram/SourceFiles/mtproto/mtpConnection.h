@@ -71,7 +71,6 @@ public:
 
 	MTProtoConnection();
 	int32 start(MTPSessionData *data, int32 dc = 0); // return dc
-	void restart();
 	void stop();
 	void stopped();
 	~MTProtoConnection();
@@ -311,6 +310,8 @@ signals:
 	void sessionResetDone();
 	void needToSendAsync();
 	void sendAnythingAsync(quint64);
+
+	void sendHttpWait();
 
 public slots:
 

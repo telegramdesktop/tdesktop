@@ -250,8 +250,8 @@ public:
 signals:
 
 	void authKeyCreated();
-
 	void needToSend();
+	void needToRestart();
 
 public slots:
 
@@ -264,6 +264,8 @@ public slots:
 	void onResetDone();
 
 	void sendAnything(quint64 msCanWait);
+
+	void sendHttpWait();
 
 private:
 	

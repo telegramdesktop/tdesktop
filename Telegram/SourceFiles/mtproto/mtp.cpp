@@ -677,8 +677,16 @@ namespace MTP {
 	void killSession(int32 dc) {
 		Sessions::iterator i = sessions.find(dc);
 		if (i != sessions.end()) {
+			bool wasMain = (i.value() == mainSession);
+
 			i.value()->stop();
 			sessions.erase(i);
+
+			if (wasMain) {
+				mainSession = MTProtoSessionPtr(new MTProtoSession());
+				mainSession->start(mtpMainDC());
+				sessions[mainSession->getDC()] = mainSession;
+			}
 		}
 	}
 

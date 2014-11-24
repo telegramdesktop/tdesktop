@@ -120,9 +120,7 @@ void MTProtoSession::start(int32 dcenter, uint32 connects) {
 }
 
 void MTProtoSession::restart() {
-	for (MTProtoConnections::const_iterator i = connections.cbegin(), e = connections.cend(); i != e; ++i) {
-		(*i)->restart();
-	}
+	emit needToRestart();
 }
 
 void MTProtoSession::stop() {
@@ -156,6 +154,10 @@ void MTProtoSession::sendAnything(quint64 msCanWait) {
 		msSendCall = 0;
 		emit needToSend();
 	}
+}
+
+void MTProtoSession::sendHttpWait() {
+	send(MTPHttpWait(MTP_http_wait(MTP_int(100), MTP_int(30), MTP_int(25000))), RPCResponseHandler(), 50);
 }
 
 void MTProtoSession::checkRequestsByTimer() {

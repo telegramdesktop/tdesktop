@@ -298,14 +298,14 @@ int32 MTProtoConnection::start(MTPSessionData *sessionData, int32 dc) {
 
 	dc = data->getDC();
 	if (!dc) {
+		delete data;
+		delete thread;
+		data = 0;
+		thread = 0;
 		return 0;
 	}
 	thread->start();
 	return dc;
-}
-
-void MTProtoConnection::restart() {
-	emit data->needToRestart();
 }
 
 void MTProtoConnection::stop() {
@@ -318,6 +318,7 @@ void MTProtoConnection::stopped() {
 	if (data) data->deleteLater();
 	thread = 0;
 	data = 0;
+	delete this;
 }
 
 int32 MTProtoConnection::state() const {
@@ -1107,20 +1108,20 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
 
 	connect(thread, SIGNAL(started()), this, SLOT(socketStart()));
 	connect(thread, SIGNAL(finished()), this, SLOT(doFinish()));
-	connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
 
 	connect(&retryTimer, SIGNAL(timeout()), this, SLOT(retryByTimer()));
 	connect(&connCheckTimer, SIGNAL(timeout()), this, SLOT(onBadConnection()));
 	connect(&oldConnectionTimer, SIGNAL(timeout()), this, SLOT(onOldConnection()));
-	connect(sessionData->owner(), SIGNAL(authKeyCreated()), this, SLOT(updateAuthKey()));
+	connect(sessionData->owner(), SIGNAL(authKeyCreated()), this, SLOT(updateAuthKey()), Qt::QueuedConnection);
 
-	connect(this, SIGNAL(needToRestart()), this, SLOT(restartNow()));
-	connect(this, SIGNAL(needToReceive()), sessionData->owner(), SLOT(tryToReceive()));
-	connect(this, SIGNAL(stateChanged(qint32)), sessionData->owner(), SLOT(onConnectionStateChange(qint32)));
-	connect(sessionData->owner(), SIGNAL(needToSend()), this, SLOT(tryToSend()));
-	connect(this, SIGNAL(needToSendAsync()), sessionData->owner(), SIGNAL(needToSend()));
-	connect(this, SIGNAL(sessionResetDone()), sessionData->owner(), SLOT(onResetDone()));
-	connect(this, SIGNAL(sendAnythingAsync(quint64)), sessionData->owner(), SLOT(sendAnything(quint64)));
+	connect(sessionData->owner(), SIGNAL(needToRestart()), this, SLOT(restartNow()), Qt::QueuedConnection);
+	connect(this, SIGNAL(needToReceive()), sessionData->owner(), SLOT(tryToReceive()), Qt::QueuedConnection);
+	connect(this, SIGNAL(stateChanged(qint32)), sessionData->owner(), SLOT(onConnectionStateChange(qint32)), Qt::QueuedConnection);
+	connect(sessionData->owner(), SIGNAL(needToSend()), this, SLOT(tryToSend()), Qt::QueuedConnection);
+	connect(this, SIGNAL(needToSendAsync()), sessionData->owner(), SIGNAL(needToSend()), Qt::QueuedConnection);
+	connect(this, SIGNAL(sendHttpWait()), sessionData->owner(), SLOT(sendHttpWait()), Qt::QueuedConnection);
+	connect(this, SIGNAL(sessionResetDone()), sessionData->owner(), SLOT(onResetDone()), Qt::QueuedConnection);
+	connect(this, SIGNAL(sendAnythingAsync(quint64)), sessionData->owner(), SLOT(sendAnything(quint64)), Qt::QueuedConnection);
 }
 
 void MTProtoConnectionPrivate::onConfigLoaded() {
@@ -1986,7 +1987,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 		}
 	}
 	if (conn->needHttpWait()) {
-		sessionData->owner()->send(MTPHttpWait(MTP_http_wait(MTP_int(100), MTP_int(30), MTP_int(25000))));
+		emit sendHttpWait();
 	}
 }
 
@@ -3399,5 +3400,4 @@ void MTProtoConnectionPrivate::stop() {
 }
 
 MTProtoConnection::~MTProtoConnection() {
-	stopped();
 }
