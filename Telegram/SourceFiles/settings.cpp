@@ -137,38 +137,33 @@ const RecentEmojiPack &cGetRecentEmojis() {
 			cSetRecentEmojisPreload(RecentEmojiPreload());
 			r.reserve(p.size());
 			for (RecentEmojiPreload::const_iterator i = p.cbegin(), e = p.cend(); i != e; ++i) {
-				EmojiPtr ep(getEmoji(i->first));
-				if (i->first < 0xFFFFU) {
-					EmojiPtr good(getEmoji((i->first << 16) | 0xFE0FU));
-					if (good) {
-						ep = good;
-					}
-				}
-				if (ep) {
-					if ((ep->code & 0xFFFFU) == 0xFE0FU) {
-						int32 j = 0, l = r.size();
-						for (; j < l; ++j) {
-							if (r[j].first->code == i->first) {
-								break;
-							}
-						}
-						if (j < l) {
-							continue;
+				uint32 code = ((i->first & 0xFFFFU) == 0xFE0FU) ? ((i->first >> 16) & 0xFFFFU) : i->first;
+				EmojiPtr ep(getEmoji(code));
+				if (!ep) continue;
+
+				if (ep->postfix) {
+					int32 j = 0, l = r.size();
+					for (; j < l; ++j) {
+						if (r[j].first->code == code) {
+							break;
 						}
 					}
-					r.push_back(qMakePair(ep, i->second));
+					if (j < l) {
+						continue;
+					}
 				}
+				r.push_back(qMakePair(ep, i->second));
 			}
 		}
 		uint32 defaultRecent[] = {
 			0xD83DDE02U,
 			0xD83DDE18U,
-			0x2764FE0FU,
+			0x2764U,
 			0xD83DDE0DU,
 			0xD83DDE0AU,
 			0xD83DDE01U,
 			0xD83DDC4DU,
-			0x263AFE0FU,
+			0x263AU,
 			0xD83DDE14U,
 			0xD83DDE04U,
 			0xD83DDE2DU,

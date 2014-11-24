@@ -563,12 +563,6 @@ public:
 				ch = *ptr;
 				chInt = (chInt << 16) | 0x20E3;
 			}
-		} else if (ptr + 1 < end && (ptr + 1)->unicode() == 0xFE0F) { // check for 32bit not surrogate emoji
-			_t->_text.push_back(ch);
-			skipBack = -1;
-			++ptr;
-			ch = *ptr;
-			chInt = (chInt << 16) | 0xFE0F;
 		}
 
 		lastSkipped = skip;
@@ -602,8 +596,13 @@ public:
 				_t->_text.push_back(*++ptr);
 			}
 		}
+		int emojiLen = e->len;
+		if (ptr + 1 < end && (ptr + 1)->unicode() == 0xFE0F) {
+			_t->_text.push_back(*++ptr);
+			++emojiLen;
+		}
 
-		createBlock(-e->len);
+		createBlock(-emojiLen);
 		emoji = e;
 	}
 
@@ -4045,16 +4044,28 @@ bool textSplit(QString &sendingText, QString &leftText, int32 limit) {
 				}
 			}
 		}
+		EmojiPtr e = 0;
 		if (ch->isHighSurrogate()) {
 			if (ch + 1 < end && (ch + 1)->isLowSurrogate()) {
-				++ch;
+				e = getEmoji((ch->unicode() << 16) | (ch + 1)->unicode());
+				if (!e) {
+					++ch;
+				}
 			}
 		} else {
-			if (ch + 1 < end && ((((ch->unicode() >= 48 && ch->unicode() < 58) || ch->unicode() == 35) && (ch + 1)->unicode() == 0x20E3) || (ch + 1)->unicode() == 0xFE0F)) {
-				if (getEmoji((ch->unicode() << 16) | (ch + 1)->unicode())) {
-					++ch;
-					++s;
+			if (ch + 1 < end) {
+				if (((ch->unicode() >= 48 && ch->unicode() < 58) || ch->unicode() == 35) && (ch + 1)->unicode() == 0x20E3) {
+					e = getEmoji((ch->unicode() << 16) | (ch + 1)->unicode());
+				} else if ((ch + 1)->unicode() == 0xFE0F) {
+					e = getEmoji(ch->unicode());
 				}
+			}
+		}
+		if (e) {
+			ch += (e->len - 1);
+			if (ch + 1 < end && (ch + 1)->unicode() == 0xFE0F) {
+				++ch;
+				++s;
 			}
 		}
 		if (s >= limit) {

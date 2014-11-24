@@ -273,6 +273,7 @@ void MediaView::onDownload() {
 		if (cur.isEmpty()) {
 			_save.hide();
 		} else {
+			if (!QDir().exists(path)) QDir().mkpath(path);
 			toName = filedialogNextFilename(_doc->name, cur, path);
 			if (toName != cur && !QFile(cur).copy(toName)) {
 				toName = QString();
@@ -282,6 +283,7 @@ void MediaView::onDownload() {
 		if (!_photo || !_photo->full->loaded()) {
 			_save.hide();
 		} else {
+			if (!QDir().exists(path)) QDir().mkpath(path);
 			toName = filedialogDefaultName(qsl("photo"), qsl(".jpg"), path);
 			if (!_photo->full->pix().toImage().save(toName, "JPG")) {
 				toName = QString();
