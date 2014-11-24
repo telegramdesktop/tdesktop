@@ -70,7 +70,7 @@ or download in ZIP and extract to **D:\TBuild\Libraries\**, rename **libexif-0.6
 
 Get sources by git – in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries** and run
 
-    git clone git://repo.or.cz/openal-soft.git
+    git clone http://repo.or.cz/openal-soft.git
 
 to have **D:\TBuild\Libraries\openal-soft\CMakeLists.txt**
 
