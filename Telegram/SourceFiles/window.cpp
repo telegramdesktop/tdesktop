@@ -261,12 +261,14 @@ void NotifyWindow::startHiding() {
 
 void NotifyWindow::mousePressEvent(QMouseEvent *e) {
 	if (!history) return;
+	PeerId peer = history->peer->id;
+
 	if (e->button() == Qt::RightButton) {
 		unlinkHistoryAndNotify();
 	} else if (history) {
 		App::wnd()->showFromTray();
 		App::wnd()->hideSettings();
-		App::main()->showPeer(history->peer->id, 0, false, true);
+		App::main()->showPeer(peer, 0, false, true);
 		e->ignore();
 	}
 }
