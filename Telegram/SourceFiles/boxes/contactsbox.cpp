@@ -23,13 +23,21 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "mainwidget.h"
 #include "window.h"
 
-ContactsInner::ContactsInner() : _contacts(&App::main()->contactsList()), _sel(0), _filteredSel(-1), _mouseSel(false) {
-	_filter = qsl("a");
-	updateFilter();
+ContactsInner::ContactsInner() :
+_contacts(&App::main()->contactsList()),
+_sel(0),
+_filteredSel(-1),
+_mouseSel(false),
+_addContactLnk(this, lang(lng_add_contact_button)) {
+
+	connect(&_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
 
 	for (DialogRow *r = _contacts->list.begin; r != _contacts->list.end; r = r->next) {
 		r->attached = 0;
 	}
+
+	_filter = qsl("a");
+	updateFilter();
 
 	connect(App::main(), SIGNAL(dialogRowReplaced(DialogRow *, DialogRow *)), this, SLOT(onDialogRowReplaced(DialogRow *, DialogRow *)));
 	connect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData *)));
@@ -153,11 +161,15 @@ void ContactsInner::paintEvent(QPaintEvent *e) {
 				drawFrom = drawFrom->next;
 			}
 		} else {
-			// ..
+			p.setFont(st::noContactsFont->f);
+			p.setPen(st::noContactsColor->p);
+			p.drawText(QRect(0, 0, width(), st::noContactsHeight - (cContactsReceived() ? st::noContactsFont->height : 0)), lang(cContactsReceived() ? lng_no_contacts : lng_contacts_loading), style::al_center);
 		}
 	} else {
 		if (_filtered.isEmpty()) {
-			// ..
+			p.setFont(st::noContactsFont->f);
+			p.setPen(st::noContactsColor->p);
+			p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_contacts_not_found), style::al_center);
 		} else {
 			int32 from = yFrom / rh;
 			if (from < 0) from = 0;
@@ -255,11 +267,20 @@ void ContactsInner::updateFilter(QString filter) {
 		int32 rh = (st::profileListPhotoSize + st::profileListPadding.height() * 2);
 		_filter = filter;
 		if (_filter.isEmpty()) {
-			resize(width(), _contacts->list.count * rh + st::contactsClose.height);
 			if (_contacts->list.count) {
+				if (!_addContactLnk.isHidden()) _addContactLnk.hide();
+				resize(width(), _contacts->list.count * rh + st::contactsClose.height);
 				_sel = _contacts->list.begin;
+			} else {
+				resize(width(), st::noContactsHeight);
+				if (cContactsReceived()) {
+					if (_addContactLnk.isHidden()) _addContactLnk.show();
+				} else {
+					if (!_addContactLnk.isHidden()) _addContactLnk.hide();
+				}
 			}
 		} else {
+			if (!_addContactLnk.isHidden()) _addContactLnk.hide();
 			QStringList::const_iterator fb = f.cbegin(), fe = f.cend(), fi;
 
 			_filtered.clear();
@@ -302,7 +323,11 @@ void ContactsInner::updateFilter(QString filter) {
 			}
 			_filteredSel = _filtered.isEmpty() ? -1 : 0;
 
-			resize(width(), _filtered.size() * rh + st::contactsClose.height);
+			if (!_filtered.isEmpty()) {
+				resize(width(), _filtered.size() * rh + st::contactsClose.height);
+			} else {
+				resize(width(), st::noContactsHeight);
+			}
 		}
 		if (parentWidget()) parentWidget()->update();
 		loadProfilePhotos(0);
@@ -333,7 +358,8 @@ void ContactsInner::onDialogRowReplaced(DialogRow *oldRow, DialogRow *newRow) {
 	}
 	_mouseSel = false;
 	int32 rh = (st::profileListPhotoSize + st::profileListPadding.height() * 2);
-	int32 newh = (_filter.isEmpty() ? _contacts->list.count : _filtered.size()) * rh;
+	int32 cnt = (_filter.isEmpty() ? _contacts->list.count : _filtered.size());
+	int32 newh = cnt ? (cnt * rh + st::contactsClose.height) : st::noContactsHeight;
 	resize(width(), newh);
 }
 
@@ -341,6 +367,10 @@ ContactsInner::~ContactsInner() {
 	for (ContactsData::iterator i = _contactsData.begin(), e = _contactsData.end(); i != e; ++i) {
 		delete *i;
 	}
+}
+
+void ContactsInner::resizeEvent(QResizeEvent *e) {
+	_addContactLnk.move((width() - _addContactLnk.width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
 }
 
 void ContactsInner::selectSkip(int32 dir) {
@@ -409,12 +439,12 @@ ContactsBox::ContactsBox() : _scroll(this, st::newGroupScroll), _inner(),
 	_scroll.setWidget(&_inner);
 	_scroll.setFocusPolicy(Qt::NoFocus);
 
-	connect(&_addContact, SIGNAL(clicked()), this, SLOT(onAdd()));
+	connect(&_addContact, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
 	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
 	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(updateSel()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(&_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
-	connect(&_filter, SIGNAL(cancelled()), this, SIGNAL(onClose()));
+	connect(&_filter, SIGNAL(cancelled()), this, SLOT(onClose()));
 	connect(&_inner, SIGNAL(mustScrollTo(int,int)), &_scroll, SLOT(scrollToY(int,int)));
 
 	showAll();

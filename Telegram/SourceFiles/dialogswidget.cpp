@@ -26,11 +26,25 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "boxes/newgroupbox.h"
 
 DialogsListWidget::DialogsListWidget(QWidget *parent, MainWidget *main) : QWidget(parent),
-dialogs(false), contactsNoDialogs(true), contacts(true), sel(0), contactSel(false), selByMouse(false), filteredSel(-1), searchedCount(0), searchedSel(-1), peopleSel(-1), _lastSearchId(0), _state(DefaultState) {
-	connect(main, SIGNAL(dialogToTop(const History::DialogLinks &)), this, SLOT(onDialogToTop(const History::DialogLinks &)));
-	connect(main, SIGNAL(peerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)), this, SLOT(onPeerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)));
-	connect(main, SIGNAL(peerPhotoChanged(PeerData *)), this, SLOT(onPeerPhotoChanged(PeerData *)));
-	connect(main, SIGNAL(dialogRowReplaced(DialogRow *, DialogRow *)), this, SLOT(onDialogRowReplaced(DialogRow *, DialogRow *)));
+dialogs(false),
+contactsNoDialogs(true),
+contacts(true),
+sel(0),
+contactSel(false),
+selByMouse(false),
+filteredSel(-1),
+searchedCount(0),
+searchedSel(-1),
+peopleSel(-1),
+_lastSearchId(0),
+_state(DefaultState),
+_addContactLnk(this, lang(lng_add_contact_button)) {
+	connect(main, SIGNAL(dialogToTop(const History::DialogLinks&)), this, SLOT(onDialogToTop(const History::DialogLinks&)));
+	connect(main, SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)));
+	connect(main, SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(onPeerPhotoChanged(PeerData*)));
+	connect(main, SIGNAL(dialogRowReplaced(DialogRow*,DialogRow*)), this, SLOT(onDialogRowReplaced(DialogRow*,DialogRow*)));
+	connect(&_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
+	refresh(false);
 }
 
 void DialogsListWidget::paintEvent(QPaintEvent *e) {
@@ -51,7 +65,9 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 		if (contactsNoDialogs.list.count) {
 			contactsNoDialogs.list.paint(p, width(), r.top() - otherStart, r.bottom() - otherStart, active, selected);
 		} else if (!otherStart) {
-			// .. paint no dialogs found
+			p.setFont(st::noContactsFont->f);
+			p.setPen(st::noContactsColor->p);
+			p.drawText(QRect(0, 0, width(), st::noContactsHeight - (cContactsReceived() ? st::noContactsFont->height : 0)), lang(cContactsReceived() ? lng_no_contacts : lng_contacts_loading), style::al_center);
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
 		if (filterResults.isEmpty()) {
@@ -253,6 +269,10 @@ void DialogsListWidget::mousePressEvent(QMouseEvent *e) {
 	if (e->button() == Qt::LeftButton) {
 		choosePeer();
 	}
+}
+
+void DialogsListWidget::resizeEvent(QResizeEvent *e) {
+	_addContactLnk.move((width() - _addContactLnk.width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
 }
 
 void DialogsListWidget::onDialogRowReplaced(DialogRow *oldRow, DialogRow *newRow) {
@@ -615,6 +635,7 @@ void DialogsListWidget::peopleReceived(const QString &query, const QVector<MTPCo
 }
 
 void DialogsListWidget::contactsReceived(const QVector<MTPContact> &contacts) {
+	cSetContactsReceived(true);
 	for (QVector<MTPContact>::const_iterator i = contacts.cbegin(), e = contacts.cend(); i != e; ++i) {
 		addNewContact(i->c_contact().vuser_id.v);
 	}
@@ -652,10 +673,23 @@ void DialogsListWidget::refresh(bool toTop) {
 	int32 h = 0;
 	if (_state == DefaultState) {
 		h = (dialogs.list.count + contactsNoDialogs.list.count) * st::dlgHeight;
-	} else if (_state == FilteredState) {
-		h = (filterResults.count() + peopleResults.count() + searchResults.count()) * st::dlgHeight + (peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + (searchResults.isEmpty() ? 0 : st::searchedBarHeight);
-	} else if (_state == SearchedState) {
-		h = (filterResults.count() + peopleResults.count() + searchResults.count()) * st::dlgHeight + (peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight;
+		if (h) {
+			if (!_addContactLnk.isHidden()) _addContactLnk.hide();
+		} else {
+			h = st::noContactsHeight;
+			if (cContactsReceived()) {
+				if (_addContactLnk.isHidden()) _addContactLnk.show();
+			} else {
+				if (!_addContactLnk.isHidden()) _addContactLnk.hide();
+			}
+		}
+	} else {
+		if (!_addContactLnk.isHidden()) _addContactLnk.hide();
+		if (_state == FilteredState) {
+			h = (filterResults.count() + peopleResults.count() + searchResults.count()) * st::dlgHeight + (peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + (searchResults.isEmpty() ? 0 : st::searchedBarHeight);
+		} else if (_state == SearchedState) {
+			h = (filterResults.count() + peopleResults.count() + searchResults.count()) * st::dlgHeight + (peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight;
+		}
 	}
 	resize(width(), h);
 	if (toTop) {
@@ -1607,7 +1641,7 @@ DialogsIndexed &DialogsWidget::contactsList() {
 }
 
 void DialogsWidget::onAddContact() {
-	App::wnd()->showLayer(new AddContactBox());
+	App::wnd()->replaceLayer(new AddContactBox());
 }
 
 void DialogsWidget::onNewGroup() {

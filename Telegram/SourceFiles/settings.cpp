@@ -96,6 +96,8 @@ QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/linux/tupdates/current"));
 #error Unknown platform
 #endif
 
+bool gContactsReceived = false;
+
 void settingsParseArgs(int argc, char *argv[]) {
 	if (cPlatform() == dbipMac) {
 		gCustomNotifies = false;

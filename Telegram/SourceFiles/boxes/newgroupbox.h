@@ -31,7 +31,8 @@ public:
 	void leaveEvent(QEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
-	
+	void resizeEvent(QResizeEvent *e);
+
 	void paintDialog(QPainter &p, DialogRow *row, bool sel);
 	void updateFilter(QString filter = QString());
 
@@ -85,6 +86,7 @@ private:
 	ContactData *contactData(DialogRow *row);
 
 	QPoint _lastMousePos;
+	LinkButton _addContactLnk;
 
 };
 

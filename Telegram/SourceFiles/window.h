@@ -172,6 +172,7 @@ public:
 	void showLayer(LayeredWidget *w);
 	void replaceLayer(LayeredWidget *w);
 	void hideLayer();
+	bool hideInnerLayer();
 
 	bool layerShown();
 
@@ -240,6 +241,7 @@ public slots:
 	void notifyFire();
 	void updateTrayMenu(bool force = false);
 
+	void onShowAddContact();
 	void onShowNewGroup();
 	void onLogout();
 	void onLogoutSure();

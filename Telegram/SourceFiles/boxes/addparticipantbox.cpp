@@ -23,19 +23,26 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "window.h"
 
 AddParticipantInner::AddParticipantInner(ChatData *chat) : _chat(chat),
-	_contacts(&App::main()->contactsList()), _sel(0), _filteredSel(-1), _mouseSel(false), _selCount(0) {
-	
-	_filter = qsl("a");
-	updateFilter();
+_contacts(&App::main()->contactsList()),
+_sel(0),
+_filteredSel(-1),
+_mouseSel(false),
+_selCount(0),
+_addContactLnk(this, lang(lng_add_contact_button)) {
+
+	connect(&_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
 
 	for (DialogRow *r = _contacts->list.begin; r != _contacts->list.end; r = r->next) {
 		r->attached = 0;
 	}
 
-	connect(App::main(), SIGNAL(dialogRowReplaced(DialogRow *, DialogRow *)), this, SLOT(onDialogRowReplaced(DialogRow *, DialogRow *)));
-	connect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData *)));
-	connect(App::main(), SIGNAL(peerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)), this, SLOT(peerUpdated(PeerData *)));
-	connect(App::main(), SIGNAL(peerPhotoChanged(PeerData *)), this, SLOT(peerUpdated(PeerData *)));
+	_filter = qsl("a");
+	updateFilter();
+
+	connect(App::main(), SIGNAL(dialogRowReplaced(DialogRow*,DialogRow*)), this, SLOT(onDialogRowReplaced(DialogRow*,DialogRow*)));
+	connect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
+	connect(App::main(), SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(peerUpdated(PeerData*)));
+	connect(App::main(), SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
 }
 
 void AddParticipantInner::peerUpdated(PeerData *peer) {
@@ -184,11 +191,15 @@ void AddParticipantInner::paintEvent(QPaintEvent *e) {
 				drawFrom = drawFrom->next;
 			}
 		} else {
-			// ..
+			p.setFont(st::noContactsFont->f);
+			p.setPen(st::noContactsColor->p);
+			p.drawText(QRect(0, 0, width(), st::noContactsHeight - (cContactsReceived() ? st::noContactsFont->height : 0)), lang(cContactsReceived() ? lng_no_contacts : lng_contacts_loading), style::al_center);
 		}
 	} else {
 		if (_filtered.isEmpty()) {
-			// ..
+			p.setFont(st::noContactsFont->f);
+			p.setPen(st::noContactsColor->p);
+			p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_contacts_not_found), style::al_center);
 		} else {
 			int32 from = yFrom / rh;
 			if (from < 0) from = 0;
@@ -312,14 +323,23 @@ void AddParticipantInner::updateFilter(QString filter) {
 		int32 rh = (st::profileListPhotoSize + st::profileListPadding.height() * 2);
 		_filter = filter;
 		if (_filter.isEmpty()) {
-			resize(width(), _contacts->list.count * rh);
 			if (_contacts->list.count) {
+				if (!_addContactLnk.isHidden()) _addContactLnk.hide();
+				resize(width(), _contacts->list.count * rh);
 				_sel = _contacts->list.begin;
 				while (_sel->next->next &&& contactData(_sel)->inchat) {
 					_sel = _sel->next;
 				}
+			} else {
+				resize(width(), st::noContactsHeight);
+				if (cContactsReceived()) {
+					if (_addContactLnk.isHidden()) _addContactLnk.show();
+				} else {
+					if (!_addContactLnk.isHidden()) _addContactLnk.hide();
+				}
 			}
 		} else {
+			if (!_addContactLnk.isHidden()) _addContactLnk.hide();
 			QStringList::const_iterator fb = f.cbegin(), fe = f.cend(), fi;
 
 			_filtered.clear();
@@ -365,7 +385,11 @@ void AddParticipantInner::updateFilter(QString filter) {
 				++_filteredSel;
 			}
 
-			resize(width(), _filtered.size() * rh);
+			if (!_filtered.isEmpty()) {
+				resize(width(), _filtered.size() * rh);
+			} else {
+				resize(width(), st::noContactsHeight);
+			}
 		}
 		if (parentWidget()) parentWidget()->update();
 		loadProfilePhotos(0);
@@ -404,6 +428,10 @@ AddParticipantInner::~AddParticipantInner() {
 	for (ContactsData::iterator i = _contactsData.begin(), e = _contactsData.end(); i != e; ++i) {
 		delete *i;
 	}
+}
+
+void AddParticipantInner::resizeEvent(QResizeEvent *e) {
+	_addContactLnk.move((width() - _addContactLnk.width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
 }
 
 void AddParticipantInner::selectSkip(int32 dir) {
@@ -520,7 +548,7 @@ AddParticipantBox::AddParticipantBox(ChatData *chat) :
 	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(updateSel()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(&_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
-	connect(&_filter, SIGNAL(cancelled()), this, SIGNAL(onClose()));
+	connect(&_filter, SIGNAL(cancelled()), this, SLOT(onClose()));
 	connect(&_inner, SIGNAL(mustScrollTo(int,int)), &_scroll, SLOT(scrollToY(int,int)));
 	connect(&_inner, SIGNAL(selectAllQuery()), &_filter, SLOT(selectAll()));
 
@@ -578,6 +606,7 @@ void AddParticipantBox::paintEvent(QPaintEvent *e) {
 
 			// paint shadows
 			p.fillRect(0, st::participantFilter.height, _width, st::scrollDef.topsh, st::scrollDef.shColor->b);
+			p.fillRect(0, size().height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, _width, st::scrollDef.bottomsh, st::scrollDef.shColor->b);
 
 			// paint button sep
 			p.fillRect(st::btnSelectCancel.width, size().height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);

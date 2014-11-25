@@ -113,8 +113,8 @@ void MTProtoSession::start(int32 dcenter, uint32 connects) {
 			if (lock && dc->connectionInited()) {
 				data.setLayerWasInited(true);
 			}
-			connect(dc.data(), SIGNAL(authKeyCreated()), this, SLOT(authKeyCreatedForDC()));
-			connect(dc.data(), SIGNAL(layerWasInited(bool)), this, SLOT(layerWasInitedForDC(bool)));
+			connect(dc.data(), SIGNAL(authKeyCreated()), this, SLOT(authKeyCreatedForDC()), Qt::QueuedConnection);
+			connect(dc.data(), SIGNAL(layerWasInited(bool)), this, SLOT(layerWasInitedForDC(bool)), Qt::QueuedConnection);
 		}
 	}
 }
@@ -158,6 +158,20 @@ void MTProtoSession::sendAnything(quint64 msCanWait) {
 
 void MTProtoSession::sendHttpWait() {
 	send(MTPHttpWait(MTP_http_wait(MTP_int(100), MTP_int(30), MTP_int(25000))), RPCResponseHandler(), 50);
+}
+
+void MTProtoSession::sendPong(quint64 msgId, quint64 pingId) {
+	send(MTP_pong(MTP_long(msgId), MTP_long(pingId)));
+}
+
+void MTProtoSession::sendMsgsStateInfo(quint64 msgId, QByteArray data) {
+	MTPMsgsStateInfo req(MTP_msgs_state_info(MTP_long(msgId), MTPstring()));
+	string &info(req._msgs_state_info().vinfo._string().v);
+	info.resize(data.size());
+	if (!data.isEmpty()) {
+		memcpy(&info[0], data.constData(), data.size());
+	}
+	send(req);
 }
 
 void MTProtoSession::checkRequestsByTimer() {
@@ -308,7 +322,7 @@ QString MTProtoSession::transport() const {
 	return QString();
 }
 
-mtpRequestId MTProtoSession::resend(mtpMsgId msgId, uint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
+mtpRequestId MTProtoSession::resend(quint64 msgId, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
 	mtpRequest request;
 	{
 		QWriteLocker locker(data.haveSentMutex());
@@ -345,6 +359,12 @@ mtpRequestId MTProtoSession::resend(mtpMsgId msgId, uint64 msCanWait, bool force
 		return request->requestId;
 	} else {
 		return 0;
+	}
+}
+
+void MTProtoSession::resendMany(QVector<quint64> msgIds, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
+	for (int32 i = 0, l = msgIds.size(); i < l; ++i) {
+		resend(msgIds.at(i), msCanWait, forceContainer, sendMsgStateInfo);
 	}
 }
 
@@ -427,6 +447,7 @@ int32 MTProtoSession::getDC() const {
 }
 
 void MTProtoSession::tryToReceive() {
+	int32 cnt = 0;
 	while (true) {
 		mtpRequestId requestId;
 		mtpResponse response;
@@ -445,6 +466,7 @@ void MTProtoSession::tryToReceive() {
 		} else {
 			_mtp_internal::execCallback(requestId, response.constData(), response.constData() + response.size());
 		}
+		++cnt;
 	}
 }
 

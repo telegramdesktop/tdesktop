@@ -156,4 +156,6 @@ DeclareReadSetting(uint64, Instance);
 DeclareReadSetting(DBIPlatform, Platform);
 DeclareReadSetting(QUrl, UpdateURL);
 
+DeclareSetting(bool, ContactsReceived);
+
 void settingsParseArgs(int argc, char *argv[]);

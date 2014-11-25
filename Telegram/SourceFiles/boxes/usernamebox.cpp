@@ -28,24 +28,23 @@ UsernameInput::UsernameInput(QWidget *parent, const style::flatInput &st, const 
 
 void UsernameInput::correctValue(QKeyEvent *e, const QString &was) {
 	QString oldText(text()), newText;
-	int32 oldPos(cursorPosition()), newPos(-1), oldLen(oldText.length());
-	newText.reserve(oldLen);
-
-	for (int32 i = 0; i < oldLen; ++i) {
-		if (i == oldPos) {
-			newPos = newText.length();
+	int32 newPos = cursorPosition(), from, len = oldText.size();
+	for (from = 0; from < len; ++from) {
+		if (!oldText.at(from).isSpace()) {
+			break;
 		}
-
-		QChar ch = oldText[i];
-		if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_' || (ch == '@' && !i)) {
-			if (newText.size() < MaxUsernameLength) {
-				newText.append(ch);
-			}
+		if (newPos > 0) --newPos;
+	}
+	len -= from;
+	if (len > MaxUsernameLength) len = MaxUsernameLength + (oldText.at(from) == '@' ? 1 : 0);
+	for (int32 to = from + len; to > from;) {
+		--to;
+		if (!oldText.at(to).isSpace()) {
+			break;
 		}
+		--len;
 	}
-	if (newPos < 0) {
-		newPos = newText.length();
-	}
+	newText = oldText.mid(from, len);
 	if (newText != oldText) {
 		setText(newText);
 		setCursorPosition(newPos);
@@ -59,6 +58,7 @@ _usernameInput(this, st::inpAddContact, qsl("@username"), App::self()->username)
 _saveRequest(0), _checkRequest(0), _about(st::usernameWidth - 2 * st::addContactTitlePos.x()),
 a_opacity(0, 1), _hiding(false) {
 	_about.setRichText(st::usernameFont, lang(lng_username_about));
+	_goodText = App::self()->username.isEmpty() ? QString() : lang(lng_username_available);
 	initBox();
 }
 
@@ -135,6 +135,11 @@ void UsernameBox::paintEvent(QPaintEvent *e) {
 				p.setFont(st::setErrFont->f);
 				int32 w = st::setErrFont->m.width(_errorText);
 				p.drawText((_width - w) / 2, _usernameInput.y() + _usernameInput.height() + ((st::usernameSkip - st::setErrFont->height) / 2) + st::setErrFont->ascent, _errorText);
+			} else if (!_goodText.isEmpty()) {
+				p.setPen(st::setGoodColor->p);
+				p.setFont(st::setErrFont->f);
+				int32 w = st::setErrFont->m.width(_goodText);
+				p.drawText((_width - w) / 2, _usernameInput.y() + _usernameInput.height() + ((st::usernameSkip - st::setErrFont->height) / 2) + st::setErrFont->ascent, _goodText);
 			}
 			p.setPen(st::usernameColor->p);
 			_about.draw(p, st::addContactTitlePos.x(), _usernameInput.y() + _usernameInput.height() + st::usernameSkip, width() - 2 * st::addContactTitlePos.x());
@@ -180,23 +185,37 @@ void UsernameBox::onCheck() {
 void UsernameBox::onChanged() {
 	QString name = getName();
 	if (name.isEmpty()) {
-		if (!_errorText.isEmpty()) {
-			_errorText = QString();
-			update();
-		}
-		_checkTimer.stop();
-	} else if (name.size() < MinUsernameLength) {
-		if (_errorText != lang(lng_username_too_short)) {
-			_errorText = lang(lng_username_too_short);
+		if (!_errorText.isEmpty() || !_goodText.isEmpty()) {
+			_errorText = _goodText = QString();
 			update();
 		}
 		_checkTimer.stop();
 	} else {
-		if (!_errorText.isEmpty()) {
-			_errorText = QString();
-			update();
+		int32 i, len = name.size();
+		for (int32 i = 0; i < len; ++i) {
+			QChar ch = name.at(i);
+			if ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z') && (ch < '0' || ch > '9') && ch != '_' && (ch != '@' || i > 0)) {
+				if (_errorText != lang(lng_username_bad_symbols)) {
+					_errorText = lang(lng_username_bad_symbols);
+					update();
+				}
+				_checkTimer.stop();
+				return;
+			}
 		}
-		_checkTimer.start(UsernameCheckTimeout);
+		if (name.size() < MinUsernameLength) {
+			if (_errorText != lang(lng_username_too_short)) {
+				_errorText = lang(lng_username_too_short);
+				update();
+			}
+			_checkTimer.stop();
+		} else {
+			if (!_errorText.isEmpty() || !_goodText.isEmpty()) {
+				_errorText = _goodText = QString();
+				update();
+			}
+			_checkTimer.start(UsernameCheckTimeout);
+		}
 	}
 }
 
@@ -230,8 +249,10 @@ bool UsernameBox::onUpdateFail(const RPCError &error) {
 void UsernameBox::onCheckDone(const MTPBool &result) {
 	_checkRequest = 0;
 	QString newError = (result.v || _checkUsername == App::self()->username) ? QString() : lang(lng_username_occupied);
-	if (_errorText != newError) {
+	QString newGood = newError.isEmpty() ? lang(lng_username_available) : QString();
+	if (_errorText != newError || _goodText != newGood) {
 		_errorText = newError;
+		_goodText = newGood;
 		update();
 	}
 }
@@ -248,6 +269,7 @@ bool UsernameBox::onCheckFail(const RPCError &error) {
 		update();
 		return true;
 	}
+	_goodText = QString();
 	_usernameInput.setFocus();
 	return true;
 }

@@ -1742,7 +1742,6 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="sourcefiles\art\icon2.ico" />
     <Image Include="SourceFiles\art\icon256.ico" />
   </ItemGroup>
   <ItemGroup>
