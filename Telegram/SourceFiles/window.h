@@ -261,7 +261,7 @@ private:
 
 	void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color);
 	QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon);
-	QImage icon16, icon32, icon64;
+	QImage icon16, icon32, icon64, iconbig16, iconbig32, iconbig64;
 
 	QWidget *centralwidget;
 

@@ -111,7 +111,7 @@ protected:
 	bool posInited;
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
-    QImage icon256;
+	QImage icon256, iconbig256;
 	QIcon wndIcon;
 
 	QImage trayImg, trayImgSel;

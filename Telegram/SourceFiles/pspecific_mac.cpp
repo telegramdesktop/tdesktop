@@ -71,7 +71,7 @@ void MacPrivate::notifyReplied(unsigned long long peer, const char *str) {
 }
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
-posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/icon256.png")), wndIcon(QPixmap(qsl(":/gui/art/iconbig256.png"))),
+posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/icon256.png")), iconbig256(qsl(":/gui/art/iconbig256.png")), wndIcon(QPixmap::fromImage(iconbig256)),
 psLogout(0), psUndo(0), psRedo(0), psCut(0), psCopy(0), psPaste(0), psDelete(0), psSelectAll(0), psContacts(0), psAddContact(0), psNewGroup(0), psShowTelegram(0) {
 	QImage tray(qsl(":/gui/art/osxtray.png"));
 	trayImg = tray.copy(0, cRetina() ? 0 : tray.width() / 2, tray.width() / (cRetina() ? 2 : 4), tray.width() / (cRetina() ? 2 : 4));

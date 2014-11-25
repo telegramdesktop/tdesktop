@@ -336,6 +336,9 @@ _connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _media
 	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
 	icon64 = icon256.scaledToWidth(64, Qt::SmoothTransformation);
+	iconbig16 = iconbig256.scaledToWidth(16, Qt::SmoothTransformation);
+	iconbig32 = iconbig256.scaledToWidth(32, Qt::SmoothTransformation);
+	iconbig64 = iconbig256.scaledToWidth(64, Qt::SmoothTransformation);
 
 	if (objectName().isEmpty()) {
 		setObjectName(qsl("MainWindow"));
@@ -1298,7 +1301,7 @@ void Window::notifyActivateAll() {
 }
 
 QImage Window::iconLarge() const {
-	return icon256;
+	return iconbig256;
 }
 
 void Window::placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) {
@@ -1389,7 +1392,7 @@ QImage Window::iconWithCounter(int size, int count, style::color bg, bool smallI
 		if (size != 16 && size != 32) size = 64;
 	}
 
-	QImage img((size == 16) ? icon16 : (size == 32 ? icon32 : icon64));
+	QImage img(smallIcon ? ((size == 16) ? iconbig16 : (size == 32 ? iconbig32 : iconbig64)) : ((size == 16) ? icon16 : (size == 32 ? icon32 : icon64)));
 	if (!count) return img;
 
 	if (smallIcon) {
