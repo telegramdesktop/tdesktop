@@ -535,6 +535,7 @@ setErrBG: #ffa5a5;
 setErrColor: #800000;
 setErrHeight: 30px;
 setErrFont: font(fsize);
+setGoodColor: #008000;
 
 btnSetUpload: flatButton(btnDefNext, btnDefBig) {
 	width: 206px;
@@ -598,22 +599,9 @@ dlgPaddingVer: 8px;
 dlgHeight: 62px;
 dlgPhotoPadding: 12px;
 
-dlgState: switcher {
-	border: 2px;
-	borderColor: btnNextBG;
-
-	bgColor: #fff;
-	bgHovered: btnWhiteHover;
-	bgActive: btnNextBG;
-
-	height: 34px;
-
-	font: font(fsize);
-	textColor: btnYesColor;
-	activeColor: #fff;
-
-	duration: 200;
-}
+noContactsHeight: 100px;
+noContactsFont: font(fsize);
+noContactsColor: #777;
 
 dlgSep: 8px;
 

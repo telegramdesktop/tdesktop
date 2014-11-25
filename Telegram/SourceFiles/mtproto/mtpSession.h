@@ -241,9 +241,6 @@ public:
 	int32 getState() const;
 	QString transport() const;
 
-	mtpRequestId resend(mtpMsgId msgId, uint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
-	void resendAll(); // after connection restart
-
 	void sendPrepared(const mtpRequest &request, uint64 msCanWait = 0, bool newRequest = true); // nulls msgId and seqNo in request, if newRequest = true
 	void sendPreparedWithInit(const mtpRequest &request, uint64 msCanWait = 0);
 
@@ -255,6 +252,10 @@ signals:
 
 public slots:
 
+	mtpRequestId resend(quint64 msgId, quint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
+	void resendMany(QVector<quint64> msgIds, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
+	void resendAll(); // after connection restart
+
 	void authKeyCreatedForDC();
 	void layerWasInitedForDC(bool wasInited);
 
@@ -264,8 +265,9 @@ public slots:
 	void onResetDone();
 
 	void sendAnything(quint64 msCanWait);
-
 	void sendHttpWait();
+	void sendPong(quint64 msgId, quint64 pingId);
+	void sendMsgsStateInfo(quint64 msgId, QByteArray data);
 
 private:
 	

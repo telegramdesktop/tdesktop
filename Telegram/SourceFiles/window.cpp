@@ -434,6 +434,7 @@ void Window::clearWidgets() {
 }
 
 void Window::setupIntro(bool anim) {
+	cSetContactsReceived(false);
 	if (intro && (intro->animating() || intro->isVisible()) && !main) return;
 
 	QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
@@ -636,6 +637,13 @@ void Window::hideLayer() {
 	}
 }
 
+bool Window::hideInnerLayer() {
+	if (layerBG) {
+		return layerBG->onInnerClose();
+	}
+	return true;
+}
+
 bool Window::layerShown() {
 	return !!layerBG || !!_topWidget;
 }
@@ -808,6 +816,12 @@ void Window::updateTrayMenu(bool force) {
 		trayIcon->setContextMenu((active || cPlatform() != dbipMac) ? trayIconMenu : 0);
 	}
 #endif
+}
+
+void Window::onShowAddContact() {
+	if (isHidden()) showFromTray();
+
+	if (main) main->showAddContact();
 }
 
 void Window::onShowNewGroup() {

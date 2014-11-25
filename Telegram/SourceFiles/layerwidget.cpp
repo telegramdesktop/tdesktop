@@ -64,18 +64,19 @@ void BackgroundWidget::onClose() {
 	startHide();
 }
 
-void BackgroundWidget::onInnerClose() {
-	if (_hidden) {
-		w->deleteLater();
-		w = _hidden;
-		_hidden = 0;
-		w->show();
-		resizeEvent(0);
-		w->animStep(1);
-		update();
-	} else {
+bool BackgroundWidget::onInnerClose() {
+	if (!_hidden) {
 		onClose();
+		return true;
 	}
+	w->deleteLater();
+	w = _hidden;
+	_hidden = 0;
+	w->show();
+	resizeEvent(0);
+	w->animStep(1);
+	update();
+	return false;
 }
 
 void BackgroundWidget::startHide() {

@@ -308,10 +308,15 @@ signals:
 	void needToRestart();
 	void stateChanged(qint32 newState);
 	void sessionResetDone();
-	void needToSendAsync();
-	void sendAnythingAsync(quint64);
 
-	void sendHttpWait();
+	void needToSendAsync();
+	void sendAnythingAsync(quint64 msWait);
+	void sendHttpWaitAsync();
+	void sendPongAsync(quint64 msgId, quint64 pingId);
+	void sendMsgsStateInfoAsync(quint64 msgId, QByteArray data);
+	void resendAsync(quint64 msgId, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
+	void resendManyAsync(QVector<quint64> msgIds, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
+	void resendAllAsync();
 
 public slots:
 
@@ -343,8 +348,6 @@ public slots:
 	void tryToSend();
 
 	bool updateAuthKey();
-
-	void sendPing();
 
 	void onConfigLoaded();
 
@@ -398,7 +401,8 @@ private:
 	mtpPingId pingId, toSendPingId;
 	mtpMsgId pingMsgId;
 
-	mtpRequestId resend(mtpMsgId msgId, uint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
+	void resend(quint64 msgId, quint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
+	void resendMany(QVector<quint64> msgIds, quint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
 
 	template <typename TRequest>
 	void sendRequestNotSecure(const TRequest &request);
@@ -456,7 +460,5 @@ private:
 	void dhClientParamsSend();
 	void authKeyCreated();
 	void clearAuthKeyData();
-
-	QTimer pinger;
 
 };

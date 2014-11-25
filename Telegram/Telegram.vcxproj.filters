@@ -1023,7 +1023,6 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="SourceFiles\art\icon256.ico" />
-    <Image Include="sourcefiles\art\icon2.ico" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Telegram.rc" />

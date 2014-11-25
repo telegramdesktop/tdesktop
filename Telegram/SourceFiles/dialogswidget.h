@@ -39,6 +39,7 @@ public:
 	void paintEvent(QPaintEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
+	void resizeEvent(QResizeEvent *e);
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
 
@@ -138,6 +139,8 @@ private:
 	QPoint lastMousePos;
 
 	void paintDialog(QPainter &p, DialogRow *dialog);
+
+	LinkButton _addContactLnk;
 
 };
 

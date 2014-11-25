@@ -68,7 +68,7 @@ public:
 public slots:
 
 	void onClose();
-	void onInnerClose();
+	bool onInnerClose();
 
 private:
 

@@ -769,6 +769,10 @@ void MainWidget::checkLastUpdate(bool afterSleep) {
 	}
 }
 
+void MainWidget::showAddContact() {
+	dialogs.onAddContact();
+}
+
 void MainWidget::showNewGroup() {
 	dialogs.onNewGroup();
 }

@@ -1090,7 +1090,6 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
 	oldConnectionTimer.moveToThread(thread);
 	connCheckTimer.moveToThread(thread);
 	retryTimer.moveToThread(thread);
-	pinger.moveToThread(thread);
 	moveToThread(thread);
 
 //	createConn();
@@ -1118,10 +1117,22 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
 	connect(this, SIGNAL(needToReceive()), sessionData->owner(), SLOT(tryToReceive()), Qt::QueuedConnection);
 	connect(this, SIGNAL(stateChanged(qint32)), sessionData->owner(), SLOT(onConnectionStateChange(qint32)), Qt::QueuedConnection);
 	connect(sessionData->owner(), SIGNAL(needToSend()), this, SLOT(tryToSend()), Qt::QueuedConnection);
-	connect(this, SIGNAL(needToSendAsync()), sessionData->owner(), SIGNAL(needToSend()), Qt::QueuedConnection);
-	connect(this, SIGNAL(sendHttpWait()), sessionData->owner(), SLOT(sendHttpWait()), Qt::QueuedConnection);
 	connect(this, SIGNAL(sessionResetDone()), sessionData->owner(), SLOT(onResetDone()), Qt::QueuedConnection);
+
+	static bool _registered = false;
+	if (!_registered) {
+		_registered = true;
+		qRegisterMetaType<QVector<quint64>>("QVector<quint64>");
+	}
+
+	connect(this, SIGNAL(needToSendAsync()), sessionData->owner(), SIGNAL(needToSend()), Qt::QueuedConnection);
 	connect(this, SIGNAL(sendAnythingAsync(quint64)), sessionData->owner(), SLOT(sendAnything(quint64)), Qt::QueuedConnection);
+	connect(this, SIGNAL(sendHttpWaitAsync()), sessionData->owner(), SLOT(sendHttpWait()), Qt::QueuedConnection);
+	connect(this, SIGNAL(sendPongAsync(quint64,quint64)), sessionData->owner(), SLOT(sendPong(quint64,quint64)), Qt::QueuedConnection);
+	connect(this, SIGNAL(sendMsgsStateInfoAsync(quint64, QByteArray)), sessionData->owner(), SLOT(sendMsgsStateInfo(quint64,QByteArray)), Qt::QueuedConnection);
+	connect(this, SIGNAL(resendAsync(quint64,quint64,bool,bool)), sessionData->owner(), SLOT(resend(quint64,quint64,bool,bool)), Qt::QueuedConnection);
+	connect(this, SIGNAL(resendManyAsync(QVector<quint64>,quint64,bool,bool)), sessionData->owner(), SLOT(resendMany(QVector<quint64>,quint64,bool,bool)), Qt::QueuedConnection);
+	connect(this, SIGNAL(resendAllAsync()), sessionData->owner(), SLOT(resendAll()));
 }
 
 void MTProtoConnectionPrivate::onConfigLoaded() {
@@ -1809,7 +1820,6 @@ void MTProtoConnectionPrivate::doDisconnect() {
 
 	unlockKey();
 
-	pinger.stop();
 	clearAuthKeyData();
 
 	setState(MTProtoConnection::Disconnected);
@@ -1914,7 +1924,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 				sessionData->setSalt(serverSalt);
 				if (setState(MTProtoConnection::Connected, MTProtoConnection::Connecting)) { // only connected
 					if (restarted) {
-						sessionData->owner()->resendAll();
+						emit resendAllAsync();
 						restarted = false;
 					}
 				}
@@ -1987,7 +1997,7 @@ void MTProtoConnectionPrivate::handleReceived() {
 		}
 	}
 	if (conn->needHttpWait()) {
-		emit sendHttpWait();
+		emit sendHttpWaitAsync();
 	}
 }
 
@@ -2165,7 +2175,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 
 		if (setState(MTProtoConnection::Connected, MTProtoConnection::Connecting)) { // maybe only connected
 			if (restarted) {
-				sessionData->owner()->resendAll();
+				emit resendAllAsync();
 				restarted = false;
 			}
 		}
@@ -2187,10 +2197,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 		DEBUG_LOG(("Message Info: msgs_state_req received, ids: %1").arg(logVectorLong(ids)));
 		if (!idsCount) return 1;
 
-		MTPMsgsStateInfo req(MTP_msgs_state_info(MTP_long(msgId), MTPstring()));
-		string &info(req._msgs_state_info().vinfo._string().v);
-		info.resize(idsCount);
-
+		QByteArray info(idsCount, Qt::Uninitialized);
 		{
 			QReadLocker lock(sessionData->receivedIdsMutex());
 			const mtpMsgIdsMap &receivedIds(sessionData->receivedIdsSet());
@@ -2227,8 +2234,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 				info[i] = state;
 			}
 		}
-
-		sessionData->owner()->send(req);
+		emit sendMsgsStateInfoAsync(msgId, info);
 	} return 1;
 
 	case mtpc_msgs_state_info: {
@@ -2366,9 +2372,11 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 		DEBUG_LOG(("Message Info: resend of msgs requested, ids: %1").arg(logVectorLong(ids)));
 		if (!idsCount) return (badTime ? 0 : 1);
 
-		for (QVector<MTPlong>::const_iterator i = ids.cbegin(), e = ids.cend(); i != e; ++i) {
-			resend(i->v, 0, false, true);
+		QVector<quint64> toResend(ids.size(), Qt::Uninitialized);
+		for (int32 i = 0, l = ids.size(); i < l; ++i) {
+			toResend[i] = ids.at(i).v;
 		}
+		resendMany(toResend, 0, false, true);
 	} return 1;
 
 	case mtpc_rpc_result: {
@@ -2425,7 +2433,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 		sessionData->setSalt(data.vserver_salt.v);
 
 		mtpMsgId firstMsgId = data.vfirst_msg_id.v;
-		QVector<mtpMsgId> toResend;
+		QVector<quint64> toResend;
 		{
 			QReadLocker locker(sessionData->haveSentMutex());
 			const mtpRequestMap &haveSent(sessionData->haveSentMap());
@@ -2435,9 +2443,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 				if (i.value()->requestId) toResend.push_back(i.key());
 			}
 		}
-		for (uint32 i = 0, l = toResend.size(); i < l; ++i) {
-			resend(toResend[i], 10, true);
-		}
+		resendMany(toResend, 10, true);
 
 		mtpBuffer update(end - from);
 		if (end > from) memcpy(update.data(), from, (end - from) * sizeof(mtpPrime));
@@ -2454,7 +2460,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 		MTPPing msg(from, end);
 		DEBUG_LOG(("Message Info: ping received, ping_id: %1, sending pong..").arg(msg.vping_id.v));
 
-		sessionData->owner()->send(MTP_pong(MTP_long(msgId), msg.vping_id));
+		emit sendPongAsync(msgId, msg.vping_id.v);
 	} return 1;
 
 	case mtpc_pong: {
@@ -2714,9 +2720,19 @@ void MTProtoConnectionPrivate::handleMsgsStates(const QVector<MTPlong> &ids, con
 	}
 }
 
-mtpRequestId MTProtoConnectionPrivate::resend(mtpMsgId msgId, uint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
-	if (msgId == pingMsgId) return 0xFFFFFFFF;
-	return sessionData->owner()->resend(msgId, msCanWait, forceContainer, sendMsgStateInfo);
+void MTProtoConnectionPrivate::resend(quint64 msgId, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
+	if (msgId == pingMsgId) return;
+	emit resendAsync(msgId, msCanWait, forceContainer, sendMsgStateInfo);
+}
+
+void MTProtoConnectionPrivate::resendMany(QVector<quint64> msgIds, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
+	for (int32 i = 0, l = msgIds.size(); i < l; ++i) {
+		if (msgIds.at(i) == pingMsgId) {
+			msgIds.remove(i);
+			--l;
+		}
+	}
+	emit resendManyAsync(msgIds, msCanWait, forceContainer, sendMsgStateInfo);
 }
 
 void MTProtoConnectionPrivate::onConnected() {
@@ -3186,7 +3202,7 @@ void MTProtoConnectionPrivate::authKeyCreated() {
 	if (sessionData->getSalt()) { // else receive salt in bad_server_salt first, then try to send all the requests
 		setState(MTProtoConnection::Connected);
 		if (restarted) {
-			sessionData->owner()->resendAll();
+			emit resendAllAsync();
 			restarted = false;
 		}
 	}
@@ -3194,10 +3210,6 @@ void MTProtoConnectionPrivate::authKeyCreated() {
 	toSendPingId = MTP::nonce<uint64>(); // get server_salt
 
 	emit needToSendAsync();
-
-//	disconnect(&pinger, SIGNAL(timeout()), 0, 0);
-//	connect(&pinger, SIGNAL(timeout()), this, SLOT(sendPing()));
-//	pinger.start(30000);
 }
 
 void MTProtoConnectionPrivate::clearAuthKeyData() {
@@ -3216,10 +3228,6 @@ void MTProtoConnectionPrivate::clearAuthKeyData() {
 		delete authKeyStrings;
 		authKeyStrings = 0;
 	}
-}
-
-void MTProtoConnectionPrivate::sendPing() {
-	sessionData->owner()->send(MTPPing(MTP::nonce<MTPlong>()));
 }
 
 void MTProtoConnectionPrivate::onError(bool mayBeBadKey) {

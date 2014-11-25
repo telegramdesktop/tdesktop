@@ -134,6 +134,9 @@ lng_dlg_conversations: "Conversations";
 lng_dlg_messages: "Messages";
 lng_dlg_new_group_name: "Group name";
 lng_dlg_create_group: "Create";
+lng_no_contacts: "You have no contacts";
+lng_contacts_loading: "Loading..";
+lng_contacts_not_found: "No contacts found";
 
 lng_settings_profile: "Profile";
 lng_settings_edit: "Edit";
@@ -155,6 +158,8 @@ Minimum length is 5 characters.";
 lng_username_invalid: "This name is invalid.";
 lng_username_occupied: "This name is already occupied.";
 lng_username_too_short: "This name is too short.";
+lng_username_bad_symbols: "This name has bad symbols.";
+lng_username_available: "This name is available.";
 
 lng_settings_section_contact_info: "Contact info";
 lng_settings_phone_number: "Phone number:";
