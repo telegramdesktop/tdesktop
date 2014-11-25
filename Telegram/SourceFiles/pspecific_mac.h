@@ -129,7 +129,7 @@ private:
 	mutable QTimer psIdleTimer;
 
 	QMenuBar psMainMenu;
-	QAction *psLogout, *psUndo, *psRedo, *psCut, *psCopy, *psPaste, *psDelete, *psSelectAll, *psContacts, *psNewGroup, *psShowTelegram;
+	QAction *psLogout, *psUndo, *psRedo, *psCut, *psCopy, *psPaste, *psDelete, *psSelectAll, *psContacts, *psAddContact, *psNewGroup, *psShowTelegram;
 
 };
 
@@ -222,3 +222,9 @@ void psFinish();
 
 void psUpdateOverlayed(QWidget *widget);
 QString psConvertFileUrl(const QString &url);
+
+QString strNotificationAboutThemeChange();
+QString strStyleOfInterface();
+QString strNeedToReload();
+QString strNeedToRefresh1();
+QString strNeedToRefresh2();

@@ -502,6 +502,7 @@ lng_mac_menu_delete: "Delete";
 lng_mac_menu_select_all: "Select All";
 lng_mac_menu_window: "Window";
 lng_mac_menu_contacts: "Contacts";
+lng_mac_menu_add_contact: "Add Contact";
 lng_mac_menu_new_group: "New Group";
 lng_mac_menu_show: "Show Telegram";
 
