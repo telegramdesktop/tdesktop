@@ -1,6 +1,6 @@
 /*
 This file is part of Telegram Desktop,
-an unofficial desktop messaging app, see https://telegram.org
+an official desktop messaging app, see https://telegram.org
 
 Telegram Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -1225,7 +1225,7 @@ Created from emoji config by \'/MetaEmoji\' project\n\
 WARNING! All changes made in this file will be lost!\n\
 \n\
 This file is part of Telegram Desktop, \n\
-an unofficial desktop messaging app, see https://telegram.org\n\
+an official desktop messaging app, see https://telegram.org\n\
 \n\
 Telegram Desktop is free software: you can redistribute it and/or modify\n\
 it under the terms of the GNU General Public License as published by\n\

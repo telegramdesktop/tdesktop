@@ -1,6 +1,6 @@
 /*
 This file is part of Telegram Desktop,
-an unofficial desktop messaging app, see https://telegram.org
+an official desktop messaging app, see https://telegram.org
 
 Telegram Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -146,7 +146,7 @@ struct BuiltInDc {
 };
 
 static const BuiltInDc _builtInDcs[] = {
-		{ 1, "173.240.5.1", 443 },
+		{ 1, "149.154.175.50", 443 },
 		{ 2, "149.154.167.51", 443 },
 		{ 3, "174.140.142.6", 443 },
 		{ 4, "149.154.167.91", 443 },

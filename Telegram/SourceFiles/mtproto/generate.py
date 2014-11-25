@@ -1,6 +1,6 @@
 '''
 This file is part of Telegram Desktop,
-an unofficial desktop messaging app, see https://telegram.org
+an official desktop messaging app, see https://telegram.org
 
 Telegram Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ out.write('/*\n');
 out.write('Created from \'/SourceFiles/mtproto/scheme.tl\' by \'/SourceFiles/mtproto/generate.py\' script\n\n');
 out.write('WARNING! All changes made in this file will be lost!\n\n');
 out.write('This file is part of Telegram Desktop,\n');
-out.write('an unofficial desktop messaging app, see https://telegram.org\n');
+out.write('an official desktop messaging app, see https://telegram.org\n');
 out.write('\n');
 out.write('Telegram Desktop is free software: you can redistribute it and/or modify\n');
 out.write('it under the terms of the GNU General Public License as published by\n');
@@ -636,7 +636,7 @@ outCpp.write('/*\n');
 outCpp.write('Created from \'/SourceFiles/mtproto/scheme.tl\' by \'/SourceFiles/mtproto/generate.py\' script\n\n');
 outCpp.write('WARNING! All changes made in this file will be lost!\n\n');
 outCpp.write('This file is part of Telegram Desktop,\n');
-outCpp.write('an unofficial desktop messaging app, see https://telegram.org\n');
+outCpp.write('an official desktop messaging app, see https://telegram.org\n');
 outCpp.write('\n');
 outCpp.write('Telegram Desktop is free software: you can redistribute it and/or modify\n');
 outCpp.write('it under the terms of the GNU General Public License as published by\n');

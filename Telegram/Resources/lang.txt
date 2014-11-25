@@ -1,6 +1,6 @@
 /*
 This file is part of Telegram Desktop,
-an unofficial desktop messaging app, see https://telegram.org
+an official desktop messaging app, see https://telegram.org
 
 Telegram Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -89,7 +89,7 @@ lng_server_error: "Internal server error.";
 lng_flood_error: "Too much tries. Please try again later.";
 lng_deleted: "Unknown";
 
-lng_intro1: "Welcome to an unofficial [b]desktop[/b] client
+lng_intro1: "Welcome to an official [b]desktop[/b] client
 of [b]Telegram[/b] mobile messenger.";
 lng_intro2: "Visit [a href=\"https://telegram.org/\"]telegram.org[/a] to learn more.";
 lng_start_msgs: "Start Messaging";
@@ -459,7 +459,7 @@ lng_selected_delete_confirm: "Delete";
 lng_emoji_no_recent: "Recent emojis will be here";
 
 lng_about_version: "Version {version}";
-lng_about_text: "Unofficial free messaging app based on [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] and
+lng_about_text: "Official free messaging app based on [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] and
 [a href=\"https://core.telegram.org/api\"]Telegram API[/a] for speed and security
 
 This software is licensed under [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3,

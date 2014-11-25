@@ -1,6 +1,6 @@
-## [Telegram D](https://tdesktop.com) – Unofficial Telegram Desktop App
+## [Telegram Desktop](https://tdesktop.com) – Official Telegram Messenger app
 
-This is complete source code and build instructions for alpha version of unofficial desktop client for [Telegram](https://telegram.org) messenger, based on [Telegram API](https://core.telegram.org/) and [MTProto](https://core.telegram.org/mtproto) secure protocol.
+This is complete source code and build instructions for alpha version of official desktop client for [Telegram](https://telegram.org) messenger, based on [Telegram API](https://core.telegram.org/) and [MTProto](https://core.telegram.org/mtproto) secure protocol.
 
 Source code is published under GPL v3, license is available [here](https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE).
 

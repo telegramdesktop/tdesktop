@@ -4,7 +4,7 @@ Created from '/SourceFiles/mtproto/scheme.tl' by '/SourceFiles/mtproto/generate.
 WARNING! All changes made in this file will be lost!
 
 This file is part of Telegram Desktop,
-an unofficial desktop messaging app, see https://telegram.org
+an official desktop messaging app, see https://telegram.org
 
 Telegram Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
