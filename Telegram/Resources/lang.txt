@@ -17,7 +17,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 */
 direction: "LTR";
 
-lng_maintitle: "Telegram D";
+lng_maintitle: "Telegram Desktop";
 
 lng_menu_contacts: "Contacts";
 lng_menu_settings: "Settings";
@@ -89,14 +89,12 @@ lng_server_error: "Internal server error.";
 lng_flood_error: "Too much tries. Please try again later.";
 lng_deleted: "Unknown";
 
-lng_intro1: "Welcome to an official [b]desktop[/b] client
-of [b]Telegram[/b] mobile messenger.";
-lng_intro2: "Visit [a href=\"https://telegram.org/\"]telegram.org[/a] to learn more.";
-lng_start_msgs: "Start Messaging";
+lng_intro: "Welcome to the official [a href=\"https://telegram.org/\"]Telegram[/a] desktop app.
+It's [b]fast[/b] and [b]secure[/b].";
+lng_start_msgs: "START MESSAGING";
 
-lng_intro_back: "Back";
-lng_intro_next: "Next";
-lng_intro_finish: "Finish";
+lng_intro_next: "NEXT";
+lng_intro_finish: "SIGN UP";
 
 lng_phone_ph: "Your phone number";
 lng_phone_title: "Your Phone";
@@ -112,7 +110,7 @@ lng_country_none: "Country not found";
 lng_country_select: "Select Country";
 
 lng_code_ph: "Your code";
-lng_code_desc: "We have sent you an SMS with activation
+lng_code_desc: "We have sent you a message with activation
 code to your phone. Please enter it below.";
 lng_code_call: "Telegram will dial your number in %1:%2";
 lng_code_calling: "Requesting a call from Telegram..";
@@ -126,6 +124,8 @@ lng_bad_chat_title: "Please enter new chat title.";
 lng_bad_photo: "Bad image selected.";
 
 lng_signup_title: "Information and photo";
+lng_signup_desc: "Please enter your name and
+upload a photo.";
 lng_signup_firstname: "First Name";
 lng_signup_lastname: "Last Name";
 

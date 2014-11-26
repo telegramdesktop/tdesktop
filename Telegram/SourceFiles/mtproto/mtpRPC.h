@@ -23,13 +23,18 @@ public:
 	RPCError(const MTPrpcError &error) : _code(error.c_rpc_error().verror_code.v) {
 		const string &msg(error.c_rpc_error().verror_message.c_string().v);
 		const QString &text(QString::fromUtf8(msg.c_str(), msg.length()));
-		QRegularExpressionMatch m = QRegularExpression("^([A-Z0-9_]+)(: .*)?$", reMultiline).match(text);
-		if (m.hasMatch()) {
-			_type = m.captured(1);
-			_description = m.captured(2).mid(2);
+		if (_code < 0 || _code >= 500) {
+			_type = "INTERNAL_SERVER_ERROR";
+			_description = text;
 		} else {
-			_type = "CLIENT_BAD_RPC_ERROR";
-			_description = "Bad rpc error received, text = '" + text + "'";
+			QRegularExpressionMatch m = QRegularExpression("^([A-Z0-9_]+)(: .*)?$", reMultiline).match(text);
+			if (m.hasMatch()) {
+				_type = m.captured(1);
+				_description = m.captured(2).mid(2);
+			} else {
+				_type = "CLIENT_BAD_RPC_ERROR";
+				_description = "Bad rpc error received, text = '" + text + "'";
+			}
 		}
 	}
 

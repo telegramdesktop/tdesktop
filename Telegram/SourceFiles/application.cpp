@@ -89,6 +89,8 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
     serverName(psServerPrefix() + cGUIDStr()), closing(false),
 	updateRequestId(0), updateReply(0), updateThread(0), updateDownloader(0) {
 
+	DEBUG_LOG(("Application Info: creation.."));
+
 	QByteArray d(QDir((cPlatform() == dbipWindows ? cExeDir() : cWorkingDir()).toLower()).absolutePath().toUtf8());
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
@@ -138,9 +140,11 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	anim::startManager();
 	historyInit();
 
+	DEBUG_LOG(("Application Info: inited.."));
+
     window = new Window();
 
-    psInstallEventFilter();
+	psInstallEventFilter();
 
 	connect(&socket, SIGNAL(connected()), this, SLOT(socketConnected()));
 	connect(&socket, SIGNAL(disconnected()), this, SLOT(socketDisconnected()));
@@ -158,7 +162,7 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 
 	connect(&killDownloadSessionsTimer, SIGNAL(timeout()), this, SLOT(killDownloadSessions()));
 
-    if (cManyInstance()) {
+	if (cManyInstance()) {
 		startApp();
 	} else {
         DEBUG_LOG(("Application Info: connecting local socket to %1..").arg(serverName));
@@ -620,8 +624,11 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 }
 
 void Application::startApp() {
+	DEBUG_LOG(("Application Info: starting app.."));
+
 	Local::ReadMapState state = Local::readMap(QByteArray());
 
+	DEBUG_LOG(("Application Info: local map read.."));
 	App::readUserConfig();
 	if (!Local::oldKey().created()) {
 		Local::createOldKey();
@@ -632,10 +639,12 @@ void Application::startApp() {
 		App::writeUserConfig();
 		cSetNeedConfigResave(false);
 	}
+	DEBUG_LOG(("Application Info: user config read.."));
 
 	window->createWinId();
 	window->init();
 
+	DEBUG_LOG(("Application Info: window created.."));
 	readSupportTemplates();
 
 	MTP::start();
@@ -643,8 +652,12 @@ void Application::startApp() {
 	MTP::setStateChangedHandler(mtpStateChanged);
 	MTP::setSessionResetHandler(mtpSessionReset);
 
+	DEBUG_LOG(("Application Info: MTP started.."));
+
 	initImageLinkManager();
 	App::initMedia();
+
+	DEBUG_LOG(("Application Info: showing."));
 
 	if (MTP::authedId()) {
 		window->setupMain(false);

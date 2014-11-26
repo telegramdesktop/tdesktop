@@ -29,7 +29,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 
 IntroSignup::IntroSignup(IntroWidget *parent) : IntroStage(parent),
 	errorAlpha(0), a_photo(0),
-    next(this, lang(lng_intro_finish), st::btnIntroFinish), 
+	next(this, lang(lng_intro_finish), st::btnIntroNext),
 	first(this, st::inpIntroName, lang(lng_signup_firstname)),
 	last(this, st::inpIntroName, lang(lng_signup_lastname)) {
 	setVisible(false);
@@ -42,7 +42,7 @@ IntroSignup::IntroSignup(IntroWidget *parent) : IntroStage(parent),
 }
 
 void IntroSignup::mouseMoveEvent(QMouseEvent *e) {
-	bool photoOver = QRect(_phLeft, _phTop, st::setPhotoSize, st::setPhotoSize).contains(e->pos());
+	bool photoOver = QRect(_phLeft, _phTop, st::introPhotoSize, st::introPhotoSize).contains(e->pos());
 	if (photoOver != _photoOver) {
 		_photoOver = photoOver;
 		if (_photoSmall.isNull()) {
@@ -57,7 +57,7 @@ void IntroSignup::mouseMoveEvent(QMouseEvent *e) {
 
 void IntroSignup::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
-	if (QRect(_phLeft, _phTop, st::setPhotoSize, st::setPhotoSize).contains(e->pos())) {
+	if (QRect(_phLeft, _phTop, st::introPhotoSize, st::introPhotoSize).contains(e->pos())) {
 		QStringList imgExtensions(cImgExtensions());
 		QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
 
@@ -94,8 +94,10 @@ void IntroSignup::paintEvent(QPaintEvent *e) {
 		p.setClipRect(e->rect());
 	}
 	if (trivial || e->rect().intersects(textRect)) {
-		p.setFont(st::introTitleFont->f);
-		p.drawText(textRect, lang(lng_signup_title), QTextOption(Qt::AlignHCenter | Qt::AlignTop));
+		p.setFont(st::introHeaderFont->f);
+		p.drawText(textRect, lang(lng_signup_title), style::al_top);
+		p.setFont(st::introFont->f);
+		p.drawText(textRect, lang(lng_signup_desc), style::al_bottom);
 	}
 	if (animating() || error.length()) {
 		p.setOpacity(errorAlpha.current());
@@ -111,11 +113,17 @@ void IntroSignup::paintEvent(QPaintEvent *e) {
 
 	if (_photoSmall.isNull()) {
 		if (a_photo.current() < 1) {
-			p.drawPixmap(QPoint(_phLeft, _phTop), App::sprite(), st::setPhotoImg);
+			QRect pix(st::setPhotoImg);
+			pix.moveTo(pix.x() + (pix.width() - st::introPhotoSize) / 2, pix.y() + (pix.height() - st::introPhotoSize) / 2);
+			pix.setSize(QSize(st::introPhotoSize, st::introPhotoSize));
+			p.drawPixmap(QPoint(_phLeft, _phTop), App::sprite(), pix);
 		}
 		if (a_photo.current() > 0) {
+			QRect pix(st::setOverPhotoImg);
+			pix.moveTo(pix.x() + (pix.width() - st::introPhotoSize) / 2, pix.y() + (pix.height() - st::introPhotoSize) / 2);
+			pix.setSize(QSize(st::introPhotoSize, st::introPhotoSize));
 			p.setOpacity(a_photo.current());
-			p.drawPixmap(QPoint(_phLeft, _phTop), App::sprite(), st::setOverPhotoImg);
+			p.drawPixmap(QPoint(_phLeft, _phTop), App::sprite(), pix);
 			p.setOpacity(1);
 		}
 	} else {
@@ -124,18 +132,14 @@ void IntroSignup::paintEvent(QPaintEvent *e) {
 }
 
 void IntroSignup::resizeEvent(QResizeEvent *e) {
-	textRect = QRect((width() - st::introTextSize.width()) / 2, 0, st::introTextSize.width(), st::introTextSize.height());
-	_phLeft = (width() - st::setPhotoImg.pxWidth()) / 2;
-	_phTop = st::introHeaderFont->height + st::introFinishSkip;
+	_phLeft = (width() - next.width()) / 2;
+	_phTop = st::introTextTop + st::introTextSize.height() + st::introCountry.top;
 	if (e->oldSize().width() != width()) {
-		int sumNext = st::btnIntroNext.width - st::btnIntroBack.width - st::btnIntroSep;
-		next.move((width() - sumNext) / 2, st::introSize.height() - st::btnIntroNext.height);
+		next.move((width() - next.width()) / 2, st::introBtnTop);
+		first.move((width() - next.width()) / 2 + next.width() - first.width(), _phTop);
+		last.move((width() - next.width()) / 2 + next.width() - last.width(), first.y() + st::introCountry.height + st::introCountry.ptrSize.height() + st::introPhoneTop);
 	}
-	if (e->oldSize().width() != width()) {
-		next.move((width() - next.width()) / 2, st::introSize.height() - st::btnIntroNext.height);
-		first.move((width() - first.width()) / 2, _phTop + st::setPhotoImg.pxHeight() + st::introFinishSkip);
-		last.move((width() - last.width()) / 2, first.y() + first.height() + st::introFinishSkip);
-	}
+	textRect = QRect((width() - st::introTextSize.width()) / 2, st::introTextTop, st::introTextSize.width(), st::introTextSize.height());
 }
 
 void IntroSignup::showError(const QString &err) {
@@ -204,7 +208,7 @@ void IntroSignup::onCheckRequest() {
 
 void IntroSignup::onPhotoReady(const QImage &img) {
 	_photoBig = img;
-	_photoSmall = QPixmap::fromImage(img.scaled(st::setPhotoSize, st::setPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+	_photoSmall = QPixmap::fromImage(img.scaled(st::introPhotoSize, st::introPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 	App::wnd()->hideLayer();
 }
 

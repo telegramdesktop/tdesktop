@@ -446,6 +446,7 @@ void mtpUpdateDcOptions(const QVector<MTPDcOption> &options) {
 
 MTProtoConfigLoader::MTProtoConfigLoader() : _enumCurrent(0), _enumRequest(0) {
 	connect(&_enumDCTimer, SIGNAL(timeout()), this, SLOT(enumDC()));
+	connect(this, SIGNAL(killCurrentSession(qint32,qint32)), this, SLOT(onKillCurrentSession(qint32,qint32)), Qt::QueuedConnection);
 }
 
 void MTProtoConfigLoader::load() {
@@ -457,10 +458,24 @@ void MTProtoConfigLoader::load() {
 	_enumDCTimer.start(MTPEnumDCTimeout);
 }
 
+void MTProtoConfigLoader::onKillCurrentSession(qint32 request, qint32 current) {
+	if (request == _enumRequest && current == _enumCurrent) {
+		if (_enumRequest) {
+			MTP::cancel(_enumRequest);
+			_enumRequest = 0;
+		}
+		if (_enumCurrent) {
+			MTP::killSession(MTP::cfg + _enumCurrent);
+			_enumCurrent = 0;
+		}
+	}
+}
+
 void MTProtoConfigLoader::done() {
 	_enumDCTimer.stop();
-	if (_enumRequest) MTP::cancel(_enumRequest);
-	if (_enumCurrent) MTP::killSession(MTP::cfg + _enumCurrent);
+	if (_enumRequest || _enumCurrent) {
+		emit killCurrentSession(_enumRequest, _enumCurrent);
+	}
 	emit loaded();
 }
 

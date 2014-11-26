@@ -69,14 +69,12 @@ void CodeInput::correctValue(QKeyEvent *e, const QString &was) {
 
 IntroCode::IntroCode(IntroWidget *parent) : IntroStage(parent), errorAlpha(0),
 	next(this, lang(lng_intro_next), st::btnIntroNext),
-	back(this, lang(lng_intro_back), st::btnIntroBack),
 	code(this, st::inpIntroCode, lang(lng_code_ph)), waitTillCall(intro()->getCallTimeout()) {
 	setVisible(false);
 	setGeometry(parent->innerRect());
 
 	connect(&next, SIGNAL(stateChanged(int, ButtonStateChangeSource)), parent, SLOT(onDoneStateChanged(int, ButtonStateChangeSource)));
 	connect(&next, SIGNAL(clicked()), this, SLOT(onSubmitCode()));
-	connect(&back, SIGNAL(clicked()), parent, SLOT(onIntroBack()));
 	connect(&code, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(&callTimer, SIGNAL(timeout()), this, SLOT(onSendCall()));
 	connect(&checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
@@ -91,9 +89,9 @@ void IntroCode::paintEvent(QPaintEvent *e) {
 	}
 	if (trivial || e->rect().intersects(textRect)) {
 		p.setFont(st::introHeaderFont->f);
-		p.drawText(textRect, intro()->getPhone(), style::al_topleft);
+		p.drawText(textRect, intro()->getPhone(), style::al_top);
 		p.setFont(st::introFont->f);
-		p.drawText(textRect, lang(lng_code_desc), style::al_bottomleft);
+		p.drawText(textRect, lang(lng_code_desc), style::al_bottom);
 	}
 	QString callText = lang(lng_code_calling);
 	if (waitTillCall >= 3600) {
@@ -103,7 +101,7 @@ void IntroCode::paintEvent(QPaintEvent *e) {
 	} else if (waitTillCall < 0) {
 		callText = lang(lng_code_called);
 	}
-	p.drawText(QRect(textRect.left(), code.y() + code.height() + st::introSkip, st::introTextSize.width(), st::introErrHeight), callText, style::al_left);
+	p.drawText(QRect(textRect.left(), code.y() + code.height() + st::introCallSkip, st::introTextSize.width(), st::introErrHeight), callText, style::al_center);
 	if (animating() || error.length()) {
 		p.setOpacity(errorAlpha.current());
 		p.setFont(st::introErrFont->f);
@@ -113,14 +111,11 @@ void IntroCode::paintEvent(QPaintEvent *e) {
 }
 
 void IntroCode::resizeEvent(QResizeEvent *e) {
-	int sumBack = st::btnIntroNext.width + st::btnIntroBack.width + st::btnIntroSep;
 	if (e->oldSize().width() != width()) {
-		int sumNext = st::btnIntroNext.width - st::btnIntroBack.width - st::btnIntroSep;
-		back.move((width() - sumBack) / 2, st::introBtnTop);
-		next.move((width() - sumNext) / 2, st::introBtnTop);
-		code.move((width() - sumBack) / 2, st::introTextSize.height() + 24);
+		next.move((width() - next.width()) / 2, st::introBtnTop);
+		code.move((width() - code.width()) / 2, st::introTextTop + st::introTextSize.height() + st::introCountry.top);
 	}
-	textRect = QRect((width() - sumBack) / 2, 0, st::introTextSize.width(), st::introTextSize.height());
+	textRect = QRect((width() - st::introTextSize.width()) / 2, st::introTextTop, st::introTextSize.width(), st::introTextSize.height());
 }
 
 void IntroCode::showError(const QString &err) {
