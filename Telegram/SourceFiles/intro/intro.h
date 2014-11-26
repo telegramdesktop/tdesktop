@@ -104,6 +104,9 @@ private:
 
 	QString _firstname, _lastname;
 
+	IconedButton _back;
+	float64 _backFrom, _backTo;
+
 };
 
 class IntroStage : public QWidget {
@@ -116,6 +119,9 @@ public:
 	virtual void deactivate() = 0; // deactivate and hide
 	virtual void onNext() = 0;
 	virtual void onBack() = 0;
+	virtual bool hasBack() const {
+		return false;
+	}
 
 protected:
 	

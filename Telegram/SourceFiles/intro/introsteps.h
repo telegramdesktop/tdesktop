@@ -36,7 +36,7 @@ public:
 
 private:
 
-	FlatLabel _intro1, _intro2;
+	FlatLabel _intro;
 
 	FlatButton _next;
 	int32 _headerWidth;

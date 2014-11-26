@@ -45,9 +45,23 @@ namespace {
 }
 
 IntroWidget::IntroWidget(Window *window) : QWidget(window),
-	cacheForHideInd(0), cacheForShowInd(0), wnd(window), steps(new IntroSteps(this)),
-    phone(0), code(0), signup(0), current(0), moving(0), visibilityChanging(0), _callTimeout(60) {
+cacheForHideInd(0),
+cacheForShowInd(0),
+wnd(window),
+steps(new IntroSteps(this)),
+phone(0),
+code(0),
+signup(0),
+current(0),
+moving(0),
+visibilityChanging(0),
+_callTimeout(60),
+_back(this, st::setClose),
+_backFrom(0), _backTo(0) {
 	setGeometry(QRect(0, st::titleHeight, wnd->width(), wnd->height() - st::titleHeight));
+
+	connect(&_back, SIGNAL(clicked()), this, SLOT(onIntroBack()));
+	_back.hide();
 
 	countryForReg = psCurrentCountry();
 
@@ -56,11 +70,14 @@ IntroWidget::IntroWidget(Window *window) : QWidget(window),
 
 	stages[0] = steps;
 	memset(stages + 1, 0, sizeof(QWidget*) * 3);
+	_back.raise();
 
 	connect(window, SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
 
 	show();
 	setFocus();
+
+	_back.move(st::setClosePos.x(), st::setClosePos.y());
 }
 
 void IntroWidget::onParentResize(const QSize &newSize) {
@@ -88,6 +105,7 @@ bool IntroWidget::createNext() {
 		case 2: stages[current + 1] = signup = new IntroSignup(this); break;
 		}
 	}
+	_back.raise();
 	return true;
 }
 
@@ -101,6 +119,14 @@ void IntroWidget::prepareMove() {
 	cAlphaShow = anim::fvalue(0, 1);
 	anim::start(this);
 
+	_backTo = stages[current + moving]->hasBack() ? 1 : 0;
+	_backFrom = stages[current]->hasBack() ? 1 : 0;
+	animStep(0);
+	if (_backFrom > 0 || _backTo > 0) {
+		_back.show();
+	} else {
+		_back.hide();
+	}
 	stages[current]->deactivate();
 	stages[current + moving]->hide();
 }
@@ -138,6 +164,12 @@ void IntroWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 
 	anim::stop(this);
 	stages[current]->show();
+	if (stages[current]->hasBack()) {
+		_back.setOpacity(1);
+		_back.show();
+	} else {
+		_back.hide();
+	}
 	_animCache = myGrab(this, rect());
 
 	visibilityChanging = 1;
@@ -148,6 +180,7 @@ void IntroWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 
 	stages[current]->deactivate();
 	stages[current]->hide();
+	_back.hide();
 	anim::start(this);
 	show();
 }
@@ -170,6 +203,10 @@ bool IntroWidget::animStep(float64 ms) {
 			setFocus();
 			stages[current]->show();
 			stages[current]->activate();
+			if (stages[current]->hasBack()) {
+				_back.setOpacity(1);
+				_back.show();
+			}
 		} else {
 			a_bgCoord.update(dt1, st::introHideFunc);
 			a_bgAlpha.update(dt1, st::introAlphaHideFunc);
@@ -187,11 +224,19 @@ bool IntroWidget::animStep(float64 ms) {
 		moving = 0;
 		setFocus();
 		stages[current]->activate();
+		if (!stages[current]->hasBack()) {
+			_back.hide();
+		}
 	} else {
 		xCoordShow.update(dt2, st::introShowFunc);
 		cAlphaShow.update(dt2, st::introAlphaShowFunc);
 		xCoordHide.update(dt1, st::introHideFunc);
 		cAlphaHide.update(dt1, st::introAlphaHideFunc);
+		if (_backFrom != _backTo) {
+			_back.setOpacity((_backFrom > _backTo) ? cAlphaHide.current() : cAlphaShow.current());
+		} else {
+			_back.setOpacity(1);
+		}
 	}
 	update();
 	return res;

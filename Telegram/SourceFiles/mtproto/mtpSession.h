@@ -242,7 +242,6 @@ public:
 	QString transport() const;
 
 	void sendPrepared(const mtpRequest &request, uint64 msCanWait = 0, bool newRequest = true); // nulls msgId and seqNo in request, if newRequest = true
-	void sendPreparedWithInit(const mtpRequest &request, uint64 msCanWait = 0);
 
 signals:
 

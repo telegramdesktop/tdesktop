@@ -306,20 +306,18 @@ labelDefFlat: flatLabel {
 	align: align(left);
 }
 
-introSkip: 20px;
+introBtnTop: 288px;
+introSkip: 45px;
 introFinishSkip: 15px;
-introHeaderFont: font(28px);
+introPhotoSize: 98px;
+introHeaderFont: font(24px);
 introHeaderSkip: 14px;
-introFont: font(17px);
-introVersionFont: introFont;
-introVersionColor: #9b9b9b;
-introVersionSkip: 10px;
-intro2Skip: 60px;
-intro1Skip: 14px;
+introIconSkip: 54px;
+introFont: font(16px);
 introColor: black;
-
 introLabel: flatLabel(labelDefFlat) {
 	font: introFont;
+	align: align(center);
 }
 
 introPointsTop: -30px; // intro steps bottom points
@@ -350,23 +348,20 @@ introHideFunc: transition(easeInCirc);
 introShowFunc: transition(easeOutCirc);
 introAlphaHideFunc: transition(easeOutCirc);
 introAlphaShowFunc: transition(easeInCirc);
-introTextSize: size(400px, 97px);
-
-introTitleFont: font(24px);
-introDescFont: font(18px);
+introTextTop: 22px;
+introTextSize: size(400px, 93px);
+introCallSkip: 15px;
 
 btnIntroSep: 12px;
 btnIntroNext: flatButton(btnDefNext, btnDefBig) {
-	width: 144px;
-}
-btnIntroBack: flatButton(btnIntroNext, btnDefBack) {
-}
+	textTop: 16px;
+	overTextTop: 16px;
+	downTextTop: 17px;
 
-btnIntroStart: flatButton(btnIntroNext) {
+	font: font(17px);
+	overFont: font(17px);
+
 	width: 300px;
-}
-btnIntroFinish: flatButton(btnIntroNext) {
-	width: 240px;
 }
 
 boxShadow: sprite(240px, 21px, 9px, 9px);
@@ -374,7 +369,7 @@ boxShadow: sprite(240px, 21px, 9px, 9px);
 introCountry: countryInput {
 	width: 300px;
 	height: 41px;
-	top: 24px;
+	top: 33px;
 	bgColor: #f2f2f2;
 	ptrSize: size(15px, 8px);
 	textMrg: margins(16px, 5px, 16px, 15px);
@@ -397,13 +392,14 @@ inpIntroCode: flatInput(inpDefGray) {
 	textMrg: margins(12px, 5px, 12px, 6px);
 	width: 106px;
 	height: 41px;
+	align: align(center);
 
 	phPos: point(0px, 0px);
 	phAlign: align(center);
 	phShift: 0px;
 }
 inpIntroName: flatInput(inpIntroPhone) {
-	width: 240px;
+	width: 192px;
 }
 
 introSelectDelta: 30px;
@@ -465,8 +461,6 @@ countriesBackShowFunc: transition(linear);
 countriesAlphaHideFunc: transition(easeOutCirc);
 countriesAlphaShowFunc: transition(easeInCirc);
 
-introBtnTop: 244px;
-
 introErrWidth: 450px;
 introErrDuration: 200;
 introErrFunc: transition(linear);
@@ -478,6 +472,7 @@ introErrFont: font(16px);
 
 introErrLabel: flatLabel(labelDefFlat) {
 	font: introErrFont;
+	align: align(center);
 }
 
 setWidth: 356px;
@@ -506,15 +501,17 @@ setScroll: flatScroll(scrollDef) {
 	topsh: 0px;
 }
 setClose: iconedButton(btnDefIconed) {
-	icon: sprite(245px, 221px, 43px, 43px);
+	icon: sprite(245px, 221px, 40px, 40px);
 	iconPos: point(0px, 0px);
-	downIcon: sprite(245px, 221px, 43px, 43px);
+	downIcon: sprite(245px, 221px, 40px, 40px);
 	downIconPos: point(0px, 0px);
+
+	opacity: 0.71;
 
 	width: 43px;
 	height: 43px;
 }
-setClosePos: point(18px, 18px);
+setClosePos: point(32px, 32px);
 setPhotoImg: sprite(0px, 220px, 120px, 120px);
 setOverPhotoImg: sprite(122px, 220px, 120px, 120px);
 setPhotoDuration: 150;
@@ -843,6 +840,12 @@ dlgActiveTextStyle: textStyle(defaultTextStyle) {
 	lnkColor: dlgActiveColor;
 	lnkDownColor: dlgActiveColor;
 	lnkOverFlags: font(fsize);
+}
+introLabelTextStyle: textStyle(defaultTextStyle) {
+	lineHeight: 30px;
+}
+introErrLabelTextStyle: textStyle(defaultTextStyle) {
+	lineHeight: 27px;
 }
 
 mediaMaxWidth: 250px;

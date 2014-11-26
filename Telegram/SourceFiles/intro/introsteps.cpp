@@ -25,9 +25,8 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "intro/intro.h"
 
 IntroSteps::IntroSteps(IntroWidget *parent) : IntroStage(parent),
-	_intro1(this, lang(lng_intro1), st::introLabel),
-	_intro2(this, lang(lng_intro2), st::introLabel),
-	_next(this, lang(lng_start_msgs), st::btnIntroStart) {
+_intro(this, lang(lng_intro), st::introLabel, st::introLabelTextStyle),
+_next(this, lang(lng_start_msgs), st::btnIntroNext) {
 
 	_headerWidth = st::introHeaderFont->m.width(lang(lng_maintitle));
 
@@ -46,21 +45,19 @@ void IntroSteps::paintEvent(QPaintEvent *e) {
 	if (!trivial) {
 		p.setClipRect(e->rect());
 	}
-	int32 hy = _intro1.y() - st::introHeaderFont->height - st::introHeaderSkip + st::introHeaderFont->ascent;
+	int32 hy = _intro.y() - st::introHeaderFont->height - st::introHeaderSkip + st::introHeaderFont->ascent;
 
 	p.setFont(st::introHeaderFont->f);
-	p.drawText(_next.x(), hy, lang(lng_maintitle));
 	p.setPen(st::introColor->p);
-	p.setFont(st::introVersionFont->f);
-	p.setPen(st::introVersionColor->p);
-	p.drawText(_next.x() + _headerWidth + st::introVersionSkip, hy, qsl("alpha ") + QString::fromWCharArray(AppVersionStr));
+	p.drawText((width() - _headerWidth) / 2, hy, lang(lng_maintitle));
+
+	p.drawPixmap(QPoint((width() - st::aboutIcon.pxWidth()) / 2, hy - st::introIconSkip - st::aboutIcon.pxHeight()), App::sprite(), st::aboutIcon);
 }
 
 void IntroSteps::resizeEvent(QResizeEvent *e) {
 	if (e->oldSize().width() != width()) {
-		_next.move((width() - st::btnIntroStart.width) / 2, st::introBtnTop);
-		_intro2.move(_next.x(), _next.y() - _intro2.height() - st::intro2Skip);
-		_intro1.move(_next.x(), _intro2.y() - _intro1.height() - st::intro1Skip);
+		_next.move((width() - _next.width()) / 2, st::introBtnTop);
+		_intro.move((width() - _intro.width()) / 2, _next.y() - _intro.height() - st::introSkip);
 	}
 }
 

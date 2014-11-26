@@ -56,6 +56,10 @@ public:
 	void onNext();
 	void onBack();
 
+	bool hasBack() const {
+		return true;
+	}
+
 	void codeSubmitDone(const MTPauth_Authorization &result);
 	bool codeSubmitFail(const RPCError &error);
 
@@ -75,7 +79,7 @@ private:
 	QString error;
 	anim::fvalue errorAlpha;
 
-	FlatButton next, back;
+	FlatButton next;
 
 	QRect textRect;
 

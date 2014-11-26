@@ -48,6 +48,9 @@ namespace {
 	typedef QList<DelayedRequest> DelayedRequestsList;
 	DelayedRequestsList delayedRequests;
 
+	typedef QMap<mtpRequestId, int32> RequestsDelays;
+	RequestsDelays requestsDelays;
+
 	typedef QSet<mtpRequestId> BadGuestDCRequests;
 	BadGuestDCRequests badGuestDCRequests;
 
@@ -138,7 +141,8 @@ namespace {
 
 	bool onErrorDefault(mtpRequestId requestId, const RPCError &error) {
 		const QString &err(error.type());
-		bool badGuestDC = (error.code() == 400) && (err == qsl("FILE_ID_INVALID"));
+		int32 code = error.code();
+		bool badGuestDC = (code == 400) && (err == qsl("FILE_ID_INVALID"));
         QRegularExpressionMatch m;
 		if ((m = QRegularExpression("^(FILE|PHONE|NETWORK|USER)_MIGRATE_(\\d+)$").match(err)).hasMatch()) {
 			if (!requestId) return false;
@@ -183,10 +187,20 @@ namespace {
 			_mtp_internal::registerRequest(requestId, (dc < 0) ? -newdc : newdc);
 			_mtp_internal::getSession(newdc)->sendPrepared(req);
 			return true;
-		} else if ((m = QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(err)).hasMatch()) {
+		} else if (code < 0 || code >= 500 || (m = QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(err)).hasMatch()) {
 			if (!requestId) return false;
 			
-			int32 secs = m.captured(1).toInt();
+			int32 secs = 1;
+			if (code < 0 || code >= 500) {
+				RequestsDelays::iterator i = requestsDelays.find(requestId);
+				if (i != requestsDelays.cend()) {
+					secs = (i.value() > 60) ? i.value() : (i.value() *= 2);
+				} else {
+					requestsDelays.insert(requestId, secs);
+				}
+			} else {
+				secs = m.captured(1).toInt();
+			}
 			uint64 sendAt = getms(true) + secs * 1000 + 10;
 			DelayedRequestsList::iterator i = delayedRequests.begin(), e = delayedRequests.end();
 			for (; i != e; ++i) {
@@ -198,7 +212,7 @@ namespace {
 			if (resender) resender->checkDelayed();
 
 			return true;
-		} else if (error.code() == 401 || (badGuestDC && badGuestDCRequests.constFind(requestId) == badGuestDCRequests.cend())) {
+		} else if (code == 401 || (badGuestDC && badGuestDCRequests.constFind(requestId) == badGuestDCRequests.cend())) {
 			int32 dc = 0;
 			{
 				QMutexLocker locker(&requestByDCLock);
@@ -246,7 +260,8 @@ namespace {
 			}
 			if (!dc) return false;
 
-			_mtp_internal::getSession(dc < 0 ? (-dc) : dc)->sendPreparedWithInit(req);
+			req->needsLayer = true;
+			_mtp_internal::getSession(dc < 0 ? (-dc) : dc)->sendPrepared(req);
 			return true;
 		} else if (err == qsl("MSG_WAIT_FAILED")) {
 			mtpRequest req;
@@ -281,7 +296,8 @@ namespace {
 			if (!dc) return false;
 
 			if (!req->after) {
-				_mtp_internal::getSession(dc < 0 ? (-dc) : dc)->sendPreparedWithInit(req);
+				req->needsLayer = true;
+				_mtp_internal::getSession(dc < 0 ? (-dc) : dc)->sendPrepared(req);
 			} else {
 				int32 newdc = abs(dc) % _mtp_internal::dcShift;
 				DCAuthWaiters &waiters(authWaiters[newdc]);
@@ -304,6 +320,8 @@ namespace {
 					if (i != e) {
 						delayedRequests.insert(i, DelayedRequest(requestId, i->second));
 					}
+
+					if (resender) resender->checkDelayed();
 				}
 			}
 			return true;
@@ -341,6 +359,8 @@ namespace _mtp_internal {
 	}
 
 	void unregisterRequest(mtpRequestId requestId) {
+		requestsDelays.remove(requestId);
+
 		{
 			QWriteLocker locker(&requestMapLock);
 			requestMap.remove(requestId);
@@ -554,7 +574,7 @@ namespace _mtp_internal {
 				}
 				req = j.value();
 			}
-			_mtp_internal::getSession(dc < 0 ? (-dc) : dc)->sendPrepared(req, 0, false);
+			_mtp_internal::getSession(dc < 0 ? (-dc) : dc)->sendPrepared(req);
 		}
 
 		if (!delayedRequests.isEmpty()) {
@@ -655,6 +675,7 @@ namespace MTP {
 
 	void cancel(mtpRequestId requestId) {
 		mtpMsgId msgId = 0;
+		requestsDelays.remove(requestId);
 		{
 			QWriteLocker locker(&requestMapLock);
 			RequestMap::iterator i = requestMap.find(requestId);

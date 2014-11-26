@@ -399,11 +399,6 @@ void MTProtoSession::sendPrepared(const mtpRequest &request, uint64 msCanWait, b
 	sendAnything(msCanWait);
 }
 
-void MTProtoSession::sendPreparedWithInit(const mtpRequest &request, uint64 msCanWait) {
-	request->needsLayer = true;
-	sendPrepared(request, msCanWait, false);
-}
-
 QReadWriteLock *MTProtoSession::keyMutex() const {
 	return dc->keyMutex();
 }

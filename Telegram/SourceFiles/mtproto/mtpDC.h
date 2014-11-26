@@ -83,10 +83,12 @@ public:
 public slots:
 
 	void enumDC();
+	void onKillCurrentSession(qint32 request, qint32 session);
 
 signals:
 
 	void loaded();
+	void killCurrentSession(qint32 request, qint32 session);
 
 private:
 
