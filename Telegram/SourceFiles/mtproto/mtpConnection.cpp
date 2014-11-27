@@ -1122,7 +1122,7 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
 	static bool _registered = false;
 	if (!_registered) {
 		_registered = true;
-		qRegisterMetaType<QVector<quint64>>("QVector<quint64>");
+        qRegisterMetaType<QVector<quint64> >("QVector<quint64>");
 	}
 
 	connect(this, SIGNAL(needToSendAsync()), sessionData->owner(), SIGNAL(needToSend()), Qt::QueuedConnection);
