@@ -86,7 +86,7 @@ lng_server_error: "Error interno del servidor.";
 lng_flood_error: "Demasiados intentos.  Por favor inténtalo de nuevo más tarde.";
 lng_deleted: "Desconocido";
 
-lng_intro1: "Bienvenido a un cliente de [b]escritorio[/b] no oficial
+lng_intro1: "Bienvenido al cliente de [b]escritorio[/b] oficial
 del servicio de mensajería [b]Telegram[/b].";
 lng_intro2: "Visita [a href=\"https://telegram.org/\"]telegram.org[/a] para leer más.";
 lng_start_msgs: "Empezar a chatear";
