@@ -1966,6 +1966,20 @@ QString psCurrentExeDirectory(int argc, char *argv[]) {
 	return QString();
 }
 
+QString psCurrentExeName(int argc, char *argv[]) {
+	LPWSTR *args;
+	int argsCount;
+	args = CommandLineToArgvW(GetCommandLine(), &argsCount);
+	if (args) {
+		QFileInfo info(QDir::fromNativeSeparators(QString::fromWCharArray(args[0])));
+		if (info.isFile()) {
+			return info.fileName();
+		}
+		LocalFree(args);
+	}
+	return QString();
+}
+
 void psDoCleanup() {
 	try {
 		psAutoStart(false, true);
@@ -2077,8 +2091,8 @@ bool psCheckReadyUpdate() {
 		}
 	}
 
-	QString curUpdater = (cExeDir() + "Updater.exe");
-	QFileInfo updater(cWorkingDir() + "tupdates/ready/Updater.exe");
+	QString curUpdater = (cExeDir() + qsl("Updater.exe"));
+	QFileInfo updater(cWorkingDir() + qsl("tupdates/ready/Updater.exe"));
 	if (!updater.exists()) {
 		QFileInfo current(curUpdater);
 		if (!current.exists()) {

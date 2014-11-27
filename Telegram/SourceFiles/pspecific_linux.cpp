@@ -800,10 +800,20 @@ QString psCurrentExeDirectory(int argc, char *argv[]) {
     if (!first.isEmpty()) {
         QFileInfo info(first);
         if (info.exists()) {
-            QDir result(info.absolutePath());
-            return result.absolutePath() + '/';
+            return QDir(info.absolutePath()).absolutePath() + '/';
         }
     }
+	return QString();
+}
+
+QString psCurrentExeName(int argc, char *argv[]) {
+	QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
+	if (!first.isEmpty()) {
+		QFileInfo info(first);
+		if (info.exists()) {
+			return info.fileName();
+		}
+	}
 	return QString();
 }
 

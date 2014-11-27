@@ -62,6 +62,7 @@ inline void cForceWorkingDir(const QString &newDir) {
 	QDir dir;
 	if (!gWorkingDir.isEmpty()) dir.mkpath(gWorkingDir);
 }
+DeclareReadSetting(QString, ExeName);
 DeclareReadSetting(QString, ExeDir);
 DeclareSetting(QString, DialogLastPath);
 DeclareSetting(QString, DialogHelperPath);

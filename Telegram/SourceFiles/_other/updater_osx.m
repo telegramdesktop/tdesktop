@@ -64,11 +64,17 @@ int main(int argc, const char * argv[]) {
 	if (!path) {
 		return -1;
 	}
-	NSRange range = [path rangeOfString:appName options:NSBackwardsSearch];
+	NSRange range = [path rangeOfString:@".app/" options:NSBackwardsSearch];
 	if (range.location == NSNotFound) {
 		return -1;
 	}
-	appDir = [path substringToIndex:range.location > 0 ? range.location : 0];
+	path = [path substringToIndex:range.location > 0 ? range.location : 0];
+
+	range = [path rangeOfString:@"/" options:NSBackwardsSearch];
+	NSString *appRealName = (range.location == NSNotFound) ? path : [path substringFromIndex:range.location + 1];
+	appRealName = [[NSArray arrayWithObjects:appRealName, @".app", nil] componentsJoinedByString:@""];
+	appDir = (range.location == NSNotFound) ? @"" : [path substringToIndex:range.location + 1];
+	NSString *appDirFull = [appDir stringByAppendingString:appRealName];
 
 	openLog();
 	pid_t procId = 0;
@@ -144,11 +150,12 @@ int main(int argc, const char * argv[]) {
 				break;
 			}
 			NSString *pathPart = [srcPath substringFromIndex:r.length];
-			if ([pathPart rangeOfString:appName].location != 0) {
+			r = [pathPart rangeOfString:appName];
+			if (r.location != 0) {
 				writeLog([@"Skipping not app file " stringByAppendingString:srcPath]);
 				continue;
 			}
-			NSString *dstPath = [appDir stringByAppendingString:pathPart];
+			NSString *dstPath = [appDirFull stringByAppendingString:[pathPart substringFromIndex:r.length]];
 			NSError *error;
 			NSNumber *isDirectory = nil;
 			writeLog([[NSArray arrayWithObjects: @"Copying file ", srcPath, @" to ", dstPath, nil] componentsJoinedByString:@""]);
@@ -180,7 +187,7 @@ int main(int argc, const char * argv[]) {
 		delFolder();
 	}
 
-	NSString *appPath = [[NSArray arrayWithObjects:appDir, appName, nil] componentsJoinedByString:@""];
+	NSString *appPath = [[NSArray arrayWithObjects:appDir, appRealName, nil] componentsJoinedByString:@""];
 	NSMutableArray *args = [[NSMutableArray alloc] initWithObjects:@"-noupdate", nil];
 	if (toSettings) [args addObject:@"-tosettings"];
 	if (_debug) [args addObject:@"-debug"];

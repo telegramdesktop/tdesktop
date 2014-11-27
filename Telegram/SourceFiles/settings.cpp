@@ -23,7 +23,7 @@ bool gTestMode = false;
 bool gDebug = false;
 bool gManyInstance = false;
 QString gKeyFile;
-QString gWorkingDir, gExeDir;
+QString gWorkingDir, gExeDir, gExeName;
 
 QStringList gSendPaths;
 
@@ -106,6 +106,7 @@ void settingsParseArgs(int argc, char *argv[]) {
 	}
     memset_rand(&gInstance, sizeof(gInstance));
 	gExeDir = psCurrentExeDirectory(argc, argv);
+	gExeName = psCurrentExeName(argc, argv);
 	for (int32 i = 0; i < argc; ++i) {
 		if (string("-release") == argv[i]) {
 			gTestMode = false;

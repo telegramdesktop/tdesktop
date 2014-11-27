@@ -178,6 +178,7 @@ QString psAppDataPath();
 QString psAppDataPathOld();
 QString psDownloadPath();
 QString psCurrentExeDirectory(int argc, char *argv[]);
+QString psCurrentExeName(int argc, char *argv[]);
 void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);
 

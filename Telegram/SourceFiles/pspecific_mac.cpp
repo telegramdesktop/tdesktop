@@ -984,10 +984,20 @@ QString psCurrentExeDirectory(int argc, char *argv[]) {
     if (!first.isEmpty()) {
         QFileInfo info(first);
         if (info.exists()) {
-            QDir result(info.absolutePath() + qsl("/../../.."));
-            return result.absolutePath() + '/';
+            return QDir(info.absolutePath() + qsl("/../../..")).absolutePath() + '/';
         }
     }
+	return QString();
+}
+
+QString psCurrentExeName(int argc, char *argv[]) {
+	QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
+	if (!first.isEmpty()) {
+		QFileInfo info(first);
+		if (info.exists()) {
+			return QDir(QDir(info.absolutePath() + qsl("/../..")).absolutePath()).dirName();
+		}
+	}
 	return QString();
 }
 
@@ -1042,11 +1052,11 @@ bool psCheckReadyUpdate() {
 	}
 
 #ifdef Q_OS_WIN
-	QString curUpdater = (cExeDir() + "Updater.exe");
-	QFileInfo updater(cWorkingDir() + "tupdates/ready/Updater.exe");
+	QString curUpdater = (cExeDir() + qsl("Updater.exe"));
+	QFileInfo updater(cWorkingDir() + qsl("tupdates/ready/Updater.exe"));
 #elif defined Q_OS_MAC
-	QString curUpdater = (cExeDir() + "Telegram.app/Contents/Frameworks/Updater");
-	QFileInfo updater(cWorkingDir() + "tupdates/ready/Telegram.app/Contents/Frameworks/Updater");
+	QString curUpdater = (cExeDir() + cExeName() + qsl("/Contents/Frameworks/Updater"));
+	QFileInfo updater(cWorkingDir() + qsl("tupdates/ready/Telegram.app/Contents/Frameworks/Updater"));
 #endif
 	if (!updater.exists()) {
 		QFileInfo current(curUpdater);
@@ -1069,8 +1079,8 @@ bool psCheckReadyUpdate() {
 		return false;
     }
 #elif defined Q_OS_MAC
-	QFileInfo to(curUpdater);
-	QDir().mkpath(to.absolutePath());
+	QDir().mkpath(QFileInfo(curUpdater).absolutePath());
+	DEBUG_LOG(("Update Info: moving %1 to %2..").arg(updater.absoluteFilePath()).arg(curUpdater));
 	if (!objc_moveFile(updater.absoluteFilePath(), curUpdater)) {
 		PsUpdateDownloader::clearAll();
 		return false;
