@@ -1246,6 +1246,7 @@
 				07C3AF341948FC3B0016CFF1 /* Force Resources Directory */,
 				07C3AF25194336160016CFF1 /* Resources */,
 				07489B6B1A28949600348CD9 /* Build Updater */,
+				0746AC8F1A28D4140040AE26 /* Clean Updater */,
 				07489B6D1A28972E00348CD9 /* Sign Application */,
 			);
 			buildRules = (
@@ -1319,6 +1320,20 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		0746AC8F1A28D4140040AE26 /* Clean Updater */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Clean Updater";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "rm -rf \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Frameworks/Updater.dSYM\"";
+		};
 		07489B6B1A28949600348CD9 /* Build Updater */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
