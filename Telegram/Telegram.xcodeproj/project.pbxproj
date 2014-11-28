@@ -1345,7 +1345,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "codesign --force --deep --sign \"Mac Developer: Peter Iakovlev (88P695A564)\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app\"";
+			shellScript = "codesign --force --deep --sign \"3rd Party Mac Developer Application: TELEGRAM MESSENGER LLP (6N38VWS5BX)\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app\"";
 		};
 		07C3AF341948FC3B0016CFF1 /* Force Resources Directory */ = {
 			isa = PBXShellScriptBuildPhase;

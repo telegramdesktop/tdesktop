@@ -710,7 +710,7 @@ void objc_deleteDir(const QString &dir) {
 QString objc_appDataPath() {
 	NSURL *url = [[NSFileManager defaultManager] URLForDirectory:NSApplicationSupportDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
 	if (url) {
-		return QString::fromUtf8([[url path] fileSystemRepresentation]) + qsl("/org.telegram.Telegram-Desktop/");
+		return QString::fromUtf8([[url path] fileSystemRepresentation]) + qsl("/org.telegram.desktop/");
 	}
 	return QString();
 }
