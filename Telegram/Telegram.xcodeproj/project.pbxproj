@@ -1345,7 +1345,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "codesign --force --deep --sign \"Mac Developer: Peter Iakovlev (88P695A564)\" \"./../Mac/$CONFIGURATION/Telegram Desktop.app\"";
+			shellScript = "codesign --force --deep --sign \"Mac Developer: Peter Iakovlev (88P695A564)\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app\"";
 		};
 		07C3AF341948FC3B0016CFF1 /* Force Resources Directory */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1359,7 +1359,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "mkdir -p ./../Mac/$CONFIGURATION/Telegram Desktop.app/Contents/Resources";
+			shellScript = "mkdir -p \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Resources\"";
 		};
 		07C3AF3A194CCC310016CFF1 /* Meta Style */ = {
 			isa = PBXShellScriptBuildPhase;
