@@ -403,7 +403,7 @@
 		60C0061633AC4244EA634B2A /* countrycodeinput.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = countrycodeinput.h; path = SourceFiles/gui/countrycodeinput.h; sourceTree = "<absolute>"; };
 		6102C69805B6398AF6FA5BEB /* /usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_qml_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_qml_private.pri"; sourceTree = "<absolute>"; };
 		61C679D8B4B332026BD34200 /* introphone.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = introphone.cpp; path = SourceFiles/intro/introphone.cpp; sourceTree = "<absolute>"; };
-		62807F13DBD204D0716143AD /* Telegram.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Telegram.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		62807F13DBD204D0716143AD /* Telegram Desktop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Telegram Desktop.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		63AF8520023B4EA40306CB03 /* moc_mtpSession.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_mtpSession.cpp; path = GeneratedFiles/Debug/moc_mtpSession.cpp; sourceTree = "<absolute>"; };
 		63E722139886C87BC82DBDF5 /* /usr/local/Qt-5.3.1/mkspecs/macx-clang/qmake.conf */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.1/mkspecs/macx-clang/qmake.conf"; sourceTree = "<absolute>"; };
 		6532A0DC7EFE446967682E83 /* moc_downloadpathbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_downloadpathbox.cpp; path = GeneratedFiles/Debug/moc_downloadpathbox.cpp; sourceTree = "<absolute>"; };
@@ -1229,7 +1229,7 @@
 		FE0A091FDBFB3E9C31B7A1BD /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				62807F13DBD204D0716143AD /* Telegram.app */,
+				62807F13DBD204D0716143AD /* Telegram Desktop.app */,
 			);
 			name = Products;
 			sourceTree = "<Group>";
@@ -1254,7 +1254,7 @@
 			name = Telegram;
 			productInstallPath = ../Mac/Debug/;
 			productName = Telegram;
-			productReference = 62807F13DBD204D0716143AD /* Telegram.app */;
+			productReference = 62807F13DBD204D0716143AD /* Telegram Desktop.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -1266,7 +1266,7 @@
 				LastUpgradeCheck = 0610;
 				TargetAttributes = {
 					7CCA95B9FCAD34D929431AD6 = {
-						DevelopmentTeam = 63FLR8MQA9;
+						DevelopmentTeam = 6N38VWS5BX;
 					};
 				};
 			};
@@ -1851,11 +1851,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				LLVM_LTO = YES;
 				OBJROOT = ./../Mac/ReleaseIntermediate;
+				PRODUCT_NAME = "Telegram Desktop";
 				QT_LIBRARY_SUFFIX = "";
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
@@ -1866,10 +1866,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				OBJROOT = ./../Mac/DebugIntermediate;
+				PRODUCT_NAME = "Telegram Desktop";
 				QT_LIBRARY_SUFFIX = _debug;
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;

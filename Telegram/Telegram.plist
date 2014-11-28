@@ -7,13 +7,15 @@
 	<key>CFBundleGetInfoString</key>
 	<string>Telegram Desktop messaging app</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.tdesktop.$(PRODUCT_NAME:rfc1034identifier)</string>
+	<string>org.telegram.$(PRODUCT_NAME:rfc1034identifier)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>0.6.15</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.social-networking</string>
 	<key>NOTE</key>
 	<string></string>
 	<key>NSPrincipalClass</key>
