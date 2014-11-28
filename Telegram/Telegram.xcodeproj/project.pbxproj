@@ -1243,8 +1243,10 @@
 			buildPhases = (
 				F7E50F631C51CD5B5DC0BC43 /* Compile Sources */,
 				D1C883685E82D5676953459A /* Link Binary With Libraries */,
-				07C3AF341948FC3B0016CFF1 /* ShellScript */,
+				07C3AF341948FC3B0016CFF1 /* Force Resources Directory */,
 				07C3AF25194336160016CFF1 /* Resources */,
+				07489B6B1A28949600348CD9 /* Build Updater */,
+				07489B6D1A28972E00348CD9 /* Sign Application */,
 			);
 			buildRules = (
 			);
@@ -1317,13 +1319,42 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		07C3AF341948FC3B0016CFF1 /* ShellScript */ = {
+		07489B6B1A28949600348CD9 /* Build Updater */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputPaths = (
 			);
+			name = "Build Updater";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "xcodebuild -project Updater.xcodeproj -configuration $CONFIGURATION";
+		};
+		07489B6D1A28972E00348CD9 /* Sign Application */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Sign Application";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "codesign --force --deep --sign \"Developer ID Application: John Preston\" ./../Mac/$CONFIGURATION/Telegram.app";
+		};
+		07C3AF341948FC3B0016CFF1 /* Force Resources Directory */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Force Resources Directory";
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
