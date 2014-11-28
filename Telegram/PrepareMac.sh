@@ -30,8 +30,6 @@ if [ ! -f "./../Mac/Release/Telegram Desktop.app/Contents/Frameworks/Updater" ];
   exit 1
 fi
 
-cd ./../Mac/Release && codesign --force --deep --sign "Mac Developer: Peter Iakovlev (88P695A564)" "Telegram Desktop.app" && cd ./../../Telegram
-
 if [ ! -d "./../Mac/Release/Telegram Desktop.app/Contents/_CodeSignature" ]; then
   echo "Telegram signature not found!"
   exit 1
@@ -46,5 +44,6 @@ mkdir "./../Mac/Release/deploy/$AppVersionStr"
 cp -r ./../Mac/Release/Telegram.app ./../Mac/Release/deploy/$AppVersionStr/
 rm ./../Mac/Release/Telegram.app/Contents/MacOS/Telegram
 rm ./../Mac/Release/Telegram.app/Contents/Frameworks/Updater
+rm -rf ./../Mac/Release/Telegram.app/Contents/_CodeSignature
 echo "Version $AppVersionStr prepared!";
 
