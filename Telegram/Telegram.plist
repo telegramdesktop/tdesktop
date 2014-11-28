@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleExecutable</key>
-	<string>Telegram</string>
+	<string>Telegram Desktop</string>
 	<key>CFBundleGetInfoString</key>
 	<string>Telegram Desktop messaging app</string>
 	<key>CFBundleIdentifier</key>
@@ -14,6 +14,8 @@
 	<string>0.6.15</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>0.6.15</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.social-networking</string>
 	<key>NOTE</key>

@@ -380,8 +380,8 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	p.setPen(st::setHeaderColor->p);
 	p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_general));
 	top += st::setHeaderSkip;
-
-	top += _autoUpdate.height(); 
+/*
+	top += _autoUpdate.height();
 	QString textToDraw;
 	if (cAutoUpdate()) {
 		switch (_updatingState) {
@@ -399,7 +399,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	p.setPen(st::setVersionColor->p);
 	p.drawText(_left + st::setVersionLeft, top + st::setVersionTop + st::linkFont->ascent, textToDraw);
 	top += st::setVersionHeight;
-
+*/
     if (cPlatform() == dbipWindows) {
         top += _workmodeTray.height() + st::setLittleSkip;
         top += _workmodeWindow.height() + st::setSectionSkip;
@@ -543,10 +543,10 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 
 	// general
 	top += st::setHeaderSkip;
-	_autoUpdate.move(_left, top);
-	_checkNow.move(_left + st::setWidth - _checkNow.width(), top + st::cbDefFlat.textTop); top += _autoUpdate.height();
-	_restartNow.move(_left + st::setWidth - _restartNow.width(), top + st::setVersionTop);
-	top += st::setVersionHeight;
+//	_autoUpdate.move(_left, top);
+//	_checkNow.move(_left + st::setWidth - _checkNow.width(), top + st::cbDefFlat.textTop); top += _autoUpdate.height();
+//	_restartNow.move(_left + st::setWidth - _restartNow.width(), top + st::setVersionTop);
+//	top += st::setVersionHeight;
 
     if (cPlatform() == dbipWindows) {
         _workmodeTray.move(_left, top); top += _workmodeTray.height() + st::setLittleSkip;
@@ -746,8 +746,8 @@ void SettingsInner::showAll() {
 	}
 
 	// general
-	_autoUpdate.show();
-	setUpdatingState(_updatingState, true);
+	_autoUpdate.hide();
+//	setUpdatingState(_updatingState, true);
     if (cPlatform() == dbipWindows) {
         _workmodeTray.show();
         _workmodeWindow.show();

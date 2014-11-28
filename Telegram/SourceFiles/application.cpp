@@ -486,7 +486,7 @@ void Application::stopUpdate() {
 
 void Application::startUpdateCheck(bool forceWait) {
 	updateCheckTimer.stop();
-	if (updateRequestId || updateThread || updateReply || !cAutoUpdate()) return;
+	if (updateRequestId || updateThread || updateReply || !cAutoUpdate() || true) return;
 	
 	int32 updateInSecs = cLastUpdateCheck() + 3600 + (rand() % 3600) - unixtime();
 	bool sendRequest = (updateInSecs <= 0 || updateInSecs > 7200);

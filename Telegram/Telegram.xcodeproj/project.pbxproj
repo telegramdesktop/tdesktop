@@ -252,6 +252,7 @@
 		0732E4A7199E262300D50FE7 /* overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = overviewwidget.cpp; path = SourceFiles/overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
 		0732E4A8199E262300D50FE7 /* overviewwidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = overviewwidget.h; path = SourceFiles/overviewwidget.h; sourceTree = SOURCE_ROOT; };
 		0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_overviewwidget.cpp; path = GeneratedFiles/Debug/moc_overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
+		0746AC8D1A28D2D80040AE26 /* Telegram Desktop.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.xml; name = "Telegram Desktop.entitlements"; path = "Telegram/Telegram Desktop.entitlements"; sourceTree = SOURCE_ROOT; };
 		074756181A1372C600CA07F7 /* moc_types.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_types.cpp; path = GeneratedFiles/Debug/moc_types.cpp; sourceTree = SOURCE_ROOT; };
 		074FCB8C19D36851004C6EB2 /* contextmenu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = contextmenu.cpp; path = SourceFiles/gui/contextmenu.cpp; sourceTree = SOURCE_ROOT; };
 		074FCB8D19D36851004C6EB2 /* contextmenu.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = contextmenu.h; path = SourceFiles/gui/contextmenu.h; sourceTree = SOURCE_ROOT; };
@@ -1215,6 +1216,7 @@
 		E8C543AB96796ECAA2E65C57 /* Telegram */ = {
 			isa = PBXGroup;
 			children = (
+				0746AC8D1A28D2D80040AE26 /* Telegram Desktop.entitlements */,
 				07084684195445A600B5AE3A /* Updater.xcodeproj */,
 				2EB56BE3C2D93CDAB0C52E67 /* Sources */,
 				25B08E2869634E9BCBA333A2 /* Generated Sources */,
@@ -1247,6 +1249,7 @@
 				07C3AF25194336160016CFF1 /* Resources */,
 				07489B6B1A28949600348CD9 /* Build Updater */,
 				07489B6D1A28972E00348CD9 /* Sign Application */,
+				0746AC8B1A28CD1C0040AE26 /* Make Installer */,
 			);
 			buildRules = (
 			);
@@ -1269,6 +1272,11 @@
 				TargetAttributes = {
 					7CCA95B9FCAD34D929431AD6 = {
 						DevelopmentTeam = 6N38VWS5BX;
+						SystemCapabilities = {
+							com.apple.Sandbox = {
+								enabled = 1;
+							};
+						};
 					};
 				};
 			};
@@ -1319,6 +1327,20 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		0746AC8B1A28CD1C0040AE26 /* Make Installer */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Make Installer";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "productbuild --sign \"3rd Party Mac Developer Installer: TELEGRAM MESSENGER LLP (6N38VWS5BX)\" --component \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app\" /Applications \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.pkg\"";
+		};
 		07489B6B1A28949600348CD9 /* Build Updater */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -1345,7 +1367,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "codesign --force --deep --sign \"3rd Party Mac Developer Application: TELEGRAM MESSENGER LLP (6N38VWS5BX)\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app\"";
+			shellScript = "codesign --force --deep --sign \"3rd Party Mac Developer Application: TELEGRAM MESSENGER LLP (6N38VWS5BX)\" \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app\" --entitlements \"Telegram/Telegram Desktop.entitlements\"";
 		};
 		07C3AF341948FC3B0016CFF1 /* Force Resources Directory */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1882,6 +1904,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "Telegram/Telegram Desktop.entitlements";
+				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				LLVM_LTO = YES;
@@ -1897,6 +1921,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "Telegram/Telegram Desktop.entitlements";
+				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				OBJROOT = ./../Mac/DebugIntermediate;
