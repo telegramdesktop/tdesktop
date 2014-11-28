@@ -1248,6 +1248,7 @@
 				07C3AF341948FC3B0016CFF1 /* Force Resources Directory */,
 				07C3AF25194336160016CFF1 /* Resources */,
 				07489B6B1A28949600348CD9 /* Build Updater */,
+				0746AC8F1A28D4140040AE26 /* Clean Updater */,
 				07489B6D1A28972E00348CD9 /* Sign Application */,
 				0746AC8B1A28CD1C0040AE26 /* Make Installer */,
 			);
@@ -1328,18 +1329,32 @@
 
 /* Begin PBXShellScriptBuildPhase section */
 		0746AC8B1A28CD1C0040AE26 /* Make Installer */ = {
+                        isa = PBXShellScriptBuildPhase;
+                        buildActionMask = 2147483647;
+                        files = (
+                        );
+                        inputPaths = (
+                        );
+                        name = "Make Installer";
+                        outputPaths = (
+                        );
+                        runOnlyForDeploymentPostprocessing = 0;
+                        shellPath = /bin/sh;
+                        shellScript = "productbuild --sign \"3rd Party Mac Developer Installer: TELEGRAM MESSENGER LLP (6N38VWS5BX)\" --component \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app\" /Applications \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.pkg\"";
+                };
+		0746AC8F1A28D4140040AE26 /* Clean Updater */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputPaths = (
 			);
-			name = "Make Installer";
+			name = "Clean Updater";
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "productbuild --sign \"3rd Party Mac Developer Installer: TELEGRAM MESSENGER LLP (6N38VWS5BX)\" --component \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app\" /Applications \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.pkg\"";
+			shellScript = "rm -rf \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Frameworks/Updater.dSYM\"";
 		};
 		07489B6B1A28949600348CD9 /* Build Updater */ = {
 			isa = PBXShellScriptBuildPhase;
