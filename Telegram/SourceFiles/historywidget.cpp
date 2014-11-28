@@ -711,7 +711,7 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_forward_selected), historyWidget, SLOT(onForwardSelected()));
 			_menu->addAction(lang(lng_context_delete_selected), historyWidget, SLOT(onDeleteSelected()));
 			_menu->addAction(lang(lng_context_clear_selection), historyWidget, SLOT(onClearSelected()));
-		} else {
+		} else if (item) {
 			if (!_menu) _menu = new ContextMenu(this);
 			if (isUponSelected != -2) {
 				if (canForward) {
@@ -723,6 +723,12 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}
 			}
 			_menu->addAction(lang(lng_context_select_msg), historyWidget, SLOT(selectMessage()))->setEnabled(true);
+		} else {
+			if (App::mousedItem() && App::mousedItem()->itemType() == HistoryItem::MsgType) {
+				if (!_menu) _menu = new ContextMenu(this);
+				_menu->addAction(lang(lng_context_select_msg), historyWidget, SLOT(selectMessage()))->setEnabled(true);
+				item = App::mousedItem();
+			}
 		}
 		App::contextItem(item);
 	}

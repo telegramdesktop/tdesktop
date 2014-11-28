@@ -179,6 +179,7 @@ void Application::onAppUpdate(const MTPhelp_AppUpdate &response) {
 		startUpdateCheck();
 	} else {
 		updateThread = new QThread();
+		connect(updateThread, SIGNAL(finished()), updateThread, SLOT(deleteLater()));
 		updateDownloader = new PsUpdateDownloader(updateThread, response.c_help_appUpdate());
 		updateThread->start();
 	}
@@ -201,6 +202,7 @@ void Application::updateGotCurrent() {
 		int32 currentVersion = m.captured(1).toInt();
 		if (currentVersion > AppVersion) {
 			updateThread = new QThread();
+			connect(updateThread, SIGNAL(finished()), updateThread, SLOT(deleteLater()));
 			updateDownloader = new PsUpdateDownloader(updateThread, m.captured(2));
 			updateThread->start();
 		}
@@ -247,7 +249,7 @@ void Application::onUpdateFailed() {
 	if (updateDownloader) {
 		updateDownloader->deleteLater();
 		updateDownloader = 0;
-		if (updateThread) updateThread->deleteLater();
+		if (updateThread) updateThread->quit();
 		updateThread = 0;
 	}
 
@@ -477,7 +479,7 @@ void Application::stopUpdate() {
 	if (updateDownloader) {
 		updateDownloader->deleteLater();
 		updateDownloader = 0;
-		if (updateThread) updateThread->deleteLater();
+		if (updateThread) updateThread->quit();
 		updateThread = 0;
 	}
 }
@@ -775,9 +777,9 @@ Application::~Application() {
 	delete updateReply;
 	delete ::uploader;
 	updateReply = 0;
-	delete updateDownloader;
+	if (updateDownloader) updateDownloader->deleteLater();
 	updateDownloader = 0;
-	delete updateThread;
+	if (updateThread) updateThread->quit();
 	updateThread = 0;
 
 	delete window;
