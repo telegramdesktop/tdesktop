@@ -1,6 +1,6 @@
 /*
 This file is part of Telegram Desktop,
-an official desktop messaging app, see https://telegram.org
+the official desktop version of Telegram messaging app, see https://telegram.org
 
 Telegram Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://tdesktop.com
+Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "style.h"
@@ -29,6 +29,12 @@ _st(st), a_color(_st.color->c), _overLevel(0), _text(text) {
 	resize(w, _st.size.height());
 	setCursor(style::cur_default);
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
+}
+
+void SysBtn::setText(const QString &text) {
+	_text = text;
+	int32 w = _st.size.width() + (_text.isEmpty() ? 0 : ((_st.size.width() - _st.img.pxWidth()) / 2 + st::titleTextButton.font->m.width(_text)));
+	resize(w, _st.size.height());
 }
 
 void SysBtn::setOverLevel(float64 level) {

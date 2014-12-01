@@ -1,6 +1,6 @@
 /*
 This file is part of Telegram Desktop,
-an official desktop messaging app, see https://telegram.org
+the official desktop version of Telegram messaging app, see https://telegram.org
 
 Telegram Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://tdesktop.com
+Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 direction: "LTR";
 
@@ -23,6 +23,7 @@ lng_menu_contacts: "Contacts";
 lng_menu_settings: "Settings";
 lng_menu_about: "About";
 lng_menu_update: "Update";
+lng_menu_restart: "Restart";
 
 lng_open_from_tray: "Open Telegram";
 lng_minimize_to_tray: "Minimize to tray";
