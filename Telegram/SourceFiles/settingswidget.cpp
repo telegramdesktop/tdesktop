@@ -1192,6 +1192,10 @@ void SettingsInner::onTempDirClearFailed(int task) {
 }
 
 void SettingsInner::setUpdatingState(UpdatingState state, bool force) {
+	_checkNow.hide();
+	_restartNow.hide();
+	return;
+
 	if (_updatingState != state || force) {
 		_updatingState = state;
 		if (cAutoUpdate()) {

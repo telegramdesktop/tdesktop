@@ -20,7 +20,7 @@ Copyright (c) 2014 John Preston, https://tdesktop.com
 #include "pspecific_mac_p.h"
 
 inline QString psServerPrefix() {
-    return qsl("/tmp/");
+    return objc_documentsPath();
 }
 inline void psCheckLocalSocket(const QString &serverName) {
     QFile address(serverName);

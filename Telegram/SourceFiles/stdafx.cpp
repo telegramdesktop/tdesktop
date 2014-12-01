@@ -24,7 +24,7 @@ Q_IMPORT_PLUGIN(AccessibleFactory)
 #elif defined Q_OS_MAC
 //Q_IMPORT_PLUGIN(AVFServicePlugin)
 Q_IMPORT_PLUGIN(AVFMediaPlayerServicePlugin)
-Q_IMPORT_PLUGIN(QT7ServicePlugin)
+//Q_IMPORT_PLUGIN(QT7ServicePlugin)
 Q_IMPORT_PLUGIN(AudioCaptureServicePlugin)
 //Q_IMPORT_PLUGIN(CoreAudioPlugin)
 Q_IMPORT_PLUGIN(QM3uPlaylistPlugin)

@@ -86,15 +86,16 @@ namespace {
 }
 
 Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
-    serverName(psServerPrefix() + cGUIDStr()), closing(false),
-	updateRequestId(0), updateReply(0), updateThread(0), updateDownloader(0) {
+serverName(psServerPrefix() + cGUIDStr()), closing(false),
+updateRequestId(0), updateReply(0), updateThread(0), updateDownloader(0) {
 
 	DEBUG_LOG(("Application Info: creation.."));
 
 	QByteArray d(QDir((cPlatform() == dbipWindows ? cExeDir() : cWorkingDir()).toLower()).absolutePath().toUtf8());
 	char h[33] = { 0 };
 	hashMd5Hex(d.constData(), d.size(), h);
-	serverName = psServerPrefix() + h + '-' + cGUIDStr();
+	h[4] = 0; // use first 4 chars
+	serverName = psServerPrefix() + h;
 
 	if (mainApp) {
 		DEBUG_LOG(("Application Error: another Application was created, terminating.."));
@@ -612,7 +613,7 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 	psCheckLocalSocket(serverName);
   
 	if (!server.listen(serverName)) {
-		DEBUG_LOG(("Application Error: failed to start listening to %1 server, error %2").arg(serverName).arg(int(server.serverError())));
+		LOG(("Application Error: failed to start listening to %1 server, error %2").arg(serverName).arg(int(server.serverError())));
 		return App::quit();
 	}
 

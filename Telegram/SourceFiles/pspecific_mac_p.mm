@@ -677,6 +677,9 @@ bool objc_execUpdater() {
 }
 
 void objc_execTelegram() {
+	[[NSWorkspace sharedWorkspace] launchApplicationAtURL:[NSURL fileURLWithPath:QNSString(cExeDir() + cExeName()).s()] options:NSWorkspaceLaunchAsync | NSWorkspaceLaunchNewInstance configuration:nil error:0];
+	return;
+
 	_execUpdater(NO);
 }
 
@@ -707,10 +710,18 @@ void objc_deleteDir(const QString &dir) {
 	[[NSFileManager defaultManager] removeItemAtPath:QNSString(dir).s() error:nil];
 }
 
+QString objc_documentsPath() {
+	NSURL *url = [[NSFileManager defaultManager] URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
+	if (url) {
+		return QString::fromUtf8([[url path] fileSystemRepresentation]) + '/';
+	}
+	return QString();
+}
+
 QString objc_appDataPath() {
 	NSURL *url = [[NSFileManager defaultManager] URLForDirectory:NSApplicationSupportDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
 	if (url) {
-		return QString::fromUtf8([[url path] fileSystemRepresentation]) + qsl("/org.telegram.desktop/");
+		return QString::fromUtf8([[url path] fileSystemRepresentation]) + '/' + QString::fromWCharArray(AppName) + '/';
 	}
 	return QString();
 }

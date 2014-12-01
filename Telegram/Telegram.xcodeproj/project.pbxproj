@@ -186,7 +186,6 @@
 		D846C6F212B438DC2FD5FF71 /* moc_dialogswidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 3B3ED09AB00290D78CF1181B /* moc_dialogswidget.cpp */; settings = {ATTRIBUTES = (); }; };
 		D87463318C8E5211C8C8670A /* stdafx.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 5A5431331A13AA7B07414240 /* stdafx.cpp */; settings = {ATTRIBUTES = (); }; };
 		DAD6F5593C3427F014531342 /* AudioUnit.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 186D09F4CB713AD4B8BDD260 /* AudioUnit.framework */; };
-		DC52E36A03D974A1A0C9AA2A /* qqt7engine in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 1C21DCD421D7B7E0462F1121 /* qqt7engine */; };
 		DE6A34CA3A5561888FA01AF1 /* flatlabel.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 763ED3C6815ED6C89E352652 /* flatlabel.cpp */; settings = {ATTRIBUTES = (); }; };
 		DF259E9677CC63AF8754032B /* mtpConnection.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = B8D9AFA42E8633154A9817A2 /* mtpConnection.cpp */; settings = {ATTRIBUTES = (); }; };
 		DF36EA42D67ED39E58CB7DF9 /* settings.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 8A28F7789408AA839F48A5F2 /* settings.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -200,7 +199,6 @@
 		EBA5E17368D2BBC6014E92B9 /* qcorewlanbearer in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = EE03BC5CA4628A6D6BEB0122 /* qcorewlanbearer */; };
 		EBE29731916DB43BF49FE7A4 /* aboutbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = C194EDD00F76216057D48A5C /* aboutbox.cpp */; settings = {ATTRIBUTES = (); }; };
 		ED2557A57C6782721DC494AF /* moc_connectionbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = FEC58F9D8A0963E5A9D4BE6F /* moc_connectionbox.cpp */; settings = {ATTRIBUTES = (); }; };
-		EDFF7E777D3A3730A9BB3FC2 /* QTKit.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 2AC1C71FA3CD6FD909ED0276 /* QTKit.framework */; };
 		EEBE9C2FA7C9F066508EF99B /* qavfmediaplayer in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = EDD43CF4FA85D97A1140E973 /* qavfmediaplayer */; };
 		F26454630C80841CBDCFE1CA /* Foundation.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = FCC237CA5AD60B9BA4447615 /* Foundation.framework */; };
 		F278C423357CA99797EA30AB /* photosendbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = D1C9C77F1318F5A55C9BF289 /* photosendbox.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -661,8 +659,6 @@
 				F2A75ACAC9DF6A3F4E5711E7 /* AppKit.framework in Link Binary With Libraries */,
 				DAD6F5593C3427F014531342 /* AudioUnit.framework in Link Binary With Libraries */,
 				EEBE9C2FA7C9F066508EF99B /* qavfmediaplayer in Link Binary With Libraries */,
-				DC52E36A03D974A1A0C9AA2A /* qqt7engine in Link Binary With Libraries */,
-				EDFF7E777D3A3730A9BB3FC2 /* QTKit.framework in Link Binary With Libraries */,
 				9B6E32D1B74A14273D68E439 /* Qt5MultimediaWidgets in Link Binary With Libraries */,
 				C9CC5CE020283D113D81179C /* Qt5OpenGL in Link Binary With Libraries */,
 				597623A24AE744145BE84968 /* qtmedia_audioengine in Link Binary With Libraries */,
@@ -1247,8 +1243,6 @@
 				D1C883685E82D5676953459A /* Link Binary With Libraries */,
 				07C3AF341948FC3B0016CFF1 /* Force Resources Directory */,
 				07C3AF25194336160016CFF1 /* Resources */,
-				07489B6B1A28949600348CD9 /* Build Updater */,
-				0746AC8F1A28D4140040AE26 /* Clean Updater */,
 				07489B6D1A28972E00348CD9 /* Sign Application */,
 				0746AC8B1A28CD1C0040AE26 /* Make Installer */,
 			);
@@ -1329,46 +1323,18 @@
 
 /* Begin PBXShellScriptBuildPhase section */
 		0746AC8B1A28CD1C0040AE26 /* Make Installer */ = {
-                        isa = PBXShellScriptBuildPhase;
-                        buildActionMask = 2147483647;
-                        files = (
-                        );
-                        inputPaths = (
-                        );
-                        name = "Make Installer";
-                        outputPaths = (
-                        );
-                        runOnlyForDeploymentPostprocessing = 0;
-                        shellPath = /bin/sh;
-                        shellScript = "productbuild --sign \"3rd Party Mac Developer Installer: TELEGRAM MESSENGER LLP (6N38VWS5BX)\" --component \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app\" /Applications \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.pkg\"";
-                };
-		0746AC8F1A28D4140040AE26 /* Clean Updater */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputPaths = (
 			);
-			name = "Clean Updater";
+			name = "Make Installer";
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "rm -rf \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app/Contents/Frameworks/Updater.dSYM\"";
-		};
-		07489B6B1A28949600348CD9 /* Build Updater */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "Build Updater";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "xcodebuild -project Updater.xcodeproj -configuration $CONFIGURATION";
+			shellScript = "productbuild --sign \"3rd Party Mac Developer Installer: TELEGRAM MESSENGER LLP (6N38VWS5BX)\" --component \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.app\" /Applications \"$CONFIGURATION_BUILD_DIR/$PRODUCT_NAME.pkg\"";
 		};
 		07489B6D1A28972E00348CD9 /* Sign Application */ = {
 			isa = PBXShellScriptBuildPhase;

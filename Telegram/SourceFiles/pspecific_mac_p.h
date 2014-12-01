@@ -70,6 +70,7 @@ void objc_activateProgram();
 bool objc_moveFile(const QString &from, const QString &to);
 void objc_deleteDir(const QString &dir);
 
+QString objc_documentsPath();
 QString objc_appDataPath();
 QString objc_downloadPath();
 QString objc_currentCountry();
