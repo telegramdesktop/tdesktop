@@ -1,6 +1,6 @@
 /*
 This file is part of Telegram Desktop,
-an official desktop messaging app, see https://telegram.org
+the official desktop version of Telegram messaging app, see https://telegram.org
 
 Telegram Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://tdesktop.com
+Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #include "genstyles.h"
 
@@ -361,7 +361,7 @@ Created from \'/Resources/style_classes.txt\' by \'/MetaStyle\' project\n\
 WARNING! All changes made in this file will be lost!\n\
 \n\
 This file is part of Telegram Desktop,\n\
-an official desktop messaging app, see https://telegram.org\n\
+the official desktop version of Telegram messaging app, see https://telegram.org\n\
 \n\
 Telegram Desktop is free software: you can redistribute it and/or modify\n\
 it under the terms of the GNU General Public License as published by\n\
@@ -374,7 +374,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n\
 GNU General Public License for more details.\n\
 \n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
-Copyright (c) 2014 John Preston, https://tdesktop.com\n\
+Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 */\n";
 			tout << "#pragma once\n\n#include \"style.h\"\n\nnamespace style {\n";
 			for (int i = 0, l = byIndex.size(); i < l; ++i) {
@@ -1498,7 +1498,7 @@ Created from \'/Resources/style.txt\' by \'/MetaStyle\' project\n\
 WARNING! All changes made in this file will be lost!\n\
 \n\
 This file is part of Telegram Desktop,\n\
-an official desktop messaging app, see https://telegram.org\n\
+the official desktop version of Telegram messaging app, see https://telegram.org\n\
 \n\
 Telegram Desktop is free software: you can redistribute it and/or modify\n\
 it under the terms of the GNU General Public License as published by\n\
@@ -1511,7 +1511,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n\
 GNU General Public License for more details.\n\
 \n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
-Copyright (c) 2014 John Preston, https://tdesktop.com\n\
+Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 */\n";
 			tout << "#pragma once\n\n#include \"style.h\"\n\nnamespace st {\n";
 			tcpp << "\
@@ -1521,7 +1521,7 @@ Created from \'/Resources/style.txt\' by \'/MetaStyle\' project\n\
 WARNING! All changes made in this file will be lost!\n\
 \n\
 This file is part of Telegram Desktop,\n\
-an official desktop messaging app, see https://telegram.org\n\
+the official desktop version of Telegram messaging app, see https://telegram.org\n\
 \n\
 Telegram Desktop is free software: you can redistribute it and/or modify\n\
 it under the terms of the GNU General Public License as published by\n\
@@ -1534,7 +1534,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n\
 GNU General Public License for more details.\n\
 \n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
-Copyright (c) 2014 John Preston, https://tdesktop.com\n\
+Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 */\n";
 			tcpp << "#include \"stdafx.h\"\n#include \"style_auto.h\"\n\nnamespace {\n";
 			for (int i = 0, l = scalars.size(); i < l; ++i) {

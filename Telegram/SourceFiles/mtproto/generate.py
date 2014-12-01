@@ -1,6 +1,6 @@
 '''
 This file is part of Telegram Desktop,
-an official desktop messaging app, see https://telegram.org
+the official desktop version of Telegram messaging app, see https://telegram.org
 
 Telegram Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://tdesktop.com
+Copyright (c) 2014 John Preston, https://desktop.telegram.org
 '''
 import glob
 import re
@@ -40,7 +40,7 @@ out.write('/*\n');
 out.write('Created from \'/SourceFiles/mtproto/scheme.tl\' by \'/SourceFiles/mtproto/generate.py\' script\n\n');
 out.write('WARNING! All changes made in this file will be lost!\n\n');
 out.write('This file is part of Telegram Desktop,\n');
-out.write('an official desktop messaging app, see https://telegram.org\n');
+out.write('the official desktop version of Telegram messaging app, see https://telegram.org\n');
 out.write('\n');
 out.write('Telegram Desktop is free software: you can redistribute it and/or modify\n');
 out.write('it under the terms of the GNU General Public License as published by\n');
@@ -53,7 +53,7 @@ out.write('MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n');
 out.write('GNU General Public License for more details.\n');
 out.write('\n');
 out.write('Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n');
-out.write('Copyright (c) 2014 John Preston, https://tdesktop.com\n');
+out.write('Copyright (c) 2014 John Preston, https://desktop.telegram.org\n');
 out.write('*/\n');
 out.write('#pragma once\n\n#include "mtpCoreTypes.h"\n');
 with open('scheme.tl') as f:
@@ -636,7 +636,7 @@ outCpp.write('/*\n');
 outCpp.write('Created from \'/SourceFiles/mtproto/scheme.tl\' by \'/SourceFiles/mtproto/generate.py\' script\n\n');
 outCpp.write('WARNING! All changes made in this file will be lost!\n\n');
 outCpp.write('This file is part of Telegram Desktop,\n');
-outCpp.write('an official desktop messaging app, see https://telegram.org\n');
+outCpp.write('the official desktop version of Telegram messaging app, see https://telegram.org\n');
 outCpp.write('\n');
 outCpp.write('Telegram Desktop is free software: you can redistribute it and/or modify\n');
 outCpp.write('it under the terms of the GNU General Public License as published by\n');
@@ -649,7 +649,7 @@ outCpp.write('MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n');
 outCpp.write('GNU General Public License for more details.\n');
 outCpp.write('\n');
 outCpp.write('Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n');
-outCpp.write('Copyright (c) 2014 John Preston, https://tdesktop.com\n');
+outCpp.write('Copyright (c) 2014 John Preston, https://desktop.telegram.org\n');
 outCpp.write('*/\n');
 outCpp.write('#include "stdafx.h"\n#include "mtpScheme.h"\n\n');
 outCpp.write('#if (defined _DEBUG || defined _WITH_DEBUG)\n\n');
