@@ -19,7 +19,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 bool _debug = false;
 
-wstring exeName, exeDir;
+wstring exeName, exeDir, updateTo;
 
 bool equal(const wstring &a, const wstring &b) {
 	return !_wcsicmp(a.c_str(), b.c_str());
@@ -133,7 +133,7 @@ bool update() {
 		wstring dir = dirs.front();
 		dirs.pop_front();
 
-		wstring toDir = exeDir;
+		wstring toDir = updateTo;
 		if (dir.size() > updDir.size() + 1) {
 			toDir += (dir.substr(updDir.size() + 1) + L"\\");
 			forcedirs.push_back(toDir);
@@ -161,7 +161,7 @@ bool update() {
 				}
 			} else {
 				wstring fname = dir + L"\\" + findData.cFileName;
-				wstring tofname = exeDir + fname.substr(updDir.size() + 1);
+				wstring tofname = updateTo + fname.substr(updDir.size() + 1);
 				if (equal(tofname, exeName)) { // bad update - has Updater.exe - delete all dir
 					writeLog(L"Error: bad update, has Updater.exe! '" + tofname + L"' equal '" + exeName + L"'");
 					delFolder();
@@ -230,10 +230,9 @@ bool update() {
 }
 
 void updateRegistry() {
-	writeLog(L"Updating registry..");
-
-	HANDLE versionFile = CreateFile(L"tdata\\version", GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+	HANDLE versionFile = CreateFile((updateTo + L"tdata\\version").c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 	if (versionFile != INVALID_HANDLE_VALUE) {
+		writeLog(L"Updating registry..");
 		DWORD versionNum = 0, versionLen = 0, readLen = 0;
 		WCHAR versionStr[32];
 		if (ReadFile(versionFile, &versionNum, sizeof(DWORD), &readLen, NULL) != TRUE || readLen != sizeof(DWORD)) {
@@ -284,7 +283,7 @@ void updateRegistry() {
 									wsprintf(dateStr, L"%04d%02d%02d", stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay);
 									RegSetValueEx(rkey, L"InstallDate", 0, REG_SZ, (BYTE*)dateStr, (wcslen(dateStr) + 1) * sizeof(WCHAR));
 
-									WCHAR *appURL = L"https://tdesktop.com";
+									WCHAR *appURL = L"https://desktop.telegram.org";
 									RegSetValueEx(rkey, L"HelpLink", 0, REG_SZ, (BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
 									RegSetValueEx(rkey, L"URLInfoAbout", 0, REG_SZ, (BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
 									RegSetValueEx(rkey, L"URLUpdateInfo", 0, REG_SZ, (BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
@@ -296,6 +295,8 @@ void updateRegistry() {
 				RegCloseKey(rkey);
 			}
 		}
+	} else {
+		writeLog(L"Could not open version file to update registry :(");
 	}
 }
 
@@ -313,7 +314,7 @@ int APIENTRY WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdParama
 	LPWSTR *args;
 	int argsCount;
 
-	bool needupdate = false, autostart = false, debug = false;
+	bool needupdate = false, autostart = false, debug = false, writeprotected = false;
 	args = CommandLineToArgvW(GetCommandLine(), &argsCount);
 	if (args) {
 		for (int i = 1; i < argsCount; ++i) {
@@ -324,10 +325,19 @@ int APIENTRY WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdParama
 			} else if (equal(args[i], L"-debug")) {
 				debug = _debug = true;
 				openLog();
+			} else if (equal(args[i], L"-writeprotected") && ++i < argsCount) {
+				writeprotected = true;
+				updateTo = args[i];
+				for (int i = 0, l = updateTo.size(); i < l; ++i) {
+					if (updateTo[i] == L'/') {
+						updateTo[i] = L'\\';
+					}
+				}
 			}
 		}
 		if (needupdate) writeLog(L"Need to update!");
 		if (autostart) writeLog(L"From autostart!");
+		if (writeprotected) writeLog(L"Write Protected folder!");
 
 		exeName = args[0];
 		writeLog(L"Exe name is: " + exeName);
@@ -335,8 +345,19 @@ int APIENTRY WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdParama
 			if (equal(exeName.substr(exeName.size() - 11), L"Updater.exe")) {
 				exeDir = exeName.substr(0, exeName.size() - 11);
 				writeLog(L"Exe dir is: " + exeDir);
+				if (!writeprotected) {
+					updateTo = exeDir;
+				}
+				writeLog(L"Update to: " + updateTo);
 				if (needupdate && update()) {
 					updateRegistry();
+				}
+				if (writeprotected) { // if we can't clear all tupdates\ready (Updater.exe is there) - clear only version
+					if (DeleteFile(L"tupdates\\ready\\tdata\\version")) {
+						writeLog(L"Version file deleted!");
+					} else {
+						writeLog(L"Error: could not delete version file");
+					}
 				}
 			} else {
 				writeLog(L"Error: bad exe name!");
@@ -349,11 +370,56 @@ int APIENTRY WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdParama
 		writeLog(L"Error: No command line arguments!");
 	}
 
-	wstring targs = L"-noupdate";
+	wstring targs;
 	if (autostart) targs += L" -autostart";
 	if (debug) targs += L" -debug";
 
-	ShellExecute(0, 0, (exeDir + L"Telegram.exe").c_str(), targs.c_str(), 0, SW_SHOWNORMAL);
+	bool executed = false;
+	if (writeprotected) { // run un-elevated
+		writeLog(L"Trying to run un-elevated by temp.lnk");
+
+		HRESULT hres = CoInitialize(0);
+		if (SUCCEEDED(hres)) {
+			wstring lnk = L"tupdates\\ready\\temp.lnk";
+			IShellLink* psl;
+			HRESULT hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
+			if (SUCCEEDED(hres)) {
+				IPersistFile* ppf;
+
+				wstring exe = updateTo + L"Telegram.exe", dir = updateTo;
+				psl->SetArguments((targs.size() ? targs.substr(1) : targs).c_str());
+				psl->SetPath(exe.c_str());
+				psl->SetWorkingDirectory(dir.c_str());
+				psl->SetDescription(L"");
+
+				hres = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf);
+
+				if (SUCCEEDED(hres)) {
+					hres = ppf->Save(lnk.c_str(), TRUE);
+					ppf->Release();
+
+					if (SUCCEEDED(hres)) {
+						writeLog(L"Executing un-elevated through link..");
+						ShellExecute(0, 0, L"explorer.exe", lnk.c_str(), 0, SW_SHOWNORMAL);
+						executed = true;
+					} else {
+						writeLog(L"Error: ppf->Save failed");
+					}
+				} else {
+					writeLog(L"Error: Could not create interface IID_IPersistFile");
+				}
+				psl->Release();
+			} else {
+				writeLog(L"Error: could not create instance of IID_IShellLink");
+			}
+			CoUninitialize();
+		} else {
+			writeLog(L"Error: Could not initialize COM");
+		}
+	}
+	if (!executed) {
+		ShellExecute(0, 0, (updateTo + L"Telegram.exe").c_str(), (L"-noupdate" + targs).c_str(), 0, SW_SHOWNORMAL);
+	}
 
 	writeLog(L"Executed Telegram.exe, closing log and quiting..");
 	closeLog();

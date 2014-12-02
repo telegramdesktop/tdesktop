@@ -23,7 +23,7 @@ static const wchar_t *AppVersionStr = L"0.6.15";
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
 
-static const wchar_t *AppId = L"{53F49750-6209-4FBF-9CA8-7A333C87D1ED}";
+static const wchar_t *AppId = L"{53F49750-6209-4FBF-9CA8-7A333C87D1ED}"; // used in updater.cpp and Setup.iss for Windows
 static const wchar_t *AppFile = L"Telegram";
 
 #include "settings.h"

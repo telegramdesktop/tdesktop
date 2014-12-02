@@ -42,7 +42,7 @@ DBIWorkMode gWorkMode = dbiwmWindowAndTray;
 DBIConnectionType gConnectionType = dbictAuto;
 ConnectionProxy gConnectionProxy;
 bool gSeenTrayTooltip = false;
-bool gRestartingUpdate = false, gRestarting = false;
+bool gRestartingUpdate = false, gRestarting = false, gWriteProtected = false;
 int32 gLastUpdateCheck = 0;
 bool gNoStartUpdate = false;
 bool gStartToSettings = false;

@@ -2105,8 +2105,14 @@ bool psCheckReadyUpdate() {
 		}
 	}
 	if (CopyFile(updater.absoluteFilePath().toStdWString().c_str(), curUpdater.toStdWString().c_str(), FALSE) == FALSE) {
-		PsUpdateDownloader::clearAll();
-		return false;
+		DWORD errorCode = GetLastError();
+		if (errorCode == ERROR_ACCESS_DENIED) { // we are in write-protected dir, like Program Files
+			cSetWriteProtected(true);
+			return true;
+		} else {
+			PsUpdateDownloader::clearAll();
+			return false;
+		}
 	}
 	if (DeleteFile(updater.absoluteFilePath().toStdWString().c_str()) == FALSE) {
 		PsUpdateDownloader::clearAll();
@@ -2166,11 +2172,14 @@ void psExecUpdater() {
 	QString targs = qsl("-update");
 	if (cFromAutoStart()) targs += qsl(" -autostart");
 	if (cDebug()) targs += qsl(" -debug");
+	if (cWriteProtected()) targs += qsl(" -writeprotected \"") + cExeDir() + '"';
 
-	QString updater(QDir::toNativeSeparators(cExeDir() + "Updater.exe")), wdir(QDir::toNativeSeparators(cWorkingDir()));
+	QString updaterPath = cWriteProtected() ? (cWorkingDir() + qsl("tupdates/ready/Updater.exe")) : (cExeDir() + qsl("Updater.exe"));
+
+	QString updater(QDir::toNativeSeparators(updaterPath)), wdir(QDir::toNativeSeparators(cWorkingDir()));
 
 	DEBUG_LOG(("Application Info: executing %1 %2").arg(cExeDir() + "Updater.exe").arg(targs));
-	HINSTANCE r = ShellExecute(0, 0, updater.toStdWString().c_str(), targs.toStdWString().c_str(), wdir.isEmpty() ? 0 : wdir.toStdWString().c_str(), SW_SHOWNORMAL);
+	HINSTANCE r = ShellExecute(0, cWriteProtected() ? L"runas" : 0, updater.toStdWString().c_str(), targs.toStdWString().c_str(), wdir.isEmpty() ? 0 : wdir.toStdWString().c_str(), SW_SHOWNORMAL);
 	if (long(r) < 32) {
 		DEBUG_LOG(("Application Error: failed to execute %1, working directory: '%2', result: %3").arg(updater).arg(wdir).arg(long(r)));
 		QString readyPath = cWorkingDir() + qsl("tupdates/ready");
