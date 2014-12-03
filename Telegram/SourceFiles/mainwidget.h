@@ -174,6 +174,8 @@ public:
 	bool animStep(float64 ms);
 
 	void start(const MTPUser &user);
+	void openLocalUrl(const QString &str);
+	void openUserByName(const QString &name);
 	void startFull(const MTPVector<MTPUser> &users);
 	void applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNotifySettings &settings, History *history = 0);
 	void gotNotifySetting(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
@@ -298,6 +300,7 @@ signals:
 	void dialogRowReplaced(DialogRow *oldRow, DialogRow *newRow);
 	void dialogToTop(const History::DialogLinks &links);
 	void dialogsUpdated();
+	void showPeerAsync(quint64 peer, qint32 msgId, bool back, bool force);
 
 public slots:
 
@@ -323,7 +326,7 @@ public slots:
 	void mainStateChanged(Qt::WindowState state);
 	void updateOnlineDisplay();
 
-	void showPeer(const PeerId &peer, MsgId msgId = 0, bool back = false, bool force = false);
+	void showPeer(quint64 peer, qint32 msgId = 0, bool back = false, bool force = false); // PeerId, MsgId
 	void onTopBarClick();
 	void onPeerShown(PeerData *peer);
 
@@ -356,6 +359,8 @@ private:
 	void updateReceived(const mtpPrime *from, const mtpPrime *end);
 	void handleUpdates(const MTPUpdates &updates);
 	bool updateFail(const RPCError &e);
+
+	void usernameResolveDone(const MTPUser &user);
 
 	void hideAll();
 	void showAll();

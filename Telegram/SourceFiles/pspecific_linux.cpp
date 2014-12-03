@@ -982,6 +982,9 @@ void psStart() {
 void psFinish() {
 }
 
+void psRegisterCustomScheme() {
+}
+
 bool _execUpdater(bool update = true) {
     static const int MaxLen = 65536, MaxArgsCount = 128;
 

@@ -451,7 +451,7 @@ namespace {
 	int32 _storageFilesSize = 0;
 
 	bool _mapChanged = false;
-
+	int32 _oldMapVersion = 0;
 	Local::ReadMapState _readMap(const QByteArray &pass) {
 		uint64 ms = getms();
 		QByteArray dataNameUtf8 = cDataFile().toUtf8();
@@ -546,12 +546,15 @@ namespace {
 				return Local::ReadMapFailed;
 			}
 		}
+
 		_draftsMap = draftsMap;
 		_draftsPositionsMap = draftsPositionsMap;
 		_draftsNotReadMap = draftsNotReadMap;
 		_storageMap = storageMap;
 		_storageFilesSize = storageFilesSize;
 		_mapChanged = false;
+		_oldMapVersion = mapData.version;
+
 		LOG(("Map read time: %1").arg(getms() - ms));
 		return Local::ReadMapDone;
 	}
@@ -691,6 +694,10 @@ namespace Local {
 			_writeMap(WriteMapNow);
 		}
 		return result;
+	}
+
+	int32 oldMapVersion() {
+		return _oldMapVersion;
 	}
 
 	void writeDraft(const PeerId &peer, const QString &text) {

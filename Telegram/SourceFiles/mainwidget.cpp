@@ -289,6 +289,7 @@ updPts(0), updDate(0), updQts(-1), updSeq(0), updInited(false), onlineRequest(0)
 	connect(&_topBar, SIGNAL(clicked()), this, SLOT(onTopBarClick()));
 	connect(&history, SIGNAL(peerShown(PeerData*)), this, SLOT(onPeerShown(PeerData*)));
 	connect(&updateNotifySettingTimer, SIGNAL(timeout()), this, SLOT(onUpdateNotifySettings()));
+	connect(this, SIGNAL(showPeerAsync(quint64,qint32,bool,bool)), this, SLOT(showPeer(quint64,qint32,bool,bool)), Qt::QueuedConnection);
 	if (audioVoice()) {
 		connect(audioVoice(), SIGNAL(updated(AudioData*)), this, SLOT(audioPlayProgress(AudioData*)));
 		connect(audioVoice(), SIGNAL(stopped(AudioData*)), this, SLOT(audioPlayProgress(AudioData*)));
@@ -1049,7 +1050,7 @@ void MainWidget::createDialogAtTop(History *history, int32 unreadCount) {
 	dialogs.createDialogAtTop(history, unreadCount);
 }
 
-void MainWidget::showPeer(const PeerId &peerId, MsgId msgId, bool back, bool force) {
+void MainWidget::showPeer(quint64 peerId, qint32 msgId, bool back, bool force) {
 	if (!back && _stack.size() == 1 && _stack[0]->type() == HistoryStackItem && _stack[0]->peer->id == peerId) {
 		back = true;
 	}
@@ -1835,6 +1836,30 @@ void MainWidget::start(const MTPUser &user) {
 	App::app()->startUpdateCheck();
 	MTP::send(MTPupdates_GetState(), rpcDone(&MainWidget::gotState));
 	update();
+	if (!cStartUrl().isEmpty()) {
+		openLocalUrl(cStartUrl());
+		cSetStartUrl(QString());
+	}
+}
+
+void MainWidget::openLocalUrl(const QString &url) {
+	QRegularExpressionMatch m = QRegularExpression(qsl("^tg://resolve/\\?domain=([a-zA-Z0-9\\.\\_]+)$"), QRegularExpression::CaseInsensitiveOption).match(url.trimmed());
+	if (m.hasMatch()) {
+		openUserByName(m.captured(1));
+	}
+}
+
+void MainWidget::openUserByName(const QString &username) {
+	UserData *user = App::userByName(username);
+	if (user) {
+		emit showPeerAsync(user->id, 0, false, true);
+	} else {
+		MTP::send(MTPcontacts_ResolveUsername(MTP_string(username)), rpcDone(&MainWidget::usernameResolveDone));
+	}
+}
+
+void MainWidget::usernameResolveDone(const MTPUser &user) {
+	showPeer(App::feedUsers(MTP_vector<MTPUser>(1, user))->id, 0, false, true);
 }
 
 void MainWidget::startFull(const MTPVector<MTPUser> &users) {
@@ -2326,12 +2351,34 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		App::feedUserLink(d.vuser_id, d.vmy_link, d.vforeign_link);
 	} break;
 
+	case mtpc_updateNotifySettings: {
+		const MTPDupdateNotifySettings &d(update.c_updateNotifySettings());
+		applyNotifySetting(d.vpeer, d.vnotify_settings);
+	} break;
+
+	case mtpc_updateDcOptions: {
+		const MTPDupdateDcOptions &d(update.c_updateDcOptions());
+		MTP::updateDcOptions(d.vdc_options.c_vector().v);
+	} break;
+
+	case mtpc_updateUserPhone: {
+		const MTPDupdateUserPhone &d(update.c_updateUserPhone());
+		UserData *user = App::userLoaded(d.vuser_id.v);
+		if (user) {
+			user->setPhone(qs(d.vphone));
+			user->setName(user->firstName, user->lastName, (user->contact || isServiceUser(user->id) || user->phone.isEmpty()) ? QString() : App::formatPhone(user->phone), user->username);
+			if (App::main()) App::main()->peerUpdated(user);
+		}
+	} break;
+
 	case mtpc_updateActivation: {
 		const MTPDupdateActivation &d(update.c_updateActivation());
 	} break;
 
-	case mtpc_updateNewAuthorization: {
-		const MTPDupdateNewAuthorization &d(update.c_updateNewAuthorization());
+	case mtpc_updateNewGeoChatMessage: {
+		const MTPDupdateNewGeoChatMessage &d(update.c_updateNewGeoChatMessage());
+//		PeerId peer = App::histories().addToBack(d.vmessage);
+//		history.peerMessagesUpdated(peer);
 	} break;
 
 	case mtpc_updateNewEncryptedMessage: {
@@ -2351,30 +2398,20 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const MTPDupdateEncryptedMessagesRead &d(update.c_updateEncryptedMessagesRead());
 	} break;
 
-	case mtpc_updateNewGeoChatMessage: {
-		const MTPDupdateNewGeoChatMessage &d(update.c_updateNewGeoChatMessage());
-//		PeerId peer = App::histories().addToBack(d.vmessage);
-//		history.peerMessagesUpdated(peer);
-	} break;
-
 	case mtpc_updateUserBlocked: {
 		const MTPDupdateUserBlocked &d(update.c_updateUserBlocked());
-		//
 	} break;
 
-	case mtpc_updateNotifySettings: {
-		const MTPDupdateNotifySettings &d(update.c_updateNotifySettings());
-		applyNotifySetting(d.vpeer, d.vnotify_settings);
-	} break;
-
-	case mtpc_updateDcOptions: {
-		const MTPDupdateDcOptions &d(update.c_updateDcOptions());
-		MTP::updateDcOptions(d.vdc_options.c_vector().v);
+	case mtpc_updateNewAuthorization: {
+		const MTPDupdateNewAuthorization &d(update.c_updateNewAuthorization());
 	} break;
 
 	case mtpc_updateServiceNotification: {
 		const MTPDupdateServiceNotification &d(update.c_updateServiceNotification());
-		//
+	} break;
+
+	case mtpc_updatePrivacy: {
+		const MTPDupdatePrivacy &d(update.c_updatePrivacy());
 	} break;
 	}
 }

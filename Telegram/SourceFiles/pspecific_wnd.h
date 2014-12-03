@@ -199,6 +199,8 @@ void psShowInFolder(const QString &name);
 void psStart();
 void psFinish();
 
+void psRegisterCustomScheme();
+
 void psUpdateOverlayed(TWidget *widget);
 inline QString psConvertFileUrl(const QString &url) {
 	return url;

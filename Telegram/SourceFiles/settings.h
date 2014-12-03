@@ -147,6 +147,7 @@ const RecentEmojiPack &cGetRecentEmojis();
 DeclareReadSetting(QString, LangFile);
 
 DeclareSetting(QStringList, SendPaths);
+DeclareSetting(QString, StartUrl);
 
 DeclareSetting(bool, Retina);
 DeclareSetting(float64, RetinaFactor);

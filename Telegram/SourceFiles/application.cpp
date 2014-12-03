@@ -566,6 +566,9 @@ void Application::socketConnected() {
 	for (QStringList::const_iterator i = lst.cbegin(), e = lst.cend(); i != e; ++i) {
 		commands += qsl("SEND:") + _escapeTo7bit(*i) + ';';
 	}
+	if (!cStartUrl().isEmpty()) {
+		commands += qsl("OPEN:") + _escapeTo7bit(cStartUrl()) + ';';
+	}
 	commands += qsl("CMD:show;");
 	DEBUG_LOG(("Application Info: writing commands %1").arg(commands));
 	socket.write(commands.toLocal8Bit());
@@ -674,6 +677,9 @@ void Application::startApp() {
 	}
 
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
+	if (Local::oldMapVersion() < AppVersion) {
+		psRegisterCustomScheme();
+	}
 }
 
 void Application::socketDisconnected() {
@@ -693,6 +699,7 @@ void Application::newInstanceConnected() {
 }
 
 void Application::readClients() {
+	QString startUrl;
 	QStringList toSend;
 	for (ClientSockets::iterator i = clients.begin(), e = clients.end(); i != e; ++i) {
 		i->second.append(i->first->readAll());
@@ -708,6 +715,10 @@ void Application::readClients() {
 				} else if (cmd.startsWith(qsl("SEND:"))) {
 					if (cSendPaths().isEmpty()) {
 						toSend.append(_escapeFrom7bit(cmds.mid(from + 5, to - from - 5)));
+					}
+				} else if (cmd.startsWith(qsl("OPEN:"))) {
+					if (cStartUrl().isEmpty()) {
+						startUrl = _escapeFrom7bit(cmds.mid(from + 5, to - from - 5));
 					}
 				} else {
 					LOG(("Application Error: unknown command %1 passed in local socket").arg(QString(cmd.constData(), cmd.length())));
@@ -728,6 +739,13 @@ void Application::readClients() {
 		if (App::wnd()) {
 			App::wnd()->sendPaths();
 		}
+	}
+	if (!startUrl.isEmpty()) {
+		cSetStartUrl(startUrl);
+	}
+	if (!cStartUrl().isEmpty() && App::main() && App::self()) {
+		App::main()->openLocalUrl(cStartUrl());
+		cSetStartUrl(QString());
 	}
 }
 

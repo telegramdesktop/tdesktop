@@ -2168,6 +2168,77 @@ void psStart() {
 void psFinish() {
 }
 
+namespace {
+	void _psLogError(const char *str, LSTATUS code) {
+		WCHAR errMsg[2048];
+		LPTSTR errorText = NULL, errorTextDefault = L"(Unknown error)";
+		FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errorText, 0, 0);
+		if (!errorText) {
+			errorText = errorTextDefault;
+		}
+		LOG((str).arg(code).arg(QString::fromStdWString(errorText)));
+		if (errorText != errorTextDefault) {
+			LocalFree(errorText);
+		}
+	}
+
+	bool _psOpenRegKey(LPCWSTR key, PHKEY rkey) {
+		DEBUG_LOG(("App Info: opening reg key %1..").arg(QString::fromStdWString(key)));
+		LSTATUS status = RegOpenKeyEx(HKEY_CURRENT_USER, key, 0, KEY_QUERY_VALUE | KEY_WRITE, rkey);
+		if (status != ERROR_SUCCESS) {
+			if (status == ERROR_FILE_NOT_FOUND) {
+				status = RegCreateKeyEx(HKEY_CURRENT_USER, key, 0, 0, REG_OPTION_NON_VOLATILE, KEY_QUERY_VALUE | KEY_WRITE, 0, rkey, 0);
+				if (status != ERROR_SUCCESS) {
+					QString msg = qsl("App Error: could not create '%1' registry key, error %2").arg(QString::fromStdWString(key)).arg(qsl("%1: %2"));
+					_psLogError(msg.toUtf8().constData(), status);
+					return false;
+				}
+			} else {
+				QString msg = qsl("App Error: could not open '%1' registry key, error %2").arg(QString::fromStdWString(key)).arg(qsl("%1: %2"));
+				_psLogError(msg.toUtf8().constData(), status);
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	bool _psSetKeyValue(HKEY rkey, LPCWSTR value, QString v) {
+		static const int bufSize = 4096;
+		DWORD defaultType, defaultSize = bufSize * 2;
+		WCHAR defaultStr[bufSize] = { 0 };
+		if (RegQueryValueEx(rkey, value, 0, &defaultType, (BYTE*)defaultStr, &defaultSize) != ERROR_SUCCESS || defaultType != REG_SZ || defaultSize != (v.size() + 1) * 2 || QString::fromStdWString(defaultStr) != v) {
+			WCHAR tmp[bufSize] = { 0 };
+			if (!v.isEmpty()) wsprintf(tmp, v.replace(QChar('%'), qsl("%%")).toStdWString().c_str());
+			LSTATUS status = RegSetValueEx(rkey, 0, 0, REG_SZ, (BYTE*)tmp, (wcslen(tmp) + 1) * sizeof(WCHAR));
+			if (status != ERROR_SUCCESS) {
+				QString msg = qsl("App Error: could not set %1, error %2").arg(value ? ('\'' + QString::fromStdWString(value) + '\'') : qsl("(Default)")).arg("%1: %2");
+				_psLogError(msg.toUtf8().constData(), status);
+				return false;
+			}
+		}
+		return true;
+	}
+}
+
+void psRegisterCustomScheme() {
+	DEBUG_LOG(("App Info: Checking custom scheme 'tg'.."));
+
+	HKEY rkey;
+	QString exe = QDir::toNativeSeparators(QDir(cExeDir()).absolutePath() + '/' + QString::fromWCharArray(AppFile) + qsl(".exe"));
+
+	if (!_psOpenRegKey(L"Software\\Classes\\tg", &rkey)) return;
+	if (!_psSetKeyValue(rkey, L"URL Protocol", QString())) return;
+	if (!_psSetKeyValue(rkey, 0, qsl("URL:Telegram Link"))) return;
+
+	if (!_psOpenRegKey(L"Software\\Classes\\tg\\DefaultIcon", &rkey)) return;
+	if (!_psSetKeyValue(rkey, 0, '"' + exe + qsl(",1\""))) return;
+
+	if (!_psOpenRegKey(L"Software\\Classes\\tg\\shell", &rkey)) return;
+	if (!_psOpenRegKey(L"Software\\Classes\\tg\\shell\\open", &rkey)) return;
+	if (!_psOpenRegKey(L"Software\\Classes\\tg\\shell\\open\\command", &rkey)) return;
+	if (!_psSetKeyValue(rkey, 0, '"' + exe + qsl("\" -workdir \"") + cWorkingDir() + qsl("\" -- \"%1\""))) return;
+}
+
 void psExecUpdater() {
 	QString targs = qsl("-update");
 	if (cFromAutoStart()) targs += qsl(" -autostart");

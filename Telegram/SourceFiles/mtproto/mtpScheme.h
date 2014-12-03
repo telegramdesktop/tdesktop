@@ -349,6 +349,8 @@ enum {
 	mtpc_privacyValueDisallowUsers = 0xc7f49b7,
 	mtpc_account_privacyRules = 0x554abb6f,
 	mtpc_accountDaysTTL = 0xb8d0afdf,
+	mtpc_account_sentChangePhoneCode = 0xa4f58c4c,
+	mtpc_updateUserPhone = 0x12b9417b,
 	mtpc_invokeAfterMsg = 0xcb9f372d,
 	mtpc_invokeAfterMsgs = 0x3dc4b4f0,
 	mtpc_auth_checkPhone = 0x6fe51dfb,
@@ -451,7 +453,10 @@ enum {
 	mtpc_account_setPrivacy = 0xc9f81ce8,
 	mtpc_account_deleteAccount = 0x418d4e0b,
 	mtpc_account_getAccountTTL = 0x8fc711d,
-	mtpc_account_setAccountTTL = 0x2442485e
+	mtpc_account_setAccountTTL = 0x2442485e,
+	mtpc_contacts_resolveUsername = 0xbf0131c,
+	mtpc_account_sendChangePhoneCode = 0xa407a8f4,
+	mtpc_account_changePhone = 0x70c32edb
 };
 
 // Type forward declarations
@@ -805,6 +810,7 @@ class MTPDupdateUserBlocked;
 class MTPDupdateNotifySettings;
 class MTPDupdateServiceNotification;
 class MTPDupdatePrivacy;
+class MTPDupdateUserPhone;
 
 class MTPupdates_state;
 class MTPDupdates_state;
@@ -940,6 +946,9 @@ class MTPDaccount_privacyRules;
 class MTPaccountDaysTTL;
 class MTPDaccountDaysTTL;
 
+class MTPaccount_sentChangePhoneCode;
+class MTPDaccount_sentChangePhoneCode;
+
 
 // Boxed types definitions
 typedef MTPBoxed<MTPresPQ> MTPResPQ;
@@ -1068,6 +1077,7 @@ typedef MTPBoxed<MTPinputPrivacyRule> MTPInputPrivacyRule;
 typedef MTPBoxed<MTPprivacyRule> MTPPrivacyRule;
 typedef MTPBoxed<MTPaccount_privacyRules> MTPaccount_PrivacyRules;
 typedef MTPBoxed<MTPaccountDaysTTL> MTPAccountDaysTTL;
+typedef MTPBoxed<MTPaccount_sentChangePhoneCode> MTPaccount_SentChangePhoneCode;
 
 // Type classes definitions
 
@@ -5301,6 +5311,18 @@ public:
 		return *(const MTPDupdatePrivacy*)data;
 	}
 
+	MTPDupdateUserPhone &_updateUserPhone() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updateUserPhone) throw mtpErrorWrongTypeId(_type, mtpc_updateUserPhone);
+		split();
+		return *(MTPDupdateUserPhone*)data;
+	}
+	const MTPDupdateUserPhone &c_updateUserPhone() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updateUserPhone) throw mtpErrorWrongTypeId(_type, mtpc_updateUserPhone);
+		return *(const MTPDupdateUserPhone*)data;
+	}
+
 	uint32 innerLength() const;
 	mtpTypeId type() const;
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
@@ -5337,6 +5359,7 @@ private:
 	explicit MTPupdate(MTPDupdateNotifySettings *_data);
 	explicit MTPupdate(MTPDupdateServiceNotification *_data);
 	explicit MTPupdate(MTPDupdatePrivacy *_data);
+	explicit MTPupdate(MTPDupdateUserPhone *_data);
 
 	friend MTPupdate MTP_updateNewMessage(const MTPMessage &_message, MTPint _pts);
 	friend MTPupdate MTP_updateMessageID(MTPint _id, const MTPlong &_random_id);
@@ -5365,6 +5388,7 @@ private:
 	friend MTPupdate MTP_updateNotifySettings(const MTPNotifyPeer &_peer, const MTPPeerNotifySettings &_notify_settings);
 	friend MTPupdate MTP_updateServiceNotification(const MTPstring &_type, const MTPstring &_message, const MTPMessageMedia &_media, MTPBool _popup);
 	friend MTPupdate MTP_updatePrivacy(const MTPPrivacyKey &_key, const MTPVector<MTPPrivacyRule> &_rules);
+	friend MTPupdate MTP_updateUserPhone(MTPint _user_id, const MTPstring &_phone);
 
 	mtpTypeId _type;
 };
@@ -6982,6 +7006,37 @@ private:
 	friend MTPaccountDaysTTL MTP_accountDaysTTL(MTPint _days);
 };
 typedef MTPBoxed<MTPaccountDaysTTL> MTPAccountDaysTTL;
+
+class MTPaccount_sentChangePhoneCode : private mtpDataOwner {
+public:
+	MTPaccount_sentChangePhoneCode();
+	MTPaccount_sentChangePhoneCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_sentChangePhoneCode) : mtpDataOwner(0) {
+		read(from, end, cons);
+	}
+
+	MTPDaccount_sentChangePhoneCode &_account_sentChangePhoneCode() {
+		if (!data) throw mtpErrorUninitialized();
+		split();
+		return *(MTPDaccount_sentChangePhoneCode*)data;
+	}
+	const MTPDaccount_sentChangePhoneCode &c_account_sentChangePhoneCode() const {
+		if (!data) throw mtpErrorUninitialized();
+		return *(const MTPDaccount_sentChangePhoneCode*)data;
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_sentChangePhoneCode);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPaccount_sentChangePhoneCode(MTPDaccount_sentChangePhoneCode *_data);
+
+	friend MTPaccount_sentChangePhoneCode MTP_account_sentChangePhoneCode(const MTPstring &_phone_code_hash, MTPint _send_call_timeout);
+};
+typedef MTPBoxed<MTPaccount_sentChangePhoneCode> MTPaccount_SentChangePhoneCode;
 
 // Type constructors with data
 
@@ -9069,6 +9124,17 @@ public:
 	MTPVector<MTPPrivacyRule> vrules;
 };
 
+class MTPDupdateUserPhone : public mtpDataImpl<MTPDupdateUserPhone> {
+public:
+	MTPDupdateUserPhone() {
+	}
+	MTPDupdateUserPhone(MTPint _user_id, const MTPstring &_phone) : vuser_id(_user_id), vphone(_phone) {
+	}
+
+	MTPint vuser_id;
+	MTPstring vphone;
+};
+
 class MTPDupdates_state : public mtpDataImpl<MTPDupdates_state> {
 public:
 	MTPDupdates_state() {
@@ -9781,6 +9847,17 @@ public:
 	}
 
 	MTPint vdays;
+};
+
+class MTPDaccount_sentChangePhoneCode : public mtpDataImpl<MTPDaccount_sentChangePhoneCode> {
+public:
+	MTPDaccount_sentChangePhoneCode() {
+	}
+	MTPDaccount_sentChangePhoneCode(const MTPstring &_phone_code_hash, MTPint _send_call_timeout) : vphone_code_hash(_phone_code_hash), vsend_call_timeout(_send_call_timeout) {
+	}
+
+	MTPstring vphone_code_hash;
+	MTPint vsend_call_timeout;
 };
 
 // RPC methods
@@ -14476,6 +14553,129 @@ public:
 	MTPaccount_SetAccountTTL(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_setAccountTTL>(from, end, cons) {
 	}
 	MTPaccount_SetAccountTTL(const MTPAccountDaysTTL &_ttl) : MTPBoxed<MTPaccount_setAccountTTL>(MTPaccount_setAccountTTL(_ttl)) {
+	}
+};
+
+class MTPcontacts_resolveUsername { // RPC method 'contacts.resolveUsername'
+public:
+	MTPstring vusername;
+
+	MTPcontacts_resolveUsername() {
+	}
+	MTPcontacts_resolveUsername(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_resolveUsername) {
+		read(from, end, cons);
+	}
+	MTPcontacts_resolveUsername(const MTPstring &_username) : vusername(_username) {
+	}
+
+	uint32 innerLength() const {
+		return vusername.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_contacts_resolveUsername;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_resolveUsername) {
+		vusername.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vusername.write(to);
+	}
+
+	typedef MTPUser ResponseType;
+};
+class MTPcontacts_ResolveUsername : public MTPBoxed<MTPcontacts_resolveUsername> {
+public:
+	MTPcontacts_ResolveUsername() {
+	}
+	MTPcontacts_ResolveUsername(const MTPcontacts_resolveUsername &v) : MTPBoxed<MTPcontacts_resolveUsername>(v) {
+	}
+	MTPcontacts_ResolveUsername(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPcontacts_resolveUsername>(from, end, cons) {
+	}
+	MTPcontacts_ResolveUsername(const MTPstring &_username) : MTPBoxed<MTPcontacts_resolveUsername>(MTPcontacts_resolveUsername(_username)) {
+	}
+};
+
+class MTPaccount_sendChangePhoneCode { // RPC method 'account.sendChangePhoneCode'
+public:
+	MTPstring vphone_number;
+
+	MTPaccount_sendChangePhoneCode() {
+	}
+	MTPaccount_sendChangePhoneCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_sendChangePhoneCode) {
+		read(from, end, cons);
+	}
+	MTPaccount_sendChangePhoneCode(const MTPstring &_phone_number) : vphone_number(_phone_number) {
+	}
+
+	uint32 innerLength() const {
+		return vphone_number.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_account_sendChangePhoneCode;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_sendChangePhoneCode) {
+		vphone_number.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vphone_number.write(to);
+	}
+
+	typedef MTPaccount_SentChangePhoneCode ResponseType;
+};
+class MTPaccount_SendChangePhoneCode : public MTPBoxed<MTPaccount_sendChangePhoneCode> {
+public:
+	MTPaccount_SendChangePhoneCode() {
+	}
+	MTPaccount_SendChangePhoneCode(const MTPaccount_sendChangePhoneCode &v) : MTPBoxed<MTPaccount_sendChangePhoneCode>(v) {
+	}
+	MTPaccount_SendChangePhoneCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_sendChangePhoneCode>(from, end, cons) {
+	}
+	MTPaccount_SendChangePhoneCode(const MTPstring &_phone_number) : MTPBoxed<MTPaccount_sendChangePhoneCode>(MTPaccount_sendChangePhoneCode(_phone_number)) {
+	}
+};
+
+class MTPaccount_changePhone { // RPC method 'account.changePhone'
+public:
+	MTPstring vphone_number;
+	MTPstring vphone_code_hash;
+	MTPstring vphone_code;
+
+	MTPaccount_changePhone() {
+	}
+	MTPaccount_changePhone(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_changePhone) {
+		read(from, end, cons);
+	}
+	MTPaccount_changePhone(const MTPstring &_phone_number, const MTPstring &_phone_code_hash, const MTPstring &_phone_code) : vphone_number(_phone_number), vphone_code_hash(_phone_code_hash), vphone_code(_phone_code) {
+	}
+
+	uint32 innerLength() const {
+		return vphone_number.innerLength() + vphone_code_hash.innerLength() + vphone_code.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_account_changePhone;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_changePhone) {
+		vphone_number.read(from, end);
+		vphone_code_hash.read(from, end);
+		vphone_code.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vphone_number.write(to);
+		vphone_code_hash.write(to);
+		vphone_code.write(to);
+	}
+
+	typedef MTPUser ResponseType;
+};
+class MTPaccount_ChangePhone : public MTPBoxed<MTPaccount_changePhone> {
+public:
+	MTPaccount_ChangePhone() {
+	}
+	MTPaccount_ChangePhone(const MTPaccount_changePhone &v) : MTPBoxed<MTPaccount_changePhone>(v) {
+	}
+	MTPaccount_ChangePhone(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_changePhone>(from, end, cons) {
+	}
+	MTPaccount_ChangePhone(const MTPstring &_phone_number, const MTPstring &_phone_code_hash, const MTPstring &_phone_code) : MTPBoxed<MTPaccount_changePhone>(MTPaccount_changePhone(_phone_number, _phone_code_hash, _phone_code)) {
 	}
 };
 
@@ -19781,6 +19981,10 @@ inline uint32 MTPupdate::innerLength() const {
 			const MTPDupdatePrivacy &v(c_updatePrivacy());
 			return v.vkey.innerLength() + v.vrules.innerLength();
 		}
+		case mtpc_updateUserPhone: {
+			const MTPDupdateUserPhone &v(c_updateUserPhone());
+			return v.vuser_id.innerLength() + v.vphone.innerLength();
+		}
 	}
 	return 0;
 }
@@ -19962,6 +20166,12 @@ inline void MTPupdate::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeI
 			v.vkey.read(from, end);
 			v.vrules.read(from, end);
 		} break;
+		case mtpc_updateUserPhone: _type = cons; {
+			if (!data) setData(new MTPDupdateUserPhone());
+			MTPDupdateUserPhone &v(_updateUserPhone());
+			v.vuser_id.read(from, end);
+			v.vphone.read(from, end);
+		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPupdate");
 	}
 }
@@ -20111,6 +20321,11 @@ inline void MTPupdate::write(mtpBuffer &to) const {
 			v.vkey.write(to);
 			v.vrules.write(to);
 		} break;
+		case mtpc_updateUserPhone: {
+			const MTPDupdateUserPhone &v(c_updateUserPhone());
+			v.vuser_id.write(to);
+			v.vphone.write(to);
+		} break;
 	}
 }
 inline MTPupdate::MTPupdate(mtpTypeId type) : mtpDataOwner(0), _type(type) {
@@ -20142,6 +20357,7 @@ inline MTPupdate::MTPupdate(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 		case mtpc_updateNotifySettings: setData(new MTPDupdateNotifySettings()); break;
 		case mtpc_updateServiceNotification: setData(new MTPDupdateServiceNotification()); break;
 		case mtpc_updatePrivacy: setData(new MTPDupdatePrivacy()); break;
+		case mtpc_updateUserPhone: setData(new MTPDupdateUserPhone()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPupdate");
 	}
 }
@@ -20198,6 +20414,8 @@ inline MTPupdate::MTPupdate(MTPDupdateNotifySettings *_data) : mtpDataOwner(_dat
 inline MTPupdate::MTPupdate(MTPDupdateServiceNotification *_data) : mtpDataOwner(_data), _type(mtpc_updateServiceNotification) {
 }
 inline MTPupdate::MTPupdate(MTPDupdatePrivacy *_data) : mtpDataOwner(_data), _type(mtpc_updatePrivacy) {
+}
+inline MTPupdate::MTPupdate(MTPDupdateUserPhone *_data) : mtpDataOwner(_data), _type(mtpc_updateUserPhone) {
 }
 inline MTPupdate MTP_updateNewMessage(const MTPMessage &_message, MTPint _pts) {
 	return MTPupdate(new MTPDupdateNewMessage(_message, _pts));
@@ -20279,6 +20497,9 @@ inline MTPupdate MTP_updateServiceNotification(const MTPstring &_type, const MTP
 }
 inline MTPupdate MTP_updatePrivacy(const MTPPrivacyKey &_key, const MTPVector<MTPPrivacyRule> &_rules) {
 	return MTPupdate(new MTPDupdatePrivacy(_key, _rules));
+}
+inline MTPupdate MTP_updateUserPhone(MTPint _user_id, const MTPstring &_phone) {
+	return MTPupdate(new MTPDupdateUserPhone(_user_id, _phone));
 }
 
 inline MTPupdates_state::MTPupdates_state() : mtpDataOwner(new MTPDupdates_state()) {
@@ -22437,6 +22658,35 @@ inline MTPaccountDaysTTL::MTPaccountDaysTTL(MTPDaccountDaysTTL *_data) : mtpData
 }
 inline MTPaccountDaysTTL MTP_accountDaysTTL(MTPint _days) {
 	return MTPaccountDaysTTL(new MTPDaccountDaysTTL(_days));
+}
+
+inline MTPaccount_sentChangePhoneCode::MTPaccount_sentChangePhoneCode() : mtpDataOwner(new MTPDaccount_sentChangePhoneCode()) {
+}
+
+inline uint32 MTPaccount_sentChangePhoneCode::innerLength() const {
+	const MTPDaccount_sentChangePhoneCode &v(c_account_sentChangePhoneCode());
+	return v.vphone_code_hash.innerLength() + v.vsend_call_timeout.innerLength();
+}
+inline mtpTypeId MTPaccount_sentChangePhoneCode::type() const {
+	return mtpc_account_sentChangePhoneCode;
+}
+inline void MTPaccount_sentChangePhoneCode::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	if (cons != mtpc_account_sentChangePhoneCode) throw mtpErrorUnexpected(cons, "MTPaccount_sentChangePhoneCode");
+
+	if (!data) setData(new MTPDaccount_sentChangePhoneCode());
+	MTPDaccount_sentChangePhoneCode &v(_account_sentChangePhoneCode());
+	v.vphone_code_hash.read(from, end);
+	v.vsend_call_timeout.read(from, end);
+}
+inline void MTPaccount_sentChangePhoneCode::write(mtpBuffer &to) const {
+	const MTPDaccount_sentChangePhoneCode &v(c_account_sentChangePhoneCode());
+	v.vphone_code_hash.write(to);
+	v.vsend_call_timeout.write(to);
+}
+inline MTPaccount_sentChangePhoneCode::MTPaccount_sentChangePhoneCode(MTPDaccount_sentChangePhoneCode *_data) : mtpDataOwner(_data) {
+}
+inline MTPaccount_sentChangePhoneCode MTP_account_sentChangePhoneCode(const MTPstring &_phone_code_hash, MTPint _send_call_timeout) {
+	return MTPaccount_sentChangePhoneCode(new MTPDaccount_sentChangePhoneCode(_phone_code_hash, _send_call_timeout));
 }
 
 // Human-readable text serialization

@@ -67,7 +67,7 @@ namespace App {
 	int32 onlineWillChangeIn(int32 onlineOnServer, int32 nowOnServer);
 	QString onlineText(UserData *user, int32 nowOnServer, bool precise = false);
 
-	void feedUsers(const MTPVector<MTPUser> &users);
+	UserData *feedUsers(const MTPVector<MTPUser> &users); // returnes last user
 	void feedChats(const MTPVector<MTPChat> &chats);
 	void feedParticipants(const MTPChatParticipants &p);
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d);
@@ -99,6 +99,7 @@ namespace App {
 	UserData *user(const PeerId &peer);
 	UserData *user(int32 user);
 	UserData *self();
+	UserData *userByName(const QString &username);
 	ChatData *chat(const PeerId &peer);
 	ChatData *chat(int32 chat);
 	QString peerName(const PeerData *peer, bool forDialogs = false);
@@ -187,5 +188,7 @@ namespace App {
 	void setProxySettings(QTcpSocket &socket);
 
 	void searchByHashtag(const QString &tag);
+	void openUserByName(const QString &username);
+	void openLocalUrl(const QString &url);
 
 };

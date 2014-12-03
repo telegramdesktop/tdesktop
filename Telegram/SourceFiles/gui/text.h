@@ -244,11 +244,7 @@ public:
 		return _url;
 	}
 
-	void onClick(Qt::MouseButton button) const {
-		if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-			QDesktopServices::openUrl(TextLink::encoded());
-		}
-	}
+	void onClick(Qt::MouseButton button) const;
 
 	const QString &readable() const {
 		return _readable;

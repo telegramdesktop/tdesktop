@@ -637,6 +637,9 @@ void objc_finish() {
     }
 }
 
+void objc_registerCustomScheme() {
+}
+
 BOOL _execUpdater(BOOL update = YES) {
 	NSString *path = @"", *args = @"";
 	@try {

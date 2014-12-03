@@ -86,6 +86,7 @@ namespace Local {
 		ReadMapPassNeeded = 2,
 	};
 	ReadMapState readMap(const QByteArray &pass);
+	int32 oldMapVersion();
 
 	void writeDraft(const PeerId &peer, const QString &text);
 	QString readDraft(const PeerId &peer);

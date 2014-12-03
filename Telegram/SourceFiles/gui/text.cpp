@@ -812,6 +812,20 @@ namespace {
 
 }
 
+void TextLink::onClick(Qt::MouseButton button) const {
+	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
+		QString url = TextLink::encoded();
+		QRegularExpressionMatch telegramMe = QRegularExpression(qsl("^https?://telegram\\.me/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
+		if (telegramMe.hasMatch()) {
+			App::openUserByName(telegramMe.captured(1));
+		} else if (QRegularExpression(qsl("^tg://[a-zA-Z0-9]+"), QRegularExpression::CaseInsensitiveOption).match(url).hasMatch()) {
+			App::openLocalUrl(url);
+		} else {
+			QDesktopServices::openUrl(TextLink::encoded());
+		}
+	}
+}
+
 void HashtagLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
 		App::searchByHashtag(_tag);
@@ -2935,6 +2949,7 @@ namespace {
 		regOneProtocol(qsl("http"));
 		regOneProtocol(qsl("https"));
 		regOneProtocol(qsl("ftp"));
+		regOneProtocol(qsl("tg")); // local urls
 
 		regOneTopDomain(qsl("ac"));
 		regOneTopDomain(qsl("ad"));

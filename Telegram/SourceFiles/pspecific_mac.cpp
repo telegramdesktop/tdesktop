@@ -1108,6 +1108,10 @@ void psFinish() {
     objc_finish();
 }
 
+void psRegisterCustomScheme() {
+	objc_registerCustomScheme();
+}
+
 void psExecUpdater() {
 	if (!objc_execUpdater()) {
 		QString readyPath = cWorkingDir() + qsl("tupdates/ready");
