@@ -411,7 +411,7 @@ static void cleanupCocoaApplicationDelegate()
 {
     Q_UNUSED(replyEvent);
     NSString *urlString = [[event paramDescriptorForKeyword:keyDirectObject] stringValue];
-    QWindowSystemInterface::handleFileOpenEvent(QCFString::toQString(urlString));
+	QWindowSystemInterface::handleFileOpenEvent(QUrl::fromNSURL([NSURL URLWithString:urlString]));
 }
 
 - (void)appleEventQuit:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent

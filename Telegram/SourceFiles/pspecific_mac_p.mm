@@ -36,6 +36,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 @end
 
+ApplicationDelegate *_sharedDelegate = nil;
+
 @implementation ApplicationDelegate {
 }
 
@@ -53,8 +55,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 }
 
 @end
-
-ApplicationDelegate *_sharedDelegate = nil;
 
 class QNSString {
 public:

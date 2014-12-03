@@ -1843,7 +1843,7 @@ void MainWidget::start(const MTPUser &user) {
 }
 
 void MainWidget::openLocalUrl(const QString &url) {
-	QRegularExpressionMatch m = QRegularExpression(qsl("^tg://resolve/\\?domain=([a-zA-Z0-9\\.\\_]+)$"), QRegularExpression::CaseInsensitiveOption).match(url.trimmed());
+	QRegularExpressionMatch m = QRegularExpression(qsl("^tg://resolve/?\\?domain=([a-zA-Z0-9\\.\\_]+)$"), QRegularExpression::CaseInsensitiveOption).match(url.trimmed());
 	if (m.hasMatch()) {
 		openUserByName(m.captured(1));
 	}
