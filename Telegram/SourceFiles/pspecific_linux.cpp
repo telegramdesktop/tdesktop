@@ -1042,26 +1042,23 @@ void psRegisterCustomScheme() {
 
     DEBUG_LOG(("App Info: registerting for Gnome"));
     if (_psRunCommand(qsl("gconftool-2 -t string -s /desktop/gnome/url-handlers/tg/command \"%1 -- %s\"").arg(cExeDir() + cExeName()))) {
-        _psRunCommand(qsl("gconftool-2 -s /desktop/gnome/url-handlers/tg/needs_terminal false -t bool"));
+        _psRunCommand(qsl("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/needs_terminal false"));
         _psRunCommand(qsl("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/enabled true"));
     }
 
     DEBUG_LOG(("App Info: placing .protocol file"));
+    QString services;
     if (QDir(home + qsl(".kde4/")).exists()) {
-        QString services = home + qsl(".kde4/share/kde4/services/");
+        services = home + qsl(".kde4/share/kde4/services/");
+    } else if (QDir(home + qsl(".kde/")).exists()) {
+        services = home + qsl(".kde/share/kde4/services/");
+    }
+    if (!services.isEmpty()) {
         if (!QDir(services).exists()) QDir().mkpath(services);
 
-        QString path = services, file = path + qsl("telegramdesktop.protocol");
+        QString path = services, file = path + qsl("tg.protocol");
         QFile f(file);
         if (f.open(QIODevice::WriteOnly)) {
-            QString icon = path + qsl("icon.png");
-            if (!QFile(icon).exists()) {
-                if (QFile(qsl(":/gui/art/icon256.png")).copy(icon)) {
-                    DEBUG_LOG(("App Info: Icon copied to 'tdata'"));
-                }
-
-            }
-
             QTextStream s(&f);
             s.setCodec("UTF-8");
             s << "[Protocol]\n";
