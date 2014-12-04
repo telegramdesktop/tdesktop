@@ -677,7 +677,7 @@ void Application::startApp() {
 	}
 
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
-	if (Local::oldMapVersion() < AppVersion) {
+    if (Local::oldMapVersion() < AppVersion) {
 		psRegisterCustomScheme();
 	}
 }
