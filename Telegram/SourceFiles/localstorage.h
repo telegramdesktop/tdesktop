@@ -30,15 +30,20 @@ namespace _local_inner {
 
 		void writeMap(bool fast);
 		void writingMap();
+		void writeLocations(bool fast);
+		void writingLocations();
 		void finish();
 
 	public slots:
 
 		void mapWriteTimeout();
+		void locationsWriteTimeout();
 
 	private:
 
 		QTimer _mapWriteTimer;
+		QTimer _locationsWriteTimer;
+
 	};
 
 }
@@ -93,6 +98,9 @@ namespace Local {
 	void writeDraftPositions(const PeerId &peer, const MessageCursor &cur);
 	MessageCursor readDraftPositions(const PeerId &peer);
 	bool hasDraftPositions(const PeerId &peer);
+
+	void writeFileLocation(const StorageKey &location, const FileLocation &local);
+	FileLocation readFileLocation(const StorageKey &location, bool check = true);
 
 	void writeImage(const StorageKey &location, const ImagePtr &img);
 	void writeImage(const StorageKey &location, const StorageImageSaved &jpeg, bool overwrite = true);

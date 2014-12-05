@@ -743,6 +743,7 @@ bool Window::eventFilter(QObject *obj, QEvent *evt) {
 				cSetStartUrl(QString());
 			}
 		}
+		activate();
 	} else if (obj == this && evt->type() == QEvent::WindowStateChange) {
 		Qt::WindowState state = (windowState() & Qt::WindowMinimized) ? Qt::WindowMinimized : ((windowState() & Qt::WindowMaximized) ? Qt::WindowMaximized : ((windowState() & Qt::WindowFullScreen) ? Qt::WindowFullScreen : Qt::WindowNoState));
 		psStateChanged(state);
