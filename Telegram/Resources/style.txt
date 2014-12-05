@@ -1272,6 +1272,9 @@ aboutCloseButton: flatButton(contactsClose) {
 	overTextTop: 15px;
 	downTextTop: 16px;
 }
+btnInfoClose: flatButton(aboutCloseButton) {
+	width: confirmWidth;
+}
 
 emojiTextFont: font(16px);
 emojiReplaceWidth: 56px;

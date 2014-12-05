@@ -1854,12 +1854,20 @@ void MainWidget::openUserByName(const QString &username) {
 	if (user) {
 		emit showPeerAsync(user->id, 0, false, true);
 	} else {
-		MTP::send(MTPcontacts_ResolveUsername(MTP_string(username)), rpcDone(&MainWidget::usernameResolveDone));
+		MTP::send(MTPcontacts_ResolveUsername(MTP_string(username)), rpcDone(&MainWidget::usernameResolveDone), rpcFail(&MainWidget::usernameResolveFail, username));
 	}
 }
 
 void MainWidget::usernameResolveDone(const MTPUser &user) {
+	App::wnd()->hideLayer();
 	showPeer(App::feedUsers(MTP_vector<MTPUser>(1, user))->id, 0, false, true);
+}
+
+bool MainWidget::usernameResolveFail(QString name, const RPCError &error) {
+	if (error.code() == 400) {
+		App::wnd()->showLayer(new ConfirmBox(lang(lng_username_not_found).replace(qsl("{user}"), name), true));
+	}
+	return true;
 }
 
 void MainWidget::startFull(const MTPVector<MTPUser> &users) {
@@ -2408,6 +2416,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateServiceNotification: {
 		const MTPDupdateServiceNotification &d(update.c_updateServiceNotification());
+		if (d.vpopup.v) {
+			App::wnd()->showLayer(new ConfirmBox(qs(d.vmessage), true));
+		}
 	} break;
 
 	case mtpc_updatePrivacy: {

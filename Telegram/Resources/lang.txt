@@ -59,6 +59,7 @@ lng_month_day: "{month} {day}";
 
 lng_cancel: "Cancel";
 lng_continue: "Continue";
+lng_close: "Close";
 lng_connecting: "Connecting..";
 lng_reconnecting: "Reconnect in %1 s..";
 lng_reconnecting_try_now: "Try now";
@@ -161,6 +162,7 @@ lng_username_occupied: "This name is already occupied.";
 lng_username_too_short: "This name is too short.";
 lng_username_bad_symbols: "This name has bad symbols.";
 lng_username_available: "This name is available.";
+lng_username_not_found: "User @{user} not found.";
 
 lng_settings_section_contact_info: "Contact info";
 lng_settings_phone_number: "Phone number:";

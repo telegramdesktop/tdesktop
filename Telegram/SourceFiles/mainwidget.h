@@ -361,6 +361,7 @@ private:
 	bool updateFail(const RPCError &e);
 
 	void usernameResolveDone(const MTPUser &user);
+	bool usernameResolveFail(QString name, const RPCError &error);
 
 	void hideAll();
 	void showAll();
