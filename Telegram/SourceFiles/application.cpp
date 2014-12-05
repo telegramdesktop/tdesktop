@@ -368,8 +368,8 @@ void Application::killDownloadSessions() {
 	uint64 ms = getms(), left = MTPAckSendWaiting + MTPKillFileSessionTimeout;
 	for (QMap<int32, uint64>::iterator i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {
 		if (i.value() <= ms) {
-			for (int j = 1; j < MTPDownloadSessionsCount; ++j) {
-				MTP::killSession(MTP::dld[j] + i.key());
+			for (int j = 0; j < MTPDownloadSessionsCount; ++j) {
+				MTP::stopSession(MTP::dld[j] + i.key());
 			}
 			i = killDownloadSessionTimes.erase(i);
 		} else {

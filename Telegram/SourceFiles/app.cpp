@@ -1088,6 +1088,10 @@ namespace App {
 				convert->dc = dc;
 				convert->size = size;
 			}
+
+			if (convert->location.check()) {
+				Local::writeFileLocation(mediaKey(mtpc_inputDocumentFileLocation, convert->dc, convert->id), convert->location);
+			}
 		}
 		DocumentsData::const_iterator i = documentsData.constFind(document);
 		DocumentData *result;

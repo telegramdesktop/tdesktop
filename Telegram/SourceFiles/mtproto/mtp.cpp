@@ -711,6 +711,15 @@ namespace MTP {
 		}
 	}
 
+	void stopSession(int32 dc) {
+		Sessions::iterator i = sessions.find(dc);
+		if (i != sessions.end()) {
+			if (i.value() != mainSession) { // don't stop main session
+				i.value()->stop();
+			}
+		}
+	}
+
 	int32 state(mtpRequestId requestId) {
 		if (requestId > 0) {
 			QMutexLocker locker(&requestByDCLock);

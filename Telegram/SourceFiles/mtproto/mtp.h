@@ -99,6 +99,7 @@ namespace MTP {
 	}
 	void cancel(mtpRequestId req);
 	void killSession(int32 dc);
+	void stopSession(int32 dc);
 	
 	enum {
 		RequestSent = 0,

@@ -219,10 +219,8 @@ enum FileStatus {
 };
 
 struct VideoData {
-	VideoData(const VideoId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0) :
-		id(id), access(access), user(user), date(date), duration(duration), w(w), h(h), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), fileType(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
-		memset(md5, 0, sizeof(md5));
-	}
+	VideoData(const VideoId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
+
 	void forget() {
 		thumb->forget();
 	}
@@ -237,8 +235,7 @@ struct VideoData {
 			l->deleteLater();
 			l->rpcInvalidate();
 		}
-		fileName = QString();
-		modDate = QDateTime();
+		location = FileLocation();
 		if (!beforeDownload) {
 			openOnSave = openOnSaveMsgId = 0;
 		}
@@ -246,26 +243,14 @@ struct VideoData {
 
 	void finish() {
 		if (loader->done()) {
-			fileName = loader->fileName();
-			modDate = fileName.isEmpty() ? QDateTime() : QFileInfo(fileName).lastModified();
+			location = FileLocation(loader->fileType(), loader->fileName());
 		}
 		loader->deleteLater();
 		loader->rpcInvalidate();
 		loader = 0;
 	}
 
-	QString already(bool check = false) {
-		if (!check) return fileName;
-
-		QString res = modDate.isNull() ? QString() : fileName;
-		if (!res.isEmpty()) {
-			QFileInfo f(res);
-			if (f.exists() && f.lastModified() <= modDate) {
-				return res;
-			}
-		}
-		return QString();
-	}
+	QString already(bool check = false);
 
 	VideoId id;
 	uint64 access;
@@ -283,9 +268,7 @@ struct VideoData {
 	mtpTypeId fileType;
 	int32 openOnSave, openOnSaveMsgId;
 	mtpFileLoader *loader;
-	QString fileName;
-	QDateTime modDate;
-	int32 md5[8];
+	FileLocation location;
 };
 
 class VideoLink : public ITextLink {
@@ -323,10 +306,8 @@ public:
 };
 
 struct AudioData {
-	AudioData(const AudioId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 dc = 0, int32 size = 0) : 
-		id(id), access(access), user(user), date(date), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
-		memset(md5, 0, sizeof(md5));
-	}
+	AudioData(const AudioId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 dc = 0, int32 size = 0);
+
 	void forget() {
 	}
 
@@ -340,8 +321,7 @@ struct AudioData {
 			l->deleteLater();
 			l->rpcInvalidate();
 		}
-		fileName = QString();
-		modDate = QDateTime();
+		location = FileLocation();
 		if (!beforeDownload) {
 			openOnSave = openOnSaveMsgId = 0;
 		}
@@ -349,8 +329,7 @@ struct AudioData {
 
 	void finish() {
 		if (loader->done()) {
-			fileName = loader->fileName();
-			modDate = fileName.isEmpty() ? QDateTime() : QFileInfo(fileName).lastModified();
+			location = FileLocation(loader->fileType(), loader->fileName());
 			data = loader->bytes();
 		}
 		loader->deleteLater();
@@ -358,18 +337,7 @@ struct AudioData {
 		loader = 0;
 	}
 
-	QString already(bool check = false) {
-		if (!check) return fileName;
-
-		QString res = modDate.isNull() ? QString() : fileName;
-		if (!res.isEmpty()) {
-			QFileInfo f(res);
-			if (f.exists() && f.lastModified() <= modDate) {
-				return res;
-			}
-		}
-		return QString();
-	}
+	QString already(bool check = false);
 
 	AudioId id;
 	uint64 access;
@@ -384,8 +352,7 @@ struct AudioData {
 
 	int32 openOnSave, openOnSaveMsgId;
 	mtpFileLoader *loader;
-	QString fileName;
-	QDateTime modDate;
+	FileLocation location;
 	QByteArray data;
 	int32 md5[8];
 };
@@ -425,10 +392,8 @@ public:
 };
 
 struct DocumentData {
-	DocumentData(const DocumentId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, const QString &name = QString(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0) :
-		id(id), access(access), user(user), date(date), name(name), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
-		memset(md5, 0, sizeof(md5));
-	}
+	DocumentData(const DocumentId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, const QString &name = QString(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
+
 	void forget() {
 		thumb->forget();
 	}
@@ -443,8 +408,7 @@ struct DocumentData {
 			l->deleteLater();
 			l->rpcInvalidate();
 		}
-		fileName = QString();
-		modDate = QDateTime();
+		location = FileLocation();
 		if (!beforeDownload) {
 			openOnSave = openOnSaveMsgId = 0;
 		}
@@ -452,26 +416,14 @@ struct DocumentData {
 
 	void finish() {
 		if (loader->done()) {
-			fileName = loader->fileName();
-			modDate = fileName.isEmpty() ? QDateTime() : QFileInfo(fileName).lastModified();
+			location = FileLocation(loader->fileType(), loader->fileName());
 		}
 		loader->deleteLater();
 		loader->rpcInvalidate();
 		loader = 0;
 	}
 
-	QString already(bool check = false) {
-		if (!check) return fileName;
-
-		QString res = modDate.isNull() ? QString() : fileName;
-		if (!res.isEmpty()) {
-			QFileInfo f(res);
-			if (f.exists() && f.lastModified() <= modDate) {
-				return res;
-			}
-		}
-		return QString();
-	}
+	QString already(bool check = false);
 
 	DocumentId id;
 	uint64 access;
@@ -487,8 +439,7 @@ struct DocumentData {
 
 	int32 openOnSave, openOnSaveMsgId;
 	mtpFileLoader *loader;
-	QString fileName;
-	QDateTime modDate;
+	FileLocation location;
 	int32 md5[8];
 };
 

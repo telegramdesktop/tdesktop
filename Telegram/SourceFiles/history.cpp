@@ -516,12 +516,23 @@ void VideoCancelLink::onClick(Qt::MouseButton button) const {
 	data->cancel();
 }
 
+VideoData::VideoData(const VideoId &id, const uint64 &access, int32 user, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size) :
+id(id), access(access), user(user), date(date), duration(duration), w(w), h(h), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), fileType(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+	location = Local::readFileLocation(mediaKey(mtpc_inputVideoFileLocation, dc, id));
+}
+
 void VideoData::save(const QString &toFile) {
 	cancel(true);
 	loader = new mtpFileLoader(dc, id, access, mtpc_inputVideoFileLocation, toFile, size);
 	loader->connect(loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(videoLoadProgress(mtpFileLoader*)));
 	loader->connect(loader, SIGNAL(failed(mtpFileLoader*,bool)), App::main(), SLOT(videoLoadFailed(mtpFileLoader*,bool)));
 	loader->start();
+}
+
+QString VideoData::already(bool check) {
+	if (!check) return location.name;
+	if (!location.check()) location = Local::readFileLocation(mediaKey(mtpc_inputVideoFileLocation, dc, id));
+	return location.name;
 }
 
 void AudioOpenLink::onClick(Qt::MouseButton button) const {
@@ -591,12 +602,23 @@ void AudioCancelLink::onClick(Qt::MouseButton button) const {
 	data->cancel();
 }
 
+AudioData::AudioData(const AudioId &id, const uint64 &access, int32 user, int32 date, int32 duration, int32 dc, int32 size) :
+id(id), access(access), user(user), date(date), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+	location = Local::readFileLocation(mediaKey(mtpc_inputAudioFileLocation, dc, id));
+}
+
 void AudioData::save(const QString &toFile) {
 	cancel(true);
 	loader = new mtpFileLoader(dc, id, access, mtpc_inputAudioFileLocation, toFile, size, (size < AudioVoiceMsgInMemory));
 	loader->connect(loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(audioLoadProgress(mtpFileLoader*)));
 	loader->connect(loader, SIGNAL(failed(mtpFileLoader*,bool)), App::main(), SLOT(audioLoadFailed(mtpFileLoader*,bool)));
 	loader->start();
+}
+
+QString AudioData::already(bool check) {
+	if (!check) return location.name;
+	if (!location.check()) location = Local::readFileLocation(mediaKey(mtpc_inputAudioFileLocation, dc, id));
+	return location.name;
 }
 
 void DocumentOpenLink::onClick(Qt::MouseButton button) const {
@@ -694,12 +716,23 @@ void DocumentCancelLink::onClick(Qt::MouseButton button) const {
 	data->cancel();
 }
 
+DocumentData::DocumentData(const DocumentId &id, const uint64 &access, int32 user, int32 date, const QString &name, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) :
+id(id), access(access), user(user), date(date), name(name), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+	location = Local::readFileLocation(mediaKey(mtpc_inputDocumentFileLocation, dc, id));
+}
+
 void DocumentData::save(const QString &toFile) {
 	cancel(true);
 	loader = new mtpFileLoader(dc, id, access, mtpc_inputDocumentFileLocation, toFile, size);
 	loader->connect(loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(documentLoadProgress(mtpFileLoader*)));
 	loader->connect(loader, SIGNAL(failed(mtpFileLoader*, bool)), App::main(), SLOT(documentLoadFailed(mtpFileLoader*, bool)));
 	loader->start();
+}
+
+QString DocumentData::already(bool check) {
+	if (!check) return location.name;
+	if (!location.check()) location = Local::readFileLocation(mediaKey(mtpc_inputDocumentFileLocation, dc, id));
+	return location.name;
 }
 
 void PeerLink::onClick(Qt::MouseButton button) const {
@@ -4089,6 +4122,7 @@ void HistoryMessage::drawInDialog(QPainter &p, const QRect &r, bool act, const H
 		p.setFont(st::dlgHistFont->f);
 		p.setPen((act ? st::dlgActiveColor : (_media ? st::dlgSystemColor : st::dlgTextColor))->p);
 		cache.drawElided(p, r.left(), r.top(), r.width(), r.height() / st::dlgHistFont->height);
+		textstyleRestore();
 	}
 }
 
