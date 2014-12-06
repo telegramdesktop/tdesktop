@@ -250,6 +250,8 @@ void ContactsInner::updateSel() {
 }
 
 void ContactsInner::updateFilter(QString filter) {
+	filter = textSearchKey(filter);
+
 	QStringList f;
 	if (!filter.isEmpty()) {
 		QStringList filterList = filter.split(cWordSplit(), QString::SkipEmptyParts);

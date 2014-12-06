@@ -305,6 +305,8 @@ void AddParticipantInner::updateSel() {
 }
 
 void AddParticipantInner::updateFilter(QString filter) {
+	filter = textSearchKey(filter);
+
 	_time = unixtime();
 	QStringList f;
 	if (!filter.isEmpty()) {

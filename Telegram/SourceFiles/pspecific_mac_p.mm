@@ -638,6 +638,7 @@ void objc_finish() {
 }
 
 void objc_registerCustomScheme() {
+	LSSetDefaultHandlerForURLScheme(CFSTR("tg"), (CFStringRef)[[NSBundle mainBundle] bundleIdentifier]);
 }
 
 BOOL _execUpdater(BOOL update = YES) {
