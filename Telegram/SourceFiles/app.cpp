@@ -266,7 +266,7 @@ namespace App {
 	}
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users) {
-		UserData *data;
+        UserData *data = 0;
 		const QVector<MTPUser> &v(users.c_vector().v);
 		for (QVector<MTPUser>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 			const MTPuser &user(*i);
