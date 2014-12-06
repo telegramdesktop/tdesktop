@@ -82,7 +82,7 @@ void MTProtoSession::start(int32 dcenter, uint32 connects) {
 	connect(&timeouter, SIGNAL(timeout()), this, SLOT(checkRequestsByTimer()));
 	timeouter.start(1000);
 
-	connect(&sender, SIGNAL(timeout()), this, SIGNAL(needToSend()));
+	connect(&sender, SIGNAL(timeout()), this, SLOT(needToResumeAndSend()));
 
 	MTProtoDCMap &dcs(mtpDCMap());
 
@@ -124,6 +124,7 @@ void MTProtoSession::restart() {
 }
 
 void MTProtoSession::stop() {
+	DEBUG_LOG(("Session Info: stopping session %1").arg(dcId));
 	while (!connections.isEmpty()) {
 		connections.back()->stop();
 		connections.pop_back();
@@ -152,8 +153,30 @@ void MTProtoSession::sendAnything(quint64 msCanWait) {
 		DEBUG_LOG(("MTP Info: dc %1 stopped send timer, can wait for %2ms from current %3").arg(dcId).arg(msWait).arg(msSendCall));
 		sender.stop();
 		msSendCall = 0;
-		emit needToSend();
+		needToResumeAndSend();
 	}
+}
+
+void MTProtoSession::needToResumeAndSend() {
+	if (connections.isEmpty()) {
+		DEBUG_LOG(("Session Info: resuming session %1").arg(dcId));
+		MTProtoDCMap &dcs(mtpDCMap());
+
+		connections.reserve(cConnectionsInSession());
+		for (uint32 i = 0; i < cConnectionsInSession(); ++i) {
+			connections.push_back(new MTProtoConnection());
+			if (!connections.back()->start(&data, dcId)) {
+				for (MTProtoConnections::const_iterator j = connections.cbegin(), e = connections.cend(); j != e; ++j) {
+					delete *j;
+				}
+				connections.clear();
+				DEBUG_LOG(("Session Info: could not start connection %1 to dc %2").arg(i).arg(dcId));
+				dcId = 0;
+				return;
+			}
+		}
+	}
+	emit needToSend();
 }
 
 void MTProtoSession::sendHttpWait() {

@@ -251,6 +251,8 @@ signals:
 
 public slots:
 
+	void needToResumeAndSend();
+
 	mtpRequestId resend(quint64 msgId, quint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
 	void resendMany(QVector<quint64> msgIds, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
 	void resendAll(); // after connection restart

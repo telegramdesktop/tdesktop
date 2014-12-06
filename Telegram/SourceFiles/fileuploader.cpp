@@ -38,8 +38,7 @@ void FileUploader::uploadMedia(MsgId msgId, const ReadyLocalMedia &media) {
 		}
 		document->status = FileUploading;
 		if (!media.file.isEmpty()) {
-			document->fileName = media.file;
-			document->modDate = QFileInfo(media.file).lastModified();
+			document->location = FileLocation(mtpc_storage_filePartial, media.file);
 		}
 	}
 	queue.insert(msgId, File(media));
@@ -75,7 +74,7 @@ void FileUploader::currentFailed() {
 
 void FileUploader::killSessions() {
 	for (int i = 0; i < MTPUploadSessionsCount; ++i) {
-		MTP::killSession(MTP::upl[i]);
+		MTP::stopSession(MTP::upl[i]);
 	}
 }
 
@@ -204,7 +203,7 @@ void FileUploader::clear() {
 	dcMap.clear();
 	sentSize = 0;
 	for (int32 i = 0; i < MTPUploadSessionsCount; ++i) {
-		MTP::killSession(MTP::upl[i]);
+		MTP::stopSession(MTP::upl[i]);
 		sentSizes[i] = 0;
 	}
 	killSessionsTimer.stop();

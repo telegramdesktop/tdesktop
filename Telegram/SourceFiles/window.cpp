@@ -734,6 +734,16 @@ QRect Window::iconRect() const {
 bool Window::eventFilter(QObject *obj, QEvent *evt) {
 	if (obj == App::app() && (evt->type() == QEvent::ApplicationActivate)) {
         QTimer::singleShot(1, this, SLOT(checkHistoryActivation()));
+	} else if (obj == App::app() && (evt->type() == QEvent::FileOpen)) {
+		QString url = static_cast<QFileOpenEvent*>(evt)->url().toEncoded();
+		if (!url.trimmed().midRef(0, 5).compare(qsl("tg://"), Qt::CaseInsensitive)) {
+			cSetStartUrl(url);
+			if (!cStartUrl().isEmpty() && App::main() && App::self()) {
+				App::main()->openLocalUrl(cStartUrl());
+				cSetStartUrl(QString());
+			}
+		}
+		activate();
 	} else if (obj == this && evt->type() == QEvent::WindowStateChange) {
 		Qt::WindowState state = (windowState() & Qt::WindowMinimized) ? Qt::WindowMinimized : ((windowState() & Qt::WindowMaximized) ? Qt::WindowMaximized : ((windowState() & Qt::WindowFullScreen) ? Qt::WindowFullScreen : Qt::WindowNoState));
 		psStateChanged(state);

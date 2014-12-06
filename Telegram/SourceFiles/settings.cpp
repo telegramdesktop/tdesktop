@@ -26,6 +26,7 @@ QString gKeyFile;
 QString gWorkingDir, gExeDir, gExeName;
 
 QStringList gSendPaths;
+QString gStartUrl;
 
 QString gDialogLastPath, gDialogHelperPath; // optimize QFileDialog
 
@@ -42,7 +43,7 @@ DBIWorkMode gWorkMode = dbiwmWindowAndTray;
 DBIConnectionType gConnectionType = dbictAuto;
 ConnectionProxy gConnectionProxy;
 bool gSeenTrayTooltip = false;
-bool gRestartingUpdate = false, gRestarting = false;
+bool gRestartingUpdate = false, gRestarting = false, gWriteProtected = false;
 int32 gLastUpdateCheck = 0;
 bool gNoStartUpdate = false;
 bool gStartToSettings = false;
@@ -128,6 +129,13 @@ void settingsParseArgs(int argc, char *argv[]) {
 			for (++i; i < argc; ++i) {
 				gSendPaths.push_back(QString::fromLocal8Bit(argv[i]));
 			}
+		} else if (string("-workdir") == argv[i] && i + 1 < argc) {
+			QString dir = QString::fromLocal8Bit(argv[++i]);
+			if (QDir().exists(dir)) {
+				gWorkingDir = dir;
+			}
+		} else if (string("--") == argv[i] && i + 1 < argc) {
+			gStartUrl = QString::fromLocal8Bit(argv[++i]);
 		}
 	}
 }

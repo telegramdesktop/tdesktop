@@ -211,6 +211,7 @@ void logsInit() {
         cForceWorkingDir(rightDir);
 	}
 	cForceWorkingDir(QDir(cWorkingDir()).absolutePath() + '/');
+
 #ifdef Q_OS_WIN
 	if (cWorkingDir() == psAppDataPath()) { // fix old "Telegram Win (Unofficial)" version
 		moveOldDataFiles(psAppDataPathOld());

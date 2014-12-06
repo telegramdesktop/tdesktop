@@ -11,13 +11,28 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.6.15</string>
+	<string>0.6.16</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>0.6.15.2</string>
+	<string>0.6.17</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.social-networking</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLIconFile</key>
+			<string>AppIcon.icns</string>
+			<key>CFBundleURLName</key>
+			<string>com.tdesktop.Telegram</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>tg</string>
+			</array>
+		</dict>
+	</array>
 	<key>NOTE</key>
 	<string></string>
 	<key>NSPrincipalClass</key>

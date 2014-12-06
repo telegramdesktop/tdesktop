@@ -1125,7 +1125,7 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
         qRegisterMetaType<QVector<quint64> >("QVector<quint64>");
 	}
 
-	connect(this, SIGNAL(needToSendAsync()), sessionData->owner(), SIGNAL(needToSend()), Qt::QueuedConnection);
+	connect(this, SIGNAL(needToSendAsync()), sessionData->owner(), SLOT(needToResumeAndSend()), Qt::QueuedConnection);
 	connect(this, SIGNAL(sendAnythingAsync(quint64)), sessionData->owner(), SLOT(sendAnything(quint64)), Qt::QueuedConnection);
 	connect(this, SIGNAL(sendHttpWaitAsync()), sessionData->owner(), SLOT(sendHttpWait()), Qt::QueuedConnection);
 	connect(this, SIGNAL(sendPongAsync(quint64,quint64)), sessionData->owner(), SLOT(sendPong(quint64,quint64)), Qt::QueuedConnection);

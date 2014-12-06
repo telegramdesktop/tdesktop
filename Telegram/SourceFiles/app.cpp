@@ -265,11 +265,12 @@ namespace App {
 		return lang(lng_status_lastseen).replace(qsl("{when}"), when);
 	}
 
-	void feedUsers(const MTPVector<MTPUser> &users) {
+	UserData *feedUsers(const MTPVector<MTPUser> &users) {
+        UserData *data = 0;
 		const QVector<MTPUser> &v(users.c_vector().v);
 		for (QVector<MTPUser>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 			const MTPuser &user(*i);
-            UserData *data = 0;
+            data = 0;
 			bool wasContact = false;
 			const MTPUserStatus *status = 0;
 
@@ -389,6 +390,8 @@ namespace App {
 
 			if (App::main()) App::main()->peerUpdated(data);
 		}
+
+		return data;
 	}
 
 	void feedChats(const MTPVector<MTPChat> &chats) {
@@ -903,6 +906,15 @@ namespace App {
 		return ::self;
 	}
 
+	UserData *userByName(const QString &username) {
+		for (PeersData::const_iterator i = peersData.cbegin(), e = peersData.cend(); i != e; ++i) {
+			if (!i.value()->chat && !i.value()->asUser()->username.compare(username.trimmed(), Qt::CaseInsensitive)) {
+				return i.value()->asUser();
+			}
+		}
+		return 0;
+	}
+
 	ChatData *chat(const PeerId &peer) {
 		PeerData *d = App::peer(peer);
 		return d->asChat();
@@ -1075,6 +1087,10 @@ namespace App {
 				convert->thumb = thumb;
 				convert->dc = dc;
 				convert->size = size;
+			}
+
+			if (convert->location.check()) {
+				Local::writeFileLocation(mediaKey(mtpc_inputDocumentFileLocation, convert->dc, convert->id), convert->location);
 			}
 		}
 		DocumentsData::const_iterator i = documentsData.constFind(document);
@@ -2059,6 +2075,18 @@ namespace App {
 	void searchByHashtag(const QString &tag) {
 		if (App::main()) {
 			App::main()->searchMessages(tag);
+		}
+	}
+
+	void openUserByName(const QString &username) {
+		if (App::main()) {
+			App::main()->openUserByName(username);
+		}
+	}
+
+	void openLocalUrl(const QString &url) {
+		if (App::main()) {
+			App::main()->openLocalUrl(url);
 		}
 	}
 

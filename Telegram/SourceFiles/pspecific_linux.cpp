@@ -783,12 +783,16 @@ QString psCurrentLanguage() {
 	return lng.isEmpty() ? QString::fromLatin1(DefaultLanguage) : lng;
 }
 
-QString psAppDataPath() {
-    struct passwd *pw = getpwuid(getuid());
-    if (pw && pw->pw_dir && strlen(pw->pw_dir)) {
-        return QString::fromLocal8Bit(pw->pw_dir) + qsl("/.TelegramDesktop/");
+namespace {
+    QString _psHomeDir() {
+        struct passwd *pw = getpwuid(getuid());
+        return (pw && pw->pw_dir && strlen(pw->pw_dir)) ? (QString::fromLocal8Bit(pw->pw_dir) + '/') : QString();
     }
-    return QString();
+}
+
+QString psAppDataPath() {
+    QString home(_psHomeDir());
+    return home.isEmpty() ? QString() : (home + qsl(".TelegramDesktop/"));
 }
 
 QString psDownloadPath() {
@@ -966,20 +970,113 @@ void psPostprocessFile(const QString &name) {
 
 void psOpenFile(const QString &name, bool openWith) {
     QDesktopServices::openUrl(QUrl::fromLocalFile(name));
-    //objc_openFile(name, openWith);
 }
 
 void psShowInFolder(const QString &name) {
-//    QDesktopServices::openUrl(QFileInfo(name).absoluteDir().absolutePath());
     App::wnd()->layerHidden();
     system(("nautilus \"" + QFileInfo(name).absoluteDir().absolutePath() + "\"").toUtf8().constData());
-    //objc_showInFinder(name, QFileInfo(name).absolutePath());
 }
 
 void psStart() {
 }
 
 void psFinish() {
+}
+
+namespace {
+    bool _psRunCommand(const QString &command) {
+        int result = system(command.toLocal8Bit().constData());
+        if (result) {
+            DEBUG_LOG(("App Error: command failed, code: %1, command: %2").arg(result).arg(command.toLocal8Bit().constData()));
+            return false;
+        }
+        DEBUG_LOG(("App Info: command succeeded, command: %1").arg(command.toLocal8Bit().constData()));
+        return true;
+    }
+}
+
+void psRegisterCustomScheme() {
+    QString home(_psHomeDir());
+    if (home.isEmpty()) return;
+
+    DEBUG_LOG(("App Info: placing .desktop file"));
+    if (QDir(home + qsl(".local/")).exists()) {
+        QString apps = home + qsl(".local/share/applications/");
+        if (!QDir(apps).exists()) QDir().mkpath(apps);
+
+        QString path = cWorkingDir() + qsl("tdata/"), file = path + qsl("telegramdesktop.desktop");
+        QDir().mkpath(path);
+        QFile f(file);
+        if (f.open(QIODevice::WriteOnly)) {
+            QString icon = path + qsl("icon.png");
+            if (!QFile(icon).exists()) {
+                if (QFile(qsl(":/gui/art/icon256.png")).copy(icon)) {
+                    DEBUG_LOG(("App Info: Icon copied to 'tdata'"));
+                }
+
+            }
+
+            QTextStream s(&f);
+            s.setCodec("UTF-8");
+            s << "[Desktop Entry]\n";
+            s << "Encoding=UTF-8\n";
+            s << "Version=1.0\n";
+            s << "Name=Telegram Desktop\n";
+            s << "Comment=Official desktop version of Telegram messaging app\n";
+            s << "Exec=" << cExeDir().toLocal8Bit().constData() << cExeName().toLocal8Bit().constData() << " -- %u\n";
+            s << "Icon=" << icon.toLocal8Bit().constData() << "\n";
+            s << "Terminal=false\n";
+            s << "Type=Application\n";
+            s << "Categories=Network;\n";
+            s << "MimeType=application/x-xdg-protocol-tg;x-scheme-handler/tg;\n";
+            f.close();
+
+            if (_psRunCommand(qsl("desktop-file-install --dir=%1.local/share/applications --delete-original \"%2\"").arg(home).arg(file))) {
+                _psRunCommand(qsl("update-desktop-database %1.local/share/applications").arg(home));
+                _psRunCommand(qsl("xdg-mime default telegramdesktop.desktop x-scheme-handler/tg"));
+            }
+        } else {
+            LOG(("App Error: Could not open '%1' for write").arg(file));
+        }
+    }
+
+    DEBUG_LOG(("App Info: registerting for Gnome"));
+    if (_psRunCommand(qsl("gconftool-2 -t string -s /desktop/gnome/url-handlers/tg/command \"%1 -- %s\"").arg(cExeDir() + cExeName()))) {
+        _psRunCommand(qsl("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/needs_terminal false"));
+        _psRunCommand(qsl("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/enabled true"));
+    }
+
+    DEBUG_LOG(("App Info: placing .protocol file"));
+    QString services;
+    if (QDir(home + qsl(".kde4/")).exists()) {
+        services = home + qsl(".kde4/share/kde4/services/");
+    } else if (QDir(home + qsl(".kde/")).exists()) {
+        services = home + qsl(".kde/share/kde4/services/");
+    }
+    if (!services.isEmpty()) {
+        if (!QDir(services).exists()) QDir().mkpath(services);
+
+        QString path = services, file = path + qsl("tg.protocol");
+        QFile f(file);
+        if (f.open(QIODevice::WriteOnly)) {
+            QTextStream s(&f);
+            s.setCodec("UTF-8");
+            s << "[Protocol]\n";
+            s << "exec=" << cExeDir().toLocal8Bit().constData() << cExeName().toLocal8Bit().constData() << " -- %u\n";
+            s << "protocol=tg\n";
+            s << "input=none\n";
+            s << "output=none\n";
+            s << "helper=true\n";
+            s << "listing=false\n";
+            s << "reading=false\n";
+            s << "writing=false\n";
+            s << "makedir=false\n";
+            s << "deleting=false\n";
+            f.close();
+        } else {
+            LOG(("App Error: Could not open '%1' for write").arg(file));
+        }
+    }
 }
 
 bool _execUpdater(bool update = true) {

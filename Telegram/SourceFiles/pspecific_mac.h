@@ -221,6 +221,8 @@ void psShowInFolder(const QString &name);
 void psStart();
 void psFinish();
 
+void psRegisterCustomScheme();
+
 void psUpdateOverlayed(QWidget *widget);
 QString psConvertFileUrl(const QString &url);
 

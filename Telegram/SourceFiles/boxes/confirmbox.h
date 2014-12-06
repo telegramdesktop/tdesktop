@@ -24,11 +24,17 @@ class ConfirmBox : public LayeredWidget, public RPCSender {
 
 public:
 
-	ConfirmBox(QString text, QString doneText = QString(), QString cancelText = QString());
+	ConfirmBox(const QString &text, const QString &doneText = QString(), const QString &cancelText = QString());
+	ConfirmBox(const QString &text, bool noDone, const QString &cancelText = QString());
 	void parentResized();
 	void animStep(float64 ms);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mousePressEvent(QMouseEvent *e);
+	void mouseReleaseEvent(QMouseEvent *e);
+	void leaveEvent(QEvent *e);
+	void updateLink();
 	void startHide();
 	~ConfirmBox();
 
@@ -43,11 +49,16 @@ public slots:
 
 private:
 
+	void init(const QString &text);
+
+	bool _infoMsg;
+
 	void hideAll();
 	void showAll();
 
 	int32 _width, _height;
 	FlatButton _confirm, _cancel;
+	BottomButton _close;
 	Text _text;
 	int32 _textWidth, _textHeight;
 
@@ -56,4 +67,9 @@ private:
 
 	anim::fvalue a_opacity;
 	anim::transition af_opacity;
+
+	void updateHover();
+
+	QPoint _lastMousePos;
+	TextLinkPtr _myLink;
 };

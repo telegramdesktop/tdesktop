@@ -276,6 +276,8 @@ void NewGroupInner::updateSel() {
 }
 
 void NewGroupInner::updateFilter(QString filter) {
+	filter = textSearchKey(filter);
+
 	QStringList f;
 	if (!filter.isEmpty()) {
 		QStringList filterList = filter.split(cWordSplit(), QString::SkipEmptyParts);

@@ -66,6 +66,8 @@ void objc_finish();
 bool objc_execUpdater();
 void objc_execTelegram();
 
+void objc_registerCustomScheme();
+
 void objc_activateProgram();
 bool objc_moveFile(const QString &from, const QString &to);
 void objc_deleteDir(const QString &dir);
