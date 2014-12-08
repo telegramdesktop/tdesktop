@@ -1573,7 +1573,7 @@ overviewPhotoSelectOverlay: #0a7bb03f;
 
 // Mac specific
 
-macAccessoryHeight: 90;
+macAccessory: size(450, 90);
 macEnableFilterAdd: 2;
 macEnableFilterTop: 5;
 macSelectorTop: 6;
