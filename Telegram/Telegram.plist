@@ -14,10 +14,6 @@
 	<string>0.6.16</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
-	<key>CFBundleVersion</key>
-	<string>0.6.17</string>
-	<key>LSApplicationCategoryType</key>
-	<string>public.app-category.social-networking</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -26,13 +22,17 @@
 			<key>CFBundleURLIconFile</key>
 			<string>AppIcon.icns</string>
 			<key>CFBundleURLName</key>
-			<string>com.tdesktop.Telegram</string>
+			<string>org.telegram.desktop</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>tg</string>
 			</array>
 		</dict>
 	</array>
+	<key>CFBundleVersion</key>
+	<string>0.6.17</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.social-networking</string>
 	<key>NOTE</key>
 	<string></string>
 	<key>NSPrincipalClass</key>

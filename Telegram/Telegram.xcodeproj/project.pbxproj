@@ -1893,7 +1893,6 @@
 				OBJROOT = ./../Mac/ReleaseIntermediate;
 				PRODUCT_NAME = "Telegram Desktop";
 				QT_LIBRARY_SUFFIX = "";
-				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
 			};
 			name = Release;
@@ -1909,7 +1908,6 @@
 				OBJROOT = ./../Mac/DebugIntermediate;
 				PRODUCT_NAME = "Telegram Desktop";
 				QT_LIBRARY_SUFFIX = _debug;
-				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
 			};
 			name = Debug;

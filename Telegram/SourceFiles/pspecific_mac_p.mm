@@ -534,6 +534,7 @@ void objc_openFile(const QString &f, bool openwith) {
             alwaysRect.origin.y = selectorFrame.origin.y - alwaysRect.size.height - st::macAlwaysThisAppTop;
             [button setFrame:alwaysRect];
             [button setAutoresizingMask:NSViewMinXMargin|NSViewMaxXMargin];
+			[button setHidden:YES];
             NSTextField *goodLabel = [[NSTextField alloc] init];
             [goodLabel setStringValue:[objc_lang(lng_mac_this_app_can_open).s() stringByReplacingOccurrencesOfString:@"{file}" withString:name]];
             [goodLabel setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
