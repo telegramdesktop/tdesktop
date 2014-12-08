@@ -490,14 +490,10 @@ void objc_openFile(const QString &f, bool openwith) {
             NSArray *apps = (NSArray*)LSCopyApplicationURLsForURL(CFURLRef(url), kLSRolesAll);
             
             NSOpenPanel *openPanel = [NSOpenPanel openPanel];
-            
-            NSView *accessory = [[NSView alloc] init];
-            
-            [openPanel setAccessoryView:accessory];
-            NSRect fullRect = [[accessory superview] frame];
-            fullRect.origin = NSMakePoint(0, 0);
-            fullRect.size.height = st::macAccessoryHeight;
-            [accessory setFrame:fullRect];
+
+			NSRect fullRect = { { 0., 0. }, { st::macAccessory.width() * 1., st::macAccessory.height() * 1. } };
+			NSView *accessory = [[NSView alloc] initWithFrame:fullRect];
+			
             [accessory setAutoresizesSubviews:YES];
             
             NSPopUpButton *selector = [[NSPopUpButton alloc] init];
@@ -571,7 +567,9 @@ void objc_openFile(const QString &f, bool openwith) {
             badIconFrame.origin.y = badFrame.origin.y;
             [badLabel setFrame:badFrame];
             [badIcon setFrame:badIconFrame];
-            
+
+			[openPanel setAccessoryView:accessory];
+
             ChooseApplicationDelegate *delegate = [[ChooseApplicationDelegate alloc] init:apps withPanel:openPanel withSelector:selector withGood:goodLabel withBad:badLabel withIcon:badIcon withAccessory:accessory];
             [openPanel setDelegate:delegate];
             
@@ -594,11 +592,12 @@ void objc_openFile(const QString &f, bool openwith) {
                                                                                         (CFStringRef)ext,
                                                                                         nil);
                             for (NSString *UTI in UTIs) {
-                                LSSetDefaultRoleHandlerForContentType((CFStringRef)UTI,
-                                                                      kLSRolesEditor,
-                                                                      (CFStringRef)[[NSBundle bundleWithPath:path] bundleIdentifier]);
+								OSStatus result = LSSetDefaultRoleHandlerForContentType((CFStringRef)UTI,
+																						kLSRolesAll,
+																						(CFStringRef)[[NSBundle bundleWithPath:path] bundleIdentifier]);
+								DEBUG_LOG(("App Info: set default handler for '%1' UTI result: %2").arg([UTI cStringUsingEncoding:NSUTF8StringEncoding]).arg(result));
                             }
-                            
+
                             [UTIs release];
                         }
                         [[NSWorkspace sharedWorkspace] openFile:file withApplication:[app path]];
@@ -638,7 +637,8 @@ void objc_finish() {
 }
 
 void objc_registerCustomScheme() {
-	LSSetDefaultHandlerForURLScheme(CFSTR("tg"), (CFStringRef)[[NSBundle mainBundle] bundleIdentifier]);
+	OSStatus result = LSSetDefaultHandlerForURLScheme(CFSTR("tg"), (CFStringRef)[[NSBundle mainBundle] bundleIdentifier]);
+	DEBUG_LOG(("App Info: set default handler for 'tg' scheme result: %1").arg(result));
 }
 
 BOOL _execUpdater(BOOL update = YES) {
