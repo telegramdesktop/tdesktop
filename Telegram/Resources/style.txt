@@ -46,7 +46,8 @@ color6: #cd4073; // pink
 color7: #2996ad; // sea
 color8: #ce671b; // orange
 
-wndMinWidth: 640px;
+wndMinWidth: 380px;
+wideModeWidth: 640px;
 wndMinHeight: 480px;
 wndDefWidth: 800px;
 wndDefHeight: 600px;
@@ -78,6 +79,22 @@ titleTypingColor: #0080c0;
 statusFont: font(fsize);
 versionColor: #777;
 
+btnDefIconed: iconedButton {
+	color: white;
+	bgColor: white;
+	overBgColor: white;
+	font: font(fsize);
+
+	opacity: 0.78;
+	overOpacity: 1;
+
+	textPos: point(0px, 0px);
+	downTextPos: point(0px, 0px);
+
+	duration: 150;
+	cursor: cursor(pointer);
+}
+
 sysBtnDelta: 6px;
 sysUpd: sysButton {
 	size: size(31px, 39px);
@@ -99,6 +116,24 @@ sysRes: sysButton(sysUpd) {
 sysCls: sysButton(sysUpd) {
 	img: sprite(276px, 1px, 19px, 19px);
 }
+titleBackButton: iconedButton(btnDefIconed) {
+	icon: sprite(133px, 197px, 13px, 20px);
+	iconPos: point(5px, 9px);
+	downIcon: sprite(133px, 197px, 13px, 20px);
+	downIconPos: point(5px, 10px);
+
+	bgColor: #c4d8e9;
+	overBgColor: #fff;
+
+	width: -30px;
+	height: 39px;
+
+	opacity: 1;
+	cursor: cursor(default);
+
+	textPos: point(23px, 10px);
+	downTextPos: point(23px, 11px);
+}
 
 btnWhiteHover: #f5f5f5;
 btnBoxWhiteHover: #fafafa;
@@ -106,22 +141,6 @@ btnYesColor: #0080c0;
 btnYesHover: #0073ad;
 btnNoColor: #8b8b8b;
 btnNoHover: #777;
-
-btnDefIconed: iconedButton {
-	color: white;
-	bgColor: white;
-	overBgColor: white;
-	font: font(fsize);
-
-	opacity: 0.78;
-	overOpacity: 1;
-
-	textPos: point(0px, 0px);
-	downTextPos: point(0px, 0px);
-
-	duration: 150;
-	cursor: cursor(pointer);
-}
 
 titleTextButton: flatButton {
 	color: #d4e3ef;
@@ -138,8 +157,8 @@ titleTextButton: flatButton {
 	overTextTop: 10px;
 	downTextTop: 11px;
 
-	font: font(13px);
-	overFont: font(13px);
+	font: font(fsize);
+	overFont: font(fsize);
 	duration: 150;
 	cursor: cursor(default);
 }
@@ -175,6 +194,7 @@ btnDefBack: flatButton(btnDefFlat) {
 	downBgColor: #b9b9b9;
 }
 
+linkCropLimit: 360px;
 linkFont: font(fsize);
 linkOverFont: font(fsize underline);
 btnDefLink: linkButton {

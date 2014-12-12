@@ -677,13 +677,13 @@ namespace App {
 			if (user->contact > 0) {
 				if (!wasContact) {
 					App::main()->addNewContact(App::userFromPeer(user->id), false);
-					user->input = MTP_inputPeerContact(userId);
-					user->inputUser = MTP_inputUserContact(userId);
+					if (user->input.type() != mtpc_inputPeerSelf) user->input = MTP_inputPeerContact(userId);
+					if (user->inputUser.type() != mtpc_inputUserSelf) user->inputUser = MTP_inputUserContact(userId);
 				}
 			} else {
 				if (user->access) {
-					user->input = MTP_inputPeerForeign(userId, MTP_long(user->access));
-					user->inputUser = MTP_inputUserForeign(userId, MTP_long(user->access));
+					if (user->input.type() != mtpc_inputPeerSelf) user->input = MTP_inputPeerForeign(userId, MTP_long(user->access));
+					if (user->inputUser.type() != mtpc_inputUserSelf) user->inputUser = MTP_inputUserForeign(userId, MTP_long(user->access));
 				}
 				if (user->contact < 0 && !user->phone.isEmpty() && App::userFromPeer(user->id) != MTP::authedId()) {
 					user->contact = 0;
@@ -731,8 +731,8 @@ namespace App {
 			switch (i.key()) {
 			case 's': newThumbLevel = 0; newMediumLevel = 5; newFullLevel = 4; break; // box 100x100
 			case 'm': newThumbLevel = 2; newMediumLevel = 0; newFullLevel = 3; break; // box 320x320
-			case 'x': newThumbLevel = 5; newMediumLevel = 3; newFullLevel = 0; break; // box 800x800
-			case 'y': newThumbLevel = 6; newMediumLevel = 6; newFullLevel = 1; break; // box 1280x1280
+			case 'x': newThumbLevel = 5; newMediumLevel = 3; newFullLevel = 1; break; // box 800x800
+			case 'y': newThumbLevel = 6; newMediumLevel = 6; newFullLevel = 0; break; // box 1280x1280
 			case 'w': newThumbLevel = 8; newMediumLevel = 8; newFullLevel = 2; break; // box 2560x2560
 			case 'a': newThumbLevel = 1; newMediumLevel = 4; newFullLevel = 8; break; // crop 160x160
 			case 'b': newThumbLevel = 3; newMediumLevel = 1; newFullLevel = 7; break; // crop 320x320
@@ -791,8 +791,8 @@ namespace App {
 			switch (size) {
 			case 's': newThumbLevel = 0; newMediumLevel = 5; newFullLevel = 4; break; // box 100x100
 			case 'm': newThumbLevel = 2; newMediumLevel = 0; newFullLevel = 3; break; // box 320x320
-			case 'x': newThumbLevel = 5; newMediumLevel = 3; newFullLevel = 0; break; // box 800x800
-			case 'y': newThumbLevel = 6; newMediumLevel = 6; newFullLevel = 1; break; // box 1280x1280
+			case 'x': newThumbLevel = 5; newMediumLevel = 3; newFullLevel = 1; break; // box 800x800
+			case 'y': newThumbLevel = 6; newMediumLevel = 6; newFullLevel = 0; break; // box 1280x1280
 			case 'w': newThumbLevel = 8; newMediumLevel = 8; newFullLevel = 2; break; // box 2560x2560
 			case 'a': newThumbLevel = 1; newMediumLevel = 4; newFullLevel = 8; break; // crop 160x160
 			case 'b': newThumbLevel = 3; newMediumLevel = 1; newFullLevel = 7; break; // crop 320x320

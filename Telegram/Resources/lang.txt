@@ -24,6 +24,8 @@ lng_menu_settings: "Settings";
 lng_menu_about: "About";
 lng_menu_update: "Update";
 lng_menu_restart: "Restart";
+lng_menu_start_messaging: "Start Messaging";
+lng_menu_conversations: "Conversations List";
 
 lng_open_from_tray: "Open Telegram";
 lng_minimize_to_tray: "Minimize to tray";
@@ -54,6 +56,14 @@ lng_weekday4: "Thu";
 lng_weekday5: "Fri";
 lng_weekday6: "Sat";
 lng_weekday7: "Sun";
+
+lng_weekday1_full: "Monday";
+lng_weekday2_full: "Tuesday";
+lng_weekday3_full: "Wednesday";
+lng_weekday4_full: "Thursday";
+lng_weekday5_full: "Friday";
+lng_weekday6_full: "Saturday";
+lng_weekday7_full: "Sunday";
 
 lng_month_day: "{month} {day}";
 
@@ -252,8 +262,8 @@ lng_connection_port_ph: "Port";
 lng_connection_user_ph: "Username";
 lng_connection_password_ph: "Password";
 lng_connection_save: "Save";
-lng_settings_reset: "Reset other sessions";
-lng_settings_reset_done: "Sessions reset done";
+lng_settings_reset: "Terminate other sessions";
+lng_settings_reset_done: "Other sessions terminated";
 lng_settings_logout: "Log Out";
 lng_sure_logout: "Are you sure you want to log out?";
 
@@ -484,6 +494,17 @@ lng_mediaview_n_of_count: "Photo {n} of {count}";
 lng_mediaview_doc_image: "Document";
 
 lng_mediaview_saved: "Image was saved to your [c]Downloads[/c] folder";
+
+lng_new_authorization: "{name},
+We detected a login into your account from a new device on {day}, {date} at {time}
+
+Device: {device}
+Location: {location}
+
+If this wasn't you, you can go to Settings — Terminate other sessions.
+
+Thanks,
+The Telegram Team";
 
 // Mac specific
 

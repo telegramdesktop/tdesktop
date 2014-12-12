@@ -140,11 +140,16 @@ public:
 	void paintEvent(QPaintEvent *e);
 
 	void resizeEvent(QResizeEvent *e);
+	void updateWideMode();
+	bool needBackButton();
 
 	void setupIntro(bool anim);
 	void setupMain(bool anim);
 	void startMain(const MTPUser &user);
 	void getNotifySetting(const MTPInputNotifyPeer &peer, uint32 msWait = 0);
+	void serviceNotification(const QString &msg, bool unread = true, const MTPMessageMedia &media = MTP_messageMediaEmpty(), bool force = false);
+	void sendServiceHistoryRequest();
+	void showDelayedServiceMsgs();
 
 	void mtpStateChanged(int32 dc, int32 state);
 
@@ -169,9 +174,9 @@ public:
 	void showPhoto(PhotoData *photo, HistoryItem *item);
 	void showPhoto(PhotoData *photo, PeerData *item);
 	void showDocument(DocumentData *doc, QPixmap pix, HistoryItem *item);
-	void showLayer(LayeredWidget *w);
+	void showLayer(LayeredWidget *w, bool fast = false);
 	void replaceLayer(LayeredWidget *w);
-	void hideLayer();
+	void hideLayer(bool fast = false);
 	bool hideInnerLayer();
 
 	bool layerShown();
@@ -184,6 +189,7 @@ public:
 	void noSettings(SettingsWidget *was);
 	void noMain(MainWidget *was);
 	void noBox(BackgroundWidget *was);
+	void layerFinishedHide(BackgroundWidget *was);
 
 	void topWidget(QWidget *w);
 	void noTopWidget(QWidget *w);
@@ -224,6 +230,8 @@ public slots:
 	
 	void checkHistoryActivation(int state = -1);
     
+	void onTitleBack();
+
 	void showSettings();
 	void layerHidden();
 	void updateTitleStatus();
@@ -264,6 +272,10 @@ private:
 	QImage icon16, icon32, icon64, iconbig16, iconbig32, iconbig64;
 
 	QWidget *centralwidget;
+
+	typedef QPair<QPair<QString, MTPMessageMedia>, bool> DelayedServiceMsg;
+	QVector<DelayedServiceMsg> _delayedServiceMsgs;
+	mtpRequestId _serviceHistoryRequest;
 
 	TitleWidget *title;
 	IntroWidget *intro;

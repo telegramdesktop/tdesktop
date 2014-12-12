@@ -480,11 +480,14 @@ public:
 MsgId clientMsgId();
 
 struct History;
-struct Histories : public QHash<PeerId, History*> {
+struct Histories : public QHash<PeerId, History*>, public Animated {
 	typedef QHash<PeerId, History*> Parent;
 
 	Histories() : unreadFull(0), unreadMuted(0) {
 	}
+
+	void regTyping(History *history, UserData *user);
+	bool animStep(float64 ms);
 
 	void clear();
 	Parent::iterator erase(Parent::iterator i);
@@ -494,7 +497,7 @@ struct Histories : public QHash<PeerId, History*> {
 		unreadFull = unreadMuted = 0;
 	}
 
-	HistoryItem *addToBack(const MTPmessage &msg, int msgState = 1); // 1 - new message, 0 - not new message, -1 - searched message
+	HistoryItem *addToBack(const MTPmessage &msg, int msgState = 1); // 2 - new read message, 1 - new unread message, 0 - not new message, -1 - searched message
 //	HistoryItem *addToBack(const MTPgeoChatMessage &msg, bool newMsg = true);
 
 	typedef QMap<History*, uint64> TypingHistories; // when typing in this history started

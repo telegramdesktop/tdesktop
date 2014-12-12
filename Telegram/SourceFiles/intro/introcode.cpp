@@ -106,7 +106,7 @@ void IntroCode::paintEvent(QPaintEvent *e) {
 		p.setOpacity(errorAlpha.current());
 		p.setFont(st::introErrFont->f);
 		p.setPen(st::introErrColor->p);
-		p.drawText(textRect.left(), next.y() + next.height() + st::introErrTop + st::introErrFont->ascent, error);
+		p.drawText(QRect(textRect.left(), next.y() + next.height() + st::introErrTop, st::introTextSize.width(), st::introErrHeight), error, style::al_center);
 	}
 }
 

@@ -99,6 +99,8 @@ QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/linux/tupdates/current"));
 
 bool gContactsReceived = false;
 
+bool gWideMode = true;
+
 void settingsParseArgs(int argc, char *argv[]) {
 	if (cPlatform() == dbipMac) {
 		gCustomNotifies = false;

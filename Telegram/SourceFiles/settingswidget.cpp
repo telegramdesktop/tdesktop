@@ -1343,7 +1343,11 @@ void SettingsWidget::showAll() {
 	_scroll.show();
 	_inner.show();
 	_inner.showAll();
-	_close.show();
+	if (cWideMode()) {
+		_close.show();
+	} else {
+		_close.hide();
+	}
 }
 
 void SettingsWidget::hideAll() {
@@ -1362,6 +1366,14 @@ void SettingsWidget::dragEnterEvent(QDragEnterEvent *e) {
 }
 
 void SettingsWidget::dropEvent(QDropEvent *e) {
+}
+
+void SettingsWidget::updateWideMode() {
+	if (cWideMode()) {
+		_close.show();
+	} else {
+		_close.hide();
+	}
 }
 
 void SettingsWidget::updateOnlineDisplay() {

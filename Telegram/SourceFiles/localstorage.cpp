@@ -1045,6 +1045,24 @@ namespace Local {
 		if (!data->tasks.isEmpty() && (data->tasks.at(0) == ClearManagerAll)) return true;
 		if (task == ClearManagerAll) {
 			data->tasks.clear();
+			if (!_storageMap.isEmpty()) {
+				_storageMap.clear();
+				_storageFilesSize = 0;
+				_mapChanged = true;
+			}
+			if (!_draftsMap.isEmpty()) {
+				_draftsMap.clear();
+				_mapChanged = true;
+			}
+			if (!_draftsPositionsMap.isEmpty()) {
+				_draftsPositionsMap.clear();
+				_mapChanged = true;
+			}
+			if (_locationsKey) {
+				_locationsKey = 0;
+				_mapChanged = true;
+			}
+			_writeMap();
 		} else {
 			if (task & ClearManagerImages) {
 				if (data->images.isEmpty()) {
@@ -1058,10 +1076,12 @@ namespace Local {
 						data->images.insert(k, i.value());
 					}
 				}
-				_storageMap.clear();
-				_storageFilesSize = 0;
-				_mapChanged = true;
-				_writeMap();
+				if (!_storageMap.isEmpty()) {
+					_storageMap.clear();
+					_storageFilesSize = 0;
+					_mapChanged = true;
+					_writeMap();
+				}
 			}
 			for (int32 i = 0, l = data->tasks.size(); i < l; ++i) {
 				if (data->tasks.at(i) == task) return true;

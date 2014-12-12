@@ -17,14 +17,17 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 6017;
-static const wchar_t *AppVersionStr = L"0.6.17";
+static const int32 AppVersion = 6018;
+static const wchar_t *AppVersionStr = L"0.6.18";
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
 
 static const wchar_t *AppId = L"{53F49750-6209-4FBF-9CA8-7A333C87D1ED}"; // used in updater.cpp and Setup.iss for Windows
 static const wchar_t *AppFile = L"Telegram";
+
+static const int32 FeaturesNotifyVersion = 6018;
+extern const char *FeaturesNotify;
 
 #include "settings.h"
 
@@ -105,10 +108,12 @@ enum {
 	WriteMapTimeout = 1000,
 	SaveDraftTimeout = 1000, // save draft after 1 secs of not changing text
 	SaveDraftAnywayTimeout = 5000, // or save anyway each 5 secs
+
+	ServiceUserId = 777000,
 };
 
 inline bool isServiceUser(uint64 id) {
-	return (id == 333000) || (id == 777000);
+	return (id == 333000) || (id == ServiceUserId);
 }
 
 #ifdef Q_OS_WIN
@@ -222,8 +227,6 @@ enum {
 
 	MessagesFirstLoad = 30, // first history part size requested
 	MessagesPerPage = 50, // next history part size
-
-	LinkCropLimit = 360, // 360px link length max
 
 	DownloadPartSize = 64 * 1024, // 64kb for photo
 	DocumentDownloadPartSize = 128 * 1024, // 128kb for document

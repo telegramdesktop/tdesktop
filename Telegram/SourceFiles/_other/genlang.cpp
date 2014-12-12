@@ -251,6 +251,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 			th << "\tint32 day = date.dayOfWeek();\n";
 			th << "\treturn (day > 0 && day <= 7) ? lang(LangKey(lng_weekday1 + day - 1)) : qsl(\"{err}\");\n";
 			th << "}\n\n";
+			th << "inline QString langDayOfWeekFull(const QDate &date) {\n";
+			th << "\tint32 day = date.dayOfWeek();\n";
+			th << "\treturn (day > 0 && day <= 7) ? lang(LangKey(lng_weekday1_full + day - 1)) : qsl(\"{err}\");\n";
+			th << "}\n\n";
 			th << "Qt::LayoutDirection langDir();\n\n";
 			th << "class LangLoader {\n";
 			th << "public:\n";

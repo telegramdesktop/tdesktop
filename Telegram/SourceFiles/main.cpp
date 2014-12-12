@@ -19,6 +19,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "pspecific.h"
 
+const char *FeaturesNotify = "\
+Telegram Desktop was updated to version 0.6.18\n\
+\n\
+ \xe2\x80\x94 Single-column layout support added for small chat window.\n\
+ \xe2\x80\x94 Photos are sent up to 1280x1280 size.\n\
+ \xe2\x80\x94 New version notifications added.\n\
+\n\
+Full versions log is available here:\n\
+https://desktop.telegram.org/#changelog";
+
 int main(int argc, char *argv[]) {
 #ifdef _NEED_WIN_GENERATE_DUMP
 	_oldWndExceptionFilter = SetUnhandledExceptionFilter(_exceptionFilter);

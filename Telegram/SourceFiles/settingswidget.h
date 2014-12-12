@@ -245,6 +245,8 @@ public:
 	void dragEnterEvent(QDragEnterEvent *e);
 	void dropEvent(QDropEvent *e);
 
+	void updateWideMode();
+
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
 	bool animStep(float64 ms);
 

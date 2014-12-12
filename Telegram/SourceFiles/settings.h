@@ -161,4 +161,6 @@ DeclareReadSetting(QUrl, UpdateURL);
 
 DeclareSetting(bool, ContactsReceived);
 
+DeclareSetting(bool, WideMode);
+
 void settingsParseArgs(int argc, char *argv[]);
