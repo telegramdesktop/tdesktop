@@ -452,7 +452,7 @@ void MainWidget::offerPeer(PeerId peer) {
 void MainWidget::onForwardCancel(QObject *obj) {
 	if (!obj || obj == _forwardConfirm) {
 		if (_forwardConfirm) {
-			_forwardConfirm->startHide();
+			if (!obj) _forwardConfirm->startHide();
 			_forwardConfirm = 0;
 		}
 		if (hider) hider->offerPeer(0);
