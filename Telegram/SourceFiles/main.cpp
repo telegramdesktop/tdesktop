@@ -22,7 +22,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 const char *FeaturesNotify = "\
 Telegram Desktop was updated to version 0.6.20\n\
 \n\
- \xe2\x80\x94 Single-column layout support added for small chat window.\n\
+ \xe2\x80\x94 Single column layout for smaller window sizes.\n\
  \xe2\x80\x94 Photos are sent up to 1280x1280 size.\n\
  \xe2\x80\x94 New device login notification added.\n\
  \xe2\x80\x94 New version notification added.\n\
