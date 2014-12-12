@@ -1148,7 +1148,7 @@ void MediaView::receiveMouse() {
 
 void MediaView::onCheckActive() {
 	if (App::wnd() && isVisible()) {
-		if (App::wnd()->isActiveWindow()) {
+		if (App::wnd()->isActiveWindow() && App::wnd()->hasFocus()) {
 			activateWindow();
 			setFocus();
 		}

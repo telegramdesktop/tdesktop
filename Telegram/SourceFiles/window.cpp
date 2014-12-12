@@ -329,9 +329,9 @@ NotifyWindow::~NotifyWindow() {
 	if (App::wnd()) App::wnd()->notifyShowNext(this);
 }
 
-Window::Window(QWidget *parent) : PsMainWindow(parent),
+Window::Window(QWidget *parent) : PsMainWindow(parent), _serviceHistoryRequest(0),
 intro(0), main(0), settings(0), layerBG(0), _topWidget(0),
-_connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _mediaView(0), _serviceHistoryRequest(0) {
+_connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _mediaView(0) {
 
 	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);

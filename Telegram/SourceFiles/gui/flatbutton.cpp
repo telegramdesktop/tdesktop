@@ -233,12 +233,10 @@ void MaskedButton::paintEvent(QPaintEvent *e) {
 		p.drawText(t.x(), t.y() + _st.font->ascent, _text);
 	}
 
-	const QRect &i((_state & StateDown) ? _st.downIcon : _st.icon);
-	if (i.width()) {
+	const style::sprite &i((_state & StateDown) ? _st.downIcon : _st.icon);
+	if (i.pxWidth()) {
 		const QPoint &t((_state & StateDown) ? _st.downIconPos : _st.iconPos);
-		QRect r(i);
-		r.moveTo(t);
-		p.fillRect(r, a_bg.current());
+		p.fillRect(QRect(t, QSize(i.pxWidth(), i.pxHeight())), a_bg.current());
 		p.drawPixmap(t, App::sprite(), i);
 	}
 }
