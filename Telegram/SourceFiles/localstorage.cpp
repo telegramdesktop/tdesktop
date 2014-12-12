@@ -637,6 +637,9 @@ namespace {
 		_locationsKey = locationsKey;
 		_mapChanged = false;
 		_oldMapVersion = mapData.version;
+		if (_oldMapVersion < AppVersion) {
+			_writeMap();
+		}
 
 		if (_locationsKey) {
 			_readLocations();

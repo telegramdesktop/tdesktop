@@ -2243,8 +2243,6 @@ void HistoryWidget::loadMessagesAround() {
 }
 
 void HistoryWidget::onListScroll() {
-	if (_scroll.isHidden()) return;
-
 	App::checkImageCacheSize();
 
 	if (histPreloading || !hist || ((_list->isHidden() || _scroll.isHidden() || !App::wnd()->windowHandle()->isVisible()) && hist->readyForWork())) {
