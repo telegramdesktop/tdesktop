@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 6020;
-static const wchar_t *AppVersionStr = L"0.6.20";
+static const int32 AppVersion = 6021;
+static const wchar_t *AppVersionStr = L"0.6.21";
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -26,7 +26,7 @@ static const wchar_t *AppName = L"Telegram Desktop";
 static const wchar_t *AppId = L"{53F49750-6209-4FBF-9CA8-7A333C87D1ED}"; // used in updater.cpp and Setup.iss for Windows
 static const wchar_t *AppFile = L"Telegram";
 
-static const int32 FeaturesNotifyVersion = 6020;
+static const int32 FeaturesNotifyVersion = 6021;
 static const int32 FeaturesNotifyVersionFrom = 6017;
 extern const char *FeaturesNotify;
 
@@ -160,7 +160,9 @@ static const BuiltInDc _builtInDcs[] = {
 };
 
 static const BuiltInDc _builtInTestDcs[] = {
-	{ 1, "173.240.5.253", 443 }
+	{ 1, "173.240.5.253", 443 },
+	{ 2, "149.154.167.40", 443 },
+	{ 3, "174.140.142.5", 443 }
 };
 
 inline const BuiltInDc *builtInDcs() {

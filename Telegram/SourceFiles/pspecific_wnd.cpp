@@ -1047,8 +1047,8 @@ void PsMainWindow::psInitSize() {
 
 	TWindowPos pos(cWindowPos());
 	if (cDebug()) { // temp while design
-		pos.w = 800;
-		pos.h = 600;
+		pos.w = st::wndDefWidth;
+		pos.h = st::wndDefHeight;
 	}
 	QRect avail(QDesktopWidget().availableGeometry());
 	bool maximized = false;

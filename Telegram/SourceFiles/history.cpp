@@ -298,7 +298,7 @@ const ChatData *PeerData::asChat() const {
 }
 
 void PeerData::updateName(const QString &newName, const QString &newNameOrPhone, const QString &newUsername) {
-	if (name == newName && nameOrPhone == newNameOrPhone && (chat || asUser()->username == newUsername)) return;
+	if (name == newName && nameOrPhone == newNameOrPhone && (chat || asUser()->username == newUsername) && nameVersion > 0) return;
 
 	++nameVersion;
 	name = newName;
