@@ -27,7 +27,7 @@ static const wchar_t *AppId = L"{53F49750-6209-4FBF-9CA8-7A333C87D1ED}"; // used
 static const wchar_t *AppFile = L"Telegram";
 
 static const int32 FeaturesNotifyVersion = 7000;
-static const int32 FeaturesNotifyVersionFrom = 6021;
+static const int32 FeaturesNotifyVersionFrom = 6016;
 extern const char *FeaturesNotify;
 
 #include "settings.h"

@@ -15,7 +15,7 @@ if [ ! -d "./../Mac/Release/Telegram Desktop.app" ]; then
   exit 1
 fi
 
-if [ ! -d "./../Mac/Release/Telegram Desktop.pkg" ]; then
+if [ ! -f "./../Mac/Release/Telegram Desktop.pkg" ]; then
   echo "Telegram Desktop.pkg not found!"
   exit 1
 fi
@@ -44,7 +44,6 @@ mkdir "./../Mac/Release/deploy/$AppVersionStr"
 cp -r "./../Mac/Release/Telegram Desktop.app" ./../Mac/Release/deploy/$AppVersionStr/
 mv "./../Mac/Release/Telegram Desktop.pkg" ./../Mac/Release/deploy/$AppVersionStr/
 rm "./../Mac/Release/Telegram Desktop.app/Contents/MacOS/Telegram Desktop"
-rm "./../Mac/Release/Telegram Desktop.pkg"
 rm -rf "./../Mac/Release/Telegram Desktop.app/Contents/_CodeSignature"
 echo "Version $AppVersionStr prepared!";
 
