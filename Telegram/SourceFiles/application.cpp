@@ -681,7 +681,7 @@ void Application::startApp() {
 	if (Local::oldMapVersion() < AppVersion) {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion() && Local::oldMapVersion() <= FeaturesNotifyVersionFrom && AppVersion == FeaturesNotifyVersion) {
-			QString versionFeatures(QString::fromUtf8(FeaturesNotify));
+			QString versionFeatures(QString::fromUtf8(FeaturesNotify).arg(QString::fromStdWString(AppVersionStr)));
 			if (!versionFeatures.isEmpty()) {
 				window->serviceNotification(versionFeatures);
 			}

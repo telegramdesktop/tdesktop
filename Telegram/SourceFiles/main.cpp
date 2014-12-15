@@ -20,12 +20,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "pspecific.h"
 
 const char *FeaturesNotify = "\
-Telegram Desktop was updated to version 0.6.21\n\
+Telegram Desktop was updated to version %1\n\
 \n\
- \xe2\x80\x94 Single column layout for smaller window sizes.\n\
- \xe2\x80\x94 Photos are sent up to 1280x1280 size.\n\
- \xe2\x80\x94 New device login notification added.\n\
- \xe2\x80\x94 New version notification added.\n\
+ \xe2\x80\x94 Improved single column navigation.\n\
+ \xe2\x80\x94 Improved image viewer for large documents.\n\
 \n\
 Full versions log is available here:\n\
 https://desktop.telegram.org/#changelog";
