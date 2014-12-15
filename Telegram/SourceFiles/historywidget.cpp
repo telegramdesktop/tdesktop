@@ -2718,8 +2718,8 @@ void HistoryWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 
 	if (!hist) return;
 
-	int32 increaseLeft = decreaseWidth;
-	if (!cWideMode()) decreaseWidth += (st::topBarForwardPadding.right() - st::topBarForwardPadding.left());
+	int32 increaseLeft = cWideMode() ? 0 : (st::topBarForwardPadding.right() - st::topBarForwardPadding.left());
+	decreaseWidth += increaseLeft;
 	QRect rectForName(st::topBarForwardPadding.left() + increaseLeft, st::topBarForwardPadding.top(), width() - decreaseWidth - st::topBarForwardPadding.left() - st::topBarForwardPadding.right(), st::msgNameFont->height);
 	p.setFont(st::dlgHistFont->f);
 	if (hist->typing.isEmpty()) {
