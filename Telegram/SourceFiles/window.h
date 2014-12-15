@@ -169,7 +169,6 @@ public:
 	void hideConnecting();
 	bool connectingVisible() const;
 
-	void hideSettings(bool fast = false);
 	void showPhoto(const PhotoLink *lnk, HistoryItem *item = 0);
 	void showPhoto(PhotoData *photo, HistoryItem *item);
 	void showPhoto(PhotoData *photo, PeerData *item);
@@ -229,10 +228,10 @@ public:
 public slots:
 	
 	void checkHistoryActivation(int state = -1);
+	void updateCounter();
     
-	void onTitleBack();
-
 	void showSettings();
+	void hideSettings(bool fast = false);
 	void layerHidden();
 	void updateTitleStatus();
 
@@ -255,6 +254,8 @@ public slots:
 	void onLogoutSure();
 	void updateGlobalMenu(); // for OS X top menu
 
+	QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon);
+
 signals:
 
 	void resized(const QSize &size);
@@ -268,7 +269,6 @@ protected:
 private:
 
 	void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color);
-	QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon);
 	QImage icon16, icon32, icon64, iconbig16, iconbig32, iconbig64;
 
 	QWidget *centralwidget;

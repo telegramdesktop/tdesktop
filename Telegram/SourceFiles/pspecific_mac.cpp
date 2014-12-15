@@ -51,7 +51,7 @@ void MacPrivate::activeSpaceChanged() {
 
 void MacPrivate::darkModeChanged() {
 	if (App::wnd()) {
-		App::wnd()->psUpdateCounter();
+		App::wnd()->updateCounter();
 	}
 }
 

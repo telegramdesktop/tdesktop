@@ -704,7 +704,7 @@ namespace {
 				} else {
 					_psShadowWindows.setColor(_shInactive);
 				}
-				QTimer::singleShot(0, Application::wnd(), SLOT(psUpdateCounter()));
+				QTimer::singleShot(0, Application::wnd(), SLOT(updateCounter()));
 				Application::wnd()->update();
 			} return false;
 				

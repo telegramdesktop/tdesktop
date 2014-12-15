@@ -45,8 +45,9 @@ public:
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
-	void updateBackButton(int authedChanged = 0);
+	void updateBackButton();
 	void updateWideMode();
+	void updateCounter();
 
 	void mousePressEvent(QMouseEvent *e);
 	void mouseDoubleClickEvent(QMouseEvent *e);
@@ -93,5 +94,7 @@ private:
 	CloseBtn _close;
 
 	bool lastMaximized;
+
+	QPixmap _counter;
 
 };

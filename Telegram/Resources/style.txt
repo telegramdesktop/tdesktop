@@ -64,7 +64,7 @@ titleHeight: 39px;
 titleShadowColor: rgba(0, 0, 0, 24);//#ebebeb
 titleShadow: 1px;
 titleIconPos: point(7px, 7px);
-titleIconRect: sprite(160px, 100px, 26px, 26px);
+titleIconImg: sprite(160px, 100px, 26px, 26px);
 titleFont: font(17px);
 titlePos: point(44px, 29px);
 titleMenuOffset: 36px;
@@ -695,9 +695,10 @@ dlgActiveDateColor: #d3e2ee;
 topBarHeight: 54px;
 topBarBG: white;
 topBarDuration: 200;
-topBarForwardPadding: margins(17px, 8px, 40px, 8px);
+topBarForwardPadding: margins(17px, 8px, 39px, 8px);
 topBarForwardAlpha: 0.6;
 topBarForwardImg: sprite(45px, 112px, 9px, 16px);
+topBarBackwardImg: sprite(35px, 112px, 9px, 16px);
 topBarBackPadding: margins(15px, 7px, 9px, 7px);
 topBarBackAlpha: 0.8;
 topBarBackImg: sprite(65px, 112px, 9px, 16px);
@@ -1584,6 +1585,7 @@ medviewDocumentSprite: sprite(341px, 150px, 20px, 22px);
 medviewDocumentSpritePos: point(16px, 13px);
 medviewPhotoSprite: sprite(363px, 150px, 23px, 20px);
 medviewPhotoSpritePos: point(14px, 14px);
+medviewTransparentBrush: sprite(148px, 197px, 8px, 8px);
 
 overviewPhotoSkip: 10px;
 overviewPhotoMinSize: 100px;

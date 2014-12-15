@@ -69,12 +69,15 @@ public:
     void psNotifyShown(NotifyWindow *w);
     void psPlatformNotify(HistoryItem *item);
 
+	void psUpdateCounter();
+
+	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
+
 	~PsMainWindow();
 
 public slots:
 
 	void psStateChanged(Qt::WindowState state);
-	void psUpdateCounter();
 	void psUpdateDelegate();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psIdleTimeout();
@@ -91,7 +94,6 @@ protected:
 	QIcon wndIcon;
 
 	virtual void setupTrayIcon() = 0;
-	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
 
     QTimer psUpdatedPositionTimer;
 

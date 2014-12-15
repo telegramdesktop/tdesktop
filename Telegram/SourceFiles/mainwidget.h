@@ -30,7 +30,7 @@ struct DialogRow;
 class MainWidget;
 class ConfirmBox;
 
-class TopBarWidget : public QWidget, public Animated {
+class TopBarWidget : public TWidget, public Animated {
 	Q_OBJECT
 
 public:
@@ -38,7 +38,9 @@ public:
 	TopBarWidget(MainWidget *w);
 
 	void enterEvent(QEvent *e);
+	void enterFromChildEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
+	void leaveToChildEvent(QEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
@@ -58,6 +60,7 @@ public slots:
 	void onForwardSelection();
 	void onDeleteSelection();
 	void onClearSelection();
+	void onInfoClicked();
 	void onAddContact();
 	void onEdit();
 	void onDeleteContact();
@@ -83,6 +86,7 @@ private:
 
 	FlatButton _clearSelection;
 	FlatButton _forward, _delete;
+	FlatButton _info;
 	FlatButton _edit, _leaveGroup, _addContact, _deleteContact;
 	FlatButton _mediaType;
 
@@ -170,7 +174,7 @@ public:
 
 	void updateWideMode();
 	bool needBackButton();
-	void onTitleBack();
+	void onShowDialogs();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
 	void topBarShadowParams(int32 &x, float64 &o);
@@ -211,6 +215,7 @@ public:
 
 	void peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
 	void peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
+	PeerData *historyPeer();
 	PeerData *peer();
 	PeerData *activePeer();
 	MsgId activeMsgId();

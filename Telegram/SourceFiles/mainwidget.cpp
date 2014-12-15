@@ -28,11 +28,12 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "audio.h"
 
-TopBarWidget::TopBarWidget(MainWidget *w) : QWidget(w),
+TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w),
     a_over(0), _drawShadow(true), _selCount(0), _selStrWidth(0), _animating(false),
 	_clearSelection(this, lang(lng_selected_clear), st::topBarButton),
 	_forward(this, lang(lng_selected_forward), st::topBarActionButton),
 	_delete(this, lang(lng_selected_delete), st::topBarActionButton),
+	_info(this, lang(lng_topbar_info), st::topBarButton),
 	_edit(this, lang(lng_profile_edit_contact), st::topBarButton),
 	_leaveGroup(this, lang(lng_profile_delete_and_exit), st::topBarButton),
 	_addContact(this, lang(lng_profile_add_contact), st::topBarButton),
@@ -42,6 +43,7 @@ TopBarWidget::TopBarWidget(MainWidget *w) : QWidget(w),
 	connect(&_forward, SIGNAL(clicked()), this, SLOT(onForwardSelection()));
 	connect(&_delete, SIGNAL(clicked()), this, SLOT(onDeleteSelection()));
 	connect(&_clearSelection, SIGNAL(clicked()), this, SLOT(onClearSelection()));
+	connect(&_info, SIGNAL(clicked()), this, SLOT(onInfoClicked()));
 	connect(&_addContact, SIGNAL(clicked()), this, SLOT(onAddContact()));
 	connect(&_deleteContact, SIGNAL(clicked()), this, SLOT(onDeleteContact()));
 	connect(&_edit, SIGNAL(clicked()), this, SLOT(onEdit()));
@@ -63,15 +65,20 @@ void TopBarWidget::onClearSelection() {
 	if (App::main()) App::main()->clearSelectedItems();
 }
 
-void TopBarWidget::onEdit() {
-	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
-	if (p) App::wnd()->showLayer(new AddContactBox(p));
+void TopBarWidget::onInfoClicked() {
+	PeerData *p = App::main() ? App::main()->historyPeer() : 0;
+	if (p) App::main()->showPeerProfile(p);
 }
 
 void TopBarWidget::onAddContact() {
 	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
 	UserData *u = (p && !p->chat) ? p->asUser() : 0;
 	if (u) App::wnd()->showLayer(new AddContactBox(u->firstName, u->lastName, u->phone));
+}
+
+void TopBarWidget::onEdit() {
+	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
+	if (p) App::wnd()->showLayer(new AddContactBox(p));
 }
 
 void TopBarWidget::onDeleteContact() {
@@ -119,7 +126,17 @@ void TopBarWidget::enterEvent(QEvent *e) {
 	anim::start(this);
 }
 
+void TopBarWidget::enterFromChildEvent(QEvent *e) {
+	a_over.start(1);
+	anim::start(this);
+}
+
 void TopBarWidget::leaveEvent(QEvent *e) {
+	a_over.start(0);
+	anim::start(this);
+}
+
+void TopBarWidget::leaveToChildEvent(QEvent *e) {
 	a_over.start(0);
 	anim::start(this);
 }
@@ -148,7 +165,7 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 		p.fillRect(QRect(0, 0, width(), st::topBarHeight), st::topBarBG->b);
 		if (_clearSelection.isHidden()) {
 			p.save();
-			main()->paintTopBar(p, a_over.current(), 0);
+			main()->paintTopBar(p, a_over.current(), _info.isHidden() ? 0 : _info.width());
 			p.restore();
 		} else {
 			p.setFont(st::linkFont->f);
@@ -184,6 +201,7 @@ void TopBarWidget::resizeEvent(QResizeEvent *e) {
 		_forward.move(availX + (availW - _forward.width() - _delete.width() - st::topBarActionSkip) / 2, (st::topBarHeight - _forward.height()) / 2);
 		_delete.move(availX + (availW + _forward.width() - _delete.width() + st::topBarActionSkip) / 2, (st::topBarHeight - _forward.height()) / 2);
 	}
+	if (!_info.isHidden()) _info.move(r -= _info.width(), 0);
 	if (!_clearSelection.isHidden()) _clearSelection.move(r -= _clearSelection.width(), 0);
 	if (!_deleteContact.isHidden()) _deleteContact.move(r -= _deleteContact.width(), 0);
 	if (!_leaveGroup.isHidden()) _leaveGroup.move(r -= _leaveGroup.width(), 0);
@@ -193,6 +211,7 @@ void TopBarWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void TopBarWidget::startAnim() {
+	_info.hide();
 	_edit.hide();
 	_leaveGroup.hide();
 	_addContact.hide();
@@ -237,6 +256,7 @@ void TopBarWidget::showAll() {
 			_deleteContact.hide();
 		}
 		_clearSelection.hide();
+		_info.hide();
 		_delete.hide();
 		_forward.hide();
 		_mediaType.hide();
@@ -259,6 +279,11 @@ void TopBarWidget::showAll() {
 			} else {
 				_mediaType.hide();
 			}
+		}
+		if (App::main() && App::main()->historyPeer() && !cWideMode()) {
+			_info.show();
+		} else {
+			_info.hide();
 		}
 	}
 	resizeEvent(0);
@@ -1043,7 +1068,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 						if (reader.supportsAnimation() && reader.imageCount() > 1 && item) {
 							startGif(item, already);
 						} else {
-							App::wnd()->showDocument(document, QPixmap::fromImage(App::readImage(already)), item);
+							App::wnd()->showDocument(document, QPixmap::fromImage(App::readImage(already, 0, false)), item);
 						}
 					} else {
 						psOpenFile(already);
@@ -1260,6 +1285,10 @@ void MainWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPe
 		return;
 	}
 	dialogs.peerAfter(inPeer, inMsg, outPeer, outMsg);
+}
+
+PeerData *MainWidget::historyPeer() {
+	return history.peer();
 }
 
 PeerData *MainWidget::peer() {
@@ -1754,13 +1783,14 @@ void MainWidget::keyPressEvent(QKeyEvent *e) {
 
 void MainWidget::updateWideMode() {
 	showAll();
+	_topBar.showAll();
 }
 
 bool MainWidget::needBackButton() {
 	return overview || profile || (history.peer() && history.peer()->id);
 }
 
-void MainWidget::onTitleBack() {
+void MainWidget::onShowDialogs() {
 	showPeer(0, 0, false, true);
 }
 

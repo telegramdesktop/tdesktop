@@ -2718,7 +2718,9 @@ void HistoryWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 
 	if (!hist) return;
 
-	QRect rectForName(st::topBarForwardPadding.left(), st::topBarForwardPadding.top(), width() - decreaseWidth - st::topBarForwardPadding.left() - st::topBarForwardPadding.right(), st::msgNameFont->height);
+	int32 increaseLeft = decreaseWidth;
+	if (!cWideMode()) decreaseWidth += (st::topBarForwardPadding.right() - st::topBarForwardPadding.left());
+	QRect rectForName(st::topBarForwardPadding.left() + increaseLeft, st::topBarForwardPadding.top(), width() - decreaseWidth - st::topBarForwardPadding.left() - st::topBarForwardPadding.right(), st::msgNameFont->height);
 	p.setFont(st::dlgHistFont->f);
 	if (hist->typing.isEmpty()) {
 		p.setPen(st::titleStatusColor->p);
@@ -2731,9 +2733,12 @@ void HistoryWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 	p.setPen(st::dlgNameColor->p);
 	hist->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 
-	if (!decreaseWidth) {
+	if (cWideMode()) {
 		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
 		p.drawPixmap(QPoint(width() - (st::topBarForwardPadding.right() + st::topBarForwardImg.pxWidth()) / 2, (st::topBarHeight - st::topBarForwardImg.pxHeight()) / 2), App::sprite(), st::topBarForwardImg);
+	} else {
+		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
+		p.drawPixmap(QPoint((st::topBarForwardPadding.right() - st::topBarBackwardImg.pxWidth()) / 2, (st::topBarHeight - st::topBarBackwardImg.pxHeight()) / 2), App::sprite(), st::topBarBackwardImg);
 	}
 }
 
@@ -2745,7 +2750,11 @@ void HistoryWidget::topBarShadowParams(int32 &x, float64 &o) {
 }
 
 void HistoryWidget::topBarClick() {
-	if (hist) App::main()->showPeerProfile(histPeer);
+	if (cWideMode()) {
+		if (hist) App::main()->showPeerProfile(histPeer);
+	} else {
+		App::main()->onShowDialogs();
+	}
 }
 
 void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {

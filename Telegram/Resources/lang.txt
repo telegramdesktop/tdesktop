@@ -24,8 +24,7 @@ lng_menu_settings: "Settings";
 lng_menu_about: "About";
 lng_menu_update: "Update";
 lng_menu_restart: "Restart";
-lng_menu_start_messaging: "Start Messaging";
-lng_menu_conversations: "Conversations List";
+lng_menu_back: "Back";
 
 lng_open_from_tray: "Open Telegram";
 lng_minimize_to_tray: "Minimize to tray";
@@ -272,6 +271,7 @@ some of the new settings. Restart now?";
 lng_settings_restart_now: "Restart";
 lng_settings_restart_later: "Later";
 
+lng_topbar_info: "Info";
 lng_profile_settings_section: "Settings";
 lng_profile_participants_section: "Participants";
 lng_profile_info: "Contact info";

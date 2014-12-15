@@ -596,7 +596,7 @@ void DialogsListWidget::dialogsReceived(const QVector<MTPDialog> &added) {
 			addDialog(i->c_dialog());
 		}
 	}
-	if (App::wnd()) App::wnd()->psUpdateCounter();
+	if (App::wnd()) App::wnd()->updateCounter();
 	if (!sel && dialogs.list.count) {
 		sel = dialogs.list.begin;
 		contactSel = false;
@@ -1309,7 +1309,7 @@ void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
 			}
 		}
 	}
-	if (App::wnd()) App::wnd()->psUpdateCounter();
+	if (App::wnd()) App::wnd()->updateCounter();
 }
 
 void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs) {

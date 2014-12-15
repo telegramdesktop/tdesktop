@@ -438,7 +438,6 @@ void Window::clearWidgets() {
 
 void Window::setupIntro(bool anim) {
 	cSetContactsReceived(false);
-	title->updateBackButton(false);
 	if (intro && (intro->animating() || intro->isVisible()) && !main) return;
 
 	QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
@@ -494,8 +493,6 @@ void Window::sendServiceHistoryRequest() {
 }
 
 void Window::setupMain(bool anim) {
-	title->updateBackButton(true);
-
 	QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
 	clearWidgets();
 	main = new MainWidget(this);
@@ -514,13 +511,9 @@ void Window::setupMain(bool anim) {
 	_mediaView = new MediaView();
 }
 
-void Window::onTitleBack() {
-	if (main) {
-		main->onTitleBack();
-	}
-	if (settings) {
-		hideSettings();
-	}
+void Window::updateCounter() {
+	psUpdateCounter();
+	title->updateCounter();
 }
 
 void Window::showSettings() {
@@ -786,7 +779,7 @@ HitTestType Window::hitTest(const QPoint &p) const {
 }
 
 QRect Window::iconRect() const {
-	return QRect(st::titleIconPos + title->geometry().topLeft(), st::titleIconRect.pxSize());
+	return QRect(st::titleIconPos + title->geometry().topLeft(), st::titleIconImg.pxSize());
 }
 
 bool Window::eventFilter(QObject *obj, QEvent *evt) {
@@ -868,7 +861,7 @@ void Window::setupTrayIcon() {
 		}
 		updateTrayMenu();
 	}
-	psUpdateCounter();
+	updateCounter();
 
 	trayIcon->show();
 	psUpdateDelegate();
@@ -987,7 +980,7 @@ void Window::noTopWidget(QWidget *w) {
 void Window::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 	if (reason != QSystemTrayIcon::Context) {
         activate();
-		psUpdateCounter();
+		updateCounter();
 		if (App::main()) App::main()->setOnline(windowState());
 		QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
 		QTimer::singleShot(1, this, SLOT(updateGlobalMenu()));
@@ -1041,7 +1034,7 @@ void Window::updateWideMode() {
 }
 
 bool Window::needBackButton() {
-	return settings || (main && main->needBackButton());
+	return !!settings;
 }
 
 Window::TempDirState Window::tempDirState() {
@@ -1440,7 +1433,7 @@ QImage Window::iconWithCounter(int size, int count, style::color bg, bool smallI
 		layer = true;
 	}
 	if (layer) {
-		if (size != 16) size = 32;
+		if (size != 16 && size != 20 && size != 24) size = 32;
 
 		QString cnt = (count < 1000) ? QString("%1").arg(count) : QString("..%1").arg(count % 100, 2, 10, QChar('0'));
 		QImage result(size, size, QImage::Format_ARGB32);
@@ -1452,21 +1445,26 @@ QImage Window::iconWithCounter(int size, int count, style::color bg, bool smallI
 			p.setPen(Qt::NoPen);
 			p.setRenderHint(QPainter::Antialiasing);
 			int32 fontSize;
-			if (size == 8) {
-				fontSize = 6;
-			} else if (size == 16) {
+			if (size == 16) {
 				fontSize = (cntSize < 2) ? 11 : ((cntSize < 3) ? 11 : 8);
+			} else if (size == 20) {
+				fontSize = (cntSize < 2) ? 14 : ((cntSize < 3) ? 13 : 10);
+			} else if (size == 24) {
+				fontSize = (cntSize < 2) ? 17 : ((cntSize < 3) ? 16 : 12);
 			} else {
 				fontSize = (cntSize < 2) ? 22 : ((cntSize < 3) ? 20 : 16);
 			}
 			style::font f(fontSize);
 			int32 w = f->m.width(cnt), d, r;
-			if (size == 8) {
-				d = (cntSize < 2) ? 2 : 1;
-				r = (cntSize < 2) ? 4 : 3;
-			} else if (size == 16) {
+			if (size == 16) {
 				d = (cntSize < 2) ? 5 : ((cntSize < 3) ? 2 : 1);
 				r = (cntSize < 2) ? 8 : ((cntSize < 3) ? 7 : 3);
+			} else if (size == 20) {
+				d = (cntSize < 2) ? 6 : ((cntSize < 3) ? 2 : 1);
+				r = (cntSize < 2) ? 10 : ((cntSize < 3) ? 9 : 5);
+			} else if (size == 24) {
+				d = (cntSize < 2) ? 7 : ((cntSize < 3) ? 3 : 1);
+				r = (cntSize < 2) ? 12 : ((cntSize < 3) ? 11 : 6);
 			} else {
 				d = (cntSize < 2) ? 9 : ((cntSize < 3) ? 4 : 2);
 				r = (cntSize < 2) ? 16 : ((cntSize < 3) ? 14 : 8);

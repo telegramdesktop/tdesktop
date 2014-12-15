@@ -1963,7 +1963,7 @@ namespace App {
 		::quiting = true;
 	}
 
-    QImage readImage(QByteArray data, QByteArray *format) {
+	QImage readImage(QByteArray data, QByteArray *format, bool opaque) {
         QByteArray tmpFormat;
 		QImage result;
 		QBuffer buffer(&data);
@@ -1999,7 +1999,7 @@ namespace App {
 				}
 				exif_data_free(exifData);
 			}
-		} else {
+		} else if (opaque) {
 			QImage solid(result.width(), result.height(), QImage::Format_ARGB32_Premultiplied);
 			solid.fill(st::white->c);
 			{
@@ -2010,12 +2010,12 @@ namespace App {
 		return result;
 	}
 
-    QImage readImage(const QString &file, QByteArray *format) {
+	QImage readImage(const QString &file, QByteArray *format, bool opaque) {
 		QFile f(file);
 		if (!f.open(QIODevice::ReadOnly)) {
 			return QImage();
 		}
-		return readImage(f.readAll(), format);
+		return readImage(f.readAll(), format, opaque);
 	}
 
 	void regVideoItem(VideoData *data, HistoryItem *item) {

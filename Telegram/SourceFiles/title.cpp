@@ -51,7 +51,7 @@ TitleWidget::TitleWidget(Window *window)
 	, wnd(window)
     , hideLevel(0)
     , hider(0)
-	, _back(this, st::titleBackButton)
+	, _back(this, st::titleBackButton, lang(lng_menu_back))
 	, _cancel(this, lang(lng_cancel), st::titleTextButton)
 	, _settings(this, lang(lng_menu_settings), st::titleTextButton)
 	, _contacts(this, lang(lng_menu_contacts), st::titleTextButton)
@@ -70,7 +70,7 @@ TitleWidget::TitleWidget(Window *window)
 	}
 	stateChanged();
 
-	connect(&_back, SIGNAL(clicked()), window, SLOT(onTitleBack()));
+	connect(&_back, SIGNAL(clicked()), window, SLOT(hideSettings()));
 	connect(&_cancel, SIGNAL(clicked()), this, SIGNAL(hiderClicked()));
 	connect(&_settings, SIGNAL(clicked()), window, SLOT(showSettings()));
 	connect(&_contacts, SIGNAL(clicked()), this, SLOT(onContacts()));
@@ -95,7 +95,10 @@ void TitleWidget::paintEvent(QPaintEvent *e) {
 		p.setFont(st::titleTextButton.font->f);
 		p.drawText(st::titleMenuOffset - st::titleTextButton.width / 2, st::titleTextButton.textTop + st::titleTextButton.font->ascent, lang(lng_forward_choose));
 	}
-	p.drawPixmap(st::titleIconPos, App::sprite(), st::titleIconRect);
+	p.drawPixmap(st::titleIconPos, App::sprite(), st::titleIconImg);
+	if (!cWideMode() && !_counter.isNull() && App::main()) {
+		p.drawPixmap(st::titleIconPos.x() + st::titleIconImg.pxWidth() - (_counter.width() / cIntRetinaFactor()), st::titleIconPos.y() + st::titleIconImg.pxHeight() - (_counter.height() / cIntRetinaFactor()), _counter);
+	}
 }
 
 bool TitleWidget::animStep(float64 ms) {
@@ -167,6 +170,7 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
     
 	_settings.move(st::titleMenuOffset, 0);
 	_back.move(st::titleMenuOffset, 0);
+	_back.resize((_minimize.isHidden() ? (_update.isHidden() ? width() : _update.x()) : _minimize.x()) - st::titleMenuOffset, _back.height());
 	if (MTP::authedId() && _back.isHidden() && _cancel.isHidden()) {
 		_contacts.show();
 		_contacts.move(_settings.x() + _settings.width(), 0);
@@ -179,7 +183,7 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
 	if (hider) hider->resize(size());
 }
 
-void TitleWidget::updateBackButton(int authedChanged) {
+void TitleWidget::updateBackButton() {
 	if (!cWideMode() && App::main() && App::main()->selectingPeer()) {
 		_cancel.show();
 		if (!_back.isHidden()) _back.hide();
@@ -188,10 +192,7 @@ void TitleWidget::updateBackButton(int authedChanged) {
 		_about.hide();
 	} else {
 		_cancel.hide();
-		bool authed = authedChanged ? (authedChanged > 0) : (MTP::authedId() > 0);
-		if (authedChanged) {
-			_back.setText(lang((authedChanged > 0) ? lng_menu_conversations : lng_menu_start_messaging));
-		}
+		bool authed = (MTP::authedId() > 0);
 		if (cWideMode()) {
 			if (!_back.isHidden()) _back.hide();
 			_settings.show();
@@ -218,11 +219,38 @@ void TitleWidget::updateBackButton(int authedChanged) {
 
 void TitleWidget::updateWideMode() {
 	updateBackButton();
+	if (!cWideMode()) {
+		updateCounter();
+	}
 	if (hider) {
 		if (cWideMode()) {
 			hider->show();
 		} else {
 			hider->hide();
+		}
+	}
+}
+
+void TitleWidget::updateCounter() {
+	if (cWideMode() || !MTP::authedId()) return;
+
+	int32 counter = App::histories().unreadFull;
+	style::color bg = (App::histories().unreadMuted < counter) ? st::counterBG : st::counterMuteBG;
+	
+	if (counter > 0) {
+		int32 size = -16;
+		switch (cScale()) {
+		case dbisOneAndQuarter: size = -20; break;
+		case dbisOneAndHalf: size = -24; break;
+		case dbisTwo: size = -32; break;
+		}
+		_counter = QPixmap::fromImage(App::wnd()->iconWithCounter(size, counter, bg, false));
+		_counter.setDevicePixelRatio(cRetinaFactor());
+		update(QRect(st::titleIconPos, st::titleIconImg.pxSize()));
+	} else {
+		if (!_counter.isNull()) {
+			_counter = QPixmap();
+			update(QRect(st::titleIconPos, st::titleIconImg.pxSize()));
 		}
 	}
 }
@@ -307,7 +335,7 @@ HitTestType TitleWidget::hitTest(const QPoint &p) {
 	int x(p.x()), y(p.y()), w(width()), h(height() - st::titleShadow);
 	if (cWideMode() && hider && x >= App::main()->dlgsWidth()) return HitTestNone;
 
-	if (x >= st::titleIconPos.x() && y >= st::titleIconPos.y() && x < st::titleIconPos.x() + st::titleIconRect.pxWidth() && y < st::titleIconPos.y() + st::titleIconRect.pxHeight()) {
+	if (x >= st::titleIconPos.x() && y >= st::titleIconPos.y() && x < st::titleIconPos.x() + st::titleIconImg.pxWidth() && y < st::titleIconPos.y() + st::titleIconImg.pxHeight()) {
 		return HitTestIcon;
 	} else if (false
         || (_update.hitTest(p - _update.geometry().topLeft()) == HitTestSysButton && _update.isVisible())

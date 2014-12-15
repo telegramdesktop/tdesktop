@@ -637,7 +637,7 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 				if (reader.supportsAnimation() && reader.imageCount() > 1 && App::hoveredLinkItem()) {
 					startGif(App::hoveredLinkItem(), already);
 				} else {
-					App::wnd()->showDocument(data, QPixmap::fromImage(App::readImage(already)), App::hoveredLinkItem());
+					App::wnd()->showDocument(data, QPixmap::fromImage(App::readImage(already, 0, false)), App::hoveredLinkItem());
 				}
 			} else {
 				psOpenFile(already);
@@ -1631,7 +1631,7 @@ void History::setUnreadCount(int32 newUnreadCount, bool psUpdate) {
 		App::histories().unreadFull += newUnreadCount - unreadCount;
 		if (mute) App::histories().unreadMuted += newUnreadCount - unreadCount;
 		unreadCount = newUnreadCount;
-		if (psUpdate) App::wnd()->psUpdateCounter();
+		if (psUpdate) App::wnd()->updateCounter();
 		if (unreadBar) unreadBar->setCount(unreadCount);
 	}
 }
@@ -1646,7 +1646,7 @@ void History::setMsgCount(int32 newMsgCount) {
 	if (mute != newMute) {
 		App::histories().unreadMuted += newMute ? unreadCount : (-unreadCount);
 		mute = newMute;
-		App::wnd()->psUpdateCounter();
+		App::wnd()->updateCounter();
 	}
 }
 
