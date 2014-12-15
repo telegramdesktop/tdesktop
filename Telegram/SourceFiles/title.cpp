@@ -238,7 +238,7 @@ void TitleWidget::updateCounter() {
 	style::color bg = (App::histories().unreadMuted < counter) ? st::counterBG : st::counterMuteBG;
 	
 	if (counter > 0) {
-		int32 size = -16;
+		int32 size = cRetina() ? -32 : -16;
 		switch (cScale()) {
 		case dbisOneAndQuarter: size = -20; break;
 		case dbisOneAndHalf: size = -24; break;
