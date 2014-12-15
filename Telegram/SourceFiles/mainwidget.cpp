@@ -28,11 +28,12 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "audio.h"
 
-TopBarWidget::TopBarWidget(MainWidget *w) : QWidget(w),
+TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w),
     a_over(0), _drawShadow(true), _selCount(0), _selStrWidth(0), _animating(false),
 	_clearSelection(this, lang(lng_selected_clear), st::topBarButton),
 	_forward(this, lang(lng_selected_forward), st::topBarActionButton),
 	_delete(this, lang(lng_selected_delete), st::topBarActionButton),
+	_info(this, lang(lng_topbar_info), st::topBarButton),
 	_edit(this, lang(lng_profile_edit_contact), st::topBarButton),
 	_leaveGroup(this, lang(lng_profile_delete_and_exit), st::topBarButton),
 	_addContact(this, lang(lng_profile_add_contact), st::topBarButton),
@@ -42,6 +43,7 @@ TopBarWidget::TopBarWidget(MainWidget *w) : QWidget(w),
 	connect(&_forward, SIGNAL(clicked()), this, SLOT(onForwardSelection()));
 	connect(&_delete, SIGNAL(clicked()), this, SLOT(onDeleteSelection()));
 	connect(&_clearSelection, SIGNAL(clicked()), this, SLOT(onClearSelection()));
+	connect(&_info, SIGNAL(clicked()), this, SLOT(onInfoClicked()));
 	connect(&_addContact, SIGNAL(clicked()), this, SLOT(onAddContact()));
 	connect(&_deleteContact, SIGNAL(clicked()), this, SLOT(onDeleteContact()));
 	connect(&_edit, SIGNAL(clicked()), this, SLOT(onEdit()));
@@ -63,15 +65,20 @@ void TopBarWidget::onClearSelection() {
 	if (App::main()) App::main()->clearSelectedItems();
 }
 
-void TopBarWidget::onEdit() {
-	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
-	if (p) App::wnd()->showLayer(new AddContactBox(p));
+void TopBarWidget::onInfoClicked() {
+	PeerData *p = App::main() ? App::main()->historyPeer() : 0;
+	if (p) App::main()->showPeerProfile(p);
 }
 
 void TopBarWidget::onAddContact() {
 	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
 	UserData *u = (p && !p->chat) ? p->asUser() : 0;
 	if (u) App::wnd()->showLayer(new AddContactBox(u->firstName, u->lastName, u->phone));
+}
+
+void TopBarWidget::onEdit() {
+	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
+	if (p) App::wnd()->showLayer(new AddContactBox(p));
 }
 
 void TopBarWidget::onDeleteContact() {
@@ -119,7 +126,17 @@ void TopBarWidget::enterEvent(QEvent *e) {
 	anim::start(this);
 }
 
+void TopBarWidget::enterFromChildEvent(QEvent *e) {
+	a_over.start(1);
+	anim::start(this);
+}
+
 void TopBarWidget::leaveEvent(QEvent *e) {
+	a_over.start(0);
+	anim::start(this);
+}
+
+void TopBarWidget::leaveToChildEvent(QEvent *e) {
 	a_over.start(0);
 	anim::start(this);
 }
@@ -143,11 +160,12 @@ void TopBarWidget::enableShadow(bool enable) {
 
 void TopBarWidget::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
+
 	if (e->rect().top() < st::topBarHeight) { // optimize shadow-only drawing
 		p.fillRect(QRect(0, 0, width(), st::topBarHeight), st::topBarBG->b);
 		if (_clearSelection.isHidden()) {
 			p.save();
-			main()->paintTopBar(p, a_over.current(), 0);
+			main()->paintTopBar(p, a_over.current(), _info.isHidden() ? 0 : _info.width());
 			p.restore();
 		} else {
 			p.setFont(st::linkFont->f);
@@ -156,7 +174,16 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 		}
 	}
 	if (_drawShadow) {
-		p.fillRect(st::titleShadow, st::topBarHeight, width() - st::titleShadow, st::titleShadow, st::titleShadowColor->b);
+		int32 shadowCoord = 0;
+		float64 shadowOpacity = 1.;
+		main()->topBarShadowParams(shadowCoord, shadowOpacity);
+
+		p.setOpacity(shadowOpacity);
+		if (cWideMode()) {
+			p.fillRect(shadowCoord + st::titleShadow, st::topBarHeight, width() - st::titleShadow, st::titleShadow, st::titleShadowColor->b);
+		} else {
+			p.fillRect(shadowCoord, st::topBarHeight, width(), st::titleShadow, st::titleShadowColor->b);
+		}
 	}
 }
 
@@ -174,6 +201,7 @@ void TopBarWidget::resizeEvent(QResizeEvent *e) {
 		_forward.move(availX + (availW - _forward.width() - _delete.width() - st::topBarActionSkip) / 2, (st::topBarHeight - _forward.height()) / 2);
 		_delete.move(availX + (availW + _forward.width() - _delete.width() + st::topBarActionSkip) / 2, (st::topBarHeight - _forward.height()) / 2);
 	}
+	if (!_info.isHidden()) _info.move(r -= _info.width(), 0);
 	if (!_clearSelection.isHidden()) _clearSelection.move(r -= _clearSelection.width(), 0);
 	if (!_deleteContact.isHidden()) _deleteContact.move(r -= _deleteContact.width(), 0);
 	if (!_leaveGroup.isHidden()) _leaveGroup.move(r -= _leaveGroup.width(), 0);
@@ -183,6 +211,7 @@ void TopBarWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void TopBarWidget::startAnim() {
+	_info.hide();
 	_edit.hide();
 	_leaveGroup.hide();
 	_addContact.hide();
@@ -227,6 +256,7 @@ void TopBarWidget::showAll() {
 			_deleteContact.hide();
 		}
 		_clearSelection.hide();
+		_info.hide();
 		_delete.hide();
 		_forward.hide();
 		_mediaType.hide();
@@ -250,6 +280,11 @@ void TopBarWidget::showAll() {
 				_mediaType.hide();
 			}
 		}
+		if (App::main() && App::main()->historyPeer() && !cWideMode()) {
+			_info.show();
+		} else {
+			_info.hide();
+		}
 	}
 	resizeEvent(0);
 }
@@ -271,8 +306,8 @@ MainWidget *TopBarWidget::main() {
 	return static_cast<MainWidget*>(parentWidget());
 }
 
-MainWidget::MainWidget(Window *window) : QWidget(window), failedObjId(0), _dialogsWidth(st::dlgMinWidth),
-dialogs(this), history(this), profile(0), overview(0), _topBar(this), hider(0), _mediaType(this), _mediaTypeMask(0),
+MainWidget::MainWidget(Window *window) : QWidget(window), _started(0), failedObjId(0), _dialogsWidth(st::dlgMinWidth),
+dialogs(this), history(this), profile(0), overview(0), _topBar(this), _forwardConfirm(0), hider(0), _mediaType(this), _mediaTypeMask(0),
 updPts(0), updDate(0), updQts(-1), updSeq(0), updInited(false), onlineRequest(0), _failDifferenceTimeout(1), _lastUpdateTime(0) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
@@ -296,7 +331,12 @@ updPts(0), updDate(0), updQts(-1), updSeq(0), updInited(false), onlineRequest(0)
 	}
 
 	dialogs.show();
-	history.show();
+	if (cWideMode()) {
+		history.show();
+	} else {
+		history.hide();
+	}
+	App::wnd()->getTitle()->updateBackButton();
 	_topBar.hide();
 
 	_topBar.raise();
@@ -338,14 +378,70 @@ void MainWidget::onSendPaths(const PeerId &peer) {
 void MainWidget::noHider(HistoryHider *destroyed) {
 	if (hider == destroyed) {
 		hider = 0;
+		if (cWideMode()) {
+			if (_forwardConfirm) {
+				_forwardConfirm->deleteLater();
+				_forwardConfirm = 0;
+			}
+		} else {
+			if (_forwardConfirm) {
+				_forwardConfirm->startHide();
+				_forwardConfirm = 0;
+			}
+			onPeerShown(history.peer());
+			if (profile || overview || (history.peer() && history.peer()->id)) {
+				dialogs.enableShadow(false);
+				QPixmap animCache = myGrab(this, QRect(0, st::topBarHeight, _dialogsWidth, height() - st::topBarHeight)),
+					animTopBarCache = myGrab(this, QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight));
+				dialogs.enableShadow();
+				_topBar.enableShadow();
+				dialogs.hide();
+				if (overview) {
+					overview->show();
+					overview->animShow(animCache, animTopBarCache);
+				} else if (profile) {
+					profile->show();
+					profile->animShow(animCache, animTopBarCache);
+				} else {
+					history.show();
+					history.animShow(animCache, animTopBarCache);
+				}
+			}
+			App::wnd()->getTitle()->updateBackButton();
+		}
 	}
 }
 
-void MainWidget::forwardLayer(bool forwardSelected) {
-	hider = new HistoryHider(this, forwardSelected);
-	hider->show();
-	resizeEvent(0);
-	dialogs.activate();
+void MainWidget::hiderLayer(HistoryHider *h) {
+	hider = h;
+	if (cWideMode()) {
+		hider->show();
+		resizeEvent(0);
+		dialogs.activate();
+	} else {
+		hider->hide();
+		dialogs.enableShadow(false);
+		QPixmap animCache = myGrab(this, QRect(0, 0, _dialogsWidth, height()));
+		dialogs.enableShadow();
+		_topBar.enableShadow();
+
+		onPeerShown(0);
+		if (overview) {
+			overview->hide();
+		} else if (profile) {
+			profile->hide();
+		} else {
+			history.hide();
+		}
+		dialogs.show();
+		resizeEvent(0);
+		dialogs.animShow(animCache);
+		App::wnd()->getTitle()->updateBackButton();
+	}
+}
+
+void MainWidget::forwardLayer(int32 forwardSelected) {
+	hiderLayer((forwardSelected < 0) ? (new HistoryHider(this)) : (new HistoryHider(this, forwardSelected > 0)));
 }
 
 void MainWidget::deleteLayer(int32 selectedCount) {
@@ -360,10 +456,7 @@ void MainWidget::deleteLayer(int32 selectedCount) {
 }
 
 void MainWidget::shareContactLayer(UserData *contact) {
-	hider = new HistoryHider(this, contact);
-	hider->show();
-	resizeEvent(0);
-	dialogs.activate();
+	hiderLayer(new HistoryHider(this, contact));
 }
 
 bool MainWidget::selectingPeer() {
@@ -372,10 +465,23 @@ bool MainWidget::selectingPeer() {
 
 void MainWidget::offerPeer(PeerId peer) {
 	hider->offerPeer(peer);
+	if (!cWideMode()) {
+		_forwardConfirm = new ConfirmBox(hider->offeredText(), lang(lng_forward));
+		connect(_forwardConfirm, SIGNAL(confirmed()), hider, SLOT(forward()));
+		connect(_forwardConfirm, SIGNAL(cancelled()), this, SLOT(onForwardCancel()));
+		connect(_forwardConfirm, SIGNAL(destroyed(QObject*)), this, SLOT(onForwardCancel(QObject*)));
+		App::wnd()->showLayer(_forwardConfirm);
+	}
 }
 
-void MainWidget::hidePeerSelect() {
-	hider->startHide();
+void MainWidget::onForwardCancel(QObject *obj) {
+	if (!obj || obj == _forwardConfirm) {
+		if (_forwardConfirm) {
+			if (!obj) _forwardConfirm->startHide();
+			_forwardConfirm = 0;
+		}
+		if (hider) hider->offerPeer(0);
+	}
 }
 
 void MainWidget::focusPeerSelect() {
@@ -551,7 +657,7 @@ void MainWidget::sendPreparedText(History *hist, const QString &text) {
 		App::historyRegRandom(randomId, newId);
 
 		MTPstring msgText(MTP_string(sendingText));
-		int32 flags = 0x01 | 0x02; // unread, out
+		int32 flags = (hist->peer->input.type() == mtpc_inputPeerSelf) ? 0 : (0x01 | 0x02); // unread, out
 		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTP_int(unixtime()), msgText, MTP_messageMediaEmpty()));
 		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(hist->peer->input, msgText, MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 	}
@@ -962,7 +1068,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 						if (reader.supportsAnimation() && reader.imageCount() > 1 && item) {
 							startGif(item, already);
 						} else {
-							App::wnd()->showDocument(document, QPixmap::fromImage(reader.read()), item);
+							App::wnd()->showDocument(document, QPixmap::fromImage(App::readImage(already, 0, false)), item);
 						}
 					} else {
 						psOpenFile(already);
@@ -1023,9 +1129,42 @@ void MainWidget::cancelSendImage() {
 void MainWidget::dialogsCancelled() {
 	if (hider) {
 		hider->startHide();
+		noHider(hider);
+		history.activate();
 	} else {
 		history.activate();
 	}
+}
+
+void MainWidget::serviceNotification(const QString &msg, const MTPMessageMedia &media, bool unread) {
+	int32 flags = unread ? 0x01 : 0; // unread
+	HistoryItem *item = App::histories().addToBack(MTP_message(MTP_int(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTP_int(unixtime()), MTP_string(msg), media), unread ? 1 : 2);
+	if (item) {
+		history.peerMessagesUpdated(item->history()->peer->id);
+	}
+}
+
+void MainWidget::serviceHistoryDone(const MTPmessages_Messages &msgs) {
+	switch (msgs.type()) {
+	case mtpc_messages_messages:
+		App::feedUsers(msgs.c_messages_messages().vusers);
+		App::feedChats(msgs.c_messages_messages().vchats);
+		App::feedMsgs(msgs.c_messages_messages().vmessages);
+		break;
+
+	case mtpc_messages_messagesSlice:
+		App::feedUsers(msgs.c_messages_messagesSlice().vusers);
+		App::feedChats(msgs.c_messages_messagesSlice().vchats);
+		App::feedMsgs(msgs.c_messages_messagesSlice().vmessages);
+		break;
+	}
+
+	App::wnd()->showDelayedServiceMsgs();
+}
+
+bool MainWidget::serviceHistoryFail(const RPCError &error) {
+	App::wnd()->showDelayedServiceMsgs();
+	return false;
 }
 
 void MainWidget::setInnerFocus() {
@@ -1052,7 +1191,9 @@ void MainWidget::createDialogAtTop(History *history, int32 unreadCount) {
 
 void MainWidget::showPeer(quint64 peerId, qint32 msgId, bool back, bool force) {
 	if (!back && _stack.size() == 1 && _stack[0]->type() == HistoryStackItem && _stack[0]->peer->id == peerId) {
-		back = true;
+		if (cWideMode() || !selectingPeer()) {
+			back = true;
+		}
 	}
 	App::wnd()->hideLayer();
 	QPixmap animCache, animTopBarCache;
@@ -1061,15 +1202,23 @@ void MainWidget::showPeer(quint64 peerId, qint32 msgId, bool back, bool force) {
 		hider = 0;
 	}
 	if (force || !selectingPeer()) {
-		if (history.isHidden() && (profile || overview)) {
+		if ((history.isHidden() && (profile || overview)) || !cWideMode()) {
 			dialogs.enableShadow(false);
 			if (peerId) {
 				_topBar.enableShadow(false);
-				animCache = myGrab(this, history.geometry());
-			} else {
+				if (cWideMode()) {
+					animCache = myGrab(this, QRect(_dialogsWidth, st::topBarHeight, width() - _dialogsWidth, height() - st::topBarHeight));
+				} else {
+					animCache = myGrab(this, QRect(0, st::topBarHeight, _dialogsWidth, height() - st::topBarHeight));
+				}
+			} else if (cWideMode()) {
 				animCache = myGrab(this, QRect(_dialogsWidth, 0, width() - _dialogsWidth, height()));
+			} else {
+				animCache = myGrab(this, QRect(0, 0, _dialogsWidth, height()));
 			}
-			animTopBarCache = myGrab(this, QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight));
+			if (peerId || cWideMode()) {
+				animTopBarCache = myGrab(this, QRect(_topBar.x(), _topBar.y(), _topBar.width(), st::topBarHeight));
+			}
 			dialogs.enableShadow();
 			_topBar.enableShadow();
 			history.show();
@@ -1077,6 +1226,7 @@ void MainWidget::showPeer(quint64 peerId, qint32 msgId, bool back, bool force) {
 	}
 	history.showPeer(peerId, msgId, force);
 	if (force || !selectingPeer()) {
+		bool noPeer = (!history.peer() || !history.peer()->id), onlyDialogs = noPeer && !cWideMode();
 		if (profile || overview) {
 			if (profile) {
 				profile->hide();
@@ -1092,17 +1242,31 @@ void MainWidget::showPeer(quint64 peerId, qint32 msgId, bool back, bool force) {
 				overview = 0;
 			}
 			_stack.clear();
-			if (!history.peer() || !history.peer()->id) {
+		}
+		if (onlyDialogs) {
+			_topBar.hide();
+			history.hide();
+			dialogs.show();
+			if (!animCache.isNull()) {
+				dialogs.animShow(animCache);
+			}
+		} else {
+			if (noPeer) {
 				_topBar.hide();
 				resizeEvent(0);
 			}
+			if (!cWideMode()) dialogs.hide();
+			history.show();
 			if (!animCache.isNull()) {
 				history.animShow(animCache, animTopBarCache, back);
 			}
 		}
 	}
-	dialogs.scrollToPeer(peerId, msgId);
-	dialogs.update();
+	if (!dialogs.isHidden()) {
+		dialogs.scrollToPeer(peerId, msgId);
+		dialogs.update();
+	}
+	App::wnd()->getTitle()->updateBackButton();
 }
 
 void MainWidget::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) {
@@ -1121,6 +1285,10 @@ void MainWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPe
 		return;
 	}
 	dialogs.peerAfter(inPeer, inMsg, outPeer, outMsg);
+}
+
+PeerData *MainWidget::historyPeer() {
+	return history.peer();
 }
 
 PeerData *MainWidget::peer() {
@@ -1198,6 +1366,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	dialogs.raise();
 	_mediaType.raise();
 	if (hider) hider->raise();
+	App::wnd()->getTitle()->updateBackButton();
 }
 
 void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop, bool allMediaShown) {
@@ -1241,6 +1410,7 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop,
 	dialogs.raise();
 	_mediaType.raise();
 	if (hider) hider->raise();
+	App::wnd()->getTitle()->updateBackButton();
 }
 
 void MainWidget::showBackFromStack() {
@@ -1535,33 +1705,93 @@ void MainWidget::hideAll() {
 }
 
 void MainWidget::showAll() {
-	dialogs.show();
-	if (overview) {
-		overview->show();
-	} else if(profile) {
-		profile->show();
+	if (cWideMode()) {
+		if (hider) {
+			hider->show();
+			if (_forwardConfirm) {
+				App::wnd()->hideLayer(true);
+				_forwardConfirm = 0;
+			}
+		}
+		dialogs.show();
+		if (overview) {
+			overview->show();
+		} else if (profile) {
+			profile->show();
+		} else {
+			history.show();
+		}
+		if (profile || overview || history.peer()) {
+			_topBar.show();
+		}
 	} else {
-		history.show();
-	}
-	if (profile || overview || history.peer()) {
-		_topBar.show();
+		if (hider) {
+			hider->hide();
+			if (!_forwardConfirm && hider->wasOffered()) {
+				_forwardConfirm = new ConfirmBox(hider->offeredText(), lang(lng_forward));
+				connect(_forwardConfirm, SIGNAL(confirmed()), hider, SLOT(forward()));
+				connect(_forwardConfirm, SIGNAL(cancelled()), this, SLOT(onForwardCancel()));
+				App::wnd()->showLayer(_forwardConfirm, true);
+			}
+		}
+		if (selectingPeer()) {
+			dialogs.show();
+			history.hide();
+			if (overview) overview->hide();
+			if (profile) profile->hide();
+			_topBar.hide();
+		} else if (overview) {
+			overview->show();
+		} else if (profile) {
+			profile->show();
+		} else if (history.peer()) {
+			history.show();
+		} else {
+			dialogs.show();
+			history.hide();
+		}
+		if (!selectingPeer() && (profile || overview || history.peer())) {
+			_topBar.show();
+			dialogs.hide();
+		}
 	}
 	App::wnd()->checkHistoryActivation();
 }
 
 void MainWidget::resizeEvent(QResizeEvent *e) {
-	_dialogsWidth = snap<int>((width()  * 5) / 14, st::dlgMinWidth, st::dlgMaxWidth);
 	int32 tbh = _topBar.isHidden() ? 0 : st::topBarHeight;
-	dialogs.setGeometry(0, 0, _dialogsWidth + st::dlgShadow, height());
-	_topBar.setGeometry(_dialogsWidth, 0, width() - _dialogsWidth, st::topBarHeight + st::titleShadow);
+	if (cWideMode()) {
+		_dialogsWidth = snap<int>((width() * 5) / 14, st::dlgMinWidth, st::dlgMaxWidth);
+		dialogs.setGeometry(0, 0, _dialogsWidth + st::dlgShadow, height());
+		_topBar.setGeometry(_dialogsWidth, 0, width() - _dialogsWidth, st::topBarHeight + st::titleShadow);
+		history.setGeometry(_dialogsWidth, tbh, width() - _dialogsWidth, height() - tbh);
+		if (hider) hider->setGeometry(QRect(_dialogsWidth, 0, width() - _dialogsWidth, height()));
+	} else {
+		_dialogsWidth = width();
+		dialogs.setGeometry(0, 0, _dialogsWidth + st::dlgShadow, height());
+		_topBar.setGeometry(0, 0, _dialogsWidth, st::topBarHeight + st::titleShadow);
+		history.setGeometry(0, tbh, _dialogsWidth, height() - tbh);
+		if (hider) hider->setGeometry(QRect(0, 0, _dialogsWidth, height()));
+	}
 	_mediaType.move(width() - _mediaType.width(), st::topBarHeight);
-	history.setGeometry(_dialogsWidth, tbh, width() - _dialogsWidth, height() - tbh);
 	if (profile) profile->setGeometry(history.geometry());
 	if (overview) overview->setGeometry(history.geometry());
-	if (hider) hider->setGeometry(QRect(_dialogsWidth, 0, width() - _dialogsWidth, height()));
 }
 
 void MainWidget::keyPressEvent(QKeyEvent *e) {
+}
+
+void MainWidget::updateWideMode() {
+	showAll();
+	_topBar.showAll();
+}
+
+bool MainWidget::needBackButton() {
+	return overview || profile || (history.peer() && history.peer()->id);
+}
+
+void MainWidget::onShowDialogs() {
+	showPeer(0, 0, false, true);
 }
 
 void MainWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
@@ -1571,6 +1801,12 @@ void MainWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) {
 		overview->paintTopBar(p, over, decreaseWidth);
 	} else {
 		history.paintTopBar(p, over, decreaseWidth);
+	}
+}
+
+void MainWidget::topBarShadowParams(int32 &x, float64 &o) {
+	if (!profile && !overview && dialogs.isHidden()) {
+		history.topBarShadowParams(x, o);
 	}
 }
 
@@ -1609,7 +1845,7 @@ void MainWidget::onTopBarClick() {
 }
 
 void MainWidget::onPeerShown(PeerData *peer) {
-	if (profile || overview || (peer && peer->id)) {
+	if ((cWideMode() || !selectingPeer()) && (profile || overview || (peer && peer->id))) {
 		_topBar.show();
 	} else {
 		_topBar.hide();
@@ -1840,6 +2076,12 @@ void MainWidget::start(const MTPUser &user) {
 		openLocalUrl(cStartUrl());
 		cSetStartUrl(QString());
 	}
+	_started = true;
+	App::wnd()->sendServiceHistoryRequest();
+}
+
+bool MainWidget::started() {
+	return _started;
 }
 
 void MainWidget::openLocalUrl(const QString &url) {
@@ -1992,10 +2234,7 @@ void MainWidget::activate() {
 			}
         } else if (App::wnd() && !App::wnd()->layerShown()) {
 			if (!cSendPaths().isEmpty()) {
-				hider = new HistoryHider(this);
-				hider->show();
-				resizeEvent(0);
-				dialogs.activate();
+				forwardLayer(-1);
 			} else if (history.peer()) {
 				history.activate();
 			} else {
@@ -2250,7 +2489,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		UserData *user = App::userLoaded(d.vuser_id.v);
 		if (history && user) {
 			if (d.vaction.type() == mtpc_sendMessageTypingAction) {
-				dialogs.regTyping(history, user);
+				App::histories().regTyping(history, user);
 			} else if (d.vaction.type() == mtpc_sendMessageCancelAction) {
 				history->unregTyping(user);
 			}
@@ -2262,7 +2501,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		History *history = App::historyLoaded(App::peerFromChat(d.vchat_id));
 		UserData *user = (d.vuser_id.v == MTP::authedId()) ? 0 : App::userLoaded(d.vuser_id.v);
 		if (history && user) {
-			dialogs.regTyping(history, user);
+			App::histories().regTyping(history, user);
 		}
 	} break;
 
@@ -2412,12 +2651,24 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateNewAuthorization: {
 		const MTPDupdateNewAuthorization &d(update.c_updateNewAuthorization());
+		QDateTime datetime = date(d.vdate);
+		
+		QString text = lang(lng_new_authorization).replace(qsl("{name}"), App::self()->firstName);
+		text = text.replace(qsl("{day}"), langDayOfWeekFull(datetime.date()));
+		text = text.replace(qsl("{date}"), langDayOfMonth(datetime.date()));
+		text = text.replace(qsl("{time}"), datetime.time().toString(qsl("hh:mm")));
+		text = text.replace(qsl("{device}"), qs(d.vdevice));
+		text = text.replace(qsl("{location}"), qs(d.vlocation));
+		App::wnd()->serviceNotification(text);
 	} break;
 
 	case mtpc_updateServiceNotification: {
 		const MTPDupdateServiceNotification &d(update.c_updateServiceNotification());
 		if (d.vpopup.v) {
 			App::wnd()->showLayer(new ConfirmBox(qs(d.vmessage), true));
+			App::wnd()->serviceNotification(qs(d.vmessage), false, d.vmedia);
+		} else {
+			App::wnd()->serviceNotification(qs(d.vmessage), true, d.vmedia);
 		}
 	} break;
 

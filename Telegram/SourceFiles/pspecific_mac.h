@@ -82,12 +82,15 @@ public:
 
 	bool eventFilter(QObject *obj, QEvent *evt);
 
+	void psUpdateCounter();
+
+	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
+
 	~PsMainWindow();
 
 public slots:
 
 	void psStateChanged(Qt::WindowState state);
-	void psUpdateCounter();
 	void psUpdateDelegate();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psIdleTimeout();
@@ -118,7 +121,6 @@ protected:
 
 	virtual void setupTrayIcon() = 0;
 	virtual void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) = 0;
-	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
 
     QTimer psUpdatedPositionTimer;
 

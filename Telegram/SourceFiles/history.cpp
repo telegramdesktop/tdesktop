@@ -298,7 +298,7 @@ const ChatData *PeerData::asChat() const {
 }
 
 void PeerData::updateName(const QString &newName, const QString &newNameOrPhone, const QString &newUsername) {
-	if (name == newName && nameOrPhone == newNameOrPhone && (chat || asUser()->username == newUsername)) return;
+	if (name == newName && nameOrPhone == newNameOrPhone && (chat || asUser()->username == newUsername) && nameVersion > 0) return;
 
 	++nameVersion;
 	name = newName;
@@ -324,7 +324,11 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) {
 	} break;
 	default: {
 		photoId = 0;
-		photo = userDefPhoto(colorIndex);
+		if (id == ServiceUserId) {
+			photo = ImagePtr(QPixmap::fromImage(App::wnd()->iconLarge().scaledToWidth(160, Qt::SmoothTransformation)), "PNG");
+		} else {
+			photo = userDefPhoto(colorIndex);
+		}
 	} break;
 	}
 	emit App::main()->peerPhotoChanged(this);
@@ -365,7 +369,7 @@ void UserData::setName(const QString &first, const QString &last, const QString 
 			firstName = first;
 			lastName = last;
 		}
-		updateName(firstName + ' ' + lastName, phoneName, usern);
+		updateName(lastName.isEmpty() ? firstName : (firstName + ' ' + lastName), phoneName, usern);
 	}
 	if (updUsername) {
 		if (App::main()) {
@@ -633,7 +637,7 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 				if (reader.supportsAnimation() && reader.imageCount() > 1 && App::hoveredLinkItem()) {
 					startGif(App::hoveredLinkItem(), already);
 				} else {
-					App::wnd()->showDocument(data, QPixmap::fromImage(reader.read()), App::hoveredLinkItem());
+					App::wnd()->showDocument(data, QPixmap::fromImage(App::readImage(already, 0, false)), App::hoveredLinkItem());
 				}
 			} else {
 				psOpenFile(already);
@@ -1066,6 +1070,37 @@ void Histories::clear() {
 	App::historyClearItems();
 	typing.clear();
 	Parent::clear();
+}
+
+void Histories::regTyping(History *history, UserData *user) {
+	uint64 ms = getms(true);
+	history->typing[user] = ms + 6000;
+
+	TypingHistories::const_iterator i = typing.find(history);
+	if (i == typing.cend()) {
+		typing.insert(history, ms);
+		history->typingFrame = 0;
+	}
+
+	history->updateTyping(ms, history->typingFrame, true);
+	anim::start(this);
+}
+
+bool Histories::animStep(float64) {
+	uint64 ms = getms(true);
+	for (TypingHistories::iterator i = typing.begin(), e = typing.end(); i != e;) {
+		uint32 typingFrame = (ms - i.value()) / 150;
+		if (i.key()->updateTyping(ms, typingFrame)) {
+			App::main()->dlgUpdated(i.key());
+			App::main()->topBar()->update();
+		}
+		if (i.key()->typing.isEmpty()) {
+			i = typing.erase(i);
+		} else {
+			++i;
+		}
+	}
+	return !typing.isEmpty();
 }
 
 Histories::Parent::iterator Histories::erase(Histories::Parent::iterator i) {
@@ -1596,7 +1631,7 @@ void History::setUnreadCount(int32 newUnreadCount, bool psUpdate) {
 		App::histories().unreadFull += newUnreadCount - unreadCount;
 		if (mute) App::histories().unreadMuted += newUnreadCount - unreadCount;
 		unreadCount = newUnreadCount;
-		if (psUpdate) App::wnd()->psUpdateCounter();
+		if (psUpdate) App::wnd()->updateCounter();
 		if (unreadBar) unreadBar->setCount(unreadCount);
 	}
 }
@@ -1611,7 +1646,7 @@ void History::setMsgCount(int32 newMsgCount) {
 	if (mute != newMute) {
 		App::histories().unreadMuted += newMute ? unreadCount : (-unreadCount);
 		mute = newMute;
-		App::wnd()->psUpdateCounter();
+		App::wnd()->updateCounter();
 	}
 }
 
@@ -4157,7 +4192,7 @@ HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const 
 	fwdNameUpdated();
 }
 
-HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, HistoryMessage *msg) : HistoryMessage(history, block, id, true, true, ::date(unixtime()), MTP::authedId(), msg->HistoryMessage::selectedText(FullItemSel), msg->getMedia())
+HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, HistoryMessage *msg) : HistoryMessage(history, block, id, (history->peer->input.type() != mtpc_inputPeerSelf), (history->peer->input.type() != mtpc_inputPeerSelf), ::date(unixtime()), MTP::authedId(), msg->HistoryMessage::selectedText(FullItemSel), msg->getMedia())
 , fwdDate(dynamic_cast<HistoryForwarded*>(msg) ? dynamic_cast<HistoryForwarded*>(msg)->dateForwarded() : msg->date)
 , fwdFrom(dynamic_cast<HistoryForwarded*>(msg) ? dynamic_cast<HistoryForwarded*>(msg)->fromForwarded() : msg->from())
 , fwdFromName(4096)

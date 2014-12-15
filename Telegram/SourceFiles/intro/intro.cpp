@@ -333,6 +333,10 @@ void IntroWidget::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
+void IntroWidget::updateWideMode() {
+
+}
+
 void IntroWidget::rpcInvalidate() {
 	if (phone) phone->rpcInvalidate();
 	if (code) code->rpcInvalidate();

@@ -204,6 +204,7 @@ public:
 	void resizeEvent(QResizeEvent *e);
 
 	void offerPeer(PeerId peer);
+	QString offeredText() const;
 
 	bool wasOffered() const;
 
@@ -270,6 +271,7 @@ public:
 	void updateTopBarSelection();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
+	void topBarShadowParams(int32 &x, float64 &o);
 	void topBarClick();
 
 	void loadMessages();

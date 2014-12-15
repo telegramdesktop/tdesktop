@@ -45,6 +45,10 @@ public:
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
+	void updateBackButton();
+	void updateWideMode();
+	void updateCounter();
+
 	void mousePressEvent(QMouseEvent *e);
 	void mouseDoubleClickEvent(QMouseEvent *e);
 
@@ -80,7 +84,8 @@ private:
 
 	float64 _lastUpdateMs;
 
-	FlatButton _settings, _contacts, _about;
+	MaskedButton _back;
+	FlatButton _cancel, _settings, _contacts, _about;
 
 	UpdateBtn _update;
 	MinimizeBtn _minimize;
@@ -89,5 +94,7 @@ private:
 	CloseBtn _close;
 
 	bool lastMaximized;
+
+	QPixmap _counter;
 
 };

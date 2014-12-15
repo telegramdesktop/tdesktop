@@ -17,14 +17,18 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 6016;
-static const wchar_t *AppVersionStr = L"0.6.16";
+static const int32 AppVersion = 6021;
+static const wchar_t *AppVersionStr = L"0.6.21";
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
 
 static const wchar_t *AppId = L"{53F49750-6209-4FBF-9CA8-7A333C87D1ED}"; // used in updater.cpp and Setup.iss for Windows
 static const wchar_t *AppFile = L"Telegram";
+
+static const int32 FeaturesNotifyVersion = 6021;
+static const int32 FeaturesNotifyVersionFrom = 6017;
+extern const char *FeaturesNotify;
 
 #include "settings.h"
 
@@ -89,6 +93,7 @@ enum {
 
 	MediaViewImageSizeLimit = 100 * 1024 * 1024, // show up to 100mb jpg/png/gif docs in app
 	MaxZoomLevel = 7, // x8
+	ZoomToScreenLevel = 1024, // just constant
 
 	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
 	EmojiPadPerRow = 7,
@@ -105,10 +110,12 @@ enum {
 	WriteMapTimeout = 1000,
 	SaveDraftTimeout = 1000, // save draft after 1 secs of not changing text
 	SaveDraftAnywayTimeout = 5000, // or save anyway each 5 secs
+
+	ServiceUserId = 777000,
 };
 
 inline bool isServiceUser(uint64 id) {
-	return (id == 333000) || (id == 777000);
+	return (id == 333000) || (id == ServiceUserId);
 }
 
 #ifdef Q_OS_WIN
@@ -154,7 +161,9 @@ static const BuiltInDc _builtInDcs[] = {
 };
 
 static const BuiltInDc _builtInTestDcs[] = {
-	{ 1, "173.240.5.253", 443 }
+	{ 1, "173.240.5.253", 443 },
+	{ 2, "149.154.167.40", 443 },
+	{ 3, "174.140.142.5", 443 }
 };
 
 inline const BuiltInDc *builtInDcs() {
@@ -222,8 +231,6 @@ enum {
 
 	MessagesFirstLoad = 30, // first history part size requested
 	MessagesPerPage = 50, // next history part size
-
-	LinkCropLimit = 360, // 360px link length max
 
 	DownloadPartSize = 64 * 1024, // 64kb for photo
 	DocumentDownloadPartSize = 128 * 1024, // 128kb for document

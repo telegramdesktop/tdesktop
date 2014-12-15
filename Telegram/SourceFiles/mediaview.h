@@ -86,6 +86,8 @@ private:
 	void updatePolaroid();
 	void snapXY();
 
+	QBrush _transparentBrush;
+
 	QTimer _timer;
 	PhotoData *_photo;
 	DocumentData *_doc;
@@ -98,6 +100,7 @@ private:
 
 	int32 _maxWidth, _maxHeight, _width, _x, _y, _w, _h, _xStart, _yStart;
 	int32 _zoom; // < 0 - out, 0 - none, > 0 - in
+	float64 _zoomToScreen; // for documents
 	QPoint _mStart;
 	bool _pressed;
 	int32 _dragging;

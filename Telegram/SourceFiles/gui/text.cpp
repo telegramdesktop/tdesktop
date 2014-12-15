@@ -404,7 +404,7 @@ public:
 		} else {
 			QUrl url(original), good(url.isValid() ? url.toEncoded() : "");
 			QString readable = good.isValid() ? good.toDisplayString() : original;
-			result = _t->_font->m.elidedText(readable, Qt::ElideRight, LinkCropLimit);
+			result = _t->_font->m.elidedText(readable, Qt::ElideRight, st::linkCropLimit);
 			fullDisplayed = (result == readable) ? 1 : 0;
 		}
 	}

@@ -32,7 +32,7 @@ TitleHider::TitleHider(QWidget *parent) : QWidget(parent), _level(0) {
 void TitleHider::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 	p.setOpacity(_level * st::layerAlpha);
-	p.fillRect(App::main()->dlgsWidth() - 1, 0, width() - App::main()->dlgsWidth(), height(), st::layerBG->b);
+	p.fillRect(App::main()->dlgsWidth() - st::dlgShadow, 0, width() + st::dlgShadow - App::main()->dlgsWidth(), height(), st::layerBG->b);
 }
 
 void TitleHider::mousePressEvent(QMouseEvent *e) {
@@ -51,6 +51,8 @@ TitleWidget::TitleWidget(Window *window)
 	, wnd(window)
     , hideLevel(0)
     , hider(0)
+	, _back(this, st::titleBackButton, lang(lng_menu_back))
+	, _cancel(this, lang(lng_cancel), st::titleTextButton)
 	, _settings(this, lang(lng_menu_settings), st::titleTextButton)
 	, _contacts(this, lang(lng_menu_contacts), st::titleTextButton)
 	, _about(this, lang(lng_menu_about), st::titleTextButton)
@@ -61,7 +63,6 @@ TitleWidget::TitleWidget(Window *window)
 	, _close(this, window)
     , lastMaximized(!(window->windowState() & Qt::WindowMaximized))
 {
-
 	setGeometry(0, 0, wnd->width(), st::titleHeight);
 	_update.hide();
 	if (App::app()->updatingState() == Application::UpdatingReady) {
@@ -69,6 +70,8 @@ TitleWidget::TitleWidget(Window *window)
 	}
 	stateChanged();
 
+	connect(&_back, SIGNAL(clicked()), window, SLOT(hideSettings()));
+	connect(&_cancel, SIGNAL(clicked()), this, SIGNAL(hiderClicked()));
 	connect(&_settings, SIGNAL(clicked()), window, SLOT(showSettings()));
 	connect(&_contacts, SIGNAL(clicked()), this, SLOT(onContacts()));
 	connect(&_about, SIGNAL(clicked()), this, SLOT(onAbout()));
@@ -87,7 +90,15 @@ void TitleWidget::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
 	p.fillRect(QRect(0, 0, width(), st::titleHeight), st::titleBG->b);
-	p.drawPixmap(st::titleIconPos, App::sprite(), st::titleIconRect);
+	if (!_cancel.isHidden()) {
+		p.setPen(st::titleTextButton.color->p);
+		p.setFont(st::titleTextButton.font->f);
+		p.drawText(st::titleMenuOffset - st::titleTextButton.width / 2, st::titleTextButton.textTop + st::titleTextButton.font->ascent, lang(lng_forward_choose));
+	}
+	p.drawPixmap(st::titleIconPos, App::sprite(), st::titleIconImg);
+	if (!cWideMode() && !_counter.isNull() && App::main()) {
+		p.drawPixmap(st::titleIconPos.x() + st::titleIconImg.pxWidth() - (_counter.width() / cIntRetinaFactor()), st::titleIconPos.y() + st::titleIconImg.pxHeight() - (_counter.height() / cIntRetinaFactor()), _counter);
+	}
 }
 
 bool TitleWidget::animStep(float64 ms) {
@@ -105,7 +116,11 @@ void TitleWidget::setHideLevel(float64 level) {
 				hider = new TitleHider(this);
 				hider->move(0, 0);
 				hider->resize(size());
-				hider->show();
+				if (cWideMode()) {
+					hider->show();
+				} else {
+					hider->hide();
+				}
 			}
 			hider->setLevel(hideLevel);
 		} else {
@@ -140,6 +155,7 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
 		_update.move(p);
 		p.setX(p.x() + _update.width());
 	}
+	_cancel.move(p.x() - _cancel.width(), 0);
 
     if (cPlatform() == dbipWindows) {
         p.setX(p.x() - _close.width());
@@ -153,16 +169,90 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
     }
     
 	_settings.move(st::titleMenuOffset, 0);
-	if (MTP::authedId()) {
+	_back.move(st::titleMenuOffset, 0);
+	_back.resize((_minimize.isHidden() ? (_update.isHidden() ? width() : _update.x()) : _minimize.x()) - st::titleMenuOffset, _back.height());
+	if (MTP::authedId() && _back.isHidden() && _cancel.isHidden()) {
 		_contacts.show();
 		_contacts.move(_settings.x() + _settings.width(), 0);
 		_about.move(_contacts.x() + _contacts.width(), 0);
 	} else {
 		_contacts.hide();
-		_about.move(_settings.x() + _settings.width(), 0);
+		if (!MTP::authedId()) _about.move(_settings.x() + _settings.width(), 0);
 	}
 
 	if (hider) hider->resize(size());
+}
+
+void TitleWidget::updateBackButton() {
+	if (!cWideMode() && App::main() && App::main()->selectingPeer()) {
+		_cancel.show();
+		if (!_back.isHidden()) _back.hide();
+		_settings.hide();
+		_contacts.hide();
+		_about.hide();
+	} else {
+		_cancel.hide();
+		bool authed = (MTP::authedId() > 0);
+		if (cWideMode()) {
+			if (!_back.isHidden()) _back.hide();
+			_settings.show();
+			if (authed) _contacts.show();
+			_about.show();
+		} else {
+			bool need = App::wnd()->needBackButton();
+			if (need && _back.isHidden()) {
+				_back.show();
+				_settings.hide();
+				_contacts.hide();
+				_about.hide();
+			} else if (!need && !_back.isHidden()) {
+				_back.hide();
+				_settings.show();
+				if (authed) _contacts.show();
+				_about.show();
+			}
+		}
+	}
+	showUpdateBtn();
+	update();
+}
+
+void TitleWidget::updateWideMode() {
+	updateBackButton();
+	if (!cWideMode()) {
+		updateCounter();
+	}
+	if (hider) {
+		if (cWideMode()) {
+			hider->show();
+		} else {
+			hider->hide();
+		}
+	}
+}
+
+void TitleWidget::updateCounter() {
+	if (cWideMode() || !MTP::authedId()) return;
+
+	int32 counter = App::histories().unreadFull;
+	style::color bg = (App::histories().unreadMuted < counter) ? st::counterBG : st::counterMuteBG;
+	
+	if (counter > 0) {
+		int32 size = -16;
+		switch (cScale()) {
+		case dbisOneAndQuarter: size = -20; break;
+		case dbisOneAndHalf: size = -24; break;
+		case dbisTwo: size = -32; break;
+		}
+		_counter = QPixmap::fromImage(App::wnd()->iconWithCounter(size, counter, bg, false));
+		_counter.setDevicePixelRatio(cRetinaFactor());
+		update(QRect(st::titleIconPos, st::titleIconImg.pxSize()));
+	} else {
+		if (!_counter.isNull()) {
+			_counter = QPixmap();
+			update(QRect(st::titleIconPos, st::titleIconImg.pxSize()));
+		}
+	}
 }
 
 void TitleWidget::mousePressEvent(QMouseEvent *e) {
@@ -189,6 +279,15 @@ void TitleWidget::stateChanged(Qt::WindowState state) {
 }
 
 void TitleWidget::showUpdateBtn() {
+	if (!cWideMode() && App::main() && App::main()->selectingPeer()) {
+		_cancel.show();
+		_update.hide();
+		_minimize.hide();
+		_restore.hide();
+		_maximize.hide();
+		_close.hide();
+		return;
+	}
 	bool updateReady = App::app()->updatingState() == Application::UpdatingReady;
 	if (updateReady || cEvalScale(cConfigScale()) != cEvalScale(cRealScale())) {
 		_update.setText(lang(updateReady ? lng_menu_update : lng_menu_restart));
@@ -234,9 +333,9 @@ HitTestType TitleWidget::hitTest(const QPoint &p) {
 	if (App::wnd() && App::wnd()->layerShown()) return HitTestNone;
 
 	int x(p.x()), y(p.y()), w(width()), h(height() - st::titleShadow);
-	if (hider && x >= App::main()->dlgsWidth()) return HitTestNone;
+	if (cWideMode() && hider && x >= App::main()->dlgsWidth()) return HitTestNone;
 
-	if (x >= st::titleIconPos.x() && y >= st::titleIconPos.y() && x < st::titleIconPos.x() + st::titleIconRect.pxWidth() && y < st::titleIconPos.y() + st::titleIconRect.pxHeight()) {
+	if (x >= st::titleIconPos.x() && y >= st::titleIconPos.y() && x < st::titleIconPos.x() + st::titleIconImg.pxWidth() && y < st::titleIconPos.y() + st::titleIconImg.pxHeight()) {
 		return HitTestIcon;
 	} else if (false
         || (_update.hitTest(p - _update.geometry().topLeft()) == HitTestSysButton && _update.isVisible())
@@ -248,9 +347,11 @@ HitTestType TitleWidget::hitTest(const QPoint &p) {
 		return HitTestSysButton;
 	} else if (x >= 0 && x < w && y >= 0 && y < h) {
 		if (false
-			|| _settings.geometry().contains(x, y)
+			|| (!_back.isHidden() && _back.geometry().contains(x, y))
+			|| (!_cancel.isHidden() && _cancel.geometry().contains(x, y))
+			|| (!_settings.isHidden() && _settings.geometry().contains(x, y))
 			|| (!_contacts.isHidden() && _contacts.geometry().contains(x, y))
-			|| _about.geometry().contains(x, y)
+			|| (!_about.isHidden() && _about.geometry().contains(x, y))
 		) {
 			return HitTestClient;
 		}

@@ -167,8 +167,7 @@ public:
 
 	void dialogsToUp();
 
-	void regTyping(History *history, UserData *user);
-
+	void animShow(const QPixmap &bgAnimCache);
 	bool animStep(float64 ms);
 
 	void setInnerFocus();
@@ -201,10 +200,10 @@ public slots:
 	void onCancel();
 	void onListScroll();
 	void activate();
-	void onFilterUpdate();
+	void onFilterUpdate(bool force = false);
 	void onAddContact();
 	void onNewGroup();
-	void onCancelSearch();
+	bool onCancelSearch();
 
 	void onDialogToTopFrom(int movedFrom);
 	bool onSearchMessages(bool searchCache = false);
@@ -228,6 +227,10 @@ private:
 	IconedButton _newGroup, _addContact, _cancelSearch;
 	ScrollArea scroll;
 	DialogsListWidget list;
+
+	QPixmap _animCache, _bgAnimCache;
+	anim::ivalue a_coord, a_bgCoord;
+	anim::fvalue a_alpha, a_bgAlpha;
 
 	QTimer _searchTimer;
 	QString _searchQuery, _peopleQuery;

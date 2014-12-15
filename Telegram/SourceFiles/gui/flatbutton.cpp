@@ -214,3 +214,29 @@ void IconedButton::paintEvent(QPaintEvent *e) {
 		p.drawPixmap(t, App::sprite(), i);
 	}
 }
+
+MaskedButton::MaskedButton(QWidget *parent, const style::iconedButton &st, const QString &text) : IconedButton(parent, st, text) {
+}
+
+void MaskedButton::paintEvent(QPaintEvent *e) {
+	QPainter p(this);
+
+	p.setOpacity(_opacity);
+
+	p.setOpacity(a_opacity.current() * _opacity);
+
+	if (!_text.isEmpty()) {
+		p.setFont(_st.font->f);
+		p.setRenderHint(QPainter::TextAntialiasing);
+		p.setPen(a_bg.current());
+		const QPoint &t((_state & StateDown) ? _st.downTextPos : _st.textPos);
+		p.drawText(t.x(), t.y() + _st.font->ascent, _text);
+	}
+
+	const style::sprite &i((_state & StateDown) ? _st.downIcon : _st.icon);
+	if (i.pxWidth()) {
+		const QPoint &t((_state & StateDown) ? _st.downIconPos : _st.iconPos);
+		p.fillRect(QRect(t, QSize(i.pxWidth(), i.pxHeight())), a_bg.current());
+		p.drawPixmap(t, App::sprite(), i);
+	}
+}

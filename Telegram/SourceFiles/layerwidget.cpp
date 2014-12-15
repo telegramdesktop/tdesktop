@@ -33,10 +33,17 @@ BackgroundWidget::BackgroundWidget(QWidget *parent, LayeredWidget *w) : QWidget(
 	show();
 	connect(w, SIGNAL(closed()), this, SLOT(onInnerClose()));
 	connect(w, SIGNAL(resized()), this, SLOT(update()));
+	connect(w, SIGNAL(destroyed(QObject*)), this, SLOT(boxDestroyed(QObject*)));
 	w->setFocus();
 }
 
+void BackgroundWidget::showFast() {
+	animStep(st::layerSlideDuration + 1);
+	update();
+}
+
 void BackgroundWidget::paintEvent(QPaintEvent *e) {
+	if (!w) return;
 	bool trivial = (rect() == e->rect());
 
 	QPainter p(this);
@@ -91,6 +98,10 @@ void BackgroundWidget::resizeEvent(QResizeEvent *e) {
 	w->parentResized();
 }
 
+void BackgroundWidget::updateWideMode() {
+
+}
+
 void BackgroundWidget::replaceInner(LayeredWidget *n) {
 	if (_hidden) _hidden->deleteLater();
 	_hidden = w;
@@ -99,6 +110,7 @@ void BackgroundWidget::replaceInner(LayeredWidget *n) {
 	w->setParent(this);
 	connect(w, SIGNAL(closed()), this, SLOT(onInnerClose()));
 	connect(w, SIGNAL(resized()), this, SLOT(update()));
+	connect(w, SIGNAL(destroyed(QObject*)), this, SLOT(boxDestroyed(QObject*)));
 	w->show();
 	resizeEvent(0);
 	w->animStep(1);
@@ -112,14 +124,24 @@ bool BackgroundWidget::animStep(float64 ms) {
 	if (dt >= 1) {
 		aBackground.finish();
 		if (hiding)	{
-			QTimer::singleShot(0, App::wnd(), SLOT(layerHidden()));
+			App::wnd()->layerFinishedHide(this);
 		}
+		anim::stop(this);
 		res = false;
 	} else {
 		aBackground.update(dt, aBackgroundFunc);
 	}
 	update();
 	return res;
+}
+
+void BackgroundWidget::boxDestroyed(QObject *obj) {
+	if (obj == w) {
+		if (App::wnd()) App::wnd()->layerFinishedHide(this);
+		w = 0;
+	} else if (_hidden == obj) {
+		_hidden = 0;
+	}
 }
 
 BackgroundWidget::~BackgroundWidget() {

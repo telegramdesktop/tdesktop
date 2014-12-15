@@ -168,9 +168,8 @@ namespace App {
 	bool quiting();
 	void setQuiting();
 
-
-    QImage readImage(QByteArray data, QByteArray *format = 0);
-    QImage readImage(const QString &file, QByteArray *format = 0);
+    QImage readImage(QByteArray data, QByteArray *format = 0, bool opaque = true);
+	QImage readImage(const QString &file, QByteArray *format = 0, bool opaque = true);
 
 	void regVideoItem(VideoData *data, HistoryItem *item);
 	void unregVideoItem(VideoData *data, HistoryItem *item);

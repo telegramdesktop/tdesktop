@@ -33,6 +33,8 @@ public:
 
 	virtual void leaveToChildEvent(QEvent *e) { // e -- from enterEvent() of child TWidget
 	}
+	virtual void enterFromChildEvent(QEvent *e) { // e -- from leaveEvent() of child TWidget
+	}
 
 	bool event(QEvent *e) {
 		return QWidget::event(e);
@@ -43,6 +45,10 @@ protected:
 	void enterEvent(QEvent *e) {
 		TWidget *p(tparent());
 		if (p) p->leaveToChildEvent(e);
+	}
+	void leaveEvent(QEvent *e) {
+		TWidget *p(tparent());
+		if (p) p->enterFromChildEvent(e);
 	}
 
 private:

@@ -40,6 +40,8 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void keyPressEvent(QKeyEvent *e);
 
+	void updateWideMode();
+
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
 	bool animStep(float64 ms);
 

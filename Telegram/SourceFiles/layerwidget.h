@@ -54,10 +54,14 @@ public:
 
 	BackgroundWidget(QWidget *parent, LayeredWidget *w);
 
+	void showFast();
+
 	void paintEvent(QPaintEvent *e);
 	void keyPressEvent(QKeyEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
+
+	void updateWideMode();
 
 	void replaceInner(LayeredWidget *n);
 
@@ -69,6 +73,7 @@ public slots:
 
 	void onClose();
 	bool onInnerClose();
+	void boxDestroyed(QObject *obj);
 
 private:
 

@@ -678,8 +678,14 @@ void Application::startApp() {
 	}
 
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
-    if (Local::oldMapVersion() < AppVersion) {
+	if (Local::oldMapVersion() < AppVersion) {
 		psRegisterCustomScheme();
+		if (Local::oldMapVersion() && Local::oldMapVersion() <= FeaturesNotifyVersionFrom && AppVersion == FeaturesNotifyVersion) {
+			QString versionFeatures(QString::fromUtf8(FeaturesNotify));
+			if (!versionFeatures.isEmpty()) {
+				window->serviceNotification(versionFeatures);
+			}
+		}
 	}
 }
 

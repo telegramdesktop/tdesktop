@@ -596,7 +596,7 @@ void DialogsListWidget::dialogsReceived(const QVector<MTPDialog> &added) {
 			addDialog(i->c_dialog());
 		}
 	}
-	if (App::wnd()) App::wnd()->psUpdateCounter();
+	if (App::wnd()) App::wnd()->updateCounter();
 	if (!sel && dialogs.list.count) {
 		sel = dialogs.list.begin;
 		contactSel = false;
@@ -1245,41 +1245,49 @@ void DialogsWidget::setInnerFocus() {
 	_filter.setFocus();
 }
 
-void DialogsWidget::regTyping(History *history, UserData *user) {
-	uint64 ms = getms(true);
-	history->typing[user] = ms + 6000;
-
-	Histories::TypingHistories::const_iterator i = App::histories().typing.find(history);
-	if (i == App::histories().typing.cend()) {
-		App::histories().typing.insert(history, ms);
-		history->typingFrame = 0;
-	}
-
-	history->updateTyping(ms, history->typingFrame, true);
+void DialogsWidget::animShow(const QPixmap &bgAnimCache) {
+	_bgAnimCache = bgAnimCache;
+	_animCache = myGrab(this, rect());
+	scroll.hide();
+	_filter.hide();
+	_cancelSearch.hide();
+	_newGroup.hide();
+	a_coord = anim::ivalue(-st::introSlideShift, 0);
+	a_alpha = anim::fvalue(0, 1);
+	a_bgCoord = anim::ivalue(0, st::introSlideShift);
+	a_bgAlpha = anim::fvalue(1, 0);
 	anim::start(this);
 }
 
-bool DialogsWidget::animStep(float64) {
-	uint64 ms = getms(true);
-	Histories::TypingHistories &typing(App::histories().typing);
-	for (Histories::TypingHistories::iterator i = typing.begin(), e = typing.end(); i != e;) {
-		uint32 typingFrame = (ms - i.value()) / 150;
-		if (i.key()->updateTyping(ms, typingFrame)) {
-			list.dlgUpdated(i.key());
-			App::main()->topBar()->update();
-		}
-		if (i.key()->typing.isEmpty()) {
-			i = typing.erase(i);
-		} else {
-			++i;
-		}
+bool DialogsWidget::animStep(float64 ms) {
+	float64 fullDuration = st::introSlideDelta + st::introSlideDuration, dt = ms / fullDuration;
+	float64 dt1 = (ms > st::introSlideDuration) ? 1 : (ms / st::introSlideDuration), dt2 = (ms > st::introSlideDelta) ? (ms - st::introSlideDelta) / (st::introSlideDuration) : 0;
+	bool res = true;
+	if (dt2 >= 1) {
+		res = false;
+		a_bgCoord.finish();
+		a_bgAlpha.finish();
+		a_coord.finish();
+		a_alpha.finish();
+		_bgAnimCache = _animCache = QPixmap();
+		scroll.show();
+		_filter.show();
+		onFilterUpdate(true);
+		activate();
+	} else {
+		a_bgCoord.update(dt1, st::introHideFunc);
+		a_bgAlpha.update(dt1, st::introAlphaHideFunc);
+		a_coord.update(dt2, st::introShowFunc);
+		a_alpha.update(dt2, st::introAlphaShowFunc);
 	}
-	return !typing.isEmpty();
+	update();
+	return res;
 }
 
 void DialogsWidget::onCancel() {
-	onCancelSearch();
-	emit cancelled();
+	if (!onCancelSearch() || !App::main()->selectingPeer()) {
+		emit cancelled();
+	}
 }
 
 void DialogsWidget::itemRemoved(HistoryItem *item) {
@@ -1296,10 +1304,12 @@ void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
 		Histories::iterator j = App::histories().find(App::peerFromMTP(d.vpeer));
 		if (j != App::histories().end()) {
 			App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, j.value());
-			j.value()->setUnreadCount(d.vunread_count.v, false);
+			if (d.vunread_count.v >= j.value()->unreadCount) {
+				j.value()->setUnreadCount(d.vunread_count.v, false);
+			}
 		}
 	}
-	if (App::wnd()) App::wnd()->psUpdateCounter();
+	if (App::wnd()) App::wnd()->updateCounter();
 }
 
 void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs) {
@@ -1543,17 +1553,17 @@ void DialogsWidget::onListScroll() {
 	}
 }
 
-void DialogsWidget::onFilterUpdate() {
+void DialogsWidget::onFilterUpdate(bool force) {
+	if (animating() && !force) return;
+
 	QString filterText = _filter.text();
 	list.onFilterUpdate(filterText);
 	if (filterText.isEmpty()) {
 		_searchCache.clear();
 		_searchQueries.clear();
 		_searchQuery = QString();
-		if (!_cancelSearch.isHidden()) {
-			_cancelSearch.hide();
-			_newGroup.show();
-		}
+		_cancelSearch.hide();
+		_newGroup.show();
 	} else if (_cancelSearch.isHidden()) {
 		_cancelSearch.show();
 		_newGroup.hide();
@@ -1603,8 +1613,22 @@ void DialogsWidget::keyPressEvent(QKeyEvent *e) {
 
 void DialogsWidget::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
-	if (_drawShadow) {
-		p.fillRect(width() - st::dlgShadow, 0, st::dlgShadow, height(), st::dlgShadowColor->b);
+	QRect r(e->rect());
+	if (r != rect()) {
+		p.setClipRect(r);
+	}
+	if (animating()) {
+		p.setOpacity(a_bgAlpha.current());
+		p.drawPixmap(a_bgCoord.current(), 0, _bgAnimCache);
+		p.setOpacity(a_alpha.current());
+		p.drawPixmap(a_coord.current(), 0, _animCache);
+		return;
+	}
+	if (cWideMode() && _drawShadow) {
+		QRect sh(width() - st::dlgShadow, 0, st::dlgShadow, height());
+		if (r.intersects(sh)) {
+			p.fillRect(sh, st::dlgShadowColor->b);
+		}
 	}
 }
 
@@ -1648,11 +1672,13 @@ void DialogsWidget::onNewGroup() {
 	App::wnd()->showLayer(new NewGroupBox());
 }
 
-void DialogsWidget::onCancelSearch() {
+bool DialogsWidget::onCancelSearch() {
+	bool clearing = !_filter.text().isEmpty();
 	list.clearFilter();
 	_filter.clear();
 	_filter.updatePlaceholder();
 	onFilterUpdate();
+	return clearing;
 }
 
 void DialogsWidget::onDialogToTopFrom(int movedFrom) {

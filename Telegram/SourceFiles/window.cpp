@@ -329,7 +329,7 @@ NotifyWindow::~NotifyWindow() {
 	if (App::wnd()) App::wnd()->notifyShowNext(this);
 }
 
-Window::Window(QWidget *parent) : PsMainWindow(parent),
+Window::Window(QWidget *parent) : PsMainWindow(parent), _serviceHistoryRequest(0),
 intro(0), main(0), settings(0), layerBG(0), _topWidget(0),
 _connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _mediaView(0) {
 
@@ -452,10 +452,44 @@ void Window::setupIntro(bool anim) {
 	fixOrder();
 
 	updateTitleStatus();
+
+	_delayedServiceMsgs.clear();
+	if (_serviceHistoryRequest) {
+		MTP::cancel(_serviceHistoryRequest);
+		_serviceHistoryRequest = 0;
+	}
 }
 
 void Window::getNotifySetting(const MTPInputNotifyPeer &peer, uint32 msWait) {
 	MTP::send(MTPaccount_GetNotifySettings(peer), main->rpcDone(&MainWidget::gotNotifySetting, peer), main->rpcFail(&MainWidget::failNotifySetting, peer), 0, msWait);
+}
+
+void Window::serviceNotification(const QString &msg, bool unread, const MTPMessageMedia &media, bool force) {
+	History *h = (main && App::userLoaded(ServiceUserId)) ? App::history(ServiceUserId) : 0;
+	if (!h || (!force && h->isEmpty())) {
+		_delayedServiceMsgs.push_back(DelayedServiceMsg(qMakePair(msg, media), unread));
+		return sendServiceHistoryRequest();
+	}
+
+	main->serviceNotification(msg, media, unread);
+}
+
+void Window::showDelayedServiceMsgs() {
+	QVector<DelayedServiceMsg> toAdd = _delayedServiceMsgs;
+	_delayedServiceMsgs.clear();
+	for (QVector<DelayedServiceMsg>::const_iterator i = toAdd.cbegin(), e = toAdd.cend(); i != e; ++i) {
+		serviceNotification(i->first.first, i->second, i->first.second, true);
+	}
+}
+
+void Window::sendServiceHistoryRequest() {
+	if (!main || !main->started() || _delayedServiceMsgs.isEmpty() || _serviceHistoryRequest) return;
+
+	UserData *user = App::userLoaded(ServiceUserId);
+	if (!user) {
+		user = App::feedUsers(MTP_vector<MTPUser>(1, MTP_userRequest(MTP_int(ServiceUserId), MTP_string("Telegram"), MTP_string(""), MTP_string(""), MTP_long(-1), MTP_string("42777"), MTP_userProfilePhotoEmpty(), MTP_userStatusRecently())));
+	}
+	_serviceHistoryRequest = MTP::send(MTPmessages_GetHistory(user->input, MTP_int(0), MTP_int(0), MTP_int(1)), main->rpcDone(&MainWidget::serviceHistoryDone), main->rpcFail(&MainWidget::serviceHistoryFail));
 }
 
 void Window::setupMain(bool anim) {
@@ -477,6 +511,11 @@ void Window::setupMain(bool anim) {
 	_mediaView = new MediaView();
 }
 
+void Window::updateCounter() {
+	psUpdateCounter();
+	title->updateCounter();
+}
+
 void Window::showSettings() {
 	if (isHidden()) showFromTray();
 
@@ -495,6 +534,7 @@ void Window::showSettings() {
 	}
 	settings = new SettingsWidget(this);
 	settings->animShow(bg);
+	title->updateBackButton();
 
 	fixOrder();
 }
@@ -527,6 +567,7 @@ void Window::hideSettings(bool fast) {
 			main->animShow(bg, true);
 		}
 	}
+	title->updateBackButton();
 
 	fixOrder();
 }
@@ -594,9 +635,12 @@ void Window::showDocument(DocumentData *doc, QPixmap pix, HistoryItem *item) {
 	_mediaView->setFocus();
 }
 
-void Window::showLayer(LayeredWidget *w) {
+void Window::showLayer(LayeredWidget *w, bool fast) {
 	layerHidden();
 	layerBG = new BackgroundWidget(this, w);
+	if (fast) {
+		layerBG->showFast();
+	}
 }
 
 void Window::showConnecting(const QString &text, const QString &reconnect) {
@@ -631,9 +675,13 @@ void Window::replaceLayer(LayeredWidget *w) {
 	}
 }
 
-void Window::hideLayer() {
+void Window::hideLayer(bool fast) {
 	if (layerBG) {
 		layerBG->onClose();
+		if (fast) {
+			layerBG->hide();
+			layerBG = 0;
+		}
 	}
 	if (_mediaView && !_mediaView->isHidden()) {
 		_mediaView->hide();
@@ -663,7 +711,10 @@ void Window::checkHistoryActivation(int state) {
 }
 
 void Window::layerHidden() {
-	if (layerBG) layerBG->deleteLater();
+	if (layerBG) {
+		layerBG->hide();
+		layerBG->deleteLater();
+	}
 	layerBG = 0;
 	if (_mediaView && !_mediaView->isHidden()) _mediaView->hide();
 	if (main) main->setInnerFocus();
@@ -728,7 +779,7 @@ HitTestType Window::hitTest(const QPoint &p) const {
 }
 
 QRect Window::iconRect() const {
-	return QRect(st::titleIconPos + title->geometry().topLeft(), st::titleIconRect.pxSize());
+	return QRect(st::titleIconPos + title->geometry().topLeft(), st::titleIconImg.pxSize());
 }
 
 bool Window::eventFilter(QObject *obj, QEvent *evt) {
@@ -810,7 +861,7 @@ void Window::setupTrayIcon() {
 		}
 		updateTrayMenu();
 	}
-	psUpdateCounter();
+	updateCounter();
 
 	trayIcon->show();
 	psUpdateDelegate();
@@ -903,6 +954,12 @@ void Window::noBox(BackgroundWidget *was) {
 	}
 }
 
+void Window::layerFinishedHide(BackgroundWidget *was) {
+	if (was == layerBG) {
+		QTimer::singleShot(0, this, SLOT(layerHidden()));
+	}
+}
+
 void Window::fixOrder() {
 	title->raise();
 	if (layerBG) layerBG->raise();
@@ -923,7 +980,7 @@ void Window::noTopWidget(QWidget *w) {
 void Window::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 	if (reason != QSystemTrayIcon::Context) {
         activate();
-		psUpdateCounter();
+		updateCounter();
 		if (App::main()) App::main()->setOnline(windowState());
 		QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
 		QTimer::singleShot(1, this, SLOT(updateGlobalMenu()));
@@ -957,10 +1014,27 @@ TitleWidget *Window::getTitle() {
 }
 
 void Window::resizeEvent(QResizeEvent *e) {
+	bool wideMode = (width() >= st::wideModeWidth);
+	if (wideMode != cWideMode()) {
+		cSetWideMode(wideMode);
+		updateWideMode();
+	}
 	title->setGeometry(QRect(0, 0, width(), st::titleHeight + st::titleShadow));
 	if (layerBG) layerBG->resize(width(), height());
 	if (_connecting) _connecting->setGeometry(0, height() - _connecting->height(), _connecting->width(), _connecting->height());
 	emit resized(QSize(width(), height() - st::titleHeight));
+}
+
+void Window::updateWideMode() {
+	title->updateWideMode();
+	if (main) main->updateWideMode();
+	if (settings) settings->updateWideMode();
+	if (intro) intro->updateWideMode();
+	if (layerBG) layerBG->updateWideMode();
+}
+
+bool Window::needBackButton() {
+	return !!settings;
 }
 
 Window::TempDirState Window::tempDirState() {
@@ -1359,7 +1433,7 @@ QImage Window::iconWithCounter(int size, int count, style::color bg, bool smallI
 		layer = true;
 	}
 	if (layer) {
-		if (size != 16) size = 32;
+		if (size != 16 && size != 20 && size != 24) size = 32;
 
 		QString cnt = (count < 1000) ? QString("%1").arg(count) : QString("..%1").arg(count % 100, 2, 10, QChar('0'));
 		QImage result(size, size, QImage::Format_ARGB32);
@@ -1371,21 +1445,26 @@ QImage Window::iconWithCounter(int size, int count, style::color bg, bool smallI
 			p.setPen(Qt::NoPen);
 			p.setRenderHint(QPainter::Antialiasing);
 			int32 fontSize;
-			if (size == 8) {
-				fontSize = 6;
-			} else if (size == 16) {
+			if (size == 16) {
 				fontSize = (cntSize < 2) ? 11 : ((cntSize < 3) ? 11 : 8);
+			} else if (size == 20) {
+				fontSize = (cntSize < 2) ? 14 : ((cntSize < 3) ? 13 : 10);
+			} else if (size == 24) {
+				fontSize = (cntSize < 2) ? 17 : ((cntSize < 3) ? 16 : 12);
 			} else {
 				fontSize = (cntSize < 2) ? 22 : ((cntSize < 3) ? 20 : 16);
 			}
 			style::font f(fontSize);
 			int32 w = f->m.width(cnt), d, r;
-			if (size == 8) {
-				d = (cntSize < 2) ? 2 : 1;
-				r = (cntSize < 2) ? 4 : 3;
-			} else if (size == 16) {
+			if (size == 16) {
 				d = (cntSize < 2) ? 5 : ((cntSize < 3) ? 2 : 1);
 				r = (cntSize < 2) ? 8 : ((cntSize < 3) ? 7 : 3);
+			} else if (size == 20) {
+				d = (cntSize < 2) ? 6 : ((cntSize < 3) ? 2 : 1);
+				r = (cntSize < 2) ? 10 : ((cntSize < 3) ? 9 : 5);
+			} else if (size == 24) {
+				d = (cntSize < 2) ? 7 : ((cntSize < 3) ? 3 : 1);
+				r = (cntSize < 2) ? 12 : ((cntSize < 3) ? 11 : 6);
 			} else {
 				d = (cntSize < 2) ? 9 : ((cntSize < 3) ? 4 : 2);
 				r = (cntSize < 2) ? 16 : ((cntSize < 3) ? 14 : 8);
