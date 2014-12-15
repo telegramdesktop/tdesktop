@@ -27,7 +27,7 @@ Telegram Desktop was updated to version %1\n\
  \xe2\x80\x94 New device login notification added.\n\
  \xe2\x80\x94 Improved image viewer for large documents.\n\
 \n\
-Full versions log is available here:\n\
+Full version history is available here:\n\
 https://desktop.telegram.org/#changelog";
 
 int main(int argc, char *argv[]) {
