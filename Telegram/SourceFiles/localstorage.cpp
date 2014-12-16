@@ -635,10 +635,12 @@ namespace {
 		_storageMap = storageMap;
 		_storageFilesSize = storageFilesSize;
 		_locationsKey = locationsKey;
-		_mapChanged = false;
 		_oldMapVersion = mapData.version;
 		if (_oldMapVersion < AppVersion) {
+			_mapChanged = true;
 			_writeMap();
+		} else {
+			_mapChanged = false;
 		}
 
 		if (_locationsKey) {

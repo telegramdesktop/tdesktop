@@ -26,9 +26,8 @@ if [ ! -f "./../../tother/tsetup/tsetup.$AppVersionStr.exe" ]; then
     exit 1
 fi
 
-scp ./../Mac/Release/deploy/$AppVersionStr/tmacupd$AppVersion tupdates:tdesktop/static/tmac/
-scp ./../Mac/Release/deploy/$AppVersionStr/tsetup.$AppVersionStr.dmg tupdates:tdesktop/static/tmac/
-scp ./../../tother/tsetup/tupdate$AppVersion tupdates:tdesktop/static/tsetup/
-scp ./../../tother/tsetup/tportable.$AppVersionStr.zip tupdates:tdesktop/static/tsetup/
-scp ./../../tother/tsetup/tsetup.$AppVersionStr.exe tupdates:tdesktop/static/tsetup/
-
+scp ./../Mac/Release/deploy/$AppVersionStr/tmacupd$AppVersion tmaster:tdesktop/www/tmac/
+scp ./../Mac/Release/deploy/$AppVersionStr/tsetup.$AppVersionStr.dmg tmaster:tdesktop/www/tmac/
+scp ./../../tother/tsetup/tupdate$AppVersion tmaster:tdesktop/www/tsetup/
+scp ./../../tother/tsetup/tportable.$AppVersionStr.zip tmaster:tdesktop/www/tsetup/
+scp ./../../tother/tsetup/tsetup.$AppVersionStr.exe tmaster:tdesktop/www/tsetup/
