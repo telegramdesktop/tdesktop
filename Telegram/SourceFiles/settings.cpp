@@ -110,7 +110,7 @@ void settingsParseArgs(int argc, char *argv[]) {
     memset_rand(&gInstance, sizeof(gInstance));
 	gExeDir = psCurrentExeDirectory(argc, argv);
 	gExeName = psCurrentExeName(argc, argv);
-	for (int32 i = 0; i < argc; ++i) {
+    for (int32 i = 0; i < argc; ++i) {
 		if (string("-release") == argv[i]) {
 			gTestMode = false;
 		} else if (string("-debug") == argv[i]) {

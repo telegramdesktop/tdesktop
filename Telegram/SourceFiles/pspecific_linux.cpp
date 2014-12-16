@@ -803,6 +803,9 @@ QString psCurrentExeDirectory(int argc, char *argv[]) {
     QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
     if (!first.isEmpty()) {
         QFileInfo info(first);
+        if (info.isSymLink()) {
+            info = info.symLinkTarget();
+        }
         if (info.exists()) {
             return QDir(info.absolutePath()).absolutePath() + '/';
         }
@@ -814,7 +817,10 @@ QString psCurrentExeName(int argc, char *argv[]) {
 	QString first = argc ? QString::fromLocal8Bit(argv[0]) : QString();
 	if (!first.isEmpty()) {
 		QFileInfo info(first);
-		if (info.exists()) {
+        if (info.isSymLink()) {
+            info = info.symLinkTarget();
+        }
+        if (info.exists()) {
 			return info.fileName();
 		}
 	}

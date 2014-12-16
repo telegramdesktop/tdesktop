@@ -65,6 +65,8 @@ TitleWidget::TitleWidget(Window *window)
 {
 	setGeometry(0, 0, wnd->width(), st::titleHeight);
 	_update.hide();
+    _cancel.hide();
+    _back.hide();
 	if (App::app()->updatingState() == Application::UpdatingReady) {
 		showUpdateBtn();
 	}
