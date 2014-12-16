@@ -72,6 +72,7 @@ inline const QString &cDialogHelperPathFinal() {
 DeclareSetting(bool, CtrlEnter);
 DeclareSetting(bool, CatsAndDogs);
 DeclareSetting(bool, SoundNotify);
+DeclareSetting(bool, FlashWindow);
 DeclareSetting(bool, NeedConfigResave);
 DeclareSetting(bool, DesktopNotify);
 DeclareSetting(DBINotifyView, NotifyView);

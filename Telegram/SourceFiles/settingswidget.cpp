@@ -119,6 +119,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_senderName(this, lang(lng_settings_show_name), cNotifyView() <= dbinvShowName),
 	_messagePreview(this, lang(lng_settings_show_preview), cNotifyView() <= dbinvShowPreview),
 	_soundNotify(this, lang(lng_settings_sound_notify), cSoundNotify()),
+	_flashWindow(this, lang(lng_settings_flash_window), cFlashWindow()),
 
 	// general
 	_autoUpdate(this, lang(lng_settings_auto_update), cAutoUpdate()),
@@ -196,6 +197,8 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	connect(&_senderName, SIGNAL(changed()), this, SLOT(onSenderName()));
 	connect(&_messagePreview, SIGNAL(changed()), this, SLOT(onMessagePreview()));
 	connect(&_soundNotify, SIGNAL(changed()), this, SLOT(onSoundNotify()));
+	_flashWindow.setDisabled(!_workmodeWindow.checked());
+	connect(&_flashWindow, SIGNAL(changed()), this, SLOT(onFlashWindow()));
 
 	// general
 	connect(&_autoUpdate, SIGNAL(changed()), this, SLOT(onAutoUpdate()));
@@ -372,6 +375,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		top += _desktopNotify.height() + st::setLittleSkip;
 		top += _senderName.height() + st::setLittleSkip;
 		top += _messagePreview.height() + st::setSectionSkip;
+		top += _flashWindow.height() + st::setLittleSkip;
 		top += _soundNotify.height();
 	}
 
@@ -538,6 +542,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		_desktopNotify.move(_left, top); top += _desktopNotify.height() + st::setLittleSkip;
 		_senderName.move(_left, top); top += _senderName.height() + st::setLittleSkip;
 		_messagePreview.move(_left, top); top += _messagePreview.height() + st::setSectionSkip;
+		_flashWindow.move(_left, top); top += _flashWindow.height() + st::setLittleSkip;
 		_soundNotify.move(_left, top); top += _soundNotify.height();
 	}
 
@@ -738,11 +743,13 @@ void SettingsInner::showAll() {
 		_senderName.show();
 		_messagePreview.show();
 		_soundNotify.show();
+		_flashWindow.show();
 	} else {
 		_desktopNotify.hide();
 		_senderName.hide();
 		_messagePreview.hide();
 		_soundNotify.hide();
+		_flashWindow.hide();
 	}
 
 	// general
@@ -959,6 +966,7 @@ void SettingsInner::onWorkmodeWindow() {
 	if (cWorkMode() != newMode && (newMode == dbiwmWindowAndTray || newMode == dbiwmTrayOnly)) {
 		cSetSeenTrayTooltip(false);
 	}
+	_flashWindow.setDisabled(!_workmodeWindow.checked());
 	cSetWorkMode(newMode);
 	App::wnd()->psUpdateWorkmode();
 	App::writeConfig();
@@ -1042,6 +1050,11 @@ void SettingsInner::setScale(DBIScale newScale) {
 
 void SettingsInner::onSoundNotify() {
 	cSetSoundNotify(_soundNotify.checked());
+	App::writeUserConfig();
+}
+
+void SettingsInner::onFlashWindow() {
+	cSetFlashWindow(_flashWindow.checked());
 	App::writeUserConfig();
 }
 

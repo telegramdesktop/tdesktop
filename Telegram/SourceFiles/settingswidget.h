@@ -110,6 +110,7 @@ public slots:
 	void onDesktopNotify();
 	void onSenderName();
 	void onMessagePreview();
+	void onFlashWindow();
 
 	void onReplaceEmojis();
 	void onViewEmojis();
@@ -171,7 +172,7 @@ private:
 	LinkButton _chooseUsername, _changeUsername;
 
 	// notifications
-	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _soundNotify;
+	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _soundNotify, _flashWindow;
 
 	// general
 	FlatCheckbox _autoUpdate;
