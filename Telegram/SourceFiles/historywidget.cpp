@@ -2312,6 +2312,7 @@ mtpRequestId HistoryWidget::onForward(const PeerId &peer, SelectedItemSet toForw
 	if (toForward.isEmpty()) return 0;
 
 	if (toForward.size() == 1) {
+		App::main()->clearSelectedItems();
 		App::main()->showPeer(peer, 0, false, true);
 		if (!hist) return 0;
 

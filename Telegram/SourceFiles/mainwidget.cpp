@@ -1610,6 +1610,7 @@ void MainWidget::sentFullDatasReceived(const MTPmessages_StatedMessages &result)
 void MainWidget::forwardDone(PeerId peer, const MTPmessages_StatedMessages &result) {
 	sentFullDatasReceived(result);
 	if (hider) hider->forwardDone();
+	clearSelectedItems();
 	showPeer(peer, 0, false, true);
 	history.onClearSelected();
 }
