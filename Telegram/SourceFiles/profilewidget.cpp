@@ -338,7 +338,8 @@ void ProfileInner::reorderParticipants() {
 			_participantsData.resize(_peerChat->participants.size());
 		}
 		UserData *self = App::self();
-		for (ChatData::Participants::const_iterator i = _peerChat->participants.cbegin(), e = _peerChat->participants.cend(); i != e; ++i) {
+        bool onlyMe = true;
+        for (ChatData::Participants::const_iterator i = _peerChat->participants.cbegin(), e = _peerChat->participants.cend(); i != e; ++i) {
 			UserData *user = i.key();
 			int32 until = App::onlineForSort(user->onlineTill, t);
 			Participants::iterator before = _participants.begin();
@@ -349,7 +350,8 @@ void ProfileInner::reorderParticipants() {
 				while (before != _participants.end() && App::onlineForSort((*before)->onlineTill, t) >= until) {
 					++before;
 				}
-			}
+                if (until > t && onlyMe) onlyMe = false;
+            }
 			_participants.insert(before, user);
 			if (until > t) {
 				++onlineCount;
@@ -358,7 +360,7 @@ void ProfileInner::reorderParticipants() {
 		if (_peerChat->count > 0 && _participants.isEmpty() && !_loadingId) {
 			_loadingId = MTP::send(MTPmessages_GetFullChat(App::peerToMTP(_peerChat->id).c_peerChat().vchat_id), rpcDone(&ProfileInner::gotFullChat));
 			if (_onlineText.isEmpty()) _onlineText = lang(lng_chat_members).arg(_peerChat->count);
-		} else if (onlineCount) {
+        } else if (onlineCount && !onlyMe) {
 			_onlineText = lang(lng_chat_members_online).arg(_participants.size()).arg(onlineCount);
 		} else {
 			_onlineText = lang(lng_chat_members).arg(_participants.size());

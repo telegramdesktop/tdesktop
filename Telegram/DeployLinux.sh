@@ -11,6 +11,5 @@ if [ ! -f "./../Linux/Release/deploy/$AppVersionStr/tsetup.$AppVersionStr.tar.xz
     exit 1
 fi
 
-scp ./../Linux/Release/deploy/$AppVersionStr/tlinuxupd$AppVersion tupdates:tdesktop/static/tlinux/
-scp ./../Linux/Release/deploy/$AppVersionStr/tsetup.$AppVersionStr.tar.xz tupdates:tdesktop/static/tlinux/
-
+scp ./../Linux/Release/deploy/$AppVersionStr/tlinuxupd$AppVersion tmaster:tdesktop/www/tlinux/
+scp ./../Linux/Release/deploy/$AppVersionStr/tsetup.$AppVersionStr.tar.xz tmaster:tdesktop/www/tlinux/

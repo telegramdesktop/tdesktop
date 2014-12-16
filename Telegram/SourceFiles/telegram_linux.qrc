@@ -19,6 +19,7 @@
         <file>art/blank.gif</file>
         <file>art/icon256.png</file>
         <file>art/fonts/DejaVuSans.ttf</file>
+        <file>art/fonts/NanumMyeongjo-Regular.ttf</file>
     </qresource>
     <qresource prefix="/ava">
         <file>art/chatcolor1.png</file>
