@@ -189,29 +189,28 @@ void TitleWidget::updateBackButton() {
 	if (!cWideMode() && App::main() && App::main()->selectingPeer()) {
 		_cancel.show();
 		if (!_back.isHidden()) _back.hide();
-		_settings.hide();
-		_contacts.hide();
-		_about.hide();
+		if (!_settings.isHidden()) _settings.hide();
+		if (!_contacts.isHidden()) _contacts.hide();
+		if (!_about.isHidden()) _about.hide();
 	} else {
-		_cancel.hide();
+		if (!_cancel.isHidden()) _cancel.hide();
 		bool authed = (MTP::authedId() > 0);
 		if (cWideMode()) {
 			if (!_back.isHidden()) _back.hide();
-			_settings.show();
-			if (authed) _contacts.show();
-			_about.show();
+			if (_settings.isHidden()) _settings.show();
+			if (authed && _contacts.isHidden()) _contacts.show();
+			if (_about.isHidden()) _about.show();
 		} else {
-			bool need = App::wnd()->needBackButton();
-			if (need && _back.isHidden()) {
-				_back.show();
-				_settings.hide();
-				_contacts.hide();
-				_about.hide();
-			} else if (!need && !_back.isHidden()) {
-				_back.hide();
-				_settings.show();
-				if (authed) _contacts.show();
-				_about.show();
+			if (App::wnd()->needBackButton()) {
+				if (_back.isHidden()) _back.show();
+				if (!_settings.isHidden()) _settings.hide();
+				if (!_contacts.isHidden()) _contacts.hide();
+				if (!_about.isHidden()) _about.hide();
+			} else {
+				if (!_back.isHidden()) _back.hide();
+				if (_settings.isHidden()) _settings.show();
+				if (authed && _contacts.isHidden()) _contacts.show();
+				if (_about.isHidden()) _about.show();
 			}
 		}
 	}
