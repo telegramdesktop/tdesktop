@@ -280,7 +280,7 @@ void TopBarWidget::showAll() {
 				_mediaType.hide();
 			}
 		}
-		if (App::main() && App::main()->historyPeer() && !cWideMode()) {
+        if (App::main() && App::main()->historyPeer() && !p && _clearSelection.isHidden() && !cWideMode()) {
 			_info.show();
 		} else {
 			_info.hide();

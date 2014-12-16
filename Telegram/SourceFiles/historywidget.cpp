@@ -2770,12 +2770,14 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 			text = titlePeerText.isEmpty() ? lang(lng_chat_members).arg(chat->count) : titlePeerText;
 		} else {
 			int32 onlineCount = 0;
+            bool onlyMe = true;
 			for (ChatData::Participants::const_iterator i = chat->participants.cbegin(), e = chat->participants.cend(); i != e; ++i) {
 				if (i.key()->onlineTill > t) {
 					++onlineCount;
+                    if (onlyMe && i.key() != App::self()) onlyMe = false;
 				}
 			}
-			if (onlineCount) {
+            if (onlineCount && !onlyMe) {
 				text = lang(lng_chat_members_online).arg(chat->participants.size()).arg(onlineCount);
 			} else {
 				text = lang(lng_chat_members).arg(chat->participants.size());

@@ -31,6 +31,7 @@ Source code is published under GPL v3, license is available [here](https://githu
 * libogg ([BSD license](http://www.xiph.org/downloads/))
 * Open Sans font ([Apache License](http://www.apache.org/licenses/LICENSE-2.0.html))
 * DejaVu Sans font ([Free license](http://dejavu-fonts.org/wiki/License))
+* Nanum Myeongjo font ([SIL Open Font License](http://fonts.gstatic.com/ea/nanummyeongjo/v4/OFL.txt))
 
 ###[Build instructions for Visual Studio 2013](https://github.com/telegramdesktop/tdesktop/blob/master/MSVC.md)
 

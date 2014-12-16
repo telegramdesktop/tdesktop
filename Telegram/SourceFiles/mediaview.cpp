@@ -748,9 +748,9 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 		moveToPhoto(-1);
 	} else if (e->key() == Qt::Key_Right) {
 		moveToPhoto(1);
-	} else if (e->modifiers().testFlag(Qt::ControlModifier) && (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore || e->key() == Qt::Key_0)) {
+    } else if (e->modifiers().testFlag(Qt::ControlModifier) && (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == ']' || e->key() == Qt::Key_Asterisk || e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore || e->key() == Qt::Key_0)) {
 		int32 newZoom = _zoom;
-		if (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal) {
+        if (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == Qt::Key_Asterisk || e->key() == ']') {
 			if (newZoom == ZoomToScreenLevel) {
 				if (qCeil(_zoomToScreen) <= MaxZoomLevel) {
 					newZoom = qCeil(_zoomToScreen);
