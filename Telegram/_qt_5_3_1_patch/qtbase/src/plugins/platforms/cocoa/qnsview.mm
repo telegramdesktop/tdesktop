@@ -1248,7 +1248,7 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_8
         if (QSysInfo::QSysInfo::MacintoshVersion >= QSysInfo::MV_10_8) {
             // On 10.8 and above, MayBegin is likely to happen.  We treat it the same as an actual begin.
-            if (phase == NSEventPhaseMayBegin)
+			if (phase == NSEventPhaseMayBegin || phase == NSEventPhaseBegan)
                 ph = Qt::ScrollBegin;
         } else
 #endif

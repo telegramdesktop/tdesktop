@@ -135,6 +135,7 @@ private:
 	bool _touchPress, _touchMove, _touchRightButton;
 	QTimer _touchTimer;
 	QPoint _touchStart;
+	QPoint _accumScroll;
 
 	QString _saveMsgFilename;
 	uint64 _saveMsgStarted;
