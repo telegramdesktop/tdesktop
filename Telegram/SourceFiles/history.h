@@ -491,6 +491,7 @@ struct Histories : public QHash<PeerId, History*>, public Animated {
 
 	void clear();
 	Parent::iterator erase(Parent::iterator i);
+	void remove(const PeerId &peer);
 	~Histories() {
 		clear();
 
@@ -1503,8 +1504,6 @@ class HistoryMessage : public HistoryItem {
 public:
 
 	HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg);
-//	HistoryMessage(History *history, HistoryBlock *block, const MTPDgeoChatMessage &msg);
-//	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, const QString &msg);
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, const QString &msg, const MTPMessageMedia &media);
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, const QString &msg, HistoryMedia *media);
 
@@ -1598,7 +1597,6 @@ class HistoryServiceMsg : public HistoryItem {
 public:
 
 	HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDmessageService &msg);
-//	HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDgeoChatMessageService &msg);
 	HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, bool out = false, bool unread = false, HistoryMedia *media = 0);
 
 	void initDimensions(const HistoryItem *parent = 0);
@@ -1633,7 +1631,7 @@ public:
 
 protected:
 
-	QString messageByAction(const MTPmessageAction &action, TextLinkPtr &second);
+	void setMessageByAction(const MTPmessageAction &action);
 
 	Text _text;
 	HistoryMedia *_media;

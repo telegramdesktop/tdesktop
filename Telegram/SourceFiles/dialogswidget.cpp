@@ -120,7 +120,7 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 		}
 
 		if (_state == SearchedState || !searchResults.isEmpty()) {
-			QString text = searchResults.isEmpty() ? lang(lng_search_no_results) : lang(searchedCount > 1 ? lng_search_n_results : lng_search_one_result).replace(qsl("{count}"), QString::number(searchedCount));
+			QString text = lng_search_found_results(lt_count, searchResults.isEmpty() ? 0 : searchedCount);
 			p.fillRect(0, 0, width(), st::searchedBarHeight, st::searchedBarBG->b);
 			p.setFont(st::searchedBarFont->f);
 			p.setPen(st::searchedBarColor->p);

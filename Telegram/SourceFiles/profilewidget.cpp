@@ -185,7 +185,7 @@ void ProfileInner::onUpdatePhoto() {
 }
 
 void ProfileInner::onClearHistory() {
-	ConfirmBox *box = new ConfirmBox(lang(lng_sure_delete_history).replace(qsl("{contact}"), _peer->name));
+	ConfirmBox *box = new ConfirmBox(lng_sure_delete_history(lt_contact, _peer->name));
 	connect(box, SIGNAL(confirmed()), this, SLOT(onClearHistorySure()));
 	App::wnd()->showLayer(box);
 }
@@ -359,11 +359,11 @@ void ProfileInner::reorderParticipants() {
 		}
 		if (_peerChat->count > 0 && _participants.isEmpty() && !_loadingId) {
 			_loadingId = MTP::send(MTPmessages_GetFullChat(App::peerToMTP(_peerChat->id).c_peerChat().vchat_id), rpcDone(&ProfileInner::gotFullChat));
-			if (_onlineText.isEmpty()) _onlineText = lang(lng_chat_members).arg(_peerChat->count);
+			if (_onlineText.isEmpty()) _onlineText = lng_chat_status_members(lt_count, _peerChat->count);
         } else if (onlineCount && !onlyMe) {
-			_onlineText = lang(lng_chat_members_online).arg(_participants.size()).arg(onlineCount);
+			_onlineText = lng_chat_status_members_online(lt_count, _participants.size(), lt_count_online, onlineCount);
 		} else {
-			_onlineText = lang(lng_chat_members).arg(_participants.size());
+			_onlineText = lng_chat_status_members(lt_count, _participants.size());
 		}
 		loadProfilePhotos(_lastPreload);
 	} else {
@@ -371,7 +371,7 @@ void ProfileInner::reorderParticipants() {
 		if (_peerUser) {
 			_onlineText = App::onlineText(_peerUser, t, true);
 		} else {
-			_onlineText = lang(lng_chat_no_members);
+			_onlineText = lang(lng_chat_status_unaccessible);
 		}
 	}
 	if (was != _participants.size()) {
@@ -442,10 +442,10 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	top += st::profileButtonTop;
 
 	if (_peerChat && _peerChat->forbidden) {
-		int32 w = st::btnShareContact.font->m.width(lang(lng_chat_no_members));
+		int32 w = st::btnShareContact.font->m.width(lang(lng_profile_chat_unaccessible));
 		p.setFont(st::btnShareContact.font->f);
 		p.setPen(st::profileOfflineColor->p);
-		p.drawText(_left + (_width - w) / 2, top + st::btnShareContact.textTop + st::btnShareContact.font->ascent, lang(lng_chat_no_members));
+		p.drawText(_left + (_width - w) / 2, top + st::btnShareContact.textTop + st::btnShareContact.font->ascent, lang(lng_profile_chat_unaccessible));
 	}
 	top += _shareContact.height();
 
@@ -620,7 +620,7 @@ void ProfileInner::mousePressEvent(QMouseEvent *e) {
 void ProfileInner::mouseReleaseEvent(QMouseEvent *e) {
 	if (_kickDown && _kickDown == _kickOver) {
 		_kickConfirm = _kickOver;
-		ConfirmBox *box = new ConfirmBox(lang(lng_profile_sure_kick).replace(qsl("{user}"), _kickOver->firstName));
+		ConfirmBox *box = new ConfirmBox(lng_profile_sure_kick(lt_user, _kickOver->firstName));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onKickConfirm()));
 		App::wnd()->showLayer(box);
 	}
@@ -634,7 +634,7 @@ void ProfileInner::onKickConfirm() {
 }
 
 void ProfileInner::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Escape) {
+	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
 		App::main()->showBackFromStack();
 	}
 }
@@ -873,14 +873,13 @@ void ProfileInner::showAll() {
 }
 
 QString ProfileInner::overviewLinkText(int32 type, int32 count) {
-	LangKey key = lng_keys_cnt;
 	switch (type) {
-	case OverviewPhotos: key = (count > 1) ? lng_profile_photos : lng_profile_photo; break;
-	case OverviewVideos: key = (count > 1) ? lng_profile_videos : lng_profile_video; break;
-	case OverviewDocuments: key = (count > 1) ? lng_profile_documents : lng_profile_document; break;
-	case OverviewAudios: key = (count > 1) ? lng_profile_audios : lng_profile_audio; break;
+	case OverviewPhotos: return lng_profile_photos(lt_count, count);
+	case OverviewVideos: return lng_profile_videos(lt_count, count);
+	case OverviewDocuments: return lng_profile_documents(lt_count, count);
+	case OverviewAudios: return lng_profile_audios(lt_count, count);
 	}
-	return lang(key).replace(qsl("{count}"), QString::number(count));
+	return QString();
 }
 
 ProfileWidget::ProfileWidget(QWidget *parent, const PeerData *peer) : QWidget(parent)

@@ -230,39 +230,29 @@ namespace App {
 		if (precise) {
 			QDateTime dOnline(date(online)), dNow(date(now));
 			if (dOnline.date() == dNow.date()) {
-				when = lang(lng_status_lastseen_today).replace(qsl("{time}"), dOnline.time().toString(qsl("hh:mm")));
+				return lng_status_lastseen_today(lt_time, dOnline.time().toString(qsl("hh:mm")));
 			} else if (dOnline.date().addDays(1) == dNow.date()) {
-				when = lang(lng_status_lastseen_yesterday).replace(qsl("{time}"), dOnline.time().toString(qsl("hh:mm")));
-			} else {
-				when = lang(lng_status_lastseen_date_time).replace(qsl("{date}"), dOnline.date().toString(qsl("dd.MM.yy"))).replace(qsl("{time}"), dOnline.time().toString(qsl("hh:mm")));
+				return lng_status_lastseen_yesterday(lt_time, dOnline.time().toString(qsl("hh:mm")));
 			}
-			return lang(lng_status_lastseen).replace(qsl("{when}"), when);
+			return lng_status_lastseen_date_time(lt_date, dOnline.date().toString(qsl("dd.MM.yy")), lt_time, dOnline.time().toString(qsl("hh:mm")));
 		}
 		int32 minutes = (now - online) / 60;
 		if (!minutes) {
-			when = lang(lng_status_lastseen_now);
-		} else if (minutes == 1) {
-			when = lang(lng_status_lastseen_minute).arg(minutes);
+			return lang(lng_status_lastseen_now);
 		} else if (minutes < 60) {
-			when = lang(lng_status_lastseen_minutes).arg(minutes);
-		} else {
-			int32 hours = (now - online) / 3600;
-			if (hours == 1) {
-				when = lang(lng_status_lastseen_hour).arg(hours);
-			} else if (hours < 12) {
-				when = lang(lng_status_lastseen_hours).arg(hours);
-			} else {
-				QDateTime dOnline(date(online)), dNow(date(now));
-				if (dOnline.date() == dNow.date()) {
-					when = lang(lng_status_lastseen_today).replace(qsl("{time}"), dOnline.time().toString(qsl("hh:mm")));
-				} else if (dOnline.date().addDays(1) == dNow.date()) {
-					when = lang(lng_status_lastseen_yesterday).replace(qsl("{time}"), dOnline.time().toString(qsl("hh:mm")));
-				} else {
-					when = lang(lng_status_lastseen_date).replace(qsl("{date}"), dOnline.date().toString(qsl("dd.MM.yy")));
-				}
-			}
+			return lng_status_lastseen_minutes(lt_count, minutes);
 		}
-		return lang(lng_status_lastseen).replace(qsl("{when}"), when);
+		int32 hours = (now - online) / 3600;
+		if (hours < 12) {
+			return lng_status_lastseen_hours(lt_count, hours);
+		}
+		QDateTime dOnline(date(online)), dNow(date(now));
+		if (dOnline.date() == dNow.date()) {
+			return lng_status_lastseen_today(lt_time, dOnline.time().toString(qsl("hh:mm")));
+		} else if (dOnline.date().addDays(1) == dNow.date()) {
+			return lng_status_lastseen_yesterday(lt_time, dOnline.time().toString(qsl("hh:mm")));
+		}
+		return lng_status_lastseen_date(lt_date, dOnline.date().toString(qsl("dd.MM.yy")));
 	}
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users) {

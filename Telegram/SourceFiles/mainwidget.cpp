@@ -85,7 +85,7 @@ void TopBarWidget::onDeleteContact() {
 	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
 	UserData *u = (p && !p->chat) ? p->asUser() : 0;
 	if (u) {
-		ConfirmBox *box = new ConfirmBox(lang(lng_sure_delete_contact).replace(qsl("{contact}"), p->name));
+		ConfirmBox *box = new ConfirmBox(lng_sure_delete_contact(lt_contact, p->name));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteContactSure()));
 		App::wnd()->showLayer(box);
 	}
@@ -105,7 +105,7 @@ void TopBarWidget::onDeleteAndExit() {
 	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
 	ChatData *c = (p && p->chat) ? p->asChat() : 0;
 	if (c) {
-		ConfirmBox *box = new ConfirmBox(lang(lng_sure_delete_and_exit).replace(qsl("{group}"), p->name));
+		ConfirmBox *box = new ConfirmBox(lng_sure_delete_and_exit(lt_group, p->name));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteAndExitSure()));
 		App::wnd()->showLayer(box);
 	}
@@ -292,7 +292,7 @@ void TopBarWidget::showAll() {
 void TopBarWidget::showSelected(uint32 selCount) {
 	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
 	_selCount = selCount;
-	_selStr = (_selCount > 0) ? lang((_selCount == 1) ? lng_selected_count_1 : lng_selected_count_5).arg(_selCount) : QString();
+	_selStr = (_selCount > 0) ? lng_selected_count(lt_count, _selCount) : QString();
 	_selStrWidth = st::btnDefLink.font->m.width(_selStr);
 	setCursor((!p && _selCount) ? style::cur_default : style::cur_pointer);
 	showAll();
@@ -445,7 +445,7 @@ void MainWidget::forwardLayer(int32 forwardSelected) {
 }
 
 void MainWidget::deleteLayer(int32 selectedCount) {
-	QString str(lang((selectedCount < -1) ? lng_selected_cancel_sure_this : (selectedCount < 0 ? lng_selected_delete_sure_this : (selectedCount > 1 ? lng_selected_delete_sure_5 : lng_selected_delete_sure_1))));
+	QString str((selectedCount < 0) ? lang(selectedCount < -1 ? lng_selected_cancel_sure_this : lng_selected_delete_sure_this) : lng_selected_delete_sure(lt_count, selectedCount));
 	ConfirmBox *box = new ConfirmBox((selectedCount < 0) ? str : str.arg(selectedCount), lang(lng_selected_delete_confirm));
 	if (selectedCount < 0) {
 		connect(box, SIGNAL(confirmed()), overview ? overview : static_cast<QWidget*>(&history), SLOT(onDeleteContextSure()));
@@ -495,9 +495,10 @@ void MainWidget::dialogsActivate() {
 bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &e) {
 	if (e.type() == "CHAT_ID_INVALID") { // left this chat already
 		if ((profile && profile->peer() == peer) || (overview && overview->peer() == peer) || _stack.contains(peer) || history.peer() == peer) {
-			showPeer(0);
+			showPeer(0, 0, false, true);
 		}
 		dialogs.removePeer(peer);
+		App::histories().remove(peer->id);
 		MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
 		return true;
 	}
@@ -507,9 +508,10 @@ bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &e) {
 void MainWidget::deleteHistory(PeerData *peer, const MTPmessages_StatedMessage &result) {
 	sentFullDataReceived(0, result);
 	if ((profile && profile->peer() == peer) || (overview && overview->peer() == peer) || _stack.contains(peer) || history.peer() == peer) {
-		showPeer(0);
+		showPeer(0, 0, false, true);
 	}
 	dialogs.removePeer(peer);
+	App::histories().remove(peer->id);
 	MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
 }
 
@@ -2108,7 +2110,7 @@ void MainWidget::usernameResolveDone(const MTPUser &user) {
 
 bool MainWidget::usernameResolveFail(QString name, const RPCError &error) {
 	if (error.code() == 400) {
-		App::wnd()->showLayer(new ConfirmBox(lang(lng_username_not_found).replace(qsl("{user}"), name), true));
+		App::wnd()->showLayer(new ConfirmBox(lng_username_not_found(lt_user, name), true));
 	}
 	return true;
 }
@@ -2575,7 +2577,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					MTPPhoto photo(App::photoFromUserPhoto(MTP_int(user->id & 0xFFFFFFFF), d.vdate, d.vphoto));
 					HistoryMedia *media = new HistoryPhoto(photo.c_photo(), 100);
 					if (App::history(user->id)->loadedAtBottom()) {
-						App::history(user->id)->addToBackService(clientMsgId(), date(d.vdate), lang(lng_action_user_photo).replace(qsl("{from}"), user->name), false, true, media);
+						App::history(user->id)->addToBackService(clientMsgId(), date(d.vdate), lng_action_user_photo(lt_from, user->name), false, true, media);
 					}
 				}
 			}
@@ -2589,7 +2591,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		UserData *user = App::userLoaded(d.vuser_id.v);
 		if (user) {
 			if (App::history(user->id)->loadedAtBottom()) {
-				App::history(user->id)->addToBackService(clientMsgId(), date(d.vdate), lang(lng_action_user_registered).replace(qsl("{from}"), user->name), false, true);
+				App::history(user->id)->addToBackService(clientMsgId(), date(d.vdate), lng_action_user_registered(lt_from, user->name), false, true);
 			}
 		}
 	} break;
@@ -2654,12 +2656,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const MTPDupdateNewAuthorization &d(update.c_updateNewAuthorization());
 		QDateTime datetime = date(d.vdate);
 		
-		QString text = lang(lng_new_authorization).replace(qsl("{name}"), App::self()->firstName);
-		text = text.replace(qsl("{day}"), langDayOfWeekFull(datetime.date()));
-		text = text.replace(qsl("{date}"), langDayOfMonth(datetime.date()));
-		text = text.replace(qsl("{time}"), datetime.time().toString(qsl("hh:mm")));
-		text = text.replace(qsl("{device}"), qs(d.vdevice));
-		text = text.replace(qsl("{location}"), qs(d.vlocation));
+		QString name = App::self()->firstName;
+		QString day = langDayOfWeekFull(datetime.date()), date = langDayOfMonth(datetime.date()), time = datetime.time().toString(qsl("hh:mm"));
+		QString device = qs(d.vdevice), location = qs(d.vlocation);
+		LangString text = lng_new_authorization(lt_name, App::self()->firstName, lt_day, day, lt_date, date, lt_time, time, lt_device, device, lt_location, location);
 		App::wnd()->serviceNotification(text);
 	} break;
 

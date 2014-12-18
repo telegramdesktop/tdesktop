@@ -129,10 +129,11 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
         cSetIntRetinaFactor(int32(cRetinaFactor()));
     }
 
-	if (!cLangFile().isEmpty()) {
+	if (!cLangFile().isEmpty() && QFileInfo(cLangFile()).exists()) {
 		LangLoaderPlain loader(cLangFile());
-		if (!loader.errors().isEmpty()) {
-			LOG(("Lang load errors: %1").arg(loader.errors()));
+		cSetLangErrors(loader.errors());
+		if (!cLangErrors().isEmpty()) {
+			LOG(("Lang load errors: %1").arg(cLangErrors()));
 		} else if (!loader.warnings().isEmpty()) {
 			LOG(("Lang load warnings: %1").arg(loader.warnings()));
 		}
@@ -689,6 +690,10 @@ void Application::startApp() {
 			}
 		}
 	}
+
+	if (!cLangErrors().isEmpty()) {
+		window->showLayer(new ConfirmBox("Lang failed: " + cLangFile() + "\n\nError: " + cLangErrors(), true, lang(lng_close)));
+	}
 }
 
 void Application::socketDisconnected() {
@@ -823,7 +828,7 @@ Window *Application::wnd() {
 	return mainApp ? mainApp->window : 0;
 }
 
-QString Application::lang() {
+QString Application::language() {
 	if (!lng.length()) {
 		lng = psCurrentLanguage();
 	}

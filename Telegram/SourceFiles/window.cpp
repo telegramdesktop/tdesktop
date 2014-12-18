@@ -591,7 +591,7 @@ void Window::updateTitleStatus() {
 			showConnecting(lang(lng_connecting));
 		}
 	} else if (state < 0) {
-		showConnecting(lang(lng_reconnecting).arg((-state) / 1000), lang(lng_reconnecting_try_now));
+		showConnecting(lng_reconnecting(lt_count, ((-state) / 1000) + 1), lang(lng_reconnecting_try_now));
 		QTimer::singleShot((-state) % 1000, this, SLOT(updateTitleStatus()));
 	} else {
 		hideConnecting();

@@ -28,6 +28,8 @@ QString gWorkingDir, gExeDir, gExeName;
 QStringList gSendPaths;
 QString gStartUrl;
 
+QString gLangErrors;
+
 QString gDialogLastPath, gDialogHelperPath; // optimize QFileDialog
 
 bool gSoundNotify = true;
@@ -69,7 +71,7 @@ DBIEmojiTab gEmojiTab = dbietRecent;
 RecentEmojiPack gRecentEmojis;
 RecentEmojiPreload gRecentEmojisPreload;
 
-QString gLangFile;
+QString gLangFile = qsl("testlang.strings");
 
 bool gRetina = false;
 float64 gRetinaFactor = 1.;
