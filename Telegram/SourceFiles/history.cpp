@@ -943,11 +943,11 @@ bool History::updateTyping(uint64 ms, uint32 dots, bool force) {
 		QString newTypingStr;
 		int32 cnt = typing.size();
 		if (cnt > 2) {
-			newTypingStr = lang(lng_many_typing).replace(qsl("{n}"), QString("%1").arg(cnt));
+			newTypingStr = lng_many_typing(lt_count, cnt);
 		} else if (cnt > 1) {
-			newTypingStr = lang(lng_users_typing).replace(qsl("{user1}"), typing.begin().key()->firstName).replace(qsl("{user2}"), (typing.end() - 1).key()->firstName);
+			newTypingStr = lng_users_typing(lt_user, typing.begin().key()->firstName, lt_second_user, (typing.end() - 1).key()->firstName);
 		} else if (cnt) {
-			newTypingStr = peer->chat ? lang(lng_user_typing).replace(qsl("{user}"), typing.begin().key()->firstName) : lang(lng_typing);
+			newTypingStr = peer->chat ? lng_user_typing(lt_user, typing.begin().key()->firstName) : lang(lng_typing);
 		}
 		if (!newTypingStr.isEmpty()) {
 			newTypingStr += qsl("...");
@@ -1106,6 +1106,13 @@ bool Histories::animStep(float64) {
 Histories::Parent::iterator Histories::erase(Histories::Parent::iterator i) {
 	delete i.value();
 	return Parent::erase(i);
+}
+
+void Histories::remove(const PeerId &peer) {
+	iterator i = find(peer);
+	if (i != cend()) {
+		erase(i);
+	}
 }
 
 HistoryItem *Histories::addToBack(const MTPmessage &msg, int msgState) {
@@ -2353,7 +2360,7 @@ QString formatDownloadText(qint64 ready, qint64 total) {
 		totalStr = QString::number(totalKb);
 		mb = qsl("Kb");
 	}
-	return lang(lng_save_downloaded).replace(qsl("{ready}"), readyStr).replace(qsl("{total}"), totalStr).replace(qsl("{mb}"), mb);
+	return lng_save_downloaded(lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
 }
 
 QString formatDurationText(qint64 duration) {
@@ -2362,7 +2369,7 @@ QString formatDurationText(qint64 duration) {
 }
 
 QString formatDurationAndSizeText(qint64 duration, qint64 size) {
-	return lang(lng_duration_and_size).replace(qsl("{duration}"), formatDurationText(duration)).replace(qsl("{size}"), formatSizeText(size));
+	return lng_duration_and_size(lt_duration, formatDurationText(duration), lt_size, formatSizeText(size));
 }
 
 int32 _downloadWidth = 0, _openWithWidth = 0, _cancelWidth = 0, _buttonWidth = 0;
@@ -3772,18 +3779,6 @@ HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, const MTPD
 	initDimensions(text);
 }
 
-//HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, const MTPDgeoChatMessage &msg) :
-//	HistoryItem(history, block, msg.vid.v, (msg.vfrom_id.v == MTP::authedId()), false, ::date(msg.vdate), msg.vfrom_id.v), media(0), message(st::msgMinWidth) {
-//	QString text(qs(msg.vmessage));
-//	initMedia(msg.vmedia, text);
-//	initDimensions(text);
-//}
-
-//HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, const QString &msg) : message(st::msgMinWidth),
-//	HistoryItem(history, block, msgId, out, unread, date, from), media(0), _text(st::msgMinWidth), _textWidth(0), _textHeight(0) {
-//	initDimensions(textClean(msg));
-//}
-
 HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, const QString &msg, const MTPMessageMedia &media) :
 	HistoryItem(history, block, msgId, out, unread, date, from)
 , _text(st::msgMinWidth)
@@ -4146,7 +4141,7 @@ void HistoryMessage::drawInDialog(QPainter &p, const QRect &r, bool act, const H
 		if (_history->peer->chat || out()) {
 			TextCustomTagsMap custom;
 			custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
-			msg = lang(lng_message_with_from).replace(qsl("{from}"), textRichPrepare((_from == App::self()) ? lang(lng_from_you) : _from->firstName)).replace(qsl("{message}"), textRichPrepare(msg));
+			msg = lng_message_with_from(lt_from, textRichPrepare((_from == App::self()) ? lang(lng_from_you) : _from->firstName), lt_message, textRichPrepare(msg));
 			cache.setRichText(st::dlgHistFont, msg, _textDlgOptions, custom);
 		} else {
 			cache.setText(st::dlgHistFont, msg, _textDlgOptions);
@@ -4168,10 +4163,6 @@ QString HistoryMessage::notificationHeader() const {
 QString HistoryMessage::notificationText() const {
     QString msg(_media ? _media->inDialogsText() : _text.original(0, 0xFFFF, false));
     if (msg.size() > 0xFF) msg = msg.mid(0, 0xFF) + qsl("..");
-// subtitle used
-//    if (_history->peer->chat || out()) {
-//        msg = lang(lng_message_with_from).replace(qsl("[c]"), QString()).replace(qsl("[/c]"), QString()).replace(qsl("{from}"), textRichPrepare((_from == App::self()) ? lang(lng_from_you) : _from->firstName)).replace(qsl("{message}"), textRichPrepare(msg));
-//    }
     return msg;
 }
 
@@ -4363,35 +4354,41 @@ void HistoryForwarded::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 
 	return HistoryMessage::getSymbol(symbol, after, upon, x, y);
 }
 
-QString HistoryServiceMsg::messageByAction(const MTPmessageAction &action, TextLinkPtr &second) {
+void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
+	TextLinkPtr second;
+	LangString text = lang(lng_message_empty);
+	QString from = textcmdLink(1, _from->name);
+
 	switch (action.type()) {
 	case mtpc_messageActionChatAddUser: {
 		const MTPDmessageActionChatAddUser &d(action.c_messageActionChatAddUser());
 		if (App::peerFromUser(d.vuser_id) == _from->id) {
-			return lang(lng_action_user_joined);
+			text = lng_action_user_joined(lt_from, from);
+		} else {
+			UserData *u = App::user(App::peerFromUser(d.vuser_id));
+			second = TextLinkPtr(new PeerLink(u));
+			text = lng_action_add_user(lt_from, from, lt_user, textcmdLink(2, u->name));
 		}
-		UserData *u = App::user(App::peerFromUser(d.vuser_id));
-		second = TextLinkPtr(new PeerLink(u));
-		return lang(lng_action_add_user).replace(qsl("{user}"), textcmdLink(2, u->name));
 	} break;
 
 	case mtpc_messageActionChatCreate: {
 		const MTPDmessageActionChatCreate &d(action.c_messageActionChatCreate());
-		return lang(lng_action_created_chat).replace(qsl("{title}"), textClean(qs(d.vtitle)));
+		text = lng_action_created_chat(lt_from, from, lt_title, textClean(qs(d.vtitle)));
 	} break;
 
 	case mtpc_messageActionChatDeletePhoto: {
-		return lang(lng_action_removed_photo);
+		text = lng_action_removed_photo(lt_from, from);
 	} break;
 
 	case mtpc_messageActionChatDeleteUser: {
 		const MTPDmessageActionChatDeleteUser &d(action.c_messageActionChatDeleteUser());
 		if (App::peerFromUser(d.vuser_id) == _from->id) {
-			return lang(lng_action_user_left);
+			text = lng_action_user_left(lt_from, from);
+		} else {
+			UserData *u = App::user(App::peerFromUser(d.vuser_id));
+			second = TextLinkPtr(new PeerLink(u));
+			text = lng_action_kick_user(lt_from, from, lt_user, textcmdLink(2, u->name));
 		}
-		UserData *u = App::user(App::peerFromUser(d.vuser_id));
-		second = TextLinkPtr(new PeerLink(u));
-		return lang(lng_action_kick_user).replace(qsl("{user}"), textcmdLink(2, u->name));
 	} break;
 
 	case mtpc_messageActionChatEditPhoto: {
@@ -4399,25 +4396,25 @@ QString HistoryServiceMsg::messageByAction(const MTPmessageAction &action, TextL
 		if (d.vphoto.type() == mtpc_photo) {
 			_media = new HistoryPhoto(history()->peer, d.vphoto.c_photo(), st::msgServicePhotoWidth);
 		}
-		return lang(lng_action_changed_photo);
+		text = lng_action_changed_photo(lt_from, from);
 	} break;
 
 	case mtpc_messageActionChatEditTitle: {
 		const MTPDmessageActionChatEditTitle &d(action.c_messageActionChatEditTitle());
-		return lang(lng_action_changed_title).replace(qsl("{title}"), textClean(qs(d.vtitle)));
+		text = lng_action_changed_title(lt_from, from, lt_title, textClean(qs(d.vtitle)));
 	} break;
 
-	case mtpc_messageActionGeoChatCheckin: {
-		return lang(lng_action_checked_in);
-	} break;
-
-	case mtpc_messageActionGeoChatCreate: {
-		const MTPDmessageActionGeoChatCreate &d(action.c_messageActionGeoChatCreate());
-		return lang(lng_action_created_chat).replace(qsl("{title}"), textClean(qs(d.vtitle)));
-	} break;
+	default: from = QString(); break;
 	}
 
-	return lang(lng_message_empty);
+	_text.setText(st::msgServiceFont, text, _historySrvOptions);
+	if (!from.isEmpty()) {
+		_text.setLink(1, TextLinkPtr(new PeerLink(_from)));
+	}
+	if (second) {
+		_text.setLink(2, second);
+	}
+	return ;
 }
 
 HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDmessageService &msg) :
@@ -4425,33 +4422,10 @@ HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, cons
 , _text(st::msgMinWidth)
 , _media(0)
 {
-
-	TextLinkPtr second;
-	QString text(messageByAction(msg.vaction, second));
-	int32 fromPos = text.indexOf(qsl("{from}"));
-	if (fromPos >= 0) {
-		text = text.replace(qsl("{from}"), textcmdLink(1, _from->name));
-	}
-	_text.setText(st::msgServiceFont, text, _historySrvOptions);
-	if (fromPos >= 0) {
-		_text.setLink(1, TextLinkPtr(new PeerLink(_from)));
-	}
-	if (second) {
-		_text.setLink(2, second);
-	}
+	setMessageByAction(msg.vaction);
 	initDimensions();
 }
-/*
-HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDgeoChatMessageService &msg) :
-	HistoryItem(history, block, msg.vid.v, (msg.vfrom_id.v == MTP::authedId()), false, ::date(msg.vdate), msg.vfrom_id.v), media(0), message(st::msgMinWidth) {
 
-	QString text(messageByAction(msg.vaction));
-	text = text.replace(qsl("{from}"), _from->name);
-	message.setText(st::msgServiceFont, text);
-	_maxw = message.maxWidth() + st::msgServicePadding.left() + st::msgServicePadding.right();
-	_minh = message.minHeight();
-}
-/**/
 HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, bool out, bool unread, HistoryMedia *media) :
 	HistoryItem(history, block, msgId, out, unread, date, 0)
 , _text(st::msgServiceFont, msg, _historySrvOptions, st::dlgMinWidth)
@@ -4622,7 +4596,7 @@ void HistoryUnreadBar::initDimensions(const HistoryItem *parent) {
 void HistoryUnreadBar::setCount(int32 count) {
 	if (!count) freezed = true;
 	if (freezed) return;
-	text = lang(lng_unread_bar).arg(count);
+	text = lng_unread_bar(lt_count, count);
 }
 
 void HistoryUnreadBar::draw(QPainter &p, uint32 selection) const {

@@ -24,4 +24,8 @@ public:
 
 	LangLoaderPlain(const QString &file);
 
+protected:
+
+	bool readKeyValue(const char *&from, const char *end);
+
 };

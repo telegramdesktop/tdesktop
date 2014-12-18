@@ -1,0 +1,69 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014 John Preston, https://desktop.telegram.org
+*/
+#include "stdafx.h"
+
+#include "lang.h"
+
+Qt::LayoutDirection langDir() { // current lang dependent
+	return Qt::LeftToRight;
+}
+
+LangString langCounted(ushort key0, ushort tag, float64 value) { // current lang dependent
+	int v = qFloor(value);
+	QString sv;
+	ushort key = key0;
+	if (v != qCeil(value)) {
+		key += 2;
+		sv = QString::number(value);
+	} else {
+		if (v == 1) {
+			key += 1;
+		} else if (v) {
+			key += 2;
+		}
+		sv = QString::number(v);
+	}
+	while (key > key0) {
+		LangString v = lang(LangKey(key));
+		if (!v.isEmpty()) return v.tag(tag, sv);
+		--key;
+	}
+	return lang(LangKey(key0)).tag(tag, sv);
+}
+
+const QString &LangLoader::errors() const {
+	if (_errors.isEmpty() && !_err.isEmpty()) {
+		_errors = _err.join('\n');
+	}
+	return _errors;
+}
+
+const QString &LangLoader::warnings() const {
+	if (!_checked) {
+		for (int32 i = 0; i < lngkeys_cnt; ++i) {
+			if (!_found[i]) {
+				_warn.push_back(qsl("No value found for key '%1'").arg(langKeyName(LangKey(i))));
+			}
+		}
+		_checked = true;
+	}
+	if (_warnings.isEmpty() && !_warn.isEmpty()) {
+		_warnings = _warn.join('\n');
+	}
+	return _warnings;
+}

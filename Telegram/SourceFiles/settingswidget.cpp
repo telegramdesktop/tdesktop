@@ -132,7 +132,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_startMinimized(this, lang(lng_settings_start_min), cStartMinimized()),
 	_sendToMenu(this, lang(lng_settings_add_sendto), cSendToMenu()),
 
-	_dpiAutoScale(this, lang(lng_settings_scale_auto).replace(qsl("{cur}"), scaleLabel(cScreenScale())), (cConfigScale() == dbisAuto)),
+	_dpiAutoScale(this, lng_settings_scale_auto(lt_cur, scaleLabel(cScreenScale())), (cConfigScale() == dbisAuto)),
 	_dpiSlider(this, st::dpiSlider, dbisScaleCount - 1, cEvalScale(cConfigScale()) - 1),
 	_dpiWidth1(st::dpiFont1->m.width(scaleLabel(dbisOne))),
 	_dpiWidth2(st::dpiFont2->m.width(scaleLabel(dbisOneAndQuarter))),
@@ -163,7 +163,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_imagesClearFailedWidth(st::linkFont->m.width(lang(lng_local_images_clear_failed))),
 
 	// advanced
-	_connectionType(this, lang(lng_connection_auto)),
+	_connectionType(this, lng_connection_auto(lt_type, QString())),
 	_resetSessions(this, lang(lng_settings_reset)),
 	_logOut(this, lang(lng_settings_logout), st::btnLogout),
     _resetDone(false)
@@ -213,7 +213,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	connect(&_dpiAutoScale, SIGNAL(changed()), this, SLOT(onScaleAuto()));
 	connect(&_dpiSlider, SIGNAL(changed(int32)), this, SLOT(onScaleChange()));
 
-	_curVersionText = lang(lng_settings_current_version).replace(qsl("{version}"), QString::fromWCharArray(AppVersionStr)) + ' ';
+	_curVersionText = lng_settings_current_version(lt_version, QString::fromWCharArray(AppVersionStr)) + ' ';
 	_curVersionWidth = st::linkFont->m.width(_curVersionText);
 	_newVersionText = lang(lng_settings_update_ready) + ' ';
 	_newVersionWidth = st::linkFont->m.width(_newVersionText);
@@ -482,7 +482,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		QString localImagesText = lang(lng_settings_no_images_cached);
 		int32 cnt = Local::hasImages();
 		if (cnt) {
-			localImagesText = lang((cnt > 1) ? lng_settings_images_cached : lng_settings_image_cached).replace(qsl("{count}"), QString::number(cnt)).replace(qsl("{size}"), formatSizeText(Local::storageFilesSize()));
+			localImagesText = lng_settings_images_cached(lt_count, cnt, lt_size, formatSizeText(Local::storageFilesSize()));
 		}
 		p.setFont(st::linkFont->f);
 		p.setPen(st::black->p);
@@ -599,7 +599,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 }
 
 void SettingsInner::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Escape) {
+	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
 		App::wnd()->showSettings();
 	}
 }
@@ -677,7 +677,7 @@ void SettingsInner::updateConnectionType() {
 		if (transport.isEmpty()) {
 			_connectionType.setText(lang(lng_connection_auto_connecting));
 		} else {
-			_connectionType.setText(lang(lng_connection_auto).replace(qsl("{type}"), transport));
+			_connectionType.setText(lng_connection_auto(lt_type, transport));
 		}
 	} break;
 	case dbictHttpProxy: _connectionType.setText(lang(lng_connection_http_proxy)); break;
@@ -1215,7 +1215,7 @@ void SettingsInner::setDownloadProgress(qint64 ready, qint64 total) {
 	qint64 readyTenthMb = (ready * 10 / (1024 * 1024)), totalTenthMb = (total * 10 / (1024 * 1024));
 	QString readyStr = QString::number(readyTenthMb / 10) + '.' + QString::number(readyTenthMb % 10);
 	QString totalStr = QString::number(totalTenthMb / 10) + '.' + QString::number(totalTenthMb % 10);
-	QString res = lang(lng_settings_downloading).replace(qsl("{ready}"), readyStr).replace(qsl("{total}"), totalStr);
+	QString res = lng_settings_downloading(lt_ready, readyStr, lt_total, totalStr);
 	if (_newVersionDownload != res) {
 		_newVersionDownload = res;
 		if (cAutoUpdate()) {

@@ -1489,24 +1489,25 @@ void HistoryHider::offerPeer(PeerId peer) {
 		return;
 	}
 	offered = App::peer(peer);
-	QString phrase;
+	LangString phrase;
+	QString recipient = offered->chat ? '\xAB' + offered->name + '\xBB' : offered->name;
 	if (_sharedContact) {
-		phrase = lang(lng_forward_share_contact);
+		phrase = lng_forward_share_contact(lt_recipient, recipient);
 	} else if (_sendPath) {
 		if (cSendPaths().size() > 1) {
-			phrase = lang(lng_forward_send_files_confirm);
+			phrase = lng_forward_send_files_confirm(lt_recipient, recipient);
 		} else {
 			QString name(QFileInfo(cSendPaths().front()).fileName());
 			if (name.size() > 10) {
 				name = name.mid(0, 8) + '.' + '.';
 			}
-			phrase = lang(lng_forward_send_file_confirm).replace(qsl("{name}"), name);
+			phrase = lng_forward_send_file_confirm(lt_name, name, lt_recipient, recipient);
 		}
 	} else {
-		phrase = lang(lng_forward_confirm);
+		phrase = lng_forward_confirm(lt_recipient, recipient);
 	}
 
-	toText.setText(st::boxFont, phrase.replace(qsl("{recipient}"), offered->chat ? '\xAB' + offered->name + '\xBB' : offered->name), _textNameOptions);
+	toText.setText(st::boxFont, phrase, _textNameOptions);
 	toTextWidth = toText.maxWidth();
 	if (toTextWidth > box.width() - st::boxPadding.left() - st::boxPadding.right()) {
 		toTextWidth = box.width() - st::boxPadding.left() - st::boxPadding.right();
@@ -2765,10 +2766,10 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 	int32 t = unixtime();
 	if (histPeer->chat) {
 		ChatData *chat = histPeer->asChat();
-		if (chat->forbidden || chat->count <= 0) {
-			text = lang(lng_chat_no_members);
+		if (chat->forbidden) {
+			text = lang(lng_chat_status_unaccessible);
 		} else if (chat->participants.isEmpty()) {
-			text = titlePeerText.isEmpty() ? lang(lng_chat_members).arg(chat->count) : titlePeerText;
+			text = titlePeerText.isEmpty() ? lng_chat_status_members(lt_count, chat->count < 0 ? 0 : chat->count) : titlePeerText;
 		} else {
 			int32 onlineCount = 0;
             bool onlyMe = true;
@@ -2779,9 +2780,9 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 				}
 			}
             if (onlineCount && !onlyMe) {
-				text = lang(lng_chat_members_online).arg(chat->participants.size()).arg(onlineCount);
+				text = lng_chat_status_members_online(lt_count, chat->participants.size(), lt_count_online, onlineCount);
 			} else {
-				text = lang(lng_chat_members).arg(chat->participants.size());
+				text = lng_chat_status_members(lt_count, chat->participants.size());
 			}
 		}
 	} else {
@@ -3181,6 +3182,8 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 
 	if (e->key() == Qt::Key_Escape) {
 		e->ignore();
+	} else if (e->key() == Qt::Key_Back) {
+		onCancel();
 	} else if (e->key() == Qt::Key_PageDown) {
 		if ((e->modifiers() & Qt::ControlModifier) || (e->modifiers() & Qt::MetaModifier)) {
 			PeerData *after = 0;

@@ -95,9 +95,9 @@ void IntroCode::paintEvent(QPaintEvent *e) {
 	}
 	QString callText = lang(lng_code_calling);
 	if (waitTillCall >= 3600) {
-		callText = lang(lng_code_call).arg(QString("%1:%2").arg(waitTillCall / 3600).arg((waitTillCall / 60) % 60, 2, 10, QChar('0'))).arg(waitTillCall % 60, 2, 10, QChar('0'));
+		callText = lng_code_call(lt_minutes, qsl("%1:%2").arg(waitTillCall / 3600).arg((waitTillCall / 60) % 60, 2, 10, QChar('0')), lt_seconds, qsl("%1").arg(waitTillCall % 60, 2, 10, QChar('0')));
 	} else if (waitTillCall > 0) {
-		callText = lang(lng_code_call).arg(waitTillCall / 60).arg(waitTillCall % 60, 2, 10, QChar('0'));
+		callText = lng_code_call(lt_minutes, QString::number(waitTillCall / 60), lt_seconds, qsl("%1").arg(waitTillCall % 60, 2, 10, QChar('0')));
 	} else if (waitTillCall < 0) {
 		callText = lang(lng_code_called);
 	}

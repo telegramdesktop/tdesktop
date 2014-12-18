@@ -287,7 +287,7 @@ QString textcmdStopColor() {
 	return result.append(TextCommand).append(QChar(TextCommandNoColor)).append(TextCommand);
 }
 
-const QChar *skipCommand(const QChar *from, const QChar *end, bool canLink = true) {
+const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink) {
 	const QChar *result = from + 1;
 	if (*from != TextCommand || result >= end) return from;
 
@@ -327,6 +327,10 @@ const QChar *skipCommand(const QChar *from, const QChar *end, bool canLink = tru
 
 	case TextCommandSkipBlock:
 		result += 2;
+		break;
+
+	case TextCommandLangTag:
+		result += 1;
 		break;
 	}
 	return (result < end && *result == TextCommand) ? (result + 1) : from;
@@ -434,7 +438,7 @@ public:
 	}
 	
 	bool readCommand() {
-		const QChar *afterCmd = skipCommand(ptr, end, links.size() < 0x7FFF);
+		const QChar *afterCmd = textSkipCommand(ptr, end, links.size() < 0x7FFF);
 		if (afterCmd == ptr) {
 			return false;
 		}
@@ -4137,7 +4141,7 @@ LinkRanges textParseLinks(const QString &text, bool rich) {
 		}
 		if (hashtagOffset < domainOffset) {
 			if (hashtagOffset > nextCmd) {
-				const QChar *after = skipCommand(start + nextCmd, start + len);
+				const QChar *after = textSkipCommand(start + nextCmd, start + len);
 				if (after > start + nextCmd && hashtagOffset < (after - start)) {
 					nextCmd = offset = matchOffset = after - start;
 					continue;
@@ -4148,7 +4152,7 @@ LinkRanges textParseLinks(const QString &text, bool rich) {
 			link.len = start + hashtagEnd - link.from;
 		} else {
 			if (domainOffset > nextCmd) {
-				const QChar *after = skipCommand(start + nextCmd, start + len);
+				const QChar *after = textSkipCommand(start + nextCmd, start + len);
 				if (after > start + nextCmd && domainOffset < (after - start)) {
 					nextCmd = offset = matchOffset = after - start;
 					continue;

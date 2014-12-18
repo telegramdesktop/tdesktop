@@ -149,6 +149,8 @@ DeclareReadSetting(QString, LangFile);
 DeclareSetting(QStringList, SendPaths);
 DeclareSetting(QString, StartUrl);
 
+DeclareSetting(QString, LangErrors);
+
 DeclareSetting(bool, Retina);
 DeclareSetting(float64, RetinaFactor);
 DeclareSetting(int32, IntRetinaFactor);

@@ -39,10 +39,20 @@ Q_IMPORT_PLUGIN(QWebpPlugin)
 typedef unsigned int uint32;
 
 QString layoutDirection;
-typedef QMap<QString, QString> LangKeys;
+typedef QMap<QByteArray, QString> LangKeys;
 LangKeys keys;
-typedef QVector<QString> KeysOrder;
+typedef QMap<QByteArray, ushort> LangTags;
+LangTags tags;
+typedef QMap<QByteArray, QVector<QByteArray> > LangKeysTags;
+LangKeysTags keysTags;
+typedef QVector<QByteArray> KeysOrder;
 KeysOrder keysOrder;
+KeysOrder tagsOrder;
+typedef QMap<QByteArray, QMap<QByteArray, QVector<QString> > > LangKeysCounted;
+LangKeysCounted keysCounted;
+
+static const QChar TextCommand(0x0010);
+static const QChar TextCommandLangTag(0x0020);
 
 bool skipWhitespaces(const char *&from, const char *end) {
 	while (from < end && (*from == ' ' || *from == '\n' || *from == '\t' || *from == '\r')) {
@@ -86,68 +96,177 @@ bool skipJunk(const char *&from, const char *end) {
 	return true;
 }
 
+inline bool _lngEquals(const QByteArray &key, int from, int len, const char *value, int size) {
+	if (size != len || from + len > key.size()) return false;
+	for (const char *v = key.constData() + from, *e = v + len; v != e; ++v, ++value) {
+		if (*v != *value) return false;
+	}
+	return true;
+}
+
+#define LNG_EQUALS_PART(key, from, len, value) _lngEquals(key, from, len, value, sizeof(value) - 1)
+#define LNG_EQUALS_TAIL(key, from, value) _lngEquals(key, from, key.size() - from, value, sizeof(value) - 1)
+#define LNG_EQUALS(key, value) _lngEquals(key, 0, key.size(), value, sizeof(value) - 1)
+
+static const int MaxCountedValues = 6;
+
 void readKeyValue(const char *&from, const char *end) {
 	if (!skipJunk(from, end)) return;
 
-	const char *nameStart = from;
+	if (*from != '"') throw Exception(QString("Expected quote before key name!"));
+	const char *nameStart = ++from;
 	while (from < end && ((*from >= 'a' && *from <= 'z') || (*from >= 'A' && *from <= 'Z') || *from == '_' || (*from >= '0' && *from <= '9'))) {
 		++from;
 	}
 
-	QString varName = QString::fromUtf8(nameStart, int(from - nameStart));
+	if (from == nameStart) throw Exception(QString("Expected key name!"));
+	QByteArray varName = QByteArray(nameStart, int(from - nameStart));
+	for (const char *t = nameStart; t + 1 < from; ++t) {
+		if (*t == '_') {
+			if (*(t + 1) == '_') throw Exception(QString("Bad key name: %1").arg(QLatin1String(varName)));
+			++t;
+		}
+	}
 
-	if (!skipJunk(from, end)) throw Exception("Unexpected end of file!");
-	if (*from != ':') throw Exception(QString("':' expected after '%1'").arg(varName));
+	if (from == end || *from != '"') throw Exception(QString("Expected quote after key name in key '%1'!").arg(QLatin1String(varName)));
+	++from;
 
-	if (!skipJunk(++from, end)) throw Exception("Unexpected end of file!");
-	if (*from != '"') throw Exception(QString("Expected string after '%1:'").arg(varName));
+	if (!skipJunk(from, end)) throw Exception(QString("Unexpected end of file in key '%1'!").arg(QLatin1String(varName)));
+	if (*from != '=') throw Exception(QString("'=' expected in key '%1'!").arg(QLatin1String(varName)));
+
+	if (!skipJunk(++from, end)) throw Exception(QString("Unexpected end of file in key '%1'!").arg(QLatin1String(varName)));
+	if (*from != '"') throw Exception(QString("Expected string after '=' in key '%1'!").arg(QLatin1String(varName)));
 
 	QByteArray varValue;
 	const char *start = ++from;
+	QVector<QByteArray> tagsList;
 	while (from < end && *from != '"') {
+		if (*from == '\n') {
+			throw Exception(QString("Unexpected end of string in key '%1'!").arg(QLatin1String(varName)));
+		}
 		if (*from == '\\') {
-			if (from + 1 >= end) throw Exception("Unexpected end of file!");
-			if (*(from + 1) == '"' || *(from + 1) == '\\') {
+			if (from + 1 >= end) throw Exception(QString("Unexpected end of file in key '%1'!").arg(QLatin1String(varName)));
+			if (*(from + 1) == '"' || *(from + 1) == '\\' || *(from + 1) == '{') {
 				if (from > start) varValue.append(start, int(from - start));
 				start = ++from;
+			} else if (*(from + 1) == 'n') {
+				if (from > start) varValue.append(start, int(from - start));
+
+				varValue.append('\n');
+
+				start = (++from) + 1;
 			}
+		} else if (*from == '{') {
+			if (from > start) varValue.append(start, int(from - start));
+
+			const char *tagStart = ++from;
+			while (from < end && ((*from >= 'a' && *from <= 'z') || (*from >= 'A' && *from <= 'Z') || *from == '_' || (*from >= '0' && *from <= '9'))) {
+				++from;
+			}
+			if (from == tagStart) throw Exception(QString("Expected tag name in key '%1'!").arg(QLatin1String(varName)));
+			QByteArray tagName = QByteArray(tagStart, int(from - tagStart));
+
+			if (from == end || (*from != '}' && *from != ':')) throw Exception(QString("Expected '}' or ':' after tag name in key '%1'!").arg(QLatin1String(varName)));
+
+			LangTags::const_iterator i = tags.constFind(tagName);
+			if (i == tags.cend()) {
+				i = tags.insert(tagName, tagsOrder.size());
+				tagsOrder.push_back(tagName);
+			}
+			if (0x0020 + *i > 0x00F7) throw Exception(QString("Too many different tags in key '%1'").arg(QLatin1String(varName)));
+
+			QString tagReplacer(4, TextCommand);
+			tagReplacer[1] = TextCommandLangTag;
+			tagReplacer[2] = QChar(0x0020 + *i);
+			varValue.append(tagReplacer.toUtf8());
+			for (int j = 0, s = tagsList.size(); j < s; ++j) {
+				if (tagsList.at(j) == tagName) throw Exception(QString("Tag '%1' double used in key '%2'!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+			}
+			tagsList.push_back(tagName);
+
+			if (*from == ':') {
+				start = ++from;
+				
+				QVector<QString> &counted(keysCounted[varName][tagName]);
+				QByteArray subvarValue;
+				bool foundtag = false;
+				while (from < end && *from != '"' && *from != '}') {
+					if (*from == '|') {
+						if (from > start) subvarValue.append(start, int(from - start));
+						counted.push_back(QString::fromUtf8(subvarValue));
+						subvarValue = QByteArray();
+						foundtag = false;
+						start = from + 1;
+					}
+					if (*from == '\n') {
+						throw Exception(QString("Unexpected end of string inside counted tag '%1' in '%2' key!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+					}
+					if (*from == '\\') {
+						if (from + 1 >= end) throw Exception(QString("Unexpected end of file inside counted tag '%1' in '%2' key!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+						if (*(from + 1) == '"' || *(from + 1) == '\\' || *(from + 1) == '{' || *(from + 1) == '#') {
+							if (from > start) subvarValue.append(start, int(from - start));
+							start = ++from;
+						} else if (*(from + 1) == 'n') {
+							if (from > start) subvarValue.append(start, int(from - start));
+
+							subvarValue.append('\n');
+
+							start = (++from) + 1;
+						}
+					} else if (*from == '{') {
+						throw Exception(QString("Unexpected tag inside counted tag '%1' in '%2' key!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+					} else if (*from == '#') {
+						if (foundtag) throw Exception(QString("Replacement '#' double used inside counted tag '%1' in '%2' key!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+						foundtag = true;
+						if (from > start) subvarValue.append(start, int(from - start));
+						subvarValue.append(tagReplacer.toUtf8());
+						start = from + 1;
+					}
+					++from;
+				}
+				if (from >= end) throw Exception(QString("Unexpected end of file inside counted tag '%1' in '%2' key!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+				if (*from == '"') throw Exception(QString("Unexpected end of string inside counted tag '%1' in '%2' key!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+
+				if (from > start) subvarValue.append(start, int(from - start));
+				counted.push_back(QString::fromUtf8(subvarValue));
+
+				if (counted.size() > MaxCountedValues) {
+					throw Exception(QString("Too many values inside counted tag '%1' in '%2' key!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+				}
+			}
+			start = from + 1;
 		}
 		++from;
 	}
-	if (from >= end) throw Exception("Unexpected end of file!");
+	if (from >= end) throw Exception(QString("Unexpected end of file in key '%1'!").arg(QLatin1String(varName)));
 	if (from > start) varValue.append(start, int(from - start));
 
-	if (!skipJunk(++from, end)) throw Exception("Unexpected end of file!");
-	if (*from != ';') throw Exception(QString("';' expected after '%1: \"value\"'").arg(varName));
+	if (!skipJunk(++from, end)) throw Exception(QString("Unexpected end of file in key '%1'!").arg(QLatin1String(varName)));
+	if (*from != ';') throw Exception(QString("';' expected after \"value\" in key '%1'!").arg(QLatin1String(varName)));
 
 	skipJunk(++from, end);
 
 	if (varName == "direction") {
-		if (varValue == "LTR" || varValue == "RTL") {
-			layoutDirection = QString::fromUtf8(varValue);
-		} else {
-			throw Exception(QString("Unexpected value for 'direction' key: '%1'").arg(QString::fromUtf8(varValue)));
-		}
-	} else if (varName.midRef(0, 4) != "lng_") {
-		throw Exception(QString("Bad key '%1'").arg(varName));
+		throw Exception(QString("Unexpected value for 'direction' in key '%1'!").arg(QLatin1String(varName)));
+	} else if (!LNG_EQUALS_PART(varName, 0, 4, "lng_")) {
+		throw Exception(QString("Bad key '%1'!").arg(QLatin1String(varName)));
 	} else if (keys.constFind(varName) != keys.cend()) {
-		throw Exception(QString("Key doubled '%1'").arg(varName));
+		throw Exception(QString("Key '%1' doubled!").arg(QLatin1String(varName)));
 	} else {
 		keys.insert(varName, QString::fromUtf8(varValue));
+		keysTags.insert(varName, tagsList);
 		keysOrder.push_back(varName);
 	}
 }
 
-QString escapeCpp(const QString &key, QString value, bool wideChar) {
+QString escapeCpp(const QByteArray &key, QString value, bool wideChar) {
 	if (value.isEmpty()) return "QString()";
-	value = value.replace('\\', "\\\\").replace('\n', "\\n").replace('\r', "").replace('"', "\\\"");
+
 	QString res;
 	res.reserve(value.size() * 10);
 	bool instr = false;
 	for (const QChar *ch = value.constData(), *e = value.constData() + value.size(); ch != e; ++ch) {
-		if (ch->unicode() < 32) {
-			throw Exception(QString("Bad value for key '%1'").arg(key));
-		} else if (ch->unicode() > 127) {
+		if (ch->unicode() > 0x00F7) {
 			if (instr) {
 				res.append('"');
 				instr = false;
@@ -170,14 +289,39 @@ QString escapeCpp(const QString &key, QString value, bool wideChar) {
 				res.append('"');
 				instr = true;
 			}
-			res.append(*ch);
+			if (ch->unicode() == '\\' || ch->unicode() == '\n' || ch->unicode() == '\r' || ch->unicode() == '"') {
+				res.append('\\');
+				if (ch->unicode() == '\\' || ch->unicode() == '"') {
+					res.append(*ch);
+				} else if (ch->unicode() == '\n') {
+					res.append('n');
+				} else if (ch->unicode() == '\r') {
+					res.append('r');
+				}
+			} else if (ch->unicode() < 0x0020) {
+				if (*ch == TextCommand) {
+					if (ch + 3 >= e || (ch + 1)->unicode() != TextCommandLangTag || (ch + 2)->unicode() > 0x00F7 || (ch + 2)->unicode() < 0x0020 || *(ch + 3) != TextCommand) {
+						throw Exception(QString("Bad value for key '%1'").arg(QLatin1String(key)));
+					} else {
+						res.append('\\').append('x').append(QString("%1").arg(ch->unicode(), 2, 16, QChar('0')));
+						res.append('\\').append('x').append(QString("%1").arg((ch + 1)->unicode(), 2, 16, QChar('0')));
+						res.append('\\').append('x').append(QString("%1").arg((ch + 2)->unicode(), 2, 16, QChar('0')));
+						res.append('\\').append('x').append(QString("%1").arg((ch + 3)->unicode(), 2, 16, QChar('0')));
+						ch += 3;
+					}
+				} else {
+					throw Exception(QString("Bad value for key '%1'").arg(QLatin1String(key)));
+				}
+			} else {
+				res.append(*ch);
+			}
 		}
 	}
 	if (instr) res.append('"');
 	return (wideChar ? "qsl(" : "QString::fromUtf8(") + res.mid(wideChar ? 2 : 1) + ")";
 }
 
-void writeCppKey(QTextStream &tcpp, const QString &key, const QString &val) {
+void writeCppKey(QTextStream &tcpp, const QByteArray &key, const QString &val) {
 	QString wide = escapeCpp(key, val, true), utf = escapeCpp(key, val, false);
 	if (wide.indexOf(" L\"") < 0) {
 		tcpp << "\t\t\tset(" << key << ", " << wide << ");\n";
@@ -236,49 +380,62 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
 Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 */\n";
 			th << "#pragma once\n\n";
+
+			for (int i = 0, l = tagsOrder.size(); i < l; ++i) {
+				th << "enum lngtag_" << tagsOrder[i] << " { lt_" << tagsOrder[i] << " = " << i << " };\n";
+			}
+			th << "static const ushort lngtags_cnt = " << tagsOrder.size() << ";\n";
+			th << "static const ushort lngtags_max_counted_values = " << MaxCountedValues << ";\n";
+			th << "\n";
+
 			th << "enum LangKey {\n";
 			for (int i = 0, l = keysOrder.size(); i < l; ++i) {
-				th << "\t" << keysOrder[i] << (i ? "" : " = 0") << ",\n";
+				if (keysTags[keysOrder[i]].isEmpty()) {
+					th << "\t" << keysOrder[i] << (i ? "" : " = 0") << ",\n";
+				} else {
+					th << "\t" << keysOrder[i] << "__tagged" << (i ? "" : " = 0") << ",\n";
+					QMap<QByteArray, QVector<QString> > &countedTags(keysCounted[keysOrder[i]]);
+					if (!countedTags.isEmpty()) {
+						for (QMap<QByteArray, QVector<QString> >::const_iterator j = countedTags.cbegin(), e = countedTags.cend(); j != e; ++j) {
+							const QVector<QString> &counted(*j);
+							for (int k = 0, s = counted.size(); k < s; ++k) {
+								th << "\t" << keysOrder[i] << "__" + j.key() + QString::number(k).toUtf8() << ",\n";
+							}
+						}
+					}
+				}
 			}
-			th << "\n\tlng_keys_cnt\n";
+			th << "\n\tlngkeys_cnt\n";
 			th << "};\n\n";
-			th << "QString lang(LangKey key);\n";
-			th << "inline QString langDayOfMonth(const QDate &date) {\n";
-			th << "\tint32 month = date.month(), day = date.day();\n";
-			th << "\treturn (month > 0 && month <= 12) ? lang(lng_month_day).replace(qsl(\"{month}\"), lang(LangKey(lng_month1 + month - 1))).replace(qsl(\"{day}\"), QString::number(day)) : qsl(\"{err}\");\n";
-			th << "}\n\n";
-			th << "inline QString langDayOfWeek(const QDate &date) {\n";
-			th << "\tint32 day = date.dayOfWeek();\n";
-			th << "\treturn (day > 0 && day <= 7) ? lang(LangKey(lng_weekday1 + day - 1)) : qsl(\"{err}\");\n";
-			th << "}\n\n";
-			th << "inline QString langDayOfWeekFull(const QDate &date) {\n";
-			th << "\tint32 day = date.dayOfWeek();\n";
-			th << "\treturn (day > 0 && day <= 7) ? lang(LangKey(lng_weekday1_full + day - 1)) : qsl(\"{err}\");\n";
-			th << "}\n\n";
-			th << "Qt::LayoutDirection langDir();\n\n";
-			th << "class LangLoader {\n";
-			th << "public:\n";
-			th << "\tconst QString &errors() const;\n";
-			th << "\tconst QString &warnings() const;\n\n";
-			th << "protected:\n";
-			th << "\tLangLoader() : _checked(false) {\n";
-			th << "\t\tmemset(_found, 0, sizeof(_found));\n";
-			th << "\t}\n\n";
-			th << "\tbool feedKeyValue(const QString &key, const QString &value);\n\n";
-			th << "\tvoid error(const QString &text) {\n";
-			th << "\t\t_err.push_back(text);\n";
-			th << "\t}\n";
-			th << "\tvoid warning(const QString &text) {\n";
-			th << "\t\t_warn.push_back(text);\n";
-			th << "\t}\n\n";
-			th << "private:\n";
-			th << "\tmutable QStringList _err, _warn;\n";
-			th << "\tmutable QString _errors, _warnings;\n";
-			th << "\tmutable bool _checked;\n";
-			th << "\tbool _found[lng_keys_cnt];\n\n";
-			th << "\tLangLoader(const LangLoader &);\n";
-			th << "\tLangLoader &operator=(const LangLoader &);\n";
-			th << "};\n";
+
+			th << "LangString lang(LangKey key);\n\n";
+
+			for (int i = 0, l = keysOrder.size(); i < l; ++i) {
+				QVector<QByteArray> &tagsList(keysTags[keysOrder[i]]);
+				if (tagsList.isEmpty()) continue;
+
+				QMap<QByteArray, QVector<QString> > &countedTags(keysCounted[keysOrder[i]]);
+				th << "inline LangString " << keysOrder[i] << "(";
+				for (int j = 0, s = tagsList.size(); j < s; ++j) {
+					if (countedTags[tagsList[j]].isEmpty()) {
+						th << "lngtag_" << tagsList[j] << ", const QString &" << tagsList[j] << "__val";
+					} else {
+						th << "lngtag_" << tagsList[j] << ", float64 " << tagsList[j] << "__val";
+					}
+					if (j + 1 < s) th << ", ";
+				}
+				th << ") {\n";
+				th << "\treturn lang(" << keysOrder[i] << "__tagged)";
+				for (int j = 0, s = tagsList.size(); j < s; ++j) {
+					if (countedTags[tagsList[j]].isEmpty()) {
+						th << ".tag(lt_" << tagsList[j] << ", " << tagsList[j] << "__val)";
+					} else {
+						th << ".tag(lt_" << tagsList[j] << ", langCounted(" << keysOrder[i] << "__" << tagsList[j] << "0, lt_" << tagsList[j] << ", " << tagsList[j] << "__val))";
+					}
+				}
+				th << ";\n";
+				th << "}\n";
+			}
 
 			tcpp << "\
 /*\n\
@@ -304,64 +461,127 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 */\n";
 			tcpp << "#include \"stdafx.h\"\n#include \"lang.h\"\n\n";
 			tcpp << "namespace {\n";
-			tcpp << "\tQt::LayoutDirection _langDir = Qt::" << (layoutDirection == "LTR" ? "LeftToRight" : "RightToLeft") << ";\n";
-			tcpp << "\tconst char *_langKeyNames[lng_keys_cnt + 1] = {\n";
+
+			tcpp << "\tconst char *_langKeyNames[lngkeys_cnt] = {\n";
 			for (int i = 0, l = keysOrder.size(); i < l; ++i) {
 				tcpp << "\t\t\"" << keysOrder[i] << "\",\n";
 			}
-			tcpp << "\t\t\"lng_keys_cnt\"\n";
 			tcpp << "\t};\n\n";
-			tcpp << "\tQString _langValues[lng_keys_cnt + 1];\n\n";
+
+			tcpp << "\tLangString _langValues[lngkeys_cnt];\n\n";
 			tcpp << "\tvoid set(LangKey key, const QString &val) {\n";
 			tcpp << "\t\t_langValues[key] = val;\n";
 			tcpp << "\t}\n\n";
+
 			tcpp << "\tclass LangInit {\n";
 			tcpp << "\tpublic:\n";
 			tcpp << "\t\tLangInit() {\n";
 			for (int i = 0, l = keysOrder.size(); i < l; ++i) {
-				writeCppKey(tcpp, keysOrder[i], keys[keysOrder[i]]);
+				writeCppKey(tcpp, keysOrder[i] + (keysTags[keysOrder[i]].isEmpty() ? "" : "__tagged"), keys[keysOrder[i]]);
+
+				QMap<QByteArray, QVector<QString> > &countedTags(keysCounted[keysOrder[i]]);
+				if (!countedTags.isEmpty()) {
+					for (QMap<QByteArray, QVector<QString> >::const_iterator j = countedTags.cbegin(), e = countedTags.cend(); j != e; ++j) {
+						const QVector<QString> &counted(*j);
+						for (int k = 0, s = counted.size(); k < s; ++k) {
+							writeCppKey(tcpp, keysOrder[i] + "__" + j.key() + QString::number(k).toUtf8(), counted[k]);
+						}
+					}
+				}
 			}
-			tcpp << "\t\t\tset(lng_keys_cnt, QString());\n";
 			tcpp << "\t\t}\n";
 			tcpp << "\t};\n\n";
-			tcpp << "\tLangInit _langInit;\n";
-			tcpp << "}\n\n";
 
-			tcpp << "QString lang(LangKey key) {\n";
-			tcpp << "\treturn _langValues[(key < 0 || key > lng_keys_cnt) ? lng_keys_cnt : key];\n";
-			tcpp << "}\n\n";
+			tcpp << "\tLangInit _langInit;\n\n";
 
-			tcpp << "Qt::LayoutDirection langDir() {\n";
-			tcpp << "\treturn _langDir;\n";
-			tcpp << "}\n\n";
-
-			tcpp << "bool LangLoader::feedKeyValue(const QString &key, const QString &value) {\n";
-			tcpp << "\tif (key == qsl(\"direction\")) {\n";
-			tcpp << "\t\tif (value == qsl(\"LTR\")) {\n";
-			tcpp << "\t\t\t_langDir = Qt::LeftToRight;\n";
-			tcpp << "\t\t\treturn true;\n";
-			tcpp << "\t\t} else if (value == qsl(\"RTL\")) {\n";
-			tcpp << "\t\t\t_langDir = Qt::RightToLeft;\n";
-			tcpp << "\t\t\treturn true;\n";
-			tcpp << "\t\t} else {\n";
-			tcpp << "\t\t\t_err.push_back(qsl(\"Bad value for 'direction' key.\"));\n";
-			tcpp << "\t\t\treturn false;\n";
+			tcpp << "\tinline bool _lngEquals(const QByteArray &key, int from, int len, const char *value, int size) {\n";
+			tcpp << "\t\tif (size != len || from + len > key.size()) return false;\n";
+			tcpp << "\t\tfor (const char *v = key.constData() + from, *e = v + len; v != e; ++v, ++value) {\n";
+			tcpp << "\t\t\tif (*v != *value) return false;\n";
 			tcpp << "\t\t}\n";
+			tcpp << "\t\treturn true; \n";
 			tcpp << "\t}\n";
-			tcpp << "\tif (key.size() < 5 || key.midRef(0, 4) != qsl(\"lng_\")) {\n";
-			tcpp << "\t\t_err.push_back(qsl(\"Bad key name '%1'\").arg(key));\n";
-			tcpp << "\t\treturn false;\n";
-			tcpp << "\t}\n\n";
+
+			tcpp << "}\n\n";
+
+			tcpp << "#define LNG_EQUALS_PART(key, from, len, value) _lngEquals(key, from, len, value, sizeof(value) - 1)\n";
+			tcpp << "#define LNG_EQUALS_TAIL(key, from, value) _lngEquals(key, from, key.size() - from, value, sizeof(value) - 1)\n";
+			tcpp << "#define LNG_EQUALS(key, value) _lngEquals(key, 0, key.size(), value, sizeof(value) - 1)\n\n";
+
+			tcpp << "LangString lang(LangKey key) {\n";
+			tcpp << "\treturn (key < 0 || key > lngkeys_cnt) ? QString() : _langValues[key];\n";
+			tcpp << "}\n\n";
+
+			tcpp << "const char *langKeyName(LangKey key) {\n";
+			tcpp << "\treturn (key < 0 || key > lngkeys_cnt) ? \"\" : _langKeyNames[key];\n";
+			tcpp << "}\n\n";
+
+			tcpp << "ushort LangLoader::tagIndex(const QByteArray &tag) const {\n";
+			tcpp << "\tif (tag.isEmpty()) return lngtags_cnt;\n\n";
+			if (!tags.isEmpty()) {
+				QString tab("\t");
+				tcpp << "\tconst char *ch = tag.constData(), *e = tag.constData() + tag.size();\n";
+				QByteArray current;
+				int depth = current.size();
+				tcpp << "\tswitch (*ch) {\n";
+				for (LangTags::const_iterator i = tags.cbegin(), j = i + 1, e = tags.cend(); i != e; ++i) {
+					QByteArray tag = i.key();
+					while (depth > 0 && tag.mid(0, depth) != current) {
+						tcpp << tab.repeated(depth + 1) << "}\n";
+						current.chop(1);
+						--depth;
+						tcpp << tab.repeated(depth + 1) << "break;\n";
+					}
+					do {
+						if (tag == current) break;
+
+						char ich = i.key().at(current.size());
+						tcpp << tab.repeated(current.size() + 1) << "case '" << ich << "':\n";
+						if (j == e || ich != ((j.key().size() > depth) ? j.key().at(depth) : 0)) {
+							if (tag == current + ich) {
+								tcpp << tab.repeated(depth + 1) << "\tif (ch + " << (depth + 1) << " == e) return lt_" << tag << ";\n";
+							} else {
+								tcpp << tab.repeated(depth + 1) << "\tif (LNG_EQUALS_TAIL(tag, " << (depth + 1) << ", \"" << i.key().mid(depth + 1) << "\")) return lt_" << tag << ";\n";
+							}
+							tcpp << tab.repeated(depth + 1) << "break;\n";
+							break;
+						}
+
+						++depth;
+						current += ich;
+
+						if (tag == current) {
+							tcpp << tab.repeated(depth + 1) << "if (ch + " << depth << " == e) {\n";
+							tcpp << tab.repeated(depth + 1) << "\treturn lt_" << tag << ";\n";
+							tcpp << tab.repeated(depth + 1) << "}\n";
+						}
+
+						tcpp << tab.repeated(depth + 1) << "if (ch + " << depth << " < e) switch (*(ch + " << depth << ")) {\n";
+					} while (true);
+					++j;
+				}
+				while (QByteArray() != current) {
+					tcpp << tab.repeated(depth + 1) << "}\n";
+					current.chop(1);
+					--depth;
+					tcpp << tab.repeated(depth + 1) << "break;\n";
+				}
+				tcpp << "\t}\n\n";
+			}
+			tcpp << "\treturn lngtags_cnt;\n";
+			tcpp << "}\n\n";
+
+			tcpp << "LangKey LangLoader::keyIndex(const QByteArray &key) const {\n";
+			tcpp << "\tif (key.size() < 5 || !LNG_EQUALS_PART(key, 0, 4, \"lng_\")) return lngkeys_cnt;\n\n";
 			if (!keys.isEmpty()) {
 				QString tab("\t");
-				tcpp << "\tLangKey keyIndex = lng_keys_cnt;\n";
-				tcpp << "\tconst QChar *ch = key.constData(), *e = key.constData() + key.size();\n";
-				QString current("lng_");
+				tcpp << "\tconst char *ch = key.constData(), *e = key.constData() + key.size();\n";
+				QByteArray current("lng_");
 				int depth = current.size();
-				tcpp << "\tswitch ((ch + " << depth << ")->unicode()) {\n";
+				tcpp << "\tswitch (*(ch + " << depth << ")) {\n";
 				for (LangKeys::const_iterator i = keys.cbegin(), j = i + 1, e = keys.cend(); i != e; ++i) {
-					QString key = i.key();
-					while (key.midRef(0, depth) != current) {
+					QByteArray key = i.key();
+					while (key.mid(0, depth) != current) {
 						tcpp << tab.repeated(depth - 3) << "}\n";
 						current.chop(1);
 						--depth;
@@ -370,13 +590,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 					do {
 						if (key == current) break;
 							
-						QChar ich = i.key().at(current.size());
+						char ich = i.key().at(current.size());
 						tcpp << tab.repeated(current.size() - 3) << "case '" << ich << "':\n";
 						if (j == e || ich != ((j.key().size() > depth) ? j.key().at(depth) : 0)) {
 							if (key == current + ich) {
-								tcpp << tab.repeated(depth - 3) << "\tif (ch + " << (depth + 1) << " == e) keyIndex = " << key << ";\n";
+								tcpp << tab.repeated(depth - 3) << "\tif (ch + " << (depth + 1) << " == e) return " << key << (keysTags[key].isEmpty() ? "" : "__tagged") << ";\n";
 							} else {
-								tcpp << tab.repeated(depth - 3) << "\tif (key.midRef(" << (depth + 1) << ") == qsl(\"" << i.key().mid(depth + 1) << "\")) keyIndex = " << key << ";\n";
+								tcpp << tab.repeated(depth - 3) << "\tif (LNG_EQUALS_TAIL(key, " << (depth + 1) << ", \"" << i.key().mid(depth + 1) << "\")) return " << key << (keysTags[key].isEmpty() ? "" : "__tagged") << ";\n";
 							}
 							tcpp << tab.repeated(depth - 3) << "break;\n";
 							break;
@@ -387,52 +607,78 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 
 						if (key == current) {
 							tcpp << tab.repeated(depth - 3) << "if (ch + " << depth << " == e) {\n";
-							tcpp << tab.repeated(depth - 3) << "\tkeyIndex = " << key << ";\n";
+							tcpp << tab.repeated(depth - 3) << "\treturn " << key << (keysTags[key].isEmpty() ? "" : "__tagged") << ";\n";
 							tcpp << tab.repeated(depth - 3) << "}\n";
 						}
 
-						tcpp << tab.repeated(depth - 3) << "if (ch + " << depth << " < e) switch ((ch + " << depth << ")->unicode()) {\n";
+						tcpp << tab.repeated(depth - 3) << "if (ch + " << depth << " < e) switch (*(ch + " << depth << ")) {\n";
 					} while (true);
 					++j;
 				}
-				while (QString("lng_") != current) {
+				while (QByteArray("lng_") != current) {
 					tcpp << tab.repeated(depth - 3) << "}\n";
 					current.chop(1);
 					--depth;
 					tcpp << tab.repeated(depth - 3) << "break;\n";
 				}
 				tcpp << "\t}\n\n";
-				tcpp << "\tif (keyIndex < lng_keys_cnt) {\n";
-				tcpp << "\t\t_found[keyIndex] = 1;\n";
-				tcpp << "\t\t_langValues[keyIndex] = value;\n";
-				tcpp << "\t\treturn true;\n";
+			}
+			tcpp << "\treturn lngkeys_cnt;\n";
+			tcpp << "}\n\n";
+
+			tcpp << "bool LangLoader::tagReplaced(LangKey key, ushort tag) const {\n";
+			if (!tags.isEmpty()) {
+				tcpp << "\tswitch (key) {\n";
+				for (int i = 0, l = keysOrder.size(); i < l; ++i) {
+					QVector<QByteArray> &tagsList(keysTags[keysOrder[i]]);
+					if (tagsList.isEmpty()) continue;
+
+					tcpp << "\tcase " << keysOrder[i] << "__tagged: {\n";
+					tcpp << "\t\tswitch (tag) {\n";
+					for (int j = 0, s = tagsList.size(); j < s; ++j) {
+						tcpp << "\t\tcase lt_" << tagsList[j] << ":\n";
+					}
+					tcpp << "\t\t\treturn true;\n";
+					tcpp << "\t\t}\n";
+					tcpp << "\t} break;\n";
+				}
 				tcpp << "\t}\n\n";
 			}
-			tcpp << "\t_err.push_back(qsl(\"Unknown key name '%1'\").arg(key));\n";
+			tcpp << "\treturn false;";
+			tcpp << "}\n\n";
+
+			tcpp << "LangKey LangLoader::subkeyIndex(LangKey key, ushort tag, ushort index) const {\n";
+			tcpp << "\tif (index >= lngtags_max_counted_values) return lngkeys_cnt;\n\n";
+			if (!tags.isEmpty()) {
+				tcpp << "\tswitch (key) {\n";
+				for (int i = 0, l = keysOrder.size(); i < l; ++i) {
+					QVector<QByteArray> &tagsList(keysTags[keysOrder[i]]);
+					if (tagsList.isEmpty()) continue;
+
+					QMap<QByteArray, QVector<QString> > &countedTags(keysCounted[keysOrder[i]]);
+					tcpp << "\tcase " << keysOrder[i] << "__tagged: {\n";
+					tcpp << "\t\tswitch (tag) {\n";
+					for (int j = 0, s = tagsList.size(); j < s; ++j) {
+						if (!countedTags[tagsList[j]].isEmpty()) {
+							tcpp << "\t\tcase lt_" << tagsList[j] << ": return LangKey(" << keysOrder[i] << "__" << tagsList[j] << "0 + index);\n";
+						}
+					}
+					tcpp << "\t\t}\n";
+					tcpp << "\t} break;\n";
+				}
+				tcpp << "\t}\n\n";
+			}
+			tcpp << "\treturn lngkeys_cnt;";
+			tcpp << "}\n\n";
+
+			tcpp << "bool LangLoader::feedKeyValue(LangKey key, const QString &value) {\n";
+			tcpp << "\tif (key < lngkeys_cnt) {\n";
+			tcpp << "\t\t_found[key] = 1;\n";
+			tcpp << "\t\t_langValues[key] = value;\n";
+			tcpp << "\t\treturn true;\n";
+			tcpp << "\t}\n";
 			tcpp << "\treturn false;\n";
 			tcpp << "}\n\n";
-
-			tcpp << "const QString &LangLoader::errors() const {\n";
-			tcpp << "\tif (_errors.isEmpty() && !_err.isEmpty()) {\n";
-			tcpp << "\t\t_errors = _err.join('\\n');\n";
-			tcpp << "\t}\n";
-			tcpp << "\treturn _errors;\n";
-			tcpp << "}\n\n";
-
-			tcpp << "const QString &LangLoader::warnings() const {\n";
-			tcpp << "\tif (!_checked) {\n";
-			tcpp << "\t\tfor (int32 i = 0; i < lng_keys_cnt; ++i) {\n";
-			tcpp << "\t\t\tif (!_found[i]) {\n";
-			tcpp << "\t\t\t\t_warn.push_back(qsl(\"No value found for key '%1'\").arg(_langKeyNames[i]));\n";
-			tcpp << "\t\t\t}\n";
-			tcpp << "\t\t}\n";
-			tcpp << "\t\t_checked = true;\n";
-			tcpp << "\t}\n";
-			tcpp << "\tif (_warnings.isEmpty() && !_warn.isEmpty()) {\n";
-			tcpp << "\t\t_warnings = _warn.join('\\n');\n";
-			tcpp << "\t}\n";
-			tcpp << "\treturn _warnings;\n";
-			tcpp << "}\n";
 		}
 
 		QFile cpp(lang_cpp), h(lang_h);

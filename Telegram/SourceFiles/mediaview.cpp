@@ -173,11 +173,11 @@ void MediaView::updateControls() {
 	}
 	QDateTime d(date(_photo ? _photo->date : _doc->date)), dNow(date(unixtime()));
 	if (d.date() == dNow.date()) {
-		_dateText = lang(lng_status_lastseen_today).replace(qsl("{time}"), d.time().toString(qsl("hh:mm")));
+		_dateText = lng_status_lastseen_today(lt_time, d.time().toString(qsl("hh:mm")));
 	} else if (d.date().addDays(1) == dNow.date()) {
-		_dateText = lang(lng_status_lastseen_yesterday).replace(qsl("{time}"), d.time().toString(qsl("hh:mm")));
+		_dateText = lng_status_lastseen_yesterday(lt_time, d.time().toString(qsl("hh:mm")));
 	} else {
-		_dateText = lang(lng_status_lastseen_date_time).replace(qsl("{date}"), d.date().toString(qsl("dd.MM.yy"))).replace(qsl("{time}"), d.time().toString(qsl("hh:mm")));
+		_dateText = lng_status_lastseen_date_time(lt_date, d.date().toString(qsl("dd.MM.yy")), lt_time, d.time().toString(qsl("hh:mm")));
 	}
 	_fromName.setText(st::medviewNameFont, _from->name);
 	updateHeader();
@@ -1299,7 +1299,7 @@ void MediaView::updateHeader() {
 		count = _user->photosCount ? _user->photosCount : _user->photos.size();
 	}
 	if (_index >= 0 && _index < count && count > 1) {
-		_header = lang(lng_mediaview_n_of_count).replace(qsl("{n}"), QString::number(index + 1)).replace(qsl("{count}"), QString::number(count));
+		_header = lng_mediaview_n_of_count(lt_n, QString::number(index + 1), lt_count, QString::number(count));
 		_overview.setText(_header);
 		if (_history) {
 			if (_overview.isHidden()) _overview.show();

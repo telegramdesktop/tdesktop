@@ -67,17 +67,14 @@ private:
     NSString *_str;
 };
 
-typedef QMap<LangKey, QNSString> ObjcLang;
-ObjcLang objcLang;
-
 QNSString objc_lang(LangKey key) {
 	return QNSString(lang(key));
-
-    ObjcLang::const_iterator i = objcLang.constFind(key);
-    if (i == objcLang.cend()) {
-        i = objcLang.insert(key, lang(key));
-    }
-    return i.value();
+}
+QNSString objc_lang(LangKey key, LangTag tag1, const QString &replacement1 {
+	return QNSString(lang(key, tag1, replacement1));
+}
+QString objcString(NSString *str) {
+	return QString::fromUtf8([str cStringUsingEncoding:NSUTF8StringEncoding]);
 }
 
 @interface ObserverHelper : NSObject {
@@ -535,7 +532,7 @@ void objc_openFile(const QString &f, bool openwith) {
             [button setFrame:alwaysRect];
             [button setAutoresizingMask:NSViewMinXMargin|NSViewMaxXMargin];
             NSTextField *goodLabel = [[NSTextField alloc] init];
-            [goodLabel setStringValue:[objc_lang(lng_mac_this_app_can_open).s() stringByReplacingOccurrencesOfString:@"{file}" withString:name]];
+            [goodLabel setStringValue:objc_lang(lng_mac_this_app_can_open, lngtag_file, objcString(name)).s()];
             [goodLabel setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
             [goodLabel setBezeled:NO];
             [goodLabel setDrawsBackground:NO];
@@ -548,7 +545,7 @@ void objc_openFile(const QString &f, bool openwith) {
             [goodLabel setFrame:goodFrame];
             
             NSTextField *badLabel = [[NSTextField alloc] init];
-            [badLabel setStringValue:[objc_lang(lng_mac_not_known_app).s() stringByReplacingOccurrencesOfString:@"{file}" withString:name]];
+            [badLabel setStringValue:objc_lang(lng_mac_not_known_app, lngtag_file, objcString(name)).s()];
             [badLabel setFont:[goodLabel font]];
             [badLabel setBezeled:NO];
             [badLabel setDrawsBackground:NO];
@@ -578,7 +575,7 @@ void objc_openFile(const QString &f, bool openwith) {
             [openPanel setAllowsMultipleSelection:NO];
             [openPanel setResolvesAliases:YES];
             [openPanel setTitle:objc_lang(lng_mac_choose_app).s()];
-            [openPanel setMessage:[objc_lang(lng_mac_choose_text).s() stringByReplacingOccurrencesOfString:@"{file}" withString:name]];
+            [openPanel setMessage:objc_lang(lng_mac_choose_text, lngtag_file, objcString(name)).s()];
             
             NSArray *appsPaths = [[NSFileManager defaultManager] URLsForDirectory:NSApplicationDirectory inDomains:NSLocalDomainMask];
             if ([appsPaths count]) [openPanel setDirectoryURL:[appsPaths firstObject]];
@@ -595,7 +592,7 @@ void objc_openFile(const QString &f, bool openwith) {
 								OSStatus result = LSSetDefaultRoleHandlerForContentType((CFStringRef)UTI,
 																						kLSRolesAll,
 																						(CFStringRef)[[NSBundle bundleWithPath:path] bundleIdentifier]);
-								DEBUG_LOG(("App Info: set default handler for '%1' UTI result: %2").arg([UTI cStringUsingEncoding:NSUTF8StringEncoding]).arg(result));
+								DEBUG_LOG(("App Info: set default handler for '%1' UTI result: %2").arg(objcString(UTI)).arg(result));
                             }
 
                             [UTIs release];
@@ -631,9 +628,6 @@ void objc_start() {
 
 void objc_finish() {
 	[_sharedDelegate release];
-    if (!objcLang.isEmpty()) {
-        objcLang.clear();
-    }
 }
 
 void objc_registerCustomScheme() {
@@ -661,14 +655,14 @@ BOOL _execUpdater(BOOL update = YES) {
 			[args addObject:QNSString(cDataFile()).s()];
 		}
 
-		DEBUG_LOG(("Application Info: executing %1 %2").arg(QString::fromUtf8([path cStringUsingEncoding:NSUTF8StringEncoding])).arg(QString::fromUtf8([[args componentsJoinedByString:@" "] cStringUsingEncoding:NSUTF8StringEncoding])));
+		DEBUG_LOG(("Application Info: executing %1 %2").arg(objcString(path)).arg(objcString([[args componentsJoinedByString:@" "])));
 		if (![NSTask launchedTaskWithLaunchPath:path arguments:args]) {
-			LOG(("Task not launched while executing %1 %2").arg(QString::fromUtf8([path cStringUsingEncoding:NSUTF8StringEncoding])).arg(QString::fromUtf8([[args componentsJoinedByString:@" "] cStringUsingEncoding:NSUTF8StringEncoding])));
+			LOG(("Task not launched while executing %1 %2").arg(objcString(path)).arg(objcString([args componentsJoinedByString:@" "])));
 			return NO;
 		}
 	}
 	@catch (NSException *exception) {
-		LOG(("Exception caught while executing %1 %2").arg(QString::fromUtf8([path cStringUsingEncoding:NSUTF8StringEncoding])).arg(QString::fromUtf8([args cStringUsingEncoding:NSUTF8StringEncoding])));
+		LOG(("Exception caught while executing %1 %2").arg(objcString(path)).arg(objcString(args)));
 		return NO;
 	}
 	@finally {
@@ -730,19 +724,19 @@ QString objc_downloadPath() {
 QString objc_currentCountry() {
 	NSLocale *currentLocale = [NSLocale currentLocale];  // get the current locale.
 	NSString *countryCode = [currentLocale objectForKey:NSLocaleCountryCode];
-	return countryCode ? QString::fromUtf8([countryCode cStringUsingEncoding:NSUTF8StringEncoding]) : QString();
+	return countryCode ? objcString(countryCode) : QString();
 }
 
 QString objc_currentLang() {
 	NSLocale *currentLocale = [NSLocale currentLocale];  // get the current locale.
 	NSString *currentLang = [currentLocale objectForKey:NSLocaleLanguageCode];
-	return currentLang ? QString::fromUtf8([currentLang cStringUsingEncoding:NSUTF8StringEncoding]) : QString();
+	return currentLang ? objcString(currentLang) : QString();
 }
 
 QString objc_convertFileUrl(const QString &url) {
 	NSString *nsurl = [[[NSURL URLWithString: [NSString stringWithUTF8String: (qsl("file://") + url).toUtf8().constData()]] filePathURL] path];
 	if (!nsurl) return QString();
 
-	return QString::fromUtf8([nsurl cStringUsingEncoding:NSUTF8StringEncoding]);
+	return objcString(nsurl);
 }
 

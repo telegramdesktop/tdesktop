@@ -233,9 +233,6 @@
     <ClCompile Include="SourceFiles\gui\flatlabel.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\lang.cpp">
-      <Filter>Generated Files</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\langloaderplain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -764,6 +761,12 @@
     <ClCompile Include="GeneratedFiles\Release\moc_localstorage.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\lang_auto.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\lang.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -832,9 +835,6 @@
     <ClInclude Include="SourceFiles\settings.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="GeneratedFiles\lang.h">
-      <Filter>Generated Files</Filter>
-    </ClInclude>
     <ClInclude Include="SourceFiles\langloaderplain.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -843,6 +843,12 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\mtproto\mtpSessionImpl.h">
       <Filter>mtproto</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\lang_auto.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\lang.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -992,7 +998,6 @@
     <CustomBuild Include="SourceFiles\gui\flatlabel.h">
       <Filter>gui</Filter>
     </CustomBuild>
-    <CustomBuild Include="Resources\lang.txt" />
     <CustomBuild Include="SourceFiles\gui\switcher.h">
       <Filter>gui</Filter>
     </CustomBuild>
@@ -1020,6 +1025,7 @@
     <CustomBuild Include="SourceFiles\localstorage.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
+    <CustomBuild Include="Resources\lang.strings" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="SourceFiles\art\icon256.ico" />

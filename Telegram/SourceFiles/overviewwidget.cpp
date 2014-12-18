@@ -993,8 +993,8 @@ void OverviewInner::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void OverviewInner::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Escape) {
-		if (_selected.isEmpty()) {
+	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
+		if (_selected.isEmpty() || e->key() == Qt::Key_Back) {
 			App::main()->showBackFromStack();
 		} else {
 			_overview->onClearSelected();

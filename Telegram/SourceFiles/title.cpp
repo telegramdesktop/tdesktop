@@ -169,7 +169,6 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
         p.setX(p.x() - _minimize.width());
         _minimize.move(p);
     }
-    
 	_settings.move(st::titleMenuOffset, 0);
 	_back.move(st::titleMenuOffset, 0);
 	_back.resize((_minimize.isHidden() ? (_update.isHidden() ? width() : _update.x()) : _minimize.x()) - st::titleMenuOffset, _back.height());
