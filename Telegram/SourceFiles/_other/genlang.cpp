@@ -173,7 +173,7 @@ void readKeyValue(const char *&from, const char *end) {
 				i = tags.insert(tagName, tagsOrder.size());
 				tagsOrder.push_back(tagName);
 			}
-			if (0x0020 + *i > 0x00F7) throw Exception(QString("Too many different tags in key '%1'").arg(QLatin1String(varName)));
+			if (0x0020 + *i > 0x007F) throw Exception(QString("Too many different tags in key '%1'").arg(QLatin1String(varName)));
 
 			QString tagReplacer(4, TextCommand);
 			tagReplacer[1] = TextCommandLangTag;
@@ -266,7 +266,7 @@ QString escapeCpp(const QByteArray &key, QString value, bool wideChar) {
 	res.reserve(value.size() * 10);
 	bool instr = false;
 	for (const QChar *ch = value.constData(), *e = value.constData() + value.size(); ch != e; ++ch) {
-		if (ch->unicode() > 0x00F7) {
+		if (ch->unicode() > 0x007F) {
 			if (instr) {
 				res.append('"');
 				instr = false;
@@ -300,7 +300,7 @@ QString escapeCpp(const QByteArray &key, QString value, bool wideChar) {
 				}
 			} else if (ch->unicode() < 0x0020) {
 				if (*ch == TextCommand) {
-					if (ch + 3 >= e || (ch + 1)->unicode() != TextCommandLangTag || (ch + 2)->unicode() > 0x00F7 || (ch + 2)->unicode() < 0x0020 || *(ch + 3) != TextCommand) {
+					if (ch + 3 >= e || (ch + 1)->unicode() != TextCommandLangTag || (ch + 2)->unicode() > 0x007F || (ch + 2)->unicode() < 0x0020 || *(ch + 3) != TextCommand) {
 						throw Exception(QString("Bad value for key '%1'").arg(QLatin1String(key)));
 					} else {
 						res.append('\\').append('x').append(QString("%1").arg(ch->unicode(), 2, 16, QChar('0')));

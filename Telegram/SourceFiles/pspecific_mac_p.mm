@@ -70,9 +70,6 @@ private:
 QNSString objc_lang(LangKey key) {
 	return QNSString(lang(key));
 }
-QNSString objc_lang(LangKey key, LangTag tag1, const QString &replacement1 {
-	return QNSString(lang(key, tag1, replacement1));
-}
 QString objcString(NSString *str) {
 	return QString::fromUtf8([str cStringUsingEncoding:NSUTF8StringEncoding]);
 }
@@ -532,7 +529,7 @@ void objc_openFile(const QString &f, bool openwith) {
             [button setFrame:alwaysRect];
             [button setAutoresizingMask:NSViewMinXMargin|NSViewMaxXMargin];
             NSTextField *goodLabel = [[NSTextField alloc] init];
-            [goodLabel setStringValue:objc_lang(lng_mac_this_app_can_open, lngtag_file, objcString(name)).s()];
+            [goodLabel setStringValue:QNSString(lng_mac_this_app_can_open(lt_file, objcString(name))).s()];
             [goodLabel setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
             [goodLabel setBezeled:NO];
             [goodLabel setDrawsBackground:NO];
@@ -545,7 +542,7 @@ void objc_openFile(const QString &f, bool openwith) {
             [goodLabel setFrame:goodFrame];
             
             NSTextField *badLabel = [[NSTextField alloc] init];
-            [badLabel setStringValue:objc_lang(lng_mac_not_known_app, lngtag_file, objcString(name)).s()];
+            [badLabel setStringValue:QNSString(lng_mac_not_known_app(lt_file, objcString(name))).s()];
             [badLabel setFont:[goodLabel font]];
             [badLabel setBezeled:NO];
             [badLabel setDrawsBackground:NO];
@@ -575,7 +572,7 @@ void objc_openFile(const QString &f, bool openwith) {
             [openPanel setAllowsMultipleSelection:NO];
             [openPanel setResolvesAliases:YES];
             [openPanel setTitle:objc_lang(lng_mac_choose_app).s()];
-            [openPanel setMessage:objc_lang(lng_mac_choose_text, lngtag_file, objcString(name)).s()];
+            [openPanel setMessage:QNSString(lng_mac_choose_text(lt_file, objcString(name))).s()];
             
             NSArray *appsPaths = [[NSFileManager defaultManager] URLsForDirectory:NSApplicationDirectory inDomains:NSLocalDomainMask];
             if ([appsPaths count]) [openPanel setDirectoryURL:[appsPaths firstObject]];
@@ -655,7 +652,7 @@ BOOL _execUpdater(BOOL update = YES) {
 			[args addObject:QNSString(cDataFile()).s()];
 		}
 
-		DEBUG_LOG(("Application Info: executing %1 %2").arg(objcString(path)).arg(objcString([[args componentsJoinedByString:@" "])));
+		DEBUG_LOG(("Application Info: executing %1 %2").arg(objcString(path)).arg(objcString([args componentsJoinedByString:@" "])));
 		if (![NSTask launchedTaskWithLaunchPath:path arguments:args]) {
 			LOG(("Task not launched while executing %1 %2").arg(objcString(path)).arg(objcString([args componentsJoinedByString:@" "])));
 			return NO;
