@@ -19,11 +19,6 @@
     <Filter Include="gui">
       <UniqueIdentifier>{93203856-b459-49ec-8097-689d0feda013}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{D9D6E242-F8AF-46E4-B9FD-80ECBC20BA3E}</UniqueIdentifier>
-      <Extensions>qrc;*</Extensions>
-      <ParseFiles>false</ParseFiles>
-    </Filter>
     <Filter Include="mtproto">
       <UniqueIdentifier>{d01d021a-d92f-4ac3-9155-6d297fffe596}</UniqueIdentifier>
     </Filter>
@@ -41,6 +36,9 @@
       <UniqueIdentifier>{8a7cc1a8-8332-4937-967f-3a04725db75d}</UniqueIdentifier>
       <Extensions>cpp;moc</Extensions>
       <SourceControlFiles>False</SourceControlFiles>
+    </Filter>
+    <Filter Include="langs">
+      <UniqueIdentifier>{67311646-a8af-4626-976d-0a5733bf90e8}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -767,6 +765,18 @@
     <ClCompile Include="SourceFiles\lang.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\languagebox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_languagebox.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_languagebox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_languagebox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -872,9 +882,6 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\gui\flatbutton.h">
       <Filter>gui</Filter>
-    </CustomBuild>
-    <CustomBuild Include="SourceFiles\telegram.qrc">
-      <Filter>Resource Files</Filter>
     </CustomBuild>
     <CustomBuild Include="Resources\style_classes.txt" />
     <CustomBuild Include="Resources\style.txt" />
@@ -1026,11 +1033,20 @@
       <Filter>Source Files</Filter>
     </CustomBuild>
     <CustomBuild Include="Resources\lang.strings" />
+    <CustomBuild Include="SourceFiles\telegram.qrc" />
+    <CustomBuild Include="SourceFiles\boxes\languagebox.h">
+      <Filter>boxes</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <Image Include="SourceFiles\art\icon256.ico" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Telegram.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="SourceFiles\langs\lang_it.strings">
+      <Filter>langs</Filter>
+    </None>
   </ItemGroup>
 </Project>

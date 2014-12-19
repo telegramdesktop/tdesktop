@@ -17,6 +17,24 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+enum Languages {
+	langTestlang = -1,
+
+	langEnglish = 0,
+	langItalian,
+//	langSpanish,
+
+	langCount
+};
+
+static const char *LanguageCodes[] = {
+	"en",
+	"it",
+//	"es",
+};
+
+static const char *TestLangFile = "testlang.strings";
+
 class LangString : public QString {
 public:
 	LangString() {

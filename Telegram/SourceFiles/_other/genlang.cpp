@@ -338,17 +338,57 @@ bool genLang(const QString &lang_in, const QString &lang_out) {
 	QString lang_cpp = lang_out + ".cpp", lang_h = lang_out + ".h";
 	QFile f(lang_in);
 	if (!f.open(QIODevice::ReadOnly)) {
-		cout << "Could not open styles input file '" << lang_in.toUtf8().constData() << "'!\n";
+		cout << "Could not open lang input file '" << lang_in.toUtf8().constData() << "'!\n";
 		QCoreApplication::exit(1);
 		return false;
 	}
+	QByteArray checkCodec = f.read(3);
+	if (checkCodec.size() < 3) {
+		cout << "Bad lang input file '" << lang_in.toUtf8().constData() << "'!\n";
+		QCoreApplication::exit(1);
+		return false;
+	}
+	f.seek(0);
 
-	QByteArray blob = f.readAll();
-	const char *text = blob.constData(), *end = blob.constData() + blob.size();
-	f.close();
+	QByteArray data;
+	int skip = 0;
+	if ((checkCodec.at(0) == '\xFF' && checkCodec.at(1) == '\xFE') || (checkCodec.at(0) == '\xFE' && checkCodec.at(1) == '\xFF') || (checkCodec.at(1) == 0)) {
+		QTextStream stream(&f);
+		stream.setCodec("UTF-16");
 
+		QString string = stream.readAll();
+		if (stream.status() != QTextStream::Ok) {
+			cout << "Could not read valid UTF-16 file '" << lang_in.toUtf8().constData() << "'!\n";
+			QCoreApplication::exit(1);
+			return false;
+		}
+		f.close();
+
+		data = string.toUtf8();
+	} else if (checkCodec.at(0) == 0) {
+		QByteArray tmp = "\xFE\xFF" + f.readAll(); // add fake UTF-16 BOM
+		f.close();
+
+		QTextStream stream(&tmp);
+		stream.setCodec("UTF-16");
+		QString string = stream.readAll();
+		if (stream.status() != QTextStream::Ok) {
+			cout << "Could not read valid UTF-16 file '" << lang_in.toUtf8().constData() << "'!\n";
+			QCoreApplication::exit(1);
+			return false;
+		}
+
+		data = string.toUtf8();
+	} else {
+		data = f.readAll();
+		if (checkCodec.at(0) == '\xEF' && checkCodec.at(1) == '\xBB' && checkCodec.at(2) == '\xBF') {
+			skip = 3; // skip UTF-8 BOM
+		}
+	}
+
+	const char *text = data.constData() + skip, *end = text + data.size() - skip;
 	try {
-		while (text != end) {
+		while (text < end) {
 			readKeyValue(text, end);
 		}
 
@@ -409,6 +449,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 			th << "};\n\n";
 
 			th << "LangString lang(LangKey key);\n\n";
+			th << "LangString langOriginal(LangKey key);\n\n";
 
 			for (int i = 0, l = keysOrder.size(); i < l; ++i) {
 				QVector<QByteArray> &tagsList(keysTags[keysOrder[i]]);
@@ -468,7 +509,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 			}
 			tcpp << "\t};\n\n";
 
-			tcpp << "\tLangString _langValues[lngkeys_cnt];\n\n";
+			tcpp << "\tLangString _langValues[lngkeys_cnt], _langValuesOriginal[lngkeys_cnt];\n\n";
 			tcpp << "\tvoid set(LangKey key, const QString &val) {\n";
 			tcpp << "\t\t_langValues[key] = val;\n";
 			tcpp << "\t}\n\n";
@@ -510,6 +551,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 
 			tcpp << "LangString lang(LangKey key) {\n";
 			tcpp << "\treturn (key < 0 || key > lngkeys_cnt) ? QString() : _langValues[key];\n";
+			tcpp << "}\n\n";
+
+			tcpp << "LangString langOriginal(LangKey key) {\n";
+			tcpp << "\treturn (key < 0 || key > lngkeys_cnt || _langValuesOriginal[key] == qsl(\"{}\")) ? QString() : (_langValuesOriginal[key].isEmpty() ? _langValues[key] : _langValuesOriginal[key]);\n";
 			tcpp << "}\n\n";
 
 			tcpp << "const char *langKeyName(LangKey key) {\n";
@@ -674,6 +719,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 			tcpp << "bool LangLoader::feedKeyValue(LangKey key, const QString &value) {\n";
 			tcpp << "\tif (key < lngkeys_cnt) {\n";
 			tcpp << "\t\t_found[key] = 1;\n";
+			tcpp << "\t\tif (_langValuesOriginal[key].isEmpty()) {\n";
+			tcpp << "\t\t\t_langValuesOriginal[key] = _langValues[key].isEmpty() ? qsl(\"{}\") : _langValues[key];\n";
+			tcpp << "\t\t}\n";
 			tcpp << "\t\t_langValues[key] = value;\n";
 			tcpp << "\t\treturn true;\n";
 			tcpp << "\t}\n";

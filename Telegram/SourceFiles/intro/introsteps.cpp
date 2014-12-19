@@ -24,16 +24,39 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "intro/introsteps.h"
 #include "intro/intro.h"
 
+#include "langloaderplain.h"
+
 IntroSteps::IntroSteps(IntroWidget *parent) : IntroStage(parent),
 _intro(this, lang(lng_intro), st::introLabel, st::introLabelTextStyle),
-_next(this, lang(lng_start_msgs), st::btnIntroNext) {
+_next(this, lang(lng_start_msgs), st::btnIntroNext),
+_changeLang(this, QString()) {
 
-	_headerWidth = st::introHeaderFont->m.width(lang(lng_maintitle));
+	_changeLang.hide();
+	if (cLang() == langEnglish) {
+		int32 l = App::app()->languageId();
+		if (l != langEnglish) {
+			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[l] + qsl(".strings"), LangLoaderRequest(lng_switch_to_this));
+			QString text = loader.found().value(lng_switch_to_this);
+			if (!text.isEmpty()) {
+				_changeLang.setText(text);
+				parent->langChangeTo(l);
+				_changeLang.show();
+			}
+		}
+	} else {
+		_changeLang.setText(langOriginal(lng_switch_to_this));
+		parent->langChangeTo(langEnglish);
+		_changeLang.show();
+	}
+
+	_headerWidth = st::introHeaderFont->m.width(qsl("Telegram Desktop"));
 
 	setGeometry(parent->innerRect());
 
 	connect(&_next, SIGNAL(stateChanged(int, ButtonStateChangeSource)), parent, SLOT(onDoneStateChanged(int, ButtonStateChangeSource)));
 	connect(&_next, SIGNAL(clicked()), parent, SLOT(onIntroNext()));
+
+	connect(&_changeLang, SIGNAL(clicked()), parent, SLOT(onChangeLang()));
 
 	setMouseTracking(true);
 }
@@ -49,7 +72,7 @@ void IntroSteps::paintEvent(QPaintEvent *e) {
 
 	p.setFont(st::introHeaderFont->f);
 	p.setPen(st::introColor->p);
-	p.drawText((width() - _headerWidth) / 2, hy, lang(lng_maintitle));
+	p.drawText((width() - _headerWidth) / 2, hy, qsl("Telegram Desktop"));
 
 	p.drawPixmap(QPoint((width() - st::aboutIcon.pxWidth()) / 2, hy - st::introIconSkip - st::aboutIcon.pxHeight()), App::sprite(), st::aboutIcon);
 }
@@ -58,6 +81,7 @@ void IntroSteps::resizeEvent(QResizeEvent *e) {
 	if (e->oldSize().width() != width()) {
 		_next.move((width() - _next.width()) / 2, st::introBtnTop);
 		_intro.move((width() - _intro.width()) / 2, _next.y() - _intro.height() - st::introSkip);
+		_changeLang.move((width() - _changeLang.width()) / 2, _next.y() + _next.height() + _changeLang.height());
 	}
 }
 

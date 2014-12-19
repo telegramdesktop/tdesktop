@@ -91,6 +91,7 @@ DeclareSetting(ConnectionProxy, ConnectionProxy);
 DeclareSetting(bool, SeenTrayTooltip);
 DeclareSetting(bool, RestartingUpdate);
 DeclareSetting(bool, Restarting);
+DeclareSetting(bool, RestartingToSettings);
 DeclareSetting(bool, WriteProtected);
 DeclareSetting(int32, LastUpdateCheck);
 DeclareSetting(bool, NoStartUpdate);
@@ -144,7 +145,7 @@ DeclareSetting(RecentEmojiPreload, RecentEmojisPreload);
 
 const RecentEmojiPack &cGetRecentEmojis();
 
-DeclareReadSetting(QString, LangFile);
+DeclareSetting(int32, Lang);
 
 DeclareSetting(QStringList, SendPaths);
 DeclareSetting(QString, StartUrl);

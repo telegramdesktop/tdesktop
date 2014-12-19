@@ -518,7 +518,7 @@ void PsMainWindow::psNotifyShown(NotifyWindow *w) {
 }
 
 void PsMainWindow::psPlatformNotify(HistoryItem *item) {
-	QString title = (cNotifyView() <= dbinvShowName) ? item->history()->peer->name : lang(lng_notification_title);
+	QString title = (cNotifyView() <= dbinvShowName) ? item->history()->peer->name : qsl("Telegram Desktop");
 	QString subtitle = (cNotifyView() <= dbinvShowName) ? item->notificationHeader() : QString();
 	QString msg = (cNotifyView() <= dbinvShowPreview) ? item->notificationText() : lang(lng_notification_preview);
 	_private.showNotify(item->history()->peer->id, title, subtitle, msg, (cNotifyView() <= dbinvShowPreview));

@@ -38,6 +38,7 @@ public:
 	static Application *app();
 	static Window *wnd();
 	static QString language();
+	static int32 languageId();
 	static MainWidget *main();
 
 	void onAppUpdate(const MTPhelp_AppUpdate &response);

@@ -15,7 +15,8 @@ GNU General Public License for more details.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
-"lng_maintitle" = "Telegram Desktop";
+"lng_language_name" = "English";
+"lng_switch_to_this" = "Switch to English";
 
 "lng_menu_contacts" = "Contacts";
 "lng_menu_settings" = "Settings";
@@ -123,6 +124,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_signup_title" = "Information and photo";
 "lng_signup_desc" = "Please enter your name and\nupload a photo.";
+
 "lng_signup_firstname" = "First Name";
 "lng_signup_lastname" = "Last Name";
 
@@ -165,10 +167,12 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_show_preview" = "Show message preview";
 "lng_settings_sound_notify" = "Play sound";
 
-"lng_notification_title" = "Telegram Desktop";
 "lng_notification_preview" = "You have a new message";
 
 "lng_settings_section_general" = "General";
+"lng_settings_change_lang" = "Change Language";
+"lng_languages" = "Languages";
+"lng_sure_save_language" = "Telegram will restart\nin order to change language";
 "lng_settings_auto_update" = "Update automatically";
 "lng_settings_current_version" = "Version {version}";
 "lng_settings_check_now" = "Check for updates";
@@ -196,7 +200,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_cats_and_dogs" = "Allow cats and dogs";
 
 "lng_download_path_dont_ask" = "Don't ask download path for each file";
-"lng_download_path_label" = "Download path: ";
+"lng_download_path_label" = "Download path:";
 "lng_download_path_temp" = "temp folder";
 "lng_download_path_default" = "default folder";
 "lng_download_path_clear" = "Clear All";
@@ -237,6 +241,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_connection_password_ph" = "Password";
 "lng_connection_save" = "Save";
 "lng_settings_reset" = "Terminate other sessions";
+"lng_settings_reset_sure" = "Are you sure you want to terminate all other sessions?";
+"lng_settings_reset_button" = "Terminate";
 "lng_settings_reset_done" = "Other sessions terminated";
 "lng_settings_logout" = "Log Out";
 "lng_sure_logout" = "Are you sure you want to log out?";

@@ -129,11 +129,25 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
         cSetIntRetinaFactor(int32(cRetinaFactor()));
     }
 
-	if (!cLangFile().isEmpty() && QFileInfo(cLangFile()).exists()) {
-		LangLoaderPlain loader(cLangFile());
-		cSetLangErrors(loader.errors());
-		if (!cLangErrors().isEmpty()) {
-			LOG(("Lang load errors: %1").arg(cLangErrors()));
+	if (cLang() < langTestlang) {
+		cSetLang(languageId());
+	}
+	if (cLang() == langTestlang) {
+		if (QFileInfo(TestLangFile).exists()) {
+			LangLoaderPlain loader(TestLangFile);
+			cSetLangErrors(loader.errors());
+			if (!cLangErrors().isEmpty()) {
+				LOG(("Lang load errors: %1").arg(cLangErrors()));
+			} else if (!loader.warnings().isEmpty()) {
+				LOG(("Lang load warnings: %1").arg(loader.warnings()));
+			}
+		} else {
+			cSetLang(langEnglish);
+		}
+	} else if (cLang() > langEnglish && cLang() < langCount) {
+		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[cLang()] + qsl(".strings"));
+		if (!loader.errors().isEmpty()) {
+			LOG(("Lang load errors: %1").arg(loader.errors()));
 		} else if (!loader.warnings().isEmpty()) {
 			LOG(("Lang load warnings: %1").arg(loader.warnings()));
 		}
@@ -692,7 +706,7 @@ void Application::startApp() {
 	}
 
 	if (!cLangErrors().isEmpty()) {
-		window->showLayer(new ConfirmBox("Lang failed: " + cLangFile() + "\n\nError: " + cLangErrors(), true, lang(lng_close)));
+		window->showLayer(new ConfirmBox("Lang failed: " + QLatin1String(TestLangFile) + "\n\nError: " + cLangErrors(), true, lang(lng_close)));
 	}
 }
 
@@ -836,6 +850,16 @@ QString Application::language() {
 		lng = "en";
 	}
 	return lng;
+}
+
+int32 Application::languageId() {
+	QByteArray l = language().toLatin1();
+	for (int32 i = 0; i < langCount; ++i) {
+		if (l == LanguageCodes[i]) {
+			return i;
+		}
+	}
+	return langEnglish;
 }
 
 MainWidget *Application::main() {

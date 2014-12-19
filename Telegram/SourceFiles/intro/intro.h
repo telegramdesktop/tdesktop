@@ -60,6 +60,7 @@ public:
 	void finish(const MTPUser &user, const QImage &photo = QImage());
 
 	void rpcInvalidate();
+	void langChangeTo(int32 langId);
 
 	~IntroWidget();
 
@@ -69,6 +70,7 @@ public slots:
 	void onIntroBack();
 	void onDoneStateChanged(int oldState, ButtonStateChangeSource source);
 	void onParentResize(const QSize &newSize);
+	void onChangeLang();
 
 signals:
 
@@ -80,6 +82,8 @@ private:
 	void makeShowCache(int stage = -1);
 	void prepareMove();
 	bool createNext();
+
+	int32 _langChangeTo;
 
 	QPixmap cacheForHide, cacheForShow;
 	int cacheForHideInd, cacheForShowInd;

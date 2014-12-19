@@ -136,10 +136,13 @@ public slots:
 	void onUpdateFailed();
 
 	void onResetSessions();
+	void onResetSessionsSure();
 
 	void onPhotoUpdateDone(PeerId peer);
 	void onPhotoUpdateFail(PeerId peer);
 	void onPhotoUpdateStart();
+
+	void onChangeLanguage();
 
 private:
 
@@ -174,6 +177,7 @@ private:
 	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _soundNotify;
 
 	// general
+	LinkButton _changeLanguage;
 	FlatCheckbox _autoUpdate;
 	LinkButton _checkNow, _restartNow;
 	FlatCheckbox _workmodeTray, _workmodeWindow;

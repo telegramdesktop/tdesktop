@@ -2259,7 +2259,8 @@ void psExecUpdater() {
 }
 
 void psExecTelegram() {
-	QString targs = qsl("-noupdate -tosettings");
+	QString targs = qsl("-noupdate");
+	if (cRestartingToSettings()) targs += qsl(" -tosettings");
 	if (cFromAutoStart()) targs += qsl(" -autostart");
 	if (cDebug()) targs += qsl(" -debug");
 	if (cDataFile() != (cTestMode() ? qsl("data_test") : qsl("data"))) targs += qsl(" -key \"") + cDataFile() + '"';

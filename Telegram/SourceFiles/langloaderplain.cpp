@@ -66,7 +66,7 @@ namespace {
 bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 	if (!skipJunk(from, end)) return false;
 
-	if (*from != '"') throw Exception(QString("Expected quote after key name!"));
+	if (*from != '"') throw Exception(QString("Expected quote before key name!"));
 	++from;
 	const char *nameStart = from;
 	while (from < end && ((*from >= 'a' && *from <= 'z') || (*from >= 'A' && *from <= 'Z') || *from == '_' || (*from >= '0' && *from <= '9'))) {
@@ -85,7 +85,15 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 	if (*from != '"') throw Exception(QString("Expected string after '=' in key '%1'!").arg(QLatin1String(varName)));
 
 	LangKey varKey = keyIndex(varName);
-	if (varKey == lngkeys_cnt) throw Exception(QString("Unknown key '%1'!").arg(QLatin1String(varName)));
+	bool feedingValue = request.isEmpty();
+	if (feedingValue) {
+		if (varKey == lngkeys_cnt) {
+			warning(QString("Unknown key '%1'!").arg(QLatin1String(varName)));
+		}
+	} else if (!request.contains(varKey)) {
+		varKey = lngkeys_cnt;
+	}
+	bool readingValue = (varKey != lngkeys_cnt);
 
 	QByteArray varValue;
 	QMap<ushort, bool> tagsUsed;
@@ -97,14 +105,16 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 		if (*from == '\\') {
 			if (from + 1 >= end) throw Exception(QString("Unexpected end of file in key '%1'!").arg(QLatin1String(varName)));
 			if (*(from + 1) == '"' || *(from + 1) == '\\' || *(from + 1) == '{') {
-				if (from > start) varValue.append(start, from - start);
+				if (readingValue && from > start) varValue.append(start, from - start);
 				start = ++from;
 			} else if (*(from + 1) == 'n') {
-				if (from > start) varValue.append(start, int(from - start));
-				varValue.append('\n');
+				if (readingValue) {
+					if (from > start) varValue.append(start, int(from - start));
+					varValue.append('\n');
+				}
 				start = (++from) + 1;
 			}
-		} else if (*from == '{') {
+		} else if (readingValue && *from == '{') {
 			if (from > start) varValue.append(start, int(from - start));
 
 			const char *tagStart = ++from;
@@ -117,9 +127,17 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 			if (from == end || (*from != '}' && *from != ':')) throw Exception(QString("Expected '}' or ':' after tag name in key '%1'!").arg(QLatin1String(varName)));
 
 			ushort index = tagIndex(tagName);
-			if (index == lngtags_cnt) throw Exception(QString("Tag '%1' not found in key '%2'!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+			if (index == lngtags_cnt) {
+				readingValue = false;
+				warning(QString("Tag '%1' not found in key '%2', not using value.").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+				continue;
+			}
 
-			if (!tagReplaced(varKey, index)) throw Exception(QString("Unexpected tag '%1' in key '%2'!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+			if (!tagReplaced(varKey, index)) {
+				readingValue = false;
+				warning(QString("Unexpected tag '%1' in key '%2', not using value.").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+				continue;
+			}
 			if (tagsUsed.contains(index)) throw Exception(QString("Tag '%1' double used in key '%2'!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
 			tagsUsed.insert(index, true);
 
@@ -138,7 +156,14 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 					if (*from == '|') {
 						if (from > start) subvarValue.append(start, int(from - start));
 						if (countedIndex >= lngtags_max_counted_values) throw Exception(QString("Too many values inside counted tag '%1' in '%2' key!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
-						if (!feedKeyValue(subkeyIndex(varKey, index, countedIndex++), QString::fromUtf8(subvarValue))) throw Exception(QString("Tag '%1' is not counted in key '%2'!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+						if (feedingValue) {
+							LangKey subkey = subkeyIndex(varKey, index, countedIndex++);
+							if (subkey == lngkeys_cnt) {
+								readingValue = false;
+								warning(QString("Unexpected counted tag '%1' in key '%2', not using value.").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+								break;
+							} else if (!feedKeyValue(subkey, QString::fromUtf8(subvarValue))) throw Exception(QString("Tag '%1' is not counted in key '%2'!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+						}
 						subvarValue = QByteArray();
 						foundtag = false;
 						start = from + 1;
@@ -169,31 +194,46 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 					}
 					++from;
 				}
+				if (!readingValue) continue;
 				if (from >= end) throw Exception(QString("Unexpected end of file inside counted tag '%1' in '%2' key!").arg(QString::fromUtf8(tagName)).arg(QString::fromUtf8(varName)));
 				if (*from == '"') throw Exception(QString("Unexpected end of string inside counted tag '%1' in '%2' key!").arg(QString::fromUtf8(tagName)).arg(QString::fromUtf8(varName)));
 
 				if (from > start) subvarValue.append(start, int(from - start));
 				if (countedIndex >= lngtags_max_counted_values) throw Exception(QString("Too many values inside counted tag '%1' in '%2' key!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
-				if (!feedKeyValue(subkeyIndex(varKey, index, countedIndex++), QString::fromUtf8(subvarValue))) throw Exception(QString("Tag '%1' is not counted in key '%2'!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+
+				if (feedingValue) {
+					LangKey subkey = subkeyIndex(varKey, index, countedIndex++);
+					if (subkey == lngkeys_cnt) {
+						readingValue = false;
+						warning(QString("Unexpected counted tag '%1' in key '%2', not using value.").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+						break;
+					} else if (!feedKeyValue(subkey, QString::fromUtf8(subvarValue))) throw Exception(QString("Tag '%1' is not counted in key '%2'!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+				}
 			}
 			start = from + 1;
 		}
 		++from;
 	}
 	if (from >= end) throw Exception(QString("Unexpected end of file in key '%1'!").arg(QLatin1String(varName)));
-	if (from > start) varValue.append(start, from - start);
+	if (readingValue && from > start) varValue.append(start, from - start);
 
 	if (!skipJunk(++from, end)) throw Exception(QString("Unexpected end of file in key '%1'!").arg(QLatin1String(varName)));
 	if (*from != ';') throw Exception(QString("';' expected after \"value\" in key '%1'!").arg(QLatin1String(varName)));
 
 	skipJunk(++from, end);
 
-	if (!feedKeyValue(varKey, QString::fromUtf8(varValue))) throw Exception(QString("Could not write value in key '%1'!").arg(QLatin1String(varName)));
+	if (readingValue) {
+		if (feedingValue) {
+			if (!feedKeyValue(varKey, QString::fromUtf8(varValue))) throw Exception(QString("Could not write value in key '%1'!").arg(QLatin1String(varName)));
+		} else {
+			result.insert(varKey, QString::fromUtf8(varValue));
+		}
+	}
 
 	return true;
 }
 
-LangLoaderPlain::LangLoaderPlain(const QString &file) {
+LangLoaderPlain::LangLoaderPlain(const QString &file, const LangLoaderRequest &request) : file(file), request(request) {
 	QFile f(file);
 	if (!f.open(QIODevice::ReadOnly)) {
 		error(qsl("Could not open input file!"));
@@ -203,13 +243,51 @@ LangLoaderPlain::LangLoaderPlain(const QString &file) {
 		error(qsl("Too big file: %1").arg(f.size()));
 		return;
 	}
-	QByteArray data = f.readAll();
-	f.close();
+	QByteArray checkCodec = f.read(3);
+	if (checkCodec.size() < 3) {
+		error(qsl("Bad lang input file: %1").arg(file));
+		return;
+	}
+	f.seek(0);
 
+	QByteArray data;
+	int skip = 0;
+	if ((checkCodec.at(0) == '\xFF' && checkCodec.at(1) == '\xFE') || (checkCodec.at(0) == '\xFE' && checkCodec.at(1) == '\xFF') || (checkCodec.at(1) == 0)) {
+		QTextStream stream(&f);
+		stream.setCodec("UTF-16");
+
+		QString string = stream.readAll();
+		if (stream.status() != QTextStream::Ok) {
+			error(qsl("Could not read valid UTF-16 file: % 1").arg(file));
+			return;
+		}
+		f.close();
+
+		data = string.toUtf8();
+	} else if (checkCodec.at(0) == 0) {
+		QByteArray tmp = "\xFE\xFF" + f.readAll(); // add fake UTF-16 BOM
+		f.close();
+
+		QTextStream stream(&tmp);
+		stream.setCodec("UTF-16");
+		QString string = stream.readAll();
+		if (stream.status() != QTextStream::Ok) {
+			error(qsl("Could not read valid UTF-16 file: % 1").arg(file));
+			return;
+		}
+
+		data = string.toUtf8();
+	} else {
+		data = f.readAll();
+		if (checkCodec.at(0) == '\xEF' && checkCodec.at(1) == '\xBB' && checkCodec.at(2) == '\xBF') {
+			skip = 3; // skip UTF-8 BOM
+		}
+	}
+
+	const char *text = data.constData() + skip, *end = text + data.size() - skip;
 	try {
-		const char *from = data.constData(), *end = data.constData() + data.size();
 		while (true) {
-			if (!readKeyValue(from, end)) {
+			if (!readKeyValue(text, end)) {
 				break;
 			}
 		}

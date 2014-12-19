@@ -204,7 +204,7 @@ void NotifyWindow::updateNotifyDisplay() {
 			history->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 		} else {
 			p.setFont(st::msgNameFont->f);
-			static QString notifyTitle = st::msgNameFont->m.elidedText(lang(lng_notification_title), Qt::ElideRight, rectForName.width());
+			static QString notifyTitle = st::msgNameFont->m.elidedText(qsl("Telegram Desktop"), Qt::ElideRight, rectForName.width());
 			p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, notifyTitle);
 		}
 	}

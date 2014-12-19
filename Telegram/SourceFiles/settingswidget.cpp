@@ -29,6 +29,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/downloadpathbox.h"
 #include "boxes/usernamebox.h"
+#include "boxes/languagebox.h"
 #include "gui/filedialog.h"
 
 #include "localstorage.h"
@@ -121,6 +122,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_soundNotify(this, lang(lng_settings_sound_notify), cSoundNotify()),
 
 	// general
+	_changeLanguage(this, qsl("Change Language")),
 	_autoUpdate(this, lang(lng_settings_auto_update), cAutoUpdate()),
 	_checkNow(this, lang(lng_settings_check_now)),
 	_restartNow(this, lang(lng_settings_update_now)),
@@ -147,7 +149,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
     _ctrlEnterSend(this, qsl("send_key"), 1, lang((cPlatform() == dbipMac) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), cCtrlEnter()),
 
 	_dontAskDownloadPath(this, lang(lng_download_path_dont_ask), !cAskDownloadPath()),
-    _downloadPathWidth(st::linkFont->m.width(lang(lng_download_path_label))),
+    _downloadPathWidth(st::linkFont->m.width(lang(lng_download_path_label)) + st::linkFont->spacew),
 	_downloadPathEdit(this, cDownloadPath().isEmpty() ? lang(lng_download_path_default) : ((cDownloadPath() == qsl("tmp")) ? lang(lng_download_path_temp) : st::linkFont->m.elidedText(QDir::toNativeSeparators(cDownloadPath()), Qt::ElideRight, st::setWidth - st::setVersionLeft - _downloadPathWidth))),
 	_downloadPathClear(this, lang(lng_download_path_clear)),
 	_tempDirClearingWidth(st::linkFont->m.width(lang(lng_download_path_clearing))),
@@ -198,6 +200,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	connect(&_soundNotify, SIGNAL(changed()), this, SLOT(onSoundNotify()));
 
 	// general
+	connect(&_changeLanguage, SIGNAL(clicked()), this, SLOT(onChangeLanguage()));
 	connect(&_autoUpdate, SIGNAL(changed()), this, SLOT(onAutoUpdate()));
 	connect(&_checkNow, SIGNAL(clicked()), this, SLOT(onCheckNow()));
 	connect(&_restartNow, SIGNAL(clicked()), this, SLOT(onRestartNow()));
@@ -543,6 +546,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 
 	// general
 	top += st::setHeaderSkip;
+	_changeLanguage.move(_left + st::setWidth - _changeLanguage.width(), top - st::setHeaderSkip + st::setHeaderTop + st::setHeaderFont->ascent - st::linkFont->ascent);
 	_autoUpdate.move(_left, top);
 	_checkNow.move(_left + st::setWidth - _checkNow.width(), top + st::cbDefFlat.textTop); top += _autoUpdate.height();
 	_restartNow.move(_left + st::setWidth - _restartNow.width(), top + st::setVersionTop);
@@ -746,6 +750,7 @@ void SettingsInner::showAll() {
 	}
 
 	// general
+	_changeLanguage.show();
 	_autoUpdate.show();
 	setUpdatingState(_updatingState, true);
     if (cPlatform() == dbipWindows) {
@@ -879,6 +884,13 @@ void SettingsInner::onUpdatePhoto() {
 }
 
 void SettingsInner::onResetSessions() {
+	ConfirmBox *box = new ConfirmBox(lang(lng_settings_reset_sure), lang(lng_settings_reset_button));
+	connect(box, SIGNAL(confirmed()), this, SLOT(onResetSessionsSure()));
+	App::wnd()->showLayer(box);
+}
+
+void SettingsInner::onResetSessionsSure() {
+	App::wnd()->layerHidden();
 	MTP::send(MTPauth_ResetAuthorizations(), rpcDone(&SettingsInner::doneResetSessions));
 }
 
@@ -888,6 +900,10 @@ void SettingsInner::doneResetSessions(const MTPBool &res) {
 		showAll();
 		update();
 	}
+}
+
+void SettingsInner::onChangeLanguage() {
+	App::wnd()->showLayer(new LanguageBox());
 }
 
 void SettingsInner::onAutoUpdate() {
@@ -922,6 +938,7 @@ void SettingsInner::onRestartNow() {
 		cSetRestartingUpdate(true);
 	} else {
 		cSetRestarting(true);
+		cSetRestartingToSettings(true);
 	}
 	App::quit();
 }

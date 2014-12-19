@@ -18,6 +18,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "pspecific.h"
 #include "settings.h"
+#include "lang.h"
 
 bool gTestMode = false;
 bool gDebug = false;
@@ -45,7 +46,7 @@ DBIWorkMode gWorkMode = dbiwmWindowAndTray;
 DBIConnectionType gConnectionType = dbictAuto;
 ConnectionProxy gConnectionProxy;
 bool gSeenTrayTooltip = false;
-bool gRestartingUpdate = false, gRestarting = false, gWriteProtected = false;
+bool gRestartingUpdate = false, gRestarting = false, gRestartingToSettings = false, gWriteProtected = false;
 int32 gLastUpdateCheck = 0;
 bool gNoStartUpdate = false;
 bool gStartToSettings = false;
@@ -71,7 +72,7 @@ DBIEmojiTab gEmojiTab = dbietRecent;
 RecentEmojiPack gRecentEmojis;
 RecentEmojiPreload gRecentEmojisPreload;
 
-QString gLangFile = qsl("testlang.strings");
+int32 gLang = -2; // auto
 
 bool gRetina = false;
 float64 gRetinaFactor = 1.;
@@ -127,8 +128,6 @@ void settingsParseArgs(int argc, char *argv[]) {
 			gNoStartUpdate = true;
 		} else if (string("-tosettings") == argv[i]) {
 			gStartToSettings = true;
-		} else if (string("-lang") == argv[i] && i + 1 < argc) {
-			gLangFile = QString(argv[++i]);
 		} else if (string("-sendpath") == argv[i] && i + 1 < argc) {
 			for (++i; i < argc; ++i) {
 				gSendPaths.push_back(QString::fromLocal8Bit(argv[i]));

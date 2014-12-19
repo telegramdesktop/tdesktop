@@ -19,13 +19,41 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "lang.h"
 
+class LangLoaderRequest : public QMap <LangKey, bool> {
+public:
+	LangLoaderRequest() {
+	}
+	LangLoaderRequest(LangKey key1) {
+		insert(key1, true);
+	}
+	LangLoaderRequest(LangKey key1, LangKey key2) {
+		insert(key1, true);
+		insert(key2, true);
+	}
+	LangLoaderRequest(LangKey key1, LangKey key2, LangKey key3) {
+		insert(key1, true);
+		insert(key2, true);
+		insert(key3, true);
+	}
+};
+
+typedef QMap<LangKey, QString> LangLoaderResult;
 class LangLoaderPlain : public LangLoader {
 public:
 
-	LangLoaderPlain(const QString &file);
+	LangLoaderPlain(const QString &file, const LangLoaderRequest &request = LangLoaderRequest());
+
+	LangLoaderResult found() const {
+		return result;
+	}
 
 protected:
 
+	QString file;
+	LangLoaderRequest request;
+
 	bool readKeyValue(const char *&from, const char *end);
+
+	LangLoaderResult result;
 
 };
