@@ -28,13 +28,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 IntroSteps::IntroSteps(IntroWidget *parent) : IntroStage(parent),
 _intro(this, lang(lng_intro), st::introLabel, st::introLabelTextStyle),
-_next(this, lang(lng_start_msgs), st::btnIntroNext),
-_changeLang(this, QString()) {
+_changeLang(this, QString()),
+_next(this, lang(lng_start_msgs), st::btnIntroNext) {
 
 	_changeLang.hide();
-	if (cLang() == langEnglish) {
+	if (cLang() == languageEnglish) {
 		int32 l = App::app()->languageId();
-		if (l != langEnglish) {
+		if (l != languageEnglish) {
 			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[l] + qsl(".strings"), LangLoaderRequest(lng_switch_to_this));
 			QString text = loader.found().value(lng_switch_to_this);
 			if (!text.isEmpty()) {
@@ -45,7 +45,7 @@ _changeLang(this, QString()) {
 		}
 	} else {
 		_changeLang.setText(langOriginal(lng_switch_to_this));
-		parent->langChangeTo(langEnglish);
+		parent->langChangeTo(languageEnglish);
 		_changeLang.show();
 	}
 

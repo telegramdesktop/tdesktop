@@ -129,10 +129,10 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
         cSetIntRetinaFactor(int32(cRetinaFactor()));
     }
 
-	if (cLang() < langTestlang) {
+	if (cLang() < languageTestlang) {
 		cSetLang(languageId());
 	}
-	if (cLang() == langTestlang) {
+	if (cLang() == languageTestlang) {
 		if (QFileInfo(TestLangFile).exists()) {
 			LangLoaderPlain loader(TestLangFile);
 			cSetLangErrors(loader.errors());
@@ -142,9 +142,9 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 				LOG(("Lang load warnings: %1").arg(loader.warnings()));
 			}
 		} else {
-			cSetLang(langEnglish);
+			cSetLang(languageEnglish);
 		}
-	} else if (cLang() > langEnglish && cLang() < langCount) {
+	} else if (cLang() > languageEnglish && cLang() < languageCount) {
 		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[cLang()] + qsl(".strings"));
 		if (!loader.errors().isEmpty()) {
 			LOG(("Lang load errors: %1").arg(loader.errors()));
@@ -854,12 +854,12 @@ QString Application::language() {
 
 int32 Application::languageId() {
 	QByteArray l = language().toLatin1();
-	for (int32 i = 0; i < langCount; ++i) {
+	for (int32 i = 0; i < languageCount; ++i) {
 		if (l == LanguageCodes[i]) {
 			return i;
 		}
 	}
-	return langEnglish;
+	return languageEnglish;
 }
 
 MainWidget *Application::main() {
