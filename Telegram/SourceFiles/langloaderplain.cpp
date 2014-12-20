@@ -43,7 +43,6 @@ namespace {
 				while (from < end && *from != '\n' && *from != '\r') {
 					++from;
 				}
-				++from;
 				return (from < end);
 			} else {
 				return true;
