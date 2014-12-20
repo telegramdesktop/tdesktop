@@ -122,7 +122,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_soundNotify(this, lang(lng_settings_sound_notify), cSoundNotify()),
 
 	// general
-	_changeLanguage(this, qsl("Change Language")),
+	_changeLanguage(this, lang(lng_settings_change_lang)),
 	_autoUpdate(this, lang(lng_settings_auto_update), cAutoUpdate()),
 	_checkNow(this, lang(lng_settings_check_now)),
 	_restartNow(this, lang(lng_settings_update_now)),

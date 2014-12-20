@@ -43,5 +43,6 @@
   </qresource>
   <qresource prefix="/langs">
     <file alias="lang_it.strings">langs/lang_it.strings</file>
+    <file alias="lang_es.strings">langs/lang_es.strings</file>
   </qresource>
 </RCC>
