@@ -270,6 +270,7 @@
 		074FCB9019D36E60004C6EB2 /* moc_contextmenu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_contextmenu.cpp; path = GeneratedFiles/Debug/moc_contextmenu.cpp; sourceTree = SOURCE_ROOT; };
 		07539B1C1A1416AF00083EFC /* moc_history.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_history.cpp; path = GeneratedFiles/Debug/moc_history.cpp; sourceTree = SOURCE_ROOT; };
 		075EB50EB07CF69FD62FB8DF /* /usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_sql_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_sql_private.pri"; sourceTree = "<absolute>"; };
+		075F99A91A45EEF200915C72 /* lang_es.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_es.strings; path = SourceFiles/langs/lang_es.strings; sourceTree = SOURCE_ROOT; };
 		0771C4C94B623FC34BF62983 /* intro.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = intro.cpp; path = SourceFiles/intro/intro.cpp; sourceTree = "<absolute>"; };
 		07A69330199277BA0099CB9F /* mediaview.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mediaview.cpp; path = SourceFiles/mediaview.cpp; sourceTree = SOURCE_ROOT; };
 		07A69331199277BA0099CB9F /* mediaview.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = mediaview.h; path = SourceFiles/mediaview.h; sourceTree = SOURCE_ROOT; };
@@ -717,6 +718,7 @@
 		074968CB1A44D0B800394F46 /* langs */ = {
 			isa = PBXGroup;
 			children = (
+				075F99A91A45EEF200915C72 /* lang_es.strings */,
 				074968CC1A44D13400394F46 /* lang_it.strings */,
 			);
 			name = langs;
