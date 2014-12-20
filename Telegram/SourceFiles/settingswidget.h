@@ -143,6 +143,7 @@ public slots:
 	void onPhotoUpdateStart();
 
 	void onChangeLanguage();
+	void onSaveTestLang();
 
 private:
 
@@ -150,6 +151,8 @@ private:
 	void saveError(const QString &str = QString());
 
 	void setScale(DBIScale newScale);
+
+	QString _testlang;
 
 	UserData *_self;
 	UserData *self() const {

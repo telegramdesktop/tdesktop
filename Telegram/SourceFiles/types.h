@@ -255,6 +255,7 @@ enum DataBlockId {
 	dbiSendToMenu = 29,
 	dbiCompressPastedImage = 30,
 	dbiLang = 31,
+	dbiLangFile = 32,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,

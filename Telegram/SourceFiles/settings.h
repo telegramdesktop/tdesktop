@@ -146,6 +146,7 @@ DeclareSetting(RecentEmojiPreload, RecentEmojisPreload);
 const RecentEmojiPack &cGetRecentEmojis();
 
 DeclareSetting(int32, Lang);
+DeclareSetting(QString, LangFile);
 
 DeclareSetting(QStringList, SendPaths);
 DeclareSetting(QString, StartUrl);

@@ -32,9 +32,9 @@ _changeLang(this, QString()),
 _next(this, lang(lng_start_msgs), st::btnIntroNext) {
 
 	_changeLang.hide();
-	if (cLang() == languageEnglish) {
+	if (cLang() == languageDefault) {
 		int32 l = App::app()->languageId();
-		if (l != languageEnglish) {
+		if (l != languageDefault) {
 			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[l] + qsl(".strings"), LangLoaderRequest(lng_switch_to_this));
 			QString text = loader.found().value(lng_switch_to_this);
 			if (!text.isEmpty()) {
@@ -45,7 +45,7 @@ _next(this, lang(lng_start_msgs), st::btnIntroNext) {
 		}
 	} else {
 		_changeLang.setText(langOriginal(lng_switch_to_this));
-		parent->langChangeTo(languageEnglish);
+		parent->langChangeTo(languageDefault);
 		_changeLang.show();
 	}
 

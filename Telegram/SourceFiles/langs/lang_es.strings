@@ -92,7 +92,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_flood_error" = "Muchos intentos. Por favor, prueba más tarde.";
 "lng_deleted" = "Desconocido";
 
-"lng_intro" = "Te damos la bienvenida a la app oficial para PC de [a href=\"https://telegram.org/\"]Telegram[/a].\nEs [b]rápida[/b] y [b]segura[/b].";
+"lng_intro" = "La app oficial para PC de [a href=\"https://telegram.org/\"]Telegram[/a].\nEs [b]rápida[/b] y [b]segura[/b].";
 "lng_start_msgs" = "EMPEZAR A CONVERSAR";
 
 "lng_intro_next" = "SIGUIENTE";
@@ -205,9 +205,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_download_path_default" = "carpeta por defecto";
 "lng_download_path_clear" = "Borrar todo";
 "lng_download_path_header" = "Elegir ruta de la descarga";
-"lng_download_path_default_radio" = "Carpeta de Telegram en las «Descargas» del sistema";
-"lng_download_path_temp_radio" = "Carpeta temporal, borrada al cerrar la sesión o desinstalar";
-"lng_download_path_dir_radio" = "Carpeta personalizada, borrada sólo manualmente";
+"lng_download_path_default_radio" = "Carpeta de Telegram en «Descargas» del sistema";
+"lng_download_path_temp_radio" = "Carpeta temporal, borrada al cerrar sesión";
+"lng_download_path_dir_radio" = "Carpeta personalizada, se borra manualmente";
 "lng_download_path_choose" = "Elegir ruta de la descarga";
 "lng_sure_clear_downloads" = "¿Quieres eliminar todos los archivos descargados desde la carpeta temporal? Es hecho automáticamente al cerrar sesión o desinstalar el programa.";
 "lng_download_path_failed" = "La descarga del archivo no se pudo iniciar. Podría provocarse por una ubicación errónea de la descarga.\n\nPuedes cambiar la ruta de la descarga en Ajustes.";
@@ -267,7 +267,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_delete_contact" = "Eliminar";
 "lng_profile_set_group_photo" = "Poner foto";
 "lng_profile_add_participant" = "Añadir miembro";
-"lng_profile_delete_and_exit" = "Abandonar";
+"lng_profile_delete_and_exit" = "Dejar grupo";
 "lng_profile_kick" = "Expulsar";
 "lng_profile_sure_kick" = "¿Quieres expulsar a {user} del grupo?";
 "lng_profile_loading" = "Cargando...";
@@ -340,7 +340,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_empty_history" = "";
 "lng_willbe_history" = "Por favor, elige un chat para comenzar a conversar";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
-"lng_from_you" = "Tu";
+"lng_from_you" = "Tú";
 
 "lng_typing" = "escribiendo";
 "lng_user_typing" = "{user} está escribiendo";
@@ -381,7 +381,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_forward_file" = "Reenviar archivo";
 "lng_context_delete_file" = "Eliminar archivo";
 "lng_context_close_file" = "Cerrar archivo";
-"lng_context_copy_text" = "Copiar el texto del mensaje";
+"lng_context_copy_text" = "Copiar el texto";
 "lng_context_to_msg" = "Ir al mensaje";
 "lng_context_forward_msg" = "Reenviar mensaje";
 "lng_context_delete_msg" = "Eliminar mensaje";
@@ -437,10 +437,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_emoji_no_recent" = "Los emojis recientes estarán aquí";
 
 "lng_about_version" = "Versión {version}";
-"lng_about_text" = "Aplicación oficial de mensajería gratuita, basada en [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] y la\n[a href=\"https://core.telegram.org/api\"]API de Telegram[/a] para velocidad y seguridad\n\nEste software está bajo licencia [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versión 3,\nel código de fuente está disponible en [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_text" = "Aplicación oficial basada en [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] y la [a href=\"https://core.telegram.org/api\"]\nAPI de Telegram[/a] para velocidad y seguridad.\n\nSoftware bajo licencia [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versión 3.\nCódigo de fuente disponible en [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 "lng_about_done" = "Hecho";
 
-"lng_search_found_results" = "{count:No messages found|Found # mensaje|Found # mensajes}";
+"lng_search_found_results" = "{count:No se encontraron mensajes|Found # mensaje|Found # mensajes}";
 "lng_search_global_results" = "Resultados de la búsqueda global";
 
 "lng_mediaview_save" = "Descargar";
@@ -452,9 +452,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mediaview_n_of_count" = "Foto {n} de {count}";
 "lng_mediaview_doc_image" = "Archivo";
 
-"lng_mediaview_saved" = "La imagen fue guardada en tu carpeta de [c]Descargas[/c]";
+"lng_mediaview_saved" = "La imagen fue guardada en tu carpeta [c]Descargas[/c]";
 
 "lng_new_authorization" = "{name},\nDetectamos un inicio de sesión en tu cuenta desde un nuevo dispositivo el {day}, {date} a las {time}\n\nDispositivo: {device}\nUbicación: {location}\n\nSi no eras tú, puedes ir a Ajustes — Cerrar todas las otras sesiones.\n\nGracias.\nEl equipo de Telegram";
+
+"lng_new_version7003" = "Telegram Desktop se actualizó a la versión {version}\n\n— Fueron añadidos los idiomas español e italiano.\n\nLa versión completa del historial está aquí:\n{link}";
 
 // Mac specific
 

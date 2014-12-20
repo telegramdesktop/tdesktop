@@ -17,23 +17,12 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-enum Languages {
-	languageTestlang = -1,
-
-	languageEnglish = 0,
-	languageItalian,
-	languageSpanish,
-
-	languageCount
-};
-
 static const char *LanguageCodes[] = {
 	"en",
 	"it",
 	"es",
 };
-
-static const char *TestLangFile = "testlang.strings";
+static const int languageTest = -1, languageDefault = 0, languageCount = sizeof(LanguageCodes) / sizeof(LanguageCodes[0]);
 
 class LangString : public QString {
 public:

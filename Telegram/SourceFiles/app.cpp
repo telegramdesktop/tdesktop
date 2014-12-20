@@ -1453,6 +1453,7 @@ namespace App {
 			configStream << quint32(dbiLastUpdateCheck) << qint32(cLastUpdateCheck());
 			configStream << quint32(dbiScale) << qint32(cConfigScale());
 			configStream << quint32(dbiLang) << qint32(cLang());
+			configStream << quint32(dbiLangFile) << cLangFile();
 
 			configStream << quint32(dbiConnectionType) << qint32(cConnectionType());
 			if (cConnectionType() == dbictHttpProxy || cConnectionType() == dbictTcpProxy) {
@@ -1556,8 +1557,8 @@ namespace App {
 						p.port = uint32(port);
 						cSetConnectionProxy(p);
 					}
-					cSetConnectionType(DBIConnectionType(v));
-					break;
+						cSetConnectionType(DBIConnectionType(v));
+						break;
 					case dbictHttpAuto:
 					default: cSetConnectionType(dbictAuto); break;
 					};
@@ -1600,9 +1601,15 @@ namespace App {
 				case dbiLang: {
 					qint32 v;
 					configStream >> v;
-					if (v == languageTestlang || (v >= 0 && v < languageCount)) {
+					if (v == languageTest || (v >= 0 && v < languageCount)) {
 						cSetLang(v);
 					}
+				} break;
+
+				case dbiLangFile: {
+					QString v;
+					configStream >> v;
+					cSetLangFile(v);
 				} break;
 
 				case dbiWindowPosition: {

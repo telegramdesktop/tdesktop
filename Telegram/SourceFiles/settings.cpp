@@ -73,6 +73,7 @@ RecentEmojiPack gRecentEmojis;
 RecentEmojiPreload gRecentEmojisPreload;
 
 int32 gLang = -2; // auto
+QString gLangFile;
 
 bool gRetina = false;
 float64 gRetinaFactor = 1.;

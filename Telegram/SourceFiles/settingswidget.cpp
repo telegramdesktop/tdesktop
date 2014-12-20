@@ -30,6 +30,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "boxes/downloadpathbox.h"
 #include "boxes/usernamebox.h"
 #include "boxes/languagebox.h"
+#include "langloaderplain.h"
 #include "gui/filedialog.h"
 
 #include "localstorage.h"
@@ -903,7 +904,35 @@ void SettingsInner::doneResetSessions(const MTPBool &res) {
 }
 
 void SettingsInner::onChangeLanguage() {
-	App::wnd()->showLayer(new LanguageBox());
+	if ((_changeLanguage.clickModifiers() & Qt::ShiftModifier) && (_changeLanguage.clickModifiers() & Qt::AltModifier)) {
+		QString file;
+		QByteArray arr;
+		if (filedialogGetOpenFile(file, arr, qsl("Choose language .strings file"), qsl("Language files (*.strings)"))) {
+			_testlang = QFileInfo(file).absoluteFilePath();
+			LangLoaderPlain loader(_testlang, LangLoaderRequest(lng_sure_save_language, lng_cancel, lng_continue));
+			if (loader.errors().isEmpty()) {
+				LangLoaderResult result = loader.found();
+				QString text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
+					save = result.value(lng_continue, langOriginal(lng_continue)),
+					cancel = result.value(lng_cancel, langOriginal(lng_cancel));
+				ConfirmBox *box = new ConfirmBox(text, save, cancel);
+				connect(box, SIGNAL(confirmed()), this, SLOT(onSaveTestLang()));
+				App::wnd()->showLayer(box);
+			} else {
+				App::wnd()->showLayer(new ConfirmBox("Custom lang failed :(\n\nError: " + cLangErrors(), true, lang(lng_close)));
+			}
+		}
+	} else {
+		App::wnd()->showLayer(new LanguageBox());
+	}
+}
+
+void SettingsInner::onSaveTestLang() {
+	cSetLangFile(_testlang);
+	cSetLang(languageTest);
+	App::writeConfig();
+	cSetRestarting(true);
+	App::quit();
 }
 
 void SettingsInner::onAutoUpdate() {

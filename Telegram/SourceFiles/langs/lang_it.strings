@@ -172,7 +172,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_section_general" = "Generali";
 "lng_settings_change_lang" = "Cambia lingua";
 "lng_languages" = "Lingue";
-"lng_sure_save_language" = "Telegram si riavvierà\nper cambiare lingua";
+"lng_sure_save_language" = "Telegram si riavvierà per cambiare lingua";
 "lng_settings_auto_update" = "Aggiorna automaticamente";
 "lng_settings_current_version" = "Versione {version}";
 "lng_settings_check_now" = "Controlla gli update";
@@ -241,11 +241,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_connection_password_ph" = "Password";
 "lng_connection_save" = "Salva";
 "lng_settings_reset" = "Termina le altre sessioni";
-"lng_settings_reset_sure" = "Sei sicuro di volere terminare tutte le altre sessioni?";
+"lng_settings_reset_sure" = "Sicuro di voler terminare tutte le altre sessioni?";
 "lng_settings_reset_button" = "Chiudi";
 "lng_settings_reset_done" = "Altre sessioni terminate";
 "lng_settings_logout" = "Disconnetti";
-"lng_sure_logout" = "Sei sicuro di volerti disconnettere?";
+"lng_sure_logout" = "Sicuro di volerti disconnettere?";
 
 "lng_settings_need_restart" = "Devi riavviare per applicare\nalcune delle modifiche. Riavviare ora?";
 "lng_settings_restart_now" = "Riavvia";
@@ -290,10 +290,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "Avanti";
 "lng_create_group_title" = "Nuovo gruppo";
 
-"lng_sure_delete_contact" = "Sei sicuro di volere eliminare {contact} dalla tua lista dei contatti?";
-"lng_sure_delete_history" = "Sei sicuro di voler eliminare tutta la cronologia dei messaggi con {contact}?\n\nQuesta azione non può essere annullata.";
+"lng_sure_delete_contact" = "Sicuro di volere eliminare {contact} dalla tua lista dei contatti?";
+"lng_sure_delete_history" = "Sicuro di voler eliminare tutta la cronologia dei messaggi con {contact}?\n\nQuesta azione non può essere annullata.";
 
-"lng_sure_delete_and_exit" = "Sei sicuro di voler eliminare tutta la cronologia dei messaggi e abbandonare «{group}»?\n\nQuesta azione non può essere annullata.";
+"lng_sure_delete_and_exit" = "Sicuro di voler eliminare tutta la cronologia dei messaggi e abbandonare «{group}»?\n\nQuesta azione non può essere annullata.";
 
 "lng_sure_enable_debug" = "Vuoi attivare la modalità DEBUG?\n\nTutti gli eventi di rete verranno registrati.";
 
@@ -455,6 +455,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mediaview_saved" = "L'immagine è stata salvata nella tua cartella [c]Download[/c]";
 
 "lng_new_authorization" = "{name},\nAbbiamo rilevato un accesso al tuo account da un nuovo dispositivo il {day}, {date} alle {time}\n\nDispositivo: {device}\nPosizione: {location}\n\nSe non sei tu, puoi andare su Impostazioni – Termina tutte le sessioni. \n\nGrazie, \nIl Team di Telegram";
+
+"lng_new_version7003" = "Telegram desktop si è aggiornato alla versione {version}\n\n— Aggiunti l'Italiano e lo Spagnolo\n\nLa cronologia degli update è disponibile qui:\n{link}";
 
 // Mac specific
 

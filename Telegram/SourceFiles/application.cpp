@@ -129,12 +129,12 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
         cSetIntRetinaFactor(int32(cRetinaFactor()));
     }
 
-	if (cLang() < languageTestlang) {
+	if (cLang() < languageTest) {
 		cSetLang(languageId());
 	}
-	if (cLang() == languageTestlang) {
-		if (QFileInfo(TestLangFile).exists()) {
-			LangLoaderPlain loader(TestLangFile);
+	if (cLang() == languageTest) {
+		if (QFileInfo(cLangFile()).exists()) {
+			LangLoaderPlain loader(cLangFile());
 			cSetLangErrors(loader.errors());
 			if (!cLangErrors().isEmpty()) {
 				LOG(("Lang load errors: %1").arg(cLangErrors()));
@@ -142,9 +142,9 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 				LOG(("Lang load warnings: %1").arg(loader.warnings()));
 			}
 		} else {
-			cSetLang(languageEnglish);
+			cSetLang(languageDefault);
 		}
-	} else if (cLang() > languageEnglish && cLang() < languageCount) {
+	} else if (cLang() > languageDefault && cLang() < languageCount) {
 		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[cLang()] + qsl(".strings"));
 		if (!loader.errors().isEmpty()) {
 			LOG(("Lang load errors: %1").arg(loader.errors()));
@@ -695,10 +695,10 @@ void Application::startApp() {
 	}
 
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
-	if (Local::oldMapVersion() < AppVersion) {
+	if (Local::oldMapVersion() < AppVersion || true) {
 		psRegisterCustomScheme();
-		if (Local::oldMapVersion() && Local::oldMapVersion() < FeaturesNotifyVersion) {
-			QString versionFeatures(QString::fromUtf8(FeaturesNotify).arg(QString::fromStdWString(AppVersionStr)));
+		if (Local::oldMapVersion() && Local::oldMapVersion() < 7003 || true) {
+			QString versionFeatures(lng_new_version7003(lt_version, QString::fromStdWString(AppVersionStr), lt_link, qsl("https://desktop.telegram.org/#changelog")));
 			if (!versionFeatures.isEmpty()) {
 				window->serviceNotification(versionFeatures);
 			}
@@ -706,7 +706,7 @@ void Application::startApp() {
 	}
 
 	if (!cLangErrors().isEmpty()) {
-		window->showLayer(new ConfirmBox("Lang failed: " + QLatin1String(TestLangFile) + "\n\nError: " + cLangErrors(), true, lang(lng_close)));
+		window->showLayer(new ConfirmBox("Custom lang failed :(\n\nError: " + cLangErrors(), true, lang(lng_close)));
 	}
 }
 
@@ -859,7 +859,7 @@ int32 Application::languageId() {
 			return i;
 		}
 	}
-	return languageEnglish;
+	return languageDefault;
 }
 
 MainWidget *Application::main() {

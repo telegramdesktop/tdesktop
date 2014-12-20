@@ -19,15 +19,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "pspecific.h"
 
-const char *FeaturesNotify = "\
-Telegram Desktop was updated to version %1\n\
-\n\
- \xe2\x80\x94 Improved single column navigation.\n\
- \xe2\x80\x94 Improved image viewer for large documents.\n\
-\n\
-Full version history is available here:\n\
-https://desktop.telegram.org/#changelog";
-
 int main(int argc, char *argv[]) {
 #ifdef _NEED_WIN_GENERATE_DUMP
 	_oldWndExceptionFilter = SetUnhandledExceptionFilter(_exceptionFilter);

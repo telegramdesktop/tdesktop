@@ -1777,6 +1777,7 @@
     <ResourceCompile Include="Telegram.rc" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="SourceFiles\langs\lang_es.strings" />
     <None Include="SourceFiles\langs\lang_it.strings" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
