@@ -29,20 +29,20 @@ LanguageBox::LanguageBox() :
 _done(this, lang(lng_about_done), st::langsCloseButton),
 _hiding(false), a_opacity(0, 1) {
 
-	bool haveTestLang = QFileInfo(TestLangFile).exists() || (cLang() == langTestlang);
+	bool haveTestLang = QFileInfo(TestLangFile).exists() || (cLang() == languageTestlang);
 
 	_width = st::langsWidth;
-	_height = st::addContactTitleHeight + st::langsPadding.top() + st::langsPadding.bottom() + (langCount + (haveTestLang ? 1 : 0)) * (st::langPadding.top() + st::rbDefFlat.height + st::langPadding.bottom()) + _done.height();
+	_height = st::addContactTitleHeight + st::langsPadding.top() + st::langsPadding.bottom() + (languageCount + (haveTestLang ? 1 : 0)) * (st::langPadding.top() + st::rbDefFlat.height + st::langPadding.bottom()) + _done.height();
 
 	int32 y = st::addContactTitleHeight + st::langsPadding.top();
-	_langs.reserve(langCount + (haveTestLang ? 1 : 0));
+	_langs.reserve(languageCount + (haveTestLang ? 1 : 0));
 	if (haveTestLang) {
-		_langs.push_back(new FlatRadiobutton(this, qsl("lang"), langTestlang, TestLangFile, (cLang() == langTestlang), st::langButton));
+		_langs.push_back(new FlatRadiobutton(this, qsl("lang"), languageTestlang, TestLangFile, (cLang() == languageTestlang), st::langButton));
 		_langs.back()->move(st::langsPadding.left() + st::langPadding.left(), y + st::langPadding.top());
 		y += st::langPadding.top() + _langs.back()->height() + st::langPadding.bottom();
 		connect(_langs.back(), SIGNAL(changed()), this, SLOT(onChange()));
 	}
-	for (int32 i = 0; i < langCount; ++i) {
+	for (int32 i = 0; i < languageCount; ++i) {
 		LangLoaderResult result;
 		if (i) {
 			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i] + qsl(".strings"), LangLoaderRequest(lng_language_name));
@@ -138,7 +138,7 @@ void LanguageBox::onChange() {
 			if (langId > 0) {
 				LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[langId] + qsl(".strings"), LangLoaderRequest(lng_sure_save_language, lng_cancel, lng_continue));
 				result = loader.found();
-			} else if (langId == langTestlang) {
+			} else if (langId == languageTestlang) {
 				LangLoaderPlain loader(TestLangFile, LangLoaderRequest(lng_sure_save_language, lng_cancel, lng_continue));
 				result = loader.found();
 			}

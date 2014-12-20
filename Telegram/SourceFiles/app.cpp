@@ -1600,7 +1600,7 @@ namespace App {
 				case dbiLang: {
 					qint32 v;
 					configStream >> v;
-					if (v == langTestlang || (v >= 0 && v < langCount)) {
+					if (v == languageTestlang || (v >= 0 && v < languageCount)) {
 						cSetLang(v);
 					}
 				} break;

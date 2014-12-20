@@ -44,6 +44,9 @@
 		0732E4A9199E262300D50FE7 /* overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4A7199E262300D50FE7 /* overviewwidget.cpp */; };
 		0732E4AC199E268A00D50FE7 /* moc_overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */; };
 		074756191A1372C600CA07F7 /* moc_types.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074756181A1372C600CA07F7 /* moc_types.cpp */; };
+		074968CD1A44D13400394F46 /* lang_it.strings in Resources */ = {isa = PBXBuildFile; fileRef = 074968CC1A44D13400394F46 /* lang_it.strings */; };
+		074968D01A44D14C00394F46 /* languagebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074968CE1A44D14C00394F46 /* languagebox.cpp */; };
+		074968D21A44D1DF00394F46 /* moc_languagebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074968D11A44D1DF00394F46 /* moc_languagebox.cpp */; };
 		0749CE69194D723400345D61 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 07C3AF24194335ED0016CFF1 /* Images.xcassets */; };
 		074FCB8E19D36851004C6EB2 /* contextmenu.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074FCB8C19D36851004C6EB2 /* contextmenu.cpp */; };
 		074FCB9119D36E60004C6EB2 /* moc_contextmenu.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074FCB9019D36E60004C6EB2 /* moc_contextmenu.cpp */; };
@@ -260,6 +263,10 @@
 		0732E4A8199E262300D50FE7 /* overviewwidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = overviewwidget.h; path = SourceFiles/overviewwidget.h; sourceTree = SOURCE_ROOT; };
 		0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_overviewwidget.cpp; path = GeneratedFiles/Debug/moc_overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
 		074756181A1372C600CA07F7 /* moc_types.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_types.cpp; path = GeneratedFiles/Debug/moc_types.cpp; sourceTree = SOURCE_ROOT; };
+		074968CC1A44D13400394F46 /* lang_it.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_it.strings; path = SourceFiles/langs/lang_it.strings; sourceTree = SOURCE_ROOT; };
+		074968CE1A44D14C00394F46 /* languagebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = languagebox.cpp; path = SourceFiles/boxes/languagebox.cpp; sourceTree = SOURCE_ROOT; };
+		074968CF1A44D14C00394F46 /* languagebox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = languagebox.h; path = SourceFiles/boxes/languagebox.h; sourceTree = SOURCE_ROOT; };
+		074968D11A44D1DF00394F46 /* moc_languagebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_languagebox.cpp; path = GeneratedFiles/Debug/moc_languagebox.cpp; sourceTree = SOURCE_ROOT; };
 		074FCB8C19D36851004C6EB2 /* contextmenu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = contextmenu.cpp; path = SourceFiles/gui/contextmenu.cpp; sourceTree = SOURCE_ROOT; };
 		074FCB8D19D36851004C6EB2 /* contextmenu.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = contextmenu.h; path = SourceFiles/gui/contextmenu.h; sourceTree = SOURCE_ROOT; };
 		074FCB9019D36E60004C6EB2 /* moc_contextmenu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_contextmenu.cpp; path = GeneratedFiles/Debug/moc_contextmenu.cpp; sourceTree = SOURCE_ROOT; };
@@ -709,6 +716,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		074968CB1A44D0B800394F46 /* langs */ = {
+			isa = PBXGroup;
+			children = (
+				074968CC1A44D13400394F46 /* lang_it.strings */,
+			);
+			name = langs;
+			sourceTree = "<group>";
+		};
 		130BDDB6FC4D60CF394D95AF /* GeneratedFiles */ = {
 			isa = PBXGroup;
 			children = (
@@ -762,14 +777,6 @@
 				130BDDB6FC4D60CF394D95AF /* GeneratedFiles */,
 			);
 			name = Sources;
-			sourceTree = "<Group>";
-		};
-		35C84855EE9B0EA8AE0FF729 /* SourceFiles */ = {
-			isa = PBXGroup;
-			children = (
-				1292B92B4848460640F6A391 /* telegram.qrc */,
-			);
-			name = SourceFiles;
 			sourceTree = "<Group>";
 		};
 		370997172D3BAEED157B8E70 /* SourceFiles */ = {
@@ -879,6 +886,7 @@
 				579DA7AEF5751DF4988869A0 /* gui */,
 				ADC8DBF4C6F26E14C77F68B4 /* boxes */,
 				5E35A03E5F2C51353EBCBF00 /* intro */,
+				074968CB1A44D0B800394F46 /* langs */,
 				6011DDB120E1B2D4803E129A /* stdafx.h */,
 				C19DF71B273A4843553518F2 /* app.h */,
 				09FD01F2BD652EB838A296D8 /* application.h */,
@@ -1049,6 +1057,7 @@
 		801973D3334D0FCA849CF485 /* Debug */ = {
 			isa = PBXGroup;
 			children = (
+				074968D11A44D1DF00394F46 /* moc_languagebox.cpp */,
 				07BE85111A20961F008ACB9F /* moc_localstorage.cpp */,
 				07539B1C1A1416AF00083EFC /* moc_history.cpp */,
 				074756181A1372C600CA07F7 /* moc_types.cpp */,
@@ -1108,18 +1117,6 @@
 			name = Debug;
 			sourceTree = "<Group>";
 		};
-		87DF60DE337FB58864343E39 /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				07080BCB1A4357F300741A51 /* lang.strings */,
-				07C3AF2919433ABF0016CFF1 /* style_classes.txt */,
-				07C3AF2A19433ABF0016CFF1 /* style.txt */,
-				07C3AF24194335ED0016CFF1 /* Images.xcassets */,
-				35C84855EE9B0EA8AE0FF729 /* SourceFiles */,
-			);
-			name = Resources;
-			sourceTree = "<Group>";
-		};
 		ADC8DBF4C6F26E14C77F68B4 /* boxes */ = {
 			isa = PBXGroup;
 			children = (
@@ -1131,6 +1128,7 @@
 				8C800AAC9549E6E9E7046BED /* contactsbox.cpp */,
 				8DF456E9A416E4C3C2D6946C /* downloadpathbox.cpp */,
 				0ECF1EB9BF3786A16731F685 /* emojibox.cpp */,
+				074968CE1A44D14C00394F46 /* languagebox.cpp */,
 				5FCB7CBBAF4AE338D4B05C76 /* newgroupbox.cpp */,
 				E908A6C86F93FA27DF70866C /* photocropbox.cpp */,
 				D1C9C77F1318F5A55C9BF289 /* photosendbox.cpp */,
@@ -1143,6 +1141,7 @@
 				120EBCD9A37DB9A36BFE58C0 /* contactsbox.h */,
 				B97D4DB97FE881648644211A /* downloadpathbox.h */,
 				032C1BF3E727B450A4851D48 /* emojibox.h */,
+				074968CF1A44D14C00394F46 /* languagebox.h */,
 				FF66B5DCBB004CD8703F0207 /* newgroupbox.h */,
 				14437BFDCD58FF1742EF1B35 /* photocropbox.h */,
 				0BDE09020E45EFA57DCB2E25 /* photosendbox.h */,
@@ -1225,9 +1224,13 @@
 				2EB56BE3C2D93CDAB0C52E67 /* Sources */,
 				25B08E2869634E9BCBA333A2 /* Generated Sources */,
 				74B182DB50CB5611B5C1C297 /* Supporting Files */,
-				87DF60DE337FB58864343E39 /* Resources */,
 				AF39DD055C3EF8226FBE929D /* Frameworks */,
 				FE0A091FDBFB3E9C31B7A1BD /* Products */,
+				07C3AF24194335ED0016CFF1 /* Images.xcassets */,
+				07080BCB1A4357F300741A51 /* lang.strings */,
+				07C3AF2919433ABF0016CFF1 /* style_classes.txt */,
+				07C3AF2A19433ABF0016CFF1 /* style.txt */,
+				1292B92B4848460640F6A391 /* telegram.qrc */,
 			);
 			name = Telegram;
 			sourceTree = "<Group>";
@@ -1320,6 +1323,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				07080BCC1A4357F300741A51 /* lang.strings in Resources */,
+				074968CD1A44D13400394F46 /* lang_it.strings in Resources */,
 				0749CE69194D723400345D61 /* Images.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1433,6 +1437,7 @@
 				7BEFA1D273AD62772AA33D73 /* app.cpp in Compile Sources */,
 				8E26A0653012B8E8C3E865EC /* application.cpp in Compile Sources */,
 				02F93BF511880983D3C57B84 /* dialogswidget.cpp in Compile Sources */,
+				074968D21A44D1DF00394F46 /* moc_languagebox.cpp in Compile Sources */,
 				6EF5A4ECC0EF19EA016EBA3E /* dropdown.cpp in Compile Sources */,
 				6E4DB0CBEF415196AFD4149F /* fileuploader.cpp in Compile Sources */,
 				700925F3B2C6163D38140CEA /* history.cpp in Compile Sources */,
@@ -1545,6 +1550,7 @@
 				D6874C00733283846ACA9AB2 /* moc_confirmbox.cpp in Compile Sources */,
 				ED2557A57C6782721DC494AF /* moc_connectionbox.cpp in Compile Sources */,
 				5FC914F652D1B16FDA8F0634 /* moc_contactsbox.cpp in Compile Sources */,
+				074968D01A44D14C00394F46 /* languagebox.cpp in Compile Sources */,
 				07BE85121A20961F008ACB9F /* moc_localstorage.cpp in Compile Sources */,
 				49C3C1BF153F7FC078A25CE4 /* moc_downloadpathbox.cpp in Compile Sources */,
 				9D294F23E02CFDF22C288382 /* moc_emojibox.cpp in Compile Sources */,

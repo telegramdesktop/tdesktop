@@ -18,13 +18,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #pragma once
 
 enum Languages {
-	langTestlang = -1,
+	languageTestlang = -1,
 
-	langEnglish = 0,
-	langItalian,
-	langSpanish,
+	languageEnglish = 0,
+	languageItalian,
+	languageSpanish,
 
-	langCount
+	languageCount
 };
 
 static const char *LanguageCodes[] = {

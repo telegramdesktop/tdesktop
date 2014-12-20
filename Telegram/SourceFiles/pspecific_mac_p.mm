@@ -642,8 +642,9 @@ BOOL _execUpdater(BOOL update = YES) {
 		}
 		path = [path stringByAppendingString:@"/Contents/Frameworks/Updater"];
 
-		NSMutableArray *args = [[NSMutableArray alloc] initWithObjects:@"-workpath", QNSString(cWorkingDir()).s(), @"-tosettings", @"-procid", nil];
+		NSMutableArray *args = [[NSMutableArray alloc] initWithObjects:@"-workpath", QNSString(cWorkingDir()).s(), @"-procid", nil];
 		[args addObject:[NSString stringWithFormat:@"%d", [[NSProcessInfo processInfo] processIdentifier]]];
+		if (cRestartingToSettings()) [args addObject:@"-tosettings"];
 		if (!update) [args addObject:@"-noupdate"];
 		if (cFromAutoStart()) [args addObject:@"-autostart"];
 		if (cDebug()) [args addObject:@"-debug"];
