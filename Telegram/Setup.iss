@@ -72,6 +72,11 @@ Type: filesandordirs; Name: "{userappdata}\{#MyAppName}\tdata"
 Type: filesandordirs; Name: "{userappdata}\{#MyAppName}\tdumps"
 Type: dirifempty; Name: "{userappdata}\{#MyAppName}"
 
+[Languages]
+Name: "en"; MessagesFile: "compiler:Default.isl"
+Name: "it"; MessagesFile: "compiler:Languages\Italian.isl"
+Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
+
 [Code]
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var ResultCode: Integer;

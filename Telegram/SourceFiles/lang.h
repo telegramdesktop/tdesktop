@@ -22,7 +22,7 @@ enum Languages {
 
 	languageEnglish = 0,
 	languageItalian,
-//	languageSpanish,
+	languageSpanish,
 
 	languageCount
 };
@@ -30,7 +30,7 @@ enum Languages {
 static const char *LanguageCodes[] = {
 	"en",
 	"it",
-//	"es",
+	"es",
 };
 
 static const char *TestLangFile = "testlang.strings";

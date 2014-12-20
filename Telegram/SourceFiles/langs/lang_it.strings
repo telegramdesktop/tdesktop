@@ -16,7 +16,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 "lng_language_name" = "Italiano";
-"lng_switch_to_this" = "Switch to Italiano";
+"lng_switch_to_this" = "Passa all'italiano";
 
 "lng_menu_contacts" = "Contatti";
 "lng_menu_settings" = "Impostazioni";
@@ -74,7 +74,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_status_last_week" = "ultimo accesso entro una settimana";
 "lng_status_last_month" = "ultimo accesso entro un mese";
 "lng_status_invisible" = "invisibile";
-"lng_status_lastseen_now" = "ultimo accesso proprio ora";
+"lng_status_lastseen_now" = "ultimo accesso adesso";
 "lng_status_lastseen_minutes" = "ultimo accesso {count:_not_used_|# minuto|# minuti} fa";
 "lng_status_lastseen_hours" = "ultimo accesso {count:_not_used_|# ora|# ore} fa";
 "lng_status_lastseen_today" = "ultimo accesso oggi alle {time}";
@@ -92,7 +92,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_flood_error" = "Troppi tentativi. Per favore riprova più tardi.";
 "lng_deleted" = "Sconosciuto";
 
-"lng_intro" = "Benvenuti nell'app ufficiale di [a href=\"https://telegram.org/\"]Telegram[/a] per desktop.\nÈ [b]veloce[/b] e [b]sicura[/b].";
+"lng_intro" = "Benvenuti nell'app desktop ufficiale di [a href=\"https://telegram.org/\"]Telegram[/a].\nÈ [b]veloce[/b] e [b]sicura[/b].";
 "lng_start_msgs" = "INIZIA A MESSAGGIARE";
 
 "lng_intro_next" = "AVANTI";
@@ -129,7 +129,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_signup_lastname" = "Cognome";
 
 "lng_dlg_filter" = "Cerca";
-"lng_dlg_conversations" = "Conversazioni";
+"lng_dlg_conversations" = "Chat";
 "lng_dlg_messages" = "Messaggi";
 "lng_dlg_new_group_name" = "Nome gruppo";
 "lng_dlg_create_group" = "Crea";
@@ -170,9 +170,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_notification_preview" = "Hai un nuovo messaggio";
 
 "lng_settings_section_general" = "Generali";
-"lng_settings_change_lang" = "Change Language";
-"lng_languages" = "Languages";
-"lng_sure_save_language" = "Telegram will restart\nin order to change language";
+"lng_settings_change_lang" = "Cambia lingua";
+"lng_languages" = "Lingue";
+"lng_sure_save_language" = "Telegram si riavvierà\nper cambiare lingua";
 "lng_settings_auto_update" = "Aggiorna automaticamente";
 "lng_settings_current_version" = "Versione {version}";
 "lng_settings_check_now" = "Controlla gli update";
@@ -241,20 +241,20 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_connection_password_ph" = "Password";
 "lng_connection_save" = "Salva";
 "lng_settings_reset" = "Termina le altre sessioni";
-"lng_settings_reset_sure" = "Are you sure you want to terminate all other sessions?";
-"lng_settings_reset_button" = "Terminate";
+"lng_settings_reset_sure" = "Sei sicuro di volere terminare tutte le altre sessioni?";
+"lng_settings_reset_button" = "Chiudi";
 "lng_settings_reset_done" = "Altre sessioni terminate";
 "lng_settings_logout" = "Disconnetti";
 "lng_sure_logout" = "Sei sicuro di volerti disconnettere?";
 
-"lng_settings_need_restart" = "Devi riavviare per applicare \nalcune delle modifiche. Riavviare ora?";
+"lng_settings_need_restart" = "Devi riavviare per applicare\nalcune delle modifiche. Riavviare ora?";
 "lng_settings_restart_now" = "Riavvia";
 "lng_settings_restart_later" = "Più tardi";
 
 "lng_profile_chat_unaccessible" = "Gruppo non accessibile";
 "lng_topbar_info" = "Info";
 "lng_profile_settings_section" = "Impostazioni";
-"lng_profile_participants_section" = "Partecipanti";
+"lng_profile_participants_section" = "Membri";
 "lng_profile_info" = "Info contatto";
 "lng_profile_group_info" = "Nome gruppo";
 "lng_profile_add_contact" = "Aggiungi contatto";
@@ -268,7 +268,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_set_group_photo" = "Imposta foto";
 "lng_profile_add_participant" = "Aggiungi membro";
 "lng_profile_delete_and_exit" = "Esci";
-"lng_profile_kick" = "Caccia";
+"lng_profile_kick" = "Espelli";
 "lng_profile_sure_kick" = "Espellere {user} dal gruppo?";
 "lng_profile_loading" = "Caricamento..";
 "lng_profile_shared_media" = "Media condivisi";
@@ -361,7 +361,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_copy_link" = "Copia link";
 "lng_context_open_email" = "Scrivi a questo indirizzo";
 "lng_context_copy_email" = "Copia indirizzo email";
-"lng_context_open_hashtag" = "Cerca via hastag";
+"lng_context_open_hashtag" = "Cerca via hashtag";
 "lng_context_copy_hashtag" = "Copia hashtag";
 "lng_context_open_image" = "Apri immagine";
 "lng_context_save_image" = "Salva immagine come..";
@@ -386,7 +386,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_forward_msg" = "Inoltra messaggio";
 "lng_context_delete_msg" = "Elimina messaggio";
 "lng_context_select_msg" = "Seleziona messaggio";
-"lng_context_cancel_upload" = "Elimina upload";
+"lng_context_cancel_upload" = "Annulla upload";
 "lng_context_copy_selected" = "Copia testo selezionato";
 "lng_context_forward_selected" = "Inoltra selezione";
 "lng_context_delete_selected" = "Elimina selezione";
@@ -404,7 +404,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_forward" = "Inoltra";
 "lng_forward_send" = "Invia";
 
-"lng_contact_phone" = "Numero di telefon";
+"lng_contact_phone" = "Numero di telefono";
 "lng_enter_contact_data" = "Nuovo contatto";
 "lng_edit_group_title" = "Modifica nome gruppo";
 "lng_edit_contact_title" = "Modifica nome contatto";
@@ -447,7 +447,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mediaview_forward" = "Inoltra";
 "lng_mediaview_delete" = "Elimina";
 "lng_mediaview_single_photo" = "Foto singola";
-"lng_mediaview_group_photo" = "Foto gruppo";
+"lng_mediaview_group_photo" = "Gruppo di foto";
 "lng_mediaview_profile_photo" = "Foto profilo";
 "lng_mediaview_n_of_count" = "Foto {n} di {count}";
 "lng_mediaview_doc_image" = "File";
