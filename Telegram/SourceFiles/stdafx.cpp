@@ -43,6 +43,6 @@ Q_IMPORT_PLUGIN(QTiffPlugin)
 Q_IMPORT_PLUGIN(QWbmpPlugin)
 Q_IMPORT_PLUGIN(QWebpPlugin)
 #elif defined Q_OS_LINUX
-//Q_IMPORT_PLUGIN(QPulseAudioPlugin)
 Q_IMPORT_PLUGIN(QComposePlatformInputContextPlugin)
+Q_IMPORT_PLUGIN(QWebpPlugin)
 #endif
