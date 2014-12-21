@@ -44,23 +44,23 @@ style_classes_h.depends = FORCE
 style_classes_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
 style_classes_h.depends = ./../../Telegram/Resources/style.txt ./../../Telegram/Resources/style_classes.txt
 
-lang_cpp.target = ./GeneratedFiles/lang.cpp
-lang_cpp.depends = FORCE
-lang_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.txt -lang_out ./../../Telegram/GeneratedFiles/lang
-lang_cpp.depends = ./../../Telegram/Resources/lang.txt
+lang_auto_cpp.target = ./GeneratedFiles/lang_auto.cpp
+lang_auto_cpp.depends = FORCE
+lang_auto_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.strings -lang_out ./../../Telegram/GeneratedFiles/lang_auto
+lang_auto_cpp.depends = ./../../Telegram/Resources/lang.strings
 
-lang_h.target = ./GeneratedFiles/lang.h
-lang_h.depends = FORCE
-lang_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.txt -lang_out ./../../Telegram/GeneratedFiles/lang
-lang_h.depends = ./../../Telegram/Resources/lang.txt
+lang_auto_h.target = ./GeneratedFiles/lang_auto.h
+lang_auto_h.depends = FORCE
+lang_auto_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.strings -lang_out ./../../Telegram/GeneratedFiles/lang_auto
+lang_auto_h.depends = ./../../Telegram/Resources/lang.strings
 
-hook.depends = style_auto_cpp style_auto_h style_classes_h lang_cpp lang_h
+hook.depends = style_auto_cpp style_auto_h style_classes_h lang_auto_cpp lang_auto_h
 CONFIG(debug,debug|release):hook.target = Makefile.Debug
 CONFIG(release,debug|release):hook.target = Makefile.Release
 
-QMAKE_EXTRA_TARGETS += style_auto_cpp style_auto_h style_classes_h lang_cpp lang_h hook
+QMAKE_EXTRA_TARGETS += style_auto_cpp style_auto_h style_classes_h lang_auto_cpp lang_auto_h hook
 
-PRE_TARGETDEPS += ./GeneratedFiles/style_auto.cpp ./GeneratedFiles/style_auto.h ./GeneratedFiles/style_classes.h ./GeneratedFiles/lang.h ./GeneratedFiles/lang.cpp
+PRE_TARGETDEPS += ./GeneratedFiles/style_auto.cpp ./GeneratedFiles/style_auto.h ./GeneratedFiles/style_classes.h ./GeneratedFiles/lang_auto.h ./GeneratedFiles/lang_auto.cpp
 
 unix {
     linux-g++:QMAKE_TARGET.arch = $$QMAKE_HOST.arch
@@ -87,6 +87,7 @@ SOURCES += \
     ./SourceFiles/fileuploader.cpp \
     ./SourceFiles/history.cpp \
     ./SourceFiles/historywidget.cpp \
+    ./SourceFiles/lang.cpp \
     ./SourceFiles/langloaderplain.cpp \
     ./SourceFiles/layerwidget.cpp \
     ./SourceFiles/mediaview.cpp \
@@ -131,7 +132,7 @@ SOURCES += \
     ./SourceFiles/gui/text.cpp \
     ./SourceFiles/gui/twidget.cpp \
     ./SourceFiles/gui/switcher.cpp \
-    ./GeneratedFiles/lang.cpp \
+    ./GeneratedFiles/lang_auto.cpp \
     ./GeneratedFiles/style_auto.cpp \
     ./SourceFiles/boxes/aboutbox.cpp \
     ./SourceFiles/boxes/addcontactbox.cpp \
@@ -141,6 +142,7 @@ SOURCES += \
     ./SourceFiles/boxes/contactsbox.cpp \
     ./SourceFiles/boxes/downloadpathbox.cpp \
     ./SourceFiles/boxes/emojibox.cpp \
+    ./SourceFiles/boxes/languagebox.cpp \
     ./SourceFiles/boxes/newgroupbox.cpp \
     ./SourceFiles/boxes/photocropbox.cpp \
     ./SourceFiles/boxes/photosendbox.cpp \
@@ -163,6 +165,7 @@ HEADERS += \
     ./SourceFiles/fileuploader.h \
     ./SourceFiles/history.h \
     ./SourceFiles/historywidget.h \
+    ./SourceFiles/lang.h \
     ./SourceFiles/langloaderplain.h \
     ./SourceFiles/layerwidget.h \
     ./SourceFiles/mediaview.h \
@@ -212,7 +215,7 @@ HEADERS += \
     ./SourceFiles/gui/text.h \
     ./SourceFiles/gui/twidget.h \
     ./SourceFiles/gui/switcher.h \
-    ./GeneratedFiles/lang.h \
+    ./GeneratedFiles/lang_auto.h \
     ./GeneratedFiles/style_auto.h \
     ./GeneratedFiles/style_classes.h \
     ./SourceFiles/boxes/aboutbox.h \
@@ -223,6 +226,7 @@ HEADERS += \
     ./SourceFiles/boxes/contactsbox.h \
     ./SourceFiles/boxes/downloadpathbox.h \
     ./SourceFiles/boxes/emojibox.h \
+    ./SourceFiles/boxes/languagebox.h \
     ./SourceFiles/boxes/newgroupbox.h \
     ./SourceFiles/boxes/photocropbox.h \
     ./SourceFiles/boxes/photosendbox.h \
@@ -275,4 +279,6 @@ RESOURCES += \
 OTHER_FILES += \
     Resources/style_classes.txt \
     Resources/style.txt \
-    Resources/lang.txt
+    Resources/lang.strings
+    SourceFiles/langs/lang_it.strings
+    SourceFiles/langs/lang_es.strings
