@@ -79,7 +79,7 @@
       <SubSystem>Windows</SubSystem>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>.\..\..\Libraries\lzma\C\Util\LzmaLib\Debug;.\..\..\Libraries\libexif-0.6.20\win32\Debug;.\..\..\Libraries\libogg-1.3.2\win32\VS2010\Win32\Debug;.\..\..\Libraries\opus\win32\VS2010\Win32\Debug;.\..\..\Libraries\opusfile\win32\VS2010\Win32\Debug;.\..\..\Libraries\openal-soft\build\Debug;.\..\..\Libraries\zlib-1.2.8\contrib\vstudio\vc11\x86\ZlibStatDebug;.\..\..\Libraries\OpenSSL-Win32\lib\VC\static;$(QTDIR)\lib;$(QTDIR)\plugins;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;imm32.lib;winmm.lib;qtmaind.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Cored.lib;Qt5Guid.lib;Qt5Widgetsd.lib;Qt5Networkd.lib;Qt5PlatformSupportd.lib;platforms\qwindowsd.lib;accessible\qtaccessiblewidgetsd.lib;libeay32MTd.lib;ssleay32MTd.lib;Crypt32.lib;zlibstat.lib;LzmaLib.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;OpenAL32.lib;common.lib;opusfile.lib;opus.lib;libogg_static.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;imm32.lib;winmm.lib;qtmaind.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Cored.lib;Qt5Guid.lib;Qt5Widgetsd.lib;Qt5Networkd.lib;Qt5PlatformSupportd.lib;platforms\qwindowsd.lib;accessible\qtaccessiblewidgetsd.lib;imageformats\qwebpd.lib;libeay32MTd.lib;ssleay32MTd.lib;Crypt32.lib;zlibstat.lib;LzmaLib.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;OpenAL32.lib;common.lib;opusfile.lib;opus.lib;libogg_static.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ImageHasSafeExceptionHandlers />
       <IgnoreSpecificDefaultLibraries>
@@ -108,7 +108,7 @@
       <SubSystem>Windows</SubSystem>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>.\..\..\Libraries\lzma\C\Util\LzmaLib\Release;.\..\..\Libraries\libexif-0.6.20\win32\Release;.\..\..\Libraries\libogg-1.3.2\win32\VS2010\Win32\Release;.\..\..\Libraries\opus\win32\VS2010\Win32\Release;.\..\..\Libraries\opusfile\win32\VS2010\Win32\Release;.\..\..\Libraries\openal-soft\build\Release;.\..\..\Libraries\zlib-1.2.8\contrib\vstudio\vc11\x86\ZlibStatRelease;.\..\..\Libraries\OpenSSL-Win32\lib\VC\static;$(QTDIR)\lib;$(QTDIR)\plugins;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;imm32.lib;winmm.lib;qtmain.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Core.lib;Qt5Gui.lib;Qt5Widgets.lib;Qt5Network.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;accessible\qtaccessiblewidgets.lib;libeay32MT.lib;ssleay32MT.lib;Crypt32.lib;zlibstat.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;LzmaLib.lib;OpenAL32.lib;common.lib;opusfile.lib;opus.lib;libogg_static.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;imm32.lib;winmm.lib;qtmain.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Core.lib;Qt5Gui.lib;Qt5Widgets.lib;Qt5Network.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;accessible\qtaccessiblewidgets.lib;imageformats\qwebp.lib;libeay32MT.lib;ssleay32MT.lib;Crypt32.lib;zlibstat.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;LzmaLib.lib;OpenAL32.lib;common.lib;opusfile.lib;opus.lib;libogg_static.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers />
       <ImportLibrary>$(SolutionDir)$(Platform)\$(Configuration)Intermediate\$(TargetName).lib</ImportLibrary>
       <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
@@ -135,7 +135,7 @@
       <SubSystem>Windows</SubSystem>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>.\..\..\Libraries\lzma\C\Util\LzmaLib\Release;.\..\..\Libraries\libexif-0.6.20\win32\Release;.\..\..\Libraries\libogg-1.3.2\win32\VS2010\Win32\Release;.\..\..\Libraries\opus\win32\VS2010\Win32\Release;.\..\..\Libraries\opusfile\win32\VS2010\Win32\Release;.\..\..\Libraries\openal-soft\build\Release;.\..\..\Libraries\zlib-1.2.8\contrib\vstudio\vc11\x86\ZlibStatRelease;.\..\..\Libraries\OpenSSL-Win32\lib\VC\static;$(QTDIR)\lib;$(QTDIR)\plugins;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;imm32.lib;winmm.lib;qtmain.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Core.lib;Qt5Gui.lib;Qt5Widgets.lib;Qt5Network.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;accessible\qtaccessiblewidgets.lib;libeay32MT.lib;ssleay32MT.lib;Crypt32.lib;zlibstat.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;LzmaLib.lib;OpenAL32.lib;common.lib;opusfile.lib;opus.lib;libogg_static.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;imm32.lib;winmm.lib;qtmain.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Core.lib;Qt5Gui.lib;Qt5Widgets.lib;Qt5Network.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;accessible\qtaccessiblewidgets.lib;imageformats\qwebp.lib;libeay32MT.lib;ssleay32MT.lib;Crypt32.lib;zlibstat.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;LzmaLib.lib;OpenAL32.lib;common.lib;opusfile.lib;opus.lib;libogg_static.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>
       </ImageHasSafeExceptionHandlers>
       <ImportLibrary>$(SolutionDir)$(Platform)\$(Configuration)Intermediate\$(TargetName).lib</ImportLibrary>
@@ -1777,8 +1777,10 @@
     <ResourceCompile Include="Telegram.rc" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="SourceFiles\langs\lang_de.strings" />
     <None Include="SourceFiles\langs\lang_es.strings" />
     <None Include="SourceFiles\langs\lang_it.strings" />
+    <None Include="SourceFiles\langs\lang_nl.strings" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

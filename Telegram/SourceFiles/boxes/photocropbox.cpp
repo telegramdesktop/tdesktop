@@ -37,7 +37,7 @@ PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer) : _downState(0
 	}
 
 	int32 s = st::cropBoxWidth - st::boxPadding.left() - st::boxPadding.right();
-	_thumb = QPixmap::fromImage(img.scaled(s, s, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+	_thumb = QPixmap::fromImage(img.scaled(s, s, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 	_thumbw = _thumb.width();
 	_thumbh = _thumb.height();
 	if (_thumbw > _thumbh) {

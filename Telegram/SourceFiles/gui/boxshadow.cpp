@@ -45,7 +45,7 @@ BoxShadow::BoxShadow(const style::rect &topLeft) : _size(topLeft.width() / cIntR
 		p.setCompositionMode(QPainter::CompositionMode_Source);
 		p.drawImage(_size, 0, cornersImage.mirrored(true, false), _size, 0, _size, _size * 2);
 	}
-	_corners = QPixmap::fromImage(cornersImage);
+	_corners = QPixmap::fromImage(cornersImage, Qt::ColorOnly);
 	_colors.reserve(_size);
 	uchar prev = 0;
 	for (int32 i = 0; i < _size; ++i) {

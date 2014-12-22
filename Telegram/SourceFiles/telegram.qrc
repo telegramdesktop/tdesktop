@@ -44,5 +44,7 @@
   <qresource prefix="/langs">
     <file alias="lang_it.strings">langs/lang_it.strings</file>
     <file alias="lang_es.strings">langs/lang_es.strings</file>
+    <file alias="lang_de.strings">langs/lang_de.strings</file>
+    <file alias="lang_nl.strings">langs/lang_nl.strings</file>
   </qresource>
 </RCC>

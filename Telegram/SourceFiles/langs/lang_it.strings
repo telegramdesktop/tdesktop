@@ -119,7 +119,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_phone_noreg" = "Numero di telefono non registrato.";
 "lng_bad_code" = "Hai inserito un codice non valido. Per favore riprova.";
 "lng_bad_name" = "Per favore inserisci il tuo nome e cognome.";
-"lng_bad_chat_title" = "Inserisci il nuovo titolo della chat.";
 "lng_bad_photo" = "Immagine selezionata non valida.";
 
 "lng_signup_title" = "Informazioni e foto";
@@ -129,25 +128,19 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_signup_lastname" = "Cognome";
 
 "lng_dlg_filter" = "Cerca";
-"lng_dlg_conversations" = "Chat";
-"lng_dlg_messages" = "Messaggi";
 "lng_dlg_new_group_name" = "Nome gruppo";
 "lng_dlg_create_group" = "Crea";
 "lng_no_contacts" = "Non hai contatti";
 "lng_contacts_loading" = "Caricamento..";
 "lng_contacts_not_found" = "Nessun contatto trovato";
 
-"lng_settings_profile" = "Profilo";
-"lng_settings_edit" = "Modifica";
 "lng_settings_save" = "Salva";
-"lng_settings_cancel" = "Annulla";
 "lng_settings_upload" = "Imposta foto profilo";
-"lng_settings_badsize" = "Questa immagine ha una dimensione errata, prova con un'altra.";
 "lng_settings_crop_profile" = "Seleziona un'area quadrata per la tua foto profilo";
 "lng_settings_uploading_photo" = "Caricamento foto..";
 
-"lng_username_title" = "Cambia nome utente";
-"lng_username_about" = "Puoi scegliere un nome utente su Telegram.\nSe lo fai, le altre persone potranno trovarti\ntramite questo nome utente e contattarti \nsenza conoscere il tuo numero di telefono.\n\nPuoi usare a-z, 0-9 e underscore.\nLa lunghezza minima è di 5 caratteri.";
+"lng_username_title" = "Cambia username";
+"lng_username_about" = "Puoi scegliere un username su Telegram.\nSe lo fai, le altre persone potranno trovarti\ntramite questo nome utente e contattarti \nsenza conoscere il tuo numero di telefono.\n\nPuoi usare a-z, 0-9 e underscore.\nLa lunghezza minima è di 5 caratteri.";
 "lng_username_invalid" = "Il nome non è valido.";
 "lng_username_occupied" = "Il nome è già occupato.";
 "lng_username_too_short" = "Il nome è troppo corto.";
@@ -157,8 +150,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_settings_section_contact_info" = "Informazioni di contatto";
 "lng_settings_phone_number" = "Numero di telefono:";
-"lng_settings_username" = "Nome utente:";
-"lng_settings_choose_username" = "scegli nome utente";
+"lng_settings_username" = "Username:";
+"lng_settings_choose_username" = "scegli username";
 "lng_settings_change_username" = "Cambia";
 
 "lng_settings_section_notify" = "Notifiche";
@@ -259,7 +252,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_group_info" = "Nome gruppo";
 "lng_profile_add_contact" = "Aggiungi contatto";
 "lng_profile_edit_contact" = "Modifica";
-"lng_profile_edit_group" = "Modifica";
 "lng_profile_enable_notifications" = "Notifiche";
 "lng_profile_clear_history" = "Cancella la cronologia";
 "lng_profile_send_message" = "Invia messaggio";
@@ -303,7 +295,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_kick_user" = "{from} ha espulso {user}";
 "lng_action_user_left" = "{from} ha lasciato il gruppo";
 "lng_action_user_joined" = "{from} si è unito al gruppo";
-"lng_action_user_photo" = "{from} ha aggiunto una nuova foto profilo";
 "lng_action_user_registered" = "{from} si è appena unito a Telegram";
 "lng_action_removed_photo" = "{from} ha rimosso la foto del gruppo";
 "lng_action_changed_photo" = "{from} ha cambiato la foto del gruppo";
@@ -330,10 +321,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Video";
-"lng_in_dlg_geo" = "Mappa";
 "lng_in_dlg_contact" = "Contatto";
 "lng_in_dlg_audio" = "Audio";
 "lng_in_dlg_document" = "File";
+"lng_in_dlg_sticker" = "Sticker";
 
 "lng_send_button" = "Invia";
 "lng_message_ph" = "Scrivi un messaggio..";
@@ -434,10 +425,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_selected_delete_sure" = "Vuoi eliminare {count:_not_used_|# messaggio|# messaggi}?";
 "lng_selected_delete_confirm" = "Elimina";
 
-"lng_emoji_no_recent" = "Le emoji recenti saranno qui";
-
 "lng_about_version" = "Versione {version}";
-"lng_about_text" = "App ufficiale di messaggistica basata su [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] e le\n [a href=\"https://core.telegram.org/api\"]API Telegram[/a] per velocità e sicurezza\n\nQuesto software è sotto licenza [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versione 3, \nil source code è disponibile su [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_text" = "App ufficiale di messaggistica basata su [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] e \nle [a href=\"https://core.telegram.org/api\"]API Telegram[/a] per velocità e sicurezza\n\nQuesto software è sotto licenza [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versione 3, \nil source code è disponibile su [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 "lng_about_done" = "Fatto";
 
 "lng_search_found_results" = "{count:Nessun messaggio trovato|Trovato # messaggio|Trovati # messaggi}";
@@ -451,12 +440,15 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mediaview_profile_photo" = "Foto profilo";
 "lng_mediaview_n_of_count" = "Foto {n} di {count}";
 "lng_mediaview_doc_image" = "File";
+"lng_mediaview_today" = "oggi alle {time}";
+"lng_mediaview_yesterday" = "ieri alle {time}";
+"lng_mediaview_date_time" = "{date} alle {time}";
 
 "lng_mediaview_saved" = "L'immagine è stata salvata nella tua cartella [c]Download[/c]";
 
 "lng_new_authorization" = "{name},\nAbbiamo rilevato un accesso al tuo account da un nuovo dispositivo il {day}, {date} alle {time}\n\nDispositivo: {device}\nPosizione: {location}\n\nSe non sei tu, puoi andare su Impostazioni – Termina tutte le sessioni. \n\nGrazie, \nIl Team di Telegram";
 
-"lng_new_version7003" = "Telegram desktop si è aggiornato alla versione {version}\n\n— Aggiunti l'Italiano e lo Spagnolo\n\nLa cronologia degli update è disponibile qui:\n{link}";
+"lng_new_version7004" = "Telegram Desktop si è aggiornato alla versione {version}\n\n— Aggiunti il Tedesco e l'Olandese.\n\nLa cronologia degli update è disponibile qui:\n{link}";
 
 // Mac specific
 

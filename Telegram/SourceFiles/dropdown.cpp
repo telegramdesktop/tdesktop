@@ -326,12 +326,6 @@ EmojiPanInner::EmojiPanInner(QWidget *parent) : QWidget(parent), _tab(cEmojiTab(
 void EmojiPanInner::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 	int32 size = _emojis.size();
-	if (!size) {
-		p.setFont(st::emojiPanFont->f);
-		p.setPen(st::emojiPanText->p);
-		p.drawText(QRect(0, 0, width(), height() * 0.75), lang(lng_emoji_no_recent), QTextOption(style::al_center));
-		return;
-	}
 
 	QRect r = e ? e->rect() : rect();
 

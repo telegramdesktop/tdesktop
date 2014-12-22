@@ -1051,5 +1051,11 @@
     <None Include="SourceFiles\langs\lang_es.strings">
       <Filter>langs</Filter>
     </None>
+    <None Include="SourceFiles\langs\lang_de.strings">
+      <Filter>langs</Filter>
+    </None>
+    <None Include="SourceFiles\langs\lang_nl.strings">
+      <Filter>langs</Filter>
+    </None>
   </ItemGroup>
 </Project>

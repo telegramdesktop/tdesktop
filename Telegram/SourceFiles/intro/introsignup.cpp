@@ -208,7 +208,7 @@ void IntroSignup::onCheckRequest() {
 
 void IntroSignup::onPhotoReady(const QImage &img) {
 	_photoBig = img;
-	_photoSmall = QPixmap::fromImage(img.scaled(st::introPhotoSize, st::introPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+	_photoSmall = QPixmap::fromImage(img.scaled(st::introPhotoSize, st::introPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 	App::wnd()->hideLayer();
 }
 

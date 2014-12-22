@@ -59,7 +59,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_weekday6_full" = "sábado";
 "lng_weekday7_full" = "domingo";
 
-"lng_month_day" = "{day} {month}";
+"lng_month_day" = "{day} de {month}";
 
 "lng_cancel" = "Cancelar";
 "lng_continue" = "Continuar";
@@ -69,18 +69,18 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_reconnecting_try_now" = "Intentar ahora";
 
 "lng_status_service_notifications" = "servicio de notificaciones";
-"lng_status_offline" = "últ. vez hace mucho tiempo";
-"lng_status_recently" = "últ. vez recientemente";
-"lng_status_last_week" = "últ. vez hace unos días";
-"lng_status_last_month" = "últ. vez hace unas semanas";
+"lng_status_offline" = "última vez hace mucho tiempo";
+"lng_status_recently" = "última vez recientemente";
+"lng_status_last_week" = "última vez hace unos días";
+"lng_status_last_month" = "última vez hace unas semanas";
 "lng_status_invisible" = "invisible";
-"lng_status_lastseen_now" = "últ. vez hace un momento";
-"lng_status_lastseen_minutes" = "últ. vez hace {count:_not_used_|# minuto|# minutos}";
-"lng_status_lastseen_hours" = "últ. vez hace {count:_not_used_|# hora|# horas}";
-"lng_status_lastseen_today" = "últ. vez hoy a las {time}";
-"lng_status_lastseen_yesterday" = "últ. vez ayer a las {time}";
-"lng_status_lastseen_date" = "últ. vez el {date}";
-"lng_status_lastseen_date_time" = "últ. vez el {date} a las {time}";
+"lng_status_lastseen_now" = "última vez hace un momento";
+"lng_status_lastseen_minutes" = "última vez hace {count:_not_used_|# minuto|# minutos}";
+"lng_status_lastseen_hours" = "última vez hace {count:_not_used_|# hora|# horas}";
+"lng_status_lastseen_today" = "última vez hoy a las {time}";
+"lng_status_lastseen_yesterday" = "última vez ayer a las {time}";
+"lng_status_lastseen_date" = "última vez el {date}";
+"lng_status_lastseen_date_time" = "última vez el {date} a las {time}";
 "lng_status_online" = "en línea";
 "lng_status_connecting" = "conectando...";
 
@@ -119,7 +119,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_phone_noreg" = "Número de teléfono no registrado.";
 "lng_bad_code" = "Pusiste un código inválido. Por favor, reinténtalo.";
 "lng_bad_name" = "Por favor, pon tu nombre y apellidos.";
-"lng_bad_chat_title" = "Por favor, pon un título al chat nuevo.";
 "lng_bad_photo" = "La imagen seleccionada es errónea.";
 
 "lng_signup_title" = "Información y foto";
@@ -129,25 +128,19 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_signup_lastname" = "Apellidos";
 
 "lng_dlg_filter" = "Buscar";
-"lng_dlg_conversations" = "Conversaciones";
-"lng_dlg_messages" = "Mensajes";
 "lng_dlg_new_group_name" = "Nombre del grupo";
 "lng_dlg_create_group" = "Crear";
 "lng_no_contacts" = "No tienes contactos";
 "lng_contacts_loading" = "Cargando...";
 "lng_contacts_not_found" = "No se encontraron contactos";
 
-"lng_settings_profile" = "Perfil";
-"lng_settings_edit" = "Editar";
 "lng_settings_save" = "Guardar";
-"lng_settings_cancel" = "Cancelar";
 "lng_settings_upload" = "Poner foto de perfil";
-"lng_settings_badsize" = "Esta imagen tiene un tamaño equivocado. Por favor, intenta con otra.";
 "lng_settings_crop_profile" = "Elige el cuadrado para tu foto de perfil";
 "lng_settings_uploading_photo" = "Cargando foto...";
 
 "lng_username_title" = "Cambiar apodo";
-"lng_username_about" = "Puedes elegir un apodo en Telegram. \nSi lo haces, otras personas te podrán \nencontrar por ese apodo y contactarte \nsin saber tu número de teléfono.\n\nPuedes usar a-z, 0-9 y guiones bajos.\nLa longitud mínima es de 5 caracteres. ";
+"lng_username_about" = "Puedes elegir un apodo en Telegram. \nSi lo haces, otras personas te podrán \nencontrar por ese apodo y contactarte \nsin saber tu número de teléfono.\n\nPuedes usar a-z, 0-9 y guiones bajos.\nLa longitud mínima es de 5 caracteres.";
 "lng_username_invalid" = "Este apodo es inválido.";
 "lng_username_occupied" = "Este apodo ya está ocupado.";
 "lng_username_too_short" = "Este apodo es muy corto.";
@@ -155,7 +148,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_username_available" = "Este apodo está disponible.";
 "lng_username_not_found" = "No se encontró el usuario @{user}.";
 
-"lng_settings_section_contact_info" = "Información del contacto";
+"lng_settings_section_contact_info" = "Información";
 "lng_settings_phone_number" = "Número de teléfono:";
 "lng_settings_username" = "Apodo:";
 "lng_settings_choose_username" = "elegir apodo";
@@ -255,11 +248,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_topbar_info" = "Información";
 "lng_profile_settings_section" = "Ajustes";
 "lng_profile_participants_section" = "Miembros";
-"lng_profile_info" = "Información del contacto";
-"lng_profile_group_info" = "Información del grupo";
+"lng_profile_info" = "Información";
+"lng_profile_group_info" = "Información";
 "lng_profile_add_contact" = "Añadir contacto";
 "lng_profile_edit_contact" = "Editar";
-"lng_profile_edit_group" = "Editar";
 "lng_profile_enable_notifications" = "Notificaciones";
 "lng_profile_clear_history" = "Borrar historial";
 "lng_profile_send_message" = "Enviar mensaje";
@@ -303,7 +295,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_kick_user" = "{from} expulsó a {user}";
 "lng_action_user_left" = "{from} dejó el grupo";
 "lng_action_user_joined" = "{from} se unió al grupo";
-"lng_action_user_photo" = "{from} añadió una nueva foto de perfil";
 "lng_action_user_registered" = "{from} se acaba de unir a Telegram";
 "lng_action_removed_photo" = "{from} quitó la foto del grupo";
 "lng_action_changed_photo" = "{from} cambió la foto del grupo";
@@ -330,10 +321,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Vídeo";
-"lng_in_dlg_geo" = "Mapa";
 "lng_in_dlg_contact" = "Contacto";
 "lng_in_dlg_audio" = "Audio";
 "lng_in_dlg_document" = "Archivo";
+"lng_in_dlg_sticker" = "Sticker";
 
 "lng_send_button" = "Enviar";
 "lng_message_ph" = "Escribir un mensaje...";
@@ -434,8 +425,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_selected_delete_sure" = "¿Quieres eliminar {count:_not_used_|# mensaje|# mensajes}?";
 "lng_selected_delete_confirm" = "Eliminar";
 
-"lng_emoji_no_recent" = "Los emojis recientes estarán aquí";
-
 "lng_about_version" = "Versión {version}";
 "lng_about_text" = "Aplicación oficial basada en [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] y la [a href=\"https://core.telegram.org/api\"]\nAPI de Telegram[/a] para velocidad y seguridad.\n\nSoftware bajo licencia [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versión 3.\nCódigo de fuente disponible en [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 "lng_about_done" = "Hecho";
@@ -446,17 +435,20 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mediaview_save" = "Descargar";
 "lng_mediaview_forward" = "Reenviar";
 "lng_mediaview_delete" = "Eliminar";
-"lng_mediaview_single_photo" = "Foto única";
+"lng_mediaview_single_photo" = "Foto";
 "lng_mediaview_group_photo" = "Foto del grupo";
 "lng_mediaview_profile_photo" = "Foto de perfil";
 "lng_mediaview_n_of_count" = "Foto {n} de {count}";
 "lng_mediaview_doc_image" = "Archivo";
+"lng_mediaview_today" = "hoy a las {time}";
+"lng_mediaview_yesterday" = "ayer a las {time}";
+"lng_mediaview_date_time" = "{date} a las {time}";
 
 "lng_mediaview_saved" = "La imagen fue guardada en tu carpeta [c]Descargas[/c]";
 
 "lng_new_authorization" = "{name},\nDetectamos un inicio de sesión en tu cuenta desde un nuevo dispositivo el {day}, {date} a las {time}\n\nDispositivo: {device}\nUbicación: {location}\n\nSi no eras tú, puedes ir a Ajustes — Cerrar todas las otras sesiones.\n\nGracias.\nEl equipo de Telegram";
 
-"lng_new_version7003" = "Telegram Desktop se actualizó a la versión {version}\n\n— Fueron añadidos los idiomas español e italiano.\n\nLa versión completa del historial está aquí:\n{link}";
+"lng_new_version7004" = "Telegram Desktop fue actualizada a la versión {version}\n\n- Se añadieron los idiomas alemán y holandés.\n\nEl historial completo está disponible aquí:\n{link}";
 
 // Mac specific
 

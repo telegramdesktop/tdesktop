@@ -634,7 +634,7 @@ dlgFilter: flatInput(inpDefGray) {
 	bgColor: #f2f2f2;
 	phColor: #949494;
 	phFocusColor: #a4a4a4;
-	textMrg: margins(34px, 2px, 5px, 4px);
+	textMrg: margins(34px, 2px, 34px, 4px);
 	imgRect: sprite(208px, 28px, 24px, 24px);
 	imgPos: point(6px, 5px);
 	width: 240px;
@@ -704,6 +704,7 @@ topBarBackAlpha: 0.8;
 topBarBackImg: sprite(65px, 112px, 9px, 16px);
 topBarBackColor: #005faf;
 topBarBackFont: font(16px);
+topBarMinPadding: 5px;
 topBarButton: flatButton(btnDefFlat) {
 	color: btnYesColor;
 	overColor: btnYesHover;
@@ -734,7 +735,6 @@ topBarActionButton: flatButton(btnDefNext, btnDefBig) {
 	height: 34px;
 }
 topBarActionSkip: 13px;
-topBarSelectedPos: point(18px, 18px); 
 
 historyBG: #dfe4e8;
 

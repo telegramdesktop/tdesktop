@@ -165,7 +165,7 @@ void NotifyWindow::updateNotifyDisplay() {
 				peerPhoto->load(true, true);
 			}
 		} else {
-			static QPixmap icon = QPixmap::fromImage(App::wnd()->iconLarge().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+			static QPixmap icon = QPixmap::fromImage(App::wnd()->iconLarge().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), icon);
 		}
 
@@ -209,7 +209,7 @@ void NotifyWindow::updateNotifyDisplay() {
 		}
 	}
 
-	pm = QPixmap::fromImage(img);
+	pm = QPixmap::fromImage(img, Qt::ColorOnly);
 	update();
 }
 
@@ -221,7 +221,7 @@ void NotifyWindow::updatePeerPhoto() {
 			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), peerPhoto->pix(st::notifyPhotoSize));
 		}
 		peerPhoto = ImagePtr();
-		pm = QPixmap::fromImage(img);
+		pm = QPixmap::fromImage(img, Qt::ColorOnly);
 		update();
 	}
 }
@@ -847,10 +847,10 @@ void Window::setupTrayIcon() {
 		if (trayIcon) trayIcon->deleteLater();
 		trayIcon = new QSystemTrayIcon(this);
 #ifdef Q_OS_MAC
-		QIcon icon(QPixmap::fromImage(psTrayIcon()));
-		icon.addPixmap(QPixmap::fromImage(psTrayIcon(true)), QIcon::Selected);
+		QIcon icon(QPixmap::fromImage(psTrayIcon(), Qt::ColorOnly));
+		icon.addPixmap(QPixmap::fromImage(psTrayIcon(true), Qt::ColorOnly), QIcon::Selected);
 #else
-		QIcon icon(QPixmap::fromImage(iconLarge()));
+		QIcon icon(QPixmap::fromImage(iconLarge(), Qt::ColorOnly));
 #endif
 
 		trayIcon->setIcon(icon);
@@ -1488,7 +1488,7 @@ QImage Window::iconWithCounter(int size, int count, style::color bg, bool smallI
 		placeSmallCounter(img, size, count, bg, QPoint(), st::counterColor);
 	} else {
 		QPainter p(&img);
-		p.drawPixmap(size / 2, size / 2, QPixmap::fromImage(iconWithCounter(-size / 2, count, bg, false)));
+		p.drawPixmap(size / 2, size / 2, QPixmap::fromImage(iconWithCounter(-size / 2, count, bg, false), Qt::ColorOnly));
 	}
 	return img;
 }

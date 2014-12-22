@@ -455,15 +455,15 @@ void Application::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId)
 	PreparedPhotoThumbs photoThumbs;
 	QVector<MTPPhotoSize> photoSizes;
 
-	QPixmap thumb = QPixmap::fromImage(tosend.scaled(160, 160, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+	QPixmap thumb = QPixmap::fromImage(tosend.scaled(160, 160, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 	photoThumbs.insert('a', thumb);
 	photoSizes.push_back(MTP_photoSize(MTP_string("a"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
 
-	QPixmap medium = QPixmap::fromImage(tosend.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+	QPixmap medium = QPixmap::fromImage(tosend.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 	photoThumbs.insert('b', medium);
 	photoSizes.push_back(MTP_photoSize(MTP_string("b"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
 
-	QPixmap full = QPixmap::fromImage(tosend);
+	QPixmap full = QPixmap::fromImage(tosend, Qt::ColorOnly);
 	photoThumbs.insert('c', full);
 	photoSizes.push_back(MTP_photoSize(MTP_string("c"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
 
@@ -697,8 +697,8 @@ void Application::startApp() {
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
 	if (Local::oldMapVersion() < AppVersion) {
 		psRegisterCustomScheme();
-		if (Local::oldMapVersion() && Local::oldMapVersion() < 7003) {
-			QString versionFeatures(lng_new_version7003(lt_version, QString::fromStdWString(AppVersionStr), lt_link, qsl("https://desktop.telegram.org/#changelog")));
+		if (Local::oldMapVersion() && Local::oldMapVersion() < 7004) {
+			QString versionFeatures(lng_new_version7004(lt_version, QString::fromStdWString(AppVersionStr), lt_link, qsl("https://desktop.telegram.org/#changelog")));
 			if (!versionFeatures.isEmpty()) {
 				window->serviceNotification(versionFeatures);
 			}

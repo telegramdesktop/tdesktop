@@ -38,6 +38,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 	PeerId peer;
     uint64 id, jpeg_id = 0;
 	ToPrepareMediaType type;
+	bool animated = false;
 	bool ctrlShiftEnter = false;
 	{
 		QMutexLocker lock(loader->toPrepareMutex());
@@ -72,7 +73,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 				}
 			}
 			if (type != ToPrepareAuto && info.size() < MaxUploadPhotoSize) {
-				img = App::readImage(file);
+				img = App::readImage(file, 0, true, &animated);
 			}
 			if (type == ToPrepareDocument) {
 				mime = QMimeDatabase().mimeTypeForFile(info).name();
@@ -80,7 +81,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 			filename = info.fileName();
 			filesize = info.size();
 		} else if (!data.isEmpty()) {
-			img = App::readImage(data);
+			img = App::readImage(data, 0, true, &animated);
 			if (type == ToPrepareAuto) {
 				if (!img.isNull() && data.size() < MaxUploadPhotoSize) {
 					type = ToPreparePhoto;
@@ -133,6 +134,8 @@ void LocalImageLoaderPrivate::prepareImages() {
 		PreparedPhotoThumbs photoThumbs;
 		QVector<MTPPhotoSize> photoSizes;
 
+		QVector<MTPDocumentAttribute> attributes(1, MTP_documentAttributeFilename(MTP_string(filename)));
+
 		MTPPhotoSize thumb(MTP_photoSizeEmpty(MTP_string("")));
 		MTPPhoto photo(MTP_photoEmpty(MTP_long(0)));
 		MTPDocument document(MTP_documentEmpty(MTP_long(0)));
@@ -141,15 +144,15 @@ void LocalImageLoaderPrivate::prepareImages() {
 		if (type == ToPreparePhoto) {
 			int32 w = img.width(), h = img.height();
 
-			QPixmap thumb = (w > 100 || h > 100) ? QPixmap::fromImage(img.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(img);
+			QPixmap thumb = (w > 100 || h > 100) ? QPixmap::fromImage(img.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(img);
 			photoThumbs.insert('s', thumb);
 			photoSizes.push_back(MTP_photoSize(MTP_string("s"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
 
-			QPixmap medium = (w > 320 || h > 320) ? QPixmap::fromImage(img.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(img);
+			QPixmap medium = (w > 320 || h > 320) ? QPixmap::fromImage(img.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(img);
 			photoThumbs.insert('m', medium);
 			photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
 
-			QPixmap full = (w > 1280 || h > 1280) ? QPixmap::fromImage(img.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(img);
+			QPixmap full = (w > 1280 || h > 1280) ? QPixmap::fromImage(img.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(img);
 			photoThumbs.insert('y', full);
 			photoSizes.push_back(MTP_photoSize(MTP_string("y"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
 
@@ -164,8 +167,10 @@ void LocalImageLoaderPrivate::prepareImages() {
 			jpeg_id = id;
 		} else if ((type == ToPrepareVideo || type == ToPrepareDocument) && !img.isNull()) {
 			int32 w = img.width(), h = img.height();
+			if (animated) attributes.push_back(MTP_documentAttributeAnimated());
+			attributes.push_back(MTP_documentAttributeImageSize(MTP_int(w), MTP_int(h)));
 
-			QPixmap full = (w > 90 || h > 90) ? QPixmap::fromImage(img.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(img);
+			QPixmap full = (w > 90 || h > 90) ? QPixmap::fromImage(img.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(img, Qt::ColorOnly);
 
 			{
 				QBuffer jpegBuffer(&jpeg);
@@ -179,7 +184,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 		}
 
 		if (type == ToPrepareDocument) {
-			document = MTP_document(MTP_long(id), MTP_long(0), MTP_int(MTP::authedId()), MTP_int(unixtime()), MTP_string(filename), MTP_string(mime), MTP_int(filesize), thumb, MTP_int(MTP::maindc()));
+			document = MTP_document(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_string(mime), MTP_int(filesize), thumb, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
 		}
 
 		{

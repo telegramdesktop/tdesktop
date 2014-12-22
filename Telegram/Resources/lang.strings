@@ -119,7 +119,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_phone_noreg" = "Phone number not registered.";
 "lng_bad_code" = "You have entered an invalid code. Please try again.";
 "lng_bad_name" = "Please enter your first and last name.";
-"lng_bad_chat_title" = "Please enter new chat title.";
 "lng_bad_photo" = "Bad image selected.";
 
 "lng_signup_title" = "Information and photo";
@@ -129,20 +128,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_signup_lastname" = "Last Name";
 
 "lng_dlg_filter" = "Search";
-"lng_dlg_conversations" = "Conversations";
-"lng_dlg_messages" = "Messages";
 "lng_dlg_new_group_name" = "Group name";
 "lng_dlg_create_group" = "Create";
 "lng_no_contacts" = "You have no contacts";
 "lng_contacts_loading" = "Loading..";
 "lng_contacts_not_found" = "No contacts found";
 
-"lng_settings_profile" = "Profile";
-"lng_settings_edit" = "Edit";
 "lng_settings_save" = "Save";
-"lng_settings_cancel" = "Cancel";
 "lng_settings_upload" = "Set Profile Photo";
-"lng_settings_badsize" = "This image has bad size, please try other.";
 "lng_settings_crop_profile" = "Select square area for your profile photo";
 "lng_settings_uploading_photo" = "Uploading photo..";
 
@@ -259,7 +252,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_group_info" = "Group info";
 "lng_profile_add_contact" = "Add Contact";
 "lng_profile_edit_contact" = "Edit";
-"lng_profile_edit_group" = "Edit";
 "lng_profile_enable_notifications" = "Notifications";
 "lng_profile_clear_history" = "Clear history";
 "lng_profile_send_message" = "Send Message";
@@ -303,14 +295,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_kick_user" = "{from} kicked {user}";
 "lng_action_user_left" = "{from} left the group";
 "lng_action_user_joined" = "{from} joined the group";
-"lng_action_user_photo" = "{from} added a new profile photo";
 "lng_action_user_registered" = "{from} just joined Telegram";
 "lng_action_removed_photo" = "{from} removed group photo";
 "lng_action_changed_photo" = "{from} changed group photo";
 "lng_action_changed_title" = "{from} changed group name to «{title}»";
 "lng_action_created_chat" = "{from} created group «{title}»";
 
-"lng_forwarded_from" = "Forwarded from ";
+"lng_forwarded_from" = "Forwarded from";
 
 "lng_attach_failed" = "Failed";
 "lng_attach_file" = "Document";
@@ -330,10 +321,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_in_dlg_photo" = "Photo";
 "lng_in_dlg_video" = "Video";
-"lng_in_dlg_geo" = "Map";
 "lng_in_dlg_contact" = "Contact";
 "lng_in_dlg_audio" = "Audio";
 "lng_in_dlg_document" = "Document";
+"lng_in_dlg_sticker" = "Sticker";
 
 "lng_send_button" = "Send";
 "lng_message_ph" = "Write a message..";
@@ -434,8 +425,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_selected_delete_sure" = "Do you want to delete {count:_not_used_|# message|# messages}?";
 "lng_selected_delete_confirm" = "Delete";
 
-"lng_emoji_no_recent" = "Recent emojis will be here";
-
 "lng_about_version" = "Version {version}";
 "lng_about_text" = "Official free messaging app based on [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] and\n[a href=\"https://core.telegram.org/api\"]Telegram API[/a] for speed and security\n\nThis software is licensed under [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3,\nsource code is available on [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 "lng_about_done" = "Done";
@@ -451,12 +440,15 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mediaview_profile_photo" = "Profile Photo";
 "lng_mediaview_n_of_count" = "Photo {n} of {count}";
 "lng_mediaview_doc_image" = "Document";
+"lng_mediaview_today" = "today at {time}";
+"lng_mediaview_yesterday" = "yesterday at {time}";
+"lng_mediaview_date_time" = "{date} at {time}";
 
 "lng_mediaview_saved" = "Image was saved to your [c]Downloads[/c] folder";
 
 "lng_new_authorization" = "{name},\nWe detected a login into your account from a new device on {day}, {date} at {time}\n\nDevice: {device}\nLocation: {location}\n\nIf this wasn't you, you can go to Settings — Terminate other sessions.\n\nThanks,\nThe Telegram Team";
 
-"lng_new_version7003" = "Telegram Desktop was updated to version {version}\n\n — Italian and Spanish languages added.\n\nFull version history is available here:\n{link}";
+"lng_new_version7004" = "Telegram Desktop was updated to version {version}\n\n — German and Dutch languages added.\n\nFull version history is available here:\n{link}";
 
 // Mac specific
 

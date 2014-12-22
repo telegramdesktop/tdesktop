@@ -173,11 +173,11 @@ void MediaView::updateControls() {
 	}
 	QDateTime d(date(_photo ? _photo->date : _doc->date)), dNow(date(unixtime()));
 	if (d.date() == dNow.date()) {
-		_dateText = lng_status_lastseen_today(lt_time, d.time().toString(qsl("hh:mm")));
+		_dateText = lng_mediaview_today(lt_time, d.time().toString(qsl("hh:mm")));
 	} else if (d.date().addDays(1) == dNow.date()) {
-		_dateText = lng_status_lastseen_yesterday(lt_time, d.time().toString(qsl("hh:mm")));
+		_dateText = lng_mediaview_yesterday(lt_time, d.time().toString(qsl("hh:mm")));
 	} else {
-		_dateText = lng_status_lastseen_date_time(lt_date, d.date().toString(qsl("dd.MM.yy")), lt_time, d.time().toString(qsl("hh:mm")));
+		_dateText = lng_mediaview_date_time(lt_date, d.date().toString(qsl("dd.MM.yy")), lt_time, d.time().toString(qsl("hh:mm")));
 	}
 	_fromName.setText(st::medviewNameFont, _from->name);
 	updateHeader();
@@ -1192,23 +1192,6 @@ bool MediaView::event(QEvent *e) {
 			if (ev->type() != QEvent::TouchBegin || ev->touchPoints().isEmpty() || !childAt(mapFromGlobal(ev->touchPoints().cbegin()->screenPos().toPoint()))) {
 				touchEvent(ev);
 				return true;
-			}
-		}
-	} else if (e->type() == QEvent::Wheel) {
-		QWheelEvent *ev = static_cast<QWheelEvent*>(e);
-		if (ev->phase() == Qt::ScrollBegin) {
-			_accumScroll = ev->angleDelta();
-			LOG(("Scrolling begin: %1 sum %2").arg(ev->angleDelta().x()).arg(_accumScroll.x()));
-		} else {
-			_accumScroll += ev->angleDelta();
-			if (ev->phase() == Qt::ScrollEnd) {
-				LOG(("Scrolling end: %1 sum %2").arg(ev->angleDelta().x()).arg(_accumScroll.x()));
-				if (ev->orientation() == Qt::Horizontal) {
-					if (_accumScroll.x() * _accumScroll.x() > _accumScroll.y() * _accumScroll.y() && _accumScroll.x() != 0) {
-						moveToPhoto(_accumScroll.x() > 0 ? -1 : 1);
-					}
-					_accumScroll = QPoint();
-				}
 			}
 		}
 	}

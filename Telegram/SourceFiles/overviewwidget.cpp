@@ -565,7 +565,7 @@ QPixmap OverviewInner::genPix(PhotoData *photo, int32 size) {
 	}
 	img.setDevicePixelRatio(cRetinaFactor());
 	photo->forget();
-	return QPixmap::fromImage(img);
+	return QPixmap::fromImage(img, Qt::ColorOnly);
 }
 
 void OverviewInner::paintEvent(QPaintEvent *e) {

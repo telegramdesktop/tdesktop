@@ -58,24 +58,24 @@ style::color peerColor(int32 index) {
 
 ImagePtr userDefPhoto(int32 index) {
 	static const ImagePtr userDefPhotos[8] = {
-		ImagePtr(":/ava/art/usercolor1.png"),
-		ImagePtr(":/ava/art/usercolor2.png"),
-		ImagePtr(":/ava/art/usercolor3.png"),
-		ImagePtr(":/ava/art/usercolor4.png"),
-		ImagePtr(":/ava/art/usercolor5.png"),
-		ImagePtr(":/ava/art/usercolor6.png"),
-		ImagePtr(":/ava/art/usercolor7.png"),
-		ImagePtr(":/ava/art/usercolor8.png")
+		ImagePtr(qsl(":/ava/art/usercolor1.png"), "PNG"),
+		ImagePtr(qsl(":/ava/art/usercolor2.png"), "PNG"),
+		ImagePtr(qsl(":/ava/art/usercolor3.png"), "PNG"),
+		ImagePtr(qsl(":/ava/art/usercolor4.png"), "PNG"),
+		ImagePtr(qsl(":/ava/art/usercolor5.png"), "PNG"),
+		ImagePtr(qsl(":/ava/art/usercolor6.png"), "PNG"),
+		ImagePtr(qsl(":/ava/art/usercolor7.png"), "PNG"),
+		ImagePtr(qsl(":/ava/art/usercolor8.png"), "PNG"),
 	};
 	return userDefPhotos[index];
 }
 
 ImagePtr chatDefPhoto(int32 index) {
 	static const ImagePtr chatDefPhotos[4] = {
-		ImagePtr(":/ava/art/chatcolor1.png"),
-		ImagePtr(":/ava/art/chatcolor2.png"),
-		ImagePtr(":/ava/art/chatcolor3.png"),
-		ImagePtr(":/ava/art/chatcolor4.png")
+		ImagePtr(qsl(":/ava/art/chatcolor1.png"), "PNG"),
+		ImagePtr(qsl(":/ava/art/chatcolor2.png"), "PNG"),
+		ImagePtr(qsl(":/ava/art/chatcolor3.png"), "PNG"),
+		ImagePtr(qsl(":/ava/art/chatcolor4.png"), "PNG"),
 	};
 	return chatDefPhotos[index];
 }
@@ -129,7 +129,7 @@ namespace {
 						int64 d = reader->nextImageDelay(), delay = delays[f - 1];
 						if (!d) d = 1;
 						delay += d;
-						frames.push_back(QPixmap::fromImage(img.size() == QSize(w, h) ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)));
+						frames.push_back(QPixmap::fromImage(img.size() == QSize(w, h) ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly));
 						delays.push_back(delay);
 						for (int32 i = 0; i < frames.size(); ++i) {
 							if (!frames[i].isNull()) {
@@ -157,7 +157,7 @@ namespace {
 					}
 				}
 				if (frames[f].isNull() && reader->read(&img)) {
-					frames[f] = QPixmap::fromImage(img.size() == QSize(w, h) ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+					frames[f] = QPixmap::fromImage(img.size() == QSize(w, h) ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 				}
 			}
 			if (frame != f) {
@@ -192,7 +192,7 @@ namespace {
 			int32 sizeLeft = MediaViewImageSizeLimit, delay = 0;
 			for (bool read = reader->read(&img); read; read = reader->read(&img)) {
 				sizeLeft -= w * h * 4;
-				frames.push_back(QPixmap::fromImage(img.size() == s ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)));
+				frames.push_back(QPixmap::fromImage(img.size() == s ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly));
 				int32 d = reader->nextImageDelay();
 				if (!d) d = 1;
 				delay += d;
@@ -325,7 +325,7 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) {
 	default: {
 		photoId = 0;
 		if (id == ServiceUserId) {
-			photo = ImagePtr(QPixmap::fromImage(App::wnd()->iconLarge().scaledToWidth(160, Qt::SmoothTransformation)), "PNG");
+			photo = ImagePtr(QPixmap::fromImage(App::wnd()->iconLarge().scaledToWidth(160, Qt::SmoothTransformation), Qt::ColorOnly), "PNG");
 		} else {
 			photo = userDefPhoto(colorIndex);
 		}
@@ -627,7 +627,7 @@ QString AudioData::already(bool check) {
 
 void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 	DocumentData *data = document();
-	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
+	if (!data->date || button != Qt::LeftButton) return;
 
 	QString already = data->already(true);
 	if (!already.isEmpty()) {
@@ -637,7 +637,7 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 				if (reader.supportsAnimation() && reader.imageCount() > 1 && App::hoveredLinkItem()) {
 					startGif(App::hoveredLinkItem(), already);
 				} else {
-					App::wnd()->showDocument(data, QPixmap::fromImage(App::readImage(already, 0, false)), App::hoveredLinkItem());
+					App::wnd()->showDocument(data, QPixmap::fromImage(App::readImage(already, 0, false), Qt::ColorOnly), App::hoveredLinkItem());
 				}
 			} else {
 				psOpenFile(already);
@@ -674,7 +674,7 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 
 void DocumentSaveLink::doSave(bool forceSavingAs) const {
 	DocumentData *data = document();
-	if (!data->user && !data->date) return;
+	if (!data->date) return;
 
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
@@ -715,19 +715,46 @@ void DocumentSaveLink::onClick(Qt::MouseButton button) const {
 
 void DocumentCancelLink::onClick(Qt::MouseButton button) const {
 	DocumentData *data = document();
-	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
+	if (!data->date || button != Qt::LeftButton) return;
 
 	data->cancel();
 }
 
-DocumentData::DocumentData(const DocumentId &id, const uint64 &access, int32 user, int32 date, const QString &name, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) :
-id(id), access(access), user(user), date(date), name(name), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+DocumentData::DocumentData(int32 user, const DocumentId &id, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) :
+user(user), id(id), type(FileDocument), duration(0), access(access), date(date), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+	setattributes(attributes);
 	location = Local::readFileLocation(mediaKey(mtpc_inputDocumentFileLocation, dc, id));
+}
+
+void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes) {
+	for (int32 i = 0, l = attributes.size(); i < l; ++i) {
+		switch (attributes[i].type()) {
+		case mtpc_documentAttributeImageSize: {
+			const MTPDdocumentAttributeImageSize &d(attributes[i].c_documentAttributeImageSize());
+			dimensions = QSize(d.vw.v, d.vh.v);
+		} break;
+		case mtpc_documentAttributeAnimated: if (type == FileDocument || type == StickerDocument) type = AnimatedDocument; break;
+		case mtpc_documentAttributeSticker: if (type == FileDocument) type = StickerDocument; break;
+		case mtpc_documentAttributeVideo: {
+			const MTPDdocumentAttributeVideo &d(attributes[i].c_documentAttributeVideo());
+			type = VideoDocument;
+			duration = d.vduration.v;
+			dimensions = QSize(d.vw.v, d.vh.v);
+		} break;
+		case mtpc_documentAttributeAudio: {
+			const MTPDdocumentAttributeAudio &d(attributes[i].c_documentAttributeAudio());
+			type = AudioDocument;
+			duration = d.vduration.v;
+		} break;
+		case mtpc_documentAttributeFilename: name = qs(attributes[i].c_documentAttributeFilename().vfile_name); break;
+		}
+	}
 }
 
 void DocumentData::save(const QString &toFile) {
 	cancel(true);
-	loader = new mtpFileLoader(dc, id, access, mtpc_inputDocumentFileLocation, toFile, size);
+	bool isSticker = (type == StickerDocument) && (dimensions.width() > 0) && (dimensions.height() > 0) && (size < StickerInMemory);
+	loader = new mtpFileLoader(dc, id, access, mtpc_inputDocumentFileLocation, toFile, size, isSticker);
 	loader->connect(loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(documentLoadProgress(mtpFileLoader*)));
 	loader->connect(loader, SIGNAL(failed(mtpFileLoader*, bool)), App::main(), SLOT(documentLoadFailed(mtpFileLoader*, bool)));
 	loader->start();
@@ -2768,8 +2795,8 @@ HistoryMedia *HistoryAudio::clone() const {
 	return new HistoryAudio(*this);
 }
 
-HistoryDocument::HistoryDocument(const MTPDdocument &document, int32 width) : HistoryMedia(width)
-, data(App::feedDocument(document))
+HistoryDocument::HistoryDocument(DocumentData *document, int32 width) : HistoryMedia(width)
+, data(document)
 , _openl(new DocumentOpenLink(data))
 , _savel(new DocumentSaveLink(data))
 , _cancell(new DocumentCancelLink(data))
@@ -2961,7 +2988,7 @@ void HistoryDocument::unregItem(HistoryItem *item) {
 
 void HistoryDocument::updateFrom(const MTPMessageMedia &media) {
 	if (media.type() == mtpc_messageMediaDocument) {
-		App::feedDocument(media.c_messageMediaDocument().vdocument, data);
+		App::feedDocument(data->user, media.c_messageMediaDocument().vdocument, data);
 	}
 }
 
@@ -3044,6 +3071,125 @@ TextLinkPtr HistoryDocument::getLink(int32 x, int32 y, const HistoryItem *parent
 
 HistoryMedia *HistoryDocument::clone() const {
 	return new HistoryDocument(*this);
+}
+
+HistorySticker::HistorySticker(DocumentData *document, int32 width) : HistoryMedia(width)
+, data(document)
+{
+	data->thumb->load();
+}
+
+void HistorySticker::initDimensions(const HistoryItem *parent) {
+	_maxw = data->dimensions.width();
+	_minh = data->dimensions.height();
+	if (_maxw > st::msgMinWidth) {
+		_minh = (st::msgMinWidth * _minh) / _maxw;
+		_maxw = st::msgMinWidth;
+	}
+	if (_minh > st::maxMediaSize) {
+		_maxw = (st::maxMediaSize * _maxw) / _minh;
+		_minh = st::maxMediaSize;
+	}
+	_height = resize(w, true, parent);
+}
+
+void HistorySticker::draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const {
+	if (width < 0) width = w;
+	if (width < 1) return;
+
+	bool out = parent->out(), hovered, pressed, already = !data->already().isEmpty(), hasdata = !data->data.isEmpty();
+	if (!data->loader && data->status != FileFailed && !already && !hasdata) {
+		data->save(QString());
+	}
+	if (data->sticker->isNull() && (already || hasdata)) {
+		if (already) {
+			data->sticker = ImagePtr(data->already());
+		} else {
+			data->sticker = ImagePtr(data->data);
+		}
+	}
+	if (data->sticker->isNull()) {
+		p.drawPixmap(0, 0, data->thumb->pix(_maxw));
+	} else {
+		p.drawPixmap(0, 0, data->sticker->pix(_maxw));
+	}
+	if (selected) {
+		p.fillRect(0, 0, _maxw, _minh, (out ? st::msgOutSelectOverlay : st::msgInSelectOverlay)->b);
+	}
+
+	// date
+	QString time(parent->time());
+	if (time.isEmpty()) return;
+	int32 dateX = width - parent->timeWidth() - st::msgDateImgDelta - 2 * st::msgDateImgPadding.x();
+	int32 dateY = _height - st::msgDateFont->height - 2 * st::msgDateImgPadding.y() - st::msgDateImgDelta;
+	if (parent->out()) {
+		dateX -= st::msgCheckRect.pxWidth() + st::msgDateImgCheckSpace;
+	}
+	int32 dateW = width - dateX - st::msgDateImgDelta;
+	int32 dateH = _height - dateY - st::msgDateImgDelta;
+
+	p.fillRect(dateX, dateY, dateW, dateH, st::msgDateImgBg->b);
+	p.setFont(st::msgDateFont->f);
+	p.setPen(st::msgDateImgColor->p);
+	p.drawText(dateX + st::msgDateImgPadding.x(), dateY + st::msgDateImgPadding.y() + st::msgDateFont->ascent, time);
+	if (out) {
+		QPoint iconPos(dateX - 2 + dateW - st::msgDateImgCheckSpace - st::msgCheckRect.pxWidth(), dateY + (dateH - st::msgCheckRect.pxHeight()) / 2);
+		const QRect *iconRect;
+		if (parent->id > 0) {
+			if (parent->unread()) {
+				iconRect = &st::msgImgCheckRect;
+			} else {
+				iconRect = &st::msgImgDblCheckRect;
+			}
+		} else {
+			iconRect = &st::msgImgSendingRect;
+		}
+		p.drawPixmap(iconPos, App::sprite(), *iconRect);
+	}
+}
+
+void HistorySticker::regItem(HistoryItem *item) {
+	App::regDocumentItem(data, item);
+}
+
+void HistorySticker::unregItem(HistoryItem *item) {
+	App::unregDocumentItem(data, item);
+}
+
+void HistorySticker::updateFrom(const MTPMessageMedia &media) {
+	if (media.type() == mtpc_messageMediaDocument) {
+		App::feedDocument(data->user, media.c_messageMediaDocument().vdocument, data);
+	}
+}
+
+int32 HistorySticker::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+	w = _maxw;
+	_height = _minh;
+	return _height;
+}
+
+const QString HistorySticker::inDialogsText() const {
+	return lang(lng_in_dlg_sticker);
+}
+
+const QString HistorySticker::inHistoryText() const {
+	return qsl("[ ") + lang(lng_in_dlg_sticker) + qsl(" ]");
+}
+
+bool HistorySticker::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+	return (x >= 0 && y >= 0 && x < _maxw && y < _minh);
+}
+
+int32 HistorySticker::countHeight(const HistoryItem *parent, int32 width) const {
+	return _minh;
+}
+
+TextLinkPtr HistorySticker::getLink(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+	return TextLinkPtr();
+}
+
+HistoryMedia *HistorySticker::clone() const {
+	return new HistorySticker(*this);
 }
 
 HistoryContact::HistoryContact(int32 userId, const QString &first, const QString &last, const QString &phone) : HistoryMedia(0)
@@ -3213,7 +3359,7 @@ void ImageLinkManager::init() {
 		QPainter p(&b);
 		p.fillRect(QRect(0, 0, cIntRetinaFactor(), cIntRetinaFactor()), st::white->b);
 	}
-	QPixmap p = QPixmap::fromImage(b);
+	QPixmap p = QPixmap::fromImage(b, Qt::ColorOnly);
 	p.setDevicePixelRatio(cRetinaFactor());
 	black = new ImagePtr(p, "PNG");
 }
@@ -3847,7 +3993,12 @@ void HistoryMessage::initMedia(const MTPMessageMedia &media, QString &currentTex
 	case mtpc_messageMediaDocument: {
 		const MTPDocument &document(media.c_messageMediaDocument().vdocument);
 		if (document.type() == mtpc_document) {
-			_media = new HistoryDocument(document.c_document());
+			DocumentData *doc = App::feedDocument(_from->id, document);
+			if (doc->type == StickerDocument && doc->dimensions.width() > 0 && doc->dimensions.height() > 0 && doc->size < StickerInMemory) {
+				_media = new HistorySticker(doc);
+			} else {
+				_media = new HistoryDocument(doc);
+			}
 		}
 	} break;
 	case mtpc_messageMediaUnsupported:
@@ -4178,7 +4329,7 @@ HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const 
 , fwdFrom(App::user(msg.vfwd_from_id.v))
 , fwdFromName(4096)
 , fwdFromVersion(fwdFrom->nameVersion)
-, fromWidth(st::msgServiceFont->m.width(lang(lng_forwarded_from)))
+, fromWidth(st::msgServiceFont->m.width(lang(lng_forwarded_from)) + st::msgServiceFont->spacew)
 {
 	fwdNameUpdated();
 }
@@ -4188,7 +4339,7 @@ HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId 
 , fwdFrom(dynamic_cast<HistoryForwarded*>(msg) ? dynamic_cast<HistoryForwarded*>(msg)->fromForwarded() : msg->from())
 , fwdFromName(4096)
 , fwdFromVersion(fwdFrom->nameVersion)
-, fromWidth(st::msgServiceFont->m.width(lang(lng_forwarded_from)))
+, fromWidth(st::msgServiceFont->m.width(lang(lng_forwarded_from)) + st::msgServiceFont->spacew)
 {
 	fwdNameUpdated();
 }

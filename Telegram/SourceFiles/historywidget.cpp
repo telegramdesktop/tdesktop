@@ -688,7 +688,7 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
 		} else if (item && !isUponSelected && !_contextMenuLnk) {
 			QString contextMenuText = item->selectedText(FullItemSel);
-			if (!contextMenuText.isEmpty()) {
+			if (!contextMenuText.isEmpty() && (!msg || !msg->getMedia() || msg->getMedia()->type() != MediaTypeSticker)) {
 				if (!_menu) _menu = new ContextMenu(this);
 				_menu->addAction(lang(lng_context_copy_text), this, SLOT(copyContextText()))->setEnabled(true);
 			}
@@ -2972,6 +2972,21 @@ void HistoryWidget::onPhotoUploaded(MsgId newId, const MTPInputFile &file) {
 	}
 }
 
+namespace {
+	MTPVector<MTPDocumentAttribute> _composeDocumentAttributes(DocumentData *document) {
+		QVector<MTPDocumentAttribute> attributes(1, MTP_documentAttributeFilename(MTP_string(document->name)));
+		if (document->dimensions.width() > 0 && document->dimensions.height() > 0) {
+			attributes.push_back(MTP_documentAttributeImageSize(MTP_int(document->dimensions.width()), MTP_int(document->dimensions.height())));
+		}
+		if (document->type == AnimatedDocument) {
+			attributes.push_back(MTP_documentAttributeAnimated());
+		} else if (document->type == StickerDocument) {
+			attributes.push_back(MTP_documentAttributeSticker());
+		}
+		return MTP_vector<MTPDocumentAttribute>(attributes);
+	}
+}
+
 void HistoryWidget::onDocumentUploaded(MsgId newId, const MTPInputFile &file) {
 	if (!MTP::authedId()) return;
 	HistoryMessage *item = dynamic_cast<HistoryMessage*>(App::histItemById(newId));
@@ -2984,7 +2999,7 @@ void HistoryWidget::onDocumentUploaded(MsgId newId, const MTPInputFile &file) {
 			App::historyRegRandom(randomId, newId);
 			DocumentData *document = media->document();
 			History *hist = item->history();
-			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_inputMediaUploadedDocument(file, MTP_string(document->name), MTP_string(document->mime)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_inputMediaUploadedDocument(file, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 		}
 	}
 }
@@ -3001,7 +3016,7 @@ void HistoryWidget::onThumbDocumentUploaded(MsgId newId, const MTPInputFile &fil
 			App::historyRegRandom(randomId, newId);
 			DocumentData *document = media->document();
 			History *hist = item->history();
-			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_inputMediaUploadedThumbDocument(file, thumb, MTP_string(document->name), MTP_string(document->mime)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_inputMediaUploadedThumbDocument(file, thumb, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 		}
 	}
 }

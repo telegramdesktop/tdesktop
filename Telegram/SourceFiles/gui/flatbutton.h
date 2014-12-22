@@ -36,6 +36,8 @@ public:
 	void setText(const QString &text);
 	void setWidth(int32 w);
 
+	int32 textWidth() const;
+
 	~FlatButton() {
 	}
 

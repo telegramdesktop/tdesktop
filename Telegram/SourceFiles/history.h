@@ -391,11 +391,20 @@ public:
 	void onClick(Qt::MouseButton button) const;
 };
 
+enum DocumentType {
+	FileDocument,
+	VideoDocument,
+	AudioDocument,
+	StickerDocument,
+	AnimatedDocument
+};
 struct DocumentData {
-	DocumentData(const DocumentId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, const QString &name = QString(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
+	DocumentData(int32 user, const DocumentId &id, const uint64 &access = 0, int32 date = 0, const QVector<MTPDocumentAttribute> &attributes = QVector<MTPDocumentAttribute>(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
+	void setattributes(const QVector<MTPDocumentAttribute> &attributes);
 
 	void forget() {
 		thumb->forget();
+		sticker->forget();
 	}
 
 	void save(const QString &toFile);
@@ -417,6 +426,7 @@ struct DocumentData {
 	void finish() {
 		if (loader->done()) {
 			location = FileLocation(loader->fileType(), loader->fileName());
+			data = loader->bytes();
 		}
 		loader->deleteLater();
 		loader->rpcInvalidate();
@@ -425,9 +435,13 @@ struct DocumentData {
 
 	QString already(bool check = false);
 
-	DocumentId id;
-	uint64 access;
 	int32 user;
+
+	DocumentId id;
+	DocumentType type;
+	QSize dimensions;
+	int32 duration;
+	uint64 access;
 	int32 date;
 	QString name, mime;
 	ImagePtr thumb;
@@ -440,6 +454,10 @@ struct DocumentData {
 	int32 openOnSave, openOnSaveMsgId;
 	mtpFileLoader *loader;
 	FileLocation location;
+
+	QByteArray data;
+	ImagePtr sticker;
+
 	int32 md5[8];
 };
 
@@ -539,6 +557,7 @@ enum HistoryMediaType {
 	MediaTypeContact,
 	MediaTypeAudio,
 	MediaTypeDocument,
+	MediaTypeSticker,
 	MediaTypeImageLink,
 
 	MediaTypeCount
@@ -557,20 +576,11 @@ inline MediaOverviewType mediaToOverviewType(HistoryMediaType t) {
 	switch (t) {
 	case MediaTypePhoto: return OverviewPhotos;
 	case MediaTypeVideo: return OverviewVideos;
-	case MediaTypeDocument: return OverviewDocuments;
+	case MediaTypeDocument:
+	case MediaTypeSticker: return OverviewDocuments;
 	case MediaTypeAudio: return OverviewAudios;
 	}
 	return OverviewCount;
-}
-
-inline HistoryMediaType overviewToMediaType(MediaOverviewType t) {
-	switch (t) {
-	case OverviewPhotos: return MediaTypePhoto;
-	case OverviewVideos: return MediaTypeVideo;
-	case OverviewAudios: return MediaTypeAudio;
-	case OverviewDocuments: return MediaTypeDocument;
-	}
-	return MediaTypeCount;
 }
 
 inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
@@ -1356,7 +1366,7 @@ private:
 class HistoryDocument : public HistoryMedia {
 public:
 
-	HistoryDocument(const MTPDdocument &document, int32 width = 0);
+	HistoryDocument(DocumentData *document, int32 width = 0);
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
@@ -1394,6 +1404,39 @@ private:
 
 	mutable QString _dldTextCache, _uplTextCache;
 	mutable int32 _dldDone, _uplDone;
+};
+
+class HistorySticker : public HistoryMedia {
+public:
+
+	HistorySticker(DocumentData *document, int32 width = 0);
+	void initDimensions(const HistoryItem *parent);
+
+	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
+	HistoryMediaType type() const {
+		return MediaTypeSticker;
+	}
+	const QString inDialogsText() const;
+	const QString inHistoryText() const;
+	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	int32 countHeight(const HistoryItem *parent, int32 width = -1) const;
+	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	HistoryMedia *clone() const;
+
+	DocumentData *document() {
+		return data;
+	}
+
+	void regItem(HistoryItem *item);
+	void unregItem(HistoryItem *item);
+
+	void updateFrom(const MTPMessageMedia &media);
+
+private:
+
+	DocumentData *data;
+
 };
 
 class HistoryContact : public HistoryMedia {

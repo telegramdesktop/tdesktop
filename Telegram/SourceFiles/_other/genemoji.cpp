@@ -1171,7 +1171,7 @@ bool genEmoji(QString emoji_in, const QString &emoji_out, const QString &emoji_p
 		p.fillRect(0, 0, emojisImg.width(), emojisImg.height(), Qt::transparent);
 		for (EmojisData::const_iterator i = emojisData.cbegin(), e = emojisData.cend(); i != e; ++i) {
 			int ind = i->index, row = ind / emojisInRow[i->category], col = ind % emojisInRow[i->category], size = sizes[i->category];
-			QPixmap emoji = QPixmap::fromImage(sprites[i->category].copy(col * size, row * size, size, size).scaled(imSize, imSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+			QPixmap emoji = QPixmap::fromImage(sprites[i->category].copy(col * size, row * size, size, size).scaled(imSize, imSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 			p.drawPixmap(i->x * imSize, i->y * imSize, emoji);
 		}
 		QString postfix = variantPostfix[variantIndex], emojif = emoji_png + postfix + ".png";

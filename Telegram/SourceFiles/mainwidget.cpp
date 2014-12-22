@@ -29,10 +29,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "audio.h"
 
 TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w),
-    a_over(0), _drawShadow(true), _selCount(0), _selStrWidth(0), _animating(false),
+	a_over(0), _drawShadow(true), _selCount(0), _selStrLeft(-st::topBarButton.width / 2), _selStrWidth(0), _animating(false),
 	_clearSelection(this, lang(lng_selected_clear), st::topBarButton),
 	_forward(this, lang(lng_selected_forward), st::topBarActionButton),
 	_delete(this, lang(lng_selected_delete), st::topBarActionButton),
+	_selectionButtonsWidth(_clearSelection.width() + _forward.width() + _delete.width()), _forwardDeleteWidth(qMax(_forward.textWidth(), _delete.textWidth())),
 	_info(this, lang(lng_topbar_info), st::topBarButton),
 	_edit(this, lang(lng_profile_edit_contact), st::topBarButton),
 	_leaveGroup(this, lang(lng_profile_delete_and_exit), st::topBarButton),
@@ -170,7 +171,7 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 		} else {
 			p.setFont(st::linkFont->f);
 			p.setPen(st::btnDefLink.color->p);
-			p.drawText(st::topBarSelectedPos.x(), st::topBarSelectedPos.y() + st::linkFont->ascent, _selStr);
+			p.drawText(_selStrLeft, st::topBarButton.textTop + st::linkFont->ascent, _selStr);
 		}
 	}
 	if (_drawShadow) {
@@ -197,12 +198,51 @@ void TopBarWidget::mousePressEvent(QMouseEvent *e) {
 void TopBarWidget::resizeEvent(QResizeEvent *e) {
 	int32 r = width();
 	if (!_forward.isHidden()) {
-		int32 availX = st::topBarSelectedPos.x() + _selStrWidth, availW = r - (_clearSelection.width() + st::topBarButton.width / 2) - availX;
-		_forward.move(availX + (availW - _forward.width() - _delete.width() - st::topBarActionSkip) / 2, (st::topBarHeight - _forward.height()) / 2);
-		_delete.move(availX + (availW + _forward.width() - _delete.width() + st::topBarActionSkip) / 2, (st::topBarHeight - _forward.height()) / 2);
+		int32 fullW = r - (_selectionButtonsWidth + (_selStrWidth - st::topBarButton.width) + st::topBarActionSkip);
+		int32 selectedClearWidth = st::topBarButton.width, forwardDeleteWidth = st::topBarActionButton.width - _forwardDeleteWidth, skip = st::topBarActionSkip;
+		while (fullW < 0) {
+			int fit = 0;
+			if (selectedClearWidth < -2 * (st::topBarMinPadding + 1)) {
+				fullW += 4;
+				selectedClearWidth += 2;
+			} else if (selectedClearWidth < -2 * st::topBarMinPadding) {
+				fullW += (-2 * st::topBarMinPadding - selectedClearWidth) * 2;
+				selectedClearWidth = -2 * st::topBarMinPadding;
+			} else {
+				++fit;
+			}
+			if (fullW >= 0) break;
+
+			if (forwardDeleteWidth > 2 * (st::topBarMinPadding + 1)) {
+				fullW += 4;
+				forwardDeleteWidth -= 2;
+			} else if (forwardDeleteWidth > 2 * st::topBarMinPadding) {
+				fullW += (forwardDeleteWidth - 2 * st::topBarMinPadding) * 2;
+				forwardDeleteWidth = 2 * st::topBarMinPadding;
+			} else {
+				++fit;
+			}
+			if (fullW >= 0) break;
+
+			if (skip > st::topBarMinPadding) {
+				--skip;
+				++fullW;
+			} else {
+				++fit;
+			}
+			if (fullW >= 0 || fit >= 3) break;
+		}
+		_clearSelection.setWidth(selectedClearWidth);
+		_forward.setWidth(_forwardDeleteWidth + forwardDeleteWidth);
+		_delete.setWidth(_forwardDeleteWidth + forwardDeleteWidth);
+		_selStrLeft = -selectedClearWidth / 2;
+
+		int32 availX = _selStrLeft + _selStrWidth, availW = r - (_clearSelection.width() + selectedClearWidth / 2) - availX;
+		_forward.move(availX + (availW - _forward.width() - _delete.width() - skip) / 2, (st::topBarHeight - _forward.height()) / 2);
+		_delete.move(availX + (availW + _forward.width() - _delete.width() + skip) / 2, (st::topBarHeight - _forward.height()) / 2);
+		_clearSelection.move(r -= _clearSelection.width(), 0);
 	}
 	if (!_info.isHidden()) _info.move(r -= _info.width(), 0);
-	if (!_clearSelection.isHidden()) _clearSelection.move(r -= _clearSelection.width(), 0);
 	if (!_deleteContact.isHidden()) _deleteContact.move(r -= _deleteContact.width(), 0);
 	if (!_leaveGroup.isHidden()) _leaveGroup.move(r -= _leaveGroup.width(), 0);
 	if (!_edit.isHidden()) _edit.move(r -= _edit.width(), 0);
@@ -1070,7 +1110,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 						if (reader.supportsAnimation() && reader.imageCount() > 1 && item) {
 							startGif(item, already);
 						} else {
-							App::wnd()->showDocument(document, QPixmap::fromImage(App::readImage(already, 0, false)), item);
+							App::wnd()->showDocument(document, QPixmap::fromImage(App::readImage(already, 0, false), Qt::ColorOnly), item);
 						}
 					} else {
 						psOpenFile(already);
@@ -2572,13 +2612,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				} else {
 					user->photosCount = -1;
 					user->photos.clear();
-				}
-				if (false && d.vuser_id.v != MTP::authedId() && d.vphoto.type() == mtpc_userProfilePhoto) {
-					MTPPhoto photo(App::photoFromUserPhoto(MTP_int(user->id & 0xFFFFFFFF), d.vdate, d.vphoto));
-					HistoryMedia *media = new HistoryPhoto(photo.c_photo(), 100);
-					if (App::history(user->id)->loadedAtBottom()) {
-						App::history(user->id)->addToBackService(clientMsgId(), date(d.vdate), lng_action_user_photo(lt_from, user->name), false, true, media);
-					}
 				}
 			}
 			if (App::main()) App::main()->peerUpdated(user);

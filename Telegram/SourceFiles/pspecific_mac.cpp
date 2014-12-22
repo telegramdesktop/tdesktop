@@ -71,7 +71,7 @@ void MacPrivate::notifyReplied(unsigned long long peer, const char *str) {
 }
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
-posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/icon256.png")), iconbig256(qsl(":/gui/art/iconbig256.png")), wndIcon(QPixmap::fromImage(iconbig256)),
+posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/icon256.png")), iconbig256(qsl(":/gui/art/iconbig256.png")), wndIcon(QPixmap::fromImage(iconbig256, Qt::ColorOnly)),
 psLogout(0), psUndo(0), psRedo(0), psCut(0), psCopy(0), psPaste(0), psDelete(0), psSelectAll(0), psContacts(0), psAddContact(0), psNewGroup(0), psShowTelegram(0) {
 	QImage tray(qsl(":/gui/art/osxtray.png"));
 	trayImg = tray.copy(0, cRetina() ? 0 : tray.width() / 2, tray.width() / (cRetina() ? 2 : 4), tray.width() / (cRetina() ? 2 : 4));
@@ -206,8 +206,8 @@ void PsMainWindow::psUpdateCounter() {
 		int32 size = cRetina() ? 44 : 22;
 		_placeCounter(img, size, counter, bg, (dm && !important) ? st::counterMacInvColor : st::counterColor);
 		_placeCounter(imgsel, size, counter, st::white, st::counterMacInvColor);
-		icon.addPixmap(QPixmap::fromImage(img));
-		icon.addPixmap(QPixmap::fromImage(imgsel), QIcon::Selected);
+		icon.addPixmap(QPixmap::fromImage(img, Qt::ColorOnly));
+		icon.addPixmap(QPixmap::fromImage(imgsel, Qt::ColorOnly), QIcon::Selected);
 		trayIcon->setIcon(icon);
 	}
 }

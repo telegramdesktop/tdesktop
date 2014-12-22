@@ -25,7 +25,7 @@ namespace {
 	LocalImages localImages;
 
 	Image *blank() {
-		static Image *img = getImage(qsl(":/gui/art/blank.gif"));
+		static Image *img = getImage(qsl(":/gui/art/blank.gif"), "GIF");
 		return img;
 	}
 
@@ -264,7 +264,7 @@ QPixmap Image::pixBlurredNoCache(int32 w, int32 h) const {
 		img = img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 	}
 
-	return QPixmap::fromImage(img);
+	return QPixmap::fromImage(img, Qt::ColorOnly);
 }
 
 QPixmap Image::pixNoCache(int32 w, int32 h, bool smooth) const {
@@ -272,13 +272,17 @@ QPixmap Image::pixNoCache(int32 w, int32 h, bool smooth) const {
 	loaded();
 
 	const QPixmap &p(pixData());
-	if (p.isNull()) return blank()->pix();
-
+	if (p.isNull()) {
+		if (this == blank()) {
+			int a = 0;
+		}
+		return blank()->pix();
+	}
 	if (w <= 0 || !width() || !height() || w == width()) return p;
 	if (h <= 0) {
-		return QPixmap::fromImage(p.toImage().scaledToWidth(w, smooth ? Qt::SmoothTransformation : Qt::FastTransformation));
+		return QPixmap::fromImage(p.toImage().scaledToWidth(w, smooth ? Qt::SmoothTransformation : Qt::FastTransformation), Qt::ColorOnly);
 	}
-	return QPixmap::fromImage(p.toImage().scaled(w, h, Qt::IgnoreAspectRatio, smooth ? Qt::SmoothTransformation : Qt::FastTransformation));
+	return QPixmap::fromImage(p.toImage().scaled(w, h, Qt::IgnoreAspectRatio, smooth ? Qt::SmoothTransformation : Qt::FastTransformation), Qt::ColorOnly);
 }
 
 void Image::forget() const {
@@ -290,7 +294,16 @@ void Image::forget() const {
 	invalidateSizeCache();
 	if (saved.isEmpty()) {
 		QBuffer buffer(&saved);
-		p.save(&buffer, format);
+		if (format.toLower() == "webp") {
+			int a = 0;
+		}
+		if (!p.save(&buffer, format)) {
+			if (p.save(&buffer, "PNG")) {
+				format = "PNG";
+			} else {
+				return;
+			}
+		}
 	}
 	globalAquiredSize -= int64(p.width()) * p.height() * 4;
 	doForget();
@@ -316,7 +329,18 @@ void Image::invalidateSizeCache() const {
 	_sizesCache.clear();
 }
 
-LocalImage::LocalImage(const QString &file) : data(file) {
+LocalImage::LocalImage(const QString &file, QByteArray fmt) {
+	data = QPixmap::fromImage(App::readImage(file, &fmt, false), Qt::ColorOnly);
+	format = fmt;
+	if (!data.isNull()) {
+		globalAquiredSize += int64(data.width()) * data.height() * 4;
+	}
+}
+
+LocalImage::LocalImage(const QByteArray &filecontent, QByteArray fmt) {
+	data = QPixmap::fromImage(App::readImage(filecontent, &fmt, false), Qt::ColorOnly);
+	format = fmt;
+	saved = filecontent;
 	if (!data.isNull()) {
 		globalAquiredSize += int64(data.width()) * data.height() * 4;
 	}
@@ -342,18 +366,22 @@ int32 LocalImage::height() const {
 	return data.height();
 }
 
-LocalImage *getImage(const QString &file) {
-	LocalImages::const_iterator i = localImages.constFind(file);
-	if (i == localImages.cend()) {
-		i = localImages.insert(file, new LocalImage(file));
-	}
-	return i.value();
-}
-
 LocalImage::~LocalImage() {
 	if (!data.isNull()) {
 		globalAquiredSize -= int64(data.width()) * data.height() * 4;
 	}
+}
+
+LocalImage *getImage(const QString &file, QByteArray format) {
+	LocalImages::const_iterator i = localImages.constFind(file);
+	if (i == localImages.cend()) {
+		i = localImages.insert(file, new LocalImage(file, format));
+	}
+	return i.value();
+}
+
+LocalImage *getImage(const QByteArray &filecontent, QByteArray format) {
+	return new LocalImage(filecontent, format);
 }
 
 LocalImage *getImage(const QPixmap &pixmap, QByteArray format) {
@@ -410,7 +438,7 @@ bool StorageImage::check() const {
 			globalAquiredSize -= int64(data.width()) * data.height() * 4;
 		}
 		QByteArray bytes = loader->bytes();
-		data = QPixmap::fromImage(App::readImage(bytes, &format), Qt::ColorOnly);
+		data = QPixmap::fromImage(App::readImage(bytes, &format, false), Qt::ColorOnly);
 		if (!data.isNull()) {
 			globalAquiredSize += int64(data.width()) * data.height() * 4;
 		}
@@ -432,11 +460,11 @@ bool StorageImage::check() const {
 void StorageImage::setData(QByteArray &bytes, const QByteArray &format) {
 	QBuffer buffer(&bytes);
 
-	QImageReader reader(&buffer, format);
 	if (!data.isNull()) {
 		globalAquiredSize -= int64(data.width()) * data.height() * 4;
 	}
-	data = QPixmap::fromImageReader(&reader, Qt::ColorOnly);
+	QByteArray fmt(format);
+	data = QPixmap::fromImage(App::readImage(bytes, &fmt, false), Qt::ColorOnly);
 	if (!data.isNull()) {
 		globalAquiredSize += int64(data.width()) * data.height() * 4;
 	}
@@ -450,7 +478,7 @@ void StorageImage::setData(QByteArray &bytes, const QByteArray &format) {
 		loader = 0;
 	}
 	this->saved = bytes;
-	this->format = reader.format();
+	this->format = fmt;
 	forgot = false;
 }
 

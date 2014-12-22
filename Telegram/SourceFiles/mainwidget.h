@@ -80,12 +80,14 @@ private:
 
 	uint32 _selCount;
 	QString _selStr;
-	int32 _selStrWidth;
+	int32 _selStrLeft, _selStrWidth;
     
     bool _animating;
 
 	FlatButton _clearSelection;
 	FlatButton _forward, _delete;
+	int32 _selectionButtonsWidth, _forwardDeleteWidth;
+
 	FlatButton _info;
 	FlatButton _edit, _leaveGroup, _addContact, _deleteContact;
 	FlatButton _mediaType;
