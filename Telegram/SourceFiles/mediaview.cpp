@@ -1194,6 +1194,21 @@ bool MediaView::event(QEvent *e) {
 				return true;
 			}
 		}
+	} else if (e->type() == QEvent::Wheel) {
+		QWheelEvent *ev = static_cast<QWheelEvent*>(e);
+		if (ev->phase() == Qt::ScrollBegin) {
+			_accumScroll = ev->angleDelta();
+		} else {
+			_accumScroll += ev->angleDelta();
+			if (ev->phase() == Qt::ScrollEnd) {
+				if (ev->orientation() == Qt::Horizontal) {
+					if (_accumScroll.x() * _accumScroll.x() > _accumScroll.y() * _accumScroll.y() && _accumScroll.x() != 0) {
+						moveToPhoto(_accumScroll.x() > 0 ? -1 : 1);
+					}
+					_accumScroll = QPoint();
+				}
+			}
+		}
 	}
 	return QWidget::event(e);
 }
