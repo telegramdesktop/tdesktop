@@ -125,7 +125,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org */
 "lng_username_bad_symbols" = "이 아이디는 잘못된 기호를 포함하고 있습니다.";
 "lng_username_available" = "사용 가능한 아이디입니다.";
 "lng_username_not_found" = "사용자 @{user} 를 찾을 수 없습니다.";
-"lng_settings_section_contact_info" = "대화상대 정보";
+"lng_settings_section_contact_info" = "내 정보";
 "lng_settings_phone_number" = "전화번호:";
 "lng_settings_username" = "아이디:";
 "lng_settings_choose_username" = "아이디를 선택하세요";
