@@ -28,7 +28,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org */
 "lng_month1" = "1월";
 "lng_month2" = "2월";
 "lng_month3" = "3월";
-"lng_month4" = "4월\n";
+"lng_month4" = "4월";
 "lng_month5" = "5월";
 "lng_month6" = "6월";
 "lng_month7" = "7월";
@@ -390,7 +390,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org */
 "lng_mediaview_date_time" = "{date} {time}";
 "lng_mediaview_saved" = "사진이  [c]다운로드[/c] 폴더에 저장되었습니다.";
 "lng_new_authorization" = "{name} 님,\n저희는 당신 계정이 {date}, {day} 에 {time}에 접속하는것을 막았습니다.\n\n기종: {device}\n위치: {location}\n\n만약 이것이 당신이 아니라면 설정 — 다른 세션 차단 을 해주시기 바랍니다.\n\n감사합니다. \n\n텔레그램 팀으로부터";
-"lng_new_version7004" = "텔레그램 데스크탑의 새로운 버전인  {version} 버전이 업데이트되었습니다.\n\n — 한국어가 추가되었습니다.\n\n모든 버전을 찾으시려면:\n {link}";
+"lng_new_version7004" = "텔레그램 데스크탑의 새로운 버전인  {version} 버전이 업데이트되었습니다.\n\n — 독일어와 네덜란드어가 추가되었습니다.\n\n모든 버전을 찾으시려면:\n {link}";
 "lng_mac_choose_app" = "응용 프로그램을 선택해 주세요.";
 "lng_mac_choose_text" = "\"{file}\" 을 열 응용 프로그램을 선택해 주세요.";
 "lng_mac_enable_filter" = "활성화:";
