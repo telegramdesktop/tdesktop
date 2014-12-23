@@ -139,7 +139,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org */
 "lng_settings_section_general" = "일반";
 "lng_settings_change_lang" = "언어 변경";
 "lng_languages" = "언어";
-"lng_sure_save_language" = "텔레그램을 재시작시면\n변경된 언어가 적용됩니다.";
+"lng_sure_save_language" = "텔레그램을 재시작하시면\n변경된 언어가 적용됩니다.";
 "lng_settings_auto_update" = "자동 업데이트";
 "lng_settings_current_version" = "버전 {version} ";
 "lng_settings_check_now" = "업데이트 확인";
@@ -190,8 +190,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org */
 "lng_local_images_clear_failed" = "삭제 실패 :(";
 "lng_settings_section_advanced" = "고급";
 "lng_connection_type" = "연결 방법:";
-"lng_connection_auto_connecting" = "기본값 (연결 중..)";
-"lng_connection_auto" = "기본값 ({type} 사용)";
+"lng_connection_auto_connecting" = "기본 (연결 중..)";
+"lng_connection_auto" = "기본 ({type} 사용)";
 "lng_connection_http_proxy" = "HTTP (프록시 사용)";
 "lng_connection_tcp_proxy" = "TCP (프록시 사용)";
 "lng_connection_header" = "연결 방법:";
@@ -241,7 +241,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org */
 "lng_profile_documents_header" = "문서 목록";
 "lng_profile_audios" = "{count:_not_used_|음성 메시지 # 개|음성 메시지 # 개} »";
 "lng_profile_audios_header" = "음성 메시지 목록";
-"lng_profile_show_all_types" = "모든 타입 보기";
+"lng_profile_show_all_types" = "모든 종류 보기";
 "lng_profile_copy_phone" = "전화번호 복사";
 "lng_participant_filter" = "검색";
 "lng_participant_invite" = "초대";
@@ -373,7 +373,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org */
 "lng_selected_delete_sure" = "{count:_not_used_|# 메시지|# 메시지} 를 지우시겠습니까?";
 "lng_selected_delete_confirm" = "삭제";
 "lng_about_version" = "버전 {version}";
-"lng_about_text" = " [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] 와\n[a href=\"https://core.telegram.org/api\"]Telegram API[/a] 를 기반으로 한 빠르고 안전한 텔레그램 공식 무료 앱입니다.\n\n이 소프트웨어는 [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3 라이센스로 보호되며,\n소스 코드는 [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a] 에서 찾으실 수 있습니다.";
+"lng_about_text" = "[a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] 와[a href=\"https://core.telegram.org/api\"]Telegram API[/a] 를 기반으로 한 빠르고 안전한 텔레그램 공식 무료 앱입니다.\n이 소프트웨어는 [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3 라이센스로 보호되며,\n소스 코드는 [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a] 에서 찾으실 수 있습니다.";
 "lng_about_done" = "완료";
 "lng_search_found_results" = "{count:메시지를 찾을 수 없음|# 개의 메시지를 찾음|# 개의 메시지를 찾음}";
 "lng_search_global_results" = "전체 검색 결과";
