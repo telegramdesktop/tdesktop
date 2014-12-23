@@ -15,7 +15,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014 John Preston, https://desktop.telegram.org */
 "lng_language_name" = "Korean";
 "lng_switch_to_this" = "한국어로 전환";
-"lng_menu_contacts" = "대화상대";
+"lng_menu_contacts" = "주소록";
 "lng_menu_settings" = "설정";
 "lng_menu_about" = "정보";
 "lng_menu_update" = "업데이트";
