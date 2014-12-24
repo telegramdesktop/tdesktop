@@ -1,0 +1,482 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014 John Preston, https://desktop.telegram.org
+*/
+"lng_language_name" = "Persian";
+"lng_switch_to_this" = "رفتن به فارسي";
+
+"lng_menu_contacts" = "مخاطبين";
+"lng_menu_settings" = "تنظيمات";
+"lng_menu_about" = "درباره";
+"lng_menu_update" = "آپديت";
+"lng_menu_restart" = "ريستارت";
+"lng_menu_back" = "بازگشت";
+
+"lng_open_from_tray" = "بازکردن تلگرام";
+"lng_minimize_to_tray" = "کوچک کردن در تسکبار";
+"lng_quit_from_tray" = "بستن تلگرام";
+"lng_tray_icon_text" = "Telegram is still running here,\nyou can change this from settings page.\n\nIf this icon disappears from tray menu,\nyou can drag it back here from hidden icons.";
+
+"lng_month1" = "ژانويه";
+"lng_month2" = "فوريه";
+"lng_month3" = "مارس";
+"lng_month4" = "آپريل";
+"lng_month5" = "مي";
+"lng_month6" = "جوئن";
+"lng_month7" = "جولاي";
+"lng_month8" = "آگوست";
+"lng_month9" = "سپتامبر";
+"lng_month10" = "اکتبر";
+"lng_month11" = "نوامبر";
+"lng_month12" = "دسامبر";
+
+"lng_weekday1" = "دوشنبه";
+"lng_weekday2" = "سه شنبه";
+"lng_weekday3" = "چهارشنبه";
+"lng_weekday4" = "پنج شنبه";
+"lng_weekday5" = "جمعه";
+"lng_weekday6" = "شنبه";
+"lng_weekday7" = "يکشنبه";
+
+"lng_weekday1_full" = "دوشنبه";
+"lng_weekday2_full" = "سه شنبه";
+"lng_weekday3_full" = "چهارشنبه";
+"lng_weekday4_full" = "پنج شنبه";
+"lng_weekday5_full" = "جمعه";
+"lng_weekday6_full" = "شنبه";
+"lng_weekday7_full" = "يکشنبه";
+
+"lng_month_day" = "{month} {day}";
+
+"lng_cancel" = "لوغ";
+"lng_continue" = "ادامه";
+"lng_close" = "بستن";
+"lng_connecting" = "..درحال اتصال";
+"lng_reconnecting" = " ..{count:now|in # s|in # s} اتصال دوباره";
+"lng_reconnecting_try_now" = "تلاش مجدد";
+
+"lng_status_service_notifications" = "سرويس اطلاعيه ها";
+"lng_status_offline" = "تاريخ و زمان مشاهده خيلي وقت پيش";
+"lng_status_recently" = "آخرين مشاهده تازه";
+"lng_status_last_week" = "آخرين مشاهده در مدت يک هفته";
+"lng_status_last_month" = "آخرين مشاهده در مدت يک ماه";
+"lng_status_invisible" = "مخفي";
+"lng_status_lastseen_now" = "آخرين مشاهده هم اکنون";
+"lng_status_lastseen_minutes" = "پيش{count:_not_used_|# minute|# minutes} آخرين مشاهده ";
+"lng_status_lastseen_hours" = " پيش{count:_not_used_|# hour|# hours} آخرين مشاهده";
+"lng_status_lastseen_today" = "{time} آخرين مشاهده در امروز";
+"lng_status_lastseen_yesterday" = "{time} آخرين مشاهده ديروز در";
+"lng_status_lastseen_date" = "{date} آخرين مشاهده";
+"lng_status_lastseen_date_time" = "{date} در {time} آخرين مشاهده";
+"lng_status_online" = "آنلاين";
+"lng_status_connecting" = "..درحال اتصال";
+
+"lng_chat_status_unaccessible" = گروه در دسترس نيست";
+"lng_chat_status_members" = "{count:no members|# member|# members}";
+"lng_chat_status_members_online" = "{count:_not_used_|# member|# members}, {count_online:_not_used_|# online|# online}";
+
+"lng_server_error" = "خطاي داخلي سرور";
+"lng_flood_error" = "تلاش بيش از حد. لطفا بعدا دوباره امتحان کنيد";
+"lng_deleted" = "ناشناخته";
+
+"lng_intro" = "Welcome to the official [a href=\"https://telegram.org/\"]Telegram[/a] desktop app.\nIt's [b]fast[/b] and [b]secure[/b].";
+"lng_start_msgs" = "شروع کار با پيغام رسان";
+
+"lng_intro_next" = "بعد";
+"lng_intro_finish" = "ثبت نام";
+
+"lng_phone_ph" = "شماره موبايل شما";
+"lng_phone_title" = "تلفن شما";
+"lng_phone_desc" = "شما بايد کد کشور و اجزاي آن را تاييد کنيد";
+"lng_phone_notreg" = "Note: if you don't have a Telegram account yet,\nplease [b]sign up[/b] with your [a href=\"https://telegram.org/\"]iOS / Android[/a] or {signup_start}here »{signup_end}";
+"lng_country_code" = "کد کشور";
+"lng_bad_country_code" = "کد کشور نامعتبر است";
+"lng_country_ph" = "جست جو";
+"lng_country_done" = "انجام شد";
+"lng_country_none" = "کشور وجود ندارد";
+"lng_country_select" = "انتخاب کشور";
+
+"lng_code_ph" = "کد شما";
+"lng_code_desc" = "ما ارسال کرديم کد فعالسازي را به شماره موبايل شما. لطفا پس از دريافت وارد نماييد";
+"lng_code_call" = "{minutes}:{seconds} تلگرام تماس ميگرد به شماره شما بعد از";
+"lng_code_calling" = ".. درحال درخواست تماس از تلگرام";
+"lng_code_called" = "تلگرام تماس گرفت با شماره شما";
+
+"lng_bad_phone" = "شماره موبايل شما نامعتبر مي باشد. لطفا دوباره تلاش کنيد";
+"lng_bad_phone_noreg" = "شماره تلفن شما عضو نيست";
+"lng_bad_code" = "شما يک کد معتبر وارد نماييد. لطفا دوباره تلاش کنيد";
+"lng_bad_name" = "لطفا اسم و فاميلتان را وارد نماييد";
+"lng_bad_photo" = "تصوير بد انتخاب شده است";
+
+"lng_signup_title" = "اطلاعات و عکس";
+"lng_signup_desc" = "لطفا نام خود را وارد و يک عکس آپلود نماييد";
+
+"lng_signup_firstname" = "نام";
+"lng_signup_lastname" = "نام خانوادگي";
+
+"lng_dlg_filter" = "جستجو";
+"lng_dlg_new_group_name" = "نام گروه";
+"lng_dlg_create_group" = "ايجاد";
+"lng_no_contacts" = "شما مخاطبين نداريد";
+"lng_contacts_loading" = ".. درحال بارگذاري";
+"lng_contacts_not_found" = "مخاطبي يافت نشد";
+
+"lng_settings_save" = "ذخيره";
+"lng_settings_upload" = "انتخاب عکس پروفايل";
+"lng_settings_crop_profile" = "انتخاب کادر مربعي براي عکس پروفايل";
+"lng_settings_uploading_photo" = ".. درحال آپلود عکس";
+
+"lng_username_title" = "تغيير نام کاربري";
+"lng_username_about" = "You can choose a username on Telegram.\nIf you do, other people will be able to find\nyou by this username and contact you\nwithout knowing your phone number.\n\nYou can use a-z, 0-9 and underscores.\nMinimum length is 5 characters.";
+"lng_username_invalid" = "اين نام کاربري نامعتبر است";
+"lng_username_occupied" = "اين نام کاربري قبلا استفاده شده";
+"lng_username_too_short" = "اين نام کاربري کوتاه است";
+"lng_username_bad_symbols" = "اين نام کاربري داراي حروف نامعتبر است";
+"lng_username_available" = "اين نام کاربري معتبر است";
+"lng_username_not_found" = "يافت نشد @{user} کاربر";
+
+"lng_settings_section_contact_info" = "اطلاعات مخاطب";
+"lng_settings_phone_number" = "شماره موبايل:";
+"lng_settings_username" = "نام کاربري:";
+"lng_settings_choose_username" = "انتخاب نام کاربري";
+"lng_settings_change_username" = "تغيير";
+
+"lng_settings_section_notify" = "اطلاعيه ها";
+"lng_settings_desktop_notify" = "اطلاعيه هاي ميزکار";
+"lng_settings_show_name" = "نمايش نام ارسال کننده";
+"lng_settings_show_preview" = "پيش نمايش پيغام در اطلاعيه";
+"lng_settings_sound_notify" = "پخش صدا";
+
+"lng_notification_preview" = "شما پيغام جديدي دريافت کرديد";
+
+"lng_settings_section_general" = "مرکز";
+"lng_settings_change_lang" = "تغيير زبان";
+"lng_languages" = "زبان ها";
+"lng_sure_save_language" = "براي تغيير زبان تلگرام بايد ريستارت شود";
+"lng_settings_auto_update" = "آپديت خودکار";
+"lng_settings_current_version" = "{version} نسخه";
+"lng_settings_check_now" = "بررسي براي آپديت";
+"lng_settings_update_checking" = ".. درحال بررسي آپديت";
+"lng_settings_latest_installed" = "آخرين نسخه نصب شده است";
+"lng_settings_downloading" = "مگابايت {ready} / {total} درحال دانلود آپديت";
+"lng_settings_update_ready" = "نسخه جديد آماده است";
+"lng_settings_update_now" = "اکنون ريستارت شود";
+"lng_settings_update_fail" = " :( خطاي بررسي آپديت";
+"lng_settings_workmode_tray" = "نمايش آيکون در سيني ويندوز";
+"lng_settings_workmode_window" = "نمايش آيکون در تکسبار";
+"lng_settings_auto_start" = "بازشدن خودکار تلگرام هنگام بالا آمدن ويندوز";
+"lng_settings_start_min" = "هنگام اجرا کوچک شود";
+"lng_settings_add_sendto" = "«Send to» افزودن تلگرام به کليک راست در منو";
+"lng_settings_scale_label" = "مقياس رابط کاربري";
+"lng_settings_scale_auto" = "({cur}) خودکار";
+
+"lng_settings_section_chat" = "گزينه هاي چت";
+"lng_settings_replace_emojis" = "emojis به جاي";
+"lng_settings_view_emojis" = "نمايش ليست";
+"lng_settings_emoji_list" = "emojis ليست پشتيباني";
+"lng_settings_send_enter" = "Enter ارسال با زدن دکمه";
+"lng_settings_send_ctrlenter" = " Ctrl+Enter ارسال با زدن دکمه";
+"lng_settings_send_cmdenter" = "Cmd+Enter ارسال با زدن دکمه";
+"lng_settings_cats_and_dogs" = "اجازه گربه ها و سگ ها";
+
+"lng_download_path_dont_ask" = "محل دانلود هرفايل را ازم سوال نکن";
+"lng_download_path_label" = "محل دانلود:";
+"lng_download_path_temp" = "temp پوشه";
+"lng_download_path_default" = "پوشه پيش فرض";
+"lng_download_path_clear" = "پاکسازي همه";
+"lng_download_path_header" = "انتخاب محل دانلود";
+"lng_download_path_default_radio" = "ويندوز «Downloads» فايل هاي دانلود شده در پوشه ";
+"lng_download_path_temp_radio" = " پاکسازي شود بعد از خروج يا حذف نرم افزار Temp پوشه";
+"lng_download_path_dir_radio" = "انتخاب پوشه خاص و پاکسازي بصورت دستي";
+"lng_download_path_choose" = "انتخاب محل دانلود";
+"lng_sure_clear_downloads" = "Do you want to remove all downloaded files from temp folder? It is done automatically on logout or program uninstall.";
+"lng_download_path_failed" = "File download could not be started. It could happen because of a bad download location.\n\nYou can change download path in Settings.";
+"lng_download_path_settings" = "رفتن به تنظيمات";
+"lng_download_finish_failed" = "File download could not be finished.\n\nWould you like to try again?";
+"lng_download_path_clearing" = ".. درحال پاکسازي";
+"lng_download_path_cleared" = "پاکسازي شد";
+"lng_download_path_clear_failed" = ":( پاکسازي نشد";
+
+"lng_settings_section_cache" = "ذخيره ساز محلي";
+"lng_settings_no_images_cached" = "عکس هاي ذخيره شده يافت نشد";
+"lng_settings_images_cached" = " {count:_not_used_|# image|# images}, {size} ذخيره سازي شده";
+"lng_local_images_clear" = "پاکسازي همه";
+"lng_local_images_clearing" = ".. درحال پاکسازي";
+"lng_local_images_cleared" = "پاکسازي شد";
+"lng_local_images_clear_failed" = ":( خطاي پاکسازي";
+
+"lng_settings_section_advanced" = "پيشرفته";
+"lng_connection_type" = "نوع اتصال:";
+"lng_connection_auto_connecting" = "(connecting..) پيش فرض";
+"lng_connection_auto" = "({type} used) پيش فرض";
+"lng_connection_http_proxy" = "HTTP with proxy";
+"lng_connection_tcp_proxy" = "TCP with proxy";
+"lng_connection_header" = "نوع اتصال";
+"lng_connection_auto_rb" = "(TCP if available or HTTP) خودکار";
+"lng_connection_http_proxy_rb" = "HTTP with custom http-proxy";
+"lng_connection_tcp_proxy_rb" = "TCP with custom socks5-proxy";
+"lng_connection_host_ph" = "نام هاست";
+"lng_connection_port_ph" = "پورت";
+"lng_connection_user_ph" = "نام کاربري";
+"lng_connection_password_ph" = "پسورد";
+"lng_connection_save" = "ذخيره";
+"lng_settings_reset" = "خاتمه دادن جلسات ديگر";
+"lng_settings_reset_sure" = "آيا شما ميخواهيد به تمامي جلسات خاتمه دهيد؟";
+"lng_settings_reset_button" = "خاتمه";
+"lng_settings_reset_done" = "ديگر جلسات خاتمه يافت";
+"lng_settings_logout" = "خروج از سيستم";
+"lng_sure_logout" = "آيا شما ميخواهيد از سيستم تلگرام خارج شويد؟";
+
+"lng_settings_need_restart" = "You need to restart for applying\nsome of the new settings. Restart now?";
+"lng_settings_restart_now" = "ريستارت";
+"lng_settings_restart_later" = "بعدا";
+
+"lng_profile_chat_unaccessible" = "گروه در دسترس نيست";
+"lng_topbar_info" = "اطلاعات";
+"lng_profile_settings_section" = "تنظيمات";
+"lng_profile_participants_section" = "شرکت کنندگان";
+"lng_profile_info" = "اطلاعات مخاطب";
+"lng_profile_group_info" = "اطلاعات گروه";
+"lng_profile_add_contact" = "افزودن مخاطب";
+"lng_profile_edit_contact" = "ويرايش";
+"lng_profile_enable_notifications" = "اطلاعيه ها";
+"lng_profile_clear_history" = "پاکسازي تاريخچه";
+"lng_profile_send_message" = "ارسال پيغام";
+"lng_profile_share_contact" = "اشتراک گذاري مخاطب";
+"lng_profile_delete_contact" = "حذف";
+"lng_profile_set_group_photo" = "انتخاب عکس";
+"lng_profile_add_participant" = "افزودن کاربر";
+"lng_profile_delete_and_exit" = "ترک کردن";
+"lng_profile_kick" = "بيرون انداختن";
+"lng_profile_sure_kick" = "را از گروه بيرون بندازيد؟ {user} آيا ميخواهيد";
+"lng_profile_loading" = ".. درحال بارگزاري";
+"lng_profile_shared_media" = "رسانه اشتراک گذاري شد";
+"lng_profile_no_media" = "رسانه اي در اين مکالمات نيست";
+"lng_profile_photos" = "{count:_not_used_|# photo|# photos} »";
+"lng_profile_photos_header" = "نماي کلي عکس";
+"lng_profile_videos" = "{count:_not_used_|# video file|# video files} »";
+"lng_profile_videos_header" = "نماي کلي فايل هاي ويدئويي";
+"lng_profile_documents" = "{count:_not_used_|# document|# documents} »";
+"lng_profile_documents_header" = "نماي کلي اسنادها";
+"lng_profile_audios" = "{count:_not_used_|# voice message|# voice messages} »";
+"lng_profile_audios_header" = "نماي کلي پيغام هاي صوتي";
+"lng_profile_show_all_types" = "نمايش همه انواع";
+"lng_profile_copy_phone" = "کپي شماره موبايل";
+
+"lng_participant_filter" = "جستجو";
+"lng_participant_invite" = "مخفي";
+"lng_create_new_group" = "گروه جديد";
+"lng_create_group_next" = "بعد";
+"lng_create_group_title" = "گروه جديد";
+
+"lng_sure_delete_contact" = "Are you sure, you want to delete {contact} from your contact list?";
+"lng_sure_delete_history" = "Are you sure, you want to delete all message history with {contact}?\n\nThis action cannot be undone.";
+
+"lng_sure_delete_and_exit" = "Are you sure, you want to delete all message history and leave «{group}»?\n\nThis action cannot be undone.";
+
+"lng_sure_enable_debug" = "Do you want to enable DEBUG mode?\n\nAll network events will be logged.";
+
+"lng_message_empty" = "(empty)";
+
+"lng_action_add_user" = "{from} افزوده شدن {user}";
+"lng_action_kick_user" = "{from} بيرون انداختن {user}";
+"lng_action_user_left" = "ترک گروه {from} ";
+"lng_action_user_joined" = "پيوستن به گروه {from} ";
+"lng_action_user_registered" = "پيوستن به تلگرام{from} ";
+"lng_action_removed_photo" = "تصوير گروه را حذف کرد {from}";
+"lng_action_changed_photo" = "تصوير گروه را تغيير داد {from}";
+"lng_action_changed_title" = "«{title}» تغيير داد نام گروه را به {from}";
+"lng_action_created_chat" = "«{title}» گروه ايجاد کرد {from}";
+
+"lng_forwarded_from" = "انتقال داده شد از";
+
+"lng_attach_failed" = "خطا";
+"lng_attach_file" = "اسناد";
+"lng_attach_photo" = "عکس";
+
+"lng_media_type" = "نوع رسانه";
+"lng_media_type_photos" = "عکس ها";
+"lng_media_type_videos" = "فايل هاي ويدئويي";
+"lng_media_type_documents" = "اسناد";
+"lng_media_type_audios" = "پيغام هاي صوتي";
+
+"lng_media_open_with" = "بازکردن با";
+"lng_media_download" = "دانلود";
+"lng_media_cancel" = "لغو";
+"lng_media_video" = "فايل ويدئو";
+"lng_media_audio" = "پيغام صوتي";
+
+"lng_in_dlg_photo" = "عکس";
+"lng_in_dlg_video" = "ويدئو";
+"lng_in_dlg_contact" = "مخاطب";
+"lng_in_dlg_audio" = "صوتي";
+"lng_in_dlg_document" = "سند";
+"lng_in_dlg_sticker" = "استيکر";
+
+"lng_send_button" = "ارسال";
+"lng_message_ph" = ".. نوشتن يک پيغام";
+"lng_empty_history" = "";
+"lng_willbe_history" = "لطفا چت را انتخاب کنيد براي شروع پيغام ها";
+"lng_message_with_from" = "[c]{from}:[/c] {message}";
+"lng_from_you" = "شما";
+
+"lng_typing" = "درحال تايپ";
+"lng_user_typing" = "درحال تايپ است {user} ";
+"lng_users_typing" = "درحال تايپ {second_user} و {user}";
+"lng_many_typing" = "درحال تايپ {count:_not_used_|# is|# are}";
+"lng_unread_bar" = "{count:_not_used_|# unread message|# unread messages}";
+
+"lng_maps_point" = "موقعيت";
+"lng_save_photo" = "ذخيره عکس";
+"lng_save_video" = "ذخيره ويدئو";
+"lng_save_audio" = "ذخيره فايل صوتي";
+"lng_save_document" = "ذخيره سند";
+"lng_save_downloaded" = "{ready} / {total} {mb}";
+"lng_duration_and_size" = "{duration}, {size}";
+"lng_choose_images" = "انتخاب عکس ها";
+
+"lng_context_open_link" = "بازکردن لينک";
+"lng_context_copy_link" = "کپي لينک";
+"lng_context_open_email" = "نوشتن به اين آدرس";
+"lng_context_copy_email" = "کپي آدرس ايميل";
+"lng_context_open_hashtag" = "hashtag جستجو با ";
+"lng_context_copy_hashtag" = "hashtag کپي";
+"lng_context_open_image" = "بازکردن عکس";
+"lng_context_save_image" = "ذخيره عکس به عنوان";
+"lng_context_forward_image" = "انتقال عکس";
+"lng_context_delete_image" = "حذف عکس";
+"lng_context_copy_image" = "کپي عکس";
+"lng_context_close_image" = "بستن عکس";
+"lng_context_cancel_download" = "لغو دانلود";
+"lng_context_show_in_folder" = "نمايش در پوشه";
+"lng_context_show_in_finder" = "نمايش در جستجوگر";
+"lng_context_open_video" = "بازکردن ويدئو";
+"lng_context_save_video" = "ذخيره ويدئو به عنوان";
+"lng_context_open_audio" = "بازکردن فايل صوتي";
+"lng_context_save_audio" = "ذخيره فايل صوتي به عنوان";
+"lng_context_open_document" = "بازکردن فايل";
+"lng_context_save_document" = "ذخيره فايل به عنوان";
+"lng_context_forward_file" = "انتقال فايل";
+"lng_context_delete_file" = "حذف فايل";
+"lng_context_close_file" = "بستن فايل";
+"lng_context_copy_text" = "کپي پيغام متني";
+"lng_context_to_msg" = "رفتن به پيغام";
+"lng_context_forward_msg" = "انتقال پيغام";
+"lng_context_delete_msg" = "حذف پيغام";
+"lng_context_select_msg" = "انتخاب پيغام";
+"lng_context_cancel_upload" = "لغو آپلود";
+"lng_context_copy_selected" = "کپي متن انتخاب شده";
+"lng_context_forward_selected" = "انتقال انتخاب شده";
+"lng_context_delete_selected" = "حذف انتخاب شده";
+"lng_context_clear_selection" = "پاکسازي منتخب ها";
+"lng_really_send_image" = "آيا شما اين عکس را ميخواهيد ارسال کنيد؟";
+"lng_really_send_file" = "آيا شما اين فايل را ميخواهيد ارسال کنيد؟";
+"lng_really_share_contact" = "آيا شما ميخواهيد اين مخاطب را اشتراک گذاري کنيد؟";
+"lng_send_image_compressed" = "ارسال عکس بصورت فشرده شده";
+
+"lng_forward_choose" = "..انتخاب دريافت کننده";
+"lng_forward_confirm" = "؟{recipient} انتقال به";
+"lng_forward_share_contact" = "؟{recipient} اشتراک گذاري مخاطب به";
+"lng_forward_send_file_confirm" = "؟{recipient} به «{name}» ارسال";
+"lng_forward_send_files_confirm" = "؟{recipient} ارسال فايل هاي انتخاب شده به";
+"lng_forward" = "انتقال";
+"lng_forward_send" = "ارسال";
+
+"lng_contact_phone" = "شماره موبايل";
+"lng_enter_contact_data" = "مخاطب جديد";
+"lng_edit_group_title" = "ويرايش نام گروه";
+"lng_edit_contact_title" = "ويرايش نام مخاطب";
+"lng_edit_self_title" = "ويرايش نام شما";
+"lng_confirm_contact_data" = "کاربر جديد";
+"lng_add_contact" = "ايجاد";
+"lng_add_contact_button" = "افزودن مخاطب";
+"lng_contacts_header" = "مخاطبين";
+"lng_contact_not_joined" = "Unfortunately {name} did not join Telegram yet, but you can send your friend an invitation.\n\nWe will notify you about any of your contacts who is joining Telegram.";
+"lng_try_other_contact" = "تلاش ديگر";
+"lng_contacts_done" = "لغو";
+
+"lng_drag_images_here" = "انداختن عکس ها در اينجا";
+"lng_drag_photos_here" = "انداختن تصاوير در اينجا";
+"lng_drag_files_here" = "انداختن فايل ها در اينجا";
+
+"lng_drag_to_send_quick" = "ارسال آنها از راه سريع";
+"lng_drag_to_send_no_compression" = "ارسال آنها بدون فشرده سازي";
+"lng_drag_to_send_documents" = "ارسال آنها به عنوان اسناد";
+
+"lng_selected_clear" = "لغو";
+"lng_selected_delete" = "حذف";
+"lng_selected_forward" = "انتقال";
+"lng_selected_count" = "{count:_not_used_|# message|# messages}";
+"lng_selected_cancel_sure_this" = "آيا شما اين آپلود را ميخواهيد لغو کنيد؟";
+"lng_selected_delete_sure_this" = "آيا شما ميخواهيد اين پيغام را حذف نماييد؟";
+"lng_selected_delete_sure" = "؟{count:_not_used_|# message|# messages} آيا شما ميخواهيد حذف کنيد";
+"lng_selected_delete_confirm" = "حذف";
+
+"lng_about_version" = "{version} نسخه";
+"lng_about_text" = "Official free messaging app based on [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] and\n[a href=\"https://core.telegram.org/api\"]Telegram API[/a] for speed and security\n\nThis software is licensed under [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3,\nsource code is available on [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a]. Translate and Modelate GUI by: [a href=\"mailto:javad1993@live.co.uk"]JavadR[/a]";
+"lng_about_done" = "انجام";
+
+"lng_search_found_results" = "{count:No messages found|Found # message|Found # messages}";
+"lng_search_global_results" = "نتايج جستجو جهاني";
+
+"lng_mediaview_save" = "دانلود";
+"lng_mediaview_forward" = "انتقال";
+"lng_mediaview_delete" = "حذف";
+"lng_mediaview_single_photo" = "عکس تنها";
+"lng_mediaview_group_photo" = "تصوير گروه";
+"lng_mediaview_profile_photo" = "تصوير پروفايل";
+"lng_mediaview_n_of_count" = "{n} of {count} تصوير";
+"lng_mediaview_doc_image" = "سند";
+"lng_mediaview_today" = "{time} امروز در";
+"lng_mediaview_yesterday" = "{time} ديروز در";
+"lng_mediaview_date_time" = "{date} در {time}";
+
+"lng_mediaview_saved" = "ذخيره شد [c]Downloads[/c] تصوير در پوشه";
+
+"lng_new_authorization" = "{name},\nWe detected a login into your account from a new device on {day}, {date} at {time}\n\nDevice: {device}\nLocation: {location}\n\nIf this wasn't you, you can go to Settings — Terminate other sessions.\n\nThanks,\nThe Telegram Team";
+
+"lng_new_version7004" = "Telegram Desktop was updated to version {version}\n\n — German and Dutch languages added.\n\nFull version history is available here:\n{link}";
+
+// Mac specific
+
+"lng_mac_choose_app" = "انتخاب برنامه";
+"lng_mac_choose_text" = "\"{file}\ انتخاب يک برنامه براي باز کردن اين سند".";
+"lng_mac_enable_filter" = "فعال:";
+"lng_mac_recommended_apps" = "برنامه هاي مورد نياز";
+"lng_mac_all_apps" = "همه برنامه ها";
+"lng_mac_always_open_with" = "هميشه با اين باز شود";
+"lng_mac_this_app_can_open" = "This application can open \"{file}\".";
+"lng_mac_not_known_app" = "It's not known if this application can open \"{file}\".";
+
+"lng_mac_menu_about" = "درباره تلگرام";
+"lng_mac_menu_preferences" = "... تنظيمات";
+"lng_mac_menu_file" = "فايل";
+"lng_mac_menu_logout" = "خروج از سيستم";
+"lng_mac_menu_edit" = "ويرايش";
+"lng_mac_menu_undo" = "عقب";
+"lng_mac_menu_redo" = "ازنو";
+"lng_mac_menu_cut" = "برش";
+"lng_mac_menu_copy" = "کپي";
+"lng_mac_menu_paste" = "چسباندن";
+"lng_mac_menu_delete" = "حذف";
+"lng_mac_menu_select_all" = "انتخاب همه";
+"lng_mac_menu_window" = "پنجره";
+"lng_mac_menu_contacts" = "مخاطبين";
+"lng_mac_menu_add_contact" = "افزودن مخاطب";
+"lng_mac_menu_new_group" = "گروه جديد";
+"lng_mac_menu_show" = "نمايش تلگرام";
+
+// Keys finished
