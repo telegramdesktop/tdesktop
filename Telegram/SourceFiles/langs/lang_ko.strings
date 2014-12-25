@@ -51,7 +51,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org */
 "lng_weekday5_full" = "금요일";
 "lng_weekday6_full" = "토요일";
 "lng_weekday7_full" = "일요일";
-"lng_month_day" = "{month} {day}일";
+"lng_month_day" = "{month} {day}";
 "lng_cancel" = "취소";
 "lng_continue" = "계속";
 "lng_close" = "닫기";
@@ -389,7 +389,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org */
 "lng_mediaview_yesterday" = "어제 {time}";
 "lng_mediaview_date_time" = "{date} {time}";
 "lng_mediaview_saved" = "사진이  [c]다운로드[/c] 폴더에 저장되었습니다.";
-"lng_new_authorization" = "{name}님,\n저희는 새로운 기기로부터 {date}, {day}일 {time}에 이 계정으로 접속하는 것을 감지하였습니다.\n\n기기: {device}\n위치: {location}\n\n만약 당신이 아니라면 설정 — 다른 세션 종료를 할 수 있습니다.\n\n감사합니다.\n텔레그램 팀으로부터";
+"lng_new_authorization" = "{name}님,\n저희는 새로운 기기로부터 {date}, {day} {time}에 이 계정으로 접속하는 것을 감지하였습니다.\n\n기기: {device}\n위치: {location}\n\n만약 당신이 아니라면 설정 — 다른 세션 종료를 할 수 있습니다.\n\n감사합니다.\n텔레그램 팀으로부터";
 "lng_new_version7004" = "텔레그램 데스크탑이 새로운 버전인 {version} 버전으로 업데이트되었습니다.\n\n — 한국어가 추가되었습니다.\n\n모든 버전을 찾으시려면:\n {link}";
 "lng_mac_choose_app" = "응용 프로그램을 선택해 주세요.";
 "lng_mac_choose_text" = "\"{file}\"을(를) 열 응용 프로그램을 선택해 주세요.";
