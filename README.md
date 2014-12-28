@@ -109,7 +109,7 @@ creates lang constants code and lang file parse code
 
 ### Instructions for creating new translation
 
-* create translation file: e.g. SourceFiles/langs/lang_pl.strings
+* create translation file: e.g. `SourceFiles/langs/lang_pl.strings`
 * modify SourceFiles/lang.h: add language-code to array `LanguageCodes`
 * modify SourceFiles/telegram_linux.qrc: add new resource definition in 
 
@@ -123,8 +123,9 @@ creates lang constants code and lang file parse code
 	</RCC>
 	```
 * modify Telegram.pro: add language to OTHER_FILES list
+
 	```
 	OTHER_FILES += \
 		...
-	    SourceFiles/langs/lang_pl.strings
+		SourceFiles/langs/lang_pl.strings
 	```
