@@ -106,3 +106,25 @@ from langpack file
 creates lang constants code and lang file parse code
 * GeneratedFiles/lang.h
 * GeneratedFiles/lang.cpp
+
+### Instructions for creating new translation
+
+* create translation file: e.g. SourceFiles/langs/lang_pl.strings
+* modify SourceFiles/lang.h: add language-code to array `LanguageCodes`
+* modify SourceFiles/telegram_linux.qrc: add new resource definition in 
+
+	```
+	<RCC>
+		...
+		<qresource prefix="/langs">
+			...
+			<file alias="lang_pl.strings">langs/lang_pl.strings</file>
+		</qresource>
+	</RCC>
+	```
+* modify Telegram.pro: add language to OTHER_FILES list
+	```
+	OTHER_FILES += \
+		...
+	    SourceFiles/langs/lang_pl.strings
+	```
