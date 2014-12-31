@@ -1095,6 +1095,15 @@ void Window::notifySchedule(History *history, MsgId msgId) {
 	if (App::quiting() || !history->currentNotification()) return;
 
 	bool haveSetting = (history->peer->notify != UnknownNotifySettings);
+	bool notifiesSuspended = false;
+
+#ifdef Q_OS_WIN
+	PsNotificationSuspension currentNotificationState = psCheckNotificationSuspension();
+	if ((currentNotificationState == NotifySuspendAll) || (currentNotificationState == NotifySuspendPopup)) {
+		notifiesSuspended = true;
+	}
+#endif
+
 	if (haveSetting) {
 		if (history->peer->notify != EmptyNotifySettings && history->peer->notify->mute > unixtime()) {
 			history->clearNotifications();
@@ -1106,7 +1115,7 @@ void Window::notifySchedule(History *history, MsgId msgId) {
 
 	uint64 ms = getms(true) + NotifyWaitTimeout;
 	notifyWhenAlerts[history].insert(ms, NullType());
-	if (cDesktopNotify()) {
+	if ((cDesktopNotify()) && (!notifiesSuspended)) {
 		NotifyWhenMaps::iterator i = notifyWhenMaps.find(history);
 		if (i == notifyWhenMaps.end()) {
 			i = notifyWhenMaps.insert(history, NotifyWhenMap());
@@ -1216,6 +1225,13 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 			++i;
 		}
 	}
+
+#ifdef Q_OS_WIN
+	if (psCheckNotificationSuspension() == NotifySuspendAll) {
+		alert = false;
+	}
+#endif
+
 	if (alert) {
 		psFlash();
 		App::playSound();

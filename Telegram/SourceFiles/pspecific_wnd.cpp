@@ -55,6 +55,7 @@ namespace {
 	bool useDWM = false;
 	bool useTheme = false;
 	bool useOpenAs = false;
+	bool useNotifySuspend = false;
 	bool themeInited = false;
 	bool finished = true;
 	int menuShown = 0, menuHidden = 0;
@@ -620,6 +621,9 @@ namespace {
 	typedef HRESULT (FAR STDAPICALLTYPE *f_shOpenWithDialog)(HWND hwndParent, const OPENASINFO *poainfo);
 	f_shOpenWithDialog shOpenWithDialog;
 
+	typedef HRESULT(FAR STDAPICALLTYPE *f_shQueryUserNotificationState)(_Out_ QUERY_USER_NOTIFICATION_STATE *pquns);
+	f_shQueryUserNotificationState shQueryUserNotificationState;
+
 	template <typename TFunction>
 	bool loadFunction(HINSTANCE dll, LPCSTR name, TFunction &func) {
 		if (!dll) return false;
@@ -637,6 +641,7 @@ namespace {
 
 			setupUx();
 			setupOpenAs();
+			setupNotificationSuspension();
 		}
 		void setupDWM() {
 			HINSTANCE procId = LoadLibrary(L"DWMAPI.DLL");
@@ -657,6 +662,12 @@ namespace {
 
 			if (!loadFunction(procId, "SHOpenWithDialog", shOpenWithDialog) && !loadFunction(procId, "OpenAs_RunDLLW", openAs_RunDLL)) return;
 			useOpenAs = true;
+		}
+		void setupNotificationSuspension() {
+			HINSTANCE procId = LoadLibrary(L"SHELL32.DLL");
+
+			if (!loadFunction(procId, "SHQueryUserNotificationState", shQueryUserNotificationState)) return;
+			useNotifySuspend = true;
 		}
 	};
 	_PsInitializer _psInitializer;
@@ -2166,6 +2177,20 @@ void psStart() {
 }
 
 void psFinish() {
+}
+
+PsNotificationSuspension psCheckNotificationSuspension(){
+	if (shQueryUserNotificationState){
+		QUERY_USER_NOTIFICATION_STATE notifyState;
+		shQueryUserNotificationState(&notifyState);
+		if ((notifyState == QUNS_PRESENTATION_MODE)) {
+			return NotifySuspendAll;
+		}
+		if ((notifyState == QUNS_RUNNING_D3D_FULL_SCREEN)) {
+			return NotifySuspendPopup;
+		}		
+	}
+	return NotifySuspendNone;
 }
 
 namespace {

@@ -201,6 +201,13 @@ void psShowInFolder(const QString &name);
 void psStart();
 void psFinish();
 
+enum PsNotificationSuspension {
+	NotifySuspendNone = 0,
+	NotifySuspendPopup = 1,
+	NotifySuspendAll = 2
+};
+PsNotificationSuspension psCheckNotificationSuspension();
+
 void psRegisterCustomScheme();
 
 void psUpdateOverlayed(TWidget *widget);
