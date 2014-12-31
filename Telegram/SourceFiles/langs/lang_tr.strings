@@ -1,0 +1,482 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014 John Preston, https://desktop.telegram.org
+*/
+"lng_language_name" = "Türkçe";
+"lng_switch_to_this" = "Türkçe'ye geç";
+
+"lng_menu_contacts" = "Kişiler";
+"lng_menu_settings" = "Ayarlar";
+"lng_menu_about" = "Hakkında";
+"lng_menu_update" = "Güncelle";
+"lng_menu_restart" = "Yeniden Başlat";
+"lng_menu_back" = "Geri";
+
+"lng_open_from_tray" = "Telegram'ı Aç";
+"lng_minimize_to_tray" = "Tepsiye küçült";
+"lng_quit_from_tray" = "Telegram'dan Çık";
+"lng_tray_icon_text" = "Telegram burada çalışmakta,\nBu durumu ayarlardan değiştirebilirsiniz.\n\nEğer bu simge buradan yok olursa,\ngizlenen simgelerden buraya tekrar çekebilirsiniz.";
+
+"lng_month1" = "Ocak";
+"lng_month2" = "Şubat";
+"lng_month3" = "Mart";
+"lng_month4" = "Nisan";
+"lng_month5" = "Mayıs";
+"lng_month6" = "Haziran";
+"lng_month7" = "Temmuz";
+"lng_month8" = "Ağustos";
+"lng_month9" = "Eylül";
+"lng_month10" = "Ekim";
+"lng_month11" = "Kasım";
+"lng_month12" = "Aralık";
+
+"lng_weekday1" = "Pzt";
+"lng_weekday2" = "Sal";
+"lng_weekday3" = "Çar";
+"lng_weekday4" = "Per";
+"lng_weekday5" = "Cum";
+"lng_weekday6" = "Cts";
+"lng_weekday7" = "Paz";
+
+"lng_weekday1_full" = "Pazartesi";
+"lng_weekday2_full" = "Salı";
+"lng_weekday3_full" = "Çarşamba";
+"lng_weekday4_full" = "Perşembe";
+"lng_weekday5_full" = "Cuma";
+"lng_weekday6_full" = "Cumartesi";
+"lng_weekday7_full" = "Pazar";
+
+"lng_month_day" = "{month} {day}";
+
+"lng_cancel" = "Vazgeç";
+"lng_continue" = "Devam";
+"lng_close" = "Kapat";
+"lng_connecting" = "Bağlanıyor..";
+"lng_reconnecting" = "Tekrar bağlanıyor {count:şimdi|in # s|in # s}..";
+"lng_reconnecting_try_now" = "Şimdi dene";
+
+"lng_status_service_notifications" = "servis bildirimleri";
+"lng_status_offline" = "son görülme uzun zaman önce";
+"lng_status_recently" = "son görülme yakın zamanda";
+"lng_status_last_week" = "son görülme bir hafta önce";
+"lng_status_last_month" = "son görülme bir ay önce";
+"lng_status_invisible" = "görünmez";
+"lng_status_lastseen_now" = "son görülme az önce";
+"lng_status_lastseen_minutes" = "son görülme {count:_not_used_|# dakika|# dakika} önce";
+"lng_status_lastseen_hours" = "son görülme {count:_not_used_|# saat|# saat} önce";
+"lng_status_lastseen_today" = "son görülme bugün {time}";
+"lng_status_lastseen_yesterday" = "son görülme dün {time}";
+"lng_status_lastseen_date" = "son görülme {date}";
+"lng_status_lastseen_date_time" = "son görülme {date} {time}";
+"lng_status_online" = "çevrimiçi";
+"lng_status_connecting" = "bağlanıyor..";
+
+"lng_chat_status_unaccessible" = "grup erişilemez";
+"lng_chat_status_members" = "{count:üye yok|# üye|# üye}";
+"lng_chat_status_members_online" = "{count:_not_used_|# üye|# üye}, {count_online:_not_used_|# çevrimiçi|# çevrimiçi}";
+
+"lng_server_error" = "İçsel sunucu hatası.";
+"lng_flood_error" = "Çok fazla deneme. Lütfen daha sonra tekrar dene.";
+"lng_deleted" = "Bilinmeyen";
+
+"lng_intro" = "Resmi [a href=\"https://telegram.org/\"]Telegram[/a] masaüstü uygulamasına hoşgeldiniz.\nBu uygulama [b]hızlı[/b] ve [b]güvenlidir[/b].";
+"lng_start_msgs" = "MESAJLAŞMAYA BAŞLA";
+
+"lng_intro_next" = "İLERİ";
+"lng_intro_finish" = "HESAP OLUŞTUR";
+
+"lng_phone_ph" = "Telefon numaranız";
+"lng_phone_title" = "Telefonunuz";
+"lng_phone_desc" = "Lütfen ülke kodunu doğrulayın ve\ntelefon numarasını girin.";
+"lng_phone_notreg" = "Not: Eğer henüz Telegram hesabınız yoksa,\nlütfen [a href=\"https://telegram.org/\"]iOS / Android[/a] veya {signup_start}buradan »{signup_end} [b]hesap oluşturun[/b].";
+"lng_country_code" = "Ülke Kodu";
+"lng_bad_country_code" = "Geçersiz Ülke Kodu";
+"lng_country_ph" = "Ara";
+"lng_country_done" = "Tamam";
+"lng_country_none" = "Ülke bulunamadı";
+"lng_country_select" = "Ülke Seçin";
+
+"lng_code_ph" = "Kodunuz";
+"lng_code_desc" = "Size etkinleştirme kodunu içiren bir mesaj\ngönderdik. Lütfen onu buraya yazın.";
+"lng_code_call" = "Telegram telefonunuzu {minutes}:{seconds} içerisinde arayacak";
+"lng_code_calling" = "Telegram'dan çeğrı isteme..";
+"lng_code_called" = "Telegram telefonunuzu aradı";
+
+"lng_bad_phone" = "Geçersiz telefon numarası. Lütfen tekrar deneyin.";
+"lng_bad_phone_noreg" = "Telefon numarası kayıtlı değil.";
+"lng_bad_code" = "Yanlış kod girdiniz. Lütfen tekrar deneyin.";
+"lng_bad_name" = "Lütfen adınızı ve soyadınızı girin.";
+"lng_bad_photo" = "Bozuk fotoğraf seçildi.";
+
+"lng_signup_title" = "Bilgi ve fotoğraf";
+"lng_signup_desc" = "Lütfen adınızı girin ve\nfotoğraf yükleyin.";
+
+"lng_signup_firstname" = "İsim";
+"lng_signup_lastname" = "Soyisim";
+
+"lng_dlg_filter" = "Ara";
+"lng_dlg_new_group_name" = "Grup adı";
+"lng_dlg_create_group" = "Oluştur";
+"lng_no_contacts" = "Kişileriniz yok";
+"lng_contacts_loading" = "Yükleniyor..";
+"lng_contacts_not_found" = "Hiç kişi bulunamadı";
+
+"lng_settings_save" = "Kaydet";
+"lng_settings_upload" = "Profil Fotoğrafı Ayarla";
+"lng_settings_crop_profile" = "Profil fotoğrafınız için kare alan seçin";
+"lng_settings_uploading_photo" = "Fotoğraf yükleniyor..";
+
+"lng_username_title" = "Kullanıcı adını değiştir";
+"lng_username_about" = "Telegram üzerinde bir kullanıcı adı seçebilirsiniz.\nSeçerseniz, diğer insanlar telefon numaranızı\nbilmeden, bu kullanıcı adı ile sizi bulabilirler.\n\na-z, 0-9 ve alt çizgi kullanabilirsiniz\nEn az 5 karakterden oluşmalı";
+"lng_username_invalid" = "Bu isim geçersiz.";
+"lng_username_occupied" = "Bu isim kullanılıyor.";
+"lng_username_too_short" = "Bu isim çok kısa.";
+"lng_username_bad_symbols" = "Bu isim geçersiz karakterler içeriyor.";
+"lng_username_available" = "Bu isim mevcut.";
+"lng_username_not_found" = "Kullanıcı @{user} bulunamadı.";
+
+"lng_settings_section_contact_info" = "Kişi bilgisi";
+"lng_settings_phone_number" = "Telefon numarası:";
+"lng_settings_username" = "Kullanıcı adı:";
+"lng_settings_choose_username" = "kullanıcı adı seç";
+"lng_settings_change_username" = "değiştir";
+
+"lng_settings_section_notify" = "Bildirimler";
+"lng_settings_desktop_notify" = "Masaüstü Bildirimleri";
+"lng_settings_show_name" = "Gönderenin ismini göster";
+"lng_settings_show_preview" = "Mesajın önizlemesini göster";
+"lng_settings_sound_notify" = "Ses çıkar";
+
+"lng_notification_preview" = "Mesajınız var";
+
+"lng_settings_section_general" = "Genel";
+"lng_settings_change_lang" = "Dili Değiştir";
+"lng_languages" = "Diller";
+"lng_sure_save_language" = "Dilin değişmesi için\nTelegram yeniden başlatılacak";
+"lng_settings_auto_update" = "Otomatik güncelle";
+"lng_settings_current_version" = "Sürüm {version}";
+"lng_settings_check_now" = "Güncellemeleri kontrol et";
+"lng_settings_update_checking" = "Güncellemeler kontrol ediliyor..";
+"lng_settings_latest_installed" = "Son sürüm kurulu";
+"lng_settings_downloading" = "Güncelleme indiriliyor {ready} / {total} Mb..";
+"lng_settings_update_ready" = "Yeni sürüm hazır";
+"lng_settings_update_now" = "Şimdi yeniden başlat";
+"lng_settings_update_fail" = "Güncelleme kontrolü başarısız :(";
+"lng_settings_workmode_tray" = "Tepside simge göster";
+"lng_settings_workmode_window" = "Görev çubuğunda simge göster";
+"lng_settings_auto_start" = "Telegram'ı sistem başlangıcında çalıştır";
+"lng_settings_start_min" = "Küçültülmüş başlat";
+"lng_settings_add_sendto" = "Telegram'ı «Gönder» menüsünde göster";
+"lng_settings_scale_label" = "Arayüz ölçeği";
+"lng_settings_scale_auto" = "Otomatik ({cur})";
+
+"lng_settings_section_chat" = "Sohbet seçenekleri";
+"lng_settings_replace_emojis" = "Gülücükleri yerleştir";
+"lng_settings_view_emojis" = "Liste göster";
+"lng_settings_emoji_list" = "Desteklenen gülücüklerin listesi";
+"lng_settings_send_enter" = "Enter ile gönder";
+"lng_settings_send_ctrlenter" = "Ctrl+Enter ile gönder";
+"lng_settings_send_cmdenter" = "Cmd+Enter ile gönder";
+"lng_settings_cats_and_dogs" = "Kedilere ve köpeklere izin ver";
+
+"lng_download_path_dont_ask" = "Her dosya için indirme dizini sorma";
+"lng_download_path_label" = "İndirme dizini:";
+"lng_download_path_temp" = "geçici dizin";
+"lng_download_path_default" = "öntanımlı dizin";
+"lng_download_path_clear" = "Hepsini Temizle";
+"lng_download_path_header" = "İndirme dizini seçin";
+"lng_download_path_default_radio" = "Sistemin «İndirilenler» dizinindeki Telegram Dizini";
+"lng_download_path_temp_radio" = "Geçici dizin, oturum kapatılınca veya uygulama kaldırılınca silinir";
+"lng_download_path_dir_radio" = "Seçilen dizin, sadece elle silinir";
+"lng_download_path_choose" = "İndirme dizini seçin";
+"lng_sure_clear_downloads" = "Geçici dizindeki tüm indirilenleri silmek istiyor musunuz? Oturumu kapattığınızda veya programı kaldırdığınızda otomatik silinir.";
+"lng_download_path_failed" = "Dosya indirme başlatılamadı. Muhtemelen bozuk indirme konumundan kaynaklanıyor.\n\nİndirme dizinini ayarlardan değiştirebilirsiniz.";
+"lng_download_path_settings" = "Ayarlara Git";
+"lng_download_finish_failed" = "Dosya indirmesi tamamlanamadı.\n\nTekrar denemek istiyor musunuz?";
+"lng_download_path_clearing" = "Temizleniyor..";
+"lng_download_path_cleared" = "Temizlendi!";
+"lng_download_path_clear_failed" = "Temizlenemedi :(";
+
+"lng_settings_section_cache" = "Yerel depolama";
+"lng_settings_no_images_cached" = "Ön bellekte Görüntü bulunamadı!";
+"lng_settings_images_cached" = "Ön bellek: {count:_not_used_|# görüntü|# görüntü}, {size}";
+"lng_local_images_clear" = "Tamamını Temizle";
+"lng_local_images_clearing" = "Temizleniyor..";
+"lng_local_images_cleared" = "Temizlendi!";
+"lng_local_images_clear_failed" = "Temizlenemedi :(";
+
+"lng_settings_section_advanced" = "Gelişmiş";
+"lng_connection_type" = "Bağlantı türü:";
+"lng_connection_auto_connecting" = "Öntanımlı (bağlanıyor..)";
+"lng_connection_auto" = "Öntanımlı ({type} kullanıldı)";
+"lng_connection_http_proxy" = "Vekil ile HTTP";
+"lng_connection_tcp_proxy" = "Vekil ile TCP";
+"lng_connection_header" = "Bağlantı türü";
+"lng_connection_auto_rb" = "Otomatik (mevcutsa TCP veya HTTP)";
+"lng_connection_http_proxy_rb" = "Ayarlanan http-proxy ile HTTP";
+"lng_connection_tcp_proxy_rb" = "Ayarlanan socks5-proxy ile TCP";
+"lng_connection_host_ph" = "Sunucu";
+"lng_connection_port_ph" = "Port";
+"lng_connection_user_ph" = "Kullanıcıadı";
+"lng_connection_password_ph" = "Parola";
+"lng_connection_save" = "Kaydet";
+"lng_settings_reset" = "Diğer oturumları sonlandır";
+"lng_settings_reset_sure" = "Diğer tüm oturumları sonlandırmak istediğinize emin misiniz?";
+"lng_settings_reset_button" = "Sonlandır";
+"lng_settings_reset_done" = "Diğer oturumlar sonlandırıldı";
+"lng_settings_logout" = "Çıkış Yap";
+"lng_sure_logout" = "Çıkış yapmak istediğinize emin misiniz?";
+
+"lng_settings_need_restart" = "Yeni bazı ayarların uygulanabilmesi için\ntekrar başlatmalınız. Yeniden başlatılsın mı?";
+"lng_settings_restart_now" = "Yeniden başlat";
+"lng_settings_restart_later" = "Sonra";
+
+"lng_profile_chat_unaccessible" = "Grup erişilemez";
+"lng_topbar_info" = "Bilgi";
+"lng_profile_settings_section" = "Ayarlar";
+"lng_profile_participants_section" = "Katılımcılar";
+"lng_profile_info" = "Kişi bilgisi";
+"lng_profile_group_info" = "Grup bilgisi";
+"lng_profile_add_contact" = "Kişi ekle";
+"lng_profile_edit_contact" = "Düzenle";
+"lng_profile_enable_notifications" = "Bildirimler";
+"lng_profile_clear_history" = "Geçmişi temizle";
+"lng_profile_send_message" = "Mesaj Gönder";
+"lng_profile_share_contact" = "Kişi Paylaş";
+"lng_profile_delete_contact" = "Sil";
+"lng_profile_set_group_photo" = "Fotoğraf Ayarla";
+"lng_profile_add_participant" = "Üye Ekle";
+"lng_profile_delete_and_exit" = "Ayrıl";
+"lng_profile_kick" = "Kov";
+"lng_profile_sure_kick" = "Gruptan {user} kov?";
+"lng_profile_loading" = "Yükleniyor..";
+"lng_profile_shared_media" = "Paylaşılan ortam";
+"lng_profile_no_media" = "Bu sohbette hiç ortam yok.";
+"lng_profile_photos" = "{count:_not_used_|# fotoğraf|# fotoğraf} »";
+"lng_profile_photos_header" = "Fotoğraflara genel bakış";
+"lng_profile_videos" = "{count:_not_used_|# video|# video} »";
+"lng_profile_videos_header" = "Videolara genel bakış";
+"lng_profile_documents" = "{count:_not_used_|# belge|# belge} »";
+"lng_profile_documents_header" = "Belgelere genel bakış";
+"lng_profile_audios" = "{count:_not_used_|# sesli mesaj|# sesli mesaj} »";
+"lng_profile_audios_header" = "sesli mesajlara genel bakış";
+"lng_profile_show_all_types" = "Tüm türleri göster";
+"lng_profile_copy_phone" = "Telefon numarasını kopyala";
+
+"lng_participant_filter" = "Ara";
+"lng_participant_invite" = "Davet";
+"lng_create_new_group" = "Yeni Grup";
+"lng_create_group_next" = "İleri";
+"lng_create_group_title" = "Yeni Grup";
+
+"lng_sure_delete_contact" = "{contact} kişisini kişi listenizden silmek istediğinize emin misiniz?";
+"lng_sure_delete_history" = "{contact} ile tüm geçmiş mesajları silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz.";
+
+"lng_sure_delete_and_exit" = "«{group}» grubundan ayrılıp tüm geçmiş mesajları silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz.";
+
+"lng_sure_enable_debug" = "HATAAYIKLAMA kipini etkinleştirmek istiyor musunuz?\n\nTüm ağ işlemleri kaydedilecek.";
+
+"lng_message_empty" = "(boş)";
+
+"lng_action_add_user" = "{user} {from} tarafından eklendi";
+"lng_action_kick_user" = "{user} {from} tarafından kovuldu";
+"lng_action_user_left" = "{from} gruba geri döndü";
+"lng_action_user_joined" = "{from} gruba katıldı";
+"lng_action_user_registered" = "{from} Telegram'a katıldı";
+"lng_action_removed_photo" = "{from} grup fotoğrafını sildi";
+"lng_action_changed_photo" = "{from} grup fotoğrafını değiştirdi";
+"lng_action_changed_title" = "{from} grup adını «{title}» olarak değiştirdi";
+"lng_action_created_chat" = "{from} «{title}» grubunu oluşturdu";
+
+"lng_forwarded_from" = "İletildi";
+
+"lng_attach_failed" = "Başarısız";
+"lng_attach_file" = "Belge";
+"lng_attach_photo" = "Fotoğraf";
+
+"lng_media_type" = "Ortam türü";
+"lng_media_type_photos" = "Fotoğraflar";
+"lng_media_type_videos" = "Videolar";
+"lng_media_type_documents" = "Belgeler";
+"lng_media_type_audios" = "Sesli mesajlar";
+
+"lng_media_open_with" = "Birlikte Aç";
+"lng_media_download" = "İndir";
+"lng_media_cancel" = "Vazgeç";
+"lng_media_video" = "Video";
+"lng_media_audio" = "Sesli mesaj";
+
+"lng_in_dlg_photo" = "Fotoğraf";
+"lng_in_dlg_video" = "Video";
+"lng_in_dlg_contact" = "Kişi";
+"lng_in_dlg_audio" = "Ses";
+"lng_in_dlg_document" = "Belge";
+"lng_in_dlg_sticker" = "Etiket";
+
+"lng_send_button" = "Gönder";
+"lng_message_ph" = "Mesaj yaz..";
+"lng_empty_history" = "";
+"lng_willbe_history" = "Lütfen mesajlaşmak için bir sohbet seçin";
+"lng_message_with_from" = "[c]{from}:[/c] {message}";
+"lng_from_you" = "Siz";
+
+"lng_typing" = "yazıyor";
+"lng_user_typing" = "{user} yazıyor";
+"lng_users_typing" = "{user} ve {second_user} yazıyor";
+"lng_many_typing" = "{count:_not_used_|# |# } yazıyor";
+"lng_unread_bar" = "{count:_not_used_|# |# } okunmamış mesaj";
+
+"lng_maps_point" = "Konum";
+"lng_save_photo" = "Görüntü kaydet";
+"lng_save_video" = "Video kaydet";
+"lng_save_audio" = "Ses kaydet";
+"lng_save_document" = "Belge kaydet";
+"lng_save_downloaded" = "{ready} / {total} {mb}";
+"lng_duration_and_size" = "{duration}, {size}";
+"lng_choose_images" = "Görüntüleri seçin";
+
+"lng_context_open_link" = "Bağlantı Aç";
+"lng_context_copy_link" = "Bağlantı Kopyala";
+"lng_context_open_email" = "Adrese yaz";
+"lng_context_copy_email" = "E-posta adresi kopyala";
+"lng_context_open_hashtag" = "Hashtag ara";
+"lng_context_copy_hashtag" = "Hashtag kopyala";
+"lng_context_open_image" = "Görüntü Aç";
+"lng_context_save_image" = "Görüntü Farklı Kaydet..";
+"lng_context_forward_image" = "Görüntü İlet";
+"lng_context_delete_image" = "Görüntü Sil";
+"lng_context_copy_image" = "Görüntü Kopyala";
+"lng_context_close_image" = "Görüntü Kapat";
+"lng_context_cancel_download" = "İndirmekten Vazgeç";
+"lng_context_show_in_folder" = "Dizinde Göster";
+"lng_context_show_in_finder" = "Bulucuda göster";
+"lng_context_open_video" = "Video Aç";
+"lng_context_save_video" = "Video Farklı Kaydet..";
+"lng_context_open_audio" = "Ses Aç";
+"lng_context_save_audio" = "Ses Farklı Kaydet..";
+"lng_context_open_document" = "Dosya Aç";
+"lng_context_save_document" = "Dosya Farklı Kaydet..";
+"lng_context_forward_file" = "Dosya İlet";
+"lng_context_delete_file" = "Dosya Sil";
+"lng_context_close_file" = "Dosya Kapat";
+"lng_context_copy_text" = "Mesaj metni kopyala";
+"lng_context_to_msg" = "Mesaja Git";
+"lng_context_forward_msg" = "Mesaj İlet";
+"lng_context_delete_msg" = "Mesaj Sil";
+"lng_context_select_msg" = "Mesaj Seç";
+"lng_context_cancel_upload" = "Yüklemekten Vazgeç";
+"lng_context_copy_selected" = "Seçilen Metni Kopyala";
+"lng_context_forward_selected" = "Seçileni İlet";
+"lng_context_delete_selected" = "Seçileni Sil";
+"lng_context_clear_selection" = "Seçileni Temizle";
+"lng_really_send_image" = "Bu görüntüyü göndermek istiyor musunuz?";
+"lng_really_send_file" = "Bu dosyayı göndermek istiyor musunuz?";
+"lng_really_share_contact" = "Bu kişiyi paylaşmak istiyor musunuz?";
+"lng_send_image_compressed" = "Sıkıştırılmış görüntüyü gönder";
+
+"lng_forward_choose" = "Alıcıyı Seç..";
+"lng_forward_confirm" = "{recipient} alıcısına ilet?";
+"lng_forward_share_contact" = "Kişiyi {recipient} ile paylaş?";
+"lng_forward_send_file_confirm" = "{recipient} alıcısına «{name}» gönder?";
+"lng_forward_send_files_confirm" = "Seçilen dosyaları {recipient} alıcısına gönder?";
+"lng_forward" = "İlet";
+"lng_forward_send" = "Gönder";
+
+"lng_contact_phone" = "Telefon Numarası";
+"lng_enter_contact_data" = "Yeni Kişi";
+"lng_edit_group_title" = "Grup adını düzenle";
+"lng_edit_contact_title" = "Kişi adını düzenle";
+"lng_edit_self_title" = "Adını düzenle";
+"lng_confirm_contact_data" = "Yeni Kişi";
+"lng_add_contact" = "Oluştur";
+"lng_add_contact_button" = "Kişi Ekle";
+"lng_contacts_header" = "Kişiler";
+"lng_contact_not_joined" = "Ne yazık ki {name} henüz Telegram'a katılmadı, ama istersen arkadaşına davetiye gönderebilirsin\n\nKişilerinden herhangi birisi Telegram'a katıldığında sana bildireceğiz.";
+"lng_try_other_contact" = "Diğerini dene";
+"lng_contacts_done" = "Vazgeç";
+
+"lng_drag_images_here" = "Görüntüleri buraya bırak";
+"lng_drag_photos_here" = "Fotoğrafları buraya bırak";
+"lng_drag_files_here" = "Dosyaları buraya bırak";
+
+"lng_drag_to_send_quick" = "hepsini göndermenin hızlı yolu";
+"lng_drag_to_send_no_compression" = "sıkıştırmadan gönder";
+"lng_drag_to_send_documents" = "belge olarak gönder";
+
+"lng_selected_clear" = "Vazgeç";
+"lng_selected_delete" = "Sil";
+"lng_selected_forward" = "İlet";
+"lng_selected_count" = "{count:_not_used_|# mesaj|# mesaj}";
+"lng_selected_cancel_sure_this" = "Bu yüklemeden vazgeçme istiyor musunuz?";
+"lng_selected_delete_sure_this" = "Bu mesajı silmek istiyor musunuz?";
+"lng_selected_delete_sure" = "{count:_not_used_|# mesajı|# mesajı} silmek istiyor musunuz?";
+"lng_selected_delete_confirm" = "Sil";
+
+"lng_about_version" = "Sürüm {version}";
+"lng_about_text" = "Official free messaging app based on [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] ve\n[a href=\"https://core.telegram.org/api\"]Telegram API[/a] temelli özgür, hızlı ve güvenli Resmi mesajlaşma uygulaması\n\nBu uygulama [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] sürüm 3 ile lisanslanmıştır,\nkaynak kodu [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a] üzerinde bulunmaktadır.";
+"lng_about_done" = "Tamam";
+
+"lng_search_found_results" = "{count:Mesaj bulunamadı|Found # mesaj|Found # mesaj}";
+"lng_search_global_results" = "Evrensel arama sonuçları";
+
+"lng_mediaview_save" = "İndir";
+"lng_mediaview_forward" = "İlet";
+"lng_mediaview_delete" = "Sil";
+"lng_mediaview_single_photo" = "Tek Fotoğraf";
+"lng_mediaview_group_photo" = "Grup Fotoğrafı";
+"lng_mediaview_profile_photo" = "Profil Fotoğrafı";
+"lng_mediaview_n_of_count" = "{n}/{count} fotoğraf";
+"lng_mediaview_doc_image" = "Belge";
+"lng_mediaview_today" = "bugün {time}";
+"lng_mediaview_yesterday" = "dün {time}";
+"lng_mediaview_date_time" = "{date} {time}";
+
+"lng_mediaview_saved" = "Görüntü [c]İndirilenler[/c] dizininize kaydedildi";
+
+"lng_new_authorization" = "{name},\nHesabınıza yeni bir cihazdan {day}, {date} {time} tarihinde oturum açıldı\n\nCihaz: {device}\nKonum: {location}\n\nEğer bu siz değilseniz ayarlara girip diğer oturumları sonlandırabilirsiniz.\n\nTeşekkürler,\nTelegram Takımı";
+
+"lng_new_version7004" = "Telegram Masaüstü yeni bir sürüme güncellendi {version}\n\nTam sürüm geçmişi burada:\n{link}";
+
+// Mac specific
+
+"lng_mac_choose_app" = "Uygulama Seç";
+"lng_mac_choose_text" = "\"{file}\" belgesini açabilmek için bir uygulama seçin.";
+"lng_mac_enable_filter" = "Etkin:";
+"lng_mac_recommended_apps" = "Gerekli Uygulamalar";
+"lng_mac_all_apps" = "Tüm Uygulamalar";
+"lng_mac_always_open_with" = "Herzaman Birlikte Aç";
+"lng_mac_this_app_can_open" = "Bu Uygulama \"{file}\" dosyasını açabilir.";
+"lng_mac_not_known_app" = "Bu bilinmeyen, eğer bu uygulama \"{file}\" dosyasını açarsa.";
+
+"lng_mac_menu_about" = "Telegram Hakkında";
+"lng_mac_menu_preferences" = "Yapılandırma...";
+"lng_mac_menu_file" = "Dosya";
+"lng_mac_menu_logout" = "Çıkış Yap";
+"lng_mac_menu_edit" = "Düzenle";
+"lng_mac_menu_undo" = "Geri Al";
+"lng_mac_menu_redo" = "Yinele";
+"lng_mac_menu_cut" = "Kes";
+"lng_mac_menu_copy" = "Kopyala";
+"lng_mac_menu_paste" = "Yapıştır";
+"lng_mac_menu_delete" = "Sil";
+"lng_mac_menu_select_all" = "Tümünü Seç";
+"lng_mac_menu_window" = "Pencere";
+"lng_mac_menu_contacts" = "Kişiler";
+"lng_mac_menu_add_contact" = "Kişi Ekle";
+"lng_mac_menu_new_group" = "Yeni Grup";
+"lng_mac_menu_show" = "Telegram'ı Göster";
+
+// Keys finished
