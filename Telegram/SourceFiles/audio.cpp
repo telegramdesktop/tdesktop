@@ -30,7 +30,7 @@ namespace {
 	ALuint notifyBuffer = 0;
 	QMutex voicemsgsMutex;
 	VoiceMessages *voicemsgs = 0;
-	AudioControl *autoSuspend = 0;
+	AudioControl *audioControl = 0;
 	uint32 notifySoundByteOffset = 0;
 	uint32 notifySoundSampleRate = 0;
 	uint32 notifySoundSize = 0;
@@ -57,11 +57,11 @@ bool _checkALError() {
 }
 
 void audioInit() {
-	if (!autoSuspend) {
-		autoSuspend = new AudioControl();
+	if (!audioControl) {
+		audioControl = new AudioControl();
 	}
 
-	autoSuspend->audioRequired();
+	audioControl->audioRequired();
 }
 
 bool audioWorks() {
@@ -69,16 +69,16 @@ bool audioWorks() {
 }
 
 void audioPlayNotify() {
-	autoSuspend->audioRequired();
+	audioControl->audioRequired();
 	if (!audioWorks()) return;
 
 	alSourcePlay(notifySource);
 }
 
 void audioFinish() {
-	if (autoSuspend) {
-		autoSuspend->audioFinished();
-		autoSuspend = NULL;
+	if (audioControl) {
+		audioControl->audioFinished();
+		audioControl = NULL;
 	}
 }
 
@@ -174,7 +174,7 @@ bool VoiceMessages::purgeALStructures(){
 
 void VoiceMessages::play(AudioData *audio) {
 	QMutexLocker lock(&voicemsgsMutex);
-	autoSuspend->audioRequired();
+	audioControl->audioRequired();
 
 	bool startNow = true;
 	if (_data[_current].audio != audio) {
@@ -266,7 +266,7 @@ void VoiceMessagesFader::onInit() {
 void VoiceMessagesFader::onTimer() {
 	bool hasFading = false, hasPlaying = false;
 	QMutexLocker lock(&voicemsgsMutex);
-	autoSuspend->audioRequired();
+	audioControl->audioRequired();
 	VoiceMessages *voice = audioVoice();
 	if (!voice) return;
 
