@@ -973,7 +973,6 @@ taMsgField: flatTextarea(taDefFlat) {
 	font: msgFont;
 }
 maxFieldHeight: 250px;
-minFieldHeight: 28px;
 
 newMsgSound: ':/gui/art/newmsg.wav';
 
@@ -1386,6 +1385,9 @@ dpiFont3: linkFont;
 dpiFont4: linkFont;
 
 emojiScroll: flatScroll(scrollDef) {
+	width: 5px;
+	deltax: 2px;
+	deltay: 1px;
 	topsh: 0px;
 	bottomsh: 0px;
 }
@@ -1407,12 +1409,15 @@ emojiPlaces: sprite(90px, 197px, 20px, 20px);
 emojiSymbolsActive: sprite(290px, 266px, 20px, 20px);
 emojiSymbolsOver: sprite(311px, 266px, 20px, 20px);
 emojiSymbols: sprite(111px, 197px, 20px, 20px);
+emojiStickersActive: sprite(311px, 308px, 20px, 20px);
+emojiStickersOver: sprite(354px, 200px, 20px, 20px);
+emojiStickers: sprite(375px, 200px, 20px, 20px);
 rbEmoji: flatCheckbox {
 	textColor: transparent;
 	bgColor: transparent;
 	disColor: transparent;
 
-	width: 36px;
+	width: 29px;
 	height: 36px;
 
 	textTop: 0px;
@@ -1423,7 +1428,7 @@ rbEmoji: flatCheckbox {
 	cursor: cursor(pointer);
 
 	disabledCursor: cursor(default);
-	imagePos: point(8px, 8px);
+	imagePos: point(5px, 8px);
 }
 rbEmojiRecent: flatCheckbox(rbEmoji) {
 	imageRect: emojiRecent;
@@ -1473,14 +1478,25 @@ rbEmojiSymbols: flatCheckbox(rbEmoji) {
 	disImageRect: emojiSymbols;
 	chkDisImageRect: emojiSymbolsActive;
 }
-emojiPanPadding: margins(10px, 5px, 0px, 5px);
+rbEmojiStickers: flatCheckbox(rbEmojiRecent) {
+	imageRect: emojiStickers;
+	chkImageRect: emojiStickersActive;
+	overImageRect: emojiStickersOver;
+	chkOverImageRect: emojiStickersActive;
+	disImageRect: emojiStickers;
+	chkDisImageRect: emojiStickersActive;
+}
+emojiPanPadding: margins(5px, 0px, 0px, 5px);
 emojiPanSize: size(28px, 28px);
-emojiPanFont: font(fsize);
-emojiPanText: #999;
 emojiPanSub: 0px;
 emojiPanDuration: 200;
 emojiPanHover: #f0f0f0;
 emojiPanRound: 2px;
+
+stickerPanRound: 3px;
+stickerPanPadding: 2px;
+stickerPanDelete: sprite(158px, 197px, 12px, 12px);
+stickerPanDeleteOpacity: 0.5;
 
 medviewNavBarWidth: 132px;
 medviewLightNav: 0.5;

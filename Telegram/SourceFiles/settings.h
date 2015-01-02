@@ -145,6 +145,14 @@ DeclareSetting(RecentEmojiPreload, RecentEmojisPreload);
 
 const RecentEmojiPack &cGetRecentEmojis();
 
+struct DocumentData;
+typedef QVector<DocumentData*> StickerPack;
+typedef QMap<EmojiPtr, StickerPack> AllStickers;
+DeclareSetting(AllStickers, Stickers);
+DeclareSetting(QByteArray, StickersHash);
+typedef QList<QPair<DocumentData*, int16> > RecentStickerPack;
+DeclareSetting(RecentStickerPack, RecentStickers);
+
 DeclareSetting(int32, Lang);
 DeclareSetting(QString, LangFile);
 

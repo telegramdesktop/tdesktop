@@ -720,8 +720,8 @@ void DocumentCancelLink::onClick(Qt::MouseButton button) const {
 	data->cancel();
 }
 
-DocumentData::DocumentData(int32 user, const DocumentId &id, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) :
-user(user), id(id), type(FileDocument), duration(0), access(access), date(date), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+DocumentData::DocumentData(const DocumentId &id, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) :
+id(id), type(FileDocument), duration(0), access(access), date(date), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
 	setattributes(attributes);
 	location = Local::readFileLocation(mediaKey(mtpc_inputDocumentFileLocation, dc, id));
 }
@@ -1289,27 +1289,14 @@ HistoryItem *History::createItemForwarded(HistoryBlock *block, MsgId id, History
 	return regItem(result);
 }
 
-/*
-HistoryItem *History::createItem(HistoryBlock *block, const MTPgeoChatMessage &msg, bool newMsg) {
+HistoryItem *History::createItemDocument(HistoryBlock *block, MsgId id, bool out, bool unread, QDateTime date, int32 from, DocumentData *doc) {
 	HistoryItem *result = 0;
 
-	switch (msg.type()) {
-	case mtpc_geoChatMessageEmpty:
-		result = new HistoryServiceMsg(this, block, msg.c_geoChatMessageEmpty().vid.v, date(), lang(lng_message_empty));
-	break;
-
-	case mtpc_geoChatMessage:
-		result = new HistoryMessage(this, block, msg.c_geoChatMessage());
-	break;
-
-	case mtpc_geoChatMessageService:
-		result = new HistoryServiceMsg(this, block, msg.c_geoChatMessageService());
-	break;
-	}
+	result = new HistoryMessage(this, block, id, out, unread, date, from, doc);
 
 	return regItem(result);
 }
-/**/
+
 HistoryItem *History::addToBackService(MsgId msgId, QDateTime date, const QString &text, bool out, bool unread, HistoryMedia *media, bool newMsg) {
 	HistoryBlock *to = 0;
 	bool newBlock = isEmpty();
@@ -1348,8 +1335,7 @@ HistoryItem *History::addToBackForwarded(MsgId id, HistoryMessage *item) {
 	return doAddToBack(to, newBlock, createItemForwarded(to, id, item), true);
 }
 
-/*
-HistoryItem *History::addToBack(const MTPgeoChatMessage &msg, bool newMsg) {
+HistoryItem *History::addToBackDocument(MsgId id, bool out, bool unread, QDateTime date, int32 from, DocumentData *doc) {
 	HistoryBlock *to = 0;
 	bool newBlock = isEmpty();
 	if (newBlock) {
@@ -1357,10 +1343,8 @@ HistoryItem *History::addToBack(const MTPgeoChatMessage &msg, bool newMsg) {
 	} else {
 		to = back();
 	}
-
-	return doAddToBack(to, newBlock, createItem(to, msg, newMsg), newMsg);
+	return doAddToBack(to, newBlock, createItemDocument(to, id, out, unread, date, from, doc), true);
 }
-/**/
 
 void History::createInitialDateBlock(const QDateTime &date) {
 	HistoryBlock *dateBlock = new HistoryBlock(this); // date block
@@ -2988,7 +2972,7 @@ void HistoryDocument::unregItem(HistoryItem *item) {
 
 void HistoryDocument::updateFrom(const MTPMessageMedia &media) {
 	if (media.type() == mtpc_messageMediaDocument) {
-		App::feedDocument(data->user, media.c_messageMediaDocument().vdocument, data);
+		App::feedDocument(media.c_messageMediaDocument().vdocument, data);
 	}
 }
 
@@ -3096,6 +3080,7 @@ void HistorySticker::initDimensions(const HistoryItem *parent) {
 void HistorySticker::draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const {
 	if (width < 0) width = w;
 	if (width < 1) return;
+	if (width > _maxw) width = _maxw;
 
 	bool out = parent->out(), hovered, pressed, already = !data->already().isEmpty(), hasdata = !data->data.isEmpty();
 	if (!data->loader && data->status != FileFailed && !already && !hasdata) {
@@ -3158,7 +3143,8 @@ void HistorySticker::unregItem(HistoryItem *item) {
 
 void HistorySticker::updateFrom(const MTPMessageMedia &media) {
 	if (media.type() == mtpc_messageMediaDocument) {
-		App::feedDocument(data->user, media.c_messageMediaDocument().vdocument, data);
+		App::feedDocument(media.c_messageMediaDocument().vdocument, data);
+		if (App::main()) App::main()->incrementSticker(data);
 	}
 }
 
@@ -3944,12 +3930,22 @@ HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgI
 , _textHeight(0)
 , _media(0)
 {
-	QString text(msg);
 	if (fromMedia) {
 		_media = fromMedia->clone();
 		_media->regItem(this);
 	}
-	initDimensions(text);
+	initDimensions(msg);
+}
+
+HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, DocumentData *doc) :
+HistoryItem(history, block, msgId, out, unread, date, from)
+, _text(st::msgMinWidth)
+, _textWidth(0)
+, _textHeight(0)
+, _media(0)
+{
+	initMediaFromDocument(doc);
+	initDimensions(QString());
 }
 
 void HistoryMessage::initMedia(const MTPMessageMedia &media, QString &currentText) {
@@ -3993,18 +3989,23 @@ void HistoryMessage::initMedia(const MTPMessageMedia &media, QString &currentTex
 	case mtpc_messageMediaDocument: {
 		const MTPDocument &document(media.c_messageMediaDocument().vdocument);
 		if (document.type() == mtpc_document) {
-			DocumentData *doc = App::feedDocument(_from->id, document);
-			if (doc->type == StickerDocument && doc->dimensions.width() > 0 && doc->dimensions.height() > 0 && doc->size < StickerInMemory) {
-				_media = new HistorySticker(doc);
-			} else {
-				_media = new HistoryDocument(doc);
-			}
+			DocumentData *doc = App::feedDocument(document);
+			return initMediaFromDocument(doc);
 		}
 	} break;
 	case mtpc_messageMediaUnsupported:
 	default: currentText += " (unsupported media)"; break;
 	};
 	if (_media) _media->regItem(this);
+}
+
+void HistoryMessage::initMediaFromDocument(DocumentData *doc) {
+	if (doc->type == StickerDocument && doc->dimensions.width() > 0 && doc->dimensions.height() > 0 && doc->size < StickerInMemory) {
+		_media = new HistorySticker(doc);
+	} else {
+		_media = new HistoryDocument(doc);
+	}
+	_media->regItem(this);
 }
 
 void HistoryMessage::initDimensions(const QString &text) {

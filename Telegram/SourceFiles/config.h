@@ -95,6 +95,8 @@ enum {
 	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
 	EmojiPadPerRow = 7,
 	EmojiPadRowsPerPage = 6,
+	StickerPadPerRow = 3,
+	StickersUpdateTimeout = 3600000, // update not more than once in an hour
 
 	SearchPeopleLimit = 5,
 	MinUsernameLength = 5,

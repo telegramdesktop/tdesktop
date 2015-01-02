@@ -288,6 +288,8 @@ public:
 	QRect historyRect() const;
 
 	void updateTyping(bool typing = true);
+//	void updateStickerPan();
+	void updateRecentStickers();
 	void typingDone(const MTPBool &result, mtpRequestId req);
 
 	void destroyData();
@@ -379,6 +381,7 @@ public slots:
 	void onTextChange();
 
 	void onFieldTabbed();
+	void onStickerSend(DocumentData *sticker);
 
 	void onVisibleChanged();
 
@@ -401,6 +404,8 @@ public slots:
 	void onDraftSaveDelayed();
 	void onDraftSave(bool delayed = false);
 
+	void updateStickers();
+
 private:
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
@@ -408,6 +413,12 @@ private:
 	void addMessagesToFront(const QVector<MTPMessage> &messages);
 	void addMessagesToBack(const QVector<MTPMessage> &messages);
 	void chatLoaded(const MTPmessages_ChatFull &res);
+
+	void stickersGot(const MTPmessages_AllStickers &stickers);
+	bool stickersFailed(const RPCError &error);
+
+	uint64 _lastStickersUpdate;
+	mtpRequestId _stickersUpdateRequest;
 
 	void writeDraft(const QString *text = 0, const MessageCursor *cursor = 0);
 	void setFieldText(const QString &text);
@@ -440,6 +451,7 @@ private:
 
 	Dropdown _attachType;
 	EmojiPan _emojiPan;
+//	StickerPan _stickerPan;
 	DragState _attachDrag;
 	DragArea _attachDragDocument, _attachDragPhoto;
 

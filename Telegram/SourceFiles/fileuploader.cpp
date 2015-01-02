@@ -32,9 +32,9 @@ void FileUploader::uploadMedia(MsgId msgId, const ReadyLocalMedia &media) {
 	} else if (media.type == ToPrepareDocument) {
 		DocumentData *document;
 		if (media.photoThumbs.isEmpty()) {
-			document = App::feedDocument(MTP::authedId(), media.document);
+			document = App::feedDocument(media.document);
 		} else {
-			document = App::feedDocument(MTP::authedId(), media.document, media.photoThumbs.begin().value());
+			document = App::feedDocument(media.document, media.photoThumbs.begin().value());
 		}
 		document->status = FileUploading;
 		if (!media.file.isEmpty()) {

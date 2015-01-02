@@ -4212,7 +4212,7 @@ LinkRanges textParseLinks(const QString &text, bool rich) {
 					}
 				}
 				if (p > domainEnd) { // check, that domain ended
-					if (domainEnd->unicode() != '/') {
+					if (domainEnd->unicode() != '/' && domainEnd->unicode() != '?') {
 						matchOffset = domainEnd - start;
 						continue;
 					}

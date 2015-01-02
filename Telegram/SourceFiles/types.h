@@ -313,12 +313,13 @@ enum DBIScale {
 };
 
 enum DBIEmojiTab {
-	dbietRecent  = -1,
-	dbietPeople  =  0,
-	dbietNature  =  1,
-	dbietObjects =  2,
-	dbietPlaces  =  3,
-	dbietSymbols =  4,
+	dbietRecent   = -1,
+	dbietPeople   =  0,
+	dbietNature   =  1,
+	dbietObjects  =  2,
+	dbietPlaces   =  3,
+	dbietSymbols  =  4,
+	dbietStickers =  666,
 };
 
 enum DBIPlatform {

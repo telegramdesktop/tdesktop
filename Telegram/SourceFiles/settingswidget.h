@@ -127,7 +127,7 @@ public slots:
 
 	void onCatsAndDogs();
 
-	void onLocalImagesClear();
+	void onLocalStorageClear();
 
 	void onUpdateChecking();
 	void onUpdateLatest();
@@ -144,6 +144,8 @@ public slots:
 
 	void onChangeLanguage();
 	void onSaveTestLang();
+
+	void onUpdateLocalStorage();
 
 private:
 
@@ -222,9 +224,10 @@ private:
 	FlatCheckbox _catsAndDogs;
 
 	// local storage
-	LinkButton _localImagesClear;
-	int32 _imagesClearingWidth, _imagesClearedWidth, _imagesClearFailedWidth;
-	TempDirClearState _imagesClearState;
+	LinkButton _localStorageClear;
+	int32 _localStorageHeight;
+	int32 _storageClearingWidth, _storageClearedWidth, _storageClearFailedWidth;
+	TempDirClearState _storageClearState;
 
 	// advanced
 	LinkButton _connectionType, _resetSessions;

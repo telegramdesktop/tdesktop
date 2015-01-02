@@ -26,6 +26,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "boxes/confirmbox.h"
 
+#include "localstorage.h"
+
 #include "audio.h"
 
 TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w),
@@ -2121,6 +2123,8 @@ void MainWidget::start(const MTPUser &user) {
 	}
 	_started = true;
 	App::wnd()->sendServiceHistoryRequest();
+	Local::readRecentStickers();
+	history.updateRecentStickers();
 }
 
 bool MainWidget::started() {
@@ -2265,6 +2269,45 @@ void MainWidget::updateNotifySetting(PeerData *peer, bool enabled) {
 	}
 	App::history(peer->id)->setMute(!enabled);
 	updateNotifySettingTimer.start(NotifySettingSaveTimeout);
+}
+
+void MainWidget::incrementSticker(DocumentData *sticker) {
+	RecentStickerPack recent(cRecentStickers());
+	RecentStickerPack::iterator i = recent.begin(), e = recent.end();
+	for (; i != e; ++i) {
+		if (i->first == sticker) {
+			if (i->second > 0) {
+				++i->second;
+			} else {
+				--i->second;
+			}
+			if (qAbs(i->second) > 0x4000) {
+				for (RecentStickerPack::iterator j = recent.begin(); j != e; ++j) {
+					if (qAbs(j->second) > 1) {
+						j->second /= 2;
+					} else if (j->second > 0) {
+						j->second = 1;
+					} else {
+						j->second = -1;
+					}
+				}
+			}
+			for (; i != recent.begin(); --i) {
+				if (qAbs((i - 1)->second) > qAbs(i->second)) {
+					break;
+				}
+				qSwap(*i, *(i - 1));
+			}
+			break;
+		}
+	}
+	if (i == e) {
+		recent.push_front(qMakePair(sticker, -(recent.isEmpty() ? 1 : qAbs(recent.front().second))));
+	}
+	cSetRecentStickers(recent);
+	Local::writeRecentStickers();
+
+	history.updateRecentStickers();
 }
 
 void MainWidget::activate() {

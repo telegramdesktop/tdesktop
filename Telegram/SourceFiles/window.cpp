@@ -1044,11 +1044,11 @@ Window::TempDirState Window::tempDirState() {
 	return QDir(cTempDir()).exists() ? TempDirExists : TempDirEmpty;
 }
 
-Window::TempDirState Window::localImagesState() {
-	if (_clearManager && _clearManager->hasTask(Local::ClearManagerImages)) {
+Window::TempDirState Window::localStorageState() {
+	if (_clearManager && _clearManager->hasTask(Local::ClearManagerStorage)) {
 		return TempDirRemoving;
 	}
-	return Local::hasImages() ? TempDirExists : TempDirEmpty;
+	return (Local::hasImages() || Local::hasStickers() || Local::hasAudios()) ? TempDirExists : TempDirEmpty;
 }
 
 void Window::tempDirDelete(int task) {

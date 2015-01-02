@@ -330,7 +330,7 @@ void Image::invalidateSizeCache() const {
 }
 
 LocalImage::LocalImage(const QString &file, QByteArray fmt) {
-	data = QPixmap::fromImage(App::readImage(file, &fmt, false), Qt::ColorOnly);
+	data = QPixmap::fromImage(App::readImage(file, &fmt, false, 0, &saved), Qt::ColorOnly);
 	format = fmt;
 	if (!data.isNull()) {
 		globalAquiredSize += int64(data.width()) * data.height() * 4;

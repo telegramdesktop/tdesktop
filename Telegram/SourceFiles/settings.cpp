@@ -72,6 +72,10 @@ DBIEmojiTab gEmojiTab = dbietRecent;
 RecentEmojiPack gRecentEmojis;
 RecentEmojiPreload gRecentEmojisPreload;
 
+AllStickers gStickers;
+QByteArray gStickersHash;
+RecentStickerPack gRecentStickers;
+
 int32 gLang = -2; // auto
 QString gLangFile;
 
@@ -147,7 +151,7 @@ void settingsParseArgs(int argc, char *argv[]) {
 const RecentEmojiPack &cGetRecentEmojis() {
 	if (cRecentEmojis().isEmpty()) {
 		RecentEmojiPack r;
-		if (!cRecentEmojisPreload().isEmpty()) {
+		if (false && !cRecentEmojisPreload().isEmpty()) {
 			RecentEmojiPreload p(cRecentEmojisPreload());
 			cSetRecentEmojisPreload(RecentEmojiPreload());
 			r.reserve(p.size());

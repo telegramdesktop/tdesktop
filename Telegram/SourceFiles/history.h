@@ -399,7 +399,7 @@ enum DocumentType {
 	AnimatedDocument
 };
 struct DocumentData {
-	DocumentData(int32 user, const DocumentId &id, const uint64 &access = 0, int32 date = 0, const QVector<MTPDocumentAttribute> &attributes = QVector<MTPDocumentAttribute>(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
+	DocumentData(const DocumentId &id, const uint64 &access = 0, int32 date = 0, const QVector<MTPDocumentAttribute> &attributes = QVector<MTPDocumentAttribute>(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
 	void setattributes(const QVector<MTPDocumentAttribute> &attributes);
 
 	void forget() {
@@ -434,8 +434,6 @@ struct DocumentData {
 	}
 
 	QString already(bool check = false);
-
-	int32 user;
 
 	DocumentId id;
 	DocumentType type;
@@ -640,12 +638,14 @@ struct History : public QList<HistoryBlock*> {
 
 	HistoryItem *createItem(HistoryBlock *block, const MTPmessage &msg, bool newMsg, bool returnExisting = false);
 	HistoryItem *createItemForwarded(HistoryBlock *block, MsgId id, HistoryMessage *msg);
-//	HistoryItem *createItem(HistoryBlock *block, const MTPgeoChatMessage &msg, bool newMsg);
+	HistoryItem *createItemDocument(HistoryBlock *block, MsgId id, bool out, bool unread, QDateTime date, int32 from, DocumentData *doc);
+
 	HistoryItem *addToBackService(MsgId msgId, QDateTime date, const QString &text, bool out = false, bool unread = false, HistoryMedia *media = 0, bool newMsg = true);
 	HistoryItem *addToBack(const MTPmessage &msg, bool newMsg = true);
 	HistoryItem *addToHistory(const MTPmessage &msg);
 	HistoryItem *addToBackForwarded(MsgId id, HistoryMessage *item);
-//	HistoryItem *addToBack(const MTPgeoChatMessage &msg, bool newMsg = true);
+	HistoryItem *addToBackDocument(MsgId id, bool out, bool unread, QDateTime date, int32 from, DocumentData *doc);
+
 	void addToFront(const QVector<MTPMessage> &slice);
 	void addToBack(const QVector<MTPMessage> &slice);
 	void createInitialDateBlock(const QDateTime &date);
@@ -1549,8 +1549,10 @@ public:
 	HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg);
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, const QString &msg, const MTPMessageMedia &media);
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, const QString &msg, HistoryMedia *media);
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, DocumentData *doc);
 
 	void initMedia(const MTPMessageMedia &media, QString &currentText);
+	void initMediaFromDocument(DocumentData *doc);
 	void initDimensions(const HistoryItem *parent = 0);
 	void initDimensions(const QString &text);
 	void fromNameUpdated() const;

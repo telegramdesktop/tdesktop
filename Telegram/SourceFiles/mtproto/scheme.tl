@@ -549,6 +549,11 @@ documentAttributeVideo#5910cccb duration:int w:int h:int = DocumentAttribute;
 documentAttributeAudio#51448e5 duration:int = DocumentAttribute;
 documentAttributeFilename#15590068 file_name:string = DocumentAttribute;
 
+stickerPack#12b299d4 emoticon:string documents:Vector<long> = StickerPack;
+
+messages.allStickersNotModified#e86602c3 = messages.AllStickers;
+messages.allStickers#dcef3102 hash:string packs:Vector<StickerPack> documents:Vector<Document> = messages.AllStickers;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d msg_id:long query:!X = X;
@@ -682,3 +687,5 @@ contacts.resolveUsername#bf0131c username:string = User;
 
 account.sendChangePhoneCode#a407a8f4 phone_number:string = account.SentChangePhoneCode;
 account.changePhone#70c32edb phone_number:string phone_code_hash:string phone_code:string = User;
+
+messages.getAllStickers#aa3bc868 hash:string = messages.AllStickers;

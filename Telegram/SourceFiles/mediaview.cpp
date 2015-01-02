@@ -179,7 +179,7 @@ void MediaView::updateControls() {
 	} else {
 		_dateText = lng_mediaview_date_time(lt_date, d.date().toString(qsl("dd.MM.yy")), lt_time, d.time().toString(qsl("hh:mm")));
 	}
-	_fromName.setText(st::medviewNameFont, _from->name);
+	if (_from) _fromName.setText(st::medviewNameFont, _from->name);
 	updateHeader();
 	_leftNavVisible = _photo && (_index > 0 || (_index == 0 && _history && _history->_overview[OverviewPhotos].size() < _history->_overviewCount[OverviewPhotos]));
 	_rightNavVisible = _photo && (_index >= 0 && (
@@ -480,7 +480,7 @@ void MediaView::showDocument(DocumentData *doc, QPixmap pix, HistoryItem *contex
 	}
 	_x = (_avail.width() - _w) / 2;
 	_y = (_avail.height() - st::medviewBottomBar - _h) / 2;
-	_from = App::user(_doc->user);
+	_from = context ? context->from()->asUser() : 0;
 	_full = 1;
 	updateControls();
 	if (isHidden()) {
@@ -721,20 +721,26 @@ void MediaView::paintEvent(QPaintEvent *e) {
 	} else {
 		p.setPen(st::medviewNameColor->p);
 	}
-	if (_over == OverName) _fromName.replaceFont(st::medviewNameFont->underline());
-	if (_nameNav.intersects(r)) _fromName.drawElided(p, _nameNav.left(), _nameNav.top(), _nameNav.width());
-	if (_over == OverName) _fromName.replaceFont(st::medviewNameFont);
+	if (_from) {
+		if (_nameNav.intersects(r)) {
+			if (_over == OverName) _fromName.replaceFont(st::medviewNameFont->underline());
+			_fromName.drawElided(p, _nameNav.left(), _nameNav.top(), _nameNav.width());
+			if (_over == OverName) _fromName.replaceFont(st::medviewNameFont);
+		}
+	}
 
 	// date
-	if (_doc) {
-		float64 o = overLevel(OverDate);
-		p.setOpacity(st::medviewOverview.overOpacity * o + st::medviewOverview.opacity * (1 - o));
-		p.setPen(st::white->p);
-	} else {
-		p.setPen(st::medviewDateColor->p);
+	if (_dateNav.intersects(r)) {
+		if (_doc) {
+			float64 o = overLevel(OverDate);
+			p.setOpacity(st::medviewOverview.overOpacity * o + st::medviewOverview.opacity * (1 - o));
+			p.setPen(st::white->p);
+		} else {
+			p.setPen(st::medviewDateColor->p);
+		}
+		p.setFont((_over == OverDate ? st::medviewDateFont->underline() : st::medviewDateFont)->f);
+		p.drawText(_dateNav.left(), _dateNav.top() + st::medviewDateFont->ascent, _dateText);
 	}
-	p.setFont((_over == OverDate ? st::medviewDateFont->underline() : st::medviewDateFont)->f);
-	if (_dateNav.intersects(r)) p.drawText(_dateNav.left(), _dateNav.top() + st::medviewDateFont->ascent, _dateText);
 }
 
 void MediaView::keyPressEvent(QKeyEvent *e) {
@@ -1060,7 +1066,7 @@ void MediaView::mouseReleaseEvent(QMouseEvent *e) {
 	}
 	textlnkDown(TextLinkPtr());
 	if (_over == OverName && _down == OverName) {
-		if (App::wnd()) {
+		if (App::wnd() && _from) {
 			onClose();
 			if (App::main()) App::main()->showPeerProfile(_from);
 		}
@@ -1339,15 +1345,21 @@ void MediaView::updatePolaroid() {
 		int32 minus1 = width() - _delete.x(), minus2 = _overview.x() + st::medviewHeaderFont->m.width(_header) - st::medviewOverview.width;
 		if (minus2 > minus1) minus1 = minus2;
 
-		int32 nameWidth = _fromName.maxWidth(), maxWidth = width() - 2 * minus1, dateWidth = st::medviewDateFont->m.width(_dateText);
-		if (maxWidth < dateWidth) {
-			maxWidth = dateWidth;
+		int32 dateWidth = st::medviewDateFont->m.width(_dateText), maxWidth = width() - 2 * minus1;
+		if (_from) {
+			int32 nameWidth = _fromName.maxWidth();
+			if (maxWidth < dateWidth) {
+				maxWidth = dateWidth;
+			}
+			if (nameWidth > maxWidth) {
+				nameWidth = maxWidth;
+			}
+			_nameNav = QRect((_avail.width() - nameWidth) / 2, _avail.y() + _avail.height() - ((st::medviewPolaroid.bottom() + st::medviewBottomBar) / 2) + st::medviewNameTop, nameWidth, st::medviewNameFont->height);
+			_dateNav = QRect((_avail.width() - dateWidth) / 2, _avail.y() + _avail.height() - ((st::medviewPolaroid.bottom() + st::medviewBottomBar) / 2) + st::medviewDateTop, dateWidth, st::medviewDateFont->height);
+		} else {
+			_nameNav = QRect(_avail.x() - 1, _avail.y() - 1, 0, 0);
+			_dateNav = QRect((_avail.width() - dateWidth) / 2, _avail.y() + _avail.height() - ((st::medviewPolaroid.bottom() + st::medviewBottomBar) / 2) + ((st::medviewNameTop + st::medviewDateTop) / 2), dateWidth, st::medviewDateFont->height);
 		}
-		if (nameWidth > maxWidth) {
-			nameWidth = maxWidth;
-		}
-		_nameNav = QRect((_avail.width() - nameWidth) / 2, _avail.y() + _avail.height() - ((st::medviewPolaroid.bottom() + st::medviewBottomBar) / 2) + st::medviewNameTop, nameWidth, st::medviewNameFont->height);
-		_dateNav = QRect((_avail.width() - dateWidth) / 2, _avail.y() + _avail.height() - ((st::medviewPolaroid.bottom() + st::medviewBottomBar) / 2) + st::medviewDateTop, dateWidth, st::medviewDateFont->height);
 	} else {
 		int32 pminw = qMin(st::medviewPolaroidMin.width(), int(_avail.width() - 2 * st::medviewNavBarWidth));
 

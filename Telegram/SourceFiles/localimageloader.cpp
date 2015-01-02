@@ -167,14 +167,20 @@ void LocalImageLoaderPrivate::prepareImages() {
 			jpeg_id = id;
 		} else if ((type == ToPrepareVideo || type == ToPrepareDocument) && !img.isNull()) {
 			int32 w = img.width(), h = img.height();
-			if (animated) attributes.push_back(MTP_documentAttributeAnimated());
+			QByteArray thumbFormat = "JPG";
+			if (animated) {
+				attributes.push_back(MTP_documentAttributeAnimated());
+			} else if (mime == qsl("image/webp") && w > 0 && h > 0 && filesize < StickerInMemory) {
+				attributes.push_back(MTP_documentAttributeSticker());
+				thumbFormat = "webp";
+			}
 			attributes.push_back(MTP_documentAttributeImageSize(MTP_int(w), MTP_int(h)));
 
 			QPixmap full = (w > 90 || h > 90) ? QPixmap::fromImage(img.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(img, Qt::ColorOnly);
 
 			{
 				QBuffer jpegBuffer(&jpeg);
-				full.save(&jpegBuffer, "JPG", 87);
+				full.save(&jpegBuffer, thumbFormat, 87);
 			}
 
 			photoThumbs.insert('0', full);

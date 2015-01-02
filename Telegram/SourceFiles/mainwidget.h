@@ -196,6 +196,8 @@ public:
 
 	void updateNotifySetting(PeerData *peer, bool enabled);
 
+	void incrementSticker(DocumentData *sticker);
+
 	void activate();
 
 	void createDialogAtTop(History *history, int32 unreadCount);
