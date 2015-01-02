@@ -109,15 +109,15 @@ VoiceMessages::~VoiceMessages() {
 
 	for (int32 i = 0; i < AudioVoiceMsgSimultaneously; ++i) {
 		alSourceStop(_data[i].source);
-		if (alIsBuffer(_data[i].buffers[0])) {
-			alDeleteBuffers(3, _data[i].buffers);
+        if (alIsSource(_data[i].source)) {
+            alDeleteSources(1, &_data[i].source);
+            _data[i].source = 0;
+        }
+        if (alIsBuffer(_data[i].buffers[0])) {
+            alDeleteBuffers(3, _data[i].buffers);
 			for (int32 j = 0; j < 3; ++j) {
 				_data[i].buffers[j] = _data[i].samplesCount[j] = 0;
 			}
-		}
-		if (alIsSource(_data[i].source)) {
-			alDeleteSources(1, &_data[i].source);
-			_data[i].source = 0;
 		}
 	}
 	_faderThread.quit();
@@ -152,21 +152,18 @@ bool VoiceMessages::purgeALStructures(){
 	int32 index = 0;
 	for (; index < AudioVoiceMsgSimultaneously; ++index) {
 		if (_data[index].state == VoiceMessageStopped) {
-			if (_data[index].source) {
-				alSourceStop(_data[index].source);
-				_data[index].source = 0;
-			}
-			if (alIsBuffer(_data[index].buffers[0])) {
-				alDeleteBuffers(3, _data[index].buffers);
-				for (int32 j = 0; j < 3; ++j) {
-					_data[index].buffers[j] = _data[index].samplesCount[j] = 0;
-				}
-			}
-			if (alIsSource(_data[index].source)) {
-				alDeleteSources(1, &_data[index].source);
-				_data[index].source = 0;
-			}
-		}
+        if (alIsSource(_data[index].source)) {
+            alSourceStop(_data[index].source);
+            alDeleteSources(1, &_data[index].source);
+            _data[index].source = 0;
+        }
+        if (alIsBuffer(_data[index].buffers[0])) {
+            alDeleteBuffers(3, _data[index].buffers);
+            for (int32 j = 0; j < 3; ++j) {
+                _data[index].buffers[j] = _data[index].samplesCount[j] = 0;
+            }
+        }
+        }
 		else {
 			return false;
 		}
@@ -813,14 +810,14 @@ void AudioControl::destoryCoreAL(){
 
 void AudioControl::destroyNotificationAL(){
 	alSourceStop(notifySource);
-	if (alIsBuffer(notifyBuffer)) {
-		alDeleteBuffers(1, &notifyBuffer);
+    if (alIsSource(notifySource)) {
+        alDeleteSources(1, &notifySource);
+        notifySource = 0;
+    }
+    if (alIsBuffer(notifyBuffer)) {
+        alDeleteBuffers(1, &notifyBuffer);
 		notifyBuffer = 0;
-	}
-	if (alIsSource(notifySource)) {
-		alDeleteSources(1, &notifySource);
-		notifySource = 0;
-	}
+    }
 }
 
 void AudioControl::destroyAll(){
