@@ -188,6 +188,8 @@ private:
 	void destoryCoreAL();
 	void destroyNotificationAL();
 
+	void destroyAll();
+
     bool _audioEnabled;
     int _audioSuspendCountdown;
     QTimer _audioSuspendTimer;

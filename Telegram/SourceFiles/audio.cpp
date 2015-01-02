@@ -649,28 +649,17 @@ AudioControl::~AudioControl(){
 void AudioControl::audioRequired(){
 	QMutexLocker lock(&_mutex);
 	_audioSuspendCountdown = 2;
-	if (!setupCoreAL()) return audioFinished();
+	if (!setupCoreAL()) return destroyAll();
 
-	if (!loadNotificationWaveData()) return audioFinished();
-	if (!setupNotificationAL()) return audioFinished();
+	if (!loadNotificationWaveData()) return destroyAll();
+	if (!setupNotificationAL()) return destroyAll();
 	if (!voicemsgs)	voicemsgs = new VoiceMessages();
 	_audioEnabled = true;
 }
 
 void AudioControl::audioFinished(){
 	QMutexLocker lock(&_mutex);
-	_audioEnabled = false;
-	if (voicemsgs){
-		if (!voicemsgs->purgeALStructures())
-			return;
-	};
-
-	destroyNotificationAL();
-	destoryCoreAL();
-	if (voicemsgs) {
-		delete voicemsgs;
-		voicemsgs = NULL;
-	}
+	destroyAll();
 }
 
 void AudioControl::onTimer(){
@@ -831,5 +820,20 @@ void AudioControl::destroyNotificationAL(){
 	if (alIsSource(notifySource)) {
 		alDeleteSources(1, &notifySource);
 		notifySource = 0;
+	}
+}
+
+void AudioControl::destroyAll(){
+	_audioEnabled = false;
+	if (voicemsgs){
+		if (!voicemsgs->purgeALStructures())
+			return;
+	};
+
+	destroyNotificationAL();
+	destoryCoreAL();
+	if (voicemsgs) {
+		delete voicemsgs;
+		voicemsgs = NULL;
 	}
 }
