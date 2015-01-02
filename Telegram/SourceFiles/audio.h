@@ -190,9 +190,9 @@ private:
 
 	void destroyAll();
 
-    bool _audioEnabled;
-    int _audioSuspendCountdown;
-    QTimer _audioSuspendTimer;
+	bool _audioEnabled;
+	int _audioSuspendCountdown;
+	QTimer _audioSuspendTimer;
 	QMutex _mutex;
 
 };
