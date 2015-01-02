@@ -47,6 +47,8 @@ public:
 	void play(AudioData *audio);
 	void pauseresume();
 
+	bool purgeALStructures();
+
 	void currentState(AudioData **audio, VoiceMessageState *state = 0, int64 *position = 0, int64 *duration = 0);
 
 	~VoiceMessages();
@@ -158,5 +160,37 @@ private:
 	Loaders _loaders;
 
 	void loadError(Loaders::iterator i);
+
+};
+
+class AudioControl : public QObject {
+	Q_OBJECT
+
+public:
+
+	AudioControl();
+	~AudioControl();
+
+	void audioRequired();
+	void audioFinished();
+
+public slots:
+
+	void onTimer();
+
+private:
+
+	bool loadNotificationWaveData();
+
+	bool setupCoreAL();
+	bool setupNotificationAL();
+
+	void destoryCoreAL();
+	void destroyNotificationAL();
+
+	QTimer _audioSuspendTimer;
+	int _audioSuspendCountdown;
+	QMutex _mutex;
+	bool _audioEnabled;
 
 };
