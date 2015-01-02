@@ -353,3 +353,30 @@ inline QString strMakeFromLetters(const uint32 *letters, int32 len) {
 	}
 	return result;
 }
+
+class MimeType {
+public:
+
+	enum TypeEnum {
+		Unknown,
+		WebP,
+	};
+
+	MimeType(const QMimeType &type) : _type(Unknown), _typeStruct(type) {
+	}
+	MimeType(TypeEnum type) : _type(type) {
+	}
+	QStringList globPatterns() const;
+	QString filterString() const;
+	QString name() const;
+
+private:
+
+	QMimeType _typeStruct;
+	TypeEnum _type;
+
+};
+
+MimeType mimeTypeForName(const QString &mime);
+MimeType mimeTypeForFile(const QFileInfo &file);
+MimeType mimeTypeForData(const QByteArray &data);

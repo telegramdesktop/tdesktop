@@ -76,7 +76,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 				img = App::readImage(file, 0, true, &animated);
 			}
 			if (type == ToPrepareDocument) {
-				mime = QMimeDatabase().mimeTypeForFile(info).name();
+				mime = mimeTypeForFile(info).name();
 			}
 			filename = info.fileName();
 			filesize = info.size();
@@ -91,7 +91,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 					img = QImage();
 				}
 			}
-			QMimeType mimeType = QMimeDatabase().mimeTypeForData(data);
+			MimeType mimeType = mimeTypeForData(data);
 			if (type == ToPrepareDocument) {
 				mime = mimeType.name();
 			}
@@ -105,8 +105,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 	} else {
 		if (type == ToPrepareDocument) {
 			filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
-			QMimeType mimeType = QMimeDatabase().mimeTypeForName("image/png");
-			mime = mimeType.name();
+			mime = mimeTypeForName("image/png").name();
 			data = QByteArray();
 			{
 				QBuffer b(&data);

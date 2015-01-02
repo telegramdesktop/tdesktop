@@ -651,7 +651,7 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 	if (data->status != FileReady) return;
 
 	QString name = data->name, filter;
-	QMimeType mimeType = QMimeDatabase().mimeTypeForName(data->mime);
+	MimeType mimeType = mimeTypeForName(data->mime);
 	QStringList p = mimeType.globPatterns();
 	QString pattern = p.isEmpty() ? QString() : p.front();
 	if (name.isEmpty()) {
@@ -682,7 +682,7 @@ void DocumentSaveLink::doSave(bool forceSavingAs) const {
 	} else {
 		QDir alreadyDir(already.isEmpty() ? QDir() : QFileInfo(already).dir());
 		QString name = already.isEmpty() ? data->name : already, filter;
-		QMimeType mimeType = QMimeDatabase().mimeTypeForName(data->mime);
+		MimeType mimeType = mimeTypeForName(data->mime);
 		QStringList p = mimeType.globPatterns();
 		QString pattern = p.isEmpty() ? QString() : p.front();
 		if (name.isEmpty()) {

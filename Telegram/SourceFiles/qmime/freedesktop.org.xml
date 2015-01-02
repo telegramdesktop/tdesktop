@@ -21233,6 +21233,11 @@
     <comment xml:lang="vi">Ảnh WebP</comment>
     <comment xml:lang="zh_CN">WebP 图像</comment>
     <comment xml:lang="zh_TW">WebP 影像</comment>
+    <magic priority="50">
+      <match value="RIFF" type="string" offset="0">
+        <match value="WEBP" type="string" offset="8"/>
+      </match>
+    </magic>
     <glob pattern="*.webp"/>
   </mime-type>
   <mime-type type="image/x-dds">
