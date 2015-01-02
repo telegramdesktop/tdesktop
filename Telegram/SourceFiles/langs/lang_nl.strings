@@ -115,9 +115,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_code_calling" = "Oproepverzoek versturen naar Telegram";
 "lng_code_called" = "Telegram heeft je nummer gebeld";
 
-"lng_bad_phone" = "Ongeldig telefoonnummer. Probeer het opnieuw.";
+"lng_bad_phone" = "Ongeldig telefoonnummer. \nProbeer het opnieuw.";
 "lng_bad_phone_noreg" = "Telefoonnummer is niet geregistreerd.";
-"lng_bad_code" = "Je hebt een ongeldige code ingevoerd. Probeer het opnieuw.";
+"lng_bad_code" = "Je hebt een ongeldige code ingevoerd. \nProbeer het opnieuw.";
 "lng_bad_name" = "Voer je voor- en achternaam in.";
 "lng_bad_photo" = "Ongeldig bestand gekozen.";
 
@@ -199,8 +199,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_download_path_clear" = "Alles wissen";
 "lng_download_path_header" = "Downloadmap kiezen";
 "lng_download_path_default_radio" = "Telegram-map  «Downloads»";
-"lng_download_path_temp_radio" = "Temp map, bij uitloggen of deïnstallatie opschonen\nAangepaste map, handmatig opschonen";
-"lng_download_path_dir_radio" = "Aangepaste map, handmatig opschonen";
+"lng_download_path_temp_radio" = "Temp map, schonen bij uitloggen of deïnstallatie";
+"lng_download_path_dir_radio" = "Aangepaste map, handmatig schonen";
 "lng_download_path_choose" = "Downloadmap kiezen";
 "lng_sure_clear_downloads" = "Wil je all gedownloaden bestanden wissen uit de tijdelijk map? Dit gebeurt automatisch bij uitloggen of deïnstallatie.";
 "lng_download_path_failed" = "Download kon niet worden gestart. De oorzaak kan een ongeldige downloadmap zijn.\n\nJe kunt de map aanpassen via instellingen.";
@@ -427,7 +427,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_selected_delete_confirm" = "Verwijder";
 
 "lng_about_version" = "Versie {version}";
-"lng_about_text" = "Officiële Telegram app gebaseerd op [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] en de\n[a href=\"https://core.telegram.org/api\"]Telegram API[/a] voor snelheid en veiligheid.\n\nDeze software valt onder [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versie 3,\nDe broncode is beschikbaar via [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_text" = "Officiële Telegram app gebaseerd op [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] en \nde [a href=\"https://core.telegram.org/api\"]Telegram API[/a] voor snelheid en veiligheid.\n\nDeze software valt onder [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versie 3,\nDe broncode is beschikbaar via [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 "lng_about_done" = "Gereed";
 
 "lng_search_found_results" = "{count:geen berichten gevonden|# berichten gevonden|# berichten gevonden}";

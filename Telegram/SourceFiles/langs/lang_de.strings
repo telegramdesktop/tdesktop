@@ -214,7 +214,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_no_data_cached" = "Keine temporären Daten!";
 "lng_settings_images_cached" = "{count:_not_used_|# Bild|# Bilder}, {size}";
 "lng_settings_audios_cached" = "{count:_not_used_|# Sprachnachricht|# Sprachnachrichten}, {size}";
-"lng_local_storage_clear" = "Alles entfernen";
+"lng_local_storage_clear" = "Leeren";
 "lng_local_storage_clearing" = "Entferne..";
 "lng_local_storage_cleared" = "Alles entfernt!";
 "lng_local_storage_clear_failed" = "Ein Fehler ist aufgetreten :(";
