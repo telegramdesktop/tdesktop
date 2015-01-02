@@ -27,6 +27,49 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include <IOKit/IOKitLib.h>
 #include <CoreFoundation/CFURL.h>
 
+@interface qVisualize : NSObject {
+}
+
++ (id)str:(const QString &)str;
+- (id)initWithString:(const QString &)str;
+
++ (id)bytearr:(const QByteArray &)arr;
+- (id)initWithByteArray:(const QByteArray &)arr;
+
+- (id)debugQuickLookObject;
+
+@end
+
+@implementation qVisualize {
+	NSString *value;
+}
+
++ (id)bytearr:(const QByteArray &)arr {
+	return [[qVisualize alloc] initWithByteArray:arr];
+}
+- (id)initWithByteArray:(const QByteArray &)arr {
+	if (self = [super init]) {
+		value = [NSString stringWithUTF8String:arr.constData()];
+	}
+	return self;
+}
+
++ (id)str:(const QString &)str {
+	return [[qVisualize alloc] initWithString:str];
+}
+- (id)initWithString:(const QString &)str {
+	if (self = [super init]) {
+		value = [NSString stringWithUTF8String:str.toUtf8().constData()];
+	}
+	return self;
+}
+
+- (id)debugQuickLookObject {
+	return value;
+}
+
+@end
+
 @interface ApplicationDelegate : NSObject<NSApplicationDelegate> {
 }
 

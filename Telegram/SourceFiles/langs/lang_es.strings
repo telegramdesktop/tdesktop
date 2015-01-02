@@ -355,7 +355,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_open_hashtag" = "Buscar por hashtag";
 "lng_context_copy_hashtag" = "Copiar hashtag";
 "lng_context_open_image" = "Abrir imagen";
-"lng_context_save_image" = "Guardar imagen como...";
+"lng_context_save_image" = "Guardar como...";
 "lng_context_forward_image" = "Reenviar imagen";
 "lng_context_delete_image" = "Eliminar imagen";
 "lng_context_copy_image" = "Copiar imagen";
@@ -364,11 +364,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_show_in_folder" = "Mostrar en la carpeta";
 "lng_context_show_in_finder" = "Mostrar en el Finder";
 "lng_context_open_video" = "Abrir vídeo";
-"lng_context_save_video" = "Guardar vídeo como...";
+"lng_context_save_video" = "Guardar como...";
 "lng_context_open_audio" = "Abrir audio";
-"lng_context_save_audio" = "Guardar audio como...";
+"lng_context_save_audio" = "Guardar como...";
 "lng_context_open_document" = "Abrir archivo";
-"lng_context_save_document" = "Guardar archivo como...";
+"lng_context_save_document" = "Guardar como...";
 "lng_context_forward_file" = "Reenviar archivo";
 "lng_context_delete_file" = "Eliminar archivo";
 "lng_context_close_file" = "Cerrar archivo";
@@ -385,7 +385,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_really_send_image" = "¿Quieres enviar esta imagen?";
 "lng_really_send_file" = "¿Quieres enviar este archivo?";
 "lng_really_share_contact" = "¿Quieres compartir este contacto?";
-"lng_send_image_compressed" = "Enviar imagen sin comprimir";
+"lng_send_image_compressed" = "Enviar imagen comprimida";
 
 "lng_forward_choose" = "Elegir destinatario...";
 "lng_forward_confirm" = "¿Reenviar a {recipient}?";
@@ -426,7 +426,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_selected_delete_confirm" = "Eliminar";
 
 "lng_about_version" = "Versión {version}";
-"lng_about_text" = "Aplicación oficial basada en [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] y la [a href=\"https://core.telegram.org/api\"]\nAPI de Telegram[/a] para velocidad y seguridad.\n\nSoftware bajo licencia [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versión 3.\nCódigo de fuente disponible en [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_text" = "Aplicación oficial basada en [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] y la [a href=\"https://core.telegram.org/api\"]\nAPI de Telegram[/a] para velocidad y seguridad.\n\nSoftware bajo licencia [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versión 3.\nCódigo fuente disponible en [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 "lng_about_done" = "Hecho";
 
 "lng_search_found_results" = "{count:No se encontraron mensajes|Found # mensaje|Found # mensajes}";
