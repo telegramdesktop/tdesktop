@@ -211,12 +211,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_download_path_clear_failed" = "Borrado fallido :(";
 
 "lng_settings_section_cache" = "Almacenamiento local";
-"lng_settings_no_images_cached" = "¡No se encontraron imágenes en la caché!";
-"lng_settings_images_cached" = "En la caché: {count:_not_used_|# imagen|# imágenes}, {size}";
-"lng_local_images_clear" = "Borrar todo";
-"lng_local_images_clearing" = "Borrando...";
-"lng_local_images_cleared" = "¡Borrado!";
-"lng_local_images_clear_failed" = "Borrado fallido :(";
+"lng_settings_no_data_cached" = "¡No se encontraron datos en la caché!";
+"lng_settings_images_cached" = "{count:_not_used_|# imagen|# imágenes}, {size}";
+"lng_settings_audios_cached" = "{count:_not_used_|# mensaje de voz|# mensajes de voz}, {size}";
+"lng_local_storage_clear" = "Borrar todo";
+"lng_local_storage_clearing" = "Borrando...";
+"lng_local_storage_cleared" = "¡Borrado!";
+"lng_local_storage_clear_failed" = "Borrado fallido :(";
 
 "lng_settings_section_advanced" = "Avanzado";
 "lng_connection_type" = "Tipo de conexión:";
@@ -448,7 +449,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\nDetectamos un inicio de sesión en tu cuenta desde un nuevo dispositivo el {day}, {date} a las {time}\n\nDispositivo: {device}\nUbicación: {location}\n\nSi no eras tú, puedes ir a Ajustes — Cerrar todas las otras sesiones.\n\nGracias.\nEl equipo de Telegram";
 
-"lng_new_version7004" = "Telegram Desktop fue actualizada a la versión {version}\n\n- Se añadieron los idiomas alemán y holandés.\n\nEl historial completo está disponible aquí:\n{link}";
+"lng_new_version7005" = "Telegram Desktop fue actualizada a la versión {version}\n\n — Soporte de stickers\n — Caché local para mensajes de voz\n — Idioma portugués añadido\n\nEl historial completo de la versión está disponible aquí :\n{link}";
 
 // Mac specific
 

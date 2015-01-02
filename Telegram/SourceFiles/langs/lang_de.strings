@@ -211,12 +211,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_download_path_clear_failed" = "Ein Fehler ist aufgetreten :(";
 
 "lng_settings_section_cache" = "Lokaler Cache";
-"lng_settings_no_images_cached" = "Keine temporären Bilder gefunden!";
-"lng_settings_images_cached" = "Cache: {count:_not_used_|# Bild|# Bilder}, {size}";
-"lng_local_images_clear" = "Alles entfernen";
-"lng_local_images_clearing" = "Entfernen..";
-"lng_local_images_cleared" = "Alles entfernt!";
-"lng_local_images_clear_failed" = "Ein Fehler ist aufgetreten :(";
+"lng_settings_no_data_cached" = "Keine temporären Daten!";
+"lng_settings_images_cached" = "{count:_not_used_|# Bild|# Bilder}, {size}";
+"lng_settings_audios_cached" = "{count:_not_used_|# Sprachnachricht|# Sprachnachrichten}, {size}";
+"lng_local_storage_clear" = "Alles entfernen";
+"lng_local_storage_clearing" = "Entferne..";
+"lng_local_storage_cleared" = "Alles entfernt!";
+"lng_local_storage_clear_failed" = "Ein Fehler ist aufgetreten :(";
 
 "lng_settings_section_advanced" = "Erweitert";
 "lng_connection_type" = "Verbindungsart:";
@@ -448,7 +449,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\n\nwir haben eine Anmeldung von einem neuen Gerät am {day}, {date} um {time} festgestellt. \n\nGerät: {device}\nStandort: {location}\n\nWarst du das selbst? Wenn du das nicht selbst gewesen bist, melde alle anderen Sitzungen in den Telegram Einstellungen unverzüglich ab. \n\nDanke,\nDein Telegram Team";
 
-"lng_new_version7004" = "Telegram Desktop wurde aktualisiert auf Version {version} \n\n— Deutsch und Niederländisch hinzugefügt. \n\nGesamter Versionsverlauf: \n{link}";
+"lng_new_version7005" = "Telegram Desktop wurde auf Version {version} aktualisiert\n\n— Stickers werden unterstützt\n— Sprachnachrichten werden temporär lokal gespeichert\n— Portugiesische Sprache hinzugefügt\n\nKompletter Versionsverlauf ist hier zu finden:\n{link}";
 
 // Mac specific
 

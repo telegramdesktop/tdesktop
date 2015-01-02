@@ -65,7 +65,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_continue" = "Continuar";
 "lng_close" = "Fechar";
 "lng_connecting" = "Conectando...";
-"lng_reconnecting" = "Reconectar {count.now|in # s|in # s}..";
+"lng_reconnecting" = "Reconectar {count:agora|em # s|em # s}..";
 "lng_reconnecting_try_now" = "Tentar agora";
 
 "lng_status_service_notifications" = "notificacoes de serviço";
@@ -92,7 +92,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_flood_error" = "Muitas tentativas. Por favor, tente novamente mais tarde.";
 "lng_deleted" = "Desconhecido";
 
-"lng_intro" = "Bem vindo ao cliente oficial do [a href=\"https://telegram.org/\"]Telegram[/a] para desktop.\nÉ [b]rápido[/b] e [b]seguro[/b].";
+"lng_intro" = "Bem vindo ao cliente oficial do [a href=\"https://telegram.org/\"]Telegram[/a].\nÉ [b]rápido[/b] e [b]seguro[/b].";
 "lng_start_msgs" = "COMECE A CONVERSAR";
 
 "lng_intro_next" = "PRÓXIMO";
@@ -109,7 +109,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_country_none" = "País não encontrado";
 "lng_country_select" = "Selecionar País";
 
-"lng_code_ph" = "Seu Código";
+"lng_code_ph" = "Código";
 "lng_code_desc" = "Enviamos uma SMS com um código de ativação\npara o seu telefone. Insira-o abaixo.";
 "lng_code_call" = "Telegram irá te ligar em {minutes}{seconds}";
 "lng_code_calling" = "Aguardando a ligação do Telegram..";
@@ -135,7 +135,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_contacts_not_found" = "Nenhum contato encontrado";
 
 "lng_settings_save" = "Salvar";
-"lng_settings_upload" = "Inserir Foto de Perfil";
+"lng_settings_upload" = "Definir Foto de Perfil";
 "lng_settings_crop_profile" = "Selecione uma área quadrangular para sua foto de perfil";
 "lng_settings_uploading_photo" = "Carregando foto..";
 
@@ -163,7 +163,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_notification_preview" = "Você tem uma nova mensagem";
 
 "lng_settings_section_general" = "Geral";
-"lng_settings_change_lang" = "Alterar Linguagem";
+"lng_settings_change_lang" = "Alterar linguagem";
 "lng_languages" = "Linguagens";
 "lng_sure_save_language" = "Telegram irá reiniciar\npara alterar a linguagem";
 "lng_settings_auto_update" = "Atualizar automaticamente";
@@ -190,13 +190,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_send_enter" = "Enviar com Enter";
 "lng_settings_send_ctrlenter" = "Enviar com Ctrl+Enter";
 "lng_settings_send_cmdenter" = "Enviar com Cmd+Enter";
-"lng_settings_cats_and_dogs" = "Habilitar gatos e cachorros";
+"lng_settings_cats_and_dogs" = "Permitir gatos e cachorros";
 
 "lng_download_path_dont_ask" = "Não perguntar onde salvar para cada arquivo";
 "lng_download_path_label" = "Baixar em:";
 "lng_download_path_temp" = "pasta temporária";
 "lng_download_path_default" = "pasta padrão";
-"lng_download_path_clear" = "Limpar Tudo";
+"lng_download_path_clear" = "Limpar tudo";
 "lng_download_path_header" = "Escolher caminho do download";
 "lng_download_path_default_radio" = "Pasta do Telegram no sistema «Downloads»";
 "lng_download_path_temp_radio" = "Pasta temporária, limpar ao sair ou desinstalar";
@@ -211,12 +211,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_download_path_clear_failed" = "Limpeza falhou :(";
 
 "lng_settings_section_cache" = "Armazenamento local";
-"lng_settings_no_images_cached" = "Nenhuma imagem encontrada no cache!";
-"lng_settings_images_cached" = "Cache: {count:_not_used_|# imagem|# imagens}, {size}";
-"lng_local_images_clear" = "Limpar Tudo";
-"lng_local_images_clearing" = "Limpando..";
-"lng_local_images_cleared" = "Concluído!";
-"lng_local_images_clear_failed" = "Limpeza falhou :(";
+"lng_settings_no_data_cached" = "Nada encontrado no cache!";
+"lng_settings_images_cached" = "{count:_not_used_|# imagem|# imagens}, {size}";
+"lng_settings_audios_cached" = "{count:_not_used_|# mensagem de voz|# mensagens de voz}, {size}";
+"lng_local_storage_clear" = "Limpar tudo";
+"lng_local_storage_clearing" = "Limpando..";
+"lng_local_storage_cleared" = "Concluído!";
+"lng_local_storage_clear_failed" = "Limpeza falhou :(";
 
 "lng_settings_section_advanced" = "Avançado";
 "lng_connection_type" = "Tipo de conexão:";
@@ -261,7 +262,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_add_participant" = "Adicionar Membro";
 "lng_profile_delete_and_exit" = "Sair";
 "lng_profile_kick" = "Remover";
-"lng_profile_sure_kick" = "Remover {usuário} do grupo?";
+"lng_profile_sure_kick" = "Remover {user} do grupo?";
 "lng_profile_loading" = "Carregando..";
 "lng_profile_shared_media" = "Mídia compartilhada";
 "lng_profile_no_media" = "Nenhuma mídia nessa conversa.";
@@ -448,7 +449,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\nDetectamos um acesso à sua conta de um novo dispositivo em {day}, {date} às {time}\n\nDispositivo: {device}\nLocalização: {location}\n\nCaso não tenha sido você, vá em Configurações – Terminar todas as outras sessões.\n\nObrigado,\nEquipe Telegram";
 
-"lng_new_version7004" = "Telegram Desktop foi atualizado para a versão {version}\n\n— Linguagens Alemã e Holandesa incluídas.\n\nVersão completa do histórico disponível aqui:\n{link}";
+"lng_new_version7005" = "Telegram Desktop foi atualizado para a versão {version}\n\n — Suporte aos stickers\n — Cache local para mensagens de voz\n — Adicionada linguagem em Português\n\nHistórico completo da versão disponível aqui:\n{link}";
 
 // Mac specific
 

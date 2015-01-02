@@ -211,12 +211,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_download_path_clear_failed" = "Wissen mislukt";
 
 "lng_settings_section_cache" = "Lokale opslag";
-"lng_settings_no_images_cached" = "Geen cache-afbeeldingen gevonden!";
-"lng_settings_images_cached" = "Cache: {count:_not_used_|# image|# images}, {size}";
-"lng_local_images_clear" = "Alles wissen";
-"lng_local_images_clearing" = "Wissen";
-"lng_local_images_cleared" = "Gewist!";
-"lng_local_images_clear_failed" = "Wissen mislukt";
+"lng_settings_no_data_cached" = "Geen cache-data gevonden!";
+"lng_settings_images_cached" = "{count:_not_used_|# afbeelding|# afbeeldingen}, {size}";
+"lng_settings_audios_cached" = "{count:_not_used_|# spraakbericht|# spraakberichten}, {size}";
+"lng_local_storage_clear" = "Alles wissen";
+"lng_local_storage_clearing" = "Wissen";
+"lng_local_storage_cleared" = "Gewist!";
+"lng_local_storage_clear_failed" = "Wissen mislukt";
 
 "lng_settings_section_advanced" = "Geavanceerd";
 "lng_connection_type" = "Verbindingstype:";
@@ -448,7 +449,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\nEr is op je account ingelogd vanaf een nieuw apparaat op {day}, {date} om {time}\n\nApparaat: {device}\nLocatie: {location}\n\nAls jij dit niet was, kun je alle sessies beëindigen via Instellingen – Beëindig alle andere sessies.\n\nBedankt,\nHet Telegram-Team";
 
-"lng_new_version7004" = "Telegram is bijgewerkt naar versie {version}\n\n— Nederlands en Duits zijn toegevoegd.\n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
+"lng_new_version7005" = "Telegram is bijgewerkt naar versie {version}\n\n— Ondersteuning voor Stickers\n— Lokale cache voor spraakberichten\n— Portuguees toegevoegd\n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 
 // Mac specific
 

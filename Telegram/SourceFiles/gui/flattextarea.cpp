@@ -173,7 +173,8 @@ EmojiPtr FlatTextarea::getSingleEmoji() const {
 	getSingleEmojiFragment(text, fragment);
 	
 	if (!text.isEmpty()) {
-		QString imageName = static_cast<const QTextImageFormat*>(&fragment.charFormat())->name();
+		QTextCharFormat format = fragment.charFormat();
+		QString imageName = static_cast<const QTextImageFormat*>(&format)->name();
 		return getEmoji(imageName.mid(8).toUInt(0, 16));
 	}
 	return 0;
