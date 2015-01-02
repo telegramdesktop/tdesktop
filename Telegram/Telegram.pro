@@ -279,8 +279,9 @@ RESOURCES += \
 OTHER_FILES += \
     Resources/style_classes.txt \
     Resources/style.txt \
-    Resources/lang.strings
-    SourceFiles/langs/lang_it.strings
-    SourceFiles/langs/lang_es.strings
-    SourceFiles/langs/lang_de.strings
-    SourceFiles/langs/lang_nl.strings
+    Resources/lang.strings \
+    SourceFiles/langs/lang_it.strings \
+    SourceFiles/langs/lang_es.strings \
+    SourceFiles/langs/lang_de.strings \
+    SourceFiles/langs/lang_nl.strings \
+    SourceFiles/langs/lang_pt_BR.strings
