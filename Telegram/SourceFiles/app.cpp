@@ -1290,6 +1290,8 @@ namespace App {
 			delete *i;
 		}
 		documentsData.clear();
+		cSetRecentStickers(RecentStickerPack());
+		cSetStickersHash(QByteArray());
 		::videoItems.clear();
 		::audioItems.clear();
 		::documentItems.clear();

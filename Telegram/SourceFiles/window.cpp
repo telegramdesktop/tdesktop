@@ -434,6 +434,7 @@ void Window::clearWidgets() {
 		intro->rpcInvalidate();
 		intro = 0;
 	}
+	title->updateBackButton();
 }
 
 void Window::setupIntro(bool anim) {
