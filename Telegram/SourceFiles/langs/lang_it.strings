@@ -117,7 +117,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_bad_phone" = "Numero di telefono non valido. Per favore riprova.";
 "lng_bad_phone_noreg" = "Numero di telefono non registrato.";
-"lng_bad_code" = "Hai inserito un codice non valido. Per favore riprova.";
+"lng_bad_code" = "Hai inserito un codice errato. Per favore riprova.";
 "lng_bad_name" = "Per favore inserisci il tuo nome e cognome.";
 "lng_bad_photo" = "Immagine selezionata non valida.";
 

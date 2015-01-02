@@ -92,7 +92,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_flood_error" = "Zu viele Versuche, bitte später erneut probieren.";
 "lng_deleted" = "Gelöschter Kontakt";
 
-"lng_intro" = "Willkommen beim offiziellen [a href=\"https://telegram.org/\"]Telegram[/a] Desktop Messenger.\n[b]Schnell[/b] und [b]sicher[/b] chatten ist nur einen Mausklick entfernt.";
+"lng_intro" = "Willkommen beim [a href=\"https://telegram.org/\"]offiziellen Desktop Messenger[/a].\n[b]Schnell[/b] und [b]sicher[/b] chatten leicht gemacht.";
 "lng_start_msgs" = "JETZT STARTEN";
 
 "lng_intro_next" = "WEITER";
