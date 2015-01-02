@@ -188,9 +188,9 @@ private:
 	void destoryCoreAL();
 	void destroyNotificationAL();
 
-	QTimer _audioSuspendTimer;
-	int _audioSuspendCountdown;
+    bool _audioEnabled;
+    int _audioSuspendCountdown;
+    QTimer _audioSuspendTimer;
 	QMutex _mutex;
-	bool _audioEnabled;
 
 };
