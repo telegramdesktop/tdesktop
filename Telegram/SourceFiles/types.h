@@ -362,7 +362,7 @@ public:
 		WebP,
 	};
 
-	MimeType(const QMimeType &type) : _type(Unknown), _typeStruct(type) {
+	MimeType(const QMimeType &type) : _typeStruct(type), _type(Unknown) {
 	}
 	MimeType(TypeEnum type) : _type(type) {
 	}
