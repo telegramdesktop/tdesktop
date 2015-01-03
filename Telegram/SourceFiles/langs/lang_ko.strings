@@ -184,6 +184,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org */
 "lng_settings_section_cache" = "로컬 저장소";
 "lng_settings_no_images_cached" = "캐시된 이미지가 존재하지 않습니다!";
 "lng_settings_images_cached" = "캐시됨: {count:_not_used_|#개의 이미지|#개의 이미지}, {size}";
+"lng_settings_audios_cached" = "{count:_not_used_|#개의 음성 메시지|#개의 음성 메시지}, {size}";
 "lng_local_images_clear" = "모두 지우기";
 "lng_local_images_clearing" = "삭제 중...";
 "lng_local_images_cleared" = "삭제됨!";
