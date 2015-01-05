@@ -74,6 +74,9 @@ RecentEmojiPreload gRecentEmojisPreload;
 
 AllStickers gStickers;
 QByteArray gStickersHash;
+
+EmojiStickersMap gEmojiStickers;
+
 RecentStickerPack gRecentStickers;
 
 int32 gLang = -2; // auto

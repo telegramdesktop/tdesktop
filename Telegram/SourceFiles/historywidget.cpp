@@ -1774,9 +1774,11 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 		const MTPDmessages_allStickers &d(stickers.c_messages_allStickers());
 		
 		AllStickers all;
+		EmojiStickersMap map;
 
 		const QVector<MTPDocument> &docs(d.vdocuments.c_vector().v);
 
+		QSet<DocumentData*> found;
 		const RecentStickerPack &recent(cRecentStickers());
 		RecentStickerPack add;
 		add.reserve(docs.size());
@@ -1786,13 +1788,32 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 			if (!doc) continue;
 			int32 j = 0, s = recent.size();
 			for (; j < s; ++j) {
-				if (doc == recent.at(j).first) break;
+				if (doc == recent.at(j).first) {
+					found.insert(doc);
+					break;
+				}
 			}
 			if (j < s) continue;
 			add.push_back(qMakePair(doc, addValue));
 		}
-		if (!add.isEmpty()) {
-			cSetRecentStickers(add + recent);
+		bool needRemove = false;
+		for (int32 i = 0, l = recent.size(); i < l; ++i) {
+			if (recent.at(i).second > 0 && !found.contains(recent.at(i).first)) {
+				needRemove = true;
+				break;
+			}
+		}
+		if (!add.isEmpty() || needRemove) {
+			if (needRemove) {
+				for (int32 i = 0, l = recent.size(); i < l; ++i) {
+					if (recent.at(i).second <= 0 || found.contains(recent.at(i).first)) {
+						add.push_back(recent.at(i));
+					}
+				}
+			} else {
+				add += recent;
+			}
+			cSetRecentStickers(add);
 			Local::writeRecentStickers();
 			_emojiPan.onTabChange();
 		}
@@ -1828,7 +1849,9 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 						StickerPack &pack(all[e]);
 						pack.reserve(pack.size() + docs.size());
 						for (int32 j = 0, s = docs.size(); j < s; ++j) {
-							pack.push_back(App::document(docs.at(j).v));
+							DocumentData *doc = App::document(docs.at(j).v);
+							pack.push_back(doc);
+							map.insert(doc, e);
 						}
 					}
 				} else {
@@ -1839,6 +1862,17 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 
 		cSetStickers(all);
 		cSetStickersHash(qba(d.vhash));
+		cSetEmojiStickers(map);
+
+		const DocumentItems &items(App::documentItems());
+		for (EmojiStickersMap::const_iterator i = map.cbegin(), e = map.cend(); i != e; ++i) {
+			DocumentItems::const_iterator j = items.constFind(i.key());
+			if (j != items.cend()) {
+				for (HistoryItemsMap::const_iterator k = j->cbegin(), end = j->cend(); k != end; ++k) {
+					k.key()->updateStickerEmoji();
+				}
+			}
+		}
 
 //		updateStickerPan();
 		_emojiPan.onTabChange();
@@ -2995,11 +3029,11 @@ void HistoryWidget::uploadMedias(const QStringList &files, ToPrepareMediaType ty
 	imageLoader.append(files, histPeer->id, type);
 }
 
-void HistoryWidget::uploadMedia(const QByteArray &fileContent, ToPrepareMediaType type) {
-	if (!hist) return;
+void HistoryWidget::uploadMedia(const QByteArray &fileContent, ToPrepareMediaType type, PeerId peer) {
+	if (!peer && !hist) return;
 
 	App::wnd()->activateWindow();
-	imageLoader.append(fileContent, histPeer->id, type);
+	imageLoader.append(fileContent, peer ? peer : histPeer->id, type);
 }
 
 void HistoryWidget::onPhotoReady() {
@@ -3089,7 +3123,7 @@ void HistoryWidget::onPhotoUploaded(MsgId newId, const MTPInputFile &file) {
 		uint64 randomId = MTP::nonce<uint64>();
 		App::historyRegRandom(randomId, newId);
 		History *hist = item->history();
-		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_inputMediaUploadedPhoto(file), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_inputMediaUploadedPhoto(file), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), App::main()->rpcFail(&MainWidget::sendPhotoFailed, randomId), 0, 0, hist->sendRequestId);
 	}
 }
 

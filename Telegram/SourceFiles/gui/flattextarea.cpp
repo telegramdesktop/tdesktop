@@ -297,21 +297,7 @@ QString FlatTextarea::getText(int32 start, int32 end) const {
 							uint32 index = imageName.mid(8).toUInt(0, 16);
 							const EmojiData *emoji = getEmoji(index);
 							if (emoji) {
-								emojiText.reserve(emoji->len + (emoji->postfix ? 1 : 0));
-								switch (emoji->len) {
-								case 1: emojiText.append(QChar(emoji->code & 0xFFFF)); break;
-								case 2:
-									emojiText.append(QChar((emoji->code >> 16) & 0xFFFF));
-									emojiText.append(QChar(emoji->code & 0xFFFF));
-								break;
-								case 4:
-									emojiText.append(QChar((emoji->code >> 16) & 0xFFFF));
-									emojiText.append(QChar(emoji->code & 0xFFFF));
-									emojiText.append(QChar((emoji->code2 >> 16) & 0xFFFF));
-									emojiText.append(QChar(emoji->code2 & 0xFFFF));
-								break;
-								}
-								if (emoji->postfix) emojiText.append(QChar(emoji->postfix));
+								emojiText = textEmojiString(emoji);
 							}
 						}
 					}

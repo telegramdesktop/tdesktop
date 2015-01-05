@@ -1292,6 +1292,8 @@ namespace App {
 		documentsData.clear();
 		cSetRecentStickers(RecentStickerPack());
 		cSetStickersHash(QByteArray());
+		cSetStickers(AllStickers());
+		cSetEmojiStickers(EmojiStickersMap());
 		::videoItems.clear();
 		::audioItems.clear();
 		::documentItems.clear();
@@ -2013,7 +2015,7 @@ namespace App {
 				}
 				exif_data_free(exifData);
 			}
-		} else if (opaque) {
+		} else if (opaque && result.hasAlphaChannel()) {
 			QImage solid(result.width(), result.height(), QImage::Format_ARGB32_Premultiplied);
 			solid.fill(st::white->c);
 			{

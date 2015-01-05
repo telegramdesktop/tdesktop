@@ -944,7 +944,7 @@ void SettingsInner::onChangeLanguage() {
 				connect(box, SIGNAL(confirmed()), this, SLOT(onSaveTestLang()));
 				App::wnd()->showLayer(box);
 			} else {
-				App::wnd()->showLayer(new ConfirmBox("Custom lang failed :(\n\nError: " + cLangErrors(), true, lang(lng_close)));
+				App::wnd()->showLayer(new ConfirmBox("Custom lang failed :(\n\nError: " + loader.errors(), true, lang(lng_close)));
 			}
 		}
 	} else {

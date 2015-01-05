@@ -664,6 +664,52 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 	}
 }
 
+bool MainWidget::sendPhotoFailed(uint64 randomId, const RPCError &e) {
+	if (e.type() == qsl("PHOTO_INVALID_DIMENSIONS")) {
+		if (_resendImgRandomIds.isEmpty()) {
+			ConfirmBox *box = new ConfirmBox(lang(lng_bad_image_for_photo));
+			connect(box, SIGNAL(confirmed()), this, SLOT(onResendAsDocument()));
+			connect(box, SIGNAL(cancelled()), this, SLOT(onCancelResend()));
+			connect(box, SIGNAL(destroyed()), this, SLOT(onCancelResend()));
+			App::wnd()->showLayer(box);
+		}
+		_resendImgRandomIds.push_back(randomId);
+		return true;
+	}
+	return false;
+}
+
+void MainWidget::onResendAsDocument() {
+	QList<uint64> tmp = _resendImgRandomIds;
+	_resendImgRandomIds.clear();
+	for (int32 i = 0, l = tmp.size(); i < l; ++i) {
+		if (HistoryItem *item = App::histItemById(App::histItemByRandom(tmp.at(i)))) {
+			if (HistoryPhoto *media = dynamic_cast<HistoryPhoto*>(item->getMedia())) {
+				PhotoData *photo = media->photo();
+				if (!photo->full->isNull()) {
+					photo->full->forget();
+					QByteArray data = photo->full->savedData();
+					if (!data.isEmpty()) {
+						history.uploadMedia(data, ToPrepareDocument, item->history()->peer->id);
+					}
+				}
+			}
+			item->destroy();
+		}
+	}
+	App::wnd()->layerHidden();
+}
+
+void MainWidget::onCancelResend() {
+	QList<uint64> tmp = _resendImgRandomIds;
+	_resendImgRandomIds.clear();
+	for (int32 i = 0, l = tmp.size(); i < l; ++i) {
+		if (HistoryItem *item = App::histItemById(App::histItemByRandom(tmp.at(i)))) {
+			item->destroy();
+		}
+	}
+}
+
 void MainWidget::forwardSelectedItems() {
 	if (overview) {
 		overview->onForwardSelected();

@@ -1627,7 +1627,7 @@ btnContext: iconedButton(btnDefIconed) {
 	opacity: 1;
 	overOpacity: 1;
 
-	width: 172px;
+	width: -32px;
 	height: 36px;
 
 	color: black;
@@ -1655,9 +1655,9 @@ mediaviewLoader: size(78px, 33px);
 mediaviewLoaderPoint: size(9px, 9px);
 mediaviewLoaderSkip: 9px;
 
-minPhotoWidth: 90px;
-minPhotoHeight: 90px;
+minPhotoSize: 90px;
 maxMediaSize: 420px;
+maxStickerSize: 256px;
 
 usernameFont: font(14px);
 usernameColor: #777;

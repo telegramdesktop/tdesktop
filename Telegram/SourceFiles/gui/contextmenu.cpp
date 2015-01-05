@@ -47,6 +47,7 @@ QAction *ContextMenu::addAction(const QString &text, const QObject *receiver, co
 	connect(b, SIGNAL(stateChanged(int,ButtonStateChangeSource)), this, SLOT(buttonStateChanged(int,ButtonStateChangeSource)));
 
 	_width = qMax(_width, int(st::dropdownPadding.left() + st::dropdownPadding.right() + b->width()));
+	for (int32 i = 0, l = _buttons.size(); i < l; ++i) _buttons[i]->resize(_width - int(st::dropdownPadding.left() + st::dropdownPadding.right()), _buttons[i]->height());
 	_height += b->height();
 
 	resize(_width, _height);
@@ -61,6 +62,8 @@ ContextMenu::Actions &ContextMenu::actions() {
 void ContextMenu::actionChanged() {
 	for (int32 i = 0, l = _actions.size(); i < l; ++i) {
 		_buttons[i]->setText(_actions[i]->text());
+		_width = qMax(_width, int(st::dropdownPadding.left() + st::dropdownPadding.right() + _buttons[i]->width()));
+		_buttons[i]->resize(_width - int(st::dropdownPadding.left() + st::dropdownPadding.right()), _buttons[i]->height());
 	}
 }
 

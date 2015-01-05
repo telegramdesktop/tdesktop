@@ -57,7 +57,7 @@ PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer) : _downState(0
 }
 
 void PhotoCropBox::mousePressEvent(QMouseEvent *e) {
-	if (e->button() != Qt::LeftButton) return;
+	if (e->button() != Qt::LeftButton) return LayeredWidget::mousePressEvent(e);
 
 	_downState = mouseState(e->pos());
 	_fromposx = e->pos().x();
@@ -65,6 +65,8 @@ void PhotoCropBox::mousePressEvent(QMouseEvent *e) {
 	_fromcropx = _cropx;
 	_fromcropy = _cropy;
 	_fromcropw = _cropw;
+
+	return LayeredWidget::mousePressEvent(e);
 }
 
 int32 PhotoCropBox::mouseState(QPoint p) {
