@@ -118,11 +118,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_phone" = "Falsche Nummer, bitte erneut versuchen.";
 "lng_bad_phone_noreg" = "Telefonnummer nicht registriert.";
 "lng_bad_code" = "Ungültiger Code, bitte versuche es nochmal.";
-"lng_bad_name" = "Bite trage Vor- und Nachnamen ein.";
+"lng_bad_name" = "Bitte trage Vor- und Nachnamen ein.";
 "lng_bad_photo" = "Fehler beim Upload.";
 
 "lng_signup_title" = "Information und Bild";
-"lng_signup_desc" = "Bite trage deinen Namen ein \nund lade ein Bild hoch.";
+"lng_signup_desc" = "Bitte trage deinen Namen ein \nund lade ein Bild hoch.";
 
 "lng_signup_firstname" = "Vorname";
 "lng_signup_lastname" = "Nachname";
@@ -140,7 +140,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_uploading_photo" = "Bild wird geladen..";
 
 "lng_username_title" = "Benutzernamen ändern";
-"lng_username_about" = "Wähle einen (optionalen) öffentlichen \nBenutzernamen, wenn du von anderen \ngefunden werden willst, ohne, dass sie \ndeine Nummer kennen müssen.\n\nErlaubt sind a-z, 0-9 und Unterstriche. \nDie Mindestlänge beträgt 5 Zeichen.";
+"lng_username_about" = "Wähle einen (optionalen) öffentlichen \nBenutzernamen, wenn du von anderen \ngefunden werden willst, ohne dass sie \ndeine Nummer kennen müssen.\n\nErlaubt sind a-z, 0-9 und Unterstriche. \nDie Mindestlänge beträgt 5 Zeichen.";
 "lng_username_invalid" = "Der Benutzername ist fehlerhaft.";
 "lng_username_occupied" = "Der Benutzername ist bereits belegt.";
 "lng_username_too_short" = "Der Benutzername ist zu kurz.";
@@ -202,7 +202,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_download_path_temp_radio" = "Temporärer Ordner (bis du dich abmeldest)";
 "lng_download_path_dir_radio" = "Nutzerdefinierter Ordner, wird nur manuell geleert.";
 "lng_download_path_choose" = "Wähle Speicherort";
-"lng_sure_clear_downloads" = "Willst du alle Downlaods vom Temp-Ordner löschen? Das passiert automatisch wenn du dich abmeldest oder Telegram deinstallierst.";
+"lng_sure_clear_downloads" = "Willst du alle Downloads vom Temp-Ordner löschen? Das passiert automatisch, wenn du dich abmeldest oder Telegram deinstallierst.";
 "lng_download_path_failed" = "Download konnte nicht gestartet werden. Das kann am eingestellten Speicherort liegen.\n\nDu kannst den Speicherort in den Einstellungen ändern.";
 "lng_download_path_settings" = "Zu den Einstellungen";
 "lng_download_finish_failed" = "Datei konte nicht geladen werden.\n\nErneut versuchen?";
@@ -330,7 +330,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_send_button" = "Senden";
 "lng_message_ph" = "Schreibe deine Nachricht..";
 "lng_empty_history" = "";
-"lng_willbe_history" = "Wähle einen Chat aus um zu schreiben";
+"lng_willbe_history" = "Wähle einen Chat aus, um zu schreiben";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Ich";
 
@@ -427,7 +427,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_selected_delete_confirm" = "Löschen";
 
 "lng_about_version" = "Version {version}";
-"lng_about_text" = "Telegram Desktop basiert auf [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] und\ndem [a href=\"https://core.telegram.org/api\"]Telegram API[/a] um Geschwindigkeit \nund Sicherheit zu gewährleisten.\n\nSoftware steht unter der [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] Version 3,\nQuelltext ist bei  [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a] verfügbar.";
+"lng_about_text" = "Telegram Desktop basiert auf [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] und\ndem [a href=\"https://core.telegram.org/api\"]Telegram API[/a], um Geschwindigkeit \nund Sicherheit zu gewährleisten.\n\nDie Software steht unter der [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] Version 3,\nQuelltext ist bei [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a] verfügbar.";
 "lng_about_done" = "Fertig";
 
 "lng_search_found_results" = "{count:Keine Nachrichten|# Nachricht|# Nachrichten}";
@@ -460,7 +460,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mac_all_apps" = "Alle Programme";
 "lng_mac_always_open_with" = "Immer öffnen mit";
 "lng_mac_this_app_can_open" = "Dieses Programm kann \"{file}\"-Dateien öffnen.";
-"lng_mac_not_known_app" = "Es ist nicht bekannt,  ob dieses Programm \"{file}\" öffnen kann.";
+"lng_mac_not_known_app" = "Es ist nicht bekannt, ob dieses Programm \"{file}\" öffnen kann.";
 
 "lng_mac_menu_about" = "Über Telegram";
 "lng_mac_menu_preferences" = "Einstellungen ...";
