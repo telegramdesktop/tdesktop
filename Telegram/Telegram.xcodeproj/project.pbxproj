@@ -57,6 +57,7 @@
 		07C4753F1967E37300CAAFE9 /* moc_switcher.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */; };
 		07D7034B19B8755A00C4EED2 /* audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D7034919B8755A00C4EED2 /* audio.cpp */; };
 		07D703BB19B88FB900C4EED2 /* moc_audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D703BA19B88FB900C4EED2 /* moc_audio.cpp */; };
+		07D7EABA1A597DD000838BA2 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 07D7EABC1A597DD000838BA2 /* Localizable.strings */; };
 		07D8509419F5C97E00623D75 /* mtpCoreTypes.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D8509219F5C97E00623D75 /* mtpCoreTypes.cpp */; };
 		07D8509519F5C97E00623D75 /* mtpScheme.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D8509319F5C97E00623D75 /* mtpScheme.cpp */; };
 		07D8509919F8320900623D75 /* usernamebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D8509719F8320900623D75 /* usernamebox.cpp */; };
@@ -291,6 +292,12 @@
 		07D7034919B8755A00C4EED2 /* audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = audio.cpp; path = SourceFiles/audio.cpp; sourceTree = SOURCE_ROOT; };
 		07D7034A19B8755A00C4EED2 /* audio.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = audio.h; path = SourceFiles/audio.h; sourceTree = SOURCE_ROOT; };
 		07D703BA19B88FB900C4EED2 /* moc_audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_audio.cpp; path = GeneratedFiles/Debug/moc_audio.cpp; sourceTree = SOURCE_ROOT; };
+		07D7EABB1A597DD000838BA2 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		07D7EABD1A597DD200838BA2 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
+		07D7EABE1A597DD300838BA2 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
+		07D7EABF1A597DD400838BA2 /* nl */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = nl; path = nl.lproj/Localizable.strings; sourceTree = "<group>"; };
+		07D7EAC01A597DD500838BA2 /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/Localizable.strings; sourceTree = "<group>"; };
+		07D7EAC11A597DD600838BA2 /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		07D8509219F5C97E00623D75 /* mtpCoreTypes.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mtpCoreTypes.cpp; path = SourceFiles/mtproto/mtpCoreTypes.cpp; sourceTree = SOURCE_ROOT; };
 		07D8509319F5C97E00623D75 /* mtpScheme.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mtpScheme.cpp; path = SourceFiles/mtproto/mtpScheme.cpp; sourceTree = SOURCE_ROOT; };
 		07D8509719F8320900623D75 /* usernamebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = usernamebox.cpp; path = SourceFiles/boxes/usernamebox.cpp; sourceTree = SOURCE_ROOT; };
@@ -1226,6 +1233,7 @@
 		E8C543AB96796ECAA2E65C57 /* Telegram */ = {
 			isa = PBXGroup;
 			children = (
+				07D7EABC1A597DD000838BA2 /* Localizable.strings */,
 				07084684195445A600B5AE3A /* Updater.xcodeproj */,
 				2EB56BE3C2D93CDAB0C52E67 /* Sources */,
 				25B08E2869634E9BCBA333A2 /* Generated Sources */,
@@ -1294,6 +1302,11 @@
 			hasScannedForEncodings = 1;
 			knownRegions = (
 				en,
+				es,
+				de,
+				nl,
+				it,
+				"pt-BR",
 			);
 			mainGroup = E8C543AB96796ECAA2E65C57 /* Telegram */;
 			productRefGroup = FE0A091FDBFB3E9C31B7A1BD /* Products */;
@@ -1329,6 +1342,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0749CE69194D723400345D61 /* Images.xcassets in Resources */,
+				07D7EABA1A597DD000838BA2 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1588,6 +1602,22 @@
 			targetProxy = 07C3AF22194335970016CFF1 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		07D7EABC1A597DD000838BA2 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				07D7EABB1A597DD000838BA2 /* en */,
+				07D7EABD1A597DD200838BA2 /* es */,
+				07D7EABE1A597DD300838BA2 /* de */,
+				07D7EABF1A597DD400838BA2 /* nl */,
+				07D7EAC01A597DD500838BA2 /* it */,
+				07D7EAC11A597DD600838BA2 /* pt-BR */,
+			);
+			name = Localizable.strings;
+			sourceTree = SOURCE_ROOT;
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		07C3AF3E194CCC310016CFF1 /* Debug */ = {

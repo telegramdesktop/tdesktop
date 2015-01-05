@@ -87,7 +87,7 @@ namespace {
 
 Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
     serverName(psServerPrefix() + cGUIDStr()), closing(false),
-	updateRequestId(0), updateReply(0), updateThread(0), updateDownloader(0) {
+	updateRequestId(0), updateReply(0), updateThread(0), updateDownloader(0), _translator(0) {
 
 	DEBUG_LOG(("Application Info: creation.."));
 
@@ -152,6 +152,8 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 			LOG(("Lang load warnings: %1").arg(loader.warnings()));
 		}
 	}
+
+	installTranslator(_translator = new Translator());
 
 	Local::start();
 	style::startManager();
@@ -832,6 +834,8 @@ Application::~Application() {
 
 	style::stopManager();
 	Local::stop();
+
+	delete _translator;
 }
 
 Application *Application::app() {
