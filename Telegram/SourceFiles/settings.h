@@ -150,6 +150,10 @@ typedef QVector<DocumentData*> StickerPack;
 typedef QMap<EmojiPtr, StickerPack> AllStickers;
 DeclareSetting(AllStickers, Stickers);
 DeclareSetting(QByteArray, StickersHash);
+
+typedef QMap<DocumentData*, EmojiPtr> EmojiStickersMap;
+DeclareSetting(EmojiStickersMap, EmojiStickers);
+
 typedef QList<QPair<DocumentData*, int16> > RecentStickerPack;
 DeclareSetting(RecentStickerPack, RecentStickers);
 

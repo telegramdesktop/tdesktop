@@ -365,13 +365,15 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 				}
 
 				float64 coef = qMin((stickerWidth - st::stickerPanPadding * 2) / float64(sticker->dimensions.width()), (stickerSize - st::stickerPanPadding * 2) / float64(sticker->dimensions.height()));
+				if (coef > 1) coef = 1;
 				int32 w = qRound(coef * sticker->dimensions.width()), h = qRound(coef * sticker->dimensions.height());
+				if (w < 1) w = 1;
+				if (h < 1) h = 1;
 				QPoint ppos = pos + QPoint((stickerSize - w) / 2, (stickerSize - h) / 2);
-
 				if (sticker->sticker->isNull()) {
-					p.drawPixmap(ppos, sticker->thumb->pix(w));
+					p.drawPixmap(ppos, sticker->thumb->pix(w, h));
 				} else {
-					p.drawPixmap(ppos, sticker->sticker->pix(w));
+					p.drawPixmap(ppos, sticker->sticker->pix(w, h));
 				}
 
 				if (hover > 0 && _isUserGen[index]) {

@@ -298,7 +298,7 @@ public:
 	void shareContactConfirmation(const QString &phone, const QString &fname, const QString &lname, bool withText = false);
 	void uploadConfirmImageUncompressed(bool ctrlShiftEnter);
 	void uploadMedias(const QStringList &files, ToPrepareMediaType type);
-	void uploadMedia(const QByteArray &fileContent, ToPrepareMediaType type);
+	void uploadMedia(const QByteArray &fileContent, ToPrepareMediaType type, PeerId peer = 0);
 	void confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname);
 	void confirmSendImage(const ReadyLocalMedia &img);
 	void cancelSendImage();

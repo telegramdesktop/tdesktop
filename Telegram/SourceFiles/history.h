@@ -1166,6 +1166,8 @@ public:
 	}
 	virtual void updateMedia(const MTPMessageMedia &media) {
 	}
+	virtual void updateStickerEmoji() {
+	}
 
 	virtual QString selectedText(uint32 selection) const {
 		return qsl("[-]");
@@ -1240,6 +1242,10 @@ public:
 
 	virtual void updateFrom(const MTPMessageMedia &media) {
 	}
+
+	virtual bool updateStickerEmoji() {
+		return false;
+	}
 	
 	virtual bool animating() const {
 		return false;
@@ -1291,6 +1297,7 @@ public:
 	}
 
 private:
+	int16 pixw, pixh;
 	PhotoData *data;
 	TextLinkPtr openl;
 
@@ -1432,10 +1439,13 @@ public:
 	void unregItem(HistoryItem *item);
 
 	void updateFrom(const MTPMessageMedia &media);
+	bool updateStickerEmoji();
 
 private:
 
+	int16 pixw, pixh;
 	DocumentData *data;
+	QString _emoji;
 
 };
 
@@ -1577,6 +1587,7 @@ public:
 	void updateMedia(const MTPMessageMedia &media) {
 		if (_media) _media->updateFrom(media);
 	}
+	void updateStickerEmoji();
 
 	QString selectedText(uint32 selection) const;
 	HistoryMedia *getMedia(bool inOverview = false) const;

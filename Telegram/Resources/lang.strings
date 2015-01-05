@@ -121,6 +121,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_name" = "Please enter your first and last name.";
 "lng_bad_photo" = "Bad image selected.";
 
+"lng_bad_image_for_photo" = "This image can't be sent that way.\nWould you like to send it as a document?";
+
 "lng_signup_title" = "Information and photo";
 "lng_signup_desc" = "Please enter your name and\nupload a photo.";
 
@@ -326,6 +328,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio" = "Audio";
 "lng_in_dlg_document" = "Document";
 "lng_in_dlg_sticker" = "Sticker";
+"lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
 
 "lng_send_button" = "Send";
 "lng_message_ph" = "Write a message..";
@@ -450,6 +453,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_new_authorization" = "{name},\nWe detected a login into your account from a new device on {day}, {date} at {time}\n\nDevice: {device}\nLocation: {location}\n\nIf this wasn't you, you can go to Settings — Terminate other sessions.\n\nThanks,\nThe Telegram Team";
 
 "lng_new_version7005" = "Telegram Desktop was updated to version {version}\n\n — Stickers support\n — Local caching for voice messages\n — Added Portuguese language\n\nFull version history is available here:\n{link}";
+"lng_new_version7006_appstore" = "Telegram Desktop was updated to version {version}\n\n — Stickers support\n — Local caching for voice messages\n — Added new languages\n\nFull version history is available here:\n{link}";
 
 // Mac specific
 

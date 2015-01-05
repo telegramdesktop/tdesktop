@@ -481,7 +481,7 @@ void Application::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId)
 	int32 filesize = 0;
 	QByteArray data;
 
-	ReadyLocalMedia ready(ToPreparePhoto, file, filename, filesize, data, id, id, peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false);
+	ReadyLocalMedia ready(ToPreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false);
 
 	connect(App::uploader(), SIGNAL(photoReady(MsgId, const MTPInputFile &)), App::app(), SLOT(photoUpdated(MsgId, const MTPInputFile &)), Qt::UniqueConnection);
 
