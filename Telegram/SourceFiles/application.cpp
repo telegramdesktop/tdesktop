@@ -705,9 +705,9 @@ void Application::startApp() {
 		}
 	}
 
-	if (!cLangErrors().isEmpty()) {
-		window->showLayer(new ConfirmBox("Custom lang failed :(\n\nError: " + cLangErrors(), true, lang(lng_close)));
-	}
+//	if (!cLangErrors().isEmpty()) {
+//		window->showLayer(new ConfirmBox("Custom lang failed :(\n\nError: " + cLangErrors(), true, lang(lng_close)));
+//	}
 }
 
 void Application::socketDisconnected() {

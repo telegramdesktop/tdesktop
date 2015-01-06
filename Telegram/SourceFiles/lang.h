@@ -109,6 +109,7 @@ protected:
 	LangKey subkeyIndex(LangKey key, ushort tag, ushort index) const;
 
 	bool feedKeyValue(LangKey key, const QString &value);
+	void foundKeyValue(LangKey key);
 
 	void error(const QString &text) {
 		_err.push_back(text);

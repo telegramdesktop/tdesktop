@@ -87,6 +87,23 @@ void LanguageBox::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
+void LanguageBox::mousePressEvent(QMouseEvent *e) {
+	if ((e->modifiers() & Qt::CTRL) && (e->modifiers() & Qt::ALT) && (e->modifiers() & Qt::SHIFT)) {
+		for (int32 i = 1; i < languageCount; ++i) {
+			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i] + qsl(".strings"), LangLoaderRequest(lngkeys_cnt));
+			if (!loader.errors().isEmpty()) {
+				App::wnd()->showLayer(new ConfirmBox(qsl("Lang \"") + LanguageCodes[i] + qsl("\" error :(\n\nError: ") + loader.errors(), true, lang(lng_close)));
+				return;
+			} else if (!loader.warnings().isEmpty()) {
+				QString warn = loader.warnings();
+				if (warn.size() > 256) warn = warn.mid(0, 254) + qsl("..");
+				App::wnd()->showLayer(new ConfirmBox(qsl("Lang \"") + LanguageCodes[i] + qsl("\" warnings :(\n\nWarnings: ") + warn, true, lang(lng_close)));
+				return;
+			}
+		}
+	}
+}
+
 void LanguageBox::parentResized() {
 	QSize s = parentWidget()->size();
 	setGeometry((s.width() - _width) / 2, (s.height() - _height) / 2, _width, _height);
