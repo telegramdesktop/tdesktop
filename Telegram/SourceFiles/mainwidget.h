@@ -80,12 +80,14 @@ private:
 
 	uint32 _selCount;
 	QString _selStr;
-	int32 _selStrWidth;
+	int32 _selStrLeft, _selStrWidth;
     
     bool _animating;
 
 	FlatButton _clearSelection;
 	FlatButton _forward, _delete;
+	int32 _selectionButtonsWidth, _forwardDeleteWidth;
+
 	FlatButton _info;
 	FlatButton _edit, _leaveGroup, _addContact, _deleteContact;
 	FlatButton _mediaType;
@@ -194,6 +196,8 @@ public:
 
 	void updateNotifySetting(PeerData *peer, bool enabled);
 
+	void incrementSticker(DocumentData *sticker);
+
 	void activate();
 
 	void createDialogAtTop(History *history, int32 unreadCount);
@@ -272,6 +276,8 @@ public:
 
 	void checkPeerHistory(PeerData *peer);
 	void checkedHistory(PeerData *peer, const MTPmessages_Messages &result);
+
+	bool sendPhotoFailed(uint64 randomId, const RPCError &e);
 
 	void forwardSelectedItems();
 	void deleteSelectedItems();
@@ -355,6 +361,9 @@ public slots:
 
 	void onForwardCancel(QObject *obj = 0);
 
+	void onResendAsDocument();
+	void onCancelResend();
+
 private:
 
     void partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result);
@@ -365,6 +374,8 @@ private:
 	uint64 failedObjId;
 	QString failedFileName;
 	void loadFailed(mtpFileLoader *loader, bool started, const char *retrySlot);
+
+	QList<uint64> _resendImgRandomIds;
 
 	void gotDifference(const MTPupdates_Difference &diff);
 	bool failDifference(const RPCError &e);

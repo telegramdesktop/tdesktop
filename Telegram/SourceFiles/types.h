@@ -254,6 +254,8 @@ enum DataBlockId {
 	dbiNotifyView = 28,
 	dbiSendToMenu = 29,
 	dbiCompressPastedImage = 30,
+	dbiLang = 31,
+	dbiLangFile = 32,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -311,12 +313,13 @@ enum DBIScale {
 };
 
 enum DBIEmojiTab {
-	dbietRecent  = -1,
-	dbietPeople  =  0,
-	dbietNature  =  1,
-	dbietObjects =  2,
-	dbietPlaces  =  3,
-	dbietSymbols =  4,
+	dbietRecent   = -1,
+	dbietPeople   =  0,
+	dbietNature   =  1,
+	dbietObjects  =  2,
+	dbietPlaces   =  3,
+	dbietSymbols  =  4,
+	dbietStickers =  666,
 };
 
 enum DBIPlatform {
@@ -350,3 +353,30 @@ inline QString strMakeFromLetters(const uint32 *letters, int32 len) {
 	}
 	return result;
 }
+
+class MimeType {
+public:
+
+	enum TypeEnum {
+		Unknown,
+		WebP,
+	};
+
+	MimeType(const QMimeType &type) : _typeStruct(type), _type(Unknown) {
+	}
+	MimeType(TypeEnum type) : _type(type) {
+	}
+	QStringList globPatterns() const;
+	QString filterString() const;
+	QString name() const;
+
+private:
+
+	QMimeType _typeStruct;
+	TypeEnum _type;
+
+};
+
+MimeType mimeTypeForName(const QString &mime);
+MimeType mimeTypeForFile(const QFileInfo &file);
+MimeType mimeTypeForData(const QByteArray &data);

@@ -17,17 +17,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 7002;
-static const wchar_t *AppVersionStr = L"0.7.2";
+static const int32 AppVersion = 7006;
+static const wchar_t *AppVersionStr = L"0.7.6";
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
 
 static const wchar_t *AppId = L"{53F49750-6209-4FBF-9CA8-7A333C87D1ED}"; // used in updater.cpp and Setup.iss for Windows
 static const wchar_t *AppFile = L"Telegram";
-
-static const int32 FeaturesNotifyVersion = 7000;
-extern const char *FeaturesNotify;
 
 #include "settings.h"
 
@@ -90,6 +87,9 @@ enum {
 	AudioVoiceMsgBufferSize = 1024 * 1024, // 1 Mb buffers
 	AudioVoiceMsgInMemory = 1024 * 1024, // 1 Mb audio is hold in memory and auto loaded
 
+	StickerInMemory = 256 * 1024, // 128 Kb stickers hold in memory, auto loaded and displayed inline
+	StickerMaxSize = 1280, // 1024x1024 is a max image size for sticker
+
 	MediaViewImageSizeLimit = 100 * 1024 * 1024, // show up to 100mb jpg/png/gif docs in app
 	MaxZoomLevel = 7, // x8
 	ZoomToScreenLevel = 1024, // just constant
@@ -97,6 +97,8 @@ enum {
 	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
 	EmojiPadPerRow = 7,
 	EmojiPadRowsPerPage = 6,
+	StickerPadPerRow = 3,
+	StickersUpdateTimeout = 3600000, // update not more than once in an hour
 
 	SearchPeopleLimit = 5,
 	MinUsernameLength = 5,
@@ -233,7 +235,7 @@ enum {
 
 	DownloadPartSize = 64 * 1024, // 64kb for photo
 	DocumentDownloadPartSize = 128 * 1024, // 128kb for document
-	MaxUploadPhotoSize = 10 * 1024 * 1024, // 10mb photos max
+	MaxUploadPhotoSize = 32 * 1024 * 1024, // 32mb photos max
     MaxUploadDocumentSize = 1500 * 1024 * 1024, // 1500mb documents max
     UseBigFilesFrom = 10 * 1024 * 1024, // mtp big files methods used for files greater than 10mb
 	MaxFileQueries = 16, // max 16 file parts downloaded at the same time

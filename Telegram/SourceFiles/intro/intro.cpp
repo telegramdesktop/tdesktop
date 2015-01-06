@@ -19,6 +19,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "style.h"
 
+#include "app.h"
+
 #include "intro/intro.h"
 #include "intro/introsteps.h"
 #include "intro/introphone.h"
@@ -45,6 +47,7 @@ namespace {
 }
 
 IntroWidget::IntroWidget(Window *window) : QWidget(window),
+_langChangeTo(0),
 cacheForHideInd(0),
 cacheForShowInd(0),
 wnd(window),
@@ -78,6 +81,18 @@ _backFrom(0), _backTo(0) {
 	setFocus();
 
 	_back.move(st::setClosePos.x(), st::setClosePos.y());
+}
+
+void IntroWidget::langChangeTo(int32 langId) {
+	_langChangeTo = langId;
+}
+
+void IntroWidget::onChangeLang() {
+	cSetLang(_langChangeTo);
+	App::writeConfig();
+	cSetRestarting(true);
+	cSetRestartingToSettings(false);
+	App::quit();
 }
 
 void IntroWidget::onParentResize(const QSize &newSize) {

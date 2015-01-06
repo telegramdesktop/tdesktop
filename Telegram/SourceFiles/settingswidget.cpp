@@ -29,6 +29,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/downloadpathbox.h"
 #include "boxes/usernamebox.h"
+#include "boxes/languagebox.h"
+#include "langloaderplain.h"
 #include "gui/filedialog.h"
 
 #include "localstorage.h"
@@ -121,6 +123,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_soundNotify(this, lang(lng_settings_sound_notify), cSoundNotify()),
 
 	// general
+	_changeLanguage(this, lang(lng_settings_change_lang)),
 	_autoUpdate(this, lang(lng_settings_auto_update), cAutoUpdate()),
 	_checkNow(this, lang(lng_settings_check_now)),
 	_restartNow(this, lang(lng_settings_update_now)),
@@ -132,7 +135,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_startMinimized(this, lang(lng_settings_start_min), cStartMinimized()),
 	_sendToMenu(this, lang(lng_settings_add_sendto), cSendToMenu()),
 
-	_dpiAutoScale(this, lang(lng_settings_scale_auto).replace(qsl("{cur}"), scaleLabel(cScreenScale())), (cConfigScale() == dbisAuto)),
+	_dpiAutoScale(this, lng_settings_scale_auto(lt_cur, scaleLabel(cScreenScale())), (cConfigScale() == dbisAuto)),
 	_dpiSlider(this, st::dpiSlider, dbisScaleCount - 1, cEvalScale(cConfigScale()) - 1),
 	_dpiWidth1(st::dpiFont1->m.width(scaleLabel(dbisOne))),
 	_dpiWidth2(st::dpiFont2->m.width(scaleLabel(dbisOneAndQuarter))),
@@ -147,7 +150,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
     _ctrlEnterSend(this, qsl("send_key"), 1, lang((cPlatform() == dbipMac) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), cCtrlEnter()),
 
 	_dontAskDownloadPath(this, lang(lng_download_path_dont_ask), !cAskDownloadPath()),
-    _downloadPathWidth(st::linkFont->m.width(lang(lng_download_path_label))),
+    _downloadPathWidth(st::linkFont->m.width(lang(lng_download_path_label)) + st::linkFont->spacew),
 	_downloadPathEdit(this, cDownloadPath().isEmpty() ? lang(lng_download_path_default) : ((cDownloadPath() == qsl("tmp")) ? lang(lng_download_path_temp) : st::linkFont->m.elidedText(QDir::toNativeSeparators(cDownloadPath()), Qt::ElideRight, st::setWidth - st::setVersionLeft - _downloadPathWidth))),
 	_downloadPathClear(this, lang(lng_download_path_clear)),
 	_tempDirClearingWidth(st::linkFont->m.width(lang(lng_download_path_clearing))),
@@ -157,13 +160,14 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_catsAndDogs(this, lang(lng_settings_cats_and_dogs), cCatsAndDogs()),
 
 	// local storage
-	_localImagesClear(this, lang(lng_local_images_clear)),
-	_imagesClearingWidth(st::linkFont->m.width(lang(lng_local_images_clearing))),
-	_imagesClearedWidth(st::linkFont->m.width(lang(lng_local_images_cleared))),
-	_imagesClearFailedWidth(st::linkFont->m.width(lang(lng_local_images_clear_failed))),
+	_localStorageClear(this, lang(lng_local_storage_clear)),
+	_localStorageHeight(1),
+	_storageClearingWidth(st::linkFont->m.width(lang(lng_local_storage_clearing))),
+	_storageClearedWidth(st::linkFont->m.width(lang(lng_local_storage_cleared))),
+	_storageClearFailedWidth(st::linkFont->m.width(lang(lng_local_storage_clear_failed))),
 
 	// advanced
-	_connectionType(this, lang(lng_connection_auto)),
+	_connectionType(this, lng_connection_auto(lt_type, QString())),
 	_resetSessions(this, lang(lng_settings_reset)),
 	_logOut(this, lang(lng_settings_logout), st::btnLogout),
     _resetDone(false)
@@ -198,6 +202,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	connect(&_soundNotify, SIGNAL(changed()), this, SLOT(onSoundNotify()));
 
 	// general
+	connect(&_changeLanguage, SIGNAL(clicked()), this, SLOT(onChangeLanguage()));
 	connect(&_autoUpdate, SIGNAL(changed()), this, SLOT(onAutoUpdate()));
 	connect(&_checkNow, SIGNAL(clicked()), this, SLOT(onCheckNow()));
 	connect(&_restartNow, SIGNAL(clicked()), this, SLOT(onRestartNow()));
@@ -213,7 +218,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	connect(&_dpiAutoScale, SIGNAL(changed()), this, SLOT(onScaleAuto()));
 	connect(&_dpiSlider, SIGNAL(changed(int32)), this, SLOT(onScaleChange()));
 
-	_curVersionText = lang(lng_settings_current_version).replace(qsl("{version}"), QString::fromWCharArray(AppVersionStr)) + ' ';
+	_curVersionText = lng_settings_current_version(lt_version, QString::fromWCharArray(AppVersionStr)) + ' ';
 	_curVersionWidth = st::linkFont->m.width(_curVersionText);
 	_newVersionText = lang(lng_settings_update_ready) + ' ';
 	_newVersionWidth = st::linkFont->m.width(_newVersionText);
@@ -245,11 +250,11 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	connect(&_catsAndDogs, SIGNAL(changed()), this, SLOT(onCatsAndDogs()));
 
 	// local storage
-	connect(&_localImagesClear, SIGNAL(clicked()), this, SLOT(onLocalImagesClear()));
-	switch (App::wnd()->localImagesState()) {
-	case Window::TempDirEmpty: _imagesClearState = TempDirEmpty; break;
-	case Window::TempDirExists: _imagesClearState = TempDirExists; break;
-	case Window::TempDirRemoving: _imagesClearState = TempDirClearing; break;
+	connect(&_localStorageClear, SIGNAL(clicked()), this, SLOT(onLocalStorageClear()));
+	switch (App::wnd()->localStorageState()) {
+	case Window::TempDirEmpty: _storageClearState = TempDirEmpty; break;
+	case Window::TempDirExists: _storageClearState = TempDirExists; break;
+	case Window::TempDirRemoving: _storageClearState = TempDirClearing; break;
 	}
 
 	// advanced
@@ -477,27 +482,45 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		p.setFont(st::setHeaderFont->f);
 		p.setPen(st::setHeaderColor->p);
 		p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_cache));
-		top += st::setHeaderSkip;
 
-		QString localImagesText = lang(lng_settings_no_images_cached);
-		int32 cnt = Local::hasImages();
-		if (cnt) {
-			localImagesText = lang((cnt > 1) ? lng_settings_images_cached : lng_settings_image_cached).replace(qsl("{count}"), QString::number(cnt)).replace(qsl("{size}"), formatSizeText(Local::storageFilesSize()));
-		}
 		p.setFont(st::linkFont->f);
 		p.setPen(st::black->p);
-		p.drawText(_left + st::setHeaderLeft, top + st::linkFont->ascent, localImagesText);
 		QString clearText;
 		int32 clearWidth = 0;
-		switch (_imagesClearState) {
-		case TempDirClearing: clearText = lang(lng_local_images_clearing); clearWidth = _imagesClearingWidth; break;
-		case TempDirCleared: clearText = lang(lng_local_images_cleared); clearWidth = _imagesClearedWidth; break;
-		case TempDirClearFailed: clearText = lang(lng_local_images_clear_failed); clearWidth = _imagesClearFailedWidth; break;
+		switch (_storageClearState) {
+		case TempDirClearing: clearText = lang(lng_local_storage_clearing); clearWidth = _storageClearingWidth; break;
+		case TempDirCleared: clearText = lang(lng_local_storage_cleared); clearWidth = _storageClearedWidth; break;
+		case TempDirClearFailed: clearText = lang(lng_local_storage_clear_failed); clearWidth = _storageClearFailedWidth; break;
 		}
 		if (clearWidth) {
-			p.drawText(_left + st::setWidth - clearWidth, top + st::linkFont->ascent, clearText);
+			p.drawText(_left + st::setWidth - clearWidth, top + st::setHeaderTop + st::setHeaderFont->ascent, clearText);
 		}
-		top += _localImagesClear.height();
+
+		top += st::setHeaderSkip;
+
+		int32 cntImages = Local::hasImages() + Local::hasStickers(), cntAudios = Local::hasAudios();
+		if (cntImages > 0 && cntAudios > 0) {
+			if (_localStorageHeight != 2) {
+				cntAudios = 0;
+				QTimer::singleShot(0, this, SLOT(onUpdateLocalStorage()));
+			}
+		} else {
+			if (_localStorageHeight != 1) {
+				QTimer::singleShot(0, this, SLOT(onUpdateLocalStorage()));
+			}
+		}
+		if (cntImages > 0) {
+			QString cnt = lng_settings_images_cached(lt_count, cntImages, lt_size, formatSizeText(Local::storageImagesSize() + Local::storageStickersSize()));
+			p.drawText(_left + st::setHeaderLeft, top + st::linkFont->ascent, cnt);
+		}
+		if (_localStorageHeight == 2) top += _localStorageClear.height() + st::setLittleSkip;
+		if (cntAudios > 0) {
+			QString cnt = lng_settings_audios_cached(lt_count, cntAudios, lt_size, formatSizeText(Local::storageAudiosSize()));
+			p.drawText(_left + st::setHeaderLeft, top + st::linkFont->ascent, cnt);
+		} else if (cntImages <= 0) {
+			p.drawText(_left + st::setHeaderLeft, top + st::linkFont->ascent, lang(lng_settings_no_data_cached));
+		}
+		top += _localStorageClear.height();
 	}
 
 	// advanced
@@ -543,6 +566,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 
 	// general
 	top += st::setHeaderSkip;
+	_changeLanguage.move(_left + st::setWidth - _changeLanguage.width(), top - st::setHeaderSkip + st::setHeaderTop + st::setHeaderFont->ascent - st::linkFont->ascent);
 //	_autoUpdate.move(_left, top);
 //	_checkNow.move(_left + st::setWidth - _checkNow.width(), top + st::cbDefFlat.textTop); top += _autoUpdate.height();
 //	_restartNow.move(_left + st::setWidth - _restartNow.width(), top + st::setVersionTop);
@@ -585,8 +609,15 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		_catsAndDogs.move(_left, top); top += _catsAndDogs.height();
 
 		// local storage
+		_localStorageClear.move(_left + st::setWidth - _localStorageClear.width(), top + st::setHeaderTop + st::setHeaderFont->ascent - st::linkFont->ascent);
 		top += st::setHeaderSkip;
-		_localImagesClear.move(_left + st::setWidth - _localImagesClear.width(), top); top += _localImagesClear.height();
+		if ((Local::hasImages() || Local::hasStickers()) && Local::hasAudios()) {
+			_localStorageHeight = 2;
+			top += _localStorageClear.height() + st::setLittleSkip;
+		} else {
+			_localStorageHeight = 1;
+		}
+		top += _localStorageClear.height();
 	}
 
 	// advanced
@@ -599,7 +630,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 }
 
 void SettingsInner::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Escape) {
+	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
 		App::wnd()->showSettings();
 	}
 }
@@ -677,7 +708,7 @@ void SettingsInner::updateConnectionType() {
 		if (transport.isEmpty()) {
 			_connectionType.setText(lang(lng_connection_auto_connecting));
 		} else {
-			_connectionType.setText(lang(lng_connection_auto).replace(qsl("{type}"), transport));
+			_connectionType.setText(lng_connection_auto(lt_type, transport));
 		}
 	} break;
 	case dbictHttpProxy: _connectionType.setText(lang(lng_connection_http_proxy)); break;
@@ -746,6 +777,7 @@ void SettingsInner::showAll() {
 	}
 
 	// general
+	_changeLanguage.show();
 	_autoUpdate.hide();
 //	setUpdatingState(_updatingState, true);
     if (cPlatform() == dbipWindows) {
@@ -810,14 +842,13 @@ void SettingsInner::showAll() {
 		_dontAskDownloadPath.hide();
 		_downloadPathEdit.hide();
 		_downloadPathClear.hide();
-		_localImagesClear.hide();
 	}
 
 	// local storage
-	if (self() && _imagesClearState == TempDirExists) {
-		_localImagesClear.show();
+	if (self() && _storageClearState == TempDirExists) {
+		_localStorageClear.show();
 	} else {
-		_localImagesClear.hide();
+		_localStorageClear.hide();
 	}
 
 	// advanced
@@ -879,6 +910,13 @@ void SettingsInner::onUpdatePhoto() {
 }
 
 void SettingsInner::onResetSessions() {
+	ConfirmBox *box = new ConfirmBox(lang(lng_settings_reset_sure), lang(lng_settings_reset_button));
+	connect(box, SIGNAL(confirmed()), this, SLOT(onResetSessionsSure()));
+	App::wnd()->showLayer(box);
+}
+
+void SettingsInner::onResetSessionsSure() {
+	App::wnd()->layerHidden();
 	MTP::send(MTPauth_ResetAuthorizations(), rpcDone(&SettingsInner::doneResetSessions));
 }
 
@@ -888,6 +926,44 @@ void SettingsInner::doneResetSessions(const MTPBool &res) {
 		showAll();
 		update();
 	}
+}
+
+void SettingsInner::onChangeLanguage() {
+	if ((_changeLanguage.clickModifiers() & Qt::ShiftModifier) && (_changeLanguage.clickModifiers() & Qt::AltModifier)) {
+		QString file;
+		QByteArray arr;
+		if (filedialogGetOpenFile(file, arr, qsl("Choose language .strings file"), qsl("Language files (*.strings)"))) {
+			_testlang = QFileInfo(file).absoluteFilePath();
+			LangLoaderPlain loader(_testlang, LangLoaderRequest(lng_sure_save_language, lng_cancel, lng_continue));
+			if (loader.errors().isEmpty()) {
+				LangLoaderResult result = loader.found();
+				QString text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
+					save = result.value(lng_continue, langOriginal(lng_continue)),
+					cancel = result.value(lng_cancel, langOriginal(lng_cancel));
+				ConfirmBox *box = new ConfirmBox(text, save, cancel);
+				connect(box, SIGNAL(confirmed()), this, SLOT(onSaveTestLang()));
+				App::wnd()->showLayer(box);
+			} else {
+				App::wnd()->showLayer(new ConfirmBox("Custom lang failed :(\n\nError: " + loader.errors(), true, lang(lng_close)));
+			}
+		}
+	} else {
+		App::wnd()->showLayer(new LanguageBox());
+	}
+}
+
+void SettingsInner::onSaveTestLang() {
+	cSetLangFile(_testlang);
+	cSetLang(languageTest);
+	App::writeConfig();
+	cSetRestarting(true);
+	App::quit();
+}
+
+void SettingsInner::onUpdateLocalStorage() {
+	resizeEvent(0);
+	updateSize(width());
+	update();
 }
 
 void SettingsInner::onAutoUpdate() {
@@ -922,6 +998,7 @@ void SettingsInner::onRestartNow() {
 		cSetRestartingUpdate(true);
 	} else {
 		cSetRestarting(true);
+		cSetRestartingToSettings(true);
 	}
 	App::quit();
 }
@@ -1164,9 +1241,9 @@ void SettingsInner::onDownloadPathClearSure() {
 	update();
 }
 
-void SettingsInner::onLocalImagesClear() {
-	App::wnd()->tempDirDelete(Local::ClearManagerImages);
-	_imagesClearState = TempDirClearing;
+void SettingsInner::onLocalStorageClear() {
+	App::wnd()->tempDirDelete(Local::ClearManagerStorage);
+	_storageClearState = TempDirClearing;
 	showAll();
 	update();
 }
@@ -1174,8 +1251,8 @@ void SettingsInner::onLocalImagesClear() {
 void SettingsInner::onTempDirCleared(int task) {
 	if (task & Local::ClearManagerDownloads) {
 		_tempDirClearState = TempDirCleared;
-	} else if (task & Local::ClearManagerImages) {
-		_imagesClearState = TempDirCleared;
+	} else if (task & Local::ClearManagerStorage) {
+		_storageClearState = TempDirCleared;
 	}
 	showAll();
 	update();
@@ -1184,8 +1261,8 @@ void SettingsInner::onTempDirCleared(int task) {
 void SettingsInner::onTempDirClearFailed(int task) {
 	if (task & Local::ClearManagerDownloads) {
 		_tempDirClearState = TempDirClearFailed;
-	} else if (task & Local::ClearManagerImages) {
-		_imagesClearState = TempDirClearFailed;
+	} else if (task & Local::ClearManagerStorage) {
+		_storageClearState = TempDirClearFailed;
 	}
 	showAll();
 	update();
@@ -1219,7 +1296,7 @@ void SettingsInner::setDownloadProgress(qint64 ready, qint64 total) {
 	qint64 readyTenthMb = (ready * 10 / (1024 * 1024)), totalTenthMb = (total * 10 / (1024 * 1024));
 	QString readyStr = QString::number(readyTenthMb / 10) + '.' + QString::number(readyTenthMb % 10);
 	QString totalStr = QString::number(totalTenthMb / 10) + '.' + QString::number(totalTenthMb % 10);
-	QString res = lang(lng_settings_downloading).replace(qsl("{ready}"), readyStr).replace(qsl("{total}"), totalStr);
+	QString res = lng_settings_downloading(lt_ready, readyStr, lt_total, totalStr);
 	if (_newVersionDownload != res) {
 		_newVersionDownload = res;
 		if (cAutoUpdate()) {

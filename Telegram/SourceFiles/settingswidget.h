@@ -127,7 +127,7 @@ public slots:
 
 	void onCatsAndDogs();
 
-	void onLocalImagesClear();
+	void onLocalStorageClear();
 
 	void onUpdateChecking();
 	void onUpdateLatest();
@@ -136,10 +136,16 @@ public slots:
 	void onUpdateFailed();
 
 	void onResetSessions();
+	void onResetSessionsSure();
 
 	void onPhotoUpdateDone(PeerId peer);
 	void onPhotoUpdateFail(PeerId peer);
 	void onPhotoUpdateStart();
+
+	void onChangeLanguage();
+	void onSaveTestLang();
+
+	void onUpdateLocalStorage();
 
 private:
 
@@ -147,6 +153,8 @@ private:
 	void saveError(const QString &str = QString());
 
 	void setScale(DBIScale newScale);
+
+	QString _testlang;
 
 	UserData *_self;
 	UserData *self() const {
@@ -174,6 +182,7 @@ private:
 	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _soundNotify;
 
 	// general
+	LinkButton _changeLanguage;
 	FlatCheckbox _autoUpdate;
 	LinkButton _checkNow, _restartNow;
 	FlatCheckbox _workmodeTray, _workmodeWindow;
@@ -215,9 +224,10 @@ private:
 	FlatCheckbox _catsAndDogs;
 
 	// local storage
-	LinkButton _localImagesClear;
-	int32 _imagesClearingWidth, _imagesClearedWidth, _imagesClearFailedWidth;
-	TempDirClearState _imagesClearState;
+	LinkButton _localStorageClear;
+	int32 _localStorageHeight;
+	int32 _storageClearingWidth, _storageClearedWidth, _storageClearFailedWidth;
+	TempDirClearState _storageClearState;
 
 	// advanced
 	LinkButton _connectionType, _resetSessions;

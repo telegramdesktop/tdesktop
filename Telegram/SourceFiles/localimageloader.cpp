@@ -31,13 +31,15 @@ LocalImageLoaderPrivate::LocalImageLoaderPrivate(int32 currentUser, LocalImageLo
 };
 
 void LocalImageLoaderPrivate::prepareImages() {
-	QString file, filename, mime;
+	QString file, filename, mime, stickerMime = qsl("image/webp");
     int32 filesize = 0;
 	QImage img;
 	QByteArray data;
 	PeerId peer;
-    uint64 id, jpeg_id = 0;
+    uint64 id, thumbId = 0;
+	QString thumbExt = "jpg";
 	ToPrepareMediaType type;
+	bool animated = false;
 	bool ctrlShiftEnter = false;
 	{
 		QMutexLocker lock(loader->toPrepareMutex());
@@ -71,16 +73,17 @@ void LocalImageLoaderPrivate::prepareImages() {
 					type = ToPrepareDocument;
 				}
 			}
-			if (type != ToPrepareAuto && info.size() < MaxUploadPhotoSize) {
-				img = App::readImage(file);
-			}
 			if (type == ToPrepareDocument) {
-				mime = QMimeDatabase().mimeTypeForFile(info).name();
+				mime = mimeTypeForFile(info).name();
+			}
+			if (type != ToPrepareAuto && info.size() < MaxUploadPhotoSize) {
+				bool opaque = (mime != stickerMime);
+				img = App::readImage(file, 0, opaque, &animated);
 			}
 			filename = info.fileName();
 			filesize = info.size();
 		} else if (!data.isEmpty()) {
-			img = App::readImage(data);
+			img = App::readImage(data, 0, true, &animated);
 			if (type == ToPrepareAuto) {
 				if (!img.isNull() && data.size() < MaxUploadPhotoSize) {
 					type = ToPreparePhoto;
@@ -90,22 +93,26 @@ void LocalImageLoaderPrivate::prepareImages() {
 					img = QImage();
 				}
 			}
-			QMimeType mimeType = QMimeDatabase().mimeTypeForData(data);
+			MimeType mimeType = mimeTypeForData(data);
 			if (type == ToPrepareDocument) {
 				mime = mimeType.name();
 			}
-			filename = qsl("Document");
-			QStringList patterns = mimeType.globPatterns();
-			if (!patterns.isEmpty()) {
-				filename = patterns.front().replace('*', filename);
+			if (mime == "image/jpeg") {
+				filename = filedialogDefaultName(qsl("image"), qsl(".jpg"), QString(), true);
+			} else {
+				QString ext;
+				QStringList patterns = mimeType.globPatterns();
+				if (!patterns.isEmpty()) {
+					ext = patterns.front().replace('*', QString());
+				}
+				filename = filedialogDefaultName(qsl("doc"), ext, QString(), true);
 			}
 			filesize = data.size();
 		}
 	} else {
 		if (type == ToPrepareDocument) {
 			filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
-			QMimeType mimeType = QMimeDatabase().mimeTypeForName("image/png");
-			mime = mimeType.name();
+			mime = mimeTypeForName("image/png").name();
 			data = QByteArray();
 			{
 				QBuffer b(&data);
@@ -113,7 +120,15 @@ void LocalImageLoaderPrivate::prepareImages() {
 			}
 			filesize = data.size();
 		} else {
-			type = ToPreparePhoto; // only photo from QImage
+			if (img.hasAlphaChannel()) {
+				QImage solid(img.width(), img.height(), QImage::Format_ARGB32_Premultiplied);
+				solid.fill(st::white->c);
+				{
+					QPainter(&solid).drawImage(0, 0, img);
+				}
+				img = solid;
+			}
+			type = ToPreparePhoto;
 			filename = qsl("Untitled.jpg");
 			filesize = 0;
 		}
@@ -133,6 +148,8 @@ void LocalImageLoaderPrivate::prepareImages() {
 		PreparedPhotoThumbs photoThumbs;
 		QVector<MTPPhotoSize> photoSizes;
 
+		QVector<MTPDocumentAttribute> attributes(1, MTP_documentAttributeFilename(MTP_string(filename)));
+
 		MTPPhotoSize thumb(MTP_photoSizeEmpty(MTP_string("")));
 		MTPPhoto photo(MTP_photoEmpty(MTP_long(0)));
 		MTPDocument document(MTP_documentEmpty(MTP_long(0)));
@@ -141,15 +158,15 @@ void LocalImageLoaderPrivate::prepareImages() {
 		if (type == ToPreparePhoto) {
 			int32 w = img.width(), h = img.height();
 
-			QPixmap thumb = (w > 100 || h > 100) ? QPixmap::fromImage(img.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(img);
+			QPixmap thumb = (w > 100 || h > 100) ? QPixmap::fromImage(img.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(img);
 			photoThumbs.insert('s', thumb);
 			photoSizes.push_back(MTP_photoSize(MTP_string("s"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
 
-			QPixmap medium = (w > 320 || h > 320) ? QPixmap::fromImage(img.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(img);
+			QPixmap medium = (w > 320 || h > 320) ? QPixmap::fromImage(img.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(img);
 			photoThumbs.insert('m', medium);
 			photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
 
-			QPixmap full = (w > 1280 || h > 1280) ? QPixmap::fromImage(img.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(img);
+			QPixmap full = (w > 1280 || h > 1280) ? QPixmap::fromImage(img.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(img);
 			photoThumbs.insert('y', full);
 			photoSizes.push_back(MTP_photoSize(MTP_string("y"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
 
@@ -161,30 +178,41 @@ void LocalImageLoaderPrivate::prepareImages() {
 		
 			photo = MTP_photo(MTP_long(id), MTP_long(0), MTP_int(user), MTP_int(unixtime()), MTP_string(""), MTP_geoPointEmpty(), MTP_vector<MTPPhotoSize>(photoSizes));
 
-			jpeg_id = id;
+			thumbId = id;
 		} else if ((type == ToPrepareVideo || type == ToPrepareDocument) && !img.isNull()) {
 			int32 w = img.width(), h = img.height();
-
-			QPixmap full = (w > 90 || h > 90) ? QPixmap::fromImage(img.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(img);
-
-			{
-				QBuffer jpegBuffer(&jpeg);
-				full.save(&jpegBuffer, "JPG", 87);
+			QByteArray thumbFormat = "JPG";
+			int32 thumbQuality = 87;
+			if (animated) {
+				attributes.push_back(MTP_documentAttributeAnimated());
+			} else if (mime == stickerMime && w > 0 && h > 0 && w <= StickerMaxSize && h <= StickerMaxSize && filesize < StickerInMemory) {
+				attributes.push_back(MTP_documentAttributeSticker());
+				thumbFormat = "webp";
+				thumbExt = qsl("webp");
 			}
+			attributes.push_back(MTP_documentAttributeImageSize(MTP_int(w), MTP_int(h)));
+			if (w < 20 * h && h < 20 * w) {
+				QPixmap full = (w > 90 || h > 90) ? QPixmap::fromImage(img.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(img, Qt::ColorOnly);
 
-			photoThumbs.insert('0', full);
-			thumb = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
+				{
+					QBuffer jpegBuffer(&jpeg);
+					full.save(&jpegBuffer, thumbFormat, thumbQuality);
+				}
 
-			jpeg_id = MTP::nonce<uint64>();
+				photoThumbs.insert('0', full);
+				thumb = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
+
+				thumbId = MTP::nonce<uint64>();
+			}
 		}
 
 		if (type == ToPrepareDocument) {
-			document = MTP_document(MTP_long(id), MTP_long(0), MTP_int(MTP::authedId()), MTP_int(unixtime()), MTP_string(filename), MTP_string(mime), MTP_int(filesize), thumb, MTP_int(MTP::maindc()));
+			document = MTP_document(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_string(mime), MTP_int(filesize), thumb, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
 		}
 
 		{
 			QMutexLocker lock(loader->readyMutex());
-			loader->readyList().push_back(ReadyLocalMedia(type, file, filename, filesize, data, id, jpeg_id, peer, photo, photoThumbs, document, jpeg, ctrlShiftEnter));
+			loader->readyList().push_back(ReadyLocalMedia(type, file, filename, filesize, data, id, thumbId, thumbExt, peer, photo, photoThumbs, document, jpeg, ctrlShiftEnter));
 		}
 
 		{

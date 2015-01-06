@@ -188,7 +188,7 @@ void AddContactBox::paintEvent(QPaintEvent *e) {
 				p.drawText(st::addContactTitlePos.x(), st::addContactTitlePos.y() + st::addContactTitleFont->ascent, _boxTitle);
 			} else {
 				int32 h = size().height() - st::boxPadding.top() * 2 - _retryButton.height() - st::boxPadding.bottom();
-				p.drawText(QRect(st::boxPadding.left(), st::boxPadding.top(), _width - st::boxPadding.left() - st::boxPadding.right(), h), lang(lng_contact_not_joined).replace(qsl("{name}"), _sentName), style::al_topleft);
+				p.drawText(QRect(st::boxPadding.left(), st::boxPadding.top(), _width - st::boxPadding.left() - st::boxPadding.right(), h), lng_contact_not_joined(lt_name, _sentName), style::al_topleft);
 			}
 		}
 	} else {
@@ -320,7 +320,7 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 		_lastInput.hide();
 		_phoneInput.hide();
 		_retryButton.show();
-		int32 theight = st::addContactTitleFont->m.boundingRect(0, 0, _width - st::boxPadding.left() - st::boxPadding.right(), 1, Qt::TextWordWrap, lang(lng_contact_not_joined).replace(qsl("{name}"), _sentName)).height();
+		int32 theight = st::addContactTitleFont->m.boundingRect(0, 0, _width - st::boxPadding.left() - st::boxPadding.right(), 1, Qt::TextWordWrap, lng_contact_not_joined(lt_name, _sentName)).height();
 		int32 h = st::boxPadding.top() * 2 + theight + _retryButton.height() + st::boxPadding.bottom();
 		resize(_width, h);
 		_retryButton.move(_retryButton.x(), h - _retryButton.height());

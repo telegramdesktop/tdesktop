@@ -79,7 +79,7 @@
       <SubSystem>Windows</SubSystem>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>.\..\..\Libraries\lzma\C\Util\LzmaLib\Debug;.\..\..\Libraries\libexif-0.6.20\win32\Debug;.\..\..\Libraries\libogg-1.3.2\win32\VS2010\Win32\Debug;.\..\..\Libraries\opus\win32\VS2010\Win32\Debug;.\..\..\Libraries\opusfile\win32\VS2010\Win32\Debug;.\..\..\Libraries\openal-soft\build\Debug;.\..\..\Libraries\zlib-1.2.8\contrib\vstudio\vc11\x86\ZlibStatDebug;.\..\..\Libraries\OpenSSL-Win32\lib\VC\static;$(QTDIR)\lib;$(QTDIR)\plugins;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;imm32.lib;winmm.lib;qtmaind.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Cored.lib;Qt5Guid.lib;Qt5Widgetsd.lib;Qt5Networkd.lib;Qt5PlatformSupportd.lib;platforms\qwindowsd.lib;accessible\qtaccessiblewidgetsd.lib;libeay32MTd.lib;ssleay32MTd.lib;Crypt32.lib;zlibstat.lib;LzmaLib.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;OpenAL32.lib;common.lib;opusfile.lib;opus.lib;libogg_static.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;imm32.lib;winmm.lib;qtmaind.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Cored.lib;Qt5Guid.lib;Qt5Widgetsd.lib;Qt5Networkd.lib;Qt5PlatformSupportd.lib;platforms\qwindowsd.lib;accessible\qtaccessiblewidgetsd.lib;imageformats\qwebpd.lib;libeay32MTd.lib;ssleay32MTd.lib;Crypt32.lib;zlibstat.lib;LzmaLib.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;OpenAL32.lib;common.lib;opusfile.lib;opus.lib;libogg_static.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ImageHasSafeExceptionHandlers />
       <IgnoreSpecificDefaultLibraries>
@@ -108,7 +108,7 @@
       <SubSystem>Windows</SubSystem>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>.\..\..\Libraries\lzma\C\Util\LzmaLib\Release;.\..\..\Libraries\libexif-0.6.20\win32\Release;.\..\..\Libraries\libogg-1.3.2\win32\VS2010\Win32\Release;.\..\..\Libraries\opus\win32\VS2010\Win32\Release;.\..\..\Libraries\opusfile\win32\VS2010\Win32\Release;.\..\..\Libraries\openal-soft\build\Release;.\..\..\Libraries\zlib-1.2.8\contrib\vstudio\vc11\x86\ZlibStatRelease;.\..\..\Libraries\OpenSSL-Win32\lib\VC\static;$(QTDIR)\lib;$(QTDIR)\plugins;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;imm32.lib;winmm.lib;qtmain.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Core.lib;Qt5Gui.lib;Qt5Widgets.lib;Qt5Network.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;accessible\qtaccessiblewidgets.lib;libeay32MT.lib;ssleay32MT.lib;Crypt32.lib;zlibstat.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;LzmaLib.lib;OpenAL32.lib;common.lib;opusfile.lib;opus.lib;libogg_static.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;imm32.lib;winmm.lib;qtmain.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Core.lib;Qt5Gui.lib;Qt5Widgets.lib;Qt5Network.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;accessible\qtaccessiblewidgets.lib;imageformats\qwebp.lib;libeay32MT.lib;ssleay32MT.lib;Crypt32.lib;zlibstat.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;LzmaLib.lib;OpenAL32.lib;common.lib;opusfile.lib;opus.lib;libogg_static.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers />
       <ImportLibrary>$(SolutionDir)$(Platform)\$(Configuration)Intermediate\$(TargetName).lib</ImportLibrary>
       <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
@@ -135,7 +135,7 @@
       <SubSystem>Windows</SubSystem>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>.\..\..\Libraries\lzma\C\Util\LzmaLib\Release;.\..\..\Libraries\libexif-0.6.20\win32\Release;.\..\..\Libraries\libogg-1.3.2\win32\VS2010\Win32\Release;.\..\..\Libraries\opus\win32\VS2010\Win32\Release;.\..\..\Libraries\opusfile\win32\VS2010\Win32\Release;.\..\..\Libraries\openal-soft\build\Release;.\..\..\Libraries\zlib-1.2.8\contrib\vstudio\vc11\x86\ZlibStatRelease;.\..\..\Libraries\OpenSSL-Win32\lib\VC\static;$(QTDIR)\lib;$(QTDIR)\plugins;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;imm32.lib;winmm.lib;qtmain.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Core.lib;Qt5Gui.lib;Qt5Widgets.lib;Qt5Network.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;accessible\qtaccessiblewidgets.lib;libeay32MT.lib;ssleay32MT.lib;Crypt32.lib;zlibstat.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;LzmaLib.lib;OpenAL32.lib;common.lib;opusfile.lib;opus.lib;libogg_static.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;imm32.lib;winmm.lib;qtmain.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Core.lib;Qt5Gui.lib;Qt5Widgets.lib;Qt5Network.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;accessible\qtaccessiblewidgets.lib;imageformats\qwebp.lib;libeay32MT.lib;ssleay32MT.lib;Crypt32.lib;zlibstat.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;LzmaLib.lib;OpenAL32.lib;common.lib;opusfile.lib;opus.lib;libogg_static.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>
       </ImageHasSafeExceptionHandlers>
       <ImportLibrary>$(SolutionDir)$(Platform)\$(Configuration)Intermediate\$(TargetName).lib</ImportLibrary>
@@ -259,6 +259,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Debug\moc_introsignup.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_languagebox.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
@@ -482,6 +486,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_languagebox.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_layerwidget.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
@@ -586,7 +594,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\lang.cpp" />
+    <ClCompile Include="GeneratedFiles\lang_auto.cpp" />
     <ClCompile Include="GeneratedFiles\qrc_telegram.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </PrecompiledHeader>
@@ -711,6 +719,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_languagebox.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_layerwidget.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -827,6 +839,7 @@
     <ClCompile Include="SourceFiles\boxes\contactsbox.cpp" />
     <ClCompile Include="SourceFiles\boxes\downloadpathbox.cpp" />
     <ClCompile Include="SourceFiles\boxes\emojibox.cpp" />
+    <ClCompile Include="SourceFiles\boxes\languagebox.cpp" />
     <ClCompile Include="SourceFiles\boxes\newgroupbox.cpp" />
     <ClCompile Include="SourceFiles\boxes\photocropbox.cpp" />
     <ClCompile Include="SourceFiles\boxes\photosendbox.cpp" />
@@ -861,6 +874,7 @@
     <ClCompile Include="SourceFiles\intro\introphone.cpp" />
     <ClCompile Include="SourceFiles\intro\introsignup.cpp" />
     <ClCompile Include="SourceFiles\intro\introsteps.cpp" />
+    <ClCompile Include="SourceFiles\lang.cpp" />
     <ClCompile Include="SourceFiles\langloaderplain.cpp" />
     <ClCompile Include="SourceFiles\layerwidget.cpp" />
     <ClCompile Include="SourceFiles\localimageloader.cpp" />
@@ -930,10 +944,10 @@
       <Outputs>.\GeneratedFiles\style_auto.h</Outputs>
       <Command>"$(SolutionDir)$(Platform)\$(Configuration)Style\MetaStyle.exe" -classes_in ".\Resources\style_classes.txt" -classes_out ".\GeneratedFiles\style_classes.h" -styles_in ".\Resources\style.txt" -styles_out ".\GeneratedFiles\style_auto.h" -path_to_sprites ".\SourceFiles\art\\"</Command>
     </CustomBuild>
-    <CustomBuild Include="Resources\lang.txt">
-      <Outputs>.\GeneratedFiles\lang.h</Outputs>
-      <Outputs>.\GeneratedFiles\lang.cpp</Outputs>
-      <Command>"$(SolutionDir)$(Platform)\$(Configuration)Lang\MetaLang.exe" -lang_in ".\Resources\lang.txt" -lang_out ".\GeneratedFiles\lang"</Command>
+    <CustomBuild Include="Resources\lang.strings">
+      <Outputs>.\GeneratedFiles\lang_auto.h</Outputs>
+      <Outputs>.\GeneratedFiles\lang_auto.cpp</Outputs>
+      <Command>"$(SolutionDir)$(Platform)\$(Configuration)Lang\MetaLang.exe" -lang_in ".\Resources\lang.strings" -lang_out ".\GeneratedFiles\lang_auto"</Command>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\application.h">
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing application.h...</Message>
@@ -949,7 +963,7 @@
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
     </CustomBuild>
-    <ClInclude Include="GeneratedFiles\lang.h" />
+    <ClInclude Include="GeneratedFiles\lang_auto.h" />
     <ClInclude Include="GeneratedFiles\style_auto.h" />
     <ClInclude Include="GeneratedFiles\style_classes.h" />
     <ClInclude Include="resource.h" />
@@ -1135,6 +1149,20 @@
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Moc%27ing usernamebox.h...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/boxes/usernamebox.h"  -DAL_LIBTYPE_STATIC -DUNICODE -D_WITH_DEBUG -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\OpenSSL-Win32\include" "-I.\..\..\Libraries\libogg-1.3.2\include" "-I.\..\..\Libraries\opus\include" "-I.\..\..\Libraries\opusfile\include" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.3.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.3.1\QtGui"</Command>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\languagebox.h">
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">Moc%27ing languagebox.h...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/boxes/languagebox.h"  -DAL_LIBTYPE_STATIC -DCUSTOM_API_ID -DUNICODE -D_WITH_DEBUG -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\OpenSSL-Win32\include" "-I.\..\..\Libraries\libogg-1.3.2\include" "-I.\..\..\Libraries\opus\include" "-I.\..\..\Libraries\opusfile\include" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.3.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.3.1\QtGui"</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing languagebox.h...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/boxes/languagebox.h"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\OpenSSL-Win32\include" "-I.\..\..\Libraries\libogg-1.3.2\include" "-I.\..\..\Libraries\opus\include" "-I.\..\..\Libraries\opusfile\include" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.3.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.3.1\QtGui"</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Moc%27ing languagebox.h...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/boxes/languagebox.h"  -DAL_LIBTYPE_STATIC -DUNICODE -D_WITH_DEBUG -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\OpenSSL-Win32\include" "-I.\..\..\Libraries\libogg-1.3.2\include" "-I.\..\..\Libraries\opus\include" "-I.\..\..\Libraries\opusfile\include" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.3.1\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.3.1\QtGui"</Command>
     </CustomBuild>
     <ClInclude Include="SourceFiles\config.h" />
     <CustomBuild Include="SourceFiles\gui\animation.h">
@@ -1514,6 +1542,7 @@
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
     </CustomBuild>
+    <ClInclude Include="SourceFiles\lang.h" />
     <ClInclude Include="SourceFiles\langloaderplain.h" />
     <CustomBuild Include="SourceFiles\localstorage.h">
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
@@ -1746,6 +1775,13 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Telegram.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="SourceFiles\langs\lang_de.strings" />
+    <None Include="SourceFiles\langs\lang_es.strings" />
+    <None Include="SourceFiles\langs\lang_it.strings" />
+    <None Include="SourceFiles\langs\lang_nl.strings" />
+    <None Include="SourceFiles\langs\lang_pt_BR.strings" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

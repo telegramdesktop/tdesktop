@@ -48,6 +48,8 @@ public:
 	QSize sizeHint() const;
 	QSize minimumSizeHint() const;
 
+	EmojiPtr getSingleEmoji() const;
+	void removeSingleEmoji();
 	QString getText(int32 start = 0, int32 end = -1) const;
 	bool hasText() const;
 
@@ -77,6 +79,7 @@ protected:
 
 private:
 
+	void getSingleEmojiFragment(QString &text, QTextFragment &fragment) const;
 	void processDocumentContentsChange(int position, int charsAdded);
 
 	QMimeData *createMimeDataFromSelection() const;

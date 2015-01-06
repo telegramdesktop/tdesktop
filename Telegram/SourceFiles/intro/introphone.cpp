@@ -45,7 +45,7 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStage(parent),
 	next(this, lang(lng_intro_next), st::btnIntroNext),
 	country(this, st::introCountry),
 	phone(this, st::inpIntroPhone, lang(lng_phone_ph)), code(this, st::inpIntroCountryCode),
-	_signup(this, lang(lng_phone_notreg).replace(qsl("{signup}"), textcmdStartLink(1)).replace(qsl("{/signup}"), textcmdStopLink()), st::introErrLabel, st::introErrLabelTextStyle),
+	_signup(this, lng_phone_notreg(lt_signup_start, textcmdStartLink(1), lt_signup_end, textcmdStopLink()), st::introErrLabel, st::introErrLabelTextStyle),
     _showSignup(false) {
 	setVisible(false);
 	setGeometry(parent->innerRect());
@@ -227,7 +227,7 @@ void IntroPhone::phoneCheckDone(const MTPauth_CheckedPhone &result) {
 
 		checkRequest.start(1000);
 
-		sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(0), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Application::lang())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
+		sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(0), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Application::language())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
 	} else {
 		showError(lang(lng_bad_phone_noreg), true);
 		enableAll(true);
@@ -256,7 +256,7 @@ void IntroPhone::toSignUp() {
 
 	checkRequest.start(1000);
 
-	sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(0), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Application::lang())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
+	sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(0), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Application::language())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
 }
 
 bool IntroPhone::phoneSubmitFail(const RPCError &error) {

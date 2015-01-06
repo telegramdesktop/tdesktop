@@ -34,10 +34,14 @@ public:
 	}
 	const QPixmap &pix(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixBlurred(int32 w = 0, int32 h = 0) const;
+	const QPixmap &pixColored(const style::color &add, int32 w = 0, int32 h = 0) const;
+	const QPixmap &pixBlurredColored(const style::color &add, int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixSingle(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixBlurredSingle(int32 w = 0, int32 h = 0) const;
 	QPixmap pixNoCache(int32 w = 0, int32 h = 0, bool smooth = false) const;
 	QPixmap pixBlurredNoCache(int32 w, int32 h = 0) const;
+	QPixmap pixColoredNoCache(const style::color &add, int32 w = 0, int32 h = 0, bool smooth = false) const;
+	QPixmap pixBlurredColoredNoCache(const style::color &add, int32 w, int32 h = 0) const;
 
 	virtual int32 width() const = 0;
 	virtual int32 height() const = 0;
@@ -85,8 +89,9 @@ private:
 class LocalImage : public Image {
 public:
 
-	LocalImage(const QString &file);
-	LocalImage(const QPixmap &pixmap, QByteArray format);
+	LocalImage(const QString &file, QByteArray format = QByteArray());
+	LocalImage(const QByteArray &filecontent, QByteArray format = QByteArray());
+	LocalImage(const QPixmap &pixmap, QByteArray format = QByteArray());
 	
 	int32 width() const;
 	int32 height() const;
@@ -110,7 +115,8 @@ private:
 	mutable QPixmap data;
 };
 
-LocalImage *getImage(const QString &file);
+LocalImage *getImage(const QString &file, QByteArray format);
+LocalImage *getImage(const QByteArray &filecontent, QByteArray format);
 LocalImage *getImage(const QPixmap &pixmap, QByteArray format);
 
 typedef QPair<uint64, uint64> StorageKey;
@@ -143,7 +149,7 @@ public:
 	bool loading() const {
 		return loader ? loader->loading() : false;
 	}
-	void setData(QByteArray &bytes, const QByteArray &format = "JPG");
+	void setData(QByteArray &bytes, const QByteArray &format = QByteArray());
 
 	void load(bool loadFirst = false, bool prior = true) {
 		if (loader) {
@@ -189,7 +195,9 @@ Image *getImage(int32 width, int32 height, const MTPFileLocation &location);
 class ImagePtr : public ManagedPtr<Image> {
 public:
 	ImagePtr();
-	ImagePtr(const QString &file) : Parent(getImage(file)) {
+	ImagePtr(const QString &file, QByteArray format = QByteArray()) : Parent(getImage(file, format)) {
+	}
+	ImagePtr(const QByteArray &filecontent, QByteArray format = QByteArray()) : Parent(getImage(filecontent, format)) {
 	}
 	ImagePtr(const QPixmap &pixmap, QByteArray format) : Parent(getImage(pixmap, format)) {
 	}

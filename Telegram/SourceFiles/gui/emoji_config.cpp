@@ -4512,6 +4512,71 @@ void findEmoji(const QChar *ch, const QChar *e, const QChar *&newEmojiEnd, uint3
 			break;
 			}
 		break;
+		case 'k':
+			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
+			case 'i':
+				if (ch + 3 != e) switch ((ch + 3)->unicode()) {
+				case 's':
+					if (ch + 4 != e) switch ((ch + 4)->unicode()) {
+					case 's':
+						if (ch + 5 != e) switch ((ch + 5)->unicode()) {
+						case ':':
+							newEmojiEnd = ch + 6;
+							if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
+								emojiCode = 0xD83DDC8BU;
+								return;
+							}
+						break;
+						}
+					break;
+					}
+				break;
+				}
+			break;
+			}
+		break;
+		case 'j':
+			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
+			case 'o':
+				if (ch + 3 != e) switch ((ch + 3)->unicode()) {
+				case 'y':
+					if (ch + 4 != e) switch ((ch + 4)->unicode()) {
+					case ':':
+						newEmojiEnd = ch + 5;
+						if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
+							emojiCode = 0xD83DDE02U;
+							return;
+						}
+					break;
+					}
+				break;
+				}
+			break;
+			}
+		break;
+		case 'g':
+			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
+			case 'r':
+				if (ch + 3 != e) switch ((ch + 3)->unicode()) {
+				case 'i':
+					if (ch + 4 != e) switch ((ch + 4)->unicode()) {
+					case 'n':
+						if (ch + 5 != e) switch ((ch + 5)->unicode()) {
+						case ':':
+							newEmojiEnd = ch + 6;
+							if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
+								emojiCode = 0xD83DDE01U;
+								return;
+							}
+						break;
+						}
+					break;
+					}
+				break;
+				}
+			break;
+			}
+		break;
 		case 'd':
 			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
 			case 'i':
@@ -4605,7 +4670,7 @@ void findEmoji(const QChar *ch, const QChar *e, const QChar *&newEmojiEnd, uint3
 			case '(':
 				newEmojiEnd = ch + 3;
 				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0xD83DDE12U;
+					emojiCode = 0xD83DDE1EU;
 					return;
 				}
 			break;

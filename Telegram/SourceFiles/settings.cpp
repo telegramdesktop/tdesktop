@@ -18,6 +18,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "pspecific.h"
 #include "settings.h"
+#include "lang.h"
 
 bool gTestMode = false;
 bool gDebug = false;
@@ -27,6 +28,8 @@ QString gWorkingDir, gExeDir, gExeName;
 
 QStringList gSendPaths;
 QString gStartUrl;
+
+QString gLangErrors;
 
 QString gDialogLastPath, gDialogHelperPath; // optimize QFileDialog
 
@@ -43,7 +46,7 @@ DBIWorkMode gWorkMode = dbiwmWindowAndTray;
 DBIConnectionType gConnectionType = dbictAuto;
 ConnectionProxy gConnectionProxy;
 bool gSeenTrayTooltip = false;
-bool gRestartingUpdate = false, gRestarting = false, gWriteProtected = false;
+bool gRestartingUpdate = false, gRestarting = false, gRestartingToSettings = false, gWriteProtected = false;
 int32 gLastUpdateCheck = 0;
 bool gNoStartUpdate = false;
 bool gStartToSettings = false;
@@ -69,6 +72,14 @@ DBIEmojiTab gEmojiTab = dbietRecent;
 RecentEmojiPack gRecentEmojis;
 RecentEmojiPreload gRecentEmojisPreload;
 
+AllStickers gStickers;
+QByteArray gStickersHash;
+
+EmojiStickersMap gEmojiStickers;
+
+RecentStickerPack gRecentStickers;
+
+int32 gLang = -2; // auto
 QString gLangFile;
 
 bool gRetina = false;
@@ -125,8 +136,6 @@ void settingsParseArgs(int argc, char *argv[]) {
 			gNoStartUpdate = true;
 		} else if (string("-tosettings") == argv[i]) {
 			gStartToSettings = true;
-		} else if (string("-lang") == argv[i] && i + 1 < argc) {
-			gLangFile = QString(argv[++i]);
 		} else if (string("-sendpath") == argv[i] && i + 1 < argc) {
 			for (++i; i < argc; ++i) {
 				gSendPaths.push_back(QString::fromLocal8Bit(argv[i]));
@@ -145,7 +154,7 @@ void settingsParseArgs(int argc, char *argv[]) {
 const RecentEmojiPack &cGetRecentEmojis() {
 	if (cRecentEmojis().isEmpty()) {
 		RecentEmojiPack r;
-		if (!cRecentEmojisPreload().isEmpty()) {
+		if (false && !cRecentEmojisPreload().isEmpty()) {
 			RecentEmojiPreload p(cRecentEmojisPreload());
 			cSetRecentEmojisPreload(RecentEmojiPreload());
 			r.reserve(p.size());

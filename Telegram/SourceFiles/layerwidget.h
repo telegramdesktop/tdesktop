@@ -40,6 +40,10 @@ public:
 		return res;
 	}
 
+	void mousePressEvent(QMouseEvent *e) {
+		e->accept();
+	}
+
 signals:
 
 	void closed();

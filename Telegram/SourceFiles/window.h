@@ -201,7 +201,7 @@ public:
 		TempDirEmpty,
 	};
 	TempDirState tempDirState();
-	TempDirState localImagesState();
+	TempDirState localStorageState();
 	void tempDirDelete(int task);
 
 	void quit();

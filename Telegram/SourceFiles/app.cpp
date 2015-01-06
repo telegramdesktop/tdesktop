@@ -230,39 +230,29 @@ namespace App {
 		if (precise) {
 			QDateTime dOnline(date(online)), dNow(date(now));
 			if (dOnline.date() == dNow.date()) {
-				when = lang(lng_status_lastseen_today).replace(qsl("{time}"), dOnline.time().toString(qsl("hh:mm")));
+				return lng_status_lastseen_today(lt_time, dOnline.time().toString(qsl("hh:mm")));
 			} else if (dOnline.date().addDays(1) == dNow.date()) {
-				when = lang(lng_status_lastseen_yesterday).replace(qsl("{time}"), dOnline.time().toString(qsl("hh:mm")));
-			} else {
-				when = lang(lng_status_lastseen_date_time).replace(qsl("{date}"), dOnline.date().toString(qsl("dd.MM.yy"))).replace(qsl("{time}"), dOnline.time().toString(qsl("hh:mm")));
+				return lng_status_lastseen_yesterday(lt_time, dOnline.time().toString(qsl("hh:mm")));
 			}
-			return lang(lng_status_lastseen).replace(qsl("{when}"), when);
+			return lng_status_lastseen_date_time(lt_date, dOnline.date().toString(qsl("dd.MM.yy")), lt_time, dOnline.time().toString(qsl("hh:mm")));
 		}
 		int32 minutes = (now - online) / 60;
 		if (!minutes) {
-			when = lang(lng_status_lastseen_now);
-		} else if (minutes == 1) {
-			when = lang(lng_status_lastseen_minute).arg(minutes);
+			return lang(lng_status_lastseen_now);
 		} else if (minutes < 60) {
-			when = lang(lng_status_lastseen_minutes).arg(minutes);
-		} else {
-			int32 hours = (now - online) / 3600;
-			if (hours == 1) {
-				when = lang(lng_status_lastseen_hour).arg(hours);
-			} else if (hours < 12) {
-				when = lang(lng_status_lastseen_hours).arg(hours);
-			} else {
-				QDateTime dOnline(date(online)), dNow(date(now));
-				if (dOnline.date() == dNow.date()) {
-					when = lang(lng_status_lastseen_today).replace(qsl("{time}"), dOnline.time().toString(qsl("hh:mm")));
-				} else if (dOnline.date().addDays(1) == dNow.date()) {
-					when = lang(lng_status_lastseen_yesterday).replace(qsl("{time}"), dOnline.time().toString(qsl("hh:mm")));
-				} else {
-					when = lang(lng_status_lastseen_date).replace(qsl("{date}"), dOnline.date().toString(qsl("dd.MM.yy")));
-				}
-			}
+			return lng_status_lastseen_minutes(lt_count, minutes);
 		}
-		return lang(lng_status_lastseen).replace(qsl("{when}"), when);
+		int32 hours = (now - online) / 3600;
+		if (hours < 12) {
+			return lng_status_lastseen_hours(lt_count, hours);
+		}
+		QDateTime dOnline(date(online)), dNow(date(now));
+		if (dOnline.date() == dNow.date()) {
+			return lng_status_lastseen_today(lt_time, dOnline.time().toString(qsl("hh:mm")));
+		} else if (dOnline.date().addDays(1) == dNow.date()) {
+			return lng_status_lastseen_yesterday(lt_time, dOnline.time().toString(qsl("hh:mm")));
+		}
+		return lng_status_lastseen_date(lt_date, dOnline.date().toString(qsl("dd.MM.yy")));
 	}
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users) {
@@ -833,7 +823,7 @@ namespace App {
 		switch (document.type()) {
 		case mtpc_document: {
 			const MTPDdocument &d(document.c_document());
-			return App::document(d.vid.v, 0, d.vaccess_hash.v, d.vuser_id.v, d.vdate.v, qs(d.vfile_name), qs(d.vmime_type), ImagePtr(thumb, "JPG"), d.vdc_id.v, d.vsize.v);
+			return App::document(d.vid.v, 0, d.vaccess_hash.v, d.vdate.v, d.vattributes.c_vector().v, qs(d.vmime_type), ImagePtr(thumb, "JPG"), d.vdc_id.v, d.vsize.v);
 		} break;
 		case mtpc_documentEmpty: return App::document(document.c_documentEmpty().vid.v);
 		}
@@ -853,7 +843,7 @@ namespace App {
 	}
 
 	DocumentData *feedDocument(const MTPDdocument &document, DocumentData *convert) {
-		return App::document(document.vid.v, convert, document.vaccess_hash.v, document.vuser_id.v, document.vdate.v, qs(document.vfile_name), qs(document.vmime_type), App::image(document.vthumb), document.vdc_id.v, document.vsize.v);
+		return App::document(document.vid.v, convert, document.vaccess_hash.v, document.vdate.v, document.vattributes.c_vector().v, qs(document.vmime_type), App::image(document.vthumb), document.vdc_id.v, document.vsize.v);
 	}
 
 	UserData *userLoaded(const PeerId &user) {
@@ -1068,7 +1058,7 @@ namespace App {
 		return result;
 	}
 
-	DocumentData *document(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 user, int32 date, const QString &name, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) {
+	DocumentData *document(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) {
 		if (convert) {
 			if (convert->id != document) {
 				DocumentsData::iterator i = documentsData.find(convert->id);
@@ -1079,14 +1069,15 @@ namespace App {
 				convert->status = FileReady;
 			}
 			convert->access = access;
-			if (!convert->user && !convert->date && (user || date)) {
-				convert->user = user;
+			if (!convert->date && date) {
 				convert->date = date;
-				convert->name = name;
+				convert->setattributes(attributes);
 				convert->mime = mime;
 				convert->thumb = thumb;
 				convert->dc = dc;
 				convert->size = size;
+			} else if (convert->thumb->isNull() && !thumb->isNull()) {
+				convert->thumb = thumb;
 			}
 
 			if (convert->location.check()) {
@@ -1099,20 +1090,23 @@ namespace App {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new DocumentData(document, access, user, date, name, mime, thumb, dc, size);
+				result = new DocumentData(document, access, date, attributes, mime, thumb, dc, size);
 			}
 			documentsData.insert(document, result);
 		} else {
 			result = i.value();
-			if (result != convert && !result->user && !result->date && (user || date)) {
-				result->access = access;
-				result->user = user;
-				result->date = date;
-				result->name = name;
-				result->mime = mime;
-				result->thumb = thumb;
-				result->dc = dc;
-				result->size = size;
+			if (result != convert) {
+				if (!result->date && date) {
+					result->access = access;
+					result->date = date;
+					result->setattributes(attributes);
+					result->mime = mime;
+					result->thumb = thumb;
+					result->dc = dc;
+					result->size = size;
+				} else if (result->thumb->isNull() && !thumb->isNull()) {
+					result->thumb = thumb;
+				}
 			}
 		}
 		return result;
@@ -1296,6 +1290,10 @@ namespace App {
 			delete *i;
 		}
 		documentsData.clear();
+		cSetRecentStickers(RecentStickerPack());
+		cSetStickersHash(QByteArray());
+		cSetStickers(AllStickers());
+		cSetEmojiStickers(EmojiStickersMap());
 		::videoItems.clear();
 		::audioItems.clear();
 		::documentItems.clear();
@@ -1436,7 +1434,7 @@ namespace App {
 				p.fillRect(0, 0, img.width(), img.height(), Qt::transparent);
 				p.drawPixmap(QPoint(st::emojiPadding * cIntRetinaFactor(), (fontHeight * cIntRetinaFactor() - st::emojiImgSize) / 2), App::emojis(), QRect(emoji->x, emoji->y, st::emojiImgSize, st::emojiImgSize));
 			}
-			i = map->insert(emoji->code, QPixmap::fromImage(img));
+			i = map->insert(emoji->code, QPixmap::fromImage(img, Qt::ColorOnly));
 		}
 		return i.value();
 	}
@@ -1462,6 +1460,8 @@ namespace App {
 			configStream << quint32(dbiAutoUpdate) << qint32(cAutoUpdate());
 			configStream << quint32(dbiLastUpdateCheck) << qint32(cLastUpdateCheck());
 			configStream << quint32(dbiScale) << qint32(cConfigScale());
+			configStream << quint32(dbiLang) << qint32(cLang());
+			configStream << quint32(dbiLangFile) << cLangFile();
 
 			configStream << quint32(dbiConnectionType) << qint32(cConnectionType());
 			if (cConnectionType() == dbictHttpProxy || cConnectionType() == dbictTcpProxy) {
@@ -1565,8 +1565,8 @@ namespace App {
 						p.port = uint32(port);
 						cSetConnectionProxy(p);
 					}
-					cSetConnectionType(DBIConnectionType(v));
-					break;
+						cSetConnectionType(DBIConnectionType(v));
+						break;
 					case dbictHttpAuto:
 					default: cSetConnectionType(dbictAuto); break;
 					};
@@ -1604,6 +1604,20 @@ namespace App {
 					}
 					cSetConfigScale(s);
 					cSetRealScale(s);
+				} break;
+
+				case dbiLang: {
+					qint32 v;
+					configStream >> v;
+					if (v == languageTest || (v >= 0 && v < languageCount)) {
+						cSetLang(v);
+					}
+				} break;
+
+				case dbiLangFile: {
+					QString v;
+					configStream >> v;
+					cSetLangFile(v);
 				} break;
 
 				case dbiWindowPosition: {
@@ -1841,12 +1855,13 @@ namespace App {
 				qint32 v;
 				stream >> v;
 				switch (v) {
-				case dbietRecent : cSetEmojiTab(dbietRecent);  break;
-				case dbietPeople : cSetEmojiTab(dbietPeople);  break;
-				case dbietNature : cSetEmojiTab(dbietNature);  break;
-				case dbietObjects: cSetEmojiTab(dbietObjects); break;
-				case dbietPlaces : cSetEmojiTab(dbietPlaces);  break;
-				case dbietSymbols: cSetEmojiTab(dbietSymbols); break;
+				case dbietRecent  : cSetEmojiTab(dbietRecent);   break;
+				case dbietPeople  : cSetEmojiTab(dbietPeople);   break;
+				case dbietNature  : cSetEmojiTab(dbietNature);   break;
+				case dbietObjects : cSetEmojiTab(dbietObjects);  break;
+				case dbietPlaces  : cSetEmojiTab(dbietPlaces);   break;
+				case dbietSymbols : cSetEmojiTab(dbietSymbols);  break;
+				case dbietStickers: cSetEmojiTab(dbietStickers); break;
 				}
 			} break;
 
@@ -1963,7 +1978,7 @@ namespace App {
 		::quiting = true;
 	}
 
-	QImage readImage(QByteArray data, QByteArray *format, bool opaque) {
+	QImage readImage(QByteArray data, QByteArray *format, bool opaque, bool *animated) {
         QByteArray tmpFormat;
 		QImage result;
 		QBuffer buffer(&data);
@@ -1971,6 +1986,7 @@ namespace App {
             format = &tmpFormat;
         }
         QImageReader reader(&buffer, *format);
+		if (animated) *animated = reader.supportsAnimation() && reader.imageCount() > 1;
 		if (!reader.read(&result)) {
 			return QImage();
 		}
@@ -1999,7 +2015,7 @@ namespace App {
 				}
 				exif_data_free(exifData);
 			}
-		} else if (opaque) {
+		} else if (opaque && result.hasAlphaChannel()) {
 			QImage solid(result.width(), result.height(), QImage::Format_ARGB32_Premultiplied);
 			solid.fill(st::white->c);
 			{
@@ -2010,12 +2026,16 @@ namespace App {
 		return result;
 	}
 
-	QImage readImage(const QString &file, QByteArray *format, bool opaque) {
+	QImage readImage(const QString &file, QByteArray *format, bool opaque, bool *animated, QByteArray *content) {
 		QFile f(file);
 		if (!f.open(QIODevice::ReadOnly)) {
+			if (animated) *animated = false;
 			return QImage();
 		}
-		return readImage(f.readAll(), format, opaque);
+		QByteArray img = f.readAll();
+		QImage result = readImage(img, format, opaque, animated);
+		if (content && !result.isNull()) *content = img;
+		return result;
 	}
 
 	void regVideoItem(VideoData *data, HistoryItem *item) {

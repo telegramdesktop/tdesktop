@@ -1094,7 +1094,7 @@
     <glob pattern="*.pgp"/>
     <glob pattern="*.gpg"/>
   </mime-type>
-  
+
   <mime-type type="application/pkcs7-mime">
     <comment>PKCS#7 Message or Certificate</comment>
     <acronym>PKCS</acronym>
@@ -1967,7 +1967,7 @@
     <sub-class-of type="video/x-flv"/>
   </mime-type>
   <mime-type type="application/x-go-sgf">
-    
+
     <comment>SGF record</comment>
     <comment xml:lang="ar">تسجيلة SGF</comment>
     <comment xml:lang="be@latin">Zapisanaja hulnia SGF</comment>
@@ -5602,7 +5602,7 @@
     <generic-icon name="x-office-document"/>
     <magic priority="50">
       <match value="WPC" type="string" offset="1"/>
-      
+
     </magic>
     <glob pattern="*.wp"/>
     <glob pattern="*.wp4"/>
@@ -9726,7 +9726,7 @@
     </magic>
   </mime-type>
   <mime-type type="application/x-genesis-rom">
-    
+
     <comment>Genesis ROM</comment>
     <comment xml:lang="ar">Genesis ROM</comment>
     <comment xml:lang="be@latin">Genesis ROM</comment>
@@ -12540,11 +12540,11 @@
     <comment xml:lang="zh_TW">Matroska 串流</comment>
     <generic-icon name="video-x-generic"/>
     <magic priority="50">
-      
+
       <match value="0x1a45dfa3" type="big32" offset="0">
-        
+
         <match value="0x4282" type="big16" offset="5:65">
-          
+
           <match value="matroska" type="string" offset="8:75"/>
         </match>
       </match>
@@ -12694,11 +12694,11 @@
     <comment xml:lang="zh_TW">WebM 視訊</comment>
     <glob pattern="*.webm"/>
     <magic priority="50">
-      
+
       <match value="0x1a45dfa3" type="big32" offset="0">
-        
+
         <match value="0x4282" type="big16" offset="5:65">
-          
+
           <match value="webm" type="string" offset="8:75"/>
         </match>
       </match>
@@ -12925,7 +12925,7 @@
     <glob pattern="*.mobi"/>
     <glob pattern="*.prc"/>
     <magic priority="30">
-      
+
       <match value="TEXtREAd" type="string" offset="60"/>
     </magic>
     <magic priority="80">
@@ -13394,7 +13394,7 @@
     </magic>
   </mime-type>
   <mime-type type="application/x-nes-rom">
-    
+
     <comment>NES ROM</comment>
     <comment xml:lang="ar">NES ROM</comment>
     <comment xml:lang="be@latin">NES ROM</comment>
@@ -14224,7 +14224,7 @@
     </magic>
     <glob pattern="*.ogm"/>
   </mime-type>
-  
+
   <mime-type type="application/x-ole-storage">
     <comment>OLE2 compound document storage</comment>
     <comment xml:lang="ar">تخزين مجمع مستند OLE2</comment>
@@ -15954,7 +15954,7 @@
     <glob pattern="*.spl"/>
   </mime-type>
   <mime-type type="application/x-shorten">
-    
+
     <comment>Shorten audio</comment>
     <comment xml:lang="ar">Shorten سمعي</comment>
     <comment xml:lang="be@latin">Aŭdyjo Shorten</comment>
@@ -16204,7 +16204,7 @@
     <glob pattern="*.gg"/>
   </mime-type>
   <mime-type type="application/vnd.nintendo.snes.rom">
-    
+
     <comment>Super NES ROM</comment>
     <comment xml:lang="ar">Super NES ROM</comment>
     <comment xml:lang="be@latin">Super Nintendo ROM</comment>
@@ -18246,10 +18246,10 @@
   <mime-type type="audio/vnd.dts">
     <comment>DTS audio</comment>
     <magic priority="50">
-      <match value="0x7FFE8001" type="big32" offset="0"/> 
-      <match value="0xFE7F0180" type="little32" offset="0"/> 
-      <match value="0x1FFFE800" type="big32" offset="0"/> 
-      <match value="0xFF1F00E8" type="little32" offset="0"/> 
+      <match value="0x7FFE8001" type="big32" offset="0"/>
+      <match value="0xFE7F0180" type="little32" offset="0"/>
+      <match value="0x1FFFE800" type="big32" offset="0"/>
+      <match value="0xFF1F00E8" type="little32" offset="0"/>
     </magic>
     <alias type="audio/x-dts"/>
     <glob pattern="*.dts"/>
@@ -18258,7 +18258,7 @@
     <comment>DTSHD audio</comment>
     <sub-class-of type="audio/vnd.dts"/>
     <magic priority="60">
-      <match value="0x64582025" type="big32" offset="0:18725"/> 
+      <match value="0x64582025" type="big32" offset="0:18725"/>
     </magic>
     <alias type="audio/x-dtshd"/>
     <glob pattern="*.dtshd"/>
@@ -20213,7 +20213,7 @@
     <comment xml:lang="vi">Âm thanh RIFF</comment>
     <comment xml:lang="zh_CN">RIFF 音频</comment>
     <comment xml:lang="zh_TW">RIFF 音訊</comment>
-    
+
     <magic priority="45">
       <match value="RIFF" type="string" offset="0"/>
     </magic>
@@ -21183,6 +21183,63 @@
     </magic>
     <glob pattern="*.ora"/>
   </mime-type>
+  <mime-type type="image/webp">
+    <comment>WebP image</comment>
+    <comment xml:lang="ar">صورة WebP</comment>
+    <comment xml:lang="az">WebP rəsmi</comment>
+    <comment xml:lang="be@latin">Vyjava WebP</comment>
+    <comment xml:lang="bg">Изображение — WebP</comment>
+    <comment xml:lang="ca">imatge WebP</comment>
+    <comment xml:lang="cs">Obrázek WebP</comment>
+    <comment xml:lang="cy">Delwedd WebP</comment>
+    <comment xml:lang="da">WebP-billede</comment>
+    <comment xml:lang="de">WebP-Bild</comment>
+    <comment xml:lang="el">εικόνα WebP</comment>
+    <comment xml:lang="en_GB">WebP image</comment>
+    <comment xml:lang="eo">WebP-bildo</comment>
+    <comment xml:lang="es">imagen WebP</comment>
+    <comment xml:lang="eu">WebP irudia</comment>
+    <comment xml:lang="fi">WebP-kuva</comment>
+    <comment xml:lang="fo">WebP mynd</comment>
+    <comment xml:lang="fr">image WebP</comment>
+    <comment xml:lang="ga">íomhá WebP</comment>
+    <comment xml:lang="gl">imaxe WebP</comment>
+    <comment xml:lang="he">תמונת WebP</comment>
+    <comment xml:lang="hr">WebP slika</comment>
+    <comment xml:lang="hu">WebP-kép</comment>
+    <comment xml:lang="id">Citra WebP</comment>
+    <comment xml:lang="it">Immagine WebP</comment>
+    <comment xml:lang="ja">WebP 画像 </comment>
+    <comment xml:lang="kk">WebP суреті</comment>
+    <comment xml:lang="ko">WebP 그림</comment>
+    <comment xml:lang="lt">WebP paveikslėlis</comment>
+    <comment xml:lang="lv">WebP attēls</comment>
+    <comment xml:lang="ms">Imej WebP</comment>
+    <comment xml:lang="nb">WebP-bilde</comment>
+    <comment xml:lang="nl">WebP-afbeelding</comment>
+    <comment xml:lang="nn">WebP-bilete</comment>
+    <comment xml:lang="pl">Obraz WebP</comment>
+    <comment xml:lang="pt">imagem WebP</comment>
+    <comment xml:lang="pt_BR">Imagem WebP</comment>
+    <comment xml:lang="ro">Imagine WebP</comment>
+    <comment xml:lang="ru">изображение WebP</comment>
+    <comment xml:lang="sk">Obrázok WebP</comment>
+    <comment xml:lang="sl">Slikovna datoteka WebP</comment>
+    <comment xml:lang="sq">Figurë WebP</comment>
+    <comment xml:lang="sr">WebP слика</comment>
+    <comment xml:lang="sv">WebP-bild</comment>
+    <comment xml:lang="tr">WebP görüntüsü</comment>
+    <comment xml:lang="uk">зображення WebP</comment>
+    <comment xml:lang="vi">Ảnh WebP</comment>
+    <comment xml:lang="zh_CN">WebP 图像</comment>
+    <comment xml:lang="zh_TW">WebP 影像</comment>
+    <magic priority="50">
+      <match value="RIFF" type="string" offset="0">
+        <match value="WEBP" type="string" offset="8"/>
+      </match>
+    </magic>
+    <glob pattern="*.webp"/>
+  </mime-type>
   <mime-type type="image/x-dds">
     <comment>DirectDraw surface</comment>
     <comment xml:lang="ar">مساحة DirectDraw</comment>
@@ -21541,8 +21598,8 @@
     <sub-class-of type="image/tiff"/>
     <glob pattern="*.dng"/>
   </mime-type>
-  
-  
+
+
   <mime-type type="image/x-canon-crw">
     <comment>Canon CRW raw image</comment>
     <comment xml:lang="ar">صورة Canon CRW خامة</comment>
@@ -21594,7 +21651,7 @@
     </magic>
     <glob pattern="*.crw"/>
   </mime-type>
-  
+
   <mime-type type="image/x-canon-cr2">
     <comment>Canon CR2 raw image</comment>
     <comment xml:lang="ar">صورة Canon CR2 خامة</comment>
@@ -21987,11 +22044,11 @@
     <expanded-acronym>Olympus Raw Format</expanded-acronym>
     <sub-class-of type="image/x-dcraw"/>
     <magic priority="50">
-      
-      
-      
-      
-      
+
+
+
+
+
       <match value="IIRO\x08\x00\x00\x00" type="string" offset="0"/>
     </magic>
     <glob pattern="*.orf"/>
@@ -22039,7 +22096,7 @@
     <comment xml:lang="zh_TW">Panasonic 原生影像</comment>
     <sub-class-of type="image/x-dcraw"/>
     <magic priority="50">
-      
+
       <match value="IIU\x00\x08\x00\x00\x00" type="string" offset="0"/>
     </magic>
     <glob pattern="*.raw"/>
@@ -22077,7 +22134,7 @@
     <comment xml:lang="zh_TW">Panasonic raw2 影像</comment>
     <sub-class-of type="image/x-dcraw"/>
     <magic priority="50">
-      
+
       <match value="IIU\x00\x18\x00\x00\x00" type="string" offset="0"/>
     </magic>
     <glob pattern="*.rw2"/>
@@ -22176,9 +22233,9 @@
     <expanded-acronym>X3 Foveon</expanded-acronym>
     <sub-class-of type="image/x-dcraw"/>
     <magic priority="50">
-      
+
       <match value="FOVb" type="string" offset="0">
-        
+
         <match value="0x00FF00FF" type="little32" offset="4" mask="0xFF00FF00"/>
       </match>
     </magic>
@@ -24784,14 +24841,14 @@
     <acronym>WMF</acronym>
     <expanded-acronym>Windows Metafile</expanded-acronym>
     <magic priority="50">
-      
+
       <match value="0x9AC6CDD7" type="little32" offset="0">
-        
+
         <match value="0x0001" type="little16" offset="22">
           <match value="0x0009" type="little16" offset="24"/>
         </match>
       </match>
-      
+
       <match value="0x0001" type="little16" offset="0">
         <match value="0x0009" type="little16" offset="2"/>
       </match>
@@ -30849,7 +30906,7 @@
     <comment xml:lang="zh_CN">资源位置</comment>
     <comment xml:lang="zh_TW">資源位置</comment>
     <sub-class-of type="text/plain"/>
-    
+
   </mime-type>
   <mime-type type="text/x-uuencode">
     <comment>uuencoded file</comment>
@@ -33140,9 +33197,9 @@
     <alias type="zz-application/zz-winassoc-hlp"/>
   </mime-type>
 
-  
+
   <mime-type type="x-content/image-dcf">
-    
+
     <comment>digital photos</comment>
     <comment xml:lang="ar">الصور الرقمية</comment>
     <comment xml:lang="be@latin">ličbavyja zdymki</comment>
@@ -33190,7 +33247,7 @@
   </mime-type>
 
   <mime-type type="x-content/video-vcd">
-    
+
     <comment>Video CD</comment>
     <comment xml:lang="ar">Video CD</comment>
     <comment xml:lang="be@latin">Videa CD</comment>
@@ -33239,7 +33296,7 @@
   </mime-type>
 
   <mime-type type="x-content/video-svcd">
-    
+
     <comment>Super Video CD</comment>
     <comment xml:lang="ar">Super Video CD</comment>
     <comment xml:lang="be@latin">Super Video CD</comment>
@@ -33288,7 +33345,7 @@
   </mime-type>
 
   <mime-type type="x-content/video-dvd">
-    
+
     <comment>video DVD</comment>
     <comment xml:lang="ar">DVD مرئي</comment>
     <comment xml:lang="be@latin">videa DVD</comment>
@@ -33341,7 +33398,7 @@
   </mime-type>
 
   <mime-type type="x-content/audio-cdda">
-    
+
     <comment>audio CD</comment>
     <comment xml:lang="ar">CD سمعي</comment>
     <comment xml:lang="be@latin">aŭdyjo CD</comment>
@@ -33387,7 +33444,7 @@
   </mime-type>
 
   <mime-type type="x-content/blank-cd">
-    
+
     <comment>blank CD disc</comment>
     <comment xml:lang="ar">قرص CD فارغ</comment>
     <comment xml:lang="be@latin">čysty dysk CD</comment>
@@ -33432,7 +33489,7 @@
   </mime-type>
 
   <mime-type type="x-content/blank-dvd">
-    
+
     <comment>blank DVD disc</comment>
     <comment xml:lang="ar">قرص DVD فارغ</comment>
     <comment xml:lang="be@latin">čysty dysk DVD</comment>
@@ -33477,7 +33534,7 @@
   </mime-type>
 
   <mime-type type="x-content/blank-bd">
-    
+
     <comment>blank Blu-ray disc</comment>
     <comment xml:lang="ar">قرص بلو-راي فارغ</comment>
     <comment xml:lang="be@latin">čysty dysk Blu-ray</comment>
@@ -33522,7 +33579,7 @@
   </mime-type>
 
   <mime-type type="x-content/blank-hddvd">
-    
+
     <comment>blank HD DVD disc</comment>
     <comment xml:lang="ar">قرص HD DVD فارغ</comment>
     <comment xml:lang="be@latin">čysty dysk HD DVD</comment>
@@ -33567,7 +33624,7 @@
   </mime-type>
 
   <mime-type type="x-content/audio-dvd">
-    
+
     <comment>audio DVD</comment>
     <comment xml:lang="ar">DVD سمعي</comment>
     <comment xml:lang="be@latin">aŭdyjo DVD</comment>
@@ -33617,7 +33674,7 @@
   </mime-type>
 
   <mime-type type="x-content/video-bluray">
-    
+
     <comment>Blu-ray video disc</comment>
     <comment xml:lang="ar">قرص بلو-راي مرئي</comment>
     <comment xml:lang="be@latin">Videadysk Blu-ray</comment>
@@ -33667,7 +33724,7 @@
   </mime-type>
 
   <mime-type type="x-content/video-hddvd">
-    
+
     <comment>HD DVD video disc</comment>
     <comment xml:lang="ar">قرص HD DVD مرئي</comment>
     <comment xml:lang="be@latin">Videadysk HD DVD</comment>
@@ -33717,7 +33774,7 @@
   </mime-type>
 
   <mime-type type="x-content/ebook-reader">
-    
+
     <comment>e-book reader</comment>
     <comment xml:lang="bg">Четец на е-книги</comment>
     <comment xml:lang="ca">lector de llibres electrònics</comment>
@@ -33755,7 +33812,7 @@
   </mime-type>
 
   <mime-type type="x-content/image-picturecd">
-    
+
     <comment>Picture CD</comment>
     <comment xml:lang="ar">Picture CD</comment>
     <comment xml:lang="be@latin">Picture CD</comment>
@@ -33803,7 +33860,7 @@
   </mime-type>
 
   <mime-type type="x-content/audio-player">
-    
+
     <comment>portable audio player</comment>
     <comment xml:lang="ar">مشغل الملفات المسموعة المحمولة</comment>
     <comment xml:lang="be@latin">pieranosny aŭdyjoplayer</comment>
@@ -33848,7 +33905,7 @@
   </mime-type>
 
   <mime-type type="x-content/software">
-    
+
     <comment>software</comment>
     <comment xml:lang="ar">برنامج</comment>
     <comment xml:lang="be@latin">prahrama</comment>
@@ -33894,7 +33951,7 @@
   </mime-type>
 
   <mime-type type="x-content/unix-software">
-    
+
     <comment>UNIX software</comment>
     <comment xml:lang="ar">برنامج يونكس</comment>
     <comment xml:lang="bg">Софтуер за UNIX</comment>
@@ -33942,7 +33999,7 @@
   </mime-type>
 
   <mime-type type="x-content/win32-software">
-    
+
     <comment>Windows software</comment>
     <comment xml:lang="ar">برنامج ويندوز</comment>
     <comment xml:lang="bg">Софтуер — Windows</comment>
@@ -33988,7 +34045,7 @@
   </mime-type>
 
   <mime-type type="application/x-trig">
-    
+
     <comment>TriG RDF document</comment>
     <acronym>TriG</acronym>
     <expanded-acronym>TriG RDF Graph Triple Language</expanded-acronym>

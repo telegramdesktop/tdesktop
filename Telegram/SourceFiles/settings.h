@@ -91,6 +91,7 @@ DeclareSetting(ConnectionProxy, ConnectionProxy);
 DeclareSetting(bool, SeenTrayTooltip);
 DeclareSetting(bool, RestartingUpdate);
 DeclareSetting(bool, Restarting);
+DeclareSetting(bool, RestartingToSettings);
 DeclareSetting(bool, WriteProtected);
 DeclareSetting(int32, LastUpdateCheck);
 DeclareSetting(bool, NoStartUpdate);
@@ -144,10 +145,25 @@ DeclareSetting(RecentEmojiPreload, RecentEmojisPreload);
 
 const RecentEmojiPack &cGetRecentEmojis();
 
-DeclareReadSetting(QString, LangFile);
+struct DocumentData;
+typedef QVector<DocumentData*> StickerPack;
+typedef QMap<EmojiPtr, StickerPack> AllStickers;
+DeclareSetting(AllStickers, Stickers);
+DeclareSetting(QByteArray, StickersHash);
+
+typedef QMap<DocumentData*, EmojiPtr> EmojiStickersMap;
+DeclareSetting(EmojiStickersMap, EmojiStickers);
+
+typedef QList<QPair<DocumentData*, int16> > RecentStickerPack;
+DeclareSetting(RecentStickerPack, RecentStickers);
+
+DeclareSetting(int32, Lang);
+DeclareSetting(QString, LangFile);
 
 DeclareSetting(QStringList, SendPaths);
 DeclareSetting(QString, StartUrl);
+
+DeclareSetting(QString, LangErrors);
 
 DeclareSetting(bool, Retina);
 DeclareSetting(float64, RetinaFactor);

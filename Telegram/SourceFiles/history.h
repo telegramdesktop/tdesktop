@@ -391,11 +391,20 @@ public:
 	void onClick(Qt::MouseButton button) const;
 };
 
+enum DocumentType {
+	FileDocument,
+	VideoDocument,
+	AudioDocument,
+	StickerDocument,
+	AnimatedDocument
+};
 struct DocumentData {
-	DocumentData(const DocumentId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, const QString &name = QString(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
+	DocumentData(const DocumentId &id, const uint64 &access = 0, int32 date = 0, const QVector<MTPDocumentAttribute> &attributes = QVector<MTPDocumentAttribute>(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
+	void setattributes(const QVector<MTPDocumentAttribute> &attributes);
 
 	void forget() {
 		thumb->forget();
+		sticker->forget();
 	}
 
 	void save(const QString &toFile);
@@ -417,6 +426,7 @@ struct DocumentData {
 	void finish() {
 		if (loader->done()) {
 			location = FileLocation(loader->fileType(), loader->fileName());
+			data = loader->bytes();
 		}
 		loader->deleteLater();
 		loader->rpcInvalidate();
@@ -426,8 +436,10 @@ struct DocumentData {
 	QString already(bool check = false);
 
 	DocumentId id;
+	DocumentType type;
+	QSize dimensions;
+	int32 duration;
 	uint64 access;
-	int32 user;
 	int32 date;
 	QString name, mime;
 	ImagePtr thumb;
@@ -440,6 +452,10 @@ struct DocumentData {
 	int32 openOnSave, openOnSaveMsgId;
 	mtpFileLoader *loader;
 	FileLocation location;
+
+	QByteArray data;
+	ImagePtr sticker;
+
 	int32 md5[8];
 };
 
@@ -491,6 +507,7 @@ struct Histories : public QHash<PeerId, History*>, public Animated {
 
 	void clear();
 	Parent::iterator erase(Parent::iterator i);
+	void remove(const PeerId &peer);
 	~Histories() {
 		clear();
 
@@ -538,6 +555,7 @@ enum HistoryMediaType {
 	MediaTypeContact,
 	MediaTypeAudio,
 	MediaTypeDocument,
+	MediaTypeSticker,
 	MediaTypeImageLink,
 
 	MediaTypeCount
@@ -556,20 +574,11 @@ inline MediaOverviewType mediaToOverviewType(HistoryMediaType t) {
 	switch (t) {
 	case MediaTypePhoto: return OverviewPhotos;
 	case MediaTypeVideo: return OverviewVideos;
-	case MediaTypeDocument: return OverviewDocuments;
+	case MediaTypeDocument:
+	case MediaTypeSticker: return OverviewDocuments;
 	case MediaTypeAudio: return OverviewAudios;
 	}
 	return OverviewCount;
-}
-
-inline HistoryMediaType overviewToMediaType(MediaOverviewType t) {
-	switch (t) {
-	case OverviewPhotos: return MediaTypePhoto;
-	case OverviewVideos: return MediaTypeVideo;
-	case OverviewAudios: return MediaTypeAudio;
-	case OverviewDocuments: return MediaTypeDocument;
-	}
-	return MediaTypeCount;
 }
 
 inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
@@ -629,12 +638,14 @@ struct History : public QList<HistoryBlock*> {
 
 	HistoryItem *createItem(HistoryBlock *block, const MTPmessage &msg, bool newMsg, bool returnExisting = false);
 	HistoryItem *createItemForwarded(HistoryBlock *block, MsgId id, HistoryMessage *msg);
-//	HistoryItem *createItem(HistoryBlock *block, const MTPgeoChatMessage &msg, bool newMsg);
+	HistoryItem *createItemDocument(HistoryBlock *block, MsgId id, bool out, bool unread, QDateTime date, int32 from, DocumentData *doc);
+
 	HistoryItem *addToBackService(MsgId msgId, QDateTime date, const QString &text, bool out = false, bool unread = false, HistoryMedia *media = 0, bool newMsg = true);
 	HistoryItem *addToBack(const MTPmessage &msg, bool newMsg = true);
 	HistoryItem *addToHistory(const MTPmessage &msg);
 	HistoryItem *addToBackForwarded(MsgId id, HistoryMessage *item);
-//	HistoryItem *addToBack(const MTPgeoChatMessage &msg, bool newMsg = true);
+	HistoryItem *addToBackDocument(MsgId id, bool out, bool unread, QDateTime date, int32 from, DocumentData *doc);
+
 	void addToFront(const QVector<MTPMessage> &slice);
 	void addToBack(const QVector<MTPMessage> &slice);
 	void createInitialDateBlock(const QDateTime &date);
@@ -1155,6 +1166,8 @@ public:
 	}
 	virtual void updateMedia(const MTPMessageMedia &media) {
 	}
+	virtual void updateStickerEmoji() {
+	}
 
 	virtual QString selectedText(uint32 selection) const {
 		return qsl("[-]");
@@ -1229,6 +1242,10 @@ public:
 
 	virtual void updateFrom(const MTPMessageMedia &media) {
 	}
+
+	virtual bool updateStickerEmoji() {
+		return false;
+	}
 	
 	virtual bool animating() const {
 		return false;
@@ -1280,6 +1297,7 @@ public:
 	}
 
 private:
+	int16 pixw, pixh;
 	PhotoData *data;
 	TextLinkPtr openl;
 
@@ -1355,7 +1373,7 @@ private:
 class HistoryDocument : public HistoryMedia {
 public:
 
-	HistoryDocument(const MTPDdocument &document, int32 width = 0);
+	HistoryDocument(DocumentData *document, int32 width = 0);
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
@@ -1393,6 +1411,42 @@ private:
 
 	mutable QString _dldTextCache, _uplTextCache;
 	mutable int32 _dldDone, _uplDone;
+};
+
+class HistorySticker : public HistoryMedia {
+public:
+
+	HistorySticker(DocumentData *document, int32 width = 0);
+	void initDimensions(const HistoryItem *parent);
+
+	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
+	HistoryMediaType type() const {
+		return MediaTypeSticker;
+	}
+	const QString inDialogsText() const;
+	const QString inHistoryText() const;
+	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	int32 countHeight(const HistoryItem *parent, int32 width = -1) const;
+	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	HistoryMedia *clone() const;
+
+	DocumentData *document() {
+		return data;
+	}
+
+	void regItem(HistoryItem *item);
+	void unregItem(HistoryItem *item);
+
+	void updateFrom(const MTPMessageMedia &media);
+	bool updateStickerEmoji();
+
+private:
+
+	int16 pixw, pixh;
+	DocumentData *data;
+	QString _emoji;
+
 };
 
 class HistoryContact : public HistoryMedia {
@@ -1503,12 +1557,12 @@ class HistoryMessage : public HistoryItem {
 public:
 
 	HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg);
-//	HistoryMessage(History *history, HistoryBlock *block, const MTPDgeoChatMessage &msg);
-//	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, const QString &msg);
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, const QString &msg, const MTPMessageMedia &media);
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, const QString &msg, HistoryMedia *media);
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, DocumentData *doc);
 
 	void initMedia(const MTPMessageMedia &media, QString &currentText);
+	void initMediaFromDocument(DocumentData *doc);
 	void initDimensions(const HistoryItem *parent = 0);
 	void initDimensions(const QString &text);
 	void fromNameUpdated() const;
@@ -1533,6 +1587,7 @@ public:
 	void updateMedia(const MTPMessageMedia &media) {
 		if (_media) _media->updateFrom(media);
 	}
+	void updateStickerEmoji();
 
 	QString selectedText(uint32 selection) const;
 	HistoryMedia *getMedia(bool inOverview = false) const;
@@ -1598,7 +1653,6 @@ class HistoryServiceMsg : public HistoryItem {
 public:
 
 	HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDmessageService &msg);
-//	HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDgeoChatMessageService &msg);
 	HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, bool out = false, bool unread = false, HistoryMedia *media = 0);
 
 	void initDimensions(const HistoryItem *parent = 0);
@@ -1633,7 +1687,7 @@ public:
 
 protected:
 
-	QString messageByAction(const MTPmessageAction &action, TextLinkPtr &second);
+	void setMessageByAction(const MTPmessageAction &action);
 
 	Text _text;
 	HistoryMedia *_media;

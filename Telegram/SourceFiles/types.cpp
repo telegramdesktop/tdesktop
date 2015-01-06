@@ -922,3 +922,57 @@ QString rusKeyboardLayoutSwitch(const QString &from) {
 	}
 	return result;
 }
+
+QStringList MimeType::globPatterns() const {
+	switch (_type) {
+	case WebP: return QStringList(qsl("*.webp"));
+	default: break;
+	}
+	return _typeStruct.globPatterns();
+}
+QString MimeType::filterString() const {
+	switch (_type) {
+	case WebP: return qsl("WebP image (*.webp)");
+	default: break;
+	}
+	return _typeStruct.filterString();
+}
+QString MimeType::name() const {
+	switch (_type) {
+	case WebP: return qsl("image/webp");
+	default: break;
+	}
+	return _typeStruct.name();
+}
+
+MimeType mimeTypeForName(const QString &mime) {
+	if (mime == qsl("image/webp")) return MimeType(MimeType::WebP);
+	return MimeType(QMimeDatabase().mimeTypeForName(mime));
+}
+
+MimeType mimeTypeForFile(const QFileInfo &file) {
+	QString path = file.absoluteFilePath();
+	if (path.endsWith(qsl(".webp"), Qt::CaseInsensitive)) return MimeType(MimeType::WebP);
+	{
+		QFile f(path);
+		if (f.open(QIODevice::ReadOnly)) {
+			QByteArray magic = f.read(12);
+			if (magic.size() >= 12) {
+				if (!memcmp(magic.constData(), "RIFF", 4) && !memcmp(magic.constData() + 8, "WEBP", 4)) {
+					return MimeType(MimeType::WebP);
+				}
+			}
+			f.close();
+		}
+	}
+	return MimeType(QMimeDatabase().mimeTypeForFile(file));
+}
+
+MimeType mimeTypeForData(const QByteArray &data) {
+	if (data.size() >= 12) {
+		if (!memcmp(data.constData(), "RIFF", 4) && !memcmp(data.constData() + 8, "WEBP", 4)) {
+			return MimeType(MimeType::WebP);
+		}
+	}
+	return MimeType(QMimeDatabase().mimeTypeForData(data));
+}

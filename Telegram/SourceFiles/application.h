@@ -26,6 +26,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 class MainWidget;
 class FileUploader;
+class Translator;
 
 class Application : public PsApplication, public RPCSender {
 	Q_OBJECT
@@ -37,7 +38,8 @@ public:
 	
 	static Application *app();
 	static Window *wnd();
-	static QString lang();
+	static QString language();
+	static int32 languageId();
 	static MainWidget *main();
 
 	void onAppUpdate(const MTPhelp_AppUpdate &response);
@@ -141,5 +143,7 @@ private:
 	PsUpdateDownloader *updateDownloader;
 
 	QTimer writeUserConfigTimer;
+
+	Translator *_translator;
 
 };

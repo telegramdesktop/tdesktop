@@ -166,6 +166,76 @@ QSize FlatTextarea::minimumSizeHint() const {
 	return geometry().size();
 }
 
+EmojiPtr FlatTextarea::getSingleEmoji() const {
+	QString text;
+	QTextFragment fragment;
+
+	getSingleEmojiFragment(text, fragment);
+	
+	if (!text.isEmpty()) {
+		QTextCharFormat format = fragment.charFormat();
+		QString imageName = static_cast<const QTextImageFormat*>(&format)->name();
+		return getEmoji(imageName.mid(8).toUInt(0, 16));
+	}
+	return 0;
+}
+
+void FlatTextarea::getSingleEmojiFragment(QString &text, QTextFragment &fragment) const {
+	int32 end = textCursor().position(), start = end - 1;
+	if (textCursor().anchor() != end) return;
+
+	if (start < 0) start = 0;
+
+	QTextDocument *doc(document());
+	QTextBlock from = doc->findBlock(start), till = doc->findBlock(end);
+	if (till.isValid()) till = till.next();
+
+	for (QTextBlock b = from; b != till; b = b.next()) {
+		for (QTextBlock::Iterator iter = b.begin(); !iter.atEnd(); ++iter) {
+			QTextFragment fr(iter.fragment());
+			if (!fr.isValid()) continue;
+
+			int32 p = fr.position(), e = (p + fr.length());
+			if (p >= end || e <= start) {
+				continue;
+			}
+
+			QTextCharFormat f = fr.charFormat();
+			QString t(fr.text());
+			if (p < start) {
+				t = t.mid(start - p, end - start);
+			} else if (e > end) {
+				t = t.mid(0, end - p);
+			}
+			if (f.isImageFormat() && !t.isEmpty() && t.at(0).unicode() == QChar::ObjectReplacementCharacter) {
+				QString imageName = static_cast<QTextImageFormat*>(&f)->name();
+				if (imageName.midRef(0, 8) == qsl("emoji://")) {
+					fragment = fr;
+					text = t;
+					return;
+				}
+			}
+			return;
+		}
+	}
+	return;
+}
+
+void FlatTextarea::removeSingleEmoji() {
+	QString text;
+	QTextFragment fragment;
+
+	getSingleEmojiFragment(text, fragment);
+
+	if (!text.isEmpty()) {
+		QTextCursor t(textCursor());
+		t.setPosition(fragment.position());
+		t.setPosition(fragment.position() + fragment.length(), QTextCursor::KeepAnchor);
+		t.removeSelectedText();
+		setTextCursor(t);
+	}
+}
+
 QString FlatTextarea::getText(int32 start, int32 end) const {
 	if (end >= 0 && end <= start) return QString();
 
@@ -227,21 +297,7 @@ QString FlatTextarea::getText(int32 start, int32 end) const {
 							uint32 index = imageName.mid(8).toUInt(0, 16);
 							const EmojiData *emoji = getEmoji(index);
 							if (emoji) {
-								emojiText.reserve(emoji->len + (emoji->postfix ? 1 : 0));
-								switch (emoji->len) {
-								case 1: emojiText.append(QChar(emoji->code & 0xFFFF)); break;
-								case 2:
-									emojiText.append(QChar((emoji->code >> 16) & 0xFFFF));
-									emojiText.append(QChar(emoji->code & 0xFFFF));
-								break;
-								case 4:
-									emojiText.append(QChar((emoji->code >> 16) & 0xFFFF));
-									emojiText.append(QChar(emoji->code & 0xFFFF));
-									emojiText.append(QChar((emoji->code2 >> 16) & 0xFFFF));
-									emojiText.append(QChar(emoji->code2 & 0xFFFF));
-								break;
-								}
-								if (emoji->postfix) emojiText.append(QChar(emoji->postfix));
+								emojiText = textEmojiString(emoji);
 							}
 						}
 					}

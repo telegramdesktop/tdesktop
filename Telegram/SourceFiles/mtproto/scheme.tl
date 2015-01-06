@@ -301,8 +301,8 @@ contacts.myLinkContact#c240ebd9 = contacts.MyLink;
 
 contacts.link#eccea3f5 my_link:contacts.MyLink foreign_link:contacts.ForeignLink user:User = contacts.Link;
 
-contacts.contacts#6f8b8cb2 contacts:Vector<Contact> users:Vector<User> = contacts.Contacts;
 contacts.contactsNotModified#b74ba9d2 = contacts.Contacts;
+contacts.contacts#6f8b8cb2 contacts:Vector<Contact> users:Vector<User> = contacts.Contacts;
 
 contacts.importedContacts#ad524315 imported:Vector<ImportedContact> retry_contacts:Vector<long> users:Vector<User> = contacts.ImportedContacts;
 
@@ -459,8 +459,8 @@ updateDcOptions#8e5e9873 dc_options:Vector<DcOption> = Update;
 
 inputMediaUploadedAudio#4e498cab file:InputFile duration:int mime_type:string = InputMedia;
 inputMediaAudio#89938781 id:InputAudio = InputMedia;
-inputMediaUploadedDocument#34e794bd file:InputFile file_name:string mime_type:string = InputMedia;
-inputMediaUploadedThumbDocument#3e46de5d file:InputFile thumb:InputFile file_name:string mime_type:string = InputMedia;
+inputMediaUploadedDocument#ffe76b78 file:InputFile mime_type:string attributes:Vector<DocumentAttribute> = InputMedia;
+inputMediaUploadedThumbDocument#41481486 file:InputFile thumb:InputFile mime_type:string attributes:Vector<DocumentAttribute> = InputMedia;
 inputMediaDocument#d184e841 id:InputDocument = InputMedia;
 
 messageMediaDocument#2fda2204 document:Document = MessageMedia;
@@ -479,7 +479,7 @@ audioEmpty#586988d8 id:long = Audio;
 audio#c7ac6496 id:long access_hash:long user_id:int date:int duration:int mime_type:string size:int dc_id:int = Audio;
 
 documentEmpty#36f8c871 id:long = Document;
-document#9efc6326 id:long access_hash:long user_id:int date:int file_name:string mime_type:string size:int thumb:PhotoSize dc_id:int = Document;
+document#f9a39f4f id:long access_hash:long date:int mime_type:string size:int thumb:PhotoSize dc_id:int attributes:Vector<DocumentAttribute> = Document;
 
 help.support#17c6b5f6 phone_number:string user:User = help.Support;
 
@@ -541,6 +541,18 @@ accountDaysTTL#b8d0afdf days:int = AccountDaysTTL;
 account.sentChangePhoneCode#a4f58c4c phone_code_hash:string send_call_timeout:int = account.SentChangePhoneCode;
 
 updateUserPhone#12b9417b user_id:int phone:string = Update;
+
+documentAttributeImageSize#6c37c15c w:int h:int = DocumentAttribute;
+documentAttributeAnimated#11b58939 = DocumentAttribute;
+documentAttributeSticker#fb0a5727 = DocumentAttribute;
+documentAttributeVideo#5910cccb duration:int w:int h:int = DocumentAttribute;
+documentAttributeAudio#51448e5 duration:int = DocumentAttribute;
+documentAttributeFilename#15590068 file_name:string = DocumentAttribute;
+
+stickerPack#12b299d4 emoticon:string documents:Vector<long> = StickerPack;
+
+messages.allStickersNotModified#e86602c3 = messages.AllStickers;
+messages.allStickers#dcef3102 hash:string packs:Vector<StickerPack> documents:Vector<Document> = messages.AllStickers;
 
 ---functions---
 
@@ -610,6 +622,7 @@ updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;
 
 photos.updateProfilePhoto#eef579a0 id:InputPhoto crop:InputPhotoCrop = UserProfilePhoto;
 photos.uploadProfilePhoto#d50f9c88 file:InputFile caption:string geo_point:InputGeoPoint crop:InputPhotoCrop = photos.Photo;
+photos.deletePhotos#87cf7f2f id:Vector<InputPhoto> = Vector<long>;
 
 upload.saveFilePart#b304a621 file_id:long file_part:int bytes:bytes = Bool;
 upload.getFile#e3a6cfb5 location:InputFileLocation offset:int limit:int = upload.File;
@@ -674,3 +687,5 @@ contacts.resolveUsername#bf0131c username:string = User;
 
 account.sendChangePhoneCode#a407a8f4 phone_number:string = account.SentChangePhoneCode;
 account.changePhone#70c32edb phone_number:string phone_code_hash:string phone_code:string = User;
+
+messages.getAllStickers#aa3bc868 hash:string = messages.AllStickers;

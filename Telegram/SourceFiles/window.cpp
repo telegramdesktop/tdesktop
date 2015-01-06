@@ -165,7 +165,7 @@ void NotifyWindow::updateNotifyDisplay() {
 				peerPhoto->load(true, true);
 			}
 		} else {
-			static QPixmap icon = QPixmap::fromImage(App::wnd()->iconLarge().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+			static QPixmap icon = QPixmap::fromImage(App::wnd()->iconLarge().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), icon);
 		}
 
@@ -204,12 +204,12 @@ void NotifyWindow::updateNotifyDisplay() {
 			history->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 		} else {
 			p.setFont(st::msgNameFont->f);
-			static QString notifyTitle = st::msgNameFont->m.elidedText(lang(lng_notification_title), Qt::ElideRight, rectForName.width());
+			static QString notifyTitle = st::msgNameFont->m.elidedText(qsl("Telegram Desktop"), Qt::ElideRight, rectForName.width());
 			p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, notifyTitle);
 		}
 	}
 
-	pm = QPixmap::fromImage(img);
+	pm = QPixmap::fromImage(img, Qt::ColorOnly);
 	update();
 }
 
@@ -221,7 +221,7 @@ void NotifyWindow::updatePeerPhoto() {
 			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), peerPhoto->pix(st::notifyPhotoSize));
 		}
 		peerPhoto = ImagePtr();
-		pm = QPixmap::fromImage(img);
+		pm = QPixmap::fromImage(img, Qt::ColorOnly);
 		update();
 	}
 }
@@ -434,6 +434,7 @@ void Window::clearWidgets() {
 		intro->rpcInvalidate();
 		intro = 0;
 	}
+	title->updateBackButton();
 }
 
 void Window::setupIntro(bool anim) {
@@ -591,7 +592,7 @@ void Window::updateTitleStatus() {
 			showConnecting(lang(lng_connecting));
 		}
 	} else if (state < 0) {
-		showConnecting(lang(lng_reconnecting).arg((-state) / 1000), lang(lng_reconnecting_try_now));
+		showConnecting(lng_reconnecting(lt_count, ((-state) / 1000) + 1), lang(lng_reconnecting_try_now));
 		QTimer::singleShot((-state) % 1000, this, SLOT(updateTitleStatus()));
 	} else {
 		hideConnecting();
@@ -847,10 +848,10 @@ void Window::setupTrayIcon() {
 		if (trayIcon) trayIcon->deleteLater();
 		trayIcon = new QSystemTrayIcon(this);
 #ifdef Q_OS_MAC
-		QIcon icon(QPixmap::fromImage(psTrayIcon()));
-		icon.addPixmap(QPixmap::fromImage(psTrayIcon(true)), QIcon::Selected);
+		QIcon icon(QPixmap::fromImage(psTrayIcon(), Qt::ColorOnly));
+		icon.addPixmap(QPixmap::fromImage(psTrayIcon(true), Qt::ColorOnly), QIcon::Selected);
 #else
-		QIcon icon(QPixmap::fromImage(iconLarge()));
+		QIcon icon(QPixmap::fromImage(iconLarge(), Qt::ColorOnly));
 #endif
 
 		trayIcon->setIcon(icon);
@@ -1044,11 +1045,11 @@ Window::TempDirState Window::tempDirState() {
 	return QDir(cTempDir()).exists() ? TempDirExists : TempDirEmpty;
 }
 
-Window::TempDirState Window::localImagesState() {
-	if (_clearManager && _clearManager->hasTask(Local::ClearManagerImages)) {
+Window::TempDirState Window::localStorageState() {
+	if (_clearManager && _clearManager->hasTask(Local::ClearManagerStorage)) {
 		return TempDirRemoving;
 	}
-	return Local::hasImages() ? TempDirExists : TempDirEmpty;
+	return (Local::hasImages() || Local::hasStickers() || Local::hasAudios()) ? TempDirExists : TempDirEmpty;
 }
 
 void Window::tempDirDelete(int task) {
@@ -1488,7 +1489,7 @@ QImage Window::iconWithCounter(int size, int count, style::color bg, bool smallI
 		placeSmallCounter(img, size, count, bg, QPoint(), st::counterColor);
 	} else {
 		QPainter p(&img);
-		p.drawPixmap(size / 2, size / 2, QPixmap::fromImage(iconWithCounter(-size / 2, count, bg, false)));
+		p.drawPixmap(size / 2, size / 2, QPixmap::fromImage(iconWithCounter(-size / 2, count, bg, false), Qt::ColorOnly));
 	}
 	return img;
 }

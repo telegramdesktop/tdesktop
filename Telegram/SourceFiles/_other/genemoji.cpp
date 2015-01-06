@@ -52,38 +52,41 @@ struct EmojiReplace {
 };
 
 EmojiReplace replaces[] = {
-	{0xD83DDE0AU, ":-)"},
-	{0xD83DDE03U, ":-D"},
-	{0xD83DDE09U, ";-)"},
-	{0xD83DDE06U, "xD"},
-	{0xD83DDE1CU, ";-P"},
-	{0xD83DDE0BU, ":-p"},
-	{0xD83DDE0DU, "8-)"},
-	{0xD83DDE0EU, "B-)"},
-	{0xD83DDE12U, ":-("},
-	{0xD83DDE0FU, ":]"},
-	{0xD83DDE14U, "3("},
-	{0xD83DDE22U, ":'("},
-	{0xD83DDE2DU, ":_("},
-	{0xD83DDE29U, ":(("},
-	{0xD83DDE28U, ":o"},
-	{0xD83DDE10U, ":|"},
-	{0xD83DDE0CU, "3-)"},
-	{0xD83DDE20U, ">("},
-	{0xD83DDE21U, ">(("},
-	{0xD83DDE07U, "O:)"},
-	{0xD83DDE30U, ";o"},
-	{0xD83DDE33U, "8|"},
-	{0xD83DDE32U, "8o"},
-	{0xD83DDE37U, ":X"},
-	{0xD83DDE1AU, ":-*"},
-	{0xD83DDE08U, "}:)"},
-	{0x2764U, "<3"},
-	{0xD83DDC4DU, ":like:"},
-	{0xD83DDC4EU, ":dislike:"},
-	{0x261DU, ":up:"},
-	{0x270CU, ":v:"},
-	{0xD83DDC4CU, ":ok:"}
+	{ 0xD83DDE0AU, ":-)" },
+	{ 0xD83DDE0DU, "8-)" },
+	{ 0x2764U, "<3" },
+	{ 0xD83DDC8BU, ":kiss:" },
+	{ 0xD83DDE01U, ":grin:" },
+	{ 0xD83DDE02U, ":joy:" },
+	{ 0xD83DDE1AU, ":-*" },
+	{ 0xD83DDE06U, "xD" },
+	{ 0xD83DDC4DU, ":like:" },
+	{ 0xD83DDC4EU, ":dislike:" },
+	{ 0x261DU, ":up:" },
+	{ 0x270CU, ":v:" },
+	{ 0xD83DDC4CU, ":ok:" },
+	{ 0xD83DDE0EU, "B-)" },
+	{ 0xD83DDE03U, ":-D" },
+	{ 0xD83DDE09U, ";-)" },
+	{ 0xD83DDE1CU, ";-P" },
+	{ 0xD83DDE0BU, ":-p" },
+	{ 0xD83DDE14U, "3(" },
+	{ 0xD83DDE1EU, ":-(" },
+	{ 0xD83DDE0FU, ":]" },
+	{ 0xD83DDE22U, ":'(" },
+	{ 0xD83DDE2DU, ":_(" },
+	{ 0xD83DDE29U, ":((" },
+	{ 0xD83DDE28U, ":o" },
+	{ 0xD83DDE10U, ":|" },
+	{ 0xD83DDE0CU, "3-)" },
+	{ 0xD83DDE20U, ">(" },
+	{ 0xD83DDE21U, ">((" },
+	{ 0xD83DDE07U, "O:)" },
+	{ 0xD83DDE30U, ";o" },
+	{ 0xD83DDE33U, "8|" },
+	{ 0xD83DDE32U, "8o" },
+	{ 0xD83DDE37U, ":X" },
+	{ 0xD83DDE08U, "}:)" },
 };
 const uint32 replacesCount = sizeof(replaces) / sizeof(EmojiReplace);
 typedef QMap<QString, uint32> ReplaceMap;
@@ -1171,7 +1174,7 @@ bool genEmoji(QString emoji_in, const QString &emoji_out, const QString &emoji_p
 		p.fillRect(0, 0, emojisImg.width(), emojisImg.height(), Qt::transparent);
 		for (EmojisData::const_iterator i = emojisData.cbegin(), e = emojisData.cend(); i != e; ++i) {
 			int ind = i->index, row = ind / emojisInRow[i->category], col = ind % emojisInRow[i->category], size = sizes[i->category];
-			QPixmap emoji = QPixmap::fromImage(sprites[i->category].copy(col * size, row * size, size, size).scaled(imSize, imSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+			QPixmap emoji = QPixmap::fromImage(sprites[i->category].copy(col * size, row * size, size, size).scaled(imSize, imSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 			p.drawPixmap(i->x * imSize, i->y * imSize, emoji);
 		}
 		QString postfix = variantPostfix[variantIndex], emojif = emoji_png + postfix + ".png";

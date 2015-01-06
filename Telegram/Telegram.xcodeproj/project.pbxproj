@@ -38,9 +38,13 @@
 		02F93BF511880983D3C57B84 /* dialogswidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = E466873F01ABA1E55E914489 /* dialogswidget.cpp */; settings = {ATTRIBUTES = (); }; };
 		03270F718426CFE84729079E /* flattextarea.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 5C7FD422BBEDA858D7237AE9 /* flattextarea.cpp */; settings = {ATTRIBUTES = (); }; };
 		06EABCC49D2EEE4076322BE7 /* moc_mtp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 924D4939FD169BB4B8AEB1C9 /* moc_mtp.cpp */; settings = {ATTRIBUTES = (); }; };
+		07080BCF1A43588C00741A51 /* lang_auto.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07080BCD1A43588C00741A51 /* lang_auto.cpp */; };
+		07080BD21A436A5000741A51 /* lang.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07080BD01A436A5000741A51 /* lang.cpp */; };
 		0732E4A9199E262300D50FE7 /* overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4A7199E262300D50FE7 /* overviewwidget.cpp */; };
 		0732E4AC199E268A00D50FE7 /* moc_overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */; };
 		074756191A1372C600CA07F7 /* moc_types.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074756181A1372C600CA07F7 /* moc_types.cpp */; };
+		074968D01A44D14C00394F46 /* languagebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074968CE1A44D14C00394F46 /* languagebox.cpp */; };
+		074968D21A44D1DF00394F46 /* moc_languagebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074968D11A44D1DF00394F46 /* moc_languagebox.cpp */; };
 		0749CE69194D723400345D61 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 07C3AF24194335ED0016CFF1 /* Images.xcassets */; };
 		074FCB8E19D36851004C6EB2 /* contextmenu.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074FCB8C19D36851004C6EB2 /* contextmenu.cpp */; };
 		074FCB9119D36E60004C6EB2 /* moc_contextmenu.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074FCB9019D36E60004C6EB2 /* moc_contextmenu.cpp */; };
@@ -53,6 +57,7 @@
 		07C4753F1967E37300CAAFE9 /* moc_switcher.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */; };
 		07D7034B19B8755A00C4EED2 /* audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D7034919B8755A00C4EED2 /* audio.cpp */; };
 		07D703BB19B88FB900C4EED2 /* moc_audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D703BA19B88FB900C4EED2 /* moc_audio.cpp */; };
+		07D7EABA1A597DD000838BA2 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 07D7EABC1A597DD000838BA2 /* Localizable.strings */; };
 		07D8509419F5C97E00623D75 /* mtpCoreTypes.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D8509219F5C97E00623D75 /* mtpCoreTypes.cpp */; };
 		07D8509519F5C97E00623D75 /* mtpScheme.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D8509319F5C97E00623D75 /* mtpScheme.cpp */; };
 		07D8509919F8320900623D75 /* usernamebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D8509719F8320900623D75 /* usernamebox.cpp */; };
@@ -206,7 +211,6 @@
 		F4D3747C3A03B25EDC9057BB /* qwebp in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = ADC6308023253CEA51F86E21 /* qwebp */; };
 		F8B465CE34D8DF87AAE95913 /* CoreFoundation.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 4D765E1B1EA6C757220C63E7 /* CoreFoundation.framework */; };
 		F8ED42CF8679BF83227DAFC4 /* Carbon.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 9DFF62A901D70814B8A323D4 /* Carbon.framework */; };
-		F91C59BECCE70070B06E8385 /* lang.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 4B6C62A2448B708B3FF40411 /* lang.cpp */; settings = {ATTRIBUTES = (); }; };
 		FA603B17F803E8D6B55C2F2B /* pspecific_mac_p.mm in Compile Sources */ = {isa = PBXBuildFile; fileRef = 73737DC91E390C4AB18FB595 /* pspecific_mac_p.mm */; settings = {ATTRIBUTES = (); }; };
 		FBD56E2AC34F76BFFDB68619 /* qmng in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 83D37373949868693FB7816D /* qmng */; };
 		FCC949FEA178F9F5D7478027 /* moc_flattextarea.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = D12A6BD8EE80B8B308E481AD /* moc_flattextarea.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -246,18 +250,31 @@
 		060A694B42A4555240009936 /* /usr/local/Qt-5.3.1/mkspecs/modules/qt_plugin_qtga.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.1/mkspecs/modules/qt_plugin_qtga.pri"; sourceTree = "<absolute>"; };
 		06E379415713F34B83F99C35 /* app.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = app.cpp; path = SourceFiles/app.cpp; sourceTree = "<absolute>"; };
 		07055CC3194EE85B0008DEF6 /* libcrypto.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libcrypto.a; path = "./../../Libraries/openssl-xcode/libcrypto.a"; sourceTree = "<group>"; };
+		07080BCB1A4357F300741A51 /* lang.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang.strings; path = Resources/lang.strings; sourceTree = SOURCE_ROOT; };
+		07080BCD1A43588C00741A51 /* lang_auto.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = lang_auto.cpp; path = GeneratedFiles/lang_auto.cpp; sourceTree = SOURCE_ROOT; };
+		07080BCE1A43588C00741A51 /* lang_auto.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = lang_auto.h; path = GeneratedFiles/lang_auto.h; sourceTree = SOURCE_ROOT; };
+		07080BD01A436A5000741A51 /* lang.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = lang.cpp; path = SourceFiles/lang.cpp; sourceTree = SOURCE_ROOT; };
+		07080BD11A436A5000741A51 /* lang.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = lang.h; path = SourceFiles/lang.h; sourceTree = SOURCE_ROOT; };
 		07084684195445A600B5AE3A /* Updater.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = Updater.xcodeproj; sourceTree = SOURCE_ROOT; };
+		072E117A1A56EB9400A87ACC /* lang_pt_BR.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_pt_BR.strings; path = SourceFiles/langs/lang_pt_BR.strings; sourceTree = SOURCE_ROOT; };
 		0732E4A7199E262300D50FE7 /* overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = overviewwidget.cpp; path = SourceFiles/overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
 		0732E4A8199E262300D50FE7 /* overviewwidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = overviewwidget.h; path = SourceFiles/overviewwidget.h; sourceTree = SOURCE_ROOT; };
 		0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_overviewwidget.cpp; path = GeneratedFiles/Debug/moc_overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
 		0746AC8D1A28D2D80040AE26 /* Telegram Desktop.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.xml; name = "Telegram Desktop.entitlements"; path = "Telegram/Telegram Desktop.entitlements"; sourceTree = SOURCE_ROOT; };
 		074756181A1372C600CA07F7 /* moc_types.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_types.cpp; path = GeneratedFiles/Debug/moc_types.cpp; sourceTree = SOURCE_ROOT; };
+		074968CC1A44D13400394F46 /* lang_it.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_it.strings; path = SourceFiles/langs/lang_it.strings; sourceTree = SOURCE_ROOT; };
+		074968CE1A44D14C00394F46 /* languagebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = languagebox.cpp; path = SourceFiles/boxes/languagebox.cpp; sourceTree = SOURCE_ROOT; };
+		074968CF1A44D14C00394F46 /* languagebox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = languagebox.h; path = SourceFiles/boxes/languagebox.h; sourceTree = SOURCE_ROOT; };
+		074968D11A44D1DF00394F46 /* moc_languagebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_languagebox.cpp; path = GeneratedFiles/Debug/moc_languagebox.cpp; sourceTree = SOURCE_ROOT; };
 		074FCB8C19D36851004C6EB2 /* contextmenu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = contextmenu.cpp; path = SourceFiles/gui/contextmenu.cpp; sourceTree = SOURCE_ROOT; };
 		074FCB8D19D36851004C6EB2 /* contextmenu.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = contextmenu.h; path = SourceFiles/gui/contextmenu.h; sourceTree = SOURCE_ROOT; };
 		074FCB9019D36E60004C6EB2 /* moc_contextmenu.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_contextmenu.cpp; path = GeneratedFiles/Debug/moc_contextmenu.cpp; sourceTree = SOURCE_ROOT; };
 		07539B1C1A1416AF00083EFC /* moc_history.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_history.cpp; path = GeneratedFiles/Debug/moc_history.cpp; sourceTree = SOURCE_ROOT; };
 		075EB50EB07CF69FD62FB8DF /* /usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_sql_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_sql_private.pri"; sourceTree = "<absolute>"; };
+		075F99A91A45EEF200915C72 /* lang_es.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_es.strings; path = SourceFiles/langs/lang_es.strings; sourceTree = SOURCE_ROOT; };
 		0771C4C94B623FC34BF62983 /* intro.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = intro.cpp; path = SourceFiles/intro/intro.cpp; sourceTree = "<absolute>"; };
+		078DD0241A48DD9E00DD14CC /* lang_de.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_de.strings; path = SourceFiles/langs/lang_de.strings; sourceTree = SOURCE_ROOT; };
+		078DD0251A48DD9E00DD14CC /* lang_nl.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_nl.strings; path = SourceFiles/langs/lang_nl.strings; sourceTree = SOURCE_ROOT; };
 		07A69330199277BA0099CB9F /* mediaview.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mediaview.cpp; path = SourceFiles/mediaview.cpp; sourceTree = SOURCE_ROOT; };
 		07A69331199277BA0099CB9F /* mediaview.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = mediaview.h; path = SourceFiles/mediaview.h; sourceTree = SOURCE_ROOT; };
 		07A6933419927B160099CB9F /* moc_mediaview.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_mediaview.cpp; path = GeneratedFiles/Debug/moc_mediaview.cpp; sourceTree = SOURCE_ROOT; };
@@ -266,7 +283,6 @@
 		07BE85111A20961F008ACB9F /* moc_localstorage.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_localstorage.cpp; path = GeneratedFiles/Debug/moc_localstorage.cpp; sourceTree = SOURCE_ROOT; };
 		07C3AF24194335ED0016CFF1 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Telegram/Images.xcassets; sourceTree = SOURCE_ROOT; };
 		07C3AF27194336B90016CFF1 /* pspecific_mac_p.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = pspecific_mac_p.h; path = SourceFiles/pspecific_mac_p.h; sourceTree = SOURCE_ROOT; };
-		07C3AF2819433ABF0016CFF1 /* lang.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = lang.txt; path = Resources/lang.txt; sourceTree = SOURCE_ROOT; };
 		07C3AF2919433ABF0016CFF1 /* style_classes.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = style_classes.txt; path = Resources/style_classes.txt; sourceTree = SOURCE_ROOT; };
 		07C3AF2A19433ABF0016CFF1 /* style.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = style.txt; path = Resources/style.txt; sourceTree = SOURCE_ROOT; };
 		07C475391967DF1C00CAAFE9 /* switcher.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = switcher.cpp; path = SourceFiles/gui/switcher.cpp; sourceTree = SOURCE_ROOT; };
@@ -275,6 +291,12 @@
 		07D7034919B8755A00C4EED2 /* audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = audio.cpp; path = SourceFiles/audio.cpp; sourceTree = SOURCE_ROOT; };
 		07D7034A19B8755A00C4EED2 /* audio.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = audio.h; path = SourceFiles/audio.h; sourceTree = SOURCE_ROOT; };
 		07D703BA19B88FB900C4EED2 /* moc_audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_audio.cpp; path = GeneratedFiles/Debug/moc_audio.cpp; sourceTree = SOURCE_ROOT; };
+		07D7EABB1A597DD000838BA2 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		07D7EABD1A597DD200838BA2 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
+		07D7EABE1A597DD300838BA2 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
+		07D7EABF1A597DD400838BA2 /* nl */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = nl; path = nl.lproj/Localizable.strings; sourceTree = "<group>"; };
+		07D7EAC01A597DD500838BA2 /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/Localizable.strings; sourceTree = "<group>"; };
+		07D7EAC11A597DD600838BA2 /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		07D8509219F5C97E00623D75 /* mtpCoreTypes.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mtpCoreTypes.cpp; path = SourceFiles/mtproto/mtpCoreTypes.cpp; sourceTree = SOURCE_ROOT; };
 		07D8509319F5C97E00623D75 /* mtpScheme.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mtpScheme.cpp; path = SourceFiles/mtproto/mtpScheme.cpp; sourceTree = SOURCE_ROOT; };
 		07D8509719F8320900623D75 /* usernamebox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = usernamebox.cpp; path = SourceFiles/boxes/usernamebox.cpp; sourceTree = SOURCE_ROOT; };
@@ -368,7 +390,6 @@
 		4689C06178B60B84E7F3A3B7 /* Qt5Widgets */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5Widgets; path = "/usr/local/Qt-5.3.1/lib/libQt5Widgets$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		48003469151B9DDE82E851FB /* moc_profilewidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_profilewidget.cpp; path = GeneratedFiles/Debug/moc_profilewidget.cpp; sourceTree = "<absolute>"; };
 		4AF15B5A0A43EB62D6DAF211 /* libexif.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libexif.a; path = "../../Libraries/libexif-0.6.20/libexif/.libs/libexif.a"; sourceTree = "<absolute>"; };
-		4B6C62A2448B708B3FF40411 /* lang.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = lang.cpp; path = GeneratedFiles/lang.cpp; sourceTree = "<absolute>"; };
 		4C6C71914B1926119120DACD /* /usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_enginio_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_enginio_private.pri"; sourceTree = "<absolute>"; };
 		4D1099F2D3696E8A0E17D37D /* mtpSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = mtpSession.h; path = SourceFiles/mtproto/mtpSession.h; sourceTree = "<absolute>"; };
 		4D504A849F15EB58E53A4E5F /* title.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = title.h; path = SourceFiles/title.h; sourceTree = "<absolute>"; };
@@ -600,7 +621,6 @@
 		E432DA897A5F027987342E8F /* /usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_openglextensions.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_openglextensions.pri"; sourceTree = "<absolute>"; };
 		E466873F01ABA1E55E914489 /* dialogswidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = dialogswidget.cpp; path = SourceFiles/dialogswidget.cpp; sourceTree = "<absolute>"; };
 		E50FA73B8A23BC179A642B27 /* /usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_uitools.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_uitools.pri"; sourceTree = "<absolute>"; };
-		E55D7EB1AAD7FB1CA69BA9E4 /* lang.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = lang.h; path = GeneratedFiles/lang.h; sourceTree = "<absolute>"; };
 		E66B9EC81C285CA9A7FB6A2E /* /usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_positioning_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_positioning_private.pri"; sourceTree = "<absolute>"; };
 		E7B2F248E3F7970788F35BF5 /* Qt5PlatformSupport */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5PlatformSupport; path = "/usr/local/Qt-5.3.1/lib/libQt5PlatformSupport$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		E7D67CB158408BB7DEA74764 /* /usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_multimedia_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_multimedia_private.pri"; sourceTree = "<absolute>"; };
@@ -702,12 +722,24 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		074968CB1A44D0B800394F46 /* langs */ = {
+			isa = PBXGroup;
+			children = (
+				072E117A1A56EB9400A87ACC /* lang_pt_BR.strings */,
+				078DD0241A48DD9E00DD14CC /* lang_de.strings */,
+				078DD0251A48DD9E00DD14CC /* lang_nl.strings */,
+				075F99A91A45EEF200915C72 /* lang_es.strings */,
+				074968CC1A44D13400394F46 /* lang_it.strings */,
+			);
+			name = langs;
+			sourceTree = "<group>";
+		};
 		130BDDB6FC4D60CF394D95AF /* GeneratedFiles */ = {
 			isa = PBXGroup;
 			children = (
-				4B6C62A2448B708B3FF40411 /* lang.cpp */,
+				07080BCD1A43588C00741A51 /* lang_auto.cpp */,
+				07080BCE1A43588C00741A51 /* lang_auto.h */,
 				99B8D38F7F5858601230911E /* style_auto.cpp */,
-				E55D7EB1AAD7FB1CA69BA9E4 /* lang.h */,
 				9EFD7CB36012BFC00CC79434 /* style_auto.h */,
 				39C1ADF085370E033CB7E7E1 /* style_classes.h */,
 			);
@@ -755,14 +787,6 @@
 				130BDDB6FC4D60CF394D95AF /* GeneratedFiles */,
 			);
 			name = Sources;
-			sourceTree = "<Group>";
-		};
-		35C84855EE9B0EA8AE0FF729 /* SourceFiles */ = {
-			isa = PBXGroup;
-			children = (
-				1292B92B4848460640F6A391 /* telegram.qrc */,
-			);
-			name = SourceFiles;
 			sourceTree = "<Group>";
 		};
 		370997172D3BAEED157B8E70 /* SourceFiles */ = {
@@ -849,6 +873,7 @@
 				9B36BB8C5B8CA7B07F3F35F0 /* fileuploader.cpp */,
 				26B83A58EE268598E703875D /* history.cpp */,
 				A83D2C19F756D3371E5999A8 /* historywidget.cpp */,
+				07080BD01A436A5000741A51 /* lang.cpp */,
 				AF5776B0652744978B7DF6D3 /* langloaderplain.cpp */,
 				5A9B4C6C59856143F3D0DE53 /* layerwidget.cpp */,
 				07A69330199277BA0099CB9F /* mediaview.cpp */,
@@ -871,6 +896,7 @@
 				579DA7AEF5751DF4988869A0 /* gui */,
 				ADC8DBF4C6F26E14C77F68B4 /* boxes */,
 				5E35A03E5F2C51353EBCBF00 /* intro */,
+				074968CB1A44D0B800394F46 /* langs */,
 				6011DDB120E1B2D4803E129A /* stdafx.h */,
 				C19DF71B273A4843553518F2 /* app.h */,
 				09FD01F2BD652EB838A296D8 /* application.h */,
@@ -882,6 +908,7 @@
 				8A9D926C08392F7A9BC83B0C /* fileuploader.h */,
 				CF1690B68F3B278E78823DB9 /* history.h */,
 				C63C6D083EBEB13A60256DF3 /* historywidget.h */,
+				07080BD11A436A5000741A51 /* lang.h */,
 				25CA12A22B83B0B038C5B5DE /* langloaderplain.h */,
 				6C86B6E6AB1857B735B720D6 /* layerwidget.h */,
 				07A69331199277BA0099CB9F /* mediaview.h */,
@@ -1040,6 +1067,7 @@
 		801973D3334D0FCA849CF485 /* Debug */ = {
 			isa = PBXGroup;
 			children = (
+				074968D11A44D1DF00394F46 /* moc_languagebox.cpp */,
 				07BE85111A20961F008ACB9F /* moc_localstorage.cpp */,
 				07539B1C1A1416AF00083EFC /* moc_history.cpp */,
 				074756181A1372C600CA07F7 /* moc_types.cpp */,
@@ -1099,18 +1127,6 @@
 			name = Debug;
 			sourceTree = "<Group>";
 		};
-		87DF60DE337FB58864343E39 /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				07C3AF2819433ABF0016CFF1 /* lang.txt */,
-				07C3AF2919433ABF0016CFF1 /* style_classes.txt */,
-				07C3AF2A19433ABF0016CFF1 /* style.txt */,
-				07C3AF24194335ED0016CFF1 /* Images.xcassets */,
-				35C84855EE9B0EA8AE0FF729 /* SourceFiles */,
-			);
-			name = Resources;
-			sourceTree = "<Group>";
-		};
 		ADC8DBF4C6F26E14C77F68B4 /* boxes */ = {
 			isa = PBXGroup;
 			children = (
@@ -1122,6 +1138,7 @@
 				8C800AAC9549E6E9E7046BED /* contactsbox.cpp */,
 				8DF456E9A416E4C3C2D6946C /* downloadpathbox.cpp */,
 				0ECF1EB9BF3786A16731F685 /* emojibox.cpp */,
+				074968CE1A44D14C00394F46 /* languagebox.cpp */,
 				5FCB7CBBAF4AE338D4B05C76 /* newgroupbox.cpp */,
 				E908A6C86F93FA27DF70866C /* photocropbox.cpp */,
 				D1C9C77F1318F5A55C9BF289 /* photosendbox.cpp */,
@@ -1134,6 +1151,7 @@
 				120EBCD9A37DB9A36BFE58C0 /* contactsbox.h */,
 				B97D4DB97FE881648644211A /* downloadpathbox.h */,
 				032C1BF3E727B450A4851D48 /* emojibox.h */,
+				074968CF1A44D14C00394F46 /* languagebox.h */,
 				FF66B5DCBB004CD8703F0207 /* newgroupbox.h */,
 				14437BFDCD58FF1742EF1B35 /* photocropbox.h */,
 				0BDE09020E45EFA57DCB2E25 /* photosendbox.h */,
@@ -1213,13 +1231,18 @@
 			isa = PBXGroup;
 			children = (
 				0746AC8D1A28D2D80040AE26 /* Telegram Desktop.entitlements */,
+				07D7EABC1A597DD000838BA2 /* Localizable.strings */,
 				07084684195445A600B5AE3A /* Updater.xcodeproj */,
 				2EB56BE3C2D93CDAB0C52E67 /* Sources */,
 				25B08E2869634E9BCBA333A2 /* Generated Sources */,
 				74B182DB50CB5611B5C1C297 /* Supporting Files */,
-				87DF60DE337FB58864343E39 /* Resources */,
 				AF39DD055C3EF8226FBE929D /* Frameworks */,
 				FE0A091FDBFB3E9C31B7A1BD /* Products */,
+				07C3AF24194335ED0016CFF1 /* Images.xcassets */,
+				07080BCB1A4357F300741A51 /* lang.strings */,
+				07C3AF2919433ABF0016CFF1 /* style_classes.txt */,
+				07C3AF2A19433ABF0016CFF1 /* style.txt */,
+				1292B92B4848460640F6A391 /* telegram.qrc */,
 			);
 			name = Telegram;
 			sourceTree = "<Group>";
@@ -1281,6 +1304,11 @@
 			hasScannedForEncodings = 1;
 			knownRegions = (
 				en,
+				es,
+				de,
+				nl,
+				it,
+				"pt-BR",
 			);
 			mainGroup = E8C543AB96796ECAA2E65C57 /* Telegram */;
 			productRefGroup = FE0A091FDBFB3E9C31B7A1BD /* Products */;
@@ -1316,6 +1344,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0749CE69194D723400345D61 /* Images.xcassets in Resources */,
+				07D7EABA1A597DD000838BA2 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1390,7 +1419,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "open ../Mac/DebugLang/MetaLang.app --args -lang_in \"../../Telegram/Resources/lang.txt\" -lang_out \"../../Telegram/GeneratedFiles/lang\"";
+			shellScript = "open ../Mac/DebugLang/MetaLang.app --args -lang_in \"../../Telegram/Resources/lang.strings\" -lang_out \"../../Telegram/GeneratedFiles/lang_auto\"";
 		};
 		7EF0942E79C014DCEC8976BC /* Qt Preprocessors */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1414,6 +1443,7 @@
 				7BEFA1D273AD62772AA33D73 /* app.cpp in Compile Sources */,
 				8E26A0653012B8E8C3E865EC /* application.cpp in Compile Sources */,
 				02F93BF511880983D3C57B84 /* dialogswidget.cpp in Compile Sources */,
+				074968D21A44D1DF00394F46 /* moc_languagebox.cpp in Compile Sources */,
 				6EF5A4ECC0EF19EA016EBA3E /* dropdown.cpp in Compile Sources */,
 				6E4DB0CBEF415196AFD4149F /* fileuploader.cpp in Compile Sources */,
 				700925F3B2C6163D38140CEA /* history.cpp in Compile Sources */,
@@ -1460,7 +1490,6 @@
 				074FCB8E19D36851004C6EB2 /* contextmenu.cpp in Compile Sources */,
 				3AA6E7264581F82856FB37F7 /* text.cpp in Compile Sources */,
 				FCE6518C548DF7BC82228A4A /* twidget.cpp in Compile Sources */,
-				F91C59BECCE70070B06E8385 /* lang.cpp in Compile Sources */,
 				E9F1CE7F9B18C7C85A50E62D /* style_auto.cpp in Compile Sources */,
 				EBE29731916DB43BF49FE7A4 /* aboutbox.cpp in Compile Sources */,
 				4426AF526AAD86D6F73CE36F /* addcontactbox.cpp in Compile Sources */,
@@ -1503,6 +1532,7 @@
 				06EABCC49D2EEE4076322BE7 /* moc_mtp.cpp in Compile Sources */,
 				8F6F5D7F82036331E8C6DAE6 /* moc_mtpConnection.cpp in Compile Sources */,
 				B780F9E21269259B90A1F32A /* moc_mtpDC.cpp in Compile Sources */,
+				07080BCF1A43588C00741A51 /* lang_auto.cpp in Compile Sources */,
 				07539B1D1A1416AF00083EFC /* moc_history.cpp in Compile Sources */,
 				2A500B102B7CE80F3EB6E13E /* moc_mtpFileLoader.cpp in Compile Sources */,
 				07A6933519927B160099CB9F /* moc_mediaview.cpp in Compile Sources */,
@@ -1526,6 +1556,7 @@
 				D6874C00733283846ACA9AB2 /* moc_confirmbox.cpp in Compile Sources */,
 				ED2557A57C6782721DC494AF /* moc_connectionbox.cpp in Compile Sources */,
 				5FC914F652D1B16FDA8F0634 /* moc_contactsbox.cpp in Compile Sources */,
+				074968D01A44D14C00394F46 /* languagebox.cpp in Compile Sources */,
 				07BE85121A20961F008ACB9F /* moc_localstorage.cpp in Compile Sources */,
 				49C3C1BF153F7FC078A25CE4 /* moc_downloadpathbox.cpp in Compile Sources */,
 				9D294F23E02CFDF22C288382 /* moc_emojibox.cpp in Compile Sources */,
@@ -1540,6 +1571,7 @@
 				2EF5D0AC9A18F9FE9B8A1ACA /* moc_introsignup.cpp in Compile Sources */,
 				8C4BA0DB55E2C40DE5F5E990 /* moc_pspecific_mac.cpp in Compile Sources */,
 				FA603B17F803E8D6B55C2F2B /* pspecific_mac_p.mm in Compile Sources */,
+				07080BD21A436A5000741A51 /* lang.cpp in Compile Sources */,
 			);
 			name = "Compile Sources";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1559,13 +1591,29 @@
 		};
 /* End PBXTargetDependency section */
 
+/* Begin PBXVariantGroup section */
+		07D7EABC1A597DD000838BA2 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				07D7EABB1A597DD000838BA2 /* en */,
+				07D7EABD1A597DD200838BA2 /* es */,
+				07D7EABE1A597DD300838BA2 /* de */,
+				07D7EABF1A597DD400838BA2 /* nl */,
+				07D7EAC01A597DD500838BA2 /* it */,
+				07D7EAC11A597DD600838BA2 /* pt-BR */,
+			);
+			name = Localizable.strings;
+			sourceTree = SOURCE_ROOT;
+		};
+/* End PBXVariantGroup section */
+
 /* Begin XCBuildConfiguration section */
 		07C3AF3E194CCC310016CFF1 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.7.2;
+				CURRENT_PROJECT_VERSION = 0.7.6;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -1583,7 +1631,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 0.7.2;
+				CURRENT_PROJECT_VERSION = 0.7.6;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
@@ -1609,10 +1657,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.7.2;
+				CURRENT_PROJECT_VERSION = 0.7.6;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 0.7;
-				DYLIB_CURRENT_VERSION = 0.7.2;
+				DYLIB_CURRENT_VERSION = 0.7.6;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
@@ -1752,10 +1800,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.7.2;
+				CURRENT_PROJECT_VERSION = 0.7.6;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 0.7;
-				DYLIB_CURRENT_VERSION = 0.7.2;
+				DYLIB_CURRENT_VERSION = 0.7.6;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;

@@ -845,7 +845,7 @@ ScalarValue prepareSprite(int variant, const char *&text, const char *end) {
 		QImage lastCopy = variantSprites[variantsCount - 1].copy(adjustPx(varLast, sprite.x(), true), adjustPx(varLast, sprite.y(), true), adjustPx(varLast, sprite.width(), true), adjustPx(varLast, sprite.height(), true));
 		for (int i = 1; i < variantsCount - 1; ++i) {
 			QPainter p(&variantSprites[i]);
-			QPixmap copy = QPixmap::fromImage(lastCopy.scaled(adjustPx(variants[i], sprite.width(), true), adjustPx(variants[i], sprite.height(), true), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+			QPixmap copy = QPixmap::fromImage(lastCopy.scaled(adjustPx(variants[i], sprite.width(), true), adjustPx(variants[i], sprite.height(), true), Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 			p.drawPixmap(QPoint(adjustPx(variants[i], sprite.x(), true), adjustPx(variants[i], sprite.y(), true)), copy);
 		}
 
@@ -1365,7 +1365,7 @@ bool genStyles(const QString &classes_in, const QString &classes_out, const QStr
 	}
 	variantSprites[variantsCount - 1] = QImage(spriteLast);
 
-	QPixmap spriteMaxPix = QPixmap::fromImage(variantSprites[variantsCount - 1]);
+	QPixmap spriteMaxPix = QPixmap::fromImage(variantSprites[variantsCount - 1], Qt::ColorOnly);
 	spriteMax = &spriteMaxPix;
 
 	if (!variantSprites[0].width() || !variantSprites[0].height()) {

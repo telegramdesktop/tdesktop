@@ -141,6 +141,7 @@ void UpdateBtn::onClick() {
 		cSetRestartingUpdate(true);
 	} else {
 		cSetRestarting(true);
+		cSetRestartingToSettings(false);
 	}
 	App::quit();
 }

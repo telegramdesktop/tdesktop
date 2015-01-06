@@ -18,7 +18,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "mlmain.h"
 
 int main(int argc, char *argv[]) {
-	QString lang_in("lang.txt"), lang_out("lang");
+	QString lang_in("lang.strings"), lang_out("lang");
 	for (int i = 0; i < argc; ++i) {
 		if (string("-lang_in") == argv[i]) {
 			if (++i < argc) lang_in = argv[i];

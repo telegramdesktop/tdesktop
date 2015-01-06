@@ -23,9 +23,9 @@ FlatButton::FlatButton(QWidget *parent, const QString &text, const style::flatBu
 	_st(st),
 	a_bg(st.bgColor->c), a_text(st.color->c), _opacity(1) {
 	if (_st.width < 0) {
-		_st.width = _st.font->m.width(text) - _st.width;
+		_st.width = textWidth() - _st.width;
 	} else if (!_st.width) {
-		_st.width = _st.font->m.width(text) + _st.height - _st.font->height;
+		_st.width = textWidth() + _st.height - _st.font->height;
 	}
 	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
 	resize(_st.width, _st.height);
@@ -44,7 +44,16 @@ void FlatButton::setText(const QString &text) {
 
 void FlatButton::setWidth(int32 w) {
 	_st.width = w;
+	if (_st.width < 0) {
+		_st.width = textWidth() - _st.width;
+	} else if (!_st.width) {
+		_st.width = textWidth() + _st.height - _st.font->height;
+	}
 	resize(_st.width, height());
+}
+
+int32 FlatButton::textWidth() const {
+	return _st.font->m.width(_text);
 }
 
 bool FlatButton::animStep(float64 ms) {

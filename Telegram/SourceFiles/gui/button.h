@@ -43,6 +43,10 @@ public:
 	void mouseMoveEvent(QMouseEvent *e);
 	void mouseReleaseEvent(QMouseEvent *e);
 
+	Qt::KeyboardModifiers clickModifiers() const {
+		return _modifiers;
+	}
+
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
 
@@ -58,11 +62,13 @@ public:
 	void setAcceptBoth(bool acceptBoth = true);
 
 signals:
+
 	void clicked();
 	void stateChanged(int oldState, ButtonStateChangeSource source);
 
 protected:
 
+	Qt::KeyboardModifiers _modifiers;
 	int _state;
 	bool _acceptBoth;
 

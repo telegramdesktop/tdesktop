@@ -68,6 +68,7 @@ void Button::mouseReleaseEvent(QMouseEvent *e) {
 		_state &= ~StateDown;
 		emit stateChanged(oldState, ButtonByPress);
 		if (oldState & StateOver) {
+			_modifiers = e->modifiers();
 			emit clicked();
 		} else {
 			leaveEvent(e);

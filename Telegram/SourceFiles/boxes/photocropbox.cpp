@@ -37,7 +37,7 @@ PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer) : _downState(0
 	}
 
 	int32 s = st::cropBoxWidth - st::boxPadding.left() - st::boxPadding.right();
-	_thumb = QPixmap::fromImage(img.scaled(s, s, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+	_thumb = QPixmap::fromImage(img.scaled(s, s, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 	_thumbw = _thumb.width();
 	_thumbh = _thumb.height();
 	if (_thumbw > _thumbh) {
@@ -57,7 +57,7 @@ PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer) : _downState(0
 }
 
 void PhotoCropBox::mousePressEvent(QMouseEvent *e) {
-	if (e->button() != Qt::LeftButton) return;
+	if (e->button() != Qt::LeftButton) return LayeredWidget::mousePressEvent(e);
 
 	_downState = mouseState(e->pos());
 	_fromposx = e->pos().x();
@@ -65,6 +65,8 @@ void PhotoCropBox::mousePressEvent(QMouseEvent *e) {
 	_fromcropx = _cropx;
 	_fromcropy = _cropy;
 	_fromcropw = _cropw;
+
+	return LayeredWidget::mousePressEvent(e);
 }
 
 int32 PhotoCropBox::mouseState(QPoint p) {

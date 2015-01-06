@@ -21,6 +21,7 @@ ipch/
 /Telegram/tdumps/
 
 .DS_Store
+._*
 .qmake.stash
 /Mac/
 /Telegram/*.xcodeproj/xcuserdata/

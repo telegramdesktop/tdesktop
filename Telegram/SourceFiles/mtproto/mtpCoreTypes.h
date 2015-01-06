@@ -367,7 +367,7 @@ static const mtpTypeId mtpLayers[] = {
 	mtpc_invokeWithLayer17,
 	mtpc_invokeWithLayer18,
 }, mtpLayerMaxSingle = sizeof(mtpLayers) / sizeof(mtpLayers[0]);
-static const mtpPrime mtpCurrentLayer = 20;
+static const mtpPrime mtpCurrentLayer = 22;
 
 template <typename bareT>
 class MTPBoxed : public bareT {
@@ -762,7 +762,12 @@ inline bool operator!=(const MTPstring &a, const MTPstring &b) {
 
 inline QString qs(const MTPstring &v) {
 	const string &d(v.c_string().v);
-	return QString::fromUtf8(d.c_str(), d.length());
+	return QString::fromUtf8(d.data(), d.length());
+}
+
+inline QByteArray qba(const MTPstring &v) {
+	const string &d(v.c_string().v);
+	return QByteArray(d.data(), d.length());
 }
 
 class MTPbool {

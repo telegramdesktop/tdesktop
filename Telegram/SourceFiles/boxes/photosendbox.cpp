@@ -61,7 +61,7 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(new ReadyLocalMedi
 		}
 		_height = _thumbh + st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::boxPadding.bottom() + _compressed.height() + _sendButton.height();
 
-		_thumb = QPixmap::fromImage(_thumb.toImage().scaled(_thumbw, _thumbh, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+		_thumb = QPixmap::fromImage(_thumb.toImage().scaled(_thumbw, _thumbh, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 	} else {
 		_compressed.hide();
 		if (!_img->photoThumbs.isEmpty()) {
@@ -80,7 +80,7 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(new ReadyLocalMedi
 			}
 		}
 		if (_thumbw) {
-			_thumb = QPixmap::fromImage(_thumb.toImage().scaledToWidth(_thumbw * cIntRetinaFactor(), Qt::SmoothTransformation));
+			_thumb = QPixmap::fromImage(_thumb.toImage().scaledToWidth(_thumbw * cIntRetinaFactor(), Qt::SmoothTransformation), Qt::ColorOnly);
 			_thumb.setDevicePixelRatio(cRetinaFactor());
 		}
 		_height = st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom() + st::boxPadding.bottom() + _sendButton.height();

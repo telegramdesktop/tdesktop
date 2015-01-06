@@ -38,6 +38,8 @@ private:
 
 	FlatLabel _intro;
 
+	LinkButton _changeLang;
+
 	FlatButton _next;
 	int32 _headerWidth;
 };

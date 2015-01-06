@@ -41,4 +41,11 @@
   <qresource prefix="/qt">
     <file alias="etc/qt.conf">etc/qt_win.conf</file>
   </qresource>
+  <qresource prefix="/langs">
+    <file alias="lang_it.strings">langs/lang_it.strings</file>
+    <file alias="lang_es.strings">langs/lang_es.strings</file>
+    <file alias="lang_de.strings">langs/lang_de.strings</file>
+    <file alias="lang_nl.strings">langs/lang_nl.strings</file>
+    <file alias="lang_pt_BR.strings">langs/lang_pt_BR.strings</file>
+  </qresource>
 </RCC>

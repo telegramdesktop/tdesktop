@@ -340,6 +340,8 @@ enum TextCommands {
 	TextCommandColor       = 0x09,
 	TextCommandNoColor     = 0x0A,
 	TextCommandSkipBlock   = 0x0B,
+
+	TextCommandLangTag     = 0x20,
 };
 
 enum {
@@ -467,3 +469,6 @@ QString textcmdLink(ushort lnkIndex, const QString &text);
 QString textcmdLink(const QString &url, const QString &text);
 QString textcmdStartColor(const style::color &color);
 QString textcmdStopColor();
+const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink = true);
+
+QString textEmojiString(EmojiPtr emoji);
