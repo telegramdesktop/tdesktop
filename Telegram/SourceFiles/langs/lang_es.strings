@@ -121,7 +121,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_name" = "Por favor, pon tu nombre y apellidos.";
 "lng_bad_photo" = "La imagen seleccionada es errónea.";
 
-"lng_bad_image_for_photo" = "La imagen no se puede enviar de este modo.\n¿Quieres enviarla como archivo?";
+"lng_bad_image_for_photo" = "La imagen tiene un tamaño inadecuado.\n¿Quieres enviarla como archivo?";
 
 "lng_signup_title" = "Información y foto";
 "lng_signup_desc" = "Por favor, pon tu nombre \ny una foto.";

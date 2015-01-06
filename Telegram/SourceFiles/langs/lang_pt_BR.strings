@@ -121,7 +121,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_name" = "Por favor, insira seu nome e sobrenome.";
 "lng_bad_photo" = "Erro na imagem selecionada.";
 
-"lng_bad_image_for_photo" = "Essa imagem não pode ser enviada\ndessa forma. Enviar como documento?";
+"lng_bad_image_for_photo" = "Essa imagem não pode ser enviada\nassim. Enviar como documento?";
 
 "lng_signup_title" = "Informação e foto";
 "lng_signup_desc" = "Por favor, insira nome e\ncarregue uma foto.";
@@ -430,7 +430,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_selected_delete_confirm" = "Apagar";
 
 "lng_about_version" = "Versão {version}";
-"lng_about_text" = "Aplicativo oficial e grátis baseado em [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] e\n[a href=\"https://core.telegram.org/api\"]Telegram API[/a] para velocidade e segurança\n\nEsse software é licensiado sob [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versão 3,\ncódigo fonte disponível no [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_text" = "Aplicativo oficial e grátis baseado em [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] e\n[a href=\"https://core.telegram.org/api\"]Telegram API[/a] para velocidade e segurança\n\nEsse software é licenciado sob [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versão 3,\ncódigo fonte disponível no [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 "lng_about_done" = "Concluído";
 
 "lng_search_found_results" = "{count:Nenhuma mensagem encontrada|Encontrada # mensagem|Encontradas # mensagens}";
