@@ -775,6 +775,7 @@ msgOutSelectBG: #b7dbdb;
 msgInSelectBG: #c2dcf2; // #358cd4 with 30% opacity
 msgOutSelectOverlay: #358cd44c;
 msgInSelectOverlay: #358cd44c;
+msgStickerOverlay: #358cd47f;
 msgOutServiceColor: #3a8e26;
 msgInServiceColor: #0e7acd;
 msgShadow: 2px;
