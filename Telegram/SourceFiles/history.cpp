@@ -3107,9 +3107,9 @@ void HistorySticker::draw(QPainter &p, const HistoryItem *parent, bool selected,
 	}
 	if (selected) {
 		if (data->sticker->isNull()) {
-			p.drawPixmap(QPoint((_maxw - pixw) / 2, (_minh - pixh) / 2), data->thumb->pixBlurredColored(textstyleCurrent()->selectOverlay, pixw, pixh));
+			p.drawPixmap(QPoint((_maxw - pixw) / 2, (_minh - pixh) / 2), data->thumb->pixBlurredColored(st::msgStickerOverlay, pixw, pixh));
 		} else {
-			p.drawPixmap(QPoint((_maxw - pixw) / 2, (_minh - pixh) / 2), data->sticker->pixColored(textstyleCurrent()->selectOverlay, pixw, pixh));
+			p.drawPixmap(QPoint((_maxw - pixw) / 2, (_minh - pixh) / 2), data->sticker->pixColored(st::msgStickerOverlay, pixw, pixh));
 		}
 	} else {
 		if (data->sticker->isNull()) {
