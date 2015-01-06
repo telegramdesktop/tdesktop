@@ -337,7 +337,7 @@ QPixmap Image::pixNoCache(int32 w, int32 h, bool smooth) const {
 	if (p.isNull()) {
 		return blank()->pix();
 	}
-	if (w <= 0 || !width() || !height() || w == width() && (h <= 0 || h == height())) return p;
+	if (w <= 0 || !width() || !height() || (w == width() && (h <= 0 || h == height()))) return p;
 	if (h <= 0) {
 		return QPixmap::fromImage(p.toImage().scaledToWidth(w, smooth ? Qt::SmoothTransformation : Qt::FastTransformation), Qt::ColorOnly);
 	}
@@ -369,7 +369,7 @@ QPixmap Image::pixColoredNoCache(const style::color &add, int32 w, int32 h, bool
 	if (p.isNull()) {
 		return blank()->pix();
 	}
-	if (w <= 0 || !width() || !height() || w == width() && (h <= 0 || h == height())) return QPixmap::fromImage(imageColored(add, p.toImage()));
+	if (w <= 0 || !width() || !height() || (w == width() && (h <= 0 || h == height()))) return QPixmap::fromImage(imageColored(add, p.toImage()));
 	if (h <= 0) {
 		return QPixmap::fromImage(imageColored(add, p.toImage().scaledToWidth(w, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)), Qt::ColorOnly);
 	}
