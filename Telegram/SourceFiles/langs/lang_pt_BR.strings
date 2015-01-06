@@ -121,6 +121,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_name" = "Por favor, insira seu nome e sobrenome.";
 "lng_bad_photo" = "Erro na imagem selecionada.";
 
+"lng_bad_image_for_photo" = "Essa imagem não pode ser enviada\ndessa forma. Enviar como documento?";
+
 "lng_signup_title" = "Informação e foto";
 "lng_signup_desc" = "Por favor, insira nome e\ncarregue uma foto.";
 
@@ -326,6 +328,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio" = "Áudio";
 "lng_in_dlg_document" = "Documento";
 "lng_in_dlg_sticker" = "Sticker";
+"lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
 
 "lng_send_button" = "Enviar";
 "lng_message_ph" = "Escrever a mensagem..";
@@ -450,6 +453,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_new_authorization" = "{name},\nDetectamos um acesso à sua conta de um novo dispositivo em {day}, {date} às {time}\n\nDispositivo: {device}\nLocalização: {location}\n\nCaso não tenha sido você, vá em Configurações – Terminar todas as outras sessões.\n\nObrigado,\nEquipe Telegram";
 
 "lng_new_version7005" = "Telegram Desktop foi atualizado para a versão {version}\n\n — Suporte aos stickers\n — Cache local para mensagens de voz\n — Adicionada linguagem em Português\n\nHistórico completo da versão disponível aqui:\n{link}";
+"lng_new_version7006_appstore" = "Telegram Desktop foi atualizado para a versão {version}\n\n — Suporte à stickers\n — Cache local para mensagens de voz\n — Adicionadas novas linguagens\n\nHistórico completo da versão disponível aqui:\n{link}";
 
 // Mac specific
 
@@ -462,8 +466,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mac_this_app_can_open" = "Essa aplicação pode abrir \"{file}\".";
 "lng_mac_not_known_app" = "Não sabemos se essa aplicação pode abrir \"{file}\".";
 
-"lng_mac_menu_about" = "Sobre Telegram";
+"lng_mac_menu_services" = "Serviços";
+"lng_mac_menu_hide_telegram" = "Ocultar {telegram}";
+"lng_mac_menu_hide_others" = "Ocultar Outros";
+"lng_mac_menu_show_all" = "Mostrar Todos";
 "lng_mac_menu_preferences" = "Preferências...";
+"lng_mac_menu_quit_telegram" = "Fechar {telegram}";
+"lng_mac_menu_about_telegram" = "Sobre {telegram}";
 "lng_mac_menu_file" = "Arquivo";
 "lng_mac_menu_logout" = "Sair";
 "lng_mac_menu_edit" = "Editar";

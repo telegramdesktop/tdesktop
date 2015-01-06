@@ -121,6 +121,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_name" = "Voer je voor- en achternaam in.";
 "lng_bad_photo" = "Ongeldig bestand gekozen.";
 
+"lng_bad_image_for_photo" = "Kan afbeelding zo niet versturen.\nAls bestand versturen?";
+
 "lng_signup_title" = "Informatie en foto";
 "lng_signup_desc" = "Voer je naam en\nupload een foto.";
 
@@ -326,6 +328,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio" = "Geluidsbestand";
 "lng_in_dlg_document" = "Bestand";
 "lng_in_dlg_sticker" = "Sticker";
+"lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
 
 "lng_send_button" = "Stuur";
 "lng_message_ph" = "Bericht schrijven";
@@ -450,6 +453,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_new_authorization" = "{name},\nEr is op je account ingelogd vanaf een nieuw apparaat op {day}, {date} om {time}\n\nApparaat: {device}\nLocatie: {location}\n\nAls jij dit niet was, kun je alle sessies beëindigen via Instellingen – Beëindig alle andere sessies.\n\nBedankt,\nHet Telegram-Team";
 
 "lng_new_version7005" = "Telegram is bijgewerkt naar versie {version}\n\n— Ondersteuning voor Stickers\n— Lokale cache voor spraakberichten\n— Portuguees toegevoegd\n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
+"lng_new_version7006_appstore" = "Telegram is bijgewerkt naar versie {version}\n\n— Ondersteuning voor Stickers\n— Lokale cache voor spraakberichten\n— Nieuwe talen toegevoegd\n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 
 // Mac specific
 
@@ -462,8 +466,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mac_this_app_can_open" = "Dit programma kan \"{file}\" openen.";
 "lng_mac_not_known_app" = "Het is niet bekend of dit programma \"{file}\" kan openen.";
 
-"lng_mac_menu_about" = "Over Telegram";
+"lng_mac_menu_services" = "Voorzieningen";
+"lng_mac_menu_hide_telegram" = "Verberg {telegram}";
+"lng_mac_menu_hide_others" = "Verberg andere";
+"lng_mac_menu_show_all" = "Toon alles";
 "lng_mac_menu_preferences" = "Voorkeuren";
+"lng_mac_menu_quit_telegram" = "Stop {telegram}";
+"lng_mac_menu_about_telegram" = "Over {telegram}";
 "lng_mac_menu_file" = "Bestand";
 "lng_mac_menu_logout" = "Uitloggen";
 "lng_mac_menu_edit" = "Wijzig";
