@@ -101,6 +101,7 @@ void LanguageBox::mousePressEvent(QMouseEvent *e) {
 				return;
 			}
 		}
+		App::wnd()->showLayer(new ConfirmBox(qsl("Everything seems great in all %1 languages!").arg(languageCount - 1), true, lang(lng_close)));
 	}
 }
 

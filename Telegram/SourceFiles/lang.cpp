@@ -68,6 +68,12 @@ const QString &LangLoader::warnings() const {
 	return _warnings;
 }
 
+void LangLoader::foundKeyValue(LangKey key) {
+	if (key < lngkeys_cnt) {
+		_found[key] = true;
+	}
+}
+
 QString Translator::translate(const char *context, const char *sourceText, const char *disambiguation, int n) const {
 	if (QLatin1String("QMenuBar") == context) {
 		if (QLatin1String("Services") == sourceText) return lang(lng_mac_menu_services);

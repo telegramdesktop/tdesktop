@@ -285,8 +285,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "Próximo";
 "lng_create_group_title" = "Novo Grupo";
 
-"lng_sure_delete_contact" = "Você tem certeza que deseja deletar {contato} da sua lista de contatos?";
-"lng_sure_delete_history" = "Você tem certeza que deseja deletar todo o seu histórico de mensagens com {contato}?\n\nEssa ação não pode ser desfeita.";
+"lng_sure_delete_contact" = "Você tem certeza que deseja deletar {contact} da sua lista de contatos?";
+"lng_sure_delete_history" = "Você tem certeza que deseja deletar todo o seu histórico de mensagens com {contact}?\n\nEssa ação não pode ser desfeita.";
 
 "lng_sure_delete_and_exit" = "Você tem certeza que deseja deletar todo o seu histórico de mensagens e deixar «{group}»?\n\nEssa ação não pode ser desfeita.";
 
