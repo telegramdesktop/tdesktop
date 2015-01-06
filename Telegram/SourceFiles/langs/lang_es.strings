@@ -121,6 +121,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_name" = "Por favor, pon tu nombre y apellidos.";
 "lng_bad_photo" = "La imagen seleccionada es errónea.";
 
+"lng_bad_image_for_photo" = "La imagen no se puede enviar de este modo.\n¿Quieres enviarla como archivo?";
+
 "lng_signup_title" = "Información y foto";
 "lng_signup_desc" = "Por favor, pon tu nombre \ny una foto.";
 
@@ -275,7 +277,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_audios" = "{count:_not_used_|# mensaje de voz|# mensajes de voz} »";
 "lng_profile_audios_header" = "Todos los mensajes de voz";
 "lng_profile_show_all_types" = "Mostrar todos los tipos";
-"lng_profile_copy_phone" = "Copiar número de teléfono";
+"lng_profile_copy_phone" = "Copiar número";
 
 "lng_participant_filter" = "Buscar";
 "lng_participant_invite" = "Invitar";
@@ -326,6 +328,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio" = "Audio";
 "lng_in_dlg_document" = "Archivo";
 "lng_in_dlg_sticker" = "Sticker";
+"lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
 
 "lng_send_button" = "Enviar";
 "lng_message_ph" = "Escribir un mensaje...";
@@ -450,6 +453,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_new_authorization" = "{name},\nDetectamos un inicio de sesión en tu cuenta desde un nuevo dispositivo el {day}, {date} a las {time}\n\nDispositivo: {device}\nUbicación: {location}\n\nSi no eras tú, puedes ir a Ajustes — Cerrar todas las otras sesiones.\n\nGracias.\nEl equipo de Telegram";
 
 "lng_new_version7005" = "Telegram Desktop fue actualizada a la versión {version}\n\n — Soporte de stickers\n — Caché local para mensajes de voz\n — Idioma portugués añadido\n\nEl historial completo de la versión está disponible aquí :\n{link}";
+"lng_new_version7006_appstore" = "Telegram Desktop fue actualizada a la versión {version}\n\n– Soporte para stickers\n– Caché local para mensajes de voz\n– Nuevos idiomas añadidos\n\nLa versión completa del historial está disponible aquí:\n{link} ";
 
 // Mac specific
 
@@ -462,8 +466,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mac_this_app_can_open" = "Esta aplicación puede abrir \"{file}\".";
 "lng_mac_not_known_app" = "No se sabe si esta aplicación puede abrir \"{file}\".";
 
-"lng_mac_menu_about" = "Sobre Telegram";
+"lng_mac_menu_services" = "Servicios";
+"lng_mac_menu_hide_telegram" = "Ocultar {telegram}";
+"lng_mac_menu_hide_others" = "Ocultar otras";
+"lng_mac_menu_show_all" = "Mostrar todas";
 "lng_mac_menu_preferences" = "Preferencias...";
+"lng_mac_menu_quit_telegram" = "Salir de {telegram}";
+"lng_mac_menu_about_telegram" = "Acerca de {telegram}";
 "lng_mac_menu_file" = "Archivo";
 "lng_mac_menu_logout" = "Cerrar sesión";
 "lng_mac_menu_edit" = "Editar";

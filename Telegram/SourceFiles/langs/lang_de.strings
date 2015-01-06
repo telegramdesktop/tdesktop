@@ -118,11 +118,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_phone" = "Falsche Nummer, bitte erneut versuchen.";
 "lng_bad_phone_noreg" = "Telefonnummer nicht registriert.";
 "lng_bad_code" = "Ungültiger Code, bitte versuche es nochmal.";
-"lng_bad_name" = "Bite trage Vor- und Nachnamen ein.";
+"lng_bad_name" = "Bitte trage Vor- und Nachnamen ein.";
 "lng_bad_photo" = "Fehler beim Upload.";
 
+"lng_bad_image_for_photo" = "Bild kann so nicht gesendet werden.\nMöchtest du es als Datei verschicken?";
+
 "lng_signup_title" = "Information und Bild";
-"lng_signup_desc" = "Bite trage deinen Namen ein \nund lade ein Bild hoch.";
+"lng_signup_desc" = "Bitte trage deinen Namen ein \nund lade ein Bild hoch.";
 
 "lng_signup_firstname" = "Vorname";
 "lng_signup_lastname" = "Nachname";
@@ -202,7 +204,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_download_path_temp_radio" = "Temporärer Ordner (bis du dich abmeldest)";
 "lng_download_path_dir_radio" = "Nutzerdefinierter Ordner, wird nur manuell geleert.";
 "lng_download_path_choose" = "Wähle Speicherort";
-"lng_sure_clear_downloads" = "Willst du alle Downlaods vom Temp-Ordner löschen? Das passiert automatisch wenn du dich abmeldest oder Telegram deinstallierst.";
+"lng_sure_clear_downloads" = "Willst du alle Downloads vom Temp-Ordner löschen? Das passiert automatisch wenn du dich abmeldest oder Telegram deinstallierst.";
 "lng_download_path_failed" = "Download konnte nicht gestartet werden. Das kann am eingestellten Speicherort liegen.\n\nDu kannst den Speicherort in den Einstellungen ändern.";
 "lng_download_path_settings" = "Zu den Einstellungen";
 "lng_download_finish_failed" = "Datei konte nicht geladen werden.\n\nErneut versuchen?";
@@ -326,11 +328,12 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio" = "Sprachnachricht";
 "lng_in_dlg_document" = "Datei";
 "lng_in_dlg_sticker" = "Sticker";
+"lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
 
 "lng_send_button" = "Senden";
 "lng_message_ph" = "Schreibe deine Nachricht..";
 "lng_empty_history" = "";
-"lng_willbe_history" = "Wähle einen Chat aus um zu schreiben";
+"lng_willbe_history" = "Wähle einen Chat aus, um zu schreiben";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Ich";
 
@@ -427,7 +430,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_selected_delete_confirm" = "Löschen";
 
 "lng_about_version" = "Version {version}";
-"lng_about_text" = "Telegram Desktop basiert auf [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] und\ndem [a href=\"https://core.telegram.org/api\"]Telegram API[/a] um Geschwindigkeit \nund Sicherheit zu gewährleisten.\n\nSoftware steht unter der [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] Version 3,\nQuelltext ist bei  [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a] verfügbar.";
+"lng_about_text" = "Telegram Desktop basiert auf [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] und\ndem [a href=\"https://core.telegram.org/api\"]Telegram API[/a], um Geschwindigkeit \nund Sicherheit zu gewährleisten.\n\nSoftware steht unter der [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] Version 3,\nQuelltext ist bei [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a] verfügbar.";
 "lng_about_done" = "Fertig";
 
 "lng_search_found_results" = "{count:Keine Nachrichten|# Nachricht|# Nachrichten}";
@@ -450,6 +453,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_new_authorization" = "{name},\n\nwir haben eine Anmeldung von einem neuen Gerät am {day}, {date} um {time} festgestellt. \n\nGerät: {device}\nStandort: {location}\n\nWarst du das selbst? Wenn du das nicht selbst gewesen bist, melde alle anderen Sitzungen in den Telegram Einstellungen unverzüglich ab. \n\nDanke,\nDein Telegram Team";
 
 "lng_new_version7005" = "Telegram Desktop wurde auf Version {version} aktualisiert\n\n— Stickers werden unterstützt\n— Sprachnachrichten werden temporär lokal gespeichert\n— Portugiesische Sprache hinzugefügt\n\nKompletter Versionsverlauf ist hier zu finden:\n{link}";
+"lng_new_version7006_appstore" = "Telegram Desktop wurde auf Version {version} aktualisiert\n\n— Sticker werden unterstützt\n— Sprachnachrichten werden temporär lokal gespeichert\n— Neue Sprachen hinzugefügt\n\nKompletter Versionsverlauf ist hier zu finden:\n{link}";
 
 // Mac specific
 
@@ -460,10 +464,15 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mac_all_apps" = "Alle Programme";
 "lng_mac_always_open_with" = "Immer öffnen mit";
 "lng_mac_this_app_can_open" = "Dieses Programm kann \"{file}\"-Dateien öffnen.";
-"lng_mac_not_known_app" = "Es ist nicht bekannt,  ob dieses Programm \"{file}\" öffnen kann.";
+"lng_mac_not_known_app" = "Es ist nicht bekannt, ob dieses Programm \"{file}\" öffnen kann.";
 
-"lng_mac_menu_about" = "Über Telegram";
+"lng_mac_menu_services" = "Dienste";
+"lng_mac_menu_hide_telegram" = "{telegram} ausblenden";
+"lng_mac_menu_hide_others" = "Andere ausblenden";
+"lng_mac_menu_show_all" = "Alle einblenden";
 "lng_mac_menu_preferences" = "Einstellungen ...";
+"lng_mac_menu_quit_telegram" = "{telegram} beenden";
+"lng_mac_menu_about_telegram" = "Über {telegram}";
 "lng_mac_menu_file" = "Ablage";
 "lng_mac_menu_logout" = "Abmelden";
 "lng_mac_menu_edit" = "Bearbeiten";

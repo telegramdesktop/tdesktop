@@ -466,8 +466,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mac_this_app_can_open" = "This application can open \"{file}\".";
 "lng_mac_not_known_app" = "It's not known if this application can open \"{file}\".";
 
-"lng_mac_menu_about" = "About Telegram";
+"lng_mac_menu_services" = "Services";
+"lng_mac_menu_hide_telegram" = "Hide {telegram}";
+"lng_mac_menu_hide_others" = "Hide Others";
+"lng_mac_menu_show_all" = "Show All";
 "lng_mac_menu_preferences" = "Preferences...";
+"lng_mac_menu_quit_telegram" = "Quit {telegram}";
+"lng_mac_menu_about_telegram" = "About {telegram}";
 "lng_mac_menu_file" = "File";
 "lng_mac_menu_logout" = "Log Out";
 "lng_mac_menu_edit" = "Edit";
