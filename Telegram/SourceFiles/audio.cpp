@@ -30,6 +30,12 @@ namespace {
 	ALuint notifyBuffer = 0;
 	QMutex voicemsgsMutex;
 	VoiceMessages *voicemsgs = 0;
+	AudioControl *audioControl = 0;
+	uint32 notifySoundByteOffset = 0;
+	uint32 notifySoundSampleRate = 0;
+	uint32 notifySoundSize = 0;
+	ALenum notifySoundFormat = 0;
+	QByteArray notifySoundData;
 }
 
 bool _checkALCError() {
@@ -51,103 +57,11 @@ bool _checkALError() {
 }
 
 void audioInit() {
-	if (audioDevice) return;
-
-	audioDevice = alcOpenDevice(NULL);
-	if (!audioDevice) {
-		LOG(("Audio Error: default sound device not present."));
-		return;
-	}
-	
-	ALCint attributes[] = { ALC_STEREO_SOURCES, 8, 0 };
-	audioContext = alcCreateContext(audioDevice, attributes);
-	alcMakeContextCurrent(audioContext);
-	if (!_checkALCError()) return audioFinish();
-
-	ALfloat v[] = { 0.f, 0.f, -1.f, 0.f, 1.f, 0.f };
-	alListener3f(AL_POSITION, 0.f, 0.f, 0.f);
-	alListener3f(AL_VELOCITY, 0.f, 0.f, 0.f);
-	alListenerfv(AL_ORIENTATION, v);
-
-	alDistanceModel(AL_NONE);
-
-	alGenSources(1, &notifySource);
-	alSourcef(notifySource, AL_PITCH, 1.f);
-	alSourcef(notifySource, AL_GAIN, 1.f);
-	alSource3f(notifySource, AL_POSITION, 0, 0, 0);
-	alSource3f(notifySource, AL_VELOCITY, 0, 0, 0);
-	alSourcei(notifySource, AL_LOOPING, 0);
-
-	alGenBuffers(1, &notifyBuffer);
-	if (!_checkALError()) return audioFinish();
-
-	QFile notify(st::newMsgSound);
-	if (!notify.open(QIODevice::ReadOnly)) return audioFinish();
-
-	QByteArray blob = notify.readAll();
-	const char *data = blob.constData();
-	if (blob.size() < 44) return audioFinish();
-
-	if (*((const uint32*)(data + 0)) != 0x46464952) return audioFinish(); // ChunkID - "RIFF"
-	if (*((const uint32*)(data + 4)) != uint32(blob.size() - 8)) return audioFinish(); // ChunkSize
-	if (*((const uint32*)(data + 8)) != 0x45564157) return audioFinish(); // Format - "WAVE"
-	if (*((const uint32*)(data + 12)) != 0x20746d66) return audioFinish(); // Subchunk1ID - "fmt "
-	uint32 subchunk1Size = *((const uint32*)(data + 16)), extra = subchunk1Size - 16;
-	if (subchunk1Size < 16 || (extra && extra < 2)) return audioFinish();
-	if (*((const uint16*)(data + 20)) != 1) return audioFinish(); // AudioFormat - PCM (1)
-
-	uint16 numChannels = *((const uint16*)(data + 22));
-	if (numChannels != 1 && numChannels != 2) return audioFinish();
-
-	uint32 sampleRate = *((const uint32*)(data + 24));
-	uint32 byteRate = *((const uint32*)(data + 28));
-
-	uint16 blockAlign = *((const uint16*)(data + 32));
-	uint16 bitsPerSample = *((const uint16*)(data + 34));
-	if (bitsPerSample % 8) return audioFinish();
-	uint16 bytesPerSample = bitsPerSample / 8;
-	if (bytesPerSample != 1 && bytesPerSample != 2) return audioFinish();
-
-	if (blockAlign != numChannels * bytesPerSample) return audioFinish();
-	if (byteRate != sampleRate * blockAlign) return audioFinish();
-
-	if (extra) {
-		uint16 extraSize = *((const uint16*)(data + 36));
-        if (uint32(extraSize + 2) != extra) return audioFinish();
-		if (uint32(blob.size()) < 44 + extra) return audioFinish();
+	if (!audioControl) {
+		audioControl = new AudioControl();
 	}
 
-	if (*((const uint32*)(data + extra + 36)) != 0x61746164) return audioFinish(); // Subchunk2ID - "data"
-	uint32 subchunk2Size = *((const uint32*)(data + extra + 40));
-	if (subchunk2Size % (numChannels * bytesPerSample)) return audioFinish();
-	uint32 numSamples = subchunk2Size / (numChannels * bytesPerSample);
-
-	if (uint32(blob.size()) < 44 + extra + subchunk2Size) return audioFinish();
-	data += 44 + extra;
-
-	ALenum format = 0;
-	switch (bytesPerSample) {
-	case 1:
-		switch (numChannels) {
-		case 1: format = AL_FORMAT_MONO8; break;
-		case 2: format = AL_FORMAT_STEREO8; break;
-		}
-	break;
-
-	case 2:
-		switch (numChannels) {
-		case 1: format = AL_FORMAT_MONO16; break;
-		case 2: format = AL_FORMAT_STEREO16; break;
-		}
-	break;
-	}
-	if (!format) return audioFinish();
-
-	alBufferData(notifyBuffer, format, data, subchunk2Size, sampleRate);
-	alSourcei(notifySource, AL_BUFFER, notifyBuffer);
-	if (!_checkALError()) return audioFinish();
-
-	voicemsgs = new VoiceMessages();
+	audioControl->audioRequired();
 }
 
 bool audioWorks() {
@@ -155,35 +69,16 @@ bool audioWorks() {
 }
 
 void audioPlayNotify() {
+	audioControl->audioRequired();
 	if (!audioWorks()) return;
 
 	alSourcePlay(notifySource);
 }
 
 void audioFinish() {
-	if (voicemsgs) {
-		delete voicemsgs;
-	}
-
-	alSourceStop(notifySource);
-	if (alIsBuffer(notifyBuffer)) {
-		alDeleteBuffers(1, &notifyBuffer);
-		notifyBuffer = 0;
-	}
-	if (alIsSource(notifySource)) {
-		alDeleteSources(1, &notifySource);
-		notifySource = 0;
-	}
-
-	if (audioContext) {
-		alcMakeContextCurrent(NULL);
-		alcDestroyContext(audioContext);
-		audioContext = 0;
-	}
-
-	if (audioDevice) {
-		alcCloseDevice(audioDevice);
-		audioDevice = 0;
+	if (audioControl) {
+		audioControl->audioFinished();
+		audioControl = NULL;
 	}
 }
 
@@ -214,15 +109,15 @@ VoiceMessages::~VoiceMessages() {
 
 	for (int32 i = 0; i < AudioVoiceMsgSimultaneously; ++i) {
 		alSourceStop(_data[i].source);
+		if (alIsSource(_data[i].source)) {
+			alDeleteSources(1, &_data[i].source);
+			_data[i].source = 0;
+		}
 		if (alIsBuffer(_data[i].buffers[0])) {
 			alDeleteBuffers(3, _data[i].buffers);
 			for (int32 j = 0; j < 3; ++j) {
 				_data[i].buffers[j] = _data[i].samplesCount[j] = 0;
 			}
-		}
-		if (alIsSource(_data[i].source)) {
-			alDeleteSources(1, &_data[i].source);
-			_data[i].source = 0;
 		}
 	}
 	_faderThread.quit();
@@ -252,8 +147,34 @@ bool VoiceMessages::updateCurrentStarted(int32 pos) {
 	return true;
 }
 
+bool VoiceMessages::purgeALStructures(){
+	QMutexLocker lock(&voicemsgsMutex);
+	int32 index = 0;
+	for (; index < AudioVoiceMsgSimultaneously; ++index) {
+		if (_data[index].state == VoiceMessageStopped) {
+		if (alIsSource(_data[index].source)) {
+			alSourceStop(_data[index].source);
+			alDeleteSources(1, &_data[index].source);
+			_data[index].source = 0;
+		}
+		if (alIsBuffer(_data[index].buffers[0])) {
+			alDeleteBuffers(3, _data[index].buffers);
+			for (int32 j = 0; j < 3; ++j) {
+				_data[index].buffers[j] = _data[index].samplesCount[j] = 0;
+			}
+		}
+		}
+		else {
+			return false;
+		}
+	}
+	return true;
+
+}
+
 void VoiceMessages::play(AudioData *audio) {
 	QMutexLocker lock(&voicemsgsMutex);
+	audioControl->audioRequired();
 
 	bool startNow = true;
 	if (_data[_current].audio != audio) {
@@ -345,6 +266,7 @@ void VoiceMessagesFader::onInit() {
 void VoiceMessagesFader::onTimer() {
 	bool hasFading = false, hasPlaying = false;
 	QMutexLocker lock(&voicemsgsMutex);
+	audioControl->audioRequired();
 	VoiceMessages *voice = audioVoice();
 	if (!voice) return;
 
@@ -545,7 +467,7 @@ void VoiceMessagesLoader::onLoad(AudioData *audio) {
 	}
 
 	bool finished = false;
-    DEBUG_LOG(("Audio Info: reading buffer for file '%1', data size '%2', current pcm_offset %3").arg(l->fname).arg(l->data.size()).arg(l->pcm_offset));
+	DEBUG_LOG(("Audio Info: reading buffer for file '%1', data size '%2', current pcm_offset %3").arg(l->fname).arg(l->data.size()).arg(l->pcm_offset));
 
 	QByteArray result;
 	int64 samplesAdded = 0;
@@ -646,7 +568,10 @@ void VoiceMessagesLoader::onLoad(AudioData *audio) {
 			alSource3f(m.source, AL_VELOCITY, 0, 0, 0);
 			alSourcei(m.source, AL_LOOPING, 0);
 		}
-		if (!m.buffers[m.nextBuffer]) alGenBuffers(3, m.buffers);
+		if (!m.buffers[m.nextBuffer])
+		{
+			alGenBuffers(3, m.buffers);
+		}
 		if (!_checkALError()) {
 			m.state = VoiceMessageStopped;
 			return loadError(j);
@@ -704,5 +629,208 @@ void VoiceMessagesLoader::onCancel(AudioData *audio) {
 		if (m.audio == audio) {
 			m.loading = false;
 		}
+	}
+}
+
+AudioControl::AudioControl() : _audioEnabled(false), _audioSuspendCountdown(0) {
+	_audioSuspendTimer.setSingleShot(false);
+	_audioSuspendTimer.setInterval(3000);
+	connect(&_audioSuspendTimer, SIGNAL(timeout()), this, SLOT(onTimer()));
+	_audioSuspendTimer.start();
+}
+
+AudioControl::~AudioControl(){
+	audioFinished();
+}
+
+void AudioControl::audioRequired(){
+	QMutexLocker lock(&_mutex);
+	_audioSuspendCountdown = 2;
+	if (!setupCoreAL()) return destroyAll();
+
+	if (!loadNotificationWaveData()) return destroyAll();
+	if (!setupNotificationAL()) return destroyAll();
+	if (!voicemsgs)	voicemsgs = new VoiceMessages();
+	_audioEnabled = true;
+}
+
+void AudioControl::audioFinished(){
+	QMutexLocker lock(&_mutex);
+	destroyAll();
+}
+
+void AudioControl::onTimer(){
+	QMutexLocker lock(&_mutex);
+	if (_audioSuspendCountdown > 0) _audioSuspendCountdown--;
+
+	if (_audioSuspendCountdown == 0){
+		if (_audioEnabled){
+			_audioEnabled = false;
+			if (voicemsgs){
+				if (!voicemsgs->purgeALStructures())
+					return;
+			};
+
+			destroyNotificationAL();
+			destoryCoreAL();
+		}
+	}
+}
+
+bool AudioControl::loadNotificationWaveData(){
+	if (notifySoundFormat) return true;
+
+	QFile notify(st::newMsgSound);
+	if (!notify.open(QIODevice::ReadOnly)) return false;
+
+	notifySoundData = notify.readAll();
+	const char *data = notifySoundData.constData();
+	if (notifySoundData.size() < 44) return false;
+
+	if (*((const uint32*)(data + 0)) != 0x46464952) return false; // ChunkID - "RIFF"
+	if (*((const uint32*)(data + 4)) != uint32(notifySoundData.size() - 8)) return false; // ChunkSize
+	if (*((const uint32*)(data + 8)) != 0x45564157) return false; // Format - "WAVE"
+	if (*((const uint32*)(data + 12)) != 0x20746d66) return false; // Subchunk1ID - "fmt "
+	uint32 subchunk1Size = *((const uint32*)(data + 16)), extra = subchunk1Size - 16;
+	if (subchunk1Size < 16 || (extra && extra < 2)) return false;
+	if (*((const uint16*)(data + 20)) != 1) return false; // AudioFormat - PCM (1)
+
+	uint16 numChannels = *((const uint16*)(data + 22));
+	if (numChannels != 1 && numChannels != 2) return false;
+
+	uint32 sampleRate = *((const uint32*)(data + 24));
+	uint32 byteRate = *((const uint32*)(data + 28));
+
+	uint16 blockAlign = *((const uint16*)(data + 32));
+	uint16 bitsPerSample = *((const uint16*)(data + 34));
+	if (bitsPerSample % 8) return false;
+	uint16 bytesPerSample = bitsPerSample / 8;
+	if (bytesPerSample != 1 && bytesPerSample != 2) return false;
+
+	if (blockAlign != numChannels * bytesPerSample) return false;
+	if (byteRate != sampleRate * blockAlign) return false;
+
+	if (extra) {
+		uint16 extraSize = *((const uint16*)(data + 36));
+		if (uint32(extraSize + 2) != extra) return false;
+		if (uint32(notifySoundData.size()) < 44 + extra) return false;
+	}
+
+	if (*((const uint32*)(data + extra + 36)) != 0x61746164) return false; // Subchunk2ID - "data"
+	uint32 subchunk2Size = *((const uint32*)(data + extra + 40));
+	if (subchunk2Size % (numChannels * bytesPerSample)) return false;
+	uint32 numSamples = subchunk2Size / (numChannels * bytesPerSample);
+
+	if (uint32(notifySoundData.size()) < 44 + extra + subchunk2Size) return false;
+	data += 44 + extra;
+
+	ALenum format = 0;
+	switch (bytesPerSample) {
+	case 1:
+		switch (numChannels) {
+		case 1: format = AL_FORMAT_MONO8; break;
+		case 2: format = AL_FORMAT_STEREO8; break;
+		}
+		break;
+
+	case 2:
+		switch (numChannels) {
+		case 1: format = AL_FORMAT_MONO16; break;
+		case 2: format = AL_FORMAT_STEREO16; break;
+		}
+		break;
+	}
+	if (!format) return false;
+
+	notifySoundByteOffset = 44 + extra;
+	notifySoundSampleRate = sampleRate;
+	notifySoundSize = subchunk2Size;
+	notifySoundFormat = format;
+	return true;
+}
+
+bool AudioControl::setupCoreAL(){
+	if (audioDevice) return true;
+
+	audioDevice = alcOpenDevice(NULL);
+	if (!audioDevice) {
+		LOG(("Audio Error: default sound device not present."));
+		return false;
+	}
+
+	ALCint attributes[] = { ALC_STEREO_SOURCES, 8, 0 };
+	audioContext = alcCreateContext(audioDevice, attributes);
+	alcMakeContextCurrent(audioContext);
+	if (!_checkALCError()) return false;
+
+	ALfloat v[] = { 0.f, 0.f, -1.f, 0.f, 1.f, 0.f };
+	alListener3f(AL_POSITION, 0.f, 0.f, 0.f);
+	alListener3f(AL_VELOCITY, 0.f, 0.f, 0.f);
+	alListenerfv(AL_ORIENTATION, v);
+
+	alDistanceModel(AL_NONE);
+	return true;
+}
+
+bool AudioControl::setupNotificationAL(){
+	if (notifyBuffer) return true;
+
+	alGenSources(1, &notifySource);
+	alSourcef(notifySource, AL_PITCH, 1.f);
+	alSourcef(notifySource, AL_GAIN, 1.f);
+	alSource3f(notifySource, AL_POSITION, 0, 0, 0);
+	alSource3f(notifySource, AL_VELOCITY, 0, 0, 0);
+	alSourcei(notifySource, AL_LOOPING, 0);
+
+	alGenBuffers(1, &notifyBuffer);
+	if (!_checkALError()) return false;
+
+	const char *data = notifySoundData.constData();
+	data += notifySoundByteOffset;
+
+	alBufferData(notifyBuffer, notifySoundFormat, data, notifySoundSize, notifySoundSampleRate);
+	alSourcei(notifySource, AL_BUFFER, notifyBuffer);
+	if (!_checkALError()) return false;
+
+	return true;
+}
+
+void AudioControl::destoryCoreAL(){
+	if (audioContext) {
+		alcMakeContextCurrent(NULL);
+		alcDestroyContext(audioContext);
+		audioContext = 0;
+	}
+
+	if (audioDevice) {
+		alcCloseDevice(audioDevice);
+		audioDevice = 0;
+	}
+}
+
+void AudioControl::destroyNotificationAL(){
+	alSourceStop(notifySource);
+	if (alIsSource(notifySource)) {
+		alDeleteSources(1, &notifySource);
+		notifySource = 0;
+	}
+	if (alIsBuffer(notifyBuffer)) {
+		alDeleteBuffers(1, &notifyBuffer);
+		notifyBuffer = 0;
+	}
+}
+
+void AudioControl::destroyAll(){
+	_audioEnabled = false;
+	if (voicemsgs){
+		if (!voicemsgs->purgeALStructures())
+			return;
+	};
+
+	destroyNotificationAL();
+	destoryCoreAL();
+	if (voicemsgs) {
+		delete voicemsgs;
+		voicemsgs = NULL;
 	}
 }
