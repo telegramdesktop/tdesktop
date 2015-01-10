@@ -8,11 +8,17 @@ Choose a folder for the future build, for example **/Users/user/TBuild** There y
 
 By git – in Terminal go to **/Users/user/TBuild** and run
 
-     git clone https://github.com/telegramdesktop/tdesktop.git
+    git clone https://github.com/telegramdesktop/tdesktop.git
 
 or download in ZIP and extract to **/Users/user/TBuild** rename **tdesktop-master** to **tdesktop** to have **/Users/user/TBuild/tdesktop/Telegram/Telegram.xcodeproj** project
 
 ###Prepare libraries
+
+In your build Terminal run
+
+    MACOSX_DEPLOYMENT_TARGET=10.7
+
+to set minimal supported OS version to 10.7 for future console builds.
 
 ####OpenSSL 1.0.1g
 
@@ -77,7 +83,7 @@ to have **/Users/user/TBuild/Libraries/openal-soft/CMakeLists.txt**
 
 In Terminal go to **/Users/user/TBuild/Libraries/openal-soft/build** and there run
 
-    cmake -D LIBTYPE:STRING=STATIC ..
+    cmake -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.7 ..
     make
     sudo make install
 
