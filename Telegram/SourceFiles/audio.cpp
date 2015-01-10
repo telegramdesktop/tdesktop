@@ -51,6 +51,7 @@ bool _checkALError() {
 }
 
 void audioInit() {
+	uint64 ms = getms();
 	if (audioDevice) return;
 
 	audioDevice = alcOpenDevice(NULL);
@@ -148,6 +149,8 @@ void audioInit() {
 	if (!_checkALError()) return audioFinish();
 
 	voicemsgs = new VoiceMessages();
+	alcSuspendContext(audioContext);
+	LOG(("Audio init time: %1").arg(getms() - ms));
 }
 
 bool audioWorks() {
@@ -157,7 +160,9 @@ bool audioWorks() {
 void audioPlayNotify() {
 	if (!audioWorks()) return;
 
+	audioVoice()->processContext();
 	alSourcePlay(notifySource);
+	emit audioVoice()->faderOnTimer();
 }
 
 void audioFinish() {
@@ -307,6 +312,7 @@ void VoiceMessages::pauseresume() {
 			updateCurrentStarted();
 		}
 		_data[_current].state = VoiceMessageResuming;
+		processContext();
 		alSourcePlay(_data[_current].source);
 	break;
 	case VoiceMessageStarting:
@@ -328,15 +334,25 @@ void VoiceMessages::currentState(AudioData **audio, VoiceMessageState *state, in
 	if (duration) *duration = _data[_current].duration;
 }
 
+void VoiceMessages::processContext() {
+	_fader->processContext();
+}
+
 VoiceMessages *audioVoice() {
 	return voicemsgs;
 }
 
-VoiceMessagesFader::VoiceMessagesFader(QThread *thread) : _timer(this) {
+VoiceMessagesFader::VoiceMessagesFader(QThread *thread) : _timer(this), _suspendFlag(false) {
 	moveToThread(thread);
 	_timer.moveToThread(thread);
+	_suspendTimer.moveToThread(thread);
+
 	_timer.setSingleShot(true);
 	connect(&_timer, SIGNAL(timeout()), this, SLOT(onTimer()));
+
+	_suspendTimer.setSingleShot(true);
+	connect(&_suspendTimer, SIGNAL(timeout()), this, SLOT(onSuspendTimer()));
+	connect(this, SIGNAL(stopSuspend()), this, SLOT(onSuspendTimerStop()), Qt::QueuedConnection);
 }
 
 void VoiceMessagesFader::onInit() {
@@ -403,7 +419,6 @@ void VoiceMessagesFader::onTimer() {
 						b = a;
 					}
 					alSourcef(m.source, AL_GAIN, newGain);
-					LOG(("Now volume is: %1").arg(newGain));
 				}
 			} else if (playing && (state == AL_PLAYING || !m.loading)) {
 				if (state != AL_PLAYING) {
@@ -428,11 +443,42 @@ void VoiceMessagesFader::onTimer() {
 			if (fading) hasFading = true;
 		}
 	}
+	if (!hasPlaying) {
+		ALint state = AL_INITIAL;
+		alGetSourcei(notifySource, AL_SOURCE_STATE, &state);
+		if (_checkALError() && state == AL_PLAYING) {
+			hasPlaying = true;
+		}
+	}
 	if (hasFading) {
 		_timer.start(AudioFadeTimeout);
+		processContext();
 	} else if (hasPlaying) {
 		_timer.start(AudioCheckPositionTimeout);
+		processContext();
+	} else {
+		QMutexLocker lock(&_suspendMutex);
+		_suspendFlag = true;
+		_suspendTimer.start(AudioSuspendTimeout);
 	}
+}
+
+void VoiceMessagesFader::onSuspendTimer() {
+	QMutexLocker lock(&_suspendMutex);
+	if (_suspendFlag) {
+		alcSuspendContext(audioContext);
+	}
+}
+
+void VoiceMessagesFader::onSuspendTimerStop() {
+	if (_suspendTimer.isActive()) _suspendTimer.stop();
+}
+
+void VoiceMessagesFader::processContext() {
+	QMutexLocker lock(&_suspendMutex);
+	_suspendFlag = false;
+	emit stopSuspend();
+	alcProcessContext(audioContext);
 }
 
 struct VoiceMessagesLoader::Loader {
@@ -681,6 +727,7 @@ void VoiceMessagesLoader::onLoad(AudioData *audio) {
 		alGetSourcei(m.source, AL_SOURCE_STATE, &state);
 		if (_checkALError()) {
 			if (state != AL_PLAYING) {
+				voice->processContext();
 				alSourcePlay(m.source);
 				emit needToCheck();
 			}
