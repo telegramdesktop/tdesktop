@@ -20,6 +20,18 @@ if [ ! -d "./../Mac/Release/Telegram.app" ]; then
   exit 1
 fi
 
+if [ ! -d "./../Mac/Release/Telegram.app.dSYM" ]; then
+  echo "Telegram.app.dSYM not found!"
+  exit 1
+fi
+
+AppUUID=`dwarfdump -u "./../Mac/Release/Telegram.app/Contents/MacOS/Telegram" | awk -F " " '{print $2}'`
+DsymUUID=`dwarfdump -u "./../Mac/Release/Telegram.app.dSYM" | awk -F " " '{print $2}'`
+if [ "$AppUUID" != "$DsymUUID" ]; then
+  echo "UUID of binary '$AppUUID' and dSYM '$DsymUUID' differ!"
+  exit 1
+fi
+
 if [ ! -f "./../Mac/Release/Telegram.app/Contents/Resources/Icon.icns" ]; then
   echo "Icon.icns not found in Resources!"
   exit 1
@@ -57,6 +69,7 @@ echo "Copying Telegram.app and tmacupd$AppVersion to deploy/$AppVersionStr..";
 mkdir "./../Mac/Release/deploy/$AppVersionStr"
 mkdir "./../Mac/Release/deploy/$AppVersionStr/Telegram"
 cp -r ./../Mac/Release/Telegram.app ./../Mac/Release/deploy/$AppVersionStr/Telegram/
+mv ./../Mac/Release/Telegram.app.dSYM ./../Mac/Release/deploy/$AppVersionStr/
 rm ./../Mac/Release/Telegram.app/Contents/MacOS/Telegram
 rm ./../Mac/Release/Telegram.app/Contents/Frameworks/Updater
 rm -rf ./../Mac/Release/Telegram.app/Contents/_CodeSignature
