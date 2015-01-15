@@ -452,7 +452,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\nAbbiamo rilevato un accesso al tuo account da un nuovo dispositivo il {day}, {date} alle {time}\n\nDispositivo: {device}\nPosizione: {location}\n\nSe non sei tu, puoi andare su Impostazioni – Termina tutte le sessioni. \n\nGrazie, \nIl Team di Telegram";
 
-"lng_new_version7005" = "Telegram Desktop si è aggiornato alla versione {version}\n\n— Aggiunto il supporto agli sticker\n— Cache locale per i messaggi vocali\n— Aggiunto il Portoghese\n\nLa cronologia degli update è disponibile qui:\n{link}";
+"lng_new_version7007" = "Telegram Desktop è stato aggiornato alla versione {version}\n\n— Icona tray aggiunta su Ubuntu\n\nLa cronologia degli update è disponibile qui:\n{link}";
 "lng_new_version7006_appstore" = "Telegram Desktop è stato aggiornato alla versione {version}\n\n— Aggiunto il supporto agli sticker\n— Cache locale per i messaggi vocali\n— Aggiunte nuove lingue\n\nLa cronologia degli update è disponibile qui:\n{link}";
 
 // Mac specific
