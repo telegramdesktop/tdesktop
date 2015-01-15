@@ -185,6 +185,7 @@ private:
 	LinkButton _changeLanguage;
 	FlatCheckbox _autoUpdate;
 	LinkButton _checkNow, _restartNow;
+    bool _supportTray; // cSupportTray() value on settings create
 	FlatCheckbox _workmodeTray, _workmodeWindow;
 	FlatCheckbox _autoStart, _startMinimized, _sendToMenu;
 	FlatCheckbox _dpiAutoScale;

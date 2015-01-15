@@ -128,6 +128,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_checkNow(this, lang(lng_settings_check_now)),
 	_restartNow(this, lang(lng_settings_update_now)),
 
+    _supportTray(cSupportTray()),
 	_workmodeTray(this, lang(lng_settings_workmode_tray), (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray)),
 	_workmodeWindow(this, lang(lng_settings_workmode_window), (cWorkMode() == dbiwmWindowOnly || cWorkMode() == dbiwmWindowAndTray)),
 
@@ -413,7 +414,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
         top += _startMinimized.height() + st::setSectionSkip;
 
 		top += _sendToMenu.height();
-	} else if (cPlatform() == dbipMac) {
+    } else if (_supportTray) {
 		top += _workmodeTray.height();
 	}
 
@@ -580,7 +581,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
         _startMinimized.move(_left, top); top += _startMinimized.height() + st::setSectionSkip;
 
 		_sendToMenu.move(_left, top); top += _sendToMenu.height();
-	} else if (cPlatform() == dbipMac) {
+    } else if (_supportTray) {
 		_workmodeTray.move(_left, top); top += _workmodeTray.height();
 	}
     if (!cRetina()) {
@@ -789,7 +790,7 @@ void SettingsInner::showAll() {
 
 		_sendToMenu.show();
     } else {
-		if (cPlatform() == dbipMac) {
+        if (_supportTray) {
 			_workmodeTray.show();
 		} else {
 			_workmodeTray.hide();

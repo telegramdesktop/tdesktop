@@ -77,7 +77,7 @@ void debugLogWrite(const char *file, int32 line, const QString &v) {
 #elif defined Q_OS_MAC
         objc_outputDebugString(msg);
 #elif defined Q_OS_LINUX && defined _DEBUG
-        std::cout << msg.toUtf8().constData();
+//        std::cout << msg.toUtf8().constData();
 #endif
 	}
 }

@@ -83,9 +83,13 @@ public slots:
 	void psIdleTimeout();
 	void psShowTrayMenu();
 
+    void psStatusIconCheck();
+    void psUpdateIndicator();
+
 protected:
 
 	void psNotIdle() const;
+    bool psHasTrayIcon() const;
 
 	bool posInited;
     QSystemTrayIcon *trayIcon;
@@ -93,13 +97,22 @@ protected:
     QImage icon256, iconbig256;
 	QIcon wndIcon;
 
-	virtual void setupTrayIcon() = 0;
+    void psTrayMenuUpdated();
+    void psSetupTrayIcon();
 
     QTimer psUpdatedPositionTimer;
 
 private:
+    void psCreateTrayIcon();
+
 	mutable bool psIdle;
 	mutable QTimer psIdleTimer;
+
+    QTimer _psCheckStatusIconTimer;
+    int _psCheckStatusIconLeft;
+
+    QTimer _psUpdateIndicatorTimer;
+    uint64 _psLastIndicatorUpdate;
 };
 
 

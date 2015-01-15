@@ -861,7 +861,7 @@ namespace {
 };
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent), ps_hWnd(0), ps_menu(0), icon256(qsl(":/gui/art/icon256.png")), iconbig256(qsl(":/gui/art/iconbig256.png")), wndIcon(QPixmap::fromImage(icon256, Qt::ColorOnly)),
-	ps_iconBig(0), ps_iconSmall(0), ps_iconOverlay(0), trayIcon(0), trayIconMenu(0), posInited(false), ps_tbHider_hWnd(createTaskbarHider()), psIdle(false) {
+    ps_iconBig(0), ps_iconSmall(0), ps_iconOverlay(0), trayIcon(0), trayIconMenu(0), posInited(false), ps_tbHider_hWnd(createTaskbarHider()), psIdle(false) {
 	tbCreatedMsgId = RegisterWindowMessage(L"TaskbarButtonCreated");
 	connect(&psIdleTimer, SIGNAL(timeout()), this, SLOT(psIdleTimeout()));
 	psIdleTimer.setSingleShot(false);
@@ -939,10 +939,31 @@ void PsMainWindow::psRefreshTaskbarIcon() {
 	delete w;
 }
 
+void PsMainWindow::psTrayMenuUpdated() {
+}
+
+void PsMainWindow::psSetupTrayIcon() {
+    if (!trayIcon) {
+        trayIcon = new QSystemTrayIcon(this);
+
+        QIcon icon(QPixmap::fromImage(App::wnd()->iconLarge(), Qt::ColorOnly));
+
+        trayIcon->setIcon(icon);
+        trayIcon->setToolTip(QString::fromStdWString(AppName));
+        connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)), Qt::UniqueConnection);
+        connect(trayIcon, SIGNAL(messageClicked()), this, SLOT(showFromTray()));
+        App::wnd()->updateTrayMenu();
+    }
+    psUpdateCounter();
+
+    trayIcon->show();
+    psUpdateDelegate();
+}
+
 void PsMainWindow::psUpdateWorkmode() {
 	switch (cWorkMode()) {
 	case dbiwmWindowAndTray: {
-		setupTrayIcon();
+        psSetupTrayIcon();
 		HWND psOwner = (HWND)GetWindowLong(ps_hWnd, GWL_HWNDPARENT);
 		if (psOwner) {
 			SetWindowLong(ps_hWnd, GWL_HWNDPARENT, 0);
@@ -951,7 +972,7 @@ void PsMainWindow::psUpdateWorkmode() {
 	} break;
 
 	case dbiwmTrayOnly: {
-		setupTrayIcon();
+        psSetupTrayIcon();
 		HWND psOwner = (HWND)GetWindowLong(ps_hWnd, GWL_HWNDPARENT);
 		if (!psOwner) {
 			SetWindowLong(ps_hWnd, GWL_HWNDPARENT, (LONG)ps_tbHider_hWnd);

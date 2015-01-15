@@ -140,8 +140,29 @@ bool PsMainWindow::psIsActive(int state) const {
 void PsMainWindow::psRefreshTaskbarIcon() {
 }
 
+void PsMainWindow::psTrayMenuUpdated() {
+}
+
+void PsMainWindow::psSetupTrayIcon() {
+    if (!trayIcon) {
+        trayIcon = new QSystemTrayIcon(this);
+
+        QIcon icon(QPixmap::fromImage(psTrayIcon(), Qt::ColorOnly));
+        icon.addPixmap(QPixmap::fromImage(psTrayIcon(true), Qt::ColorOnly), QIcon::Selected);
+
+        trayIcon->setIcon(icon);
+        trayIcon->setToolTip(QString::fromStdWString(AppName));
+        connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)), Qt::UniqueConnection);
+        App::wnd()->updateTrayMenu();
+    }
+    psUpdateCounter();
+
+    trayIcon->show();
+    psUpdateDelegate();
+}
+
 void PsMainWindow::psUpdateWorkmode() {
-	setupTrayIcon();
+    psSetupTrayIcon();
 	if (cWorkMode() == dbiwmWindowOnly) {
 		if (trayIcon) {
 			trayIcon->setContextMenu(0);

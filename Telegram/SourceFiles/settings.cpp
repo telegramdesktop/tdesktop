@@ -42,6 +42,11 @@ bool gSendToMenu = false;
 bool gAutoUpdate = true;
 TWindowPos gWindowPos;
 bool gFromAutoStart = false;
+#if defined Q_OS_WIN || defined Q_OS_MAC
+bool gSupportTray = true;
+#else
+bool gSupportTray = false;
+#endif
 DBIWorkMode gWorkMode = dbiwmWindowAndTray;
 DBIConnectionType gConnectionType = dbictAuto;
 ConnectionProxy gConnectionProxy;

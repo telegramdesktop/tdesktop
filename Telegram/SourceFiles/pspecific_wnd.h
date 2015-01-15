@@ -80,11 +80,14 @@ public slots:
 	void psUpdateDelegate();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psIdleTimeout();
-	void psShowTrayMenu();
+    void psShowTrayMenu();
 
 protected:
 
 	void psNotIdle() const;
+    bool psHasTrayIcon() const {
+        return trayIcon;
+    }
 
 	bool posInited;
 	QSystemTrayIcon *trayIcon;
@@ -92,7 +95,8 @@ protected:
 	QImage icon256, iconbig256;
 	QIcon wndIcon;
 
-	virtual void setupTrayIcon() = 0;
+    void psTrayMenuUpdated();
+    void psSetupTrayIcon();
 
 	QTimer psUpdatedPositionTimer;
 
