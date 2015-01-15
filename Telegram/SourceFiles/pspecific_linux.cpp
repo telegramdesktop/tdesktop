@@ -259,7 +259,7 @@ namespace {
         int32 counter = App::histories().unreadFull, counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
         bool muted = (App::histories().unreadMuted >= counter);
 
-        QString name = cWorkingDir() + qsl("tdata/ticons/ico%1_%2_%3.png").arg(muted ? "mute" : "").arg(_trayIconSize).arg(counterSlice);
+        QString name = qsl("/tmp/tdesktop-icons/ico%1_%2_%3.png").arg(muted ? "mute" : "").arg(_trayIconSize).arg(counterSlice);
         QFileInfo info(name);
         if (info.exists()) return name;
 
