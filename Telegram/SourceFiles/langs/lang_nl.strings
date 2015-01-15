@@ -192,7 +192,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_send_enter" = "Versturen met Enter";
 "lng_settings_send_ctrlenter" = "Versturen met Ctrl+Enter";
 "lng_settings_send_cmdenter" = "Versturen met Cmd+Enter";
-"lng_settings_cats_and_dogs" = "Katten en honden toestaan";
+"lng_settings_cats_and_dogs" = "Kat en hond op achtergrond";
 
 "lng_download_path_dont_ask" = "Niet voor iedere download vragen";
 "lng_download_path_label" = "Downloadpad:";

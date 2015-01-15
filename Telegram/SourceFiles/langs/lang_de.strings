@@ -328,7 +328,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio" = "Sprachnachricht";
 "lng_in_dlg_document" = "Datei";
 "lng_in_dlg_sticker" = "Sticker";
-"lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
+"lng_in_dlg_sticker_emoji" = "{emoji} (Sticker)";
 
 "lng_send_button" = "Senden";
 "lng_message_ph" = "Schreibe deine Nachricht..";
