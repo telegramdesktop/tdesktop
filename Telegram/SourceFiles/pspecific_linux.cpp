@@ -114,8 +114,8 @@ namespace {
     typedef void (*f_app_indicator_set_menu)(AppIndicator *self, GtkMenu *menu);
     f_app_indicator_set_menu ps_app_indicator_set_menu = 0;
 
-    typedef void (*f_app_indicator_set_icon)(AppIndicator *self, const gchar *icon_name);
-    f_app_indicator_set_icon ps_app_indicator_set_icon = 0;
+    typedef void (*f_app_indicator_set_icon_full)(AppIndicator *self, const gchar *icon_name, const gchar *icon_desc);
+    f_app_indicator_set_icon_full ps_app_indicator_set_icon_full = 0;
 
     typedef gboolean (*f_gdk_init_check)(gint *argc, gchar ***argv);
     f_gdk_init_check ps_gdk_init_check = 0;
@@ -192,10 +192,9 @@ namespace {
     }
 
     gboolean _trayIconResized(GtkStatusIcon *status_icon, gint size, gpointer popup_menu) {
-        std::cerr << "New tray icon size: " << size << "\n";
-        _trayIconSize = size - 2;
+       _trayIconSize = size;
         if (App::wnd()) App::wnd()->psUpdateCounter();
-        return TRUE;
+        return FALSE;
     }
 
 #if Q_BYTE_ORDER == Q_BIG_ENDIAN
@@ -249,7 +248,7 @@ namespace {
                     layerSize = -20;
                 }
                 QImage layer = App::wnd()->iconWithCounter(layerSize, counter, (muted ? st::counterMuteBG : st::counterBG), false);
-                p.drawImage(_trayIconImage.width() - layer.width(), _trayIconImage.height() - layer.height(), layer);
+                p.drawImage(_trayIconImage.width() - layer.width() - 1, _trayIconImage.height() - layer.height() - 1, layer);
             }
         }
         return _trayIconImage;
@@ -365,7 +364,7 @@ namespace {
             if (!loadFunction(lib_indicator, "app_indicator_new", ps_app_indicator_new)) return;
             if (!loadFunction(lib_indicator, "app_indicator_set_status", ps_app_indicator_set_status)) return;
             if (!loadFunction(lib_indicator, "app_indicator_set_menu", ps_app_indicator_set_menu)) return;
-            if (!loadFunction(lib_indicator, "app_indicator_set_icon", ps_app_indicator_set_icon)) return;
+            if (!loadFunction(lib_indicator, "app_indicator_set_icon_full", ps_app_indicator_set_icon_full)) return;
             useAppIndicator = true;
         }
         void setupUnity() {
@@ -528,9 +527,13 @@ void PsMainWindow::psUpdateWorkmode() {
 void PsMainWindow::psUpdateIndicator() {
     _psUpdateIndicatorTimer.stop();
     _psLastIndicatorUpdate = getms();
-    QByteArray f = _trayIconImageFile().toUtf8();
-    if (!f.isEmpty()) {
-        ps_app_indicator_set_icon(_trayIndicator, f.constData());
+    QFileInfo f(_trayIconImageFile());
+    if (f.exists()) {
+        QByteArray path = f.absoluteFilePath().toUtf8(), name = f.fileName().toUtf8();
+        name = name.mid(0, name.size() - 4);
+        ps_app_indicator_set_icon_full(_trayIndicator, path.constData(), name);
+    } else {
+        useAppIndicator = false;
     }
 }
 
@@ -659,9 +662,6 @@ void PsMainWindow::psUpdatedPosition() {
 void PsMainWindow::psStateChanged(Qt::WindowState state) {
 	psUpdateSysMenu(state);
 	psUpdateMargins();
-//    if (state == Qt::WindowMinimized && GetWindowLong(ps_hWnd, GWL_HWNDPARENT)) {
-//		App::wnd()->minimizeToTray();
-//    }
     psSavePosition(state);
 }
 
@@ -670,11 +670,12 @@ void PsMainWindow::psCreateTrayIcon() {
         if (ps_gtk_init_check(0, 0)) {
             _trayMenu = ps_gtk_menu_new();
             if (_trayMenu) {
-                QByteArray f = _trayIconImageFile().toUtf8();
-                if (f.isEmpty()) {
-                    useAppIndicator = false;
+                QFileInfo f(_trayIconImageFile());
+                if (f.exists()) {
+                    QByteArray path = f.absoluteFilePath().toUtf8();
+                   _trayIndicator = ps_app_indicator_new("Telegram Desktop", path.constData(), APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
                 } else {
-                    _trayIndicator = ps_app_indicator_new("Telegram Desktop", f.constData(), APP_INDICATOR_CATEGORY_COMMUNICATIONS);
+                    useAppIndicator = false;
                 }
             }
         }
