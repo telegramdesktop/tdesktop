@@ -222,7 +222,7 @@ cbDefFlat: flatCheckbox {
 
 	imageRect: sprite(140px, 68px, 22px, 22px);
 	chkImageRect: sprite(115px, 68px, 22px, 22px);
-	overImageRect: sprite(140px, 68px, 22px, 22px);
+	overImageRect: sprite(190px, 68px, 22px, 22px);
 	chkOverImageRect: sprite(115px, 68px, 22px, 22px);
 	disImageRect: sprite(140px, 43px, 22px, 22px);
 	chkDisImageRect: sprite(115px, 43px, 22px, 22px);
