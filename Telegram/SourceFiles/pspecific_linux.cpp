@@ -117,9 +117,6 @@ namespace {
     typedef void (*f_app_indicator_set_icon_full)(AppIndicator *self, const gchar *icon_name, const gchar *icon_desc);
     f_app_indicator_set_icon_full ps_app_indicator_set_icon_full = 0;
 
-    typedef void (*f_app_indicator_set_icon_theme_path)(AppIndicator *self, const gchar *icon_theme_path);
-    f_app_indicator_set_icon_theme_path ps_app_indicator_set_icon_theme_path = 0;
-
     typedef gboolean (*f_gdk_init_check)(gint *argc, gchar ***argv);
     f_gdk_init_check ps_gdk_init_check = 0;
 
@@ -195,10 +192,9 @@ namespace {
     }
 
     gboolean _trayIconResized(GtkStatusIcon *status_icon, gint size, gpointer popup_menu) {
-        std::cerr << "New tray icon size: " << size << "\n";
-        _trayIconSize = size - 2;
+       _trayIconSize = size;
         if (App::wnd()) App::wnd()->psUpdateCounter();
-        return TRUE;
+        return FALSE;
     }
 
 #if Q_BYTE_ORDER == Q_BIG_ENDIAN
@@ -252,7 +248,7 @@ namespace {
                     layerSize = -20;
                 }
                 QImage layer = App::wnd()->iconWithCounter(layerSize, counter, (muted ? st::counterMuteBG : st::counterBG), false);
-                p.drawImage(_trayIconImage.width() - layer.width(), _trayIconImage.height() - layer.height(), layer);
+                p.drawImage(_trayIconImage.width() - layer.width() - 1, _trayIconImage.height() - layer.height() - 1, layer);
             }
         }
         return _trayIconImage;
@@ -369,7 +365,6 @@ namespace {
             if (!loadFunction(lib_indicator, "app_indicator_set_status", ps_app_indicator_set_status)) return;
             if (!loadFunction(lib_indicator, "app_indicator_set_menu", ps_app_indicator_set_menu)) return;
             if (!loadFunction(lib_indicator, "app_indicator_set_icon_full", ps_app_indicator_set_icon_full)) return;
-            if (!loadFunction(lib_indicator, "app_indicator_set_icon_theme_path", ps_app_indicator_set_icon_theme_path)) return;
             useAppIndicator = true;
         }
         void setupUnity() {
