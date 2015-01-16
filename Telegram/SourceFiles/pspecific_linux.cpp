@@ -331,8 +331,11 @@ namespace {
         void setupGTK() {
             QLibrary lib_gtk(QLatin1String("gtk-x11-2.0"), 0, 0), lib_indicator(QLatin1String("appindicator"), 1, 0);
             if (!lib_gtk.load()) {
-                _initErrors.push_back(QString("Failed to load 'gtk-x11-2.0' library!"));
-                return;
+                lib_gtk.setFileNameAndVersion(QLatin1String("gtk-x11-2.0"), QString());
+                if (!lib_gtk.load()) {
+                    _initErrors.push_back(QString("Failed to load 'gtk-x11-2.0' library!"));
+                    return;
+                }
             }
 
             if (!loadFunction(lib_gtk, "gtk_init_check", ps_gtk_init_check)) return;
@@ -354,8 +357,13 @@ namespace {
             if (lib_indicator.load()) {
                 setupAppIndicator(lib_indicator);
             } else {
-                _initErrors.push_back(QString("Failed to load 'appindicator' library!"));
-                return;
+                lib_indicator.setFileNameAndVersion(QLatin1String("appindicator"), QString());
+                if (lib_indicator.load()) {
+                    setupAppIndicator(lib_indicator);
+                } else {
+                    _initErrors.push_back(QString("Failed to load 'appindicator' library!"));
+                    return;
+                }
             }
 
             if (!loadFunction(lib_gtk, "gdk_init_check", ps_gdk_init_check)) return;
@@ -383,10 +391,13 @@ namespace {
             useAppIndicator = true;
         }
         void setupUnity() {
-            QLibrary lib_unity("unity", 9, 0);
+            QLibrary lib_unity(QLatin1String("unity"), 9, 0);
             if (!lib_unity.load()) {
-                _initErrors.push_back(QString("Failed to load 'unity' library!"));
-                return;
+                lib_unity.setFileNameAndVersion(QLatin1String("unity"), QString());
+                if (!lib_unity.load()) {
+                    _initErrors.push_back(QString("Failed to load 'unity' library!"));
+                    return;
+                }
             }
 
             if (!loadFunction(lib_unity, "unity_launcher_entry_get_for_desktop_id", ps_unity_launcher_entry_get_for_desktop_id)) return;
