@@ -978,6 +978,11 @@ PsUpdateDownloader::~PsUpdateDownloader() {
 	reply = 0;
 }
 
+
+QStringList psInitErrors() {
+    return QStringList();
+}
+
 void psActivateProcess(uint64 pid) {
 	objc_activateProgram();
 }

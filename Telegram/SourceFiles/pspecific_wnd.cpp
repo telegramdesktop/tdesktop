@@ -1778,6 +1778,10 @@ namespace {
 	}
 }
 
+QStringList psInitErrors() {
+    return QStringList();
+}
+
 void psActivateProcess(uint64 pid) {
 	if (pid) {
 		::EnumWindows((WNDENUMPROC)_ActivateProcess, (LPARAM)&pid);
