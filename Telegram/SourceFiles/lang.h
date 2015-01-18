@@ -23,7 +23,11 @@ static const char *LanguageCodes[] = {
 	"es",
 	"de",
 	"nl",
+<<<<<<< HEAD
 	"ko",
+=======
+	"pt_BR",
+>>>>>>> 9e43f1b5de3d44041264ad670ec7456cd419c268
 };
 static const int languageTest = -1, languageDefault = 0, languageCount = sizeof(LanguageCodes) / sizeof(LanguageCodes[0]);
 
@@ -109,6 +113,7 @@ protected:
 	LangKey subkeyIndex(LangKey key, ushort tag, ushort index) const;
 
 	bool feedKeyValue(LangKey key, const QString &value);
+	void foundKeyValue(LangKey key);
 
 	void error(const QString &text) {
 		_err.push_back(text);
@@ -125,4 +130,11 @@ private:
 
 	LangLoader(const LangLoader &);
 	LangLoader &operator=(const LangLoader &);
+};
+
+class Translator : public QTranslator {
+public:
+
+	QString translate(const char *context, const char *sourceText, const char *disambiguation = 0, int n = -1) const;
+
 };

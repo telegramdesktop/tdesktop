@@ -127,7 +127,7 @@ public slots:
 
 	void onCatsAndDogs();
 
-	void onLocalImagesClear();
+	void onLocalStorageClear();
 
 	void onUpdateChecking();
 	void onUpdateLatest();
@@ -144,6 +144,8 @@ public slots:
 
 	void onChangeLanguage();
 	void onSaveTestLang();
+
+	void onUpdateLocalStorage();
 
 private:
 
@@ -183,6 +185,7 @@ private:
 	LinkButton _changeLanguage;
 	FlatCheckbox _autoUpdate;
 	LinkButton _checkNow, _restartNow;
+    bool _supportTray; // cSupportTray() value on settings create
 	FlatCheckbox _workmodeTray, _workmodeWindow;
 	FlatCheckbox _autoStart, _startMinimized, _sendToMenu;
 	FlatCheckbox _dpiAutoScale;
@@ -222,9 +225,10 @@ private:
 	FlatCheckbox _catsAndDogs;
 
 	// local storage
-	LinkButton _localImagesClear;
-	int32 _imagesClearingWidth, _imagesClearedWidth, _imagesClearFailedWidth;
-	TempDirClearState _imagesClearState;
+	LinkButton _localStorageClear;
+	int32 _localStorageHeight;
+	int32 _storageClearingWidth, _storageClearedWidth, _storageClearFailedWidth;
+	TempDirClearState _storageClearState;
 
 	// advanced
 	LinkButton _connectionType, _resetSessions;

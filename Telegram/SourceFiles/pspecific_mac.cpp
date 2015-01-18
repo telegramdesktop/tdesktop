@@ -140,8 +140,29 @@ bool PsMainWindow::psIsActive(int state) const {
 void PsMainWindow::psRefreshTaskbarIcon() {
 }
 
+void PsMainWindow::psTrayMenuUpdated() {
+}
+
+void PsMainWindow::psSetupTrayIcon() {
+    if (!trayIcon) {
+        trayIcon = new QSystemTrayIcon(this);
+
+        QIcon icon(QPixmap::fromImage(psTrayIcon(), Qt::ColorOnly));
+        icon.addPixmap(QPixmap::fromImage(psTrayIcon(true), Qt::ColorOnly), QIcon::Selected);
+
+        trayIcon->setIcon(icon);
+        trayIcon->setToolTip(QString::fromStdWString(AppName));
+        connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)), Qt::UniqueConnection);
+        App::wnd()->updateTrayMenu();
+    }
+    psUpdateCounter();
+
+    trayIcon->show();
+    psUpdateDelegate();
+}
+
 void PsMainWindow::psUpdateWorkmode() {
-	setupTrayIcon();
+    psSetupTrayIcon();
 	if (cWorkMode() == dbiwmWindowOnly) {
 		if (trayIcon) {
 			trayIcon->setContextMenu(0);
@@ -349,9 +370,9 @@ void PsMainWindow::psFirstShow() {
 
 	// init global menu
 	QMenu *main = psMainMenu.addMenu(qsl("Telegram"));
-	main->addAction(lang(lng_mac_menu_about), App::wnd()->getTitle(), SLOT(onAbout()))->setMenuRole(QAction::AboutQtRole);
+	main->addAction(lng_mac_menu_about_telegram(lt_telegram, qsl("Telegram")), App::wnd()->getTitle(), SLOT(onAbout()))->setMenuRole(QAction::AboutQtRole);
 	main->addSeparator();
-	QAction *prefs = main->addAction(lang(lng_mac_menu_preferences), App::wnd(), SLOT(showSettings()));
+	QAction *prefs = main->addAction(lang(lng_mac_menu_preferences), App::wnd(), SLOT(showSettings()), QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
 	prefs->setMenuRole(QAction::PreferencesRole);
 
 	QMenu *file = psMainMenu.addMenu(lang(lng_mac_menu_file));
@@ -955,6 +976,11 @@ void PsUpdateDownloader::unpackUpdate() {
 PsUpdateDownloader::~PsUpdateDownloader() {
 	delete reply;
 	reply = 0;
+}
+
+
+QStringList psInitErrors() {
+    return QStringList();
 }
 
 void psActivateProcess(uint64 pid) {

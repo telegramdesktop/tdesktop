@@ -762,7 +762,12 @@ inline bool operator!=(const MTPstring &a, const MTPstring &b) {
 
 inline QString qs(const MTPstring &v) {
 	const string &d(v.c_string().v);
-	return QString::fromUtf8(d.c_str(), d.length());
+	return QString::fromUtf8(d.data(), d.length());
+}
+
+inline QByteArray qba(const MTPstring &v) {
+	const string &d(v.c_string().v);
+	return QByteArray(d.data(), d.length());
 }
 
 class MTPbool {

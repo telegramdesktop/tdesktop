@@ -505,7 +505,20 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 
 			tcpp << "\tconst char *_langKeyNames[lngkeys_cnt] = {\n";
 			for (int i = 0, l = keysOrder.size(); i < l; ++i) {
-				tcpp << "\t\t\"" << keysOrder[i] << "\",\n";
+				if (keysTags[keysOrder[i]].isEmpty()) {
+					tcpp << "\t\t\"" << keysOrder[i] << "\",\n";
+				} else {
+					tcpp << "\t\t\"" << keysOrder[i] << "__tagged\",\n";
+					QMap<QByteArray, QVector<QString> > &countedTags(keysCounted[keysOrder[i]]);
+					if (!countedTags.isEmpty()) {
+						for (QMap<QByteArray, QVector<QString> >::const_iterator j = countedTags.cbegin(), e = countedTags.cend(); j != e; ++j) {
+							const QVector<QString> &counted(*j);
+							for (int k = 0, s = counted.size(); k < s; ++k) {
+								tcpp << "\t\t\"" << keysOrder[i] << "__" + j.key() + QString::number(k).toUtf8() << "\",\n";
+							}
+						}
+					}
+				}
 			}
 			tcpp << "\t};\n\n";
 

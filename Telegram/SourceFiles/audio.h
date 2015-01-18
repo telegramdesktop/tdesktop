@@ -48,6 +48,7 @@ public:
 	void pauseresume();
 
 	void currentState(AudioData **audio, VoiceMessageState *state = 0, int64 *position = 0, int64 *duration = 0);
+	void processContext();
 
 	~VoiceMessages();
 
@@ -112,6 +113,7 @@ class VoiceMessagesFader : public QObject {
 public:
 
 	VoiceMessagesFader(QThread *thread);
+	void processContext();
 
 signals:
 
@@ -120,14 +122,20 @@ signals:
 	void audioStopped(AudioData *audio);
 	void needToPreload(AudioData *audio);
 
+	void stopSuspend();
+
 public slots:
 
 	void onInit();
 	void onTimer();
+	void onSuspendTimer();
+	void onSuspendTimerStop();
 
 private:
 
-	QTimer _timer;
+	QTimer _timer, _suspendTimer;
+	QMutex _suspendMutex;
+	bool _suspendFlag;
 
 };
 

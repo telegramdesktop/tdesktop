@@ -128,6 +128,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_checkNow(this, lang(lng_settings_check_now)),
 	_restartNow(this, lang(lng_settings_update_now)),
 
+    _supportTray(cSupportTray()),
 	_workmodeTray(this, lang(lng_settings_workmode_tray), (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray)),
 	_workmodeWindow(this, lang(lng_settings_workmode_window), (cWorkMode() == dbiwmWindowOnly || cWorkMode() == dbiwmWindowAndTray)),
 
@@ -160,10 +161,11 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_catsAndDogs(this, lang(lng_settings_cats_and_dogs), cCatsAndDogs()),
 
 	// local storage
-	_localImagesClear(this, lang(lng_local_images_clear)),
-	_imagesClearingWidth(st::linkFont->m.width(lang(lng_local_images_clearing))),
-	_imagesClearedWidth(st::linkFont->m.width(lang(lng_local_images_cleared))),
-	_imagesClearFailedWidth(st::linkFont->m.width(lang(lng_local_images_clear_failed))),
+	_localStorageClear(this, lang(lng_local_storage_clear)),
+	_localStorageHeight(1),
+	_storageClearingWidth(st::linkFont->m.width(lang(lng_local_storage_clearing))),
+	_storageClearedWidth(st::linkFont->m.width(lang(lng_local_storage_cleared))),
+	_storageClearFailedWidth(st::linkFont->m.width(lang(lng_local_storage_clear_failed))),
 
 	// advanced
 	_connectionType(this, lng_connection_auto(lt_type, QString())),
@@ -249,11 +251,11 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	connect(&_catsAndDogs, SIGNAL(changed()), this, SLOT(onCatsAndDogs()));
 
 	// local storage
-	connect(&_localImagesClear, SIGNAL(clicked()), this, SLOT(onLocalImagesClear()));
-	switch (App::wnd()->localImagesState()) {
-	case Window::TempDirEmpty: _imagesClearState = TempDirEmpty; break;
-	case Window::TempDirExists: _imagesClearState = TempDirExists; break;
-	case Window::TempDirRemoving: _imagesClearState = TempDirClearing; break;
+	connect(&_localStorageClear, SIGNAL(clicked()), this, SLOT(onLocalStorageClear()));
+	switch (App::wnd()->localStorageState()) {
+	case Window::TempDirEmpty: _storageClearState = TempDirEmpty; break;
+	case Window::TempDirExists: _storageClearState = TempDirExists; break;
+	case Window::TempDirRemoving: _storageClearState = TempDirClearing; break;
 	}
 
 	// advanced
@@ -412,7 +414,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
         top += _startMinimized.height() + st::setSectionSkip;
 
 		top += _sendToMenu.height();
-	} else if (cPlatform() == dbipMac) {
+    } else if (_supportTray) {
 		top += _workmodeTray.height();
 	}
 
@@ -481,27 +483,45 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		p.setFont(st::setHeaderFont->f);
 		p.setPen(st::setHeaderColor->p);
 		p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_cache));
-		top += st::setHeaderSkip;
 
-		QString localImagesText = lang(lng_settings_no_images_cached);
-		int32 cnt = Local::hasImages();
-		if (cnt) {
-			localImagesText = lng_settings_images_cached(lt_count, cnt, lt_size, formatSizeText(Local::storageFilesSize()));
-		}
 		p.setFont(st::linkFont->f);
 		p.setPen(st::black->p);
-		p.drawText(_left + st::setHeaderLeft, top + st::linkFont->ascent, localImagesText);
 		QString clearText;
 		int32 clearWidth = 0;
-		switch (_imagesClearState) {
-		case TempDirClearing: clearText = lang(lng_local_images_clearing); clearWidth = _imagesClearingWidth; break;
-		case TempDirCleared: clearText = lang(lng_local_images_cleared); clearWidth = _imagesClearedWidth; break;
-		case TempDirClearFailed: clearText = lang(lng_local_images_clear_failed); clearWidth = _imagesClearFailedWidth; break;
+		switch (_storageClearState) {
+		case TempDirClearing: clearText = lang(lng_local_storage_clearing); clearWidth = _storageClearingWidth; break;
+		case TempDirCleared: clearText = lang(lng_local_storage_cleared); clearWidth = _storageClearedWidth; break;
+		case TempDirClearFailed: clearText = lang(lng_local_storage_clear_failed); clearWidth = _storageClearFailedWidth; break;
 		}
 		if (clearWidth) {
-			p.drawText(_left + st::setWidth - clearWidth, top + st::linkFont->ascent, clearText);
+			p.drawText(_left + st::setWidth - clearWidth, top + st::setHeaderTop + st::setHeaderFont->ascent, clearText);
 		}
-		top += _localImagesClear.height();
+
+		top += st::setHeaderSkip;
+
+		int32 cntImages = Local::hasImages() + Local::hasStickers(), cntAudios = Local::hasAudios();
+		if (cntImages > 0 && cntAudios > 0) {
+			if (_localStorageHeight != 2) {
+				cntAudios = 0;
+				QTimer::singleShot(0, this, SLOT(onUpdateLocalStorage()));
+			}
+		} else {
+			if (_localStorageHeight != 1) {
+				QTimer::singleShot(0, this, SLOT(onUpdateLocalStorage()));
+			}
+		}
+		if (cntImages > 0) {
+			QString cnt = lng_settings_images_cached(lt_count, cntImages, lt_size, formatSizeText(Local::storageImagesSize() + Local::storageStickersSize()));
+			p.drawText(_left + st::setHeaderLeft, top + st::linkFont->ascent, cnt);
+		}
+		if (_localStorageHeight == 2) top += _localStorageClear.height() + st::setLittleSkip;
+		if (cntAudios > 0) {
+			QString cnt = lng_settings_audios_cached(lt_count, cntAudios, lt_size, formatSizeText(Local::storageAudiosSize()));
+			p.drawText(_left + st::setHeaderLeft, top + st::linkFont->ascent, cnt);
+		} else if (cntImages <= 0) {
+			p.drawText(_left + st::setHeaderLeft, top + st::linkFont->ascent, lang(lng_settings_no_data_cached));
+		}
+		top += _localStorageClear.height();
 	}
 
 	// advanced
@@ -561,7 +581,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
         _startMinimized.move(_left, top); top += _startMinimized.height() + st::setSectionSkip;
 
 		_sendToMenu.move(_left, top); top += _sendToMenu.height();
-	} else if (cPlatform() == dbipMac) {
+    } else if (_supportTray) {
 		_workmodeTray.move(_left, top); top += _workmodeTray.height();
 	}
     if (!cRetina()) {
@@ -590,8 +610,15 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		_catsAndDogs.move(_left, top); top += _catsAndDogs.height();
 
 		// local storage
+		_localStorageClear.move(_left + st::setWidth - _localStorageClear.width(), top + st::setHeaderTop + st::setHeaderFont->ascent - st::linkFont->ascent);
 		top += st::setHeaderSkip;
-		_localImagesClear.move(_left + st::setWidth - _localImagesClear.width(), top); top += _localImagesClear.height();
+		if ((Local::hasImages() || Local::hasStickers()) && Local::hasAudios()) {
+			_localStorageHeight = 2;
+			top += _localStorageClear.height() + st::setLittleSkip;
+		} else {
+			_localStorageHeight = 1;
+		}
+		top += _localStorageClear.height();
 	}
 
 	// advanced
@@ -763,7 +790,7 @@ void SettingsInner::showAll() {
 
 		_sendToMenu.show();
     } else {
-		if (cPlatform() == dbipMac) {
+        if (_supportTray) {
 			_workmodeTray.show();
 		} else {
 			_workmodeTray.hide();
@@ -816,14 +843,13 @@ void SettingsInner::showAll() {
 		_dontAskDownloadPath.hide();
 		_downloadPathEdit.hide();
 		_downloadPathClear.hide();
-		_localImagesClear.hide();
 	}
 
 	// local storage
-	if (self() && _imagesClearState == TempDirExists) {
-		_localImagesClear.show();
+	if (self() && _storageClearState == TempDirExists) {
+		_localStorageClear.show();
 	} else {
-		_localImagesClear.hide();
+		_localStorageClear.hide();
 	}
 
 	// advanced
@@ -919,7 +945,7 @@ void SettingsInner::onChangeLanguage() {
 				connect(box, SIGNAL(confirmed()), this, SLOT(onSaveTestLang()));
 				App::wnd()->showLayer(box);
 			} else {
-				App::wnd()->showLayer(new ConfirmBox("Custom lang failed :(\n\nError: " + cLangErrors(), true, lang(lng_close)));
+				App::wnd()->showLayer(new ConfirmBox("Custom lang failed :(\n\nError: " + loader.errors(), true, lang(lng_close)));
 			}
 		}
 	} else {
@@ -933,6 +959,12 @@ void SettingsInner::onSaveTestLang() {
 	App::writeConfig();
 	cSetRestarting(true);
 	App::quit();
+}
+
+void SettingsInner::onUpdateLocalStorage() {
+	resizeEvent(0);
+	updateSize(width());
+	update();
 }
 
 void SettingsInner::onAutoUpdate() {
@@ -1210,9 +1242,9 @@ void SettingsInner::onDownloadPathClearSure() {
 	update();
 }
 
-void SettingsInner::onLocalImagesClear() {
-	App::wnd()->tempDirDelete(Local::ClearManagerImages);
-	_imagesClearState = TempDirClearing;
+void SettingsInner::onLocalStorageClear() {
+	App::wnd()->tempDirDelete(Local::ClearManagerStorage);
+	_storageClearState = TempDirClearing;
 	showAll();
 	update();
 }
@@ -1220,8 +1252,8 @@ void SettingsInner::onLocalImagesClear() {
 void SettingsInner::onTempDirCleared(int task) {
 	if (task & Local::ClearManagerDownloads) {
 		_tempDirClearState = TempDirCleared;
-	} else if (task & Local::ClearManagerImages) {
-		_imagesClearState = TempDirCleared;
+	} else if (task & Local::ClearManagerStorage) {
+		_storageClearState = TempDirCleared;
 	}
 	showAll();
 	update();
@@ -1230,8 +1262,8 @@ void SettingsInner::onTempDirCleared(int task) {
 void SettingsInner::onTempDirClearFailed(int task) {
 	if (task & Local::ClearManagerDownloads) {
 		_tempDirClearState = TempDirClearFailed;
-	} else if (task & Local::ClearManagerImages) {
-		_imagesClearState = TempDirClearFailed;
+	} else if (task & Local::ClearManagerStorage) {
+		_storageClearState = TempDirClearFailed;
 	}
 	showAll();
 	update();

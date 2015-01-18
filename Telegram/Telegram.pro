@@ -270,6 +270,22 @@ INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.1/QtGui\
                /usr/local/include/opus\
                ./SourceFiles\
                ./GeneratedFiles
+
+INCLUDEPATH += "/usr/include/libappindicator-0.1"
+INCLUDEPATH += "/usr/include/gtk-2.0"
+INCLUDEPATH += "/usr/include/glib-2.0"
+INCLUDEPATH += "/usr/lib/x86_64-linux-gnu/glib-2.0/include"
+INCLUDEPATH += "/usr/lib/i386-linux-gnu/glib-2.0/include"
+INCLUDEPATH += "/usr/include/cairo"
+INCLUDEPATH += "/usr/include/pango-1.0"
+INCLUDEPATH += "/usr/lib/x86_64-linux-gnu/gtk-2.0/include"
+INCLUDEPATH += "/usr/lib/i386-linux-gnu/gtk-2.0/include"
+INCLUDEPATH += "/usr/include/gdk-pixbuf-2.0"
+INCLUDEPATH += "/usr/include/atk-1.0"
+
+INCLUDEPATH += "/usr/include/dee-1.0"
+INCLUDEPATH += "/usr/include/libdbusmenu-glib-0.4"
+
 LIBS += -lcrypto -lssl -lz -ldl -llzma -lexif -lopus -lopusfile -logg -lopenal
 LIBS += ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a
 
@@ -279,9 +295,18 @@ RESOURCES += \
 OTHER_FILES += \
     Resources/style_classes.txt \
     Resources/style.txt \
+<<<<<<< HEAD
     Resources/lang.strings
     SourceFiles/langs/lang_it.strings
     SourceFiles/langs/lang_es.strings
     SourceFiles/langs/lang_de.strings
     SourceFiles/langs/lang_nl.strings
     SourceFiles/langs/lang_ko.strings
+=======
+    Resources/lang.strings \
+    SourceFiles/langs/lang_it.strings \
+    SourceFiles/langs/lang_es.strings \
+    SourceFiles/langs/lang_de.strings \
+    SourceFiles/langs/lang_nl.strings \
+    SourceFiles/langs/lang_pt_BR.strings
+>>>>>>> 9e43f1b5de3d44041264ad670ec7456cd419c268

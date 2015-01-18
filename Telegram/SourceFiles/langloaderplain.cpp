@@ -89,7 +89,7 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 		if (varKey == lngkeys_cnt) {
 			warning(QString("Unknown key '%1'!").arg(QLatin1String(varName)));
 		}
-	} else if (!request.contains(varKey)) {
+	} else if (!readingAll && !request.contains(varKey)) {
 		varKey = lngkeys_cnt;
 	}
 	bool readingValue = (varKey != lngkeys_cnt);
@@ -155,13 +155,17 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 					if (*from == '|') {
 						if (from > start) subvarValue.append(start, int(from - start));
 						if (countedIndex >= lngtags_max_counted_values) throw Exception(QString("Too many values inside counted tag '%1' in '%2' key!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
-						if (feedingValue) {
-							LangKey subkey = subkeyIndex(varKey, index, countedIndex++);
-							if (subkey == lngkeys_cnt) {
-								readingValue = false;
-								warning(QString("Unexpected counted tag '%1' in key '%2', not using value.").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
-								break;
-							} else if (!feedKeyValue(subkey, QString::fromUtf8(subvarValue))) throw Exception(QString("Tag '%1' is not counted in key '%2'!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+						LangKey subkey = subkeyIndex(varKey, index, countedIndex++);
+						if (subkey == lngkeys_cnt) {
+							readingValue = false;
+							warning(QString("Unexpected counted tag '%1' in key '%2', not using value.").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+							break;
+						} else {
+							if (feedingValue) {
+								if (!feedKeyValue(subkey, QString::fromUtf8(subvarValue))) throw Exception(QString("Tag '%1' is not counted in key '%2'!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+							} else {
+								foundKeyValue(subkey);
+							}
 						}
 						subvarValue = QByteArray();
 						foundtag = false;
@@ -200,13 +204,17 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 				if (from > start) subvarValue.append(start, int(from - start));
 				if (countedIndex >= lngtags_max_counted_values) throw Exception(QString("Too many values inside counted tag '%1' in '%2' key!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
 
-				if (feedingValue) {
-					LangKey subkey = subkeyIndex(varKey, index, countedIndex++);
-					if (subkey == lngkeys_cnt) {
-						readingValue = false;
-						warning(QString("Unexpected counted tag '%1' in key '%2', not using value.").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
-						break;
-					} else if (!feedKeyValue(subkey, QString::fromUtf8(subvarValue))) throw Exception(QString("Tag '%1' is not counted in key '%2'!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+				LangKey subkey = subkeyIndex(varKey, index, countedIndex++);
+				if (subkey == lngkeys_cnt) {
+					readingValue = false;
+					warning(QString("Unexpected counted tag '%1' in key '%2', not using value.").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+					break;
+				} else {
+					if (feedingValue) {
+						if (!feedKeyValue(subkey, QString::fromUtf8(subvarValue))) throw Exception(QString("Tag '%1' is not counted in key '%2'!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+					} else {
+						foundKeyValue(subkey);
+					}
 				}
 			}
 			start = from + 1;
@@ -225,6 +233,7 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 		if (feedingValue) {
 			if (!feedKeyValue(varKey, QString::fromUtf8(varValue))) throw Exception(QString("Could not write value in key '%1'!").arg(QLatin1String(varName)));
 		} else {
+			foundKeyValue(varKey);
 			result.insert(varKey, QString::fromUtf8(varValue));
 		}
 	}
@@ -232,7 +241,7 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 	return true;
 }
 
-LangLoaderPlain::LangLoaderPlain(const QString &file, const LangLoaderRequest &request) : file(file), request(request) {
+LangLoaderPlain::LangLoaderPlain(const QString &file, const LangLoaderRequest &request) : file(file), request(request), readingAll(request.contains(lngkeys_cnt)) {
 	QFile f(file);
 	if (!f.open(QIODevice::ReadOnly)) {
 		error(qsl("Could not open input file!"));

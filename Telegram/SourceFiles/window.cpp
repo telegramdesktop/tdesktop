@@ -394,13 +394,19 @@ void Window::init() {
 
 void Window::firstShow() {
 #ifdef Q_OS_WIN
-	trayIconMenu = new ContextMenu(this);
+    trayIconMenu = new ContextMenu(this);
 #else
 	trayIconMenu = new QMenu(this);
 	trayIconMenu->setFont(QFont("Tahoma"));
 #endif
-	trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
-	trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
+    if (cPlatform() == dbipWindows || cPlatform() == dbipMac) {
+        trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
+        trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
+    } else {
+        trayIconMenu->addAction(lang(lng_open_from_tray), this, SLOT(showFromTray()))->setEnabled(true);
+        trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
+        trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
+    }
 
 	psFirstShow();
 
@@ -434,6 +440,7 @@ void Window::clearWidgets() {
 		intro->rpcInvalidate();
 		intro = 0;
 	}
+	title->updateBackButton();
 }
 
 void Window::setupIntro(bool anim) {
@@ -707,7 +714,7 @@ void Window::checkHistoryActivation(int state) {
 	if (main && MTP::authedId() && historyIsActive(state)) {
 		main->historyWasRead();
 	}
-	QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
+    QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
 }
 
 void Window::layerHidden() {
@@ -785,7 +792,7 @@ QRect Window::iconRect() const {
 bool Window::eventFilter(QObject *obj, QEvent *evt) {
 	if (obj == App::app() && (evt->type() == QEvent::ApplicationActivate)) {
         QTimer::singleShot(1, this, SLOT(checkHistoryActivation()));
-	} else if (obj == App::app() && (evt->type() == QEvent::FileOpen)) {
+    } else if (obj == App::app() && (evt->type() == QEvent::FileOpen)) {
 		QString url = static_cast<QFileOpenEvent*>(evt)->url().toEncoded();
 		if (!url.trimmed().midRef(0, 5).compare(qsl("tg://"), Qt::CaseInsensitive)) {
 			cSetStartUrl(url);
@@ -828,10 +835,10 @@ void Window::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 bool Window::minimizeToTray() {
-	if (App::quiting() || !trayIcon) return false;
+    if (App::quiting() || !psHasTrayIcon()) return false;
 
 	hide();
-	if (cPlatform() != dbipMac && !cSeenTrayTooltip()) {
+    if (cPlatform() == dbipWindows && trayIcon && !cSeenTrayTooltip()) {
 		trayIcon->showMessage(QString::fromStdWString(AppName), lang(lng_tray_icon_text), QSystemTrayIcon::Information, 10000);
 		cSetSeenTrayTooltip(true);
 		App::writeConfig();
@@ -842,44 +849,26 @@ bool Window::minimizeToTray() {
 	return true;
 }
 
-void Window::setupTrayIcon() {
-	if (!trayIcon) {
-		if (trayIcon) trayIcon->deleteLater();
-		trayIcon = new QSystemTrayIcon(this);
-#ifdef Q_OS_MAC
-		QIcon icon(QPixmap::fromImage(psTrayIcon(), Qt::ColorOnly));
-		icon.addPixmap(QPixmap::fromImage(psTrayIcon(true), Qt::ColorOnly), QIcon::Selected);
-#else
-		QIcon icon(QPixmap::fromImage(iconLarge(), Qt::ColorOnly));
-#endif
-
-		trayIcon->setIcon(icon);
-		trayIcon->setToolTip(QString::fromStdWString(AppName));
-		connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)), Qt::UniqueConnection);
-		if (cPlatform() != dbipMac) {
-			connect(trayIcon, SIGNAL(messageClicked()), this, SLOT(showFromTray()));
-		}
-		updateTrayMenu();
-	}
-	updateCounter();
-
-	trayIcon->show();
-	psUpdateDelegate();
-}
-
 void Window::updateTrayMenu(bool force) {
-    if (!trayIconMenu || (cPlatform() == dbipWindows && !force) || cPlatform() == dbipLinux32 || cPlatform() == dbipLinux64) return;
+    if (!trayIconMenu || (cPlatform() == dbipWindows && !force)) return;
 
-	bool active = psIsActive();
-	QAction *first = trayIconMenu->actions().at(0);
-	first->setText(lang(active ? lng_minimize_to_tray : lng_open_from_tray));
-	disconnect(first, SIGNAL(triggered(bool)), 0, 0);
-	connect(first, SIGNAL(triggered(bool)), this, active ? SLOT(minimizeToTray()) : SLOT(showFromTray()));
+    bool active = psIsActive();
+    if (cPlatform() == dbipWindows || cPlatform() == dbipMac) {
+        QAction *first = trayIconMenu->actions().at(0);
+        first->setText(lang(active ? lng_minimize_to_tray : lng_open_from_tray));
+        disconnect(first, SIGNAL(triggered(bool)), 0, 0);
+        connect(first, SIGNAL(triggered(bool)), this, active ? SLOT(minimizeToTray()) : SLOT(showFromTray()));
 #ifndef Q_OS_WIN
-	if (trayIcon) {
-		trayIcon->setContextMenu((active || cPlatform() != dbipMac) ? trayIconMenu : 0);
-	}
+        if (trayIcon) {
+            trayIcon->setContextMenu((active || cPlatform() != dbipMac) ? trayIconMenu : 0);
+        }
 #endif
+    } else {
+        QAction *second = trayIconMenu->actions().at(1);
+        second->setDisabled(!isVisible());
+    }
+
+    psTrayMenuUpdated();
 }
 
 void Window::onShowAddContact() {
@@ -979,11 +968,11 @@ void Window::noTopWidget(QWidget *w) {
 
 void Window::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 	if (reason != QSystemTrayIcon::Context) {
+        QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
+        QTimer::singleShot(1, this, SLOT(updateGlobalMenu()));
         activate();
 		updateCounter();
 		if (App::main()) App::main()->setOnline(windowState());
-		QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
-		QTimer::singleShot(1, this, SLOT(updateGlobalMenu()));
 	}
 }
 
@@ -1044,11 +1033,11 @@ Window::TempDirState Window::tempDirState() {
 	return QDir(cTempDir()).exists() ? TempDirExists : TempDirEmpty;
 }
 
-Window::TempDirState Window::localImagesState() {
-	if (_clearManager && _clearManager->hasTask(Local::ClearManagerImages)) {
+Window::TempDirState Window::localStorageState() {
+	if (_clearManager && _clearManager->hasTask(Local::ClearManagerStorage)) {
 		return TempDirRemoving;
 	}
-	return Local::hasImages() ? TempDirExists : TempDirEmpty;
+	return (Local::hasImages() || Local::hasStickers() || Local::hasAudios()) ? TempDirExists : TempDirEmpty;
 }
 
 void Window::tempDirDelete(int task) {

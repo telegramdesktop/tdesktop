@@ -59,7 +59,7 @@ namespace Local {
 	enum ClearManagerTask {
 		ClearManagerAll = 0xFFFF,
 		ClearManagerDownloads = 0x01,
-		ClearManagerImages = 0x02,
+		ClearManagerStorage = 0x02,
 	};
 
 	struct ClearManagerData;
@@ -106,6 +106,19 @@ namespace Local {
 	void writeImage(const StorageKey &location, const StorageImageSaved &jpeg, bool overwrite = true);
 	StorageImageSaved readImage(const StorageKey &location);
 	int32 hasImages();
-	qint64 storageFilesSize();
+	qint64 storageImagesSize();
+
+	void writeSticker(const StorageKey &location, const QByteArray &data, bool overwrite = true);
+	QByteArray readSticker(const StorageKey &location);
+	int32 hasStickers();
+	qint64 storageStickersSize();
+
+	void writeAudio(const StorageKey &location, const QByteArray &data, bool overwrite = true);
+	QByteArray readAudio(const StorageKey &location);
+	int32 hasAudios();
+	qint64 storageAudiosSize();
+
+	void writeRecentStickers();
+	void readRecentStickers();
 
 };

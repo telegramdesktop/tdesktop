@@ -336,6 +336,26 @@ const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink) 
 	return (result < end && *result == TextCommand) ? (result + 1) : from;
 }
 
+QString textEmojiString(EmojiPtr emoji) {
+	QString result;
+	result.reserve(emoji->len + (emoji->postfix ? 1 : 0));
+	switch (emoji->len) {
+	case 1: result.append(QChar(emoji->code & 0xFFFF)); break;
+	case 2:
+		result.append(QChar((emoji->code >> 16) & 0xFFFF));
+		result.append(QChar(emoji->code & 0xFFFF));
+		break;
+	case 4:
+		result.append(QChar((emoji->code >> 16) & 0xFFFF));
+		result.append(QChar(emoji->code & 0xFFFF));
+		result.append(QChar((emoji->code2 >> 16) & 0xFFFF));
+		result.append(QChar(emoji->code2 & 0xFFFF));
+		break;
+	}
+	if (emoji->postfix) result.append(QChar(emoji->postfix));
+	return result;
+}
+
 class TextParser {
 public:
 	
@@ -4212,7 +4232,7 @@ LinkRanges textParseLinks(const QString &text, bool rich) {
 					}
 				}
 				if (p > domainEnd) { // check, that domain ended
-					if (domainEnd->unicode() != '/') {
+					if (domainEnd->unicode() != '/' && domainEnd->unicode() != '?') {
 						matchOffset = domainEnd - start;
 						continue;
 					}

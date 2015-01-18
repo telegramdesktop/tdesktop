@@ -32,9 +32,9 @@ void FileUploader::uploadMedia(MsgId msgId, const ReadyLocalMedia &media) {
 	} else if (media.type == ToPrepareDocument) {
 		DocumentData *document;
 		if (media.photoThumbs.isEmpty()) {
-			document = App::feedDocument(MTP::authedId(), media.document);
+			document = App::feedDocument(media.document);
 		} else {
-			document = App::feedDocument(MTP::authedId(), media.document, media.photoThumbs.begin().value());
+			document = App::feedDocument(media.document, media.photoThumbs.begin().value());
 		}
 		document->status = FileUploading;
 		if (!media.file.isEmpty()) {
@@ -116,7 +116,7 @@ void FileUploader::sendNext() {
 
 					MTPInputFile doc = (i->docSize > UseBigFilesFrom) ? MTP_inputFileBig(MTP_long(i->media.id), MTP_int(i->docPartsCount), MTP_string(i->media.filename)) : MTP_inputFile(MTP_long(i->media.id), MTP_int(i->docPartsCount), MTP_string(i->media.filename), MTP_string(docMd5));
 					if (i->partsCount) {
-						emit thumbDocumentReady(uploading, doc, MTP_inputFile(MTP_long(i->media.jpeg_id), MTP_int(i->partsCount), MTP_string(i->media.filename), MTP_string(i->media.jpeg_md5)));
+						emit thumbDocumentReady(uploading, doc, MTP_inputFile(MTP_long(i->media.thumbId), MTP_int(i->partsCount), MTP_string(qsl("thumb.") + i->media.thumbExt), MTP_string(i->media.jpeg_md5)));
 					} else {
 						emit documentReady(uploading, doc);
 					}
@@ -166,7 +166,7 @@ void FileUploader::sendNext() {
 	} else {
 		LocalFileParts::iterator part = i->media.parts.begin();
 	
-		mtpRequestId requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(i->media.jpeg_id), MTP_int(part.key()), MTP_string(part.value())), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::upl[todc]);
+		mtpRequestId requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(i->media.thumbId), MTP_int(part.key()), MTP_string(part.value())), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::upl[todc]);
 		requestsSent.insert(requestId, part.value());
 		dcMap.insert(requestId, todc);
 		sentSize += part.value().size();

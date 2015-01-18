@@ -26,6 +26,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "boxes/confirmbox.h"
 
+#include "localstorage.h"
+
 #include "audio.h"
 
 TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w),
@@ -658,6 +660,52 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 		History *h = App::historyLoaded(peer->id);
 		if (!h->last) {
 			h->addToBack((*v)[0], 0);
+		}
+	}
+}
+
+bool MainWidget::sendPhotoFailed(uint64 randomId, const RPCError &e) {
+	if (e.type() == qsl("PHOTO_INVALID_DIMENSIONS")) {
+		if (_resendImgRandomIds.isEmpty()) {
+			ConfirmBox *box = new ConfirmBox(lang(lng_bad_image_for_photo));
+			connect(box, SIGNAL(confirmed()), this, SLOT(onResendAsDocument()));
+			connect(box, SIGNAL(cancelled()), this, SLOT(onCancelResend()));
+			connect(box, SIGNAL(destroyed()), this, SLOT(onCancelResend()));
+			App::wnd()->showLayer(box);
+		}
+		_resendImgRandomIds.push_back(randomId);
+		return true;
+	}
+	return false;
+}
+
+void MainWidget::onResendAsDocument() {
+	QList<uint64> tmp = _resendImgRandomIds;
+	_resendImgRandomIds.clear();
+	for (int32 i = 0, l = tmp.size(); i < l; ++i) {
+		if (HistoryItem *item = App::histItemById(App::histItemByRandom(tmp.at(i)))) {
+			if (HistoryPhoto *media = dynamic_cast<HistoryPhoto*>(item->getMedia())) {
+				PhotoData *photo = media->photo();
+				if (!photo->full->isNull()) {
+					photo->full->forget();
+					QByteArray data = photo->full->savedData();
+					if (!data.isEmpty()) {
+						history.uploadMedia(data, ToPrepareDocument, item->history()->peer->id);
+					}
+				}
+			}
+			item->destroy();
+		}
+	}
+	App::wnd()->layerHidden();
+}
+
+void MainWidget::onCancelResend() {
+	QList<uint64> tmp = _resendImgRandomIds;
+	_resendImgRandomIds.clear();
+	for (int32 i = 0, l = tmp.size(); i < l; ++i) {
+		if (HistoryItem *item = App::histItemById(App::histItemByRandom(tmp.at(i)))) {
+			item->destroy();
 		}
 	}
 }
@@ -2121,6 +2169,8 @@ void MainWidget::start(const MTPUser &user) {
 	}
 	_started = true;
 	App::wnd()->sendServiceHistoryRequest();
+	Local::readRecentStickers();
+	history.updateRecentStickers();
 }
 
 bool MainWidget::started() {
@@ -2265,6 +2315,45 @@ void MainWidget::updateNotifySetting(PeerData *peer, bool enabled) {
 	}
 	App::history(peer->id)->setMute(!enabled);
 	updateNotifySettingTimer.start(NotifySettingSaveTimeout);
+}
+
+void MainWidget::incrementSticker(DocumentData *sticker) {
+	RecentStickerPack recent(cRecentStickers());
+	RecentStickerPack::iterator i = recent.begin(), e = recent.end();
+	for (; i != e; ++i) {
+		if (i->first == sticker) {
+			if (i->second > 0) {
+				++i->second;
+			} else {
+				--i->second;
+			}
+			if (qAbs(i->second) > 0x4000) {
+				for (RecentStickerPack::iterator j = recent.begin(); j != e; ++j) {
+					if (qAbs(j->second) > 1) {
+						j->second /= 2;
+					} else if (j->second > 0) {
+						j->second = 1;
+					} else {
+						j->second = -1;
+					}
+				}
+			}
+			for (; i != recent.begin(); --i) {
+				if (qAbs((i - 1)->second) > qAbs(i->second)) {
+					break;
+				}
+				qSwap(*i, *(i - 1));
+			}
+			break;
+		}
+	}
+	if (i == e) {
+		recent.push_front(qMakePair(sticker, -(recent.isEmpty() ? 1 : qAbs(recent.front().second))));
+	}
+	cSetRecentStickers(recent);
+	Local::writeRecentStickers();
+
+	history.updateRecentStickers();
 }
 
 void MainWidget::activate() {

@@ -115,11 +115,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_code_calling" = "Oproepverzoek versturen naar Telegram";
 "lng_code_called" = "Telegram heeft je nummer gebeld";
 
-"lng_bad_phone" = "Ongeldig telefoonnummer. Probeer het opnieuw.";
+"lng_bad_phone" = "Ongeldig telefoonnummer. \nProbeer het opnieuw.";
 "lng_bad_phone_noreg" = "Telefoonnummer is niet geregistreerd.";
-"lng_bad_code" = "Je hebt een ongeldige code ingevoerd. Probeer het opnieuw.";
+"lng_bad_code" = "Je hebt een ongeldige code ingevoerd. \nProbeer het opnieuw.";
 "lng_bad_name" = "Voer je voor- en achternaam in.";
 "lng_bad_photo" = "Ongeldig bestand gekozen.";
+
+"lng_bad_image_for_photo" = "Kan afbeelding zo niet versturen.\nAls bestand versturen?";
 
 "lng_signup_title" = "Informatie en foto";
 "lng_signup_desc" = "Voer je naam en\nupload een foto.";
@@ -190,7 +192,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_send_enter" = "Versturen met Enter";
 "lng_settings_send_ctrlenter" = "Versturen met Ctrl+Enter";
 "lng_settings_send_cmdenter" = "Versturen met Cmd+Enter";
-"lng_settings_cats_and_dogs" = "Katten en honden toestaan";
+"lng_settings_cats_and_dogs" = "Kat en hond op achtergrond";
 
 "lng_download_path_dont_ask" = "Niet voor iedere download vragen";
 "lng_download_path_label" = "Downloadpad:";
@@ -199,8 +201,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_download_path_clear" = "Alles wissen";
 "lng_download_path_header" = "Downloadmap kiezen";
 "lng_download_path_default_radio" = "Telegram-map  «Downloads»";
-"lng_download_path_temp_radio" = "Temp map, bij uitloggen of deïnstallatie opschonen\nAangepaste map, handmatig opschonen";
-"lng_download_path_dir_radio" = "Aangepaste map, handmatig opschonen";
+"lng_download_path_temp_radio" = "Temp map, schonen bij uitloggen of deïnstallatie";
+"lng_download_path_dir_radio" = "Aangepaste map, handmatig schonen";
 "lng_download_path_choose" = "Downloadmap kiezen";
 "lng_sure_clear_downloads" = "Wil je all gedownloaden bestanden wissen uit de tijdelijk map? Dit gebeurt automatisch bij uitloggen of deïnstallatie.";
 "lng_download_path_failed" = "Download kon niet worden gestart. De oorzaak kan een ongeldige downloadmap zijn.\n\nJe kunt de map aanpassen via instellingen.";
@@ -211,12 +213,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_download_path_clear_failed" = "Wissen mislukt";
 
 "lng_settings_section_cache" = "Lokale opslag";
-"lng_settings_no_images_cached" = "Geen cache-afbeeldingen gevonden!";
-"lng_settings_images_cached" = "Cache: {count:_not_used_|# image|# images}, {size}";
-"lng_local_images_clear" = "Alles wissen";
-"lng_local_images_clearing" = "Wissen";
-"lng_local_images_cleared" = "Gewist!";
-"lng_local_images_clear_failed" = "Wissen mislukt";
+"lng_settings_no_data_cached" = "Geen cache-data gevonden!";
+"lng_settings_images_cached" = "{count:_not_used_|# afbeelding|# afbeeldingen}, {size}";
+"lng_settings_audios_cached" = "{count:_not_used_|# spraakbericht|# spraakberichten}, {size}";
+"lng_local_storage_clear" = "Alles wissen";
+"lng_local_storage_clearing" = "Wissen";
+"lng_local_storage_cleared" = "Gewist!";
+"lng_local_storage_clear_failed" = "Wissen mislukt";
 
 "lng_settings_section_advanced" = "Geavanceerd";
 "lng_connection_type" = "Verbindingstype:";
@@ -325,6 +328,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio" = "Geluidsbestand";
 "lng_in_dlg_document" = "Bestand";
 "lng_in_dlg_sticker" = "Sticker";
+"lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
 
 "lng_send_button" = "Stuur";
 "lng_message_ph" = "Bericht schrijven";
@@ -426,7 +430,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_selected_delete_confirm" = "Verwijder";
 
 "lng_about_version" = "Versie {version}";
-"lng_about_text" = "Officiële Telegram app gebaseerd op [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] en de\n[a href=\"https://core.telegram.org/api\"]Telegram API[/a] voor snelheid en veiligheid.\n\nDeze software valt onder [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versie 3,\nDe broncode is beschikbaar via [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_text" = "Officiële Telegram app gebaseerd op [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] en \nde [a href=\"https://core.telegram.org/api\"]Telegram API[/a] voor snelheid en veiligheid.\n\nDeze software valt onder [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versie 3,\nDe broncode is beschikbaar via [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 "lng_about_done" = "Gereed";
 
 "lng_search_found_results" = "{count:geen berichten gevonden|# berichten gevonden|# berichten gevonden}";
@@ -448,7 +452,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\nEr is op je account ingelogd vanaf een nieuw apparaat op {day}, {date} om {time}\n\nApparaat: {device}\nLocatie: {location}\n\nAls jij dit niet was, kun je alle sessies beëindigen via Instellingen – Beëindig alle andere sessies.\n\nBedankt,\nHet Telegram-Team";
 
-"lng_new_version7004" = "Telegram is bijgewerkt naar versie {version}\n\n— Nederlands en Duits zijn toegevoegd.\n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
+"lng_new_version7007" = "Telegram is bijgewerkt naar versie {version}\n\n— Systeemvakicoon toegevoegd aan Ubuntu.\n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
+"lng_new_version7006_appstore" = "Telegram is bijgewerkt naar versie {version}\n\n— Ondersteuning voor Stickers\n— Lokale cache voor spraakberichten\n— Nieuwe talen toegevoegd\n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 
 // Mac specific
 
@@ -461,8 +466,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mac_this_app_can_open" = "Dit programma kan \"{file}\" openen.";
 "lng_mac_not_known_app" = "Het is niet bekend of dit programma \"{file}\" kan openen.";
 
-"lng_mac_menu_about" = "Over Telegram";
+"lng_mac_menu_services" = "Voorzieningen";
+"lng_mac_menu_hide_telegram" = "Verberg {telegram}";
+"lng_mac_menu_hide_others" = "Verberg andere";
+"lng_mac_menu_show_all" = "Toon alles";
 "lng_mac_menu_preferences" = "Voorkeuren";
+"lng_mac_menu_quit_telegram" = "Stop {telegram}";
+"lng_mac_menu_about_telegram" = "Over {telegram}";
 "lng_mac_menu_file" = "Bestand";
 "lng_mac_menu_logout" = "Uitloggen";
 "lng_mac_menu_edit" = "Wijzig";

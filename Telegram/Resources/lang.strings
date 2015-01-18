@@ -121,6 +121,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_name" = "Please enter your first and last name.";
 "lng_bad_photo" = "Bad image selected.";
 
+"lng_bad_image_for_photo" = "This image can't be sent that way.\nWould you like to send it as a document?";
+
 "lng_signup_title" = "Information and photo";
 "lng_signup_desc" = "Please enter your name and\nupload a photo.";
 
@@ -163,7 +165,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_notification_preview" = "You have a new message";
 
 "lng_settings_section_general" = "General";
-"lng_settings_change_lang" = "Change Language";
+"lng_settings_change_lang" = "Change language";
 "lng_languages" = "Languages";
 "lng_sure_save_language" = "Telegram will restart\nin order to change language";
 "lng_settings_auto_update" = "Update automatically";
@@ -196,7 +198,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_download_path_label" = "Download path:";
 "lng_download_path_temp" = "temp folder";
 "lng_download_path_default" = "default folder";
-"lng_download_path_clear" = "Clear All";
+"lng_download_path_clear" = "Clear all";
 "lng_download_path_header" = "Choose download path";
 "lng_download_path_default_radio" = "Telegram folder in system «Downloads»";
 "lng_download_path_temp_radio" = "Temp folder, cleared on logout or uninstall";
@@ -211,12 +213,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_download_path_clear_failed" = "Clear failed :(";
 
 "lng_settings_section_cache" = "Local storage";
-"lng_settings_no_images_cached" = "No cached images found!";
-"lng_settings_images_cached" = "Cached: {count:_not_used_|# image|# images}, {size}";
-"lng_local_images_clear" = "Clear All";
-"lng_local_images_clearing" = "Clearing..";
-"lng_local_images_cleared" = "Cleared!";
-"lng_local_images_clear_failed" = "Clear failed :(";
+"lng_settings_no_data_cached" = "No cached data found!";
+"lng_settings_images_cached" = "{count:_not_used_|# image|# images}, {size}";
+"lng_settings_audios_cached" = "{count:_not_used_|# voice message|# voice messages}, {size}";
+"lng_local_storage_clear" = "Clear all";
+"lng_local_storage_clearing" = "Clearing..";
+"lng_local_storage_cleared" = "Cleared!";
+"lng_local_storage_clear_failed" = "Clear failed :(";
 
 "lng_settings_section_advanced" = "Advanced";
 "lng_connection_type" = "Connection type:";
@@ -325,6 +328,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio" = "Audio";
 "lng_in_dlg_document" = "Document";
 "lng_in_dlg_sticker" = "Sticker";
+"lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
 
 "lng_send_button" = "Send";
 "lng_message_ph" = "Write a message..";
@@ -448,7 +452,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\nWe detected a login into your account from a new device on {day}, {date} at {time}\n\nDevice: {device}\nLocation: {location}\n\nIf this wasn't you, you can go to Settings — Terminate other sessions.\n\nThanks,\nThe Telegram Team";
 
-"lng_new_version7004" = "Telegram Desktop was updated to version {version}\n\n — German and Dutch languages added.\n\nFull version history is available here:\n{link}";
+"lng_new_version7007" = "Telegram Desktop was updated to version {version}\n\n — Tray icon added in Ubuntu\n\nFull version history is available here:\n{link}";
+"lng_new_version7006_appstore" = "Telegram Desktop was updated to version {version}\n\n — Stickers support\n — Local caching for voice messages\n — Added new languages\n\nFull version history is available here:\n{link}";
 
 // Mac specific
 
@@ -461,8 +466,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mac_this_app_can_open" = "This application can open \"{file}\".";
 "lng_mac_not_known_app" = "It's not known if this application can open \"{file}\".";
 
-"lng_mac_menu_about" = "About Telegram";
+"lng_mac_menu_services" = "Services";
+"lng_mac_menu_hide_telegram" = "Hide {telegram}";
+"lng_mac_menu_hide_others" = "Hide Others";
+"lng_mac_menu_show_all" = "Show All";
 "lng_mac_menu_preferences" = "Preferences...";
+"lng_mac_menu_quit_telegram" = "Quit {telegram}";
+"lng_mac_menu_about_telegram" = "About {telegram}";
 "lng_mac_menu_file" = "File";
 "lng_mac_menu_logout" = "Log Out";
 "lng_mac_menu_edit" = "Edit";

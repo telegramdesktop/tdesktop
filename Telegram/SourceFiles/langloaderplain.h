@@ -54,6 +54,7 @@ protected:
 
 	bool readKeyValue(const char *&from, const char *end);
 
+	bool readingAll;
 	LangLoaderResult result;
 
 };

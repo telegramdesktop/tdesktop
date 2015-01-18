@@ -42,6 +42,11 @@ bool gSendToMenu = false;
 bool gAutoUpdate = true;
 TWindowPos gWindowPos;
 bool gFromAutoStart = false;
+#if defined Q_OS_WIN || defined Q_OS_MAC
+bool gSupportTray = true;
+#else
+bool gSupportTray = false;
+#endif
 DBIWorkMode gWorkMode = dbiwmWindowAndTray;
 DBIConnectionType gConnectionType = dbictAuto;
 ConnectionProxy gConnectionProxy;
@@ -71,6 +76,13 @@ bool gCompressPastedImage = true;
 DBIEmojiTab gEmojiTab = dbietRecent;
 RecentEmojiPack gRecentEmojis;
 RecentEmojiPreload gRecentEmojisPreload;
+
+AllStickers gStickers;
+QByteArray gStickersHash;
+
+EmojiStickersMap gEmojiStickers;
+
+RecentStickerPack gRecentStickers;
 
 int32 gLang = -2; // auto
 QString gLangFile;
@@ -147,7 +159,7 @@ void settingsParseArgs(int argc, char *argv[]) {
 const RecentEmojiPack &cGetRecentEmojis() {
 	if (cRecentEmojis().isEmpty()) {
 		RecentEmojiPack r;
-		if (!cRecentEmojisPreload().isEmpty()) {
+		if (false && !cRecentEmojisPreload().isEmpty()) {
 			RecentEmojiPreload p(cRecentEmojisPreload());
 			cSetRecentEmojisPreload(RecentEmojiPreload());
 			r.reserve(p.size());

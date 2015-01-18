@@ -651,7 +651,7 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 	if (data->status != FileReady) return;
 
 	QString name = data->name, filter;
-	QMimeType mimeType = QMimeDatabase().mimeTypeForName(data->mime);
+	MimeType mimeType = mimeTypeForName(data->mime);
 	QStringList p = mimeType.globPatterns();
 	QString pattern = p.isEmpty() ? QString() : p.front();
 	if (name.isEmpty()) {
@@ -682,7 +682,7 @@ void DocumentSaveLink::doSave(bool forceSavingAs) const {
 	} else {
 		QDir alreadyDir(already.isEmpty() ? QDir() : QFileInfo(already).dir());
 		QString name = already.isEmpty() ? data->name : already, filter;
-		QMimeType mimeType = QMimeDatabase().mimeTypeForName(data->mime);
+		MimeType mimeType = mimeTypeForName(data->mime);
 		QStringList p = mimeType.globPatterns();
 		QString pattern = p.isEmpty() ? QString() : p.front();
 		if (name.isEmpty()) {
@@ -720,8 +720,8 @@ void DocumentCancelLink::onClick(Qt::MouseButton button) const {
 	data->cancel();
 }
 
-DocumentData::DocumentData(int32 user, const DocumentId &id, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) :
-user(user), id(id), type(FileDocument), duration(0), access(access), date(date), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+DocumentData::DocumentData(const DocumentId &id, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) :
+id(id), type(FileDocument), duration(0), access(access), date(date), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
 	setattributes(attributes);
 	location = Local::readFileLocation(mediaKey(mtpc_inputDocumentFileLocation, dc, id));
 }
@@ -1289,27 +1289,14 @@ HistoryItem *History::createItemForwarded(HistoryBlock *block, MsgId id, History
 	return regItem(result);
 }
 
-/*
-HistoryItem *History::createItem(HistoryBlock *block, const MTPgeoChatMessage &msg, bool newMsg) {
+HistoryItem *History::createItemDocument(HistoryBlock *block, MsgId id, bool out, bool unread, QDateTime date, int32 from, DocumentData *doc) {
 	HistoryItem *result = 0;
 
-	switch (msg.type()) {
-	case mtpc_geoChatMessageEmpty:
-		result = new HistoryServiceMsg(this, block, msg.c_geoChatMessageEmpty().vid.v, date(), lang(lng_message_empty));
-	break;
-
-	case mtpc_geoChatMessage:
-		result = new HistoryMessage(this, block, msg.c_geoChatMessage());
-	break;
-
-	case mtpc_geoChatMessageService:
-		result = new HistoryServiceMsg(this, block, msg.c_geoChatMessageService());
-	break;
-	}
+	result = new HistoryMessage(this, block, id, out, unread, date, from, doc);
 
 	return regItem(result);
 }
-/**/
+
 HistoryItem *History::addToBackService(MsgId msgId, QDateTime date, const QString &text, bool out, bool unread, HistoryMedia *media, bool newMsg) {
 	HistoryBlock *to = 0;
 	bool newBlock = isEmpty();
@@ -1348,8 +1335,7 @@ HistoryItem *History::addToBackForwarded(MsgId id, HistoryMessage *item) {
 	return doAddToBack(to, newBlock, createItemForwarded(to, id, item), true);
 }
 
-/*
-HistoryItem *History::addToBack(const MTPgeoChatMessage &msg, bool newMsg) {
+HistoryItem *History::addToBackDocument(MsgId id, bool out, bool unread, QDateTime date, int32 from, DocumentData *doc) {
 	HistoryBlock *to = 0;
 	bool newBlock = isEmpty();
 	if (newBlock) {
@@ -1357,10 +1343,8 @@ HistoryItem *History::addToBack(const MTPgeoChatMessage &msg, bool newMsg) {
 	} else {
 		to = back();
 	}
-
-	return doAddToBack(to, newBlock, createItem(to, msg, newMsg), newMsg);
+	return doAddToBack(to, newBlock, createItemDocument(to, id, out, unread, date, from, doc), true);
 }
-/**/
 
 void History::createInitialDateBlock(const QDateTime &date) {
 	HistoryBlock *dateBlock = new HistoryBlock(this); // date block
@@ -2163,12 +2147,14 @@ HistoryItem *regItem(HistoryItem *item, bool returnExisting) {
 }
 
 HistoryPhoto::HistoryPhoto(const MTPDphoto &photo, int32 width) : HistoryMedia(width)
+, pixw(1), pixh(1)
 , data(App::feedPhoto(photo))
 , openl(new PhotoLink(data)) {
 	init();
 }
 
 HistoryPhoto::HistoryPhoto(PeerData *chat, const MTPDphoto &photo, int32 width) : HistoryMedia(width)
+, pixw(1), pixh(1)
 , data(App::feedPhoto(photo))
 , openl(new PhotoLink(data, chat)) {
 	init();
@@ -2190,18 +2176,13 @@ void HistoryPhoto::initDimensions(const HistoryItem *parent) {
 	} else {
 		thumbh = w; // square chat photo updates
 	}
-	_maxw = w;
-	_height = _minh = thumbh;
-	if (_maxw < st::minPhotoWidth) {
-		_maxw = st::minPhotoWidth;
-	}
-	if (_height < st::minPhotoHeight) {
-		_height = st::minPhotoHeight;
-	}
+	_maxw = qMax(w, int32(st::minPhotoSize));
+	_minh = qMax(thumbh, int32(st::minPhotoSize));
+	_height = resize(w, true, parent);
 }
 
 int32 HistoryPhoto::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
-	w = qMin(width, _maxw);
+	pixw = qMin(width, _maxw);
 
 	int32 tw = convertScale(data->full->width()), th = convertScale(data->full->height());
 	if (tw > st::maxMediaSize) {
@@ -2212,22 +2193,20 @@ int32 HistoryPhoto::resize(int32 width, bool dontRecountText, const HistoryItem 
 		tw = (st::maxMediaSize * tw) / th;
 		th = st::maxMediaSize;
 	}
-	_height = th;
-	if (tw > w) {
-		_height = (w * _height / tw);
+	pixh = th;
+	if (tw > pixw) {
+		pixh = (pixw * pixh / tw);
 	} else {
-		w = tw;
+		pixw = tw;
 	}
-	if (_height > width) {
-		w = (w * width) / _height;
-		_height = width;
+	if (pixh > width) {
+		pixw = (pixw * width) / pixh;
+		pixh = width;
 	}
-	if (w < st::minPhotoWidth) {
-		w = st::minPhotoWidth;
-	}
-	if (_height < st::minPhotoHeight) {
-		_height = st::minPhotoHeight;
-	}
+	if (pixw < 1) pixw = 1;
+	if (pixh < 1) pixh = 1;
+	w = qMax(pixw, int16(st::minPhotoSize));
+	_height = qMax(pixh, int16(st::minPhotoSize));
 	return _height;
 }
 
@@ -2297,16 +2276,14 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	bool full = data->full->loaded();
 	QPixmap pix;
 	if (full) {
-		pix = data->full->pixSingle(width);
+		pix = data->full->pixSingle(pixw, pixh);
 	} else {
-		pix = data->thumb->pixBlurredSingle(width);
+		pix = data->thumb->pixBlurredSingle(pixw, pixh);
 	}
-	if (pix.height() >= _height * cIntRetinaFactor()) {
-		p.drawPixmap(QPoint(0, 0), pix, QRect(0, (pix.height() - _height * cIntRetinaFactor()) / 2, width * cIntRetinaFactor(), _height * cIntRetinaFactor()));
-	} else {
-		int32 usewidth = (width * pix.height()) / (_height * cIntRetinaFactor());
-		p.drawPixmap(QRect(0, 0, width, _height), pix, QRect((width - usewidth) * cIntRetinaFactor() / 2, 0, usewidth * cIntRetinaFactor(), pix.height()));
+	if (pixw < width || pixh < _height) {
+		p.fillRect(QRect(0, 0, width, _height), st::black->b);
 	}
+	p.drawPixmap(QPoint((width - pixw) / 2, (_height - pixh) / 2), pix);
 	if (!full) {
 		uint64 dt = itemAnimations().animate(parent, getms());
 		int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
@@ -2346,6 +2323,9 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	int32 dateH = _height - dateY - st::msgDateImgDelta;
 
 	p.fillRect(dateX, dateY, dateW, dateH, st::msgDateImgBg->b);
+	if (selected) {
+		p.fillRect(dateX, dateY, dateW, dateH, textstyleCurrent()->selectOverlay->b);
+	}
 	p.setFont(st::msgDateFont->f);
 	p.setPen(st::msgDateImgColor->p);
 	p.drawText(dateX + st::msgDateImgPadding.x(), dateY + st::msgDateImgPadding.y() + st::msgDateFont->ascent, time);
@@ -2678,7 +2658,7 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	}
 	p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), App::sprite(), img);
 	if (selected) {
-		p.fillRect(st::mediaPadding.left(), st::mediaPadding.top(), st::mediaThumbSize, st::mediaThumbSize, (out ? st::msgOutSelectOverlay : st::msgInSelectOverlay)->b);
+		p.fillRect(st::mediaPadding.left(), st::mediaPadding.top(), st::mediaThumbSize, st::mediaThumbSize, textstyleCurrent()->selectOverlay->b);
 	}
 
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
@@ -2860,7 +2840,7 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 		if (width >= animated.w) {
 			p.drawPixmap(0, 0, animated.frames[animated.frame]);
 			if (selected) {
-				p.fillRect(0, 0, animated.w, animated.h, (out ? st::msgOutSelectOverlay : st::msgInSelectOverlay)->b);
+				p.fillRect(0, 0, animated.w, animated.h, textstyleCurrent()->selectOverlay->b);
 			}
 		} else {
 			bool s = p.renderHints().testFlag(QPainter::SmoothPixmapTransform);
@@ -2870,7 +2850,7 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 			p.drawPixmap(QRect(0, 0, width, h), animated.frames[animated.frame]);
 			if (!s) p.setRenderHint(QPainter::SmoothPixmapTransform, false);
 			if (selected) {
-				p.fillRect(0, 0, width, h, (out ? st::msgOutSelectOverlay : st::msgInSelectOverlay)->b);
+				p.fillRect(0, 0, width, h, textstyleCurrent()->selectOverlay->b);
 			}
 		}
 		return;
@@ -2914,7 +2894,7 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 		p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), App::sprite(), (out ? st::mediaDocOutImg : st::mediaDocInImg));
 	}
 	if (selected) {
-		p.fillRect(st::mediaPadding.left(), st::mediaPadding.top(), st::mediaThumbSize, st::mediaThumbSize, (out ? st::msgOutSelectOverlay : st::msgInSelectOverlay)->b);
+		p.fillRect(st::mediaPadding.left(), st::mediaPadding.top(), st::mediaThumbSize, st::mediaThumbSize, textstyleCurrent()->selectOverlay->b);
 	}
 
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
@@ -2988,7 +2968,7 @@ void HistoryDocument::unregItem(HistoryItem *item) {
 
 void HistoryDocument::updateFrom(const MTPMessageMedia &media) {
 	if (media.type() == mtpc_messageMediaDocument) {
-		App::feedDocument(data->user, media.c_messageMediaDocument().vdocument, data);
+		App::feedDocument(media.c_messageMediaDocument().vdocument, data);
 	}
 }
 
@@ -3074,28 +3054,45 @@ HistoryMedia *HistoryDocument::clone() const {
 }
 
 HistorySticker::HistorySticker(DocumentData *document, int32 width) : HistoryMedia(width)
-, data(document)
+, pixw(1), pixh(1), data(document)
 {
 	data->thumb->load();
+	updateStickerEmoji();
+}
+
+bool HistorySticker::updateStickerEmoji() {
+	const EmojiStickersMap &stickers(cEmojiStickers());
+	EmojiStickersMap::const_iterator i = stickers.constFind(data);
+	QString emoji = (i == stickers.cend()) ? QString() : textEmojiString(i.value());
+	if (emoji != _emoji) {
+		_emoji = emoji;
+		return true;
+	}
+	return false;
 }
 
 void HistorySticker::initDimensions(const HistoryItem *parent) {
-	_maxw = data->dimensions.width();
-	_minh = data->dimensions.height();
-	if (_maxw > st::msgMinWidth) {
-		_minh = (st::msgMinWidth * _minh) / _maxw;
-		_maxw = st::msgMinWidth;
+	pixw = data->dimensions.width();
+	pixh = data->dimensions.height();
+	if (pixw > st::maxStickerSize) {
+		pixh = (st::maxStickerSize * pixh) / pixw;
+		pixw = st::maxStickerSize;
 	}
-	if (_minh > st::maxMediaSize) {
-		_maxw = (st::maxMediaSize * _maxw) / _minh;
-		_minh = st::maxMediaSize;
+	if (pixh > st::maxStickerSize) {
+		pixw = (st::maxStickerSize * pixw) / pixh;
+		pixh = st::maxStickerSize;
 	}
+	if (pixw < 1) pixw = 1;
+	if (pixh < 1) pixh = 1;
+	_maxw = qMax(pixw, int16(st::minPhotoSize));
+	_minh = qMax(pixh, int16(st::minPhotoSize));
 	_height = resize(w, true, parent);
 }
 
 void HistorySticker::draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const {
 	if (width < 0) width = w;
 	if (width < 1) return;
+	if (width > _maxw) width = _maxw;
 
 	bool out = parent->out(), hovered, pressed, already = !data->already().isEmpty(), hasdata = !data->data.isEmpty();
 	if (!data->loader && data->status != FileFailed && !already && !hasdata) {
@@ -3108,13 +3105,18 @@ void HistorySticker::draw(QPainter &p, const HistoryItem *parent, bool selected,
 			data->sticker = ImagePtr(data->data);
 		}
 	}
-	if (data->sticker->isNull()) {
-		p.drawPixmap(0, 0, data->thumb->pix(_maxw));
-	} else {
-		p.drawPixmap(0, 0, data->sticker->pix(_maxw));
-	}
 	if (selected) {
-		p.fillRect(0, 0, _maxw, _minh, (out ? st::msgOutSelectOverlay : st::msgInSelectOverlay)->b);
+		if (data->sticker->isNull()) {
+			p.drawPixmap(QPoint((_maxw - pixw) / 2, (_minh - pixh) / 2), data->thumb->pixBlurredColored(st::msgStickerOverlay, pixw, pixh));
+		} else {
+			p.drawPixmap(QPoint((_maxw - pixw) / 2, (_minh - pixh) / 2), data->sticker->pixColored(st::msgStickerOverlay, pixw, pixh));
+		}
+	} else {
+		if (data->sticker->isNull()) {
+			p.drawPixmap(QPoint((_maxw - pixw) / 2, (_minh - pixh) / 2), data->thumb->pixBlurred(pixw, pixh));
+		} else {
+			p.drawPixmap(QPoint((_maxw - pixw) / 2, (_minh - pixh) / 2), data->sticker->pix(pixw, pixh));
+		}
 	}
 
 	// date
@@ -3129,6 +3131,9 @@ void HistorySticker::draw(QPainter &p, const HistoryItem *parent, bool selected,
 	int32 dateH = _height - dateY - st::msgDateImgDelta;
 
 	p.fillRect(dateX, dateY, dateW, dateH, st::msgDateImgBg->b);
+	if (selected) {
+		p.fillRect(dateX, dateY, dateW, dateH, textstyleCurrent()->selectOverlay->b);
+	}
 	p.setFont(st::msgDateFont->f);
 	p.setPen(st::msgDateImgColor->p);
 	p.drawText(dateX + st::msgDateImgPadding.x(), dateY + st::msgDateImgPadding.y() + st::msgDateFont->ascent, time);
@@ -3158,7 +3163,8 @@ void HistorySticker::unregItem(HistoryItem *item) {
 
 void HistorySticker::updateFrom(const MTPMessageMedia &media) {
 	if (media.type() == mtpc_messageMediaDocument) {
-		App::feedDocument(data->user, media.c_messageMediaDocument().vdocument, data);
+		App::feedDocument(media.c_messageMediaDocument().vdocument, data);
+		if (App::main()) App::main()->incrementSticker(data);
 	}
 }
 
@@ -3169,11 +3175,11 @@ int32 HistorySticker::resize(int32 width, bool dontRecountText, const HistoryIte
 }
 
 const QString HistorySticker::inDialogsText() const {
-	return lang(lng_in_dlg_sticker);
+	return _emoji.isEmpty() ? lang(lng_in_dlg_sticker) : lng_in_dlg_sticker_emoji(lt_emoji, _emoji);
 }
 
 const QString HistorySticker::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_sticker) + qsl(" ]");
+	return qsl("[ ") + inDialogsText() + qsl(" ]");
 }
 
 bool HistorySticker::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
@@ -3729,7 +3735,7 @@ int32 HistoryImageLink::fullWidth() const {
 		case GoogleMapsLink: return st::locationSize.width();
 		}
 	}
-	return st::minPhotoWidth;
+	return st::minPhotoSize;
 }
 
 int32 HistoryImageLink::fullHeight() const {
@@ -3741,22 +3747,22 @@ int32 HistoryImageLink::fullHeight() const {
 		case GoogleMapsLink: return st::locationSize.height();
 		}
 	}
-	return st::minPhotoHeight;
+	return st::minPhotoSize;
 }
 
 void HistoryImageLink::initDimensions(const HistoryItem *parent) {
 	int32 tw = convertScale(fullWidth()), th = convertScale(fullHeight());
-	int32 thumbw = qMax(tw, int32(st::minPhotoWidth)), maxthumbh = thumbw;
+	int32 thumbw = qMax(tw, int32(st::minPhotoSize)), maxthumbh = thumbw;
 	int32 thumbh = qRound(th * float64(thumbw) / tw);
 	if (thumbh > maxthumbh) {
 		thumbw = qRound(thumbw * float64(maxthumbh) / thumbh);
 		thumbh = maxthumbh;
-		if (thumbw < st::minPhotoWidth) {
-			thumbw = st::minPhotoWidth;
+		if (thumbw < st::minPhotoSize) {
+			thumbw = st::minPhotoSize;
 		}
 	}
-	if (thumbh < st::minPhotoHeight) {
-		thumbh = st::minPhotoHeight;
+	if (thumbh < st::minPhotoSize) {
+		thumbh = st::minPhotoSize;
 	}
 	if (!w) {
 		w = thumbw;
@@ -3826,6 +3832,9 @@ void HistoryImageLink::draw(QPainter &p, const HistoryItem *parent, bool selecte
 	int32 dateH = _height - dateY - st::msgDateImgDelta;
 
 	p.fillRect(dateX, dateY, dateW, dateH, st::msgDateImgBg->b);
+	if (selected) {
+		p.fillRect(dateX, dateY, dateW, dateH, textstyleCurrent()->selectOverlay->b);
+	}
 	p.setFont(st::msgDateFont->f);
 	p.setPen(st::msgDateImgColor->p);
 	p.drawText(dateX + st::msgDateImgPadding.x(), dateY + st::msgDateImgPadding.y() + st::msgDateFont->ascent, time);
@@ -3863,11 +3872,11 @@ int32 HistoryImageLink::resize(int32 width, bool dontRecountText, const HistoryI
 		w = (w * width) / _height;
 		_height = width;
 	}
-	if (w < st::minPhotoWidth) {
-		w = st::minPhotoWidth;
+	if (w < st::minPhotoSize) {
+		w = st::minPhotoSize;
 	}
-	if (_height < st::minPhotoHeight) {
-		_height = st::minPhotoHeight;
+	if (_height < st::minPhotoSize) {
+		_height = st::minPhotoSize;
 	}
 	return _height;
 }
@@ -3944,12 +3953,22 @@ HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgI
 , _textHeight(0)
 , _media(0)
 {
-	QString text(msg);
 	if (fromMedia) {
 		_media = fromMedia->clone();
 		_media->regItem(this);
 	}
-	initDimensions(text);
+	initDimensions(msg);
+}
+
+HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, DocumentData *doc) :
+HistoryItem(history, block, msgId, out, unread, date, from)
+, _text(st::msgMinWidth)
+, _textWidth(0)
+, _textHeight(0)
+, _media(0)
+{
+	initMediaFromDocument(doc);
+	initDimensions(QString());
 }
 
 void HistoryMessage::initMedia(const MTPMessageMedia &media, QString &currentText) {
@@ -3993,18 +4012,23 @@ void HistoryMessage::initMedia(const MTPMessageMedia &media, QString &currentTex
 	case mtpc_messageMediaDocument: {
 		const MTPDocument &document(media.c_messageMediaDocument().vdocument);
 		if (document.type() == mtpc_document) {
-			DocumentData *doc = App::feedDocument(_from->id, document);
-			if (doc->type == StickerDocument && doc->dimensions.width() > 0 && doc->dimensions.height() > 0 && doc->size < StickerInMemory) {
-				_media = new HistorySticker(doc);
-			} else {
-				_media = new HistoryDocument(doc);
-			}
+			DocumentData *doc = App::feedDocument(document);
+			return initMediaFromDocument(doc);
 		}
 	} break;
 	case mtpc_messageMediaUnsupported:
 	default: currentText += " (unsupported media)"; break;
 	};
 	if (_media) _media->regItem(this);
+}
+
+void HistoryMessage::initMediaFromDocument(DocumentData *doc) {
+	if (doc->type == StickerDocument && doc->dimensions.width() > 0 && doc->dimensions.height() > 0 && doc->dimensions.width() <= StickerMaxSize && doc->dimensions.height() <= StickerMaxSize && doc->size < StickerInMemory) {
+		_media = new HistorySticker(doc);
+	} else {
+		_media = new HistoryDocument(doc);
+	}
+	_media->regItem(this);
 }
 
 void HistoryMessage::initDimensions(const QString &text) {
@@ -4315,6 +4339,15 @@ QString HistoryMessage::notificationText() const {
     QString msg(_media ? _media->inDialogsText() : _text.original(0, 0xFFFF, false));
     if (msg.size() > 0xFF) msg = msg.mid(0, 0xFF) + qsl("..");
     return msg;
+}
+
+void HistoryMessage::updateStickerEmoji() {
+	if (_media) {
+		if (_media->updateStickerEmoji()) {
+			_history->textCachedFor = 0;
+			if (App::wnd()) App::wnd()->update();
+		}
+	}
 }
 
 HistoryMessage::~HistoryMessage() {

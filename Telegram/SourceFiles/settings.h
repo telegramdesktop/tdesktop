@@ -84,6 +84,7 @@ struct TWindowPos {
 	int32 x, y, w, h;
 };
 DeclareSetting(TWindowPos, WindowPos);
+DeclareSetting(bool, SupportTray);
 DeclareSetting(DBIWorkMode, WorkMode);
 DeclareSetting(DBIConnectionType, ConnectionType);
 DeclareSetting(DBIDefaultAttach, DefaultAttach);
@@ -144,6 +145,18 @@ DeclareSetting(RecentEmojiPack, RecentEmojis);
 DeclareSetting(RecentEmojiPreload, RecentEmojisPreload);
 
 const RecentEmojiPack &cGetRecentEmojis();
+
+struct DocumentData;
+typedef QVector<DocumentData*> StickerPack;
+typedef QMap<EmojiPtr, StickerPack> AllStickers;
+DeclareSetting(AllStickers, Stickers);
+DeclareSetting(QByteArray, StickersHash);
+
+typedef QMap<DocumentData*, EmojiPtr> EmojiStickersMap;
+DeclareSetting(EmojiStickersMap, EmojiStickers);
+
+typedef QList<QPair<DocumentData*, int16> > RecentStickerPack;
+DeclareSetting(RecentStickerPack, RecentStickers);
 
 DeclareSetting(int32, Lang);
 DeclareSetting(QString, LangFile);

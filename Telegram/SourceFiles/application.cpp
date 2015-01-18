@@ -87,7 +87,7 @@ namespace {
 
 Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
     serverName(psServerPrefix() + cGUIDStr()), closing(false),
-	updateRequestId(0), updateReply(0), updateThread(0), updateDownloader(0) {
+	updateRequestId(0), updateReply(0), updateThread(0), updateDownloader(0), _translator(0) {
 
 	DEBUG_LOG(("Application Info: creation.."));
 
@@ -152,6 +152,8 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 			LOG(("Lang load warnings: %1").arg(loader.warnings()));
 		}
 	}
+
+	installTranslator(_translator = new Translator());
 
 	Local::start();
 	style::startManager();
@@ -479,7 +481,7 @@ void Application::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId)
 	int32 filesize = 0;
 	QByteArray data;
 
-	ReadyLocalMedia ready(ToPreparePhoto, file, filename, filesize, data, id, id, peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false);
+	ReadyLocalMedia ready(ToPreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false);
 
 	connect(App::uploader(), SIGNAL(photoReady(MsgId, const MTPInputFile &)), App::app(), SLOT(photoUpdated(MsgId, const MTPInputFile &)), Qt::UniqueConnection);
 
@@ -697,17 +699,17 @@ void Application::startApp() {
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
 	if (Local::oldMapVersion() < AppVersion) {
 		psRegisterCustomScheme();
-		if (Local::oldMapVersion() && Local::oldMapVersion() < 7004) {
-			QString versionFeatures(lng_new_version7004(lt_version, QString::fromStdWString(AppVersionStr), lt_link, qsl("https://desktop.telegram.org/#changelog")));
+		if (Local::oldMapVersion() && Local::oldMapVersion() < 7007 && (cPlatform() == dbipLinux32 || cPlatform() == dbipLinux64)) {
+			QString versionFeatures(lng_new_version7007(lt_version, QString::fromStdWString(AppVersionStr), lt_link, qsl("https://desktop.telegram.org/#changelog")));
 			if (!versionFeatures.isEmpty()) {
 				window->serviceNotification(versionFeatures);
 			}
 		}
 	}
 
-	if (!cLangErrors().isEmpty()) {
-		window->showLayer(new ConfirmBox("Custom lang failed :(\n\nError: " + cLangErrors(), true, lang(lng_close)));
-	}
+//	if (!cLangErrors().isEmpty()) {
+//		window->showLayer(new ConfirmBox("Custom lang failed :(\n\nError: " + cLangErrors(), true, lang(lng_close)));
+//	}
 }
 
 void Application::socketDisconnected() {
@@ -832,6 +834,8 @@ Application::~Application() {
 
 	style::stopManager();
 	Local::stop();
+
+	delete _translator;
 }
 
 Application *Application::app() {
@@ -855,7 +859,7 @@ QString Application::language() {
 int32 Application::languageId() {
 	QByteArray l = language().toLatin1();
 	for (int32 i = 0; i < languageCount; ++i) {
-		if (l == LanguageCodes[i]) {
+		if (l.at(0) == LanguageCodes[i][0] && l.at(1) == LanguageCodes[i][1]) {
 			return i;
 		}
 	}

@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 7004;
-static const wchar_t *AppVersionStr = L"0.7.4";
+static const int32 AppVersion = 7008;
+static const wchar_t *AppVersionStr = L"0.7.8";
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -86,7 +86,10 @@ enum {
 	AudioVoiceMsgChannels = 2, // stereo
 	AudioVoiceMsgBufferSize = 1024 * 1024, // 1 Mb buffers
 	AudioVoiceMsgInMemory = 1024 * 1024, // 1 Mb audio is hold in memory and auto loaded
-	StickerInMemory = 128 * 1024, // 128 Kb stickers hold in memory, auto loaded and displayed inline
+	AudioSuspendTimeout = 3000, // suspend in 3 secs after playing is over
+
+	StickerInMemory = 256 * 1024, // 128 Kb stickers hold in memory, auto loaded and displayed inline
+	StickerMaxSize = 2048, // 2048x2048 is a max image size for sticker
 
 	MediaViewImageSizeLimit = 100 * 1024 * 1024, // show up to 100mb jpg/png/gif docs in app
 	MaxZoomLevel = 7, // x8
@@ -95,6 +98,8 @@ enum {
 	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
 	EmojiPadPerRow = 7,
 	EmojiPadRowsPerPage = 6,
+	StickerPadPerRow = 3,
+	StickersUpdateTimeout = 3600000, // update not more than once in an hour
 
 	SearchPeopleLimit = 5,
 	MinUsernameLength = 5,

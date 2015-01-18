@@ -121,6 +121,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_name" = "Por favor, pon tu nombre y apellidos.";
 "lng_bad_photo" = "La imagen seleccionada es errónea.";
 
+"lng_bad_image_for_photo" = "La imagen tiene un tamaño inadecuado.\n¿Quieres enviarla como archivo?";
+
 "lng_signup_title" = "Información y foto";
 "lng_signup_desc" = "Por favor, pon tu nombre \ny una foto.";
 
@@ -211,12 +213,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_download_path_clear_failed" = "Borrado fallido :(";
 
 "lng_settings_section_cache" = "Almacenamiento local";
-"lng_settings_no_images_cached" = "¡No se encontraron imágenes en la caché!";
-"lng_settings_images_cached" = "En la caché: {count:_not_used_|# imagen|# imágenes}, {size}";
-"lng_local_images_clear" = "Borrar todo";
-"lng_local_images_clearing" = "Borrando...";
-"lng_local_images_cleared" = "¡Borrado!";
-"lng_local_images_clear_failed" = "Borrado fallido :(";
+"lng_settings_no_data_cached" = "¡No se encontraron datos en la caché!";
+"lng_settings_images_cached" = "{count:_not_used_|# imagen|# imágenes}, {size}";
+"lng_settings_audios_cached" = "{count:_not_used_|# mensaje de voz|# mensajes de voz}, {size}";
+"lng_local_storage_clear" = "Borrar todo";
+"lng_local_storage_clearing" = "Borrando...";
+"lng_local_storage_cleared" = "¡Borrado!";
+"lng_local_storage_clear_failed" = "Borrado fallido :(";
 
 "lng_settings_section_advanced" = "Avanzado";
 "lng_connection_type" = "Tipo de conexión:";
@@ -274,7 +277,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_audios" = "{count:_not_used_|# mensaje de voz|# mensajes de voz} »";
 "lng_profile_audios_header" = "Todos los mensajes de voz";
 "lng_profile_show_all_types" = "Mostrar todos los tipos";
-"lng_profile_copy_phone" = "Copiar número de teléfono";
+"lng_profile_copy_phone" = "Copiar número";
 
 "lng_participant_filter" = "Buscar";
 "lng_participant_invite" = "Invitar";
@@ -325,6 +328,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio" = "Audio";
 "lng_in_dlg_document" = "Archivo";
 "lng_in_dlg_sticker" = "Sticker";
+"lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
 
 "lng_send_button" = "Enviar";
 "lng_message_ph" = "Escribir un mensaje...";
@@ -355,7 +359,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_open_hashtag" = "Buscar por hashtag";
 "lng_context_copy_hashtag" = "Copiar hashtag";
 "lng_context_open_image" = "Abrir imagen";
-"lng_context_save_image" = "Guardar imagen como...";
+"lng_context_save_image" = "Guardar como...";
 "lng_context_forward_image" = "Reenviar imagen";
 "lng_context_delete_image" = "Eliminar imagen";
 "lng_context_copy_image" = "Copiar imagen";
@@ -364,11 +368,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_show_in_folder" = "Mostrar en la carpeta";
 "lng_context_show_in_finder" = "Mostrar en el Finder";
 "lng_context_open_video" = "Abrir vídeo";
-"lng_context_save_video" = "Guardar vídeo como...";
+"lng_context_save_video" = "Guardar como...";
 "lng_context_open_audio" = "Abrir audio";
-"lng_context_save_audio" = "Guardar audio como...";
+"lng_context_save_audio" = "Guardar como...";
 "lng_context_open_document" = "Abrir archivo";
-"lng_context_save_document" = "Guardar archivo como...";
+"lng_context_save_document" = "Guardar como...";
 "lng_context_forward_file" = "Reenviar archivo";
 "lng_context_delete_file" = "Eliminar archivo";
 "lng_context_close_file" = "Cerrar archivo";
@@ -385,7 +389,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_really_send_image" = "¿Quieres enviar esta imagen?";
 "lng_really_send_file" = "¿Quieres enviar este archivo?";
 "lng_really_share_contact" = "¿Quieres compartir este contacto?";
-"lng_send_image_compressed" = "Enviar imagen sin comprimir";
+"lng_send_image_compressed" = "Enviar imagen comprimida";
 
 "lng_forward_choose" = "Elegir destinatario...";
 "lng_forward_confirm" = "¿Reenviar a {recipient}?";
@@ -426,7 +430,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_selected_delete_confirm" = "Eliminar";
 
 "lng_about_version" = "Versión {version}";
-"lng_about_text" = "Aplicación oficial basada en [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] y la [a href=\"https://core.telegram.org/api\"]\nAPI de Telegram[/a] para velocidad y seguridad.\n\nSoftware bajo licencia [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versión 3.\nCódigo de fuente disponible en [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_text" = "Aplicación oficial basada en [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] y la [a href=\"https://core.telegram.org/api\"]\nAPI de Telegram[/a] para velocidad y seguridad.\n\nSoftware bajo licencia [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versión 3.\nCódigo fuente disponible en [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 "lng_about_done" = "Hecho";
 
 "lng_search_found_results" = "{count:No se encontraron mensajes|Found # mensaje|Found # mensajes}";
@@ -448,7 +452,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\nDetectamos un inicio de sesión en tu cuenta desde un nuevo dispositivo el {day}, {date} a las {time}\n\nDispositivo: {device}\nUbicación: {location}\n\nSi no eras tú, puedes ir a Ajustes — Cerrar todas las otras sesiones.\n\nGracias.\nEl equipo de Telegram";
 
-"lng_new_version7004" = "Telegram Desktop fue actualizada a la versión {version}\n\n- Se añadieron los idiomas alemán y holandés.\n\nEl historial completo está disponible aquí:\n{link}";
+"lng_new_version7007" = "Telegram Desktop fue actualizada a la versión {version}\n\n — Se añadió el ícono en la barra de menú para Ubuntu\n\nEl historial completo está disponible aquí:\n{link}";
+"lng_new_version7006_appstore" = "Telegram Desktop fue actualizada a la versión {version}\n\n– Soporte para stickers\n– Caché local para mensajes de voz\n– Nuevos idiomas añadidos\n\nLa versión completa del historial está disponible aquí:\n{link} ";
 
 // Mac specific
 
@@ -461,8 +466,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mac_this_app_can_open" = "Esta aplicación puede abrir \"{file}\".";
 "lng_mac_not_known_app" = "No se sabe si esta aplicación puede abrir \"{file}\".";
 
-"lng_mac_menu_about" = "Sobre Telegram";
+"lng_mac_menu_services" = "Servicios";
+"lng_mac_menu_hide_telegram" = "Ocultar {telegram}";
+"lng_mac_menu_hide_others" = "Ocultar otras";
+"lng_mac_menu_show_all" = "Mostrar todas";
 "lng_mac_menu_preferences" = "Preferencias...";
+"lng_mac_menu_quit_telegram" = "Salir de {telegram}";
+"lng_mac_menu_about_telegram" = "Acerca de {telegram}";
 "lng_mac_menu_file" = "Archivo";
 "lng_mac_menu_logout" = "Cerrar sesión";
 "lng_mac_menu_edit" = "Editar";

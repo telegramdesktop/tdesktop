@@ -254,8 +254,17 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 
 		if (!locationType && triedLocal && (fname.isEmpty() || duplicateInData)) {
 			Local::writeImage(storageKey(dc, volume, local), StorageImageSaved(type, data));
-		} else if (locationType && triedLocal && !fname.isEmpty()) {
-			Local::writeFileLocation(mediaKey(locationType, dc, id), FileLocation(type, fname));
+		} else if (locationType && triedLocal) {
+			if (!fname.isEmpty()) {
+				Local::writeFileLocation(mediaKey(locationType, dc, id), FileLocation(type, fname));
+			}
+			if (duplicateInData) {
+				if (locationType == mtpc_inputDocumentFileLocation) {
+					Local::writeSticker(mediaKey(locationType, dc, id), data);
+				} else if (locationType == mtpc_inputAudioFileLocation) {
+					Local::writeAudio(mediaKey(locationType, dc, id), data);
+				}
+			}
 		}
 	}
 	emit progress(this);
@@ -297,29 +306,44 @@ void mtpFileLoader::start(bool loadFirst, bool prior) {
 			StorageImageSaved cached = Local::readImage(storageKey(dc, volume, local));
 			if (cached.type != mtpc_storage_fileUnknown) {
 				data = cached.data;
-				if (!fname.isEmpty() && duplicateInData) {
-					if (!fileIsOpen) fileIsOpen = file.open(QIODevice::WriteOnly);
-					if (!fileIsOpen) {
-						return finishFail();
-					}
-					if (file.write(data) != qint64(data.size())) {
-						return finishFail();
-					}
-				}
 				type = cached.type;
-				complete = true;
-				if (fileIsOpen) {
-					file.close();
-					fileIsOpen = false;
-					psPostprocessFile(QFileInfo(file).absoluteFilePath());
-				}
-				App::wnd()->update();
-				App::wnd()->notifyUpdateAllPhotos();
-				emit progress(this);
-				return loadNext();
 			}
-		} else if (locationType && !fname.isEmpty()) {
-			triedLocal = true;
+		} else if (locationType) {
+			if (!fname.isEmpty()) {
+				triedLocal = true;
+			}
+			if (duplicateInData) {
+				if (locationType == mtpc_inputDocumentFileLocation) {
+					triedLocal = true;
+					data = Local::readSticker(mediaKey(locationType, dc, id));
+					if (!data.isEmpty()) type = mtpc_storage_filePartial;
+				} else if (locationType == mtpc_inputAudioFileLocation) {
+					triedLocal = true;
+					data = Local::readAudio(mediaKey(locationType, dc, id));
+					if (!data.isEmpty()) type = mtpc_storage_filePartial;
+				}
+			}
+		}
+		if (triedLocal && !data.isEmpty()) {
+			if (!fname.isEmpty() && duplicateInData) {
+				if (!fileIsOpen) fileIsOpen = file.open(QIODevice::WriteOnly);
+				if (!fileIsOpen) {
+					return finishFail();
+				}
+				if (file.write(data) != qint64(data.size())) {
+					return finishFail();
+				}
+			}
+			complete = true;
+			if (fileIsOpen) {
+				file.close();
+				fileIsOpen = false;
+				psPostprocessFile(QFileInfo(file).absoluteFilePath());
+			}
+			App::wnd()->update();
+			App::wnd()->notifyUpdateAllPhotos();
+			emit progress(this);
+			return loadNext();
 		}
 	}
 

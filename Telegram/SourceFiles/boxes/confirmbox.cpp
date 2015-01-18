@@ -89,6 +89,7 @@ void ConfirmBox::mousePressEvent(QMouseEvent *e) {
 		textlnkDown(textlnkOver());
 		update();
 	}
+	return LayeredWidget::mousePressEvent(e);
 }
 
 void ConfirmBox::mouseReleaseEvent(QMouseEvent *e) {

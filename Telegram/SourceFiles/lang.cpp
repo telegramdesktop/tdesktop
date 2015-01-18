@@ -67,3 +67,33 @@ const QString &LangLoader::warnings() const {
 	}
 	return _warnings;
 }
+
+void LangLoader::foundKeyValue(LangKey key) {
+	if (key < lngkeys_cnt) {
+		_found[key] = true;
+	}
+}
+
+QString Translator::translate(const char *context, const char *sourceText, const char *disambiguation, int n) const {
+	if (QLatin1String("QMenuBar") == context) {
+		if (QLatin1String("Services") == sourceText) return lang(lng_mac_menu_services);
+		if (QLatin1String("Hide %1") == sourceText) return lng_mac_menu_hide_telegram(lt_telegram, qsl("%1"));
+		if (QLatin1String("Hide Others") == sourceText) return lang(lng_mac_menu_hide_others);
+		if (QLatin1String("Show All") == sourceText) return lang(lng_mac_menu_show_all);
+		if (QLatin1String("Preferences...") == sourceText) return lang(lng_mac_menu_preferences);
+		if (QLatin1String("Quit %1") == sourceText) return lng_mac_menu_quit_telegram(lt_telegram, qsl("%1"));
+		if (QLatin1String("About %1") == sourceText) return lng_mac_menu_about_telegram(lt_telegram, qsl("%1"));
+		return QString();
+	}
+	if (QLatin1String("QWidgetTextControl") == context || QLatin1String("QLineEdit") == context) {
+		if (QLatin1String("&Undo") == sourceText) return lang(lng_mac_menu_undo);
+		if (QLatin1String("&Redo") == sourceText) return lang(lng_mac_menu_redo);
+		if (QLatin1String("Cu&t") == sourceText) return lang(lng_mac_menu_cut);
+		if (QLatin1String("&Copy") == sourceText) return lang(lng_mac_menu_copy);
+		if (QLatin1String("&Paste") == sourceText) return lang(lng_mac_menu_paste);
+		if (QLatin1String("Delete") == sourceText) return lang(lng_mac_menu_delete);
+		if (QLatin1String("Select All") == sourceText) return lang(lng_mac_menu_select_all);
+		return QString();
+	}
+	return QString();//QString::fromUtf8(sourceText);
+}

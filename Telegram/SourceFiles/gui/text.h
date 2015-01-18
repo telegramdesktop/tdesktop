@@ -470,3 +470,5 @@ QString textcmdLink(const QString &url, const QString &text);
 QString textcmdStartColor(const style::color &color);
 QString textcmdStopColor();
 const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink = true);
+
+QString textEmojiString(EmojiPtr emoji);

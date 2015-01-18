@@ -85,9 +85,9 @@ namespace App {
 	PhotoData *feedPhoto(const MTPDphoto &photo, PhotoData *convert = 0);
 	VideoData *feedVideo(const MTPDvideo &video, VideoData *convert = 0);
 	AudioData *feedAudio(const MTPDaudio &audio, AudioData *convert = 0);
-	DocumentData *feedDocument(int32 user, const MTPdocument &document, const QPixmap &thumb);
-	DocumentData *feedDocument(int32 user, const MTPdocument &document, DocumentData *convert = 0);
-	DocumentData *feedDocument(int32 user, const MTPDdocument &document, DocumentData *convert = 0);
+	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb);
+	DocumentData *feedDocument(const MTPdocument &document, DocumentData *convert = 0);
+	DocumentData *feedDocument(const MTPDdocument &document, DocumentData *convert = 0);
 
 	UserData *userLoaded(const PeerId &user);
 	ChatData *chatLoaded(const PeerId &chat);
@@ -106,7 +106,7 @@ namespace App {
 	PhotoData *photo(const PhotoId &photo, PhotoData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, const ImagePtr &thumb = ImagePtr(), const ImagePtr &medium = ImagePtr(), const ImagePtr &full = ImagePtr());
 	VideoData *video(const VideoId &video, VideoData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
 	AudioData *audio(const AudioId &audio, AudioData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 dc = 0, int32 size = 0);
-	DocumentData *document(const DocumentId &document, DocumentData *convert = 0, int32 user = 0, const uint64 &access = 0, int32 date = 0, const QVector<MTPDocumentAttribute> &attributes = QVector<MTPDocumentAttribute>(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
+	DocumentData *document(const DocumentId &document, DocumentData *convert = 0, const uint64 &access = 0, int32 date = 0, const QVector<MTPDocumentAttribute> &attributes = QVector<MTPDocumentAttribute>(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
 	ImageLinkData *imageLink(const QString &imageLink, ImageLinkType type = InvalidImageLink, const QString &url = QString());
 	void forgetMedia();
 
@@ -169,7 +169,7 @@ namespace App {
 	void setQuiting();
 
     QImage readImage(QByteArray data, QByteArray *format = 0, bool opaque = true, bool *animated = 0);
-	QImage readImage(const QString &file, QByteArray *format = 0, bool opaque = true, bool *animated = 0);
+	QImage readImage(const QString &file, QByteArray *format = 0, bool opaque = true, bool *animated = 0, QByteArray *content = 0);
 
 	void regVideoItem(VideoData *data, HistoryItem *item);
 	void unregVideoItem(VideoData *data, HistoryItem *item);

@@ -850,6 +850,8 @@ void OverviewInner::onUpdateSelected() {
 		textlnkOver(lnk);
 		App::hoveredLinkItem(lnk ? item : 0);
 		updateMsg(App::hoveredLinkItem());
+	} else {
+		App::mousedItem(item);
 	}
 
 	fixItemIndex(_dragItemIndex, _dragItem);
@@ -1089,6 +1091,23 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_select_msg), this, SLOT(selectMessage()))->setEnabled(true);
 		}
 		App::contextItem(App::hoveredLinkItem());
+	} else if (App::mousedItem() && App::mousedItem()->id == _mousedItem) {
+		_menu = new ContextMenu(_overview);
+		_menu->addAction(lang(lng_context_to_msg), this, SLOT(goToMessage()))->setEnabled(true);
+		if (isUponSelected > 1) {
+			_menu->addAction(lang(lng_context_forward_selected), _overview, SLOT(onForwardSelected()));
+			_menu->addAction(lang(lng_context_delete_selected), _overview, SLOT(onDeleteSelected()));
+			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
+		} else {
+			if (isUponSelected != -2) {
+				if (dynamic_cast<HistoryMessage*>(App::mousedItem())) {
+					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
+				}
+				_menu->addAction(lang(lng_context_delete_msg), this, SLOT(deleteMessage()))->setEnabled(true);
+			}
+			_menu->addAction(lang(lng_context_select_msg), this, SLOT(selectMessage()))->setEnabled(true);
+		}
+		App::contextItem(App::mousedItem());
 	}
 	if (_menu) {
 		_menu->deleteOnHide();

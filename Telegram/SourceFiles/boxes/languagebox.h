@@ -28,6 +28,7 @@ public:
 	void parentResized();
 	void animStep(float64 ms);
 	void keyPressEvent(QKeyEvent *e);
+	void mousePressEvent(QMouseEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void startHide();
 	~LanguageBox();

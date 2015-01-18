@@ -819,21 +819,21 @@ namespace App {
 		return App::audio(audio.vid.v, convert, audio.vaccess_hash.v, audio.vuser_id.v, audio.vdate.v, audio.vduration.v, audio.vdc_id.v, audio.vsize.v);
 	}
 
-	DocumentData *feedDocument(int32 user, const MTPdocument &document, const QPixmap &thumb) {
+	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb) {
 		switch (document.type()) {
 		case mtpc_document: {
 			const MTPDdocument &d(document.c_document());
-			return App::document(d.vid.v, 0, user, d.vaccess_hash.v, d.vdate.v, d.vattributes.c_vector().v, qs(d.vmime_type), ImagePtr(thumb, "JPG"), d.vdc_id.v, d.vsize.v);
+			return App::document(d.vid.v, 0, d.vaccess_hash.v, d.vdate.v, d.vattributes.c_vector().v, qs(d.vmime_type), ImagePtr(thumb, "JPG"), d.vdc_id.v, d.vsize.v);
 		} break;
 		case mtpc_documentEmpty: return App::document(document.c_documentEmpty().vid.v);
 		}
 		return App::document(0);
 	}
 
-	DocumentData *feedDocument(int32 user, const MTPdocument &document, DocumentData *convert) {
+	DocumentData *feedDocument(const MTPdocument &document, DocumentData *convert) {
 		switch (document.type()) {
 		case mtpc_document: {
-			return feedDocument(user, document.c_document(), convert);
+			return feedDocument(document.c_document(), convert);
 		} break;
 		case mtpc_documentEmpty: {
 			return App::document(document.c_documentEmpty().vid.v, convert);
@@ -842,8 +842,8 @@ namespace App {
 		return App::document(0);
 	}
 
-	DocumentData *feedDocument(int32 user, const MTPDdocument &document, DocumentData *convert) {
-		return App::document(document.vid.v, convert, user, document.vaccess_hash.v, document.vdate.v, document.vattributes.c_vector().v, qs(document.vmime_type), App::image(document.vthumb), document.vdc_id.v, document.vsize.v);
+	DocumentData *feedDocument(const MTPDdocument &document, DocumentData *convert) {
+		return App::document(document.vid.v, convert, document.vaccess_hash.v, document.vdate.v, document.vattributes.c_vector().v, qs(document.vmime_type), App::image(document.vthumb), document.vdc_id.v, document.vsize.v);
 	}
 
 	UserData *userLoaded(const PeerId &user) {
@@ -1058,7 +1058,7 @@ namespace App {
 		return result;
 	}
 
-	DocumentData *document(const DocumentId &document, DocumentData *convert, int32 user, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) {
+	DocumentData *document(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) {
 		if (convert) {
 			if (convert->id != document) {
 				DocumentsData::iterator i = documentsData.find(convert->id);
@@ -1070,13 +1070,14 @@ namespace App {
 			}
 			convert->access = access;
 			if (!convert->date && date) {
-				convert->user = user;
 				convert->date = date;
 				convert->setattributes(attributes);
 				convert->mime = mime;
 				convert->thumb = thumb;
 				convert->dc = dc;
 				convert->size = size;
+			} else if (convert->thumb->isNull() && !thumb->isNull()) {
+				convert->thumb = thumb;
 			}
 
 			if (convert->location.check()) {
@@ -1089,20 +1090,23 @@ namespace App {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new DocumentData(user, document, access, date, attributes, mime, thumb, dc, size);
+				result = new DocumentData(document, access, date, attributes, mime, thumb, dc, size);
 			}
 			documentsData.insert(document, result);
 		} else {
 			result = i.value();
-			if (result != convert && !result->date && date) {
-				result->user = user;
-				result->access = access;
-				result->date = date;
-				result->setattributes(attributes);
-				result->mime = mime;
-				result->thumb = thumb;
-				result->dc = dc;
-				result->size = size;
+			if (result != convert) {
+				if (!result->date && date) {
+					result->access = access;
+					result->date = date;
+					result->setattributes(attributes);
+					result->mime = mime;
+					result->thumb = thumb;
+					result->dc = dc;
+					result->size = size;
+				} else if (result->thumb->isNull() && !thumb->isNull()) {
+					result->thumb = thumb;
+				}
 			}
 		}
 		return result;
@@ -1286,6 +1290,10 @@ namespace App {
 			delete *i;
 		}
 		documentsData.clear();
+		cSetRecentStickers(RecentStickerPack());
+		cSetStickersHash(QByteArray());
+		cSetStickers(AllStickers());
+		cSetEmojiStickers(EmojiStickersMap());
 		::videoItems.clear();
 		::audioItems.clear();
 		::documentItems.clear();
@@ -1847,12 +1855,13 @@ namespace App {
 				qint32 v;
 				stream >> v;
 				switch (v) {
-				case dbietRecent : cSetEmojiTab(dbietRecent);  break;
-				case dbietPeople : cSetEmojiTab(dbietPeople);  break;
-				case dbietNature : cSetEmojiTab(dbietNature);  break;
-				case dbietObjects: cSetEmojiTab(dbietObjects); break;
-				case dbietPlaces : cSetEmojiTab(dbietPlaces);  break;
-				case dbietSymbols: cSetEmojiTab(dbietSymbols); break;
+				case dbietRecent  : cSetEmojiTab(dbietRecent);   break;
+				case dbietPeople  : cSetEmojiTab(dbietPeople);   break;
+				case dbietNature  : cSetEmojiTab(dbietNature);   break;
+				case dbietObjects : cSetEmojiTab(dbietObjects);  break;
+				case dbietPlaces  : cSetEmojiTab(dbietPlaces);   break;
+				case dbietSymbols : cSetEmojiTab(dbietSymbols);  break;
+				case dbietStickers: cSetEmojiTab(dbietStickers); break;
 				}
 			} break;
 
@@ -2006,7 +2015,7 @@ namespace App {
 				}
 				exif_data_free(exifData);
 			}
-		} else if (opaque) {
+		} else if (opaque && result.hasAlphaChannel()) {
 			QImage solid(result.width(), result.height(), QImage::Format_ARGB32_Premultiplied);
 			solid.fill(st::white->c);
 			{
@@ -2017,13 +2026,16 @@ namespace App {
 		return result;
 	}
 
-	QImage readImage(const QString &file, QByteArray *format, bool opaque, bool *animated) {
+	QImage readImage(const QString &file, QByteArray *format, bool opaque, bool *animated, QByteArray *content) {
 		QFile f(file);
 		if (!f.open(QIODevice::ReadOnly)) {
 			if (animated) *animated = false;
 			return QImage();
 		}
-		return readImage(f.readAll(), format, opaque, animated);
+		QByteArray img = f.readAll();
+		QImage result = readImage(img, format, opaque, animated);
+		if (content && !result.isNull()) *content = img;
+		return result;
 	}
 
 	void regVideoItem(VideoData *data, HistoryItem *item) {

@@ -43,8 +43,8 @@ typedef QList<ToPrepareMedia> ToPrepareMedias;
 
 typedef QMap<int32, QByteArray> LocalFileParts;
 struct ReadyLocalMedia {
-	ReadyLocalMedia(ToPrepareMediaType type, const QString &file, const QString &filename, int32 filesize, const QByteArray &data, const uint64 &id, const uint64 &jpeg_id, const PeerId &peer, const MTPPhoto &photo, const PreparedPhotoThumbs &photoThumbs, const MTPDocument &document, const QByteArray &jpeg, bool ctrlShiftEnter) :
-		type(type), file(file), filename(filename), filesize(filesize), data(data), id(id), jpeg_id(jpeg_id), peer(peer), photo(photo), document(document), photoThumbs(photoThumbs), ctrlShiftEnter(ctrlShiftEnter) {
+	ReadyLocalMedia(ToPrepareMediaType type, const QString &file, const QString &filename, int32 filesize, const QByteArray &data, const uint64 &id, const uint64 &thumbId, const QString &thumbExt, const PeerId &peer, const MTPPhoto &photo, const PreparedPhotoThumbs &photoThumbs, const MTPDocument &document, const QByteArray &jpeg, bool ctrlShiftEnter) :
+		type(type), file(file), filename(filename), filesize(filesize), data(data), thumbExt(thumbExt), id(id), thumbId(thumbId), peer(peer), photo(photo), document(document), photoThumbs(photoThumbs), ctrlShiftEnter(ctrlShiftEnter) {
 		if (!jpeg.isEmpty()) {
 			int32 size = jpeg.size();
 			for (int32 i = 0, part = 0; i < size; i += UploadPartSize, ++part) {
@@ -58,7 +58,8 @@ struct ReadyLocalMedia {
 	QString file, filename;
 	int32 filesize;
 	QByteArray data;
-	uint64 id, jpeg_id; // id always file-id of media, jpeg_id is file-id of thumb ( == id for photos)
+	QString thumbExt;
+	uint64 id, thumbId; // id always file-id of media, thumbId is file-id of thumb ( == id for photos)
 	PeerId peer;
 
 	MTPPhoto photo;
