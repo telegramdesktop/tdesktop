@@ -171,7 +171,7 @@ namespace {
     typedef UnityLauncherEntry* (*f_unity_launcher_entry_get_for_desktop_id)(const gchar* desktop_id);
     f_unity_launcher_entry_get_for_desktop_id ps_unity_launcher_entry_get_for_desktop_id = 0;
 
-    QStringList _initErrors;
+    QStringList _initLogs;
 
     template <typename TFunction>
     bool loadFunction(QLibrary &lib, const char *name, TFunction &func) {
@@ -181,7 +181,7 @@ namespace {
         if (func) {
             return true;
         } else {
-            _initErrors.push_back(QString("Failed to load '%1' function!").arg(name));
+            _initLogs.push_back(QString("Init Error: Failed to load '%1' function!").arg(name));
             return false;
         }
     }
@@ -329,16 +329,28 @@ namespace {
             setupUnity();
         }
         void setupGTK() {
-            QLibrary lib_gtk(QLatin1String("gtk-x11-2.0"), 0, 0), lib_indicator(QLatin1String("appindicator"), 1, 0);
+            int useversion = 3;
+            QLibrary lib_gtk(QLatin1String("gtk-3"), 0, 0), lib_indicator(QLatin1String("appindicator3"), 1, 0);
             if (lib_gtk.load()) {
-                _initErrors.push_back(QString("Loaded 'gtk-x11-2.0' version 0 library"));
+                _initLogs.push_back(QString("Loaded 'gtk-3' version 0 library, will try appindicator3 lib"));
             } else {
-                lib_gtk.setFileNameAndVersion(QLatin1String("gtk-x11-2.0"), QString());
+                lib_gtk.setFileNameAndVersion(QLatin1String("gtk-3"), QString());
                 if (lib_gtk.load()) {
-                    _initErrors.push_back(QString("Loaded 'gtk-x11-2.0' withou version library"));
+                    _initLogs.push_back(QString("Loaded 'gtk-3' without version library, will try appindicator3 lib"));
                 } else {
-                    _initErrors.push_back(QString("Failed to load 'gtk-x11-2.0' library!"));
-                    return;
+                    useversion = 2;
+                    lib_gtk.setFileNameAndVersion(QLatin1String("gtk-x11-2.0"), 0);
+                    if (lib_gtk.load()) {
+                        _initLogs.push_back(QString("Loaded 'gtk-x11-2.0' version 0 library, will try appindicator lib"));
+                    } else {
+                        lib_gtk.setFileNameAndVersion(QLatin1String("gtk-x11-2.0"), QString());
+                        if (lib_gtk.load()) {
+                            _initLogs.push_back(QString("Loaded 'gtk-x11-2.0' without version library, will try appindicator lib"));
+                        } else {
+                            _initLogs.push_back(QString("Init Error: Failed to load 'gtk-x11-2.0' library!"));
+                            return;
+                        }
+                    }
                 }
             }
 
@@ -358,26 +370,26 @@ namespace {
             if (!loadFunction(lib_gtk, "g_type_check_instance_cast", ps_g_type_check_instance_cast)) return;
             if (!loadFunction(lib_gtk, "g_signal_connect_data", ps_g_signal_connect_data)) return;
 
-            if (lib_indicator.load()) {
-                _initErrors.push_back(QString("Loaded 'appindicator' version 1 library"));
+            if (useversion == 3 && lib_indicator.load()) {
+                _initLogs.push_back(QString("Loaded 'appindicator3' version 1 library"));
                 setupAppIndicator(lib_indicator);
             } else {
-                lib_indicator.setFileNameAndVersion(QLatin1String("appindicator"), QString());
-                if (lib_indicator.load()) {
-                    _initErrors.push_back(QString("Loaded 'appindicator' without version library"));
+                lib_indicator.setFileNameAndVersion(QLatin1String("appindicator3"), QString());
+                if (useversion == 3 && lib_indicator.load()) {
+                    _initLogs.push_back(QString("Loaded 'appindicator3' without version library"));
                     setupAppIndicator(lib_indicator);
                 } else {
-                    lib_indicator.setFileNameAndVersion(QLatin1String("appindicator3"), 1);
-                    if (lib_indicator.load()) {
-                        _initErrors.push_back(QString("Loaded 'appindicator3' version 1 library"));
+                    lib_indicator.setFileNameAndVersion(QLatin1String("appindicator"), 1);
+                    if (useversion == 2 && lib_indicator.load()) {
+                        _initLogs.push_back(QString("Loaded 'appindicator' version 1 library"));
                         setupAppIndicator(lib_indicator);
                     } else {
-                        lib_indicator.setFileNameAndVersion(QLatin1String("appindicator3"), QString());
-                        if (lib_indicator.load()) {
-                            _initErrors.push_back(QString("Loaded 'appindicator3' without version library"));
+                        lib_indicator.setFileNameAndVersion(QLatin1String("appindicator"), QString());
+                        if (useversion == 2 && lib_indicator.load()) {
+                            _initLogs.push_back(QString("Loaded 'appindicator' without version library"));
                             setupAppIndicator(lib_indicator);
                         } else {
-                            _initErrors.push_back(QString("Failed to load 'appindicator' library!"));
+                            _initLogs.push_back(QString("Failed to load 'appindicator' library!"));
                             return;
                         }
                     }
@@ -411,13 +423,13 @@ namespace {
         void setupUnity() {
             QLibrary lib_unity(QLatin1String("unity"), 9, 0);
             if (lib_unity.load()) {
-                _initErrors.push_back(QString("Loaded 'unity' version 9 library"));
+                _initLogs.push_back(QString("Loaded 'unity' version 9 library"));
             } else {
                 lib_unity.setFileNameAndVersion(QLatin1String("unity"), QString());
                 if (lib_unity.load()) {
-                    _initErrors.push_back(QString("Loaded 'unity' without version library"));
+                    _initLogs.push_back(QString("Loaded 'unity' without version library"));
                 } else {
-                    _initErrors.push_back(QString("Failed to load 'unity' library!"));
+                    _initLogs.push_back(QString("Init Error: Failed to load 'unity' library!"));
                     return;
                 }
             }
@@ -1366,8 +1378,12 @@ PsUpdateDownloader::~PsUpdateDownloader() {
 }
 
 
-QStringList psInitErrors() {
-    return _initErrors;
+QStringList psInitLogs() {
+    return _initLogs;
+}
+
+void psClearInitLogs() {
+    _initLogs = QStringList();
 }
 
 void psActivateProcess(uint64 pid) {

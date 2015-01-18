@@ -46,9 +46,9 @@ int main(int argc, char *argv[]) {
 		for (int32 i = 0; i < argc; ++i) {
 			LOG(("Argument: %1").arg(QString::fromLocal8Bit(argv[i])));
 		}
-        QStringList errs = psInitErrors();
-        for (int32 i = 0, l = errs.size(); i < l; ++i) {
-            LOG(("Init Error: %1").arg(errs.at(i)));
+        QStringList logs = psInitLogs();
+        for (int32 i = 0, l = logs.size(); i < l; ++i) {
+            LOG(("Init Log: %1").arg(logs.at(i)));
         }
     }
 

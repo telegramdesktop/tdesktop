@@ -51,6 +51,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #pragma comment (lib,"Msimg32.lib")
 
 namespace {
+    QStringList _initLogs;
+
 	bool frameless = true;
 	bool useDWM = false;
 	bool useTheme = false;
@@ -1778,8 +1780,12 @@ namespace {
 	}
 }
 
-QStringList psInitErrors() {
-    return QStringList();
+QStringList psInitLogs() {
+    return _initLogs;
+}
+
+void psClearInitLogs() {
+    _initLogs = QStringList();
 }
 
 void psActivateProcess(uint64 pid) {
