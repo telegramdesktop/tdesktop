@@ -51,6 +51,7 @@ int main(int argc, char *argv[]) {
             LOG(("Init Log: %1").arg(logs.at(i)));
         }
     }
+    psClearInitLogs();
 
 	DEBUG_LOG(("Application Info: ideal thread count: %1, using %2 connections per session").arg(QThread::idealThreadCount()).arg(cConnectionsInSession()));
 
