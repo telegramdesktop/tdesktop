@@ -330,9 +330,13 @@ namespace {
         }
         void setupGTK() {
             QLibrary lib_gtk(QLatin1String("gtk-x11-2.0"), 0, 0), lib_indicator(QLatin1String("appindicator"), 1, 0);
-            if (!lib_gtk.load()) {
+            if (lib_gtk.load()) {
+                _initErrors.push_back(QString("Loaded 'gtk-x11-2.0' version 0 library"));
+            } else {
                 lib_gtk.setFileNameAndVersion(QLatin1String("gtk-x11-2.0"), QString());
-                if (!lib_gtk.load()) {
+                if (lib_gtk.load()) {
+                    _initErrors.push_back(QString("Loaded 'gtk-x11-2.0' withou version library"));
+                } else {
                     _initErrors.push_back(QString("Failed to load 'gtk-x11-2.0' library!"));
                     return;
                 }
@@ -355,14 +359,28 @@ namespace {
             if (!loadFunction(lib_gtk, "g_signal_connect_data", ps_g_signal_connect_data)) return;
 
             if (lib_indicator.load()) {
+                _initErrors.push_back(QString("Loaded 'appindicator' version 1 library"));
                 setupAppIndicator(lib_indicator);
             } else {
                 lib_indicator.setFileNameAndVersion(QLatin1String("appindicator"), QString());
                 if (lib_indicator.load()) {
+                    _initErrors.push_back(QString("Loaded 'appindicator' without version library"));
                     setupAppIndicator(lib_indicator);
                 } else {
-                    _initErrors.push_back(QString("Failed to load 'appindicator' library!"));
-                    return;
+                    lib_indicator.setFileNameAndVersion(QLatin1String("appindicator3"), 1);
+                    if (lib_indicator.load()) {
+                        _initErrors.push_back(QString("Loaded 'appindicator3' version 1 library"));
+                        setupAppIndicator(lib_indicator);
+                    } else {
+                        lib_indicator.setFileNameAndVersion(QLatin1String("appindicator3"), QString());
+                        if (lib_indicator.load()) {
+                            _initErrors.push_back(QString("Loaded 'appindicator3' without version library"));
+                            setupAppIndicator(lib_indicator);
+                        } else {
+                            _initErrors.push_back(QString("Failed to load 'appindicator' library!"));
+                            return;
+                        }
+                    }
                 }
             }
 
@@ -392,9 +410,13 @@ namespace {
         }
         void setupUnity() {
             QLibrary lib_unity(QLatin1String("unity"), 9, 0);
-            if (!lib_unity.load()) {
+            if (lib_unity.load()) {
+                _initErrors.push_back(QString("Loaded 'unity' version 9 library"));
+            } else {
                 lib_unity.setFileNameAndVersion(QLatin1String("unity"), QString());
-                if (!lib_unity.load()) {
+                if (lib_unity.load()) {
+                    _initErrors.push_back(QString("Loaded 'unity' without version library"));
+                } else {
                     _initErrors.push_back(QString("Failed to load 'unity' library!"));
                     return;
                 }
@@ -422,7 +444,7 @@ namespace {
 	};
     _PsEventFilter *_psEventFilter = 0;
 
-    UnityLauncherEntry *_psUnityLauncherEntryOld = 0, *_psUnityLauncherEntry = 0;
+    UnityLauncherEntry *_psUnityLauncherEntry = 0;
 };
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
@@ -509,6 +531,7 @@ void PsMainWindow::psTrayMenuUpdated() {
     if (useAppIndicator || useStatusIcon) {
         const QList<QAction*> &actions = trayIconMenu->actions();
         if (_trayItems.isEmpty()) {
+            DEBUG_LOG(("Creating tray menu!"));
             for (int32 i = 0, l = actions.size(); i != l; ++i) {
                 GtkWidget *item = ps_gtk_menu_item_new_with_label(actions.at(i)->text().toUtf8());
                 ps_gtk_menu_shell_append(PS_GTK_MENU_SHELL(_trayMenu), item);
@@ -519,6 +542,7 @@ void PsMainWindow::psTrayMenuUpdated() {
                 _trayItems.push_back(qMakePair(item, actions.at(i)));
             }
         } else {
+            DEBUG_LOG(("Updating tray menu!"));
             for (int32 i = 0, l = actions.size(); i != l; ++i) {
                 if (i < _trayItems.size()) {
                     ps_gtk_menu_item_set_label(reinterpret_cast<GtkMenuItem*>(_trayItems.at(i).first), actions.at(i)->text().toUtf8());
@@ -572,14 +596,6 @@ void PsMainWindow::psUpdateCounter() {
 	int32 counter = App::histories().unreadFull;
 
     setWindowTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
-    if (_psUnityLauncherEntryOld) {
-        if (counter > 0) {
-            ps_unity_launcher_entry_set_count(_psUnityLauncherEntryOld, (counter > 9999) ? 9999 : counter);
-            ps_unity_launcher_entry_set_count_visible(_psUnityLauncherEntryOld, TRUE);
-        } else {
-            ps_unity_launcher_entry_set_count_visible(_psUnityLauncherEntryOld, FALSE);
-        }
-    }
     if (_psUnityLauncherEntry) {
         if (counter > 0) {
             ps_unity_launcher_entry_set_count(_psUnityLauncherEntry, (counter > 9999) ? 9999 : counter);
@@ -706,13 +722,17 @@ void PsMainWindow::psCreateTrayIcon() {
     if (useAppIndicator) {
         DEBUG_LOG(("Trying to create AppIndicator"));
         if (ps_gtk_init_check(0, 0)) {
+            DEBUG_LOG(("Checked gtk with gtk_init_check!"));
             _trayMenu = ps_gtk_menu_new();
             if (_trayMenu) {
+                DEBUG_LOG(("Created gtk menu for appindicator!"));
                 QFileInfo f(_trayIconImageFile());
                 if (f.exists()) {
                     QByteArray path = QFile::encodeName(f.absoluteFilePath());
                    _trayIndicator = ps_app_indicator_new("Telegram Desktop", path.constData(), APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
-                   if (!_trayIndicator) {
+                   if (_trayIndicator) {
+                       DEBUG_LOG(("Created appindicator!"));
+                   } else {
                        DEBUG_LOG(("Failed to app_indicator_new()!"));
                    }
                 } else {
@@ -781,12 +801,13 @@ void PsMainWindow::psFirstShow() {
         _psUnityLauncherEntry = ps_unity_launcher_entry_get_for_desktop_id("telegramdesktop.desktop");
         if (_psUnityLauncherEntry) {
             LOG(("Found Unity Launcher entry telegramdesktop.desktop!"));
-        }
-        _psUnityLauncherEntryOld = ps_unity_launcher_entry_get_for_desktop_id("Telegram.desktop");
-        if (_psUnityLauncherEntryOld) {
-            LOG(("Found Unity Launcher entry Telegram.desktop!"));
-        } else if (_psUnityLauncherEntry) {
-            LOG(("Could not get Unity Launcher entry!"));
+        } else {
+            _psUnityLauncherEntry = ps_unity_launcher_entry_get_for_desktop_id("Telegram.desktop");
+            if (_psUnityLauncherEntry) {
+                LOG(("Found Unity Launcher entry Telegram.desktop!"));
+            } else {
+                LOG(("Could not get Unity Launcher entry!"));
+            }
         }
     } else {
         LOG(("Not using Unity Launcher count."));
