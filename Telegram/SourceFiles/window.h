@@ -218,7 +218,7 @@ public:
 	void notifyUpdateAll();
 	void notifyActivateAll();
 
-	QImage iconLarge() const;
+    QImage iconLarge() const;
 
 	void sendPaths();
 
@@ -261,10 +261,6 @@ signals:
 	void resized(const QSize &size);
 	void tempDirCleared(int task);
 	void tempDirClearFailed(int task);
-
-protected:
-
-	void setupTrayIcon();
 
 private:
 

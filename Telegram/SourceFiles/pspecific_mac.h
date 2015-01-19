@@ -94,7 +94,7 @@ public slots:
 	void psUpdateDelegate();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psIdleTimeout();
-	void psShowTrayMenu();
+    void psShowTrayMenu();
 
 	void psMacUndo();
 	void psMacRedo();
@@ -108,6 +108,9 @@ protected:
 
 	void psNotIdle() const;
 	QImage psTrayIcon(bool selected = false) const;
+    bool psHasTrayIcon() const {
+        return trayIcon;
+    }
 
 	void psMacUpdateMenu();
 
@@ -119,7 +122,8 @@ protected:
 
 	QImage trayImg, trayImgSel;
 
-	virtual void setupTrayIcon() = 0;
+    void psTrayMenuUpdated();
+    void psSetupTrayIcon();
 	virtual void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) = 0;
 
     QTimer psUpdatedPositionTimer;
@@ -194,6 +198,9 @@ private:
 	QMutex mutex;
 
 };
+
+QStringList psInitLogs();
+void psClearInitLogs();
 
 void psActivateProcess(uint64 pid = 0);
 QString psLocalServerPrefix();

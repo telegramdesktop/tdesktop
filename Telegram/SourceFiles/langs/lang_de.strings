@@ -328,7 +328,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio" = "Sprachnachricht";
 "lng_in_dlg_document" = "Datei";
 "lng_in_dlg_sticker" = "Sticker";
-"lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
+"lng_in_dlg_sticker_emoji" = "{emoji} (Sticker)";
 
 "lng_send_button" = "Senden";
 "lng_message_ph" = "Schreibe deine Nachricht..";
@@ -452,7 +452,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\n\nwir haben eine Anmeldung von einem neuen Gerät am {day}, {date} um {time} festgestellt. \n\nGerät: {device}\nStandort: {location}\n\nWarst du das selbst? Wenn du das nicht selbst gewesen bist, melde alle anderen Sitzungen in den Telegram Einstellungen unverzüglich ab. \n\nDanke,\nDein Telegram Team";
 
-"lng_new_version7005" = "Telegram Desktop wurde auf Version {version} aktualisiert\n\n— Stickers werden unterstützt\n— Sprachnachrichten werden temporär lokal gespeichert\n— Portugiesische Sprache hinzugefügt\n\nKompletter Versionsverlauf ist hier zu finden:\n{link}";
+"lng_new_version7007" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n — Tray Icon für Ubuntu hinzugefügt. \n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version7006_appstore" = "Telegram Desktop wurde auf Version {version} aktualisiert\n\n— Sticker werden unterstützt\n— Sprachnachrichten werden temporär lokal gespeichert\n— Neue Sprachen hinzugefügt\n\nKompletter Versionsverlauf ist hier zu finden:\n{link}";
 
 // Mac specific

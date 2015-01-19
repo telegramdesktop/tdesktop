@@ -30,7 +30,7 @@ or download in ZIP and extract to **/home/user/TBuild** rename **tdesktop-master
 
 Install dev libraries
 
-    sudo apt-get install libexif-dev liblzma-dev libz-dev libssl-dev
+    sudo apt-get install libexif-dev liblzma-dev libz-dev libssl-dev libappindicator-dev libunity-dev
 
 Install audio libraries
 

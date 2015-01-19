@@ -24,7 +24,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "historywidget.h"
 
 namespace {
-	bool frameless = true;
+    QStringList _initLogs;
+
+    bool frameless = true;
 	bool finished = true;
 
     class _PsEventFilter : public QAbstractNativeEventFilter {
@@ -140,8 +142,29 @@ bool PsMainWindow::psIsActive(int state) const {
 void PsMainWindow::psRefreshTaskbarIcon() {
 }
 
+void PsMainWindow::psTrayMenuUpdated() {
+}
+
+void PsMainWindow::psSetupTrayIcon() {
+    if (!trayIcon) {
+        trayIcon = new QSystemTrayIcon(this);
+
+        QIcon icon(QPixmap::fromImage(psTrayIcon(), Qt::ColorOnly));
+        icon.addPixmap(QPixmap::fromImage(psTrayIcon(true), Qt::ColorOnly), QIcon::Selected);
+
+        trayIcon->setIcon(icon);
+        trayIcon->setToolTip(QString::fromStdWString(AppName));
+        connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)), Qt::UniqueConnection);
+        App::wnd()->updateTrayMenu();
+    }
+    psUpdateCounter();
+
+    trayIcon->show();
+    psUpdateDelegate();
+}
+
 void PsMainWindow::psUpdateWorkmode() {
-	setupTrayIcon();
+    psSetupTrayIcon();
 	if (cWorkMode() == dbiwmWindowOnly) {
 		if (trayIcon) {
 			trayIcon->setContextMenu(0);
@@ -955,6 +978,15 @@ void PsUpdateDownloader::unpackUpdate() {
 PsUpdateDownloader::~PsUpdateDownloader() {
 	delete reply;
 	reply = 0;
+}
+
+
+QStringList psInitLogs() {
+    return _initLogs;
+}
+
+void psClearInitLogs() {
+    _initLogs = QStringList();
 }
 
 void psActivateProcess(uint64 pid) {

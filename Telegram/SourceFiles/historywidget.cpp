@@ -381,7 +381,7 @@ void HistoryList::dragActionStart(const QPoint &screenPos, Qt::MouseButton butto
 		if (_selected.cbegin().value() == FullItemSel) {
 			if (_selected.constFind(_dragItem) != _selected.cend() && App::hoveredItem()) {
 				_dragAction = PrepareDrag; // start items drag
-			} else {
+			} else if (!_dragWasInactive) {
 				_dragAction = PrepareSelect; // start items select
 			}
 		}
@@ -428,7 +428,7 @@ void HistoryList::dragActionStart(const QPoint &screenPos, Qt::MouseButton butto
 				}
 				if (uponSelected) {
 					_dragAction = PrepareDrag; // start text drag
-				} else {
+				} else if (!_dragWasInactive) {
 					if (afterDragSymbol) ++_dragSymbol;
 					uint32 selStatus = (_dragSymbol << 16) | _dragSymbol;
 					if (selStatus != FullItemSel && (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel)) {
@@ -443,7 +443,7 @@ void HistoryList::dragActionStart(const QPoint &screenPos, Qt::MouseButton butto
 						_dragAction = PrepareSelect;
 					}
 				}
-			} else {
+			} else if (!_dragWasInactive) {
 				_dragAction = PrepareSelect; // start items select
 			}
 		}
@@ -594,6 +594,8 @@ void HistoryList::mouseDoubleClickEvent(QMouseEvent *e) {
 	        _trippleClickPoint = e->globalPos();
 	        _trippleClickTimer.start(QApplication::doubleClickInterval());
 		}
+	} else {
+		mousePressEvent(e);
 	}
 }
 

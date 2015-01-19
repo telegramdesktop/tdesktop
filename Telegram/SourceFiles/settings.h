@@ -84,6 +84,7 @@ struct TWindowPos {
 	int32 x, y, w, h;
 };
 DeclareSetting(TWindowPos, WindowPos);
+DeclareSetting(bool, SupportTray);
 DeclareSetting(DBIWorkMode, WorkMode);
 DeclareSetting(DBIConnectionType, ConnectionType);
 DeclareSetting(DBIDefaultAttach, DefaultAttach);

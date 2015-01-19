@@ -452,7 +452,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\nDetectamos un inicio de sesión en tu cuenta desde un nuevo dispositivo el {day}, {date} a las {time}\n\nDispositivo: {device}\nUbicación: {location}\n\nSi no eras tú, puedes ir a Ajustes — Cerrar todas las otras sesiones.\n\nGracias.\nEl equipo de Telegram";
 
-"lng_new_version7005" = "Telegram Desktop fue actualizada a la versión {version}\n\n — Soporte de stickers\n — Caché local para mensajes de voz\n — Idioma portugués añadido\n\nEl historial completo de la versión está disponible aquí :\n{link}";
+"lng_new_version7007" = "Telegram Desktop fue actualizada a la versión {version}\n\n — Se añadió el ícono en la barra de menú para Ubuntu\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version7006_appstore" = "Telegram Desktop fue actualizada a la versión {version}\n\n– Soporte para stickers\n– Caché local para mensajes de voz\n– Nuevos idiomas añadidos\n\nLa versión completa del historial está disponible aquí:\n{link} ";
 
 // Mac specific

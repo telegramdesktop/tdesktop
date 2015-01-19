@@ -29,9 +29,418 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include <dirent.h>
 #include <pwd.h>
 
+#include <iostream>
+
+#undef signals
+extern "C" {
+    #include <libappindicator/app-indicator.h>
+    #include <gtk/gtk.h>
+}
+#define signals public
+
+#include <unity/unity/unity.h>
+
 namespace {
 	bool frameless = true;
 	bool finished = true;
+    bool useAppIndicator = false, useStatusIcon = false, trayIconChecked = false, useUnityCount = false;
+
+    AppIndicator *_trayIndicator = 0;
+    GtkStatusIcon *_trayIcon = 0;
+    GtkWidget *_trayMenu = 0;
+    GdkPixbuf *_trayPixbuf = 0;
+    QByteArray _trayPixbufData;
+    QList<QPair<GtkWidget*, QObject*> > _trayItems;
+
+    int32 _trayIconSize = 22;
+    bool _trayIconMuted = true;
+    int32 _trayIconCount = 0;
+    QImage _trayIconImageBack, _trayIconImage;
+
+    typedef gboolean (*f_gtk_init_check)(int *argc, char ***argv);
+    f_gtk_init_check ps_gtk_init_check = 0;
+
+    typedef GtkWidget* (*f_gtk_menu_new)(void);
+    f_gtk_menu_new ps_gtk_menu_new = 0;
+
+    typedef GType (*f_gtk_menu_get_type)(void) G_GNUC_CONST;
+    f_gtk_menu_get_type ps_gtk_menu_get_type = 0;
+
+    typedef GtkWidget* (*f_gtk_menu_item_new_with_label)(const gchar *label);
+    f_gtk_menu_item_new_with_label ps_gtk_menu_item_new_with_label = 0;
+
+    typedef void (*f_gtk_menu_item_set_label)(GtkMenuItem *menu_item, const gchar *label);
+    f_gtk_menu_item_set_label ps_gtk_menu_item_set_label = 0;
+
+    typedef void (*f_gtk_menu_shell_append)(GtkMenuShell *menu_shell, GtkWidget *child);
+    f_gtk_menu_shell_append ps_gtk_menu_shell_append = 0;
+
+    typedef GType (*f_gtk_menu_shell_get_type)(void) G_GNUC_CONST;
+    f_gtk_menu_shell_get_type ps_gtk_menu_shell_get_type = 0;
+
+    typedef void (*f_gtk_widget_show)(GtkWidget *widget);
+    f_gtk_widget_show ps_gtk_widget_show = 0;
+
+    typedef GtkWidget* (*f_gtk_widget_get_toplevel)(GtkWidget *widget);
+    f_gtk_widget_get_toplevel ps_gtk_widget_get_toplevel = 0;
+
+    typedef gboolean (*f_gtk_widget_get_visible)(GtkWidget *widget);
+    f_gtk_widget_get_visible ps_gtk_widget_get_visible = 0;
+
+    typedef void (*f_gtk_widget_set_sensitive)(GtkWidget *widget, gboolean sensitive);
+    f_gtk_widget_set_sensitive ps_gtk_widget_set_sensitive = 0;
+
+    typedef GTypeInstance* (*f_g_type_check_instance_cast)(GTypeInstance *instance, GType iface_type);
+    f_g_type_check_instance_cast ps_g_type_check_instance_cast = 0;
+
+#define _PS_G_TYPE_CIC(ip, gt, ct) ((ct*)ps_g_type_check_instance_cast((GTypeInstance*) ip, gt))
+#define PS_G_TYPE_CHECK_INSTANCE_CAST(instance, g_type, c_type) (_PS_G_TYPE_CIC((instance), (g_type), c_type))
+#define PS_GTK_TYPE_MENU (ps_gtk_menu_get_type())
+#define PS_GTK_MENU(obj) (PS_G_TYPE_CHECK_INSTANCE_CAST((obj), PS_GTK_TYPE_MENU, GtkMenu))
+#define PS_GTK_TYPE_MENU_SHELL (ps_gtk_menu_shell_get_type())
+#define PS_GTK_MENU_SHELL(obj) (PS_G_TYPE_CHECK_INSTANCE_CAST((obj), PS_GTK_TYPE_MENU_SHELL, GtkMenuShell))
+
+    typedef gulong (*f_g_signal_connect_data)(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data, GClosureNotify destroy_data, GConnectFlags connect_flags);
+    f_g_signal_connect_data ps_g_signal_connect_data = 0;
+
+#define ps_g_signal_connect(instance, detailed_signal, c_handler, data) ps_g_signal_connect_data((instance), (detailed_signal), (c_handler), (data), NULL, (GConnectFlags)0)
+
+    typedef AppIndicator* (*f_app_indicator_new)(const gchar *id, const gchar *icon_name, AppIndicatorCategory category);
+    f_app_indicator_new ps_app_indicator_new = 0;
+
+    typedef void (*f_app_indicator_set_status)(AppIndicator *self, AppIndicatorStatus status);
+    f_app_indicator_set_status ps_app_indicator_set_status = 0;
+
+    typedef void (*f_app_indicator_set_menu)(AppIndicator *self, GtkMenu *menu);
+    f_app_indicator_set_menu ps_app_indicator_set_menu = 0;
+
+    typedef void (*f_app_indicator_set_icon_full)(AppIndicator *self, const gchar *icon_name, const gchar *icon_desc);
+    f_app_indicator_set_icon_full ps_app_indicator_set_icon_full = 0;
+
+    typedef gboolean (*f_gdk_init_check)(gint *argc, gchar ***argv);
+    f_gdk_init_check ps_gdk_init_check = 0;
+
+    typedef GdkPixbuf* (*f_gdk_pixbuf_new_from_data)(const guchar *data, GdkColorspace colorspace, gboolean has_alpha, int bits_per_sample, int width, int height, int rowstride, GdkPixbufDestroyNotify destroy_fn, gpointer destroy_fn_data);
+    f_gdk_pixbuf_new_from_data ps_gdk_pixbuf_new_from_data = 0;
+
+    typedef GtkStatusIcon* (*f_gtk_status_icon_new_from_pixbuf)(GdkPixbuf *pixbuf);
+    f_gtk_status_icon_new_from_pixbuf ps_gtk_status_icon_new_from_pixbuf = 0;
+
+    typedef void (*f_gtk_status_icon_set_from_pixbuf)(GtkStatusIcon *status_icon, GdkPixbuf *pixbuf);
+    f_gtk_status_icon_set_from_pixbuf ps_gtk_status_icon_set_from_pixbuf = 0;
+
+    typedef void (*f_gtk_status_icon_set_title)(GtkStatusIcon *status_icon, const gchar *title);
+    f_gtk_status_icon_set_title ps_gtk_status_icon_set_title = 0;
+
+    typedef void (*f_gtk_status_icon_set_tooltip_text)(GtkStatusIcon *status_icon, const gchar *title);
+    f_gtk_status_icon_set_tooltip_text ps_gtk_status_icon_set_tooltip_text = 0;
+
+    typedef void (*f_gtk_status_icon_set_visible)(GtkStatusIcon *status_icon, gboolean visible);
+    f_gtk_status_icon_set_visible ps_gtk_status_icon_set_visible = 0;
+
+    typedef gboolean (*f_gtk_status_icon_is_embedded)(GtkStatusIcon *status_icon);
+    f_gtk_status_icon_is_embedded ps_gtk_status_icon_is_embedded = 0;
+
+    typedef gboolean (*f_gtk_status_icon_get_geometry)(GtkStatusIcon *status_icon, GdkScreen **screen, GdkRectangle *area, GtkOrientation *orientation);
+    f_gtk_status_icon_get_geometry ps_gtk_status_icon_get_geometry = 0;
+
+    typedef void (*f_gtk_status_icon_position_menu)(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_data);
+    f_gtk_status_icon_position_menu ps_gtk_status_icon_position_menu = 0;
+
+    typedef void (*f_gtk_menu_popup)(GtkMenu *menu, GtkWidget *parent_menu_shell, GtkWidget *parent_menu_item, GtkMenuPositionFunc func, gpointer data, guint button, guint32 activate_time);
+    f_gtk_menu_popup ps_gtk_menu_popup = 0;
+
+    typedef guint32 (*f_gtk_get_current_event_time)(void);
+    f_gtk_get_current_event_time ps_gtk_get_current_event_time = 0;
+
+    typedef gpointer (*f_g_object_ref_sink)(gpointer object);
+    f_g_object_ref_sink ps_g_object_ref_sink = 0;
+
+    typedef void (*f_g_object_unref)(gpointer object);
+    f_g_object_unref ps_g_object_unref = 0;
+
+    typedef guint (*f_g_idle_add)(GSourceFunc function, gpointer data);
+    f_g_idle_add ps_g_idle_add = 0;
+
+    typedef void (*f_unity_launcher_entry_set_count)(UnityLauncherEntry* self, gint64 value);
+    f_unity_launcher_entry_set_count ps_unity_launcher_entry_set_count = 0;
+
+    typedef void (*f_unity_launcher_entry_set_count_visible)(UnityLauncherEntry* self, gboolean value);
+    f_unity_launcher_entry_set_count_visible ps_unity_launcher_entry_set_count_visible = 0;
+
+    typedef UnityLauncherEntry* (*f_unity_launcher_entry_get_for_desktop_id)(const gchar* desktop_id);
+    f_unity_launcher_entry_get_for_desktop_id ps_unity_launcher_entry_get_for_desktop_id = 0;
+
+    QStringList _initLogs;
+
+    template <typename TFunction>
+    bool loadFunction(QLibrary &lib, const char *name, TFunction &func) {
+        if (!lib.isLoaded()) return false;
+
+        func = (TFunction)lib.resolve(name);
+        if (func) {
+            return true;
+        } else {
+            _initLogs.push_back(QString("Init Error: Failed to load '%1' function!").arg(name));
+            return false;
+        }
+    }
+
+    void _trayIconPopup(GtkStatusIcon *status_icon, guint button, guint32 activate_time, gpointer popup_menu) {
+        ps_gtk_menu_popup(PS_GTK_MENU(popup_menu), NULL, NULL, ps_gtk_status_icon_position_menu, status_icon, button, activate_time);
+    }
+
+    void _trayIconActivate(GtkStatusIcon *status_icon, gpointer popup_menu) {
+        if (App::wnd()->isActiveWindow() && App::wnd()->isVisible()) {
+            ps_gtk_menu_popup(PS_GTK_MENU(popup_menu), NULL, NULL, ps_gtk_status_icon_position_menu, status_icon, 0, ps_gtk_get_current_event_time());
+        } else {
+            App::wnd()->showFromTray();
+        }
+    }
+
+    gboolean _trayIconResized(GtkStatusIcon *status_icon, gint size, gpointer popup_menu) {
+       _trayIconSize = size;
+        if (App::wnd()) App::wnd()->psUpdateCounter();
+        return FALSE;
+    }
+
+#if Q_BYTE_ORDER == Q_BIG_ENDIAN
+
+#define QT_RED 3
+#define QT_GREEN 2
+#define QT_BLUE 1
+#define QT_ALPHA 0
+
+#else
+
+#define QT_RED 0
+#define QT_GREEN 1
+#define QT_BLUE 2
+#define QT_ALPHA 3
+
+#endif
+
+#define GTK_RED 2
+#define GTK_GREEN 1
+#define GTK_BLUE 0
+#define GTK_ALPHA 3
+
+    QImage _trayIconImageGen() {
+        int32 counter = App::histories().unreadFull, counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
+        bool muted = (App::histories().unreadMuted >= counter);
+        if (_trayIconImage.isNull() || _trayIconImage.width() != _trayIconSize || muted != _trayIconMuted || counterSlice != _trayIconCount) {
+            if (_trayIconImageBack.isNull() || _trayIconImageBack.width() != _trayIconSize) {
+                _trayIconImageBack = App::wnd()->iconLarge().scaled(_trayIconSize, _trayIconSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+                _trayIconImageBack = _trayIconImageBack.convertToFormat(QImage::Format_ARGB32);
+                int w = _trayIconImageBack.width(), h = _trayIconImageBack.height(), perline = _trayIconImageBack.bytesPerLine();
+                uchar *bytes = _trayIconImageBack.bits();
+                for (int32 y = 0; y < h; ++y) {
+                    for (int32 x = 0; x < w; ++x) {
+                        int32 srcoff = y * perline + x * 4;
+                        bytes[srcoff + QT_RED  ] = qMax(bytes[srcoff + QT_RED  ], uchar(224));
+                        bytes[srcoff + QT_GREEN] = qMax(bytes[srcoff + QT_GREEN], uchar(165));
+                        bytes[srcoff + QT_BLUE ] = qMax(bytes[srcoff + QT_BLUE ], uchar(44));
+                    }
+                }
+            }
+            _trayIconImage = _trayIconImageBack;
+            if (counter > 0) {
+                QPainter p(&_trayIconImage);
+                int32 layerSize = -16;
+                if (_trayIconSize >= 48) {
+                    layerSize = -32;
+                } else if (_trayIconSize >= 36) {
+                    layerSize = -24;
+                } else if (_trayIconSize >= 32) {
+                    layerSize = -20;
+                }
+                QImage layer = App::wnd()->iconWithCounter(layerSize, counter, (muted ? st::counterMuteBG : st::counterBG), false);
+                p.drawImage(_trayIconImage.width() - layer.width() - 1, _trayIconImage.height() - layer.height() - 1, layer);
+            }
+        }
+        return _trayIconImage;
+    }
+
+    QString _trayIconImageFile() {
+        int32 counter = App::histories().unreadFull, counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
+        bool muted = (App::histories().unreadMuted >= counter);
+
+        QString name = cWorkingDir() + qsl("tdata/ticons/ico%1_%2_%3.png").arg(muted ? "mute" : "").arg(_trayIconSize).arg(counterSlice);
+        QFileInfo info(name);
+        if (info.exists()) return name;
+
+        QImage img = _trayIconImageGen();
+        if (img.save(name, "PNG")) return name;
+
+        QDir dir(info.absoluteDir());
+        if (!dir.exists()) {
+            dir.mkpath(dir.absolutePath());
+            if (img.save(name, "PNG")) return name;
+        }
+
+        return QString();
+    }
+
+    void loadPixbuf(QImage image) {
+        int w = image.width(), h = image.height(), perline = image.bytesPerLine(), s = image.byteCount();
+        _trayPixbufData.resize(w * h * 4);
+        uchar *result = (uchar*)_trayPixbufData.data(), *bytes = image.bits();
+        for (int32 y = 0; y < h; ++y) {
+            for (int32 x = 0; x < w; ++x) {
+                int32 offset = (y * w + x) * 4, srcoff = y * perline + x * 4;
+                result[offset + GTK_RED  ] = bytes[srcoff + QT_RED  ];
+                result[offset + GTK_GREEN] = bytes[srcoff + QT_GREEN];
+                result[offset + GTK_BLUE ] = bytes[srcoff + QT_BLUE ];
+                result[offset + GTK_ALPHA] = bytes[srcoff + QT_ALPHA];
+            }
+        }
+
+        if (_trayPixbuf) ps_g_object_unref(_trayPixbuf);
+        _trayPixbuf = ps_gdk_pixbuf_new_from_data(result, GDK_COLORSPACE_RGB, true, 8, w, h, w * 4, 0, 0);
+    }
+
+    void _trayMenuCallback(GtkMenu *menu, gpointer data) {
+        for (int32 i = 0, l = _trayItems.size(); i < l; ++i) {
+            if ((void*)_trayItems.at(i).first == (void*)menu) {
+                QMetaObject::invokeMethod(_trayItems.at(i).second, "triggered");
+            }
+        }
+    }
+
+    static gboolean _trayIconCheck(gpointer/* pIn*/) {
+        if (useStatusIcon && !trayIconChecked) {
+            if (ps_gtk_status_icon_is_embedded(_trayIcon)) {
+                trayIconChecked = true;
+                cSetSupportTray(true);
+                if (App::wnd()) {
+                    App::wnd()->psUpdateWorkmode();
+                    App::wnd()->psUpdateCounter();
+                    App::wnd()->updateTrayMenu();
+                }
+            }
+        }
+        return FALSE;
+    }
+
+    class _PsInitializer {
+    public:
+        _PsInitializer() {
+            setupGTK();
+            setupUnity();
+        }
+        void setupGTK() {
+            int useversion = 3;
+            QLibrary lib_gtk(QLatin1String("gtk-3"), 0, 0), lib_indicator(QLatin1String("appindicator3"), 1, 0);
+            if (lib_gtk.load()) {
+                _initLogs.push_back(QString("Loaded 'gtk-3' version 0 library, will try appindicator3 lib"));
+            } else {
+                lib_gtk.setFileNameAndVersion(QLatin1String("gtk-3"), QString());
+                if (lib_gtk.load()) {
+                    _initLogs.push_back(QString("Loaded 'gtk-3' without version library, will try appindicator3 lib"));
+                } else {
+                    useversion = 2;
+                    lib_gtk.setFileNameAndVersion(QLatin1String("gtk-x11-2.0"), 0);
+                    if (lib_gtk.load()) {
+                        _initLogs.push_back(QString("Loaded 'gtk-x11-2.0' version 0 library, will try appindicator lib"));
+                    } else {
+                        lib_gtk.setFileNameAndVersion(QLatin1String("gtk-x11-2.0"), QString());
+                        if (lib_gtk.load()) {
+                            _initLogs.push_back(QString("Loaded 'gtk-x11-2.0' without version library, will try appindicator lib"));
+                        } else {
+                            _initLogs.push_back(QString("Init Error: Failed to load 'gtk-x11-2.0' library!"));
+                            return;
+                        }
+                    }
+                }
+            }
+
+            if (!loadFunction(lib_gtk, "gtk_init_check", ps_gtk_init_check)) return;
+            if (!loadFunction(lib_gtk, "gtk_menu_new", ps_gtk_menu_new)) return;
+            if (!loadFunction(lib_gtk, "gtk_menu_get_type", ps_gtk_menu_get_type)) return;
+
+            if (!loadFunction(lib_gtk, "gtk_menu_item_new_with_label", ps_gtk_menu_item_new_with_label)) return;
+            if (!loadFunction(lib_gtk, "gtk_menu_item_set_label", ps_gtk_menu_item_set_label)) return;
+            if (!loadFunction(lib_gtk, "gtk_menu_shell_append", ps_gtk_menu_shell_append)) return;
+            if (!loadFunction(lib_gtk, "gtk_menu_shell_get_type", ps_gtk_menu_shell_get_type)) return;
+            if (!loadFunction(lib_gtk, "gtk_widget_show", ps_gtk_widget_show)) return;
+            if (!loadFunction(lib_gtk, "gtk_widget_get_toplevel", ps_gtk_widget_get_toplevel)) return;
+            if (!loadFunction(lib_gtk, "gtk_widget_get_visible", ps_gtk_widget_get_visible)) return;
+            if (!loadFunction(lib_gtk, "gtk_widget_set_sensitive", ps_gtk_widget_set_sensitive)) return;
+
+            if (!loadFunction(lib_gtk, "g_type_check_instance_cast", ps_g_type_check_instance_cast)) return;
+            if (!loadFunction(lib_gtk, "g_signal_connect_data", ps_g_signal_connect_data)) return;
+
+            if (useversion == 3 && lib_indicator.load()) {
+                _initLogs.push_back(QString("Loaded 'appindicator3' version 1 library"));
+                setupAppIndicator(lib_indicator);
+            } else {
+                lib_indicator.setFileNameAndVersion(QLatin1String("appindicator3"), QString());
+                if (useversion == 3 && lib_indicator.load()) {
+                    _initLogs.push_back(QString("Loaded 'appindicator3' without version library"));
+                    setupAppIndicator(lib_indicator);
+                } else {
+                    lib_indicator.setFileNameAndVersion(QLatin1String("appindicator"), 1);
+                    if (useversion == 2 && lib_indicator.load()) {
+                        _initLogs.push_back(QString("Loaded 'appindicator' version 1 library"));
+                        setupAppIndicator(lib_indicator);
+                    } else {
+                        lib_indicator.setFileNameAndVersion(QLatin1String("appindicator"), QString());
+                        if (useversion == 2 && lib_indicator.load()) {
+                            _initLogs.push_back(QString("Loaded 'appindicator' without version library"));
+                            setupAppIndicator(lib_indicator);
+                        } else {
+                            _initLogs.push_back(QString("Failed to load 'appindicator' library!"));
+                            return;
+                        }
+                    }
+                }
+            }
+
+            if (!loadFunction(lib_gtk, "gdk_init_check", ps_gdk_init_check)) return;
+            if (!loadFunction(lib_gtk, "gdk_pixbuf_new_from_data", ps_gdk_pixbuf_new_from_data)) return;
+            if (!loadFunction(lib_gtk, "gtk_status_icon_new_from_pixbuf", ps_gtk_status_icon_new_from_pixbuf)) return;
+            if (!loadFunction(lib_gtk, "gtk_status_icon_set_from_pixbuf", ps_gtk_status_icon_set_from_pixbuf)) return;
+            if (!loadFunction(lib_gtk, "gtk_status_icon_set_title", ps_gtk_status_icon_set_title)) return;
+            if (!loadFunction(lib_gtk, "gtk_status_icon_set_tooltip_text", ps_gtk_status_icon_set_tooltip_text)) return;
+            if (!loadFunction(lib_gtk, "gtk_status_icon_set_visible", ps_gtk_status_icon_set_visible)) return;
+            if (!loadFunction(lib_gtk, "gtk_status_icon_is_embedded", ps_gtk_status_icon_is_embedded)) return;
+            if (!loadFunction(lib_gtk, "gtk_status_icon_get_geometry", ps_gtk_status_icon_get_geometry)) return;
+            if (!loadFunction(lib_gtk, "gtk_status_icon_position_menu", ps_gtk_status_icon_position_menu)) return;
+            if (!loadFunction(lib_gtk, "gtk_menu_popup", ps_gtk_menu_popup)) return;
+            if (!loadFunction(lib_gtk, "gtk_get_current_event_time", ps_gtk_get_current_event_time)) return;
+            if (!loadFunction(lib_gtk, "g_object_ref_sink", ps_g_object_ref_sink)) return;
+            if (!loadFunction(lib_gtk, "g_object_unref", ps_g_object_unref)) return;
+            if (!loadFunction(lib_gtk, "g_idle_add", ps_g_idle_add)) return;
+            useStatusIcon = true;
+        }
+        void setupAppIndicator(QLibrary &lib_indicator) {
+            if (!loadFunction(lib_indicator, "app_indicator_new", ps_app_indicator_new)) return;
+            if (!loadFunction(lib_indicator, "app_indicator_set_status", ps_app_indicator_set_status)) return;
+            if (!loadFunction(lib_indicator, "app_indicator_set_menu", ps_app_indicator_set_menu)) return;
+            if (!loadFunction(lib_indicator, "app_indicator_set_icon_full", ps_app_indicator_set_icon_full)) return;
+            useAppIndicator = true;
+        }
+        void setupUnity() {
+            QLibrary lib_unity(QLatin1String("unity"), 9, 0);
+            if (lib_unity.load()) {
+                _initLogs.push_back(QString("Loaded 'unity' version 9 library"));
+            } else {
+                lib_unity.setFileNameAndVersion(QLatin1String("unity"), QString());
+                if (lib_unity.load()) {
+                    _initLogs.push_back(QString("Loaded 'unity' without version library"));
+                } else {
+                    _initLogs.push_back(QString("Init Error: Failed to load 'unity' library!"));
+                    return;
+                }
+            }
+
+            if (!loadFunction(lib_unity, "unity_launcher_entry_get_for_desktop_id", ps_unity_launcher_entry_get_for_desktop_id)) return;
+            if (!loadFunction(lib_unity, "unity_launcher_entry_set_count", ps_unity_launcher_entry_set_count)) return;
+            if (!loadFunction(lib_unity, "unity_launcher_entry_set_count_visible", ps_unity_launcher_entry_set_count_visible)) return;
+            useUnityCount = true;
+        }
+    };
+    _PsInitializer _psInitializer;
 
     class _PsEventFilter : public QAbstractNativeEventFilter {
 	public:
@@ -47,12 +456,19 @@ namespace {
 	};
     _PsEventFilter *_psEventFilter = 0;
 
+    UnityLauncherEntry *_psUnityLauncherEntry = 0;
 };
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
-posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/icon256.png")), iconbig256(icon256), wndIcon(QPixmap::fromImage(icon256, Qt::ColorOnly)) {
+posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/icon256.png")), iconbig256(icon256), wndIcon(QPixmap::fromImage(icon256, Qt::ColorOnly)), _psCheckStatusIconLeft(100), _psLastIndicatorUpdate(0) {
     connect(&psIdleTimer, SIGNAL(timeout()), this, SLOT(psIdleTimeout()));
     psIdleTimer.setSingleShot(false);
+
+    connect(&_psCheckStatusIconTimer, SIGNAL(timeout()), this, SLOT(psStatusIconCheck()));
+    _psCheckStatusIconTimer.setSingleShot(false);
+
+    connect(&_psUpdateIndicatorTimer, SIGNAL(timeout()), this, SLOT(psUpdateIndicator()));
+    _psUpdateIndicatorTimer.setSingleShot(true);
 }
 
 void PsMainWindow::psNotIdle() const {
@@ -62,6 +478,18 @@ void PsMainWindow::psNotIdle() const {
 		if (App::main()) App::main()->setOnline();
 		if (App::wnd()) App::wnd()->checkHistoryActivation();
 	}
+}
+
+bool PsMainWindow::psHasTrayIcon() const {
+    return trayIcon || ((useAppIndicator || (useStatusIcon && trayIconChecked)) && (cWorkMode() != dbiwmWindowOnly));
+}
+
+void PsMainWindow::psStatusIconCheck() {
+    _trayIconCheck(0);
+    if (cSupportTray() || !--_psCheckStatusIconLeft) {
+        _psCheckStatusIconTimer.stop();
+        return;
+    }
 }
 
 void PsMainWindow::psIdleTimeout() {
@@ -111,7 +539,67 @@ bool PsMainWindow::psIsActive(int state) const {
 void PsMainWindow::psRefreshTaskbarIcon() {
 }
 
+void PsMainWindow::psTrayMenuUpdated() {
+    if (useAppIndicator || useStatusIcon) {
+        const QList<QAction*> &actions = trayIconMenu->actions();
+        if (_trayItems.isEmpty()) {
+            DEBUG_LOG(("Creating tray menu!"));
+            for (int32 i = 0, l = actions.size(); i != l; ++i) {
+                GtkWidget *item = ps_gtk_menu_item_new_with_label(actions.at(i)->text().toUtf8());
+                ps_gtk_menu_shell_append(PS_GTK_MENU_SHELL(_trayMenu), item);
+                ps_g_signal_connect(item, "activate", G_CALLBACK(_trayMenuCallback), this);
+                ps_gtk_widget_show(item);
+                ps_gtk_widget_set_sensitive(item, actions.at(i)->isEnabled());
+
+                _trayItems.push_back(qMakePair(item, actions.at(i)));
+            }
+        } else {
+            DEBUG_LOG(("Updating tray menu!"));
+            for (int32 i = 0, l = actions.size(); i != l; ++i) {
+                if (i < _trayItems.size()) {
+                    ps_gtk_menu_item_set_label(reinterpret_cast<GtkMenuItem*>(_trayItems.at(i).first), actions.at(i)->text().toUtf8());
+                    ps_gtk_widget_set_sensitive(_trayItems.at(i).first, actions.at(i)->isEnabled());
+                }
+            }
+        }
+    }
+}
+
+void PsMainWindow::psSetupTrayIcon() {
+    if (!cSupportTray()) return;
+    psUpdateCounter();
+}
+
 void PsMainWindow::psUpdateWorkmode() {
+    if (!cSupportTray()) return;
+
+    if (cWorkMode() == dbiwmWindowOnly) {
+        if (useAppIndicator) {
+            ps_app_indicator_set_status(_trayIndicator, APP_INDICATOR_STATUS_PASSIVE);
+        } else if (useStatusIcon) {
+            ps_gtk_status_icon_set_visible(_trayIcon, false);
+        }
+    } else {
+        if (useAppIndicator) {
+            ps_app_indicator_set_status(_trayIndicator, APP_INDICATOR_STATUS_ACTIVE);
+        } else if (useStatusIcon) {
+            ps_gtk_status_icon_set_visible(_trayIcon, true);
+        }
+    }
+    setWindowIcon(wndIcon);
+}
+
+void PsMainWindow::psUpdateIndicator() {
+    _psUpdateIndicatorTimer.stop();
+    _psLastIndicatorUpdate = getms();
+    QFileInfo f(_trayIconImageFile());
+    if (f.exists()) {
+        QByteArray path = QFile::encodeName(f.absoluteFilePath()), name = QFile::encodeName(f.fileName());
+        name = name.mid(0, name.size() - 4);
+        ps_app_indicator_set_icon_full(_trayIndicator, path.constData(), name);
+    } else {
+        useAppIndicator = false;
+    }
 }
 
 void PsMainWindow::psUpdateCounter() {
@@ -120,9 +608,25 @@ void PsMainWindow::psUpdateCounter() {
 	int32 counter = App::histories().unreadFull;
 
     setWindowTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
+    if (_psUnityLauncherEntry) {
+        if (counter > 0) {
+            ps_unity_launcher_entry_set_count(_psUnityLauncherEntry, (counter > 9999) ? 9999 : counter);
+            ps_unity_launcher_entry_set_count_visible(_psUnityLauncherEntry, TRUE);
+        } else {
+            ps_unity_launcher_entry_set_count_visible(_psUnityLauncherEntry, FALSE);
+        }
+    }
 
-    QString cnt = (counter < 1000) ? QString("%1").arg(counter) : QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
-    //_private.setWindowBadge(counter ? cnt : QString());
+    if (useAppIndicator) {
+        if (getms() > _psLastIndicatorUpdate + 1000) {
+            psUpdateIndicator();
+        } else if (!_psUpdateIndicatorTimer.isActive()) {
+            _psUpdateIndicatorTimer.start(100);
+        }
+    } else if (useStatusIcon && trayIconChecked) {
+        loadPixbuf(_trayIconImageGen());
+        ps_gtk_status_icon_set_from_pixbuf(_trayIcon, _trayPixbuf);
+    }
 }
 
 void PsMainWindow::psUpdateDelegate() {
@@ -223,14 +727,105 @@ void PsMainWindow::psUpdatedPosition() {
 void PsMainWindow::psStateChanged(Qt::WindowState state) {
 	psUpdateSysMenu(state);
 	psUpdateMargins();
-//    if (state == Qt::WindowMinimized && GetWindowLong(ps_hWnd, GWL_HWNDPARENT)) {
-//		App::wnd()->minimizeToTray();
-//    }
     psSavePosition(state);
 }
 
+void PsMainWindow::psCreateTrayIcon() {
+    if (useAppIndicator) {
+        DEBUG_LOG(("Trying to create AppIndicator"));
+        if (ps_gtk_init_check(0, 0)) {
+            DEBUG_LOG(("Checked gtk with gtk_init_check!"));
+            _trayMenu = ps_gtk_menu_new();
+            if (_trayMenu) {
+                DEBUG_LOG(("Created gtk menu for appindicator!"));
+                QFileInfo f(_trayIconImageFile());
+                if (f.exists()) {
+                    QByteArray path = QFile::encodeName(f.absoluteFilePath());
+                   _trayIndicator = ps_app_indicator_new("Telegram Desktop", path.constData(), APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
+                   if (_trayIndicator) {
+                       DEBUG_LOG(("Created appindicator!"));
+                   } else {
+                       DEBUG_LOG(("Failed to app_indicator_new()!"));
+                   }
+                } else {
+                    useAppIndicator = false;
+                    DEBUG_LOG(("Failed to create image file!"));
+                }
+            } else {
+                DEBUG_LOG(("Failed to gtk_menu_new()!"));
+            }
+        } else {
+            DEBUG_LOG(("Failed to gtk_init_check(0, 0)!"));
+        }
+        if (_trayMenu && _trayIndicator) {
+            ps_app_indicator_set_status(_trayIndicator, APP_INDICATOR_STATUS_ACTIVE);
+            ps_app_indicator_set_menu(_trayIndicator, PS_GTK_MENU(_trayMenu));
+            useStatusIcon = false;
+        } else {
+            DEBUG_LOG(("AppIndicator failed!"));
+            useAppIndicator = false;
+        }
+    }
+    if (useStatusIcon) {
+        if (ps_gtk_init_check(0, 0) && ps_gdk_init_check(0, 0)) {
+            if (!_trayMenu) _trayMenu = ps_gtk_menu_new();
+            if (_trayMenu) {
+                loadPixbuf(_trayIconImageGen());
+                _trayIcon = ps_gtk_status_icon_new_from_pixbuf(_trayPixbuf);
+                if (_trayIcon) {
+                    ps_g_signal_connect(_trayIcon, "popup-menu", GCallback(_trayIconPopup), _trayMenu);
+                    ps_g_signal_connect(_trayIcon, "activate", GCallback(_trayIconActivate), _trayMenu);
+                    ps_g_signal_connect(_trayIcon, "size-changed", GCallback(_trayIconResized), _trayMenu);
+
+                    ps_gtk_status_icon_set_title(_trayIcon, "Telegram Desktop");
+                    ps_gtk_status_icon_set_tooltip_text(_trayIcon, "Telegram Desktop");
+                    ps_gtk_status_icon_set_visible(_trayIcon, true);
+                } else {
+                    useStatusIcon = false;
+                }
+            } else {
+                useStatusIcon = false;
+            }
+        } else {
+            useStatusIcon = false;
+        }
+    }
+    if (!useStatusIcon && !useAppIndicator) {
+        if (_trayMenu) {
+            ps_g_object_ref_sink(_trayMenu);
+            ps_g_object_unref(_trayMenu);
+            _trayMenu = 0;
+        }
+    }
+    cSetSupportTray(useAppIndicator);
+    if (useStatusIcon) {
+        ps_g_idle_add((GSourceFunc)_trayIconCheck, 0);
+        _psCheckStatusIconTimer.start(100);
+    } else {
+        psUpdateWorkmode();
+    }
+}
+
 void PsMainWindow::psFirstShow() {
-	finished = false;
+    psCreateTrayIcon();
+
+    if (useUnityCount) {
+        _psUnityLauncherEntry = ps_unity_launcher_entry_get_for_desktop_id("telegramdesktop.desktop");
+        if (_psUnityLauncherEntry) {
+            LOG(("Found Unity Launcher entry telegramdesktop.desktop!"));
+        } else {
+            _psUnityLauncherEntry = ps_unity_launcher_entry_get_for_desktop_id("Telegram.desktop");
+            if (_psUnityLauncherEntry) {
+                LOG(("Found Unity Launcher entry Telegram.desktop!"));
+            } else {
+                LOG(("Could not get Unity Launcher entry!"));
+            }
+        }
+    } else {
+        LOG(("Not using Unity Launcher count."));
+    }
+
+    finished = false;
 
     psUpdateMargins();
 
@@ -278,7 +873,20 @@ void PsMainWindow::psFlash() {
 }
 
 PsMainWindow::~PsMainWindow() {
-	finished = true;
+    if (_trayIcon) {
+        ps_g_object_unref(_trayIcon);
+        _trayIcon = 0;
+    }
+    if (_trayPixbuf) {
+        ps_g_object_unref(_trayPixbuf);
+        _trayPixbuf = 0;
+    }
+    if (_trayMenu) {
+        ps_g_object_ref_sink(_trayMenu);
+        ps_g_object_unref(_trayMenu);
+        _trayMenu = 0;
+    }
+    finished = true;
 }
 
 namespace {
@@ -507,7 +1115,7 @@ void PsUpdateDownloader::partFailed(QNetworkReply::NetworkError e) {
 }
 
 bool _removeDirectory(const QString &path) { // from http://stackoverflow.com/questions/2256945/removing-a-non-empty-directory-programmatically-in-c-or-c
-    QByteArray pathRaw = path.toUtf8();
+    QByteArray pathRaw = QFile::encodeName(path);
     DIR *d = opendir(pathRaw.constData());
     if (!d) return false;
 
@@ -516,7 +1124,7 @@ bool _removeDirectory(const QString &path) { // from http://stackoverflow.com/qu
         if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) continue;
 
         QString fname = path + '/' + p->d_name;
-        QByteArray fnameRaw = fname.toUtf8();
+        QByteArray fnameRaw = QFile::encodeName(fname);
         struct stat statbuf;
         if (!stat(fnameRaw.constData(), &statbuf)) {
             if (S_ISDIR(statbuf.st_mode)) {
@@ -769,6 +1377,15 @@ PsUpdateDownloader::~PsUpdateDownloader() {
 	reply = 0;
 }
 
+
+QStringList psInitLogs() {
+    return _initLogs;
+}
+
+void psClearInitLogs() {
+    _initLogs = QStringList();
+}
+
 void psActivateProcess(uint64 pid) {
 //	objc_activateProgram();
 }
@@ -963,7 +1580,7 @@ bool psCheckReadyUpdate() {
 		return false;
 	}
 #elif defined Q_OS_LINUX
-    if (!moveFile(updater.absoluteFilePath().toUtf8().constData(), curUpdater.toUtf8().constData())) {
+    if (!moveFile(QFile::encodeName(updater.absoluteFilePath()).constData(), QFile::encodeName(curUpdater).constData())) {
         PsUpdateDownloader::clearAll();
         return false;
     }
@@ -980,7 +1597,7 @@ void psOpenFile(const QString &name, bool openWith) {
 
 void psShowInFolder(const QString &name) {
     App::wnd()->layerHidden();
-    system(("nautilus \"" + QFileInfo(name).absoluteDir().absolutePath() + "\"").toUtf8().constData());
+    system(("nautilus \"" + QFileInfo(name).absoluteDir().absolutePath() + "\"").toLocal8Bit().constData());
 }
 
 void psStart() {
@@ -1038,6 +1655,9 @@ void psRegisterCustomScheme() {
             f.close();
 
             if (_psRunCommand(qsl("desktop-file-install --dir=%1.local/share/applications --delete-original \"%2\"").arg(home).arg(file))) {
+                DEBUG_LOG(("App Info: removing old .desktop file"));
+                QFile(qsl("%1.local/share/applications/telegram.desktop").arg(home)).remove();
+
                 _psRunCommand(qsl("update-desktop-database %1.local/share/applications").arg(home));
                 _psRunCommand(qsl("xdg-mime default telegramdesktop.desktop x-scheme-handler/tg"));
             }
@@ -1089,7 +1709,7 @@ bool _execUpdater(bool update = true) {
     static const int MaxLen = 65536, MaxArgsCount = 128;
 
     char path[MaxLen] = {0};
-    QByteArray data((cExeDir() + "Updater").toUtf8());
+    QByteArray data(QFile::encodeName(cExeDir() + "Updater"));
     memcpy(path, data.constData(), data.size());
 
     char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key", p_path[] = "-workpath";
@@ -1103,7 +1723,7 @@ bool _execUpdater(bool update = true) {
     if (cFromAutoStart()) args[argIndex++] = p_autostart;
     if (cDebug()) args[argIndex++] = p_debug;
     if (cDataFile() != (cTestMode() ? qsl("data_test") : qsl("data"))) {
-        QByteArray dataf = cDataFile().toUtf8();
+        QByteArray dataf = QFile::encodeName(cDataFile());
         if (dataf.size() < MaxLen) {
             memcpy(p_datafile, dataf.constData(), dataf.size());
             args[argIndex++] = p_key;
