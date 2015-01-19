@@ -1,0 +1,493 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014 John Preston, https://desktop.telegram.org
+*/
+"lng_language_name" = "Ukrainian";
+"lng_switch_to_this" = "Переключитися на Українську";
+
+"lng_menu_contacts" = "Контакти";
+"lng_menu_settings" = "Налаштування";
+"lng_menu_about" = "Про Telegram";
+"lng_menu_update" = "Оновити";
+"lng_menu_restart" = "Перезапустити";
+"lng_menu_back" = "Назад";
+
+"lng_open_from_tray" = "Відкрити Telegram";
+"lng_minimize_to_tray" = "Згорнути в трей";
+"lng_quit_from_tray" = "Вийти из Telegram";
+"lng_tray_icon_text" = "Telegram все ще працює,\nви можете налаштувати цю функцію в налаштуваннях.\n\nЕслі ця іконка пропаде з трею,\nви можете повернути її, перетягнувши з прихованих іконок.";
+
+"lng_month1" = "Січень";
+"lng_month2" = "Февраль";
+"lng_month3" = "Март";
+"lng_month4" = "Апрель";
+"lng_month5" = "Май";
+"lng_month6" = "Червень";
+"lng_month7" = "Липень";
+"lng_month8" = "Август";
+"lng_month9" = "Вересень";
+"lng_month10" = "Жовтень";
+"lng_month11" = "Листопад";
+"lng_month12" = "Грудень";
+
+"lng_weekday1" = "Пн";
+"lng_weekday2" = "Вт";
+"lng_weekday3" = "Ср";
+"lng_weekday4" = "Чт";
+"lng_weekday5" = "Пт";
+"lng_weekday6" = "Сб";
+"lng_weekday7" = "Нд";
+
+"lng_weekday1_full" = "Понеділок";
+"lng_weekday2_full" = "Вівторок";
+"lng_weekday3_full" = "Середа";
+"lng_weekday4_full" = "Четвер";
+"lng_weekday5_full" = "П'ятниця";
+"lng_weekday6_full" = "Субота";
+"lng_weekday7_full" = "Неділя";
+
+"lng_month_day" = "{day} {month}";
+
+"lng_cancel" = "Скасувати";
+"lng_continue" = "Продовжити";
+"lng_close" = "Закрити";
+"lng_connecting" = "Підключення...";
+"lng_reconnecting" = "Повторне підключення {count:зараз|через # з|через # з}..";
+"lng_reconnecting_try_now" = "Підключитися зараз";
+
+"lng_status_service_notifications" = "сервісні повідомлення";
+"lng_status_offline" = "був(ла) в мережі дуже давно";
+"lng_status_recently" = "був(ла) в мережі недавно";
+"lng_status_last_week" = "був(ла) в мережі на цьому тижні";
+"lng_status_last_month" = "був(ла) в мережі в цьому місяці";
+"lng_status_invisible" = "невидимий";
+"lng_status_lastseen_now" = "був (а) в мережі тільки що";
+"lng_status_lastseen_minutes" = "був(ла) в мережі {count:_not_used_|# хвилини|# хвилин} тому назад";
+"lng_status_lastseen_hours" = "був(ла) в мережі {count:_not_used_|# годин|# години} тому назад";
+"lng_status_lastseen_today" = "був(ла) в мережі сьогодні в {time}";
+"lng_status_lastseen_yesterday" = "був(ла) в мережі учора в {time}";
+"lng_status_lastseen_date" = "був(ла) в мережі {date}";
+"lng_status_lastseen_date_time" = "був(ла) в мережі {date} в {time}";
+"lng_status_online" = "онлайн";
+"lng_status_connecting" = "підключення...";
+
+"lng_chat_status_unaccessible" = "група недоступна";
+"lng_chat_status_members" = "{count:no members|# учасник|# учасників}";
+"lng_chat_status_members_online" = "{count:_not_used_|# учасник|# учасників}, {count_online:_not_used_|# онлайн|# онлайн}";
+
+"lng_server_error" = "Помилка сервера.";
+"lng_flood_error" = "Занадто багато спроб. Спробуйте пізніше.";
+"lng_deleted" = "Невідомий";
+
+"lng_intro" = "Ласкаво просимо в офіційну програму [a href=\"https://telegram.org/\"]Telegram[/a] для комп'ютера.\nВона дуже [b]швидке[/b] і [b]безпечне[/b].";
+"lng_start_msgs" = "Почати спілкування";
+
+"lng_intro_next" = "Далі";
+"lng_intro_finish" = "Зареєструватися";
+
+"lng_phone_ph" = "Ваш номер телефону";
+"lng_phone_title" = "Ваш телефон";
+"lng_phone_desc" = "Будь ласка, підтвердіть код країни і\nвведіть ваш номер телефону.";
+"lng_phone_notreg" = "Якщо у вас немає облікового запису в Telegram,\nбудь ласка, [b]зареєструйтеся[/b] через прикладну програму\nдля [a href=\"https://telegram.org/\"]iOS / Android[/a] або {signup_start}тут »{signup_end}";
+"lng_country_code" = "Код країни";
+"lng_bad_country_code" = "Некоректний код країни";
+"lng_country_ph" = "Пошук";
+"lng_country_done" = "Готово";
+"lng_country_none" = "Країна не знайдена";
+"lng_country_select" = "Виберіть країну";
+
+"lng_code_ph" = "Ваш код";
+"lng_code_desc" = "Ми відправили код доступу на ваш номер.\nnБудь ласка, введіть його в це поле.";
+"lng_code_call" = "Telegram зателефонує вам через {minutes}:{seconds}";
+"lng_code_calling" = "Telegram дзвонить вам..";
+"lng_code_called" = "Telegram вам подзвонив";
+
+"lng_bad_phone" = "Некоректний номер телефону. Спробуйте повторити спробу пізніше..";
+"lng_bad_phone_noreg" = "Номер телефону не зареєстрований.";
+"lng_bad_code" = "Ви ввели некоректний код. Спробуйте повторити спробу пізніше.";
+"lng_bad_name" = "Будь ласка, введіть ім'я та прізвище.";
+"lng_bad_photo" = "Обрано некоректний файл.";
+
+"lng_bad_image_for_photo" = "Це зображення не може бути відправлено цим шляхом.\nОтправіть як документ?";
+
+"lng_signup_title" = "Інформація та фото";
+"lng_signup_desc" = "Будь ласка, введіть ваше ім'я та\nзагрузіте файл з фотографією.";
+
+"lng_signup_firstname" = "Ім'я";
+"lng_signup_lastname" = "Прізвище";
+
+"lng_dlg_filter" = "Пошук";
+"lng_dlg_new_group_name" = "Назва групи";
+"lng_dlg_create_group" = "Створити";
+"lng_no_contacts" = "У вас немає контактів";
+"lng_contacts_loading" = "Завантаження..";
+"lng_contacts_not_found" = "Контакти не знайдені";
+
+"lng_settings_save" = "Зберегти";
+"lng_settings_upload" = "Оновити фото профілю";
+"lng_settings_crop_profile" = "Виберіть квадратну область для фото профілю";
+"lng_settings_uploading_photo" = "Завантаження фото..";
+
+"lng_username_title" = "Зміна імені користувача";
+"lng_username_about" = "Ви можете вибрати ім'я в Telegram.\nЯкщо ви це зробите, інші люди зможуть знайти\nпо цьому імені і зв'язатися з вами,\nне знаючи ваш контактний номер телефону.\n\nВи можете використовувати цифри, букви латинського алфавіту і символ підкреслення.\nМінімальна довжина - 5 символів.";
+"lng_username_invalid" = "Некоректне ім'я.";
+"lng_username_occupied" = "Це ім'я вже зайняте.";
+"lng_username_too_short" = "Занадто коротке ім'я.";
+"lng_username_bad_symbols" = "Ім'я містить неприпустимі символи.";
+"lng_username_available" = "Це ім'я доступно.";
+"lng_username_not_found" = "Користувач @{user} не знайден.";
+
+"lng_settings_section_contact_info" = "Інформація про контакт";
+"lng_settings_phone_number" = "Номер телефону:";
+"lng_settings_username" = "Ім'я користувача:";
+"lng_settings_choose_username" = "виберіть ім'я користувача";
+"lng_settings_change_username" = "Змінити";
+
+"lng_settings_section_notify" = "Повідомлення";
+"lng_settings_desktop_notify" = "Повідомлення на робочому столі";
+"lng_settings_show_name" = "Показувати ім'я відправника";
+"lng_settings_show_preview" = "Показувати попередній перегляд повідомлення";
+"lng_settings_sound_notify" = "Звук";
+
+"lng_notification_preview" = "У вас нове повідомлення";
+
+"lng_settings_section_general" = "Спільне";
+"lng_settings_change_lang" = "Змінити мову";
+"lng_languages" = "Мови";
+"lng_sure_save_language" = "Щоб змінити мову,\nTelegram повинен перезапуститися.";
+"lng_settings_auto_update" = "Оновлювати автоматично";
+"lng_settings_current_version" = "Версія {version}";
+"lng_settings_check_now" = "Перевірити оновлення";
+"lng_settings_update_checking" = "Перевірка оновлень..";
+"lng_settings_latest_installed" = "Встановлено останню версію";
+"lng_settings_downloading" = "Завантажую оновлення {ready} / {total} Мб..";
+"lng_settings_update_ready" = "Оновлення завантажено і готове до встановлення";
+"lng_settings_update_now" = "Перезапустити зараз";
+"lng_settings_update_fail" = "Перевірка оновлення не вдалася: :(";
+"lng_settings_workmode_tray" = "Показувати іконку в треї";
+"lng_settings_workmode_window" = "Показувати іконку в області завдань";
+"lng_settings_auto_start" = "Запускати Telegram при старті системи";
+"lng_settings_start_min" = "Запускати Telegram згорнутим в трей";
+"lng_settings_add_sendto" = "Додати Телеграма в меню «Відправити...»";
+"lng_settings_scale_label" = "Масштаб інтерфейсу";
+"lng_settings_scale_auto" = "Авто ({cur})";
+
+"lng_settings_section_chat" = "Установки чату";
+"lng_settings_replace_emojis" = "Замінювати смайли";
+"lng_settings_view_emojis" = "Переглянути список";
+"lng_settings_emoji_list" = "Список доступних смайлів";
+"lng_settings_send_enter" = "Відправляти по Enter";
+"lng_settings_send_ctrlenter" = "Відправляти по Ctrl+Enter";
+"lng_settings_send_cmdenter" = "Відправляти по Cmd+Enter";
+"lng_settings_cats_and_dogs" = "Дозволити котів, собак і хом'ячків";
+
+"lng_download_path_dont_ask" = "Не питати шлях для збереження";
+"lng_download_path_label" = "Шлях для збереження:";
+"lng_download_path_temp" = "тимчасова папка";
+"lng_download_path_default" = "папка за замовчуванням";
+"lng_download_path_clear" = "Очистити все";
+"lng_download_path_header" = "Вибрати шлях для завантаження";
+"lng_download_path_default_radio" = "Папка «Завантаження»";
+"lng_download_path_temp_radio" = "Тимчасова папка, очищається при виході";
+"lng_download_path_dir_radio" = "Користувацька папка, очищається вручну";
+"lng_download_path_choose" = "Виберіть шлях для завантаження";
+"lng_sure_clear_downloads" = "Очистити тимчасову папку з завантаженнями? Це відбувається автоматично при виході з акаунта або видаленні програми";
+"lng_download_path_failed" = "Неможливо запустити завантажений файл. Можливо, ви вказали некоректний шлях збереження.\n\nВи можете вказати шлях в Налаштуваннях ...";
+"lng_download_path_settings" = "Відкрити параметри";
+"lng_download_finish_failed" = "Помилка завантаження файлу.\n\nПопробовать знову?";
+"lng_download_path_clearing" = "Очищення ...";
+"lng_download_path_cleared" = "Очищено!";
+"lng_download_path_clear_failed" = "Очищення не вдалося :(";
+
+"lng_settings_section_cache" = "Локальне сховище";
+"lng_settings_no_data_cached" = "У кеші немає жодної картинки!";
+"lng_settings_images_cached" = "У кеші {count:_not_used_|# картинки|# картинок}, {size}";
+"lng_settings_audios_cached" = "{count:_not_used_|# голосове повідомлення|# голосове повідомленнь}, {size}";
+"lng_local_storage_clear" = "Очистити кеш";
+"lng_local_storage_clearing" = "Очищення ...";
+"lng_local_storage_cleared" = "Очищено!";
+"lng_local_storage_clear_failed" = "Не вийшло очистити кеш :(";
+
+"lng_settings_section_advanced" = "Додаткові параметри";
+"lng_connection_type" = "Тип з'єднання:";
+"lng_connection_auto_connecting" = "За замовчуванням (підключення ...)";
+"lng_connection_auto" = "За замовчуванням ({type})";
+"lng_connection_http_proxy" = "HTTP з HTTP-проксі";
+"lng_connection_tcp_proxy" = "TCP з socks5-проксі";
+"lng_connection_header" = "Тип з'єднання";
+"lng_connection_auto_rb" = "Автоматично (TCP якщо доступно або HTTP)";
+"lng_connection_http_proxy_rb" = "HTTP з нестандартним HTTP-проксі";
+"lng_connection_tcp_proxy_rb" = "TCP з нестандартним socks5-проксі";
+"lng_connection_host_ph" = "Ім'я сервера";
+"lng_connection_port_ph" = "Порт";
+"lng_connection_user_ph" = "Логін";
+"lng_connection_password_ph" = "Пароль";
+"lng_connection_save" = "Зберегти";
+"lng_settings_reset" = "Завершити всі сесії";
+"lng_settings_reset_sure" = "Завершити всі сесії, крім поточної?";
+"lng_settings_reset_button" = "Завершити";
+"lng_settings_reset_done" = "Всі сесії завершені";
+"lng_settings_logout" = "Вийти";
+"lng_sure_logout" = "Ви справді хочете вийти";
+
+"lng_settings_need_restart" = "Щоб зміни вступили в силу,\nтреба перезапустити програму\nПерезапустити зараз?";
+"lng_settings_restart_now" = "Перезапустити";
+"lng_settings_restart_later" = "Пізніше";
+
+"lng_profile_chat_unaccessible" = "Група недоступна";
+"lng_topbar_info" = "Інформація";
+"lng_profile_settings_section" = "Налаштування";
+"lng_profile_participants_section" = "Учасники";
+"lng_profile_info" = "Інформація про контакт";
+"lng_profile_group_info" = "Інформація про групу";
+"lng_profile_add_contact" = "Додати контакт";
+"lng_profile_edit_contact" = "Редагувати";
+"lng_profile_enable_notifications" = "Повідомлення";
+"lng_profile_clear_history" = "Очистити історію";
+"lng_profile_send_message" = "Написати";
+"lng_profile_share_contact" = "Відправити контакт";
+"lng_profile_delete_contact" = "Видалити";
+"lng_profile_set_group_photo" = "Встановити фото";
+"lng_profile_add_participant" = "Додати учасника";
+"lng_profile_delete_and_exit" = "Покинути";
+"lng_profile_kick" = "Вигнати";
+"lng_profile_sure_kick" = "Вигнати {user} з группи?";
+"lng_profile_loading" = "Завантаження ..";
+"lng_profile_shared_media" = "Загальні файли";
+"lng_profile_no_media" = "В історії повідомлень немає файлів.";
+"lng_profile_photos" = "{count:_not_used_|# фотографія|# фотографій}";
+"lng_profile_photos_header" = "Перегляд фотографій";
+"lng_profile_videos" = "{count:_not_used_|# відео файл|# відео файлів}";
+"lng_profile_videos_header" = "Перегляд відео";
+"lng_profile_documents" = "{count:_not_used_|# документ|# документів}";
+"lng_profile_documents_header" = "Перегляд документів";
+"lng_profile_audios" = "{count:_not_used_|# голосове повідомлення|# голосових повідомлень}";
+"lng_profile_audios_header" = "Огляд голосових повідомлень";
+"lng_profile_show_all_types" = "Показати все";
+"lng_profile_copy_phone" = "Скопіювати номер телефону";
+
+"lng_participant_filter" = "Пошук";
+"lng_participant_invite" = "Запросити";
+"lng_create_new_group" = "Нова група";
+"lng_create_group_next" = "Далі";
+"lng_create_group_title" = "Створення групи";
+
+"lng_sure_delete_contact" = "Ви впевнені, що хочете видалити з контактів {contact}?";
+"lng_sure_delete_history" = "Ви впевнені, що хочете видалити історію повідомлень з {contact}?\n\nnВідновити історію буде неможливо.";
+
+"lng_sure_delete_and_exit" = "Ви впевнені, що хочете видалити переписку і покинути «{group}»?\n\nЦю дію не можна буде скасувати";
+
+"lng_sure_enable_debug" = "Увімкнути режим налагодження?\n\nПри включенні цього режиму\nусі мережеві дії будуть логгіровани.";
+
+"lng_message_empty" = "(порожньо)";
+
+"lng_action_add_user" = "{from} додав(ла) {user}";
+"lng_action_kick_user" = "{from} вигнав(ла) {user}";
+"lng_action_user_left" = "{from} покинув(ла) группу";
+"lng_action_user_joined" = "користувач {from}  приєднався до групи";
+"lng_action_user_registered" = "{from} приєднався до Telegram";
+"lng_action_removed_photo" = "{from} видалив(ла) фото групи";
+"lng_action_changed_photo" = "{from} змінив(ла) фото групи на";
+"lng_action_changed_title" = "{from} змінив(ла) назву групи на «{title}»";
+"lng_action_created_chat" = "{from} створив(ла) групу «{title}»";
+
+"lng_forwarded_from" = "Переслано від";
+
+"lng_attach_failed" = "Невдало";
+"lng_attach_file" = "Файл";
+"lng_attach_photo" = "Фото";
+
+"lng_media_type" = "Тип файлу";
+"lng_media_type_photos" = "Фотографії";
+"lng_media_type_videos" = "Відео";
+"lng_media_type_documents" = "Файли";
+"lng_media_type_audios" = "Голосові повідомлення";
+
+"lng_media_open_with" = "Відкрити за допомогою";
+"lng_media_download" = "Завантажити";
+"lng_media_cancel" = "Скасувати";
+"lng_media_video" = "Відео";
+"lng_media_audio" = "Голосове повідомлення";
+
+"lng_in_dlg_photo" = "Фото";
+"lng_in_dlg_video" = "Відео";
+"lng_in_dlg_contact" = "Контакт";
+"lng_in_dlg_audio" = "Аудіо";
+"lng_in_dlg_document" = "Файл";
+"lng_in_dlg_sticker" = "Стікер";
+"lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
+
+"lng_send_button" = "Відправити";
+"lng_message_ph" = "Наберіть ваше повідомлення ..";
+"lng_empty_history" = "";
+"lng_willbe_history" = "Виберіть чат";
+"lng_message_with_from" = "[c]{from}:[/c] {message}";
+"lng_from_you" = "Ви";
+
+"lng_typing" = "друкує";
+"lng_user_typing" = "{user} друкує";
+"lng_users_typing" = "{user} і {second_user} друкують";
+"lng_many_typing" = " {count:_not_used_|# друкує|# друкуютьы}";
+"lng_unread_bar" = "{count:_not_used_|# непрочитане повідомленняы|# непрочитаних повідомленнь}";
+
+"lng_maps_point" = "Місцезнаходження";
+"lng_save_photo" = "Зберегти картинку";
+"lng_save_video" = "Зберегти відео";
+"lng_save_audio" = "Зберегти аудіо";
+"lng_save_document" = "Зберегти документ";
+"lng_save_downloaded" = "{ready} / {total} {mb}";
+"lng_duration_and_size" = "{duration}, {size}";
+"lng_choose_images" = "Вибрати зображення";
+
+"lng_context_open_link" = "Відкрити посилання";
+"lng_context_copy_link" = "Копіювати посилання";
+"lng_context_open_email" = "Відправити на електронну пошту";
+"lng_context_copy_email" = "Копіювати адресу";
+"lng_context_open_hashtag" = "Пошук по хештегом";
+"lng_context_copy_hashtag" = "Скопіювати хештег";
+"lng_context_open_image" = "Відкрити картинку";
+"lng_context_save_image" = "Зберегти зображення як ..";
+"lng_context_forward_image" = "Переслати зображення";
+"lng_context_delete_image" = "Видалити зображення";
+"lng_context_copy_image" = "Копіювати зображення";
+"lng_context_close_image" = "Закрити зображення";
+"lng_context_cancel_download" = "Скасувати завантаження";
+"lng_context_show_in_folder" = "Показати в папці";
+"lng_context_show_in_finder" = "Показати в Finder";
+"lng_context_open_video" = "Відкрити";
+"lng_context_save_video" = "Зберегти як ...";
+"lng_context_open_audio" = "Відкрити";
+"lng_context_save_audio" = "Зберегти як ...";
+"lng_context_open_document" = "Відкрити файл";
+"lng_context_save_document" = "Зберегти як ...";
+"lng_context_forward_file" = "Переслати файл";
+"lng_context_delete_file" = "Видалити файл";
+"lng_context_close_file" = "Закрити файл";
+"lng_context_copy_text" = "Копіювати текст";
+"lng_context_to_msg" = "Перейти до повідомлення";
+"lng_context_forward_msg" = "Переслати повідомлення";
+"lng_context_delete_msg" = "Видалити повідомлення";
+"lng_context_select_msg" = "Вибрати повідомлення";
+"lng_context_cancel_upload" = "Скасувати відправку";
+"lng_context_copy_selected" = "Копіювати виділене";
+"lng_context_forward_selected" = "Переслати вибрані";
+"lng_context_delete_selected" = "Видалити вибрані";
+"lng_context_clear_selection" = "Зняти виділення";
+"lng_really_send_image" = "Відправити це зображення?";
+"lng_really_send_file" = "Відправити цей файл?";
+"lng_really_share_contact" = "Ви справді хочете поділитися цим контактом?";
+"lng_send_image_compressed" = "Відправити стисненеы зображення";
+
+"lng_forward_choose" = "Виберіть одержувача..";
+"lng_forward_confirm" = "Переслати користувачу {recipient}?";
+"lng_forward_share_contact" = "Поділитися контактом з {recipient}?";
+"lng_forward_send_file_confirm" = "Відправити «{name}» користувачу {recipient}?";
+"lng_forward_send_files_confirm" = "Відправити файли {recipient}?";
+"lng_forward" = "Переслати";
+"lng_forward_send" = "Відправити";
+
+
+"lng_contact_phone" = "Телефон";
+"lng_enter_contact_data" = "Новий контакт";
+"lng_edit_group_title" = "Змінити ім'я групи";
+"lng_edit_contact_title" = "Редагування імені контакту";
+"lng_edit_self_title" = "Редагування вашого імені";
+"lng_confirm_contact_data" = "Новий контакт";
+"lng_add_contact" = "Створити";
+"lng_add_contact_button" = "Додати контакт";
+"lng_contacts_header" = "Контакти";
+"lng_contact_not_joined" = "На жаль, {name} ще не приєднався(лась) до Telegram, але ви можете надіслати запрошення вашим друзям\n\nМи повідомимо, коли хтось із ваших друзів приєднається до Telegram..";
+"lng_try_other_contact" = "Спробуйте інший контакт";
+"lng_contacts_done" = "Скасувати";
+
+"lng_drag_images_here" = "Перетягніть зображення сюди";
+"lng_drag_photos_here" = "Перетягніть фотографії сюди";
+"lng_drag_files_here" = "Перетягніть файли сюди";
+
+"lng_drag_to_send_quick" = "для швидкого відправлення";
+"lng_drag_to_send_no_compression" = "для швидкого відправлення без стиснення";
+"lng_drag_to_send_documents" = "для відправки як документ(и)";
+
+"lng_selected_clear" = "Скасувати";
+"lng_selected_delete" = "Видалити";
+"lng_selected_forward" = "Переслати";
+"lng_selected_count" = "{count:_not_used_|# повідомлення|# повідомлень}";
+"lng_selected_cancel_sure_this" = "Ви хочете скасувати завантаження файлу?";
+"lng_selected_delete_sure_this" = "Ви хочете видалити це повідомлення?";
+"lng_selected_delete_sure" = "Удалить {count:_not_used_|# повідомлення|# повідомлень}?";
+"lng_selected_delete_confirm" = "Видалити";
+
+"lng_about_version" = "Версія {version}";
+"lng_about_text" = "Офіційна програма-додаток для чату, заснована на [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] і\n[a href=\"https://core.telegram.org/api\"]Telegram API[/a] для швидкого і безпечного спілкування.\n\nЦе ПО розповсюджується за ліцензією [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] версії 3,\nпочатковий код доступний на [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_done" = "Закрити";
+
+"lng_search_found_results" = "{count:Не знайдено повідомлень|Знайдено # повідомлення|Знайдено # повідомлень}";
+"lng_search_global_results" = "Результати глобального пошуку";
+
+"lng_mediaview_save" = "Завантажити";
+"lng_mediaview_forward" = "Переслати";
+"lng_mediaview_delete" = "Видалити";
+"lng_mediaview_single_photo" = "Фото";
+"lng_mediaview_group_photo" = "Фото групи";
+"lng_mediaview_profile_photo" = "Фото профілю";
+"lng_mediaview_n_of_count" = "Фото {n} з {count}";
+"lng_mediaview_doc_image" = "Документ";
+"lng_mediaview_today" = "сьогодні в {time}";
+"lng_mediaview_yesterday" = "вчора в {time}";
+"lng_mediaview_date_time" = "{date} в {time}";
+
+"lng_mediaview_saved" = "Зображення було збережено в папку [c]Завантажування[/c]";
+
+"lng_new_authorization" = "{name},\nМи виявили вхід в Telegram з іншого пристрою в {day}, {date} в {time}\n\nПристрій: {device}\nМісцезнаходження: {location}\n\nЯкщо це не ви, зайдіть в Настройки - Завершити всі сесії, крім поточної.\n\nСпасибі!\nКоманда Telegram";
+
+"lng_new_version7007" = "Програму Telegram було оновлено до версії {version}\n\n — Додана іконка для трея в Ubuntu\n\nПовна версія змін завжди доступна тут:\n{link}";
+"lng_new_version7006_appstore" = "Програму Telegram було оновлено до версії {version}\n\n — Додані стікери\n — Локальне кешування голосових повідомлень\n — Додані нові мови\n\nПовна версія змін завжди доступна тут:\n{link}";
+
+// Mac specific
+
+"lng_mac_choose_app" = "Вибрати програму";
+"lng_mac_choose_text" = "Вибрати програму для відкриття \" {file} \ ".";
+"lng_mac_enable_filter" = "Дозволити:";
+"lng_mac_recommended_apps" = "Рекомендовані програми";
+"lng_mac_all_apps" = "Всі програми";
+"lng_mac_always_open_with" = "Постійно відкривати за допомогою";
+"lng_mac_this_app_can_open" = "Ця програма може відкрити \"{file}\".";
+"lng_mac_not_known_app" = "Не відомо, чи може ця програма відкрити \"{file}\".";
+
+"lng_mac_menu_services" = "Сервіси";
+"lng_mac_menu_hide_telegram" = "Приховати {telegram}";
+"lng_mac_menu_hide_others" = "Приховати інше";
+"lng_mac_menu_show_all" = "Показати все";
+"lng_mac_menu_preferences" = "Налаштування..";
+"lng_mac_menu_quit_telegram" = "Вийти з {telegram}";
+"lng_mac_menu_about_telegram" = "Про Telegram";
+"lng_mac_menu_file" = "Файл";
+"lng_mac_menu_logout" = "Вийти";
+"lng_mac_menu_edit" = "Виправлення";
+"lng_mac_menu_undo" = "Скасувати";
+"lng_mac_menu_redo" = "Повернути";
+"lng_mac_menu_cut" = "Вирізати";
+"lng_mac_menu_copy" = "Копіювати";
+"lng_mac_menu_paste" = "Вставити";
+"lng_mac_menu_delete" = "Видалити";
+"lng_mac_menu_select_all" = "Виділити все";
+"lng_mac_menu_window" = "Вікно";
+"lng_mac_menu_contacts" = "Контакти";
+"lng_mac_menu_add_contact" = "Додати контакт";
+"lng_mac_menu_new_group" = "Нова група";
+"lng_mac_menu_show" = "Показати Telegram";
+
+// Keys finished
