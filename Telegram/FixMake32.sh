@@ -1,19 +1,21 @@
-sed -i 's/\-lxcb\-render\-util/\/usr\/lib\/i386\-linux\-gnu\/libxcb\-render\-util\.a/g' Makefile
-sed -i 's/\-lxcb\-render/\/usr\/lib\/i386\-linux\-gnu\/libxcb\-render\.a/g' Makefile
-sed -i 's/\-lxcb\-sync/\/usr\/lib\/i386\-linux\-gnu\/libxcb\-sync\.a/g' Makefile
-sed -i 's/\-lxcb\-keysyms/\/usr\/lib\/i386\-linux\-gnu\/libxcb\-keysyms\.a/g' Makefile
-sed -i 's/\-lxcb\-icccm/\/usr\/lib\/i386\-linux\-gnu\/libxcb\-icccm\.a/g' Makefile
-sed -i 's/\-lxcb\-xfixes/\/usr\/lib\/i386\-linux\-gnu\/libxcb\-xfixes\.a/g' Makefile
-sed -i 's/\-lxcb\-shm/\/usr\/lib\/i386\-linux\-gnu\/libxcb\-shm\.a/g' Makefile
-sed -i 's/\-lxcb\-randr/\/usr\/lib\/i386\-linux\-gnu\/libxcb\-randr\.a/g' Makefile
-sed -i 's/\-lxcb\-shape/\/usr\/lib\/i386\-linux\-gnu\/libxcb\-shape\.a/g' Makefile
-sed -i 's/\-lxcb\-image/\/usr\/lib\/i386\-linux\-gnu\/libxcb\-image\.a \/usr\/lib\/i386\-linux\-gnu\/libxcb\-util\.a/g' Makefile
-sed -i 's/\-llzma/\/usr\/lib\/i386\-linux\-gnu\/liblzma\.a/g' Makefile
-sed -i 's/\-lz/\/usr\/lib\/i386\-linux\-gnu\/libz\.a/g' Makefile
-sed -i 's/\-lssl/\/usr\/lib\/i386\-linux\-gnu\/libssl\.a/g' Makefile
-sed -i 's/\-lcrypto/\/usr\/lib\/i386\-linux\-gnu\/libcrypto\.a/g' Makefile
-sed -i 's/\-lexif/\/usr\/lib\/i386\-linux\-gnu\/libexif\.a/g' Makefile
-sed -i 's/\-lopusfile/\/usr\/local\/lib\/libopusfile\.a/g' Makefile
-sed -i 's/\-lopus/\/usr\/local\/lib\/libopus\.a/g' Makefile
-sed -i 's/\-lopenal/\/usr\/local\/lib\/libopenal\.a/g' Makefile
-sed -i 's/\-logg/\/usr\/local\/lib\/libogg\.a/g' Makefile
+Replace () {
+    CheckCommand="grep -ci '$1' Makefile"
+    CheckCount=$(eval $CheckCommand)
+    if [ "$CheckCount" -gt 0 ]; then
+        echo "Requested '$1' to '$2', found - replacing.."
+        ReplaceCommand="sed -i 's/$1/$2/g' Makefile"
+        eval $ReplaceCommand
+    else
+        echo "Skipping '$1' to '$2'"
+    fi
+}
+
+Replace '\-llzma' '\/usr\/lib\/i386\-linux\-gnu\/liblzma\.a'
+Replace '\-lz' '\/usr\/lib\/i386\-linux\-gnu\/libz\.a'
+Replace '\-lssl' '\/usr\/lib\/i386\-linux\-gnu\/libssl\.a'
+Replace '\-lcrypto' '\/usr\/lib\/i386\-linux\-gnu\/libcrypto\.a'
+Replace '\-lexif' '\/usr\/lib\/i386\-linux\-gnu\/libexif\.a'
+Replace '\-lopusfile' '\/usr\/local\/lib\/libopusfile\.a'
+Replace '\-lopus' '\/usr\/local\/lib\/libopus\.a'
+Replace '\-lopenal' '\/usr\/local\/lib\/libopenal\.a'
+Replace '\-logg' '\/usr\/local\/lib\/libogg\.a'

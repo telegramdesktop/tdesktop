@@ -24,7 +24,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "historywidget.h"
 
 namespace {
-	bool frameless = true;
+    QStringList _initLogs;
+
+    bool frameless = true;
 	bool finished = true;
 
     class _PsEventFilter : public QAbstractNativeEventFilter {
@@ -976,6 +978,15 @@ void PsUpdateDownloader::unpackUpdate() {
 PsUpdateDownloader::~PsUpdateDownloader() {
 	delete reply;
 	reply = 0;
+}
+
+
+QStringList psInitLogs() {
+    return _initLogs;
+}
+
+void psClearInitLogs() {
+    _initLogs = QStringList();
 }
 
 void psActivateProcess(uint64 pid) {

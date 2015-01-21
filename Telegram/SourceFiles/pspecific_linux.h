@@ -175,6 +175,9 @@ private:
 
 };
 
+QStringList psInitLogs();
+void psClearInitLogs();
+
 void psActivateProcess(uint64 pid = 0);
 QString psLocalServerPrefix();
 QString psCurrentCountry();

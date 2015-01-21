@@ -46,7 +46,12 @@ int main(int argc, char *argv[]) {
 		for (int32 i = 0; i < argc; ++i) {
 			LOG(("Argument: %1").arg(QString::fromLocal8Bit(argv[i])));
 		}
-	}
+        QStringList logs = psInitLogs();
+        for (int32 i = 0, l = logs.size(); i < l; ++i) {
+            LOG(("Init Log: %1").arg(logs.at(i)));
+        }
+    }
+    psClearInitLogs();
 
 	DEBUG_LOG(("Application Info: ideal thread count: %1, using %2 connections per session").arg(QThread::idealThreadCount()).arg(cConnectionsInSession()));
 
