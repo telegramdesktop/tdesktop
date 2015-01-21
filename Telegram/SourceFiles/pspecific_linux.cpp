@@ -1654,6 +1654,10 @@ void psExecTelegram() {
     _execUpdater(false);
 }
 
+bool psShowOpenWithMenu(int x, int y, const QString &file) {
+	return false;
+}
+
 void psAutoStart(bool start, bool silent) {
 }
 

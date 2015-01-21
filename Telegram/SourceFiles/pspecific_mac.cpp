@@ -1110,6 +1110,10 @@ bool psCheckReadyUpdate() {
     return true;
 }
 
+bool psShowOpenWithMenu(int x, int y, const QString &file) {
+	return objc_showOpenWithMenu(x, y, file);
+}
+
 void psPostprocessFile(const QString &name) {
 }
 

@@ -491,7 +491,10 @@ void VideoSaveLink::doSave(bool forceSavingAs) const {
 
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
-		psOpenFile(already, true);
+		QPoint pos(QCursor::pos());
+		if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
+			psOpenFile(already, true);
+		}
 	} else {
 		QDir alreadyDir(already.isEmpty() ? QDir() : QFileInfo(already).dir());
 		QString name = already.isEmpty() ? QString(".mov") : already;
@@ -577,7 +580,10 @@ void AudioSaveLink::doSave(bool forceSavingAs) const {
 
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
-		psOpenFile(already, true);
+		QPoint pos(QCursor::pos());
+		if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
+			psOpenFile(already, true);
+		}
 	} else {
 		QDir alreadyDir(already.isEmpty() ? QDir() : QFileInfo(already).dir());
 		QString name = already.isEmpty() ? QString(".ogg") : already;
@@ -678,7 +684,10 @@ void DocumentSaveLink::doSave(bool forceSavingAs) const {
 
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
-		psOpenFile(already, true);
+		QPoint pos(QCursor::pos());
+		if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
+			psOpenFile(already, true);
+		}
 	} else {
 		QDir alreadyDir(already.isEmpty() ? QDir() : QFileInfo(already).dir());
 		QString name = already.isEmpty() ? data->name : already, filter;

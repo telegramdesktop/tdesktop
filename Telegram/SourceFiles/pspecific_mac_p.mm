@@ -369,6 +369,209 @@ int64 objc_idleTime() { // taken from https://github.com/trueinteractions/tint/i
     return (result == err) ? -1 : int64(result);
 }
 
+@interface OpenWithApp : NSObject {
+	NSString *fullname;
+	NSURL *app;
+	NSImage *icon;
+}
+@property (nonatomic, retain) NSString *fullname;
+@property (nonatomic, retain) NSURL *app;
+@property (nonatomic, retain) NSImage *icon;
+@end
+
+@implementation OpenWithApp
+@synthesize fullname, app, icon;
+
+- (void) dealloc {
+	[fullname release];
+	[app release];
+	[icon release];
+	[super dealloc];
+}
+
+@end
+
+@interface OpenFileWithInterface : NSObject {
+}
+
+- (id) init:(NSString *)file;
+- (BOOL) popupAtX:(int)x andY:(int)y;
+- (void) itemChosen:(id)sender;
+- (void) dealloc;
+
+@end
+
+@implementation OpenFileWithInterface {
+	NSString *toOpen;
+
+	NSURL *defUrl;
+	NSString *defBundle, *defName, *defVersion;
+	NSImage *defIcon;
+
+	NSMutableArray *apps;
+
+	NSMenu *menu;
+}
+
+- (void) fillAppByUrl:(NSURL*)url bundle:(NSString**)bundle name:(NSString**)name version:(NSString**)version icon:(NSImage**)icon {
+	NSBundle *b = [NSBundle bundleWithURL:url];
+	if (b) {
+		NSString *path = [url path];
+		*name = [[NSFileManager defaultManager] displayNameAtPath: path];
+		if (!*name) *name = (NSString*)[b objectForInfoDictionaryKey:@"CFBundleDisplayName"];
+		if (!*name) *name = (NSString*)[b objectForInfoDictionaryKey:@"CFBundleName"];
+		if (*name) {
+			*bundle = [b bundleIdentifier];
+			if (bundle) {
+				*version = (NSString*)[b objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
+				*icon = [[NSWorkspace sharedWorkspace] iconForFile: path];
+				if (*icon && [*icon isValid]) [*icon setSize: CGSizeMake(16., 16.)];
+				return;
+			}
+		}
+	}
+	*bundle = *name = *version = nil;
+	*icon = nil;
+}
+
+- (id) init:(NSString*)file {
+	toOpen = file;
+	if (self = [super init]) {
+		NSURL *url = [NSURL fileURLWithPath:file];
+		defUrl = [[NSWorkspace sharedWorkspace] URLForApplicationToOpenURL:url];
+		if (defUrl) {
+			[self fillAppByUrl:defUrl bundle:&defBundle name:&defName version:&defVersion icon:&defIcon];
+			if (!defBundle || !defName) {
+				defUrl = nil;
+			}
+		}
+		NSArray *appsList = (NSArray*)LSCopyApplicationURLsForURL(CFURLRef(url), kLSRolesAll);
+		NSMutableDictionary *data = [NSMutableDictionary dictionaryWithCapacity:16];
+		int fullcount = 0;
+		for (id app in appsList) {
+			if (fullcount > 15) break;
+
+			NSString *bundle = nil, *name = nil, *version = nil;
+			NSImage *icon = nil;
+			[self fillAppByUrl:(NSURL*)app bundle:&bundle name:&name version:&version icon:&icon];
+			if (bundle && name) {
+				if ([bundle isEqualToString:defBundle] && [version isEqualToString:defVersion]) continue;
+				NSString *key = [[NSArray arrayWithObjects:bundle, name, nil] componentsJoinedByString:@"|"];
+				if (!version) version = @"";
+
+				NSMutableDictionary *versions = (NSMutableDictionary*)[data objectForKey:key];
+				if (!versions) {
+					versions = [NSMutableDictionary dictionaryWithCapacity:2];
+					[data setValue:versions forKey:key];
+				}
+				if (![versions objectForKey:version]) {
+					[versions setValue:[NSArray arrayWithObjects:name, icon, app, nil] forKey:version];
+					++fullcount;
+				}
+			}
+		}
+		if (fullcount || defUrl) {
+			apps = [NSMutableArray arrayWithCapacity:fullcount];
+			for (id key in data) {
+				NSMutableDictionary *val = (NSMutableDictionary*)[data objectForKey:key];
+				for (id ver in val) {
+					NSArray *app = (NSArray*)[val objectForKey:ver];
+					OpenWithApp *a = [[OpenWithApp alloc] init];
+					NSString *fullname = (NSString*)[app objectAtIndex:0], *version = (NSString*)ver;
+					BOOL showVersion = ([val count] > 1);
+					if (!showVersion) {
+						NSError *error = NULL;
+						NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"^\\d+\\.\\d+\\.\\d+(\\.\\d+)?$" options:NSRegularExpressionCaseInsensitive error:&error];
+						showVersion = ![regex numberOfMatchesInString:version options:NSMatchingWithoutAnchoringBounds range:{0,[version length]}];
+					}
+					if (showVersion) fullname = [[NSArray arrayWithObjects:fullname, @" (", version, @")", nil] componentsJoinedByString:@""];
+					[a setFullname:fullname];
+					[a setIcon:(NSImage*)[app objectAtIndex:1]];
+					[a setApp:(NSURL*)[app objectAtIndex:2]];
+					[apps addObject:a];
+					[a release];
+				}
+			}
+		}
+		[apps sortUsingDescriptors:[NSArray arrayWithObject:[NSSortDescriptor sortDescriptorWithKey:@"fullname" ascending:YES]]];
+		[appsList release];
+		menu = nil;
+	}
+	return self;
+}
+
+- (BOOL) popupAtX:(int)x andY:(int)y {
+	if (![apps count] && !defName) return NO;
+	menu = [[NSMenu alloc] initWithTitle:@"Open With"];
+
+	int index = 0;
+	if (defName) {
+		NSMenuItem *item = [menu insertItemWithTitle:[[NSArray arrayWithObjects:defName, @" (default)", nil] componentsJoinedByString:@""] action:@selector(itemChosen:) keyEquivalent:@"" atIndex:index++];
+		if (defIcon) [item setImage:defIcon];
+		[item setTarget:self];
+		[menu insertItem:[NSMenuItem separatorItem] atIndex:index++];
+	}
+	if ([apps count]) {
+		for (id a in apps) {
+			OpenWithApp *app = (OpenWithApp*)a;
+			NSMenuItem *item = [menu insertItemWithTitle:[a fullname] action:@selector(itemChosen:) keyEquivalent:@"" atIndex:index++];
+			if ([app icon]) [item setImage:[app icon]];
+			[item setTarget:self];
+		}
+		[menu insertItem:[NSMenuItem separatorItem] atIndex:index++];
+	}
+	NSMenuItem *item = [menu insertItemWithTitle:@"Other..." action:@selector(itemChosen:) keyEquivalent:@"" atIndex:index++];
+	[item setTarget:self];
+
+	[menu popUpMenuPositioningItem:nil atLocation:CGPointMake(x, y) inView:nil];
+
+	return YES;
+}
+
+- (void) itemChosen:(id)sender {
+	NSArray *items = [menu itemArray];
+	NSURL *url = nil;
+	for (int i = 0, l = [items count]; i < l; ++i) {
+		if ([items objectAtIndex:i] == sender) {
+			if (defName) i -= 2;
+			if (i < 0) {
+				url = defUrl;
+			} else if (i < int([apps count])) {
+				url = [(OpenWithApp*)[apps objectAtIndex:i] app];
+			}
+			break;
+		}
+	}
+	if (url) {
+		[[NSWorkspace sharedWorkspace] openFile:toOpen withApplication:[url path]];
+	} else {
+		objc_openFile(objcString(toOpen), true);
+	}
+}
+
+- (void) dealloc {
+	if (apps) [apps release];
+	[super dealloc];
+	if (menu) [menu release];
+}
+
+@end
+
+bool objc_showOpenWithMenu(int x, int y, const QString &f) {
+	NSString *file = QNSString(f).s();
+	@try {
+		OpenFileWithInterface *menu = [[OpenFileWithInterface alloc] init:file];
+		QRect r = QApplication::desktop()->screenGeometry(QPoint(x, y));
+		y = r.y() + r.height() - y;
+		return !![menu popupAtX:x andY:y];
+	}
+	@catch (NSException *exception) {
+	}
+	@finally {
+	}
+	return false;
+}
+
 void objc_showInFinder(const QString &file, const QString &path) {
     [[NSWorkspace sharedWorkspace] selectFile:QNSString(file).s() inFileViewerRootedAtPath:QNSString(path).s()];
 }

@@ -2295,6 +2295,10 @@ void psExecTelegram() {
 	}
 }
 
+bool psShowOpenWithMenu(int x, int y, const QString &file) {
+	return false;
+}
+
 void _manageAppLnk(bool create, bool silent, int path_csidl, const wchar_t *args, const wchar_t *description) {
 	WCHAR startupFolder[MAX_PATH];
 	HRESULT hres = SHGetFolderPath(0, path_csidl, 0, SHGFP_TYPE_CURRENT, startupFolder);

@@ -1050,7 +1050,12 @@ void MainWidget::videoLoadProgress(mtpFileLoader *loader) {
 			video->finish();
 			QString already = video->already();
 			if (!already.isEmpty() && video->openOnSave) {
-				psOpenFile(already, video->openOnSave < 0);
+				QPoint pos(QCursor::pos());
+				if (video->openOnSave < 0 && !psShowOpenWithMenu(pos.x(), pos.y(), already)) {
+					psOpenFile(already, true);
+				} else {
+					psOpenFile(already, video->openOnSave < 0);
+				}
 			}
 		}
 	}
@@ -1105,7 +1110,12 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 						audioVoice()->play(audio);
 					}
 				} else {
-					psOpenFile(already, audio->openOnSave < 0);
+					QPoint pos(QCursor::pos());
+					if (audio->openOnSave < 0 && !psShowOpenWithMenu(pos.x(), pos.y(), already)) {
+						psOpenFile(already, true);
+					} else {
+						psOpenFile(already, audio->openOnSave < 0);
+					}
 				}
 			}
 		}
@@ -1164,7 +1174,12 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 						psOpenFile(already);
 					}
 				} else {
-					psOpenFile(already, document->openOnSave < 0);
+					QPoint pos(QCursor::pos());
+					if (document->openOnSave < 0 && !psShowOpenWithMenu(pos.x(), pos.y(), already)) {
+						psOpenFile(already, true);
+					} else {
+						psOpenFile(already, document->openOnSave < 0);
+					}
 				}
 			}
 		}
