@@ -452,10 +452,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\nWe detected a login into your account from a new device on {day}, {date} at {time}\n\nDevice: {device}\nLocation: {location}\n\nIf this wasn't you, you can go to Settings — Terminate other sessions.\n\nThanks,\nThe Telegram Team";
 
-"lng_new_version7007" = "Telegram Desktop was updated to version {version}\n\n — Tray icon added in Ubuntu\n\nFull version history is available here:\n{link}";
+"lng_new_version7009" = "Telegram Desktop was updated to version {version}\n\n — Added Korean language\n — Quick «open with» menu on Windows and OS X\n\nFull version history is available here:\n{link}";
 "lng_new_version7006_appstore" = "Telegram Desktop was updated to version {version}\n\n — Stickers support\n — Local caching for voice messages\n — Added new languages\n\nFull version history is available here:\n{link}";
 
+// Wnd specific
+
+"lng_wnd_choose_program_menu" = "Choose default program...";
+
 // Mac specific
+
+"lng_mac_choose_program_menu" = "Other...";
 
 "lng_mac_choose_app" = "Choose Application";
 "lng_mac_choose_text" = "Choose an application to open the document \"{file}\".";

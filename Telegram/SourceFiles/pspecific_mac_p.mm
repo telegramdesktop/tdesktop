@@ -520,7 +520,7 @@ int64 objc_idleTime() { // taken from https://github.com/trueinteractions/tint/i
 		}
 		[menu insertItem:[NSMenuItem separatorItem] atIndex:index++];
 	}
-	NSMenuItem *item = [menu insertItemWithTitle:@"Other..." action:@selector(itemChosen:) keyEquivalent:@"" atIndex:index++];
+	NSMenuItem *item = [menu insertItemWithTitle:objc_lang(lng_mac_choose_program_menu).s() action:@selector(itemChosen:) keyEquivalent:@"" atIndex:index++];
 	[item setTarget:self];
 
 	[menu popUpMenuPositioningItem:nil atLocation:CGPointMake(x, y) inView:nil];
