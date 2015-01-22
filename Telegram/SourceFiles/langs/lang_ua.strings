@@ -25,9 +25,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_menu_restart" = "Перезавантаження";
 "lng_menu_back" = "Повернутись";
 
-"lng_open_from_tray" = "Open Telegram";
-"lng_minimize_to_tray" = "Minimize to tray";
-"lng_quit_from_tray" = "Quit Telegram";
+"lng_open_from_tray" = "Відкрити Telegram";
+"lng_minimize_to_tray" = "Мінімізувати в трей";
+"lng_quit_from_tray" = "Завершити Telegram";
 "lng_tray_icon_text" = "Telegram is still running here,\nyou can change this from settings page.\n\nIf this icon disappears from tray menu,\nyou can drag it back here from hidden icons.";
 
 "lng_month1" = "Січень";
