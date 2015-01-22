@@ -1782,6 +1782,8 @@
     <None Include="SourceFiles\langs\lang_it.strings" />
     <None Include="SourceFiles\langs\lang_nl.strings" />
     <None Include="SourceFiles\langs\lang_pt_BR.strings" />
+	<None Include="SourceFiles\langs\lang_ko.strings" />
+	<None Include="SourceFiles\langs\lang_ru.strings" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
