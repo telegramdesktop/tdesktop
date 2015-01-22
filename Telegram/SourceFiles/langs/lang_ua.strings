@@ -103,7 +103,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_phone_desc" = "Будь ласка, підтвердіть свій код країни та\nвведіть свій номер телефону.";
 "lng_phone_notreg" = "Зверніть увагу: якщо ви не маєте облікового запису телеграму \nбудь ласка [b]sign up[/b] з [a href=\"https://telegram.org/\"]iOS / Android[/a] або {signup_start}тут »{signup_end}";
 "lng_country_code" = "код країни";
-"lng_bad_country_code" = "Невырний код країни";
+"lng_bad_country_code" = "Невірний код країни";
 "lng_country_ph" = "Пошук";
 "lng_country_done" = "Виконано";
 "lng_country_none" = "Країну не знайдено";
@@ -139,14 +139,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_save" = "Зберегти";
 "lng_settings_upload" = "Встановити фото профілю";
 "lng_settings_crop_profile" = "Виберіть квадратну область для своєї фотографією в профілі";
-"lng_settings_uploading_photo" = "Pавантаження фото..";
+"lng_settings_uploading_photo" = "Завантаження фото..";
 
-"lng_username_title" = "Pмінити ім'я користувача";
+"lng_username_title" = "Змінити ім'я користувача";
 "lng_username_about" = "Ви можете вибрати ім'я користувача для Telegram.\nЯкщо ви це зробите, інші люди зможуть знайти\nВас за цим ім'м і зв'язатися з вами,\n, не знаючи Ваш номер телефону.\n\nВи можете використовувати AZ, 0-9 та підкреслення.\nМінімальна довжина становить 5 символів.";
 "lng_username_invalid" = "Це ім'я є недійсне.";
 "lng_username_occupied" = "Це ім'я вже зайняте.";
 "lng_username_too_short" = "Це ім'я є занадто коротким.";
-"lng_username_bad_symbols" = "Це ім'я має погані символів.";
+"lng_username_bad_symbols" = "Це ім'я має не правильні символи.";
 "lng_username_available" = "Це ім'я доступне.";
 "lng_username_not_found" = "Користувач @{user} не знайдений.";
 
