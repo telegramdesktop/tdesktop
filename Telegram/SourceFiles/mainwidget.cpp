@@ -2676,7 +2676,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (user) {
 				switch (d.vstatus.type()) {
 				case mtpc_userStatusEmpty: user->onlineTill = 0; break;
-				case mtpc_userStatusRecently: user->onlineTill = -2; break;
+				case mtpc_userStatusRecently:
+					if (user->onlineTill > -10) { // don't modify pseudo-online
+						user->onlineTill = -2;
+					}
+				break;
 				case mtpc_userStatusLastWeek: user->onlineTill = -3; break;
 				case mtpc_userStatusLastMonth: user->onlineTill = -4; break;
 				case mtpc_userStatusOffline: user->onlineTill = d.vstatus.c_userStatusOffline().vwas_online.v; break;

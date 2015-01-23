@@ -1413,7 +1413,8 @@ void History::newItemAdded(HistoryItem *item) {
 	if (item->from()) {
 		unregTyping(item->from());
         if (item->from()->onlineTill < 0) {
-            item->from()->onlineTill = -unixtime() - HiddenIsOnlineAfterMessage;
+			item->from()->onlineTill = -unixtime() - HiddenIsOnlineAfterMessage; // pseudo-online
+			if (App::main()) App::main()->peerUpdated(item->from());
         }
 	}
 	if (item->out()) {

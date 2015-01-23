@@ -135,7 +135,7 @@ void ContactsInner::paintDialog(QPainter &p, DialogRow *row, bool sel) {
 	}
 
 	p.setFont(st::profileSubFont->f);
-	p.setPen((user->onlineTill >= _time ? st::profileOnlineColor : st::profileOfflineColor)->p);
+	p.setPen((App::onlineColorUse(user->onlineTill, _time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
 
 	p.drawText(left + st::profileListPhotoSize + st::participantDelta, st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, data->online);
 }

@@ -170,6 +170,9 @@ namespace App {
 	int32 onlineForSort(int32 online, int32 now) {
 		if (online <= 0) {
 			switch (online) {
+			case 0:
+			case -1: return online;
+
 			case -2: {
 				QDate yesterday(date(now).date());
 				yesterday.addDays(-3);
@@ -188,6 +191,7 @@ namespace App {
 				return int32(QDateTime(monthago).toTime_t());
 			} break;
 			}
+			return -online;
 		}
 		return online;
 	}
@@ -257,6 +261,20 @@ namespace App {
 			return lng_status_lastseen_yesterday(lt_time, dOnline.time().toString(qsl("hh:mm")));
 		}
 		return lng_status_lastseen_date(lt_date, dOnline.date().toString(qsl("dd.MM.yy")));
+	}
+
+	bool onlineColorUse(int32 online, int32 now) {
+		if (online <= 0) {
+			switch (online) {
+			case 0:
+			case -1:
+			case -2:
+			case -3:
+			case -4: return false;
+			}
+			return (-online > now);
+		}
+		return (online > now);
 	}
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users) {
@@ -366,7 +384,11 @@ namespace App {
 			data->loaded = true;
 			if (status) switch (status->type()) {
 			case mtpc_userStatusEmpty: data->onlineTill = 0; break;
-			case mtpc_userStatusRecently: data->onlineTill = -2; break;
+			case mtpc_userStatusRecently:
+				if (data->onlineTill > -10) { // don't modify pseudo-online
+					data->onlineTill = -2;
+				}
+			break;
 			case mtpc_userStatusLastWeek: data->onlineTill = -3; break;
 			case mtpc_userStatusLastMonth: data->onlineTill = -4; break;
 			case mtpc_userStatusOffline: data->onlineTill = status->c_userStatusOffline().vwas_online.v; break;
