@@ -127,8 +127,8 @@ void settingsParseArgs(int argc, char *argv[]) {
 	gExeDir = psCurrentExeDirectory(argc, argv);
 	gExeName = psCurrentExeName(argc, argv);
     for (int32 i = 0; i < argc; ++i) {
-		if (string("-release") == argv[i]) {
-			gTestMode = false;
+		if (string("-testmode") == argv[i]) {
+			gTestMode = true;
 		} else if (string("-debug") == argv[i]) {
 			gDebug = true;
 		} else if (string("-many") == argv[i]) {

@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 7008;
-static const wchar_t *AppVersionStr = L"0.7.8";
+static const int32 AppVersion = 7009;
+static const wchar_t *AppVersionStr = L"0.7.9";
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -165,7 +165,7 @@ static const BuiltInDc _builtInDcs[] = {
 };
 
 static const BuiltInDc _builtInTestDcs[] = {
-	{ 1, "173.240.5.253", 443 },
+	{ 1, "149.154.175.10", 443 },
 	{ 2, "149.154.167.40", 443 },
 	{ 3, "174.140.142.5", 443 }
 };

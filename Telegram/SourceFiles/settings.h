@@ -31,15 +31,6 @@ inline void cSetDebug(bool debug) {
 	gDebug = debug;
 }
 
-extern bool gTestMode;
-inline bool cTestMode() {
-#ifdef _DEBUG
-	return gTestMode;
-#else
-	return false;
-#endif
-}
-
 #define DeclareReadSetting(Type, Name) extern Type g##Name; \
 inline const Type &c##Name() { \
 	return g##Name; \
@@ -50,6 +41,7 @@ inline void cSet##Name(const Type &Name) { \
 	g##Name = Name; \
 }
 
+DeclareSetting(bool, TestMode);
 DeclareSetting(QString, LoggedPhoneNumber);
 DeclareReadSetting(uint32, ConnectionsInSession);
 DeclareSetting(bool, AutoStart);
