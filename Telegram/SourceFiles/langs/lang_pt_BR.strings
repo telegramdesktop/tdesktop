@@ -452,16 +452,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\nDetectamos um acesso à sua conta de um novo dispositivo em {day}, {date} às {time}\n\nDispositivo: {device}\nLocalização: {location}\n\nCaso não tenha sido você, vá em Configurações – Terminar todas as outras sessões.\n\nObrigado,\nEquipe Telegram";
 
-"lng_new_version7009" = "Telegram Desktop was updated to version {version}\n\n — Added Korean language\n — Quick «open with» menu on Windows and OS X\n\nFull version history is available here:\n{link}";
+"lng_new_version7009" = "Telegram Desktop foi atualizado para a versão {version}\n\n — Adicionado o idioma Coreano\n — Menu rápido «abrir com» no Windows e OS X\n\nHistórico completo da atualização disponível aqui:\n{link}";
 "lng_new_version7006_appstore" = "Telegram Desktop foi atualizado para a versão {version}\n\n — Suporte à stickers\n — Cache local para mensagens de voz\n — Adicionadas novas linguagens\n\nHistórico completo da versão disponível aqui:\n{link}";
 
 // Wnd specific
 
-"lng_wnd_choose_program_menu" = "Choose default program...";
+"lng_wnd_choose_program_menu" = "Escolher programa padrão...";
 
 // Mac specific
 
-"lng_mac_choose_program_menu" = "Other...";
+"lng_mac_choose_program_menu" = "Outro...";
 
 "lng_mac_choose_app" = "Escolher Aplicação";
 "lng_mac_choose_text" = "Escolher aplicação para abrir o documento \"{file}\".";
