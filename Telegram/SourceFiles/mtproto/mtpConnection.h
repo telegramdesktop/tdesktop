@@ -213,6 +213,7 @@ private:
 		HttpReady,
 		UsingHttp,
 		UsingTcp,
+		FinishedWork
 	};
 	Status status;
 	MTPint128 tcpNonce, httpNonce;

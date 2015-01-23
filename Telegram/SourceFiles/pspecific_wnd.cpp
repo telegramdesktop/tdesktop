@@ -25,6 +25,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include <Shobjidl.h>
 #include <dbghelp.h>
 #include <shellapi.h>
+#include <Shlwapi.h>
 #include <Strsafe.h>
 #include <shlobj.h>
 #include <Windowsx.h>
@@ -56,6 +57,7 @@ namespace {
 	bool frameless = true;
 	bool useDWM = false;
 	bool useTheme = false;
+	bool useOpenWith = false;
 	bool useOpenAs = false;
 	bool themeInited = false;
 	bool finished = true;
@@ -605,22 +607,31 @@ namespace {
 	QColor _shActive(0, 0, 0), _shInactive(0, 0, 0);
 
 	typedef BOOL (FAR STDAPICALLTYPE *f_dwmDefWindowProc)(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, _Out_ LRESULT *plResult);
-	f_dwmDefWindowProc dwmDefWindowProc;
+	f_dwmDefWindowProc dwmDefWindowProc = 0;
 
 	typedef HRESULT (FAR STDAPICALLTYPE *f_dwmSetWindowAttribute)(HWND hWnd, DWORD dwAttribute, _In_ LPCVOID pvAttribute, DWORD cbAttribute);
-	f_dwmSetWindowAttribute dwmSetWindowAttribute;
+	f_dwmSetWindowAttribute dwmSetWindowAttribute = 0;
 	
 	typedef HRESULT (FAR STDAPICALLTYPE *f_dwmExtendFrameIntoClientArea)(HWND hWnd, const MARGINS *pMarInset);
-	f_dwmExtendFrameIntoClientArea dwmExtendFrameIntoClientArea;
+	f_dwmExtendFrameIntoClientArea dwmExtendFrameIntoClientArea = 0;
 
 	typedef HRESULT (FAR STDAPICALLTYPE *f_setWindowTheme)(HWND hWnd, LPCWSTR pszSubAppName, LPCWSTR pszSubIdList);
-	f_setWindowTheme setWindowTheme;
+	f_setWindowTheme setWindowTheme = 0;
 
 	typedef HRESULT (FAR STDAPICALLTYPE *f_openAs_RunDLL)(HWND hWnd, HINSTANCE hInstance, LPCWSTR lpszCmdLine, int nCmdShow);
-	f_openAs_RunDLL openAs_RunDLL;
+	f_openAs_RunDLL openAs_RunDLL = 0;
 
 	typedef HRESULT (FAR STDAPICALLTYPE *f_shOpenWithDialog)(HWND hwndParent, const OPENASINFO *poainfo);
-	f_shOpenWithDialog shOpenWithDialog;
+	f_shOpenWithDialog shOpenWithDialog = 0;
+	
+	typedef HRESULT (FAR STDAPICALLTYPE *f_shAssocEnumHandlers)(PCWSTR pszExtra, ASSOC_FILTER afFilter, IEnumAssocHandlers **ppEnumHandler);
+	f_shAssocEnumHandlers shAssocEnumHandlers = 0;
+
+	typedef HRESULT(FAR STDAPICALLTYPE *f_shCreateItemFromParsingName)(PCWSTR pszPath, IBindCtx *pbc, REFIID riid, void **ppv);
+	f_shCreateItemFromParsingName shCreateItemFromParsingName = 0;
+
+	typedef HRESULT(FAR STDAPICALLTYPE *f_shLoadIndirectString)(LPCWSTR pszSource, LPWSTR pszOutBuf, UINT cchOutBuf, void **ppvReserved);
+	f_shLoadIndirectString shLoadIndirectString = 0;
 
 	template <typename TFunction>
 	bool loadFunction(HINSTANCE dll, LPCSTR name, TFunction &func) {
@@ -638,7 +649,7 @@ namespace {
 			frameless = !useDWM;
 
 			setupUx();
-			setupOpenAs();
+			setupShell();
 		}
 		void setupDWM() {
 			HINSTANCE procId = LoadLibrary(L"DWMAPI.DLL");
@@ -654,9 +665,20 @@ namespace {
 			if (!loadFunction(procId, "SetWindowTheme", setWindowTheme)) return;
 			useTheme = true;
 		}
-		void setupOpenAs() {
+		void setupShell() {
 			HINSTANCE procId = LoadLibrary(L"SHELL32.DLL");
+			setupOpenWith(procId);
+			setupOpenAs(procId);
+		}
+		void setupOpenWith(HINSTANCE procId) {
+			if (!loadFunction(procId, "SHAssocEnumHandlers", shAssocEnumHandlers)) return;
+			if (!loadFunction(procId, "SHCreateItemFromParsingName", shCreateItemFromParsingName)) return;
+			useOpenWith = true;
 
+			HINSTANCE otherProcId = LoadLibrary(L"SHLWAPI.DLL");
+			if (otherProcId) loadFunction(otherProcId, "SHLoadIndirectString", shLoadIndirectString);
+		}
+		void setupOpenAs(HINSTANCE procId) {
 			if (!loadFunction(procId, "SHOpenWithDialog", shOpenWithDialog) && !loadFunction(procId, "OpenAs_RunDLLW", openAs_RunDLL)) return;
 			useOpenAs = true;
 		}
@@ -998,6 +1020,7 @@ void PsMainWindow::psUpdateWorkmode() {
 }
 
 HICON qt_pixmapToWinHICON(const QPixmap &);
+HBITMAP qt_pixmapToWinHBITMAP(const QPixmap &, int hbitmapFormat);
 static HICON _qt_createHIcon(const QIcon &icon, int xSize, int ySize) {
     if (!icon.isNull()) {
         const QPixmap pm = icon.pixmap(icon.actualSize(QSize(xSize, ySize)));
@@ -2168,6 +2191,162 @@ void psPostprocessFile(const QString &name) {
 	if (!result || written != sizeof(data)) { // :(
 		return;
 	}
+}
+
+namespace {
+	struct OpenWithApp {
+		OpenWithApp(const QString &name, HBITMAP icon, IAssocHandler *handler) : name(name), icon(icon), handler(handler) {
+		}
+		OpenWithApp(const QString &name, IAssocHandler *handler) : name(name), icon(0), handler(handler) {
+		}
+		void destroy() {
+			if (icon) DeleteBitmap(icon);
+			if (handler) handler->Release();
+		}
+		QString name;
+		HBITMAP icon;
+		IAssocHandler *handler;
+	};
+
+	bool OpenWithAppLess(const OpenWithApp &a, const OpenWithApp &b) {
+		return a.name < b.name;
+	}
+
+	HBITMAP _iconToBitmap(LPWSTR icon, int iconindex) {
+		if (!icon) return 0;
+		WCHAR tmpIcon[4096];
+		if (icon[0] == L'@' && shLoadIndirectString && SUCCEEDED(shLoadIndirectString(icon, tmpIcon, 4096, 0))) {
+			icon = tmpIcon;
+		}
+		int32 w = GetSystemMetrics(SM_CXSMICON), h = GetSystemMetrics(SM_CYSMICON);
+
+		HICON ico = ExtractIcon(0, icon, iconindex);
+		if (!ico) {
+			if (!iconindex) { // try to read image
+				QImage img(QString::fromWCharArray(icon));
+				if (!img.isNull()) {
+					return qt_pixmapToWinHBITMAP(QPixmap::fromImage(img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)), /* HBitmapAlpha */ 2);
+				}
+			}
+			return 0;
+		}
+
+		HDC screenDC = GetDC(0), hdc = CreateCompatibleDC(screenDC);
+		HBITMAP result = CreateCompatibleBitmap(screenDC, w, h);
+		HGDIOBJ was = SelectObject(hdc, result);
+		DrawIconEx(hdc, 0, 0, ico, w, h, 0, NULL, DI_NORMAL);
+		SelectObject(hdc, was);
+		DeleteDC(hdc);
+		ReleaseDC(0, screenDC);
+
+		DestroyIcon(ico);
+
+		return (HBITMAP)CopyImage(result, IMAGE_BITMAP, 0, 0, LR_DEFAULTSIZE | LR_CREATEDIBSECTION);
+//		return result;
+	}
+}
+
+bool psShowOpenWithMenu(int x, int y, const QString &file) {
+	if (!useOpenWith || !App::wnd()) return false;
+
+	bool result = false;
+	QList<OpenWithApp> handlers;
+	IShellItem* pItem = nullptr;
+	if (SUCCEEDED(shCreateItemFromParsingName(QDir::toNativeSeparators(file).toStdWString().c_str(), nullptr, IID_PPV_ARGS(&pItem)))) {
+		IEnumAssocHandlers *assocHandlers = 0;
+		if (SUCCEEDED(pItem->BindToHandler(nullptr, BHID_EnumAssocHandlers, IID_PPV_ARGS(&assocHandlers)))) {
+			HRESULT hr = S_FALSE;
+			do
+			{
+				IAssocHandler *handler = 0;
+				ULONG ulFetched = 0;
+				hr = assocHandlers->Next(1, &handler, &ulFetched);
+				if (FAILED(hr) || hr == S_FALSE || !ulFetched) break;
+				
+				LPWSTR name = 0;
+				if (SUCCEEDED(handler->GetUIName(&name))) {
+					LPWSTR icon = 0;
+					int iconindex = 0;
+					if (SUCCEEDED(handler->GetIconLocation(&icon, &iconindex)) && icon) {
+						handlers.push_back(OpenWithApp(QString::fromWCharArray(name), _iconToBitmap(icon, iconindex), handler));
+						CoTaskMemFree(icon);
+					} else {
+						handlers.push_back(OpenWithApp(QString::fromWCharArray(name), handler));
+					}
+					CoTaskMemFree(name);
+				} else {
+					handler->Release();
+				}
+			} while (hr != S_FALSE); 
+			assocHandlers->Release();
+		}
+
+		if (!handlers.isEmpty()) {
+			HMENU menu = CreatePopupMenu();
+			std::sort(handlers.begin(), handlers.end(), OpenWithAppLess);
+			for (int32 i = 0, l = handlers.size(); i < l; ++i) {
+				MENUITEMINFO menuInfo = { 0 };
+				menuInfo.cbSize = sizeof(menuInfo);
+				menuInfo.fMask = MIIM_STRING | MIIM_DATA | MIIM_ID;
+				menuInfo.fType = MFT_STRING;
+				menuInfo.wID = i + 1;
+				if (handlers.at(i).icon) {
+					menuInfo.fMask |= MIIM_BITMAP;
+					menuInfo.hbmpItem = handlers.at(i).icon;
+				}
+
+				QString name = handlers.at(i).name;
+				if (name.size() > 512) name = name.mid(0, 512);
+				WCHAR nameArr[1024];
+				name.toWCharArray(nameArr);
+				nameArr[name.size()] = 0;
+				menuInfo.dwTypeData = nameArr;
+				InsertMenuItem(menu, GetMenuItemCount(menu), TRUE, &menuInfo);
+			}
+			MENUITEMINFO sepInfo = { 0 };
+			sepInfo.cbSize = sizeof(sepInfo);
+			sepInfo.fMask = MIIM_STRING | MIIM_DATA;
+			sepInfo.fType = MFT_SEPARATOR;
+			InsertMenuItem(menu, GetMenuItemCount(menu), true, &sepInfo);
+
+			MENUITEMINFO menuInfo = { 0 };
+			menuInfo.cbSize = sizeof(menuInfo);
+			menuInfo.fMask = MIIM_STRING | MIIM_DATA | MIIM_ID;
+			menuInfo.fType = MFT_STRING;
+			menuInfo.wID = handlers.size() + 1;
+
+			QString name = lang(lng_wnd_choose_program_menu);
+			if (name.size() > 512) name = name.mid(0, 512);
+			WCHAR nameArr[1024];
+			name.toWCharArray(nameArr);
+			nameArr[name.size()] = 0;
+			menuInfo.dwTypeData = nameArr;
+			InsertMenuItem(menu, GetMenuItemCount(menu), TRUE, &menuInfo);
+
+			int sel = TrackPopupMenu(menu, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON | TPM_RETURNCMD, x, y, 0, App::wnd()->psHwnd(), 0);
+			DestroyMenu(menu);
+
+			if (sel > 0) {
+				if (sel <= handlers.size()) {
+					IDataObject *dataObj = 0;
+					IEnumAssocHandlers *assocHandlers = 0;
+					if (SUCCEEDED(pItem->BindToHandler(nullptr, BHID_DataObject, IID_PPV_ARGS(&dataObj))) && dataObj) {
+						handlers.at(sel - 1).handler->Invoke(dataObj);
+						dataObj->Release();
+						result = true;
+					}
+				}
+			} else {
+				result = true;
+			}
+			for (int i = 0, l = handlers.size(); i < l; ++i) {
+				handlers[i].destroy();
+			}
+		}
+
+		pItem->Release();
+	}
+	return result;
 }
 
 void psOpenFile(const QString &name, bool openWith) {
