@@ -28,7 +28,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_open_from_tray" = "텔레그램 실행";
 "lng_minimize_to_tray" = "창을 최소화";
 "lng_quit_from_tray" = "텔레그램 종료";
-"lng_tray_icon_text" = "텔레그램은 아직 실행중입니다.\n설정 화면에서 실행설정을 변경하실 수 있습니다.\n\n트레이메뉴에서 이 아이콘이 사라질 경우.\n숨겨진 아이콘에서 다시 드래그하여 복원할 수 있습니다.";
+"lng_tray_icon_text" = "텔레그램은 아직 실행중입니다.\n설정 화면에서 실행설정을 변경하실 수 있습니다.\n\n트레이메뉴에서 이 아이콘이 사라질 경우.\n숨겨진 아이콘 목록에서 다시 복원할 수 있습니다.";
 
 "lng_month1" = "1월";
 "lng_month2" = "2월";
@@ -59,13 +59,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_weekday6_full" = "토요일";
 "lng_weekday7_full" = "일요일";
 
-"lng_month_day" = "{month} {day}";
+"lng_month_day" = "{month} {day} 일";
 
 "lng_cancel" = "취소";
 "lng_continue" = "계속";
 "lng_close" = "닫기";
 "lng_connecting" = "연결중입니다..";
-"lng_reconnecting" = "재연결중입니다 {count:현재|중 # 초|중 # 초}..";
+"lng_reconnecting" = " {count:현재| # 초 후에| # 초 후에} 재연결 합니다..";
 "lng_reconnecting_try_now" = "다시 시도";
 
 "lng_status_service_notifications" = "서비스 공지사항";
@@ -202,7 +202,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_download_path_header" = "다운로드 경로 선택";
 "lng_download_path_default_radio" = "텔레그램 기본 «다운로드» 폴더";
 "lng_download_path_temp_radio" = "임시 폴더. 로그아웃 혹은 프로그램 제거시 초기화 됨";
-"lng_download_path_dir_radio" = "커스텀 폴더. 수동으로만 초기화 됨.";
+"lng_download_path_dir_radio" = "임의 폴더. 직접 초기화";
 "lng_download_path_choose" = "다운로드 경로 선택";
 "lng_sure_clear_downloads" = "임시 폴더에 다운로드 받은 모든 파일을 삭제하시겠습니까? 로그아웃 혹은 프로그램 제거시 자동으로 초기화 됩니다.";
 "lng_download_path_failed" = "파일 다운로드를 시작 할 수 없습니다. 올바르지 않은 다운로드 경로가 원인 일 수도 있습니다.\n\n설정에 가시면 다운로드 경로를 변경하실 수 있습니다.";
@@ -214,8 +214,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_settings_section_cache" = "로컬 저장소";
 "lng_settings_no_data_cached" = "캐시 데이터를 못 찾았습니다!";
-"lng_settings_images_cached" = "{count:_not_used_|# 이미지|# 이미지}, {size}";
-"lng_settings_audios_cached" = "{count:_not_used_|# 음성 메시지|# 음성 메시지}, {size}";
+"lng_settings_images_cached" = "{count:_not_used_|이미지 # 개|이미지 # 개}, {size}";
+"lng_settings_audios_cached" = "{count:_not_used_|음성 메시지 # 개|음성 메시지 # 개}, {size}";
 "lng_local_storage_clear" = "전체 정리";
 "lng_local_storage_clearing" = "초기화 중..";
 "lng_local_storage_cleared" = "초기화 완료!";
@@ -241,7 +241,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_reset_button" = "종료";
 "lng_settings_reset_done" = "다른 모든 세션이 강제 종료 되었습니다.";
 "lng_settings_logout" = "로그아웃";
-"lng_sure_logout" = "정말로 로그아웃을 하시겠습니까?";
+"lng_sure_logout" = "로그아웃을 하시겠습니까?";
 
 "lng_settings_need_restart" = "새로운 설정을 적용하시려면,\n재부팅을 하셔야합니다. 재시작 할까요?";
 "lng_settings_restart_now" = "재시작";
@@ -285,10 +285,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "다음";
 "lng_create_group_title" = "새로운 그룹";
 
-"lng_sure_delete_contact" = "정말로 {contact} 를 주소록에서 삭제하시겠습니까?";
-"lng_sure_delete_history" = "정말로 {contact} 와 관련된 모든 메시지를 삭제하시겠습니까?\n\n삭제 하실 경우 취소가 불가능합니다.";
+"lng_sure_delete_contact" = "{contact} 님을 주소록에서 \n삭제하시겠습니까?";
+"lng_sure_delete_history" = "{contact} 님과 관련된 모든 메시지를 \n삭제하시겠습니까?\n\n삭제 하실 경우 취소가 불가능합니다.";
 
-"lng_sure_delete_and_exit" = "정말로  «{group}» 을 나가고 모든 대화를 삭제하시겠습니까?\n\n삭제 하실 경우 취소가 불가능합니다.";
+"lng_sure_delete_and_exit" = "그룹 «{group}» 방에서 모든 메시지를 \n삭제하시고 퇴장하시겠습니까?\n\n삭제 하실 경우 취소가 불가능합니다.";
 
 "lng_sure_enable_debug" = "DEBUG 모드를 화성화 시키시겠습니까?\n\n모든 네트워크 내역이 기록됩니다.";
 
@@ -405,7 +405,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_edit_contact_title" = "연락처 이름 수정";
 "lng_edit_self_title" = "이름 수정";
 "lng_confirm_contact_data" = "새로운 연락처";
-"lng_add_contact" = "생성";
+"lng_add_contact" = "추가";
 "lng_add_contact_button" = "연락처 추가";
 "lng_contacts_header" = "연락처";
 "lng_contact_not_joined" = "{name}님은 아직 텔레그램에 가입되어져 있지 않지만 초대메시지를 보낼 수 있습니다.\n\n회원님 친구분들 중 텔레그램에 새로 가입을 할 경우 알림을 드리고 있습니다.";
@@ -430,10 +430,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_selected_delete_confirm" = "삭제";
 
 "lng_about_version" = "버전 {version}";
-"lng_about_text" = "[a href=\"https://core.telegram.org/mtproto\"]MTProto[/a]와 [a href=\"https://core.telegram.org/api\"]Telegram API[/a]에 기반하고 있는 공식 무료 메시징 앱으로 빠르고 안전합니다.\n\n이 소프트웨어는  [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3 라이선스를 채택하고 있으며 소스코드는 [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a]에서 제공하고 있습니다.";
+"lng_about_text" = "[a href=\"https://core.telegram.org/mtproto\"]MTProto[/a]와 [a href=\"https://core.telegram.org/api\"]Telegram API[/a]에 기반하고 있는\n공식 무료 메시징 앱으로 빠르고 안전합니다.\n\n이 소프트웨어는  [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3 를 채택하고 있으며,\n소스코드는 [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a]에서 제공하고 있습니다.";
 "lng_about_done" = "완료";
 
-"lng_search_found_results" = "{count:메시지를 찾을 수 없습니다.|# 메시지를 찾았습니다.|# 메시지를 찾았습니다.}";
+"lng_search_found_results" = "{count:메시지를 찾을 수 없습니다.|# 개의 메시지를 찾았습니다.|# 개의 메시지를 찾았습니다.}";
 "lng_search_global_results" = "아이디 검색 결과";
 
 "lng_mediaview_save" = "다운로드";
