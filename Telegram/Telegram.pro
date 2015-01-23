@@ -295,9 +295,18 @@ RESOURCES += \
 OTHER_FILES += \
     Resources/style_classes.txt \
     Resources/style.txt \
+<<<<<<< HEAD
+    Resources/lang.strings
+    SourceFiles/langs/lang_it.strings
+    SourceFiles/langs/lang_es.strings
+    SourceFiles/langs/lang_de.strings
+    SourceFiles/langs/lang_nl.strings
+    SourceFiles/langs/lang_ko.strings
+=======
     Resources/lang.strings \
     SourceFiles/langs/lang_it.strings \
     SourceFiles/langs/lang_es.strings \
     SourceFiles/langs/lang_de.strings \
     SourceFiles/langs/lang_nl.strings \
     SourceFiles/langs/lang_pt_BR.strings
+>>>>>>> 9e43f1b5de3d44041264ad670ec7456cd419c268

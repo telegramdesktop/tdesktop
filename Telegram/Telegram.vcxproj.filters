@@ -1057,7 +1057,11 @@
     <None Include="SourceFiles\langs\lang_nl.strings">
       <Filter>langs</Filter>
     </None>
+<<<<<<< HEAD
+    <None Include="SourceFiles\langs\lang_ko.strings">
+=======
     <None Include="SourceFiles\langs\lang_pt_BR.strings">
+>>>>>>> 9e43f1b5de3d44041264ad670ec7456cd419c268
       <Filter>langs</Filter>
     </None>
   </ItemGroup>
