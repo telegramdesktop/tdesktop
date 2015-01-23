@@ -193,7 +193,10 @@ namespace App {
 	}
 
 	int32 onlineWillChangeIn(int32 online, int32 now) {
-		if (online <= 0) return 86400;
+        if (online <= 0) {
+            if (-online > now) return -online - now;
+            return 86400;
+        }
 		if (online > now) {
 			return online - now;
 		}
@@ -217,11 +220,12 @@ namespace App {
 		if (online <= 0) {
 			switch (online) {
 			case 0: return lang(lng_status_offline);
+            case -1: return lang(lng_status_invisible);
 			case -2: return lang(lng_status_recently);
 			case -3: return lang(lng_status_last_week);
 			case -4: return lang(lng_status_last_month);
 			}
-			return lang(lng_status_invisible);
+            return (-online > now) ? lang(lng_status_online) : lang(lng_status_recently);
 		}
 		if (online > now) {
 			return lang(lng_status_online);

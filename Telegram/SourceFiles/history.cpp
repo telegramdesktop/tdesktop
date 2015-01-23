@@ -1182,26 +1182,6 @@ HistoryItem *Histories::addToBack(const MTPmessage &msg, int msgState) {
 	return h.value()->addToBack(msg, msgState > 0);
 }
 
-/*
-HistoryItem *Histories::addToBack(const MTPgeoChatMessage &msg, bool newMsg) {
-	PeerId peer = 0;
-	switch (msg.type()) {
-	case mtpc_geoChatMessage:
-		peer = App::peerFromChat(msg.c_geoChatMessage().vchat_id);
-	break;
-	case mtpc_geoChatMessageService:
-		peer = App::peerFromChat(msg.c_geoChatMessageService().vchat_id);
-	break;
-	}
-	if (!peer) return 0;
-
-	iterator h = find(peer);
-	if (h == end()) {
-		h = insert(peer, new History(peer));
-	}
-	return h.value()->addToBack(msg, newMsg);
-}/**/
-
 HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, bool newMsg, bool returnExisting) {
 	HistoryItem *result = 0;
 
@@ -1423,6 +1403,9 @@ void History::newItemAdded(HistoryItem *item) {
 	App::checkImageCacheSize();
 	if (item->from()) {
 		unregTyping(item->from());
+        if (item->from()->onlineTill < 0) {
+            item->from()->onlineTill = -unixtime() - HiddenIsOnlineAfterMessage;
+        }
 	}
 	if (item->out()) {
 		if (unreadBar) unreadBar->destroy();

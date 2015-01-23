@@ -43,7 +43,7 @@ extern "C" {
 namespace {
 	bool frameless = true;
 	bool finished = true;
-    bool useAppIndicator = false, useStatusIcon = false, trayIconChecked = false, useUnityCount = false;
+    bool useGtkBase = false, useAppIndicator = false, useStatusIcon = false, trayIconChecked = false, useUnityCount = false;
 
     AppIndicator *_trayIndicator = 0;
     GtkStatusIcon *_trayIcon = 0;
@@ -325,35 +325,25 @@ namespace {
     class _PsInitializer {
     public:
         _PsInitializer() {
-            setupGTK();
+            setupGtk();
             setupUnity();
         }
-        void setupGTK() {
-            int useversion = 3;
-            QLibrary lib_gtk(QLatin1String("gtk-3"), 0, 0), lib_indicator(QLatin1String("appindicator3"), 1, 0);
-            if (lib_gtk.load()) {
-                _initLogs.push_back(QString("Loaded 'gtk-3' version 0 library, will try appindicator3 lib"));
-            } else {
-                lib_gtk.setFileNameAndVersion(QLatin1String("gtk-3"), QString());
-                if (lib_gtk.load()) {
-                    _initLogs.push_back(QString("Loaded 'gtk-3' without version library, will try appindicator3 lib"));
-                } else {
-                    useversion = 2;
-                    lib_gtk.setFileNameAndVersion(QLatin1String("gtk-x11-2.0"), 0);
-                    if (lib_gtk.load()) {
-                        _initLogs.push_back(QString("Loaded 'gtk-x11-2.0' version 0 library, will try appindicator lib"));
-                    } else {
-                        lib_gtk.setFileNameAndVersion(QLatin1String("gtk-x11-2.0"), QString());
-                        if (lib_gtk.load()) {
-                            _initLogs.push_back(QString("Loaded 'gtk-x11-2.0' without version library, will try appindicator lib"));
-                        } else {
-                            _initLogs.push_back(QString("Init Error: Failed to load 'gtk-x11-2.0' library!"));
-                            return;
-                        }
-                    }
-                }
-            }
 
+        bool loadLibrary(QLibrary &lib, const char *name, int version) {
+            lib.setFileNameAndVersion(QLatin1String(name), version);
+            if (lib.load()) {
+                _initLogs.push_back(QString("Loaded '%1' version %2 library").arg(name).arg(version));
+                return true;
+            }
+            lib.setFileNameAndVersion(QLatin1String(name), QString());
+            if (lib.load()) {
+                _initLogs.push_back(QString("Loaded '%1' without version library").arg(name));
+                return true;
+            }
+            return false;
+        }
+
+        void setupGtkBase(QLibrary &lib_gtk) {
             if (!loadFunction(lib_gtk, "gtk_init_check", ps_gtk_init_check)) return;
             if (!loadFunction(lib_gtk, "gtk_menu_new", ps_gtk_menu_new)) return;
             if (!loadFunction(lib_gtk, "gtk_menu_get_type", ps_gtk_menu_get_type)) return;
@@ -370,30 +360,40 @@ namespace {
             if (!loadFunction(lib_gtk, "g_type_check_instance_cast", ps_g_type_check_instance_cast)) return;
             if (!loadFunction(lib_gtk, "g_signal_connect_data", ps_g_signal_connect_data)) return;
 
-            if (useversion == 3 && lib_indicator.load()) {
-                _initLogs.push_back(QString("Loaded 'appindicator3' version 1 library"));
-                setupAppIndicator(lib_indicator);
-            } else {
-                lib_indicator.setFileNameAndVersion(QLatin1String("appindicator3"), QString());
-                if (useversion == 3 && lib_indicator.load()) {
-                    _initLogs.push_back(QString("Loaded 'appindicator3' without version library"));
+            useGtkBase = true;
+        }
+
+        void setupAppIndicator(QLibrary &lib_indicator) {
+            if (!loadFunction(lib_indicator, "app_indicator_new", ps_app_indicator_new)) return;
+            if (!loadFunction(lib_indicator, "app_indicator_set_status", ps_app_indicator_set_status)) return;
+            if (!loadFunction(lib_indicator, "app_indicator_set_menu", ps_app_indicator_set_menu)) return;
+            if (!loadFunction(lib_indicator, "app_indicator_set_icon_full", ps_app_indicator_set_icon_full)) return;
+            useAppIndicator = true;
+        }
+
+        void setupGtk() {
+            QLibrary lib_gtk, lib_indicator;
+            if (loadLibrary(lib_gtk, "gtk-3", 0)) {
+                if (loadLibrary(lib_indicator, "appindicator3", 1)) {
+                    setupGtkBase(lib_gtk);
                     setupAppIndicator(lib_indicator);
-                } else {
-                    lib_indicator.setFileNameAndVersion(QLatin1String("appindicator"), 1);
-                    if (useversion == 2 && lib_indicator.load()) {
-                        _initLogs.push_back(QString("Loaded 'appindicator' version 1 library"));
+                }
+            }
+            if (!useGtkBase || !useAppIndicator) {
+                if (lib_gtk.isLoaded()) lib_gtk.unload();
+                if (lib_indicator.isLoaded()) lib_indicator.unload();
+                if (loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
+                    if (loadLibrary(lib_indicator, "appindicator", 1)) {
+                        useGtkBase = useAppIndicator = false;
+                        setupGtkBase(lib_gtk);
                         setupAppIndicator(lib_indicator);
-                    } else {
-                        lib_indicator.setFileNameAndVersion(QLatin1String("appindicator"), QString());
-                        if (useversion == 2 && lib_indicator.load()) {
-                            _initLogs.push_back(QString("Loaded 'appindicator' without version library"));
-                            setupAppIndicator(lib_indicator);
-                        } else {
-                            _initLogs.push_back(QString("Failed to load 'appindicator' library!"));
-                            return;
-                        }
                     }
                 }
+            }
+            if (!useGtkBase) {
+                useAppIndicator = false;
+                _initLogs.push_back(QString("Init Error: Failed to load 'gtk-x11-2.0' library!"));
+                return;
             }
 
             if (!loadFunction(lib_gtk, "gdk_init_check", ps_gdk_init_check)) return;
@@ -413,26 +413,10 @@ namespace {
             if (!loadFunction(lib_gtk, "g_idle_add", ps_g_idle_add)) return;
             useStatusIcon = true;
         }
-        void setupAppIndicator(QLibrary &lib_indicator) {
-            if (!loadFunction(lib_indicator, "app_indicator_new", ps_app_indicator_new)) return;
-            if (!loadFunction(lib_indicator, "app_indicator_set_status", ps_app_indicator_set_status)) return;
-            if (!loadFunction(lib_indicator, "app_indicator_set_menu", ps_app_indicator_set_menu)) return;
-            if (!loadFunction(lib_indicator, "app_indicator_set_icon_full", ps_app_indicator_set_icon_full)) return;
-            useAppIndicator = true;
-        }
+
         void setupUnity() {
             QLibrary lib_unity(QLatin1String("unity"), 9, 0);
-            if (lib_unity.load()) {
-                _initLogs.push_back(QString("Loaded 'unity' version 9 library"));
-            } else {
-                lib_unity.setFileNameAndVersion(QLatin1String("unity"), QString());
-                if (lib_unity.load()) {
-                    _initLogs.push_back(QString("Loaded 'unity' without version library"));
-                } else {
-                    _initLogs.push_back(QString("Init Error: Failed to load 'unity' library!"));
-                    return;
-                }
-            }
+            if (!loadLibrary(lib_unity, "unity", 9)) return;
 
             if (!loadFunction(lib_unity, "unity_launcher_entry_get_for_desktop_id", ps_unity_launcher_entry_get_for_desktop_id)) return;
             if (!loadFunction(lib_unity, "unity_launcher_entry_set_count", ps_unity_launcher_entry_set_count)) return;

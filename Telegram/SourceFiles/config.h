@@ -113,6 +113,8 @@ enum {
 	SaveDraftTimeout = 1000, // save draft after 1 secs of not changing text
 	SaveDraftAnywayTimeout = 5000, // or save anyway each 5 secs
 
+    HiddenIsOnlineAfterMessage = 60, // user with hidden last seen stays online for such amount of seconds in the interface
+
 	ServiceUserId = 777000,
 };
 
