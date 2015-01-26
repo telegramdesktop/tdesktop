@@ -123,6 +123,7 @@ namespace App {
 		MainWidget *m(main());
 		if (m) m->destroyData();
 		MTP::authed(0);
+		cSetOtherOnline(0);
 		histories().clear();
 		globalNotifyAllPtr = UnknownNotifySettings;
 		globalNotifyUsersPtr = UnknownNotifySettings;

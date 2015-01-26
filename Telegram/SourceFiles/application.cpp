@@ -382,6 +382,7 @@ void Application::onWriteUserConfig() {
 
 void Application::onAppStateChanged(Qt::ApplicationState state) {
 	checkLocalTime();
+	if (window) window->updateIsActive((state == Qt::ApplicationActive) ? cOnlineFocusTimeout() : cOfflineBlurTimeout());
 }
 
 void Application::killDownloadSessions() {
@@ -707,9 +708,7 @@ void Application::startApp() {
 		}
 	}
 
-//	if (!cLangErrors().isEmpty()) {
-//		window->showLayer(new ConfirmBox("Custom lang failed :(\n\nError: " + cLangErrors(), true, lang(lng_close)));
-//	}
+	window->updateIsActive(cOnlineFocusTimeout());
 }
 
 void Application::socketDisconnected() {

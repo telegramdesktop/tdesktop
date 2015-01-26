@@ -172,4 +172,14 @@ DeclareSetting(bool, ContactsReceived);
 
 DeclareSetting(bool, WideMode);
 
+DeclareSetting(int, OnlineUpdatePeriod);
+DeclareSetting(int, OfflineBlurTimeout);
+DeclareSetting(int, OfflineIdleTimeout);
+DeclareSetting(int, OnlineFocusTimeout);
+DeclareSetting(int, OnlineCloudTimeout);
+DeclareSetting(int, NotifyCloudDelay);
+DeclareSetting(int, NotifyDefaultDelay);
+
+DeclareSetting(int, OtherOnline);
+
 void settingsParseArgs(int argc, char *argv[]);

@@ -445,23 +445,11 @@ namespace {
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
 posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/icon256.png")), iconbig256(icon256), wndIcon(QPixmap::fromImage(icon256, Qt::ColorOnly)), _psCheckStatusIconLeft(100), _psLastIndicatorUpdate(0) {
-    connect(&psIdleTimer, SIGNAL(timeout()), this, SLOT(psIdleTimeout()));
-    psIdleTimer.setSingleShot(false);
-
     connect(&_psCheckStatusIconTimer, SIGNAL(timeout()), this, SLOT(psStatusIconCheck()));
     _psCheckStatusIconTimer.setSingleShot(false);
 
     connect(&_psUpdateIndicatorTimer, SIGNAL(timeout()), this, SLOT(psUpdateIndicator()));
     _psUpdateIndicatorTimer.setSingleShot(true);
-}
-
-void PsMainWindow::psNotIdle() const {
-	psIdleTimer.stop();
-	if (psIdle) {
-		psIdle = false;
-		if (App::main()) App::main()->setOnline();
-		if (App::wnd()) App::wnd()->checkHistoryActivation();
-	}
 }
 
 bool PsMainWindow::psHasTrayIcon() const {
@@ -476,48 +464,7 @@ void PsMainWindow::psStatusIconCheck() {
     }
 }
 
-void PsMainWindow::psIdleTimeout() {
-    int64 idleTime = 0;//objc_idleTime();
-    if (idleTime >= 0) {
-        if (idleTime <= IdleMsecs) {
-			psNotIdle();
-		}
-    } else { // error
-		psNotIdle();
-	}
-}
-
 void PsMainWindow::psShowTrayMenu() {
-}
-
-bool PsMainWindow::psIsOnline(int state) const {
-	if (state < 0) state = this->windowState();
-	if (state & Qt::WindowMinimized) {
-		return false;
-	} else if (!isVisible()) {
-		return false;
-	}
-    int64 idleTime = 0;//objc_idleTime();
-    LOG(("App Info: idle time %1").arg(idleTime));
-    if (idleTime >= 0) {
-        if (idleTime > IdleMsecs) {
-			if (!psIdle) {
-				psIdle = true;
-				psIdleTimer.start(900);
-			}
-			return false;
-		} else {
-			psNotIdle();
-		}
-    } else { // error
-		psNotIdle();
-	}
-	return true;
-}
-
-bool PsMainWindow::psIsActive(int state) const {
-	if (state < 0) state = this->windowState();
-    return isActiveWindow() && isVisible() && !(state & Qt::WindowMinimized) && !psIdle;
 }
 
 void PsMainWindow::psRefreshTaskbarIcon() {
@@ -657,8 +604,6 @@ void PsMainWindow::psInitFrameless() {
 	if (frameless) {
 		//setWindowFlags(Qt::FramelessWindowHint);
 	}
-
-    connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(psStateChanged(Qt::WindowState)));
 }
 
 void PsMainWindow::psSavePosition(Qt::WindowState state) {
@@ -706,12 +651,6 @@ void PsMainWindow::psSavePosition(Qt::WindowState state) {
 
 void PsMainWindow::psUpdatedPosition() {
     psUpdatedPositionTimer.start(SaveWindowPositionTimeout);
-}
-
-void PsMainWindow::psStateChanged(Qt::WindowState state) {
-	psUpdateSysMenu(state);
-	psUpdateMargins();
-    psSavePosition(state);
 }
 
 void PsMainWindow::psCreateTrayIcon() {
@@ -1361,6 +1300,17 @@ PsUpdateDownloader::~PsUpdateDownloader() {
 	reply = 0;
 }
 
+namespace {
+	uint64 _lastUserAction = 0;
+}
+
+void psUserActionDone() {
+	_lastUserAction = getms(true);
+}
+
+uint64 psIdleTime() {
+	return getms(true) - _lastUserAction;
+}
 
 QStringList psInitLogs() {
     return _initLogs;

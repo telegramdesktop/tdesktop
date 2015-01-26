@@ -350,16 +350,18 @@ MainWidget *TopBarWidget::main() {
 
 MainWidget::MainWidget(Window *window) : QWidget(window), _started(0), failedObjId(0), _dialogsWidth(st::dlgMinWidth),
 dialogs(this), history(this), profile(0), overview(0), _topBar(this), _forwardConfirm(0), hider(0), _mediaType(this), _mediaTypeMask(0),
-updPts(0), updDate(0), updQts(-1), updSeq(0), updInited(false), onlineRequest(0), _failDifferenceTimeout(1), _lastUpdateTime(0) {
+updPts(0), updDate(0), updQts(-1), updSeq(0), updInited(false), _onlineRequest(0), _lastWasOnline(false), _lastSetOnline(0), _isIdle(false),
+_failDifferenceTimeout(1), _lastUpdateTime(0) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
 	connect(window, SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
 	connect(&dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(&history, SIGNAL(cancelled()), &dialogs, SLOT(activate()));
-	connect(this, SIGNAL(peerPhotoChanged(PeerData *)), this, SIGNAL(dialogsUpdated()));
+	connect(this, SIGNAL(peerPhotoChanged(PeerData*)), this, SIGNAL(dialogsUpdated()));
 	connect(&noUpdatesTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
-	connect(&onlineTimer, SIGNAL(timeout()), this, SLOT(setOnline()));
-	connect(&onlineUpdater, SIGNAL(timeout()), this, SLOT(updateOnlineDisplay()));
+	connect(&_onlineTimer, SIGNAL(timeout()), this, SLOT(updateOnline()));
+	connect(&_onlineUpdater, SIGNAL(timeout()), this, SLOT(updateOnlineDisplay()));
+	connect(&_idleFinishTimer, SIGNAL(timeout()), this, SLOT(checkIdleFinish()));
 	connect(&_bySeqTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
 	connect(&_failDifferenceTimer, SIGNAL(timeout()), this, SLOT(getDifferenceForce()));
 	connect(this, SIGNAL(peerUpdated(PeerData*)), &history, SLOT(peerUpdated(PeerData*)));
@@ -1272,6 +1274,10 @@ bool MainWidget::serviceHistoryFail(const RPCError &error) {
 	return false;
 }
 
+bool MainWidget::isIdle() const {
+	return _isIdle;
+}
+
 void MainWidget::setInnerFocus() {
 	if (hider || !history.peer()) {
 		if (hider && hider->wasOffered()) {
@@ -2082,7 +2088,7 @@ void MainWidget::gotState(const MTPupdates_State &state) {
 	updInited = true;
 
 	dialogs.loadDialogs();
-	setOnline();
+	updateOnline();
 }
 
 void MainWidget::gotDifference(const MTPupdates_Difference &diff) {
@@ -2173,6 +2179,7 @@ void MainWidget::getDifference() {
 
 void MainWidget::start(const MTPUser &user) {
 	MTP::authed(user.c_userSelf().vid.v);
+	cSetOtherOnline(0);
 	App::initMedia();
 	App::feedUsers(MTP_vector<MTPUser>(1, user));
 	App::app()->startUpdateCheck();
@@ -2398,7 +2405,7 @@ void MainWidget::destroyData() {
 }
 
 void MainWidget::updateOnlineDisplayIn(int32 msecs) {
-	onlineUpdater.start(msecs);
+	_onlineUpdater.start(msecs);
 }
 
 void MainWidget::addNewContact(int32 uid, bool show) {
@@ -2408,11 +2415,19 @@ void MainWidget::addNewContact(int32 uid, bool show) {
 }
 
 bool MainWidget::isActive() const {
-	return isVisible() && !animating();
+	return !_isIdle && isVisible() && !animating();
 }
 
 bool MainWidget::historyIsActive() const {
 	return isActive() && !profile && !overview && history.isActive();
+}
+
+bool MainWidget::lastWasOnline() const {
+	return _lastWasOnline;
+}
+
+uint64 MainWidget::lastSetOnline() const {
+	return _lastSetOnline;
 }
 
 int32 MainWidget::dlgsWidth() const {
@@ -2428,28 +2443,52 @@ MainWidget::~MainWidget() {
 	if (App::wnd()) App::wnd()->noMain(this);
 }
 
-void MainWidget::setOnline(int windowState) {
-	if (onlineRequest) {
-		MTP::cancel(onlineRequest);
-		onlineRequest = 0;
+void MainWidget::updateOnline(bool gotOtherOffline) {
+	bool isOnline = App::wnd()->isActive();
+	int updateIn = cOnlineUpdatePeriod();
+	if (isOnline) {
+		uint64 idle = psIdleTime();
+		if (idle >= cOfflineIdleTimeout()) {
+			isOnline = false;
+			if (!_isIdle) {
+				_isIdle = true;
+				_idleFinishTimer.start(900);
+			}
+		} else {
+			updateIn = qMin(updateIn, int(cOfflineIdleTimeout() - idle));
+		}
 	}
-	onlineTimer.stop();
-	bool isOnline = App::wnd()->psIsOnline(windowState);
-	if (isOnline || windowState >= 0) {
-		onlineRequest = MTP::send(MTPaccount_UpdateStatus(MTP_bool(!isOnline)));
-        LOG(("App Info: Updating Online!"));
+	uint64 ms = getms(true);
+	if (isOnline != _lastWasOnline || (isOnline && _lastSetOnline + cOnlineUpdatePeriod() <= ms) || (isOnline && gotOtherOffline)) {
+		if (_onlineRequest) {
+			MTP::cancel(_onlineRequest);
+			_onlineRequest = 0;
+		}
+
+		_lastWasOnline = isOnline;
+		_lastSetOnline = ms;
+		_onlineRequest = MTP::send(MTPaccount_UpdateStatus(MTP_bool(!isOnline)));
+
+		if (App::self()) App::self()->onlineTill = unixtime() + (isOnline ? (cOnlineUpdatePeriod() / 1000) : -1);
+
+		_lastSetOnline = getms(true);
+
+		updateOnlineDisplay();
+	} else if (isOnline) {
+		updateIn = _lastSetOnline + cOnlineUpdatePeriod() - ms;
 	}
-	if (App::self()) App::self()->onlineTill = unixtime() + (isOnline ? 60 : -1);
-	if (profile) {
-		profile->updateOnlineDisplayTimer();
-	} else {
-		history.updateOnlineDisplayTimer();
-	}
-	onlineTimer.start(55000);
+	_onlineTimer.start(updateIn);
 }
 
-void MainWidget::mainStateChanged(Qt::WindowState state) {
-	setOnline(state);
+void MainWidget::checkIdleFinish() {
+	if (psIdleTime() < cOfflineIdleTimeout()) {
+		_idleFinishTimer.stop();
+		_isIdle = false;
+		updateOnline();
+		if (App::wnd()) App::wnd()->checkHistoryActivation();
+	} else {
+		_idleFinishTimer.start(900);
+	}
 }
 
 void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
@@ -2669,24 +2708,30 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateUserStatus: {
 		const MTPDupdateUserStatus &d(update.c_updateUserStatus());
-		if (d.vuser_id.v == MTP::authedId() && (d.vstatus.type() == mtpc_userStatusOffline || d.vstatus.type() == mtpc_userStatusEmpty)) {
-			setOnline();
-		} else {
-			UserData *user = App::userLoaded(d.vuser_id.v);
-			if (user) {
-				switch (d.vstatus.type()) {
-				case mtpc_userStatusEmpty: user->onlineTill = 0; break;
-				case mtpc_userStatusRecently:
-					if (user->onlineTill > -10) { // don't modify pseudo-online
-						user->onlineTill = -2;
-					}
-				break;
-				case mtpc_userStatusLastWeek: user->onlineTill = -3; break;
-				case mtpc_userStatusLastMonth: user->onlineTill = -4; break;
-				case mtpc_userStatusOffline: user->onlineTill = d.vstatus.c_userStatusOffline().vwas_online.v; break;
-				case mtpc_userStatusOnline: user->onlineTill = d.vstatus.c_userStatusOnline().vexpires.v; break;
+		UserData *user = App::userLoaded(d.vuser_id.v);
+		if (user) {
+			switch (d.vstatus.type()) {
+			case mtpc_userStatusEmpty: user->onlineTill = 0; break;
+			case mtpc_userStatusRecently:
+				if (user->onlineTill > -10) { // don't modify pseudo-online
+					user->onlineTill = -2;
 				}
-				if (App::main()) App::main()->peerUpdated(user);
+			break;
+			case mtpc_userStatusLastWeek: user->onlineTill = -3; break;
+			case mtpc_userStatusLastMonth: user->onlineTill = -4; break;
+			case mtpc_userStatusOffline: user->onlineTill = d.vstatus.c_userStatusOffline().vwas_online.v; break;
+			case mtpc_userStatusOnline: user->onlineTill = d.vstatus.c_userStatusOnline().vexpires.v; break;
+			}
+			if (App::main()) App::main()->peerUpdated(user);
+		}
+		if (d.vuser_id.v == MTP::authedId()) {
+			if (d.vstatus.type() == mtpc_userStatusOffline || d.vstatus.type() == mtpc_userStatusEmpty) {
+				updateOnline(true);
+				if (d.vstatus.type() == mtpc_userStatusOffline) {
+					cSetOtherOnline(d.vstatus.c_userStatusOffline().vwas_online.v);
+				}
+			} else if (d.vstatus.type() == mtpc_userStatusOnline) {
+				cSetOtherOnline(d.vstatus.c_userStatusOnline().vexpires.v);
 			}
 		}
 	} break;

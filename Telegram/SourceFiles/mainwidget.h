@@ -242,6 +242,8 @@ public:
 
 	bool isActive() const;
 	bool historyIsActive() const;
+	bool lastWasOnline() const;
+	uint64 lastSetOnline() const;
 
 	int32 dlgsWidth() const;
 
@@ -312,6 +314,8 @@ public:
 	void serviceHistoryDone(const MTPmessages_Messages &msgs);
 	bool serviceHistoryFail(const RPCError &error);
 
+	bool isIdle() const;
+	
 	~MainWidget();
 
 signals:
@@ -344,8 +348,8 @@ public slots:
 	void getDifference();
 	void getDifferenceForce();
 
-	void setOnline(int windowState = -1);
-	void mainStateChanged(Qt::WindowState state);
+	void updateOnline(bool gotOtherOffline = false);
+	void checkIdleFinish();
 	void updateOnlineDisplay();
 
 	void showPeer(quint64 peer, qint32 msgId = 0, bool back = false, bool force = false); // PeerId, MsgId
@@ -423,9 +427,11 @@ private:
 	bool updInited;
 	SingleTimer noUpdatesTimer;
 
-	mtpRequestId onlineRequest;
-	SingleTimer onlineTimer;
-	SingleTimer onlineUpdater;
+	mtpRequestId _onlineRequest;
+	SingleTimer _onlineTimer, _onlineUpdater, _idleFinishTimer;
+	bool _lastWasOnline;
+	uint64 _lastSetOnline;
+	bool _isIdle;
 
 	QSet<PeerData*> updateNotifySettingPeers;
 	SingleTimer updateNotifySettingTimer;

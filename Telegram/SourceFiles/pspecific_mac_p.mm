@@ -319,7 +319,7 @@ PsMacWindowPrivate::~PsMacWindowPrivate() {
     delete data;
 }
 
-int64 objc_idleTime() { // taken from https://github.com/trueinteractions/tint/issues/53
+bool objc_idleTime(int64 &idleTime) { // taken from https://github.com/trueinteractions/tint/issues/53
     CFMutableDictionaryRef properties = 0;
     CFTypeRef obj;
     mach_port_t masterPort;
@@ -331,7 +331,7 @@ int64 objc_idleTime() { // taken from https://github.com/trueinteractions/tint/i
     /* Get IOHIDSystem */
     IOServiceGetMatchingServices(masterPort, IOServiceMatching("IOHIDSystem"), &iter);
     if (iter == 0) {
-        return -1;
+        return false;
     } else {
         curObj = IOIteratorNext(iter);
     }
@@ -339,7 +339,7 @@ int64 objc_idleTime() { // taken from https://github.com/trueinteractions/tint/i
         obj = CFDictionaryGetValue(properties, CFSTR("HIDIdleTime"));
         CFRetain(obj);
     } else {
-        return -1;
+        return false;
     }
     
     uint64 err = ~0L, result = err;
@@ -366,7 +366,10 @@ int64 objc_idleTime() { // taken from https://github.com/trueinteractions/tint/i
     CFRelease((CFTypeRef)properties);
     IOObjectRelease(curObj);
     IOObjectRelease(iter);
-    return (result == err) ? -1 : int64(result);
+	if (result == err) return false;
+
+	idleTime = int64(result);
+	return true;
 }
 
 @interface OpenWithApp : NSObject {

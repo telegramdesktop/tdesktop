@@ -64,9 +64,6 @@ public:
 
 	void psFlash();
 
-	bool psIsActive(int state = -1) const;
-	bool psIsOnline(int state) const;
-
 	void psUpdateWorkmode();
 
 	void psRefreshTaskbarIcon();
@@ -90,7 +87,6 @@ public:
 
 public slots:
 
-	void psStateChanged(Qt::WindowState state);
 	void psUpdateDelegate();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psIdleTimeout();
@@ -198,6 +194,9 @@ private:
 	QMutex mutex;
 
 };
+
+void psUserActionDone();
+uint64 psIdleTime();
 
 QStringList psInitLogs();
 void psClearInitLogs();

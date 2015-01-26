@@ -173,7 +173,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_check_now" = "Check for updates";
 "lng_settings_update_checking" = "Checking for updates..";
 "lng_settings_latest_installed" = "Latest version is installed";
-"lng_settings_downloading" = "Downloading update {ready} / {total} Mb..";
+"lng_settings_downloading" = "Downloading update {ready} / {total} MB..";
 "lng_settings_update_ready" = "New version is ready";
 "lng_settings_update_now" = "Restart Now";
 "lng_settings_update_fail" = "Update check failed :(";
@@ -457,7 +457,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 // Wnd specific
 
-"lng_wnd_choose_program_menu" = "Choose default program...";
+"lng_wnd_choose_program_menu" = "Choose Default Program...";
 
 // Mac specific
 

@@ -117,6 +117,16 @@ bool gContactsReceived = false;
 
 bool gWideMode = true;
 
+int gOnlineUpdatePeriod = 120000;
+int gOfflineBlurTimeout = 5000;
+int gOfflineIdleTimeout = 30000;
+int gOnlineFocusTimeout = 1000;
+int gOnlineCloudTimeout = 300000;
+int gNotifyCloudDelay = 30000;
+int gNotifyDefaultDelay = 1500;
+
+int gOtherOnline = 0;
+
 void settingsParseArgs(int argc, char *argv[]) {
 	if (cPlatform() == dbipMac) {
 		gCustomNotifies = false;

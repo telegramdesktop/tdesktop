@@ -78,65 +78,13 @@ psLogout(0), psUndo(0), psRedo(0), psCut(0), psCopy(0), psPaste(0), psDelete(0),
 	QImage tray(qsl(":/gui/art/osxtray.png"));
 	trayImg = tray.copy(0, cRetina() ? 0 : tray.width() / 2, tray.width() / (cRetina() ? 2 : 4), tray.width() / (cRetina() ? 2 : 4));
 	trayImgSel = tray.copy(tray.width() / (cRetina() ? 2 : 4), cRetina() ? 0 : tray.width() / 2, tray.width() / (cRetina() ? 2 : 4), tray.width() / (cRetina() ? 2 : 4));
-    connect(&psIdleTimer, SIGNAL(timeout()), this, SLOT(psIdleTimeout()));
-    psIdleTimer.setSingleShot(false);
-}
-
-void PsMainWindow::psNotIdle() const {
-	psIdleTimer.stop();
-	if (psIdle) {
-		psIdle = false;
-		if (App::main()) App::main()->setOnline();
-		if (App::wnd()) App::wnd()->checkHistoryActivation();
-	}
 }
 
 QImage PsMainWindow::psTrayIcon(bool selected) const {
 	return selected ? trayImgSel : trayImg;
 }
 
-void PsMainWindow::psIdleTimeout() {
-    int64 idleTime = objc_idleTime();
-    if (idleTime >= 0) {
-        if (idleTime <= IdleMsecs) {
-			psNotIdle();
-		}
-    } else { // error
-		psNotIdle();
-	}
-}
-
 void PsMainWindow::psShowTrayMenu() {
-}
-
-bool PsMainWindow::psIsOnline(int state) const {
-	if (state < 0) state = this->windowState();
-	if (state & Qt::WindowMinimized) {
-		return false;
-	} else if (!isVisible()) {
-		return false;
-	}
-    int64 idleTime = objc_idleTime();
-    LOG(("App Info: idle time %1").arg(idleTime));
-    if (idleTime >= 0) {
-        if (idleTime > IdleMsecs) {
-			if (!psIdle) {
-				psIdle = true;
-				psIdleTimer.start(900);
-			}
-			return false;
-		} else {
-			psNotIdle();
-		}
-    } else { // error
-		psNotIdle();
-	}
-	return true;
-}
-
-bool PsMainWindow::psIsActive(int state) const {
-	if (state < 0) state = this->windowState();
-    return isActiveWindow() && isVisible() && !(state & Qt::WindowMinimized) && !psIdle;
 }
 
 void PsMainWindow::psRefreshTaskbarIcon() {
@@ -280,8 +228,6 @@ void PsMainWindow::psInitFrameless() {
 	if (frameless) {
 		//setWindowFlags(Qt::FramelessWindowHint);
 	}
-
-    connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(psStateChanged(Qt::WindowState)));
 }
 
 void PsMainWindow::psSavePosition(Qt::WindowState state) {
@@ -329,15 +275,6 @@ void PsMainWindow::psSavePosition(Qt::WindowState state) {
 
 void PsMainWindow::psUpdatedPosition() {
     psUpdatedPositionTimer.start(SaveWindowPositionTimeout);
-}
-
-void PsMainWindow::psStateChanged(Qt::WindowState state) {
-	psUpdateSysMenu(state);
-	psUpdateMargins();
-//    if (state == Qt::WindowMinimized && GetWindowLong(ps_hWnd, GWL_HWNDPARENT)) {
-//		App::wnd()->minimizeToTray();
-//    }
-    psSavePosition(state);
 }
 
 void PsMainWindow::psFirstShow() {
@@ -492,7 +429,7 @@ void PsMainWindow::psMacUpdateMenu() {
 	_forceDisabled(psContacts, !isLogged);
 	_forceDisabled(psAddContact, !isLogged);
 	_forceDisabled(psNewGroup, !isLogged);
-	_forceDisabled(psShowTelegram, psIsActive());
+	_forceDisabled(psShowTelegram, App::wnd()->isActive(false));
 }
 
 void PsMainWindow::psFlash() {
@@ -980,6 +917,18 @@ PsUpdateDownloader::~PsUpdateDownloader() {
 	reply = 0;
 }
 
+namespace {
+	uint64 _lastUserAction = 0;
+}
+
+void psUserActionDone() {
+	_lastUserAction = getms(true);
+}
+
+uint64 psIdleTime() {
+	int64 idleTime = 0;
+	return objc_idleTime(idleTime) ? idleTime : (getms(true) - _lastUserAction);
+}
 
 QStringList psInitLogs() {
     return _initLogs;

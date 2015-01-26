@@ -52,9 +52,6 @@ public:
 	void psFlash();
 	void psNotifySettingGot();
 
-	bool psIsActive(int state = -1) const;
-	bool psIsOnline(int windowState) const;
-
 	void psUpdateWorkmode();
 
 	void psRefreshTaskbarIcon();
@@ -76,15 +73,12 @@ public:
 
 public slots:
 
-	void psStateChanged(Qt::WindowState state);
 	void psUpdateDelegate();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
-	void psIdleTimeout();
     void psShowTrayMenu();
 
 protected:
 
-	void psNotIdle() const;
     bool psHasTrayIcon() const {
         return trayIcon;
     }
@@ -105,9 +99,6 @@ private:
 	HWND ps_tbHider_hWnd;
 	HMENU ps_menu;
 	HICON ps_iconBig, ps_iconSmall, ps_iconOverlay;
-
-	mutable bool psIdle;
-	mutable QTimer psIdleTimer;
 
 	void psDestroyIcons();
 };
@@ -175,6 +166,9 @@ private:
 	QMutex mutex;
 
 };
+
+void psUserActionDone();
+uint64 psIdleTime();
 
 QStringList psInitLogs();
 void psClearInitLogs();

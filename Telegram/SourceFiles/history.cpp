@@ -2341,10 +2341,10 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 QString formatSizeText(qint64 size) {
 	if (size >= 1024 * 1024) { // more than 1 mb
 		qint64 sizeTenthMb = (size * 10 / (1024 * 1024));
-		return QString::number(sizeTenthMb / 10) + '.' + QString::number(sizeTenthMb % 10) + qsl("Mb");
+		return QString::number(sizeTenthMb / 10) + '.' + QString::number(sizeTenthMb % 10) + qsl("MB");
 	}
 	qint64 sizeTenthKb = (size * 10 / 1024);
-	return QString::number(sizeTenthKb / 10) + '.' + QString::number(sizeTenthKb % 10) + qsl("Kb");
+	return QString::number(sizeTenthKb / 10) + '.' + QString::number(sizeTenthKb % 10) + qsl("KB");
 }
 
 QString formatDownloadText(qint64 ready, qint64 total) {
@@ -2353,12 +2353,12 @@ QString formatDownloadText(qint64 ready, qint64 total) {
 		qint64 readyTenthMb = (ready * 10 / (1024 * 1024)), totalTenthMb = (total * 10 / (1024 * 1024));
 		readyStr = QString::number(readyTenthMb / 10) + '.' + QString::number(readyTenthMb % 10);
 		totalStr = QString::number(totalTenthMb / 10) + '.' + QString::number(totalTenthMb % 10);
-		mb = qsl("Mb");
+		mb = qsl("MB");
 	} else {
 		qint64 readyKb = (ready / 1024), totalKb = (total / 1024);
 		readyStr = QString::number(readyKb);
 		totalStr = QString::number(totalKb);
-		mb = qsl("Kb");
+		mb = qsl("KB");
 	}
 	return lng_save_downloaded(lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
 }
