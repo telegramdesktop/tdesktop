@@ -2448,7 +2448,8 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 	int updateIn = cOnlineUpdatePeriod();
 	if (isOnline) {
 		uint64 idle = psIdleTime();
-		if (idle >= cOfflineIdleTimeout()) {
+		LOG(("Idle: %1").arg(idle));
+		if (idle >= uint64(cOfflineIdleTimeout())) {
 			isOnline = false;
 			if (!_isIdle) {
 				_isIdle = true;
@@ -2475,13 +2476,14 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 
 		updateOnlineDisplay();
 	} else if (isOnline) {
-		updateIn = _lastSetOnline + cOnlineUpdatePeriod() - ms;
+		updateIn = qMin(updateIn, int(_lastSetOnline + cOnlineUpdatePeriod() - ms));
 	}
+	LOG(("UPDATE IN: %1").arg(updateIn));
 	_onlineTimer.start(updateIn);
 }
 
 void MainWidget::checkIdleFinish() {
-	if (psIdleTime() < cOfflineIdleTimeout()) {
+	if (psIdleTime() < uint64(cOfflineIdleTimeout())) {
 		_idleFinishTimer.stop();
 		_isIdle = false;
 		updateOnline();
