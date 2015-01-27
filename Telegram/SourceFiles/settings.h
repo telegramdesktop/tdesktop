@@ -46,6 +46,7 @@ DeclareSetting(QString, LoggedPhoneNumber);
 DeclareReadSetting(uint32, ConnectionsInSession);
 DeclareSetting(bool, AutoStart);
 DeclareSetting(bool, StartMinimized);
+DeclareSetting(bool, StartInTray);
 DeclareSetting(bool, SendToMenu);
 DeclareReadSetting(bool, FromAutoStart);
 DeclareSetting(QString, WorkingDir);

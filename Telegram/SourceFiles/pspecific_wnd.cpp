@@ -29,6 +29,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include <Strsafe.h>
 #include <shlobj.h>
 #include <Windowsx.h>
+#include <WtsApi32.h>
 
 #include <qpa/qplatformnativeinterface.h>
 
@@ -59,12 +60,15 @@ namespace {
 	bool useTheme = false;
 	bool useOpenWith = false;
 	bool useOpenAs = false;
+	bool useWtsapi = false;
+	bool useShellapi = false;
 	bool themeInited = false;
 	bool finished = true;
 	int menuShown = 0, menuHidden = 0;
 	int dleft = 0, dtop = 0;
 	QMargins simpleMargins, margins;
 	HICON bigIcon = 0, smallIcon = 0, overlayIcon = 0;
+	bool sessionLoggedOff = false;
 
 	UINT tbCreatedMsgId = 0;
 	ITaskbarList3 *tbListInterface = 0;
@@ -627,11 +631,20 @@ namespace {
 	typedef HRESULT (FAR STDAPICALLTYPE *f_shAssocEnumHandlers)(PCWSTR pszExtra, ASSOC_FILTER afFilter, IEnumAssocHandlers **ppEnumHandler);
 	f_shAssocEnumHandlers shAssocEnumHandlers = 0;
 
-	typedef HRESULT(FAR STDAPICALLTYPE *f_shCreateItemFromParsingName)(PCWSTR pszPath, IBindCtx *pbc, REFIID riid, void **ppv);
+	typedef HRESULT (FAR STDAPICALLTYPE *f_shCreateItemFromParsingName)(PCWSTR pszPath, IBindCtx *pbc, REFIID riid, void **ppv);
 	f_shCreateItemFromParsingName shCreateItemFromParsingName = 0;
 
-	typedef HRESULT(FAR STDAPICALLTYPE *f_shLoadIndirectString)(LPCWSTR pszSource, LPWSTR pszOutBuf, UINT cchOutBuf, void **ppvReserved);
+	typedef HRESULT (FAR STDAPICALLTYPE *f_shLoadIndirectString)(LPCWSTR pszSource, LPWSTR pszOutBuf, UINT cchOutBuf, void **ppvReserved);
 	f_shLoadIndirectString shLoadIndirectString = 0;
+
+	typedef BOOL (FAR STDAPICALLTYPE *f_wtsRegisterSessionNotification)(HWND hWnd, DWORD dwFlags);
+	f_wtsRegisterSessionNotification wtsRegisterSessionNotification = 0;
+
+	typedef BOOL (FAR STDAPICALLTYPE *f_wtsUnRegisterSessionNotification)(HWND hWnd);
+	f_wtsUnRegisterSessionNotification wtsUnRegisterSessionNotification = 0;
+
+	typedef HRESULT (FAR STDAPICALLTYPE *f_shQueryUserNotificationState)(QUERY_USER_NOTIFICATION_STATE *pquns);
+	f_shQueryUserNotificationState shQueryUserNotificationState = 0;
 
 	template <typename TFunction>
 	bool loadFunction(HINSTANCE dll, LPCSTR name, TFunction &func) {
@@ -650,6 +663,7 @@ namespace {
 
 			setupUx();
 			setupShell();
+			setupWtsapi();
 		}
 		void setupDWM() {
 			HINSTANCE procId = LoadLibrary(L"DWMAPI.DLL");
@@ -669,6 +683,7 @@ namespace {
 			HINSTANCE procId = LoadLibrary(L"SHELL32.DLL");
 			setupOpenWith(procId);
 			setupOpenAs(procId);
+			setupShellapi(procId);
 		}
 		void setupOpenWith(HINSTANCE procId) {
 			if (!loadFunction(procId, "SHAssocEnumHandlers", shAssocEnumHandlers)) return;
@@ -681,6 +696,17 @@ namespace {
 		void setupOpenAs(HINSTANCE procId) {
 			if (!loadFunction(procId, "SHOpenWithDialog", shOpenWithDialog) && !loadFunction(procId, "OpenAs_RunDLLW", openAs_RunDLL)) return;
 			useOpenAs = true;
+		}
+		void setupWtsapi() {
+			HINSTANCE procId = LoadLibrary(L"WTSAPI32.DLL");
+
+			if (!loadFunction(procId, "WTSRegisterSessionNotification", wtsRegisterSessionNotification)) return;
+			if (!loadFunction(procId, "WTSUnRegisterSessionNotification", wtsUnRegisterSessionNotification)) return;
+			useWtsapi = true;
+		}
+		void setupShellapi(HINSTANCE procId) {
+			if (!loadFunction(procId, "SHQueryUserNotificationState", shQueryUserNotificationState)) return;
+			useShellapi = true;
 		}
 	};
 	_PsInitializer _psInitializer;
@@ -712,6 +738,14 @@ namespace {
 				}
 			}
 			switch (msg) {
+
+			case WM_WTSSESSION_CHANGE: {
+				if (wParam == WTS_SESSION_LOGOFF || wParam == WTS_SESSION_LOCK) {
+					sessionLoggedOff = true;
+				} else if (wParam == WTS_SESSION_LOGON || wParam == WTS_SESSION_UNLOCK) {
+					sessionLoggedOff = false;
+				}
+			} return false;
 
 			case WM_DESTROY: {
 				App::quit();
@@ -753,9 +787,9 @@ namespace {
 			} return true;
 
 			case WM_NCACTIVATE: {
-				Application::wnd()->psUpdateMargins();
-				*result = LRESULT(TRUE);
-				Application::wnd()->repaint();
+				//Application::wnd()->psUpdateMargins();
+				*result = DefWindowProc(hWnd, msg, wParam, -1);
+				//Application::wnd()->repaint();
 			} return true;
 
 			case WM_WINDOWPOSCHANGING:
@@ -964,6 +998,7 @@ void PsMainWindow::psUpdateWorkmode() {
 
 HICON qt_pixmapToWinHICON(const QPixmap &);
 HBITMAP qt_pixmapToWinHBITMAP(const QPixmap &, int hbitmapFormat);
+
 static HICON _qt_createHIcon(const QIcon &icon, int xSize, int ySize) {
     if (!icon.isNull()) {
         const QPixmap pm = icon.pixmap(icon.actualSize(QSize(xSize, ySize)));
@@ -1003,6 +1038,7 @@ void PsMainWindow::psUpdateCounter() {
 		description.toWCharArray(descriptionArr);
 		tbListInterface->SetOverlayIcon(ps_hWnd, ps_iconOverlay, descriptionArr);
 	}
+	SetWindowPos(ps_hWnd, 0, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
 void PsMainWindow::psUpdateDelegate() {
@@ -1072,6 +1108,8 @@ void PsMainWindow::psInitFrameless() {
 
 	if (!ps_hWnd) return;
 
+	if (useWtsapi) wtsRegisterSessionNotification(ps_hWnd, NOTIFY_FOR_THIS_SESSION);
+		
 	if (frameless) {
 		setWindowFlags(Qt::FramelessWindowHint);
 	}
@@ -1138,21 +1176,18 @@ void PsMainWindow::psFirstShow() {
 		setWindowState(Qt::WindowMaximized);
 	}
 
-	if (cFromAutoStart()) {
-		if (cStartMinimized()) {
-			setWindowState(Qt::WindowMinimized);
-			if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
-				hide();
-			} else {
-				show();
-			}
-			showShadows = false;
+	if ((cFromAutoStart() && cStartMinimized()) || cStartInTray()) {
+		setWindowState(Qt::WindowMinimized);
+		if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+			hide();
 		} else {
 			show();
 		}
+		showShadows = false;
 	} else {
 		show();
 	}
+
 	posInited = true;
 	if (showShadows) {
 		_psShadowWindows.update(_PsShadowMoved | _PsShadowResized | _PsShadowShown);
@@ -1297,6 +1332,13 @@ void PsMainWindow::psDestroyIcons() {
 }
 
 PsMainWindow::~PsMainWindow() {
+	if (useWtsapi) {
+		QPlatformNativeInterface *i = QGuiApplication::platformNativeInterface();
+		if (HWND hWnd = static_cast<HWND>(i->nativeResourceForWindow(QByteArrayLiteral("handle"), windowHandle()))) {
+			wtsUnRegisterSessionNotification(hWnd);
+		}
+	}
+
 	finished = true;
 	if (ps_menu) DestroyMenu(ps_menu);
 	psDestroyIcons();
@@ -1742,12 +1784,29 @@ namespace {
 
 void psUserActionDone() {
 	_lastUserAction = getms(true);
+	if (sessionLoggedOff) sessionLoggedOff = false;
 }
 
 uint64 psIdleTime() {
 	LASTINPUTINFO lii;
 	lii.cbSize = sizeof(LASTINPUTINFO);
 	return GetLastInputInfo(&lii) ? (GetTickCount() - lii.dwTime) : (getms(true) - _lastUserAction);
+}
+
+bool psSkipAudioNotify() {
+	QUERY_USER_NOTIFICATION_STATE state;
+	if (useShellapi && SUCCEEDED(shQueryUserNotificationState(&state))) {
+		if (state == QUNS_NOT_PRESENT || state == QUNS_PRESENTATION_MODE) return true;
+	}
+	return sessionLoggedOff;
+}
+
+bool psSkipDesktopNotify() {
+	QUERY_USER_NOTIFICATION_STATE state;
+	if (useShellapi && SUCCEEDED(shQueryUserNotificationState(&state))) {
+		if (state == QUNS_PRESENTATION_MODE || state == QUNS_RUNNING_D3D_FULL_SCREEN || state == QUNS_BUSY) return true;
+	}
+	return false;
 }
 
 QStringList psInitLogs() {
@@ -2400,6 +2459,7 @@ void psExecUpdater() {
 	QString targs = qsl("-update");
 	if (cFromAutoStart()) targs += qsl(" -autostart");
 	if (cDebug()) targs += qsl(" -debug");
+	if (cStartInTray()) targs += qsl(" -startintray");
 	if (cWriteProtected()) targs += qsl(" -writeprotected \"") + cExeDir() + '"';
 
 	QString updaterPath = cWriteProtected() ? (cWorkingDir() + qsl("tupdates/ready/Updater.exe")) : (cExeDir() + qsl("Updater.exe"));
@@ -2420,6 +2480,7 @@ void psExecTelegram() {
 	if (cRestartingToSettings()) targs += qsl(" -tosettings");
 	if (cFromAutoStart()) targs += qsl(" -autostart");
 	if (cDebug()) targs += qsl(" -debug");
+	if (cStartInTray()) targs += qsl(" -startintray");
 	if (cDataFile() != (cTestMode() ? qsl("data_test") : qsl("data"))) targs += qsl(" -key \"") + cDataFile() + '"';
 
 	QString telegram(QDir::toNativeSeparators(cExeDir() + QString::fromWCharArray(AppFile) + qsl(".exe"))), wdir(QDir::toNativeSeparators(cWorkingDir()));

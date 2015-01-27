@@ -1133,7 +1133,7 @@ void Window::notifySchedule(History *history, MsgId msgId) {
 
 	uint64 when = getms(true) + delay;
 	notifyWhenAlerts[history].insert(when, NullType());
-	if (cDesktopNotify()) {
+	if (cDesktopNotify() && !psSkipDesktopNotify()) {
 		NotifyWhenMaps::iterator i = notifyWhenMaps.find(history);
 		if (i == notifyWhenMaps.end()) {
 			i = notifyWhenMaps.insert(history, NotifyWhenMap());
@@ -1256,7 +1256,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
             --count;
         }
     }
-	if (count <= 0 || !cDesktopNotify()) {
+	if (count <= 0 || notifyWaiters.isEmpty() || !cDesktopNotify() || psSkipDesktopNotify()) {
 		if (nextAlert) {
 			notifyWaitTimer.start(nextAlert - ms);
 		}
