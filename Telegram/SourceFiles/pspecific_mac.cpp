@@ -108,7 +108,6 @@ void PsMainWindow::psSetupTrayIcon() {
     psUpdateCounter();
 
     trayIcon->show();
-    psUpdateDelegate();
 }
 
 void PsMainWindow::psUpdateWorkmode() {
@@ -116,10 +115,11 @@ void PsMainWindow::psUpdateWorkmode() {
 	if (cWorkMode() == dbiwmWindowOnly) {
 		if (trayIcon) {
 			trayIcon->setContextMenu(0);
-			trayIcon->deleteLater();
+			delete trayIcon;
 		}
 		trayIcon = 0;
 	}
+	psUpdateDelegate();
 	setWindowIcon(wndIcon);
 }
 
