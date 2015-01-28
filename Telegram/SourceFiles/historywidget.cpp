@@ -3384,9 +3384,23 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 			_scroll.scrollToY(_scroll.scrollTop() - _scroll.height());
 		}
 	} else if (e->key() == Qt::Key_Down) {
-		_scroll.scrollToY(_scroll.scrollTop() + _scroll.height() / 10);
+		if (e->modifiers() & Qt::AltModifier) {
+			PeerData *after = 0;
+			MsgId afterMsgId = 0;
+			App::main()->peerAfter(histPeer, hist ? hist->activeMsgId : 0, after, afterMsgId);
+			if (after) App::main()->showPeer(after->id, afterMsgId);
+		} else if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
+			_scroll.scrollToY(_scroll.scrollTop() + _scroll.height() / 10);
+		}
 	} else if (e->key() == Qt::Key_Up) {
-		_scroll.scrollToY(_scroll.scrollTop() - _scroll.height() / 10);
+		if (e->modifiers() & Qt::AltModifier) {
+			PeerData *before = 0;
+			MsgId beforeMsgId = 0;
+			App::main()->peerBefore(histPeer, hist ? hist->activeMsgId : 0, before, beforeMsgId);
+			if (before) App::main()->showPeer(before->id, beforeMsgId);
+		} else if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
+			_scroll.scrollToY(_scroll.scrollTop() - _scroll.height() / 10);
+		}
 	} else if ((e->key() == Qt::Key_Tab || e->key() == Qt::Key_Backtab) && ((e->modifiers() & Qt::ControlModifier) || (e->modifiers() & Qt::MetaModifier))) {
 		PeerData *p = 0;
 		MsgId m = 0;

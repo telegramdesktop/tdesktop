@@ -129,11 +129,11 @@ int gNotifyDefaultDelay = 1500;
 int gOtherOnline = 0;
 
 void settingsParseArgs(int argc, char *argv[]) {
-	if (cPlatform() == dbipMac) {
-		gCustomNotifies = (QSysInfo::macVersion() < QSysInfo::MV_10_8);
-	} else {
-		gCustomNotifies = true;
-	}
+#ifdef Q_OS_MAC
+	gCustomNotifies = (QSysInfo::macVersion() < QSysInfo::MV_10_8);
+#else
+	gCustomNotifies = true;
+#endif
     memset_rand(&gInstance, sizeof(gInstance));
 	gExeDir = psCurrentExeDirectory(argc, argv);
 	gExeName = psCurrentExeName(argc, argv);
