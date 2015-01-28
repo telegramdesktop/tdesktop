@@ -1038,6 +1038,7 @@ notifyBorder: #f1f1f1;
 notifyBorderWidth: 1px;
 notifySlowHide: 4000;
 notifyPhotoSize: 62px;
+notifyMacPhotoSize: 64px;
 notifyPhotoPos: point(9px, 9px);
 notifyClosePos: point(1px, 2px);
 notifyClose: iconedButton(btnDefIconed) {

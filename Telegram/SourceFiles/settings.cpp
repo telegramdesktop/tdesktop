@@ -129,7 +129,7 @@ int gOtherOnline = 0;
 
 void settingsParseArgs(int argc, char *argv[]) {
 	if (cPlatform() == dbipMac) {
-		gCustomNotifies = false;
+		gCustomNotifies = (QSysInfo::macVersion() < QSysInfo::MV_10_8);
 	} else {
 		gCustomNotifies = true;
 	}

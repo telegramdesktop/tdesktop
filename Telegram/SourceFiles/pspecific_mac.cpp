@@ -480,8 +480,10 @@ void PsMainWindow::psNotifyShown(NotifyWindow *w) {
 void PsMainWindow::psPlatformNotify(HistoryItem *item) {
 	QString title = (cNotifyView() <= dbinvShowName) ? item->history()->peer->name : qsl("Telegram Desktop");
 	QString subtitle = (cNotifyView() <= dbinvShowName) ? item->notificationHeader() : QString();
+	QPixmap pix = (cNotifyView() <= dbinvShowName) ? item->history()->peer->photo->pix(st::notifyMacPhotoSize) : QPixmap();
 	QString msg = (cNotifyView() <= dbinvShowPreview) ? item->notificationText() : lang(lng_notification_preview);
-	_private.showNotify(item->history()->peer->id, title, subtitle, msg, (cNotifyView() <= dbinvShowPreview));
+
+	_private.showNotify(item->history()->peer->id, pix, title, subtitle, msg, (cNotifyView() <= dbinvShowPreview));
 }
 
 bool PsMainWindow::eventFilter(QObject *obj, QEvent *evt) {
