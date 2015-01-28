@@ -290,21 +290,18 @@ void PsMainWindow::psFirstShow() {
 		setWindowState(Qt::WindowMaximized);
 	}
 
-	if (cFromAutoStart()) {
-		if (cStartMinimized()) {
-			setWindowState(Qt::WindowMinimized);
-			if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
-				hide();
-			} else {
-				show();
-			}
-			showShadows = false;
+	if ((cFromAutoStart() && cStartMinimized()) || cStartInTray()) {
+		setWindowState(Qt::WindowMinimized);
+		if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+			hide();
 		} else {
 			show();
 		}
+		showShadows = false;
 	} else {
 		show();
 	}
+
 	posInited = true;
 
 	// init global menu
@@ -480,8 +477,10 @@ void PsMainWindow::psNotifyShown(NotifyWindow *w) {
 void PsMainWindow::psPlatformNotify(HistoryItem *item) {
 	QString title = (cNotifyView() <= dbinvShowName) ? item->history()->peer->name : qsl("Telegram Desktop");
 	QString subtitle = (cNotifyView() <= dbinvShowName) ? item->notificationHeader() : QString();
+	QPixmap pix = (cNotifyView() <= dbinvShowName) ? item->history()->peer->photo->pix(st::notifyMacPhotoSize) : QPixmap();
 	QString msg = (cNotifyView() <= dbinvShowPreview) ? item->notificationText() : lang(lng_notification_preview);
-	_private.showNotify(item->history()->peer->id, title, subtitle, msg, (cNotifyView() <= dbinvShowPreview));
+
+	_private.showNotify(item->history()->peer->id, pix, title, subtitle, msg, (cNotifyView() <= dbinvShowPreview));
 }
 
 bool PsMainWindow::eventFilter(QObject *obj, QEvent *evt) {
@@ -928,6 +927,14 @@ void psUserActionDone() {
 uint64 psIdleTime() {
 	int64 idleTime = 0;
 	return objc_idleTime(idleTime) ? idleTime : (getms(true) - _lastUserAction);
+}
+
+bool psSkipAudioNotify() {
+	return false;
+}
+
+bool psSkipDesktopNotify() {
+	return false;
 }
 
 QStringList psInitLogs() {

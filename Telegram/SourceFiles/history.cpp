@@ -546,8 +546,10 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 	AudioData *data = audio();
 	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
 
+	bool mp3 = (data->mime == QLatin1String("audio/mp3"));
+
 	QString already = data->already(true);
-	bool play = audioVoice();
+	bool play = !mp3 && audioVoice();
 	if (!already.isEmpty() || (!data->data.isEmpty() && play)) {
 		if (play) {
 			AudioData *playing = 0;
@@ -566,7 +568,7 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 	
 	if (data->status != FileReady) return;
 
-	QString filename = saveFileName(lang(lng_save_audio), qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), qsl(".ogg"), false);
+	QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), mp3 ? qsl(".mp3") : qsl(".ogg"), false);
 	if (!filename.isEmpty()) {
 		data->openOnSave = 1;
 		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
@@ -586,8 +588,9 @@ void AudioSaveLink::doSave(bool forceSavingAs) const {
 		}
 	} else {
 		QDir alreadyDir(already.isEmpty() ? QDir() : QFileInfo(already).dir());
-		QString name = already.isEmpty() ? QString(".ogg") : already;
-		QString filename = saveFileName(lang(lng_save_audio), qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), name, forceSavingAs, alreadyDir);
+		bool mp3 = (data->mime == QLatin1String("audio/mp3"));
+		QString name = already.isEmpty() ? (mp3 ? qsl(".mp3") : qsl(".ogg")) : already;
+		QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), name, forceSavingAs, alreadyDir);
 		if (!filename.isEmpty()) {
 			if (forceSavingAs) {
 				data->cancel();
@@ -612,8 +615,8 @@ void AudioCancelLink::onClick(Qt::MouseButton button) const {
 	data->cancel();
 }
 
-AudioData::AudioData(const AudioId &id, const uint64 &access, int32 user, int32 date, int32 duration, int32 dc, int32 size) :
-id(id), access(access), user(user), date(date), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+AudioData::AudioData(const AudioId &id, const uint64 &access, int32 user, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) :
+id(id), access(access), user(user), date(date), mime(mime), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
 	location = Local::readFileLocation(mediaKey(mtpc_inputAudioFileLocation, dc, id));
 }
 
@@ -2607,7 +2610,8 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		width = _maxw;
 	}
 
-	if (!data->loader && data->status != FileFailed && !already && !hasdata && data->size < AudioVoiceMsgInMemory) {
+	bool mp3 = (data->mime == QLatin1String("audio/mp3"));
+	if (!data->loader && !mp3 && data->status != FileFailed && !already && !hasdata && data->size < AudioVoiceMsgInMemory) {
 		data->save(QString());
 	}
 
@@ -2639,11 +2643,11 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	AudioData *playing = 0;
 	VoiceMessageState playingState = VoiceMessageStopped;
 	int64 playingPosition = 0, playingDuration = 0;
-	if (audioVoice()) {
+	if (!mp3 && audioVoice()) {
 		audioVoice()->currentState(&playing, &playingState, &playingPosition, &playingDuration);
 	}
 	QRect img;
-	if (already || hasdata) {
+	if (!mp3 && (already || hasdata)) {
 		bool showPause = (playing == data) && (playingState == VoiceMessagePlaying || playingState == VoiceMessageResuming || playingState == VoiceMessageStarting);
 		img = out ? (showPause ? st::mediaPauseOutImg : st::mediaPlayOutImg) : (showPause ? st::mediaPauseInImg : st::mediaPlayInImg);
 	} else {
@@ -2667,7 +2671,7 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 
 	style::color status(selected ? (out ? st::mediaOutSelectColor : st::mediaInSelectColor) : (out ? st::mediaOutColor : st::mediaInColor));
 	p.setPen(status->p);
-	if (already || hasdata) {
+	if (!mp3 && (already || hasdata)) {
 		if (playing == data && playingState != VoiceMessageStopped) {
 			statusText = formatDurationText(playingPosition / AudioVoiceMsgFrequency) + qsl(" / ") + formatDurationText(playingDuration / AudioVoiceMsgFrequency);
 		} else {

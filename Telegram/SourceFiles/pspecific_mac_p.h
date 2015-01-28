@@ -29,7 +29,7 @@ public:
 
 	void updateDelegate();
     
-    void showNotify(uint64 peer, const QString &title, const QString &subtitle, const QString &msg, bool withReply);
+    void showNotify(uint64 peer, const QPixmap &pix, const QString &title, const QString &subtitle, const QString &msg, bool withReply);
     void clearNotifies(uint64 peer = 0);
     
     void enableShadow(WId winId);

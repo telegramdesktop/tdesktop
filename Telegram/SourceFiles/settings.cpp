@@ -37,6 +37,7 @@ bool gSoundNotify = true;
 bool gDesktopNotify = true;
 DBINotifyView gNotifyView = dbinvShowPreview;
 bool gStartMinimized = false;
+bool gStartInTray = false;
 bool gAutoStart = false;
 bool gSendToMenu = false;
 bool gAutoUpdate = true;
@@ -129,7 +130,7 @@ int gOtherOnline = 0;
 
 void settingsParseArgs(int argc, char *argv[]) {
 	if (cPlatform() == dbipMac) {
-		gCustomNotifies = false;
+		gCustomNotifies = (QSysInfo::macVersion() < QSysInfo::MV_10_8);
 	} else {
 		gCustomNotifies = true;
 	}
@@ -151,6 +152,8 @@ void settingsParseArgs(int argc, char *argv[]) {
 			gNoStartUpdate = true;
 		} else if (string("-tosettings") == argv[i]) {
 			gStartToSettings = true;
+		} else if (string("-startintray") == argv[i]) {
+			gStartInTray = true;
 		} else if (string("-sendpath") == argv[i] && i + 1 < argc) {
 			for (++i; i < argc; ++i) {
 				gSendPaths.push_back(QString::fromLocal8Bit(argv[i]));
@@ -169,7 +172,7 @@ void settingsParseArgs(int argc, char *argv[]) {
 const RecentEmojiPack &cGetRecentEmojis() {
 	if (cRecentEmojis().isEmpty()) {
 		RecentEmojiPack r;
-		if (false && !cRecentEmojisPreload().isEmpty()) {
+		if (!cRecentEmojisPreload().isEmpty()) {
 			RecentEmojiPreload p(cRecentEmojisPreload());
 			cSetRecentEmojisPreload(RecentEmojiPreload());
 			r.reserve(p.size());

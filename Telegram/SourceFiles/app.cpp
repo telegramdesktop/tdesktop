@@ -843,7 +843,7 @@ namespace App {
 	}
 
 	AudioData *feedAudio(const MTPDaudio &audio, AudioData *convert) {
-		return App::audio(audio.vid.v, convert, audio.vaccess_hash.v, audio.vuser_id.v, audio.vdate.v, audio.vduration.v, audio.vdc_id.v, audio.vsize.v);
+		return App::audio(audio.vid.v, convert, audio.vaccess_hash.v, audio.vuser_id.v, audio.vdate.v, qs(audio.vmime_type), audio.vduration.v, audio.vdc_id.v, audio.vsize.v);
 	}
 
 	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb) {
@@ -1043,7 +1043,7 @@ namespace App {
 		return result;
 	}
 
-	AudioData *audio(const AudioId &audio, AudioData *convert, const uint64 &access, int32 user, int32 date, int32 duration, int32 dc, int32 size) {
+	AudioData *audio(const AudioId &audio, AudioData *convert, const uint64 &access, int32 user, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) {
 		if (convert) {
 			if (convert->id != audio) {
 				AudiosData::iterator i = audiosData.find(convert->id);
@@ -1057,6 +1057,7 @@ namespace App {
 			if (!convert->user && !convert->date && (user || date)) {
 				convert->user = user;
 				convert->date = date;
+				convert->mime = mime;
 				convert->duration = duration;
 				convert->dc = dc;
 				convert->size = size;
@@ -1068,7 +1069,7 @@ namespace App {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new AudioData(audio, access, user, date, duration, dc, size);
+				result = new AudioData(audio, access, user, date, mime, duration, dc, size);
 			}
 			audiosData.insert(audio, result);
 		} else {
@@ -1077,6 +1078,7 @@ namespace App {
 				result->access = access;
 				result->user = user;
 				result->date = date;
+				result->mime = mime;
 				result->duration = duration;
 				result->dc = dc;
 				result->size = size;
@@ -1467,7 +1469,7 @@ namespace App {
 	}
 
 	void playSound() {
-		if (cSoundNotify()) audioPlayNotify();
+		if (cSoundNotify() && !psSkipAudioNotify()) audioPlayNotify();
 	}
 
 	void writeConfig() {

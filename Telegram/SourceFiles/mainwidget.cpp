@@ -1099,8 +1099,9 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 	if (audio->loader) {
 		if (audio->loader->done()) {
 			audio->finish();
+			bool mp3 = (audio->mime == QLatin1String("audio/mp3"));
 			QString already = audio->already();
-			bool play = audio->openOnSave > 0 && audioVoice();
+			bool play = !mp3 && audio->openOnSave > 0 && audioVoice();
 			if ((!already.isEmpty() && audio->openOnSave) || (!audio->data.isEmpty() && play)) {
 				if (play) {
 					AudioData *playing = 0;
@@ -2448,7 +2449,6 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 	int updateIn = cOnlineUpdatePeriod();
 	if (isOnline) {
 		uint64 idle = psIdleTime();
-		LOG(("Idle: %1").arg(idle));
 		if (idle >= uint64(cOfflineIdleTimeout())) {
 			isOnline = false;
 			if (!_isIdle) {
@@ -2478,7 +2478,6 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 	} else if (isOnline) {
 		updateIn = qMin(updateIn, int(_lastSetOnline + cOnlineUpdatePeriod() - ms));
 	}
-	LOG(("UPDATE IN: %1").arg(updateIn));
 	_onlineTimer.start(updateIn);
 }
 

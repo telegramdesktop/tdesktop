@@ -148,13 +148,15 @@ public:
     
     void onNotifyClick(NSUserNotification *notification) {
         NSNumber *peerObj = [[notification userInfo] objectForKey:@"peer"];
-        unsigned long long peerLong = [peerObj unsignedLongLongValue];
+		unsigned long long peerLong = peerObj ? [peerObj unsignedLongLongValue] : 0;
+		LOG(("Received notification click with peer %1").arg(peerLong));
         wnd->notifyClicked(peerLong);
     }
     
     void onNotifyReply(NSUserNotification *notification) {
         NSNumber *peerObj = [[notification userInfo] objectForKey:@"peer"];
-        unsigned long long peerLong = [peerObj unsignedLongLongValue];
+		unsigned long long peerLong = peerObj ? [peerObj unsignedLongLongValue] : 0;
+		LOG(("Received notification reply with peer %1").arg(peerLong));
         wnd->notifyReplied(peerLong, [[[notification response] string] UTF8String]);
     }
     
@@ -202,11 +204,12 @@ public:
 
 - (void) userNotificationCenter:(NSUserNotificationCenter *)center didActivateNotification:(NSUserNotification *)notification {
     NSNumber *instObj = [[notification userInfo] objectForKey:@"inst"];
-    unsigned long long instLong = [instObj unsignedLongLongValue];
+	unsigned long long instLong = instObj ? [instObj unsignedLongLongValue] : 0;
+	DEBUG_LOG(("Received notification with instance %1").arg(instLong));
     if (instLong != cInstance()) { // other app instance notification
         return;
     }
-    if (notification.activationType == NSUserNotificationActivationTypeReplied){
+    if (notification.activationType == NSUserNotificationActivationTypeReplied) {
         wnd->data->onNotifyReply(notification);
     } else if (notification.activationType == NSUserNotificationActivationTypeContentsClicked) {
         wnd->data->onNotifyClick(notification);
@@ -255,7 +258,7 @@ void objc_showOverAll(WId winId, bool canFocus) {
 	[wnd setLevel:NSPopUpMenuWindowLevel];
 	if (!canFocus) {
 		[wnd setStyleMask:NSUtilityWindowMask | NSNonactivatingPanelMask];
-		[wnd setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces|NSWindowCollectionBehaviorFullScreenAuxiliary|NSWindowCollectionBehaviorIgnoresCycle];
+		[wnd setCollectionBehavior:NSWindowCollectionBehaviorMoveToActiveSpace|NSWindowCollectionBehaviorStationary|NSWindowCollectionBehaviorFullScreenAuxiliary|NSWindowCollectionBehaviorIgnoresCycle];
 	}
 }
 
@@ -269,14 +272,19 @@ void objc_activateWnd(WId winId) {
     [wnd orderFront:wnd];
 }
 
-void PsMacWindowPrivate::showNotify(uint64 peer, const QString &title, const QString &subtitle, const QString &msg, bool withReply) {
+NSImage *qt_mac_create_nsimage(const QPixmap &pm);
+
+void PsMacWindowPrivate::showNotify(uint64 peer, const QPixmap &pix, const QString &title, const QString &subtitle, const QString &msg, bool withReply) {
     NSUserNotification *notification = [[NSUserNotification alloc] init];
-    
+	NSImage *img = qt_mac_create_nsimage(pix);
+
+	DEBUG_LOG(("Sending notification with userinfo: peer %1 and instance %2").arg(peer).arg(cInstance()));
     [notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer],@"peer",[NSNumber numberWithUnsignedLongLong:cInstance()],@"inst",nil]];
 
 	[notification setTitle:QNSString(title).s()];
     [notification setSubtitle:QNSString(subtitle).s()];
     [notification setInformativeText:QNSString(msg).s()];
+	[notification setContentImage:img];
 
     if (withReply) [notification setHasReplyButton:YES];
 
@@ -284,7 +292,8 @@ void PsMacWindowPrivate::showNotify(uint64 peer, const QString &title, const QSt
     
     NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
     [center deliverNotification:notification];
-    
+
+	if (img) [img release];
     [notification release];
 }
 
@@ -897,6 +906,7 @@ BOOL _execUpdater(BOOL update = YES) {
 		if (!update) [args addObject:@"-noupdate"];
 		if (cFromAutoStart()) [args addObject:@"-autostart"];
 		if (cDebug()) [args addObject:@"-debug"];
+		if (cStartInTray()) [args addObject:@"-startintray"];
 		if (cDataFile() != (cTestMode() ? qsl("data_test") : qsl("data"))) {
 			[args addObject:@"-key"];
 			[args addObject:QNSString(cDataFile()).s()];

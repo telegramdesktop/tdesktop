@@ -197,6 +197,9 @@ private:
 void psUserActionDone();
 uint64 psIdleTime();
 
+bool psSkipAudioNotify();
+bool psSkipDesktopNotify();
+
 QStringList psInitLogs();
 void psClearInitLogs();
 
