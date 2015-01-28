@@ -325,21 +325,26 @@ namespace {
     class _PsInitializer {
     public:
         _PsInitializer() {
+            std::cout << "libs init..\n";
             setupGtk();
             setupUnity();
         }
 
         bool loadLibrary(QLibrary &lib, const char *name, int version) {
+            std::cout << "loading " << name << " with version " << version << "..\n";
             lib.setFileNameAndVersion(QLatin1String(name), version);
             if (lib.load()) {
+                std::cout << "loaded " << name << " with version " << version << "!\n";
                 _initLogs.push_back(QString("Loaded '%1' version %2 library").arg(name).arg(version));
                 return true;
             }
             lib.setFileNameAndVersion(QLatin1String(name), QString());
             if (lib.load()) {
+                std::cout << "loaded " << name << " without version!\n";
                 _initLogs.push_back(QString("Loaded '%1' without version library").arg(name));
                 return true;
             }
+            std::cout << "could not load " << name << " without version.\n";
             return false;
         }
 
@@ -361,6 +366,7 @@ namespace {
             if (!loadFunction(lib_gtk, "g_signal_connect_data", ps_g_signal_connect_data)) return;
 
             useGtkBase = true;
+            std::cout << "loaded gtk funcs!\n";
         }
 
         void setupAppIndicator(QLibrary &lib_indicator) {
@@ -369,30 +375,34 @@ namespace {
             if (!loadFunction(lib_indicator, "app_indicator_set_menu", ps_app_indicator_set_menu)) return;
             if (!loadFunction(lib_indicator, "app_indicator_set_icon_full", ps_app_indicator_set_icon_full)) return;
             useAppIndicator = true;
+            std::cout << "loaded appindicator funcs!\n";
         }
 
         void setupGtk() {
             QLibrary lib_gtk, lib_indicator;
-            if (loadLibrary(lib_gtk, "gtk-3", 0)) {
-                if (loadLibrary(lib_indicator, "appindicator3", 1)) {
+            if (loadLibrary(lib_indicator, "appindicator3", 1)) {
+                if (loadLibrary(lib_gtk, "gtk-3", 0)) {
                     setupGtkBase(lib_gtk);
                     setupAppIndicator(lib_indicator);
                 }
             }
             if (!useGtkBase || !useAppIndicator) {
-                if (lib_gtk.isLoaded()) lib_gtk.unload();
-                if (lib_indicator.isLoaded()) lib_indicator.unload();
-                if (loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
-                    if (loadLibrary(lib_indicator, "appindicator", 1)) {
+                if (loadLibrary(lib_indicator, "appindicator", 1)) {
+                    if (loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
                         useGtkBase = useAppIndicator = false;
                         setupGtkBase(lib_gtk);
                         setupAppIndicator(lib_indicator);
                     }
                 }
             }
+            if (!useGtkBase && lib_gtk.isLoaded()) {
+                std::cout << "no appindicator, trying to load gtk..\n";
+                setupGtkBase(lib_gtk);
+            }
             if (!useGtkBase) {
                 useAppIndicator = false;
                 _initLogs.push_back(QString("Init Error: Failed to load 'gtk-x11-2.0' library!"));
+                std::cout << "no appindicator :(\n";
                 return;
             }
 
@@ -412,6 +422,7 @@ namespace {
             if (!loadFunction(lib_gtk, "g_object_unref", ps_g_object_unref)) return;
             if (!loadFunction(lib_gtk, "g_idle_add", ps_g_idle_add)) return;
             useStatusIcon = true;
+            std::cout << "status icon api loaded\n";
         }
 
         void setupUnity() {
@@ -422,6 +433,7 @@ namespace {
             if (!loadFunction(lib_unity, "unity_launcher_entry_set_count", ps_unity_launcher_entry_set_count)) return;
             if (!loadFunction(lib_unity, "unity_launcher_entry_set_count_visible", ps_unity_launcher_entry_set_count_visible)) return;
             useUnityCount = true;
+            std::cout << "unity count api loaded\n";
         }
     };
     _PsInitializer _psInitializer;
