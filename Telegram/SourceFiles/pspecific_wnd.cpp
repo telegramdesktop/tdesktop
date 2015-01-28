@@ -33,8 +33,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include <qpa/qplatformnativeinterface.h>
 
-#include <dwmapi.h>
-
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) < (b) ? (b) : (a))
 
@@ -56,7 +54,6 @@ namespace {
     QStringList _initLogs;
 
 	bool frameless = true;
-	bool useDWM = false;
 	bool useTheme = false;
 	bool useOpenWith = false;
 	bool useOpenAs = false;
@@ -207,7 +204,7 @@ namespace {
 			screenDC = GetDC(0);
 			if (!screenDC) return false;
 
-			QRect avail(QDesktopWidget().availableGeometry());
+			QRect avail(App::app() ? App::app()->desktop()->availableGeometry() : QDesktopWidget().availableGeometry());
 			max_w = avail.width();
 			if (max_w < st::wndMinWidth) max_w = st::wndMinWidth;
 			max_h = avail.height();
@@ -610,15 +607,6 @@ namespace {
 
 	QColor _shActive(0, 0, 0), _shInactive(0, 0, 0);
 
-	typedef BOOL (FAR STDAPICALLTYPE *f_dwmDefWindowProc)(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, _Out_ LRESULT *plResult);
-	f_dwmDefWindowProc dwmDefWindowProc = 0;
-
-	typedef HRESULT (FAR STDAPICALLTYPE *f_dwmSetWindowAttribute)(HWND hWnd, DWORD dwAttribute, _In_ LPCVOID pvAttribute, DWORD cbAttribute);
-	f_dwmSetWindowAttribute dwmSetWindowAttribute = 0;
-	
-	typedef HRESULT (FAR STDAPICALLTYPE *f_dwmExtendFrameIntoClientArea)(HWND hWnd, const MARGINS *pMarInset);
-	f_dwmExtendFrameIntoClientArea dwmExtendFrameIntoClientArea = 0;
-
 	typedef HRESULT (FAR STDAPICALLTYPE *f_setWindowTheme)(HWND hWnd, LPCWSTR pszSubAppName, LPCWSTR pszSubIdList);
 	f_setWindowTheme setWindowTheme = 0;
 
@@ -657,21 +645,11 @@ namespace {
 	class _PsInitializer {
 	public:
 		_PsInitializer() {
-			setupDWM();
-			useDWM = true;
-			frameless = !useDWM;
+			frameless = false;
 
 			setupUx();
 			setupShell();
 			setupWtsapi();
-		}
-		void setupDWM() {
-			HINSTANCE procId = LoadLibrary(L"DWMAPI.DLL");
-
-			if (!loadFunction(procId, "DwmDefWindowProc", dwmDefWindowProc)) return;
-			if (!loadFunction(procId, "DwmSetWindowAttribute", dwmSetWindowAttribute)) return;
-			if (!loadFunction(procId, "DwmExtendFrameIntoClientArea", dwmExtendFrameIntoClientArea)) return;
-			useDWM = true;
 		}
 		void setupUx() {
 			HINSTANCE procId = LoadLibrary(L"UXTHEME.DLL");
@@ -755,7 +733,6 @@ namespace {
 				if (LOWORD(wParam) == WA_CLICKACTIVE) {
 					App::wnd()->inactivePress(true);
 				}
-				Application::wnd()->psUpdateMargins();
 				if (LOWORD(wParam) != WA_INACTIVE) {
 					_psShadowWindows.setColor(_shActive);
 					_psShadowWindows.update(_PsShadowActivate);
@@ -768,33 +745,38 @@ namespace {
 				
 			case WM_NCPAINT: if (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS8) return false; *result = 0; return true;
 
-			case WM_NCCALCSIZE: if (!useDWM) return false; {
-				if (wParam == TRUE) {
+			case WM_NCCALCSIZE: {
+				WINDOWPLACEMENT wp;
+				wp.length = sizeof(WINDOWPLACEMENT);
+				if (GetWindowPlacement(hWnd, &wp) && wp.showCmd == SW_SHOWMAXIMIZED) {
 					LPNCCALCSIZE_PARAMS params = (LPNCCALCSIZE_PARAMS)lParam;
-					params->rgrc[0].left += margins.left() - simpleMargins.left();
-					params->rgrc[0].top += margins.top() - simpleMargins.top();
-					params->rgrc[0].right -= margins.right() - simpleMargins.right();
-					params->rgrc[0].bottom -= margins.bottom() - simpleMargins.bottom();
-				} else if (wParam == FALSE) {
-					LPRECT rect = (LPRECT)lParam;
-
-					rect->left += margins.left() - simpleMargins.left();
-					rect->top += margins.top() - simpleMargins.top();
-					rect->right += margins.right() - simpleMargins.right();
-					rect->bottom += margins.bottom() - simpleMargins.bottom();
+					LPRECT r = (wParam == TRUE) ? &params->rgrc[0] : (LPRECT)lParam;
+					HMONITOR hMonitor = MonitorFromPoint({ (r->left + r->right) / 2, (r->top + r->bottom) / 2 }, MONITOR_DEFAULTTONEAREST);
+					if (hMonitor) {
+						MONITORINFO mi;
+						mi.cbSize = sizeof(mi);
+						if (GetMonitorInfo(hMonitor, &mi)) {
+							*r = mi.rcWork;
+						}
+					}
 				}
 				*result = 0;
-			} return true;
+				return true;
+			}
 
 			case WM_NCACTIVATE: {
-				//Application::wnd()->psUpdateMargins();
 				*result = DefWindowProc(hWnd, msg, wParam, -1);
-				//Application::wnd()->repaint();
 			} return true;
 
 			case WM_WINDOWPOSCHANGING:
 			case WM_WINDOWPOSCHANGED: {
-				_psShadowWindows.update(_PsShadowMoved | _PsShadowResized, (WINDOWPOS*)lParam);
+				WINDOWPLACEMENT wp;
+				wp.length = sizeof(WINDOWPLACEMENT);
+				if (GetWindowPlacement(hWnd, &wp) && (wp.showCmd == SW_SHOWMAXIMIZED || wp.showCmd == SW_SHOWMINIMIZED)) {
+					_psShadowWindows.update(_PsShadowHidden);
+				} else {
+					_psShadowWindows.update(_PsShadowMoved | _PsShadowResized, (WINDOWPOS*)lParam);
+				}
 			} return false;
 
 			case WM_SIZE: {
@@ -811,6 +793,7 @@ namespace {
 						} else {
 							App::wnd()->psUpdatedPosition();
 						}
+						App::wnd()->psUpdateMargins();
 						int changes = (wParam == SIZE_MINIMIZED || wParam == SIZE_MAXIMIZED) ? _PsShadowHidden : (_PsShadowResized | _PsShadowShown);
 						_psShadowWindows.update(changes);
 					}
@@ -1075,7 +1058,7 @@ void PsMainWindow::psInitSize() {
 		pos.w = st::wndDefWidth;
 		pos.h = st::wndDefHeight;
 	}
-	QRect avail(QDesktopWidget().availableGeometry());
+	QRect avail(App::app() ? App::app()->desktop()->availableGeometry() : QDesktopWidget().availableGeometry());
 	bool maximized = false;
 	QRect geom(avail.x() + (avail.width() - st::wndDefWidth) / 2, avail.y() + (avail.height() - st::wndDefHeight) / 2, st::wndDefWidth, st::wndDefHeight);
 	if (pos.w && pos.h) {
@@ -1195,7 +1178,7 @@ void PsMainWindow::psFirstShow() {
 }
 
 bool PsMainWindow::psHandleTitle() {
-	return useDWM;
+	return true;
 }
 
 void PsMainWindow::psInitSysMenu() {
@@ -1248,7 +1231,7 @@ void PsMainWindow::psUpdateSysMenu(Qt::WindowState state) {
 }
 
 void PsMainWindow::psUpdateMargins() {
-	if (!useDWM) return;
+	if (!ps_hWnd) return;
 
 	RECT r, a;
 
@@ -1257,7 +1240,7 @@ void PsMainWindow::psUpdateMargins() {
 
 	LONG style = GetWindowLong(ps_hWnd, GWL_STYLE), styleEx = GetWindowLong(ps_hWnd, GWL_EXSTYLE);
 	AdjustWindowRectEx(&a, style, false, styleEx);
-	simpleMargins = QMargins(a.left - r.left, a.top - r.top, r.right - a.right, r.bottom - a.bottom);
+	QMargins margins = QMargins(a.left - r.left, a.top - r.top, r.right - a.right, r.bottom - a.bottom);
 	if (style & WS_MAXIMIZE) {
 		RECT w, m;
 		GetWindowRect(ps_hWnd, &w);
@@ -1274,23 +1257,22 @@ void PsMainWindow::psUpdateMargins() {
 		dleft = w.left - m.left;
 		dtop = w.top - m.top;
 
-		margins.setLeft(simpleMargins.left() - w.left + m.left);
-		margins.setRight(simpleMargins.right() - m.right + w.right);
-		margins.setBottom(simpleMargins.bottom() - m.bottom + w.bottom);
-		margins.setTop(simpleMargins.top() - w.top + m.top);
+		margins.setLeft(margins.left() - w.left + m.left);
+		margins.setRight(margins.right() - m.right + w.right);
+		margins.setBottom(margins.bottom() - m.bottom + w.bottom);
+		margins.setTop(margins.top() - w.top + m.top);
 	} else {
-		margins = simpleMargins;
 		dleft = dtop = 0;
 	}
 
 	QPlatformNativeInterface *i = QGuiApplication::platformNativeInterface();
-	i->setWindowProperty(windowHandle()->handle(), "WindowsCustomMargins", QVariant::fromValue<QMargins>(margins));
+	i->setWindowProperty(windowHandle()->handle(), qsl("WindowsCustomMargins"), QVariant::fromValue<QMargins>(margins));
 	if (!themeInited) {
 		themeInited = true;
 		if (useTheme) {
 			if (QSysInfo::WindowsVersion < QSysInfo::WV_WINDOWS8) {
 				setWindowTheme(ps_hWnd, L" ", L" ");
-				QApplication::setStyle(QStyleFactory::create("Windows"));
+				QApplication::setStyle(QStyleFactory::create(qsl("Windows")));
 			}
 		}
 	}

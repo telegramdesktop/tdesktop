@@ -384,7 +384,6 @@ void Window::stateChanged(Qt::WindowState state) {
 	updateIsActive((state == Qt::WindowMinimized) ? cOfflineBlurTimeout() : cOnlineFocusTimeout());
 
 	psUpdateSysMenu(state);
-	psUpdateMargins();
 	if (state == Qt::WindowMinimized && cWorkMode() == dbiwmTrayOnly) {
 		App::wnd()->minimizeToTray();
 	}
