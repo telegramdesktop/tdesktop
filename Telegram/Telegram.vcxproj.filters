@@ -1060,5 +1060,8 @@
     <None Include="SourceFiles\langs\lang_pt_BR.strings">
       <Filter>langs</Filter>
     </None>
+    <None Include="SourceFiles\langs\lang_ko.strings">
+      <Filter>langs</Filter>
+    </None>
   </ItemGroup>
 </Project>

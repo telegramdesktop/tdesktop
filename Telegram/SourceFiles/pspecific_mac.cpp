@@ -290,21 +290,18 @@ void PsMainWindow::psFirstShow() {
 		setWindowState(Qt::WindowMaximized);
 	}
 
-	if (cFromAutoStart()) {
-		if (cStartMinimized()) {
-			setWindowState(Qt::WindowMinimized);
-			if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
-				hide();
-			} else {
-				show();
-			}
-			showShadows = false;
+	if ((cFromAutoStart() && cStartMinimized()) || cStartInTray()) {
+		setWindowState(Qt::WindowMinimized);
+		if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+			hide();
 		} else {
 			show();
 		}
+		showShadows = false;
 	} else {
 		show();
 	}
+
 	posInited = true;
 
 	// init global menu
@@ -930,6 +927,14 @@ void psUserActionDone() {
 uint64 psIdleTime() {
 	int64 idleTime = 0;
 	return objc_idleTime(idleTime) ? idleTime : (getms(true) - _lastUserAction);
+}
+
+bool psSkipAudioNotify() {
+	return false;
+}
+
+bool psSkipDesktopNotify() {
+	return false;
 }
 
 QStringList psInitLogs() {

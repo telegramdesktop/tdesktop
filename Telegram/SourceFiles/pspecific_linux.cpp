@@ -760,21 +760,18 @@ void PsMainWindow::psFirstShow() {
 		setWindowState(Qt::WindowMaximized);
 	}
 
-	if (cFromAutoStart()) {
-		if (cStartMinimized()) {
-			setWindowState(Qt::WindowMinimized);
-			if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
-				hide();
-			} else {
-				show();
-			}
-			showShadows = false;
+	if ((cFromAutoStart() && cStartMinimized()) || cStartInTray()) {
+		setWindowState(Qt::WindowMinimized);
+		if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+			hide();
 		} else {
 			show();
 		}
+		showShadows = false;
 	} else {
 		show();
 	}
+
 	posInited = true;
 }
 
@@ -1312,6 +1309,14 @@ uint64 psIdleTime() {
 	return getms(true) - _lastUserAction;
 }
 
+bool psSkipAudioNotify() {
+	return false;
+}
+
+bool psSkipDesktopNotify() {
+	return false;
+}
+
 QStringList psInitLogs() {
     return _initLogs;
 }
@@ -1646,7 +1651,7 @@ bool _execUpdater(bool update = true) {
     QByteArray data(QFile::encodeName(cExeDir() + "Updater"));
     memcpy(path, data.constData(), data.size());
 
-    char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key", p_path[] = "-workpath";
+    char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key", p_path[] = "-workpath", p_startintray[] = "-startintray";
     char p_datafile[MaxLen] = {0}, p_pathbuf[MaxLen] = {0};
     int argIndex = 0;
     args[argIndex++] = path;
@@ -1656,6 +1661,7 @@ bool _execUpdater(bool update = true) {
     }
     if (cFromAutoStart()) args[argIndex++] = p_autostart;
     if (cDebug()) args[argIndex++] = p_debug;
+	if (cStartInTray()) args[argIndex++] = p_startintray;
     if (cDataFile() != (cTestMode() ? qsl("data_test") : qsl("data"))) {
         QByteArray dataf = QFile::encodeName(cDataFile());
         if (dataf.size() < MaxLen) {

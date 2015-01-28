@@ -1099,8 +1099,9 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 	if (audio->loader) {
 		if (audio->loader->done()) {
 			audio->finish();
+			bool mp3 = (audio->mime == QLatin1String("audio/mp3"));
 			QString already = audio->already();
-			bool play = audio->openOnSave > 0 && audioVoice();
+			bool play = !mp3 && audio->openOnSave > 0 && audioVoice();
 			if ((!already.isEmpty() && audio->openOnSave) || (!audio->data.isEmpty() && play)) {
 				if (play) {
 					AudioData *playing = 0;
