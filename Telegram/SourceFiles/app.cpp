@@ -1631,6 +1631,7 @@ namespace App {
 					case dbisOneAndHalf: s = dbisOneAndHalf; break;
 					case dbisTwo: s = dbisTwo; break;
 					}
+					if (cRetina()) s = dbisOne;
 					cSetConfigScale(s);
 					cSetRealScale(s);
 				} break;

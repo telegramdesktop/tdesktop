@@ -700,8 +700,8 @@ void Application::startApp() {
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
 	if (Local::oldMapVersion() < AppVersion) {
 		psRegisterCustomScheme();
-		if (Local::oldMapVersion() && Local::oldMapVersion() < 7009) {
-			QString versionFeatures(lng_new_version7009(lt_version, QString::fromStdWString(AppVersionStr), lt_link, qsl("https://desktop.telegram.org/#changelog")));
+		if (Local::oldMapVersion() && Local::oldMapVersion() < 7010) {
+			QString versionFeatures(lng_new_version_minor(lt_version, QString::fromStdWString(AppVersionStr), lt_link, qsl("https://desktop.telegram.org/#changelog")));
 			if (!versionFeatures.isEmpty()) {
 				window->serviceNotification(versionFeatures);
 			}

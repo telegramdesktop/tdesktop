@@ -173,7 +173,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_check_now" = "Cerca aggiornamenti";
 "lng_settings_update_checking" = "Ricerca aggiornamenti..";
 "lng_settings_latest_installed" = "L'ultima versione è installata";
-"lng_settings_downloading" = "Download aggiornamento {ready} / {total} Mb..";
+"lng_settings_downloading" = "Download aggiornamento {ready} / {total} MB..";
 "lng_settings_update_ready" = "La nuova versione è pronta";
 "lng_settings_update_now" = "Riavvia ora";
 "lng_settings_update_fail" = "Ricerca aggiornamenti fallita :(";
@@ -451,6 +451,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mediaview_saved" = "L'immagine è stata salvata nella tua cartella [c]Download[/c]";
 
 "lng_new_authorization" = "{name},\nAbbiamo rilevato un accesso al tuo account da un nuovo dispositivo il {day}, {date} alle {time}\n\nDispositivo: {device}\nPosizione: {location}\n\nSe non sei tu, puoi andare su Impostazioni – Termina tutte le sessioni. \n\nGrazie, \nIl Team di Telegram";
+
+"lng_new_version_minor" = "Telegram Desktop è stato aggiornato alla versione {version}\n\n— Bug fix e altri miglioramenti\n\nLa cronologia degli update è disponibile qui:\n{link}";
 
 "lng_new_version7009" = "Telegram Desktop è stato aggiornato alla versione {version}\n\n— Aggiunto il Coreano\n— Menu rapido \"Apri con\" su Windows e OS X\n\nLa cronologia degli update è disponibile qui:\n{link}";
 "lng_new_version7006_appstore" = "Telegram Desktop è stato aggiornato alla versione {version}\n\n— Aggiunto il supporto agli sticker\n— Cache locale per i messaggi vocali\n— Aggiunte nuove lingue\n\nLa cronologia degli update è disponibile qui:\n{link}";
