@@ -53,9 +53,6 @@ public:
 	void psFlash();
     void psNotifySettingGot();
 
-	bool psIsActive(int state = -1) const;
-	bool psIsOnline(int state) const;
-
 	void psUpdateWorkmode();
 
 	void psRefreshTaskbarIcon();
@@ -77,10 +74,8 @@ public:
 
 public slots:
 
-	void psStateChanged(Qt::WindowState state);
 	void psUpdateDelegate();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
-	void psIdleTimeout();
 	void psShowTrayMenu();
 
     void psStatusIconCheck();
@@ -88,7 +83,6 @@ public slots:
 
 protected:
 
-	void psNotIdle() const;
     bool psHasTrayIcon() const;
 
 	bool posInited;
@@ -104,9 +98,6 @@ protected:
 
 private:
     void psCreateTrayIcon();
-
-	mutable bool psIdle;
-	mutable QTimer psIdleTimer;
 
     QTimer _psCheckStatusIconTimer;
     int _psCheckStatusIconLeft;
@@ -175,6 +166,12 @@ private:
 
 };
 
+void psUserActionDone();
+uint64 psIdleTime();
+	
+bool psSkipAudioNotify();
+bool psSkipDesktopNotify();
+
 QStringList psInitLogs();
 void psClearInitLogs();
 
@@ -199,6 +196,8 @@ int psFixPrevious();
 bool psCheckReadyUpdate();
 void psExecUpdater();
 void psExecTelegram();
+
+bool psShowOpenWithMenu(int x, int y, const QString &file);
 
 void psPostprocessFile(const QString &name);
 void psOpenFile(const QString &name, bool openWith = false);

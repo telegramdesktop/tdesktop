@@ -180,7 +180,7 @@ public:
 
 	bool layerShown();
 
-	bool historyIsActive(int state = -1) const;
+	bool historyIsActive() const;
 
 	void activate();
 
@@ -225,9 +225,14 @@ public:
 	void mediaOverviewUpdated(PeerData *peer);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 
+	bool isActive(bool cached = true) const;
+
 public slots:
+
+	void updateIsActive(int timeout = 0);
+	void stateChanged(Qt::WindowState state);
 	
-	void checkHistoryActivation(int state = -1);
+	void checkHistoryActivation();
 	void updateCounter();
     
 	void showSettings();
@@ -278,6 +283,9 @@ private:
 	MainWidget *main;
 	SettingsWidget *settings;
 	BackgroundWidget *layerBG;
+
+	QTimer _isActiveTimer;
+	bool _isActive;
 
 	QWidget *_topWidget; // temp hack for CountrySelect
 	ConnectingWidget *_connecting;

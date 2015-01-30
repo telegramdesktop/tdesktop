@@ -382,6 +382,7 @@ void Application::onWriteUserConfig() {
 
 void Application::onAppStateChanged(Qt::ApplicationState state) {
 	checkLocalTime();
+	if (window) window->updateIsActive((state == Qt::ApplicationActive) ? cOnlineFocusTimeout() : cOfflineBlurTimeout());
 }
 
 void Application::killDownloadSessions() {
@@ -699,17 +700,15 @@ void Application::startApp() {
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
 	if (Local::oldMapVersion() < AppVersion) {
 		psRegisterCustomScheme();
-		if (Local::oldMapVersion() && Local::oldMapVersion() < 7007 && (cPlatform() == dbipLinux32 || cPlatform() == dbipLinux64)) {
-			QString versionFeatures(lng_new_version7007(lt_version, QString::fromStdWString(AppVersionStr), lt_link, qsl("https://desktop.telegram.org/#changelog")));
+		if (Local::oldMapVersion() && Local::oldMapVersion() < 7010) {
+			QString versionFeatures(lng_new_version_minor(lt_version, QString::fromStdWString(AppVersionStr), lt_link, qsl("https://desktop.telegram.org/#changelog")));
 			if (!versionFeatures.isEmpty()) {
 				window->serviceNotification(versionFeatures);
 			}
 		}
 	}
 
-//	if (!cLangErrors().isEmpty()) {
-//		window->showLayer(new ConfirmBox("Custom lang failed :(\n\nError: " + cLangErrors(), true, lang(lng_close)));
-//	}
+	window->updateIsActive(cOnlineFocusTimeout());
 }
 
 void Application::socketDisconnected() {

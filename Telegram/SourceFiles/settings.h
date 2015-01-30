@@ -31,15 +31,6 @@ inline void cSetDebug(bool debug) {
 	gDebug = debug;
 }
 
-extern bool gTestMode;
-inline bool cTestMode() {
-#ifdef _DEBUG
-	return gTestMode;
-#else
-	return false;
-#endif
-}
-
 #define DeclareReadSetting(Type, Name) extern Type g##Name; \
 inline const Type &c##Name() { \
 	return g##Name; \
@@ -50,10 +41,12 @@ inline void cSet##Name(const Type &Name) { \
 	g##Name = Name; \
 }
 
+DeclareSetting(bool, TestMode);
 DeclareSetting(QString, LoggedPhoneNumber);
 DeclareReadSetting(uint32, ConnectionsInSession);
 DeclareSetting(bool, AutoStart);
 DeclareSetting(bool, StartMinimized);
+DeclareSetting(bool, StartInTray);
 DeclareSetting(bool, SendToMenu);
 DeclareReadSetting(bool, FromAutoStart);
 DeclareSetting(QString, WorkingDir);
@@ -179,5 +172,15 @@ DeclareReadSetting(QUrl, UpdateURL);
 DeclareSetting(bool, ContactsReceived);
 
 DeclareSetting(bool, WideMode);
+
+DeclareSetting(int, OnlineUpdatePeriod);
+DeclareSetting(int, OfflineBlurTimeout);
+DeclareSetting(int, OfflineIdleTimeout);
+DeclareSetting(int, OnlineFocusTimeout);
+DeclareSetting(int, OnlineCloudTimeout);
+DeclareSetting(int, NotifyCloudDelay);
+DeclareSetting(int, NotifyDefaultDelay);
+
+DeclareSetting(int, OtherOnline);
 
 void settingsParseArgs(int argc, char *argv[]);

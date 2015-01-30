@@ -78,7 +78,7 @@ int main(int argc, const char * argv[]) {
 
 	openLog();
 	pid_t procId = 0;
-	BOOL update = YES, toSettings = NO, autoStart = NO;
+	BOOL update = YES, toSettings = NO, autoStart = NO, startInTray = NO;
 	NSString *key = nil;
 	for (int i = 0; i < argc; ++i) {
 		if ([@"-workpath" isEqualToString:[NSString stringWithUTF8String:argv[i]]]) {
@@ -99,6 +99,8 @@ int main(int argc, const char * argv[]) {
 			autoStart = YES;
 		} else if ([@"-debug" isEqualToString:[NSString stringWithUTF8String:argv[i]]]) {
 			_debug = YES;
+		} else if ([@"-startintray" isEqualToString:[NSString stringWithUTF8String:argv[i]]]) {
+			startInTray = YES;
 		} else if ([@"-key" isEqualToString:[NSString stringWithUTF8String:argv[i]]]) {
 			if (++i < argc) key = [NSString stringWithUTF8String:argv[i]];
 		}
@@ -191,6 +193,7 @@ int main(int argc, const char * argv[]) {
 	NSMutableArray *args = [[NSMutableArray alloc] initWithObjects:@"-noupdate", nil];
 	if (toSettings) [args addObject:@"-tosettings"];
 	if (_debug) [args addObject:@"-debug"];
+	if (startInTray) [args addObject:@"-startintray"];
 	if (autoStart) [args addObject:@"-autostart"];
 	if (key) {
 		[args addObject:@"-key"];

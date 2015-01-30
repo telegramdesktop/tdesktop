@@ -481,9 +481,11 @@ LocalImage::~LocalImage() {
 }
 
 LocalImage *getImage(const QString &file, QByteArray format) {
-	LocalImages::const_iterator i = localImages.constFind(file);
+	QFileInfo f(file);
+	QString key = qsl("//:%1//:%2//:").arg(f.size()).arg(f.lastModified().toTime_t()) + file;
+	LocalImages::const_iterator i = localImages.constFind(key);
 	if (i == localImages.cend()) {
-		i = localImages.insert(file, new LocalImage(file, format));
+		i = localImages.insert(key, new LocalImage(file, format));
 	}
 	return i.value();
 }

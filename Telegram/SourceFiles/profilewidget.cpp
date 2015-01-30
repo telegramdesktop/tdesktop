@@ -422,7 +422,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 		p.setPen(st::black->p);
 		p.drawText(_left + st::profilePhotoSize + st::profileStatusLeft, top + st::profileStatusTop + st::linkFont->ascent, '@' + _peerUser->username);
 	}
-	p.setPen((_peerUser && _peerUser->onlineTill >= l_time ? st::profileOnlineColor : st::profileOfflineColor)->p);
+	p.setPen((_peerUser && App::onlineColorUse(_peerUser->onlineTill, l_time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
 	p.drawText(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop + st::linkFont->ascent, _onlineText);
 	if (!_cancelPhoto.isHidden()) {
 		p.drawText(_left + st::profilePhotoSize + st::profilePhoneLeft, _cancelPhoto.y() + addbyname + st::linkFont->ascent, lang(lng_settings_uploading_photo));
@@ -529,7 +529,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 				p.setFont(st::linkFont->f);
 				data->name.drawElided(p, _left + st::profileListPhotoSize + st::profileListPadding.width(), top + st::profileListNameTop, _width - _kickWidth - st::profileListPadding.width() - st::profileListPhotoSize - st::profileListPadding.width());
 				p.setFont(st::profileSubFont->f);
-				p.setPen((user->onlineTill >= l_time ? st::profileOnlineColor : st::profileOfflineColor)->p);
+				p.setPen((App::onlineColorUse(user->onlineTill, l_time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
 				p.drawText(_left + st::profileListPhotoSize + st::profileListPadding.width(), top + st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, data->online);
 
 				if (data->cankick) {

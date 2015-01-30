@@ -774,6 +774,7 @@ void EmojiPan::hideStart() {
 void EmojiPan::hideFinish() {
 	hide();
 	_cache = QPixmap();
+	_recent.setChecked(true);
 }
 
 void EmojiPan::showStart() {

@@ -547,10 +547,10 @@ void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 		if (tc == textCursor()) {
 			bool check = false;
 			if (e->key() == Qt::Key_PageUp || e->key() == Qt::Key_Up) {
-				tc.movePosition(QTextCursor::Start);
+				tc.movePosition(QTextCursor::Start, e->modifiers().testFlag(Qt::ShiftModifier) ? QTextCursor::KeepAnchor : QTextCursor::MoveAnchor);
 				check = true;
 			} else if (e->key() == Qt::Key_PageDown || e->key() == Qt::Key_Down) {
-				tc.movePosition(QTextCursor::End);
+				tc.movePosition(QTextCursor::End, e->modifiers().testFlag(Qt::ShiftModifier) ? QTextCursor::KeepAnchor : QTextCursor::MoveAnchor);
 				check = true;
 			}
 			if (check) {

@@ -491,7 +491,10 @@ void VideoSaveLink::doSave(bool forceSavingAs) const {
 
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
-		psOpenFile(already, true);
+		QPoint pos(QCursor::pos());
+		if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
+			psOpenFile(already, true);
+		}
 	} else {
 		QDir alreadyDir(already.isEmpty() ? QDir() : QFileInfo(already).dir());
 		QString name = already.isEmpty() ? QString(".mov") : already;
@@ -543,8 +546,10 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 	AudioData *data = audio();
 	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
 
+	bool mp3 = (data->mime == QLatin1String("audio/mp3"));
+
 	QString already = data->already(true);
-	bool play = audioVoice();
+	bool play = !mp3 && audioVoice();
 	if (!already.isEmpty() || (!data->data.isEmpty() && play)) {
 		if (play) {
 			AudioData *playing = 0;
@@ -563,7 +568,7 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 	
 	if (data->status != FileReady) return;
 
-	QString filename = saveFileName(lang(lng_save_audio), qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), qsl(".ogg"), false);
+	QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), mp3 ? qsl(".mp3") : qsl(".ogg"), false);
 	if (!filename.isEmpty()) {
 		data->openOnSave = 1;
 		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
@@ -577,11 +582,15 @@ void AudioSaveLink::doSave(bool forceSavingAs) const {
 
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
-		psOpenFile(already, true);
+		QPoint pos(QCursor::pos());
+		if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
+			psOpenFile(already, true);
+		}
 	} else {
 		QDir alreadyDir(already.isEmpty() ? QDir() : QFileInfo(already).dir());
-		QString name = already.isEmpty() ? QString(".ogg") : already;
-		QString filename = saveFileName(lang(lng_save_audio), qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), name, forceSavingAs, alreadyDir);
+		bool mp3 = (data->mime == QLatin1String("audio/mp3"));
+		QString name = already.isEmpty() ? (mp3 ? qsl(".mp3") : qsl(".ogg")) : already;
+		QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), name, forceSavingAs, alreadyDir);
 		if (!filename.isEmpty()) {
 			if (forceSavingAs) {
 				data->cancel();
@@ -606,8 +615,8 @@ void AudioCancelLink::onClick(Qt::MouseButton button) const {
 	data->cancel();
 }
 
-AudioData::AudioData(const AudioId &id, const uint64 &access, int32 user, int32 date, int32 duration, int32 dc, int32 size) :
-id(id), access(access), user(user), date(date), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+AudioData::AudioData(const AudioId &id, const uint64 &access, int32 user, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) :
+id(id), access(access), user(user), date(date), mime(mime), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
 	location = Local::readFileLocation(mediaKey(mtpc_inputAudioFileLocation, dc, id));
 }
 
@@ -678,7 +687,10 @@ void DocumentSaveLink::doSave(bool forceSavingAs) const {
 
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
-		psOpenFile(already, true);
+		QPoint pos(QCursor::pos());
+		if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
+			psOpenFile(already, true);
+		}
 	} else {
 		QDir alreadyDir(already.isEmpty() ? QDir() : QFileInfo(already).dir());
 		QString name = already.isEmpty() ? data->name : already, filter;
@@ -1182,26 +1194,6 @@ HistoryItem *Histories::addToBack(const MTPmessage &msg, int msgState) {
 	return h.value()->addToBack(msg, msgState > 0);
 }
 
-/*
-HistoryItem *Histories::addToBack(const MTPgeoChatMessage &msg, bool newMsg) {
-	PeerId peer = 0;
-	switch (msg.type()) {
-	case mtpc_geoChatMessage:
-		peer = App::peerFromChat(msg.c_geoChatMessage().vchat_id);
-	break;
-	case mtpc_geoChatMessageService:
-		peer = App::peerFromChat(msg.c_geoChatMessageService().vchat_id);
-	break;
-	}
-	if (!peer) return 0;
-
-	iterator h = find(peer);
-	if (h == end()) {
-		h = insert(peer, new History(peer));
-	}
-	return h.value()->addToBack(msg, newMsg);
-}/**/
-
 HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, bool newMsg, bool returnExisting) {
 	HistoryItem *result = 0;
 
@@ -1423,6 +1415,10 @@ void History::newItemAdded(HistoryItem *item) {
 	App::checkImageCacheSize();
 	if (item->from()) {
 		unregTyping(item->from());
+        if (item->from()->onlineTill < 0) {
+			item->from()->onlineTill = -unixtime() - HiddenIsOnlineAfterMessage; // pseudo-online
+			if (App::main()) App::main()->peerUpdated(item->from());
+        }
 	}
 	if (item->out()) {
 		if (unreadBar) unreadBar->destroy();
@@ -2348,10 +2344,10 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 QString formatSizeText(qint64 size) {
 	if (size >= 1024 * 1024) { // more than 1 mb
 		qint64 sizeTenthMb = (size * 10 / (1024 * 1024));
-		return QString::number(sizeTenthMb / 10) + '.' + QString::number(sizeTenthMb % 10) + qsl("Mb");
+		return QString::number(sizeTenthMb / 10) + '.' + QString::number(sizeTenthMb % 10) + qsl("MB");
 	}
 	qint64 sizeTenthKb = (size * 10 / 1024);
-	return QString::number(sizeTenthKb / 10) + '.' + QString::number(sizeTenthKb % 10) + qsl("Kb");
+	return QString::number(sizeTenthKb / 10) + '.' + QString::number(sizeTenthKb % 10) + qsl("KB");
 }
 
 QString formatDownloadText(qint64 ready, qint64 total) {
@@ -2360,12 +2356,12 @@ QString formatDownloadText(qint64 ready, qint64 total) {
 		qint64 readyTenthMb = (ready * 10 / (1024 * 1024)), totalTenthMb = (total * 10 / (1024 * 1024));
 		readyStr = QString::number(readyTenthMb / 10) + '.' + QString::number(readyTenthMb % 10);
 		totalStr = QString::number(totalTenthMb / 10) + '.' + QString::number(totalTenthMb % 10);
-		mb = qsl("Mb");
+		mb = qsl("MB");
 	} else {
 		qint64 readyKb = (ready / 1024), totalKb = (total / 1024);
 		readyStr = QString::number(readyKb);
 		totalStr = QString::number(totalKb);
-		mb = qsl("Kb");
+		mb = qsl("KB");
 	}
 	return lng_save_downloaded(lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
 }
@@ -2614,7 +2610,8 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		width = _maxw;
 	}
 
-	if (!data->loader && data->status != FileFailed && !already && !hasdata && data->size < AudioVoiceMsgInMemory) {
+	bool mp3 = (data->mime == QLatin1String("audio/mp3"));
+	if (!data->loader && !mp3 && data->status != FileFailed && !already && !hasdata && data->size < AudioVoiceMsgInMemory) {
 		data->save(QString());
 	}
 
@@ -2646,11 +2643,11 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	AudioData *playing = 0;
 	VoiceMessageState playingState = VoiceMessageStopped;
 	int64 playingPosition = 0, playingDuration = 0;
-	if (audioVoice()) {
+	if (!mp3 && audioVoice()) {
 		audioVoice()->currentState(&playing, &playingState, &playingPosition, &playingDuration);
 	}
 	QRect img;
-	if (already || hasdata) {
+	if (!mp3 && (already || hasdata)) {
 		bool showPause = (playing == data) && (playingState == VoiceMessagePlaying || playingState == VoiceMessageResuming || playingState == VoiceMessageStarting);
 		img = out ? (showPause ? st::mediaPauseOutImg : st::mediaPlayOutImg) : (showPause ? st::mediaPauseInImg : st::mediaPlayInImg);
 	} else {
@@ -2674,7 +2671,7 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 
 	style::color status(selected ? (out ? st::mediaOutSelectColor : st::mediaInSelectColor) : (out ? st::mediaOutColor : st::mediaInColor));
 	p.setPen(status->p);
-	if (already || hasdata) {
+	if (!mp3 && (already || hasdata)) {
 		if (playing == data && playingState != VoiceMessageStopped) {
 			statusText = formatDurationText(playingPosition / AudioVoiceMsgFrequency) + qsl(" / ") + formatDurationText(playingDuration / AudioVoiceMsgFrequency);
 		} else {

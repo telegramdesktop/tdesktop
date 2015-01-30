@@ -303,7 +303,7 @@ int main(int argc, char *argv[]) {
 
     writeLog("Updater started..");
 
-    bool needupdate = true, autostart = false, debug = false, tosettings = false;
+    bool needupdate = true, autostart = false, debug = false, tosettings = false, startintray = false;
 
     char *key = 0;
     for (int i = 1; i < argc; ++i) {
@@ -311,9 +311,11 @@ int main(int argc, char *argv[]) {
             needupdate = false;
         } else if (equal(argv[i], "-autostart")) {
             autostart = true;
-        } else if (equal(argv[i], "-debug")) {
-            debug = _debug = true;
-            openLog();
+		} else if (equal(argv[i], "-debug")) {
+			debug = _debug = true;
+			openLog();
+		} else if (equal(argv[i], "-startintray")) {
+			startintray = true;
         } else if (equal(argv[i], "-tosettings")) {
             tosettings = true;
         } else if (equal(argv[i], "-key") && ++i < argc) {
@@ -377,12 +379,13 @@ int main(int argc, char *argv[]) {
     char path[MaxLen] = {0};
     strcpy(path, (exeDir + "Telegram").c_str());
 
-    char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key";
+    char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key", p_startintray[] = "-startintray";
     int argIndex = 0;
     args[argIndex++] = path;
     args[argIndex++] = p_noupdate;
     if (autostart) args[argIndex++] = p_autostart;
     if (debug) args[argIndex++] = p_debug;
+	if (startintray) args[argIndex++] = p_startintray;
     if (tosettings) args[argIndex++] = p_tosettings;
     if (key) {
         args[argIndex++] = p_key;

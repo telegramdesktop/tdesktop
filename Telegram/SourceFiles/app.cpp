@@ -123,6 +123,7 @@ namespace App {
 		MainWidget *m(main());
 		if (m) m->destroyData();
 		MTP::authed(0);
+		cSetOtherOnline(0);
 		histories().clear();
 		globalNotifyAllPtr = UnknownNotifySettings;
 		globalNotifyUsersPtr = UnknownNotifySettings;
@@ -170,6 +171,9 @@ namespace App {
 	int32 onlineForSort(int32 online, int32 now) {
 		if (online <= 0) {
 			switch (online) {
+			case 0:
+			case -1: return online;
+
 			case -2: {
 				QDate yesterday(date(now).date());
 				yesterday.addDays(-3);
@@ -188,12 +192,16 @@ namespace App {
 				return int32(QDateTime(monthago).toTime_t());
 			} break;
 			}
+			return -online;
 		}
 		return online;
 	}
 
 	int32 onlineWillChangeIn(int32 online, int32 now) {
-		if (online <= 0) return 86400;
+        if (online <= 0) {
+            if (-online > now) return -online - now;
+            return 86400;
+        }
 		if (online > now) {
 			return online - now;
 		}
@@ -217,11 +225,12 @@ namespace App {
 		if (online <= 0) {
 			switch (online) {
 			case 0: return lang(lng_status_offline);
+            case -1: return lang(lng_status_invisible);
 			case -2: return lang(lng_status_recently);
 			case -3: return lang(lng_status_last_week);
 			case -4: return lang(lng_status_last_month);
 			}
-			return lang(lng_status_invisible);
+            return (-online > now) ? lang(lng_status_online) : lang(lng_status_recently);
 		}
 		if (online > now) {
 			return lang(lng_status_online);
@@ -253,6 +262,20 @@ namespace App {
 			return lng_status_lastseen_yesterday(lt_time, dOnline.time().toString(qsl("hh:mm")));
 		}
 		return lng_status_lastseen_date(lt_date, dOnline.date().toString(qsl("dd.MM.yy")));
+	}
+
+	bool onlineColorUse(int32 online, int32 now) {
+		if (online <= 0) {
+			switch (online) {
+			case 0:
+			case -1:
+			case -2:
+			case -3:
+			case -4: return false;
+			}
+			return (-online > now);
+		}
+		return (online > now);
 	}
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users) {
@@ -362,7 +385,11 @@ namespace App {
 			data->loaded = true;
 			if (status) switch (status->type()) {
 			case mtpc_userStatusEmpty: data->onlineTill = 0; break;
-			case mtpc_userStatusRecently: data->onlineTill = -2; break;
+			case mtpc_userStatusRecently:
+				if (data->onlineTill > -10) { // don't modify pseudo-online
+					data->onlineTill = -2;
+				}
+			break;
 			case mtpc_userStatusLastWeek: data->onlineTill = -3; break;
 			case mtpc_userStatusLastMonth: data->onlineTill = -4; break;
 			case mtpc_userStatusOffline: data->onlineTill = status->c_userStatusOffline().vwas_online.v; break;
@@ -816,7 +843,7 @@ namespace App {
 	}
 
 	AudioData *feedAudio(const MTPDaudio &audio, AudioData *convert) {
-		return App::audio(audio.vid.v, convert, audio.vaccess_hash.v, audio.vuser_id.v, audio.vdate.v, audio.vduration.v, audio.vdc_id.v, audio.vsize.v);
+		return App::audio(audio.vid.v, convert, audio.vaccess_hash.v, audio.vuser_id.v, audio.vdate.v, qs(audio.vmime_type), audio.vduration.v, audio.vdc_id.v, audio.vsize.v);
 	}
 
 	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb) {
@@ -1016,7 +1043,7 @@ namespace App {
 		return result;
 	}
 
-	AudioData *audio(const AudioId &audio, AudioData *convert, const uint64 &access, int32 user, int32 date, int32 duration, int32 dc, int32 size) {
+	AudioData *audio(const AudioId &audio, AudioData *convert, const uint64 &access, int32 user, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) {
 		if (convert) {
 			if (convert->id != audio) {
 				AudiosData::iterator i = audiosData.find(convert->id);
@@ -1030,6 +1057,7 @@ namespace App {
 			if (!convert->user && !convert->date && (user || date)) {
 				convert->user = user;
 				convert->date = date;
+				convert->mime = mime;
 				convert->duration = duration;
 				convert->dc = dc;
 				convert->size = size;
@@ -1041,7 +1069,7 @@ namespace App {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new AudioData(audio, access, user, date, duration, dc, size);
+				result = new AudioData(audio, access, user, date, mime, duration, dc, size);
 			}
 			audiosData.insert(audio, result);
 		} else {
@@ -1050,6 +1078,7 @@ namespace App {
 				result->access = access;
 				result->user = user;
 				result->date = date;
+				result->mime = mime;
 				result->duration = duration;
 				result->dc = dc;
 				result->size = size;
@@ -1440,7 +1469,7 @@ namespace App {
 	}
 
 	void playSound() {
-		if (cSoundNotify()) audioPlayNotify();
+		if (cSoundNotify() && !psSkipAudioNotify()) audioPlayNotify();
 	}
 
 	void writeConfig() {
@@ -1602,6 +1631,7 @@ namespace App {
 					case dbisOneAndHalf: s = dbisOneAndHalf; break;
 					case dbisTwo: s = dbisTwo; break;
 					}
+					if (cRetina()) s = dbisOne;
 					cSetConfigScale(s);
 					cSetRealScale(s);
 				} break;

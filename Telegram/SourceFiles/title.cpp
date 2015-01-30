@@ -302,7 +302,7 @@ void TitleWidget::showUpdateBtn() {
 		_update.hide();
 		if (cPlatform() == dbipWindows) {
 			_minimize.show();
-			maximizedChanged(wnd->windowState().testFlag(Qt::WindowMaximized), true);
+			maximizedChanged(lastMaximized, true);
 			_close.show();
 		}
 		anim::stop(this);

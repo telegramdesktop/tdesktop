@@ -165,7 +165,7 @@ void AddParticipantInner::paintDialog(QPainter &p, DialogRow *row, bool sel) {
 	if (data->inchat || data->check) {
 		p.setPen(st::white->p);
 	} else {
-		p.setPen((user->onlineTill >= _time ? st::profileOnlineColor : st::profileOfflineColor)->p);
+		p.setPen((App::onlineColorUse(user->onlineTill, _time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
 	}
 	p.drawText(left + st::profileListPhotoSize + st::profileListPadding.width(), st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, data->online);
 }

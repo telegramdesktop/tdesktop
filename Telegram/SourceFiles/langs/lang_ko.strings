@@ -1,0 +1,500 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014 John Preston, https://desktop.telegram.org
+*/
+"lng_language_name" = "한국어";
+"lng_switch_to_this" = "한국어로 변경";
+
+"lng_menu_contacts" = "주소록";
+"lng_menu_settings" = "설정";
+"lng_menu_about" = "정보";
+"lng_menu_update" = "업데이트";
+"lng_menu_restart" = "재시작";
+"lng_menu_back" = "뒤로가기";
+
+"lng_open_from_tray" = "텔레그램 실행";
+"lng_minimize_to_tray" = "창을 최소화";
+"lng_quit_from_tray" = "텔레그램 종료";
+"lng_tray_icon_text" = "텔레그램은 아직 실행중입니다.\n설정 화면에서 실행설정을 변경하실 수 있습니다.\n\n트레이메뉴에서 이 아이콘이 사라질 경우.\n숨겨진 아이콘 목록에서 다시 복원할 수 있습니다.";
+
+"lng_month1" = "1월";
+"lng_month2" = "2월";
+"lng_month3" = "3월";
+"lng_month4" = "4월";
+"lng_month5" = "5월";
+"lng_month6" = "6월";
+"lng_month7" = "7월";
+"lng_month8" = "8월";
+"lng_month9" = "9월";
+"lng_month10" = "10월";
+"lng_month11" = "11월";
+"lng_month12" = "12월";
+
+"lng_weekday1" = "월";
+"lng_weekday2" = "화";
+"lng_weekday3" = "수";
+"lng_weekday4" = "목";
+"lng_weekday5" = "금";
+"lng_weekday6" = "토";
+"lng_weekday7" = "일";
+
+"lng_weekday1_full" = "월요일";
+"lng_weekday2_full" = "화요일";
+"lng_weekday3_full" = "수요일";
+"lng_weekday4_full" = "목요일";
+"lng_weekday5_full" = "금요일";
+"lng_weekday6_full" = "토요일";
+"lng_weekday7_full" = "일요일";
+
+"lng_month_day" = "{month} {day} 일";
+
+"lng_cancel" = "취소";
+"lng_continue" = "계속";
+"lng_close" = "닫기";
+"lng_connecting" = "연결중입니다..";
+"lng_reconnecting" = " {count:현재| # 초 후에| # 초 후에} 재연결 합니다..";
+"lng_reconnecting_try_now" = "다시 시도";
+
+"lng_status_service_notifications" = "서비스 공지사항";
+"lng_status_offline" = "마지막으로 접속한 지 오래됨";
+"lng_status_recently" = "최근에 접속";
+"lng_status_last_week" = "일주일 이내 마지막으로 접속";
+"lng_status_last_month" = "한 달 이내 마지막으로 접속";
+"lng_status_invisible" = "숨김";
+"lng_status_lastseen_now" = "방금 접속";
+"lng_status_lastseen_minutes" = "접속한지 {count:_not_used_|# 분|# 분} 전";
+"lng_status_lastseen_hours" = "접속한지 {count:_not_used_|# 시간|# 시간} 전";
+"lng_status_lastseen_today" = "오늘 {time}에 마지막으로 접속";
+"lng_status_lastseen_yesterday" = "어제 {time}에 마지막으로 접속";
+"lng_status_lastseen_date" = "{date}에 마지막으로 접속";
+"lng_status_lastseen_date_time" = "{date} 일 {time} 에 마지막으로 접속";
+"lng_status_online" = "온라인";
+"lng_status_connecting" = "연결중..";
+
+"lng_chat_status_unaccessible" = "그룹 접근 불가";
+"lng_chat_status_members" = "{count:없음|# 명|# 명}";
+"lng_chat_status_members_online" = "{count:_not_used_|# 명|# 명}, {count_online:_not_used_|# 온라인|# 온라인}";
+
+"lng_server_error" = "내부 서버 오류";
+"lng_flood_error" = "시도가 너무 많습니다. 나중에 다시 시도해주세요.";
+"lng_deleted" = "알 수 없음";
+
+"lng_intro" = "[a href=\"https://telegram.org/\"]텔레그램[/a] PC 공식버전에 오신 것을 환영합니다.\n[b]안전[/b]하고 [b]신속[/b]하게 사용하세요.";
+"lng_start_msgs" = "시작하기";
+
+"lng_intro_next" = "다음";
+"lng_intro_finish" = "회원가입";
+
+"lng_phone_ph" = "휴대폰 번호";
+"lng_phone_title" = "전화번호";
+"lng_phone_desc" = "국가번호와 전화번호를 입력하세요. \n(대한민국 국가번호: 82)";
+"lng_phone_notreg" = "확인사항: 아직 텔레그램 계정이 없으실 경우  [a href=\"https://telegram.org/\"]iOS / 안드로이드[/a] 기기로 [b]회원가입[/b]을 해주시거나  {signup_start}여기 »{signup_end} 에서 회원가입을 해주세요.";
+"lng_country_code" = "국가번호";
+"lng_bad_country_code" = "올바른 국가번호가 아닙니다.";
+"lng_country_ph" = "검색";
+"lng_country_done" = "완료";
+"lng_country_none" = "국가를 찾지 못하였습니다.";
+"lng_country_select" = "국가 선택";
+
+"lng_code_ph" = "코드번호";
+"lng_code_desc" = "인증코드 메세지를 휴대폰으로 전송하였습니다.\n인증코드를 아래에 입력하여 주세요.";
+"lng_code_call" = "텔레그램이  {minutes}:{seconds} 후에는 전화를 겁니다.";
+"lng_code_calling" = "텔레그램으로부터 전화 요청을 하고 있습니다..";
+"lng_code_called" = "텔레그램이 회원님의 전화번호로 전화를 걸었습니다.";
+
+"lng_bad_phone" = "잘못된 전화번호입니다. 다시 시도해주세요.";
+"lng_bad_phone_noreg" = "등록되지 않은 번호입니다.";
+"lng_bad_code" = "틀린 인증코드입니다. 다시 시도해주세요.";
+"lng_bad_name" = "성과 이름을 입력해주세요.";
+"lng_bad_photo" = "올바르지 않은 이미지를 선택하였습니다.";
+
+"lng_bad_image_for_photo" = "이미지를 전송할 수 없습니다.\n문서로 전송을 하겠습니까?";
+
+"lng_signup_title" = "개인정보 및 사진";
+"lng_signup_desc" = "이름을 입력해주시고,\n사진을 업로드해주세요.";
+
+"lng_signup_firstname" = "이름";
+"lng_signup_lastname" = "성";
+
+"lng_dlg_filter" = "검색";
+"lng_dlg_new_group_name" = "그룹이름";
+"lng_dlg_create_group" = "만들기";
+"lng_no_contacts" = "연락처가 없습니다.";
+"lng_contacts_loading" = "로딩중입니다..";
+"lng_contacts_not_found" = "검색결과가 없습니다.";
+
+"lng_settings_save" = "저장";
+"lng_settings_upload" = "프로필 이미지 선택";
+"lng_settings_crop_profile" = "프로필 사진으로 사용할 영역을 선택하세요";
+"lng_settings_uploading_photo" = "사진 업로드중..";
+
+"lng_username_title" = "아이디 변경";
+"lng_username_about" = "텔레그램 아이디를 설정할 수 있습니다. \n아이디를 설정하면 회원님의 전화번호를 몰라도 아이디로 회원님을 찾아 대화를 나눌 수 있습니다.\n아이디는 영문, 밑줄, 숫자로 a-z, _, 0-9, \n다섯 글자 이상으로 설정해 주세요.";
+"lng_username_invalid" = "올바르지 않은 아이디입니다.";
+"lng_username_occupied" = "사용중인 아이디입니다.";
+"lng_username_too_short" = "아이디가 너무 짧습니다. (5글자 이상)";
+"lng_username_bad_symbols" = "올바르지 않은 아이디입니다.";
+"lng_username_available" = "사용가능한 아이디입니다.";
+"lng_username_not_found" = "아이디 @{user}를 찾을 수 없습니다.";
+
+"lng_settings_section_contact_info" = "연락처 정보";
+"lng_settings_phone_number" = "전화번호";
+"lng_settings_username" = "아이디";
+"lng_settings_choose_username" = "아이디 설정하기";
+"lng_settings_change_username" = "변경하기";
+
+"lng_settings_section_notify" = "알림서비스";
+"lng_settings_desktop_notify" = "데스크탑 알림서비스";
+"lng_settings_show_name" = "발신인 표시";
+"lng_settings_show_preview" = "메시지 미리보기";
+"lng_settings_sound_notify" = "알림음";
+
+"lng_notification_preview" = "새로운 메시지가 있습니다.";
+
+"lng_settings_section_general" = "일반";
+"lng_settings_change_lang" = "언어 변경";
+"lng_languages" = "언어";
+"lng_sure_save_language" = "언어 변경을 적용하기 위하여\n텔레그램을 재시작합니다.";
+"lng_settings_auto_update" = "자동 업데이트";
+"lng_settings_current_version" = "버전 {version}";
+"lng_settings_check_now" = "업데이트 확인";
+"lng_settings_update_checking" = "업데이트 확인 중..";
+"lng_settings_latest_installed" = "최신 버전이 설치 되어져 있습니다.";
+"lng_settings_downloading" = "업데이트를 다운로드중입니다.. {ready} / {total} MB..";
+"lng_settings_update_ready" = "새로운 버전을 설치 할 수 있습니다.";
+"lng_settings_update_now" = "재시작 합니다.";
+"lng_settings_update_fail" = "업데이트 확인 실패";
+"lng_settings_workmode_tray" = "트레이 아이콘 표시";
+"lng_settings_workmode_window" = "테스크바 아이콘 표시";
+"lng_settings_auto_start" = "시스템 시작시 자동실행";
+"lng_settings_start_min" = "최소화로 시작";
+"lng_settings_add_sendto" = " «보내기» 메뉴에 추가";
+"lng_settings_scale_label" = "인터페이스 크기 조절";
+"lng_settings_scale_auto" = "자동 ({cur})";
+
+"lng_settings_section_chat" = "채팅 설정";
+"lng_settings_replace_emojis" = "이모티콘 자동변환";
+"lng_settings_view_emojis" = "리스트 보기";
+"lng_settings_emoji_list" = "지원되는 이모티콘 리스트";
+"lng_settings_send_enter" = "엔터키로 메시지 전송";
+"lng_settings_send_ctrlenter" = " Ctrl+Enter로 메시지 전송";
+"lng_settings_send_cmdenter" = "Cmd+Enter로 메시지 전송";
+"lng_settings_cats_and_dogs" = "고양이와 강아지 배경문양 허용";
+
+"lng_download_path_dont_ask" = "다운로드 경로 묻지 않기";
+"lng_download_path_label" = "다운로드 경로:";
+"lng_download_path_temp" = "임시 폴더";
+"lng_download_path_default" = "기본 폴더";
+"lng_download_path_clear" = "전체 지우기";
+"lng_download_path_header" = "다운로드 경로 선택";
+"lng_download_path_default_radio" = "텔레그램 기본 «다운로드» 폴더";
+"lng_download_path_temp_radio" = "임시 폴더. 로그아웃 혹은 프로그램 제거시 초기화 됨";
+"lng_download_path_dir_radio" = "임의 폴더. 직접 초기화";
+"lng_download_path_choose" = "다운로드 경로 선택";
+"lng_sure_clear_downloads" = "임시 폴더에 다운로드 받은 모든 파일을 삭제하시겠습니까? 로그아웃 혹은 프로그램 제거시 자동으로 초기화 됩니다.";
+"lng_download_path_failed" = "파일 다운로드를 시작 할 수 없습니다. 올바르지 않은 다운로드 경로가 원인 일 수도 있습니다.\n\n설정에 가시면 다운로드 경로를 변경하실 수 있습니다.";
+"lng_download_path_settings" = "설정으로 이동";
+"lng_download_finish_failed" = "파일 다운로드를 끝낼 수 없습니다.\n\n다시 시도하시겠습니까?";
+"lng_download_path_clearing" = "초기화 중..";
+"lng_download_path_cleared" = "초기화 완료!";
+"lng_download_path_clear_failed" = "초기화 실패 :(";
+
+"lng_settings_section_cache" = "로컬 저장소";
+"lng_settings_no_data_cached" = "캐시 데이터를 못 찾았습니다!";
+"lng_settings_images_cached" = "{count:_not_used_|이미지 # 개|이미지 # 개}, {size}";
+"lng_settings_audios_cached" = "{count:_not_used_|음성 메시지 # 개|음성 메시지 # 개}, {size}";
+"lng_local_storage_clear" = "전체 정리";
+"lng_local_storage_clearing" = "초기화 중..";
+"lng_local_storage_cleared" = "초기화 완료!";
+"lng_local_storage_clear_failed" = "초기화 실패 :(";
+
+"lng_settings_section_advanced" = "고급";
+"lng_connection_type" = "연결 유형:";
+"lng_connection_auto_connecting" = "기본값 (연결중..)";
+"lng_connection_auto" = "기본값 ({type} 사용)";
+"lng_connection_http_proxy" = "HTTP 프록시";
+"lng_connection_tcp_proxy" = "TCP 프록시";
+"lng_connection_header" = "연결 유형";
+"lng_connection_auto_rb" = "자동  (TCP 혹은 HTTP 사용)";
+"lng_connection_http_proxy_rb" = "HTTP (커스텀 http프록시)";
+"lng_connection_tcp_proxy_rb" = "TCP (커스텀 socks5-proxy)";
+"lng_connection_host_ph" = "호스트네임";
+"lng_connection_port_ph" = "포트번호";
+"lng_connection_user_ph" = "아이디";
+"lng_connection_password_ph" = "비밀번호";
+"lng_connection_save" = "저장";
+"lng_settings_reset" = "다른 모든 세션 강제 종료";
+"lng_settings_reset_sure" = "현재 기기를 제외하고 다른 기기에 로그인된 세션을 모두 종료시킬까요?";
+"lng_settings_reset_button" = "종료";
+"lng_settings_reset_done" = "다른 모든 세션이 강제 종료 되었습니다.";
+"lng_settings_logout" = "로그아웃";
+"lng_sure_logout" = "로그아웃을 하시겠습니까?";
+
+"lng_settings_need_restart" = "새로운 설정을 적용하시려면,\n재부팅을 하셔야합니다. 재시작 할까요?";
+"lng_settings_restart_now" = "재시작";
+"lng_settings_restart_later" = "나중에";
+
+"lng_profile_chat_unaccessible" = "그룹에 접근할 수 없습니다.";
+"lng_topbar_info" = "정보";
+"lng_profile_settings_section" = "환경설정";
+"lng_profile_participants_section" = "대화상대";
+"lng_profile_info" = "연락처 정보";
+"lng_profile_group_info" = "그룹 정보";
+"lng_profile_add_contact" = "연락처 추가";
+"lng_profile_edit_contact" = "수정";
+"lng_profile_enable_notifications" = "알림";
+"lng_profile_clear_history" = "히스토리 초기화";
+"lng_profile_send_message" = "메세지 전송";
+"lng_profile_share_contact" = "연락처 공유";
+"lng_profile_delete_contact" = "삭제";
+"lng_profile_set_group_photo" = "사진 설정";
+"lng_profile_add_participant" = "대화상대 추가";
+"lng_profile_delete_and_exit" = "나가기";
+"lng_profile_kick" = "추방";
+"lng_profile_sure_kick" = "{user}를 그룹에서 추방하시겠습니까?";
+"lng_profile_loading" = "로딩중..";
+"lng_profile_shared_media" = "공유된 미디어";
+"lng_profile_no_media" = "대화에 미디어가 존재하지 않습니다.";
+"lng_profile_photos" = "{count:_not_used_|# 사진|# 사진} »";
+"lng_profile_photos_header" = "사진 내역";
+"lng_profile_videos" = "{count:_not_used_|# 비디오 파일|# 비디오 파일} »";
+"lng_profile_videos_header" = "비디오 파일 내역";
+"lng_profile_documents" = "{count:_not_used_|# 문서|# 문서} »";
+"lng_profile_documents_header" = "문서 내역";
+"lng_profile_audios" = "{count:_not_used_|# 음성 메시지|# 음성 메시지} »";
+"lng_profile_audios_header" = "음성 메시지 내역";
+"lng_profile_show_all_types" = "모든 유형 보기";
+"lng_profile_copy_phone" = "전화번호 복사";
+
+"lng_participant_filter" = "검색";
+"lng_participant_invite" = "초대";
+"lng_create_new_group" = "새로운 그룹";
+"lng_create_group_next" = "다음";
+"lng_create_group_title" = "새로운 그룹";
+
+"lng_sure_delete_contact" = "{contact} 님을 주소록에서 \n삭제하시겠습니까?";
+"lng_sure_delete_history" = "{contact} 님과 관련된 모든 메시지를 \n삭제하시겠습니까?\n\n삭제 하실 경우 취소가 불가능합니다.";
+
+"lng_sure_delete_and_exit" = "그룹 «{group}» 방에서 모든 메시지를 \n삭제하시고 퇴장하시겠습니까?\n\n삭제 하실 경우 취소가 불가능합니다.";
+
+"lng_sure_enable_debug" = "DEBUG 모드를 화성화 시키시겠습니까?\n\n모든 네트워크 내역이 기록됩니다.";
+
+"lng_message_empty" = "(없음)";
+
+"lng_action_add_user" = "{from} 님께서 {user} 님을 초대하셨습니다.";
+"lng_action_kick_user" = "{from} 님께서 {user} 님을 추방하셨습니다.";
+"lng_action_user_left" = "{from} 님이 그룹을 나가셨습니다.";
+"lng_action_user_joined" = "{from} 님이 그룹에 들어오셨습니다.";
+"lng_action_user_registered" = "{from} 님이 텔레그램에 가입하셨습니다.";
+"lng_action_removed_photo" = "{from} 님이 그룹사진을 삭제하셨습니다.";
+"lng_action_changed_photo" = "{from} 님이 그룹사진을 변경하셨습니다.";
+"lng_action_changed_title" = "{from} 님이 그룹이름을 «{title}» 로 바꾸셨습니다.";
+"lng_action_created_chat" = "{from} 님이 그룹 «{title}» 을 생성하셨습니다.";
+
+"lng_forwarded_from" = "전달받음";
+
+"lng_attach_failed" = "실패";
+"lng_attach_file" = "문서";
+"lng_attach_photo" = "사진";
+
+"lng_media_type" = "미디어 종류";
+"lng_media_type_photos" = "사진";
+"lng_media_type_videos" = "비디오 파일";
+"lng_media_type_documents" = "문서";
+"lng_media_type_audios" = "음성 메시지";
+
+"lng_media_open_with" = "다음으로 열기";
+"lng_media_download" = "다운로드";
+"lng_media_cancel" = "취소";
+"lng_media_video" = "비디오 파일";
+"lng_media_audio" = "음성 메시지";
+
+"lng_in_dlg_photo" = "사진";
+"lng_in_dlg_video" = "비디오";
+"lng_in_dlg_contact" = "연락처";
+"lng_in_dlg_audio" = "음성";
+"lng_in_dlg_document" = "문서";
+"lng_in_dlg_sticker" = "스티커";
+"lng_in_dlg_sticker_emoji" = "{emoji} (스티커)";
+
+"lng_send_button" = "보내기";
+"lng_message_ph" = "메시지 쓰기";
+"lng_empty_history" = "";
+"lng_willbe_history" = "대화하실 방을 선택해주세요.";
+"lng_message_with_from" = "[c]{from}:[/c] {message}";
+"lng_from_you" = "회원님";
+
+"lng_typing" = "입력중";
+"lng_user_typing" = "{user}님이 입력중입니다.";
+"lng_users_typing" = "{user}님과 {second_user}님이 입력중입니다.";
+"lng_many_typing" = "{count:_not_used_|# 명이|# 명이} 입력중입니다";
+"lng_unread_bar" = "{count:_not_used_|# 읽지 않은 메시지|# 읽지 않은 메시지}";
+
+"lng_maps_point" = "위치";
+"lng_save_photo" = "사진 저장";
+"lng_save_video" = "동영상 저장";
+"lng_save_audio" = "음성 저장";
+"lng_save_document" = "문서 저장";
+"lng_save_downloaded" = "{ready} / {total} {mb}";
+"lng_duration_and_size" = "{duration}, {size}";
+"lng_choose_images" = "이미지 선택";
+
+"lng_context_open_link" = "링크 열기";
+"lng_context_copy_link" = "링크 복사";
+"lng_context_open_email" = "이 주소로 메시지 보내기";
+"lng_context_copy_email" = "이메일 복사";
+"lng_context_open_hashtag" = "해시태그로 검색";
+"lng_context_copy_hashtag" = "해시태그 복사";
+"lng_context_open_image" = "이미지 열기";
+"lng_context_save_image" = "이미지를 다른 이름으로 저장..";
+"lng_context_forward_image" = "이미지 전달";
+"lng_context_delete_image" = "이미지 삭제";
+"lng_context_copy_image" = "이미지 복사";
+"lng_context_close_image" = "이미지 닫기";
+"lng_context_cancel_download" = "다운로드 취소";
+"lng_context_show_in_folder" = "탐색기에서 보기";
+"lng_context_show_in_finder" = "탐색기에서 보기";
+"lng_context_open_video" = "비디오 열기";
+"lng_context_save_video" = "비디오 이름을 다른이름으로 저장.";
+"lng_context_open_audio" = "음성메시지 열기";
+"lng_context_save_audio" = "음성메시지를 다른 이름으로 저장..";
+"lng_context_open_document" = "파일 열기";
+"lng_context_save_document" = "파일을 다른 이름으로 저장.";
+"lng_context_forward_file" = "파일 전달";
+"lng_context_delete_file" = "파일 삭제";
+"lng_context_close_file" = "파일 닫기";
+"lng_context_copy_text" = "메시지 내용 복사";
+"lng_context_to_msg" = "메시지로 이동";
+"lng_context_forward_msg" = "메시지 전달";
+"lng_context_delete_msg" = "메시지 삭제";
+"lng_context_select_msg" = "메시지 선택";
+"lng_context_cancel_upload" = "업로드 취소";
+"lng_context_copy_selected" = "선택한 메시지 복사";
+"lng_context_forward_selected" = "선택된 메시지 전달";
+"lng_context_delete_selected" = "선택된 메시지 삭제";
+"lng_context_clear_selection" = "선택된 메시지 초기화";
+"lng_really_send_image" = "선택한 이미지를 전송하시겠습니까?";
+"lng_really_send_file" = "선택한 파일을 전송하시겠습니까?";
+"lng_really_share_contact" = "선택한 연락처를 공유하시겠습니까?";
+"lng_send_image_compressed" = "압축된 이미지를 전송";
+
+"lng_forward_choose" = "수신자를 선택하세요..";
+"lng_forward_confirm" = "{recipient} 님에게 전달하시겠습니까?";
+"lng_forward_share_contact" = "{recipient} 님에게 연락처를 공유하시겠습니까?";
+"lng_forward_send_file_confirm" = "«{name}» 을 {recipient} 님에게 보내시겠습니까?";
+"lng_forward_send_files_confirm" = "선택한 파일을  {recipient} 님에게 보내시겠습니까?";
+"lng_forward" = "전달";
+"lng_forward_send" = "보낵";
+
+"lng_contact_phone" = "전화번호";
+"lng_enter_contact_data" = "새로운 연락처";
+"lng_edit_group_title" = "그룹 이름 수정";
+"lng_edit_contact_title" = "연락처 이름 수정";
+"lng_edit_self_title" = "이름 수정";
+"lng_confirm_contact_data" = "새로운 연락처";
+"lng_add_contact" = "추가";
+"lng_add_contact_button" = "연락처 추가";
+"lng_contacts_header" = "연락처";
+"lng_contact_not_joined" = "{name}님은 아직 텔레그램에 가입되어져 있지 않지만 초대메시지를 보낼 수 있습니다.\n\n회원님 친구분들 중 텔레그램에 새로 가입을 할 경우 알림을 드리고 있습니다.";
+"lng_try_other_contact" = "다시 시도";
+"lng_contacts_done" = "취소";
+
+"lng_drag_images_here" = "이미지를 여기로 놓으세요.";
+"lng_drag_photos_here" = "사진을 여기로 놓으세요.";
+"lng_drag_files_here" = "파일을 여기로 놓으세요.";
+
+"lng_drag_to_send_quick" = "빠른 방법으로 보내기";
+"lng_drag_to_send_no_compression" = "압축하지 않고 보내기";
+"lng_drag_to_send_documents" = "문서형태로 보내기";
+
+"lng_selected_clear" = "취소";
+"lng_selected_delete" = "삭제";
+"lng_selected_forward" = "전달";
+"lng_selected_count" = "{count:_not_used_|# 메시지|# 메시지}";
+"lng_selected_cancel_sure_this" = "업로드를 취소하시겠습니까?";
+"lng_selected_delete_sure_this" = "메시지를 삭제하시겠습니까?";
+"lng_selected_delete_sure" = "{count:_not_used_|# 메시지|# 메시지}를 삭제하시겠습니까?";
+"lng_selected_delete_confirm" = "삭제";
+
+"lng_about_version" = "버전 {version}";
+"lng_about_text" = "[a href=\"https://core.telegram.org/mtproto\"]MTProto[/a]와 [a href=\"https://core.telegram.org/api\"]Telegram API[/a]에 기반하고 있는\n공식 무료 메시징 앱으로 빠르고 안전합니다.\n\n이 소프트웨어는  [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] version 3 를 채택하고 있으며,\n소스코드는 [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a]에서 제공하고 있습니다.";
+"lng_about_done" = "완료";
+
+"lng_search_found_results" = "{count:메시지를 찾을 수 없습니다.|# 개의 메시지를 찾았습니다.|# 개의 메시지를 찾았습니다.}";
+"lng_search_global_results" = "아이디 검색 결과";
+
+"lng_mediaview_save" = "다운로드";
+"lng_mediaview_forward" = "전달";
+"lng_mediaview_delete" = "삭제";
+"lng_mediaview_single_photo" = "단일 사진";
+"lng_mediaview_group_photo" = "그룹 사진";
+"lng_mediaview_profile_photo" = "프로필 사진";
+"lng_mediaview_n_of_count" = "사진 {n} 중 {count}";
+"lng_mediaview_doc_image" = "문서";
+"lng_mediaview_today" = "오늘 {time}";
+"lng_mediaview_yesterday" = "어제 {time}";
+"lng_mediaview_date_time" = "{date}  {time}";
+
+"lng_mediaview_saved" = "[c]다운로드[/c] 폴더로 이미지가 저장되었습니다.";
+
+"lng_new_authorization" = "{name}님,\n{day}, {date} {time}에 새 기기에서 회원님의 계정에 로그인하였습니다.\n\n기기: {device}\n위치: {location}\n\n본인의 접속이 아니라면 '설정'으로 가서 '다른 모든 세션 종료'를 실행하세요.\n\n감사합니다.\n텔레그램 팀 드림";
+
+"lng_new_version_minor" = "텔레그램 데스크탑은 {version} 버전으로 업데이트 되었습니다. \n\n— 버그 수정 및 일부 기능 향상\n\n 전체 버전 히스토리는 아래에서 확인 가능합니다: {link}";
+
+"lng_new_version7009" = "텔레그램 데스크탑은 {version} 버전으로 업데이트 되었습니다. \n\n— 한국어 추가\n— 윈도우와 윈도우와 맥에 «다음으로 실행» 퀵메뉴 추가\n\n 전체 버전 히스토리는 아래에서 확인 가능합니다: {link}";
+"lng_new_version7006_appstore" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n— 스티커 지원\n— 음성 메시지 로컬 캐싱\n— 언어 추가\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
+
+// Wnd specific
+
+"lng_wnd_choose_program_menu" = "기본 실행 프로그램을 선택해주세요..";
+
+// Mac specific
+
+"lng_mac_choose_program_menu" = "이외...";
+
+"lng_mac_choose_app" = "어플리케이션 선택";
+"lng_mac_choose_text" = " \"{file}\"을 실행할 어플리케이션을 선택하세요.";
+"lng_mac_enable_filter" = "활성화:";
+"lng_mac_recommended_apps" = "추천 어플리케이션";
+"lng_mac_all_apps" = "모든 어플리케이션";
+"lng_mac_always_open_with" = "항상 실행";
+"lng_mac_this_app_can_open" = "\"{file}\"을 실행할 수 있는 어플리케이션입니다.";
+"lng_mac_not_known_app" = "\"{file}\"을 열수 있는 어플리케이션인지 알 수 없습니다.";
+
+"lng_mac_menu_services" = "서비스";
+"lng_mac_menu_hide_telegram" = "숨기기 {telegram}";
+"lng_mac_menu_hide_others" = "나머지 숨기기";
+"lng_mac_menu_show_all" = "전체 보기";
+"lng_mac_menu_preferences" = "환경설정...";
+"lng_mac_menu_quit_telegram" = "{telegram} 종료 ";
+"lng_mac_menu_about_telegram" = "{telegram} 정보";
+"lng_mac_menu_file" = "파일";
+"lng_mac_menu_logout" = "로그아웃";
+"lng_mac_menu_edit" = "수정";
+"lng_mac_menu_undo" = "실행취소";
+"lng_mac_menu_redo" = "다시실행";
+"lng_mac_menu_cut" = "잘라내기";
+"lng_mac_menu_copy" = "복사";
+"lng_mac_menu_paste" = "붙여넣기";
+"lng_mac_menu_delete" = "삭제";
+"lng_mac_menu_select_all" = "전체선택";
+"lng_mac_menu_window" = "윈도우";
+"lng_mac_menu_contacts" = "주소록";
+"lng_mac_menu_add_contact" = "연락처 추가";
+"lng_mac_menu_new_group" = "새로운 그룹";
+"lng_mac_menu_show" = "텔레그램 보기";
+
+// Keys finished

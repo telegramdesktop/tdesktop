@@ -173,7 +173,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_check_now" = "Buscar actualizaciones";
 "lng_settings_update_checking" = "Buscando actualizaciones...";
 "lng_settings_latest_installed" = "La última versión está instalada";
-"lng_settings_downloading" = "Descargando la actualización {ready} / {total} Mb...";
+"lng_settings_downloading" = "Descargando la actualización {ready} / {total} MB...";
 "lng_settings_update_ready" = "La nueva versión está lista";
 "lng_settings_update_now" = "Reiniciar ahora";
 "lng_settings_update_fail" = "Revisión de actualización fallida :(";
@@ -412,12 +412,12 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_try_other_contact" = "Intentar con otro";
 "lng_contacts_done" = "Cancelar";
 
-"lng_drag_images_here" = "Arrastrar imágenes aquí";
-"lng_drag_photos_here" = "Arrastrar fotos aquí";
-"lng_drag_files_here" = "Arrastrar archivos aquí";
+"lng_drag_images_here" = "Arrastra imágenes aquí";
+"lng_drag_photos_here" = "Arrastra fotos aquí";
+"lng_drag_files_here" = "Arrastra archivos aquí";
 
-"lng_drag_to_send_quick" = "para enviarlos rápidamente";
-"lng_drag_to_send_no_compression" = "para enviarlos sin compresión";
+"lng_drag_to_send_quick" = "para enviarlas rápidamente";
+"lng_drag_to_send_no_compression" = "para enviarlas sin compresión";
 "lng_drag_to_send_documents" = "para enviarlos como archivos";
 
 "lng_selected_clear" = "Cancelar";
@@ -452,10 +452,18 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\nDetectamos un inicio de sesión en tu cuenta desde un nuevo dispositivo el {day}, {date} a las {time}\n\nDispositivo: {device}\nUbicación: {location}\n\nSi no eras tú, puedes ir a Ajustes — Cerrar todas las otras sesiones.\n\nGracias.\nEl equipo de Telegram";
 
-"lng_new_version7007" = "Telegram Desktop fue actualizada a la versión {version}\n\n — Se añadió el ícono en la barra de menú para Ubuntu\n\nEl historial completo está disponible aquí:\n{link}";
+"lng_new_version_minor" = "Telegram Desktop fue actualizada a la versión {version}\n\n — Arreglo de bugs y otras mejoras menores\n\nEl historial completo está disponible aquí:\n{link}";
+
+"lng_new_version7009" = "Telegram Desktop fue actualizada a la versión {version}\n\n– Se añadió el idioma coreano\n– Menú rápido para «abrir con» en Windows y OS X\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version7006_appstore" = "Telegram Desktop fue actualizada a la versión {version}\n\n– Soporte para stickers\n– Caché local para mensajes de voz\n– Nuevos idiomas añadidos\n\nLa versión completa del historial está disponible aquí:\n{link} ";
 
+// Wnd specific
+
+"lng_wnd_choose_program_menu" = "Elegir programa predeterminado...";
+
 // Mac specific
+
+"lng_mac_choose_program_menu" = "Otra...";
 
 "lng_mac_choose_app" = "Elegir aplicación";
 "lng_mac_choose_text" = "Elige una aplicación para abrir el archivo \"{file}\".";

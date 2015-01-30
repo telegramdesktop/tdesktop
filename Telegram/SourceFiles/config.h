@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 7008;
-static const wchar_t *AppVersionStr = L"0.7.8";
+static const int32 AppVersion = 7010;
+static const wchar_t *AppVersionStr = L"0.7.10";
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -113,6 +113,8 @@ enum {
 	SaveDraftTimeout = 1000, // save draft after 1 secs of not changing text
 	SaveDraftAnywayTimeout = 5000, // or save anyway each 5 secs
 
+    HiddenIsOnlineAfterMessage = 30, // user with hidden last seen stays online for such amount of seconds in the interface
+
 	ServiceUserId = 777000,
 };
 
@@ -163,7 +165,7 @@ static const BuiltInDc _builtInDcs[] = {
 };
 
 static const BuiltInDc _builtInTestDcs[] = {
-	{ 1, "173.240.5.253", 443 },
+	{ 1, "149.154.175.10", 443 },
 	{ 2, "149.154.167.40", 443 },
 	{ 3, "174.140.142.5", 443 }
 };
@@ -258,7 +260,6 @@ enum {
 
 	MemoryForImageCache = 64 * 1024 * 1024, // after 64mb of unpacked images we try to clear some memory
 	NotifyWindowsCount = 3, // 3 desktop notifies at the same time
-	NotifyWaitTimeout = 1200, // 1.2 seconds timeout before notification
 	NotifySettingSaveTimeout = 1000, // wait 1 second before saving notify setting to server
 	UpdateChunk = 100 * 1024, // 100kb parts when downloading the update
 	IdleMsecs = 60 * 1000, // after 60secs without user input we think we are idle

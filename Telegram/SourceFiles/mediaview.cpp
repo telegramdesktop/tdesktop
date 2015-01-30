@@ -89,7 +89,7 @@ _saveMsgStarted(0), _saveMsgOpacity(0)
 
 void MediaView::moveToScreen() {
 	QPoint wndCenter(App::wnd()->x() + App::wnd()->width() / 2, App::wnd()->y() + App::wnd()->height() / 2);
-	_avail = QDesktopWidget().screenGeometry(wndCenter);
+	_avail = App::app() ? App::app()->desktop()->screenGeometry(wndCenter) : QDesktopWidget().screenGeometry(wndCenter);
 	if (_avail != geometry()) {
 		setGeometry(_avail);
 	}

@@ -131,6 +131,8 @@ private:
 	ClientSockets clients;
 	bool closing;
 
+	uint64 lastActionTime;
+
 	void execExternal(const QString &cmd);
 
 	Window *window;

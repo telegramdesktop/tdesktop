@@ -685,6 +685,8 @@ void MTPautoConnection::onSocketDisconnected() {
 }
 
 void MTPautoConnection::sendData(mtpBuffer &buffer) {
+	if (status == FinishedWork) return;
+
 	if (buffer.size() < 3) {
 		LOG(("TCP Error: writing bad packet, len = %1").arg(buffer.size() * sizeof(mtpPrime)));
 		TCP_LOG(("TCP Error: bad packet %1").arg(mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
@@ -722,6 +724,8 @@ void MTPautoConnection::httpSend(mtpBuffer &buffer) {
 }
 
 void MTPautoConnection::disconnectFromServer() {
+	if (status == FinishedWork) return;
+
 	Requests copy = requests;
 	requests.clear();
 	for (Requests::const_iterator i = copy.cbegin(), e = copy.cend(); i != e; ++i) {
@@ -737,7 +741,7 @@ void MTPautoConnection::disconnectFromServer() {
 	sock.close();
 
 	httpStartTimer.stop();
-	status = WaitingBoth;
+	status = FinishedWork;
 }
 
 void MTPautoConnection::connectToServer(const QString &addr, int32 port) {
@@ -758,10 +762,12 @@ void MTPautoConnection::connectToServer(const QString &addr, int32 port) {
 }
 
 bool MTPautoConnection::isConnected() {
-	return !address.isEmpty();
+	return status != FinishedWork && !address.isEmpty();
 }
 
 void MTPautoConnection::requestFinished(QNetworkReply *reply) {
+	if (status == FinishedWork) return;
+
 	reply->deleteLater();
 	if (reply->error() == QNetworkReply::NoError) {
 		requests.remove(reply);
@@ -820,6 +826,8 @@ void MTPautoConnection::requestFinished(QNetworkReply *reply) {
 }
 
 void MTPautoConnection::socketPacket(mtpPrime *packet, uint32 size) {
+	if (status == FinishedWork) return;
+
 	mtpBuffer data = _handleTcpResponse(packet, size);
 	if (data.size() == 1) {
 		if (status == WaitingBoth) {
@@ -884,6 +892,8 @@ QString MTPautoConnection::transport() const {
 }
 
 void MTPautoConnection::socketError(QAbstractSocket::SocketError e) {
+	if (status == FinishedWork) return;
+
 	_handleTcpError(e, sock);
 	if (status == WaitingBoth) {
 		status = WaitingHttp;
@@ -2498,8 +2508,8 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 	}
 
 	if (badTime) {
-		DEBUG_LOG(("Message Error: bad time in updates cons"));
-		return -1;
+		DEBUG_LOG(("Message Error: bad time in updates cons, must create new session"));
+		return -2;
 	}
 
 	mtpBuffer update(end - from);
