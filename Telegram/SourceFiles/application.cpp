@@ -831,6 +831,12 @@ Application::~Application() {
 
 	delete window;
 
+	delete cChatBackground();
+	cSetChatBackground(0);
+
+	delete cChatDogImage();
+	cSetChatDogImage(0);
+
 	style::stopManager();
 	Local::stop();
 

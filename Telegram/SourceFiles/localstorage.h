@@ -121,4 +121,7 @@ namespace Local {
 	void writeRecentStickers();
 	void readRecentStickers();
 
+	void writeBackground(int32 id, const QImage &img);
+	bool readBackground();
+
 };

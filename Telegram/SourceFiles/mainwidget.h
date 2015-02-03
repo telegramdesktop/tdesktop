@@ -315,6 +315,16 @@ public:
 	bool serviceHistoryFail(const RPCError &error);
 
 	bool isIdle() const;
+
+	void clearCachedBackground();
+	QPixmap cachedBackground(const QRect &forRect, int &x, int &y);
+	void backgroundParams(const QRect &forRect, QRect &to, QRect &from) const;
+	void updateScrollColors();
+
+	void setChatBackground(const App::WallPaper &wp);
+	bool chatBackgroundLoading();
+	void checkChatBackground();
+	ImagePtr newBackgroundThumb();
 	
 	~MainWidget();
 
@@ -367,6 +377,8 @@ public slots:
 
 	void onResendAsDocument();
 	void onCancelResend();
+
+	void onCacheBackground();
 
 private:
 
@@ -453,4 +465,12 @@ private:
 	SingleTimer _failDifferenceTimer;
 
 	uint64 _lastUpdateTime;
+
+	QPixmap _cachedBackground;
+	QRect _cachedFor, _willCacheFor;
+	int _cachedX, _cachedY;
+	SingleTimer _cacheBackgroundTimer;
+
+	App::WallPaper *_background;
+
 };

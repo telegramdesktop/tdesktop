@@ -24,6 +24,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "boxes/photocropbox.h"
 #include "boxes/connectionbox.h"
+#include "boxes/backgroundbox.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/emojibox.h"
 #include "boxes/confirmbox.h"
@@ -158,7 +159,11 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_tempDirClearedWidth(st::linkFont->m.width(lang(lng_download_path_cleared))),
 	_tempDirClearFailedWidth(st::linkFont->m.width(lang(lng_download_path_clear_failed))),
 
-	_catsAndDogs(this, lang(lng_settings_cats_and_dogs), cCatsAndDogs()),
+	// chat background
+	_backFromGallery(this, lang(lng_settings_bg_from_gallery)),
+	_backFromFile(this, lang(lng_settings_bg_from_file)),
+	_tileBackground(this, lang(lng_settings_bg_tile), cTileBackground()),
+	_needBackgroundUpdate(false),
 
 	// local storage
 	_localStorageClear(this, lang(lng_local_storage_clear)),
@@ -248,7 +253,12 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	connect(App::wnd(), SIGNAL(tempDirCleared(int)), this, SLOT(onTempDirCleared(int)));
 	connect(App::wnd(), SIGNAL(tempDirClearFailed(int)), this, SLOT(onTempDirClearFailed(int)));
 
-	connect(&_catsAndDogs, SIGNAL(changed()), this, SLOT(onCatsAndDogs()));
+	// chat background
+	if (!cChatBackground()) App::initBackground();
+	updateChatBackground();
+	connect(&_backFromGallery, SIGNAL(clicked()), this, SLOT(onBackFromGallery()));
+	connect(&_backFromFile, SIGNAL(clicked()), this, SLOT(onBackFromFile()));
+	connect(&_tileBackground, SIGNAL(changed()), this, SLOT(onTileBackground()));
 
 	// local storage
 	connect(&_localStorageClear, SIGNAL(clicked()), this, SLOT(onLocalStorageClear()));
@@ -309,6 +319,18 @@ void SettingsInner::peerUpdated(PeerData *data) {
 }
 
 void SettingsInner::paintEvent(QPaintEvent *e) {
+	bool animateBackground = false;
+	if (App::main() && App::main()->chatBackgroundLoading()) {
+		App::main()->checkChatBackground();
+		if (App::main()->chatBackgroundLoading()) {
+			animateBackground = true;
+		} else {
+			updateChatBackground();
+		}
+	} else if (_needBackgroundUpdate) {
+		updateChatBackground();
+	}
+
 	QPainter p(this);
 
 	p.setClipRect(e->rect());
@@ -477,7 +499,44 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		}
 		top += st::setSectionSkip;
 
-		top += _catsAndDogs.height();
+		// chat background
+		p.setFont(st::setHeaderFont->f);
+		p.setPen(st::setHeaderColor->p);
+		p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_background));
+		top += st::setHeaderSkip;
+
+		if (animateBackground) {
+			const QPixmap &pix = App::main()->newBackgroundThumb()->pixBlurred(st::setBackgroundSize);
+
+			p.drawPixmap(_left, top, st::setBackgroundSize, st::setBackgroundSize, pix, 0, (pix.height() - st::setBackgroundSize) / 2, st::setBackgroundSize, st::setBackgroundSize);
+
+			uint64 dt = getms();
+			int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
+
+			int32 x = _left + (st::setBackgroundSize - st::mediaviewLoader.width()) / 2;
+			int32 y = top + (st::setBackgroundSize - st::mediaviewLoader.height()) / 2;
+			p.fillRect(x, y, st::mediaviewLoader.width(), st::mediaviewLoader.height(), st::photoLoaderBg->b);
+
+			x += (st::mediaviewLoader.width() - cnt * st::mediaviewLoaderPoint.width() - (cnt - 1) * st::mediaviewLoaderSkip) / 2;
+			y += (st::mediaviewLoader.height() - st::mediaviewLoaderPoint.height()) / 2;
+			QColor c(st::white->c);
+			QBrush b(c);
+			for (int32 i = 0; i < cnt; ++i) {
+				t -= delta;
+				while (t < 0) t += period;
+
+				float64 alpha = (t >= st::photoLoaderDuration1 + st::photoLoaderDuration2) ? 0 : ((t > st::photoLoaderDuration1 ? ((st::photoLoaderDuration1 + st::photoLoaderDuration2 - t) / st::photoLoaderDuration2) : (t / st::photoLoaderDuration1)));
+				c.setAlphaF(st::photoLoaderAlphaMin + alpha * (1 - st::photoLoaderAlphaMin));
+				b.setColor(c);
+				p.fillRect(x + i * (st::mediaviewLoaderPoint.width() + st::mediaviewLoaderSkip), y, st::mediaviewLoaderPoint.width(), st::mediaviewLoaderPoint.height(), b);
+			}
+			QTimer::singleShot(AnimationTimerDelta, this, SLOT(updateBackgroundRect()));
+		} else {
+			p.drawPixmap(_left, top, _background);
+		}
+		top += st::setBackgroundSize;
+		top += st::setLittleSkip;
+		top += _tileBackground.height();
 
 		// local storage
 		p.setFont(st::setHeaderFont->f);
@@ -607,7 +666,15 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 			top += _downloadPathEdit.height();
 		}
 		top += st::setSectionSkip;
-		_catsAndDogs.move(_left, top); top += _catsAndDogs.height();
+
+		// chat background
+		top += st::setHeaderSkip;
+		_backFromGallery.move(_left + st::setBackgroundSize + st::setLittleSkip, top);
+		_backFromFile.move(_left + st::setBackgroundSize + st::setLittleSkip, top + _backFromGallery.height() + st::setLittleSkip);
+		top += st::setBackgroundSize;
+
+		top += st::setLittleSkip;
+		_tileBackground.move(_left, top); top += _tileBackground.height();
 
 		// local storage
 		_localStorageClear.move(_left + st::setWidth - _localStorageClear.width(), top + st::setHeaderTop + st::setHeaderFont->ascent - st::linkFont->ascent);
@@ -717,6 +784,10 @@ void SettingsInner::updateConnectionType() {
 	}
 }
 
+void SettingsInner::updateBackgroundRect() {
+	update(_left, _tileBackground.y() - st::setLittleSkip - st::setBackgroundSize, st::setBackgroundSize, st::setBackgroundSize);
+}
+
 void SettingsInner::gotFullSelf(const MTPUserFull &selfFull) {
 	if (!self()) return;
 	App::feedPhoto(selfFull.c_userFull().vprofile_photo);
@@ -820,7 +891,6 @@ void SettingsInner::showAll() {
 		}
 		_enterSend.show();
 		_ctrlEnterSend.show();
-		_catsAndDogs.show();
 		_dontAskDownloadPath.show();
 		if (cAskDownloadPath()) {
 			_downloadPathEdit.hide();
@@ -839,10 +909,20 @@ void SettingsInner::showAll() {
 		_viewEmojis.hide();
 		_enterSend.hide();
 		_ctrlEnterSend.hide();
-		_catsAndDogs.hide();
 		_dontAskDownloadPath.hide();
 		_downloadPathEdit.hide();
 		_downloadPathClear.hide();
+	}
+
+	// chat background
+	if (self()) {
+		_backFromGallery.show();
+		_backFromFile.show();
+		_tileBackground.show();
+	} else {
+		_backFromGallery.hide();
+		_backFromFile.hide();
+		_tileBackground.hide();
 	}
 
 	// local storage
@@ -1195,9 +1275,67 @@ void SettingsInner::onCtrlEnterSend() {
 	}
 }
 
-void SettingsInner::onCatsAndDogs() {
-	cSetCatsAndDogs(_catsAndDogs.checked());
-	App::writeUserConfig();
+void SettingsInner::onBackFromGallery() {
+	BackgroundBox *box = new BackgroundBox();
+	App::wnd()->showLayer(box);
+}
+
+void SettingsInner::onBackFromFile() {
+	QStringList imgExtensions(cImgExtensions());
+	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
+
+	QImage img;
+	QString file;
+	QByteArray remoteContent;
+	if (filedialogGetOpenFile(file, remoteContent, lang(lng_choose_images), filter)) {
+		if (!remoteContent.isEmpty()) {
+			img = App::readImage(remoteContent);
+		} else {
+			if (!file.isEmpty()) {
+				img = App::readImage(file);
+			}
+		}
+	}
+
+	if (img.isNull() || img.width() <= 0 || img.height() <= 0) return;
+
+	if (img.width() > 4096 * img.height()) {
+		img = img.copy((img.width() - 4096 * img.height()) / 2, 0, 4096 * img.height(), img.height());
+	} else if (img.height() > 4096 * img.width()) {
+		img = img.copy(0, (img.height() - 4096 * img.width()) / 2, img.width(), 4096 * img.width());
+	}
+
+	App::initBackground(-1, img);
+	_tileBackground.setChecked(false);
+	updateChatBackground();
+}
+
+void SettingsInner::updateChatBackground() {
+	QImage back(st::setBackgroundSize, st::setBackgroundSize, QImage::Format_ARGB32_Premultiplied);
+	{
+		QPainter p(&back);
+		const QPixmap &pix(*cChatBackground());
+		int sx = (pix.width() > pix.height()) ? ((pix.width() - pix.height()) / 2) : 0;
+		int sy = (pix.height() > pix.width()) ? ((pix.height() - pix.width()) / 2) : 0;
+		int s = (pix.width() > pix.height()) ? pix.height() : pix.width();
+		p.setRenderHint(QPainter::SmoothPixmapTransform);
+		p.drawPixmap(0, 0, st::setBackgroundSize, st::setBackgroundSize, pix, sx, sy, s, s);
+	}
+	_background = QPixmap::fromImage(back);
+	_needBackgroundUpdate = false;
+}
+
+void SettingsInner::needBackgroundUpdate(bool tile) {
+	_needBackgroundUpdate = true;
+	_tileBackground.setChecked(tile);
+	updateChatBackground();
+}
+
+void SettingsInner::onTileBackground() {
+	if (cTileBackground() != _tileBackground.checked()) {
+		cSetTileBackground(_tileBackground.checked());
+		App::writeUserConfig();
+	}
 }
 
 void SettingsInner::onDontAskDownloadPath() {
@@ -1468,6 +1606,14 @@ void SettingsWidget::rpcInvalidate() {
 
 void SettingsWidget::usernameChanged() {
 	_inner.usernameChanged();
+}
+
+void SettingsWidget::setInnerFocus() {
+	_inner.setFocus();
+}
+
+void SettingsWidget::needBackgroundUpdate(bool tile) {
+	_inner.needBackgroundUpdate(tile);
 }
 
 SettingsWidget::~SettingsWidget() {

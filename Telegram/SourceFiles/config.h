@@ -116,6 +116,9 @@ enum {
     HiddenIsOnlineAfterMessage = 30, // user with hidden last seen stays online for such amount of seconds in the interface
 
 	ServiceUserId = 777000,
+
+	CacheBackgroundTimeout = 3000, // cache background scaled image after 3s
+	BackgroundsInRow = 3,
 };
 
 inline bool isServiceUser(uint64 id) {

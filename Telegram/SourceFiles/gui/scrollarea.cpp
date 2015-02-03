@@ -105,8 +105,8 @@ void ScrollBar::updateBar() {
 
 void ScrollBar::onHideTimer() {
 	_hideIn = -1;
-	a_bg.start(st::transparent->c);
-	a_bar.start(st::transparent->c);
+	a_bg.start(QColor(a_bg.current().red(), a_bg.current().green(), a_bg.current().blue(), 0));
+	a_bar.start(QColor(a_bar.current().red(), a_bar.current().green(), a_bar.current().blue(), 0));
 	anim::start(this);
 }
 
@@ -602,4 +602,13 @@ void ScrollArea::setWidget(QWidget *w) {
 }
 
 void ScrollArea::rangeChanged(int oldMax, int newMax, bool vertical) {
+}
+
+void ScrollArea::updateColors(const style::color &bar, const style::color &bg, const style::color &barOver, const style::color &bgOver) {
+	_st.barColor = bar;
+	_st.bgColor = bg;
+	_st.barOverColor = barOver;
+	_st.bgOverColor = bgOver;
+	hor.update();
+	vert.update();
 }

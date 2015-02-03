@@ -78,6 +78,13 @@ namespace {
 	LastPhotosList lastPhotos;
 	typedef QHash<PhotoData*, LastPhotosList::iterator> LastPhotosMap;
 	LastPhotosMap lastPhotosMap;
+
+	style::color _msgServiceBG;
+	style::color _historyScrollBarColor;
+	style::color _historyScrollBgColor;
+	style::color _historyScrollBarOverColor;
+	style::color _historyScrollBgOverColor;
+	style::color _introPointHoverColor;
 }
 
 namespace App {
@@ -1390,6 +1397,7 @@ namespace App {
 			clearAllImages();
 		} else {
 			clearStorageImages();
+			cSetServerBackgrounds(WallPapers());
 		}
 
 		serviceImageCacheSize = imageCacheSize();
@@ -1684,7 +1692,7 @@ namespace App {
 				}
 
 				stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
-				stream << quint32(dbiCatsAndDogs) << qint32(cCatsAndDogs() ? 1 : 0);
+				stream << quint32(dbiTileBackground) << qint32(cTileBackground() ? 1 : 0);
 				stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);
 				stream << quint32(dbiDefaultAttach) << qint32(cDefaultAttach());
 				stream << quint32(dbiSoundNotify) << qint32(cSoundNotify());
@@ -1823,7 +1831,12 @@ namespace App {
 			case dbiCatsAndDogs: {
 				qint32 v;
 				stream >> v;
-				cSetCatsAndDogs(v == 1);
+			} break;
+
+			case dbiTileBackground: {
+				qint32 v;
+				stream >> v;
+				cSetTileBackground(v == 1);
 			} break;
 
 			case dbiReplaceEmojis: {
@@ -2139,5 +2152,172 @@ namespace App {
 			App::main()->openLocalUrl(url);
 		}
 	}
+
+	void initBackground(int32 id, const QImage &p, bool nowrite) {
+		if (Local::readBackground()) return;
+
+		QImage img(p);
+		if (p.isNull()) {
+			img.load(st::msgBG);
+			id = 0;
+		}
+		if (img.format() != QImage::Format_ARGB32 && img.format() != QImage::Format_ARGB32_Premultiplied && img.format() != QImage::Format_RGB32) {
+			img = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+		}
+
+		if (!nowrite) Local::writeBackground(id, img);
+
+		delete cChatBackground();
+		cSetChatBackground(new QPixmap(QPixmap::fromImage(img, Qt::ColorOnly)));
+		cSetChatBackgroundId(id);
+
+		if (App::main()) App::main()->clearCachedBackground();
+
+		uint64 components[3] = { 0 }, componentsScroll[3] = { 0 }, componentsPoint[3] = { 0 };
+		int w = img.width(), h = img.height(), size = w * h;
+		const uchar *pix = img.constBits();
+		if (pix) {
+			for (int32 i = 0, l = size * 4; i < l; i += 4) {
+				components[2] += pix[i + 0];
+				components[1] += pix[i + 1];
+				components[0] += pix[i + 2];
+			}
+		}
+		if (size) {
+			for (int32 i = 0; i < 3; ++i) components[i] /= size;
+		}
+		int maxtomin[3] = { 0, 1, 2 };
+		if (components[maxtomin[0]] < components[maxtomin[1]]) {
+			qSwap(maxtomin[0], maxtomin[1]);
+		}
+		if (components[maxtomin[1]] < components[maxtomin[2]]) {
+			qSwap(maxtomin[1], maxtomin[2]);
+			if (components[maxtomin[0]] < components[maxtomin[1]]) {
+				qSwap(maxtomin[0], maxtomin[1]);
+			}
+		}
+
+		uint64 max = qMax(1ULL, components[maxtomin[0]]), mid = qMax(1ULL, components[maxtomin[1]]), min = qMax(1ULL, components[maxtomin[2]]);
+
+		QImage dog = App::sprite().toImage().copy(st::msgDogImg);
+		QImage::Format f = dog.format();
+		if (f != QImage::Format_ARGB32 && f != QImage::Format_ARGB32_Premultiplied) {
+			dog = dog.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+		}
+		uchar *dogBits = dog.bits();
+		if (max != min) {
+			float64 coef = float64(mid - min) / float64(max - min);
+			for (int i = 0, s = dog.width() * dog.height() * 4; i < s; i += 4) {
+				int dogmaxtomin[3] = { i, i + 1, i + 2 };
+				if (dogBits[dogmaxtomin[0]] < dogBits[dogmaxtomin[1]]) {
+					qSwap(dogmaxtomin[0], dogmaxtomin[1]);
+				}
+				if (dogBits[dogmaxtomin[1]] < dogBits[dogmaxtomin[2]]) {
+					qSwap(dogmaxtomin[1], dogmaxtomin[2]);
+					if (dogBits[dogmaxtomin[0]] < dogBits[dogmaxtomin[1]]) {
+						qSwap(dogmaxtomin[0], dogmaxtomin[1]);
+					}
+				}
+				uchar result[3];
+				result[maxtomin[0]] = dogBits[dogmaxtomin[0]];
+				result[maxtomin[2]] = dogBits[dogmaxtomin[2]];
+				result[maxtomin[1]] = uchar(qRound(result[maxtomin[2]] + (result[maxtomin[0]] - result[maxtomin[2]]) * coef));
+				dogBits[i] = result[2];
+				dogBits[i + 1] = result[1];
+				dogBits[i + 2] = result[0];
+			}
+		} else {
+			for (int i = 0, s = dog.width() * dog.height() * 4; i < s; i += 4) {
+				uchar b = dogBits[i], g = dogBits[i + 1], r = dogBits[i + 2];
+				dogBits[i] = dogBits[i + 1] = dogBits[i + 2] = (r + r + b + g + g + g) / 6;
+			}
+		}
+		delete cChatDogImage();
+		cSetChatDogImage(new QPixmap(QPixmap::fromImage(dog)));
+
+		memcpy(componentsScroll, components, sizeof(components));
+		memcpy(componentsPoint, components, sizeof(components));
+
+		if (max != min) {
+			if (min > qRound(0.77 * max)) {
+				uint64 newmin = qRound(0.77 * max); // min saturation 23%
+				uint64 newmid = max - ((max - mid) * (max - newmin)) / (max - min);
+				components[maxtomin[1]] = newmid;
+				components[maxtomin[2]] = newmin;
+			}
+			uint64 newmin = qRound(0.77 * max); // saturation 23% for scroll
+			uint64 newmid = max - ((max - mid) * (max - newmin)) / (max - min);
+			componentsScroll[maxtomin[1]] = newmid;
+			componentsScroll[maxtomin[2]] = newmin;
+
+			uint64 pmax = 227; // 89% brightness
+			uint64 pmin = qRound(0.75 * pmax); // 41% saturation
+			uint64 pmid = pmax - ((max - mid) * (pmax - pmin)) / (max - min);
+			componentsPoint[maxtomin[0]] = pmax;
+			componentsPoint[maxtomin[1]] = pmid;
+			componentsPoint[maxtomin[2]] = pmin;
+		} else {
+			componentsPoint[0] = componentsPoint[1] = componentsPoint[2] = 227; // 89% brightness
+		}
+
+		float64 luminance = 0.299 * componentsScroll[0] + 0.587 * componentsScroll[1] + 0.114 * componentsScroll[2];
+		uint64 maxScroll = max;
+		if (luminance < 0.5 * 0xFF) {
+			maxScroll += qRound(0.2 * 0xFF);
+		} else {
+			maxScroll -= qRound(0.2 * 0xFF);
+		}
+		componentsScroll[maxtomin[2]] = qMin(uint64(float64(componentsScroll[maxtomin[2]]) * maxScroll / float64(componentsScroll[maxtomin[0]])), 0xFFULL);
+		componentsScroll[maxtomin[1]] = qMin(uint64(float64(componentsScroll[maxtomin[1]]) * maxScroll / float64(componentsScroll[maxtomin[0]])), 0xFFULL);
+		componentsScroll[maxtomin[0]] = qMin(maxScroll, 0xFFULL);
+
+		if (max > qRound(0.2 * 0xFF)) { // brightness greater than 20%
+			max -= qRound(0.2 * 0xFF);
+		} else {
+			max = 0;
+		}
+		components[maxtomin[2]] = uint64(float64(components[maxtomin[2]]) * max / float64(components[maxtomin[0]]));
+		components[maxtomin[1]] = uint64(float64(components[maxtomin[1]]) * max / float64(components[maxtomin[0]]));
+		components[maxtomin[0]] = max;
+
+		uchar r = uchar(components[0]), g = uchar(components[1]), b = uchar(components[2]);
+		_msgServiceBG = style::color(r, g, b, qRound(st::msgServiceBG->c.alphaF() * 0xFF));
+
+		uchar rScroll = uchar(componentsScroll[0]), gScroll = uchar(componentsScroll[1]), bScroll = uchar(componentsScroll[2]);
+		_historyScrollBarColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.barColor->c.alphaF() * 0xFF));
+		_historyScrollBgColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.bgColor->c.alphaF() * 0xFF));
+		_historyScrollBarOverColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.barOverColor->c.alphaF() * 0xFF));
+		_historyScrollBgOverColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.bgOverColor->c.alphaF() * 0xFF));
+
+		uchar rPoint = uchar(componentsPoint[0]), gPoint = uchar(componentsPoint[1]), bPoint = uchar(componentsPoint[2]);
+		_introPointHoverColor = style::color(rPoint, gPoint, bPoint);
+		if (App::main()) App::main()->updateScrollColors();
+	}
+
+	style::color msgServiceBG() {
+		return _msgServiceBG;
+	}
+
+	style::color historyScrollBarColor() {
+		return _historyScrollBarColor;
+	}
+
+	style::color historyScrollBgColor() {
+		return _historyScrollBgColor;
+	}
+
+	style::color historyScrollBarOverColor() {
+		return _historyScrollBarOverColor;
+	}
+
+	style::color historyScrollBgOverColor() {
+		return _historyScrollBgOverColor;
+	}
+
+	style::color introPointHoverColor() {
+		return _introPointHoverColor;
+	}
+
+	WallPapers gServerBackgrounds;
 
 }

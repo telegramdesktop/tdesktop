@@ -94,7 +94,7 @@ void HistoryList::paintEvent(QPaintEvent *e) {
 
 	if (hist->isEmpty()) {
 		QPoint dogPos((width() - st::msgDogImg.pxWidth()) / 2, ((height() - st::msgDogImg.pxHeight()) * 4) / 9);
-		p.drawPixmap(dogPos, App::sprite(), st::msgDogImg);
+		p.drawPixmap(dogPos, *cChatDogImage());
 	} else {
 		adjustCurrent(r.top());
 		HistoryBlock *block = (*hist)[currentBlock];
@@ -1567,7 +1567,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
 , confirmImageId(0)
 , confirmWithText(false)
 , titlePeerTextWidth(0)
-, bg(st::msgBG)
 , hiderOffered(false)
 , _scrollDelta(0)
 , _typingRequest(0)
@@ -3267,6 +3266,10 @@ void HistoryWidget::itemResized(HistoryItem *row) {
 	updateListSize(0, false, false, row);
 }
 
+void HistoryWidget::updateScrollColors() {
+	_scroll.updateColors(App::historyScrollBarColor(), App::historyScrollBgColor(), App::historyScrollBarOverColor(), App::historyScrollBgOverColor());
+}
+
 void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, HistoryItem *resizedItem) {
 	if (!hist || (!_histInited && !initial)) return;
 
@@ -3629,17 +3632,36 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		p.drawPixmap(a_coord.current(), 0, _animCache);
 		return;
 	}
-	if (cCatsAndDogs()) {
-		int32 i_from = r.left() / bg.width(), i_to = (r.left() + r.width() - 1) / bg.width() + 1;
-		int32 j_from = r.top() / bg.height(), j_to = (r.top() + r.height() - 1) / bg.height() + 1;
-		for (int32 i = i_from; i < i_to; ++i) {
-			for (int32 j = j_from; j < j_to; ++j) {
-				p.drawPixmap(i * bg.width(), j * bg.height(), bg);
-			}
+
+	bool hasTopBar = !App::main()->topBar()->isHidden();
+	if (cTileBackground()) {
+		int left = r.left(), top = r.top(), right = r.left() + r.width(), bottom = r.top() + r.height();
+		if (right > 0 && bottom > 0) {
+			QRect fill(left, top + (hasTopBar ? st::topBarHeight : 0), right, bottom + (hasTopBar ? st::topBarHeight : 0));
+
+			if (hasTopBar) p.translate(0, -st::topBarHeight);
+			p.fillRect(fill, QBrush(*cChatBackground()));
+			if (hasTopBar) p.translate(0, st::topBarHeight);
 		}
 	} else {
-		p.fillRect(r, st::historyBG->b);
+		QRect fill(0, 0, width(), App::main()->height());
+		int fromy = hasTopBar ? (-st::topBarHeight) : 0, x = 0, y = 0;
+		QPixmap cached = App::main()->cachedBackground(fill, x, y);
+		if (cached.isNull()) {
+			bool smooth = p.renderHints().testFlag(QPainter::SmoothPixmapTransform);
+			p.setRenderHint(QPainter::SmoothPixmapTransform);
+
+			QRect to, from;
+			App::main()->backgroundParams(fill, to, from);
+			to.moveTop(to.top() + fromy);
+			p.drawPixmap(to, *cChatBackground(), from);
+
+			if (!smooth) p.setRenderHint(QPainter::SmoothPixmapTransform, false);
+		} else {
+			p.drawPixmap(x, fromy + y, cached);
+		}
 	}
+
 	if (_list) {
 		if (!_scroll.isHidden()) {
 			if (!_field.isHidden()) {
@@ -3647,15 +3669,14 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 			}
 		} else {
 			QPoint dogPos((width() - st::msgDogImg.pxWidth()) / 2, ((height() - _field.height() - 2 * st::sendPadding - st::msgDogImg.pxHeight()) * 4) / 9);
-			p.drawPixmap(dogPos, App::sprite(), st::msgDogImg);
+			p.drawPixmap(dogPos, *cChatDogImage());
 
 			int32 pointsCount = 8, w = pointsCount * (st::introPointWidth + 2 * st::introPointDelta), h = st::introPointHeight;
 			int32 pointsLeft = (width() - w) / 2 + st::introPointDelta - st::introPointLeft, pointsTop = dogPos.y() + (st::msgDogImg.pxHeight() * 6) / 5;
 
 			int32 curPoint = histRequestsCount % pointsCount;
 
-			p.setOpacity(st::introPointHoverAlpha);
-			p.fillRect(pointsLeft + curPoint * (st::introPointWidth + 2 * st::introPointDelta), pointsTop, st::introPointHoverWidth, st::introPointHoverHeight, st::introPointHoverColor->b);
+			p.fillRect(pointsLeft + curPoint * (st::introPointWidth + 2 * st::introPointDelta), pointsTop, st::introPointHoverWidth, st::introPointHoverHeight, App::introPointHoverColor()->b);
 
 			// points
 			p.setOpacity(st::introPointAlpha);
@@ -3670,7 +3691,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		int32 w = font->m.width(lang(lng_willbe_history)) + st::msgPadding.left() + st::msgPadding.right(), h = font->height + st::msgServicePadding.top() + st::msgServicePadding.bottom() + 2;
 		QRect tr((width() - w) / 2, (height() - _field.height() - 2 * st::sendPadding - h) / 2, w, h);
 		p.setPen(Qt::NoPen);
-		p.setBrush(st::msgServiceBG->b);
+		p.setBrush(App::msgServiceBG()->b);
 		p.drawRoundedRect(tr, st::msgServiceRadius, st::msgServiceRadius);
 
 		p.setPen(st::msgServiceColor->p);

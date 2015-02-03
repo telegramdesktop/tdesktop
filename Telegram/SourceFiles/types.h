@@ -256,6 +256,7 @@ enum DataBlockId {
 	dbiCompressPastedImage = 30,
 	dbiLang = 31,
 	dbiLangFile = 32,
+	dbiTileBackground = 33,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,

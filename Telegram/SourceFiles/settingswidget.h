@@ -78,10 +78,15 @@ public:
 
 	void showAll();
 
+	void updateChatBackground();
+	void needBackgroundUpdate(bool tile);
+
 public slots:
 
 	void usernameChanged();
 	void updateConnectionType();
+
+	void updateBackgroundRect();
 
 	void peerUpdated(PeerData *data);
 
@@ -125,7 +130,9 @@ public slots:
 	void onTempDirCleared(int task);
 	void onTempDirClearFailed(int task);
 
-	void onCatsAndDogs();
+	void onBackFromGallery();
+	void onBackFromFile();
+	void onTileBackground();
 
 	void onLocalStorageClear();
 
@@ -222,7 +229,12 @@ private:
 		TempDirCleared     = 4,
 	};
 	TempDirClearState _tempDirClearState;
-	FlatCheckbox _catsAndDogs;
+
+	// chat background
+	QPixmap _background;
+	LinkButton _backFromGallery, _backFromFile;
+	FlatCheckbox _tileBackground;
+	bool _needBackgroundUpdate;
 
 	// local storage
 	LinkButton _localStorageClear;
@@ -266,6 +278,9 @@ public:
 
 	void rpcInvalidate();
 	void usernameChanged();
+
+	void setInnerFocus();
+	void needBackgroundUpdate(bool tile);
 
 	~SettingsWidget();
 

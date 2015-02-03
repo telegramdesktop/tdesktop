@@ -192,7 +192,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_send_enter" = "Send by Enter";
 "lng_settings_send_ctrlenter" = "Send by Ctrl+Enter";
 "lng_settings_send_cmdenter" = "Send by Cmd+Enter";
-"lng_settings_cats_and_dogs" = "Allow cats and dogs";
+
+"lng_settings_section_background" = "Chat background";
+"lng_settings_bg_from_gallery" = "Choose from gallery";
+"lng_settings_bg_from_file" = "Choose from file";
+"lng_settings_bg_tile" = "Tile background";
+
+"lng_backgrounds_header" = "Choose your new chat background";
 
 "lng_download_path_dont_ask" = "Don't ask download path for each file";
 "lng_download_path_label" = "Download path:";
