@@ -4649,9 +4649,9 @@ void HistoryServiceMsg::draw(QPainter &p, uint32 selection) const {
 	}
 //	QRect r(0, st::msgServiceMargin.top(), _history->width, height);
 	QRect r(left, st::msgServiceMargin.top(), width, height);
-	p.setBrush(st::msgServiceBG->b);
+	p.setBrush(App::msgServiceBG()->b);
 	p.setPen(Qt::NoPen);
-//	p.fillRect(r, st::msgServiceBG->b);
+//	p.fillRect(r, App::msgServiceBG()->b);
 	p.drawRoundedRect(r, st::msgServiceRadius, st::msgServiceRadius);
 	if (selection == FullItemSel) {
 		p.setBrush(st::msgServiceSelectBG->b);

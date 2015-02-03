@@ -341,6 +341,8 @@ public:
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 	void itemResized(HistoryItem *item);
 
+	void updateScrollColors();
+
 	~HistoryWidget();
 
 signals:
@@ -470,8 +472,6 @@ private:
 
 	QString titlePeerText;
 	int32 titlePeerTextWidth;
-
-	QPixmap bg;
 
 	bool hiderOffered;
 

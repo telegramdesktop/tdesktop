@@ -740,7 +740,11 @@ void Window::layerHidden() {
 	}
 	layerBG = 0;
 	if (_mediaView && !_mediaView->isHidden()) _mediaView->hide();
-	if (main) main->setInnerFocus();
+	if (settings) {
+		settings->setInnerFocus();
+	} else if (main) {
+		main->setInnerFocus();
+	}
 }
 
 QRect Window::clientRect() const {

@@ -81,6 +81,8 @@ namespace App {
 	void feedMessageMedia(MsgId msgId, const MTPMessage &msg);
 	int32 maxMsgId();
 
+	ImagePtr image(const MTPPhotoSize &size);
+
 	PhotoData *feedPhoto(const MTPPhoto &photo, const PreparedPhotoThumbs &thumbs);
 	PhotoData *feedPhoto(const MTPPhoto &photo, PhotoData *convert = 0);
 	PhotoData *feedPhoto(const MTPDphoto &photo, PhotoData *convert = 0);
@@ -190,5 +192,24 @@ namespace App {
 	void searchByHashtag(const QString &tag);
 	void openUserByName(const QString &username);
 	void openLocalUrl(const QString &url);
+
+	void initBackground(int32 id = 0, const QImage &p = QImage(), bool nowrite = false);
+
+	style::color msgServiceBG();
+	style::color historyScrollBarColor();
+	style::color historyScrollBgColor();
+	style::color historyScrollBarOverColor();
+	style::color historyScrollBgOverColor();
+	style::color introPointHoverColor();
+
+	struct WallPaper {
+		WallPaper(int32 id, ImagePtr thumb, ImagePtr full) : id(id), thumb(thumb), full(full) {
+		}
+		int32 id;
+		ImagePtr thumb;
+		ImagePtr full;
+	};
+	typedef QList<WallPaper> WallPapers;
+	DeclareSetting(WallPapers, ServerBackgrounds);
 
 };

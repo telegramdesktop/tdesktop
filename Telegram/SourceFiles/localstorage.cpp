@@ -442,6 +442,7 @@ namespace {
 		lskStickers, // data: StorageKey location
 		lskAudios, // data: StorageKey location
 		lskRecentStickers, // no data
+		lskBackground, // no data
 	};
 
 	typedef QMap<PeerId, FileKey> DraftsMap;
@@ -457,6 +458,9 @@ namespace {
 	FileKey _locationsKey = 0;
 	
 	FileKey _recentStickersKey = 0;
+	
+	FileKey _backgroundKey = 0;
+	bool _backgroundWasRead = false;
 
 	typedef QPair<FileKey, qint32> FileDesc; // file, size
 	typedef QMap<StorageKey, FileDesc> StorageMap;
@@ -584,7 +588,7 @@ namespace {
 		DraftsNotReadMap draftsNotReadMap;
 		StorageMap imagesMap, stickersMap, audiosMap;
 		qint64 storageImagesSize = 0, storageStickersSize = 0, storageAudiosSize = 0;
-		quint64 locationsKey = 0, recentStickersKey = 0;
+		quint64 locationsKey = 0, recentStickersKey = 0, backgroundKey = 0;
 		while (!map.stream.atEnd()) {
 			quint32 keyType;
 			map.stream >> keyType;
@@ -652,6 +656,9 @@ namespace {
 			case lskRecentStickers: {
 				map.stream >> recentStickersKey;
 			} break;
+			case lskBackground: {
+				map.stream >> backgroundKey;
+			} break;
 			default:
 				LOG(("App Error: unknown key type in encrypted map: %1").arg(keyType));
 				return Local::ReadMapFailed;
@@ -675,6 +682,7 @@ namespace {
 
 		_locationsKey = locationsKey;
 		_recentStickersKey = recentStickersKey;
+		_backgroundKey = backgroundKey;
 		_oldMapVersion = mapData.version;
 		if (_oldMapVersion < AppVersion) {
 			_mapChanged = true;
@@ -732,6 +740,7 @@ namespace {
 		if (!_audiosMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _audiosMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
 		if (_locationsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_recentStickersKey) mapSize += sizeof(quint32) + sizeof(quint64);
+		if (_backgroundKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		EncryptedDescriptor mapData(mapSize);
 		if (!_draftsMap.isEmpty()) {
 			mapData.stream << quint32(lskDraft) << quint32(_draftsMap.size());
@@ -768,6 +777,9 @@ namespace {
 		}
 		if (_recentStickersKey) {
 			mapData.stream << quint32(lskRecentStickers) << quint64(_recentStickersKey);
+		}
+		if (_backgroundKey) {
+			mapData.stream << quint32(lskBackground) << quint64(_backgroundKey);
 		}
 		map.writeEncrypted(mapData);
 
@@ -1282,6 +1294,53 @@ namespace Local {
 		cSetRecentStickers(recent);
 	}
 
+	void writeBackground(int32 id, const QImage &img) {
+		if (!_working()) return;
+
+		QByteArray png;
+		{
+			QBuffer buf(&png);
+			if (!img.save(&buf, "BMP")) return;
+		}
+		if (!_backgroundKey) {
+			_backgroundKey = genKey();
+			_mapChanged = true;
+			_writeMap(WriteMapFast);
+		}
+		quint32 size = sizeof(qint32) + sizeof(quint32) + sizeof(quint32) + png.size();
+		EncryptedDescriptor data(size);
+		data.stream << qint32(id) << png;
+
+		FileWriteDescriptor file(_backgroundKey);
+		file.writeEncrypted(data);
+	}
+
+	bool readBackground() {
+		if (_backgroundWasRead) return false;
+		_backgroundWasRead = true;
+
+		FileReadDescriptor bg;
+		if (!readEncryptedFile(bg, toFilePart(_backgroundKey))) {
+			clearKey(_backgroundKey);
+			_backgroundKey = 0;
+			_writeMap();
+			return false;
+		}
+
+		QByteArray pngData;
+		qint32 id;
+		bg.stream >> id >> pngData;
+
+		QImage img;
+		QBuffer buf(&pngData);
+		QImageReader reader(&buf);
+		if (reader.read(&img)) {
+			App::initBackground(id, img, true);
+			return true;
+		}
+		return false;
+	}
+	
 	struct ClearManagerData {
 		QThread *thread;
 		StorageMap images, stickers, audios;

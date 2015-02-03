@@ -2661,7 +2661,8 @@ QString Text::original(uint16 selectedFrom, uint16 selectedTo, bool expandLinks)
 					if (url.isEmpty() || !expandLinks || lnkFrom != rangeFrom || blockFrom != rangeTo) {
 						result += r;
 					} else {
-						if (r.size() > 3 && _text.midRef(lnkFrom, r.size() - 3) == url.midRef(0, r.size() - 3)) { // same link
+						QUrl u(url);
+						if (r.size() > 3 && _text.midRef(lnkFrom, r.size() - 3) == (u.isValid() ? u.toDisplayString() : url).midRef(0, r.size() - 3)) { // same link
 							result += url;
 						} else {
 							result.append(r).append(qsl(" ( ")).append(url).append(qsl(" )"));

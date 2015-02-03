@@ -351,8 +351,10 @@ MainWidget *TopBarWidget::main() {
 MainWidget::MainWidget(Window *window) : QWidget(window), _started(0), failedObjId(0), _dialogsWidth(st::dlgMinWidth),
 dialogs(this), history(this), profile(0), overview(0), _topBar(this), _forwardConfirm(0), hider(0), _mediaType(this), _mediaTypeMask(0),
 updPts(0), updDate(0), updQts(-1), updSeq(0), updInited(false), _onlineRequest(0), _lastWasOnline(false), _lastSetOnline(0), _isIdle(false),
-_failDifferenceTimeout(1), _lastUpdateTime(0) {
+_failDifferenceTimeout(1), _lastUpdateTime(0), _cachedX(0), _cachedY(0), _background(0) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
+
+	App::initBackground();
 
 	connect(window, SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
 	connect(&dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
@@ -373,6 +375,8 @@ _failDifferenceTimeout(1), _lastUpdateTime(0) {
 		connect(audioVoice(), SIGNAL(updated(AudioData*)), this, SLOT(audioPlayProgress(AudioData*)));
 		connect(audioVoice(), SIGNAL(stopped(AudioData*)), this, SLOT(audioPlayProgress(AudioData*)));
 	}
+
+	connect(&_cacheBackgroundTimer, SIGNAL(timeout()), this, SLOT(onCacheBackground()));
 
 	dialogs.show();
 	if (cWideMode()) {
@@ -710,6 +714,16 @@ void MainWidget::onCancelResend() {
 			item->destroy();
 		}
 	}
+}
+
+void MainWidget::onCacheBackground() {
+	const QPixmap &bg(*cChatBackground());
+	QRect to, from;
+	backgroundParams(_willCacheFor, to, from);
+	_cachedX = to.x();
+	_cachedY = to.y();
+	_cachedBackground = QPixmap::fromImage(bg.toImage().copy(from).scaled(to.width(), to.height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+	_cachedFor = _willCacheFor;
 }
 
 void MainWidget::forwardSelectedItems() {
@@ -1279,6 +1293,83 @@ bool MainWidget::isIdle() const {
 	return _isIdle;
 }
 
+void MainWidget::clearCachedBackground() {
+	_cachedBackground = QPixmap();
+	_cacheBackgroundTimer.stop();
+}
+
+QPixmap MainWidget::cachedBackground(const QRect &forRect, int &x, int &y) {
+	if (!_cachedBackground.isNull() && forRect == _cachedFor) {
+		x = _cachedX;
+		y = _cachedY;
+		return _cachedBackground;
+	}
+	if (_willCacheFor != forRect || !_cacheBackgroundTimer.isActive()) {
+		_willCacheFor = forRect;
+		_cacheBackgroundTimer.start(CacheBackgroundTimeout);
+	}
+	return QPixmap();
+}
+
+void MainWidget::backgroundParams(const QRect &forRect, QRect &to, QRect &from) const {
+	const QSize &bg(cChatBackground()->size());
+	if (uint64(bg.width()) * forRect.height() > uint64(bg.height()) * forRect.width()) {
+		float64 pxsize = forRect.height() / float64(bg.height());
+		int takewidth = qCeil(forRect.width() / pxsize);
+		if (takewidth > bg.width()) {
+			takewidth = bg.width();
+		} else if ((bg.width() % 2) != (takewidth % 2)) {
+			++takewidth;
+		}
+		to = QRect(int((forRect.width() - takewidth * pxsize) / 2.), 0, qCeil(takewidth * pxsize), forRect.height());
+		from = QRect((bg.width() - takewidth) / 2, 0, takewidth, bg.height());
+	} else {
+		float64 pxsize = forRect.width() / float64(bg.width());
+		int takeheight = qCeil(forRect.height() / pxsize);
+		if (takeheight > bg.height()) {
+			takeheight = bg.height();
+		} else if ((bg.height() % 2) != (takeheight % 2)) {
+			++takeheight;
+		}
+		to = QRect(0, int((forRect.height() - takeheight * pxsize) / 2.), forRect.width(), qCeil(takeheight * pxsize));
+		from = QRect(0, (bg.height() - takeheight) / 2, bg.width(), takeheight);
+	}
+}
+
+void MainWidget::updateScrollColors() {
+	history.updateScrollColors();
+	if (overview) overview->updateScrollColors();
+}
+
+void MainWidget::setChatBackground(const App::WallPaper &wp) {
+	_background = new App::WallPaper(wp);
+	_background->full->load();
+	checkChatBackground();
+}
+
+bool MainWidget::chatBackgroundLoading() {
+	return !!_background;
+}
+
+void MainWidget::checkChatBackground() {
+	if (_background) {
+		if (_background->full->loaded()) {
+			if (_background->full->isNull()) {
+				App::initBackground();
+			} else {
+				App::initBackground(_background->id, _background->full->pix().toImage());
+			}
+			delete _background;
+			_background = 0;
+			QTimer::singleShot(0, this, SLOT(update()));
+		}
+	}
+}
+
+ImagePtr MainWidget::newBackgroundThumb() {
+	return _background ? _background->thumb : ImagePtr();
+}
+
 void MainWidget::setInnerFocus() {
 	if (hider || !history.peer()) {
 		if (hider && hider->wasOffered()) {
@@ -1794,6 +1885,8 @@ bool MainWidget::animStep(float64 ms) {
 }
 
 void MainWidget::paintEvent(QPaintEvent *e) {
+	if (_background) checkChatBackground();
+
 	QPainter p(this);
 	if (animating()) {
 		p.setOpacity(a_bgAlpha.current());
@@ -2437,6 +2530,8 @@ int32 MainWidget::dlgsWidth() const {
 
 MainWidget::~MainWidget() {
 	if (App::main() == this) history.showPeer(0, 0, true);
+
+	delete _background;
 
 	delete hider;
 	MTP::clearGlobalHandlers();

@@ -350,8 +350,7 @@ introPointTop: 3px;
 introPointDelta: 10px;
 introPointColor: rgb(0, 0, 0);
 introPointAlpha: 0.5;
-introPointHoverColor: rgb(47, 158, 218);
-introPointHoverAlpha: 0.5;
+introPointHoverColor: #86b4e3;
 introPointStepT: transition(sineInOut);
 introPointAlphaT: transition(linear);
 introPointShowStepT: transition(easeOutCirc);
@@ -554,6 +553,8 @@ setErrHeight: 30px;
 setErrFont: font(fsize);
 setGoodColor: #008000;
 
+setBackgroundSize: 120px;
+
 btnSetUpload: flatButton(btnDefNext, btnDefBig) {
 	width: 206px;
 	height: 42px;
@@ -735,8 +736,6 @@ topBarActionButton: flatButton(btnDefNext, btnDefBig) {
 	height: 34px;
 }
 topBarActionSkip: 13px;
-
-historyBG: #dfe4e8;
 
 historyToEnd: iconedButton(btnDefIconed) {
 	bgColor: transparent;
@@ -1687,4 +1686,10 @@ langButton: flatCheckbox(rbDefFlat) {
 }
 langsCloseButton: flatButton(aboutCloseButton) {
 	width: langsWidth;
+}
+
+backgroundPadding: 10px;
+backgroundSize: size(108px, 193px);
+backgroundScroll: flatScroll(newGroupScroll) {
+	topsh: -2px;
 }

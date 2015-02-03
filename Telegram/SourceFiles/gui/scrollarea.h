@@ -128,6 +128,8 @@ public:
 
 	void rangeChanged(int oldMax, int newMax, bool vertical);
 
+	void updateColors(const style::color &bar, const style::color &bg, const style::color &barOver, const style::color &bgOver);
+
 public slots:
 
 	void scrollToY(int toTop, int toBottom = -1);
