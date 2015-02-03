@@ -49,6 +49,8 @@
 		074FCB8E19D36851004C6EB2 /* contextmenu.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074FCB8C19D36851004C6EB2 /* contextmenu.cpp */; };
 		074FCB9119D36E60004C6EB2 /* moc_contextmenu.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074FCB9019D36E60004C6EB2 /* moc_contextmenu.cpp */; };
 		07539B1D1A1416AF00083EFC /* moc_history.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07539B1C1A1416AF00083EFC /* moc_history.cpp */; };
+		078A2FCA1A811C5900CCC7A0 /* moc_backgroundbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078A2FC91A811C5900CCC7A0 /* moc_backgroundbox.cpp */; };
+		078A2FCD1A811CA600CCC7A0 /* backgroundbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078A2FCB1A811CA600CCC7A0 /* backgroundbox.cpp */; };
 		07A69332199277BA0099CB9F /* mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A69330199277BA0099CB9F /* mediaview.cpp */; };
 		07A6933519927B160099CB9F /* moc_mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A6933419927B160099CB9F /* moc_mediaview.cpp */; };
 		07BE850F1A2093C9008ACB9F /* localstorage.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07BE850D1A2093C9008ACB9F /* localstorage.cpp */; };
@@ -274,6 +276,9 @@
 		075EB50EB07CF69FD62FB8DF /* /usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_sql_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.1/mkspecs/modules/qt_lib_sql_private.pri"; sourceTree = "<absolute>"; };
 		075F99A91A45EEF200915C72 /* lang_es.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_es.strings; path = SourceFiles/langs/lang_es.strings; sourceTree = SOURCE_ROOT; };
 		0771C4C94B623FC34BF62983 /* intro.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = intro.cpp; path = SourceFiles/intro/intro.cpp; sourceTree = "<absolute>"; };
+		078A2FC91A811C5900CCC7A0 /* moc_backgroundbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_backgroundbox.cpp; path = GeneratedFiles/Debug/moc_backgroundbox.cpp; sourceTree = SOURCE_ROOT; };
+		078A2FCB1A811CA600CCC7A0 /* backgroundbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = backgroundbox.cpp; path = SourceFiles/boxes/backgroundbox.cpp; sourceTree = SOURCE_ROOT; };
+		078A2FCC1A811CA600CCC7A0 /* backgroundbox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = backgroundbox.h; path = SourceFiles/boxes/backgroundbox.h; sourceTree = SOURCE_ROOT; };
 		078DD0241A48DD9E00DD14CC /* lang_de.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_de.strings; path = SourceFiles/langs/lang_de.strings; sourceTree = SOURCE_ROOT; };
 		078DD0251A48DD9E00DD14CC /* lang_nl.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_nl.strings; path = SourceFiles/langs/lang_nl.strings; sourceTree = SOURCE_ROOT; };
 		07A190511A723E0A004287AE /* lang_ko.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_ko.strings; path = SourceFiles/langs/lang_ko.strings; sourceTree = SOURCE_ROOT; };
@@ -1072,6 +1077,7 @@
 		801973D3334D0FCA849CF485 /* Debug */ = {
 			isa = PBXGroup;
 			children = (
+				078A2FC91A811C5900CCC7A0 /* moc_backgroundbox.cpp */,
 				074968D11A44D1DF00394F46 /* moc_languagebox.cpp */,
 				07BE85111A20961F008ACB9F /* moc_localstorage.cpp */,
 				07539B1C1A1416AF00083EFC /* moc_history.cpp */,
@@ -1138,6 +1144,7 @@
 				C194EDD00F76216057D48A5C /* aboutbox.cpp */,
 				7CA6945B22800A0F30B75DA5 /* addcontactbox.cpp */,
 				40E88FBA282991C8CBDFE94D /* addparticipantbox.cpp */,
+				078A2FCB1A811CA600CCC7A0 /* backgroundbox.cpp */,
 				6610564B876E47D289A596DB /* confirmbox.cpp */,
 				51355181C0E6689B0B764543 /* connectionbox.cpp */,
 				8C800AAC9549E6E9E7046BED /* contactsbox.cpp */,
@@ -1151,6 +1158,7 @@
 				143405635D04698F421A12EA /* aboutbox.h */,
 				7CDE9D7CB2C729BC3612372B /* addcontactbox.h */,
 				245F3B3B43CC450EBA6650B5 /* addparticipantbox.h */,
+				078A2FCC1A811CA600CCC7A0 /* backgroundbox.h */,
 				1DEFC0760BB9340529F582F7 /* confirmbox.h */,
 				8EB83A4D34226609E79A613A /* connectionbox.h */,
 				120EBCD9A37DB9A36BFE58C0 /* contactsbox.h */,
@@ -1463,6 +1471,7 @@
 				700925F3B2C6163D38140CEA /* history.cpp in Compile Sources */,
 				0732E4A9199E262300D50FE7 /* overviewwidget.cpp in Compile Sources */,
 				1DF53374E3B6A31661548D08 /* historywidget.cpp in Compile Sources */,
+				078A2FCD1A811CA600CCC7A0 /* backgroundbox.cpp in Compile Sources */,
 				37A3C6C782A0E4BC7B09536B /* langloaderplain.cpp in Compile Sources */,
 				19A66ECD6EE2F8356F27D32D /* layerwidget.cpp in Compile Sources */,
 				89ADB41E48A3B5E24ABB626C /* profilewidget.cpp in Compile Sources */,
@@ -1512,6 +1521,7 @@
 				830CB6F547B8C80A569A0271 /* addparticipantbox.cpp in Compile Sources */,
 				A0A6B97F7DBEC81004EC9461 /* confirmbox.cpp in Compile Sources */,
 				4FEA8F51B7BC7CAC71347A1A /* connectionbox.cpp in Compile Sources */,
+				078A2FCA1A811C5900CCC7A0 /* moc_backgroundbox.cpp in Compile Sources */,
 				298BFAB73BF182297584F96F /* contactsbox.cpp in Compile Sources */,
 				BA41D511A9BBCA09365DF88C /* downloadpathbox.cpp in Compile Sources */,
 				07C4753F1967E37300CAAFE9 /* moc_switcher.cpp in Compile Sources */,
@@ -1951,6 +1961,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				LLVM_LTO = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				OBJROOT = ./../Mac/ReleaseIntermediate;
 				QT_LIBRARY_SUFFIX = "";
 				SDKROOT = macosx;
@@ -1965,6 +1976,7 @@
 				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
+				MACOSX_DEPLOYMENT_TARGET = 10.7;
 				OBJROOT = ./../Mac/DebugIntermediate;
 				QT_LIBRARY_SUFFIX = _debug;
 				SDKROOT = macosx;

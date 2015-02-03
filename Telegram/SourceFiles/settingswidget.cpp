@@ -1311,7 +1311,9 @@ void SettingsInner::onBackFromFile() {
 }
 
 void SettingsInner::updateChatBackground() {
-	QImage back(st::setBackgroundSize, st::setBackgroundSize, QImage::Format_ARGB32_Premultiplied);
+	int32 size = st::setBackgroundSize * cIntRetinaFactor();
+	QImage back(size, size, QImage::Format_ARGB32_Premultiplied);
+	back.setDevicePixelRatio(cRetinaFactor());
 	{
 		QPainter p(&back);
 		const QPixmap &pix(*cChatBackground());
@@ -1322,7 +1324,9 @@ void SettingsInner::updateChatBackground() {
 		p.drawPixmap(0, 0, st::setBackgroundSize, st::setBackgroundSize, pix, sx, sy, s, s);
 	}
 	_background = QPixmap::fromImage(back);
+	_background.setDevicePixelRatio(cRetinaFactor());
 	_needBackgroundUpdate = false;
+	updateBackgroundRect();
 }
 
 void SettingsInner::needBackgroundUpdate(bool tile) {
@@ -1334,6 +1338,7 @@ void SettingsInner::needBackgroundUpdate(bool tile) {
 void SettingsInner::onTileBackground() {
 	if (cTileBackground() != _tileBackground.checked()) {
 		cSetTileBackground(_tileBackground.checked());
+		if (App::main()) App::main()->clearCachedBackground();
 		App::writeUserConfig();
 	}
 }

@@ -2162,8 +2162,9 @@ namespace App {
 			id = 0;
 		}
 		if (img.format() != QImage::Format_ARGB32 && img.format() != QImage::Format_ARGB32_Premultiplied && img.format() != QImage::Format_RGB32) {
-			img = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+			img = img.convertToFormat(QImage::Format_RGB32);
 		}
+		img.setDevicePixelRatio(cRetinaFactor());
 
 		if (!nowrite) Local::writeBackground(id, img);
 
@@ -2239,7 +2240,7 @@ namespace App {
 		memcpy(componentsPoint, components, sizeof(components));
 
 		if (max != min) {
-			if (min > qRound(0.77 * max)) {
+			if (min > uint64(qRound(0.77 * max))) {
 				uint64 newmin = qRound(0.77 * max); // min saturation 23%
 				uint64 newmid = max - ((max - mid) * (max - newmin)) / (max - min);
 				components[maxtomin[1]] = newmid;

@@ -67,7 +67,7 @@ void BackgroundInner::gotWallpapers(const MTPVector<MTPWallPaper> &result) {
 				}
 				if (!size || !w || !h) continue;
 
-				int32 newThumbLevel = qAbs(st::backgroundSize.width() - w), newFullLevel = qAbs(2560 - w);
+				int32 newThumbLevel = qAbs((st::backgroundSize.width() * cIntRetinaFactor()) - w), newFullLevel = qAbs(2560 - w);
 				if (thumbLevel < 0 || newThumbLevel < thumbLevel) {
 					thumbLevel = newThumbLevel;
 					thumb = &(*j);

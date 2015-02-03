@@ -3634,32 +3634,33 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	}
 
 	bool hasTopBar = !App::main()->topBar()->isHidden();
-	if (cTileBackground()) {
-		int left = r.left(), top = r.top(), right = r.left() + r.width(), bottom = r.top() + r.height();
-		if (right > 0 && bottom > 0) {
-			QRect fill(left, top + (hasTopBar ? st::topBarHeight : 0), right, bottom + (hasTopBar ? st::topBarHeight : 0));
-
-			if (hasTopBar) p.translate(0, -st::topBarHeight);
-			p.fillRect(fill, QBrush(*cChatBackground()));
-			if (hasTopBar) p.translate(0, st::topBarHeight);
-		}
-	} else {
-		QRect fill(0, 0, width(), App::main()->height());
-		int fromy = hasTopBar ? (-st::topBarHeight) : 0, x = 0, y = 0;
-		QPixmap cached = App::main()->cachedBackground(fill, x, y);
-		if (cached.isNull()) {
+	QRect fill(0, 0, width(), App::main()->height());
+	int fromy = hasTopBar ? (-st::topBarHeight) : 0, x = 0, y = 0;
+	QPixmap cached = App::main()->cachedBackground(fill, x, y);
+	if (cached.isNull()) {
+		const QPixmap &pix(*cChatBackground());
+		if (cTileBackground()) {
+			int left = r.left(), top = r.top(), right = r.left() + r.width(), bottom = r.top() + r.height();
+			float64 w = pix.width() / cRetinaFactor(), h = pix.height() / cRetinaFactor();
+			int sx = qFloor(left / w), sy = qFloor((top - fromy) / h), cx = qCeil(right / w), cy = qCeil((bottom - fromy) / h);
+			for (int i = sx; i < cx; ++i) {
+				for (int j = sy; j < cy; ++j) {
+					p.drawPixmap(QPointF(i * w, fromy + j * h), pix);
+				}
+			}
+		} else {
 			bool smooth = p.renderHints().testFlag(QPainter::SmoothPixmapTransform);
 			p.setRenderHint(QPainter::SmoothPixmapTransform);
 
 			QRect to, from;
 			App::main()->backgroundParams(fill, to, from);
 			to.moveTop(to.top() + fromy);
-			p.drawPixmap(to, *cChatBackground(), from);
+			p.drawPixmap(to, pix, from);
 
 			if (!smooth) p.setRenderHint(QPainter::SmoothPixmapTransform, false);
-		} else {
-			p.drawPixmap(x, fromy + y, cached);
 		}
+	} else {
+		p.drawPixmap(x, fromy + y, cached);
 	}
 
 	if (_list) {
