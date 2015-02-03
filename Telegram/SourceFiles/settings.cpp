@@ -70,7 +70,6 @@ QPixmapPointer gChatBackground = 0;
 int32 gChatBackgroundId = 0;
 QPixmapPointer gChatDogImage = 0;
 bool gTileBackground = true;
-QColor gBackgroundColor = QColor(0, 0, 0);
 
 uint32 gConnectionsInSession = 1;
 QString gLoggedPhoneNumber;

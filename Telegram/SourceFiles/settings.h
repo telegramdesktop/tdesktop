@@ -69,7 +69,6 @@ DeclareSetting(QPixmapPointer, ChatBackground);
 DeclareSetting(int32, ChatBackgroundId);
 DeclareSetting(QPixmapPointer, ChatDogImage);
 DeclareSetting(bool, TileBackground);
-DeclareSetting(QColor, BackgroundColor);
 
 DeclareSetting(bool, SoundNotify);
 DeclareSetting(bool, NeedConfigResave);
