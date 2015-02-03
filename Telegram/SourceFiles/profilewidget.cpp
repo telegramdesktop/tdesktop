@@ -61,7 +61,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	_kickWidth(st::linkFont->m.width(lang(lng_profile_kick))),
 	_selectedRow(-1), _lastPreload(0), _contactId(0),
 	_kickOver(0), _kickDown(0), _kickConfirm(0),
-	
+
 	_loadingId(0), _menu(0) {
 
 	if (_peerUser) {
@@ -157,7 +157,7 @@ void ProfileInner::loadProfilePhotos(int32 yFrom) {
 void ProfileInner::onUpdatePhoto() {
 	saveError();
 
-	QStringList imgExtensions(cImgExtensions());	
+	QStringList imgExtensions(cImgExtensions());
 	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
 
 	QImage img;
@@ -664,7 +664,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	_left = (width() - _width) / 2;
 
 	int32 top = 0, btnWidth = (_width - st::profileButtonSkip) / 2;
-	
+
 	// profile
 	top += st::profilePadding.top();
 	_cancelPhoto.move(_left + _width - _cancelPhoto.width(), top + st::profilePhoneTop);
@@ -765,7 +765,7 @@ ProfileInner::~ProfileInner() {
 	}
 	_participantsData.clear();
 }
-	
+
 void ProfileInner::openContextImage() {
 }
 

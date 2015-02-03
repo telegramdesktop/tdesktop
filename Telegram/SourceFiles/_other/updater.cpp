@@ -472,10 +472,10 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
 
     GetLocalTime(&stLocalTime);
 
-    wsprintf(szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp", 
-             szPath, szExeName, updaterVersionStr, 
-             stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay, 
-             stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond, 
+    wsprintf(szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp",
+             szPath, szExeName, updaterVersionStr,
+             stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay,
+             stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond,
              GetCurrentProcessId(), GetCurrentThreadId());
     return CreateFile(szFileName, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
 }
@@ -511,7 +511,7 @@ void _generateDump(EXCEPTION_POINTERS* pExceptionPointers) {
 			hDumpFile = _generateDumpFileAtPath(wstrPath);
 		}
 	}
-	
+
 	if (!hDumpFile || hDumpFile == INVALID_HANDLE_VALUE) {
 		return;
 	}

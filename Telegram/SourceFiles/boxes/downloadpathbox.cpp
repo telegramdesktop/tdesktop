@@ -79,7 +79,7 @@ void DownloadPathBox::showAll() {
 	int32 inputy = _dirRadio.y() + _dirRadio.height() + st::boxPadding.top();
 
 	_dirInput.move(st::boxPadding.left() + st::rbDefFlat.textLeft, inputy);
-		
+
 	int32 buttony = (_dirRadio.checked() ? (_dirInput.y() + _dirInput.height()) : (_dirRadio.y() + _dirRadio.height())) + st::downloadSkip;
 
 	_saveButton.move(_width - _saveButton.width(), buttony);

@@ -26,7 +26,7 @@ class Animated;
 namespace anim {
 
 	typedef float64 (*transition)(const float64 &delta, const float64 &dt);
-	
+
     float64 linear(const float64 &delta, const float64 &dt);
 	float64 sineInOut(const float64 &delta, const float64 &dt);
     float64 halfSine(const float64 &delta, const float64 &dt);

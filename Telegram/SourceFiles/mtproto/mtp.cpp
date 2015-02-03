@@ -35,7 +35,7 @@ namespace {
 	bool started = false;
 
 	uint32 layer;
-	
+
 	typedef QMap<mtpRequestId, RPCResponseHandler> ParserMap;
 	ParserMap parserMap;
 	QMutex parserMapLock;
@@ -189,7 +189,7 @@ namespace {
 			return true;
 		} else if (code < 0 || code >= 500 || (m = QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(err)).hasMatch()) {
 			if (!requestId) return false;
-			
+
 			int32 secs = 1;
 			if (code < 0 || code >= 500) {
 				RequestsDelays::iterator i = requestsDelays.find(requestId);
@@ -339,17 +339,17 @@ namespace _mtp_internal {
 		if (!(dc % _mtp_internal::dcShift)) {
 			dc += mainSession->getDC();
 		}
-		
+
 		Sessions::const_iterator i = sessions.constFind(dc);
 		if (i != sessions.cend()) return *i;
 
 		MTProtoSessionPtr result(new MTProtoSession());
 		result->start(dc);
-		
+
 		sessions.insert(dc, result);
 		return result;
 	}
-	
+
 	void registerRequest(mtpRequestId requestId, int32 dc) {
 		{
 			QMutexLocker locker(&requestByDCLock);
@@ -647,7 +647,7 @@ namespace MTP {
 		if (!(dc % _mtp_internal::dcShift)) {
 			dc += mainSession->getDC();
 		}
-		
+
 		Sessions::const_iterator i = sessions.constFind(dc);
 		if (i != sessions.cend()) return (*i)->getState();
 

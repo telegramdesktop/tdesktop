@@ -23,7 +23,7 @@ namespace {
     void _sendResizeEvents(QWidget *target) {
         QResizeEvent e(target->size(), QSize());
         QApplication::sendEvent(target, &e);
-        
+
         const QObjectList children = target->children();
         for (int i = 0; i < children.size(); ++i) {
             QWidget *child = static_cast<QWidget*>(children.at(i));
@@ -36,11 +36,11 @@ namespace {
 
 QPixmap myGrab(QWidget *target, const QRect &rect) {
     if (!cRetina()) return target->grab(rect);
-        
+
     if (target->testAttribute(Qt::WA_PendingResizeEvent) || !target->testAttribute(Qt::WA_WState_Created)) {
         _sendResizeEvents(target);
     }
-    
+
     qreal dpr = App::app()->devicePixelRatio();
     QPixmap result(rect.size() * dpr);
     result.setDevicePixelRatio(dpr);

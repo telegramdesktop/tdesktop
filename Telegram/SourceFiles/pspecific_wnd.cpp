@@ -73,7 +73,7 @@ namespace {
 	HWND createTaskbarHider() {
 		HINSTANCE appinst = (HINSTANCE)GetModuleHandle(0);
 		HWND hWnd = 0;
-		
+
 		QString cn = QString("TelegramTaskbarHider");
 		LPCWSTR _cn = (LPCWSTR)cn.utf16();
 		WNDCLASSEX wc;
@@ -94,7 +94,7 @@ namespace {
 			DEBUG_LOG(("Application Error: could not register taskbar hider window class, error: %1").arg(GetLastError()));
 			return hWnd;
 		}
-		
+
 		hWnd = CreateWindowEx(WS_EX_TOOLWINDOW, _cn, 0, WS_POPUP, 0, 0, 0, 0, 0, 0, appinst, 0);
 		if (!hWnd) {
 			DEBUG_LOG(("Application Error: could not create taskbar hider window class, error: %1").arg(GetLastError()));
@@ -127,12 +127,12 @@ namespace {
 				hwnds[i] = 0;
 			}
 		}
-		
+
 		void setColor(QColor c) {
 			r = c.red();
 			g = c.green();
 			b = c.blue();
-			
+
 			if (!hwnds[0]) return;
 			Gdiplus::SolidBrush brush(Gdiplus::Color(_alphas[0], r, g, b));
 			for (int i = 0; i < 4; ++i) {
@@ -191,7 +191,7 @@ namespace {
 			Gdiplus::GdiplusStartupInput gdiplusStartupInput;
 			ULONG_PTR gdiplusToken;
 			Gdiplus::Status gdiRes = Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
-	
+
 			if (gdiRes != Gdiplus::Ok) {
 				DEBUG_LOG(("Application Error: could not init GDI+, error: %1").arg((int)gdiRes));
 				return false;
@@ -211,7 +211,7 @@ namespace {
 			if (max_h < st::wndMinHeight) max_h = st::wndMinHeight;
 
 			HINSTANCE appinst = (HINSTANCE)GetModuleHandle(0);
-		
+
 			for (int i = 0; i < 4; ++i) {
 				QString cn = QString("TelegramShadow%1").arg(i);
 				LPCWSTR _cn = (LPCWSTR)cn.utf16();
@@ -395,7 +395,7 @@ namespace {
 					from = _fullsize - (_size - _shift);
 					max_w *= 2;
 					for (int i = 0; i < 4; i += 2) {
-						DeleteObject(bitmaps[i]); 
+						DeleteObject(bitmaps[i]);
 						bitmaps[i] = CreateCompatibleBitmap(screenDC, max_w, _size);
 						SelectObject(dcs[i], bitmaps[i]);
 					}
@@ -484,7 +484,7 @@ namespace {
 			_y = y;
 			_w = w;
 			_h = h;
-	
+
 			if (hidden && (changes & _PsShadowShown)) {
 				for (int i = 0; i < 4; ++i) {
 					SetWindowPos(hwnds[i], hwnd, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW | SWP_NOACTIVATE);
@@ -615,7 +615,7 @@ namespace {
 
 	typedef HRESULT (FAR STDAPICALLTYPE *f_shOpenWithDialog)(HWND hwndParent, const OPENASINFO *poainfo);
 	f_shOpenWithDialog shOpenWithDialog = 0;
-	
+
 	typedef HRESULT (FAR STDAPICALLTYPE *f_shAssocEnumHandlers)(PCWSTR pszExtra, ASSOC_FILTER afFilter, IEnumAssocHandlers **ppEnumHandler);
 	f_shAssocEnumHandlers shAssocEnumHandlers = 0;
 
@@ -742,7 +742,7 @@ namespace {
 				QTimer::singleShot(0, Application::wnd(), SLOT(updateCounter()));
 				Application::wnd()->update();
 			} return false;
-				
+
 			case WM_NCPAINT: if (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS8) return false; *result = 0; return true;
 
 			case WM_NCCALCSIZE: {
@@ -829,7 +829,7 @@ namespace {
 					case HitTestBottomLeft:  *result = HTBOTTOMLEFT; break;
 					case HitTestLeft:        *result = HTLEFT; break;
 					case HitTestTopLeft:     *result = HTTOPLEFT; break;
-					case HitTestNone: 
+					case HitTestNone:
 					default:                 *result = HTTRANSPARENT; break;
 				};
 			} return true;
@@ -844,7 +844,7 @@ namespace {
 				GetWindowRect(hWnd, &r);
 				HitTestType res = Application::wnd()->hitTest(QPoint(p.x - r.left + dleft, p.y - r.top + dtop));
 				switch (res) {
-					case HitTestIcon: 
+					case HitTestIcon:
 						if (menuHidden && getms() < menuHidden + 10) {
 							menuHidden = 0;
 							if (getms() < menuShown + GetDoubleClickTime()) {
@@ -1092,7 +1092,7 @@ void PsMainWindow::psInitFrameless() {
 	if (!ps_hWnd) return;
 
 	if (useWtsapi) wtsRegisterSessionNotification(ps_hWnd, NOTIFY_FOR_THIS_SESSION);
-		
+
 	if (frameless) {
 		setWindowFlags(Qt::FramelessWindowHint);
 	}
@@ -1245,7 +1245,7 @@ void PsMainWindow::psUpdateMargins() {
 		RECT w, m;
 		GetWindowRect(ps_hWnd, &w);
 		m = w;
-		
+
 		HMONITOR hMonitor = MonitorFromRect(&w, MONITOR_DEFAULTTONEAREST);
 		if (hMonitor) {
 			MONITORINFO mi;
@@ -1440,7 +1440,7 @@ void PsUpdateDownloader::initOutput() {
 						if (outputFile.open(QIODevice::WriteOnly)) {
 							outputFile.write(goodData);
 							outputFile.close();
-							
+
 							QMutexLocker lock(&mutex);
 							already = goodSize;
 						}
@@ -1463,7 +1463,7 @@ void PsUpdateDownloader::start() {
 
 void PsUpdateDownloader::sendRequest() {
 	QNetworkRequest req(updateUrl);
-	QByteArray rangeHeaderValue = "bytes=" + QByteArray::number(already) + "-";// + QByteArray::number(already + cUpdateChunk() - 1); 
+	QByteArray rangeHeaderValue = "bytes=" + QByteArray::number(already) + "-";// + QByteArray::number(already + cUpdateChunk() - 1);
 	req.setRawHeader("Range", rangeHeaderValue);
 	req.setAttribute(QNetworkRequest::HttpPipeliningAllowedAttribute, true);
 	if (reply) reply->deleteLater();
@@ -1712,7 +1712,7 @@ void PsUpdateDownloader::unpackUpdate() {
 		WCHAR versionStr[32];
 		memcpy(versionStr, versionString.c_str(), versionLen);
 
-		QFile fVersion(tempDirPath + qsl("/tdata/version"));		
+		QFile fVersion(tempDirPath + qsl("/tdata/version"));
 		if (!fVersion.open(QIODevice::WriteOnly)) {
 			LOG(("Update Error: cant write version file '%1'").arg(tempDirPath + qsl("/version")));
 			return fatalFail();
@@ -1722,7 +1722,7 @@ void PsUpdateDownloader::unpackUpdate() {
 		fVersion.write((const char*)&versionStr[0], versionLen);
 		fVersion.close();
 	}
-	
+
 	if (!tempDir.rename(tempDir.absolutePath(), readyDir.absolutePath())) {
 		LOG(("Update Error: cant rename temp dir '%1' to ready dir '%2'").arg(tempDir.absolutePath()).arg(readyDir.absolutePath()));
 		return fatalFail();
@@ -2058,7 +2058,7 @@ void psDoFixPrevious() {
 		LSTATUS newKeyRes2 = RegOpenKeyEx(HKEY_CURRENT_USER, newKeyStr2.toStdWString().c_str(), 0, KEY_READ, &newKey2);
 		LSTATUS oldKeyRes1 = RegOpenKeyEx(HKEY_LOCAL_MACHINE, oldKeyStr1.toStdWString().c_str(), 0, KEY_READ, &oldKey1);
 		LSTATUS oldKeyRes2 = RegOpenKeyEx(HKEY_LOCAL_MACHINE, oldKeyStr2.toStdWString().c_str(), 0, KEY_READ, &oldKey2);
-		
+
 		bool existNew1 = (newKeyRes1 == ERROR_SUCCESS) && (RegQueryValueEx(newKey1, L"InstallDate", 0, &checkType, (BYTE*)checkStr, &checkSize) == ERROR_SUCCESS); checkSize = bufSize * 2;
 		bool existNew2 = (newKeyRes2 == ERROR_SUCCESS) && (RegQueryValueEx(newKey2, L"InstallDate", 0, &checkType, (BYTE*)checkStr, &checkSize) == ERROR_SUCCESS); checkSize = bufSize * 2;
 		bool existOld1 = (oldKeyRes1 == ERROR_SUCCESS) && (RegQueryValueEx(oldKey1, L"InstallDate", 0, &checkType, (BYTE*)checkStr, &checkSize) == ERROR_SUCCESS); checkSize = bufSize * 2;
@@ -2250,7 +2250,7 @@ bool psShowOpenWithMenu(int x, int y, const QString &file) {
 				ULONG ulFetched = 0;
 				hr = assocHandlers->Next(1, &handler, &ulFetched);
 				if (FAILED(hr) || hr == S_FALSE || !ulFetched) break;
-				
+
 				LPWSTR name = 0;
 				if (SUCCEEDED(handler->GetUIName(&name))) {
 					LPWSTR icon = 0;
@@ -2265,7 +2265,7 @@ bool psShowOpenWithMenu(int x, int y, const QString &file) {
 				} else {
 					handler->Release();
 				}
-			} while (hr != S_FALSE); 
+			} while (hr != S_FALSE);
 			assocHandlers->Release();
 		}
 
@@ -2399,7 +2399,7 @@ namespace {
 		}
 		return true;
 	}
-	
+
 	bool _psSetKeyValue(HKEY rkey, LPCWSTR value, QString v) {
 		static const int bufSize = 4096;
 		DWORD defaultType, defaultSize = bufSize * 2;
@@ -2573,10 +2573,10 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
 
     GetLocalTime(&stLocalTime);
 
-    wsprintf(szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp", 
-             szPath, szExeName, AppVersionStr, 
-             stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay, 
-             stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond, 
+    wsprintf(szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp",
+             szPath, szExeName, AppVersionStr,
+             stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay,
+             stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond,
              GetCurrentProcessId(), GetCurrentThreadId());
     return CreateFile(szFileName, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
 }

@@ -135,7 +135,7 @@ public:
 	void showEmojiPack(DBIEmojiTab packIndex);
 
 	void clearSelection(bool fast = false);
-	
+
 public slots:
 
 	void updateSelected();

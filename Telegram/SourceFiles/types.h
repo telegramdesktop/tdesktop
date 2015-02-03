@@ -103,7 +103,7 @@ uint64 getms(bool checked = false);
 
 class SingleTimer : public QTimer { // single shot timer with check
 	Q_OBJECT
-	
+
 public:
 
 	SingleTimer();

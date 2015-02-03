@@ -358,7 +358,7 @@ QString textEmojiString(EmojiPtr emoji) {
 
 class TextParser {
 public:
-	
+
 	static Qt::LayoutDirection stringDirection(const QString &str, int32 from, int32 to) {
 		const ushort *p = reinterpret_cast<const ushort*>(str.unicode()) + from;
 		const ushort *end = p + (to - from);
@@ -456,7 +456,7 @@ public:
 
 		return true;
 	}
-	
+
 	bool readCommand() {
 		const QChar *afterCmd = textSkipCommand(ptr, end, links.size() < 0x7FFF);
 		if (afterCmd == ptr) {
@@ -889,7 +889,7 @@ public:
 
 	void initParagraphBidi() {
 		if (!_parLength || !_parAnalysis.isEmpty()) return;
-		
+
 		Text::TextBlocks::const_iterator i = _parStartBlock, e = _t->_blocks.cend(), n = i + 1;
 
 		bool ignore = false;
@@ -1192,7 +1192,7 @@ public:
 					*_getSymbolAfter = false;
 					*_getSymbolUpon = ((_lnkX >= _x) && (_lineStart > 0)) ? true : false;
 				}
-				return false;  
+				return false;
 			} else if (_lnkX >= x + (_w - _wLeft)) {
 				if (_parDirection == Qt::RightToLeft) {
 					*_getSymbol = _lineStart;
@@ -2267,7 +2267,7 @@ private:
 	style::font _f;
 	QFixed _x, _w, _wLeft;
 	int32 _y, _yDelta, _lineHeight, _fontHeight;
-	
+
 	// elided hack support
 	int32 _blocksSize;
 	int32 _elideSavedIndex;
@@ -2646,7 +2646,7 @@ QString Text::original(uint16 selectedFrom, uint16 selectedTo, bool expandLinks)
 	result.reserve(_text.size());
 
 	int32 lnkFrom = 0, lnkIndex = 0;
-	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); true; ++i) {		
+	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); true; ++i) {
 		int32 blockLnkIndex = (i == e) ? 0 : (*i)->lnkIndex();
 		int32 blockFrom = (i == e) ? _text.size() : (*i)->from();
 		if (blockLnkIndex != lnkIndex) {
@@ -3295,7 +3295,7 @@ namespace {
 	}
 
 	// accent char list taken from https://github.com/aristus/accent-folding
-	inline QChar chNoAccent(int32 code) { 
+	inline QChar chNoAccent(int32 code) {
 		switch (code) {
 		case 7834: return QChar(97);
 		case 193: return QChar(97);
@@ -4019,7 +4019,7 @@ QString textAccentFold(const QString &text) {
 				result[i] = noAccent;
 			} else {
 				if (copying) result[i] = *ch;
-				++ch, ++i; 
+				++ch, ++i;
 				if (copying) result[i] = *ch;
 			}
 		} else {

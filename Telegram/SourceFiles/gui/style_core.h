@@ -27,7 +27,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include <QtGui/QFont>
 
 namespace style {
-	
+
 	class FontData;
 	class Font {
 	public:
@@ -150,7 +150,7 @@ inline bool operator!=(const Font &a, const Font &b) {
 		bool owner;
 
 		void init(uchar r, uchar g, uchar b, uchar a);
-		
+
 		friend void startManager();
 
 		Color(ColorData *p) : ptr(p) {
@@ -174,7 +174,7 @@ inline bool operator!=(const Font &a, const Font &b) {
 
 		ColorData(uchar r, uchar g, uchar b, uchar a);
 		void set(const QColor &c);
-		
+
 		friend class Color;
 
 	};

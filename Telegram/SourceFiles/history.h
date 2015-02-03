@@ -1247,7 +1247,7 @@ public:
 	virtual bool updateStickerEmoji() {
 		return false;
 	}
-	
+
 	virtual bool animating() const {
 		return false;
 	}
@@ -1331,7 +1331,7 @@ public:
 private:
 	VideoData *data;
 	TextLinkPtr _openl, _savel, _cancell;
-	
+
 	QString _size;
 	int32 _thumbw, _thumbx, _thumby;
 
@@ -1584,7 +1584,7 @@ public:
 	void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
     QString notificationHeader() const;
     QString notificationText() const;
-    
+
 	void updateMedia(const MTPMessageMedia &media) {
 		if (_media) _media->updateFrom(media);
 	}

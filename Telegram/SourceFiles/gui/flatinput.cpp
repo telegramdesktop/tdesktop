@@ -46,10 +46,10 @@ FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString 
 	a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c),
     a_borderColor(st.borderColor->c), a_bgColor(st.bgColor->c), _notingBene(0), _st(st) {
 	resize(_st.width, _st.height);
-	
+
 	setFont(_st.font->f);
 	setAlignment(_st.align);
-	
+
 	_ph = _st.font->m.elidedText(pholder, Qt::ElideRight, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1);
 
 	QPalette p(palette());

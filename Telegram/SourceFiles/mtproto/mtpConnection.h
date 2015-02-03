@@ -263,7 +263,7 @@ class MTPhttpConnection : public MTPabstractConnection {
 public:
 
 	MTPhttpConnection(QThread *thread);
-	
+
 	void sendData(mtpBuffer &buffer);
 	void disconnectFromServer();
 	void connectToServer(const QString &addr, int32 port);
@@ -395,7 +395,7 @@ private:
 
 	// if badTime received - search for ids in sessionData->haveSent and sessionData->wereAcked and sync time/salt, return true if found
 	bool requestsFixTimeSalt(const QVector<MTPlong> &ids, int32 serverTime, uint64 serverSalt);
-	
+
 	// remove msgs with such ids from sessionData->haveSent, add to sessionData->wereAcked
 	void requestsAcked(const QVector<MTPlong> &ids, bool byResponse = false);
 
@@ -443,7 +443,7 @@ private:
 		MTPlong retry_id;
 
 		int32 g;
-		
+
 		uchar aesKey[32], aesIV[32];
 		uint32 auth_key[64];
 		MTPlong auth_key_hash;

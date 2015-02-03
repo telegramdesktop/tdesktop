@@ -240,7 +240,7 @@ void HistoryList::touchEvent(QTouchEvent *e) {
 		_touchPrevPos = _touchPos;
 		_touchPos = e->touchPoints().cbegin()->screenPos().toPoint();
 	}
-	
+
 	switch (e->type()) {
 	case QEvent::TouchBegin:
 		if (_menu) {
@@ -472,7 +472,7 @@ void HistoryList::itemRemoved(HistoryItem *item) {
 	}
 
 	if (_dragAction == NoDrag) return;
-	
+
 	if (_dragItem == item) {
 		dragActionCancel();
 	}
@@ -588,7 +588,7 @@ void HistoryList::mouseDoubleClickEvent(QMouseEvent *e) {
 					_selected.clear();
 				}
 				_selected.insert(_dragItem, selStatus);
-			} 
+			}
 			mouseMoveEvent(e);
 
 	        _trippleClickPoint = e->globalPos();
@@ -774,7 +774,7 @@ void HistoryList::copyContextUrl() {
 void HistoryList::saveContextImage() {
     PhotoLink *lnk = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
 	if (!lnk) return;
-	
+
 	PhotoData *photo = lnk->photo();
 	if (!photo || !photo->date || !photo->full->loaded()) return;
 
@@ -789,7 +789,7 @@ void HistoryList::saveContextImage() {
 void HistoryList::copyContextImage() {
     PhotoLink *lnk = dynamic_cast<PhotoLink*>(_contextMenuLnk.data());
 	if (!lnk) return;
-	
+
 	PhotoData *photo = lnk->photo();
 	if (!photo || !photo->date || !photo->full->loaded()) return;
 
@@ -1081,7 +1081,7 @@ void HistoryList::onUpdateSelected() {
 		} else if (inText && (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel)) {
 			cur = style::cur_text;
 		}
-	} else {		
+	} else {
 		if (item != _dragItem || (m - _dragStartPos).manhattanLength() >= QApplication::startDragDistance()) {
 			if (_dragAction == PrepareDrag) {
 				_dragAction = Dragging;
@@ -1168,7 +1168,7 @@ void HistoryList::updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dra
 		force = true;
 	}
 	if (!force) return;
-	
+
 	parentWidget()->update();
 }
 
@@ -1241,7 +1241,7 @@ void MessageField::onChange() {
 	} else if (newh < minh) {
 		newh = minh;
 	}
-	
+
 	if (height() != newh) {
 		resize(width(), newh);
 		emit resized();
@@ -1514,7 +1514,7 @@ void HistoryHider::offerPeer(PeerId peer) {
 	if (toTextWidth > box.width() - st::boxPadding.left() - st::boxPadding.right()) {
 		toTextWidth = box.width() - st::boxPadding.left() - st::boxPadding.right();
 	}
-	
+
 	resizeEvent(0);
 	update();
 	setFocus();
@@ -1774,7 +1774,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 
 	if (stickers.type() == mtpc_messages_allStickers) {
 		const MTPDmessages_allStickers &d(stickers.c_messages_allStickers());
-		
+
 		AllStickers all;
 		EmojiStickersMap map;
 
@@ -1819,7 +1819,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 			Local::writeRecentStickers();
 			_emojiPan.onTabChange();
 		}
-		
+
 		const QVector<MTPStickerPack> &packs(d.vpacks.c_vector().v);
 		for (int32 i = 0, l = packs.size(); i < l; ++i) {
 			if (packs.at(i).type() == mtpc_stickerPack) {
@@ -2021,7 +2021,7 @@ void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool l
 		checkUnreadLoaded();
 
 		App::main()->peerUpdated(histPeer);
-		
+
 		if (!hist->draft.isEmpty()) {
 			setFieldText(hist->draft);
 			_field.setFocus();
@@ -2479,7 +2479,7 @@ mtpRequestId HistoryWidget::onForward(const PeerId &peer, SelectedItemSet toForw
 		HistoryMessage *msg = dynamic_cast<HistoryMessage*>(item);
 		HistoryServiceMsg *srv = dynamic_cast<HistoryServiceMsg*>(item);
 		MsgId newId = 0;
-	
+
 		hist->loadAround(0);
 		if (item->id > 0 && msg) {
 			App::main()->readServerHistory(hist, false);
@@ -2547,7 +2547,7 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 	PeerData *p = App::peer(peer);
 	int32 flags = (p->input.type() == mtpc_inputPeerSelf) ? 0 : (0x01 | 0x02); // unread, out
 	h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(peer), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId))));
-	
+
 	h->sendRequestId = MTP::send(MTPmessages_SendMedia(p->input, MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 
 	App::historyRegRandom(randomId, newId);
@@ -2660,7 +2660,7 @@ void HistoryWidget::onPhotoSelect() {
 	}
 
 	QStringList photoExtensions(cPhotoExtensions());
-	QStringList imgExtensions(cImgExtensions());	
+	QStringList imgExtensions(cImgExtensions());
 	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;Photo files (*") + photoExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
 
 	QStringList files;
@@ -2688,7 +2688,7 @@ void HistoryWidget::onDocumentSelect() {
 	}
 
 	QStringList photoExtensions(cPhotoExtensions());
-	QStringList imgExtensions(cImgExtensions());	
+	QStringList imgExtensions(cImgExtensions());
 	QString filter(qsl("All files (*.*);;Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;Photo files (*") + photoExtensions.join(qsl(" *")) + qsl(")"));
 
 	QStringList files;
@@ -2828,7 +2828,7 @@ void HistoryWidget::onPhotoDrop(QDropEvent *e) {
 	if (e->mimeData()->hasImage()) {
 		QImage image = qvariant_cast<QImage>(e->mimeData()->imageData());
 		if (image.isNull()) return;
-		
+
 		uploadImage(image);
 	} else {
 		QStringList files = getMediasFromMime(e->mimeData());

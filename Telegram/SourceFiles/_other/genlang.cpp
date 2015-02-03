@@ -186,7 +186,7 @@ void readKeyValue(const char *&from, const char *end) {
 
 			if (*from == ':') {
 				start = ++from;
-				
+
 				QVector<QString> &counted(keysCounted[varName][tagName]);
 				QByteArray subvarValue;
 				bool foundtag = false;
@@ -647,7 +647,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 					}
 					do {
 						if (key == current) break;
-							
+
 						char ich = i.key().at(current.size());
 						tcpp << tab.repeated(current.size() - 3) << "case '" << ich << "':\n";
 						if (j == e || ich != ((j.key().size() > depth) ? j.key().at(depth) : 0)) {

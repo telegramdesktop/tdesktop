@@ -130,7 +130,7 @@ public:
 	}
 
 protected:
-	
+
 	IntroWidget *intro() {
 		return qobject_cast<IntroWidget*>(parent());
 	}

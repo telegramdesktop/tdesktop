@@ -158,7 +158,7 @@ public slots:
 	void onStart(AudioData *audio);
 	void onLoad(AudioData *audio);
 	void onCancel(AudioData *audio);
-	
+
 private:
 
 	struct Loader;

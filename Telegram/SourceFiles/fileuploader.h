@@ -102,7 +102,7 @@ private:
 	QMap<mtpRequestId, int32> dcMap;
 	uint32 sentSize;
 	uint32 sentSizes[MTPUploadSessionsCount];
-	
+
 	MsgId uploading;
 	Queue queue;
 	Queue uploaded;

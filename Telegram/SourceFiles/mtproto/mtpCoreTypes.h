@@ -156,7 +156,7 @@ typedef QMap<mtpRequestId, mtpRequest> mtpPreRequestMap;
 typedef QMap<mtpMsgId, mtpRequest> mtpRequestMap;
 typedef QMap<mtpMsgId, bool> mtpMsgIdsSet;
 class mtpMsgIdsMap : public QMap<mtpMsgId, bool> {
-public:	
+public:
 	typedef QMap<mtpMsgId, bool> ParentType;
 
 	bool insert(const mtpMsgId &k, bool v) {
@@ -594,7 +594,7 @@ inline bool operator!=(const MTPint256 &a, const MTPint256 &b) {
 class MTPdouble {
 public:
 	float64 v;
-	
+
 	MTPdouble() {
 	}
 	MTPdouble(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_double) {
@@ -701,7 +701,7 @@ public:
 			from += ((l + 1) >> 2) + (((l + 1) & 0x03) ? 1 : 0);
 		}
 		if (from > end) throw mtpErrorInsufficient();
-		
+
 		if (!data) setData(new MTPDstring());
 		MTPDstring &v(_string());
 		v.v.resize(l);
@@ -799,7 +799,7 @@ public:
 private:
 	explicit MTPbool(bool val) : v(val) {
 	}
-	
+
 	friend MTPbool MTP_bool(bool v);
 };
 inline MTPbool MTP_bool(bool v) {

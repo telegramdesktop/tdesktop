@@ -528,7 +528,7 @@ void MediaView::showPhoto(PhotoData *photo) {
 void MediaView::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 	QRect r(e->rect());
-	
+
 	QPainter::CompositionMode m = p.compositionMode();
 	p.setCompositionMode(QPainter::CompositionMode_Source);
 

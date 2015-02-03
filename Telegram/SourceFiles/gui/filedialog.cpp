@@ -132,7 +132,7 @@ bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QS
 	int res = dialog.exec();
 
 	cSetDialogLastPath(dialog.directory().absolutePath());
-	
+
 	if (res == QDialog::Accepted) {
 		if (multipleFiles > 0) {
 			files = dialog.selectedFiles();

@@ -80,7 +80,7 @@ public:
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
 	~HistoryList();
-	
+
 public slots:
 
 	void onUpdateSelected();
@@ -150,7 +150,7 @@ private:
 	bool _touchScroll, _touchSelect, _touchInProgress;
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 	QTimer _touchSelectTimer;
-	
+
 	TouchScrollState _touchScrollState;
 	bool _touchPrevPosValid, _touchWaitingAcceleration;
 	QPoint _touchSpeed;
@@ -330,7 +330,7 @@ public:
 	void noSelectingScroll();
 
 	bool touchScroll(const QPoint &delta);
-    
+
 	QString prepareMessage(QString text);
 
 	uint64 animActiveTime() const;

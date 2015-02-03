@@ -59,7 +59,7 @@ void audioInit() {
 		LOG(("Audio Error: default sound device not present."));
 		return;
 	}
-	
+
 	ALCint attributes[] = { ALC_STEREO_SOURCES, 8, 0 };
 	audioContext = alcCreateContext(audioDevice, attributes);
 	alcMakeContextCurrent(audioContext);
@@ -548,7 +548,7 @@ void VoiceMessagesLoader::onLoad(AudioData *audio) {
 				l = (j = _loaders.insert(audio, new Loader())).value();
 				l->fname = m.fname;
 				l->data = m.data;
-				
+
 				int ret;
 				if (m.data.isEmpty()) {
 					l->file = op_open_file(m.fname.toUtf8().constData(), &ret);

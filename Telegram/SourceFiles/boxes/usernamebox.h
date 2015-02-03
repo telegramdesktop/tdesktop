@@ -47,7 +47,7 @@ public slots:
 
 	void onSave();
 	void onCancel();
-	
+
 	void onCheck();
 	void onChanged();
 

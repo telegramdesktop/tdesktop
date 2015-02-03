@@ -96,7 +96,7 @@ void FileUploader::sendNext() {
 	if (!uploading) {
 		uploading = i.key();
 	} else if (i == queue.end()) {
-		i = queue.begin(); 
+		i = queue.begin();
 		uploading = i.key();
 	}
 	int todc = 0;
@@ -165,7 +165,7 @@ void FileUploader::sendNext() {
 		i->docSentParts++;
 	} else {
 		LocalFileParts::iterator part = i->media.parts.begin();
-	
+
 		mtpRequestId requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(i->media.thumbId), MTP_int(part.key()), MTP_string(part.value())), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::upl[todc]);
 		requestsSent.insert(requestId, part.value());
 		dcMap.insert(requestId, todc);

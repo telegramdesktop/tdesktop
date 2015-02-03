@@ -21,7 +21,7 @@ class mtpPublicRSA {
 public:
 	mtpPublicRSA(const char *key) : data(new mtpPublicRSAInner(PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(key), -1), 0, 0, 0), 0)) {
 		if (!data->prsa) return;
-			
+
 		int32 nBytes = BN_num_bytes(data->prsa->n);
 		int32 eBytes = BN_num_bytes(data->prsa->e);
 		string nStr(nBytes, 0), eStr(eBytes, 0);

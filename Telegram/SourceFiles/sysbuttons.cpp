@@ -70,7 +70,7 @@ void SysBtn::paintEvent(QPaintEvent *e) {
 	}
 	p.fillRect(x, y, _st.img.pxWidth(), _st.img.pxHeight(), c);
 	p.drawPixmap(QPoint(x, y), App::sprite(), _st.img);
-	
+
 	if (!_text.isEmpty()) {
 		p.setFont(st::titleTextButton.font->f);
 		p.setPen(c);

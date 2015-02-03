@@ -22,7 +22,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 namespace {
-	
+
 	MTProtoDCMap gDCs;
 	bool configLoadedOnce = false;
 	int32 mainDC = 2;

@@ -155,7 +155,7 @@ public:
 	void searchReceived(bool fromStart, const MTPmessages_Messages &result, mtpRequestId req);
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
 	bool addNewContact(int32 uid, bool show = true);
-	
+
 	void resizeEvent(QResizeEvent *e);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
@@ -184,7 +184,7 @@ public:
 	DialogsIndexed &contactsList();
 
 	void enableShadow(bool enable = true);
-	
+
 	void searchMessages(const QString &query);
 	void onSearchMore(MsgId minMsgId);
 

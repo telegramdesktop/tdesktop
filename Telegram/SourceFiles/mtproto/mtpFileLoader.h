@@ -61,7 +61,7 @@ private:
 
 	mtpFileLoaderQueue *queue;
 	bool inQueue, complete, triedLocal;
-	
+
 	void cancelRequests();
 
 	typedef QMap<mtpRequestId, int32> Requests;

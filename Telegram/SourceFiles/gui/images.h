@@ -53,7 +53,7 @@ public:
 	}
 
 	bool isNull() const;
-	
+
 	void forget() const;
 	void restore() const;
 
@@ -92,7 +92,7 @@ public:
 	LocalImage(const QString &file, QByteArray format = QByteArray());
 	LocalImage(const QByteArray &filecontent, QByteArray format = QByteArray());
 	LocalImage(const QPixmap &pixmap, QByteArray format = QByteArray());
-	
+
 	int32 width() const;
 	int32 height() const;
 
@@ -104,7 +104,7 @@ protected:
 	void doForget() const {
 		data = QPixmap();
 	}
-	void doRestore() const { 
+	void doRestore() const {
 		QBuffer buffer(&saved);
 		QImageReader reader(&buffer, format);
 		data = QPixmap::fromImageReader(&reader, Qt::ColorOnly);
@@ -142,7 +142,7 @@ public:
 
 	StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, int32 size = 0);
 	StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, QByteArray &bytes);
-	
+
 	int32 width() const;
 	int32 height() const;
 	bool loaded() const;
@@ -175,7 +175,7 @@ protected:
 	void doForget() const {
 		data = QPixmap();
 	}
-	void doRestore() const { 
+	void doRestore() const {
 		QBuffer buffer(&saved);
 		QImageReader reader(&buffer, format);
 		data = QPixmap::fromImageReader(&reader, Qt::ColorOnly);

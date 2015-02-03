@@ -27,7 +27,7 @@ _done(this, lang(lng_about_done), st::aboutCloseButton),
 _version(this, qsl("[a href=\"https://desktop.telegram.org/#changelog\"]") + textClean(lng_about_version(lt_version, QString::fromWCharArray(AppVersionStr))) + qsl("[/a]"), st::aboutVersion, st::defaultTextStyle),
 _text(this, lang(lng_about_text), st::aboutLabel, st::aboutTextStyle),
 _hiding(false), a_opacity(0, 1) {
-	
+
 	_width = st::aboutWidth;
 	_height = st::aboutHeight;
 

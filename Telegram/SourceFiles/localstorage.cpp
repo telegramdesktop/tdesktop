@@ -276,7 +276,7 @@ namespace {
 
 	bool readFile(FileReadDescriptor &result, const QString &name, bool safe = true) {
 		if (!_working()) return false;
-		
+
 		// detect order of read attempts
 		QString toTry[2];
 		toTry[0] = _basePath + name + '0';
@@ -402,7 +402,7 @@ namespace {
 
 		return true;
 	}
-	
+
 	bool readEncryptedFile(FileReadDescriptor &result, const QString &name, bool safe = true) {
 		if (!readFile(result, name, safe)) {
 			return false;
@@ -455,7 +455,7 @@ namespace {
 	typedef QMap<QString, FileLocationPair> FileLocationPairs;
 	FileLocationPairs _fileLocationPairs;
 	FileKey _locationsKey = 0;
-	
+
 	FileKey _recentStickersKey = 0;
 
 	typedef QPair<FileKey, qint32> FileDesc; // file, size
@@ -473,7 +473,7 @@ namespace {
 	};
 
 	void _writeMap(WriteMapWhen when = WriteMapSoon);
-		
+
 	void _writeLocations(WriteMapWhen when = WriteMapSoon) {
 		if (when != WriteMapNow) {
 			_manager->writeLocations(when == WriteMapFast);
@@ -1210,7 +1210,7 @@ namespace Local {
 
 	void writeRecentStickers() {
 		if (!_working()) return;
-			
+
 		const RecentStickerPack &recent(cRecentStickers());
 		if (recent.isEmpty()) {
 			if (_recentStickersKey) {

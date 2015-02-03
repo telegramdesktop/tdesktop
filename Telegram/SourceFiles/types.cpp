@@ -94,7 +94,7 @@ namespace {
 		clock_gettime(CLOCK_REALTIME, &ts);
 		_msgIdMsStart = 1000000000 * uint64(ts.tv_sec) + uint64(ts.tv_nsec);
 #endif
-        
+
 		uint32 msgIdRand;
 		memset_rand(&msgIdRand, sizeof(uint32));
 		_msgIdStart = (((uint64)((uint32)unixtime()) << 32) | (uint64)msgIdRand);
