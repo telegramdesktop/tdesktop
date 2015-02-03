@@ -156,7 +156,7 @@ namespace App {
 	PeerId peerFromUser(int32 user_id) {
 		return uint64(uint32(user_id));
 	}
-	
+
 	MTPpeer peerToMTP(const PeerId &peer_id) {
 		return (peer_id & 0x100000000L) ? MTP_peerChat(MTP_int(int32(peer_id & 0xFFFFFFFFL))) : MTP_peerUser(MTP_int(int32(peer_id & 0xFFFFFFFFL)));
 	}
@@ -613,7 +613,7 @@ namespace App {
 				const string &s(d.vbytes.c_string().v);
 				QByteArray bytes(s.data(), s.size());
 				return ImagePtr(d.vw.v, d.vh.v, 0, 0, 0, 0, bytes);
-			}				
+			}
 		} break;
 		}
 		return ImagePtr();
@@ -627,7 +627,7 @@ namespace App {
 			}
 		}
 	}
-	
+
 	void feedWereDeleted(const QVector<MTPint> &msgsIds) {
 		bool resized = false;
 		for (QVector<MTPint>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
@@ -727,7 +727,7 @@ namespace App {
 			}
 		}
 	}
-	
+
 	PhotoData *feedPhoto(const MTPPhoto &photo, PhotoData *convert) {
 		switch (photo.type()) {
 		case mtpc_photo: {
@@ -796,7 +796,7 @@ namespace App {
 				const string &s(i->c_photoSize().vtype.c_string().v);
 				if (s.size()) size = s[0];
 			} break;
-				
+
 			case mtpc_photoCachedSize: {
 				const string &s(i->c_photoCachedSize().vtype.c_string().v);
 				if (s.size()) size = s[0];
@@ -837,7 +837,7 @@ namespace App {
 		}
 		return App::photo(photo.vid.v, convert);
 	}
-	
+
 	VideoData *feedVideo(const MTPDvideo &video, VideoData *convert) {
 		return App::video(video.vid.v, convert, video.vaccess_hash.v, video.vuser_id.v, video.vdate.v, video.vduration.v, video.vw.v, video.vh.v, App::image(video.vthumb), video.vdc_id.v, video.vsize.v);
 	}
@@ -1177,7 +1177,7 @@ namespace App {
 	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo) {
 		if (photo.type() == mtpc_userProfilePhoto) {
 			const MTPDuserProfilePhoto &uphoto(photo.c_userProfilePhoto());
-				
+
 			QVector<MTPPhotoSize> photoSizes;
 			photoSizes.push_back(MTP_photoSize(MTP_string("a"), uphoto.vphoto_small, MTP_int(160), MTP_int(160), MTP_int(0)));
 			photoSizes.push_back(MTP_photoSize(MTP_string("c"), uphoto.vphoto_big, MTP_int(640), MTP_int(640), MTP_int(0)));
@@ -1203,7 +1203,7 @@ namespace App {
 		}
 		return i.value();
 	}
-	
+
 	History *historyLoaded(const PeerId &peer) {
 		Histories::const_iterator i = ::histories.constFind(peer);
 		return (i == ::histories.cend()) ? 0 : i.value();
@@ -1370,7 +1370,7 @@ namespace App {
 		}
 		initEmoji();
 	}
-	
+
 	void deinitMedia(bool completely) {
 		textlnkOver(TextLinkPtr());
 		textlnkDown(TextLinkPtr());
@@ -1410,7 +1410,7 @@ namespace App {
 	HistoryItem *pressedItem() {
 		return ::pressedItem;
 	}
-	
+
 	void hoveredLinkItem(HistoryItem *item) {
 		::hoveredLinkItem = item;
 	}
@@ -1426,7 +1426,7 @@ namespace App {
 	HistoryItem *pressedLinkItem() {
 		return ::pressedLinkItem;
 	}
-	
+
 	void contextItem(HistoryItem *item) {
 		::contextItem = item;
 	}
@@ -2120,7 +2120,7 @@ namespace App {
 		} else {
 			socket.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
 		}
-	}	
+	}
 
 	void searchByHashtag(const QString &tag) {
 		if (App::main()) {

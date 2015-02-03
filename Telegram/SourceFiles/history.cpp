@@ -188,7 +188,7 @@ namespace {
 
 			frames.reserve(framesCount);
 			delays.reserve(framesCount);
-			
+
 			int32 sizeLeft = MediaViewImageSizeLimit, delay = 0;
 			for (bool read = reader->read(&img); read; read = reader->read(&img)) {
 				sizeLeft -= w * h * 4;
@@ -359,7 +359,7 @@ void PeerData::fillNames() {
 
 void UserData::setName(const QString &first, const QString &last, const QString &phoneName, const QString &usern) {
 	bool updName = !first.isEmpty() || !last.isEmpty(), updUsername = (username != usern);
-	
+
 	if (updName && first.trimmed().isEmpty()) {
 		firstName = last;
 		lastName = QString();
@@ -474,7 +474,7 @@ void VideoOpenLink::onClick(Qt::MouseButton button) const {
         psOpenFile(already);
 		return;
 	}
-	
+
 	if (data->status != FileReady) return;
 
 	QString filename = saveFileName(lang(lng_save_video), qsl("MOV Video (*.mov);;All files (*.*)"), qsl("video"), qsl(".mov"), false);
@@ -565,7 +565,7 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 		}
 		return;
 	}
-	
+
 	if (data->status != FileReady) return;
 
 	QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), mp3 ? qsl(".mp3") : qsl(".ogg"), false);
@@ -656,7 +656,7 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 		}
 		return;
 	}
-	
+
 	if (data->status != FileReady) return;
 
 	QString name = data->name, filter;
@@ -721,7 +721,7 @@ void DocumentSaveLink::doSave(bool forceSavingAs) const {
 }
 
 void DocumentSaveLink::onClick(Qt::MouseButton button) const {
-	if (button != Qt::LeftButton) return;	
+	if (button != Qt::LeftButton) return;
 	doSave();
 }
 
@@ -792,7 +792,7 @@ MsgId clientMsgId() {
 void DialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
 	QRect fullRect(0, 0, w, st::dlgHeight);
 	p.fillRect(fullRect, (act ? st::dlgActiveBG : (sel ? st::dlgHoverBG : st::dlgBG))->b);
-	
+
 	p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, history->peer->photo->pix(st::dlgPhotoSize));
 
 	int32 nameleft = st::dlgPaddingHor + st::dlgPhotoSize + st::dlgPhotoPadding;
@@ -2293,7 +2293,7 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		for (int32 i = 0; i < cnt; ++i) {
 			t -= delta;
 			while (t < 0) t += period;
-				
+
 			float64 alpha = (t >= st::photoLoaderDuration1 + st::photoLoaderDuration2) ? 0 : ((t > st::photoLoaderDuration1 ? ((st::photoLoaderDuration1 + st::photoLoaderDuration2 - t) / st::photoLoaderDuration2) : (t / st::photoLoaderDuration1)));
 			c.setAlphaF(st::photoLoaderAlphaMin + alpha * (1 - st::photoLoaderAlphaMin));
 			b.setColor(c);
@@ -2622,10 +2622,10 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 
 		int32 btnw = _buttonWidth, btnh = st::mediaSaveButton.height, btnx = width - _buttonWidth, btny = (_height - btnh) / 2;
 		p.fillRect(QRect(btnx, btny, btnw, btnh), (selected ? st::msgInSelectBG : (hovered ? st::mediaSaveButton.overBgColor : st::mediaSaveButton.bgColor))->b);
-		
+
 		style::color shadow(selected ? (out ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out ? st::msgOutShadow : st::msgInShadow));
 		p.fillRect(btnx, btny + btnh, btnw, st::msgShadow, shadow->b);
-		
+
 		p.setPen((hovered ? st::mediaSaveButton.overColor : st::mediaSaveButton.color)->p);
 		p.setFont(st::mediaSaveButton.font->f);
 		QString btnText(lang(data->loader ? lng_media_cancel : (already ? lng_media_open_with : lng_media_download)));
@@ -3522,7 +3522,7 @@ void ImageLinkManager::onFinished(QNetworkReply *reply) {
 						for (int32 i = 0, l = thumbnails.size(); i < l; ++i) {
 							QJsonValue thumbnailVal = thumbnails.at(i);
 							if (!thumbnailVal.isObject()) continue;
-							
+
 							QJsonObject thumbnail = thumbnailVal.toObject();
 							QJsonObject::const_iterator urlIt = thumbnail.constFind(qsl("url"));
 							if (urlIt == thumbnail.constEnd() || !urlIt.value().isString()) continue;
@@ -3590,7 +3590,7 @@ void ImageLinkManager::onFinished(QNetworkReply *reply) {
 				imageLoadings.insert(manager->get(QNetworkRequest(thumb)), d);
 			}
 		} break;
-		
+
 		case VimeoLink: {
 			QString thumb;
 			int32 seconds = 0;

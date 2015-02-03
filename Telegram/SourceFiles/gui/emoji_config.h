@@ -50,7 +50,7 @@ inline QString replaceEmojis(const QString &text) {
 		if (canFindEmoji) {
 			findEmoji(ch, e, newEmojiEnd, emojiCode);
 		}
-		
+
 		while (currentLink < lnkCount && ch >= lnkRanges[currentLink].from + lnkRanges[currentLink].len) {
 			++currentLink;
 		}

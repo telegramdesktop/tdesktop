@@ -25,7 +25,7 @@ class MTProtoSession;
 
 class MTPSessionData {
 public:
-	
+
 	MTPSessionData(MTProtoSession *creator)
 	: _session(0), _salt(0)
 	, _messagesSent(0), _fakeRequestId(-2000000000)
@@ -271,10 +271,10 @@ public slots:
 	void sendMsgsStateInfo(quint64 msgId, QByteArray data);
 
 private:
-	
+
 	typedef QList<MTProtoConnection*> MTProtoConnections;
 	MTProtoConnections connections;
-	
+
 	MTPSessionData data;
 
 	int32 dcId;

@@ -41,7 +41,7 @@ public:
 
 	PeerData *peer() const;
 	bool allMediaShown() const;
-	
+
 	void gotFullUser(const MTPUserFull &user);
 	void gotFullChat(const MTPmessages_ChatFull &res);
 
@@ -57,7 +57,7 @@ public:
 	void mediaOverviewUpdated(PeerData *peer);
 
 	~ProfileInner();
-	
+
 public slots:
 
 	void peerUpdated(PeerData *data);

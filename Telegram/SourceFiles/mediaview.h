@@ -25,7 +25,7 @@ public:
 	MediaView();
 
 	void paintEvent(QPaintEvent *e);
-	
+
 	void keyPressEvent(QKeyEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);

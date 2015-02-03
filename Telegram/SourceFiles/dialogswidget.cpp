@@ -51,7 +51,7 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	bool trivial = (rect() == r);
 
-	QPainter p(this); 
+	QPainter p(this);
 	if (!trivial) {
 		p.setClipRect(r);
 	}
@@ -71,7 +71,7 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
 		if (filterResults.isEmpty()) {
-			// .. paint no dialogs 
+			// .. paint no dialogs
 		} else {
 			int32 from = r.top() / int32(st::dlgHeight);
 			if (from < 0) {
@@ -98,7 +98,7 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 			p.setPen(st::searchedBarColor->p);
 			p.drawText(QRect(0, 0, width(), st::searchedBarHeight), lang(lng_search_global_results), style::al_center);
 			p.translate(0, st::searchedBarHeight);
-		
+
 			int32 skip = filterResults.size() * st::dlgHeight + st::searchedBarHeight;
 			int32 from = (r.top() - skip) / int32(st::dlgHeight);
 			if (from < 0) {
@@ -167,7 +167,7 @@ void DialogsListWidget::peopleResultPaint(UserData *user, QPainter &p, int32 w, 
 		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgLeft, rectForName.top() + st::dlgChatImgTop), App::sprite(), (act ? st::dlgActiveChatImg : st::dlgChatImg));
 		rectForName.setLeft(rectForName.left() + st::dlgChatImgSkip);
 	}
-	
+
 	QRect tr(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth, st::dlgFont->height);
 	p.setFont(st::dlgHistFont->f);
 	if (!act && user->username.toLower().startsWith(peopleQuery)) {
@@ -556,7 +556,7 @@ DialogsListWidget::~DialogsListWidget() {
 	clearSearchResults();
 }
 
-void DialogsListWidget::clearSearchResults(bool clearPeople) {	
+void DialogsListWidget::clearSearchResults(bool clearPeople) {
 	if (clearPeople) peopleResults.clear();
 	if (!searchResults.isEmpty()) {
 		for (SearchResults::const_iterator i = searchResults.cbegin(), e = searchResults.cend(); i != e; ++i) {
@@ -918,7 +918,7 @@ void DialogsListWidget::loadPeerPhotos(int32 yFrom) {
 		if (from < filterResults.size()) {
 			int32 to = (yTo / int32(st::dlgHeight)) + 1, w = width();
 			if (to > filterResults.size()) to = filterResults.size();
-			
+
 			for (; from < to; ++from) {
 				filterResults[from]->history->peer->photo->load();
 			}

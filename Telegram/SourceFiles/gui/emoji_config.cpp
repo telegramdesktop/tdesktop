@@ -3,7 +3,7 @@ Created from emoji config by '/MetaEmoji' project
 
 WARNING! All changes made in this file will be lost!
 
-This file is part of Telegram Desktop, 
+This file is part of Telegram Desktop,
 the official desktop version of Telegram messaging app, see https://telegram.org
 
 Telegram Desktop is free software: you can redistribute it and/or modify

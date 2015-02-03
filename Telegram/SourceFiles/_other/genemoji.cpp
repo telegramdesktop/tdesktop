@@ -1367,7 +1367,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 					tcpp << tab.repeated(1 + chars.size()) << "}\n";
 				}
 			}
-					
+
 			tcpp << "\t}\n";
 			tcpp << "}\n\n";
 

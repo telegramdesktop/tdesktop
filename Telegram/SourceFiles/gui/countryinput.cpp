@@ -223,7 +223,7 @@ CountryList::CountryList(QWidget *parent, const style::countryList &st) : QWidge
 		} else {
 			countriesAll.push_back(ins);
 		}
-	
+
 		QStringList namesList = QString::fromUtf8(ins->name).toLower().split(QRegularExpression("[\\s\\-]"), QString::SkipEmptyParts);
 		CountryNames &names(countriesNames[i]);
 		int l = namesList.size();
@@ -252,7 +252,7 @@ void CountryList::resetList() {
 	if (lastFilter.length()) {
 		QChar first = lastFilter[0].toLower();
 		CountriesIds &ids(countriesByLetter[first]);
-		
+
 		QStringList filterList = lastFilter.split(QRegularExpression("[\\s\\-]"), QString::SkipEmptyParts);
 		int l = filterList.size();
 
@@ -420,7 +420,7 @@ CountrySelect::CountrySelect() : QWidget(App::wnd()),
     _innerLeft(0), _innerTop(0), _innerWidth(0), _innerHeight(0),
 	a_alpha(0), a_bgAlpha(0), a_coord(st::countriesSlideShift), _shadow(st::boxShadow) {
 	setGeometry(App::wnd()->rect());
-	
+
 	App::wnd()->topWidget(this);
 
 	connect(App::wnd(), SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));

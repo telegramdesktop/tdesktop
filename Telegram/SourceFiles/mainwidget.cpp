@@ -768,7 +768,7 @@ void MainWidget::sendMessage(History *hist, const QString &text) {
 
 void MainWidget::readServerHistory(History *hist, bool force) {
 	if (!hist || (!force && (!hist->unreadCount || !hist->readyForWork()))) return;
-    
+
     ReadRequests::const_iterator i = _readRequests.constFind(hist->peer);
     if (i == _readRequests.cend()) {
         hist->inboxRead(0);
@@ -1036,7 +1036,7 @@ void MainWidget::photosLoaded(History *h, const MTPmessages_Messages &msgs, mtpR
 void MainWidget::partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result) {
 	const MTPDmessages_affectedHistory &d(result.c_messages_affectedHistory());
 	App::main()->updUpdated(d.vpts.v, d.vseq.v);
-    
+
 	int32 offset = d.voffset.v;
 	if (!MTP::authedId() || offset <= 0) {
         _readRequests.remove(peer);
@@ -2842,7 +2842,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateNewAuthorization: {
 		const MTPDupdateNewAuthorization &d(update.c_updateNewAuthorization());
 		QDateTime datetime = date(d.vdate);
-		
+
 		QString name = App::self()->firstName;
 		QString day = langDayOfWeekFull(datetime.date()), date = langDayOfMonth(datetime.date()), time = datetime.time().toString(qsl("hh:mm"));
 		QString device = qs(d.vdevice), location = qs(d.vlocation);

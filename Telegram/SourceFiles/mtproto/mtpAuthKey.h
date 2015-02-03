@@ -106,7 +106,7 @@ inline void aesEncrypt(const void *src, void *dst, uint32 len, void *key, void *
 	uchar aes_key[32], aes_iv[32];
 	memcpy(aes_key, key, 32);
 	memcpy(aes_iv, iv, 32);
-	
+
 	AES_KEY aes;
 	AES_set_encrypt_key(aes_key, 256, &aes);
 	AES_ige_encrypt((const uchar*)src, (uchar*)dst, len, &aes, aes_iv, AES_ENCRYPT);
@@ -130,7 +130,7 @@ inline void aesDecrypt(const void *src, void *dst, uint32 len, void *key, void *
 	uchar aes_key[32], aes_iv[32];
 	memcpy(aes_key, key, 32);
 	memcpy(aes_iv, iv, 32);
-	
+
 	AES_KEY aes;
 	AES_set_decrypt_key(aes_key, 256, &aes);
 	AES_ige_encrypt((const uchar*)src, (uchar*)dst, len, &aes, aes_iv, AES_DECRYPT);

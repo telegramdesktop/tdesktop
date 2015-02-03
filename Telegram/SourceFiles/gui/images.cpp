@@ -301,7 +301,7 @@ yi += stride;
 
 #undef update
 			}
-			
+
 			delete[] rgb;
 		}
 	}

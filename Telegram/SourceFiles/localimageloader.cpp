@@ -175,7 +175,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 				full.save(&jpegBuffer, "JPG", 77);
 			}
 			if (!filesize) filesize = jpeg.size();
-		
+
 			photo = MTP_photo(MTP_long(id), MTP_long(0), MTP_int(user), MTP_int(unixtime()), MTP_string(""), MTP_geoPointEmpty(), MTP_vector<MTPPhotoSize>(photoSizes));
 
 			thumbId = id;

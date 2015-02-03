@@ -79,7 +79,7 @@ TitleWidget::TitleWidget(Window *window)
 	connect(&_about, SIGNAL(clicked()), this, SLOT(onAbout()));
 	connect(wnd->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(stateChanged(Qt::WindowState)));
 	connect(App::app(), SIGNAL(updateReady()), this, SLOT(showUpdateBtn()));
-        
+
     if (cPlatform() != dbipWindows) {
         _minimize.hide();
         _maximize.hide();
@@ -162,10 +162,10 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
     if (cPlatform() == dbipWindows) {
         p.setX(p.x() - _close.width());
         _close.move(p);
-        
+
         p.setX(p.x() - _maximize.width());
         _restore.move(p); _maximize.move(p);
-        
+
         p.setX(p.x() - _minimize.width());
         _minimize.move(p);
     }
@@ -236,7 +236,7 @@ void TitleWidget::updateCounter() {
 
 	int32 counter = App::histories().unreadFull;
 	style::color bg = (App::histories().unreadMuted < counter) ? st::counterBG : st::counterMuteBG;
-	
+
 	if (counter > 0) {
 		int32 size = cRetina() ? -32 : -16;
 		switch (cScale()) {

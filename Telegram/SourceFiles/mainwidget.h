@@ -81,7 +81,7 @@ private:
 	uint32 _selCount;
 	QString _selStr;
 	int32 _selStrLeft, _selStrWidth;
-    
+
     bool _animating;
 
 	FlatButton _clearSelection;
@@ -286,10 +286,10 @@ public:
 	void clearSelectedItems();
 
 	DialogsIndexed &contactsList();
-    
+
     void sendMessage(History *history, const QString &text);
 	void sendPreparedText(History *hist, const QString &text);
-    
+
     void readServerHistory(History *history, bool force = true);
 
 	uint64 animActiveTime() const;
@@ -315,7 +315,7 @@ public:
 	bool serviceHistoryFail(const RPCError &error);
 
 	bool isIdle() const;
-	
+
 	~MainWidget();
 
 signals:
@@ -435,7 +435,7 @@ private:
 
 	QSet<PeerData*> updateNotifySettingPeers;
 	SingleTimer updateNotifySettingTimer;
-    
+
     typedef QMap<PeerData*, mtpRequestId> ReadRequests;
     ReadRequests _readRequests;
 

@@ -42,7 +42,7 @@ namespace {
 		QThread *thread = QThread::currentThread();
 		MTPThread *mtpThread = dynamic_cast<MTPThread*>(thread);
 		uint32 threadId = mtpThread ? mtpThread->getThreadId() : 0;
-		
+
 		return QString("[%1 %2-%3]").arg(tm.toString("hh:mm:ss.zzz")).arg(QString("%1").arg(threadId, 2, 10, zero)).arg(++logEntry, 7, 10, zero);
 	}
 }

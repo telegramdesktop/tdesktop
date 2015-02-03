@@ -36,16 +36,16 @@ using std::exception;
 
 class Exception : public exception {
 public:
-    
+
     Exception(const QString &msg) : _msg(msg.toUtf8()) {
 	}
-    
+
     virtual const char *what() const throw() {
         return _msg.constData();
     }
     virtual ~Exception() throw() {
     }
-    
+
 private:
 	QByteArray _msg;
 };

@@ -90,7 +90,7 @@ namespace MTP {
 	inline mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), int32 dc = 0, uint64 msCanWait = 0, mtpRequestId after = 0) {
 		MTProtoSessionPtr session = _mtp_internal::getSession(dc);
 		if (!session) return 0;
-		
+
 		return session->send(request, callbacks, msCanWait, true, !dc, after);
 	}
 	template <typename TRequest>
@@ -100,7 +100,7 @@ namespace MTP {
 	void cancel(mtpRequestId req);
 	void killSession(int32 dc);
 	void stopSession(int32 dc);
-	
+
 	enum {
 		RequestSent = 0,
 		RequestConnecting = 1,

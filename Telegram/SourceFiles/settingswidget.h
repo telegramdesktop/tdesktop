@@ -272,7 +272,7 @@ public:
 public slots:
 
 	void onParentResize(const QSize &newSize);
-	
+
 private:
 
 	void showAll();

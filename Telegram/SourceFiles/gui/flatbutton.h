@@ -100,7 +100,7 @@ public:
 	void setOpacity(float64 o);
 
 	void setText(const QString &text);
-	
+
 public slots:
 
 	void onStateChange(int oldState, ButtonStateChangeSource source);

@@ -55,7 +55,7 @@ namespace Local {
 
 	void start();
 	void stop();
-	
+
 	enum ClearManagerTask {
 		ClearManagerAll = 0xFFFF,
 		ClearManagerDownloads = 0x01,

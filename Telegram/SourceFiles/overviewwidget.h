@@ -116,7 +116,7 @@ private:
 	PeerData *_peer;
 	MediaOverviewType _type;
 	History *_hist;
-	
+
 	// photos
 	int32 _photosInRow, _photosToAdd, _vsize;
 	typedef struct {
@@ -222,7 +222,7 @@ public:
 	void noSelectingScroll();
 
 	bool touchScroll(const QPoint &delta);
-	
+
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete);
 
 	~OverviewWidget();

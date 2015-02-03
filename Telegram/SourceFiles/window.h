@@ -160,7 +160,7 @@ public:
 
 	QRect clientRect() const;
 	QRect photoRect() const;
-	
+
 	IntroWidget *introWidget();
 	MainWidget *mainWidget();
 	SettingsWidget *settingsWidget();
@@ -231,10 +231,10 @@ public slots:
 
 	void updateIsActive(int timeout = 0);
 	void stateChanged(Qt::WindowState state);
-	
+
 	void checkHistoryActivation();
 	void updateCounter();
-    
+
 	void showSettings();
 	void hideSettings(bool fast = false);
 	void layerHidden();

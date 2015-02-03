@@ -1,17 +1,17 @@
 /*
 This file is part of Telegram Desktop,
 the official desktop version of Telegram messaging app, see https://telegram.org
- 
+
 Telegram Desktop is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
- 
+
 It is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
- 
+
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
@@ -68,7 +68,7 @@ void MacPrivate::notifyClicked(unsigned long long peer) {
 
 void MacPrivate::notifyReplied(unsigned long long peer, const char *str) {
     History *history = App::history(PeerId(peer));
-    
+
     App::main()->sendMessage(history, QString::fromUtf8(str));
 }
 
@@ -565,7 +565,7 @@ void PsUpdateDownloader::initOutput() {
 						if (outputFile.open(QIODevice::WriteOnly)) {
 							outputFile.write(goodData);
 							outputFile.close();
-							
+
 							QMutexLocker lock(&mutex);
 							already = goodSize;
 						}
@@ -588,7 +588,7 @@ void PsUpdateDownloader::start() {
 
 void PsUpdateDownloader::sendRequest() {
 	QNetworkRequest req(updateUrl);
-	QByteArray rangeHeaderValue = "bytes=" + QByteArray::number(already) + "-";// + QByteArray::number(already + cUpdateChunk() - 1); 
+	QByteArray rangeHeaderValue = "bytes=" + QByteArray::number(already) + "-";// + QByteArray::number(already + cUpdateChunk() - 1);
 	req.setRawHeader("Range", rangeHeaderValue);
 	req.setAttribute(QNetworkRequest::HttpPipeliningAllowedAttribute, true);
 	if (reply) reply->deleteLater();
@@ -890,7 +890,7 @@ void PsUpdateDownloader::unpackUpdate() {
 		VerChar versionStr[32];
 		memcpy(versionStr, versionString.c_str(), versionLen);
 
-		QFile fVersion(tempDirPath + qsl("/tdata/version"));		
+		QFile fVersion(tempDirPath + qsl("/tdata/version"));
 		if (!fVersion.open(QIODevice::WriteOnly)) {
 			LOG(("Update Error: cant write version file '%1'").arg(tempDirPath + qsl("/version")));
 			return fatalFail();
@@ -900,7 +900,7 @@ void PsUpdateDownloader::unpackUpdate() {
 		fVersion.write((const char*)&versionStr[0], versionLen);
 		fVersion.close();
 	}
-	
+
 	if (!tempDir.rename(tempDir.absolutePath(), readyDir.absolutePath())) {
 		LOG(("Update Error: cant rename temp dir '%1' to ready dir '%2'").arg(tempDir.absolutePath()).arg(readyDir.absolutePath()));
 		return fatalFail();

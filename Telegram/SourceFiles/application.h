@@ -35,7 +35,7 @@ public:
 
 	Application(int &argc, char **argv);
 	~Application();
-	
+
 	static Application *app();
 	static Window *wnd();
 	static QString language();
