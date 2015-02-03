@@ -718,11 +718,31 @@ void MainWidget::onCancelResend() {
 
 void MainWidget::onCacheBackground() {
 	const QPixmap &bg(*cChatBackground());
-	QRect to, from;
-	backgroundParams(_willCacheFor, to, from);
-	_cachedX = to.x();
-	_cachedY = to.y();
-	_cachedBackground = QPixmap::fromImage(bg.toImage().copy(from).scaled(to.width(), to.height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+	if (cTileBackground()) {
+		QImage result(_willCacheFor.width() * cIntRetinaFactor(), _willCacheFor.height() * cIntRetinaFactor(), QImage::Format_RGB32);
+		result.setDevicePixelRatio(2);
+		{
+			QPainter p(&result);
+			int left = 0, top = 0, right = _willCacheFor.width(), bottom = _willCacheFor.height();
+			float64 w = bg.width() / cRetinaFactor(), h = bg.height() / cRetinaFactor();
+			int sx = 0, sy = 0, cx = qCeil(_willCacheFor.width() / w), cy = qCeil(_willCacheFor.height() / h);
+			for (int i = sx; i < cx; ++i) {
+				for (int j = sy; j < cy; ++j) {
+					p.drawPixmap(QPointF(i * w, j * h), bg);
+				}
+			}
+		}
+		_cachedX = 0;
+		_cachedY = 0;
+		_cachedBackground = QPixmap::fromImage(result);
+	} else {
+		QRect to, from;
+		backgroundParams(_willCacheFor, to, from);
+		_cachedX = to.x();
+		_cachedY = to.y();
+		_cachedBackground = QPixmap::fromImage(bg.toImage().copy(from).scaled(to.width() * cIntRetinaFactor(), to.height() * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+		_cachedBackground.setDevicePixelRatio(cRetinaFactor());
+	}
 	_cachedFor = _willCacheFor;
 }
 

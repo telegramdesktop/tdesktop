@@ -127,6 +127,8 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
         cSetRetina(true);
         cSetRetinaFactor(devicePixelRatio());
         cSetIntRetinaFactor(int32(cRetinaFactor()));
+		cSetConfigScale(dbisOne);
+		cSetRealScale(dbisOne);
     }
 
 	if (cLang() < languageTest) {
