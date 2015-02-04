@@ -85,6 +85,7 @@ public:
 
 	void updateChatBackground();
 	void needBackgroundUpdate(bool tile);
+	void enableDisplayNotify(bool enable);
 
 public slots:
 
@@ -317,6 +318,8 @@ public:
 
 	void updateOnlineDisplay();
 	void updateConnectionType();
+
+	void updateDisplayNotify();
 
 	void rpcInvalidate();
 	void usernameChanged();
