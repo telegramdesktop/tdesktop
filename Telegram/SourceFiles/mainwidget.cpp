@@ -720,7 +720,7 @@ void MainWidget::onCacheBackground() {
 	const QPixmap &bg(*cChatBackground());
 	if (cTileBackground()) {
 		QImage result(_willCacheFor.width() * cIntRetinaFactor(), _willCacheFor.height() * cIntRetinaFactor(), QImage::Format_RGB32);
-		result.setDevicePixelRatio(2);
+        result.setDevicePixelRatio(cRetinaFactor());
 		{
 			QPainter p(&result);
 			int left = 0, top = 0, right = _willCacheFor.width(), bottom = _willCacheFor.height();

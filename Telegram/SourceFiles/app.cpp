@@ -2272,7 +2272,7 @@ namespace App {
 		componentsScroll[maxtomin[1]] = qMin(uint64(float64(componentsScroll[maxtomin[1]]) * maxScroll / float64(componentsScroll[maxtomin[0]])), 0xFFULL);
 		componentsScroll[maxtomin[0]] = qMin(maxScroll, 0xFFULL);
 
-		if (max > qRound(0.2 * 0xFF)) { // brightness greater than 20%
+        if (max > uint64(qRound(0.2 * 0xFF))) { // brightness greater than 20%
 			max -= qRound(0.2 * 0xFF);
 		} else {
 			max = 0;

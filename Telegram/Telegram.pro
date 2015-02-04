@@ -137,6 +137,7 @@ SOURCES += \
     ./SourceFiles/boxes/aboutbox.cpp \
     ./SourceFiles/boxes/addcontactbox.cpp \
     ./SourceFiles/boxes/addparticipantbox.cpp \
+    ./SourceFiles/boxes/backgroundbox.cpp \
     ./SourceFiles/boxes/confirmbox.cpp \
     ./SourceFiles/boxes/connectionbox.cpp \
     ./SourceFiles/boxes/contactsbox.cpp \
@@ -221,6 +222,7 @@ HEADERS += \
     ./SourceFiles/boxes/aboutbox.h \
     ./SourceFiles/boxes/addcontactbox.h \
     ./SourceFiles/boxes/addparticipantbox.h \
+    ./SourceFiles/boxes/backgroundbox.h \
     ./SourceFiles/boxes/confirmbox.h \
     ./SourceFiles/boxes/connectionbox.h \
     ./SourceFiles/boxes/contactsbox.h \
