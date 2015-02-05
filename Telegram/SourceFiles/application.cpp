@@ -527,7 +527,10 @@ void Application::startUpdateCheck(bool forceWait) {
     if (cManyInstance() && !cDebug()) return; // only main instance is updating
 
 	if (sendRequest) {
-		QNetworkRequest checkVersion(cUpdateURL());
+		QUrl url(cUpdateURL());
+		if (DevChannel) url.setQuery("dev=1");
+		QString u = url.toString();
+		QNetworkRequest checkVersion(url);
 		if (updateReply) updateReply->deleteLater();
 
 		App::setProxySettings(updateManager);

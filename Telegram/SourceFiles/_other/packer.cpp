@@ -32,6 +32,8 @@ Q_IMPORT_PLUGIN(QWbmpPlugin)
 Q_IMPORT_PLUGIN(QWebpPlugin)
 #endif
 
+bool DevChannel = false;
+
 const char *publicKey = "\
 -----BEGIN RSA PUBLIC KEY-----\n\
 MIGJAoGBAMA4ViQrjkPZ9xj0lrer3r23JvxOnrtE8nI69XLGSr+sRERz9YnUptnU\n\
@@ -40,8 +42,17 @@ BZpkIfKaRcl6XzNJiN28cVwO1Ui5JSa814UAiDHzWUqCaXUiUEQ6NmNTneiGx2sQ\n\
 -----END RSA PUBLIC KEY-----\
 ";
 
+const char *publicDevKey = "\
+-----BEGIN RSA PUBLIC KEY-----\n\
+MIGJAoGBALWu9GGs0HED7KG7BM73CFZ6o0xufKBRQsdnq3lwA8nFQEvmdu+g/I1j\n\
+0LQ+0IQO7GW4jAgzF/4+soPDb6uHQeNFrlVx1JS9DZGhhjZ5rf65yg11nTCIHZCG\n\
+w/CVnbwQOw0g5GBwwFV3r0uTTvy44xx8XXxk+Qknu4eBCsmrAFNnAgMBAAE=\n\
+-----END RSA PUBLIC KEY-----\
+";
+
 extern const char *privateKey;
-#include "../../../../TelegramPrivate/packer_private.h" // RSA PRIVATE KEY for update signing
+extern const char *privateDevKey;
+#include "../../../../TelegramPrivate/packer_private.h" // RSA PRIVATE KEYS for update signing
 
 // sha1 hash
 typedef unsigned char uchar;
@@ -151,6 +162,8 @@ int main(int argc, char *argv[])
 			if (remove.isEmpty()) remove = info.canonicalPath() + "/";
 		} else if (string("-version") == argv[i] && i + 1 < argc) {
 			version = QString(argv[i + 1]).toInt();
+		} else if (string("-dev") == argv[i]) {
+			DevChannel = true;
 		}
 	}
 
@@ -388,7 +401,7 @@ int main(int argc, char *argv[])
 	uint32 siglen = 0;
 
 	cout << "Signing..\n";
-	RSA *prKey = PEM_read_bio_RSAPrivateKey(BIO_new_mem_buf(const_cast<char*>(privateKey), -1), 0, 0, 0);
+	RSA *prKey = PEM_read_bio_RSAPrivateKey(BIO_new_mem_buf(const_cast<char*>(DevChannel ? privateDevKey : privateKey), -1), 0, 0, 0);
 	if (!prKey) {
 		cout << "Could not read RSA private key!\n";
 		return -1;
@@ -411,7 +424,7 @@ int main(int argc, char *argv[])
 	}
 
 	cout << "Checking signature..\n";
-	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(publicKey), -1), 0, 0, 0);
+	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(DevChannel ? publicDevKey : publicKey), -1), 0, 0, 0);
 	if (!pbKey) {
 		cout << "Could not read RSA public key!\n";
 		return -1;

@@ -17,8 +17,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 7010;
-static const wchar_t *AppVersionStr = L"0.7.10";
+static const int32 AppVersion = 7011;
+static const wchar_t *AppVersionStr = L"0.7.11";
+static const bool DevChannel = true;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -186,6 +187,14 @@ static const char *UpdatesPublicKey = "\
 MIGJAoGBAMA4ViQrjkPZ9xj0lrer3r23JvxOnrtE8nI69XLGSr+sRERz9YnUptnU\n\
 BZpkIfKaRcl6XzNJiN28cVwO1Ui5JSa814UAiDHzWUqCaXUiUEQ6NmNTneiGx2sQ\n\
 +9PKKlb8mmr3BB9A45ZNwLT6G9AK3+qkZLHojeSA+m84/a6GP4svAgMBAAE=\n\
+-----END RSA PUBLIC KEY-----\
+";
+
+static const char *UpdatesPublicDevKey = "\
+-----BEGIN RSA PUBLIC KEY-----\n\
+MIGJAoGBALWu9GGs0HED7KG7BM73CFZ6o0xufKBRQsdnq3lwA8nFQEvmdu+g/I1j\n\
+0LQ+0IQO7GW4jAgzF/4+soPDb6uHQeNFrlVx1JS9DZGhhjZ5rf65yg11nTCIHZCG\n\
+w/CVnbwQOw0g5GBwwFV3r0uTTvy44xx8XXxk+Qknu4eBCsmrAFNnAgMBAAE=\n\
 -----END RSA PUBLIC KEY-----\
 ";
 

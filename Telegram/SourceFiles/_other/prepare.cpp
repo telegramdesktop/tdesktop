@@ -17,6 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #include "prepare.h"
 
+bool DevChannel = false;
+
 int prepare(QFileInfo f, QStringList paths) {
 	if (paths.isEmpty()) {
 		cout << "No -path args were passed :(\n";
@@ -28,7 +30,7 @@ int prepare(QFileInfo f, QStringList paths) {
 	QFileInfo last;
 	QFileInfoList l = f.absoluteDir().entryInfoList(QDir::Files);
 	for (QFileInfoList::iterator i = l.begin(), e = l.end(); i != e; ++i) {
-		QRegularExpressionMatch m = QRegularExpression("/tsetup.((\\d+).(\\d+).(\\d+)).exe$").match(i->absoluteFilePath());
+		QRegularExpressionMatch m = QRegularExpression("/tsetup\\.((\\d+)\\.(\\d+)\\.(\\d+))(?:\\.dev)?\\.exe$").match(i->absoluteFilePath());
 		if (!m.hasMatch()) continue;
 
 		int version = m.captured(2).toInt() * 1000000 + m.captured(3).toInt() * 1000 + m.captured(4).toInt();
@@ -40,15 +42,18 @@ int prepare(QFileInfo f, QStringList paths) {
 	}
 
 	if (!lastVersion) {
-		cout << "No tsetup.X.Y.Z.exe found :(\n";
+		cout << "No tsetup.X.Y.Z.exe or tsetup.X.Y.Z.dev.exe found :(\n";
 		return -1;
 	}
 
-	cout << "Last version: " << lastVersionStr.toUtf8().constData() << " (" << lastVersion << "), executing packer..\n";
+	cout << "Last version: " << (lastVersionStr + (DevChannel ? ".dev" : "")).toUtf8().constData() << " (" << lastVersion << "), executing packer..\n";
 
-	QDir dir("deploy/" + lastVersionStr);
+	QDir dir("deploy/" + lastVersionStr + (DevChannel ? ".dev" : ""));
 	if (dir.exists()) {
-		cout << "Version " << lastVersionStr.toUtf8().constData() << " already exists in /deploy..\n";
+		cout << "Version " << (lastVersionStr + (DevChannel ? ".dev" : "")).toUtf8().constData() << " already exists in /deploy..\n";
+		return -1;
+	} else if (QDir("deploy/" + lastVersionStr + (DevChannel ? "" : ".dev")).exists()) {
+		cout << "Version " << (lastVersionStr + (DevChannel ? "" : ".dev")).toUtf8().constData() << " already exists in /deploy..\n";
 		return -1;
 	}
 
@@ -56,6 +61,7 @@ int prepare(QFileInfo f, QStringList paths) {
 	for (QStringList::iterator i = paths.begin(), e = paths.end(); i != e; ++i) {
 		packer += " -path " + *i;
 	}
+	if (DevChannel) packer += " -dev";
 
 	int res = system(packer.toUtf8().constData());
 
@@ -65,11 +71,11 @@ int prepare(QFileInfo f, QStringList paths) {
 
 	paths.push_back("Telegram.pdb");
 	paths.push_back("Updater.pdb");
-	paths.push_back("tsetup." + lastVersionStr + ".exe");
+	paths.push_back("tsetup." + lastVersionStr + (DevChannel ? ".dev" : "") + ".exe");
 	paths.push_back(QString("tupdate%1").arg(lastVersion));
 	for (QStringList::iterator i = paths.begin(), e = paths.end(); i != e; ++i) {
-		if (!QFile::copy(*i, "deploy/" + lastVersionStr + "/" + *i)) {
-			cout << "Could not copy " << i->toUtf8().constData() << " to deploy/" << lastVersionStr.toUtf8().constData() << "\n";
+		if (!QFile::copy(*i, "deploy/" + lastVersionStr + (DevChannel ? ".dev" : "") + "/" + *i)) {
+			cout << "Could not copy " << i->toUtf8().constData() << " to deploy/" << (lastVersionStr + (DevChannel ? ".dev" : "")).toUtf8().constData() << "\n";
 			return -1;
 		}
 		cout << "Copied " << i->toUtf8().constData() << "..\n";
@@ -78,7 +84,7 @@ int prepare(QFileInfo f, QStringList paths) {
 		QFile::remove(*i);
 	}
 
-	cout << "Update created in deploy/" << lastVersionStr.toUtf8().constData() << "\n";
+	cout << "Update created in deploy/" << (lastVersionStr + (DevChannel ? ".dev" : "")).toUtf8().constData() << "\n";
 
 	return 0;
 }
@@ -91,6 +97,8 @@ int main(int argc, char *argv[])
 	for (int i = 1; i < argc; ++i) {
 		if (string(argv[i]) == "-path" && i + 1 < argc) {
 			paths.push_back(QString(argv[i + 1]));
+		} else if (string(argv[i]) == "-dev") {
+			DevChannel = true;
 		}
 	}
 	int res = prepare(f, paths);
