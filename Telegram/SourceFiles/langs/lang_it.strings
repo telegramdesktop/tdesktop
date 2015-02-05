@@ -440,7 +440,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mediaview_forward" = "Inoltra";
 "lng_mediaview_delete" = "Elimina";
 "lng_mediaview_single_photo" = "Foto singola";
-"lng_mediaview_group_photo" = "Gruppo di foto";
+"lng_mediaview_group_photo" = "Foto gruppo";
 "lng_mediaview_profile_photo" = "Foto profilo";
 "lng_mediaview_n_of_count" = "Foto {n} di {count}";
 "lng_mediaview_doc_image" = "File";
