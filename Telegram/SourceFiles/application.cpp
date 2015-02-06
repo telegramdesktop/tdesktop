@@ -705,10 +705,18 @@ void Application::startApp() {
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
 	if (Local::oldMapVersion() < AppVersion) {
 		psRegisterCustomScheme();
-		if (Local::oldMapVersion() && Local::oldMapVersion() < 7010) {
-			QString versionFeatures(lng_new_version_minor(lt_version, QString::fromStdWString(AppVersionStr), lt_link, qsl("https://desktop.telegram.org/#changelog")));
-			if (!versionFeatures.isEmpty()) {
+		if (Local::oldMapVersion()) {
+			if (DevChannel && Local::oldMapVersion() < 7012) {
+				QString versionFeatures(qsl("Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}"));
+				versionFeatures = versionFeatures.replace(qsl("{changes}"), QString::fromUtf8(" \xe2\x80\x94 Chat background settings translated"));
+				versionFeatures = versionFeatures.replace(qsl("{version}"), QString::fromStdWString(AppVersionStr) + qsl(" dev"));
+				versionFeatures = versionFeatures.replace(qsl("{link}"), qsl("https://desktop.telegram.org/#changelog"));
 				window->serviceNotification(versionFeatures);
+			} else if (!DevChannel && Local::oldMapVersion() < 7010) {
+				QString versionFeatures(lng_new_version_minor(lt_version, QString::fromStdWString(AppVersionStr), lt_link, qsl("https://desktop.telegram.org/#changelog")));
+				if (!versionFeatures.isEmpty()) {
+					window->serviceNotification(versionFeatures);
+				}
 			}
 		}
 	}
