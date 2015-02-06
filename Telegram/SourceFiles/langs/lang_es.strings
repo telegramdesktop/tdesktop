@@ -192,7 +192,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_send_enter" = "Enviar con Intro";
 "lng_settings_send_ctrlenter" = "Enviar con Ctrl+Intro";
 "lng_settings_send_cmdenter" = "Enviar con Cmd+Intro";
-"lng_settings_cats_and_dogs" = "Permitir gatos y perros";
+
+"lng_settings_section_background" = "Fondo de chat";
+"lng_settings_bg_from_gallery" = "Elegir desde la galería";
+"lng_settings_bg_from_file" = "Elegir desde archivos";
+"lng_settings_bg_tile" = "Fondo con mosaico";
+
+"lng_backgrounds_header" = "Elige tu nuevo fondo de chat";
 
 "lng_download_path_dont_ask" = "No pedir la ruta de descarga para cada archivo";
 "lng_download_path_label" = "Ruta de descarga:";

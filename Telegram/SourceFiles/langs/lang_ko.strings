@@ -192,7 +192,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_send_enter" = "엔터키로 메시지 전송";
 "lng_settings_send_ctrlenter" = " Ctrl+Enter로 메시지 전송";
 "lng_settings_send_cmdenter" = "Cmd+Enter로 메시지 전송";
-"lng_settings_cats_and_dogs" = "고양이와 강아지 배경문양 허용";
+
+"lng_settings_section_background" = "대화창 배경화면";
+"lng_settings_bg_from_gallery" = "이미지 선택";
+"lng_settings_bg_from_file" = "파일 선택";
+"lng_settings_bg_tile" = "타일형 배경화면";
+
+"lng_backgrounds_header" = "새로운 대화창 배경화면을 선택";
 
 "lng_download_path_dont_ask" = "다운로드 경로 묻지 않기";
 "lng_download_path_label" = "다운로드 경로:";

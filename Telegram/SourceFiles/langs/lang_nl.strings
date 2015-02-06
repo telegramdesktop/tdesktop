@@ -192,7 +192,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_send_enter" = "Versturen met Enter";
 "lng_settings_send_ctrlenter" = "Versturen met Ctrl+Enter";
 "lng_settings_send_cmdenter" = "Versturen met Cmd+Enter";
-"lng_settings_cats_and_dogs" = "Kat en hond op achtergrond";
+
+"lng_settings_section_background" = "Achtergrond";
+"lng_settings_bg_from_gallery" = "Uit galerij kiezen";
+"lng_settings_bg_from_file" = "Bestand kiezen";
+"lng_settings_bg_tile" = "Naast elkaar";
+
+"lng_backgrounds_header" = "Kies je nieuwe achtergrond";
 
 "lng_download_path_dont_ask" = "Niet voor iedere download vragen";
 "lng_download_path_label" = "Downloadpad:";

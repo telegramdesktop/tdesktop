@@ -192,7 +192,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_send_enter" = "Enviar com Enter";
 "lng_settings_send_ctrlenter" = "Enviar com Ctrl+Enter";
 "lng_settings_send_cmdenter" = "Enviar com Cmd+Enter";
-"lng_settings_cats_and_dogs" = "Permitir gatos e cachorros";
+
+"lng_settings_section_background" = "Papel de Parede";
+"lng_settings_bg_from_gallery" = "Escolher da  galeria";
+"lng_settings_bg_from_file" = "Escolher dos arquivos";
+"lng_settings_bg_tile" = "Lado-a-lado";
+
+"lng_backgrounds_header" = "Escolha o seu novo papel de parede";
 
 "lng_download_path_dont_ask" = "Não perguntar onde salvar para cada arquivo";
 "lng_download_path_label" = "Baixar em:";

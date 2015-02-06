@@ -192,7 +192,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_send_enter" = "Mit Enter senden";
 "lng_settings_send_ctrlenter" = "Mit Strg+Enter senden";
 "lng_settings_send_cmdenter" = "Mit Cmd+Enter senden";
-"lng_settings_cats_and_dogs" = "Standardhintergrundbild";
+
+"lng_settings_section_background" = "Hintergrundbild";
+"lng_settings_bg_from_gallery" = "Aus der Galerie";
+"lng_settings_bg_from_file" = "Durchsuchen";
+"lng_settings_bg_tile" = "Nebeneinander";
+
+"lng_backgrounds_header" = "Neuen Chat-Hintergrund wählen";
 
 "lng_download_path_dont_ask" = "Speicherort merken";
 "lng_download_path_label" = "Speicherort:";
