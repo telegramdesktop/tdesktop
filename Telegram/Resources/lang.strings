@@ -64,8 +64,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_cancel" = "Cancel";
 "lng_continue" = "Continue";
 "lng_close" = "Close";
-"lng_connecting" = "Connecting..";
-"lng_reconnecting" = "Reconnect {count:now|in # s|in # s}..";
+"lng_connecting" = "Connecting…";
+"lng_reconnecting" = "Reconnect {count:now|in # s|in # s}…";
 "lng_reconnecting_try_now" = "Try now";
 
 "lng_status_service_notifications" = "service notifications";
@@ -82,7 +82,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_status_lastseen_date" = "last seen {date}";
 "lng_status_lastseen_date_time" = "last seen {date} at {time}";
 "lng_status_online" = "online";
-"lng_status_connecting" = "connecting..";
+"lng_status_connecting" = "connecting…";
 
 "lng_chat_status_unaccessible" = "group is unaccessible";
 "lng_chat_status_members" = "{count:no members|# member|# members}";
@@ -112,7 +112,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_code_ph" = "Your code";
 "lng_code_desc" = "We have sent you a message with activation\ncode to your phone. Please enter it below.";
 "lng_code_call" = "Telegram will dial your number in {minutes}:{seconds}";
-"lng_code_calling" = "Requesting a call from Telegram..";
+"lng_code_calling" = "Requesting a call from Telegram…";
 "lng_code_called" = "Telegram dialed your number";
 
 "lng_bad_phone" = "Invalid phone number. Please try again.";
@@ -133,13 +133,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_dlg_new_group_name" = "Group name";
 "lng_dlg_create_group" = "Create";
 "lng_no_contacts" = "You have no contacts";
-"lng_contacts_loading" = "Loading..";
+"lng_contacts_loading" = "Loading…";
 "lng_contacts_not_found" = "No contacts found";
 
 "lng_settings_save" = "Save";
 "lng_settings_upload" = "Set Profile Photo";
 "lng_settings_crop_profile" = "Select square area for your profile photo";
-"lng_settings_uploading_photo" = "Uploading photo..";
+"lng_settings_uploading_photo" = "Uploading photo…";
 
 "lng_username_title" = "Change username";
 "lng_username_about" = "You can choose a username on Telegram.\nIf you do, other people will be able to find\nyou by this username and contact you\nwithout knowing your phone number.\n\nYou can use a-z, 0-9 and underscores.\nMinimum length is 5 characters.";
@@ -171,9 +171,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_auto_update" = "Update automatically";
 "lng_settings_current_version" = "Version {version}";
 "lng_settings_check_now" = "Check for updates";
-"lng_settings_update_checking" = "Checking for updates..";
+"lng_settings_update_checking" = "Checking for updates…";
 "lng_settings_latest_installed" = "Latest version is installed";
-"lng_settings_downloading" = "Downloading update {ready} / {total} MB..";
+"lng_settings_downloading" = "Downloading update {ready} / {total} MB…";
 "lng_settings_update_ready" = "New version is ready";
 "lng_settings_update_now" = "Restart Now";
 "lng_settings_update_fail" = "Update check failed :(";
@@ -214,7 +214,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_download_path_failed" = "File download could not be started. It could happen because of a bad download location.\n\nYou can change download path in Settings.";
 "lng_download_path_settings" = "Go to Settings";
 "lng_download_finish_failed" = "File download could not be finished.\n\nWould you like to try again?";
-"lng_download_path_clearing" = "Clearing..";
+"lng_download_path_clearing" = "Clearing…";
 "lng_download_path_cleared" = "Cleared!";
 "lng_download_path_clear_failed" = "Clear failed :(";
 
@@ -223,13 +223,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_images_cached" = "{count:_not_used_|# image|# images}, {size}";
 "lng_settings_audios_cached" = "{count:_not_used_|# voice message|# voice messages}, {size}";
 "lng_local_storage_clear" = "Clear all";
-"lng_local_storage_clearing" = "Clearing..";
+"lng_local_storage_clearing" = "Clearing…";
 "lng_local_storage_cleared" = "Cleared!";
 "lng_local_storage_clear_failed" = "Clear failed :(";
 
 "lng_settings_section_advanced" = "Advanced";
 "lng_connection_type" = "Connection type:";
-"lng_connection_auto_connecting" = "Default (connecting..)";
+"lng_connection_auto_connecting" = "Default (connecting…)";
 "lng_connection_auto" = "Default ({type} used)";
 "lng_connection_http_proxy" = "HTTP with proxy";
 "lng_connection_tcp_proxy" = "TCP with proxy";
@@ -271,7 +271,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_delete_and_exit" = "Leave";
 "lng_profile_kick" = "Kick";
 "lng_profile_sure_kick" = "Kick {user} from the group?";
-"lng_profile_loading" = "Loading..";
+"lng_profile_loading" = "Loading…";
 "lng_profile_shared_media" = "Shared media";
 "lng_profile_no_media" = "No media in this conversation.";
 "lng_profile_photos" = "{count:_not_used_|# photo|# photos} »";
@@ -337,7 +337,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
 
 "lng_send_button" = "Send";
-"lng_message_ph" = "Write a message..";
+"lng_message_ph" = "Write a message…";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Please select chat to start messaging";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
@@ -365,7 +365,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_open_hashtag" = "Search by hashtag";
 "lng_context_copy_hashtag" = "Copy hashtag";
 "lng_context_open_image" = "Open Image";
-"lng_context_save_image" = "Save Image As..";
+"lng_context_save_image" = "Save Image As…";
 "lng_context_forward_image" = "Forward Image";
 "lng_context_delete_image" = "Delete Image";
 "lng_context_copy_image" = "Copy Image";
@@ -374,11 +374,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_show_in_folder" = "Show in Folder";
 "lng_context_show_in_finder" = "Show in Finder";
 "lng_context_open_video" = "Open Video";
-"lng_context_save_video" = "Save Video As..";
+"lng_context_save_video" = "Save Video As…";
 "lng_context_open_audio" = "Open Audio";
-"lng_context_save_audio" = "Save Audio As..";
+"lng_context_save_audio" = "Save Audio As…";
 "lng_context_open_document" = "Open File";
-"lng_context_save_document" = "Save File As..";
+"lng_context_save_document" = "Save File As…";
 "lng_context_forward_file" = "Forward File";
 "lng_context_delete_file" = "Delete File";
 "lng_context_close_file" = "Close File";
@@ -397,7 +397,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_really_share_contact" = "Do you want to share this contact?";
 "lng_send_image_compressed" = "Send compressed image";
 
-"lng_forward_choose" = "Choose recipient..";
+"lng_forward_choose" = "Choose recipient…";
 "lng_forward_confirm" = "Forward to {recipient}?";
 "lng_forward_share_contact" = "Share contact to {recipient}?";
 "lng_forward_send_file_confirm" = "Send «{name}» to {recipient}?";
