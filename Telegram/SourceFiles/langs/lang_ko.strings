@@ -121,7 +121,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_name" = "성과 이름을 입력해주세요.";
 "lng_bad_photo" = "올바르지 않은 이미지를 선택하였습니다.";
 
-"lng_bad_image_for_photo" = "이미지를 전송할 수 없습니다.\n문서로 전송을 하겠습니까?";
+"lng_bad_image_for_photo" = "이미지를 전송할 수 없습니다.\n파일로 전송을 하겠습니까?";
 
 "lng_signup_title" = "개인정보 및 사진";
 "lng_signup_desc" = "이름을 입력해주시고,\n사진을 업로드해주세요.";
@@ -154,7 +154,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_phone_number" = "전화번호";
 "lng_settings_username" = "아이디";
 "lng_settings_choose_username" = "아이디 설정하기";
-"lng_settings_change_username" = "변경하기";
 
 "lng_settings_section_notify" = "알림서비스";
 "lng_settings_desktop_notify" = "데스크탑 알림서비스";
@@ -278,8 +277,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_photos_header" = "사진 내역";
 "lng_profile_videos" = "{count:_not_used_|# 비디오 파일|# 비디오 파일} »";
 "lng_profile_videos_header" = "비디오 파일 내역";
-"lng_profile_documents" = "{count:_not_used_|# 문서|# 문서} »";
-"lng_profile_documents_header" = "문서 내역";
+"lng_profile_files" = "{count:_not_used_|# 파일|# 파일} »";
+"lng_profile_files_header" = "파일 내역";
 "lng_profile_audios" = "{count:_not_used_|# 음성 메시지|# 음성 메시지} »";
 "lng_profile_audios_header" = "음성 메시지 내역";
 "lng_profile_show_all_types" = "모든 유형 보기";
@@ -313,13 +312,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_forwarded_from" = "전달받음";
 
 "lng_attach_failed" = "실패";
-"lng_attach_file" = "문서";
+"lng_attach_file" = "파일";
 "lng_attach_photo" = "사진";
 
 "lng_media_type" = "미디어 종류";
 "lng_media_type_photos" = "사진";
 "lng_media_type_videos" = "비디오 파일";
-"lng_media_type_documents" = "문서";
+"lng_media_type_files" = "파일";
 "lng_media_type_audios" = "음성 메시지";
 
 "lng_media_open_with" = "다음으로 열기";
@@ -332,7 +331,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_video" = "비디오";
 "lng_in_dlg_contact" = "연락처";
 "lng_in_dlg_audio" = "음성";
-"lng_in_dlg_document" = "문서";
+"lng_in_dlg_file" = "파일";
 "lng_in_dlg_sticker" = "스티커";
 "lng_in_dlg_sticker_emoji" = "{emoji} (스티커)";
 
@@ -353,7 +352,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_save_photo" = "사진 저장";
 "lng_save_video" = "동영상 저장";
 "lng_save_audio" = "음성 저장";
-"lng_save_document" = "문서 저장";
+"lng_save_file" = "파일 저장";
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
 "lng_choose_images" = "이미지 선택";
@@ -377,8 +376,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_save_video" = "비디오 이름을 다른이름으로 저장.";
 "lng_context_open_audio" = "음성메시지 열기";
 "lng_context_save_audio" = "음성메시지를 다른 이름으로 저장..";
-"lng_context_open_document" = "파일 열기";
-"lng_context_save_document" = "파일을 다른 이름으로 저장.";
+"lng_context_open_file" = "파일 열기";
+"lng_context_save_file" = "파일을 다른 이름으로 저장..";
 "lng_context_forward_file" = "파일 전달";
 "lng_context_delete_file" = "파일 삭제";
 "lng_context_close_file" = "파일 닫기";
@@ -424,7 +423,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_drag_to_send_quick" = "빠른 방법으로 보내기";
 "lng_drag_to_send_no_compression" = "압축하지 않고 보내기";
-"lng_drag_to_send_documents" = "문서형태로 보내기";
+"lng_drag_to_send_files" = "파일형태로 보내기";
 
 "lng_selected_clear" = "취소";
 "lng_selected_delete" = "삭제";
@@ -449,7 +448,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_mediaview_group_photo" = "그룹 사진";
 "lng_mediaview_profile_photo" = "프로필 사진";
 "lng_mediaview_n_of_count" = "사진 {n} 중 {count}";
-"lng_mediaview_doc_image" = "문서";
+"lng_mediaview_doc_image" = "파일";
 "lng_mediaview_today" = "오늘 {time}";
 "lng_mediaview_yesterday" = "어제 {time}";
 "lng_mediaview_date_time" = "{date}  {time}";
