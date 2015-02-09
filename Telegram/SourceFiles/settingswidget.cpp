@@ -111,11 +111,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 
 	// contact info
 	_phoneText(self() ? App::formatPhone(self()->phone) : QString()),
-	_usernameText((self() && !self()->username.isEmpty()) ? ('@' + self()->username) : QString()),
-	_phoneLeft(st::linkFont->m.width(lang(lng_settings_phone_number)) + st::linkFont->spacew),
-	_usernameLeft(st::linkFont->m.width(lang(lng_settings_username)) + st::linkFont->spacew),
-	_chooseUsername(this, lang(lng_settings_choose_username)),
-	_changeUsername(this, lang(lng_settings_change_username)),
+	_chooseUsername(this, (self() && !self()->username.isEmpty()) ? ('@' + self()->username) : lang(lng_settings_choose_username)),
 
 	// notifications
 	_desktopNotify(this, lang(lng_settings_desktop_notify), cDesktopNotify()),
@@ -197,7 +193,6 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 
 	// contact info
 	connect(&_chooseUsername, SIGNAL(clicked()), this, SLOT(onUsername()));
-	connect(&_changeUsername, SIGNAL(clicked()), this, SLOT(onUsername()));
 
 	// notifications
 	_senderName.setDisabled(!_desktopNotify.checked());
@@ -382,13 +377,10 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		p.setFont(st::linkFont->f);
 		p.setPen(st::black->p);
 		p.drawText(_left, top + st::linkFont->ascent, lang(lng_settings_phone_number));
-		p.drawText(_left + _phoneLeft, top + st::linkFont->ascent, _phoneText);
+		p.drawText(_left + st::setContactInfoLeft, top + st::linkFont->ascent, _phoneText);
 		top += st::linkFont->height + st::setLittleSkip;
 
 		p.drawText(_left, top + st::linkFont->ascent, lang(lng_settings_username));
-		if (!_usernameText.isEmpty()) {
-			p.drawText(_left + _usernameLeft, top + st::linkFont->ascent, _usernameText);
-		}
 		top += st::linkFont->height;
 
 		// notifications
@@ -613,8 +605,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		// contact info
 		top += st::setHeaderSkip;
 		top += st::linkFont->height + st::setLittleSkip;
-		_chooseUsername.move(_left + _usernameLeft, top);
-		_changeUsername.move(_left + st::setWidth - _changeUsername.width(), top); top += st::linkFont->height;
+		_chooseUsername.move(_left + st::setContactInfoLeft, top); top += st::linkFont->height;
 
 		// notifications
 		top += st::setHeaderSkip;
@@ -801,7 +792,7 @@ void SettingsInner::gotFullSelf(const MTPUserFull &selfFull) {
 }
 
 void SettingsInner::usernameChanged() {
-	_usernameText = (self() && !self()->username.isEmpty()) ? ('@' + self()->username) : QString();
+	_chooseUsername.setText((self() && !self()->username.isEmpty()) ? ('@' + self()->username) : lang(lng_settings_choose_username));
 	showAll();
 	update();
 }
@@ -823,16 +814,9 @@ void SettingsInner::showAll() {
 
 	// contact info
 	if (self()) {
-		if (self()->username.isEmpty()) {
-			_chooseUsername.show();
-			_changeUsername.hide();
-		} else {
-			_chooseUsername.hide();
-			_changeUsername.show();
-		}
+		_chooseUsername.show();
 	} else {
 		_chooseUsername.hide();
-		_changeUsername.hide();
 	}
 
 	// notifications

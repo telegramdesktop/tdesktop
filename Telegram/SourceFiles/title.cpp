@@ -79,7 +79,7 @@ TitleWidget::TitleWidget(Window *window)
 	connect(&_about, SIGNAL(clicked()), this, SLOT(onAbout()));
 	connect(wnd->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(stateChanged(Qt::WindowState)));
 	connect(App::app(), SIGNAL(updateReady()), this, SLOT(showUpdateBtn()));
-        
+	
     if (cPlatform() != dbipWindows) {
         _minimize.hide();
         _maximize.hide();

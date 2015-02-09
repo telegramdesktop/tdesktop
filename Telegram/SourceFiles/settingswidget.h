@@ -181,9 +181,8 @@ private:
 	QString _errorText;
 
 	// contact info
-	QString _phoneText, _usernameText;
-	int32 _phoneLeft, _usernameLeft;
-	LinkButton _chooseUsername, _changeUsername;
+	QString _phoneText;
+	LinkButton _chooseUsername;
 
 	// notifications
 	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _soundNotify;

@@ -876,7 +876,7 @@ QString ProfileInner::overviewLinkText(int32 type, int32 count) {
 	switch (type) {
 	case OverviewPhotos: return lng_profile_photos(lt_count, count);
 	case OverviewVideos: return lng_profile_videos(lt_count, count);
-	case OverviewDocuments: return lng_profile_documents(lt_count, count);
+	case OverviewDocuments: return lng_profile_files(lt_count, count);
 	case OverviewAudios: return lng_profile_audios(lt_count, count);
 	}
 	return QString();

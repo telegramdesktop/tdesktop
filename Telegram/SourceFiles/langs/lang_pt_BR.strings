@@ -194,7 +194,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_send_cmdenter" = "Enviar com Cmd+Enter";
 
 "lng_settings_section_background" = "Papel de Parede";
-"lng_settings_bg_from_gallery" = "Escolher da  galeria";
+"lng_settings_bg_from_gallery" = "Escolher da galeria";
 "lng_settings_bg_from_file" = "Escolher dos arquivos";
 "lng_settings_bg_tile" = "Lado-a-lado";
 
@@ -458,9 +458,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\nDetectamos um acesso à sua conta de um novo dispositivo em {day}, {date} às {time}\n\nDispositivo: {device}\nLocalização: {location}\n\nCaso não tenha sido você, vá em Configurações – Terminar todas as outras sessões.\n\nObrigado,\nEquipe Telegram";
 
-"lng_new_version_minor" = "Telegram Desktop foi atualizado para a versão {version}\n\n — Resolução de bugs e pequenas melhorias\n\nHistórico completo da atualização disponível aqui:\n{link}";
-
-"lng_new_version7009" = "Telegram Desktop foi atualizado para a versão {version}\n\n — Adicionado o idioma Coreano\n — Menu rápido «abrir com» no Windows e OS X\n\nHistórico completo da atualização disponível aqui:\n{link}";
+"lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nVersão completa do histórico disponível aqui:\n{link}";
+"lng_new_version_minor" = "— Resolução de bugs e outras menores melhorias";
+"lng_new_version7013" = "— Agora você pode alterar o papel de parede do chat";
 "lng_new_version7006_appstore" = "Telegram Desktop foi atualizado para a versão {version}\n\n — Suporte à stickers\n — Cache local para mensagens de voz\n — Adicionadas novas linguagens\n\nHistórico completo da versão disponível aqui:\n{link}";
 
 // Wnd specific

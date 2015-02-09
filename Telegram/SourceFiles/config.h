@@ -120,6 +120,9 @@ enum {
 
 	CacheBackgroundTimeout = 3000, // cache background scaled image after 3s
 	BackgroundsInRow = 3,
+
+	UpdateDelayConstPart = 8 * 3600, // 8 hour min time between update check requests
+	UpdateDelayRandPart = 8 * 3600, // 8 hour max - min time between update check requests
 };
 
 inline bool isServiceUser(uint64 id) {

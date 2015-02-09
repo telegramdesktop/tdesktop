@@ -673,7 +673,7 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 		filter = mimeType.filterString() + qsl(";;All files (*.*)");
 	}
 
-	QString filename = saveFileName(lang(lng_save_document), filter, qsl("doc"), name, false);
+	QString filename = saveFileName(lang(lng_save_file), filter, qsl("doc"), name, false);
 	if (!filename.isEmpty()) {
 		data->openOnSave = 1;
 		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
@@ -707,7 +707,7 @@ void DocumentSaveLink::doSave(bool forceSavingAs) const {
 			filter = mimeType.filterString() + qsl(";;All files (*.*)");
 		}
 
-		QString filename = saveFileName(lang(lng_save_document), filter, qsl("doc"), name, forceSavingAs, alreadyDir);
+		QString filename = saveFileName(lang(lng_save_file), filter, qsl("doc"), name, forceSavingAs, alreadyDir);
 		if (!filename.isEmpty()) {
 			if (forceSavingAs) {
 				data->cancel();
@@ -2985,11 +2985,11 @@ int32 HistoryDocument::resize(int32 width, bool dontRecountText, const HistoryIt
 }
 
 const QString HistoryDocument::inDialogsText() const {
-	return data->name.isEmpty() ? lang(lng_in_dlg_document) : data->name;
+	return data->name.isEmpty() ? lang(lng_in_dlg_file) : data->name;
 }
 
 const QString HistoryDocument::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_document) + (data->name.isEmpty() ? QString() : (qsl(" : ") + data->name)) + qsl(" ]");
+	return qsl("[ ") + lang(lng_in_dlg_file) + (data->name.isEmpty() ? QString() : (qsl(" : ") + data->name)) + qsl(" ]");
 }
 
 bool HistoryDocument::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {

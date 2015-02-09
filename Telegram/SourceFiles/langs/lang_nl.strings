@@ -458,9 +458,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\nEr is op je account ingelogd vanaf een nieuw apparaat op {day}, {date} om {time}\n\nApparaat: {device}\nLocatie: {location}\n\nAls jij dit niet was, kun je alle sessies beëindigen via Instellingen – Beëindig alle andere sessies.\n\nBedankt,\nHet Telegram-Team";
 
-"lng_new_version_minor" = "Telegram is bijgewerkt naar versie {version}\n\n— Probleemoplossing en andere kleine verbeteringen\n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
-
-"lng_new_version7009" = "Telegram is bijgewerkt naar versie {version}\n\n— Koreaans toegevoegd.\n— Snel «openen met» menu voor Windows en OS X\n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
+"lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
+"lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
+"lng_new_version7013" = "— Je kunt nu een chatachtergrond instellen";
 "lng_new_version7006_appstore" = "Telegram is bijgewerkt naar versie {version}\n\n— Ondersteuning voor Stickers\n— Lokale cache voor spraakberichten\n— Nieuwe talen toegevoegd\n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 
 // Wnd specific

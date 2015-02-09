@@ -458,9 +458,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\n\nwir haben eine Anmeldung von einem neuen Gerät am {day}, {date} um {time} festgestellt. \n\nGerät: {device}\nStandort: {location}\n\nWarst du das selbst? Wenn du das nicht selbst gewesen bist, melde alle anderen Sitzungen in den Telegram Einstellungen unverzüglich ab. \n\nDanke,\nDein Telegram Team";
 
-"lng_new_version_minor" = "Telegram Desktop wurde auf Version {version} aktualisiert\n\n— Fehlerbehebungen und Softwareoptimierungen\n\nKompletter Versionsverlauf:\n{link}";
-
-"lng_new_version7009" = "Telegram Desktop wurde auf Version {version} aktualisiert\n\n— Koreanische Sprache hinzugefügt\n— Neues \"Öffnen mit\" Menü bei Windows und OS X\n\nKompletter Versionsverlauf:\n{link}";
+"lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
+"lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
+"lng_new_version7013" = "— Chat-Hintergrundbild kann in den Einstellungen geändert werden";
 "lng_new_version7006_appstore" = "Telegram Desktop wurde auf Version {version} aktualisiert\n\n— Sticker werden unterstützt\n— Sprachnachrichten werden temporär lokal gespeichert\n— Neue Sprachen hinzugefügt\n\nKompletter Versionsverlauf ist hier zu finden:\n{link}";
 
 // Wnd specific

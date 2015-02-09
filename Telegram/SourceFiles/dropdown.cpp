@@ -23,12 +23,24 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "lang.h"
 
+#include "window.h"
+
 Dropdown::Dropdown(QWidget *parent) : TWidget(parent),
 	_hiding(false), a_opacity(0), _shadow(st::dropdownShadow) {
 	resetButtons();
 
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
+
+	if (cPlatform() == dbipMac) {
+		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
+	}
+}
+
+void Dropdown::onWndActiveChanged() {
+	if (!App::wnd()->windowHandle()->isActive() && !isHidden()) {
+		leaveEvent(0);
+	}
 }
 
 IconedButton *Dropdown::addButton(IconedButton *button) {
@@ -684,6 +696,16 @@ _scroll(this, st::emojiScroll), _inner() {
 
 	connect(&_inner, SIGNAL(emojiSelected(EmojiPtr)), this, SIGNAL(emojiSelected(EmojiPtr)));
 	connect(&_inner, SIGNAL(stickerSelected(DocumentData*)), this, SIGNAL(stickerSelected(DocumentData*)));
+
+	if (cPlatform() == dbipMac) {
+		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
+	}
+}
+
+void EmojiPan::onWndActiveChanged() {
+	if (!App::wnd()->windowHandle()->isActive() && !isHidden()) {
+		leaveEvent(0);
+	}
 }
 
 void EmojiPan::paintEvent(QPaintEvent *e) {

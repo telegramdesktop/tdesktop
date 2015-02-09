@@ -511,8 +511,8 @@ void Application::startUpdateCheck(bool forceWait) {
 	updateCheckTimer.stop();
 	if (updateRequestId || updateThread || updateReply || !cAutoUpdate()) return;
 	
-	int32 updateInSecs = cLastUpdateCheck() + 3600 + (rand() % 3600) - unixtime();
-	bool sendRequest = (updateInSecs <= 0 || updateInSecs > 7200);
+	int32 updateInSecs = cLastUpdateCheck() + UpdateDelayConstPart + (rand() % UpdateDelayRandPart) - unixtime();
+	bool sendRequest = (updateInSecs <= 0 || updateInSecs > (UpdateDelayConstPart + UpdateDelayRandPart));
 	if (!sendRequest && !forceWait) {
 		QDir updates(cWorkingDir() + "tupdates");
 		if (updates.exists()) {
@@ -689,7 +689,6 @@ void Application::startApp() {
 	App::initMedia();
 
 	DEBUG_LOG(("Application Info: showing."));
-
 	if (MTP::authedId()) {
 		window->setupMain(false);
 	} else {
@@ -706,17 +705,15 @@ void Application::startApp() {
 	if (Local::oldMapVersion() < AppVersion) {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
+			QString versionFeatures;
 			if (DevChannel && Local::oldMapVersion() < 7012) {
-				QString versionFeatures(qsl("Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}"));
-				versionFeatures = versionFeatures.replace(qsl("{changes}"), QString::fromUtf8(" \xe2\x80\x94 Chat background settings translated"));
-				versionFeatures = versionFeatures.replace(qsl("{version}"), QString::fromStdWString(AppVersionStr) + qsl(" dev"));
-				versionFeatures = versionFeatures.replace(qsl("{link}"), qsl("https://desktop.telegram.org/#changelog"));
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Chat background settings translated");
+			} else if (!DevChannel && Local::oldMapVersion() < 7013) {
+				versionFeatures = lang(lng_new_version7013).trimmed();
+			}
+			if (!versionFeatures.isEmpty()) {
+				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
 				window->serviceNotification(versionFeatures);
-			} else if (!DevChannel && Local::oldMapVersion() < 7010) {
-				QString versionFeatures(lng_new_version_minor(lt_version, QString::fromStdWString(AppVersionStr), lt_link, qsl("https://desktop.telegram.org/#changelog")));
-				if (!versionFeatures.isEmpty()) {
-					window->serviceNotification(versionFeatures);
-				}
 			}
 		}
 	}

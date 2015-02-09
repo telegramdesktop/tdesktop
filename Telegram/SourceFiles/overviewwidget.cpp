@@ -1073,8 +1073,8 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if ((lnkVideo && !lnkVideo->video()->already(true).isEmpty()) || (lnkAudio && !lnkAudio->audio()->already(true).isEmpty()) || (lnkDocument && !lnkDocument->document()->already(true).isEmpty())) {
 					_menu->addAction(lang(cPlatform() == dbipMac ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 				}
-				_menu->addAction(lang(lnkVideo ? lng_context_open_video : (lnkAudio ? lng_context_open_audio : lng_context_open_document)), this, SLOT(openContextFile()))->setEnabled(true);
-				_menu->addAction(lang(lnkVideo ? lng_context_save_video : (lnkAudio ? lng_context_save_audio : lng_context_save_document)), this, SLOT(saveContextFile()))->setEnabled(true);
+				_menu->addAction(lang(lnkVideo ? lng_context_open_video : (lnkAudio ? lng_context_open_audio : lng_context_open_file)), this, SLOT(openContextFile()))->setEnabled(true);
+				_menu->addAction(lang(lnkVideo ? lng_context_save_video : (lnkAudio ? lng_context_save_audio : lng_context_save_file)), this, SLOT(saveContextFile()))->setEnabled(true);
 			}
 		}
 		if (isUponSelected > 1) {
@@ -1669,7 +1669,7 @@ void OverviewWidget::switchType(MediaOverviewType type) {
 	switch (type) {
 	case OverviewPhotos: _header = lang(lng_profile_photos_header); break;
 	case OverviewVideos: _header = lang(lng_profile_videos_header); break;
-	case OverviewDocuments: _header = lang(lng_profile_documents_header); break;
+	case OverviewDocuments: _header = lang(lng_profile_files_header); break;
 	case OverviewAudios: _header = lang(lng_profile_audios_header); break;
 	}
 	noSelectingScroll();

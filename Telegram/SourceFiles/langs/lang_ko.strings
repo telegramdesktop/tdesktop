@@ -458,9 +458,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name}님,\n{day}, {date} {time}에 새 기기에서 회원님의 계정에 로그인하였습니다.\n\n기기: {device}\n위치: {location}\n\n본인의 접속이 아니라면 '설정'으로 가서 '다른 모든 세션 종료'를 실행하세요.\n\n감사합니다.\n텔레그램 팀 드림";
 
-"lng_new_version_minor" = "텔레그램 데스크탑은 {version} 버전으로 업데이트 되었습니다. \n\n— 버그 수정 및 일부 기능 향상\n\n 전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
-
-"lng_new_version7009" = "텔레그램 데스크탑은 {version} 버전으로 업데이트 되었습니다. \n\n— 한국어 추가\n— 윈도우와 윈도우와 맥에 «다음으로 실행» 퀵메뉴 추가\n\n 전체 버전 히스토리는 아래에서 확인 가능합니다: {link}";
+"lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
+"lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
+"lng_new_version7013" = "— 대화방 배경 변경 가능";
 "lng_new_version7006_appstore" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n— 스티커 지원\n— 음성 메시지 로컬 캐싱\n— 언어 추가\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 
 // Wnd specific

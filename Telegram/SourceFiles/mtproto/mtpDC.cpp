@@ -201,13 +201,14 @@ namespace {
 		if (keysFile.open(QIODevice::ReadOnly)) {
 			DEBUG_LOG(("MTP Info: keys file opened for reading"));
 			int32 oldFound = readAuthKeys(keysFile);
-
-			if (gDCOptions.isEmpty() || (mainDC && gDCOptions.find(mainDC) == gDCOptions.cend())) { // load first dc info
+			if (gDCOptions.isEmpty()) {
 				const BuiltInDc *bdcs = builtInDcs();
 				for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
 					gDCOptions.insert(bdcs[i].id, mtpDcOption(bdcs[i].id, "", bdcs[i].ip, bdcs[i].port));
 					DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
 				}
+			}
+			if (mainDC && gDCOptions.find(mainDC) == gDCOptions.cend()) { // load first dc info
 				userId = 0;
 				mainDC = (gDCOptions.constFind(2) == gDCOptions.cend()) ? gDCOptions.begin().key() : 2;
 			} else {
@@ -515,12 +516,10 @@ void mtpWriteConfig(QDataStream &stream) {
 	if (userId) {
 		stream << quint32(dbiUser) << qint32(userId) << quint32(mainDC);
 	}
-	if (configLoadedOnce) {
-		for (mtpDcOptions::const_iterator i = gDCOptions.cbegin(), e = gDCOptions.cend(); i != e; ++i) {
-			stream << quint32(dbiDcOption) << i->id << QString(i->host.c_str()) << QString(i->ip.c_str()) << i->port;
-		}
-		stream << quint32(dbiConfig1) << qint32(cMaxGroupCount());
+	for (mtpDcOptions::const_iterator i = gDCOptions.cbegin(), e = gDCOptions.cend(); i != e; ++i) {
+		stream << quint32(dbiDcOption) << i->id << QString(i->host.c_str()) << QString(i->ip.c_str()) << i->port;
 	}
+	stream << quint32(dbiConfig1) << qint32(cMaxGroupCount());
 }
 
 bool mtpReadConfigElem(int32 blockId, QDataStream &stream) {

@@ -1125,7 +1125,7 @@ void MediaView::contextMenuEvent(QContextMenuEvent *e) {
 		if (!_doc->already(true).isEmpty()) {
 			_menu->addAction(lang(cPlatform() == dbipMac ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(onShowInFolder()))->setEnabled(true);
 		}
-		_menu->addAction(lang(lng_context_save_document), this, SLOT(onSave()))->setEnabled(true);
+		_menu->addAction(lang(lng_context_save_file), this, SLOT(onSave()))->setEnabled(true);
 		_menu->addAction(lang(lng_context_close_file), this, SLOT(onClose()))->setEnabled(true);
 		if (_msgid) {
 			_menu->addAction(lang(lng_context_forward_file), this, SLOT(onForward()))->setEnabled(true);
