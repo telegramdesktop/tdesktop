@@ -820,6 +820,7 @@ void MainWidget::stopAnimActive() {
 
 void MainWidget::searchMessages(const QString &query) {
 	dialogs.searchMessages(query);
+	if (!cWideMode()) onShowDialogs();
 }
 
 void MainWidget::preloadOverviews(PeerData *peer) {
@@ -1425,7 +1426,7 @@ void MainWidget::showPeer(quint64 peerId, qint32 msgId, bool back, bool force) {
 		hider = 0;
 	}
 	if (force || !selectingPeer()) {
-		if ((history.isHidden() && (profile || overview)) || !cWideMode()) {
+		if (!animating() && ((history.isHidden() && (profile || overview)) || (!cWideMode() && (history.isHidden() || !peerId)))) {
 			dialogs.enableShadow(false);
 			if (peerId) {
 				_topBar.enableShadow(false);
@@ -1469,9 +1470,11 @@ void MainWidget::showPeer(quint64 peerId, qint32 msgId, bool back, bool force) {
 		if (onlyDialogs) {
 			_topBar.hide();
 			history.hide();
-			dialogs.show();
-			if (!animCache.isNull()) {
-				dialogs.animShow(animCache);
+			if (!animating()) {
+				dialogs.show();
+				if (!animCache.isNull()) {
+					dialogs.animShow(animCache);
+				}
 			}
 		} else {
 			if (noPeer) {
@@ -1479,9 +1482,11 @@ void MainWidget::showPeer(quint64 peerId, qint32 msgId, bool back, bool force) {
 				resizeEvent(0);
 			}
 			if (!cWideMode()) dialogs.hide();
-			history.show();
-			if (!animCache.isNull()) {
-				history.animShow(animCache, animTopBarCache, back);
+			if (!animating()) {
+				history.show();
+				if (!animCache.isNull()) {
+					history.animShow(animCache, animTopBarCache, back);
+				}
 			}
 		}
 	}
@@ -2077,6 +2082,7 @@ void MainWidget::onPeerShown(PeerData *peer) {
 		_topBar.hide();
 	}
 	resizeEvent(0);
+	if (animating()) _topBar.hide();
 }
 
 void MainWidget::onUpdateNotifySettings() {

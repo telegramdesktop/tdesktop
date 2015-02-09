@@ -113,6 +113,7 @@ public:
 
 	void resizeEvent(QResizeEvent *e);
 	void moveEvent(QMoveEvent *e);
+	void keyPressEvent(QKeyEvent *e);
 
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);

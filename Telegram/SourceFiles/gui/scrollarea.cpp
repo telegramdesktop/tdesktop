@@ -548,6 +548,14 @@ void ScrollArea::moveEvent(QMoveEvent *e) {
 	emit geometryChanged();
 }
 
+void ScrollArea::keyPressEvent(QKeyEvent *e) {
+	if ((e->key() == Qt::Key_Up || e->key() == Qt::Key_Down) && e->modifiers().testFlag(Qt::AltModifier)) {
+		e->ignore();
+	} else {
+		QScrollArea::keyPressEvent(e);
+	}
+}
+
 void ScrollArea::enterEvent(QEvent *e) {
 	if (_st.hiding) {
 		hor.hideTimeout(_st.hiding);
