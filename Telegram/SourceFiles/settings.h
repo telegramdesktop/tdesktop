@@ -106,6 +106,11 @@ DeclareSetting(DBIScale, RealScale);
 DeclareSetting(DBIScale, ScreenScale);
 DeclareSetting(DBIScale, ConfigScale);
 DeclareSetting(bool, CompressPastedImage);
+DeclareSetting(QString, TimeFormat);
+
+inline void cChangeTimeFormat(const QString &newFormat) {
+	if (!newFormat.isEmpty()) cSetTimeFormat(newFormat);
+}
 
 inline DBIScale cEvalScale(DBIScale scale) {
 	return (scale == dbisAuto) ? cScreenScale() : scale;

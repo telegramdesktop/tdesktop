@@ -181,7 +181,7 @@ void NotifyWindow::updateNotifyDisplay() {
 
 		QDateTime now(QDateTime::currentDateTime()), lastTime(item->date);
 		QDate nowDate(now.date()), lastDate(lastTime.date());
-		QString dt = lastTime.toString(qsl("hh:mm"));
+		QString dt = lastTime.toString(cTimeFormat());
 		int32 dtWidth = st::dlgHistFont->m.width(dt);
 		rectForName.setWidth(rectForName.width() - dtWidth - st::dlgDateSkip);
 		p.setFont(st::dlgDateFont->f);

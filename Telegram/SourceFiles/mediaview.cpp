@@ -173,11 +173,11 @@ void MediaView::updateControls() {
 	}
 	QDateTime d(date(_photo ? _photo->date : _doc->date)), dNow(date(unixtime()));
 	if (d.date() == dNow.date()) {
-		_dateText = lng_mediaview_today(lt_time, d.time().toString(qsl("hh:mm")));
+		_dateText = lng_mediaview_today(lt_time, d.time().toString(cTimeFormat()));
 	} else if (d.date().addDays(1) == dNow.date()) {
-		_dateText = lng_mediaview_yesterday(lt_time, d.time().toString(qsl("hh:mm")));
+		_dateText = lng_mediaview_yesterday(lt_time, d.time().toString(cTimeFormat()));
 	} else {
-		_dateText = lng_mediaview_date_time(lt_date, d.date().toString(qsl("dd.MM.yy")), lt_time, d.time().toString(qsl("hh:mm")));
+		_dateText = lng_mediaview_date_time(lt_date, d.date().toString(qsl("dd.MM.yy")), lt_time, d.time().toString(cTimeFormat()));
 	}
 	if (_from) _fromName.setText(st::medviewNameFont, _from->name);
 	updateHeader();
