@@ -183,20 +183,17 @@ namespace App {
 
 			case -2: {
 				QDate yesterday(date(now).date());
-				yesterday.addDays(-3);
-				return int32(QDateTime(yesterday).toTime_t());
+				return int32(QDateTime(yesterday.addDays(-3)).toTime_t());
 			} break;
 
 			case -3: {
 				QDate weekago(date(now).date());
-				weekago.addDays(-7);
-				return int32(QDateTime(weekago).toTime_t());
+				return int32(QDateTime(weekago.addDays(-7)).toTime_t());
 			} break;
 
 			case -4: {
 				QDate monthago(date(now).date());
-				monthago.addDays(-30);
-				return int32(QDateTime(monthago).toTime_t());
+				return int32(QDateTime(monthago.addDays(-30)).toTime_t());
 			} break;
 			}
 			return -online;
