@@ -655,6 +655,8 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 }
 
 void Application::startApp() {
+	cChangeTimeFormat(QLocale::system().timeFormat(QLocale::ShortFormat));
+
 	DEBUG_LOG(("Application Info: starting app.."));
 
 	Local::ReadMapState state = Local::readMap(QByteArray());

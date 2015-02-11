@@ -78,6 +78,8 @@ QByteArray gLocalSalt;
 DBIScale gRealScale = dbisAuto, gScreenScale = dbisOne, gConfigScale = dbisAuto;
 bool gCompressPastedImage = true;
 
+QString gTimeFormat = qsl("hh:mm");
+
 DBIEmojiTab gEmojiTab = dbietRecent;
 RecentEmojiPack gRecentEmojis;
 RecentEmojiPreload gRecentEmojisPreload;

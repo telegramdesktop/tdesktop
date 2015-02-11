@@ -820,7 +820,7 @@ void DialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
 		QDate nowDate(now.date()), lastDate(lastTime.date());
 		QString dt;
 		if (lastDate == nowDate) {
-			dt = lastTime.toString(qsl("hh:mm"));
+			dt = lastTime.toString(cTimeFormat());
 		} else if (lastDate.year() == nowDate.year() && lastDate.weekNumber() == nowDate.weekNumber()) {
 			dt = langDayOfWeek(lastDate);
 		} else {
@@ -900,7 +900,7 @@ void FakeDialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
 	QDate nowDate(now.date()), lastDate(lastTime.date());
 	QString dt;
 	if (lastDate == nowDate) {
-		dt = lastTime.toString(qsl("hh:mm"));
+		dt = lastTime.toString(cTimeFormat());
 	} else if (lastDate.year() == nowDate.year() && lastDate.weekNumber() == nowDate.weekNumber()) {
 		dt = langDayOfWeek(lastDate);
 	} else {
@@ -4029,7 +4029,7 @@ void HistoryMessage::initMediaFromDocument(DocumentData *doc) {
 }
 
 void HistoryMessage::initDimensions(const QString &text) {
-	_time = date.toString(qsl("hh:mm"));
+	_time = date.toString(cTimeFormat());
 	_timeWidth = st::msgDateFont->m.width(_time);
 	if (!_media) {
 		_timeWidth += st::msgDateSpace + (out() ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) - st::msgDateDelta.x();

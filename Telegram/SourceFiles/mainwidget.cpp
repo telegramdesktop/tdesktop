@@ -2965,7 +2965,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		QDateTime datetime = date(d.vdate);
 		
 		QString name = App::self()->firstName;
-		QString day = langDayOfWeekFull(datetime.date()), date = langDayOfMonth(datetime.date()), time = datetime.time().toString(qsl("hh:mm"));
+		QString day = langDayOfWeekFull(datetime.date()), date = langDayOfMonth(datetime.date()), time = datetime.time().toString(cTimeFormat());
 		QString device = qs(d.vdevice), location = qs(d.vlocation);
 		LangString text = lng_new_authorization(lt_name, App::self()->firstName, lt_day, day, lt_date, date, lt_time, time, lt_device, device, lt_location, location);
 		App::wnd()->serviceNotification(text);

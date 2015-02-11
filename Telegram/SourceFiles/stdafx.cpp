@@ -20,7 +20,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #ifdef Q_OS_WIN
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
-Q_IMPORT_PLUGIN(AccessibleFactory)
 Q_IMPORT_PLUGIN(QWebpPlugin)
 #elif defined Q_OS_MAC
 Q_IMPORT_PLUGIN(AVFMediaPlayerServicePlugin)

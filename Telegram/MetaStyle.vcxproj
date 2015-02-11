@@ -126,7 +126,7 @@
       <SubSystem>Console</SubSystem>
       <OutputFile>$(OutDir)\$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>$(QTDIR)\lib;$(QTDIR)\plugins;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;imm32.lib;winmm.lib;qtmaind.lib;glu32.lib;opengl32.lib;Qt5Cored.lib;Qt5Guid.lib;Qt5Widgetsd.lib;Qt5Networkd.lib;Qt5PlatformSupportd.lib;platforms\qwindowsd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;imm32.lib;winmm.lib;qtmaind.lib;glu32.lib;opengl32.lib;Qt5Cored.lib;Qt5Guid.lib;qtharfbuzzngd.lib;Qt5Widgetsd.lib;Qt5Networkd.lib;Qt5PlatformSupportd.lib;platforms\qwindowsd.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
       <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
@@ -145,7 +145,7 @@
       <SubSystem>Console</SubSystem>
       <OutputFile>$(OutDir)\$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>$(QTDIR)\lib;$(QTDIR)\plugins;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;qtmain.lib;opengl32.lib;imm32.lib;winmm.lib;Qt5Core.lib;Qt5Gui.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;qtmain.lib;opengl32.lib;imm32.lib;winmm.lib;Qt5Core.lib;Qt5Gui.lib;qtharfbuzzng.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>false</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
@@ -162,7 +162,7 @@
       <SubSystem>Console</SubSystem>
       <OutputFile>$(OutDir)\$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>$(QTDIR)\lib;$(QTDIR)\plugins;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;qtmain.lib;opengl32.lib;imm32.lib;winmm.lib;Qt5Core.lib;Qt5Gui.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;qtmain.lib;opengl32.lib;imm32.lib;winmm.lib;Qt5Core.lib;Qt5Gui.lib;qtharfbuzzng.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>false</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
