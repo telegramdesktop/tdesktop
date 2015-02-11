@@ -79,13 +79,18 @@ then go to **/home/user/TBuild/Libraries/openal-soft/build** and run
     make
     sudo make install
 
-####Qt 5.3.1, slightly patched
+####Qt 5.4.0, slightly patched
 
-http://download.qt-project.org/official_releases/qt/5.3/5.3.1/single/qt-everywhere-opensource-src-5.3.1.tar.gz
+http://download.qt-project.org/official_releases/qt/5.4/5.4.0/single/qt-everywhere-opensource-src-5.4.0.tar.gz
 
-Extract to **/home/user/TBuild/Libraries**, rename **qt-everywhere-opensource-src-5.3.1** to **QtStatic** to have **/home/user/TBuild/Libraries/QtStatic/qtbase** folder
+Extract to **/home/user/TBuild/Libraries**, rename **qt-everywhere-opensource-src-5.4.0** to **QtStatic** to have **/home/user/TBuild/Libraries/QtStatic/qtbase** folder
 
-Apply patch – copy (with overwrite!) everything from **/home/user/TBuild/tdesktop/\_qt\_5\_3\_1\_patch/** to **/home/user/TBuild/Libraries/QtStatic/**
+Apply patch:
+
+* OR copy (with overwrite!) everything from **/home/user/TBuild/tdesktop/\_qt\_5\_4\_0\_patch/** to **/home/user/TBuild/Libraries/QtStatic/**
+* OR copy **/home/user/TBuild/tdesktop/\_qt\_5\_4\_0\_patch.diff** to **/home/user/TBuild/Libraries/QtStatic/**, go there in Terminal and run
+
+    git apply _qt_5_4_0_patch.diff
 
 #####Building library
 
@@ -95,17 +100,17 @@ Install some packages for Qt (see **/home/user/TBuild/Libraries/QtStatic/qtbase/
 
 In Terminal go to **/home/user/TBuild/Libraries/QtStatic** and there run
 
-    ./configure -release -opensource -confirm-license -qt-xcb -no-opengl -static -nomake examples -skip qtquick1 -skip qtdeclarative
-    make
-    sudo make install
+    ./configure -release -opensource -confirm-license -qt-xcb -no-opengl -static -nomake examples -nomake tests -skip qtquick1 -skip qtdeclarative
+    make module-qtbase module-qtimageformats
+    sudo make module-qtbase-install_subtargets module-qtimageformats-install_subtargets
 
 building (**make** command) will take really long time.
 
 ###Building Telegram Desktop
 
 * Launch Qt Creator, all projects will be taken from **/home/user/TBuild/tdesktop/Telegram**
-* Tools > Options > Build & Run > Qt Versions tab > Add > File System /usr/local/Qt-5.3.1/bin/qmake > **Qt 5.3.1 (Qt-5.3.1)** > Apply
-* Tools > Options > Build & Run > Kits tab > Desktop (default) > change **Qt version** to **Qt 5.3.1 (Qt-5.3.1)** > Apply
+* Tools > Options > Build & Run > Qt Versions tab > Add > File System /usr/local/Qt-5.4.0/bin/qmake > **Qt 5.4.0 (Qt-5.4.0)** > Apply
+* Tools > Options > Build & Run > Kits tab > Desktop (default) > change **Qt version** to **Qt 5.4.0 (Qt-5.4.0)** > Apply
 * Open MetaStyle.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateStyle** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateStyle** and build for Debug
 * Open MetaEmoji.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateEmoji** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateEmoji** and build for Debug
 * Open MetaLang.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateLang** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateLang** and build for Debug
