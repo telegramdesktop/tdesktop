@@ -708,8 +708,8 @@ void Application::startApp() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 7012) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Chat background settings translated");
+			if (DevChannel && Local::oldMapVersion() < 7014) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Moved to Qt 5.4.0 version, please check everything\n\xe2\x80\x94 Time values should be displayed like in your system\n\xe2\x80\x94 Linux: fixed keyboard shortcuts when not english keyboard layout");
 			} else if (!DevChannel && Local::oldMapVersion() < 7013) {
 				versionFeatures = lang(lng_new_version7013).trimmed();
 			}
