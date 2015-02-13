@@ -355,6 +355,7 @@ _failDifferenceTimeout(1), _lastUpdateTime(0), _cachedX(0), _cachedY(0), _backgr
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
 	App::initBackground();
+	updateScrollColors();
 
 	connect(window, SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
 	connect(&dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));

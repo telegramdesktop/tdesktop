@@ -1614,6 +1614,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
 	_scroll.hide();
 	_scroll.move(0, 0);
 
+	updateScrollColors();
+
 	_toHistoryEnd.hide();
 
 	_field.hide();
@@ -3272,6 +3274,7 @@ void HistoryWidget::itemResized(HistoryItem *row) {
 }
 
 void HistoryWidget::updateScrollColors() {
+	if (!App::historyScrollBarColor()) return;
 	_scroll.updateColors(App::historyScrollBarColor(), App::historyScrollBgColor(), App::historyScrollBarOverColor(), App::historyScrollBgOverColor());
 }
 

@@ -1544,6 +1544,9 @@ OverviewWidget::OverviewWidget(QWidget *parent, const PeerData *peer, MediaOverv
 	_scroll.setWidget(&_inner);
 	_scroll.move(0, 0);
 	_inner.move(0, 0);
+
+	updateScrollColors();
+
 	_scroll.show();
 	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(onUpdateSelected()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
@@ -1789,6 +1792,7 @@ void OverviewWidget::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
 }
 
 void OverviewWidget::updateScrollColors() {
+	if (!App::historyScrollBarColor()) return;
 	_scroll.updateColors(App::historyScrollBarColor(), App::historyScrollBgColor(), App::historyScrollBarOverColor(), App::historyScrollBgOverColor());
 }
 
