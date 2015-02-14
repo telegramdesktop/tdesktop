@@ -341,6 +341,15 @@ static void populateFromPattern(FcPattern *pattern)
         return;
 
     familyName = QString::fromUtf8((const char *)value);
+    if (familyName == QLatin1String("Open Sans")) {
+        FcChar8 *styl = 0;
+        if (FcPatternGetString(pattern, FC_STYLE, 0, &styl) == FcResultMatch) {
+            QString style = QString::fromUtf8(reinterpret_cast<const char *>(styl));
+            if (style == QLatin1String("Semibold")) {
+                familyName.append(QChar(QChar::Space)).append(style);
+            }
+        }
+    }
 
     slant_value = FC_SLANT_ROMAN;
     weight_value = FC_WEIGHT_REGULAR;
@@ -778,6 +787,15 @@ QStringList QFontconfigDatabase::addApplicationFont(const QByteArray &fontData, 
         FcChar8 *fam = 0;
         if (FcPatternGetString(pattern, FC_FAMILY, 0, &fam) == FcResultMatch) {
             QString family = QString::fromUtf8(reinterpret_cast<const char *>(fam));
+            if (family == QLatin1String("Open Sans")) {
+                FcChar8 *styl = 0;
+                if (FcPatternGetString(pattern, FC_STYLE, 0, &styl) == FcResultMatch) {
+                    QString style = QString::fromUtf8(reinterpret_cast<const char *>(styl));
+                    if (style == QLatin1String("Semibold")) {
+                        family.append(QChar(QChar::Space)).append(style);
+                    }
+                }
+            }
             families << family;
         }
         populateFromPattern(pattern);
