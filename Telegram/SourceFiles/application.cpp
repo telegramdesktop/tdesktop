@@ -704,10 +704,10 @@ void Application::startApp() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 7014) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Moved to Qt 5.4.0 version, please check everything\n\xe2\x80\x94 Time values should be displayed like in your system\n\xe2\x80\x94 Linux: fixed keyboard shortcuts when not english keyboard layout");
-			} else if (!DevChannel && Local::oldMapVersion() < 7013) {
-				versionFeatures = lang(lng_new_version7013).trimmed();
+			if (DevChannel && Local::oldMapVersion() < 7015) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Some translation keys added\n\xe2\x80\x94 Linux: fixed semibold font\n\xe2\x80\x94 Linux: tray icon should work better in non-Unity environments");
+			} else if (!DevChannel && Local::oldMapVersion() < 7016) {
+				versionFeatures = lang(lng_new_version7016).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));

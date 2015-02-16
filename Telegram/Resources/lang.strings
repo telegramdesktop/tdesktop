@@ -459,12 +459,22 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version7013" = "— You can now change the chat background";
+"lng_new_version7016" = "— Some translations improvements\n— Linux: tray icon should work better in non-Unity environments";
 "lng_new_version7006_appstore" = "Telegram Desktop was updated to version {version}\n\n — Stickers support\n — Local caching for voice messages\n — Added new languages\n\nFull version history is available here:\n{link}";
+
+"lng_menu_insert_unicode" = "Insert Unicode control character";
 
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";
+
+"lng_wnd_menu_undo" = "Undo";
+"lng_wnd_menu_redo" = "Redo";
+
+// Linux specific
+
+"lng_linux_menu_undo" = "Undo";
+"lng_linux_menu_redo" = "Redo";
 
 // Mac specific
 
