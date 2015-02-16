@@ -496,8 +496,9 @@ void VideoSaveLink::doSave(bool forceSavingAs) const {
 			psOpenFile(already, true);
 		}
 	} else {
-		QDir alreadyDir(already.isEmpty() ? QDir() : QFileInfo(already).dir());
-		QString name = already.isEmpty() ? QString(".mov") : already;
+		QFileInfo alreadyInfo(already);
+		QDir alreadyDir(already.isEmpty() ? QDir() : alreadyInfo.dir());
+		QString name = already.isEmpty() ? QString(".mov") : alreadyInfo.fileName();
 		QString filename = saveFileName(lang(lng_save_video), qsl("MOV Video (*.mov);;All files (*.*)"), qsl("video"), name, forceSavingAs, alreadyDir);
 		if (!filename.isEmpty()) {
 			if (forceSavingAs) {
@@ -587,9 +588,10 @@ void AudioSaveLink::doSave(bool forceSavingAs) const {
 			psOpenFile(already, true);
 		}
 	} else {
-		QDir alreadyDir(already.isEmpty() ? QDir() : QFileInfo(already).dir());
+		QFileInfo alreadyInfo(already);
+		QDir alreadyDir(already.isEmpty() ? QDir() : alreadyInfo.dir());
 		bool mp3 = (data->mime == QLatin1String("audio/mp3"));
-		QString name = already.isEmpty() ? (mp3 ? qsl(".mp3") : qsl(".ogg")) : already;
+		QString name = already.isEmpty() ? (mp3 ? qsl(".mp3") : qsl(".ogg")) : alreadyInfo.fileName();
 		QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), name, forceSavingAs, alreadyDir);
 		if (!filename.isEmpty()) {
 			if (forceSavingAs) {
@@ -692,8 +694,9 @@ void DocumentSaveLink::doSave(bool forceSavingAs) const {
 			psOpenFile(already, true);
 		}
 	} else {
-		QDir alreadyDir(already.isEmpty() ? QDir() : QFileInfo(already).dir());
-		QString name = already.isEmpty() ? data->name : already, filter;
+		QFileInfo alreadyInfo(already);
+		QDir alreadyDir(already.isEmpty() ? QDir() : alreadyInfo.dir());
+		QString name = already.isEmpty() ? data->name : alreadyInfo.fileName(), filter;
 		MimeType mimeType = mimeTypeForName(data->mime);
 		QStringList p = mimeType.globPatterns();
 		QString pattern = p.isEmpty() ? QString() : p.front();
