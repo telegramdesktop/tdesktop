@@ -889,15 +889,15 @@ void Window::updateTrayMenu(bool force) {
         first->setText(lang(active ? lng_minimize_to_tray : lng_open_from_tray));
         disconnect(first, SIGNAL(triggered(bool)), 0, 0);
         connect(first, SIGNAL(triggered(bool)), this, active ? SLOT(minimizeToTray()) : SLOT(showFromTray()));
-#ifndef Q_OS_WIN
-        if (trayIcon) {
-            trayIcon->setContextMenu((active || cPlatform() != dbipMac) ? trayIconMenu : 0);
-        }
-#endif
     } else {
         QAction *second = trayIconMenu->actions().at(1);
         second->setDisabled(!isVisible());
     }
+#ifndef Q_OS_WIN
+    if (trayIcon) {
+        trayIcon->setContextMenu((active || cPlatform() != dbipMac) ? trayIconMenu : 0);
+    }
+#endif
 
     psTrayMenuUpdated();
 }

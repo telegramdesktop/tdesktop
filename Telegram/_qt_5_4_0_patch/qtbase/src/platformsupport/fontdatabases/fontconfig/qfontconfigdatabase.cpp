@@ -699,42 +699,6 @@ QStringList QFontconfigDatabase::fallbacksForFamily(const QString &family, QFont
     return fallbackFamilies;
 }
 
-// copied from freetype with some modifications
-
-#ifndef FT_PARAM_TAG_IGNORE_PREFERRED_FAMILY
-#define FT_PARAM_TAG_IGNORE_PREFERRED_FAMILY FT_MAKE_TAG('i', 'g', 'p', 'f')
-#endif
-
-#ifndef FT_PARAM_TAG_IGNORE_PREFERRED_SUBFAMILY
-#define FT_PARAM_TAG_IGNORE_PREFERRED_SUBFAMILY FT_MAKE_TAG('i', 'g', 'p', 's')
-#endif
-
-/* documentation is in freetype.h */
-
-FT_Error ___ft_New_Memory_Face(FT_Library library, const FT_Byte* file_base, FT_Long file_size, FT_Long face_index, FT_Face *aface) {
-	FT_Open_Args  args;
-
-	/* test for valid `library' and `face' delayed to FT_Open_Face() */
-	if (!file_base)
-		return FT_Err_Invalid_Argument;
-
-	FT_Parameter params[2];
-	params[0].tag = FT_PARAM_TAG_IGNORE_PREFERRED_FAMILY;
-	params[0].data = 0;
-	params[1].tag = FT_PARAM_TAG_IGNORE_PREFERRED_SUBFAMILY;
-	params[1].data = 0;
-	args.flags = FT_OPEN_MEMORY | FT_OPEN_PARAMS;
-	args.memory_base = file_base;
-	args.memory_size = file_size;
-	args.stream = NULL;
-	args.num_params = 2;
-	args.params = params;
-
-	return FT_Open_Face(library, &args, face_index, aface);
-}
-
-// end
-
 static FcPattern *queryFont(const FcChar8 *file, const QByteArray &data, int id, FcBlanks *blanks, int *count)
 {
 #if FC_VERSION < 20402
@@ -749,7 +713,7 @@ static FcPattern *queryFont(const FcChar8 *file, const QByteArray &data, int id,
     FcPattern *pattern = 0;
 
     FT_Face face;
-	if (!___ft_New_Memory_Face(lib, (const FT_Byte *)data.constData(), data.size(), id, &face)) {
+    if (!FT_New_Memory_Face(lib, (const FT_Byte *)data.constData(), data.size(), id, &face)) {
         *count = face->num_faces;
 
         pattern = FcFreeTypeQueryFace(face, file, id, blanks);

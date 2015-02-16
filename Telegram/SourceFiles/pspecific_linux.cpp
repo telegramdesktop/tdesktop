@@ -43,6 +43,7 @@ extern "C" {
 namespace {
 	bool frameless = true;
 	bool finished = true;
+    bool isUnity = false;
     bool useGtkBase = false, useAppIndicator = false, useStatusIcon = false, trayIconChecked = false, useUnityCount = false;
 
     AppIndicator *_trayIndicator = 0;
@@ -325,6 +326,9 @@ namespace {
     class _PsInitializer {
     public:
         _PsInitializer() {
+            isUnity = (QString(getenv("XDG_CURRENT_DESKTOP")).toLower() == QLatin1String("unity"));
+
+            if (isUnity) cSetSupportTray(false);
             std::cout << "libs init..\n";
             setupGtk();
             setupUnity();
@@ -379,6 +383,8 @@ namespace {
         }
 
         void setupGtk() {
+            if (!isUnity) return;
+
             QLibrary lib_gtk, lib_indicator;
             if (loadLibrary(lib_indicator, "appindicator3", 1)) {
                 if (loadLibrary(lib_gtk, "gtk-3", 0)) {
@@ -426,6 +432,8 @@ namespace {
         }
 
         void setupUnity() {
+            if (!useGtkBase || !isUnity) return;
+
             QLibrary lib_unity(QLatin1String("unity"), 9, 0);
             if (!loadLibrary(lib_unity, "unity", 9)) return;
 
@@ -483,7 +491,7 @@ void PsMainWindow::psRefreshTaskbarIcon() {
 }
 
 void PsMainWindow::psTrayMenuUpdated() {
-    if (useAppIndicator || useStatusIcon) {
+    if (isUnity && (useAppIndicator || useStatusIcon)) {
         const QList<QAction*> &actions = trayIconMenu->actions();
         if (_trayItems.isEmpty()) {
             DEBUG_LOG(("Creating tray menu!"));
@@ -509,27 +517,56 @@ void PsMainWindow::psTrayMenuUpdated() {
 }
 
 void PsMainWindow::psSetupTrayIcon() {
-    if (!cSupportTray()) return;
-    psUpdateCounter();
+    if (isUnity) {
+        if (!cSupportTray()) return;
+        psUpdateCounter();
+    } else {
+        if (!trayIcon) {
+            trayIcon = new QSystemTrayIcon(this);
+
+            QIcon icon(QPixmap::fromImage(App::wnd()->iconLarge(), Qt::ColorOnly));
+
+            trayIcon->setIcon(icon);
+            trayIcon->setToolTip(QString::fromStdWString(AppName));
+            connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)), Qt::UniqueConnection);
+            connect(trayIcon, SIGNAL(messageClicked()), this, SLOT(showFromTray()));
+            App::wnd()->updateTrayMenu();
+        }
+        psUpdateCounter();
+
+        trayIcon->show();
+        psUpdateDelegate();
+    }
 }
 
 void PsMainWindow::psUpdateWorkmode() {
     if (!cSupportTray()) return;
 
     if (cWorkMode() == dbiwmWindowOnly) {
-        if (useAppIndicator) {
-            ps_app_indicator_set_status(_trayIndicator, APP_INDICATOR_STATUS_PASSIVE);
-        } else if (useStatusIcon) {
-            ps_gtk_status_icon_set_visible(_trayIcon, false);
+        if (isUnity) {
+            if (useAppIndicator) {
+                ps_app_indicator_set_status(_trayIndicator, APP_INDICATOR_STATUS_PASSIVE);
+            } else if (useStatusIcon) {
+                ps_gtk_status_icon_set_visible(_trayIcon, false);
+            }
+        } else {
+            if (trayIcon) {
+                trayIcon->setContextMenu(0);
+                trayIcon->deleteLater();
+            }
+            trayIcon = 0;
         }
     } else {
-        if (useAppIndicator) {
-            ps_app_indicator_set_status(_trayIndicator, APP_INDICATOR_STATUS_ACTIVE);
-        } else if (useStatusIcon) {
-            ps_gtk_status_icon_set_visible(_trayIcon, true);
+        if (isUnity) {
+            if (useAppIndicator) {
+                ps_app_indicator_set_status(_trayIndicator, APP_INDICATOR_STATUS_ACTIVE);
+            } else if (useStatusIcon) {
+                ps_gtk_status_icon_set_visible(_trayIcon, true);
+            }
+        } else {
+            psSetupTrayIcon();
         }
     }
-    setWindowIcon(wndIcon);
 }
 
 void PsMainWindow::psUpdateIndicator() {
@@ -560,15 +597,24 @@ void PsMainWindow::psUpdateCounter() {
         }
     }
 
-    if (useAppIndicator) {
-        if (getms() > _psLastIndicatorUpdate + 1000) {
-            psUpdateIndicator();
-        } else if (!_psUpdateIndicatorTimer.isActive()) {
-            _psUpdateIndicatorTimer.start(100);
+    if (isUnity) {
+        if (useAppIndicator) {
+            if (getms() > _psLastIndicatorUpdate + 1000) {
+                psUpdateIndicator();
+            } else if (!_psUpdateIndicatorTimer.isActive()) {
+                _psUpdateIndicatorTimer.start(100);
+            }
+        } else if (useStatusIcon && trayIconChecked) {
+            loadPixbuf(_trayIconImageGen());
+            ps_gtk_status_icon_set_from_pixbuf(_trayIcon, _trayPixbuf);
         }
-    } else if (useStatusIcon && trayIconChecked) {
-        loadPixbuf(_trayIconImageGen());
-        ps_gtk_status_icon_set_from_pixbuf(_trayIcon, _trayPixbuf);
+    } else if (trayIcon) {
+        int32 counter = App::histories().unreadFull;
+        style::color bg = (App::histories().unreadMuted < counter) ? st::counterBG : st::counterMuteBG;
+        QIcon iconSmall;
+        iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(16, counter, bg, true), Qt::ColorOnly));
+        iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(32, counter, bg, true), Qt::ColorOnly));
+        trayIcon->setIcon(iconSmall);
     }
 }
 
@@ -666,6 +712,11 @@ void PsMainWindow::psUpdatedPosition() {
 }
 
 void PsMainWindow::psCreateTrayIcon() {
+    if (!isUnity) {
+        cSetSupportTray(QSystemTrayIcon::isSystemTrayAvailable());
+        return;
+    }
+
     if (useAppIndicator) {
         DEBUG_LOG(("Trying to create AppIndicator"));
         if (ps_gtk_init_check(0, 0)) {
