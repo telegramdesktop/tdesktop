@@ -104,10 +104,6 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 
 	installEventFilter(new _DebugWaiter(this));
 
-#if defined Q_OS_LINUX || defined Q_OS_LINUX64
-    QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/DejaVuSans.ttf"));
-    QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/NanumMyeongjo-Regular.ttf"));
-#endif
     QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Regular.ttf"));
     QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Bold.ttf"));
     QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Semibold.ttf"));
