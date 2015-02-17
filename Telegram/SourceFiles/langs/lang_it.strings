@@ -303,7 +303,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_kick_user" = "{from} ha espulso {user}";
 "lng_action_user_left" = "{from} ha lasciato il gruppo";
 "lng_action_user_joined" = "{from} si è unito al gruppo";
-"lng_action_user_registered" = "{from} si è appena unito a Telegram";
+"lng_action_user_registered" = "{from} ha iniziato a usare Telegram";
 "lng_action_removed_photo" = "{from} ha rimosso la foto del gruppo";
 "lng_action_changed_photo" = "{from} ha cambiato la foto del gruppo";
 "lng_action_changed_title" = "{from} ha cambiato il nome del gruppo in «{title}»";
@@ -459,12 +459,22 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli update è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version7013" = "— Puoi ora cambiare lo sfondo delle chat";
+"lng_new_version7016" = "— Alcuni miglioramenti nelle traduzioni\n— Linux: l'icona tray dovrebbe funzionare meglio negli ambienti non Unity";
 "lng_new_version7006_appstore" = "Telegram Desktop è stato aggiornato alla versione {version}\n\n— Aggiunto il supporto agli sticker\n— Cache locale per i messaggi vocali\n— Aggiunte nuove lingue\n\nLa cronologia degli update è disponibile qui:\n{link}";
+
+"lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Programma predefinito...";
+
+"lng_wnd_menu_undo" = "Annulla";
+"lng_wnd_menu_redo" = "Ripeti";
+
+// Linux specific
+
+"lng_linux_menu_undo" = "Annulla";
+"lng_linux_menu_redo" = "Ripeti";
 
 // Mac specific
 

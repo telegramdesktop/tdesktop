@@ -459,12 +459,22 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version7013" = "— 대화방 배경 변경 가능";
+"lng_new_version7016" = "— 일부 번역 개선\n— 리눅스 : non-Unity 환경에서 트레이 아이콘 기능 향상";
 "lng_new_version7006_appstore" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n— 스티커 지원\n— 음성 메시지 로컬 캐싱\n— 언어 추가\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
+
+"lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "기본 실행 프로그램을 선택해주세요..";
+
+"lng_wnd_menu_undo" = "실행취소";
+"lng_wnd_menu_redo" = "다시실행";
+
+// Linux specific
+
+"lng_linux_menu_undo" = "실행취소";
+"lng_linux_menu_redo" = "다시실행";
 
 // Mac specific
 

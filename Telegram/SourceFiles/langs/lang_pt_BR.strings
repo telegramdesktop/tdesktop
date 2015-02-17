@@ -457,14 +457,24 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\nDetectamos um acesso à sua conta de um novo dispositivo em {day}, {date} às {time}\n\nDispositivo: {device}\nLocalização: {location}\n\nCaso não tenha sido você, vá em Configurações – Terminar todas as outras sessões.\n\nObrigado,\nEquipe Telegram";
 
-"lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nVersão completa do histórico disponível aqui:\n{link}";
+"lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras menores melhorias";
-"lng_new_version7013" = "— Agora você pode alterar o papel de parede do chat";
+"lng_new_version7016" = "— Melhorias nas traduções\n— Linux: barra de ferramentas deve funcionar melhor em versões não-Unity.";
 "lng_new_version7006_appstore" = "Telegram Desktop foi atualizado para a versão {version}\n\n — Suporte à stickers\n — Cache local para mensagens de voz\n — Adicionadas novas linguagens\n\nHistórico completo da versão disponível aqui:\n{link}";
+
+"lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Escolher programa padrão...";
+
+"lng_wnd_menu_undo" = "Desfazer";
+"lng_wnd_menu_redo" = "Refazer";
+
+// Linux specific
+
+"lng_linux_menu_undo" = "Desfazer";
+"lng_linux_menu_redo" = "Refazer";
 
 // Mac specific
 
