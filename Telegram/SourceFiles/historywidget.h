@@ -382,7 +382,6 @@ public slots:
 	void activate();
 	void onTextChange();
 
-	void onFieldTabbed();
 	void onStickerSend(DocumentData *sticker);
 
 	void onVisibleChanged();
