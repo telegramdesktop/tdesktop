@@ -22,7 +22,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "pspecific.h"
 #include "fileuploader.h"
 #include "mainwidget.h"
-#include "supporttl.h"
 
 #include "lang.h"
 #include "boxes/confirmbox.h"
@@ -674,7 +673,6 @@ void Application::startApp() {
 	window->init();
 
 	DEBUG_LOG(("Application Info: window created.."));
-	readSupportTemplates();
 
 	MTP::start();
 	

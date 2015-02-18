@@ -914,7 +914,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="SourceFiles\supporttl.cpp" />
     <ClCompile Include="SourceFiles\sysbuttons.cpp" />
     <ClCompile Include="SourceFiles\title.cpp" />
     <ClCompile Include="SourceFiles\types.cpp" />
@@ -1749,7 +1748,6 @@
     <ClInclude Include="SourceFiles\pspecific.h" />
     <ClInclude Include="SourceFiles\settings.h" />
     <ClInclude Include="SourceFiles\style.h" />
-    <ClInclude Include="SourceFiles\supporttl.h" />
     <CustomBuild Include="SourceFiles\sysbuttons.h">
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing sysbuttons.h...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>

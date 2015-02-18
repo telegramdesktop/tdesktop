@@ -99,7 +99,6 @@ SOURCES += \
     ./SourceFiles/mainwidget.cpp \
     ./SourceFiles/settings.cpp \
     ./SourceFiles/settingswidget.cpp \
-    ./SourceFiles/supporttl.cpp \
     ./SourceFiles/sysbuttons.cpp \
     ./SourceFiles/title.cpp \
     ./SourceFiles/types.cpp \
@@ -179,7 +178,6 @@ HEADERS += \
     ./SourceFiles/settings.h \
     ./SourceFiles/settingswidget.h \
     ./SourceFiles/style.h \
-    ./SourceFiles/supporttl.h \
     ./SourceFiles/sysbuttons.h \
     ./SourceFiles/title.h \
     ./SourceFiles/types.h \
