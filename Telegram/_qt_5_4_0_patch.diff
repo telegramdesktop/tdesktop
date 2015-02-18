@@ -647,7 +647,7 @@ index f1f472b..97819dd 100644
  {
      m_data.setSelectedNameFilter(f); // Dialog cannot be updated at run-time.
 diff --git a/qtbase/src/plugins/platforms/windows/qwindowskeymapper.cpp b/qtbase/src/plugins/platforms/windows/qwindowskeymapper.cpp
-index ff9ad18..ba423b4 100644
+index ff9ad18..3fd0848 100644
 --- a/qtbase/src/plugins/platforms/windows/qwindowskeymapper.cpp
 +++ b/qtbase/src/plugins/platforms/windows/qwindowskeymapper.cpp
 @@ -537,17 +537,16 @@ static inline int toKeyOrUnicode(int vk, int scancode, unsigned char *kbdBuffer,
@@ -678,6 +678,18 @@ index ff9ad18..ba423b4 100644
          code = unicodeBuffer[0].toUpper().unicode();
  
      // Qt::Key_*'s are not encoded below 0x20, so try again, and DEL keys (0x7f) is encoded with a
+@@ -833,7 +832,10 @@ bool QWindowsKeyMapper::translateMultimediaKeyEventInternal(QWindow *window, con
+ 
+     const int qtKey = CmdTbl[cmd];
+     sendExtendedPressRelease(receiver, qtKey, Qt::KeyboardModifier(state), 0, 0, 0);
+-    return true;
++	// QTBUG-43343: Make sure to return false if Qt does not handle the key, otherwise,
++	// the keys are not passed to the active media player.
++	const QKeySequence sequence(Qt::Modifier(state) + qtKey);
++	return QGuiApplicationPrivate::instance()->shortcutMap.hasShortcutForKeySequence(sequence);
+ #else
+     Q_UNREACHABLE();
+     return false;
 diff --git a/qtbase/src/plugins/platforms/windows/qwindowswindow.cpp b/qtbase/src/plugins/platforms/windows/qwindowswindow.cpp
 index 8a80729..16fda26 100644
 --- a/qtbase/src/plugins/platforms/windows/qwindowswindow.cpp

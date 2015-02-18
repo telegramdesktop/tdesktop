@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.30110.0
+VisualStudioVersion = 12.0.30501.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Telegram", "Telegram\Telegram.vcxproj", "{B12702AD-ABFB-343A-A199-8E24837244A3}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -15,8 +15,6 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MetaEmoji", "Telegram\MetaEmoji.vcxproj", "{EB7D16AC-EACF-4577-B05A-F28E5F356794}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Updater", "Telegram\Updater.vcxproj", "{6B4BA3BE-7B15-4B4C-B200-81ABFDEF2C76}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Prepare", "Telegram\Prepare.vcxproj", "{88AB1138-143A-4CFB-A0E6-79B646B5E1B0}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MetaLang", "Telegram\MetaLang.vcxproj", "{E417CAA4-259B-4C99-88E3-805F1300E8EB}"
 EndProject
@@ -71,15 +69,6 @@ Global
 		{6B4BA3BE-7B15-4B4C-B200-81ABFDEF2C76}.Release|Win32.ActiveCfg = Release|Win32
 		{6B4BA3BE-7B15-4B4C-B200-81ABFDEF2C76}.Release|Win32.Build.0 = Release|Win32
 		{6B4BA3BE-7B15-4B4C-B200-81ABFDEF2C76}.Release|x64.ActiveCfg = Release|Win32
-		{88AB1138-143A-4CFB-A0E6-79B646B5E1B0}.Debug|Win32.ActiveCfg = Debug|Win32
-		{88AB1138-143A-4CFB-A0E6-79B646B5E1B0}.Debug|Win32.Build.0 = Debug|Win32
-		{88AB1138-143A-4CFB-A0E6-79B646B5E1B0}.Debug|x64.ActiveCfg = Debug|Win32
-		{88AB1138-143A-4CFB-A0E6-79B646B5E1B0}.Deploy|Win32.ActiveCfg = Deploy|Win32
-		{88AB1138-143A-4CFB-A0E6-79B646B5E1B0}.Deploy|Win32.Build.0 = Deploy|Win32
-		{88AB1138-143A-4CFB-A0E6-79B646B5E1B0}.Deploy|x64.ActiveCfg = Release|Win32
-		{88AB1138-143A-4CFB-A0E6-79B646B5E1B0}.Release|Win32.ActiveCfg = Release|Win32
-		{88AB1138-143A-4CFB-A0E6-79B646B5E1B0}.Release|Win32.Build.0 = Release|Win32
-		{88AB1138-143A-4CFB-A0E6-79B646B5E1B0}.Release|x64.ActiveCfg = Release|Win32
 		{E417CAA4-259B-4C99-88E3-805F1300E8EB}.Debug|Win32.ActiveCfg = Debug|Win32
 		{E417CAA4-259B-4C99-88E3-805F1300E8EB}.Debug|Win32.Build.0 = Debug|Win32
 		{E417CAA4-259B-4C99-88E3-805F1300E8EB}.Debug|x64.ActiveCfg = Debug|Win32
