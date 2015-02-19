@@ -150,9 +150,6 @@
     <ClCompile Include="SourceFiles\gui\style_core.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\supporttl.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\gui\boxshadow.cpp">
       <Filter>gui</Filter>
     </ClCompile>
@@ -838,9 +835,6 @@
     </ClInclude>
     <ClInclude Include="SourceFiles\gui\style_core.h">
       <Filter>gui</Filter>
-    </ClInclude>
-    <ClInclude Include="SourceFiles\supporttl.h">
-      <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\gui\boxshadow.h">
       <Filter>gui</Filter>

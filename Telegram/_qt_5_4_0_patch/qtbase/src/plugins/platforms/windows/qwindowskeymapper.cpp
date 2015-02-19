@@ -832,7 +832,10 @@ bool QWindowsKeyMapper::translateMultimediaKeyEventInternal(QWindow *window, con
 
     const int qtKey = CmdTbl[cmd];
     sendExtendedPressRelease(receiver, qtKey, Qt::KeyboardModifier(state), 0, 0, 0);
-    return true;
+	// QTBUG-43343: Make sure to return false if Qt does not handle the key, otherwise,
+	// the keys are not passed to the active media player.
+	const QKeySequence sequence(Qt::Modifier(state) + qtKey);
+	return QGuiApplicationPrivate::instance()->shortcutMap.hasShortcutForKeySequence(sequence);
 #else
     Q_UNREACHABLE();
     return false;

@@ -329,7 +329,7 @@ NotifyWindow::~NotifyWindow() {
 	if (App::wnd()) App::wnd()->notifyShowNext(this);
 }
 
-Window::Window(QWidget *parent) : PsMainWindow(parent), _serviceHistoryRequest(0),
+Window::Window(QWidget *parent) : PsMainWindow(parent), _serviceHistoryRequest(0), title(0),
 intro(0), main(0), settings(0), layerBG(0), _isActive(false), _topWidget(0),
 _connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _mediaView(0) {
 
@@ -1034,6 +1034,8 @@ TitleWidget *Window::getTitle() {
 }
 
 void Window::resizeEvent(QResizeEvent *e) {
+	if (!title) return;
+
 	bool wideMode = (width() >= st::wideModeWidth);
 	if (wideMode != cWideMode()) {
 		cSetWideMode(wideMode);
