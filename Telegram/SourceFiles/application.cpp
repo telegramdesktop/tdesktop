@@ -704,8 +704,8 @@ void Application::startApp() {
 			QString versionFeatures;
 			if (DevChannel && Local::oldMapVersion() < 7015) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Some translation keys added\n\xe2\x80\x94 Linux: fixed semibold font\n\xe2\x80\x94 Linux: tray icon should work better in non-Unity environments");
-			} else if (!DevChannel && Local::oldMapVersion() < 7016) {
-				versionFeatures = lang(lng_new_version7016).trimmed();
+			} else if (!DevChannel && Local::oldMapVersion() < 7017) {
+				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));

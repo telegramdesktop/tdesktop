@@ -71,10 +71,8 @@ _saveMsgStarted(0), _saveMsgOpacity(0)
 	setMouseTracking(true);
 
 	hide();
-	psUpdateOverlayed(this);
-	show();
-	hide();
-
+	createWinId();
+	
 	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
 	connect(&_save, SIGNAL(clicked()), this, SLOT(onDownload()));
 	connect(&_forward, SIGNAL(clicked()), this, SLOT(onForward()));
