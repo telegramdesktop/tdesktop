@@ -69,6 +69,10 @@ _saveMsgStarted(0), _saveMsgOpacity(0)
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
 	setMouseTracking(true);
+
+	hide();
+	psUpdateOverlayed(this);
+	show();
 	hide();
 
 	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -528,7 +532,7 @@ void MediaView::showPhoto(PhotoData *photo) {
 void MediaView::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 	QRect r(e->rect());
-	
+
 	QPainter::CompositionMode m = p.compositionMode();
 	p.setCompositionMode(QPainter::CompositionMode_Source);
 

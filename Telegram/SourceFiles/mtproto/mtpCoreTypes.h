@@ -20,6 +20,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "types.h"
 #include <zlib.h>
 
+#undef min
+#undef max
+
 //#define DEBUG_MTPPRIME
 
 #ifdef DEBUG_MTPPRIME

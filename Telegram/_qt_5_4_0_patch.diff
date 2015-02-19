@@ -137,6 +137,31 @@ index 312320c..5e82318 100644
          }
  
          // Make sure we're inside the viewport.
+diff --git a/qtbase/src/gui/text/qtextlayout.cpp b/qtbase/src/gui/text/qtextlayout.cpp
+index 1ac50d3..3c88caa 100644
+--- a/qtbase/src/gui/text/qtextlayout.cpp
++++ b/qtbase/src/gui/text/qtextlayout.cpp
+@@ -643,7 +643,10 @@ int QTextLayout::nextCursorPosition(int oldPos, CursorMode mode) const
+         while (oldPos < len && !attributes[oldPos].graphemeBoundary)
+             oldPos++;
+     } else {
+-        if (oldPos < len && d->atWordSeparator(oldPos)) {
++		while (oldPos < len && d->atSpace(oldPos))
++			oldPos++;
++
++		if (oldPos < len && d->atWordSeparator(oldPos)) {
+             oldPos++;
+             while (oldPos < len && d->atWordSeparator(oldPos))
+                 oldPos++;
+@@ -651,8 +654,6 @@ int QTextLayout::nextCursorPosition(int oldPos, CursorMode mode) const
+             while (oldPos < len && !d->atSpace(oldPos) && !d->atWordSeparator(oldPos))
+                 oldPos++;
+         }
+-        while (oldPos < len && d->atSpace(oldPos))
+-            oldPos++;
+     }
+ 
+     return oldPos;
 diff --git a/qtbase/src/gui/text/qtextlayout.h b/qtbase/src/gui/text/qtextlayout.h
 index 1e0ab9b..47972d3 100644
 --- a/qtbase/src/gui/text/qtextlayout.h
