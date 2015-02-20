@@ -702,8 +702,8 @@ void Application::startApp() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 7015) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Some translation keys added\n\xe2\x80\x94 Linux: fixed semibold font\n\xe2\x80\x94 Linux: tray icon should work better in non-Unity environments");
+			if (DevChannel && Local::oldMapVersion() < 7018) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Windows: crash on start fixed for some Intel cards\n\xe2\x80\x94 Linux: tray icon returned in Pantheon and Gnome");
 			} else if (!DevChannel && Local::oldMapVersion() < 7017) {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
