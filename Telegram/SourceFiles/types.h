@@ -239,7 +239,7 @@ enum DataBlockId {
 	dbiLastUpdateCheck = 13,
 	dbiWindowPosition = 14,
 	dbiConnectionType = 15,
-// 16 reserved
+	// 16 reserved
 	dbiDefaultAttach = 17,
 	dbiCatsAndDogs = 18,
 	dbiReplaceEmojis = 19,
@@ -250,13 +250,16 @@ enum DataBlockId {
 	dbiRecentEmojis = 24,
 	dbiLoggedPhoneNumber = 25,
 	dbiMutedPeers = 26,
-// 27 reserved
+	// 27 reserved
 	dbiNotifyView = 28,
 	dbiSendToMenu = 29,
 	dbiCompressPastedImage = 30,
 	dbiLang = 31,
 	dbiLangFile = 32,
 	dbiTileBackground = 33,
+
+	dbiDesktopGameNotify = 34,
+	dbiDesktopBorderlessNotify=35,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,

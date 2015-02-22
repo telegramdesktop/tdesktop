@@ -73,6 +73,8 @@ DeclareSetting(bool, TileBackground);
 DeclareSetting(bool, SoundNotify);
 DeclareSetting(bool, NeedConfigResave);
 DeclareSetting(bool, DesktopNotify);
+DeclareSetting(bool, DesktopGameNotify);
+DeclareSetting(bool, DesktopBorderlessNotify);
 DeclareSetting(DBINotifyView, NotifyView);
 DeclareSetting(bool, AutoUpdate);
 

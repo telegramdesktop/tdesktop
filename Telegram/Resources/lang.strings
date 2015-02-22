@@ -157,6 +157,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_settings_section_notify" = "Notifications";
 "lng_settings_desktop_notify" = "Desktop notifications";
+"lng_settings_desktop_game_notify" = "Show notifications over game";
+"lng_settings_desktop_borderless_notify" = "Show notifications over borderless apps";
 "lng_settings_show_name" = "Show sender's name";
 "lng_settings_show_preview" = "Show message preview";
 "lng_settings_sound_notify" = "Play sound";
