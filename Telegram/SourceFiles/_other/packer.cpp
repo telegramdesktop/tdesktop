@@ -253,7 +253,12 @@ int main(int argc, char *argv[])
 
 	size_t compressedLen = compressed.size() - hSize;
 	size_t outPropsSize = LZMA_PROPS_SIZE;
-	int res = LzmaCompress((uchar*)(compressed.data() + hSize), &compressedLen, (const uchar*)(result.constData()), result.size(), (uchar*)(compressed.data() + hSigLen + hShaLen), &outPropsSize, 9, 64 * 1024 * 1024, 0, 0, 0, 0, 0);
+	uchar *_dest = (uchar*)(compressed.data() + hSize);
+	size_t *_destLen = &compressedLen;
+	const uchar *_src = (const uchar*)(result.constData());
+	size_t _srcLen = result.size();
+	uchar *_outProps = (uchar*)(compressed.data() + hSigLen + hShaLen);
+	int res = LzmaCompress(_dest, _destLen, _src, _srcLen, _outProps, &outPropsSize, 9, 64 * 1024 * 1024, 4, 0, 2, 273, 2);
 	if (res != SZ_OK) {
 		cout << "Error in compression: " << res << "\n";
 		return -1;

@@ -1786,7 +1786,11 @@ bool psSkipAudioNotify() {
 bool psSkipDesktopNotify() {
 	QUERY_USER_NOTIFICATION_STATE state;
 	if (useShellapi && SUCCEEDED(shQueryUserNotificationState(&state))) {
+<<<<<<< HEAD
 		if (state == QUNS_PRESENTATION_MODE ) return true;
+=======
+		if (state == QUNS_PRESENTATION_MODE || state == QUNS_RUNNING_D3D_FULL_SCREEN/* || state == QUNS_BUSY*/) return true;
+>>>>>>> 64bc88ce828f2897923a805f8955e7503564130b
 	}
 	return false;
 }

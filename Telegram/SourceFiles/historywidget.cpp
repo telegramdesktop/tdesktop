@@ -26,7 +26,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "window.h"
 #include "fileuploader.h"
-#include "supporttl.h"
 
 #include "localstorage.h"
 
@@ -1585,7 +1584,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
 	connect(&_attachPhoto, SIGNAL(clicked()), this, SLOT(onPhotoSelect()));
 	connect(&_field, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
 	connect(&_field, SIGNAL(cancelled()), this, SLOT(onCancel()));
-	connect(&_field, SIGNAL(tabbed()), this, SLOT(onFieldTabbed()));
 	connect(&_field, SIGNAL(resized()), this, SLOT(onFieldResize()));
 	connect(&_field, SIGNAL(focused()), this, SLOT(onFieldFocused()));
 	connect(&imageLoader, SIGNAL(imageReady()), this, SLOT(onPhotoReady()));
@@ -3426,49 +3424,6 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		if (p) App::main()->showPeer(p->id, m);
 	} else {
 		e->ignore();
-	}
-}
-
-void HistoryWidget::onFieldTabbed() {
-	QString v = _field.getText(), t = supportTemplate(v);
-	if (!t.isEmpty()) {
-		bool isImg = t.startsWith(qsl("img:")), isFile = t.startsWith(qsl("file:")), isContact = t.startsWith(qsl("contact:"));
-		if (isImg || isFile) {
-			QString fname = t.mid(isImg ? 4 : 5).trimmed(), text;
-			int32 lineEnd = fname.indexOf(QChar('\n'));
-			if (lineEnd > 0) {
-				text = fname.mid(lineEnd + 1).trimmed();
-				fname = fname.mid(0, lineEnd).trimmed();
-			}
-			if (isImg) {
-				QImage img(cWorkingDir() + fname);
-				if (!img.isNull()) {
-					setFieldText(text);
-					uploadImage(img, !text.isEmpty());
-				}
-			} else {
-				setFieldText(text);
-				uploadFile(cWorkingDir() + fname, !text.isEmpty());
-			}
-		} else if (isContact) {
-			QString contact = t.mid(8).trimmed(), text;
-			int32 lineEnd = contact.indexOf(QChar('\n'));
-			if (lineEnd > 0) {
-				text = contact.mid(lineEnd + 1).trimmed();
-				contact = contact.mid(0, lineEnd).trimmed();
-			}
-			QStringList data = contact.split(QChar(' '));
-			if (data.size() > 1) {
-				setFieldText(text);
-				QString phone = data.at(0).trimmed(), fname = data.at(1).trimmed(), lname = (data.size() > 2) ? static_cast<QStringList>(data.mid(2)).join(QChar(' ')).trimmed() : QString();
-				shareContactConfirmation(phone, fname, lname, !text.isEmpty());
-			}
-		} else {
-			setFieldText(t);
-			QTextCursor c = _field.textCursor();
-			c.movePosition(QTextCursor::End);
-			_field.setTextCursor(c);
-		}
 	}
 }
 

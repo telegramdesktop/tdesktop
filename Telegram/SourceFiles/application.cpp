@@ -22,7 +22,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "pspecific.h"
 #include "fileuploader.h"
 #include "mainwidget.h"
-#include "supporttl.h"
 
 #include "lang.h"
 #include "boxes/confirmbox.h"
@@ -674,7 +673,6 @@ void Application::startApp() {
 	window->init();
 
 	DEBUG_LOG(("Application Info: window created.."));
-	readSupportTemplates();
 
 	MTP::start();
 	
@@ -704,10 +702,10 @@ void Application::startApp() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 7015) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Some translation keys added\n\xe2\x80\x94 Linux: fixed semibold font\n\xe2\x80\x94 Linux: tray icon should work better in non-Unity environments");
-			} else if (!DevChannel && Local::oldMapVersion() < 7016) {
-				versionFeatures = lang(lng_new_version7016).trimmed();
+			if (DevChannel && Local::oldMapVersion() < 7018) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Windows: crash on start fixed for some Intel cards\n\xe2\x80\x94 Linux: tray icon returned in Pantheon and Gnome");
+			} else if (!DevChannel && Local::oldMapVersion() < 7017) {
+				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));

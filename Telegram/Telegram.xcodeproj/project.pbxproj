@@ -127,7 +127,6 @@
 		830CB6F547B8C80A569A0271 /* addparticipantbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 40E88FBA282991C8CBDFE94D /* addparticipantbox.cpp */; settings = {ATTRIBUTES = (); }; };
 		832C50BFD7D09AF042A51D4F /* flatbutton.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = F1A04BDB750C2AE652797B04 /* flatbutton.cpp */; settings = {ATTRIBUTES = (); }; };
 		8771A8C96E9C391044035D99 /* OpenGL.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = D4B32C2222F82AC56BADEB21 /* OpenGL.framework */; };
-		878DCAF0C5B0DB2EB4EDFD3D /* supporttl.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0B2F770F53FBB0DBF738D89B /* supporttl.cpp */; settings = {ATTRIBUTES = (); }; };
 		8883FF366F2623E89D90A9E6 /* qgenericbearer in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 9A55B8F7C143D66AD9EAE304 /* qgenericbearer */; };
 		89ADB41E48A3B5E24ABB626C /* profilewidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = CF32DF59C7823E4F3397EF3C /* profilewidget.cpp */; settings = {ATTRIBUTES = (); }; };
 		8B22E794EFF0EAFF964A3043 /* introsteps.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = C34459FA465B57DF4DB80D12 /* introsteps.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -311,7 +310,6 @@
 		098EA7CE256AAFAE4A17EB77 /* introcode.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = introcode.h; path = SourceFiles/intro/introcode.h; sourceTree = "<absolute>"; };
 		09FD01F2BD652EB838A296D8 /* application.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = application.h; path = SourceFiles/application.h; sourceTree = "<absolute>"; };
 		0ABCEA8D0DD45589040B0AF2 /* /usr/local/Qt-5.4.0/mkspecs/common/unix.conf */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.4.0/mkspecs/common/unix.conf"; sourceTree = "<absolute>"; };
-		0B2F770F53FBB0DBF738D89B /* supporttl.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = supporttl.cpp; path = SourceFiles/supporttl.cpp; sourceTree = "<absolute>"; };
 		0BDE09020E45EFA57DCB2E25 /* photosendbox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = photosendbox.h; path = SourceFiles/boxes/photosendbox.h; sourceTree = "<absolute>"; };
 		0C0DC15EB416789673526AA5 /* moc_emojibox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_emojibox.cpp; path = GeneratedFiles/Debug/moc_emojibox.cpp; sourceTree = "<absolute>"; };
 		0CAA815FFFEDCD84808E11F5 /* logs.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = logs.h; path = SourceFiles/logs.h; sourceTree = "<absolute>"; };
@@ -387,7 +385,6 @@
 		3F08D430CEC8D2117735CCB4 /* /usr/local/Qt-5.4.0/mkspecs/modules/qt_plugin_qmldbg_tcp_qtdeclarative.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.4.0/mkspecs/modules/qt_plugin_qmldbg_tcp_qtdeclarative.pri"; sourceTree = "<absolute>"; };
 		40E88FBA282991C8CBDFE94D /* addparticipantbox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = addparticipantbox.cpp; path = SourceFiles/boxes/addparticipantbox.cpp; sourceTree = "<absolute>"; };
 		420A06A32B66D250142B4B6D /* style_core.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = style_core.cpp; path = SourceFiles/gui/style_core.cpp; sourceTree = "<absolute>"; };
-		42FA90460B1A91C414157EAC /* supporttl.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = supporttl.h; path = SourceFiles/supporttl.h; sourceTree = "<absolute>"; };
 		45B95DB3B70B47A910FC847B /* /usr/local/Qt-5.4.0/mkspecs/common/gcc-base.conf */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.4.0/mkspecs/common/gcc-base.conf"; sourceTree = "<absolute>"; };
 		45DB132B756499D4DF38430E /* /usr/local/Qt-5.4.0/mkspecs/modules/qt_plugin_qjp2.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.4.0/mkspecs/modules/qt_plugin_qjp2.pri"; sourceTree = "<absolute>"; };
 		4604687EBA85611C9E8A9CDF /* button.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = button.h; path = SourceFiles/gui/button.h; sourceTree = "<absolute>"; };
@@ -891,7 +888,6 @@
 				047DAFB0A7DE92C63033A43C /* mainwidget.cpp */,
 				8A28F7789408AA839F48A5F2 /* settings.cpp */,
 				8CCCACE96535180FEB557712 /* settingswidget.cpp */,
-				0B2F770F53FBB0DBF738D89B /* supporttl.cpp */,
 				6B90F69947805586A6FAE80E /* sysbuttons.cpp */,
 				2BB2A1BB8DB0993F78F4E3C7 /* title.cpp */,
 				7D075A915E8739C1B6BC5F43 /* types.cpp */,
@@ -927,7 +923,6 @@
 				2EA58EF6CDF368B0132BAEB9 /* settings.h */,
 				F80095A026AF9453E9C2B8BD /* settingswidget.h */,
 				C913E6A1001E07EE7C13CE93 /* style.h */,
-				42FA90460B1A91C414157EAC /* supporttl.h */,
 				3BE70E2A82DC2BF402165ED5 /* sysbuttons.h */,
 				4D504A849F15EB58E53A4E5F /* title.h */,
 				1DC02F674A7192FF8BE391A7 /* types.h */,
@@ -1476,7 +1471,6 @@
 				E3194392BD6D0726F75FA72E /* mainwidget.cpp in Compile Sources */,
 				DF36EA42D67ED39E58CB7DF9 /* settings.cpp in Compile Sources */,
 				B99CCE43EEFCD3E18F6D16D1 /* settingswidget.cpp in Compile Sources */,
-				878DCAF0C5B0DB2EB4EDFD3D /* supporttl.cpp in Compile Sources */,
 				B8DA82DA1B195A933A0805E7 /* sysbuttons.cpp in Compile Sources */,
 				5CE57D44510AB2A11886AB52 /* title.cpp in Compile Sources */,
 				4078D5D614EB3ECF7F1848C7 /* types.cpp in Compile Sources */,
@@ -1633,7 +1627,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.7.16;
+				CURRENT_PROJECT_VERSION = 0.7.18;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -1651,7 +1645,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 0.7.16;
+				CURRENT_PROJECT_VERSION = 0.7.18;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
@@ -1677,10 +1671,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.7.16;
+				CURRENT_PROJECT_VERSION = 0.7.18;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DYLIB_COMPATIBILITY_VERSION = 0.7;
-				DYLIB_CURRENT_VERSION = 0.7.16;
+				DYLIB_CURRENT_VERSION = 0.7.18;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
@@ -1818,10 +1812,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.7.16;
+				CURRENT_PROJECT_VERSION = 0.7.18;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 0.7;
-				DYLIB_CURRENT_VERSION = 0.7.16;
+				DYLIB_CURRENT_VERSION = 0.7.18;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;

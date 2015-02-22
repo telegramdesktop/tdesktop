@@ -1282,7 +1282,11 @@ void MainWidget::dialogsCancelled() {
 
 void MainWidget::serviceNotification(const QString &msg, const MTPMessageMedia &media, bool unread) {
 	int32 flags = unread ? 0x01 : 0; // unread
-	HistoryItem *item = App::histories().addToBack(MTP_message(MTP_int(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTP_int(unixtime()), MTP_string(msg), media), unread ? 1 : 2);
+	QString sendingText, leftText = msg;
+	HistoryItem *item = 0;
+	while (textSplit(sendingText, leftText, MaxMessageSize)) {
+		item = App::histories().addToBack(MTP_message(MTP_int(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTP_int(unixtime()), MTP_string(sendingText), media), unread ? 1 : 2);
+	}
 	if (item) {
 		history.peerMessagesUpdated(item->history()->peer->id);
 	}

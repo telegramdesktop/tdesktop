@@ -137,6 +137,31 @@ index 312320c..5e82318 100644
          }
  
          // Make sure we're inside the viewport.
+diff --git a/qtbase/src/gui/text/qtextlayout.cpp b/qtbase/src/gui/text/qtextlayout.cpp
+index 1ac50d3..3c88caa 100644
+--- a/qtbase/src/gui/text/qtextlayout.cpp
++++ b/qtbase/src/gui/text/qtextlayout.cpp
+@@ -643,7 +643,10 @@ int QTextLayout::nextCursorPosition(int oldPos, CursorMode mode) const
+         while (oldPos < len && !attributes[oldPos].graphemeBoundary)
+             oldPos++;
+     } else {
+-        if (oldPos < len && d->atWordSeparator(oldPos)) {
++		while (oldPos < len && d->atSpace(oldPos))
++			oldPos++;
++
++		if (oldPos < len && d->atWordSeparator(oldPos)) {
+             oldPos++;
+             while (oldPos < len && d->atWordSeparator(oldPos))
+                 oldPos++;
+@@ -651,8 +654,6 @@ int QTextLayout::nextCursorPosition(int oldPos, CursorMode mode) const
+             while (oldPos < len && !d->atSpace(oldPos) && !d->atWordSeparator(oldPos))
+                 oldPos++;
+         }
+-        while (oldPos < len && d->atSpace(oldPos))
+-            oldPos++;
+     }
+ 
+     return oldPos;
 diff --git a/qtbase/src/gui/text/qtextlayout.h b/qtbase/src/gui/text/qtextlayout.h
 index 1e0ab9b..47972d3 100644
 --- a/qtbase/src/gui/text/qtextlayout.h
@@ -647,7 +672,7 @@ index f1f472b..97819dd 100644
  {
      m_data.setSelectedNameFilter(f); // Dialog cannot be updated at run-time.
 diff --git a/qtbase/src/plugins/platforms/windows/qwindowskeymapper.cpp b/qtbase/src/plugins/platforms/windows/qwindowskeymapper.cpp
-index ff9ad18..ba423b4 100644
+index ff9ad18..3fd0848 100644
 --- a/qtbase/src/plugins/platforms/windows/qwindowskeymapper.cpp
 +++ b/qtbase/src/plugins/platforms/windows/qwindowskeymapper.cpp
 @@ -537,17 +537,16 @@ static inline int toKeyOrUnicode(int vk, int scancode, unsigned char *kbdBuffer,
@@ -678,6 +703,18 @@ index ff9ad18..ba423b4 100644
          code = unicodeBuffer[0].toUpper().unicode();
  
      // Qt::Key_*'s are not encoded below 0x20, so try again, and DEL keys (0x7f) is encoded with a
+@@ -833,7 +832,10 @@ bool QWindowsKeyMapper::translateMultimediaKeyEventInternal(QWindow *window, con
+ 
+     const int qtKey = CmdTbl[cmd];
+     sendExtendedPressRelease(receiver, qtKey, Qt::KeyboardModifier(state), 0, 0, 0);
+-    return true;
++	// QTBUG-43343: Make sure to return false if Qt does not handle the key, otherwise,
++	// the keys are not passed to the active media player.
++	const QKeySequence sequence(Qt::Modifier(state) + qtKey);
++	return QGuiApplicationPrivate::instance()->shortcutMap.hasShortcutForKeySequence(sequence);
+ #else
+     Q_UNREACHABLE();
+     return false;
 diff --git a/qtbase/src/plugins/platforms/windows/qwindowswindow.cpp b/qtbase/src/plugins/platforms/windows/qwindowswindow.cpp
 index 8a80729..16fda26 100644
 --- a/qtbase/src/plugins/platforms/windows/qwindowswindow.cpp

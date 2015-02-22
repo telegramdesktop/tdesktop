@@ -1,2 +1,2 @@
-echo 7016 0.7.16 0
+echo 7018 0.7.18 1
 # AppVersion AppVersionStr DevChannel
