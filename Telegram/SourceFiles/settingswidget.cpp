@@ -115,6 +115,8 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 
 	// notifications
 	_desktopNotify(this, lang(lng_settings_desktop_notify), cDesktopNotify()),
+	_desktopGameNotify(this, lang(lng_settings_desktop_game_notify), cDesktopGameNotify()),
+	_desktopBorderlessNotify(this, lang(lng_settings_desktop_borderless_notify), cDesktopBorderlessNotify()),
 	_senderName(this, lang(lng_settings_show_name), cNotifyView() <= dbinvShowName),
 	_messagePreview(this, lang(lng_settings_show_preview), cNotifyView() <= dbinvShowPreview),
 	_soundNotify(this, lang(lng_settings_sound_notify), cSoundNotify()),
@@ -196,8 +198,12 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 
 	// notifications
 	_senderName.setDisabled(!_desktopNotify.checked());
+	_senderName.setDisabled(!_desktopGameNotify.checked());
+	_senderName.setDisabled(!_desktopBorderlessNotify.checked());
 	_messagePreview.setDisabled(_senderName.disabled() || !_senderName.checked());
 	connect(&_desktopNotify, SIGNAL(changed()), this, SLOT(onDesktopNotify()));
+	connect(&_desktopGameNotify, SIGNAL(changed()), this, SLOT(onDesktopGameNotify()));
+	connect(&_desktopBorderlessNotify, SIGNAL(changed()), this, SLOT(onDesktopBorderlessNotify()));
 	connect(&_senderName, SIGNAL(changed()), this, SLOT(onSenderName()));
 	connect(&_messagePreview, SIGNAL(changed()), this, SLOT(onMessagePreview()));
 	connect(&_soundNotify, SIGNAL(changed()), this, SLOT(onSoundNotify()));
@@ -390,6 +396,8 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		top += st::setHeaderSkip;
 
 		top += _desktopNotify.height() + st::setLittleSkip;
+		top += _desktopGameNotify.height() + st::setLittleSkip;
+		top += _desktopBorderlessNotify.height() + st::setLittleSkip;
 		top += _senderName.height() + st::setLittleSkip;
 		top += _messagePreview.height() + st::setSectionSkip;
 		top += _soundNotify.height();
@@ -610,6 +618,8 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		// notifications
 		top += st::setHeaderSkip;
 		_desktopNotify.move(_left, top); top += _desktopNotify.height() + st::setLittleSkip;
+		_desktopGameNotify.move(_left, top); top += _desktopGameNotify.height() + st::setLittleSkip;
+		_desktopBorderlessNotify.move(_left, top); top += _desktopBorderlessNotify.height() + st::setLittleSkip;
 		_senderName.move(_left, top); top += _senderName.height() + st::setLittleSkip;
 		_messagePreview.move(_left, top); top += _messagePreview.height() + st::setSectionSkip;
 		_soundNotify.move(_left, top); top += _soundNotify.height();
@@ -822,11 +832,15 @@ void SettingsInner::showAll() {
 	// notifications
 	if (self()) {
 		_desktopNotify.show();
+		_desktopGameNotify.show();
+		_desktopBorderlessNotify.show();
 		_senderName.show();
 		_messagePreview.show();
 		_soundNotify.show();
 	} else {
 		_desktopNotify.hide();
+		_desktopGameNotify.hide();
+		_desktopBorderlessNotify.hide();
 		_senderName.hide();
 		_messagePreview.hide();
 		_soundNotify.hide();
@@ -1200,6 +1214,17 @@ void SettingsInner::onDesktopNotify() {
 		App::writeUserConfig();
 	}
 }
+
+void SettingsInner::onDesktopGameNotify()
+{
+	onDesktopNotify();
+}
+
+void SettingsInner::onDesktopBorderlessNotify()
+{
+	onDesktopNotify();
+}
+
 
 void SettingsInner::onSenderName() {
 	_messagePreview.setDisabled(!_senderName.checked());

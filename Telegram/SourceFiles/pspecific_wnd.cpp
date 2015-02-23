@@ -1786,7 +1786,23 @@ bool psSkipAudioNotify() {
 bool psSkipDesktopNotify() {
 	QUERY_USER_NOTIFICATION_STATE state;
 	if (useShellapi && SUCCEEDED(shQueryUserNotificationState(&state))) {
-		if (state == QUNS_PRESENTATION_MODE || state == QUNS_RUNNING_D3D_FULL_SCREEN/* || state == QUNS_BUSY*/) return true;
+		if (cDesktopGameNotify() && cDesktopBorderlessNotify())
+		{
+			if (state == QUNS_PRESENTATION_MODE) return true;
+		}
+		else if (cDesktopGameNotify())
+		{
+			if (state == QUNS_PRESENTATION_MODE || state == QUNS_BUSY) return true;
+		}
+		else if (cDesktopBorderlessNotify())
+		{
+			if (state == QUNS_PRESENTATION_MODE || state == QUNS_RUNNING_D3D_FULL_SCREEN) return true;
+		}
+		else
+		{
+			if (state == QUNS_PRESENTATION_MODE || state == QUNS_RUNNING_D3D_FULL_SCREEN || state == QUNS_BUSY) return true;
+		}
+
 	}
 	return false;
 }

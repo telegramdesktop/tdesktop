@@ -113,6 +113,8 @@ public slots:
 
 	void onSoundNotify();
 	void onDesktopNotify();
+	void onDesktopGameNotify();
+	void onDesktopBorderlessNotify();
 	void onSenderName();
 	void onMessagePreview();
 
@@ -185,7 +187,7 @@ private:
 	LinkButton _chooseUsername;
 
 	// notifications
-	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _soundNotify;
+	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _soundNotify, _desktopBorderlessNotify, _desktopGameNotify;
 
 	// general
 	LinkButton _changeLanguage;

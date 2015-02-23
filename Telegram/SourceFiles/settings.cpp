@@ -35,6 +35,8 @@ QString gDialogLastPath, gDialogHelperPath; // optimize QFileDialog
 
 bool gSoundNotify = true;
 bool gDesktopNotify = true;
+bool gDesktopGameNotify = true;
+bool gDesktopBorderlessNotify = true;
 DBINotifyView gNotifyView = dbinvShowPreview;
 bool gStartMinimized = false;
 bool gStartInTray = false;

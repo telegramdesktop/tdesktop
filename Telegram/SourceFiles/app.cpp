@@ -1576,6 +1576,24 @@ namespace App {
 					}
 				} break;
 
+				case dbiDesktopGameNotify: {
+					if (configVersion < 3008) {
+						qint32 v;
+						configStream >> v;
+						cSetDesktopGameNotify(v == 1);
+						cSetNeedConfigResave(true);
+					}
+				} break;
+
+				case dbiDesktopBorderlessNotify: {
+					if (configVersion < 3008) {
+						qint32 v;
+						configStream >> v;
+						cSetDesktopBorderlessNotify(v == 1);
+						cSetNeedConfigResave(true);
+					}
+				} break;
+
 				case dbiWorkMode: {
 					qint32 v;
 					configStream >> v;
@@ -1694,6 +1712,8 @@ namespace App {
 				stream << quint32(dbiDefaultAttach) << qint32(cDefaultAttach());
 				stream << quint32(dbiSoundNotify) << qint32(cSoundNotify());
 				stream << quint32(dbiDesktopNotify) << qint32(cDesktopNotify());
+				stream << quint32(dbiDesktopGameNotify) << qint32(cDesktopGameNotify());
+				stream << quint32(dbiDesktopBorderlessNotify) << qint32(cDesktopBorderlessNotify());
 				stream << quint32(dbiNotifyView) << qint32(cNotifyView());
 				stream << quint32(dbiAskDownloadPath) << qint32(cAskDownloadPath());
 				stream << quint32(dbiDownloadPath) << (cAskDownloadPath() ? QString() : cDownloadPath());
@@ -1861,6 +1881,18 @@ namespace App {
 				qint32 v;
 				stream >> v;
 				cSetDesktopNotify(v == 1);
+			} break;
+
+			case dbiDesktopGameNotify: {
+				qint32 v;
+				stream >> v;
+				cSetDesktopGameNotify(v == 1);
+			} break;
+
+			case dbiDesktopBorderlessNotify: {
+				qint32 v;
+				stream >> v;
+				cSetDesktopBorderlessNotify(v == 1);
 			} break;
 
 			case dbiNotifyView: {
