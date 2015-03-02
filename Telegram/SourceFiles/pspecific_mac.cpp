@@ -24,6 +24,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "historywidget.h"
 
 #include "localstorage.h"
+#include "passcodewidget.h"
 
 namespace {
     QStringList _initLogs;
@@ -422,7 +423,7 @@ void PsMainWindow::psMacUpdateMenu() {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
 	}
-	_forceDisabled(psLogout, !isLogged);
+	_forceDisabled(psLogout, !isLogged && !App::passcoded());
 	_forceDisabled(psUndo, !canUndo);
 	_forceDisabled(psRedo, !canRedo);
 	_forceDisabled(psCut, !canCut);
@@ -430,9 +431,9 @@ void PsMainWindow::psMacUpdateMenu() {
 	_forceDisabled(psPaste, !canPaste);
 	_forceDisabled(psDelete, !canDelete);
 	_forceDisabled(psSelectAll, !canSelectAll);
-	_forceDisabled(psContacts, !isLogged);
-	_forceDisabled(psAddContact, !isLogged);
-	_forceDisabled(psNewGroup, !isLogged);
+	_forceDisabled(psContacts, !isLogged || App::passcoded());
+	_forceDisabled(psAddContact, !isLogged || App::passcoded());
+	_forceDisabled(psNewGroup, !isLogged || App::passcoded());
 	_forceDisabled(psShowTelegram, App::wnd()->isActive(false));
 }
 

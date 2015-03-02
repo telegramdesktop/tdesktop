@@ -233,6 +233,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_passcode_create" = "Create passcode";
 "lng_passcode_remove" = "Remove passcode";
 "lng_passcode_turn_off" = "Turn off";
+"lng_passcode_autolock" = "Auto-Lock";
 "lng_passcode_autolock_away" = "Auto-Lock if away for:";
 "lng_passcode_autolock_inactive" = "Auto-Lock if inactive for:";
 "lng_passcode_autolock_minutes" = "{count:_not_used_|# minute|# minutes}";

@@ -470,6 +470,7 @@ void Window::clearWidgets() {
 		intro = 0;
 	}
 	title->updateBackButton();
+	updateGlobalMenu();
 }
 
 void Window::clearPasscode() {
@@ -488,6 +489,7 @@ void Window::clearPasscode() {
 	}
 	notifyUpdateAll();
 	title->updateBackButton();
+	updateGlobalMenu();
 }
 
 void Window::setupPasscode(bool anim) {
@@ -510,6 +512,7 @@ void Window::setupPasscode(bool anim) {
 	_shouldLockAt = 0;
 	notifyUpdateAll();
 	title->updateBackButton();
+	updateGlobalMenu();
 }
 
 void Window::checkAutoLockIn(int msec) {

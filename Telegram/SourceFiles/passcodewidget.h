@@ -53,8 +53,8 @@ private:
 	anim::ivalue a_coord, a_bgCoord;
 	anim::fvalue a_alpha, a_bgAlpha;
 
-	FlatButton _submit;
 	FlatInput _passcode;
+	FlatButton _submit;
 	FlatLabel _logout;
 	QString _error;
 	QTimer _errorTimer;

@@ -96,7 +96,7 @@ void AutoLockBox::paintEvent(QPaintEvent *e) {
 			// draw box title / text
 			p.setFont(st::addContactTitleFont->f);
 			p.setPen(st::black->p);
-			p.drawText(st::addContactTitlePos.x(), st::addContactTitlePos.y() + st::addContactTitleFont->ascent, lang(lng_languages));
+			p.drawText(st::addContactTitlePos.x(), st::addContactTitlePos.y() + st::addContactTitleFont->ascent, lang(lng_passcode_autolock));
 		}
 	} else {
 		p.setOpacity(a_opacity.current());
