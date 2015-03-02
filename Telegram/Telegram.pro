@@ -92,6 +92,7 @@ SOURCES += \
     ./SourceFiles/layerwidget.cpp \
     ./SourceFiles/mediaview.cpp \
     ./SourceFiles/overviewwidget.cpp \
+    ./SourceFiles/passcodewidget.cpp \
     ./SourceFiles/profilewidget.cpp \
     ./SourceFiles/localimageloader.cpp \
     ./SourceFiles/localstorage.cpp \
@@ -136,6 +137,7 @@ SOURCES += \
     ./SourceFiles/boxes/aboutbox.cpp \
     ./SourceFiles/boxes/addcontactbox.cpp \
     ./SourceFiles/boxes/addparticipantbox.cpp \
+    ./SourceFiles/boxes/autolockbox.cpp \
     ./SourceFiles/boxes/backgroundbox.cpp \
     ./SourceFiles/boxes/confirmbox.cpp \
     ./SourceFiles/boxes/connectionbox.cpp \
@@ -144,6 +146,7 @@ SOURCES += \
     ./SourceFiles/boxes/emojibox.cpp \
     ./SourceFiles/boxes/languagebox.cpp \
     ./SourceFiles/boxes/newgroupbox.cpp \
+    ./SourceFiles/boxes/passcodebox.cpp \
     ./SourceFiles/boxes/photocropbox.cpp \
     ./SourceFiles/boxes/photosendbox.cpp \
     ./SourceFiles/boxes/usernamebox.cpp \
@@ -170,6 +173,7 @@ HEADERS += \
     ./SourceFiles/layerwidget.h \
     ./SourceFiles/mediaview.h \
     ./SourceFiles/overviewwidget.h \
+    ./SourceFiles/passcodewidget.h \
     ./SourceFiles/profilewidget.h \
     ./SourceFiles/localimageloader.h \
     ./SourceFiles/localstorage.h \
@@ -220,6 +224,7 @@ HEADERS += \
     ./SourceFiles/boxes/aboutbox.h \
     ./SourceFiles/boxes/addcontactbox.h \
     ./SourceFiles/boxes/addparticipantbox.h \
+    ./SourceFiles/boxes/autolockbox.h \
     ./SourceFiles/boxes/backgroundbox.h \
     ./SourceFiles/boxes/confirmbox.h \
     ./SourceFiles/boxes/connectionbox.h \
@@ -228,6 +233,7 @@ HEADERS += \
     ./SourceFiles/boxes/emojibox.h \
     ./SourceFiles/boxes/languagebox.h \
     ./SourceFiles/boxes/newgroupbox.h \
+    ./SourceFiles/boxes/passcodebox.h \
     ./SourceFiles/boxes/photocropbox.h \
     ./SourceFiles/boxes/photosendbox.h \
     ./SourceFiles/boxes/usernamebox.h \
