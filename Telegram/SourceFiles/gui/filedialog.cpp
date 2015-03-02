@@ -18,7 +18,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "gui/filedialog.h"
 
-#include "app.h"
 #include "application.h"
 
 void filedialogInit() {

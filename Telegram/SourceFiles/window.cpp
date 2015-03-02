@@ -24,6 +24,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "pspecific.h"
 #include "title.h"
+#include "passcodewidget.h"
 #include "intro/intro.h"
 #include "mainwidget.h"
 #include "layerwidget.h"
@@ -156,7 +157,7 @@ void NotifyWindow::updateNotifyDisplay() {
 		p.fillRect(st::notifyBorderWidth, h - st::notifyBorderWidth, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
 		p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
 
-		if (cNotifyView() <= dbinvShowName) {
+		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
 			if (history->peer->photo->loaded()) {
 				p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), history->peer->photo->pix(st::notifyPhotoSize));
 			} else {
@@ -172,7 +173,7 @@ void NotifyWindow::updateNotifyDisplay() {
 		int32 itemWidth = w - st::notifyPhotoPos.x() - st::notifyPhotoSize - st::notifyTextLeft - st::notifyClosePos.x() - st::notifyClose.width;
 
 		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
-		if (cNotifyView() <= dbinvShowName) {
+		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
 			if (history->peer->chat) {
 				p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgLeft, rectForName.top() + st::dlgChatImgTop), App::sprite(), st::dlgChatImg);
 				rectForName.setLeft(rectForName.left() + st::dlgChatImgSkip);
@@ -188,7 +189,7 @@ void NotifyWindow::updateNotifyDisplay() {
 		p.setPen(st::dlgDateColor->p);
 		p.drawText(rectForName.left() + rectForName.width() + st::dlgDateSkip, rectForName.top() + st::dlgHistFont->ascent, dt);
 
-		if (cNotifyView() <= dbinvShowPreview) {
+		if (!App::passcoded() && cNotifyView() <= dbinvShowPreview) {
 			const HistoryItem *textCachedFor = 0;
 			Text itemTextCache(itemWidth);
 			bool active = false;
@@ -200,7 +201,7 @@ void NotifyWindow::updateNotifyDisplay() {
 		}
 
 		p.setPen(st::dlgNameColor->p);
-		if (cNotifyView() <= dbinvShowName) {
+		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
 			history->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 		} else {
 			p.setFont(st::msgNameFont->f);
@@ -267,8 +268,13 @@ void NotifyWindow::mousePressEvent(QMouseEvent *e) {
 		unlinkHistoryAndNotify();
 	} else if (history) {
 		App::wnd()->showFromTray();
-		App::wnd()->hideSettings();
-		App::main()->showPeer(peer, 0, false, true);
+		if (App::passcoded()) {
+			App::wnd()->passcodeWidget()->setInnerFocus();
+			App::wnd()->notifyClear();
+		} else {
+			App::wnd()->hideSettings();
+			App::main()->showPeer(peer, 0, false, true);
+		}
 		e->ignore();
 	}
 }
@@ -330,8 +336,8 @@ NotifyWindow::~NotifyWindow() {
 }
 
 Window::Window(QWidget *parent) : PsMainWindow(parent), _serviceHistoryRequest(0), title(0),
-intro(0), main(0), settings(0), layerBG(0), _isActive(false), _topWidget(0),
-_connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _mediaView(0) {
+_passcode(0), intro(0), main(0), settings(0), layerBG(0), _isActive(false), _topWidget(0),
+_connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _shouldLockAt(0), _mediaView(0) {
 
 	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
@@ -359,6 +365,8 @@ _connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _media
 
 	_isActiveTimer.setSingleShot(true);
 	connect(&_isActiveTimer, SIGNAL(timeout()), this, SLOT(updateIsActive()));
+
+	connect(&_autoLockTimer, SIGNAL(timeout()), this, SLOT(checkAutoLock()));
 }
 
 void Window::inactivePress(bool inactive) {
@@ -435,6 +443,11 @@ QWidget *Window::filedialogParent() {
 
 void Window::clearWidgets() {
 	layerHidden();
+	if (_passcode) {
+		_passcode->hide();
+		_passcode->deleteLater();
+		_passcode = 0;
+	}
 	if (settings) {
 		anim::stop(settings);
 		settings->hide();
@@ -459,11 +472,72 @@ void Window::clearWidgets() {
 	title->updateBackButton();
 }
 
+void Window::clearPasscode() {
+	if (!_passcode) return;
+
+	QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
+
+	anim::stop(_passcode);
+	_passcode->hide();
+	_passcode->deleteLater();
+	_passcode = 0;
+	if (intro) {
+		intro->animShow(bg, true);
+	} else {
+		main->animShow(bg, true);
+	}
+	notifyUpdateAll();
+	title->updateBackButton();
+}
+
+void Window::setupPasscode(bool anim) {
+	QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
+	if (_passcode) {
+		anim::stop(_passcode);
+		_passcode->hide();
+		_passcode->deleteLater();
+	}
+	_passcode = new PasscodeWidget(this);
+	_passcode->move(0, st::titleHeight);
+	if (main) main->hide();
+	if (settings) settings->hide();
+	if (intro) intro->hide();
+	if (anim) {
+		_passcode->animShow(bg);
+	} else {
+		_passcode->setInnerFocus();
+	}
+	_shouldLockAt = 0;
+	notifyUpdateAll();
+	title->updateBackButton();
+}
+
+void Window::checkAutoLockIn(int msec) {
+	if (_autoLockTimer.isActive()) {
+		int remain = _autoLockTimer.remainingTime();
+		if (remain > 0 && remain <= msec) return;
+	}
+	_autoLockTimer.start(msec);
+}
+
+void Window::checkAutoLock() {
+	if (!cHasPasscode() || App::passcoded()) return;
+
+	App::app()->checkLocalTime();
+	uint64 ms = getms(true), idle = psIdleTime(), should = cAutoLock() * 1000ULL;
+	if (idle >= should || (_shouldLockAt > 0 && ms > _shouldLockAt + 3000ULL)) {
+		setupPasscode(true);
+	} else {
+		_shouldLockAt = ms + (should - idle);
+		_autoLockTimer.start(should - idle);
+	}
+}
+
 void Window::setupIntro(bool anim) {
 	cSetContactsReceived(false);
 	if (intro && (intro->animating() || intro->isVisible()) && !main) return;
 
-	QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
+	QPixmap bg = anim ? myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight)) : QPixmap();
 
 	clearWidgets();
 	intro = new IntroWidget(this);
@@ -515,17 +589,22 @@ void Window::sendServiceHistoryRequest() {
 	_serviceHistoryRequest = MTP::send(MTPmessages_GetHistory(user->input, MTP_int(0), MTP_int(0), MTP_int(1)), main->rpcDone(&MainWidget::serviceHistoryDone), main->rpcFail(&MainWidget::serviceHistoryFail));
 }
 
-void Window::setupMain(bool anim) {
-	QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
+void Window::setupMain(bool anim, const MTPUser *self) {
+	QPixmap bg = anim ? myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight)) : QPixmap();
 	clearWidgets();
 	main = new MainWidget(this);
 	main->move(0, st::titleHeight);
 	if (anim) {
 		main->animShow(bg);
 	} else {
-		MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(1, MTP_inputUserSelf())), main->rpcDone(&MainWidget::startFull));
 		main->activate();
 	}
+	if (self) {
+		main->start(*self);
+	} else {
+		MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(1, MTP_inputUserSelf())), main->rpcDone(&MainWidget::startFull));
+	}
+	title->resizeEvent(0);
 
 	fixOrder();
 
@@ -540,6 +619,8 @@ void Window::updateCounter() {
 }
 
 void Window::showSettings() {
+	if (_passcode) return;
+
 	if (isHidden()) showFromTray();
 
 	App::wnd()->hideLayer();
@@ -563,7 +644,7 @@ void Window::showSettings() {
 }
 
 void Window::hideSettings(bool fast) {
-	if (!settings) return;
+	if (!settings || _passcode) return;
 
 	if (fast) {
 		anim::stop(settings);
@@ -593,11 +674,6 @@ void Window::hideSettings(bool fast) {
 	title->updateBackButton();
 
 	fixOrder();
-}
-
-void Window::startMain(const MTPUser &user) {
-	if (main) main->start(user);
-	title->resizeEvent(0);
 }
 
 void Window::mtpStateChanged(int32 dc, int32 state) {
@@ -631,6 +707,10 @@ MainWidget *Window::mainWidget() {
 
 SettingsWidget *Window::settingsWidget() {
 	return settings;
+}
+
+PasscodeWidget *Window::passcodeWidget() {
+	return _passcode;
 }
 
 void Window::showPhoto(const PhotoLink *lnk, HistoryItem *item) {
@@ -740,7 +820,13 @@ void Window::layerHidden() {
 	}
 	layerBG = 0;
 	if (_mediaView && !_mediaView->isHidden()) _mediaView->hide();
-	if (settings) {
+	setInnerFocus();
+}
+
+void Window::setInnerFocus() {
+	if (_passcode) {
+		_passcode->setInnerFocus();
+	} else if (settings) {
 		settings->setInnerFocus();
 	} else if (main) {
 		main->setInnerFocus();
@@ -872,7 +958,7 @@ bool Window::minimizeToTray() {
     if (cPlatform() == dbipWindows && trayIcon && !cSeenTrayTooltip()) {
 		trayIcon->showMessage(QString::fromStdWString(AppName), lang(lng_tray_icon_text), QSystemTrayIcon::Information, 10000);
 		cSetSeenTrayTooltip(true);
-		App::writeConfig();
+		Local::writeSettings();
 	}
 	updateIsActive(cOfflineBlurTimeout());
 	updateTrayMenu();
@@ -1526,6 +1612,7 @@ QImage Window::iconWithCounter(int size, int count, style::color bg, bool smallI
 }
 
 void Window::sendPaths() {
+	if (App::passcoded()) return;
 	if (_mediaView && !_mediaView->isHidden()) _mediaView->hide();
 	if (settings) {
 		hideSettings();

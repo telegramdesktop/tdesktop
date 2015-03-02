@@ -399,6 +399,8 @@ _failDifferenceTimeout(1), _lastUpdateTime(0), _cachedX(0), _cachedY(0), _backgr
 
 	show();
 	setFocus();
+
+	App::initMedia();
 }
 
 mtpRequestId MainWidget::onForward(const PeerId &peer, bool forwardSelected) {
@@ -462,6 +464,8 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 }
 
 void MainWidget::hiderLayer(HistoryHider *h) {
+	if (App::passcoded()) return;
+
 	hider = h;
 	if (cWideMode()) {
 		hider->show();
@@ -1249,6 +1253,7 @@ void MainWidget::onParentResize(const QSize &newSize) {
 }
 
 void MainWidget::updateOnlineDisplay() {
+	if (this != App::main()) return;
 	history.updateOnlineDisplay(history.x(), width() - history.x() - st::sysBtnDelta * 2 - st::sysCls.img.pxWidth() - st::sysRes.img.pxWidth() - st::sysMin.img.pxWidth());
 	if (profile) profile->updateOnlineDisplay();
 	if (App::wnd()->settingsWidget()) App::wnd()->settingsWidget()->updateOnlineDisplay();
@@ -2091,6 +2096,7 @@ void MainWidget::onPeerShown(PeerData *peer) {
 }
 
 void MainWidget::onUpdateNotifySettings() {
+	if (this != App::main()) return;
 	while (!updateNotifySettingPeers.isEmpty()) {
 		PeerData *peer = *updateNotifySettingPeers.begin();
 		updateNotifySettingPeers.erase(updateNotifySettingPeers.begin());
@@ -2260,6 +2266,7 @@ void MainWidget::updUpdated(int32 pts, int32 seq) {
 }
 
 void MainWidget::feedDifference(const MTPVector<MTPUser> &users, const MTPVector<MTPChat> &chats, const MTPVector<MTPMessage> &msgs, const MTPVector<MTPUpdate> &other) {
+	App::wnd()->checkAutoLock();
 	App::feedUsers(users);
 	App::feedChats(chats);
 	feedMessageIds(other);
@@ -2283,6 +2290,8 @@ void MainWidget::getDifferenceForce() {
 }
 
 void MainWidget::getDifference() {
+	if (this != App::main()) return;
+
 	LOG(("Getting difference! no updates timer: %1, remains: %2").arg(noUpdatesTimer.isActive() ? 1 : 0).arg(noUpdatesTimer.remainingTime()));
 	if (!updInited) return;
 
@@ -2303,9 +2312,13 @@ void MainWidget::getDifference() {
 }
 
 void MainWidget::start(const MTPUser &user) {
-	MTP::authed(user.c_userSelf().vid.v);
+	int32 uid = user.c_userSelf().vid.v;
+	if (MTP::authedId() != uid) {
+		MTP::authed(uid);
+		Local::writeMtpData();
+	}
+
 	cSetOtherOnline(0);
-	App::initMedia();
 	App::feedUsers(MTP_vector<MTPUser>(1, user));
 	App::app()->startUpdateCheck();
 	MTP::send(MTPupdates_GetState(), rpcDone(&MainWidget::gotState));
@@ -2571,6 +2584,9 @@ MainWidget::~MainWidget() {
 }
 
 void MainWidget::updateOnline(bool gotOtherOffline) {
+	if (this != App::main()) return;
+	App::wnd()->checkAutoLock();
+
 	bool isOnline = App::wnd()->isActive();
 	int updateIn = cOnlineUpdatePeriod();
 	if (isOnline) {
@@ -2608,6 +2624,7 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 }
 
 void MainWidget::checkIdleFinish() {
+	if (this != App::main()) return;
 	if (psIdleTime() < uint64(cOfflineIdleTimeout())) {
 		_idleFinishTimer.stop();
 		_isIdle = false;
@@ -2620,6 +2637,8 @@ void MainWidget::checkIdleFinish() {
 
 void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 	if (end <= from || !MTP::authedId()) return;
+
+	App::wnd()->checkAutoLock();
 
 	if (mtpTypeId(*from) == mtpc_new_session_created) {
 		MTPNewSession newSession(from, end);

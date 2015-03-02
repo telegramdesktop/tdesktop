@@ -31,6 +31,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "boxes/downloadpathbox.h"
 #include "boxes/usernamebox.h"
 #include "boxes/languagebox.h"
+#include "boxes/passcodebox.h"
+#include "boxes/autolockbox.h"
 #include "langloaderplain.h"
 #include "gui/filedialog.h"
 
@@ -169,7 +171,14 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_storageClearFailedWidth(st::linkFont->m.width(lang(lng_local_storage_clear_failed))),
 
 	// advanced
+	_passcodeEdit(this, lang(cHasPasscode() ? lng_passcode_change : lng_passcode_turn_on)),
+	_passcodeTurnOff(this, lang(lng_passcode_turn_off)),
+	_autoLock(this, (cAutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, cAutoLock() / 60) : lng_passcode_autolock_hours(lt_count, cAutoLock() / 3600)),
+	_autoLockText(lang(psIdleSupported() ? lng_passcode_autolock_away : lng_passcode_autolock_inactive) + ' '),
+	_autoLockWidth(st::linkFont->m.width(_autoLockText)),
 	_connectionType(this, lng_connection_auto(lt_type, QString())),
+	_connectionTypeText(lang(lng_connection_type) + ' '),
+	_connectionTypeWidth(st::linkFont->m.width(_connectionTypeText)),
 	_resetSessions(this, lang(lng_settings_reset)),
 	_logOut(this, lang(lng_settings_logout), st::btnLogout),
     _resetDone(false)
@@ -264,12 +273,12 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	}
 
 	// advanced
+	connect(&_passcodeEdit, SIGNAL(clicked()), this, SLOT(onPasscode()));
+	connect(&_passcodeTurnOff, SIGNAL(clicked()), this, SLOT(onPasscodeOff()));
+	connect(&_autoLock, SIGNAL(clicked()), this, SLOT(onAutoLock()));
 	connect(&_connectionType, SIGNAL(clicked()), this, SLOT(onConnectionType()));
 	connect(&_resetSessions, SIGNAL(clicked()), this, SLOT(onResetSessions()));
 	connect(&_logOut, SIGNAL(clicked()), App::wnd(), SLOT(onLogout()));
-
-	_connectionTypeText = lang(lng_connection_type) + ' ';
-	_connectionTypeWidth = st::linkFont->m.width(_connectionTypeText);
 
     if (App::main()) {
         connect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
@@ -583,7 +592,15 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	
 	p.setFont(st::linkFont->f);
 	p.setPen(st::black->p);
-	p.drawText(_left + st::setHeaderLeft, _connectionType.y() + st::linkFont->ascent, _connectionTypeText);
+	if (self()) {
+		top += _passcodeEdit.height() + st::setLittleSkip;
+		if (cHasPasscode()) {
+			p.drawText(_left, top + st::linkFont->ascent, _autoLockText);
+			top += _autoLock.height() + st::setLittleSkip;
+		}
+	}
+
+	p.drawText(_left, _connectionType.y() + st::linkFont->ascent, _connectionTypeText);
 
 	if (self() && _resetDone) {
 		p.drawText(_resetSessions.x(), _resetSessions.y() + st::linkFont->ascent, lang(lng_settings_reset_done));
@@ -681,7 +698,15 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 
 	// advanced
 	top += st::setHeaderSkip;
-	_connectionType.move(_left + st::setHeaderLeft + _connectionTypeWidth, top); top += _connectionType.height() + st::setLittleSkip;
+	if (self()) {
+		_passcodeEdit.move(_left, top);
+		_passcodeTurnOff.move(_left + st::setWidth - _passcodeTurnOff.width(), top); top += _passcodeTurnOff.height() + st::setLittleSkip;
+		if (cHasPasscode()) {
+			_autoLock.move(_left + _autoLockWidth, top); top += _autoLock.height() + st::setLittleSkip;
+		}
+	}
+
+	_connectionType.move(_left + _connectionTypeWidth, top); top += _connectionType.height() + st::setLittleSkip;
 	if (self()) {
 		_resetSessions.move(_left, top); top += _resetSessions.height() + st::setSectionSkip;
 		_logOut.move(_left, top);
@@ -773,6 +798,13 @@ void SettingsInner::updateConnectionType() {
 	case dbictHttpProxy: _connectionType.setText(lang(lng_connection_http_proxy)); break;
 	case dbictTcpProxy: _connectionType.setText(lang(lng_connection_tcp_proxy)); break;
 	}
+}
+
+void SettingsInner::passcodeChanged() {
+	resizeEvent(0);
+	_passcodeEdit.setText(lang(cHasPasscode() ? lng_passcode_change : lng_passcode_turn_on));
+	_autoLock.setText((cAutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, cAutoLock() / 60) : lng_passcode_autolock_hours(lt_count, cAutoLock() / 3600));
+	showAll();
 }
 
 void SettingsInner::updateBackgroundRect() {
@@ -918,6 +950,14 @@ void SettingsInner::showAll() {
 
 	// advanced
 	if (self()) {
+		_passcodeEdit.show();
+		if (cHasPasscode()) {
+			_autoLock.show();
+			_passcodeTurnOff.show();
+		} else {
+			_autoLock.hide();
+			_passcodeTurnOff.hide();
+		}
 		if (_resetDone) {
 			_resetSessions.hide();
 		} else {
@@ -925,6 +965,9 @@ void SettingsInner::showAll() {
 		}
 		_logOut.show();
 	} else {
+		_passcodeEdit.hide();
+		_autoLock.hide();
+		_passcodeTurnOff.hide();
 		_resetSessions.hide();
 		_logOut.hide();
 	}
@@ -1020,7 +1063,7 @@ void SettingsInner::onChangeLanguage() {
 void SettingsInner::onSaveTestLang() {
 	cSetLangFile(_testlang);
 	cSetLang(languageTest);
-	App::writeConfig();
+	Local::writeSettings();
 	cSetRestarting(true);
 	App::quit();
 }
@@ -1033,7 +1076,7 @@ void SettingsInner::onUpdateLocalStorage() {
 
 void SettingsInner::onAutoUpdate() {
 	cSetAutoUpdate(!cAutoUpdate());
-	App::writeConfig();
+	Local::writeSettings();
 	resizeEvent(0);
 	if (cAutoUpdate()) {
 		App::app()->startUpdateCheck();
@@ -1068,6 +1111,24 @@ void SettingsInner::onRestartNow() {
 	App::quit();
 }
 
+void SettingsInner::onPasscode() {
+	PasscodeBox *box = new PasscodeBox();
+	connect(box, SIGNAL(closed()), this, SLOT(passcodeChanged()));
+	App::wnd()->showLayer(box);
+}
+
+void SettingsInner::onPasscodeOff() {
+	PasscodeBox *box = new PasscodeBox(true);
+	connect(box, SIGNAL(closed()), this, SLOT(passcodeChanged()));
+	App::wnd()->showLayer(box);
+}
+
+void SettingsInner::onAutoLock() {
+	AutoLockBox *box = new AutoLockBox();
+	connect(box, SIGNAL(closed()), this, SLOT(passcodeChanged()));
+	App::wnd()->showLayer(box);
+}
+
 void SettingsInner::onConnectionType() {
 	ConnectionBox *box = new ConnectionBox();
 	connect(box, SIGNAL(closed()), this, SLOT(updateConnectionType()), Qt::QueuedConnection);
@@ -1090,7 +1151,7 @@ void SettingsInner::onWorkmodeTray() {
 	}
 	cSetWorkMode(newMode);
 	App::wnd()->psUpdateWorkmode();
-	App::writeConfig();
+	Local::writeSettings();
 }
 
 void SettingsInner::onWorkmodeWindow() {
@@ -1103,7 +1164,7 @@ void SettingsInner::onWorkmodeWindow() {
 	}
 	cSetWorkMode(newMode);
 	App::wnd()->psUpdateWorkmode();
-	App::writeConfig();
+	Local::writeSettings();
 }
 
 void SettingsInner::onAutoStart() {
@@ -1114,19 +1175,19 @@ void SettingsInner::onAutoStart() {
 		_startMinimized.setChecked(false);
 	} else {
 		psAutoStart(_autoStart.checked());
-		App::writeConfig();
+		Local::writeSettings();
 	}
 }
 
 void SettingsInner::onStartMinimized() {
 	cSetStartMinimized(_startMinimized.checked());
-	App::writeConfig();
+	Local::writeSettings();
 }
 
 void SettingsInner::onSendToMenu() {
 	cSetSendToMenu(_sendToMenu.checked());
 	psSendToMenu(_sendToMenu.checked());
-	App::writeConfig();
+	Local::writeSettings();
 }
 
 void SettingsInner::onScaleAuto() {
@@ -1164,7 +1225,7 @@ void SettingsInner::setScale(DBIScale newScale) {
 	if (cConfigScale() == newScale) return;
 
 	cSetConfigScale(newScale);
-	App::writeConfig();
+	Local::writeSettings();
 	App::wnd()->getTitle()->showUpdateBtn();
 	if (newScale == dbisAuto && !_dpiAutoScale.checked()) {
 		_dpiAutoScale.setChecked(true);
@@ -1184,7 +1245,7 @@ void SettingsInner::setScale(DBIScale newScale) {
 
 void SettingsInner::onSoundNotify() {
 	cSetSoundNotify(_soundNotify.checked());
-	App::writeUserConfig();
+	Local::writeUserSettings();
 }
 
 void SettingsInner::onDesktopNotify() {
@@ -1193,11 +1254,11 @@ void SettingsInner::onDesktopNotify() {
 		App::wnd()->notifyClear();
 		_senderName.setDisabled(true);
 		_messagePreview.setDisabled(true);
-		App::writeUserConfig();
+		Local::writeUserSettings();
 	} else {
 		_senderName.setDisabled(false);
 		_messagePreview.setDisabled(!_senderName.checked());
-		App::writeUserConfig();
+		Local::writeUserSettings();
 	}
 }
 
@@ -1213,7 +1274,7 @@ void SettingsInner::onSenderName() {
 		} else {
 			cSetNotifyView(dbinvShowNothing);
 		}
-		App::writeUserConfig();
+		Local::writeUserSettings();
 		App::wnd()->notifyUpdateAll();
 	}
 }
@@ -1226,13 +1287,13 @@ void SettingsInner::onMessagePreview() {
 	} else {
 		cSetNotifyView(dbinvShowNothing);
 	}
-	App::writeUserConfig();
+	Local::writeUserSettings();
 	App::wnd()->notifyUpdateAll();
 }
 
 void SettingsInner::onReplaceEmojis() {
 	cSetReplaceEmojis(_replaceEmojis.checked());
-	App::writeUserConfig();
+	Local::writeUserSettings();
 
 	if (_replaceEmojis.checked()) {
 		_viewEmojis.show();
@@ -1248,14 +1309,14 @@ void SettingsInner::onViewEmojis() {
 void SettingsInner::onEnterSend() {
 	if (_enterSend.checked()) {
 		cSetCtrlEnter(false);
-		App::writeUserConfig();
+		Local::writeUserSettings();
 	}
 }
 
 void SettingsInner::onCtrlEnterSend() {
 	if (_ctrlEnterSend.checked()) {
 		cSetCtrlEnter(true);
-		App::writeUserConfig();
+		Local::writeUserSettings();
 	}
 }
 
@@ -1323,13 +1384,13 @@ void SettingsInner::onTileBackground() {
 	if (cTileBackground() != _tileBackground.checked()) {
 		cSetTileBackground(_tileBackground.checked());
 		if (App::main()) App::main()->clearCachedBackground();
-		App::writeUserConfig();
+		Local::writeUserSettings();
 	}
 }
 
 void SettingsInner::onDontAskDownloadPath() {
 	cSetAskDownloadPath(!_dontAskDownloadPath.checked());
-	App::writeUserConfig();
+	Local::writeUserSettings();
 
 	showAll();
 	resizeEvent(0);

@@ -17,9 +17,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QWidget>
-#include "gui/flatbutton.h"
-
 class Window;
 class IntroSteps;
 class IntroPhone;
@@ -39,7 +36,7 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void keyPressEvent(QKeyEvent *e);
-
+	
 	void updateWideMode();
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);

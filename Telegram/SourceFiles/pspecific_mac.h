@@ -195,6 +195,7 @@ private:
 };
 
 void psUserActionDone();
+bool psIdleSupported();
 uint64 psIdleTime();
 
 bool psSkipAudioNotify();

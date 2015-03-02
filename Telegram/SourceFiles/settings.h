@@ -41,6 +41,18 @@ inline void cSet##Name(const Type &Name) { \
 	g##Name = Name; \
 }
 
+struct mtpDcOption {
+	mtpDcOption(int _id, const string &_host, const string &_ip, int _port) : id(_id), host(_host), ip(_ip), port(_port) {
+	}
+
+	int id;
+	string host;
+	string ip;
+	int port;
+};
+typedef QMap<int, mtpDcOption> mtpDcOptions;
+DeclareSetting(mtpDcOptions, DcOptions);
+
 DeclareSetting(bool, TestMode);
 DeclareSetting(QString, LoggedPhoneNumber);
 DeclareReadSetting(uint32, ConnectionsInSession);
@@ -107,6 +119,9 @@ DeclareSetting(DBIScale, ScreenScale);
 DeclareSetting(DBIScale, ConfigScale);
 DeclareSetting(bool, CompressPastedImage);
 DeclareSetting(QString, TimeFormat);
+
+DeclareSetting(int32, AutoLock);
+DeclareSetting(bool, HasPasscode);
 
 inline void cChangeTimeFormat(const QString &newFormat) {
 	if (!newFormat.isEmpty()) cSetTimeFormat(newFormat);

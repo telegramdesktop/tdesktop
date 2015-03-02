@@ -20,6 +20,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "settings.h"
 #include "lang.h"
 
+mtpDcOptions gDcOptions;
+
 bool gTestMode = false;
 bool gDebug = false;
 bool gManyInstance = false;
@@ -75,6 +77,9 @@ DBIScale gRealScale = dbisAuto, gScreenScale = dbisOne, gConfigScale = dbisAuto;
 bool gCompressPastedImage = true;
 
 QString gTimeFormat = qsl("hh:mm");
+
+int32 gAutoLock = 3600;
+bool gHasPasscode = false;
 
 DBIEmojiTab gEmojiTab = dbietRecent;
 RecentEmojiPack gRecentEmojis;

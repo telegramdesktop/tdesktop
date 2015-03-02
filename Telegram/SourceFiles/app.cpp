@@ -18,8 +18,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "lang.h"
 
-#include "app.h"
-
 #include "audio.h"
 #include "application.h"
 #include "fileuploader.h"
@@ -111,6 +109,11 @@ namespace App {
 		return w ? w->settingsWidget() : 0;
 	}
 
+	bool passcoded() {
+		Window *w(wnd());
+		return w ? w->passcodeWidget() : 0;
+	}
+
 	FileUploader *uploader() {
 		return app() ? app()->uploader() : 0;
 	}
@@ -122,6 +125,9 @@ namespace App {
 
 	bool loggedOut() {
 		Window *w(wnd());
+		if (cHasPasscode()) {
+			cSetHasPasscode(false);
+		}
 		if (w) {
 			w->tempDirDelete(Local::ClearManagerAll);
 			w->notifyClearFast();
@@ -130,6 +136,8 @@ namespace App {
 		MainWidget *m(main());
 		if (m) m->destroyData();
 		MTP::authed(0);
+		Local::reset();
+
 		cSetOtherOnline(0);
 		histories().clear();
 		globalNotifyAllPtr = UnknownNotifySettings;
@@ -138,6 +146,7 @@ namespace App {
 		App::uploader()->clear();
 		clearStorageImages();
 		if (w) {
+			w->getTitle()->updateBackButton();
 			w->updateTitleStatus();
 			w->getTitle()->resizeEvent(0);
 		}
@@ -145,7 +154,12 @@ namespace App {
 	}
 
 	void logOut() {
-		MTP::logoutKeys(rpcDone(&loggedOut), rpcFail(&loggedOut));
+		if (MTP::started()) {
+			MTP::logoutKeys(rpcDone(&loggedOut), rpcFail(&loggedOut));
+		} else {
+			loggedOut();
+			MTP::start();
+		}
 	}
 
 	PeerId peerFromMTP(const MTPPeer &peer_id) {
@@ -1475,514 +1489,6 @@ namespace App {
 
 	void playSound() {
 		if (cSoundNotify() && !psSkipAudioNotify()) audioPlayNotify();
-	}
-
-	void writeConfig() {
-		QDir().mkdir(cWorkingDir() + qsl("tdata"));
-		QFile configFile(cWorkingDir() + qsl("tdata/config"));
-		if (configFile.open(QIODevice::WriteOnly)) {
-			DEBUG_LOG(("App Info: writing config file"));
-			QDataStream configStream(&configFile);
-			configStream.setVersion(QDataStream::Qt_5_1);
-			configStream << quint32(dbiVersion) << qint32(AppVersion);
-
-			configStream << quint32(dbiAutoStart) << qint32(cAutoStart());
-			configStream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
-			configStream << quint32(dbiSendToMenu) << qint32(cSendToMenu());
-			configStream << quint32(dbiWorkMode) << qint32(cWorkMode());
-			configStream << quint32(dbiSeenTrayTooltip) << qint32(cSeenTrayTooltip());
-			configStream << quint32(dbiAutoUpdate) << qint32(cAutoUpdate());
-			configStream << quint32(dbiLastUpdateCheck) << qint32(cLastUpdateCheck());
-			configStream << quint32(dbiScale) << qint32(cConfigScale());
-			configStream << quint32(dbiLang) << qint32(cLang());
-			configStream << quint32(dbiLangFile) << cLangFile();
-
-			configStream << quint32(dbiConnectionType) << qint32(cConnectionType());
-			if (cConnectionType() == dbictHttpProxy || cConnectionType() == dbictTcpProxy) {
-				const ConnectionProxy &proxy(cConnectionProxy());
-				configStream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
-			}
-
-			TWindowPos pos(cWindowPos());
-			configStream << quint32(dbiWindowPosition) << qint32(pos.x) << qint32(pos.y) << qint32(pos.w) << qint32(pos.h) << qint32(pos.moncrc) << qint32(pos.maximized);
-
-			if (configStream.status() != QDataStream::Ok) {
-				LOG(("App Error: could not write user config file, status: %1").arg(configStream.status()));
-			}
-		} else {
-			LOG(("App Error: could not open user config file for writing"));
-		}
-	}
-
-	void readConfig() {
-		QFile configFile(cWorkingDir() + qsl("tdata/config"));
-		if (configFile.open(QIODevice::ReadOnly)) {
-			DEBUG_LOG(("App Info: config file opened for reading"));
-			QDataStream configStream(&configFile);
-			configStream.setVersion(QDataStream::Qt_5_1);
-
-			qint32 configVersion = 0;
-			while (true) {
-				quint32 blockId;
-				configStream >> blockId;
-				if (configStream.status() == QDataStream::ReadPastEnd) {
-					DEBUG_LOG(("App Info: config file read end"));
-					break;
-				} else if (configStream.status() != QDataStream::Ok) {
-					LOG(("App Error: could not read block id, status: %1 - config file is corrupted?..").arg(configStream.status()));
-					break;
-				}
-
-				if (blockId == dbiVersion) {
-					configStream >> configVersion;
-					if (configVersion > AppVersion) break;
-					continue;
-				}
-
-				switch (blockId) {
-				case dbiAutoStart: {
-					qint32 v;
-					configStream >> v;
-					cSetAutoStart(v == 1);
-				} break;
-
-				case dbiStartMinimized: {
-					qint32 v;
-					configStream >> v;
-					cSetStartMinimized(v == 1);
-				} break;
-
-				case dbiSendToMenu: {
-					qint32 v;
-					configStream >> v;
-					cSetSendToMenu(v == 1);
-				} break;
-
-				case dbiSoundNotify: {
-					if (configVersion < 3008) {
-						qint32 v;
-						configStream >> v;
-						cSetSoundNotify(v == 1);
-						cSetNeedConfigResave(true);
-					}
-				} break;
-
-				case dbiDesktopNotify: {
-					if (configVersion < 3008) {
-						qint32 v;
-						configStream >> v;
-						cSetDesktopNotify(v == 1);
-						cSetNeedConfigResave(true);
-					}
-				} break;
-
-				case dbiWorkMode: {
-					qint32 v;
-					configStream >> v;
-					switch (v) {
-					case dbiwmTrayOnly: cSetWorkMode(dbiwmTrayOnly); break;
-					case dbiwmWindowOnly: cSetWorkMode(dbiwmWindowOnly); break;
-					default: cSetWorkMode(dbiwmWindowAndTray); break;
-					};
-				} break;
-
-				case dbiConnectionType: {
-					qint32 v;
-					configStream >> v;
-
-					switch (v) {
-					case dbictHttpProxy:
-					case dbictTcpProxy: {
-						ConnectionProxy p;
-						qint32 port;
-						configStream >> p.host >> port >> p.user >> p.password;
-						p.port = uint32(port);
-						cSetConnectionProxy(p);
-					}
-						cSetConnectionType(DBIConnectionType(v));
-						break;
-					case dbictHttpAuto:
-					default: cSetConnectionType(dbictAuto); break;
-					};
-				} break;
-
-				case dbiSeenTrayTooltip: {
-					qint32 v;
-					configStream >> v;
-					cSetSeenTrayTooltip(v == 1);
-				} break;
-
-				case dbiAutoUpdate: {
-					qint32 v;
-					configStream >> v;
-					cSetAutoUpdate(v == 1);
-				} break;
-
-				case dbiLastUpdateCheck: {
-					qint32 v;
-					configStream >> v;
-					cSetLastUpdateCheck(v);
-				} break;
-
-				case dbiScale: {
-					qint32 v;
-					configStream >> v;
-
-					DBIScale s = cRealScale();
-					switch (v) {
-					case dbisAuto: s = dbisAuto; break;
-					case dbisOne: s = dbisOne; break;
-					case dbisOneAndQuarter: s = dbisOneAndQuarter; break;
-					case dbisOneAndHalf: s = dbisOneAndHalf; break;
-					case dbisTwo: s = dbisTwo; break;
-					}
-					if (cRetina()) s = dbisOne;
-					cSetConfigScale(s);
-					cSetRealScale(s);
-				} break;
-
-				case dbiLang: {
-					qint32 v;
-					configStream >> v;
-					if (v == languageTest || (v >= 0 && v < languageCount)) {
-						cSetLang(v);
-					}
-				} break;
-
-				case dbiLangFile: {
-					QString v;
-					configStream >> v;
-					cSetLangFile(v);
-				} break;
-
-				case dbiWindowPosition: {
-					TWindowPos pos;
-					configStream >> pos.x >> pos.y >> pos.w >> pos.h >> pos.moncrc >> pos.maximized;
-					cSetWindowPos(pos);
-				} break;
-				}
-
-				if (configStream.status() != QDataStream::Ok) {
-					LOG(("App Error: could not read data, status: %1 - user config file is corrupted?..").arg(configStream.status()));
-					break;
-				}
-			}
-		}
-	}
-
-	void writeUserConfig() {
-		QFile configFile(cWorkingDir() + cDataFile() + qsl("_config"));
-		if (configFile.open(QIODevice::WriteOnly)) {
-			DEBUG_LOG(("App Info: writing user config data for encrypt"));
-			QByteArray toEncrypt;
-			toEncrypt.reserve(65536);
-			toEncrypt.resize(4);
-			{
-				QBuffer buffer(&toEncrypt);
-				buffer.open(QIODevice::Append);
-
-				QDataStream stream(&buffer);
-				stream.setVersion(QDataStream::Qt_5_1);
-
-				if (MTP::authedId()) {
-					stream << quint32(dbiUser) << qint32(MTP::authedId()) << quint32(MTP::maindc());
-				}
-
-				stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
-				stream << quint32(dbiTileBackground) << qint32(cTileBackground() ? 1 : 0);
-				stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);
-				stream << quint32(dbiDefaultAttach) << qint32(cDefaultAttach());
-				stream << quint32(dbiSoundNotify) << qint32(cSoundNotify());
-				stream << quint32(dbiDesktopNotify) << qint32(cDesktopNotify());
-				stream << quint32(dbiNotifyView) << qint32(cNotifyView());
-				stream << quint32(dbiAskDownloadPath) << qint32(cAskDownloadPath());
-				stream << quint32(dbiDownloadPath) << (cAskDownloadPath() ? QString() : cDownloadPath());
-				stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());
-				stream << quint32(dbiEmojiTab) << qint32(cEmojiTab());
-
-				RecentEmojiPreload v;
-				v.reserve(cGetRecentEmojis().size());
-				for (RecentEmojiPack::const_iterator i = cGetRecentEmojis().cbegin(), e = cGetRecentEmojis().cend(); i != e; ++i) {
-					v.push_back(qMakePair(i->first->code, i->second));
-				}
-				stream << quint32(dbiRecentEmojis) << v;
-
-				writeAllMuted(stream);
-
-				MTP::writeConfig(stream);
-				if (stream.status() != QDataStream::Ok) {
-					LOG(("App Error: could not write user config to memory buf, status: %1").arg(stream.status()));
-					return;
-				}
-			}
-			*(uint32*)(toEncrypt.data()) = toEncrypt.size();
-
-			uint32 size = toEncrypt.size(), fullSize = size;
-			if (fullSize & 0x0F) {
-				fullSize += 0x10 - (fullSize & 0x0F);
-				toEncrypt.resize(fullSize);
-				memset_rand(toEncrypt.data() + size, fullSize - size);
-			}
-			QByteArray encrypted(16 + fullSize, Qt::Uninitialized); // 128bit of sha1 - key128, sizeof(data), data
-			hashSha1(toEncrypt.constData(), toEncrypt.size(), encrypted.data());
-			aesEncryptLocal(toEncrypt.constData(), encrypted.data() + 16, fullSize, &Local::oldKey(), encrypted.constData());
-
-			DEBUG_LOG(("App Info: writing user config file"));
-			QDataStream configStream(&configFile);
-			configStream.setVersion(QDataStream::Qt_5_1);
-			configStream << quint32(dbiVersion) << qint32(AppVersion);
-
-			configStream << quint32(dbiEncryptedWithSalt) << cLocalSalt() << encrypted; // write all encrypted data
-
-			if (configStream.status() != QDataStream::Ok) {
-				LOG(("App Error: could not write user config file, status: %1").arg(configStream.status()));
-			}
-		} else {
-			LOG(("App Error: could not open user config file for writing"));
-		}
-	}
-
-	void readUserConfigFields(QIODevice *io) {
-		if (!io->isOpen()) io->open(QIODevice::ReadOnly);
-
-		QDataStream stream(io);
-		stream.setVersion(QDataStream::Qt_5_1);
-
-		while (true) {
-			quint32 blockId;
-			stream >> blockId;
-			if (stream.status() == QDataStream::ReadPastEnd) {
-				DEBUG_LOG(("App Info: config file read end"));
-				break;
-			} else if (stream.status() != QDataStream::Ok) {
-				LOG(("App Error: could not read block id, status: %1 - user config file is corrupted?..").arg(stream.status()));
-				break;
-			}
-
-			if (blockId == dbiVersion) { // should not be in encrypted part, just ignore
-				qint32 configVersion;
-				stream >> configVersion;
-				continue;
-			}
-
-			switch (blockId) {
-			case dbiEncryptedWithSalt: {
-				QByteArray salt, data, decrypted;
-				stream >> salt >> data;
-
-				if (salt.size() != 32) {
-					LOG(("App Error: bad salt in encrypted part, size: %1").arg(salt.size()));
-					continue;
-				}
-
-				cSetLocalSalt(salt);
-				Local::createOldKey(&salt);
-
-				if (data.size() <= 16 || (data.size() & 0x0F)) {
-					LOG(("App Error: bad encrypted part size: %1").arg(data.size()));
-					continue;
-				}
-				uint32 fullDataLen = data.size() - 16;
-				decrypted.resize(fullDataLen);
-				const char *dataKey = data.constData(), *encrypted = data.constData() + 16;
-				aesDecryptLocal(encrypted, decrypted.data(), fullDataLen, &Local::oldKey(), dataKey);
-				uchar sha1Buffer[20];
-				if (memcmp(hashSha1(decrypted.constData(), decrypted.size(), sha1Buffer), dataKey, 16)) {
-					LOG(("App Error: bad decrypt key, data from user-config not decrypted"));
-					continue;
-				}
-				uint32 dataLen = *(const uint32*)decrypted.constData();
-				if (dataLen > uint32(decrypted.size()) || dataLen <= fullDataLen - 16 || dataLen < 4) {
-					LOG(("App Error: bad decrypted part size: %1, fullDataLen: %2, decrypted size: %3").arg(dataLen).arg(fullDataLen).arg(decrypted.size()));
-					continue;
-				}
-				decrypted.resize(dataLen);
-				QBuffer decryptedStream(&decrypted);
-				decryptedStream.open(QIODevice::ReadOnly);
-				decryptedStream.seek(4); // skip size
-				readUserConfigFields(&decryptedStream);
-			} break;
-
-			case dbiLoggedPhoneNumber: {
-				QString v;
-				stream >> v;
-				if (stream.status() == QDataStream::Ok) {
-					cSetLoggedPhoneNumber(v);
-				}
-			} break;
-
-			case dbiMutePeer: {
-				readOneMuted(stream);
-			} break;
-
-			case dbiMutedPeers: {
-				readAllMuted(stream);
-			} break;
-
-			case dbiSendKey: {
-				qint32 v;
-				stream >> v;
-				cSetCtrlEnter(v == dbiskCtrlEnter);
-			} break;
-
-			case dbiCatsAndDogs: {
-				qint32 v;
-				stream >> v;
-			} break;
-
-			case dbiTileBackground: {
-				qint32 v;
-				stream >> v;
-				cSetTileBackground(v == 1);
-			} break;
-
-			case dbiReplaceEmojis: {
-				qint32 v;
-				stream >> v;
-				cSetReplaceEmojis(v == 1);
-			} break;
-
-			case dbiDefaultAttach: {
-				qint32 v;
-				stream >> v;
-				switch (v) {
-				case dbidaPhoto: cSetDefaultAttach(dbidaPhoto); break;
-				default: cSetDefaultAttach(dbidaDocument); break;
-				}
-			} break;
-
-			case dbiSoundNotify: {
-				qint32 v;
-				stream >> v;
-				cSetSoundNotify(v == 1);
-			} break;
-
-			case dbiDesktopNotify: {
-				qint32 v;
-				stream >> v;
-				cSetDesktopNotify(v == 1);
-			} break;
-
-			case dbiNotifyView: {
-				qint32 v;
-				stream >> v;
-				switch (v) {
-				case dbinvShowNothing: cSetNotifyView(dbinvShowNothing); break;
-				case dbinvShowName: cSetNotifyView(dbinvShowName); break;
-				default: cSetNotifyView(dbinvShowPreview); break;
-				}
-			} break;
-
-			case dbiAskDownloadPath: {
-				qint32 v;
-				stream >> v;
-				cSetAskDownloadPath(v == 1);
-			} break;
-
-			case dbiDownloadPath: {
-				QString v;
-				stream >> v;
-				cSetDownloadPath(v);
-			} break;
-
-			case dbiCompressPastedImage: {
-				qint32 v;
-				stream >> v;
-				cSetCompressPastedImage(v == 1);
-			} break;
-
-			case dbiEmojiTab: {
-				qint32 v;
-				stream >> v;
-				switch (v) {
-				case dbietRecent  : cSetEmojiTab(dbietRecent);   break;
-				case dbietPeople  : cSetEmojiTab(dbietPeople);   break;
-				case dbietNature  : cSetEmojiTab(dbietNature);   break;
-				case dbietObjects : cSetEmojiTab(dbietObjects);  break;
-				case dbietPlaces  : cSetEmojiTab(dbietPlaces);   break;
-				case dbietSymbols : cSetEmojiTab(dbietSymbols);  break;
-				case dbietStickers: cSetEmojiTab(dbietStickers); break;
-				}
-			} break;
-
-			case dbiRecentEmojis: {
-				RecentEmojiPreload v;
-				stream >> v;
-				cSetRecentEmojisPreload(v);
-			} break;
-
-			default:
-				if (!MTP::readConfigElem(blockId, stream)) {
-				}
-				break;
-			}
-
-			if (stream.status() != QDataStream::Ok) {
-				LOG(("App Error: could not read data, status: %1 - user config file is corrupted?..").arg(stream.status()));
-				break;
-			}
-		}
-	}
-
-	void readUserConfig() {
-		QFile configFile(cWorkingDir() + cDataFile() + qsl("_config"));
-		if (configFile.open(QIODevice::ReadOnly)) {
-			DEBUG_LOG(("App Info: user config file opened for reading"));
-			{
-				QDataStream configStream(&configFile);
-				configStream.setVersion(QDataStream::Qt_5_1);
-
-				quint32 blockId;
-				configStream >> blockId;
-				if (configStream.status() == QDataStream::ReadPastEnd) {
-					DEBUG_LOG(("App Info: config file read end"));
-					return;
-				} else if (configStream.status() != QDataStream::Ok) {
-					LOG(("App Error: could not read block id, status: %1 - user config file is corrupted?..").arg(configStream.status()));
-					return;
-				}
-
-				if (blockId == dbiVersion) {
-					qint32 configVersion;
-					configStream >> configVersion;
-					if (configVersion > AppVersion) return;
-
-					configStream >> blockId;
-					if (configStream.status() == QDataStream::ReadPastEnd) {
-						DEBUG_LOG(("App Info: config file read end"));
-						return;
-					} else if (configStream.status() != QDataStream::Ok) {
-						LOG(("App Error: could not read block id, status: %1 - user config file is corrupted?..").arg(configStream.status()));
-						return;
-					}
-					if (blockId != dbiEncryptedWithSalt) { // old version data - not encrypted
-						cSetNeedConfigResave(true);
-					}
-				} else {
-					cSetNeedConfigResave(true);
-				}
-			}
-
-			configFile.reset();
-			readUserConfigFields(&configFile);
-		}
-	}
-
-	void writeAllMuted(QDataStream &stream) { // deprecated
-	}
-
-	void readOneMuted(QDataStream &stream) { // deprecated
-		quint64 peerId;
-		stream >> peerId;
-	}
-
-	void readAllMuted(QDataStream &stream) {
-		quint32 count;
-		stream >> count;
-
-		for (uint32 i = 0; i < count; ++i) {
-			readOneMuted(stream);
-		}
 	}
 
 	void checkImageCacheSize() {

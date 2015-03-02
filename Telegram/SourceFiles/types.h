@@ -226,7 +226,7 @@ enum DataBlockId {
 	dbiKey = 0,
 	dbiUser = 1,
 	dbiDcOption = 2,
-	dbiConfig1 = 3,
+	dbiMaxGroupCount = 3,
 	dbiMutePeer = 4,
 	dbiSendKey = 5,
 	dbiAutoStart = 6,
@@ -257,6 +257,7 @@ enum DataBlockId {
 	dbiLang = 31,
 	dbiLangFile = 32,
 	dbiTileBackground = 33,
+	dbiAutoLock = 34,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,

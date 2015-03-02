@@ -1544,6 +1544,8 @@ bool DialogsWidget::addNewContact(int32 uid, bool show) {
 }
 
 void DialogsWidget::onListScroll() {
+//	if (!App::self()) return;
+
 	list.loadPeerPhotos(scroll.scrollTop());
 	if (list.state() == DialogsListWidget::SearchedState) {
 		if (scroll.scrollTop() > (list.searchList().size() + list.filteredList().size() + list.peopleList().size()) * st::dlgHeight - PreloadHeightsCount * scroll.height()) {

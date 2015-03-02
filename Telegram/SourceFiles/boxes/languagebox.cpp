@@ -18,6 +18,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "lang.h"
 
+#include "localstorage.h"
+
 #include "languagebox.h"
 #include "confirmbox.h"
 #include "mainwidget.h"
@@ -183,7 +185,7 @@ void LanguageBox::onSave() {
 	for (int32 i = 0, l = _langs.size(); i < l; ++i) {
 		if (_langs[i]->checked()) {
 			cSetLang(_langs[i]->val());
-			App::writeConfig();
+			Local::writeSettings();
 			cSetRestarting(true);
 			cSetRestartingToSettings(true);
 			App::quit();

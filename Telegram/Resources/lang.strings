@@ -227,6 +227,27 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_local_storage_clear_failed" = "Clear failed :(";
 
 "lng_settings_section_advanced" = "Advanced";
+
+"lng_passcode_turn_on" = "Turn passcode on";
+"lng_passcode_change" = "Change passcode";
+"lng_passcode_create" = "Create passcode";
+"lng_passcode_remove" = "Remove passcode";
+"lng_passcode_turn_off" = "Turn off";
+"lng_passcode_autolock_away" = "Auto-Lock if away for:";
+"lng_passcode_autolock_inactive" = "Auto-Lock if inactive for:";
+"lng_passcode_autolock_minutes" = "{count:_not_used_|# minute|# minutes}";
+"lng_passcode_autolock_hours" = "{count:_not_used_|# hour|# hours}";
+"lng_passcode_enter_old" = "Enter old passcode";
+"lng_passcode_enter_new" = "Enter new passcode";
+"lng_passcode_confirm_new" = "Re-enter new passcode";
+"lng_passcode_about" = "When you set up a passcode, a lock icon will appear in the corner. Tap it to lock the app.\n\nNote: if you forget the passcode, you'll need to relogin in Telegram Desktop.";
+"lng_passcode_differ" = "Passcodes are different";
+"lng_passcode_wrong" = "Wrong passcode";
+"lng_passcode_is_same" = "Passcode was not changed";
+"lng_passcode_enter" = "Enter your Telegram Passcode";
+"lng_passcode_submit" = "Submit";
+"lng_passcode_logout" = "or you can {link_start}log out »{link_end}";
+
 "lng_connection_type" = "Connection type:";
 "lng_connection_auto_connecting" = "Default (connecting..)";
 "lng_connection_auto" = "Default ({type} used)";

@@ -60,17 +60,6 @@ private:
 typedef QSharedPointer<MTProtoDC> MTProtoDCPtr;
 typedef QMap<uint32, MTProtoDCPtr> MTProtoDCMap;
 
-struct mtpDcOption {
-	mtpDcOption(int _id, const string &_host, const string &_ip, int _port) : id(_id), host(_host), ip(_ip), port(_port) {
-	}
-
-	int id;
-	string host;
-	string ip;
-	int port;
-};
-typedef QMap<int, mtpDcOption> mtpDcOptions;
-
 class MTProtoConfigLoader : public QObject {
 	Q_OBJECT
 
@@ -101,20 +90,17 @@ private:
 MTProtoConfigLoader *mtpConfigLoader();
 void mtpDestroyConfigLoader();
 
-const mtpDcOptions &mtpDCOptions();
 MTProtoDCMap &mtpDCMap();
 bool mtpNeedConfig();
 int32 mtpMainDC();
 void mtpLogoutOtherDCs();
-void mtpSetDC(int32 dc);
+void mtpSetDC(int32 dc, bool firstOnly = false);
 uint32 mtpMaxChatSize();
 
-void mtpWriteAuthKeys();
-void mtpLoadData();
 int32 mtpAuthed();
 void mtpAuthed(int32 uid);
 
-void mtpWriteConfig(QDataStream &stream);
-bool mtpReadConfigElem(int32 blockId, QDataStream &stream);
+mtpKeysMap mtpGetKeys();
+void mtpSetKey(int32 dc, mtpAuthKeyPtr key);
 
 void mtpUpdateDcOptions(const QVector<MTPDcOption> &options);

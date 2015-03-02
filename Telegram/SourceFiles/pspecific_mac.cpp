@@ -23,6 +23,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "historywidget.h"
 
+#include "localstorage.h"
+
 namespace {
     QStringList _initLogs;
 
@@ -61,9 +63,14 @@ void MacPrivate::notifyClicked(unsigned long long peer) {
     History *history = App::history(PeerId(peer));
 
     App::wnd()->showFromTray();
-    App::wnd()->hideSettings();
-    App::main()->showPeer(history->peer->id, false, true);
-    App::wnd()->notifyClear(history);
+	if (App::passcoded()) {
+		App::wnd()->passcodeWidget()->setInnerFocus();
+		App::wnd()->notifyClear();
+	} else {
+		App::wnd()->hideSettings();
+		App::main()->showPeer(history->peer->id, false, true);
+		App::wnd()->notifyClear(history);
+	}
 }
 
 void MacPrivate::notifyReplied(unsigned long long peer, const char *str) {
@@ -268,7 +275,7 @@ void PsMainWindow::psSavePosition(Qt::WindowState state) {
 	if (curPos.w >= st::wndMinWidth && curPos.h >= st::wndMinHeight) {
 		if (curPos.x != pos.x || curPos.y != pos.y || curPos.w != pos.w || curPos.h != pos.h || curPos.moncrc != pos.moncrc || curPos.maximized != pos.maximized) {
 			cSetWindowPos(curPos);
-			App::writeConfig();
+			Local::writeSettings();
 		}
     }
 }
@@ -475,12 +482,12 @@ void PsMainWindow::psNotifyShown(NotifyWindow *w) {
 }
 
 void PsMainWindow::psPlatformNotify(HistoryItem *item) {
-	QString title = (cNotifyView() <= dbinvShowName) ? item->history()->peer->name : qsl("Telegram Desktop");
-	QString subtitle = (cNotifyView() <= dbinvShowName) ? item->notificationHeader() : QString();
-	QPixmap pix = (cNotifyView() <= dbinvShowName) ? item->history()->peer->photo->pix(st::notifyMacPhotoSize) : QPixmap();
-	QString msg = (cNotifyView() <= dbinvShowPreview) ? item->notificationText() : lang(lng_notification_preview);
+	QString title = (!App::passcoded() && cNotifyView() <= dbinvShowName) ? item->history()->peer->name : qsl("Telegram Desktop");
+	QString subtitle = (!App::passcoded() && cNotifyView() <= dbinvShowName) ? item->notificationHeader() : QString();
+	QPixmap pix = (!App::passcoded() && cNotifyView() <= dbinvShowName) ? item->history()->peer->photo->pix(st::notifyMacPhotoSize) : QPixmap();
+	QString msg = (!App::passcoded() && cNotifyView() <= dbinvShowPreview) ? item->notificationText() : lang(lng_notification_preview);
 
-	_private.showNotify(item->history()->peer->id, pix, title, subtitle, msg, (cNotifyView() <= dbinvShowPreview));
+	_private.showNotify(item->history()->peer->id, pix, title, subtitle, msg, !App::passcoded() && (cNotifyView() <= dbinvShowPreview));
 }
 
 bool PsMainWindow::eventFilter(QObject *obj, QEvent *evt) {
@@ -922,6 +929,10 @@ namespace {
 
 void psUserActionDone() {
 	_lastUserAction = getms(true);
+}
+
+bool psIdleSupported() {
+	return objc_idleSupported();
 }
 
 uint64 psIdleTime() {

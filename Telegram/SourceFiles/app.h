@@ -39,6 +39,7 @@ namespace App {
 	Window *wnd();
 	MainWidget *main();
 	SettingsWidget *settings();
+	bool passcoded();
 	FileUploader *uploader();
 
 	void showSettings();
@@ -150,18 +151,6 @@ namespace App {
 	void initMedia();
 	void deinitMedia(bool completely = true);
 	void playSound();
-
-	void writeConfig();
-	void readConfig();
-	void writeUserConfig();
-	void readUserConfig();
-
-	void muteHistory(History *history);
-	void unmuteHistory(History *history);
-	void writeAllMuted(QDataStream &stream);
-	void readAllMuted(QDataStream &stream);
-	void readOneMuted(QDataStream &stream);
-	bool isPeerMuted(const PeerId &peer);
 
 	void checkImageCacheSize();
 

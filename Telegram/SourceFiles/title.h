@@ -87,6 +87,7 @@ private:
 	MaskedButton _back;
 	FlatButton _cancel, _settings, _contacts, _about;
 
+	LockBtn _lock;
 	UpdateBtn _update;
 	MinimizeBtn _minimize;
 	MaximizeBtn _maximize;

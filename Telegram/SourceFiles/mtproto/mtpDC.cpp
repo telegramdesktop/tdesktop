@@ -25,283 +25,13 @@ namespace {
 	
 	MTProtoDCMap gDCs;
 	bool configLoadedOnce = false;
+	bool mainDCChanged = false;
 	int32 mainDC = 2;
-	int userId = 0;
-	mtpDcOptions gDCOptions;
+	int32 userId = 0;
 
 	typedef QMap<int32, mtpAuthKeyPtr> _KeysMapForWrite;
 	_KeysMapForWrite _keysMapForWrite;
 	QMutex _keysMapForWriteMutex;
-
-	int32 readAuthKeysFields(QIODevice *io) {
-		if (!io->isOpen()) io->open(QIODevice::ReadOnly);
-
-		QDataStream stream(io);
-		stream.setVersion(QDataStream::Qt_5_1);
-
-		int32 oldFound = 0;
-
-		while (true) {
-			quint32 blockId;
-			stream >> blockId;
-			if (stream.status() == QDataStream::ReadPastEnd) {
-				DEBUG_LOG(("MTP Info: keys file read end"));
-				break;
-			} else if (stream.status() != QDataStream::Ok) {
-				LOG(("MTP Error: could not read block id, status: %1 - keys file is corrupted?..").arg(stream.status()));
-				break;
-			}
-
-			if (blockId == dbiVersion) {
-				qint32 keysVersion;
-				stream >> keysVersion;
-				continue; // should not be in encrypted part, just ignore
-			}
-
-			if (blockId != dbiEncrypted && blockId != dbiKey) {
-				oldFound = 2;
-			}
-
-			switch (blockId) {
-			case dbiEncrypted: {
-				QByteArray data, decrypted;
-				stream >> data;
-
-				if (!Local::oldKey().created()) {
-					LOG(("MTP Error: reading encrypted keys without local key!"));
-					continue;
-				}
-
-				if (data.size() <= 16 || (data.size() & 0x0F)) {
-					LOG(("MTP Error: bad encrypted part size: %1").arg(data.size()));
-					continue;
-				}
-				uint32 fullDataLen = data.size() - 16;
-				decrypted.resize(fullDataLen);
-				const char *dataKey = data.constData(), *encrypted = data.constData() + 16;
-				aesDecryptLocal(encrypted, decrypted.data(), fullDataLen, &Local::oldKey(), dataKey);
-				uchar sha1Buffer[20];
-				if (memcmp(hashSha1(decrypted.constData(), decrypted.size(), sha1Buffer), dataKey, 16)) {
-					LOG(("MTP Error: bad decrypt key, data from user-config not decrypted"));
-					continue;
-				}
-				uint32 dataLen = *(const uint32*)decrypted.constData();
-				if (dataLen > uint32(decrypted.size()) || dataLen <= fullDataLen - 16 || dataLen < 4) {
-					LOG(("MTP Error: bad decrypted part size: %1, fullDataLen: %2, decrypted size: %3").arg(dataLen).arg(fullDataLen).arg(decrypted.size()));
-					continue;
-				}
-				decrypted.resize(dataLen);
-				QBuffer decryptedStream(&decrypted);
-				decryptedStream.open(QIODevice::ReadOnly);
-				decryptedStream.seek(4); // skip size
-				readAuthKeysFields(&decryptedStream);
-			} break;
-
-			case dbiKey: {
-				qint32 dcId;
-				quint32 key[64];
-				stream >> dcId;
-				stream.readRawData((char*)key, 256);
-				if (stream.status() == QDataStream::Ok) {
-					DEBUG_LOG(("MTP Info: key found, dc %1, key: %2").arg(dcId).arg(mb(key, 256).str()));
-					dcId = dcId % _mtp_internal::dcShift;
-					mtpAuthKeyPtr keyPtr(new mtpAuthKey());
-					keyPtr->setKey(key);
-					keyPtr->setDC(dcId);
-
-					MTProtoDCPtr dc(new MTProtoDC(dcId, keyPtr));
-					gDCs.insert(dcId, dc);
-				}
-			} break;
-
-			case dbiUser: {
-				quint32 dcId;
-				qint32 uid;
-				stream >> uid >> dcId;
-				if (stream.status() == QDataStream::Ok) {
-					DEBUG_LOG(("MTP Info: user found, dc %1, uid %2").arg(dcId).arg(uid));
-
-					userId = uid;
-					mainDC = dcId;
-				}
-			} break;
-
-			case dbiDcOption: {
-				quint32 dcId, port;
-				QString host, ip;
-				stream >> dcId >> host >> ip >> port;
-
-				if (stream.status() == QDataStream::Ok) {
-					gDCOptions.insert(dcId, mtpDcOption(dcId, host.toUtf8().constData(), ip.toUtf8().constData(), port));
-				}
-			} break;
-
-			case dbiConfig1: {
-				quint32 maxSize;
-				stream >> maxSize;
-				if (stream.status() == QDataStream::Ok) {
-					cSetMaxGroupCount(maxSize);
-				}
-			} break;
-			}
-
-			if (stream.status() != QDataStream::Ok) {
-				LOG(("MTP Error: could not read data, status: %1 - keys file is corrupted?..").arg(stream.status()));
-				break;
-			}
-		}
-
-		return oldFound;
-	}
-
-	int32 readAuthKeys(QFile &file) {
-		QDataStream stream(&file);
-		stream.setVersion(QDataStream::Qt_5_1);
-
-		int32 oldFound = 0;
-		quint32 blockId;
-		stream >> blockId;
-		if (stream.status() == QDataStream::ReadPastEnd) {
-			DEBUG_LOG(("MTP Info: keys file read end"));
-			return oldFound;
-		} else if (stream.status() != QDataStream::Ok) {
-			LOG(("MTP Error: could not read block id, status: %1 - keys file is corrupted?..").arg(stream.status()));
-			return oldFound;
-		}
-
-		if (blockId == dbiVersion) {
-			qint32 keysVersion;
-			stream >> keysVersion;
-			if (keysVersion > AppVersion) return oldFound;
-
-			stream >> blockId;
-			if (stream.status() == QDataStream::ReadPastEnd) {
-				DEBUG_LOG(("MTP Info: keys file read end"));
-				return oldFound;
-			} else if (stream.status() != QDataStream::Ok) {
-				LOG(("MTP Error: could not read block id, status: %1 - keys file is corrupted?..").arg(stream.status()));
-				return oldFound;
-			}
-			if (blockId != dbiEncrypted) {
-				oldFound = (blockId != dbiKey) ? 2 : 1;
-			}
-		} else {
-			oldFound = 2;
-		}
-
-		file.reset();
-		oldFound = qMax(oldFound, readAuthKeysFields(&file));
-
-		return oldFound;
-	}
-
-	void writeAuthKeys();
-	void readAuthKeys() {
-		QFile keysFile(cWorkingDir() + cDataFile());
-		if (keysFile.open(QIODevice::ReadOnly)) {
-			DEBUG_LOG(("MTP Info: keys file opened for reading"));
-			int32 oldFound = readAuthKeys(keysFile);
-			if (gDCOptions.isEmpty()) {
-				const BuiltInDc *bdcs = builtInDcs();
-				for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
-					gDCOptions.insert(bdcs[i].id, mtpDcOption(bdcs[i].id, "", bdcs[i].ip, bdcs[i].port));
-					DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
-				}
-			}
-			if (mainDC && gDCOptions.find(mainDC) == gDCOptions.cend()) { // load first dc info
-				userId = 0;
-				mainDC = (gDCOptions.constFind(2) == gDCOptions.cend()) ? gDCOptions.begin().key() : 2;
-			} else {
-				DEBUG_LOG(("MTP Info: config from local, dc option count: %1").arg(gDCOptions.size()));
-			}
-
-			if (oldFound > 0) {
-				writeAuthKeys();
-				if (oldFound > 1) {
-					App::writeUserConfig();
-				}
-				DEBUG_LOG(("MTP Info: rewritten old data / config to new data and config"));
-			}
-		} else {
-			DEBUG_LOG(("MTP Info: could not open keys file for reading"));
-			const BuiltInDc *bdcs = builtInDcs();
-			for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
-				gDCOptions.insert(bdcs[i].id, mtpDcOption(bdcs[i].id, "", bdcs[i].ip, bdcs[i].port));
-				DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
-			}
-		}
-	}
-
-	typedef QVector<mtpAuthKeyPtr> _KeysToWrite;
-	void writeAuthKeys() {
-		_KeysToWrite keysToWrite;
-		{
-			QMutexLocker lock(&_keysMapForWriteMutex);
-			for (_KeysMapForWrite::const_iterator i = _keysMapForWrite.cbegin(), e = _keysMapForWrite.cend(); i != e; ++i) {
-				keysToWrite.push_back(i.value());
-			}
-		}
-
-		QFile keysFile(cWorkingDir() + cDataFile());
-		if (keysFile.open(QIODevice::WriteOnly)) {
-			DEBUG_LOG(("MTP Info: writing keys data for encrypt"));
-			QByteArray toEncrypt;
-			toEncrypt.reserve(65536);
-			toEncrypt.resize(4);
-			{
-				QBuffer buffer(&toEncrypt);
-				buffer.open(QIODevice::Append);
-
-				QDataStream stream(&buffer);
-				stream.setVersion(QDataStream::Qt_5_1);
-
-				for (_KeysToWrite::const_iterator i = keysToWrite.cbegin(), e = keysToWrite.cend(); i != e; ++i) {
-					stream << quint32(dbiKey) << quint32((*i)->getDC());
-					(*i)->write(stream);
-				}
-
-				if (stream.status() != QDataStream::Ok) {
-					LOG(("MTP Error: could not write keys to memory buf, status: %1").arg(stream.status()));
-				}
-			}
-			*(uint32*)(toEncrypt.data()) = toEncrypt.size();
-
-			uint32 size = toEncrypt.size(), fullSize = size;
-			if (fullSize & 0x0F) {
-				fullSize += 0x10 - (fullSize & 0x0F);
-				toEncrypt.resize(fullSize);
-				memset_rand(toEncrypt.data() + size, fullSize - size);
-			}
-			QByteArray encrypted(16 + fullSize, Qt::Uninitialized); // 128bit of sha1 - key128, sizeof(data), data
-			hashSha1(toEncrypt.constData(), toEncrypt.size(), encrypted.data());
-			aesEncryptLocal(toEncrypt.constData(), encrypted.data() + 16, fullSize, &Local::oldKey(), encrypted.constData());
-
-			DEBUG_LOG(("MTP Info: keys file opened for writing %1 keys").arg(keysToWrite.size()));
-			QDataStream keysStream(&keysFile);
-			keysStream.setVersion(QDataStream::Qt_5_1);
-			keysStream << quint32(dbiVersion) << qint32(AppVersion);
-
-			keysStream << quint32(dbiEncrypted) << encrypted; // write all encrypted data
-
-			if (keysStream.status() != QDataStream::Ok) {
-				LOG(("MTP Error: could not write keys, status: %1").arg(keysStream.status()));
-			}
-		} else {
-			LOG(("MTP Error: could not open keys file for writing"));
-		}
-	}
-
-	class _KeysReader {
-	public:
-		_KeysReader() {
-			readAuthKeys();
-		}
-	};
-
-}
-
-void mtpLoadData() {
-	static _KeysReader keysReader;
 }
 
 int32 mtpAuthed() {
@@ -309,18 +39,13 @@ int32 mtpAuthed() {
 }
 
 void mtpAuthed(int32 uid) {
-	if (userId != uid && mainDC) {
+	if (userId != uid) {
 		userId = uid;
-		App::writeUserConfig();
 	}
 }
 
 MTProtoDCMap &mtpDCMap() {
 	return gDCs;
-}
-
-const mtpDcOptions &mtpDCOptions() {
-	return gDCOptions;
 }
 
 bool mtpNeedConfig() {
@@ -344,12 +69,11 @@ void mtpLogoutOtherDCs() {
 	}
 }
 
-void mtpSetDC(int32 dc) {
+void mtpSetDC(int32 dc, bool firstOnly) {
+	if (!dc || (firstOnly && mainDCChanged)) return;
+	mainDCChanged = true;
 	if (dc != mainDC) {
 		mainDC = dc;
-		if (userId) {
-			App::writeUserConfig();
-		}
 	}
 }
 
@@ -367,7 +91,7 @@ MTProtoDC::MTProtoDC(int32 id, const mtpAuthKeyPtr &key) : _id(id), _key(key), _
 void MTProtoDC::authKeyWrite() {
 	DEBUG_LOG(("AuthKey Info: MTProtoDC::authKeyWrite() slot, dc %1").arg(_id));
 	if (_key) {
-		writeAuthKeys();
+		Local::writeMtpData();
 	}
 }
 
@@ -414,7 +138,7 @@ namespace {
 		cSetMaxGroupCount(data.vchat_size_max.v);
 
 		configLoadedOnce = true;
-		App::writeUserConfig();
+		Local::writeSettings();
 
 		mtpConfigLoader()->done();
 	}
@@ -427,18 +151,22 @@ namespace {
 
 void mtpUpdateDcOptions(const QVector<MTPDcOption> &options) {
 	QSet<int32> already, restart;
-	for (QVector<MTPDcOption>::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
-		const MTPDdcOption &optData(i->c_dcOption());
-		if (already.constFind(optData.vid.v) == already.cend()) {
-			already.insert(optData.vid.v);
-			mtpDcOptions::const_iterator a = gDCOptions.constFind(optData.vid.v);
-			if (a != gDCOptions.cend()) {
-				if (a.value().ip != optData.vip_address.c_string().v || a.value().port != optData.vport.v) {
-					restart.insert(optData.vid.v);
+	{
+		mtpDcOptions opts(cDcOptions());
+		for (QVector<MTPDcOption>::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
+			const MTPDdcOption &optData(i->c_dcOption());
+			if (already.constFind(optData.vid.v) == already.cend()) {
+				already.insert(optData.vid.v);
+				mtpDcOptions::const_iterator a = opts.constFind(optData.vid.v);
+				if (a != opts.cend()) {
+					if (a.value().ip != optData.vip_address.c_string().v || a.value().port != optData.vport.v) {
+						restart.insert(optData.vid.v);
+					}
 				}
+				opts.insert(optData.vid.v, mtpDcOption(optData.vid.v, optData.vhostname.c_string().v, optData.vip_address.c_string().v, optData.vport.v));
 			}
-			gDCOptions.insert(optData.vid.v, mtpDcOption(optData.vid.v, optData.vhostname.c_string().v, optData.vip_address.c_string().v, optData.vport.v));
 		}
+		cSetDcOptions(opts);
 	}
 	for (QSet<int32>::const_iterator i = restart.cbegin(), e = restart.cend(); i != e; ++i) {
 		MTP::restart(*i);
@@ -490,9 +218,10 @@ void MTProtoConfigLoader::enumDC() {
 	} else {
 		MTP::killSession(MTP::cfg + _enumCurrent);
 	}
-	for (mtpDcOptions::const_iterator i = gDCOptions.cbegin(), e = gDCOptions.cend(); i != e; ++i) {
+	const mtpDcOptions &options(cDcOptions());
+	for (mtpDcOptions::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
 		if (i.key() == _enumCurrent) {
-			_enumCurrent = (++i == e) ? gDCOptions.cbegin().key() : i.key();
+			_enumCurrent = (++i == e) ? options.cbegin().key() : i.key();
 			break;
 		}
 	}
@@ -512,51 +241,16 @@ void mtpDestroyConfigLoader() {
 	configLoader = 0;
 }
 
-void mtpWriteConfig(QDataStream &stream) {
-	if (userId) {
-		stream << quint32(dbiUser) << qint32(userId) << quint32(mainDC);
+mtpKeysMap mtpGetKeys() {
+	mtpKeysMap result;
+	QMutexLocker lock(&_keysMapForWriteMutex);
+	for (_KeysMapForWrite::const_iterator i = _keysMapForWrite.cbegin(), e = _keysMapForWrite.cend(); i != e; ++i) {
+		result.push_back(i.value());
 	}
-	for (mtpDcOptions::const_iterator i = gDCOptions.cbegin(), e = gDCOptions.cend(); i != e; ++i) {
-		stream << quint32(dbiDcOption) << i->id << QString(i->host.c_str()) << QString(i->ip.c_str()) << i->port;
-	}
-	stream << quint32(dbiConfig1) << qint32(cMaxGroupCount());
+	return result;
 }
 
-bool mtpReadConfigElem(int32 blockId, QDataStream &stream) {
-	switch (blockId) {
-	case dbiUser: {
-		quint32 dcId;
-		qint32 uid;
-		stream >> uid >> dcId;
-		if (stream.status() == QDataStream::Ok) {
-			DEBUG_LOG(("MTP Info: user found, dc %1, uid %2").arg(dcId).arg(uid));
-
-			userId = uid;
-			mainDC = dcId;
-			return true;
-		}
-	} break;
-
-	case dbiDcOption: {
-		quint32 dcId, port;
-		QString host, ip;
-		stream >> dcId >> host >> ip >> port;
-
-		if (stream.status() == QDataStream::Ok) {
-			gDCOptions.insert(dcId, mtpDcOption(dcId, host.toUtf8().constData(), ip.toUtf8().constData(), port));
-			return true;
-		}
-	} break;
-
-	case dbiConfig1: {
-		quint32 maxSize;
-		stream >> maxSize;
-		if (stream.status() == QDataStream::Ok) {
-			cSetMaxGroupCount(maxSize);
-			return true;
-		}
-	} break;
-	}
-
-	return false;
+void mtpSetKey(int32 dcId, mtpAuthKeyPtr key) {
+	MTProtoDCPtr dc(new MTProtoDC(dcId, key));
+	gDCs.insert(dcId, dc);
 }

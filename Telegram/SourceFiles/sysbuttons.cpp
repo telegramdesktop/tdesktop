@@ -20,6 +20,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "lang.h"
 
 #include "sysbuttons.h"
+#include "passcodewidget.h"
 #include "window.h"
 #include "application.h"
 
@@ -76,6 +77,11 @@ void SysBtn::paintEvent(QPaintEvent *e) {
 		p.setPen(c);
 		p.drawText((_st.size.width() - _st.img.pxWidth()) / 2, st::titleTextButton.textTop + st::titleTextButton.font->ascent, _text);
 	}
+}
+
+void SysBtn::setSysBtnStyle(const style::sysButton &st) {
+	_st = st;
+	update();
 }
 
 HitTestType SysBtn::hitTest(const QPoint &p) const {
@@ -144,4 +150,16 @@ void UpdateBtn::onClick() {
 		cSetRestartingToSettings(false);
 	}
 	App::quit();
+}
+
+LockBtn::LockBtn(QWidget *parent, Window *window) : SysBtn(parent, st::sysLock), wnd(window) {
+	connect(this, SIGNAL(clicked()), this, SLOT(onClick()));
+}
+
+void LockBtn::onClick() {
+	if (App::passcoded()) {
+		App::wnd()->passcodeWidget()->onSubmit();
+	} else {
+		App::wnd()->setupPasscode(true);
+	}
 }

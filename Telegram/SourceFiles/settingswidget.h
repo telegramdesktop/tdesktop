@@ -86,6 +86,8 @@ public slots:
 	void usernameChanged();
 	void updateConnectionType();
 
+	void passcodeChanged();
+
 	void updateBackgroundRect();
 
 	void peerUpdated(PeerData *data);
@@ -96,6 +98,10 @@ public slots:
 	void onAutoUpdate();
 	void onCheckNow();
 	void onRestartNow();
+
+	void onPasscode();
+	void onPasscodeOff();
+	void onAutoLock();
 
 	void onConnectionType();
 
@@ -242,11 +248,14 @@ private:
 	TempDirClearState _storageClearState;
 
 	// advanced
-	LinkButton _connectionType, _resetSessions;
-	FlatButton _logOut;
-
+	LinkButton _passcodeEdit, _passcodeTurnOff, _autoLock;
+	QString _autoLockText;
+	int32 _autoLockWidth;
+	LinkButton _connectionType;
 	QString _connectionTypeText;
 	int32 _connectionTypeWidth;
+	LinkButton _resetSessions;
+	FlatButton _logOut;
 
 	bool _resetDone;
 
