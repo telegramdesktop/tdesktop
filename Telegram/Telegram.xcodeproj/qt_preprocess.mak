@@ -73,7 +73,6 @@ GeneratedFiles/qrc_telegram.cpp: SourceFiles/telegram.qrc \
 		SourceFiles/art/bg_200x.png \
 		SourceFiles/art/emoji_125x.png \
 		SourceFiles/art/bg_125x.png \
-		SourceFiles/art/fonts/DejaVuSans.ttf \
 		SourceFiles/art/fonts/OpenSans-Regular.ttf \
                 SourceFiles/art/fonts/OpenSans-Bold.ttf \
                 SourceFiles/art/fonts/OpenSans-Semibold.ttf \
