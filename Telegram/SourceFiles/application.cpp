@@ -152,7 +152,6 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 
 	installTranslator(_translator = new Translator());
 
-	Local::start();
 	style::startManager();
 	anim::startManager();
 	historyInit();
@@ -174,8 +173,8 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	connect(this, SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
 	connect(this, SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
 	connect(this, SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
-	connect(&writeUserConfigTimer, SIGNAL(timeout()), this, SLOT(onWriteUserConfig()));
-	writeUserConfigTimer.setSingleShot(true);
+	//connect(&writeUserConfigTimer, SIGNAL(timeout()), this, SLOT(onWriteUserConfig()));
+	//writeUserConfigTimer.setSingleShot(true);
 
 	connect(&killDownloadSessionsTimer, SIGNAL(timeout()), this, SLOT(killDownloadSessions()));
 
@@ -191,7 +190,7 @@ void Application::onAppUpdate(const MTPhelp_AppUpdate &response) {
     updateRequestId = 0;
 
 	cSetLastUpdateCheck(unixtime());
-	App::writeConfig();
+	Local::writeSettings();
 	if (response.type() == mtpc_help_noAppUpdate) {
 		startUpdateCheck();
 	} else {
@@ -205,7 +204,7 @@ void Application::onAppUpdate(const MTPhelp_AppUpdate &response) {
 bool Application::onAppUpdateFail() {
 	updateRequestId = 0;
 	cSetLastUpdateCheck(unixtime());
-	App::writeConfig();
+	Local::writeSettings();
 	startUpdateCheck();
 	return true;
 }
@@ -239,7 +238,7 @@ void Application::updateGotCurrent() {
 		emit updateLatest();
 	}
 	startUpdateCheck(true);
-	App::writeConfig();
+	Local::writeSettings();
 }
 
 void Application::updateFailedCurrent(QNetworkReply::NetworkError e) {
@@ -259,7 +258,7 @@ void Application::onUpdateReady() {
 	updateCheckTimer.stop();
 
 	cSetLastUpdateCheck(unixtime());
-	App::writeConfig();
+	Local::writeSettings();
 }
 
 void Application::onUpdateFailed() {
@@ -271,7 +270,7 @@ void Application::onUpdateFailed() {
 	}
 
 	cSetLastUpdateCheck(unixtime());
-	App::writeConfig();
+	Local::writeSettings();
 }
 
 void Application::regPhotoUpdate(const PeerId &peer, MsgId msgId) {
@@ -347,11 +346,11 @@ void Application::peerClearPhoto(PeerId peer) {
 	}
 }
 
-void Application::writeUserConfigIn(uint64 ms) {
-	if (!writeUserConfigTimer.isActive()) {
-		writeUserConfigTimer.start(ms);
-	}
-}
+//void Application::writeUserConfigIn(uint64 ms) {
+//	if (!writeUserConfigTimer.isActive()) {
+//		writeUserConfigTimer.start(ms);
+//	}
+//}
 
 void Application::killDownloadSessionsStart(int32 dc) {
 	if (killDownloadSessionTimes.constFind(dc) == killDownloadSessionTimes.cend()) {
@@ -373,9 +372,9 @@ void Application::checkLocalTime() {
 	if (App::main()) App::main()->checkLastUpdate(checkms());
 }
 
-void Application::onWriteUserConfig() {
-	App::writeUserConfig();
-}
+//void Application::onWriteUserConfig() {
+//	Local::writeUserSettings();
+//}
 
 void Application::onAppStateChanged(Qt::ApplicationState state) {
 	checkLocalTime();
@@ -649,32 +648,44 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 	startApp();
 }
 
+void Application::checkMapVersion() {
+	if (Local::oldMapVersion() < AppVersion) {
+		psRegisterCustomScheme();
+		if (Local::oldMapVersion()) {
+			QString versionFeatures;
+			if (DevChannel && Local::oldMapVersion() < 7019) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Passcode lock option added");
+			} else if (!DevChannel && Local::oldMapVersion() < 7017) {
+				versionFeatures = lang(lng_new_version_minor).trimmed();
+			}
+			if (!versionFeatures.isEmpty()) {
+				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
+				window->serviceNotification(versionFeatures);
+			}
+		}
+	}
+}
+
 void Application::startApp() {
 	cChangeTimeFormat(QLocale::system().timeFormat(QLocale::ShortFormat));
 
 	DEBUG_LOG(("Application Info: starting app.."));
 
 	Local::ReadMapState state = Local::readMap(QByteArray());
+	if (state == Local::ReadMapPassNeeded) {
+		cSetHasPasscode(true);
+	}
 
 	DEBUG_LOG(("Application Info: local map read.."));
-	App::readUserConfig();
-	if (!Local::oldKey().created()) {
-		Local::createOldKey();
-		cSetNeedConfigResave(true);
-	}
-	if (cNeedConfigResave()) {
-		App::writeConfig();
-		App::writeUserConfig();
-		cSetNeedConfigResave(false);
-	}
-	DEBUG_LOG(("Application Info: user config read.."));
 
 	window->createWinId();
 	window->init();
 
 	DEBUG_LOG(("Application Info: window created.."));
 
-	MTP::start();
+	if (state != Local::ReadMapPassNeeded) {
+		MTP::start();
+	}
 	
 	MTP::setStateChangedHandler(mtpStateChanged);
 	MTP::setSessionResetHandler(mtpSessionReset);
@@ -685,12 +696,15 @@ void Application::startApp() {
 	App::initMedia();
 
 	DEBUG_LOG(("Application Info: showing."));
-	if (MTP::authedId()) {
-		window->setupMain(false);
+	if (state == Local::ReadMapPassNeeded) {
+		window->setupPasscode(false);
 	} else {
-		window->setupIntro(false);
+		if (MTP::authedId()) {
+			window->setupMain(false);
+		} else {
+			window->setupIntro(false);
+		}
 	}
-
 	window->firstShow();
 
 	if (cStartToSettings()) {
@@ -698,20 +712,9 @@ void Application::startApp() {
 	}
 
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
-	if (Local::oldMapVersion() < AppVersion) {
-		psRegisterCustomScheme();
-		if (Local::oldMapVersion()) {
-			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 7018) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Windows: crash on start fixed for some Intel cards\n\xe2\x80\x94 Linux: tray icon returned in Pantheon and Gnome");
-			} else if (!DevChannel && Local::oldMapVersion() < 7017) {
-				versionFeatures = lang(lng_new_version_minor).trimmed();
-			}
-			if (!versionFeatures.isEmpty()) {
-				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
-				window->serviceNotification(versionFeatures);
-			}
-		}
+	
+	if (state != Local::ReadMapPassNeeded) {
+		checkMapVersion();
 	}
 
 	window->updateIsActive(cOnlineFocusTimeout());
@@ -844,8 +847,7 @@ Application::~Application() {
 	cSetChatDogImage(0);
 
 	style::stopManager();
-	Local::stop();
-
+	
 	delete _translator;
 }
 

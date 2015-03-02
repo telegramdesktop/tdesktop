@@ -56,6 +56,7 @@ TitleWidget::TitleWidget(Window *window)
 	, _settings(this, lang(lng_menu_settings), st::titleTextButton)
 	, _contacts(this, lang(lng_menu_contacts), st::titleTextButton)
 	, _about(this, lang(lng_menu_about), st::titleTextButton)
+	, _lock(this, window)
 	, _update(this, window, lang(lng_menu_update))
 	, _minimize(this, window)
 	, _maximize(this, window)
@@ -64,10 +65,11 @@ TitleWidget::TitleWidget(Window *window)
     , lastMaximized(!(window->windowState() & Qt::WindowMaximized))
 {
 	setGeometry(0, 0, wnd->width(), st::titleHeight);
+	_lock.hide();
 	_update.hide();
     _cancel.hide();
     _back.hide();
-	if (App::app()->updatingState() == Application::UpdatingReady) {
+	if (App::app()->updatingState() == Application::UpdatingReady || cHasPasscode()) {
 		showUpdateBtn();
 	}
 	stateChanged();
@@ -155,6 +157,11 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
 	if (!_update.isHidden()) {
 		p.setX(p.x() - _update.width());
 		_update.move(p);
+		if (!_lock.isHidden()) {
+			p.setX(p.x() - _lock.width());
+			_lock.move(p);
+			p.setX(p.x() + _lock.width());
+		}
 		p.setX(p.x() + _update.width());
 	}
 	_cancel.move(p.x() - _cancel.width(), 0);
@@ -169,15 +176,20 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
         p.setX(p.x() - _minimize.width());
         _minimize.move(p);
     }
+	if (_update.isHidden() && !_lock.isHidden()) {
+		p.setX(p.x() - _lock.width());
+		_lock.move(p);
+	}
+
 	_settings.move(st::titleMenuOffset, 0);
 	_back.move(st::titleMenuOffset, 0);
 	_back.resize((_minimize.isHidden() ? (_update.isHidden() ? width() : _update.x()) : _minimize.x()) - st::titleMenuOffset, _back.height());
-	if (MTP::authedId() && _back.isHidden() && _cancel.isHidden()) {
-		_contacts.show();
+	if (MTP::authedId() && _back.isHidden() && _cancel.isHidden() && !App::passcoded()) {
+		if (_contacts.isHidden()) _contacts.show();
 		_contacts.move(_settings.x() + _settings.width(), 0);
 		_about.move(_contacts.x() + _contacts.width(), 0);
 	} else {
-		_contacts.hide();
+		if (!_contacts.isHidden()) _contacts.hide();
 		if (!MTP::authedId()) _about.move(_settings.x() + _settings.width(), 0);
 	}
 
@@ -185,31 +197,41 @@ void TitleWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void TitleWidget::updateBackButton() {
-	if (!cWideMode() && App::main() && App::main()->selectingPeer()) {
-		_cancel.show();
+	if (App::passcoded()) {
+		if (!_cancel.isHidden()) _cancel.hide();
 		if (!_back.isHidden()) _back.hide();
 		if (!_settings.isHidden()) _settings.hide();
 		if (!_contacts.isHidden()) _contacts.hide();
 		if (!_about.isHidden()) _about.hide();
+		_lock.setSysBtnStyle(st::sysUnlock);
 	} else {
-		if (!_cancel.isHidden()) _cancel.hide();
-		bool authed = (MTP::authedId() > 0);
-		if (cWideMode()) {
+		_lock.setSysBtnStyle(st::sysLock);
+		if (!cWideMode() && App::main() && App::main()->selectingPeer()) {
+			_cancel.show();
 			if (!_back.isHidden()) _back.hide();
-			if (_settings.isHidden()) _settings.show();
-			if (authed && _contacts.isHidden()) _contacts.show();
-			if (_about.isHidden()) _about.show();
+			if (!_settings.isHidden()) _settings.hide();
+			if (!_contacts.isHidden()) _contacts.hide();
+			if (!_about.isHidden()) _about.hide();
 		} else {
-			if (App::wnd()->needBackButton()) {
-				if (_back.isHidden()) _back.show();
-				if (!_settings.isHidden()) _settings.hide();
-				if (!_contacts.isHidden()) _contacts.hide();
-				if (!_about.isHidden()) _about.hide();
-			} else {
+			if (!_cancel.isHidden()) _cancel.hide();
+			bool authed = (MTP::authedId() > 0);
+			if (cWideMode()) {
 				if (!_back.isHidden()) _back.hide();
 				if (_settings.isHidden()) _settings.show();
 				if (authed && _contacts.isHidden()) _contacts.show();
 				if (_about.isHidden()) _about.show();
+			} else {
+				if (App::wnd()->needBackButton()) {
+					if (_back.isHidden()) _back.show();
+					if (!_settings.isHidden()) _settings.hide();
+					if (!_contacts.isHidden()) _contacts.hide();
+					if (!_about.isHidden()) _about.hide();
+				} else {
+					if (!_back.isHidden()) _back.hide();
+					if (_settings.isHidden()) _settings.show();
+					if (authed && _contacts.isHidden()) _contacts.show();
+					if (_about.isHidden()) _about.show();
+				}
 			}
 		}
 	}
@@ -281,12 +303,18 @@ void TitleWidget::stateChanged(Qt::WindowState state) {
 void TitleWidget::showUpdateBtn() {
 	if (!cWideMode() && App::main() && App::main()->selectingPeer()) {
 		_cancel.show();
+		_lock.hide();
 		_update.hide();
 		_minimize.hide();
 		_restore.hide();
 		_maximize.hide();
 		_close.hide();
 		return;
+	}
+	if (cHasPasscode()) {
+		_lock.show();
+	} else {
+		_lock.hide();
 	}
 	bool updateReady = App::app()->updatingState() == Application::UpdatingReady;
 	if (updateReady || cEvalScale(cConfigScale()) != cEvalScale(cRealScale())) {
@@ -338,6 +366,7 @@ HitTestType TitleWidget::hitTest(const QPoint &p) {
 	if (x >= st::titleIconPos.x() && y >= st::titleIconPos.y() && x < st::titleIconPos.x() + st::titleIconImg.pxWidth() && y < st::titleIconPos.y() + st::titleIconImg.pxHeight()) {
 		return HitTestIcon;
 	} else if (false
+		|| (_lock.hitTest(p - _lock.geometry().topLeft()) == HitTestSysButton && _lock.isVisible())
         || (_update.hitTest(p - _update.geometry().topLeft()) == HitTestSysButton && _update.isVisible())
 		|| (_minimize.hitTest(p - _minimize.geometry().topLeft()) == HitTestSysButton)
 		|| (_maximize.hitTest(p - _maximize.geometry().topLeft()) == HitTestSysButton)

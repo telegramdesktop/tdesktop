@@ -149,14 +149,12 @@ public:
     void onNotifyClick(NSUserNotification *notification) {
         NSNumber *peerObj = [[notification userInfo] objectForKey:@"peer"];
 		unsigned long long peerLong = peerObj ? [peerObj unsignedLongLongValue] : 0;
-		LOG(("Received notification click with peer %1").arg(peerLong));
         wnd->notifyClicked(peerLong);
     }
     
     void onNotifyReply(NSUserNotification *notification) {
         NSNumber *peerObj = [[notification userInfo] objectForKey:@"peer"];
 		unsigned long long peerLong = peerObj ? [peerObj unsignedLongLongValue] : 0;
-		LOG(("Received notification reply with peer %1").arg(peerLong));
         wnd->notifyReplied(peerLong, [[[notification response] string] UTF8String]);
     }
     
@@ -326,6 +324,11 @@ void objc_outputDebugString(const QString &str) {
 
 PsMacWindowPrivate::~PsMacWindowPrivate() {
     delete data;
+}
+
+bool objc_idleSupported() {
+	int64 idleTime = 0;
+	return objc_idleTime(idleTime);
 }
 
 bool objc_idleTime(int64 &idleTime) { // taken from https://github.com/trueinteractions/tint/issues/53

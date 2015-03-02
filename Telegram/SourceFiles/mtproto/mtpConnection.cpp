@@ -180,12 +180,6 @@ namespace {
 				return false;
 			}
 
-			BN_sub_word(&bnPrime, 1); // (p - 1) / 2
-			BN_div_word(&bnPrime, 2);
-
-			if (BN_is_prime_ex(&bnPrime, MTPMillerRabinIterCount, ctx, NULL) == 0) {
-				return false;
-			}
 			switch (g) {
 			case 2: {
 				int32 mod8 = BN_mod_word(&bnPrime, 8);
@@ -226,7 +220,14 @@ namespace {
 			default:
 				LOG(("BigNum PT Error: bad g value: %1").arg(g));
 				return false;
-			break;
+				break;
+			}
+
+			BN_sub_word(&bnPrime, 1); // (p - 1) / 2
+			BN_div_word(&bnPrime, 2);
+
+			if (BN_is_prime_ex(&bnPrime, MTPMillerRabinIterCount, ctx, NULL) == 0) {
+				return false;
 			}
 
 			return true;
@@ -1105,13 +1106,13 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
 //	createConn();
 
 	if (!dc) {
-		const mtpDcOptions &gDcOptions(mtpDCOptions());
-		if (!gDcOptions.size()) {
+		const mtpDcOptions &options(cDcOptions());
+		if (options.isEmpty()) {
 			LOG(("MTP Error: connect failed, no DCs"));
 			dc = 0;
 			return;
 		}
-		dc = gDcOptions.cbegin().value().id;
+		dc = options.cbegin().value().id;
 		DEBUG_LOG(("MTP Info: searching for any DC, %1 selected..").arg(dc));
 	}
 
@@ -1699,10 +1700,10 @@ void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 	pingId = pingMsgId = toSendPingId = 0;
 
 	const mtpDcOption *dcOption = 0;
-	const mtpDcOptions &gDcOptions(mtpDCOptions());
-	mtpDcOptions::const_iterator dcIndex = gDcOptions.constFind(dc % _mtp_internal::dcShift);
+	const mtpDcOptions &options(cDcOptions());
+	mtpDcOptions::const_iterator dcIndex = options.constFind(dc % _mtp_internal::dcShift);
 	DEBUG_LOG(("MTP Info: connecting to DC %1..").arg(dc));
-	if (dcIndex == gDcOptions.cend()) {
+	if (dcIndex == options.cend()) {
 		if (afterConfig) {
 			LOG(("MTP Error: DC %1 options not found right after config load!").arg(dc));
 			return restart();

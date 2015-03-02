@@ -496,7 +496,7 @@ void EmojiPanInner::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void EmojiPanInner::onSaveConfig() {
-	App::writeUserConfig();
+	Local::writeUserSettings();
 }
 
 void EmojiPanInner::mouseMoveEvent(QMouseEvent *e) {
@@ -871,7 +871,7 @@ void EmojiPan::onTabChange() {
 	else if (_stickers.checked()) newTab = dbietStickers;
 	if (newTab != cEmojiTab()) {
 		cSetEmojiTab(newTab);
-		App::writeUserConfig();
+		Local::writeUserSettings();
 		_scroll.scrollToY(0);
 	}
 	_inner.showEmojiPack(newTab);

@@ -22,6 +22,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "mainwidget.h"
 
+#include "localstorage.h"
+
 #include <Shobjidl.h>
 #include <dbghelp.h>
 #include <shellapi.h>
@@ -717,6 +719,10 @@ namespace {
 			}
 			switch (msg) {
 
+			case WM_TIMECHANGE: {
+				App::wnd()->checkAutoLockIn(100);
+			} return false;
+
 			case WM_WTSSESSION_CHANGE: {
 				if (wParam == WTS_SESSION_LOGOFF || wParam == WTS_SESSION_LOCK) {
 					sessionLoggedOff = true;
@@ -1135,7 +1141,7 @@ void PsMainWindow::psSavePosition(Qt::WindowState state) {
 	if (curPos.w >= st::wndMinWidth && curPos.h >= st::wndMinHeight) {
 		if (curPos.x != pos.x || curPos.y != pos.y || curPos.w != pos.w || curPos.h != pos.h || curPos.moncrc != pos.moncrc || curPos.maximized != pos.maximized) {
 			cSetWindowPos(curPos);
-			App::writeConfig();
+			Local::writeSettings();
 		}
 	}
 }
@@ -1752,6 +1758,7 @@ namespace {
 			if (len && len < nameBufSize) {
 				if (QRegularExpression(qsl("^Telegram(\\s*\\(\\d+\\))?$")).match(QString::fromStdWString(nameBuf)).hasMatch()) {
 					BOOL res = ::SetForegroundWindow(hWnd);
+					::SetFocus(hWnd);
 					return FALSE;
 				}
 			}
@@ -1767,6 +1774,12 @@ namespace {
 void psUserActionDone() {
 	_lastUserAction = getms(true);
 	if (sessionLoggedOff) sessionLoggedOff = false;
+}
+
+bool psIdleSupported() {
+	LASTINPUTINFO lii;
+	lii.cbSize = sizeof(LASTINPUTINFO);
+	return GetLastInputInfo(&lii);
 }
 
 uint64 psIdleTime() {

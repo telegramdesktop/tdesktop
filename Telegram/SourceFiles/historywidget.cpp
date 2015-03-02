@@ -25,6 +25,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "boxes/photosendbox.h"
 #include "mainwidget.h"
 #include "window.h"
+#include "passcodewidget.h"
+#include "window.h"
 #include "fileuploader.h"
 
 #include "localstorage.h"
@@ -554,7 +556,7 @@ void HistoryList::dragActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 			uint32 sel = _selected.cbegin().value();
 			if (sel != FullItemSel && (sel & 0xFFFF) == ((sel >> 16) & 0xFFFF)) {
 				_selected.clear();
-				App::main()->activate();
+				App::wnd()->setInnerFocus();
 			}
 		}
 	}
@@ -1734,6 +1736,7 @@ void HistoryWidget::activate() {
 			return;
 		} else {
 			App::main()->dialogsActivate();
+			return;
 		}
 	}
 	if (_list) {
@@ -1926,7 +1929,7 @@ void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool l
 
 			clearLoadingAround();
 			emit peerShown(histPeer);
-			return activate();
+			return App::wnd()->setInnerFocus();
 		}
 		updateTyping(false);
 	}
@@ -2633,7 +2636,7 @@ bool HistoryWidget::animStep(float64 ms) {
 			}
 			onListScroll();
 		}
-		activate();
+		App::wnd()->setInnerFocus();
 	} else {
 		a_bgCoord.update(dt1, st::introHideFunc);
 		a_bgAlpha.update(dt1, st::introAlphaHideFunc);
@@ -2660,7 +2663,7 @@ void HistoryWidget::onPhotoSelect() {
 
 	if (cDefaultAttach() != dbidaPhoto) {
 		cSetDefaultAttach(dbidaPhoto);
-		App::writeUserConfig();
+		Local::writeUserSettings();
 	}
 
 	QStringList photoExtensions(cPhotoExtensions());
@@ -2688,7 +2691,7 @@ void HistoryWidget::onDocumentSelect() {
 
 	if (cDefaultAttach() != dbidaDocument) {
 		cSetDefaultAttach(dbidaDocument);
-		App::writeUserConfig();
+		Local::writeUserSettings();
 	}
 
 	QStringList photoExtensions(cPhotoExtensions());

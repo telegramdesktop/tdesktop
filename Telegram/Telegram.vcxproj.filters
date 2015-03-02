@@ -786,6 +786,66 @@
     <ClCompile Include="GeneratedFiles\Release\moc_backgroundbox.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\pspecific_linux.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_pspecific_linux.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_pspecific_linux.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_pspecific_linux.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\pspecific_mac.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_pspecific_mac.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_pspecific_mac.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_pspecific_mac.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_passcodewidget.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_passcodewidget.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_passcodewidget.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\passcodewidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_autolockbox.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_autolockbox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_autolockbox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\autolockbox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_passcodebox.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_passcodebox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_passcodebox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\passcodebox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -864,6 +924,9 @@
       <Filter>Generated Files</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\lang.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\pspecific_mac_p.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -1046,6 +1109,21 @@
     <CustomBuild Include="SourceFiles\boxes\backgroundbox.h">
       <Filter>boxes</Filter>
     </CustomBuild>
+    <CustomBuild Include="SourceFiles\pspecific_linux.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\pspecific_mac.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\passcodewidget.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\autolockbox.h">
+      <Filter>boxes</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\passcodebox.h">
+      <Filter>boxes</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <Image Include="SourceFiles\art\icon256.ico" />
@@ -1071,6 +1149,9 @@
     </None>
     <None Include="SourceFiles\langs\lang_ko.strings">
       <Filter>langs</Filter>
+    </None>
+    <None Include="SourceFiles\pspecific_mac_p.mm">
+      <Filter>Source Files</Filter>
     </None>
   </ItemGroup>
 </Project>

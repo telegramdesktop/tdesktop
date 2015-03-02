@@ -78,11 +78,15 @@ namespace MTP {
 	};
 
 	void start();
+	bool started();
 	void restart();
 	void restart(int32 dcMask);
 
+	void configure(int32 dc, int32 user);
+
 	void setdc(int32 dc, bool fromZeroOnly = false);
 	int32 maindc();
+
 	int32 dcstate(int32 dc = 0);
 	QString dctransport(int32 dc = 0);
 	void initdc(int32 dc);
@@ -131,8 +135,8 @@ namespace MTP {
 		return result;
 	}
 
-	void writeConfig(QDataStream &stream);
-	bool readConfigElem(int32 blockId, QDataStream &stream);
+	mtpKeysMap getKeys();
+	void setKey(int32 dc, mtpAuthKeyPtr key);
 
 };
 

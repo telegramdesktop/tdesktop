@@ -32,7 +32,7 @@ namespace {
 	typedef QMap<mtpRequestId, int32> AuthExportRequests; // holds target dc for auth export request
 	AuthExportRequests authExportRequests;
 
-	bool started = false;
+	bool _started = false;
 
 	uint32 layer;
 	
@@ -161,7 +161,7 @@ namespace {
 
 			DEBUG_LOG(("MTP Info: changing request %1 dc%2 to %3").arg(requestId).arg((dc > 0) ? "" : " and main dc").arg(newdc));
 			if (dc < 0) {
-				if (MTP::authedId()) { // import auth, set dc and resend
+				if (MTP::authedId() && !authExportRequests.contains(requestId)) { // import auth, set dc and resend
 					DEBUG_LOG(("MTP Info: importing auth to dc %1").arg(newdc));
 					DCAuthWaiters &waiters(authWaiters[newdc]);
 					if (!waiters.size()) {
@@ -334,7 +334,7 @@ namespace {
 
 namespace _mtp_internal {
 	MTProtoSessionPtr getSession(int32 dc) {
-		if (!started) return MTProtoSessionPtr();
+		if (!_started) return MTProtoSessionPtr();
 		if (!dc) return mainSession;
 		if (!(dc % _mtp_internal::dcShift)) {
 			dc += mainSession->getDC();
@@ -588,19 +588,13 @@ namespace MTP {
     void start() {
         unixtimeInit();
 
-		if (!Local::oldKey().created()) {
-			LOG(("App Error: trying to start MTP without local key!"));
-			return;
-		}
-
-		mtpLoadData();
 		MTProtoDCMap &dcs(mtpDCMap());
 
 		mainSession = MTProtoSessionPtr(new MTProtoSession());
 		mainSession->start(mtpMainDC());
 		sessions[mainSession->getDC()] = mainSession;
 
-		started = true;
+		_started = true;
 		resender = new _mtp_internal::RequestResender();
 
 		if (mtpNeedConfig()) {
@@ -608,15 +602,19 @@ namespace MTP {
 		}
 	}
 
+	bool started() {
+		return _started;
+	}
+
 	void restart() {
-		if (!started) return;
+		if (!_started) return;
 
 		for (Sessions::const_iterator i = sessions.cbegin(), e = sessions.cend(); i != e; ++i) {
 			(*i)->restart();
 		}
 	}
 	void restart(int32 dcMask) {
-		if (!started) return;
+		if (!_started) return;
 
 		for (Sessions::const_iterator i = sessions.cbegin(), e = sessions.cend(); i != e; ++i) {
 			if ((*i)->getDC() % _mtp_internal::dcShift == dcMask % _mtp_internal::dcShift) {
@@ -625,23 +623,27 @@ namespace MTP {
 		}
 	}
 
-	void setdc(int32 dc, bool fromZeroOnly) {
-		if (!started) return;
-
-		int32 m = mainSession->getDC();
-		if (!dc || m == dc || (m && fromZeroOnly)) return;
+	void configure(int32 dc, int32 user) {
+		if (_started) return;
 		mtpSetDC(dc);
-		mainSession = _mtp_internal::getSession(dc);
+		mtpAuthed(user);
+	}
+
+	void setdc(int32 dc, bool fromZeroOnly) {
+		if (!dc || !_started) return;
+		mtpSetDC(dc, fromZeroOnly);
+		if (dc != mainSession->getDC()) {
+			mainSession = _mtp_internal::getSession(dc);
+		}
+		Local::writeMtpData();
 	}
 
 	int32 maindc() {
-		if (!started) return 0;
-
-		return mainSession->getDC();
+		return mtpMainDC();
 	}
 
 	int32 dcstate(int32 dc) {
-		if (!started) return 0;
+		if (!_started) return 0;
 
 		if (!dc) return mainSession->getState();
 		if (!(dc % _mtp_internal::dcShift)) {
@@ -655,7 +657,7 @@ namespace MTP {
 	}
 
 	QString dctransport(int32 dc) {
-		if (!started) return QString();
+		if (!_started) return QString();
 
 		if (!dc) return mainSession->transport();
 		if (!(dc % _mtp_internal::dcShift)) {
@@ -669,7 +671,7 @@ namespace MTP {
 	}
 
 	void initdc(int32 dc) {
-		if (!started) return;
+		if (!_started) return;
 		_mtp_internal::getSession(dc);
 	}
 
@@ -781,15 +783,15 @@ namespace MTP {
 
 	void updateDcOptions(const QVector<MTPDcOption> &options) {
 		mtpUpdateDcOptions(options);
-		App::writeUserConfig();
+		Local::writeSettings();
 	}
 
-	void writeConfig(QDataStream &stream) {
-		return mtpWriteConfig(stream);
+	mtpKeysMap getKeys() {
+		return mtpGetKeys();
 	}
 
-	bool readConfigElem(int32 blockId, QDataStream &stream) {
-		return mtpReadConfigElem(blockId, stream);
+	void setKey(int32 dc, mtpAuthKeyPtr key) {
+		return mtpSetKey(dc, key);
 	}
 
 };

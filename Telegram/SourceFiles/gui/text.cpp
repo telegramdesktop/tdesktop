@@ -19,7 +19,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "text.h"
 
 #include "lang.h"
-#include "app.h"
 
 #include <private/qharfbuzz_p.h>
 

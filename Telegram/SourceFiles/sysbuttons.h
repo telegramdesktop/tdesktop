@@ -32,6 +32,7 @@ public:
 
 	void setText(const QString &text);
 	void paintEvent(QPaintEvent *e);
+	void setSysBtnStyle(const style::sysButton &st);
 
 	HitTestType hitTest(const QPoint &p) const;
 
@@ -122,6 +123,22 @@ class UpdateBtn : public SysBtn {
 public:
 
 	UpdateBtn(QWidget *parent, Window *window, const QString &text = QString());
+
+public slots:
+
+	void onClick();
+
+private:
+
+	Window *wnd;
+};
+
+class LockBtn : public SysBtn {
+	Q_OBJECT
+
+public:
+
+	LockBtn(QWidget *parent, Window *window);
 
 public slots:
 

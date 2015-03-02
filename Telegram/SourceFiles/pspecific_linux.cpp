@@ -22,6 +22,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "mainwidget.h"
 
+#include "localstorage.h"
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <cstdlib>
@@ -703,7 +705,7 @@ void PsMainWindow::psSavePosition(Qt::WindowState state) {
 	if (curPos.w >= st::wndMinWidth && curPos.h >= st::wndMinHeight) {
 		if (curPos.x != pos.x || curPos.y != pos.y || curPos.w != pos.w || curPos.h != pos.h || curPos.moncrc != pos.moncrc || curPos.maximized != pos.maximized) {
 			cSetWindowPos(curPos);
-			App::writeConfig();
+			Local::writeSettings();
 		}
     }
 }
@@ -1367,6 +1369,10 @@ namespace {
 
 void psUserActionDone() {
 	_lastUserAction = getms(true);
+}
+
+bool psIdleSupported() {
+	return false;
 }
 
 uint64 psIdleTime() {
