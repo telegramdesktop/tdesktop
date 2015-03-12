@@ -227,6 +227,28 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_local_storage_clear_failed" = "Wissen mislukt";
 
 "lng_settings_section_advanced" = "Geavanceerd";
+
+"lng_passcode_turn_on" = "Toegangscode inschakelen";
+"lng_passcode_change" = "Toegangscode wijzigen";
+"lng_passcode_create" = "Toegangscode instellen";
+"lng_passcode_remove" = "Toegangscode verwijderen";
+"lng_passcode_turn_off" = "Uitschakelen";
+"lng_passcode_autolock" = "Automatisch vergrendelen";
+"lng_passcode_autolock_away" = "Vergrendelen indien langer afwezig dan:";
+"lng_passcode_autolock_inactive" = "Vergrendelen indien langer inactief dan:";
+"lng_passcode_autolock_minutes" = "{count:_not_used_|# minute|# minuten}";
+"lng_passcode_autolock_hours" = "{count:_not_used_|# uur|# uur}";
+"lng_passcode_enter_old" = "Toegangscode invoeren";
+"lng_passcode_enter_new" = "Nieuwe toegangscode invoeren";
+"lng_passcode_confirm_new" = "Toegangscode opnieuw invoeren";
+"lng_passcode_about" = "Als je een toegangscode instelt verschijnt er een slotje op de chatspagina.\n\n\nLet op: vergeet je de toegangscode dan zul je opnieuw in moeten loggen.";
+"lng_passcode_differ" = "Toegangscodes zijn verschillend";
+"lng_passcode_wrong" = "Onjuiste toegangscode";
+"lng_passcode_is_same" = "Toegangscode is niet gewijzigd";
+"lng_passcode_enter" = "Voer je Telegram toegangscode in";
+"lng_passcode_submit" = "Versturen";
+"lng_passcode_logout" = "of je kunt {link_start}uitloggen »{link_end}";
+
 "lng_connection_type" = "Verbindingstype:";
 "lng_connection_auto_connecting" = "Standaard (verbinden)";
 "lng_connection_auto" = "Standaard ({type} wordt gebruikt)";

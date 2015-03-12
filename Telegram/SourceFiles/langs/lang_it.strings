@@ -227,6 +227,28 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_local_storage_clear_failed" = "Eliminazione fallita :(";
 
 "lng_settings_section_advanced" = "Avanzate";
+
+"lng_passcode_turn_on" = "Attiva codice";
+"lng_passcode_change" = "Cambia codice";
+"lng_passcode_create" = "Crea codice";
+"lng_passcode_remove" = "Rimuovi codice";
+"lng_passcode_turn_off" = "Disattiva";
+"lng_passcode_autolock" = "Blocco automatico";
+"lng_passcode_autolock_away" = "Blocco automatico se lontano per:";
+"lng_passcode_autolock_inactive" = "Blocco automatico se inattivo per:";
+"lng_passcode_autolock_minutes" = "{count:_not_used_|# minuto|# minuti}";
+"lng_passcode_autolock_hours" = "{count:_not_used_|# ora|# ore}";
+"lng_passcode_enter_old" = "Inserisci il tuo codice";
+"lng_passcode_enter_new" = "Inserisci il nuovo codice";
+"lng_passcode_confirm_new" = "Reinserisci il nuovo codice";
+"lng_passcode_about" = "Quando imposti un codice, un'icona col lucchetto apparirà nell'angolo. Premi su di essa per bloccare l'app. \n\nNota: se ti dimentichi il codice, dovrai rifare il login su Telegram Desktop.";
+"lng_passcode_differ" = "I codici sono diversi";
+"lng_passcode_wrong" = "Codice errato";
+"lng_passcode_is_same" = "Il codice non è stato cambiato";
+"lng_passcode_enter" = "Inserisci il codice di Telegram";
+"lng_passcode_submit" = "Invia";
+"lng_passcode_logout" = "oppure {link_start}disconnettiti{link_end}";
+
 "lng_connection_type" = "Tipo di connessione:";
 "lng_connection_auto_connecting" = "Default (connessione..)";
 "lng_connection_auto" = "Default ({type} in uso)";
@@ -438,7 +460,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_about_text" = "App ufficiale di messaggistica basata su [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] e \nle [a href=\"https://core.telegram.org/api\"]API Telegram[/a] per velocità e sicurezza\n\nQuesto software è sotto licenza [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versione 3, \nil source code è disponibile su [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 "lng_about_done" = "Fatto";
 
-"lng_search_found_results" = "{count:Nessun messaggio trovato|Trovato # messaggio|Trovati # messaggi}";
+"lng_search_found_results" = "{count:Nessun messaggio trovato|# messaggio trovato|# messaggi trovati}";
 "lng_search_global_results" = "Risultati ricerca globale";
 
 "lng_mediaview_save" = "Download";
@@ -455,7 +477,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_mediaview_saved" = "L'immagine è stata salvata nella tua cartella [c]Download[/c]";
 
-"lng_new_authorization" = "{name},\nAbbiamo rilevato un accesso al tuo account da un nuovo dispositivo il {day}, {date} alle {time}\n\nDispositivo: {device}\nPosizione: {location}\n\nSe non sei tu, puoi andare su Impostazioni – Termina tutte le sessioni. \n\nGrazie, \nIl Team di Telegram";
+"lng_new_authorization" = "{name},\nAbbiamo rilevato un accesso al tuo account da un nuovo dispositivo {day}, {date} alle {time}\n\nDispositivo: {device}\nPosizione: {location}\n\nSe non sei tu, puoi andare su Impostazioni – Termina tutte le sessioni. \n\nGrazie, \nIl Team di Telegram";
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli update è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";

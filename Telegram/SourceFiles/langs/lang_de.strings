@@ -227,6 +227,28 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_local_storage_clear_failed" = "Ein Fehler ist aufgetreten :(";
 
 "lng_settings_section_advanced" = "Erweitert";
+
+"lng_passcode_turn_on" = "Code-Sperre aktivieren";
+"lng_passcode_change" = "Pincode ändern";
+"lng_passcode_create" = "Pincode festlegen";
+"lng_passcode_remove" = "Pincode entfernen";
+"lng_passcode_turn_off" = "Deaktivieren";
+"lng_passcode_autolock" = "Auto-Sperre";
+"lng_passcode_autolock_away" = "Auto-Sperre bei Abwesenheit:";
+"lng_passcode_autolock_inactive" = "Auto-Sperre bei Inaktivität:";
+"lng_passcode_autolock_minutes" = "{count:_not_used_|# Minute|# Minuten}";
+"lng_passcode_autolock_hours" = "{count:_not_used_|# Stunde|# Stunden}";
+"lng_passcode_enter_old" = "Aktueller Pincode";
+"lng_passcode_enter_new" = "Neuer Pincode";
+"lng_passcode_confirm_new" = "Pincode wiederholen";
+"lng_passcode_about" = "Wenn du die Code-Sperre aktivierst, erscheint ein Schloss oben in der Ecke. Klicke darauf, um die App zu sperren.\n\nÜbrigens: Vergisst du den Pincode, musst du dich abmelden und wieder anmelden.";
+"lng_passcode_differ" = "Pincode ist nicht identisch";
+"lng_passcode_wrong" = "Falscher Pincode";
+"lng_passcode_is_same" = "Pincode wurde nicht geändert";
+"lng_passcode_enter" = "Telegram Pincode eingeben";
+"lng_passcode_submit" = "Absenden";
+"lng_passcode_logout" = "oder {link_start}melde dich ab »{link_end}";
+
 "lng_connection_type" = "Verbindungsart:";
 "lng_connection_auto_connecting" = "Standard (verbinden..)";
 "lng_connection_auto" = "Standard ({type} verwendet)";
