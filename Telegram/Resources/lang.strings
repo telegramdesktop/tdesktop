@@ -241,13 +241,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_passcode_enter_old" = "Enter old passcode";
 "lng_passcode_enter_new" = "Enter new passcode";
 "lng_passcode_confirm_new" = "Re-enter new passcode";
-"lng_passcode_about" = "When you set up a passcode, a lock icon will appear in the corner. Tap it to lock the app.\n\nNote: if you forget the passcode, you'll need to relogin in Telegram Desktop.";
+"lng_passcode_about" = "When a passcode is set, a lock icon appears in the top menu. Click it to lock the app.\n\nNote: if you forget your passcode, you'll need to relogin in Telegram Desktop.";
 "lng_passcode_differ" = "Passcodes are different";
 "lng_passcode_wrong" = "Wrong passcode";
 "lng_passcode_is_same" = "Passcode was not changed";
 "lng_passcode_enter" = "Enter your Telegram Passcode";
 "lng_passcode_submit" = "Submit";
-"lng_passcode_logout" = "or you can {link_start}log out »{link_end}";
+"lng_passcode_logout" = "Log out";
 
 "lng_connection_type" = "Connection type:";
 "lng_connection_auto_connecting" = "Default (connecting..)";
@@ -481,8 +481,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version7016" = "— Some translations improvements\n— Linux: tray icon should work better in non-Unity environments";
-"lng_new_version7006_appstore" = "Telegram Desktop was updated to version {version}\n\n — Stickers support\n — Local caching for voice messages\n — Added new languages\n\nFull version history is available here:\n{link}";
+"lng_new_version7020" = "— Lock your app with a passcode";
+"lng_new_version7020_appstore" = "— Lock your app with a passcode\n— Change the chat background\n— New «open with» menu for files\n— Added Korean language";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

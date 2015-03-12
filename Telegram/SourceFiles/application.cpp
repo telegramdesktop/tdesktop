@@ -655,8 +655,8 @@ void Application::checkMapVersion() {
 			QString versionFeatures;
 			if (DevChannel && Local::oldMapVersion() < 7019) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Passcode lock option added");
-			} else if (!DevChannel && Local::oldMapVersion() < 7017) {
-				versionFeatures = lang(lng_new_version_minor).trimmed();
+			} else if (!DevChannel && Local::oldMapVersion() < 7020) {
+				versionFeatures = lang(lng_new_version7020).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));

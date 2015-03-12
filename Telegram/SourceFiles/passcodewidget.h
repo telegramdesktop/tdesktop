@@ -55,7 +55,7 @@ private:
 
 	FlatInput _passcode;
 	FlatButton _submit;
-	FlatLabel _logout;
+	LinkButton _logout;
 	QString _error;
 	QTimer _errorTimer;
 

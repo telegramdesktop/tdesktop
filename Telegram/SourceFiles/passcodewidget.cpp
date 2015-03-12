@@ -26,19 +26,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "gui/text.h"
 
-class LogOutLink : public ITextLink {
-public:
-
-	void onClick(Qt::MouseButton) const {
-		App::wnd()->onLogout();
-	}
-
-};
-
 PasscodeWidget::PasscodeWidget(QWidget *parent) : QWidget(parent),
 _passcode(this, st::passcodeInput),
 _submit(this, lang(lng_passcode_submit), st::passcodeSubmit),
-_logout(this, lng_passcode_logout(lt_link_start, textcmdStartLink(1), lt_link_end, textcmdStopLink())) {
+_logout(this, lang(lng_passcode_logout)) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 	connect(App::wnd(), SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
 
@@ -48,10 +39,10 @@ _logout(this, lng_passcode_logout(lt_link_start, textcmdStartLink(1), lt_link_en
 	_errorTimer.setSingleShot(true);
 	connect(&_errorTimer, SIGNAL(timeout()), this, SLOT(onError()));
 
-	_logout.setLink(1, TextLinkPtr(new LogOutLink()));
-
 	connect(&_passcode, SIGNAL(changed()), this, SLOT(onChanged()));
 	connect(&_passcode, SIGNAL(accepted()), this, SLOT(onSubmit()));
+
+	connect(&_logout, SIGNAL(clicked()), App::wnd(), SLOT(onLogout()));
 
 	show();
 	_passcode.setFocus();
