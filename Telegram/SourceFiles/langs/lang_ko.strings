@@ -227,6 +227,28 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_local_storage_clear_failed" = "초기화 실패 :(";
 
 "lng_settings_section_advanced" = "고급";
+
+"lng_passcode_turn_on" = "잠금번호 사용";
+"lng_passcode_change" = "잠금번호 변경";
+"lng_passcode_create" = "잠금번호 생성";
+"lng_passcode_remove" = "잠금번호 삭제";
+"lng_passcode_turn_off" = "비활성화";
+"lng_passcode_autolock" = "자동잠금";
+"lng_passcode_autolock_away" = "미사용시 자동잠금 설정";
+"lng_passcode_autolock_inactive" = "메신져 미사용시 자동잠금 설정";
+"lng_passcode_autolock_minutes" = "{count:_not_used_|# 분|# 분} ";
+"lng_passcode_autolock_hours" = "{count:_not_used_|# 시간|# 시간} ";
+"lng_passcode_enter_old" = "기존 잠금번호 입력";
+"lng_passcode_enter_new" = "신규 잠금번호 입력";
+"lng_passcode_confirm_new" = "신규 잠금번호 재입력";
+"lng_passcode_about" = "잠금번호를 설정하시면 상단 오른쪽에 잠금 아이콘이 \n표시됩니다. 클릭을 하셔서 잠궈주세요.\n\n참고 : 잠금번호를 잊어버리셨을 경우 재로그인을 \n해주셔야합니다.";
+"lng_passcode_differ" = "잠금번호가 다릅니다.";
+"lng_passcode_wrong" = "잘못된 잠금번호입니다.";
+"lng_passcode_is_same" = "잠금번호가 변경되지 않았습니다.";
+"lng_passcode_enter" = "잠금번호를 입력해주세요.";
+"lng_passcode_submit" = "입력";
+"lng_passcode_logout" = "혹은 {link_start}로그아웃 »{link_end} 을 하실 수 있습니다.";
+
 "lng_connection_type" = "연결 유형:";
 "lng_connection_auto_connecting" = "기본값 (연결중..)";
 "lng_connection_auto" = "기본값 ({type} 사용)";

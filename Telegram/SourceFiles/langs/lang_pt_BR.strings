@@ -227,6 +227,28 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_local_storage_clear_failed" = "Limpeza falhou :(";
 
 "lng_settings_section_advanced" = "Avançado";
+
+"lng_passcode_turn_on" = "Ativar senha";
+"lng_passcode_change" = "Alterar senha";
+"lng_passcode_create" = "Criar senha";
+"lng_passcode_remove" = "Remover senha";
+"lng_passcode_turn_off" = "Desativar";
+"lng_passcode_autolock" = "Auto-bloquear";
+"lng_passcode_autolock_away" = "Auto-bloquear se ausente por:";
+"lng_passcode_autolock_inactive" = "Auto-bloquear se inativo por:";
+"lng_passcode_autolock_minutes" = "{count:_not_used_|# minuto|# minutos}";
+"lng_passcode_autolock_hours" = "{count:_not_used_|# hora|# horas}";
+"lng_passcode_enter_old" = "Insira sua senha atual";
+"lng_passcode_enter_new" = "Insira sua nova senha";
+"lng_passcode_confirm_new" = "Re-insira sua nova senha";
+"lng_passcode_about" = "Quando você define uma senha adicional, um ícone de cadeado aparece acima. Clique para bloquear o app.\n\nNota: se você esquecer a sua senha, terá de relogar no Telegram Desktop.";
+"lng_passcode_differ" = "As senhas não correspondem";
+"lng_passcode_wrong" = "Senha errada";
+"lng_passcode_is_same" = "Senha não alterada";
+"lng_passcode_enter" = "Insira sua senha do Telegram";
+"lng_passcode_submit" = "Entrar";
+"lng_passcode_logout" = "ou você pode {link_start}sair »{link_end}";
+
 "lng_connection_type" = "Tipo de conexão:";
 "lng_connection_auto_connecting" = "Padrão (conectando..)";
 "lng_connection_auto" = "Padrão ({type} usado)";

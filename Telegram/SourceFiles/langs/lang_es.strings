@@ -227,6 +227,28 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_local_storage_clear_failed" = "Borrado fallido :(";
 
 "lng_settings_section_advanced" = "Avanzado";
+
+"lng_passcode_turn_on" = "Activar código de acceso";
+"lng_passcode_change" = "Cambiar código de acceso";
+"lng_passcode_create" = "Crear código de acceso";
+"lng_passcode_remove" = "Desactivar código de acceso";
+"lng_passcode_turn_off" = "Desactivar";
+"lng_passcode_autolock" = "Bloqueo automático";
+"lng_passcode_autolock_away" = "Bloqueo automático si estoy fuera:";
+"lng_passcode_autolock_inactive" = "Bloqueo automático si estoy inactivo:";
+"lng_passcode_autolock_minutes" = "{count:_not_used_|# minuto|# minutos}";
+"lng_passcode_autolock_hours" = "{count:_not_used_|# hora|# horas}";
+"lng_passcode_enter_old" = "Pon tu código actual";
+"lng_passcode_enter_new" = "Pon tu nuevo código";
+"lng_passcode_confirm_new" = "Pon, otra vez, el código";
+"lng_passcode_about" = "Cuando configuras un código, aparece un candado en la pantalla de chats. Toca sobre él para bloquear la aplicación.\n\nNota: si olvidas el código, tendrás que reiniciar la sesión en Telegram Desktop.";
+"lng_passcode_differ" = "Los códigos de acceso son diferentes";
+"lng_passcode_wrong" = "Código de acceso equivocado";
+"lng_passcode_is_same" = "El código no fue cambiado";
+"lng_passcode_enter" = "Pon tu código de acceso";
+"lng_passcode_submit" = "Enviar";
+"lng_passcode_logout" = "o puedes {link_start}cerrar sesión »{link_end}";
+
 "lng_connection_type" = "Tipo de conexión:";
 "lng_connection_auto_connecting" = "Por defecto (conectando...)";
 "lng_connection_auto" = "Por defecto ({type} en uso)";
