@@ -563,7 +563,7 @@ public:
 		if (chIsBad(ch) || ch.isLowSurrogate()) {
 			skip = true;
 		} else if (isDiac) {
-			if (lastSkipped || lastSpace || emoji || ++diacs > chMaxDiacAfterSymbol()) {
+			if (lastSkipped || emoji || ++diacs > chMaxDiacAfterSymbol()) {
 				skip = true;
 			}
 		} else if (isSpace && lastSpace && !isNewLine) {

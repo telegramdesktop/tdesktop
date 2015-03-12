@@ -116,6 +116,9 @@ public:
 	virtual void disconnectFromServer() = 0;
 	virtual void connectToServer(const QString &addr, int32 port) = 0;
 	virtual bool isConnected() = 0;
+	virtual bool usingHttpWait() {
+		return false;
+	}
 	virtual bool needHttpWait() {
 		return false;
 	}
@@ -181,6 +184,7 @@ public:
 	void disconnectFromServer();
 	void connectToServer(const QString &addr, int32 port);
 	bool isConnected();
+	bool usingHttpWait();
 	bool needHttpWait();
 
 	int32 debugState() const;
@@ -268,6 +272,7 @@ public:
 	void disconnectFromServer();
 	void connectToServer(const QString &addr, int32 port);
 	bool isConnected();
+	bool usingHttpWait();
 	bool needHttpWait();
 
 	int32 debugState() const;
@@ -325,6 +330,7 @@ public slots:
 	void restartNow();
 	void restart(bool maybeBadKey = false);
 
+	void onPingSender();
 	void onBadConnection();
 	void onOldConnection();
 	void onSentSome(uint64 size);
@@ -399,8 +405,10 @@ private:
 	// remove msgs with such ids from sessionData->haveSent, add to sessionData->wereAcked
 	void requestsAcked(const QVector<MTPlong> &ids, bool byResponse = false);
 
-	mtpPingId pingId, toSendPingId;
-	mtpMsgId pingMsgId;
+	mtpPingId _pingId, _pingIdToSend;
+	uint64 _pingSent;
+	mtpMsgId _pingMsgId;
+	SingleTimer _pingSender;
 
 	void resend(quint64 msgId, quint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
 	void resendMany(QVector<quint64> msgIds, quint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);

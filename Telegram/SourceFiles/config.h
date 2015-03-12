@@ -52,6 +52,10 @@ enum {
 
 	MTPDebugBufferSize = 1024 * 1024, // 1 mb start size
 
+	MTPPingDelayDisconnect = 60, // 1 min
+	MTPPingSendAfterAuto = 30, // send new ping starting from 30 seconds (add to existing container)
+	MTPPingSendAfter = 45, // send new ping after 45 seconds without ping
+
 	MaxSelectedItems = 100,
 
 	MaxPhoneTailLength = 18, // rest of the phone number, without country code (seen 12 at least)
