@@ -76,9 +76,11 @@ namespace App {
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d);
 	void feedMsgs(const MTPVector<MTPMessage> &msgs, bool newMsgs = false);
 	void feedWereRead(const QVector<MTPint> &msgsIds);
+	void feedInboxRead(const PeerId &peer, int32 upTo);
+	void feedOutboxRead(const PeerId &peer, int32 upTo);
 	void feedWereDeleted(const QVector<MTPint> &msgsIds);
 	void feedUserLinks(const MTPVector<MTPcontacts_Link> &links);
-	void feedUserLink(MTPint userId, const MTPcontacts_MyLink &myLink, const MTPcontacts_ForeignLink &foreignLink);
+	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink);
 	void feedMessageMedia(MsgId msgId, const MTPMessage &msg);
 	int32 maxMsgId();
 
@@ -117,7 +119,7 @@ namespace App {
 	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo);
 
 	Histories &histories();
-	History *history(const PeerId &peer, int32 unreadCnt = 0);
+	History *history(const PeerId &peer, int32 unreadCnt = 0, int32 maxInboxRead = 0);
 	History *historyLoaded(const PeerId &peer);
 	HistoryItem *histItemById(MsgId itemId);
 	HistoryItem *historyRegItem(HistoryItem *item);

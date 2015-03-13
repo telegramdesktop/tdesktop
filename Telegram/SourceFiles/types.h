@@ -114,6 +114,7 @@ public:
 public slots:
 
 	void start(int msec);
+	void startIfNotActive(int msec);
 	void adjust() {
 		uint64 n = getms(true);
 		if (isActive()) {

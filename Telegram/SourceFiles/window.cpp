@@ -593,6 +593,8 @@ void Window::sendServiceHistoryRequest() {
 }
 
 void Window::setupMain(bool anim, const MTPUser *self) {
+	Local::readRecentStickers();
+
 	QPixmap bg = anim ? myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight)) : QPixmap();
 	clearWidgets();
 	main = new MainWidget(this);

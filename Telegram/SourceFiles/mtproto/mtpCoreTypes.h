@@ -340,8 +340,6 @@ enum {
 	mtpc_invokeWithLayer17 = 0x50858a19,
 	mtpc_invokeWithLayer18 = 0x1c900537,
 
-	mtpc_invokeWithLayer   = 0xda9b0d0d, // after 18 layer
-
 	// manually parsed
 	mtpc_rpc_result = 0xf35c6d01,
 	mtpc_msg_container = 0x73f1f8dc,
@@ -370,7 +368,7 @@ static const mtpTypeId mtpLayers[] = {
 	mtpc_invokeWithLayer17,
 	mtpc_invokeWithLayer18,
 }, mtpLayerMaxSingle = sizeof(mtpLayers) / sizeof(mtpLayers[0]);
-static const mtpPrime mtpCurrentLayer = 22;
+static const mtpPrime mtpCurrentLayer = 25;
 
 template <typename bareT>
 class MTPBoxed : public bareT {

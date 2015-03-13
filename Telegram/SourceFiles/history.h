@@ -442,7 +442,7 @@ struct DocumentData {
 	int32 duration;
 	uint64 access;
 	int32 date;
-	QString name, mime;
+	QString name, mime, alt; // alt - for stickers
 	ImagePtr thumb;
 	int32 dc;
 	int32 size;
@@ -655,7 +655,9 @@ struct History : public QList<HistoryBlock*> {
 	void newItemAdded(HistoryItem *item);
 	void unregTyping(UserData *from);
 
+	void inboxRead(int32 upTo);
 	void inboxRead(HistoryItem *wasRead);
+	void outboxRead(int32 upTo);
 	void outboxRead(HistoryItem *wasRead);
 
 	void setUnreadCount(int32 newUnreadCount, bool psUpdate = true);
@@ -1138,7 +1140,7 @@ public:
 		return _out;
 	}
 	bool unread() const {
-		if ((_out && (id > 0 && id < _history->outboxReadTill)) || (!_out && id > 0 && id < _history->inboxReadTill)) return false;
+		if ((_out && (id > 0 && id <= _history->outboxReadTill)) || (!_out && id > 0 && id <= _history->inboxReadTill)) return false;
 		return _unread;
 	}
 	virtual bool needCheck() const {
@@ -1620,7 +1622,7 @@ protected:
 class HistoryForwarded : public HistoryMessage {
 public:
 
-	HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessageForwarded &msg);
+	HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg);
 	HistoryForwarded(History *history, HistoryBlock *block, MsgId id, HistoryMessage *msg);
 
 	void fwdNameUpdated() const;

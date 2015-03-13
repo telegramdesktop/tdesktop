@@ -598,7 +598,6 @@ namespace App {
 			switch (msg.type()) {
 			case mtpc_message: msgsIds.insert(msg.c_message().vid.v, i); break;
 			case mtpc_messageEmpty: msgsIds.insert(msg.c_messageEmpty().vid.v, i); break;
-			case mtpc_messageForwarded: msgsIds.insert(msg.c_messageForwarded().vid.v, i); break;
 			case mtpc_messageService: msgsIds.insert(msg.c_messageService().vid.v, i); break;
 			}
 		}
@@ -646,6 +645,20 @@ namespace App {
 		}
 	}
 	
+	void feedInboxRead(const PeerId &peer, int32 upTo) {
+		History *h = App::historyLoaded(peer);
+		if (h) {
+			h->inboxRead(upTo);
+		}
+	}
+
+	void feedOutboxRead(const PeerId &peer, int32 upTo) {
+		History *h = App::historyLoaded(peer);
+		if (h) {
+			h->outboxRead(upTo);
+		}
+	}
+
 	void feedWereDeleted(const QVector<MTPint> &msgsIds) {
 		bool resized = false;
 		for (QVector<MTPint>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
@@ -683,30 +696,20 @@ namespace App {
 		}
 	}
 
-	void feedUserLink(MTPint userId, const MTPcontacts_MyLink &myLink, const MTPcontacts_ForeignLink &foreignLink) {
+	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink) {
 		UserData *user = userLoaded(userId.v);
 		if (user) {
 			bool wasContact = (user->contact > 0);
 			switch (myLink.type()) {
-			case mtpc_contacts_myLinkContact:
+			case mtpc_contactLinkContact:
 				user->contact = 1;
 			break;
-			case mtpc_contacts_myLinkEmpty:
-			case mtpc_contacts_myLinkRequested:
-				if (myLink.type() == mtpc_contacts_myLinkRequested && myLink.c_contacts_myLinkRequested().vcontact.v) {
-					user->contact = 1;
-				} else {
-					switch (foreignLink.type()) {
-					case mtpc_contacts_foreignLinkRequested:
-						if (foreignLink.c_contacts_foreignLinkRequested().vhas_phone.v) {
-							user->contact = 0;
-						} else {
-							user->contact = -1;
-						}
-					break;
-					default: user->contact = -1; break;
-					}
-				}
+			case mtpc_contactLinkHasPhone:
+				user->contact = 0;
+			break;
+			case mtpc_contactLinkNone:
+			case mtpc_contactLinkUnknown:
+				user->contact = -1;
 			break;
 			}
 			if (user->contact > 0) {
@@ -736,7 +739,6 @@ namespace App {
 		const MTPMessageMedia *media = 0;
 		switch (msg.type()) {
 		case mtpc_message: media = &msg.c_message().vmedia; break;
-		case mtpc_messageForwarded: media = &msg.c_messageForwarded().vmedia; break;
 		}
 		if (media) {
 			MsgsData::iterator i = msgsData.find(msgId);
@@ -1151,8 +1153,20 @@ namespace App {
 					result->thumb = thumb;
 					result->dc = dc;
 					result->size = size;
-				} else if (result->thumb->isNull() && !thumb->isNull()) {
-					result->thumb = thumb;
+				} else {
+					if (result->thumb->isNull() && !thumb->isNull()) {
+						result->thumb = thumb;
+					}
+					if (result->alt.isEmpty()) {
+						for (QVector<MTPDocumentAttribute>::const_iterator i = attributes.cbegin(), e = attributes.cend(); i != e; ++i) {
+							if (i->type() == mtpc_documentAttributeSticker) {
+								const MTPDdocumentAttributeSticker &d(i->c_documentAttributeSticker());
+								if (d.valt.c_string().v.length() > 0) {
+									result->alt = qs(d.valt);
+								}
+							}
+						}
+					}
 				}
 			}
 		}
@@ -1213,11 +1227,14 @@ namespace App {
 		return ::histories;
 	}
 
-	History *history(const PeerId &peer, int32 unreadCnt) {
+	History *history(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead) {
 		Histories::const_iterator i = ::histories.constFind(peer);
 		if (i == ::histories.cend()) {
 			i = App::histories().insert(peer, new History(peer));
 			i.value()->setUnreadCount(unreadCnt, false);
+			if (maxInboxRead) {
+				i.value()->inboxReadTill = maxInboxRead;
+			}
 		}
 		return i.value();
 	}

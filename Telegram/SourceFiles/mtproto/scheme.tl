@@ -189,7 +189,7 @@ fileLocationUnavailable#7c596b46 volume_id:long local_id:int secret:long = FileL
 fileLocation#53d69076 dc_id:int volume_id:long local_id:int secret:long = FileLocation;
 
 userEmpty#200250ba id:int = User;
-userSelf#7007b451 id:int first_name:string last_name:string username:string phone:string photo:UserProfilePhoto status:UserStatus inactive:Bool = User;
+userSelf#1c60e608 id:int first_name:string last_name:string username:string phone:string photo:UserProfilePhoto status:UserStatus = User;
 userContact#cab35e18 id:int first_name:string last_name:string username:string access_hash:long phone:string photo:UserProfilePhoto status:UserStatus = User;
 userRequest#d9ccc4ef id:int first_name:string last_name:string username:string access_hash:long phone:string photo:UserProfilePhoto status:UserStatus = User;
 userForeign#75cf7a8 id:int first_name:string last_name:string username:string access_hash:long photo:UserProfilePhoto status:UserStatus = User;
@@ -217,8 +217,7 @@ chatPhotoEmpty#37c1011c = ChatPhoto;
 chatPhoto#6153276a photo_small:FileLocation photo_big:FileLocation = ChatPhoto;
 
 messageEmpty#83e5de54 id:int = Message;
-message#567699b3 flags:int id:int from_id:int to_id:Peer date:int message:string media:MessageMedia = Message;
-messageForwarded#a367e716 flags:int id:int fwd_from_id:int fwd_date:int from_id:int to_id:Peer date:int message:string media:MessageMedia = Message;
+message#a7ab1991 flags:# id:int from_id:int to_id:Peer fwd_from_id:flags.2?int fwd_date:flags.2?int reply_to_msg_id:flags.3?int date:int message:string media:MessageMedia = Message;
 messageService#1d86f70e flags:int id:int from_id:int to_id:Peer date:int action:MessageAction = Message;
 
 messageMediaEmpty#3ded6320 = MessageMedia;
@@ -226,7 +225,7 @@ messageMediaPhoto#c8c45a2a photo:Photo = MessageMedia;
 messageMediaVideo#a2d24290 video:Video = MessageMedia;
 messageMediaGeo#56e0d474 geo:GeoPoint = MessageMedia;
 messageMediaContact#5e7d2f39 phone_number:string first_name:string last_name:string user_id:int = MessageMedia;
-messageMediaUnsupported#29632a36 bytes:bytes = MessageMedia;
+messageMediaUnsupported#9f84f49e = MessageMedia;
 
 messageActionEmpty#b6aef7b0 = MessageAction;
 messageActionChatCreate#a6638b9a title:string users:Vector<int> = MessageAction;
@@ -236,7 +235,7 @@ messageActionChatDeletePhoto#95e3fbef = MessageAction;
 messageActionChatAddUser#5e3cfc4b user_id:int = MessageAction;
 messageActionChatDeleteUser#b2ae9b0c user_id:int = MessageAction;
 
-dialog#ab3a99ac peer:Peer top_message:int unread_count:int notify_settings:PeerNotifySettings = Dialog;
+dialog#c1dd804a peer:Peer top_message:int read_inbox_max_id:int unread_count:int notify_settings:PeerNotifySettings = Dialog;
 
 photoEmpty#2331b22d id:long = Photo;
 photo#22b56751 id:long access_hash:long user_id:int date:int caption:string geo:GeoPoint sizes:Vector<PhotoSize> = Photo;
@@ -251,7 +250,7 @@ video#388fa391 id:long access_hash:long user_id:int date:int caption:string dura
 geoPointEmpty#1117dd5f = GeoPoint;
 geoPoint#2049d70c long:double lat:double = GeoPoint;
 
-auth.checkedPhone#e300cc3b phone_registered:Bool phone_invited:Bool = auth.CheckedPhone;
+auth.checkedPhone#811ea28e phone_registered:Bool = auth.CheckedPhone;
 
 auth.sentCode#efed51d9 phone_registered:Bool phone_code_hash:string send_call_timeout:int is_password:Bool = auth.SentCode;
 
@@ -291,15 +290,7 @@ contactStatus#d3680c61 user_id:int status:UserStatus = ContactStatus;
 
 chatLocated#3631cf4c chat_id:int distance:int = ChatLocated;
 
-contacts.foreignLinkUnknown#133421f8 = contacts.ForeignLink;
-contacts.foreignLinkRequested#a7801f47 has_phone:Bool = contacts.ForeignLink;
-contacts.foreignLinkMutual#1bea8ce1 = contacts.ForeignLink;
-
-contacts.myLinkEmpty#d22a1c60 = contacts.MyLink;
-contacts.myLinkRequested#6c69efee contact:Bool = contacts.MyLink;
-contacts.myLinkContact#c240ebd9 = contacts.MyLink;
-
-contacts.link#eccea3f5 my_link:contacts.MyLink foreign_link:contacts.ForeignLink user:User = contacts.Link;
+contacts.link#3ace484c my_link:ContactLink foreign_link:ContactLink user:User = contacts.Link;
 
 contacts.contactsNotModified#b74ba9d2 = contacts.Contacts;
 contacts.contacts#6f8b8cb2 contacts:Vector<Contact> users:Vector<User> = contacts.Contacts;
@@ -318,34 +309,31 @@ messages.messages#8c718e87 messages:Vector<Message> chats:Vector<Chat> users:Vec
 messages.messagesSlice#b446ae3 count:int messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = messages.Messages;
 
 messages.messageEmpty#3f4e0648 = messages.Message;
-messages.message#ff90c417 message:Message chats:Vector<Chat> users:Vector<User> = messages.Message;
 
-messages.statedMessages#969478bb messages:Vector<Message> chats:Vector<Chat> users:Vector<User> pts:int seq:int = messages.StatedMessages;
+messages.statedMessages#7d84b48 messages:Vector<Message> chats:Vector<Chat> users:Vector<User> pts:int pts_count:int = messages.StatedMessages;
 
-messages.statedMessage#d07ae726 message:Message chats:Vector<Chat> users:Vector<User> pts:int seq:int = messages.StatedMessage;
+messages.statedMessage#96240c6a message:Message chats:Vector<Chat> users:Vector<User> pts:int pts_count:int = messages.StatedMessage;
 
-messages.sentMessage#d1f4d35c id:int date:int pts:int seq:int = messages.SentMessage;
+messages.sentMessage#900eac40 id:int date:int pts:int pts_count:int = messages.SentMessage;
 
-messages.chat#40e9002a chat:Chat users:Vector<User> = messages.Chat;
-
-messages.chats#8150cbd8 chats:Vector<Chat> users:Vector<User> = messages.Chats;
+messages.chats#64ff9fd5 chats:Vector<Chat> = messages.Chats;
 
 messages.chatFull#e5d7d19c full_chat:ChatFull chats:Vector<Chat> users:Vector<User> = messages.ChatFull;
 
-messages.affectedHistory#b7de36f2 pts:int seq:int offset:int = messages.AffectedHistory;
+messages.affectedHistory#b45c69d1 pts:int pts_count:int offset:int = messages.AffectedHistory;
 
 inputMessagesFilterEmpty#57e2f66c = MessagesFilter;
 inputMessagesFilterPhotos#9609a51c = MessagesFilter;
 inputMessagesFilterVideo#9fc00e65 = MessagesFilter;
 inputMessagesFilterPhotoVideo#56e9f0e4 = MessagesFilter;
+inputMessagesFilterPhotoVideoDocuments#d95e73bb = MessagesFilter;
 inputMessagesFilterDocument#9eddf188 = MessagesFilter;
 inputMessagesFilterAudio#cfc87522 = MessagesFilter;
 
-updateNewMessage#13abdb3 message:Message pts:int = Update;
+updateNewMessage#1f2b0afd message:Message pts:int pts_count:int = Update;
 updateMessageID#4e90bfd6 id:int random_id:long = Update;
-updateReadMessages#c6649e31 messages:Vector<int> pts:int = Update;
-updateDeleteMessages#a92bfe26 messages:Vector<int> pts:int = Update;
-updateRestoreMessages#d15de04d messages:Vector<int> pts:int = Update;
+updateReadMessages#2e5ab668 messages:Vector<int> pts:int pts_count:int = Update;
+updateDeleteMessages#a20db0e5 messages:Vector<int> pts:int pts_count:int = Update;
 updateUserTyping#5c486927 user_id:int action:SendMessageAction = Update;
 updateChatUserTyping#9a65ea1f chat_id:int user_id:int action:SendMessageAction = Update;
 updateChatParticipants#7761198 participants:ChatParticipants = Update;
@@ -353,8 +341,7 @@ updateUserStatus#1bfbd823 user_id:int status:UserStatus = Update;
 updateUserName#a7332b73 user_id:int first_name:string last_name:string username:string = Update;
 updateUserPhoto#95313b0c user_id:int date:int photo:UserProfilePhoto previous:Bool = Update;
 updateContactRegistered#2575bbb9 user_id:int date:int = Update;
-updateContactLink#51a48a9a user_id:int my_link:contacts.MyLink foreign_link:contacts.ForeignLink = Update;
-updateActivation#6f690963 user_id:int = Update;
+updateContactLink#9d2e67c5 user_id:int my_link:ContactLink foreign_link:ContactLink = Update;
 updateNewAuthorization#8f06529a auth_key_id:long date:int device:string location:string = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
@@ -364,8 +351,8 @@ updates.difference#f49ca0 new_messages:Vector<Message> new_encrypted_messages:Ve
 updates.differenceSlice#a8fb1981 new_messages:Vector<Message> new_encrypted_messages:Vector<EncryptedMessage> other_updates:Vector<Update> chats:Vector<Chat> users:Vector<User> intermediate_state:updates.State = updates.Difference;
 
 updatesTooLong#e317af7e = Updates;
-updateShortMessage#d3f45784 id:int from_id:int message:string pts:int date:int seq:int = Updates;
-updateShortChatMessage#2b2fbd4e id:int from_id:int chat_id:int message:string pts:int date:int seq:int = Updates;
+updateShortMessage#b87da3b1 id:int from_id:int message:string pts:int pts_count:int date:int = Updates;
+updateShortChatMessage#20e85ded id:int from_id:int chat_id:int message:string pts:int pts_count:int date:int = Updates;
 updateShort#78d4dec1 update:Update date:int = Updates;
 updatesCombined#725b04c3 updates:Vector<Update> users:Vector<User> chats:Vector<Chat> date:int seq_start:int seq:int = Updates;
 updates#74ae4240 updates:Vector<Update> users:Vector<User> chats:Vector<Chat> date:int seq:int = Updates;
@@ -379,7 +366,7 @@ upload.file#96a18d5 type:storage.FileType mtime:int bytes:bytes = upload.File;
 
 dcOption#2ec2a43c id:int hostname:string ip_address:string port:int = DcOption;
 
-config#2e54dd74 date:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int broadcast_size_max:int = Config;
+config#3e6f732a date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int broadcast_size_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int disabled_features:Vector<DisabledFeature> = Config;
 
 nearestDc#8e1a1775 country:string this_dc:int nearest_dc:int = NearestDc;
 
@@ -388,11 +375,11 @@ help.noAppUpdate#c45a6536 = help.AppUpdate;
 
 help.inviteText#18cb9f78 message:string = help.InviteText;
 
-messages.statedMessagesLinks#3e74f5c6 messages:Vector<Message> chats:Vector<Chat> users:Vector<User> links:Vector<contacts.Link> pts:int seq:int = messages.StatedMessages;
+messages.statedMessagesLinks#51be5d19 messages:Vector<Message> chats:Vector<Chat> users:Vector<User> pts:int pts_count:int links:Vector<contacts.Link> seq:int = messages.StatedMessages;
 
-messages.statedMessageLink#a9af2881 message:Message chats:Vector<Chat> users:Vector<User> links:Vector<contacts.Link> pts:int seq:int = messages.StatedMessage;
+messages.statedMessageLink#948a288 message:Message chats:Vector<Chat> users:Vector<User> pts:int pts_count:int links:Vector<contacts.Link> seq:int = messages.StatedMessage;
 
-messages.sentMessageLink#e9db4a3f id:int date:int pts:int seq:int links:Vector<contacts.Link> = messages.SentMessage;
+messages.sentMessageLink#e923400d id:int date:int pts:int pts_count:int links:Vector<contacts.Link> seq:int = messages.SentMessage;
 
 inputGeoChat#74d456fa chat_id:int access_hash:long = InputGeoChat;
 
@@ -542,17 +529,35 @@ account.sentChangePhoneCode#a4f58c4c phone_code_hash:string send_call_timeout:in
 
 updateUserPhone#12b9417b user_id:int phone:string = Update;
 
+account.noPassword#5770e7a9 new_salt:bytes = account.Password;
+account.password#739e5f72 current_salt:bytes new_salt:bytes hint:string = account.Password;
+
 documentAttributeImageSize#6c37c15c w:int h:int = DocumentAttribute;
 documentAttributeAnimated#11b58939 = DocumentAttribute;
-documentAttributeSticker#fb0a5727 = DocumentAttribute;
+documentAttributeSticker#994c9882 alt:string = DocumentAttribute;
 documentAttributeVideo#5910cccb duration:int w:int h:int = DocumentAttribute;
 documentAttributeAudio#51448e5 duration:int = DocumentAttribute;
 documentAttributeFilename#15590068 file_name:string = DocumentAttribute;
+
+messages.stickersNotModified#f1749a22 = messages.Stickers;
+messages.stickers#8a8ecd32 hash:string stickers:Vector<Document> = messages.Stickers;
 
 stickerPack#12b299d4 emoticon:string documents:Vector<long> = StickerPack;
 
 messages.allStickersNotModified#e86602c3 = messages.AllStickers;
 messages.allStickers#dcef3102 hash:string packs:Vector<StickerPack> documents:Vector<Document> = messages.AllStickers;
+
+disabledFeature#ae636f24 feature:string description:string = DisabledFeature;
+
+updateReadHistoryInbox#9961fd5c peer:Peer max_id:int pts:int pts_count:int = Update;
+updateReadHistoryOutbox#2f2f21bf peer:Peer max_id:int pts:int pts_count:int = Update;
+
+messages.affectedMessages#84d19185 pts:int pts_count:int = messages.AffectedMessages;
+
+contactLinkUnknown#5f4f9247 = ContactLink;
+contactLinkNone#feedd3ad = ContactLink;
+contactLinkHasPhone#268f3f59 = ContactLink;
+contactLinkContact#d502c2d0 = ContactLink;
 
 ---functions---
 
@@ -600,15 +605,14 @@ messages.getMessages#4222fa74 id:Vector<int> = messages.Messages;
 messages.getDialogs#eccf1df6 offset:int max_id:int limit:int = messages.Dialogs;
 messages.getHistory#92a1df2f peer:InputPeer offset:int max_id:int limit:int = messages.Messages;
 messages.search#7e9f2ab peer:InputPeer q:string filter:MessagesFilter min_date:int max_date:int offset:int max_id:int limit:int = messages.Messages;
-messages.readHistory#eed884c6 peer:InputPeer max_id:int offset:int read_contents:Bool = messages.AffectedHistory;
+messages.readHistory#b04f2510 peer:InputPeer max_id:int offset:int = messages.AffectedHistory;
 messages.deleteHistory#f4f8fb61 peer:InputPeer offset:int = messages.AffectedHistory;
-messages.deleteMessages#14f2dd0a id:Vector<int> = Vector<int>;
-messages.restoreMessages#395f9d7e id:Vector<int> = Vector<int>;
+messages.deleteMessages#a5f18925 id:Vector<int> = messages.AffectedMessages;
 messages.receivedMessages#28abcb68 max_id:int = Vector<int>;
 messages.setTyping#a3825e50 peer:InputPeer action:SendMessageAction = Bool;
-messages.sendMessage#4cde0aab peer:InputPeer message:string random_id:long = messages.SentMessage;
-messages.sendMedia#a3c85d76 peer:InputPeer media:InputMedia random_id:long = messages.StatedMessage;
-messages.forwardMessages#514cd10f peer:InputPeer id:Vector<int> = messages.StatedMessages;
+messages.sendMessage#1ca852a1 peer:InputPeer reply_to_msg_id:int message:string random_id:long = messages.SentMessage;
+messages.sendMedia#fcee7fc0 peer:InputPeer reply_to_msg_id:int media:InputMedia random_id:long = messages.StatedMessage;
+messages.forwardMessages#ded42045 peer:InputPeer id:Vector<int> random_id:Vector<long> = messages.StatedMessages;
 messages.getChats#3c6aa187 id:Vector<int> = messages.Chats;
 messages.getFullChat#3b831c66 chat_id:int = messages.ChatFull;
 messages.editChatTitle#b4bc68b5 chat_id:int title:string = messages.StatedMessage;
@@ -670,7 +674,7 @@ help.getSupport#9cdf08cd = help.Support;
 
 auth.sendSms#da9f3e8 phone_number:string phone_code_hash:string = Bool;
 
-messages.readMessageContents#354b5bc2 id:Vector<int> = Vector<int>;
+messages.readMessageContents#36a73f77 id:Vector<int> = messages.AffectedMessages;
 
 account.checkUsername#2714d86c username:string = Bool;
 account.updateUsername#3e0bdd7c username:string = User;
@@ -683,9 +687,18 @@ account.deleteAccount#418d4e0b reason:string = Bool;
 account.getAccountTTL#8fc711d = AccountDaysTTL;
 account.setAccountTTL#2442485e ttl:AccountDaysTTL = Bool;
 
+invokeWithLayer#da9b0d0d layer:int query:!X = X;
+
 contacts.resolveUsername#bf0131c username:string = User;
 
 account.sendChangePhoneCode#a407a8f4 phone_number:string = account.SentChangePhoneCode;
 account.changePhone#70c32edb phone_number:string phone_code_hash:string phone_code:string = User;
+account.getPassword#548a30f5 = account.Password;
+account.setPassword#dd2a4d8f current_password_hash:bytes new_salt:bytes new_password_hash:bytes hint:string = Bool;
 
+auth.checkPassword#a63011e password_hash:bytes = auth.Authorization;
+
+messages.getStickers#ae22e045 emoticon:string hash:string = messages.Stickers;
 messages.getAllStickers#aa3bc868 hash:string = messages.AllStickers;
+
+account.updateDeviceLocked#38df3532 period:int = Bool;

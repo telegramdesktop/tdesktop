@@ -2093,14 +2093,14 @@ namespace Local {
 			for (RecentStickerPack::const_iterator i = recent.cbegin(); i != recent.cend(); ++i) {
 				DocumentData *doc = i->first;
 
-				// id + value + access + date + namelen + name + mimelen + mime + dc + size + width + height + type
-				size += sizeof(quint64) + sizeof(qint16) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
+				// id + value + access + date + namelen + name + mimelen + mime + dc + size + width + height + type + alt
+				size += sizeof(quint64) + sizeof(qint16) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(doc->alt);
 			}
 			EncryptedDescriptor data(size);
 			for (RecentStickerPack::const_iterator i = recent.cbegin(); i != recent.cend(); ++i) {
 				DocumentData *doc = i->first;
 
-				data.stream << quint64(doc->id) << qint16(i->second) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type);
+				data.stream << quint64(doc->id) << qint16(i->second) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type) << doc->alt;
 			}
 			FileWriteDescriptor file(_recentStickersKey);
 			file.writeEncrypted(data);
@@ -2122,10 +2122,13 @@ namespace Local {
 		RecentStickerPack recent;
 		while (!stickers.stream.atEnd()) {
 			quint64 id, access;
-			QString name, mime;
+			QString name, mime, alt;
 			qint32 date, dc, size, width, height, type;
 			qint16 value;
 			stickers.stream >> id >> value >> access >> date >> name >> mime >> dc >> size >> width >> height >> type;
+			if (stickers.version >= AppVersion) {
+				stickers.stream >> alt;
+			}
 			if (read.contains(id)) continue;
 			read.insert(id, true);
 
@@ -2134,7 +2137,7 @@ namespace Local {
 			if (type == AnimatedDocument) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (type == StickerDocument) {
-				attributes.push_back(MTP_documentAttributeSticker());
+				attributes.push_back(MTP_documentAttributeSticker(MTP_string(alt)));
 			}
 			if (width > 0 && height > 0) {
 				attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));

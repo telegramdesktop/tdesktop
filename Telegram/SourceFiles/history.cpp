@@ -749,7 +749,11 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			dimensions = QSize(d.vw.v, d.vh.v);
 		} break;
 		case mtpc_documentAttributeAnimated: if (type == FileDocument || type == StickerDocument) type = AnimatedDocument; break;
-		case mtpc_documentAttributeSticker: if (type == FileDocument) type = StickerDocument; break;
+		case mtpc_documentAttributeSticker: {
+			const MTPDdocumentAttributeSticker &d(attributes[i].c_documentAttributeSticker());
+			if (type == FileDocument) type = StickerDocument;
+			alt = qs(d.valt);
+		} break;
 		case mtpc_documentAttributeVideo: {
 			const MTPDdocumentAttributeVideo &d(attributes[i].c_documentAttributeVideo());
 			type = VideoDocument;
@@ -1164,10 +1168,6 @@ HistoryItem *Histories::addToBack(const MTPmessage &msg, int msgState) {
 		from_id = App::peerFromUser(msg.c_message().vfrom_id);
 		to_id = App::peerFromMTP(msg.c_message().vto_id);
 	break;
-	case mtpc_messageForwarded:
-		from_id = App::peerFromUser(msg.c_messageForwarded().vfrom_id);
-		to_id = App::peerFromMTP(msg.c_messageForwarded().vto_id);
-	break;
 	case mtpc_messageService:
 		from_id = App::peerFromUser(msg.c_messageService().vfrom_id);
 		to_id = App::peerFromMTP(msg.c_messageService().vto_id);
@@ -1206,11 +1206,11 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 	break;
 
 	case mtpc_message:
-		result = new HistoryMessage(this, block, msg.c_message());
-	break;
-
-	case mtpc_messageForwarded:
-		result = new HistoryForwarded(this, block, msg.c_messageForwarded());
+		if (msg.c_message().has_fwd_date() || msg.c_message().has_fwd_from_id()) {
+			result = new HistoryForwarded(this, block, msg.c_message());
+		} else {
+			result = new HistoryMessage(this, block, msg.c_message());
+		}
 	break;
 
 	case mtpc_messageService: {
@@ -1615,13 +1615,13 @@ void History::addToBack(const QVector<MTPMessage> &slice) {
 	}
 }
 
-void History::inboxRead(HistoryItem *wasRead) {
+void History::inboxRead(int32 upTo) {
 	if (unreadCount) {
-		if (wasRead && loadedAtBottom()) App::main()->historyToDown(this);
+		if (upTo && loadedAtBottom()) App::main()->historyToDown(this);
 		setUnreadCount(0);
 	}
 	if (!isEmpty()) {
-		int32 till = (wasRead ? wasRead : back()->back())->id;
+		int32 till = upTo ? upTo : back()->back()->id;
 		if (inboxReadTill < till) inboxReadTill = till;
 	}
 	if (!dialogs.isEmpty()) {
@@ -1631,11 +1631,19 @@ void History::inboxRead(HistoryItem *wasRead) {
 	clearNotifications();
 }
 
-void History::outboxRead(HistoryItem *wasRead) {
+void History::inboxRead(HistoryItem *wasRead) {
+	return inboxRead(wasRead ? wasRead->id : 0);
+}
+
+void History::outboxRead(int32 upTo) {
 	if (!isEmpty()) {
-		int32 till = wasRead->id;
+		int32 till = upTo ? upTo : back()->back()->id;
 		if (outboxReadTill < till) outboxReadTill = till;
 	}
+}
+
+void History::outboxRead(HistoryItem *wasRead) {
+	return outboxRead(wasRead ? wasRead->id : 0);
 }
 
 void History::setUnreadCount(int32 newUnreadCount, bool psUpdate) {
@@ -3061,6 +3069,10 @@ HistorySticker::HistorySticker(DocumentData *document, int32 width) : HistoryMed
 }
 
 bool HistorySticker::updateStickerEmoji() {
+	if (!data->alt.isEmpty()) {
+		_emoji = data->alt;
+		return true;
+	}
 	const EmojiStickersMap &stickers(cEmojiStickers());
 	EmojiStickersMap::const_iterator i = stickers.constFind(data);
 	QString emoji = (i == stickers.cend()) ? QString() : textEmojiString(i.value());
@@ -3923,7 +3935,7 @@ HistoryMedia *HistoryImageLink::clone() const {
 }
 
 HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg) :
-	HistoryItem(history, block, msg.vid.v, (msg.vflags.v & 0x02), (msg.vflags.v & 0x01), ::date(msg.vdate), msg.vfrom_id.v)
+	HistoryItem(history, block, msg.vid.v, (msg.vflags.v & MTPDmessage_flag_out), (msg.vflags.v & MTPDmessage_flag_unread), ::date(msg.vdate), msg.vfrom_id.v)
 , _text(st::msgMinWidth)
 , _textWidth(0)
 , _textHeight(0)
@@ -4357,7 +4369,7 @@ HistoryMessage::~HistoryMessage() {
 	delete _media;
 }
 
-HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessageForwarded &msg) : HistoryMessage(history, block, msg.vid.v, (msg.vflags.v & 0x02), (msg.vflags.v & 0x01), ::date(msg.vdate), msg.vfrom_id.v, textClean(qs(msg.vmessage)), msg.vmedia)
+HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg) : HistoryMessage(history, block, msg.vid.v, (msg.vflags.v & MTPDmessage_flag_out), (msg.vflags.v & MTPDmessage_flag_unread), ::date(msg.vdate), msg.vfrom_id.v, textClean(qs(msg.vmessage)), msg.vmedia)
 , fwdDate(::date(msg.vfwd_date))
 , fwdFrom(App::user(msg.vfwd_from_id.v))
 , fwdFromName(4096)
@@ -4602,7 +4614,7 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 }
 
 HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDmessageService &msg) :
-	HistoryItem(history, block, msg.vid.v, (msg.vflags.v & 0x02), (msg.vflags.v & 0x01), ::date(msg.vdate), msg.vfrom_id.v)
+	HistoryItem(history, block, msg.vid.v, (msg.vflags.v & MTPDmessage_flag_out), (msg.vflags.v & MTPDmessage_flag_unread), ::date(msg.vdate), msg.vfrom_id.v)
 , _text(st::msgMinWidth)
 , _media(0)
 {

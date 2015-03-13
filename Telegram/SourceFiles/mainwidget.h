@@ -214,7 +214,6 @@ public:
 	void historyToDown(History *hist);
 	void dialogsToUp();
 	void newUnreadMsg(History *history, MsgId msgId);
-	void updUpdated(int32 pts, int32 seq);
 	void historyWasRead();
 
 	void peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
@@ -435,7 +434,8 @@ private:
 	Dropdown _mediaType;
 	int32 _mediaTypeMask;
 
-	int updPts, updDate, updQts, updSeq;
+	int updGoodPts, updLastPts, updPtsCount;
+	int updDate, updQts, updSeq;
 	bool updInited;
 	SingleTimer noUpdatesTimer;
 
@@ -454,11 +454,26 @@ private:
 	typedef QMap<PeerData*, mtpRequestId> OverviewsPreload;
 	OverviewsPreload _overviewPreload[OverviewCount], _overviewLoad[OverviewCount];
 
+	enum PtsSkippedQueue {
+		SkippedUpdate,
+		SkippedUpdates,
+		SkippedSentMessage,
+		SkippedStatedMessage,
+		SkippedStatedMessages
+	};
+	uint64 ptsKey(PtsSkippedQueue queue);
+	void applySkippedPtsUpdates();
+	void clearSkippedPtsUpdates();
+	bool updPtsUpdated(int pts, int ptsCount);
+	QMap<uint64, PtsSkippedQueue> _byPtsQueue;
+	QMap<uint64, MTPUpdate> _byPtsUpdate;
+	QMap<uint64, MTPUpdates> _byPtsUpdates;
+	QMap<uint64, MTPmessages_SentMessage> _byPtsSentMessage;
+	QMap<uint64, MTPmessages_StatedMessage> _byPtsStatedMessage;
+	QMap<uint64, MTPmessages_StatedMessages> _byPtsStatedMessages;
+	SingleTimer _byPtsTimer;
+
 	QMap<int32, MTPUpdates> _bySeqUpdates;
-	QMap<int32, MTPmessages_SentMessage> _bySeqSentMessage;
-	QMap<int32, MTPmessages_StatedMessage> _bySeqStatedMessage;
-	QMap<int32, MTPmessages_StatedMessages> _bySeqStatedMessages;
-	QMap<int32, int32> _bySeqPart;
 	SingleTimer _bySeqTimer;
 
 	int32 _failDifferenceTimeout; // growing timeout for getDifference calls, if it fails
