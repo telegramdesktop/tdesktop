@@ -25,7 +25,7 @@ if [ ! -d "./../Mac/Release/Telegram Desktop.app.dSYM" ]; then
   exit 1
 fi
 
-AppUUID=`dwarfdump -u "./../Mac/Release/Telegram Desktop.app/Contents/MacOS/Telegram" | awk -F " " '{print $2}'`
+AppUUID=`dwarfdump -u "./../Mac/Release/Telegram Desktop.app/Contents/MacOS/Telegram Desktop" | awk -F " " '{print $2}'`
 DsymUUID=`dwarfdump -u "./../Mac/Release/Telegram Desktop.app.dSYM" | awk -F " " '{print $2}'`
 if [ "$AppUUID" != "$DsymUUID" ]; then
   echo "UUID of binary '$AppUUID' and dSYM '$DsymUUID' differ!"
