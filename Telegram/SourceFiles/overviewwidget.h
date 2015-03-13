@@ -225,6 +225,8 @@ public:
 	
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete);
 
+	void updateScrollColors();
+
 	~OverviewWidget();
 
 public slots:
@@ -245,8 +247,6 @@ private:
 	ScrollArea _scroll;
 	OverviewInner _inner;
 	bool _noDropResizeIndex;
-
-	QPixmap _bg;
 
 	QString _header;
 

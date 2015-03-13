@@ -24,6 +24,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "pspecific.h"
 #include "title.h"
+#include "passcodewidget.h"
 #include "intro/intro.h"
 #include "mainwidget.h"
 #include "layerwidget.h"
@@ -156,7 +157,7 @@ void NotifyWindow::updateNotifyDisplay() {
 		p.fillRect(st::notifyBorderWidth, h - st::notifyBorderWidth, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
 		p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
 
-		if (cNotifyView() <= dbinvShowName) {
+		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
 			if (history->peer->photo->loaded()) {
 				p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), history->peer->photo->pix(st::notifyPhotoSize));
 			} else {
@@ -172,7 +173,7 @@ void NotifyWindow::updateNotifyDisplay() {
 		int32 itemWidth = w - st::notifyPhotoPos.x() - st::notifyPhotoSize - st::notifyTextLeft - st::notifyClosePos.x() - st::notifyClose.width;
 
 		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
-		if (cNotifyView() <= dbinvShowName) {
+		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
 			if (history->peer->chat) {
 				p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgLeft, rectForName.top() + st::dlgChatImgTop), App::sprite(), st::dlgChatImg);
 				rectForName.setLeft(rectForName.left() + st::dlgChatImgSkip);
@@ -181,14 +182,14 @@ void NotifyWindow::updateNotifyDisplay() {
 
 		QDateTime now(QDateTime::currentDateTime()), lastTime(item->date);
 		QDate nowDate(now.date()), lastDate(lastTime.date());
-		QString dt = lastTime.toString(qsl("hh:mm"));
+		QString dt = lastTime.toString(cTimeFormat());
 		int32 dtWidth = st::dlgHistFont->m.width(dt);
 		rectForName.setWidth(rectForName.width() - dtWidth - st::dlgDateSkip);
 		p.setFont(st::dlgDateFont->f);
 		p.setPen(st::dlgDateColor->p);
 		p.drawText(rectForName.left() + rectForName.width() + st::dlgDateSkip, rectForName.top() + st::dlgHistFont->ascent, dt);
 
-		if (cNotifyView() <= dbinvShowPreview) {
+		if (!App::passcoded() && cNotifyView() <= dbinvShowPreview) {
 			const HistoryItem *textCachedFor = 0;
 			Text itemTextCache(itemWidth);
 			bool active = false;
@@ -200,7 +201,7 @@ void NotifyWindow::updateNotifyDisplay() {
 		}
 
 		p.setPen(st::dlgNameColor->p);
-		if (cNotifyView() <= dbinvShowName) {
+		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
 			history->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 		} else {
 			p.setFont(st::msgNameFont->f);
@@ -267,8 +268,13 @@ void NotifyWindow::mousePressEvent(QMouseEvent *e) {
 		unlinkHistoryAndNotify();
 	} else if (history) {
 		App::wnd()->showFromTray();
-		App::wnd()->hideSettings();
-		App::main()->showPeer(peer, 0, false, true);
+		if (App::passcoded()) {
+			App::wnd()->passcodeWidget()->setInnerFocus();
+			App::wnd()->notifyClear();
+		} else {
+			App::wnd()->hideSettings();
+			App::main()->showPeer(peer, 0, false, true);
+		}
 		e->ignore();
 	}
 }
@@ -329,9 +335,9 @@ NotifyWindow::~NotifyWindow() {
 	if (App::wnd()) App::wnd()->notifyShowNext(this);
 }
 
-Window::Window(QWidget *parent) : PsMainWindow(parent), _serviceHistoryRequest(0),
-intro(0), main(0), settings(0), layerBG(0), _topWidget(0),
-_connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _mediaView(0) {
+Window::Window(QWidget *parent) : PsMainWindow(parent), _serviceHistoryRequest(0), title(0),
+_passcode(0), intro(0), main(0), settings(0), layerBG(0), _isActive(false), _topWidget(0),
+_connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _shouldLockAt(0), _mediaView(0) {
 
 	icon16 = icon256.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = icon256.scaledToWidth(32, Qt::SmoothTransformation);
@@ -356,6 +362,11 @@ _connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _media
 	connect(&_inactiveTimer, SIGNAL(timeout()), this, SLOT(onInactiveTimer()));
 
 	connect(&notifyWaitTimer, SIGNAL(timeout()), this, SLOT(notifyFire()));
+
+	_isActiveTimer.setSingleShot(true);
+	connect(&_isActiveTimer, SIGNAL(timeout()), this, SLOT(updateIsActive()));
+
+	connect(&_autoLockTimer, SIGNAL(timeout()), this, SLOT(checkAutoLock()));
 }
 
 void Window::inactivePress(bool inactive) {
@@ -375,12 +386,25 @@ void Window::onInactiveTimer() {
 	inactivePress(false);
 }
 
+void Window::stateChanged(Qt::WindowState state) {
+	psUserActionDone();
+
+	updateIsActive((state == Qt::WindowMinimized) ? cOfflineBlurTimeout() : cOnlineFocusTimeout());
+
+	psUpdateSysMenu(state);
+	if (state == Qt::WindowMinimized && cWorkMode() == dbiwmTrayOnly) {
+		App::wnd()->minimizeToTray();
+	}
+	psSavePosition(state);
+}
+
 void Window::init() {
 	psInitFrameless();
 	setWindowIcon(wndIcon);
 
 	App::app()->installEventFilter(this);
-    connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(checkHistoryActivation()));
+	connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(stateChanged(Qt::WindowState)));
+	connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(checkHistoryActivation()));
 
 	QPalette p(palette());
 	p.setColor(QPalette::Window, st::wndBG->c);
@@ -419,6 +443,11 @@ QWidget *Window::filedialogParent() {
 
 void Window::clearWidgets() {
 	layerHidden();
+	if (_passcode) {
+		_passcode->hide();
+		_passcode->deleteLater();
+		_passcode = 0;
+	}
 	if (settings) {
 		anim::stop(settings);
 		settings->hide();
@@ -441,13 +470,77 @@ void Window::clearWidgets() {
 		intro = 0;
 	}
 	title->updateBackButton();
+	updateGlobalMenu();
+}
+
+void Window::clearPasscode() {
+	if (!_passcode) return;
+
+	QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
+
+	anim::stop(_passcode);
+	_passcode->hide();
+	_passcode->deleteLater();
+	_passcode = 0;
+	if (intro) {
+		intro->animShow(bg, true);
+	} else {
+		main->animShow(bg, true);
+	}
+	notifyUpdateAll();
+	title->updateBackButton();
+	updateGlobalMenu();
+}
+
+void Window::setupPasscode(bool anim) {
+	QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
+	if (_passcode) {
+		anim::stop(_passcode);
+		_passcode->hide();
+		_passcode->deleteLater();
+	}
+	_passcode = new PasscodeWidget(this);
+	_passcode->move(0, st::titleHeight);
+	if (main) main->hide();
+	if (settings) settings->hide();
+	if (intro) intro->hide();
+	if (anim) {
+		_passcode->animShow(bg);
+	} else {
+		_passcode->setInnerFocus();
+	}
+	_shouldLockAt = 0;
+	notifyUpdateAll();
+	title->updateBackButton();
+	updateGlobalMenu();
+}
+
+void Window::checkAutoLockIn(int msec) {
+	if (_autoLockTimer.isActive()) {
+		int remain = _autoLockTimer.remainingTime();
+		if (remain > 0 && remain <= msec) return;
+	}
+	_autoLockTimer.start(msec);
+}
+
+void Window::checkAutoLock() {
+	if (!cHasPasscode() || App::passcoded()) return;
+
+	App::app()->checkLocalTime();
+	uint64 ms = getms(true), idle = psIdleTime(), should = cAutoLock() * 1000ULL;
+	if (idle >= should || (_shouldLockAt > 0 && ms > _shouldLockAt + 3000ULL)) {
+		setupPasscode(true);
+	} else {
+		_shouldLockAt = ms + (should - idle);
+		_autoLockTimer.start(should - idle);
+	}
 }
 
 void Window::setupIntro(bool anim) {
 	cSetContactsReceived(false);
 	if (intro && (intro->animating() || intro->isVisible()) && !main) return;
 
-	QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
+	QPixmap bg = anim ? myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight)) : QPixmap();
 
 	clearWidgets();
 	intro = new IntroWidget(this);
@@ -499,17 +592,22 @@ void Window::sendServiceHistoryRequest() {
 	_serviceHistoryRequest = MTP::send(MTPmessages_GetHistory(user->input, MTP_int(0), MTP_int(0), MTP_int(1)), main->rpcDone(&MainWidget::serviceHistoryDone), main->rpcFail(&MainWidget::serviceHistoryFail));
 }
 
-void Window::setupMain(bool anim) {
-	QPixmap bg = myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight));
+void Window::setupMain(bool anim, const MTPUser *self) {
+	QPixmap bg = anim ? myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight)) : QPixmap();
 	clearWidgets();
 	main = new MainWidget(this);
 	main->move(0, st::titleHeight);
 	if (anim) {
 		main->animShow(bg);
 	} else {
-		MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(1, MTP_inputUserSelf())), main->rpcDone(&MainWidget::startFull));
 		main->activate();
 	}
+	if (self) {
+		main->start(*self);
+	} else {
+		MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(1, MTP_inputUserSelf())), main->rpcDone(&MainWidget::startFull));
+	}
+	title->resizeEvent(0);
 
 	fixOrder();
 
@@ -524,6 +622,8 @@ void Window::updateCounter() {
 }
 
 void Window::showSettings() {
+	if (_passcode) return;
+
 	if (isHidden()) showFromTray();
 
 	App::wnd()->hideLayer();
@@ -547,7 +647,7 @@ void Window::showSettings() {
 }
 
 void Window::hideSettings(bool fast) {
-	if (!settings) return;
+	if (!settings || _passcode) return;
 
 	if (fast) {
 		anim::stop(settings);
@@ -577,11 +677,6 @@ void Window::hideSettings(bool fast) {
 	title->updateBackButton();
 
 	fixOrder();
-}
-
-void Window::startMain(const MTPUser &user) {
-	if (main) main->start(user);
-	title->resizeEvent(0);
 }
 
 void Window::mtpStateChanged(int32 dc, int32 state) {
@@ -615,6 +710,10 @@ MainWidget *Window::mainWidget() {
 
 SettingsWidget *Window::settingsWidget() {
 	return settings;
+}
+
+PasscodeWidget *Window::passcodeWidget() {
+	return _passcode;
 }
 
 void Window::showPhoto(const PhotoLink *lnk, HistoryItem *item) {
@@ -706,12 +805,12 @@ bool Window::layerShown() {
 	return !!layerBG || !!_topWidget;
 }
 
-bool Window::historyIsActive(int state) const {
-    return psIsActive(state) && main && main->historyIsActive() && (!settings || !settings->isVisible());
+bool Window::historyIsActive() const {
+    return isActive(false) && main && main->historyIsActive() && (!settings || !settings->isVisible());
 }
 
-void Window::checkHistoryActivation(int state) {
-	if (main && MTP::authedId() && historyIsActive(state)) {
+void Window::checkHistoryActivation() {
+	if (main && MTP::authedId() && historyIsActive()) {
 		main->historyWasRead();
 	}
     QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
@@ -724,7 +823,17 @@ void Window::layerHidden() {
 	}
 	layerBG = 0;
 	if (_mediaView && !_mediaView->isHidden()) _mediaView->hide();
-	if (main) main->setInnerFocus();
+	setInnerFocus();
+}
+
+void Window::setInnerFocus() {
+	if (_passcode) {
+		_passcode->setInnerFocus();
+	} else if (settings) {
+		settings->setInnerFocus();
+	} else if (main) {
+		main->setInnerFocus();
+	}
 }
 
 QRect Window::clientRect() const {
@@ -790,26 +899,37 @@ QRect Window::iconRect() const {
 }
 
 bool Window::eventFilter(QObject *obj, QEvent *evt) {
-	if (obj == App::app() && (evt->type() == QEvent::ApplicationActivate)) {
-        QTimer::singleShot(1, this, SLOT(checkHistoryActivation()));
-    } else if (obj == App::app() && (evt->type() == QEvent::FileOpen)) {
-		QString url = static_cast<QFileOpenEvent*>(evt)->url().toEncoded();
-		if (!url.trimmed().midRef(0, 5).compare(qsl("tg://"), Qt::CaseInsensitive)) {
-			cSetStartUrl(url);
-			if (!cStartUrl().isEmpty() && App::main() && App::self()) {
-				App::main()->openLocalUrl(cStartUrl());
-				cSetStartUrl(QString());
+	QEvent::Type t = evt->type();
+	if (t == QEvent::MouseButtonPress || t == QEvent::KeyPress || t == QEvent::TouchBegin) {
+		psUserActionDone();
+	} else if (t == QEvent::MouseMove) {
+		if (main && main->isIdle()) {
+			psUserActionDone();
+			main->checkIdleFinish();
+		}
+	}
+	if (obj == App::app()) {
+		if (t == QEvent::ApplicationActivate) {
+			psUserActionDone();
+			QTimer::singleShot(1, this, SLOT(checkHistoryActivation()));
+		} else if (t == QEvent::FileOpen) {
+			QString url = static_cast<QFileOpenEvent*>(evt)->url().toEncoded();
+			if (!url.trimmed().midRef(0, 5).compare(qsl("tg://"), Qt::CaseInsensitive)) {
+				cSetStartUrl(url);
+				if (!cStartUrl().isEmpty() && App::main() && App::self()) {
+					App::main()->openLocalUrl(cStartUrl());
+					cSetStartUrl(QString());
+				}
 			}
+			activate();
 		}
-		activate();
-	} else if (obj == this && evt->type() == QEvent::WindowStateChange) {
-		Qt::WindowState state = (windowState() & Qt::WindowMinimized) ? Qt::WindowMinimized : ((windowState() & Qt::WindowMaximized) ? Qt::WindowMaximized : ((windowState() & Qt::WindowFullScreen) ? Qt::WindowFullScreen : Qt::WindowNoState));
-		psStateChanged(state);
-		if (App::main()) {
-			App::main()->mainStateChanged(state);
+	} else if (obj == this) {
+		if (t == QEvent::WindowStateChange) {
+			Qt::WindowState state = (windowState() & Qt::WindowMinimized) ? Qt::WindowMinimized : ((windowState() & Qt::WindowMaximized) ? Qt::WindowMaximized : ((windowState() & Qt::WindowFullScreen) ? Qt::WindowFullScreen : Qt::WindowNoState));
+			stateChanged(state);
+		} else if (t == QEvent::Move || t == QEvent::Resize) {
+			psUpdatedPosition();
 		}
-	} else if (obj == this && (evt->type() == QEvent::Move || evt->type() == QEvent::Resize)) {
-		psUpdatedPosition();
 	}
 	return PsMainWindow::eventFilter(obj, evt);
 }
@@ -841,9 +961,9 @@ bool Window::minimizeToTray() {
     if (cPlatform() == dbipWindows && trayIcon && !cSeenTrayTooltip()) {
 		trayIcon->showMessage(QString::fromStdWString(AppName), lang(lng_tray_icon_text), QSystemTrayIcon::Information, 10000);
 		cSetSeenTrayTooltip(true);
-		App::writeConfig();
+		Local::writeSettings();
 	}
-	if (App::main()) App::main()->setOnline(windowState());
+	updateIsActive(cOfflineBlurTimeout());
 	updateTrayMenu();
 	updateGlobalMenu();
 	return true;
@@ -852,21 +972,21 @@ bool Window::minimizeToTray() {
 void Window::updateTrayMenu(bool force) {
     if (!trayIconMenu || (cPlatform() == dbipWindows && !force)) return;
 
-    bool active = psIsActive();
+    bool active = isActive(false);
     if (cPlatform() == dbipWindows || cPlatform() == dbipMac) {
         QAction *first = trayIconMenu->actions().at(0);
         first->setText(lang(active ? lng_minimize_to_tray : lng_open_from_tray));
         disconnect(first, SIGNAL(triggered(bool)), 0, 0);
         connect(first, SIGNAL(triggered(bool)), this, active ? SLOT(minimizeToTray()) : SLOT(showFromTray()));
-#ifndef Q_OS_WIN
-        if (trayIcon) {
-            trayIcon->setContextMenu((active || cPlatform() != dbipMac) ? trayIconMenu : 0);
-        }
-#endif
     } else {
         QAction *second = trayIconMenu->actions().at(1);
         second->setDisabled(!isVisible());
     }
+#ifndef Q_OS_WIN
+    if (trayIcon) {
+        trayIcon->setContextMenu((active || cPlatform() != dbipMac) ? trayIconMenu : 0);
+    }
+#endif
 
     psTrayMenuUpdated();
 }
@@ -911,6 +1031,7 @@ void Window::activate() {
 	setVisible(true);
 	psActivateProcess();
 	activateWindow();
+	updateIsActive(cOnlineFocusTimeout());
 	if (wasHidden) {
 		if (main) {
 			main->windowShown();
@@ -972,17 +1093,16 @@ void Window::showFromTray(QSystemTrayIcon::ActivationReason reason) {
         QTimer::singleShot(1, this, SLOT(updateGlobalMenu()));
         activate();
 		updateCounter();
-		if (App::main()) App::main()->setOnline(windowState());
 	}
 }
 
 void Window::toggleTray(QSystemTrayIcon::ActivationReason reason) {
-	if (cPlatform() == dbipMac && psIsActive()) return;
+	if (cPlatform() == dbipMac && isActive(false)) return;
 	if (reason == QSystemTrayIcon::Context) {
 		updateTrayMenu(true);
 		QTimer::singleShot(1, this, SLOT(psShowTrayMenu()));
 	} else {
-		if (psIsActive()) {
+		if (isActive(false)) {
 			minimizeToTray();
 		} else {
 			showFromTray(reason);
@@ -1003,6 +1123,8 @@ TitleWidget *Window::getTitle() {
 }
 
 void Window::resizeEvent(QResizeEvent *e) {
+	if (!title) return;
+
 	bool wideMode = (width() >= st::wideModeWidth);
 	if (wideMode != cWideMode()) {
 		cSetWideMode(wideMode);
@@ -1081,7 +1203,7 @@ void Window::quit() {
 }
 
 void Window::notifySchedule(History *history, MsgId msgId) {
-	if (App::quiting() || !history->currentNotification()) return;
+	if (App::quiting() || !history->currentNotification() || !main) return;
 
 	bool haveSetting = (history->peer->notify != UnknownNotifySettings);
 	if (haveSetting) {
@@ -1093,24 +1215,35 @@ void Window::notifySchedule(History *history, MsgId msgId) {
 		App::wnd()->getNotifySetting(MTP_inputNotifyPeer(history->peer->input));
 	}
 
-	uint64 ms = getms(true) + NotifyWaitTimeout;
-	notifyWhenAlerts[history].insert(ms, NullType());
-	if (cDesktopNotify()) {
+	int delay = 100, t = unixtime();
+	uint64 ms = getms(true);
+	bool isOnline = main->lastWasOnline(), otherNotOld = ((cOtherOnline() * uint64(1000)) + cOnlineCloudTimeout() > t * uint64(1000));
+	bool otherLaterThanMe = (cOtherOnline() * uint64(1000) + (ms - main->lastSetOnline()) > t * uint64(1000));
+	if (!isOnline && otherNotOld && otherLaterThanMe) {
+		delay = cNotifyCloudDelay();
+	} else if (cOtherOnline() >= t) {
+		delay = cNotifyDefaultDelay();
+	}
+
+	uint64 when = getms(true) + delay;
+	notifyWhenAlerts[history].insert(when, NullType());
+	if (cDesktopNotify() && !psSkipDesktopNotify()) {
 		NotifyWhenMaps::iterator i = notifyWhenMaps.find(history);
 		if (i == notifyWhenMaps.end()) {
 			i = notifyWhenMaps.insert(history, NotifyWhenMap());
 		}
 		if (i.value().constFind(msgId) == i.value().cend()) {
-			i.value().insert(msgId, ms);
+			i.value().insert(msgId, when);
 		}
 		NotifyWaiters *addTo = haveSetting ? &notifyWaiters : &notifySettingWaiters;
-		if (addTo->constFind(history) == addTo->cend()) {
-			addTo->insert(history, NotifyWaiter(msgId, ms));
+		NotifyWaiters::const_iterator it = addTo->constFind(history);
+		if (it == addTo->cend() || it->when > when) {
+			addTo->insert(history, NotifyWaiter(msgId, when));
 		}
 	}
 	if (haveSetting) {
-		if (!notifyWaitTimer.isActive()) {
-			notifyWaitTimer.start(NotifyWaitTimeout);
+		if (!notifyWaitTimer.isActive() || notifyWaitTimer.remainingTime() > delay) {
+			notifyWaitTimer.start(delay);
 		}
 	}
 }
@@ -1217,7 +1350,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
             --count;
         }
     }
-	if (count <= 0 || !cDesktopNotify()) {
+	if (count <= 0 || notifyWaiters.isEmpty() || !cDesktopNotify() || psSkipDesktopNotify()) {
 		if (nextAlert) {
 			notifyWaitTimer.start(nextAlert - ms);
 		}
@@ -1278,7 +1411,6 @@ void Window::notifyShowNext(NotifyWindow *remove) {
                 } else {
 					psPlatformNotify(notifyItem);
                 }
-
 
 				uint64 ms = getms(true);
 				History *history = notifyItem->history();
@@ -1483,6 +1615,7 @@ QImage Window::iconWithCounter(int size, int count, style::color bg, bool smallI
 }
 
 void Window::sendPaths() {
+	if (App::passcoded()) return;
 	if (_mediaView && !_mediaView->isHidden()) _mediaView->hide();
 	if (settings) {
 		hideSettings();
@@ -1506,6 +1639,17 @@ void Window::changingMsgId(HistoryItem *row, MsgId newId) {
 	if (main) main->changingMsgId(row, newId);
 	if (!_mediaView || _mediaView->isHidden()) return;
 	_mediaView->changingMsgId(row, newId);
+}
+
+bool Window::isActive(bool cached) const {
+	if (cached) return _isActive;
+	return isActiveWindow() && isVisible() && !(windowState() & Qt::WindowMinimized);
+}
+
+void Window::updateIsActive(int timeout) {
+	if (timeout) return _isActiveTimer.start(timeout);
+	_isActive = isActive(false);
+	if (main) main->updateOnline();
 }
 
 Window::~Window() {

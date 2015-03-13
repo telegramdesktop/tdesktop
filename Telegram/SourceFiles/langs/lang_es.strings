@@ -121,7 +121,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_name" = "Por favor, pon tu nombre y apellidos.";
 "lng_bad_photo" = "La imagen seleccionada es errónea.";
 
-"lng_bad_image_for_photo" = "La imagen tiene un tamaño inadecuado.\n¿Quieres enviarla como archivo?";
+"lng_bad_image_for_photo" = "La imagen no se puede enviar de este modo.\n¿Quieres enviarla como archivo?";
 
 "lng_signup_title" = "Información y foto";
 "lng_signup_desc" = "Por favor, pon tu nombre \ny una foto.";
@@ -153,8 +153,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_section_contact_info" = "Información";
 "lng_settings_phone_number" = "Número de teléfono:";
 "lng_settings_username" = "Apodo:";
-"lng_settings_choose_username" = "elegir apodo";
-"lng_settings_change_username" = "Cambiar";
+"lng_settings_choose_username" = "Elige un apodo";
 
 "lng_settings_section_notify" = "Notificaciones";
 "lng_settings_desktop_notify" = "Notificaciones de escritorio";
@@ -173,7 +172,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_check_now" = "Buscar actualizaciones";
 "lng_settings_update_checking" = "Buscando actualizaciones...";
 "lng_settings_latest_installed" = "La última versión está instalada";
-"lng_settings_downloading" = "Descargando la actualización {ready} / {total} Mb...";
+"lng_settings_downloading" = "Descargando la actualización {ready} / {total} MB...";
 "lng_settings_update_ready" = "La nueva versión está lista";
 "lng_settings_update_now" = "Reiniciar ahora";
 "lng_settings_update_fail" = "Revisión de actualización fallida :(";
@@ -192,7 +191,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_send_enter" = "Enviar con Intro";
 "lng_settings_send_ctrlenter" = "Enviar con Ctrl+Intro";
 "lng_settings_send_cmdenter" = "Enviar con Cmd+Intro";
-"lng_settings_cats_and_dogs" = "Permitir gatos y perros";
+
+"lng_settings_section_background" = "Fondo de chat";
+"lng_settings_bg_from_gallery" = "Elegir desde la galería";
+"lng_settings_bg_from_file" = "Elegir desde archivos";
+"lng_settings_bg_tile" = "Fondo con mosaico";
+
+"lng_backgrounds_header" = "Elige tu nuevo fondo de chat";
 
 "lng_download_path_dont_ask" = "No pedir la ruta de descarga para cada archivo";
 "lng_download_path_label" = "Ruta de descarga:";
@@ -222,6 +227,28 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_local_storage_clear_failed" = "Borrado fallido :(";
 
 "lng_settings_section_advanced" = "Avanzado";
+
+"lng_passcode_turn_on" = "Activar código de acceso";
+"lng_passcode_change" = "Cambiar código de acceso";
+"lng_passcode_create" = "Crear código de acceso";
+"lng_passcode_remove" = "Desactivar código de acceso";
+"lng_passcode_turn_off" = "Desactivar";
+"lng_passcode_autolock" = "Bloqueo automático";
+"lng_passcode_autolock_away" = "Bloqueo automático si estoy fuera:";
+"lng_passcode_autolock_inactive" = "Bloqueo automático si estoy inactivo:";
+"lng_passcode_autolock_minutes" = "{count:_not_used_|# minuto|# minutos}";
+"lng_passcode_autolock_hours" = "{count:_not_used_|# hora|# horas}";
+"lng_passcode_enter_old" = "Pon tu código actual";
+"lng_passcode_enter_new" = "Pon tu nuevo código";
+"lng_passcode_confirm_new" = "Pon, otra vez, el código";
+"lng_passcode_about" = "Cuando configuras un código, aparece un candado en la pantalla de chats. Pulsa sobre él para bloquear la aplicación.\n\nNota: si olvidas el código, tendrás que reiniciar la sesión en Telegram Desktop.";
+"lng_passcode_differ" = "Los códigos de acceso son diferentes";
+"lng_passcode_wrong" = "Código de acceso equivocado";
+"lng_passcode_is_same" = "El código no fue cambiado";
+"lng_passcode_enter" = "Pon tu código de acceso";
+"lng_passcode_submit" = "Enviar";
+"lng_passcode_logout" = "Cerrar sesión";
+
 "lng_connection_type" = "Tipo de conexión:";
 "lng_connection_auto_connecting" = "Por defecto (conectando...)";
 "lng_connection_auto" = "Por defecto ({type} en uso)";
@@ -272,8 +299,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_photos_header" = "Todas las fotos";
 "lng_profile_videos" = "{count:_not_used_|# vídeo|# vídeos} »";
 "lng_profile_videos_header" = "Todos los vídeos";
-"lng_profile_documents" = "{count:_not_used_|# archivo|# archivos} »";
-"lng_profile_documents_header" = "Todos los archivos";
+"lng_profile_files" = "{count:_not_used_|# archivo|# archivos} »";
+"lng_profile_files_header" = "Todos los archivos";
 "lng_profile_audios" = "{count:_not_used_|# mensaje de voz|# mensajes de voz} »";
 "lng_profile_audios_header" = "Todos los mensajes de voz";
 "lng_profile_show_all_types" = "Mostrar todos los tipos";
@@ -313,7 +340,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_type" = "Formato multimedia";
 "lng_media_type_photos" = "Fotos";
 "lng_media_type_videos" = "Vídeos";
-"lng_media_type_documents" = "Archivos";
+"lng_media_type_files" = "Archivos";
 "lng_media_type_audios" = "Mensajes de voz";
 
 "lng_media_open_with" = "Abrir con";
@@ -326,7 +353,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_video" = "Vídeo";
 "lng_in_dlg_contact" = "Contacto";
 "lng_in_dlg_audio" = "Audio";
-"lng_in_dlg_document" = "Archivo";
+"lng_in_dlg_file" = "Archivo";
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
 
@@ -347,7 +374,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_save_photo" = "Guardar imagen";
 "lng_save_video" = "Guardar vídeo";
 "lng_save_audio" = "Guardar audio";
-"lng_save_document" = "Guardar archivo";
+"lng_save_file" = "Guardar archivo";
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
 "lng_choose_images" = "Elegir imágenes";
@@ -371,8 +398,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_save_video" = "Guardar como...";
 "lng_context_open_audio" = "Abrir audio";
 "lng_context_save_audio" = "Guardar como...";
-"lng_context_open_document" = "Abrir archivo";
-"lng_context_save_document" = "Guardar como...";
+"lng_context_open_file" = "Abrir archivo";
+"lng_context_save_file" = "Guardar como...";
 "lng_context_forward_file" = "Reenviar archivo";
 "lng_context_delete_file" = "Eliminar archivo";
 "lng_context_close_file" = "Cerrar archivo";
@@ -412,13 +439,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_try_other_contact" = "Intentar con otro";
 "lng_contacts_done" = "Cancelar";
 
-"lng_drag_images_here" = "Arrastrar imágenes aquí";
-"lng_drag_photos_here" = "Arrastrar fotos aquí";
-"lng_drag_files_here" = "Arrastrar archivos aquí";
+"lng_drag_images_here" = "Arrastra imágenes aquí";
+"lng_drag_photos_here" = "Arrastra fotos aquí";
+"lng_drag_files_here" = "Arrastra archivos aquí";
 
-"lng_drag_to_send_quick" = "para enviarlos rápidamente";
-"lng_drag_to_send_no_compression" = "para enviarlos sin compresión";
-"lng_drag_to_send_documents" = "para enviarlos como archivos";
+"lng_drag_to_send_quick" = "para enviarlas rápidamente";
+"lng_drag_to_send_no_compression" = "para enviarlas sin compresión";
+"lng_drag_to_send_files" = "para enviarlos como archivos";
 
 "lng_selected_clear" = "Cancelar";
 "lng_selected_delete" = "Eliminar";
@@ -452,10 +479,28 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\nDetectamos un inicio de sesión en tu cuenta desde un nuevo dispositivo el {day}, {date} a las {time}\n\nDispositivo: {device}\nUbicación: {location}\n\nSi no eras tú, puedes ir a Ajustes — Cerrar todas las otras sesiones.\n\nGracias.\nEl equipo de Telegram";
 
-"lng_new_version7007" = "Telegram Desktop fue actualizada a la versión {version}\n\n — Se añadió el ícono en la barra de menú para Ubuntu\n\nEl historial completo está disponible aquí:\n{link}";
-"lng_new_version7006_appstore" = "Telegram Desktop fue actualizada a la versión {version}\n\n– Soporte para stickers\n– Caché local para mensajes de voz\n– Nuevos idiomas añadidos\n\nLa versión completa del historial está disponible aquí:\n{link} ";
+"lng_new_version_wrap" = "Telegram Desktop fue actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
+"lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
+"lng_new_version7020" = "- Bloquea tu aplicación con un código de acceso";
+"lng_new_version7020_appstore" = "— Bloquea tu aplicación con un código de acceso\n— Cambia el fondo de chat\n— Nuevo menú «abrir con» para archivos\n— Idioma coreano añadido";
+
+"lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
+
+// Wnd specific
+
+"lng_wnd_choose_program_menu" = "Elegir programa predeterminado...";
+
+"lng_wnd_menu_undo" = "Deshacer";
+"lng_wnd_menu_redo" = "Rehacer";
+
+// Linux specific
+
+"lng_linux_menu_undo" = "Deshacer";
+"lng_linux_menu_redo" = "Rehacer";
 
 // Mac specific
+
+"lng_mac_choose_program_menu" = "Otra...";
 
 "lng_mac_choose_app" = "Elegir aplicación";
 "lng_mac_choose_text" = "Elige una aplicación para abrir el archivo \"{file}\".";

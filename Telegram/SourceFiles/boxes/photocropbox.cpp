@@ -19,7 +19,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "style.h"
 #include "lang.h"
 
-#include "app.h"
 #include "application.h"
 #include "mainwidget.h"
 #include "photocropbox.h"

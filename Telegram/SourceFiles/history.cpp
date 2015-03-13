@@ -491,10 +491,14 @@ void VideoSaveLink::doSave(bool forceSavingAs) const {
 
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
-		psOpenFile(already, true);
+		QPoint pos(QCursor::pos());
+		if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
+			psOpenFile(already, true);
+		}
 	} else {
-		QDir alreadyDir(already.isEmpty() ? QDir() : QFileInfo(already).dir());
-		QString name = already.isEmpty() ? QString(".mov") : already;
+		QFileInfo alreadyInfo(already);
+		QDir alreadyDir(already.isEmpty() ? QDir() : alreadyInfo.dir());
+		QString name = already.isEmpty() ? QString(".mov") : alreadyInfo.fileName();
 		QString filename = saveFileName(lang(lng_save_video), qsl("MOV Video (*.mov);;All files (*.*)"), qsl("video"), name, forceSavingAs, alreadyDir);
 		if (!filename.isEmpty()) {
 			if (forceSavingAs) {
@@ -543,8 +547,10 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 	AudioData *data = audio();
 	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
 
+	bool mp3 = (data->mime == QLatin1String("audio/mp3"));
+
 	QString already = data->already(true);
-	bool play = audioVoice();
+	bool play = !mp3 && audioVoice();
 	if (!already.isEmpty() || (!data->data.isEmpty() && play)) {
 		if (play) {
 			AudioData *playing = 0;
@@ -563,7 +569,7 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 	
 	if (data->status != FileReady) return;
 
-	QString filename = saveFileName(lang(lng_save_audio), qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), qsl(".ogg"), false);
+	QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), mp3 ? qsl(".mp3") : qsl(".ogg"), false);
 	if (!filename.isEmpty()) {
 		data->openOnSave = 1;
 		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
@@ -577,11 +583,16 @@ void AudioSaveLink::doSave(bool forceSavingAs) const {
 
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
-		psOpenFile(already, true);
+		QPoint pos(QCursor::pos());
+		if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
+			psOpenFile(already, true);
+		}
 	} else {
-		QDir alreadyDir(already.isEmpty() ? QDir() : QFileInfo(already).dir());
-		QString name = already.isEmpty() ? QString(".ogg") : already;
-		QString filename = saveFileName(lang(lng_save_audio), qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), name, forceSavingAs, alreadyDir);
+		QFileInfo alreadyInfo(already);
+		QDir alreadyDir(already.isEmpty() ? QDir() : alreadyInfo.dir());
+		bool mp3 = (data->mime == QLatin1String("audio/mp3"));
+		QString name = already.isEmpty() ? (mp3 ? qsl(".mp3") : qsl(".ogg")) : alreadyInfo.fileName();
+		QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), name, forceSavingAs, alreadyDir);
 		if (!filename.isEmpty()) {
 			if (forceSavingAs) {
 				data->cancel();
@@ -606,8 +617,8 @@ void AudioCancelLink::onClick(Qt::MouseButton button) const {
 	data->cancel();
 }
 
-AudioData::AudioData(const AudioId &id, const uint64 &access, int32 user, int32 date, int32 duration, int32 dc, int32 size) :
-id(id), access(access), user(user), date(date), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+AudioData::AudioData(const AudioId &id, const uint64 &access, int32 user, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) :
+id(id), access(access), user(user), date(date), mime(mime), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
 	location = Local::readFileLocation(mediaKey(mtpc_inputAudioFileLocation, dc, id));
 }
 
@@ -664,7 +675,7 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 		filter = mimeType.filterString() + qsl(";;All files (*.*)");
 	}
 
-	QString filename = saveFileName(lang(lng_save_document), filter, qsl("doc"), name, false);
+	QString filename = saveFileName(lang(lng_save_file), filter, qsl("doc"), name, false);
 	if (!filename.isEmpty()) {
 		data->openOnSave = 1;
 		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
@@ -678,10 +689,14 @@ void DocumentSaveLink::doSave(bool forceSavingAs) const {
 
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
-		psOpenFile(already, true);
+		QPoint pos(QCursor::pos());
+		if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
+			psOpenFile(already, true);
+		}
 	} else {
-		QDir alreadyDir(already.isEmpty() ? QDir() : QFileInfo(already).dir());
-		QString name = already.isEmpty() ? data->name : already, filter;
+		QFileInfo alreadyInfo(already);
+		QDir alreadyDir(already.isEmpty() ? QDir() : alreadyInfo.dir());
+		QString name = already.isEmpty() ? data->name : alreadyInfo.fileName(), filter;
 		MimeType mimeType = mimeTypeForName(data->mime);
 		QStringList p = mimeType.globPatterns();
 		QString pattern = p.isEmpty() ? QString() : p.front();
@@ -695,7 +710,7 @@ void DocumentSaveLink::doSave(bool forceSavingAs) const {
 			filter = mimeType.filterString() + qsl(";;All files (*.*)");
 		}
 
-		QString filename = saveFileName(lang(lng_save_document), filter, qsl("doc"), name, forceSavingAs, alreadyDir);
+		QString filename = saveFileName(lang(lng_save_file), filter, qsl("doc"), name, forceSavingAs, alreadyDir);
 		if (!filename.isEmpty()) {
 			if (forceSavingAs) {
 				data->cancel();
@@ -808,7 +823,7 @@ void DialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
 		QDate nowDate(now.date()), lastDate(lastTime.date());
 		QString dt;
 		if (lastDate == nowDate) {
-			dt = lastTime.toString(qsl("hh:mm"));
+			dt = lastTime.toString(cTimeFormat());
 		} else if (lastDate.year() == nowDate.year() && lastDate.weekNumber() == nowDate.weekNumber()) {
 			dt = langDayOfWeek(lastDate);
 		} else {
@@ -888,7 +903,7 @@ void FakeDialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
 	QDate nowDate(now.date()), lastDate(lastTime.date());
 	QString dt;
 	if (lastDate == nowDate) {
-		dt = lastTime.toString(qsl("hh:mm"));
+		dt = lastTime.toString(cTimeFormat());
 	} else if (lastDate.year() == nowDate.year() && lastDate.weekNumber() == nowDate.weekNumber()) {
 		dt = langDayOfWeek(lastDate);
 	} else {
@@ -1182,26 +1197,6 @@ HistoryItem *Histories::addToBack(const MTPmessage &msg, int msgState) {
 	return h.value()->addToBack(msg, msgState > 0);
 }
 
-/*
-HistoryItem *Histories::addToBack(const MTPgeoChatMessage &msg, bool newMsg) {
-	PeerId peer = 0;
-	switch (msg.type()) {
-	case mtpc_geoChatMessage:
-		peer = App::peerFromChat(msg.c_geoChatMessage().vchat_id);
-	break;
-	case mtpc_geoChatMessageService:
-		peer = App::peerFromChat(msg.c_geoChatMessageService().vchat_id);
-	break;
-	}
-	if (!peer) return 0;
-
-	iterator h = find(peer);
-	if (h == end()) {
-		h = insert(peer, new History(peer));
-	}
-	return h.value()->addToBack(msg, newMsg);
-}/**/
-
 HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, bool newMsg, bool returnExisting) {
 	HistoryItem *result = 0;
 
@@ -1423,6 +1418,10 @@ void History::newItemAdded(HistoryItem *item) {
 	App::checkImageCacheSize();
 	if (item->from()) {
 		unregTyping(item->from());
+        if (item->from()->onlineTill < 0) {
+			item->from()->onlineTill = -unixtime() - HiddenIsOnlineAfterMessage; // pseudo-online
+			if (App::main()) App::main()->peerUpdated(item->from());
+        }
 	}
 	if (item->out()) {
 		if (unreadBar) unreadBar->destroy();
@@ -2348,10 +2347,10 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 QString formatSizeText(qint64 size) {
 	if (size >= 1024 * 1024) { // more than 1 mb
 		qint64 sizeTenthMb = (size * 10 / (1024 * 1024));
-		return QString::number(sizeTenthMb / 10) + '.' + QString::number(sizeTenthMb % 10) + qsl("Mb");
+		return QString::number(sizeTenthMb / 10) + '.' + QString::number(sizeTenthMb % 10) + qsl("MB");
 	}
 	qint64 sizeTenthKb = (size * 10 / 1024);
-	return QString::number(sizeTenthKb / 10) + '.' + QString::number(sizeTenthKb % 10) + qsl("Kb");
+	return QString::number(sizeTenthKb / 10) + '.' + QString::number(sizeTenthKb % 10) + qsl("KB");
 }
 
 QString formatDownloadText(qint64 ready, qint64 total) {
@@ -2360,12 +2359,12 @@ QString formatDownloadText(qint64 ready, qint64 total) {
 		qint64 readyTenthMb = (ready * 10 / (1024 * 1024)), totalTenthMb = (total * 10 / (1024 * 1024));
 		readyStr = QString::number(readyTenthMb / 10) + '.' + QString::number(readyTenthMb % 10);
 		totalStr = QString::number(totalTenthMb / 10) + '.' + QString::number(totalTenthMb % 10);
-		mb = qsl("Mb");
+		mb = qsl("MB");
 	} else {
 		qint64 readyKb = (ready / 1024), totalKb = (total / 1024);
 		readyStr = QString::number(readyKb);
 		totalStr = QString::number(totalKb);
-		mb = qsl("Kb");
+		mb = qsl("KB");
 	}
 	return lng_save_downloaded(lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
 }
@@ -2614,7 +2613,8 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		width = _maxw;
 	}
 
-	if (!data->loader && data->status != FileFailed && !already && !hasdata && data->size < AudioVoiceMsgInMemory) {
+	bool mp3 = (data->mime == QLatin1String("audio/mp3"));
+	if (!data->loader && !mp3 && data->status != FileFailed && !already && !hasdata && data->size < AudioVoiceMsgInMemory) {
 		data->save(QString());
 	}
 
@@ -2646,11 +2646,11 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	AudioData *playing = 0;
 	VoiceMessageState playingState = VoiceMessageStopped;
 	int64 playingPosition = 0, playingDuration = 0;
-	if (audioVoice()) {
+	if (!mp3 && audioVoice()) {
 		audioVoice()->currentState(&playing, &playingState, &playingPosition, &playingDuration);
 	}
 	QRect img;
-	if (already || hasdata) {
+	if (!mp3 && (already || hasdata)) {
 		bool showPause = (playing == data) && (playingState == VoiceMessagePlaying || playingState == VoiceMessageResuming || playingState == VoiceMessageStarting);
 		img = out ? (showPause ? st::mediaPauseOutImg : st::mediaPlayOutImg) : (showPause ? st::mediaPauseInImg : st::mediaPlayInImg);
 	} else {
@@ -2674,7 +2674,7 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 
 	style::color status(selected ? (out ? st::mediaOutSelectColor : st::mediaInSelectColor) : (out ? st::mediaOutColor : st::mediaInColor));
 	p.setPen(status->p);
-	if (already || hasdata) {
+	if (!mp3 && (already || hasdata)) {
 		if (playing == data && playingState != VoiceMessageStopped) {
 			statusText = formatDurationText(playingPosition / AudioVoiceMsgFrequency) + qsl(" / ") + formatDurationText(playingDuration / AudioVoiceMsgFrequency);
 		} else {
@@ -2988,11 +2988,11 @@ int32 HistoryDocument::resize(int32 width, bool dontRecountText, const HistoryIt
 }
 
 const QString HistoryDocument::inDialogsText() const {
-	return data->name.isEmpty() ? lang(lng_in_dlg_document) : data->name;
+	return data->name.isEmpty() ? lang(lng_in_dlg_file) : data->name;
 }
 
 const QString HistoryDocument::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_document) + (data->name.isEmpty() ? QString() : (qsl(" : ") + data->name)) + qsl(" ]");
+	return qsl("[ ") + lang(lng_in_dlg_file) + (data->name.isEmpty() ? QString() : (qsl(" : ") + data->name)) + qsl(" ]");
 }
 
 bool HistoryDocument::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
@@ -3343,7 +3343,7 @@ void HistoryContact::updateFrom(const MTPMessageMedia &media) {
 
 namespace {
 	QRegularExpression reYouTube1(qsl("^(https?://)?(www\\.|m\\.)?youtube\\.com/watch\\?([^#]+&)?v=([a-z0-9_-]+)(&[^\\s]*)?$"), QRegularExpression::CaseInsensitiveOption);
-	QRegularExpression reYouTube2(qsl("^(https?://)?(www\\.)?youtu\\.be/([a-z0-9_-]+)([/\\?][^\\s]*)?$"), QRegularExpression::CaseInsensitiveOption);
+    QRegularExpression reYouTube2(qsl("^(https?://)?(www\\.)?youtu\\.be/([a-z0-9_-]+)([/\\?#][^\\s]*)?$"), QRegularExpression::CaseInsensitiveOption);
 	QRegularExpression reInstagram(qsl("^(https?://)?(www\\.)?instagram\\.com/p/([a-z0-9_-]+)([/\\?][^\\s]*)?$"), QRegularExpression::CaseInsensitiveOption);
 	QRegularExpression reVimeo(qsl("^(https?://)?(www\\.)?vimeo\\.com/([0-9]+)([/\\?][^\\s]*)?$"), QRegularExpression::CaseInsensitiveOption);
 
@@ -4032,7 +4032,7 @@ void HistoryMessage::initMediaFromDocument(DocumentData *doc) {
 }
 
 void HistoryMessage::initDimensions(const QString &text) {
-	_time = date.toString(qsl("hh:mm"));
+	_time = date.toString(cTimeFormat());
 	_timeWidth = st::msgDateFont->m.width(_time);
 	if (!_media) {
 		_timeWidth += st::msgDateSpace + (out() ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) - st::msgDateDelta.x();
@@ -4652,9 +4652,9 @@ void HistoryServiceMsg::draw(QPainter &p, uint32 selection) const {
 	}
 //	QRect r(0, st::msgServiceMargin.top(), _history->width, height);
 	QRect r(left, st::msgServiceMargin.top(), width, height);
-	p.setBrush(st::msgServiceBG->b);
+	p.setBrush(App::msgServiceBG()->b);
 	p.setPen(Qt::NoPen);
-//	p.fillRect(r, st::msgServiceBG->b);
+//	p.fillRect(r, App::msgServiceBG()->b);
 	p.drawRoundedRect(r, st::msgServiceRadius, st::msgServiceRadius);
 	if (selection == FullItemSel) {
 		p.setBrush(st::msgServiceSelectBG->b);

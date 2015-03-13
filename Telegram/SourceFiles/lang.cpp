@@ -86,8 +86,8 @@ QString Translator::translate(const char *context, const char *sourceText, const
 		return QString();
 	}
 	if (QLatin1String("QWidgetTextControl") == context || QLatin1String("QLineEdit") == context) {
-		if (QLatin1String("&Undo") == sourceText) return lang(lng_mac_menu_undo);
-		if (QLatin1String("&Redo") == sourceText) return lang(lng_mac_menu_redo);
+		if (QLatin1String("&Undo") == sourceText) return lang((cPlatform() == dbipWindows) ? lng_wnd_menu_undo : ((cPlatform() == dbipMac) ? lng_mac_menu_undo : lng_linux_menu_undo));
+		if (QLatin1String("&Redo") == sourceText) return lang((cPlatform() == dbipWindows) ? lng_wnd_menu_redo : ((cPlatform() == dbipMac) ? lng_mac_menu_redo : lng_linux_menu_redo));
 		if (QLatin1String("Cu&t") == sourceText) return lang(lng_mac_menu_cut);
 		if (QLatin1String("&Copy") == sourceText) return lang(lng_mac_menu_copy);
 		if (QLatin1String("&Paste") == sourceText) return lang(lng_mac_menu_paste);
@@ -95,5 +95,9 @@ QString Translator::translate(const char *context, const char *sourceText, const
 		if (QLatin1String("Select All") == sourceText) return lang(lng_mac_menu_select_all);
 		return QString();
 	}
-	return QString();//QString::fromUtf8(sourceText);
+	if (QLatin1String("QUnicodeControlCharacterMenu") == context) {
+		if (QLatin1String("Insert Unicode control character") == sourceText) return lang(lng_menu_insert_unicode);
+		return QString();
+	}
+	return QString();
 }

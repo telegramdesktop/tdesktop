@@ -17,8 +17,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 7008;
-static const wchar_t *AppVersionStr = L"0.7.8";
+static const int32 AppVersion = 7020;
+static const wchar_t *AppVersionStr = L"0.7.20";
+static const bool DevChannel = false;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -50,6 +51,10 @@ enum {
 	MTPEnumDCTimeout = 4000, // 4 seconds timeout for help_getConfig to work (them move to other dc)
 
 	MTPDebugBufferSize = 1024 * 1024, // 1 mb start size
+
+	MTPPingDelayDisconnect = 60, // 1 min
+	MTPPingSendAfterAuto = 30, // send new ping starting from 30 seconds (add to existing container)
+	MTPPingSendAfter = 45, // send new ping after 45 seconds without ping
 
 	MaxSelectedItems = 100,
 
@@ -113,7 +118,17 @@ enum {
 	SaveDraftTimeout = 1000, // save draft after 1 secs of not changing text
 	SaveDraftAnywayTimeout = 5000, // or save anyway each 5 secs
 
+    HiddenIsOnlineAfterMessage = 30, // user with hidden last seen stays online for such amount of seconds in the interface
+
 	ServiceUserId = 777000,
+
+	CacheBackgroundTimeout = 3000, // cache background scaled image after 3s
+	BackgroundsInRow = 3,
+
+	UpdateDelayConstPart = 8 * 3600, // 8 hour min time between update check requests
+	UpdateDelayRandPart = 8 * 3600, // 8 hour max - min time between update check requests
+
+	WrongPasscodeTimeout = 1500,
 };
 
 inline bool isServiceUser(uint64 id) {
@@ -157,13 +172,13 @@ struct BuiltInDc {
 static const BuiltInDc _builtInDcs[] = {
 	{ 1, "149.154.175.50", 443 },
 	{ 2, "149.154.167.51", 443 },
-	{ 3, "174.140.142.6", 443 },
+	{ 3, "149.154.175.100", 443 },
 	{ 4, "149.154.167.91", 443 },
 	{ 5, "149.154.171.5", 443 }
 };
 
 static const BuiltInDc _builtInTestDcs[] = {
-	{ 1, "173.240.5.253", 443 },
+	{ 1, "149.154.175.10", 443 },
 	{ 2, "149.154.167.40", 443 },
 	{ 3, "174.140.142.5", 443 }
 };
@@ -181,6 +196,14 @@ static const char *UpdatesPublicKey = "\
 MIGJAoGBAMA4ViQrjkPZ9xj0lrer3r23JvxOnrtE8nI69XLGSr+sRERz9YnUptnU\n\
 BZpkIfKaRcl6XzNJiN28cVwO1Ui5JSa814UAiDHzWUqCaXUiUEQ6NmNTneiGx2sQ\n\
 +9PKKlb8mmr3BB9A45ZNwLT6G9AK3+qkZLHojeSA+m84/a6GP4svAgMBAAE=\n\
+-----END RSA PUBLIC KEY-----\
+";
+
+static const char *UpdatesPublicDevKey = "\
+-----BEGIN RSA PUBLIC KEY-----\n\
+MIGJAoGBALWu9GGs0HED7KG7BM73CFZ6o0xufKBRQsdnq3lwA8nFQEvmdu+g/I1j\n\
+0LQ+0IQO7GW4jAgzF/4+soPDb6uHQeNFrlVx1JS9DZGhhjZ5rf65yg11nTCIHZCG\n\
+w/CVnbwQOw0g5GBwwFV3r0uTTvy44xx8XXxk+Qknu4eBCsmrAFNnAgMBAAE=\n\
 -----END RSA PUBLIC KEY-----\
 ";
 
@@ -258,7 +281,6 @@ enum {
 
 	MemoryForImageCache = 64 * 1024 * 1024, // after 64mb of unpacked images we try to clear some memory
 	NotifyWindowsCount = 3, // 3 desktop notifies at the same time
-	NotifyWaitTimeout = 1200, // 1.2 seconds timeout before notification
 	NotifySettingSaveTimeout = 1000, // wait 1 second before saving notify setting to server
 	UpdateChunk = 100 * 1024, // 100kb parts when downloading the update
 	IdleMsecs = 60 * 1000, // after 60secs without user input we think we are idle

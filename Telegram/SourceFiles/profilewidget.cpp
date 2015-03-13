@@ -422,7 +422,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 		p.setPen(st::black->p);
 		p.drawText(_left + st::profilePhotoSize + st::profileStatusLeft, top + st::profileStatusTop + st::linkFont->ascent, '@' + _peerUser->username);
 	}
-	p.setPen((_peerUser && _peerUser->onlineTill >= l_time ? st::profileOnlineColor : st::profileOfflineColor)->p);
+	p.setPen((_peerUser && App::onlineColorUse(_peerUser->onlineTill, l_time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
 	p.drawText(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop + st::linkFont->ascent, _onlineText);
 	if (!_cancelPhoto.isHidden()) {
 		p.drawText(_left + st::profilePhotoSize + st::profilePhoneLeft, _cancelPhoto.y() + addbyname + st::linkFont->ascent, lang(lng_settings_uploading_photo));
@@ -529,7 +529,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 				p.setFont(st::linkFont->f);
 				data->name.drawElided(p, _left + st::profileListPhotoSize + st::profileListPadding.width(), top + st::profileListNameTop, _width - _kickWidth - st::profileListPadding.width() - st::profileListPhotoSize - st::profileListPadding.width());
 				p.setFont(st::profileSubFont->f);
-				p.setPen((user->onlineTill >= l_time ? st::profileOnlineColor : st::profileOfflineColor)->p);
+				p.setPen((App::onlineColorUse(user->onlineTill, l_time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
 				p.drawText(_left + st::profileListPhotoSize + st::profileListPadding.width(), top + st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, data->online);
 
 				if (data->cankick) {
@@ -876,7 +876,7 @@ QString ProfileInner::overviewLinkText(int32 type, int32 count) {
 	switch (type) {
 	case OverviewPhotos: return lng_profile_photos(lt_count, count);
 	case OverviewVideos: return lng_profile_videos(lt_count, count);
-	case OverviewDocuments: return lng_profile_documents(lt_count, count);
+	case OverviewDocuments: return lng_profile_files(lt_count, count);
 	case OverviewAudios: return lng_profile_audios(lt_count, count);
 	}
 	return QString();

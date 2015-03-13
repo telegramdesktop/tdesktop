@@ -18,6 +18,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "lang.h"
 
+#include "localstorage.h"
+
 #include "connectionbox.h"
 #include "mainwidget.h"
 #include "window.h"
@@ -203,7 +205,7 @@ void ConnectionBox::onSave() {
 		QNetworkProxyFactory::setUseSystemConfiguration(false);
 		QNetworkProxyFactory::setUseSystemConfiguration(true);
 	}
-	App::writeConfig();
+	Local::writeSettings();
 	MTP::restart();
 	reinitImageLinkManager();
 	emit closed();

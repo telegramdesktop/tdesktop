@@ -192,9 +192,6 @@ void DialogsListWidget::peopleResultPaint(UserData *user, QPainter &p, int32 w, 
 }
 
 void DialogsListWidget::activate() {
-	if (_state == DefaultState && !sel) {
-		selectSkip(1);
-	}
 }
 
 void DialogsListWidget::mouseMoveEvent(QMouseEvent *e) {
@@ -726,6 +723,10 @@ void DialogsListWidget::setState(State newState) {
 
 DialogsListWidget::State DialogsListWidget::state() const {
 	return _state;
+}
+
+bool DialogsListWidget::hasFilteredResults() const {
+	return !filterResults.isEmpty();
 }
 
 void DialogsListWidget::clearFilter() {
@@ -1543,6 +1544,8 @@ bool DialogsWidget::addNewContact(int32 uid, bool show) {
 }
 
 void DialogsWidget::onListScroll() {
+//	if (!App::self()) return;
+
 	list.loadPeerPhotos(scroll.scrollTop());
 	if (list.state() == DialogsListWidget::SearchedState) {
 		if (scroll.scrollTop() > (list.searchList().size() + list.filteredList().size() + list.peopleList().size()) * st::dlgHeight - PreloadHeightsCount * scroll.height()) {
@@ -1591,8 +1594,13 @@ void DialogsWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		e->ignore();
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
-		if (!list.choosePeer() && (list.state() == DialogsListWidget::SearchedState || list.state() == DialogsListWidget::FilteredState)) {
-			onSearchMessages();
+		if (!list.choosePeer()) {
+			if (list.state() == DialogsListWidget::DefaultState || list.state() == DialogsListWidget::SearchedState || (list.state() == DialogsListWidget::FilteredState && list.hasFilteredResults())) {
+				list.selectSkip(1);
+				list.choosePeer();
+			} else {
+				onSearchMessages();
+			}
 		}
 	} else if (e->key() == Qt::Key_Down) {
 		list.setMouseSel(false);

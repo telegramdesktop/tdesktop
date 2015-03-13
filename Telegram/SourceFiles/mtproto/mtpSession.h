@@ -221,7 +221,7 @@ public:
 
 	MTProtoSession();
 
-	void start(int32 dcenter = 0, uint32 connects = 0);
+	void start(int32 dcenter = 0);
 	void restart();
 	void stop();
 
@@ -265,8 +265,7 @@ public slots:
 	void onConnectionStateChange(qint32 newState);
 	void onResetDone();
 
-	void sendAnything(quint64 msCanWait);
-	void sendHttpWait();
+	void sendAnything(quint64 msCanWait = 0);
 	void sendPong(quint64 msgId, quint64 pingId);
 	void sendMsgsStateInfo(quint64 msgId, QByteArray data);
 

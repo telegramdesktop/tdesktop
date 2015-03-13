@@ -66,15 +66,10 @@ void MTPSessionData::clear() {
 MTProtoSession::MTProtoSession() : data(this), dcId(0), dc(0), msSendCall(0), msWait(0) {
 }
 
-void MTProtoSession::start(int32 dcenter, uint32 connects) {
+void MTProtoSession::start(int32 dcenter) {
 	if (dcId) {
 		DEBUG_LOG(("Session Info: MTProtoSession::start called on already started session"));
 		return;
-	}
-	if (connects < 1) {
-		connects = cConnectionsInSession();
-	} else if (connects > 4) {
-		connects = 4;
 	}
 	
 	msSendCall = msWait = 0;
@@ -86,8 +81,8 @@ void MTProtoSession::start(int32 dcenter, uint32 connects) {
 
 	MTProtoDCMap &dcs(mtpDCMap());
 
-	connections.reserve(connects);
-	for (uint32 i = 0; i < connects; ++i) {	
+	connections.reserve(cConnectionsInSession());
+	for (uint32 i = 0; i < cConnectionsInSession(); ++i) {
 		connections.push_back(new MTProtoConnection());
 		dcId = connections.back()->start(&data, dcenter);
 		if (!dcId) {
@@ -177,10 +172,6 @@ void MTProtoSession::needToResumeAndSend() {
 		}
 	}
 	emit needToSend();
-}
-
-void MTProtoSession::sendHttpWait() {
-	send(MTPHttpWait(MTP_http_wait(MTP_int(100), MTP_int(30), MTP_int(25000))), RPCResponseHandler(), 50);
 }
 
 void MTProtoSession::sendPong(quint64 msgId, quint64 pingId) {

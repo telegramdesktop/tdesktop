@@ -1,0 +1,940 @@
+diff --git a/qtbase/mkspecs/win32-msvc2013/qmake.conf b/qtbase/mkspecs/win32-msvc2013/qmake.conf
+index 535904a..6d0e9b9 100644
+--- a/qtbase/mkspecs/win32-msvc2013/qmake.conf
++++ b/qtbase/mkspecs/win32-msvc2013/qmake.conf
+@@ -25,9 +25,9 @@ QMAKE_YACCFLAGS         = -d
+ QMAKE_CFLAGS            = -nologo -Zm200 -Zc:wchar_t -FS
+ QMAKE_CFLAGS_WARN_ON    = -W3
+ QMAKE_CFLAGS_WARN_OFF   = -W0
+-QMAKE_CFLAGS_RELEASE    = -O2 -MD -Zc:strictStrings
+-QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO += -O2 -MD -Zi -Zc:strictStrings
+-QMAKE_CFLAGS_DEBUG      = -Zi -MDd
++QMAKE_CFLAGS_RELEASE    = -O2 -MT -Zc:strictStrings
++QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO += -O2 -MT -Zi -Zc:strictStrings
++QMAKE_CFLAGS_DEBUG      = -Zi -MTd
+ QMAKE_CFLAGS_YACC       =
+ QMAKE_CFLAGS_LTCG       = -GL
+ QMAKE_CFLAGS_MP         = -MP
+diff --git a/qtbase/qmake/generators/mac/pbuilder_pbx.cpp b/qtbase/qmake/generators/mac/pbuilder_pbx.cpp
+index 0ff4250..9ed555c 100644
+--- a/qtbase/qmake/generators/mac/pbuilder_pbx.cpp
++++ b/qtbase/qmake/generators/mac/pbuilder_pbx.cpp
+@@ -1445,11 +1445,15 @@ ProjectBuilderMakefileGenerator::writeMakeParts(QTextStream &t)
+                             plist_in_text = plist_in_text.replace("@TYPEINFO@",
+                                 (project->isEmpty("QMAKE_PKGINFO_TYPEINFO")
+                                     ? QString::fromLatin1("????") : project->first("QMAKE_PKGINFO_TYPEINFO").left(4).toQString()));
+-                            QFile plist_out_file("Info.plist");
++							QString plist_dir;
++							if (!project->isEmpty("PLIST_DIR"))
++								plist_dir = project->first("PLIST_DIR").toQString();
++							QString plist_in_filename = QFileInfo(plist_in_file).fileName();
++							QFile plist_out_file(plist_dir + plist_in_filename);
+                             if (plist_out_file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                                 QTextStream plist_out(&plist_out_file);
+                                 plist_out << plist_in_text;
+-                                t << "\t\t\t\t" << writeSettings("INFOPLIST_FILE", "Info.plist") << ";\n";
++								t << "\t\t\t\t" << writeSettings("INFOPLIST_FILE", fixForOutput(plist_dir + plist_in_filename)) << ";\n";
+                             }
+                         }
+                     }
+diff --git a/qtbase/qmake/generators/makefile.cpp b/qtbase/qmake/generators/makefile.cpp
+index bf9a9d8..0216f5c 100644
+--- a/qtbase/qmake/generators/makefile.cpp
++++ b/qtbase/qmake/generators/makefile.cpp
+@@ -206,7 +206,7 @@ MakefileGenerator::initOutPaths()
+         v["PRECOMPILED_DIR"] = v["OBJECTS_DIR"];
+     static const char * const dirs[] = { "OBJECTS_DIR", "DESTDIR",
+                                          "SUBLIBS_DIR", "DLLDESTDIR",
+-                                         "PRECOMPILED_DIR", 0 };
++										 "PRECOMPILED_DIR", "PLIST_DIR", 0 };
+     for (int x = 0; dirs[x]; x++) {
+         const ProKey dkey(dirs[x]);
+         if (v[dkey].isEmpty())
+diff --git a/qtbase/src/3rdparty/pcre/pcre16_valid_utf16.c b/qtbase/src/3rdparty/pcre/pcre16_valid_utf16.c
+index 1987f27..6b36e4f 100644
+--- a/qtbase/src/3rdparty/pcre/pcre16_valid_utf16.c
++++ b/qtbase/src/3rdparty/pcre/pcre16_valid_utf16.c
+@@ -101,7 +101,7 @@ for (p = string; length-- > 0; p++)
+     {
+     /* Normal UTF-16 code point. Neither high nor low surrogate. */
+     }
+-  else if ((c & 0x0400) == 0)
++  else if ((c & 0xfc00) == 0xd800)
+     {
+     /* High surrogate. Must be a followed by a low surrogate. */
+     if (length == 0)
+diff --git a/qtbase/src/corelib/tools/qunicodetables.cpp b/qtbase/src/corelib/tools/qunicodetables.cpp
+index 072e8ad..2bf3bfd 100644
+--- a/qtbase/src/corelib/tools/qunicodetables.cpp
++++ b/qtbase/src/corelib/tools/qunicodetables.cpp
+@@ -5360,7 +5360,7 @@ static const Properties uc_properties[] = {
+     { 1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0, 7, 4, 4, 21, 11 },
+     { 0, 17, 230, 5, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 4, 4, 4, 21, 11 },
+     { 18, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 85, 0, 8, 8, 12, 11 },
+-    { 25, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 12, 17, 2 },
++    { 25, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 12, 17, 11 },
+     { 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 14, 9, 11, 11 },
+     { 3, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 14, 9, 11, 11 },
+     { 3, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 14, 9, 11, 11 },
+diff --git a/qtbase/src/gui/image/qbmphandler.cpp b/qtbase/src/gui/image/qbmphandler.cpp
+index 21c1a2f..f293ef9 100644
+--- a/qtbase/src/gui/image/qbmphandler.cpp
++++ b/qtbase/src/gui/image/qbmphandler.cpp
+@@ -212,6 +212,9 @@ static bool read_dib_body(QDataStream &s, const BMP_INFOHDR &bi, int offset, int
+     int blue_scale = 0;
+     int alpha_scale = 0;
+ 
++	if (!d->isSequential())
++		d->seek(startpos + BMP_FILEHDR_SIZE + (bi.biSize >= BMP_WIN4 ? BMP_WIN : bi.biSize)); // goto start of colormap
++
+     if (bi.biSize >= BMP_WIN4 || (comp == BMP_BITFIELDS && (nbits == 16 || nbits == 32))) {
+         if (d->read((char *)&red_mask, sizeof(red_mask)) != sizeof(red_mask))
+             return false;
+@@ -299,9 +302,6 @@ static bool read_dib_body(QDataStream &s, const BMP_INFOHDR &bi, int offset, int
+     image.setDotsPerMeterX(bi.biXPelsPerMeter);
+     image.setDotsPerMeterY(bi.biYPelsPerMeter);
+ 
+-    if (!d->isSequential())
+-        d->seek(startpos + BMP_FILEHDR_SIZE + (bi.biSize >= BMP_WIN4? BMP_WIN : bi.biSize)); // goto start of colormap
+-
+     if (ncols > 0) {                                // read color table
+         uchar rgb[4];
+         int   rgb_len = t == BMP_OLD ? 3 : 4;
+diff --git a/qtbase/src/gui/kernel/qplatformdialoghelper.h b/qtbase/src/gui/kernel/qplatformdialoghelper.h
+index e0730cd..00fccad 100644
+--- a/qtbase/src/gui/kernel/qplatformdialoghelper.h
++++ b/qtbase/src/gui/kernel/qplatformdialoghelper.h
+@@ -363,6 +363,7 @@ public:
+     virtual QUrl directory() const = 0;
+     virtual void selectFile(const QUrl &filename) = 0;
+     virtual QList<QUrl> selectedFiles() const = 0;
++	virtual QByteArray selectedRemoteContent() const { return QByteArray(); }
+     virtual void setFilter() = 0;
+     virtual void selectNameFilter(const QString &filter) = 0;
+     virtual QString selectedNameFilter() const = 0;
+diff --git a/qtbase/src/gui/painting/qpaintengine_p.h b/qtbase/src/gui/painting/qpaintengine_p.h
+index 312320c..5e82318 100644
+--- a/qtbase/src/gui/painting/qpaintengine_p.h
++++ b/qtbase/src/gui/painting/qpaintengine_p.h
+@@ -79,8 +79,18 @@ public:
+         if (hasSystemTransform) {
+             if (systemTransform.type() <= QTransform::TxTranslate)
+                 systemClip.translate(qRound(systemTransform.dx()), qRound(systemTransform.dy()));
+-            else
+-                systemClip = systemTransform.map(systemClip);
++			else {
++				// Transform the system clip region back from device pixels to device-independent pixels before
++				// applying systemTransform, which already has transform from device-independent pixels to device pixels
++#ifdef Q_OS_MAC
++				QTransform scaleTransform;
++				const qreal invDevicePixelRatio = 1. / pdev->devicePixelRatio();
++				scaleTransform.scale(invDevicePixelRatio, invDevicePixelRatio);
++				systemClip = systemTransform.map(scaleTransform.map(systemClip));
++#else
++				systemClip = systemTransform.map(systemClip);
++#endif
++			}
+         }
+ 
+         // Make sure we're inside the viewport.
+diff --git a/qtbase/src/gui/text/qtextlayout.cpp b/qtbase/src/gui/text/qtextlayout.cpp
+index 1ac50d3..3c88caa 100644
+--- a/qtbase/src/gui/text/qtextlayout.cpp
++++ b/qtbase/src/gui/text/qtextlayout.cpp
+@@ -643,7 +643,10 @@ int QTextLayout::nextCursorPosition(int oldPos, CursorMode mode) const
+         while (oldPos < len && !attributes[oldPos].graphemeBoundary)
+             oldPos++;
+     } else {
+-        if (oldPos < len && d->atWordSeparator(oldPos)) {
++		while (oldPos < len && d->atSpace(oldPos))
++			oldPos++;
++
++		if (oldPos < len && d->atWordSeparator(oldPos)) {
+             oldPos++;
+             while (oldPos < len && d->atWordSeparator(oldPos))
+                 oldPos++;
+@@ -651,8 +654,6 @@ int QTextLayout::nextCursorPosition(int oldPos, CursorMode mode) const
+             while (oldPos < len && !d->atSpace(oldPos) && !d->atWordSeparator(oldPos))
+                 oldPos++;
+         }
+-        while (oldPos < len && d->atSpace(oldPos))
+-            oldPos++;
+     }
+ 
+     return oldPos;
+diff --git a/qtbase/src/gui/text/qtextlayout.h b/qtbase/src/gui/text/qtextlayout.h
+index 1e0ab9b..47972d3 100644
+--- a/qtbase/src/gui/text/qtextlayout.h
++++ b/qtbase/src/gui/text/qtextlayout.h
+@@ -186,6 +186,8 @@ private:
+                                QRectF *brect, int tabstops, int* tabarray, int tabarraylen,
+                                QPainter *painter);
+     QTextEngine *d;
++
++	friend class TextBlock;
+ };
+ 
+ 
+diff --git a/qtbase/src/network/socket/qnativesocketengine_win.cpp b/qtbase/src/network/socket/qnativesocketengine_win.cpp
+index f5943d6..f7787c3 100644
+--- a/qtbase/src/network/socket/qnativesocketengine_win.cpp
++++ b/qtbase/src/network/socket/qnativesocketengine_win.cpp
+@@ -703,6 +703,12 @@ bool QNativeSocketEnginePrivate::nativeConnect(const QHostAddress &address, quin
+                             errorDetected = true;
+                             break;
+                         }
++						if (value == WSAENETUNREACH) {
++							setError(QAbstractSocket::NetworkError, NetworkUnreachableErrorString);
++							socketState = QAbstractSocket::UnconnectedState;
++							errorDetected = true;
++							break;
++						}
+                         if (value == WSAEADDRNOTAVAIL) {
+                             setError(QAbstractSocket::NetworkError, AddressNotAvailableErrorString);
+                             socketState = QAbstractSocket::UnconnectedState;
+diff --git a/qtbase/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp b/qtbase/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp
+index 43903ac..efa7014 100644
+--- a/qtbase/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp
++++ b/qtbase/src/platformsupport/fontdatabases/basic/qbasicfontdatabase.cpp
+@@ -213,6 +213,78 @@ void QBasicFontDatabase::releaseHandle(void *handle)
+ 
+ extern FT_Library qt_getFreetype();
+ 
++// copied from freetype with some modifications
++
++#ifndef FT_PARAM_TAG_IGNORE_PREFERRED_FAMILY
++#define FT_PARAM_TAG_IGNORE_PREFERRED_FAMILY FT_MAKE_TAG('i', 'g', 'p', 'f')
++#endif
++
++#ifndef FT_PARAM_TAG_IGNORE_PREFERRED_SUBFAMILY
++#define FT_PARAM_TAG_IGNORE_PREFERRED_SUBFAMILY FT_MAKE_TAG('i', 'g', 'p', 's')
++#endif
++
++/* there's a Mac-specific extended implementation of FT_New_Face() */
++/* in src/base/ftmac.c                                             */
++
++#if !defined( FT_MACINTOSH ) || defined( DARWIN_NO_CARBON )
++
++/* documentation is in freetype.h */
++
++FT_Error __ft_New_Face(FT_Library library, const char* pathname, FT_Long face_index, FT_Face *aface) {
++	FT_Open_Args args;
++
++	/* test for valid `library' and `aface' delayed to FT_Open_Face() */
++	if (!pathname)
++		return FT_Err_Invalid_Argument;
++
++	FT_Parameter params[2];
++	params[0].tag = FT_PARAM_TAG_IGNORE_PREFERRED_FAMILY;
++	params[0].data = 0;
++	params[1].tag = FT_PARAM_TAG_IGNORE_PREFERRED_SUBFAMILY;
++	params[1].data = 0;
++	args.flags = FT_OPEN_PATHNAME | FT_OPEN_PARAMS;
++	args.pathname = (char*)pathname;
++	args.stream = NULL;
++	args.num_params = 2;
++	args.params = params;
++
++	return FT_Open_Face(library, &args, face_index, aface);
++}
++
++#else
++
++FT_Error __ft_New_Face(FT_Library library, const char* pathname, FT_Long face_index, FT_Face *aface) {
++	return FT_New_Face(library, pathname, face_index, aface);
++}
++
++#endif  /* defined( FT_MACINTOSH ) && !defined( DARWIN_NO_CARBON ) */
++
++/* documentation is in freetype.h */
++
++FT_Error __ft_New_Memory_Face(FT_Library library, const FT_Byte* file_base, FT_Long file_size, FT_Long face_index, FT_Face *aface) {
++	FT_Open_Args  args;
++
++	/* test for valid `library' and `face' delayed to FT_Open_Face() */
++	if (!file_base)
++		return FT_Err_Invalid_Argument;
++
++	FT_Parameter params[2];
++	params[0].tag = FT_PARAM_TAG_IGNORE_PREFERRED_FAMILY;
++	params[0].data = 0;
++	params[1].tag = FT_PARAM_TAG_IGNORE_PREFERRED_SUBFAMILY;
++	params[1].data = 0;
++	args.flags = FT_OPEN_MEMORY | FT_OPEN_PARAMS;
++	args.memory_base = file_base;
++	args.memory_size = file_size;
++	args.stream = NULL;
++	args.num_params = 2;
++	args.params = params;
++
++	return FT_Open_Face(library, &args, face_index, aface);
++}
++
++// end
++
+ QStringList QBasicFontDatabase::addTTFile(const QByteArray &fontData, const QByteArray &file, QSupportedWritingSystems *supportedWritingSystems)
+ {
+     FT_Library library = qt_getFreetype();
+@@ -224,9 +296,9 @@ QStringList QBasicFontDatabase::addTTFile(const QByteArray &fontData, const QByt
+         FT_Face face;
+         FT_Error error;
+         if (!fontData.isEmpty()) {
+-            error = FT_New_Memory_Face(library, (const FT_Byte *)fontData.constData(), fontData.size(), index, &face);
++            error = __ft_New_Memory_Face(library, (const FT_Byte *)fontData.constData(), fontData.size(), index, &face);
+         } else {
+-            error = FT_New_Face(library, file.constData(), index, &face);
++            error = __ft_New_Face(library, file.constData(), index, &face);
+         }
+         if (error != FT_Err_Ok) {
+             qDebug() << "FT_New_Face failed with index" << index << ":" << hex << error;
+diff --git a/qtbase/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp b/qtbase/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp
+index 5dec1d0..f4d6fcd 100644
+--- a/qtbase/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp
++++ b/qtbase/src/platformsupport/fontdatabases/fontconfig/qfontconfigdatabase.cpp
+@@ -341,6 +341,15 @@ static void populateFromPattern(FcPattern *pattern)
+         return;
+ 
+     familyName = QString::fromUtf8((const char *)value);
++    if (familyName == QLatin1String("Open Sans")) {
++        FcChar8 *styl = 0;
++        if (FcPatternGetString(pattern, FC_STYLE, 0, &styl) == FcResultMatch) {
++            QString style = QString::fromUtf8(reinterpret_cast<const char *>(styl));
++            if (style == QLatin1String("Semibold")) {
++                familyName.append(QChar(QChar::Space)).append(style);
++            }
++        }
++    }
+ 
+     slant_value = FC_SLANT_ROMAN;
+     weight_value = FC_WEIGHT_REGULAR;
+@@ -742,6 +751,15 @@ QStringList QFontconfigDatabase::addApplicationFont(const QByteArray &fontData,
+         FcChar8 *fam = 0;
+         if (FcPatternGetString(pattern, FC_FAMILY, 0, &fam) == FcResultMatch) {
+             QString family = QString::fromUtf8(reinterpret_cast<const char *>(fam));
++            if (family == QLatin1String("Open Sans")) {
++                FcChar8 *styl = 0;
++                if (FcPatternGetString(pattern, FC_STYLE, 0, &styl) == FcResultMatch) {
++                    QString style = QString::fromUtf8(reinterpret_cast<const char *>(styl));
++                    if (style == QLatin1String("Semibold")) {
++                        family.append(QChar(QChar::Space)).append(style);
++                    }
++                }
++            }
+             families << family;
+         }
+         populateFromPattern(pattern);
+diff --git a/qtbase/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm b/qtbase/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
+index 9f2ff10..fe87ca1 100644
+--- a/qtbase/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
++++ b/qtbase/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
+@@ -257,6 +257,10 @@ static void getFontDescription(CTFontDescriptorRef font, FontDescription *fd)
+ 
+     fd->foundryName = QStringLiteral("CoreText");
+     fd->familyName = (CFStringRef) CTFontDescriptorCopyAttribute(font, kCTFontFamilyNameAttribute);
++    QCFString _displayName = (CFStringRef) CTFontDescriptorCopyAttribute(font, kCTFontDisplayNameAttribute);
++    if (_displayName == QStringLiteral("Open Sans Semibold")) {
++        fd->familyName = _displayName;
++    }
+     fd->styleName = (CFStringRef)CTFontDescriptorCopyAttribute(font, kCTFontStyleNameAttribute);
+     fd->weight = QFont::Normal;
+     fd->style = QFont::StyleNormal;
+diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm b/qtbase/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
+index 9f7609f..5df1514 100644
+--- a/qtbase/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
++++ b/qtbase/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
+@@ -216,7 +216,7 @@ static void cleanupCocoaApplicationDelegate()
+     if (reflectionDelegate) {
+         if ([reflectionDelegate respondsToSelector:@selector(applicationShouldTerminate:)])
+             return [reflectionDelegate applicationShouldTerminate:sender];
+-        return NSTerminateNow;
++        //return NSTerminateNow;
+     }
+ 
+     if ([self canQuit]) {
+diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm b/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
+index e449fd3..7f7bd24 100644
+--- a/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
++++ b/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
+@@ -102,7 +102,7 @@ QT_USE_NAMESPACE
+     QCocoaSystemTrayIcon *systray;
+     NSStatusItem *item;
+     QCocoaMenu *menu;
+-    bool menuVisible;
++    bool menuVisible, iconSelected;
+     QIcon icon;
+     QT_MANGLE_NAMESPACE(QNSImageView) *imageCell;
+ }
+@@ -202,13 +202,11 @@ void QCocoaSystemTrayIcon::updateIcon(const QIcon &icon)
+ 
+     m_sys->item->icon = icon;
+ 
+-    const bool menuVisible = m_sys->item->menu && m_sys->item->menuVisible;
+-
+     // The reccomended maximum title bar icon height is 18 points
+     // (device independent pixels). The menu height on past and
+     // current OS X versions is 22 points. Provide some future-proofing
+     // by deriving the icon height from the menu height.
+-    const int padding = 4;
++    const int padding = 0;
+     const int menuHeight = [[[NSApplication sharedApplication] mainMenu] menuBarHeight];
+     const int maxImageHeight = menuHeight - padding;
+ 
+@@ -218,7 +216,7 @@ void QCocoaSystemTrayIcon::updateIcon(const QIcon &icon)
+     // devicePixelRatio for the "best" screen on the system.
+     qreal devicePixelRatio = qApp->devicePixelRatio();
+     const int maxPixmapHeight = maxImageHeight * devicePixelRatio;
+-    const QIcon::Mode mode = menuVisible ? QIcon::Selected : QIcon::Normal;
++    const QIcon::Mode mode = m_sys->item->iconSelected ? QIcon::Selected : QIcon::Normal;
+     QSize selectedSize;
+     Q_FOREACH (const QSize& size, sortByHeight(icon.availableSizes(mode))) {
+         // Select a pixmap based on the height. We want the largest pixmap
+@@ -381,6 +379,7 @@ QT_END_NAMESPACE
+     Q_UNUSED(notification);
+     down = NO;
+ 
++    parent->iconSelected = false;
+     parent->systray->updateIcon(parent->icon);
+     parent->menuVisible = false;
+ 
+@@ -393,6 +392,7 @@ QT_END_NAMESPACE
+     int clickCount = [mouseEvent clickCount];
+     [self setNeedsDisplay:YES];
+ 
++    parent->iconSelected = (clickCount != 2) && parent->menu;
+     parent->systray->updateIcon(parent->icon);
+ 
+     if (clickCount == 2) {
+@@ -411,6 +411,10 @@ QT_END_NAMESPACE
+ -(void)mouseUp:(NSEvent *)mouseEvent
+ {
+     Q_UNUSED(mouseEvent);
++
++    parent->iconSelected = false;
++    parent->systray->updateIcon(parent->icon);
++
+     [self menuTrackingDone:nil];
+ }
+ 
+@@ -422,6 +426,10 @@ QT_END_NAMESPACE
+ -(void)rightMouseUp:(NSEvent *)mouseEvent
+ {
+     Q_UNUSED(mouseEvent);
++
++    parent->iconSelected = false;
++    parent->systray->updateIcon(parent->icon);
++
+     [self menuTrackingDone:nil];
+ }
+ 
+@@ -437,7 +445,7 @@ QT_END_NAMESPACE
+ }
+ 
+ -(void)drawRect:(NSRect)rect {
+-    [[parent item] drawStatusBarBackgroundInRect:rect withHighlight:down];
++    [[parent item] drawStatusBarBackgroundInRect:rect withHighlight:parent->menu ? down : NO];
+     [super drawRect:rect];
+ }
+ @end
+diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoawindow.mm b/qtbase/src/plugins/platforms/cocoa/qcocoawindow.mm
+index 6656212..486fda0 100644
+--- a/qtbase/src/plugins/platforms/cocoa/qcocoawindow.mm
++++ b/qtbase/src/plugins/platforms/cocoa/qcocoawindow.mm
+@@ -175,7 +175,7 @@ static void selectNextKeyWindow(NSWindow *currentKeyWindow)
+     if (!self.window.delegate)
+         return; // Already detached, pending NSAppKitDefined event
+ 
+-    if (pw && pw->frameStrutEventsEnabled() && isMouseEvent(theEvent)) {
++    if (pw && pw->frameStrutEventsEnabled() && pw->m_synchedWindowState != Qt::WindowMinimized && pw->m_isExposed && isMouseEvent(theEvent)) {
+         NSPoint loc = [theEvent locationInWindow];
+         NSRect windowFrame = [self.window convertRectFromScreen:[self.window frame]];
+         NSRect contentFrame = [[self.window contentView] frame];
+@@ -918,6 +918,14 @@ void QCocoaWindow::setWindowFilePath(const QString &filePath)
+     [m_nsWindow setRepresentedFilename: fi.exists() ? QCFString::toNSString(filePath) : @""];
+ }
+ 
++qreal _win_devicePixelRatio() {
++  qreal result = 1.0;
++  foreach (QScreen *screen, QGuiApplication::screens()) {
++    result = qMax(result, screen->devicePixelRatio());
++  }
++  return result;
++}
++
+ void QCocoaWindow::setWindowIcon(const QIcon &icon)
+ {
+     QCocoaAutoReleasePool pool;
+@@ -933,7 +941,8 @@ void QCocoaWindow::setWindowIcon(const QIcon &icon)
+     if (icon.isNull()) {
+         [iconButton setImage:nil];
+     } else {
+-        QPixmap pixmap = icon.pixmap(QSize(22, 22));
++        CGFloat hgt = 16. * _win_devicePixelRatio();
++        QPixmap pixmap = icon.pixmap(QSize(hgt, hgt));
+         NSImage *image = static_cast<NSImage *>(qt_mac_create_nsimage(pixmap));
+         [iconButton setImage:image];
+         [image release];
+diff --git a/qtbase/src/plugins/platforms/cocoa/qnsview.mm b/qtbase/src/plugins/platforms/cocoa/qnsview.mm
+index 6993407..0357bf4 100644
+--- a/qtbase/src/plugins/platforms/cocoa/qnsview.mm
++++ b/qtbase/src/plugins/platforms/cocoa/qnsview.mm
+@@ -1321,7 +1321,7 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
+ #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_8
+     if (QSysInfo::QSysInfo::MacintoshVersion >= QSysInfo::MV_10_8) {
+         // On 10.8 and above, MayBegin is likely to happen.  We treat it the same as an actual begin.
+-        if (phase == NSEventPhaseMayBegin)
++        if (phase == NSEventPhaseMayBegin || phase == NSEventPhaseBegan)
+             ph = Qt::ScrollBegin;
+     } else
+ #endif
+@@ -1451,6 +1451,9 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
+                 && qtKey == Qt::Key_Period) {
+             [self handleKeyEvent:nsevent eventType:int(QEvent::KeyPress)];
+             return YES;
++        } else if ([nsevent modifierFlags] & NSControlKeyMask && (qtKey == Qt::Key_Tab || qtKey == Qt::Key_Backtab)) {
++            [self handleKeyEvent:nsevent eventType:int(QEvent::KeyPress)];
++            return YES;
+         }
+     }
+     return [super performKeyEquivalent:nsevent];
+diff --git a/qtbase/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp b/qtbase/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp
+index f1f472b..97819dd 100644
+--- a/qtbase/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp
++++ b/qtbase/src/plugins/platforms/windows/qwindowsdialoghelpers.cpp
+@@ -710,6 +710,8 @@ public:
+     QList<QUrl> selectedFiles() const;
+     void setSelectedFiles(const QList<QUrl> &);
+     QString selectedFile() const;
++	void setSelectedRemoteContent(const QByteArray &);
++	QByteArray selectedRemoteContent() const;
+ 
+ private:
+     class Data : public QSharedData {
+@@ -717,6 +719,7 @@ private:
+         QUrl directory;
+         QString selectedNameFilter;
+         QList<QUrl> selectedFiles;
++		QByteArray selectedRemoteContent;
+         QMutex mutex;
+     };
+     QExplicitlySharedDataPointer<Data> m_data;
+@@ -770,6 +773,20 @@ inline void QWindowsFileDialogSharedData::setSelectedFiles(const QList<QUrl> &ur
+     m_data->selectedFiles = urls;
+ }
+ 
++inline QByteArray QWindowsFileDialogSharedData::selectedRemoteContent() const
++{
++	m_data->mutex.lock();
++	const QByteArray result = m_data->selectedRemoteContent;
++	m_data->mutex.unlock();
++	return result;
++}
++
++inline void QWindowsFileDialogSharedData::setSelectedRemoteContent(const QByteArray &c)
++{
++	QMutexLocker(&m_data->mutex);
++	m_data->selectedRemoteContent = c;
++}
++
+ inline void QWindowsFileDialogSharedData::fromOptions(const QSharedPointer<QFileDialogOptions> &o)
+ {
+     QMutexLocker (&m_data->mutex);
+@@ -893,6 +910,7 @@ public:
+     // Return the result for tracking in OnFileOk(). Differs from selection for
+     // example by appended default suffixes, etc.
+     virtual QList<QUrl> dialogResult() const = 0;
++	virtual QByteArray dialogRemoteContent() const { return QByteArray(); }
+ 
+     inline void onFolderChange(IShellItem *);
+     inline void onSelectionChange();
+@@ -1286,7 +1304,12 @@ void QWindowsNativeFileDialogBase::setLabelText(QFileDialogOptions::DialogLabel
+ 
+ void QWindowsNativeFileDialogBase::selectFile(const QString &fileName) const
+ {
+-    m_fileDialog->SetFileName((wchar_t*)fileName.utf16());
++	QString file = QDir::toNativeSeparators(fileName);
++	int lastBackSlash = file.lastIndexOf(QChar::fromLatin1('\\'));
++	if (lastBackSlash >= 0) {
++		file = file.mid(lastBackSlash + 1);
++	}
++	m_fileDialog->SetFileName((wchar_t*)file.utf16());;
+ }
+ 
+ // Return the index of the selected filter, accounting for QFileDialog
+@@ -1356,6 +1379,7 @@ bool QWindowsNativeFileDialogBase::onFileOk()
+ {
+     // Store selected files as GetResults() returns invalid data after the dialog closes.
+     m_data.setSelectedFiles(dialogResult());
++	m_data.setSelectedRemoteContent(dialogRemoteContent());
+     return true;
+ }
+ 
+@@ -1484,6 +1508,7 @@ public:
+         QWindowsNativeFileDialogBase(data) {}
+     virtual QList<QUrl> selectedFiles() const;
+     virtual QList<QUrl> dialogResult() const;
++	virtual QByteArray dialogRemoteContent() const;
+ 
+ private:
+     inline IFileOpenDialog *openFileDialog() const
+@@ -1499,6 +1524,54 @@ QList<QUrl> QWindowsNativeOpenFileDialog::dialogResult() const
+     return result;
+ }
+ 
++QByteArray QWindowsNativeOpenFileDialog::dialogRemoteContent() const {
++	QByteArray result;
++	IShellItemArray *items = 0;
++	if (FAILED(openFileDialog()->GetResults(&items)) || !items)
++		return result;
++	DWORD itemCount = 0;
++	if (FAILED(items->GetCount(&itemCount)) || !itemCount)
++		return result;
++	for (DWORD i = 0; i < itemCount; ++i) {
++		IShellItem *item = 0;
++		if (SUCCEEDED(items->GetItemAt(i, &item))) {
++			SFGAOF attributes = 0;
++			// Check whether it has a file system representation?
++			if (FAILED(item->GetAttributes(SFGAO_FILESYSTEM, &attributes)) || (attributes & SFGAO_FILESYSTEM)) {
++				LPWSTR name = 0;
++				if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &name))) {
++					CoTaskMemFree(name);
++					continue;
++				}
++			}
++			if (FAILED(item->GetAttributes(SFGAO_STREAM, &attributes)) || !(attributes & SFGAO_STREAM))
++				continue;
++
++			IBindCtx *bind = 0;
++			if (FAILED(CreateBindCtx(0, &bind)))
++				continue;
++
++			IStream *stream = 0;
++			if (FAILED(item->BindToHandler(bind, BHID_Stream, IID_IStream, reinterpret_cast<void **>(&stream))))
++				continue;
++
++			STATSTG stat = { 0 };
++			if (FAILED(stream->Stat(&stat, STATFLAG_NONAME)) || !stat.cbSize.QuadPart)
++				continue;
++
++			quint64 fullSize = stat.cbSize.QuadPart;
++			result.resize(fullSize);
++			ULONG read = 0;
++			HRESULT r = stream->Read(result.data(), fullSize, &read);
++			if (r == S_FALSE || r == S_OK)
++				return result;
++
++			result.clear();
++		}
++	}
++	return result;
++}
++
+ QList<QUrl> QWindowsNativeOpenFileDialog::selectedFiles() const
+ {
+     QList<QUrl> result;
+@@ -1562,6 +1635,7 @@ public:
+     virtual QUrl directory() const Q_DECL_OVERRIDE;
+     virtual void selectFile(const QUrl &filename) Q_DECL_OVERRIDE;
+     virtual QList<QUrl> selectedFiles() const Q_DECL_OVERRIDE;
++	virtual QByteArray selectedRemoteContent() const Q_DECL_OVERRIDE;
+     virtual void setFilter() Q_DECL_OVERRIDE;
+     virtual void selectNameFilter(const QString &filter) Q_DECL_OVERRIDE;
+     virtual QString selectedNameFilter() const Q_DECL_OVERRIDE;
+@@ -1655,6 +1729,11 @@ QList<QUrl> QWindowsFileDialogHelper::selectedFiles() const
+     return m_data.selectedFiles();
+ }
+ 
++QByteArray QWindowsFileDialogHelper::selectedRemoteContent() const
++{
++	return m_data.selectedRemoteContent();
++}
++
+ void QWindowsFileDialogHelper::setFilter()
+ {
+     qCDebug(lcQpaDialogs) << __FUNCTION__;
+@@ -1945,6 +2024,7 @@ public:
+     virtual QUrl directory() const Q_DECL_OVERRIDE;
+     virtual void selectFile(const QUrl &url) Q_DECL_OVERRIDE;
+     virtual QList<QUrl> selectedFiles() const Q_DECL_OVERRIDE;
++	virtual QByteArray selectedRemoteContent() const Q_DECL_OVERRIDE;
+     virtual void setFilter() Q_DECL_OVERRIDE {}
+     virtual void selectNameFilter(const QString &) Q_DECL_OVERRIDE;
+     virtual QString selectedNameFilter() const Q_DECL_OVERRIDE;
+@@ -1988,6 +2068,11 @@ QList<QUrl> QWindowsXpFileDialogHelper::selectedFiles() const
+     return m_data.selectedFiles();
+ }
+ 
++QByteArray QWindowsXpFileDialogHelper::selectedRemoteContent() const
++{
++	return m_data.selectedRemoteContent();
++}
++
+ void QWindowsXpFileDialogHelper::selectNameFilter(const QString &f)
+ {
+     m_data.setSelectedNameFilter(f); // Dialog cannot be updated at run-time.
+diff --git a/qtbase/src/plugins/platforms/windows/qwindowskeymapper.cpp b/qtbase/src/plugins/platforms/windows/qwindowskeymapper.cpp
+index ff9ad18..3fd0848 100644
+--- a/qtbase/src/plugins/platforms/windows/qwindowskeymapper.cpp
++++ b/qtbase/src/plugins/platforms/windows/qwindowskeymapper.cpp
+@@ -537,17 +537,16 @@ static inline int toKeyOrUnicode(int vk, int scancode, unsigned char *kbdBuffer,
+     Q_ASSERT(vk > 0 && vk < 256);
+     int code = 0;
+     QChar unicodeBuffer[5];
+-    // While key combinations containing alt and ctrl might trigger the third assignment of a key
+-    // (for example "alt+ctrl+q" causes '@' on a German layout), ToUnicode often does not return the
+-    // wanted character if only the ctrl modifier is used. Thus we unset this modifier temporarily
+-    // if it is not used together with alt.
+-    const unsigned char controlState = kbdBuffer[VK_MENU] ? 0 : kbdBuffer[VK_CONTROL];
+-    if (controlState)
+-        kbdBuffer[VK_CONTROL] = 0;
+-    int res = ToUnicode(vk, scancode, kbdBuffer, reinterpret_cast<LPWSTR>(unicodeBuffer), 5, 0);
+-    if (controlState)
+-        kbdBuffer[VK_CONTROL] = controlState;
+-    if (res)
++	int res = ToUnicode(vk, scancode, kbdBuffer, reinterpret_cast<LPWSTR>(unicodeBuffer), 5, 0);
++	// When Ctrl modifier is used ToUnicode does not return correct values. In order to assign the
++	// right key the control modifier is removed for just that function if the previous call failed.
++	if (res == 0 && kbdBuffer[VK_CONTROL]) {
++		const unsigned char controlState = kbdBuffer[VK_CONTROL];
++		kbdBuffer[VK_CONTROL] = 0;
++		res = ToUnicode(vk, scancode, kbdBuffer, reinterpret_cast<LPWSTR>(unicodeBuffer), 5, 0);
++		kbdBuffer[VK_CONTROL] = controlState;
++	}
++	if (res)
+         code = unicodeBuffer[0].toUpper().unicode();
+ 
+     // Qt::Key_*'s are not encoded below 0x20, so try again, and DEL keys (0x7f) is encoded with a
+@@ -833,7 +832,10 @@ bool QWindowsKeyMapper::translateMultimediaKeyEventInternal(QWindow *window, con
+ 
+     const int qtKey = CmdTbl[cmd];
+     sendExtendedPressRelease(receiver, qtKey, Qt::KeyboardModifier(state), 0, 0, 0);
+-    return true;
++	// QTBUG-43343: Make sure to return false if Qt does not handle the key, otherwise,
++	// the keys are not passed to the active media player.
++	const QKeySequence sequence(Qt::Modifier(state) + qtKey);
++	return QGuiApplicationPrivate::instance()->shortcutMap.hasShortcutForKeySequence(sequence);
+ #else
+     Q_UNREACHABLE();
+     return false;
+diff --git a/qtbase/src/plugins/platforms/windows/qwindowswindow.cpp b/qtbase/src/plugins/platforms/windows/qwindowswindow.cpp
+index 8a80729..16fda26 100644
+--- a/qtbase/src/plugins/platforms/windows/qwindowswindow.cpp
++++ b/qtbase/src/plugins/platforms/windows/qwindowswindow.cpp
+@@ -943,7 +943,7 @@ void QWindowsWindow::destroyWindow()
+         // Clear any transient child relationships as Windows will otherwise destroy them (QTBUG-35499, QTBUG-36666)
+         if (QWindow *transientChild = findTransientChild(window()))
+             if (QWindowsWindow *tw = QWindowsWindow::baseWindowOf(transientChild))
+-                tw->updateTransientParent();
++				tw->clearTransientParent();
+         QWindowsContext *context = QWindowsContext::instance();
+         if (context->windowUnderMouse() == window())
+             context->clearWindowUnderMouse();
+@@ -1144,11 +1144,24 @@ void QWindowsWindow::updateTransientParent() const
+         if (const QWindowsWindow *tw = QWindowsWindow::baseWindowOf(tp))
+             if (!tw->testFlag(WithinDestroy)) // Prevent destruction by parent window (QTBUG-35499, QTBUG-36666)
+                 newTransientParent = tw->handle();
+-    if (newTransientParent != oldTransientParent)
++	if (newTransientParent && newTransientParent != oldTransientParent)
+         SetWindowLongPtr(m_data.hwnd, GWL_HWNDPARENT, (LONG_PTR)newTransientParent);
+ #endif // !Q_OS_WINCE
+ }
+ 
++void QWindowsWindow::clearTransientParent() const
++{
++#ifndef Q_OS_WINCE
++	if (window()->type() == Qt::Popup)
++		return; // QTBUG-34503, // a popup stays on top, no parent, see also WindowCreationData::fromWindow().
++	// Update transient parent.
++	const HWND oldTransientParent = transientParentHwnd(m_data.hwnd);
++	HWND newTransientParent = 0;
++	if (newTransientParent != oldTransientParent)
++		SetWindowLongPtr(m_data.hwnd, GWL_HWNDPARENT, (LONG_PTR)newTransientParent);
++#endif // !Q_OS_WINCE
++}
++
+ static inline bool testShowWithoutActivating(const QWindow *window)
+ {
+     // QWidget-attribute Qt::WA_ShowWithoutActivating .
+diff --git a/qtbase/src/plugins/platforms/windows/qwindowswindow.h b/qtbase/src/plugins/platforms/windows/qwindowswindow.h
+index 71debf2..4fa2e5d 100644
+--- a/qtbase/src/plugins/platforms/windows/qwindowswindow.h
++++ b/qtbase/src/plugins/platforms/windows/qwindowswindow.h
+@@ -268,6 +268,7 @@ private:
+     inline void setWindowState_sys(Qt::WindowState newState);
+     inline void setParent_sys(const QPlatformWindow *parent);
+     inline void updateTransientParent() const;
++	inline void clearTransientParent() const;
+     void destroyWindow();
+     inline bool isDropSiteEnabled() const { return m_dropTarget != 0; }
+     void setDropSiteEnabled(bool enabled);
+diff --git a/qtbase/src/widgets/dialogs/qfiledialog.cpp b/qtbase/src/widgets/dialogs/qfiledialog.cpp
+index 6065ad0..03fad7a 100644
+--- a/qtbase/src/widgets/dialogs/qfiledialog.cpp
++++ b/qtbase/src/widgets/dialogs/qfiledialog.cpp
+@@ -1219,6 +1219,14 @@ QList<QUrl> QFileDialogPrivate::userSelectedFiles() const
+     return files;
+ }
+ 
++QByteArray QFileDialogPrivate::userSelectedRemoteContent() const
++{
++	if (nativeDialogInUse)
++		return selectedRemoteContent_sys();
++
++	return QByteArray();
++}
++
+ QStringList QFileDialogPrivate::addDefaultSuffixToFiles(const QStringList filesToFix) const
+ {
+     QStringList files;
+@@ -1282,6 +1290,13 @@ QStringList QFileDialog::selectedFiles() const
+     return files;
+ }
+ 
++QByteArray QFileDialog::selectedRemoteContent() const
++{
++	Q_D(const QFileDialog);
++
++	return d->userSelectedRemoteContent();
++}
++
+ /*!
+     Returns a list of urls containing the selected files in the dialog.
+     If no files are selected, or the mode is not ExistingFiles or
+diff --git a/qtbase/src/widgets/dialogs/qfiledialog.h b/qtbase/src/widgets/dialogs/qfiledialog.h
+index 70e498a..b13e8b2 100644
+--- a/qtbase/src/widgets/dialogs/qfiledialog.h
++++ b/qtbase/src/widgets/dialogs/qfiledialog.h
+@@ -103,6 +103,7 @@ public:
+ 
+     void selectFile(const QString &filename);
+     QStringList selectedFiles() const;
++	QByteArray selectedRemoteContent() const;
+ 
+     void selectUrl(const QUrl &url);
+     QList<QUrl> selectedUrls() const;
+diff --git a/qtbase/src/widgets/dialogs/qfiledialog_p.h b/qtbase/src/widgets/dialogs/qfiledialog_p.h
+index cc2f481..cf70355 100644
+--- a/qtbase/src/widgets/dialogs/qfiledialog_p.h
++++ b/qtbase/src/widgets/dialogs/qfiledialog_p.h
+@@ -123,6 +123,7 @@ public:
+     static QString initialSelection(const QUrl &path);
+     QStringList typedFiles() const;
+     QList<QUrl> userSelectedFiles() const;
++	QByteArray userSelectedRemoteContent() const;
+     QStringList addDefaultSuffixToFiles(const QStringList filesToFix) const;
+     QList<QUrl> addDefaultSuffixToUrls(const QList<QUrl> &urlsToFix) const;
+     bool removeDirectory(const QString &path);
+@@ -250,6 +251,7 @@ public:
+     QUrl directory_sys() const;
+     void selectFile_sys(const QUrl &filename);
+     QList<QUrl> selectedFiles_sys() const;
++	QByteArray selectedRemoteContent_sys() const;
+     void setFilter_sys();
+     void selectNameFilter_sys(const QString &filter);
+     QString selectedNameFilter_sys() const;
+@@ -387,6 +389,13 @@ inline QList<QUrl> QFileDialogPrivate::selectedFiles_sys() const
+     return QList<QUrl>();
+ }
+ 
++inline QByteArray QFileDialogPrivate::selectedRemoteContent_sys() const
++{
++	if (QPlatformFileDialogHelper *helper = platformFileDialogHelper())
++		return helper->selectedRemoteContent();
++	return QByteArray();
++}
++
+ inline void QFileDialogPrivate::setFilter_sys()
+ {
+     if (QPlatformFileDialogHelper *helper = platformFileDialogHelper())
+diff --git a/qtbase/src/widgets/kernel/qwidget.cpp b/qtbase/src/widgets/kernel/qwidget.cpp
+index 315d615..e99b1c3 100644
+--- a/qtbase/src/widgets/kernel/qwidget.cpp
++++ b/qtbase/src/widgets/kernel/qwidget.cpp
+@@ -8674,7 +8674,7 @@ bool QWidget::event(QEvent *event)
+     case QEvent::KeyPress: {
+         QKeyEvent *k = (QKeyEvent *)event;
+         bool res = false;
+-        if (!(k->modifiers() & (Qt::ControlModifier | Qt::AltModifier))) {  //### Add MetaModifier?
++        if (!(k->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {  //### Add MetaModifier?
+             if (k->key() == Qt::Key_Backtab
+                 || (k->key() == Qt::Key_Tab && (k->modifiers() & Qt::ShiftModifier)))
+                 res = focusNextPrevChild(false);
+diff --git a/qtbase/src/widgets/util/qsystemtrayicon.cpp b/qtbase/src/widgets/util/qsystemtrayicon.cpp
+index 7d04cab..53c2856 100644
+--- a/qtbase/src/widgets/util/qsystemtrayicon.cpp
++++ b/qtbase/src/widgets/util/qsystemtrayicon.cpp
+@@ -710,7 +710,9 @@ void QSystemTrayIconPrivate::updateMenu_sys_qpa()
+                 menu->setPlatformMenu(platformMenu);
+         }
+         qpa_sys->updateMenu(menu->platformMenu());
+-    }
++	} else {
++		qpa_sys->updateMenu(0);
++	}
+ }
+ 
+ void QSystemTrayIconPrivate::updateToolTip_sys_qpa()
+diff --git a/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp b/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp
+index e6385ba..8e1543e 100644
+--- a/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp
++++ b/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp
+@@ -1870,7 +1870,7 @@ void QWidgetLineControl::processKeyEvent(QKeyEvent* event)
+ 
+     if (unknown && !isReadOnly()) {
+         QString t = event->text();
+-        if (!t.isEmpty() && t.at(0).isPrint()) {
++        if (!t.isEmpty() && (t.at(0).isPrint() || t.at(0).unicode() == 0x200C || t.at(0).unicode() == 0x200D)) {
+             insert(t);
+ #ifndef QT_NO_COMPLETER
+             complete(event->key());
+diff --git a/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp b/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp
+index dfec6a1..a1be4a1 100644
+--- a/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp
++++ b/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp
+@@ -1340,7 +1340,7 @@ void QWidgetTextControlPrivate::keyPressEvent(QKeyEvent *e)
+ process:
+     {
+         QString text = e->text();
+-        if (!text.isEmpty() && (text.at(0).isPrint() || text.at(0) == QLatin1Char('\t'))) {
++        if (!text.isEmpty() && (text.at(0).isPrint() || text.at(0) == QLatin1Char('\t') || text.at(0).unicode() == 0x200C || text.at(0).unicode() == 0x200D)) {
+             if (overwriteMode
+                 // no need to call deleteChar() if we have a selection, insertText
+                 // does it already
+diff --git a/qtimageformats/src/3rdparty/libwebp/src/dec/vp8l.c b/qtimageformats/src/3rdparty/libwebp/src/dec/vp8l.c
+index ea0254d..93d9dc4 100644
+--- a/qtimageformats/src/3rdparty/libwebp/src/dec/vp8l.c
++++ b/qtimageformats/src/3rdparty/libwebp/src/dec/vp8l.c
+@@ -12,7 +12,6 @@
+ // Authors: Vikas Arora (vikaas.arora@gmail.com)
+ //          Jyrki Alakuijala (jyrki@google.com)
+ 
+-#include <stdio.h>
+ #include <stdlib.h>
+ #include "./alphai.h"
+ #include "./vp8li.h"
+@@ -740,6 +739,7 @@ static int DecodeAlphaData(VP8LDecoder* const dec, uint8_t* const data,
+   const int len_code_limit = NUM_LITERAL_CODES + NUM_LENGTH_CODES;
+   const int mask = hdr->huffman_mask_;
+   assert(htree_group != NULL);
++  assert(pos < end);
+   assert(last_row <= height);
+   assert(Is8bOptimizable(hdr));
+ 
+@@ -830,6 +830,7 @@ static int DecodeImageData(VP8LDecoder* const dec, uint32_t* const data,
+       (hdr->color_cache_size_ > 0) ? &hdr->color_cache_ : NULL;
+   const int mask = hdr->huffman_mask_;
+   assert(htree_group != NULL);
++  assert(src < src_end);
+   assert(src_last <= src_end);
+ 
+   while (!br->eos_ && src < src_last) {
+@@ -1294,6 +1295,10 @@ int VP8LDecodeAlphaImageStream(ALPHDecoder* const alph_dec, int last_row) {
+   assert(dec->action_ == READ_DATA);
+   assert(last_row <= dec->height_);
+ 
++  if (dec->last_pixel_ == dec->width_ * dec->height_) {
++    return 1; // Done
++  }
++
+   // Decode (with special row processing).
+   return alph_dec->use_8b_decode ?
+       DecodeAlphaData(dec, (uint8_t*)dec->pixels_, dec->width_, dec->height_,

@@ -50,6 +50,7 @@ public slots:
 	void hideFinish();
 
 	void showStart();
+	void onWndActiveChanged();
 
 private:
 
@@ -193,6 +194,7 @@ public slots:
 	void hideFinish();
 
 	void showStart();
+	void onWndActiveChanged();
 
 	void onTabChange();
 

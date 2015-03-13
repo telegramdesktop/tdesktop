@@ -341,6 +341,8 @@ public:
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 	void itemResized(HistoryItem *item);
 
+	void updateScrollColors();
+
 	~HistoryWidget();
 
 signals:
@@ -380,7 +382,6 @@ public slots:
 	void activate();
 	void onTextChange();
 
-	void onFieldTabbed();
 	void onStickerSend(DocumentData *sticker);
 
 	void onVisibleChanged();
@@ -470,8 +471,6 @@ private:
 
 	QString titlePeerText;
 	int32 titlePeerTextWidth;
-
-	QPixmap bg;
 
 	bool hiderOffered;
 

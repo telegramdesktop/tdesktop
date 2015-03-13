@@ -25,8 +25,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "boxes/photosendbox.h"
 #include "mainwidget.h"
 #include "window.h"
+#include "passcodewidget.h"
+#include "window.h"
 #include "fileuploader.h"
-#include "supporttl.h"
 
 #include "localstorage.h"
 
@@ -94,7 +95,7 @@ void HistoryList::paintEvent(QPaintEvent *e) {
 
 	if (hist->isEmpty()) {
 		QPoint dogPos((width() - st::msgDogImg.pxWidth()) / 2, ((height() - st::msgDogImg.pxHeight()) * 4) / 9);
-		p.drawPixmap(dogPos, App::sprite(), st::msgDogImg);
+		p.drawPixmap(dogPos, *cChatDogImage());
 	} else {
 		adjustCurrent(r.top());
 		HistoryBlock *block = (*hist)[currentBlock];
@@ -555,7 +556,7 @@ void HistoryList::dragActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 			uint32 sel = _selected.cbegin().value();
 			if (sel != FullItemSel && (sel & 0xFFFF) == ((sel >> 16) & 0xFFFF)) {
 				_selected.clear();
-				App::main()->activate();
+				App::wnd()->setInnerFocus();
 			}
 		}
 	}
@@ -657,8 +658,8 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if ((lnkVideo && !lnkVideo->video()->already(true).isEmpty()) || (lnkAudio && !lnkAudio->audio()->already(true).isEmpty()) || (lnkDocument && !lnkDocument->document()->already(true).isEmpty())) {
 					_menu->addAction(lang(cPlatform() == dbipMac ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 				}
-				_menu->addAction(lang(lnkVideo ? lng_context_open_video : (lnkAudio ? lng_context_open_audio : lng_context_open_document)), this, SLOT(openContextFile()))->setEnabled(true);
-				_menu->addAction(lang(lnkVideo ? lng_context_save_video : (lnkAudio ? lng_context_save_audio : lng_context_save_document)), this, SLOT(saveContextFile()))->setEnabled(true);
+				_menu->addAction(lang(lnkVideo ? lng_context_open_video : (lnkAudio ? lng_context_open_audio : lng_context_open_file)), this, SLOT(openContextFile()))->setEnabled(true);
+				_menu->addAction(lang(lnkVideo ? lng_context_save_video : (lnkAudio ? lng_context_save_audio : lng_context_save_file)), this, SLOT(saveContextFile()))->setEnabled(true);
 			}
 		}
 		if (isUponSelected > 1) {
@@ -884,6 +885,8 @@ void HistoryList::keyPressEvent(QKeyEvent *e) {
 		copySelectedText();
 	} else if (e == QKeySequence::Delete) {
 		historyWidget->onDeleteSelected();
+	} else {
+		e->ignore();
 	}
 }
 
@@ -1567,7 +1570,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
 , confirmImageId(0)
 , confirmWithText(false)
 , titlePeerTextWidth(0)
-, bg(st::msgBG)
 , hiderOffered(false)
 , _scrollDelta(0)
 , _typingRequest(0)
@@ -1584,7 +1586,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
 	connect(&_attachPhoto, SIGNAL(clicked()), this, SLOT(onPhotoSelect()));
 	connect(&_field, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
 	connect(&_field, SIGNAL(cancelled()), this, SLOT(onCancel()));
-	connect(&_field, SIGNAL(tabbed()), this, SLOT(onFieldTabbed()));
 	connect(&_field, SIGNAL(resized()), this, SLOT(onFieldResize()));
 	connect(&_field, SIGNAL(focused()), this, SLOT(onFieldFocused()));
 	connect(&imageLoader, SIGNAL(imageReady()), this, SLOT(onPhotoReady()));
@@ -1612,6 +1613,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
 
 	_scroll.hide();
 	_scroll.move(0, 0);
+
+	updateScrollColors();
 
 	_toHistoryEnd.hide();
 
@@ -1724,12 +1727,16 @@ void HistoryWidget::typingDone(const MTPBool &result, mtpRequestId req) {
 }
 
 void HistoryWidget::activate() {
+	if (hist && !_histInited) {
+		checkUnreadLoaded();
+	}
 	if (App::main()->selectingPeer()) {
 		if (hiderOffered) {
 			App::main()->focusPeerSelect();
 			return;
 		} else {
 			App::main()->dialogsActivate();
+			return;
 		}
 	}
 	if (_list) {
@@ -1922,7 +1929,7 @@ void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool l
 
 			clearLoadingAround();
 			emit peerShown(histPeer);
-			return activate();
+			return App::wnd()->setInnerFocus();
 		}
 		updateTyping(false);
 	}
@@ -2629,7 +2636,7 @@ bool HistoryWidget::animStep(float64 ms) {
 			}
 			onListScroll();
 		}
-		activate();
+		App::wnd()->setInnerFocus();
 	} else {
 		a_bgCoord.update(dt1, st::introHideFunc);
 		a_bgAlpha.update(dt1, st::introAlphaHideFunc);
@@ -2656,7 +2663,7 @@ void HistoryWidget::onPhotoSelect() {
 
 	if (cDefaultAttach() != dbidaPhoto) {
 		cSetDefaultAttach(dbidaPhoto);
-		App::writeUserConfig();
+		Local::writeUserSettings();
 	}
 
 	QStringList photoExtensions(cPhotoExtensions());
@@ -2684,7 +2691,7 @@ void HistoryWidget::onDocumentSelect() {
 
 	if (cDefaultAttach() != dbidaDocument) {
 		cSetDefaultAttach(dbidaDocument);
-		App::writeUserConfig();
+		Local::writeUserSettings();
 	}
 
 	QStringList photoExtensions(cPhotoExtensions());
@@ -2789,7 +2796,7 @@ void HistoryWidget::updateDragAreas() {
 	break;
 	case DragStateFiles:
 		_attachDragDocument.otherEnter();
-		_attachDragDocument.setText(lang(lng_drag_files_here), lang(lng_drag_to_send_documents));
+		_attachDragDocument.setText(lang(lng_drag_files_here), lang(lng_drag_to_send_files));
 		_attachDragPhoto.fastHide();
 	break;
 	case DragStatePhotoFiles:
@@ -3267,10 +3274,18 @@ void HistoryWidget::itemResized(HistoryItem *row) {
 	updateListSize(0, false, false, row);
 }
 
+void HistoryWidget::updateScrollColors() {
+	if (!App::historyScrollBarColor()) return;
+	_scroll.updateColors(App::historyScrollBarColor(), App::historyScrollBgColor(), App::historyScrollBarOverColor(), App::historyScrollBgOverColor());
+}
+
 void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, HistoryItem *resizedItem) {
 	if (!hist || (!_histInited && !initial)) return;
 
-	if (!App::wnd()->isVisible()) return; // scrollTopMax etc are not working after recountHeight()
+	if (!isVisible()) {
+		if (initial) _histInited = false;
+		return; // scrollTopMax etc are not working after recountHeight()
+	}
 
 	int32 newScrollHeight = height() - (hist->readyForWork() && (!histPeer->chat || !histPeer->asChat()->forbidden) ? (_field.height() + 2 * st::sendPadding) : 0);
 	bool wasAtBottom = _scroll.scrollTop() + 1 > _scroll.scrollTopMax(), needResize = _scroll.width() != width() || _scroll.height() != newScrollHeight;
@@ -3372,7 +3387,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 			App::main()->peerAfter(histPeer, hist ? hist->activeMsgId : 0, after, afterMsgId);
 			if (after) App::main()->showPeer(after->id, afterMsgId);
 		} else {
-			_scroll.scrollToY(_scroll.scrollTop() + _scroll.height());
+			_scroll.keyPressEvent(e);
 		}
 	} else if (e->key() == Qt::Key_PageUp) {
 		if ((e->modifiers() & Qt::ControlModifier) || (e->modifiers() & Qt::MetaModifier)) {
@@ -3381,12 +3396,26 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 			App::main()->peerBefore(histPeer, hist ? hist->activeMsgId : 0, before, beforeMsgId);
 			if (before) App::main()->showPeer(before->id, beforeMsgId);
 		} else {
-			_scroll.scrollToY(_scroll.scrollTop() - _scroll.height());
+			_scroll.keyPressEvent(e);
 		}
 	} else if (e->key() == Qt::Key_Down) {
-		_scroll.scrollToY(_scroll.scrollTop() + _scroll.height() / 10);
+		if (e->modifiers() & Qt::AltModifier) {
+			PeerData *after = 0;
+			MsgId afterMsgId = 0;
+			App::main()->peerAfter(histPeer, hist ? hist->activeMsgId : 0, after, afterMsgId);
+			if (after) App::main()->showPeer(after->id, afterMsgId);
+		} else if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
+			_scroll.keyPressEvent(e);
+		}
 	} else if (e->key() == Qt::Key_Up) {
-		_scroll.scrollToY(_scroll.scrollTop() - _scroll.height() / 10);
+		if (e->modifiers() & Qt::AltModifier) {
+			PeerData *before = 0;
+			MsgId beforeMsgId = 0;
+			App::main()->peerBefore(histPeer, hist ? hist->activeMsgId : 0, before, beforeMsgId);
+			if (before) App::main()->showPeer(before->id, beforeMsgId);
+		} else if (!(e->modifiers() & (Qt::ShiftModifier | Qt::MetaModifier | Qt::ControlModifier))) {
+			_scroll.keyPressEvent(e);
+		}
 	} else if ((e->key() == Qt::Key_Tab || e->key() == Qt::Key_Backtab) && ((e->modifiers() & Qt::ControlModifier) || (e->modifiers() & Qt::MetaModifier))) {
 		PeerData *p = 0;
 		MsgId m = 0;
@@ -3398,49 +3427,6 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		if (p) App::main()->showPeer(p->id, m);
 	} else {
 		e->ignore();
-	}
-}
-
-void HistoryWidget::onFieldTabbed() {
-	QString v = _field.getText(), t = supportTemplate(v);
-	if (!t.isEmpty()) {
-		bool isImg = t.startsWith(qsl("img:")), isFile = t.startsWith(qsl("file:")), isContact = t.startsWith(qsl("contact:"));
-		if (isImg || isFile) {
-			QString fname = t.mid(isImg ? 4 : 5).trimmed(), text;
-			int32 lineEnd = fname.indexOf(QChar('\n'));
-			if (lineEnd > 0) {
-				text = fname.mid(lineEnd + 1).trimmed();
-				fname = fname.mid(0, lineEnd).trimmed();
-			}
-			if (isImg) {
-				QImage img(cWorkingDir() + fname);
-				if (!img.isNull()) {
-					setFieldText(text);
-					uploadImage(img, !text.isEmpty());
-				}
-			} else {
-				setFieldText(text);
-				uploadFile(cWorkingDir() + fname, !text.isEmpty());
-			}
-		} else if (isContact) {
-			QString contact = t.mid(8).trimmed(), text;
-			int32 lineEnd = contact.indexOf(QChar('\n'));
-			if (lineEnd > 0) {
-				text = contact.mid(lineEnd + 1).trimmed();
-				contact = contact.mid(0, lineEnd).trimmed();
-			}
-			QStringList data = contact.split(QChar(' '));
-			if (data.size() > 1) {
-				setFieldText(text);
-				QString phone = data.at(0).trimmed(), fname = data.at(1).trimmed(), lname = (data.size() > 2) ? static_cast<QStringList>(data.mid(2)).join(QChar(' ')).trimmed() : QString();
-				shareContactConfirmation(phone, fname, lname, !text.isEmpty());
-			}
-		} else {
-			setFieldText(t);
-			QTextCursor c = _field.textCursor();
-			c.movePosition(QTextCursor::End);
-			_field.setTextCursor(c);
-		}
 	}
 }
 
@@ -3615,17 +3601,37 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		p.drawPixmap(a_coord.current(), 0, _animCache);
 		return;
 	}
-	if (cCatsAndDogs()) {
-		int32 i_from = r.left() / bg.width(), i_to = (r.left() + r.width() - 1) / bg.width() + 1;
-		int32 j_from = r.top() / bg.height(), j_to = (r.top() + r.height() - 1) / bg.height() + 1;
-		for (int32 i = i_from; i < i_to; ++i) {
-			for (int32 j = j_from; j < j_to; ++j) {
-				p.drawPixmap(i * bg.width(), j * bg.height(), bg);
+
+	bool hasTopBar = !App::main()->topBar()->isHidden();
+	QRect fill(0, 0, width(), App::main()->height());
+	int fromy = hasTopBar ? (-st::topBarHeight) : 0, x = 0, y = 0;
+	QPixmap cached = App::main()->cachedBackground(fill, x, y);
+	if (cached.isNull()) {
+		const QPixmap &pix(*cChatBackground());
+		if (cTileBackground()) {
+			int left = r.left(), top = r.top(), right = r.left() + r.width(), bottom = r.top() + r.height();
+			float64 w = pix.width() / cRetinaFactor(), h = pix.height() / cRetinaFactor();
+			int sx = qFloor(left / w), sy = qFloor((top - fromy) / h), cx = qCeil(right / w), cy = qCeil((bottom - fromy) / h);
+			for (int i = sx; i < cx; ++i) {
+				for (int j = sy; j < cy; ++j) {
+					p.drawPixmap(QPointF(i * w, fromy + j * h), pix);
+				}
 			}
+		} else {
+			bool smooth = p.renderHints().testFlag(QPainter::SmoothPixmapTransform);
+			p.setRenderHint(QPainter::SmoothPixmapTransform);
+
+			QRect to, from;
+			App::main()->backgroundParams(fill, to, from);
+			to.moveTop(to.top() + fromy);
+			p.drawPixmap(to, pix, from);
+
+			if (!smooth) p.setRenderHint(QPainter::SmoothPixmapTransform, false);
 		}
 	} else {
-		p.fillRect(r, st::historyBG->b);
+		p.drawPixmap(x, fromy + y, cached);
 	}
+
 	if (_list) {
 		if (!_scroll.isHidden()) {
 			if (!_field.isHidden()) {
@@ -3633,15 +3639,14 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 			}
 		} else {
 			QPoint dogPos((width() - st::msgDogImg.pxWidth()) / 2, ((height() - _field.height() - 2 * st::sendPadding - st::msgDogImg.pxHeight()) * 4) / 9);
-			p.drawPixmap(dogPos, App::sprite(), st::msgDogImg);
+			p.drawPixmap(dogPos, *cChatDogImage());
 
 			int32 pointsCount = 8, w = pointsCount * (st::introPointWidth + 2 * st::introPointDelta), h = st::introPointHeight;
 			int32 pointsLeft = (width() - w) / 2 + st::introPointDelta - st::introPointLeft, pointsTop = dogPos.y() + (st::msgDogImg.pxHeight() * 6) / 5;
 
 			int32 curPoint = histRequestsCount % pointsCount;
 
-			p.setOpacity(st::introPointHoverAlpha);
-			p.fillRect(pointsLeft + curPoint * (st::introPointWidth + 2 * st::introPointDelta), pointsTop, st::introPointHoverWidth, st::introPointHoverHeight, st::introPointHoverColor->b);
+			p.fillRect(pointsLeft + curPoint * (st::introPointWidth + 2 * st::introPointDelta), pointsTop, st::introPointHoverWidth, st::introPointHoverHeight, App::introPointHoverColor()->b);
 
 			// points
 			p.setOpacity(st::introPointAlpha);
@@ -3656,7 +3661,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		int32 w = font->m.width(lang(lng_willbe_history)) + st::msgPadding.left() + st::msgPadding.right(), h = font->height + st::msgServicePadding.top() + st::msgServicePadding.bottom() + 2;
 		QRect tr((width() - w) / 2, (height() - _field.height() - 2 * st::sendPadding - h) / 2, w, h);
 		p.setPen(Qt::NoPen);
-		p.setBrush(st::msgServiceBG->b);
+		p.setBrush(App::msgServiceBG()->b);
 		p.drawRoundedRect(tr, st::msgServiceRadius, st::msgServiceRadius);
 
 		p.setPen(st::msgServiceColor->p);

@@ -36,8 +36,8 @@ _text(st.width ? st.width : QFIXED_MAX), _st(st), _tst(tst), _opacity(1) {
 void FlatLabel::setText(const QString &text) {
 	textstyleSet(&_tst);
 	_text.setText(_st.font, text, _labelOptions);
-	textstyleRestore();
 	int32 w = _st.width ? _st.width : _text.maxWidth(), h = _text.countHeight(w);
+	textstyleRestore();
 	resize(w, h);
 }
 
@@ -45,8 +45,8 @@ void FlatLabel::setRichText(const QString &text) {
 	textstyleSet(&_tst);
     const char *t = text.toUtf8().constData();
 	_text.setRichText(_st.font, text, _labelOptions);
-	textstyleRestore();
 	int32 w = _st.width ? _st.width : _text.maxWidth(), h = _text.countHeight(w);
+	textstyleRestore();
 	resize(w, h);
 	setMouseTracking(_text.hasLinks());
 }

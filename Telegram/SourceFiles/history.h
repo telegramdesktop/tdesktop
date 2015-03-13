@@ -306,7 +306,7 @@ public:
 };
 
 struct AudioData {
-	AudioData(const AudioId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 dc = 0, int32 size = 0);
+	AudioData(const AudioId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, const QString &mime = QString(), int32 duration = 0, int32 dc = 0, int32 size = 0);
 
 	void forget() {
 	}
@@ -343,6 +343,7 @@ struct AudioData {
 	uint64 access;
 	int32 user;
 	int32 date;
+	QString mime;
 	int32 duration;
 	int32 dc;
 	int32 size;
@@ -574,8 +575,8 @@ inline MediaOverviewType mediaToOverviewType(HistoryMediaType t) {
 	switch (t) {
 	case MediaTypePhoto: return OverviewPhotos;
 	case MediaTypeVideo: return OverviewVideos;
-	case MediaTypeDocument:
-	case MediaTypeSticker: return OverviewDocuments;
+	case MediaTypeDocument: return OverviewDocuments;
+//	case MediaTypeSticker: return OverviewDocuments;
 	case MediaTypeAudio: return OverviewAudios;
 	}
 	return OverviewCount;

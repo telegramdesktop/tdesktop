@@ -52,7 +52,7 @@ wndMinHeight: 480px;
 wndDefWidth: 800px;
 wndDefHeight: 600px;
 wndBG: #FFF;
-wndShadow: sprite(184px, 21px, 19px, 19px);
+wndShadow: sprite(209px, 46px, 19px, 19px);
 wndShadowShift: 1px;
 
 layerAlpha: 0.3;
@@ -115,6 +115,12 @@ sysRes: sysButton(sysUpd) {
 }
 sysCls: sysButton(sysUpd) {
 	img: sprite(276px, 1px, 19px, 19px);
+}
+sysLock: sysButton(sysUpd) {
+	img: sprite(184px, 22px, 19px, 19px);
+}
+sysUnlock: sysButton(sysUpd) {
+	img: sprite(207px, 22px, 19px, 19px);
 }
 titleBackButton: iconedButton(btnDefIconed) {
 	icon: sprite(133px, 197px, 13px, 20px);
@@ -350,8 +356,7 @@ introPointTop: 3px;
 introPointDelta: 10px;
 introPointColor: rgb(0, 0, 0);
 introPointAlpha: 0.5;
-introPointHoverColor: rgb(47, 158, 218);
-introPointHoverAlpha: 0.5;
+introPointHoverColor: #86b4e3;
 introPointStepT: transition(sineInOut);
 introPointAlphaT: transition(linear);
 introPointShowStepT: transition(easeOutCirc);
@@ -384,7 +389,7 @@ btnIntroNext: flatButton(btnDefNext, btnDefBig) {
 	width: 300px;
 }
 
-boxShadow: sprite(240px, 21px, 9px, 9px);
+boxShadow: sprite(230px, 46px, 9px, 9px);
 
 introCountry: countryInput {
 	width: 300px;
@@ -498,19 +503,20 @@ introErrLabel: flatLabel(labelDefFlat) {
 setWidth: 356px;
 setTop: 26px;
 setNameLeft: 3px;
-setNameTop: 1px;
-setNameFont: font(22px);
-setStatusTop: 39px;
-setStatusLeft: 1px;
-setStatusFont: font(16px);
+setNameTop: 5px;
+setNameFont: font(18px);
+setStatusTop: 35px;
+setStatusLeft: 3px;
+setStatusFont: font(14px);
 setPhotoSize: 120px;
-setHeaderFont: font(20px);
+setHeaderFont: font(17px);
 setHeaderColor: black;
-setHeaderSkip: 59px;
+setHeaderSkip: 60px;
 setHeaderLeft: -1px;
-setHeaderTop: 22px;
+setHeaderTop: 26px;
 setLittleSkip: 9px;
 setSectionSkip: 25px;
+setContactInfoLeft: 150px;
 setVersionHeight: 41px;
 setVersionLeft: 36px;
 setVersionTop: 3px;
@@ -553,6 +559,8 @@ setErrColor: #800000;
 setErrHeight: 30px;
 setErrFont: font(fsize);
 setGoodColor: #008000;
+
+setBackgroundSize: 120px;
 
 btnSetUpload: flatButton(btnDefNext, btnDefBig) {
 	width: 206px;
@@ -635,7 +643,7 @@ dlgFilter: flatInput(inpDefGray) {
 	phColor: #949494;
 	phFocusColor: #a4a4a4;
 	textMrg: margins(34px, 2px, 34px, 4px);
-	imgRect: sprite(208px, 28px, 24px, 24px);
+	imgRect: sprite(227px, 21px, 24px, 24px);
 	imgPos: point(6px, 5px);
 	width: 240px;
 
@@ -735,8 +743,6 @@ topBarActionButton: flatButton(btnDefNext, btnDefBig) {
 	height: 34px;
 }
 topBarActionSkip: 13px;
-
-historyBG: #dfe4e8;
 
 historyToEnd: iconedButton(btnDefIconed) {
 	bgColor: transparent;
@@ -1038,6 +1044,7 @@ notifyBorder: #f1f1f1;
 notifyBorderWidth: 1px;
 notifySlowHide: 4000;
 notifyPhotoSize: 62px;
+notifyMacPhotoSize: 64px;
 notifyPhotoPos: point(9px, 9px);
 notifyClosePos: point(1px, 2px);
 notifyClose: iconedButton(btnDefIconed) {
@@ -1188,7 +1195,7 @@ participantFilter: flatInput(inpDefFlat) {
 	height: 52px;
 	font: font(16px);
 	textMrg: margins(39px, 11px, 10px, 10px);
-	imgRect: sprite(208px, 28px, 24px, 24px);
+	imgRect: sprite(227px, 21px, 24px, 24px);
 	imgPos: point(10px, 15px);
 }
 participantDelta: 12px;
@@ -1307,7 +1314,7 @@ connectingColor: #777;
 connectingPadding: margins(5px, 5px, 5px, 5px);
 
 dropdownPadding: margins(10px, 10px, 10px, 10px);
-dropdownShadow: sprite(240px, 35px, 6px, 6px);
+dropdownShadow: sprite(241px, 46px, 6px, 6px);
 dropdownBorder: 1px;
 dropdownBorderColor: #ebebeb;
 dropdownBackground: white;
@@ -1686,4 +1693,24 @@ langButton: flatCheckbox(rbDefFlat) {
 }
 langsCloseButton: flatButton(aboutCloseButton) {
 	width: langsWidth;
+}
+
+backgroundPadding: 10px;
+backgroundSize: size(108px, 193px);
+backgroundScroll: flatScroll(newGroupScroll) {
+	topsh: -2px;
+}
+
+passcodeHeaderFont: font(19px);
+passcodeHeaderHeight: 80px;
+passcodeSkip: 40px;
+passcodeInput: flatInput(inpIntroPhone) {
+}
+passcodeSubmit: flatButton(btnIntroNext) {
+	textTop: 15px;
+	overTextTop: 15px;
+	downTextTop: 16px;
+	width: 225px;
+	font: font(19px);
+	overFont: font(19px);
 }

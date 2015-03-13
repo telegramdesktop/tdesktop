@@ -31,15 +31,6 @@ inline void cSetDebug(bool debug) {
 	gDebug = debug;
 }
 
-extern bool gTestMode;
-inline bool cTestMode() {
-#ifdef _DEBUG
-	return gTestMode;
-#else
-	return false;
-#endif
-}
-
 #define DeclareReadSetting(Type, Name) extern Type g##Name; \
 inline const Type &c##Name() { \
 	return g##Name; \
@@ -50,10 +41,24 @@ inline void cSet##Name(const Type &Name) { \
 	g##Name = Name; \
 }
 
+struct mtpDcOption {
+	mtpDcOption(int _id, const string &_host, const string &_ip, int _port) : id(_id), host(_host), ip(_ip), port(_port) {
+	}
+
+	int id;
+	string host;
+	string ip;
+	int port;
+};
+typedef QMap<int, mtpDcOption> mtpDcOptions;
+DeclareSetting(mtpDcOptions, DcOptions);
+
+DeclareSetting(bool, TestMode);
 DeclareSetting(QString, LoggedPhoneNumber);
 DeclareReadSetting(uint32, ConnectionsInSession);
 DeclareSetting(bool, AutoStart);
 DeclareSetting(bool, StartMinimized);
+DeclareSetting(bool, StartInTray);
 DeclareSetting(bool, SendToMenu);
 DeclareReadSetting(bool, FromAutoStart);
 DeclareSetting(QString, WorkingDir);
@@ -70,7 +75,13 @@ inline const QString &cDialogHelperPathFinal() {
 	return cDialogHelperPath().isEmpty() ? cExeDir() : cDialogHelperPath();
 }
 DeclareSetting(bool, CtrlEnter);
-DeclareSetting(bool, CatsAndDogs);
+
+typedef QPixmap *QPixmapPointer;
+DeclareSetting(QPixmapPointer, ChatBackground);
+DeclareSetting(int32, ChatBackgroundId);
+DeclareSetting(QPixmapPointer, ChatDogImage);
+DeclareSetting(bool, TileBackground);
+
 DeclareSetting(bool, SoundNotify);
 DeclareSetting(bool, NeedConfigResave);
 DeclareSetting(bool, DesktopNotify);
@@ -107,6 +118,14 @@ DeclareSetting(DBIScale, RealScale);
 DeclareSetting(DBIScale, ScreenScale);
 DeclareSetting(DBIScale, ConfigScale);
 DeclareSetting(bool, CompressPastedImage);
+DeclareSetting(QString, TimeFormat);
+
+DeclareSetting(int32, AutoLock);
+DeclareSetting(bool, HasPasscode);
+
+inline void cChangeTimeFormat(const QString &newFormat) {
+	if (!newFormat.isEmpty()) cSetTimeFormat(newFormat);
+}
 
 inline DBIScale cEvalScale(DBIScale scale) {
 	return (scale == dbisAuto) ? cScreenScale() : scale;
@@ -179,5 +198,15 @@ DeclareReadSetting(QUrl, UpdateURL);
 DeclareSetting(bool, ContactsReceived);
 
 DeclareSetting(bool, WideMode);
+
+DeclareSetting(int, OnlineUpdatePeriod);
+DeclareSetting(int, OfflineBlurTimeout);
+DeclareSetting(int, OfflineIdleTimeout);
+DeclareSetting(int, OnlineFocusTimeout);
+DeclareSetting(int, OnlineCloudTimeout);
+DeclareSetting(int, NotifyCloudDelay);
+DeclareSetting(int, NotifyDefaultDelay);
+
+DeclareSetting(int, OtherOnline);
 
 void settingsParseArgs(int argc, char *argv[]);

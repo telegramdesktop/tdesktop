@@ -76,6 +76,7 @@ public:
 	void killDownloadSessionsStop(int32 dc);
 
 	void checkLocalTime();
+	void checkMapVersion();
 
 signals:
 
@@ -107,7 +108,7 @@ public slots:
 	void photoUpdated(MsgId msgId, const MTPInputFile &file);
 
 	void onEnableDebugMode();
-	void onWriteUserConfig();
+//	void onWriteUserConfig();
 
 	void killDownloadSessions();
 	void onAppStateChanged(Qt::ApplicationState state);
@@ -130,6 +131,8 @@ private:
 	QLocalServer server;
 	ClientSockets clients;
 	bool closing;
+
+	uint64 lastActionTime;
 
 	void execExternal(const QString &cmd);
 

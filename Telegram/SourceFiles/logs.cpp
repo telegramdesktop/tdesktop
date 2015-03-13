@@ -212,6 +212,10 @@ void logsInit() {
 	}
 	cForceWorkingDir(QDir(cWorkingDir()).absolutePath() + '/');
 
+	if (QFile(cWorkingDir() + qsl("tdata/withtestmode")).exists()) {
+		cSetTestMode(true);
+		LOG(("Switched to test mode!"));
+	}
 #ifdef Q_OS_WIN
 	if (cWorkingDir() == psAppDataPath()) { // fix old "Telegram Win (Unofficial)" version
 		moveOldDataFiles(psAppDataPathOld());

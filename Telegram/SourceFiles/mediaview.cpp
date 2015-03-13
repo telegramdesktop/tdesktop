@@ -69,8 +69,10 @@ _saveMsgStarted(0), _saveMsgOpacity(0)
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
 	setMouseTracking(true);
-	hide();
 
+	hide();
+	createWinId();
+	
 	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
 	connect(&_save, SIGNAL(clicked()), this, SLOT(onDownload()));
 	connect(&_forward, SIGNAL(clicked()), this, SLOT(onForward()));
@@ -89,7 +91,7 @@ _saveMsgStarted(0), _saveMsgOpacity(0)
 
 void MediaView::moveToScreen() {
 	QPoint wndCenter(App::wnd()->x() + App::wnd()->width() / 2, App::wnd()->y() + App::wnd()->height() / 2);
-	_avail = QDesktopWidget().screenGeometry(wndCenter);
+	_avail = App::app() ? App::app()->desktop()->screenGeometry(wndCenter) : QDesktopWidget().screenGeometry(wndCenter);
 	if (_avail != geometry()) {
 		setGeometry(_avail);
 	}
@@ -173,11 +175,11 @@ void MediaView::updateControls() {
 	}
 	QDateTime d(date(_photo ? _photo->date : _doc->date)), dNow(date(unixtime()));
 	if (d.date() == dNow.date()) {
-		_dateText = lng_mediaview_today(lt_time, d.time().toString(qsl("hh:mm")));
+		_dateText = lng_mediaview_today(lt_time, d.time().toString(cTimeFormat()));
 	} else if (d.date().addDays(1) == dNow.date()) {
-		_dateText = lng_mediaview_yesterday(lt_time, d.time().toString(qsl("hh:mm")));
+		_dateText = lng_mediaview_yesterday(lt_time, d.time().toString(cTimeFormat()));
 	} else {
-		_dateText = lng_mediaview_date_time(lt_date, d.date().toString(qsl("dd.MM.yy")), lt_time, d.time().toString(qsl("hh:mm")));
+		_dateText = lng_mediaview_date_time(lt_date, d.date().toString(qsl("dd.MM.yy")), lt_time, d.time().toString(cTimeFormat()));
 	}
 	if (_from) _fromName.setText(st::medviewNameFont, _from->name);
 	updateHeader();
@@ -528,7 +530,7 @@ void MediaView::showPhoto(PhotoData *photo) {
 void MediaView::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 	QRect r(e->rect());
-	
+
 	QPainter::CompositionMode m = p.compositionMode();
 	p.setCompositionMode(QPainter::CompositionMode_Source);
 
@@ -1125,7 +1127,7 @@ void MediaView::contextMenuEvent(QContextMenuEvent *e) {
 		if (!_doc->already(true).isEmpty()) {
 			_menu->addAction(lang(cPlatform() == dbipMac ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(onShowInFolder()))->setEnabled(true);
 		}
-		_menu->addAction(lang(lng_context_save_document), this, SLOT(onSave()))->setEnabled(true);
+		_menu->addAction(lang(lng_context_save_file), this, SLOT(onSave()))->setEnabled(true);
 		_menu->addAction(lang(lng_context_close_file), this, SLOT(onClose()))->setEnabled(true);
 		if (_msgid) {
 			_menu->addAction(lang(lng_context_forward_file), this, SLOT(onForward()))->setEnabled(true);

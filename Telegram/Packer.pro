@@ -35,8 +35,8 @@ unix {
     }
 }
 
-INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.1/QtGui\
-               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.1/QtCore\
+INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.4.0/QtGui\
+               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.4.0/QtCore\
                ./../../Libraries/QtStatic/qtbase/include
 
 LIBS += -lcrypto -lssl -lz -llzma

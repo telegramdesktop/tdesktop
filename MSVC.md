@@ -117,13 +117,18 @@ to have **D:\TBuild\Libraries\opus\win32**
 * Build Debug configuration
 * Build Release configuration
 
-####Qt 5.3.1, slightly patched
+####Qt 5.4.0, slightly patched
 
-http://download.qt-project.org/official_releases/qt/5.3/5.3.1/single/qt-everywhere-opensource-src-5.3.1.zip
+http://download.qt-project.org/official_releases/qt/5.4/5.4.0/single/qt-everywhere-opensource-src-5.4.0.zip
 
-Extract to **D:\TBuild\Libraries\**, rename **qt-everywhere-opensource-src-5.3.1** to **QtStatic** to have **D:\TBuild\Libraries\QtStatic\qtbase\** folder
+Extract to **D:\TBuild\Libraries\**, rename **qt-everywhere-opensource-src-5.4.0** to **QtStatic** to have **D:\TBuild\Libraries\QtStatic\qtbase\** folder
 
-Apply patch – copy (with overwrite!) everything from **D:\TBuild\tdesktop\\\_qt\_5\_3\_1\_patch\** to **D:\TBuild\Libraries\QtStatic\**
+Apply patch
+
+* OR copy (with overwrite!) everything from **D:\TBuild\tdesktop\\\_qt\_5\_4\_0\_patch\** to **D:\TBuild\Libraries\QtStatic\**
+* OR copy **D:\TBuild\tdesktop\\\_qt\_5\_4\_0\_patch.diff** to **D:\TBuild\Libraries\QtStatic\**, go there in Git Bash and run
+
+    git apply _qt_5_4_0_patch.diff
 
 #####Building library
 
@@ -137,12 +142,12 @@ There go to Qt directory
 
 and after that run configure
 
-    configure -debug-and-release -opensource -confirm-license -static -I "D:\TBuild\Libraries\OpenSSL-Win32\include" -L "C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib" -l Gdi32 -opengl desktop -openssl-linked OPENSSL_LIBS_DEBUG="D:\TBuild\Libraries\OpenSSL-Win32\lib\VC\static\ssleay32MTd.lib D:\TBuild\Libraries\OpenSSL-Win32\lib\VC\static\libeay32MTd.lib" OPENSSL_LIBS_RELEASE="D:\TBuild\Libraries\OpenSSL-Win32\lib\VC\static\ssleay32MT.lib D:\TBuild\Libraries\OpenSSL-Win32\lib\VC\static\libeay32MT.lib" -mp -nomake examples -platform win32-msvc2013
+    configure -debug-and-release -opensource -confirm-license -static -I "D:\TBuild\Libraries\OpenSSL-Win32\include" -L "C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib" -l Gdi32 -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="D:\TBuild\Libraries\OpenSSL-Win32\lib\VC\static\ssleay32MTd.lib D:\TBuild\Libraries\OpenSSL-Win32\lib\VC\static\libeay32MTd.lib" OPENSSL_LIBS_RELEASE="D:\TBuild\Libraries\OpenSSL-Win32\lib\VC\static\ssleay32MT.lib D:\TBuild\Libraries\OpenSSL-Win32\lib\VC\static\libeay32MT.lib" -mp -nomake examples -nomake tests -platform win32-msvc2013
 
 to configure Qt build. After configuration is complete run
 
-    nmake
-    nmake install
+    nmake module-qtbase module-qtimageformats
+    nmake module-qtbase-install_subtargets module-qtimageformats-install_subtargets
 
 building (**nmake** command) will take really long time.
 
@@ -156,8 +161,8 @@ Close all VS2013 instances and install to default location
 
 * Launch VS2013 for configuring Qt Addin
 * QT5 > Qt Options > Add
-  * Version name: **QtStatic.5.3.1**
+  * Version name: **QtStatic.5.4.0**
   * Path: **D:\TBuild\Libraries\QtStatic\qtbase**
-* Default Qt/Win version: **QtStatic.5.3.1** – **OK**
+* Default Qt/Win version: **QtStatic.5.4.0** – **OK**
 * File > Open > Project/Solution > **D:\TBuild\tdesktop\Telegram.sln**
 * Build \ Build Solution (Debug and Release configurations)

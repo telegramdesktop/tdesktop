@@ -242,6 +242,8 @@ public:
 
 	bool isActive() const;
 	bool historyIsActive() const;
+	bool lastWasOnline() const;
+	uint64 lastSetOnline() const;
 
 	int32 dlgsWidth() const;
 
@@ -312,6 +314,18 @@ public:
 	void serviceHistoryDone(const MTPmessages_Messages &msgs);
 	bool serviceHistoryFail(const RPCError &error);
 
+	bool isIdle() const;
+
+	void clearCachedBackground();
+	QPixmap cachedBackground(const QRect &forRect, int &x, int &y);
+	void backgroundParams(const QRect &forRect, QRect &to, QRect &from) const;
+	void updateScrollColors();
+
+	void setChatBackground(const App::WallPaper &wp);
+	bool chatBackgroundLoading();
+	void checkChatBackground();
+	ImagePtr newBackgroundThumb();
+	
 	~MainWidget();
 
 signals:
@@ -344,8 +358,8 @@ public slots:
 	void getDifference();
 	void getDifferenceForce();
 
-	void setOnline(int windowState = -1);
-	void mainStateChanged(Qt::WindowState state);
+	void updateOnline(bool gotOtherOffline = false);
+	void checkIdleFinish();
 	void updateOnlineDisplay();
 
 	void showPeer(quint64 peer, qint32 msgId = 0, bool back = false, bool force = false); // PeerId, MsgId
@@ -363,6 +377,8 @@ public slots:
 
 	void onResendAsDocument();
 	void onCancelResend();
+
+	void onCacheBackground();
 
 private:
 
@@ -423,9 +439,11 @@ private:
 	bool updInited;
 	SingleTimer noUpdatesTimer;
 
-	mtpRequestId onlineRequest;
-	SingleTimer onlineTimer;
-	SingleTimer onlineUpdater;
+	mtpRequestId _onlineRequest;
+	SingleTimer _onlineTimer, _onlineUpdater, _idleFinishTimer;
+	bool _lastWasOnline;
+	uint64 _lastSetOnline;
+	bool _isIdle;
 
 	QSet<PeerData*> updateNotifySettingPeers;
 	SingleTimer updateNotifySettingTimer;
@@ -447,4 +465,12 @@ private:
 	SingleTimer _failDifferenceTimer;
 
 	uint64 _lastUpdateTime;
+
+	QPixmap _cachedBackground;
+	QRect _cachedFor, _willCacheFor;
+	int _cachedX, _cachedY;
+	SingleTimer _cacheBackgroundTimer;
+
+	App::WallPaper *_background;
+
 };

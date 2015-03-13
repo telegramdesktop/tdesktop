@@ -50,11 +50,18 @@ namespace _local_inner {
 
 namespace Local {
 
-	mtpAuthKey &oldKey();
-	void createOldKey(QByteArray *salt = 0);
-
 	void start();
 	void stop();
+
+	void readSettings();
+	void writeSettings();
+	void writeUserSettings();
+	void writeMtpData();
+
+	void reset();
+
+	bool checkPasscode(const QByteArray &passcode);
+	void setPasscode(const QByteArray &passcode);
 	
 	enum ClearManagerTask {
 		ClearManagerAll = 0xFFFF,
@@ -120,5 +127,8 @@ namespace Local {
 
 	void writeRecentStickers();
 	void readRecentStickers();
+
+	void writeBackground(int32 id, const QImage &img);
+	bool readBackground();
 
 };

@@ -18,8 +18,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "lang.h"
 
-#include "app.h"
-
 #include "audio.h"
 #include "application.h"
 #include "fileuploader.h"
@@ -78,6 +76,13 @@ namespace {
 	LastPhotosList lastPhotos;
 	typedef QHash<PhotoData*, LastPhotosList::iterator> LastPhotosMap;
 	LastPhotosMap lastPhotosMap;
+
+	style::color _msgServiceBG;
+	style::color _historyScrollBarColor;
+	style::color _historyScrollBgColor;
+	style::color _historyScrollBarOverColor;
+	style::color _historyScrollBgOverColor;
+	style::color _introPointHoverColor;
 }
 
 namespace App {
@@ -104,6 +109,11 @@ namespace App {
 		return w ? w->settingsWidget() : 0;
 	}
 
+	bool passcoded() {
+		Window *w(wnd());
+		return w ? w->passcodeWidget() : 0;
+	}
+
 	FileUploader *uploader() {
 		return app() ? app()->uploader() : 0;
 	}
@@ -115,6 +125,9 @@ namespace App {
 
 	bool loggedOut() {
 		Window *w(wnd());
+		if (cHasPasscode()) {
+			cSetHasPasscode(false);
+		}
 		if (w) {
 			w->tempDirDelete(Local::ClearManagerAll);
 			w->notifyClearFast();
@@ -123,6 +136,9 @@ namespace App {
 		MainWidget *m(main());
 		if (m) m->destroyData();
 		MTP::authed(0);
+		Local::reset();
+
+		cSetOtherOnline(0);
 		histories().clear();
 		globalNotifyAllPtr = UnknownNotifySettings;
 		globalNotifyUsersPtr = UnknownNotifySettings;
@@ -130,6 +146,7 @@ namespace App {
 		App::uploader()->clear();
 		clearStorageImages();
 		if (w) {
+			w->getTitle()->updateBackButton();
 			w->updateTitleStatus();
 			w->getTitle()->resizeEvent(0);
 		}
@@ -137,7 +154,12 @@ namespace App {
 	}
 
 	void logOut() {
-		MTP::logoutKeys(rpcDone(&loggedOut), rpcFail(&loggedOut));
+		if (MTP::started()) {
+			MTP::logoutKeys(rpcDone(&loggedOut), rpcFail(&loggedOut));
+		} else {
+			loggedOut();
+			MTP::start();
+		}
 	}
 
 	PeerId peerFromMTP(const MTPPeer &peer_id) {
@@ -170,30 +192,34 @@ namespace App {
 	int32 onlineForSort(int32 online, int32 now) {
 		if (online <= 0) {
 			switch (online) {
+			case 0:
+			case -1: return online;
+
 			case -2: {
 				QDate yesterday(date(now).date());
-				yesterday.addDays(-3);
-				return int32(QDateTime(yesterday).toTime_t());
+				return int32(QDateTime(yesterday.addDays(-3)).toTime_t());
 			} break;
 
 			case -3: {
 				QDate weekago(date(now).date());
-				weekago.addDays(-7);
-				return int32(QDateTime(weekago).toTime_t());
+				return int32(QDateTime(weekago.addDays(-7)).toTime_t());
 			} break;
 
 			case -4: {
 				QDate monthago(date(now).date());
-				monthago.addDays(-30);
-				return int32(QDateTime(monthago).toTime_t());
+				return int32(QDateTime(monthago.addDays(-30)).toTime_t());
 			} break;
 			}
+			return -online;
 		}
 		return online;
 	}
 
 	int32 onlineWillChangeIn(int32 online, int32 now) {
-		if (online <= 0) return 86400;
+        if (online <= 0) {
+            if (-online > now) return -online - now;
+            return 86400;
+        }
 		if (online > now) {
 			return online - now;
 		}
@@ -217,11 +243,12 @@ namespace App {
 		if (online <= 0) {
 			switch (online) {
 			case 0: return lang(lng_status_offline);
+            case -1: return lang(lng_status_invisible);
 			case -2: return lang(lng_status_recently);
 			case -3: return lang(lng_status_last_week);
 			case -4: return lang(lng_status_last_month);
 			}
-			return lang(lng_status_invisible);
+            return (-online > now) ? lang(lng_status_online) : lang(lng_status_recently);
 		}
 		if (online > now) {
 			return lang(lng_status_online);
@@ -230,11 +257,11 @@ namespace App {
 		if (precise) {
 			QDateTime dOnline(date(online)), dNow(date(now));
 			if (dOnline.date() == dNow.date()) {
-				return lng_status_lastseen_today(lt_time, dOnline.time().toString(qsl("hh:mm")));
+				return lng_status_lastseen_today(lt_time, dOnline.time().toString(cTimeFormat()));
 			} else if (dOnline.date().addDays(1) == dNow.date()) {
-				return lng_status_lastseen_yesterday(lt_time, dOnline.time().toString(qsl("hh:mm")));
+				return lng_status_lastseen_yesterday(lt_time, dOnline.time().toString(cTimeFormat()));
 			}
-			return lng_status_lastseen_date_time(lt_date, dOnline.date().toString(qsl("dd.MM.yy")), lt_time, dOnline.time().toString(qsl("hh:mm")));
+			return lng_status_lastseen_date_time(lt_date, dOnline.date().toString(qsl("dd.MM.yy")), lt_time, dOnline.time().toString(cTimeFormat()));
 		}
 		int32 minutes = (now - online) / 60;
 		if (!minutes) {
@@ -248,11 +275,25 @@ namespace App {
 		}
 		QDateTime dOnline(date(online)), dNow(date(now));
 		if (dOnline.date() == dNow.date()) {
-			return lng_status_lastseen_today(lt_time, dOnline.time().toString(qsl("hh:mm")));
+			return lng_status_lastseen_today(lt_time, dOnline.time().toString(cTimeFormat()));
 		} else if (dOnline.date().addDays(1) == dNow.date()) {
-			return lng_status_lastseen_yesterday(lt_time, dOnline.time().toString(qsl("hh:mm")));
+			return lng_status_lastseen_yesterday(lt_time, dOnline.time().toString(cTimeFormat()));
 		}
 		return lng_status_lastseen_date(lt_date, dOnline.date().toString(qsl("dd.MM.yy")));
+	}
+
+	bool onlineColorUse(int32 online, int32 now) {
+		if (online <= 0) {
+			switch (online) {
+			case 0:
+			case -1:
+			case -2:
+			case -3:
+			case -4: return false;
+			}
+			return (-online > now);
+		}
+		return (online > now);
 	}
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users) {
@@ -362,7 +403,11 @@ namespace App {
 			data->loaded = true;
 			if (status) switch (status->type()) {
 			case mtpc_userStatusEmpty: data->onlineTill = 0; break;
-			case mtpc_userStatusRecently: data->onlineTill = -2; break;
+			case mtpc_userStatusRecently:
+				if (data->onlineTill > -10) { // don't modify pseudo-online
+					data->onlineTill = -2;
+				}
+			break;
 			case mtpc_userStatusLastWeek: data->onlineTill = -3; break;
 			case mtpc_userStatusLastMonth: data->onlineTill = -4; break;
 			case mtpc_userStatusOffline: data->onlineTill = status->c_userStatusOffline().vwas_online.v; break;
@@ -816,7 +861,7 @@ namespace App {
 	}
 
 	AudioData *feedAudio(const MTPDaudio &audio, AudioData *convert) {
-		return App::audio(audio.vid.v, convert, audio.vaccess_hash.v, audio.vuser_id.v, audio.vdate.v, audio.vduration.v, audio.vdc_id.v, audio.vsize.v);
+		return App::audio(audio.vid.v, convert, audio.vaccess_hash.v, audio.vuser_id.v, audio.vdate.v, qs(audio.vmime_type), audio.vduration.v, audio.vdc_id.v, audio.vsize.v);
 	}
 
 	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb) {
@@ -1016,7 +1061,7 @@ namespace App {
 		return result;
 	}
 
-	AudioData *audio(const AudioId &audio, AudioData *convert, const uint64 &access, int32 user, int32 date, int32 duration, int32 dc, int32 size) {
+	AudioData *audio(const AudioId &audio, AudioData *convert, const uint64 &access, int32 user, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) {
 		if (convert) {
 			if (convert->id != audio) {
 				AudiosData::iterator i = audiosData.find(convert->id);
@@ -1030,6 +1075,7 @@ namespace App {
 			if (!convert->user && !convert->date && (user || date)) {
 				convert->user = user;
 				convert->date = date;
+				convert->mime = mime;
 				convert->duration = duration;
 				convert->dc = dc;
 				convert->size = size;
@@ -1041,7 +1087,7 @@ namespace App {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new AudioData(audio, access, user, date, duration, dc, size);
+				result = new AudioData(audio, access, user, date, mime, duration, dc, size);
 			}
 			audiosData.insert(audio, result);
 		} else {
@@ -1050,6 +1096,7 @@ namespace App {
 				result->access = access;
 				result->user = user;
 				result->date = date;
+				result->mime = mime;
 				result->duration = duration;
 				result->dc = dc;
 				result->size = size;
@@ -1361,6 +1408,7 @@ namespace App {
 			clearAllImages();
 		} else {
 			clearStorageImages();
+			cSetServerBackgrounds(WallPapers());
 		}
 
 		serviceImageCacheSize = imageCacheSize();
@@ -1440,509 +1488,7 @@ namespace App {
 	}
 
 	void playSound() {
-		if (cSoundNotify()) audioPlayNotify();
-	}
-
-	void writeConfig() {
-		QDir().mkdir(cWorkingDir() + qsl("tdata"));
-		QFile configFile(cWorkingDir() + qsl("tdata/config"));
-		if (configFile.open(QIODevice::WriteOnly)) {
-			DEBUG_LOG(("App Info: writing config file"));
-			QDataStream configStream(&configFile);
-			configStream.setVersion(QDataStream::Qt_5_1);
-			configStream << quint32(dbiVersion) << qint32(AppVersion);
-
-			configStream << quint32(dbiAutoStart) << qint32(cAutoStart());
-			configStream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
-			configStream << quint32(dbiSendToMenu) << qint32(cSendToMenu());
-			configStream << quint32(dbiWorkMode) << qint32(cWorkMode());
-			configStream << quint32(dbiSeenTrayTooltip) << qint32(cSeenTrayTooltip());
-			configStream << quint32(dbiAutoUpdate) << qint32(cAutoUpdate());
-			configStream << quint32(dbiLastUpdateCheck) << qint32(cLastUpdateCheck());
-			configStream << quint32(dbiScale) << qint32(cConfigScale());
-			configStream << quint32(dbiLang) << qint32(cLang());
-			configStream << quint32(dbiLangFile) << cLangFile();
-
-			configStream << quint32(dbiConnectionType) << qint32(cConnectionType());
-			if (cConnectionType() == dbictHttpProxy || cConnectionType() == dbictTcpProxy) {
-				const ConnectionProxy &proxy(cConnectionProxy());
-				configStream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
-			}
-
-			TWindowPos pos(cWindowPos());
-			configStream << quint32(dbiWindowPosition) << qint32(pos.x) << qint32(pos.y) << qint32(pos.w) << qint32(pos.h) << qint32(pos.moncrc) << qint32(pos.maximized);
-
-			if (configStream.status() != QDataStream::Ok) {
-				LOG(("App Error: could not write user config file, status: %1").arg(configStream.status()));
-			}
-		} else {
-			LOG(("App Error: could not open user config file for writing"));
-		}
-	}
-
-	void readConfig() {
-		QFile configFile(cWorkingDir() + qsl("tdata/config"));
-		if (configFile.open(QIODevice::ReadOnly)) {
-			DEBUG_LOG(("App Info: config file opened for reading"));
-			QDataStream configStream(&configFile);
-			configStream.setVersion(QDataStream::Qt_5_1);
-
-			qint32 configVersion = 0;
-			while (true) {
-				quint32 blockId;
-				configStream >> blockId;
-				if (configStream.status() == QDataStream::ReadPastEnd) {
-					DEBUG_LOG(("App Info: config file read end"));
-					break;
-				} else if (configStream.status() != QDataStream::Ok) {
-					LOG(("App Error: could not read block id, status: %1 - config file is corrupted?..").arg(configStream.status()));
-					break;
-				}
-
-				if (blockId == dbiVersion) {
-					configStream >> configVersion;
-					if (configVersion > AppVersion) break;
-					continue;
-				}
-
-				switch (blockId) {
-				case dbiAutoStart: {
-					qint32 v;
-					configStream >> v;
-					cSetAutoStart(v == 1);
-				} break;
-
-				case dbiStartMinimized: {
-					qint32 v;
-					configStream >> v;
-					cSetStartMinimized(v == 1);
-				} break;
-
-				case dbiSendToMenu: {
-					qint32 v;
-					configStream >> v;
-					cSetSendToMenu(v == 1);
-				} break;
-
-				case dbiSoundNotify: {
-					if (configVersion < 3008) {
-						qint32 v;
-						configStream >> v;
-						cSetSoundNotify(v == 1);
-						cSetNeedConfigResave(true);
-					}
-				} break;
-
-				case dbiDesktopNotify: {
-					if (configVersion < 3008) {
-						qint32 v;
-						configStream >> v;
-						cSetDesktopNotify(v == 1);
-						cSetNeedConfigResave(true);
-					}
-				} break;
-
-				case dbiWorkMode: {
-					qint32 v;
-					configStream >> v;
-					switch (v) {
-					case dbiwmTrayOnly: cSetWorkMode(dbiwmTrayOnly); break;
-					case dbiwmWindowOnly: cSetWorkMode(dbiwmWindowOnly); break;
-					default: cSetWorkMode(dbiwmWindowAndTray); break;
-					};
-				} break;
-
-				case dbiConnectionType: {
-					qint32 v;
-					configStream >> v;
-
-					switch (v) {
-					case dbictHttpProxy:
-					case dbictTcpProxy: {
-						ConnectionProxy p;
-						qint32 port;
-						configStream >> p.host >> port >> p.user >> p.password;
-						p.port = uint32(port);
-						cSetConnectionProxy(p);
-					}
-						cSetConnectionType(DBIConnectionType(v));
-						break;
-					case dbictHttpAuto:
-					default: cSetConnectionType(dbictAuto); break;
-					};
-				} break;
-
-				case dbiSeenTrayTooltip: {
-					qint32 v;
-					configStream >> v;
-					cSetSeenTrayTooltip(v == 1);
-				} break;
-
-				case dbiAutoUpdate: {
-					qint32 v;
-					configStream >> v;
-					cSetAutoUpdate(v == 1);
-				} break;
-
-				case dbiLastUpdateCheck: {
-					qint32 v;
-					configStream >> v;
-					cSetLastUpdateCheck(v);
-				} break;
-
-				case dbiScale: {
-					qint32 v;
-					configStream >> v;
-
-					DBIScale s = cRealScale();
-					switch (v) {
-					case dbisAuto: s = dbisAuto; break;
-					case dbisOne: s = dbisOne; break;
-					case dbisOneAndQuarter: s = dbisOneAndQuarter; break;
-					case dbisOneAndHalf: s = dbisOneAndHalf; break;
-					case dbisTwo: s = dbisTwo; break;
-					}
-					cSetConfigScale(s);
-					cSetRealScale(s);
-				} break;
-
-				case dbiLang: {
-					qint32 v;
-					configStream >> v;
-					if (v == languageTest || (v >= 0 && v < languageCount)) {
-						cSetLang(v);
-					}
-				} break;
-
-				case dbiLangFile: {
-					QString v;
-					configStream >> v;
-					cSetLangFile(v);
-				} break;
-
-				case dbiWindowPosition: {
-					TWindowPos pos;
-					configStream >> pos.x >> pos.y >> pos.w >> pos.h >> pos.moncrc >> pos.maximized;
-					cSetWindowPos(pos);
-				} break;
-				}
-
-				if (configStream.status() != QDataStream::Ok) {
-					LOG(("App Error: could not read data, status: %1 - user config file is corrupted?..").arg(configStream.status()));
-					break;
-				}
-			}
-		}
-	}
-
-	void writeUserConfig() {
-		QFile configFile(cWorkingDir() + cDataFile() + qsl("_config"));
-		if (configFile.open(QIODevice::WriteOnly)) {
-			DEBUG_LOG(("App Info: writing user config data for encrypt"));
-			QByteArray toEncrypt;
-			toEncrypt.reserve(65536);
-			toEncrypt.resize(4);
-			{
-				QBuffer buffer(&toEncrypt);
-				buffer.open(QIODevice::Append);
-
-				QDataStream stream(&buffer);
-				stream.setVersion(QDataStream::Qt_5_1);
-
-				if (MTP::authedId()) {
-					stream << quint32(dbiUser) << qint32(MTP::authedId()) << quint32(MTP::maindc());
-				}
-
-				stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
-				stream << quint32(dbiCatsAndDogs) << qint32(cCatsAndDogs() ? 1 : 0);
-				stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);
-				stream << quint32(dbiDefaultAttach) << qint32(cDefaultAttach());
-				stream << quint32(dbiSoundNotify) << qint32(cSoundNotify());
-				stream << quint32(dbiDesktopNotify) << qint32(cDesktopNotify());
-				stream << quint32(dbiNotifyView) << qint32(cNotifyView());
-				stream << quint32(dbiAskDownloadPath) << qint32(cAskDownloadPath());
-				stream << quint32(dbiDownloadPath) << (cAskDownloadPath() ? QString() : cDownloadPath());
-				stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());
-				stream << quint32(dbiEmojiTab) << qint32(cEmojiTab());
-
-				RecentEmojiPreload v;
-				v.reserve(cGetRecentEmojis().size());
-				for (RecentEmojiPack::const_iterator i = cGetRecentEmojis().cbegin(), e = cGetRecentEmojis().cend(); i != e; ++i) {
-					v.push_back(qMakePair(i->first->code, i->second));
-				}
-				stream << quint32(dbiRecentEmojis) << v;
-
-				writeAllMuted(stream);
-
-				MTP::writeConfig(stream);
-				if (stream.status() != QDataStream::Ok) {
-					LOG(("App Error: could not write user config to memory buf, status: %1").arg(stream.status()));
-					return;
-				}
-			}
-			*(uint32*)(toEncrypt.data()) = toEncrypt.size();
-
-			uint32 size = toEncrypt.size(), fullSize = size;
-			if (fullSize & 0x0F) {
-				fullSize += 0x10 - (fullSize & 0x0F);
-				toEncrypt.resize(fullSize);
-				memset_rand(toEncrypt.data() + size, fullSize - size);
-			}
-			QByteArray encrypted(16 + fullSize, Qt::Uninitialized); // 128bit of sha1 - key128, sizeof(data), data
-			hashSha1(toEncrypt.constData(), toEncrypt.size(), encrypted.data());
-			aesEncryptLocal(toEncrypt.constData(), encrypted.data() + 16, fullSize, &Local::oldKey(), encrypted.constData());
-
-			DEBUG_LOG(("App Info: writing user config file"));
-			QDataStream configStream(&configFile);
-			configStream.setVersion(QDataStream::Qt_5_1);
-			configStream << quint32(dbiVersion) << qint32(AppVersion);
-
-			configStream << quint32(dbiEncryptedWithSalt) << cLocalSalt() << encrypted; // write all encrypted data
-
-			if (configStream.status() != QDataStream::Ok) {
-				LOG(("App Error: could not write user config file, status: %1").arg(configStream.status()));
-			}
-		} else {
-			LOG(("App Error: could not open user config file for writing"));
-		}
-	}
-
-	void readUserConfigFields(QIODevice *io) {
-		if (!io->isOpen()) io->open(QIODevice::ReadOnly);
-
-		QDataStream stream(io);
-		stream.setVersion(QDataStream::Qt_5_1);
-
-		while (true) {
-			quint32 blockId;
-			stream >> blockId;
-			if (stream.status() == QDataStream::ReadPastEnd) {
-				DEBUG_LOG(("App Info: config file read end"));
-				break;
-			} else if (stream.status() != QDataStream::Ok) {
-				LOG(("App Error: could not read block id, status: %1 - user config file is corrupted?..").arg(stream.status()));
-				break;
-			}
-
-			if (blockId == dbiVersion) { // should not be in encrypted part, just ignore
-				qint32 configVersion;
-				stream >> configVersion;
-				continue;
-			}
-
-			switch (blockId) {
-			case dbiEncryptedWithSalt: {
-				QByteArray salt, data, decrypted;
-				stream >> salt >> data;
-
-				if (salt.size() != 32) {
-					LOG(("App Error: bad salt in encrypted part, size: %1").arg(salt.size()));
-					continue;
-				}
-
-				cSetLocalSalt(salt);
-				Local::createOldKey(&salt);
-
-				if (data.size() <= 16 || (data.size() & 0x0F)) {
-					LOG(("App Error: bad encrypted part size: %1").arg(data.size()));
-					continue;
-				}
-				uint32 fullDataLen = data.size() - 16;
-				decrypted.resize(fullDataLen);
-				const char *dataKey = data.constData(), *encrypted = data.constData() + 16;
-				aesDecryptLocal(encrypted, decrypted.data(), fullDataLen, &Local::oldKey(), dataKey);
-				uchar sha1Buffer[20];
-				if (memcmp(hashSha1(decrypted.constData(), decrypted.size(), sha1Buffer), dataKey, 16)) {
-					LOG(("App Error: bad decrypt key, data from user-config not decrypted"));
-					continue;
-				}
-				uint32 dataLen = *(const uint32*)decrypted.constData();
-				if (dataLen > uint32(decrypted.size()) || dataLen <= fullDataLen - 16 || dataLen < 4) {
-					LOG(("App Error: bad decrypted part size: %1, fullDataLen: %2, decrypted size: %3").arg(dataLen).arg(fullDataLen).arg(decrypted.size()));
-					continue;
-				}
-				decrypted.resize(dataLen);
-				QBuffer decryptedStream(&decrypted);
-				decryptedStream.open(QIODevice::ReadOnly);
-				decryptedStream.seek(4); // skip size
-				readUserConfigFields(&decryptedStream);
-			} break;
-
-			case dbiLoggedPhoneNumber: {
-				QString v;
-				stream >> v;
-				if (stream.status() == QDataStream::Ok) {
-					cSetLoggedPhoneNumber(v);
-				}
-			} break;
-
-			case dbiMutePeer: {
-				readOneMuted(stream);
-			} break;
-
-			case dbiMutedPeers: {
-				readAllMuted(stream);
-			} break;
-
-			case dbiSendKey: {
-				qint32 v;
-				stream >> v;
-				cSetCtrlEnter(v == dbiskCtrlEnter);
-			} break;
-
-			case dbiCatsAndDogs: {
-				qint32 v;
-				stream >> v;
-				cSetCatsAndDogs(v == 1);
-			} break;
-
-			case dbiReplaceEmojis: {
-				qint32 v;
-				stream >> v;
-				cSetReplaceEmojis(v == 1);
-			} break;
-
-			case dbiDefaultAttach: {
-				qint32 v;
-				stream >> v;
-				switch (v) {
-				case dbidaPhoto: cSetDefaultAttach(dbidaPhoto); break;
-				default: cSetDefaultAttach(dbidaDocument); break;
-				}
-			} break;
-
-			case dbiSoundNotify: {
-				qint32 v;
-				stream >> v;
-				cSetSoundNotify(v == 1);
-			} break;
-
-			case dbiDesktopNotify: {
-				qint32 v;
-				stream >> v;
-				cSetDesktopNotify(v == 1);
-			} break;
-
-			case dbiNotifyView: {
-				qint32 v;
-				stream >> v;
-				switch (v) {
-				case dbinvShowNothing: cSetNotifyView(dbinvShowNothing); break;
-				case dbinvShowName: cSetNotifyView(dbinvShowName); break;
-				default: cSetNotifyView(dbinvShowPreview); break;
-				}
-			} break;
-
-			case dbiAskDownloadPath: {
-				qint32 v;
-				stream >> v;
-				cSetAskDownloadPath(v == 1);
-			} break;
-
-			case dbiDownloadPath: {
-				QString v;
-				stream >> v;
-				cSetDownloadPath(v);
-			} break;
-
-			case dbiCompressPastedImage: {
-				qint32 v;
-				stream >> v;
-				cSetCompressPastedImage(v == 1);
-			} break;
-
-			case dbiEmojiTab: {
-				qint32 v;
-				stream >> v;
-				switch (v) {
-				case dbietRecent  : cSetEmojiTab(dbietRecent);   break;
-				case dbietPeople  : cSetEmojiTab(dbietPeople);   break;
-				case dbietNature  : cSetEmojiTab(dbietNature);   break;
-				case dbietObjects : cSetEmojiTab(dbietObjects);  break;
-				case dbietPlaces  : cSetEmojiTab(dbietPlaces);   break;
-				case dbietSymbols : cSetEmojiTab(dbietSymbols);  break;
-				case dbietStickers: cSetEmojiTab(dbietStickers); break;
-				}
-			} break;
-
-			case dbiRecentEmojis: {
-				RecentEmojiPreload v;
-				stream >> v;
-				cSetRecentEmojisPreload(v);
-			} break;
-
-			default:
-				if (!MTP::readConfigElem(blockId, stream)) {
-				}
-				break;
-			}
-
-			if (stream.status() != QDataStream::Ok) {
-				LOG(("App Error: could not read data, status: %1 - user config file is corrupted?..").arg(stream.status()));
-				break;
-			}
-		}
-	}
-
-	void readUserConfig() {
-		QFile configFile(cWorkingDir() + cDataFile() + qsl("_config"));
-		if (configFile.open(QIODevice::ReadOnly)) {
-			DEBUG_LOG(("App Info: user config file opened for reading"));
-			{
-				QDataStream configStream(&configFile);
-				configStream.setVersion(QDataStream::Qt_5_1);
-
-				quint32 blockId;
-				configStream >> blockId;
-				if (configStream.status() == QDataStream::ReadPastEnd) {
-					DEBUG_LOG(("App Info: config file read end"));
-					return;
-				} else if (configStream.status() != QDataStream::Ok) {
-					LOG(("App Error: could not read block id, status: %1 - user config file is corrupted?..").arg(configStream.status()));
-					return;
-				}
-
-				if (blockId == dbiVersion) {
-					qint32 configVersion;
-					configStream >> configVersion;
-					if (configVersion > AppVersion) return;
-
-					configStream >> blockId;
-					if (configStream.status() == QDataStream::ReadPastEnd) {
-						DEBUG_LOG(("App Info: config file read end"));
-						return;
-					} else if (configStream.status() != QDataStream::Ok) {
-						LOG(("App Error: could not read block id, status: %1 - user config file is corrupted?..").arg(configStream.status()));
-						return;
-					}
-					if (blockId != dbiEncryptedWithSalt) { // old version data - not encrypted
-						cSetNeedConfigResave(true);
-					}
-				} else {
-					cSetNeedConfigResave(true);
-				}
-			}
-
-			configFile.reset();
-			readUserConfigFields(&configFile);
-		}
-	}
-
-	void writeAllMuted(QDataStream &stream) { // deprecated
-	}
-
-	void readOneMuted(QDataStream &stream) { // deprecated
-		quint64 peerId;
-		stream >> peerId;
-	}
-
-	void readAllMuted(QDataStream &stream) {
-		quint32 count;
-		stream >> count;
-
-		for (uint32 i = 0; i < count; ++i) {
-			readOneMuted(stream);
-		}
+		if (cSoundNotify() && !psSkipAudioNotify()) audioPlayNotify();
 	}
 
 	void checkImageCacheSize() {
@@ -2109,5 +1655,173 @@ namespace App {
 			App::main()->openLocalUrl(url);
 		}
 	}
+
+	void initBackground(int32 id, const QImage &p, bool nowrite) {
+		if (Local::readBackground()) return;
+
+		QImage img(p);
+		if (p.isNull()) {
+			img.load(st::msgBG);
+			id = 0;
+		}
+		if (img.format() != QImage::Format_ARGB32 && img.format() != QImage::Format_ARGB32_Premultiplied && img.format() != QImage::Format_RGB32) {
+			img = img.convertToFormat(QImage::Format_RGB32);
+		}
+		img.setDevicePixelRatio(cRetinaFactor());
+
+		if (!nowrite) Local::writeBackground(id, img);
+
+		delete cChatBackground();
+		cSetChatBackground(new QPixmap(QPixmap::fromImage(img, Qt::ColorOnly)));
+		cSetChatBackgroundId(id);
+
+		if (App::main()) App::main()->clearCachedBackground();
+
+		uint64 components[3] = { 0 }, componentsScroll[3] = { 0 }, componentsPoint[3] = { 0 };
+		int w = img.width(), h = img.height(), size = w * h;
+		const uchar *pix = img.constBits();
+		if (pix) {
+			for (int32 i = 0, l = size * 4; i < l; i += 4) {
+				components[2] += pix[i + 0];
+				components[1] += pix[i + 1];
+				components[0] += pix[i + 2];
+			}
+		}
+		if (size) {
+			for (int32 i = 0; i < 3; ++i) components[i] /= size;
+		}
+		int maxtomin[3] = { 0, 1, 2 };
+		if (components[maxtomin[0]] < components[maxtomin[1]]) {
+			qSwap(maxtomin[0], maxtomin[1]);
+		}
+		if (components[maxtomin[1]] < components[maxtomin[2]]) {
+			qSwap(maxtomin[1], maxtomin[2]);
+			if (components[maxtomin[0]] < components[maxtomin[1]]) {
+				qSwap(maxtomin[0], maxtomin[1]);
+			}
+		}
+
+		uint64 max = qMax(1ULL, components[maxtomin[0]]), mid = qMax(1ULL, components[maxtomin[1]]), min = qMax(1ULL, components[maxtomin[2]]);
+
+		QImage dog = App::sprite().toImage().copy(st::msgDogImg);
+		QImage::Format f = dog.format();
+		if (f != QImage::Format_ARGB32 && f != QImage::Format_ARGB32_Premultiplied) {
+			dog = dog.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+		}
+		uchar *dogBits = dog.bits();
+		if (max != min) {
+			float64 coef = float64(mid - min) / float64(max - min);
+			for (int i = 0, s = dog.width() * dog.height() * 4; i < s; i += 4) {
+				int dogmaxtomin[3] = { i, i + 1, i + 2 };
+				if (dogBits[dogmaxtomin[0]] < dogBits[dogmaxtomin[1]]) {
+					qSwap(dogmaxtomin[0], dogmaxtomin[1]);
+				}
+				if (dogBits[dogmaxtomin[1]] < dogBits[dogmaxtomin[2]]) {
+					qSwap(dogmaxtomin[1], dogmaxtomin[2]);
+					if (dogBits[dogmaxtomin[0]] < dogBits[dogmaxtomin[1]]) {
+						qSwap(dogmaxtomin[0], dogmaxtomin[1]);
+					}
+				}
+				uchar result[3];
+				result[maxtomin[0]] = dogBits[dogmaxtomin[0]];
+				result[maxtomin[2]] = dogBits[dogmaxtomin[2]];
+				result[maxtomin[1]] = uchar(qRound(result[maxtomin[2]] + (result[maxtomin[0]] - result[maxtomin[2]]) * coef));
+				dogBits[i] = result[2];
+				dogBits[i + 1] = result[1];
+				dogBits[i + 2] = result[0];
+			}
+		} else {
+			for (int i = 0, s = dog.width() * dog.height() * 4; i < s; i += 4) {
+				uchar b = dogBits[i], g = dogBits[i + 1], r = dogBits[i + 2];
+				dogBits[i] = dogBits[i + 1] = dogBits[i + 2] = (r + r + b + g + g + g) / 6;
+			}
+		}
+		delete cChatDogImage();
+		cSetChatDogImage(new QPixmap(QPixmap::fromImage(dog)));
+
+		memcpy(componentsScroll, components, sizeof(components));
+		memcpy(componentsPoint, components, sizeof(components));
+
+		if (max != min) {
+			if (min > uint64(qRound(0.77 * max))) {
+				uint64 newmin = qRound(0.77 * max); // min saturation 23%
+				uint64 newmid = max - ((max - mid) * (max - newmin)) / (max - min);
+				components[maxtomin[1]] = newmid;
+				components[maxtomin[2]] = newmin;
+			}
+			uint64 newmin = qRound(0.77 * max); // saturation 23% for scroll
+			uint64 newmid = max - ((max - mid) * (max - newmin)) / (max - min);
+			componentsScroll[maxtomin[1]] = newmid;
+			componentsScroll[maxtomin[2]] = newmin;
+
+			uint64 pmax = 227; // 89% brightness
+			uint64 pmin = qRound(0.75 * pmax); // 41% saturation
+			uint64 pmid = pmax - ((max - mid) * (pmax - pmin)) / (max - min);
+			componentsPoint[maxtomin[0]] = pmax;
+			componentsPoint[maxtomin[1]] = pmid;
+			componentsPoint[maxtomin[2]] = pmin;
+		} else {
+			componentsPoint[0] = componentsPoint[1] = componentsPoint[2] = 227; // 89% brightness
+		}
+
+		float64 luminance = 0.299 * componentsScroll[0] + 0.587 * componentsScroll[1] + 0.114 * componentsScroll[2];
+		uint64 maxScroll = max;
+		if (luminance < 0.5 * 0xFF) {
+			maxScroll += qRound(0.2 * 0xFF);
+		} else {
+			maxScroll -= qRound(0.2 * 0xFF);
+		}
+		componentsScroll[maxtomin[2]] = qMin(uint64(float64(componentsScroll[maxtomin[2]]) * maxScroll / float64(componentsScroll[maxtomin[0]])), 0xFFULL);
+		componentsScroll[maxtomin[1]] = qMin(uint64(float64(componentsScroll[maxtomin[1]]) * maxScroll / float64(componentsScroll[maxtomin[0]])), 0xFFULL);
+		componentsScroll[maxtomin[0]] = qMin(maxScroll, 0xFFULL);
+
+        if (max > uint64(qRound(0.2 * 0xFF))) { // brightness greater than 20%
+			max -= qRound(0.2 * 0xFF);
+		} else {
+			max = 0;
+		}
+		components[maxtomin[2]] = uint64(float64(components[maxtomin[2]]) * max / float64(components[maxtomin[0]]));
+		components[maxtomin[1]] = uint64(float64(components[maxtomin[1]]) * max / float64(components[maxtomin[0]]));
+		components[maxtomin[0]] = max;
+
+		uchar r = uchar(components[0]), g = uchar(components[1]), b = uchar(components[2]);
+		_msgServiceBG = style::color(r, g, b, qRound(st::msgServiceBG->c.alphaF() * 0xFF));
+
+		uchar rScroll = uchar(componentsScroll[0]), gScroll = uchar(componentsScroll[1]), bScroll = uchar(componentsScroll[2]);
+		_historyScrollBarColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.barColor->c.alphaF() * 0xFF));
+		_historyScrollBgColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.bgColor->c.alphaF() * 0xFF));
+		_historyScrollBarOverColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.barOverColor->c.alphaF() * 0xFF));
+		_historyScrollBgOverColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.bgOverColor->c.alphaF() * 0xFF));
+
+		uchar rPoint = uchar(componentsPoint[0]), gPoint = uchar(componentsPoint[1]), bPoint = uchar(componentsPoint[2]);
+		_introPointHoverColor = style::color(rPoint, gPoint, bPoint);
+		if (App::main()) App::main()->updateScrollColors();
+	}
+
+	style::color msgServiceBG() {
+		return _msgServiceBG;
+	}
+
+	style::color historyScrollBarColor() {
+		return _historyScrollBarColor;
+	}
+
+	style::color historyScrollBgColor() {
+		return _historyScrollBgColor;
+	}
+
+	style::color historyScrollBarOverColor() {
+		return _historyScrollBarOverColor;
+	}
+
+	style::color historyScrollBgOverColor() {
+		return _historyScrollBgOverColor;
+	}
+
+	style::color introPointHoverColor() {
+		return _introPointHoverColor;
+	}
+
+	WallPapers gServerBackgrounds;
 
 }

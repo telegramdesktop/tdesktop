@@ -125,21 +125,26 @@ then go to **/Users/user/TBuild/Libraries/opusfile** and there run
     make
     sudo make install
 
-####Qt 5.3.1, slightly patched
+####Qt 5.4.0, slightly patched
 
-http://download.qt-project.org/official_releases/qt/5.3/5.3.1/single/qt-everywhere-opensource-src-5.3.1.tar.gz
+http://download.qt-project.org/official_releases/qt/5.4/5.4.0/single/qt-everywhere-opensource-src-5.4.0.tar.gz
 
-Extract to **/Users/user/TBuild/Libraries**, rename **qt-everywhere-opensource-src-5.3.1** to **QtStatic** to have **/Users/user/TBuild/Libraries/QtStatic/qtbase** folder
+Extract to **/Users/user/TBuild/Libraries**, rename **qt-everywhere-opensource-src-5.4.0** to **QtStatic** to have **/Users/user/TBuild/Libraries/QtStatic/qtbase** folder
 
-Apply patch – copy (with overwrite!) everything from **/Users/user/TBuild/tdesktop/\_qt\_5\_3\_1\_patch/** to **/Users/user/TBuild/Libraries/QtStatic/**
+Apply patch:
+
+* OR copy (with overwrite!) everything from **/Users/user/TBuild/tdesktop/\_qt\_5\_4\_0\_patch/** to **/Users/user/TBuild/Libraries/QtStatic/**
+* OR copy **/Users/user/TBuild/tdesktop/\_qt\_5\_4\_0\_patch.diff** to **/Users/user/TBuild/Libraries/QtStatic/**, go there in Terminal and run
+
+    git apply _qt_5_4_0_patch.diff
 
 #####Building library
 
 In Terminal go to **/Users/user/TBuild/Libraries/QtStatic** and there run
 
-    ./configure -debug-and-release -opensource -confirm-license -static -opengl desktop -nomake examples -platform macx-clang
-    make
-    sudo make install
+    ./configure -debug-and-release -opensource -confirm-license -static -opengl desktop -nomake examples -nomake tests -platform macx-clang
+    make -j4 module-qtbase module-qtimageformats module-qtmultimedia
+    sudo make module-qtbase-install_subtargets module-qtimageformats-install_subtargets module-qtmultimedia-install_subtargets
 
 building (**make** command) will take really long time.
 

@@ -151,7 +151,7 @@ void NewGroupInner::paintDialog(QPainter &p, DialogRow *row, bool sel) {
 	if (data->check) {
 		p.setPen(st::white->p);
 	} else {
-		p.setPen((user->onlineTill >= _time ? st::profileOnlineColor : st::profileOfflineColor)->p);
+		p.setPen((App::onlineColorUse(user->onlineTill, _time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
 	}
 	p.drawText(left + st::profileListPhotoSize + st::participantDelta, st::profileListPadding.height() + st::profileListPhotoSize - 6, data->online);
 }

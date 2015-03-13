@@ -1,9 +1,21 @@
 AppVersion=`./Version.sh | awk -F " " '{print $1}'`
 AppVersionStr=`./Version.sh | awk -F " " '{print $2}'`
+DevChannel=`./Version.sh | awk -F " " '{print $3}'`
+DevPostfix=''
+DevParam=''
+if [ "$DevChannel" != "0" ]; then
+  DevPostfix='.dev'
+  DevParam='-dev'
+fi
 
 echo ""
-echo "Preparing version $AppVersionStr.."
+echo "Preparing version $AppVersionStr$DevPostfix.."
 echo ""
+
+if [ -d "./../Mac/Release/deploy/$AppVersionStr.dev" ]; then
+  echo "Deploy folder for version $AppVersionStr.dev already exists!"
+  exit 1
+fi
 
 if [ -d "./../Mac/Release/deploy/$AppVersionStr" ]; then
   echo "Deploy folder for version $AppVersionStr already exists!"

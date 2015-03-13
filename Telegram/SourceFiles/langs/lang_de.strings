@@ -121,7 +121,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_name" = "Bitte trage Vor- und Nachnamen ein.";
 "lng_bad_photo" = "Fehler beim Upload.";
 
-"lng_bad_image_for_photo" = "Bild kann so nicht gesendet werden.\nMöchtest du es als Datei verschicken?";
+"lng_bad_image_for_photo" = "Dieses Bild kannst du so nicht senden.\nMöchtest du es als Datei verschicken?";
 
 "lng_signup_title" = "Information und Bild";
 "lng_signup_desc" = "Bitte trage deinen Namen ein \nund lade ein Bild hoch.";
@@ -154,7 +154,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_phone_number" = "Telefonnummer:";
 "lng_settings_username" = "Benutzername:";
 "lng_settings_choose_username" = "Benutzername wählen";
-"lng_settings_change_username" = "Ändern";
 
 "lng_settings_section_notify" = "Benachrichtigungen";
 "lng_settings_desktop_notify" = "Desktopbenachrichtigungen";
@@ -192,7 +191,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_send_enter" = "Mit Enter senden";
 "lng_settings_send_ctrlenter" = "Mit Strg+Enter senden";
 "lng_settings_send_cmdenter" = "Mit Cmd+Enter senden";
-"lng_settings_cats_and_dogs" = "Standardhintergrundbild";
+
+"lng_settings_section_background" = "Hintergrundbild";
+"lng_settings_bg_from_gallery" = "Aus der Galerie";
+"lng_settings_bg_from_file" = "Durchsuchen";
+"lng_settings_bg_tile" = "Nebeneinander";
+
+"lng_backgrounds_header" = "Neuen Chat-Hintergrund wählen";
 
 "lng_download_path_dont_ask" = "Speicherort merken";
 "lng_download_path_label" = "Speicherort:";
@@ -222,6 +227,28 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_local_storage_clear_failed" = "Ein Fehler ist aufgetreten :(";
 
 "lng_settings_section_advanced" = "Erweitert";
+
+"lng_passcode_turn_on" = "Code-Sperre aktivieren";
+"lng_passcode_change" = "Pincode ändern";
+"lng_passcode_create" = "Pincode festlegen";
+"lng_passcode_remove" = "Pincode entfernen";
+"lng_passcode_turn_off" = "Deaktivieren";
+"lng_passcode_autolock" = "Auto-Sperre";
+"lng_passcode_autolock_away" = "Auto-Sperre bei Abwesenheit:";
+"lng_passcode_autolock_inactive" = "Auto-Sperre bei Inaktivität:";
+"lng_passcode_autolock_minutes" = "{count:_not_used_|# Minute|# Minuten}";
+"lng_passcode_autolock_hours" = "{count:_not_used_|# Stunde|# Stunden}";
+"lng_passcode_enter_old" = "Aktueller Pincode";
+"lng_passcode_enter_new" = "Neuer Pincode";
+"lng_passcode_confirm_new" = "Pincode wiederholen";
+"lng_passcode_about" = "Bei aktivierter Code-Sperre, erscheint ein Schloss oben in der Menüleiste. Klicke darauf, um die App zu sperren.\n\nÜbrigens: Vergisst du den Pincode, musst du dich abmelden und wieder anmelden.";
+"lng_passcode_differ" = "Pincode ist nicht identisch";
+"lng_passcode_wrong" = "Falscher Pincode";
+"lng_passcode_is_same" = "Pincode wurde nicht geändert";
+"lng_passcode_enter" = "Telegram Pincode eingeben";
+"lng_passcode_submit" = "Absenden";
+"lng_passcode_logout" = "Abmelden";
+
 "lng_connection_type" = "Verbindungsart:";
 "lng_connection_auto_connecting" = "Standard (verbinden..)";
 "lng_connection_auto" = "Standard ({type} verwendet)";
@@ -272,8 +299,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_photos_header" = "Bilder aus dem Chat";
 "lng_profile_videos" = "{count:_not_used_|# Video|# Videos} »";
 "lng_profile_videos_header" = "Videos aus dem Chat";
-"lng_profile_documents" = "{count:_not_used_|# Datei|# Dateien} »";
-"lng_profile_documents_header" = "Sonstige Dateien aus dem Chat";
+"lng_profile_files" = "{count:_not_used_|# Datei|# Dateien} »";
+"lng_profile_files_header" = "Dateiübersicht";
 "lng_profile_audios" = "{count:_not_used_|# Sprachnachricht|# Sprachnachrichten} »";
 "lng_profile_audios_header" = "Übersicht Sprachnachrichten";
 "lng_profile_show_all_types" = "Alle Filter anzeigen";
@@ -313,7 +340,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_type" = "Dateityp";
 "lng_media_type_photos" = "Bilder";
 "lng_media_type_videos" = "Videos";
-"lng_media_type_documents" = "Dateien";
+"lng_media_type_files" = "Dateien";
 "lng_media_type_audios" = "Sprachnachrichten";
 
 "lng_media_open_with" = "Öffnen mit";
@@ -326,7 +353,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_video" = "Video";
 "lng_in_dlg_contact" = "Kontakt";
 "lng_in_dlg_audio" = "Sprachnachricht";
-"lng_in_dlg_document" = "Datei";
+"lng_in_dlg_file" = "Datei";
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} (Sticker)";
 
@@ -347,7 +374,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_save_photo" = "Bild speichern";
 "lng_save_video" = "Video speichern";
 "lng_save_audio" = "Sprachnachricht speichern";
-"lng_save_document" = "Datei speichern";
+"lng_save_file" = "Datei speichern";
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
 "lng_choose_images" = "Bilder auswählen";
@@ -371,8 +398,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_save_video" = "Video speichern unter..";
 "lng_context_open_audio" = "Sprachnachricht öffnen";
 "lng_context_save_audio" = "Sprachnachricht speichern unter..";
-"lng_context_open_document" = "Datei öffnen";
-"lng_context_save_document" = "Datei speichern als";
+"lng_context_open_file" = "Datei öffnen";
+"lng_context_save_file" = "Datei speichern als..";
 "lng_context_forward_file" = "Datei weiterleiten";
 "lng_context_delete_file" = "Datei löschen";
 "lng_context_close_file" = "Datei schließen";
@@ -418,7 +445,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_drag_to_send_quick" = "Besonders schneller Versand";
 "lng_drag_to_send_no_compression" = "Versand ohne Qualitätsverlust";
-"lng_drag_to_send_documents" = "um als Datei zu versenden";
+"lng_drag_to_send_files" = "um sie als Dateien zu senden";
 
 "lng_selected_clear" = "Abbrechen";
 "lng_selected_delete" = "Löschen";
@@ -452,10 +479,28 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\n\nwir haben eine Anmeldung von einem neuen Gerät am {day}, {date} um {time} festgestellt. \n\nGerät: {device}\nStandort: {location}\n\nWarst du das selbst? Wenn du das nicht selbst gewesen bist, melde alle anderen Sitzungen in den Telegram Einstellungen unverzüglich ab. \n\nDanke,\nDein Telegram Team";
 
-"lng_new_version7007" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n — Tray Icon für Ubuntu hinzugefügt. \n\nGesamter Versionsverlauf:\n{link}";
-"lng_new_version7006_appstore" = "Telegram Desktop wurde auf Version {version} aktualisiert\n\n— Sticker werden unterstützt\n— Sprachnachrichten werden temporär lokal gespeichert\n— Neue Sprachen hinzugefügt\n\nKompletter Versionsverlauf ist hier zu finden:\n{link}";
+"lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
+"lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
+"lng_new_version7020" = "— Sperre deine App mit einem Pincode";
+"lng_new_version7020_appstore" = "— Sperre deine App mit einem Pincode\n— Ändere das Chat-Hintergrundbild\n— Neues <<öffnen mit>> Menü für Dateien\n— Koreanische Sprache hinzugefügt";
+
+"lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
+
+// Wnd specific
+
+"lng_wnd_choose_program_menu" = "Öffnen mit...";
+
+"lng_wnd_menu_undo" = "Rückgängig";
+"lng_wnd_menu_redo" = "Wiederholen";
+
+// Linux specific
+
+"lng_linux_menu_undo" = "Rückgängig";
+"lng_linux_menu_redo" = "Wiederholen";
 
 // Mac specific
+
+"lng_mac_choose_program_menu" = "Öffnen mit...";
 
 "lng_mac_choose_app" = "Programm auswählen";
 "lng_mac_choose_text" = "Programm auswählen, um \"{file}\" zu öffnen.";

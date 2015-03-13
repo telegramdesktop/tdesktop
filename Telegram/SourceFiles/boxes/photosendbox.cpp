@@ -19,7 +19,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "style.h"
 #include "lang.h"
 
-#include "app.h"
+#include "localstorage.h"
+
 #include "mainwidget.h"
 #include "photosendbox.h"
 
@@ -205,8 +206,10 @@ void PhotoSendBox::onSend(bool ctrlShiftEnter) {
 		if (App::main()) App::main()->confirmShareContact(ctrlShiftEnter, _phone, _fname, _lname);
 	} else {
 		if (!_compressed.isHidden()) {
-			cSetCompressPastedImage(_compressed.checked());
-			App::writeUserConfig();
+			if (_compressed.checked() != cCompressPastedImage()) {
+				cSetCompressPastedImage(_compressed.checked());
+				Local::writeUserSettings();
+			}
 		}
 		if (_compressed.isHidden() || _compressed.checked()) {
 			_img->ctrlShiftEnter = ctrlShiftEnter;

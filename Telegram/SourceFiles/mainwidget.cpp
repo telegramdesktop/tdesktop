@@ -350,16 +350,21 @@ MainWidget *TopBarWidget::main() {
 
 MainWidget::MainWidget(Window *window) : QWidget(window), _started(0), failedObjId(0), _dialogsWidth(st::dlgMinWidth),
 dialogs(this), history(this), profile(0), overview(0), _topBar(this), _forwardConfirm(0), hider(0), _mediaType(this), _mediaTypeMask(0),
-updPts(0), updDate(0), updQts(-1), updSeq(0), updInited(false), onlineRequest(0), _failDifferenceTimeout(1), _lastUpdateTime(0) {
+updPts(0), updDate(0), updQts(-1), updSeq(0), updInited(false), _onlineRequest(0), _lastWasOnline(false), _lastSetOnline(0), _isIdle(false),
+_failDifferenceTimeout(1), _lastUpdateTime(0), _cachedX(0), _cachedY(0), _background(0) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
+
+	App::initBackground();
+	updateScrollColors();
 
 	connect(window, SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
 	connect(&dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(&history, SIGNAL(cancelled()), &dialogs, SLOT(activate()));
-	connect(this, SIGNAL(peerPhotoChanged(PeerData *)), this, SIGNAL(dialogsUpdated()));
+	connect(this, SIGNAL(peerPhotoChanged(PeerData*)), this, SIGNAL(dialogsUpdated()));
 	connect(&noUpdatesTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
-	connect(&onlineTimer, SIGNAL(timeout()), this, SLOT(setOnline()));
-	connect(&onlineUpdater, SIGNAL(timeout()), this, SLOT(updateOnlineDisplay()));
+	connect(&_onlineTimer, SIGNAL(timeout()), this, SLOT(updateOnline()));
+	connect(&_onlineUpdater, SIGNAL(timeout()), this, SLOT(updateOnlineDisplay()));
+	connect(&_idleFinishTimer, SIGNAL(timeout()), this, SLOT(checkIdleFinish()));
 	connect(&_bySeqTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
 	connect(&_failDifferenceTimer, SIGNAL(timeout()), this, SLOT(getDifferenceForce()));
 	connect(this, SIGNAL(peerUpdated(PeerData*)), &history, SLOT(peerUpdated(PeerData*)));
@@ -371,6 +376,8 @@ updPts(0), updDate(0), updQts(-1), updSeq(0), updInited(false), onlineRequest(0)
 		connect(audioVoice(), SIGNAL(updated(AudioData*)), this, SLOT(audioPlayProgress(AudioData*)));
 		connect(audioVoice(), SIGNAL(stopped(AudioData*)), this, SLOT(audioPlayProgress(AudioData*)));
 	}
+
+	connect(&_cacheBackgroundTimer, SIGNAL(timeout()), this, SLOT(onCacheBackground()));
 
 	dialogs.show();
 	if (cWideMode()) {
@@ -392,6 +399,8 @@ updPts(0), updDate(0), updQts(-1), updSeq(0), updInited(false), onlineRequest(0)
 
 	show();
 	setFocus();
+
+	App::initMedia();
 }
 
 mtpRequestId MainWidget::onForward(const PeerId &peer, bool forwardSelected) {
@@ -455,6 +464,8 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 }
 
 void MainWidget::hiderLayer(HistoryHider *h) {
+	if (App::passcoded()) return;
+
 	hider = h;
 	if (cWideMode()) {
 		hider->show();
@@ -710,6 +721,36 @@ void MainWidget::onCancelResend() {
 	}
 }
 
+void MainWidget::onCacheBackground() {
+	const QPixmap &bg(*cChatBackground());
+	if (cTileBackground()) {
+		QImage result(_willCacheFor.width() * cIntRetinaFactor(), _willCacheFor.height() * cIntRetinaFactor(), QImage::Format_RGB32);
+        result.setDevicePixelRatio(cRetinaFactor());
+		{
+			QPainter p(&result);
+			int left = 0, top = 0, right = _willCacheFor.width(), bottom = _willCacheFor.height();
+			float64 w = bg.width() / cRetinaFactor(), h = bg.height() / cRetinaFactor();
+			int sx = 0, sy = 0, cx = qCeil(_willCacheFor.width() / w), cy = qCeil(_willCacheFor.height() / h);
+			for (int i = sx; i < cx; ++i) {
+				for (int j = sy; j < cy; ++j) {
+					p.drawPixmap(QPointF(i * w, j * h), bg);
+				}
+			}
+		}
+		_cachedX = 0;
+		_cachedY = 0;
+		_cachedBackground = QPixmap::fromImage(result);
+	} else {
+		QRect to, from;
+		backgroundParams(_willCacheFor, to, from);
+		_cachedX = to.x();
+		_cachedY = to.y();
+		_cachedBackground = QPixmap::fromImage(bg.toImage().copy(from).scaled(to.width() * cIntRetinaFactor(), to.height() * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+		_cachedBackground.setDevicePixelRatio(cRetinaFactor());
+	}
+	_cachedFor = _willCacheFor;
+}
+
 void MainWidget::forwardSelectedItems() {
 	if (overview) {
 		overview->onForwardSelected();
@@ -784,6 +825,7 @@ void MainWidget::stopAnimActive() {
 
 void MainWidget::searchMessages(const QString &query) {
 	dialogs.searchMessages(query);
+	if (!cWideMode()) onShowDialogs();
 }
 
 void MainWidget::preloadOverviews(PeerData *peer) {
@@ -877,7 +919,7 @@ void MainWidget::mediaOverviewUpdated(PeerData *peer) {
 					switch (i) {
 					case OverviewPhotos: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaPhotos, lang(lng_media_type_photos))), SIGNAL(clicked()), this, SLOT(onPhotosSelect())); break;
 					case OverviewVideos: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaVideos, lang(lng_media_type_videos))), SIGNAL(clicked()), this, SLOT(onVideosSelect())); break;
-					case OverviewDocuments: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaDocuments, lang(lng_media_type_documents))), SIGNAL(clicked()), this, SLOT(onDocumentsSelect())); break;
+					case OverviewDocuments: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaDocuments, lang(lng_media_type_files))), SIGNAL(clicked()), this, SLOT(onDocumentsSelect())); break;
 					case OverviewAudios: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaAudios, lang(lng_media_type_audios))), SIGNAL(clicked()), this, SLOT(onAudiosSelect())); break;
 					}
 				}
@@ -1050,7 +1092,12 @@ void MainWidget::videoLoadProgress(mtpFileLoader *loader) {
 			video->finish();
 			QString already = video->already();
 			if (!already.isEmpty() && video->openOnSave) {
-				psOpenFile(already, video->openOnSave < 0);
+				QPoint pos(QCursor::pos());
+				if (video->openOnSave < 0 && !psShowOpenWithMenu(pos.x(), pos.y(), already)) {
+					psOpenFile(already, true);
+				} else {
+					psOpenFile(already, video->openOnSave < 0);
+				}
 			}
 		}
 	}
@@ -1092,8 +1139,9 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 	if (audio->loader) {
 		if (audio->loader->done()) {
 			audio->finish();
+			bool mp3 = (audio->mime == QLatin1String("audio/mp3"));
 			QString already = audio->already();
-			bool play = audio->openOnSave > 0 && audioVoice();
+			bool play = !mp3 && audio->openOnSave > 0 && audioVoice();
 			if ((!already.isEmpty() && audio->openOnSave) || (!audio->data.isEmpty() && play)) {
 				if (play) {
 					AudioData *playing = 0;
@@ -1105,7 +1153,12 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 						audioVoice()->play(audio);
 					}
 				} else {
-					psOpenFile(already, audio->openOnSave < 0);
+					QPoint pos(QCursor::pos());
+					if (audio->openOnSave < 0 && !psShowOpenWithMenu(pos.x(), pos.y(), already)) {
+						psOpenFile(already, true);
+					} else {
+						psOpenFile(already, audio->openOnSave < 0);
+					}
 				}
 			}
 		}
@@ -1164,7 +1217,12 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 						psOpenFile(already);
 					}
 				} else {
-					psOpenFile(already, document->openOnSave < 0);
+					QPoint pos(QCursor::pos());
+					if (document->openOnSave < 0 && !psShowOpenWithMenu(pos.x(), pos.y(), already)) {
+						psOpenFile(already, true);
+					} else {
+						psOpenFile(already, document->openOnSave < 0);
+					}
 				}
 			}
 		}
@@ -1195,6 +1253,7 @@ void MainWidget::onParentResize(const QSize &newSize) {
 }
 
 void MainWidget::updateOnlineDisplay() {
+	if (this != App::main()) return;
 	history.updateOnlineDisplay(history.x(), width() - history.x() - st::sysBtnDelta * 2 - st::sysCls.img.pxWidth() - st::sysRes.img.pxWidth() - st::sysMin.img.pxWidth());
 	if (profile) profile->updateOnlineDisplay();
 	if (App::wnd()->settingsWidget()) App::wnd()->settingsWidget()->updateOnlineDisplay();
@@ -1228,7 +1287,11 @@ void MainWidget::dialogsCancelled() {
 
 void MainWidget::serviceNotification(const QString &msg, const MTPMessageMedia &media, bool unread) {
 	int32 flags = unread ? 0x01 : 0; // unread
-	HistoryItem *item = App::histories().addToBack(MTP_message(MTP_int(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTP_int(unixtime()), MTP_string(msg), media), unread ? 1 : 2);
+	QString sendingText, leftText = msg;
+	HistoryItem *item = 0;
+	while (textSplit(sendingText, leftText, MaxMessageSize)) {
+		item = App::histories().addToBack(MTP_message(MTP_int(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTP_int(unixtime()), MTP_string(sendingText), media), unread ? 1 : 2);
+	}
 	if (item) {
 		history.peerMessagesUpdated(item->history()->peer->id);
 	}
@@ -1255,6 +1318,87 @@ void MainWidget::serviceHistoryDone(const MTPmessages_Messages &msgs) {
 bool MainWidget::serviceHistoryFail(const RPCError &error) {
 	App::wnd()->showDelayedServiceMsgs();
 	return false;
+}
+
+bool MainWidget::isIdle() const {
+	return _isIdle;
+}
+
+void MainWidget::clearCachedBackground() {
+	_cachedBackground = QPixmap();
+	_cacheBackgroundTimer.stop();
+}
+
+QPixmap MainWidget::cachedBackground(const QRect &forRect, int &x, int &y) {
+	if (!_cachedBackground.isNull() && forRect == _cachedFor) {
+		x = _cachedX;
+		y = _cachedY;
+		return _cachedBackground;
+	}
+	if (_willCacheFor != forRect || !_cacheBackgroundTimer.isActive()) {
+		_willCacheFor = forRect;
+		_cacheBackgroundTimer.start(CacheBackgroundTimeout);
+	}
+	return QPixmap();
+}
+
+void MainWidget::backgroundParams(const QRect &forRect, QRect &to, QRect &from) const {
+	const QSize &bg(cChatBackground()->size());
+	if (uint64(bg.width()) * forRect.height() > uint64(bg.height()) * forRect.width()) {
+		float64 pxsize = forRect.height() / float64(bg.height());
+		int takewidth = qCeil(forRect.width() / pxsize);
+		if (takewidth > bg.width()) {
+			takewidth = bg.width();
+		} else if ((bg.width() % 2) != (takewidth % 2)) {
+			++takewidth;
+		}
+		to = QRect(int((forRect.width() - takewidth * pxsize) / 2.), 0, qCeil(takewidth * pxsize), forRect.height());
+		from = QRect((bg.width() - takewidth) / 2, 0, takewidth, bg.height());
+	} else {
+		float64 pxsize = forRect.width() / float64(bg.width());
+		int takeheight = qCeil(forRect.height() / pxsize);
+		if (takeheight > bg.height()) {
+			takeheight = bg.height();
+		} else if ((bg.height() % 2) != (takeheight % 2)) {
+			++takeheight;
+		}
+		to = QRect(0, int((forRect.height() - takeheight * pxsize) / 2.), forRect.width(), qCeil(takeheight * pxsize));
+		from = QRect(0, (bg.height() - takeheight) / 2, bg.width(), takeheight);
+	}
+}
+
+void MainWidget::updateScrollColors() {
+	history.updateScrollColors();
+	if (overview) overview->updateScrollColors();
+}
+
+void MainWidget::setChatBackground(const App::WallPaper &wp) {
+	_background = new App::WallPaper(wp);
+	_background->full->load();
+	checkChatBackground();
+}
+
+bool MainWidget::chatBackgroundLoading() {
+	return !!_background;
+}
+
+void MainWidget::checkChatBackground() {
+	if (_background) {
+		if (_background->full->loaded()) {
+			if (_background->full->isNull()) {
+				App::initBackground();
+			} else {
+				App::initBackground(_background->id, _background->full->pix().toImage());
+			}
+			delete _background;
+			_background = 0;
+			QTimer::singleShot(0, this, SLOT(update()));
+		}
+	}
+}
+
+ImagePtr MainWidget::newBackgroundThumb() {
+	return _background ? _background->thumb : ImagePtr();
 }
 
 void MainWidget::setInnerFocus() {
@@ -1292,7 +1436,7 @@ void MainWidget::showPeer(quint64 peerId, qint32 msgId, bool back, bool force) {
 		hider = 0;
 	}
 	if (force || !selectingPeer()) {
-		if ((history.isHidden() && (profile || overview)) || !cWideMode()) {
+		if (!animating() && ((history.isHidden() && (profile || overview)) || (!cWideMode() && (history.isHidden() || !peerId)))) {
 			dialogs.enableShadow(false);
 			if (peerId) {
 				_topBar.enableShadow(false);
@@ -1336,9 +1480,11 @@ void MainWidget::showPeer(quint64 peerId, qint32 msgId, bool back, bool force) {
 		if (onlyDialogs) {
 			_topBar.hide();
 			history.hide();
-			dialogs.show();
-			if (!animCache.isNull()) {
-				dialogs.animShow(animCache);
+			if (!animating()) {
+				dialogs.show();
+				if (!animCache.isNull()) {
+					dialogs.animShow(animCache);
+				}
 			}
 		} else {
 			if (noPeer) {
@@ -1346,9 +1492,11 @@ void MainWidget::showPeer(quint64 peerId, qint32 msgId, bool back, bool force) {
 				resizeEvent(0);
 			}
 			if (!cWideMode()) dialogs.hide();
-			history.show();
-			if (!animCache.isNull()) {
-				history.animShow(animCache, animTopBarCache, back);
+			if (!animating()) {
+				history.show();
+				if (!animCache.isNull()) {
+					history.animShow(animCache, animTopBarCache, back);
+				}
 			}
 		}
 	}
@@ -1772,6 +1920,8 @@ bool MainWidget::animStep(float64 ms) {
 }
 
 void MainWidget::paintEvent(QPaintEvent *e) {
+	if (_background) checkChatBackground();
+
 	QPainter p(this);
 	if (animating()) {
 		p.setOpacity(a_bgAlpha.current());
@@ -1942,9 +2092,11 @@ void MainWidget::onPeerShown(PeerData *peer) {
 		_topBar.hide();
 	}
 	resizeEvent(0);
+	if (animating()) _topBar.hide();
 }
 
 void MainWidget::onUpdateNotifySettings() {
+	if (this != App::main()) return;
 	while (!updateNotifySettingPeers.isEmpty()) {
 		PeerData *peer = *updateNotifySettingPeers.begin();
 		updateNotifySettingPeers.erase(updateNotifySettingPeers.begin());
@@ -2067,7 +2219,7 @@ void MainWidget::gotState(const MTPupdates_State &state) {
 	updInited = true;
 
 	dialogs.loadDialogs();
-	setOnline();
+	updateOnline();
 }
 
 void MainWidget::gotDifference(const MTPupdates_Difference &diff) {
@@ -2114,6 +2266,7 @@ void MainWidget::updUpdated(int32 pts, int32 seq) {
 }
 
 void MainWidget::feedDifference(const MTPVector<MTPUser> &users, const MTPVector<MTPChat> &chats, const MTPVector<MTPMessage> &msgs, const MTPVector<MTPUpdate> &other) {
+	App::wnd()->checkAutoLock();
 	App::feedUsers(users);
 	App::feedChats(chats);
 	feedMessageIds(other);
@@ -2137,6 +2290,8 @@ void MainWidget::getDifferenceForce() {
 }
 
 void MainWidget::getDifference() {
+	if (this != App::main()) return;
+
 	LOG(("Getting difference! no updates timer: %1, remains: %2").arg(noUpdatesTimer.isActive() ? 1 : 0).arg(noUpdatesTimer.remainingTime()));
 	if (!updInited) return;
 
@@ -2157,8 +2312,13 @@ void MainWidget::getDifference() {
 }
 
 void MainWidget::start(const MTPUser &user) {
-	MTP::authed(user.c_userSelf().vid.v);
-	App::initMedia();
+	int32 uid = user.c_userSelf().vid.v;
+	if (MTP::authedId() != uid) {
+		MTP::authed(uid);
+		Local::writeMtpData();
+	}
+
+	cSetOtherOnline(0);
 	App::feedUsers(MTP_vector<MTPUser>(1, user));
 	App::app()->startUpdateCheck();
 	MTP::send(MTPupdates_GetState(), rpcDone(&MainWidget::gotState));
@@ -2383,7 +2543,7 @@ void MainWidget::destroyData() {
 }
 
 void MainWidget::updateOnlineDisplayIn(int32 msecs) {
-	onlineUpdater.start(msecs);
+	_onlineUpdater.start(msecs);
 }
 
 void MainWidget::addNewContact(int32 uid, bool show) {
@@ -2393,11 +2553,19 @@ void MainWidget::addNewContact(int32 uid, bool show) {
 }
 
 bool MainWidget::isActive() const {
-	return isVisible() && !animating();
+	return !_isIdle && isVisible() && !animating();
 }
 
 bool MainWidget::historyIsActive() const {
 	return isActive() && !profile && !overview && history.isActive();
+}
+
+bool MainWidget::lastWasOnline() const {
+	return _lastWasOnline;
+}
+
+uint64 MainWidget::lastSetOnline() const {
+	return _lastSetOnline;
 }
 
 int32 MainWidget::dlgsWidth() const {
@@ -2407,38 +2575,70 @@ int32 MainWidget::dlgsWidth() const {
 MainWidget::~MainWidget() {
 	if (App::main() == this) history.showPeer(0, 0, true);
 
+	delete _background;
+
 	delete hider;
 	MTP::clearGlobalHandlers();
 	App::deinitMedia(false);
 	if (App::wnd()) App::wnd()->noMain(this);
 }
 
-void MainWidget::setOnline(int windowState) {
-	if (onlineRequest) {
-		MTP::cancel(onlineRequest);
-		onlineRequest = 0;
+void MainWidget::updateOnline(bool gotOtherOffline) {
+	if (this != App::main()) return;
+	App::wnd()->checkAutoLock();
+
+	bool isOnline = App::wnd()->isActive();
+	int updateIn = cOnlineUpdatePeriod();
+	if (isOnline) {
+		uint64 idle = psIdleTime();
+		if (idle >= uint64(cOfflineIdleTimeout())) {
+			isOnline = false;
+			if (!_isIdle) {
+				_isIdle = true;
+				_idleFinishTimer.start(900);
+			}
+		} else {
+			updateIn = qMin(updateIn, int(cOfflineIdleTimeout() - idle));
+		}
 	}
-	onlineTimer.stop();
-	bool isOnline = App::wnd()->psIsOnline(windowState);
-	if (isOnline || windowState >= 0) {
-		onlineRequest = MTP::send(MTPaccount_UpdateStatus(MTP_bool(!isOnline)));
-        LOG(("App Info: Updating Online!"));
+	uint64 ms = getms(true);
+	if (isOnline != _lastWasOnline || (isOnline && _lastSetOnline + cOnlineUpdatePeriod() <= ms) || (isOnline && gotOtherOffline)) {
+		if (_onlineRequest) {
+			MTP::cancel(_onlineRequest);
+			_onlineRequest = 0;
+		}
+
+		_lastWasOnline = isOnline;
+		_lastSetOnline = ms;
+		_onlineRequest = MTP::send(MTPaccount_UpdateStatus(MTP_bool(!isOnline)));
+
+		if (App::self()) App::self()->onlineTill = unixtime() + (isOnline ? (cOnlineUpdatePeriod() / 1000) : -1);
+
+		_lastSetOnline = getms(true);
+
+		updateOnlineDisplay();
+	} else if (isOnline) {
+		updateIn = qMin(updateIn, int(_lastSetOnline + cOnlineUpdatePeriod() - ms));
 	}
-	if (App::self()) App::self()->onlineTill = unixtime() + (isOnline ? 60 : -1);
-	if (profile) {
-		profile->updateOnlineDisplayTimer();
-	} else {
-		history.updateOnlineDisplayTimer();
-	}
-	onlineTimer.start(55000);
+	_onlineTimer.start(updateIn);
 }
 
-void MainWidget::mainStateChanged(Qt::WindowState state) {
-	setOnline(state);
+void MainWidget::checkIdleFinish() {
+	if (this != App::main()) return;
+	if (psIdleTime() < uint64(cOfflineIdleTimeout())) {
+		_idleFinishTimer.stop();
+		_isIdle = false;
+		updateOnline();
+		if (App::wnd()) App::wnd()->checkHistoryActivation();
+	} else {
+		_idleFinishTimer.start(900);
+	}
 }
 
 void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 	if (end <= from || !MTP::authedId()) return;
+
+	App::wnd()->checkAutoLock();
 
 	if (mtpTypeId(*from) == mtpc_new_session_created) {
 		MTPNewSession newSession(from, end);
@@ -2654,20 +2854,30 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateUserStatus: {
 		const MTPDupdateUserStatus &d(update.c_updateUserStatus());
-		if (d.vuser_id.v == MTP::authedId() && (d.vstatus.type() == mtpc_userStatusOffline || d.vstatus.type() == mtpc_userStatusEmpty)) {
-			setOnline();
-		} else {
-			UserData *user = App::userLoaded(d.vuser_id.v);
-			if (user) {
-				switch (d.vstatus.type()) {
-				case mtpc_userStatusEmpty: user->onlineTill = 0; break;
-				case mtpc_userStatusRecently: user->onlineTill = -2; break;
-				case mtpc_userStatusLastWeek: user->onlineTill = -3; break;
-				case mtpc_userStatusLastMonth: user->onlineTill = -4; break;
-				case mtpc_userStatusOffline: user->onlineTill = d.vstatus.c_userStatusOffline().vwas_online.v; break;
-				case mtpc_userStatusOnline: user->onlineTill = d.vstatus.c_userStatusOnline().vexpires.v; break;
+		UserData *user = App::userLoaded(d.vuser_id.v);
+		if (user) {
+			switch (d.vstatus.type()) {
+			case mtpc_userStatusEmpty: user->onlineTill = 0; break;
+			case mtpc_userStatusRecently:
+				if (user->onlineTill > -10) { // don't modify pseudo-online
+					user->onlineTill = -2;
 				}
-				if (App::main()) App::main()->peerUpdated(user);
+			break;
+			case mtpc_userStatusLastWeek: user->onlineTill = -3; break;
+			case mtpc_userStatusLastMonth: user->onlineTill = -4; break;
+			case mtpc_userStatusOffline: user->onlineTill = d.vstatus.c_userStatusOffline().vwas_online.v; break;
+			case mtpc_userStatusOnline: user->onlineTill = d.vstatus.c_userStatusOnline().vexpires.v; break;
+			}
+			if (App::main()) App::main()->peerUpdated(user);
+		}
+		if (d.vuser_id.v == MTP::authedId()) {
+			if (d.vstatus.type() == mtpc_userStatusOffline || d.vstatus.type() == mtpc_userStatusEmpty) {
+				updateOnline(true);
+				if (d.vstatus.type() == mtpc_userStatusOffline) {
+					cSetOtherOnline(d.vstatus.c_userStatusOffline().vwas_online.v);
+				}
+			} else if (d.vstatus.type() == mtpc_userStatusOnline) {
+				cSetOtherOnline(d.vstatus.c_userStatusOnline().vexpires.v);
 			}
 		}
 	} break;
@@ -2779,7 +2989,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		QDateTime datetime = date(d.vdate);
 		
 		QString name = App::self()->firstName;
-		QString day = langDayOfWeekFull(datetime.date()), date = langDayOfMonth(datetime.date()), time = datetime.time().toString(qsl("hh:mm"));
+		QString day = langDayOfWeekFull(datetime.date()), date = langDayOfMonth(datetime.date()), time = datetime.time().toString(cTimeFormat());
 		QString device = qs(d.vdevice), location = qs(d.vlocation);
 		LangString text = lng_new_authorization(lt_name, App::self()->firstName, lt_day, day, lt_date, date, lt_time, time, lt_device, device, lt_location, location);
 		App::wnd()->serviceNotification(text);

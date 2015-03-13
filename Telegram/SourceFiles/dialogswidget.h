@@ -86,6 +86,7 @@ public:
 	};
 	void setState(State newState);
 	State state() const;
+	bool hasFilteredResults() const;
 
 	void onFilterUpdate(QString newFilter, bool force = false);
 	void itemRemoved(HistoryItem *item);

@@ -91,6 +91,8 @@ public:
 
 	static const uint64 RecreateKeyId = 0xFFFFFFFFFFFFFFFFL;
 
+	friend bool operator==(const mtpAuthKey &a, const mtpAuthKey &b);
+
 private:
 
 	char _key[256];
@@ -100,7 +102,12 @@ private:
 
 };
 
+inline bool operator==(const mtpAuthKey &a, const mtpAuthKey &b) {
+	return !memcmp(a._key, b._key, 256);
+}
+
 typedef QSharedPointer<mtpAuthKey> mtpAuthKeyPtr;
+typedef QVector<mtpAuthKeyPtr> mtpKeysMap;
 
 inline void aesEncrypt(const void *src, void *dst, uint32 len, void *key, void *iv) {
 	uchar aes_key[32], aes_iv[32];

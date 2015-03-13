@@ -18,6 +18,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "lang.h"
 
+#include "localstorage.h"
+
 #include "downloadpathbox.h"
 #include "gui/filedialog.h"
 
@@ -181,7 +183,7 @@ void DownloadPathBox::onEditPath() {
 
 void DownloadPathBox::onSave() {
 	cSetDownloadPath(_defaultRadio.checked() ? QString() : (_tempRadio.checked() ? qsl("tmp") : _path));
-	App::writeUserConfig();
+	Local::writeUserSettings();
 	emit closed();
 }
 

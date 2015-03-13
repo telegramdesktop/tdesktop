@@ -19,7 +19,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "style.h"
 
-#include "app.h"
+#include "localstorage.h"
 
 #include "intro/intro.h"
 #include "intro/introsteps.h"
@@ -89,7 +89,7 @@ void IntroWidget::langChangeTo(int32 langId) {
 
 void IntroWidget::onChangeLang() {
 	cSetLang(_langChangeTo);
-	App::writeConfig();
+	Local::writeSettings();
 	cSetRestarting(true);
 	cSetRestartingToSettings(false);
 	App::quit();
@@ -332,8 +332,7 @@ void IntroWidget::mousePressEvent(QMouseEvent *e) {
 }
 
 void IntroWidget::finish(const MTPUser &user, const QImage &photo) {
-	wnd->setupMain(true);
-	wnd->startMain(user);
+	wnd->setupMain(true, &user);
 	if (!photo.isNull()) {
 		App::app()->uploadProfilePhoto(photo, MTP::authedId());
 	}

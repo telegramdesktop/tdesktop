@@ -154,7 +154,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_phone_number" = "Telefoonnummer:";
 "lng_settings_username" = "Gebruikersnaam:";
 "lng_settings_choose_username" = "gebruikersnaam kiezen";
-"lng_settings_change_username" = "Wijzig";
 
 "lng_settings_section_notify" = "Meldingen";
 "lng_settings_desktop_notify" = "Desktopmeldingen";
@@ -192,7 +191,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_send_enter" = "Versturen met Enter";
 "lng_settings_send_ctrlenter" = "Versturen met Ctrl+Enter";
 "lng_settings_send_cmdenter" = "Versturen met Cmd+Enter";
-"lng_settings_cats_and_dogs" = "Kat en hond op achtergrond";
+
+"lng_settings_section_background" = "Achtergrond";
+"lng_settings_bg_from_gallery" = "Uit galerij kiezen";
+"lng_settings_bg_from_file" = "Bestand kiezen";
+"lng_settings_bg_tile" = "Naast elkaar";
+
+"lng_backgrounds_header" = "Kies je nieuwe achtergrond";
 
 "lng_download_path_dont_ask" = "Niet voor iedere download vragen";
 "lng_download_path_label" = "Downloadpad:";
@@ -222,6 +227,28 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_local_storage_clear_failed" = "Wissen mislukt";
 
 "lng_settings_section_advanced" = "Geavanceerd";
+
+"lng_passcode_turn_on" = "Toegangscode inschakelen";
+"lng_passcode_change" = "Toegangscode wijzigen";
+"lng_passcode_create" = "Toegangscode instellen";
+"lng_passcode_remove" = "Toegangscode verwijderen";
+"lng_passcode_turn_off" = "Uitschakelen";
+"lng_passcode_autolock" = "Automatisch vergrendelen";
+"lng_passcode_autolock_away" = "Vergrendelen indien langer afwezig dan:";
+"lng_passcode_autolock_inactive" = "Vergrendelen indien langer inactief dan:";
+"lng_passcode_autolock_minutes" = "{count:_not_used_|# minute|# minuten}";
+"lng_passcode_autolock_hours" = "{count:_not_used_|# uur|# uur}";
+"lng_passcode_enter_old" = "Toegangscode invoeren";
+"lng_passcode_enter_new" = "Nieuwe toegangscode invoeren";
+"lng_passcode_confirm_new" = "Toegangscode opnieuw invoeren";
+"lng_passcode_about" = "Als je een toegangscode instelt verschijnt er een slotje op de chatspagina,  tik erop om de app te vergrendelen\n\nLet op: als je de toegangscode vergeet, zul je opnieuw in moeten loggen.";
+"lng_passcode_differ" = "Toegangscodes zijn verschillend";
+"lng_passcode_wrong" = "Onjuiste toegangscode";
+"lng_passcode_is_same" = "Toegangscode is niet gewijzigd";
+"lng_passcode_enter" = "Voer je Telegram toegangscode in";
+"lng_passcode_submit" = "Versturen";
+"lng_passcode_logout" = "Uitloggen";
+
 "lng_connection_type" = "Verbindingstype:";
 "lng_connection_auto_connecting" = "Standaard (verbinden)";
 "lng_connection_auto" = "Standaard ({type} wordt gebruikt)";
@@ -272,8 +299,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_photos_header" = "Overzicht van foto's";
 "lng_profile_videos" = "{count:_not_used_|# video|# video's} »";
 "lng_profile_videos_header" = "Overzicht van video's";
-"lng_profile_documents" = "{count:_not_used_|# bestand|# bestanden} »";
-"lng_profile_documents_header" = "Overzicht van bestanden";
+"lng_profile_files" = "{count:_not_used_|# bestand|# bestanden} »";
+"lng_profile_files_header" = "Bestandsoverzicht";
 "lng_profile_audios" = "{count:_not_used_|# spraakbericht|# spraakberichten} »";
 "lng_profile_audios_header" = "Overzicht van spraakberichten";
 "lng_profile_show_all_types" = "Alles weergeven";
@@ -313,7 +340,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_type" = "Mediatype";
 "lng_media_type_photos" = "Foto's";
 "lng_media_type_videos" = "Video's";
-"lng_media_type_documents" = "Bestanden";
+"lng_media_type_files" = "Bestanden";
 "lng_media_type_audios" = "Spraakberichten";
 
 "lng_media_open_with" = "Openen met";
@@ -326,7 +353,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_video" = "Video";
 "lng_in_dlg_contact" = "Contact";
 "lng_in_dlg_audio" = "Geluidsbestand";
-"lng_in_dlg_document" = "Bestand";
+"lng_in_dlg_file" = "Bestand";
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
 
@@ -347,7 +374,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_save_photo" = "Afbeelding opslaan";
 "lng_save_video" = "Video opslaan";
 "lng_save_audio" = "Geluidsbestand opslaan";
-"lng_save_document" = "Bestand opslaan";
+"lng_save_file" = "Bestand opslaan";
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
 "lng_choose_images" = "Afbeeldingen kiezen";
@@ -371,8 +398,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_save_video" = "Video opslaan als";
 "lng_context_open_audio" = "Geluidsbestand openen";
 "lng_context_save_audio" = "Geluidsbestand opslaan als";
-"lng_context_open_document" = "Bestand openen";
-"lng_context_save_document" = "Bestand opslaan als";
+"lng_context_open_file" = "Bestand openen";
+"lng_context_save_file" = "Bestand opslaan als";
 "lng_context_forward_file" = "Bestand doorsturen";
 "lng_context_delete_file" = "Bestand verwijderen";
 "lng_context_close_file" = "Bestand sluiten";
@@ -418,7 +445,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_drag_to_send_quick" = "om ze snel te versturen";
 "lng_drag_to_send_no_compression" = "om ze ongecomprimeerd te versturen";
-"lng_drag_to_send_documents" = "om ze als bestanden te versturen";
+"lng_drag_to_send_files" = "om ze als bestanden te versturen";
 
 "lng_selected_clear" = "Annuleren";
 "lng_selected_delete" = "Verwijder";
@@ -452,10 +479,28 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_authorization" = "{name},\nEr is op je account ingelogd vanaf een nieuw apparaat op {day}, {date} om {time}\n\nApparaat: {device}\nLocatie: {location}\n\nAls jij dit niet was, kun je alle sessies beëindigen via Instellingen – Beëindig alle andere sessies.\n\nBedankt,\nHet Telegram-Team";
 
-"lng_new_version7007" = "Telegram is bijgewerkt naar versie {version}\n\n— Systeemvakicoon toegevoegd aan Ubuntu.\n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
-"lng_new_version7006_appstore" = "Telegram is bijgewerkt naar versie {version}\n\n— Ondersteuning voor Stickers\n— Lokale cache voor spraakberichten\n— Nieuwe talen toegevoegd\n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
+"lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
+"lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
+"lng_new_version7020" = "— Vergrendel je app met een toegangscode";
+"lng_new_version7020_appstore" = "— Vergrendel je app met een toegangscode\n— Pas nu de chatachtergrond aan\n— Nieuw «openen met» menu voor bestanden\n— Koreaans toegevoegd";
+
+"lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
+
+// Wnd specific
+
+"lng_wnd_choose_program_menu" = "Standaardprogramma selecteren... ";
+
+"lng_wnd_menu_undo" = "Ongedaan maken";
+"lng_wnd_menu_redo" = "Opnieuw";
+
+// Linux specific
+
+"lng_linux_menu_undo" = "Ongedaan maken";
+"lng_linux_menu_redo" = "Opnieuw";
 
 // Mac specific
+
+"lng_mac_choose_program_menu" = "Andere... ";
 
 "lng_mac_choose_app" = "Kies een programma";
 "lng_mac_choose_text" = "Kies een programma voor het openen van het bestand \"{file}\".";

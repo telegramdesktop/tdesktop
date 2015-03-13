@@ -24,6 +24,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 class MediaView;
 class TitleWidget;
+class PasscodeWidget;
 class IntroWidget;
 class MainWidget;
 class SettingsWidget;
@@ -143,9 +144,11 @@ public:
 	void updateWideMode();
 	bool needBackButton();
 
+	void setupPasscode(bool anim);
+	void clearPasscode();
+	void checkAutoLockIn(int msec);
 	void setupIntro(bool anim);
-	void setupMain(bool anim);
-	void startMain(const MTPUser &user);
+	void setupMain(bool anim, const MTPUser *user = 0);
 	void getNotifySetting(const MTPInputNotifyPeer &peer, uint32 msWait = 0);
 	void serviceNotification(const QString &msg, bool unread = true, const MTPMessageMedia &media = MTP_messageMediaEmpty(), bool force = false);
 	void sendServiceHistoryRequest();
@@ -164,6 +167,7 @@ public:
 	IntroWidget *introWidget();
 	MainWidget *mainWidget();
 	SettingsWidget *settingsWidget();
+	PasscodeWidget *passcodeWidget();
 
 	void showConnecting(const QString &text, const QString &reconnect = QString());
 	void hideConnecting();
@@ -180,7 +184,7 @@ public:
 
 	bool layerShown();
 
-	bool historyIsActive(int state = -1) const;
+	bool historyIsActive() const;
 
 	void activate();
 
@@ -225,14 +229,22 @@ public:
 	void mediaOverviewUpdated(PeerData *peer);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 
+	bool isActive(bool cached = true) const;
+
 public slots:
+
+	void updateIsActive(int timeout = 0);
+	void stateChanged(Qt::WindowState state);
 	
-	void checkHistoryActivation(int state = -1);
+	void checkHistoryActivation();
 	void updateCounter();
+
+	void checkAutoLock();
     
 	void showSettings();
 	void hideSettings(bool fast = false);
 	void layerHidden();
+	void setInnerFocus();
 	void updateTitleStatus();
 
 	void quitFromTray();
@@ -274,10 +286,14 @@ private:
 	mtpRequestId _serviceHistoryRequest;
 
 	TitleWidget *title;
+	PasscodeWidget *_passcode;
 	IntroWidget *intro;
 	MainWidget *main;
 	SettingsWidget *settings;
 	BackgroundWidget *layerBG;
+
+	QTimer _isActiveTimer;
+	bool _isActive;
 
 	QWidget *_topWidget; // temp hack for CountrySelect
 	ConnectingWidget *_connecting;
@@ -291,6 +307,9 @@ private:
 
 	bool _inactivePress;
 	QTimer _inactiveTimer;
+
+	SingleTimer _autoLockTimer;
+	uint64 _shouldLockAt;
 
 	typedef QMap<MsgId, uint64> NotifyWhenMap;
 	typedef QMap<History*, NotifyWhenMap> NotifyWhenMaps;

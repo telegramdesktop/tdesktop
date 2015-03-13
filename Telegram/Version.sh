@@ -1,2 +1,2 @@
-echo 7008 0.7.8
-
+echo 7020 0.7.20 0
+# AppVersion AppVersionStr DevChannel

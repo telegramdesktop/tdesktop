@@ -148,13 +148,13 @@ public:
     
     void onNotifyClick(NSUserNotification *notification) {
         NSNumber *peerObj = [[notification userInfo] objectForKey:@"peer"];
-        unsigned long long peerLong = [peerObj unsignedLongLongValue];
+		unsigned long long peerLong = peerObj ? [peerObj unsignedLongLongValue] : 0;
         wnd->notifyClicked(peerLong);
     }
     
     void onNotifyReply(NSUserNotification *notification) {
         NSNumber *peerObj = [[notification userInfo] objectForKey:@"peer"];
-        unsigned long long peerLong = [peerObj unsignedLongLongValue];
+		unsigned long long peerLong = peerObj ? [peerObj unsignedLongLongValue] : 0;
         wnd->notifyReplied(peerLong, [[[notification response] string] UTF8String]);
     }
     
@@ -202,11 +202,12 @@ public:
 
 - (void) userNotificationCenter:(NSUserNotificationCenter *)center didActivateNotification:(NSUserNotification *)notification {
     NSNumber *instObj = [[notification userInfo] objectForKey:@"inst"];
-    unsigned long long instLong = [instObj unsignedLongLongValue];
+	unsigned long long instLong = instObj ? [instObj unsignedLongLongValue] : 0;
+	DEBUG_LOG(("Received notification with instance %1").arg(instLong));
     if (instLong != cInstance()) { // other app instance notification
         return;
     }
-    if (notification.activationType == NSUserNotificationActivationTypeReplied){
+    if (notification.activationType == NSUserNotificationActivationTypeReplied) {
         wnd->data->onNotifyReply(notification);
     } else if (notification.activationType == NSUserNotificationActivationTypeContentsClicked) {
         wnd->data->onNotifyClick(notification);
@@ -255,7 +256,7 @@ void objc_showOverAll(WId winId, bool canFocus) {
 	[wnd setLevel:NSPopUpMenuWindowLevel];
 	if (!canFocus) {
 		[wnd setStyleMask:NSUtilityWindowMask | NSNonactivatingPanelMask];
-		[wnd setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces|NSWindowCollectionBehaviorFullScreenAuxiliary|NSWindowCollectionBehaviorIgnoresCycle];
+		[wnd setCollectionBehavior:NSWindowCollectionBehaviorMoveToActiveSpace|NSWindowCollectionBehaviorStationary|NSWindowCollectionBehaviorFullScreenAuxiliary|NSWindowCollectionBehaviorIgnoresCycle];
 	}
 }
 
@@ -269,14 +270,19 @@ void objc_activateWnd(WId winId) {
     [wnd orderFront:wnd];
 }
 
-void PsMacWindowPrivate::showNotify(uint64 peer, const QString &title, const QString &subtitle, const QString &msg, bool withReply) {
+NSImage *qt_mac_create_nsimage(const QPixmap &pm);
+
+void PsMacWindowPrivate::showNotify(uint64 peer, const QPixmap &pix, const QString &title, const QString &subtitle, const QString &msg, bool withReply) {
     NSUserNotification *notification = [[NSUserNotification alloc] init];
-    
+	NSImage *img = qt_mac_create_nsimage(pix);
+
+	DEBUG_LOG(("Sending notification with userinfo: peer %1 and instance %2").arg(peer).arg(cInstance()));
     [notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer],@"peer",[NSNumber numberWithUnsignedLongLong:cInstance()],@"inst",nil]];
 
 	[notification setTitle:QNSString(title).s()];
     [notification setSubtitle:QNSString(subtitle).s()];
     [notification setInformativeText:QNSString(msg).s()];
+	[notification setContentImage:img];
 
     if (withReply) [notification setHasReplyButton:YES];
 
@@ -284,7 +290,8 @@ void PsMacWindowPrivate::showNotify(uint64 peer, const QString &title, const QSt
     
     NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
     [center deliverNotification:notification];
-    
+
+	if (img) [img release];
     [notification release];
 }
 
@@ -319,7 +326,12 @@ PsMacWindowPrivate::~PsMacWindowPrivate() {
     delete data;
 }
 
-int64 objc_idleTime() { // taken from https://github.com/trueinteractions/tint/issues/53
+bool objc_idleSupported() {
+	int64 idleTime = 0;
+	return objc_idleTime(idleTime);
+}
+
+bool objc_idleTime(int64 &idleTime) { // taken from https://github.com/trueinteractions/tint/issues/53
     CFMutableDictionaryRef properties = 0;
     CFTypeRef obj;
     mach_port_t masterPort;
@@ -331,7 +343,7 @@ int64 objc_idleTime() { // taken from https://github.com/trueinteractions/tint/i
     /* Get IOHIDSystem */
     IOServiceGetMatchingServices(masterPort, IOServiceMatching("IOHIDSystem"), &iter);
     if (iter == 0) {
-        return -1;
+        return false;
     } else {
         curObj = IOIteratorNext(iter);
     }
@@ -339,7 +351,7 @@ int64 objc_idleTime() { // taken from https://github.com/trueinteractions/tint/i
         obj = CFDictionaryGetValue(properties, CFSTR("HIDIdleTime"));
         CFRetain(obj);
     } else {
-        return -1;
+        return false;
     }
     
     uint64 err = ~0L, result = err;
@@ -366,7 +378,213 @@ int64 objc_idleTime() { // taken from https://github.com/trueinteractions/tint/i
     CFRelease((CFTypeRef)properties);
     IOObjectRelease(curObj);
     IOObjectRelease(iter);
-    return (result == err) ? -1 : int64(result);
+	if (result == err) return false;
+
+	idleTime = int64(result);
+	return true;
+}
+
+@interface OpenWithApp : NSObject {
+	NSString *fullname;
+	NSURL *app;
+	NSImage *icon;
+}
+@property (nonatomic, retain) NSString *fullname;
+@property (nonatomic, retain) NSURL *app;
+@property (nonatomic, retain) NSImage *icon;
+@end
+
+@implementation OpenWithApp
+@synthesize fullname, app, icon;
+
+- (void) dealloc {
+	[fullname release];
+	[app release];
+	[icon release];
+	[super dealloc];
+}
+
+@end
+
+@interface OpenFileWithInterface : NSObject {
+}
+
+- (id) init:(NSString *)file;
+- (BOOL) popupAtX:(int)x andY:(int)y;
+- (void) itemChosen:(id)sender;
+- (void) dealloc;
+
+@end
+
+@implementation OpenFileWithInterface {
+	NSString *toOpen;
+
+	NSURL *defUrl;
+	NSString *defBundle, *defName, *defVersion;
+	NSImage *defIcon;
+
+	NSMutableArray *apps;
+
+	NSMenu *menu;
+}
+
+- (void) fillAppByUrl:(NSURL*)url bundle:(NSString**)bundle name:(NSString**)name version:(NSString**)version icon:(NSImage**)icon {
+	NSBundle *b = [NSBundle bundleWithURL:url];
+	if (b) {
+		NSString *path = [url path];
+		*name = [[NSFileManager defaultManager] displayNameAtPath: path];
+		if (!*name) *name = (NSString*)[b objectForInfoDictionaryKey:@"CFBundleDisplayName"];
+		if (!*name) *name = (NSString*)[b objectForInfoDictionaryKey:@"CFBundleName"];
+		if (*name) {
+			*bundle = [b bundleIdentifier];
+			if (bundle) {
+				*version = (NSString*)[b objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
+				*icon = [[NSWorkspace sharedWorkspace] iconForFile: path];
+				if (*icon && [*icon isValid]) [*icon setSize: CGSizeMake(16., 16.)];
+				return;
+			}
+		}
+	}
+	*bundle = *name = *version = nil;
+	*icon = nil;
+}
+
+- (id) init:(NSString*)file {
+	toOpen = file;
+	if (self = [super init]) {
+		NSURL *url = [NSURL fileURLWithPath:file];
+		defUrl = [[NSWorkspace sharedWorkspace] URLForApplicationToOpenURL:url];
+		if (defUrl) {
+			[self fillAppByUrl:defUrl bundle:&defBundle name:&defName version:&defVersion icon:&defIcon];
+			if (!defBundle || !defName) {
+				defUrl = nil;
+			}
+		}
+		NSArray *appsList = (NSArray*)LSCopyApplicationURLsForURL(CFURLRef(url), kLSRolesAll);
+		NSMutableDictionary *data = [NSMutableDictionary dictionaryWithCapacity:16];
+		int fullcount = 0;
+		for (id app in appsList) {
+			if (fullcount > 15) break;
+
+			NSString *bundle = nil, *name = nil, *version = nil;
+			NSImage *icon = nil;
+			[self fillAppByUrl:(NSURL*)app bundle:&bundle name:&name version:&version icon:&icon];
+			if (bundle && name) {
+				if ([bundle isEqualToString:defBundle] && [version isEqualToString:defVersion]) continue;
+				NSString *key = [[NSArray arrayWithObjects:bundle, name, nil] componentsJoinedByString:@"|"];
+				if (!version) version = @"";
+
+				NSMutableDictionary *versions = (NSMutableDictionary*)[data objectForKey:key];
+				if (!versions) {
+					versions = [NSMutableDictionary dictionaryWithCapacity:2];
+					[data setValue:versions forKey:key];
+				}
+				if (![versions objectForKey:version]) {
+					[versions setValue:[NSArray arrayWithObjects:name, icon, app, nil] forKey:version];
+					++fullcount;
+				}
+			}
+		}
+		if (fullcount || defUrl) {
+			apps = [NSMutableArray arrayWithCapacity:fullcount];
+			for (id key in data) {
+				NSMutableDictionary *val = (NSMutableDictionary*)[data objectForKey:key];
+				for (id ver in val) {
+					NSArray *app = (NSArray*)[val objectForKey:ver];
+					OpenWithApp *a = [[OpenWithApp alloc] init];
+					NSString *fullname = (NSString*)[app objectAtIndex:0], *version = (NSString*)ver;
+					BOOL showVersion = ([val count] > 1);
+					if (!showVersion) {
+						NSError *error = NULL;
+						NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"^\\d+\\.\\d+\\.\\d+(\\.\\d+)?$" options:NSRegularExpressionCaseInsensitive error:&error];
+						showVersion = ![regex numberOfMatchesInString:version options:NSMatchingWithoutAnchoringBounds range:{0,[version length]}];
+					}
+					if (showVersion) fullname = [[NSArray arrayWithObjects:fullname, @" (", version, @")", nil] componentsJoinedByString:@""];
+					[a setFullname:fullname];
+					[a setIcon:(NSImage*)[app objectAtIndex:1]];
+					[a setApp:(NSURL*)[app objectAtIndex:2]];
+					[apps addObject:a];
+					[a release];
+				}
+			}
+		}
+		[apps sortUsingDescriptors:[NSArray arrayWithObject:[NSSortDescriptor sortDescriptorWithKey:@"fullname" ascending:YES]]];
+		[appsList release];
+		menu = nil;
+	}
+	return self;
+}
+
+- (BOOL) popupAtX:(int)x andY:(int)y {
+	if (![apps count] && !defName) return NO;
+	menu = [[NSMenu alloc] initWithTitle:@"Open With"];
+
+	int index = 0;
+	if (defName) {
+		NSMenuItem *item = [menu insertItemWithTitle:[[NSArray arrayWithObjects:defName, @" (default)", nil] componentsJoinedByString:@""] action:@selector(itemChosen:) keyEquivalent:@"" atIndex:index++];
+		if (defIcon) [item setImage:defIcon];
+		[item setTarget:self];
+		[menu insertItem:[NSMenuItem separatorItem] atIndex:index++];
+	}
+	if ([apps count]) {
+		for (id a in apps) {
+			OpenWithApp *app = (OpenWithApp*)a;
+			NSMenuItem *item = [menu insertItemWithTitle:[a fullname] action:@selector(itemChosen:) keyEquivalent:@"" atIndex:index++];
+			if ([app icon]) [item setImage:[app icon]];
+			[item setTarget:self];
+		}
+		[menu insertItem:[NSMenuItem separatorItem] atIndex:index++];
+	}
+	NSMenuItem *item = [menu insertItemWithTitle:objc_lang(lng_mac_choose_program_menu).s() action:@selector(itemChosen:) keyEquivalent:@"" atIndex:index++];
+	[item setTarget:self];
+
+	[menu popUpMenuPositioningItem:nil atLocation:CGPointMake(x, y) inView:nil];
+
+	return YES;
+}
+
+- (void) itemChosen:(id)sender {
+	NSArray *items = [menu itemArray];
+	NSURL *url = nil;
+	for (int i = 0, l = [items count]; i < l; ++i) {
+		if ([items objectAtIndex:i] == sender) {
+			if (defName) i -= 2;
+			if (i < 0) {
+				url = defUrl;
+			} else if (i < int([apps count])) {
+				url = [(OpenWithApp*)[apps objectAtIndex:i] app];
+			}
+			break;
+		}
+	}
+	if (url) {
+		[[NSWorkspace sharedWorkspace] openFile:toOpen withApplication:[url path]];
+	} else {
+		objc_openFile(objcString(toOpen), true);
+	}
+}
+
+- (void) dealloc {
+	if (apps) [apps release];
+	[super dealloc];
+	if (menu) [menu release];
+}
+
+@end
+
+bool objc_showOpenWithMenu(int x, int y, const QString &f) {
+	NSString *file = QNSString(f).s();
+	@try {
+		OpenFileWithInterface *menu = [[OpenFileWithInterface alloc] init:file];
+		QRect r = QApplication::desktop()->screenGeometry(QPoint(x, y));
+		y = r.y() + r.height() - y;
+		return !![menu popupAtX:x andY:y];
+	}
+	@catch (NSException *exception) {
+	}
+	@finally {
+	}
+	return false;
 }
 
 void objc_showInFinder(const QString &file, const QString &path) {
@@ -692,6 +910,7 @@ BOOL _execUpdater(BOOL update = YES) {
 		if (!update) [args addObject:@"-noupdate"];
 		if (cFromAutoStart()) [args addObject:@"-autostart"];
 		if (cDebug()) [args addObject:@"-debug"];
+		if (cStartInTray()) [args addObject:@"-startintray"];
 		if (cDataFile() != (cTestMode() ? qsl("data_test") : qsl("data"))) {
 			[args addObject:@"-key"];
 			[args addObject:QNSString(cDataFile()).s()];

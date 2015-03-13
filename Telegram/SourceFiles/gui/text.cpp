@@ -19,7 +19,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "text.h"
 
 #include "lang.h"
-#include "app.h"
 
 #include <private/qharfbuzz_p.h>
 
@@ -564,7 +563,7 @@ public:
 		if (chIsBad(ch) || ch.isLowSurrogate()) {
 			skip = true;
 		} else if (isDiac) {
-			if (lastSkipped || lastSpace || emoji || ++diacs > chMaxDiacAfterSymbol()) {
+			if (lastSkipped || emoji || ++diacs > chMaxDiacAfterSymbol()) {
 				skip = true;
 			}
 		} else if (isSpace && lastSpace && !isNewLine) {
@@ -2661,7 +2660,8 @@ QString Text::original(uint16 selectedFrom, uint16 selectedTo, bool expandLinks)
 					if (url.isEmpty() || !expandLinks || lnkFrom != rangeFrom || blockFrom != rangeTo) {
 						result += r;
 					} else {
-						if (r.size() > 3 && _text.midRef(lnkFrom, r.size() - 3) == url.midRef(0, r.size() - 3)) { // same link
+						QUrl u(url);
+						if (r.size() > 3 && _text.midRef(lnkFrom, r.size() - 3) == (u.isValid() ? u.toDisplayString() : url).midRef(0, r.size() - 3)) { // same link
 							result += url;
 						} else {
 							result.append(r).append(qsl(" ( ")).append(url).append(qsl(" )"));

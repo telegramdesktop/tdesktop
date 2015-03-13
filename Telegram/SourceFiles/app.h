@@ -39,6 +39,7 @@ namespace App {
 	Window *wnd();
 	MainWidget *main();
 	SettingsWidget *settings();
+	bool passcoded();
 	FileUploader *uploader();
 
 	void showSettings();
@@ -66,6 +67,7 @@ namespace App {
 	int32 onlineForSort(int32 online, int32 now);
 	int32 onlineWillChangeIn(int32 onlineOnServer, int32 nowOnServer);
 	QString onlineText(UserData *user, int32 nowOnServer, bool precise = false);
+	bool onlineColorUse(int32 online, int32 now);
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users); // returnes last user
 	void feedChats(const MTPVector<MTPChat> &chats);
@@ -79,6 +81,8 @@ namespace App {
 	void feedUserLink(MTPint userId, const MTPcontacts_MyLink &myLink, const MTPcontacts_ForeignLink &foreignLink);
 	void feedMessageMedia(MsgId msgId, const MTPMessage &msg);
 	int32 maxMsgId();
+
+	ImagePtr image(const MTPPhotoSize &size);
 
 	PhotoData *feedPhoto(const MTPPhoto &photo, const PreparedPhotoThumbs &thumbs);
 	PhotoData *feedPhoto(const MTPPhoto &photo, PhotoData *convert = 0);
@@ -105,7 +109,7 @@ namespace App {
 	QString peerName(const PeerData *peer, bool forDialogs = false);
 	PhotoData *photo(const PhotoId &photo, PhotoData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, const ImagePtr &thumb = ImagePtr(), const ImagePtr &medium = ImagePtr(), const ImagePtr &full = ImagePtr());
 	VideoData *video(const VideoId &video, VideoData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
-	AudioData *audio(const AudioId &audio, AudioData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 dc = 0, int32 size = 0);
+	AudioData *audio(const AudioId &audio, AudioData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, const QString &mime = QString(), int32 duration = 0, int32 dc = 0, int32 size = 0);
 	DocumentData *document(const DocumentId &document, DocumentData *convert = 0, const uint64 &access = 0, int32 date = 0, const QVector<MTPDocumentAttribute> &attributes = QVector<MTPDocumentAttribute>(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
 	ImageLinkData *imageLink(const QString &imageLink, ImageLinkType type = InvalidImageLink, const QString &url = QString());
 	void forgetMedia();
@@ -148,18 +152,6 @@ namespace App {
 	void deinitMedia(bool completely = true);
 	void playSound();
 
-	void writeConfig();
-	void readConfig();
-	void writeUserConfig();
-	void readUserConfig();
-
-	void muteHistory(History *history);
-	void unmuteHistory(History *history);
-	void writeAllMuted(QDataStream &stream);
-	void readAllMuted(QDataStream &stream);
-	void readOneMuted(QDataStream &stream);
-	bool isPeerMuted(const PeerId &peer);
-
 	void checkImageCacheSize();
 
 	bool isValidPhone(QString phone);
@@ -189,5 +181,24 @@ namespace App {
 	void searchByHashtag(const QString &tag);
 	void openUserByName(const QString &username);
 	void openLocalUrl(const QString &url);
+
+	void initBackground(int32 id = 0, const QImage &p = QImage(), bool nowrite = false);
+
+	style::color msgServiceBG();
+	style::color historyScrollBarColor();
+	style::color historyScrollBgColor();
+	style::color historyScrollBarOverColor();
+	style::color historyScrollBgOverColor();
+	style::color introPointHoverColor();
+
+	struct WallPaper {
+		WallPaper(int32 id, ImagePtr thumb, ImagePtr full) : id(id), thumb(thumb), full(full) {
+		}
+		int32 id;
+		ImagePtr thumb;
+		ImagePtr full;
+	};
+	typedef QList<WallPaper> WallPapers;
+	DeclareSetting(WallPapers, ServerBackgrounds);
 
 };

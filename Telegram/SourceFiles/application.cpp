@@ -22,7 +22,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "pspecific.h"
 #include "fileuploader.h"
 #include "mainwidget.h"
-#include "supporttl.h"
 
 #include "lang.h"
 #include "boxes/confirmbox.h"
@@ -105,10 +104,6 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 
 	installEventFilter(new _DebugWaiter(this));
 
-#if defined Q_OS_LINUX || defined Q_OS_LINUX64
-    QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/DejaVuSans.ttf"));
-    QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/NanumMyeongjo-Regular.ttf"));
-#endif
     QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Regular.ttf"));
     QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Bold.ttf"));
     QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Semibold.ttf"));
@@ -128,6 +123,8 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
         cSetRetina(true);
         cSetRetinaFactor(devicePixelRatio());
         cSetIntRetinaFactor(int32(cRetinaFactor()));
+		cSetConfigScale(dbisOne);
+		cSetRealScale(dbisOne);
     }
 
 	if (cLang() < languageTest) {
@@ -156,7 +153,6 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 
 	installTranslator(_translator = new Translator());
 
-	Local::start();
 	style::startManager();
 	anim::startManager();
 	historyInit();
@@ -178,8 +174,8 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	connect(this, SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
 	connect(this, SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
 	connect(this, SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
-	connect(&writeUserConfigTimer, SIGNAL(timeout()), this, SLOT(onWriteUserConfig()));
-	writeUserConfigTimer.setSingleShot(true);
+	//connect(&writeUserConfigTimer, SIGNAL(timeout()), this, SLOT(onWriteUserConfig()));
+	//writeUserConfigTimer.setSingleShot(true);
 
 	connect(&killDownloadSessionsTimer, SIGNAL(timeout()), this, SLOT(killDownloadSessions()));
 
@@ -195,7 +191,7 @@ void Application::onAppUpdate(const MTPhelp_AppUpdate &response) {
     updateRequestId = 0;
 
 	cSetLastUpdateCheck(unixtime());
-	App::writeConfig();
+	Local::writeSettings();
 	if (response.type() == mtpc_help_noAppUpdate) {
 		startUpdateCheck();
 	} else {
@@ -209,7 +205,7 @@ void Application::onAppUpdate(const MTPhelp_AppUpdate &response) {
 bool Application::onAppUpdateFail() {
 	updateRequestId = 0;
 	cSetLastUpdateCheck(unixtime());
-	App::writeConfig();
+	Local::writeSettings();
 	startUpdateCheck();
 	return true;
 }
@@ -243,7 +239,7 @@ void Application::updateGotCurrent() {
 		emit updateLatest();
 	}
 	startUpdateCheck(true);
-	App::writeConfig();
+	Local::writeSettings();
 }
 
 void Application::updateFailedCurrent(QNetworkReply::NetworkError e) {
@@ -263,7 +259,7 @@ void Application::onUpdateReady() {
 	updateCheckTimer.stop();
 
 	cSetLastUpdateCheck(unixtime());
-	App::writeConfig();
+	Local::writeSettings();
 }
 
 void Application::onUpdateFailed() {
@@ -275,7 +271,7 @@ void Application::onUpdateFailed() {
 	}
 
 	cSetLastUpdateCheck(unixtime());
-	App::writeConfig();
+	Local::writeSettings();
 }
 
 void Application::regPhotoUpdate(const PeerId &peer, MsgId msgId) {
@@ -351,11 +347,11 @@ void Application::peerClearPhoto(PeerId peer) {
 	}
 }
 
-void Application::writeUserConfigIn(uint64 ms) {
-	if (!writeUserConfigTimer.isActive()) {
-		writeUserConfigTimer.start(ms);
-	}
-}
+//void Application::writeUserConfigIn(uint64 ms) {
+//	if (!writeUserConfigTimer.isActive()) {
+//		writeUserConfigTimer.start(ms);
+//	}
+//}
 
 void Application::killDownloadSessionsStart(int32 dc) {
 	if (killDownloadSessionTimes.constFind(dc) == killDownloadSessionTimes.cend()) {
@@ -377,12 +373,13 @@ void Application::checkLocalTime() {
 	if (App::main()) App::main()->checkLastUpdate(checkms());
 }
 
-void Application::onWriteUserConfig() {
-	App::writeUserConfig();
-}
+//void Application::onWriteUserConfig() {
+//	Local::writeUserSettings();
+//}
 
 void Application::onAppStateChanged(Qt::ApplicationState state) {
 	checkLocalTime();
+	if (window) window->updateIsActive((state == Qt::ApplicationActive) ? cOnlineFocusTimeout() : cOfflineBlurTimeout());
 }
 
 void Application::killDownloadSessions() {
@@ -509,8 +506,8 @@ void Application::startUpdateCheck(bool forceWait) {
 	updateCheckTimer.stop();
 	if (updateRequestId || updateThread || updateReply || !cAutoUpdate() || true) return;
 	
-	int32 updateInSecs = cLastUpdateCheck() + 3600 + (rand() % 3600) - unixtime();
-	bool sendRequest = (updateInSecs <= 0 || updateInSecs > 7200);
+	int32 updateInSecs = cLastUpdateCheck() + UpdateDelayConstPart + (rand() % UpdateDelayRandPart) - unixtime();
+	bool sendRequest = (updateInSecs <= 0 || updateInSecs > (UpdateDelayConstPart + UpdateDelayRandPart));
 	if (!sendRequest && !forceWait) {
 		QDir updates(cWorkingDir() + "tupdates");
 		if (updates.exists()) {
@@ -525,7 +522,10 @@ void Application::startUpdateCheck(bool forceWait) {
     if (cManyInstance() && !cDebug()) return; // only main instance is updating
 
 	if (sendRequest) {
-		QNetworkRequest checkVersion(cUpdateURL());
+		QUrl url(cUpdateURL());
+		if (DevChannel) url.setQuery("dev=1");
+		QString u = url.toString();
+		QNetworkRequest checkVersion(url);
 		if (updateReply) updateReply->deleteLater();
 
 		App::setProxySettings(updateManager);
@@ -649,31 +649,44 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 	startApp();
 }
 
+void Application::checkMapVersion() {
+	if (Local::oldMapVersion() < AppVersion) {
+		psRegisterCustomScheme();
+		if (Local::oldMapVersion()) {
+			QString versionFeatures;
+			if (DevChannel && Local::oldMapVersion() < 7019) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Passcode lock option added");
+			} else if (!DevChannel && Local::oldMapVersion() < 7020) {
+				versionFeatures = lang(lng_new_version7020).trimmed();
+			}
+			if (!versionFeatures.isEmpty()) {
+				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
+				window->serviceNotification(versionFeatures);
+			}
+		}
+	}
+}
+
 void Application::startApp() {
+	cChangeTimeFormat(QLocale::system().timeFormat(QLocale::ShortFormat));
+
 	DEBUG_LOG(("Application Info: starting app.."));
 
 	Local::ReadMapState state = Local::readMap(QByteArray());
+	if (state == Local::ReadMapPassNeeded) {
+		cSetHasPasscode(true);
+	}
 
 	DEBUG_LOG(("Application Info: local map read.."));
-	App::readUserConfig();
-	if (!Local::oldKey().created()) {
-		Local::createOldKey();
-		cSetNeedConfigResave(true);
-	}
-	if (cNeedConfigResave()) {
-		App::writeConfig();
-		App::writeUserConfig();
-		cSetNeedConfigResave(false);
-	}
-	DEBUG_LOG(("Application Info: user config read.."));
 
 	window->createWinId();
 	window->init();
 
 	DEBUG_LOG(("Application Info: window created.."));
-	readSupportTemplates();
 
-	MTP::start();
+	if (state != Local::ReadMapPassNeeded) {
+		MTP::start();
+	}
 	
 	MTP::setStateChangedHandler(mtpStateChanged);
 	MTP::setSessionResetHandler(mtpSessionReset);
@@ -684,13 +697,15 @@ void Application::startApp() {
 	App::initMedia();
 
 	DEBUG_LOG(("Application Info: showing."));
-
-	if (MTP::authedId()) {
-		window->setupMain(false);
+	if (state == Local::ReadMapPassNeeded) {
+		window->setupPasscode(false);
 	} else {
-		window->setupIntro(false);
+		if (MTP::authedId()) {
+			window->setupMain(false);
+		} else {
+			window->setupIntro(false);
+		}
 	}
-
 	window->firstShow();
 
 	if (cStartToSettings()) {
@@ -706,11 +721,13 @@ void Application::startApp() {
 				window->serviceNotification(versionFeatures);
 			}
 		}
+    }
+	
+	if (state != Local::ReadMapPassNeeded) {
+		checkMapVersion();
 	}
 
-//	if (!cLangErrors().isEmpty()) {
-//		window->showLayer(new ConfirmBox("Custom lang failed :(\n\nError: " + cLangErrors(), true, lang(lng_close)));
-//	}
+	window->updateIsActive(cOnlineFocusTimeout());
 }
 
 void Application::socketDisconnected() {
@@ -833,9 +850,14 @@ Application::~Application() {
 
 	delete window;
 
-	style::stopManager();
-	Local::stop();
+	delete cChatBackground();
+	cSetChatBackground(0);
 
+	delete cChatDogImage();
+	cSetChatDogImage(0);
+
+	style::stopManager();
+	
 	delete _translator;
 }
 

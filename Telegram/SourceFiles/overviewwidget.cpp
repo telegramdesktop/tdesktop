@@ -576,7 +576,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 
 	if (_hist->_overview[_type].isEmpty()) {
 		QPoint dogPos((_width - st::msgDogImg.pxWidth()) / 2, ((height() - st::msgDogImg.pxHeight()) * 4) / 9);
-		p.drawPixmap(dogPos, App::sprite(), st::msgDogImg);
+		p.drawPixmap(dogPos, *cChatDogImage());
 		return;
 	}
 
@@ -721,7 +721,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 					width = strwidth;
 
 					QRect r(left, st::msgServiceMargin.top(), width, height);
-					p.setBrush(st::msgServiceBG->b);
+					p.setBrush(App::msgServiceBG()->b);
 					p.setPen(Qt::NoPen);
 					p.drawRoundedRect(r, st::msgServiceRadius, st::msgServiceRadius);
 
@@ -1073,8 +1073,8 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if ((lnkVideo && !lnkVideo->video()->already(true).isEmpty()) || (lnkAudio && !lnkAudio->audio()->already(true).isEmpty()) || (lnkDocument && !lnkDocument->document()->already(true).isEmpty())) {
 					_menu->addAction(lang(cPlatform() == dbipMac ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 				}
-				_menu->addAction(lang(lnkVideo ? lng_context_open_video : (lnkAudio ? lng_context_open_audio : lng_context_open_document)), this, SLOT(openContextFile()))->setEnabled(true);
-				_menu->addAction(lang(lnkVideo ? lng_context_save_video : (lnkAudio ? lng_context_save_audio : lng_context_save_document)), this, SLOT(saveContextFile()))->setEnabled(true);
+				_menu->addAction(lang(lnkVideo ? lng_context_open_video : (lnkAudio ? lng_context_open_audio : lng_context_open_file)), this, SLOT(openContextFile()))->setEnabled(true);
+				_menu->addAction(lang(lnkVideo ? lng_context_save_video : (lnkAudio ? lng_context_save_audio : lng_context_save_file)), this, SLOT(saveContextFile()))->setEnabled(true);
 			}
 		}
 		if (isUponSelected > 1) {
@@ -1533,10 +1533,9 @@ OverviewInner::~OverviewInner() {
 }
 
 OverviewWidget::OverviewWidget(QWidget *parent, const PeerData *peer, MediaOverviewType type) : QWidget(parent)
-, _scroll(this, st::setScroll, false)
+, _scroll(this, st::historyScroll, false)
 , _inner(this, &_scroll, peer, type)
 , _noDropResizeIndex(false)
-, _bg(st::msgBG)
 , _showing(false)
 , _scrollSetAfterShow(0)
 , _scrollDelta(0)
@@ -1545,6 +1544,9 @@ OverviewWidget::OverviewWidget(QWidget *parent, const PeerData *peer, MediaOverv
 	_scroll.setWidget(&_inner);
 	_scroll.move(0, 0);
 	_inner.move(0, 0);
+
+	updateScrollColors();
+
 	_scroll.show();
 	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(onUpdateSelected()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
@@ -1591,19 +1593,36 @@ void OverviewWidget::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
+	bool hasTopBar = !App::main()->topBar()->isHidden();
 	QRect r(e->rect());
 	if (type() == OverviewPhotos) {
 		p.fillRect(r, st::white->b);
-	} else if (cCatsAndDogs()) {
-		int32 i_from = r.left() / _bg.width(), i_to = (r.left() + r.width() - 1) / _bg.width() + 1;
-		int32 j_from = r.top() / _bg.height(), j_to = (r.top() + r.height() - 1) / _bg.height() + 1;
-		for (int32 i = i_from; i < i_to; ++i) {
-			for (int32 j = j_from; j < j_to; ++j) {
-				p.drawPixmap(i * _bg.width(), j * _bg.height(), _bg);
-			}
+	} else if (cTileBackground()) {
+		int left = r.left(), top = r.top(), right = r.left() + r.width(), bottom = r.top() + r.height();
+		if (right > 0 && bottom > 0) {
+			QRect fill(left, top + (hasTopBar ? st::topBarHeight : 0), right, bottom + (hasTopBar ? st::topBarHeight : 0));
+
+			if (hasTopBar) p.translate(0, -st::topBarHeight);
+			p.fillRect(fill, QBrush(*cChatBackground()));
+			if (hasTopBar) p.translate(0, st::topBarHeight);
 		}
 	} else {
-		p.fillRect(r, st::historyBG->b);
+		QRect fill(0, 0, width(), App::main()->height());
+		int fromy = hasTopBar ? (-st::topBarHeight) : 0, x = 0, y = 0;
+		QPixmap cached = App::main()->cachedBackground(fill, x, y);
+		if (cached.isNull()) {
+			bool smooth = p.renderHints().testFlag(QPainter::SmoothPixmapTransform);
+			p.setRenderHint(QPainter::SmoothPixmapTransform);
+
+			QRect to, from;
+			App::main()->backgroundParams(fill, to, from);
+			to.moveTop(to.top() + fromy);
+			p.drawPixmap(to, *cChatBackground(), from);
+
+			if (!smooth) p.setRenderHint(QPainter::SmoothPixmapTransform, false);
+		} else {
+			p.drawPixmap(x, fromy + y, cached);
+		}
 	}
 }
 
@@ -1653,7 +1672,7 @@ void OverviewWidget::switchType(MediaOverviewType type) {
 	switch (type) {
 	case OverviewPhotos: _header = lang(lng_profile_photos_header); break;
 	case OverviewVideos: _header = lang(lng_profile_videos_header); break;
-	case OverviewDocuments: _header = lang(lng_profile_documents_header); break;
+	case OverviewDocuments: _header = lang(lng_profile_files_header); break;
 	case OverviewAudios: _header = lang(lng_profile_audios_header); break;
 	}
 	noSelectingScroll();
@@ -1770,6 +1789,11 @@ void OverviewWidget::itemResized(HistoryItem *row) {
 
 void OverviewWidget::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
 	_inner.fillSelectedItems(sel, forDelete);
+}
+
+void OverviewWidget::updateScrollColors() {
+	if (!App::historyScrollBarColor()) return;
+	_scroll.updateColors(App::historyScrollBarColor(), App::historyScrollBgColor(), App::historyScrollBarOverColor(), App::historyScrollBgOverColor());
 }
 
 OverviewWidget::~OverviewWidget() {

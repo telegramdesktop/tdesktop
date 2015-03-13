@@ -20,7 +20,7 @@ Source code is published under GPL v3, license is available [here](https://githu
 
 ###Third-party
 
-* Qt 5.3.1, slightly patched ([LGPL](http://qt-project.org/doc/qt-5/lgpl.html))
+* Qt 5.4.0, slightly patched ([LGPL](http://qt-project.org/doc/qt-5/lgpl.html))
 * OpenSSL 1.0.1g ([OpenSSL License](https://www.openssl.org/source/license.html))
 * zlib 1.2.8 ([zlib License](http://www.zlib.net/zlib_license.html))
 * libexif 0.6.20 ([LGPL](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html))
@@ -30,8 +30,6 @@ Source code is published under GPL v3, license is available [here](https://githu
 * Opus codec, opusfile ([BSD license](http://www.opus-codec.org/license/))
 * libogg ([BSD license](http://www.xiph.org/downloads/))
 * Open Sans font ([Apache License](http://www.apache.org/licenses/LICENSE-2.0.html))
-* DejaVu Sans font ([Free license](http://dejavu-fonts.org/wiki/License))
-* Nanum Myeongjo font ([SIL Open Font License](http://fonts.gstatic.com/ea/nanummyeongjo/v4/OFL.txt))
 
 ###[Build instructions for Visual Studio 2013](https://github.com/telegramdesktop/tdesktop/blob/master/MSVC.md)
 

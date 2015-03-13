@@ -29,7 +29,7 @@ public:
 
 	void updateDelegate();
     
-    void showNotify(uint64 peer, const QString &title, const QString &subtitle, const QString &msg, bool withReply);
+    void showNotify(uint64 peer, const QPixmap &pix, const QString &title, const QString &subtitle, const QString &msg, bool withReply);
     void clearNotifies(uint64 peer = 0);
     
     void enableShadow(WId winId);
@@ -57,7 +57,10 @@ void objc_activateWnd(WId winId);
 
 void objc_debugShowAlert(const QString &str);
 void objc_outputDebugString(const QString &str);
-int64 objc_idleTime();
+bool objc_idleSupported();
+bool objc_idleTime(int64 &idleTime);
+
+bool objc_showOpenWithMenu(int x, int y, const QString &file);
 
 void objc_showInFinder(const QString &file, const QString &path);
 void objc_openFile(const QString &file, bool openwith);
