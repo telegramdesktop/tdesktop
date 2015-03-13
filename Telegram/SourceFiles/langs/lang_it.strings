@@ -241,13 +241,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_passcode_enter_old" = "Inserisci il tuo codice";
 "lng_passcode_enter_new" = "Inserisci il nuovo codice";
 "lng_passcode_confirm_new" = "Reinserisci il nuovo codice";
-"lng_passcode_about" = "Quando imposti un codice, un'icona col lucchetto apparirà nell'angolo. Premi su di essa per bloccare l'app. \n\nNota: se ti dimentichi il codice, dovrai rifare il login su Telegram Desktop.";
+"lng_passcode_about" = "Quando imposti un codice, un'icona col lucchetto apparirà nel menu in alto. Premi su di essa per bloccare l'app. \n\nNota: se ti dimentichi il codice, dovrai rifare il login su Telegram Desktop.";
 "lng_passcode_differ" = "I codici sono diversi";
 "lng_passcode_wrong" = "Codice errato";
 "lng_passcode_is_same" = "Il codice non è stato cambiato";
 "lng_passcode_enter" = "Inserisci il codice di Telegram";
 "lng_passcode_submit" = "Invia";
-"lng_passcode_logout" = "oppure {link_start}disconnettiti{link_end}";
+"lng_passcode_logout" = "Disconnetti";
 
 "lng_connection_type" = "Tipo di connessione:";
 "lng_connection_auto_connecting" = "Default (connessione..)";
@@ -481,8 +481,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli update è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version7016" = "— Alcuni miglioramenti nelle traduzioni\n— Linux: l'icona tray dovrebbe funzionare meglio negli ambienti non Unity";
-"lng_new_version7006_appstore" = "Telegram Desktop è stato aggiornato alla versione {version}\n\n— Aggiunto il supporto agli sticker\n— Cache locale per i messaggi vocali\n— Aggiunte nuove lingue\n\nLa cronologia degli update è disponibile qui:\n{link}";
+"lng_new_version7020" = "— Blocca la tua app con un codice";
+"lng_new_version7020_appstore" = "— Blocca la tua app con un codice\n— Cambia lo sfondo chat\n— Nuovo menu «apri con» per i file\n— Aggiunto il Coreano";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

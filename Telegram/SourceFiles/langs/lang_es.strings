@@ -241,13 +241,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_passcode_enter_old" = "Pon tu código actual";
 "lng_passcode_enter_new" = "Pon tu nuevo código";
 "lng_passcode_confirm_new" = "Pon, otra vez, el código";
-"lng_passcode_about" = "Cuando configuras un código, aparece un candado en la pantalla de chats. Toca sobre él para bloquear la aplicación.\n\nNota: si olvidas el código, tendrás que reiniciar la sesión en Telegram Desktop.";
+"lng_passcode_about" = "Cuando configuras un código, aparece un candado en la pantalla de chats. Pulsa sobre él para bloquear la aplicación.\n\nNota: si olvidas el código, tendrás que reiniciar la sesión en Telegram Desktop.";
 "lng_passcode_differ" = "Los códigos de acceso son diferentes";
 "lng_passcode_wrong" = "Código de acceso equivocado";
 "lng_passcode_is_same" = "El código no fue cambiado";
 "lng_passcode_enter" = "Pon tu código de acceso";
 "lng_passcode_submit" = "Enviar";
-"lng_passcode_logout" = "o puedes {link_start}cerrar sesión »{link_end}";
+"lng_passcode_logout" = "Cerrar sesión";
 
 "lng_connection_type" = "Tipo de conexión:";
 "lng_connection_auto_connecting" = "Por defecto (conectando...)";
@@ -481,8 +481,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop fue actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version7016" = "— Algunas mejoras en traducciones\n— Linux: el icono del menú debería funcionar mejor en entornos que no son Unity";
-"lng_new_version7006_appstore" = "Telegram Desktop fue actualizada a la versión {version}\n\n– Soporte para stickers\n– Caché local para mensajes de voz\n– Nuevos idiomas añadidos\n\nLa versión completa del historial está disponible aquí:\n{link} ";
+"lng_new_version7020" = "- Bloquea tu aplicación con un código de acceso";
+"lng_new_version7020_appstore" = "— Bloquea tu aplicación con un código de acceso\n— Cambia el fondo de chat\n— Nuevo menú «abrir con» para archivos\n— Idioma coreano añadido";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

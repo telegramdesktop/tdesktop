@@ -241,13 +241,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_passcode_enter_old" = "Aktueller Pincode";
 "lng_passcode_enter_new" = "Neuer Pincode";
 "lng_passcode_confirm_new" = "Pincode wiederholen";
-"lng_passcode_about" = "Wenn du die Code-Sperre aktivierst, erscheint ein Schloss oben in der Ecke. Klicke darauf, um die App zu sperren.\n\nÜbrigens: Vergisst du den Pincode, musst du dich abmelden und wieder anmelden.";
+"lng_passcode_about" = "Bei aktivierter Code-Sperre, erscheint ein Schloss oben in der Menüleiste. Klicke darauf, um die App zu sperren.\n\nÜbrigens: Vergisst du den Pincode, musst du dich abmelden und wieder anmelden.";
 "lng_passcode_differ" = "Pincode ist nicht identisch";
 "lng_passcode_wrong" = "Falscher Pincode";
 "lng_passcode_is_same" = "Pincode wurde nicht geändert";
 "lng_passcode_enter" = "Telegram Pincode eingeben";
 "lng_passcode_submit" = "Absenden";
-"lng_passcode_logout" = "oder {link_start}melde dich ab »{link_end}";
+"lng_passcode_logout" = "Abmelden";
 
 "lng_connection_type" = "Verbindungsart:";
 "lng_connection_auto_connecting" = "Standard (verbinden..)";
@@ -481,8 +481,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version7016" = "— Übersetzungen wurden überarbeitet\n— Linux: Tray Icon Anzeige verbessert (für Nicht-Unity Umgebungen)";
-"lng_new_version7006_appstore" = "Telegram Desktop wurde auf Version {version} aktualisiert\n\n— Sticker werden unterstützt\n— Sprachnachrichten werden temporär lokal gespeichert\n— Neue Sprachen hinzugefügt\n\nKompletter Versionsverlauf ist hier zu finden:\n{link}";
+"lng_new_version7020" = "— Sperre deine App mit einem Pincode";
+"lng_new_version7020_appstore" = "— Sperre deine App mit einem Pincode\n— Ändere das Chat-Hintergrundbild\n— Neues <<öffnen mit>> Menü für Dateien\n— Koreanische Sprache hinzugefügt";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 
