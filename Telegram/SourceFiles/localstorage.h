@@ -100,8 +100,14 @@ namespace Local {
 	ReadMapState readMap(const QByteArray &pass);
 	int32 oldMapVersion();
 
-	void writeDraft(const PeerId &peer, const QString &text);
-	QString readDraft(const PeerId &peer);
+	struct MessageDraft {
+		MessageDraft(MsgId replyTo = 0, QString text = QString()) : replyTo(replyTo), text(text) {
+		}
+		MsgId replyTo;
+		QString text;
+	};
+	void writeDraft(const PeerId &peer, const MessageDraft &draft);
+	MessageDraft readDraft(const PeerId &peer);
 	void writeDraftPositions(const PeerId &peer, const MessageCursor &cur);
 	MessageCursor readDraftPositions(const PeerId &peer);
 	bool hasDraftPositions(const PeerId &peer);

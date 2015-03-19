@@ -784,6 +784,8 @@ msgInSelectOverlay: #358cd44c;
 msgStickerOverlay: #358cd47f;
 msgOutServiceColor: #3a8e26;
 msgInServiceColor: #0e7acd;
+msgOutServiceSelColor: #367570;
+msgInServiceSelColor: #0e7acd;
 msgShadow: 2px;
 msgInShadow: #748ea229;
 msgOutShadow: #3ac34740;
@@ -793,6 +795,15 @@ msgInDateColor: #a0acb6;
 msgOutDateColor: #6cc264;
 msgInSelectDateColor: #6a9cc5;
 msgOutSelectDateColor: #50a79c;
+
+msgReplyPadding: margins(6px, 6px, 11px, 6px);
+msgReplyBarPos: point(1px, 0px);
+msgReplyBarSize: size(2px, 36px);
+msgReplyBarSkip: 10px;
+msgOutReplyBarColor: #5dc452;
+msgInReplyBarColor: #2fa9e2;
+msgOutReplyBarSelColor: #4da79f;
+msgInReplyBarSelColor: #2fa9e2;
 
 msgServiceSelectBG: #fff4;
 msgServiceRadius: 2px;
@@ -878,7 +889,7 @@ introErrLabelTextStyle: textStyle(defaultTextStyle) {
 
 mediaMaxWidth: 250px;
 mediaFont: font(fsize);
-mediaPadding: margins(7px, 6px, 11px, 6px);
+mediaPadding: margins(7px, 6px, 7px, 6px);
 mediaThumbSize: 48px;
 mediaNameTop: 3px;
 mediaDetailsShift: 3px;
@@ -958,6 +969,24 @@ btnAttachEmoji: iconedButton(btnAttachDocument) {
 	downIconPos: point(6px, 13px);
 
 	width: 32px;
+}
+
+replySkip: 52px;
+replyColor: #377aae;
+replyHeight: 49px;
+replyTop: 8px;
+replyBottom: 6px;
+replyIconPos: point(13px, 15px);
+replyIcon: sprite(174px, 195px, 24px, 24px);
+replyCancel: iconedButton(btnDefIconed) {
+	icon: sprite(165px, 24px, 14px, 14px);
+	iconPos: point(17px, 17px);
+	downIcon: sprite(165px, 24px, 14px, 14px);
+	downIconPos: point(17px, 18px);
+	bgColor: white;
+	overBgColor: white;
+	width: 49px;
+	height: 49px;
 }
 
 historyScroll: flatScroll(scrollDef) {
@@ -1318,6 +1347,7 @@ dropdownShadow: sprite(241px, 46px, 6px, 6px);
 dropdownBorder: 1px;
 dropdownBorderColor: #ebebeb;
 dropdownBackground: white;
+dropdownDuration: 150;
 
 dropdownAttachDocument: iconedButton(btnAttachDocument) {
 	iconPos: point(14px, 13px);
@@ -1714,3 +1744,13 @@ passcodeSubmit: flatButton(btnIntroNext) {
 	font: font(19px);
 	overFont: font(19px);
 }
+
+mentionHeight: 40px;
+mentionScroll: flatScroll(scrollDef) {
+	topsh: 0;
+	bottomsh: 0;
+}
+mentionPadding: margins(8px, 5px, 8px, 5px);
+mentionTop: 11px;
+mentionFont: linkFont;
+mentionPhotoSize: msgPhotoSize;

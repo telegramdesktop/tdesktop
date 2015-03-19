@@ -742,7 +742,7 @@ void DialogsListWidget::clearFilter() {
 }
 
 void DialogsListWidget::addDialog(const MTPDdialog &dialog) {
-	History *history = App::history(App::peerFromMTP(dialog.vpeer), dialog.vunread_count.v);
+	History *history = App::history(App::peerFromMTP(dialog.vpeer), dialog.vunread_count.v, dialog.vread_inbox_max_id.v);
 	History::DialogLinks links = dialogs.addToEnd(history);
 	history->dialogs = links;
 	contactsNoDialogs.del(history->peer);

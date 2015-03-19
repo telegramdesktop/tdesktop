@@ -1558,7 +1558,7 @@ namespace Local {
 		if (!QDir().exists(_basePath)) QDir().mkpath(_basePath);
 
 		FileReadDescriptor settingsData;
-		if (!readFile(settingsData, qsl("settings"), SafePath)) {
+		if (!readFile(settingsData, cTestMode() ? qsl("settings_test") : qsl("settings"), SafePath)) {
 			_readOldSettings();
 			_readOldUserSettings(false); // needed further in _readUserSettings
 			_readOldMtpData(false); // needed further in _readMtpData
@@ -1617,7 +1617,7 @@ namespace Local {
 
 		if (!QDir().exists(_basePath)) QDir().mkpath(_basePath);
 
-		FileWriteDescriptor settings(qsl("settings"), SafePath);
+		FileWriteDescriptor settings(cTestMode() ? qsl("settings_test") : qsl("settings"), SafePath);
 		if (_settingsSalt.isEmpty() || !_settingsKey.created()) {
 			_settingsSalt.resize(LocalEncryptSaltSize);
 			memset_rand(_settingsSalt.data(), _settingsSalt.size());
@@ -1735,10 +1735,10 @@ namespace Local {
 		return _oldMapVersion;
 	}
 
-	void writeDraft(const PeerId &peer, const QString &text) {
+	void writeDraft(const PeerId &peer, const MessageDraft &draft) {
 		if (!_working()) return;
 
-		if (text.isEmpty()) {
+		if (draft.replyTo <= 0 && draft.text.isEmpty()) {
 			DraftsMap::iterator i = _draftsMap.find(peer);
 			if (i != _draftsMap.cend()) {
 				clearKey(i.value());
@@ -1755,8 +1755,8 @@ namespace Local {
 				_mapChanged = true;
 				_writeMap(WriteMapFast);
 			}
-			EncryptedDescriptor data(sizeof(quint64) + _stringSize(text));
-			data.stream << quint64(peer) << text;
+			EncryptedDescriptor data(sizeof(quint64) + _stringSize(draft.text) + sizeof(qint32));
+			data.stream << quint64(peer) << draft.text << qint32(draft.replyTo);
 			FileWriteDescriptor file(i.value());
 			file.writeEncrypted(data);
 
@@ -1764,24 +1764,26 @@ namespace Local {
 		}
 	}
 
-	QString readDraft(const PeerId &peer) {
-		if (!_draftsNotReadMap.remove(peer)) return QString();
+	MessageDraft readDraft(const PeerId &peer) {
+		if (!_draftsNotReadMap.remove(peer)) return MessageDraft();
 
 		DraftsMap::iterator j = _draftsMap.find(peer);
 		if (j == _draftsMap.cend()) {
-			return QString();
+			return MessageDraft();
 		}
 		FileReadDescriptor draft;
 		if (!readEncryptedFile(draft, j.value())) {
 			clearKey(j.value());
 			_draftsMap.erase(j);
-			return QString();
+			return MessageDraft();
 		}
 
 		quint64 draftPeer;
 		QString draftText;
+		qint32 draftReplyTo = 0;
 		draft.stream >> draftPeer >> draftText;
-		return (draftPeer == peer) ? draftText : QString();
+		if (draft.version >= 7021) draft.stream >> draftReplyTo;
+		return (draftPeer == peer) ? MessageDraft(MsgId(draftReplyTo), draftText) : MessageDraft();
 	}
 
 	void writeDraftPositions(const PeerId &peer, const MessageCursor &cur) {
@@ -2092,15 +2094,17 @@ namespace Local {
 			quint32 size = 0;
 			for (RecentStickerPack::const_iterator i = recent.cbegin(); i != recent.cend(); ++i) {
 				DocumentData *doc = i->first;
+				if (doc->status == FileFailed) continue;
 
-				// id + value + access + date + namelen + name + mimelen + mime + dc + size + width + height + type
-				size += sizeof(quint64) + sizeof(qint16) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
+				// id + value + access + date + namelen + name + mimelen + mime + dc + size + width + height + type + alt
+				size += sizeof(quint64) + sizeof(qint16) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(doc->alt);
 			}
 			EncryptedDescriptor data(size);
 			for (RecentStickerPack::const_iterator i = recent.cbegin(); i != recent.cend(); ++i) {
 				DocumentData *doc = i->first;
+				if (doc->status == FileFailed) continue;
 
-				data.stream << quint64(doc->id) << qint16(i->second) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type);
+				data.stream << quint64(doc->id) << qint16(i->second) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type) << doc->alt;
 			}
 			FileWriteDescriptor file(_recentStickersKey);
 			file.writeEncrypted(data);
@@ -2122,10 +2126,13 @@ namespace Local {
 		RecentStickerPack recent;
 		while (!stickers.stream.atEnd()) {
 			quint64 id, access;
-			QString name, mime;
+			QString name, mime, alt;
 			qint32 date, dc, size, width, height, type;
 			qint16 value;
 			stickers.stream >> id >> value >> access >> date >> name >> mime >> dc >> size >> width >> height >> type;
+			if (stickers.version >= 7021) {
+				stickers.stream >> alt;
+			}
 			if (read.contains(id)) continue;
 			read.insert(id, true);
 
@@ -2134,7 +2141,7 @@ namespace Local {
 			if (type == AnimatedDocument) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (type == StickerDocument) {
-				attributes.push_back(MTP_documentAttributeSticker());
+				attributes.push_back(MTP_documentAttributeSticker(MTP_string(alt)));
 			}
 			if (width > 0 && height > 0) {
 				attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));

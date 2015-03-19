@@ -25,11 +25,11 @@ enum ToPrepareMediaType {
 };
 
 struct ToPrepareMedia {
-	ToPrepareMedia(const QString &file, const PeerId &peer, ToPrepareMediaType t, bool ctrlShiftEnter) : id(MTP::nonce<PhotoId>()), file(file), peer(peer), type(t), ctrlShiftEnter(ctrlShiftEnter) {
+	ToPrepareMedia(const QString &file, const PeerId &peer, ToPrepareMediaType t, bool ctrlShiftEnter, MsgId replyTo) : id(MTP::nonce<PhotoId>()), file(file), peer(peer), type(t), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
 	}
-	ToPrepareMedia(const QImage &img, const PeerId &peer, ToPrepareMediaType t, bool ctrlShiftEnter) : id(MTP::nonce<PhotoId>()), img(img), peer(peer), type(t), ctrlShiftEnter(ctrlShiftEnter) {
+	ToPrepareMedia(const QImage &img, const PeerId &peer, ToPrepareMediaType t, bool ctrlShiftEnter, MsgId replyTo) : id(MTP::nonce<PhotoId>()), img(img), peer(peer), type(t), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
 	}
-	ToPrepareMedia(const QByteArray &data, const PeerId &peer, ToPrepareMediaType t, bool ctrlShiftEnter) : id(MTP::nonce<PhotoId>()), data(data), peer(peer), type(t), ctrlShiftEnter(ctrlShiftEnter) {
+	ToPrepareMedia(const QByteArray &data, const PeerId &peer, ToPrepareMediaType t, bool ctrlShiftEnter, MsgId replyTo) : id(MTP::nonce<PhotoId>()), data(data), peer(peer), type(t), ctrlShiftEnter(ctrlShiftEnter), replyTo(replyTo) {
 	}
 	PhotoId id;
 	QString file;
@@ -38,13 +38,14 @@ struct ToPrepareMedia {
 	PeerId peer;
 	ToPrepareMediaType type;
 	bool ctrlShiftEnter;
+	MsgId replyTo;
 };
 typedef QList<ToPrepareMedia> ToPrepareMedias;
 
 typedef QMap<int32, QByteArray> LocalFileParts;
 struct ReadyLocalMedia {
-	ReadyLocalMedia(ToPrepareMediaType type, const QString &file, const QString &filename, int32 filesize, const QByteArray &data, const uint64 &id, const uint64 &thumbId, const QString &thumbExt, const PeerId &peer, const MTPPhoto &photo, const PreparedPhotoThumbs &photoThumbs, const MTPDocument &document, const QByteArray &jpeg, bool ctrlShiftEnter) :
-		type(type), file(file), filename(filename), filesize(filesize), data(data), thumbExt(thumbExt), id(id), thumbId(thumbId), peer(peer), photo(photo), document(document), photoThumbs(photoThumbs), ctrlShiftEnter(ctrlShiftEnter) {
+	ReadyLocalMedia(ToPrepareMediaType type, const QString &file, const QString &filename, int32 filesize, const QByteArray &data, const uint64 &id, const uint64 &thumbId, const QString &thumbExt, const PeerId &peer, const MTPPhoto &photo, const PreparedPhotoThumbs &photoThumbs, const MTPDocument &document, const QByteArray &jpeg, bool ctrlShiftEnter, MsgId replyTo) :
+		replyTo(replyTo), type(type), file(file), filename(filename), filesize(filesize), data(data), thumbExt(thumbExt), id(id), thumbId(thumbId), peer(peer), photo(photo), document(document), photoThumbs(photoThumbs), ctrlShiftEnter(ctrlShiftEnter) {
 		if (!jpeg.isEmpty()) {
 			int32 size = jpeg.size();
 			for (int32 i = 0, part = 0; i < size; i += UploadPartSize, ++part) {
@@ -54,6 +55,7 @@ struct ReadyLocalMedia {
 			hashMd5Hex(jpeg.constData(), jpeg.size(), jpeg_md5.data());
 		}
 	}
+	MsgId replyTo;
 	ToPrepareMediaType type;
 	QString file, filename;
 	int32 filesize;
@@ -103,10 +105,10 @@ class LocalImageLoader : public QObject {
 public:
 
 	LocalImageLoader(QObject *parent);
-	void append(const QStringList &files, const PeerId &peer, ToPrepareMediaType t = ToPrepareAuto);
-	PhotoId append(const QByteArray &img, const PeerId &peer, ToPrepareMediaType t = ToPrepareAuto);
-	PhotoId append(const QImage &img, const PeerId &peer, ToPrepareMediaType t = ToPreparePhoto, bool ctrlShiftEnter = false);
-	PhotoId append(const QString &file, const PeerId &peer, ToPrepareMediaType t = ToPrepareAuto);
+	void append(const QStringList &files, const PeerId &peer, MsgId replyTo, ToPrepareMediaType t);
+	PhotoId append(const QByteArray &img, const PeerId &peer, MsgId replyTo, ToPrepareMediaType t);
+	PhotoId append(const QImage &img, const PeerId &peer, MsgId replyTo, ToPrepareMediaType t, bool ctrlShiftEnter = false);
+	PhotoId append(const QString &file, const PeerId &peer, MsgId replyTo, ToPrepareMediaType t);
 
 	QMutex *readyMutex();
 	ReadyLocalMedias &readyList();

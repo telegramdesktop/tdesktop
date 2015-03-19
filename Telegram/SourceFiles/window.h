@@ -211,7 +211,7 @@ public:
 	void quit();
 
     void notifySettingGot();
-	void notifySchedule(History *history, MsgId msgId);
+	void notifySchedule(History *history, HistoryItem *item);
 	void notifyClear(History *history = 0);
 	void notifyClearFast();
 	void notifyShowNext(NotifyWindow *remove = 0);
@@ -315,17 +315,18 @@ private:
 	typedef QMap<History*, NotifyWhenMap> NotifyWhenMaps;
 	NotifyWhenMaps notifyWhenMaps;
 	struct NotifyWaiter {
-		NotifyWaiter(MsgId msg, uint64 when) : msg(msg), when(when) {
+		NotifyWaiter(MsgId msg, uint64 when, UserData *notifyByFrom) : msg(msg), when(when), notifyByFrom(notifyByFrom) {
 		}
 		MsgId msg;
 		uint64 when;
+		UserData *notifyByFrom;
 	};
 	typedef QMap<History*, NotifyWaiter> NotifyWaiters;
 	NotifyWaiters notifyWaiters;
 	NotifyWaiters notifySettingWaiters;
 	SingleTimer notifyWaitTimer;
 
-	typedef QMap<uint64, NullType> NotifyWhenAlert;
+	typedef QMap<uint64, UserData*> NotifyWhenAlert;
 	typedef QMap<History*, NotifyWhenAlert> NotifyWhenAlerts;
 	NotifyWhenAlerts notifyWhenAlerts;
 

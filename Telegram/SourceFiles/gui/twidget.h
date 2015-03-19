@@ -25,10 +25,10 @@ public:
 	TWidget(QWidget *parent = 0) : QWidget(parent) {
 	}
 	TWidget *tparent() {
-		return dynamic_cast<TWidget*>(parentWidget());
+		return qobject_cast<TWidget*>(parentWidget());
 	}
 	const TWidget *tparent() const {
-		return dynamic_cast<const TWidget*>(parentWidget());
+		return qobject_cast<const TWidget*>(parentWidget());
 	}
 
 	virtual void leaveToChildEvent(QEvent *e) { // e -- from enterEvent() of child TWidget

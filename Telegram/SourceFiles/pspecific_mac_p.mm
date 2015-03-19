@@ -145,17 +145,21 @@ public:
     observerHelper([[ObserverHelper alloc] init:wnd]),
     notifyHandler([[NotifyHandler alloc] init:wnd]) {
     }
-    
+
     void onNotifyClick(NSUserNotification *notification) {
-        NSNumber *peerObj = [[notification userInfo] objectForKey:@"peer"];
+		NSDictionary *dict = [notification userInfo];
+		NSNumber *peerObj = [dict objectForKey:@"peer"], *msgObj = [dict objectForKey:@"msgid"];
 		unsigned long long peerLong = peerObj ? [peerObj unsignedLongLongValue] : 0;
-        wnd->notifyClicked(peerLong);
+		int msgId = msgObj ? [msgObj intValue] : 0;
+        wnd->notifyClicked(peerLong, msgId);
     }
     
     void onNotifyReply(NSUserNotification *notification) {
-        NSNumber *peerObj = [[notification userInfo] objectForKey:@"peer"];
+		NSDictionary *dict = [notification userInfo];
+		NSNumber *peerObj = [dict objectForKey:@"peer"], *msgObj = [dict objectForKey:@"msgid"];
 		unsigned long long peerLong = peerObj ? [peerObj unsignedLongLongValue] : 0;
-        wnd->notifyReplied(peerLong, [[[notification response] string] UTF8String]);
+		int msgId = msgObj ? [msgObj intValue] : 0;
+        wnd->notifyReplied(peerLong, msgId, [[[notification response] string] UTF8String]);
     }
     
     ~PsMacWindowData() {
@@ -272,12 +276,12 @@ void objc_activateWnd(WId winId) {
 
 NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 
-void PsMacWindowPrivate::showNotify(uint64 peer, const QPixmap &pix, const QString &title, const QString &subtitle, const QString &msg, bool withReply) {
+void PsMacWindowPrivate::showNotify(uint64 peer, int32 msgId, const QPixmap &pix, const QString &title, const QString &subtitle, const QString &msg, bool withReply) {
     NSUserNotification *notification = [[NSUserNotification alloc] init];
 	NSImage *img = qt_mac_create_nsimage(pix);
 
-	DEBUG_LOG(("Sending notification with userinfo: peer %1 and instance %2").arg(peer).arg(cInstance()));
-    [notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer],@"peer",[NSNumber numberWithUnsignedLongLong:cInstance()],@"inst",nil]];
+	DEBUG_LOG(("Sending notification with userinfo: peer %1, msgId %2 and instance %3").arg(peer).arg(msgId).arg(cInstance()));
+    [notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:cInstance()],@"inst",nil]];
 
 	[notification setTitle:QNSString(title).s()];
     [notification setSubtitle:QNSString(subtitle).s()];
@@ -305,7 +309,8 @@ void PsMacWindowPrivate::clearNotifies(unsigned long long peer) {
     if (peer) {
         NSArray *notifies = [center deliveredNotifications];
         for (id notify in notifies) {
-            if ([[[notify userInfo] objectForKey:@"peer"] unsignedLongLongValue] == peer) {
+			NSDictionary *dict = [notify userInfo];
+			if ([[dict objectForKey:@"peer"] unsignedLongLongValue] == peer && [[dict objectForKey:@"inst"] unsignedLongLongValue] == cInstance()) {
                 [center removeDeliveredNotification:notify];
             }
         }

@@ -227,6 +227,109 @@ private:
 
 };
 
+typedef QList<UserData*> MentionRows;
+
+class MentionsDropdown;
+class MentionsInner : public QWidget {
+	Q_OBJECT
+
+public:
+
+	MentionsInner(MentionsDropdown *parent, MentionRows *rows);
+
+	void paintEvent(QPaintEvent *e);
+
+	void enterEvent(QEvent *e);
+	void leaveEvent(QEvent *e);
+
+	void mousePressEvent(QMouseEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+
+	void clearSel();
+	bool moveSel(int direction);
+	bool select();
+
+signals:
+
+	void mentioned(QString username);
+	void mustScrollTo(int scrollToTop, int scrollToBottom);
+
+public slots:
+
+	void onParentGeometryChanged();
+	void onUpdateSelected(bool force = false);
+
+private:
+
+	void setSel(int sel, bool scroll = false);
+
+	MentionsDropdown *_parent;
+	MentionRows *_rows;
+	int32 _sel;
+	bool _mouseSel;
+	QPoint _mousePos;
+
+};
+
+class MentionsDropdown : public QWidget, public Animated {
+	Q_OBJECT
+
+public:
+
+	MentionsDropdown(QWidget *parent);
+
+	void paintEvent(QPaintEvent *e);
+
+	void fastHide();
+
+	void showFiltered(ChatData *chat, QString start);
+	void setBoundings(QRect boundings);
+
+	bool animStep(float64 ms);
+
+	int32 innerTop();
+	int32 innerBottom();
+
+	bool eventFilter(QObject *obj, QEvent *e);
+
+	~MentionsDropdown();
+
+signals:
+
+	void mentioned(QString username);
+
+public slots:
+
+	void hideStart();
+	void hideFinish();
+
+	void showStart();
+
+private:
+
+	void recount(bool toDown = false);
+
+	QPixmap _cache;
+	MentionRows _rows;
+
+	ScrollArea _scroll;
+	MentionsInner _inner;
+
+	ChatData *_chat;
+	QString _filter;
+	QRect _boundings;
+
+	int32 _width, _height;
+	bool _hiding;
+
+	anim::fvalue a_opacity;
+
+	QTimer _hideTimer;
+
+	BoxShadow _shadow;
+
+};
+
 //class StickerPanInner : public QWidget, public Animated {
 //	Q_OBJECT
 //

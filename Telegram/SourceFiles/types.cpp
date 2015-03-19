@@ -262,6 +262,18 @@ void SingleTimer::start(int msec) {
 	QTimer::start(msec);
 }
 
+void SingleTimer::startIfNotActive(int msec) {
+	if (isActive()) {
+		int remains = remainingTime();
+		if (remains > msec) {
+			start(msec);
+		} else if (!remains) {
+			start(1);
+		}
+	} else {
+		start(msec);
+	}
+}
 
 uint64 msgid() {
 #ifdef Q_OS_WIN

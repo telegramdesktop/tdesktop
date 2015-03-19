@@ -52,6 +52,8 @@ namespace {
 	VideoItems videoItems;
 	AudioItems audioItems;
 	DocumentItems documentItems;
+	typedef QMap<HistoryItem*, QMap<HistoryReply*, bool> > RepliesTo;
+	RepliesTo repliesTo;
 
 	Histories histories;
 
@@ -116,6 +118,10 @@ namespace App {
 
 	FileUploader *uploader() {
 		return app() ? app()->uploader() : 0;
+	}
+
+	ApiWrap *api() {
+		return main() ? main()->api() : 0;
 	}
 
 	void showSettings() {
@@ -590,7 +596,7 @@ namespace App {
 		}
 	}
 
-	void feedMsgs(const MTPVector<MTPMessage> &msgs, bool newMsgs) {
+	void feedMsgs(const MTPVector<MTPMessage> &msgs, int msgsState) {
 		const QVector<MTPMessage> &v(msgs.c_vector().v);
 		QMap<int32, int32> msgsIds;
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
@@ -598,12 +604,11 @@ namespace App {
 			switch (msg.type()) {
 			case mtpc_message: msgsIds.insert(msg.c_message().vid.v, i); break;
 			case mtpc_messageEmpty: msgsIds.insert(msg.c_messageEmpty().vid.v, i); break;
-			case mtpc_messageForwarded: msgsIds.insert(msg.c_messageForwarded().vid.v, i); break;
 			case mtpc_messageService: msgsIds.insert(msg.c_messageService().vid.v, i); break;
 			}
 		}
 		for (QMap<int32, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-			histories().addToBack(v[*i], newMsgs ? 1 : 0);
+			histories().addToBack(v[*i], msgsState);
 		}
 	}
 
@@ -646,6 +651,20 @@ namespace App {
 		}
 	}
 	
+	void feedInboxRead(const PeerId &peer, int32 upTo) {
+		History *h = App::historyLoaded(peer);
+		if (h) {
+			h->inboxRead(upTo);
+		}
+	}
+
+	void feedOutboxRead(const PeerId &peer, int32 upTo) {
+		History *h = App::historyLoaded(peer);
+		if (h) {
+			h->outboxRead(upTo);
+		}
+	}
+
 	void feedWereDeleted(const QVector<MTPint> &msgsIds) {
 		bool resized = false;
 		for (QVector<MTPint>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
@@ -683,30 +702,20 @@ namespace App {
 		}
 	}
 
-	void feedUserLink(MTPint userId, const MTPcontacts_MyLink &myLink, const MTPcontacts_ForeignLink &foreignLink) {
+	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink) {
 		UserData *user = userLoaded(userId.v);
 		if (user) {
 			bool wasContact = (user->contact > 0);
 			switch (myLink.type()) {
-			case mtpc_contacts_myLinkContact:
+			case mtpc_contactLinkContact:
 				user->contact = 1;
 			break;
-			case mtpc_contacts_myLinkEmpty:
-			case mtpc_contacts_myLinkRequested:
-				if (myLink.type() == mtpc_contacts_myLinkRequested && myLink.c_contacts_myLinkRequested().vcontact.v) {
-					user->contact = 1;
-				} else {
-					switch (foreignLink.type()) {
-					case mtpc_contacts_foreignLinkRequested:
-						if (foreignLink.c_contacts_foreignLinkRequested().vhas_phone.v) {
-							user->contact = 0;
-						} else {
-							user->contact = -1;
-						}
-					break;
-					default: user->contact = -1; break;
-					}
-				}
+			case mtpc_contactLinkHasPhone:
+				user->contact = 0;
+			break;
+			case mtpc_contactLinkNone:
+			case mtpc_contactLinkUnknown:
+				user->contact = -1;
 			break;
 			}
 			if (user->contact > 0) {
@@ -736,7 +745,6 @@ namespace App {
 		const MTPMessageMedia *media = 0;
 		switch (msg.type()) {
 		case mtpc_message: media = &msg.c_message().vmedia; break;
-		case mtpc_messageForwarded: media = &msg.c_messageForwarded().vmedia; break;
 		}
 		if (media) {
 			MsgsData::iterator i = msgsData.find(msgId);
@@ -1151,8 +1159,20 @@ namespace App {
 					result->thumb = thumb;
 					result->dc = dc;
 					result->size = size;
-				} else if (result->thumb->isNull() && !thumb->isNull()) {
-					result->thumb = thumb;
+				} else {
+					if (result->thumb->isNull() && !thumb->isNull()) {
+						result->thumb = thumb;
+					}
+					if (result->alt.isEmpty()) {
+						for (QVector<MTPDocumentAttribute>::const_iterator i = attributes.cbegin(), e = attributes.cend(); i != e; ++i) {
+							if (i->type() == mtpc_documentAttributeSticker) {
+								const MTPDdocumentAttributeSticker &d(i->c_documentAttributeSticker());
+								if (d.valt.c_string().v.length() > 0) {
+									result->alt = qs(d.valt);
+								}
+							}
+						}
+					}
 				}
 			}
 		}
@@ -1213,11 +1233,14 @@ namespace App {
 		return ::histories;
 	}
 
-	History *history(const PeerId &peer, int32 unreadCnt) {
+	History *history(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead) {
 		Histories::const_iterator i = ::histories.constFind(peer);
 		if (i == ::histories.cend()) {
 			i = App::histories().insert(peer, new History(peer));
 			i.value()->setUnreadCount(unreadCnt, false);
+			if (maxInboxRead) {
+				i.value()->inboxReadTill = maxInboxRead;
+			}
 		}
 		return i.value();
 	}
@@ -1236,6 +1259,22 @@ namespace App {
 	}
 
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
+		if (HistoryReply *r = oldItem->toHistoryReply()) {
+			QMap<HistoryReply*, bool> &replies(::repliesTo[r->replyToMessage()]);
+			replies.remove(r);
+			if (HistoryReply *n = newItem->toHistoryReply()) {
+				replies.insert(n, true);
+			}
+		}
+		RepliesTo::iterator i = ::repliesTo.find(oldItem);
+		if (i != ::repliesTo.cend() && oldItem != newItem) {
+			QMap<HistoryReply*, bool> replies = i.value();
+			::repliesTo.erase(i);
+			::repliesTo[newItem] = replies;
+			for (QMap<HistoryReply*, bool>::iterator i = replies.begin(), e = replies.end(); i != e; ++i) {
+				i.key()->replyToReplaced(oldItem, newItem);
+			}
+		}
 		newItem->history()->itemReplaced(oldItem, newItem);
 		if (App::main()) App::main()->itemReplaced(oldItem, newItem);
 		if (App::hoveredItem() == oldItem) App::hoveredItem(newItem);
@@ -1294,6 +1333,13 @@ namespace App {
 			}
 		}
 		historyItemDetached(item);
+		RepliesTo::iterator j = ::repliesTo.find(item);
+		if (j != ::repliesTo.cend()) {
+			for (QMap<HistoryReply*, bool>::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
+				k.key()->replyToReplaced(item, 0);
+			}
+			::repliesTo.erase(j);
+		}
 		if (App::main() && !App::quiting()) {
 			App::main()->itemRemoved(item);
 		}
@@ -1344,12 +1390,28 @@ namespace App {
 		::videoItems.clear();
 		::audioItems.clear();
 		::documentItems.clear();
+		::repliesTo.clear();
 		lastPhotos.clear();
 		lastPhotosMap.clear();
 		::self = 0;
 		if (App::wnd()) App::wnd()->updateGlobalMenu();
 	}
-/* // don't delete history without deleting its' peerdata
+
+	void historyRegReply(HistoryReply *reply, HistoryItem *to) {
+		::repliesTo[to].insert(reply, true);
+	}
+
+	void historyUnregReply(HistoryReply *reply, HistoryItem *to) {
+		RepliesTo::iterator i = ::repliesTo.find(to);
+		if (i != ::repliesTo.cend()) {
+			i.value().remove(reply);
+			if (i.value().isEmpty()) {
+				::repliesTo.erase(i);
+			}
+		}
+	}
+
+	/* // don't delete history without deleting its' peerdata
 	void deleteHistory(const PeerId &peer) {
 		Histories::iterator i = ::histories.find(peer);
 		if (i != ::histories.end()) {
@@ -1644,9 +1706,9 @@ namespace App {
 		}
 	}
 
-	void openUserByName(const QString &username) {
+	void openUserByName(const QString &username, bool toProfile) {
 		if (App::main()) {
-			App::main()->openUserByName(username);
+			App::main()->openUserByName(username, toProfile);
 		}
 	}
 
