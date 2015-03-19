@@ -24,6 +24,7 @@ consts = 0
 funcsNow = 0
 enums = [];
 funcsDict = {};
+funcsList = [];
 typesDict = {};
 TypesDict = {};
 typesList = [];
@@ -262,6 +263,7 @@ with open('scheme.tl') as f:
       funcs = funcs + 1;
 
       if (not restype in funcsDict):
+        funcsList.append(restype);
         funcsDict[restype] = [];
 #        TypesDict[restype] = resType;
       funcsDict[restype].append([name, typeid, prmsList, prms, hasFlags, conditions]);
@@ -278,9 +280,9 @@ with open('scheme.tl') as f:
       consts = consts + 1;
 
 # text serialization: types and funcs
-def addTextSerialize(dct, dataLetter):
+def addTextSerialize(lst, dct, dataLetter):
   result = '';
-  for restype in dct:
+  for restype in lst:
     v = dct[restype];
     for data in v:
       name = data[0];
@@ -361,8 +363,8 @@ def addTextSerialize(dct, dataLetter):
       result += '\t\t\tbreak;\n';
   return result;
 
-textSerialize += addTextSerialize(typesDict, 'D') + '\n';
-textSerialize += addTextSerialize(funcsDict, '');
+textSerialize += addTextSerialize(typesList, typesDict, 'D') + '\n';
+textSerialize += addTextSerialize(funcsList, funcsDict, '');
 
 for restype in typesList:
   v = typesDict[restype];
@@ -670,6 +672,50 @@ textSerializeFull += '\t\t\t\tstart = ++from;\n';
 textSerializeFull += '\t\t\t}\n\n';
 textSerializeFull += '\t\t\tint32 lev = level + types.size() - 1;\n';
 textSerializeFull += '\t\t\tswitch (type) {\n' + textSerialize + '\n';
+
+# manual types added here
+textSerializeFull += '\t\t\tcase mtpc_rpc_result:\n';
+textSerializeFull += '\t\t\t\tif (stage) {\n';
+textSerializeFull += '\t\t\t\t\tto.add(",\\n").addSpaces(lev);\n';
+textSerializeFull += '\t\t\t\t} else {\n';
+textSerializeFull += '\t\t\t\t\tto.add("{ rpc_result");\n';
+textSerializeFull += '\t\t\t\t\tto.add("\\n").addSpaces(lev);\n';
+textSerializeFull += '\t\t\t\t}\n';
+textSerializeFull += '\t\t\t\tswitch (stage) {\n';
+textSerializeFull += '\t\t\t\tcase 0: to.add("  req_msg_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeFull += '\t\t\t\tcase 1: to.add("  result: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeFull += '\t\t\t\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
+textSerializeFull += '\t\t\t\t}\n';
+textSerializeFull += '\t\t\tbreak;\n\n';
+textSerializeFull += '\t\t\tcase mtpc_msg_container:\n';
+textSerializeFull += '\t\t\t\tif (stage) {\n';
+textSerializeFull += '\t\t\t\t\tto.add(",\\n").addSpaces(lev);\n';
+textSerializeFull += '\t\t\t\t} else {\n';
+textSerializeFull += '\t\t\t\t\tto.add("{ msg_container");\n';
+textSerializeFull += '\t\t\t\t\tto.add("\\n").addSpaces(lev);\n';
+textSerializeFull += '\t\t\t\t}\n';
+textSerializeFull += '\t\t\t\tswitch (stage) {\n';
+textSerializeFull += '\t\t\t\tcase 0: to.add("  messages: "); ++stages.back(); types.push_back(mtpc_vector); vtypes.push_back(mtpc_core_message); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeFull += '\t\t\t\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
+textSerializeFull += '\t\t\t\t}\n';
+textSerializeFull += '\t\t\tbreak;\n\n';
+
+textSerializeFull += '\t\t\tcase mtpc_core_message: {\n';
+textSerializeFull += '\t\t\t\tif (stage) {\n';
+textSerializeFull += '\t\t\t\t\tto.add(",\\n").addSpaces(lev);\n';
+textSerializeFull += '\t\t\t\t} else {\n';
+textSerializeFull += '\t\t\t\t\tto.add("{ core_message");\n';
+textSerializeFull += '\t\t\t\t\tto.add("\\n").addSpaces(lev);\n';
+textSerializeFull += '\t\t\t\t}\n';
+textSerializeFull += '\t\t\t\tswitch (stage) {\n';
+textSerializeFull += '\t\t\t\tcase 0: to.add("  msg_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeFull += '\t\t\t\tcase 1: to.add("  seq_no: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeFull += '\t\t\t\tcase 2: to.add("  bytes: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeFull += '\t\t\t\tcase 3: to.add("  body: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeFull += '\t\t\t\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
+textSerializeFull += '\t\t\t\t}\n';
+textSerializeFull += '\t\t\t\t} break;\n\n';
+
 textSerializeFull += '\t\t\tdefault:\n';
 textSerializeFull += '\t\t\t\tmtpTextSerializeCore(to, from, end, type, lev, vtype);\n';
 textSerializeFull += '\t\t\t\ttypes.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();\n';

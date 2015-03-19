@@ -229,6 +229,7 @@ void NotifyWindow::updatePeerPhoto() {
 
 void NotifyWindow::itemRemoved(HistoryItem *del) {
 	if (item == del) {
+		item = 0;
 		unlinkHistoryAndNotify();
 	}
 }
@@ -273,7 +274,7 @@ void NotifyWindow::mousePressEvent(QMouseEvent *e) {
 			App::wnd()->notifyClear();
 		} else {
 			App::wnd()->hideSettings();
-			App::main()->showPeer(peer, 0, false, true);
+			App::main()->showPeer(peer, (history->peer->chat && item && item->notifyByFrom() && item->id > 0) ? item->id : 0, false, true);
 		}
 		e->ignore();
 	}

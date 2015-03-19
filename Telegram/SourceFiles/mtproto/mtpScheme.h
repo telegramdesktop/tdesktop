@@ -8265,13 +8265,13 @@ public:
 
 	enum {
 		flag_fwd_from_id = (1 << 2),
-		flag_reply_to_msg_id = (1 << 3),
 		flag_fwd_date = (1 << 2),
+		flag_reply_to_msg_id = (1 << 3),
 	};
 
 	bool has_fwd_from_id() const { return vflags.v & flag_fwd_from_id; }
-	bool has_reply_to_msg_id() const { return vflags.v & flag_reply_to_msg_id; }
 	bool has_fwd_date() const { return vflags.v & flag_fwd_date; }
+	bool has_reply_to_msg_id() const { return vflags.v & flag_reply_to_msg_id; }
 };
 
 class MTPDmessageService : public mtpDataImpl<MTPDmessageService> {
@@ -9389,13 +9389,13 @@ public:
 
 	enum {
 		flag_fwd_from_id = (1 << 2),
-		flag_reply_to_msg_id = (1 << 3),
 		flag_fwd_date = (1 << 2),
+		flag_reply_to_msg_id = (1 << 3),
 	};
 
 	bool has_fwd_from_id() const { return vflags.v & flag_fwd_from_id; }
-	bool has_reply_to_msg_id() const { return vflags.v & flag_reply_to_msg_id; }
 	bool has_fwd_date() const { return vflags.v & flag_fwd_date; }
+	bool has_reply_to_msg_id() const { return vflags.v & flag_reply_to_msg_id; }
 };
 
 class MTPDupdateShortChatMessage : public mtpDataImpl<MTPDupdateShortChatMessage> {
@@ -9419,13 +9419,13 @@ public:
 
 	enum {
 		flag_fwd_from_id = (1 << 2),
-		flag_reply_to_msg_id = (1 << 3),
 		flag_fwd_date = (1 << 2),
+		flag_reply_to_msg_id = (1 << 3),
 	};
 
 	bool has_fwd_from_id() const { return vflags.v & flag_fwd_from_id; }
-	bool has_reply_to_msg_id() const { return vflags.v & flag_reply_to_msg_id; }
 	bool has_fwd_date() const { return vflags.v & flag_fwd_date; }
+	bool has_reply_to_msg_id() const { return vflags.v & flag_reply_to_msg_id; }
 };
 
 class MTPDupdateShort : public mtpDataImpl<MTPDupdateShort> {

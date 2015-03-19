@@ -103,31 +103,6 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 		to.add("}");
 	} break;
 
-	case mtpc_rpc_result: {
-		to.add("{ rpc_result");
-		to.add("\n").addSpaces(level);
-		to.add("  req_msg_id: "); mtpTextSerializeType(to, from, end, mtpc_long, level + 1); to.add(",\n").addSpaces(level);
-		to.add("  result: "); mtpTextSerializeType(to, from, end, 0, level + 1); to.add(",\n").addSpaces(level);
-		to.add("}");
-	} break;
-
-	case mtpc_msg_container: {
-		to.add("{ msg_container");
-		to.add("\n").addSpaces(level);
-		to.add("  messages: "); mtpTextSerializeType(to, from, end, mtpc_vector, level + 1, mtpc_core_message); to.add(",\n").addSpaces(level);
-		to.add("}");
-	} break;
-
-	case mtpc_core_message: {
-		to.add("{ core_message");
-		to.add("\n").addSpaces(level);
-		to.add("  msg_id: "); mtpTextSerializeType(to, from, end, mtpc_long, level + 1); to.add(",\n").addSpaces(level);
-		to.add("  seq_no: "); mtpTextSerializeType(to, from, end, mtpc_int, level + 1); to.add(",\n").addSpaces(level);
-		to.add("  bytes: "); mtpTextSerializeType(to, from, end, mtpc_int, level + 1); to.add(",\n").addSpaces(level);
-		to.add("  body: "); mtpTextSerializeType(to, from, end, 0, level + 1); to.add(",\n").addSpaces(level);
-		to.add("}");
-	} break;
-
 	case mtpc_gzip_packed: {
 		MTPstring packed(from, end); // read packed string as serialized mtp string type
 		uint32 packedLen = packed.c_string().v.size(), unpackedChunk = packedLen;
