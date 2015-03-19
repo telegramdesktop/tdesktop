@@ -91,6 +91,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_server_error" = "Internal server error.";
 "lng_flood_error" = "Too much tries. Please try again later.";
 "lng_deleted" = "Unknown";
+"lng_deleted_message" = "Deleted message";
 
 "lng_intro" = "Welcome to the official [a href=\"https://telegram.org/\"]Telegram[/a] desktop app.\nIt's [b]fast[/b] and [b]secure[/b].";
 "lng_start_msgs" = "START MESSAGING";
@@ -332,6 +333,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_created_chat" = "{from} created group «{title}»";
 
 "lng_forwarded_from" = "Forwarded from";
+"lng_in_reply_to" = "In reply to";
 
 "lng_attach_failed" = "Failed";
 "lng_attach_file" = "File";
@@ -385,6 +387,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_copy_email" = "Copy email address";
 "lng_context_open_hashtag" = "Search by hashtag";
 "lng_context_copy_hashtag" = "Copy hashtag";
+"lng_context_open_mention" = "Open {user} profile";
+"lng_context_copy_mention" = "Copy mention";
 "lng_context_open_image" = "Open Image";
 "lng_context_save_image" = "Save Image As..";
 "lng_context_forward_image" = "Forward Image";
@@ -403,8 +407,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_forward_file" = "Forward File";
 "lng_context_delete_file" = "Delete File";
 "lng_context_close_file" = "Close File";
-"lng_context_copy_text" = "Copy Message Text";
+"lng_context_copy_text" = "Copy Text";
 "lng_context_to_msg" = "Go To Message";
+"lng_context_reply_msg" = "Reply";
 "lng_context_forward_msg" = "Forward Message";
 "lng_context_delete_msg" = "Delete Message";
 "lng_context_select_msg" = "Select Message";
@@ -425,6 +430,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_forward_send_files_confirm" = "Send selected files to {recipient}?";
 "lng_forward" = "Forward";
 "lng_forward_send" = "Send";
+"lng_forward_messages" = "{count:_not_used_|Forwarded message|# forwarded messages}";
 
 "lng_contact_phone" = "Phone number";
 "lng_enter_contact_data" = "New Contact";

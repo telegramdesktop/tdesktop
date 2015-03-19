@@ -41,6 +41,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 	ToPrepareMediaType type;
 	bool animated = false;
 	bool ctrlShiftEnter = false;
+	MsgId replyTo = 0;
 	{
 		QMutexLocker lock(loader->toPrepareMutex());
 		ToPrepareMedias &list(loader->toPrepareMedias());
@@ -53,6 +54,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 		id = list.front().id;
 		type = list.front().type;
 		ctrlShiftEnter = list.front().ctrlShiftEnter;
+		replyTo = list.front().replyTo;
 	}
 
 	if (img.isNull()) {
@@ -212,7 +214,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 
 		{
 			QMutexLocker lock(loader->readyMutex());
-			loader->readyList().push_back(ReadyLocalMedia(type, file, filename, filesize, data, id, thumbId, thumbExt, peer, photo, photoThumbs, document, jpeg, ctrlShiftEnter));
+			loader->readyList().push_back(ReadyLocalMedia(type, file, filename, filesize, data, id, thumbId, thumbExt, peer, photo, photoThumbs, document, jpeg, ctrlShiftEnter, replyTo));
 		}
 
 		{
@@ -234,11 +236,11 @@ LocalImageLoaderPrivate::~LocalImageLoaderPrivate() {
 LocalImageLoader::LocalImageLoader(QObject *parent) : QObject(parent), thread(0), priv(0) {
 }
 
-void LocalImageLoader::append(const QStringList &files, const PeerId &peer, ToPrepareMediaType t) {
+void LocalImageLoader::append(const QStringList &files, const PeerId &peer, MsgId replyTo, ToPrepareMediaType t) {
 	{
 		QMutexLocker lock(toPrepareMutex());
 		for (QStringList::const_iterator i = files.cbegin(), e = files.cend(); i != e; ++i) {
-			toPrepare.push_back(ToPrepareMedia(*i, peer, t, false));
+			toPrepare.push_back(ToPrepareMedia(*i, peer, t, false, replyTo));
 		}
 	}
 	if (!thread) {
@@ -249,11 +251,11 @@ void LocalImageLoader::append(const QStringList &files, const PeerId &peer, ToPr
 	emit needToPrepare();
 }
 
-PhotoId LocalImageLoader::append(const QByteArray &img, const PeerId &peer, ToPrepareMediaType t) {
+PhotoId LocalImageLoader::append(const QByteArray &img, const PeerId &peer, MsgId replyTo, ToPrepareMediaType t) {
 	PhotoId result = 0;
 	{
 		QMutexLocker lock(toPrepareMutex());
-		toPrepare.push_back(ToPrepareMedia(img, peer, t, false));
+		toPrepare.push_back(ToPrepareMedia(img, peer, t, false, replyTo));
 		result = toPrepare.back().id;
 	}
 	if (!thread) {
@@ -265,11 +267,11 @@ PhotoId LocalImageLoader::append(const QByteArray &img, const PeerId &peer, ToPr
 	return result;
 }
 
-PhotoId LocalImageLoader::append(const QImage &img, const PeerId &peer, ToPrepareMediaType t, bool ctrlShiftEnter) {
+PhotoId LocalImageLoader::append(const QImage &img, const PeerId &peer, MsgId replyTo, ToPrepareMediaType t, bool ctrlShiftEnter) {
 	PhotoId result = 0;
 	{
 		QMutexLocker lock(toPrepareMutex());
-		toPrepare.push_back(ToPrepareMedia(img, peer, t, ctrlShiftEnter));
+		toPrepare.push_back(ToPrepareMedia(img, peer, t, ctrlShiftEnter, replyTo));
 		result = toPrepare.back().id;
 	}
 	if (!thread) {
@@ -281,11 +283,11 @@ PhotoId LocalImageLoader::append(const QImage &img, const PeerId &peer, ToPrepar
 	return result;
 }
 
-PhotoId LocalImageLoader::append(const QString &file, const PeerId &peer, ToPrepareMediaType t) {
+PhotoId LocalImageLoader::append(const QString &file, const PeerId &peer, MsgId replyTo, ToPrepareMediaType t) {
 	PhotoId result = 0;
 	{
 		QMutexLocker lock(toPrepareMutex());
-		toPrepare.push_back(ToPrepareMedia(file, peer, t, false));
+		toPrepare.push_back(ToPrepareMedia(file, peer, t, false, replyTo));
 		result = toPrepare.back().id;
 	}
 	if (!thread) {

@@ -164,6 +164,8 @@ struct ChatData : public PeerData {
 	Participants participants;
 	typedef QMap<UserData*, bool> CanKick;
 	CanKick cankick;
+	typedef QList<UserData*> LastAuthors;
+	LastAuthors lastAuthors;
 	ImagePtr photoFull;
 	PhotoId photoId;
 	// geo
@@ -176,6 +178,7 @@ struct PhotoData {
 	}
 	void forget() {
 		thumb->forget();
+		replyPreview->forget();
 		medium->forget();
 		full->forget();
 	}
@@ -183,7 +186,7 @@ struct PhotoData {
 	uint64 access;
 	int32 user;
 	int32 date;
-	ImagePtr thumb;
+	ImagePtr thumb, replyPreview;
 	ImagePtr medium;
 	ImagePtr full;
 	ChatData *chat; // for chat photos connection
@@ -223,6 +226,7 @@ struct VideoData {
 
 	void forget() {
 		thumb->forget();
+		replyPreview->forget();
 	}
 
 	void save(const QString &toFile);
@@ -258,7 +262,7 @@ struct VideoData {
 	int32 date;
 	int32 duration;
 	int32 w, h;
-	ImagePtr thumb;
+	ImagePtr thumb, replyPreview;
 	int32 dc, size;
 	// geo, caption
 
@@ -406,6 +410,7 @@ struct DocumentData {
 	void forget() {
 		thumb->forget();
 		sticker->forget();
+		replyPreview->forget();
 	}
 
 	void save(const QString &toFile);
@@ -443,7 +448,7 @@ struct DocumentData {
 	uint64 access;
 	int32 date;
 	QString name, mime, alt; // alt - for stickers
-	ImagePtr thumb;
+	ImagePtr thumb, replyPreview;
 	int32 dc;
 	int32 size;
 
@@ -639,13 +644,13 @@ struct History : public QList<HistoryBlock*> {
 
 	HistoryItem *createItem(HistoryBlock *block, const MTPmessage &msg, bool newMsg, bool returnExisting = false);
 	HistoryItem *createItemForwarded(HistoryBlock *block, MsgId id, HistoryMessage *msg);
-	HistoryItem *createItemDocument(HistoryBlock *block, MsgId id, bool out, bool unread, QDateTime date, int32 from, DocumentData *doc);
+	HistoryItem *createItemDocument(HistoryBlock *block, MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
 
-	HistoryItem *addToBackService(MsgId msgId, QDateTime date, const QString &text, bool out = false, bool unread = false, HistoryMedia *media = 0, bool newMsg = true);
+	HistoryItem *addToBackService(MsgId msgId, QDateTime date, const QString &text, int32 flags = 0, HistoryMedia *media = 0, bool newMsg = true);
 	HistoryItem *addToBack(const MTPmessage &msg, bool newMsg = true);
 	HistoryItem *addToHistory(const MTPmessage &msg);
 	HistoryItem *addToBackForwarded(MsgId id, HistoryMessage *item);
-	HistoryItem *addToBackDocument(MsgId id, bool out, bool unread, QDateTime date, int32 from, DocumentData *doc);
+	HistoryItem *addToBackDocument(MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
 
 	void addToFront(const QVector<MTPMessage> &slice);
 	void addToBack(const QVector<MTPMessage> &slice);
@@ -711,6 +716,9 @@ struct History : public QList<HistoryBlock*> {
 			notifies.pop_front();
 		}
 	}
+	void popNotification(HistoryItem *item) {
+		if (!notifies.isEmpty() && notifies.back() == item) notifies.pop_back();
+	}
 
 	void itemReplaced(HistoryItem *old, HistoryItem *item) {
 		if (!notifies.isEmpty()) {
@@ -728,6 +736,7 @@ struct History : public QList<HistoryBlock*> {
 	}
 
 	QString draft;
+	MsgId draftToId;
 	MessageCursor draftCursor;
 	int32 lastWidth, lastScrollTop;
 	bool mute;
@@ -1099,11 +1108,13 @@ private:
 
 ItemAnimations &itemAnimations();
 
+class HistoryReply; // dynamic_cast optimize
+
 class HistoryMedia;
 class HistoryItem : public HistoryElem {
 public:
 
-	HistoryItem(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime msgDate, int32 from);
+	HistoryItem(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime msgDate, int32 from);
 
 	enum {
 		MsgType = 0,
@@ -1118,10 +1129,7 @@ public:
 	const History *history() const {
 		return _history;
 	}
-	UserData *from() {
-		return _from;
-	}
-	const UserData *from() const {
+	UserData *from() const {
 		return _from;
 	}
 	HistoryBlock *block() {
@@ -1137,11 +1145,14 @@ public:
 		return !_block;
 	}
 	bool out() const {
-		return _out;
+		return _flags & MTPDmessage_flag_out;
 	}
 	bool unread() const {
-		if ((_out && (id > 0 && id <= _history->outboxReadTill)) || (!_out && id > 0 && id <= _history->inboxReadTill)) return false;
-		return _unread;
+		if ((out() && (id > 0 && id <= _history->outboxReadTill)) || (!out() && id > 0 && id <= _history->inboxReadTill)) return false;
+		return _flags & MTPDmessage_flag_unread;
+	}
+	bool notifyByFrom() const {
+		return _flags & MTPDmessage_flag_notify_by_from;
 	}
 	virtual bool needCheck() const {
 		return true;
@@ -1175,6 +1186,12 @@ public:
 	virtual QString selectedText(uint32 selection) const {
 		return qsl("[-]");
 	}
+	virtual QString inDialogsText() const {
+		return qsl("-");
+	}
+	virtual QString inReplyText() const {
+		return inDialogsText();
+	}
 
 	virtual void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const = 0;
     virtual QString notificationHeader() const {
@@ -1199,6 +1216,13 @@ public:
 		return false;
 	}
 
+	virtual HistoryReply *toHistoryReply() { // dynamic_cast optimize
+		return 0;
+	}
+	virtual const HistoryReply *toHistoryReply() const { // dynamic_cast optimize
+		return 0;
+	}
+
 	virtual ~HistoryItem();
 
 protected:
@@ -1207,8 +1231,25 @@ protected:
 	mutable int32 _fromVersion;
 	History *_history;
 	HistoryBlock *_block;
-	bool _out, _unread;
+	int32 _flags;
 
+};
+
+class MessageLink : public ITextLink {
+public:
+	MessageLink(PeerId peer, MsgId msgid) : _peer(peer), _msgid(msgid) {
+	}
+	void onClick(Qt::MouseButton button) const;
+	PeerId peer() const {
+		return _peer;
+	}
+	MsgId msgid() const {
+		return _msgid;
+	}
+
+private:
+	PeerId _peer;
+	MsgId _msgid;
 };
 
 HistoryItem *regItem(HistoryItem *item, bool returnExisting = false);
@@ -1254,8 +1295,15 @@ public:
 		return false;
 	}
 
+	virtual bool hasReplyPreview() const {
+		return false;
+	}
+	virtual ImagePtr replyPreview() {
+		return ImagePtr();
+	}
+
 	int32 currentWidth() const {
-		return w;
+		return qMin(w, _maxw);
 	}
 
 protected:
@@ -1299,6 +1347,11 @@ public:
 		return data->full->loading() ? true : !data->medium->loaded();
 	}
 
+	bool hasReplyPreview() const {
+		return !data->thumb->isNull();
+	}
+	ImagePtr replyPreview();
+
 private:
 	int16 pixw, pixh;
 	PhotoData *data;
@@ -1329,6 +1382,11 @@ public:
 
 	void regItem(HistoryItem *item);
 	void unregItem(HistoryItem *item);
+
+	bool hasReplyPreview() const {
+		return !data->thumb->isNull();
+	}
+	ImagePtr replyPreview();
 
 private:
 	VideoData *data;
@@ -1403,6 +1461,11 @@ public:
 
 	void updateFrom(const MTPMessageMedia &media);
 
+	bool hasReplyPreview() const {
+		return !data->thumb->isNull();
+	}
+	ImagePtr replyPreview();
+
 private:
 
 	DocumentData *data;
@@ -1449,6 +1512,7 @@ private:
 	int16 pixw, pixh;
 	DocumentData *data;
 	QString _emoji;
+	int32 lastw;
 
 };
 
@@ -1459,7 +1523,6 @@ public:
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const;
-	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	HistoryMediaType type() const {
 		return MediaTypeContact;
 	}
@@ -1560,9 +1623,9 @@ class HistoryMessage : public HistoryItem {
 public:
 
 	HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, const QString &msg, const MTPMessageMedia &media);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, const QString &msg, HistoryMedia *media);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, bool out, bool unread, QDateTime date, int32 from, DocumentData *doc);
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const MTPMessageMedia &media);
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, HistoryMedia *media);
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc);
 
 	void initMedia(const MTPMessageMedia &media, QString &currentText);
 	void initMediaFromDocument(DocumentData *doc);
@@ -1593,6 +1656,7 @@ public:
 	void updateStickerEmoji();
 
 	QString selectedText(uint32 selection) const;
+	QString inDialogsText() const;
 	HistoryMedia *getMedia(bool inOverview = false) const;
 
 	QString time() const {
@@ -1603,6 +1667,13 @@ public:
 	}
 	virtual bool animating() const {
 		return _media ? _media->animating() : false;
+	}
+
+	virtual QDateTime dateForwarded() const { // dynamic_cast optimize
+		return date;
+	}
+	virtual UserData *fromForwarded() const { // dynamic_cast optimize
+		return from();
 	}
 
 	~HistoryMessage();
@@ -1625,6 +1696,7 @@ public:
 	HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg);
 	HistoryForwarded(History *history, HistoryBlock *block, MsgId id, HistoryMessage *msg);
 
+	void initDimensions(const HistoryItem *parent = 0);
 	void fwdNameUpdated() const;
 
 	void draw(QPainter &p, uint32 selection) const;
@@ -1652,11 +1724,62 @@ protected:
 
 };
 
+class HistoryReply : public HistoryMessage {
+public:
+
+	HistoryReply(History *history, HistoryBlock *block, const MTPDmessage &msg);
+	HistoryReply(History *history, HistoryBlock *block, MsgId msgId, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
+
+	void initDimensions(const HistoryItem *parent = 0);
+	bool updateReplyTo(bool force = false);
+	void replyToNameUpdated() const;
+	int32 replyToWidth() const;
+
+	TextLinkPtr replyToLink() const;
+
+	MsgId replyToId() const;
+	HistoryItem *replyToMessage() const;
+	void replyToReplaced(HistoryItem *oldItem, HistoryItem *newItem);
+
+	void draw(QPainter &p, uint32 selection) const;
+	void drawReplyTo(QPainter &p, int32 x, int32 y, int32 w, bool selected, bool likeService = false) const;
+	void drawMessageText(QPainter &p, const QRect &trect, uint32 selection) const;
+	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
+	bool hasPoint(int32 x, int32 y) const;
+	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) const;
+	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
+
+	UserData *replyTo() const {
+		return replyToMsg ? replyToMsg->from() : 0;
+	}
+	QString selectedText(uint32 selection) const;
+
+	HistoryReply *toHistoryReply() { // dynamic_cast optimize
+		return this;
+	}
+	const HistoryReply *toHistoryReply() const { // dynamic_cast optimize
+		return this;
+	}
+
+	~HistoryReply();
+
+protected:
+
+	MsgId replyToMsgId;
+	HistoryItem *replyToMsg;
+	TextLinkPtr replyToLnk;
+	mutable Text replyToName, replyToText;
+	mutable int32 replyToVersion;
+	mutable int32 _maxReplyWidth;
+	int32 toWidth;
+
+};
+
 class HistoryServiceMsg : public HistoryItem {
 public:
 
 	HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDmessageService &msg);
-	HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, bool out = false, bool unread = false, HistoryMedia *media = 0);
+	HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, int32 flags = 0, HistoryMedia *media = 0);
 
 	void initDimensions(const HistoryItem *parent = 0);
 
@@ -1679,6 +1802,8 @@ public:
 		return true;
 	}
 	QString selectedText(uint32 selection) const;
+	QString inDialogsText() const;
+	QString inReplyText() const;
 
 	HistoryMedia *getMedia(bool inOverview = false) const;
 

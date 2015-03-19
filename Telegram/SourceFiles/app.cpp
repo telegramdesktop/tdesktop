@@ -52,6 +52,8 @@ namespace {
 	VideoItems videoItems;
 	AudioItems audioItems;
 	DocumentItems documentItems;
+	typedef QMap<HistoryItem*, QMap<HistoryReply*, bool> > RepliesTo;
+	RepliesTo repliesTo;
 
 	Histories histories;
 
@@ -116,6 +118,10 @@ namespace App {
 
 	FileUploader *uploader() {
 		return app() ? app()->uploader() : 0;
+	}
+
+	ApiWrap *api() {
+		return main() ? main()->api() : 0;
 	}
 
 	void showSettings() {
@@ -590,7 +596,7 @@ namespace App {
 		}
 	}
 
-	void feedMsgs(const MTPVector<MTPMessage> &msgs, bool newMsgs) {
+	void feedMsgs(const MTPVector<MTPMessage> &msgs, int msgsState) {
 		const QVector<MTPMessage> &v(msgs.c_vector().v);
 		QMap<int32, int32> msgsIds;
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
@@ -602,7 +608,7 @@ namespace App {
 			}
 		}
 		for (QMap<int32, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-			histories().addToBack(v[*i], newMsgs ? 1 : 0);
+			histories().addToBack(v[*i], msgsState);
 		}
 	}
 
@@ -1253,6 +1259,22 @@ namespace App {
 	}
 
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
+		if (HistoryReply *r = oldItem->toHistoryReply()) {
+			QMap<HistoryReply*, bool> &replies(::repliesTo[r->replyToMessage()]);
+			replies.remove(r);
+			if (HistoryReply *n = newItem->toHistoryReply()) {
+				replies.insert(n, true);
+			}
+		}
+		RepliesTo::iterator i = ::repliesTo.find(oldItem);
+		if (i != ::repliesTo.cend() && oldItem != newItem) {
+			QMap<HistoryReply*, bool> replies = i.value();
+			::repliesTo.erase(i);
+			::repliesTo[newItem] = replies;
+			for (QMap<HistoryReply*, bool>::iterator i = replies.begin(), e = replies.end(); i != e; ++i) {
+				i.key()->replyToReplaced(oldItem, newItem);
+			}
+		}
 		newItem->history()->itemReplaced(oldItem, newItem);
 		if (App::main()) App::main()->itemReplaced(oldItem, newItem);
 		if (App::hoveredItem() == oldItem) App::hoveredItem(newItem);
@@ -1311,6 +1333,13 @@ namespace App {
 			}
 		}
 		historyItemDetached(item);
+		RepliesTo::iterator j = ::repliesTo.find(item);
+		if (j != ::repliesTo.cend()) {
+			for (QMap<HistoryReply*, bool>::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
+				k.key()->replyToReplaced(item, 0);
+			}
+			::repliesTo.erase(j);
+		}
 		if (App::main() && !App::quiting()) {
 			App::main()->itemRemoved(item);
 		}
@@ -1361,12 +1390,28 @@ namespace App {
 		::videoItems.clear();
 		::audioItems.clear();
 		::documentItems.clear();
+		::repliesTo.clear();
 		lastPhotos.clear();
 		lastPhotosMap.clear();
 		::self = 0;
 		if (App::wnd()) App::wnd()->updateGlobalMenu();
 	}
-/* // don't delete history without deleting its' peerdata
+
+	void historyRegReply(HistoryReply *reply, HistoryItem *to) {
+		::repliesTo[to].insert(reply, true);
+	}
+
+	void historyUnregReply(HistoryReply *reply, HistoryItem *to) {
+		RepliesTo::iterator i = ::repliesTo.find(to);
+		if (i != ::repliesTo.cend()) {
+			i.value().remove(reply);
+			if (i.value().isEmpty()) {
+				::repliesTo.erase(i);
+			}
+		}
+	}
+
+	/* // don't delete history without deleting its' peerdata
 	void deleteHistory(const PeerId &peer) {
 		Histories::iterator i = ::histories.find(peer);
 		if (i != ::histories.end()) {
@@ -1661,9 +1706,9 @@ namespace App {
 		}
 	}
 
-	void openUserByName(const QString &username) {
+	void openUserByName(const QString &username, bool toProfile) {
 		if (App::main()) {
-			App::main()->openUserByName(username);
+			App::main()->openUserByName(username, toProfile);
 		}
 	}
 

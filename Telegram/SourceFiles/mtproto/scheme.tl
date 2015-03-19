@@ -351,8 +351,8 @@ updates.difference#f49ca0 new_messages:Vector<Message> new_encrypted_messages:Ve
 updates.differenceSlice#a8fb1981 new_messages:Vector<Message> new_encrypted_messages:Vector<EncryptedMessage> other_updates:Vector<Update> chats:Vector<Chat> users:Vector<User> intermediate_state:updates.State = updates.Difference;
 
 updatesTooLong#e317af7e = Updates;
-updateShortMessage#b87da3b1 id:int from_id:int message:string pts:int pts_count:int date:int = Updates;
-updateShortChatMessage#20e85ded id:int from_id:int chat_id:int message:string pts:int pts_count:int date:int = Updates;
+updateShortMessage#ed5c2127 flags:# id:int user_id:int message:string pts:int pts_count:int date:int fwd_from_id:flags.2?int fwd_date:flags.2?int reply_to_msg_id:flags.3?int = Updates;
+updateShortChatMessage#52238b3c flags:# id:int from_id:int chat_id:int message:string pts:int pts_count:int date:int fwd_from_id:flags.2?int fwd_date:flags.2?int reply_to_msg_id:flags.3?int = Updates;
 updateShort#78d4dec1 update:Update date:int = Updates;
 updatesCombined#725b04c3 updates:Vector<Update> users:Vector<User> chats:Vector<Chat> date:int seq_start:int seq:int = Updates;
 updates#74ae4240 updates:Vector<Update> users:Vector<User> chats:Vector<Chat> date:int seq:int = Updates;
@@ -561,9 +561,9 @@ contactLinkContact#d502c2d0 = ContactLink;
 
 ---functions---
 
-invokeAfterMsg#cb9f372d msg_id:long query:!X = X;
+invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
 
-invokeAfterMsgs#3dc4b4f0 msg_ids:Vector<long> query:!X = X;
+invokeAfterMsgs#3dc4b4f0 {X:Type} msg_ids:Vector<long> query:!X = X;
 
 auth.checkPhone#6fe51dfb phone_number:string = auth.CheckedPhone;
 auth.sendCode#768d5f4d phone_number:string sms_type:int api_id:int api_hash:string lang_code:string = auth.SentCode;
@@ -668,7 +668,7 @@ messages.receivedQueue#55a5bb66 max_qts:int = Vector<long>;
 
 upload.saveBigFilePart#de7b673d file_id:long file_part:int file_total_parts:int bytes:bytes = Bool;
 
-initConnection#69796de9 api_id:int device_model:string system_version:string app_version:string lang_code:string query:!X = X;
+initConnection#69796de9 {X:Type} api_id:int device_model:string system_version:string app_version:string lang_code:string query:!X = X;
 
 help.getSupport#9cdf08cd = help.Support;
 
@@ -687,7 +687,7 @@ account.deleteAccount#418d4e0b reason:string = Bool;
 account.getAccountTTL#8fc711d = AccountDaysTTL;
 account.setAccountTTL#2442485e ttl:AccountDaysTTL = Bool;
 
-invokeWithLayer#da9b0d0d layer:int query:!X = X;
+invokeWithLayer#da9b0d0d {X:Type} layer:int query:!X = X;
 
 contacts.resolveUsername#bf0131c username:string = User;
 

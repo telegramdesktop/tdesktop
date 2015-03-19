@@ -116,19 +116,27 @@ with open('scheme.tl') as f:
     prms = {};
     conditions = {};
     prmsList = [];
-    isTemplate = hasFlags = '';
+    isTemplate = hasFlags = hasTemplate = '';
     for param in paramsList:
       if (re.match(r'^\s*$', param)):
         continue;
-      pnametype = re.match(r'([a-z_][a-z0-9_]*):([A-Za-z0-9<>\._]+|!X|\#|[a-z_][a-z0-9_]*\.[0-9]+\?[A-Za-z0-9<>\._]+)$', param);
+      templ = re.match(r'^{([A-Za-z]+):Type}$', param);
+      if (templ):
+        hasTemplate = templ.group(1);
+        continue;
+      pnametype = re.match(r'([a-z_][a-z0-9_]*):([A-Za-z0-9<>\._]+|![a-zA-Z]+|\#|[a-z_][a-z0-9_]*\.[0-9]+\?[A-Za-z0-9<>\._]+)$', param);
       if (not pnametype):
         print('Bad param found: "' + param + '" in line: ' + line);
         continue;
       pname = pnametype.group(1);
       ptypewide = pnametype.group(2);
-      if (ptypewide == '!X'):
-        isTemplate = pname;
-        ptype = 'TQueryType';
+      if (re.match(r'^!([a-zA-Z]+)$', ptypewide)):
+        if ('!' + hasTemplate == ptypewide):
+          isTemplate = pname;
+          ptype = 'TQueryType';
+        else:
+          print('Bad template param name: "' + param + '" in line: ' + line);
+          continue;
       elif (ptypewide == '#'):
         hasFlags = pname;
         ptype = 'int';

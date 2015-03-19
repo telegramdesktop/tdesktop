@@ -350,11 +350,10 @@ MainWidget *TopBarWidget::main() {
 
 MainWidget::MainWidget(Window *window) : QWidget(window), _started(0), failedObjId(0), _dialogsWidth(st::dlgMinWidth),
 dialogs(this), history(this), profile(0), overview(0), _topBar(this), _forwardConfirm(0), hider(0), _mediaType(this), _mediaTypeMask(0),
-updGoodPts(0), updLastPts(0), updPtsCount(0), updDate(0), updQts(-1), updSeq(0), updInited(false), _onlineRequest(0), _lastWasOnline(false), _lastSetOnline(0), _isIdle(false),
-_failDifferenceTimeout(1), _lastUpdateTime(0), _cachedX(0), _cachedY(0), _background(0) {
+updGoodPts(0), updLastPts(0), updPtsCount(0), updDate(0), updQts(-1), updSeq(0), updInited(false), updSkipPtsUpdateLevel(0), _onlineRequest(0), _lastWasOnline(false), _lastSetOnline(0), _isIdle(false),
+_failDifferenceTimeout(1), _lastUpdateTime(0), _cachedX(0), _cachedY(0), _background(0), _api(new ApiWrap(this)) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
-	App::initBackground();
 	updateScrollColors();
 
 	connect(window, SIGNAL(resized(const QSize &)), this, SLOT(onParentResize(const QSize &)));
@@ -401,7 +400,7 @@ _failDifferenceTimeout(1), _lastUpdateTime(0), _cachedX(0), _cachedY(0), _backgr
 	show();
 	setFocus();
 
-	App::initMedia();
+	_api->init();
 }
 
 mtpRequestId MainWidget::onForward(const PeerId &peer, bool forwardSelected) {
@@ -577,6 +576,10 @@ void MainWidget::deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHis
 	if (!MTP::authedId() || offset <= 0) return;
 
 	MTP::send(MTPmessages_DeleteHistory(peer->input, d.voffset), rpcDone(&MainWidget::deleteHistoryPart, peer));
+}
+
+void MainWidget::deleteMessages(const QVector<MTPint> &ids) {
+	MTP::send(MTPmessages_DeleteMessages(MTP_vector<MTPint>(ids)), rpcDone(&MainWidget::msgsWereDeleted));
 }
 
 void MainWidget::deletedContact(UserData *user, const MTPcontacts_Link &result) {
@@ -780,8 +783,9 @@ DialogsIndexed &MainWidget::contactsList() {
 	return dialogs.contactsList();
 }
 
-void MainWidget::sendPreparedText(History *hist, const QString &text) {
+void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId replyTo) {
 	QString sendingText, leftText = text;
+	if (replyTo < 0) replyTo = history.replyToId();
 	while (textSplit(sendingText, leftText, MaxMessageSize)) {
 		MsgId newId = clientMsgId();
 		uint64 randomId = MTP::nonce<uint64>();
@@ -789,9 +793,10 @@ void MainWidget::sendPreparedText(History *hist, const QString &text) {
 		App::historyRegRandom(randomId, newId);
 
 		MTPstring msgText(MTP_string(sendingText));
-		int32 flags = (hist->peer->input.type() == mtpc_inputPeerSelf) ? 0 : (MTPDmessage_flag_unread | MTPDmessage_flag_out), replyToMsgId = 0;
-		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTPint(), MTPint(), MTPint(), MTP_int(unixtime()), msgText, MTP_messageMediaEmpty()));
-		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(hist->peer->input, MTP_int(replyToMsgId), msgText, MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+		int32 flags = (hist->peer->input.type() == mtpc_inputPeerSelf) ? 0 : (MTPDmessage_flag_unread | MTPDmessage_flag_out);
+		if (replyTo) flags |= MTPDmessage::flag_reply_to_msg_id;
+		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTPint(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, MTP_messageMediaEmpty()));
+		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 	}
 
 	historyToDown(hist);
@@ -800,10 +805,10 @@ void MainWidget::sendPreparedText(History *hist, const QString &text) {
 	}
 }
 
-void MainWidget::sendMessage(History *hist, const QString &text) {
+void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo) {
 	readServerHistory(hist, false);
 	hist->loadAround(0);
-	sendPreparedText(hist, history.prepareMessage(text));
+	sendPreparedText(hist, history.prepareMessage(text), replyTo);
 }
 
 void MainWidget::readServerHistory(History *hist, bool force) {
@@ -873,7 +878,7 @@ void MainWidget::overviewPreloaded(PeerData *peer, const MTPmessages_Messages &r
 		const MTPDmessages_messages &d(result.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		h->_overviewCount[type] = 0;
+		h->_overviewCount[type] = d.vmessages.c_vector().v.size();
 	} break;
 
 	case mtpc_messages_messagesSlice: {
@@ -937,6 +942,7 @@ void MainWidget::changingMsgId(HistoryItem *row, MsgId newId) {
 }
 
 void MainWidget::itemRemoved(HistoryItem *item) {
+	api()->itemRemoved(item);
 	dialogs.itemRemoved(item);
 	if (history.peer() == item->history()->peer) {
 		history.itemRemoved(item);
@@ -945,6 +951,7 @@ void MainWidget::itemRemoved(HistoryItem *item) {
 }
 
 void MainWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
+	api()->itemReplaced(oldItem, newItem);
 	dialogs.itemReplaced(oldItem, newItem);
 	if (history.peer() == newItem->history()->peer) {
 		history.itemReplaced(oldItem, newItem);
@@ -1084,6 +1091,11 @@ void MainWidget::partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &
     } else {
         _readRequests[peer] = MTP::send(MTPmessages_ReadHistory(peer->input, MTP_int(0), MTP_int(offset)), rpcDone(&MainWidget::partWasRead, peer));
     }
+}
+
+void MainWidget::msgsWereDeleted(const MTPmessages_AffectedMessages &result) {
+	const MTPDmessages_affectedMessages &d(result.c_messages_affectedMessages());
+	updPtsUpdated(d.vpts.v, d.vpts_count.v);
 }
 
 void MainWidget::videoLoadProgress(mtpFileLoader *loader) {
@@ -1240,7 +1252,10 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 void MainWidget::documentLoadFailed(mtpFileLoader *loader, bool started) {
 	loadFailed(loader, started, SLOT(documentLoadRetry()));
 	DocumentData *document = App::document(loader->objId());
-	if (document && document->loader) document->finish();
+	if (document) {
+		if (document->loader) document->finish();
+		document->status = FileFailed;
+	}
 }
 
 void MainWidget::documentLoadRetry() {
@@ -1260,16 +1275,18 @@ void MainWidget::updateOnlineDisplay() {
 	if (App::wnd()->settingsWidget()) App::wnd()->settingsWidget()->updateOnlineDisplay();
 }
 
-void MainWidget::confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname) {
-	history.confirmShareContact(ctrlShiftEnter, phone, fname, lname);
+void MainWidget::confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo) {
+	history.confirmShareContact(ctrlShiftEnter, phone, fname, lname, replyTo);
 }
 
 void MainWidget::confirmSendImage(const ReadyLocalMedia &img) {
 	history.confirmSendImage(img);
+	history.onReplyCancel();
 }
 
-void MainWidget::confirmSendImageUncompressed(bool ctrlShiftEnter) {
-	history.uploadConfirmImageUncompressed(ctrlShiftEnter);
+void MainWidget::confirmSendImageUncompressed(bool ctrlShiftEnter, MsgId replyTo) {
+	history.uploadConfirmImageUncompressed(ctrlShiftEnter, replyTo);
+	history.onReplyCancel();
 }
 
 void MainWidget::cancelSendImage() {
@@ -1400,6 +1417,14 @@ void MainWidget::checkChatBackground() {
 
 ImagePtr MainWidget::newBackgroundThumb() {
 	return _background ? _background->thumb : ImagePtr();
+}
+
+ApiWrap *MainWidget::api() {
+	return _api;
+}
+
+void MainWidget::updateReplyTo() {
+	history.updateReplyTo(true);
 }
 
 void MainWidget::setInnerFocus() {
@@ -1755,7 +1780,9 @@ void MainWidget::sentFullDataReceived(uint64 randomId, const MTPmessages_StatedM
 			}
 		}
 		if (!randomId) {
+			++updSkipPtsUpdateLevel;
 			feedUpdate(MTP_updateNewMessage(d.vmessage, d.vpts, d.vpts_count));
+			--updSkipPtsUpdateLevel;
 		}
 	} break;
 
@@ -1774,7 +1801,9 @@ void MainWidget::sentFullDataReceived(uint64 randomId, const MTPmessages_StatedM
 			}
 		}
 		if (!randomId) {
+			++updSkipPtsUpdateLevel;
 			feedUpdate(MTP_updateNewMessage(d.vmessage, d.vpts, d.vpts_count));
+			--updSkipPtsUpdateLevel;
 		}
 		App::feedUserLinks(d.vlinks);
 	} break;
@@ -1794,7 +1823,7 @@ void MainWidget::sentFullDatasReceived(const MTPmessages_StatedMessages &result)
 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		App::feedMsgs(d.vmessages, true);
+		App::feedMsgs(d.vmessages, 1);
 		history.peerMessagesUpdated();
 	} break;
 
@@ -1810,7 +1839,7 @@ void MainWidget::sentFullDatasReceived(const MTPmessages_StatedMessages &result)
 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		App::feedMsgs(d.vmessages, true);
+		App::feedMsgs(d.vmessages, 1);
 		history.peerMessagesUpdated();
 
 		App::feedUserLinks(d.vlinks);
@@ -1841,8 +1870,8 @@ void MainWidget::dialogsToUp() {
 	dialogs.dialogsToUp();
 }
 
-void MainWidget::newUnreadMsg(History *hist, MsgId msgId) {
-	history.newUnreadMsg(hist, msgId);
+void MainWidget::newUnreadMsg(History *hist, HistoryItem *item) {
+	history.newUnreadMsg(hist, item);
 }
 
 void MainWidget::historyWasRead() {
@@ -2184,6 +2213,7 @@ uint64 MainWidget::ptsKey(PtsSkippedQueue queue) {
 void MainWidget::applySkippedPtsUpdates() {
 	if (_byPtsTimer.isActive()) _byPtsTimer.stop();
 	if (_byPtsQueue.isEmpty()) return;
+	++updSkipPtsUpdateLevel;
 	for (QMap<uint64, PtsSkippedQueue>::const_iterator i = _byPtsQueue.cbegin(), e = _byPtsQueue.cend(); i != e; ++i) {
 		switch (i.value()) {
 		case SkippedUpdate: feedUpdate(_byPtsUpdate.value(i.key())); break;
@@ -2193,6 +2223,7 @@ void MainWidget::applySkippedPtsUpdates() {
 		case SkippedStatedMessages: sentFullDatasReceived(_byPtsStatedMessages.value(i.key())); break;
 		}
 	}
+	--updSkipPtsUpdateLevel;
 	clearSkippedPtsUpdates();
 }
 
@@ -2206,7 +2237,7 @@ void MainWidget::clearSkippedPtsUpdates() {
 }
 
 bool MainWidget::updPtsUpdated(int pts, int ptsCount) { // return false if need to save that update and apply later
-	if (!updInited) return true;
+	if (!updInited || updSkipPtsUpdateLevel) return true;
 
 	updLastPts = qMax(updLastPts, pts);
 	updPtsCount += ptsCount;
@@ -2227,7 +2258,7 @@ void MainWidget::feedDifference(const MTPVector<MTPUser> &users, const MTPVector
 	App::feedUsers(users);
 	App::feedChats(chats);
 	feedMessageIds(other);
-	App::feedMsgs(msgs, true);
+	App::feedMsgs(msgs, 1);
 	feedUpdates(other, true);
 	history.peerMessagesUpdated();
 }
@@ -2286,7 +2317,7 @@ void MainWidget::start(const MTPUser &user) {
 	_started = true;
 	App::wnd()->sendServiceHistoryRequest();
 	Local::readRecentStickers();
-	history.updateRecentStickers();
+	history.start();
 }
 
 bool MainWidget::started() {
@@ -2300,18 +2331,27 @@ void MainWidget::openLocalUrl(const QString &url) {
 	}
 }
 
-void MainWidget::openUserByName(const QString &username) {
+void MainWidget::openUserByName(const QString &username, bool toProfile) {
 	UserData *user = App::userByName(username);
 	if (user) {
-		emit showPeerAsync(user->id, 0, false, true);
+		if (toProfile) {
+			showPeerProfile(user);
+		} else {
+			emit showPeerAsync(user->id, 0, false, true);
+		}
 	} else {
-		MTP::send(MTPcontacts_ResolveUsername(MTP_string(username)), rpcDone(&MainWidget::usernameResolveDone), rpcFail(&MainWidget::usernameResolveFail, username));
+		MTP::send(MTPcontacts_ResolveUsername(MTP_string(username)), rpcDone(&MainWidget::usernameResolveDone, toProfile), rpcFail(&MainWidget::usernameResolveFail, username));
 	}
 }
 
-void MainWidget::usernameResolveDone(const MTPUser &user) {
+void MainWidget::usernameResolveDone(bool toProfile, const MTPUser &user) {
 	App::wnd()->hideLayer();
-	showPeer(App::feedUsers(MTP_vector<MTPUser>(1, user))->id, 0, false, true);
+	UserData *u = App::feedUsers(MTP_vector<MTPUser>(1, user));
+	if (toProfile) {
+		showPeerProfile(u);
+	} else {
+		showPeer(u->id, 0, false, true);
+	}
 }
 
 bool MainWidget::usernameResolveFail(QString name, const RPCError &error) {
@@ -2535,7 +2575,7 @@ MainWidget::~MainWidget() {
 
 	delete hider;
 	MTP::clearGlobalHandlers();
-	App::deinitMedia(false);
+	delete _api;
 	if (App::wnd()) App::wnd()->noMain(this);
 }
 
@@ -2664,10 +2704,9 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 			_byPtsUpdates.insert(ptsKey(SkippedUpdates), updates);
 			return;
 		}
-
-		if (!App::userLoaded(d.vfrom_id.v)) return getDifference();
-		int32 flags = MTPDmessage_flag_unread;
-		HistoryItem *item = App::histories().addToBack(MTP_message(MTP_int(flags), d.vid, d.vfrom_id, MTP_peerUser(MTP_int(MTP::authedId())), MTPint(), MTPint(), MTPint(), d.vdate, d.vmessage, MTP_messageMediaEmpty()));
+		if (!App::userLoaded(d.vuser_id.v)) return getDifference();
+		bool out = (d.vflags.v & MTPDmessage_flag_out);
+		HistoryItem *item = App::histories().addToBack(MTP_message(d.vflags, d.vid, out ? MTP_int(MTP::authedId()) : d.vuser_id, MTP_peerUser(out ? d.vuser_id : MTP_int(MTP::authedId())), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty()));
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
 		}
@@ -2681,10 +2720,8 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 			_byPtsUpdates.insert(ptsKey(SkippedUpdates), updates);
 			return;
 		}
-
-		if (!App::chatLoaded(d.vchat_id.v) || !App::userLoaded(d.vfrom_id.v)) return getDifference();
-		int32 flags = MTPDmessage_flag_unread; // unread
-		HistoryItem *item = App::histories().addToBack(MTP_message(MTP_int(flags), d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), MTPint(), MTPint(), MTPint(), d.vdate, d.vmessage, MTP_messageMediaEmpty()));
+		if (!App::chatLoaded(d.vchat_id.v) || !App::userLoaded(d.vfrom_id.v) || (d.has_fwd_from_id() && !App::userLoaded(d.vfwd_from_id.v))) return getDifference();
+		HistoryItem *item = App::histories().addToBack(MTP_message(d.vflags, d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty()));
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
 		}
@@ -2897,7 +2934,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		UserData *user = App::userLoaded(d.vuser_id.v);
 		if (user) {
 			if (App::history(user->id)->loadedAtBottom()) {
-				App::history(user->id)->addToBackService(clientMsgId(), date(d.vdate), lng_action_user_registered(lt_from, user->name), false, true);
+				App::history(user->id)->addToBackService(clientMsgId(), date(d.vdate), lng_action_user_registered(lt_from, user->name), MTPDmessage_flag_unread);
 			}
 		}
 	} break;

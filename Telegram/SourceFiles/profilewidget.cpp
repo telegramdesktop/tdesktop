@@ -381,11 +381,8 @@ void ProfileInner::reorderParticipants() {
 
 bool ProfileInner::event(QEvent *e) {
 	if (e->type() == QEvent::MouseMove) {
-		QMouseEvent *ev = dynamic_cast<QMouseEvent*>(e);
-		if (ev) {
-			_lastPos = ev->globalPos();
-			updateSelected();
-		}
+		_lastPos = static_cast<QMouseEvent*>(e)->globalPos();
+		updateSelected();
 	}
 	return QWidget::event(e);
 }

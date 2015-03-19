@@ -26,7 +26,7 @@ class PhotoSendBox : public LayeredWidget {
 public:
 
 	PhotoSendBox(const ReadyLocalMedia &img);
-	PhotoSendBox(const QString &phone, const QString &fname, const QString &lname);
+	PhotoSendBox(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo);
 	void parentResized();
 	void animStep(float64 ms);
 	void keyPressEvent(QKeyEvent *e);
@@ -50,6 +50,7 @@ private:
 	QPixmap _thumb;
 
 	QString _phone, _fname, _lname;
+	MsgId _replyTo;
 
 	anim::fvalue a_opacity;
 

@@ -23,6 +23,7 @@ class Application;
 class Window;
 class MainWidget;
 class SettingsWidget;
+class ApiWrap;
 class Font;
 class Color;
 class FileUploader;
@@ -41,6 +42,7 @@ namespace App {
 	SettingsWidget *settings();
 	bool passcoded();
 	FileUploader *uploader();
+	ApiWrap *api();
 
 	void showSettings();
 	void logOut();
@@ -74,7 +76,7 @@ namespace App {
 	void feedParticipants(const MTPChatParticipants &p);
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d);
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d);
-	void feedMsgs(const MTPVector<MTPMessage> &msgs, bool newMsgs = false);
+	void feedMsgs(const MTPVector<MTPMessage> &msgs, int msgsState = 0); // 2 - new read message, 1 - new unread message, 0 - not new message, -1 - searched message
 	void feedWereRead(const QVector<MTPint> &msgsIds);
 	void feedInboxRead(const PeerId &peer, int32 upTo);
 	void feedOutboxRead(const PeerId &peer, int32 upTo);
@@ -127,6 +129,8 @@ namespace App {
 	void historyUnregItem(HistoryItem *item);
 	void historyClearMsgs();
 	void historyClearItems();
+	void historyRegReply(HistoryReply *reply, HistoryItem *to);
+	void historyUnregReply(HistoryReply *reply, HistoryItem *to);
 //	void deleteHistory(const PeerId &peer);
 
 	void historyRegRandom(uint64 randomId, MsgId itemId);
@@ -181,7 +185,7 @@ namespace App {
 	void setProxySettings(QTcpSocket &socket);
 
 	void searchByHashtag(const QString &tag);
-	void openUserByName(const QString &username);
+	void openUserByName(const QString &username, bool toProfile = false);
 	void openLocalUrl(const QString &url);
 
 	void initBackground(int32 id = 0, const QImage &p = QImage(), bool nowrite = false);
