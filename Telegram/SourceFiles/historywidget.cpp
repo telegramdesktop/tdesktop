@@ -719,7 +719,7 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_copy_email), this, SLOT(copyContextUrl()))->setEnabled(true);
 		} else if (_contextMenuLnk && dynamic_cast<MentionLink*>(_contextMenuLnk.data())) {
 			if (!_menu) _menu = new ContextMenu(historyWidget);
-			_menu->addAction(lng_context_open_mention(lt_user, _contextMenuLnk->encoded()), this, SLOT(openContextUrl()))->setEnabled(true);
+			_menu->addAction(lang(lng_context_open_mention), this, SLOT(openContextUrl()))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_mention), this, SLOT(copyContextUrl()))->setEnabled(true);
 		} else if (_contextMenuLnk && dynamic_cast<HashtagLink*>(_contextMenuLnk.data())) {
 			if (!_menu) _menu = new ContextMenu(historyWidget);

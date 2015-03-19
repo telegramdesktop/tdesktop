@@ -387,8 +387,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_copy_email" = "Copy email address";
 "lng_context_open_hashtag" = "Search by hashtag";
 "lng_context_copy_hashtag" = "Copy hashtag";
-"lng_context_open_mention" = "Open {user} profile";
-"lng_context_copy_mention" = "Copy mention";
+"lng_context_open_mention" = "Open profile";
+"lng_context_copy_mention" = "Copy username";
 "lng_context_open_image" = "Open Image";
 "lng_context_save_image" = "Save Image As..";
 "lng_context_forward_image" = "Forward Image";
@@ -487,8 +487,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version7020" = "— Lock your app with a passcode";
-"lng_new_version7020_appstore" = "— Lock your app with a passcode\n— Change the chat background\n— New «open with» menu for files\n— Added Korean language";
+"lng_new_version7022" = "— Reply to specific messages in groups\n— Mention @usernames in groups to notify multiple users";
+"lng_new_version7022_appstore" = "— Reply to specific messages in groups\n— Mention @usernames in groups to notify multiple users";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

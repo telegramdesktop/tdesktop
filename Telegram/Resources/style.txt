@@ -976,7 +976,7 @@ replyColor: #377aae;
 replyHeight: 49px;
 replyTop: 8px;
 replyBottom: 6px;
-replyIconPos: point(13px, 15px);
+replyIconPos: point(13px, 13px);
 replyIcon: sprite(174px, 195px, 24px, 24px);
 replyCancel: iconedButton(btnDefIconed) {
 	icon: sprite(165px, 24px, 14px, 14px);
