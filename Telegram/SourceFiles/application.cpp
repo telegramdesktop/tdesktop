@@ -653,8 +653,8 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 7019) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Passcode lock option added");
+			if (DevChannel && Local::oldMapVersion() < 7021) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Reply to specific messages in groups\n\xe2\x80\x94 Mention @usernames in groups to notify multiple users");
 			} else if (!DevChannel && Local::oldMapVersion() < 7020) {
 				versionFeatures = lang(lng_new_version7020).trimmed();
 			}
