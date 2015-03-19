@@ -653,10 +653,10 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 7021) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Reply to specific messages in groups\n\xe2\x80\x94 Mention @usernames in groups to notify multiple users");
+			if (DevChannel && Local::oldMapVersion() < 7022) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Critical bug with messages delivery fixed");
 			} else if (!DevChannel && Local::oldMapVersion() < 7020) {
-				versionFeatures = lang(lng_new_version7020).trimmed();
+				versionFeatures = lang(lng_new_version7022).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));

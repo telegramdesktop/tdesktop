@@ -2234,6 +2234,7 @@ void MainWidget::clearSkippedPtsUpdates() {
 	_byPtsSentMessage.clear();
 	_byPtsStatedMessage.clear();
 	_byPtsStatedMessages.clear();
+	updSkipPtsUpdateLevel = 0;
 }
 
 bool MainWidget::updPtsUpdated(int pts, int ptsCount) { // return false if need to save that update and apply later
@@ -2700,11 +2701,13 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 
 	case mtpc_updateShortMessage: {
 		const MTPDupdateShortMessage &d(updates.c_updateShortMessage());
+		if (!App::userLoaded(d.vuser_id.v)) {
+			return getDifference();
+		}
 		if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
 			_byPtsUpdates.insert(ptsKey(SkippedUpdates), updates);
 			return;
 		}
-		if (!App::userLoaded(d.vuser_id.v)) return getDifference();
 		bool out = (d.vflags.v & MTPDmessage_flag_out);
 		HistoryItem *item = App::histories().addToBack(MTP_message(d.vflags, d.vid, out ? MTP_int(MTP::authedId()) : d.vuser_id, MTP_peerUser(out ? d.vuser_id : MTP_int(MTP::authedId())), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty()));
 		if (item) {
@@ -2716,11 +2719,13 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 
 	case mtpc_updateShortChatMessage: {
 		const MTPDupdateShortChatMessage &d(updates.c_updateShortChatMessage());
+		if (!App::chatLoaded(d.vchat_id.v) || !App::userLoaded(d.vfrom_id.v) || (d.has_fwd_from_id() && !App::userLoaded(d.vfwd_from_id.v))) {
+			return getDifference();
+		}
 		if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
 			_byPtsUpdates.insert(ptsKey(SkippedUpdates), updates);
 			return;
 		}
-		if (!App::chatLoaded(d.vchat_id.v) || !App::userLoaded(d.vfrom_id.v) || (d.has_fwd_from_id() && !App::userLoaded(d.vfwd_from_id.v))) return getDifference();
 		HistoryItem *item = App::histories().addToBack(MTP_message(d.vflags, d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty()));
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
