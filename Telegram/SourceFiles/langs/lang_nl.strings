@@ -91,6 +91,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_server_error" = "Interne serverfout.";
 "lng_flood_error" = "Teveel pogingen. Probeer het later opnieuw.";
 "lng_deleted" = "Onbekend";
+"lng_deleted_message" = "Verwijderd bericht";
 
 "lng_intro" = "Welkom bij de officiële  [a href=\"https://telegram.org/\"]Telegram[/a] desktop-app.\n[b]Snel[/b] en [b]veilig[/b].";
 "lng_start_msgs" = "BEGIN MET CHATTEN";
@@ -332,6 +333,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_created_chat" = "{from} heeft de groep «{title}» gemaakt";
 
 "lng_forwarded_from" = "Doorgestuurd van";
+"lng_in_reply_to" = "Antwoord op";
 
 "lng_attach_failed" = "Mislukt";
 "lng_attach_file" = "Bestand";
@@ -385,6 +387,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_copy_email" = "E-mailadres kopiëren";
 "lng_context_open_hashtag" = "Zoeken op hashtag";
 "lng_context_copy_hashtag" = "Hashtag kopiëren";
+"lng_context_open_mention" = "Profiel openen";
+"lng_context_copy_mention" = "Gebruikersnaam kopiëren";
 "lng_context_open_image" = "Afbeelding openen";
 "lng_context_save_image" = "Afbeelding opslaan als";
 "lng_context_forward_image" = "Afbeelding doorsturen";
@@ -403,8 +407,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_forward_file" = "Bestand doorsturen";
 "lng_context_delete_file" = "Bestand verwijderen";
 "lng_context_close_file" = "Bestand sluiten";
-"lng_context_copy_text" = "Bericht kopiëren";
+"lng_context_copy_text" = "Tekst kopiëren";
 "lng_context_to_msg" = "Naar bericht gaan";
+"lng_context_reply_msg" = "Antwoord";
 "lng_context_forward_msg" = "Bericht doorsturen";
 "lng_context_delete_msg" = "Bericht verwijderen";
 "lng_context_select_msg" = "Bericht kiezen";
@@ -425,6 +430,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_forward_send_files_confirm" = "Gekozen bestanden naar {recipient} sturen?";
 "lng_forward" = "Doorsturen";
 "lng_forward_send" = "Stuur";
+"lng_forward_messages" = "{count:_not_used_|Doorgestuurd bericht|# doorgestuurde berichten}";
 
 "lng_contact_phone" = "Telefoonnummer";
 "lng_enter_contact_data" = "Nieuw contact";
@@ -481,8 +487,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version7020" = "— Vergrendel je app met een toegangscode";
-"lng_new_version7020_appstore" = "— Vergrendel je app met een toegangscode\n— Pas nu de chatachtergrond aan\n— Nieuw «openen met» menu voor bestanden\n— Koreaans toegevoegd";
+"lng_new_version7022" = "— Antwoorden op specifieke berichten in groepen. \n— @gebruikersnaam vermelden in groepen om gebruikers te informeren.";
+"lng_new_version7022_appstore" = "— Antwoorden op specifieke berichten in groepen. \n— @gebruikersnaam vermelden in groepen om gebruikers te informeren. ";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

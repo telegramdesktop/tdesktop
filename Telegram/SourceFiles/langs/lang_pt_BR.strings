@@ -91,6 +91,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_server_error" = "Erro interno do servidor.";
 "lng_flood_error" = "Muitas tentativas. Por favor, tente novamente mais tarde.";
 "lng_deleted" = "Desconhecido";
+"lng_deleted_message" = "Mensagem apagada";
 
 "lng_intro" = "Bem vindo ao cliente oficial do [a href=\"https://telegram.org/\"]Telegram[/a].\nÉ [b]rápido[/b] e [b]seguro[/b].";
 "lng_start_msgs" = "COMECE A CONVERSAR";
@@ -332,6 +333,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_created_chat" = "{from} criou o grupo «{title}»";
 
 "lng_forwarded_from" = "Encaminhado de";
+"lng_in_reply_to" = "Em resposta a";
 
 "lng_attach_failed" = "Falhou";
 "lng_attach_file" = "Arquivo";
@@ -385,6 +387,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_copy_email" = "Copiar endereço de email";
 "lng_context_open_hashtag" = "Buscar pela hashtag";
 "lng_context_copy_hashtag" = "Copiar hashtag";
+"lng_context_open_mention" = "Abrir perfil";
+"lng_context_copy_mention" = "Copiar nome de usuário";
 "lng_context_open_image" = "Abrir Imagem";
 "lng_context_save_image" = "Salvar Imagem Como..";
 "lng_context_forward_image" = "Encaminhar Imagem";
@@ -403,8 +407,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_forward_file" = "Encaminhar Arquivo";
 "lng_context_delete_file" = "Apagar Arquivo";
 "lng_context_close_file" = "Fechar Arquivo";
-"lng_context_copy_text" = "Copiar Texto da Mensagem";
+"lng_context_copy_text" = "Copiar Texto";
 "lng_context_to_msg" = "Ir Para Mensagem";
+"lng_context_reply_msg" = "Responder";
 "lng_context_forward_msg" = "Encaminhar Mensagem";
 "lng_context_delete_msg" = "Apagar Mensagem";
 "lng_context_select_msg" = "Selecionar Mensagem";
@@ -425,6 +430,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_forward_send_files_confirm" = "Enviar arquivos selecionados para {recipient}?";
 "lng_forward" = "Encaminhar";
 "lng_forward_send" = "Enviar";
+"lng_forward_messages" = "{count:_not_used_|Mensagem encaminhada|# mensagens encaminhadas}";
 
 "lng_contact_phone" = "Número de telefone";
 "lng_enter_contact_data" = "Novo Contato";
@@ -481,8 +487,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras menores melhorias";
-"lng_new_version7020" = "— Bloquear o aplicativo com senha";
-"lng_new_version7020_appstore" = "— Bloquear o aplicativo com senha\n— Alterar o plano de fundo \n— Novo menu «abrir com» para arquivos\n— Adicionada linguagem coreana";
+"lng_new_version7022" = "— Responder usuários específicos em grupos\n— Mencionar @nomesdeusuario em grupos para notificar múltiplos usuários";
+"lng_new_version7022_appstore" = "— Responder usuários específicos em grupos\n— Mencionar @nomesdeusuario em grupos para notificar múltiplos usuários";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 
