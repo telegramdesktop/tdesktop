@@ -656,7 +656,7 @@ void Application::checkMapVersion() {
 			if (DevChannel && Local::oldMapVersion() < 7022) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Critical bug with messages delivery fixed");
 			} else if (!DevChannel && Local::oldMapVersion() < 7023) {
-				versionFeatures = lang(lng_new_version7022).trimmed();
+				versionFeatures = lang(lng_new_version7022).trimmed().replace('@', qsl("@") + QChar(0x200D));
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
