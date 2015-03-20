@@ -655,7 +655,7 @@ void Application::checkMapVersion() {
 			QString versionFeatures;
 			if (DevChannel && Local::oldMapVersion() < 7022) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Critical bug with messages delivery fixed");
-			} else if (!DevChannel && Local::oldMapVersion() < 7020) {
+			} else if (!DevChannel && Local::oldMapVersion() < 7023) {
 				versionFeatures = lang(lng_new_version7022).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {

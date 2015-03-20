@@ -4557,9 +4557,6 @@ void HistoryMessage::draw(QPainter &p, uint32 selection) const {
 		width = _maxw;
 	}
 	if (_media) {
-		if (st::msgMargin.top() + _media->height() + st::msgMargin.bottom() != _height) {
-			int a = 0;
-		}
 		p.save();
 		p.translate(left, st::msgMargin.top());
 		_media->draw(p, this, selected);
