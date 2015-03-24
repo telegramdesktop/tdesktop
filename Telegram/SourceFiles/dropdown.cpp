@@ -881,7 +881,7 @@ void EmojiPan::onTabChange() {
 	}
 }
 
-MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *rows, HashtagRows *hrows) : _parent(parent), _rows(rows), _hrows(hrows), _sel(-1), _mouseSel(false) {
+MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *rows, HashtagRows *hrows) : _parent(parent), _rows(rows), _hrows(hrows), _sel(-1), _mouseSel(false), _overDelete(false) {
 }
 
 void MentionsInner::paintEvent(QPaintEvent *e) {
@@ -895,8 +895,11 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 	for (int32 i = from; i < to; ++i) {
 		if (i >= last) break;
 
-		if (i == _sel) p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::dlgHoverBG->b);
-
+		if (i == _sel) {
+			p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::dlgHoverBG->b);
+			int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
+			if (_rows->isEmpty()) p.drawPixmap(QPoint(width() - st::notifyClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), App::sprite(), st::notifyClose.icon);
+		}
 		if (_rows->isEmpty()) {
 			QString tag = st::mentionFont->m.elidedText('#' + _hrows->at(last - i - 1), Qt::ElideRight, htagwidth);
 			p.setFont(st::mentionFont->f);
@@ -931,7 +934,7 @@ void MentionsInner::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void MentionsInner::clearSel() {
-	_mouseSel = false;
+	_mouseSel = _overDelete = false;
 	setSel(-1);
 }
 
@@ -963,7 +966,27 @@ void MentionsInner::mousePressEvent(QMouseEvent *e) {
 	_mouseSel = true;
 	onUpdateSelected(true);
 	if (e->button() == Qt::LeftButton) {
-		select();
+		if (_overDelete && _sel >= 0 && _sel < _hrows->size()) {
+			_mousePos = mapToGlobal(e->pos());
+
+			QString toRemove = _hrows->at(_hrows->size() - _sel - 1);
+			RecentHashtagPack recent(cRecentWriteHashtags());
+			for (RecentHashtagPack::iterator i = recent.begin(); i != recent.cend();) {
+				if (i->first == toRemove) {
+					i = recent.erase(i);
+				} else {
+					++i;
+				}
+			}
+			cSetRecentWriteHashtags(recent);
+			Local::writeRecentHashtags();
+			_parent->updateFiltered();
+
+			_mouseSel = true;
+			onUpdateSelected(true);
+		} else {
+			select();
+		}
 	}
 }
 
@@ -992,6 +1015,7 @@ void MentionsInner::onUpdateSelected(bool force) {
 	if ((!force && !rect().contains(mouse)) || !_mouseSel) return;
 
 	int w = width(), mouseY = mouse.y();
+	_overDelete = _rows->isEmpty() && (mouse.x() >= w - st::mentionHeight);
 	int32 sel = mouseY / int32(st::mentionHeight), maxSel = _rows->isEmpty() ? _hrows->size() : _rows->size();
 	if (sel < 0 || sel >= maxSel) {
 		sel = -1;
@@ -1056,6 +1080,10 @@ void MentionsDropdown::showFiltered(ChatData *chat, QString start) {
 		_filter = start;
 	}
 
+	updateFiltered(toDown);
+}
+
+void MentionsDropdown::updateFiltered(bool toDown) {
 	int32 now = unixtime();
 	QMultiMap<int32, UserData*> ordered;
 	MentionRows rows;

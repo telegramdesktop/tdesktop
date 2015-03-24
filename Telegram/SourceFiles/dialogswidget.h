@@ -116,6 +116,7 @@ signals:
 	void searchMessages();
 	void searchResultChosen();
 	void completeHashtag(QString tag);
+	void refreshHashtags();
 
 private:
 
@@ -153,6 +154,8 @@ private:
 	void paintDialog(QPainter &p, DialogRow *dialog);
 
 	LinkButton _addContactLnk;
+
+	bool _overDelete;
 
 };
 
@@ -217,7 +220,7 @@ public slots:
 	void onNewGroup();
 	bool onCancelSearch();
 
-	void onFilterCursorMoved(int from, int to);
+	void onFilterCursorMoved(int from = -1, int to = -1);
 	void onCompleteHashtag(QString tag);
 
 	void onDialogToTopFrom(int movedFrom);

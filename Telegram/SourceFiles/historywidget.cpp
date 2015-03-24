@@ -1060,7 +1060,7 @@ void HistoryList::onTouchSelect() {
 }
 
 void HistoryList::onUpdateSelected() {
-	if (hist->isEmpty()) return;
+	if (!hist || hist->isEmpty()) return;
 
 	QPoint mousePos(mapFromGlobal(_dragPos));
 	QPoint m(historyWidget->clampMousePosition(mousePos));

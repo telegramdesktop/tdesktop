@@ -516,6 +516,7 @@ namespace {
 
 	FileKey _userSettingsKey = 0;
 	FileKey _recentHashtagsKey = 0;
+	bool _recentHashtagsWereRead = false;
 
 	typedef QPair<FileKey, qint32> FileDesc; // file, size
 	typedef QMap<StorageKey, FileDesc> StorageMap;
@@ -2255,6 +2256,9 @@ namespace Local {
 	}
 
 	void readRecentHashtags() {
+		if (_recentHashtagsWereRead) return;
+		_recentHashtagsWereRead = true;
+
 		if (!_recentHashtagsKey) return;
 
 		FileReadDescriptor hashtags;

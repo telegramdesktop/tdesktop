@@ -271,6 +271,7 @@ private:
 	bool _mouseSel;
 	QPoint _mousePos;
 
+	bool _overDelete;
 };
 
 class MentionsDropdown : public QWidget, public Animated {
@@ -285,6 +286,7 @@ public:
 	void fastHide();
 
 	void showFiltered(ChatData *chat, QString start);
+	void updateFiltered(bool toDown = false);
 	void setBoundings(QRect boundings);
 
 	bool animStep(float64 ms);

@@ -41,7 +41,8 @@ searchedSel(-1),
 peopleSel(-1),
 _lastSearchId(0),
 _state(DefaultState),
-_addContactLnk(this, lang(lng_add_contact_button)) {
+_addContactLnk(this, lang(lng_add_contact_button)),
+_overDelete(false) {
 	connect(main, SIGNAL(dialogToTop(const History::DialogLinks&)), this, SLOT(onDialogToTop(const History::DialogLinks&)));
 	connect(main, SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)));
 	connect(main, SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(onPeerPhotoChanged(PeerData*)));
@@ -100,7 +101,11 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 				p.setPen(st::black->p);
 				for (; from < to; ++from) {
 					bool selected = (from == hashtagSel);
-					if (selected) p.fillRect(0, 0, w, st::mentionHeight, st::dlgHoverBG->b);
+					if (selected) {
+						p.fillRect(0, 0, w, st::mentionHeight, st::dlgHoverBG->b);
+						int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
+						p.drawPixmap(QPoint(w - st::notifyClose.icon.pxWidth() - skip, skip), App::sprite(), st::notifyClose.icon);
+					}
 					QString tag = st::mentionFont->m.elidedText('#' + hashtagResults.at(from), Qt::ElideRight, w - st::dlgPaddingHor * 2);
 					p.drawText(st::dlgPaddingHor, st::mentionTop + st::mentionFont->ascent, tag);
 					p.translate(0, st::mentionHeight);
@@ -241,6 +246,7 @@ void DialogsListWidget::onUpdateSelected(bool force) {
 	if ((!force && !rect().contains(mouse)) || !selByMouse) return;
 
 	int w = width(), mouseY = mouse.y();
+	_overDelete = false;
 	if (_state == DefaultState) {
 		DialogRow *newSel = dialogs.list.rowAtY(mouseY, st::dlgHeight);
 		int32 otherStart = dialogs.list.count * st::dlgHeight;
@@ -265,6 +271,9 @@ void DialogsListWidget::onUpdateSelected(bool force) {
 				hashtagSel = newHashtagSel;
 				setCursor((hashtagSel >= 0) ? style::cur_pointer : style::cur_default);
 				parentWidget()->update();
+			}
+			if (hashtagSel >= 0) {
+				_overDelete = (mouse.x() >= w - st::mentionHeight);
 			}
 			mouseY -= filteredOffset();
 		}
@@ -1041,8 +1050,28 @@ bool DialogsListWidget::choosePeer() {
 		if (sel) history = sel->history;
 	} else if (_state == FilteredState || _state == SearchedState) {
 		if (hashtagSel >= 0 && hashtagSel < hashtagResults.size()) {
-			saveRecentHashtags('#' + hashtagResults.at(hashtagSel));
-			emit completeHashtag(hashtagResults.at(hashtagSel));
+			QString hashtag = hashtagResults.at(hashtagSel);
+			if (_overDelete) {
+				lastMousePos = QCursor::pos();
+
+				RecentHashtagPack recent(cRecentSearchHashtags());
+				for (RecentHashtagPack::iterator i = recent.begin(); i != recent.cend();) {
+					if (i->first == hashtag) {
+						i = recent.erase(i);
+					} else {
+						++i;
+					}
+				}
+				cSetRecentSearchHashtags(recent);
+				Local::writeRecentHashtags();
+				emit refreshHashtags();
+
+				selByMouse = true;
+				onUpdateSelected(true);
+			} else {
+				saveRecentHashtags('#' + hashtag);
+				emit completeHashtag(hashtag);
+			}
 			return true;
 		}
 		if (filteredSel >= 0 && filteredSel < filterResults.size()) {
@@ -1318,6 +1347,7 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
 	connect(&list, SIGNAL(searchMessages()), this, SLOT(onNeedSearchMessages()));
 	connect(&list, SIGNAL(searchResultChosen()), this, SLOT(onCancel()));
 	connect(&list, SIGNAL(completeHashtag(QString)), this, SLOT(onCompleteHashtag(QString)));
+	connect(&list, SIGNAL(refreshHashtags()), this, SLOT(onFilterCursorMoved()));
 	connect(&scroll, SIGNAL(geometryChanged()), &list, SLOT(onParentGeometryChanged()));
 	connect(&scroll, SIGNAL(scrolled()), &list, SLOT(onUpdateSelected()));
 	connect(&scroll, SIGNAL(scrolled()), this, SLOT(onListScroll()));
@@ -1707,6 +1737,7 @@ void DialogsWidget::onFilterUpdate(bool force) {
 }
 
 void DialogsWidget::onFilterCursorMoved(int from, int to) {
+	if (to < 0) to = _filter.cursorPosition();
 	QString t = _filter.text(), r;
 	for (int start = to; start > 0;) {
 		--start;

@@ -2103,6 +2103,7 @@ void MainWidget::showAll() {
 			profile->show();
 		} else {
 			history.show();
+			history.resizeEvent(0);
 		}
 		if (profile || overview || history.peer()) {
 			_topBar.show();
@@ -2129,6 +2130,7 @@ void MainWidget::showAll() {
 			profile->show();
 		} else if (history.peer()) {
 			history.show();
+			history.resizeEvent(0);
 		} else {
 			dialogs.show();
 			history.hide();
