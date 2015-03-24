@@ -920,6 +920,14 @@ namespace {
 			cSetRecentEmojisPreload(v);
 		} break;
 
+		case dbiDialogLastPath: {
+			QString path;
+			stream >> path;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetDialogLastPath(path);
+		} break;
+
 		default:
 			LOG(("App Error: unknown blockId in _readSetting: %1").arg(blockId));
 			return false;
@@ -1130,6 +1138,7 @@ namespace {
 		uint32 size = 11 * (sizeof(quint32) + sizeof(qint32));
 		size += sizeof(quint32) + _stringSize(cAskDownloadPath() ? QString() : cDownloadPath());
 		size += sizeof(quint32) + sizeof(qint32) + cGetRecentEmojis().size() * (sizeof(uint32) + sizeof(ushort));
+		size += sizeof(quint32) + _stringSize(cDialogLastPath());
 
 		EncryptedDescriptor data(size);
 		data.stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
@@ -1144,6 +1153,7 @@ namespace {
 		data.stream << quint32(dbiDownloadPath) << (cAskDownloadPath() ? QString() : cDownloadPath());
 		data.stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());
 		data.stream << quint32(dbiEmojiTab) << qint32(cEmojiTab());
+		data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 
 		RecentEmojiPreload v;
 		v.reserve(cGetRecentEmojis().size());

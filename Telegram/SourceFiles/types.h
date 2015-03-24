@@ -259,6 +259,7 @@ enum DataBlockId {
 	dbiLangFile = 32,
 	dbiTileBackground = 33,
 	dbiAutoLock = 34,
+	dbiDialogLastPath = 35,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,

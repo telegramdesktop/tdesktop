@@ -431,7 +431,11 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 		if (!name.isEmpty() && name.at(0) == QChar::fromLatin1('.')) {
 			name = filedialogDefaultName(prefix, name);
 		} else if (dir.path() != qsl(".")) {
-			cSetDialogLastPath(dir.absolutePath());
+			QString path = dir.absolutePath();
+			if (path != cDialogLastPath()) {
+				cSetDialogLastPath(path);
+				Local::writeUserSettings();
+			}
 		}
 
 		return filedialogGetSaveFile(name, title, filter, name) ? name : QString();
