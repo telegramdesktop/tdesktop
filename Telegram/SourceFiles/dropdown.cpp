@@ -889,6 +889,7 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 
 	int32 atwidth = st::mentionFont->m.width('@'), hashwidth = st::mentionFont->m.width('#');
 	int32 availwidth = width() - 2 * st::mentionPadding.left() - st::mentionPhotoSize - 2 * st::mentionPadding.right();
+	int32 htagleft = st::btnAttachPhoto.width + st::taMsgField.textMrg.left() - st::dlgShadow, htagwidth = width() - st::mentionPadding.right() - htagleft;
 
 	int32 from = qFloor(e->rect().top() / st::mentionHeight), to = qFloor(e->rect().bottom() / st::mentionHeight) + 1, last = _rows->isEmpty() ? _hrows->size() : _rows->size();
 	for (int32 i = from; i < to; ++i) {
@@ -897,9 +898,9 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 		if (i == _sel) p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::dlgHoverBG->b);
 
 		if (_rows->isEmpty()) {
-			QString tag = st::mentionFont->m.elidedText('#' + _hrows->at(last - i - 1), Qt::ElideRight, availwidth);
+			QString tag = st::mentionFont->m.elidedText('#' + _hrows->at(last - i - 1), Qt::ElideRight, htagwidth);
 			p.setFont(st::mentionFont->f);
-			p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize + st::mentionPadding.right(), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, tag);
+			p.drawText(htagleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, tag);
 		} else {
 			UserData *user = _rows->at(last - i - 1);
 			QString uname = user->username;
@@ -1092,7 +1093,7 @@ void MentionsDropdown::showFiltered(ChatData *chat, QString start) {
 		const RecentHashtagPack &recent(cRecentWriteHashtags());
 		hrows.reserve(recent.size());
 		for (RecentHashtagPack::const_iterator i = recent.cbegin(), e = recent.cend(); i != e; ++i) {
-			if (_filter.size() > 1 && !i->first.startsWith(_filter.midRef(1), Qt::CaseInsensitive)) continue;
+			if (_filter.size() > 1 && (!i->first.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || i->first.size() + 1 == _filter.size())) continue;
 			hrows.push_back(i->first);
 		}
 	}
