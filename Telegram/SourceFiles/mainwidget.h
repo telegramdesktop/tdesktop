@@ -110,7 +110,7 @@ public:
 
 class StackItemHistory : public StackItem {
 public:
-	StackItemHistory(PeerData *peer, int32 lastWidth, int32 lastScrollTop, QList<MsgId> replyReturns) : StackItem(peer), lastWidth(lastWidth), lastScrollTop(lastScrollTop), replyReturns(replyReturns) {
+	StackItemHistory(PeerData *peer, int32 lastWidth, int32 lastScrollTop, QList<MsgId> replyReturns) : StackItem(peer), replyReturns(replyReturns), lastWidth(lastWidth), lastScrollTop(lastScrollTop) {
 	}
 	StackItemType type() const {
 		return HistoryStackItem;
