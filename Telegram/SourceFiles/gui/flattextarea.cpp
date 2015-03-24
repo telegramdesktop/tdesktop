@@ -180,9 +180,9 @@ EmojiPtr FlatTextarea::getSingleEmoji() const {
 	return 0;
 }
 
-bool FlatTextarea::getMentionStart(QString &start) const {
+void FlatTextarea::getMentionHashtagStart(QString &start) const {
 	int32 pos = textCursor().position();
-	if (textCursor().anchor() != pos) return false;
+	if (textCursor().anchor() != pos) return;
 
 	QTextDocument *doc(document());
 	QTextBlock block = doc->findBlock(pos);
@@ -199,18 +199,24 @@ bool FlatTextarea::getMentionStart(QString &start) const {
 		QString t(fr.text());
 		for (int i = pos - p; i > 0; --i) {
 			if (t.at(i - 1) == '@') {
-				start = t.mid(i, pos - p - i);
-				return (start.isEmpty() || start.at(0).isLetter()) && (i < 2 || !(t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_'));
+				if ((pos - p - i < 1 || t.at(i).isLetter()) && (i < 2 || !(t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_'))) {
+					start = t.mid(i - 1, pos - p - i + 1);
+				}
+				return;
+			} else if (t.at(i - 1) == '#') {
+				if (i < 2 || !(t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_')) {
+					start = t.mid(i - 1, pos - p - i + 1);
+				}
+				return;
 			}
-			if (pos - p - i > 31) break;
+			if (pos - p - i > 63) break;
 			if (!t.at(i - 1).isLetterOrNumber() && t.at(i - 1) != '_') break;
 		}
-		return false;
+		return;
 	}
-	return false;
 }
 
-void FlatTextarea::onMentionInsert(QString mention) {
+void FlatTextarea::onMentionOrHashtagInsert(QString mentionOrHashtag) {
 	QTextCursor c(textCursor());
 	int32 pos = c.position();
 
@@ -228,29 +234,29 @@ void FlatTextarea::onMentionInsert(QString mention) {
 
 		QString t(fr.text());
 		for (int i = pos - p; i > 0; --i) {
-			if (t.at(i - 1) == '@') {
-				if ((i == pos - p || t.at(i).isLetter()) && (i < 2 || !(t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_'))) {
-					c.setPosition(p + i, QTextCursor::MoveAnchor);
+			if (t.at(i - 1) == '@' || t.at(i - 1) == '#') {
+				if ((i == pos - p || t.at(i).isLetter() || t.at(i - 1) == '#') && (i < 2 || !(t.at(i - 2).isLetterOrNumber() || t.at(i - 2) == '_'))) {
+					c.setPosition(p + i - 1, QTextCursor::MoveAnchor);
 					int till = p + i;
-					for (; (till < e) && (till - p - i < mention.size()); ++till) {
-						if (t.at(till - p).toLower() != mention.at(till - p - i).toLower()) {
+					for (; (till < e) && (till - p - i + 1 < mentionOrHashtag.size()); ++till) {
+						if (t.at(till - p).toLower() != mentionOrHashtag.at(till - p - i + 1).toLower()) {
 							break;
 						}
 					}
-					if (till - p - i == mention.size() && till < e && t.at(till - p) == ' ') {
+					if (till - p - i + 1 == mentionOrHashtag.size() && till < e && t.at(till - p) == ' ') {
 						++till;
 					}
 					c.setPosition(till, QTextCursor::KeepAnchor);
-					c.insertText(mention + ' ');
+					c.insertText(mentionOrHashtag + ' ');
 					return;
 				}
 				break;
 			}
-			if (pos - p - i > 31) break;
+			if (pos - p - i > 63) break;
 			if (!t.at(i - 1).isLetterOrNumber() && t.at(i - 1) != '_') break;
 		}
 	}
-	c.insertText('@' + mention + ' ');
+	c.insertText(mentionOrHashtag + ' ');
 }
 
 void FlatTextarea::getSingleEmojiFragment(QString &text, QTextFragment &fragment) const {

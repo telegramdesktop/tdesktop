@@ -1,10 +1,10 @@
 @echo OFF
 
-set "AppVersion=7023"
-set "AppVersionStrSmall=0.7.23"
-set "AppVersionStr=0.7.23"
-set "AppVersionStrFull=0.7.23.0"
-set "DevChannel=0"
+set "AppVersion=7024"
+set "AppVersionStrSmall=0.7.24"
+set "AppVersionStr=0.7.24"
+set "AppVersionStrFull=0.7.24.0"
+set "DevChannel=1"
 
 if %DevChannel% neq 0 goto preparedev
 

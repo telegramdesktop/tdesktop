@@ -988,6 +988,7 @@ replyCancel: iconedButton(btnDefIconed) {
 	width: 49px;
 	height: 49px;
 }
+forwardIcon: sprite(368px, 173px, 24px, 24px);
 
 historyScroll: flatScroll(scrollDef) {
 	barColor: #89a0b47a;

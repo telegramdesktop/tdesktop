@@ -654,7 +654,7 @@ void Application::checkMapVersion() {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
 			if (DevChannel && Local::oldMapVersion() < 7022) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Critical bug with messages delivery fixed");
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Forward messages with comment or sticker before them\n\xe2\x80\x94 Recent used hashtags autocomplete in message field and search field\n\xe2\x80\x94 Move from reply to original message and back by an arrow in the bottom");
 			} else if (!DevChannel && Local::oldMapVersion() < 7023) {
 				versionFeatures = lang(lng_new_version7022).trimmed().replace('@', qsl("@") + QChar(0x200D));
 			}

@@ -228,6 +228,7 @@ private:
 };
 
 typedef QList<UserData*> MentionRows;
+typedef QList<QString> HashtagRows;
 
 class MentionsDropdown;
 class MentionsInner : public QWidget {
@@ -235,7 +236,7 @@ class MentionsInner : public QWidget {
 
 public:
 
-	MentionsInner(MentionsDropdown *parent, MentionRows *rows);
+	MentionsInner(MentionsDropdown *parent, MentionRows *rows, HashtagRows *hrows);
 
 	void paintEvent(QPaintEvent *e);
 
@@ -251,7 +252,7 @@ public:
 
 signals:
 
-	void mentioned(QString username);
+	void chosen(QString mentionOrHashtag);
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
 
 public slots:
@@ -265,6 +266,7 @@ private:
 
 	MentionsDropdown *_parent;
 	MentionRows *_rows;
+	HashtagRows *_hrows;
 	int32 _sel;
 	bool _mouseSel;
 	QPoint _mousePos;
@@ -296,7 +298,7 @@ public:
 
 signals:
 
-	void mentioned(QString username);
+	void chosen(QString mentionOrHashtag);
 
 public slots:
 
@@ -311,6 +313,7 @@ private:
 
 	QPixmap _cache;
 	MentionRows _rows;
+	HashtagRows _hrows;
 
 	ScrollArea _scroll;
 	MentionsInner _inner;

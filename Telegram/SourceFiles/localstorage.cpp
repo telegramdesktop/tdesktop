@@ -494,6 +494,7 @@ namespace {
 		lskRecentStickers, // no data
 		lskBackground, // no data
 		lskUserSettings, // no data
+		lskRecentHashtags, // no data
 	};
 
 	typedef QMap<PeerId, FileKey> DraftsMap;
@@ -514,6 +515,7 @@ namespace {
 	bool _backgroundWasRead = false;
 
 	FileKey _userSettingsKey = 0;
+	FileKey _recentHashtagsKey = 0;
 
 	typedef QPair<FileKey, qint32> FileDesc; // file, size
 	typedef QMap<StorageKey, FileDesc> StorageMap;
@@ -1271,7 +1273,7 @@ namespace {
 		DraftsNotReadMap draftsNotReadMap;
 		StorageMap imagesMap, stickersMap, audiosMap;
 		qint64 storageImagesSize = 0, storageStickersSize = 0, storageAudiosSize = 0;
-		quint64 locationsKey = 0, recentStickersKey = 0, backgroundKey = 0, userSettingsKey = 0;
+		quint64 locationsKey = 0, recentStickersKey = 0, backgroundKey = 0, userSettingsKey = 0, recentHashtagsKey = 0;
 		while (!map.stream.atEnd()) {
 			quint32 keyType;
 			map.stream >> keyType;
@@ -1345,6 +1347,9 @@ namespace {
 			case lskUserSettings: {
 				map.stream >> userSettingsKey;
 			} break;
+			case lskRecentHashtags: {
+				map.stream >> recentHashtagsKey;
+			} break;
 			default:
 				LOG(("App Error: unknown key type in encrypted map: %1").arg(keyType));
 				return Local::ReadMapFailed;
@@ -1369,6 +1374,7 @@ namespace {
 		_recentStickersKey = recentStickersKey;
 		_backgroundKey = backgroundKey;
 		_userSettingsKey = userSettingsKey;
+		_recentHashtagsKey = recentHashtagsKey;
 		_oldMapVersion = mapData.version;
 		if (_oldMapVersion < AppVersion) {
 			_mapChanged = true;
@@ -1428,9 +1434,10 @@ namespace {
 		if (!_stickersMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _stickersMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
 		if (!_audiosMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _audiosMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
 		if (_locationsKey) mapSize += sizeof(quint32) + sizeof(quint64);
-		if (_userSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_recentStickersKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_backgroundKey) mapSize += sizeof(quint32) + sizeof(quint64);
+		if (_userSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
+		if (_recentHashtagsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		EncryptedDescriptor mapData(mapSize);
 		if (!_draftsMap.isEmpty()) {
 			mapData.stream << quint32(lskDraft) << quint32(_draftsMap.size());
@@ -1465,14 +1472,17 @@ namespace {
 		if (_locationsKey) {
 			mapData.stream << quint32(lskLocations) << quint64(_locationsKey);
 		}
-		if (_userSettingsKey) {
-			mapData.stream << quint32(lskUserSettings) << quint64(_userSettingsKey);
-		}
 		if (_recentStickersKey) {
 			mapData.stream << quint32(lskRecentStickers) << quint64(_recentStickersKey);
 		}
 		if (_backgroundKey) {
 			mapData.stream << quint32(lskBackground) << quint64(_backgroundKey);
+		}
+		if (_userSettingsKey) {
+			mapData.stream << quint32(lskUserSettings) << quint64(_userSettingsKey);
+		}
+		if (_recentHashtagsKey) {
+			mapData.stream << quint32(lskRecentHashtags) << quint64(_recentHashtagsKey);
 		}
 		map.writeEncrypted(mapData);
 
@@ -1696,7 +1706,7 @@ namespace Local {
 		_draftsNotReadMap.clear();
 		_stickersMap.clear();
 		_audiosMap.clear();
-		_locationsKey = _userSettingsKey = _recentStickersKey = _backgroundKey = 0;
+		_locationsKey = _recentStickersKey = _backgroundKey = _userSettingsKey = _recentHashtagsKey = 0;
 		_mapChanged = true;
 		_writeMap(WriteMapNow);
 
@@ -2199,7 +2209,87 @@ namespace Local {
 		}
 		return false;
 	}
-	
+
+	void writeRecentHashtags() {
+		if (!_working()) return;
+
+		const RecentHashtagPack &write(cRecentWriteHashtags()), &search(cRecentSearchHashtags());
+		if (write.isEmpty() && search.isEmpty()) readRecentHashtags();
+		if (write.isEmpty() && search.isEmpty()) {
+			if (_recentHashtagsKey) {
+				clearKey(_recentHashtagsKey);
+				_recentHashtagsKey = 0;
+				_mapChanged = true;
+			}
+			_writeMap();
+		} else {
+			if (!_recentHashtagsKey) {
+				_recentHashtagsKey = genKey();
+				_mapChanged = true;
+				_writeMap(WriteMapFast);
+			}
+			quint32 size = sizeof(quint32) * 2, writeCnt = 0, searchCnt = 0;
+			for (RecentHashtagPack::const_iterator i = write.cbegin(); i != write.cend(); ++i) {
+				if (!i->first.isEmpty()) {
+					size += _stringSize(i->first) + sizeof(quint16);
+					++writeCnt;
+				}
+			}
+			for (RecentHashtagPack::const_iterator i = search.cbegin(); i != search.cend(); ++i) {
+				if (!i->first.isEmpty()) {
+					size += _stringSize(i->first) + sizeof(quint16);
+					++searchCnt;
+				}
+			}
+			EncryptedDescriptor data(size);
+			data.stream << quint32(writeCnt) << quint32(searchCnt);
+			for (RecentHashtagPack::const_iterator i = write.cbegin(); i != write.cend(); ++i) {
+				if (!i->first.isEmpty()) data.stream << i->first << quint16(i->second);
+			}
+			for (RecentHashtagPack::const_iterator i = search.cbegin(); i != search.cend(); ++i) {
+				if (!i->first.isEmpty()) data.stream << i->first << quint16(i->second);
+			}
+			FileWriteDescriptor file(_recentHashtagsKey);
+			file.writeEncrypted(data);
+		}
+	}
+
+	void readRecentHashtags() {
+		if (!_recentHashtagsKey) return;
+
+		FileReadDescriptor hashtags;
+		if (!readEncryptedFile(hashtags, _recentHashtagsKey)) {
+			clearKey(_recentHashtagsKey);
+			_recentHashtagsKey = 0;
+			_writeMap();
+			return;
+		}
+
+		quint32 writeCount = 0, searchCount = 0;
+		hashtags.stream >> writeCount >> searchCount;
+
+		QString tag;
+		quint16 count;
+			
+		RecentHashtagPack write, search;
+		if (writeCount) {
+			write.reserve(writeCount);
+			for (uint32 i = 0; i < writeCount; ++i) {
+				hashtags.stream >> tag >> count;
+				write.push_back(qMakePair(tag.trimmed(), count));
+			}
+		}
+		if (searchCount) {
+			search.reserve(searchCount);
+			for (uint32 i = 0; i < searchCount; ++i) {
+				hashtags.stream >> tag >> count;
+				search.push_back(qMakePair(tag.trimmed(), count));
+			}
+		}
+		cSetRecentWriteHashtags(write);
+		cSetRecentSearchHashtags(search);
+	}
+
 	struct ClearManagerData {
 		QThread *thread;
 		StorageMap images, stickers, audios;
@@ -2249,6 +2339,10 @@ namespace Local {
 			}
 			if (_recentStickersKey) {
 				_recentStickersKey = 0;
+				_mapChanged = true;
+			}
+			if (_recentHashtagsKey) {
+				_recentHashtagsKey = 0;
 				_mapChanged = true;
 			}
 			_writeMap();

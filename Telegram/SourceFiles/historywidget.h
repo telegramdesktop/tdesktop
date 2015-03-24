@@ -203,7 +203,7 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
-	void offerPeer(PeerId peer);
+	bool offerPeer(PeerId peer);
 	QString offeredText() const;
 
 	bool wasOffered() const;
@@ -311,7 +311,7 @@ public:
 	void updateOnlineDisplay(int32 x, int32 w);
 	void updateOnlineDisplayTimer();
 
-	mtpRequestId onForward(const PeerId &peer, SelectedItemSet toForward);
+//	mtpRequestId onForward(const PeerId &peer, SelectedItemSet toForward);
 	void onShareContact(const PeerId &peer, UserData *contact);
 	void onSendPaths(const PeerId &peer);
 
@@ -348,6 +348,15 @@ public:
 
 	MsgId replyToId() const;
 	void updateReplyTo(bool force = false);
+	void cancelReply();
+	void updateForwarding(bool force = false);
+	void cancelForwarding(); // called by MainWidget
+
+	void clearReplyReturns();
+	void pushReplyReturn(HistoryItem *item);
+	QList<MsgId> replyReturns();
+	void setReplyReturns(PeerId peer, const QList<MsgId> &replyReturns);
+	void calcNextReplyReturn();
 
 	~HistoryWidget();
 
@@ -360,7 +369,7 @@ public slots:
 
 	void onCancel();
 	void onReplyToMessage();
-	void onReplyCancel();
+	void onReplyForwardCancel();
 
 	void peerUpdated(PeerData *data);
 	void onPeerLoaded(PeerData *data);
@@ -423,9 +432,12 @@ private:
 	HistoryItem *_replyTo;
 	Text _replyToName, _replyToText;
 	int32 _replyToNameVersion;
-	IconedButton _replyCancel;
+	IconedButton _replyForwardCancel;
 	void updateReplyToName();
 	void drawFieldBackground(QPainter &p);
+
+	HistoryItem *_replyReturn;
+	QList<MsgId> _replyReturns;
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
 	void updateListSize(int32 addToY = 0, bool initial = false, bool loadedDown = false, HistoryItem *resizedItem = 0);

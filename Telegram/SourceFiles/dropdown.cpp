@@ -881,35 +881,42 @@ void EmojiPan::onTabChange() {
 	}
 }
 
-MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *rows) : _parent(parent), _rows(rows), _sel(-1), _mouseSel(false) {
+MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *rows, HashtagRows *hrows) : _parent(parent), _rows(rows), _hrows(hrows), _sel(-1), _mouseSel(false) {
 }
 
 void MentionsInner::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
-	int32 atwidth = st::mentionFont->m.width('@'), availwidth = width() - 2 * st::mentionPadding.left() - st::mentionPhotoSize - 2 * st::mentionPadding.right();
+	int32 atwidth = st::mentionFont->m.width('@'), hashwidth = st::mentionFont->m.width('#');
+	int32 availwidth = width() - 2 * st::mentionPadding.left() - st::mentionPhotoSize - 2 * st::mentionPadding.right();
 
-	int32 from = qFloor(e->rect().top() / st::mentionHeight), to = qFloor(e->rect().bottom() / st::mentionHeight) + 1, last = _rows->size();
+	int32 from = qFloor(e->rect().top() / st::mentionHeight), to = qFloor(e->rect().bottom() / st::mentionHeight) + 1, last = _rows->isEmpty() ? _hrows->size() : _rows->size();
 	for (int32 i = from; i < to; ++i) {
 		if (i >= last) break;
 
 		if (i == _sel) p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::dlgHoverBG->b);
 
-		UserData *user = _rows->at(last - i - 1);
-		QString uname = user->username;
-		int32 unamewidth = atwidth + st::mentionFont->m.width(uname), namewidth = user->nameText.maxWidth();
-		if (availwidth < unamewidth + namewidth) {
-			namewidth = (availwidth * namewidth) / (namewidth + unamewidth);
-			unamewidth = availwidth - namewidth;
-			uname = st::mentionFont->m.elidedText('@' + uname, Qt::ElideRight, unamewidth);
+		if (_rows->isEmpty()) {
+			QString tag = st::mentionFont->m.elidedText('#' + _hrows->at(last - i - 1), Qt::ElideRight, availwidth);
+			p.setFont(st::mentionFont->f);
+			p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize + st::mentionPadding.right(), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, tag);
 		} else {
-			uname = '@' + uname;
+			UserData *user = _rows->at(last - i - 1);
+			QString uname = user->username;
+			int32 unamewidth = atwidth + st::mentionFont->m.width(uname), namewidth = user->nameText.maxWidth();
+			if (availwidth < unamewidth + namewidth) {
+				namewidth = (availwidth * namewidth) / (namewidth + unamewidth);
+				unamewidth = availwidth - namewidth;
+				uname = st::mentionFont->m.elidedText('@' + uname, Qt::ElideRight, unamewidth);
+			} else {
+				uname = '@' + uname;
+			}
+			user->photo->load();
+			p.drawPixmap(st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), user->photo->pix(st::mentionPhotoSize));
+			user->nameText.drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
+			p.setFont(st::mentionFont->f);
+			p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize + namewidth + st::mentionPadding.right(), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, uname);
 		}
-		user->photo->load();
-		p.drawPixmap(st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), user->photo->pix(st::mentionPhotoSize));
-		user->nameText.drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
-		p.setFont(st::mentionFont->f);
-		p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize + namewidth + st::mentionPadding.right(), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, uname);
 	}
 
 	p.fillRect(cWideMode() ? st::dlgShadow : 0, _parent->innerTop(), width() - (cWideMode() ? st::dlgShadow : 0), st::titleShadow, st::titleShadowColor->b);
@@ -929,19 +936,22 @@ void MentionsInner::clearSel() {
 
 bool MentionsInner::moveSel(int direction) {
 	_mouseSel = false;
-	if (_sel >= _rows->size() || _sel < 0) {
-		if (direction < 0) setSel(_rows->size() - 1, true);
-		return (_sel >= 0 && _sel < _rows->size());
+	int32 maxSel = (_rows->isEmpty() ? _hrows->size() : _rows->size());
+	if (_sel >= maxSel || _sel < 0) {
+		if (direction < 0) setSel(maxSel - 1, true);
+		return (_sel >= 0 && _sel < maxSel);
 	}
 	if (_sel > 0 || direction > 0) {
-		setSel((_sel + direction >= _rows->size()) ? -1 : (_sel + direction), true);
+		setSel((_sel + direction >= maxSel) ? -1 : (_sel + direction), true);
 	}
 	return true;
 }
 
 bool MentionsInner::select() {
-	if (_sel >= 0 && _sel < _rows->size()) {
-		emit mentioned(_rows->at(_rows->size() - _sel - 1)->username);
+	int32 maxSel = (_rows->isEmpty() ? _hrows->size() : _rows->size());
+	if (_sel >= 0 && _sel < maxSel) {
+		QString result = _rows->isEmpty() ? ('#' + _hrows->at(_hrows->size() - _sel - 1)) : ('@' + _rows->at(_rows->size() - _sel - 1)->username);
+		emit chosen(result);
 		return true;
 	}
 	return false;
@@ -972,7 +982,8 @@ void MentionsInner::leaveEvent(QEvent *e) {
 void MentionsInner::setSel(int sel, bool scroll) {
 	_sel = sel;
 	parentWidget()->update();
-	if (scroll && _sel >= 0 && _sel < _rows->size()) emit mustScrollTo(_sel * st::mentionHeight, (_sel + 1) * st::mentionHeight);
+	int32 maxSel = _rows->isEmpty() ? _hrows->size() : _rows->size();
+	if (scroll && _sel >= 0 && _sel < maxSel) emit mustScrollTo(_sel * st::mentionHeight, (_sel + 1) * st::mentionHeight);
 }
 
 void MentionsInner::onUpdateSelected(bool force) {
@@ -980,8 +991,8 @@ void MentionsInner::onUpdateSelected(bool force) {
 	if ((!force && !rect().contains(mouse)) || !_mouseSel) return;
 
 	int w = width(), mouseY = mouse.y();
-	int32 sel = mouseY / int32(st::mentionHeight);
-	if (sel < 0 || sel >= _rows->size()) {
+	int32 sel = mouseY / int32(st::mentionHeight), maxSel = _rows->isEmpty() ? _hrows->size() : _rows->size();
+	if (sel < 0 || sel >= maxSel) {
 		sel = -1;
 	}
 	if (sel != _sel) {
@@ -998,10 +1009,10 @@ void MentionsInner::onParentGeometryChanged() {
 }
 
 MentionsDropdown::MentionsDropdown(QWidget *parent) : QWidget(parent),
-_scroll(this, st::mentionScroll), _inner(this, &_rows), _chat(0), _hiding(false), a_opacity(0), _shadow(st::dropdownShadow) {
+_scroll(this, st::mentionScroll), _inner(this, &_rows, &_hrows), _chat(0), _hiding(false), a_opacity(0), _shadow(st::dropdownShadow) {
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
-	connect(&_inner, SIGNAL(mentioned(QString)), this, SIGNAL(mentioned(QString)));
+	connect(&_inner, SIGNAL(chosen(QString)), this, SIGNAL(chosen(QString)));
 	connect(&_inner, SIGNAL(mustScrollTo(int,int)), &_scroll, SLOT(scrollToY(int,int)));
 
 	setFocusPolicy(Qt::NoFocus);
@@ -1047,42 +1058,53 @@ void MentionsDropdown::showFiltered(ChatData *chat, QString start) {
 	int32 now = unixtime();
 	QMultiMap<int32, UserData*> ordered;
 	MentionRows rows;
-	rows.reserve(_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size());
-	if (_chat->participants.isEmpty()) {
-		if (_chat->count > 0) {
-			App::api()->requestFullPeer(_chat);
+	HashtagRows hrows;
+	if (_filter.at(0) == '@') {
+		rows.reserve(_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size());
+		if (_chat->participants.isEmpty()) {
+			if (_chat->count > 0) {
+				App::api()->requestFullPeer(_chat);
+			}
+		} else {
+			for (ChatData::Participants::const_iterator i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
+				UserData *user = i.key();
+				if (user->username.isEmpty()) continue;
+				if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+				ordered.insertMulti(App::onlineForSort(user->onlineTill, now), user);
+			}
+		}
+		for (MentionRows::const_iterator i = _chat->lastAuthors.cbegin(), e = _chat->lastAuthors.cend(); i != e; ++i) {
+			UserData *user = *i;
+			if (user->username.isEmpty()) continue;
+			if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+			rows.push_back(user);
+			if (!ordered.isEmpty()) {
+				ordered.remove(App::onlineForSort(user->onlineTill, now), user);
+			}
+		}
+		if (!ordered.isEmpty()) {
+			for (QMultiMap<int32, UserData*>::const_iterator i = ordered.cend(), b = ordered.cbegin(); i != b;) {
+				--i;
+				rows.push_back(i.value());
+			}
 		}
 	} else {
-		for (ChatData::Participants::const_iterator i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
-			UserData *user = i.key();
-			if (user->username.isEmpty()) continue;
-			if (!_filter.isEmpty() && !user->username.startsWith(_filter, Qt::CaseInsensitive)) continue;
-			ordered.insertMulti(App::onlineForSort(user->onlineTill, now), user);
+		const RecentHashtagPack &recent(cRecentWriteHashtags());
+		hrows.reserve(recent.size());
+		for (RecentHashtagPack::const_iterator i = recent.cbegin(), e = recent.cend(); i != e; ++i) {
+			if (_filter.size() > 1 && !i->first.startsWith(_filter.midRef(1), Qt::CaseInsensitive)) continue;
+			hrows.push_back(i->first);
 		}
 	}
-	for (MentionRows::const_iterator i = _chat->lastAuthors.cbegin(), e = _chat->lastAuthors.cend(); i != e; ++i) {
-		UserData *user = *i;
-		if (user->username.isEmpty()) continue;
-		if (!_filter.isEmpty() && !user->username.startsWith(_filter, Qt::CaseInsensitive)) continue;
-		rows.push_back(user);
-		if (!ordered.isEmpty()) {
-			ordered.remove(App::onlineForSort(user->onlineTill, now), user);
-		}
-	}
-	if (!ordered.isEmpty()) {
-		for (QMultiMap<int32, UserData*>::const_iterator i = ordered.cend(), b = ordered.cbegin(); i != b;) {
-			--i;
-			rows.push_back(i.value());
-		}
-	}
-
-	if (rows.isEmpty()) {
+	if (rows.isEmpty() && hrows.isEmpty()) {
 		if (!isHidden()) {
 			hideStart();
 			_rows.clear();
+			_hrows.clear();
 		}
 	} else {
 		_rows = rows;
+		_hrows = hrows;
 		bool hidden = _hiding || isHidden();
 		if (hidden) {
 			show();
@@ -1105,7 +1127,7 @@ void MentionsDropdown::setBoundings(QRect boundings) {
 }
 
 void MentionsDropdown::recount(bool toDown) {
-	int32 h = _rows.size() * st::mentionHeight, oldst = _scroll.scrollTop(), st = oldst;
+	int32 h = (_rows.isEmpty() ? _hrows.size() : _rows.size()) * st::mentionHeight, oldst = _scroll.scrollTop(), st = oldst;
 	
 	if (_inner.height() != h) {
 		st += h - _inner.height();

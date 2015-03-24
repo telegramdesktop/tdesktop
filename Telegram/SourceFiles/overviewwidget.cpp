@@ -1274,7 +1274,7 @@ void OverviewInner::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
 
 	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
 		HistoryItem *item = App::histItemById(i.key());
-		if (item && item->itemType() == HistoryItem::MsgType && ((item->id > 0 && !item->serviceMsg()) || forDelete)) {
+		if (dynamic_cast<HistoryMessage*>(item) && item->id > 0) {
 			sel.insert(item->id, item);
 		}
 	}

@@ -800,6 +800,10 @@ void PeerLink::onClick(Qt::MouseButton button) const {
 
 void MessageLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton && App::main()) {
+		HistoryItem *current = App::mousedItem();
+		if (current && current->history()->peer->id == peer()) {
+			App::main()->pushReplyReturn(current);
+		}
 		App::main()->showPeer(peer(), msgid());
 	}
 }
@@ -5048,7 +5052,7 @@ void HistoryReply::replyToNameUpdated() const {
 	int previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
 
 	_maxReplyWidth = st::msgReplyPadding.left() + st::msgReplyBarSkip + previewSkip + replyToName.maxWidth() + st::msgReplyPadding.right();
-	int32 _textw = st::msgReplyPadding.left() + st::msgReplyBarSkip + previewSkip + qMin(replyToText.maxWidth(), 2 * replyToName.maxWidth()) + st::msgReplyPadding.right();
+	int32 _textw = st::msgReplyPadding.left() + st::msgReplyBarSkip + previewSkip + qMin(replyToText.maxWidth(), 4 * replyToName.maxWidth()) + st::msgReplyPadding.right();
 	if (_textw > _maxReplyWidth) _maxReplyWidth = _textw;
 	if (!_media) {
 		int maxw = _maxReplyWidth - st::msgReplyPadding.left() - st::msgReplyPadding.right() + st::msgPadding.left() + st::msgPadding.right();

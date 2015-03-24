@@ -471,6 +471,8 @@ private:
 
 };
 
+const QRegularExpression &reHashtag();
+
 // text style
 const style::textStyle *textstyleCurrent();
 void textstyleSet(const style::textStyle *style);

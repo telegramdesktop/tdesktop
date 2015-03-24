@@ -110,11 +110,12 @@ public:
 
 class StackItemHistory : public StackItem {
 public:
-	StackItemHistory(PeerData *peer, int32 lastWidth, int32 lastScrollTop) : StackItem(peer), lastWidth(lastWidth), lastScrollTop(lastScrollTop) {
+	StackItemHistory(PeerData *peer, int32 lastWidth, int32 lastScrollTop, QList<MsgId> replyReturns) : StackItem(peer), lastWidth(lastWidth), lastScrollTop(lastScrollTop), replyReturns(replyReturns) {
 	}
 	StackItemType type() const {
 		return HistoryStackItem;
 	}
+	QList<MsgId> replyReturns;
 	int32 lastWidth, lastScrollTop;
 };
 
@@ -249,7 +250,7 @@ public:
 	void shareContactLayer(UserData *contact);
 	void hiderLayer(HistoryHider *h);
 	void noHider(HistoryHider *destroyed);
-	mtpRequestId onForward(const PeerId &peer, bool forwardSelected);
+	void onForward(const PeerId &peer, bool forwardSelected);
 	void onShareContact(const PeerId &peer, UserData *contact);
 	void onSendPaths(const PeerId &peer);
 	bool selectingPeer();
@@ -287,6 +288,7 @@ public:
     
     void sendMessage(History *history, const QString &text, MsgId replyTo);
 	void sendPreparedText(History *hist, const QString &text, MsgId replyTo);
+	void saveRecentHashtags(const QString &text);
     
     void readServerHistory(History *history, bool force = true);
 
@@ -326,7 +328,15 @@ public:
 
 	ApiWrap *api();
 	void updateReplyTo();
+
+	void pushReplyReturn(HistoryItem *item);
 	
+	bool hasForwardingItems();
+	void fillForwardingInfo(Text *&from, Text *&text, bool &serviceColor, ImagePtr &preview);
+	void updateForwardingTexts();
+	void cancelForwarding();
+	void finishForwarding(History *hist); // send them
+
 	~MainWidget();
 
 signals:
@@ -394,6 +404,10 @@ private:
 	void loadFailed(mtpFileLoader *loader, bool started, const char *retrySlot);
 
 	QList<uint64> _resendImgRandomIds;
+
+	SelectedItemSet _toForward;
+	Text _toForwardFrom, _toForwardText;
+	int32 _toForwardNameVersion;
 
 	void gotDifference(const MTPupdates_Difference &diff);
 	bool failDifference(const RPCError &e);

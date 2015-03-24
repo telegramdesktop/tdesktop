@@ -132,12 +132,12 @@ namespace {
 		return false;
 	}
 
-	const QRegularExpression reDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=\\.])(?:([a-zA-Z]+)://)?((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){1,5}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"));
-	const QRegularExpression reExplicitDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=\\.])(?:([a-zA-Z]+)://)((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){0,5}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"));
-	const QRegularExpression reMailName(qsl("[a-zA-Z\\-_\\.0-9]{1,256}$"));
-	const QRegularExpression reMailStart(qsl("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
-	const QRegularExpression reHashtag(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[A-Za-z_\\.0-9]{2,20}([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"));
-	const QRegularExpression reMention(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])@[A-Za-z_0-9]{5,32}([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"));
+	const QRegularExpression _reDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=\\.])(?:([a-zA-Z]+)://)?((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){1,5}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"));
+	const QRegularExpression _reExplicitDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=\\.])(?:([a-zA-Z]+)://)((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){0,5}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"));
+	const QRegularExpression _reMailName(qsl("[a-zA-Z\\-_\\.0-9]{1,256}$"));
+	const QRegularExpression _reMailStart(qsl("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
+	const QRegularExpression _reHashtag(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[\\w]{2,64}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
+	const QRegularExpression _reMention(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])@[A-Za-z_0-9]{5,32}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
 	QSet<int32> validProtocols, validTopDomains;
 	void initLinkSets();
 
@@ -156,6 +156,10 @@ namespace {
 	inline QFixed _blockRBearing(const ITextBlock *b) {
 		return (b->type() == TextBlockText) ? static_cast<const TextBlock*>(b)->f_rbearing() : 0;
 	}
+}
+
+const QRegularExpression &reHashtag() {
+	return _reHashtag;
 }
 
 const style::textStyle *textstyleCurrent() {
@@ -425,7 +429,7 @@ public:
 		} else if (!original.isEmpty() && original.at(0) == '#') {
 			result = original;
 			fullDisplayed = -2; // hashtag
-		} else if (reMailStart.match(original).hasMatch()) {
+		} else if (_reMailStart.match(original).hasMatch()) {
 			result = original;
 			fullDisplayed = -1; // email
 		} else {
@@ -4146,10 +4150,10 @@ LinkRanges textParseLinks(const QString &text, bool rich) {
 				}
 			}
 		}
-		QRegularExpressionMatch mDomain = reDomain.match(text, matchOffset);
-		QRegularExpressionMatch mExplicitDomain = reExplicitDomain.match(text, matchOffset);
-		QRegularExpressionMatch mHashtag = reHashtag.match(text, matchOffset);
-		QRegularExpressionMatch mMention = reMention.match(text, matchOffset);
+		QRegularExpressionMatch mDomain = _reDomain.match(text, matchOffset);
+		QRegularExpressionMatch mExplicitDomain = _reExplicitDomain.match(text, matchOffset);
+		QRegularExpressionMatch mHashtag = _reHashtag.match(text, matchOffset);
+		QRegularExpressionMatch mMention = _reMention.match(text, matchOffset);
 		if (!mDomain.hasMatch() && !mExplicitDomain.hasMatch() && !mHashtag.hasMatch() && !mMention.hasMatch()) break;
 
 		LinkRange link;
@@ -4225,7 +4229,7 @@ LinkRanges textParseLinks(const QString &text, bool rich) {
 
 			if (protocol.isEmpty() && domainOffset > offset + 1 && *(start + domainOffset - 1) == QChar('@')) {
 				QString forMailName = text.mid(offset, domainOffset - offset - 1);
-				QRegularExpressionMatch mMailName = reMailName.match(forMailName);
+				QRegularExpressionMatch mMailName = _reMailName.match(forMailName);
 				if (mMailName.hasMatch()) {
 					int32 mailOffset = offset + mMailName.capturedStart();
 					if (mailOffset < offset) {

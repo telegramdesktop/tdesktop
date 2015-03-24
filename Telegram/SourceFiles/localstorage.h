@@ -137,4 +137,7 @@ namespace Local {
 	void writeBackground(int32 id, const QImage &img);
 	bool readBackground();
 
+	void writeRecentHashtags();
+	void readRecentHashtags();
+
 };
