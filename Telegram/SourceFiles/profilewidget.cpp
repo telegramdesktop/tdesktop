@@ -717,6 +717,9 @@ void ProfileInner::contextMenuEvent(QContextMenuEvent *e) {
 		if (info.contains(mapFromGlobal(e->globalPos()))) {
 			_menu = new ContextMenu(this);
 			_menu->addAction(lang(lng_profile_copy_phone), this, SLOT(onCopyPhone()))->setEnabled(true);
+			if (_peerUser && !_peerUser->username.isEmpty()) {
+				_menu->addAction(lang(lng_context_copy_mention), this, SLOT(onCopyUsername()))->setEnabled(true);
+			}
 			_menu->deleteOnHide();
 			connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
 			_menu->popup(e->globalPos());
@@ -733,6 +736,10 @@ void ProfileInner::onMenuDestroy(QObject *obj) {
 
 void ProfileInner::onCopyPhone() {
 	QApplication::clipboard()->setText(_phoneText);
+}
+
+void ProfileInner::onCopyUsername() {
+	QApplication::clipboard()->setText('@' + _peerUser->username);
 }
 
 bool ProfileInner::animStep(float64 ms) {

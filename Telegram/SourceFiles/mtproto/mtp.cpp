@@ -200,6 +200,7 @@ namespace {
 				}
 			} else {
 				secs = m.captured(1).toInt();
+				if (secs >= 60) return false;
 			}
 			uint64 sendAt = getms(true) + secs * 1000 + 10;
 			DelayedRequestsList::iterator i = delayedRequests.begin(), e = delayedRequests.end();

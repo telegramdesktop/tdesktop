@@ -718,6 +718,8 @@ void MainWidget::addParticipantDone(ChatData *chat, const MTPmessages_StatedMess
 }
 
 bool MainWidget::addParticipantFail(ChatData *chat, const RPCError &e) {
+	ConfirmBox *box = new ConfirmBox(lang(lng_failed_add_participant), true);
+	App::wnd()->showLayer(box);
 	if (e.type() == "USER_LEFT_CHAT") { // trying to return banned user to his group
 	}
 	return false;

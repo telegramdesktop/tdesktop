@@ -291,6 +291,8 @@ public:
 
 	bool animStep(float64 ms);
 
+	const QString &filter() const;
+
 	int32 innerTop();
 	int32 innerBottom();
 

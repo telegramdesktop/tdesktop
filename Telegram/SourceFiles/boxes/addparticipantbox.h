@@ -22,6 +22,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 class AddParticipantInner : public QWidget, public RPCSender {
 	Q_OBJECT
 
+private:
+
+	struct ContactData;
+
 public:
 
 	AddParticipantInner(ChatData *chat);
@@ -33,7 +37,7 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
 	
-	void paintDialog(QPainter &p, DialogRow *row, bool sel);
+	void paintDialog(QPainter &p, UserData *user, ContactData *data, bool sel);
 	void updateFilter(QString filter = QString());
 
 	void selectSkip(int32 dir);
@@ -42,6 +46,11 @@ public:
 	void loadProfilePhotos(int32 yFrom);
 	void chooseParticipant();
 	void changeCheckState(DialogRow *row);
+	void changeCheckState(ContactData *data);
+
+	void peopleReceived(const QString &query, const QVector<MTPContactFound> &people);
+
+	void refresh();
 
 	ChatData *chat();
 	QVector<UserData*> selected();
@@ -52,6 +61,7 @@ signals:
 
 	void mustScrollTo(int ymin, int ymax);
 	void selectAllQuery();
+	void searchByUsername();
 
 public slots:
 
@@ -76,23 +86,32 @@ private:
 
 	int32 _selCount;
 
-	typedef struct {
+	struct ContactData {
 		Text name;
 		QString online;
 		bool inchat;
 		bool check;
-	} ContactData;
+	};
 	typedef QMap<UserData*, ContactData*> ContactsData;
 	ContactsData _contactsData;
 
 	ContactData *contactData(DialogRow *row);
+
+	bool _searching;
+	QString _lastQuery;
+	typedef QVector<UserData*> ByUsernameRows;
+	typedef QVector<ContactData*> ByUsernameDatas;
+	ByUsernameRows _byUsername, _byUsernameFiltered;
+	ByUsernameDatas d_byUsername, d_byUsernameFiltered; // filtered is partly subset of d_byUsername, partly subset of _byUsernameDatas
+	ByUsernameDatas _byUsernameDatas;
+	int32 _byUsernameSel;
 
 	QPoint _lastMousePos;
 	LinkButton _addContactLnk;
 
 };
 
-class AddParticipantBox : public LayeredWidget {
+class AddParticipantBox : public LayeredWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -113,6 +132,9 @@ public slots:
 	void onScroll();
 	void onInvite();
 
+	bool onSearchByUsername(bool searchCache = false);
+	void onNeedSearchByUsername();
+
 private:
 
 	void hideAll();
@@ -129,5 +151,18 @@ private:
 	QPixmap _cache;
 
 	anim::fvalue a_opacity;
-	anim::transition af_opacity;
+
+	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
+	bool peopleFailed(const RPCError &error, mtpRequestId req);
+
+	QTimer _searchTimer;
+	QString _peopleQuery;
+	bool _peopleFull;
+	mtpRequestId _peopleRequest;
+
+	typedef QMap<QString, MTPcontacts_Found> PeopleCache;
+	PeopleCache _peopleCache;
+
+	typedef QMap<mtpRequestId, QString> PeopleQueries;
+	PeopleQueries _peopleQueries;
 };

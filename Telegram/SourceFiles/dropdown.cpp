@@ -900,26 +900,40 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 			int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
 			if (_rows->isEmpty()) p.drawPixmap(QPoint(width() - st::notifyClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), App::sprite(), st::notifyClose.icon);
 		}
+		p.setPen(st::black->p);
 		if (_rows->isEmpty()) {
 			QString tag = st::mentionFont->m.elidedText('#' + _hrows->at(last - i - 1), Qt::ElideRight, htagwidth);
 			p.setFont(st::mentionFont->f);
 			p.drawText(htagleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, tag);
 		} else {
 			UserData *user = _rows->at(last - i - 1);
-			QString uname = user->username;
-			int32 unamewidth = atwidth + st::mentionFont->m.width(uname), namewidth = user->nameText.maxWidth();
+			QString first = (_parent->filter().size() < 2) ? QString() : ('@' + user->username.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('@' + user->username) : user->username.mid(_parent->filter().size() - 1);
+			int32 firstwidth = st::mentionFont->m.width(first), secondwidth = st::mentionFont->m.width(second), unamewidth = firstwidth + secondwidth, namewidth = user->nameText.maxWidth();
 			if (availwidth < unamewidth + namewidth) {
 				namewidth = (availwidth * namewidth) / (namewidth + unamewidth);
 				unamewidth = availwidth - namewidth;
-				uname = st::mentionFont->m.elidedText('@' + uname, Qt::ElideRight, unamewidth);
-			} else {
-				uname = '@' + uname;
+				if (firstwidth <= unamewidth) {
+					if (firstwidth < unamewidth) {
+						first = st::mentionFont->m.elidedText(first, Qt::ElideRight, unamewidth);
+					} else if (!second.isEmpty()) {
+						first = st::mentionFont->m.elidedText(first + second, Qt::ElideRight, unamewidth);
+						second = QString();
+					}
+				} else {
+					second = st::mentionFont->m.elidedText(second, Qt::ElideRight, unamewidth - firstwidth);
+				}
 			}
 			user->photo->load();
 			p.drawPixmap(st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), user->photo->pix(st::mentionPhotoSize));
 			user->nameText.drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
 			p.setFont(st::mentionFont->f);
-			p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize + namewidth + st::mentionPadding.right(), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, uname);
+
+			p.setPen(st::profileOnlineColor->p);
+			p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize + namewidth + st::mentionPadding.right(), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
+			if (!second.isEmpty()) {
+				p.setPen(st::profileOfflineColor->p);
+				p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize + namewidth + st::mentionPadding.right() + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
+			}
 		}
 	}
 
@@ -1240,6 +1254,10 @@ bool MentionsDropdown::animStep(float64 ms) {
 	return res;
 }
 
+const QString &MentionsDropdown::filter() const {
+	return _filter;
+}
+
 int32 MentionsDropdown::innerTop() {
 	return _scroll.scrollTop();
 }
@@ -1257,7 +1275,7 @@ bool MentionsDropdown::eventFilter(QObject *obj, QEvent *e) {
 			return true;
 		} else if (ev->key() == Qt::Key_Down) {
 			return _inner.moveSel(1);
-		} else if (ev->key() == Qt::Key_Enter || ev->key() == Qt::Key_Return) {
+		} else if (ev->key() == Qt::Key_Enter || ev->key() == Qt::Key_Return || ev->key() == Qt::Key_Space) {
 			return _inner.select();
 		}
 	}

@@ -28,6 +28,8 @@ _sel(0),
 _filteredSel(-1),
 _mouseSel(false),
 _selCount(0),
+_searching(false),
+_byUsernameSel(-1),
 _addContactLnk(this, lang(lng_add_contact_button)) {
 
 	connect(&_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
@@ -101,6 +103,16 @@ void AddParticipantInner::loadProfilePhotos(int32 yFrom) {
 				preloadFrom->history->peer->photo->load();
 			}
 		}
+		yFrom -= _contacts->list.count * rh + st::searchedBarHeight;
+		yTo -= _contacts->list.count * rh + st::searchedBarHeight;
+		int32 from = (yFrom >= 0) ? (yFrom / rh) : 0;
+		if (from < _byUsername.size()) {
+			int32 to = (yTo / rh) + 1;
+			if (to > _byUsername.size()) to = _byUsername.size();
+			for (; from < to; ++from) {
+				_byUsername[from]->photo->load();
+			}
+		}
 	} else if (!_filtered.isEmpty()) {
 		int32 from = yFrom / rh;
 		if (from < 0) from = 0;
@@ -110,6 +122,16 @@ void AddParticipantInner::loadProfilePhotos(int32 yFrom) {
 
 			for (; from < to; ++from) {
 				_filtered[from]->history->peer->photo->load();
+			}
+		}
+		yFrom -= _filtered.size() * rh + st::searchedBarHeight;
+		yTo -= _filtered.size() * rh + st::searchedBarHeight;
+		from = (yFrom >= 0) ? (yFrom / rh) : 0;
+		if (from < _byUsernameFiltered.size()) {
+			int32 to = (yTo / rh) + 1;
+			if (to > _byUsernameFiltered.size()) to = _byUsernameFiltered.size();
+			for (; from < to; ++from) {
+				_byUsernameFiltered[from]->photo->load();
 			}
 		}
 	}
@@ -122,7 +144,7 @@ AddParticipantInner::ContactData *AddParticipantInner::contactData(DialogRow *ro
 		ContactsData::const_iterator i = _contactsData.constFind(user);
 		if (i == _contactsData.cend()) {
 			_contactsData.insert(user, data = new ContactData());
-			data->inchat = _chat->participants.constFind(user) != _chat->participants.cend();
+			data->inchat = _chat->participants.contains(user);
 			data->check = false;
 			data->name.setText(st::profileListNameFont, user->name, _textNameOptions);
 			data->online = App::onlineText(user, _time);
@@ -134,11 +156,8 @@ AddParticipantInner::ContactData *AddParticipantInner::contactData(DialogRow *ro
 	return data;
 }
 
-void AddParticipantInner::paintDialog(QPainter &p, DialogRow *row, bool sel) {
+void AddParticipantInner::paintDialog(QPainter &p, UserData *user, ContactData *data, bool sel) {
 	int32 left = st::profileListPadding.width();
-
-	UserData *user = row->history->peer->asUser();
-	ContactData *data = contactData(row);
 
 	if (data->inchat || data->check || _selCount + _chat->count >= cMaxGroupCount()) {
 		sel = false;
@@ -161,13 +180,29 @@ void AddParticipantInner::paintDialog(QPainter &p, DialogRow *row, bool sel) {
 		p.drawPixmap(QPoint(width() - st::profileCheckRect.pxWidth() - st::profileCheckDeltaX, st::profileListPadding.height() + (st::profileListPhotoSize - st::profileCheckRect.pxHeight()) / 2 - st::profileCheckDeltaY), App::sprite(), (data->check ? st::profileCheckActiveRect : st::profileCheckRect));
 	}
 
+	bool uname = (data->online.at(0) == '@');
 	p.setFont(st::profileSubFont->f);
-	if (data->inchat || data->check) {
-		p.setPen(st::white->p);
+	if (uname && !data->inchat && !data->check && !_lastQuery.isEmpty() && user->username.startsWith(_lastQuery, Qt::CaseInsensitive)) {
+		int32 availw = width() - (left + st::profileListPhotoSize + st::profileListPadding.width() * 2);
+		QString first = '@' + user->username.mid(0, _lastQuery.size()), second = user->username.mid(_lastQuery.size());
+		int32 w = st::profileSubFont->m.width(first);
+		if (w >= availw || second.isEmpty()) {
+			p.setPen(st::profileOnlineColor->p);
+			p.drawText(left + st::profileListPhotoSize + st::profileListPadding.width(), st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, st::profileSubFont->m.elidedText(first, Qt::ElideRight, availw));
+		} else {
+			p.setPen(st::profileOnlineColor->p);
+			p.drawText(left + st::profileListPhotoSize + st::profileListPadding.width(), st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, first);
+			p.setPen(st::profileOfflineColor->p);
+			p.drawText(left + st::profileListPhotoSize + st::profileListPadding.width() + w, st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, st::profileSubFont->m.elidedText(second, Qt::ElideRight, availw - w));
+		}
 	} else {
-		p.setPen((App::onlineColorUse(user->onlineTill, _time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
+		if (data->inchat || data->check) {
+			p.setPen(st::white->p);
+		} else {
+			p.setPen(((uname || App::onlineColorUse(user->onlineTill, _time)) ? st::profileOnlineColor : st::profileOfflineColor)->p);
+		}
+		p.drawText(left + st::profileListPhotoSize + st::profileListPadding.width(), st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, data->online);
 	}
-	p.drawText(left + st::profileListPhotoSize + st::profileListPadding.width(), st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, data->online);
 }
 
 void AddParticipantInner::paintEvent(QPaintEvent *e) {
@@ -177,40 +212,85 @@ void AddParticipantInner::paintEvent(QPaintEvent *e) {
 	_time = unixtime();
 	p.fillRect(r, st::white->b);
 
-	int32 yFrom = r.top();
+	int32 yFrom = r.top(), yTo = r.bottom();
 	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2;
 	if (_filter.isEmpty()) {
-		if (_contacts->list.count) {
-			_contacts->list.adjustCurrent(yFrom, rh);
+		if (_contacts->list.count || !_byUsername.isEmpty()) {
+			if (_contacts->list.count) {
+				_contacts->list.adjustCurrent(yFrom, rh);
 
-			DialogRow *drawFrom = _contacts->list.current;
-			p.translate(0, drawFrom->pos * rh);
-			while (drawFrom != _contacts->list.end && drawFrom->pos * rh < r.bottom()) {
-				paintDialog(p, drawFrom, (drawFrom == _sel));
-				p.translate(0, rh);
-				drawFrom = drawFrom->next;
+				DialogRow *drawFrom = _contacts->list.current;
+				p.translate(0, drawFrom->pos * rh);
+				while (drawFrom != _contacts->list.end && drawFrom->pos * rh < yTo) {
+					paintDialog(p, drawFrom->history->peer->asUser(), contactData(drawFrom), (drawFrom == _sel));
+					p.translate(0, rh);
+					drawFrom = drawFrom->next;
+				}
+			}
+			if (!_byUsername.isEmpty()) {
+				p.fillRect(0, 0, width(), st::searchedBarHeight, st::searchedBarBG->b);
+				p.setFont(st::searchedBarFont->f);
+				p.setPen(st::searchedBarColor->p);
+				p.drawText(QRect(0, 0, width(), st::searchedBarHeight), lang(lng_search_global_results), style::al_center);
+				p.translate(0, st::searchedBarHeight);
+
+				yFrom -= _contacts->list.count * rh + st::searchedBarHeight;
+				yTo -= _contacts->list.count * rh + st::searchedBarHeight;
+				int32 from = (yFrom >= 0) ? (yFrom / rh) : 0;
+				if (from < _byUsername.size()) {
+					int32 to = (yTo / rh) + 1;
+					if (to > _byUsername.size()) to = _byUsername.size();
+
+					p.translate(0, from * rh);
+					for (; from < to; ++from) {
+						paintDialog(p, _byUsername[from], d_byUsername[from], (_byUsernameSel == from));
+						p.translate(0, rh);
+					}
+				}
 			}
 		} else {
 			p.setFont(st::noContactsFont->f);
 			p.setPen(st::noContactsColor->p);
-			p.drawText(QRect(0, 0, width(), st::noContactsHeight - (cContactsReceived() ? st::noContactsFont->height : 0)), lang(cContactsReceived() ? lng_no_contacts : lng_contacts_loading), style::al_center);
+			p.drawText(QRect(0, 0, width(), st::noContactsHeight - ((cContactsReceived() && !_searching) ? st::noContactsFont->height : 0)), lang((cContactsReceived() && !_searching) ? lng_no_contacts : lng_contacts_loading), style::al_center);
 		}
 	} else {
-		if (_filtered.isEmpty()) {
+		if (_filtered.isEmpty() && _byUsernameFiltered.isEmpty()) {
 			p.setFont(st::noContactsFont->f);
 			p.setPen(st::noContactsColor->p);
-			p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_contacts_not_found), style::al_center);
+			p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang((cContactsReceived() && !_searching) ? lng_no_contacts : lng_contacts_loading), style::al_center);
 		} else {
-			int32 from = yFrom / rh;
-			if (from < 0) from = 0;
-			if (from < _filtered.size()) {
-				int32 to = (r.bottom() / rh) + 1;
-				if (to > _filtered.size()) to = _filtered.size();
+			if (!_filtered.isEmpty()) {
+				int32 from = (yFrom >= 0) ? (yFrom / rh) : 0;
+				if (from < _filtered.size()) {
+					int32 to = (yTo / rh) + 1;
+					if (to > _filtered.size()) to = _filtered.size();
 
-				p.translate(0, from * rh);
-				for (; from < to; ++from) {
-					paintDialog(p, _filtered[from], (_filteredSel == from));
-					p.translate(0, rh);
+					p.translate(0, from * rh);
+					for (; from < to; ++from) {
+						paintDialog(p, _filtered[from]->history->peer->asUser(), contactData(_filtered[from]), (_filteredSel == from));
+						p.translate(0, rh);
+					}
+				}
+			}
+			if (!_byUsernameFiltered.isEmpty()) {
+				p.fillRect(0, 0, width(), st::searchedBarHeight, st::searchedBarBG->b);
+				p.setFont(st::searchedBarFont->f);
+				p.setPen(st::searchedBarColor->p);
+				p.drawText(QRect(0, 0, width(), st::searchedBarHeight), lang(lng_search_global_results), style::al_center);
+				p.translate(0, st::searchedBarHeight);
+
+				yFrom -= _filtered.size() * rh + st::searchedBarHeight;
+				yTo -= _filtered.size() * rh + st::searchedBarHeight;
+				int32 from = (yFrom >= 0) ? (yFrom / rh) : 0;
+				if (from < _byUsernameFiltered.size()) {
+					int32 to = (yTo / rh) + 1;
+					if (to > _byUsernameFiltered.size()) to = _byUsernameFiltered.size();
+
+					p.translate(0, from * rh);
+					for (; from < to; ++from) {
+						paintDialog(p, _byUsernameFiltered[from], d_byUsernameFiltered[from], (_byUsernameSel == from));
+						p.translate(0, rh);
+					}
 				}
 			}
 		}
@@ -223,7 +303,11 @@ void AddParticipantInner::enterEvent(QEvent *e) {
 
 void AddParticipantInner::leaveEvent(QEvent *e) {
 	setMouseTracking(false);
-	updateSel();
+	if (_sel || _filteredSel >= 0 || _byUsernameSel >= 0) {
+		_sel = 0;
+		_filteredSel = _byUsernameSel = -1;
+		parentWidget()->update();
+	}
 }
 
 void AddParticipantInner::mouseMoveEvent(QMouseEvent *e) {
@@ -245,27 +329,109 @@ void AddParticipantInner::chooseParticipant() {
 	_time = unixtime();
 	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2, from;
 	if (_filter.isEmpty()) {
-		if (!_sel || contactData(_sel)->inchat) return;
-		changeCheckState(_sel);
+		if (_byUsernameSel >= 0 && _byUsernameSel < _byUsername.size()) {
+			if (d_byUsername[_byUsernameSel]->inchat) return;
+			changeCheckState(d_byUsername[_byUsernameSel]);
+		} else {
+			if (!_sel || contactData(_sel)->inchat) return;
+			changeCheckState(_sel);
+		}
 	} else {
-		if (_filteredSel < 0 || _filteredSel >= _filtered.size() || contactData(_filtered[_filteredSel])->inchat) return;
+		if (_byUsernameSel >= 0 && _byUsernameSel < _byUsernameFiltered.size()) {
+			if (d_byUsernameFiltered[_byUsernameSel]->inchat) return;
+			changeCheckState(d_byUsernameFiltered[_byUsernameSel]);
 
-		DialogRow *row = _filtered[_filteredSel];
-		changeCheckState(row);
-
-		PeerData *peer = row->history->peer;
+			ContactData *moving = d_byUsernameFiltered[_byUsernameSel];
+			int32 i = 0, l = d_byUsername.size();
+			for (; i < l; ++i) {
+				if (d_byUsername[i] == moving) {
+					break;
+				}
+			}
+			if (i == l) {
+				d_byUsername.push_back(moving);
+				_byUsername.push_back(_byUsernameFiltered[_byUsernameSel]);
+				for (i = 0, l = _byUsernameDatas.size(); i < l;) {
+					if (_byUsernameDatas[i] == moving) {
+						_byUsernameDatas.removeAt(i);
+						--l;
+					} else {
+						++i;
+					}
+				}
+			}
+		} else {
+			if (_filteredSel < 0 || _filteredSel >= _filtered.size() || contactData(_filtered[_filteredSel])->inchat) return;
+			changeCheckState(_filtered[_filteredSel]);
+		}
 		emit selectAllQuery();
 	}
 	parentWidget()->update();
 }
 
 void AddParticipantInner::changeCheckState(DialogRow *row) {
-	if (contactData(row)->check) {
-		contactData(row)->check = false;
+	changeCheckState(contactData(row));
+}
+
+void AddParticipantInner::changeCheckState(ContactData *data) {
+	if (data->check) {
+		data->check = false;
 		--_selCount;
 	} else if (_selCount + _chat->count < cMaxGroupCount()) {
-		contactData(row)->check = true;
+		data->check = true;
 		++_selCount;
+	}
+}
+
+void AddParticipantInner::peopleReceived(const QString &query, const QVector<MTPContactFound> &people) {
+	_lastQuery = query.toLower().trimmed();
+	if (_lastQuery.at(0) == '@') _lastQuery = _lastQuery.mid(1);
+	int32 already = _byUsernameFiltered.size();
+	_byUsernameFiltered.reserve(already + people.size());
+	d_byUsernameFiltered.reserve(already + people.size());
+	for (QVector<MTPContactFound>::const_iterator i = people.cbegin(), e = people.cend(); i != e; ++i) {
+		int32 uid = i->c_contactFound().vuser_id.v, j = 0;
+		for (; j < already; ++j) {
+			if (_byUsernameFiltered[j]->id == uid) break;
+		}
+		if (j == already) {
+			UserData *u = App::user(uid);
+			ContactData *d = new ContactData();
+			_byUsernameDatas.push_back(d);
+			d->inchat = _chat->participants.contains(u);
+			d->check = false;
+			d->name.setText(st::profileListNameFont, u->name, _textNameOptions);
+			d->online = '@' + u->username;
+
+			_byUsernameFiltered.push_back(u);
+			d_byUsernameFiltered.push_back(d);
+		}
+	}
+	_searching = false;
+	refresh();
+}
+
+void AddParticipantInner::refresh() {
+	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2;
+	if (_filter.isEmpty()) {
+		if (_contacts->list.count || !_byUsername.isEmpty()) {
+			if (!_addContactLnk.isHidden()) _addContactLnk.hide();
+			resize(width(), (_contacts->list.count * rh) + (_byUsername.isEmpty() ? 0 : (st::searchedBarHeight + _byUsername.size() * rh)));
+		} else {
+			if (cContactsReceived()) {
+				if (_addContactLnk.isHidden()) _addContactLnk.show();
+			} else {
+				if (!_addContactLnk.isHidden()) _addContactLnk.hide();
+			}
+			resize(width(), st::noContactsHeight);
+		}
+	} else {
+		if (_filtered.isEmpty() && _byUsernameFiltered.isEmpty()) {
+			if (!_addContactLnk.isHidden()) _addContactLnk.hide();
+			resize(width(), st::noContactsHeight);
+		} else {
+			resize(width(), (_filtered.size() * rh) + (_byUsernameFiltered.isEmpty() ? 0 : (st::searchedBarHeight + _byUsernameFiltered.size() * rh)));
+		}
 	}
 }
 
@@ -281,6 +447,11 @@ QVector<UserData*> AddParticipantInner::selected() {
 			result.push_back(i.key());
 		}
 	}
+	for (int32 i = 0, l = _byUsername.size(); i < l; ++i) {
+		if (d_byUsername[i]->check) {
+			result.push_back(_byUsername[i]);
+		}
+	}
 	return result;
 }
 
@@ -288,23 +459,31 @@ void AddParticipantInner::updateSel() {
 	if (!_mouseSel) return;
 
 	QPoint p(mapFromGlobal(_lastMousePos));
+	bool in = parentWidget()->rect().contains(parentWidget()->mapFromGlobal(_lastMousePos));
 	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2;
 	if (_filter.isEmpty()) {
-		DialogRow *newSel = rect().contains(p) ? _contacts->list.rowAtY(p.y(), rh) : 0;
-		if (newSel != _sel) {
+		DialogRow *newSel = (in && (p.y() >= 0) && (p.y() < _contacts->list.count * rh)) ? _contacts->list.rowAtY(p.y(), rh) : 0;
+		int32 byUsernameSel = (in && p.y() >= _contacts->list.count * rh + st::searchedBarHeight) ? ((p.y() - _contacts->list.count * rh - st::searchedBarHeight) / rh) : -1;
+		if (byUsernameSel >= _byUsername.size()) byUsernameSel = -1;
+		if (newSel != _sel || byUsernameSel != _byUsernameSel) {
 			_sel = newSel;
+			_byUsernameSel = byUsernameSel;
 			parentWidget()->update();
-		}		
+		}
 	} else {
-		int32 newFilteredSel = (p.y() >= 0 && rect().contains(p)) ? (p.y() / rh) : -1;
-		if (newFilteredSel != _filteredSel) {
+		int32 newFilteredSel = (in && p.y() >= 0 && p.y() < _filtered.size() * rh) ? (p.y() / rh) : -1;
+		int32 byUsernameSel = (in && p.y() >= _filtered.size() * rh + st::searchedBarHeight) ? ((p.y() - _filtered.size() * rh - st::searchedBarHeight) / rh) : -1;
+		if (byUsernameSel >= _byUsernameFiltered.size()) byUsernameSel = -1;
+		if (newFilteredSel != _filteredSel || byUsernameSel != _byUsernameSel) {
 			_filteredSel = newFilteredSel;
+			_byUsernameSel = byUsernameSel;
 			parentWidget()->update();
 		}
 	}
 }
 
 void AddParticipantInner::updateFilter(QString filter) {
+	_lastQuery = filter.toLower().trimmed();
 	filter = textSearchKey(filter);
 
 	_time = unixtime();
@@ -324,22 +503,32 @@ void AddParticipantInner::updateFilter(QString filter) {
 	if (_filter != filter) {
 		int32 rh = (st::profileListPhotoSize + st::profileListPadding.height() * 2);
 		_filter = filter;
+
+		_byUsernameFiltered.clear();
+		d_byUsernameFiltered.clear();
+		for (int i = 0, l = _byUsernameDatas.size(); i < l; ++i) {
+			delete _byUsernameDatas[i];
+		}
+		_byUsernameDatas.clear();
+
 		if (_filter.isEmpty()) {
+			_sel = 0;
 			if (_contacts->list.count) {
-				if (!_addContactLnk.isHidden()) _addContactLnk.hide();
-				resize(width(), _contacts->list.count * rh);
 				_sel = _contacts->list.begin;
 				while (_sel->next->next &&& contactData(_sel)->inchat) {
 					_sel = _sel->next;
 				}
-			} else {
-				resize(width(), st::noContactsHeight);
-				if (cContactsReceived()) {
-					if (_addContactLnk.isHidden()) _addContactLnk.show();
-				} else {
-					if (!_addContactLnk.isHidden()) _addContactLnk.hide();
-				}
 			}
+			if (!_sel && !_byUsername.isEmpty()) {
+				_byUsernameSel = 0;
+				while (_byUsernameSel < _byUsername.size() && d_byUsername[_byUsernameSel]->inchat) {
+					++_byUsernameSel;
+				}
+				if (_byUsernameSel == _byUsername.size()) _byUsernameSel = -1;
+			} else {
+				_byUsernameSel = -1;
+			}
+			refresh();
 		} else {
 			if (!_addContactLnk.isHidden()) _addContactLnk.hide();
 			QStringList::const_iterator fb = f.cbegin(), fe = f.cend(), fi;
@@ -381,17 +570,48 @@ void AddParticipantInner::updateFilter(QString filter) {
 						}
 					}
 				}
+
+				_byUsernameFiltered.reserve(_byUsername.size());
+				d_byUsernameFiltered.reserve(d_byUsername.size());
+				for (int32 i = 0, l = _byUsername.size(); i < l; ++i) {
+					const PeerData::Names &names(_byUsername[i]->names);
+					PeerData::Names::const_iterator nb = names.cbegin(), ne = names.cend(), ni;
+					for (fi = fb; fi != fe; ++fi) {
+						QString filterName(*fi);
+						for (ni = nb; ni != ne; ++ni) {
+							if (ni->startsWith(*fi)) {
+								break;
+							}
+						}
+						if (ni == ne) {
+							break;
+						}
+					}
+					if (fi == fe) {
+						_byUsernameFiltered.push_back(_byUsername[i]);
+						d_byUsernameFiltered.push_back(d_byUsername[i]);
+					}
+				}
 			}
-			_filteredSel = _filtered.isEmpty() ? -1 : 0;
-			while (_filteredSel < _filtered.size() - 1 && contactData(_filtered[_filteredSel])->inchat) {
-				++_filteredSel;
+			_filteredSel = -1;
+			if (!_filtered.isEmpty()) {
+				for (_filteredSel = 0; (_filteredSel < _filtered.size()) && contactData(_filtered[_filteredSel])->inchat;) {
+					++_filteredSel;
+				}
+				if (_filteredSel == _filtered.size()) _filteredSel = -1;
+			}
+			_byUsernameSel = -1;
+			if (_filteredSel < 0 && !_byUsernameFiltered.isEmpty()) {
+				for (_byUsernameSel = 0; (_byUsernameSel < _byUsernameFiltered.size()) && d_byUsernameFiltered[_byUsernameSel]->inchat;) {
+					++_byUsernameSel;
+				}
+				if (_byUsernameSel == _byUsernameFiltered.size()) _byUsernameSel = -1;
 			}
 
-			if (!_filtered.isEmpty()) {
-				resize(width(), _filtered.size() * rh);
-			} else {
-				resize(width(), st::noContactsHeight);
-			}
+			refresh();
+
+			_searching = true;
+			emit searchByUsername();
 		}
 		if (parentWidget()) parentWidget()->update();
 		loadProfilePhotos(0);
@@ -427,7 +647,13 @@ void AddParticipantInner::onDialogRowReplaced(DialogRow *oldRow, DialogRow *newR
 }
 
 AddParticipantInner::~AddParticipantInner() {
-	for (ContactsData::iterator i = _contactsData.begin(), e = _contactsData.end(); i != e; ++i) {
+	for (ContactsData::const_iterator i = _contactsData.cbegin(), e = _contactsData.cend(); i != e; ++i) {
+		delete *i;
+	}
+	for (ByUsernameDatas::const_iterator i = d_byUsername.cbegin(), e = d_byUsername.cend(); i != e; ++i) {
+		delete *i;
+	}
+	for (ByUsernameDatas::const_iterator i = _byUsernameDatas.cbegin(), e = _byUsernameDatas.cend(); i != e; ++i) {
 		delete *i;
 	}
 }
@@ -441,82 +667,106 @@ void AddParticipantInner::selectSkip(int32 dir) {
 	_mouseSel = false;
 	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2, origDir = dir;
 	if (_filter.isEmpty()) {
+		int cur = 0;
 		if (_sel) {
-			if (dir > 0) {
-				while (dir && _sel->next->next) {
-					_sel = _sel->next;
-					--dir;
+			for (DialogRow *i = _contacts->list.begin; i != _sel; i = i->next) {
+				++cur;
+			}
+		} else {
+			cur = (_byUsernameSel >= 0) ? (_contacts->list.count + _byUsernameSel) : -1;
+		}
+		cur += dir;
+		if (cur <= 0) {
+			_sel = _contacts->list.count ? _contacts->list.begin : 0;
+			_byUsernameSel = (!_contacts->list.count && !_byUsername.isEmpty()) ? 0 : -1;
+		} else if (cur >= _contacts->list.count) {
+			_sel = 0;
+			_byUsernameSel = cur - _contacts->list.count;
+			if (_byUsernameSel >= _byUsername.size()) _byUsernameSel = _byUsername.size() - 1;
+		} else {
+			for (_sel = _contacts->list.begin; cur; _sel = _sel->next) {
+				--cur;
+			}
+			_byUsernameSel = -1;
+		}
+		if (dir > 0) {
+			while (_sel && _sel->next && contactData(_sel)->inchat) {
+				_sel = _sel->next;
+			}
+			if (!_sel || !_sel->next) {
+				_sel = 0;
+				if (!_byUsername.isEmpty()) {
+					if (_byUsernameSel < 0) _byUsernameSel = 0;
+					for (; _byUsernameSel < _byUsername.size() && d_byUsername[_byUsernameSel]->inchat;) {
+						++_byUsernameSel;
+					}
+					if (_byUsernameSel == _byUsername.size()) _byUsernameSel = -1;
 				}
-				while (contactData(_sel)->inchat && _sel->next->next) {
-					_sel = _sel->next;
-				}
-				if (contactData(_sel)->inchat) {
-					while (contactData(_sel)->inchat && _sel->prev) {
+			}
+		} else {
+			while (_byUsernameSel >= 0 && d_byUsername[_byUsernameSel]->inchat) {
+				--_byUsernameSel;
+			}
+			if (_byUsernameSel < 0) {
+				if (_contacts->list.count) {
+					if (!_sel) _sel = _contacts->list.end->prev;
+					for (; _sel && contactData(_sel)->inchat;) {
 						_sel = _sel->prev;
 					}
 				}
-			} else {
-				while (dir && _sel->prev) {
-					_sel = _sel->prev;
-					++dir;
-				}
-				while (contactData(_sel)->inchat && _sel->prev) {
-					_sel = _sel->prev;
-				}
-				if (contactData(_sel)->inchat) {
-					while (contactData(_sel)->inchat && _sel->next->next) {
-						_sel = _sel->next;
-					}
-				}
-			}
-		} else if (dir > 0 && _contacts->list.count) {
-			_sel = _contacts->list.begin;
-			while (contactData(_sel)->inchat && _sel->next->next) {
-				_sel = _sel->next;
 			}
 		}
 		if (_sel) {
-			if (contactData(_sel)->inchat) {
-				_sel = 0;
-			} else {
-				emit mustScrollTo(_sel->pos * rh, (_sel->pos + 1) * rh);
-			}
+			emit mustScrollTo(_sel->pos * rh, (_sel->pos + 1) * rh);
+		} else if (_byUsernameSel >= 0) {
+			emit mustScrollTo((_contacts->list.count + _byUsernameSel) * rh + st::searchedBarHeight, (_contacts->list.count + _byUsernameSel + 1) * rh + st::searchedBarHeight);
 		}
 	} else {
+		int cur = (_filteredSel >= 0) ? _filteredSel : ((_byUsernameSel >= 0) ? (_filtered.size() + _byUsernameSel) : -1);
+		cur += dir;
+		if (cur <= 0) {
+			_filteredSel = _filtered.isEmpty() ? -1 : 0;
+			_byUsernameSel = (_filtered.isEmpty() && !_byUsernameFiltered.isEmpty()) ? 0 : -1;
+		} else if (cur >= _filtered.size()) {
+			_filteredSel = -1;
+			_byUsernameSel = cur - _filtered.size();
+			if (_byUsernameSel >= _byUsernameFiltered.size()) _byUsernameSel = _byUsernameFiltered.size() - 1;
+		} else {
+			_filteredSel = cur;
+			_byUsernameSel = -1;
+		}
 		if (dir > 0) {
-			if (_filteredSel < 0 && dir > 1) {
-				_filteredSel = 0;
-			}
-			_filteredSel += dir;
-			while (_filteredSel < _filtered.size() - 1 && contactData(_filtered[_filteredSel])->inchat) {
+			while (_filteredSel >= 0 && _filteredSel < _filtered.size() && contactData(_filtered[_filteredSel])->inchat) {
 				++_filteredSel;
 			}
-			if (_filteredSel >= _filtered.size()) {
-				_filteredSel = _filtered.size() - 1;
-			}
-			while (_filteredSel > 0 && contactData(_filtered[_filteredSel])->inchat) {
-				--_filteredSel;
-			}
-		} else if (_filteredSel > 0) {
-			_filteredSel += dir;
-			if (_filteredSel < 0) {
-				_filteredSel = 0;
-			}
-			if (_filteredSel < _filtered.size() - 1) {
-				while (_filteredSel > 0 && contactData(_filtered[_filteredSel])->inchat) {
-					--_filteredSel;
+			if (_filteredSel < 0 || _filteredSel >= _filtered.size()) {
+				_filteredSel = -1;
+				if (!_byUsernameFiltered.isEmpty()) {
+					if (_byUsernameSel < 0) _byUsernameSel = 0;
+					for (; _byUsernameSel < _byUsernameFiltered.size() && d_byUsernameFiltered[_byUsernameSel]->inchat;) {
+						++_byUsernameSel;
+					}
+					if (_byUsernameSel == _byUsernameFiltered.size()) _byUsernameSel = -1;
 				}
 			}
-			while (_filteredSel < _filtered.size() - 1 && contactData(_filtered[_filteredSel])->inchat) {
-				++_filteredSel;
+		} else {
+			while (_byUsernameSel >= 0 && d_byUsernameFiltered[_byUsernameSel]->inchat) {
+				--_byUsernameSel;
+			}
+			if (_byUsernameSel < 0) {
+				if (!_filtered.isEmpty()) {
+					if (_filteredSel < 0) _filteredSel = _filtered.size() - 1;
+					for (; _filteredSel >= 0 && contactData(_filtered[_filteredSel])->inchat;) {
+						--_filteredSel;
+					}
+				}
 			}
 		}
 		if (_filteredSel >= 0) {
-			if (contactData(_filtered[_filteredSel])->inchat) {
-				_filteredSel = -1;
-			} else {
-				emit mustScrollTo(_filteredSel * rh, (_filteredSel + 1) * rh);
-			}
+			emit mustScrollTo(_filteredSel * rh, (_filteredSel + 1) * rh);
+		} else if (_byUsernameSel >= 0) {
+			int skip = _filtered.size() * rh + st::searchedBarHeight;
+			emit mustScrollTo(skip + _byUsernameSel * rh, skip + (_byUsernameSel + 1) * rh);
 		}
 	}
 	parentWidget()->update();
@@ -534,7 +784,7 @@ AddParticipantBox::AddParticipantBox(ChatData *chat) :
 	_filter(this, st::contactsFilter, lang(lng_participant_filter)),
 	_invite(this, lang(lng_participant_invite), st::btnSelectDone),
 	_cancel(this, lang(lng_cancel), st::btnSelectCancel),
-	_hiding(false), a_opacity(0, 1), af_opacity(anim::linear) {
+	_hiding(false), a_opacity(0, 1) {
 
 	_width = st::participantWidth;
 	_height = App::wnd()->height() - st::boxPadding.top() - st::boxPadding.bottom();
@@ -553,10 +803,79 @@ AddParticipantBox::AddParticipantBox(ChatData *chat) :
 	connect(&_filter, SIGNAL(cancelled()), this, SLOT(onClose()));
 	connect(&_inner, SIGNAL(mustScrollTo(int,int)), &_scroll, SLOT(scrollToY(int,int)));
 	connect(&_inner, SIGNAL(selectAllQuery()), &_filter, SLOT(selectAll()));
+	connect(&_inner, SIGNAL(searchByUsername()), this, SLOT(onNeedSearchByUsername()));
+
+	_searchTimer.setSingleShot(true);
+	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchByUsername()));
 
 	showAll();
 	_cache = myGrab(this, rect());
 	hideAll();
+}
+
+bool AddParticipantBox::onSearchByUsername(bool searchCache) {
+	QString q = _filter.text().trimmed();
+	if (q.isEmpty()) {
+		if (_peopleRequest) {
+			_peopleRequest = 0;
+		}
+		return true;
+	}
+	if (q.size() >= MinUsernameLength) {
+		if (searchCache) {
+			PeopleCache::const_iterator i = _peopleCache.constFind(q);
+			if (i != _peopleCache.cend()) {
+				_peopleQuery = q;
+				_peopleRequest = 0;
+				peopleReceived(i.value(), 0);
+				return true;
+			}
+		} else if (_peopleQuery != q) {
+			_peopleQuery = q;
+			_peopleFull = false;
+			_peopleRequest = MTP::send(MTPcontacts_Search(MTP_string(_peopleQuery), MTP_int(SearchPeopleLimit)), rpcDone(&AddParticipantBox::peopleReceived), rpcFail(&AddParticipantBox::peopleFailed));
+			_peopleQueries.insert(_peopleRequest, _peopleQuery);
+		}
+	}
+	return false;
+}
+
+void AddParticipantBox::onNeedSearchByUsername() {
+	if (!onSearchByUsername(true)) {
+		_searchTimer.start(AutoSearchTimeout);
+	}
+}
+
+void AddParticipantBox::peopleReceived(const MTPcontacts_Found &result, mtpRequestId req) {
+	QString q = _peopleQuery;
+
+	PeopleQueries::iterator i = _peopleQueries.find(req);
+	if (i != _peopleQueries.cend()) {
+		q = i.value();
+		_peopleCache[q] = result;
+		_peopleQueries.erase(i);
+	}
+
+	if (_peopleRequest == req) {
+		switch (result.type()) {
+		case mtpc_contacts_found: {
+			App::feedUsers(result.c_contacts_found().vusers);
+			_inner.peopleReceived(q, result.c_contacts_found().vresults.c_vector().v);
+		} break;
+		}
+
+		_peopleRequest = 0;
+		_inner.updateSel();
+		onScroll();
+	}
+}
+
+bool AddParticipantBox::peopleFailed(const RPCError &error, mtpRequestId req) {
+	if (_peopleRequest == req) {
+		_peopleRequest = 0;
+		_peopleFull = true;
+	}
+	return true;
 }
 
 void AddParticipantBox::hideAll() {
@@ -643,7 +962,7 @@ void AddParticipantBox::animStep(float64 dt) {
 			_filter.setFocus();
 		}
 	} else {
-		a_opacity.update(dt, af_opacity);
+		a_opacity.update(dt, anim::linear);
 	}
 	update();
 }

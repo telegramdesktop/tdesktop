@@ -653,10 +653,10 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 7024) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Forward messages with comment or sticker before them\n\xe2\x80\x94 Recent hashtags autocomplete in message and search fields\n\xe2\x80\x94 Move from reply to original message and back");
-			} else if (!DevChannel && Local::oldMapVersion() < 7023) {
-				versionFeatures = lang(lng_new_version7022).trimmed().replace('@', qsl("@") + QChar(0x200D));
+			if (DevChannel && Local::oldMapVersion() < 7025) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Add people to groups by username\n\xe2\x80\x94 Copy @username from profile context menu").replace('@', qsl("@") + QChar(0x200D));
+			} else if (!DevChannel && Local::oldMapVersion() < 7026) {
+				versionFeatures = lang(lng_new_version7026).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
