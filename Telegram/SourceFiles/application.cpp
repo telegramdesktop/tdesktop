@@ -653,9 +653,9 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 7025) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Add people to groups by username\n\xe2\x80\x94 Copy @username from profile context menu").replace('@', qsl("@") + QChar(0x200D));
-			} else if (!DevChannel && Local::oldMapVersion() < 7026) {
+			if (DevChannel && Local::oldMapVersion() < 7026) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Langs updated, some bugs fixed").replace('@', qsl("@") + QChar(0x200D));
+			} else if (!DevChannel && Local::oldMapVersion() < 8000) {
 				versionFeatures = lang(lng_new_version7026).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {

@@ -712,11 +712,13 @@ void ProfileInner::contextMenuEvent(QContextMenuEvent *e) {
 		_menu->deleteLater();
 		_menu = 0;
 	}
-	if (!_phoneText.isEmpty()) {
+	if (!_phoneText.isEmpty() || (_peerUser && !_peerUser->username.isEmpty())) {
 		QRect info(_left + st::profilePhotoSize + st::profilePhoneLeft, st::profilePadding.top(), _width - st::profilePhotoSize - st::profilePhoneLeft, st::profilePhotoSize);
 		if (info.contains(mapFromGlobal(e->globalPos()))) {
 			_menu = new ContextMenu(this);
-			_menu->addAction(lang(lng_profile_copy_phone), this, SLOT(onCopyPhone()))->setEnabled(true);
+			if (!_phoneText.isEmpty()) {
+				_menu->addAction(lang(lng_profile_copy_phone), this, SLOT(onCopyPhone()))->setEnabled(true);
+			}
 			if (_peerUser && !_peerUser->username.isEmpty()) {
 				_menu->addAction(lang(lng_context_copy_mention), this, SLOT(onCopyUsername()))->setEnabled(true);
 			}
@@ -784,6 +786,7 @@ void ProfileInner::mediaOverviewUpdated(PeerData *peer) {
 	if (peer == _peer) {
 		resizeEvent(0);
 		showAll();
+		update();
 	}
 }
 
