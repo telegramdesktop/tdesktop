@@ -51,7 +51,7 @@ const QPixmap &Image::pix(int32 w, int32 h) const {
 	checkload();
 
 	if (w <= 0 || !width() || !height()) {
-        w = width() * cIntRetinaFactor();
+        w = width();
     } else if (cRetina()) {
         w *= cIntRetinaFactor();
         h *= cIntRetinaFactor();

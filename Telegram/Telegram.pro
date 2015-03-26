@@ -79,6 +79,7 @@ unix {
 SOURCES += \
     ./SourceFiles/main.cpp \
     ./SourceFiles/stdafx.cpp \
+    ./SourceFiles/apiwrap.cpp \
     ./SourceFiles/app.cpp \
     ./SourceFiles/application.cpp \
     ./SourceFiles/audio.cpp \
@@ -158,6 +159,7 @@ SOURCES += \
 
 HEADERS += \
     ./SourceFiles/stdafx.h \
+    ./SourceFiles/apiwrap.h \
     ./SourceFiles/app.h \
     ./SourceFiles/application.h \
     ./SourceFiles/audio.h \

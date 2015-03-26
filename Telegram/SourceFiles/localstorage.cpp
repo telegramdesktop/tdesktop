@@ -494,6 +494,7 @@ namespace {
 		lskRecentStickers, // no data
 		lskBackground, // no data
 		lskUserSettings, // no data
+		lskRecentHashtags, // no data
 	};
 
 	typedef QMap<PeerId, FileKey> DraftsMap;
@@ -514,6 +515,8 @@ namespace {
 	bool _backgroundWasRead = false;
 
 	FileKey _userSettingsKey = 0;
+	FileKey _recentHashtagsKey = 0;
+	bool _recentHashtagsWereRead = false;
 
 	typedef QPair<FileKey, qint32> FileDesc; // file, size
 	typedef QMap<StorageKey, FileDesc> StorageMap;
@@ -917,6 +920,14 @@ namespace {
 			cSetRecentEmojisPreload(v);
 		} break;
 
+		case dbiDialogLastPath: {
+			QString path;
+			stream >> path;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetDialogLastPath(path);
+		} break;
+
 		default:
 			LOG(("App Error: unknown blockId in _readSetting: %1").arg(blockId));
 			return false;
@@ -1127,6 +1138,7 @@ namespace {
 		uint32 size = 11 * (sizeof(quint32) + sizeof(qint32));
 		size += sizeof(quint32) + _stringSize(cAskDownloadPath() ? QString() : cDownloadPath());
 		size += sizeof(quint32) + sizeof(qint32) + cGetRecentEmojis().size() * (sizeof(uint32) + sizeof(ushort));
+		size += sizeof(quint32) + _stringSize(cDialogLastPath());
 
 		EncryptedDescriptor data(size);
 		data.stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
@@ -1141,6 +1153,7 @@ namespace {
 		data.stream << quint32(dbiDownloadPath) << (cAskDownloadPath() ? QString() : cDownloadPath());
 		data.stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());
 		data.stream << quint32(dbiEmojiTab) << qint32(cEmojiTab());
+		data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 
 		RecentEmojiPreload v;
 		v.reserve(cGetRecentEmojis().size());
@@ -1271,7 +1284,7 @@ namespace {
 		DraftsNotReadMap draftsNotReadMap;
 		StorageMap imagesMap, stickersMap, audiosMap;
 		qint64 storageImagesSize = 0, storageStickersSize = 0, storageAudiosSize = 0;
-		quint64 locationsKey = 0, recentStickersKey = 0, backgroundKey = 0, userSettingsKey = 0;
+		quint64 locationsKey = 0, recentStickersKey = 0, backgroundKey = 0, userSettingsKey = 0, recentHashtagsKey = 0;
 		while (!map.stream.atEnd()) {
 			quint32 keyType;
 			map.stream >> keyType;
@@ -1345,6 +1358,9 @@ namespace {
 			case lskUserSettings: {
 				map.stream >> userSettingsKey;
 			} break;
+			case lskRecentHashtags: {
+				map.stream >> recentHashtagsKey;
+			} break;
 			default:
 				LOG(("App Error: unknown key type in encrypted map: %1").arg(keyType));
 				return Local::ReadMapFailed;
@@ -1369,6 +1385,7 @@ namespace {
 		_recentStickersKey = recentStickersKey;
 		_backgroundKey = backgroundKey;
 		_userSettingsKey = userSettingsKey;
+		_recentHashtagsKey = recentHashtagsKey;
 		_oldMapVersion = mapData.version;
 		if (_oldMapVersion < AppVersion) {
 			_mapChanged = true;
@@ -1428,9 +1445,10 @@ namespace {
 		if (!_stickersMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _stickersMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
 		if (!_audiosMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _audiosMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
 		if (_locationsKey) mapSize += sizeof(quint32) + sizeof(quint64);
-		if (_userSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_recentStickersKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_backgroundKey) mapSize += sizeof(quint32) + sizeof(quint64);
+		if (_userSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
+		if (_recentHashtagsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		EncryptedDescriptor mapData(mapSize);
 		if (!_draftsMap.isEmpty()) {
 			mapData.stream << quint32(lskDraft) << quint32(_draftsMap.size());
@@ -1465,14 +1483,17 @@ namespace {
 		if (_locationsKey) {
 			mapData.stream << quint32(lskLocations) << quint64(_locationsKey);
 		}
-		if (_userSettingsKey) {
-			mapData.stream << quint32(lskUserSettings) << quint64(_userSettingsKey);
-		}
 		if (_recentStickersKey) {
 			mapData.stream << quint32(lskRecentStickers) << quint64(_recentStickersKey);
 		}
 		if (_backgroundKey) {
 			mapData.stream << quint32(lskBackground) << quint64(_backgroundKey);
+		}
+		if (_userSettingsKey) {
+			mapData.stream << quint32(lskUserSettings) << quint64(_userSettingsKey);
+		}
+		if (_recentHashtagsKey) {
+			mapData.stream << quint32(lskRecentHashtags) << quint64(_recentHashtagsKey);
 		}
 		map.writeEncrypted(mapData);
 
@@ -1558,7 +1579,7 @@ namespace Local {
 		if (!QDir().exists(_basePath)) QDir().mkpath(_basePath);
 
 		FileReadDescriptor settingsData;
-		if (!readFile(settingsData, qsl("settings"), SafePath)) {
+		if (!readFile(settingsData, cTestMode() ? qsl("settings_test") : qsl("settings"), SafePath)) {
 			_readOldSettings();
 			_readOldUserSettings(false); // needed further in _readUserSettings
 			_readOldMtpData(false); // needed further in _readMtpData
@@ -1617,7 +1638,7 @@ namespace Local {
 
 		if (!QDir().exists(_basePath)) QDir().mkpath(_basePath);
 
-		FileWriteDescriptor settings(qsl("settings"), SafePath);
+		FileWriteDescriptor settings(cTestMode() ? qsl("settings_test") : qsl("settings"), SafePath);
 		if (_settingsSalt.isEmpty() || !_settingsKey.created()) {
 			_settingsSalt.resize(LocalEncryptSaltSize);
 			memset_rand(_settingsSalt.data(), _settingsSalt.size());
@@ -1696,7 +1717,7 @@ namespace Local {
 		_draftsNotReadMap.clear();
 		_stickersMap.clear();
 		_audiosMap.clear();
-		_locationsKey = _userSettingsKey = _recentStickersKey = _backgroundKey = 0;
+		_locationsKey = _recentStickersKey = _backgroundKey = _userSettingsKey = _recentHashtagsKey = 0;
 		_mapChanged = true;
 		_writeMap(WriteMapNow);
 
@@ -1735,10 +1756,10 @@ namespace Local {
 		return _oldMapVersion;
 	}
 
-	void writeDraft(const PeerId &peer, const QString &text) {
+	void writeDraft(const PeerId &peer, const MessageDraft &draft) {
 		if (!_working()) return;
 
-		if (text.isEmpty()) {
+		if (draft.replyTo <= 0 && draft.text.isEmpty()) {
 			DraftsMap::iterator i = _draftsMap.find(peer);
 			if (i != _draftsMap.cend()) {
 				clearKey(i.value());
@@ -1755,8 +1776,8 @@ namespace Local {
 				_mapChanged = true;
 				_writeMap(WriteMapFast);
 			}
-			EncryptedDescriptor data(sizeof(quint64) + _stringSize(text));
-			data.stream << quint64(peer) << text;
+			EncryptedDescriptor data(sizeof(quint64) + _stringSize(draft.text) + sizeof(qint32));
+			data.stream << quint64(peer) << draft.text << qint32(draft.replyTo);
 			FileWriteDescriptor file(i.value());
 			file.writeEncrypted(data);
 
@@ -1764,24 +1785,26 @@ namespace Local {
 		}
 	}
 
-	QString readDraft(const PeerId &peer) {
-		if (!_draftsNotReadMap.remove(peer)) return QString();
+	MessageDraft readDraft(const PeerId &peer) {
+		if (!_draftsNotReadMap.remove(peer)) return MessageDraft();
 
 		DraftsMap::iterator j = _draftsMap.find(peer);
 		if (j == _draftsMap.cend()) {
-			return QString();
+			return MessageDraft();
 		}
 		FileReadDescriptor draft;
 		if (!readEncryptedFile(draft, j.value())) {
 			clearKey(j.value());
 			_draftsMap.erase(j);
-			return QString();
+			return MessageDraft();
 		}
 
 		quint64 draftPeer;
 		QString draftText;
+		qint32 draftReplyTo = 0;
 		draft.stream >> draftPeer >> draftText;
-		return (draftPeer == peer) ? draftText : QString();
+		if (draft.version >= 7021) draft.stream >> draftReplyTo;
+		return (draftPeer == peer) ? MessageDraft(MsgId(draftReplyTo), draftText) : MessageDraft();
 	}
 
 	void writeDraftPositions(const PeerId &peer, const MessageCursor &cur) {
@@ -2092,15 +2115,17 @@ namespace Local {
 			quint32 size = 0;
 			for (RecentStickerPack::const_iterator i = recent.cbegin(); i != recent.cend(); ++i) {
 				DocumentData *doc = i->first;
+				if (doc->status == FileFailed) continue;
 
-				// id + value + access + date + namelen + name + mimelen + mime + dc + size + width + height + type
-				size += sizeof(quint64) + sizeof(qint16) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
+				// id + value + access + date + namelen + name + mimelen + mime + dc + size + width + height + type + alt
+				size += sizeof(quint64) + sizeof(qint16) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(doc->alt);
 			}
 			EncryptedDescriptor data(size);
 			for (RecentStickerPack::const_iterator i = recent.cbegin(); i != recent.cend(); ++i) {
 				DocumentData *doc = i->first;
+				if (doc->status == FileFailed) continue;
 
-				data.stream << quint64(doc->id) << qint16(i->second) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type);
+				data.stream << quint64(doc->id) << qint16(i->second) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type) << doc->alt;
 			}
 			FileWriteDescriptor file(_recentStickersKey);
 			file.writeEncrypted(data);
@@ -2122,10 +2147,13 @@ namespace Local {
 		RecentStickerPack recent;
 		while (!stickers.stream.atEnd()) {
 			quint64 id, access;
-			QString name, mime;
+			QString name, mime, alt;
 			qint32 date, dc, size, width, height, type;
 			qint16 value;
 			stickers.stream >> id >> value >> access >> date >> name >> mime >> dc >> size >> width >> height >> type;
+			if (stickers.version >= 7021) {
+				stickers.stream >> alt;
+			}
 			if (read.contains(id)) continue;
 			read.insert(id, true);
 
@@ -2134,7 +2162,7 @@ namespace Local {
 			if (type == AnimatedDocument) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (type == StickerDocument) {
-				attributes.push_back(MTP_documentAttributeSticker());
+				attributes.push_back(MTP_documentAttributeSticker(MTP_string(alt)));
 			}
 			if (width > 0 && height > 0) {
 				attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
@@ -2192,7 +2220,90 @@ namespace Local {
 		}
 		return false;
 	}
-	
+
+	void writeRecentHashtags() {
+		if (!_working()) return;
+
+		const RecentHashtagPack &write(cRecentWriteHashtags()), &search(cRecentSearchHashtags());
+		if (write.isEmpty() && search.isEmpty()) readRecentHashtags();
+		if (write.isEmpty() && search.isEmpty()) {
+			if (_recentHashtagsKey) {
+				clearKey(_recentHashtagsKey);
+				_recentHashtagsKey = 0;
+				_mapChanged = true;
+			}
+			_writeMap();
+		} else {
+			if (!_recentHashtagsKey) {
+				_recentHashtagsKey = genKey();
+				_mapChanged = true;
+				_writeMap(WriteMapFast);
+			}
+			quint32 size = sizeof(quint32) * 2, writeCnt = 0, searchCnt = 0;
+			for (RecentHashtagPack::const_iterator i = write.cbegin(); i != write.cend(); ++i) {
+				if (!i->first.isEmpty()) {
+					size += _stringSize(i->first) + sizeof(quint16);
+					++writeCnt;
+				}
+			}
+			for (RecentHashtagPack::const_iterator i = search.cbegin(); i != search.cend(); ++i) {
+				if (!i->first.isEmpty()) {
+					size += _stringSize(i->first) + sizeof(quint16);
+					++searchCnt;
+				}
+			}
+			EncryptedDescriptor data(size);
+			data.stream << quint32(writeCnt) << quint32(searchCnt);
+			for (RecentHashtagPack::const_iterator i = write.cbegin(); i != write.cend(); ++i) {
+				if (!i->first.isEmpty()) data.stream << i->first << quint16(i->second);
+			}
+			for (RecentHashtagPack::const_iterator i = search.cbegin(); i != search.cend(); ++i) {
+				if (!i->first.isEmpty()) data.stream << i->first << quint16(i->second);
+			}
+			FileWriteDescriptor file(_recentHashtagsKey);
+			file.writeEncrypted(data);
+		}
+	}
+
+	void readRecentHashtags() {
+		if (_recentHashtagsWereRead) return;
+		_recentHashtagsWereRead = true;
+
+		if (!_recentHashtagsKey) return;
+
+		FileReadDescriptor hashtags;
+		if (!readEncryptedFile(hashtags, _recentHashtagsKey)) {
+			clearKey(_recentHashtagsKey);
+			_recentHashtagsKey = 0;
+			_writeMap();
+			return;
+		}
+
+		quint32 writeCount = 0, searchCount = 0;
+		hashtags.stream >> writeCount >> searchCount;
+
+		QString tag;
+		quint16 count;
+			
+		RecentHashtagPack write, search;
+		if (writeCount) {
+			write.reserve(writeCount);
+			for (uint32 i = 0; i < writeCount; ++i) {
+				hashtags.stream >> tag >> count;
+				write.push_back(qMakePair(tag.trimmed(), count));
+			}
+		}
+		if (searchCount) {
+			search.reserve(searchCount);
+			for (uint32 i = 0; i < searchCount; ++i) {
+				hashtags.stream >> tag >> count;
+				search.push_back(qMakePair(tag.trimmed(), count));
+			}
+		}
+		cSetRecentWriteHashtags(write);
+		cSetRecentSearchHashtags(search);
+	}
+
 	struct ClearManagerData {
 		QThread *thread;
 		StorageMap images, stickers, audios;
@@ -2242,6 +2353,10 @@ namespace Local {
 			}
 			if (_recentStickersKey) {
 				_recentStickersKey = 0;
+				_mapChanged = true;
+			}
+			if (_recentHashtagsKey) {
+				_recentHashtagsKey = 0;
 				_mapChanged = true;
 			}
 			_writeMap();

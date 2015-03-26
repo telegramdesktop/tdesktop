@@ -229,6 +229,7 @@ void NotifyWindow::updatePeerPhoto() {
 
 void NotifyWindow::itemRemoved(HistoryItem *del) {
 	if (item == del) {
+		item = 0;
 		unlinkHistoryAndNotify();
 	}
 }
@@ -273,7 +274,7 @@ void NotifyWindow::mousePressEvent(QMouseEvent *e) {
 			App::wnd()->notifyClear();
 		} else {
 			App::wnd()->hideSettings();
-			App::main()->showPeer(peer, 0, false, true);
+			App::main()->showPeer(peer, (history->peer->chat && item && item->notifyByFrom() && item->id > 0) ? item->id : 0, false, true);
 		}
 		e->ignore();
 	}
@@ -484,6 +485,8 @@ void Window::clearPasscode() {
 	_passcode = 0;
 	if (intro) {
 		intro->animShow(bg, true);
+	} else if (settings) {
+		settings->animShow(bg, true);
 	} else {
 		main->animShow(bg, true);
 	}
@@ -593,6 +596,8 @@ void Window::sendServiceHistoryRequest() {
 }
 
 void Window::setupMain(bool anim, const MTPUser *self) {
+	Local::readRecentStickers();
+
 	QPixmap bg = anim ? myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight)) : QPixmap();
 	clearWidgets();
 	main = new MainWidget(this);
@@ -1202,16 +1207,33 @@ void Window::quit() {
 	notifyClearFast();
 }
 
-void Window::notifySchedule(History *history, MsgId msgId) {
+void Window::notifySchedule(History *history, HistoryItem *item) {
 	if (App::quiting() || !history->currentNotification() || !main) return;
+
+	UserData *notifyByFrom = (history->peer->chat && item->notifyByFrom()) ? item->from() : 0;
 
 	bool haveSetting = (history->peer->notify != UnknownNotifySettings);
 	if (haveSetting) {
 		if (history->peer->notify != EmptyNotifySettings && history->peer->notify->mute > unixtime()) {
-			history->clearNotifications();
-			return;
+			if (notifyByFrom) {
+				haveSetting = (item->from()->notify != UnknownNotifySettings);
+				if (haveSetting) {
+					if (notifyByFrom->notify != EmptyNotifySettings && notifyByFrom->notify->mute > unixtime()) {
+						history->popNotification(item);
+						return;
+					}
+				} else {
+					App::wnd()->getNotifySetting(MTP_inputNotifyPeer(notifyByFrom->input));
+				}
+			} else {
+				history->popNotification(item);
+				return;
+			}
 		}
 	} else {
+		if (notifyByFrom && notifyByFrom->notify == UnknownNotifySettings) {
+			App::wnd()->getNotifySetting(MTP_inputNotifyPeer(notifyByFrom->input), 10);
+		}
 		App::wnd()->getNotifySetting(MTP_inputNotifyPeer(history->peer->input));
 	}
 
@@ -1226,19 +1248,19 @@ void Window::notifySchedule(History *history, MsgId msgId) {
 	}
 
 	uint64 when = getms(true) + delay;
-	notifyWhenAlerts[history].insert(when, NullType());
+	notifyWhenAlerts[history].insert(when, notifyByFrom);
 	if (cDesktopNotify() && !psSkipDesktopNotify()) {
 		NotifyWhenMaps::iterator i = notifyWhenMaps.find(history);
 		if (i == notifyWhenMaps.end()) {
 			i = notifyWhenMaps.insert(history, NotifyWhenMap());
 		}
-		if (i.value().constFind(msgId) == i.value().cend()) {
-			i.value().insert(msgId, when);
+		if (i.value().constFind(item->id) == i.value().cend()) {
+			i.value().insert(item->id, when);
 		}
 		NotifyWaiters *addTo = haveSetting ? &notifyWaiters : &notifySettingWaiters;
 		NotifyWaiters::const_iterator it = addTo->constFind(history);
 		if (it == addTo->cend() || it->when > when) {
-			addTo->insert(history, NotifyWaiter(msgId, when));
+			addTo->insert(history, NotifyWaiter(item->id, when, notifyByFrom));
 		}
 	}
 	if (haveSetting) {
@@ -1298,6 +1320,13 @@ void Window::notifySettingGot() {
 		} else {
 			if (history->peer->notify == EmptyNotifySettings || history->peer->notify->mute <= t) {
 				notifyWaiters.insert(i.key(), i.value());
+			} else if (UserData *from = i.value().notifyByFrom) {
+				if (from->notify == UnknownNotifySettings) {
+					++i;
+					continue;
+				} else if (from->notify == EmptyNotifySettings || from->notify->mute <= t) {
+					notifyWaiters.insert(i.key(), i.value());
+				}
 			}
 			i = notifySettingWaiters.erase(i);
 		}
@@ -1321,11 +1350,14 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 
 	uint64 ms = getms(true), nextAlert = 0;
 	bool alert = false;
+	int32 now = unixtime();
 	for (NotifyWhenAlerts::iterator i = notifyWhenAlerts.begin(); i != notifyWhenAlerts.end();) {
 		while (!i.value().isEmpty() && i.value().begin().key() <= ms) {
+			NotifySettingsPtr n = i.key()->peer->notify, f = i.value().begin().value() ? i.value().begin().value()->notify : UnknownNotifySettings;
 			i.value().erase(i.value().begin());
-			NotifySettingsPtr n = i.key()->peer->notify;
-			if (n == EmptyNotifySettings || (n != UnknownNotifySettings && n->mute <= unixtime())) {
+			if (n == EmptyNotifySettings || (n != UnknownNotifySettings && n->mute <= now)) {
+				alert = true;
+			} else if (f == EmptyNotifySettings || (f != UnknownNotifySettings && f->mute <= now)) { // notify by from()
 				alert = true;
 			}
 		}

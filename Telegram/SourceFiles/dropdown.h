@@ -227,6 +227,116 @@ private:
 
 };
 
+typedef QList<UserData*> MentionRows;
+typedef QList<QString> HashtagRows;
+
+class MentionsDropdown;
+class MentionsInner : public QWidget {
+	Q_OBJECT
+
+public:
+
+	MentionsInner(MentionsDropdown *parent, MentionRows *rows, HashtagRows *hrows);
+
+	void paintEvent(QPaintEvent *e);
+
+	void enterEvent(QEvent *e);
+	void leaveEvent(QEvent *e);
+
+	void mousePressEvent(QMouseEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+
+	void clearSel();
+	bool moveSel(int direction);
+	bool select();
+
+signals:
+
+	void chosen(QString mentionOrHashtag);
+	void mustScrollTo(int scrollToTop, int scrollToBottom);
+
+public slots:
+
+	void onParentGeometryChanged();
+	void onUpdateSelected(bool force = false);
+
+private:
+
+	void setSel(int sel, bool scroll = false);
+
+	MentionsDropdown *_parent;
+	MentionRows *_rows;
+	HashtagRows *_hrows;
+	int32 _sel;
+	bool _mouseSel;
+	QPoint _mousePos;
+
+	bool _overDelete;
+};
+
+class MentionsDropdown : public QWidget, public Animated {
+	Q_OBJECT
+
+public:
+
+	MentionsDropdown(QWidget *parent);
+
+	void paintEvent(QPaintEvent *e);
+
+	void fastHide();
+
+	void showFiltered(ChatData *chat, QString start);
+	void updateFiltered(bool toDown = false);
+	void setBoundings(QRect boundings);
+
+	bool animStep(float64 ms);
+
+	const QString &filter() const;
+
+	int32 innerTop();
+	int32 innerBottom();
+
+	bool eventFilter(QObject *obj, QEvent *e);
+
+	~MentionsDropdown();
+
+signals:
+
+	void chosen(QString mentionOrHashtag);
+
+public slots:
+
+	void hideStart();
+	void hideFinish();
+
+	void showStart();
+
+private:
+
+	void recount(bool toDown = false);
+
+	QPixmap _cache;
+	MentionRows _rows;
+	HashtagRows _hrows;
+
+	ScrollArea _scroll;
+	MentionsInner _inner;
+
+	ChatData *_chat;
+	QString _filter;
+	QRect _boundings;
+
+	int32 _width, _height;
+	bool _hiding;
+
+	anim::fvalue a_opacity;
+
+	QTimer _hideTimer;
+
+	BoxShadow _shadow;
+
+};
+
 //class StickerPanInner : public QWidget, public Animated {
 //	Q_OBJECT
 //

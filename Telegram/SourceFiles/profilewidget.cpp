@@ -381,11 +381,8 @@ void ProfileInner::reorderParticipants() {
 
 bool ProfileInner::event(QEvent *e) {
 	if (e->type() == QEvent::MouseMove) {
-		QMouseEvent *ev = dynamic_cast<QMouseEvent*>(e);
-		if (ev) {
-			_lastPos = ev->globalPos();
-			updateSelected();
-		}
+		_lastPos = static_cast<QMouseEvent*>(e)->globalPos();
+		updateSelected();
 	}
 	return QWidget::event(e);
 }
@@ -603,16 +600,18 @@ void ProfileInner::updateSelected() {
 void ProfileInner::mousePressEvent(QMouseEvent *e) {
 	_lastPos = e->globalPos();
 	updateSelected();
-	if (_kickOver) {
-		_kickDown = _kickOver;
-		update();
-	} else if (_selectedRow >= 0 && _selectedRow < _participants.size()) {
-		App::main()->showPeerProfile(_participants[_selectedRow]);
-	} else if (QRect(_left, st::profilePadding.top(), st::setPhotoSize, st::setPhotoSize).contains(e->pos())) {
-		if (_photoLink) {
-			_photoLink->onClick(e->button());
-		} else if (_peerChat && !_peerChat->forbidden) {
-			onUpdatePhoto();
+	if (e->button() == Qt::LeftButton) {
+		if (_kickOver) {
+			_kickDown = _kickOver;
+			update();
+		} else if (_selectedRow >= 0 && _selectedRow < _participants.size()) {
+			App::main()->showPeerProfile(_participants[_selectedRow]);
+		} else if (QRect(_left, st::profilePadding.top(), st::setPhotoSize, st::setPhotoSize).contains(e->pos())) {
+			if (_photoLink) {
+				_photoLink->onClick(e->button());
+			} else if (_peerChat && !_peerChat->forbidden) {
+				onUpdatePhoto();
+			}
 		}
 	}
 }
@@ -715,11 +714,16 @@ void ProfileInner::contextMenuEvent(QContextMenuEvent *e) {
 		_menu->deleteLater();
 		_menu = 0;
 	}
-	if (!_phoneText.isEmpty()) {
+	if (!_phoneText.isEmpty() || (_peerUser && !_peerUser->username.isEmpty())) {
 		QRect info(_left + st::profilePhotoSize + st::profilePhoneLeft, st::profilePadding.top(), _width - st::profilePhotoSize - st::profilePhoneLeft, st::profilePhotoSize);
 		if (info.contains(mapFromGlobal(e->globalPos()))) {
 			_menu = new ContextMenu(this);
-			_menu->addAction(lang(lng_profile_copy_phone), this, SLOT(onCopyPhone()))->setEnabled(true);
+			if (!_phoneText.isEmpty()) {
+				_menu->addAction(lang(lng_profile_copy_phone), this, SLOT(onCopyPhone()))->setEnabled(true);
+			}
+			if (_peerUser && !_peerUser->username.isEmpty()) {
+				_menu->addAction(lang(lng_context_copy_mention), this, SLOT(onCopyUsername()))->setEnabled(true);
+			}
 			_menu->deleteOnHide();
 			connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
 			_menu->popup(e->globalPos());
@@ -736,6 +740,10 @@ void ProfileInner::onMenuDestroy(QObject *obj) {
 
 void ProfileInner::onCopyPhone() {
 	QApplication::clipboard()->setText(_phoneText);
+}
+
+void ProfileInner::onCopyUsername() {
+	QApplication::clipboard()->setText('@' + _peerUser->username);
 }
 
 bool ProfileInner::animStep(float64 ms) {
@@ -780,6 +788,7 @@ void ProfileInner::mediaOverviewUpdated(PeerData *peer) {
 	if (peer == _peer) {
 		resizeEvent(0);
 		showAll();
+		update();
 	}
 }
 

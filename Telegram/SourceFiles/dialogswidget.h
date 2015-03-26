@@ -36,6 +36,10 @@ public:
 	void contactsReceived(const QVector<MTPContact> &contacts);
 	int32 addNewContact(int32 uid, bool sel = false); // return y of row or -1 if failed
 
+	int32 filteredOffset() const;
+	int32 peopleOffset() const;
+	int32 searchedOffset() const;
+
 	void paintEvent(QPaintEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
@@ -59,6 +63,7 @@ public:
 	void refresh(bool toTop = false);
 
 	bool choosePeer();
+	void saveRecentHashtags(const QString &text);
 
 	void destroyData();
 
@@ -89,6 +94,7 @@ public:
 	bool hasFilteredResults() const;
 
 	void onFilterUpdate(QString newFilter, bool force = false);
+	void onHashtagFilterUpdate(QString newFilter);
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
@@ -109,6 +115,8 @@ signals:
 	void dialogToTopFrom(int movedFrom);
 	void searchMessages();
 	void searchResultChosen();
+	void completeHashtag(QString tag);
+	void refreshHashtags();
 
 private:
 
@@ -123,6 +131,10 @@ private:
 	bool selByMouse;
 
 	QString filter;
+
+	QStringList hashtagResults;
+	int32 hashtagSel;
+
 	FilteredDialogs filterResults;
 	int32 filteredSel;
 
@@ -142,6 +154,8 @@ private:
 	void paintDialog(QPainter &p, DialogRow *dialog);
 
 	LinkButton _addContactLnk;
+
+	bool _overDelete;
 
 };
 
@@ -205,6 +219,9 @@ public slots:
 	void onAddContact();
 	void onNewGroup();
 	bool onCancelSearch();
+
+	void onFilterCursorMoved(int from = -1, int to = -1);
+	void onCompleteHashtag(QString tag);
 
 	void onDialogToTopFrom(int movedFrom);
 	bool onSearchMessages(bool searchCache = false);

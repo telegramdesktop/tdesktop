@@ -91,6 +91,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_server_error" = "내부 서버 오류";
 "lng_flood_error" = "시도가 너무 많습니다. 나중에 다시 시도해주세요.";
 "lng_deleted" = "알 수 없음";
+"lng_deleted_message" = "삭제된 메시지";
 
 "lng_intro" = "[a href=\"https://telegram.org/\"]텔레그램[/a] PC 공식버전에 오신 것을 환영합니다.\n[b]안전[/b]하고 [b]신속[/b]하게 사용하세요.";
 "lng_start_msgs" = "시작하기";
@@ -312,6 +313,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "다음";
 "lng_create_group_title" = "새로운 그룹";
 
+"lng_failed_add_participant" = "사용자를 초대할 수 없습니다. 나중에 다시 시도해주세요.";
+
 "lng_sure_delete_contact" = "{contact} 님을 주소록에서 \n삭제하시겠습니까?";
 "lng_sure_delete_history" = "{contact} 님과 관련된 모든 메시지를 \n삭제하시겠습니까?\n\n삭제 하실 경우 취소가 불가능합니다.";
 
@@ -332,6 +335,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_created_chat" = "{from} 님이 그룹 «{title}» 을 생성하셨습니다.";
 
 "lng_forwarded_from" = "전달받음";
+"lng_in_reply_to" = "다음 유저에게 답장 :";
 
 "lng_attach_failed" = "실패";
 "lng_attach_file" = "파일";
@@ -385,6 +389,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_copy_email" = "이메일 복사";
 "lng_context_open_hashtag" = "해시태그로 검색";
 "lng_context_copy_hashtag" = "해시태그 복사";
+"lng_context_open_mention" = "프로필 열기";
+"lng_context_copy_mention" = "아이디 복사";
 "lng_context_open_image" = "이미지 열기";
 "lng_context_save_image" = "이미지를 다른 이름으로 저장..";
 "lng_context_forward_image" = "이미지 전달";
@@ -403,8 +409,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_forward_file" = "파일 전달";
 "lng_context_delete_file" = "파일 삭제";
 "lng_context_close_file" = "파일 닫기";
-"lng_context_copy_text" = "메시지 내용 복사";
+"lng_context_copy_text" = "텍스트 복사";
 "lng_context_to_msg" = "메시지로 이동";
+"lng_context_reply_msg" = "답장";
 "lng_context_forward_msg" = "메시지 전달";
 "lng_context_delete_msg" = "메시지 삭제";
 "lng_context_select_msg" = "메시지 선택";
@@ -425,6 +432,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_forward_send_files_confirm" = "선택한 파일을  {recipient} 님에게 보내시겠습니까?";
 "lng_forward" = "전달";
 "lng_forward_send" = "보낵";
+"lng_forward_messages" = "{count:_not_used_|전달받은 메시지|# 개의 전달받은 메시지}";
+"lng_forwarding_from" = "{user} 님과 {count:_not_used_|# 명|# 명}";
+"lng_forwarding_from_two" = "{user} 님과 {second_user}";
 
 "lng_contact_phone" = "전화번호";
 "lng_enter_contact_data" = "새로운 연락처";
@@ -481,8 +491,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version7020" = "— 잠금번호로 앱 잠금";
-"lng_new_version7020_appstore" = "— 잠금번호로 앱 잠금\n— 채팅배경 변경\n— 파일을 «다음으로 열기» 설정\n— 한국어 추가";
+"lng_new_version7026" = "— 메시지 전달시 코멘트 추가 기능\n— 신규 메시지 및 검색시 기존 사용한 해시태그 제안 기능\n— 원본 메시지 확인 후 기존 답글로 돌아오기 기능\n— 아이디로 그룹 초대 기능";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

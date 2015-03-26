@@ -1274,7 +1274,7 @@ void OverviewInner::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
 
 	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
 		HistoryItem *item = App::histItemById(i.key());
-		if (item && item->itemType() == HistoryItem::MsgType && ((item->id > 0 && !item->serviceMsg()) || forDelete)) {
+		if (dynamic_cast<HistoryMessage*>(item) && item->id > 0) {
 			sel.insert(item->id, item);
 		}
 	}
@@ -1876,7 +1876,7 @@ void OverviewWidget::onDeleteSelectedSure() {
 	}
 
 	if (!ids.isEmpty()) {
-		MTP::send(MTPmessages_DeleteMessages(MTP_vector<MTPint>(ids)));
+		App::main()->deleteMessages(ids);
 	}
 
 	onClearSelected();
@@ -1896,7 +1896,7 @@ void OverviewWidget::onDeleteContextSure() {
 	}
 
 	if (item->id > 0) {
-		MTP::send(MTPmessages_DeleteMessages(MTP_vector<MTPint>(1, MTP_int(item->id))));
+		App::main()->deleteMessages(QVector<MTPint>(1, MTP_int(item->id)));
 	}
 	item->destroy();
 	if (App::main() && App::main()->peer() == peer()) {

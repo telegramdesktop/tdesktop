@@ -25,6 +25,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "boxes/addcontactbox.h"
 #include "boxes/newgroupbox.h"
 
+#include "localstorage.h"
+
 DialogsListWidget::DialogsListWidget(QWidget *parent, MainWidget *main) : QWidget(parent),
 dialogs(false),
 contactsNoDialogs(true),
@@ -32,19 +34,33 @@ contacts(true),
 sel(0),
 contactSel(false),
 selByMouse(false),
+hashtagSel(-1),
 filteredSel(-1),
 searchedCount(0),
 searchedSel(-1),
 peopleSel(-1),
 _lastSearchId(0),
 _state(DefaultState),
-_addContactLnk(this, lang(lng_add_contact_button)) {
+_addContactLnk(this, lang(lng_add_contact_button)),
+_overDelete(false) {
 	connect(main, SIGNAL(dialogToTop(const History::DialogLinks&)), this, SLOT(onDialogToTop(const History::DialogLinks&)));
 	connect(main, SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)));
 	connect(main, SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(onPeerPhotoChanged(PeerData*)));
 	connect(main, SIGNAL(dialogRowReplaced(DialogRow*,DialogRow*)), this, SLOT(onDialogRowReplaced(DialogRow*,DialogRow*)));
 	connect(&_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
 	refresh(false);
+}
+
+int32 DialogsListWidget::filteredOffset() const {
+	return hashtagResults.size() * st::mentionHeight;
+}
+
+int32 DialogsListWidget::peopleOffset() const {
+	return filteredOffset() + (filterResults.size() * st::dlgHeight) + st::searchedBarHeight;
+}
+
+int32 DialogsListWidget::searchedOffset() const {
+	return peopleOffset() + (peopleResults.isEmpty() ? 0 : ((peopleResults.size() * st::dlgHeight) + st::searchedBarHeight));
 }
 
 void DialogsListWidget::paintEvent(QPaintEvent *e) {
@@ -70,10 +86,35 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 			p.drawText(QRect(0, 0, width(), st::noContactsHeight - (cContactsReceived() ? st::noContactsFont->height : 0)), lang(cContactsReceived() ? lng_no_contacts : lng_contacts_loading), style::al_center);
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
-		if (filterResults.isEmpty()) {
-			// .. paint no dialogs 
-		} else {
-			int32 from = r.top() / int32(st::dlgHeight);
+		if (!hashtagResults.isEmpty()) {
+			int32 from = r.top() / int32(st::mentionHeight);
+			if (from < 0) {
+				from = 0;
+			} else if (from > hashtagResults.size()) {
+				from = hashtagResults.size();
+			}
+			p.translate(0, from * st::mentionHeight);
+			if (from < hashtagResults.size()) {
+				int32 to = (r.bottom() / int32(st::mentionHeight)) + 1, w = width();
+				if (to > hashtagResults.size()) to = hashtagResults.size();
+				p.setFont(st::mentionFont->f);
+				p.setPen(st::black->p);
+				for (; from < to; ++from) {
+					bool selected = (from == hashtagSel);
+					if (selected) {
+						p.fillRect(0, 0, w, st::mentionHeight, st::dlgHoverBG->b);
+						int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
+						p.drawPixmap(QPoint(w - st::notifyClose.icon.pxWidth() - skip, skip), App::sprite(), st::notifyClose.icon);
+					}
+					QString tag = st::mentionFont->m.elidedText('#' + hashtagResults.at(from), Qt::ElideRight, w - st::dlgPaddingHor * 2);
+					p.drawText(st::dlgPaddingHor, st::mentionTop + st::mentionFont->ascent, tag);
+					p.translate(0, st::mentionHeight);
+				}
+			}
+		}
+		if (!filterResults.isEmpty()) {
+			int32 skip = filteredOffset();
+			int32 from = (r.top() - skip) / int32(st::dlgHeight);
 			if (from < 0) {
 				from = 0;
 			} else if (from > filterResults.size()) {
@@ -99,7 +140,7 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 			p.drawText(QRect(0, 0, width(), st::searchedBarHeight), lang(lng_search_global_results), style::al_center);
 			p.translate(0, st::searchedBarHeight);
 		
-			int32 skip = filterResults.size() * st::dlgHeight + st::searchedBarHeight;
+			int32 skip = peopleOffset();
 			int32 from = (r.top() - skip) / int32(st::dlgHeight);
 			if (from < 0) {
 				from = 0;
@@ -127,8 +168,7 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 			p.drawText(QRect(0, 0, width(), st::searchedBarHeight), text, style::al_center);
 			p.translate(0, st::searchedBarHeight);
 
-			int32 skip = filterResults.size() * st::dlgHeight + st::searchedBarHeight;
-			if (!peopleResults.isEmpty()) skip += peopleResults.size() * st::dlgHeight + st::searchedBarHeight;
+			int32 skip = searchedOffset();
 			int32 from = (r.top() - skip) / int32(st::dlgHeight);
 			if (from < 0) {
 				from = 0;
@@ -206,6 +246,7 @@ void DialogsListWidget::onUpdateSelected(bool force) {
 	if ((!force && !rect().contains(mouse)) || !selByMouse) return;
 
 	int w = width(), mouseY = mouse.y();
+	_overDelete = false;
 	if (_state == DefaultState) {
 		DialogRow *newSel = dialogs.list.rowAtY(mouseY, st::dlgHeight);
 		int32 otherStart = dialogs.list.count * st::dlgHeight;
@@ -221,8 +262,23 @@ void DialogsListWidget::onUpdateSelected(bool force) {
 			parentWidget()->update();
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
+		if (!hashtagResults.isEmpty()) {
+			int32 newHashtagSel = mouseY / int32(st::mentionHeight);
+			if (newHashtagSel < 0 || newHashtagSel >= hashtagResults.size()) {
+				newHashtagSel = -1;
+			}
+			if (newHashtagSel != hashtagSel) {
+				hashtagSel = newHashtagSel;
+				setCursor((hashtagSel >= 0) ? style::cur_pointer : style::cur_default);
+				parentWidget()->update();
+			}
+			if (hashtagSel >= 0) {
+				_overDelete = (mouse.x() >= w - st::mentionHeight);
+			}
+			mouseY -= filteredOffset();
+		}
 		if (!filterResults.isEmpty()) {
-			int32 newFilteredSel = mouseY / int32(st::dlgHeight);
+			int32 newFilteredSel = (mouseY >= 0) ? (mouseY / int32(st::dlgHeight)) : -1;
 			if (newFilteredSel < 0 || newFilteredSel >= filterResults.size()) {
 				newFilteredSel = -1;
 			}
@@ -232,7 +288,7 @@ void DialogsListWidget::onUpdateSelected(bool force) {
 				parentWidget()->update();
 			}
 		}
-		mouseY -= filterResults.size() * st::dlgHeight + st::searchedBarHeight;
+		mouseY -= peopleOffset() - filteredOffset();
 		if (!peopleResults.isEmpty()) {
 			int32 newPeopleSel = (mouseY >= 0) ? (mouseY / int32(st::dlgHeight)) : -1;
 			if (newPeopleSel < 0 || newPeopleSel >= peopleResults.size()) {
@@ -243,8 +299,8 @@ void DialogsListWidget::onUpdateSelected(bool force) {
 				setCursor((peopleSel >= 0) ? style::cur_pointer : style::cur_default);
 				parentWidget()->update();
 			}
-			mouseY -= peopleResults.size() * st::dlgHeight + st::searchedBarHeight;
 		}
+		mouseY -= searchedOffset() - peopleOffset();
 		if (_state == SearchedState && !searchResults.isEmpty()) {
 			int32 newSearchedSel = (mouseY >= 0) ? (mouseY / int32(st::dlgHeight)) : -1;
 			if (newSearchedSel < 0 || newSearchedSel >= searchResults.size()) {
@@ -369,7 +425,7 @@ void DialogsListWidget::dlgUpdated(History *history) {
 			}
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
-		int32 cnt = 0;
+		int32 cnt = 0, add = filteredOffset();
 		for (FilteredDialogs::const_iterator i = filterResults.cbegin(), e = filterResults.cend(); i != e; ++i) {
 			if ((*i)->history == history) {
 				update(0, cnt * st::dlgHeight, width(), st::dlgHeight);
@@ -378,7 +434,7 @@ void DialogsListWidget::dlgUpdated(History *history) {
 			++cnt;
 		}
 		if (!peopleResults.isEmpty()) {
-			int32 cnt = 0, add = filterResults.size() * st::dlgHeight + st::searchedBarHeight;
+			int32 cnt = 0, add = peopleOffset();
 			for (PeopleResults::const_iterator i = peopleResults.cbegin(), e = peopleResults.cend(); i != e; ++i) {
 				if ((*i) == history->peer) {
 					update(0, add + cnt * st::dlgHeight, width(), st::dlgHeight);
@@ -388,7 +444,7 @@ void DialogsListWidget::dlgUpdated(History *history) {
 			}
 		}
 		if (!searchResults.isEmpty()) {
-			int32 cnt = 0, add = (filterResults.size() + peopleResults.size()) * st::dlgHeight + (peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight;
+			int32 cnt = 0, add = searchedOffset();
 			for (SearchResults::const_iterator i = searchResults.cbegin(), e = searchResults.cend(); i != e; ++i) {
 				if ((*i)->_item->history() == history) {
 					update(0, add + cnt * st::dlgHeight, width(), st::dlgHeight);
@@ -408,9 +464,9 @@ void DialogsListWidget::enterEvent(QEvent *e) {
 
 void DialogsListWidget::leaveEvent(QEvent *e) {
 	setMouseTracking(false);
-	if (sel || filteredSel >= 0) {
+	if (sel || filteredSel >= 0 || hashtagSel >= 0 || searchedSel >= 0 || peopleSel >= 0) {
 		sel = 0;
-		filteredSel = -1;
+		filteredSel = searchedSel = peopleSel = hashtagSel = -1;
 		parentWidget()->update();
 	}
 }
@@ -462,6 +518,7 @@ void DialogsListWidget::onFilterUpdate(QString newFilter, bool force) {
 			filter = newFilter;
 			if (filter.isEmpty()) {
 				_state = DefaultState;
+				hashtagResults.clear();
 				filterResults.clear();
 				peopleResults.clear();
 				searchResults.clear();
@@ -547,6 +604,33 @@ void DialogsListWidget::onFilterUpdate(QString newFilter, bool force) {
 	if (_state != DefaultState) {
 		emit searchMessages();
 	}
+}
+
+void DialogsListWidget::onHashtagFilterUpdate(QString newFilter) {
+	if (newFilter.isEmpty() || newFilter.at(0) != '#') {
+		if (!hashtagResults.isEmpty()) {
+			hashtagResults.clear();
+			refresh(true);
+			setMouseSel(false, true);
+		}
+		return;
+	}
+	if (cRecentSearchHashtags().isEmpty() && cRecentWriteHashtags().isEmpty()) {
+		Local::readRecentHashtags();
+	}
+	const RecentHashtagPack &recent(cRecentSearchHashtags());
+	hashtagResults.clear();
+	if (!recent.isEmpty()) {
+		hashtagResults.reserve(qMin(recent.size(), 5));
+		for (RecentHashtagPack::const_iterator i = recent.cbegin(), e = recent.cend(); i != e; ++i) {
+			if (i->first.startsWith(newFilter.midRef(1), Qt::CaseInsensitive) && i->first.size() + 1 != newFilter.size()) {
+				hashtagResults.push_back(i->first);
+				if (hashtagResults.size() == 5) break;
+			}
+		}
+	}
+	refresh(true);
+	setMouseSel(false, true);
 }
 
 DialogsListWidget::~DialogsListWidget() {
@@ -683,9 +767,9 @@ void DialogsListWidget::refresh(bool toTop) {
 	} else {
 		if (!_addContactLnk.isHidden()) _addContactLnk.hide();
 		if (_state == FilteredState) {
-			h = (filterResults.count() + peopleResults.count() + searchResults.count()) * st::dlgHeight + (peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + (searchResults.isEmpty() ? 0 : st::searchedBarHeight);
+			h = searchedOffset() + (searchResults.count() * st::dlgHeight) + (searchResults.isEmpty() ? 0 : st::searchedBarHeight);
 		} else if (_state == SearchedState) {
-			h = (filterResults.count() + peopleResults.count() + searchResults.count()) * st::dlgHeight + (peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight;
+			h = searchedOffset() + (searchResults.count() * st::dlgHeight) + st::searchedBarHeight;
 		}
 	}
 	resize(width(), h);
@@ -703,7 +787,7 @@ void DialogsListWidget::setMouseSel(bool msel, bool toTop) {
 			sel = (dialogs.list.count ? dialogs.list.begin : (contactsNoDialogs.list.count ? contactsNoDialogs.list.begin : 0));
 			contactSel = !dialogs.list.count && contactsNoDialogs.list.count;
 		} else if (_state == FilteredState || _state == SearchedState) { // don't select first elem in search
-			filteredSel = peopleSel = searchedSel = -1;
+			filteredSel = peopleSel = searchedSel = hashtagSel = -1;
 		}
 	}
 }
@@ -712,8 +796,10 @@ void DialogsListWidget::setState(State newState) {
 	_state = newState;
 	if (_state == DefaultState) {
 		clearSearchResults();
-		searchedSel = peopleSel = filteredSel = -1;
+		searchedSel = peopleSel = filteredSel = hashtagSel = -1;
 	} else if (_state == DefaultState || _state == SearchedState) {
+		hashtagResults.clear();
+		hashtagSel = -1;
 		filterResults.clear();
 		filteredSel = -1;
 	}
@@ -726,12 +812,13 @@ DialogsListWidget::State DialogsListWidget::state() const {
 }
 
 bool DialogsListWidget::hasFilteredResults() const {
-	return !filterResults.isEmpty();
+	return !filterResults.isEmpty() && hashtagResults.isEmpty();
 }
 
 void DialogsListWidget::clearFilter() {
 	if (_state == FilteredState || _state == SearchedState) {
 		_state = DefaultState;
+		hashtagResults.clear();
 		filterResults.clear();
 		peopleResults.clear();
 		searchResults.clear();
@@ -742,7 +829,7 @@ void DialogsListWidget::clearFilter() {
 }
 
 void DialogsListWidget::addDialog(const MTPDdialog &dialog) {
-	History *history = App::history(App::peerFromMTP(dialog.vpeer), dialog.vunread_count.v);
+	History *history = App::history(App::peerFromMTP(dialog.vpeer), dialog.vunread_count.v, dialog.vread_inbox_max_id.v);
 	History::DialogLinks links = dialogs.addToEnd(history);
 	history->dialogs = links;
 	contactsNoDialogs.del(history->peer);
@@ -778,37 +865,45 @@ void DialogsListWidget::selectSkip(int32 direction) {
 		int32 fromY = (sel->pos + (contactSel ? dialogs.list.count : 0)) * st::dlgHeight;
 		emit mustScrollTo(fromY, fromY + st::dlgHeight);
 	} else if (_state == FilteredState || _state == SearchedState) {
-		if (filterResults.isEmpty() && peopleResults.isEmpty() && searchResults.isEmpty()) return;
-		if ((filteredSel < 0 || filteredSel >= filterResults.size()) &&
+		if (hashtagResults.isEmpty() && filterResults.isEmpty() && peopleResults.isEmpty() && searchResults.isEmpty()) return;
+		if ((hashtagSel < 0 || hashtagSel >= hashtagResults.size()) &&
+			(filteredSel < 0 || filteredSel >= filterResults.size()) &&
 			(peopleSel < 0 || peopleSel >= peopleResults.size()) &&
 			(searchedSel < 0 || searchedSel >= searchResults.size())) {
-			if (filterResults.isEmpty() && peopleResults.isEmpty()) {
+			if (hashtagResults.isEmpty() && filterResults.isEmpty() && peopleResults.isEmpty()) {
 				searchedSel = 0;
-			} else if (filterResults.isEmpty()) {
+			} else if (hashtagResults.isEmpty() && filterResults.isEmpty()) {
 				peopleSel = 0;
-			} else {
+			} else if (hashtagResults.isEmpty()) {
 				filteredSel = 0;
+			} else {
+				hashtagSel = 0;
 			}
 		} else {
-			int32 cur = (filteredSel >= 0 && filteredSel < filterResults.size()) ? filteredSel : ((peopleSel >= 0 && peopleSel < peopleResults.size()) ? (peopleSel + filterResults.size()) : (searchedSel + peopleResults.size() + filterResults.size()));
-			cur = snap(cur + direction, 0, filterResults.size() + peopleResults.size() + searchResults.size() - 1);
-			if (cur < filterResults.size()) {
-				filteredSel = cur;
-				peopleSel = searchedSel = -1;
-			} else if (cur < filterResults.size() + peopleResults.size()) {
-				peopleSel = cur - filterResults.size();
-				filteredSel = searchedSel = -1;
+			int32 cur = (hashtagSel >= 0 && hashtagSel < hashtagResults.size()) ? hashtagSel : ((filteredSel >= 0 && filteredSel < filterResults.size()) ? (hashtagResults.size() + filteredSel) : ((peopleSel >= 0 && peopleSel < peopleResults.size()) ? (peopleSel + filterResults.size() + hashtagResults.size()) : (searchedSel + peopleResults.size() + filterResults.size() + hashtagResults.size())));
+			cur = snap(cur + direction, 0, hashtagResults.size() + filterResults.size() + peopleResults.size() + searchResults.size() - 1);
+			if (cur < hashtagResults.size()) {
+				hashtagSel = cur;
+				filteredSel = peopleSel = searchedSel = -1;
+			} else if (cur < hashtagResults.size() + filterResults.size()) {
+				filteredSel = cur - hashtagResults.size();
+				hashtagSel = peopleSel = searchedSel = -1;
+			} else if (cur < hashtagResults.size() + filterResults.size() + peopleResults.size()) {
+				peopleSel = cur - hashtagResults.size() - filterResults.size();
+				hashtagSel = filteredSel = searchedSel = -1;
 			} else {
-				filteredSel = peopleSel = -1;
-				searchedSel = cur - filterResults.size() - peopleResults.size();
+				hashtagSel = filteredSel = peopleSel = -1;
+				searchedSel = cur - hashtagResults.size() - filterResults.size() - peopleResults.size();
 			}
 		}
-		if (filteredSel >= 0 && filteredSel < filterResults.size()) {
-			emit mustScrollTo(filteredSel * st::dlgHeight, (filteredSel + 1) * st::dlgHeight);
+		if (hashtagSel >= 0 && hashtagSel < hashtagResults.size()) {
+			emit mustScrollTo(hashtagSel * st::mentionHeight, (hashtagSel + 1) * st::mentionHeight);
+		} else if (filteredSel >= 0 && filteredSel < filterResults.size()) {
+			emit mustScrollTo(filteredOffset() + filteredSel * st::dlgHeight, filteredOffset() + (filteredSel + 1) * st::dlgHeight);
 		} else if (peopleSel >= 0 && peopleSel < peopleResults.size()) {
-			emit mustScrollTo((peopleSel + filterResults.size()) * st::dlgHeight + (peopleSel ? st::searchedBarHeight : 0), (peopleSel + filterResults.size() + 1) * st::dlgHeight);
+			emit mustScrollTo(peopleOffset() + peopleSel * st::dlgHeight + (peopleSel ? 0 : -st::searchedBarHeight), peopleOffset() + (peopleSel + 1) * st::dlgHeight);
 		} else {
-			emit mustScrollTo((searchedSel + peopleResults.size() + filterResults.size()) * st::dlgHeight + (peopleResults.size() ? st::searchedBarHeight : 0) + (searchedSel ? st::searchedBarHeight : 0), (searchedSel + peopleResults.size() + filterResults.size() + 1) * st::dlgHeight + (peopleResults.size() ? st::searchedBarHeight : 0) + st::searchedBarHeight);
+			emit mustScrollTo(searchedOffset() + searchedSel * st::dlgHeight + (searchedSel ? 0 : -st::searchedBarHeight), searchedOffset() + (searchedSel + 1) * st::dlgHeight);
 		}
 	}
 	parentWidget()->update();
@@ -830,7 +925,7 @@ void DialogsListWidget::scrollToPeer(const PeerId &peer, MsgId msgId) {
 		if (msgId) {
 			for (int32 i = 0, c = searchResults.size(); i < c; ++i) {
 				if (searchResults[i]->_item->history()->peer->id == peer && searchResults[i]->_item->id == msgId) {
-					fromY = filterResults.size() * st::dlgHeight + st::searchedBarHeight + i * st::dlgHeight;
+					fromY = searchedOffset() + i * st::dlgHeight;
 					break;
 				}
 			}
@@ -838,7 +933,7 @@ void DialogsListWidget::scrollToPeer(const PeerId &peer, MsgId msgId) {
 		if (fromY < 0) {
 			for (int32 i = 0, c = filterResults.size(); i < c; ++i) {
 				if (filterResults[i]->history->peer->id == peer) {
-					fromY = i * st::dlgHeight;
+					fromY = filteredOffset() + (i * st::dlgHeight);
 					break;
 				}
 			}
@@ -914,7 +1009,7 @@ void DialogsListWidget::loadPeerPhotos(int32 yFrom) {
 			}
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
-		int32 from = yFrom / st::dlgHeight;
+		int32 from = (yFrom - filteredOffset()) / st::dlgHeight;
 		if (from < 0) from = 0;
 		if (from < filterResults.size()) {
 			int32 to = (yTo / int32(st::dlgHeight)) + 1, w = width();
@@ -925,20 +1020,20 @@ void DialogsListWidget::loadPeerPhotos(int32 yFrom) {
 			}
 		}
 
-		from = (yFrom > st::searchedBarHeight ? ((yFrom - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - filterResults.size();
+		from = (yFrom > filteredOffset() + st::searchedBarHeight ? ((yFrom - filteredOffset() - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - filterResults.size();
 		if (from < 0) from = 0;
 		if (from < peopleResults.size()) {
-			int32 to = (yTo > st::searchedBarHeight ? ((yTo - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - filterResults.size() + 1, w = width();
+			int32 to = (yTo > filteredOffset() + st::searchedBarHeight ? ((yTo - filteredOffset() - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - filterResults.size() + 1, w = width();
 			if (to > peopleResults.size()) to = peopleResults.size();
 
 			for (; from < to; ++from) {
 				peopleResults[from]->photo->load();
 			}
 		}
-		from = (yFrom > ((peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight) ? ((yFrom - (peopleResults.isEmpty() ? 0 : st::searchedBarHeight) - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - filterResults.size() - peopleResults.size();
+		from = (yFrom > filteredOffset() + ((peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight) ? ((yFrom - filteredOffset() - (peopleResults.isEmpty() ? 0 : st::searchedBarHeight) - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - filterResults.size() - peopleResults.size();
 		if (from < 0) from = 0;
 		if (from < searchResults.size()) {
-			int32 to = (yTo >(peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight ? ((yTo - (peopleResults.isEmpty() ? 0 : st::searchedBarHeight) - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - filterResults.size() - peopleResults.size() + 1, w = width();
+			int32 to = (yTo > filteredOffset() + (peopleResults.isEmpty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight ? ((yTo - filteredOffset() - (peopleResults.isEmpty() ? 0 : st::searchedBarHeight) - st::searchedBarHeight) / int32(st::dlgHeight)) : 0) - filterResults.size() - peopleResults.size() + 1, w = width();
 			if (to > searchResults.size()) to = searchResults.size();
 
 			for (; from < to; ++from) {
@@ -954,6 +1049,31 @@ bool DialogsListWidget::choosePeer() {
 	if (_state == DefaultState) {
 		if (sel) history = sel->history;
 	} else if (_state == FilteredState || _state == SearchedState) {
+		if (hashtagSel >= 0 && hashtagSel < hashtagResults.size()) {
+			QString hashtag = hashtagResults.at(hashtagSel);
+			if (_overDelete) {
+				lastMousePos = QCursor::pos();
+
+				RecentHashtagPack recent(cRecentSearchHashtags());
+				for (RecentHashtagPack::iterator i = recent.begin(); i != recent.cend();) {
+					if (i->first == hashtag) {
+						i = recent.erase(i);
+					} else {
+						++i;
+					}
+				}
+				cSetRecentSearchHashtags(recent);
+				Local::writeRecentHashtags();
+				emit refreshHashtags();
+
+				selByMouse = true;
+				onUpdateSelected(true);
+			} else {
+				saveRecentHashtags('#' + hashtag);
+				emit completeHashtag(hashtag);
+			}
+			return true;
+		}
 		if (filteredSel >= 0 && filteredSel < filterResults.size()) {
 			history = filterResults[filteredSel]->history;
 		} else if (peopleSel >= 0 && peopleSel < peopleResults.size()) {
@@ -964,22 +1084,55 @@ bool DialogsListWidget::choosePeer() {
 		}
 	}
 	if (history) {
+		if (msgId) {
+			saveRecentHashtags(filter);
+		}
 		bool chosen = (!App::main()->selectingPeer() && (_state == FilteredState || _state == SearchedState) && filteredSel >= 0 && filteredSel < filterResults.size());
 		App::main()->showPeer(history->peer->id, msgId);
 		if (chosen) {
 			emit searchResultChosen();
 		}
 		sel = 0;
-		filteredSel = peopleSel = searchedSel = -1;
+		filteredSel = peopleSel = searchedSel = hashtagSel = -1;
 		parentWidget()->update();
 		return true;
 	}
 	return false;
 }
 
+void DialogsListWidget::saveRecentHashtags(const QString &text) {
+	bool found = false;
+	QRegularExpressionMatch m;
+	RecentHashtagPack recent(cRecentSearchHashtags());
+	for (int32 i = 0, next = 0; (m = reHashtag().match(text, i)).hasMatch(); i = next) {
+		i = m.capturedStart();
+		next = m.capturedEnd();
+		if (m.hasMatch()) {
+			if (!m.capturedRef(1).isEmpty()) {
+				++i;
+			}
+			if (!m.capturedRef(2).isEmpty()) {
+				--next;
+			}
+		}
+		if (!found && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) {
+			Local::readRecentStickers();
+			recent = cRecentSearchHashtags();
+		}
+		found = true;
+		incrementRecentHashtag(recent, text.mid(i + 1, next - i - 1));
+	}
+	if (found) {
+		cSetRecentSearchHashtags(recent);
+		Local::writeRecentHashtags();
+	}
+}
+
 void DialogsListWidget::destroyData() {
 	sel = 0;
 	contactSel = false;
+	hashtagSel = -1;
+	hashtagResults.clear();
 	filteredSel = -1;
 	filterResults.clear();
 	filter.clear();
@@ -1193,11 +1346,14 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
 	connect(&list, SIGNAL(dialogToTopFrom(int)), this, SLOT(onDialogToTopFrom(int)));
 	connect(&list, SIGNAL(searchMessages()), this, SLOT(onNeedSearchMessages()));
 	connect(&list, SIGNAL(searchResultChosen()), this, SLOT(onCancel()));
+	connect(&list, SIGNAL(completeHashtag(QString)), this, SLOT(onCompleteHashtag(QString)));
+	connect(&list, SIGNAL(refreshHashtags()), this, SLOT(onFilterCursorMoved()));
 	connect(&scroll, SIGNAL(geometryChanged()), &list, SLOT(onParentGeometryChanged()));
 	connect(&scroll, SIGNAL(scrolled()), &list, SLOT(onUpdateSelected()));
 	connect(&scroll, SIGNAL(scrolled()), this, SLOT(onListScroll()));
 	connect(&_filter, SIGNAL(cancelled()), this, SLOT(onCancel()));
 	connect(&_filter, SIGNAL(changed()), this, SLOT(onFilterUpdate()));
+	connect(&_filter, SIGNAL(cursorPositionChanged(int,int)), this, SLOT(onFilterCursorMoved(int,int)));
 	connect(parent, SIGNAL(dialogsUpdated()), this, SLOT(onListScroll()));
 	connect(&_addContact, SIGNAL(clicked()), this, SLOT(onAddContact()));
 	connect(&_newGroup, SIGNAL(clicked()), this, SLOT(onNewGroup()));
@@ -1424,6 +1580,8 @@ void DialogsWidget::searchMessages(const QString &query) {
 		onFilterUpdate();
 		_searchTimer.stop();
 		onSearchMessages();
+
+		list.saveRecentHashtags(query);
 	}
 }
 
@@ -1576,6 +1734,48 @@ void DialogsWidget::onFilterUpdate(bool force) {
 		_peopleQueries.clear();
 		_peopleQuery = QString();
 	}
+}
+
+void DialogsWidget::onFilterCursorMoved(int from, int to) {
+	if (to < 0) to = _filter.cursorPosition();
+	QString t = _filter.text(), r;
+	for (int start = to; start > 0;) {
+		--start;
+		if (t.size() <= start) break;
+		if (t.at(start) == '#') {
+			r = t.mid(start, to - start);
+			break;
+		}
+		if (!t.at(start).isLetterOrNumber() && t.at(start) != '_') break;
+	}
+	list.onHashtagFilterUpdate(r);
+}
+
+void DialogsWidget::onCompleteHashtag(QString tag) {
+	QString t = _filter.text(), r;
+	int cur = _filter.cursorPosition();
+	for (int start = cur; start > 0;) {
+		--start;
+		if (t.size() <= start) break;
+		if (t.at(start) == '#') {
+			if (cur == start + 1 || t.midRef(start + 1, cur - start - 1) == tag.midRef(0, cur - start - 1)) {
+				for (; cur < t.size() && cur - start - 1 < tag.size(); ++cur) {
+					if (t.at(cur) != tag.at(cur - start - 1)) break;
+				}
+				if (cur - start - 1 == tag.size() && cur < t.size() && t.at(cur) == ' ') ++cur;
+				r = t.mid(0, start + 1) + tag + ' ' + t.mid(cur);
+				_filter.setText(r);
+				_filter.setCursorPosition(start + 1 + tag.size() + 1);
+				onFilterUpdate(true);
+				return;
+			}
+			break;
+		}
+		if (!t.at(start).isLetterOrNumber() && t.at(start) != '_') break;
+	}
+	_filter.setText(t.mid(0, cur) + '#' + tag + ' ' + t.mid(cur));
+	_filter.setCursorPosition(cur + 1 + tag.size() + 1);
+	onFilterUpdate(true);
 }
 
 void DialogsWidget::resizeEvent(QResizeEvent *e) {

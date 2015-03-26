@@ -60,7 +60,7 @@ void MacPrivate::darkModeChanged() {
 	}
 }
 
-void MacPrivate::notifyClicked(unsigned long long peer) {
+void MacPrivate::notifyClicked(unsigned long long peer, int msgid) {
     History *history = App::history(PeerId(peer));
 
     App::wnd()->showFromTray();
@@ -69,15 +69,22 @@ void MacPrivate::notifyClicked(unsigned long long peer) {
 		App::wnd()->notifyClear();
 	} else {
 		App::wnd()->hideSettings();
-		App::main()->showPeer(history->peer->id, false, true);
+		bool tomsg = history->peer->chat && (msgid > 0);
+		if (tomsg) {
+			HistoryItem *item = App::histItemById(msgid);
+			if (!item || !item->notifyByFrom()) {
+				tomsg = false;
+			}
+		}
+		App::main()->showPeer(history->peer->id, tomsg ? msgid : 0, false, true);
 		App::wnd()->notifyClear(history);
 	}
 }
 
-void MacPrivate::notifyReplied(unsigned long long peer, const char *str) {
+void MacPrivate::notifyReplied(unsigned long long peer, int msgid, const char *str) {
     History *history = App::history(PeerId(peer));
     
-    App::main()->sendMessage(history, QString::fromUtf8(str));
+	App::main()->sendMessage(history, QString::fromUtf8(str), (msgid > 0 && history->peer->chat) ? msgid : 0);
 }
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
@@ -488,7 +495,7 @@ void PsMainWindow::psPlatformNotify(HistoryItem *item) {
 	QPixmap pix = (!App::passcoded() && cNotifyView() <= dbinvShowName) ? item->history()->peer->photo->pix(st::notifyMacPhotoSize) : QPixmap();
 	QString msg = (!App::passcoded() && cNotifyView() <= dbinvShowPreview) ? item->notificationText() : lang(lng_notification_preview);
 
-	_private.showNotify(item->history()->peer->id, pix, title, subtitle, msg, !App::passcoded() && (cNotifyView() <= dbinvShowPreview));
+	_private.showNotify(item->history()->peer->id, item->id, pix, title, subtitle, msg, !App::passcoded() && (cNotifyView() <= dbinvShowPreview));
 }
 
 bool PsMainWindow::eventFilter(QObject *obj, QEvent *evt) {

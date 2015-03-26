@@ -19,6 +19,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "mtproto/mtpCoreTypes.h"
 #include "mtproto/mtpScheme.h"
+
+enum {
+	MTPDmessage_flag_unread = (1 << 0),
+	MTPDmessage_flag_out = (1 << 1),
+	MTPDmessage_flag_notify_by_from = (1 << 4),
+};
+
 #include "mtproto/mtpPublicRSA.h"
 #include "mtproto/mtpAuthKey.h"
 
@@ -53,6 +60,8 @@ class MTProtoConnectionPrivate;
 class MTPSessionData;
 
 class MTPThread : public QThread {
+	Q_OBJECT
+
 public:
 	MTPThread(QObject *parent = 0);
 	uint32 getThreadId() const;

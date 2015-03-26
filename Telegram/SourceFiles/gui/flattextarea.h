@@ -49,6 +49,7 @@ public:
 	QSize minimumSizeHint() const;
 
 	EmojiPtr getSingleEmoji() const;
+	void getMentionHashtagStart(QString &start) const;
 	void removeSingleEmoji();
 	QString getText(int32 start = 0, int32 end = -1) const;
 	bool hasText() const;
@@ -65,6 +66,8 @@ public slots:
 
 	void onUndoAvailable(bool avail);
 	void onRedoAvailable(bool avail);
+
+	void onMentionOrHashtagInsert(QString mentionOrHashtag);
 
 signals:
 

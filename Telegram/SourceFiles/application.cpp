@@ -479,7 +479,7 @@ void Application::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId)
 	int32 filesize = 0;
 	QByteArray data;
 
-	ReadyLocalMedia ready(ToPreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false);
+	ReadyLocalMedia ready(ToPreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false, 0);
 
 	connect(App::uploader(), SIGNAL(photoReady(MsgId, const MTPInputFile &)), App::app(), SLOT(photoUpdated(MsgId, const MTPInputFile &)), Qt::UniqueConnection);
 
@@ -654,10 +654,10 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 7019) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Passcode lock option added");
-			} else if (!DevChannel && Local::oldMapVersion() < 7020) {
-				versionFeatures = lang(lng_new_version7020).trimmed();
+			if (DevChannel && Local::oldMapVersion() < 7026) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Langs updated, some bugs fixed").replace('@', qsl("@") + QChar(0x200D));
+			} else if (!DevChannel && Local::oldMapVersion() < 8000) {
+				versionFeatures = lang(lng_new_version7026).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
@@ -672,29 +672,27 @@ void Application::startApp() {
 
 	DEBUG_LOG(("Application Info: starting app.."));
 
-	Local::ReadMapState state = Local::readMap(QByteArray());
-	if (state == Local::ReadMapPassNeeded) {
-		cSetHasPasscode(true);
-	}
-
-	DEBUG_LOG(("Application Info: local map read.."));
-
 	window->createWinId();
 	window->init();
 
 	DEBUG_LOG(("Application Info: window created.."));
 
-	if (state != Local::ReadMapPassNeeded) {
+	initImageLinkManager();
+	App::initMedia();
+
+	Local::ReadMapState state = Local::readMap(QByteArray());
+	if (state == Local::ReadMapPassNeeded) {
+		cSetHasPasscode(true);
+		DEBUG_LOG(("Application Info: passcode nneded.."));
+	} else {
+		DEBUG_LOG(("Application Info: local map read.."));
 		MTP::start();
 	}
-	
+
 	MTP::setStateChangedHandler(mtpStateChanged);
 	MTP::setSessionResetHandler(mtpSessionReset);
 
 	DEBUG_LOG(("Application Info: MTP started.."));
-
-	initImageLinkManager();
-	App::initMedia();
 
 	DEBUG_LOG(("Application Info: showing."));
 	if (state == Local::ReadMapPassNeeded) {

@@ -846,6 +846,18 @@
     <ClCompile Include="SourceFiles\boxes\passcodebox.cpp">
       <Filter>boxes</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\apiwrap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_apiwrap.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_apiwrap.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_apiwrap.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1123,6 +1135,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\boxes\passcodebox.h">
       <Filter>boxes</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\apiwrap.h">
+      <Filter>Source Files</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

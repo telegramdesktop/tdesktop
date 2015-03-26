@@ -24,6 +24,7 @@ consts = 0
 funcsNow = 0
 enums = [];
 funcsDict = {};
+funcsList = [];
 typesDict = {};
 TypesDict = {};
 typesList = [];
@@ -114,30 +115,48 @@ with open('scheme.tl') as f:
 
     paramsList = params.strip().split(' ');
     prms = {};
+    conditions = {};
     prmsList = [];
-    isTemplate = '';
+    isTemplate = hasFlags = hasTemplate = '';
     for param in paramsList:
       if (re.match(r'^\s*$', param)):
         continue;
-      pnametype = re.match(r'([a-z_][a-z0-9_]*):([A-Za-z0-9<>\._]+)', param);
+      templ = re.match(r'^{([A-Za-z]+):Type}$', param);
+      if (templ):
+        hasTemplate = templ.group(1);
+        continue;
+      pnametype = re.match(r'([a-z_][a-z0-9_]*):([A-Za-z0-9<>\._]+|![a-zA-Z]+|\#|[a-z_][a-z0-9_]*\.[0-9]+\?[A-Za-z0-9<>\._]+)$', param);
       if (not pnametype):
-        pnametypeX = re.match(r'([a-z_][a-z0-9_]*):!X', param);
-        if (not pnametypeX or isTemplate != ''):
-          print('Bad param found: "' + param + '" in line: ' + line);
-          continue;
-        else:
-          pname = isTemplate = pnametypeX.group(1);
+        print('Bad param found: "' + param + '" in line: ' + line);
+        continue;
+      pname = pnametype.group(1);
+      ptypewide = pnametype.group(2);
+      if (re.match(r'^!([a-zA-Z]+)$', ptypewide)):
+        if ('!' + hasTemplate == ptypewide):
+          isTemplate = pname;
           ptype = 'TQueryType';
-      else:
-        pname = pnametype.group(1);
-        ptype = pnametype.group(2);
-      if (ptype.find('<') >= 0):
-        templ = re.match(r'^([vV]ector<)([A-Za-z0-9\._]+)>$', ptype);
-        if (templ):
-          ptype = templ.group(1) + 'MTP' + templ.group(2).replace('.', '_') + '>';
         else:
-          print('Bad template type: ' + ptype);
+          print('Bad template param name: "' + param + '" in line: ' + line);
           continue;
+      elif (ptypewide == '#'):
+        hasFlags = pname;
+        ptype = 'int';
+      else:
+        ptype = ptypewide;
+        if (ptype.find('?') >= 0):
+          pmasktype = re.match(r'([a-z_][a-z0-9_]*)\.([0-9]+)\?([A-Za-z0-9<>\._]+)', ptype);
+          if (not pmasktype or pmasktype.group(1) != hasFlags):
+            print('Bad param found: "' + param + '" in line: ' + line);
+            continue;
+          ptype = pmasktype.group(3);
+          conditions[pname] = pmasktype.group(2);
+        elif (ptype.find('<') >= 0):
+          templ = re.match(r'^([vV]ector<)([A-Za-z0-9\._]+)>$', ptype);
+          if (templ):
+            ptype = templ.group(1) + 'MTP' + templ.group(2).replace('.', '_') + '>';
+          else:
+            print('Bad template type: ' + ptype);
+            continue;
       prmsList.append(pname);
       prms[pname] = ptype.replace('.', '_');
 
@@ -175,8 +194,18 @@ with open('scheme.tl') as f:
       funcsText += '\tMTP' + name + '(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_' + name + ') {\n\t\tread(from, end, cons);\n\t}\n'; # stream constructor
       if (len(prms)):
         funcsText += '\tMTP' + name + '(' + ', '.join(prmsStr) + ') : ' + ', '.join(prmsInit) + ' {\n\t}\n';
-      funcsText += '\n';
 
+      if (len(conditions)):
+        funcsText += '\n';
+        funcsText += '\tenum {\n';
+        for paramName in conditions.keys():
+          funcsText += '\t\tflag_' + paramName + ' = (1 << ' + conditions[paramName] + '),\n';
+        funcsText += '\t};\n';
+        funcsText += '\n';
+        for paramName in conditions.keys():
+          funcsText += '\tbool has_' + paramName + '() const { return v' + hasFlags + '.v & flag_' + paramName + '; }\n';
+
+      funcsText += '\n';
       funcsText += '\tuint32 innerLength() const {\n'; # count size
       size = [];
       for k in prmsList:
@@ -192,13 +221,19 @@ with open('scheme.tl') as f:
       funcsText += '\tvoid read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_' + name + ') {\n'; # read method
       for k in prmsList:
         v = prms[k];
-        funcsText += '\t\tv' + k + '.read(from, end);\n';
+        if (k in conditions.keys()):
+          funcsText += '\t\tif (has_' + k + '()) { v' + k + '.read(from, end); } else { v' + k + ' = MTP' + v + '(); }\n';
+        else:
+          funcsText += '\t\tv' + k + '.read(from, end);\n';
       funcsText += '\t}\n';
 
       funcsText += '\tvoid write(mtpBuffer &to) const {\n'; # write method
       for k in prmsList:
         v = prms[k];
-        funcsText += '\t\tv' + k + '.write(to);\n';
+        if (k in conditions.keys()):
+          funcsText += '\t\tif (has_' + k + '()) v' + k + '.write(to);\n';
+        else:
+          funcsText += '\t\tv' + k + '.write(to);\n';
       funcsText += '\t}\n';
 
       if (isTemplate != ''):
@@ -228,9 +263,10 @@ with open('scheme.tl') as f:
       funcs = funcs + 1;
 
       if (not restype in funcsDict):
+        funcsList.append(restype);
         funcsDict[restype] = [];
 #        TypesDict[restype] = resType;
-      funcsDict[restype].append([name, typeid, prmsList, prms]);
+      funcsDict[restype].append([name, typeid, prmsList, prms, hasFlags, conditions]);
     else:
       if (isTemplate != ''):
         print('Template types not allowed: "' + resType + '" in line: ' + line);
@@ -239,19 +275,21 @@ with open('scheme.tl') as f:
         typesList.append(restype);
         typesDict[restype] = [];
       TypesDict[restype] = resType;
-      typesDict[restype].append([name, typeid, prmsList, prms]);
+      typesDict[restype].append([name, typeid, prmsList, prms, hasFlags, conditions]);
 
       consts = consts + 1;
 
 # text serialization: types and funcs
-def addTextSerialize(dct):
+def addTextSerialize(lst, dct, dataLetter):
   result = '';
-  for restype in dct:
+  for restype in lst:
     v = dct[restype];
     for data in v:
       name = data[0];
       prmsList = data[2];
       prms = data[3];
+      hasFlags = data[4];
+      conditions = data[5];
 
       if len(result):
         result += '\n';
@@ -267,7 +305,12 @@ def addTextSerialize(dct):
         stage = 0;
         for k in prmsList:
           v = prms[k];
-          result += '\t\t\t\tcase ' + str(stage) + ': to.add("  ' + k + ': "); ++stages.back(); types.push_back(';
+          result += '\t\t\t\tcase ' + str(stage) + ': to.add("  ' + k + ': "); ++stages.back(); ';
+          if (k == hasFlags):
+            result += 'if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; ';
+          if (k in conditions.keys()):
+            result += 'if (flag & MTP' + dataLetter + name + '::flag_' + k + ') { ';
+          result += 'types.push_back(';
           vtypeget = re.match(r'^[Vv]ector<MTP([A-Za-z0-9\._]+)>', v);
           if (vtypeget):
             if (not re.match(r'^[A-Z]', v)):
@@ -308,17 +351,20 @@ def addTextSerialize(dct):
                 result += '); vtypes.push_back(0';
           else:
             result += '0); vtypes.push_back(0';
-          result += '); stages.push_back(0); break;\n';
+          result += '); stages.push_back(0); flags.push_back(0); ';
+          if (k in conditions.keys()):
+            result += '} else { to.add("[ SKIPPED BY BIT ' + conditions[k] + ' IN FIELD ' + hasFlags + ' ]"); } ';
+          result += 'break;\n';
           stage = stage + 1;
-        result += '\t\t\t\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); break;\n';
+        result += '\t\t\t\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
         result += '\t\t\t\t}\n';
       else:
-        result += '\t\t\t\tto.add("{ ' + name + ' }"); types.pop_back(); vtypes.pop_back(); stages.pop_back();\n';
+        result += '\t\t\t\tto.add("{ ' + name + ' }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();\n';
       result += '\t\t\tbreak;\n';
   return result;
 
-textSerialize += addTextSerialize(typesDict) + '\n';
-textSerialize += addTextSerialize(funcsDict);
+textSerialize += addTextSerialize(typesList, typesDict, 'D') + '\n';
+textSerialize += addTextSerialize(funcsList, funcsDict, '');
 
 for restype in typesList:
   v = typesDict[restype];
@@ -346,6 +392,8 @@ for restype in typesList:
     typeid = data[1];
     prmsList = data[2];
     prms = data[3];
+    hasFlags = data[4];
+    conditions = data[5];
 
     dataText = '';
     dataText += '\nclass MTPD' + name + ' : public mtpDataImpl<MTPD' + name + '> {\n'; # data class
@@ -400,9 +448,14 @@ for restype in typesList:
         if (withType):
           readText += '\t\t';
           writeText += '\t\t';
-        readText += '\tv.v' + paramName + '.read(from, end);\n';
-        writeText += '\tv.v' + paramName + '.write(to);\n';
-        sizeList.append('v.v' + paramName + '.innerLength()');
+        if (paramName in conditions.keys()):
+          readText += '\tif (v.has_' + paramName + '()) { v.v' + paramName + '.read(from, end); } else { v.v' + paramName + ' = MTP' + paramType + '(); }\n';
+          writeText += '\tif (v.has_' + paramName + '()) v.v' + paramName + '.write(to);\n';
+          sizeList.append('(v.has_' + paramName + '() ? v.v' + paramName + '.innerLength() : 0)');
+        else:
+          readText += '\tv.v' + paramName + '.read(from, end);\n';
+          writeText += '\tv.v' + paramName + '.write(to);\n';
+          sizeList.append('v.v' + paramName + '.innerLength()');
 
       forwards += 'class MTPD' + name + ';\n'; # data class forward declaration
 
@@ -422,6 +475,16 @@ for restype in typesList:
       sizeFast = '\treturn 0;\n';
 
     switchLines += 'break;\n';
+
+    if (len(conditions)):
+      dataText += '\n';
+      dataText += '\tenum {\n';
+      for paramName in conditions.keys():
+        dataText += '\t\tflag_' + paramName + ' = (1 << ' + conditions[paramName] + '),\n';
+      dataText += '\t};\n';
+      dataText += '\n';
+      for paramName in conditions.keys():
+        dataText += '\tbool has_' + paramName + '() const { return v' + hasFlags + '.v & flag_' + paramName + '; }\n';
     dataText += '};\n'; # class ending
 
     if (len(prms)):
@@ -586,17 +649,18 @@ for restype in typesList:
 
 textSerializeFull = '\nvoid mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons) {\n';
 textSerializeFull += '\tQVector<mtpTypeId> types, vtypes;\n';
-textSerializeFull += '\tQVector<int32> stages;\n';
-textSerializeFull += '\ttypes.reserve(20); vtypes.reserve(20); stages.reserve(20);\n';
-textSerializeFull += '\ttypes.push_back(mtpTypeId(cons)); vtypes.push_back(mtpTypeId(vcons)); stages.push_back(0);\n\n';
+textSerializeFull += '\tQVector<int32> stages, flags;\n';
+textSerializeFull += '\ttypes.reserve(20); vtypes.reserve(20); stages.reserve(20); flags.reserve(20);\n';
+textSerializeFull += '\ttypes.push_back(mtpTypeId(cons)); vtypes.push_back(mtpTypeId(vcons)); stages.push_back(0); flags.push_back(0);\n\n';
 textSerializeFull += '\tconst mtpPrime *start = from;\n';
 textSerializeFull += '\tmtpTypeId type = cons, vtype = vcons;\n';
-textSerializeFull += '\tint32 stage = 0;\n';
+textSerializeFull += '\tint32 stage = 0, flag = 0;\n';
 textSerializeFull += '\ttry {\n';
 textSerializeFull += '\t\twhile (!types.isEmpty()) {\n';
 textSerializeFull += '\t\t\ttype = types.back();\n';
 textSerializeFull += '\t\t\tvtype = vtypes.back();\n';
 textSerializeFull += '\t\t\tstage = stages.back();\n';
+textSerializeFull += '\t\t\tflag = flags.back();\n';
 textSerializeFull += '\t\t\tif (!type) {\n';
 textSerializeFull += '\t\t\t\tif (from >= end) {\n';
 textSerializeFull += '\t\t\t\t\tthrow Exception("from >= end");\n';
@@ -608,9 +672,53 @@ textSerializeFull += '\t\t\t\tstart = ++from;\n';
 textSerializeFull += '\t\t\t}\n\n';
 textSerializeFull += '\t\t\tint32 lev = level + types.size() - 1;\n';
 textSerializeFull += '\t\t\tswitch (type) {\n' + textSerialize + '\n';
+
+# manual types added here
+textSerializeFull += '\t\t\tcase mtpc_rpc_result:\n';
+textSerializeFull += '\t\t\t\tif (stage) {\n';
+textSerializeFull += '\t\t\t\t\tto.add(",\\n").addSpaces(lev);\n';
+textSerializeFull += '\t\t\t\t} else {\n';
+textSerializeFull += '\t\t\t\t\tto.add("{ rpc_result");\n';
+textSerializeFull += '\t\t\t\t\tto.add("\\n").addSpaces(lev);\n';
+textSerializeFull += '\t\t\t\t}\n';
+textSerializeFull += '\t\t\t\tswitch (stage) {\n';
+textSerializeFull += '\t\t\t\tcase 0: to.add("  req_msg_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeFull += '\t\t\t\tcase 1: to.add("  result: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeFull += '\t\t\t\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
+textSerializeFull += '\t\t\t\t}\n';
+textSerializeFull += '\t\t\tbreak;\n\n';
+textSerializeFull += '\t\t\tcase mtpc_msg_container:\n';
+textSerializeFull += '\t\t\t\tif (stage) {\n';
+textSerializeFull += '\t\t\t\t\tto.add(",\\n").addSpaces(lev);\n';
+textSerializeFull += '\t\t\t\t} else {\n';
+textSerializeFull += '\t\t\t\t\tto.add("{ msg_container");\n';
+textSerializeFull += '\t\t\t\t\tto.add("\\n").addSpaces(lev);\n';
+textSerializeFull += '\t\t\t\t}\n';
+textSerializeFull += '\t\t\t\tswitch (stage) {\n';
+textSerializeFull += '\t\t\t\tcase 0: to.add("  messages: "); ++stages.back(); types.push_back(mtpc_vector); vtypes.push_back(mtpc_core_message); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeFull += '\t\t\t\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
+textSerializeFull += '\t\t\t\t}\n';
+textSerializeFull += '\t\t\tbreak;\n\n';
+
+textSerializeFull += '\t\t\tcase mtpc_core_message: {\n';
+textSerializeFull += '\t\t\t\tif (stage) {\n';
+textSerializeFull += '\t\t\t\t\tto.add(",\\n").addSpaces(lev);\n';
+textSerializeFull += '\t\t\t\t} else {\n';
+textSerializeFull += '\t\t\t\t\tto.add("{ core_message");\n';
+textSerializeFull += '\t\t\t\t\tto.add("\\n").addSpaces(lev);\n';
+textSerializeFull += '\t\t\t\t}\n';
+textSerializeFull += '\t\t\t\tswitch (stage) {\n';
+textSerializeFull += '\t\t\t\tcase 0: to.add("  msg_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeFull += '\t\t\t\tcase 1: to.add("  seq_no: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeFull += '\t\t\t\tcase 2: to.add("  bytes: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeFull += '\t\t\t\tcase 3: to.add("  body: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
+textSerializeFull += '\t\t\t\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
+textSerializeFull += '\t\t\t\t}\n';
+textSerializeFull += '\t\t\t\t} break;\n\n';
+
 textSerializeFull += '\t\t\tdefault:\n';
 textSerializeFull += '\t\t\t\tmtpTextSerializeCore(to, from, end, type, lev, vtype);\n';
-textSerializeFull += '\t\t\t\ttypes.pop_back(); vtypes.pop_back(); stages.pop_back();\n';
+textSerializeFull += '\t\t\t\ttypes.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();\n';
 textSerializeFull += '\t\t\tbreak;\n';
 textSerializeFull += '\t\t\t}\n';
 textSerializeFull += '\t\t}\n';

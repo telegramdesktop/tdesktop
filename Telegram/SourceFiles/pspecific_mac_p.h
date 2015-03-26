@@ -29,7 +29,7 @@ public:
 
 	void updateDelegate();
     
-    void showNotify(uint64 peer, const QPixmap &pix, const QString &title, const QString &subtitle, const QString &msg, bool withReply);
+    void showNotify(uint64 peer, int32 msgId, const QPixmap &pix, const QString &title, const QString &subtitle, const QString &msg, bool withReply);
     void clearNotifies(uint64 peer = 0);
     
     void enableShadow(WId winId);
@@ -38,9 +38,9 @@ public:
     }
 	virtual void darkModeChanged() {
 	}
-    virtual void notifyClicked(unsigned long long peer) {
+    virtual void notifyClicked(unsigned long long peer, int msgid) {
     }
-    virtual void notifyReplied(unsigned long long peer, const char *str) {
+    virtual void notifyReplied(unsigned long long peer, int msgid, const char *str) {
     }
     
 	~PsMacWindowPrivate();

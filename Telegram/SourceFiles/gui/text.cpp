@@ -132,11 +132,12 @@ namespace {
 		return false;
 	}
 
-	const QRegularExpression reDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=])(?:([a-zA-Z]+)://)?((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){1,5}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"));
-	const QRegularExpression reExplicitDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=])(?:([a-zA-Z]+)://)((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){0,5}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"));
-	const QRegularExpression reMailName(qsl("[a-zA-Z\\-_\\.0-9]{1,256}$"));
-	const QRegularExpression reMailStart(qsl("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
-	const QRegularExpression reHashtag(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[A-Za-z_\\.0-9]{2,20}([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"));
+	const QRegularExpression _reDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=\\.])(?:([a-zA-Z]+)://)?((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){1,5}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"));
+	const QRegularExpression _reExplicitDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=\\.])(?:([a-zA-Z]+)://)((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){0,5}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"));
+	const QRegularExpression _reMailName(qsl("[a-zA-Z\\-_\\.0-9]{1,256}$"));
+	const QRegularExpression _reMailStart(qsl("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
+	const QRegularExpression _reHashtag(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[\\w]{2,64}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
+	const QRegularExpression _reMention(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])@[A-Za-z_0-9]{5,32}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
 	QSet<int32> validProtocols, validTopDomains;
 	void initLinkSets();
 
@@ -155,6 +156,10 @@ namespace {
 	inline QFixed _blockRBearing(const ITextBlock *b) {
 		return (b->type() == TextBlockText) ? static_cast<const TextBlock*>(b)->f_rbearing() : 0;
 	}
+}
+
+const QRegularExpression &reHashtag() {
+	return _reHashtag;
 }
 
 const style::textStyle *textstyleCurrent() {
@@ -418,10 +423,13 @@ public:
 	}
 
 	void getLinkData(const QString &original, QString &result, int32 &fullDisplayed) {
-		if (!original.isEmpty() && original.at(0) == '#') {
+		if (!original.isEmpty() && original.at(0) == '@') {
+			result = original;
+			fullDisplayed = -3; // mention
+		} else if (!original.isEmpty() && original.at(0) == '#') {
 			result = original;
 			fullDisplayed = -2; // hashtag
-		} else if (reMailStart.match(original).hasMatch()) {
+		} else if (_reMailStart.match(original).hasMatch()) {
 			result = original;
 			fullDisplayed = -1; // email
 		} else {
@@ -685,7 +693,9 @@ public:
 					_t->_links.resize(lnkIndex);
 					const TextLinkData &data(links[lnkIndex - maxLnkIndex - 1]);
 					TextLinkPtr lnk;
-					if (data.fullDisplayed < -1) { // hashtag
+					if (data.fullDisplayed < -2) { // mention
+						lnk = TextLinkPtr(new MentionLink(data.url));
+					} else if (data.fullDisplayed < -1) { // hashtag
 						lnk = TextLinkPtr(new HashtagLink(data.url));
 					} else if (data.fullDisplayed < 0) { // email
 						lnk = TextLinkPtr(new EmailLink(data.url));
@@ -716,7 +726,7 @@ private:
 		TextLinkData(const QString &url = QString(), int32 fullDisplayed = 1) : url(url), fullDisplayed(fullDisplayed) {
 		}
 		QString url;
-		int32 fullDisplayed; // -2 - hashtag, -1 - email
+		int32 fullDisplayed; // -3 - mention, -2 - hashtag, -1 - email
 	};
 	typedef QVector<TextLinkData> TextLinks;
 	TextLinks links;
@@ -846,6 +856,12 @@ void TextLink::onClick(Qt::MouseButton button) const {
 		} else {
 			QDesktopServices::openUrl(TextLink::encoded());
 		}
+	}
+}
+
+void MentionLink::onClick(Qt::MouseButton button) const {
+	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
+		App::openUserByName(_tag.mid(1), true);
 	}
 }
 
@@ -4134,10 +4150,11 @@ LinkRanges textParseLinks(const QString &text, bool rich) {
 				}
 			}
 		}
-		QRegularExpressionMatch mDomain = reDomain.match(text, matchOffset);
-		QRegularExpressionMatch mExplicitDomain = reExplicitDomain.match(text, matchOffset);
-		QRegularExpressionMatch mHashtag = reHashtag.match(text, matchOffset);
-		if (!mDomain.hasMatch() && !mExplicitDomain.hasMatch() && !mHashtag.hasMatch()) break;
+		QRegularExpressionMatch mDomain = _reDomain.match(text, matchOffset);
+		QRegularExpressionMatch mExplicitDomain = _reExplicitDomain.match(text, matchOffset);
+		QRegularExpressionMatch mHashtag = _reHashtag.match(text, matchOffset);
+		QRegularExpressionMatch mMention = _reMention.match(text, matchOffset);
+		if (!mDomain.hasMatch() && !mExplicitDomain.hasMatch() && !mHashtag.hasMatch() && !mMention.hasMatch()) break;
 
 		LinkRange link;
 		int32 domainOffset = mDomain.hasMatch() ? mDomain.capturedStart() : INT_MAX,
@@ -4145,7 +4162,9 @@ LinkRanges textParseLinks(const QString &text, bool rich) {
 			explicitDomainOffset = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedStart() : INT_MAX,
 			explicitDomainEnd = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedEnd() : INT_MAX,
 			hashtagOffset = mHashtag.hasMatch() ? mHashtag.capturedStart() : INT_MAX,
-			hashtagEnd = mHashtag.hasMatch() ? mHashtag.capturedEnd() : INT_MAX;
+			hashtagEnd = mHashtag.hasMatch() ? mHashtag.capturedEnd() : INT_MAX,
+			mentionOffset = mMention.hasMatch() ? mMention.capturedStart() : INT_MAX,
+			mentionEnd = mMention.hasMatch() ? mMention.capturedEnd() : INT_MAX;
 		if (mHashtag.hasMatch()) {
 			if (!mHashtag.capturedRef(1).isEmpty()) {
 				++hashtagOffset;
@@ -4154,12 +4173,35 @@ LinkRanges textParseLinks(const QString &text, bool rich) {
 				--hashtagEnd;
 			}
 		}
+		if (mMention.hasMatch()) {
+			if (!mMention.capturedRef(1).isEmpty()) {
+				++mentionOffset;
+			}
+			if (!mMention.capturedRef(2).isEmpty()) {
+				--mentionEnd;
+			}
+			if (!(start + mentionOffset + 1)->isLetter() || !(start + mentionEnd - 1)->isLetterOrNumber()) {
+				mentionOffset = mentionEnd = INT_MAX;
+				if (!mDomain.hasMatch() && !mExplicitDomain.hasMatch() && !mHashtag.hasMatch()) break;
+			}
+		}
 		if (explicitDomainOffset < domainOffset) {
 			domainOffset = explicitDomainOffset;
 			domainEnd = explicitDomainEnd;
 			mDomain = mExplicitDomain;
 		}
-		if (hashtagOffset < domainOffset) {
+		if (mentionOffset < hashtagOffset && mentionOffset < domainOffset) {
+			if (mentionOffset > nextCmd) {
+				const QChar *after = textSkipCommand(start + nextCmd, start + len);
+				if (after > start + nextCmd && mentionOffset < (after - start)) {
+					nextCmd = offset = matchOffset = after - start;
+					continue;
+				}
+			}
+
+			link.from = start + mentionOffset;
+			link.len = start + mentionEnd - link.from;
+		} else if (hashtagOffset < domainOffset) {
 			if (hashtagOffset > nextCmd) {
 				const QChar *after = textSkipCommand(start + nextCmd, start + len);
 				if (after > start + nextCmd && hashtagOffset < (after - start)) {
@@ -4187,7 +4229,7 @@ LinkRanges textParseLinks(const QString &text, bool rich) {
 
 			if (protocol.isEmpty() && domainOffset > offset + 1 && *(start + domainOffset - 1) == QChar('@')) {
 				QString forMailName = text.mid(offset, domainOffset - offset - 1);
-				QRegularExpressionMatch mMailName = reMailName.match(forMailName);
+				QRegularExpressionMatch mMailName = _reMailName.match(forMailName);
 				if (mMailName.hasMatch()) {
 					int32 mailOffset = offset + mMailName.capturedStart();
 					if (mailOffset < offset) {

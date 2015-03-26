@@ -203,7 +203,7 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
-	void offerPeer(PeerId peer);
+	bool offerPeer(PeerId peer);
 	QString offeredText() const;
 
 	bool wasOffered() const;
@@ -252,6 +252,8 @@ public:
 
 	HistoryWidget(QWidget *parent);
 
+	void start();
+
 	void messagesReceived(const MTPmessages_Messages &messages, mtpRequestId requestId);
 
 	void windowShown();
@@ -269,6 +271,7 @@ public:
 	void contextMenuEvent(QContextMenuEvent *e);
 
 	void updateTopBarSelection();
+	void checkMentionDropdown();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
 	void topBarShadowParams(int32 &x, float64 &o);
@@ -281,7 +284,7 @@ public:
 	void peerMessagesUpdated();
 
 	void msgUpdated(PeerId peer, const HistoryItem *msg);
-	void newUnreadMsg(History *history, MsgId msgId);
+	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyToDown(History *history);
 	void historyWasRead(bool force = true);
 
@@ -295,11 +298,11 @@ public:
 	void destroyData();
 	void uploadImage(const QImage &img, bool withText = false);
 	void uploadFile(const QString &file, bool withText = false); // with confirmation
-	void shareContactConfirmation(const QString &phone, const QString &fname, const QString &lname, bool withText = false);
-	void uploadConfirmImageUncompressed(bool ctrlShiftEnter);
+	void shareContactConfirmation(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool withText = false);
+	void uploadConfirmImageUncompressed(bool ctrlShiftEnter, MsgId replyTo);
 	void uploadMedias(const QStringList &files, ToPrepareMediaType type);
 	void uploadMedia(const QByteArray &fileContent, ToPrepareMediaType type, PeerId peer = 0);
-	void confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname);
+	void confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo);
 	void confirmSendImage(const ReadyLocalMedia &img);
 	void cancelSendImage();
 
@@ -308,11 +311,11 @@ public:
 	void updateOnlineDisplay(int32 x, int32 w);
 	void updateOnlineDisplayTimer();
 
-	mtpRequestId onForward(const PeerId &peer, SelectedItemSet toForward);
+//	mtpRequestId onForward(const PeerId &peer, SelectedItemSet toForward);
 	void onShareContact(const PeerId &peer, UserData *contact);
 	void onSendPaths(const PeerId &peer);
 
-	void shareContact(const PeerId &peer, const QString &phone, const QString &fname, const QString &lname, int32 userId = 0);
+	void shareContact(const PeerId &peer, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, int32 userId = 0);
 
 	PeerData *peer() const;
 	PeerData *activePeer() const;
@@ -343,6 +346,18 @@ public:
 
 	void updateScrollColors();
 
+	MsgId replyToId() const;
+	void updateReplyTo(bool force = false);
+	void cancelReply();
+	void updateForwarding(bool force = false);
+	void cancelForwarding(); // called by MainWidget
+
+	void clearReplyReturns();
+	void pushReplyReturn(HistoryItem *item);
+	QList<MsgId> replyReturns();
+	void setReplyReturns(PeerId peer, const QList<MsgId> &replyReturns);
+	void calcNextReplyReturn();
+
 	~HistoryWidget();
 
 signals:
@@ -353,8 +368,11 @@ signals:
 public slots:
 
 	void onCancel();
+	void onReplyToMessage();
+	void onReplyForwardCancel();
 
 	void peerUpdated(PeerData *data);
+	void onPeerLoaded(PeerData *data);
 
 	void cancelTyping();
 
@@ -368,7 +386,7 @@ public slots:
 
 	void onListScroll();
 	void onHistoryToEnd();
-	void onSend(bool ctrlShiftEnter = false);
+	void onSend(bool ctrlShiftEnter = false, MsgId replyTo = -1);
 
 	void onPhotoSelect();
 	void onDocumentSelect();
@@ -392,6 +410,7 @@ public slots:
 
 	void onFieldFocused();
 	void onFieldResize();
+	void onFieldCursorChanged();
 	void onScrollTimer();
 
 	void onForwardSelected();
@@ -409,11 +428,21 @@ public slots:
 
 private:
 
+	MsgId _replyToId;
+	HistoryItem *_replyTo;
+	Text _replyToName, _replyToText;
+	int32 _replyToNameVersion;
+	IconedButton _replyForwardCancel;
+	void updateReplyToName();
+	void drawFieldBackground(QPainter &p);
+
+	HistoryItem *_replyReturn;
+	QList<MsgId> _replyReturns;
+
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
 	void updateListSize(int32 addToY = 0, bool initial = false, bool loadedDown = false, HistoryItem *resizedItem = 0);
 	void addMessagesToFront(const QVector<MTPMessage> &messages);
 	void addMessagesToBack(const QVector<MTPMessage> &messages);
-	void chatLoaded(const MTPmessages_ChatFull &res);
 
 	void stickersGot(const MTPmessages_AllStickers &stickers);
 	bool stickersFailed(const RPCError &error);
@@ -421,7 +450,7 @@ private:
 	uint64 _lastStickersUpdate;
 	mtpRequestId _stickersUpdateRequest;
 
-	void writeDraft(const QString *text = 0, const MessageCursor *cursor = 0);
+	void writeDraft(MsgId *replyTo = 0, const QString *text = 0, const MessageCursor *cursor = 0);
 	void setFieldText(const QString &text);
 
 	QStringList getMediasFromMime(const QMimeData *d);
@@ -429,6 +458,7 @@ private:
 
 	void updateDragAreas();
 
+	bool _loadingMessages;
 	int32 histRequestsCount;
 	PeerData *histPeer;
 	History *_activeHist;
@@ -446,6 +476,8 @@ private:
 
 	IconedButton _toHistoryEnd;
 
+	MentionsDropdown _attachMention;
+
 	FlatButton _send;
 	IconedButton _attachDocument, _attachPhoto, _attachEmoji;
 	MessageField _field;
@@ -460,9 +492,6 @@ private:
 
 	LocalImageLoader imageLoader;
 	bool _synthedTextUpdate;
-
-	PeerId loadingChatId;
-	mtpRequestId loadingRequestId;
 
 	int64 serviceImageCacheSize;
 	QImage confirmImage;

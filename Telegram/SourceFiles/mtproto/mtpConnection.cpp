@@ -1426,11 +1426,11 @@ void MTProtoConnectionPrivate::tryToSend() {
 	mtpRequest pingRequest;
 	if (dc < _mtp_internal::dcShift) { // main session
 		if (!prependOnly && !_pingIdToSend && !_pingId && _pingSent + (MTPPingSendAfterAuto * 1000ULL) <= getms(true)) {
-			//_pingIdToSend = MTP::nonce<mtpPingId>(); // temp disable ping_delay_disconnect, needed only for main dc session
+			_pingIdToSend = MTP::nonce<mtpPingId>();
 		}
 	}
 	if (_pingIdToSend) {
-		if (prependOnly || true) {
+		if (prependOnly || dc >= _mtp_internal::dcShift) {
 			MTPPing ping(MTPping(MTP_long(_pingIdToSend)));
 			uint32 pingSize = ping.innerLength() >> 2; // copy from MTProtoSession::send
 			pingRequest = mtpRequestData::prepare(pingSize);
@@ -1448,7 +1448,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 		pingRequest->requestId = 0; // dont add to haveSent / wereAcked maps
 
 		if (dc < _mtp_internal::dcShift && !prependOnly) { // main session
-//			_pingSender.start(MTPPingSendAfter * 1000);
+			_pingSender.start(MTPPingSendAfter * 1000);
 		}
 
 		_pingId = _pingIdToSend;

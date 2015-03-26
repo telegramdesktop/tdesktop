@@ -91,6 +91,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_server_error" = "Interner Serverfehler.";
 "lng_flood_error" = "Zu viele Versuche, bitte später erneut probieren.";
 "lng_deleted" = "Gelöschter Kontakt";
+"lng_deleted_message" = "Gelöschte Nachricht";
 
 "lng_intro" = "Willkommen beim [a href=\"https://telegram.org/\"]offiziellen Desktop Messenger[/a].\n[b]Schnell[/b] und [b]sicher[/b] chatten leicht gemacht.";
 "lng_start_msgs" = "JETZT STARTEN";
@@ -312,6 +313,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "Weiter";
 "lng_create_group_title" = "Neue Gruppe erstellen";
 
+"lng_failed_add_participant" = "Kann Teilnehmer nicht hinzufügen. Später erneut versuchen.";
+
 "lng_sure_delete_contact" = "Bist du sicher, dass du {contact} von deinen Kontakten löschen willst?";
 "lng_sure_delete_history" = "Sicher, dass du den kompletten Verlauf mit {contact} löschen willst?\n\nDas kann man nicht rückgängig machen.";
 
@@ -332,6 +335,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_created_chat" = "{from} hat die Gruppe «{title}» erstellt";
 
 "lng_forwarded_from" = "Weitergeleitet von";
+"lng_in_reply_to" = "Antwort auf";
 
 "lng_attach_failed" = "Uploadfehler";
 "lng_attach_file" = "Datei";
@@ -385,6 +389,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_copy_email" = "E-Mail-Adresse kopieren";
 "lng_context_open_hashtag" = "Nach Hashtag suchen";
 "lng_context_copy_hashtag" = "Hashtag kopieren";
+"lng_context_open_mention" = "Profil öffnen";
+"lng_context_copy_mention" = "Benutzername kopieren";
 "lng_context_open_image" = "Bild öffnen";
 "lng_context_save_image" = "Bild speichern unter";
 "lng_context_forward_image" = "Bild weiterleiten";
@@ -403,8 +409,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_forward_file" = "Datei weiterleiten";
 "lng_context_delete_file" = "Datei löschen";
 "lng_context_close_file" = "Datei schließen";
-"lng_context_copy_text" = "Nachricht kopieren";
+"lng_context_copy_text" = "Text kopieren";
 "lng_context_to_msg" = "Zur Nachricht";
+"lng_context_reply_msg" = "Antworten";
 "lng_context_forward_msg" = "Nachricht weiterleiten";
 "lng_context_delete_msg" = "Nachricht löschen";
 "lng_context_select_msg" = "Nachricht auswählen";
@@ -425,6 +432,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_forward_send_files_confirm" = "Ausgewählte Dateien an {recipient} senden?";
 "lng_forward" = "Weiterleiten";
 "lng_forward_send" = "Senden";
+"lng_forward_messages" = "{count:_not_used_|Nachrichtenanhang|# Nachrichtenanhänge}";
+"lng_forwarding_from" = "{user} und {count:_not_used_|# anderer|# andere}";
+"lng_forwarding_from_two" = "{user} und {second_user}";
 
 "lng_contact_phone" = "Telefonnummer";
 "lng_enter_contact_data" = "Neuer Kontakt";
@@ -481,8 +491,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version7020" = "— Sperre deine App mit einem Pincode";
-"lng_new_version7020_appstore" = "— Sperre deine App mit einem Pincode\n— Ändere das Chat-Hintergrundbild\n— Neues <<öffnen mit>> Menü für Dateien\n— Koreanische Sprache hinzugefügt";
+"lng_new_version7026" = "— Kommentar vor weitergeleiteten Nachrichten hinzufügen\n— Hashtags Vorschläge in neuen Nachrichten und Suchfeldern (vorherige Suche wird berücksichtigt)\n— Knopf hinzugefügt, um schnell zurück zur Antwort zu gelangen, nachdem man die Originalnachricht angeklickt hat\n— Gruppenteilnehmer über Benutzernamen hinzufügen";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

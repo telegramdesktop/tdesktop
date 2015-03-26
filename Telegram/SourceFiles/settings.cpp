@@ -92,6 +92,8 @@ EmojiStickersMap gEmojiStickers;
 
 RecentStickerPack gRecentStickers;
 
+RecentHashtagPack gRecentWriteHashtags, gRecentSearchHashtags;
+
 int32 gLang = -2; // auto
 QString gLangFile;
 

@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 7020;
-static const wchar_t *AppVersionStr = L"0.7.20";
+static const int32 AppVersion = 8000;
+static const wchar_t *AppVersionStr = L"0.8";
 static const bool DevChannel = false;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
@@ -277,7 +277,7 @@ enum {
 	MaxPhotosInMemory = 50, // try to clear some memory after 50 photos are created
 	NoUpdatesTimeout = 180 * 1000, // if nothing is received in 3 min we getDifference
 	NoUpdatesAfterSleepTimeout = 60 * 1000, // if nothing is received in 1 min when was a sleepmode we getDifference
-	WaitForSeqTimeout = 1000, // 1s wait for skipped seq in updates
+	WaitForSkippedTimeout = 1000, // 1s wait for skipped seq or pts in updates
 
 	MemoryForImageCache = 64 * 1024 * 1024, // after 64mb of unpacked images we try to clear some memory
 	NotifyWindowsCount = 3, // 3 desktop notifies at the same time

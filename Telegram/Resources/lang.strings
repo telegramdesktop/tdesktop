@@ -91,6 +91,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_server_error" = "Internal server error.";
 "lng_flood_error" = "Too much tries. Please try again later.";
 "lng_deleted" = "Unknown";
+"lng_deleted_message" = "Deleted message";
 
 "lng_intro" = "Welcome to the official [a href=\"https://telegram.org/\"]Telegram[/a] desktop app.\nIt's [b]fast[/b] and [b]secure[/b].";
 "lng_start_msgs" = "START MESSAGING";
@@ -312,6 +313,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "Next";
 "lng_create_group_title" = "New Group";
 
+"lng_failed_add_participant" = "Could not add user. Try again later.";
+
 "lng_sure_delete_contact" = "Are you sure, you want to delete {contact} from your contact list?";
 "lng_sure_delete_history" = "Are you sure, you want to delete all message history with {contact}?\n\nThis action cannot be undone.";
 
@@ -332,6 +335,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_created_chat" = "{from} created group «{title}»";
 
 "lng_forwarded_from" = "Forwarded from";
+"lng_in_reply_to" = "In reply to";
 
 "lng_attach_failed" = "Failed";
 "lng_attach_file" = "File";
@@ -385,6 +389,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_copy_email" = "Copy email address";
 "lng_context_open_hashtag" = "Search by hashtag";
 "lng_context_copy_hashtag" = "Copy hashtag";
+"lng_context_open_mention" = "Open profile";
+"lng_context_copy_mention" = "Copy username";
 "lng_context_open_image" = "Open Image";
 "lng_context_save_image" = "Save Image As..";
 "lng_context_forward_image" = "Forward Image";
@@ -403,8 +409,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_forward_file" = "Forward File";
 "lng_context_delete_file" = "Delete File";
 "lng_context_close_file" = "Close File";
-"lng_context_copy_text" = "Copy Message Text";
+"lng_context_copy_text" = "Copy Text";
 "lng_context_to_msg" = "Go To Message";
+"lng_context_reply_msg" = "Reply";
 "lng_context_forward_msg" = "Forward Message";
 "lng_context_delete_msg" = "Delete Message";
 "lng_context_select_msg" = "Select Message";
@@ -425,6 +432,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_forward_send_files_confirm" = "Send selected files to {recipient}?";
 "lng_forward" = "Forward";
 "lng_forward_send" = "Send";
+"lng_forward_messages" = "{count:_not_used_|Forwarded message|# forwarded messages}";
+"lng_forwarding_from" = "{user} and {count:_not_used_|# other|# others}";
+"lng_forwarding_from_two" = "{user} and {second_user}";
 
 "lng_contact_phone" = "Phone number";
 "lng_enter_contact_data" = "New Contact";
@@ -481,8 +491,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version7020" = "— Lock your app with a passcode";
-"lng_new_version7020_appstore" = "— Lock your app with a passcode\n— Change the chat background\n— New «open with» menu for files\n— Added Korean language";
+"lng_new_version7026" = "— Add a comment before forwarded messages\n— Hashtags suggestions in new message and search fields (based on recent searches)\n— Button to jump back to a reply after viewing the original message\n— Add people to groups by username";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

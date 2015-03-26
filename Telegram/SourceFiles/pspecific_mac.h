@@ -34,8 +34,8 @@ public:
     
     void activeSpaceChanged();
 	void darkModeChanged();
-    void notifyClicked(unsigned long long peer);
-    void notifyReplied(unsigned long long peer, const char *str);
+    void notifyClicked(unsigned long long peer, int msgid);
+    void notifyReplied(unsigned long long peer, int msgid, const char *str);
     
 };
 

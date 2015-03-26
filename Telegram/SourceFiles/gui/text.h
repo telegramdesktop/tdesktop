@@ -301,6 +301,32 @@ private:
 
 };
 
+class MentionLink : public ITextLink {
+public:
+
+	MentionLink(const QString &tag) : _tag(tag) {
+	}
+
+	const QString &text() const {
+		return _tag;
+	}
+
+	void onClick(Qt::MouseButton button) const;
+
+	const QString &readable() const {
+		return _tag;
+	}
+
+	QString encoded() const {
+		return _tag;
+	}
+
+private:
+
+	QString _tag;
+
+};
+
 class HashtagLink : public ITextLink {
 public:
 
@@ -444,6 +470,8 @@ private:
 	friend class TextPainter;
 
 };
+
+const QRegularExpression &reHashtag();
 
 // text style
 const style::textStyle *textstyleCurrent();

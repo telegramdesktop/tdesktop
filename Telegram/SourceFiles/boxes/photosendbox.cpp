@@ -29,6 +29,7 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(new ReadyLocalMedi
 	_compressed(this, lang(lng_send_image_compressed), cCompressPastedImage()),
 	_sendButton(this, lang(lng_send_button), st::btnSelectDone),
 	_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
+	_replyTo(img.replyTo),
 	a_opacity(0, 1) {
 	connect(&_sendButton, SIGNAL(clicked()), this, SLOT(onSend()));
 	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onCancel()));
@@ -95,12 +96,12 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(new ReadyLocalMedi
 	resize(_width, _height);
 }
 
-PhotoSendBox::PhotoSendBox(const QString &phone, const QString &fname, const QString &lname) : _img(0),
+PhotoSendBox::PhotoSendBox(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo) : _img(0),
 _thumbx(0), _thumby(0), _thumbw(0), _thumbh(0), _namew(0), _textw(0),
 _compressed(this, lang(lng_send_image_compressed), true),
 _sendButton(this, lang(lng_send_button), st::btnSelectDone),
 _cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
-_phone(phone), _fname(fname), _lname(lname),
+_phone(phone), _fname(fname), _lname(lname), _replyTo(replyTo),
 a_opacity(0, 1) {
 	connect(&_sendButton, SIGNAL(clicked()), this, SLOT(onSend()));
 	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onCancel()));
@@ -203,7 +204,7 @@ void PhotoSendBox::animStep(float64 ms) {
 
 void PhotoSendBox::onSend(bool ctrlShiftEnter) {
 	if (!_img) {
-		if (App::main()) App::main()->confirmShareContact(ctrlShiftEnter, _phone, _fname, _lname);
+		if (App::main()) App::main()->confirmShareContact(ctrlShiftEnter, _phone, _fname, _lname, _replyTo);
 	} else {
 		if (!_compressed.isHidden()) {
 			if (_compressed.checked() != cCompressPastedImage()) {
@@ -215,7 +216,7 @@ void PhotoSendBox::onSend(bool ctrlShiftEnter) {
 			_img->ctrlShiftEnter = ctrlShiftEnter;
 			if (App::main()) App::main()->confirmSendImage(*_img);
 		} else {
-			if (App::main()) App::main()->confirmSendImageUncompressed(ctrlShiftEnter);
+			if (App::main()) App::main()->confirmSendImageUncompressed(ctrlShiftEnter, _replyTo);
 		}
 	}
 	emit closed();
