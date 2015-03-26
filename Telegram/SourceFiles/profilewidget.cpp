@@ -600,16 +600,18 @@ void ProfileInner::updateSelected() {
 void ProfileInner::mousePressEvent(QMouseEvent *e) {
 	_lastPos = e->globalPos();
 	updateSelected();
-	if (_kickOver) {
-		_kickDown = _kickOver;
-		update();
-	} else if (_selectedRow >= 0 && _selectedRow < _participants.size()) {
-		App::main()->showPeerProfile(_participants[_selectedRow]);
-	} else if (QRect(_left, st::profilePadding.top(), st::setPhotoSize, st::setPhotoSize).contains(e->pos())) {
-		if (_photoLink) {
-			_photoLink->onClick(e->button());
-		} else if (_peerChat && !_peerChat->forbidden) {
-			onUpdatePhoto();
+	if (e->button() == Qt::LeftButton) {
+		if (_kickOver) {
+			_kickDown = _kickOver;
+			update();
+		} else if (_selectedRow >= 0 && _selectedRow < _participants.size()) {
+			App::main()->showPeerProfile(_participants[_selectedRow]);
+		} else if (QRect(_left, st::profilePadding.top(), st::setPhotoSize, st::setPhotoSize).contains(e->pos())) {
+			if (_photoLink) {
+				_photoLink->onClick(e->button());
+			} else if (_peerChat && !_peerChat->forbidden) {
+				onUpdatePhoto();
+			}
 		}
 	}
 }

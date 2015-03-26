@@ -392,7 +392,7 @@ void AddParticipantInner::peopleReceived(const QString &query, const QVector<MTP
 	for (QVector<MTPContactFound>::const_iterator i = people.cbegin(), e = people.cend(); i != e; ++i) {
 		int32 uid = i->c_contactFound().vuser_id.v, j = 0;
 		for (; j < already; ++j) {
-			if (_byUsernameFiltered[j]->id == uid) break;
+			if (_byUsernameFiltered[j]->id == App::peerFromUser(uid)) break;
 		}
 		if (j == already) {
 			UserData *u = App::user(uid);
