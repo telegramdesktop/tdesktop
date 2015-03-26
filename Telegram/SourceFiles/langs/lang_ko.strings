@@ -313,6 +313,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "다음";
 "lng_create_group_title" = "새로운 그룹";
 
+"lng_failed_add_participant" = "사용자를 초대할 수 없습니다. 나중에 다시 시도해주세요.";
+
 "lng_sure_delete_contact" = "{contact} 님을 주소록에서 \n삭제하시겠습니까?";
 "lng_sure_delete_history" = "{contact} 님과 관련된 모든 메시지를 \n삭제하시겠습니까?\n\n삭제 하실 경우 취소가 불가능합니다.";
 
@@ -431,6 +433,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_forward" = "전달";
 "lng_forward_send" = "보낵";
 "lng_forward_messages" = "{count:_not_used_|전달받은 메시지|# 개의 전달받은 메시지}";
+"lng_forwarding_from" = "{user} 님과 {count:_not_used_|# 명|# 명}";
+"lng_forwarding_from_two" = "{user} 님과 {second_user}";
 
 "lng_contact_phone" = "전화번호";
 "lng_enter_contact_data" = "새로운 연락처";
@@ -487,8 +491,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version7022" = "— 그룹내 특정 메시지에 답글기능\n— 그룹내 @usernames 를 멘션하여 여러유저 알림기능";
-"lng_new_version7022_appstore" = "— 그룹내 특정 메시지에 답글기능\n— 그룹내 @usernames 를 멘션하여 여러유저 알림기능";
+"lng_new_version7026" = "— 메시지 전달시 코멘트 추가 기능\n— 신규 메시지 및 검색시 기존 사용한 해시태그 제안 기능\n— 원본 메시지 확인 후 기존 답글로 돌아오기 기능\n— 아이디로 그룹 초대 기능";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

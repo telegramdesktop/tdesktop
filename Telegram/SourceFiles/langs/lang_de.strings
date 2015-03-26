@@ -313,6 +313,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "Weiter";
 "lng_create_group_title" = "Neue Gruppe erstellen";
 
+"lng_failed_add_participant" = "Kann Teilnehmer nicht hinzufügen. Später erneut versuchen.";
+
 "lng_sure_delete_contact" = "Bist du sicher, dass du {contact} von deinen Kontakten löschen willst?";
 "lng_sure_delete_history" = "Sicher, dass du den kompletten Verlauf mit {contact} löschen willst?\n\nDas kann man nicht rückgängig machen.";
 
@@ -431,6 +433,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_forward" = "Weiterleiten";
 "lng_forward_send" = "Senden";
 "lng_forward_messages" = "{count:_not_used_|Nachrichtenanhang|# Nachrichtenanhänge}";
+"lng_forwarding_from" = "{user} und {count:_not_used_|# anderer|# andere}";
+"lng_forwarding_from_two" = "{user} und {second_user}";
 
 "lng_contact_phone" = "Telefonnummer";
 "lng_enter_contact_data" = "Neuer Kontakt";
@@ -487,8 +491,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version7022" = "— Beantworte bestimmte Gruppennachrichten\n— Erwähne @benutzernamen in Gruppen um Nutzer zu benachrichtigen";
-"lng_new_version7022_appstore" = "— Beantworte bestimmte Gruppennachrichten\n— Erwähne @benutzernamen in Gruppen um Nutzer zu benachrichtigen";
+"lng_new_version7026" = "— Kommentar vor weitergeleiteten Nachrichten hinzufügen\n— Hashtags Vorschläge in neuen Nachrichten und Suchfeldern (vorherige Suche wird berücksichtigt)\n— Knopf hinzugefügt, um schnell zurück zur Antwort zu gelangen, nachdem man die Originalnachricht angeklickt hat\n— Gruppenteilnehmer über Benutzernamen hinzufügen";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 
