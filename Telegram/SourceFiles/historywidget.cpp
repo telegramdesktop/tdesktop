@@ -3424,6 +3424,7 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 		if (toY < _scroll.scrollTopMax() + st::unreadBarHeight) {
 			hist->addUnreadBar();
 			if (hist->unreadBar) {
+				hist->activeMsgId = 0;
 				return updateListSize(0, true);
 			}
 		}
