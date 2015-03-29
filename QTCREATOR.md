@@ -87,8 +87,8 @@ Extract to **/home/user/TBuild/Libraries**, rename **qt-everywhere-opensource-sr
 
 Apply patch:
 
-* OR copy (with overwrite!) everything from **/home/user/TBuild/tdesktop/\_qt\_5\_4\_0\_patch/** to **/home/user/TBuild/Libraries/QtStatic/**
-* OR copy **/home/user/TBuild/tdesktop/\_qt\_5\_4\_0\_patch.diff** to **/home/user/TBuild/Libraries/QtStatic/**, go there in Terminal and run
+* OR copy (with overwrite!) everything from **/home/user/TBuild/tdesktop/Telegram/\_qt\_5\_4\_0\_patch/** to **/home/user/TBuild/Libraries/QtStatic/**
+* OR copy **/home/user/TBuild/tdesktop/Telegram/\_qt\_5\_4\_0\_patch.diff** to **/home/user/TBuild/Libraries/QtStatic/**, go there in Terminal and run
 
     git apply _qt_5_4_0_patch.diff
 
