@@ -35,6 +35,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "boxes/autolockbox.h"
 #include "langloaderplain.h"
 #include "gui/filedialog.h"
+#include "settings.h"
+#include "audio.h"
 
 #include "localstorage.h"
 
@@ -120,12 +122,15 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_senderName(this, lang(lng_settings_show_name), cNotifyView() <= dbinvShowName),
 	_messagePreview(this, lang(lng_settings_show_preview), cNotifyView() <= dbinvShowPreview),
 	_soundNotify(this, lang(lng_settings_sound_notify), cSoundNotify()),
+    _changeNotificationSound(this, lang(lng_settings_sound_set_file)),
+    _resetNotificationSound(this, lang(lng_settings_sound_reset_tone)),
 
 	// general
 	_changeLanguage(this, lang(lng_settings_change_lang)),
 	_autoUpdate(this, lang(lng_settings_auto_update), cAutoUpdate()),
 	_checkNow(this, lang(lng_settings_check_now)),
 	_restartNow(this, lang(lng_settings_update_now)),
+
 
     _supportTray(cSupportTray()),
 	_workmodeTray(this, lang(lng_settings_workmode_tray), (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray)),
@@ -213,6 +218,8 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 
 	// general
 	connect(&_changeLanguage, SIGNAL(clicked()), this, SLOT(onChangeLanguage()));
+    connect(&_changeNotificationSound, SIGNAL(clicked()), this, SLOT(onChangeTone()));
+    connect(&_resetNotificationSound, SIGNAL(clicked()), this, SLOT(onResetTone()));
 	connect(&_autoUpdate, SIGNAL(changed()), this, SLOT(onAutoUpdate()));
 	connect(&_checkNow, SIGNAL(clicked()), this, SLOT(onCheckNow()));
 	connect(&_restartNow, SIGNAL(clicked()), this, SLOT(onRestartNow()));
@@ -629,7 +636,11 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		_desktopNotify.move(_left, top); top += _desktopNotify.height() + st::setLittleSkip;
 		_senderName.move(_left, top); top += _senderName.height() + st::setLittleSkip;
 		_messagePreview.move(_left, top); top += _messagePreview.height() + st::setSectionSkip;
-		_soundNotify.move(_left, top); top += _soundNotify.height();
+		_soundNotify.move(_left, top);
+        _changeNotificationSound.move(_left + st::setWidth - _changeNotificationSound.width(), top);
+        _resetNotificationSound.move(_left + st::setWidth - _changeNotificationSound.width() - _resetNotificationSound.width() - _resetNotificationSound.width(), top);
+        top += _soundNotify.height();
+        
 	}
 
 	// general
@@ -857,11 +868,15 @@ void SettingsInner::showAll() {
 		_senderName.show();
 		_messagePreview.show();
 		_soundNotify.show();
+        _changeNotificationSound.show();
+        _resetNotificationSound.show();
 	} else {
 		_desktopNotify.hide();
 		_senderName.hide();
 		_messagePreview.hide();
 		_soundNotify.hide();
+        _changeNotificationSound.hide();
+        _resetNotificationSound.hide();
 	}
 
 	// general
@@ -985,6 +1000,30 @@ void SettingsInner::onUpdatePhotoCancel() {
 	}
 	showAll();
 	update();
+}
+
+void SettingsInner::onChangeTone(){
+    saveError();
+    QStringList soundExtensions(cSoundExtensions());
+    QString filter(qsl("Sound files (*") + soundExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
+    QString file;
+    QByteArray remoteContent;
+    if (filedialogGetOpenFile(file, remoteContent, lang(lng_choose_tone), filter)) {
+        if (!file.isEmpty()) {
+            cSetNotificationTone(file);
+            Local::writeSettings();
+            audioInit();
+            }
+    } else {
+        return;
+    }
+}
+
+void SettingsInner::onResetTone()
+{
+    cSetNotificationTone(st::newMsgSound);
+    Local::writeSettings();
+    audioInit();
 }
 
 void SettingsInner::onUpdatePhoto() {

@@ -161,6 +161,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_show_name" = "Show sender's name";
 "lng_settings_show_preview" = "Show message preview";
 "lng_settings_sound_notify" = "Play sound";
+"lng_settings_sound_set_file"  = "Set tone";
+"lng_settings_sound_reset_tone" = "Reset tone";
 
 "lng_notification_preview" = "You have a new message";
 
@@ -382,6 +384,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_save_downloaded" = "{ready} / {total} {mb}";
 "lng_duration_and_size" = "{duration}, {size}";
 "lng_choose_images" = "Choose images";
+"lng_choose_tone" = "Choose tones";
 
 "lng_context_open_link" = "Open Link";
 "lng_context_copy_link" = "Copy Link";
