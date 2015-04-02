@@ -17,7 +17,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
+#include "abstractbox.h"
 
 class UsernameInput : public FlatInput {
 public:
@@ -30,31 +30,30 @@ protected:
 
 };
 
-class UsernameBox : public LayeredWidget, public RPCSender {
+class UsernameBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
 
 	UsernameBox();
-	void parentResized();
-	void animStep(float64 dt);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
-	void startHide();
-	~UsernameBox();
+	void resizeEvent(QResizeEvent *e);
 
 public slots:
 
 	void onSave();
-	void onCancel();
 	
 	void onCheck();
 	void onChanged();
 
-private:
+protected:
 
 	void hideAll();
 	void showAll();
+	void showDone();
+
+private:
 
 	void onUpdateDone(const MTPUser &result);
 	bool onUpdateFail(const RPCError &error);
@@ -65,18 +64,12 @@ private:
 	QString getName() const;
 	void initBox();
 
-	int32 _width, _height;
 	FlatButton _saveButton, _cancelButton;
 	UsernameInput _usernameInput;
-
-	QPixmap _cache;
 
 	mtpRequestId _saveRequest, _checkRequest;
 	QString _sentUsername, _checkUsername, _errorText, _goodText;
 
 	Text _about;
 	QTimer _checkTimer;
-
-	anim::fvalue a_opacity;
-	bool _hiding;
 };

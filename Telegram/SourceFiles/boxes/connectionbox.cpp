@@ -33,13 +33,10 @@ ConnectionBox::ConnectionBox() :
 	_passwordInput(this, st::inpConnectionPassword, lang(lng_connection_password_ph), cConnectionProxy().password),
 	_autoRadio(this, qsl("conn_type"), dbictAuto, lang(lng_connection_auto_rb), (cConnectionType() == dbictAuto)),
 	_httpProxyRadio(this, qsl("conn_type"), dbictHttpProxy, lang(lng_connection_http_proxy_rb), (cConnectionType() == dbictHttpProxy)),
-	_tcpProxyRadio(this, qsl("conn_type"), dbictTcpProxy, lang(lng_connection_tcp_proxy_rb), (cConnectionType() == dbictTcpProxy)),
-	a_opacity(0, 1), _hiding(false) {
-
-	_width = st::addContactWidth;
+	_tcpProxyRadio(this, qsl("conn_type"), dbictTcpProxy, lang(lng_connection_tcp_proxy_rb), (cConnectionType() == dbictTcpProxy)) {
 
 	connect(&_saveButton, SIGNAL(clicked()), this, SLOT(onSave()));
-	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onCancel()));
+	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	connect(&_autoRadio, SIGNAL(changed()), this, SLOT(onChange()));
 	connect(&_httpProxyRadio, SIGNAL(changed()), this, SLOT(onChange()));
@@ -47,9 +44,7 @@ ConnectionBox::ConnectionBox() :
 
 	_passwordInput.setEchoMode(QLineEdit::Password);
 
-	showAll();
-	_cache = myGrab(this, rect());
-	hideAll();
+	prepare();
 }
 
 void ConnectionBox::hideAll() {
@@ -71,7 +66,48 @@ void ConnectionBox::showAll() {
 	_httpProxyRadio.show();
 	_tcpProxyRadio.show();
 
-	_autoRadio.move(st::boxPadding.left(), st::addContactTitleHeight + st::connectionSkip);
+	int32 h = st::boxTitleHeight + st::connectionSkip + _autoRadio.height() + st::connectionSkip + _httpProxyRadio.height() + st::connectionSkip + _tcpProxyRadio.height() + st::connectionSkip;
+	if (_httpProxyRadio.checked() || _tcpProxyRadio.checked()) {
+		h += 2 * st::boxPadding.top() + 2 * _hostInput.height();
+		_hostInput.show();
+		_portInput.show();
+		_userInput.show();
+		_passwordInput.show();
+	} else {
+		_hostInput.hide();
+		_portInput.hide();
+		_userInput.hide();
+		_passwordInput.hide();
+	}
+
+	_saveButton.show();
+	_cancelButton.show();
+
+	setMaxHeight(h + _saveButton.height());
+	resizeEvent(0);
+}
+
+void ConnectionBox::showDone() {
+	if (!_hostInput.isHidden()) {
+		_hostInput.setFocus();
+	}
+}
+
+void ConnectionBox::paintEvent(QPaintEvent *e) {
+	QPainter p(this);
+	if (paint(p)) return;
+
+	paintTitle(p, lang(lng_connection_header), true);
+
+	// paint shadow
+	p.fillRect(0, height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
+
+	// paint button sep
+	p.fillRect(st::btnSelectCancel.width, height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
+}
+
+void ConnectionBox::resizeEvent(QResizeEvent *e) {
+	_autoRadio.move(st::boxPadding.left(), st::boxTitleHeight + st::connectionSkip);
 	_httpProxyRadio.move(st::boxPadding.left(), _autoRadio.y() + _autoRadio.height() + st::connectionSkip);
 
 	int32 inputy = 0;
@@ -86,85 +122,16 @@ void ConnectionBox::showAll() {
 	}
 
 	if (inputy) {
-		_hostInput.show();
-		_portInput.show();
-		_userInput.show();
-		_passwordInput.show();
 		_hostInput.move(st::boxPadding.left() + st::rbDefFlat.textLeft, inputy);
-		_portInput.move(_width - st::boxPadding.right() - _portInput.width(), inputy);
+		_portInput.move(width() - st::boxPadding.right() - _portInput.width(), inputy);
 		_userInput.move(st::boxPadding.left() + st::rbDefFlat.textLeft, _hostInput.y() + _hostInput.height() + st::boxPadding.top());
-		_passwordInput.move(_width - st::boxPadding.right() - _passwordInput.width(), _userInput.y());
-	} else {
-		_hostInput.hide();
-		_portInput.hide();
-		_userInput.hide();
-		_passwordInput.hide();
+		_passwordInput.move(width() - st::boxPadding.right() - _passwordInput.width(), _userInput.y());
 	}
-
-	_saveButton.show();
-	_cancelButton.show();
 
 	int32 buttony = (_tcpProxyRadio.checked() ? (_userInput.y() + _userInput.height()) : (_tcpProxyRadio.y() + _tcpProxyRadio.height())) + st::connectionSkip;
 
-	_saveButton.move(_width - _saveButton.width(), buttony);
+	_saveButton.move(width() - _saveButton.width(), buttony);
 	_cancelButton.move(0, buttony);
-
-	_height = _saveButton.y() + _saveButton.height();
-	resize(_width, _height);
-}
-
-void ConnectionBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-	} else if (e->key() == Qt::Key_Escape) {
-		onCancel();
-	}
-}
-
-void ConnectionBox::parentResized() {
-	QSize s = parentWidget()->size();
-	setGeometry((s.width() - _width) / 2, (s.height() - _height) / 2, _width, _height);
-	update();
-}
-
-void ConnectionBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
-	if (_cache.isNull()) {
-		if (!_hiding || a_opacity.current() > 0.01) {
-			// fill bg
-			p.fillRect(0, 0, _width, _height, st::boxBG->b);
-
-			// paint shadows
-			p.fillRect(0, st::addContactTitleHeight, _width, st::scrollDef.topsh, st::scrollDef.shColor->b);
-			p.fillRect(0, _height - st::btnSelectCancel.height - st::scrollDef.bottomsh, _width, st::scrollDef.bottomsh, st::scrollDef.shColor->b);
-
-			// paint button sep
-			p.fillRect(st::btnSelectCancel.width, _height - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
-
-			// draw box title / text
-			p.setFont(st::addContactTitleFont->f);
-			p.setPen(st::black->p);
-			p.drawText(st::addContactTitlePos.x(), st::addContactTitlePos.y() + st::addContactTitleFont->ascent, lang(lng_connection_header));
-		}
-	} else {
-		p.setOpacity(a_opacity.current());
-		p.drawPixmap(0, 0, _cache);
-	}
-}
-
-void ConnectionBox::animStep(float64 dt) {
-	if (dt >= 1) {
-		a_opacity.finish();
-		_cache = QPixmap();
-		if (!_hiding) {
-			showAll();
-			if (!_hostInput.isHidden()) {
-				_hostInput.setFocus();
-			}
-		}
-	} else {
-		a_opacity.update(dt, anim::linear);
-	}
-	update();
 }
 
 void ConnectionBox::onChange() {
@@ -209,20 +176,4 @@ void ConnectionBox::onSave() {
 	MTP::restart();
 	reinitImageLinkManager();
 	emit closed();
-}
-
-void ConnectionBox::onCancel() {
-	emit closed();
-}
-
-void ConnectionBox::startHide() {
-	_hiding = true;
-	if (_cache.isNull()) {
-		_cache = myGrab(this, rect());
-		hideAll();
-	}
-	a_opacity.start(0);
-}
-
-ConnectionBox::~ConnectionBox() {
 }

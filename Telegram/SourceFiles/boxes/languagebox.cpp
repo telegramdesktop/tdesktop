@@ -28,15 +28,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "langloaderplain.h"
 
 LanguageBox::LanguageBox() :
-_done(this, lang(lng_about_done), st::langsCloseButton),
-_hiding(false), a_opacity(0, 1) {
+_done(this, lang(lng_about_done), st::langsCloseButton) {
 
 	bool haveTestLang = (cLang() == languageTest);
 
-	_width = st::langsWidth;
-	_height = st::addContactTitleHeight + st::langsPadding.top() + st::langsPadding.bottom() + (languageCount + (haveTestLang ? 1 : 0)) * (st::langPadding.top() + st::rbDefFlat.height + st::langPadding.bottom()) + _done.height();
-
-	int32 y = st::addContactTitleHeight + st::langsPadding.top();
+	int32 y = st::boxTitleHeight + st::langsPadding.top();
 	_langs.reserve(languageCount + (haveTestLang ? 1 : 0));
 	if (haveTestLang) {
 		_langs.push_back(new FlatRadiobutton(this, qsl("lang"), languageTest, qsl("Custom Lang"), (cLang() == languageTest), st::langButton));
@@ -58,15 +54,11 @@ _hiding(false), a_opacity(0, 1) {
 		connect(_langs.back(), SIGNAL(changed()), this, SLOT(onChange()));
 	}
 
-	_done.move(0, _height - _done.height());
+	resizeMaxHeight(st::langsWidth, st::boxTitleHeight + st::langsPadding.top() + st::langsPadding.bottom() + (languageCount + (haveTestLang ? 1 : 0)) * (st::langPadding.top() + st::rbDefFlat.height + st::langPadding.bottom()) + _done.height());
 
 	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	resize(_width, _height);
-
-	showAll();
-	_cache = myGrab(this, rect());
-	hideAll();
+	prepare();
 }
 
 void LanguageBox::hideAll() {
@@ -80,12 +72,6 @@ void LanguageBox::showAll() {
 	_done.show();
 	for (int32 i = 0, l = _langs.size(); i < l; ++i) {
 		_langs[i]->show();
-	}
-}
-
-void LanguageBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Escape) {
-		onClose();
 	}
 }
 
@@ -107,45 +93,15 @@ void LanguageBox::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-void LanguageBox::parentResized() {
-	QSize s = parentWidget()->size();
-	setGeometry((s.width() - _width) / 2, (s.height() - _height) / 2, _width, _height);
-	update();
-}
-
 void LanguageBox::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
-	if (_cache.isNull()) {
-		if (!_hiding || a_opacity.current() > 0.01) {
-			// fill bg
-			p.fillRect(0, 0, _width, _height, st::boxBG->b);
+	if (paint(p)) return;
 
-			// paint shadows
-			p.fillRect(0, st::addContactTitleHeight, _width, st::scrollDef.topsh, st::scrollDef.shColor->b);
-
-			// draw box title / text
-			p.setFont(st::addContactTitleFont->f);
-			p.setPen(st::black->p);
-			p.drawText(st::addContactTitlePos.x(), st::addContactTitlePos.y() + st::addContactTitleFont->ascent, lang(lng_languages));
-		}
-	} else {
-		p.setOpacity(a_opacity.current());
-		p.drawPixmap(0, 0, _cache);
-	}
+	paintTitle(p, lang(lng_languages), true);
 }
 
-void LanguageBox::animStep(float64 ms) {
-	if (ms >= 1) {
-		a_opacity.finish();
-		_cache = QPixmap();
-		if (!_hiding) {
-			showAll();
-			setFocus();
-		}
-	} else {
-		a_opacity.update(ms, anim::linear);
-	}
-	update();
+void LanguageBox::resizeEvent(QResizeEvent *e) {
+	_done.move(0, height() - _done.height());
 }
 
 void LanguageBox::onChange() {
@@ -191,19 +147,6 @@ void LanguageBox::onSave() {
 			App::quit();
 		}
 	}
-}
-
-void LanguageBox::onClose() {
-	emit closed();
-}
-
-void LanguageBox::startHide() {
-	_hiding = true;
-	if (_cache.isNull()) {
-		_cache = myGrab(this, rect());
-		hideAll();
-	}
-	a_opacity.start(0);
 }
 
 LanguageBox::~LanguageBox() {

@@ -25,7 +25,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/photocropbox.h"
 #include "application.h"
-#include "boxes/addparticipantbox.h"
 #include "gui/filedialog.h"
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html

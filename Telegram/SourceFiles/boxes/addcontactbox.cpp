@@ -31,7 +31,7 @@ AddContactBox::AddContactBox(QString fname, QString lname, QString phone) :
     _firstInput(this, st::inpAddContact, lang(lng_signup_firstname), fname),
     _lastInput(this, st::inpAddContact, lang(lng_signup_lastname), lname),
     _phoneInput(this, st::inpAddContact, lang(lng_contact_phone), phone.isEmpty() ? phone : App::formatPhone(phone)),
-	_contactId(0), _addRequest(0), a_opacity(0, 1), _hiding(false) {
+	_contactId(0), _addRequest(0) {
 
 	if (!phone.isEmpty()) {
 		_phoneInput.setDisabled(true);
@@ -48,45 +48,32 @@ AddContactBox::AddContactBox(PeerData *peer) :
     _firstInput(this, st::inpAddContact, lang(peer->chat ? lng_dlg_new_group_name : lng_signup_firstname), peer->chat ? peer->name : peer->asUser()->firstName),
     _lastInput(this, st::inpAddContact, lang(lng_signup_lastname), peer->chat ? QString() : peer->asUser()->lastName),
     _phoneInput(this, st::inpAddContact, lang(lng_contact_phone)),
-	_contactId(0), _addRequest(0), a_opacity(0, 1), _hiding(false) {
+	_contactId(0), _addRequest(0) {
 
 	initBox();
 }
 
 void AddContactBox::initBox() {
-	_width = st::addContactWidth;
 	if (_peer) {
 		if (_peer->chat) {
 			_boxTitle = lang(lng_edit_group_title);
-			_height = st::addContactTitleHeight + st::addContactPadding.top() + 1 * _firstInput.height() + st::addContactPadding.bottom() + _addButton.height();
+			setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 1 * _firstInput.height() + st::addContactPadding.bottom() + _addButton.height());
 		} else {
 			_boxTitle = lang(_peer == App::self() ? lng_edit_self_title : lng_edit_contact_title);
-			_height = st::addContactTitleHeight + st::addContactPadding.top() + 2 * _firstInput.height() + 1 * st::addContactDelta + st::addContactPadding.bottom() + _addButton.height();
+			setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 2 * _firstInput.height() + 1 * st::addContactDelta + st::addContactPadding.bottom() + _addButton.height());
 		}
 	} else {
 		bool readyToAdd = !_phoneInput.text().isEmpty() && (!_firstInput.text().isEmpty() || !_lastInput.text().isEmpty());
 		_boxTitle = lang(readyToAdd ? lng_confirm_contact_data : lng_enter_contact_data);
-		_height = st::addContactTitleHeight + st::addContactPadding.top() + 3 * _firstInput.height() + 2 * st::addContactDelta + st::addContactPadding.bottom() + _addButton.height();
+		setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 3 * _firstInput.height() + 2 * st::addContactDelta + st::addContactPadding.bottom() + _addButton.height());
 	}
-	_firstInput.setGeometry(st::addContactPadding.left(), st::addContactTitleHeight + st::addContactPadding.top(), _width - st::addContactPadding.left() - st::addContactPadding.right(), _firstInput.height());
-	_lastInput.setGeometry(st::addContactPadding.left(), _firstInput.y() + _firstInput.height() + st::addContactDelta, _firstInput.width(), _firstInput.height());
-	_phoneInput.setGeometry(st::addContactPadding.left(), _lastInput.y() + _lastInput.height() + st::addContactDelta, _lastInput.width(), _lastInput.height());
-
-	int32 buttonTop = (_peer ? (_peer->chat ? _firstInput : _lastInput) : _phoneInput).y() + _phoneInput.height() + st::addContactPadding.bottom();
-	_cancelButton.move(0, buttonTop);
-	_addButton.move(_width - _addButton.width(), buttonTop);
-	_retryButton.move(_width - _retryButton.width(), buttonTop);
 	_retryButton.hide();
 
 	connect(&_addButton, SIGNAL(clicked()), this, SLOT(onSend()));
 	connect(&_retryButton, SIGNAL(clicked()), this, SLOT(onRetry()));
-	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onCancel()));
+	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	resize(_width, _height);
-
-	showAll();
-	_cache = myGrab(this, rect());
-	hideAll();
+	prepare();
 }
 
 void AddContactBox::hideAll() {
@@ -112,6 +99,14 @@ void AddContactBox::showAll() {
 	}
 	_addButton.show();
 	_cancelButton.show();
+}
+
+void AddContactBox::showDone() {
+	if ((_firstInput.text().isEmpty() && _lastInput.text().isEmpty()) || _phoneInput.isHidden() || !_phoneInput.isEnabled()) {
+		_firstInput.setFocus();
+	} else {
+		_phoneInput.setFocus();
+	}
 }
 
 void AddContactBox::keyPressEvent(QKeyEvent *e) {
@@ -154,65 +149,40 @@ void AddContactBox::keyPressEvent(QKeyEvent *e) {
 				onSend();
 			}
 		}
-	} else if (e->key() == Qt::Key_Escape) {
-		onCancel();
+	} else {
+		AbstractBox::keyPressEvent(e);
 	}
-}
-
-void AddContactBox::parentResized() {
-	QSize s = parentWidget()->size();
-	setGeometry((s.width() - _width) / 2, (s.height() - _height) / 2, _width, _height);
-	update();
 }
 
 void AddContactBox::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
-	if (_cache.isNull()) {
-		if (!_hiding || a_opacity.current() > 0.01) {
-			// fill bg
-			p.fillRect(QRect(QPoint(0, 0), size()), st::boxBG->b);
+	if (paint(p)) return;
 
-			// paint shadows
-			if (_retryButton.isHidden()) {
-				p.fillRect(0, st::addContactTitleHeight, _width, st::scrollDef.topsh, st::scrollDef.shColor->b);
-			}
-			p.fillRect(0, size().height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, _width, st::scrollDef.bottomsh, st::scrollDef.shColor->b);
-
-			// paint button sep
-			p.fillRect(st::btnSelectCancel.width, size().height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
-
-			// draw box title / text
-			p.setPen(st::black->p);
-			p.setFont(st::addContactTitleFont->f);
-			if (_retryButton.isHidden()) {
-				p.drawText(st::addContactTitlePos.x(), st::addContactTitlePos.y() + st::addContactTitleFont->ascent, _boxTitle);
-			} else {
-				int32 h = size().height() - st::boxPadding.top() * 2 - _retryButton.height() - st::boxPadding.bottom();
-				p.drawText(QRect(st::boxPadding.left(), st::boxPadding.top(), _width - st::boxPadding.left() - st::boxPadding.right(), h), lng_contact_not_joined(lt_name, _sentName), style::al_topleft);
-			}
-		}
+	if (_retryButton.isHidden()) {
+		paintTitle(p, _boxTitle, true);
 	} else {
-		p.setOpacity(a_opacity.current());
-		p.drawPixmap(0, 0, _cache);
+		// draw box text
+		p.setPen(st::black->p);
+		p.setFont(st::boxTitleFont->f);
+		int32 h = size().height() - st::boxPadding.top() * 2 - _retryButton.height() - st::boxPadding.bottom();
+		p.drawText(QRect(st::boxPadding.left(), st::boxPadding.top(), width() - st::boxPadding.left() - st::boxPadding.right(), h), lng_contact_not_joined(lt_name, _sentName), style::al_topleft);
 	}
+
+	// paint shadows
+	p.fillRect(0, size().height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
+
+	// paint button sep
+	p.fillRect(st::btnSelectCancel.width, size().height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
 }
 
-void AddContactBox::animStep(float64 dt) {
-	if (dt >= 1) {
-		a_opacity.finish();
-		_cache = QPixmap();
-		if (!_hiding) {
-			showAll();
-			if ((_firstInput.text().isEmpty() && _lastInput.text().isEmpty()) || _phoneInput.isHidden() || !_phoneInput.isEnabled()) {
-				_firstInput.setFocus();
-			} else {
-				_phoneInput.setFocus();
-			}
-		}
-	} else {
-		a_opacity.update(dt, anim::linear);
-	}
-	update();
+void AddContactBox::resizeEvent(QResizeEvent *e) {
+	_firstInput.setGeometry(st::addContactPadding.left(), st::boxTitleHeight + st::addContactPadding.top(), width() - st::addContactPadding.left() - st::addContactPadding.right(), _firstInput.height());
+	_lastInput.setGeometry(st::addContactPadding.left(), _firstInput.y() + _firstInput.height() + st::addContactDelta, _firstInput.width(), _firstInput.height());
+	_phoneInput.setGeometry(st::addContactPadding.left(), _lastInput.y() + _lastInput.height() + st::addContactDelta, _lastInput.width(), _lastInput.height());
+
+	_cancelButton.move(0, height() - _cancelButton.height());
+	_addButton.move(width() - _addButton.width(), height() - _addButton.height());
+	_retryButton.move(width() - _retryButton.width(), height() - _retryButton.height());
 }
 
 void AddContactBox::onSend() {
@@ -294,7 +264,7 @@ bool AddContactBox::onSaveFail(const RPCError &error) {
 }
 
 void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
-	if (_hiding || !App::main()) return;
+	if (isHidden() || !App::main()) return;
 
 	const MTPDcontacts_importedContacts &d(res.c_contacts_importedContacts());
 	App::feedUsers(d.vusers);
@@ -320,27 +290,21 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 		_lastInput.hide();
 		_phoneInput.hide();
 		_retryButton.show();
-		int32 theight = st::addContactTitleFont->m.boundingRect(0, 0, _width - st::boxPadding.left() - st::boxPadding.right(), 1, Qt::TextWordWrap, lng_contact_not_joined(lt_name, _sentName)).height();
+		int32 theight = st::boxTitleFont->m.boundingRect(0, 0, width() - st::boxPadding.left() - st::boxPadding.right(), 1, Qt::TextWordWrap, lng_contact_not_joined(lt_name, _sentName)).height();
 		int32 h = st::boxPadding.top() * 2 + theight + _retryButton.height() + st::boxPadding.bottom();
-		resize(_width, h);
-		_retryButton.move(_retryButton.x(), h - _retryButton.height());
-		_cancelButton.move(_cancelButton.x(), h - _retryButton.height());
+		setMaxHeight(h);
 		update();
 	}
 }
 
-void AddContactBox::onSaveChatDone(const MTPmessages_StatedMessage &result) {
-	App::main()->sentFullDataReceived(0, result);
+void AddContactBox::onSaveChatDone(const MTPUpdates &updates) {
+	App::main()->sentUpdatesReceived(updates);
 	emit closed();
 }
 
 void AddContactBox::onSaveUserDone(const MTPcontacts_ImportedContacts &res) {
 	const MTPDcontacts_importedContacts &d(res.c_contacts_importedContacts());
 	App::feedUsers(d.vusers);
-	emit closed();
-}
-
-void AddContactBox::onCancel() {
 	emit closed();
 }
 
@@ -359,18 +323,6 @@ void AddContactBox::onRetry() {
 	_phoneInput.setDisabled(false);
 	_retryButton.hide();
 	_firstInput.setFocus();
-	resize(_width, _height);
+	setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 3 * _firstInput.height() + 2 * st::addContactDelta + st::addContactPadding.bottom() + _addButton.height());
 	update();
-}
-
-void AddContactBox::startHide() {
-	_hiding = true;
-	if (_cache.isNull()) {
-		_cache = myGrab(this, rect());
-		hideAll();
-	}
-	a_opacity.start(0);
-}
-
-AddContactBox::~AddContactBox() {
 }

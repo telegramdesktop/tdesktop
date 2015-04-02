@@ -206,9 +206,7 @@ public:
 	void windowShown();
 
 	void sentDataReceived(uint64 randomId, const MTPmessages_SentMessage &data);
-	void sentFullDataReceived(uint64 randomId, const MTPmessages_StatedMessage &result); // randomId = 0 - new message, <> 0 - already added new message
-	void sentFullDatasReceived(const MTPmessages_StatedMessages &result);
-	void forwardDone(PeerId peer, const MTPmessages_StatedMessages &result);
+	void sentUpdatesReceived(const MTPUpdates &updates);
 	void msgUpdated(PeerId peer, const HistoryItem *msg);
 	void historyToDown(History *hist);
 	void dialogsToUp();
@@ -259,7 +257,7 @@ public:
 	void dialogsActivate();
 
 	bool leaveChatFailed(PeerData *peer, const RPCError &e);
-	void deleteHistory(PeerData *peer, const MTPmessages_StatedMessage &result);
+	void deleteHistory(PeerData *peer, const MTPUpdates &updates);
 	void deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result);
 	void deleteMessages(const QVector<MTPint> &ids);
 	void deletedContact(UserData *user, const MTPcontacts_Link &result);
@@ -268,11 +266,9 @@ public:
 	void removeContact(UserData *user);
 
 	void addParticipants(ChatData *chat, const QVector<UserData*> &users);
-	void addParticipantDone(ChatData *chat, const MTPmessages_StatedMessage &result);
 	bool addParticipantFail(ChatData *chat, const RPCError &e);
 
 	void kickParticipant(ChatData *chat, UserData *user);
-	void kickParticipantDone(ChatData *chat, const MTPmessages_StatedMessage &result);
 	bool kickParticipantFail(ChatData *chat, const RPCError &e);
 
 	void checkPeerHistory(PeerData *peer);
@@ -487,8 +483,6 @@ private:
 	QMap<uint64, MTPUpdate> _byPtsUpdate;
 	QMap<uint64, MTPUpdates> _byPtsUpdates;
 	QMap<uint64, MTPmessages_SentMessage> _byPtsSentMessage;
-	QMap<uint64, MTPmessages_StatedMessage> _byPtsStatedMessage;
-	QMap<uint64, MTPmessages_StatedMessages> _byPtsStatedMessages;
 	SingleTimer _byPtsTimer;
 
 	QMap<int32, MTPUpdates> _bySeqUpdates;

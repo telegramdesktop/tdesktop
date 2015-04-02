@@ -376,6 +376,7 @@ introAlphaShowFunc: transition(easeInCirc);
 introTextTop: 22px;
 introTextSize: size(400px, 93px);
 introCallSkip: 15px;
+introPwdTextSize: size(400px, 73px);
 
 btnIntroSep: 12px;
 btnIntroNext: flatButton(btnDefNext, btnDefBig) {
@@ -426,9 +427,11 @@ inpIntroCode: flatInput(inpDefGray) {
 inpIntroName: flatInput(inpIntroPhone) {
 	width: 192px;
 }
+inpIntroPassword: flatInput(inpIntroPhone) {
+	width: 300px;
+}
 
 introSelectDelta: 30px;
-introSelectMaxHeight: 550px;
 btnSelectDone: flatButton(btnDefFlat) {
 	color: btnYesColor;
 	overColor: btnYesHover;
@@ -489,8 +492,7 @@ countriesAlphaShowFunc: transition(easeInCirc);
 introErrWidth: 450px;
 introErrDuration: 200;
 introErrFunc: transition(linear);
-introErrBG: #ffa5a5;
-introErrColor: black;//#800000;
+introErrColor: black;
 introErrTop: 15px;
 introErrHeight: 40px;
 introErrFont: font(16px);
@@ -679,7 +681,7 @@ dlgHistFont: font(fsize);
 dlgNameColor: #000;
 dlgNameTop: 2px;
 dlgSystemColor: #4981af;
-dlgTextColor: #888888;
+dlgTextColor: #888;
 
 dlgDateFont: font(13px);
 dlgDateColor: #a8a8a8;
@@ -1031,18 +1033,22 @@ layerPadding: margins(10px, 10px, 10px, 10px);
 
 boxFont: font(16px);
 boxPadding: margins(18px, 18px, 18px, 18px);
-boxBG: white;//rgb(228, 233, 240);
+boxVerticalMargin: 10px;
+
+boxWidth: 364px;
+boxMaxListHeight: 600px;
+
+boxBG: white;
 boxGrayTitle: #777;
 
-confirmWidth: 364px;
+boxTitlePos: point(20px, 15px);
+boxTitleFont: font(17px);
+boxTitleHeight: 52px;
+
 confirmMaxHeight: 320px;
 confirmCompressedSkip: 10px;
-addContactWidth: 364px;
 addContactPadding: margins(18px, 24px, 18px, 24px);
 addContactDelta: 14px;
-addContactTitleHeight: 52px;
-addContactTitlePos: point(20px, 15px);
-addContactTitleFont: font(17px);
 inpAddContact: flatInput(inpDefGray) {
 	height: 42px;
 	textMrg: margins(10px, 5px, 10px, 5px);
@@ -1199,9 +1205,12 @@ profileNameInput: flatInput(setNameInput) {
 	width: 230px;
 }
 
-newGroupScroll: flatScroll(scrollDef) {
-	topsh: 0px;
+boxScroll: flatScroll(scrollDef) {
+	topsh: -2px;
 	bottomsh: -2px;
+}
+boxNoTopScroll: flatScroll(boxScroll) {
+	topsh: 0;
 }
 
 participantInnerAdd: flatButton(btnDefNext) {
@@ -1218,8 +1227,6 @@ participantInnerCancel: flatButton(participantInnerAdd, btnDefBack) {
 participantCancel: flatButton(participantInnerAdd, btnDefBack) {
 	width: 300px;
 }
-participantWidth: 364px;
-participantMaxHeight: 600px;
 participantFilter: flatInput(inpDefFlat) {
 	width: 364px;
 	height: 52px;
@@ -1331,7 +1338,7 @@ aboutCloseButton: flatButton(contactsClose) {
 	downTextTop: 16px;
 }
 btnInfoClose: flatButton(aboutCloseButton) {
-	width: confirmWidth;
+	width: boxWidth;
 }
 
 emojiTextFont: font(16px);
@@ -1728,9 +1735,6 @@ langsCloseButton: flatButton(aboutCloseButton) {
 
 backgroundPadding: 10px;
 backgroundSize: size(108px, 193px);
-backgroundScroll: flatScroll(newGroupScroll) {
-	topsh: -2px;
-}
 
 passcodeHeaderFont: font(19px);
 passcodeHeaderHeight: 80px;
@@ -1755,3 +1759,23 @@ mentionPadding: margins(8px, 5px, 8px, 5px);
 mentionTop: 11px;
 mentionFont: linkFont;
 mentionPhotoSize: msgPhotoSize;
+
+sessionsHeight: 440px;
+sessionHeight: 50px;
+sessionPadding: margins(20px, 7px, 20px, 0);
+sessionsCloseButton: flatButton(aboutCloseButton) {
+	width: boxWidth;
+}
+sessionNameFont: msgNameFont;
+sessionActiveFont: msgDateFont;
+sessionActiveColor: #aaa;
+sessionInfoFont: msgFont;
+sessionInfoColor: dlgTextColor;
+sessionTerminateTop: 17px;
+sessionTerminateSkip: 10px;
+sessionTerminate: iconedButton(notifyClose) {
+	iconPos: point(3px, 3px);
+	downIconPos: point(3px, 4px);
+	width: 16px;
+	height: 16px;
+}

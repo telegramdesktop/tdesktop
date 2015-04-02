@@ -22,29 +22,12 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "gui/flatinput.h"
 #include "intro.h"
 
-class CodeInput : public FlatInput {
+class IntroPwdCheck : public IntroStage, public Animated, public RPCSender {
 	Q_OBJECT
 
 public:
 
-	CodeInput(QWidget *parent, const style::flatInput &st, const QString &ph);
-
-signals:
-
-	void codeEntered();
-
-protected:
-
-	void correctValue(QKeyEvent *e, const QString &was);
-
-};
-
-class IntroCode : public IntroStage, public Animated, public RPCSender {
-	Q_OBJECT
-
-public:
-
-	IntroCode(IntroWidget *parent);
+	IntroPwdCheck(IntroWidget *parent);
 
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
@@ -56,40 +39,44 @@ public:
 	void onNext();
 	void onBack();
 
-	bool hasBack() const {
-		return true;
-	}
-
-	void codeSubmitDone(const MTPauth_Authorization &result);
+	void pwdSubmitDone(bool recover, const MTPauth_Authorization &result);
+	bool pwdSubmitFail(const RPCError &error);
 	bool codeSubmitFail(const RPCError &error);
+	bool recoverStartFail(const RPCError &error);
+
+	void recoverStarted(const MTPauth_PasswordRecovery &result);
 
 public slots:
 
-	void onSubmitCode(bool force = false);
+	void onSubmitPwd(bool force = false);
+	void onToRecover();
+	void onToPassword();
 	void onInputChange();
-	void onSendCall();
 	void onCheckRequest();
 
 private:
 
 	void showError(const QString &err);
-	void callDone(const MTPBool &v);
-	void gotPassword(const MTPaccount_Password &result);
-
 	void stopCheck();
 
 	QString error;
 	anim::fvalue errorAlpha;
 
-	FlatButton next;
+	FlatButton _next;
 
 	QRect textRect;
 
-	CodeInput code;
-	QString sentCode;
+	QByteArray _salt;
+	bool _hasRecovery;
+	QString _hint, _emailPattern;
+
+	FlatInput _pwdField, _codeField;
+	LinkButton _toRecover, _toPassword;
 	mtpRequestId sentRequest;
-	QTimer callTimer;
-	int32 waitTillCall;
+
+	Text _hintText;
+
+	QByteArray _pwdSalt;
 
 	QTimer checkRequest;
 };

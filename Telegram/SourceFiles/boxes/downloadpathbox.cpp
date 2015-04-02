@@ -30,13 +30,10 @@ DownloadPathBox::DownloadPathBox() :
 	_dirRadio(this, qsl("dir_type"), 2, lang(lng_download_path_dir_radio), !_path.isEmpty() && _path != qsl("tmp")),
 	_dirInput(this, st::inpDownloadDir, QString(), (_path.isEmpty() || _path == qsl("tmp")) ? QString() : QDir::toNativeSeparators(_path)),
 	_saveButton(this, lang(lng_connection_save), st::btnSelectDone),
-	_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
-	a_opacity(0, 1), _hiding(false) {
-
-	_width = st::addContactWidth;
+	_cancelButton(this, lang(lng_cancel), st::btnSelectCancel) {
 
 	connect(&_saveButton, SIGNAL(clicked()), this, SLOT(onSave()));
-	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onCancel()));
+	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	connect(&_defaultRadio, SIGNAL(changed()), this, SLOT(onChange()));
 	connect(&_tempRadio, SIGNAL(changed()), this, SLOT(onChange()));
@@ -45,9 +42,7 @@ DownloadPathBox::DownloadPathBox() :
 	connect(&_dirInput, SIGNAL(focused()), this, SLOT(onEditPath()));
 	_dirInput.setCursorPosition(0);
 
-	showAll();
-	_cache = myGrab(this, rect());
-	hideAll();
+	prepare();
 }
 
 void DownloadPathBox::hideAll() {
@@ -75,71 +70,38 @@ void DownloadPathBox::showAll() {
 	_saveButton.show();
 	_cancelButton.show();
 
-	_defaultRadio.move(st::boxPadding.left(), st::addContactTitleHeight + st::downloadSkip);
+	int32 h = st::boxTitleHeight + st::downloadSkip + _defaultRadio.height() + st::downloadSkip + _tempRadio.height() + st::downloadSkip + _dirRadio.height();
+	if (_dirRadio.checked()) h += st::boxPadding.top() + _dirInput.height();
+	h += st::downloadSkip + _saveButton.height();
+	
+	setMaxHeight(h);
+}
+
+void DownloadPathBox::paintEvent(QPaintEvent *e) {
+	QPainter p(this);
+	if (paint(p)) return;
+
+	paintTitle(p, lang(lng_download_path_header), true);
+
+	// paint shadows
+	p.fillRect(0, height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
+
+	// paint button sep
+	p.fillRect(st::btnSelectCancel.width, height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
+}
+
+void DownloadPathBox::resizeEvent(QResizeEvent *e) {
+	_defaultRadio.move(st::boxPadding.left(), st::boxTitleHeight + st::downloadSkip);
 	_tempRadio.move(st::boxPadding.left(), _defaultRadio.y() + _defaultRadio.height() + st::downloadSkip);
 	_dirRadio.move(st::boxPadding.left(), _tempRadio.y() + _tempRadio.height() + st::downloadSkip);
 	int32 inputy = _dirRadio.y() + _dirRadio.height() + st::boxPadding.top();
 
 	_dirInput.move(st::boxPadding.left() + st::rbDefFlat.textLeft, inputy);
-		
+
 	int32 buttony = (_dirRadio.checked() ? (_dirInput.y() + _dirInput.height()) : (_dirRadio.y() + _dirRadio.height())) + st::downloadSkip;
 
-	_saveButton.move(_width - _saveButton.width(), buttony);
+	_saveButton.move(width() - _saveButton.width(), buttony);
 	_cancelButton.move(0, buttony);
-
-	_height = _saveButton.y() + _saveButton.height();
-	resize(_width, _height);
-}
-
-void DownloadPathBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-	} else if (e->key() == Qt::Key_Escape) {
-		onCancel();
-	}
-}
-
-void DownloadPathBox::parentResized() {
-	QSize s = parentWidget()->size();
-	setGeometry((s.width() - _width) / 2, (s.height() - _height) / 2, _width, _height);
-	update();
-}
-
-void DownloadPathBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
-	if (_cache.isNull()) {
-		if (!_hiding || a_opacity.current() > 0.01) {
-			// fill bg
-			p.fillRect(0, 0, _width, _height, st::boxBG->b);
-
-			// paint shadows
-			p.fillRect(0, st::addContactTitleHeight, _width, st::scrollDef.topsh, st::scrollDef.shColor->b);
-			p.fillRect(0, _height - st::btnSelectCancel.height - st::scrollDef.bottomsh, _width, st::scrollDef.bottomsh, st::scrollDef.shColor->b);
-
-			// paint button sep
-			p.fillRect(st::btnSelectCancel.width, _height - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
-
-			// draw box title / text
-			p.setFont(st::addContactTitleFont->f);
-			p.setPen(st::black->p);
-			p.drawText(st::addContactTitlePos.x(), st::addContactTitlePos.y() + st::addContactTitleFont->ascent, lang(lng_download_path_header));
-		}
-	} else {
-		p.setOpacity(a_opacity.current());
-		p.drawPixmap(0, 0, _cache);
-	}
-}
-
-void DownloadPathBox::animStep(float64 dt) {
-	if (dt >= 1) {
-		a_opacity.finish();
-		_cache = QPixmap();
-		if (!_hiding) {
-			showAll();
-		}
-	} else {
-		a_opacity.update(dt, anim::linear);
-	}
-	update();
 }
 
 void DownloadPathBox::onChange() {
@@ -185,20 +147,4 @@ void DownloadPathBox::onSave() {
 	cSetDownloadPath(_defaultRadio.checked() ? QString() : (_tempRadio.checked() ? qsl("tmp") : _path));
 	Local::writeUserSettings();
 	emit closed();
-}
-
-void DownloadPathBox::onCancel() {
-	emit closed();
-}
-
-void DownloadPathBox::startHide() {
-	_hiding = true;
-	if (_cache.isNull()) {
-		_cache = myGrab(this, rect());
-		hideAll();
-	}
-	a_opacity.start(0);
-}
-
-DownloadPathBox::~DownloadPathBox() {
 }

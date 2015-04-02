@@ -2584,7 +2584,7 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 	int32 flags = (p->input.type() == mtpc_inputPeerSelf) ? 0 : (MTPDmessage_flag_unread | MTPDmessage_flag_out); // unread, out
 	if (replyTo) flags |= MTPDmessage::flag_reply_to_msg_id;
 	h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(peer), MTPint(), MTPint(), MTP_int(_replyToId), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId))));
-	h->sendRequestId = MTP::send(MTPmessages_SendMedia(p->input, MTP_int(replyTo), MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+	h->sendRequestId = MTP::send(MTPmessages_SendMedia(p->input, MTP_int(replyTo), MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 
 	App::historyRegRandom(randomId, newId);
 	if (hist && histPeer && peer == histPeer->id) {
@@ -3193,7 +3193,7 @@ void HistoryWidget::onPhotoUploaded(MsgId newId, const MTPInputFile &file) {
 		App::historyRegRandom(randomId, newId);
 		History *hist = item->history();
 		MsgId replyTo = item->toHistoryReply() ? item->toHistoryReply()->replyToId() : 0;
-		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedPhoto(file), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), App::main()->rpcFail(&MainWidget::sendPhotoFailed, randomId), 0, 0, hist->sendRequestId);
+		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedPhoto(file), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendPhotoFailed, randomId), 0, 0, hist->sendRequestId);
 	}
 }
 
@@ -3229,7 +3229,7 @@ void HistoryWidget::onDocumentUploaded(MsgId newId, const MTPInputFile &file) {
 			App::historyRegRandom(randomId, newId);
 			History *hist = item->history();
 			MsgId replyTo = item->toHistoryReply() ? item->toHistoryReply()->replyToId() : 0;
-			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedDocument(file, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedDocument(file, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 		}
 	}
 }
@@ -3251,7 +3251,7 @@ void HistoryWidget::onThumbDocumentUploaded(MsgId newId, const MTPInputFile &fil
 			App::historyRegRandom(randomId, newId);
 			History *hist = item->history();
 			MsgId replyTo = item->toHistoryReply() ? item->toHistoryReply()->replyToId() : 0;
-			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedThumbDocument(file, thumb, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedThumbDocument(file, thumb, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 		}
 	}
 }
@@ -3525,7 +3525,7 @@ void HistoryWidget::onStickerSend(DocumentData *sticker) {
 	if (_replyToId) flags |= MTPDmessage::flag_reply_to_msg_id;
 	hist->addToBackDocument(newId, flags, _replyToId, date(MTP_int(unixtime())), MTP::authedId(), sticker);
 
-	hist->sendRequestId = MTP::send(MTPmessages_SendMedia(histPeer->input, MTP_int(_replyToId), MTP_inputMediaDocument(MTP_inputDocument(MTP_long(sticker->id), MTP_long(sticker->access))), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentFullDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+	hist->sendRequestId = MTP::send(MTPmessages_SendMedia(histPeer->input, MTP_int(_replyToId), MTP_inputMediaDocument(MTP_inputDocument(MTP_long(sticker->id), MTP_long(sticker->access))), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 	App::main()->finishForwarding(hist);
 	cancelReply();
 

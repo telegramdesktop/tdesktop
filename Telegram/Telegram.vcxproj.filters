@@ -168,9 +168,6 @@
     <ClCompile Include="SourceFiles\boxes\addcontactbox.cpp">
       <Filter>boxes</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\boxes\addparticipantbox.cpp">
-      <Filter>boxes</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\boxes\confirmbox.cpp">
       <Filter>boxes</Filter>
     </ClCompile>
@@ -178,9 +175,6 @@
       <Filter>boxes</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\boxes\contactsbox.cpp">
-      <Filter>boxes</Filter>
-    </ClCompile>
-    <ClCompile Include="SourceFiles\boxes\newgroupbox.cpp">
       <Filter>boxes</Filter>
     </ClCompile>
     <ClCompile Include="SourceFiles\boxes\photocropbox.cpp">
@@ -328,15 +322,6 @@
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_phoneinput.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_newgroupbox.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_newgroupbox.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_newgroupbox.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_mtpSession.cpp">
@@ -618,15 +603,6 @@
     <ClCompile Include="GeneratedFiles\Release\moc_animation.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_addparticipantbox.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_addparticipantbox.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_addparticipantbox.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_addcontactbox.cpp">
       <Filter>Generated Files\Deploy</Filter>
     </ClCompile>
@@ -858,6 +834,42 @@
     <ClCompile Include="GeneratedFiles\Release\moc_apiwrap.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_sessionsbox.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_sessionsbox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_sessionsbox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\sessionsbox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\abstractbox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_abstractbox.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_abstractbox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_abstractbox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\intro\intropwdcheck.cpp">
+      <Filter>intro</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_intropwdcheck.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_intropwdcheck.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_intropwdcheck.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1038,9 +1050,6 @@
     <CustomBuild Include="SourceFiles\boxes\addcontactbox.h">
       <Filter>boxes</Filter>
     </CustomBuild>
-    <CustomBuild Include="SourceFiles\boxes\addparticipantbox.h">
-      <Filter>boxes</Filter>
-    </CustomBuild>
     <CustomBuild Include="SourceFiles\boxes\confirmbox.h">
       <Filter>boxes</Filter>
     </CustomBuild>
@@ -1048,9 +1057,6 @@
       <Filter>boxes</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\boxes\contactsbox.h">
-      <Filter>boxes</Filter>
-    </CustomBuild>
-    <CustomBuild Include="SourceFiles\boxes\newgroupbox.h">
       <Filter>boxes</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\boxes\photocropbox.h">
@@ -1138,6 +1144,15 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\apiwrap.h">
       <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\sessionsbox.h">
+      <Filter>boxes</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\abstractbox.h">
+      <Filter>boxes</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\intro\intropwdcheck.h">
+      <Filter>intro</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

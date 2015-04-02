@@ -103,7 +103,6 @@ void IntroSignup::paintEvent(QPaintEvent *e) {
 		p.setOpacity(errorAlpha.current());
 
 		QRect errRect((width() - st::introErrWidth) / 2, (last.y() + last.height() + next.y() - st::introErrHeight) / 2, st::introErrWidth, st::introErrHeight);
-		p.fillRect(errRect, st::introErrBG->b);
 		p.setFont(st::introErrFont->f);
 		p.setPen(st::introErrColor->p);
 		p.drawText(errRect, error, QTextOption(style::al_center));

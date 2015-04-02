@@ -118,7 +118,7 @@ enum {
 	SaveDraftTimeout = 1000, // save draft after 1 secs of not changing text
 	SaveDraftAnywayTimeout = 5000, // or save anyway each 5 secs
 
-    HiddenIsOnlineAfterMessage = 30, // user with hidden last seen stays online for such amount of seconds in the interface
+	HiddenIsOnlineAfterMessage = 30, // user with hidden last seen stays online for such amount of seconds in the interface
 
 	ServiceUserId = 777000,
 
@@ -129,6 +129,7 @@ enum {
 	UpdateDelayRandPart = 8 * 3600, // 8 hour max - min time between update check requests
 
 	WrongPasscodeTimeout = 1500,
+	SessionsShortPollTimeout = 60000,
 };
 
 inline bool isServiceUser(uint64 id) {
@@ -238,7 +239,7 @@ static const char *ApiLang = "en";
 extern QString gKeyFile;
 inline const QString &cDataFile() {
 	if (!gKeyFile.isEmpty()) return gKeyFile;
-	static const QString res(cTestMode() ? qsl("data_test") : qsl("data"));
+	static const QString res(qsl("data"));
 	return res;
 }
 
@@ -285,7 +286,7 @@ enum {
 	UpdateChunk = 100 * 1024, // 100kb parts when downloading the update
 	IdleMsecs = 60 * 1000, // after 60secs without user input we think we are idle
 
-	ForwardOnAdd = 120, // how many messages from chat history server should forward to user, that was added to this chat
+	ForwardOnAdd = 100, // how many messages from chat history server should forward to user, that was added to this chat
 };
 
 inline const QRegularExpression &cWordSplit() {

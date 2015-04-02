@@ -309,7 +309,7 @@ namespace App {
 			const MTPuser &user(*i);
             data = 0;
 			bool wasContact = false;
-			const MTPUserStatus *status = 0;
+			const MTPUserStatus *status = 0, emptyStatus = MTP_userStatusEmpty();
 
 			switch (user.type()) {
 			case mtpc_userEmpty: {
@@ -323,6 +323,7 @@ namespace App {
 				data->setPhoto(MTP_userProfilePhotoEmpty());
 				data->access = 0;
 				wasContact = (data->contact > 0);
+				status = &emptyStatus;
 				data->contact = -1;
 			} break;
 			case mtpc_userDeleted: {
@@ -336,6 +337,7 @@ namespace App {
 				data->setPhoto(MTP_userProfilePhotoEmpty());
 				data->access = 0;
 				wasContact = (data->contact > 0);
+				status = &emptyStatus;
 				data->contact = -1;
 			} break;
 			case mtpc_userSelf: {
@@ -350,7 +352,6 @@ namespace App {
 				data->setPhone(qs(d.vphone));
 				data->access = 0;
 				wasContact = (data->contact > 0);
-				data->contact = -1;
 				status = &d.vstatus;
 
 				if (::self != data) {

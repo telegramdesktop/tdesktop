@@ -317,8 +317,6 @@ enum {
 	mtpc_boolTrue = 0x997275b5,
 	mtpc_boolFalse = 0xbc799737,
 	mtpc_vector = 0x1cb5c415,
-	mtpc_error = 0xc4b9f9bb,
-	mtpc_null = 0x56730bcc,
 
 	// layers
 	mtpc_invokeWithLayer1 = 0x53835315,
@@ -368,7 +366,7 @@ static const mtpTypeId mtpLayers[] = {
 	mtpc_invokeWithLayer17,
 	mtpc_invokeWithLayer18,
 }, mtpLayerMaxSingle = sizeof(mtpLayers) / sizeof(mtpLayers[0]);
-static const mtpPrime mtpCurrentLayer = 25;
+static const mtpPrime mtpCurrentLayer = 27;
 
 template <typename bareT>
 class MTPBoxed : public bareT {
@@ -943,89 +941,6 @@ template <typename T>
 inline bool operator!=(const MTPvector<T> &a, const MTPvector<T> &b) {
 	return a.c_vector().v != b.c_vector().v;
 }
-
-class MTPDerror : public mtpDataImpl<MTPDerror> {
-public:
-	MTPint vcode;
-	MTPstring vtext;
-
-	MTPDerror() {
-	}
-	MTPDerror(MTPint code, MTPString text) : vcode(code), vtext(text) {
-	}
-};
-class MTPerror : private mtpDataOwner {
-public:
-	MTPerror() : mtpDataOwner(0) {
-	}
-	MTPerror(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_error) : mtpDataOwner(0) {
-		read(from, end, cons);
-	}
-
-	MTPDerror &_error() {
-		if (!data) throw mtpErrorUninitialized();
-		split();
-		return *(MTPDerror*)data;
-	}
-	const MTPDerror &c_error() const {
-		if (!data) throw mtpErrorUninitialized();
-		return *(const MTPDerror*)data;
-	}
-
-	uint32 innerLength() const {
-		return c_error().vcode.innerLength() + c_error().vtext.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_error;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_error) {
-		if (cons != mtpc_error) throw mtpErrorUnexpected(cons, "MTPerror");
-
-		if (!data) setData(new MTPDerror());
-		MTPDerror &v(_error());
-		v.vcode.read(from, end);
-		v.vtext.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		c_error().vcode.write(to);
-		c_error().vtext.write(to);
-	}
-
-private:
-	explicit MTPerror(MTPDerror *_data) : mtpDataOwner(_data) {
-	}
-
-	friend MTPerror MTP_error(MTPint code, MTPstring text);
-};
-inline MTPerror MTP_error(MTPint code, MTPstring text) {
-	return MTPerror(new MTPDerror(code, text));
-}
-typedef MTPBoxed<MTPerror> MTPError;
-
-class MTPnull {
-public:
-	MTPnull() {
-	}
-	MTPnull(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_null) {
-		read(from, end, cons);
-	}
-
-	uint32 innerLength() const {
-		return 0;
-	}
-	mtpTypeId type() const {
-		return mtpc_null;
-	}
-	void read(const mtpPrime *& /*from*/, const mtpPrime * /*end*/, mtpTypeId cons = mtpc_null) {
-		if (cons != mtpc_null) throw mtpErrorUnexpected(cons, "MTPnull");
-	}
-	void write(mtpBuffer & /*to*/) const {
-	}
-};
-inline MTPnull MTP_null() {
-	return MTPnull();
-}
-typedef MTPBoxed<MTPnull> MTPNull;
 
 // Human-readable text serialization
 #if (defined _DEBUG || defined _WITH_DEBUG)

@@ -17,20 +17,17 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
+#include "abstractbox.h"
 
-class LanguageBox : public LayeredWidget {
+class LanguageBox : public AbstractBox {
 	Q_OBJECT
 
 public:
 
 	LanguageBox();
-	void parentResized();
-	void animStep(float64 ms);
-	void keyPressEvent(QKeyEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void paintEvent(QPaintEvent *e);
-	void startHide();
+	void resizeEvent(QResizeEvent *e);
 	~LanguageBox();
 
 public slots:
@@ -38,19 +35,14 @@ public slots:
 	void onChange();
 	void onRestore();
 	void onSave();
-	void onClose();
 
-private:
+protected:
 
 	void hideAll();
 	void showAll();
 
+private:
+
 	QVector<FlatRadiobutton*> _langs;
-	int32 _width, _height;
 	BottomButton _done;
-
-	bool _hiding;
-	QPixmap _cache;
-
-	anim::fvalue a_opacity;
 };

@@ -26,6 +26,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "intro/introphone.h"
 #include "intro/introcode.h"
 #include "intro/introsignup.h"
+#include "intro/intropwdcheck.h"
 #include "mainwidget.h"
 #include "window.h"
 #include "application.h"
@@ -55,10 +56,13 @@ steps(new IntroSteps(this)),
 phone(0),
 code(0),
 signup(0),
+pwdcheck(0),
 current(0),
 moving(0),
 visibilityChanging(0),
 _callTimeout(60),
+_registered(false),
+_hasRecovery(false),
 _back(this, st::setClose),
 _backFrom(0), _backTo(0) {
 	setGeometry(QRect(0, st::titleHeight, wnd->width(), wnd->height() - st::titleHeight));
@@ -79,6 +83,8 @@ _backFrom(0), _backTo(0) {
 
 	show();
 	setFocus();
+
+	cSetPasswordRecovered(false);
 
 	_back.move(st::setClosePos.x(), st::setClosePos.y());
 }
@@ -117,7 +123,13 @@ bool IntroWidget::createNext() {
 		switch (current) {
 		case 0: stages[current + 1] = phone = new IntroPhone(this); break;
 		case 1: stages[current + 1] = code = new IntroCode(this); break;
-		case 2: stages[current + 1] = signup = new IntroSignup(this); break;
+		case 2:
+			if (_pwdSalt.isEmpty()) {
+				stages[current + 1] = signup = new IntroSignup(this);
+			} else {
+				stages[current + 1] = pwdcheck = new IntroPwdCheck(this);
+			}
+		break;
 		}
 	}
 	_back.raise();
@@ -154,7 +166,7 @@ void IntroWidget::onDoneStateChanged(int oldState, ButtonStateChangeSource sourc
 		} else {
 			makeHideCache();
 		}
-	} else if (source == ButtonByHover) {
+	} else if (source == ButtonByHover && current != 2) {
 		if (!createNext()) return;
 		if (!cacheForShow) makeShowCache(current + 1);
 	}
@@ -299,6 +311,23 @@ void IntroWidget::setCode(const QString &code) {
 	_code = code;
 }
 
+void IntroWidget::setPwdSalt(const QByteArray &salt) {
+	_pwdSalt = salt;
+	delete signup;
+	delete pwdcheck;
+	stages[3] = 0;
+	signup = 0;
+	pwdcheck = 0;
+}
+
+void IntroWidget::setHasRecovery(bool has) {
+	_hasRecovery = has;
+}
+
+void IntroWidget::setPwdHint(const QString &hint) {
+	_pwdHint = hint;
+}
+
 void IntroWidget::setCallTimeout(int32 callTimeout) {
 	_callTimeout = callTimeout;
 }
@@ -319,12 +348,25 @@ int32 IntroWidget::getCallTimeout() const {
 	return _callTimeout;
 }
 
+const QByteArray &IntroWidget::getPwdSalt() const {
+	return _pwdSalt;
+}
+
+bool IntroWidget::getHasRecovery() const {
+	return _hasRecovery;
+}
+
+const QString &IntroWidget::getPwdHint() const {
+	return _pwdHint;
+}
+
 void IntroWidget::resizeEvent(QResizeEvent *e) {
 	QRect r(innerRect());
 	if (steps) steps->setGeometry(r);
 	if (phone) phone->setGeometry(r);
 	if (code) code->setGeometry(r);
 	if (signup) signup->setGeometry(r);
+	if (pwdcheck) pwdcheck->setGeometry(r);
 }
 
 void IntroWidget::mousePressEvent(QMouseEvent *e) {
@@ -355,6 +397,7 @@ void IntroWidget::rpcInvalidate() {
 	if (phone) phone->rpcInvalidate();
 	if (code) code->rpcInvalidate();
 	if (signup) signup->rpcInvalidate();
+	if (pwdcheck) pwdcheck->rpcInvalidate();
 }
 
 IntroWidget::~IntroWidget() {
@@ -362,5 +405,6 @@ IntroWidget::~IntroWidget() {
 	delete phone;
 	delete code;
 	delete signup;
+	delete pwdcheck;
 	if (App::wnd()) App::wnd()->noIntro(this);
 }

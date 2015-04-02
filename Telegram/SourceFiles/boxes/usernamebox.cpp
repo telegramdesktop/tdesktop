@@ -55,34 +55,23 @@ UsernameBox::UsernameBox() :
 _saveButton(this, lang(lng_settings_save), st::usernameDone),
 _cancelButton(this, lang(lng_cancel), st::usernameCancel),
 _usernameInput(this, st::inpAddContact, qsl("@username"), App::self()->username),
-_saveRequest(0), _checkRequest(0), _about(st::usernameWidth - 2 * st::addContactTitlePos.x()),
-a_opacity(0, 1), _hiding(false) {
+_saveRequest(0), _checkRequest(0), _about(st::usernameWidth - 2 * st::boxTitlePos.x())  {
 	_about.setRichText(st::usernameFont, lang(lng_username_about));
 	_goodText = App::self()->username.isEmpty() ? QString() : lang(lng_username_available);
 	initBox();
 }
 
 void UsernameBox::initBox() {
-	_width = st::usernameWidth;
-	_height = st::addContactTitleHeight + st::addContactPadding.top() + _usernameInput.height() + st::addContactPadding.bottom() + _about.countHeight(st::usernameWidth - 2 * st::addContactTitlePos.x()) + st::usernameSkip + _saveButton.height();
-	_usernameInput.setGeometry(st::addContactPadding.left(), st::addContactTitleHeight + st::addContactPadding.top(), _width - st::addContactPadding.left() - st::addContactPadding.right(), _usernameInput.height());
-
-	int32 buttonTop = _height - _cancelButton.height();
-	_cancelButton.move(0, buttonTop);
-	_saveButton.move(_width - _saveButton.width(), buttonTop);
+	resizeMaxHeight(st::usernameWidth, st::boxTitleHeight + st::addContactPadding.top() + _usernameInput.height() + st::addContactPadding.bottom() + _about.countHeight(st::usernameWidth - 2 * st::boxTitlePos.x()) + st::usernameSkip + _saveButton.height());
 
 	connect(&_saveButton, SIGNAL(clicked()), this, SLOT(onSave()));
-	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onCancel()));
+	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onClose()));
 	connect(&_usernameInput, SIGNAL(changed()), this, SLOT(onChanged()));
 
 	_checkTimer.setSingleShot(true);
 	connect(&_checkTimer, SIGNAL(timeout()), this, SLOT(onCheck()));
 
-	resize(_width, _height);
-
-	showAll();
-	_cache = myGrab(this, rect());
-	hideAll();
+	prepare();
 }
 
 void UsernameBox::hideAll() {
@@ -97,71 +86,51 @@ void UsernameBox::showAll() {
 	_cancelButton.show();
 }
 
+void UsernameBox::showDone() {
+	_usernameInput.setFocus();
+}
+
 void UsernameBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
 		onSave();
-	} else if (e->key() == Qt::Key_Escape) {
-		onCancel();
+	} else {
+		AbstractBox::keyPressEvent(e);
 	}
-}
-
-void UsernameBox::parentResized() {
-	QSize s = parentWidget()->size();
-	setGeometry((s.width() - _width) / 2, (s.height() - _height) / 2, _width, _height);
-	update();
 }
 
 void UsernameBox::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
-	if (_cache.isNull()) {
-		if (!_hiding || a_opacity.current() > 0.01) {
-			// fill bg
-			p.fillRect(QRect(QPoint(0, 0), size()), st::boxBG->b);
+	if (paint(p)) return;
 
-			// paint shadows
-			p.fillRect(0, st::addContactTitleHeight, _width, st::scrollDef.topsh, st::scrollDef.shColor->b);
-			p.fillRect(0, size().height() - st::usernameCancel.height - st::scrollDef.bottomsh, _width, st::scrollDef.bottomsh, st::scrollDef.shColor->b);
+	paintTitle(p, lang(lng_username_title), true);
 
-			// paint button sep
-			p.fillRect(st::usernameCancel.width, size().height() - st::usernameCancel.height, st::lineWidth, st::usernameCancel.height, st::btnSelectSep->b);
+	// paint shadow
+	p.fillRect(0, height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
 
-			// draw box title / text
-			p.setPen(st::black->p);
-			p.setFont(st::addContactTitleFont->f);
-			p.drawText(st::addContactTitlePos.x(), st::addContactTitlePos.y() + st::addContactTitleFont->ascent, lang(lng_username_title));
+	// paint button sep
+	p.fillRect(st::usernameCancel.width, size().height() - st::usernameCancel.height, st::lineWidth, st::usernameCancel.height, st::btnSelectSep->b);
 
-			if (!_errorText.isEmpty()) {
-				p.setPen(st::setErrColor->p);
-				p.setFont(st::setErrFont->f);
-				int32 w = st::setErrFont->m.width(_errorText);
-				p.drawText((_width - w) / 2, _usernameInput.y() + _usernameInput.height() + ((st::usernameSkip - st::setErrFont->height) / 2) + st::setErrFont->ascent, _errorText);
-			} else if (!_goodText.isEmpty()) {
-				p.setPen(st::setGoodColor->p);
-				p.setFont(st::setErrFont->f);
-				int32 w = st::setErrFont->m.width(_goodText);
-				p.drawText((_width - w) / 2, _usernameInput.y() + _usernameInput.height() + ((st::usernameSkip - st::setErrFont->height) / 2) + st::setErrFont->ascent, _goodText);
-			}
-			p.setPen(st::usernameColor->p);
-			_about.draw(p, st::addContactTitlePos.x(), _usernameInput.y() + _usernameInput.height() + st::usernameSkip, width() - 2 * st::addContactTitlePos.x());
-		}
-	} else {
-		p.setOpacity(a_opacity.current());
-		p.drawPixmap(0, 0, _cache);
+	if (!_errorText.isEmpty()) {
+		p.setPen(st::setErrColor->p);
+		p.setFont(st::setErrFont->f);
+		int32 w = st::setErrFont->m.width(_errorText);
+		p.drawText((width() - w) / 2, _usernameInput.y() + _usernameInput.height() + ((st::usernameSkip - st::setErrFont->height) / 2) + st::setErrFont->ascent, _errorText);
+	} else if (!_goodText.isEmpty()) {
+		p.setPen(st::setGoodColor->p);
+		p.setFont(st::setErrFont->f);
+		int32 w = st::setErrFont->m.width(_goodText);
+		p.drawText((width() - w) / 2, _usernameInput.y() + _usernameInput.height() + ((st::usernameSkip - st::setErrFont->height) / 2) + st::setErrFont->ascent, _goodText);
 	}
+	p.setPen(st::usernameColor->p);
+	_about.draw(p, st::boxTitlePos.x(), _usernameInput.y() + _usernameInput.height() + st::usernameSkip, width() - 2 * st::boxTitlePos.x());
 }
 
-void UsernameBox::animStep(float64 dt) {
-	if (dt >= 1) {
-		a_opacity.finish();
-		_cache = QPixmap();
-		if (!_hiding) {
-			showAll();
-			_usernameInput.setFocus();
-		}
-	} else {
-		a_opacity.update(dt, anim::linear);
-	}
-	update();
+void UsernameBox::resizeEvent(QResizeEvent *e) {
+	_usernameInput.setGeometry(st::addContactPadding.left(), st::boxTitleHeight + st::addContactPadding.top(), width() - st::addContactPadding.left() - st::addContactPadding.right(), _usernameInput.height());
+
+	int32 buttonTop = height() - _cancelButton.height();
+	_cancelButton.move(0, buttonTop);
+	_saveButton.move(width() - _saveButton.width(), buttonTop);
 }
 
 void UsernameBox::onSave() {
@@ -276,20 +245,4 @@ bool UsernameBox::onCheckFail(const RPCError &error) {
 
 QString UsernameBox::getName() const {
 	return _usernameInput.text().replace('@', QString()).trimmed();
-}
-
-void UsernameBox::onCancel() {
-	emit closed();
-}
-
-void UsernameBox::startHide() {
-	_hiding = true;
-	if (_cache.isNull()) {
-		_cache = myGrab(this, rect());
-		hideAll();
-	}
-	a_opacity.start(0);
-}
-
-UsernameBox::~UsernameBox() {
 }

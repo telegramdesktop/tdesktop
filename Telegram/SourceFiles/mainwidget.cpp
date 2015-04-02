@@ -490,7 +490,7 @@ void MainWidget::finishForwarding(History *hist) {
 		MsgId newId = clientMsgId();
 		hist->addToBackForwarded(newId, static_cast<HistoryMessage*>(_toForward.cbegin().value()));
 		App::historyRegRandom(randomId, newId);
-		hist->sendRequestId = MTP::send(MTPmessages_ForwardMessage(hist->peer->input, MTP_int(_toForward.cbegin().key()), MTP_long(randomId)), rpcDone(&MainWidget::sentFullDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+		hist->sendRequestId = MTP::send(MTPmessages_ForwardMessage(hist->peer->input, MTP_int(_toForward.cbegin().key()), MTP_long(randomId)), rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 	} else {
 		QVector<MTPint> ids;
 		QVector<MTPlong> randomIds;
@@ -504,7 +504,7 @@ void MainWidget::finishForwarding(History *hist) {
 			ids.push_back(MTP_int(i.key()));
 			randomIds.push_back(MTP_long(randomId));
 		}
-		hist->sendRequestId = MTP::send(MTPmessages_ForwardMessages(hist->peer->input, MTP_vector<MTPint>(ids), MTP_vector<MTPlong>(randomIds)), rpcDone(&MainWidget::forwardDone, hist->peer->id), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+		hist->sendRequestId = MTP::send(MTPmessages_ForwardMessages(hist->peer->input, MTP_vector<MTPint>(ids), MTP_vector<MTPlong>(randomIds)), rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 	}
 	if (history.peer() == hist->peer) history.peerMessagesUpdated();
 	cancelForwarding();
@@ -649,8 +649,8 @@ bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &e) {
 	return false;
 }
 
-void MainWidget::deleteHistory(PeerData *peer, const MTPmessages_StatedMessage &result) {
-	sentFullDataReceived(0, result);
+void MainWidget::deleteHistory(PeerData *peer, const MTPUpdates &updates) {
+	sentUpdatesReceived(updates);
 	if ((profile && profile->peer() == peer) || (overview && overview->peer() == peer) || _stack.contains(peer) || history.peer() == peer) {
 		showPeer(0, 0, false, true);
 	}
@@ -707,14 +707,10 @@ void MainWidget::removeContact(UserData *user) {
 
 void MainWidget::addParticipants(ChatData *chat, const QVector<UserData*> &users) {
 	for (QVector<UserData*>::const_iterator i = users.cbegin(), e = users.cend(); i != e; ++i) {
-		MTP::send(MTPmessages_AddChatUser(MTP_int(chat->id & 0xFFFFFFFF), (*i)->inputUser, MTP_int(ForwardOnAdd)), rpcDone(&MainWidget::addParticipantDone, chat), rpcFail(&MainWidget::addParticipantFail, chat), 0, 5);
+		MTP::send(MTPmessages_AddChatUser(MTP_int(chat->id & 0xFFFFFFFF), (*i)->inputUser, MTP_int(ForwardOnAdd)), rpcDone(&MainWidget::sentUpdatesReceived), rpcFail(&MainWidget::addParticipantFail, chat), 0, 5);
 	}
 	App::wnd()->hideLayer();
 	showPeer(chat->id, 0, false);
-}
-
-void MainWidget::addParticipantDone(ChatData *chat, const MTPmessages_StatedMessage &result) {
-	sentFullDataReceived(0, result);
 }
 
 bool MainWidget::addParticipantFail(ChatData *chat, const RPCError &e) {
@@ -726,13 +722,9 @@ bool MainWidget::addParticipantFail(ChatData *chat, const RPCError &e) {
 }
 
 void MainWidget::kickParticipant(ChatData *chat, UserData *user) {
-	MTP::send(MTPmessages_DeleteChatUser(MTP_int(chat->id & 0xFFFFFFFF), user->inputUser), rpcDone(&MainWidget::kickParticipantDone, chat), rpcFail(&MainWidget::kickParticipantFail, chat));
+	MTP::send(MTPmessages_DeleteChatUser(MTP_int(chat->id & 0xFFFFFFFF), user->inputUser), rpcDone(&MainWidget::sentUpdatesReceived), rpcFail(&MainWidget::kickParticipantFail, chat));
 	App::wnd()->hideLayer();
 	showPeer(chat->id, 0, false);
-}
-
-void MainWidget::kickParticipantDone(ChatData *chat, const MTPmessages_StatedMessage &result) {
-	sentFullDataReceived(0, result);
 }
 
 bool MainWidget::kickParticipantFail(ChatData *chat, const RPCError &e) {
@@ -1886,115 +1878,8 @@ void MainWidget::sentDataReceived(uint64 randomId, const MTPmessages_SentMessage
 	};
 }
 
-void MainWidget::sentFullDataReceived(uint64 randomId, const MTPmessages_StatedMessage &result) {
-	const MTPMessage *msg = 0;
-	MsgId msgId = 0;
-	if (randomId) {
-		switch (result.type()) {
-		case mtpc_messages_statedMessage: msg = &result.c_messages_statedMessage().vmessage; break;
-		case mtpc_messages_statedMessageLink: msg = &result.c_messages_statedMessageLink().vmessage; break;
-		}
-		if (msg) {
-			switch (msg->type()) {
-			case mtpc_message: msgId = msg->c_message().vid.v; break;
-			case mtpc_messageEmpty: msgId = msg->c_messageEmpty().vid.v; break;
-			case mtpc_messageService: msgId = msg->c_messageService().vid.v; break;
-			}
-			if (msgId) {
-				feedUpdate(MTP_updateMessageID(MTP_int(msgId), MTP_long(randomId))); // ignore real date
-			}
-		}
-	}
-
-	switch (result.type()) {
-	case mtpc_messages_statedMessage: {
-		const MTPDmessages_statedMessage &d(result.c_messages_statedMessage());
-
-		App::feedChats(d.vchats);
-		App::feedUsers(d.vusers);
-		if (msg && msgId) {
-			App::feedMessageMedia(msgId, *msg);
-		}
-		if (updInited) {
-			if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
-				_byPtsStatedMessage.insert(ptsKey(SkippedStatedMessage), result);
-				return;
-			}
-		}
-		if (!randomId) {
-			++updSkipPtsUpdateLevel;
-			feedUpdate(MTP_updateNewMessage(d.vmessage, d.vpts, d.vpts_count));
-			--updSkipPtsUpdateLevel;
-		}
-	} break;
-
-	case mtpc_messages_statedMessageLink: {
-		const MTPDmessages_statedMessageLink &d(result.c_messages_statedMessageLink());
-
-		App::feedChats(d.vchats);
-		App::feedUsers(d.vusers);
-		if (msg && msgId) {
-			App::feedMessageMedia(msgId, *msg);
-		}
-		if (updInited) {
-			if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
-				_byPtsStatedMessage.insert(ptsKey(SkippedStatedMessage), result);
-				return;
-			}
-		}
-		if (!randomId) {
-			++updSkipPtsUpdateLevel;
-			feedUpdate(MTP_updateNewMessage(d.vmessage, d.vpts, d.vpts_count));
-			--updSkipPtsUpdateLevel;
-		}
-		App::feedUserLinks(d.vlinks);
-	} break;
-	};
-}
-
-void MainWidget::sentFullDatasReceived(const MTPmessages_StatedMessages &result) {
-	switch (result.type()) {
-	case mtpc_messages_statedMessages: {
-		const MTPDmessages_statedMessages &d(result.c_messages_statedMessages());
-		if (updInited) {
-			if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
-				_byPtsStatedMessages.insert(ptsKey(SkippedStatedMessages), result);
-				return;
-			}
-		}
-
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		App::feedMsgs(d.vmessages, 1);
-		history.peerMessagesUpdated();
-	} break;
-
-	case mtpc_messages_statedMessagesLinks: {
-		const MTPDmessages_statedMessagesLinks &d(result.c_messages_statedMessagesLinks());
-
-		if (updInited) {
-			if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
-				_byPtsStatedMessages.insert(ptsKey(SkippedStatedMessages), result);
-				return;
-			}
-		}
-
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		App::feedMsgs(d.vmessages, 1);
-		history.peerMessagesUpdated();
-
-		App::feedUserLinks(d.vlinks);
-	} break;
-	};
-}
-
-void MainWidget::forwardDone(PeerId peer, const MTPmessages_StatedMessages &result) {
-	sentFullDatasReceived(result);
-	if (hider) hider->forwardDone();
-	clearSelectedItems();
-	showPeer(peer, 0, false, true);
-	history.onClearSelected();
+void MainWidget::sentUpdatesReceived(const MTPUpdates &result) {
+	handleUpdates(result);
 }
 
 void MainWidget::msgUpdated(PeerId peer, const HistoryItem *msg) {
@@ -2090,6 +1975,10 @@ void MainWidget::hideAll() {
 }
 
 void MainWidget::showAll() {
+	if (cPasswordRecovered()) {
+		cSetPasswordRecovered(false);
+		App::wnd()->showLayer(new ConfirmBox(lang(lng_signin_password_removed), true, lang(lng_continue)));
+	}
 	if (cWideMode()) {
 		if (hider) {
 			hider->show();
@@ -2363,8 +2252,6 @@ void MainWidget::applySkippedPtsUpdates() {
 		case SkippedUpdate: feedUpdate(_byPtsUpdate.value(i.key())); break;
 		case SkippedUpdates: handleUpdates(_byPtsUpdates.value(i.key())); break;
 		case SkippedSentMessage: sentDataReceived(0, _byPtsSentMessage.value(i.key())); break;
-		case SkippedStatedMessage: sentFullDataReceived(0, _byPtsStatedMessage.value(i.key())); break;
-		case SkippedStatedMessages: sentFullDatasReceived(_byPtsStatedMessages.value(i.key())); break;
 		}
 	}
 	--updSkipPtsUpdateLevel;
@@ -2376,8 +2263,6 @@ void MainWidget::clearSkippedPtsUpdates() {
 	_byPtsUpdate.clear();
 	_byPtsUpdates.clear();
 	_byPtsSentMessage.clear();
-	_byPtsStatedMessage.clear();
-	_byPtsStatedMessages.clear();
 	updSkipPtsUpdateLevel = 0;
 }
 
@@ -2965,6 +2850,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (history.peer() && history.peer()->id == peer) history.update();
 	} break;
 
+	case mtpc_updateWebPage: {
+		const MTPDupdateWebPage &d(update.c_updateWebPage());
+		//
+	} break;
+
 	case mtpc_updateDeleteMessages: {
 		const MTPDupdateDeleteMessages &d(update.c_updateDeleteMessages());
 		if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
@@ -3140,12 +3030,14 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateNewAuthorization: {
 		const MTPDupdateNewAuthorization &d(update.c_updateNewAuthorization());
 		QDateTime datetime = date(d.vdate);
-		
+
 		QString name = App::self()->firstName;
 		QString day = langDayOfWeekFull(datetime.date()), date = langDayOfMonth(datetime.date()), time = datetime.time().toString(cTimeFormat());
 		QString device = qs(d.vdevice), location = qs(d.vlocation);
 		LangString text = lng_new_authorization(lt_name, App::self()->firstName, lt_day, day, lt_date, date, lt_time, time, lt_device, device, lt_location, location);
 		App::wnd()->serviceNotification(text);
+
+		emit App::wnd()->newAuthorization();
 	} break;
 
 	case mtpc_updateServiceNotification: {

@@ -27,10 +27,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer) : _downState(0),
 	_sendButton(this, lang(lng_settings_save), st::btnSelectDone),
 	_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
-    _img(img), _peerId(peer), a_opacity(0, 1) {
+    _img(img), _peerId(peer) {
 
 	connect(&_sendButton, SIGNAL(clicked()), this, SLOT(onSend()));
-	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onCancel()));
+	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onClose()));
 	if (_peerId) {
 		connect(this, SIGNAL(ready(const QImage &)), this, SLOT(onReady(const QImage &)));
 	}
@@ -46,13 +46,12 @@ PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer) : _downState(0
 	}
 	_cropx = (_thumbw - _cropw) / 2;
 	_cropy = (_thumbh - _cropw) / 2;
-	_width = st::cropBoxWidth;
-	_height = _thumbh + st::boxPadding.top() + st::boxFont->height + st::boxPadding.top() + st::boxPadding.bottom() + _sendButton.height();
-	_thumbx = (_width - _thumbw) / 2;
+
+	_thumbx = (st::cropBoxWidth - _thumbw) / 2;
 	_thumby = st::boxPadding.top() * 2 + st::boxFont->height;
 	setMouseTracking(true);
 
-	resize(_width, _height);
+	resizeMaxHeight(st::cropBoxWidth, _thumbh + st::boxPadding.top() + st::boxFont->height + st::boxPadding.top() + st::boxPadding.bottom() + _sendButton.height());
 }
 
 void PhotoCropBox::mousePressEvent(QMouseEvent *e) {
@@ -195,39 +194,26 @@ void PhotoCropBox::mouseMoveEvent(QMouseEvent *e) {
 void PhotoCropBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
 		onSend();
-	} else if (e->key() == Qt::Key_Escape) {
-		onCancel();
+	} else {
+		AbstractBox::keyPressEvent(e);
 	}
-}
-
-void PhotoCropBox::parentResized() {
-	QSize s = parentWidget()->size();
-	setGeometry((s.width() - _width) / 2, (s.height() - _height) / 2, _width, _height);
-	_sendButton.move(_width - _sendButton.width(), _height - _sendButton.height());
-	_cancelButton.move(0, _height - _cancelButton.height());
-	update();
 }
 
 void PhotoCropBox::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
-	p.setOpacity(a_opacity.current());
+	if (paint(p)) return;
 	
-	// fill bg
-	p.fillRect(QRect(QPoint(0, 0), size()), st::boxBG->b);
-
-	// paint shadows
-	p.fillRect(0, _height - st::btnSelectCancel.height - st::scrollDef.bottomsh, _width, st::scrollDef.bottomsh, st::scrollDef.shColor->b);
+	// paint shadow
+	p.fillRect(0, height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
 
 	// paint button sep
-	p.fillRect(st::btnSelectCancel.width, _height - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
+	p.fillRect(st::btnSelectCancel.width, height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
 
-	p.setFont(st::boxFont->f);
-	p.setPen(st::boxGrayTitle->p);
-	p.drawText(QRect(st::boxPadding.left(), st::boxPadding.top(), _width - st::boxPadding.left() - st::boxPadding.right(), st::boxFont->height), lang(lng_settings_crop_profile), style::al_center);
+	paintGrayTitle(p, lang(lng_settings_crop_profile));
 
 	p.translate(_thumbx, _thumby);
 	p.drawPixmap(0, 0, _thumb);
-	p.setOpacity(a_opacity.current() * 0.5);
+	p.setOpacity(0.5);
 	if (_cropy > 0) {
 		p.fillRect(QRect(0, 0, _cropx + _cropw, _cropy), st::black->b);
 	}
@@ -248,15 +234,9 @@ void PhotoCropBox::paintEvent(QPaintEvent *e) {
 	p.fillRect(QRect(_cropx + mdelta, _cropy + _cropw + mdelta, delta, delta), st::white->b);
 }
 
-void PhotoCropBox::animStep(float64 ms) {
-	if (ms >= 1) {
-		a_opacity.finish();
-	} else {
-		a_opacity.update(ms, anim::linear);
-	}
-	_sendButton.setOpacity(a_opacity.current());
-	_cancelButton.setOpacity(a_opacity.current());
-	update();
+void PhotoCropBox::resizeEvent(QResizeEvent *e) {
+	_sendButton.move(width() - _sendButton.width(), height() - _sendButton.height());
+	_cancelButton.move(0, height() - _cancelButton.height());
 }
 
 void PhotoCropBox::onSend() {
@@ -296,14 +276,12 @@ void PhotoCropBox::onReady(const QImage &tosend) {
 	emit closed();
 }
 
-void PhotoCropBox::onCancel() {
-	emit closed();
+void PhotoCropBox::hideAll() {
+	_sendButton.hide();
+	_cancelButton.hide();
 }
 
-void PhotoCropBox::startHide() {
-	_hiding = true;
-	a_opacity.start(0);
-}
-
-PhotoCropBox::~PhotoCropBox() {
+void PhotoCropBox::showAll() {
+	_sendButton.show();
+	_cancelButton.show();
 }

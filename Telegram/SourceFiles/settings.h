@@ -181,6 +181,8 @@ typedef QList<QPair<QString, ushort> > RecentHashtagPack;
 DeclareSetting(RecentHashtagPack, RecentWriteHashtags);
 DeclareSetting(RecentHashtagPack, RecentSearchHashtags);
 
+DeclareSetting(bool, PasswordRecovered);
+
 inline void incrementRecentHashtag(RecentHashtagPack &recent, const QString &tag) {
 	RecentHashtagPack::iterator i = recent.begin(), e = recent.end();
 	for (; i != e; ++i) {

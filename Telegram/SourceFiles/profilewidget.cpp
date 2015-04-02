@@ -25,7 +25,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/photocropbox.h"
 #include "application.h"
-#include "boxes/addparticipantbox.h"
+#include "boxes/contactsbox.h"
 #include "gui/filedialog.h"
 
 ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const PeerData *peer) : TWidget(0),
@@ -197,8 +197,7 @@ void ProfileInner::onClearHistorySure() {
 }
 
 void ProfileInner::onAddParticipant() {
-	AddParticipantBox *box = new AddParticipantBox(_peerChat);
-	App::wnd()->showLayer(box);
+	App::wnd()->showLayer(new ContactsBox(_peerChat));
 }
 
 void ProfileInner::onUpdatePhotoCancel() {

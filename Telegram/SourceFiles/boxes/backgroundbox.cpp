@@ -171,100 +171,39 @@ BackgroundInner::~BackgroundInner() {
 void BackgroundInner::resizeEvent(QResizeEvent *e) {
 }
 
-BackgroundBox::BackgroundBox() : _scroll(this, st::backgroundScroll), _inner(),
-_close(this, lang(lng_contacts_done), st::contactsClose),
-_hiding(false), a_opacity(0, 1) {
+BackgroundBox::BackgroundBox() : ItemListBox(st::boxScroll), _inner(),
+_close(this, lang(lng_contacts_done), st::contactsClose) {
 
-	_width = st::participantWidth;
-	_height = App::wnd()->height() - st::boxPadding.top() - st::boxPadding.bottom();
-
-	resize(_width, _height);
-	resizeEvent(0);
-
-	_scroll.setWidget(&_inner);
-	_scroll.setFocusPolicy(Qt::NoFocus);
+	init(&_inner, _close.height(), st::boxFont->height + st::newGroupNamePadding.top() + st::newGroupNamePadding.bottom());
 
 	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
 	connect(&_inner, SIGNAL(backgroundChosen(int)), this, SLOT(onBackgroundChosen(int)));
 
-	showAll();
-	_cache = myGrab(this, rect());
-	hideAll();
+	prepare();
 }
 
 void BackgroundBox::hideAll() {
-	_scroll.hide();
+	ItemListBox::hideAll();
 	_close.hide();
 }
 
 void BackgroundBox::showAll() {
-	_scroll.show();
+	ItemListBox::showAll();
 	_close.show();
 	_close.raise();
 }
 
-void BackgroundBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Escape) {
-		onClose();
-	} else {
-		e->ignore();
-	}
-}
-
-void BackgroundBox::parentResized() {
-	QSize s = parentWidget()->size();
-	_height = App::wnd()->height() - st::boxPadding.top() - st::boxPadding.bottom();
-	if (_height > st::participantMaxHeight) _height = st::participantMaxHeight;
-	setGeometry((s.width() - _width) / 2, (s.height() - _height) / 2, _width, _height);
-	update();
-}
-
 void BackgroundBox::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
-	if (_cache.isNull()) {
-		if (!_hiding || a_opacity.current() > 0.01) {
-			// fill bg
-			p.fillRect(QRect(QPoint(0, 0), size()), st::boxBG->b);
+	if (paint(p)) return;
 
-			// draw box title / text
-			p.setFont(st::boxFont->f);
-			p.setPen(st::boxGrayTitle->p);
-			p.drawText(QRect(st::addContactTitlePos.x(), st::addContactTitlePos.y(), _width - 2 * st::addContactTitlePos.x(), st::boxFont->height), lang(lng_backgrounds_header), style::al_top);
-		}
-	} else {
-		p.setOpacity(a_opacity.current());
-		p.drawPixmap(0, 0, _cache);
-	}
+	paintGrayTitle(p, lang(lng_backgrounds_header));
 }
 
 void BackgroundBox::resizeEvent(QResizeEvent *e) {
-	LayeredWidget::resizeEvent(e);
-	_inner.resize(_width, _inner.height());
-	_scroll.resize(_width, _height - st::boxFont->height - st::newGroupNamePadding.top() - st::newGroupNamePadding.bottom() - _close.height());
-	_scroll.move(0, st::boxFont->height + st::newGroupNamePadding.top() + st::newGroupNamePadding.bottom());
-	_close.move(0, _height - _close.height());
-}
-
-void BackgroundBox::animStep(float64 dt) {
-	if (dt >= 1) {
-		a_opacity.finish();
-		_cache = QPixmap();
-		if (!_hiding) {
-			showAll();
-		}
-	} else {
-		a_opacity.update(dt, anim::linear);
-	}
-	update();
-}
-
-void BackgroundBox::startHide() {
-	_hiding = true;
-	if (_cache.isNull()) {
-		_cache = myGrab(this, rect());
-		hideAll();
-	}
-	a_opacity.start(0);
+	ItemListBox::resizeEvent(e);
+	_inner.resize(width(), _inner.height());
+	_close.move(0, height() - _close.height());
 }
 
 void BackgroundBox::onBackgroundChosen(int index) {
@@ -274,12 +213,4 @@ void BackgroundBox::onBackgroundChosen(int index) {
 		if (App::settings()) App::settings()->needBackgroundUpdate(!paper.id);
 	}
 	emit closed();
-}
-
-void BackgroundBox::onClose() {
-	emit closed();
-}
-
-BackgroundBox::~BackgroundBox() {
-
 }

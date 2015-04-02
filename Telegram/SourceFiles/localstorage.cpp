@@ -1031,7 +1031,7 @@ namespace {
 
 	bool _readOldUserSettings(bool remove = true) {
 		bool result = false;
-		QFile file(cWorkingDir() + cDataFile() + qsl("_config"));
+		QFile file(cWorkingDir() + cDataFile() + (cTestMode() ? qsl("_test") : QString()) + qsl("_config"));
 		if (file.open(QIODevice::ReadOnly)) {
 			LOG(("App Info: reading old user config.."));
 			qint32 version = 0;
@@ -1111,7 +1111,7 @@ namespace {
 
 	bool _readOldMtpData(bool remove = true) {
 		bool result = false;
-		QFile file(cWorkingDir() + cDataFile());
+		QFile file(cWorkingDir() + cDataFile() + (cTestMode() ? qsl("_test") : QString()));
 		if (file.open(QIODevice::ReadOnly)) {
 			LOG(("App Info: reading old keys.."));
 			qint32 version = 0;
@@ -1235,7 +1235,7 @@ namespace {
 
 	Local::ReadMapState _readMap(const QByteArray &pass) {
 		uint64 ms = getms();
-		QByteArray dataNameUtf8 = cDataFile().toUtf8();
+		QByteArray dataNameUtf8 = (cDataFile() + (cTestMode() ? qsl(":/test/") : QString())).toUtf8();
 		FileKey dataNameHash[2];
 		hashMd5(dataNameUtf8.constData(), dataNameUtf8.size(), dataNameHash);
 		_dataNameKey = dataNameHash[0];

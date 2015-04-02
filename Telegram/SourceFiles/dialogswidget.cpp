@@ -23,7 +23,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "dialogswidget.h"
 #include "mainwidget.h"
 #include "boxes/addcontactbox.h"
-#include "boxes/newgroupbox.h"
+#include "boxes/contactsbox.h"
 
 #include "localstorage.h"
 
@@ -718,7 +718,11 @@ void DialogsListWidget::peopleReceived(const QString &query, const QVector<MTPCo
 void DialogsListWidget::contactsReceived(const QVector<MTPContact> &contacts) {
 	cSetContactsReceived(true);
 	for (QVector<MTPContact>::const_iterator i = contacts.cbegin(), e = contacts.cend(); i != e; ++i) {
-		addNewContact(i->c_contact().vuser_id.v);
+		int32 uid = i->c_contact().vuser_id.v;
+		addNewContact(uid);
+		if (uid == MTP::authedId() && App::self()) {
+			App::self()->contact = 1;
+		}
 	}
 	if (!sel && contactsNoDialogs.list.count) {
 		sel = contactsNoDialogs.list.begin;
@@ -1877,7 +1881,7 @@ void DialogsWidget::onAddContact() {
 }
 
 void DialogsWidget::onNewGroup() {
-	App::wnd()->showLayer(new NewGroupBox());
+	App::wnd()->showLayer(new ContactsBox(true));
 }
 
 bool DialogsWidget::onCancelSearch() {

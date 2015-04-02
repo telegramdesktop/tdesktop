@@ -94,6 +94,8 @@ RecentStickerPack gRecentStickers;
 
 RecentHashtagPack gRecentWriteHashtags, gRecentSearchHashtags;
 
+bool gPasswordRecovered = false;
+
 int32 gLang = -2; // auto
 QString gLangFile;
 

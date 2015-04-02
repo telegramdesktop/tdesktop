@@ -98,6 +98,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_intro_next" = "NEXT";
 "lng_intro_finish" = "SIGN UP";
+"lng_intro_submit" = "SUBMIT";
 
 "lng_phone_ph" = "Your phone number";
 "lng_phone_title" = "Your Phone";
@@ -123,6 +124,19 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_photo" = "Bad image selected.";
 
 "lng_bad_image_for_photo" = "This image can't be sent that way.\nWould you like to send it as a file?";
+
+"lng_signin_title" = "Cloud password check";
+"lng_signin_desc" = "Please enter your cloud password.";
+"lng_signin_recover_desc" = "Please enter code from recovery email.";
+"lng_signin_password" = "Your cloud password";
+"lng_signin_code" = "Code from email";
+"lng_signin_recover" = "Recover by email";
+"lng_signin_hint" = "Hint: {password_hint}";
+"lng_signin_recover_hint" = "Code was sent to {recover_email}.";
+"lng_signin_bad_password" = "You have entered a wrong password.";
+"lng_signin_wrong_code" = "You have entered an invalid code. Please try again.";
+"lng_signin_try_password" = "I remember the password";
+"lng_signin_password_removed" = "Your cloud password was removed.\nYou can set new one in Settings.";
 
 "lng_signup_title" = "Information and photo";
 "lng_signup_desc" = "Please enter your name and\nupload a photo.";
@@ -229,10 +243,12 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_settings_section_advanced" = "Advanced";
 
-"lng_passcode_turn_on" = "Turn passcode on";
-"lng_passcode_change" = "Change passcode";
-"lng_passcode_create" = "Create passcode";
-"lng_passcode_remove" = "Remove passcode";
+"lng_passcode_remove_button" = "Remove";
+
+"lng_passcode_turn_on" = "Turn on local passcode";
+"lng_passcode_change" = "Change local passcode";
+"lng_passcode_create" = "Create local passcode";
+"lng_passcode_remove" = "Remove local passcode";
 "lng_passcode_turn_off" = "Turn off";
 "lng_passcode_autolock" = "Auto-Lock";
 "lng_passcode_autolock_away" = "Auto-Lock if away for:";
@@ -242,13 +258,35 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_passcode_enter_old" = "Enter old passcode";
 "lng_passcode_enter_new" = "Enter new passcode";
 "lng_passcode_confirm_new" = "Re-enter new passcode";
-"lng_passcode_about" = "When a passcode is set, a lock icon appears in the top menu. Click it to lock the app.\n\nNote: if you forget your passcode, you'll need to relogin in Telegram Desktop.";
+"lng_passcode_about" = "When a local passcode is set, a lock icon appears in the top menu. Click it to lock the app.\n\nNote: if you forget your local passcode, you'll need to relogin in Telegram Desktop.";
 "lng_passcode_differ" = "Passcodes are different";
 "lng_passcode_wrong" = "Wrong passcode";
 "lng_passcode_is_same" = "Passcode was not changed";
-"lng_passcode_enter" = "Enter your Telegram Passcode";
+"lng_passcode_enter" = "Enter your local passcode";
 "lng_passcode_submit" = "Submit";
 "lng_passcode_logout" = "Log out";
+
+"lng_cloud_password_waiting" = "Confirmation sent to {email}..";
+"lng_cloud_password_change" = "Change cloud password";
+"lng_cloud_password_create" = "Create cloud password";
+"lng_cloud_password_remove" = "Remove cloud password";
+"lng_cloud_password_set" = "Turn on cloud password";
+"lng_cloud_password_edit" = "Change cloud password";
+"lng_cloud_password_enter_old" = "Enter old password";
+"lng_cloud_password_enter_new" = "Enter new password";
+"lng_cloud_password_confirm_new" = "Re-enter new password";
+"lng_cloud_password_hint" = "Enter new password hint";
+"lng_cloud_password_bad" = "Password and hint should differ.";
+"lng_cloud_password_email" = "Enter recover email";
+"lng_cloud_password_bad_email" = "Incorrect email, please try other.";
+"lng_cloud_password_about" = "Each new device authorization will require entering cloud password or recover by email.";
+"lng_cloud_password_about_recover" = "Warning! Are you sure you don't want to\nenter a recover email address?\n\nIf you forget your cloud password\nyou will loose all your account data.";
+"lng_cloud_password_almost" = "A confirmation link was sent\nto the email you provided.\n\nYour cloud password will be enabled\nonly after you follow that link.";
+"lng_cloud_password_was_set" = "Your new password is enabled.";
+"lng_cloud_password_removed" = "Your cloud password was removed.";
+"lng_cloud_password_differ" = "Passwords are different";
+"lng_cloud_password_wrong" = "Wrong cloud password";
+"lng_cloud_password_is_same" = "Cloud password was not changed";
 
 "lng_connection_type" = "Connection type:";
 "lng_connection_auto_connecting" = "Default (connecting..)";
@@ -264,8 +302,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_connection_user_ph" = "Username";
 "lng_connection_password_ph" = "Password";
 "lng_connection_save" = "Save";
-"lng_settings_reset" = "Terminate other sessions";
-"lng_settings_reset_sure" = "Are you sure you want to terminate all other sessions?";
+"lng_settings_show_sessions" = "Show all sessions";
+"lng_settings_reset" = "Terminate all other sessions";
+"lng_settings_reset_sure" = "Are you sure you want to terminate\nall other sessions?";
+"lng_settings_reset_one_sure" = "Do you want to terminate this session?";
 "lng_settings_reset_button" = "Terminate";
 "lng_settings_reset_done" = "Other sessions terminated";
 "lng_settings_logout" = "Log Out";
@@ -275,10 +315,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_restart_now" = "Restart";
 "lng_settings_restart_later" = "Later";
 
+"lng_sessions_header" = "Current session";
+"lng_sessions_other_header" = "Other sessions";
+"lng_sessions_no_other" = "No other sessions";
+"lng_sessions_other_desc" = "You can log in to Telegram from other\nmobile, tablet and desktop devices, using\nthe same phone number. All your data\nwill be instantly synchronized.";
+"lng_sessions_terminate_all" = "Terminate all";
+
 "lng_profile_chat_unaccessible" = "Group is unaccessible";
 "lng_topbar_info" = "Info";
 "lng_profile_settings_section" = "Settings";
-"lng_profile_participants_section" = "Participants";
+"lng_profile_participants_section" = "Members";
 "lng_profile_info" = "Contact info";
 "lng_profile_group_info" = "Group info";
 "lng_profile_add_contact" = "Add Contact";
@@ -319,8 +365,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_sure_delete_history" = "Are you sure, you want to delete all message history with {contact}?\n\nThis action cannot be undone.";
 
 "lng_sure_delete_and_exit" = "Are you sure, you want to delete all message history and leave «{group}»?\n\nThis action cannot be undone.";
-
-"lng_sure_enable_debug" = "Do you want to enable DEBUG mode?\n\nAll network events will be logged.";
 
 "lng_message_empty" = "(empty)";
 
@@ -487,7 +531,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_mediaview_saved" = "Image was saved to your [c]Downloads[/c] folder";
 
-"lng_new_authorization" = "{name},\nWe detected a login into your account from a new device on {day}, {date} at {time}\n\nDevice: {device}\nLocation: {location}\n\nIf this wasn't you, you can go to Settings — Terminate other sessions.\n\nThanks,\nThe Telegram Team";
+"lng_new_authorization" = "{name},\nWe detected a login into your account from a new device on {day}, {date} at {time}\n\nDevice: {device}\nLocation: {location}\n\nIf this wasn't you, you can go to Settings — Show all sessions and terminate the new session there.\n\nThanks,\nThe Telegram Team";
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
