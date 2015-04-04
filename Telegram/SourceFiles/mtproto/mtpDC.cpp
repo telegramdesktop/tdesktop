@@ -142,7 +142,9 @@ namespace {
 
 		mtpConfigLoader()->done();
 	}
-	bool configFailed(const RPCError &err) {
+	bool configFailed(const RPCError &error) {
+		if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 		loadingConfig = false;
 		LOG(("MTP Error: failed to get config!"));
 		return false;

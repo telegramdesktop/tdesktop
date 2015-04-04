@@ -52,6 +52,7 @@ public:
 	bool animStep(float64 ms);
 
 	void activate();
+	void prepareShow();
 	void deactivate();
 	void onNext();
 	void onBack();

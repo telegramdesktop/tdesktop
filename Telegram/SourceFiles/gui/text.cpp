@@ -854,7 +854,7 @@ void TextLink::onClick(Qt::MouseButton button) const {
 		} else if (QRegularExpression(qsl("^tg://[a-zA-Z0-9]+"), QRegularExpression::CaseInsensitiveOption).match(url).hasMatch()) {
 			App::openLocalUrl(url);
 		} else {
-			QDesktopServices::openUrl(TextLink::encoded());
+			QDesktopServices::openUrl(url);
 		}
 	}
 }
@@ -881,7 +881,7 @@ public:
 		return _blockEnd(t, i, e) - (*i)->from();
 	}
 
-	TextPainter(QPainter *p, const Text *t) : _p(p), _t(t), _elideLast(false), _str(0), _elideSavedBlock(0), _lnkResult(0), _inTextFlag(0), _getSymbol(0), _getSymbolAfter(0), _getSymbolUpon(0) {
+	TextPainter(QPainter *p, const Text *t) : _p(p), _t(t), _elideLast(false), _elideRemoveFromEnd(0), _str(0), _elideSavedBlock(0), _lnkResult(0), _inTextFlag(0), _getSymbol(0), _getSymbolAfter(0), _getSymbolUpon(0) {
 	}
 
 	void initNextParagraph(Text::TextBlocks::const_iterator i) {
@@ -1010,6 +1010,9 @@ public:
 				last_rBearing = _rb;
 				last_rPadding = b->f_rpadding();
 				_wLeft = _w - (b->f_width() - last_rBearing);
+				if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yTo)) {
+					_wLeft -= _elideRemoveFromEnd;
+				}
 
 				_parDirection = static_cast<NewlineBlock*>(b)->nextDirection();
 				if (_parDirection == Qt::LayoutDirectionAuto) _parDirection = langDir();
@@ -1079,6 +1082,9 @@ public:
 					last_rBearing = j->f_rbearing();
 					last_rPadding = j->rpadding;
 					_wLeft = _w - (j_width - last_rBearing);
+					if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yTo)) {
+						_wLeft -= _elideRemoveFromEnd;
+					}
 
 					longWordLine = true;
 					f = j + 1;
@@ -1102,6 +1108,9 @@ public:
 			last_rBearing = _rb;
 			last_rPadding = b->f_rpadding();
 			_wLeft = _w - (b->f_width() - last_rBearing);
+			if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yTo)) {
+				_wLeft -= _elideRemoveFromEnd;
+			}
 
 			longWordLine = true;
 			continue;
@@ -1116,12 +1125,13 @@ public:
 		}
 	}
 
-	void drawElided(int32 left, int32 top, int32 w, style::align align, int32 lines, int32 yFrom, int32 yTo) {
+	void drawElided(int32 left, int32 top, int32 w, style::align align, int32 lines, int32 yFrom, int32 yTo, int32 removeFromEnd) {
 		if (lines <= 0) return;
 
 		if (yTo < 0 || (lines - 1) * _t->_font->height < yTo) {
 			yTo = lines * _t->_font->height;
 			_elideLast = true;
+			_elideRemoveFromEnd = removeFromEnd;
 		}
 		draw(left, top, w, align, yFrom, yTo);
 	}
@@ -1575,7 +1585,7 @@ public:
 		eShapeLine(line);
 
 		int32 elideWidth = _f->m.width(_Elide);
-		_wLeft = _w - elideWidth;
+		_wLeft = _w - elideWidth - _elideRemoveFromEnd;
 
 		int firstItem = engine.findItem(line.from), lastItem = engine.findItem(line.from + line.length - 1);
 	    int nItems = (firstItem >= 0 && lastItem >= firstItem) ? (lastItem - firstItem + 1) : 0, i;
@@ -2264,6 +2274,7 @@ private:
 	QPainter *_p;
 	const Text *_t;
 	bool _elideLast;
+	int32 _elideRemoveFromEnd;
 	style::align _align;
 	QPen _originalPen;
 	int32 _yFrom, _yTo;
@@ -2323,6 +2334,20 @@ Text::Text(style::font font, const QString &text, const TextParseOptions &option
 		setRichText(font, text, options);
 	} else {
 		setText(font, text, options);
+	}
+}
+
+Text::Text(const Text &other) :
+_minResizeWidth(other._minResizeWidth), _maxWidth(other._maxWidth),
+_minHeight(other._minHeight),
+_text(other._text),
+_font(other._font),
+_blocks(other._blocks.size()),
+_links(other._links),
+_startDir(other._startDir)
+{
+	for (int32 i = 0, l = _blocks.size(); i < l; ++i) {
+		_blocks[i] = other._blocks.at(i)->clone();
 	}
 }
 
@@ -2597,10 +2622,10 @@ void Text::draw(QPainter &painter, int32 left, int32 top, int32 w, style::align 
 	p.draw(left, top, w, align, yFrom, yTo, selectedFrom, selectedTo);
 }
 
-void Text::drawElided(QPainter &painter, int32 left, int32 top, int32 w, int32 lines, style::align align, int32 yFrom, int32 yTo) const {
+void Text::drawElided(QPainter &painter, int32 left, int32 top, int32 w, int32 lines, style::align align, int32 yFrom, int32 yTo, int32 removeFromEnd) const {
 //	painter.fillRect(QRect(left, top, w, countHeight(w)), QColor(0, 0, 0, 32)); // debug
 	TextPainter p(&painter, this);
-	p.drawElided(left, top, w, align, lines, yFrom, yTo);
+	p.drawElided(left, top, w, align, lines, yFrom, yTo, removeFromEnd);
 }
 
 const TextLinkPtr &Text::link(int32 x, int32 y, int32 width, style::align align) const {

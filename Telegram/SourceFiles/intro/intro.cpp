@@ -107,7 +107,7 @@ void IntroWidget::onParentResize(const QSize &newSize) {
 
 void IntroWidget::onIntroBack() {
 	if (!current) return;
-	moving = -1;
+	moving = (current == 4) ? -2 : -1;
 	prepareMove();
 }
 
@@ -125,11 +125,13 @@ bool IntroWidget::createNext() {
 		case 1: stages[current + 1] = code = new IntroCode(this); break;
 		case 2:
 			if (_pwdSalt.isEmpty()) {
+				if (signup) delete signup;
 				stages[current + 1] = signup = new IntroSignup(this);
 			} else {
 				stages[current + 1] = pwdcheck = new IntroPwdCheck(this);
 			}
 		break;
+		case 3: stages[current + 1] = signup = new IntroSignup(this); break;
 		}
 	}
 	_back.raise();
@@ -138,11 +140,14 @@ bool IntroWidget::createNext() {
 
 void IntroWidget::prepareMove() {
 	if (cacheForHide.isNull() || cacheForHideInd != current) makeHideCache();
+
+	stages[current + moving]->prepareShow();
 	if (cacheForShow.isNull() || cacheForShowInd != current + moving) makeShowCache();
 
-	xCoordHide = anim::ivalue(0, -moving * st::introSlideShift);
+	int32 m = (moving > 0) ? 1 : -1;
+	xCoordHide = anim::ivalue(0, -m * st::introSlideShift);
 	cAlphaHide = anim::fvalue(1, 0);
-	xCoordShow = anim::ivalue(moving * st::introSlideShift, 0);
+	xCoordShow = anim::ivalue(m * st::introSlideShift, 0);
 	cAlphaShow = anim::fvalue(0, 1);
 	anim::start(this);
 
@@ -315,7 +320,7 @@ void IntroWidget::setPwdSalt(const QByteArray &salt) {
 	_pwdSalt = salt;
 	delete signup;
 	delete pwdcheck;
-	stages[3] = 0;
+	stages[3] = stages[4] = 0;
 	signup = 0;
 	pwdcheck = 0;
 }

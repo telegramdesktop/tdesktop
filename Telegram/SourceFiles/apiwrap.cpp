@@ -30,6 +30,7 @@ ApiWrap::ApiWrap(QObject *parent) : QObject(parent) {
 	App::initBackground();
 
 	connect(&_replyToTimer, SIGNAL(timeout()), this, SLOT(resolveReplyTo()));
+	connect(&_webPagesTimer, SIGNAL(timeout()), this, SLOT(resolveWebPages()));
 }
 
 void ApiWrap::init() {
@@ -94,6 +95,25 @@ void ApiWrap::requestFullPeer(PeerData *peer) {
 	_fullRequests.insert(peer, req);
 }
 
+void ApiWrap::requestWebPageDelayed(WebPageData *page) {
+	if (page->pendingTill <= 0) return;
+	_webPagesPending.insert(page, 0);
+	int32 left = (page->pendingTill - unixtime()) * 1000;
+	if (!_webPagesTimer.isActive() || left <= _webPagesTimer.remainingTime()) {
+		_webPagesTimer.start((left < 0 ? 0 : left) + 1);
+	}
+}
+
+void ApiWrap::clearWebPageRequest(WebPageData *page) {
+	_webPagesPending.remove(page);
+	if (_webPagesPending.isEmpty() && _webPagesTimer.isActive()) _webPagesTimer.stop();
+}
+
+void ApiWrap::clearWebPageRequests() {
+	_webPagesPending.clear();
+	_webPagesTimer.stop();
+}
+
 void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result) {
 	const MTPDmessages_chatFull &d(result.c_messages_chatFull());
 	App::feedUsers(d.vusers);
@@ -123,7 +143,9 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result) {
 	emit fullPeerLoaded(peer);
 }
 
-bool ApiWrap::gotPeerFailed(PeerData *peer, const RPCError &err) {
+bool ApiWrap::gotPeerFailed(PeerData *peer, const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 	_fullRequests.remove(peer);
 	return true;
 }
@@ -144,6 +166,34 @@ void ApiWrap::resolveReplyTo() {
 			i.value().req = req;
 		}
 	}
+}
+
+void ApiWrap::resolveWebPages() {
+	QVector<MTPint> ids;
+	const WebPageItems &items(App::webPageItems());
+	ids.reserve(_webPagesPending.size());
+	int32 t = unixtime(), m = INT_MAX;
+	for (WebPagesPending::const_iterator i = _webPagesPending.cbegin(), e = _webPagesPending.cend(); i != e; ++i) {
+		if (i.value()) continue;
+		if (i.key()->pendingTill <= t) {
+			WebPageItems::const_iterator j = items.constFind(i.key());
+			if (j != items.cend() && !j.value().isEmpty()) {
+				ids.push_back(MTP_int(j.value().begin().key()->id));
+			}
+		} else {
+			m = qMin(m, i.key()->pendingTill - t);
+		}
+	}
+	if (!ids.isEmpty()) {
+		mtpRequestId req = MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotWebPages));
+		for (WebPagesPending::iterator i = _webPagesPending.begin(); i != _webPagesPending.cend(); ++i) {
+			if (i.value()) continue;
+			if (i.key()->pendingTill <= t) {
+				i.value() = req;
+			}
+		}
+	}
+	if (m < INT_MAX) _webPagesTimer.start(m * 1000);
 }
 
 void ApiWrap::gotReplyTo(const MTPmessages_Messages &msgs, mtpRequestId req) {
@@ -170,6 +220,61 @@ void ApiWrap::gotReplyTo(const MTPmessages_Messages &msgs, mtpRequestId req) {
 				}
 			}
 			i = _replyToRequests.erase(i);
+		} else {
+			++i;
+		}
+	}
+}
+
+void ApiWrap::gotWebPages(const MTPmessages_Messages &msgs, mtpRequestId req) {
+	const QVector<MTPMessage> *v = 0;
+	switch (msgs.type()) {
+	case mtpc_messages_messages:
+		App::feedUsers(msgs.c_messages_messages().vusers);
+		App::feedChats(msgs.c_messages_messages().vchats);
+		v = &msgs.c_messages_messages().vmessages.c_vector().v;
+		break;
+
+	case mtpc_messages_messagesSlice:
+		App::feedUsers(msgs.c_messages_messagesSlice().vusers);
+		App::feedChats(msgs.c_messages_messagesSlice().vchats);
+		v = &msgs.c_messages_messagesSlice().vmessages.c_vector().v;
+		break;
+	}
+
+	QMap<int32, int32> msgsIds; // copied from feedMsgs
+	for (int32 i = 0, l = v->size(); i < l; ++i) {
+		const MTPMessage &msg(v->at(i));
+		switch (msg.type()) {
+		case mtpc_message: msgsIds.insert(msg.c_message().vid.v, i); break;
+		case mtpc_messageEmpty: msgsIds.insert(msg.c_messageEmpty().vid.v, i); break;
+		case mtpc_messageService: msgsIds.insert(msg.c_messageService().vid.v, i); break;
+		}
+	}
+
+	MainWidget *m = App::main();
+	for (QMap<int32, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
+		HistoryItem *item = App::histories().addToBack(v->at(*i), -1);
+		if (item) {
+			item->initDimensions();
+			if (m) m->itemResized(item);
+		}
+	}
+
+	const WebPageItems &items(App::webPageItems());
+	for (WebPagesPending::iterator i = _webPagesPending.begin(); i != _webPagesPending.cend(); ++i) {
+		if (i.value() == req) {
+			if (i.key()->pendingTill > 0) {
+				i.key()->pendingTill = -1;
+				WebPageItems::const_iterator j = items.constFind(i.key());
+				if (j != items.cend()) {
+					for (HistoryItemsMap::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
+						k.key()->initDimensions();
+						if (m) m->itemResized(k.key());
+					}
+				}
+			}
+			i = _webPagesPending.erase(i);
 		} else {
 			++i;
 		}

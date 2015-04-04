@@ -197,6 +197,7 @@ public:
 	HistoryHider(MainWidget *parent); // send path from command line argument
 
 	bool animStep(float64 ms);
+	bool withConfirm() const;
 
 	void paintEvent(QPaintEvent *e);
 	void keyPressEvent(QKeyEvent *e);
@@ -216,6 +217,10 @@ public slots:
 
 	void startHide();
 	void forward();
+
+signals:
+
+	void forwarded();
 
 private:
 
@@ -296,7 +301,7 @@ public:
 	void typingDone(const MTPBool &result, mtpRequestId req);
 
 	void destroyData();
-	void uploadImage(const QImage &img, bool withText = false);
+	void uploadImage(const QImage &img, bool withText = false, const QString &source = QString());
 	void uploadFile(const QString &file, bool withText = false); // with confirmation
 	void shareContactConfirmation(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool withText = false);
 	void uploadConfirmImageUncompressed(bool ctrlShiftEnter, MsgId replyTo);
@@ -342,7 +347,7 @@ public:
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
-	void itemResized(HistoryItem *item);
+	void itemResized(HistoryItem *item, bool scrollToIt);
 
 	void updateScrollColors();
 
@@ -394,6 +399,8 @@ public slots:
 	void onDocumentDrop(QDropEvent *e);
 
 	void onPhotoReady();
+	void onSendConfirmed();
+	void onSendCancelled();
 	void onPhotoFailed(quint64 id);
 	void showPeer(const PeerId &peer, MsgId msgId = 0, bool force = false, bool leaveActive = false);
 	void clearLoadingAround();
@@ -440,7 +447,7 @@ private:
 	QList<MsgId> _replyReturns;
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
-	void updateListSize(int32 addToY = 0, bool initial = false, bool loadedDown = false, HistoryItem *resizedItem = 0);
+	void updateListSize(int32 addToY = 0, bool initial = false, bool loadedDown = false, HistoryItem *resizedItem = 0, bool scrollToIt = false);
 	void addMessagesToFront(const QVector<MTPMessage> &messages);
 	void addMessagesToBack(const QVector<MTPMessage> &messages);
 
@@ -497,6 +504,7 @@ private:
 	QImage confirmImage;
 	PhotoId confirmImageId;
 	bool confirmWithText;
+	QString confirmSource;
 
 	QString titlePeerText;
 	int32 titlePeerTextWidth;

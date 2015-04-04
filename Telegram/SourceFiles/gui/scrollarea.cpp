@@ -54,7 +54,7 @@ ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::flatScroll *st)
 }
 
 void ScrollBar::recountSize() {
-	setGeometry(_vertical ? QRect(_area->width() - _st->width, 0, _st->width, _area->height()) : QRect(0, _area->height() - _st->width, _area->width(), _st->width));
+	setGeometry(_vertical ? QRect(rtl() ? 0 : (_area->width() - _st->width), 0, _st->width, _area->height()) : QRect(0, _area->height() - _st->width, _area->width(), _st->width));
 }
 
 void ScrollBar::updateBar(bool force) {

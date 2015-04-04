@@ -39,6 +39,7 @@ public slots:
 	void onNewChanged();
 	void onEmailChanged();
 	void onForceNoMail();
+	void onBoxDestroyed(QObject *obj);
 	void onRecoverByEmail();
 	void onRecoverExpired();
 
@@ -63,6 +64,7 @@ private:
 	void recover();
 	QString _pattern;
 
+	AbstractBox *_replacedBy;
 	bool _turningOff, _cloudPwd;
 	mtpRequestId _setRequest;
 
@@ -79,7 +81,6 @@ private:
 	FlatInput _oldPasscode, _newPasscode, _reenterPasscode, _passwordHint, _recoverEmail;
 	LinkButton _recover;
 
-	QTimer _badOldTimer;
 	QString _oldError, _newError, _emailError;
 };
 

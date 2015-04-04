@@ -158,6 +158,14 @@ void IntroCode::activate() {
 	code.setFocus();
 }
 
+void IntroCode::prepareShow() {
+	code.setText(QString());
+	if (sentRequest) {
+		MTP::cancel(sentRequest);
+		sentRequest = 0;
+	}
+}
+
 void IntroCode::deactivate() {
 	callTimer.stop();
 	hide();
@@ -222,8 +230,7 @@ bool IntroCode::codeSubmitFail(const RPCError &error) {
 		checkRequest.start(1000);
 		sentRequest = MTP::send(MTPaccount_GetPassword(), rpcDone(&IntroCode::gotPassword), rpcFail(&IntroCode::codeSubmitFail));
 		return true;
-	}
-	if (QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(err).hasMatch()) {
+	} else if (error.type().startsWith(qsl("FLOOD_WAIT_"))) {
 		showError(lang(lng_flood_error));
 		code.setFocus();
 		return true;

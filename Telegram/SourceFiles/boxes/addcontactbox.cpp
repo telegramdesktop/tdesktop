@@ -155,7 +155,7 @@ void AddContactBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void AddContactBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 	if (paint(p)) return;
 
 	if (_retryButton.isHidden()) {
@@ -226,7 +226,8 @@ void AddContactBox::onSaveSelfDone(const MTPUser &user) {
 }
 
 bool AddContactBox::onSaveSelfFail(const RPCError &error) {
-	_addRequest = 0;
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 	QString err(error.type());
 	QString firstName = textOneLine(_firstInput.text()), lastName = textOneLine(_lastInput.text());
 	if (err == "NAME_NOT_MODIFIED") {
@@ -247,6 +248,8 @@ bool AddContactBox::onSaveSelfFail(const RPCError &error) {
 }
 
 bool AddContactBox::onSaveFail(const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 	_addRequest = 0;
 	QString err(error.type());
 	QString firstName = _firstInput.text().trimmed(), lastName = _lastInput.text().trimmed();

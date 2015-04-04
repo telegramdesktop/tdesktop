@@ -104,7 +104,7 @@ private:
 	IntroCode *code;
 	IntroSignup *signup;
 	IntroPwdCheck *pwdcheck;
-	IntroStage *stages[4];
+	IntroStage *stages[5];
 	int current, moving, visibilityChanging;
 
 	QString _phone, _phone_hash;
@@ -131,6 +131,8 @@ public:
 	}
 
 	virtual void activate() = 0; // show and activate
+	virtual void prepareShow() {
+	}
 	virtual void deactivate() = 0; // deactivate and hide
 	virtual void onNext() = 0;
 	virtual void onBack() = 0;

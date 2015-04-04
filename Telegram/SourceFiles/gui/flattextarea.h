@@ -29,6 +29,8 @@ public:
 	FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &ph = QString(), const QString &val = QString());
 	QString val() const;
 
+	void insertFromMimeData(const QMimeData *source);
+
 	bool viewportEvent(QEvent *e);
 	void touchEvent(QTouchEvent *e);
 	void paintEvent(QPaintEvent *e);

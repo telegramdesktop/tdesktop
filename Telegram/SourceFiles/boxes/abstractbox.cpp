@@ -62,7 +62,7 @@ bool AbstractBox::paint(QPainter &p) {
 	return result;
 }
 
-void AbstractBox::paintTitle(QPainter &p, const QString &title, bool withShadow) {
+void AbstractBox::paintTitle(Painter &p, const QString &title, bool withShadow) {
 	if (withShadow) {
 		// paint shadow
 		p.fillRect(0, st::boxTitleHeight, width(), st::scrollDef.topsh, st::scrollDef.shColor->b);
@@ -71,7 +71,7 @@ void AbstractBox::paintTitle(QPainter &p, const QString &title, bool withShadow)
 	// paint box title
 	p.setFont(st::boxTitleFont->f);
 	p.setPen(st::black->p);
-	p.drawText(st::boxTitlePos.x(), st::boxTitlePos.y() + st::boxTitleFont->ascent, title);
+	p.drawTextLeft(st::boxTitlePos.x(), st::boxTitlePos.y(), width() - 2 * st::boxTitlePos.x(), title);
 }
 
 void AbstractBox::paintGrayTitle(QPainter &p, const QString &title) {

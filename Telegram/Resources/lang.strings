@@ -89,7 +89,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_chat_status_members_online" = "{count:_not_used_|# member|# members}, {count_online:_not_used_|# online|# online}";
 
 "lng_server_error" = "Internal server error.";
-"lng_flood_error" = "Too much tries. Please try again later.";
+"lng_flood_error" = "Too many tries. Please try again later.";
 "lng_deleted" = "Unknown";
 "lng_deleted_message" = "Deleted message";
 
@@ -127,16 +127,21 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_signin_title" = "Cloud password check";
 "lng_signin_desc" = "Please enter your cloud password.";
-"lng_signin_recover_desc" = "Please enter code from recovery email.";
+"lng_signin_recover_desc" = "Please enter the code from the e-mail.";
 "lng_signin_password" = "Your cloud password";
-"lng_signin_code" = "Code from email";
-"lng_signin_recover" = "Recover by email";
+"lng_signin_code" = "Code from e-mail";
+"lng_signin_recover" = "Forgot password?";
 "lng_signin_hint" = "Hint: {password_hint}";
-"lng_signin_recover_hint" = "Code was sent to {recover_email}.";
+"lng_signin_recover_hint" = "Code was sent to {recover_email}";
 "lng_signin_bad_password" = "You have entered a wrong password.";
 "lng_signin_wrong_code" = "You have entered an invalid code. Please try again.";
-"lng_signin_try_password" = "I remember the password";
-"lng_signin_password_removed" = "Your cloud password was removed.\nYou can set new one in Settings.";
+"lng_signin_try_password" = "Having trouble accessing your e-mail?";
+"lng_signin_password_removed" = "Your cloud password was disabled.\nYou can set a new one in Settings.";
+"lng_signin_no_email_forgot" = "Since you haven't provided a recovery\ne-mail when setting up your password, your remaining options are either to remember your password or to reset your account.";
+"lng_signin_cant_email_forgot" = "If you can't restore access to the e-mail, your remaining options are either to remember your password or to reset your account.";
+"lng_signin_reset_account" = "Reset your account";
+"lng_sigin_sure_reset" = "Warning!\n\nYou will lose all your chats and messages,\nalong with any media and files you shared!\n\nDo you want to reset your account?";
+"lng_sigin_reset" = "Reset";
 
 "lng_signup_title" = "Information and photo";
 "lng_signup_desc" = "Please enter your name and\nupload a photo.";
@@ -266,27 +271,28 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_passcode_submit" = "Submit";
 "lng_passcode_logout" = "Log out";
 
-"lng_cloud_password_waiting" = "Confirmation sent to {email}..";
+"lng_cloud_password_waiting" = "Confirmation link sent to {email}..";
 "lng_cloud_password_change" = "Change cloud password";
 "lng_cloud_password_create" = "Create cloud password";
 "lng_cloud_password_remove" = "Remove cloud password";
-"lng_cloud_password_set" = "Turn on cloud password";
+"lng_cloud_password_set" = "Enable two-step verification";
 "lng_cloud_password_edit" = "Change cloud password";
 "lng_cloud_password_enter_old" = "Enter old password";
 "lng_cloud_password_enter_new" = "Enter new password";
 "lng_cloud_password_confirm_new" = "Re-enter new password";
-"lng_cloud_password_hint" = "Enter new password hint";
-"lng_cloud_password_bad" = "Password and hint should differ.";
-"lng_cloud_password_email" = "Enter recover email";
-"lng_cloud_password_bad_email" = "Incorrect email, please try other.";
-"lng_cloud_password_about" = "Each new device authorization will require entering cloud password or recover by email.";
-"lng_cloud_password_about_recover" = "Warning! Are you sure you don't want to\nenter a recover email address?\n\nIf you forget your cloud password\nyou will loose all your account data.";
-"lng_cloud_password_almost" = "A confirmation link was sent\nto the email you provided.\n\nYour cloud password will be enabled\nonly after you follow that link.";
-"lng_cloud_password_was_set" = "Your new password is enabled.";
-"lng_cloud_password_removed" = "Your cloud password was removed.";
-"lng_cloud_password_differ" = "Passwords are different";
+"lng_cloud_password_hint" = "Enter password hint";
+"lng_cloud_password_bad" = "Password and hint cannot be the same.";
+"lng_cloud_password_email" = "Enter recovery e-mail";
+"lng_cloud_password_bad_email" = "Incorrect e-mail, please try other.";
+"lng_cloud_password_about" = "This password will be required when you log in on a new device in addition to the pin code.";
+"lng_cloud_password_about_recover" = "Warning! Are you sure you don't want to\nadd a password recovery e-mail?\n\nIf you forget your password, you will\nlose access to your Telegram account.";
+"lng_cloud_password_almost" = "A confirmation link was sent\nto the e-mail you provided.\n\nTwo-step verification will be enabled\nas soon as you follow that link.";
+"lng_cloud_password_was_set" = "Two-step verification enabled.";
+"lng_cloud_password_updated" = "Your cloud password was updated.";
+"lng_cloud_password_removed" = "Two-step verification was disabled.";
+"lng_cloud_password_differ" = "Passwords do not match";
 "lng_cloud_password_wrong" = "Wrong cloud password";
-"lng_cloud_password_is_same" = "Cloud password was not changed";
+"lng_cloud_password_is_same" = "Password was not changed";
 
 "lng_connection_type" = "Connection type:";
 "lng_connection_auto_connecting" = "Default (connecting..)";
@@ -531,7 +537,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_mediaview_saved" = "Image was saved to your [c]Downloads[/c] folder";
 
-"lng_new_authorization" = "{name},\nWe detected a login into your account from a new device on {day}, {date} at {time}\n\nDevice: {device}\nLocation: {location}\n\nIf this wasn't you, you can go to Settings — Show all sessions and terminate the new session there.\n\nThanks,\nThe Telegram Team";
+"lng_new_authorization" = "{name},\nWe detected a login into your account from a new device on {day}, {date} at {time}\n\nDevice: {device}\nLocation: {location}\n\nIf this wasn't you, you can go to Settings — Show all sessions and terminate that session.\n\nIf you think that somebody logged in to your account against your will, you can enable two-step verification in Settings.\n\nSincerely,\nThe Telegram Team";
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";

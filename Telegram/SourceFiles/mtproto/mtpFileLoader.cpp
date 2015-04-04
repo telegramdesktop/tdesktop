@@ -272,6 +272,8 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 }
 
 bool mtpFileLoader::partFailed(const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 	finishFail();
 	return true;
 }

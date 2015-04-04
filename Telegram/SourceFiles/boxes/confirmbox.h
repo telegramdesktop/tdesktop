@@ -24,7 +24,7 @@ class ConfirmBox : public AbstractBox, public RPCSender {
 
 public:
 
-	ConfirmBox(const QString &text, const QString &doneText = QString(), const QString &cancelText = QString());
+	ConfirmBox(const QString &text, const QString &doneText = QString(), const QString &cancelText = QString(), const style::flatButton &doneStyle = st::btnSelectDone, const style::flatButton &cancelStyle = st::btnSelectCancel);
 	ConfirmBox(const QString &text, bool noDone, const QString &cancelText = QString());
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);

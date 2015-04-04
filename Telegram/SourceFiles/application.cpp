@@ -317,8 +317,10 @@ void Application::chatPhotoDone(PeerId peer, const MTPUpdates &updates) {
 	emit peerPhotoDone(peer);
 }
 
-bool Application::peerPhotoFail(PeerId peer, const RPCError &e) {
-	LOG(("Application Error: update photo failed %1: %2").arg(e.type()).arg(e.description()));
+bool Application::peerPhotoFail(PeerId peer, const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
+	LOG(("Application Error: update photo failed %1: %2").arg(error.type()).arg(error.description()));
 	cancelPhotoUpdate(peer);
 	emit peerPhotoFail(peer);
 	return true;
@@ -652,8 +654,8 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 7026) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Langs updated, some bugs fixed").replace('@', qsl("@") + QChar(0x200D));
+			if (DevChannel && Local::oldMapVersion() < 8001) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 View all your sessions and terminate any of them\n\xe2\x80\x94 Two-step verification by additional cloud password\n\xe2\x80\x94 Twitter, YouTube, Instagram links preview\n\xe2\x80\x94 Text is pasted from clipboard when clipboard has both text and image and image sending was cancelled").replace('@', qsl("@") + QChar(0x200D));
 			} else if (!DevChannel && Local::oldMapVersion() < 8000) {
 				versionFeatures = lang(lng_new_version7026).trimmed();
 			}

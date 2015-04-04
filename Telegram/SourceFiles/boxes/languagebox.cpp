@@ -94,7 +94,7 @@ void LanguageBox::mousePressEvent(QMouseEvent *e) {
 }
 
 void LanguageBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 	if (paint(p)) return;
 
 	paintTitle(p, lang(lng_languages), true);

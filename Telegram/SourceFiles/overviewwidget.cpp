@@ -1441,7 +1441,7 @@ void OverviewInner::itemRemoved(HistoryItem *item) {
 	parentWidget()->update();
 }
 
-void OverviewInner::itemResized(HistoryItem *item) {
+void OverviewInner::itemResized(HistoryItem *item, bool scrollToIt) {
 	if (_type != OverviewPhotos) {
 		HistoryMedia *media = item ? item->getMedia(true) : 0;
 		if (!media) return;
@@ -1462,11 +1462,13 @@ void OverviewInner::itemResized(HistoryItem *item) {
 					_height = _items[l - 1].y;
 					_addToY = (_height < _minHeight) ? (_minHeight - _height) : 0;
 					resize(width(), _minHeight > _height ? _minHeight : _height);
-					if (_addToY + _height - from > _scroll->scrollTop() + _scroll->height()) {
-						_scroll->scrollToY(_addToY + _height - from - _scroll->height());
-					}
-					if (_addToY + _height - _items[i].y < _scroll->scrollTop()) {
-						_scroll->scrollToY(_addToY + _height - _items[i].y);
+					if (scrollToIt) {
+						if (_addToY + _height - from > _scroll->scrollTop() + _scroll->height()) {
+							_scroll->scrollToY(_addToY + _height - from - _scroll->height());
+						}
+						if (_addToY + _height - _items[i].y < _scroll->scrollTop()) {
+							_scroll->scrollToY(_addToY + _height - _items[i].y);
+						}
 					}
 					parentWidget()->update();
 				}
@@ -1780,9 +1782,9 @@ void OverviewWidget::itemRemoved(HistoryItem *row) {
 	}
 }
 
-void OverviewWidget::itemResized(HistoryItem *row) {
+void OverviewWidget::itemResized(HistoryItem *row, bool scrollToIt) {
 	if (!row || row->history()->peer == peer()) {
-		_inner.itemResized(row);
+		_inner.itemResized(row, scrollToIt);
 	}
 }
 

@@ -942,6 +942,8 @@ void ContactsBox::peopleReceived(const MTPcontacts_Found &result, mtpRequestId r
 }
 
 bool ContactsBox::peopleFailed(const RPCError &error, mtpRequestId req) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 	if (_peopleRequest == req) {
 		_peopleRequest = 0;
 		_peopleFull = true;
@@ -1000,7 +1002,7 @@ void ContactsBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void ContactsBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 	if (paint(p)) return;
 
 	if (_inner.chat() || _inner.creatingChat()) {
@@ -1104,7 +1106,7 @@ void CreateGroupBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void CreateGroupBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 	if (paint(p)) return;
 
 	paintTitle(p, lang(lng_create_group_title), true);
@@ -1161,12 +1163,14 @@ void CreateGroupBox::created(const MTPUpdates &updates) {
 	}
 }
 
-bool CreateGroupBox::failed(const RPCError &e) {
+bool CreateGroupBox::failed(const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 	_createRequestId = 0;
-	if (e.type() == "NO_CHAT_TITLE") {
+	if (error.type() == "NO_CHAT_TITLE") {
 		_name.setFocus();
 		return true;
-	} else if (e.type() == "USERS_TOO_FEW") {
+	} else if (error.type() == "USERS_TOO_FEW") {
 		emit closed();
 		return true;
 	}

@@ -239,8 +239,7 @@ bool IntroSignup::nameSubmitFail(const RPCError &error) {
 		showError(lang(lng_bad_name));
 		last.setFocus();
 		return true;
-	}
-	if (QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(err).hasMatch()) {
+	} else if (error.type().startsWith(qsl("FLOOD_WAIT_"))) {
 		showError(lang(lng_flood_error));
 		last.setFocus();
 		return true;

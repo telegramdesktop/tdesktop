@@ -210,6 +210,7 @@ void PhotoSendBox::onSend(bool ctrlShiftEnter) {
 			if (App::main()) App::main()->confirmSendImageUncompressed(ctrlShiftEnter, _replyTo);
 		}
 	}
+	emit confirmed();
 	emit closed();
 }
 

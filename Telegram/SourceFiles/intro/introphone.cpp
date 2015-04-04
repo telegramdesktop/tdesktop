@@ -266,8 +266,7 @@ bool IntroPhone::phoneSubmitFail(const RPCError &error) {
 		showError(lang(lng_bad_phone));
 		enableAll(true);
 		return true;
-	}
-	if (QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(err).hasMatch()) {
+	} else if (error.type().startsWith(qsl("FLOOD_WAIT_"))) {
 		showError(lang(lng_flood_error));
 		enableAll(true);
 		return true;

@@ -61,6 +61,10 @@ private:
 	QString _type, _description;
 };
 
+inline bool mtpIsFlood(const RPCError &error) {
+	return error.type().startsWith(qsl("FLOOD_WAIT_"));
+}
+
 class RPCAbstractDoneHandler { // abstract done
 public:
 	virtual void operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) const = 0;

@@ -94,7 +94,7 @@ void ConnectionBox::showDone() {
 }
 
 void ConnectionBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 	if (paint(p)) return;
 
 	paintTitle(p, lang(lng_connection_header), true);

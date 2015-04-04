@@ -106,6 +106,8 @@ void SessionsInner::terminateDone(uint64 hash, const MTPBool &result) {
 }
 
 bool SessionsInner::terminateFail(uint64 hash, const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 	TerminateButtons::iterator i = _terminateButtons.find(hash);
 	if (i != _terminateButtons.end()) {
 		i.value()->show();
@@ -257,18 +259,18 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 		SessionData data;
 		data.hash = d.vhash.v;
 
-		QString appName, systemVer = qs(d.vsystem_version);
-		if (d.vapi_id.v == 2040 || d.vapi_id.v == 17349) {
-			appName = (d.vapi_id.v == 2040) ? qsl("Telegram Desktop") : qsl("Telegram Desktop (GitHub)");
+		QString appName, systemVer = qs(d.vsystem_version), deviceModel = qs(d.vdevice_model);
+		if (d.vapi_id.v == 17349) {
+			appName = qs(d.vapp_name);// (d.vapi_id.v == 2040) ? qsl("Telegram Desktop") : qsl("Telegram Desktop (GitHub)");
 			if (systemVer == QLatin1String("windows")) {
-				systemVer = qsl("Windows");
+				deviceModel = qsl("Windows");
 			} else if (systemVer == QLatin1String("os x")) {
-				systemVer = qsl("Mac OS X");
+				deviceModel = qsl("Mac OS X");
 			} else if (systemVer == QLatin1String("linux")) {
-				systemVer = qsl("Linux");
+				deviceModel = qsl("Linux");
 			}
 		} else {
-			appName = qs(d.vapp_name);
+			appName = qs(d.vapp_name);// +qsl(" for ") + qs(d.vplatform);
 		}
 		data.name = appName;
 		data.nameWidth = st::sessionNameFont->m.width(data.name);
@@ -277,7 +279,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 		CountriesByISO2::const_iterator j = countries.constFind(country);
 		if (j != countries.cend()) country = QString::fromUtf8(j.value()->name);
 
-		data.info = country + QLatin1String(" (") + qs(d.vip) + QLatin1String("), ") + systemVer;
+		data.info = country + QLatin1String(" (") + qs(d.vip) + QLatin1String("), ") + deviceModel;
 		if (!data.hash || (d.vflags.v & 1)) {
 			data.active = QString();
 			data.activeWidth = 0;
@@ -292,7 +294,16 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 			}
 			_current = data;
 		} else {
-			data.active = date(d.vdate_active.v ? d.vdate_active : d.vdate_created).toString(qsl("hh:mm"));
+			QDateTime now(QDateTime::currentDateTime()), lastTime(date(d.vdate_active.v ? d.vdate_active : d.vdate_created));
+			QDate nowDate(now.date()), lastDate(lastTime.date());
+			QString dt;
+			if (lastDate == nowDate) {
+				data.active = lastTime.toString(cTimeFormat());
+			} else if (lastDate.year() == nowDate.year() && lastDate.weekNumber() == nowDate.weekNumber()) {
+				data.active = langDayOfWeek(lastDate);
+			} else {
+				data.active = lastDate.toString(qsl("d.MM.yy"));
+			}
 			data.activeWidth = st::sessionActiveFont->m.width(data.active);
 			int32 availForName = availOther - st::sessionPadding.right() - data.activeWidth;
 			if (data.nameWidth > availForName) {
@@ -381,6 +392,8 @@ void SessionsBox::terminateAllDone(const MTPBool &result) {
 }
 
 bool SessionsBox::terminateAllFail(const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 	MTP::send(MTPaccount_GetAuthorizations(), rpcDone(&SessionsBox::gotAuthorizations));
 	if (_shortPollRequest) {
 		MTP::cancel(_shortPollRequest);

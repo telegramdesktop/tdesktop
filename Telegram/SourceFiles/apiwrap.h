@@ -32,6 +32,10 @@ public:
 
 	void requestFullPeer(PeerData *peer);
 
+	void requestWebPageDelayed(WebPageData *page);
+	void clearWebPageRequest(WebPageData *page);
+	void clearWebPageRequests();
+
 	~ApiWrap();
 
 signals:
@@ -41,6 +45,7 @@ signals:
 public slots:
 
 	void resolveReplyTo();
+	void resolveWebPages();
 
 private:
 
@@ -60,5 +65,10 @@ private:
 	bool gotPeerFailed(PeerData *peer, const RPCError &err);
 	typedef QMap<PeerData*, mtpRequestId> FullRequests;
 	FullRequests _fullRequests;
+
+	void gotWebPages(const MTPmessages_Messages &result, mtpRequestId req);
+	typedef QMap<WebPageData*, mtpRequestId> WebPagesPending;
+	WebPagesPending _webPagesPending;
+	SingleTimer _webPagesTimer;
 
 };

@@ -1292,7 +1292,7 @@ void MessageField::insertFromMimeData(const QMimeData *source) {
 	if (source->hasImage()) {
 		QImage img = qvariant_cast<QImage>(source->imageData());
 		if (!img.isNull()) {
-			history->uploadImage(img);
+			history->uploadImage(img, false, source->text());
 			return;
 		}
 	}
@@ -1385,6 +1385,10 @@ bool HistoryHider::animStep(float64 ms) {
 	return res;
 }
 
+bool HistoryHider::withConfirm() const {
+	return _sharedContact || _sendPath;
+}
+
 void HistoryHider::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 	if (!hiding || !cacheForAnim.isNull() || !offered) {
@@ -1470,6 +1474,7 @@ void HistoryHider::forward() {
 			parent()->onForward(offered->id, _forwardSelected);
 		}
 	}
+	emit forwarded();
 }
 
 void HistoryHider::forwardDone() {
@@ -1903,6 +1908,8 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 }
 
 bool HistoryWidget::stickersFailed(const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 	_lastStickersUpdate = getms(true);
 	_stickersUpdateRequest = 0;
 	return true;
@@ -2258,8 +2265,10 @@ void HistoryWidget::historyWasRead(bool force) {
     App::main()->readServerHistory(hist, force);
 }
 
-bool HistoryWidget::messagesFailed(const RPCError &e, mtpRequestId requestId) {
-	LOG(("RPC Error: %1 %2: %3").arg(e.code()).arg(e.type()).arg(e.description()));
+bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
+	LOG(("RPC Error: %1 %2: %3").arg(error.code()).arg(error.type()).arg(error.description()));
 	if (histPreloading == requestId) {
 		histPreloading = 0;
 	} else if (histPreloadingDown == requestId) {
@@ -2587,11 +2596,6 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 	h->sendRequestId = MTP::send(MTPmessages_SendMedia(p->input, MTP_int(replyTo), MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 
 	App::historyRegRandom(randomId, newId);
-	if (hist && histPeer && peer == histPeer->id) {
-		App::main()->historyToDown(hist);
-	}
-	App::main()->dialogsToUp();
-	peerMessagesUpdated(peer);
 
 	App::main()->finishForwarding(h);
 	cancelReply();
@@ -2613,7 +2617,7 @@ PeerData *HistoryWidget::activePeer() const {
 }
 
 MsgId HistoryWidget::activeMsgId() const {
-	return hist ? hist->activeMsgId : (_activeHist ? _activeHist->activeMsgId : 0);
+	return (_loadingAroundId >= 0) ? _loadingAroundId : (hist ? hist->activeMsgId : (_activeHist ? _activeHist->activeMsgId : 0));
 }
 
 int32 HistoryWidget::lastWidth() const {
@@ -3046,12 +3050,13 @@ void HistoryWidget::onFieldCursorChanged() {
 	onDraftSaveDelayed();
 }
 
-void HistoryWidget::uploadImage(const QImage &img, bool withText) {
+void HistoryWidget::uploadImage(const QImage &img, bool withText, const QString &source) {
 	if (!hist || confirmImageId) return;
 
 	App::wnd()->activateWindow();
 	confirmImage = img;
 	confirmWithText = withText;
+	confirmSource = source;
 	confirmImageId = imageLoader.append(img, histPeer->id, _replyToId, ToPreparePhoto);
 }
 
@@ -3109,12 +3114,26 @@ void HistoryWidget::onPhotoReady() {
 
 	for (ReadyLocalMedias::const_iterator i = list.cbegin(), e = list.cend(); i != e; ++i) {
 		if (i->id == confirmImageId) {
-			App::wnd()->showLayer(new PhotoSendBox(*i));
+			PhotoSendBox *box = new PhotoSendBox(*i);
+			connect(box, SIGNAL(confirmed()), this, SLOT(onSendConfirmed()));
+			connect(box, SIGNAL(destroyed(QObject*)), this, SLOT(onSendCancelled()));
+			App::wnd()->showLayer(box);
 		} else {
 			confirmSendImage(*i);
 		}
 	}
 	list.clear();
+}
+
+void HistoryWidget::onSendConfirmed() {
+	if (!confirmSource.isEmpty()) confirmSource = QString();
+}
+
+void HistoryWidget::onSendCancelled() {
+	if (!confirmSource.isEmpty()) {
+		_field.textCursor().insertText(confirmSource);
+		confirmSource = QString();
+	}
 }
 
 void HistoryWidget::onPhotoFailed(quint64 id) {
@@ -3341,8 +3360,8 @@ void HistoryWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 	if (_replyReturn == oldItem) _replyReturn = newItem;
 }
 
-void HistoryWidget::itemResized(HistoryItem *row) {
-	updateListSize(0, false, false, row);
+void HistoryWidget::itemResized(HistoryItem *row, bool scrollToIt) {
+	updateListSize(0, false, false, row, scrollToIt);
 }
 
 void HistoryWidget::updateScrollColors() {
@@ -3354,7 +3373,7 @@ MsgId HistoryWidget::replyToId() const {
 	return _replyToId;
 }
 
-void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, HistoryItem *resizedItem) {
+void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, HistoryItem *resizedItem, bool scrollToIt) {
 	if (!hist || (!_histInited && !initial)) return;
 
 	if (!isVisible()) {
@@ -3382,7 +3401,7 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 		_scroll.show();
 	}
 	_list->updateSize();
-	if (resizedItem && !resizedItem->detached()) {
+	if (resizedItem && !resizedItem->detached() && scrollToIt) {
 		int32 firstItemY = _list->height() - hist->height - st::historyPadding;
 		if (newSt + _scroll.height() < firstItemY + resizedItem->block()->y + resizedItem->y + resizedItem->height()) {
 			newSt = firstItemY + resizedItem->block()->y + resizedItem->y + resizedItem->height() - _scroll.height();

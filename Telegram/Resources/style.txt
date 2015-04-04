@@ -458,6 +458,16 @@ btnSelectCancel: flatButton(btnSelectDone) {
 	downColor: btnNoHover;
 }
 btnSelectSep: #e0e0e0;
+btnRedLink: linkButton(btnDefLink) {
+	color: #d15948;
+	overColor: #d15948;
+	downColor: #db6352;
+}
+btnRedDone: flatButton(btnSelectDone) {
+	color: #d15948;
+	overColor: #d15948;
+	downColor: #db6352;
+}
 
 countryList: countryList {
 	notFoundColor: #aaa;//rgb(20, 136, 210);
@@ -825,6 +835,7 @@ msgBG: ':/gui/art/bg.png' / 2:':/gui/art/bg_125x.png' / 3:':/gui/art/bg_150x.png
 
 msgSendingRect: sprite(260px, 20px, 20px, 20px);
 msgCheckRect: sprite(320px, 0px, 20px, 20px);
+msgCheckPos: point(5px, 1px);
 msgDblCheckRect: sprite(300px, 0px, 20px, 20px);
 msgSelectCheckRect: sprite(160px, 0px, 20px, 20px);
 msgSelectDblCheckRect: sprite(140px, 0px, 20px, 20px);
@@ -1379,15 +1390,15 @@ dropdownMediaPhotos: iconedButton(dropdownAttachPhoto) {
 	width: 200px;
 }
 dropdownMediaVideos: iconedButton(dropdownMediaPhotos) {
-	icon: sprite(79px, 348px, 24px, 24px);
-	downIcon: sprite(79px, 348px, 24px, 24px);
+	icon: sprite(92px, 348px, 24px, 24px);
+	downIcon: sprite(92px, 348px, 24px, 24px);
 }
 dropdownMediaDocuments: iconedButton(dropdownAttachDocument) {
 	width: 200px;
 }
 dropdownMediaAudios: iconedButton(dropdownMediaDocuments) {
-	icon: sprite(49px, 348px, 24px, 24px);
-	downIcon: sprite(49px, 348px, 24px, 24px);
+	icon: sprite(62px, 348px, 24px, 24px);
+	downIcon: sprite(62px, 348px, 24px, 24px);
 }
 
 dragFont: font(28px semibold);
@@ -1721,6 +1732,7 @@ usernameCancel: flatButton(btnSelectCancel) {
 
 youtubeIcon: sprite(336px, 221px, 60px, 60px);
 vimeoIcon: sprite(336px, 283px, 60px, 60px);
+videoIcon: sprite(0px, 340px, 60px, 60px);
 locationSize: size(320, 240);
 
 langsWidth: 220px;
@@ -1779,3 +1791,11 @@ sessionTerminate: iconedButton(notifyClose) {
 	width: 16px;
 	height: 16px;
 }
+
+webPageLeft: 10px;
+webPageBar: 2px;
+webPageTitleFont: font(fsize semibold);
+webPageDescriptionFont: font(fsize);
+webPagePhotoSkip: 5px;
+webPagePhotoSize: 100px;
+webPagePhotoDelta: 8px;

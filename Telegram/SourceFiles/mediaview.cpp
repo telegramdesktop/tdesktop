@@ -517,7 +517,19 @@ void MediaView::showPhoto(PhotoData *photo) {
 	_x = (_avail.width() - _w) / 2;
 	_y = st::medviewPolaroid.top() + (_avail.height() - st::medviewPolaroid.top() - st::medviewPolaroid.bottom() - st::medviewBottomBar - _h) / 2;
 	_width = _w;
-	_from = App::user(_photo->user);
+	if (_photo->user == WebPageUserId && _msgid) {
+		if (HistoryItem *item = App::histItemById(_msgid)) {
+			if (dynamic_cast<HistoryForwarded*>(item)) {
+				_from = static_cast<HistoryForwarded*>(item)->fromForwarded();
+			} else {
+				_from = item->from();
+			}
+		} else {
+			_from = App::user(_photo->user);
+		}
+	} else {
+		_from = App::user(_photo->user);
+	}
 	updateControls();
 	_photo->full->load();
 	if (isHidden()) {

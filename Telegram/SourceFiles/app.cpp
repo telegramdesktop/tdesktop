@@ -49,9 +49,13 @@ namespace {
 	typedef QHash<DocumentId, DocumentData*> DocumentsData;
 	DocumentsData documentsData;
 
+	typedef QHash<WebPageId, WebPageData*> WebPagesData;
+	WebPagesData webPagesData;
+
 	VideoItems videoItems;
 	AudioItems audioItems;
 	DocumentItems documentItems;
+	WebPageItems webPageItems;
 	typedef QMap<HistoryItem*, QMap<HistoryReply*, bool> > RepliesTo;
 	RepliesTo repliesTo;
 
@@ -321,7 +325,7 @@ namespace App {
 				data->inputUser = MTP_inputUserContact(d.vid);
 				data->setName(lang(lng_deleted), QString(), QString(), QString());
 				data->setPhoto(MTP_userProfilePhotoEmpty());
-				data->access = 0;
+				data->access = UserNoAccess;
 				wasContact = (data->contact > 0);
 				status = &emptyStatus;
 				data->contact = -1;
@@ -333,9 +337,10 @@ namespace App {
 				data = App::user(peer);
 				data->input = MTP_inputPeerContact(d.vid);
 				data->inputUser = MTP_inputUserContact(d.vid);
-				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString(), textOneLine(qs(d.vusername)));
+				data->setName(lang(lng_deleted), QString(), QString(), QString());
+//				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString(), textOneLine(qs(d.vusername)));
 				data->setPhoto(MTP_userProfilePhotoEmpty());
-				data->access = 0;
+				data->access = UserNoAccess;
 				wasContact = (data->contact > 0);
 				status = &emptyStatus;
 				data->contact = -1;
@@ -376,7 +381,7 @@ namespace App {
 			} break;
 			case mtpc_userRequest: {
 				const MTPDuserRequest &d(user.c_userRequest());
-
+				
 				PeerId peer(peerFromUser(d.vid.v));
 				data = App::user(peer);
 				data->input = MTP_inputPeerForeign(d.vid, d.vaccess_hash);
@@ -601,7 +606,7 @@ namespace App {
 		const QVector<MTPMessage> &v(msgs.c_vector().v);
 		QMap<int32, int32> msgsIds;
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
-			const MTPMessage &msg(v[i]);
+			const MTPMessage &msg(v.at(i));
 			switch (msg.type()) {
 			case mtpc_message: msgsIds.insert(msg.c_message().vid.v, i); break;
 			case mtpc_messageEmpty: msgsIds.insert(msg.c_messageEmpty().vid.v, i); break;
@@ -609,7 +614,7 @@ namespace App {
 			}
 		}
 		for (QMap<int32, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-			histories().addToBack(v[*i], msgsState);
+			histories().addToBack(v.at(*i), msgsState);
 		}
 	}
 
@@ -726,7 +731,7 @@ namespace App {
 					if (user->inputUser.type() != mtpc_inputUserSelf) user->inputUser = MTP_inputUserContact(userId);
 				}
 			} else {
-				if (user->access) {
+				if (user->access && user->access != UserNoAccess) {
 					if (user->input.type() != mtpc_inputPeerSelf) user->input = MTP_inputPeerForeign(userId, MTP_long(user->access));
 					if (user->inputUser.type() != mtpc_inputUserSelf) user->inputUser = MTP_inputUserForeign(userId, MTP_long(user->access));
 				}
@@ -898,6 +903,23 @@ namespace App {
 
 	DocumentData *feedDocument(const MTPDdocument &document, DocumentData *convert) {
 		return App::document(document.vid.v, convert, document.vaccess_hash.v, document.vdate.v, document.vattributes.c_vector().v, qs(document.vmime_type), App::image(document.vthumb), document.vdc_id.v, document.vsize.v);
+	}
+
+	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert) {
+		return App::webPage(webpage.vid.v, convert, webpage.has_type() ? qs(webpage.vtype) : qsl("article"), qs(webpage.vurl), qs(webpage.vdisplay_url), webpage.has_site_name() ? qs(webpage.vsite_name) : QString(), webpage.has_title() ? qs(webpage.vtitle) : QString(), webpage.has_description() ? qs(webpage.vdescription) : QString(), webpage.has_photo() ? App::feedPhoto(webpage.vphoto) : 0, webpage.has_duration() ? webpage.vduration.v : 0, webpage.has_author() ? qs(webpage.vauthor) : QString());
+	}
+
+	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert) {
+		return App::webPage(webpage.vid.v, convert, QString(), QString(), QString(), QString(), QString(), QString(), 0, 0, QString(), webpage.vdate.v);
+	}
+
+	WebPageData *feedWebPage(const MTPWebPage &webpage) {
+		switch (webpage.type()) {
+		case mtpc_webPage: return App::feedWebPage(webpage.c_webPage());
+		case mtpc_webPageEmpty: return App::webPage(webpage.c_webPageEmpty().vid.v);
+		case mtpc_webPagePending: return App::feedWebPage(webpage.c_webPagePending());
+		}
+		return 0;
 	}
 
 	UserData *userLoaded(const PeerId &user) {
@@ -1180,6 +1202,80 @@ namespace App {
 		return result;
 	}
 
+	WebPageData *webPage(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, int32 duration, const QString &author, int32 pendingTill) {
+		if (convert) {
+			if (convert->id != webPage) {
+				WebPagesData::iterator i = webPagesData.find(convert->id);
+				if (i != webPagesData.cend() && i.value() == convert) {
+					webPagesData.erase(i);
+				}
+				convert->id = webPage;
+			}
+			if ((convert->url.isEmpty() && !url.isEmpty()) || (convert->pendingTill && convert->pendingTill != pendingTill)) {
+				convert->type = toWebPageType(type);
+				convert->url = url;
+				convert->displayUrl = displayUrl;
+				convert->siteName = siteName;
+				convert->title = title;
+				convert->description = description;
+				convert->photo = photo;
+				convert->duration = duration;
+				convert->author = author;
+				if (convert->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(convert);
+				convert->pendingTill = pendingTill;
+
+				MainWidget *m = App::main();
+				WebPageItems::const_iterator j = ::webPageItems.constFind(convert);
+				if (j != ::webPageItems.cend()) {
+					for (HistoryItemsMap::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
+						k.key()->initDimensions();
+						if (m) m->itemResized(k.key());
+					}
+				}
+			}
+		}
+		WebPagesData::const_iterator i = webPagesData.constFind(webPage);
+		WebPageData *result;
+		if (i == webPagesData.cend()) {
+			if (convert) {
+				result = convert;
+			} else {
+				result = new WebPageData(webPage, toWebPageType(type), url, displayUrl, siteName, title, description, photo, duration, author, pendingTill);
+				if (pendingTill > 0 && api()) {
+					api()->requestWebPageDelayed(result);
+				}
+			}
+			webPagesData.insert(webPage, result);
+		} else {
+			result = i.value();
+			if (result != convert) {
+				if ((result->url.isEmpty() && !url.isEmpty()) || (result->pendingTill && result->pendingTill != pendingTill)) {
+					result->type = toWebPageType(type);
+					result->url = url;
+					result->displayUrl = displayUrl;
+					result->siteName = siteName;
+					result->title = title;
+					result->description = description;
+					result->photo = photo;
+					result->duration = duration;
+					result->author = author;
+					if (result->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(result);
+					result->pendingTill = pendingTill;
+
+					MainWidget *m = App::main();
+					WebPageItems::const_iterator j = ::webPageItems.constFind(result);
+					if (j != ::webPageItems.cend()) {
+						for (HistoryItemsMap::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
+							k.key()->initDimensions();
+							if (m) m->itemResized(k.key());
+						}
+					}
+				}
+			}
+		}
+		return result;
+	}
+	
 	ImageLinkData *imageLink(const QString &imageLink, ImageLinkType type, const QString &url) {
 		ImageLinksData::const_iterator i = imageLinksData.constFind(imageLink);
 		ImageLinkData *result;
@@ -1384,6 +1480,11 @@ namespace App {
 			delete *i;
 		}
 		documentsData.clear();
+		for (WebPagesData::const_iterator i = webPagesData.cbegin(), e = webPagesData.cend(); i != e; ++i) {
+			delete *i;
+		}
+		webPagesData.clear();
+		if (api()) api()->clearWebPageRequests();
 		cSetRecentStickers(RecentStickerPack());
 		cSetStickersHash(QByteArray());
 		cSetStickers(AllStickers());
@@ -1391,6 +1492,7 @@ namespace App {
 		::videoItems.clear();
 		::audioItems.clear();
 		::documentItems.clear();
+		::webPageItems.clear();
 		::repliesTo.clear();
 		lastPhotos.clear();
 		lastPhotosMap.clear();
@@ -1681,6 +1783,18 @@ namespace App {
 
 	const DocumentItems &documentItems() {
 		return ::documentItems;
+	}
+
+	void regWebPageItem(WebPageData *data, HistoryItem *item) {
+		::webPageItems[data][item] = true;
+	}
+
+	void unregWebPageItem(WebPageData *data, HistoryItem *item) {
+		::webPageItems[data].remove(item);
+	}
+
+	const WebPageItems &webPageItems() {
+		return ::webPageItems;
 	}
 
 	void setProxySettings(QNetworkAccessManager &manager) {

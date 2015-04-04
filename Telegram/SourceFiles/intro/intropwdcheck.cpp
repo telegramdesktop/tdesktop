@@ -36,7 +36,9 @@ _hint(parent->getPwdHint()),
 _pwdField(this, st::inpIntroPassword, lang(lng_signin_password)),
 _codeField(this, st::inpIntroPassword, lang(lng_signin_code)),
 _toRecover(this, lang(lng_signin_recover)),
-_toPassword(this, lang(lng_signin_try_password)) {
+_toPassword(this, lang(lng_signin_try_password)),
+_reset(this, lang(lng_signin_reset_account), st::btnRedLink),
+sentRequest(0) {
 	setVisible(false);
 	setGeometry(parent->innerRect());
 
@@ -46,6 +48,7 @@ _toPassword(this, lang(lng_signin_try_password)) {
 	connect(&_toPassword, SIGNAL(clicked()), this, SLOT(onToPassword()));
 	connect(&_pwdField, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(&_codeField, SIGNAL(changed()), this, SLOT(onInputChange()));
+	connect(&_reset, SIGNAL(clicked()), this, SLOT(onReset()));
 
 	_pwdField.setEchoMode(QLineEdit::Password);
 
@@ -54,7 +57,8 @@ _toPassword(this, lang(lng_signin_try_password)) {
 	}
 	_codeField.hide();
 	_toPassword.hide();
-	_toRecover.setVisible(_hasRecovery);
+	_toRecover.show();
+	_reset.hide();
 
 	setMouseTracking(true);
 }
@@ -98,6 +102,7 @@ void IntroPwdCheck::resizeEvent(QResizeEvent *e) {
 		_codeField.move((width() - _codeField.width()) / 2, st::introTextTop + st::introTextSize.height() + st::introCountry.top);
 		_toRecover.move(_next.x() + (_pwdField.width() - _toRecover.width()) / 2, _next.y() + _next.height() + st::introFinishSkip);
 		_toPassword.move(_next.x() + (_pwdField.width() - _toPassword.width()) / 2, _next.y() + _next.height() + st::introFinishSkip);
+		_reset.move((width() - _reset.width()) / 2, _toRecover.y() + _toRecover.height() + st::introFinishSkip);
 	}
 	textRect = QRect((width() - st::introTextSize.width()) / 2, st::introTextTop, st::introTextSize.width(), st::introTextSize.height());
 }
@@ -168,6 +173,7 @@ void IntroPwdCheck::onCheckRequest() {
 }
 
 void IntroPwdCheck::pwdSubmitDone(bool recover, const MTPauth_Authorization &result) {
+	sentRequest = 0;
 	stopCheck();
 	if (recover) {
 		cSetPasswordRecovered(true);
@@ -183,6 +189,7 @@ void IntroPwdCheck::pwdSubmitDone(bool recover, const MTPauth_Authorization &res
 }
 
 bool IntroPwdCheck::pwdSubmitFail(const RPCError &error) {
+	sentRequest = 0;
 	stopCheck();
 	_pwdField.setDisabled(false);
 	_codeField.setDisabled(false);
@@ -193,10 +200,9 @@ bool IntroPwdCheck::pwdSubmitFail(const RPCError &error) {
 		return true;
 	} else if (err == "PASSWORD_EMPTY") {
 		intro()->onIntroBack();
-	}
-	if (QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(err).hasMatch()) {
+	} else if (err.startsWith(qsl("FLOOD_WAIT_"))) {
 		showError(lang(lng_flood_error));
-		_pwdField.setFocus();
+		_pwdField.notaBene();
 		return true;
 	}
 	if (cDebug()) { // internal server error
@@ -209,6 +215,7 @@ bool IntroPwdCheck::pwdSubmitFail(const RPCError &error) {
 }
 
 bool IntroPwdCheck::codeSubmitFail(const RPCError &error) {
+	sentRequest = 0;
 	stopCheck();
 	_pwdField.setDisabled(false);
 	_codeField.setDisabled(false);
@@ -225,10 +232,9 @@ bool IntroPwdCheck::codeSubmitFail(const RPCError &error) {
 		return true;
 	} else if (err == "CODE_INVALID") {
 		showError(lang(lng_signin_wrong_code));
-		_pwdField.notaBene();
+		_codeField.notaBene();
 		return true;
-	}
-	if (QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(err).hasMatch()) {
+	} else if (err.startsWith(qsl("FLOOD_WAIT_"))) {
 		showError(lang(lng_flood_error));
 		_codeField.notaBene();
 		return true;
@@ -260,27 +266,72 @@ bool IntroPwdCheck::recoverStartFail(const RPCError &error) {
 }
 
 void IntroPwdCheck::onToRecover() {
-	showError("");
-	_toRecover.hide();
-	_toPassword.show();
-	_pwdField.hide();
-	_pwdField.setText(QString());
-	_codeField.show();
-	_codeField.setFocus();
-	if (_emailPattern.isEmpty()) {
-		MTP::send(MTPauth_RequestPasswordRecovery(), rpcDone(&IntroPwdCheck::recoverStarted), rpcFail(&IntroPwdCheck::recoverStartFail));
+	if (_hasRecovery) {
+		if (sentRequest) {
+			MTP::cancel(sentRequest);
+			sentRequest = 0;
+		}
+		showError("");
+		_toRecover.hide();
+		_toPassword.show();
+		_pwdField.hide();
+		_pwdField.setText(QString());
+		_codeField.show();
+		_codeField.setFocus();
+		if (_emailPattern.isEmpty()) {
+			MTP::send(MTPauth_RequestPasswordRecovery(), rpcDone(&IntroPwdCheck::recoverStarted), rpcFail(&IntroPwdCheck::recoverStartFail));
+		}
+		update();
+	} else {
+		ConfirmBox *box = new ConfirmBox(lang(lng_signin_no_email_forgot), true);
+		App::wnd()->showLayer(box);
+		connect(box, SIGNAL(destroyed(QObject*)), this, SLOT(onToReset()));
 	}
-	update();
 }
 
 void IntroPwdCheck::onToPassword() {
+	ConfirmBox *box = new ConfirmBox(lang(lng_signin_no_email_forgot), true);
+	App::wnd()->showLayer(box);
+	connect(box, SIGNAL(destroyed(QObject*)), this, SLOT(onToReset()));
+}
+
+void IntroPwdCheck::onToReset() {
+	if (sentRequest) {
+		MTP::cancel(sentRequest);
+		sentRequest = 0;
+	}
 	_toRecover.show();
 	_toPassword.hide();
 	_pwdField.show();
 	_codeField.hide();
 	_codeField.setText(QString());
 	_pwdField.setFocus();
+	_reset.show();
 	update();
+}
+
+void IntroPwdCheck::onReset() {
+	if (sentRequest) return;
+	ConfirmBox *box = new ConfirmBox(lang(lng_sigin_sure_reset), lang(lng_sigin_reset), QString(), st::btnRedDone);
+	connect(box, SIGNAL(confirmed()), this, SLOT(onResetSure()));
+	App::wnd()->showLayer(box);
+}
+
+void IntroPwdCheck::onResetSure() {
+	if (sentRequest) return;
+	sentRequest = MTP::send(MTPaccount_DeleteAccount(MTP_string("Forgot password")), rpcDone(&IntroPwdCheck::deleteDone), rpcFail(&IntroPwdCheck::deleteFail));
+}
+
+bool IntroPwdCheck::deleteFail(const RPCError &error) {
+	if (mtpIsFlood(error)) return false;
+	sentRequest = 0;
+	showError(lang(lng_server_error));
+	return true;
+}
+
+void IntroPwdCheck::deleteDone(const MTPBool &v) {
+	App::wnd()->hideLayer();
+	intro()->onIntroNext();
 }
 
 void IntroPwdCheck::onInputChange() {
@@ -288,6 +339,7 @@ void IntroPwdCheck::onInputChange() {
 }
 
 void IntroPwdCheck::onSubmitPwd(bool force) {
+	if (sentRequest) return;
 	if (_pwdField.isHidden()) {
 		if (!force && !_codeField.isEnabled()) return;
 		QString code = _codeField.text().trimmed();

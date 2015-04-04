@@ -78,7 +78,7 @@ void DownloadPathBox::showAll() {
 }
 
 void DownloadPathBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 	if (paint(p)) return;
 
 	paintTitle(p, lang(lng_download_path_header), true);

@@ -361,7 +361,7 @@ enum {
 	mtpc_updateWebPage = 0x2cc36971,
 	mtpc_webPageEmpty = 0xeb1477e8,
 	mtpc_webPagePending = 0xc586da1c,
-	mtpc_webPage = 0x39c1cef9,
+	mtpc_webPage = 0xa31ea0b5,
 	mtpc_messageMediaWebPage = 0xa32dd600,
 	mtpc_authorization = 0x7bf2e6f6,
 	mtpc_account_authorizations = 0x1250abde,
@@ -7290,7 +7290,7 @@ private:
 
 	friend MTPwebPage MTP_webPageEmpty(const MTPlong &_id);
 	friend MTPwebPage MTP_webPagePending(const MTPlong &_id, MTPint _date);
-	friend MTPwebPage MTP_webPage(const MTPlong &_id, const MTPstring &_display_url, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo);
+	friend MTPwebPage MTP_webPage(MTPint _flags, const MTPlong &_id, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_site_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _embed_width, MTPint _embed_height, MTPint _duration, const MTPstring &_author);
 
 	mtpTypeId _type;
 };
@@ -8511,13 +8511,13 @@ public:
 	MTPMessageMedia vmedia;
 
 	enum {
-		flag_reply_to_msg_id = (1 << 3),
 		flag_fwd_date = (1 << 2),
+		flag_reply_to_msg_id = (1 << 3),
 		flag_fwd_from_id = (1 << 2),
 	};
 
-	bool has_reply_to_msg_id() const { return vflags.v & flag_reply_to_msg_id; }
 	bool has_fwd_date() const { return vflags.v & flag_fwd_date; }
+	bool has_reply_to_msg_id() const { return vflags.v & flag_reply_to_msg_id; }
 	bool has_fwd_from_id() const { return vflags.v & flag_fwd_from_id; }
 };
 
@@ -9597,13 +9597,13 @@ public:
 	MTPint vreply_to_msg_id;
 
 	enum {
-		flag_reply_to_msg_id = (1 << 3),
 		flag_fwd_date = (1 << 2),
+		flag_reply_to_msg_id = (1 << 3),
 		flag_fwd_from_id = (1 << 2),
 	};
 
-	bool has_reply_to_msg_id() const { return vflags.v & flag_reply_to_msg_id; }
 	bool has_fwd_date() const { return vflags.v & flag_fwd_date; }
+	bool has_reply_to_msg_id() const { return vflags.v & flag_reply_to_msg_id; }
 	bool has_fwd_from_id() const { return vflags.v & flag_fwd_from_id; }
 };
 
@@ -9627,13 +9627,13 @@ public:
 	MTPint vreply_to_msg_id;
 
 	enum {
-		flag_reply_to_msg_id = (1 << 3),
 		flag_fwd_date = (1 << 2),
+		flag_reply_to_msg_id = (1 << 3),
 		flag_fwd_from_id = (1 << 2),
 	};
 
-	bool has_reply_to_msg_id() const { return vflags.v & flag_reply_to_msg_id; }
 	bool has_fwd_date() const { return vflags.v & flag_fwd_date; }
+	bool has_reply_to_msg_id() const { return vflags.v & flag_reply_to_msg_id; }
 	bool has_fwd_from_id() const { return vflags.v & flag_fwd_from_id; }
 };
 
@@ -10419,14 +10419,50 @@ class MTPDwebPage : public mtpDataImpl<MTPDwebPage> {
 public:
 	MTPDwebPage() {
 	}
-	MTPDwebPage(const MTPlong &_id, const MTPstring &_display_url, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo) : vid(_id), vdisplay_url(_display_url), vtitle(_title), vdescription(_description), vphoto(_photo) {
+	MTPDwebPage(MTPint _flags, const MTPlong &_id, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_site_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _embed_width, MTPint _embed_height, MTPint _duration, const MTPstring &_author) : vflags(_flags), vid(_id), vurl(_url), vdisplay_url(_display_url), vtype(_type), vsite_name(_site_name), vtitle(_title), vdescription(_description), vphoto(_photo), vembed_url(_embed_url), vembed_type(_embed_type), vembed_width(_embed_width), vembed_height(_embed_height), vduration(_duration), vauthor(_author) {
 	}
 
+	MTPint vflags;
 	MTPlong vid;
+	MTPstring vurl;
 	MTPstring vdisplay_url;
+	MTPstring vtype;
+	MTPstring vsite_name;
 	MTPstring vtitle;
 	MTPstring vdescription;
 	MTPPhoto vphoto;
+	MTPstring vembed_url;
+	MTPstring vembed_type;
+	MTPint vembed_width;
+	MTPint vembed_height;
+	MTPint vduration;
+	MTPstring vauthor;
+
+	enum {
+		flag_embed_height = (1 << 6),
+		flag_embed_type = (1 << 5),
+		flag_duration = (1 << 7),
+		flag_photo = (1 << 4),
+		flag_embed_url = (1 << 5),
+		flag_author = (1 << 8),
+		flag_description = (1 << 3),
+		flag_type = (1 << 0),
+		flag_title = (1 << 2),
+		flag_embed_width = (1 << 6),
+		flag_site_name = (1 << 1),
+	};
+
+	bool has_embed_height() const { return vflags.v & flag_embed_height; }
+	bool has_embed_type() const { return vflags.v & flag_embed_type; }
+	bool has_duration() const { return vflags.v & flag_duration; }
+	bool has_photo() const { return vflags.v & flag_photo; }
+	bool has_embed_url() const { return vflags.v & flag_embed_url; }
+	bool has_author() const { return vflags.v & flag_author; }
+	bool has_description() const { return vflags.v & flag_description; }
+	bool has_type() const { return vflags.v & flag_type; }
+	bool has_title() const { return vflags.v & flag_title; }
+	bool has_embed_width() const { return vflags.v & flag_embed_width; }
+	bool has_site_name() const { return vflags.v & flag_site_name; }
 };
 
 class MTPDauthorization : public mtpDataImpl<MTPDauthorization> {
@@ -10512,14 +10548,14 @@ public:
 	enum {
 		flag_new_salt = (1 << 0),
 		flag_new_password_hash = (1 << 0),
-		flag_email = (1 << 1),
 		flag_hint = (1 << 0),
+		flag_email = (1 << 1),
 	};
 
 	bool has_new_salt() const { return vflags.v & flag_new_salt; }
 	bool has_new_password_hash() const { return vflags.v & flag_new_password_hash; }
-	bool has_email() const { return vflags.v & flag_email; }
 	bool has_hint() const { return vflags.v & flag_hint; }
+	bool has_email() const { return vflags.v & flag_email; }
 };
 
 class MTPDauth_passwordRecovery : public mtpDataImpl<MTPDauth_passwordRecovery> {
@@ -23956,7 +23992,7 @@ inline uint32 MTPwebPage::innerLength() const {
 		}
 		case mtpc_webPage: {
 			const MTPDwebPage &v(c_webPage());
-			return v.vid.innerLength() + v.vdisplay_url.innerLength() + v.vtitle.innerLength() + v.vdescription.innerLength() + v.vphoto.innerLength();
+			return v.vflags.innerLength() + v.vid.innerLength() + v.vurl.innerLength() + v.vdisplay_url.innerLength() + (v.has_type() ? v.vtype.innerLength() : 0) + (v.has_site_name() ? v.vsite_name.innerLength() : 0) + (v.has_title() ? v.vtitle.innerLength() : 0) + (v.has_description() ? v.vdescription.innerLength() : 0) + (v.has_photo() ? v.vphoto.innerLength() : 0) + (v.has_embed_url() ? v.vembed_url.innerLength() : 0) + (v.has_embed_type() ? v.vembed_type.innerLength() : 0) + (v.has_embed_width() ? v.vembed_width.innerLength() : 0) + (v.has_embed_height() ? v.vembed_height.innerLength() : 0) + (v.has_duration() ? v.vduration.innerLength() : 0) + (v.has_author() ? v.vauthor.innerLength() : 0);
 		}
 	}
 	return 0;
@@ -23982,11 +24018,21 @@ inline void MTPwebPage::read(const mtpPrime *&from, const mtpPrime *end, mtpType
 		case mtpc_webPage: _type = cons; {
 			if (!data) setData(new MTPDwebPage());
 			MTPDwebPage &v(_webPage());
+			v.vflags.read(from, end);
 			v.vid.read(from, end);
+			v.vurl.read(from, end);
 			v.vdisplay_url.read(from, end);
-			v.vtitle.read(from, end);
-			v.vdescription.read(from, end);
-			v.vphoto.read(from, end);
+			if (v.has_type()) { v.vtype.read(from, end); } else { v.vtype = MTPstring(); }
+			if (v.has_site_name()) { v.vsite_name.read(from, end); } else { v.vsite_name = MTPstring(); }
+			if (v.has_title()) { v.vtitle.read(from, end); } else { v.vtitle = MTPstring(); }
+			if (v.has_description()) { v.vdescription.read(from, end); } else { v.vdescription = MTPstring(); }
+			if (v.has_photo()) { v.vphoto.read(from, end); } else { v.vphoto = MTPPhoto(); }
+			if (v.has_embed_url()) { v.vembed_url.read(from, end); } else { v.vembed_url = MTPstring(); }
+			if (v.has_embed_type()) { v.vembed_type.read(from, end); } else { v.vembed_type = MTPstring(); }
+			if (v.has_embed_width()) { v.vembed_width.read(from, end); } else { v.vembed_width = MTPint(); }
+			if (v.has_embed_height()) { v.vembed_height.read(from, end); } else { v.vembed_height = MTPint(); }
+			if (v.has_duration()) { v.vduration.read(from, end); } else { v.vduration = MTPint(); }
+			if (v.has_author()) { v.vauthor.read(from, end); } else { v.vauthor = MTPstring(); }
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPwebPage");
 	}
@@ -24004,11 +24050,21 @@ inline void MTPwebPage::write(mtpBuffer &to) const {
 		} break;
 		case mtpc_webPage: {
 			const MTPDwebPage &v(c_webPage());
+			v.vflags.write(to);
 			v.vid.write(to);
+			v.vurl.write(to);
 			v.vdisplay_url.write(to);
-			v.vtitle.write(to);
-			v.vdescription.write(to);
-			v.vphoto.write(to);
+			if (v.has_type()) v.vtype.write(to);
+			if (v.has_site_name()) v.vsite_name.write(to);
+			if (v.has_title()) v.vtitle.write(to);
+			if (v.has_description()) v.vdescription.write(to);
+			if (v.has_photo()) v.vphoto.write(to);
+			if (v.has_embed_url()) v.vembed_url.write(to);
+			if (v.has_embed_type()) v.vembed_type.write(to);
+			if (v.has_embed_width()) v.vembed_width.write(to);
+			if (v.has_embed_height()) v.vembed_height.write(to);
+			if (v.has_duration()) v.vduration.write(to);
+			if (v.has_author()) v.vauthor.write(to);
 		} break;
 	}
 }
@@ -24032,8 +24088,8 @@ inline MTPwebPage MTP_webPageEmpty(const MTPlong &_id) {
 inline MTPwebPage MTP_webPagePending(const MTPlong &_id, MTPint _date) {
 	return MTPwebPage(new MTPDwebPagePending(_id, _date));
 }
-inline MTPwebPage MTP_webPage(const MTPlong &_id, const MTPstring &_display_url, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo) {
-	return MTPwebPage(new MTPDwebPage(_id, _display_url, _title, _description, _photo));
+inline MTPwebPage MTP_webPage(MTPint _flags, const MTPlong &_id, const MTPstring &_url, const MTPstring &_display_url, const MTPstring &_type, const MTPstring &_site_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _embed_width, MTPint _embed_height, MTPint _duration, const MTPstring &_author) {
+	return MTPwebPage(new MTPDwebPage(_flags, _id, _url, _display_url, _type, _site_name, _title, _description, _photo, _embed_url, _embed_type, _embed_width, _embed_height, _duration, _author));
 }
 
 inline MTPauthorization::MTPauthorization() : mtpDataOwner(new MTPDauthorization()) {

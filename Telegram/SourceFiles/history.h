@@ -17,13 +17,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-typedef uint64 PeerId;
-typedef uint64 PhotoId;
-typedef uint64 VideoId;
-typedef uint64 AudioId;
-typedef uint64 DocumentId;
-typedef int32 MsgId;
-
 void historyInit();
 
 class HistoryItem;
@@ -39,467 +32,8 @@ typedef QMap<int32, HistoryItem*> SelectedItemSet;
 
 extern TextParseOptions _textNameOptions, _textDlgOptions;
 
-struct NotifySettings {
-	NotifySettings() : mute(0), sound("default"), previews(true), events(1) {
-	}
-	int32 mute;
-	string sound;
-	bool previews;
-	int32 events;
-};
-typedef NotifySettings *NotifySettingsPtr;
+#include "structs.h"
 
-static const NotifySettingsPtr UnknownNotifySettings = NotifySettingsPtr(0);
-static const NotifySettingsPtr EmptyNotifySettings = NotifySettingsPtr(1);
-extern NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
-extern NotifySettingsPtr globalNotifyAllPtr, globalNotifyUsersPtr, globalNotifyChatsPtr;
-
-inline bool isNotifyMuted(NotifySettingsPtr settings) {
-	if (settings == UnknownNotifySettings || settings == EmptyNotifySettings) {
-		return false;
-	}
-	return (settings->mute > unixtime());
-}
-
-style::color peerColor(int32 index);
-ImagePtr userDefPhoto(int32 index);
-ImagePtr chatDefPhoto(int32 index);
-
-struct ChatData;
-struct UserData;
-struct PeerData {
-	PeerData(const PeerId &id);
-	virtual ~PeerData() {
-		if (notify != UnknownNotifySettings && notify != EmptyNotifySettings) {
-			delete notify;
-			notify = UnknownNotifySettings;
-		}
-	}
-
-	UserData *asUser();
-	const UserData *asUser() const;
-
-	ChatData *asChat();
-	const ChatData *asChat() const;
-
-	void updateName(const QString &newName, const QString &newNameOrPhone, const QString &newUsername);
-
-	void fillNames();
-
-	virtual void nameUpdated() {
-	}
-
-	PeerId id;
-
-	QString name;
-	QString nameOrPhone;
-	typedef QSet<QString> Names;
-	Names names; // for filtering
-	typedef QSet<QChar> NameFirstChars;
-	NameFirstChars chars;
-
-	bool loaded;
-	bool chat;
-	uint64 access;
-	MTPinputPeer input;
-	MTPinputUser inputUser;
-
-	int32 colorIndex;
-	style::color color;
-	ImagePtr photo;
-
-	int32 nameVersion;
-
-	NotifySettingsPtr notify;
-};
-
-class PeerLink : public ITextLink {
-public:
-	PeerLink(PeerData *peer) : _peer(peer) {
-	}
-	void onClick(Qt::MouseButton button) const;
-	PeerData *peer() const {
-		return _peer;
-	}
-
-private:
-	PeerData *_peer;
-};
-
-struct PhotoData;
-struct UserData : public PeerData {
-	UserData(const PeerId &id) : PeerData(id), lnk(new PeerLink(this)), onlineTill(0), contact(-1), photosCount(-1) {
-	}
-	void setPhoto(const MTPUserProfilePhoto &photo);
-	void setName(const QString &first, const QString &last, const QString &phoneName, const QString &username);
-	void setPhone(const QString &newPhone);
-	void nameUpdated();
-
-	QString firstName;
-	QString lastName;
-	QString username;
-	QString phone;
-	Text nameText;
-	PhotoId photoId;
-	TextLinkPtr lnk;
-	int32 onlineTill;
-	int32 contact; // -1 - not contact, cant add (self, empty, deleted, foreign), 0 - not contact, can add (request), 1 - contact
-
-	typedef QList<PhotoData*> Photos;
-	Photos photos;
-	int32 photosCount; // -1 not loaded, 0 all loaded
-};
-
-struct ChatData : public PeerData {
-	ChatData(const PeerId &id) : PeerData(id), count(0), date(0), version(0), left(false), forbidden(true), photoId(0) {
-	}
-	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = 0);
-	int32 count;
-	int32 date;
-	int32 version;
-	int32 admin;
-	bool left;
-	bool forbidden;
-	typedef QMap<UserData*, int32> Participants;
-	Participants participants;
-	typedef QMap<UserData*, bool> CanKick;
-	CanKick cankick;
-	typedef QList<UserData*> LastAuthors;
-	LastAuthors lastAuthors;
-	ImagePtr photoFull;
-	PhotoId photoId;
-	// geo
-};
-
-typedef QMap<char, QPixmap> PreparedPhotoThumbs;
-struct PhotoData {
-	PhotoData(const PhotoId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, const ImagePtr &thumb = ImagePtr(), const ImagePtr &medium = ImagePtr(), const ImagePtr &full = ImagePtr()) :
-		id(id), access(access), user(user), date(date), thumb(thumb), medium(medium), full(full), chat(0) {
-	}
-	void forget() {
-		thumb->forget();
-		replyPreview->forget();
-		medium->forget();
-		full->forget();
-	}
-	PhotoId id;
-	uint64 access;
-	int32 user;
-	int32 date;
-	ImagePtr thumb, replyPreview;
-	ImagePtr medium;
-	ImagePtr full;
-	ChatData *chat; // for chat photos connection
-	// geo, caption
-
-	int32 cachew;
-	QPixmap cache;
-};
-
-class PhotoLink : public ITextLink {
-public:
-	PhotoLink(PhotoData *photo) : _photo(photo), _peer(0) {
-	}
-	PhotoLink(PhotoData *photo, PeerData *peer) : _photo(photo), _peer(peer) {
-	}
-	void onClick(Qt::MouseButton button) const;
-	PhotoData *photo() const {
-		return _photo;
-	}
-	PeerData *peer() const {
-		return _peer;
-	}
-
-private:
-	PhotoData *_photo;
-	PeerData *_peer;
-};
-
-enum FileStatus {
-	FileFailed = -1,
-	FileUploading = 0,
-	FileReady = 1,
-};
-
-struct VideoData {
-	VideoData(const VideoId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
-
-	void forget() {
-		thumb->forget();
-		replyPreview->forget();
-	}
-
-	void save(const QString &toFile);
-
-	void cancel(bool beforeDownload = false) {
-		mtpFileLoader *l = loader;
-		loader = 0;
-		if (l) {
-			l->cancel();
-			l->deleteLater();
-			l->rpcInvalidate();
-		}
-		location = FileLocation();
-		if (!beforeDownload) {
-			openOnSave = openOnSaveMsgId = 0;
-		}
-	}
-
-	void finish() {
-		if (loader->done()) {
-			location = FileLocation(loader->fileType(), loader->fileName());
-		}
-		loader->deleteLater();
-		loader->rpcInvalidate();
-		loader = 0;
-	}
-
-	QString already(bool check = false);
-
-	VideoId id;
-	uint64 access;
-	int32 user;
-	int32 date;
-	int32 duration;
-	int32 w, h;
-	ImagePtr thumb, replyPreview;
-	int32 dc, size;
-	// geo, caption
-
-	FileStatus status;
-	int32 uploadOffset;
-
-	mtpTypeId fileType;
-	int32 openOnSave, openOnSaveMsgId;
-	mtpFileLoader *loader;
-	FileLocation location;
-};
-
-class VideoLink : public ITextLink {
-public:
-	VideoLink(VideoData *video) : _video(video) {
-	}
-	VideoData *video() const {
-		return _video;
-	}
-
-private:
-	VideoData *_video;
-};
-
-class VideoSaveLink : public VideoLink {
-public:
-	VideoSaveLink(VideoData *video) : VideoLink(video) {
-	}
-	void doSave(bool forceSavingAs = false) const;
-	void onClick(Qt::MouseButton button) const;
-};
-
-class VideoOpenLink : public VideoLink {
-public:
-	VideoOpenLink(VideoData *video) : VideoLink(video) {
-	}
-	void onClick(Qt::MouseButton button) const;
-};
-
-class VideoCancelLink : public VideoLink {
-public:
-	VideoCancelLink(VideoData *video) : VideoLink(video) {
-	}
-	void onClick(Qt::MouseButton button) const;
-};
-
-struct AudioData {
-	AudioData(const AudioId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, const QString &mime = QString(), int32 duration = 0, int32 dc = 0, int32 size = 0);
-
-	void forget() {
-	}
-
-	void save(const QString &toFile);
-
-	void cancel(bool beforeDownload = false) {
-		mtpFileLoader *l = loader;
-		loader = 0;
-		if (l) {
-			l->cancel();
-			l->deleteLater();
-			l->rpcInvalidate();
-		}
-		location = FileLocation();
-		if (!beforeDownload) {
-			openOnSave = openOnSaveMsgId = 0;
-		}
-	}
-
-	void finish() {
-		if (loader->done()) {
-			location = FileLocation(loader->fileType(), loader->fileName());
-			data = loader->bytes();
-		}
-		loader->deleteLater();
-		loader->rpcInvalidate();
-		loader = 0;
-	}
-
-	QString already(bool check = false);
-
-	AudioId id;
-	uint64 access;
-	int32 user;
-	int32 date;
-	QString mime;
-	int32 duration;
-	int32 dc;
-	int32 size;
-
-	FileStatus status;
-	int32 uploadOffset;
-
-	int32 openOnSave, openOnSaveMsgId;
-	mtpFileLoader *loader;
-	FileLocation location;
-	QByteArray data;
-	int32 md5[8];
-};
-
-class AudioLink : public ITextLink {
-public:
-	AudioLink(AudioData *audio) : _audio(audio) {
-	}
-	AudioData *audio() const {
-		return _audio;
-	}
-
-private:
-	AudioData *_audio;
-};
-
-class AudioSaveLink : public AudioLink {
-public:
-	AudioSaveLink(AudioData *audio) : AudioLink(audio) {
-	}
-	void doSave(bool forceSavingAs = false) const;
-	void onClick(Qt::MouseButton button) const;
-};
-
-class AudioOpenLink : public AudioLink {
-public:
-	AudioOpenLink(AudioData *audio) : AudioLink(audio) {
-	}
-	void onClick(Qt::MouseButton button) const;
-};
-
-class AudioCancelLink : public AudioLink {
-public:
-	AudioCancelLink(AudioData *audio) : AudioLink(audio) {
-	}
-	void onClick(Qt::MouseButton button) const;
-};
-
-enum DocumentType {
-	FileDocument,
-	VideoDocument,
-	AudioDocument,
-	StickerDocument,
-	AnimatedDocument
-};
-struct DocumentData {
-	DocumentData(const DocumentId &id, const uint64 &access = 0, int32 date = 0, const QVector<MTPDocumentAttribute> &attributes = QVector<MTPDocumentAttribute>(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
-	void setattributes(const QVector<MTPDocumentAttribute> &attributes);
-
-	void forget() {
-		thumb->forget();
-		sticker->forget();
-		replyPreview->forget();
-	}
-
-	void save(const QString &toFile);
-
-	void cancel(bool beforeDownload = false) {
-		mtpFileLoader *l = loader;
-		loader = 0;
-		if (l) {
-			l->cancel();
-			l->deleteLater();
-			l->rpcInvalidate();
-		}
-		location = FileLocation();
-		if (!beforeDownload) {
-			openOnSave = openOnSaveMsgId = 0;
-		}
-	}
-
-	void finish() {
-		if (loader->done()) {
-			location = FileLocation(loader->fileType(), loader->fileName());
-			data = loader->bytes();
-		}
-		loader->deleteLater();
-		loader->rpcInvalidate();
-		loader = 0;
-	}
-
-	QString already(bool check = false);
-
-	DocumentId id;
-	DocumentType type;
-	QSize dimensions;
-	int32 duration;
-	uint64 access;
-	int32 date;
-	QString name, mime, alt; // alt - for stickers
-	ImagePtr thumb, replyPreview;
-	int32 dc;
-	int32 size;
-
-	FileStatus status;
-	int32 uploadOffset;
-
-	int32 openOnSave, openOnSaveMsgId;
-	mtpFileLoader *loader;
-	FileLocation location;
-
-	QByteArray data;
-	ImagePtr sticker;
-
-	int32 md5[8];
-};
-
-class DocumentLink : public ITextLink {
-public:
-	DocumentLink(DocumentData *document) : _document(document) {
-	}
-	DocumentData *document() const {
-		return _document;
-	}
-
-private:
-	DocumentData *_document;
-};
-
-class DocumentSaveLink : public DocumentLink {
-public:
-	DocumentSaveLink(DocumentData *document) : DocumentLink(document) {
-	}
-	void doSave(bool forceSavingAs = false) const;
-	void onClick(Qt::MouseButton button) const;
-};
-
-class DocumentOpenLink : public DocumentLink {
-public:
-	DocumentOpenLink(DocumentData *document) : DocumentLink(document) {
-	}
-	void onClick(Qt::MouseButton button) const;
-};
-
-class DocumentCancelLink : public DocumentLink {
-public:
-	DocumentCancelLink(DocumentData *document) : DocumentLink(document) {
-	}
-	void onClick(Qt::MouseButton button) const;
-};
-
-MsgId clientMsgId();
 
 struct History;
 struct Histories : public QHash<PeerId, History*>, public Animated {
@@ -521,7 +55,7 @@ struct Histories : public QHash<PeerId, History*>, public Animated {
 	}
 
 	HistoryItem *addToBack(const MTPmessage &msg, int msgState = 1); // 2 - new read message, 1 - new unread message, 0 - not new message, -1 - searched message
-//	HistoryItem *addToBack(const MTPgeoChatMessage &msg, bool newMsg = true);
+	//	HistoryItem *addToBack(const MTPgeoChatMessage &msg, bool newMsg = true);
 
 	typedef QMap<History*, uint64> TypingHistories; // when typing in this history started
 	TypingHistories typing;
@@ -563,6 +97,7 @@ enum HistoryMediaType {
 	MediaTypeDocument,
 	MediaTypeSticker,
 	MediaTypeImageLink,
+	MediaTypeWebPage,
 
 	MediaTypeCount
 };
@@ -581,7 +116,7 @@ inline MediaOverviewType mediaToOverviewType(HistoryMediaType t) {
 	case MediaTypePhoto: return OverviewPhotos;
 	case MediaTypeVideo: return OverviewVideos;
 	case MediaTypeDocument: return OverviewDocuments;
-//	case MediaTypeSticker: return OverviewDocuments;
+		//	case MediaTypeSticker: return OverviewDocuments;
 	case MediaTypeAudio: return OverviewAudios;
 	}
 	return OverviewCount;
@@ -597,34 +132,6 @@ inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	}
 	return MTPMessagesFilter();
 }
-
-struct MessageCursor {
-	MessageCursor() : position(0), anchor(0), scroll(QFIXED_MAX) {
-	}
-	MessageCursor(int position, int anchor, int scroll) : position(position), anchor(anchor), scroll(scroll) {
-	}
-	MessageCursor(const QTextEdit &edit) {
-		fillFrom(edit);
-	}
-	void fillFrom(const QTextEdit &edit) {
-		QTextCursor c = edit.textCursor();
-		position = c.position();
-		anchor = c.anchor();
-		QScrollBar *s = edit.verticalScrollBar();
-		scroll = s ? s->value() : QFIXED_MAX;
-	}
-	void applyTo(QTextEdit &edit, bool *lock = 0) {
-		if (lock) *lock = true;
-		QTextCursor c = edit.textCursor();
-		c.setPosition(anchor, QTextCursor::MoveAnchor);
-		c.setPosition(position, QTextCursor::KeepAnchor);
-		edit.setTextCursor(c);
-		QScrollBar *s = edit.verticalScrollBar();
-		if (s) s->setValue(scroll);
-		if (lock) *lock = false;
-	}
-	int position, anchor, scroll;
-};
 
 class HistoryMedia;
 class HistoryMessage;
@@ -1084,6 +591,9 @@ public:
 	int32 maxWidth() const {
 		return _maxw;
 	}
+	int32 minHeight() const {
+		return _minh;
+	}
 
 	virtual ~HistoryElem() {
 	}
@@ -1206,6 +716,8 @@ public:
 	virtual HistoryMedia *getMedia(bool inOverview = false) const {
 		return 0;
 	}
+	virtual void setMedia(const MTPmessageMedia &media) {
+	}
 	virtual QString time() const {
 		return QString();
 	}
@@ -1258,6 +770,8 @@ class HistoryMedia : public HistoryElem {
 public:
 
 	HistoryMedia(int32 width = 0) : w(width) {
+	}
+	HistoryMedia(const HistoryMedia &other) : w(0) {
 	}
 
 	virtual HistoryMediaType type() const = 0;
@@ -1315,7 +829,7 @@ protected:
 class HistoryPhoto : public HistoryMedia {
 public:
 
-	HistoryPhoto(const MTPDphoto &photo, int32 width = 0);
+	HistoryPhoto(const MTPDphoto &photo);
 	HistoryPhoto(PeerData *chat, const MTPDphoto &photo, int32 width = 0);
 
 	void init();
@@ -1364,7 +878,7 @@ QString formatSizeText(qint64 size);
 class HistoryVideo : public HistoryMedia {
 public:
 
-	HistoryVideo(const MTPDvideo &video, int32 width = 0);
+	HistoryVideo(const MTPDvideo &video);
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
@@ -1402,7 +916,7 @@ private:
 class HistoryAudio : public HistoryMedia {
 public:
 
-	HistoryAudio(const MTPDaudio &audio, int32 width = 0);
+	HistoryAudio(const MTPDaudio &audio);
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
@@ -1434,7 +948,7 @@ private:
 class HistoryDocument : public HistoryMedia {
 public:
 
-	HistoryDocument(DocumentData *document, int32 width = 0);
+	HistoryDocument(DocumentData *document);
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
@@ -1482,7 +996,7 @@ private:
 class HistorySticker : public HistoryMedia {
 public:
 
-	HistorySticker(DocumentData *document, int32 width = 0);
+	HistorySticker(DocumentData *document);
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
@@ -1542,6 +1056,45 @@ private:
 	UserData *contact;
 };
 
+class HistoryWebPage : public HistoryMedia {
+public:
+
+	HistoryWebPage(WebPageData *data);
+	void initDimensions(const HistoryItem *parent);
+
+	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
+	HistoryMediaType type() const {
+		return MediaTypeWebPage;
+	}
+	const QString inDialogsText() const;
+	const QString inHistoryText() const;
+	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	HistoryMedia *clone() const;
+
+	void regItem(HistoryItem *item);
+	void unregItem(HistoryItem *item);
+
+	bool hasReplyPreview() const {
+		return data->photo && !data->photo->thumb->isNull();
+	}
+	ImagePtr replyPreview();
+
+private:
+	WebPageData *data;
+	TextLinkPtr _openl, _photol;
+	bool _asArticle;
+
+	Text _title, _description;
+	int32 _siteNameWidth;
+
+	QString _duration;
+	int32 _durationWidth;
+
+	int16 _pixw, _pixh;
+};
+
 void initImageLinkManager();
 void reinitImageLinkManager();
 void deinitImageLinkManager();
@@ -1597,7 +1150,7 @@ private:
 class HistoryImageLink : public HistoryMedia {
 public:
 
-	HistoryImageLink(const QString &url, int32 width = 0);
+	HistoryImageLink(const QString &url);
 	int32 fullWidth() const;
 	int32 fullHeight() const;
 	void initDimensions(const HistoryItem *parent);
@@ -1628,10 +1181,15 @@ public:
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc);
 
 	void initMedia(const MTPMessageMedia &media, QString &currentText);
+	void initMediaFromText(QString &currentText);
 	void initMediaFromDocument(DocumentData *doc);
 	void initDimensions(const HistoryItem *parent = 0);
 	void initDimensions(const QString &text);
 	void fromNameUpdated() const;
+
+	bool justMedia() const {
+		return _media && _text.isEmpty();
+	}
 
 	bool uploading() const;
 
@@ -1658,6 +1216,7 @@ public:
 	QString selectedText(uint32 selection) const;
 	QString inDialogsText() const;
 	HistoryMedia *getMedia(bool inOverview = false) const;
+	void setMedia(const MTPmessageMedia &media);
 
 	QString time() const {
 		return _time;
@@ -1731,6 +1290,7 @@ public:
 	HistoryReply(History *history, HistoryBlock *block, MsgId msgId, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
 
 	void initDimensions(const HistoryItem *parent = 0);
+
 	bool updateReplyTo(bool force = false);
 	void replyToNameUpdated() const;
 	int32 replyToWidth() const;

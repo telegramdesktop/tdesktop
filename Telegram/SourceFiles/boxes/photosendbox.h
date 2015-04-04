@@ -32,6 +32,10 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	~PhotoSendBox();
 
+signals:
+
+	void confirmed();
+
 public slots:
 
 	void onSend(bool ctrlShiftEnter = false);

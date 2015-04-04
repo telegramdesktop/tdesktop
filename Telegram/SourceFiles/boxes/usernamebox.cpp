@@ -99,7 +99,7 @@ void UsernameBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void UsernameBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 	if (paint(p)) return;
 
 	paintTitle(p, lang(lng_username_title), true);
@@ -194,6 +194,8 @@ void UsernameBox::onUpdateDone(const MTPUser &user) {
 }
 
 bool UsernameBox::onUpdateFail(const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 	_saveRequest = 0;
 	QString err(error.type()), name = getName();
 	if (err == "USERNAME_NOT_MODIFIED" || _sentUsername == App::self()->username) {
@@ -227,6 +229,8 @@ void UsernameBox::onCheckDone(const MTPBool &result) {
 }
 
 bool UsernameBox::onCheckFail(const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 	_checkRequest = 0;
 	QString err(error.type());
 	if (err == "USERNAME_INVALID") {

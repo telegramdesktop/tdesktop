@@ -870,6 +870,9 @@
     <ClCompile Include="GeneratedFiles\Release\moc_intropwdcheck.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\structs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -951,6 +954,9 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\pspecific_mac_p.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\structs.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

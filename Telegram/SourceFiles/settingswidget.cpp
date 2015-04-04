@@ -894,6 +894,8 @@ void SettingsInner::offPasswordDone(const MTPBool &result) {
 }
 
 bool SettingsInner::offPasswordFail(const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 	onReloadPassword();
 	return true;
 }

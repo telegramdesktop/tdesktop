@@ -53,11 +53,17 @@ public slots:
 	void onToPassword();
 	void onInputChange();
 	void onCheckRequest();
+	void onToReset();
+	void onReset();
+	void onResetSure();
 
 private:
 
 	void showError(const QString &err);
 	void stopCheck();
+
+	void deleteDone(const MTPBool &result);
+	bool deleteFail(const RPCError &error);
 
 	QString error;
 	anim::fvalue errorAlpha;
@@ -71,7 +77,7 @@ private:
 	QString _hint, _emailPattern;
 
 	FlatInput _pwdField, _codeField;
-	LinkButton _toRecover, _toPassword;
+	LinkButton _toRecover, _toPassword, _reset;
 	mtpRequestId sentRequest;
 
 	Text _hintText;

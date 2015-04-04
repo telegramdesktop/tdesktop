@@ -68,6 +68,10 @@ void FlatTextarea::onTouchTimer() {
 	_touchRightButton = true;
 }
 
+void FlatTextarea::insertFromMimeData(const QMimeData *source) {
+	QTextEdit::insertFromMimeData(source);
+}
+
 bool FlatTextarea::viewportEvent(QEvent *e) {
 	if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
 		QTouchEvent *ev = static_cast<QTouchEvent*>(e);

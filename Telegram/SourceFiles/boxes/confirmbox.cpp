@@ -29,9 +29,9 @@ TextParseOptions _confirmBoxTextOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
-ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const QString &cancelText) : _infoMsg(false),
-_confirm(this, doneText.isEmpty() ? lang(lng_continue) : doneText, st::btnSelectDone),
-_cancel(this, cancelText.isEmpty() ? lang(lng_cancel) : cancelText, st::btnSelectCancel),
+ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const QString &cancelText, const style::flatButton &doneStyle, const style::flatButton &cancelStyle) : _infoMsg(false),
+_confirm(this, doneText.isEmpty() ? lang(lng_continue) : doneText, doneStyle),
+_cancel(this, cancelText.isEmpty() ? lang(lng_cancel) : cancelText, cancelStyle),
 _close(this, QString(), st::btnInfoClose),
 _text(100) {
 	init(text);

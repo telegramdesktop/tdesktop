@@ -191,7 +191,7 @@ public:
 	bool started();
 	void applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNotifySettings &settings, History *history = 0);
 	void gotNotifySetting(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
-	bool failNotifySetting(MTPInputNotifyPeer peer);
+	bool failNotifySetting(MTPInputNotifyPeer peer, const RPCError &error);
 
 	void updateNotifySetting(PeerData *peer, bool enabled);
 
@@ -251,7 +251,7 @@ public:
 	void onForward(const PeerId &peer, bool forwardSelected);
 	void onShareContact(const PeerId &peer, UserData *contact);
 	void onSendPaths(const PeerId &peer);
-	bool selectingPeer();
+	bool selectingPeer(bool withConfirm = false);
 	void offerPeer(PeerId peer);
 	void focusPeerSelect();
 	void dialogsActivate();
@@ -297,7 +297,7 @@ public:
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
-	void itemResized(HistoryItem *row);
+	void itemResized(HistoryItem *row, bool scrollToIt = false);
 
 	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);
 	void peerUsernameChanged(PeerData *peer);

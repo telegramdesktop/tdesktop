@@ -105,6 +105,7 @@ public:
 		return tmp;//_color;
 	}
 
+	virtual ITextBlock *clone() const = 0;
 	virtual ~ITextBlock() {
 	}
 
@@ -123,6 +124,10 @@ public:
 
 	Qt::LayoutDirection nextDirection() const {
 		return _nextDir;
+	}
+
+	ITextBlock *clone() const {
+		return new NewlineBlock(*this);
 	}
 
 private:
@@ -160,6 +165,10 @@ public:
 		return _words.isEmpty() ? 0 : _words.back().f_rbearing();
 	}
 
+	ITextBlock *clone() const {
+		return new TextBlock(*this);
+	}
+
 private:
 
 	TextBlock(const style::font &font, const QString &str, QFixed minResizeWidth, uint16 from, uint16 length, uchar flags, const style::color &color, uint16 lnkIndex);
@@ -176,6 +185,10 @@ private:
 
 class EmojiBlock : public ITextBlock {
 public:
+
+	ITextBlock *clone() const {
+		return new EmojiBlock(*this);
+	}
 
 private:
 
@@ -194,6 +207,10 @@ public:
 
 	int32 height() const {
 		return _height;
+	}
+
+	ITextBlock *clone() const {
+		return new SkipBlock(*this);
 	}
 
 private:
@@ -399,6 +416,7 @@ public:
 
 	Text(int32 minResizeWidth = QFIXED_MAX);
 	Text(style::font font, const QString &text, const TextParseOptions &options = _defaultOptions, int32 minResizeWidth = QFIXED_MAX, bool richText = false);
+	Text(const Text &other);
 
 	int32 countHeight(int32 width) const;
 	void setText(style::font font, const QString &text, const TextParseOptions &options = _defaultOptions);
@@ -417,13 +435,16 @@ public:
 	void replaceFont(style::font f); // does not recount anything, use at your own risk!
 
 	void draw(QPainter &p, int32 left, int32 top, int32 width, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, uint16 selectedFrom = 0, uint16 selectedTo = 0) const;
-	void drawElided(QPainter &p, int32 left, int32 top, int32 width, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1) const;
+	void drawElided(QPainter &p, int32 left, int32 top, int32 width, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0) const;
 
 	const TextLinkPtr &link(int32 x, int32 y, int32 width, style::align align = style::al_left) const;
 	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 width, style::align align = style::al_left) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y, int32 width, style::align align = style::al_left) const;
 	uint32 adjustSelection(uint16 from, uint16 to, TextSelectType selectType) const;
 
+	bool isEmpty() const {
+		return _text.isEmpty();
+	}
 	QString original(uint16 selectedFrom = 0, uint16 selectedTo = 0xFFFF, bool expandLinks = true) const;
 
 	bool lastDots(int32 dots, int32 maxdots = 3) { // hack for typing animation

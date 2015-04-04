@@ -464,6 +464,7 @@ void DialogsListWidget::enterEvent(QEvent *e) {
 
 void DialogsListWidget::leaveEvent(QEvent *e) {
 	setMouseTracking(false);
+	selByMouse = false;
 	if (sel || filteredSel >= 0 || hashtagSel >= 0 || searchedSel >= 0 || peopleSel >= 0) {
 		sel = 0;
 		filteredSel = searchedSel = peopleSel = hashtagSel = -1;
@@ -745,6 +746,7 @@ int32 DialogsListWidget::addNewContact(int32 uid, bool select) {
 			sel = added;
 			contactSel = true;
 		}
+		if (contactsNoDialogs.list.count == 1 && !dialogs.list.count) refresh();
 		return added ? ((dialogs.list.count + added->pos) * st::dlgHeight) : -1;
 	}
 	if (select) {
@@ -1091,7 +1093,7 @@ bool DialogsListWidget::choosePeer() {
 		if (msgId) {
 			saveRecentHashtags(filter);
 		}
-		bool chosen = (!App::main()->selectingPeer() && (_state == FilteredState || _state == SearchedState) && filteredSel >= 0 && filteredSel < filterResults.size());
+		bool chosen = (!App::main()->selectingPeer(true) && (_state == FilteredState || _state == SearchedState) && filteredSel >= 0 && filteredSel < filterResults.size());
 		App::main()->showPeer(history->peer->id, msgId);
 		if (chosen) {
 			emit searchResultChosen();
@@ -1519,8 +1521,10 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs) {
 	}
 }
 
-bool DialogsWidget::dialogsFailed(const RPCError &e) {
-	LOG(("RPC Error: %1 %2: %3").arg(e.code()).arg(e.type()).arg(e.description()));
+bool DialogsWidget::dialogsFailed(const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
+	LOG(("RPC Error: %1 %2: %3").arg(error.code()).arg(error.type()).arg(error.description()));
 	dlgPreloading = 0;
 	return true;
 }
@@ -1614,7 +1618,9 @@ void DialogsWidget::contactsReceived(const MTPcontacts_Contacts &contacts) {
 	}
 }
 
-bool DialogsWidget::contactsFailed() {
+bool DialogsWidget::contactsFailed(const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 	return true;
 }
 
@@ -1680,6 +1686,8 @@ void DialogsWidget::peopleReceived(const MTPcontacts_Found &result, mtpRequestId
 }
 
 bool DialogsWidget::searchFailed(const RPCError &error, mtpRequestId req) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 	if (_searchRequest == req) {
 		_searchRequest = 0;
 		_searchFull = true;
@@ -1688,6 +1696,8 @@ bool DialogsWidget::searchFailed(const RPCError &error, mtpRequestId req) {
 }
 
 bool DialogsWidget::peopleFailed(const RPCError &error, mtpRequestId req) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 	if (_peopleRequest == req) {
 		_peopleRequest = 0;
 		_peopleFull = true;

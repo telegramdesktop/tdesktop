@@ -65,7 +65,7 @@ void AutoLockBox::showAll() {
 }
 
 void AutoLockBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 	if (paint(p)) return;
 
 	paintTitle(p, lang(lng_passcode_autolock), true);
