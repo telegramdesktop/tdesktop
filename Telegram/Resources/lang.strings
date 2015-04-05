@@ -541,7 +541,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version7026" = "— Add a comment before forwarded messages\n— Hashtags suggestions in new message and search fields (based on recent searches)\n— Button to jump back to a reply after viewing the original message\n— Add people to groups by username";
+"lng_new_version_text" = "— Link previews for Twitter, YouTube, Instagram and certain other links\n— Two-step verification\n— View all your Telegram sessions, terminate specific sessions";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

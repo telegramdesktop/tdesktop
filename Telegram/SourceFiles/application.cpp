@@ -655,9 +655,9 @@ void Application::checkMapVersion() {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
 			if (DevChannel && Local::oldMapVersion() < 8001) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 View all your sessions and terminate any of them\n\xe2\x80\x94 Two-step verification by additional cloud password\n\xe2\x80\x94 Twitter, YouTube, Instagram links preview\n\xe2\x80\x94 Text is pasted from clipboard when clipboard has both text and image and image sending was cancelled").replace('@', qsl("@") + QChar(0x200D));
-			} else if (!DevChannel && Local::oldMapVersion() < 8000) {
-				versionFeatures = lang(lng_new_version7026).trimmed();
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Link previews for Twitter, YouTube, Instagram and certain other links\n\xe2\x80\x94 Two-step verification\n\xe2\x80\x94 View all your Telegram sessions, terminate specific sessions\n\xe2\x80\x94 Text is pasted from clipboard when clipboard has both text and image and image sending was cancelled").replace('@', qsl("@") + QChar(0x200D));
+			} else if (!DevChannel && Local::oldMapVersion() < 8002) {
+				versionFeatures = lang(lng_new_version_text).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
