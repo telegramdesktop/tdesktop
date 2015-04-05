@@ -101,6 +101,7 @@ SOURCES += \
     ./SourceFiles/mainwidget.cpp \
     ./SourceFiles/settings.cpp \
     ./SourceFiles/settingswidget.cpp \
+    ./SourceFiles/structs.cpp \
     ./SourceFiles/sysbuttons.cpp \
     ./SourceFiles/title.cpp \
     ./SourceFiles/types.cpp \
@@ -136,8 +137,8 @@ SOURCES += \
     ./GeneratedFiles/lang_auto.cpp \
     ./GeneratedFiles/style_auto.cpp \
     ./SourceFiles/boxes/aboutbox.cpp \
+    ./SourceFiles/boxes/abstractbox.cpp \
     ./SourceFiles/boxes/addcontactbox.cpp \
-    ./SourceFiles/boxes/addparticipantbox.cpp \
     ./SourceFiles/boxes/autolockbox.cpp \
     ./SourceFiles/boxes/backgroundbox.cpp \
     ./SourceFiles/boxes/confirmbox.cpp \
@@ -146,14 +147,15 @@ SOURCES += \
     ./SourceFiles/boxes/downloadpathbox.cpp \
     ./SourceFiles/boxes/emojibox.cpp \
     ./SourceFiles/boxes/languagebox.cpp \
-    ./SourceFiles/boxes/newgroupbox.cpp \
     ./SourceFiles/boxes/passcodebox.cpp \
     ./SourceFiles/boxes/photocropbox.cpp \
     ./SourceFiles/boxes/photosendbox.cpp \
+    ./SourceFiles/boxes/sessionsbox.cpp \
     ./SourceFiles/boxes/usernamebox.cpp \
     ./SourceFiles/intro/intro.cpp \
     ./SourceFiles/intro/introcode.cpp \
     ./SourceFiles/intro/introphone.cpp \
+    ./SourceFiles/intro/intropwdcheck.cpp \
     ./SourceFiles/intro/introsignup.cpp \
     ./SourceFiles/intro/introsteps.cpp
 
@@ -183,6 +185,7 @@ HEADERS += \
     ./SourceFiles/mainwidget.h \
     ./SourceFiles/settings.h \
     ./SourceFiles/settingswidget.h \
+    ./SourceFiles/structs.h \
     ./SourceFiles/style.h \
     ./SourceFiles/sysbuttons.h \
     ./SourceFiles/title.h \
@@ -224,8 +227,8 @@ HEADERS += \
     ./GeneratedFiles/style_auto.h \
     ./GeneratedFiles/style_classes.h \
     ./SourceFiles/boxes/aboutbox.h \
+    ./SourceFiles/boxes/abstractbox.h \
     ./SourceFiles/boxes/addcontactbox.h \
-    ./SourceFiles/boxes/addparticipantbox.h \
     ./SourceFiles/boxes/autolockbox.h \
     ./SourceFiles/boxes/backgroundbox.h \
     ./SourceFiles/boxes/confirmbox.h \
@@ -234,14 +237,15 @@ HEADERS += \
     ./SourceFiles/boxes/downloadpathbox.h \
     ./SourceFiles/boxes/emojibox.h \
     ./SourceFiles/boxes/languagebox.h \
-    ./SourceFiles/boxes/newgroupbox.h \
     ./SourceFiles/boxes/passcodebox.h \
     ./SourceFiles/boxes/photocropbox.h \
     ./SourceFiles/boxes/photosendbox.h \
+    ./SourceFiles/boxes/sessionsbox.h \
     ./SourceFiles/boxes/usernamebox.h \
     ./SourceFiles/intro/intro.h \
     ./SourceFiles/intro/introcode.h \
     ./SourceFiles/intro/introphone.h \
+    ./SourceFiles/intro/intropwdcheck.h \
     ./SourceFiles/intro/introsignup.h \
     ./SourceFiles/intro/introsteps.h
 
