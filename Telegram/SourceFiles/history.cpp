@@ -4385,7 +4385,8 @@ HistoryMedia *HistoryMessage::getMedia(bool inOverview) const {
 
 void HistoryMessage::setMedia(const MTPmessageMedia &media) {
 	if (_media) return;
-	initMedia(media, QString());
+	QString t;
+	initMedia(media, t);
 	if (_media) {
 		QString was = HistoryMessage::selectedText(FullItemSel);
 		if (was.isEmpty()) {

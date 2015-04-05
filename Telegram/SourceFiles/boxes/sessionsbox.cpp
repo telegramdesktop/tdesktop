@@ -279,6 +279,8 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 		CountriesByISO2::const_iterator j = countries.constFind(country);
 		if (j != countries.cend()) country = QString::fromUtf8(j.value()->name);
 
+		MTPint active = d.vdate_active.v ? d.vdate_active : d.vdate_created;
+		data.activeTime = active.v;
 		data.info = country + QLatin1String(" (") + qs(d.vip) + QLatin1String("), ") + deviceModel;
 		if (!data.hash || (d.vflags.v & 1)) {
 			data.active = QString();
@@ -294,7 +296,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 			}
 			_current = data;
 		} else {
-			QDateTime now(QDateTime::currentDateTime()), lastTime(date(d.vdate_active.v ? d.vdate_active : d.vdate_created));
+			QDateTime now(QDateTime::currentDateTime()), lastTime(date(active));
 			QDate nowDate(now.date()), lastDate(lastTime.date());
 			QString dt;
 			if (lastDate == nowDate) {
@@ -319,7 +321,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 			_list.push_back(data);
 			for (int32 i = _list.size(); i > 1;) {
 				--i;
-				if (_list.at(i).active > _list.at(i - 1).active) {
+				if (_list.at(i).activeTime > _list.at(i - 1).activeTime) {
 					qSwap(_list[i], _list[i - 1]);
 				}
 			}

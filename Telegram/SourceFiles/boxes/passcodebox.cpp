@@ -458,8 +458,8 @@ bool PasscodeBox::recoverStartFail(const RPCError &error) {
 	return true;
 }
 
-RecoverBox::RecoverBox(const QString &pattern) : _pattern(lng_signin_recover_hint(lt_recover_email, pattern)),
-_submitRequest(0),
+RecoverBox::RecoverBox(const QString &pattern) :
+_submitRequest(0), _pattern(lng_signin_recover_hint(lt_recover_email, pattern)),
 _saveButton(this, lang(lng_passcode_submit), st::btnSelectDone),
 _cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
 _recoverCode(this, st::inpAddContact, lang(lng_signin_code)) {
