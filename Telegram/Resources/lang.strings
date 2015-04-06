@@ -261,6 +261,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_passcode_autolock_minutes" = "{count:_not_used_|# minute|# minutes}";
 "lng_passcode_autolock_hours" = "{count:_not_used_|# hour|# hours}";
 "lng_passcode_enter_old" = "Enter old passcode";
+"lng_passcode_enter_first" = "Enter a passcode";
 "lng_passcode_enter_new" = "Enter new passcode";
 "lng_passcode_confirm_new" = "Re-enter new passcode";
 "lng_passcode_about" = "When a local passcode is set, a lock icon appears in the top menu. Click it to lock the app.\n\nNote: if you forget your local passcode, you'll need to relogin in Telegram Desktop.";
@@ -278,6 +279,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_cloud_password_set" = "Enable two-step verification";
 "lng_cloud_password_edit" = "Change cloud password";
 "lng_cloud_password_enter_old" = "Enter old password";
+"lng_cloud_password_enter_first" = "Enter a password";
 "lng_cloud_password_enter_new" = "Enter new password";
 "lng_cloud_password_confirm_new" = "Re-enter new password";
 "lng_cloud_password_hint" = "Enter password hint";
@@ -322,10 +324,12 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_restart_later" = "Later";
 
 "lng_sessions_header" = "Current session";
-"lng_sessions_other_header" = "Other sessions";
+"lng_sessions_other_header" = "Active sessions";
 "lng_sessions_no_other" = "No other sessions";
 "lng_sessions_other_desc" = "You can log in to Telegram from other\nmobile, tablet and desktop devices, using\nthe same phone number. All your data\nwill be instantly synchronized.";
 "lng_sessions_terminate_all" = "Terminate all";
+
+"lng_preview_loading" = "Getting Link Info..";
 
 "lng_profile_chat_unaccessible" = "Group is unaccessible";
 "lng_topbar_info" = "Info";

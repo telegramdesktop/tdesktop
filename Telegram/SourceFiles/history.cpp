@@ -62,7 +62,7 @@ namespace {
 		Qt::LayoutDirectionAuto, // dir
 	};
 	TextParseOptions _webpageDescriptionOptions = {
-		TextParseMultiline | TextParseRichText, // flags
+		/*TextParseLinks | */TextParseMultiline | TextParseRichText, // flags
 		0, // maxw
 		0, // maxh
 		Qt::LayoutDirectionAuto, // dir
@@ -71,7 +71,9 @@ namespace {
 	inline void _initTextOptions() {
 		_historySrvOptions.dir = _textNameOptions.dir = _textDlgOptions.dir = langDir();
 		_textDlgOptions.maxw = st::dlgMaxWidth * 2;
+		_webpageTitleOptions.maxw = st::msgMaxWidth - st::msgPadding.left() - st::msgPadding.right() - st::webPageLeft;
 		_webpageTitleOptions.maxh = st::webPageTitleFont->height * 2;
+		_webpageDescriptionOptions.maxw = st::msgMaxWidth - st::msgPadding.left() - st::msgPadding.right() - st::webPageLeft;
 		_webpageDescriptionOptions.maxh = st::webPageDescriptionFont->height * 3;
 	}
 
@@ -1869,17 +1871,7 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 }
 
 ImagePtr HistoryPhoto::replyPreview() {
-	if (data->replyPreview->isNull() && !data->thumb->isNull()) {
-		if (data->thumb->loaded()) {
-			int w = data->thumb->width(), h = data->thumb->height();
-			if (w <= 0) w = 1;
-			if (h <= 0) h = 1;
-			data->replyPreview = ImagePtr(w > h ? data->thumb->pix(w * st::msgReplyBarSize.height() / h, st::msgReplyBarSize.height()) : data->thumb->pix(st::msgReplyBarSize.height()), "PNG");
-		} else {
-			data->thumb->load();
-		}
-	}
-	return data->replyPreview;
+	return data->makeReplyPreview();
 }
 
 QString formatSizeText(qint64 size) {
@@ -3146,7 +3138,7 @@ void HistoryContact::updateFrom(const MTPMessageMedia &media) {
 HistoryWebPage::HistoryWebPage(WebPageData *data) : HistoryMedia()
 , data(data)
 , _openl(data->url.isEmpty() ? 0 : new TextLink(data->url))
-, _photol(data->photo ? new PhotoLink(data->photo) : 0)
+, _photol((data->photo && data->type != WebPageVideo) ? new PhotoLink(data->photo) : 0)
 , _asArticle(false)
 , _title(st::msgMinWidth - st::webPageLeft)
 , _description(st::msgMinWidth - st::webPageLeft)
@@ -3163,6 +3155,7 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 		return;
 	}
 	if (!_openl && !data->url.isEmpty()) _openl = TextLinkPtr(new TextLink(data->url));
+	if (!_photol && data->photo && data->type != WebPageVideo) _photol = TextLinkPtr(new PhotoLink(data->photo));
 	if (data->photo && data->type != WebPagePhoto && data->type != WebPageVideo) {
 		if (data->type == WebPageProfile) {
 			_asArticle = true;
@@ -3224,7 +3217,7 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 			_minh += st::webPageTitleFont->height;
 		}
 	}
-	if (!data->description.isEmpty() && data->siteName != QLatin1String("YouTube")) {
+	if (!data->description.isEmpty()) {
 		_description.setText(st::webPageDescriptionFont, textClean(data->description), _webpageDescriptionOptions);
 		if (_asArticle) {
 			_maxw = qMax(_maxw, int32(st::webPageLeft + _description.maxWidth() + st::webPagePhotoDelta + st::webPagePhotoSize));
@@ -3546,18 +3539,7 @@ HistoryMedia *HistoryWebPage::clone() const {
 }
 
 ImagePtr HistoryWebPage::replyPreview() {
-	if (!data->photo) return ImagePtr();
-	if (data->photo->replyPreview->isNull() && !data->photo->thumb->isNull()) {
-		if (data->photo->thumb->loaded()) {
-			int w = data->photo->thumb->width(), h = data->photo->thumb->height();
-			if (w <= 0) w = 1;
-			if (h <= 0) h = 1;
-			data->photo->replyPreview = ImagePtr(w > h ? data->photo->thumb->pix(w * st::msgReplyBarSize.height() / h, st::msgReplyBarSize.height()) : data->photo->thumb->pix(st::msgReplyBarSize.height()), "PNG");
-		} else {
-			data->photo->thumb->load();
-		}
-	}
-	return data->photo->replyPreview;
+	return data->photo ? data->photo->makeReplyPreview() : ImagePtr();
 }
 
 namespace {

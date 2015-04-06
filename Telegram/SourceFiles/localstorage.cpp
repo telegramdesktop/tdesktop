@@ -1777,7 +1777,7 @@ namespace Local {
 				_writeMap(WriteMapFast);
 			}
 			EncryptedDescriptor data(sizeof(quint64) + _stringSize(draft.text) + sizeof(qint32));
-			data.stream << quint64(peer) << draft.text << qint32(draft.replyTo);
+			data.stream << quint64(peer) << draft.text << qint32(draft.replyTo) << qint32(draft.previewCancelled ? 1 : 0);
 			FileWriteDescriptor file(i.value());
 			file.writeEncrypted(data);
 
@@ -1801,10 +1801,11 @@ namespace Local {
 
 		quint64 draftPeer;
 		QString draftText;
-		qint32 draftReplyTo = 0;
+		qint32 draftReplyTo = 0, draftPreviewCancelled = 0;
 		draft.stream >> draftPeer >> draftText;
 		if (draft.version >= 7021) draft.stream >> draftReplyTo;
-		return (draftPeer == peer) ? MessageDraft(MsgId(draftReplyTo), draftText) : MessageDraft();
+		if (draft.version >= 8001) draft.stream >> draftPreviewCancelled;
+		return (draftPeer == peer) ? MessageDraft(MsgId(draftReplyTo), draftText, (draftPreviewCancelled == 1)) : MessageDraft();
 	}
 
 	void writeDraftPositions(const PeerId &peer, const MessageCursor &cur) {

@@ -624,8 +624,8 @@ messages.deleteHistory#f4f8fb61 peer:InputPeer offset:int = messages.AffectedHis
 messages.deleteMessages#a5f18925 id:Vector<int> = messages.AffectedMessages;
 messages.receivedMessages#28abcb68 max_id:int = Vector<int>;
 messages.setTyping#a3825e50 peer:InputPeer action:SendMessageAction = Bool;
-messages.sendMessage#1ca852a1 peer:InputPeer reply_to_msg_id:int message:string random_id:long = messages.SentMessage;
-messages.sendMedia#33f6d58c peer:InputPeer reply_to_msg_id:int media:InputMedia random_id:long = Updates;
+messages.sendMessage#9add8f26 flags:# peer:InputPeer reply_to_msg_id:flags.0?int message:string random_id:long = messages.SentMessage;
+messages.sendMedia#2d7923b1 flags:# peer:InputPeer reply_to_msg_id:flags.0?int media:InputMedia random_id:long = Updates;
 messages.forwardMessages#55e1728d peer:InputPeer id:Vector<int> random_id:Vector<long> = Updates;
 messages.getChats#3c6aa187 id:Vector<int> = messages.Chats;
 messages.getFullChat#3b831c66 chat_id:int = messages.ChatFull;
@@ -712,6 +712,9 @@ messages.getStickers#ae22e045 emoticon:string hash:string = messages.Stickers;
 messages.getAllStickers#aa3bc868 hash:string = messages.AllStickers;
 
 account.updateDeviceLocked#38df3532 period:int = Bool;
+
+messages.getWebPagePreview#25223e24 message:string = MessageMedia;
+
 account.getAuthorizations#e320c158 = account.Authorizations;
 account.resetAuthorization#df77f3bc hash:long = Bool;
 account.getPassword#548a30f5 = account.Password;

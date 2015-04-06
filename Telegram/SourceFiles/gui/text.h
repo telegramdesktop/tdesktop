@@ -492,6 +492,11 @@ private:
 
 };
 
+void initLinkSets();
+const QSet<int32> &validProtocols();
+const QSet<int32> &validTopDomains();
+const QRegularExpression &reDomain();
+const QRegularExpression &reMailName();
 const QRegularExpression &reHashtag();
 
 // text style
@@ -521,3 +526,111 @@ QString textcmdStopColor();
 const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink = true);
 
 QString textEmojiString(EmojiPtr emoji);
+
+inline bool chIsSpace(QChar ch, bool rich = false) {
+	return ch.isSpace() || (ch < 32 && !(rich && ch == TextCommand)) || (ch == QChar::ParagraphSeparator) || (ch == QChar::LineSeparator) || (ch == QChar::ObjectReplacementCharacter) || (ch == QChar::SoftHyphen) || (ch == QChar::CarriageReturn) || (ch == QChar::Tabulation);
+}
+inline bool chIsBad(QChar ch) {
+	return (ch == 0) || (ch >= 8232 && ch < 8239) || (ch >= 65024 && ch < 65040 && ch != 65039) || (ch >= 127 && ch < 160 && ch != 156);
+}
+inline bool chIsTrimmed(QChar ch, bool rich = false) {
+	return (!rich || ch != TextCommand) && (chIsSpace(ch) || chIsBad(ch));
+}
+inline bool chIsDiac(QChar ch) { // diac and variation selectors
+	return (ch >= 768 && ch < 880) || (ch >= 7616 && ch < 7680) || (ch >= 8400 && ch < 8448) || (ch >= 65056 && ch < 65072);
+}
+inline int32 chMaxDiacAfterSymbol() {
+	return 4;
+}
+inline bool chIsNewline(QChar ch) {
+	return (ch == QChar::LineFeed || ch == 156);
+}
+inline bool chIsLinkEnd(QChar ch) {
+	return ch == TextCommand || chIsBad(ch) || chIsSpace(ch) || chIsNewline(ch) || ch.isLowSurrogate() || ch.isHighSurrogate();
+}
+inline bool chIsAlmostLinkEnd(QChar ch) {
+	switch (ch.unicode()) {
+	case '?':
+	case ',':
+	case '.':
+	case '"':
+	case ':':
+	case '!':
+	case '\'':
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+inline bool chIsWordSeparator(QChar ch) {
+	switch (ch.unicode()) {
+	case QChar::Space:
+	case QChar::LineFeed:
+	case '.':
+	case ',':
+	case '?':
+	case '!':
+	case '@':
+	case '#':
+	case '$':
+	case ':':
+	case ';':
+	case '-':
+	case '<':
+	case '>':
+	case '[':
+	case ']':
+	case '(':
+	case ')':
+	case '{':
+	case '}':
+	case '=':
+	case '/':
+	case '+':
+	case '%':
+	case '&':
+	case '^':
+	case '*':
+	case '\'':
+	case '"':
+	case '`':
+	case '~':
+	case '|':
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+inline bool chIsSentenceEnd(QChar ch) {
+	switch (ch.unicode()) {
+	case '.':
+	case '?':
+	case '!':
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+inline bool chIsSentencePartEnd(QChar ch) {
+	switch (ch.unicode()) {
+	case ',':
+	case ':':
+	case ';':
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+inline bool chIsParagraphSeparator(QChar ch) {
+	switch (ch.unicode()) {
+	case QChar::LineFeed:
+		return true;
+	default:
+		break;
+	}
+	return false;
+}

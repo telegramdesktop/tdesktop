@@ -25,8 +25,8 @@ struct SessionData {
 	uint64 hash;
 
 	int32 activeTime;
-	int32 nameWidth, activeWidth, infoWidth;
-	QString name, active, info;
+	int32 nameWidth, activeWidth, infoWidth, ipWidth;
+	QString name, active, info, ip;
 };
 typedef QList<SessionData> SessionsList;
 

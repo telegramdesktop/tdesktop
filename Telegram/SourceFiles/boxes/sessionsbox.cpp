@@ -36,7 +36,7 @@ void SessionsInner::paintEvent(QPaintEvent *e) {
 
 	p.fillRect(r, st::white->b);
 	p.setFont(st::linkFont->f);
-	int32 x = st::sessionPadding.left(), xact = st::sessionTerminateSkip + st::sessionTerminate.width + st::sessionTerminateSkip;
+	int32 x = st::sessionPadding.left(), xact = st::sessionTerminateSkip + st::sessionTerminate.iconPos.x();// st::sessionTerminateSkip + st::sessionTerminate.width + st::sessionTerminateSkip;
 	int32 w = width() - 2 * x, availw = width() - 2 * xact;
 	int32 from = (r.top() >= 0) ? qFloor(r.top() / st::sessionHeight) : 0, count = _list->size();
 	if (from < count) {
@@ -55,8 +55,10 @@ void SessionsInner::paintEvent(QPaintEvent *e) {
 			p.drawTextRight(xact, st::sessionPadding.top(), availw, auth.active, auth.activeWidth);
 
 			p.setFont(st::sessionInfoFont->f);
-			p.setPen(st::sessionInfoColor->p);
+			p.setPen(st::black->p);
 			p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height, w, auth.info, auth.infoWidth);
+			p.setPen(st::sessionInfoColor->p);
+			p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height + st::sessionInfoFont->height, w, auth.ip, auth.ipWidth);
 
 			p.translate(0, st::sessionHeight);
 		}
@@ -221,9 +223,10 @@ void SessionsBox::paintEvent(QPaintEvent *e) {
 		p.drawTextRight(x, st::sessionPadding.top(), w, _current.active, _current.activeWidth);
 
 		p.setFont(st::sessionInfoFont->f);
-		p.setPen(st::sessionInfoColor->p);
+		p.setPen(st::black->p);
 		p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height, w, _current.info, _current.infoWidth);
-
+		p.setPen(st::sessionInfoColor->p);
+		p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height + st::sessionInfoFont->height, w, _current.ip, _current.ipWidth);
 		p.translate(0, st::sessionHeight);
 		if (_list.isEmpty()) {
 			paintTitle(p, lang(lng_sessions_no_other), true);
@@ -245,7 +248,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 	_shortPollRequest = 0;
 
 	int32 availCurrent = st::boxWidth - st::sessionPadding.left() - st::sessionTerminateSkip;
-	int32 availOther = availCurrent - st::sessionTerminate.width - st::sessionTerminateSkip;
+	int32 availOther = availCurrent - st::sessionTerminate.iconPos.x();// -st::sessionTerminate.width - st::sessionTerminateSkip;
 
 	_list.clear();
 	const QVector<MTPAuthorization> &v(result.c_account_authorizations().vauthorizations.c_vector().v);
@@ -259,29 +262,39 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 		SessionData data;
 		data.hash = d.vhash.v;
 
-		QString appName, systemVer = qs(d.vsystem_version), deviceModel = qs(d.vdevice_model);
-		if (d.vapi_id.v == 17349) {
-			appName = qs(d.vapp_name);// (d.vapi_id.v == 2040) ? qsl("Telegram Desktop") : qsl("Telegram Desktop (GitHub)");
-			if (systemVer == QLatin1String("windows")) {
-				deviceModel = qsl("Windows");
-			} else if (systemVer == QLatin1String("os x")) {
-				deviceModel = qsl("Mac OS X");
-			} else if (systemVer == QLatin1String("linux")) {
-				deviceModel = qsl("Linux");
+		QString appName, appVer = qs(d.vapp_version), systemVer = qs(d.vsystem_version), deviceModel = qs(d.vdevice_model);
+		if (d.vapi_id.v == 2040 || d.vapi_id.v == 17349) {
+			appName = (d.vapi_id.v == 2040) ? qsl("Telegram Desktop") : qsl("Telegram Desktop (GitHub)");
+		//	if (systemVer == QLatin1String("windows")) {
+		//		deviceModel = qsl("Windows");
+		//	} else if (systemVer == QLatin1String("os x")) {
+		//		deviceModel = qsl("OS X");
+		//	} else if (systemVer == QLatin1String("linux")) {
+		//		deviceModel = qsl("Linux");
+		//	}
+			if (appVer == QString::number(appVer.toInt())) {
+				int32 ver = appVer.toInt();
+				appVer = QString("%1.%2").arg(ver / 1000000).arg((ver % 1000000) / 1000) + ((ver % 1000) ? ('.' + QString::number(ver % 1000)) : QString());
+			} else {
+				appVer = QString();
 			}
 		} else {
 			appName = qs(d.vapp_name);// +qsl(" for ") + qs(d.vplatform);
+			if (appVer.indexOf('(') >= 0) appVer = appVer.mid(appVer.indexOf('('));
 		}
 		data.name = appName;
+		if (!appVer.isEmpty()) data.name += ' ' + appVer;
 		data.nameWidth = st::sessionNameFont->m.width(data.name);
 
-		QString country = qs(d.vcountry);
-		CountriesByISO2::const_iterator j = countries.constFind(country);
-		if (j != countries.cend()) country = QString::fromUtf8(j.value()->name);
+		QString country = qs(d.vcountry), platform = qs(d.vplatform);
+		//CountriesByISO2::const_iterator j = countries.constFind(country);
+		//if (j != countries.cend()) country = QString::fromUtf8(j.value()->name);
 
 		MTPint active = d.vdate_active.v ? d.vdate_active : d.vdate_created;
 		data.activeTime = active.v;
-		data.info = country + QLatin1String(" (") + qs(d.vip) + QLatin1String("), ") + deviceModel;
+
+		data.info = qs(d.vdevice_model) + QLatin1String(", ") + (platform.isEmpty() ? QString() : platform + ' ') + qs(d.vsystem_version);
+		data.ip = qs(d.vip) + (country.isEmpty() ? QString() : QString::fromUtf8(" \xe2\x80\x93 ") + country);
 		if (!data.hash || (d.vflags.v & 1)) {
 			data.active = QString();
 			data.activeWidth = 0;
@@ -293,6 +306,11 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 			if (data.infoWidth > availCurrent) {
 				data.info = st::sessionInfoFont->m.elidedText(data.info, Qt::ElideRight, availCurrent);
 				data.infoWidth = st::sessionInfoFont->m.width(data.info);
+			}
+			data.ipWidth = st::sessionInfoFont->m.width(data.ip);
+			if (data.ipWidth > availCurrent) {
+				data.ip = st::sessionInfoFont->m.elidedText(data.ip, Qt::ElideRight, availCurrent);
+				data.ipWidth = st::sessionInfoFont->m.width(data.ip);
 			}
 			_current = data;
 		} else {
@@ -316,6 +334,11 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 			if (data.infoWidth > availOther) {
 				data.info = st::sessionInfoFont->m.elidedText(data.info, Qt::ElideRight, availOther);
 				data.infoWidth = st::sessionInfoFont->m.width(data.info);
+			}
+			data.ipWidth = st::sessionInfoFont->m.width(data.ip);
+			if (data.ipWidth > availOther) {
+				data.ip = st::sessionInfoFont->m.elidedText(data.ip, Qt::ElideRight, availOther);
+				data.ipWidth = st::sessionInfoFont->m.width(data.ip);
 			}
 
 			_list.push_back(data);

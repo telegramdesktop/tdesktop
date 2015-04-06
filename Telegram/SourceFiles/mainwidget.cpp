@@ -887,7 +887,7 @@ DialogsIndexed &MainWidget::contactsList() {
 	return dialogs.contactsList();
 }
 
-void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId replyTo) {
+void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId replyTo, bool noPreview) {
 	saveRecentHashtags(text);
 	QString sendingText, leftText = text;
 	if (replyTo < 0) replyTo = history.replyToId();
@@ -899,9 +899,14 @@ void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId repl
 
 		MTPstring msgText(MTP_string(sendingText));
 		int32 flags = (hist->peer->input.type() == mtpc_inputPeerSelf) ? 0 : (MTPDmessage_flag_unread | MTPDmessage_flag_out);
-		if (replyTo) flags |= MTPDmessage::flag_reply_to_msg_id;
+		int32 sendFlags = 0;
+		if (replyTo) {
+			flags |= MTPDmessage::flag_reply_to_msg_id;
+			sendFlags |= MTPmessages_SendMessage::flag_reply_to_msg_id;
+		}
+		if (noPreview) sendFlags |= MTPmessages_SendMessage_flag_skipWebPage;
 		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTPint(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, MTP_messageMediaEmpty()));
-		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 	}
 
 	finishForwarding(hist);
@@ -2899,6 +2904,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				itemResized(j.key());
 			}
 		}
+		history.updatePreview();
 	} break;
 
 	case mtpc_updateDeleteMessages: {

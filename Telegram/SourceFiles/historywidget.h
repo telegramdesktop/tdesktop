@@ -363,6 +363,9 @@ public:
 	void setReplyReturns(PeerId peer, const QList<MsgId> &replyReturns);
 	void calcNextReplyReturn();
 
+	void updatePreview();
+	void previewCancel();
+
 	~HistoryWidget();
 
 signals:
@@ -374,7 +377,11 @@ public slots:
 
 	void onCancel();
 	void onReplyToMessage();
-	void onReplyForwardCancel();
+	void onReplyForwardPreviewCancel();
+
+	void onPreviewParse();
+	void onPreviewCheck();
+	void onPreviewTimeout();
 
 	void peerUpdated(PeerData *data);
 	void onPeerLoaded(PeerData *data);
@@ -439,9 +446,19 @@ private:
 	HistoryItem *_replyTo;
 	Text _replyToName, _replyToText;
 	int32 _replyToNameVersion;
-	IconedButton _replyForwardCancel;
+	IconedButton _replyForwardPreviewCancel;
 	void updateReplyToName();
 	void drawFieldBackground(QPainter &p);
+
+	QString _previewLinks;
+	WebPageData *_previewData;
+	typedef QMap<QString, WebPageId> PreviewCache;
+	PreviewCache _previewCache;
+	mtpRequestId _previewRequest;
+	Text _previewTitle, _previewDescription;
+	SingleTimer _previewTimer;
+	bool _previewCancelled;
+	void gotPreview(QString links, const MTPMessageMedia &media, mtpRequestId req);
 
 	HistoryItem *_replyReturn;
 	QList<MsgId> _replyReturns;
@@ -457,7 +474,7 @@ private:
 	uint64 _lastStickersUpdate;
 	mtpRequestId _stickersUpdateRequest;
 
-	void writeDraft(MsgId *replyTo = 0, const QString *text = 0, const MessageCursor *cursor = 0);
+	void writeDraft(MsgId *replyTo = 0, const QString *text = 0, const MessageCursor *cursor = 0, bool *previewCancelled = 0);
 	void setFieldText(const QString &text);
 
 	QStringList getMediasFromMime(const QMimeData *d);

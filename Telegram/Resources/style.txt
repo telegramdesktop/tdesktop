@@ -1773,8 +1773,8 @@ mentionFont: linkFont;
 mentionPhotoSize: msgPhotoSize;
 
 sessionsHeight: 440px;
-sessionHeight: 50px;
-sessionPadding: margins(20px, 7px, 20px, 0);
+sessionHeight: 70px;
+sessionPadding: margins(20px, 10px, 20px, 0);
 sessionsCloseButton: flatButton(aboutCloseButton) {
 	width: boxWidth;
 }
@@ -1783,7 +1783,7 @@ sessionActiveFont: msgDateFont;
 sessionActiveColor: #aaa;
 sessionInfoFont: msgFont;
 sessionInfoColor: dlgTextColor;
-sessionTerminateTop: 17px;
+sessionTerminateTop: 30px;
 sessionTerminateSkip: 10px;
 sessionTerminate: iconedButton(notifyClose) {
 	iconPos: point(3px, 3px);

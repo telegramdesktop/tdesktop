@@ -245,6 +245,7 @@ struct History : public QList<HistoryBlock*> {
 	QString draft;
 	MsgId draftToId;
 	MessageCursor draftCursor;
+	bool draftPreviewCancelled;
 	int32 lastWidth, lastScrollTop;
 	bool mute;
 

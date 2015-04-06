@@ -24,122 +24,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 namespace {
 
-	inline bool chIsSpace(QChar ch, bool rich = false) {
-		return ch.isSpace() || (ch < 32 && !(rich && ch == TextCommand)) || (ch == QChar::ParagraphSeparator) || (ch == QChar::LineSeparator) || (ch == QChar::ObjectReplacementCharacter) || (ch == QChar::SoftHyphen) || (ch == QChar::CarriageReturn) || (ch == QChar::Tabulation);
-	}
-	inline bool chIsBad(QChar ch) {
-		return (ch == 0) || (ch >= 8232 && ch < 8239) || (ch >= 65024 && ch < 65040 && ch != 65039) || (ch >= 127 && ch < 160 && ch != 156);
-	}
-	inline bool chIsTrimmed(QChar ch, bool rich = false) {
-		return (!rich || ch != TextCommand) && (chIsSpace(ch) || chIsBad(ch));
-	}
-	inline bool chIsDiac(QChar ch) { // diac and variation selectors
-		return (ch >= 768 && ch < 880) || (ch >= 7616 && ch < 7680) || (ch >= 8400 && ch < 8448) || (ch >= 65056 && ch < 65072);
-	}
-	inline int32 chMaxDiacAfterSymbol() {
-		return 4;
-	}
-	inline bool chIsNewline(QChar ch) {
-		return (ch == QChar::LineFeed || ch == 156);
-	}
-	inline bool chIsLinkEnd(QChar ch) {
-		return ch == TextCommand || chIsBad(ch) || chIsSpace(ch) || chIsNewline(ch) || ch.isLowSurrogate() || ch.isHighSurrogate();
-	}
-	inline bool chIsAlmostLinkEnd(QChar ch) {
-		switch (ch.unicode()) {
-		case '?':
-		case ',':
-		case '.':
-		case '"':
-		case ':':
-		case '!':
-		case '\'':
-			return true;
-		default:
-			break;
-		}
-		return false;
-	}
-	inline bool chIsWordSeparator(QChar ch) {
-		switch (ch.unicode()) {
-		case QChar::Space:
-		case QChar::LineFeed:
-		case '.':
-		case ',':
-		case '?':
-		case '!':
-		case '@':
-		case '#':
-		case '$':
-		case ':':
-		case ';':
-		case '-':
-		case '<':
-		case '>':
-		case '[':
-		case ']':
-		case '(':
-		case ')':
-		case '{':
-		case '}':
-		case '=':
-		case '/':
-		case '+':
-		case '%':
-		case '&':
-		case '^':
-		case '*':
-		case '\'':
-		case '"':
-		case '`':
-		case '~':
-		case '|':
-			return true;
-		default:
-			break;
-		}
-		return false;
-	}
-	inline bool chIsSentenceEnd(QChar ch) {
-		switch (ch.unicode()) {
-		case '.':
-		case '?':
-		case '!':
-			return true;
-		default:
-			break;
-		}
-		return false;
-	}
-	inline bool chIsSentencePartEnd(QChar ch) {
-		switch (ch.unicode()) {
-		case ',':
-		case ':':
-		case ';':
-			return true;
-		default:
-			break;
-		}
-		return false;
-	}
-	inline bool chIsParagraphSeparator(QChar ch) {
-		switch (ch.unicode()) {
-		case QChar::LineFeed:
-			return true;
-		default:
-			break;
-		}
-		return false;
-	}
-
 	const QRegularExpression _reDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=\\.])(?:([a-zA-Z]+)://)?((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){1,5}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"));
 	const QRegularExpression _reExplicitDomain(QString::fromUtf8("(?<![A-Za-z\\$0-9А-Яа-яёЁ\\-\\_%=\\.])(?:([a-zA-Z]+)://)((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){0,5}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"));
 	const QRegularExpression _reMailName(qsl("[a-zA-Z\\-_\\.0-9]{1,256}$"));
 	const QRegularExpression _reMailStart(qsl("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
 	const QRegularExpression _reHashtag(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[\\w]{2,64}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
 	const QRegularExpression _reMention(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])@[A-Za-z_0-9]{5,32}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
-	QSet<int32> validProtocols, validTopDomains;
-	void initLinkSets();
+	QSet<int32> _validProtocols, _validTopDomains;
 
 	const style::textStyle *_textStyle = 0;
 
@@ -156,6 +47,14 @@ namespace {
 	inline QFixed _blockRBearing(const ITextBlock *b) {
 		return (b->type() == TextBlockText) ? static_cast<const TextBlock*>(b)->f_rbearing() : 0;
 	}
+}
+
+const QRegularExpression &reDomain() {
+	return _reDomain;
+}
+
+const QRegularExpression &reMailName() {
+	return _reMailName;
 }
 
 const QRegularExpression &reHashtag() {
@@ -3004,337 +2903,349 @@ SkipBlock::SkipBlock(const style::font &font, const QString &str, uint16 from, i
 
 namespace {
 	void regOneProtocol(const QString &protocol) {
-		validProtocols.insert(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
+		_validProtocols.insert(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
 	}
 	void regOneTopDomain(const QString &domain) {
-		validTopDomains.insert(hashCrc32(domain.constData(), domain.size() * sizeof(QChar)));
+		_validTopDomains.insert(hashCrc32(domain.constData(), domain.size() * sizeof(QChar)));
 	}
-	void initLinkSets() {
-		regOneProtocol(qsl("itmss")); // itunes
-		regOneProtocol(qsl("http"));
-		regOneProtocol(qsl("https"));
-		regOneProtocol(qsl("ftp"));
-		regOneProtocol(qsl("tg")); // local urls
+}
 
-		regOneTopDomain(qsl("ac"));
-		regOneTopDomain(qsl("ad"));
-		regOneTopDomain(qsl("ae"));
-		regOneTopDomain(qsl("af"));
-		regOneTopDomain(qsl("ag"));
-		regOneTopDomain(qsl("ai"));
-		regOneTopDomain(qsl("al"));
-		regOneTopDomain(qsl("am"));
-		regOneTopDomain(qsl("an"));
-		regOneTopDomain(qsl("ao"));
-		regOneTopDomain(qsl("aq"));
-		regOneTopDomain(qsl("ar"));
-		regOneTopDomain(qsl("as"));
-		regOneTopDomain(qsl("at"));
-		regOneTopDomain(qsl("au"));
-		regOneTopDomain(qsl("aw"));
-		regOneTopDomain(qsl("ax"));
-		regOneTopDomain(qsl("az"));
-		regOneTopDomain(qsl("ba"));
-		regOneTopDomain(qsl("bb"));
-		regOneTopDomain(qsl("bd"));
-		regOneTopDomain(qsl("be"));
-		regOneTopDomain(qsl("bf"));
-		regOneTopDomain(qsl("bg"));
-		regOneTopDomain(qsl("bh"));
-		regOneTopDomain(qsl("bi"));
-		regOneTopDomain(qsl("bj"));
-		regOneTopDomain(qsl("bm"));
-		regOneTopDomain(qsl("bn"));
-		regOneTopDomain(qsl("bo"));
-		regOneTopDomain(qsl("br"));
-		regOneTopDomain(qsl("bs"));
-		regOneTopDomain(qsl("bt"));
-		regOneTopDomain(qsl("bv"));
-		regOneTopDomain(qsl("bw"));
-		regOneTopDomain(qsl("by"));
-		regOneTopDomain(qsl("bz"));
-		regOneTopDomain(qsl("ca"));
-		regOneTopDomain(qsl("cc"));
-		regOneTopDomain(qsl("cd"));
-		regOneTopDomain(qsl("cf"));
-		regOneTopDomain(qsl("cg"));
-		regOneTopDomain(qsl("ch"));
-		regOneTopDomain(qsl("ci"));
-		regOneTopDomain(qsl("ck"));
-		regOneTopDomain(qsl("cl"));
-		regOneTopDomain(qsl("cm"));
-		regOneTopDomain(qsl("cn"));
-		regOneTopDomain(qsl("co"));
-		regOneTopDomain(qsl("cr"));
-		regOneTopDomain(qsl("cu"));
-		regOneTopDomain(qsl("cv"));
-		regOneTopDomain(qsl("cx"));
-		regOneTopDomain(qsl("cy"));
-		regOneTopDomain(qsl("cz"));
-		regOneTopDomain(qsl("de"));
-		regOneTopDomain(qsl("dj"));
-		regOneTopDomain(qsl("dk"));
-		regOneTopDomain(qsl("dm"));
-		regOneTopDomain(qsl("do"));
-		regOneTopDomain(qsl("dz"));
-		regOneTopDomain(qsl("ec"));
-		regOneTopDomain(qsl("ee"));
-		regOneTopDomain(qsl("eg"));
-		regOneTopDomain(qsl("eh"));
-		regOneTopDomain(qsl("er"));
-		regOneTopDomain(qsl("es"));
-		regOneTopDomain(qsl("et"));
-		regOneTopDomain(qsl("eu"));
-		regOneTopDomain(qsl("fi"));
-		regOneTopDomain(qsl("fj"));
-		regOneTopDomain(qsl("fk"));
-		regOneTopDomain(qsl("fm"));
-		regOneTopDomain(qsl("fo"));
-		regOneTopDomain(qsl("fr"));
-		regOneTopDomain(qsl("ga"));
-		regOneTopDomain(qsl("gd"));
-		regOneTopDomain(qsl("ge"));
-		regOneTopDomain(qsl("gf"));
-		regOneTopDomain(qsl("gg"));
-		regOneTopDomain(qsl("gh"));
-		regOneTopDomain(qsl("gi"));
-		regOneTopDomain(qsl("gl"));
-		regOneTopDomain(qsl("gm"));
-		regOneTopDomain(qsl("gn"));
-		regOneTopDomain(qsl("gp"));
-		regOneTopDomain(qsl("gq"));
-		regOneTopDomain(qsl("gr"));
-		regOneTopDomain(qsl("gs"));
-		regOneTopDomain(qsl("gt"));
-		regOneTopDomain(qsl("gu"));
-		regOneTopDomain(qsl("gw"));
-		regOneTopDomain(qsl("gy"));
-		regOneTopDomain(qsl("hk"));
-		regOneTopDomain(qsl("hm"));
-		regOneTopDomain(qsl("hn"));
-		regOneTopDomain(qsl("hr"));
-		regOneTopDomain(qsl("ht"));
-		regOneTopDomain(qsl("hu"));
-		regOneTopDomain(qsl("id"));
-		regOneTopDomain(qsl("ie"));
-		regOneTopDomain(qsl("il"));
-		regOneTopDomain(qsl("im"));
-		regOneTopDomain(qsl("in"));
-		regOneTopDomain(qsl("io"));
-		regOneTopDomain(qsl("iq"));
-		regOneTopDomain(qsl("ir"));
-		regOneTopDomain(qsl("is"));
-		regOneTopDomain(qsl("it"));
-		regOneTopDomain(qsl("je"));
-		regOneTopDomain(qsl("jm"));
-		regOneTopDomain(qsl("jo"));
-		regOneTopDomain(qsl("jp"));
-		regOneTopDomain(qsl("ke"));
-		regOneTopDomain(qsl("kg"));
-		regOneTopDomain(qsl("kh"));
-		regOneTopDomain(qsl("ki"));
-		regOneTopDomain(qsl("km"));
-		regOneTopDomain(qsl("kn"));
-		regOneTopDomain(qsl("kp"));
-		regOneTopDomain(qsl("kr"));
-		regOneTopDomain(qsl("kw"));
-		regOneTopDomain(qsl("ky"));
-		regOneTopDomain(qsl("kz"));
-		regOneTopDomain(qsl("la"));
-		regOneTopDomain(qsl("lb"));
-		regOneTopDomain(qsl("lc"));
-		regOneTopDomain(qsl("li"));
-		regOneTopDomain(qsl("lk"));
-		regOneTopDomain(qsl("lr"));
-		regOneTopDomain(qsl("ls"));
-		regOneTopDomain(qsl("lt"));
-		regOneTopDomain(qsl("lu"));
-		regOneTopDomain(qsl("lv"));
-		regOneTopDomain(qsl("ly"));
-		regOneTopDomain(qsl("ma"));
-		regOneTopDomain(qsl("mc"));
-		regOneTopDomain(qsl("md"));
-		regOneTopDomain(qsl("me"));
-		regOneTopDomain(qsl("mg"));
-		regOneTopDomain(qsl("mh"));
-		regOneTopDomain(qsl("mk"));
-		regOneTopDomain(qsl("ml"));
-		regOneTopDomain(qsl("mm"));
-		regOneTopDomain(qsl("mn"));
-		regOneTopDomain(qsl("mo"));
-		regOneTopDomain(qsl("mp"));
-		regOneTopDomain(qsl("mq"));
-		regOneTopDomain(qsl("mr"));
-		regOneTopDomain(qsl("ms"));
-		regOneTopDomain(qsl("mt"));
-		regOneTopDomain(qsl("mu"));
-		regOneTopDomain(qsl("mv"));
-		regOneTopDomain(qsl("mw"));
-		regOneTopDomain(qsl("mx"));
-		regOneTopDomain(qsl("my"));
-		regOneTopDomain(qsl("mz"));
-		regOneTopDomain(qsl("na"));
-		regOneTopDomain(qsl("nc"));
-		regOneTopDomain(qsl("ne"));
-		regOneTopDomain(qsl("nf"));
-		regOneTopDomain(qsl("ng"));
-		regOneTopDomain(qsl("ni"));
-		regOneTopDomain(qsl("nl"));
-		regOneTopDomain(qsl("no"));
-		regOneTopDomain(qsl("np"));
-		regOneTopDomain(qsl("nr"));
-		regOneTopDomain(qsl("nu"));
-		regOneTopDomain(qsl("nz"));
-		regOneTopDomain(qsl("om"));
-		regOneTopDomain(qsl("pa"));
-		regOneTopDomain(qsl("pe"));
-		regOneTopDomain(qsl("pf"));
-		regOneTopDomain(qsl("pg"));
-		regOneTopDomain(qsl("ph"));
-		regOneTopDomain(qsl("pk"));
-		regOneTopDomain(qsl("pl"));
-		regOneTopDomain(qsl("pm"));
-		regOneTopDomain(qsl("pn"));
-		regOneTopDomain(qsl("pr"));
-		regOneTopDomain(qsl("ps"));
-		regOneTopDomain(qsl("pt"));
-		regOneTopDomain(qsl("pw"));
-		regOneTopDomain(qsl("py"));
-		regOneTopDomain(qsl("qa"));
-		regOneTopDomain(qsl("re"));
-		regOneTopDomain(qsl("ro"));
-		regOneTopDomain(qsl("ru"));
-		regOneTopDomain(qsl("rs"));
-		regOneTopDomain(qsl("rw"));
-		regOneTopDomain(qsl("sa"));
-		regOneTopDomain(qsl("sb"));
-		regOneTopDomain(qsl("sc"));
-		regOneTopDomain(qsl("sd"));
-		regOneTopDomain(qsl("se"));
-		regOneTopDomain(qsl("sg"));
-		regOneTopDomain(qsl("sh"));
-		regOneTopDomain(qsl("si"));
-		regOneTopDomain(qsl("sj"));
-		regOneTopDomain(qsl("sk"));
-		regOneTopDomain(qsl("sl"));
-		regOneTopDomain(qsl("sm"));
-		regOneTopDomain(qsl("sn"));
-		regOneTopDomain(qsl("so"));
-		regOneTopDomain(qsl("sr"));
-		regOneTopDomain(qsl("ss"));
-		regOneTopDomain(qsl("st"));
-		regOneTopDomain(qsl("su"));
-		regOneTopDomain(qsl("sv"));
-		regOneTopDomain(qsl("sx"));
-		regOneTopDomain(qsl("sy"));
-		regOneTopDomain(qsl("sz"));
-		regOneTopDomain(qsl("tc"));
-		regOneTopDomain(qsl("td"));
-		regOneTopDomain(qsl("tf"));
-		regOneTopDomain(qsl("tg"));
-		regOneTopDomain(qsl("th"));
-		regOneTopDomain(qsl("tj"));
-		regOneTopDomain(qsl("tk"));
-		regOneTopDomain(qsl("tl"));
-		regOneTopDomain(qsl("tm"));
-		regOneTopDomain(qsl("tn"));
-		regOneTopDomain(qsl("to"));
-		regOneTopDomain(qsl("tp"));
-		regOneTopDomain(qsl("tr"));
-		regOneTopDomain(qsl("tt"));
-		regOneTopDomain(qsl("tv"));
-		regOneTopDomain(qsl("tw"));
-		regOneTopDomain(qsl("tz"));
-		regOneTopDomain(qsl("ua"));
-		regOneTopDomain(qsl("ug"));
-		regOneTopDomain(qsl("uk"));
-		regOneTopDomain(qsl("um"));
-		regOneTopDomain(qsl("us"));
-		regOneTopDomain(qsl("uy"));
-		regOneTopDomain(qsl("uz"));
-		regOneTopDomain(qsl("va"));
-		regOneTopDomain(qsl("vc"));
-		regOneTopDomain(qsl("ve"));
-		regOneTopDomain(qsl("vg"));
-		regOneTopDomain(qsl("vi"));
-		regOneTopDomain(qsl("vn"));
-		regOneTopDomain(qsl("vu"));
-		regOneTopDomain(qsl("wf"));
-		regOneTopDomain(qsl("ws"));
-		regOneTopDomain(qsl("ye"));
-		regOneTopDomain(qsl("yt"));
-		regOneTopDomain(qsl("yu"));
-		regOneTopDomain(qsl("za"));
-		regOneTopDomain(qsl("zm"));
-		regOneTopDomain(qsl("zw"));
-		regOneTopDomain(qsl("arpa"));
-		regOneTopDomain(qsl("aero"));
-		regOneTopDomain(qsl("asia"));
-		regOneTopDomain(qsl("biz"));
-		regOneTopDomain(qsl("cat"));
-		regOneTopDomain(qsl("com"));
-		regOneTopDomain(qsl("coop"));
-		regOneTopDomain(qsl("info"));
-		regOneTopDomain(qsl("int"));
-		regOneTopDomain(qsl("jobs"));
-		regOneTopDomain(qsl("mobi"));
-		regOneTopDomain(qsl("museum"));
-		regOneTopDomain(qsl("name"));
-		regOneTopDomain(qsl("net"));
-		regOneTopDomain(qsl("org"));
-		regOneTopDomain(qsl("post"));
-		regOneTopDomain(qsl("pro"));
-		regOneTopDomain(qsl("tel"));
-		regOneTopDomain(qsl("travel"));
-		regOneTopDomain(qsl("xxx"));
-		regOneTopDomain(qsl("edu"));
-		regOneTopDomain(qsl("gov"));
-		regOneTopDomain(qsl("mil"));
-		regOneTopDomain(qsl("local"));
-		regOneTopDomain(qsl("xn--lgbbat1ad8j"));
-		regOneTopDomain(qsl("xn--54b7fta0cc"));
-		regOneTopDomain(qsl("xn--fiqs8s"));
-		regOneTopDomain(qsl("xn--fiqz9s"));
-		regOneTopDomain(qsl("xn--wgbh1c"));
-		regOneTopDomain(qsl("xn--node"));
-		regOneTopDomain(qsl("xn--j6w193g"));
-		regOneTopDomain(qsl("xn--h2brj9c"));
-		regOneTopDomain(qsl("xn--mgbbh1a71e"));
-		regOneTopDomain(qsl("xn--fpcrj9c3d"));
-		regOneTopDomain(qsl("xn--gecrj9c"));
-		regOneTopDomain(qsl("xn--s9brj9c"));
-		regOneTopDomain(qsl("xn--xkc2dl3a5ee0h"));
-		regOneTopDomain(qsl("xn--45brj9c"));
-		regOneTopDomain(qsl("xn--mgba3a4f16a"));
-		regOneTopDomain(qsl("xn--mgbayh7gpa"));
-		regOneTopDomain(qsl("xn--80ao21a"));
-		regOneTopDomain(qsl("xn--mgbx4cd0ab"));
-		regOneTopDomain(qsl("xn--l1acc"));
-		regOneTopDomain(qsl("xn--mgbc0a9azcg"));
-		regOneTopDomain(qsl("xn--mgb9awbf"));
-		regOneTopDomain(qsl("xn--mgbai9azgqp6j"));
-		regOneTopDomain(qsl("xn--ygbi2ammx"));
-		regOneTopDomain(qsl("xn--wgbl6a"));
-		regOneTopDomain(qsl("xn--p1ai"));
-		regOneTopDomain(qsl("xn--mgberp4a5d4ar"));
-		regOneTopDomain(qsl("xn--90a3ac"));
-		regOneTopDomain(qsl("xn--yfro4i67o"));
-		regOneTopDomain(qsl("xn--clchc0ea0b2g2a9gcd"));
-		regOneTopDomain(qsl("xn--3e0b707e"));
-		regOneTopDomain(qsl("xn--fzc2c9e2c"));
-		regOneTopDomain(qsl("xn--xkc2al3hye2a"));
-		regOneTopDomain(qsl("xn--mgbtf8fl"));
-		regOneTopDomain(qsl("xn--kprw13d"));
-		regOneTopDomain(qsl("xn--kpry57d"));
-		regOneTopDomain(qsl("xn--o3cw4h"));
-		regOneTopDomain(qsl("xn--pgbs0dh"));
-		regOneTopDomain(qsl("xn--j1amh"));
-		regOneTopDomain(qsl("xn--mgbaam7a8h"));
-		regOneTopDomain(qsl("xn--mgb2ddes"));
-		regOneTopDomain(qsl("xn--ogbpf8fl"));
-		regOneTopDomain(QString::fromUtf8("рф"));
-	}
+const QSet<int32> &validProtocols() {
+	return _validProtocols;
+}
+const QSet<int32> &validTopDomains() {
+	return _validTopDomains;
+}
 
+void initLinkSets() {
+	if (!_validProtocols.isEmpty() || !_validTopDomains.isEmpty()) return;
+
+	regOneProtocol(qsl("itmss")); // itunes
+	regOneProtocol(qsl("http"));
+	regOneProtocol(qsl("https"));
+	regOneProtocol(qsl("ftp"));
+	regOneProtocol(qsl("tg")); // local urls
+
+	regOneTopDomain(qsl("ac"));
+	regOneTopDomain(qsl("ad"));
+	regOneTopDomain(qsl("ae"));
+	regOneTopDomain(qsl("af"));
+	regOneTopDomain(qsl("ag"));
+	regOneTopDomain(qsl("ai"));
+	regOneTopDomain(qsl("al"));
+	regOneTopDomain(qsl("am"));
+	regOneTopDomain(qsl("an"));
+	regOneTopDomain(qsl("ao"));
+	regOneTopDomain(qsl("aq"));
+	regOneTopDomain(qsl("ar"));
+	regOneTopDomain(qsl("as"));
+	regOneTopDomain(qsl("at"));
+	regOneTopDomain(qsl("au"));
+	regOneTopDomain(qsl("aw"));
+	regOneTopDomain(qsl("ax"));
+	regOneTopDomain(qsl("az"));
+	regOneTopDomain(qsl("ba"));
+	regOneTopDomain(qsl("bb"));
+	regOneTopDomain(qsl("bd"));
+	regOneTopDomain(qsl("be"));
+	regOneTopDomain(qsl("bf"));
+	regOneTopDomain(qsl("bg"));
+	regOneTopDomain(qsl("bh"));
+	regOneTopDomain(qsl("bi"));
+	regOneTopDomain(qsl("bj"));
+	regOneTopDomain(qsl("bm"));
+	regOneTopDomain(qsl("bn"));
+	regOneTopDomain(qsl("bo"));
+	regOneTopDomain(qsl("br"));
+	regOneTopDomain(qsl("bs"));
+	regOneTopDomain(qsl("bt"));
+	regOneTopDomain(qsl("bv"));
+	regOneTopDomain(qsl("bw"));
+	regOneTopDomain(qsl("by"));
+	regOneTopDomain(qsl("bz"));
+	regOneTopDomain(qsl("ca"));
+	regOneTopDomain(qsl("cc"));
+	regOneTopDomain(qsl("cd"));
+	regOneTopDomain(qsl("cf"));
+	regOneTopDomain(qsl("cg"));
+	regOneTopDomain(qsl("ch"));
+	regOneTopDomain(qsl("ci"));
+	regOneTopDomain(qsl("ck"));
+	regOneTopDomain(qsl("cl"));
+	regOneTopDomain(qsl("cm"));
+	regOneTopDomain(qsl("cn"));
+	regOneTopDomain(qsl("co"));
+	regOneTopDomain(qsl("cr"));
+	regOneTopDomain(qsl("cu"));
+	regOneTopDomain(qsl("cv"));
+	regOneTopDomain(qsl("cx"));
+	regOneTopDomain(qsl("cy"));
+	regOneTopDomain(qsl("cz"));
+	regOneTopDomain(qsl("de"));
+	regOneTopDomain(qsl("dj"));
+	regOneTopDomain(qsl("dk"));
+	regOneTopDomain(qsl("dm"));
+	regOneTopDomain(qsl("do"));
+	regOneTopDomain(qsl("dz"));
+	regOneTopDomain(qsl("ec"));
+	regOneTopDomain(qsl("ee"));
+	regOneTopDomain(qsl("eg"));
+	regOneTopDomain(qsl("eh"));
+	regOneTopDomain(qsl("er"));
+	regOneTopDomain(qsl("es"));
+	regOneTopDomain(qsl("et"));
+	regOneTopDomain(qsl("eu"));
+	regOneTopDomain(qsl("fi"));
+	regOneTopDomain(qsl("fj"));
+	regOneTopDomain(qsl("fk"));
+	regOneTopDomain(qsl("fm"));
+	regOneTopDomain(qsl("fo"));
+	regOneTopDomain(qsl("fr"));
+	regOneTopDomain(qsl("ga"));
+	regOneTopDomain(qsl("gd"));
+	regOneTopDomain(qsl("ge"));
+	regOneTopDomain(qsl("gf"));
+	regOneTopDomain(qsl("gg"));
+	regOneTopDomain(qsl("gh"));
+	regOneTopDomain(qsl("gi"));
+	regOneTopDomain(qsl("gl"));
+	regOneTopDomain(qsl("gm"));
+	regOneTopDomain(qsl("gn"));
+	regOneTopDomain(qsl("gp"));
+	regOneTopDomain(qsl("gq"));
+	regOneTopDomain(qsl("gr"));
+	regOneTopDomain(qsl("gs"));
+	regOneTopDomain(qsl("gt"));
+	regOneTopDomain(qsl("gu"));
+	regOneTopDomain(qsl("gw"));
+	regOneTopDomain(qsl("gy"));
+	regOneTopDomain(qsl("hk"));
+	regOneTopDomain(qsl("hm"));
+	regOneTopDomain(qsl("hn"));
+	regOneTopDomain(qsl("hr"));
+	regOneTopDomain(qsl("ht"));
+	regOneTopDomain(qsl("hu"));
+	regOneTopDomain(qsl("id"));
+	regOneTopDomain(qsl("ie"));
+	regOneTopDomain(qsl("il"));
+	regOneTopDomain(qsl("im"));
+	regOneTopDomain(qsl("in"));
+	regOneTopDomain(qsl("io"));
+	regOneTopDomain(qsl("iq"));
+	regOneTopDomain(qsl("ir"));
+	regOneTopDomain(qsl("is"));
+	regOneTopDomain(qsl("it"));
+	regOneTopDomain(qsl("je"));
+	regOneTopDomain(qsl("jm"));
+	regOneTopDomain(qsl("jo"));
+	regOneTopDomain(qsl("jp"));
+	regOneTopDomain(qsl("ke"));
+	regOneTopDomain(qsl("kg"));
+	regOneTopDomain(qsl("kh"));
+	regOneTopDomain(qsl("ki"));
+	regOneTopDomain(qsl("km"));
+	regOneTopDomain(qsl("kn"));
+	regOneTopDomain(qsl("kp"));
+	regOneTopDomain(qsl("kr"));
+	regOneTopDomain(qsl("kw"));
+	regOneTopDomain(qsl("ky"));
+	regOneTopDomain(qsl("kz"));
+	regOneTopDomain(qsl("la"));
+	regOneTopDomain(qsl("lb"));
+	regOneTopDomain(qsl("lc"));
+	regOneTopDomain(qsl("li"));
+	regOneTopDomain(qsl("lk"));
+	regOneTopDomain(qsl("lr"));
+	regOneTopDomain(qsl("ls"));
+	regOneTopDomain(qsl("lt"));
+	regOneTopDomain(qsl("lu"));
+	regOneTopDomain(qsl("lv"));
+	regOneTopDomain(qsl("ly"));
+	regOneTopDomain(qsl("ma"));
+	regOneTopDomain(qsl("mc"));
+	regOneTopDomain(qsl("md"));
+	regOneTopDomain(qsl("me"));
+	regOneTopDomain(qsl("mg"));
+	regOneTopDomain(qsl("mh"));
+	regOneTopDomain(qsl("mk"));
+	regOneTopDomain(qsl("ml"));
+	regOneTopDomain(qsl("mm"));
+	regOneTopDomain(qsl("mn"));
+	regOneTopDomain(qsl("mo"));
+	regOneTopDomain(qsl("mp"));
+	regOneTopDomain(qsl("mq"));
+	regOneTopDomain(qsl("mr"));
+	regOneTopDomain(qsl("ms"));
+	regOneTopDomain(qsl("mt"));
+	regOneTopDomain(qsl("mu"));
+	regOneTopDomain(qsl("mv"));
+	regOneTopDomain(qsl("mw"));
+	regOneTopDomain(qsl("mx"));
+	regOneTopDomain(qsl("my"));
+	regOneTopDomain(qsl("mz"));
+	regOneTopDomain(qsl("na"));
+	regOneTopDomain(qsl("nc"));
+	regOneTopDomain(qsl("ne"));
+	regOneTopDomain(qsl("nf"));
+	regOneTopDomain(qsl("ng"));
+	regOneTopDomain(qsl("ni"));
+	regOneTopDomain(qsl("nl"));
+	regOneTopDomain(qsl("no"));
+	regOneTopDomain(qsl("np"));
+	regOneTopDomain(qsl("nr"));
+	regOneTopDomain(qsl("nu"));
+	regOneTopDomain(qsl("nz"));
+	regOneTopDomain(qsl("om"));
+	regOneTopDomain(qsl("pa"));
+	regOneTopDomain(qsl("pe"));
+	regOneTopDomain(qsl("pf"));
+	regOneTopDomain(qsl("pg"));
+	regOneTopDomain(qsl("ph"));
+	regOneTopDomain(qsl("pk"));
+	regOneTopDomain(qsl("pl"));
+	regOneTopDomain(qsl("pm"));
+	regOneTopDomain(qsl("pn"));
+	regOneTopDomain(qsl("pr"));
+	regOneTopDomain(qsl("ps"));
+	regOneTopDomain(qsl("pt"));
+	regOneTopDomain(qsl("pw"));
+	regOneTopDomain(qsl("py"));
+	regOneTopDomain(qsl("qa"));
+	regOneTopDomain(qsl("re"));
+	regOneTopDomain(qsl("ro"));
+	regOneTopDomain(qsl("ru"));
+	regOneTopDomain(qsl("rs"));
+	regOneTopDomain(qsl("rw"));
+	regOneTopDomain(qsl("sa"));
+	regOneTopDomain(qsl("sb"));
+	regOneTopDomain(qsl("sc"));
+	regOneTopDomain(qsl("sd"));
+	regOneTopDomain(qsl("se"));
+	regOneTopDomain(qsl("sg"));
+	regOneTopDomain(qsl("sh"));
+	regOneTopDomain(qsl("si"));
+	regOneTopDomain(qsl("sj"));
+	regOneTopDomain(qsl("sk"));
+	regOneTopDomain(qsl("sl"));
+	regOneTopDomain(qsl("sm"));
+	regOneTopDomain(qsl("sn"));
+	regOneTopDomain(qsl("so"));
+	regOneTopDomain(qsl("sr"));
+	regOneTopDomain(qsl("ss"));
+	regOneTopDomain(qsl("st"));
+	regOneTopDomain(qsl("su"));
+	regOneTopDomain(qsl("sv"));
+	regOneTopDomain(qsl("sx"));
+	regOneTopDomain(qsl("sy"));
+	regOneTopDomain(qsl("sz"));
+	regOneTopDomain(qsl("tc"));
+	regOneTopDomain(qsl("td"));
+	regOneTopDomain(qsl("tf"));
+	regOneTopDomain(qsl("tg"));
+	regOneTopDomain(qsl("th"));
+	regOneTopDomain(qsl("tj"));
+	regOneTopDomain(qsl("tk"));
+	regOneTopDomain(qsl("tl"));
+	regOneTopDomain(qsl("tm"));
+	regOneTopDomain(qsl("tn"));
+	regOneTopDomain(qsl("to"));
+	regOneTopDomain(qsl("tp"));
+	regOneTopDomain(qsl("tr"));
+	regOneTopDomain(qsl("tt"));
+	regOneTopDomain(qsl("tv"));
+	regOneTopDomain(qsl("tw"));
+	regOneTopDomain(qsl("tz"));
+	regOneTopDomain(qsl("ua"));
+	regOneTopDomain(qsl("ug"));
+	regOneTopDomain(qsl("uk"));
+	regOneTopDomain(qsl("um"));
+	regOneTopDomain(qsl("us"));
+	regOneTopDomain(qsl("uy"));
+	regOneTopDomain(qsl("uz"));
+	regOneTopDomain(qsl("va"));
+	regOneTopDomain(qsl("vc"));
+	regOneTopDomain(qsl("ve"));
+	regOneTopDomain(qsl("vg"));
+	regOneTopDomain(qsl("vi"));
+	regOneTopDomain(qsl("vn"));
+	regOneTopDomain(qsl("vu"));
+	regOneTopDomain(qsl("wf"));
+	regOneTopDomain(qsl("ws"));
+	regOneTopDomain(qsl("ye"));
+	regOneTopDomain(qsl("yt"));
+	regOneTopDomain(qsl("yu"));
+	regOneTopDomain(qsl("za"));
+	regOneTopDomain(qsl("zm"));
+	regOneTopDomain(qsl("zw"));
+	regOneTopDomain(qsl("arpa"));
+	regOneTopDomain(qsl("aero"));
+	regOneTopDomain(qsl("asia"));
+	regOneTopDomain(qsl("biz"));
+	regOneTopDomain(qsl("cat"));
+	regOneTopDomain(qsl("com"));
+	regOneTopDomain(qsl("coop"));
+	regOneTopDomain(qsl("info"));
+	regOneTopDomain(qsl("int"));
+	regOneTopDomain(qsl("jobs"));
+	regOneTopDomain(qsl("mobi"));
+	regOneTopDomain(qsl("museum"));
+	regOneTopDomain(qsl("name"));
+	regOneTopDomain(qsl("net"));
+	regOneTopDomain(qsl("org"));
+	regOneTopDomain(qsl("post"));
+	regOneTopDomain(qsl("pro"));
+	regOneTopDomain(qsl("tel"));
+	regOneTopDomain(qsl("travel"));
+	regOneTopDomain(qsl("xxx"));
+	regOneTopDomain(qsl("edu"));
+	regOneTopDomain(qsl("gov"));
+	regOneTopDomain(qsl("mil"));
+	regOneTopDomain(qsl("local"));
+	regOneTopDomain(qsl("xn--lgbbat1ad8j"));
+	regOneTopDomain(qsl("xn--54b7fta0cc"));
+	regOneTopDomain(qsl("xn--fiqs8s"));
+	regOneTopDomain(qsl("xn--fiqz9s"));
+	regOneTopDomain(qsl("xn--wgbh1c"));
+	regOneTopDomain(qsl("xn--node"));
+	regOneTopDomain(qsl("xn--j6w193g"));
+	regOneTopDomain(qsl("xn--h2brj9c"));
+	regOneTopDomain(qsl("xn--mgbbh1a71e"));
+	regOneTopDomain(qsl("xn--fpcrj9c3d"));
+	regOneTopDomain(qsl("xn--gecrj9c"));
+	regOneTopDomain(qsl("xn--s9brj9c"));
+	regOneTopDomain(qsl("xn--xkc2dl3a5ee0h"));
+	regOneTopDomain(qsl("xn--45brj9c"));
+	regOneTopDomain(qsl("xn--mgba3a4f16a"));
+	regOneTopDomain(qsl("xn--mgbayh7gpa"));
+	regOneTopDomain(qsl("xn--80ao21a"));
+	regOneTopDomain(qsl("xn--mgbx4cd0ab"));
+	regOneTopDomain(qsl("xn--l1acc"));
+	regOneTopDomain(qsl("xn--mgbc0a9azcg"));
+	regOneTopDomain(qsl("xn--mgb9awbf"));
+	regOneTopDomain(qsl("xn--mgbai9azgqp6j"));
+	regOneTopDomain(qsl("xn--ygbi2ammx"));
+	regOneTopDomain(qsl("xn--wgbl6a"));
+	regOneTopDomain(qsl("xn--p1ai"));
+	regOneTopDomain(qsl("xn--mgberp4a5d4ar"));
+	regOneTopDomain(qsl("xn--90a3ac"));
+	regOneTopDomain(qsl("xn--yfro4i67o"));
+	regOneTopDomain(qsl("xn--clchc0ea0b2g2a9gcd"));
+	regOneTopDomain(qsl("xn--3e0b707e"));
+	regOneTopDomain(qsl("xn--fzc2c9e2c"));
+	regOneTopDomain(qsl("xn--xkc2al3hye2a"));
+	regOneTopDomain(qsl("xn--mgbtf8fl"));
+	regOneTopDomain(qsl("xn--kprw13d"));
+	regOneTopDomain(qsl("xn--kpry57d"));
+	regOneTopDomain(qsl("xn--o3cw4h"));
+	regOneTopDomain(qsl("xn--pgbs0dh"));
+	regOneTopDomain(qsl("xn--j1amh"));
+	regOneTopDomain(qsl("xn--mgbaam7a8h"));
+	regOneTopDomain(qsl("xn--mgb2ddes"));
+	regOneTopDomain(qsl("xn--ogbpf8fl"));
+	regOneTopDomain(QString::fromUtf8("рф"));
+}
+
+namespace {
 	// accent char list taken from https://github.com/aristus/accent-folding
 	inline QChar chNoAccent(int32 code) { 
 		switch (code) {
@@ -4159,12 +4070,10 @@ bool textSplit(QString &sendingText, QString &leftText, int32 limit) {
 	return true;
 }
 
-LinkRanges textParseLinks(const QString &text, bool rich) {
+LinkRanges textParseLinks(const QString &text, bool rich) { // some code is duplicated in flattextarea.cpp!
 	LinkRanges lnkRanges;
 
-	if (validProtocols.empty()) {
-		initLinkSets();
-	}
+	initLinkSets();
 	int32 len = text.size(), nextCmd = rich ? 0 : len;
 	const QChar *start = text.unicode(), *end = start + text.size();
 	for (int32 offset = 0, matchOffset = offset; offset < len;) {
@@ -4249,8 +4158,8 @@ LinkRanges textParseLinks(const QString &text, bool rich) {
 			QString protocol = mDomain.captured(1).toLower();
 			QString topDomain = mDomain.captured(3).toLower();
 
-			bool isProtocolValid = protocol.isEmpty() || validProtocols.contains(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
-			bool isTopDomainValid = !protocol.isEmpty() || validTopDomains.contains(hashCrc32(topDomain.constData(), topDomain.size() * sizeof(QChar)));
+			bool isProtocolValid = protocol.isEmpty() || _validProtocols.contains(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
+			bool isTopDomainValid = !protocol.isEmpty() || _validTopDomains.contains(hashCrc32(topDomain.constData(), topDomain.size() * sizeof(QChar)));
 
 			if (protocol.isEmpty() && domainOffset > offset + 1 && *(start + domainOffset - 1) == QChar('@')) {
 				QString forMailName = text.mid(offset, domainOffset - offset - 1);

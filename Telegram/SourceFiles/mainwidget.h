@@ -283,7 +283,7 @@ public:
 	DialogsIndexed &contactsList();
     
     void sendMessage(History *history, const QString &text, MsgId replyTo);
-	void sendPreparedText(History *hist, const QString &text, MsgId replyTo);
+	void sendPreparedText(History *hist, const QString &text, MsgId replyTo, bool noPreview = false);
 	void saveRecentHashtags(const QString &text);
     
     void readServerHistory(History *history, bool force = true);

@@ -169,6 +169,19 @@ struct PhotoData {
 		medium->forget();
 		full->forget();
 	}
+	ImagePtr makeReplyPreview() {
+		if (replyPreview->isNull() && !thumb->isNull()) {
+			if (thumb->loaded()) {
+				int w = thumb->width(), h = thumb->height();
+				if (w <= 0) w = 1;
+				if (h <= 0) h = 1;
+				replyPreview = ImagePtr(w > h ? thumb->pix(w * st::msgReplyBarSize.height() / h, st::msgReplyBarSize.height()) : thumb->pix(st::msgReplyBarSize.height()), "PNG");
+			} else {
+				thumb->load();
+			}
+		}
+		return replyPreview;
+	}
 	PhotoId id;
 	uint64 access;
 	int32 user;

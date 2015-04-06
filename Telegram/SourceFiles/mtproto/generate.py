@@ -210,7 +210,10 @@ with open('scheme.tl') as f:
       size = [];
       for k in prmsList:
         v = prms[k];
-        size.append('v' + k + '.innerLength()');
+        if (k in conditions.keys()):
+          size.append('(has_' + k + '() ? v' + k + '.innerLength() : 0)');
+        else:
+          size.append('v' + k + '.innerLength()');
       if (not len(size)):
         size.append('0');
       funcsText += '\t\treturn ' + ' + '.join(size) + ';\n';

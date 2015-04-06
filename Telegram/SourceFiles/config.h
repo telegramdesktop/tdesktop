@@ -218,18 +218,20 @@ static const char *ApiHash = "344583e45741c457fe1862106095a5eb";
 
 inline const char *cApiDeviceModel() {
 #ifdef Q_OS_WIN
-	return "x86 desktop";
-#else
-	return "x64 desktop";
+	return "PC";
+#elif defined Q_OS_MAC
+	return "Mac";
+#elif defined Q_OS_LINUX
+	return "PC";
 #endif
 }
 inline const char *cApiSystemVersion() {
 #ifdef Q_OS_WIN
-	return "windows";
+	return "Windows";
 #elif defined Q_OS_MAC
-	return "os x";
+	return "OS X";
 #elif defined Q_OS_LINUX
-	return "linux";
+	return "Linux";
 #endif
 }
 inline QString cApiAppVersion() {
