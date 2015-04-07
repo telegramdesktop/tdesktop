@@ -747,19 +747,6 @@ namespace App {
 		}
 	}
 
-	void feedMessageMedia(MsgId msgId, const MTPMessage &msg) {
-		const MTPMessageMedia *media = 0;
-		switch (msg.type()) {
-		case mtpc_message: media = &msg.c_message().vmedia; break;
-		}
-		if (media) {
-			MsgsData::iterator i = msgsData.find(msgId);
-			if (i != msgsData.cend()) {
-				i.value()->updateMedia(*media);
-			}
-		}
-	}
-	
 	PhotoData *feedPhoto(const MTPPhoto &photo, PhotoData *convert) {
 		switch (photo.type()) {
 		case mtpc_photo: {
@@ -906,7 +893,7 @@ namespace App {
 	}
 
 	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert) {
-		return App::webPage(webpage.vid.v, convert, webpage.has_type() ? qs(webpage.vtype) : qsl("article"), qs(webpage.vurl), qs(webpage.vdisplay_url), webpage.has_site_name() ? qs(webpage.vsite_name) : QString(), webpage.has_title() ? qs(webpage.vtitle) : QString(), webpage.has_description() ? qs(webpage.vdescription) : QString(), webpage.has_photo() ? App::feedPhoto(webpage.vphoto) : 0, webpage.has_duration() ? webpage.vduration.v : 0, webpage.has_author() ? qs(webpage.vauthor) : QString());
+		return App::webPage(webpage.vid.v, convert, webpage.has_type() ? qs(webpage.vtype) : qsl("article"), qs(webpage.vurl), qs(webpage.vdisplay_url), webpage.has_site_name() ? qs(webpage.vsite_name) : QString(), webpage.has_title() ? qs(webpage.vtitle) : QString(), webpage.has_description() ? qs(webpage.vdescription) : QString(), webpage.has_photo() ? App::feedPhoto(webpage.vphoto) : 0, webpage.has_duration() ? webpage.vduration.v : 0, webpage.has_author() ? qs(webpage.vauthor) : QString(), 0);
 	}
 
 	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert) {
@@ -1211,7 +1198,7 @@ namespace App {
 				}
 				convert->id = webPage;
 			}
-			if ((convert->url.isEmpty() && !url.isEmpty()) || (convert->pendingTill && convert->pendingTill != pendingTill)) {
+			if ((convert->url.isEmpty() && !url.isEmpty()) || (convert->pendingTill && convert->pendingTill != pendingTill && pendingTill >= -1)) {
 				convert->type = toWebPageType(type);
 				convert->url = url;
 				convert->displayUrl = displayUrl;
@@ -1223,15 +1210,7 @@ namespace App {
 				convert->author = author;
 				if (convert->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(convert);
 				convert->pendingTill = pendingTill;
-
-				MainWidget *m = App::main();
-				WebPageItems::const_iterator j = ::webPageItems.constFind(convert);
-				if (j != ::webPageItems.cend()) {
-					for (HistoryItemsMap::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
-						k.key()->initDimensions();
-						if (m) m->itemResized(k.key());
-					}
-				}
+				if (App::main()) App::main()->webPageUpdated(convert);
 			}
 		}
 		WebPagesData::const_iterator i = webPagesData.constFind(webPage);
@@ -1240,7 +1219,7 @@ namespace App {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new WebPageData(webPage, toWebPageType(type), url, displayUrl, siteName, title, description, photo, duration, author, pendingTill);
+				result = new WebPageData(webPage, toWebPageType(type), url, displayUrl, siteName, title, description, photo, duration, author, (pendingTill >= -1) ? pendingTill : -1);
 				if (pendingTill > 0 && api()) {
 					api()->requestWebPageDelayed(result);
 				}
@@ -1249,7 +1228,7 @@ namespace App {
 		} else {
 			result = i.value();
 			if (result != convert) {
-				if ((result->url.isEmpty() && !url.isEmpty()) || (result->pendingTill && result->pendingTill != pendingTill)) {
+				if ((result->url.isEmpty() && !url.isEmpty()) || (result->pendingTill && result->pendingTill != pendingTill && pendingTill >= -1)) {
 					result->type = toWebPageType(type);
 					result->url = url;
 					result->displayUrl = displayUrl;
@@ -1261,15 +1240,7 @@ namespace App {
 					result->author = author;
 					if (result->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(result);
 					result->pendingTill = pendingTill;
-
-					MainWidget *m = App::main();
-					WebPageItems::const_iterator j = ::webPageItems.constFind(result);
-					if (j != ::webPageItems.cend()) {
-						for (HistoryItemsMap::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
-							k.key()->initDimensions();
-							if (m) m->itemResized(k.key());
-						}
-					}
+					if (App::main()) App::main()->webPageUpdated(result);
 				}
 			}
 		}

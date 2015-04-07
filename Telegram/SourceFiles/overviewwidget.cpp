@@ -825,10 +825,10 @@ void OverviewInner::onUpdateSelected() {
 							}
 							left += st::msgPhotoSkip;
 						}
-						TextLinkPtr mediaLink = media->getLink(m.x() - left, m.y() - y - st::msgMargin.top(), item, w);
-						if (mediaLink) {
-							lnk = mediaLink;
-						}
+						bool inText = false;
+						TextLinkPtr link;
+						media->getState(link, inText, m.x() - left, m.y() - y - st::msgMargin.top(), item, w);
+						if (link) lnk = link;
 					}
 				} else {
 					return;

@@ -262,7 +262,7 @@ void ApiWrap::gotWebPages(const MTPmessages_Messages &msgs, mtpRequestId req) {
 	}
 
 	const WebPageItems &items(App::webPageItems());
-	for (WebPagesPending::iterator i = _webPagesPending.begin(); i != _webPagesPending.cend(); ++i) {
+	for (WebPagesPending::iterator i = _webPagesPending.begin(); i != _webPagesPending.cend();) {
 		if (i.value() == req) {
 			if (i.key()->pendingTill > 0) {
 				i.key()->pendingTill = -1;

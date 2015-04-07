@@ -459,7 +459,7 @@ bool PasscodeBox::recoverStartFail(const RPCError &error) {
 }
 
 RecoverBox::RecoverBox(const QString &pattern) :
-_submitRequest(0), _pattern(lng_signin_recover_hint(lt_recover_email, pattern)),
+_submitRequest(0), _pattern(st::usernameFont->m.elidedText(lng_signin_recover_hint(lt_recover_email, pattern), Qt::ElideRight, st::boxWidth - st::addContactPadding.left() - st::addContactPadding.right())),
 _saveButton(this, lang(lng_passcode_submit), st::btnSelectDone),
 _cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
 _recoverCode(this, st::inpAddContact, lang(lng_signin_code)) {
@@ -509,7 +509,7 @@ void RecoverBox::paintEvent(QPaintEvent *e) {
 
 	p.setFont(st::usernameFont->f);
 	int32 w = width() - st::addContactPadding.left() - st::addContactPadding.right();
-	p.drawText(QRect(st::addContactPadding.left(), _recoverCode.y() - st::usernameSkip - st::addContactPadding.top(), w, st::addContactPadding.top() + st::usernameSkip), st::usernameFont->m.elidedText(_pattern, Qt::ElideRight, w), style::al_center);
+	p.drawText(QRect(st::addContactPadding.left(), _recoverCode.y() - st::usernameSkip - st::addContactPadding.top(), w, st::addContactPadding.top() + st::usernameSkip), _pattern, style::al_center);
 
 	if (!_error.isEmpty()) {
 		p.setPen(st::setErrColor->p);

@@ -283,7 +283,7 @@ public:
 	DialogsIndexed &contactsList();
     
     void sendMessage(History *history, const QString &text, MsgId replyTo);
-	void sendPreparedText(History *hist, const QString &text, MsgId replyTo, bool noPreview = false);
+	void sendPreparedText(History *hist, const QString &text, MsgId replyTo, WebPageId webPageId = 0);
 	void saveRecentHashtags(const QString &text);
     
     void readServerHistory(History *history, bool force = true);
@@ -333,6 +333,8 @@ public:
 	void cancelForwarding();
 	void finishForwarding(History *hist); // send them
 
+	void webPageUpdated(WebPageData *page);
+
 	~MainWidget();
 
 signals:
@@ -346,6 +348,8 @@ signals:
 	void showPeerAsync(quint64 peer, qint32 msgId, bool back, bool force);
 
 public slots:
+
+	void webPagesUpdate();
 
 	void videoLoadProgress(mtpFileLoader *loader);
 	void videoLoadFailed(mtpFileLoader *loader, bool started);
@@ -404,6 +408,9 @@ private:
 	SelectedItemSet _toForward;
 	Text _toForwardFrom, _toForwardText;
 	int32 _toForwardNameVersion;
+
+	QMap<WebPageId, bool> _webPagesUpdated;
+	QTimer _webPageUpdater;
 
 	void gotDifference(const MTPupdates_Difference &diff);
 	bool failDifference(const RPCError &e);

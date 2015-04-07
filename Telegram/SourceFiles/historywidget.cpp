@@ -1567,6 +1567,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
 , _previewData(0)
 , _previewRequest(0)
 , _previewCancelled(false)
+, _replyForwardPressed(false)
 , _replyReturn(0)
 , _lastStickersUpdate(0)
 , _stickersUpdateRequest(0)
@@ -2573,7 +2574,8 @@ void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 		App::main()->readServerHistory(hist, false);
 		hist->loadAround(0);
 
-		App::main()->sendPreparedText(hist, text, replyTo, _previewCancelled);
+		WebPageId webPageId = _previewCancelled ? 0xFFFFFFFFFFFFFFFFULL : ((_previewData && _previewData->pendingTill >= 0) ? _previewData->id : 0);
+		App::main()->sendPreparedText(hist, text, replyTo, webPageId);
 
 		setFieldText(QString());
 		_saveDraftText = true;
@@ -2802,6 +2804,10 @@ void HistoryWidget::leaveEvent(QEvent *e) {
 }
 
 void HistoryWidget::mouseReleaseEvent(QMouseEvent *e) {
+	if (_replyForwardPressed) {
+		_replyForwardPressed = false;
+		update(0, _field.y() - st::sendPadding - st::replyHeight, width(), st::replyHeight);
+	}
 	if (_attachDrag != DragStateNone || !_attachDragPhoto.isHidden() || !_attachDragDocument.isHidden()) {
 		_attachDrag = DragStateNone;
 		updateDragAreas();
@@ -3510,6 +3516,10 @@ void HistoryWidget::addMessagesToBack(const QVector<MTPMessage> &messages) {
 }
 
 void HistoryWidget::mousePressEvent(QMouseEvent *e) {
+	_replyForwardPressed = QRect(0, _field.y() - st::replyHeight, st::replySkip, st::replyHeight).contains(e->pos());
+	if (_replyForwardPressed && !_replyForwardPreviewCancel.isHidden()) {
+		update(0, _field.y() - st::sendPadding - st::replyHeight, width(), st::replyHeight);
+	}
 }
 
 void HistoryWidget::keyPressEvent(QKeyEvent *e) {
@@ -3664,6 +3674,7 @@ void HistoryWidget::cancelForwarding() {
 }
 
 void HistoryWidget::onReplyForwardPreviewCancel() {
+	_replyForwardPressed = false;
 	if (_previewData && _previewData->pendingTill >= 0) {
 		_previewCancelled = true;
 		previewCancel();
@@ -3755,8 +3766,26 @@ void HistoryWidget::updatePreview() {
 			if (t <= 0) t = 1;
 			_previewTimer.start(t);
 		} else {
-			_previewTitle.setText(st::msgServiceNameFont, _previewData->siteName, _textNameOptions);
-			_previewDescription.setText(st::msgFont, _previewData->title.isEmpty() ? (_previewData->description.isEmpty() ? (_previewData->author.isEmpty() ? _previewData->url : _previewData->author) : _previewData->description) : _previewData->title, _textDlgOptions);
+			QString title, desc;
+			if (_previewData->siteName.isEmpty()) {
+				if (_previewData->title.isEmpty()) {
+					if (_previewData->description.isEmpty()) {
+						title = _previewData->author;
+						desc = _previewData->url;
+					} else {
+						title = _previewData->description;
+						desc = _previewData->author.isEmpty() ? _previewData->url : _previewData->author;
+					}
+				} else {
+					title = _previewData->title;
+					desc = _previewData->description.isEmpty() ? (_previewData->author.isEmpty() ? _previewData->url : _previewData->author) : _previewData->description;
+				}
+			} else {
+				title = _previewData->siteName;
+				desc = _previewData->title.isEmpty() ? (_previewData->description.isEmpty() ? (_previewData->author.isEmpty() ? _previewData->url : _previewData->author) : _previewData->description) : _previewData->title;
+			}
+			_previewTitle.setText(st::msgServiceNameFont, title, _textNameOptions);
+			_previewDescription.setText(st::msgFont, desc, _textDlgOptions);
 		}
 	} else if (!App::main()->hasForwardingItems() && !_replyToId) {
 		_replyForwardPreviewCancel.hide();
@@ -3941,7 +3970,7 @@ void HistoryWidget::drawFieldBackground(QPainter &p) {
 		backy -= st::replyHeight;
 		backh += st::replyHeight;
 	}
-	bool drawPreview = (_previewData && _previewData->pendingTill >= 0);
+	bool drawPreview = (_previewData && _previewData->pendingTill >= 0) && !_replyForwardPressed;
 	p.fillRect(0, backy, width(), backh, st::taMsgField.bgColor->b);
 	if (_replyToId) {
 		int32 replyLeft = st::replySkip;

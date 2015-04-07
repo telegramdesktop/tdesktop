@@ -460,6 +460,8 @@ private:
 	bool _previewCancelled;
 	void gotPreview(QString links, const MTPMessageMedia &media, mtpRequestId req);
 
+	bool _replyForwardPressed;
+
 	HistoryItem *_replyReturn;
 	QList<MsgId> _replyReturns;
 

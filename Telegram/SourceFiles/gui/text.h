@@ -25,6 +25,19 @@ QString textAccentFold(const QString &text);
 QString textSearchKey(const QString &text);
 bool textSplit(QString &sendingText, QString &leftText, int32 limit);
 
+enum {
+	TextParseMultiline = 0x001,
+	TextParseLinks = 0x002,
+	TextParseRichText = 0x004,
+	TextParseMentions = 0x008,
+	TextParseHashtags = 0x010,
+
+	TextTwitterMentions = 0x020,
+	TextTwitterHashtags = 0x040,
+	TextInstagramMentions = 0x080,
+	TextInstagramHashtags = 0x100,
+};
+
 struct LinkRange {
 	LinkRange() : from(0), len(0) {
 	}
@@ -32,7 +45,7 @@ struct LinkRange {
 	int32 len;
 };
 typedef QVector<LinkRange> LinkRanges;
-LinkRanges textParseLinks(const QString &text, bool rich = false);
+LinkRanges textParseLinks(const QString &text, int32 flags, bool rich = false);
 
 #include "gui/emoji_config.h"
 
@@ -385,12 +398,6 @@ enum TextCommands {
 	TextCommandSkipBlock   = 0x0B,
 
 	TextCommandLangTag     = 0x20,
-};
-
-enum {
-	TextParseMultiline = 0x01,
-	TextParseLinks     = 0x02,
-	TextParseRichText  = 0x04,
 };
 
 struct TextParseOptions {

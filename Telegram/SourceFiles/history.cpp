@@ -44,13 +44,13 @@ TextParseOptions _textDlgOptions = {
 
 namespace {
 	TextParseOptions _historyTextOptions = {
-		TextParseLinks | TextParseMultiline | TextParseRichText, // flags
+		TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
 		0, // maxw
 		0, // maxh
 		Qt::LayoutDirectionAuto, // dir
 	};
 	TextParseOptions _historySrvOptions = {
-		TextParseLinks | TextParseMultiline | TextParseRichText, // flags
+		TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
 		0, // maxw
 		0, // maxh
 		Qt::LayoutDirectionAuto, // lang-dependent
@@ -62,7 +62,19 @@ namespace {
 		Qt::LayoutDirectionAuto, // dir
 	};
 	TextParseOptions _webpageDescriptionOptions = {
-		/*TextParseLinks | */TextParseMultiline | TextParseRichText, // flags
+		TextParseLinks | TextParseMultiline | TextParseRichText, // flags
+		0, // maxw
+		0, // maxh
+		Qt::LayoutDirectionAuto, // dir
+	};
+	TextParseOptions _twitterDescriptionOptions = {
+		TextParseLinks | TextParseMentions | TextTwitterMentions | TextParseHashtags | TextTwitterHashtags | TextParseMultiline | TextParseRichText, // flags
+		0, // maxw
+		0, // maxh
+		Qt::LayoutDirectionAuto, // dir
+	};
+	TextParseOptions _instagramDescriptionOptions = {
+		TextParseLinks | TextParseMentions | TextInstagramMentions | TextParseHashtags | TextInstagramHashtags | TextParseMultiline | TextParseRichText, // flags
 		0, // maxw
 		0, // maxh
 		Qt::LayoutDirectionAuto, // dir
@@ -718,7 +730,17 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 	} break;
 	}
 
-	return regItem(result, returnExisting);
+	HistoryItem *existing = regItem(result, true);
+	if (existing && result != existing) {
+		const MTPMessageMedia *media = 0;
+		switch (msg.type()) {
+		case mtpc_message: media = &msg.c_message().vmedia; break;
+		}
+		if (media) {
+			existing->updateMedia(*media);
+		}
+	}
+	return (returnExisting || existing == result) ? existing : 0;
 }
 
 HistoryItem *History::createItemForwarded(HistoryBlock *block, MsgId id, HistoryMessage *msg) {
@@ -1710,8 +1732,10 @@ bool HistoryPhoto::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 w
 	return (x >= 0 && y >= 0 && x < width && y < _height);
 }
 
-TextLinkPtr HistoryPhoto::getLink(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+void HistoryPhoto::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
+	if (width < 1) return;
+
 	int skipx = 0, skipy = 0, height = _height;
 	if (const HistoryReply *reply = toHistoryReply(parent)) {
 		skipx = st::mediaPadding.left();
@@ -1722,18 +1746,20 @@ TextLinkPtr HistoryPhoto::getLink(int32 x, int32 y, const HistoryItem *parent, i
 			replyFrom = st::msgPadding.top() + st::msgNameFont->height;
 			skipy += replyFrom;
 			if (x >= st::mediaPadding.left() && y >= st::msgPadding.top() && x < width - st::mediaPadding.left() - st::mediaPadding.right() && x < st::mediaPadding.left() + parent->from()->nameText.maxWidth() && y < replyFrom) {
-				return parent->from()->lnk;
+				lnk = parent->from()->lnk;
+				return;
 			}
 		}
 		if (x >= 0 && y >= replyFrom + st::msgReplyPadding.top() && x < width && y < skipy - st::msgReplyPadding.bottom() - st::mediaPadding.top()) {
-			return reply->replyToLink();
+			lnk = reply->replyToLink();
+			return;
 		}
 		width -= st::mediaPadding.left() + st::mediaPadding.right();
 	}
 	if (x >= skipx && y >= skipy && x < skipx + width && y < height) {
-		return openl;
+		lnk = openl;
+		return;
 	}
-	return TextLinkPtr();
 }
 
 HistoryMedia *HistoryPhoto::clone() const {
@@ -1984,9 +2010,9 @@ bool HistoryVideo::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 w
 	return (x >= 0 && y >= 0 && x < width && y < _height);
 }
 
-TextLinkPtr HistoryVideo::getLink(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+void HistoryVideo::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
-	if (width < 1) return TextLinkPtr();
+	if (width < 1) return;
 
 	const HistoryReply *reply = toHistoryReply(parent);
 	int skipy = 0, replyFrom = 0;
@@ -2006,7 +2032,8 @@ TextLinkPtr HistoryVideo::getLink(int32 x, int32 y, const HistoryItem *parent, i
 	if (!out) { // draw Download / Save As button
 		int32 btnw = _buttonWidth, btnh = st::mediaSaveButton.height, btnx = width - _buttonWidth, btny = skipy + (_height - skipy - btnh) / 2;
 		if (x >= btnx && y >= btny && x < btnx + btnw && y < btny + btnh) {
-			return data->loader ? _cancell : _savel;
+			lnk = data->loader ? _cancell : _savel;
+			return;
 		}
 		width -= btnw + st::mediaSaveDelta;
 	}
@@ -2014,18 +2041,20 @@ TextLinkPtr HistoryVideo::getLink(int32 x, int32 y, const HistoryItem *parent, i
 	if (reply) {
 		if (!parent->out() && parent->history()->peer->chat) {
 			if (x >= st::mediaPadding.left() && y >= st::msgPadding.top() && x < width - st::mediaPadding.left() - st::mediaPadding.right() && x < st::mediaPadding.left() + parent->from()->nameText.maxWidth() && y < replyFrom) {
-				return parent->from()->lnk;
+				lnk = parent->from()->lnk;
+				return;
 			}
 		}
 		if (x >= 0 && y >= replyFrom + st::msgReplyPadding.top() && x < width && y < skipy - st::msgReplyPadding.bottom()) {
-			return reply->replyToLink();
+			lnk = reply->replyToLink();
+			return;
 		}
 	}
 
 	if (x >= 0 && y >= skipy && x < width && y < _height && !data->loader && data->access) {
-		return _openl;
+		lnk = _openl;
+		return;
 	}
-	return TextLinkPtr();
 }
 
 HistoryMedia *HistoryVideo::clone() const {
@@ -2367,9 +2396,9 @@ bool HistoryAudio::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 w
 	return (x >= 0 && y >= 0 && x < width && y < _height);
 }
 
-TextLinkPtr HistoryAudio::getLink(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+void HistoryAudio::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
-	if (width < 1) return TextLinkPtr();
+	if (width < 1) return;
 
 	const HistoryReply *reply = toHistoryReply(parent);
 	int skipy = 0, replyFrom = 0;
@@ -2389,7 +2418,8 @@ TextLinkPtr HistoryAudio::getLink(int32 x, int32 y, const HistoryItem *parent, i
 	if (!out) { // draw Download / Save As button
 		int32 btnw = _buttonWidth, btnh = st::mediaSaveButton.height, btnx = width - _buttonWidth, btny = skipy + (_height - skipy - btnh) / 2;
 		if (x >= btnx && y >= btny && x < btnx + btnw && y < btny + btnh) {
-			return data->loader ? _cancell : _savel;
+			lnk = data->loader ? _cancell : _savel;
+			return;
 		}
 		width -= btnw + st::mediaSaveDelta;
 	}
@@ -2397,18 +2427,20 @@ TextLinkPtr HistoryAudio::getLink(int32 x, int32 y, const HistoryItem *parent, i
 	if (reply) {
 		if (!parent->out() && parent->history()->peer->chat) {
 			if (x >= st::mediaPadding.left() && y >= st::msgPadding.top() && x < width - st::mediaPadding.left() - st::mediaPadding.right() && x < st::mediaPadding.left() + parent->from()->nameText.maxWidth() && y < replyFrom) {
-				return parent->from()->lnk;
+				lnk = parent->from()->lnk;
+				return;
 			}
 		}
 		if (x >= 0 && y >= replyFrom + st::msgReplyPadding.top() && x < width && y < skipy - st::msgReplyPadding.bottom()) {
-			return reply->replyToLink();
+			lnk = reply->replyToLink();
+			return;
 		}
 	}
 
 	if (x >= 0 && y >= skipy && x < width && y < _height && !data->loader && data->access) {
-		return _openl;
+		lnk = _openl;
+		return;
 	}
-	return TextLinkPtr();
 }
 
 HistoryMedia *HistoryAudio::clone() const {
@@ -2689,9 +2721,9 @@ int32 HistoryDocument::countHeight(const HistoryItem *parent, int32 width) const
 	return _height;
 }
 
-TextLinkPtr HistoryDocument::getLink(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+void HistoryDocument::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
-	if (width < 1) return TextLinkPtr();
+	if (width < 1) return;
 
 	bool out = parent->out(), hovered, pressed;
 	if (width >= _maxw) {
@@ -2700,7 +2732,8 @@ TextLinkPtr HistoryDocument::getLink(int32 x, int32 y, const HistoryItem *parent
 	if (parent == animated.msg) {
 		int32 h = (width == w) ? _height : (width * animated.h / animated.w);
 		if (h < 1) h = 1;
-		return (x >= 0 && y >= 0 && x < width && y < h) ? _openl : TextLinkPtr();
+		lnk = (x >= 0 && y >= 0 && x < width && y < h) ? _openl : TextLinkPtr();
+		return;
 	}
 
 	const HistoryReply *reply = toHistoryReply(parent);
@@ -2716,7 +2749,8 @@ TextLinkPtr HistoryDocument::getLink(int32 x, int32 y, const HistoryItem *parent
 	if (!out) { // draw Download / Save As button
 		int32 btnw = _buttonWidth, btnh = st::mediaSaveButton.height, btnx = width - _buttonWidth, btny = skipy + (_height - skipy - btnh) / 2;
 		if (x >= btnx && y >= btny && x < btnx + btnw && y < btny + btnh) {
-			return data->loader ? _cancell : _savel;
+			lnk = data->loader ? _cancell : _savel;
+			return;
 		}
 		width -= btnw + st::mediaSaveDelta;
 	}
@@ -2724,18 +2758,20 @@ TextLinkPtr HistoryDocument::getLink(int32 x, int32 y, const HistoryItem *parent
 	if (reply) {
 		if (!parent->out() && parent->history()->peer->chat) {
 			if (x >= st::mediaPadding.left() && y >= st::msgPadding.top() && x < width - st::mediaPadding.left() - st::mediaPadding.right() && x < st::mediaPadding.left() + parent->from()->nameText.maxWidth() && y < replyFrom) {
-				return parent->from()->lnk;
+				lnk = parent->from()->lnk;
+				return;
 			}
 		}
 		if (x >= 0 && y >= replyFrom + st::msgReplyPadding.top() && x < width && y < skipy - st::msgReplyPadding.bottom()) {
-			return reply->replyToLink();
+			lnk = reply->replyToLink();
+			return;
 		}
 	}
 
 	if (x >= 0 && y >= skipy && x < width && y < _height && !data->loader && data->access) {
-		return _openl;
+		lnk = _openl;
+		return;
 	}
-	return TextLinkPtr();
 }
 
 HistoryMedia *HistoryDocument::clone() const {
@@ -2926,9 +2962,10 @@ int32 HistorySticker::countHeight(const HistoryItem *parent, int32 width) const 
 	return _minh;
 }
 
-TextLinkPtr HistorySticker::getLink(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+void HistorySticker::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
-	if (width < 1) return TextLinkPtr();
+	if (width < 1) return;
+
 	if (width > _maxw) width = _maxw;
 
 	int32 usew = _maxw, usex = 0;
@@ -2938,10 +2975,10 @@ TextLinkPtr HistorySticker::getLink(int32 x, int32 y, const HistoryItem *parent,
 		int32 rw = width - usew, rh = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		int32 rx = parent->out() ? 0 : usew, ry = _height - rh;
 		if (x >= rx && y >= ry && x < rx + rw && y < ry + rh) {
-			return reply->replyToLink();
+			lnk = reply->replyToLink();
+			return;
 		}
 	}
-	return TextLinkPtr();
 }
 
 HistoryMedia *HistorySticker::clone() const {
@@ -3002,7 +3039,7 @@ bool HistoryContact::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32
 	return (x >= 0 && y <= 0 && x < w && y < _height);
 }
 
-TextLinkPtr HistoryContact::getLink(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+void HistoryContact::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 
 	const HistoryReply *reply = toHistoryReply(parent);
@@ -3018,18 +3055,20 @@ TextLinkPtr HistoryContact::getLink(int32 x, int32 y, const HistoryItem *parent,
 	if (reply) {
 		if (!parent->out() && parent->history()->peer->chat) {
 			if (x >= st::mediaPadding.left() && y >= st::msgPadding.top() && x < width - st::mediaPadding.left() - st::mediaPadding.right() && x < st::mediaPadding.left() + parent->from()->nameText.maxWidth() && y < replyFrom) {
-				return parent->from()->lnk;
+				lnk = parent->from()->lnk;
+				return;
 			}
 		}
 		if (x >= 0 && y >= replyFrom + st::msgReplyPadding.top() && x < width && y < skipy - st::msgReplyPadding.bottom()) {
-			return reply->replyToLink();
+			lnk = reply->replyToLink();
+			return;
 		}
 	}
 
 	if (x >= 0 && y >= skipy && x < w && y < _height && contact) {
-		return contact->lnk;
+		lnk = contact->lnk;
+		return;
 	}
-	return TextLinkPtr();
 }
 
 HistoryMedia *HistoryContact::clone() const {
@@ -3214,16 +3253,22 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 			_maxw = qMax(_maxw, int32(st::webPageLeft + _title.maxWidth() + st::webPagePhotoDelta + st::webPagePhotoSize));
 		} else {
 			_maxw = qMax(_maxw, int32(st::webPageLeft + _title.maxWidth() + parent->timeWidth()));
-			_minh += st::webPageTitleFont->height;
+			_minh += qMin(_title.minHeight(), 2 * st::webPageTitleFont->height);
 		}
 	}
 	if (!data->description.isEmpty()) {
-		_description.setText(st::webPageDescriptionFont, textClean(data->description), _webpageDescriptionOptions);
+		if (data->siteName == QLatin1String("Twitter")) {
+			_description.setText(st::webPageDescriptionFont, textClean(data->description), _twitterDescriptionOptions);
+		} else if (data->siteName == QLatin1String("Instagram")) {
+			_description.setText(st::webPageDescriptionFont, textClean(data->description), _instagramDescriptionOptions);
+		} else {
+			_description.setText(st::webPageDescriptionFont, textClean(data->description), _webpageDescriptionOptions);
+		}
 		if (_asArticle) {
 			_maxw = qMax(_maxw, int32(st::webPageLeft + _description.maxWidth() + st::webPagePhotoDelta + st::webPagePhotoSize));
 		} else {
 			_maxw = qMax(_maxw, int32(st::webPageLeft + _description.maxWidth() + parent->timeWidth()));
-			_minh += st::webPageTitleFont->height;
+			_minh += qMin(_description.minHeight(), 3 * st::webPageTitleFont->height);
 		}
 	}
 	if (!_asArticle && data->photo && (_siteNameWidth || !_title.isEmpty() || !_description.isEmpty())) {
@@ -3505,33 +3550,63 @@ bool HistoryWebPage::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32
 	return (x >= 0 && y >= 0 && x < width && y < _height);
 }
 
-TextLinkPtr HistoryWebPage::getLink(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+void HistoryWebPage::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
-	if (width < 1) return TextLinkPtr();
+	if (width < 1) return;
 
-	TextLinkPtr result = (x >= 0 && y >= 0 && x < width && y < _height) ? _openl : TextLinkPtr();
-	if (_photol) {
-		width -= st::webPageLeft;
+	width -= st::webPageLeft;
+	x -= st::webPageLeft;
 
-		if (_siteNameWidth) {
-			y -= st::webPageTitleFont->height;
-		}
-		if (!_title.isEmpty()) {
-			y -= qMin(_title.countHeight(width), st::webPageTitleFont->height * 2);
-		}
-		if (!_description.isEmpty()) {
-			y -= qMin(_description.countHeight(width), st::webPageDescriptionFont->height * 3);
-		}
-		if (_siteNameWidth || !_title.isEmpty() || !_description.isEmpty()) {
-			y -= st::webPagePhotoSkip;
-		}
-
-		int32 pixwidth = qMax(_pixw, int16(st::minPhotoSize)), pixheight = qMax(_pixh, int16(st::minPhotoSize));
-		if (x >= 0 && y >= 0 && x < pixwidth && y < pixheight) {
-			return _photol;
+	if (_asArticle) {
+		int32 pixwidth = st::webPagePhotoSize, pixheight = st::webPagePhotoSize;
+		if (x >= width - pixwidth && x < width && y >= 0 && y < pixheight) {
+			lnk = _openl;
+			return;
 		}
 	}
-	return result;
+	int32 articleLines = 5;
+	if (_siteNameWidth) {
+		y -= st::webPageTitleFont->height;
+		--articleLines;
+	}
+	if (!_title.isEmpty()) {
+		int32 availw = width;
+		if (_asArticle) {
+			availw -= st::webPagePhotoSize + st::webPagePhotoDelta;
+		}
+		int32 h = _title.countHeight(availw);
+		if (h > st::webPageTitleFont->height) {
+			articleLines -= 2;
+			y -= st::webPageTitleFont->height * 2;
+		} else {
+			--articleLines;
+			y -= h;
+		}
+	}
+	if (!_description.isEmpty()) {
+		int32 availw = width;
+		if (_asArticle) {
+			availw -= st::webPagePhotoSize + st::webPagePhotoDelta;
+			if (articleLines > 3) articleLines = 3;
+		} else if (!data->photo) {
+			articleLines = 3;
+		}
+		if (y >= 0 && y < st::webPageDescriptionFont->height * articleLines) {
+			_description.getState(lnk, inText, x, y, availw);
+			return;
+		}
+		y -= qMin(_description.countHeight(width), st::webPageDescriptionFont->height * articleLines);
+	}
+	if (_siteNameWidth || !_title.isEmpty() || !_description.isEmpty()) {
+		y -= st::webPagePhotoSkip;
+	}
+	if (!_asArticle) {
+		int32 pixwidth = qMax(_pixw, int16(st::minPhotoSize)), pixheight = qMax(_pixh, int16(st::minPhotoSize));
+		if (x >= 0 && y >= 0 && x < pixwidth && y < pixheight) {
+			lnk = _photol ? _photol : _openl;
+			return;
+		}
+	}
 }
 
 HistoryMedia *HistoryWebPage::clone() const {
@@ -4150,7 +4225,7 @@ bool HistoryImageLink::hasPoint(int32 x, int32 y, const HistoryItem *parent, int
 	return (x >= 0 && y >= 0 && x < width && y < _height);
 }
 
-TextLinkPtr HistoryImageLink::getLink(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+void HistoryImageLink::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 	int skipx = 0, skipy = 0, height = _height;
 	if (const HistoryReply *reply = toHistoryReply(parent)) {
@@ -4162,18 +4237,20 @@ TextLinkPtr HistoryImageLink::getLink(int32 x, int32 y, const HistoryItem *paren
 			replyFrom = st::msgPadding.top() + st::msgNameFont->height;
 			skipy += replyFrom;
 			if (x >= st::mediaPadding.left() && y >= st::msgPadding.top() && x < width - st::mediaPadding.left() - st::mediaPadding.right() && x < st::mediaPadding.left() + parent->from()->nameText.maxWidth() && y < replyFrom) {
-				return parent->from()->lnk;
+				lnk = parent->from()->lnk;
+				return;
 			}
 		}
 		if (x >= 0 && y >= replyFrom + st::msgReplyPadding.top() && x < width && y < skipy - st::msgReplyPadding.bottom() - st::mediaPadding.top()) {
-			return reply->replyToLink();
+			lnk = reply->replyToLink();
+			return;
 		}
 		width -= st::mediaPadding.left() + st::mediaPadding.right();
 	}
 	if (x >= skipx && y >= skipy && x < skipx + width && y < height && data) {
-		return link;
+		lnk = link;
+		return;
 	}
-	return TextLinkPtr();
 }
 
 HistoryMedia *HistoryImageLink::clone() const {
@@ -4366,7 +4443,11 @@ HistoryMedia *HistoryMessage::getMedia(bool inOverview) const {
 }
 
 void HistoryMessage::setMedia(const MTPmessageMedia &media) {
-	if (_media) return;
+	if (!_media && media.type() == mtpc_messageMediaEmpty) return;
+	if (_media) {
+		delete _media;
+		_media = 0;
+	}
 	QString t;
 	initMedia(media, t);
 	if (_media) {
@@ -4578,7 +4659,7 @@ void HistoryMessage::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) 
 		width = _maxw;
 	}
 	if (justMedia()) {
-		lnk = _media->getLink(x - left, y - st::msgMargin.top(), this);
+		_media->getState(lnk, inText, x - left, y - st::msgMargin.top(), this);
 		return;
 	}
 	QRect r(left, st::msgMargin.top(), width, _height - st::msgMargin.top() - st::msgMargin.bottom());
@@ -4593,12 +4674,12 @@ void HistoryMessage::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) 
 	TextLinkPtr medialnk;
 	if (_media) {
 		if (y >= trect.bottom() - _media->height() && y < trect.bottom()) {
-			medialnk = _media->getLink(x - trect.left(), y + _media->height() - trect.bottom(), this);
+			_media->getState(lnk, inText, x - trect.left(), y + _media->height() - trect.bottom(), this);
+			return;
 		}
 		trect.setBottom(trect.bottom() - _media->height() - st::msgPadding.bottom());
 	}
 	_text.getState(lnk, inText, x - trect.x(), y - trect.y(), trect.width());
-	if (!lnk && medialnk) lnk = medialnk;
 }
 
 void HistoryMessage::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const {
@@ -4691,7 +4772,7 @@ HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const 
 	fwdNameUpdated();
 }
 
-HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, HistoryMessage *msg) : HistoryMessage(history, block, id, (history->peer->input.type() != mtpc_inputPeerSelf) ? (MTPDmessage_flag_out | MTPDmessage_flag_unread) : 0, ::date(unixtime()), MTP::authedId(), msg->HistoryMessage::selectedText(FullItemSel), msg->getMedia())
+HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, HistoryMessage *msg) : HistoryMessage(history, block, id, (history->peer->input.type() != mtpc_inputPeerSelf) ? (MTPDmessage_flag_out | MTPDmessage_flag_unread) : 0, ::date(unixtime()), MTP::authedId(), msg->justMedia() ? QString() : msg->HistoryMessage::selectedText(FullItemSel), msg->getMedia())
 , fwdDate(msg->dateForwarded())
 , fwdFrom(msg->fromForwarded())
 , fwdFromVersion(fwdFrom->nameVersion)
@@ -5371,7 +5452,7 @@ void HistoryServiceMsg::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 
 		return _text.getState(lnk, inText, x - trect.x(), y - trect.y(), trect.width(), Qt::AlignCenter);
 	}
 	if (_media) {
-		lnk = _media->getLink(x - st::msgServiceMargin.left() - (width - _media->maxWidth()) / 2, y - st::msgServiceMargin.top() - height - st::msgServiceMargin.top(), this);
+		_media->getState(lnk, inText, x - st::msgServiceMargin.left() - (width - _media->maxWidth()) / 2, y - st::msgServiceMargin.top() - height - st::msgServiceMargin.top(), this);
 	}
 }
 

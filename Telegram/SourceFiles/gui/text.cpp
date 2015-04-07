@@ -547,7 +547,7 @@ public:
 		end = start + src.size();
 
 		if (options.flags & TextParseLinks) {
-			lnkRanges = textParseLinks(src, rich);
+			lnkRanges = textParseLinks(src, options.flags, rich);
 		}
 
 		while (start != end && chIsTrimmed(*start, rich)) {
@@ -593,9 +593,21 @@ public:
 					const TextLinkData &data(links[lnkIndex - maxLnkIndex - 1]);
 					TextLinkPtr lnk;
 					if (data.fullDisplayed < -2) { // mention
-						lnk = TextLinkPtr(new MentionLink(data.url));
+						if (options.flags & TextTwitterMentions) {
+							lnk = TextLinkPtr(new TextLink(qsl("https://twitter.com/") + data.url.mid(1), true));
+						} else if (options.flags & TextInstagramMentions) {
+							lnk = TextLinkPtr(new TextLink(qsl("https://instagram.com/") + data.url.mid(1) + '/', true));
+						} else {
+							lnk = TextLinkPtr(new MentionLink(data.url));
+						}
 					} else if (data.fullDisplayed < -1) { // hashtag
-						lnk = TextLinkPtr(new HashtagLink(data.url));
+						if (options.flags & TextTwitterMentions) {
+							lnk = TextLinkPtr(new TextLink(qsl("https://twitter.com/hashtag/") + data.url.mid(1) + qsl("?src=hash"), true));
+						} else if (options.flags & TextInstagramMentions) {
+							lnk = TextLinkPtr(new TextLink(qsl("https://instagram.com/explore/tags/") + data.url.mid(1) + '/', true));
+						} else {
+							lnk = TextLinkPtr(new HashtagLink(data.url));
+						}
 					} else if (data.fullDisplayed < 0) { // email
 						lnk = TextLinkPtr(new EmailLink(data.url));
 					} else {
@@ -3993,7 +4005,7 @@ QString textSearchKey(const QString &text) {
 bool textSplit(QString &sendingText, QString &leftText, int32 limit) {
 	if (leftText.isEmpty() || !limit) return false;
 
-	LinkRanges lnkRanges = textParseLinks(leftText);
+	LinkRanges lnkRanges = textParseLinks(leftText, TextParseLinks | TextParseMentions | TextParseHashtags);
 	int32 currentLink = 0, lnkCount = lnkRanges.size();
 
 	int32 s = 0, half = limit / 2, goodLevel = 0;
@@ -4070,8 +4082,10 @@ bool textSplit(QString &sendingText, QString &leftText, int32 limit) {
 	return true;
 }
 
-LinkRanges textParseLinks(const QString &text, bool rich) { // some code is duplicated in flattextarea.cpp!
+LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some code is duplicated in flattextarea.cpp!
 	LinkRanges lnkRanges;
+
+	bool withHashtags = (flags & TextParseHashtags), withMentions = (flags & TextParseMentions);
 
 	initLinkSets();
 	int32 len = text.size(), nextCmd = rich ? 0 : len;
@@ -4086,8 +4100,8 @@ LinkRanges textParseLinks(const QString &text, bool rich) { // some code is dupl
 		}
 		QRegularExpressionMatch mDomain = _reDomain.match(text, matchOffset);
 		QRegularExpressionMatch mExplicitDomain = _reExplicitDomain.match(text, matchOffset);
-		QRegularExpressionMatch mHashtag = _reHashtag.match(text, matchOffset);
-		QRegularExpressionMatch mMention = _reMention.match(text, matchOffset);
+		QRegularExpressionMatch mHashtag = withHashtags ? _reHashtag.match(text, matchOffset) : QRegularExpressionMatch();
+		QRegularExpressionMatch mMention = withMentions ? _reMention.match(text, matchOffset) : QRegularExpressionMatch();
 		if (!mDomain.hasMatch() && !mExplicitDomain.hasMatch() && !mHashtag.hasMatch() && !mMention.hasMatch()) break;
 
 		LinkRange link;

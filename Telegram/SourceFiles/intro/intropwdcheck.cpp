@@ -249,7 +249,7 @@ bool IntroPwdCheck::codeSubmitFail(const RPCError &error) {
 }
 
 void IntroPwdCheck::recoverStarted(const MTPauth_PasswordRecovery &result) {
-	_emailPattern = lng_signin_recover_hint(lt_recover_email, qs(result.c_auth_passwordRecovery().vemail_pattern));
+	_emailPattern = st::introFont->m.elidedText(lng_signin_recover_hint(lt_recover_email, qs(result.c_auth_passwordRecovery().vemail_pattern)), Qt::ElideRight, textRect.width());
 	update();
 }
 

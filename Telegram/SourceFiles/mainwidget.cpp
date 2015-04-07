@@ -377,6 +377,9 @@ _failDifferenceTimeout(1), _lastUpdateTime(0), _cachedX(0), _cachedY(0), _backgr
 		connect(audioVoice(), SIGNAL(stopped(AudioData*)), this, SLOT(audioPlayProgress(AudioData*)));
 	}
 
+	_webPageUpdater.setSingleShot(true);
+	connect(&_webPageUpdater, SIGNAL(timeout()), this, SLOT(webPagesUpdate()));
+
 	connect(&_cacheBackgroundTimer, SIGNAL(timeout()), this, SLOT(onCacheBackground()));
 
 	dialogs.show();
@@ -514,6 +517,25 @@ void MainWidget::finishForwarding(History *hist) {
 	historyToDown(hist);
 	dialogsToUp();
 	history.peerMessagesUpdated(hist->peer->id);
+}
+
+void MainWidget::webPageUpdated(WebPageData *data) {
+	_webPagesUpdated.insert(data->id, true);
+	_webPageUpdater.start(0);
+}
+
+void MainWidget::webPagesUpdate() {
+	const WebPageItems &items(App::webPageItems());
+	for (QMap<WebPageId, bool>::const_iterator i = _webPagesUpdated.cbegin(), e = _webPagesUpdated.cend(); i != e; ++i) {
+		WebPageItems::const_iterator j = items.constFind(App::webPage(i.key()));
+		if (j != items.cend()) {
+			for (HistoryItemsMap::const_iterator k = j.value().cbegin(), e = j.value().cend(); k != e; ++k) {
+				k.key()->initDimensions();
+				itemResized(k.key());
+			}
+		}
+	}
+	_webPagesUpdated.clear();
 }
 
 void MainWidget::onShareContact(const PeerId &peer, UserData *contact) {
@@ -887,7 +909,7 @@ DialogsIndexed &MainWidget::contactsList() {
 	return dialogs.contactsList();
 }
 
-void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId replyTo, bool noPreview) {
+void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId replyTo, WebPageId webPageId) {
 	saveRecentHashtags(text);
 	QString sendingText, leftText = text;
 	if (replyTo < 0) replyTo = history.replyToId();
@@ -904,8 +926,14 @@ void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId repl
 			flags |= MTPDmessage::flag_reply_to_msg_id;
 			sendFlags |= MTPmessages_SendMessage::flag_reply_to_msg_id;
 		}
-		if (noPreview) sendFlags |= MTPmessages_SendMessage_flag_skipWebPage;
-		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTPint(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, MTP_messageMediaEmpty()));
+		MTPMessageMedia media = MTP_messageMediaEmpty();
+		if (webPageId == 0xFFFFFFFFFFFFFFFFULL) {
+			sendFlags |= MTPmessages_SendMessage_flag_skipWebPage;
+		} else if (webPageId) {
+			WebPageData *page = App::webPage(webPageId);
+			media = MTP_messageMediaWebPage(MTP_webPagePending(MTP_long(page->id), MTP_int(page->pendingTill)));
+		}
+		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTPint(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media));
 		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 	}
 
@@ -1884,11 +1912,9 @@ void MainWidget::sentDataReceived(uint64 randomId, const MTPmessages_SentMessage
 			}
 		}
 
-		if (d.vmedia.type() != mtpc_messageMediaEmpty) {
-			HistoryItem *item = App::histItemById(d.vid.v);
-			if (item) {
-				item->setMedia(d.vmedia);
-			}
+		HistoryItem *item = App::histItemById(d.vid.v);
+		if (item) {
+			item->setMedia(d.vmedia);
 		}
 	} break;
 
@@ -2773,7 +2799,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 
 	case mtpc_updateShortMessage: {
 		const MTPDupdateShortMessage &d(updates.c_updateShortMessage());
-		if (!App::userLoaded(d.vuser_id.v)) {
+		if (!App::userLoaded(d.vuser_id.v) || (d.has_fwd_from_id() && !App::userLoaded(d.vfwd_from_id.v))) {
 			return getDifference();
 		}
 		if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
@@ -2895,15 +2921,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateWebPage: {
 		const MTPDupdateWebPage &d(update.c_updateWebPage());
-		WebPageData *page = App::feedWebPage(d.vwebpage);
-		const WebPageItems &items(App::webPageItems());
-		WebPageItems::const_iterator i = items.constFind(page);
-		if (i != items.cend()) {
-			for (HistoryItemsMap::const_iterator j = i.value().cbegin(), e = i.value().cend(); j != e; ++j) {
-				j.key()->initDimensions();
-				itemResized(j.key());
-			}
-		}
+		App::feedWebPage(d.vwebpage);
 		history.updatePreview();
 	} break;
 

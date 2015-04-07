@@ -786,7 +786,7 @@ public:
 		w = qMin(width, _maxw);
 		return _height;
 	}
-	virtual TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const = 0;
+	virtual void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const = 0;
 	virtual void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const = 0;
 	virtual bool uploading() const {
 		return false;
@@ -844,7 +844,7 @@ public:
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	HistoryMedia *clone() const;
 
 	PhotoData *photo() const {
@@ -889,7 +889,7 @@ public:
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	bool uploading() const {
 		return (data->status == FileUploading);
 	}
@@ -927,7 +927,7 @@ public:
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	bool uploading() const {
 		return (data->status == FileUploading);
 	}
@@ -964,7 +964,7 @@ public:
 	bool uploading() const {
 		return (data->status == FileUploading);
 	}
-	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	HistoryMedia *clone() const;
 
 	DocumentData *document() {
@@ -1009,7 +1009,7 @@ public:
 	const QString inHistoryText() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	int32 countHeight(const HistoryItem *parent, int32 width = -1) const;
-	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	HistoryMedia *clone() const;
 
 	DocumentData *document() {
@@ -1044,7 +1044,7 @@ public:
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const;
-	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width) const;
+	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width) const;
 	HistoryMedia *clone() const;
 
 	void updateFrom(const MTPMessageMedia &media);
@@ -1071,7 +1071,7 @@ public:
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	HistoryMedia *clone() const;
 
 	void regItem(HistoryItem *item);
@@ -1164,7 +1164,7 @@ public:
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
-	TextLinkPtr getLink(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	HistoryMedia *clone() const;
 
 private:

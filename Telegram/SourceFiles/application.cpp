@@ -654,9 +654,9 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 8001) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Link previews for Twitter, YouTube, Instagram and certain other links\n\xe2\x80\x94 Two-step verification\n\xe2\x80\x94 View all your Telegram sessions, terminate specific sessions\n\xe2\x80\x94 Text is pasted from clipboard when clipboard has both text and image and image sending was cancelled").replace('@', qsl("@") + QChar(0x200D));
-			} else if (!DevChannel && Local::oldMapVersion() < 8002) {
+			if (DevChannel && Local::oldMapVersion() < 8002) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Link previews bugfixes\n\xe2\x80\x94 Links in preview descriptions are now clickable\n\xe2\x80\x94 Twitter and Instagram mentions and hashtags in previews are clickable\n\xe2\x80\x94 Fixed file uploading\n\xe2\x80\x94 Fixed photo, document and sticker forwarding").replace('@', qsl("@") + QChar(0x200D));
+			} else if (!DevChannel && Local::oldMapVersion() < 8003) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
