@@ -21,6 +21,8 @@
 #include "flatbutton.h"
 #include "pspecific.h"
 
+#include "application.h"
+
 #include "lang.h"
 
 ContextMenu::ContextMenu(QWidget *parent, const style::iconedButton &st) : TWidget(0),
@@ -150,6 +152,9 @@ void ContextMenu::keyPressEvent(QKeyEvent *e) {
 			emit _buttons[_selected]->clicked();
 			return;
 		}
+	} else if (e->key() == Qt::Key_Escape) {
+		hideStart();
+		return;
 	}
 	if ((e->key() != Qt::Key_Up && e->key() != Qt::Key_Down) || _buttons.size() < 1) return;
 
@@ -241,7 +246,7 @@ void ContextMenu::deleteOnHide() {
 
 void ContextMenu::popup(const QPoint &p) {
 	QPoint w = p - QPoint(st::dropdownPadding.left(), st::dropdownPadding.top());
-	QRect r = QDesktopWidget().screenGeometry(p);
+	QRect r = App::app() ? App::app()->desktop()->screenGeometry(p) : QDesktopWidget().screenGeometry(p);
 	if (w.x() + width() - st::dropdownPadding.right() > r.x() + r.width()) {
 		w.setX(r.x() + r.width() - width() + st::dropdownPadding.right());
 	}

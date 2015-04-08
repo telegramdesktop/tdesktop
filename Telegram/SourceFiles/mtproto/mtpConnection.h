@@ -19,6 +19,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "mtproto/mtpCoreTypes.h"
 #include "mtproto/mtpScheme.h"
+
+enum {
+	MTPDmessage_flag_unread = (1 << 0),
+	MTPDmessage_flag_out = (1 << 1),
+	MTPDmessage_flag_notify_by_from = (1 << 4),
+	MTPmessages_SendMessage_flag_skipWebPage = (1 << 1),
+};
+
 #include "mtproto/mtpPublicRSA.h"
 #include "mtproto/mtpAuthKey.h"
 
@@ -53,6 +61,8 @@ class MTProtoConnectionPrivate;
 class MTPSessionData;
 
 class MTPThread : public QThread {
+	Q_OBJECT
+
 public:
 	MTPThread(QObject *parent = 0);
 	uint32 getThreadId() const;
@@ -116,6 +126,9 @@ public:
 	virtual void disconnectFromServer() = 0;
 	virtual void connectToServer(const QString &addr, int32 port) = 0;
 	virtual bool isConnected() = 0;
+	virtual bool usingHttpWait() {
+		return false;
+	}
 	virtual bool needHttpWait() {
 		return false;
 	}
@@ -181,6 +194,7 @@ public:
 	void disconnectFromServer();
 	void connectToServer(const QString &addr, int32 port);
 	bool isConnected();
+	bool usingHttpWait();
 	bool needHttpWait();
 
 	int32 debugState() const;
@@ -213,6 +227,7 @@ private:
 		HttpReady,
 		UsingHttp,
 		UsingTcp,
+		FinishedWork
 	};
 	Status status;
 	MTPint128 tcpNonce, httpNonce;
@@ -267,6 +282,7 @@ public:
 	void disconnectFromServer();
 	void connectToServer(const QString &addr, int32 port);
 	bool isConnected();
+	bool usingHttpWait();
 	bool needHttpWait();
 
 	int32 debugState() const;
@@ -324,6 +340,7 @@ public slots:
 	void restartNow();
 	void restart(bool maybeBadKey = false);
 
+	void onPingSender();
 	void onBadConnection();
 	void onOldConnection();
 	void onSentSome(uint64 size);
@@ -398,8 +415,10 @@ private:
 	// remove msgs with such ids from sessionData->haveSent, add to sessionData->wereAcked
 	void requestsAcked(const QVector<MTPlong> &ids, bool byResponse = false);
 
-	mtpPingId pingId, toSendPingId;
-	mtpMsgId pingMsgId;
+	mtpPingId _pingId, _pingIdToSend;
+	uint64 _pingSent;
+	mtpMsgId _pingMsgId;
+	SingleTimer _pingSender;
 
 	void resend(quint64 msgId, quint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
 	void resendMany(QVector<quint64> msgIds, quint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);

@@ -50,11 +50,18 @@ namespace _local_inner {
 
 namespace Local {
 
-	mtpAuthKey &oldKey();
-	void createOldKey(QByteArray *salt = 0);
-
 	void start();
 	void stop();
+
+	void readSettings();
+	void writeSettings();
+	void writeUserSettings();
+	void writeMtpData();
+
+	void reset();
+
+	bool checkPasscode(const QByteArray &passcode);
+	void setPasscode(const QByteArray &passcode);
 	
 	enum ClearManagerTask {
 		ClearManagerAll = 0xFFFF,
@@ -93,8 +100,15 @@ namespace Local {
 	ReadMapState readMap(const QByteArray &pass);
 	int32 oldMapVersion();
 
-	void writeDraft(const PeerId &peer, const QString &text);
-	QString readDraft(const PeerId &peer);
+	struct MessageDraft {
+		MessageDraft(MsgId replyTo = 0, QString text = QString(), bool previewCancelled = false) : replyTo(replyTo), text(text), previewCancelled(previewCancelled) {
+		}
+		MsgId replyTo;
+		QString text;
+		bool previewCancelled;
+	};
+	void writeDraft(const PeerId &peer, const MessageDraft &draft);
+	MessageDraft readDraft(const PeerId &peer);
 	void writeDraftPositions(const PeerId &peer, const MessageCursor &cur);
 	MessageCursor readDraftPositions(const PeerId &peer);
 	bool hasDraftPositions(const PeerId &peer);
@@ -120,5 +134,11 @@ namespace Local {
 
 	void writeRecentStickers();
 	void readRecentStickers();
+
+	void writeBackground(int32 id, const QImage &img);
+	bool readBackground();
+
+	void writeRecentHashtags();
+	void readRecentHashtags();
 
 };

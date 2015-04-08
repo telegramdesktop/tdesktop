@@ -17,14 +17,12 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QWidget>
-#include "gui/flatbutton.h"
-
 class Window;
 class IntroSteps;
 class IntroPhone;
 class IntroCode;
 class IntroSignup;
+class IntroPwdCheck;
 class IntroStage;
 class Text;
 
@@ -39,7 +37,7 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void keyPressEvent(QKeyEvent *e);
-
+	
 	void updateWideMode();
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
@@ -51,11 +49,17 @@ public:
 	void setPhone(const QString &phone, const QString &phone_hash, bool registered);
 	void setCode(const QString &code);
 	void setCallTimeout(int32 callTimeout);
+	void setPwdSalt(const QByteArray &salt);
+	void setHasRecovery(bool hasRecovery);
+	void setPwdHint(const QString &hint);
 
 	const QString &getPhone() const;
 	const QString &getPhoneHash() const;
 	const QString &getCode() const;
 	int32 getCallTimeout() const;
+	const QByteArray &getPwdSalt() const;
+	bool getHasRecovery() const;
+	const QString &getPwdHint() const;
 
 	void finish(const MTPUser &user, const QImage &photo = QImage());
 
@@ -99,7 +103,8 @@ private:
 	IntroPhone *phone;
 	IntroCode *code;
 	IntroSignup *signup;
-	IntroStage *stages[4];
+	IntroPwdCheck *pwdcheck;
+	IntroStage *stages[5];
 	int current, moving, visibilityChanging;
 
 	QString _phone, _phone_hash;
@@ -107,6 +112,10 @@ private:
 	bool _registered;
 
 	QString _code;
+
+	QByteArray _pwdSalt;
+	bool _hasRecovery;
+	QString _pwdHint;
 
 	QString _firstname, _lastname;
 
@@ -122,6 +131,8 @@ public:
 	}
 
 	virtual void activate() = 0; // show and activate
+	virtual void prepareShow() {
+	}
 	virtual void deactivate() = 0; // deactivate and hide
 	virtual void onNext() = 0;
 	virtual void onBack() = 0;

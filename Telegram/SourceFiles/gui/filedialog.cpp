@@ -18,8 +18,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "gui/filedialog.h"
 
-#include "app.h"
 #include "application.h"
+#include "localstorage.h"
 
 void filedialogInit() {
 	if (cDialogLastPath().isEmpty()) {
@@ -68,13 +68,22 @@ void filedialogInit() {
 
 // multipleFiles: 1 - multi open, 0 - single open, -1 - single save, -2 - select dir
 bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, int multipleFiles, QString startFile = QString()) {
+
+	filedialogInit();
+
 #if defined Q_OS_LINUX || defined Q_OS_MAC // use native
     remoteContent = QByteArray();
+	if (startFile.isEmpty() || startFile.at(0) != '/') {
+		startFile = cDialogLastPath() + '/' + startFile;
+	}
     QString file;
     if (multipleFiles >= 0) {
 		files = QFileDialog::getOpenFileNames(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, startFile, filter);
 		QString path = files.isEmpty() ? QString() : QFileInfo(files.back()).absoluteDir().absolutePath();
-		if (!path.isEmpty()) cSetDialogLastPath(path);
+		if (!path.isEmpty() && path != cDialogLastPath()) {
+			cSetDialogLastPath(path);
+			Local::writeUserSettings();
+		}
         return !files.isEmpty();
     } else if (multipleFiles < -1) {
 		file = QFileDialog::getExistingDirectory(App::wnd() ? App::wnd()->filedialogParent() : 0, caption);
@@ -88,13 +97,14 @@ bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QS
         return false;
     } else {
 		QString path = QFileInfo(file).absoluteDir().absolutePath();
-		if (!path.isEmpty()) cSetDialogLastPath(path);
+		if (!path.isEmpty() && path != cDialogLastPath()) {
+			cSetDialogLastPath(path);
+			Local::writeUserSettings();
+		}
         files = QStringList(file);
         return true;
     }
 #endif
-
-    filedialogInit();
 
 	// hack for fast non-native dialog create
 	QFileDialog dialog(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, cDialogHelperPathFinal(), filter);
@@ -131,7 +141,11 @@ bool _filedialogGetFiles(QStringList &files, QByteArray &remoteContent, const QS
 
 	int res = dialog.exec();
 
-	cSetDialogLastPath(dialog.directory().absolutePath());
+	QString path = dialog.directory().absolutePath();
+	if (path != cDialogLastPath()) {
+		cSetDialogLastPath(path);
+		Local::writeUserSettings();
+	}
 	
 	if (res == QDialog::Accepted) {
 		if (multipleFiles > 0) {

@@ -24,12 +24,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 AboutBox::AboutBox() :
 _done(this, lang(lng_about_done), st::aboutCloseButton),
-_version(this, qsl("[a href=\"https://desktop.telegram.org/#changelog\"]") + textClean(lng_about_version(lt_version, QString::fromWCharArray(AppVersionStr))) + qsl("[/a]"), st::aboutVersion, st::defaultTextStyle),
-_text(this, lang(lng_about_text), st::aboutLabel, st::aboutTextStyle),
-_hiding(false), a_opacity(0, 1) {
+_version(this, qsl("[a href=\"https://desktop.telegram.org/#changelog\"]") + textClean(lng_about_version(lt_version, QString::fromWCharArray(AppVersionStr) + (DevChannel ? " dev" : ""))) + qsl("[/a]"), st::aboutVersion, st::defaultTextStyle),
+_text(this, lang(lng_about_text), st::aboutLabel, st::aboutTextStyle) {
 	
-	_width = st::aboutWidth;
-	_height = st::aboutHeight;
+	resizeMaxHeight(st::aboutWidth, st::aboutHeight);
 
 	_version.move(0, st::aboutVersionTop);
 	_text.move(0, st::aboutTextTop);
@@ -37,15 +35,11 @@ _hiding(false), a_opacity(0, 1) {
 	_headerWidth = st::aboutHeaderFont->m.width(qsl("Telegram "));
 	_subheaderWidth = st::aboutSubheaderFont->m.width(qsl("Desktop"));
 
-	_done.move(0, _height - _done.height());
+	_done.move(0, height() - _done.height());
 
 	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	resize(_width, _height);
-
-	showAll();
-	_cache = myGrab(this, rect());
-	hideAll();
+	prepare();
 }
 
 void AboutBox::hideAll() {
@@ -63,65 +57,21 @@ void AboutBox::showAll() {
 void AboutBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
 		onClose();
-	} else if (e->key() == Qt::Key_Escape) {
-		onClose();
+	} else {
+		AbstractBox::keyPressEvent(e);
 	}
-}
-
-void AboutBox::parentResized() {
-	QSize s = parentWidget()->size();
-	setGeometry((s.width() - _width) / 2, (s.height() - _height) / 2, _width, _height);
-	update();
 }
 
 void AboutBox::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
-	if (_cache.isNull()) {
-		if (!_hiding || a_opacity.current() > 0.01) {
-			// fill bg
-			p.fillRect(0, 0, _width, _height, st::boxBG->b);
+	if (paint(p)) return;
 
-			p.drawPixmap(QPoint((_width - st::aboutIcon.pxWidth()) / 2, st::aboutIconTop), App::sprite(), st::aboutIcon);
+	p.drawPixmap(QPoint((width() - st::aboutIcon.pxWidth()) / 2, st::aboutIconTop), App::sprite(), st::aboutIcon);
 
-			p.setPen(st::black->p);
-			p.setFont(st::aboutHeaderFont->f);
-            p.drawText((_width - (_headerWidth + _subheaderWidth)) / 2, st::aboutHeaderTop + st::aboutHeaderFont->ascent, qsl("Telegram"));
+	p.setPen(st::black->p);
+	p.setFont(st::aboutHeaderFont->f);
+	p.drawText((width() - (_headerWidth + _subheaderWidth)) / 2, st::aboutHeaderTop + st::aboutHeaderFont->ascent, qsl("Telegram"));
 
-			p.setFont(st::aboutSubheaderFont->f);
-            p.drawText((_width - (_headerWidth + _subheaderWidth)) / 2 + _headerWidth, st::aboutHeaderTop + st::aboutSubheaderFont->ascent, qsl("Desktop"));
-		}
-	} else {
-		p.setOpacity(a_opacity.current());
-		p.drawPixmap(0, 0, _cache);
-	}
-}
-
-void AboutBox::animStep(float64 ms) {
-	if (ms >= 1) {
-		a_opacity.finish();
-		_cache = QPixmap();
-		if (!_hiding) {
-			showAll();
-			setFocus();
-		}
-	} else {
-		a_opacity.update(ms, anim::linear);
-	}
-	update();
-}
-
-void AboutBox::onClose() {
-	emit closed();
-}
-
-void AboutBox::startHide() {
-	_hiding = true;
-	if (_cache.isNull()) {
-		_cache = myGrab(this, rect());
-		hideAll();
-	}
-	a_opacity.start(0);
-}
-
-AboutBox::~AboutBox() {
+	p.setFont(st::aboutSubheaderFont->f);
+	p.drawText((width() - (_headerWidth + _subheaderWidth)) / 2 + _headerWidth, st::aboutHeaderTop + st::aboutSubheaderFont->ascent, qsl("Desktop"));
 }

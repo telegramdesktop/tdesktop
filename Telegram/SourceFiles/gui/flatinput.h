@@ -34,6 +34,7 @@ public:
 	void focusInEvent(QFocusEvent *e);
 	void focusOutEvent(QFocusEvent *e);
 	void keyPressEvent(QKeyEvent *e);
+	void resizeEvent(QResizeEvent *e);
 
 	void notaBene();
 
@@ -69,7 +70,7 @@ protected:
 
 private:
 
-	QString _ph, _oldtext;
+	QString _ph, _fullph, _oldtext;
 	QKeyEvent *_kev;
 
 	bool _customUpDown;

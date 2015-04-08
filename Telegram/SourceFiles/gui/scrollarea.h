@@ -70,7 +70,7 @@ public:
 
 public slots:
 
-	void updateBar();
+	void updateBar(bool force = false);
 	void onHideTimer();
 
 signals:
@@ -113,6 +113,7 @@ public:
 
 	void resizeEvent(QResizeEvent *e);
 	void moveEvent(QMoveEvent *e);
+	void keyPressEvent(QKeyEvent *e);
 
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
@@ -127,6 +128,8 @@ public:
 	void setWidget(QWidget *widget);
 
 	void rangeChanged(int oldMax, int newMax, bool vertical);
+
+	void updateColors(const style::color &bar, const style::color &bg, const style::color &barOver, const style::color &bgOver);
 
 public slots:
 

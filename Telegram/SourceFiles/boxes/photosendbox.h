@@ -17,32 +17,39 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
+#include "abstractbox.h"
 #include "localimageloader.h"
 
-class PhotoSendBox : public LayeredWidget {
+class PhotoSendBox : public AbstractBox {
 	Q_OBJECT
 
 public:
 
 	PhotoSendBox(const ReadyLocalMedia &img);
-	PhotoSendBox(const QString &phone, const QString &fname, const QString &lname);
-	void parentResized();
-	void animStep(float64 ms);
+	PhotoSendBox(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
-	void startHide();
+	void resizeEvent(QResizeEvent *e);
 	~PhotoSendBox();
+
+signals:
+
+	void confirmed();
 
 public slots:
 
 	void onSend(bool ctrlShiftEnter = false);
-	void onCancel();
+
+protected:
+
+	void closePressed();
+	void hideAll();
+	void showAll();
 
 private:
 
 	ReadyLocalMedia *_img;
-	int32 _width, _height, _thumbx, _thumby, _thumbw, _thumbh;
+	int32 _thumbx, _thumby, _thumbw, _thumbh;
 	QString _name, _size;
 	int32 _namew, _textw;
 	FlatCheckbox _compressed;
@@ -50,9 +57,7 @@ private:
 	QPixmap _thumb;
 
 	QString _phone, _fname, _lname;
+	MsgId _replyTo;
 
-	anim::fvalue a_opacity;
-
-	bool _hiding;
 
 };

@@ -52,7 +52,7 @@ wndMinHeight: 480px;
 wndDefWidth: 800px;
 wndDefHeight: 600px;
 wndBG: #FFF;
-wndShadow: sprite(184px, 21px, 19px, 19px);
+wndShadow: sprite(209px, 46px, 19px, 19px);
 wndShadowShift: 1px;
 
 layerAlpha: 0.3;
@@ -115,6 +115,12 @@ sysRes: sysButton(sysUpd) {
 }
 sysCls: sysButton(sysUpd) {
 	img: sprite(276px, 1px, 19px, 19px);
+}
+sysLock: sysButton(sysUpd) {
+	img: sprite(184px, 22px, 19px, 19px);
+}
+sysUnlock: sysButton(sysUpd) {
+	img: sprite(207px, 22px, 19px, 19px);
 }
 titleBackButton: iconedButton(btnDefIconed) {
 	icon: sprite(133px, 197px, 13px, 20px);
@@ -350,8 +356,7 @@ introPointTop: 3px;
 introPointDelta: 10px;
 introPointColor: rgb(0, 0, 0);
 introPointAlpha: 0.5;
-introPointHoverColor: rgb(47, 158, 218);
-introPointHoverAlpha: 0.5;
+introPointHoverColor: #86b4e3;
 introPointStepT: transition(sineInOut);
 introPointAlphaT: transition(linear);
 introPointShowStepT: transition(easeOutCirc);
@@ -371,6 +376,7 @@ introAlphaShowFunc: transition(easeInCirc);
 introTextTop: 22px;
 introTextSize: size(400px, 93px);
 introCallSkip: 15px;
+introPwdTextSize: size(400px, 73px);
 
 btnIntroSep: 12px;
 btnIntroNext: flatButton(btnDefNext, btnDefBig) {
@@ -384,7 +390,7 @@ btnIntroNext: flatButton(btnDefNext, btnDefBig) {
 	width: 300px;
 }
 
-boxShadow: sprite(240px, 21px, 9px, 9px);
+boxShadow: sprite(230px, 46px, 9px, 9px);
 
 introCountry: countryInput {
 	width: 300px;
@@ -421,9 +427,11 @@ inpIntroCode: flatInput(inpDefGray) {
 inpIntroName: flatInput(inpIntroPhone) {
 	width: 192px;
 }
+inpIntroPassword: flatInput(inpIntroPhone) {
+	width: 300px;
+}
 
 introSelectDelta: 30px;
-introSelectMaxHeight: 550px;
 btnSelectDone: flatButton(btnDefFlat) {
 	color: btnYesColor;
 	overColor: btnYesHover;
@@ -450,6 +458,16 @@ btnSelectCancel: flatButton(btnSelectDone) {
 	downColor: btnNoHover;
 }
 btnSelectSep: #e0e0e0;
+btnRedLink: linkButton(btnDefLink) {
+	color: #d15948;
+	overColor: #d15948;
+	downColor: #db6352;
+}
+btnRedDone: flatButton(btnSelectDone) {
+	color: #d15948;
+	overColor: #d15948;
+	downColor: #db6352;
+}
 
 countryList: countryList {
 	notFoundColor: #aaa;//rgb(20, 136, 210);
@@ -484,8 +502,7 @@ countriesAlphaShowFunc: transition(easeInCirc);
 introErrWidth: 450px;
 introErrDuration: 200;
 introErrFunc: transition(linear);
-introErrBG: #ffa5a5;
-introErrColor: black;//#800000;
+introErrColor: black;
 introErrTop: 15px;
 introErrHeight: 40px;
 introErrFont: font(16px);
@@ -498,19 +515,20 @@ introErrLabel: flatLabel(labelDefFlat) {
 setWidth: 356px;
 setTop: 26px;
 setNameLeft: 3px;
-setNameTop: 1px;
-setNameFont: font(22px);
-setStatusTop: 39px;
-setStatusLeft: 1px;
-setStatusFont: font(16px);
+setNameTop: 5px;
+setNameFont: font(18px);
+setStatusTop: 35px;
+setStatusLeft: 3px;
+setStatusFont: font(14px);
 setPhotoSize: 120px;
-setHeaderFont: font(20px);
+setHeaderFont: font(17px);
 setHeaderColor: black;
-setHeaderSkip: 59px;
+setHeaderSkip: 60px;
 setHeaderLeft: -1px;
-setHeaderTop: 22px;
+setHeaderTop: 26px;
 setLittleSkip: 9px;
 setSectionSkip: 25px;
+setContactInfoLeft: 150px;
 setVersionHeight: 41px;
 setVersionLeft: 36px;
 setVersionTop: 3px;
@@ -553,6 +571,8 @@ setErrColor: #800000;
 setErrHeight: 30px;
 setErrFont: font(fsize);
 setGoodColor: #008000;
+
+setBackgroundSize: 120px;
 
 btnSetUpload: flatButton(btnDefNext, btnDefBig) {
 	width: 206px;
@@ -635,7 +655,7 @@ dlgFilter: flatInput(inpDefGray) {
 	phColor: #949494;
 	phFocusColor: #a4a4a4;
 	textMrg: margins(34px, 2px, 34px, 4px);
-	imgRect: sprite(208px, 28px, 24px, 24px);
+	imgRect: sprite(227px, 21px, 24px, 24px);
 	imgPos: point(6px, 5px);
 	width: 240px;
 
@@ -671,7 +691,7 @@ dlgHistFont: font(fsize);
 dlgNameColor: #000;
 dlgNameTop: 2px;
 dlgSystemColor: #4981af;
-dlgTextColor: #888888;
+dlgTextColor: #888;
 
 dlgDateFont: font(13px);
 dlgDateColor: #a8a8a8;
@@ -736,8 +756,6 @@ topBarActionButton: flatButton(btnDefNext, btnDefBig) {
 }
 topBarActionSkip: 13px;
 
-historyBG: #dfe4e8;
-
 historyToEnd: iconedButton(btnDefIconed) {
 	bgColor: transparent;
 	overBgColor: transparent;
@@ -778,6 +796,8 @@ msgInSelectOverlay: #358cd44c;
 msgStickerOverlay: #358cd47f;
 msgOutServiceColor: #3a8e26;
 msgInServiceColor: #0e7acd;
+msgOutServiceSelColor: #367570;
+msgInServiceSelColor: #0e7acd;
 msgShadow: 2px;
 msgInShadow: #748ea229;
 msgOutShadow: #3ac34740;
@@ -787,6 +807,15 @@ msgInDateColor: #a0acb6;
 msgOutDateColor: #6cc264;
 msgInSelectDateColor: #6a9cc5;
 msgOutSelectDateColor: #50a79c;
+
+msgReplyPadding: margins(6px, 6px, 11px, 6px);
+msgReplyBarPos: point(1px, 0px);
+msgReplyBarSize: size(2px, 36px);
+msgReplyBarSkip: 10px;
+msgOutReplyBarColor: #5dc452;
+msgInReplyBarColor: #2fa9e2;
+msgOutReplyBarSelColor: #4da79f;
+msgInReplyBarSelColor: #2fa9e2;
 
 msgServiceSelectBG: #fff4;
 msgServiceRadius: 2px;
@@ -806,6 +835,7 @@ msgBG: ':/gui/art/bg.png' / 2:':/gui/art/bg_125x.png' / 3:':/gui/art/bg_150x.png
 
 msgSendingRect: sprite(260px, 20px, 20px, 20px);
 msgCheckRect: sprite(320px, 0px, 20px, 20px);
+msgCheckPos: point(5px, 1px);
 msgDblCheckRect: sprite(300px, 0px, 20px, 20px);
 msgSelectCheckRect: sprite(160px, 0px, 20px, 20px);
 msgSelectDblCheckRect: sprite(140px, 0px, 20px, 20px);
@@ -872,7 +902,7 @@ introErrLabelTextStyle: textStyle(defaultTextStyle) {
 
 mediaMaxWidth: 250px;
 mediaFont: font(fsize);
-mediaPadding: margins(7px, 6px, 11px, 6px);
+mediaPadding: margins(7px, 6px, 7px, 6px);
 mediaThumbSize: 48px;
 mediaNameTop: 3px;
 mediaDetailsShift: 3px;
@@ -954,6 +984,25 @@ btnAttachEmoji: iconedButton(btnAttachDocument) {
 	width: 32px;
 }
 
+replySkip: 51px;
+replyColor: #377aae;
+replyHeight: 49px;
+replyTop: 8px;
+replyBottom: 6px;
+replyIconPos: point(13px, 13px);
+replyIcon: sprite(174px, 195px, 24px, 24px);
+replyCancel: iconedButton(btnDefIconed) {
+	icon: sprite(165px, 24px, 14px, 14px);
+	iconPos: point(17px, 17px);
+	downIcon: sprite(165px, 24px, 14px, 14px);
+	downIconPos: point(17px, 18px);
+	bgColor: white;
+	overBgColor: white;
+	width: 49px;
+	height: 49px;
+}
+forwardIcon: sprite(368px, 173px, 24px, 24px);
+
 historyScroll: flatScroll(scrollDef) {
 	barColor: #89a0b47a;
 	bgColor: #89a0b44c;
@@ -995,18 +1044,22 @@ layerPadding: margins(10px, 10px, 10px, 10px);
 
 boxFont: font(16px);
 boxPadding: margins(18px, 18px, 18px, 18px);
-boxBG: white;//rgb(228, 233, 240);
+boxVerticalMargin: 10px;
+
+boxWidth: 364px;
+boxMaxListHeight: 600px;
+
+boxBG: white;
 boxGrayTitle: #777;
 
-confirmWidth: 364px;
+boxTitlePos: point(20px, 15px);
+boxTitleFont: font(17px);
+boxTitleHeight: 52px;
+
 confirmMaxHeight: 320px;
 confirmCompressedSkip: 10px;
-addContactWidth: 364px;
 addContactPadding: margins(18px, 24px, 18px, 24px);
 addContactDelta: 14px;
-addContactTitleHeight: 52px;
-addContactTitlePos: point(20px, 15px);
-addContactTitleFont: font(17px);
 inpAddContact: flatInput(inpDefGray) {
 	height: 42px;
 	textMrg: margins(10px, 5px, 10px, 5px);
@@ -1038,6 +1091,7 @@ notifyBorder: #f1f1f1;
 notifyBorderWidth: 1px;
 notifySlowHide: 4000;
 notifyPhotoSize: 62px;
+notifyMacPhotoSize: 64px;
 notifyPhotoPos: point(9px, 9px);
 notifyClosePos: point(1px, 2px);
 notifyClose: iconedButton(btnDefIconed) {
@@ -1162,9 +1216,12 @@ profileNameInput: flatInput(setNameInput) {
 	width: 230px;
 }
 
-newGroupScroll: flatScroll(scrollDef) {
-	topsh: 0px;
+boxScroll: flatScroll(scrollDef) {
+	topsh: -2px;
 	bottomsh: -2px;
+}
+boxNoTopScroll: flatScroll(boxScroll) {
+	topsh: 0;
 }
 
 participantInnerAdd: flatButton(btnDefNext) {
@@ -1181,14 +1238,12 @@ participantInnerCancel: flatButton(participantInnerAdd, btnDefBack) {
 participantCancel: flatButton(participantInnerAdd, btnDefBack) {
 	width: 300px;
 }
-participantWidth: 364px;
-participantMaxHeight: 600px;
 participantFilter: flatInput(inpDefFlat) {
 	width: 364px;
 	height: 52px;
 	font: font(16px);
 	textMrg: margins(39px, 11px, 10px, 10px);
-	imgRect: sprite(208px, 28px, 24px, 24px);
+	imgRect: sprite(227px, 21px, 24px, 24px);
 	imgPos: point(10px, 15px);
 }
 participantDelta: 12px;
@@ -1294,7 +1349,7 @@ aboutCloseButton: flatButton(contactsClose) {
 	downTextTop: 16px;
 }
 btnInfoClose: flatButton(aboutCloseButton) {
-	width: confirmWidth;
+	width: boxWidth;
 }
 
 emojiTextFont: font(16px);
@@ -1307,10 +1362,11 @@ connectingColor: #777;
 connectingPadding: margins(5px, 5px, 5px, 5px);
 
 dropdownPadding: margins(10px, 10px, 10px, 10px);
-dropdownShadow: sprite(240px, 35px, 6px, 6px);
+dropdownShadow: sprite(241px, 46px, 6px, 6px);
 dropdownBorder: 1px;
 dropdownBorderColor: #ebebeb;
 dropdownBackground: white;
+dropdownDuration: 150;
 
 dropdownAttachDocument: iconedButton(btnAttachDocument) {
 	iconPos: point(14px, 13px);
@@ -1334,15 +1390,15 @@ dropdownMediaPhotos: iconedButton(dropdownAttachPhoto) {
 	width: 200px;
 }
 dropdownMediaVideos: iconedButton(dropdownMediaPhotos) {
-	icon: sprite(79px, 348px, 24px, 24px);
-	downIcon: sprite(79px, 348px, 24px, 24px);
+	icon: sprite(92px, 348px, 24px, 24px);
+	downIcon: sprite(92px, 348px, 24px, 24px);
 }
 dropdownMediaDocuments: iconedButton(dropdownAttachDocument) {
 	width: 200px;
 }
 dropdownMediaAudios: iconedButton(dropdownMediaDocuments) {
-	icon: sprite(49px, 348px, 24px, 24px);
-	downIcon: sprite(49px, 348px, 24px, 24px);
+	icon: sprite(62px, 348px, 24px, 24px);
+	downIcon: sprite(62px, 348px, 24px, 24px);
 }
 
 dragFont: font(28px semibold);
@@ -1676,6 +1732,7 @@ usernameCancel: flatButton(btnSelectCancel) {
 
 youtubeIcon: sprite(336px, 221px, 60px, 60px);
 vimeoIcon: sprite(336px, 283px, 60px, 60px);
+videoIcon: sprite(0px, 340px, 60px, 60px);
 locationSize: size(320, 240);
 
 langsWidth: 220px;
@@ -1687,3 +1744,58 @@ langButton: flatCheckbox(rbDefFlat) {
 langsCloseButton: flatButton(aboutCloseButton) {
 	width: langsWidth;
 }
+
+backgroundPadding: 10px;
+backgroundSize: size(108px, 193px);
+
+passcodeHeaderFont: font(19px);
+passcodeHeaderHeight: 80px;
+passcodeSkip: 40px;
+passcodeInput: flatInput(inpIntroPhone) {
+}
+passcodeSubmit: flatButton(btnIntroNext) {
+	textTop: 15px;
+	overTextTop: 15px;
+	downTextTop: 16px;
+	width: 225px;
+	font: font(19px);
+	overFont: font(19px);
+}
+
+mentionHeight: 40px;
+mentionScroll: flatScroll(scrollDef) {
+	topsh: 0;
+	bottomsh: 0;
+}
+mentionPadding: margins(8px, 5px, 8px, 5px);
+mentionTop: 11px;
+mentionFont: linkFont;
+mentionPhotoSize: msgPhotoSize;
+
+sessionsHeight: 440px;
+sessionHeight: 70px;
+sessionPadding: margins(20px, 10px, 20px, 0);
+sessionsCloseButton: flatButton(aboutCloseButton) {
+	width: boxWidth;
+}
+sessionNameFont: msgNameFont;
+sessionActiveFont: msgDateFont;
+sessionActiveColor: #aaa;
+sessionInfoFont: msgFont;
+sessionInfoColor: dlgTextColor;
+sessionTerminateTop: 30px;
+sessionTerminateSkip: 10px;
+sessionTerminate: iconedButton(notifyClose) {
+	iconPos: point(3px, 3px);
+	downIconPos: point(3px, 4px);
+	width: 16px;
+	height: 16px;
+}
+
+webPageLeft: 10px;
+webPageBar: 2px;
+webPageTitleFont: font(fsize semibold);
+webPageDescriptionFont: font(fsize);
+webPagePhotoSkip: 5px;
+webPagePhotoSize: 100px;
+webPagePhotoDelta: 8px;

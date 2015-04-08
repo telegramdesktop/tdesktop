@@ -23,12 +23,25 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "lang.h"
 
+#include "window.h"
+#include "apiwrap.h"
+
 Dropdown::Dropdown(QWidget *parent) : TWidget(parent),
 	_hiding(false), a_opacity(0), _shadow(st::dropdownShadow) {
 	resetButtons();
 
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
+
+	if (cPlatform() == dbipMac) {
+		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
+	}
+}
+
+void Dropdown::onWndActiveChanged() {
+	if (!App::wnd()->windowHandle()->isActive() && !isHidden()) {
+		leaveEvent(0);
+	}
 }
 
 IconedButton *Dropdown::addButton(IconedButton *button) {
@@ -148,7 +161,7 @@ void Dropdown::showStart() {
 }
 
 bool Dropdown::animStep(float64 ms) {
-	float64 dt = ms / 150;
+	float64 dt = ms / st::dropdownDuration;
 	bool res = true;
 	if (dt >= 1) {
 		a_opacity.finish();
@@ -299,7 +312,7 @@ void DragArea::showStart() {
 }
 
 bool DragArea::animStep(float64 ms) {
-	float64 dt = ms / 150;
+	float64 dt = ms / st::dropdownDuration;
 	bool res = true;
 	if (dt >= 1) {
 		a_opacity.finish();
@@ -484,7 +497,7 @@ void EmojiPanInner::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void EmojiPanInner::onSaveConfig() {
-	App::writeUserConfig();
+	Local::writeUserSettings();
 }
 
 void EmojiPanInner::mouseMoveEvent(QMouseEvent *e) {
@@ -684,6 +697,16 @@ _scroll(this, st::emojiScroll), _inner() {
 
 	connect(&_inner, SIGNAL(emojiSelected(EmojiPtr)), this, SIGNAL(emojiSelected(EmojiPtr)));
 	connect(&_inner, SIGNAL(stickerSelected(DocumentData*)), this, SIGNAL(stickerSelected(DocumentData*)));
+
+	if (cPlatform() == dbipMac) {
+		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
+	}
+}
+
+void EmojiPan::onWndActiveChanged() {
+	if (!App::wnd()->windowHandle()->isActive() && !isHidden()) {
+		leaveEvent(0);
+	}
 }
 
 void EmojiPan::paintEvent(QPaintEvent *e) {
@@ -742,7 +765,7 @@ void EmojiPan::fastHide() {
 }
 
 bool EmojiPan::animStep(float64 ms) {
-	float64 dt = ms / 150;
+	float64 dt = ms / st::dropdownDuration;
 	bool res = true;
 	if (dt >= 1) {
 		a_opacity.finish();
@@ -774,6 +797,7 @@ void EmojiPan::hideStart() {
 void EmojiPan::hideFinish() {
 	hide();
 	_cache = QPixmap();
+	_recent.setChecked(true);
 }
 
 void EmojiPan::showStart() {
@@ -848,13 +872,417 @@ void EmojiPan::onTabChange() {
 	else if (_stickers.checked()) newTab = dbietStickers;
 	if (newTab != cEmojiTab()) {
 		cSetEmojiTab(newTab);
-		App::writeUserConfig();
+		Local::writeUserSettings();
 		_scroll.scrollToY(0);
 	}
 	_inner.showEmojiPack(newTab);
 	if (newTab == dbietStickers) {
 		emit updateStickers();
 	}
+}
+
+MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *rows, HashtagRows *hrows) : _parent(parent), _rows(rows), _hrows(hrows), _sel(-1), _mouseSel(false), _overDelete(false) {
+}
+
+void MentionsInner::paintEvent(QPaintEvent *e) {
+	QPainter p(this);
+
+	int32 atwidth = st::mentionFont->m.width('@'), hashwidth = st::mentionFont->m.width('#');
+	int32 availwidth = width() - 2 * st::mentionPadding.left() - st::mentionPhotoSize - 2 * st::mentionPadding.right();
+	int32 htagleft = st::btnAttachPhoto.width + st::taMsgField.textMrg.left() - st::dlgShadow, htagwidth = width() - st::mentionPadding.right() - htagleft;
+
+	int32 from = qFloor(e->rect().top() / st::mentionHeight), to = qFloor(e->rect().bottom() / st::mentionHeight) + 1, last = _rows->isEmpty() ? _hrows->size() : _rows->size();
+	for (int32 i = from; i < to; ++i) {
+		if (i >= last) break;
+
+		if (i == _sel) {
+			p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::dlgHoverBG->b);
+			int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
+			if (_rows->isEmpty()) p.drawPixmap(QPoint(width() - st::notifyClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), App::sprite(), st::notifyClose.icon);
+		}
+		p.setPen(st::black->p);
+		if (_rows->isEmpty()) {
+			QString tag = st::mentionFont->m.elidedText('#' + _hrows->at(last - i - 1), Qt::ElideRight, htagwidth);
+			p.setFont(st::mentionFont->f);
+			p.drawText(htagleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, tag);
+		} else {
+			UserData *user = _rows->at(last - i - 1);
+			QString first = (_parent->filter().size() < 2) ? QString() : ('@' + user->username.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('@' + user->username) : user->username.mid(_parent->filter().size() - 1);
+			int32 firstwidth = st::mentionFont->m.width(first), secondwidth = st::mentionFont->m.width(second), unamewidth = firstwidth + secondwidth, namewidth = user->nameText.maxWidth();
+			if (availwidth < unamewidth + namewidth) {
+				namewidth = (availwidth * namewidth) / (namewidth + unamewidth);
+				unamewidth = availwidth - namewidth;
+				if (firstwidth <= unamewidth) {
+					if (firstwidth < unamewidth) {
+						first = st::mentionFont->m.elidedText(first, Qt::ElideRight, unamewidth);
+					} else if (!second.isEmpty()) {
+						first = st::mentionFont->m.elidedText(first + second, Qt::ElideRight, unamewidth);
+						second = QString();
+					}
+				} else {
+					second = st::mentionFont->m.elidedText(second, Qt::ElideRight, unamewidth - firstwidth);
+				}
+			}
+			user->photo->load();
+			p.drawPixmap(st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), user->photo->pix(st::mentionPhotoSize));
+			user->nameText.drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
+			p.setFont(st::mentionFont->f);
+
+			p.setPen(st::profileOnlineColor->p);
+			p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize + namewidth + st::mentionPadding.right(), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
+			if (!second.isEmpty()) {
+				p.setPen(st::profileOfflineColor->p);
+				p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize + namewidth + st::mentionPadding.right() + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
+			}
+		}
+	}
+
+	p.fillRect(cWideMode() ? st::dlgShadow : 0, _parent->innerTop(), width() - (cWideMode() ? st::dlgShadow : 0), st::titleShadow, st::titleShadowColor->b);
+	p.fillRect(cWideMode() ? st::dlgShadow : 0, _parent->innerBottom() - st::titleShadow, width() - (cWideMode() ? st::dlgShadow : 0), st::titleShadow, st::titleShadowColor->b);
+}
+
+void MentionsInner::mouseMoveEvent(QMouseEvent *e) {
+	_mousePos = mapToGlobal(e->pos());
+	_mouseSel = true;
+	onUpdateSelected(true);
+}
+
+void MentionsInner::clearSel() {
+	_mouseSel = _overDelete = false;
+	setSel(-1);
+}
+
+bool MentionsInner::moveSel(int direction) {
+	_mouseSel = false;
+	int32 maxSel = (_rows->isEmpty() ? _hrows->size() : _rows->size());
+	if (_sel >= maxSel || _sel < 0) {
+		if (direction < 0) setSel(maxSel - 1, true);
+		return (_sel >= 0 && _sel < maxSel);
+	}
+	if (_sel > 0 || direction > 0) {
+		setSel((_sel + direction >= maxSel) ? -1 : (_sel + direction), true);
+	}
+	return true;
+}
+
+bool MentionsInner::select() {
+	int32 maxSel = (_rows->isEmpty() ? _hrows->size() : _rows->size());
+	if (_sel >= 0 && _sel < maxSel) {
+		QString result = _rows->isEmpty() ? ('#' + _hrows->at(_hrows->size() - _sel - 1)) : ('@' + _rows->at(_rows->size() - _sel - 1)->username);
+		emit chosen(result);
+		return true;
+	}
+	return false;
+}
+
+void MentionsInner::mousePressEvent(QMouseEvent *e) {
+	_mousePos = mapToGlobal(e->pos());
+	_mouseSel = true;
+	onUpdateSelected(true);
+	if (e->button() == Qt::LeftButton) {
+		if (_overDelete && _sel >= 0 && _sel < _hrows->size()) {
+			_mousePos = mapToGlobal(e->pos());
+
+			QString toRemove = _hrows->at(_hrows->size() - _sel - 1);
+			RecentHashtagPack recent(cRecentWriteHashtags());
+			for (RecentHashtagPack::iterator i = recent.begin(); i != recent.cend();) {
+				if (i->first == toRemove) {
+					i = recent.erase(i);
+				} else {
+					++i;
+				}
+			}
+			cSetRecentWriteHashtags(recent);
+			Local::writeRecentHashtags();
+			_parent->updateFiltered();
+
+			_mouseSel = true;
+			onUpdateSelected(true);
+		} else {
+			select();
+		}
+	}
+}
+
+void MentionsInner::enterEvent(QEvent *e) {
+	setMouseTracking(true);
+	_mousePos = QCursor::pos();
+	onUpdateSelected(true);
+}
+
+void MentionsInner::leaveEvent(QEvent *e) {
+	setMouseTracking(false);
+	if (_sel >= 0) {
+		setSel(-1);
+	}
+}
+
+void MentionsInner::setSel(int sel, bool scroll) {
+	_sel = sel;
+	parentWidget()->update();
+	int32 maxSel = _rows->isEmpty() ? _hrows->size() : _rows->size();
+	if (scroll && _sel >= 0 && _sel < maxSel) emit mustScrollTo(_sel * st::mentionHeight, (_sel + 1) * st::mentionHeight);
+}
+
+void MentionsInner::onUpdateSelected(bool force) {
+	QPoint mouse(mapFromGlobal(_mousePos));
+	if ((!force && !rect().contains(mouse)) || !_mouseSel) return;
+
+	int w = width(), mouseY = mouse.y();
+	_overDelete = _rows->isEmpty() && (mouse.x() >= w - st::mentionHeight);
+	int32 sel = mouseY / int32(st::mentionHeight), maxSel = _rows->isEmpty() ? _hrows->size() : _rows->size();
+	if (sel < 0 || sel >= maxSel) {
+		sel = -1;
+	}
+	if (sel != _sel) {
+		setSel(sel);
+	}
+}
+
+void MentionsInner::onParentGeometryChanged() {
+	_mousePos = QCursor::pos();
+	if (rect().contains(mapFromGlobal(_mousePos))) {
+		setMouseTracking(true);
+		onUpdateSelected(true);
+	}
+}
+
+MentionsDropdown::MentionsDropdown(QWidget *parent) : QWidget(parent),
+_scroll(this, st::mentionScroll), _inner(this, &_rows, &_hrows), _chat(0), _hiding(false), a_opacity(0), _shadow(st::dropdownShadow) {
+	_hideTimer.setSingleShot(true);
+	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
+	connect(&_inner, SIGNAL(chosen(QString)), this, SIGNAL(chosen(QString)));
+	connect(&_inner, SIGNAL(mustScrollTo(int,int)), &_scroll, SLOT(scrollToY(int,int)));
+
+	setFocusPolicy(Qt::NoFocus);
+	_scroll.setFocusPolicy(Qt::NoFocus);
+	_scroll.viewport()->setFocusPolicy(Qt::NoFocus);
+
+	_inner.setGeometry(rect());
+	_scroll.setGeometry(rect());
+
+	_scroll.setWidget(&_inner);
+	_scroll.show();
+	_inner.show();
+
+	connect(&_scroll, SIGNAL(geometryChanged()), &_inner, SLOT(onParentGeometryChanged()));
+	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(onUpdateSelected()));
+
+	if (cPlatform() == dbipMac) {
+		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
+	}
+}
+
+void MentionsDropdown::paintEvent(QPaintEvent *e) {
+	QPainter p(this);
+
+	if (animating()) {
+		p.setOpacity(a_opacity.current());
+		p.drawPixmap(0, 0, _cache);
+		return;
+	}
+
+	p.fillRect(rect(), st::white->b);
+
+}
+
+void MentionsDropdown::showFiltered(ChatData *chat, QString start) {
+	_chat = chat;
+	start = start.toLower();
+	bool toDown = (_filter != start);
+	if (toDown) {
+		_filter = start;
+	}
+
+	updateFiltered(toDown);
+}
+
+void MentionsDropdown::updateFiltered(bool toDown) {
+	int32 now = unixtime();
+	QMultiMap<int32, UserData*> ordered;
+	MentionRows rows;
+	HashtagRows hrows;
+	if (_filter.at(0) == '@') {
+		rows.reserve(_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size());
+		if (_chat->participants.isEmpty()) {
+			if (_chat->count > 0) {
+				App::api()->requestFullPeer(_chat);
+			}
+		} else {
+			for (ChatData::Participants::const_iterator i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
+				UserData *user = i.key();
+				if (user->username.isEmpty()) continue;
+				if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+				ordered.insertMulti(App::onlineForSort(user->onlineTill, now), user);
+			}
+		}
+		for (MentionRows::const_iterator i = _chat->lastAuthors.cbegin(), e = _chat->lastAuthors.cend(); i != e; ++i) {
+			UserData *user = *i;
+			if (user->username.isEmpty()) continue;
+			if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
+			rows.push_back(user);
+			if (!ordered.isEmpty()) {
+				ordered.remove(App::onlineForSort(user->onlineTill, now), user);
+			}
+		}
+		if (!ordered.isEmpty()) {
+			for (QMultiMap<int32, UserData*>::const_iterator i = ordered.cend(), b = ordered.cbegin(); i != b;) {
+				--i;
+				rows.push_back(i.value());
+			}
+		}
+	} else {
+		const RecentHashtagPack &recent(cRecentWriteHashtags());
+		hrows.reserve(recent.size());
+		for (RecentHashtagPack::const_iterator i = recent.cbegin(), e = recent.cend(); i != e; ++i) {
+			if (_filter.size() > 1 && (!i->first.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || i->first.size() + 1 == _filter.size())) continue;
+			hrows.push_back(i->first);
+		}
+	}
+	if (rows.isEmpty() && hrows.isEmpty()) {
+		if (!isHidden()) {
+			hideStart();
+			_rows.clear();
+			_hrows.clear();
+		}
+	} else {
+		_rows = rows;
+		_hrows = hrows;
+		bool hidden = _hiding || isHidden();
+		if (hidden) {
+			show();
+			_scroll.show();
+		}
+		recount(toDown);
+		if (hidden) {
+			hide();
+			showStart();
+		}
+	}
+}
+
+void MentionsDropdown::setBoundings(QRect boundings) {
+	_boundings = boundings;
+	resize(_boundings.width(), height());
+	_scroll.resize(size());
+	_inner.resize(width(), _inner.height());
+	recount();
+}
+
+void MentionsDropdown::recount(bool toDown) {
+	int32 h = (_rows.isEmpty() ? _hrows.size() : _rows.size()) * st::mentionHeight, oldst = _scroll.scrollTop(), st = oldst;
+	
+	if (_inner.height() != h) {
+		st += h - _inner.height();
+		_inner.resize(width(), h);
+	}
+	if (h > _boundings.height()) h = _boundings.height();
+	if (h > 5 * st::mentionHeight) h = 5 * st::mentionHeight;
+	if (height() != h) {
+		st += _scroll.height() - h;
+		setGeometry(0, _boundings.height() - h, width(), h);
+		_scroll.resize(width(), h);
+	} else if (y() != _boundings.height() - h) {
+		move(0, _boundings.height() - h);
+	}
+	if (toDown) st = _scroll.scrollTopMax();
+	if (st != oldst) _scroll.scrollToY(st);
+	if (toDown) _inner.clearSel();
+}
+
+void MentionsDropdown::fastHide() {
+	if (animating()) {
+		anim::stop(this);
+	}
+	a_opacity = anim::fvalue(0, 0);
+	_hideTimer.stop();
+	hideFinish();
+}
+
+void MentionsDropdown::hideStart() {
+	if (!_hiding) {
+		if (_cache.isNull()) {
+			_scroll.show();
+			_cache = myGrab(this, rect());
+		}
+		_scroll.hide();
+		_hiding = true;
+		a_opacity.start(0);
+		anim::start(this);
+	}
+}
+
+void MentionsDropdown::hideFinish() {
+	hide();
+	_hiding = false;
+	_filter = qsl("-");
+	_inner.clearSel();
+}
+
+void MentionsDropdown::showStart() {
+	if (!isHidden() && a_opacity.current() == 1 && !_hiding) {
+		return;
+	}
+	if (_cache.isNull()) {
+		_scroll.show();
+		_cache = myGrab(this, rect());
+	}
+	_scroll.hide();
+	_hiding = false;
+	show();
+	a_opacity.start(1);
+	anim::start(this);
+}
+
+bool MentionsDropdown::animStep(float64 ms) {
+	float64 dt = ms / st::dropdownDuration;
+	bool res = true;
+	if (dt >= 1) {
+		a_opacity.finish();
+		_cache = QPixmap();
+		if (_hiding) {
+			hideFinish();
+		} else {
+			_scroll.show();
+			_inner.clearSel();
+		}
+		res = false;
+	} else {
+		a_opacity.update(dt, anim::linear);
+	}
+	update();
+	return res;
+}
+
+const QString &MentionsDropdown::filter() const {
+	return _filter;
+}
+
+int32 MentionsDropdown::innerTop() {
+	return _scroll.scrollTop();
+}
+
+int32 MentionsDropdown::innerBottom() {
+	return _scroll.scrollTop() + _scroll.height();
+}
+
+bool MentionsDropdown::eventFilter(QObject *obj, QEvent *e) {
+	if (isHidden()) return QWidget::eventFilter(obj, e);
+	if (e->type() == QEvent::KeyPress) {
+		QKeyEvent *ev = static_cast<QKeyEvent*>(e);
+		if (ev->key() == Qt::Key_Up) {
+			_inner.moveSel(-1);
+			return true;
+		} else if (ev->key() == Qt::Key_Down) {
+			return _inner.moveSel(1);
+		} else if (ev->key() == Qt::Key_Enter || ev->key() == Qt::Key_Return || ev->key() == Qt::Key_Space) {
+			return _inner.select();
+		}
+	}
+	return QWidget::eventFilter(obj, e);
+}
+
+MentionsDropdown::~MentionsDropdown() {
 }
 
 //StickerPanInner::StickerPanInner(QWidget *parent) : QWidget(parent), _emoji(0), _selected(-1), _pressedSel(-1) {
@@ -1101,7 +1529,7 @@ void EmojiPan::onTabChange() {
 //}
 //
 //bool StickerPan::animStep(float64 ms) {
-//	float64 dt = ms / 150;
+//	float64 dt = ms / st::dropdownDuration;
 //	bool res = true;
 //	if (dt >= 1) {
 //		a_opacity.finish();

@@ -17,13 +17,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QWidget>
-#include "gui/flatbutton.h"
-
 #include "dialogswidget.h"
 #include "historywidget.h"
 #include "profilewidget.h"
 #include "overviewwidget.h"
+#include "apiwrap.h"
 
 class Window;
 struct DialogRow;
@@ -112,11 +110,12 @@ public:
 
 class StackItemHistory : public StackItem {
 public:
-	StackItemHistory(PeerData *peer, int32 lastWidth, int32 lastScrollTop) : StackItem(peer), lastWidth(lastWidth), lastScrollTop(lastScrollTop) {
+	StackItemHistory(PeerData *peer, int32 lastWidth, int32 lastScrollTop, QList<MsgId> replyReturns) : StackItem(peer), replyReturns(replyReturns), lastWidth(lastWidth), lastScrollTop(lastScrollTop) {
 	}
 	StackItemType type() const {
 		return HistoryStackItem;
 	}
+	QList<MsgId> replyReturns;
 	int32 lastWidth, lastScrollTop;
 };
 
@@ -187,12 +186,12 @@ public:
 
 	void start(const MTPUser &user);
 	void openLocalUrl(const QString &str);
-	void openUserByName(const QString &name);
+	void openUserByName(const QString &name, bool toProfile = false);
 	void startFull(const MTPVector<MTPUser> &users);
 	bool started();
 	void applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNotifySettings &settings, History *history = 0);
 	void gotNotifySetting(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
-	bool failNotifySetting(MTPInputNotifyPeer peer);
+	bool failNotifySetting(MTPInputNotifyPeer peer, const RPCError &error);
 
 	void updateNotifySetting(PeerData *peer, bool enabled);
 
@@ -207,14 +206,11 @@ public:
 	void windowShown();
 
 	void sentDataReceived(uint64 randomId, const MTPmessages_SentMessage &data);
-	void sentFullDataReceived(uint64 randomId, const MTPmessages_StatedMessage &result); // randomId = 0 - new message, <> 0 - already added new message
-	void sentFullDatasReceived(const MTPmessages_StatedMessages &result);
-	void forwardDone(PeerId peer, const MTPmessages_StatedMessages &result);
+	void sentUpdatesReceived(const MTPUpdates &updates);
 	void msgUpdated(PeerId peer, const HistoryItem *msg);
 	void historyToDown(History *hist);
 	void dialogsToUp();
-	void newUnreadMsg(History *history, MsgId msgId);
-	void updUpdated(int32 pts, int32 seq);
+	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyWasRead();
 
 	void peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
@@ -230,9 +226,9 @@ public:
 	void showBackFromStack();
 	QRect historyRect() const;
 
-	void confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname);
+	void confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo);
 	void confirmSendImage(const ReadyLocalMedia &img);
-	void confirmSendImageUncompressed(bool ctrlShiftEnter);
+	void confirmSendImageUncompressed(bool ctrlShiftEnter, MsgId replyTo);
 	void cancelSendImage();
 
 	void destroyData();
@@ -242,6 +238,8 @@ public:
 
 	bool isActive() const;
 	bool historyIsActive() const;
+	bool lastWasOnline() const;
+	uint64 lastSetOnline() const;
 
 	int32 dlgsWidth() const;
 
@@ -250,28 +248,27 @@ public:
 	void shareContactLayer(UserData *contact);
 	void hiderLayer(HistoryHider *h);
 	void noHider(HistoryHider *destroyed);
-	mtpRequestId onForward(const PeerId &peer, bool forwardSelected);
+	void onForward(const PeerId &peer, bool forwardSelected);
 	void onShareContact(const PeerId &peer, UserData *contact);
 	void onSendPaths(const PeerId &peer);
-	bool selectingPeer();
+	bool selectingPeer(bool withConfirm = false);
 	void offerPeer(PeerId peer);
 	void focusPeerSelect();
 	void dialogsActivate();
 
 	bool leaveChatFailed(PeerData *peer, const RPCError &e);
-	void deleteHistory(PeerData *peer, const MTPmessages_StatedMessage &result);
+	void deleteHistory(PeerData *peer, const MTPUpdates &updates);
 	void deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result);
+	void deleteMessages(const QVector<MTPint> &ids);
 	void deletedContact(UserData *user, const MTPcontacts_Link &result);
 	void deleteHistoryAndContact(UserData *user, const MTPcontacts_Link &result);
 	void clearHistory(PeerData *peer);
 	void removeContact(UserData *user);
 
 	void addParticipants(ChatData *chat, const QVector<UserData*> &users);
-	void addParticipantDone(ChatData *chat, const MTPmessages_StatedMessage &result);
 	bool addParticipantFail(ChatData *chat, const RPCError &e);
 
 	void kickParticipant(ChatData *chat, UserData *user);
-	void kickParticipantDone(ChatData *chat, const MTPmessages_StatedMessage &result);
 	bool kickParticipantFail(ChatData *chat, const RPCError &e);
 
 	void checkPeerHistory(PeerData *peer);
@@ -285,8 +282,9 @@ public:
 
 	DialogsIndexed &contactsList();
     
-    void sendMessage(History *history, const QString &text);
-	void sendPreparedText(History *hist, const QString &text);
+    void sendMessage(History *history, const QString &text, MsgId replyTo);
+	void sendPreparedText(History *hist, const QString &text, MsgId replyTo, WebPageId webPageId = 0);
+	void saveRecentHashtags(const QString &text);
     
     void readServerHistory(History *history, bool force = true);
 
@@ -299,7 +297,7 @@ public:
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
-	void itemResized(HistoryItem *row);
+	void itemResized(HistoryItem *row, bool scrollToIt = false);
 
 	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);
 	void peerUsernameChanged(PeerData *peer);
@@ -311,6 +309,31 @@ public:
 	void serviceNotification(const QString &msg, const MTPMessageMedia &media, bool unread);
 	void serviceHistoryDone(const MTPmessages_Messages &msgs);
 	bool serviceHistoryFail(const RPCError &error);
+
+	bool isIdle() const;
+
+	void clearCachedBackground();
+	QPixmap cachedBackground(const QRect &forRect, int &x, int &y);
+	void backgroundParams(const QRect &forRect, QRect &to, QRect &from) const;
+	void updateScrollColors();
+
+	void setChatBackground(const App::WallPaper &wp);
+	bool chatBackgroundLoading();
+	void checkChatBackground();
+	ImagePtr newBackgroundThumb();
+
+	ApiWrap *api();
+	void updateReplyTo();
+
+	void pushReplyReturn(HistoryItem *item);
+	
+	bool hasForwardingItems();
+	void fillForwardingInfo(Text *&from, Text *&text, bool &serviceColor, ImagePtr &preview);
+	void updateForwardingTexts();
+	void cancelForwarding();
+	void finishForwarding(History *hist); // send them
+
+	void webPageUpdated(WebPageData *page);
 
 	~MainWidget();
 
@@ -325,6 +348,8 @@ signals:
 	void showPeerAsync(quint64 peer, qint32 msgId, bool back, bool force);
 
 public slots:
+
+	void webPagesUpdate();
 
 	void videoLoadProgress(mtpFileLoader *loader);
 	void videoLoadFailed(mtpFileLoader *loader, bool started);
@@ -344,8 +369,8 @@ public slots:
 	void getDifference();
 	void getDifferenceForce();
 
-	void setOnline(int windowState = -1);
-	void mainStateChanged(Qt::WindowState state);
+	void updateOnline(bool gotOtherOffline = false);
+	void checkIdleFinish();
 	void updateOnlineDisplay();
 
 	void showPeer(quint64 peer, qint32 msgId = 0, bool back = false, bool force = false); // PeerId, MsgId
@@ -364,9 +389,12 @@ public slots:
 	void onResendAsDocument();
 	void onCancelResend();
 
+	void onCacheBackground();
+
 private:
 
     void partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result);
+	void msgsWereDeleted(const MTPmessages_AffectedMessages &result);
 	void photosLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req);
 
 	bool _started;
@@ -376,6 +404,13 @@ private:
 	void loadFailed(mtpFileLoader *loader, bool started, const char *retrySlot);
 
 	QList<uint64> _resendImgRandomIds;
+
+	SelectedItemSet _toForward;
+	Text _toForwardFrom, _toForwardText;
+	int32 _toForwardNameVersion;
+
+	QMap<WebPageId, bool> _webPagesUpdated;
+	QTimer _webPageUpdater;
 
 	void gotDifference(const MTPupdates_Difference &diff);
 	bool failDifference(const RPCError &e);
@@ -391,7 +426,7 @@ private:
 	void handleUpdates(const MTPUpdates &updates);
 	bool updateFail(const RPCError &e);
 
-	void usernameResolveDone(const MTPUser &user);
+	void usernameResolveDone(bool toProfile, const MTPUser &user);
 	bool usernameResolveFail(QString name, const RPCError &error);
 
 	void hideAll();
@@ -419,13 +454,17 @@ private:
 	Dropdown _mediaType;
 	int32 _mediaTypeMask;
 
-	int updPts, updDate, updQts, updSeq;
+	int updGoodPts, updLastPts, updPtsCount;
+	int updDate, updQts, updSeq;
 	bool updInited;
+	int updSkipPtsUpdateLevel;
 	SingleTimer noUpdatesTimer;
 
-	mtpRequestId onlineRequest;
-	SingleTimer onlineTimer;
-	SingleTimer onlineUpdater;
+	mtpRequestId _onlineRequest;
+	SingleTimer _onlineTimer, _onlineUpdater, _idleFinishTimer;
+	bool _lastWasOnline;
+	uint64 _lastSetOnline;
+	bool _isIdle;
 
 	QSet<PeerData*> updateNotifySettingPeers;
 	SingleTimer updateNotifySettingTimer;
@@ -436,15 +475,38 @@ private:
 	typedef QMap<PeerData*, mtpRequestId> OverviewsPreload;
 	OverviewsPreload _overviewPreload[OverviewCount], _overviewLoad[OverviewCount];
 
+	enum PtsSkippedQueue {
+		SkippedUpdate,
+		SkippedUpdates,
+		SkippedSentMessage,
+		SkippedStatedMessage,
+		SkippedStatedMessages
+	};
+	uint64 ptsKey(PtsSkippedQueue queue);
+	void applySkippedPtsUpdates();
+	void clearSkippedPtsUpdates();
+	bool updPtsUpdated(int pts, int ptsCount);
+	QMap<uint64, PtsSkippedQueue> _byPtsQueue;
+	QMap<uint64, MTPUpdate> _byPtsUpdate;
+	QMap<uint64, MTPUpdates> _byPtsUpdates;
+	QMap<uint64, MTPmessages_SentMessage> _byPtsSentMessage;
+	SingleTimer _byPtsTimer;
+
 	QMap<int32, MTPUpdates> _bySeqUpdates;
-	QMap<int32, MTPmessages_SentMessage> _bySeqSentMessage;
-	QMap<int32, MTPmessages_StatedMessage> _bySeqStatedMessage;
-	QMap<int32, MTPmessages_StatedMessages> _bySeqStatedMessages;
-	QMap<int32, int32> _bySeqPart;
 	SingleTimer _bySeqTimer;
 
 	int32 _failDifferenceTimeout; // growing timeout for getDifference calls, if it fails
 	SingleTimer _failDifferenceTimer;
 
 	uint64 _lastUpdateTime;
+
+	QPixmap _cachedBackground;
+	QRect _cachedFor, _willCacheFor;
+	int _cachedX, _cachedY;
+	SingleTimer _cacheBackgroundTimer;
+
+	App::WallPaper *_background;
+
+	ApiWrap *_api;
+
 };

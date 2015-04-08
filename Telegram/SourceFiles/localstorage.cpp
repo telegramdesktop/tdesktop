@@ -18,6 +18,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "localstorage.h"
 
+#include "lang.h"
+
 namespace {
 
 	typedef quint64 FileKey;
@@ -57,7 +59,7 @@ namespace {
 		return result;
 	}
 
-	QString _basePath;
+	QString _basePath, _userBasePath;
 
 	bool _started = false;
 	_local_inner::Manager *_manager = 0;
@@ -66,47 +68,81 @@ namespace {
 		return _manager && !_basePath.isEmpty();
 	}
 
-	bool keyAlreadyUsed(QString &name) {
-		name += '0';
-		if (QFileInfo(name).exists()) return true;
-		name[name.size() - 1] = '1';
-		return QFileInfo(name).exists();
+	bool _userWorking() {
+		return _manager && !_basePath.isEmpty() && !_userBasePath.isEmpty();
 	}
 
-	FileKey genKey() {
-		if (!_working()) return 0;
+	enum FileOptions {
+		UserPath = 0x01,
+		SafePath = 0x02,
+	};
+
+	bool keyAlreadyUsed(QString &name, int options = UserPath | SafePath) {
+		name += '0';
+		if (QFileInfo(name).exists()) return true;
+		if (options & SafePath) {
+			name[name.size() - 1] = '1';
+			return QFileInfo(name).exists();
+		}
+		return false;
+	}
+
+	FileKey genKey(int options = UserPath | SafePath) {
+		if (options & UserPath) {
+			if (!_userWorking()) return 0;
+		} else {
+			if (!_working()) return 0;
+		}
 
 		FileKey result;
-		QString path;
-		path.reserve(_basePath.size() + 0x11);
-		path += _basePath;
+		QString base = (options & UserPath) ? _userBasePath : _basePath, path;
+		path.reserve(base.size() + 0x11);
+		path += base;
 		do {
 			result = MTP::nonce<FileKey>();
-			path.resize(_basePath.size());
+			path.resize(base.size());
 			path += toFilePart(result);
-		} while (!result || keyAlreadyUsed(path));
+		} while (!result || keyAlreadyUsed(path, options));
 
 		return result;
 	}
 
-	void clearKey(const FileKey &key, bool safe = true) {
-		if (!_working()) return;
+	void clearKey(const FileKey &key, int options = UserPath | SafePath) {
+		if (options & UserPath) {
+			if (!_userWorking()) return;
+		} else {
+			if (!_working()) return;
+		}
 
-		QString name;
-		name.reserve(_basePath.size() + 0x11);
-		name += _basePath;
-		name += toFilePart(key);
-		name += '0';
+		QString base = (options & UserPath) ? _userBasePath : _basePath, name;
+		name.reserve(base.size() + 0x11);
+		name.append(base).append(toFilePart(key)).append('0');
 		QFile::remove(name);
-		if (safe) {
+		if (options & SafePath) {
 			name[name.size() - 1] = '1';
 			QFile::remove(name);
 		}
 	}
 
-	QByteArray _passKeySalt, _passKeyEncrypted;
+	bool _checkStreamStatus(QDataStream &stream) {
+		if (stream.status() != QDataStream::Ok) {
+			LOG(("Bad data stream status: %1").arg(stream.status()));
+			return false;
+		}
+		return true;
+	}
 
-	mtpAuthKey _oldKey, _passKey, _localKey;
+	uint32 _dateTimeSize() {
+		return (sizeof(qint64) + sizeof(quint32) + sizeof(qint8));
+	}
+
+	uint32 _stringSize(const QString &str) {
+		return sizeof(quint32) + str.size() * sizeof(ushort);
+	}
+
+	QByteArray _settingsSalt, _passKeySalt, _passKeyEncrypted;
+
+	mtpAuthKey _oldKey, _settingsKey, _passKey, _localKey;
 	void createLocalKey(const QByteArray &pass, QByteArray *salt, mtpAuthKey *result) {
 		uchar key[LocalEncryptKeySize] = { 0 };
 		int32 iterCount = pass.size() ? LocalEncryptIterCount : LocalEncryptNoPwdIterCount; // dont slow down for no password
@@ -169,20 +205,24 @@ namespace {
 	};
 
 	struct FileWriteDescriptor {
-		FileWriteDescriptor(const FileKey &key, bool safe = true) : dataSize(0) {
-			init(toFilePart(key), safe);
+		FileWriteDescriptor(const FileKey &key, int options = UserPath | SafePath) : dataSize(0) {
+			init(toFilePart(key), options);
 		}
-		FileWriteDescriptor(const QString &name, bool safe = true) : dataSize(0) {
-			init(name, safe);
+		FileWriteDescriptor(const QString &name, int options = UserPath | SafePath) : dataSize(0) {
+			init(name, options);
 		}
-		void init(const QString &name, bool safe) {
-			if (!_working()) return;
+		void init(const QString &name, int options) {
+			if (options & UserPath) {
+				if (!_userWorking()) return;
+			} else {
+				if (!_working()) return;
+			}
 
 			// detect order of read attempts and file version
 			QString toTry[2];
-			toTry[0] = _basePath + name + '0';
-			if (safe) {
-				toTry[1] = _basePath + name + '1';
+			toTry[0] = ((options & UserPath) ? _userBasePath : _basePath) + name + '0';
+			if (options & SafePath) {
+				toTry[1] = ((options & UserPath) ? _userBasePath : _basePath) + name + '1';
 				QFileInfo toTry0(toTry[0]);
 				QFileInfo toTry1(toTry[1]);
 				if (toTry0.exists()) {
@@ -224,7 +264,7 @@ namespace {
 
 			return true;
 		}
-		QByteArray prepareEncrypted(EncryptedDescriptor &data, const mtpAuthKey &key = _localKey) {
+		static QByteArray prepareEncrypted(EncryptedDescriptor &data, const mtpAuthKey &key = _localKey) {
 			data.finish();
 			QByteArray &toEncrypt(data.data);
 
@@ -274,16 +314,20 @@ namespace {
 		}
 	};
 
-	bool readFile(FileReadDescriptor &result, const QString &name, bool safe = true) {
-		if (!_working()) return false;
-		
+	bool readFile(FileReadDescriptor &result, const QString &name, int options = UserPath | SafePath) {
+		if (options & UserPath) {
+			if (!_userWorking()) return false;
+		} else {
+			if (!_working()) return false;
+		}
+
 		// detect order of read attempts
 		QString toTry[2];
-		toTry[0] = _basePath + name + '0';
-		if (safe) {
+		toTry[0] = ((options & UserPath) ? _userBasePath : _basePath) + name + '0';
+		if (options & SafePath) {
 			QFileInfo toTry0(toTry[0]);
 			if (toTry0.exists()) {
-				toTry[1] = _basePath + name + '1';
+				toTry[1] = ((options & UserPath) ? _userBasePath : _basePath) + name + '1';
 				QFileInfo toTry1(toTry[1]);
 				if (toTry1.exists()) {
 					QDateTime mod0 = toTry0.lastModified(), mod1 = toTry1.lastModified();
@@ -380,7 +424,7 @@ namespace {
 		aesDecryptLocal(encryptedData, decrypted.data(), fullLen, &key, encryptedKey);
 		uchar sha1Buffer[20];
 		if (memcmp(hashSha1(decrypted.constData(), decrypted.size(), sha1Buffer), encryptedKey, 16)) {
-			LOG(("App Error: bad decrypt key, data not decrypted"));
+			LOG(("App Info: bad decrypt key, data not decrypted - incorrect password?"));
 			return false;
 		}
 
@@ -402,16 +446,16 @@ namespace {
 
 		return true;
 	}
-	
-	bool readEncryptedFile(FileReadDescriptor &result, const QString &name, bool safe = true) {
-		if (!readFile(result, name, safe)) {
+
+	bool readEncryptedFile(FileReadDescriptor &result, const QString &name, int options = UserPath | SafePath, const mtpAuthKey &key = _localKey) {
+		if (!readFile(result, name, options)) {
 			return false;
 		}
 		QByteArray encrypted;
 		result.stream >> encrypted;
 
 		EncryptedDescriptor data;
-		if (!decryptLocal(data, encrypted)) {
+		if (!decryptLocal(data, encrypted, key)) {
 			result.stream.setDevice(0);
 			if (result.buffer.isOpen()) result.buffer.close();
 			result.buffer.setBuffer(0);
@@ -433,6 +477,12 @@ namespace {
 		return true;
 	}
 
+	bool readEncryptedFile(FileReadDescriptor &result, const FileKey &fkey, int options = UserPath | SafePath, const mtpAuthKey &key = _localKey) {
+		return readEncryptedFile(result, toFilePart(fkey), options, key);
+	}
+
+	FileKey _dataNameKey = 0;
+
 	enum { // Local Storage Keys
 		lskUserMap = 0,
 		lskDraft, // data: PeerId peer
@@ -442,6 +492,9 @@ namespace {
 		lskStickers, // data: StorageKey location
 		lskAudios, // data: StorageKey location
 		lskRecentStickers, // no data
+		lskBackground, // no data
+		lskUserSettings, // no data
+		lskRecentHashtags, // no data
 	};
 
 	typedef QMap<PeerId, FileKey> DraftsMap;
@@ -457,6 +510,13 @@ namespace {
 	FileKey _locationsKey = 0;
 	
 	FileKey _recentStickersKey = 0;
+	
+	FileKey _backgroundKey = 0;
+	bool _backgroundWasRead = false;
+
+	FileKey _userSettingsKey = 0;
+	FileKey _recentHashtagsKey = 0;
+	bool _recentHashtagsWereRead = false;
 
 	typedef QPair<FileKey, qint32> FileDesc; // file, size
 	typedef QMap<StorageKey, FileDesc> StorageMap;
@@ -498,7 +558,7 @@ namespace {
 			quint32 size = 0;
 			for (FileLocations::const_iterator i = _fileLocations.cbegin(); i != _fileLocations.cend(); ++i) {
 				// location + type + namelen + name + date + size
-				size += sizeof(quint64) * 2 + sizeof(quint32) + sizeof(quint32) + i.value().name.size() * sizeof(ushort) + (sizeof(qint64) + sizeof(quint32) + sizeof(qint8)) + sizeof(quint32);
+				size += sizeof(quint64) * 2 + sizeof(quint32) + _stringSize(i.value().name) + _dateTimeSize() + sizeof(quint32);
 			}
 			EncryptedDescriptor data(size);
 			for (FileLocations::const_iterator i = _fileLocations.cbegin(); i != _fileLocations.cend(); ++i) {
@@ -511,7 +571,7 @@ namespace {
 
 	void _readLocations() {
 		FileReadDescriptor locations;
-		if (!readEncryptedFile(locations, toFilePart(_locationsKey))) {
+		if (!readEncryptedFile(locations, _locationsKey)) {
 			clearKey(_locationsKey);
 			_locationsKey = 0;
 			_writeMap();
@@ -536,24 +596,663 @@ namespace {
 		}
 	}
 
+	mtpDcOptions *_dcOpts = 0;
+	bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
+		switch (blockId) {
+		case dbiDcOption: {
+			quint32 dcId, port;
+			QString host, ip;
+			stream >> dcId >> host >> ip >> port;
+			if (!_checkStreamStatus(stream)) return false;
+
+			if (_dcOpts) _dcOpts->insert(dcId, mtpDcOption(dcId, host.toUtf8().constData(), ip.toUtf8().constData(), port));
+		} break;
+
+		case dbiMaxGroupCount: {
+			qint32 maxSize;
+			stream >> maxSize;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetMaxGroupCount(maxSize);
+		} break;
+
+		case dbiUser: {
+			quint32 dcId;
+			qint32 uid;
+			stream >> uid >> dcId;
+			if (!_checkStreamStatus(stream)) return false;
+
+			DEBUG_LOG(("MTP Info: user found, dc %1, uid %2").arg(dcId).arg(uid));
+			MTP::configure(dcId, uid);
+		} break;
+
+		case dbiKey: {
+			qint32 dcId;
+			quint32 key[64];
+			stream >> dcId;
+			stream.readRawData((char*)key, 256);
+			if (!_checkStreamStatus(stream)) return false;
+
+			DEBUG_LOG(("MTP Info: key found, dc %1, key: %2").arg(dcId).arg(mb(key, 256).str()));
+			dcId = dcId % _mtp_internal::dcShift;
+			mtpAuthKeyPtr keyPtr(new mtpAuthKey());
+			keyPtr->setKey(key);
+			keyPtr->setDC(dcId);
+
+			MTP::setKey(dcId, keyPtr);
+		} break;
+
+		case dbiAutoStart: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetAutoStart(v == 1);
+		} break;
+
+		case dbiStartMinimized: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetStartMinimized(v == 1);
+		} break;
+
+		case dbiSendToMenu: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetSendToMenu(v == 1);
+		} break;
+
+		case dbiSoundNotify: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetSoundNotify(v == 1);
+		} break;
+
+		case dbiDesktopNotify: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetDesktopNotify(v == 1);
+		} break;
+
+		case dbiWorkMode: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			switch (v) {
+			case dbiwmTrayOnly: cSetWorkMode(dbiwmTrayOnly); break;
+			case dbiwmWindowOnly: cSetWorkMode(dbiwmWindowOnly); break;
+			default: cSetWorkMode(dbiwmWindowAndTray); break;
+			};
+		} break;
+
+		case dbiConnectionType: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			switch (v) {
+			case dbictHttpProxy:
+			case dbictTcpProxy: {
+				ConnectionProxy p;
+				qint32 port;
+				stream >> p.host >> port >> p.user >> p.password;
+				if (!_checkStreamStatus(stream)) return false;
+
+				p.port = uint32(port);
+				cSetConnectionProxy(p);
+			}
+				cSetConnectionType(DBIConnectionType(v));
+				break;
+			case dbictHttpAuto:
+			default: cSetConnectionType(dbictAuto); break;
+			};
+		} break;
+
+		case dbiSeenTrayTooltip: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetSeenTrayTooltip(v == 1);
+		} break;
+
+		case dbiAutoUpdate: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetAutoUpdate(v == 1);
+		} break;
+
+		case dbiLastUpdateCheck: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetLastUpdateCheck(v);
+		} break;
+
+		case dbiScale: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			DBIScale s = cRealScale();
+			switch (v) {
+			case dbisAuto: s = dbisAuto; break;
+			case dbisOne: s = dbisOne; break;
+			case dbisOneAndQuarter: s = dbisOneAndQuarter; break;
+			case dbisOneAndHalf: s = dbisOneAndHalf; break;
+			case dbisTwo: s = dbisTwo; break;
+			}
+			if (cRetina()) s = dbisOne;
+			cSetConfigScale(s);
+			cSetRealScale(s);
+		} break;
+
+		case dbiLang: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			if (v == languageTest || (v >= 0 && v < languageCount)) {
+				cSetLang(v);
+			}
+		} break;
+
+		case dbiLangFile: {
+			QString v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetLangFile(v);
+		} break;
+
+		case dbiWindowPosition: {
+			TWindowPos pos;
+			stream >> pos.x >> pos.y >> pos.w >> pos.h >> pos.moncrc >> pos.maximized;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetWindowPos(pos);
+		} break;
+
+		case dbiLoggedPhoneNumber: {
+			QString v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetLoggedPhoneNumber(v);
+		} break;
+
+		case dbiMutePeer: { // deprecated
+			quint64 peerId;
+			stream >> peerId;
+			if (!_checkStreamStatus(stream)) return false;
+		} break;
+
+		case dbiMutedPeers: { // deprecated
+			quint32 count;
+			stream >> count;
+			if (!_checkStreamStatus(stream)) return false;
+
+			for (uint32 i = 0; i < count; ++i) {
+				quint64 peerId;
+				stream >> peerId;
+			}
+			if (!_checkStreamStatus(stream)) return false;
+		} break;
+
+		case dbiSendKey: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetCtrlEnter(v == dbiskCtrlEnter);
+		} break;
+
+		case dbiCatsAndDogs: { // deprecated
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+		} break;
+
+		case dbiTileBackground: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetTileBackground(v == 1);
+		} break;
+
+		case dbiAutoLock: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetAutoLock(v);
+		} break;
+
+		case dbiReplaceEmojis: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetReplaceEmojis(v == 1);
+		} break;
+
+		case dbiDefaultAttach: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			switch (v) {
+			case dbidaPhoto: cSetDefaultAttach(dbidaPhoto); break;
+			default: cSetDefaultAttach(dbidaDocument); break;
+			}
+		} break;
+
+		case dbiNotifyView: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			switch (v) {
+			case dbinvShowNothing: cSetNotifyView(dbinvShowNothing); break;
+			case dbinvShowName: cSetNotifyView(dbinvShowName); break;
+			default: cSetNotifyView(dbinvShowPreview); break;
+			}
+		} break;
+
+		case dbiAskDownloadPath: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetAskDownloadPath(v == 1);
+		} break;
+
+		case dbiDownloadPath: {
+			QString v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetDownloadPath(v);
+		} break;
+
+		case dbiCompressPastedImage: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetCompressPastedImage(v == 1);
+		} break;
+
+		case dbiEmojiTab: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			switch (v) {
+			case dbietRecent: cSetEmojiTab(dbietRecent);   break;
+			case dbietPeople: cSetEmojiTab(dbietPeople);   break;
+			case dbietNature: cSetEmojiTab(dbietNature);   break;
+			case dbietObjects: cSetEmojiTab(dbietObjects);  break;
+			case dbietPlaces: cSetEmojiTab(dbietPlaces);   break;
+			case dbietSymbols: cSetEmojiTab(dbietSymbols);  break;
+			case dbietStickers: cSetEmojiTab(dbietStickers); break;
+			}
+		} break;
+
+		case dbiRecentEmojis: {
+			RecentEmojiPreload v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetRecentEmojisPreload(v);
+		} break;
+
+		case dbiDialogLastPath: {
+			QString path;
+			stream >> path;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetDialogLastPath(path);
+		} break;
+
+		default:
+			LOG(("App Error: unknown blockId in _readSetting: %1").arg(blockId));
+			return false;
+		}
+
+		return true;
+	}
+
+	bool _readOldSettings(bool remove = true) {
+		bool result = false;
+		QFile file(cWorkingDir() + qsl("tdata/config"));
+		if (file.open(QIODevice::ReadOnly)) {
+			LOG(("App Info: reading old config.."));
+			QDataStream stream(&file);
+			stream.setVersion(QDataStream::Qt_5_1);
+
+			qint32 version = 0;
+			while (!stream.atEnd()) {
+				quint32 blockId;
+				stream >> blockId;
+				if (!_checkStreamStatus(stream)) break;
+
+				if (blockId == dbiVersion) {
+					stream >> version;
+					if (!_checkStreamStatus(stream)) break;
+
+					if (version > AppVersion) break;
+				} else if (!_readSetting(blockId, stream, version)) {
+					break;
+				}
+			}
+			file.close();
+			result = true;
+		}
+		if (remove) file.remove();
+		return result;
+	}
+
+	void _readOldUserSettingsFields(QIODevice *device, qint32 &version) {
+		QDataStream stream(device);
+		stream.setVersion(QDataStream::Qt_5_1);
+
+		while (!stream.atEnd()) {
+			quint32 blockId;
+			stream >> blockId;
+			if (!_checkStreamStatus(stream)) {
+				break;
+			}
+
+			if (blockId == dbiVersion) {
+				stream >> version;
+				if (!_checkStreamStatus(stream)) {
+					break;
+				}
+
+				if (version > AppVersion) return;
+			} else if (blockId == dbiEncryptedWithSalt) {
+				QByteArray salt, data, decrypted;
+				stream >> salt >> data;
+				if (!_checkStreamStatus(stream)) {
+					break;
+				}
+
+				if (salt.size() != 32) {
+					LOG(("App Error: bad salt in old user config encrypted part, size: %1").arg(salt.size()));
+					continue;
+				}
+
+				createLocalKey(QByteArray(), &salt, &_oldKey);
+
+				if (data.size() <= 16 || (data.size() & 0x0F)) {
+					LOG(("App Error: bad encrypted part size in old user config: %1").arg(data.size()));
+					continue;
+				}
+				uint32 fullDataLen = data.size() - 16;
+				decrypted.resize(fullDataLen);
+				const char *dataKey = data.constData(), *encrypted = data.constData() + 16;
+				aesDecryptLocal(encrypted, decrypted.data(), fullDataLen, &_oldKey, dataKey);
+				uchar sha1Buffer[20];
+				if (memcmp(hashSha1(decrypted.constData(), decrypted.size(), sha1Buffer), dataKey, 16)) {
+					LOG(("App Error: bad decrypt key, data from old user config not decrypted"));
+					continue;
+				}
+				uint32 dataLen = *(const uint32*)decrypted.constData();
+				if (dataLen > uint32(decrypted.size()) || dataLen <= fullDataLen - 16 || dataLen < 4) {
+					LOG(("App Error: bad decrypted part size in old user config: %1, fullDataLen: %2, decrypted size: %3").arg(dataLen).arg(fullDataLen).arg(decrypted.size()));
+					continue;
+				}
+				decrypted.resize(dataLen);
+				QBuffer decryptedStream(&decrypted);
+				decryptedStream.open(QIODevice::ReadOnly);
+				decryptedStream.seek(4); // skip size
+				LOG(("App Info: reading encrypted old user config.."));
+
+				_readOldUserSettingsFields(&decryptedStream, version);
+			} else if (!_readSetting(blockId, stream, version)) {
+				return;
+			}
+		}
+	}
+
+	bool _readOldUserSettings(bool remove = true) {
+		bool result = false;
+		QFile file(cWorkingDir() + cDataFile() + (cTestMode() ? qsl("_test") : QString()) + qsl("_config"));
+		if (file.open(QIODevice::ReadOnly)) {
+			LOG(("App Info: reading old user config.."));
+			qint32 version = 0;
+
+			mtpDcOptions dcOpts(cDcOptions());
+			_dcOpts = &dcOpts;
+			_readOldUserSettingsFields(&file, version);
+			cSetDcOptions(dcOpts);
+
+			file.close();
+			result = true;
+		}
+		if (remove) file.remove();
+		return result;
+	}
+
+	void _readOldMtpDataFields(QIODevice *device, qint32 &version) {
+		QDataStream stream(device);
+		stream.setVersion(QDataStream::Qt_5_1);
+
+		while (!stream.atEnd()) {
+			quint32 blockId;
+			stream >> blockId;
+			if (!_checkStreamStatus(stream)) {
+				break;
+			}
+
+			if (blockId == dbiVersion) {
+				stream >> version;
+				if (!_checkStreamStatus(stream)) {
+					break;
+				}
+
+				if (version > AppVersion) return;
+			} else if (blockId == dbiEncrypted) {
+				QByteArray data, decrypted;
+				stream >> data;
+				if (!_checkStreamStatus(stream)) {
+					break;
+				}
+
+				if (!_oldKey.created()) {
+					LOG(("MTP Error: reading old encrypted keys without old key!"));
+					continue;
+				}
+
+				if (data.size() <= 16 || (data.size() & 0x0F)) {
+					LOG(("MTP Error: bad encrypted part size in old keys: %1").arg(data.size()));
+					continue;
+				}
+				uint32 fullDataLen = data.size() - 16;
+				decrypted.resize(fullDataLen);
+				const char *dataKey = data.constData(), *encrypted = data.constData() + 16;
+				aesDecryptLocal(encrypted, decrypted.data(), fullDataLen, &_oldKey, dataKey);
+				uchar sha1Buffer[20];
+				if (memcmp(hashSha1(decrypted.constData(), decrypted.size(), sha1Buffer), dataKey, 16)) {
+					LOG(("MTP Error: bad decrypt key, data from old keys not decrypted"));
+					continue;
+				}
+				uint32 dataLen = *(const uint32*)decrypted.constData();
+				if (dataLen > uint32(decrypted.size()) || dataLen <= fullDataLen - 16 || dataLen < 4) {
+					LOG(("MTP Error: bad decrypted part size in old keys: %1, fullDataLen: %2, decrypted size: %3").arg(dataLen).arg(fullDataLen).arg(decrypted.size()));
+					continue;
+				}
+				decrypted.resize(dataLen);
+				QBuffer decryptedStream(&decrypted);
+				decryptedStream.open(QIODevice::ReadOnly);
+				decryptedStream.seek(4); // skip size
+				LOG(("App Info: reading encrypted old keys.."));
+
+				_readOldMtpDataFields(&decryptedStream, version);
+			} else if (!_readSetting(blockId, stream, version)) {
+				return;
+			}
+		}
+	}
+
+	bool _readOldMtpData(bool remove = true) {
+		bool result = false;
+		QFile file(cWorkingDir() + cDataFile() + (cTestMode() ? qsl("_test") : QString()));
+		if (file.open(QIODevice::ReadOnly)) {
+			LOG(("App Info: reading old keys.."));
+			qint32 version = 0;
+
+			mtpDcOptions dcOpts(cDcOptions());
+			_dcOpts = &dcOpts;
+			_readOldMtpDataFields(&file, version);
+			cSetDcOptions(dcOpts);
+
+			file.close();
+			result = true;
+		}
+		if (remove) file.remove();
+		return result;
+	}
+
+	void _writeUserSettings() {
+		if (!_userSettingsKey) {
+			_userSettingsKey = genKey();
+			_mapChanged = true;
+			_writeMap(WriteMapFast);
+		}
+
+		uint32 size = 11 * (sizeof(quint32) + sizeof(qint32));
+		size += sizeof(quint32) + _stringSize(cAskDownloadPath() ? QString() : cDownloadPath());
+		size += sizeof(quint32) + sizeof(qint32) + cGetRecentEmojis().size() * (sizeof(uint32) + sizeof(ushort));
+		size += sizeof(quint32) + _stringSize(cDialogLastPath());
+
+		EncryptedDescriptor data(size);
+		data.stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
+		data.stream << quint32(dbiTileBackground) << qint32(cTileBackground() ? 1 : 0);
+		data.stream << quint32(dbiAutoLock) << qint32(cAutoLock());
+		data.stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);
+		data.stream << quint32(dbiDefaultAttach) << qint32(cDefaultAttach());
+		data.stream << quint32(dbiSoundNotify) << qint32(cSoundNotify());
+		data.stream << quint32(dbiDesktopNotify) << qint32(cDesktopNotify());
+		data.stream << quint32(dbiNotifyView) << qint32(cNotifyView());
+		data.stream << quint32(dbiAskDownloadPath) << qint32(cAskDownloadPath());
+		data.stream << quint32(dbiDownloadPath) << (cAskDownloadPath() ? QString() : cDownloadPath());
+		data.stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());
+		data.stream << quint32(dbiEmojiTab) << qint32(cEmojiTab());
+		data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
+
+		RecentEmojiPreload v;
+		v.reserve(cGetRecentEmojis().size());
+		for (RecentEmojiPack::const_iterator i = cGetRecentEmojis().cbegin(), e = cGetRecentEmojis().cend(); i != e; ++i) {
+			v.push_back(qMakePair(i->first->code, i->second));
+		}
+		data.stream << quint32(dbiRecentEmojis) << v;
+
+		FileWriteDescriptor file(_userSettingsKey);
+		file.writeEncrypted(data);
+	}
+
+	void _readUserSettings() {
+		FileReadDescriptor userSettings;
+		if (!readEncryptedFile(userSettings, _userSettingsKey)) {
+			_readOldUserSettings();
+			return _writeUserSettings();
+		}
+
+		LOG(("App Info: reading encrypted user settings.."));
+		while (!userSettings.stream.atEnd()) {
+			quint32 blockId;
+			userSettings.stream >> blockId;
+			if (!_checkStreamStatus(userSettings.stream)) {
+				return _writeUserSettings();
+			}
+
+			if (!_readSetting(blockId, userSettings.stream, userSettings.version)) {
+				return _writeUserSettings();
+			}
+		}
+	}
+
+	void _writeMtpData() {
+		FileWriteDescriptor mtp(toFilePart(_dataNameKey), SafePath);
+		if (!_localKey.created()) {
+			LOG(("App Error: localkey not created in _writeMtpData()"));
+			return;
+		}
+
+		mtpKeysMap keys = MTP::getKeys();
+
+		quint32 size = sizeof(quint32) + sizeof(qint32) + sizeof(quint32);
+		size += keys.size() * (sizeof(quint32) + sizeof(quint32) + 256);
+
+		EncryptedDescriptor data(size);
+		data.stream << quint32(dbiUser) << qint32(MTP::authedId()) << quint32(MTP::maindc());
+		for (mtpKeysMap::const_iterator i = keys.cbegin(), e = keys.cend(); i != e; ++i) {
+			data.stream << quint32(dbiKey) << quint32((*i)->getDC());
+			(*i)->write(data.stream);
+		}
+
+		mtp.writeEncrypted(data, _localKey);
+	}
+
+	void _readMtpData() {
+		FileReadDescriptor mtp;
+		if (!readEncryptedFile(mtp, toFilePart(_dataNameKey), SafePath)) {
+			if (_localKey.created()) {
+				_readOldMtpData();
+				_writeMtpData();
+			}
+			return;
+		}
+
+		LOG(("App Info: reading encrypted mtp data.."));
+		while (!mtp.stream.atEnd()) {
+			quint32 blockId;
+			mtp.stream >> blockId;
+			if (!_checkStreamStatus(mtp.stream)) {
+				return _writeMtpData();
+			}
+
+			if (!_readSetting(blockId, mtp.stream, mtp.version)) {
+				return _writeMtpData();
+			}
+		}
+	}
+
 	Local::ReadMapState _readMap(const QByteArray &pass) {
 		uint64 ms = getms();
-		QByteArray dataNameUtf8 = cDataFile().toUtf8();
-		uint64 dataNameHash[2];
+		QByteArray dataNameUtf8 = (cDataFile() + (cTestMode() ? qsl(":/test/") : QString())).toUtf8();
+		FileKey dataNameHash[2];
 		hashMd5(dataNameUtf8.constData(), dataNameUtf8.size(), dataNameHash);
-		_basePath = cWorkingDir() + qsl("tdata/") + toFilePart(dataNameHash[0]) + QChar('/');
+		_dataNameKey = dataNameHash[0];
+		_userBasePath = _basePath + toFilePart(_dataNameKey) + QChar('/');
 
 		FileReadDescriptor mapData;
 		if (!readFile(mapData, qsl("map"))) {
 			return Local::ReadMapFailed;
 		}
+		LOG(("App Info: reading map.."));
 
 		QByteArray salt, keyEncrypted, mapEncrypted;
 		mapData.stream >> salt >> keyEncrypted >> mapEncrypted;
-		if (mapData.stream.status() != QDataStream::Ok) {
-			LOG(("App Error: could not read salt / key from map file - corrupted?..").arg(mapData.stream.status()));
+		if (!_checkStreamStatus(mapData.stream)) {
 			return Local::ReadMapFailed;
 		}
+
 		if (salt.size() != LocalEncryptSaltSize) {
 			LOG(("App Error: bad salt in map file, size: %1").arg(salt.size()));
 			return Local::ReadMapFailed;
@@ -562,7 +1261,7 @@ namespace {
 
 		EncryptedDescriptor keyData, map;
 		if (!decryptLocal(keyData, keyEncrypted, _passKey)) {
-			LOG(("App Error: could not decrypt pass-protected key from map file, maybe bad password.."));
+			LOG(("App Info: could not decrypt pass-protected key from map file, maybe bad password.."));
 			return Local::ReadMapPassNeeded;
 		}
 		uchar key[LocalEncryptKeySize] = { 0 };
@@ -579,12 +1278,13 @@ namespace {
 			LOG(("App Error: could not decrypt map."));
 			return Local::ReadMapFailed;
 		}
+		LOG(("App Info: reading encrypted map.."));
 
 		DraftsMap draftsMap, draftsPositionsMap;
 		DraftsNotReadMap draftsNotReadMap;
 		StorageMap imagesMap, stickersMap, audiosMap;
 		qint64 storageImagesSize = 0, storageStickersSize = 0, storageAudiosSize = 0;
-		quint64 locationsKey = 0, recentStickersKey = 0;
+		quint64 locationsKey = 0, recentStickersKey = 0, backgroundKey = 0, userSettingsKey = 0, recentHashtagsKey = 0;
 		while (!map.stream.atEnd()) {
 			quint32 keyType;
 			map.stream >> keyType;
@@ -652,12 +1352,20 @@ namespace {
 			case lskRecentStickers: {
 				map.stream >> recentStickersKey;
 			} break;
+			case lskBackground: {
+				map.stream >> backgroundKey;
+			} break;
+			case lskUserSettings: {
+				map.stream >> userSettingsKey;
+			} break;
+			case lskRecentHashtags: {
+				map.stream >> recentHashtagsKey;
+			} break;
 			default:
 				LOG(("App Error: unknown key type in encrypted map: %1").arg(keyType));
 				return Local::ReadMapFailed;
 			}
-			if (map.stream.status() != QDataStream::Ok) {
-				LOG(("App Error: reading encrypted map bad status: %1").arg(map.stream.status()));
+			if (!_checkStreamStatus(map.stream)) {
 				return Local::ReadMapFailed;
 			}
 		}
@@ -675,6 +1383,9 @@ namespace {
 
 		_locationsKey = locationsKey;
 		_recentStickersKey = recentStickersKey;
+		_backgroundKey = backgroundKey;
+		_userSettingsKey = userSettingsKey;
+		_recentHashtagsKey = recentHashtagsKey;
 		_oldMapVersion = mapData.version;
 		if (_oldMapVersion < AppVersion) {
 			_mapChanged = true;
@@ -687,6 +1398,9 @@ namespace {
 			_readLocations();
 		}
 
+		_readUserSettings();
+		_readMtpData();
+
 		LOG(("Map read time: %1").arg(getms() - ms));
 		return Local::ReadMapDone;
 	}
@@ -698,12 +1412,12 @@ namespace {
 		}
 		_manager->writingMap();
 		if (!_mapChanged) return;
-		if (_basePath.isEmpty()) {
-			LOG(("App Error: _basePath is empty in writeMap()"));
+		if (_userBasePath.isEmpty()) {
+			LOG(("App Error: _userBasePath is empty in writeMap()"));
 			return;
 		}
 
-		QDir().mkpath(_basePath);
+		if (!QDir().exists(_userBasePath)) QDir().mkpath(_userBasePath);
 
 		FileWriteDescriptor map(qsl("map"));
 		if (_passKeySalt.isEmpty() || _passKeyEncrypted.isEmpty()) {
@@ -719,7 +1433,7 @@ namespace {
 
 			EncryptedDescriptor passKeyData(LocalEncryptKeySize);
 			_localKey.write(passKeyData.stream);
-			_passKeyEncrypted = map.prepareEncrypted(passKeyData, _passKey);
+			_passKeyEncrypted = FileWriteDescriptor::prepareEncrypted(passKeyData, _passKey);
 		}
 		map.writeData(_passKeySalt);
 		map.writeData(_passKeyEncrypted);
@@ -732,6 +1446,9 @@ namespace {
 		if (!_audiosMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _audiosMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
 		if (_locationsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_recentStickersKey) mapSize += sizeof(quint32) + sizeof(quint64);
+		if (_backgroundKey) mapSize += sizeof(quint32) + sizeof(quint64);
+		if (_userSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
+		if (_recentHashtagsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		EncryptedDescriptor mapData(mapSize);
 		if (!_draftsMap.isEmpty()) {
 			mapData.stream << quint32(lskDraft) << quint32(_draftsMap.size());
@@ -769,9 +1486,16 @@ namespace {
 		if (_recentStickersKey) {
 			mapData.stream << quint32(lskRecentStickers) << quint64(_recentStickersKey);
 		}
+		if (_backgroundKey) {
+			mapData.stream << quint32(lskBackground) << quint64(_backgroundKey);
+		}
+		if (_userSettingsKey) {
+			mapData.stream << quint32(lskUserSettings) << quint64(_userSettingsKey);
+		}
+		if (_recentHashtagsKey) {
+			mapData.stream << quint32(lskRecentHashtags) << quint64(_recentHashtagsKey);
+		}
 		map.writeEncrypted(mapData);
-
-		map.finish();
 
 		_mapChanged = false;
 	}
@@ -832,14 +1556,6 @@ namespace _local_inner {
 
 namespace Local {
 
-	mtpAuthKey &oldKey() {
-		return _oldKey;
-	}
-
-	void createOldKey(QByteArray *salt) {
-		createLocalKey(QByteArray(), salt, &_oldKey);
-	}
-
 	void start() {
 		if (!_started) {
 			_started = true;
@@ -856,6 +1572,177 @@ namespace Local {
 		}
 	}
 
+	void readSettings() {
+		Local::start();
+
+		_basePath = cWorkingDir() + qsl("tdata/");
+		if (!QDir().exists(_basePath)) QDir().mkpath(_basePath);
+
+		FileReadDescriptor settingsData;
+		if (!readFile(settingsData, cTestMode() ? qsl("settings_test") : qsl("settings"), SafePath)) {
+			_readOldSettings();
+			_readOldUserSettings(false); // needed further in _readUserSettings
+			_readOldMtpData(false); // needed further in _readMtpData
+			return writeSettings();
+		}
+		LOG(("App Info: reading settings.."));
+
+		QByteArray salt, settingsEncrypted;
+		settingsData.stream >> salt >> settingsEncrypted;
+		if (!_checkStreamStatus(settingsData.stream)) {
+			return writeSettings();
+		}
+
+		if (salt.size() != LocalEncryptSaltSize) {
+			LOG(("App Error: bad salt in settings file, size: %1").arg(salt.size()));
+			return writeSettings();
+		}
+		createLocalKey(QByteArray(), &salt, &_settingsKey);
+
+		EncryptedDescriptor settings;
+		if (!decryptLocal(settings, settingsEncrypted, _settingsKey)) {
+			LOG(("App Error: could not decrypt settings from settings file, maybe bad passcode.."));
+			return writeSettings();
+		}
+		mtpDcOptions dcOpts(cDcOptions());
+		_dcOpts = &dcOpts;
+		LOG(("App Info: reading encrypted settings.."));
+		while (!settings.stream.atEnd()) {
+			quint32 blockId;
+			settings.stream >> blockId;
+			if (!_checkStreamStatus(settings.stream)) {
+				return writeSettings();
+			}
+
+			if (!_readSetting(blockId, settings.stream, settingsData.version)) {
+				return writeSettings();
+			}
+		}
+		if (dcOpts.isEmpty()) {
+			const BuiltInDc *bdcs = builtInDcs();
+			for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
+				dcOpts.insert(bdcs[i].id, mtpDcOption(bdcs[i].id, "", bdcs[i].ip, bdcs[i].port));
+				DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
+			}
+		}
+		cSetDcOptions(dcOpts);
+
+		_settingsSalt = salt;
+	}
+
+	void writeSettings() {
+		if (_basePath.isEmpty()) {
+			LOG(("App Error: _basePath is empty in writeSettings()"));
+			return;
+		}
+
+		if (!QDir().exists(_basePath)) QDir().mkpath(_basePath);
+
+		FileWriteDescriptor settings(cTestMode() ? qsl("settings_test") : qsl("settings"), SafePath);
+		if (_settingsSalt.isEmpty() || !_settingsKey.created()) {
+			_settingsSalt.resize(LocalEncryptSaltSize);
+			memset_rand(_settingsSalt.data(), _settingsSalt.size());
+			createLocalKey(QByteArray(), &_settingsSalt, &_settingsKey);
+		}
+		settings.writeData(_settingsSalt);
+
+		mtpDcOptions dcOpts(cDcOptions());
+		if (dcOpts.isEmpty()) {
+			const BuiltInDc *bdcs = builtInDcs();
+			for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
+				dcOpts.insert(bdcs[i].id, mtpDcOption(bdcs[i].id, "", bdcs[i].ip, bdcs[i].port));
+				DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
+			}
+			cSetDcOptions(dcOpts);
+		}
+
+		quint32 size = 10 * (sizeof(quint32) + sizeof(qint32));
+		for (mtpDcOptions::const_iterator i = dcOpts.cbegin(), e = dcOpts.cend(); i != e; ++i) {
+			size += sizeof(quint32) + sizeof(quint32) + sizeof(quint32);
+			size += _stringSize(QString::fromUtf8(i->host.data(), i->host.size())) + _stringSize(QString::fromUtf8(i->ip.data(), i->ip.size()));
+		}
+		size += sizeof(quint32) + _stringSize(cLangFile());
+
+		size += sizeof(quint32) + sizeof(qint32);
+		if (cConnectionType() == dbictHttpProxy || cConnectionType() == dbictTcpProxy) {
+			const ConnectionProxy &proxy(cConnectionProxy());
+			size += _stringSize(proxy.host) + sizeof(qint32) + _stringSize(proxy.user) + _stringSize(proxy.password);
+		}
+
+		size += sizeof(quint32) + sizeof(qint32) * 6;
+
+		EncryptedDescriptor data(size);
+		data.stream << quint32(dbiMaxGroupCount) << qint32(cMaxGroupCount());
+		data.stream << quint32(dbiAutoStart) << qint32(cAutoStart());
+		data.stream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
+		data.stream << quint32(dbiSendToMenu) << qint32(cSendToMenu());
+		data.stream << quint32(dbiWorkMode) << qint32(cWorkMode());
+		data.stream << quint32(dbiSeenTrayTooltip) << qint32(cSeenTrayTooltip());
+		data.stream << quint32(dbiAutoUpdate) << qint32(cAutoUpdate());
+		data.stream << quint32(dbiLastUpdateCheck) << qint32(cLastUpdateCheck());
+		data.stream << quint32(dbiScale) << qint32(cConfigScale());
+		data.stream << quint32(dbiLang) << qint32(cLang());
+		for (mtpDcOptions::const_iterator i = dcOpts.cbegin(), e = dcOpts.cend(); i != e; ++i) {
+			data.stream << quint32(dbiDcOption) << quint32(i->id);
+			data.stream << QString::fromUtf8(i->host.data(), i->host.size()) << QString::fromUtf8(i->ip.data(), i->ip.size());
+			data.stream << quint32(i->port);
+		}			
+		data.stream << quint32(dbiLangFile) << cLangFile();
+
+		data.stream << quint32(dbiConnectionType) << qint32(cConnectionType());
+		if (cConnectionType() == dbictHttpProxy || cConnectionType() == dbictTcpProxy) {
+			const ConnectionProxy &proxy(cConnectionProxy());
+			data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
+		}
+
+		TWindowPos pos(cWindowPos());
+		data.stream << quint32(dbiWindowPosition) << qint32(pos.x) << qint32(pos.y) << qint32(pos.w) << qint32(pos.h) << qint32(pos.moncrc) << qint32(pos.maximized);
+
+		settings.writeEncrypted(data, _settingsKey);
+	}
+
+	void writeUserSettings() {
+		_writeUserSettings();
+	}
+
+	void writeMtpData() {
+		_writeMtpData();
+	}
+
+	void reset() {
+		_passKeySalt.clear(); // reset passcode, local key
+		_draftsMap.clear();
+		_draftsPositionsMap.clear();
+		_imagesMap.clear();
+		_draftsNotReadMap.clear();
+		_stickersMap.clear();
+		_audiosMap.clear();
+		_locationsKey = _recentStickersKey = _backgroundKey = _userSettingsKey = _recentHashtagsKey = 0;
+		_mapChanged = true;
+		_writeMap(WriteMapNow);
+
+		_writeMtpData();
+	}
+
+	bool checkPasscode(const QByteArray &passcode) {
+		mtpAuthKey tmp;
+		createLocalKey(passcode, &_passKeySalt, &tmp);
+		return (tmp == _passKey);
+	}
+
+	void setPasscode(const QByteArray &passcode) {
+		createLocalKey(passcode, &_passKeySalt, &_passKey);
+
+		EncryptedDescriptor passKeyData(LocalEncryptKeySize);
+		_localKey.write(passKeyData.stream);
+		_passKeyEncrypted = FileWriteDescriptor::prepareEncrypted(passKeyData, _passKey);
+
+		_mapChanged = true;
+		_writeMap(WriteMapNow);
+
+		cSetHasPasscode(!passcode.isEmpty());
+	}
+
 	ReadMapState readMap(const QByteArray &pass) {
 		ReadMapState result = _readMap(pass);
 		if (result == ReadMapFailed) {
@@ -869,10 +1756,10 @@ namespace Local {
 		return _oldMapVersion;
 	}
 
-	void writeDraft(const PeerId &peer, const QString &text) {
+	void writeDraft(const PeerId &peer, const MessageDraft &draft) {
 		if (!_working()) return;
 
-		if (text.isEmpty()) {
+		if (draft.replyTo <= 0 && draft.text.isEmpty()) {
 			DraftsMap::iterator i = _draftsMap.find(peer);
 			if (i != _draftsMap.cend()) {
 				clearKey(i.value());
@@ -889,9 +1776,8 @@ namespace Local {
 				_mapChanged = true;
 				_writeMap(WriteMapFast);
 			}
-			QString to = _basePath + toFilePart(i.value());
-			EncryptedDescriptor data(sizeof(quint64) + sizeof(quint32) + text.size() * sizeof(QChar));
-			data.stream << quint64(peer) << text;
+			EncryptedDescriptor data(sizeof(quint64) + _stringSize(draft.text) + sizeof(qint32));
+			data.stream << quint64(peer) << draft.text << qint32(draft.replyTo) << qint32(draft.previewCancelled ? 1 : 0);
 			FileWriteDescriptor file(i.value());
 			file.writeEncrypted(data);
 
@@ -899,24 +1785,27 @@ namespace Local {
 		}
 	}
 
-	QString readDraft(const PeerId &peer) {
-		if (!_draftsNotReadMap.remove(peer)) return QString();
+	MessageDraft readDraft(const PeerId &peer) {
+		if (!_draftsNotReadMap.remove(peer)) return MessageDraft();
 
 		DraftsMap::iterator j = _draftsMap.find(peer);
 		if (j == _draftsMap.cend()) {
-			return QString();
+			return MessageDraft();
 		}
 		FileReadDescriptor draft;
-		if (!readEncryptedFile(draft, toFilePart(j.value()))) {
+		if (!readEncryptedFile(draft, j.value())) {
 			clearKey(j.value());
 			_draftsMap.erase(j);
-			return QString();
+			return MessageDraft();
 		}
 
 		quint64 draftPeer;
 		QString draftText;
+		qint32 draftReplyTo = 0, draftPreviewCancelled = 0;
 		draft.stream >> draftPeer >> draftText;
-		return (draftPeer == peer) ? draftText : QString();
+		if (draft.version >= 7021) draft.stream >> draftReplyTo;
+		if (draft.version >= 8001) draft.stream >> draftPreviewCancelled;
+		return (draftPeer == peer) ? MessageDraft(MsgId(draftReplyTo), draftText, (draftPreviewCancelled == 1)) : MessageDraft();
 	}
 
 	void writeDraftPositions(const PeerId &peer, const MessageCursor &cur) {
@@ -937,7 +1826,6 @@ namespace Local {
 				_mapChanged = true;
 				_writeMap(WriteMapFast);
 			}
-			QString to = _basePath + toFilePart(i.value());
 			EncryptedDescriptor data(sizeof(quint64) + sizeof(qint32) * 3);
 			data.stream << quint64(peer) << qint32(cur.position) << qint32(cur.anchor) << qint32(cur.scroll);
 			FileWriteDescriptor file(i.value());
@@ -951,7 +1839,7 @@ namespace Local {
 			return MessageCursor();
 		}
 		FileReadDescriptor draft;
-		if (!readEncryptedFile(draft, toFilePart(j.value()))) {
+		if (!readEncryptedFile(draft, j.value())) {
 			clearKey(j.value());
 			_draftsPositionsMap.erase(j);
 			return MessageCursor();
@@ -1057,7 +1945,7 @@ namespace Local {
 		qint32 size = _storageImageSize(image.data.size());
 		StorageMap::const_iterator i = _imagesMap.constFind(location);
 		if (i == _imagesMap.cend()) {
-			i = _imagesMap.insert(location, FileDesc(genKey(), size));
+			i = _imagesMap.insert(location, FileDesc(genKey(UserPath), size));
 			_storageImagesSize += size;
 			_mapChanged = true;
 			_writeMap();
@@ -1066,7 +1954,7 @@ namespace Local {
 		}
 		EncryptedDescriptor data(sizeof(quint64) * 2 + sizeof(quint32) + sizeof(quint32) + image.data.size());
 		data.stream << quint64(location.first) << quint64(location.second) << quint32(image.type) << image.data;
-		FileWriteDescriptor file(i.value().first, false);
+		FileWriteDescriptor file(i.value().first, UserPath);
 		file.writeEncrypted(data);
 		if (i.value().second != size) {
 			_storageImagesSize += size;
@@ -1081,8 +1969,8 @@ namespace Local {
 			return StorageImageSaved();
 		}
 		FileReadDescriptor draft;
-		if (!readEncryptedFile(draft, toFilePart(j.value().first), false)) {
-			clearKey(j.value().first, false);
+		if (!readEncryptedFile(draft, j.value().first, UserPath)) {
+			clearKey(j.value().first, UserPath);
 			_storageImagesSize -= j.value().second;
 			_imagesMap.erase(j);
 			return StorageImageSaved();
@@ -1110,7 +1998,7 @@ namespace Local {
 		qint32 size = _storageStickerSize(sticker.size());
 		StorageMap::const_iterator i = _stickersMap.constFind(location);
 		if (i == _stickersMap.cend()) {
-			i = _stickersMap.insert(location, FileDesc(genKey(), size));
+			i = _stickersMap.insert(location, FileDesc(genKey(UserPath), size));
 			_storageStickersSize += size;
 			_mapChanged = true;
 			_writeMap();
@@ -1119,7 +2007,7 @@ namespace Local {
 		}
 		EncryptedDescriptor data(sizeof(quint64) * 2 + sizeof(quint32) + sizeof(quint32) + sticker.size());
 		data.stream << quint64(location.first) << quint64(location.second) << sticker;
-		FileWriteDescriptor file(i.value().first, false);
+		FileWriteDescriptor file(i.value().first, UserPath);
 		file.writeEncrypted(data);
 		if (i.value().second != size) {
 			_storageStickersSize += size;
@@ -1134,8 +2022,8 @@ namespace Local {
 			return QByteArray();
 		}
 		FileReadDescriptor draft;
-		if (!readEncryptedFile(draft, toFilePart(j.value().first), false)) {
-			clearKey(j.value().first, false);
+		if (!readEncryptedFile(draft, j.value().first, UserPath)) {
+			clearKey(j.value().first, UserPath);
 			_storageStickersSize -= j.value().second;
 			_stickersMap.erase(j);
 			return QByteArray();
@@ -1162,7 +2050,7 @@ namespace Local {
 		qint32 size = _storageAudioSize(audio.size());
 		StorageMap::const_iterator i = _audiosMap.constFind(location);
 		if (i == _audiosMap.cend()) {
-			i = _audiosMap.insert(location, FileDesc(genKey(), size));
+			i = _audiosMap.insert(location, FileDesc(genKey(UserPath), size));
 			_storageAudiosSize += size;
 			_mapChanged = true;
 			_writeMap();
@@ -1171,7 +2059,7 @@ namespace Local {
 		}
 		EncryptedDescriptor data(sizeof(quint64) * 2 + sizeof(quint32) + sizeof(quint32) + audio.size());
 		data.stream << quint64(location.first) << quint64(location.second) << audio;
-		FileWriteDescriptor file(i.value().first, false);
+		FileWriteDescriptor file(i.value().first, UserPath);
 		file.writeEncrypted(data);
 		if (i.value().second != size) {
 			_storageAudiosSize += size;
@@ -1186,8 +2074,8 @@ namespace Local {
 			return QByteArray();
 		}
 		FileReadDescriptor draft;
-		if (!readEncryptedFile(draft, toFilePart(j.value().first), false)) {
-			clearKey(j.value().first, false);
+		if (!readEncryptedFile(draft, j.value().first, UserPath)) {
+			clearKey(j.value().first, UserPath);
 			_storageAudiosSize -= j.value().second;
 			_audiosMap.erase(j);
 			return QByteArray();
@@ -1228,15 +2116,17 @@ namespace Local {
 			quint32 size = 0;
 			for (RecentStickerPack::const_iterator i = recent.cbegin(); i != recent.cend(); ++i) {
 				DocumentData *doc = i->first;
+				if (doc->status == FileFailed) continue;
 
-				// id + value + access + date + namelen + name + mimelen + mime + dc + size + width + height + type
-				size += sizeof(quint64) + sizeof(qint16) + sizeof(quint64) + sizeof(qint32) + (sizeof(quint32) + doc->name.size() * sizeof(ushort)) + (sizeof(quint32) + doc->mime.size() * sizeof(ushort)) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
+				// id + value + access + date + namelen + name + mimelen + mime + dc + size + width + height + type + alt
+				size += sizeof(quint64) + sizeof(qint16) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(doc->alt);
 			}
 			EncryptedDescriptor data(size);
 			for (RecentStickerPack::const_iterator i = recent.cbegin(); i != recent.cend(); ++i) {
 				DocumentData *doc = i->first;
+				if (doc->status == FileFailed) continue;
 
-				data.stream << quint64(doc->id) << qint16(i->second) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type);
+				data.stream << quint64(doc->id) << qint16(i->second) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type) << doc->alt;
 			}
 			FileWriteDescriptor file(_recentStickersKey);
 			file.writeEncrypted(data);
@@ -1247,7 +2137,7 @@ namespace Local {
 		if (!_recentStickersKey) return;
 
 		FileReadDescriptor stickers;
-		if (!readEncryptedFile(stickers, toFilePart(_recentStickersKey))) {
+		if (!readEncryptedFile(stickers, _recentStickersKey)) {
 			clearKey(_recentStickersKey);
 			_recentStickersKey = 0;
 			_writeMap();
@@ -1258,10 +2148,13 @@ namespace Local {
 		RecentStickerPack recent;
 		while (!stickers.stream.atEnd()) {
 			quint64 id, access;
-			QString name, mime;
+			QString name, mime, alt;
 			qint32 date, dc, size, width, height, type;
 			qint16 value;
 			stickers.stream >> id >> value >> access >> date >> name >> mime >> dc >> size >> width >> height >> type;
+			if (stickers.version >= 7021) {
+				stickers.stream >> alt;
+			}
 			if (read.contains(id)) continue;
 			read.insert(id, true);
 
@@ -1270,7 +2163,7 @@ namespace Local {
 			if (type == AnimatedDocument) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (type == StickerDocument) {
-				attributes.push_back(MTP_documentAttributeSticker());
+				attributes.push_back(MTP_documentAttributeSticker(MTP_string(alt)));
 			}
 			if (width > 0 && height > 0) {
 				attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
@@ -1280,6 +2173,136 @@ namespace Local {
 		}
 
 		cSetRecentStickers(recent);
+	}
+
+	void writeBackground(int32 id, const QImage &img) {
+		if (!_working()) return;
+
+		QByteArray png;
+		{
+			QBuffer buf(&png);
+			if (!img.save(&buf, "BMP")) return;
+		}
+		if (!_backgroundKey) {
+			_backgroundKey = genKey();
+			_mapChanged = true;
+			_writeMap(WriteMapFast);
+		}
+		quint32 size = sizeof(qint32) + sizeof(quint32) + sizeof(quint32) + png.size();
+		EncryptedDescriptor data(size);
+		data.stream << qint32(id) << png;
+
+		FileWriteDescriptor file(_backgroundKey);
+		file.writeEncrypted(data);
+	}
+
+	bool readBackground() {
+		if (_backgroundWasRead) return false;
+		_backgroundWasRead = true;
+
+		FileReadDescriptor bg;
+		if (!readEncryptedFile(bg, _backgroundKey)) {
+			clearKey(_backgroundKey);
+			_backgroundKey = 0;
+			_writeMap();
+			return false;
+		}
+
+		QByteArray pngData;
+		qint32 id;
+		bg.stream >> id >> pngData;
+
+		QImage img;
+		QBuffer buf(&pngData);
+		QImageReader reader(&buf);
+		if (reader.read(&img)) {
+			App::initBackground(id, img, true);
+			return true;
+		}
+		return false;
+	}
+
+	void writeRecentHashtags() {
+		if (!_working()) return;
+
+		const RecentHashtagPack &write(cRecentWriteHashtags()), &search(cRecentSearchHashtags());
+		if (write.isEmpty() && search.isEmpty()) readRecentHashtags();
+		if (write.isEmpty() && search.isEmpty()) {
+			if (_recentHashtagsKey) {
+				clearKey(_recentHashtagsKey);
+				_recentHashtagsKey = 0;
+				_mapChanged = true;
+			}
+			_writeMap();
+		} else {
+			if (!_recentHashtagsKey) {
+				_recentHashtagsKey = genKey();
+				_mapChanged = true;
+				_writeMap(WriteMapFast);
+			}
+			quint32 size = sizeof(quint32) * 2, writeCnt = 0, searchCnt = 0;
+			for (RecentHashtagPack::const_iterator i = write.cbegin(); i != write.cend(); ++i) {
+				if (!i->first.isEmpty()) {
+					size += _stringSize(i->first) + sizeof(quint16);
+					++writeCnt;
+				}
+			}
+			for (RecentHashtagPack::const_iterator i = search.cbegin(); i != search.cend(); ++i) {
+				if (!i->first.isEmpty()) {
+					size += _stringSize(i->first) + sizeof(quint16);
+					++searchCnt;
+				}
+			}
+			EncryptedDescriptor data(size);
+			data.stream << quint32(writeCnt) << quint32(searchCnt);
+			for (RecentHashtagPack::const_iterator i = write.cbegin(); i != write.cend(); ++i) {
+				if (!i->first.isEmpty()) data.stream << i->first << quint16(i->second);
+			}
+			for (RecentHashtagPack::const_iterator i = search.cbegin(); i != search.cend(); ++i) {
+				if (!i->first.isEmpty()) data.stream << i->first << quint16(i->second);
+			}
+			FileWriteDescriptor file(_recentHashtagsKey);
+			file.writeEncrypted(data);
+		}
+	}
+
+	void readRecentHashtags() {
+		if (_recentHashtagsWereRead) return;
+		_recentHashtagsWereRead = true;
+
+		if (!_recentHashtagsKey) return;
+
+		FileReadDescriptor hashtags;
+		if (!readEncryptedFile(hashtags, _recentHashtagsKey)) {
+			clearKey(_recentHashtagsKey);
+			_recentHashtagsKey = 0;
+			_writeMap();
+			return;
+		}
+
+		quint32 writeCount = 0, searchCount = 0;
+		hashtags.stream >> writeCount >> searchCount;
+
+		QString tag;
+		quint16 count;
+			
+		RecentHashtagPack write, search;
+		if (writeCount) {
+			write.reserve(writeCount);
+			for (uint32 i = 0; i < writeCount; ++i) {
+				hashtags.stream >> tag >> count;
+				write.push_back(qMakePair(tag.trimmed(), count));
+			}
+		}
+		if (searchCount) {
+			search.reserve(searchCount);
+			for (uint32 i = 0; i < searchCount; ++i) {
+				hashtags.stream >> tag >> count;
+				search.push_back(qMakePair(tag.trimmed(), count));
+			}
+		}
+		cSetRecentWriteHashtags(write);
+		cSetRecentSearchHashtags(search);
 	}
 
 	struct ClearManagerData {
@@ -1331,6 +2354,10 @@ namespace Local {
 			}
 			if (_recentStickersKey) {
 				_recentStickersKey = 0;
+				_mapChanged = true;
+			}
+			if (_recentHashtagsKey) {
+				_recentHashtagsKey = 0;
 				_mapChanged = true;
 			}
 			_writeMap();
@@ -1432,21 +2459,34 @@ namespace Local {
 				audios = data->audios;
 			}
 			switch (task) {
-			case ClearManagerAll:
-				result = (QDir(cTempDir()).removeRecursively() && QDir(_basePath).removeRecursively());
-			break;
+			case ClearManagerAll: {
+				result = QDir(cTempDir()).removeRecursively();
+				QDirIterator di(_userBasePath, QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot);
+				while (di.hasNext()) {
+					di.next();
+					const QFileInfo& fi = di.fileInfo();
+					if (fi.isDir() && !fi.isSymLink()) {
+						if (!QDir(di.filePath()).removeRecursively()) result = false;
+					} else {
+						QString path = di.filePath();
+						if (!path.endsWith(QLatin1String("map0")) && !path.endsWith(QLatin1String("map1"))) {
+							if (!QFile::remove(di.filePath())) result = false;
+						}
+					}
+				}
+			} break;
 			case ClearManagerDownloads:
 				result = QDir(cTempDir()).removeRecursively();
 			break;
 			case ClearManagerStorage:
 				for (StorageMap::const_iterator i = images.cbegin(), e = images.cend(); i != e; ++i) {
-					clearKey(i.value().first, false);
+					clearKey(i.value().first, UserPath);
 				}
 				for (StorageMap::const_iterator i = stickers.cbegin(), e = stickers.cend(); i != e; ++i) {
-					clearKey(i.value().first, false);
+					clearKey(i.value().first, UserPath);
 				}
 				for (StorageMap::const_iterator i = audios.cbegin(), e = audios.cend(); i != e; ++i) {
-					clearKey(i.value().first, false);
+					clearKey(i.value().first, UserPath);
 				}
 				result = true;
 			break;

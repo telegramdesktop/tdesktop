@@ -20,6 +20,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "settings.h"
 #include "lang.h"
 
+mtpDcOptions gDcOptions;
+
 bool gTestMode = false;
 bool gDebug = false;
 bool gManyInstance = false;
@@ -37,16 +39,13 @@ bool gSoundNotify = true;
 bool gDesktopNotify = true;
 DBINotifyView gNotifyView = dbinvShowPreview;
 bool gStartMinimized = false;
+bool gStartInTray = false;
 bool gAutoStart = false;
 bool gSendToMenu = false;
 bool gAutoUpdate = true;
 TWindowPos gWindowPos;
 bool gFromAutoStart = false;
-#if defined Q_OS_WIN || defined Q_OS_MAC
 bool gSupportTray = true;
-#else
-bool gSupportTray = false;
-#endif
 DBIWorkMode gWorkMode = dbiwmWindowAndTray;
 DBIConnectionType gConnectionType = dbictAuto;
 ConnectionProxy gConnectionProxy;
@@ -64,7 +63,11 @@ QString gDownloadPath;
 bool gNeedConfigResave = false;
 
 bool gCtrlEnter = false;
-bool gCatsAndDogs = true;
+
+QPixmapPointer gChatBackground = 0;
+int32 gChatBackgroundId = 0;
+QPixmapPointer gChatDogImage = 0;
+bool gTileBackground = true;
 
 uint32 gConnectionsInSession = 1;
 QString gLoggedPhoneNumber;
@@ -72,6 +75,11 @@ QString gLoggedPhoneNumber;
 QByteArray gLocalSalt;
 DBIScale gRealScale = dbisAuto, gScreenScale = dbisOne, gConfigScale = dbisAuto;
 bool gCompressPastedImage = true;
+
+QString gTimeFormat = qsl("hh:mm");
+
+int32 gAutoLock = 3600;
+bool gHasPasscode = false;
 
 DBIEmojiTab gEmojiTab = dbietRecent;
 RecentEmojiPack gRecentEmojis;
@@ -83,6 +91,12 @@ QByteArray gStickersHash;
 EmojiStickersMap gEmojiStickers;
 
 RecentStickerPack gRecentStickers;
+
+RecentHashtagPack gRecentWriteHashtags, gRecentSearchHashtags;
+
+bool gPasswordRecovered = false;
+int32 gPasscodeBadTries = 0;
+uint64 gPasscodeLastTry = 0;
 
 int32 gLang = -2; // auto
 QString gLangFile;
@@ -117,18 +131,28 @@ bool gContactsReceived = false;
 
 bool gWideMode = true;
 
+int gOnlineUpdatePeriod = 120000;
+int gOfflineBlurTimeout = 5000;
+int gOfflineIdleTimeout = 30000;
+int gOnlineFocusTimeout = 1000;
+int gOnlineCloudTimeout = 300000;
+int gNotifyCloudDelay = 30000;
+int gNotifyDefaultDelay = 1500;
+
+int gOtherOnline = 0;
+
 void settingsParseArgs(int argc, char *argv[]) {
-	if (cPlatform() == dbipMac) {
-		gCustomNotifies = false;
-	} else {
-		gCustomNotifies = true;
-	}
+#ifdef Q_OS_MAC
+	gCustomNotifies = (QSysInfo::macVersion() < QSysInfo::MV_10_8);
+#else
+	gCustomNotifies = true;
+#endif
     memset_rand(&gInstance, sizeof(gInstance));
 	gExeDir = psCurrentExeDirectory(argc, argv);
 	gExeName = psCurrentExeName(argc, argv);
     for (int32 i = 0; i < argc; ++i) {
-		if (string("-release") == argv[i]) {
-			gTestMode = false;
+		if (string("-testmode") == argv[i]) {
+			gTestMode = true;
 		} else if (string("-debug") == argv[i]) {
 			gDebug = true;
 		} else if (string("-many") == argv[i]) {
@@ -141,6 +165,8 @@ void settingsParseArgs(int argc, char *argv[]) {
 			gNoStartUpdate = true;
 		} else if (string("-tosettings") == argv[i]) {
 			gStartToSettings = true;
+		} else if (string("-startintray") == argv[i]) {
+			gStartInTray = true;
 		} else if (string("-sendpath") == argv[i] && i + 1 < argc) {
 			for (++i; i < argc; ++i) {
 				gSendPaths.push_back(QString::fromLocal8Bit(argv[i]));
@@ -159,7 +185,7 @@ void settingsParseArgs(int argc, char *argv[]) {
 const RecentEmojiPack &cGetRecentEmojis() {
 	if (cRecentEmojis().isEmpty()) {
 		RecentEmojiPack r;
-		if (false && !cRecentEmojisPreload().isEmpty()) {
+		if (!cRecentEmojisPreload().isEmpty()) {
 			RecentEmojiPreload p(cRecentEmojisPreload());
 			cSetRecentEmojisPreload(RecentEmojiPreload());
 			r.reserve(p.size());

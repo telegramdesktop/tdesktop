@@ -19,6 +19,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "pspecific.h"
 
+#include "localstorage.h"
+
 int main(int argc, char *argv[]) {
 #ifdef _NEED_WIN_GENERATE_DUMP
 	_oldWndExceptionFilter = SetUnhandledExceptionFilter(_exceptionFilter);
@@ -34,9 +36,10 @@ int main(int argc, char *argv[]) {
 	}
 	logsInit();
 
-	App::readConfig();
+	Local::readSettings();
 	if (cFromAutoStart() && !cAutoStart()) {
 		psAutoStart(false, true);
+		Local::stop();
 		return 0;
 	}
 
@@ -64,6 +67,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
     psFinish();
+	Local::stop();
 
 	DEBUG_LOG(("Application Info: Telegram done, result: %1").arg(result));
 

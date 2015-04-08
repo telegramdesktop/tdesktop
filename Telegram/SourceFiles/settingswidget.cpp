@@ -24,12 +24,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "boxes/photocropbox.h"
 #include "boxes/connectionbox.h"
+#include "boxes/backgroundbox.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/emojibox.h"
 #include "boxes/confirmbox.h"
 #include "boxes/downloadpathbox.h"
 #include "boxes/usernamebox.h"
 #include "boxes/languagebox.h"
+#include "boxes/passcodebox.h"
+#include "boxes/autolockbox.h"
+#include "boxes/sessionsbox.h"
 #include "langloaderplain.h"
 #include "gui/filedialog.h"
 
@@ -110,11 +114,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 
 	// contact info
 	_phoneText(self() ? App::formatPhone(self()->phone) : QString()),
-	_usernameText((self() && !self()->username.isEmpty()) ? ('@' + self()->username) : QString()),
-	_phoneLeft(st::linkFont->m.width(lang(lng_settings_phone_number)) + st::linkFont->spacew),
-	_usernameLeft(st::linkFont->m.width(lang(lng_settings_username)) + st::linkFont->spacew),
-	_chooseUsername(this, lang(lng_settings_choose_username)),
-	_changeUsername(this, lang(lng_settings_change_username)),
+	_chooseUsername(this, (self() && !self()->username.isEmpty()) ? ('@' + self()->username) : lang(lng_settings_choose_username)),
 
 	// notifications
 	_desktopNotify(this, lang(lng_settings_desktop_notify), cDesktopNotify()),
@@ -158,7 +158,11 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_tempDirClearedWidth(st::linkFont->m.width(lang(lng_download_path_cleared))),
 	_tempDirClearFailedWidth(st::linkFont->m.width(lang(lng_download_path_clear_failed))),
 
-	_catsAndDogs(this, lang(lng_settings_cats_and_dogs), cCatsAndDogs()),
+	// chat background
+	_backFromGallery(this, lang(lng_settings_bg_from_gallery)),
+	_backFromFile(this, lang(lng_settings_bg_from_file)),
+	_tileBackground(this, lang(lng_settings_bg_tile), cTileBackground()),
+	_needBackgroundUpdate(false),
 
 	// local storage
 	_localStorageClear(this, lang(lng_local_storage_clear)),
@@ -168,19 +172,31 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_storageClearFailedWidth(st::linkFont->m.width(lang(lng_local_storage_clear_failed))),
 
 	// advanced
+	_passcodeEdit(this, lang(cHasPasscode() ? lng_passcode_change : lng_passcode_turn_on)),
+	_passcodeTurnOff(this, lang(lng_passcode_turn_off)),
+	_autoLock(this, (cAutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, cAutoLock() / 60) : lng_passcode_autolock_hours(lt_count, cAutoLock() / 3600)),
+	_autoLockText(lang(psIdleSupported() ? lng_passcode_autolock_away : lng_passcode_autolock_inactive) + ' '),
+	_autoLockWidth(st::linkFont->m.width(_autoLockText)),
+	_passwordEdit(this, lang(lng_cloud_password_set)),
+	_passwordTurnOff(this, lang(lng_passcode_turn_off)),
+	_hasPasswordRecovery(false),
 	_connectionType(this, lng_connection_auto(lt_type, QString())),
-	_resetSessions(this, lang(lng_settings_reset)),
-	_logOut(this, lang(lng_settings_logout), st::btnLogout),
-    _resetDone(false)
+	_connectionTypeText(lang(lng_connection_type) + ' '),
+	_connectionTypeWidth(st::linkFont->m.width(_connectionTypeText)),
+	_showSessions(this, lang(lng_settings_show_sessions)),
+	_logOut(this, lang(lng_settings_logout), st::btnLogout)
 {
 	if (self()) {
 		_nameText.setText(st::setNameFont, _nameCache, _textNameOptions);
 		PhotoData *selfPhoto = self()->photoId ? App::photo(self()->photoId) : 0;
 		if (selfPhoto && selfPhoto->date) _photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
-		MTP::send(MTPusers_GetFullUser(self()->inputUser), rpcDone(&SettingsInner::gotFullSelf));
+		MTP::send(MTPusers_GetFullUser(self()->inputUser), rpcDone(&SettingsInner::gotFullSelf), RPCFailHandlerPtr(), 0, 10);
+		onReloadPassword();
 
 		connect(App::main(), SIGNAL(peerPhotoChanged(PeerData *)), this, SLOT(peerUpdated(PeerData *)));
 		connect(App::main(), SIGNAL(peerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)), this, SLOT(peerUpdated(PeerData *)));
+
+		connect(App::app(), SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onReloadPassword(Qt::ApplicationState)));
 	}
 
 	// profile
@@ -192,7 +208,6 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 
 	// contact info
 	connect(&_chooseUsername, SIGNAL(clicked()), this, SLOT(onUsername()));
-	connect(&_changeUsername, SIGNAL(clicked()), this, SLOT(onUsername()));
 
 	// notifications
 	_senderName.setDisabled(!_desktopNotify.checked());
@@ -219,7 +234,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	connect(&_dpiAutoScale, SIGNAL(changed()), this, SLOT(onScaleAuto()));
 	connect(&_dpiSlider, SIGNAL(changed(int32)), this, SLOT(onScaleChange()));
 
-	_curVersionText = lng_settings_current_version(lt_version, QString::fromWCharArray(AppVersionStr)) + ' ';
+	_curVersionText = lng_settings_current_version(lt_version, QString::fromWCharArray(AppVersionStr) + (DevChannel ? " dev" : "")) + ' ';
 	_curVersionWidth = st::linkFont->m.width(_curVersionText);
 	_newVersionText = lang(lng_settings_update_ready) + ' ';
 	_newVersionWidth = st::linkFont->m.width(_newVersionText);
@@ -248,7 +263,12 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	connect(App::wnd(), SIGNAL(tempDirCleared(int)), this, SLOT(onTempDirCleared(int)));
 	connect(App::wnd(), SIGNAL(tempDirClearFailed(int)), this, SLOT(onTempDirClearFailed(int)));
 
-	connect(&_catsAndDogs, SIGNAL(changed()), this, SLOT(onCatsAndDogs()));
+	// chat background
+	if (!cChatBackground()) App::initBackground();
+	updateChatBackground();
+	connect(&_backFromGallery, SIGNAL(clicked()), this, SLOT(onBackFromGallery()));
+	connect(&_backFromFile, SIGNAL(clicked()), this, SLOT(onBackFromFile()));
+	connect(&_tileBackground, SIGNAL(changed()), this, SLOT(onTileBackground()));
 
 	// local storage
 	connect(&_localStorageClear, SIGNAL(clicked()), this, SLOT(onLocalStorageClear()));
@@ -259,12 +279,14 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	}
 
 	// advanced
+	connect(&_passcodeEdit, SIGNAL(clicked()), this, SLOT(onPasscode()));
+	connect(&_passcodeTurnOff, SIGNAL(clicked()), this, SLOT(onPasscodeOff()));
+	connect(&_autoLock, SIGNAL(clicked()), this, SLOT(onAutoLock()));
+	connect(&_passwordEdit, SIGNAL(clicked()), this, SLOT(onPassword()));
+	connect(&_passwordTurnOff, SIGNAL(clicked()), this, SLOT(onPasswordOff()));
 	connect(&_connectionType, SIGNAL(clicked()), this, SLOT(onConnectionType()));
-	connect(&_resetSessions, SIGNAL(clicked()), this, SLOT(onResetSessions()));
+	connect(&_showSessions, SIGNAL(clicked()), this, SLOT(onShowSessions()));
 	connect(&_logOut, SIGNAL(clicked()), App::wnd(), SLOT(onLogout()));
-
-	_connectionTypeText = lang(lng_connection_type) + ' ';
-	_connectionTypeWidth = st::linkFont->m.width(_connectionTypeText);
 
     if (App::main()) {
         connect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
@@ -309,6 +331,18 @@ void SettingsInner::peerUpdated(PeerData *data) {
 }
 
 void SettingsInner::paintEvent(QPaintEvent *e) {
+	bool animateBackground = false;
+	if (App::main() && App::main()->chatBackgroundLoading()) {
+		App::main()->checkChatBackground();
+		if (App::main()->chatBackgroundLoading()) {
+			animateBackground = true;
+		} else {
+			updateChatBackground();
+		}
+	} else if (_needBackgroundUpdate) {
+		updateChatBackground();
+	}
+
 	QPainter p(this);
 
 	p.setClipRect(e->rect());
@@ -360,13 +394,10 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		p.setFont(st::linkFont->f);
 		p.setPen(st::black->p);
 		p.drawText(_left, top + st::linkFont->ascent, lang(lng_settings_phone_number));
-		p.drawText(_left + _phoneLeft, top + st::linkFont->ascent, _phoneText);
+		p.drawText(_left + st::setContactInfoLeft, top + st::linkFont->ascent, _phoneText);
 		top += st::linkFont->height + st::setLittleSkip;
 
 		p.drawText(_left, top + st::linkFont->ascent, lang(lng_settings_username));
-		if (!_usernameText.isEmpty()) {
-			p.drawText(_left + _usernameLeft, top + st::linkFont->ascent, _usernameText);
-		}
 		top += st::linkFont->height;
 
 		// notifications
@@ -477,7 +508,44 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		}
 		top += st::setSectionSkip;
 
-		top += _catsAndDogs.height();
+		// chat background
+		p.setFont(st::setHeaderFont->f);
+		p.setPen(st::setHeaderColor->p);
+		p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_background));
+		top += st::setHeaderSkip;
+
+		if (animateBackground) {
+			const QPixmap &pix = App::main()->newBackgroundThumb()->pixBlurred(st::setBackgroundSize);
+
+			p.drawPixmap(_left, top, st::setBackgroundSize, st::setBackgroundSize, pix, 0, (pix.height() - st::setBackgroundSize) / 2, st::setBackgroundSize, st::setBackgroundSize);
+
+			uint64 dt = getms();
+			int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
+
+			int32 x = _left + (st::setBackgroundSize - st::mediaviewLoader.width()) / 2;
+			int32 y = top + (st::setBackgroundSize - st::mediaviewLoader.height()) / 2;
+			p.fillRect(x, y, st::mediaviewLoader.width(), st::mediaviewLoader.height(), st::photoLoaderBg->b);
+
+			x += (st::mediaviewLoader.width() - cnt * st::mediaviewLoaderPoint.width() - (cnt - 1) * st::mediaviewLoaderSkip) / 2;
+			y += (st::mediaviewLoader.height() - st::mediaviewLoaderPoint.height()) / 2;
+			QColor c(st::white->c);
+			QBrush b(c);
+			for (int32 i = 0; i < cnt; ++i) {
+				t -= delta;
+				while (t < 0) t += period;
+
+				float64 alpha = (t >= st::photoLoaderDuration1 + st::photoLoaderDuration2) ? 0 : ((t > st::photoLoaderDuration1 ? ((st::photoLoaderDuration1 + st::photoLoaderDuration2 - t) / st::photoLoaderDuration2) : (t / st::photoLoaderDuration1)));
+				c.setAlphaF(st::photoLoaderAlphaMin + alpha * (1 - st::photoLoaderAlphaMin));
+				b.setColor(c);
+				p.fillRect(x + i * (st::mediaviewLoaderPoint.width() + st::mediaviewLoaderSkip), y, st::mediaviewLoaderPoint.width(), st::mediaviewLoaderPoint.height(), b);
+			}
+			QTimer::singleShot(AnimationTimerDelta, this, SLOT(updateBackgroundRect()));
+		} else {
+			p.drawPixmap(_left, top, _background);
+		}
+		top += st::setBackgroundSize;
+		top += st::setLittleSkip;
+		top += _tileBackground.height();
 
 		// local storage
 		p.setFont(st::setHeaderFont->f);
@@ -532,11 +600,17 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	
 	p.setFont(st::linkFont->f);
 	p.setPen(st::black->p);
-	p.drawText(_left + st::setHeaderLeft, _connectionType.y() + st::linkFont->ascent, _connectionTypeText);
-
-	if (self() && _resetDone) {
-		p.drawText(_resetSessions.x(), _resetSessions.y() + st::linkFont->ascent, lang(lng_settings_reset_done));
+	if (self()) {
+		top += _passcodeEdit.height() + st::setLittleSkip;
+		if (cHasPasscode()) {
+			p.drawText(_left, top + st::linkFont->ascent, _autoLockText);
+			top += _autoLock.height() + st::setLittleSkip;
+		}
+		if (!_waitingConfirm.isEmpty()) p.drawText(_left, top + st::linkFont->ascent, _waitingConfirm);
+		top += _passwordEdit.height() + st::setLittleSkip;
 	}
+
+	p.drawText(_left, _connectionType.y() + st::linkFont->ascent, _connectionTypeText);
 }
 
 void SettingsInner::resizeEvent(QResizeEvent *e) {
@@ -554,8 +628,7 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		// contact info
 		top += st::setHeaderSkip;
 		top += st::linkFont->height + st::setLittleSkip;
-		_chooseUsername.move(_left + _usernameLeft, top);
-		_changeUsername.move(_left + st::setWidth - _changeUsername.width(), top); top += st::linkFont->height;
+		_chooseUsername.move(_left + st::setContactInfoLeft, top); top += st::linkFont->height;
 
 		// notifications
 		top += st::setHeaderSkip;
@@ -607,7 +680,15 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 			top += _downloadPathEdit.height();
 		}
 		top += st::setSectionSkip;
-		_catsAndDogs.move(_left, top); top += _catsAndDogs.height();
+
+		// chat background
+		top += st::setHeaderSkip;
+		_backFromGallery.move(_left + st::setBackgroundSize + st::setLittleSkip, top);
+		_backFromFile.move(_left + st::setBackgroundSize + st::setLittleSkip, top + _backFromGallery.height() + st::setLittleSkip);
+		top += st::setBackgroundSize;
+
+		top += st::setLittleSkip;
+		_tileBackground.move(_left, top); top += _tileBackground.height();
 
 		// local storage
 		_localStorageClear.move(_left + st::setWidth - _localStorageClear.width(), top + st::setHeaderTop + st::setHeaderFont->ascent - st::linkFont->ascent);
@@ -623,9 +704,19 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 
 	// advanced
 	top += st::setHeaderSkip;
-	_connectionType.move(_left + st::setHeaderLeft + _connectionTypeWidth, top); top += _connectionType.height() + st::setLittleSkip;
 	if (self()) {
-		_resetSessions.move(_left, top); top += _resetSessions.height() + st::setSectionSkip;
+		_passcodeEdit.move(_left, top);
+		_passcodeTurnOff.move(_left + st::setWidth - _passcodeTurnOff.width(), top); top += _passcodeTurnOff.height() + st::setLittleSkip;
+		if (cHasPasscode()) {
+			_autoLock.move(_left + _autoLockWidth, top); top += _autoLock.height() + st::setLittleSkip;
+		}
+		_passwordEdit.move(_left, top);
+		_passwordTurnOff.move(_left + st::setWidth - _passwordTurnOff.width(), top); top += _passwordTurnOff.height() + st::setLittleSkip;
+	}
+
+	_connectionType.move(_left + _connectionTypeWidth, top); top += _connectionType.height() + st::setLittleSkip;
+	if (self()) {
+		_showSessions.move(_left, top); top += _showSessions.height() + st::setSectionSkip;
 		_logOut.move(_left, top);
 	}
 }
@@ -634,6 +725,30 @@ void SettingsInner::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
 		App::wnd()->showSettings();
 	}
+	_secretText += e->text().toLower();
+	int32 size = _secretText.size(), from = 0;
+	while (size > from) {
+		QStringRef str(_secretText.midRef(from));
+		if (str == QLatin1String("debugmode")) {
+			QString text = cDebug() ? qsl("Do you want to disable DEBUG logs?") : qsl("Do you want to enable DEBUG logs?\n\nAll network events will be logged.");
+			ConfirmBox *box = new ConfirmBox(text);
+			connect(box, SIGNAL(confirmed()), App::app(), SLOT(onSwitchDebugMode()));
+			App::wnd()->showLayer(box);
+			from = size;
+			break;
+		} else if (str == QLatin1String("testmode")) {
+			QString text = cTestMode() ? qsl("Do you want to disable TEST mode?") : qsl("Do you want to enable TEST mode?\n\nYou will be switched to test cloud.");
+			ConfirmBox *box = new ConfirmBox(text);
+			connect(box, SIGNAL(confirmed()), App::app(), SLOT(onSwitchTestMode()));
+			App::wnd()->showLayer(box);
+			from = size;
+			break;
+		} else if (qsl("debugmode").startsWith(str) || qsl("testmode").startsWith(str)) {
+			break;
+		}
+		++from;
+	}
+	_secretText = (size > from) ? _secretText.mid(from) : QString();
 }
 
 void SettingsInner::mouseMoveEvent(QMouseEvent *e) {
@@ -717,6 +832,18 @@ void SettingsInner::updateConnectionType() {
 	}
 }
 
+void SettingsInner::passcodeChanged() {
+	resizeEvent(0);
+	_passcodeEdit.setText(lang(cHasPasscode() ? lng_passcode_change : lng_passcode_turn_on));
+	_autoLock.setText((cAutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, cAutoLock() / 60) : lng_passcode_autolock_hours(lt_count, cAutoLock() / 3600));
+//	_passwordEdit.setText()
+	showAll();
+}
+
+void SettingsInner::updateBackgroundRect() {
+	update(_left, _tileBackground.y() - st::setLittleSkip - st::setBackgroundSize, st::setBackgroundSize, st::setBackgroundSize);
+}
+
 void SettingsInner::gotFullSelf(const MTPUserFull &selfFull) {
 	if (!self()) return;
 	App::feedPhoto(selfFull.c_userFull().vprofile_photo);
@@ -729,8 +856,52 @@ void SettingsInner::gotFullSelf(const MTPUserFull &selfFull) {
 	}
 }
 
+void SettingsInner::gotPassword(const MTPaccount_Password &result) {
+	_waitingConfirm = QString();
+
+	switch (result.type()) {
+	case mtpc_account_noPassword: {
+		const MTPDaccount_noPassword &d(result.c_account_noPassword());
+		_curPasswordSalt = QByteArray();
+		_hasPasswordRecovery = false;
+		_curPasswordHint = QString();
+		_newPasswordSalt = qba(d.vnew_salt);
+		QString pattern = qs(d.vemail_unconfirmed_pattern);
+		if (!pattern.isEmpty()) _waitingConfirm = lng_cloud_password_waiting(lt_email, pattern);
+	} break;
+
+	case mtpc_account_password: {
+		const MTPDaccount_password &d(result.c_account_password());
+		_curPasswordSalt = qba(d.vcurrent_salt);
+		_hasPasswordRecovery = d.vhas_recovery.v;
+		_curPasswordHint = qs(d.vhint);
+		_newPasswordSalt = qba(d.vnew_salt);
+		QString pattern = qs(d.vemail_unconfirmed_pattern);
+		if (!pattern.isEmpty()) _waitingConfirm = lng_cloud_password_waiting(lt_email, pattern);
+	} break;
+	}
+	_waitingConfirm = st::linkFont->m.elidedText(_waitingConfirm, Qt::ElideRight, st::setWidth - _passwordTurnOff.width());
+	_passwordEdit.setText(lang(_curPasswordSalt.isEmpty() ? lng_cloud_password_set : lng_cloud_password_edit));
+	showAll();
+	update();
+
+	_newPasswordSalt.resize(_newPasswordSalt.size() + 8);
+	memset_rand(_newPasswordSalt.data() + _newPasswordSalt.size() - 8, 8);
+}
+
+void SettingsInner::offPasswordDone(const MTPBool &result) {
+	onReloadPassword();
+}
+
+bool SettingsInner::offPasswordFail(const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
+	onReloadPassword();
+	return true;
+}
+
 void SettingsInner::usernameChanged() {
-	_usernameText = (self() && !self()->username.isEmpty()) ? ('@' + self()->username) : QString();
+	_chooseUsername.setText((self() && !self()->username.isEmpty()) ? ('@' + self()->username) : lang(lng_settings_choose_username));
 	showAll();
 	update();
 }
@@ -752,16 +923,9 @@ void SettingsInner::showAll() {
 
 	// contact info
 	if (self()) {
-		if (self()->username.isEmpty()) {
-			_chooseUsername.show();
-			_changeUsername.hide();
-		} else {
-			_chooseUsername.hide();
-			_changeUsername.show();
-		}
+		_chooseUsername.show();
 	} else {
 		_chooseUsername.hide();
-		_changeUsername.hide();
 	}
 
 	// notifications
@@ -820,7 +984,6 @@ void SettingsInner::showAll() {
 		}
 		_enterSend.show();
 		_ctrlEnterSend.show();
-		_catsAndDogs.show();
 		_dontAskDownloadPath.show();
 		if (cAskDownloadPath()) {
 			_downloadPathEdit.hide();
@@ -839,10 +1002,20 @@ void SettingsInner::showAll() {
 		_viewEmojis.hide();
 		_enterSend.hide();
 		_ctrlEnterSend.hide();
-		_catsAndDogs.hide();
 		_dontAskDownloadPath.hide();
 		_downloadPathEdit.hide();
 		_downloadPathClear.hide();
+	}
+
+	// chat background
+	if (self()) {
+		_backFromGallery.show();
+		_backFromFile.show();
+		_tileBackground.show();
+	} else {
+		_backFromGallery.hide();
+		_backFromFile.hide();
+		_tileBackground.hide();
 	}
 
 	// local storage
@@ -854,14 +1027,33 @@ void SettingsInner::showAll() {
 
 	// advanced
 	if (self()) {
-		if (_resetDone) {
-			_resetSessions.hide();
+		_passcodeEdit.show();
+		if (cHasPasscode()) {
+			_autoLock.show();
+			_passcodeTurnOff.show();
 		} else {
-			_resetSessions.show();
+			_autoLock.hide();
+			_passcodeTurnOff.hide();
 		}
+		if (_waitingConfirm.isEmpty()) {
+			_passwordEdit.show();
+		} else {
+			_passwordEdit.hide();
+		}
+		if (_curPasswordSalt.isEmpty() && _waitingConfirm.isEmpty()) {
+			_passwordTurnOff.hide();
+		} else {
+			_passwordTurnOff.show();
+		}
+		_showSessions.show();
 		_logOut.show();
 	} else {
-		_resetSessions.hide();
+		_passcodeEdit.hide();
+		_autoLock.hide();
+		_passcodeTurnOff.hide();
+		_passwordEdit.hide();
+		_passwordTurnOff.hide();
+		_showSessions.hide();
 		_logOut.hide();
 	}
 }
@@ -910,23 +1102,9 @@ void SettingsInner::onUpdatePhoto() {
 	App::wnd()->showLayer(box);
 }
 
-void SettingsInner::onResetSessions() {
-	ConfirmBox *box = new ConfirmBox(lang(lng_settings_reset_sure), lang(lng_settings_reset_button));
-	connect(box, SIGNAL(confirmed()), this, SLOT(onResetSessionsSure()));
+void SettingsInner::onShowSessions() {
+	SessionsBox *box = new SessionsBox();
 	App::wnd()->showLayer(box);
-}
-
-void SettingsInner::onResetSessionsSure() {
-	App::wnd()->layerHidden();
-	MTP::send(MTPauth_ResetAuthorizations(), rpcDone(&SettingsInner::doneResetSessions));
-}
-
-void SettingsInner::doneResetSessions(const MTPBool &res) {
-	if (res.v) {
-		_resetDone = true;
-		showAll();
-		update();
-	}
 }
 
 void SettingsInner::onChangeLanguage() {
@@ -956,7 +1134,7 @@ void SettingsInner::onChangeLanguage() {
 void SettingsInner::onSaveTestLang() {
 	cSetLangFile(_testlang);
 	cSetLang(languageTest);
-	App::writeConfig();
+	Local::writeSettings();
 	cSetRestarting(true);
 	App::quit();
 }
@@ -969,7 +1147,7 @@ void SettingsInner::onUpdateLocalStorage() {
 
 void SettingsInner::onAutoUpdate() {
 	cSetAutoUpdate(!cAutoUpdate());
-	App::writeConfig();
+	Local::writeSettings();
 	resizeEvent(0);
 	if (cAutoUpdate()) {
 		App::app()->startUpdateCheck();
@@ -1004,6 +1182,51 @@ void SettingsInner::onRestartNow() {
 	App::quit();
 }
 
+void SettingsInner::onPasscode() {
+	PasscodeBox *box = new PasscodeBox();
+	connect(box, SIGNAL(closed()), this, SLOT(passcodeChanged()));
+	App::wnd()->showLayer(box);
+}
+
+void SettingsInner::onPasscodeOff() {
+	PasscodeBox *box = new PasscodeBox(true);
+	connect(box, SIGNAL(closed()), this, SLOT(passcodeChanged()));
+	App::wnd()->showLayer(box);
+}
+
+void SettingsInner::onPassword() {
+	PasscodeBox *box = new PasscodeBox(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint);
+	connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
+	App::wnd()->showLayer(box);
+}
+
+void SettingsInner::onPasswordOff() {
+	if (_curPasswordSalt.isEmpty()) {
+		_passwordTurnOff.hide();
+
+//		int32 flags = MTPDaccount_passwordInputSettings::flag_new_salt | MTPDaccount_passwordInputSettings::flag_new_password_hash | MTPDaccount_passwordInputSettings::flag_hint | MTPDaccount_passwordInputSettings::flag_email;
+		int32 flags = MTPDaccount_passwordInputSettings::flag_email;
+		MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_int(flags), MTP_string(QByteArray()), MTP_string(QByteArray()), MTP_string(QString()), MTP_string(QString())));
+		MTP::send(MTPaccount_UpdatePasswordSettings(MTP_string(QByteArray()), settings), rpcDone(&SettingsInner::offPasswordDone), rpcFail(&SettingsInner::offPasswordFail));
+	} else {
+		PasscodeBox *box = new PasscodeBox(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint, true);
+		connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
+		App::wnd()->showLayer(box);
+	}
+}
+
+void SettingsInner::onReloadPassword(Qt::ApplicationState state) {
+	if (state == Qt::ApplicationActive) {
+		MTP::send(MTPaccount_GetPassword(), rpcDone(&SettingsInner::gotPassword));
+	}
+}
+
+void SettingsInner::onAutoLock() {
+	AutoLockBox *box = new AutoLockBox();
+	connect(box, SIGNAL(closed()), this, SLOT(passcodeChanged()));
+	App::wnd()->showLayer(box);
+}
+
 void SettingsInner::onConnectionType() {
 	ConnectionBox *box = new ConnectionBox();
 	connect(box, SIGNAL(closed()), this, SLOT(updateConnectionType()), Qt::QueuedConnection);
@@ -1026,7 +1249,7 @@ void SettingsInner::onWorkmodeTray() {
 	}
 	cSetWorkMode(newMode);
 	App::wnd()->psUpdateWorkmode();
-	App::writeConfig();
+	Local::writeSettings();
 }
 
 void SettingsInner::onWorkmodeWindow() {
@@ -1039,7 +1262,7 @@ void SettingsInner::onWorkmodeWindow() {
 	}
 	cSetWorkMode(newMode);
 	App::wnd()->psUpdateWorkmode();
-	App::writeConfig();
+	Local::writeSettings();
 }
 
 void SettingsInner::onAutoStart() {
@@ -1050,19 +1273,19 @@ void SettingsInner::onAutoStart() {
 		_startMinimized.setChecked(false);
 	} else {
 		psAutoStart(_autoStart.checked());
-		App::writeConfig();
+		Local::writeSettings();
 	}
 }
 
 void SettingsInner::onStartMinimized() {
 	cSetStartMinimized(_startMinimized.checked());
-	App::writeConfig();
+	Local::writeSettings();
 }
 
 void SettingsInner::onSendToMenu() {
 	cSetSendToMenu(_sendToMenu.checked());
 	psSendToMenu(_sendToMenu.checked());
-	App::writeConfig();
+	Local::writeSettings();
 }
 
 void SettingsInner::onScaleAuto() {
@@ -1100,7 +1323,7 @@ void SettingsInner::setScale(DBIScale newScale) {
 	if (cConfigScale() == newScale) return;
 
 	cSetConfigScale(newScale);
-	App::writeConfig();
+	Local::writeSettings();
 	App::wnd()->getTitle()->showUpdateBtn();
 	if (newScale == dbisAuto && !_dpiAutoScale.checked()) {
 		_dpiAutoScale.setChecked(true);
@@ -1120,7 +1343,7 @@ void SettingsInner::setScale(DBIScale newScale) {
 
 void SettingsInner::onSoundNotify() {
 	cSetSoundNotify(_soundNotify.checked());
-	App::writeUserConfig();
+	Local::writeUserSettings();
 }
 
 void SettingsInner::onDesktopNotify() {
@@ -1129,11 +1352,11 @@ void SettingsInner::onDesktopNotify() {
 		App::wnd()->notifyClear();
 		_senderName.setDisabled(true);
 		_messagePreview.setDisabled(true);
-		App::writeUserConfig();
+		Local::writeUserSettings();
 	} else {
 		_senderName.setDisabled(false);
 		_messagePreview.setDisabled(!_senderName.checked());
-		App::writeUserConfig();
+		Local::writeUserSettings();
 	}
 }
 
@@ -1149,7 +1372,7 @@ void SettingsInner::onSenderName() {
 		} else {
 			cSetNotifyView(dbinvShowNothing);
 		}
-		App::writeUserConfig();
+		Local::writeUserSettings();
 		App::wnd()->notifyUpdateAll();
 	}
 }
@@ -1162,13 +1385,13 @@ void SettingsInner::onMessagePreview() {
 	} else {
 		cSetNotifyView(dbinvShowNothing);
 	}
-	App::writeUserConfig();
+	Local::writeUserSettings();
 	App::wnd()->notifyUpdateAll();
 }
 
 void SettingsInner::onReplaceEmojis() {
 	cSetReplaceEmojis(_replaceEmojis.checked());
-	App::writeUserConfig();
+	Local::writeUserSettings();
 
 	if (_replaceEmojis.checked()) {
 		_viewEmojis.show();
@@ -1184,25 +1407,88 @@ void SettingsInner::onViewEmojis() {
 void SettingsInner::onEnterSend() {
 	if (_enterSend.checked()) {
 		cSetCtrlEnter(false);
-		App::writeUserConfig();
+		Local::writeUserSettings();
 	}
 }
 
 void SettingsInner::onCtrlEnterSend() {
 	if (_ctrlEnterSend.checked()) {
 		cSetCtrlEnter(true);
-		App::writeUserConfig();
+		Local::writeUserSettings();
 	}
 }
 
-void SettingsInner::onCatsAndDogs() {
-	cSetCatsAndDogs(_catsAndDogs.checked());
-	App::writeUserConfig();
+void SettingsInner::onBackFromGallery() {
+	BackgroundBox *box = new BackgroundBox();
+	App::wnd()->showLayer(box);
+}
+
+void SettingsInner::onBackFromFile() {
+	QStringList imgExtensions(cImgExtensions());
+	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;All files (*.*)"));
+
+	QImage img;
+	QString file;
+	QByteArray remoteContent;
+	if (filedialogGetOpenFile(file, remoteContent, lang(lng_choose_images), filter)) {
+		if (!remoteContent.isEmpty()) {
+			img = App::readImage(remoteContent);
+		} else {
+			if (!file.isEmpty()) {
+				img = App::readImage(file);
+			}
+		}
+	}
+
+	if (img.isNull() || img.width() <= 0 || img.height() <= 0) return;
+
+	if (img.width() > 4096 * img.height()) {
+		img = img.copy((img.width() - 4096 * img.height()) / 2, 0, 4096 * img.height(), img.height());
+	} else if (img.height() > 4096 * img.width()) {
+		img = img.copy(0, (img.height() - 4096 * img.width()) / 2, img.width(), 4096 * img.width());
+	}
+
+	App::initBackground(-1, img);
+	_tileBackground.setChecked(false);
+	updateChatBackground();
+}
+
+void SettingsInner::updateChatBackground() {
+	int32 size = st::setBackgroundSize * cIntRetinaFactor();
+	QImage back(size, size, QImage::Format_ARGB32_Premultiplied);
+	back.setDevicePixelRatio(cRetinaFactor());
+	{
+		QPainter p(&back);
+		const QPixmap &pix(*cChatBackground());
+		int sx = (pix.width() > pix.height()) ? ((pix.width() - pix.height()) / 2) : 0;
+		int sy = (pix.height() > pix.width()) ? ((pix.height() - pix.width()) / 2) : 0;
+		int s = (pix.width() > pix.height()) ? pix.height() : pix.width();
+		p.setRenderHint(QPainter::SmoothPixmapTransform);
+		p.drawPixmap(0, 0, st::setBackgroundSize, st::setBackgroundSize, pix, sx, sy, s, s);
+	}
+	_background = QPixmap::fromImage(back);
+	_background.setDevicePixelRatio(cRetinaFactor());
+	_needBackgroundUpdate = false;
+	updateBackgroundRect();
+}
+
+void SettingsInner::needBackgroundUpdate(bool tile) {
+	_needBackgroundUpdate = true;
+	_tileBackground.setChecked(tile);
+	updateChatBackground();
+}
+
+void SettingsInner::onTileBackground() {
+	if (cTileBackground() != _tileBackground.checked()) {
+		cSetTileBackground(_tileBackground.checked());
+		if (App::main()) App::main()->clearCachedBackground();
+		Local::writeUserSettings();
+	}
 }
 
 void SettingsInner::onDontAskDownloadPath() {
 	cSetAskDownloadPath(!_dontAskDownloadPath.checked());
-	App::writeUserConfig();
+	Local::writeUserSettings();
 
 	showAll();
 	resizeEvent(0);
@@ -1472,6 +1758,14 @@ void SettingsWidget::rpcInvalidate() {
 
 void SettingsWidget::usernameChanged() {
 	_inner.usernameChanged();
+}
+
+void SettingsWidget::setInnerFocus() {
+	_inner.setFocus();
+}
+
+void SettingsWidget::needBackgroundUpdate(bool tile) {
+	_inner.needBackgroundUpdate(tile);
 }
 
 SettingsWidget::~SettingsWidget() {

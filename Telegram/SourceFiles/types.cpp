@@ -189,8 +189,8 @@ namespace {
 				char buf[16];
 				memcpy(buf, &_msStart, 8);
 				memcpy(buf + 8, &_msFreq, 8);
-				uchar sha1Buffer[20];
-				RAND_seed(hashSha1(buf, 16, sha1Buffer), 20);
+				uchar sha256Buffer[32];
+				RAND_seed(hashSha256(buf, 16, sha256Buffer), 32);
 				if (!RAND_status()) {
 					LOG(("MTP Error: Could not init OpenSSL rand, RAND_status() is 0.."));
 				}
@@ -262,6 +262,18 @@ void SingleTimer::start(int msec) {
 	QTimer::start(msec);
 }
 
+void SingleTimer::startIfNotActive(int msec) {
+	if (isActive()) {
+		int remains = remainingTime();
+		if (remains > msec) {
+			start(msec);
+		} else if (!remains) {
+			start(1);
+		}
+	} else {
+		start(msec);
+	}
+}
 
 uint64 msgid() {
 #ifdef Q_OS_WIN
@@ -332,83 +344,12 @@ int32 hashCrc32(const void *data, uint32 len) {
     return crc ^ 0xffffffff;
 }
 
-// sha1 hash, taken somewhere from the internet
-
-namespace{
-    inline uint32 sha1Shift(uint32 v, uint32 shift) {
-        return ((v << shift) | (v >> (32 - shift)));
-    }
-    void sha1PartHash(uint32 *sha, uint32 *temp)
-    {
-        uint32 a = sha[0], b = sha[1], c = sha[2], d = sha[3], e = sha[4], round = 0;
-
-        #define _shiftswap(f, v) { \
-            uint32 t = sha1Shift(a, 5) + (f) + e + v + temp[round]; \
-			e = d; \
-			d = c; \
-			c = sha1Shift(b, 30); \
-			b = a; \
-			a = t; \
-            ++round; \
-		}
-		#define _shiftshiftswap(f, v) { \
-            temp[round] = sha1Shift((temp[round - 3] ^ temp[round - 8] ^ temp[round - 14] ^ temp[round - 16]), 1); \
-			_shiftswap(f, v) \
-		}
-
-        while (round < 16) _shiftswap((b & c) | (~b & d), 0x5a827999)
-        while (round < 20) _shiftshiftswap((b & c) | (~b & d), 0x5a827999)
-        while (round < 40) _shiftshiftswap(b ^ c ^ d, 0x6ed9eba1)
-        while (round < 60) _shiftshiftswap((b & c) | (b & d) | (c & d), 0x8f1bbcdc)
-        while (round < 80) _shiftshiftswap(b ^ c ^ d, 0xca62c1d6)
-
-        #undef _shiftshiftswap
-        #undef _shiftswap
-
-        sha[0] += a;
-        sha[1] += b;
-        sha[2] += c;
-        sha[3] += d;
-        sha[4] += e;
-    }
+int32 *hashSha1(const void *data, uint32 len, void *dest) {
+	return (int32*)SHA1((const uchar*)data, (size_t)len, (uchar*)dest);
 }
 
-int32 *hashSha1(const void *data, uint32 len, void *dest) {
-	const uchar *buf = (const uchar *)data;
-
-    uint32 temp[80], block = 0, end;
-    uint32 sha[5] = {0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0};
-    for (end = block + 64; block + 64 <= len; end = block + 64) {
-        for (uint32 i = 0; block < end; block += 4) {
-            temp[i++] = (uint32) buf[block + 3]
-                    | (((uint32) buf[block + 2]) << 8)
-                    | (((uint32) buf[block + 1]) << 16)
-                    | (((uint32) buf[block]) << 24);
-        }
-        sha1PartHash(sha, temp);
-    }
-
-    end = len - block;
-	memset(temp, 0, sizeof(uint32) * 16);
-    uint32 last = 0;
-    for (; last < end; ++last) {
-        temp[last >> 2] |= (uint32)buf[last + block] << ((3 - (last & 0x03)) << 3);
-    }
-    temp[last >> 2] |= 0x80 << ((3 - (last & 3)) << 3);
-    if (end >= 56) {
-        sha1PartHash(sha, temp);
-		memset(temp, 0, sizeof(uint32) * 16);
-    }
-    temp[15] = len << 3;
-    sha1PartHash(sha, temp);
-
-	uchar *sha1To = (uchar*)dest;
-
-    for (int32 i = 19; i >= 0; --i) {
-        sha1To[i] = (sha[i >> 2] >> (((3 - i) & 0x03) << 3)) & 0xFF;
-    }
-
-	return (int32*)sha1To;
+int32 *hashSha256(const void *data, uint32 len, void *dest) {
+	return (int32*)SHA256((const uchar*)data, (size_t)len, (uchar*)dest);
 }
 
 // md5 hash, taken somewhere from the internet

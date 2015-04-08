@@ -114,6 +114,7 @@ public:
 public slots:
 
 	void start(int msec);
+	void startIfNotActive(int msec);
 	void adjust() {
 		uint64 n = getms(true);
 		if (isActive()) {
@@ -155,6 +156,7 @@ private:
 
 int32 hashCrc32(const void *data, uint32 len);
 int32 *hashSha1(const void *data, uint32 len, void *dest); // dest - ptr to 20 bytes, returns (int32*)dest
+int32 *hashSha256(const void *data, uint32 len, void *dest); // dest - ptr to 32 bytes, returns (int32*)dest
 int32 *hashMd5(const void *data, uint32 len, void *dest); // dest = ptr to 16 bytes, returns (int32*)dest
 char *hashMd5Hex(const int32 *hashmd5, void *dest); // dest = ptr to 32 bytes, returns (char*)dest
 inline char *hashMd5Hex(const void *data, uint32 len, void *dest) { // dest = ptr to 32 bytes, returns (char*)dest
@@ -226,7 +228,7 @@ enum DataBlockId {
 	dbiKey = 0,
 	dbiUser = 1,
 	dbiDcOption = 2,
-	dbiConfig1 = 3,
+	dbiMaxGroupCount = 3,
 	dbiMutePeer = 4,
 	dbiSendKey = 5,
 	dbiAutoStart = 6,
@@ -256,6 +258,9 @@ enum DataBlockId {
 	dbiCompressPastedImage = 30,
 	dbiLang = 31,
 	dbiLangFile = 32,
+	dbiTileBackground = 33,
+	dbiAutoLock = 34,
+	dbiDialogLastPath = 35,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,

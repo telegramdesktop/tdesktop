@@ -25,7 +25,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/photocropbox.h"
 #include "application.h"
-#include "boxes/addparticipantbox.h"
+#include "boxes/contactsbox.h"
 #include "gui/filedialog.h"
 
 ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const PeerData *peer) : TWidget(0),
@@ -197,8 +197,7 @@ void ProfileInner::onClearHistorySure() {
 }
 
 void ProfileInner::onAddParticipant() {
-	AddParticipantBox *box = new AddParticipantBox(_peerChat);
-	App::wnd()->showLayer(box);
+	App::wnd()->showLayer(new ContactsBox(_peerChat));
 }
 
 void ProfileInner::onUpdatePhotoCancel() {
@@ -381,11 +380,8 @@ void ProfileInner::reorderParticipants() {
 
 bool ProfileInner::event(QEvent *e) {
 	if (e->type() == QEvent::MouseMove) {
-		QMouseEvent *ev = dynamic_cast<QMouseEvent*>(e);
-		if (ev) {
-			_lastPos = ev->globalPos();
-			updateSelected();
-		}
+		_lastPos = static_cast<QMouseEvent*>(e)->globalPos();
+		updateSelected();
 	}
 	return QWidget::event(e);
 }
@@ -422,7 +418,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 		p.setPen(st::black->p);
 		p.drawText(_left + st::profilePhotoSize + st::profileStatusLeft, top + st::profileStatusTop + st::linkFont->ascent, '@' + _peerUser->username);
 	}
-	p.setPen((_peerUser && _peerUser->onlineTill >= l_time ? st::profileOnlineColor : st::profileOfflineColor)->p);
+	p.setPen((_peerUser && App::onlineColorUse(_peerUser->onlineTill, l_time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
 	p.drawText(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop + st::linkFont->ascent, _onlineText);
 	if (!_cancelPhoto.isHidden()) {
 		p.drawText(_left + st::profilePhotoSize + st::profilePhoneLeft, _cancelPhoto.y() + addbyname + st::linkFont->ascent, lang(lng_settings_uploading_photo));
@@ -529,7 +525,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 				p.setFont(st::linkFont->f);
 				data->name.drawElided(p, _left + st::profileListPhotoSize + st::profileListPadding.width(), top + st::profileListNameTop, _width - _kickWidth - st::profileListPadding.width() - st::profileListPhotoSize - st::profileListPadding.width());
 				p.setFont(st::profileSubFont->f);
-				p.setPen((user->onlineTill >= l_time ? st::profileOnlineColor : st::profileOfflineColor)->p);
+				p.setPen((App::onlineColorUse(user->onlineTill, l_time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
 				p.drawText(_left + st::profileListPhotoSize + st::profileListPadding.width(), top + st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, data->online);
 
 				if (data->cankick) {
@@ -603,16 +599,18 @@ void ProfileInner::updateSelected() {
 void ProfileInner::mousePressEvent(QMouseEvent *e) {
 	_lastPos = e->globalPos();
 	updateSelected();
-	if (_kickOver) {
-		_kickDown = _kickOver;
-		update();
-	} else if (_selectedRow >= 0 && _selectedRow < _participants.size()) {
-		App::main()->showPeerProfile(_participants[_selectedRow]);
-	} else if (QRect(_left, st::profilePadding.top(), st::setPhotoSize, st::setPhotoSize).contains(e->pos())) {
-		if (_photoLink) {
-			_photoLink->onClick(e->button());
-		} else if (_peerChat && !_peerChat->forbidden) {
-			onUpdatePhoto();
+	if (e->button() == Qt::LeftButton) {
+		if (_kickOver) {
+			_kickDown = _kickOver;
+			update();
+		} else if (_selectedRow >= 0 && _selectedRow < _participants.size()) {
+			App::main()->showPeerProfile(_participants[_selectedRow]);
+		} else if (QRect(_left, st::profilePadding.top(), st::setPhotoSize, st::setPhotoSize).contains(e->pos())) {
+			if (_photoLink) {
+				_photoLink->onClick(e->button());
+			} else if (_peerChat && !_peerChat->forbidden) {
+				onUpdatePhoto();
+			}
 		}
 	}
 }
@@ -715,11 +713,16 @@ void ProfileInner::contextMenuEvent(QContextMenuEvent *e) {
 		_menu->deleteLater();
 		_menu = 0;
 	}
-	if (!_phoneText.isEmpty()) {
+	if (!_phoneText.isEmpty() || (_peerUser && !_peerUser->username.isEmpty())) {
 		QRect info(_left + st::profilePhotoSize + st::profilePhoneLeft, st::profilePadding.top(), _width - st::profilePhotoSize - st::profilePhoneLeft, st::profilePhotoSize);
 		if (info.contains(mapFromGlobal(e->globalPos()))) {
 			_menu = new ContextMenu(this);
-			_menu->addAction(lang(lng_profile_copy_phone), this, SLOT(onCopyPhone()))->setEnabled(true);
+			if (!_phoneText.isEmpty()) {
+				_menu->addAction(lang(lng_profile_copy_phone), this, SLOT(onCopyPhone()))->setEnabled(true);
+			}
+			if (_peerUser && !_peerUser->username.isEmpty()) {
+				_menu->addAction(lang(lng_context_copy_mention), this, SLOT(onCopyUsername()))->setEnabled(true);
+			}
 			_menu->deleteOnHide();
 			connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
 			_menu->popup(e->globalPos());
@@ -736,6 +739,10 @@ void ProfileInner::onMenuDestroy(QObject *obj) {
 
 void ProfileInner::onCopyPhone() {
 	QApplication::clipboard()->setText(_phoneText);
+}
+
+void ProfileInner::onCopyUsername() {
+	QApplication::clipboard()->setText('@' + _peerUser->username);
 }
 
 bool ProfileInner::animStep(float64 ms) {
@@ -780,6 +787,7 @@ void ProfileInner::mediaOverviewUpdated(PeerData *peer) {
 	if (peer == _peer) {
 		resizeEvent(0);
 		showAll();
+		update();
 	}
 }
 
@@ -876,7 +884,7 @@ QString ProfileInner::overviewLinkText(int32 type, int32 count) {
 	switch (type) {
 	case OverviewPhotos: return lng_profile_photos(lt_count, count);
 	case OverviewVideos: return lng_profile_videos(lt_count, count);
-	case OverviewDocuments: return lng_profile_documents(lt_count, count);
+	case OverviewDocuments: return lng_profile_files(lt_count, count);
 	case OverviewAudios: return lng_profile_audios(lt_count, count);
 	}
 	return QString();

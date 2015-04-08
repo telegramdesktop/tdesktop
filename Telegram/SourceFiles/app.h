@@ -23,6 +23,7 @@ class Application;
 class Window;
 class MainWidget;
 class SettingsWidget;
+class ApiWrap;
 class Font;
 class Color;
 class FileUploader;
@@ -33,13 +34,16 @@ typedef QMap<HistoryItem*, bool> HistoryItemsMap;
 typedef QHash<VideoData*, HistoryItemsMap> VideoItems;
 typedef QHash<AudioData*, HistoryItemsMap> AudioItems;
 typedef QHash<DocumentData*, HistoryItemsMap> DocumentItems;
+typedef QHash<WebPageData*, HistoryItemsMap> WebPageItems;
 
 namespace App {
 	Application *app();
 	Window *wnd();
 	MainWidget *main();
 	SettingsWidget *settings();
+	bool passcoded();
 	FileUploader *uploader();
+	ApiWrap *api();
 
 	void showSettings();
 	void logOut();
@@ -66,19 +70,23 @@ namespace App {
 	int32 onlineForSort(int32 online, int32 now);
 	int32 onlineWillChangeIn(int32 onlineOnServer, int32 nowOnServer);
 	QString onlineText(UserData *user, int32 nowOnServer, bool precise = false);
+	bool onlineColorUse(int32 online, int32 now);
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users); // returnes last user
 	void feedChats(const MTPVector<MTPChat> &chats);
 	void feedParticipants(const MTPChatParticipants &p);
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d);
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d);
-	void feedMsgs(const MTPVector<MTPMessage> &msgs, bool newMsgs = false);
+	void feedMsgs(const MTPVector<MTPMessage> &msgs, int msgsState = 0); // 2 - new read message, 1 - new unread message, 0 - not new message, -1 - searched message
 	void feedWereRead(const QVector<MTPint> &msgsIds);
+	void feedInboxRead(const PeerId &peer, int32 upTo);
+	void feedOutboxRead(const PeerId &peer, int32 upTo);
 	void feedWereDeleted(const QVector<MTPint> &msgsIds);
 	void feedUserLinks(const MTPVector<MTPcontacts_Link> &links);
-	void feedUserLink(MTPint userId, const MTPcontacts_MyLink &myLink, const MTPcontacts_ForeignLink &foreignLink);
-	void feedMessageMedia(MsgId msgId, const MTPMessage &msg);
+	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink);
 	int32 maxMsgId();
+
+	ImagePtr image(const MTPPhotoSize &size);
 
 	PhotoData *feedPhoto(const MTPPhoto &photo, const PreparedPhotoThumbs &thumbs);
 	PhotoData *feedPhoto(const MTPPhoto &photo, PhotoData *convert = 0);
@@ -88,6 +96,9 @@ namespace App {
 	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb);
 	DocumentData *feedDocument(const MTPdocument &document, DocumentData *convert = 0);
 	DocumentData *feedDocument(const MTPDdocument &document, DocumentData *convert = 0);
+	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert = 0);
+	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert = 0);
+	WebPageData *feedWebPage(const MTPWebPage &webpage);
 
 	UserData *userLoaded(const PeerId &user);
 	ChatData *chatLoaded(const PeerId &chat);
@@ -105,15 +116,16 @@ namespace App {
 	QString peerName(const PeerData *peer, bool forDialogs = false);
 	PhotoData *photo(const PhotoId &photo, PhotoData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, const ImagePtr &thumb = ImagePtr(), const ImagePtr &medium = ImagePtr(), const ImagePtr &full = ImagePtr());
 	VideoData *video(const VideoId &video, VideoData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
-	AudioData *audio(const AudioId &audio, AudioData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 dc = 0, int32 size = 0);
+	AudioData *audio(const AudioId &audio, AudioData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, const QString &mime = QString(), int32 duration = 0, int32 dc = 0, int32 size = 0);
 	DocumentData *document(const DocumentId &document, DocumentData *convert = 0, const uint64 &access = 0, int32 date = 0, const QVector<MTPDocumentAttribute> &attributes = QVector<MTPDocumentAttribute>(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
+	WebPageData *webPage(const WebPageId &webPage, WebPageData *convert = 0, const QString &type = QString(), const QString &url = QString(), const QString &displayUrl = QString(), const QString &siteName = QString(), const QString &title = QString(), const QString &description = QString(), PhotoData *photo = 0, int32 duration = 0, const QString &author = QString(), int32 pendingTill = -2);
 	ImageLinkData *imageLink(const QString &imageLink, ImageLinkType type = InvalidImageLink, const QString &url = QString());
 	void forgetMedia();
 
 	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo);
 
 	Histories &histories();
-	History *history(const PeerId &peer, int32 unreadCnt = 0);
+	History *history(const PeerId &peer, int32 unreadCnt = 0, int32 maxInboxRead = 0);
 	History *historyLoaded(const PeerId &peer);
 	HistoryItem *histItemById(MsgId itemId);
 	HistoryItem *historyRegItem(HistoryItem *item);
@@ -121,6 +133,8 @@ namespace App {
 	void historyUnregItem(HistoryItem *item);
 	void historyClearMsgs();
 	void historyClearItems();
+	void historyRegReply(HistoryReply *reply, HistoryItem *to);
+	void historyUnregReply(HistoryReply *reply, HistoryItem *to);
 //	void deleteHistory(const PeerId &peer);
 
 	void historyRegRandom(uint64 randomId, MsgId itemId);
@@ -148,18 +162,6 @@ namespace App {
 	void deinitMedia(bool completely = true);
 	void playSound();
 
-	void writeConfig();
-	void readConfig();
-	void writeUserConfig();
-	void readUserConfig();
-
-	void muteHistory(History *history);
-	void unmuteHistory(History *history);
-	void writeAllMuted(QDataStream &stream);
-	void readAllMuted(QDataStream &stream);
-	void readOneMuted(QDataStream &stream);
-	bool isPeerMuted(const PeerId &peer);
-
 	void checkImageCacheSize();
 
 	bool isValidPhone(QString phone);
@@ -183,11 +185,34 @@ namespace App {
 	void unregDocumentItem(DocumentData *data, HistoryItem *item);
 	const DocumentItems &documentItems();
 
+	void regWebPageItem(WebPageData *data, HistoryItem *item);
+	void unregWebPageItem(WebPageData *data, HistoryItem *item);
+	const WebPageItems &webPageItems();
+
 	void setProxySettings(QNetworkAccessManager &manager);
 	void setProxySettings(QTcpSocket &socket);
 
 	void searchByHashtag(const QString &tag);
-	void openUserByName(const QString &username);
+	void openUserByName(const QString &username, bool toProfile = false);
 	void openLocalUrl(const QString &url);
+
+	void initBackground(int32 id = 0, const QImage &p = QImage(), bool nowrite = false);
+
+	style::color msgServiceBG();
+	style::color historyScrollBarColor();
+	style::color historyScrollBgColor();
+	style::color historyScrollBarOverColor();
+	style::color historyScrollBgOverColor();
+	style::color introPointHoverColor();
+
+	struct WallPaper {
+		WallPaper(int32 id, ImagePtr thumb, ImagePtr full) : id(id), thumb(thumb), full(full) {
+		}
+		int32 id;
+		ImagePtr thumb;
+		ImagePtr full;
+	};
+	typedef QList<WallPaper> WallPapers;
+	DeclareSetting(WallPapers, ServerBackgrounds);
 
 };

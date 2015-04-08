@@ -78,10 +78,17 @@ public:
 
 	void showAll();
 
+	void updateChatBackground();
+	void needBackgroundUpdate(bool tile);
+
 public slots:
 
 	void usernameChanged();
 	void updateConnectionType();
+
+	void passcodeChanged();
+
+	void updateBackgroundRect();
 
 	void peerUpdated(PeerData *data);
 
@@ -91,6 +98,13 @@ public slots:
 	void onAutoUpdate();
 	void onCheckNow();
 	void onRestartNow();
+
+	void onPasscode();
+	void onPasscodeOff();
+	void onAutoLock();
+	void onPassword();
+	void onPasswordOff();
+	void onReloadPassword(Qt::ApplicationState state = Qt::ApplicationActive);
 
 	void onConnectionType();
 
@@ -125,7 +139,9 @@ public slots:
 	void onTempDirCleared(int task);
 	void onTempDirClearFailed(int task);
 
-	void onCatsAndDogs();
+	void onBackFromGallery();
+	void onBackFromFile();
+	void onTileBackground();
 
 	void onLocalStorageClear();
 
@@ -135,8 +151,7 @@ public slots:
 	void onUpdateReady();
 	void onUpdateFailed();
 
-	void onResetSessions();
-	void onResetSessionsSure();
+	void onShowSessions();
 
 	void onPhotoUpdateDone(PeerId peer);
 	void onPhotoUpdateFail(PeerId peer);
@@ -149,12 +164,11 @@ public slots:
 
 private:
 
-	void doneResetSessions(const MTPBool &res);
 	void saveError(const QString &str = QString());
 
 	void setScale(DBIScale newScale);
 
-	QString _testlang;
+	QString _testlang, _secretText;
 
 	UserData *_self;
 	UserData *self() const {
@@ -174,9 +188,8 @@ private:
 	QString _errorText;
 
 	// contact info
-	QString _phoneText, _usernameText;
-	int32 _phoneLeft, _usernameLeft;
-	LinkButton _chooseUsername, _changeUsername;
+	QString _phoneText;
+	LinkButton _chooseUsername;
 
 	// notifications
 	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _soundNotify;
@@ -222,7 +235,12 @@ private:
 		TempDirCleared     = 4,
 	};
 	TempDirClearState _tempDirClearState;
-	FlatCheckbox _catsAndDogs;
+
+	// chat background
+	QPixmap _background;
+	LinkButton _backFromGallery, _backFromFile;
+	FlatCheckbox _tileBackground;
+	bool _needBackgroundUpdate;
 
 	// local storage
 	LinkButton _localStorageClear;
@@ -231,16 +249,28 @@ private:
 	TempDirClearState _storageClearState;
 
 	// advanced
-	LinkButton _connectionType, _resetSessions;
-	FlatButton _logOut;
-
+	LinkButton _passcodeEdit, _passcodeTurnOff, _autoLock;
+	QString _autoLockText;
+	int32 _autoLockWidth;
+	LinkButton _passwordEdit, _passwordTurnOff;
+	QString _waitingConfirm;
+	QByteArray _curPasswordSalt;
+	bool _hasPasswordRecovery;
+	QString _curPasswordHint;
+	QByteArray _newPasswordSalt;
+	LinkButton _connectionType;
 	QString _connectionTypeText;
 	int32 _connectionTypeWidth;
+	LinkButton _showSessions;
+	FlatButton _logOut;
 
-	bool _resetDone;
+	void gotPassword(const MTPaccount_Password &result);
+	void offPasswordDone(const MTPBool &result);
+	bool offPasswordFail(const RPCError &error);
 
 	void setUpdatingState(UpdatingState state, bool force = false);
 	void setDownloadProgress(qint64 ready, qint64 total);
+
 
 };
 
@@ -266,6 +296,9 @@ public:
 
 	void rpcInvalidate();
 	void usernameChanged();
+
+	void setInnerFocus();
+	void needBackgroundUpdate(bool tile);
 
 	~SettingsWidget();
 

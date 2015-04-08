@@ -158,6 +158,14 @@ void IntroCode::activate() {
 	code.setFocus();
 }
 
+void IntroCode::prepareShow() {
+	code.setText(QString());
+	if (sentRequest) {
+		MTP::cancel(sentRequest);
+		sentRequest = 0;
+	}
+}
+
 void IntroCode::deactivate() {
 	callTimer.stop();
 	hide();
@@ -216,8 +224,13 @@ bool IntroCode::codeSubmitFail(const RPCError &error) {
 		intro()->setCode(sentCode);
 		intro()->onIntroNext();
 		return true;
-	}
-	if (QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(err).hasMatch()) {
+	} else if (err == "SESSION_PASSWORD_NEEDED") {
+		intro()->setCode(sentCode);
+		code.setDisabled(false);
+		checkRequest.start(1000);
+		sentRequest = MTP::send(MTPaccount_GetPassword(), rpcDone(&IntroCode::gotPassword), rpcFail(&IntroCode::codeSubmitFail));
+		return true;
+	} else if (error.type().startsWith(qsl("FLOOD_WAIT_"))) {
 		showError(lang(lng_flood_error));
 		code.setFocus();
 		return true;
@@ -251,6 +264,24 @@ void IntroCode::callDone(const MTPBool &v) {
 	}
 }
 
+void IntroCode::gotPassword(const MTPaccount_Password &result) {
+	stopCheck();
+	code.setDisabled(false);
+	switch (result.type()) {
+	case mtpc_account_noPassword: // should not happen
+		code.setFocus();
+	break;
+
+	case mtpc_account_password: {
+		const MTPDaccount_password &d(result.c_account_password());
+		intro()->setPwdSalt(qba(d.vcurrent_salt));
+		intro()->setHasRecovery(d.vhas_recovery.v);
+		intro()->setPwdHint(qs(d.vhint));
+		intro()->onIntroNext();
+	} break;
+	}
+}
+
 void IntroCode::onSubmitCode(bool force) {
 	if (!force && (code.text() == sentCode || !code.isEnabled())) return;
 
@@ -262,6 +293,9 @@ void IntroCode::onSubmitCode(bool force) {
 	checkRequest.start(1000);
 
 	sentCode = code.text();
+	intro()->setPwdSalt(QByteArray());
+	intro()->setHasRecovery(false);
+	intro()->setPwdHint(QString());
 	sentRequest = MTP::send(MTPauth_SignIn(MTP_string(intro()->getPhone()), MTP_string(intro()->getPhoneHash()), MTP_string(sentCode)), rpcDone(&IntroCode::codeSubmitDone), rpcFail(&IntroCode::codeSubmitFail));
 }
 

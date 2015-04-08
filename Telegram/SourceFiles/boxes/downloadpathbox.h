@@ -17,43 +17,33 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
-#include "gui/phoneinput.h"
+#include "abstractbox.h"
 
-class DownloadPathBox : public LayeredWidget {
+class DownloadPathBox : public AbstractBox {
 	Q_OBJECT
 
 public:
 
 	DownloadPathBox();
-	void parentResized();
-	void animStep(float64 dt);
-	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
-	void startHide();
-	~DownloadPathBox();
+	void resizeEvent(QResizeEvent *e);
 
 public slots:
 
 	void onChange();
 	void onEditPath();
 	void onSave();
-	void onCancel();
 
-private:
+protected:
 
 	void hideAll();
 	void showAll();
+
+private:
 
 	QString _path;
 
 	FlatRadiobutton _defaultRadio, _tempRadio, _dirRadio;
 	FlatInput _dirInput;
 	FlatButton _saveButton, _cancelButton;
-
-	int32 _width, _height;
-	QPixmap _cache;
-
-	anim::fvalue a_opacity;
-	bool _hiding;
 };

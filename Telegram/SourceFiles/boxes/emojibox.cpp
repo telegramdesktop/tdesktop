@@ -68,31 +68,16 @@ namespace {
 	const uint32 replacesCount = sizeof(replaces) / sizeof(EmojiReplace), replacesInRow = 7;
 }
 
-EmojiBox::EmojiBox() : _done(this, lang(lng_about_done), st::aboutCloseButton),
-    _hiding(false), a_opacity(0, 1) {
-
+EmojiBox::EmojiBox() : _done(this, lang(lng_about_done), st::aboutCloseButton) {
 	fillBlocks();
 
 	_blockHeight = st::emojiReplaceInnerHeight;
 	
-	_width = _blocks[0].size() * st::emojiReplaceWidth + (st::emojiReplaceWidth - st::emojiSize);
-
-	_height = st::boxPadding.top() + st::boxFont->height;
-	_height += _blocks.size() * st::emojiReplaceHeight + (st::emojiReplaceHeight - _blockHeight);
-	_height += _done.height();
-
-	_done.setWidth(_width);
-	_header.setText(st::boxFont, lang(lng_settings_emoji_list));
-
-	_done.move(0, _height - _done.height());
+	resizeMaxHeight(_blocks[0].size() * st::emojiReplaceWidth + (st::emojiReplaceWidth - st::emojiSize), st::boxPadding.top() + st::boxFont->height + _blocks.size() * st::emojiReplaceHeight + (st::emojiReplaceHeight - _blockHeight) + _done.height());
 
 	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	resize(_width, _height);
-
-	showAll();
-	_cache = myGrab(this, rect());
-	hideAll();
+	prepare();
 }
 
 void EmojiBox::fillBlocks() {
@@ -122,77 +107,35 @@ void EmojiBox::showAll() {
 void EmojiBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
 		onClose();
-	} else if (e->key() == Qt::Key_Escape) {
-		onClose();
+	} else {
+		AbstractBox::keyPressEvent(e);
 	}
-}
-
-void EmojiBox::parentResized() {
-	QSize s = parentWidget()->size();
-	setGeometry((s.width() - _width) / 2, (s.height() - _height) / 2, _width, _height);
-	update();
 }
 
 void EmojiBox::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
-	if (_cache.isNull()) {
-		if (!_hiding || a_opacity.current() > 0.01) {
-			// fill bg
-			p.fillRect(0, 0, _width, _height, st::boxBG->b);
+	if (paint(p)) return;
 
-			p.setFont(st::boxFont->f);
-			p.setPen(st::boxGrayTitle->p);
-			_header.draw(p, 0, st::boxPadding.top(), _width, Qt::AlignCenter);
+	paintGrayTitle(p, lang(lng_settings_emoji_list));
 
-			p.setFont(st::emojiTextFont->f);
-			p.setPen(st::black->p);
-			int32 top = st::boxPadding.top() + st::boxFont->height + (st::emojiReplaceHeight - _blockHeight) / 2;
-			for (Blocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); i != e; ++i) {
-				int32 rowSize = i->size(), left = (_width - rowSize * st::emojiReplaceWidth) / 2;
-				for (BlockRow::const_iterator j = i->cbegin(), en = i->cend(); j != en; ++j) {
-					if (j->emoji) {
-						QPoint pos(left + (st::emojiReplaceWidth - st::emojiSize) / 2, top + (st::emojiReplaceHeight - _blockHeight) / 2);
-						p.drawPixmap(pos, App::emojis(), QRect(j->emoji->x, j->emoji->y, st::emojiImgSize, st::emojiImgSize));
-					}
-					QRect trect(left, top + (st::emojiReplaceHeight + _blockHeight) / 2 - st::emojiTextFont->height, st::emojiReplaceWidth, st::emojiTextFont->height);
-					p.drawText(trect, j->text, QTextOption(Qt::AlignHCenter | Qt::AlignTop));
-					left += st::emojiReplaceWidth;
-				}
-				top += st::emojiReplaceHeight;
+	p.setFont(st::emojiTextFont->f);
+	p.setPen(st::black->p);
+	int32 top = st::boxPadding.top() + st::boxFont->height + (st::emojiReplaceHeight - _blockHeight) / 2;
+	for (Blocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); i != e; ++i) {
+		int32 rowSize = i->size(), left = (width() - rowSize * st::emojiReplaceWidth) / 2;
+		for (BlockRow::const_iterator j = i->cbegin(), en = i->cend(); j != en; ++j) {
+			if (j->emoji) {
+				QPoint pos(left + (st::emojiReplaceWidth - st::emojiSize) / 2, top + (st::emojiReplaceHeight - _blockHeight) / 2);
+				p.drawPixmap(pos, App::emojis(), QRect(j->emoji->x, j->emoji->y, st::emojiImgSize, st::emojiImgSize));
 			}
+			QRect trect(left, top + (st::emojiReplaceHeight + _blockHeight) / 2 - st::emojiTextFont->height, st::emojiReplaceWidth, st::emojiTextFont->height);
+			p.drawText(trect, j->text, QTextOption(Qt::AlignHCenter | Qt::AlignTop));
+			left += st::emojiReplaceWidth;
 		}
-	} else {
-		p.setOpacity(a_opacity.current());
-		p.drawPixmap(0, 0, _cache);
+		top += st::emojiReplaceHeight;
 	}
 }
 
-void EmojiBox::animStep(float64 ms) {
-	if (ms >= 1) {
-		a_opacity.finish();
-		_cache = QPixmap();
-		if (!_hiding) {
-			showAll();
-			setFocus();
-		}
-	} else {
-		a_opacity.update(ms, anim::linear);
-	}
-	update();
-}
-
-void EmojiBox::onClose() {
-	emit closed();
-}
-
-void EmojiBox::startHide() {
-	_hiding = true;
-	if (_cache.isNull()) {
-		_cache = myGrab(this, rect());
-		hideAll();
-	}
-	a_opacity.start(0);
-}
-
-EmojiBox::~EmojiBox() {
+void EmojiBox::resizeEvent(QResizeEvent *e) {
+	_done.setGeometry(0, height() - _done.height(), width(), _done.height());
 }

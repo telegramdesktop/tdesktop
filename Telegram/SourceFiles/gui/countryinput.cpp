@@ -23,26 +23,18 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "gui/countryinput.h"
 #include "gui/scrollarea.h"
 
-namespace {
-
-	struct CountryInfo {
-		CountryInfo(const char *_name, const char *_iso2, const char *_code) : name(_name), iso2(_iso2), code(_code) {
-		}
-		const char *name, *iso2, *code;
-	};
-
 #include "countries.h"
 
-	typedef QHash<QString, const CountryInfo *> CountriesByCode;
-	typedef QHash<QString, const CountryInfo *> CountriesByISO2;
+namespace {
+
 	typedef QList<const CountryInfo *> CountriesFiltered;
 	typedef QVector<int> CountriesIds;
 	typedef QHash<QChar, CountriesIds> CountriesByLetter;
 	typedef QVector<QString> CountryNames;
 	typedef QVector<CountryNames> CountriesNames;
 
-	CountriesByCode countriesByCode;
-	CountriesByISO2 countriesByISO2;
+	CountriesByCode _countriesByCode;
+	CountriesByISO2 _countriesByISO2;
 	CountriesFiltered countriesFiltered, countriesAll, *countriesNow = &countriesAll;
 	CountriesByLetter countriesByLetter;
 	CountriesNames countriesNames;
@@ -51,19 +43,19 @@ namespace {
 	int countriesCount = sizeof(countries) / sizeof(countries[0]);
 
 	void initCountries() {
-		if (countriesByCode.size()) return;
+		if (!_countriesByCode.isEmpty()) return;
 
-		countriesByCode.reserve(countriesCount);
-		countriesByISO2.reserve(countriesCount);
+		_countriesByCode.reserve(countriesCount);
+		_countriesByISO2.reserve(countriesCount);
 		for (int i = 0; i < countriesCount; ++i) {
 			const CountryInfo *info(countries + i);
-			countriesByCode.insert(info->code, info);
-			CountriesByISO2::const_iterator already = countriesByISO2.constFind(info->iso2);
-			if (already != countriesByISO2.cend()) {
+			_countriesByCode.insert(info->code, info);
+			CountriesByISO2::const_iterator already = _countriesByISO2.constFind(info->iso2);
+			if (already != _countriesByISO2.cend()) {
 				QString badISO = info->iso2;
 				(void)badISO;
 			}
-			countriesByISO2.insert(info->iso2, info);
+			_countriesByISO2.insert(info->iso2, info);
 		}
 		countriesAll.reserve(countriesCount);
 		countriesFiltered.reserve(countriesCount);
@@ -71,10 +63,20 @@ namespace {
 	}
 }
 
+const CountriesByCode &countriesByCode() {
+	initCountries();
+	return _countriesByCode;
+}
+
+const CountriesByISO2 &countriesByISO2() {
+	initCountries();
+	return _countriesByISO2;
+}
+
 QString findValidCode(QString fullCode) {
 	while (fullCode.length()) {
-		CountriesByCode::const_iterator i = countriesByCode.constFind(fullCode);
-		if (i != countriesByCode.cend()) {
+		CountriesByCode::const_iterator i = _countriesByCode.constFind(fullCode);
+		if (i != _countriesByCode.cend()) {
 			return (*i)->code;
 		}
 		fullCode = fullCode.mid(0, fullCode.length() - 1);
@@ -159,8 +161,8 @@ void CountryInput::onChooseCode(const QString &code) {
 		emit selectClosed();
 	}
 	if (code.length()) {
-		CountriesByCode::const_iterator i = countriesByCode.constFind(code);
-		if (i != countriesByCode.cend()) {
+		CountriesByCode::const_iterator i = _countriesByCode.constFind(code);
+		if (i != _countriesByCode.cend()) {
 			const CountryInfo *info = *i;
 			lastValidISO = info->iso2;
 			setText(QString::fromUtf8(info->name));
@@ -174,8 +176,8 @@ void CountryInput::onChooseCode(const QString &code) {
 }
 
 bool CountryInput::onChooseCountry(const QString &iso) {
-	CountriesByISO2::const_iterator i = countriesByISO2.constFind(iso);
-	const CountryInfo *info = (i == countriesByISO2.cend()) ? 0 : (*i);
+	CountriesByISO2::const_iterator i = _countriesByISO2.constFind(iso);
+	const CountryInfo *info = (i == _countriesByISO2.cend()) ? 0 : (*i);
 
 	if (info) {
 		lastValidISO = info->iso2;
@@ -206,12 +208,12 @@ CountryInput::~CountryInput() {
 
 CountryList::CountryList(QWidget *parent, const style::countryList &st) : QWidget(parent), _sel(0),
 	_st(st), _mouseSel(false) {
-	CountriesByISO2::const_iterator l = countriesByISO2.constFind(lastValidISO);
+	CountriesByISO2::const_iterator l = _countriesByISO2.constFind(lastValidISO);
 	bool seenLastValid = false;
 	int already = countriesAll.size();
 
 	countriesByLetter.clear();
-	const CountryInfo *lastValid = (l == countriesByISO2.cend()) ? 0 : (*l);
+	const CountryInfo *lastValid = (l == _countriesByISO2.cend()) ? 0 : (*l);
 	for (int i = 0; i < countriesCount; ++i) {
 		const CountryInfo *ins = lastValid ? (i ? (countries + i - (seenLastValid ? 0 : 1)) : lastValid) : (countries + i);
 		if (lastValid && i && ins == lastValid) {
@@ -496,8 +498,8 @@ void CountrySelect::paintEvent(QPaintEvent *e) {
 
 			// draw box title / text
 			p.setPen(st::black->p);
-			p.setFont(st::addContactTitleFont->f);
-			p.drawText(_innerLeft + st::addContactTitlePos.x(), _innerTop + st::addContactTitlePos.y() + st::addContactTitleFont->ascent, lang(lng_country_select));
+			p.setFont(st::boxTitleFont->f);
+			p.drawText(_innerLeft + st::boxTitlePos.x(), _innerTop + st::boxTitlePos.y() + st::boxTitleFont->ascent, lang(lng_country_select));
 		}
 	}
 }
@@ -542,8 +544,8 @@ void CountrySelect::resizeEvent(QResizeEvent *e) {
 	if (height() != e->oldSize().height()) {
 		_innerTop = st::introSelectDelta;
 		_innerHeight = height() - _innerTop - st::introSelectDelta;
-		if (_innerHeight > st::introSelectMaxHeight) {
-			_innerHeight = st::introSelectMaxHeight;
+		if (_innerHeight > st::boxMaxListHeight) {
+			_innerHeight = st::boxMaxListHeight;
 			_innerTop = (height() - _innerHeight) / 2;
 		}
 	}

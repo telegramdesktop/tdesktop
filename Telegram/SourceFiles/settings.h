@@ -31,15 +31,6 @@ inline void cSetDebug(bool debug) {
 	gDebug = debug;
 }
 
-extern bool gTestMode;
-inline bool cTestMode() {
-#ifdef _DEBUG
-	return gTestMode;
-#else
-	return false;
-#endif
-}
-
 #define DeclareReadSetting(Type, Name) extern Type g##Name; \
 inline const Type &c##Name() { \
 	return g##Name; \
@@ -50,10 +41,24 @@ inline void cSet##Name(const Type &Name) { \
 	g##Name = Name; \
 }
 
+struct mtpDcOption {
+	mtpDcOption(int _id, const string &_host, const string &_ip, int _port) : id(_id), host(_host), ip(_ip), port(_port) {
+	}
+
+	int id;
+	string host;
+	string ip;
+	int port;
+};
+typedef QMap<int, mtpDcOption> mtpDcOptions;
+DeclareSetting(mtpDcOptions, DcOptions);
+
+DeclareSetting(bool, TestMode);
 DeclareSetting(QString, LoggedPhoneNumber);
 DeclareReadSetting(uint32, ConnectionsInSession);
 DeclareSetting(bool, AutoStart);
 DeclareSetting(bool, StartMinimized);
+DeclareSetting(bool, StartInTray);
 DeclareSetting(bool, SendToMenu);
 DeclareReadSetting(bool, FromAutoStart);
 DeclareSetting(QString, WorkingDir);
@@ -70,7 +75,13 @@ inline const QString &cDialogHelperPathFinal() {
 	return cDialogHelperPath().isEmpty() ? cExeDir() : cDialogHelperPath();
 }
 DeclareSetting(bool, CtrlEnter);
-DeclareSetting(bool, CatsAndDogs);
+
+typedef QPixmap *QPixmapPointer;
+DeclareSetting(QPixmapPointer, ChatBackground);
+DeclareSetting(int32, ChatBackgroundId);
+DeclareSetting(QPixmapPointer, ChatDogImage);
+DeclareSetting(bool, TileBackground);
+
 DeclareSetting(bool, SoundNotify);
 DeclareSetting(bool, NeedConfigResave);
 DeclareSetting(bool, DesktopNotify);
@@ -107,6 +118,14 @@ DeclareSetting(DBIScale, RealScale);
 DeclareSetting(DBIScale, ScreenScale);
 DeclareSetting(DBIScale, ConfigScale);
 DeclareSetting(bool, CompressPastedImage);
+DeclareSetting(QString, TimeFormat);
+
+DeclareSetting(int32, AutoLock);
+DeclareSetting(bool, HasPasscode);
+
+inline void cChangeTimeFormat(const QString &newFormat) {
+	if (!newFormat.isEmpty()) cSetTimeFormat(newFormat);
+}
 
 inline DBIScale cEvalScale(DBIScale scale) {
 	return (scale == dbisAuto) ? cScreenScale() : scale;
@@ -158,6 +177,63 @@ DeclareSetting(EmojiStickersMap, EmojiStickers);
 typedef QList<QPair<DocumentData*, int16> > RecentStickerPack;
 DeclareSetting(RecentStickerPack, RecentStickers);
 
+typedef QList<QPair<QString, ushort> > RecentHashtagPack;
+DeclareSetting(RecentHashtagPack, RecentWriteHashtags);
+DeclareSetting(RecentHashtagPack, RecentSearchHashtags);
+
+DeclareSetting(bool, PasswordRecovered);
+
+DeclareSetting(int32, PasscodeBadTries);
+DeclareSetting(uint64, PasscodeLastTry);
+
+inline bool passcodeCanTry() {
+	if (cPasscodeBadTries() < 3) return true;
+	uint64 dt = getms(true) - cPasscodeLastTry();
+	switch (cPasscodeBadTries()) {
+	case 3: return dt >= 5000;
+	case 4: return dt >= 10000;
+	case 5: return dt >= 15000;
+	case 6: return dt >= 20000;
+	case 7: return dt >= 25000;
+	}
+	return dt >= 30000;
+}
+
+inline void incrementRecentHashtag(RecentHashtagPack &recent, const QString &tag) {
+	RecentHashtagPack::iterator i = recent.begin(), e = recent.end();
+	for (; i != e; ++i) {
+		if (i->first == tag) {
+			++i->second;
+		if (qAbs(i->second) > 0x4000) {
+			for (RecentHashtagPack::iterator j = recent.begin(); j != e; ++j) {
+				if (j->second > 1) {
+					j->second /= 2;
+				} else if (j->second > 0) {
+					j->second = 1;
+				}
+			}
+		}
+			for (; i != recent.begin(); --i) {
+				if (qAbs((i - 1)->second) > qAbs(i->second)) {
+					break;
+				}
+				qSwap(*i, *(i - 1));
+			}
+			break;
+		}
+	}
+	if (i == e) {
+		while (recent.size() >= 64) recent.pop_back();
+		recent.push_back(qMakePair(tag, 1));
+		for (i = recent.end() - 1; i != recent.begin(); --i) {
+			if ((i - 1)->second > i->second) {
+				break;
+			}
+			qSwap(*i, *(i - 1));
+		}
+	}
+}
+
 DeclareSetting(int32, Lang);
 DeclareSetting(QString, LangFile);
 
@@ -179,5 +255,15 @@ DeclareReadSetting(QUrl, UpdateURL);
 DeclareSetting(bool, ContactsReceived);
 
 DeclareSetting(bool, WideMode);
+
+DeclareSetting(int, OnlineUpdatePeriod);
+DeclareSetting(int, OfflineBlurTimeout);
+DeclareSetting(int, OfflineIdleTimeout);
+DeclareSetting(int, OnlineFocusTimeout);
+DeclareSetting(int, OnlineCloudTimeout);
+DeclareSetting(int, NotifyCloudDelay);
+DeclareSetting(int, NotifyDefaultDelay);
+
+DeclareSetting(int, OtherOnline);
 
 void settingsParseArgs(int argc, char *argv[]);

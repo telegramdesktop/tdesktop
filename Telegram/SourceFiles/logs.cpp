@@ -40,7 +40,7 @@ namespace {
 		QDateTime tm(QDateTime::currentDateTime());
 
 		QThread *thread = QThread::currentThread();
-		MTPThread *mtpThread = dynamic_cast<MTPThread*>(thread);
+		MTPThread *mtpThread = qobject_cast<MTPThread*>(thread);
 		uint32 threadId = mtpThread ? mtpThread->getThreadId() : 0;
 		
 		return QString("[%1 %2-%3]").arg(tm.toString("hh:mm:ss.zzz")).arg(QString("%1").arg(threadId, 2, 10, zero)).arg(++logEntry, 7, 10, zero);
@@ -212,6 +212,10 @@ void logsInit() {
 	}
 	cForceWorkingDir(QDir(cWorkingDir()).absolutePath() + '/');
 
+	if (QFile(cWorkingDir() + qsl("tdata/withtestmode")).exists()) {
+		cSetTestMode(true);
+		LOG(("Switched to test mode!"));
+	}
 #ifdef Q_OS_WIN
 	if (cWorkingDir() == psAppDataPath()) { // fix old "Telegram Win (Unofficial)" version
 		moveOldDataFiles(psAppDataPathOld());

@@ -600,7 +600,7 @@ void VoiceMessagesLoader::onLoad(AudioData *audio) {
 
 		int ret = op_read_stereo(l->file, pcm, sizeof(pcm) / sizeof(*pcm));
 		if (ret < 0) {
-			{
+			/*{
 				QMutexLocker lock(&voicemsgsMutex);
 				VoiceMessages *voice = audioVoice();
 				if (voice) {
@@ -609,9 +609,11 @@ void VoiceMessagesLoader::onLoad(AudioData *audio) {
 						m.state = VoiceMessageStopped;
 					}
 				}
-			}
-			LOG(("Audio Error: op_read_stereo failed, error code %1").arg(ret));
-			return loadError(j);
+			}*/
+			LOG(("Audio Error: op_read_stereo failed, error code %1 (corrupted voice message?)").arg(ret));
+			finished = true;
+			break;
+//			return loadError(j);
 		}
 
 		int li = op_current_link(l->file);

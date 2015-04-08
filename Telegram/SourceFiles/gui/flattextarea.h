@@ -27,7 +27,6 @@ class FlatTextarea : public QTextEdit, public Animated {
 public:
 
 	FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &ph = QString(), const QString &val = QString());
-	QString val() const;
 
 	bool viewportEvent(QEvent *e);
 	void touchEvent(QTouchEvent *e);
@@ -49,12 +48,18 @@ public:
 	QSize minimumSizeHint() const;
 
 	EmojiPtr getSingleEmoji() const;
+	void getMentionHashtagStart(QString &start) const;
 	void removeSingleEmoji();
 	QString getText(int32 start = 0, int32 end = -1) const;
 	bool hasText() const;
 
 	bool isUndoAvailable() const;
 	bool isRedoAvailable() const;
+
+	void parseLinks();
+	QStringList linksList() const;
+
+	void insertFromMimeData(const QMimeData *source);
 
 public slots:
 
@@ -66,12 +71,16 @@ public slots:
 	void onUndoAvailable(bool avail);
 	void onRedoAvailable(bool avail);
 
+	void onMentionOrHashtagInsert(QString mentionOrHashtag);
+
 signals:
 
 	void changed();
 	void submitted(bool ctrlShiftEnter);
 	void cancelled();
 	void tabbed();
+	void spacedReturnedPasted();
+	void linksChanged();
 
 protected:
 
@@ -103,4 +112,8 @@ private:
 	typedef QPair<int, int> Insertion;
 	typedef QList<Insertion> Insertions;
 	Insertions _insertions;
+
+	typedef QPair<int, int> LinkRange;
+	typedef QList<LinkRange> LinkRanges;
+	LinkRanges _links;
 };

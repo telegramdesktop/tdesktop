@@ -17,5 +17,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SourceFiles\_other\updater.cpp" />
+    <ClCompile Include="SourceFiles\_other\updater_linux.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="SourceFiles\_other\updater_osx.m" />
   </ItemGroup>
 </Project>

@@ -52,6 +52,7 @@ public:
 	bool animStep(float64 ms);
 
 	void activate();
+	void prepareShow();
 	void deactivate();
 	void onNext();
 	void onBack();
@@ -74,6 +75,8 @@ private:
 
 	void showError(const QString &err);
 	void callDone(const MTPBool &v);
+	void gotPassword(const MTPaccount_Password &result);
+
 	void stopCheck();
 
 	QString error;

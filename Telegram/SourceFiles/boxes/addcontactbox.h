@@ -17,39 +17,38 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
+#include "abstractbox.h"
 
-class AddContactBox : public LayeredWidget, public RPCSender {
+class AddContactBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
 
 	AddContactBox(QString fname = QString(), QString lname = QString(), QString phone = QString());
 	AddContactBox(PeerData *peer);
-	void parentResized();
-	void animStep(float64 dt);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
-	void startHide();
-	~AddContactBox();
+	void resizeEvent(QResizeEvent *e);
 
 public slots:
 
 	void onSend();
 	void onRetry();
-	void onCancel();
 
-private:
+protected:
 
 	void hideAll();
 	void showAll();
+	void showDone();
+
+private:
 
 	void onImportDone(const MTPcontacts_ImportedContacts &res);
 
 	void onSaveSelfDone(const MTPUser &user);
 	bool onSaveSelfFail(const RPCError &error);
 
-	void onSaveChatDone(const MTPmessages_StatedMessage &result);
+	void onSaveChatDone(const MTPUpdates &updates);
 	void onSaveUserDone(const MTPcontacts_ImportedContacts &res);
 	bool onSaveFail(const RPCError &e);
 
@@ -58,17 +57,11 @@ private:
 	PeerData *_peer;
 	QString _boxTitle;
 
-	int32 _width, _height;
 	FlatButton _addButton, _retryButton, _cancelButton;
 	FlatInput _firstInput, _lastInput, _phoneInput;
 
 	uint64 _contactId;
 
-	QPixmap _cache;
-
 	mtpRequestId _addRequest;
 	QString _sentName;
-
-	anim::fvalue a_opacity;
-	bool _hiding;
 };

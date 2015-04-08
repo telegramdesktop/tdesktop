@@ -91,6 +91,7 @@ public slots:
 
 	void onMenuDestroy(QObject *obj);
 	void onCopyPhone();
+	void onCopyUsername();
 
 private:
 

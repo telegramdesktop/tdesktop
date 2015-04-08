@@ -54,10 +54,10 @@ ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::flatScroll *st)
 }
 
 void ScrollBar::recountSize() {
-	setGeometry(_vertical ? QRect(_area->width() - _st->width, 0, _st->width, _area->height()) : QRect(0, _area->height() - _st->width, _area->width(), _st->width));
+	setGeometry(_vertical ? QRect(rtl() ? 0 : (_area->width() - _st->width), 0, _st->width, _area->height()) : QRect(0, _area->height() - _st->width, _area->width(), _st->width));
 }
 
-void ScrollBar::updateBar() {
+void ScrollBar::updateBar(bool force) {
 	QRect newBar;
 	if (_connected->maximum() != _scrollMax) {
 		int32 oldMax = _scrollMax, newMax = _connected->maximum();
@@ -68,8 +68,9 @@ void ScrollBar::updateBar() {
 		int sh = _area->scrollHeight(), rh = height() - 2 * _st->deltay, h = sh ? int32((rh * int64(_area->height())) / sh) : 0;
 		if (h >= rh || !_area->scrollTopMax() || rh < _st->minHeight) {
 			if (!isHidden()) hide();
-			if (_topSh) emit topShadowVisibility(_topSh = (_st->topsh < 0));
-			if (_bottomSh) emit bottomShadowVisibility(_bottomSh = (_st->bottomsh < 0));
+			bool newTopSh = (_st->topsh < 0), newBottomSh = (_st->bottomsh < 0);
+			if (newTopSh != _topSh || force) emit topShadowVisibility(_topSh = newTopSh);
+			if (newBottomSh != _bottomSh || force) emit bottomShadowVisibility(_bottomSh = newBottomSh);
 			return;
 		}
 
@@ -97,16 +98,16 @@ void ScrollBar::updateBar() {
 	}
 	if (_vertical) {
 		bool newTopSh = (_st->topsh < 0) || (_area->scrollTop() > _st->topsh), newBottomSh = (_st->bottomsh < 0) || (_area->scrollTop() < _area->scrollTopMax() - _st->bottomsh);
-		if (newTopSh != _topSh) emit topShadowVisibility(_topSh = newTopSh);
-		if (newBottomSh != _bottomSh) emit bottomShadowVisibility(_bottomSh = newBottomSh);
+		if (newTopSh != _topSh || force) emit topShadowVisibility(_topSh = newTopSh);
+		if (newBottomSh != _bottomSh || force) emit bottomShadowVisibility(_bottomSh = newBottomSh);
 	}
 	if (isHidden()) show();
 }
 
 void ScrollBar::onHideTimer() {
 	_hideIn = -1;
-	a_bg.start(st::transparent->c);
-	a_bar.start(st::transparent->c);
+	a_bg.start(QColor(a_bg.current().red(), a_bg.current().green(), a_bg.current().blue(), 0));
+	a_bar.start(QColor(a_bar.current().red(), a_bar.current().green(), a_bar.current().blue(), 0));
 	anim::start(this);
 }
 
@@ -252,15 +253,16 @@ void ScrollBar::resizeEvent(QResizeEvent *e) {
 }
 
 ScrollArea::ScrollArea(QWidget *parent, const style::flatScroll &st, bool handleTouch) : QScrollArea(parent),
-    _st(st),
-	hor(this, false, &_st), vert(this, true, &_st), topSh(this, &_st), bottomSh(this, &_st),
-    _touchEnabled(handleTouch), _touchScroll(false), _touchPress(false), _touchRightButton(false),
-	_touchScrollState(TouchScrollManual), _touchPrevPosValid(false), _touchWaitingAcceleration(false),
-    _touchSpeedTime(0), _touchAccelerationTime(0), _touchTime(0), _widgetAcceptsTouch(false) {
+_st(st),
+hor(this, false, &_st), vert(this, true, &_st), topSh(this, &_st), bottomSh(this, &_st),
+_touchEnabled(handleTouch), _touchScroll(false), _touchPress(false), _touchRightButton(false),
+_touchScrollState(TouchScrollManual), _touchPrevPosValid(false), _touchWaitingAcceleration(false),
+_touchSpeedTime(0), _touchAccelerationTime(0), _touchTime(0), _widgetAcceptsTouch(false) {
 	connect(horizontalScrollBar(), SIGNAL(valueChanged(int)), this, SIGNAL(scrolled()));
 	connect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SIGNAL(scrolled()));
 	connect(&vert, SIGNAL(topShadowVisibility(bool)), &topSh, SLOT(changeVisibility(bool)));
 	connect(&vert, SIGNAL(bottomShadowVisibility(bool)), &bottomSh, SLOT(changeVisibility(bool)));
+	vert.updateBar(true);
 	if (_st.hiding) {
 		connect(this, SIGNAL(scrolled()), this, SLOT(onScrolled()));
 	}
@@ -548,6 +550,14 @@ void ScrollArea::moveEvent(QMoveEvent *e) {
 	emit geometryChanged();
 }
 
+void ScrollArea::keyPressEvent(QKeyEvent *e) {
+	if ((e->key() == Qt::Key_Up || e->key() == Qt::Key_Down) && e->modifiers().testFlag(Qt::AltModifier)) {
+		e->ignore();
+	} else {
+		QScrollArea::keyPressEvent(e);
+	}
+}
+
 void ScrollArea::enterEvent(QEvent *e) {
 	if (_st.hiding) {
 		hor.hideTimeout(_st.hiding);
@@ -602,4 +612,13 @@ void ScrollArea::setWidget(QWidget *w) {
 }
 
 void ScrollArea::rangeChanged(int oldMax, int newMax, bool vertical) {
+}
+
+void ScrollArea::updateColors(const style::color &bar, const style::color &bg, const style::color &barOver, const style::color &bgOver) {
+	_st.barColor = bar;
+	_st.bgColor = bg;
+	_st.barOverColor = barOver;
+	_st.bgOverColor = bgOver;
+	hor.update();
+	vert.update();
 }

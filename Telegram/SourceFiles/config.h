@@ -17,8 +17,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 7008;
-static const wchar_t *AppVersionStr = L"0.7.8";
+static const int32 AppVersion = 8003;
+static const wchar_t *AppVersionStr = L"0.8.3";
+static const bool DevChannel = false;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -50,6 +51,10 @@ enum {
 	MTPEnumDCTimeout = 4000, // 4 seconds timeout for help_getConfig to work (them move to other dc)
 
 	MTPDebugBufferSize = 1024 * 1024, // 1 mb start size
+
+	MTPPingDelayDisconnect = 60, // 1 min
+	MTPPingSendAfterAuto = 30, // send new ping starting from 30 seconds (add to existing container)
+	MTPPingSendAfter = 45, // send new ping after 45 seconds without ping
 
 	MaxSelectedItems = 100,
 
@@ -113,7 +118,19 @@ enum {
 	SaveDraftTimeout = 1000, // save draft after 1 secs of not changing text
 	SaveDraftAnywayTimeout = 5000, // or save anyway each 5 secs
 
+	HiddenIsOnlineAfterMessage = 30, // user with hidden last seen stays online for such amount of seconds in the interface
+
 	ServiceUserId = 777000,
+	WebPageUserId = 701000,
+
+	CacheBackgroundTimeout = 3000, // cache background scaled image after 3s
+	BackgroundsInRow = 3,
+
+	UpdateDelayConstPart = 8 * 3600, // 8 hour min time between update check requests
+	UpdateDelayRandPart = 8 * 3600, // 8 hour max - min time between update check requests
+
+	WrongPasscodeTimeout = 1500,
+	SessionsShortPollTimeout = 60000,
 };
 
 inline bool isServiceUser(uint64 id) {
@@ -157,13 +174,13 @@ struct BuiltInDc {
 static const BuiltInDc _builtInDcs[] = {
 	{ 1, "149.154.175.50", 443 },
 	{ 2, "149.154.167.51", 443 },
-	{ 3, "174.140.142.6", 443 },
+	{ 3, "149.154.175.100", 443 },
 	{ 4, "149.154.167.91", 443 },
 	{ 5, "149.154.171.5", 443 }
 };
 
 static const BuiltInDc _builtInTestDcs[] = {
-	{ 1, "173.240.5.253", 443 },
+	{ 1, "149.154.175.10", 443 },
 	{ 2, "149.154.167.40", 443 },
 	{ 3, "174.140.142.5", 443 }
 };
@@ -184,6 +201,14 @@ BZpkIfKaRcl6XzNJiN28cVwO1Ui5JSa814UAiDHzWUqCaXUiUEQ6NmNTneiGx2sQ\n\
 -----END RSA PUBLIC KEY-----\
 ";
 
+static const char *UpdatesPublicDevKey = "\
+-----BEGIN RSA PUBLIC KEY-----\n\
+MIGJAoGBALWu9GGs0HED7KG7BM73CFZ6o0xufKBRQsdnq3lwA8nFQEvmdu+g/I1j\n\
+0LQ+0IQO7GW4jAgzF/4+soPDb6uHQeNFrlVx1JS9DZGhhjZ5rf65yg11nTCIHZCG\n\
+w/CVnbwQOw0g5GBwwFV3r0uTTvy44xx8XXxk+Qknu4eBCsmrAFNnAgMBAAE=\n\
+-----END RSA PUBLIC KEY-----\
+";
+
 #ifdef CUSTOM_API_ID
 #include "../../../TelegramPrivate/custom_api_id.h" // Custom API id and API hash
 #else
@@ -193,18 +218,20 @@ static const char *ApiHash = "344583e45741c457fe1862106095a5eb";
 
 inline const char *cApiDeviceModel() {
 #ifdef Q_OS_WIN
-	return "x86 desktop";
-#else
-	return "x64 desktop";
+	return "PC";
+#elif defined Q_OS_MAC
+	return "Mac";
+#elif defined Q_OS_LINUX
+	return "PC";
 #endif
 }
 inline const char *cApiSystemVersion() {
 #ifdef Q_OS_WIN
-	return "windows";
+	return "Windows";
 #elif defined Q_OS_MAC
-	return "os x";
+	return "OS X";
 #elif defined Q_OS_LINUX
-	return "linux";
+	return "Linux";
 #endif
 }
 inline QString cApiAppVersion() {
@@ -215,7 +242,7 @@ static const char *ApiLang = "en";
 extern QString gKeyFile;
 inline const QString &cDataFile() {
 	if (!gKeyFile.isEmpty()) return gKeyFile;
-	static const QString res(cTestMode() ? qsl("data_test") : qsl("data"));
+	static const QString res(qsl("data"));
 	return res;
 }
 
@@ -254,16 +281,15 @@ enum {
 	MaxPhotosInMemory = 50, // try to clear some memory after 50 photos are created
 	NoUpdatesTimeout = 180 * 1000, // if nothing is received in 3 min we getDifference
 	NoUpdatesAfterSleepTimeout = 60 * 1000, // if nothing is received in 1 min when was a sleepmode we getDifference
-	WaitForSeqTimeout = 1000, // 1s wait for skipped seq in updates
+	WaitForSkippedTimeout = 1000, // 1s wait for skipped seq or pts in updates
 
 	MemoryForImageCache = 64 * 1024 * 1024, // after 64mb of unpacked images we try to clear some memory
 	NotifyWindowsCount = 3, // 3 desktop notifies at the same time
-	NotifyWaitTimeout = 1200, // 1.2 seconds timeout before notification
 	NotifySettingSaveTimeout = 1000, // wait 1 second before saving notify setting to server
 	UpdateChunk = 100 * 1024, // 100kb parts when downloading the update
 	IdleMsecs = 60 * 1000, // after 60secs without user input we think we are idle
 
-	ForwardOnAdd = 120, // how many messages from chat history server should forward to user, that was added to this chat
+	ForwardOnAdd = 100, // how many messages from chat history server should forward to user, that was added to this chat
 };
 
 inline const QRegularExpression &cWordSplit() {

@@ -24,6 +24,7 @@ static const char *LanguageCodes[] = {
 	"de",
 	"nl",
 	"pt_BR",
+	"ko",
 };
 static const int languageTest = -1, languageDefault = 0, languageCount = sizeof(LanguageCodes) / sizeof(LanguageCodes[0]);
 
@@ -90,8 +91,6 @@ inline LangString langDayOfWeekFull(const QDate &date) {
 	int32 day = date.dayOfWeek();
 	return (day > 0 && day <= 7) ? lang(LangKey(lng_weekday1_full + day - 1)) : qsl("DAY_ERR");
 }
-
-Qt::LayoutDirection langDir();
 
 class LangLoader {
 public:

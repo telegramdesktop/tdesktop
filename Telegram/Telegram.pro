@@ -79,6 +79,7 @@ unix {
 SOURCES += \
     ./SourceFiles/main.cpp \
     ./SourceFiles/stdafx.cpp \
+    ./SourceFiles/apiwrap.cpp \
     ./SourceFiles/app.cpp \
     ./SourceFiles/application.cpp \
     ./SourceFiles/audio.cpp \
@@ -92,6 +93,7 @@ SOURCES += \
     ./SourceFiles/layerwidget.cpp \
     ./SourceFiles/mediaview.cpp \
     ./SourceFiles/overviewwidget.cpp \
+    ./SourceFiles/passcodewidget.cpp \
     ./SourceFiles/profilewidget.cpp \
     ./SourceFiles/localimageloader.cpp \
     ./SourceFiles/localstorage.cpp \
@@ -99,7 +101,7 @@ SOURCES += \
     ./SourceFiles/mainwidget.cpp \
     ./SourceFiles/settings.cpp \
     ./SourceFiles/settingswidget.cpp \
-    ./SourceFiles/supporttl.cpp \
+    ./SourceFiles/structs.cpp \
     ./SourceFiles/sysbuttons.cpp \
     ./SourceFiles/title.cpp \
     ./SourceFiles/types.cpp \
@@ -135,26 +137,31 @@ SOURCES += \
     ./GeneratedFiles/lang_auto.cpp \
     ./GeneratedFiles/style_auto.cpp \
     ./SourceFiles/boxes/aboutbox.cpp \
+    ./SourceFiles/boxes/abstractbox.cpp \
     ./SourceFiles/boxes/addcontactbox.cpp \
-    ./SourceFiles/boxes/addparticipantbox.cpp \
+    ./SourceFiles/boxes/autolockbox.cpp \
+    ./SourceFiles/boxes/backgroundbox.cpp \
     ./SourceFiles/boxes/confirmbox.cpp \
     ./SourceFiles/boxes/connectionbox.cpp \
     ./SourceFiles/boxes/contactsbox.cpp \
     ./SourceFiles/boxes/downloadpathbox.cpp \
     ./SourceFiles/boxes/emojibox.cpp \
     ./SourceFiles/boxes/languagebox.cpp \
-    ./SourceFiles/boxes/newgroupbox.cpp \
+    ./SourceFiles/boxes/passcodebox.cpp \
     ./SourceFiles/boxes/photocropbox.cpp \
     ./SourceFiles/boxes/photosendbox.cpp \
+    ./SourceFiles/boxes/sessionsbox.cpp \
     ./SourceFiles/boxes/usernamebox.cpp \
     ./SourceFiles/intro/intro.cpp \
     ./SourceFiles/intro/introcode.cpp \
     ./SourceFiles/intro/introphone.cpp \
+    ./SourceFiles/intro/intropwdcheck.cpp \
     ./SourceFiles/intro/introsignup.cpp \
     ./SourceFiles/intro/introsteps.cpp
 
 HEADERS += \
     ./SourceFiles/stdafx.h \
+    ./SourceFiles/apiwrap.h \
     ./SourceFiles/app.h \
     ./SourceFiles/application.h \
     ./SourceFiles/audio.h \
@@ -170,6 +177,7 @@ HEADERS += \
     ./SourceFiles/layerwidget.h \
     ./SourceFiles/mediaview.h \
     ./SourceFiles/overviewwidget.h \
+    ./SourceFiles/passcodewidget.h \
     ./SourceFiles/profilewidget.h \
     ./SourceFiles/localimageloader.h \
     ./SourceFiles/localstorage.h \
@@ -177,8 +185,8 @@ HEADERS += \
     ./SourceFiles/mainwidget.h \
     ./SourceFiles/settings.h \
     ./SourceFiles/settingswidget.h \
+    ./SourceFiles/structs.h \
     ./SourceFiles/style.h \
-    ./SourceFiles/supporttl.h \
     ./SourceFiles/sysbuttons.h \
     ./SourceFiles/title.h \
     ./SourceFiles/types.h \
@@ -219,21 +227,25 @@ HEADERS += \
     ./GeneratedFiles/style_auto.h \
     ./GeneratedFiles/style_classes.h \
     ./SourceFiles/boxes/aboutbox.h \
+    ./SourceFiles/boxes/abstractbox.h \
     ./SourceFiles/boxes/addcontactbox.h \
-    ./SourceFiles/boxes/addparticipantbox.h \
+    ./SourceFiles/boxes/autolockbox.h \
+    ./SourceFiles/boxes/backgroundbox.h \
     ./SourceFiles/boxes/confirmbox.h \
     ./SourceFiles/boxes/connectionbox.h \
     ./SourceFiles/boxes/contactsbox.h \
     ./SourceFiles/boxes/downloadpathbox.h \
     ./SourceFiles/boxes/emojibox.h \
     ./SourceFiles/boxes/languagebox.h \
-    ./SourceFiles/boxes/newgroupbox.h \
+    ./SourceFiles/boxes/passcodebox.h \
     ./SourceFiles/boxes/photocropbox.h \
     ./SourceFiles/boxes/photosendbox.h \
+    ./SourceFiles/boxes/sessionsbox.h \
     ./SourceFiles/boxes/usernamebox.h \
     ./SourceFiles/intro/intro.h \
     ./SourceFiles/intro/introcode.h \
     ./SourceFiles/intro/introphone.h \
+    ./SourceFiles/intro/intropwdcheck.h \
     ./SourceFiles/intro/introsignup.h \
     ./SourceFiles/intro/introsteps.h
 
@@ -264,8 +276,8 @@ CONFIG(release, debug|release) {
     QMAKE_LFLAGS_RELEASE += -Ofast -flto
 }
 
-INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.3.1/QtGui\
-               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.3.1/QtCore\
+INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.4.0/QtGui\
+               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.4.0/QtCore\
                ./../../Libraries/QtStatic/qtbase/include\
                /usr/local/include/opus\
                ./SourceFiles\
