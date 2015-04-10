@@ -19,10 +19,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "lang.h"
 
-Qt::LayoutDirection langDir() { // current lang dependent
-	return Qt::LeftToRight;
-}
-
 LangString langCounted(ushort key0, ushort tag, float64 value) { // current lang dependent
 	int v = qFloor(value);
 	QString sv;

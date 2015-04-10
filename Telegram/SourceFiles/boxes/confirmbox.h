@@ -17,35 +17,34 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
+#include "abstractbox.h"
 
-class ConfirmBox : public LayeredWidget, public RPCSender {
+class ConfirmBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
 
-	ConfirmBox(const QString &text, const QString &doneText = QString(), const QString &cancelText = QString());
+	ConfirmBox(const QString &text, const QString &doneText = QString(), const QString &cancelText = QString(), const style::flatButton &doneStyle = st::btnSelectDone, const style::flatButton &cancelStyle = st::btnSelectCancel);
 	ConfirmBox(const QString &text, bool noDone, const QString &cancelText = QString());
-	void parentResized();
-	void animStep(float64 ms);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 	void mouseReleaseEvent(QMouseEvent *e);
 	void leaveEvent(QEvent *e);
 	void updateLink();
-	void startHide();
-	~ConfirmBox();
 
 signals:
 
 	void confirmed();
 	void cancelled();
 
-public slots:
+protected:
 
-	void onCancel();
+	void closePressed();
+	void hideAll();
+	void showAll();
 
 private:
 
@@ -53,20 +52,10 @@ private:
 
 	bool _infoMsg;
 
-	void hideAll();
-	void showAll();
-
-	int32 _width, _height;
 	FlatButton _confirm, _cancel;
 	BottomButton _close;
 	Text _text;
 	int32 _textWidth, _textHeight;
-
-	bool _hiding;
-	QPixmap _cache;
-
-	anim::fvalue a_opacity;
-	anim::transition af_opacity;
 
 	void updateHover();
 

@@ -25,7 +25,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/photocropbox.h"
 #include "application.h"
-#include "boxes/addparticipantbox.h"
 #include "gui/filedialog.h"
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
@@ -826,10 +825,10 @@ void OverviewInner::onUpdateSelected() {
 							}
 							left += st::msgPhotoSkip;
 						}
-						TextLinkPtr mediaLink = media->getLink(m.x() - left, m.y() - y - st::msgMargin.top(), item, w);
-						if (mediaLink) {
-							lnk = mediaLink;
-						}
+						bool inText = false;
+						TextLinkPtr link;
+						media->getState(link, inText, m.x() - left, m.y() - y - st::msgMargin.top(), item, w);
+						if (link) lnk = link;
 					}
 				} else {
 					return;
@@ -1442,7 +1441,7 @@ void OverviewInner::itemRemoved(HistoryItem *item) {
 	parentWidget()->update();
 }
 
-void OverviewInner::itemResized(HistoryItem *item) {
+void OverviewInner::itemResized(HistoryItem *item, bool scrollToIt) {
 	if (_type != OverviewPhotos) {
 		HistoryMedia *media = item ? item->getMedia(true) : 0;
 		if (!media) return;
@@ -1463,11 +1462,13 @@ void OverviewInner::itemResized(HistoryItem *item) {
 					_height = _items[l - 1].y;
 					_addToY = (_height < _minHeight) ? (_minHeight - _height) : 0;
 					resize(width(), _minHeight > _height ? _minHeight : _height);
-					if (_addToY + _height - from > _scroll->scrollTop() + _scroll->height()) {
-						_scroll->scrollToY(_addToY + _height - from - _scroll->height());
-					}
-					if (_addToY + _height - _items[i].y < _scroll->scrollTop()) {
-						_scroll->scrollToY(_addToY + _height - _items[i].y);
+					if (scrollToIt) {
+						if (_addToY + _height - from > _scroll->scrollTop() + _scroll->height()) {
+							_scroll->scrollToY(_addToY + _height - from - _scroll->height());
+						}
+						if (_addToY + _height - _items[i].y < _scroll->scrollTop()) {
+							_scroll->scrollToY(_addToY + _height - _items[i].y);
+						}
 					}
 					parentWidget()->update();
 				}
@@ -1781,9 +1782,9 @@ void OverviewWidget::itemRemoved(HistoryItem *row) {
 	}
 }
 
-void OverviewWidget::itemResized(HistoryItem *row) {
+void OverviewWidget::itemResized(HistoryItem *row, bool scrollToIt) {
 	if (!row || row->history()->peer == peer()) {
-		_inner.itemResized(row);
+		_inner.itemResized(row, scrollToIt);
 	}
 }
 

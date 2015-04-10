@@ -17,37 +17,28 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
+#include "abstractbox.h"
 
-class AutoLockBox : public LayeredWidget {
+class AutoLockBox : public AbstractBox {
 	Q_OBJECT
 
 public:
 
 	AutoLockBox();
-	void parentResized();
-	void animStep(float64 ms);
-	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
-	void startHide();
 	~AutoLockBox();
 
 public slots:
 
 	void onChange();
-	void onClose();
 
-private:
+protected:
 
 	void hideAll();
 	void showAll();
 
+private:
+
 	QVector<FlatRadiobutton*> _options;
-	int32 _width, _height;
 	BottomButton _done;
-
-	bool _hiding;
-	QPixmap _cache;
-
-	anim::fvalue a_opacity;
 };

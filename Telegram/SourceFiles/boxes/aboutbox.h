@@ -17,37 +17,25 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
+#include "abstractbox.h"
 
-class AboutBox : public LayeredWidget {
+class AboutBox : public AbstractBox {
 	Q_OBJECT
 
 public:
 
 	AboutBox();
-	void parentResized();
-	void animStep(float64 ms);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
-	void startHide();
-	~AboutBox();
-
-public slots:
-
-	void onClose();
-
-private:
+	
+protected:
 
 	void hideAll();
 	void showAll();
 
-	int32 _width, _height;
+private:
+
 	BottomButton _done;
 	FlatLabel _version, _text;
 	int32 _headerWidth, _subheaderWidth;
-
-	bool _hiding;
-	QPixmap _cache;
-
-	anim::fvalue a_opacity;
 };

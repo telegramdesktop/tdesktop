@@ -1031,7 +1031,7 @@ namespace {
 
 	bool _readOldUserSettings(bool remove = true) {
 		bool result = false;
-		QFile file(cWorkingDir() + cDataFile() + qsl("_config"));
+		QFile file(cWorkingDir() + cDataFile() + (cTestMode() ? qsl("_test") : QString()) + qsl("_config"));
 		if (file.open(QIODevice::ReadOnly)) {
 			LOG(("App Info: reading old user config.."));
 			qint32 version = 0;
@@ -1111,7 +1111,7 @@ namespace {
 
 	bool _readOldMtpData(bool remove = true) {
 		bool result = false;
-		QFile file(cWorkingDir() + cDataFile());
+		QFile file(cWorkingDir() + cDataFile() + (cTestMode() ? qsl("_test") : QString()));
 		if (file.open(QIODevice::ReadOnly)) {
 			LOG(("App Info: reading old keys.."));
 			qint32 version = 0;
@@ -1235,7 +1235,7 @@ namespace {
 
 	Local::ReadMapState _readMap(const QByteArray &pass) {
 		uint64 ms = getms();
-		QByteArray dataNameUtf8 = cDataFile().toUtf8();
+		QByteArray dataNameUtf8 = (cDataFile() + (cTestMode() ? qsl(":/test/") : QString())).toUtf8();
 		FileKey dataNameHash[2];
 		hashMd5(dataNameUtf8.constData(), dataNameUtf8.size(), dataNameHash);
 		_dataNameKey = dataNameHash[0];
@@ -1777,7 +1777,7 @@ namespace Local {
 				_writeMap(WriteMapFast);
 			}
 			EncryptedDescriptor data(sizeof(quint64) + _stringSize(draft.text) + sizeof(qint32));
-			data.stream << quint64(peer) << draft.text << qint32(draft.replyTo);
+			data.stream << quint64(peer) << draft.text << qint32(draft.replyTo) << qint32(draft.previewCancelled ? 1 : 0);
 			FileWriteDescriptor file(i.value());
 			file.writeEncrypted(data);
 
@@ -1801,10 +1801,11 @@ namespace Local {
 
 		quint64 draftPeer;
 		QString draftText;
-		qint32 draftReplyTo = 0;
+		qint32 draftReplyTo = 0, draftPreviewCancelled = 0;
 		draft.stream >> draftPeer >> draftText;
 		if (draft.version >= 7021) draft.stream >> draftReplyTo;
-		return (draftPeer == peer) ? MessageDraft(MsgId(draftReplyTo), draftText) : MessageDraft();
+		if (draft.version >= 8001) draft.stream >> draftPreviewCancelled;
+		return (draftPeer == peer) ? MessageDraft(MsgId(draftReplyTo), draftText, (draftPreviewCancelled == 1)) : MessageDraft();
 	}
 
 	void writeDraftPositions(const PeerId &peer, const MessageCursor &cur) {

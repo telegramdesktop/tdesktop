@@ -89,7 +89,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_chat_status_members_online" = "{count:_not_used_|# miembro|# miembros}, {count_online:_not_used_|# en línea|# en línea}";
 
 "lng_server_error" = "Error interno del servidor.";
-"lng_flood_error" = "Muchos intentos. Por favor, prueba más tarde.";
+"lng_flood_error" = "Muchos intentos. Por favor, reinténtalo más tarde.";
 "lng_deleted" = "Desconocido";
 "lng_deleted_message" = "Mensaje eliminado";
 
@@ -98,6 +98,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_intro_next" = "SIGUIENTE";
 "lng_intro_finish" = "REGISTRARSE";
+"lng_intro_submit" = "ENVIAR";
 
 "lng_phone_ph" = "Tu número de teléfono";
 "lng_phone_title" = "Tu teléfono";
@@ -123,6 +124,24 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_photo" = "La imagen seleccionada es errónea.";
 
 "lng_bad_image_for_photo" = "La imagen no se puede enviar de este modo.\n¿Quieres enviarla como archivo?";
+
+"lng_signin_title" = "Contraseña";
+"lng_signin_desc" = "Por favor, pon tu contraseña.";
+"lng_signin_recover_desc" = "Por favor, pon el código desde el e-mail.";
+"lng_signin_password" = "Tu contraseña";
+"lng_signin_code" = "Código desde el e-mail";
+"lng_signin_recover" = "¿Olvidaste la contraseña?";
+"lng_signin_hint" = "Pista: {password_hint}";
+"lng_signin_recover_hint" = "El código fue enviado a {recover_email}";
+"lng_signin_bad_password" = "Pusiste la contraseña equivocada.";
+"lng_signin_wrong_code" = "Pusiste un código inválido. Por favor, reinténtalo.";
+"lng_signin_try_password" = "¿Tienes problemas para acceder a tu e-mail?";
+"lng_signin_password_removed" = "Tu contraseña fue desactivada.\nPuedes configurar una nueva en Ajustes.";
+"lng_signin_no_email_forgot" = "Como no estableciste un e-mail de recuperación \ncuando configuraste tu contraseña, las opciones restantes son recordar tu contraseña o restablecer tu cuenta.";
+"lng_signin_cant_email_forgot" = "Si no puedes acceder a tu e-mail, las opciones restantes son recordar tu contraseña o restablecer tu cuenta.";
+"lng_signin_reset_account" = "Restablecer tu cuenta";
+"lng_sigin_sure_reset" = "¡Advertencia!\n\n¡Perderás todos tus chats y mensajes,\njunto con la multimedia y archivos compartidos!\n\n¿Quieres restablecer tu cuenta?";
+"lng_sigin_reset" = "Restablecer";
 
 "lng_signup_title" = "Información y foto";
 "lng_signup_desc" = "Por favor, pon tu nombre \ny una foto.";
@@ -229,10 +248,12 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_settings_section_advanced" = "Avanzado";
 
+"lng_passcode_remove_button" = "Quitar";
+
 "lng_passcode_turn_on" = "Activar código de acceso";
 "lng_passcode_change" = "Cambiar código de acceso";
 "lng_passcode_create" = "Crear código de acceso";
-"lng_passcode_remove" = "Desactivar código de acceso";
+"lng_passcode_remove" = "Quitar código de acceso";
 "lng_passcode_turn_off" = "Desactivar";
 "lng_passcode_autolock" = "Bloqueo automático";
 "lng_passcode_autolock_away" = "Bloqueo automático si estoy fuera:";
@@ -240,15 +261,40 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_passcode_autolock_minutes" = "{count:_not_used_|# minuto|# minutos}";
 "lng_passcode_autolock_hours" = "{count:_not_used_|# hora|# horas}";
 "lng_passcode_enter_old" = "Pon tu código actual";
+"lng_passcode_enter_first" = "Pon un código de acceso";
 "lng_passcode_enter_new" = "Pon tu nuevo código";
 "lng_passcode_confirm_new" = "Pon, otra vez, el código";
-"lng_passcode_about" = "Cuando configuras un código, aparece un candado en la pantalla de chats. Pulsa sobre él para bloquear la aplicación.\n\nNota: si olvidas el código, tendrás que reiniciar la sesión en Telegram Desktop.";
+"lng_passcode_about" = "Cuando configuras un código, aparece un candado en el menú. Pulsa sobre él para bloquear la aplicación.\n\nNota: si olvidas el código, tendrás que reiniciar la sesión en Telegram Desktop.";
 "lng_passcode_differ" = "Los códigos de acceso son diferentes";
 "lng_passcode_wrong" = "Código de acceso equivocado";
 "lng_passcode_is_same" = "El código no fue cambiado";
 "lng_passcode_enter" = "Pon tu código de acceso";
 "lng_passcode_submit" = "Enviar";
 "lng_passcode_logout" = "Cerrar sesión";
+
+"lng_cloud_password_waiting" = "Enlace de confirmación enviado a {email}...";
+"lng_cloud_password_change" = "Cambiar contraseña";
+"lng_cloud_password_create" = "Crear contraseña";
+"lng_cloud_password_remove" = "Quitar contraseña";
+"lng_cloud_password_set" = "Activar verificación en dos pasos";
+"lng_cloud_password_edit" = "Cambiar contraseña";
+"lng_cloud_password_enter_old" = "Pon la vieja contraseña";
+"lng_cloud_password_enter_first" = "Pon una contraseña";
+"lng_cloud_password_enter_new" = "Pon la nueva contraseña";
+"lng_cloud_password_confirm_new" = "Pon, otra vez, la contraseña";
+"lng_cloud_password_hint" = "Pon una pista para la contraseña";
+"lng_cloud_password_bad" = "La contraseña y la pista no pueden ser iguales.";
+"lng_cloud_password_email" = "Pon un e-mail de recuperación";
+"lng_cloud_password_bad_email" = "E-mail incorrecto. Por favor, prueba otro.";
+"lng_cloud_password_about" = "Esta contraseña será requerida cuando inicies sesión en un nuevo dispositivo, además del código de activación.";
+"lng_cloud_password_about_recover" = "¡Advertencia! ¿No quieres añadir un e-mail \nde recuperación para la contraseña?\n\nSi olvidas tu contraseña, perderás\nel acceso a tu cuenta de Telegram.";
+"lng_cloud_password_almost" = "Un enlace de confirmación fue enviado\nal e-mail que estableciste.\n\nLa verificación en dos pasos se activará\nen cuanto sigas ese enlace.";
+"lng_cloud_password_was_set" = "Verificación en dos pasos activada.";
+"lng_cloud_password_updated" = "Tu contraseña fue actualizada.";
+"lng_cloud_password_removed" = "Verificación en dos pasos desactivada.";
+"lng_cloud_password_differ" = "Las contraseñas no coinciden";
+"lng_cloud_password_wrong" = "Contraseña equivocada";
+"lng_cloud_password_is_same" = "Contraseña no cambiada";
 
 "lng_connection_type" = "Tipo de conexión:";
 "lng_connection_auto_connecting" = "Por defecto (conectando...)";
@@ -264,8 +310,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_connection_user_ph" = "Apodo";
 "lng_connection_password_ph" = "Contraseña";
 "lng_connection_save" = "Guardar";
+"lng_settings_show_sessions" = "Mostrar todas las sesiones";
 "lng_settings_reset" = "Cerrar todas las otras sesiones";
-"lng_settings_reset_sure" = "¿Quieres cerrar todas las otras sesiones?";
+"lng_settings_reset_sure" = "¿Quieres cerrar todas \nlas otras sesiones?";
+"lng_settings_reset_one_sure" = "¿Quieres cerrar esta sesión?";
 "lng_settings_reset_button" = "Cerrar";
 "lng_settings_reset_done" = "Se cerraron las otras sesiones";
 "lng_settings_logout" = "Cerrar sesión";
@@ -274,6 +322,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_need_restart" = "Necesitas reiniciar para aplicar\nalgunos de los nuevos ajustes. ¿Reiniciar ahora?";
 "lng_settings_restart_now" = "Reiniciar";
 "lng_settings_restart_later" = "Después";
+
+"lng_sessions_header" = "Sesión actual";
+"lng_sessions_other_header" = "Sesiones activas";
+"lng_sessions_no_other" = "Sin otras sesiones";
+"lng_sessions_other_desc" = "Puedes iniciar sesión en Telegram desde\notro móvil, tablet o computador, usando el\nmismo número de teléfono. Todos tus datos\n se sincronizarán al instante.";
+"lng_sessions_terminate_all" = "Cerrar todas";
+
+"lng_preview_loading" = "Obteniendo enlace...";
 
 "lng_profile_chat_unaccessible" = "El grupo es inaccesible";
 "lng_topbar_info" = "Información";
@@ -319,8 +375,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_sure_delete_history" = "¿Quieres eliminar todo el historial de mensajes con {contact}?\n\nEsta acción no se puede deshacer.";
 
 "lng_sure_delete_and_exit" = "¿Quieres eliminar todo el historial de mensajes y dejar el grupo «{group}»?\n\nEsta acción no se puede deshacer.";
-
-"lng_sure_enable_debug" = "¿Quieres activar el modo DEBUG?\n\nTodos los eventos de conexión serán registrados.";
 
 "lng_message_empty" = "(vacío)";
 
@@ -487,11 +541,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_mediaview_saved" = "La imagen fue guardada en tu carpeta [c]Descargas[/c]";
 
-"lng_new_authorization" = "{name},\nDetectamos un inicio de sesión en tu cuenta desde un nuevo dispositivo el {day}, {date} a las {time}\n\nDispositivo: {device}\nUbicación: {location}\n\nSi no eras tú, puedes ir a Ajustes — Cerrar todas las otras sesiones.\n\nGracias.\nEl equipo de Telegram";
+"lng_new_authorization" = "{name}:\nDetectamos un inicio de sesión en tu cuenta desde un nuevo dispositivo el {day}, {date} a las {time}\n\nDispositivo: {device}\nUbicación: {location}\n\nSi no eras tú, puedes ir a Ajustes — Mostrar todas las sesiones y cerrar esa sesión.\n\nSi crees que alguien inició tu sesión sin tu consentimiento, puedes activar la verificación en dos pasos en Ajustes.\n\nGracias.\nEl equipo de Telegram";
 
 "lng_new_version_wrap" = "Telegram Desktop fue actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version7026" = "— Añade un comentario antes de los mensajes reenviados\n— Sugerencias de hashtags en un mensaje nuevo o en las barras de búsqueda (basado en las búsquedas recientes)\n— Botón para volver a una respuesta después de ver el mensaje original\n— Añade personas a grupos a través de sus apodos";
+"lng_new_version_text" = "— Vista previa de enlaces de Twitter, YouTube, Instagram y otros\n— Verificación en dos pasos\n— Ve todas tus sesiones de Telegram y cierra sesiones específicas";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

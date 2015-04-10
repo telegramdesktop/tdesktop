@@ -34,6 +34,7 @@ typedef QMap<HistoryItem*, bool> HistoryItemsMap;
 typedef QHash<VideoData*, HistoryItemsMap> VideoItems;
 typedef QHash<AudioData*, HistoryItemsMap> AudioItems;
 typedef QHash<DocumentData*, HistoryItemsMap> DocumentItems;
+typedef QHash<WebPageData*, HistoryItemsMap> WebPageItems;
 
 namespace App {
 	Application *app();
@@ -83,7 +84,6 @@ namespace App {
 	void feedWereDeleted(const QVector<MTPint> &msgsIds);
 	void feedUserLinks(const MTPVector<MTPcontacts_Link> &links);
 	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink);
-	void feedMessageMedia(MsgId msgId, const MTPMessage &msg);
 	int32 maxMsgId();
 
 	ImagePtr image(const MTPPhotoSize &size);
@@ -96,6 +96,9 @@ namespace App {
 	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb);
 	DocumentData *feedDocument(const MTPdocument &document, DocumentData *convert = 0);
 	DocumentData *feedDocument(const MTPDdocument &document, DocumentData *convert = 0);
+	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert = 0);
+	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert = 0);
+	WebPageData *feedWebPage(const MTPWebPage &webpage);
 
 	UserData *userLoaded(const PeerId &user);
 	ChatData *chatLoaded(const PeerId &chat);
@@ -115,6 +118,7 @@ namespace App {
 	VideoData *video(const VideoId &video, VideoData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
 	AudioData *audio(const AudioId &audio, AudioData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, const QString &mime = QString(), int32 duration = 0, int32 dc = 0, int32 size = 0);
 	DocumentData *document(const DocumentId &document, DocumentData *convert = 0, const uint64 &access = 0, int32 date = 0, const QVector<MTPDocumentAttribute> &attributes = QVector<MTPDocumentAttribute>(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
+	WebPageData *webPage(const WebPageId &webPage, WebPageData *convert = 0, const QString &type = QString(), const QString &url = QString(), const QString &displayUrl = QString(), const QString &siteName = QString(), const QString &title = QString(), const QString &description = QString(), PhotoData *photo = 0, int32 duration = 0, const QString &author = QString(), int32 pendingTill = -2);
 	ImageLinkData *imageLink(const QString &imageLink, ImageLinkType type = InvalidImageLink, const QString &url = QString());
 	void forgetMedia();
 
@@ -180,6 +184,10 @@ namespace App {
 	void regDocumentItem(DocumentData *data, HistoryItem *item);
 	void unregDocumentItem(DocumentData *data, HistoryItem *item);
 	const DocumentItems &documentItems();
+
+	void regWebPageItem(WebPageData *data, HistoryItem *item);
+	void unregWebPageItem(WebPageData *data, HistoryItem *item);
+	const WebPageItems &webPageItems();
 
 	void setProxySettings(QNetworkAccessManager &manager);
 	void setProxySettings(QTcpSocket &socket);

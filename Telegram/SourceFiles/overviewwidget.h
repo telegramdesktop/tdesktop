@@ -61,7 +61,7 @@ public:
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void msgUpdated(const HistoryItem *msg);
 	void itemRemoved(HistoryItem *item);
-	void itemResized(HistoryItem *item);
+	void itemResized(HistoryItem *item, bool scrollToIt);
 
 	void getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const;
 	void clearSelectedItems(bool onlyTextSelection = false);
@@ -214,7 +214,7 @@ public:
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void msgUpdated(PeerId peer, const HistoryItem *msg);
 	void itemRemoved(HistoryItem *item);
-	void itemResized(HistoryItem *row);
+	void itemResized(HistoryItem *row, bool scrollToIt);
 
 	QPoint clampMousePosition(QPoint point);
 

@@ -17,48 +17,46 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
+#include "abstractbox.h"
 
-class PhotoCropBox : public LayeredWidget {
+class PhotoCropBox : public AbstractBox {
 	Q_OBJECT
 
 public:
 
 	PhotoCropBox(const QImage &img, const PeerId &peer);
-	void parentResized();
-	void animStep(float64 ms);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
-	void startHide();
+	void resizeEvent(QResizeEvent *e);
+
 	void mousePressEvent(QMouseEvent *e);
 	void mouseReleaseEvent(QMouseEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
 	int32 mouseState(QPoint p);
-	~PhotoCropBox();
 
 public slots:
 
 	void onSend();
-	void onCancel();
 	void onReady(const QImage &tosend);
 
 signals:
 
 	void ready(const QImage &tosend);
 
+protected:
+
+	void hideAll();
+	void showAll();
+
 private:
 
 	int32 _downState;
-	int32 _width, _height, _thumbx, _thumby, _thumbw, _thumbh;
+	int32 _thumbx, _thumby, _thumbw, _thumbh;
 	int32 _cropx, _cropy, _cropw;
 	int32 _fromposx, _fromposy, _fromcropx, _fromcropy, _fromcropw;
 	FlatButton _sendButton, _cancelButton;
 	QImage _img;
 	QPixmap _thumb;
 	PeerId _peerId;
-
-	anim::fvalue a_opacity;
-
-	bool _hiding;
 
 };

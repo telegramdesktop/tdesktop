@@ -416,6 +416,106 @@ bool FlatTextarea::isRedoAvailable() const {
 	return _redoAvailable;
 }
 
+void FlatTextarea::parseLinks() { // some code is duplicated in text.cpp!
+	LinkRanges newLinks;
+
+	QString text(toPlainText());
+	if (text.isEmpty()) {
+		if (!_links.isEmpty()) {
+			_links.clear();
+			emit linksChanged();
+		}
+		return;
+	}
+
+	initLinkSets();
+
+	int32 len = text.size();
+	const QChar *start = text.unicode(), *end = start + text.size();
+	for (int32 offset = 0, matchOffset = offset; offset < len;) {
+		QRegularExpressionMatch m = reDomain().match(text, matchOffset);
+		if (!m.hasMatch()) break;
+
+		int32 domainOffset = m.capturedStart();
+
+		QString protocol = m.captured(1).toLower();
+		QString topDomain = m.captured(3).toLower();
+
+		bool isProtocolValid = protocol.isEmpty() || validProtocols().contains(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
+		bool isTopDomainValid = !protocol.isEmpty() || validTopDomains().contains(hashCrc32(topDomain.constData(), topDomain.size() * sizeof(QChar)));
+
+		if (protocol.isEmpty() && domainOffset > offset + 1 && *(start + domainOffset - 1) == QChar('@')) {
+			QString forMailName = text.mid(offset, domainOffset - offset - 1);
+			QRegularExpressionMatch mMailName = reMailName().match(forMailName);
+			if (mMailName.hasMatch()) {
+				offset = matchOffset = m.capturedEnd();
+				continue;
+			}
+		}
+		if (!isProtocolValid || !isTopDomainValid) {
+			offset = matchOffset = m.capturedEnd();
+			continue;
+		}
+
+		QStack<const QChar*> parenth;
+		const QChar *domainEnd = start + m.capturedEnd(), *p = domainEnd;
+		for (; p < end; ++p) {
+			QChar ch(*p);
+			if (chIsLinkEnd(ch)) break; // link finished
+			if (chIsAlmostLinkEnd(ch)) {
+				const QChar *endTest = p + 1;
+				while (endTest < end && chIsAlmostLinkEnd(*endTest)) {
+					++endTest;
+				}
+				if (endTest >= end || chIsLinkEnd(*endTest)) {
+					break; // link finished at p
+				}
+				p = endTest;
+				ch = *p;
+			}
+			if (ch == '(' || ch == '[' || ch == '{' || ch == '<') {
+				parenth.push(p);
+			} else if (ch == ')' || ch == ']' || ch == '}' || ch == '>') {
+				if (parenth.isEmpty()) break;
+				const QChar *q = parenth.pop(), open(*q);
+				if ((ch == ')' && open != '(') || (ch == ']' && open != '[') || (ch == '}' && open != '{') || (ch == '>' && open != '<')) {
+					p = q;
+					break;
+				}
+			}
+		}
+		if (p > domainEnd) { // check, that domain ended
+			if (domainEnd->unicode() != '/' && domainEnd->unicode() != '?') {
+				matchOffset = domainEnd - start;
+				continue;
+			}
+		}
+		newLinks.push_back(qMakePair(domainOffset - 1, p - start - domainOffset + 2));
+		offset = matchOffset = p - start;
+	}
+
+	if (newLinks != _links) {
+		_links = newLinks;
+		emit linksChanged();
+	}
+}
+
+QStringList FlatTextarea::linksList() const {
+	QStringList result;
+	if (!_links.isEmpty()) {
+		QString text(toPlainText());
+		for (LinkRanges::const_iterator i = _links.cbegin(), e = _links.cend(); i != e; ++i) {
+			result.push_back(text.mid(i->first + 1, i->second - 2));
+		}
+	}
+	return result;
+}
+
+void FlatTextarea::insertFromMimeData(const QMimeData *source) {
+	QTextEdit::insertFromMimeData(source);
+	emit spacedReturnedPasted();
+}
+
 void FlatTextarea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 	c.removeSelectedText();
 
@@ -508,6 +608,22 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 }
 
 void FlatTextarea::onDocumentContentsChange(int position, int charsRemoved, int charsAdded) {
+	if (!_links.isEmpty()) {
+		bool changed = false;
+		for (LinkRanges::iterator i = _links.begin(); i != _links.end();) {
+			if (i->first + i->second <= position) {
+				++i;
+			} else if (i->first >= position + charsRemoved) {
+				i->first += charsAdded - charsRemoved;
+				++i;
+			} else {
+				i = _links.erase(i);
+				changed = true;
+			}
+		}
+		if (changed) emit linksChanged();
+	}
+
 	if (_replacingEmojis || document()->availableRedoSteps() > 0) return;
 
 	const int takeBack = 3;
@@ -622,6 +738,13 @@ void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 		if (enter && ctrl) {
 			e->setModifiers(e->modifiers() & ~Qt::ControlModifier);
 		}
+		bool spaceOrReturn = false;
+		QString t(e->text());
+		if (!t.isEmpty() && t.size() < 3) {
+			if (t.at(0) == '\n' || t.at(0) == '\r' || t.at(0).isSpace() || t.at(0) == QChar::LineSeparator) {
+				spaceOrReturn = true;
+			}
+		}
 		QTextEdit::keyPressEvent(e);
 		if (tc == textCursor()) {
 			bool check = false;
@@ -640,6 +763,7 @@ void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 				}
 			}
 		}
+		if (spaceOrReturn) emit spacedReturnedPasted();
 	}
 }
 

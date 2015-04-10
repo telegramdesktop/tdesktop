@@ -1729,8 +1729,9 @@ void PsUpdateDownloader::unpackUpdate() {
 		fVersion.close();
 	}
 	
-	if (!tempDir.rename(tempDir.absolutePath(), readyDir.absolutePath())) {
-		LOG(("Update Error: cant rename temp dir '%1' to ready dir '%2'").arg(tempDir.absolutePath()).arg(readyDir.absolutePath()));
+	QFile tempDirFile(tempDir.absolutePath());
+	if (!tempDirFile.rename(readyDir.absolutePath())) {
+		LOG(("Update Error: cant rename temp dir '%1' to ready dir '%2', error %3: %4").arg(tempDir.absolutePath()).arg(readyDir.absolutePath()).arg(tempDirFile.error()).arg(tempDirFile.errorString()));
 		return fatalFail();
 	}
 	deleteDir(tempDirPath);
@@ -2476,7 +2477,8 @@ void psExecTelegram() {
 	if (cFromAutoStart()) targs += qsl(" -autostart");
 	if (cDebug()) targs += qsl(" -debug");
 	if (cStartInTray()) targs += qsl(" -startintray");
-	if (cDataFile() != (cTestMode() ? qsl("data_test") : qsl("data"))) targs += qsl(" -key \"") + cDataFile() + '"';
+	if (cTestMode()) targs += qsl(" -testmode");
+	if (cDataFile() != qsl("data")) targs += qsl(" -key \"") + cDataFile() + '"';
 
 	QString telegram(QDir::toNativeSeparators(cExeDir() + QString::fromWCharArray(AppFile) + qsl(".exe"))), wdir(QDir::toNativeSeparators(cWorkingDir()));
 

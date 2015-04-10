@@ -17,14 +17,20 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
+#include "abstractbox.h"
 
 class ContactsInner : public QWidget, public RPCSender {
 	Q_OBJECT
 
+private:
+
+	struct ContactData;
+
 public:
 
-	ContactsInner();
+	ContactsInner(bool creatingChat);
+	ContactsInner(ChatData *chat);
+	void init();
 
 	void paintEvent(QPaintEvent *e);
 	void enterEvent(QEvent *e);
@@ -33,19 +39,35 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
 	
-	void paintDialog(QPainter &p, DialogRow *row, bool sel);
+	void paintDialog(QPainter &p, UserData *user, ContactData *data, bool sel);
 	void updateFilter(QString filter = QString());
 
 	void selectSkip(int32 dir);
 	void selectSkipPage(int32 h, int32 dir);
 
+	QVector<UserData*> selected();
+	QVector<MTPInputUser> selectedInputs();
+	PeerData *selectedUser();
+
 	void loadProfilePhotos(int32 yFrom);
+	void chooseParticipant();
+	void changeCheckState(DialogRow *row);
+	void changeCheckState(ContactData *data);
+
+	void peopleReceived(const QString &query, const QVector<MTPContactFound> &people);
+
+	void refresh();
+
+	ChatData *chat() const;
+	bool creatingChat() const;
 
 	~ContactsInner();
 
 signals:
 
 	void mustScrollTo(int ymin, int ymax);
+	void selectAllQuery();
+	void searchByUsername();
 
 public slots:
 
@@ -54,10 +76,11 @@ public slots:
 	void updateSel();
 	void peerUpdated(PeerData *peer);
 
-	void chooseParticipant();
-
 private:
 
+	ChatData *_chat;
+	bool _creatingChat;
+	
 	int32 _time;
 
 	DialogsIndexed *_contacts;
@@ -68,58 +91,116 @@ private:
 	int32 _filteredSel;
 	bool _mouseSel;
 
-	typedef struct {
+	int32 _selCount;
+
+	struct ContactData {
 		Text name;
 		QString online;
-	} ContactData;
+		bool inchat;
+		bool check;
+	};
 	typedef QMap<UserData*, ContactData*> ContactsData;
 	ContactsData _contactsData;
 
 	ContactData *contactData(DialogRow *row);
+
+	bool _searching;
+	QString _lastQuery;
+	typedef QVector<UserData*> ByUsernameRows;
+	typedef QVector<ContactData*> ByUsernameDatas;
+	ByUsernameRows _byUsername, _byUsernameFiltered;
+	ByUsernameDatas d_byUsername, d_byUsernameFiltered; // filtered is partly subset of d_byUsername, partly subset of _byUsernameDatas
+	ByUsernameDatas _byUsernameDatas;
+	int32 _byUsernameSel;
 
 	QPoint _lastMousePos;
 	LinkButton _addContactLnk;
 
 };
 
-class ContactsBox : public LayeredWidget, public RPCSender {
+class ContactsBox : public ItemListBox, public RPCSender {
 	Q_OBJECT
 
 public:
 
-	ContactsBox();
-	void parentResized();
-	void animStep(float64 dt);
+	ContactsBox(bool creatingChat = false);
+	ContactsBox(ChatData *chat);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
-	void startHide();
-	~ContactsBox();
 
 public slots:
 
 	void onFilterUpdate();
-	void onClose();
 	void onScroll();
-	void onAdd();
 
-private:
+	void onAdd();
+	void onInvite();
+	void onNext();
+
+	bool onSearchByUsername(bool searchCache = false);
+	void onNeedSearchByUsername();
+
+protected:
 
 	void hideAll();
 	void showAll();
+	void showDone();
 
-	void created(const MTPmessages_StatedMessage &result);
-	bool failed(const RPCError &e);
+private:
 
-	ScrollArea _scroll;
+	void init();
+
 	ContactsInner _inner;
 	FlatButton _addContact;
-	int32 _width, _height;
 	FlatInput _filter;
-	BottomButton _close;
-	bool _hiding;
 
-	QPixmap _cache;
+	FlatButton _next, _cancel;
 
-	anim::fvalue a_opacity;
+	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
+	bool peopleFailed(const RPCError &error, mtpRequestId req);
+
+	QTimer _searchTimer;
+	QString _peopleQuery;
+	bool _peopleFull;
+	mtpRequestId _peopleRequest;
+
+	typedef QMap<QString, MTPcontacts_Found> PeopleCache;
+	PeopleCache _peopleCache;
+
+	typedef QMap<mtpRequestId, QString> PeopleQueries;
+	PeopleQueries _peopleQueries;
+};
+
+class CreateGroupBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	CreateGroupBox(const MTPVector<MTPInputUser> &users);
+	void keyPressEvent(QKeyEvent *e);
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+public slots:
+
+	void onCreate();
+
+protected:
+
+	void hideAll();
+	void showAll();
+	void showDone();
+
+private:
+
+	void created(const MTPUpdates &updates);
+	bool failed(const RPCError &e);
+
+	MTPVector<MTPInputUser> _users;
+
+	int32 _createRequestId;
+
+	FlatInput _name;
+	FlatButton _create, _cancel;
 };

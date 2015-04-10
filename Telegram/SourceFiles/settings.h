@@ -182,6 +182,24 @@ typedef QList<QPair<QString, ushort> > RecentHashtagPack;
 DeclareSetting(RecentHashtagPack, RecentWriteHashtags);
 DeclareSetting(RecentHashtagPack, RecentSearchHashtags);
 
+DeclareSetting(bool, PasswordRecovered);
+
+DeclareSetting(int32, PasscodeBadTries);
+DeclareSetting(uint64, PasscodeLastTry);
+
+inline bool passcodeCanTry() {
+	if (cPasscodeBadTries() < 3) return true;
+	uint64 dt = getms(true) - cPasscodeLastTry();
+	switch (cPasscodeBadTries()) {
+	case 3: return dt >= 5000;
+	case 4: return dt >= 10000;
+	case 5: return dt >= 15000;
+	case 6: return dt >= 20000;
+	case 7: return dt >= 25000;
+	}
+	return dt >= 30000;
+}
+
 inline void incrementRecentHashtag(RecentHashtagPack &recent, const QString &tag) {
 	RecentHashtagPack::iterator i = recent.begin(), e = recent.end();
 	for (; i != e; ++i) {

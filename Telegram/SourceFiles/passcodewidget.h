@@ -57,6 +57,5 @@ private:
 	FlatButton _submit;
 	LinkButton _logout;
 	QString _error;
-	QTimer _errorTimer;
 
 };

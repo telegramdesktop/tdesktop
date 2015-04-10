@@ -29,12 +29,10 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(new ReadyLocalMedi
 	_compressed(this, lang(lng_send_image_compressed), cCompressPastedImage()),
 	_sendButton(this, lang(lng_send_button), st::btnSelectDone),
 	_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
-	_replyTo(img.replyTo),
-	a_opacity(0, 1) {
+	_replyTo(img.replyTo) {
 	connect(&_sendButton, SIGNAL(clicked()), this, SLOT(onSend()));
-	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onCancel()));
+	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	_width = st::confirmWidth;
 	if (_img->type == ToPreparePhoto) {
 		int32 maxW = 0, maxH = 0;
 		for (PreparedPhotoThumbs::const_iterator i = _img->photoThumbs.cbegin(), e = _img->photoThumbs.cend(); i != e; ++i) {
@@ -48,7 +46,7 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(new ReadyLocalMedi
 		if (!tw || !th) {
 			tw = th = 1;
 		}
-		_thumbw = _width - st::boxPadding.left() - st::boxPadding.right();
+		_thumbw = width() - st::boxPadding.left() - st::boxPadding.right();
 		if (_thumb.width() < _thumbw) {
 			_thumbw = (_thumb.width() > 20) ? _thumb.width() : 20;
 		}
@@ -61,7 +59,7 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(new ReadyLocalMedi
 				_thumbw = 10;
 			}
 		}
-		_height = _thumbh + st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::boxPadding.bottom() + _compressed.height() + _sendButton.height();
+		resizeMaxHeight(st::boxWidth, _thumbh + st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::boxPadding.bottom() + _compressed.height() + _sendButton.height());
 
 		_thumb = QPixmap::fromImage(_thumb.toImage().scaled(_thumbw, _thumbh, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
 	} else {
@@ -85,15 +83,14 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(new ReadyLocalMedi
 			_thumb = QPixmap::fromImage(_thumb.toImage().scaledToWidth(_thumbw * cIntRetinaFactor(), Qt::SmoothTransformation), Qt::ColorOnly);
 			_thumb.setDevicePixelRatio(cRetinaFactor());
 		}
-		_height = st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom() + st::boxPadding.bottom() + _sendButton.height();
+		resizeMaxHeight(st::boxWidth, st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom() + st::boxPadding.bottom() + _sendButton.height());
 
 		_name = _img->filename;
 		_namew = st::mediaFont->m.width(_name);
 		_size = formatSizeText(_img->filesize);
 		_textw = qMax(_namew, st::mediaFont->m.width(_size));
 	}
-
-	resize(_width, _height);
+	prepare();
 }
 
 PhotoSendBox::PhotoSendBox(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo) : _img(0),
@@ -101,70 +98,54 @@ _thumbx(0), _thumby(0), _thumbw(0), _thumbh(0), _namew(0), _textw(0),
 _compressed(this, lang(lng_send_image_compressed), true),
 _sendButton(this, lang(lng_send_button), st::btnSelectDone),
 _cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
-_phone(phone), _fname(fname), _lname(lname), _replyTo(replyTo),
-a_opacity(0, 1) {
+_phone(phone), _fname(fname), _lname(lname), _replyTo(replyTo) {
 	connect(&_sendButton, SIGNAL(clicked()), this, SLOT(onSend()));
-	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onCancel()));
+	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	_width = st::confirmWidth;
 	_compressed.hide();
-	_height = st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom() + st::boxPadding.bottom() + _sendButton.height();
 
 	_name = _fname + QChar(' ') + _lname;
 	_namew = st::mediaFont->m.width(_name);
 	_size = _phone;
 	_textw = qMax(_namew, st::mediaFont->m.width(_size));
 
-	resize(_width, _height);
+	resizeMaxHeight(st::boxWidth, st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom() + st::boxPadding.bottom() + _sendButton.height());
+	prepare();
 }
 
 
 void PhotoSendBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
 		onSend((e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier)) && e->modifiers().testFlag(Qt::ShiftModifier));
-	} else if (e->key() == Qt::Key_Escape) {
-		onCancel();
+	} else {
+		AbstractBox::keyPressEvent(e);
 	}
-}
-
-void PhotoSendBox::parentResized() {
-	QSize s = parentWidget()->size();
-	setGeometry((s.width() - _width) / 2, (s.height() - _height) / 2, _width, _height);
-	_sendButton.move(_width - _sendButton.width(), _height - _sendButton.height());
-	_cancelButton.move(0, _height - _cancelButton.height());
-	_compressed.move((width() - _compressed.width()) / 2, _height - _cancelButton.height() - _compressed.height() - st::confirmCompressedSkip);
-	update();
 }
 
 void PhotoSendBox::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
-	p.setOpacity(a_opacity.current());
-	
-	// fill bg
-	p.fillRect(QRect(QPoint(0, 0), size()), st::boxBG->b);
+	if (paint(p)) return;
 
-	// paint shadows
-	p.fillRect(0, _height - st::btnSelectCancel.height - st::scrollDef.bottomsh, _width, st::scrollDef.bottomsh, st::scrollDef.shColor->b);
+	// paint shadow
+	p.fillRect(0, height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
 
 	// paint button sep
-	p.fillRect(st::btnSelectCancel.width, _height - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
+	p.fillRect(st::btnSelectCancel.width, height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
 
-	p.setFont(st::boxFont->f);
-	p.setPen(st::boxGrayTitle->p);
 	if (_img && _img->type == ToPreparePhoto) {
-		p.drawText(QRect(st::boxPadding.left(), st::boxPadding.top(), _width - st::boxPadding.left() - st::boxPadding.right(), st::boxFont->height), lang(lng_really_send_image), style::al_center);
-		p.drawPixmap((_width - _thumbw) / 2, st::boxPadding.top() * 2 + st::boxFont->height, _thumb);
+		paintGrayTitle(p, lang(lng_really_send_image));
+		p.drawPixmap((width() - _thumbw) / 2, st::boxPadding.top() * 2 + st::boxFont->height, _thumb);
 	} else {
-		p.drawText(QRect(st::boxPadding.left(), st::boxPadding.top(), _width - st::boxPadding.left() - st::boxPadding.right(), st::boxFont->height), lang(_img ? lng_really_send_file : lng_really_share_contact), style::al_center);
+		paintGrayTitle(p, lang(_img ? lng_really_send_file : lng_really_share_contact));
 
-		int32 w = _width - st::boxPadding.left() - st::boxPadding.right(), h = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
+		int32 w = width() - st::boxPadding.left() - st::boxPadding.right(), h = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
 		int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
 		int32 twidth = w - tleft - st::mediaPadding.right();
 		if (twidth > _textw) {
 			w -= (twidth - _textw);
 			twidth = _textw;
 		}
-		int32 x = (_width - w) / 2, y = st::boxPadding.top() * 2 + st::boxFont->height;
+		int32 x = (width() - w) / 2, y = st::boxPadding.top() * 2 + st::boxFont->height;
 
 		p.fillRect(QRect(x, y, w, h), st::msgOutBG->b);
 		p.fillRect(x, y + h, w, st::msgShadow, st::msgOutShadow->b);
@@ -190,16 +171,26 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void PhotoSendBox::animStep(float64 ms) {
-	if (ms >= 1) {
-		a_opacity.finish();
-	} else {
-		a_opacity.update(ms, anim::linear);
-	}
-	_sendButton.setOpacity(a_opacity.current());
-	_cancelButton.setOpacity(a_opacity.current());
-	_compressed.setOpacity(a_opacity.current());
-	update();
+void PhotoSendBox::resizeEvent(QResizeEvent *e) {
+	_sendButton.move(width() - _sendButton.width(), height() - _sendButton.height());
+	_cancelButton.move(0, height() - _cancelButton.height());
+	_compressed.move((width() - _compressed.width()) / 2, height() - _cancelButton.height() - _compressed.height() - st::confirmCompressedSkip);
+}
+
+void PhotoSendBox::closePressed() {
+	if (App::main()) App::main()->cancelSendImage();
+}
+
+void PhotoSendBox::hideAll() {
+	_sendButton.hide();
+	_cancelButton.hide();
+	_compressed.hide();
+}
+
+void PhotoSendBox::showAll() {
+	_sendButton.show();
+	_cancelButton.show();
+	_compressed.show();
 }
 
 void PhotoSendBox::onSend(bool ctrlShiftEnter) {
@@ -219,20 +210,11 @@ void PhotoSendBox::onSend(bool ctrlShiftEnter) {
 			if (App::main()) App::main()->confirmSendImageUncompressed(ctrlShiftEnter, _replyTo);
 		}
 	}
+	emit confirmed();
 	emit closed();
-}
-
-void PhotoSendBox::onCancel() {
-	if (App::main()) App::main()->cancelSendImage();
-	emit closed();
-}
-
-void PhotoSendBox::startHide() {
-	_hiding = true;
-	a_opacity.start(0);
 }
 
 PhotoSendBox::~PhotoSendBox() {
 	delete _img;
-	if (App::main()) App::main()->cancelSendImage();
+	closePressed();
 }

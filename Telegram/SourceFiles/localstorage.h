@@ -101,10 +101,11 @@ namespace Local {
 	int32 oldMapVersion();
 
 	struct MessageDraft {
-		MessageDraft(MsgId replyTo = 0, QString text = QString()) : replyTo(replyTo), text(text) {
+		MessageDraft(MsgId replyTo = 0, QString text = QString(), bool previewCancelled = false) : replyTo(replyTo), text(text), previewCancelled(previewCancelled) {
 		}
 		MsgId replyTo;
 		QString text;
+		bool previewCancelled;
 	};
 	void writeDraft(const PeerId &peer, const MessageDraft &draft);
 	MessageDraft readDraft(const PeerId &peer);

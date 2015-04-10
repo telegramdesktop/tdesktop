@@ -126,6 +126,10 @@ register.saveDeveloperInfo#9a5f6e95 name:string email:string phone_number:string
 
 ---types---
 
+error#c4b9f9bb code:int text:string = Error;
+
+null#56730bcc = Null;
+
 inputPeerEmpty#7f3b18ea = InputPeer;
 inputPeerSelf#7da07ec9 = InputPeer;
 inputPeerContact#1023dbe8 user_id:int = InputPeer;
@@ -310,11 +314,7 @@ messages.messagesSlice#b446ae3 count:int messages:Vector<Message> chats:Vector<C
 
 messages.messageEmpty#3f4e0648 = messages.Message;
 
-messages.statedMessages#7d84b48 messages:Vector<Message> chats:Vector<Chat> users:Vector<User> pts:int pts_count:int = messages.StatedMessages;
-
-messages.statedMessage#96240c6a message:Message chats:Vector<Chat> users:Vector<User> pts:int pts_count:int = messages.StatedMessage;
-
-messages.sentMessage#900eac40 id:int date:int pts:int pts_count:int = messages.SentMessage;
+messages.sentMessage#4c3d47f3 id:int date:int media:MessageMedia pts:int pts_count:int = messages.SentMessage;
 
 messages.chats#64ff9fd5 chats:Vector<Chat> = messages.Chats;
 
@@ -366,7 +366,7 @@ upload.file#96a18d5 type:storage.FileType mtime:int bytes:bytes = upload.File;
 
 dcOption#2ec2a43c id:int hostname:string ip_address:string port:int = DcOption;
 
-config#3e6f732a date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int broadcast_size_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int disabled_features:Vector<DisabledFeature> = Config;
+config#68bac247 date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int broadcast_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int disabled_features:Vector<DisabledFeature> = Config;
 
 nearestDc#8e1a1775 country:string this_dc:int nearest_dc:int = NearestDc;
 
@@ -375,11 +375,7 @@ help.noAppUpdate#c45a6536 = help.AppUpdate;
 
 help.inviteText#18cb9f78 message:string = help.InviteText;
 
-messages.statedMessagesLinks#51be5d19 messages:Vector<Message> chats:Vector<Chat> users:Vector<User> pts:int pts_count:int links:Vector<contacts.Link> seq:int = messages.StatedMessages;
-
-messages.statedMessageLink#948a288 message:Message chats:Vector<Chat> users:Vector<User> pts:int pts_count:int links:Vector<contacts.Link> seq:int = messages.StatedMessage;
-
-messages.sentMessageLink#e923400d id:int date:int pts:int pts_count:int links:Vector<contacts.Link> seq:int = messages.SentMessage;
+messages.sentMessageLink#35a1a663 id:int date:int media:MessageMedia pts:int pts_count:int links:Vector<contacts.Link> seq:int = messages.SentMessage;
 
 inputGeoChat#74d456fa chat_id:int access_hash:long = InputGeoChat;
 
@@ -529,9 +525,6 @@ account.sentChangePhoneCode#a4f58c4c phone_code_hash:string send_call_timeout:in
 
 updateUserPhone#12b9417b user_id:int phone:string = Update;
 
-account.noPassword#5770e7a9 new_salt:bytes = account.Password;
-account.password#739e5f72 current_salt:bytes new_salt:bytes hint:string = account.Password;
-
 documentAttributeImageSize#6c37c15c w:int h:int = DocumentAttribute;
 documentAttributeAnimated#11b58939 = DocumentAttribute;
 documentAttributeSticker#994c9882 alt:string = DocumentAttribute;
@@ -558,6 +551,27 @@ contactLinkUnknown#5f4f9247 = ContactLink;
 contactLinkNone#feedd3ad = ContactLink;
 contactLinkHasPhone#268f3f59 = ContactLink;
 contactLinkContact#d502c2d0 = ContactLink;
+
+updateWebPage#2cc36971 webpage:WebPage = Update;
+
+webPageEmpty#eb1477e8 id:long = WebPage;
+webPagePending#c586da1c id:long date:int = WebPage;
+webPage#a31ea0b5 flags:# id:long url:string display_url:string type:flags.0?string site_name:flags.1?string title:flags.2?string description:flags.3?string photo:flags.4?Photo embed_url:flags.5?string embed_type:flags.5?string embed_width:flags.6?int embed_height:flags.6?int duration:flags.7?int author:flags.8?string = WebPage;
+
+messageMediaWebPage#a32dd600 webpage:WebPage = MessageMedia;
+
+authorization#7bf2e6f6 hash:long flags:int device_model:string platform:string system_version:string api_id:int app_name:string app_version:string date_created:int date_active:int ip:string country:string region:string = Authorization;
+
+account.authorizations#1250abde authorizations:Vector<Authorization> = account.Authorizations;
+
+account.noPassword#96dabc18 new_salt:bytes email_unconfirmed_pattern:string = account.Password;
+account.password#7c18141c current_salt:bytes new_salt:bytes hint:string has_recovery:Bool email_unconfirmed_pattern:string = account.Password;
+
+account.passwordSettings#b7b72ab3 email:string = account.PasswordSettings;
+
+account.passwordInputSettings#bcfc532c flags:# new_salt:flags.0?bytes new_password_hash:flags.0?bytes hint:flags.0?string email:flags.1?string = account.PasswordInputSettings;
+
+auth.passwordRecovery#137948a5 email_pattern:string = auth.PasswordRecovery;
 
 ---functions---
 
@@ -610,16 +624,16 @@ messages.deleteHistory#f4f8fb61 peer:InputPeer offset:int = messages.AffectedHis
 messages.deleteMessages#a5f18925 id:Vector<int> = messages.AffectedMessages;
 messages.receivedMessages#28abcb68 max_id:int = Vector<int>;
 messages.setTyping#a3825e50 peer:InputPeer action:SendMessageAction = Bool;
-messages.sendMessage#1ca852a1 peer:InputPeer reply_to_msg_id:int message:string random_id:long = messages.SentMessage;
-messages.sendMedia#fcee7fc0 peer:InputPeer reply_to_msg_id:int media:InputMedia random_id:long = messages.StatedMessage;
-messages.forwardMessages#ded42045 peer:InputPeer id:Vector<int> random_id:Vector<long> = messages.StatedMessages;
+messages.sendMessage#9add8f26 flags:# peer:InputPeer reply_to_msg_id:flags.0?int message:string random_id:long = messages.SentMessage;
+messages.sendMedia#2d7923b1 flags:# peer:InputPeer reply_to_msg_id:flags.0?int media:InputMedia random_id:long = Updates;
+messages.forwardMessages#55e1728d peer:InputPeer id:Vector<int> random_id:Vector<long> = Updates;
 messages.getChats#3c6aa187 id:Vector<int> = messages.Chats;
 messages.getFullChat#3b831c66 chat_id:int = messages.ChatFull;
-messages.editChatTitle#b4bc68b5 chat_id:int title:string = messages.StatedMessage;
-messages.editChatPhoto#d881821d chat_id:int photo:InputChatPhoto = messages.StatedMessage;
-messages.addChatUser#2ee9ee9e chat_id:int user_id:InputUser fwd_limit:int = messages.StatedMessage;
-messages.deleteChatUser#c3c5cd23 chat_id:int user_id:InputUser = messages.StatedMessage;
-messages.createChat#419d9aee users:Vector<InputUser> title:string = messages.StatedMessage;
+messages.editChatTitle#dc452855 chat_id:int title:string = Updates;
+messages.editChatPhoto#ca4c79d8 chat_id:int photo:InputChatPhoto = Updates;
+messages.addChatUser#f9a0aa09 chat_id:int user_id:InputUser fwd_limit:int = Updates;
+messages.deleteChatUser#e0611f16 chat_id:int user_id:InputUser = Updates;
+messages.createChat#9cb126e users:Vector<InputUser> title:string = Updates;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;
@@ -639,8 +653,8 @@ help.getInviteText#a4a95186 lang_code:string = help.InviteText;
 
 photos.getUserPhotos#b7ee553c user_id:InputUser offset:int max_id:int limit:int = photos.Photos;
 
-messages.forwardMessage#3f3f4f2 peer:InputPeer id:int random_id:long = messages.StatedMessage;
-messages.sendBroadcast#41bb0972 contacts:Vector<InputUser> message:string media:InputMedia = messages.StatedMessages;
+messages.forwardMessage#33963bf9 peer:InputPeer id:int random_id:long = Updates;
+messages.sendBroadcast#bf73f4da contacts:Vector<InputUser> random_id:Vector<long> message:string media:InputMedia = Updates;
 
 geochats.getLocated#7f192d8f geo_point:InputGeoPoint radius:int limit:int = geochats.Located;
 geochats.getRecents#e1427e6f offset:int limit:int = geochats.Messages;
@@ -693,12 +707,20 @@ contacts.resolveUsername#bf0131c username:string = User;
 
 account.sendChangePhoneCode#a407a8f4 phone_number:string = account.SentChangePhoneCode;
 account.changePhone#70c32edb phone_number:string phone_code_hash:string phone_code:string = User;
-account.getPassword#548a30f5 = account.Password;
-account.setPassword#dd2a4d8f current_password_hash:bytes new_salt:bytes new_password_hash:bytes hint:string = Bool;
-
-auth.checkPassword#a63011e password_hash:bytes = auth.Authorization;
 
 messages.getStickers#ae22e045 emoticon:string hash:string = messages.Stickers;
 messages.getAllStickers#aa3bc868 hash:string = messages.AllStickers;
 
 account.updateDeviceLocked#38df3532 period:int = Bool;
+
+messages.getWebPagePreview#25223e24 message:string = MessageMedia;
+
+account.getAuthorizations#e320c158 = account.Authorizations;
+account.resetAuthorization#df77f3bc hash:long = Bool;
+account.getPassword#548a30f5 = account.Password;
+account.getPasswordSettings#bc8d11bb current_password_hash:bytes = account.PasswordSettings;
+account.updatePasswordSettings#fa7c4b86 current_password_hash:bytes new_settings:account.PasswordInputSettings = Bool;
+
+auth.checkPassword#a63011e password_hash:bytes = auth.Authorization;
+auth.requestPasswordRecovery#d897bc66 = auth.PasswordRecovery;
+auth.recoverPassword#4ea56e92 code:string = auth.Authorization;

@@ -92,8 +92,6 @@ inline LangString langDayOfWeekFull(const QDate &date) {
 	return (day > 0 && day <= 7) ? lang(LangKey(lng_weekday1_full + day - 1)) : qsl("DAY_ERR");
 }
 
-Qt::LayoutDirection langDir();
-
 class LangLoader {
 public:
 	const QString &errors() const;

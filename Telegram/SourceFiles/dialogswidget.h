@@ -232,8 +232,8 @@ private:
 	bool _drawShadow;
 
 	void unreadCountsReceived(const QVector<MTPDialog> &dialogs);
-	bool dialogsFailed(const RPCError &e);
-	bool contactsFailed();
+	bool dialogsFailed(const RPCError &error);
+	bool contactsFailed(const RPCError &error);
 	bool searchFailed(const RPCError &error, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
 

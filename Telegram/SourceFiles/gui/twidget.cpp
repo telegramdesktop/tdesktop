@@ -20,18 +20,34 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "application.h"
 
 namespace {
-    void _sendResizeEvents(QWidget *target) {
-        QResizeEvent e(target->size(), QSize());
-        QApplication::sendEvent(target, &e);
-        
-        const QObjectList children = target->children();
-        for (int i = 0; i < children.size(); ++i) {
-            QWidget *child = static_cast<QWidget*>(children.at(i));
-            if (child->isWidgetType() && !child->isWindow() && child->testAttribute(Qt::WA_PendingResizeEvent)) {
-                _sendResizeEvents(child);
-            }
-        }
-    }
+	Qt::LayoutDirection _dir = Qt::LeftToRight;
+	bool _rtl = false;
+
+	void _sendResizeEvents(QWidget *target) {
+		QResizeEvent e(target->size(), QSize());
+		QApplication::sendEvent(target, &e);
+
+		const QObjectList children = target->children();
+		for (int i = 0; i < children.size(); ++i) {
+			QWidget *child = static_cast<QWidget*>(children.at(i));
+			if (child->isWidgetType() && !child->isWindow() && child->testAttribute(Qt::WA_PendingResizeEvent)) {
+				_sendResizeEvents(child);
+			}
+		}
+	}
+}
+
+void rtl(bool is) {
+	_rtl = is;
+	_dir = _rtl ? Qt::RightToLeft : Qt::LeftToRight;
+}
+
+bool rtl() {
+	return _rtl;
+}
+
+Qt::LayoutDirection langDir() { // current lang dependent
+	return _dir;
 }
 
 QPixmap myGrab(QWidget *target, const QRect &rect) {

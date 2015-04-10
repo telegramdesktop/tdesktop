@@ -273,6 +273,7 @@ signals:
 	void resized(const QSize &size);
 	void tempDirCleared(int task);
 	void tempDirClearFailed(int task);
+	void newAuthorization();
 
 private:
 

@@ -64,9 +64,9 @@ public:
 	void stopUpdate();
 
 	void selfPhotoCleared(const MTPUserProfilePhoto &result);
-	void chatPhotoCleared(PeerId peer, const MTPmessages_StatedMessage &result);
+	void chatPhotoCleared(PeerId peer, const MTPUpdates &updates);
 	void selfPhotoDone(const MTPphotos_Photo &result);
-	void chatPhotoDone(PeerId peerId, const MTPmessages_StatedMessage &rersult);
+	void chatPhotoDone(PeerId peerId, const MTPUpdates &updates);
 	bool peerPhotoFail(PeerId peerId, const RPCError &e);
 	void peerClearPhoto(PeerId peer);
 
@@ -107,8 +107,8 @@ public slots:
 
 	void photoUpdated(MsgId msgId, const MTPInputFile &file);
 
-	void onEnableDebugMode();
-//	void onWriteUserConfig();
+	void onSwitchDebugMode();
+	void onSwitchTestMode();
 
 	void killDownloadSessions();
 	void onAppStateChanged(Qt::ApplicationState state);

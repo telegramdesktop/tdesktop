@@ -98,6 +98,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_intro_next" = "VOLGENDE";
 "lng_intro_finish" = "AANMELDEN";
+"lng_intro_submit" = "VERSTUREN";
 
 "lng_phone_ph" = "Je telefoonnummer";
 "lng_phone_title" = "Je telefoon";
@@ -123,6 +124,24 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bad_photo" = "Ongeldig bestand gekozen.";
 
 "lng_bad_image_for_photo" = "Kan afbeelding zo niet versturen.\nAls bestand versturen?";
+
+"lng_signin_title" = "Cloud-wachtwoord:";
+"lng_signin_desc" = "Cloud-wachtwoord invoeren";
+"lng_signin_recover_desc" = "Voer de code uit de e-mail in";
+"lng_signin_password" = "Je cloud-wachtwoord";
+"lng_signin_code" = "Code uit de e-mail";
+"lng_signin_recover" = "Wachtwoord vergeten?";
+"lng_signin_hint" = "Hint: {password_hint}";
+"lng_signin_recover_hint" = "De code is verstuurd naar {recover_email}";
+"lng_signin_bad_password" = "Ongeldig wachtwoord.";
+"lng_signin_wrong_code" = "Je hebt een ongeldige code ingevoerd. Probeer het opnieuw.";
+"lng_signin_try_password" = "Kun je je e-mail niet benaderen?";
+"lng_signin_password_removed" = "Je cloud-wachtwoord is uitgeschakeld.\nVia instellingen kun je een nieuwe instellen.";
+"lng_signin_no_email_forgot" = "Omdat je geen herstel-e-mailadres hebt opgegeven voor je wachtwoord zul je bij verlies van je wachtwoord je account moeten resetten.";
+"lng_signin_cant_email_forgot" = "Als je geen toegang meer hebt tot je e-mail en je ingestelde wachtwoord zul je je account moeten resetten.";
+"lng_signin_reset_account" = "Account resetten";
+"lng_sigin_sure_reset" = "Let op:\n\nAl je chats, berichten en alle andere data \ngaan verloren als je verder gaat!\n\nEcht je account resetten?";
+"lng_sigin_reset" = "Reset";
 
 "lng_signup_title" = "Informatie en foto";
 "lng_signup_desc" = "Voer je naam en\nupload een foto.";
@@ -229,6 +248,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_settings_section_advanced" = "Geavanceerd";
 
+"lng_passcode_remove_button" = "Verwijder";
+
 "lng_passcode_turn_on" = "Toegangscode inschakelen";
 "lng_passcode_change" = "Toegangscode wijzigen";
 "lng_passcode_create" = "Toegangscode instellen";
@@ -240,15 +261,40 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_passcode_autolock_minutes" = "{count:_not_used_|# minute|# minuten}";
 "lng_passcode_autolock_hours" = "{count:_not_used_|# uur|# uur}";
 "lng_passcode_enter_old" = "Toegangscode invoeren";
+"lng_passcode_enter_first" = "Toegangscode invoeren";
 "lng_passcode_enter_new" = "Nieuwe toegangscode invoeren";
 "lng_passcode_confirm_new" = "Toegangscode opnieuw invoeren";
-"lng_passcode_about" = "Als je een toegangscode instelt verschijnt er een slotje op de chatspagina,  tik erop om de app te vergrendelen\n\nLet op: als je de toegangscode vergeet, zul je opnieuw in moeten loggen.";
+"lng_passcode_about" = "Als je een toegangscode instelt verschijnt er een slotje op de chatspagina,  klikerop om de app te vergrendelen\n\nLet op: als je de toegangscode vergeet, zul je opnieuw in moeten loggen.";
 "lng_passcode_differ" = "Toegangscodes zijn verschillend";
 "lng_passcode_wrong" = "Onjuiste toegangscode";
 "lng_passcode_is_same" = "Toegangscode is niet gewijzigd";
-"lng_passcode_enter" = "Voer je Telegram toegangscode in";
+"lng_passcode_enter" = "Toegangscode invoeren";
 "lng_passcode_submit" = "Versturen";
 "lng_passcode_logout" = "Uitloggen";
+
+"lng_cloud_password_waiting" = "Bevestigingslink verstuurd naar {email}..";
+"lng_cloud_password_change" = "Cloud-wachtwoord wijzigen";
+"lng_cloud_password_create" = "Cloud-wachtwoord instellen";
+"lng_cloud_password_remove" = "Cloud-wachtwoord verwijderen";
+"lng_cloud_password_set" = "Twee-staps-verificatie inschakelen";
+"lng_cloud_password_edit" = "Cloud-wachtwoord wijzigen";
+"lng_cloud_password_enter_old" = "Oud wachtwoord invoeren";
+"lng_cloud_password_enter_first" = "Wachtwoord invoeren";
+"lng_cloud_password_enter_new" = "Nieuw wachtwoord invoeren";
+"lng_cloud_password_confirm_new" = "Wachtwoord opnieuw invoeren";
+"lng_cloud_password_hint" = "Wachtwoordhint invoeren";
+"lng_cloud_password_bad" = "De hint moet anders zijn dan je wachtwoord.";
+"lng_cloud_password_email" = "Herstel-e-mailadres invoeren";
+"lng_cloud_password_bad_email" = "Ongeldig e-mailadres, probeer een andere.";
+"lng_cloud_password_about" = "Naast de code die je per SMS ontvangt kun je een extra wachtwoord instellen voor als je inlogt op een nieuw apparaat.";
+"lng_cloud_password_about_recover" = "Let op: Echt geen herstel-emailadres\nopgeven voor je wachtwoord?\n\nBij verlies van je wachtwoord ben je\nook de toegang tot Telegram kwijt.";
+"lng_cloud_password_almost" = "Een bevestigingslink is naar\nhet e-mailadres verstuurd.\n\ntwee-staps-verificatie is actief\nna het klikken van de e-mail-link.";
+"lng_cloud_password_was_set" = "Twee-staps-verificatie ingeschakeld.";
+"lng_cloud_password_updated" = "Je cloud-wachtwoord is gewijzigd.";
+"lng_cloud_password_removed" = "Twee-staps-verificatie uitgeschakeld.";
+"lng_cloud_password_differ" = "Wachtwoorden komen niet overeen";
+"lng_cloud_password_wrong" = "Onjuist cloud-wachtwoord";
+"lng_cloud_password_is_same" = "Wachtwoord is niet gewijzigd";
 
 "lng_connection_type" = "Verbindingstype:";
 "lng_connection_auto_connecting" = "Standaard (verbinden)";
@@ -264,8 +310,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_connection_user_ph" = "Gebruikersnaam";
 "lng_connection_password_ph" = "Wachtwoord";
 "lng_connection_save" = "Opslaan";
+"lng_settings_show_sessions" = "Alle sessies weergeven";
 "lng_settings_reset" = "Beëindig alle andere sessies";
-"lng_settings_reset_sure" = "Alle apparaten behalve het huidige apparaat uitloggen?";
+"lng_settings_reset_sure" = "Alle apparaten behalve het huidige\napparaat uitloggen?";
+"lng_settings_reset_one_sure" = "Deze sessie beëindigen?";
 "lng_settings_reset_button" = "Beëindigen";
 "lng_settings_reset_done" = "Alle andere sessies zijn beëindigd";
 "lng_settings_logout" = "Uitloggen";
@@ -274,6 +322,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_need_restart" = "Herstarten is vereist om sommige\ninstellingen toe te passen, herstarten?";
 "lng_settings_restart_now" = "Herstarten";
 "lng_settings_restart_later" = "Later";
+
+"lng_sessions_header" = "Huidige sessie";
+"lng_sessions_other_header" = "Actieve sessies";
+"lng_sessions_no_other" = "Geen andere sessies";
+"lng_sessions_other_desc" = "Je kunt in Telegram inloggen vanaf andere\napparaten (mobiel,tablet,desktop) met\nhetzelfde telefoonnummer. Al je data\nzal direct worden gesynchroniseerd.";
+"lng_sessions_terminate_all" = "Beëindig alle";
+
+"lng_preview_loading" = "Link-preview ophalen...";
 
 "lng_profile_chat_unaccessible" = "Groep is ontoegankelijk";
 "lng_topbar_info" = "Info";
@@ -319,8 +375,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_sure_delete_history" = "Geschiedenis met {contact} echt wissen? \n\nDeze actie kan niet ongedaan worden gemaakt.";
 
 "lng_sure_delete_and_exit" = "Wil je de groep «{group}» verlaten en de geschiedenis wissen?\n\nDeze actie kan niet ongedaan worden gemaakt.";
-
-"lng_sure_enable_debug" = "Wil je DEBUG-mode inschakelen?\n\nAlle netwerkgebeurtenissen zullen worden gelogd.";
 
 "lng_message_empty" = "(leeg)";
 
@@ -487,11 +541,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_mediaview_saved" = "Het bestand is opgeslagen in je [c]Downloads[/c]-map";
 
-"lng_new_authorization" = "{name},\nEr is op je account ingelogd vanaf een nieuw apparaat op {day}, {date} om {time}\n\nApparaat: {device}\nLocatie: {location}\n\nAls jij dit niet was, kun je alle sessies beëindigen via Instellingen – Beëindig alle andere sessies.\n\nBedankt,\nHet Telegram-Team";
+"lng_new_authorization" = "{name},\nEr is op je account ingelogd vanaf een nieuw apparaat op {day}, {date} om {time}\n\nApparaat: {device}\nLocatie: {location}\n\nAls jij dit niet was, kun je alle sessies beëindigen via Instellingen – Alle sessies weergeven en de sessie beëindigen.\n\nAls je dat denkt dat iemand anders zonder jouw toestemming is ingelogd kun je twee-staps-verificatie activeren via instellingen.\n\nBedankt,\nHet Telegram-Team";
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version7026" = "— Voeg commentaar toe alvorens berichten door te sturen.\n— Hashtag suggesties in nieuwe berichten en zoekvelden (op basis van recente zoekacties).\n— Knop om terug te gaan naar een antwoord na het bekijken van het originele bericht.\n— Voeg mensen toe aan groepen op basis van de gebruikersnaam.";
+"lng_new_version_text" = "— Link-preview voor Twitter, YouTube, Instagram en diverse andere links\n— Twee-staps-verificatie\n— Bekijk al je Telegram-sessies, beëindig specifieke sessies.";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
