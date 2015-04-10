@@ -26,6 +26,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include <openssl/err.h>
 #include <openssl/aes.h>
 #include <openssl/evp.h>
+#include <openssl/sha.h>
+#include <openssl/md5.h>
 
 #include <QtWidgets/QtWidgets>
 #include <QtNetwork/QTcpSocket>

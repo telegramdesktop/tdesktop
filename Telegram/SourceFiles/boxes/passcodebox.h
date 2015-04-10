@@ -17,48 +17,110 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
+#include "abstractbox.h"
 
-class PasscodeBox : public LayeredWidget {
+class PasscodeBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
 
 	PasscodeBox(bool turningOff = false);
-	void parentResized();
-	void animStep(float64 dt);
+	PasscodeBox(const QByteArray &newSalt, const QByteArray &curSalt, bool hasRecovery, const QString &hint, bool turningOff = false);
+	void init();
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
-	void startHide();
-	~PasscodeBox();
+	void resizeEvent(QResizeEvent *e);
 
 public slots:
 
-	void onSave();
+	void onSave(bool force = false);
 	void onBadOldPasscode();
 	void onOldChanged();
 	void onNewChanged();
-	void onCancel();
+	void onEmailChanged();
+	void onForceNoMail();
+	void onBoxDestroyed(QObject *obj);
+	void onRecoverByEmail();
+	void onRecoverExpired();
 
-private:
+signals:
+
+	void reloadPassword();
+
+protected:
 
 	void hideAll();
 	void showAll();
+	void showDone();
 
-	bool _turningOff;
+private:
+
+	void setPasswordDone(const MTPBool &result);
+	bool setPasswordFail(const RPCError &error);
+
+	void recoverStarted(const MTPauth_PasswordRecovery &result);
+	bool recoverStartFail(const RPCError &error);
+
+	void recover();
+	QString _pattern;
+
+	AbstractBox *_replacedBy;
+	bool _turningOff, _cloudPwd;
+	mtpRequestId _setRequest;
+
+	QByteArray _newSalt, _curSalt;
+	bool _hasRecovery;
+	QString _hint;
+
+	int32 _aboutHeight;
 
 	QString _boxTitle;
-	Text _about;
+	Text _about, _hintText;
 
-	int32 _width, _height;
 	FlatButton _saveButton, _cancelButton;
-	FlatInput _oldPasscode, _newPasscode, _reenterPasscode;
+	FlatInput _oldPasscode, _newPasscode, _reenterPasscode, _passwordHint, _recoverEmail;
+	LinkButton _recover;
 
-	QPixmap _cache;
+	QString _oldError, _newError, _emailError;
+};
 
-	anim::fvalue a_opacity;
-	bool _hiding;
+class RecoverBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
 
-	QTimer _badOldTimer;
-	QString _oldError, _newError;
+public:
+
+	RecoverBox(const QString &pattern);
+	void keyPressEvent(QKeyEvent *e);
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+public slots:
+
+	void onSubmit();
+	void onCodeChanged();
+
+signals:
+
+	void reloadPassword();
+	void recoveryExpired();
+
+protected:
+
+	void hideAll();
+	void showAll();
+	void showDone();
+
+private:
+
+	void codeSubmitDone(bool recover, const MTPauth_Authorization &result);
+	bool codeSubmitFail(const RPCError &error);
+
+	mtpRequestId _submitRequest;
+
+	QString _pattern;
+
+	FlatButton _saveButton, _cancelButton;
+	FlatInput _recoverCode;
+
+	QString _error;
 };

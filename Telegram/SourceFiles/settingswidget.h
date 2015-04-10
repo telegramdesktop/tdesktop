@@ -105,6 +105,9 @@ public slots:
 	void onPasscode();
 	void onPasscodeOff();
 	void onAutoLock();
+	void onPassword();
+	void onPasswordOff();
+	void onReloadPassword(Qt::ApplicationState state = Qt::ApplicationActive);
 
 	void onConnectionType();
 
@@ -151,8 +154,7 @@ public slots:
 	void onUpdateReady();
 	void onUpdateFailed();
 
-	void onResetSessions();
-	void onResetSessionsSure();
+	void onShowSessions();
 
 	void onPhotoUpdateDone(PeerId peer);
 	void onPhotoUpdateFail(PeerId peer);
@@ -165,12 +167,11 @@ public slots:
 
 private:
 
-	void doneResetSessions(const MTPBool &res);
 	void saveError(const QString &str = QString());
 
 	void setScale(DBIScale newScale);
 
-	QString _testlang;
+	QString _testlang, _secretText;
 
 	UserData *_self;
 	UserData *self() const {
@@ -258,16 +259,25 @@ private:
 	LinkButton _passcodeEdit, _passcodeTurnOff, _autoLock;
 	QString _autoLockText;
 	int32 _autoLockWidth;
+	LinkButton _passwordEdit, _passwordTurnOff;
+	QString _waitingConfirm;
+	QByteArray _curPasswordSalt;
+	bool _hasPasswordRecovery;
+	QString _curPasswordHint;
+	QByteArray _newPasswordSalt;
 	LinkButton _connectionType;
 	QString _connectionTypeText;
 	int32 _connectionTypeWidth;
-	LinkButton _resetSessions;
+	LinkButton _showSessions;
 	FlatButton _logOut;
 
-	bool _resetDone;
+	void gotPassword(const MTPaccount_Password &result);
+	void offPasswordDone(const MTPBool &result);
+	bool offPasswordFail(const RPCError &error);
 
 	void setUpdatingState(UpdatingState state, bool force = false);
 	void setDownloadProgress(qint64 ready, qint64 total);
+
 
 };
 

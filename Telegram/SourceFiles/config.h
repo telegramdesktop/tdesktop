@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 8000;
-static const wchar_t *AppVersionStr = L"0.8";
+static const int32 AppVersion = 8003;
+static const wchar_t *AppVersionStr = L"0.8.3";
 static const bool DevChannel = false;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
@@ -118,9 +118,10 @@ enum {
 	SaveDraftTimeout = 1000, // save draft after 1 secs of not changing text
 	SaveDraftAnywayTimeout = 5000, // or save anyway each 5 secs
 
-    HiddenIsOnlineAfterMessage = 30, // user with hidden last seen stays online for such amount of seconds in the interface
+	HiddenIsOnlineAfterMessage = 30, // user with hidden last seen stays online for such amount of seconds in the interface
 
 	ServiceUserId = 777000,
+	WebPageUserId = 701000,
 
 	CacheBackgroundTimeout = 3000, // cache background scaled image after 3s
 	BackgroundsInRow = 3,
@@ -129,6 +130,7 @@ enum {
 	UpdateDelayRandPart = 8 * 3600, // 8 hour max - min time between update check requests
 
 	WrongPasscodeTimeout = 1500,
+	SessionsShortPollTimeout = 60000,
 };
 
 inline bool isServiceUser(uint64 id) {
@@ -216,18 +218,20 @@ static const char *ApiHash = "344583e45741c457fe1862106095a5eb";
 
 inline const char *cApiDeviceModel() {
 #ifdef Q_OS_WIN
-	return "x86 desktop";
-#else
-	return "x64 desktop";
+	return "PC";
+#elif defined Q_OS_MAC
+	return "Mac";
+#elif defined Q_OS_LINUX
+	return "PC";
 #endif
 }
 inline const char *cApiSystemVersion() {
 #ifdef Q_OS_WIN
-	return "windows";
+	return "Windows";
 #elif defined Q_OS_MAC
-	return "os x";
+	return "OS X";
 #elif defined Q_OS_LINUX
-	return "linux";
+	return "Linux";
 #endif
 }
 inline QString cApiAppVersion() {
@@ -238,7 +242,7 @@ static const char *ApiLang = "en";
 extern QString gKeyFile;
 inline const QString &cDataFile() {
 	if (!gKeyFile.isEmpty()) return gKeyFile;
-	static const QString res(cTestMode() ? qsl("data_test") : qsl("data"));
+	static const QString res(qsl("data"));
 	return res;
 }
 
@@ -285,7 +289,7 @@ enum {
 	UpdateChunk = 100 * 1024, // 100kb parts when downloading the update
 	IdleMsecs = 60 * 1000, // after 60secs without user input we think we are idle
 
-	ForwardOnAdd = 120, // how many messages from chat history server should forward to user, that was added to this chat
+	ForwardOnAdd = 100, // how many messages from chat history server should forward to user, that was added to this chat
 };
 
 inline const QRegularExpression &cWordSplit() {

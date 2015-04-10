@@ -40,7 +40,7 @@ inline bool emojiEdge(const QChar *ch) {
 
 inline QString replaceEmojis(const QString &text) {
 	QString result;
-	LinkRanges lnkRanges = textParseLinks(text);
+	LinkRanges lnkRanges = textParseLinks(text, TextParseLinks | TextParseMentions | TextParseHashtags);
 	int32 currentLink = 0, lnkCount = lnkRanges.size();
 	const QChar *emojiStart = text.unicode(), *emojiEnd = emojiStart, *e = text.cend();
 	bool canFindEmoji = true, consumePrevious = false;

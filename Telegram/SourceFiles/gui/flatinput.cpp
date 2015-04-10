@@ -42,15 +42,13 @@ namespace {
 	FlatInputStyle _flatInputStyle;
 }
 
-FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString &pholder, const QString &v) : QLineEdit(v, parent), _oldtext(v), _kev(0), _customUpDown(false), _phVisible(!v.length()),
+FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString &pholder, const QString &v) : QLineEdit(v, parent), _fullph(pholder), _oldtext(v), _kev(0), _customUpDown(false), _phVisible(!v.length()),
 	a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c),
     a_borderColor(st.borderColor->c), a_bgColor(st.bgColor->c), _notingBene(0), _st(st) {
 	resize(_st.width, _st.height);
 	
 	setFont(_st.font->f);
 	setAlignment(_st.align);
-	
-	_ph = _st.font->m.elidedText(pholder, Qt::ElideRight, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1);
 
 	QPalette p(palette());
 	p.setColor(QPalette::Text, _st.textColor->c);
@@ -182,6 +180,15 @@ void FlatInput::focusOutEvent(QFocusEvent *e) {
 	anim::start(this);
 	QLineEdit::focusOutEvent(e);
 	emit blurred();
+}
+
+void FlatInput::resizeEvent(QResizeEvent *e) {
+	int32 availw = width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1;
+	if (_st.font->m.width(_fullph) > availw) {
+		_ph = _st.font->m.elidedText(_fullph, Qt::ElideRight, availw);
+	} else {
+		_ph = _fullph;
+	}
 }
 
 QSize FlatInput::sizeHint() const {

@@ -314,7 +314,7 @@ int APIENTRY WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdParama
 	LPWSTR *args;
 	int argsCount;
 
-	bool needupdate = false, autostart = false, debug = false, writeprotected = false, startintray = false;
+	bool needupdate = false, autostart = false, debug = false, writeprotected = false, startintray = false, testmode = false;
 	args = CommandLineToArgvW(GetCommandLine(), &argsCount);
 	if (args) {
 		for (int i = 1; i < argsCount; ++i) {
@@ -327,6 +327,8 @@ int APIENTRY WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdParama
 				openLog();
 			} else if (equal(args[i], L"-startintray")) {
 				startintray = true;
+			} else if (equal(args[i], L"-testmode")) {
+				testmode = true;
 			} else if (equal(args[i], L"-writeprotected") && ++i < argsCount) {
 				writeprotected = true;
 				updateTo = args[i];
@@ -376,6 +378,7 @@ int APIENTRY WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdParama
 	if (autostart) targs += L" -autostart";
 	if (debug) targs += L" -debug";
 	if (startintray) targs += L" -startintray";
+	if (testmode) targs += L" -testmode";
 
 	bool executed = false;
 	if (writeprotected) { // run un-elevated

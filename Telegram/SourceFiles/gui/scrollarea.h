@@ -70,7 +70,7 @@ public:
 
 public slots:
 
-	void updateBar();
+	void updateBar(bool force = false);
 	void onHideTimer();
 
 signals:

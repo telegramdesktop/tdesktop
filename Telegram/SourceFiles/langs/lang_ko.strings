@@ -59,45 +59,46 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_weekday6_full" = "토요일";
 "lng_weekday7_full" = "일요일";
 
-"lng_month_day" = "{month} {day} 일";
+"lng_month_day" = "{month} {day}일";
 
 "lng_cancel" = "취소";
 "lng_continue" = "계속";
 "lng_close" = "닫기";
 "lng_connecting" = "연결중입니다..";
-"lng_reconnecting" = " {count:현재| # 초 후에| # 초 후에} 재연결 합니다..";
+"lng_reconnecting" = " {count:지금| #초 후에| #초 후에} 다시 연결합니다..";
 "lng_reconnecting_try_now" = "다시 시도";
 
-"lng_status_service_notifications" = "서비스 공지사항";
+"lng_status_service_notifications" = "서비스 알림";
 "lng_status_offline" = "마지막으로 접속한 지 오래됨";
 "lng_status_recently" = "최근에 접속";
 "lng_status_last_week" = "일주일 이내 마지막으로 접속";
 "lng_status_last_month" = "한 달 이내 마지막으로 접속";
 "lng_status_invisible" = "숨김";
 "lng_status_lastseen_now" = "방금 접속";
-"lng_status_lastseen_minutes" = "접속한지 {count:_not_used_|# 분|# 분} 전";
-"lng_status_lastseen_hours" = "접속한지 {count:_not_used_|# 시간|# 시간} 전";
+"lng_status_lastseen_minutes" = "{count:_not_used_|#분|#분}전 접속";
+"lng_status_lastseen_hours" = "{count:_not_used_|#시간|#시간}전 접속";
 "lng_status_lastseen_today" = "오늘 {time}에 마지막으로 접속";
 "lng_status_lastseen_yesterday" = "어제 {time}에 마지막으로 접속";
 "lng_status_lastseen_date" = "{date}에 마지막으로 접속";
-"lng_status_lastseen_date_time" = "{date} 일 {time} 에 마지막으로 접속";
+"lng_status_lastseen_date_time" = "{date}일 {time}에 마지막으로 접속";
 "lng_status_online" = "온라인";
 "lng_status_connecting" = "연결중..";
 
 "lng_chat_status_unaccessible" = "그룹 접근 불가";
-"lng_chat_status_members" = "{count:없음|# 명|# 명}";
-"lng_chat_status_members_online" = "{count:_not_used_|# 명|# 명}, {count_online:_not_used_|# 온라인|# 온라인}";
+"lng_chat_status_members" = "{count:맴버 없음|#명|#명}";
+"lng_chat_status_members_online" = "{count:_not_used_|#명|#명}중 {count_online:_not_used_|#명 접속중|#명 접속중}";
 
 "lng_server_error" = "내부 서버 오류";
 "lng_flood_error" = "시도가 너무 많습니다. 나중에 다시 시도해주세요.";
 "lng_deleted" = "알 수 없음";
 "lng_deleted_message" = "삭제된 메시지";
 
-"lng_intro" = "[a href=\"https://telegram.org/\"]텔레그램[/a] PC 공식버전에 오신 것을 환영합니다.\n[b]안전[/b]하고 [b]신속[/b]하게 사용하세요.";
+"lng_intro" = "[a href=\"https://telegram.org/\"]텔레그램[/a] PC 공식버전에 오신 것을 환영합니다.\n[b]안전[/b]하고 [b]신속[/b]합니다.";
 "lng_start_msgs" = "시작하기";
 
 "lng_intro_next" = "다음";
 "lng_intro_finish" = "회원가입";
+"lng_intro_submit" = "제출";
 
 "lng_phone_ph" = "휴대폰 번호";
 "lng_phone_title" = "전화번호";
@@ -112,7 +113,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_code_ph" = "코드번호";
 "lng_code_desc" = "인증코드 메세지를 휴대폰으로 전송하였습니다.\n인증코드를 아래에 입력하여 주세요.";
-"lng_code_call" = "텔레그램이  {minutes}:{seconds} 후에는 전화를 겁니다.";
+"lng_code_call" = "텔레그램이  {minutes}:{seconds}후에는 전화를 겁니다.";
 "lng_code_calling" = "텔레그램으로부터 전화 요청을 하고 있습니다..";
 "lng_code_called" = "텔레그램이 회원님의 전화번호로 전화를 걸었습니다.";
 
@@ -124,6 +125,24 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_bad_image_for_photo" = "이미지를 전송할 수 없습니다.\n파일로 전송을 하겠습니까?";
 
+"lng_signin_title" = "클라우드 비밀번호 확인";
+"lng_signin_desc" = "클라우드 비밀번호 입력";
+"lng_signin_recover_desc" = "이메일에 기입된 코드를 입력해주세요";
+"lng_signin_password" = "클라우드 비밀번호";
+"lng_signin_code" = "이메일 코드";
+"lng_signin_recover" = "비밀번호를 잊어버리셨습니까?";
+"lng_signin_hint" = "힌트: {password_hint}";
+"lng_signin_recover_hint" = "{recover_email} 로 코드를 전송하였습니다.";
+"lng_signin_bad_password" = "잘못된 비밀번호를 입력하였습니다.";
+"lng_signin_wrong_code" = "틀린 인증코드입니다. 다시 시도해주세요.";
+"lng_signin_try_password" = "이메일 접근이 안되시나요?";
+"lng_signin_password_removed" = "클라우드 비밀번호가 삭제되었습니다.\n설정에서 새로운 비밀번호 설정이 가능합니다.";
+"lng_signin_no_email_forgot" = "비밀번호 복구 이메일을 설정하지 않았기때문에, \n비밀번호를 기억해내시거나 계정 초기화를 진행해주셔야합니다.";
+"lng_signin_cant_email_forgot" = "이메일 접근을 하실 수 없을 경우, 비밀번호를 기억해내시거나 계정 초기화를 진행해주셔야 합니다.";
+"lng_signin_reset_account" = "계정 초기화";
+"lng_sigin_sure_reset" = "경고!\n\n계정 초기화 진행시 모든 대화,\n메시지 및 공유받은 미디어와 파일이 삭제가 됩니다.\n\n계정 초기화를 진행하시겠습니까?";
+"lng_sigin_reset" = "초기화";
+
 "lng_signup_title" = "개인정보 및 사진";
 "lng_signup_desc" = "이름을 입력해주시고,\n사진을 업로드해주세요.";
 
@@ -134,8 +153,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_dlg_new_group_name" = "그룹이름";
 "lng_dlg_create_group" = "만들기";
 "lng_no_contacts" = "연락처가 없습니다.";
-"lng_contacts_loading" = "로딩중입니다..";
-"lng_contacts_not_found" = "검색결과가 없습니다.";
+"lng_contacts_loading" = "로드중..";
+"lng_contacts_not_found" = "연락처를 찾을 수 없음";
 
 "lng_settings_save" = "저장";
 "lng_settings_upload" = "프로필 이미지 선택";
@@ -146,37 +165,37 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_username_about" = "텔레그램 아이디를 설정할 수 있습니다. \n아이디를 설정하면 회원님의 전화번호를 몰라도 아이디로 회원님을 찾아 대화를 나눌 수 있습니다.\n아이디는 영문, 밑줄, 숫자로 a-z, _, 0-9, \n다섯 글자 이상으로 설정해 주세요.";
 "lng_username_invalid" = "올바르지 않은 아이디입니다.";
 "lng_username_occupied" = "사용중인 아이디입니다.";
-"lng_username_too_short" = "아이디가 너무 짧습니다. (5글자 이상)";
+"lng_username_too_short" = "아이디가 너무 짧습니다.";
 "lng_username_bad_symbols" = "올바르지 않은 아이디입니다.";
-"lng_username_available" = "사용가능한 아이디입니다.";
+"lng_username_available" = "사용 가능한 아이디입니다.";
 "lng_username_not_found" = "아이디 @{user}를 찾을 수 없습니다.";
 
 "lng_settings_section_contact_info" = "연락처 정보";
 "lng_settings_phone_number" = "전화번호";
-"lng_settings_username" = "아이디";
+"lng_settings_username" = "아이디:";
 "lng_settings_choose_username" = "아이디 설정하기";
 
-"lng_settings_section_notify" = "알림서비스";
-"lng_settings_desktop_notify" = "데스크탑 알림서비스";
+"lng_settings_section_notify" = "알림";
+"lng_settings_desktop_notify" = "데스크탑 알림";
 "lng_settings_show_name" = "발신인 표시";
 "lng_settings_show_preview" = "메시지 미리보기";
-"lng_settings_sound_notify" = "알림음";
+"lng_settings_sound_notify" = "소리 재생";
 
 "lng_notification_preview" = "새로운 메시지가 있습니다.";
 
 "lng_settings_section_general" = "일반";
 "lng_settings_change_lang" = "언어 변경";
 "lng_languages" = "언어";
-"lng_sure_save_language" = "언어 변경을 적용하기 위하여\n텔레그램을 재시작합니다.";
+"lng_sure_save_language" = "언어를 변경하기 위해\n텔레그램을 재시작합니다.";
 "lng_settings_auto_update" = "자동 업데이트";
-"lng_settings_current_version" = "버전 {version}";
+"lng_settings_current_version" = " {version}";
 "lng_settings_check_now" = "업데이트 확인";
 "lng_settings_update_checking" = "업데이트 확인 중..";
-"lng_settings_latest_installed" = "최신 버전이 설치 되어져 있습니다.";
+"lng_settings_latest_installed" = "최신 버전이 설치되어 있습니다.";
 "lng_settings_downloading" = "업데이트를 다운로드중입니다.. {ready} / {total} MB..";
 "lng_settings_update_ready" = "새로운 버전을 설치 할 수 있습니다.";
 "lng_settings_update_now" = "재시작 합니다.";
-"lng_settings_update_fail" = "업데이트 확인 실패";
+"lng_settings_update_fail" = "업데이트 확인 실패 :(";
 "lng_settings_workmode_tray" = "트레이 아이콘 표시";
 "lng_settings_workmode_window" = "테스크바 아이콘 표시";
 "lng_settings_auto_start" = "시스템 시작시 자동실행";
@@ -187,7 +206,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_settings_section_chat" = "채팅 설정";
 "lng_settings_replace_emojis" = "이모티콘 자동변환";
-"lng_settings_view_emojis" = "리스트 보기";
+"lng_settings_view_emojis" = "목록 보기";
 "lng_settings_emoji_list" = "지원되는 이모티콘 리스트";
 "lng_settings_send_enter" = "엔터키로 메시지 전송";
 "lng_settings_send_ctrlenter" = " Ctrl+Enter로 메시지 전송";
@@ -219,9 +238,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_download_path_clear_failed" = "초기화 실패 :(";
 
 "lng_settings_section_cache" = "로컬 저장소";
-"lng_settings_no_data_cached" = "캐시 데이터를 못 찾았습니다!";
-"lng_settings_images_cached" = "{count:_not_used_|이미지 # 개|이미지 # 개}, {size}";
-"lng_settings_audios_cached" = "{count:_not_used_|음성 메시지 # 개|음성 메시지 # 개}, {size}";
+"lng_settings_no_data_cached" = "캐시 데이터가 없습니다!";
+"lng_settings_images_cached" = "{count:_not_used_|이미지 #개|이미지 #개}, {size}";
+"lng_settings_audios_cached" = "{count:_not_used_|음성 메시지 #개|음성 메시지 #개}, {size}";
 "lng_local_storage_clear" = "전체 정리";
 "lng_local_storage_clearing" = "초기화 중..";
 "lng_local_storage_cleared" = "초기화 완료!";
@@ -229,26 +248,53 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_settings_section_advanced" = "고급";
 
-"lng_passcode_turn_on" = "잠금번호 사용";
-"lng_passcode_change" = "잠금번호 변경";
-"lng_passcode_create" = "잠금번호 생성";
-"lng_passcode_remove" = "잠금번호 삭제";
-"lng_passcode_turn_off" = "비활성화";
-"lng_passcode_autolock" = "자동잠금";
+"lng_passcode_remove_button" = "삭제";
+
+"lng_passcode_turn_on" = "잠금코드 사용";
+"lng_passcode_change" = "잠금코드 변경";
+"lng_passcode_create" = "잠금코드 생성";
+"lng_passcode_remove" = "잠금코드 삭제";
+"lng_passcode_turn_off" = "끄기";
+"lng_passcode_autolock" = "자동-잠금";
 "lng_passcode_autolock_away" = "미사용시 자동잠금 설정";
 "lng_passcode_autolock_inactive" = "메신져 미사용시 자동잠금 설정";
-"lng_passcode_autolock_minutes" = "{count:_not_used_|# 분|# 분} ";
-"lng_passcode_autolock_hours" = "{count:_not_used_|# 시간|# 시간} ";
-"lng_passcode_enter_old" = "기존 잠금번호 입력";
-"lng_passcode_enter_new" = "신규 잠금번호 입력";
-"lng_passcode_confirm_new" = "신규 잠금번호 재입력";
+"lng_passcode_autolock_minutes" = "{count:_not_used_|#분|#분} ";
+"lng_passcode_autolock_hours" = "{count:_not_used_|#시간|#시간} ";
+"lng_passcode_enter_old" = "기존 비밀번호 입력";
+"lng_passcode_enter_first" = "잠금코드 입력";
+"lng_passcode_enter_new" = "신규 비밀번호 입력";
+"lng_passcode_confirm_new" = "신규 비밀번호 재입력";
 "lng_passcode_about" = "잠금번호를 설정하시면 구석에 잠금 아이콘이 표시됩니다. 클릭을 하셔서 잠궈주세요.\n\n참고 : 잠금번호를 잊어버리셨을 경우 텔레그램 데스크탑을 재로그인을 해주셔야합니다.";
-"lng_passcode_differ" = "잠금번호가 다릅니다.";
-"lng_passcode_wrong" = "잘못된 잠금번호입니다.";
-"lng_passcode_is_same" = "잠금번호가 변경되지 않았습니다.";
-"lng_passcode_enter" = "잠금번호를 입력해주세요.";
+"lng_passcode_differ" = "비밀번호가 다릅니다.";
+"lng_passcode_wrong" = "잘못된 비밀번호입니다.";
+"lng_passcode_is_same" = "비밀번호가 변경되지 않았습니다.";
+"lng_passcode_enter" = "잠금코드 입력";
 "lng_passcode_submit" = "입력";
 "lng_passcode_logout" = "로그아웃";
+
+"lng_cloud_password_waiting" = "{email}로 확인 이메일을 전송하였습니다..";
+"lng_cloud_password_change" = "클라우드 비밀번호 변경";
+"lng_cloud_password_create" = "클라우드 비밀번호 생성";
+"lng_cloud_password_remove" = "클라우드 비밀번호 삭제";
+"lng_cloud_password_set" = "2단계 인증 활성화";
+"lng_cloud_password_edit" = "클라우드 비밀번호 변경";
+"lng_cloud_password_enter_old" = "기존 비밀번호 입력";
+"lng_cloud_password_enter_first" = "비밀번호 입력";
+"lng_cloud_password_enter_new" = "새로운 비밀번호 입력";
+"lng_cloud_password_confirm_new" = "새로운 비밀번호 재입력";
+"lng_cloud_password_hint" = "비밀번호 힌트 입력";
+"lng_cloud_password_bad" = "비밀번호와 힌트는 동일할 수 없습니다.";
+"lng_cloud_password_email" = "복구 이메일 입력";
+"lng_cloud_password_bad_email" = "올바르지 않은 이메일입니다. 다시 시도해주세요.";
+"lng_cloud_password_about" = "핀코드와 별도로 새로운 기기에서 로그인하실때 사용되는 비밀번호입니다.";
+"lng_cloud_password_about_recover" = "경고! 비밀번호 복구 이메일을 설정 안하시겠습니까?\n\n비밀번호 분실시 텔레그램 접근 권한이 유실됩니다.";
+"lng_cloud_password_almost" = "제공하신 이메일로 확인링크를 전송하였습니다.\n\n링크를 누르시면 2단계 인증이 활성화 됩니다.";
+"lng_cloud_password_was_set" = "2단계 인증이 활성화되었습니다.";
+"lng_cloud_password_updated" = "클라우드 비밀번호가 변경되었습니다.";
+"lng_cloud_password_removed" = "2단계 인증이 비활성화 되었습니다.";
+"lng_cloud_password_differ" = "비밀번호가 일치하지 않습니다.";
+"lng_cloud_password_wrong" = "올바르지 않은 클라우드 비밀번호입니다.";
+"lng_cloud_password_is_same" = "비밀번호가 변경되지 않았습니다.";
 
 "lng_connection_type" = "연결 유형:";
 "lng_connection_auto_connecting" = "기본값 (연결중..)";
@@ -256,16 +302,18 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_connection_http_proxy" = "HTTP 프록시";
 "lng_connection_tcp_proxy" = "TCP 프록시";
 "lng_connection_header" = "연결 유형";
-"lng_connection_auto_rb" = "자동  (TCP 혹은 HTTP 사용)";
-"lng_connection_http_proxy_rb" = "HTTP (커스텀 http프록시)";
+"lng_connection_auto_rb" = "자동 (사용 가능하다면 TCP 아니면 HTTP 사용)";
+"lng_connection_http_proxy_rb" = "HTTP (커스텀 HTTP 프록시)";
 "lng_connection_tcp_proxy_rb" = "TCP (커스텀 socks5-proxy)";
 "lng_connection_host_ph" = "호스트네임";
-"lng_connection_port_ph" = "포트번호";
+"lng_connection_port_ph" = "포트";
 "lng_connection_user_ph" = "아이디";
 "lng_connection_password_ph" = "비밀번호";
 "lng_connection_save" = "저장";
+"lng_settings_show_sessions" = "모든 세션 보기";
 "lng_settings_reset" = "다른 모든 세션 강제 종료";
 "lng_settings_reset_sure" = "현재 기기를 제외하고 다른 기기에 로그인된 세션을 모두 종료시킬까요?";
+"lng_settings_reset_one_sure" = "해당 세션을 강제 종료 하시겠습니까?";
 "lng_settings_reset_button" = "종료";
 "lng_settings_reset_done" = "다른 모든 세션이 강제 종료 되었습니다.";
 "lng_settings_logout" = "로그아웃";
@@ -275,10 +323,18 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_restart_now" = "재시작";
 "lng_settings_restart_later" = "나중에";
 
+"lng_sessions_header" = "현재 세션";
+"lng_sessions_other_header" = "활성화된 세션";
+"lng_sessions_no_other" = "다른 세션이 없습니다.";
+"lng_sessions_other_desc" = "동일한 휴대번호로 \n다른 휴대기기, 태블릿과 데스크탑에서 \n텔레그램 로그인이 가능합니다.\n 모든 데이터는 즉시 동기화 됩니다.";
+"lng_sessions_terminate_all" = "모두 강제종료";
+
+"lng_preview_loading" = "링크 정보를 가져오는 중..";
+
 "lng_profile_chat_unaccessible" = "그룹에 접근할 수 없습니다.";
 "lng_topbar_info" = "정보";
 "lng_profile_settings_section" = "환경설정";
-"lng_profile_participants_section" = "대화상대";
+"lng_profile_participants_section" = "사용자";
 "lng_profile_info" = "연락처 정보";
 "lng_profile_group_info" = "그룹 정보";
 "lng_profile_add_contact" = "연락처 추가";
@@ -296,13 +352,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_loading" = "로딩중..";
 "lng_profile_shared_media" = "공유된 미디어";
 "lng_profile_no_media" = "대화에 미디어가 존재하지 않습니다.";
-"lng_profile_photos" = "{count:_not_used_|# 사진|# 사진} »";
+"lng_profile_photos" = "{count:_not_used_|#개의 사진|#개의 사진} »";
 "lng_profile_photos_header" = "사진 내역";
-"lng_profile_videos" = "{count:_not_used_|# 비디오 파일|# 비디오 파일} »";
+"lng_profile_videos" = "{count:_not_used_|#개의 비디오 파일|#개의 비디오 파일} »";
 "lng_profile_videos_header" = "비디오 파일 내역";
-"lng_profile_files" = "{count:_not_used_|# 파일|# 파일} »";
+"lng_profile_files" = "{count:_not_used_|#개의 파일|#개의 파일} »";
 "lng_profile_files_header" = "파일 내역";
-"lng_profile_audios" = "{count:_not_used_|# 음성 메시지|# 음성 메시지} »";
+"lng_profile_audios" = "{count:_not_used_|#개의 음성 메시지|#개의 음성 메시지} »";
 "lng_profile_audios_header" = "음성 메시지 내역";
 "lng_profile_show_all_types" = "모든 유형 보기";
 "lng_profile_copy_phone" = "전화번호 복사";
@@ -319,8 +375,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_sure_delete_history" = "{contact} 님과 관련된 모든 메시지를 \n삭제하시겠습니까?\n\n삭제 하실 경우 취소가 불가능합니다.";
 
 "lng_sure_delete_and_exit" = "그룹 «{group}» 방에서 모든 메시지를 \n삭제하시고 퇴장하시겠습니까?\n\n삭제 하실 경우 취소가 불가능합니다.";
-
-"lng_sure_enable_debug" = "DEBUG 모드를 화성화 시키시겠습니까?\n\n모든 네트워크 내역이 기록됩니다.";
 
 "lng_message_empty" = "(없음)";
 
@@ -371,8 +425,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_typing" = "입력중";
 "lng_user_typing" = "{user}님이 입력중입니다.";
 "lng_users_typing" = "{user}님과 {second_user}님이 입력중입니다.";
-"lng_many_typing" = "{count:_not_used_|# 명이|# 명이} 입력중입니다";
-"lng_unread_bar" = "{count:_not_used_|# 읽지 않은 메시지|# 읽지 않은 메시지}";
+"lng_many_typing" = "{count:_not_used_|#명이|#명이} 입력중입니다";
+"lng_unread_bar" = "{count:_not_used_|#개의 읽지 않은 메시지|#개의 읽지 않은 메시지}";
 
 "lng_maps_point" = "위치";
 "lng_save_photo" = "사진 저장";
@@ -487,11 +541,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_mediaview_saved" = "[c]다운로드[/c] 폴더로 이미지가 저장되었습니다.";
 
-"lng_new_authorization" = "{name}님,\n{day}, {date} {time}에 새 기기에서 회원님의 계정에 로그인하였습니다.\n\n기기: {device}\n위치: {location}\n\n본인의 접속이 아니라면 '설정'으로 가서 '다른 모든 세션 종료'를 실행하세요.\n\n감사합니다.\n텔레그램 팀 드림";
+"lng_new_authorization" = "{name}님,\n{time}, {date}.{day}에 새 기기에서 회원님의 계정 로그인이 감지되었습니다. \n\n기기: {device}\n위치: {location}\n\n본인의 접속이 아니라면  '설정' 창에서 '모든 세션 종료' 기능을 실행하세요.\n\n만약 강제접속 의심이 되신다면 2단계 인증을 설정 - 개인정보 및 보안에서 설정할 수 있습니다\n\n감사합니다.\n\n텔레그램 팀\n";
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version7026" = "— 메시지 전달시 코멘트 추가 기능\n— 신규 메시지 및 검색시 기존 사용한 해시태그 제안 기능\n— 원본 메시지 확인 후 기존 답글로 돌아오기 기능\n— 아이디로 그룹 초대 기능";
+"lng_new_version_text" = "— 트윗, 유투브 비디오, 인스터그램 사진등의 프리뷰 기능\n— 2단계 인증\n— 활성화된 모든 텔레그램 세션 확인 및 특정 세션 종료 기능";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

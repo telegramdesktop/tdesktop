@@ -152,6 +152,9 @@ void ContextMenu::keyPressEvent(QKeyEvent *e) {
 			emit _buttons[_selected]->clicked();
 			return;
 		}
+	} else if (e->key() == Qt::Key_Escape) {
+		hideStart();
+		return;
 	}
 	if ((e->key() != Qt::Key_Up && e->key() != Qt::Key_Down) || _buttons.size() < 1) return;
 

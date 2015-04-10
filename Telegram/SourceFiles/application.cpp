@@ -46,24 +46,16 @@ namespace {
 		}
 	}
 
-	class _DebugWaiter : public QObject {
+	class EventFilterForMac : public QObject {
 	public:
 
-		_DebugWaiter(QObject *parent) : QObject(parent), _debugState(0) {
+		EventFilterForMac(QObject *parent) : QObject(parent) {
 
 		}
 		bool eventFilter(QObject *o, QEvent *e) {
 			if (e->type() == QEvent::KeyPress) {
 				QKeyEvent *ev = static_cast<QKeyEvent*>(e);
-				switch (_debugState) {
-				case 0: if (ev->key() == Qt::Key_F12) _debugState = 1; break;
-				case 1: if (ev->key() == Qt::Key_F11) _debugState = 2; else if (ev->key() != Qt::Key_F12) _debugState = 0; break;
-				case 2: if (ev->key() == Qt::Key_F10) _debugState = 3; else if (ev->key() != Qt::Key_F11) _debugState = 0; break;
-				case 3: if (ev->key() == Qt::Key_F11) _debugState = 4; else if (ev->key() != Qt::Key_F10) _debugState = 0; break;
-				case 4: if (ev->key() == Qt::Key_F12) offerDebug(); if (ev->key() != Qt::Key_F11) _debugState = 0; break;
-				}
-
-				if (cPlatform() == dbipMac && ev->key() == Qt::Key_W && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
+				if (ev->key() == Qt::Key_W && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
 					if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 						App::wnd()->minimizeToTray();
 						return true;
@@ -72,15 +64,7 @@ namespace {
 			}
 			return QObject::eventFilter(o, e);
 		}
-		void offerDebug() {
-			ConfirmBox *box = new ConfirmBox(lang(lng_sure_enable_debug));
-			connect(box, SIGNAL(confirmed()), App::app(), SLOT(onEnableDebugMode()));
-			App::wnd()->showLayer(box);
-		}
 
-	private:
-
-		int _debugState;
 	};
 }
 
@@ -101,7 +85,9 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	}
 	mainApp = this;
 
-	installEventFilter(new _DebugWaiter(this));
+	if (cPlatform() == dbipMac) {
+		installEventFilter(new EventFilterForMac(this));
+	}
 
     QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Regular.ttf"));
     QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Bold.ttf"));
@@ -306,9 +292,9 @@ void Application::selfPhotoCleared(const MTPUserProfilePhoto &result) {
 	emit peerPhotoDone(App::self()->id);
 }
 
-void Application::chatPhotoCleared(PeerId peer, const MTPmessages_StatedMessage &result) {
+void Application::chatPhotoCleared(PeerId peer, const MTPUpdates &updates) {
 	if (App::main()) {
-		App::main()->sentFullDataReceived(0, result);
+		App::main()->sentUpdatesReceived(updates);
 	}
 	cancelPhotoUpdate(peer);
 	emit peerPhotoDone(peer);
@@ -323,16 +309,18 @@ void Application::selfPhotoDone(const MTPphotos_Photo &result) {
 	emit peerPhotoDone(App::self()->id);
 }
 
-void Application::chatPhotoDone(PeerId peer, const MTPmessages_StatedMessage &result) {
+void Application::chatPhotoDone(PeerId peer, const MTPUpdates &updates) {
 	if (App::main()) {
-		App::main()->sentFullDataReceived(0, result);
+		App::main()->sentUpdatesReceived(updates);
 	}
 	cancelPhotoUpdate(peer);
 	emit peerPhotoDone(peer);
 }
 
-bool Application::peerPhotoFail(PeerId peer, const RPCError &e) {
-	LOG(("Application Error: update photo failed %1: %2").arg(e.type()).arg(e.description()));
+bool Application::peerPhotoFail(PeerId peer, const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
+	LOG(("Application Error: update photo failed %1: %2").arg(error.type()).arg(error.description()));
 	cancelPhotoUpdate(peer);
 	emit peerPhotoFail(peer);
 	return true;
@@ -345,12 +333,6 @@ void Application::peerClearPhoto(PeerId peer) {
 		MTP::send(MTPmessages_EditChatPhoto(MTP_int(int32(peer & 0xFFFFFFFF)), MTP_inputChatPhotoEmpty()), rpcDone(&Application::chatPhotoCleared, peer), rpcFail(&Application::peerPhotoFail, peer));
 	}
 }
-
-//void Application::writeUserConfigIn(uint64 ms) {
-//	if (!writeUserConfigTimer.isActive()) {
-//		writeUserConfigTimer.start(ms);
-//	}
-//}
 
 void Application::killDownloadSessionsStart(int32 dc) {
 	if (killDownloadSessionTimes.constFind(dc) == killDownloadSessionTimes.cend()) {
@@ -371,10 +353,6 @@ void Application::killDownloadSessionsStop(int32 dc) {
 void Application::checkLocalTime() {
 	if (App::main()) App::main()->checkLastUpdate(checkms());
 }
-
-//void Application::onWriteUserConfig() {
-//	Local::writeUserSettings();
-//}
 
 void Application::onAppStateChanged(Qt::ApplicationState state) {
 	checkLocalTime();
@@ -416,8 +394,14 @@ void Application::photoUpdated(MsgId msgId, const MTPInputFile &file) {
 	}
 }
 
-void Application::onEnableDebugMode() {
-	if (!cDebug()) {
+void Application::onSwitchDebugMode() {
+	if (cDebug()) {
+		QFile(cWorkingDir() + qsl("tdata/withdebug")).remove();
+		cSetDebug(false);
+		cSetRestarting(true);
+		cSetRestartingToSettings(true);
+		App::quit();
+	} else {
 		logsInitDebug();
 		cSetDebug(true);
 		QFile f(cWorkingDir() + qsl("tdata/withdebug"));
@@ -425,8 +409,25 @@ void Application::onEnableDebugMode() {
 			f.write("1");
 			f.close();
 		}
+		App::wnd()->hideLayer();
 	}
-	App::wnd()->hideLayer();
+}
+
+void Application::onSwitchTestMode() {
+	if (cTestMode()) {
+		QFile(cWorkingDir() + qsl("tdata/withtestmode")).remove();
+		cSetTestMode(false);
+	} else {
+		QFile f(cWorkingDir() + qsl("tdata/withtestmode"));
+		if (f.open(QIODevice::WriteOnly)) {
+			f.write("1");
+			f.close();
+		}
+		cSetTestMode(true);
+	}
+	cSetRestarting(true);
+	cSetRestartingToSettings(true);
+	App::quit();
 }
 
 Application::UpdatingState Application::updatingState() {
@@ -653,10 +654,10 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 7026) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Langs updated, some bugs fixed").replace('@', qsl("@") + QChar(0x200D));
-			} else if (!DevChannel && Local::oldMapVersion() < 8000) {
-				versionFeatures = lang(lng_new_version7026).trimmed();
+			if (DevChannel && Local::oldMapVersion() < 8002) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Link previews bugfixes\n\xe2\x80\x94 Links in preview descriptions are now clickable\n\xe2\x80\x94 Twitter and Instagram mentions and hashtags in previews are clickable\n\xe2\x80\x94 Fixed file uploading\n\xe2\x80\x94 Fixed photo, document and sticker forwarding").replace('@', qsl("@") + QChar(0x200D));
+			} else if (!DevChannel && Local::oldMapVersion() < 8003) {
+				versionFeatures = lang(lng_new_version_text).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));

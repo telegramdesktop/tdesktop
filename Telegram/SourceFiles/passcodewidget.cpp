@@ -36,9 +36,6 @@ _logout(this, lang(lng_passcode_logout)) {
 	_passcode.setEchoMode(QLineEdit::Password);
 	connect(&_submit, SIGNAL(clicked()), this, SLOT(onSubmit()));
 
-	_errorTimer.setSingleShot(true);
-	connect(&_errorTimer, SIGNAL(timeout()), this, SLOT(onError()));
-
 	connect(&_passcode, SIGNAL(changed()), this, SLOT(onChanged()));
 	connect(&_passcode, SIGNAL(accepted()), this, SLOT(onSubmit()));
 
@@ -58,18 +55,27 @@ void PasscodeWidget::onSubmit() {
 		_passcode.notaBene();
 		return;
 	}
+	if (!passcodeCanTry()) {
+		_error = lang(lng_flood_error);
+		_passcode.setFocus();
+		_passcode.notaBene();
+		update();
+		return;
+	}
 
 	if (App::main()) {
 		if (Local::checkPasscode(_passcode.text().toUtf8())) {
+			cSetPasscodeBadTries(0);
 			App::wnd()->clearPasscode();
 		} else {
-			_error = QString();
-			_passcode.setDisabled(true);
-			_errorTimer.start(WrongPasscodeTimeout);
+			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
+			cSetPasscodeLastTry(getms(true));
+			onError();
 			return;
 		}
 	} else {
 		if (Local::readMap(_passcode.text().toUtf8()) != Local::ReadMapPassNeeded) {
+			cSetPasscodeBadTries(0);
 			App::app()->checkMapVersion();
 
 			MTP::start();
@@ -79,10 +85,9 @@ void PasscodeWidget::onSubmit() {
 				App::wnd()->setupIntro(true);
 			}
 		} else {
-			_error = QString();
-			_passcode.setDisabled(true);
-			_errorTimer.start(WrongPasscodeTimeout);
-			update();
+			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
+			cSetPasscodeLastTry(getms(true));
+			onError();
 			return;
 		}
 	}
@@ -90,7 +95,6 @@ void PasscodeWidget::onSubmit() {
 
 void PasscodeWidget::onError() {
 	_error = lang(lng_passcode_wrong);
-	_passcode.setDisabled(false);
 	_passcode.selectAll();
 	_passcode.setFocus();
 	_passcode.notaBene();

@@ -1721,7 +1721,7 @@ bool _execUpdater(bool update = true) {
     QByteArray data(QFile::encodeName(cExeDir() + "Updater"));
     memcpy(path, data.constData(), data.size());
 
-    char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key", p_path[] = "-workpath", p_startintray[] = "-startintray";
+    char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key", p_path[] = "-workpath", p_startintray[] = "-startintray", p_testmode[] = "-testmode";
     char p_datafile[MaxLen] = {0}, p_pathbuf[MaxLen] = {0};
     int argIndex = 0;
     args[argIndex++] = path;
@@ -1732,7 +1732,8 @@ bool _execUpdater(bool update = true) {
     if (cFromAutoStart()) args[argIndex++] = p_autostart;
     if (cDebug()) args[argIndex++] = p_debug;
 	if (cStartInTray()) args[argIndex++] = p_startintray;
-    if (cDataFile() != (cTestMode() ? qsl("data_test") : qsl("data"))) {
+	if (cTestMode()) args[argIndex++] = p_testmode;
+    if (cDataFile() != qsl("data")) {
         QByteArray dataf = QFile::encodeName(cDataFile());
         if (dataf.size() < MaxLen) {
             memcpy(p_datafile, dataf.constData(), dataf.size());

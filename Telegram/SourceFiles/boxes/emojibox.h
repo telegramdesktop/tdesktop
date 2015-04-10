@@ -17,36 +17,28 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
+#include "abstractbox.h"
 
-class EmojiBox : public LayeredWidget {
+class EmojiBox : public AbstractBox {
 	Q_OBJECT
 
 public:
 
 	EmojiBox();
-	void parentResized();
-	void animStep(float64 ms);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
-	void startHide();
-	~EmojiBox();
+	void resizeEvent(QResizeEvent *e);
 
-public slots:
-
-	void onClose();
-
-private:
+protected:
 
 	void hideAll();
 	void showAll();
 
+private:
+
 	void fillBlocks();
 
-	int32 _width, _height;
 	BottomButton _done;
-
-	Text _header;
 
 	int32 _blockHeight;
 	struct Block {
@@ -58,9 +50,4 @@ private:
 	typedef QVector<Block> BlockRow;
 	typedef QVector<BlockRow> Blocks;
 	Blocks _blocks;
-
-	bool _hiding;
-	QPixmap _cache;
-
-	anim::fvalue a_opacity;
 };

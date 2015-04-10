@@ -25,6 +25,19 @@ QString textAccentFold(const QString &text);
 QString textSearchKey(const QString &text);
 bool textSplit(QString &sendingText, QString &leftText, int32 limit);
 
+enum {
+	TextParseMultiline = 0x001,
+	TextParseLinks = 0x002,
+	TextParseRichText = 0x004,
+	TextParseMentions = 0x008,
+	TextParseHashtags = 0x010,
+
+	TextTwitterMentions = 0x020,
+	TextTwitterHashtags = 0x040,
+	TextInstagramMentions = 0x080,
+	TextInstagramHashtags = 0x100,
+};
+
 struct LinkRange {
 	LinkRange() : from(0), len(0) {
 	}
@@ -32,7 +45,7 @@ struct LinkRange {
 	int32 len;
 };
 typedef QVector<LinkRange> LinkRanges;
-LinkRanges textParseLinks(const QString &text, bool rich = false);
+LinkRanges textParseLinks(const QString &text, int32 flags, bool rich = false);
 
 #include "gui/emoji_config.h"
 
@@ -105,6 +118,7 @@ public:
 		return tmp;//_color;
 	}
 
+	virtual ITextBlock *clone() const = 0;
 	virtual ~ITextBlock() {
 	}
 
@@ -123,6 +137,10 @@ public:
 
 	Qt::LayoutDirection nextDirection() const {
 		return _nextDir;
+	}
+
+	ITextBlock *clone() const {
+		return new NewlineBlock(*this);
 	}
 
 private:
@@ -160,6 +178,10 @@ public:
 		return _words.isEmpty() ? 0 : _words.back().f_rbearing();
 	}
 
+	ITextBlock *clone() const {
+		return new TextBlock(*this);
+	}
+
 private:
 
 	TextBlock(const style::font &font, const QString &str, QFixed minResizeWidth, uint16 from, uint16 length, uchar flags, const style::color &color, uint16 lnkIndex);
@@ -176,6 +198,10 @@ private:
 
 class EmojiBlock : public ITextBlock {
 public:
+
+	ITextBlock *clone() const {
+		return new EmojiBlock(*this);
+	}
 
 private:
 
@@ -194,6 +220,10 @@ public:
 
 	int32 height() const {
 		return _height;
+	}
+
+	ITextBlock *clone() const {
+		return new SkipBlock(*this);
 	}
 
 private:
@@ -370,12 +400,6 @@ enum TextCommands {
 	TextCommandLangTag     = 0x20,
 };
 
-enum {
-	TextParseMultiline = 0x01,
-	TextParseLinks     = 0x02,
-	TextParseRichText  = 0x04,
-};
-
 struct TextParseOptions {
 	int32 flags;
 	int32 maxw;
@@ -399,6 +423,7 @@ public:
 
 	Text(int32 minResizeWidth = QFIXED_MAX);
 	Text(style::font font, const QString &text, const TextParseOptions &options = _defaultOptions, int32 minResizeWidth = QFIXED_MAX, bool richText = false);
+	Text(const Text &other);
 
 	int32 countHeight(int32 width) const;
 	void setText(style::font font, const QString &text, const TextParseOptions &options = _defaultOptions);
@@ -417,13 +442,16 @@ public:
 	void replaceFont(style::font f); // does not recount anything, use at your own risk!
 
 	void draw(QPainter &p, int32 left, int32 top, int32 width, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, uint16 selectedFrom = 0, uint16 selectedTo = 0) const;
-	void drawElided(QPainter &p, int32 left, int32 top, int32 width, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1) const;
+	void drawElided(QPainter &p, int32 left, int32 top, int32 width, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0) const;
 
 	const TextLinkPtr &link(int32 x, int32 y, int32 width, style::align align = style::al_left) const;
 	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, int32 width, style::align align = style::al_left) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y, int32 width, style::align align = style::al_left) const;
 	uint32 adjustSelection(uint16 from, uint16 to, TextSelectType selectType) const;
 
+	bool isEmpty() const {
+		return _text.isEmpty();
+	}
 	QString original(uint16 selectedFrom = 0, uint16 selectedTo = 0xFFFF, bool expandLinks = true) const;
 
 	bool lastDots(int32 dots, int32 maxdots = 3) { // hack for typing animation
@@ -471,6 +499,11 @@ private:
 
 };
 
+void initLinkSets();
+const QSet<int32> &validProtocols();
+const QSet<int32> &validTopDomains();
+const QRegularExpression &reDomain();
+const QRegularExpression &reMailName();
 const QRegularExpression &reHashtag();
 
 // text style
@@ -500,3 +533,111 @@ QString textcmdStopColor();
 const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink = true);
 
 QString textEmojiString(EmojiPtr emoji);
+
+inline bool chIsSpace(QChar ch, bool rich = false) {
+	return ch.isSpace() || (ch < 32 && !(rich && ch == TextCommand)) || (ch == QChar::ParagraphSeparator) || (ch == QChar::LineSeparator) || (ch == QChar::ObjectReplacementCharacter) || (ch == QChar::SoftHyphen) || (ch == QChar::CarriageReturn) || (ch == QChar::Tabulation);
+}
+inline bool chIsBad(QChar ch) {
+	return (ch == 0) || (ch >= 8232 && ch < 8239) || (ch >= 65024 && ch < 65040 && ch != 65039) || (ch >= 127 && ch < 160 && ch != 156);
+}
+inline bool chIsTrimmed(QChar ch, bool rich = false) {
+	return (!rich || ch != TextCommand) && (chIsSpace(ch) || chIsBad(ch));
+}
+inline bool chIsDiac(QChar ch) { // diac and variation selectors
+	return (ch >= 768 && ch < 880) || (ch >= 7616 && ch < 7680) || (ch >= 8400 && ch < 8448) || (ch >= 65056 && ch < 65072);
+}
+inline int32 chMaxDiacAfterSymbol() {
+	return 4;
+}
+inline bool chIsNewline(QChar ch) {
+	return (ch == QChar::LineFeed || ch == 156);
+}
+inline bool chIsLinkEnd(QChar ch) {
+	return ch == TextCommand || chIsBad(ch) || chIsSpace(ch) || chIsNewline(ch) || ch.isLowSurrogate() || ch.isHighSurrogate();
+}
+inline bool chIsAlmostLinkEnd(QChar ch) {
+	switch (ch.unicode()) {
+	case '?':
+	case ',':
+	case '.':
+	case '"':
+	case ':':
+	case '!':
+	case '\'':
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+inline bool chIsWordSeparator(QChar ch) {
+	switch (ch.unicode()) {
+	case QChar::Space:
+	case QChar::LineFeed:
+	case '.':
+	case ',':
+	case '?':
+	case '!':
+	case '@':
+	case '#':
+	case '$':
+	case ':':
+	case ';':
+	case '-':
+	case '<':
+	case '>':
+	case '[':
+	case ']':
+	case '(':
+	case ')':
+	case '{':
+	case '}':
+	case '=':
+	case '/':
+	case '+':
+	case '%':
+	case '&':
+	case '^':
+	case '*':
+	case '\'':
+	case '"':
+	case '`':
+	case '~':
+	case '|':
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+inline bool chIsSentenceEnd(QChar ch) {
+	switch (ch.unicode()) {
+	case '.':
+	case '?':
+	case '!':
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+inline bool chIsSentencePartEnd(QChar ch) {
+	switch (ch.unicode()) {
+	case ',':
+	case ':':
+	case ';':
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+inline bool chIsParagraphSeparator(QChar ch) {
+	switch (ch.unicode()) {
+	case QChar::LineFeed:
+		return true;
+	default:
+		break;
+	}
+	return false;
+}

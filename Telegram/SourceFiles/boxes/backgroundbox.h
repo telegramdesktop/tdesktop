@@ -17,7 +17,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
+#include "abstractbox.h"
 
 class BackgroundInner : public QWidget, public RPCSender {
 	Q_OBJECT
@@ -48,37 +48,26 @@ private:
 
 };
 
-class BackgroundBox : public LayeredWidget, public RPCSender {
+class BackgroundBox : public ItemListBox {
 	Q_OBJECT
 
 public:
 
 	BackgroundBox();
-	void parentResized();
-	void animStep(float64 dt);
-	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
-	void startHide();
-	~BackgroundBox();
 
 public slots:
 
 	void onBackgroundChosen(int index);
-	void onClose();
 
-private:
+protected:
 
 	void hideAll();
 	void showAll();
 
-	ScrollArea _scroll;
+private:
+
 	BackgroundInner _inner;
-	int32 _width, _height;
 	BottomButton _close;
-	bool _hiding;
-
-	QPixmap _cache;
-
-	anim::fvalue a_opacity;
 };

@@ -915,7 +915,8 @@ BOOL _execUpdater(BOOL update = YES) {
 		if (cFromAutoStart()) [args addObject:@"-autostart"];
 		if (cDebug()) [args addObject:@"-debug"];
 		if (cStartInTray()) [args addObject:@"-startintray"];
-		if (cDataFile() != (cTestMode() ? qsl("data_test") : qsl("data"))) {
+		if (cTestMode()) [args addObject:@"-testmode"];
+		if (cDataFile() != qsl("data")) {
 			[args addObject:@"-key"];
 			[args addObject:QNSString(cDataFile()).s()];
 		}

@@ -191,7 +191,7 @@ public:
 	bool started();
 	void applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNotifySettings &settings, History *history = 0);
 	void gotNotifySetting(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
-	bool failNotifySetting(MTPInputNotifyPeer peer);
+	bool failNotifySetting(MTPInputNotifyPeer peer, const RPCError &error);
 
 	void updateNotifySetting(PeerData *peer, bool enabled);
 
@@ -206,9 +206,7 @@ public:
 	void windowShown();
 
 	void sentDataReceived(uint64 randomId, const MTPmessages_SentMessage &data);
-	void sentFullDataReceived(uint64 randomId, const MTPmessages_StatedMessage &result); // randomId = 0 - new message, <> 0 - already added new message
-	void sentFullDatasReceived(const MTPmessages_StatedMessages &result);
-	void forwardDone(PeerId peer, const MTPmessages_StatedMessages &result);
+	void sentUpdatesReceived(const MTPUpdates &updates);
 	void msgUpdated(PeerId peer, const HistoryItem *msg);
 	void historyToDown(History *hist);
 	void dialogsToUp();
@@ -253,13 +251,13 @@ public:
 	void onForward(const PeerId &peer, bool forwardSelected);
 	void onShareContact(const PeerId &peer, UserData *contact);
 	void onSendPaths(const PeerId &peer);
-	bool selectingPeer();
+	bool selectingPeer(bool withConfirm = false);
 	void offerPeer(PeerId peer);
 	void focusPeerSelect();
 	void dialogsActivate();
 
 	bool leaveChatFailed(PeerData *peer, const RPCError &e);
-	void deleteHistory(PeerData *peer, const MTPmessages_StatedMessage &result);
+	void deleteHistory(PeerData *peer, const MTPUpdates &updates);
 	void deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result);
 	void deleteMessages(const QVector<MTPint> &ids);
 	void deletedContact(UserData *user, const MTPcontacts_Link &result);
@@ -268,11 +266,9 @@ public:
 	void removeContact(UserData *user);
 
 	void addParticipants(ChatData *chat, const QVector<UserData*> &users);
-	void addParticipantDone(ChatData *chat, const MTPmessages_StatedMessage &result);
 	bool addParticipantFail(ChatData *chat, const RPCError &e);
 
 	void kickParticipant(ChatData *chat, UserData *user);
-	void kickParticipantDone(ChatData *chat, const MTPmessages_StatedMessage &result);
 	bool kickParticipantFail(ChatData *chat, const RPCError &e);
 
 	void checkPeerHistory(PeerData *peer);
@@ -287,7 +283,7 @@ public:
 	DialogsIndexed &contactsList();
     
     void sendMessage(History *history, const QString &text, MsgId replyTo);
-	void sendPreparedText(History *hist, const QString &text, MsgId replyTo);
+	void sendPreparedText(History *hist, const QString &text, MsgId replyTo, WebPageId webPageId = 0);
 	void saveRecentHashtags(const QString &text);
     
     void readServerHistory(History *history, bool force = true);
@@ -301,7 +297,7 @@ public:
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
-	void itemResized(HistoryItem *row);
+	void itemResized(HistoryItem *row, bool scrollToIt = false);
 
 	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);
 	void peerUsernameChanged(PeerData *peer);
@@ -337,6 +333,8 @@ public:
 	void cancelForwarding();
 	void finishForwarding(History *hist); // send them
 
+	void webPageUpdated(WebPageData *page);
+
 	~MainWidget();
 
 signals:
@@ -350,6 +348,8 @@ signals:
 	void showPeerAsync(quint64 peer, qint32 msgId, bool back, bool force);
 
 public slots:
+
+	void webPagesUpdate();
 
 	void videoLoadProgress(mtpFileLoader *loader);
 	void videoLoadFailed(mtpFileLoader *loader, bool started);
@@ -408,6 +408,9 @@ private:
 	SelectedItemSet _toForward;
 	Text _toForwardFrom, _toForwardText;
 	int32 _toForwardNameVersion;
+
+	QMap<WebPageId, bool> _webPagesUpdated;
+	QTimer _webPageUpdater;
 
 	void gotDifference(const MTPupdates_Difference &diff);
 	bool failDifference(const RPCError &e);
@@ -487,8 +490,6 @@ private:
 	QMap<uint64, MTPUpdate> _byPtsUpdate;
 	QMap<uint64, MTPUpdates> _byPtsUpdates;
 	QMap<uint64, MTPmessages_SentMessage> _byPtsSentMessage;
-	QMap<uint64, MTPmessages_StatedMessage> _byPtsStatedMessage;
-	QMap<uint64, MTPmessages_StatedMessages> _byPtsStatedMessages;
 	SingleTimer _byPtsTimer;
 
 	QMap<int32, MTPUpdates> _bySeqUpdates;

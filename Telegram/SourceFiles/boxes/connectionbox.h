@@ -17,42 +17,34 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
 #include "gui/phoneinput.h"
+#include "abstractbox.h"
 
-class ConnectionBox : public LayeredWidget {
+class ConnectionBox : public AbstractBox {
 	Q_OBJECT
 
 public:
 
 	ConnectionBox();
-	void parentResized();
-	void animStep(float64 dt);
-	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
-	void startHide();
-	~ConnectionBox();
+	void resizeEvent(QResizeEvent *e);
 
 public slots:
 
 	void onChange();
 	void onSave();
-	void onCancel();
 
-private:
+protected:
 
 	void hideAll();
 	void showAll();
+	void showDone();
+
+private:
 
 	FlatButton _saveButton, _cancelButton;
 	FlatInput _hostInput;
 	PortInput _portInput;
 	FlatInput _userInput, _passwordInput;
 	FlatRadiobutton _autoRadio, _httpProxyRadio, _tcpProxyRadio;
-
-	int32 _width, _height;
-	QPixmap _cache;
-
-	anim::fvalue a_opacity;
-	bool _hiding;
 };

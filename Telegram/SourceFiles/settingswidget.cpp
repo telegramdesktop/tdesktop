@@ -33,6 +33,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "boxes/languagebox.h"
 #include "boxes/passcodebox.h"
 #include "boxes/autolockbox.h"
+#include "boxes/sessionsbox.h"
 #include "langloaderplain.h"
 #include "gui/filedialog.h"
 #include "settings.h"
@@ -181,21 +182,26 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_autoLock(this, (cAutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, cAutoLock() / 60) : lng_passcode_autolock_hours(lt_count, cAutoLock() / 3600)),
 	_autoLockText(lang(psIdleSupported() ? lng_passcode_autolock_away : lng_passcode_autolock_inactive) + ' '),
 	_autoLockWidth(st::linkFont->m.width(_autoLockText)),
+	_passwordEdit(this, lang(lng_cloud_password_set)),
+	_passwordTurnOff(this, lang(lng_passcode_turn_off)),
+	_hasPasswordRecovery(false),
 	_connectionType(this, lng_connection_auto(lt_type, QString())),
 	_connectionTypeText(lang(lng_connection_type) + ' '),
 	_connectionTypeWidth(st::linkFont->m.width(_connectionTypeText)),
-	_resetSessions(this, lang(lng_settings_reset)),
-	_logOut(this, lang(lng_settings_logout), st::btnLogout),
-    _resetDone(false)
+	_showSessions(this, lang(lng_settings_show_sessions)),
+	_logOut(this, lang(lng_settings_logout), st::btnLogout)
 {
 	if (self()) {
 		_nameText.setText(st::setNameFont, _nameCache, _textNameOptions);
 		PhotoData *selfPhoto = self()->photoId ? App::photo(self()->photoId) : 0;
 		if (selfPhoto && selfPhoto->date) _photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
-		MTP::send(MTPusers_GetFullUser(self()->inputUser), rpcDone(&SettingsInner::gotFullSelf));
+		MTP::send(MTPusers_GetFullUser(self()->inputUser), rpcDone(&SettingsInner::gotFullSelf), RPCFailHandlerPtr(), 0, 10);
+		onReloadPassword();
 
 		connect(App::main(), SIGNAL(peerPhotoChanged(PeerData *)), this, SLOT(peerUpdated(PeerData *)));
 		connect(App::main(), SIGNAL(peerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)), this, SLOT(peerUpdated(PeerData *)));
+
+		connect(App::app(), SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onReloadPassword(Qt::ApplicationState)));
 	}
 
 	// profile
@@ -283,8 +289,10 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	connect(&_passcodeEdit, SIGNAL(clicked()), this, SLOT(onPasscode()));
 	connect(&_passcodeTurnOff, SIGNAL(clicked()), this, SLOT(onPasscodeOff()));
 	connect(&_autoLock, SIGNAL(clicked()), this, SLOT(onAutoLock()));
+	connect(&_passwordEdit, SIGNAL(clicked()), this, SLOT(onPassword()));
+	connect(&_passwordTurnOff, SIGNAL(clicked()), this, SLOT(onPasswordOff()));
 	connect(&_connectionType, SIGNAL(clicked()), this, SLOT(onConnectionType()));
-	connect(&_resetSessions, SIGNAL(clicked()), this, SLOT(onResetSessions()));
+	connect(&_showSessions, SIGNAL(clicked()), this, SLOT(onShowSessions()));
 	connect(&_logOut, SIGNAL(clicked()), App::wnd(), SLOT(onLogout()));
 
     if (App::main()) {
@@ -605,13 +613,11 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 			p.drawText(_left, top + st::linkFont->ascent, _autoLockText);
 			top += _autoLock.height() + st::setLittleSkip;
 		}
+		if (!_waitingConfirm.isEmpty()) p.drawText(_left, top + st::linkFont->ascent, _waitingConfirm);
+		top += _passwordEdit.height() + st::setLittleSkip;
 	}
 
 	p.drawText(_left, _connectionType.y() + st::linkFont->ascent, _connectionTypeText);
-
-	if (self() && _resetDone) {
-		p.drawText(_resetSessions.x(), _resetSessions.y() + st::linkFont->ascent, lang(lng_settings_reset_done));
-	}
 }
 
 void SettingsInner::resizeEvent(QResizeEvent *e) {
@@ -715,11 +721,13 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		if (cHasPasscode()) {
 			_autoLock.move(_left + _autoLockWidth, top); top += _autoLock.height() + st::setLittleSkip;
 		}
+		_passwordEdit.move(_left, top);
+		_passwordTurnOff.move(_left + st::setWidth - _passwordTurnOff.width(), top); top += _passwordTurnOff.height() + st::setLittleSkip;
 	}
 
 	_connectionType.move(_left + _connectionTypeWidth, top); top += _connectionType.height() + st::setLittleSkip;
 	if (self()) {
-		_resetSessions.move(_left, top); top += _resetSessions.height() + st::setSectionSkip;
+		_showSessions.move(_left, top); top += _showSessions.height() + st::setSectionSkip;
 		_logOut.move(_left, top);
 	}
 }
@@ -728,6 +736,30 @@ void SettingsInner::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
 		App::wnd()->showSettings();
 	}
+	_secretText += e->text().toLower();
+	int32 size = _secretText.size(), from = 0;
+	while (size > from) {
+		QStringRef str(_secretText.midRef(from));
+		if (str == QLatin1String("debugmode")) {
+			QString text = cDebug() ? qsl("Do you want to disable DEBUG logs?") : qsl("Do you want to enable DEBUG logs?\n\nAll network events will be logged.");
+			ConfirmBox *box = new ConfirmBox(text);
+			connect(box, SIGNAL(confirmed()), App::app(), SLOT(onSwitchDebugMode()));
+			App::wnd()->showLayer(box);
+			from = size;
+			break;
+		} else if (str == QLatin1String("testmode")) {
+			QString text = cTestMode() ? qsl("Do you want to disable TEST mode?") : qsl("Do you want to enable TEST mode?\n\nYou will be switched to test cloud.");
+			ConfirmBox *box = new ConfirmBox(text);
+			connect(box, SIGNAL(confirmed()), App::app(), SLOT(onSwitchTestMode()));
+			App::wnd()->showLayer(box);
+			from = size;
+			break;
+		} else if (qsl("debugmode").startsWith(str) || qsl("testmode").startsWith(str)) {
+			break;
+		}
+		++from;
+	}
+	_secretText = (size > from) ? _secretText.mid(from) : QString();
 }
 
 void SettingsInner::mouseMoveEvent(QMouseEvent *e) {
@@ -815,6 +847,7 @@ void SettingsInner::passcodeChanged() {
 	resizeEvent(0);
 	_passcodeEdit.setText(lang(cHasPasscode() ? lng_passcode_change : lng_passcode_turn_on));
 	_autoLock.setText((cAutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, cAutoLock() / 60) : lng_passcode_autolock_hours(lt_count, cAutoLock() / 3600));
+//	_passwordEdit.setText()
 	showAll();
 }
 
@@ -832,6 +865,50 @@ void SettingsInner::gotFullSelf(const MTPUserFull &selfFull) {
 	} else {
 		_photoLink = TextLinkPtr();
 	}
+}
+
+void SettingsInner::gotPassword(const MTPaccount_Password &result) {
+	_waitingConfirm = QString();
+
+	switch (result.type()) {
+	case mtpc_account_noPassword: {
+		const MTPDaccount_noPassword &d(result.c_account_noPassword());
+		_curPasswordSalt = QByteArray();
+		_hasPasswordRecovery = false;
+		_curPasswordHint = QString();
+		_newPasswordSalt = qba(d.vnew_salt);
+		QString pattern = qs(d.vemail_unconfirmed_pattern);
+		if (!pattern.isEmpty()) _waitingConfirm = lng_cloud_password_waiting(lt_email, pattern);
+	} break;
+
+	case mtpc_account_password: {
+		const MTPDaccount_password &d(result.c_account_password());
+		_curPasswordSalt = qba(d.vcurrent_salt);
+		_hasPasswordRecovery = d.vhas_recovery.v;
+		_curPasswordHint = qs(d.vhint);
+		_newPasswordSalt = qba(d.vnew_salt);
+		QString pattern = qs(d.vemail_unconfirmed_pattern);
+		if (!pattern.isEmpty()) _waitingConfirm = lng_cloud_password_waiting(lt_email, pattern);
+	} break;
+	}
+	_waitingConfirm = st::linkFont->m.elidedText(_waitingConfirm, Qt::ElideRight, st::setWidth - _passwordTurnOff.width());
+	_passwordEdit.setText(lang(_curPasswordSalt.isEmpty() ? lng_cloud_password_set : lng_cloud_password_edit));
+	showAll();
+	update();
+
+	_newPasswordSalt.resize(_newPasswordSalt.size() + 8);
+	memset_rand(_newPasswordSalt.data() + _newPasswordSalt.size() - 8, 8);
+}
+
+void SettingsInner::offPasswordDone(const MTPBool &result) {
+	onReloadPassword();
+}
+
+bool SettingsInner::offPasswordFail(const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
+	onReloadPassword();
+	return true;
 }
 
 void SettingsInner::usernameChanged() {
@@ -973,17 +1050,25 @@ void SettingsInner::showAll() {
 			_autoLock.hide();
 			_passcodeTurnOff.hide();
 		}
-		if (_resetDone) {
-			_resetSessions.hide();
+		if (_waitingConfirm.isEmpty()) {
+			_passwordEdit.show();
 		} else {
-			_resetSessions.show();
+			_passwordEdit.hide();
 		}
+		if (_curPasswordSalt.isEmpty() && _waitingConfirm.isEmpty()) {
+			_passwordTurnOff.hide();
+		} else {
+			_passwordTurnOff.show();
+		}
+		_showSessions.show();
 		_logOut.show();
 	} else {
 		_passcodeEdit.hide();
 		_autoLock.hide();
 		_passcodeTurnOff.hide();
-		_resetSessions.hide();
+		_passwordEdit.hide();
+		_passwordTurnOff.hide();
+		_showSessions.hide();
 		_logOut.hide();
 	}
 }
@@ -1056,23 +1141,9 @@ void SettingsInner::onUpdatePhoto() {
 	App::wnd()->showLayer(box);
 }
 
-void SettingsInner::onResetSessions() {
-	ConfirmBox *box = new ConfirmBox(lang(lng_settings_reset_sure), lang(lng_settings_reset_button));
-	connect(box, SIGNAL(confirmed()), this, SLOT(onResetSessionsSure()));
+void SettingsInner::onShowSessions() {
+	SessionsBox *box = new SessionsBox();
 	App::wnd()->showLayer(box);
-}
-
-void SettingsInner::onResetSessionsSure() {
-	App::wnd()->layerHidden();
-	MTP::send(MTPauth_ResetAuthorizations(), rpcDone(&SettingsInner::doneResetSessions));
-}
-
-void SettingsInner::doneResetSessions(const MTPBool &res) {
-	if (res.v) {
-		_resetDone = true;
-		showAll();
-		update();
-	}
 }
 
 void SettingsInner::onChangeLanguage() {
@@ -1160,6 +1231,33 @@ void SettingsInner::onPasscodeOff() {
 	PasscodeBox *box = new PasscodeBox(true);
 	connect(box, SIGNAL(closed()), this, SLOT(passcodeChanged()));
 	App::wnd()->showLayer(box);
+}
+
+void SettingsInner::onPassword() {
+	PasscodeBox *box = new PasscodeBox(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint);
+	connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
+	App::wnd()->showLayer(box);
+}
+
+void SettingsInner::onPasswordOff() {
+	if (_curPasswordSalt.isEmpty()) {
+		_passwordTurnOff.hide();
+
+//		int32 flags = MTPDaccount_passwordInputSettings::flag_new_salt | MTPDaccount_passwordInputSettings::flag_new_password_hash | MTPDaccount_passwordInputSettings::flag_hint | MTPDaccount_passwordInputSettings::flag_email;
+		int32 flags = MTPDaccount_passwordInputSettings::flag_email;
+		MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_int(flags), MTP_string(QByteArray()), MTP_string(QByteArray()), MTP_string(QString()), MTP_string(QString())));
+		MTP::send(MTPaccount_UpdatePasswordSettings(MTP_string(QByteArray()), settings), rpcDone(&SettingsInner::offPasswordDone), rpcFail(&SettingsInner::offPasswordFail));
+	} else {
+		PasscodeBox *box = new PasscodeBox(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint, true);
+		connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
+		App::wnd()->showLayer(box);
+	}
+}
+
+void SettingsInner::onReloadPassword(Qt::ApplicationState state) {
+	if (state == Qt::ApplicationActive) {
+		MTP::send(MTPaccount_GetPassword(), rpcDone(&SettingsInner::gotPassword));
+	}
 }
 
 void SettingsInner::onAutoLock() {

@@ -112,6 +112,8 @@ namespace {
 	}
 
 	bool importFail(const RPCError &error, mtpRequestId req) {
+		if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 		if (globalHandler.onFail && MTP::authedId()) (*globalHandler.onFail)(req, error); // auth import failed
 		return true;
 	}
@@ -131,6 +133,8 @@ namespace {
 	}
 
 	bool exportFail(const RPCError &error, mtpRequestId req) {
+		if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
 		AuthExportRequests::const_iterator i = authExportRequests.constFind(req);
 		if (i != authExportRequests.cend()) {
 			authWaiters[i.value()].clear();
@@ -535,6 +539,10 @@ namespace _mtp_internal {
 	}
 
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err) { // return true if need to clean request data
+		if (err.type().startsWith(qsl("FLOOD_WAIT_"))) {
+			if (onFail && (*onFail)(requestId, err)) return true;
+		}
+
 		if (onErrorDefault(requestId, err)) {
 			return false;
 		}
@@ -633,8 +641,8 @@ namespace MTP {
 	void setdc(int32 dc, bool fromZeroOnly) {
 		if (!dc || !_started) return;
 		mtpSetDC(dc, fromZeroOnly);
-		if (dc != mainSession->getDC()) {
-			mainSession = _mtp_internal::getSession(dc);
+		if (maindc() != mainSession->getDC()) {
+			mainSession = _mtp_internal::getSession(maindc());
 		}
 		Local::writeMtpData();
 	}
