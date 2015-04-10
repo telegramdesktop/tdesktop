@@ -59,6 +59,7 @@ DBIDefaultAttach gDefaultAttach = dbidaDocument;
 bool gReplaceEmojis = true;
 bool gAskDownloadPath = false;
 QString gDownloadPath;
+QString gNotificationTone = ":/gui/art/newmsg.wav";
 
 bool gNeedConfigResave = false;
 

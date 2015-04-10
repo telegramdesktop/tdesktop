@@ -52,7 +52,6 @@ bool _checkALError() {
 
 void audioInit() {
 	uint64 ms = getms();
-	if (audioDevice) return;
 
 	audioDevice = alcOpenDevice(NULL);
 	if (!audioDevice) {
@@ -81,8 +80,7 @@ void audioInit() {
 
 	alGenBuffers(1, &notifyBuffer);
 	if (!_checkALError()) return audioFinish();
-
-	QFile notify(st::newMsgSound);
+    QFile notify(gNotificationTone);
 	if (!notify.open(QIODevice::ReadOnly)) return audioFinish();
 
 	QByteArray blob = notify.readAll();

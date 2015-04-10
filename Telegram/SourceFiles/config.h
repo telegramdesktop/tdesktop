@@ -314,6 +314,15 @@ inline QStringList cImgExtensions() {
 	return imgExtensions;
 }
 
+inline QStringList cSoundExtensions(){
+    static QStringList SoundExtensions;
+    if (SoundExtensions.isEmpty()) {
+        SoundExtensions.reserve(1);
+        SoundExtensions.push_back(qsl(".wav"));
+    }
+    return SoundExtensions;
+}
+
 inline QStringList cPhotoExtensions() {
 	static QStringList photoExtensions;
 	if (photoExtensions.isEmpty()) {
