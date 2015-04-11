@@ -159,6 +159,7 @@ namespace {
 				QPainter p(&cornersImage);
 				p.drawPixmap(QPoint(0, 0), App::sprite(), topLeft);
 			}
+			if (rtl()) cornersImage = cornersImage.mirrored(true, false);
 			uchar *bits = cornersImage.bits();
 			if (bits) {
 				for (

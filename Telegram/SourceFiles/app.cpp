@@ -1515,7 +1515,11 @@ namespace App {
 		audioInit();
 
 		if (!::sprite) {
-			::sprite = new QPixmap(st::spriteFile);
+			if (rtl()) {
+				::sprite = new QPixmap(QPixmap::fromImage(QImage(st::spriteFile).mirrored(true, false)));
+			} else {
+				::sprite = new QPixmap(st::spriteFile);
+			}
             if (cRetina()) ::sprite->setDevicePixelRatio(cRetinaFactor());
 		}
 		if (!::emojis) {
@@ -1598,11 +1602,11 @@ namespace App {
 		return ::mousedItem;
 	}
 
-	QPixmap &sprite() {
+	const QPixmap &sprite() {
 		return *::sprite;
 	}
 
-	QPixmap &emojis() {
+	const QPixmap &emojis() {
 		return *::emojis;
 	}
 

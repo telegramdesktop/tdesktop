@@ -246,3 +246,14 @@ switcher {
 
 	duration: number;
 }
+
+dropdown {
+	border: number;
+	borderColor: color;
+
+	padding: margins;
+	shadow: sprite;
+
+	duration: number;
+	width: number;
+}

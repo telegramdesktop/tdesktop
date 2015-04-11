@@ -25,8 +25,8 @@
 
 #include "lang.h"
 
-ContextMenu::ContextMenu(QWidget *parent, const style::iconedButton &st) : TWidget(0),
-_hiding(false), _buttonStyle(st), _shadow(st::dropdownShadow), _selected(-1), a_opacity(0), _deleteOnHide(false) {
+ContextMenu::ContextMenu(QWidget *parent, const style::dropdown &st, const style::iconedButton &btnst) : TWidget(0),
+_width(st.width), _hiding(false), _st(st), _btnst(btnst), _shadow(_st.shadow), _selected(-1), a_opacity(0), _deleteOnHide(false) {
 	resetActions();
 
 	setWindowFlags(Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::Tool | Qt::NoDropShadowWindowHint | Qt::WindowStaysOnTopHint);
@@ -43,13 +43,13 @@ QAction *ContextMenu::addAction(const QString &text, const QObject *receiver, co
 	connect(a, SIGNAL(changed()), this, SLOT(actionChanged()));
 
 	IconedButton *b = 0;
-	_buttons.push_back(b = new IconedButton(this, _buttonStyle, a->text()));
+	_buttons.push_back(b = new IconedButton(this, _btnst, a->text()));
 	connect(b, SIGNAL(clicked()), this, SLOT(hideStart()));
 	connect(b, SIGNAL(clicked()), a, SIGNAL(triggered()));
 	connect(b, SIGNAL(stateChanged(int,ButtonStateChangeSource)), this, SLOT(buttonStateChanged(int,ButtonStateChangeSource)));
 
-	_width = qMax(_width, int(st::dropdownPadding.left() + st::dropdownPadding.right() + b->width()));
-	for (int32 i = 0, l = _buttons.size(); i < l; ++i) _buttons[i]->resize(_width - int(st::dropdownPadding.left() + st::dropdownPadding.right()), _buttons[i]->height());
+	_width = qMax(_width, int(_st.padding.left() + _st.padding.right() + b->width()));
+	for (int32 i = 0, l = _buttons.size(); i < l; ++i) _buttons[i]->resize(_width - int(_st.padding.left() + _st.padding.right()), _buttons[i]->height());
 	_height += b->height();
 
 	resize(_width, _height);
@@ -64,8 +64,8 @@ ContextMenu::Actions &ContextMenu::actions() {
 void ContextMenu::actionChanged() {
 	for (int32 i = 0, l = _actions.size(); i < l; ++i) {
 		_buttons[i]->setText(_actions[i]->text());
-		_width = qMax(_width, int(st::dropdownPadding.left() + st::dropdownPadding.right() + _buttons[i]->width()));
-		_buttons[i]->resize(_width - int(st::dropdownPadding.left() + st::dropdownPadding.right()), _buttons[i]->height());
+		_width = qMax(_width, int(_st.padding.left() + _st.padding.right() + _buttons[i]->width()));
+		_buttons[i]->resize(_width - int(_st.padding.left() + _st.padding.right()), _buttons[i]->height());
 	}
 }
 
@@ -100,8 +100,8 @@ void ContextMenu::buttonStateChanged(int oldState, ButtonStateChangeSource sourc
 }
 
 void ContextMenu::resetActions() {
-	_width = st::dropdownPadding.left() + st::dropdownPadding.right();
-	_height = st::dropdownPadding.top() + st::dropdownPadding.bottom();
+	_width = qMax(_st.padding.left() + _st.padding.right(), int(_st.width));
+	_height = _st.padding.top() + _st.padding.bottom();
 	resize(_width, _height);
 
 	clearActions();
@@ -122,9 +122,9 @@ void ContextMenu::clearActions() {
 }
 
 void ContextMenu::resizeEvent(QResizeEvent *e) {
-	int32 top = st::dropdownPadding.top();
+	int32 top = _st.padding.top();
 	for (Buttons::const_iterator i = _buttons.cbegin(), e = _buttons.cend(); i != e; ++i) {
-		(*i)->move(st::dropdownPadding.left(), top);
+		(*i)->move(_st.padding.left(), top);
 		top += (*i)->height();
 	}
 }
@@ -141,7 +141,7 @@ void ContextMenu::paintEvent(QPaintEvent *e) {
 		p.setOpacity(a_opacity.current());
 	}
 
-	QRect r(st::dropdownPadding.left(), st::dropdownPadding.top(), _width - st::dropdownPadding.left() - st::dropdownPadding.right(), _height - st::dropdownPadding.top() - st::dropdownPadding.bottom());
+	QRect r(_st.padding.left(), _st.padding.top(), _width - _st.padding.left() - _st.padding.right(), _height - _st.padding.top() - _st.padding.bottom());
 	// draw shadow
 	_shadow.paint(p, r);
 }
@@ -245,13 +245,19 @@ void ContextMenu::deleteOnHide() {
 }
 
 void ContextMenu::popup(const QPoint &p) {
-	QPoint w = p - QPoint(st::dropdownPadding.left(), st::dropdownPadding.top());
+	QPoint w = p - QPoint(_st.padding.left(), _st.padding.top());
 	QRect r = App::app() ? App::app()->desktop()->screenGeometry(p) : QDesktopWidget().screenGeometry(p);
-	if (w.x() + width() - st::dropdownPadding.right() > r.x() + r.width()) {
-		w.setX(r.x() + r.width() - width() + st::dropdownPadding.right());
+	if (rtl()) {
+		if (w.x() - width() + 2 * _st.padding.left() < r.x() - _st.padding.left()) {
+			w.setX(r.x() - _st.padding.left());
+		} else {
+			w.setX(w.x() - width() + 2 * _st.padding.left());
+		}
+	} else if (w.x() + width() - _st.padding.right() > r.x() + r.width()) {
+		w.setX(r.x() + r.width() - width() + _st.padding.right());
 	}
-	if (w.y() + height() - st::dropdownPadding.bottom() > r.y() + r.height()) {
-		w.setY(p.y() - height() + st::dropdownPadding.bottom());
+	if (w.y() + height() - _st.padding.bottom() > r.y() + r.height()) {
+		w.setY(p.y() - height() + _st.padding.bottom());
 	}
 	if (w.y() < r.y()) {
 		w.setY(r.y());
