@@ -1138,6 +1138,11 @@ void MainWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 void MainWidget::itemResized(HistoryItem *row, bool scrollToIt) {
 	if (!row || (history.peer() == row->history()->peer && !row->detached())) {
 		history.itemResized(row, scrollToIt);
+	} else if (row) {
+		row->history()->width = 0;
+		if (history.peer() == row->history()->peer) {
+			history.resizeEvent(0);
+		}
 	}
 	if (overview) {
 		overview->itemResized(row, scrollToIt);
