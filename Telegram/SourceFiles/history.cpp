@@ -5094,8 +5094,9 @@ void HistoryReply::drawReplyTo(QPainter &p, int32 x, int32 y, int32 w, bool sele
 				}
 				replyToName.drawElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top(), w - st::msgReplyBarSkip - previewSkip);
 
+				HistoryMessage *replyToAsMsg = replyToMsg->toHistoryMessage();
 				if (likeService) {
-				} else if (replyToMsg->getMedia() || replyToMsg->serviceMsg()) {
+				} else if ((replyToAsMsg && replyToAsMsg->justMedia()) || replyToMsg->serviceMsg()) {
 					style::color date(selected ? (out() ? st::msgOutSelectDateColor : st::msgInSelectDateColor) : (out() ? st::msgOutDateColor : st::msgInDateColor));
 					p.setPen(date->p);
 				} else {

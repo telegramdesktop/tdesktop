@@ -620,6 +620,7 @@ private:
 ItemAnimations &itemAnimations();
 
 class HistoryReply; // dynamic_cast optimize
+class HistoryMessage; // dynamic_cast optimize
 
 class HistoryMedia;
 class HistoryItem : public HistoryElem {
@@ -733,6 +734,12 @@ public:
 		return 0;
 	}
 	virtual const HistoryReply *toHistoryReply() const { // dynamic_cast optimize
+		return 0;
+	}
+	virtual HistoryMessage *toHistoryMessage() { // dynamic_cast optimize
+		return 0;
+	}
+	virtual const HistoryMessage *toHistoryMessage() const { // dynamic_cast optimize
 		return 0;
 	}
 
@@ -1234,6 +1241,13 @@ public:
 	}
 	virtual UserData *fromForwarded() const { // dynamic_cast optimize
 		return from();
+	}
+
+	HistoryMessage *toHistoryMessage() { // dynamic_cast optimize
+		return this;
+	}
+	const HistoryMessage *toHistoryMessage() const { // dynamic_cast optimize
+		return this;
 	}
 
 	~HistoryMessage();
