@@ -739,9 +739,9 @@ void Window::showPhoto(PhotoData *photo, PeerData *peer) {
 	_mediaView->setFocus();
 }
 
-void Window::showDocument(DocumentData *doc, QPixmap pix, HistoryItem *item) {
+void Window::showDocument(DocumentData *doc, HistoryItem *item) {
 	layerHidden();
-	_mediaView->showDocument(doc, pix, item);
+	_mediaView->showDocument(doc, item);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }

@@ -17,6 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "dropdown.h"
+
 class MediaView : public TWidget, public RPCSender, public Animated {
 	Q_OBJECT
 
@@ -41,24 +43,38 @@ public:
 
 	void showPhoto(PhotoData *photo, HistoryItem *context);
 	void showPhoto(PhotoData *photo, PeerData *context);
-	void showDocument(DocumentData *doc, QPixmap pix, HistoryItem *context);
+	void showDocument(DocumentData *doc, HistoryItem *context);
 	void moveToScreen();
-	void moveToPhoto(int32 delta);
-	void preloadPhotos(int32 delta);
+	void moveToNext(int32 delta);
+	void preloadData(int32 delta);
+
+	void leaveToChildEvent(QEvent *e) { // e -- from enterEvent() of child TWidget
+		updateOverState(OverNone);
+	}
+	void enterFromChildEvent(QEvent *e) { // e -- from leaveEvent() of child TWidget
+		updateOver(mapFromGlobal(QCursor::pos()));
+	}
 
 	void mediaOverviewUpdated(PeerData *peer);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void updateControls();
+	void updateDropdown();
 
 	bool animStep(float64 dt);
 
 	void showSaveMsgFile();
+	void close();
+
+	void activateControls();
 
 	~MediaView();
 
 public slots:
 
-	void onClose();
+	void onHideControls(bool force = false);
+	void onDropdownHiding();
+
+	void onToMessage();
 	void onSave();
 	void onDownload();
 	void onShowInFolder();
@@ -69,6 +85,8 @@ public slots:
 	void onMenuDestroy(QObject *obj);
 	void receiveMouse();
 
+	void onDropdown();
+
 	void onCheckActive();
 	void onTouchTimer();
 
@@ -76,29 +94,31 @@ public slots:
 
 private:
 
-	void showPhoto(PhotoData *photo);
-	void loadPhotosBack();
+	void displayPhoto(PhotoData *photo);
+	void displayDocument(DocumentData *doc, HistoryItem *item);
+	void findCurrent();
+	void loadBack();
 
 	void photosLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req);
 	void userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mtpRequestId req);
+	void filesLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req);
 
 	void updateHeader();
-	void updatePolaroid();
 	void snapXY();
 
 	QBrush _transparentBrush;
 
-	QTimer _timer;
 	PhotoData *_photo;
 	DocumentData *_doc;
-	QRect _avail, _leftNav, _rightNav, _bottomBar, _nameNav, _dateNav, _polaroidOut, _polaroidIn;
-	int32 _availBottom;
-	bool _leftNavVisible, _rightNavVisible;
+	MediaOverviewType _overview;
+	QRect _closeNav, _leftNav, _rightNav, _headerNav, _nameNav, _dateNav, _saveNav, _moreNav;
+	bool _leftNavVisible, _rightNavVisible, _saveVisible, _headerHasLink;
 	QString _dateText;
+	QString _headerText;
 
 	uint64 _animStarted;
 
-	int32 _maxWidth, _maxHeight, _width, _x, _y, _w, _h, _xStart, _yStart;
+	int32 _width, _x, _y, _w, _h, _xStart, _yStart;
 	int32 _zoom; // < 0 - out, 0 - none, > 0 - in
 	float64 _zoomToScreen; // for documents
 	QPoint _mStart;
@@ -107,14 +127,24 @@ private:
 	QPixmap _current;
 	int32 _full; // -1 - thumb, 0 - medium, 1 - full
 
-	History *_history; // if conversation photos overview
-	PeerData *_peer;
-	UserData *_user, *_from; // if user profile photos overview
-	Text _fromName;
-	int32 _index; // index in photos array, -1 if just photo
-	MsgId _msgid; // msgId of current photo
+	style::sprite _docIcon;
+	QString _docName, _docSize;
+	int32 _docNameWidth, _docSizeWidth;
+	QRect _docRect;
+	int32 _docThumbx, _docThumby, _docThumbw;
+	uint64 _docRadialFirst, _docRadialStart, _docRadialLast;
+	QPen _docRadialPen;
+	anim::fvalue a_docRadial, a_docRadialStart;
 
-	QString _header;
+	History *_history; // if conversation photos or files overview
+	PeerData *_peer;
+	UserData *_user; // if user profile photos overview
+	
+	UserData *_from;
+	Text _fromName;
+
+	int32 _index; // index in photos or files array, -1 if just photo
+	MsgId _msgid; // msgId of current photo or file
 
 	mtpRequestId _loadRequest;
 
@@ -122,14 +152,33 @@ private:
 		OverNone,
 		OverLeftNav,
 		OverRightNav,
+		OverClose,
+		OverHeader,
 		OverName,
-		OverDate
+		OverDate,
+		OverSave,
+		OverMore,
 	};
 	OverState _over, _down;
-	QPoint _lastAction;
+	QPoint _lastAction, _lastMouseMovePos;
+	bool _ignoringDropdown;
 
-	IconedButton _close, _save, _forward, _delete, _overview;
+	enum ControlsState {
+		ControlsShowing,
+		ControlsShown,
+		ControlsHiding,
+		ControlsHidden,
+	};
+	ControlsState _controlsState;
+	uint64 _controlsAnimStarted;
+	QTimer _controlsHideTimer;
+	anim::fvalue a_cOpacity;
+
 	ContextMenu *_menu;
+	Dropdown _dropdown;
+	IconedButton *_btnToMessage, *_btnShowInFolder, *_btnSaveAs, *_btnCopy, *_btnForward, *_btnDelete, *_btnViewAll;
+	QList<IconedButton*> _btns;
+
 	bool _receiveMouse;
 
 	bool _touchPress, _touchMove, _touchRightButton;

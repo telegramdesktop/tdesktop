@@ -3257,17 +3257,19 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 		}
 	}
 	if (!data->description.isEmpty()) {
+		QString text = textClean(data->description);
+		if (!_asArticle) text += textcmdSkipBlock(parent->timeWidth(), st::msgDateFont->height - st::msgDateDelta.y());
+		const TextParseOptions *opts = &_webpageDescriptionOptions;
 		if (data->siteName == QLatin1String("Twitter")) {
-			_description.setText(st::webPageDescriptionFont, textClean(data->description), _twitterDescriptionOptions);
+			opts = &_twitterDescriptionOptions;
 		} else if (data->siteName == QLatin1String("Instagram")) {
-			_description.setText(st::webPageDescriptionFont, textClean(data->description), _instagramDescriptionOptions);
-		} else {
-			_description.setText(st::webPageDescriptionFont, textClean(data->description), _webpageDescriptionOptions);
+			opts = &_instagramDescriptionOptions;
 		}
+		_description.setText(st::webPageDescriptionFont, text, *opts);
 		if (_asArticle) {
 			_maxw = qMax(_maxw, int32(st::webPageLeft + _description.maxWidth() + st::webPagePhotoDelta + st::webPagePhotoSize));
 		} else {
-			_maxw = qMax(_maxw, int32(st::webPageLeft + _description.maxWidth() + parent->timeWidth()));
+			_maxw = qMax(_maxw, int32(st::webPageLeft + _description.maxWidth()));
 			_minh += qMin(_description.minHeight(), 3 * st::webPageTitleFont->height);
 		}
 	}
@@ -4443,7 +4445,7 @@ HistoryMedia *HistoryMessage::getMedia(bool inOverview) const {
 }
 
 void HistoryMessage::setMedia(const MTPmessageMedia &media) {
-	if (!_media && media.type() == mtpc_messageMediaEmpty) return;
+	if ((!_media || _media->isImageLink()) && media.type() == mtpc_messageMediaEmpty) return;
 	if (_media) {
 		delete _media;
 		_media = 0;

@@ -809,6 +809,10 @@ public:
 	virtual void updateFrom(const MTPMessageMedia &media) {
 	}
 
+	virtual bool isImageLink() const {
+		return false;
+	}
+
 	virtual bool updateStickerEmoji() {
 		return false;
 	}
@@ -1173,6 +1177,10 @@ public:
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	HistoryMedia *clone() const;
+
+	bool isImageLink() const {
+		return true;
+	}
 
 private:
 	ImageLinkData *data;

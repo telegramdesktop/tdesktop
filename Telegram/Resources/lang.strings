@@ -527,12 +527,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_search_found_results" = "{count:No messages found|Found # message|Found # messages}";
 "lng_search_global_results" = "Global search results";
 
-"lng_mediaview_save" = "Download";
+"lng_mediaview_save_as" = "Save as..";
+"lng_mediaview_copy" = "Copy";
 "lng_mediaview_forward" = "Forward";
 "lng_mediaview_delete" = "Delete";
+"lng_mediaview_photos_all" = "View all photos";
+"lng_mediaview_files_all" = "View all files";
 "lng_mediaview_single_photo" = "Single Photo";
 "lng_mediaview_group_photo" = "Group Photo";
 "lng_mediaview_profile_photo" = "Profile Photo";
+"lng_mediaview_file_n_of_count" = "{file} {n} of {count}";
 "lng_mediaview_n_of_count" = "Photo {n} of {count}";
 "lng_mediaview_doc_image" = "File";
 "lng_mediaview_today" = "today at {time}";

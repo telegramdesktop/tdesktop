@@ -176,7 +176,7 @@ public:
 	void showPhoto(const PhotoLink *lnk, HistoryItem *item = 0);
 	void showPhoto(PhotoData *photo, HistoryItem *item);
 	void showPhoto(PhotoData *photo, PeerData *item);
-	void showDocument(DocumentData *doc, QPixmap pix, HistoryItem *item);
+	void showDocument(DocumentData *doc, HistoryItem *item);
 	void showLayer(LayeredWidget *w, bool fast = false);
 	void replaceLayer(LayeredWidget *w);
 	void hideLayer(bool fast = false);

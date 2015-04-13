@@ -197,14 +197,17 @@ inline bool operator!=(const Font &a, const Font &b) {
 	typedef QMap<uint32, ColorData*> ColorDatas;
 	extern ColorDatas _colorsMap;
 
+	extern int _spriteWidth;
+
 	typedef float64 number;
 	typedef QString string;
 	typedef QRect rect;
-    class sprite : public rect {
+
+	class sprite : public rect {
     public:
         sprite() {
         }
-        sprite(int left, int top, int width, int height) : rect(left, top, width, height) {
+		sprite(int left, int top, int width, int height) : rect(rtl() ? (_spriteWidth - left - width) : left, top, width, height) {
         }
         inline int pxWidth() const {
             return rect::width() / cIntRetinaFactor();

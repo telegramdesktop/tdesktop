@@ -71,7 +71,7 @@ void AbstractBox::paintTitle(Painter &p, const QString &title, bool withShadow) 
 	// paint box title
 	p.setFont(st::boxTitleFont->f);
 	p.setPen(st::black->p);
-	p.drawTextLeft(st::boxTitlePos.x(), st::boxTitlePos.y(), width() - 2 * st::boxTitlePos.x(), title);
+	p.drawTextLeft(st::boxTitlePos.x(), st::boxTitlePos.y(), width(), title);
 }
 
 void AbstractBox::paintGrayTitle(QPainter &p, const QString &title) {

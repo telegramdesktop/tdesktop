@@ -154,8 +154,8 @@ namespace App {
 	void mousedItem(HistoryItem *item);
 	HistoryItem *mousedItem();
 
-	QPixmap &sprite();
-	QPixmap &emojis();
+	const QPixmap &sprite();
+	const QPixmap &emojis();
 	const QPixmap &emojiSingle(const EmojiData *emoji, int32 fontHeight);
 
 	void initMedia();

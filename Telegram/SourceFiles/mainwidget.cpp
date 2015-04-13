@@ -1402,7 +1402,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 						if (reader.supportsAnimation() && reader.imageCount() > 1 && item) {
 							startGif(item, already);
 						} else {
-							App::wnd()->showDocument(document, QPixmap::fromImage(App::readImage(already, 0, false), Qt::ColorOnly), item);
+							App::wnd()->showDocument(document, item);
 						}
 					} else {
 						psOpenFile(already);

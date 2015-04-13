@@ -25,24 +25,31 @@ class Dropdown : public TWidget, public Animated {
 
 public:
 
-	Dropdown(QWidget *parent);
+	Dropdown(QWidget *parent, const style::dropdown &st = st::dropdownDef);
 
 	IconedButton *addButton(IconedButton *button);
 	void resetButtons();
+	void updateButtons();
 
 	void resizeEvent(QResizeEvent *e);
 	void paintEvent(QPaintEvent *e);
 
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
+	void keyPressEvent(QKeyEvent *e);
 	void otherEnter();
 	void otherLeave();
 
 	void fastHide();
+	void ignoreShow(bool ignore = true);
 
 	bool animStep(float64 ms);
 
 	bool eventFilter(QObject *obj, QEvent *e);
+
+signals:
+
+	void hiding();
 
 public slots:
 
@@ -52,12 +59,20 @@ public slots:
 	void showStart();
 	void onWndActiveChanged();
 
+	void buttonStateChanged(int oldState, ButtonStateChangeSource source);
+
 private:
 
 	void adjustButtons();
 
+	bool _ignore;
+
 	typedef QVector<IconedButton*> Buttons;
 	Buttons _buttons;
+
+	int32 _selected;
+
+	const style::dropdown &_st;
 
 	int32 _width, _height;
 	bool _hiding;
@@ -336,97 +351,3 @@ private:
 	BoxShadow _shadow;
 
 };
-
-//class StickerPanInner : public QWidget, public Animated {
-//	Q_OBJECT
-//
-//public:
-//
-//	StickerPanInner(QWidget *parent = 0);
-//
-//	void paintEvent(QPaintEvent *e);
-//
-//	void mousePressEvent(QMouseEvent *e);
-//	void mouseReleaseEvent(QMouseEvent *e);
-//	void mouseMoveEvent(QMouseEvent *e);
-//	void leaveEvent(QEvent *e);
-//
-//	bool animStep(float64 ms);
-//
-//	void showStickerPack(EmojiPtr emoji);
-//	bool hasContent() const;
-//
-//public slots:
-//
-//	void updateSelected();
-//
-//signals:
-//
-//	void stickerSelected(DocumentData *sticker);
-//
-//private:
-//
-//	typedef QMap<int32, uint64> StickerAnimations; // index - showing, -index - hiding
-//	StickerAnimations _stickerAnimations;
-//
-//	StickerPack _stickers;
-//	QVector<float64> _hovers;
-//
-//	EmojiPtr _emoji;
-//	int32 _selected, _pressedSel;
-//	QPoint _lastMousePos;
-//
-//};
-//
-//class StickerPan : public TWidget, public Animated {
-//	Q_OBJECT
-//
-//public:
-//
-//	StickerPan(QWidget *parent);
-//
-//	void setStickerPack(EmojiPtr emoji, bool show);
-//	void paintEvent(QPaintEvent *e);
-//
-//	void enterEvent(QEvent *e);
-//	void leaveEvent(QEvent *e);
-//	void otherEnter();
-//	void otherLeave();
-//
-//	void fastHide();
-//
-//	bool animStep(float64 ms);
-//
-//	bool eventFilter(QObject *obj, QEvent *e);
-//
-//public slots:
-//
-//	void hideStart();
-//	void hideFinish();
-//
-//	void showStart();
-//
-//signals:
-//
-//	void stickerSelected(DocumentData *sticker);
-//
-//private:
-//
-//	void showAll();
-//	void hideAll();
-//
-//	int32 _width, _height;
-//	bool _hiding;
-//	QPixmap _cache;
-//
-//	anim::fvalue a_opacity;
-//
-//	QTimer _hideTimer;
-//
-//	BoxShadow _shadow;
-//
-//	EmojiPtr _emoji;
-//	ScrollArea _scroll;
-//	StickerPanInner _inner;
-//
-//};

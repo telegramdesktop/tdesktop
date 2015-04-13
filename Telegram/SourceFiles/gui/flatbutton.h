@@ -100,6 +100,7 @@ public:
 	void setOpacity(float64 o);
 
 	void setText(const QString &text);
+	QString getText() const;
 	
 public slots:
 
