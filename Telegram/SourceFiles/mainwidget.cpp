@@ -1591,7 +1591,7 @@ void MainWidget::checkChatBackground() {
 			if (_background->full->isNull()) {
 				App::initBackground();
 			} else {
-				App::initBackground(_background->id, _background->full->pix().toImage());
+				App::initBackground(_background->id, _background->id ? _background->full->pix().toImage() : QImage());
 			}
 			delete _background;
 			_background = 0;

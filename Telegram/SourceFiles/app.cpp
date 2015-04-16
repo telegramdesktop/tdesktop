@@ -1808,16 +1808,22 @@ namespace App {
 		if (Local::readBackground()) return;
 
 		QImage img(p);
+		bool remove = false;
 		if (p.isNull()) {
 			img.load(st::msgBG);
 			id = 0;
+			remove = true;
 		}
 		if (img.format() != QImage::Format_ARGB32 && img.format() != QImage::Format_ARGB32_Premultiplied && img.format() != QImage::Format_RGB32) {
 			img = img.convertToFormat(QImage::Format_RGB32);
 		}
 		img.setDevicePixelRatio(cRetinaFactor());
 
-		if (!nowrite) Local::writeBackground(id, img);
+		if (remove) {
+			Local::writeBackground(0, QImage());
+		} else if (!nowrite) {
+			Local::writeBackground(id, img);
+		}
 
 		delete cChatBackground();
 		cSetChatBackground(new QPixmap(QPixmap::fromImage(img, Qt::ColorOnly)));

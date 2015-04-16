@@ -2178,6 +2178,15 @@ namespace Local {
 	void writeBackground(int32 id, const QImage &img) {
 		if (!_working()) return;
 
+		if (img.isNull()) {
+			if (_backgroundKey) {
+				clearKey(_backgroundKey);
+				_backgroundKey = 0;
+				_mapChanged = true;
+			}
+			_writeMap();
+			return;
+		}
 		QByteArray png;
 		{
 			QBuffer buf(&png);
