@@ -81,7 +81,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_status_lastseen_yesterday" = "востаннє бачили вчора о {time}";
 "lng_status_lastseen_date" = "востаннє бачили {date}";
 "lng_status_lastseen_date_time" = "востаннє бачили {date} о {time}";
-"lng_status_online" = "в мержі";
+"lng_status_online" = "у мержі";
 "lng_status_connecting" = "підключення..";
 
 "lng_chat_status_unaccessible" = "група недоступна";
@@ -180,7 +180,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_workmode_tray" = "Показати іконку в треї";
 "lng_settings_workmode_window" = "Показати значок на панелі завдань";
 "lng_settings_auto_start" = "Запустити Telegram при старті системи";
-"lng_settings_start_min" = "Пуск мінімізjdfybq";
+"lng_settings_start_min" = "Пуск мінімізований";
 "lng_settings_add_sendto" = "Розмістити Telegram в меню «Send to»";
 "lng_settings_scale_label" = "масштаб Інтерфейс";
 "lng_settings_scale_auto" = "Авто ({cur})";
@@ -320,7 +320,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_download" = "Завантажити";
 "lng_media_cancel" = "Відмінити";
 "lng_media_video" = "Відео файли";
-"lng_media_audio" = "Голосве повідомлення";
+"lng_media_audio" = "Голосове повідомлення";
 
 "lng_in_dlg_photo" = "Фото";
 "lng_in_dlg_video" = "Відео";
