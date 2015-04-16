@@ -341,6 +341,7 @@ public slots:
 	void restart(bool maybeBadKey = false);
 
 	void onPingSender();
+	void onPingSendForce();
 	void onBadConnection();
 	void onOldConnection();
 	void onSentSome(uint64 size);
@@ -416,7 +417,7 @@ private:
 	void requestsAcked(const QVector<MTPlong> &ids, bool byResponse = false);
 
 	mtpPingId _pingId, _pingIdToSend;
-	uint64 _pingSent;
+	uint64 _pingSendAt;
 	mtpMsgId _pingMsgId;
 	SingleTimer _pingSender;
 

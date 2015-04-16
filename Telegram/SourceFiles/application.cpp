@@ -60,6 +60,9 @@ namespace {
 						App::wnd()->minimizeToTray();
 						return true;
 					}
+				} else if (ev->key() == Qt::Key_M && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
+					App::wnd()->setWindowState(Qt::WindowMinimized);
+					return true;
 				}
 			}
 			return QObject::eventFilter(o, e);

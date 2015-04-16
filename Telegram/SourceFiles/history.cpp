@@ -1783,7 +1783,7 @@ void HistoryPhoto::updateFrom(const MTPMessageMedia &media) {
 
 				case mtpc_photoCachedSize: {
 					const string &s(i->c_photoCachedSize().vtype.c_string().v);
-					loc = &i->c_photoSize().vlocation;
+					loc = &i->c_photoCachedSize().vlocation;
 					if (s.size()) size = s[0];
 				} break;
 				}

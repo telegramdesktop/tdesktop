@@ -78,7 +78,7 @@ void BackgroundInner::gotWallpapers(const MTPVector<MTPWallPaper> &result) {
 				}
 			}
 			if (thumb && full && full->type() != mtpc_photoSizeEmpty) {
-				wallpapers.push_back(App::WallPaper(d.vid.v, App::image(*thumb), App::image(*full)));
+				wallpapers.push_back(App::WallPaper(d.vid.v ? d.vid.v : INT_MAX, App::image(*thumb), App::image(*full)));
 			}
 		} break;
 
