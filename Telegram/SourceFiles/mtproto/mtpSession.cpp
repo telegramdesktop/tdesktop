@@ -63,7 +63,7 @@ void MTPSessionData::clear() {
 }
 
 
-MTProtoSession::MTProtoSession() : data(this), dcId(0), dc(0), msSendCall(0), msWait(0) {
+MTProtoSession::MTProtoSession() : data(this), dcId(0), dc(0), msSendCall(0), msWait(0), _ping(false) {
 }
 
 void MTProtoSession::start(int32 dcenter) {
@@ -171,7 +171,12 @@ void MTProtoSession::needToResumeAndSend() {
 			}
 		}
 	}
-	emit needToSend();
+	if (_ping) {
+		_ping = false;
+		emit needToPing();
+	} else {
+		emit needToSend();
+	}
 }
 
 void MTProtoSession::sendPong(quint64 msgId, quint64 pingId) {
@@ -270,6 +275,11 @@ void MTProtoSession::cancel(mtpRequestId requestId, mtpMsgId msgId) {
 		QWriteLocker locker(data.haveSentMutex());
 		data.haveSentMap().remove(msgId);
 	}
+}
+
+void MTProtoSession::ping() {
+	_ping = true;
+	sendAnything(0);
 }
 
 int32 MTProtoSession::requestState(mtpRequestId requestId) const {

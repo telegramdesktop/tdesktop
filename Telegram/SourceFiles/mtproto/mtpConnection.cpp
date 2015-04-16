@@ -1096,7 +1096,7 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
     , firstSentAt(-1)
     , _pingId(0)
 	, _pingIdToSend(0)
-	, _pingSent(0)
+	, _pingSendAt(0)
     , _pingMsgId(0)
     , restarted(false)
     , keyId(0)
@@ -1137,6 +1137,7 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
 	connect(this, SIGNAL(needToReceive()), sessionData->owner(), SLOT(tryToReceive()), Qt::QueuedConnection);
 	connect(this, SIGNAL(stateChanged(qint32)), sessionData->owner(), SLOT(onConnectionStateChange(qint32)), Qt::QueuedConnection);
 	connect(sessionData->owner(), SIGNAL(needToSend()), this, SLOT(tryToSend()), Qt::QueuedConnection);
+	connect(sessionData->owner(), SIGNAL(needToPing()), this, SLOT(onPingSendForce()), Qt::QueuedConnection);
 	connect(this, SIGNAL(sessionResetDone()), sessionData->owner(), SLOT(onResetDone()), Qt::QueuedConnection);
 
 	static bool _registered = false;
@@ -1425,7 +1426,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 	bool prependOnly = (state != MTProtoConnection::Connected);
 	mtpRequest pingRequest;
 	if (dc < _mtp_internal::dcShift) { // main session
-		if (!prependOnly && !_pingIdToSend && !_pingId && _pingSent + (MTPPingSendAfterAuto * 1000ULL) <= getms(true)) {
+		if (!prependOnly && !_pingIdToSend && !_pingId && _pingSendAt <= getms(true)) {
 			_pingIdToSend = MTP::nonce<mtpPingId>();
 		}
 	}
@@ -1444,7 +1445,8 @@ void MTProtoConnectionPrivate::tryToSend() {
 			DEBUG_LOG(("MTP Info: sending ping_delay_disconnect, ping_id: %1").arg(_pingIdToSend));
 		}
 
-		_pingSent = pingRequest->msDate = getms(true); // > 0 - can send without container
+		pingRequest->msDate = getms(true); // > 0 - can send without container
+		_pingSendAt = pingRequest->msDate + (MTPPingSendAfterAuto * 1000ULL);
 		pingRequest->requestId = 0; // dont add to haveSent / wereAcked maps
 
 		if (dc < _mtp_internal::dcShift && !prependOnly) { // main session
@@ -1733,7 +1735,7 @@ void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 		return;
 	}
 	setState(MTProtoConnection::Connecting);
-	_pingId = _pingMsgId = _pingIdToSend = _pingSent = 0;
+	_pingId = _pingMsgId = _pingIdToSend = _pingSendAt = 0;
 	_pingSender.stop();
 
 	const mtpDcOption *dcOption = 0;
@@ -1840,14 +1842,22 @@ void MTProtoConnectionPrivate::onOldConnection() {
 
 void MTProtoConnectionPrivate::onPingSender() {
 	if (_pingId) {
-		if (_pingSent + (MTPPingSendAfter - 1) * 1000 < getms(true)) {
+			if (_pingSendAt + (MTPPingSendAfter - MTPPingSendAfterAuto - 1) * 1000ULL < getms(true)) {
 			LOG(("Could not send ping for MTPPingSendAfter seconds, restarting.."));
 			return restart();
 		} else {
-			_pingSender.start(_pingSent + (MTPPingSendAfter * 1000) - getms(true));
+			_pingSender.start(_pingSendAt + (MTPPingSendAfter - MTPPingSendAfterAuto) * 1000ULL - getms(true));
 		}
 	} else {
 		emit needToSendAsync();
+	}
+}
+
+void MTProtoConnectionPrivate::onPingSendForce() {
+	if (!_pingId) {
+		_pingSendAt = 0;
+		DEBUG_LOG(("Will send ping!"));
+		tryToSend();
 	}
 }
 
