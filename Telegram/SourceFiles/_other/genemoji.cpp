@@ -18,6 +18,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "genemoji.h"
 
 #include <QtCore/QtPlugin>
+#include <QtGui/QFontDatabase>
 
 #ifdef Q_OS_WIN
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
@@ -1091,6 +1092,28 @@ void writeEmojiCategory(QTextStream &tcpp, uint64 *emojiCategory, uint32 size, c
 	tcpp << "\t} break;\n\n";
 }
 
+QString textEmojiString(const EmojiData *emoji) {
+	QString result;
+	int len = emoji->code2 ? 4 : ((emoji->code >> 16) ? 2 : 1);
+	bool withPostfix = emojiWithPostfixes.constFind(emoji->code) != emojiWithPostfixes.constEnd();
+	result.reserve(len + (withPostfix ? 1 : 0));
+	switch (len) {
+		case 1: result.append(QChar(emoji->code & 0xFFFF)); break;
+		case 2:
+			result.append(QChar((emoji->code >> 16) & 0xFFFF));
+			result.append(QChar(emoji->code & 0xFFFF));
+			break;
+		case 4:
+			result.append(QChar((emoji->code >> 16) & 0xFFFF));
+			result.append(QChar(emoji->code & 0xFFFF));
+			result.append(QChar((emoji->code2 >> 16) & 0xFFFF));
+			result.append(QChar(emoji->code2 & 0xFFFF));
+			break;
+	}
+	if (withPostfix) result.append(QChar(0xFE0F));
+	return result;
+}
+
 bool genEmoji(QString emoji_in, const QString &emoji_out, const QString &emoji_png) {
 	int currentRow = 0, currentColumn = 0;
 	uint32 min1 = 0xFFFFFFFFU, max1 = 0, min2 = 0xFFFFFFFFU, max2 = 0;
@@ -1165,17 +1188,40 @@ bool genEmoji(QString emoji_in, const QString &emoji_out, const QString &emoji_p
 		return true;
 	}
 
+	for (int i = 0, l = sizeof(emojiPostfixed) / sizeof(emojiPostfixed[0]); i < l; ++i) {
+		emojiWithPostfixes.insert(emojiPostfixed[i], true);
+	}
+
+	QStringList str = QFontDatabase::applicationFontFamilies(QFontDatabase::addApplicationFont(QStringLiteral("/System/Library/Fonts/Apple Color Emoji.ttf")));
+	for (int i = 0, l = str.size(); i < l; ++i) {
+	}
+
+	qreal emojiFontSizes[4] = { 14.0, 19.0, 27.0, 36.0 };
+	int emojiDeltas[4] = { 15, 19, 25, 34 };
 	for (int variantIndex = 0; variantIndex < variantsCount; variantIndex++) {
 		int imSize = imSizes[variantIndex];
 
+		QFont f(QGuiApplication::font());
+		f.setFamily(QStringLiteral("Apple Color Emoji"));
+		f.setPointSizeF(emojiFontSizes[variantIndex]);
+
 		QImage emojisImg(inRow * imSize, currentRow * imSize, QImage::Format_ARGB32);
-		QPainter p(&emojisImg);
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		p.fillRect(0, 0, emojisImg.width(), emojisImg.height(), Qt::transparent);
-		for (EmojisData::const_iterator i = emojisData.cbegin(), e = emojisData.cend(); i != e; ++i) {
-			int ind = i->index, row = ind / emojisInRow[i->category], col = ind % emojisInRow[i->category], size = sizes[i->category];
-			QPixmap emoji = QPixmap::fromImage(sprites[i->category].copy(col * size, row * size, size, size).scaled(imSize, imSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
-			p.drawPixmap(i->x * imSize, i->y * imSize, emoji);
+		{
+			QPainter p(&emojisImg);
+			p.setFont(f);
+			QPainter::CompositionMode m = p.compositionMode();
+			p.setCompositionMode(QPainter::CompositionMode_Source);
+			p.fillRect(0, 0, emojisImg.width(), emojisImg.height(), Qt::transparent);
+			p.setCompositionMode(m);
+			for (EmojisData::const_iterator i = emojisData.cbegin(), e = emojisData.cend(); i != e; ++i) {
+//				int ind = i->index, row = ind / emojisInRow[i->category], col = ind % emojisInRow[i->category], size = sizes[i->category];
+//				QPixmap emoji = QPixmap::fromImage(sprites[i->category].copy(col * size, row * size, size, size).scaled(imSize, imSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
+				p.setPen(QColor(0, 0, 0, 255));
+				p.drawText(i->x * imSize, i->y * imSize + emojiDeltas[variantIndex], textEmojiString(&i.value()));
+				p.setPen(QColor(((i->x + i->y) % 2) ? 255 : 0, ((i->x + i->y) % 2) ? 255 : 0, ((i->x + i->y) % 2) ? 255 : 0, 100));
+				p.drawRect(i->x * imSize, i->y * imSize, imSize - 1, imSize - 1);
+//				p.drawPixmap(i->x * imSize, i->y * imSize, emoji);
+			}
 		}
 		QString postfix = variantPostfix[variantIndex], emojif = emoji_png + postfix + ".png";
 		QByteArray emojib;
@@ -1210,10 +1256,6 @@ bool genEmoji(QString emoji_in, const QString &emoji_out, const QString &emoji_p
 				}
 			}
 		}
-	}
-
-	for (int i = 0, l = sizeof(emojiPostfixed) / sizeof(emojiPostfixed[0]); i < l; ++i) {
-		emojiWithPostfixes.insert(emojiPostfixed[i], true);
 	}
 
 	try {
