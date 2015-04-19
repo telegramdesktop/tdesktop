@@ -39,7 +39,7 @@ public:
 
 	void hide();
 
-	void updateOver(const QPoint &mpos);
+	void updateOver(QPoint mpos);
 
 	void showPhoto(PhotoData *photo, HistoryItem *context);
 	void showPhoto(PhotoData *photo, PeerData *context);
@@ -116,7 +116,10 @@ private:
 	PhotoData *_photo;
 	DocumentData *_doc;
 	MediaOverviewType _overview;
-	QRect _closeNav, _leftNav, _rightNav, _headerNav, _nameNav, _dateNav, _saveNav, _moreNav;
+	QRect _closeNav, _closeNavIcon;
+	QRect _leftNav, _leftNavIcon, _rightNav, _rightNavIcon;
+	QRect _headerNav, _nameNav, _dateNav;
+	QRect _saveNav, _saveNavIcon, _moreNav, _moreNavIcon;
 	bool _leftNavVisible, _rightNavVisible, _saveVisible, _headerHasLink;
 	QString _dateText;
 	QString _headerText;
@@ -207,6 +210,7 @@ private:
 	typedef QMap<OverState, anim::fvalue> ShowingOpacities;
 	ShowingOpacities _animOpacities;
 
+	void updateOverRect(OverState state);
 	bool updateOverState(OverState newState);
 	float64 overLevel(OverState control);
 	QColor overColor(const QColor &a, float64 ca, const QColor &b, float64 cb);

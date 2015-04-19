@@ -184,6 +184,7 @@ bool mtpFileLoader::loadPart() {
 }
 
 void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRequestId req) {
+//	uint64 ms = getms();
 	Requests::iterator i = requests.find(req);
 	if (i == requests.cend()) return loadNext();
 
@@ -269,6 +270,7 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 	}
 	emit progress(this);
 	loadNext();
+//	LOG(("Part loaded, handle time: %1").arg(getms() - ms));
 }
 
 bool mtpFileLoader::partFailed(const RPCError &error) {

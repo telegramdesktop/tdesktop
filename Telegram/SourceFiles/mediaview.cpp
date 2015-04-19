@@ -57,7 +57,7 @@ _docCancel(this, lang(lng_cancel), st::mvDocLink),
 _history(0), _peer(0), _user(0), _from(0), _index(-1), _msgid(0),
 _loadRequest(0), _over(OverNone), _down(OverNone), _lastAction(-st::mvDeltaFromLastAction, -st::mvDeltaFromLastAction), _ignoringDropdown(false),
 _controlsState(ControlsShown), _controlsAnimStarted(0),
-_dropdown(this, st::mvDropdown), _menu(0), _receiveMouse(true), _touchPress(false), _touchMove(false), _touchRightButton(false),
+_menu(0), _dropdown(this, st::mvDropdown), _receiveMouse(true), _touchPress(false), _touchMove(false), _touchRightButton(false),
 _saveMsgStarted(0), _saveMsgOpacity(0)
 {
 	TextCustomTagsMap custom;
@@ -127,8 +127,11 @@ void MediaView::moveToScreen() {
 	
 	int32 navSkip = 2 * st::mvControlMargin + st::mvControlSize;
 	_closeNav = rtlrect(width() - st::mvControlMargin - st::mvControlSize, st::mvControlMargin, st::mvControlSize, st::mvControlSize, width());
+	_closeNavIcon = centersprite(_closeNav, st::mvClose);
 	_leftNav = rtlrect(st::mvControlMargin, navSkip, st::mvControlSize, height() - 2 * navSkip, width());
+	_leftNavIcon = centersprite(_leftNav, st::mvLeft);
 	_rightNav = rtlrect(width() - st::mvControlMargin - st::mvControlSize, navSkip, st::mvControlSize, height() - 2 * navSkip, width());
+	_rightNavIcon = centersprite(_rightNav, st::mvRight);
 
 	_saveMsg.moveTo((width() - _saveMsg.width()) / 2, (height() - _saveMsg.height()) / 2);
 }
@@ -223,6 +226,7 @@ void MediaView::updateControls() {
 			_docCancel.show();
 			if (!_docRadialFirst) _docRadialFirst = _docRadialLast = _docRadialStart = getms();
 			if (!animating()) anim::start(this);
+			anim::step(this);
 		} else {
 			if (_doc->already(true).isEmpty()) {
 				_docDownload.moveToLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocLinksTop, width());
@@ -246,7 +250,9 @@ void MediaView::updateControls() {
 
 	_saveVisible = ((_photo && _photo->full->loaded()) || (_doc && (!_doc->already(true).isEmpty() || (_current.isNull() && _currentGif.isNull()))));
 	_saveNav = rtlrect(width() - st::mvIconSize.width() * 2, height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height(), width());
+	_saveNavIcon = centersprite(_saveNav, st::mvSave);
 	_moreNav = rtlrect(width() - st::mvIconSize.width(), height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height(), width());
+	_moreNavIcon = centersprite(_moreNav, st::mvMore);
 
 	QDateTime d(date(_photo ? _photo->date : _doc->date)), dNow(date(unixtime()));
 	if (d.date() == dNow.date()) {
@@ -326,10 +332,12 @@ bool MediaView::animStep(float64 msp) {
 			a_cOpacity.finish();
 			_controlsState = (_controlsState == ControlsShowing ? ControlsShown : ControlsHidden);
 			setCursor(_controlsState == ControlsHidden ? Qt::BlankCursor : (_over == OverNone ? style::cur_default : style::cur_pointer));
+			LOG(("Finished with controls!"));
 		} else {
 			a_cOpacity.update(dt, anim::linear);
 		}
-		update();
+		QRegion toUpdate = QRegion() + (_over == OverLeftNav ? _leftNav : _leftNavIcon) + (_over == OverRightNav ? _rightNav : _rightNavIcon) + (_over == OverClose ? _closeNav : _closeNavIcon) + _saveNavIcon + _moreNavIcon + _headerNav + _nameNav + _dateNav;
+		update(toUpdate);
 		if (dt < 1) result = true;
 	}
 	if (_doc && _docRadialStart > 0) {
@@ -385,20 +393,22 @@ void MediaView::close() {
 void MediaView::activateControls() {
 	_controlsHideTimer.start(int(st::mvWaitHide));
 	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) {
+		LOG(("Showing controls.."));
 		_controlsState = ControlsShowing;
 		_controlsAnimStarted = getms();
 		a_cOpacity.start(1);
-		anim::start(this);
+		if (!animating()) anim::start(this);
 	}
 }
 
 void MediaView::onHideControls(bool force) {
 	if (!force && !_dropdown.isHidden()) return;
 	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) return;
+	LOG(("Hiding controls.."));
 	_controlsState = ControlsHiding;
 	_controlsAnimStarted = getms();
 	a_cOpacity.start(0);
-	anim::start(this);
+	if (!animating()) anim::start(this);
 }
 
 void MediaView::onDropdownHiding() {
@@ -922,15 +932,28 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) {
 }
 
 void MediaView::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+//	uint64 ms = getms();
+
 	QRect r(e->rect());
-	if (!rect().intersects(r)) return;
+	QRegion region(e->region());
+	QVector<QRect> rs(region.rects());
+	if (rs.size() > 1) {
+		int a = 0;
+	}
+
+	Painter p(this);
+
+	bool name = false, icon = false;
+
+	p.setClipRegion(region);
 
 	// main bg
 	QPainter::CompositionMode m = p.compositionMode();
 	p.setCompositionMode(QPainter::CompositionMode_Source);
 	p.setOpacity(st::mvBgOpacity);
-	p.fillRect(rect().intersected(r), st::mvBgColor->b);
+	for (int i = 0, l = region.rectCount(); i < l; ++i) {
+		p.fillRect(rs.at(i), st::mvBgColor->b);
+	}
 	p.setCompositionMode(m);
 
 	// photo
@@ -1029,6 +1052,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		if (_docRect.intersects(r)) {
 			p.fillRect(_docRect, st::mvDocBg->b);
 			if (_docIconRect.intersects(r)) {
+				icon = true;
 				if (_doc->thumb->isNull()) {
 					p.drawPixmap(_docIconRect.topLeft(), App::sprite(), _docIcon);
 					if (!_doc->already().isEmpty() && (!_docRadialStart || _docRadialOpacity < 1)) {
@@ -1064,7 +1088,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 					p.setOpacity(_docRadialOpacity);
 					p.setPen(_docRadialPen);
 
-					int len = 16 + a_docRadial.current() * 5744;
+					int len = 512 + a_docRadial.current() * 5744;
 					p.drawArc(arc, 1440 - a_docRadialStart.current() * 5760 - len, len);
 
 					p.setOpacity(1);
@@ -1076,6 +1100,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 			}
 
 			if (!_docIconRect.contains(r)) {
+				name = true;
 				p.setPen(st::mvDocNameColor->p);
 				p.setFont(st::mvDocNameFont->f);
 				p.drawTextLeft(_docRect.x() + 2 * st::mvDocPadding + st::mvDocBlue.pxWidth(), _docRect.y() + st::mvDocPadding + st::mvDocNameTop, width(), _docName, _docNameWidth);
@@ -1094,13 +1119,14 @@ void MediaView::paintEvent(QPaintEvent *e) {
 			float64 o = overLevel(OverLeftNav);
 			if (o > 0) {
 				p.setOpacity(o * st::mvControlBgOpacity * co);
-				p.fillRect(_leftNav.intersected(r), st::black->b);
+				for (int i = 0, l = region.rectCount(); i < l; ++i) {
+					QRect fill(_leftNav.intersected(rs.at(i)));
+					if (!fill.isEmpty()) p.fillRect(fill, st::black->b);
+				}
 			}
-
-			QPoint p_left(_leftNav.x() + (_leftNav.width() - st::mvLeft.pxWidth()) / 2, _leftNav.y() + (_leftNav.height() - st::mvLeft.pxHeight()) / 2);
-			if (QRect(p_left.x(), p_left.y(), st::mvLeft.pxWidth(), st::mvLeft.pxHeight()).intersects(r)) {
+			if (_leftNavIcon.intersects(r)) {
 				p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
-				p.drawPixmap(p_left, App::sprite(), st::mvLeft);
+				p.drawPixmap(_leftNavIcon.topLeft(), App::sprite(), st::mvLeft);
 			}
 		}
 
@@ -1109,13 +1135,14 @@ void MediaView::paintEvent(QPaintEvent *e) {
 			float64 o = overLevel(OverRightNav);
 			if (o > 0) {
 				p.setOpacity(o * st::mvControlBgOpacity * co);
-				p.fillRect(_rightNav.intersected(r), st::black->b);
+				for (int i = 0, l = region.rectCount(); i < l; ++i) {
+					QRect fill(_rightNav.intersected(rs.at(i)));
+					if (!fill.isEmpty()) p.fillRect(fill, st::black->b);
+				}
 			}
-
-			QPoint p_right(_rightNav.x() + (_rightNav.width() - st::mvRight.pxWidth()) / 2, _rightNav.y() + (_rightNav.height() - st::mvRight.pxHeight()) / 2);
-			if (QRect(p_right.x(), p_right.y(), st::mvRight.pxWidth(), st::mvRight.pxHeight()).intersects(r)) {
+			if (_rightNavIcon.intersects(r)) {
 				p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
-				p.drawPixmap(p_right, App::sprite(), st::mvRight);
+				p.drawPixmap(_rightNavIcon.topLeft(), App::sprite(), st::mvRight);
 			}
 		}
 
@@ -1124,34 +1151,29 @@ void MediaView::paintEvent(QPaintEvent *e) {
 			float64 o = overLevel(OverClose);
 			if (o > 0) {
 				p.setOpacity(o * st::mvControlBgOpacity * co);
-				p.fillRect(_closeNav.intersected(r), st::black->b);
+				for (int i = 0, l = region.rectCount(); i < l; ++i) {
+					QRect fill(_closeNav.intersected(rs.at(i)));
+					if (!fill.isEmpty()) p.fillRect(fill, st::black->b);
+				}
 			}
-
-			QPoint p_right(_closeNav.x() + (_closeNav.width() - st::mvClose.pxWidth()) / 2, _closeNav.y() + (_closeNav.height() - st::mvClose.pxHeight()) / 2);
-			if (QRect(p_right.x(), p_right.y(), st::mvClose.pxWidth(), st::mvClose.pxHeight()).intersects(r)) {
+			if (_closeNavIcon.intersects(r)) {
 				p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
-				p.drawPixmap(p_right, App::sprite(), st::mvClose);
+				p.drawPixmap(_closeNavIcon.topLeft(), App::sprite(), st::mvClose);
 			}
 		}
 
 		// save button
-		if (_saveNav.intersects(r)) {
+		if (_saveNavIcon.intersects(r)) {
 			float64 o = overLevel(OverSave);
-			QPoint p_right(_saveNav.x() + (_saveNav.width() - st::mvSave.pxWidth()) / 2, _saveNav.y() + (_saveNav.height() - st::mvSave.pxHeight()) / 2);
-			if (QRect(p_right.x(), p_right.y(), st::mvSave.pxWidth(), st::mvSave.pxHeight()).intersects(r)) {
-				p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
-				p.drawPixmap(p_right, App::sprite(), st::mvSave);
-			}
+			p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
+			p.drawPixmap(_saveNavIcon.topLeft(), App::sprite(), st::mvSave);
 		}
 
 		// more area
-		if (_moreNav.intersects(r)) {
+		if (_moreNavIcon.intersects(r)) {
 			float64 o = overLevel(OverMore);
-			QPoint p_right(_moreNav.x() + (_moreNav.width() - st::mvMore.pxWidth()) / 2, _moreNav.y() + (_moreNav.height() - st::mvMore.pxHeight()) / 2);
-			if (QRect(p_right.x(), p_right.y(), st::mvMore.pxWidth(), st::mvMore.pxHeight()).intersects(r)) {
-				p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
-				p.drawPixmap(p_right, App::sprite(), st::mvMore);
-			}
+			p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
+			p.drawPixmap(_moreNavIcon.topLeft(), App::sprite(), st::mvMore);
 		}
 
 		p.setPen(st::white->p);
@@ -1195,6 +1217,11 @@ void MediaView::paintEvent(QPaintEvent *e) {
 			}
 		}
 	}
+
+//	static uint64 t = getms();
+//	uint64 t2 = getms();
+//	LOG(("paint: %1, wait: %2, name: %3, icon: %4").arg(t2 - ms).arg(t2 - t).arg(logBool(name)).arg(logBool(icon)));
+//	t = t2;
 }
 
 void MediaView::keyPressEvent(QKeyEvent *e) {
@@ -1329,7 +1356,7 @@ void MediaView::moveToNext(int32 delta) {
 }
 
 void MediaView::preloadData(int32 delta) {
-	if (_index < 0 || !_user && _overview == OverviewCount) return;
+	if (_index < 0 || (!_user && _overview == OverviewCount)) return;
 
 	int32 from = _index + (delta ? delta : -1), to = _index + (delta ? delta * MediaOverviewPreloadCount : 1), forget = _index - delta * 2;
 	if (from > to) qSwap(from, to);
@@ -1458,32 +1485,28 @@ void MediaView::mouseMoveEvent(QMouseEvent *e) {
 	if (moved) activateControls();
 }
 
+void MediaView::updateOverRect(OverState state) {
+	switch (state) {
+	case OverLeftNav: update(_leftNav); break;
+	case OverRightNav: update(_rightNav); break;
+	case OverName: update(_nameNav); break;
+	case OverDate: update(_dateNav); break;
+	case OverSave: update(_saveNavIcon); break;
+	case OverIcon: update(_docIconRect); break;
+	case OverHeader: update(_headerNav); break;
+	case OverClose: update(_closeNav); break;
+	case OverMore: update(_moreNavIcon); break;
+	}
+}
+
 bool MediaView::updateOverState(OverState newState) {
 	bool result = true;
 	if (_over != newState) {
 		if (newState == OverMore && !_ignoringDropdown) {
 			QTimer::singleShot(0, this, SLOT(onDropdown()));
-		} else if (newState == OverNone) {
-			if (_over == OverLeftNav) {
-				update(_leftNav);
-			} else if (_over == OverRightNav) {
-				update(_rightNav);
-			} else if (_over == OverName) {
-				update(_nameNav);
-			} else if (_over == OverDate) {
-				update(_dateNav);
-			} else if (_over == OverSave) {
-				update(_saveNav);
-			} else if (_over == OverIcon) {
-				update(_docIconRect);
-			} else if (_over == OverHeader) {
-				update(_headerNav);
-			} else if (_over == OverClose) {
-				update(_closeNav);
-			} else if (_over == OverMore) {
-				update(_moreNav);
-			}
 		}
+		updateOverRect(_over);
+		updateOverRect(newState);
 		if (_over != OverNone) {
 			_animations[_over] = getms();
 			ShowingOpacities::iterator i = _animOpacities.find(_over);
@@ -1492,8 +1515,7 @@ bool MediaView::updateOverState(OverState newState) {
 			} else {
 				_animOpacities.insert(_over, anim::fvalue(1, 0));
 			}
-			anim::start(this);
-			if (newState != OverNone) update();
+			if (!animating()) anim::start(this);
 		} else {
 			result = false;
 		}
@@ -1506,7 +1528,7 @@ bool MediaView::updateOverState(OverState newState) {
 			} else {
 				_animOpacities.insert(_over, anim::fvalue(0, 1));
 			}
-			anim::start(this);
+			if (!animating()) anim::start(this);
 			setCursor(style::cur_pointer);
 		} else {
 			setCursor(style::cur_default);
@@ -1515,12 +1537,21 @@ bool MediaView::updateOverState(OverState newState) {
 	return result;
 }
 
-void MediaView::updateOver(const QPoint &pos) {
+void MediaView::updateOver(QPoint pos) {
 	TextLinkPtr lnk;
 	bool inText;
     if (_saveMsgStarted) {
         _saveMsgText.getState(lnk, inText, pos.x() - _saveMsg.x() - st::medviewSaveMsgPadding.left(), pos.y() - _saveMsg.y() - st::medviewSaveMsgPadding.top(), _saveMsg.width() - st::medviewSaveMsgPadding.left() - st::medviewSaveMsgPadding.right());
     }
+
+	// retina
+	if (pos.x() == width()) {
+		pos.setX(pos.x() - 1);
+	}
+	if (pos.y() == height()) {
+		pos.setY(pos.y() - 1);
+	}
+
 	if (lnk != textlnkOver()) {
 		textlnkOver(lnk);
 		setCursor((textlnkOver() || textlnkDown()) ? style::cur_pointer : style::cur_default);
@@ -1530,41 +1561,23 @@ void MediaView::updateOver(const QPoint &pos) {
 	if (_pressed || _dragging) return;
 
 	if (_leftNavVisible && _leftNav.contains(pos)) {
-		if (!updateOverState(OverLeftNav)) {
-			update(_leftNav);
-		}
+		updateOverState(OverLeftNav);
 	} else if (_rightNavVisible && _rightNav.contains(pos)) {
-		if (!updateOverState(OverRightNav)) {
-			update(_rightNav);
-		}
+		updateOverState(OverRightNav);
 	} else if (_nameNav.contains(pos)) {
-		if (!updateOverState(OverName)) {
-			update(_nameNav);
-		}
+		updateOverState(OverName);
 	} else if (_msgid && _dateNav.contains(pos)) {
-		if (!updateOverState(OverDate)) {
-			update(_dateNav);
-		}
+		updateOverState(OverDate);
 	} else if (_headerHasLink && _headerNav.contains(pos)) {
-		if (!updateOverState(OverHeader)) {
-			update(_headerNav);
-		}
+		updateOverState(OverHeader);
 	} else if (_saveVisible && _saveNav.contains(pos)) {
-		if (!updateOverState(OverSave)) {
-			update(_saveNav);
-		}
+		updateOverState(OverSave);
 	} else if (_doc && _current.isNull() && _currentGif.isNull() && _docIconRect.contains(pos)) {
-		if (!updateOverState(OverIcon)) {
-			update(_docIconRect);
-		}
+		updateOverState(OverIcon);
 	} else if (_moreNav.contains(pos)) {
-		if (!updateOverState(OverMore)) {
-			update(_moreNav);
-		}
+		updateOverState(OverMore);
 	} else if (_closeNav.contains(pos)) {
-		if (!updateOverState(OverClose)) {
-			update(_closeNav);
-		}
+		updateOverState(OverClose);
 	} else if (_over != OverNone) {
 		updateOverState(OverNone);
 	}

@@ -132,6 +132,7 @@ void ContextMenu::resizeEvent(QResizeEvent *e) {
 void ContextMenu::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
+	p.setClipRect(e->rect());
 	QPainter::CompositionMode m = p.compositionMode();
 	p.setCompositionMode(QPainter::CompositionMode_Source);
 	p.fillRect(e->rect(), st::transparent->b);

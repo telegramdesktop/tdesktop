@@ -29,6 +29,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 inline QRect rtlrect(int x, int y, int w, int h, int outerw) {
 	return rtl() ? QRect(outerw - x - w, y, w, h) : QRect(x, y, w, h);
 }
+inline QRect centerrect(const QRect &inRect, const QRect &rect) {
+	return QRect(inRect.x() + (inRect.width() - rect.width()) / 2, inRect.y() + (inRect.height() - rect.height()) / 2, rect.width(), rect.height());
+}
 
 namespace style {
 	
@@ -267,3 +270,7 @@ inline bool operator!=(const Font &a, const Font &b) {
 	void stopManager();
 
 };
+
+inline QRect centersprite(const QRect &inRect, const style::sprite &sprite) {
+	return centerrect(inRect, QRect(QPoint(0, 0), sprite.pxSize()));
+}

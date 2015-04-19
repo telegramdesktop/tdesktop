@@ -59,6 +59,11 @@ namespace {
 					if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 						App::wnd()->minimizeToTray();
 						return true;
+					} else {
+						App::wnd()->hide();
+						App::wnd()->updateIsActive(cOfflineBlurTimeout());
+						App::wnd()->updateGlobalMenu();
+						return true;
 					}
 				} else if (ev->key() == Qt::Key_M && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
 					App::wnd()->setWindowState(Qt::WindowMinimized);

@@ -80,6 +80,11 @@ namespace anim {
 		manager->start(obj);
 	}
 
+	void step(Animated *obj) {
+		if (!manager) return;
+		manager->step(obj);
+	}
+
 	void stop(Animated *obj) {
 		if (!manager) return;
 		manager->stop(obj);

@@ -185,6 +185,7 @@ namespace anim {
 	};
 
 	void start(Animated *obj);
+	void step(Animated *obj);
 	void stop(Animated *obj);
 
 	void startManager();
@@ -246,6 +247,23 @@ public:
 			objs.insert(obj);
 		}
 		obj->animInProcess = true;
+	}
+
+	void step(Animated *obj) {
+		if (iterating) return;
+
+		float64 ms = float64(getms());
+		AnimObjs::iterator i = objs.find(obj);
+		if (i != objs.cend()) {
+			Animated *obj = *i;
+			if (!obj->animStep(ms - obj->animStarted)) {
+				objs.erase(i);
+				if (!objs.size()) {
+					timer.stop();
+				}
+				obj->animInProcess = false;
+			}
+		}
 	}
 
 	void stop(Animated *obj) {
