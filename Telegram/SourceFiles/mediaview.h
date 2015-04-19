@@ -56,7 +56,9 @@ public:
 	}
 
 	void mediaOverviewUpdated(PeerData *peer);
+	void documentUpdated(DocumentData *doc);
 	void changingMsgId(HistoryItem *row, MsgId newId);
+	void updateDocSize();
 	void updateControls();
 	void updateDropdown();
 
@@ -66,6 +68,7 @@ public:
 	void close();
 
 	void activateControls();
+	void onDocClick();
 
 	~MediaView();
 
@@ -75,8 +78,9 @@ public slots:
 	void onDropdownHiding();
 
 	void onToMessage();
-	void onSave();
+	void onSaveAs();
 	void onDownload();
+	void onSaveCancel();
 	void onShowInFolder();
 	void onForward();
 	void onDelete();
@@ -91,6 +95,7 @@ public slots:
 	void onTouchTimer();
 
 	void updateImage();
+	void onGifUpdated();
 
 private:
 
@@ -125,16 +130,19 @@ private:
 	bool _pressed;
 	int32 _dragging;
 	QPixmap _current;
+	AnimatedGif _currentGif;
 	int32 _full; // -1 - thumb, 0 - medium, 1 - full
 
 	style::sprite _docIcon;
-	QString _docName, _docSize;
-	int32 _docNameWidth, _docSizeWidth;
-	QRect _docRect;
+	QString _docName, _docSize, _docExt;
+	int32 _docNameWidth, _docSizeWidth, _docExtWidth;
+	QRect _docRect, _docIconRect;
 	int32 _docThumbx, _docThumby, _docThumbw;
 	uint64 _docRadialFirst, _docRadialStart, _docRadialLast;
+	float64 _docRadialOpacity;
 	QPen _docRadialPen;
 	anim::fvalue a_docRadial, a_docRadialStart;
+	LinkButton _docDownload, _docSaveAs, _docCancel;
 
 	History *_history; // if conversation photos or files overview
 	PeerData *_peer;
@@ -158,6 +166,7 @@ private:
 		OverDate,
 		OverSave,
 		OverMore,
+		OverIcon,
 	};
 	OverState _over, _down;
 	QPoint _lastAction, _lastMouseMovePos;
@@ -176,7 +185,7 @@ private:
 
 	ContextMenu *_menu;
 	Dropdown _dropdown;
-	IconedButton *_btnToMessage, *_btnShowInFolder, *_btnSaveAs, *_btnCopy, *_btnForward, *_btnDelete, *_btnViewAll;
+	IconedButton *_btnSaveCancel, *_btnToMessage, *_btnShowInFolder, *_btnSaveAs, *_btnCopy, *_btnForward, *_btnDelete, *_btnViewAll;
 	QList<IconedButton*> _btns;
 
 	bool _receiveMouse;

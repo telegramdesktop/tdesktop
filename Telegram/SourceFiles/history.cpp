@@ -81,134 +81,13 @@ namespace {
 	};
 
 	inline void _initTextOptions() {
-		_historySrvOptions.dir = _textNameOptions.dir = _textDlgOptions.dir = langDir();
+		_historySrvOptions.dir = _textNameOptions.dir = _textDlgOptions.dir = cLangDir();
 		_textDlgOptions.maxw = st::dlgMaxWidth * 2;
 		_webpageTitleOptions.maxw = st::msgMaxWidth - st::msgPadding.left() - st::msgPadding.right() - st::webPageLeft;
 		_webpageTitleOptions.maxh = st::webPageTitleFont->height * 2;
 		_webpageDescriptionOptions.maxw = st::msgMaxWidth - st::msgPadding.left() - st::msgPadding.right() - st::webPageLeft;
 		_webpageDescriptionOptions.maxh = st::webPageDescriptionFont->height * 3;
 	}
-
-	class AnimatedGif : public Animated {
-	public:
-
-		AnimatedGif() : msg(0), reader(0), w(0), h(0), frame(0), framesCount(0), duration(0) {
-		}
-
-		bool animStep(float64 ms) {
-			int32 f = frame;
-			while (f < frames.size() && ms > delays[f]) {
-				++f;
-				if (f == frames.size() && frames.size() < framesCount) {
-					if (reader->read(&img)) {
-						int64 d = reader->nextImageDelay(), delay = delays[f - 1];
-						if (!d) d = 1;
-						delay += d;
-						frames.push_back(QPixmap::fromImage(img.size() == QSize(w, h) ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly));
-						delays.push_back(delay);
-						for (int32 i = 0; i < frames.size(); ++i) {
-							if (!frames[i].isNull()) {
-								frames[i] = QPixmap();
-								break;
-							}
-						}
-					} else {
-						framesCount = frames.size();
-					}
-				}
-				if (f == frames.size()) {
-					if (!duration) {
-						duration = delays.isEmpty() ? 1 : delays.back();
-					}
-
-					f = 0;
-					for (int32 i = 0, s = delays.size() - 1; i <= s; ++i) {
-						delays[i] += duration;
-					}
-					if (frames[f].isNull()) {
-						QString fname = reader->fileName();
-						delete reader;
-						reader = new QImageReader(fname);
-					}
-				}
-				if (frames[f].isNull() && reader->read(&img)) {
-					frames[f] = QPixmap::fromImage(img.size() == QSize(w, h) ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
-				}
-			}
-			if (frame != f) {
-				frame = f;
-				if (App::main()) App::main()->msgUpdated(msg->history()->peer->id, msg);
-			}
-			return true;
-		}
-
-		void start(HistoryItem *row, const QString &file) {
-			if (reader) {
-				stop();
-			}
-			reader = new QImageReader(file);
-			if (!reader->canRead() || !reader->supportsAnimation()) {
-				stop();
-				return;
-			}
-
-			QSize s = reader->size();
-			w = s.width();
-			h = s.height();
-			framesCount = reader->imageCount();
-			if (!w || !h || !framesCount) {
-				stop();
-				return;
-			}
-
-			frames.reserve(framesCount);
-			delays.reserve(framesCount);
-			
-			int32 sizeLeft = MediaViewImageSizeLimit, delay = 0;
-			for (bool read = reader->read(&img); read; read = reader->read(&img)) {
-				sizeLeft -= w * h * 4;
-				frames.push_back(QPixmap::fromImage(img.size() == s ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly));
-				int32 d = reader->nextImageDelay();
-				if (!d) d = 1;
-				delay += d;
-				delays.push_back(delay);
-				if (sizeLeft < 0) break;
-			}
-
-			msg = row;
-
-			anim::start(this);
-			msg->initDimensions();
-			App::main()->itemResized(msg, true);
-		}
-
-		void stop(bool onItemRemoved = false) {
-			delete reader;
-			reader = 0;
-			HistoryItem *row = msg;
-			msg = 0;
-			frames.clear();
-			delays.clear();
-			w = h = frame = framesCount = duration = 0;
-
-			anim::stop(this);
-			if (row && !onItemRemoved) {
-				row->initDimensions();
-				if (App::main()) App::main()->itemResized(row, true);
-			}
-		}
-
-		~AnimatedGif() {
-			stop(true);
-		}
-
-		HistoryItem *msg;
-		QImage img;
-		QImageReader *reader;
-		QVector<QPixmap> frames;
-		QVector<int64> delays;
-		int32 w, h, frame, framesCount, duration;
-	};
 
 	AnimatedGif animated;
 
@@ -2508,6 +2387,7 @@ void HistoryDocument::initDimensions(const HistoryItem *parent) {
 			}
 		}
 	}
+	_height = _minh;
 }
 
 void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const {
@@ -3191,6 +3071,7 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 	if (data->pendingTill) {
 		_maxw = st::webPageLeft + st::linkFont->m.width(lang((data->pendingTill < 0) ? lng_attach_failed : lng_profile_loading));
 		_minh = st::replyHeight;
+		_height = _minh;
 		return;
 	}
 	if (!_openl && !data->url.isEmpty()) _openl = TextLinkPtr(new TextLink(data->url));
@@ -3280,6 +3161,7 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 		_duration = formatDurationText(data->duration);
 		_durationWidth = st::msgDateFont->m.width(_duration);
 	}
+	_height = _minh;
 }
 
 void HistoryWebPage::draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const {
@@ -4054,6 +3936,7 @@ void HistoryImageLink::initDimensions(const HistoryItem *parent) {
 			_minh += st::msgPadding.top() + st::msgNameFont->height;
 		}
 	}
+	_height = _minh;
 }
 
 void HistoryImageLink::draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const {

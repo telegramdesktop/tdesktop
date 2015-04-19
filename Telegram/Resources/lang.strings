@@ -527,7 +527,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_search_found_results" = "{count:No messages found|Found # message|Found # messages}";
 "lng_search_global_results" = "Global search results";
 
-"lng_mediaview_save_as" = "Save as..";
+"lng_media_save_progress" = "{ready} of {total} {mb}";
+"lng_mediaview_save_as" = "Save As..";
 "lng_mediaview_copy" = "Copy";
 "lng_mediaview_forward" = "Forward";
 "lng_mediaview_delete" = "Delete";

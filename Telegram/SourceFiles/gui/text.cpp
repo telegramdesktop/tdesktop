@@ -887,7 +887,7 @@ public:
 		_align = align;
 
 		_parDirection = _t->_startDir;
-		if (_parDirection == Qt::LayoutDirectionAuto) _parDirection = langDir();
+		if (_parDirection == Qt::LayoutDirectionAuto) _parDirection = cLangDir();
 		if ((*_t->_blocks.cbegin())->type() != TextBlockNewline) {
 			initNextParagraph(_t->_blocks.cbegin());
 		}
@@ -926,7 +926,7 @@ public:
 				}
 
 				_parDirection = static_cast<NewlineBlock*>(b)->nextDirection();
-				if (_parDirection == Qt::LayoutDirectionAuto) _parDirection = langDir();
+				if (_parDirection == Qt::LayoutDirectionAuto) _parDirection = cLangDir();
 				initNextParagraph(i + 1);
 
 				longWordLine = true;
@@ -2613,7 +2613,7 @@ QString Text::original(uint16 selectedFrom, uint16 selectedTo, bool expandLinks)
 						result += r;
 					} else {
 						QUrl u(url);
-						if (r.size() > 3 && _text.midRef(lnkFrom, r.size() - 3) == (u.isValid() ? u.toDisplayString() : url).midRef(0, r.size() - 3)) { // same link
+						if (r.size() <= 3 || _text.midRef(lnkFrom, r.size() - 3) == (u.isValid() ? u.toDisplayString() : url).midRef(0, r.size() - 3)) { // same link
 							result += url;
 						} else {
 							result.append(r).append(qsl(" ( ")).append(url).append(qsl(" )"));
@@ -4090,7 +4090,7 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 	initLinkSets();
 	int32 len = text.size(), nextCmd = rich ? 0 : len;
 	const QChar *start = text.unicode(), *end = start + text.size();
-	for (int32 offset = 0, matchOffset = offset; offset < len;) {
+	for (int32 offset = 0, matchOffset = offset, mentionSkip = 0; offset < len;) {
 		if (nextCmd <= offset) {
 			for (nextCmd = offset; nextCmd < len; ++nextCmd) {
 				if (*(start + nextCmd) == TextCommand) {
@@ -4101,8 +4101,7 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 		QRegularExpressionMatch mDomain = _reDomain.match(text, matchOffset);
 		QRegularExpressionMatch mExplicitDomain = _reExplicitDomain.match(text, matchOffset);
 		QRegularExpressionMatch mHashtag = withHashtags ? _reHashtag.match(text, matchOffset) : QRegularExpressionMatch();
-		QRegularExpressionMatch mMention = withMentions ? _reMention.match(text, matchOffset) : QRegularExpressionMatch();
-		if (!mDomain.hasMatch() && !mExplicitDomain.hasMatch() && !mHashtag.hasMatch() && !mMention.hasMatch()) break;
+		QRegularExpressionMatch mMention = withMentions ? _reMention.match(text, qMax(mentionSkip, matchOffset)) : QRegularExpressionMatch();
 
 		LinkRange link;
 		int32 domainOffset = mDomain.hasMatch() ? mDomain.capturedStart() : INT_MAX,
@@ -4121,7 +4120,7 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 				--hashtagEnd;
 			}
 		}
-		if (mMention.hasMatch()) {
+		while (mMention.hasMatch()) {
 			if (!mMention.capturedRef(1).isEmpty()) {
 				++mentionOffset;
 			}
@@ -4129,10 +4128,21 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 				--mentionEnd;
 			}
 			if (!(start + mentionOffset + 1)->isLetter() || !(start + mentionEnd - 1)->isLetterOrNumber()) {
-				mentionOffset = mentionEnd = INT_MAX;
-				if (!mDomain.hasMatch() && !mExplicitDomain.hasMatch() && !mHashtag.hasMatch()) break;
+				mentionSkip = mentionEnd;
+				mMention = _reMention.match(text, qMax(mentionSkip, matchOffset));
+				if (mMention.hasMatch()) {
+					mentionOffset = mMention.capturedStart();
+					mentionEnd = mMention.capturedEnd();
+				} else {
+					mentionOffset = INT_MAX;
+					mentionEnd = INT_MAX;
+				}
+			} else {
+				break;
 			}
 		}
+		if (!mMention.hasMatch() && !mDomain.hasMatch() && !mExplicitDomain.hasMatch() && !mHashtag.hasMatch()) break;
+
 		if (explicitDomainOffset < domainOffset) {
 			domainOffset = explicitDomainOffset;
 			domainEnd = explicitDomainEnd;

@@ -675,6 +675,8 @@ void Application::startApp() {
 
 	DEBUG_LOG(("Application Info: starting app.."));
 
+	QMimeDatabase().mimeTypeForName(qsl("text/plain")); // create mime database
+
 	window->createWinId();
 	window->init();
 

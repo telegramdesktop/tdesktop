@@ -51,9 +51,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "mtproto/mtp.h"
 
-#include "gui/twidget.h"
-
 #include "gui/style_core.h"
+#include "gui/twidget.h"
 #include "gui/animation.h"
 #include "gui/flatinput.h"
 #include "gui/flattextarea.h"

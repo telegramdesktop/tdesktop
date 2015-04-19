@@ -227,6 +227,7 @@ public:
 	void sendPaths();
 
 	void mediaOverviewUpdated(PeerData *peer);
+	void documentUpdated(DocumentData *doc);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 
 	bool isActive(bool cached = true) const;

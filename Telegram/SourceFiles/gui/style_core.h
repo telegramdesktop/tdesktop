@@ -26,6 +26,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include <QtGui/QCursor>
 #include <QtGui/QFont>
 
+inline QRect rtlrect(int x, int y, int w, int h, int outerw) {
+	return rtl() ? QRect(outerw - x - w, y, w, h) : QRect(x, y, w, h);
+}
+
 namespace style {
 	
 	class FontData;

@@ -1431,6 +1431,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 			msgUpdated(j.key()->history()->peer->id, j.key());
 		}
 	}
+	App::wnd()->documentUpdated(document);
 }
 
 void MainWidget::documentLoadFailed(mtpFileLoader *loader, bool started) {

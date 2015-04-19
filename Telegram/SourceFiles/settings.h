@@ -41,6 +41,12 @@ inline void cSet##Name(const Type &Name) { \
 	g##Name = Name; \
 }
 
+DeclareSetting(bool, Rtl);
+DeclareSetting(Qt::LayoutDirection, LangDir);
+inline bool rtl() {
+	return cRtl();
+}
+
 struct mtpDcOption {
 	mtpDcOption(int _id, const string &_host, const string &_ip, int _port) : id(_id), host(_host), ip(_ip), port(_port) {
 	}

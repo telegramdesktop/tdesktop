@@ -1667,6 +1667,11 @@ void Window::mediaOverviewUpdated(PeerData *peer) {
 	_mediaView->mediaOverviewUpdated(peer);
 }
 
+void Window::documentUpdated(DocumentData *doc) {
+	if (!_mediaView || _mediaView->isHidden()) return;
+	_mediaView->documentUpdated(doc);
+}
+
 void Window::changingMsgId(HistoryItem *row, MsgId newId) {
 	if (main) main->changingMsgId(row, newId);
 	if (!_mediaView || _mediaView->isHidden()) return;

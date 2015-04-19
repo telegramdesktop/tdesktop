@@ -307,3 +307,39 @@ private:
 	bool iterating;
 
 };
+
+class HistoryItem;
+class AnimatedGif : public QObject, public Animated {
+	Q_OBJECT
+
+public:
+
+	AnimatedGif() : msg(0), reader(0), w(0), h(0), frame(0), framesCount(0), duration(0) {
+	}
+
+	bool animStep(float64 ms);
+
+	void start(HistoryItem *row, const QString &file);
+	void stop(bool onItemRemoved = false);
+
+	bool isNull() const {
+		return !reader;
+	}
+
+	~AnimatedGif() {
+		stop(true);
+	}
+
+signals:
+
+	void updated();
+
+public:
+
+	HistoryItem *msg;
+	QImage img;
+	QImageReader *reader;
+	QVector<QPixmap> frames;
+	QVector<int64> delays;
+	int32 w, h, frame, framesCount, duration;
+};

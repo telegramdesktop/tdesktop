@@ -17,14 +17,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-void rtl(bool is);
-bool rtl();
-Qt::LayoutDirection langDir();
-
-inline QRect rtlrect(int x, int y, int w, int h, int outerw) {
-	return rtl() ? QRect(outerw - x - w, y, w, h) : QRect(x, y, w, h);
-}
-
 class Widget : public QWidget {
 public:
 
@@ -61,14 +53,35 @@ public:
 	void drawPixmapLeft(int x, int y, int outerw, const QPixmap &pix, const QRect &from) {
 		drawPixmap(QPoint(rtl() ? (outerw - x - (from.width() / pix.devicePixelRatio())) : x, y), pix, from);
 	}
+	void drawPixmapLeft(const QPoint &p, int outerw, const QPixmap &pix, const QRect &from) {
+		return drawPixmapLeft(p.x(), p.y(), outerw, pix, from);
+	}
 	void drawPixmapRight(int x, int y, int outerw, const QPixmap &pix, const QRect &from) {
 		drawPixmap(QPoint(rtl() ? x : (outerw - x - (from.width() / pix.devicePixelRatio())), y), pix, from);
 	}
-	void drawSpriteLeft(int x, int y, int outerw, const QRect &sprite) {
+	void drawPixmapRight(const QPoint &p, int outerw, const QPixmap &pix, const QRect &from) {
+		return drawPixmapRight(p.x(), p.y(), outerw, pix, from);
+	}
+	void drawSprite(int x, int y, const style::sprite &sprite) {
+		return drawPixmap(QPoint(x, y), App::sprite(), sprite);
+	}
+	void drawSprite(const QPoint &p, const style::sprite &sprite) {
+		return drawPixmap(p, App::sprite(), sprite);
+	}
+	void drawSpriteLeft(int x, int y, int outerw, const style::sprite &sprite) {
 		return drawPixmapLeft(x, y, outerw, App::sprite(), sprite);
 	}
-	void drawSpriteRight(int x, int y, int outerw, const QRect &sprite) {
+	void drawSpriteLeft(const QPoint &p, int outerw, const style::sprite &sprite) {
+		return drawPixmapLeft(p, outerw, App::sprite(), sprite);
+	}
+	void drawSpriteRight(int x, int y, int outerw, const style::sprite &sprite) {
 		return drawPixmapRight(x, y, outerw, App::sprite(), sprite);
+	}
+	void drawSpriteRight(const QPoint &p, int outerw, const style::sprite &sprite) {
+		return drawPixmapRight(p, outerw, App::sprite(), sprite);
+	}
+	void drawSpriteCenter(const QRect &in, const style::sprite &sprite) {
+		return drawPixmap(QPoint(in.x() + (in.width() - sprite.pxWidth()) / 2, in.y() + (in.height() - sprite.pxHeight()) / 2), App::sprite(), sprite);
 	}
 };
 

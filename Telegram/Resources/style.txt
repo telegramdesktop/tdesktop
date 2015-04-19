@@ -1623,15 +1623,25 @@ mvFadeDuration: 150;
 mvDocPadding: 18px;
 mvDocSize: size(340px, 116px);
 mvDocBg: white;
-mvDocNameTop: 5px;
+mvDocNameTop: 4px;
+mvDocNameFont: font(semibold 14px);
 mvDocNameColor: black;
-mvDocSizeTop: 30px;
+mvDocSizeTop: 29px;
 mvDocSizeColor: #808080;
+mvDocExtTop: 35px;
+mvDocExtFont: font(semibold 18px);
+mvDocExtColor: white;
+mvDocExtPadding: 10px;
 mvDocLinksTop: 57px;
 mvDocRed: sprite(0px, 400px, 80px, 80px);
 mvDocYellow: sprite(80px, 400px, 80px, 80px);
 mvDocGreen: sprite(160px, 400px, 80px, 80px);
 mvDocBlue: sprite(240px, 400px, 80px, 80px);
+mvDocLink: linkButton(btnDefLink) {
+	color: #4595d3;
+	overColor: #4595d3;
+	downColor: #4595d3;
+}
 
 mvDeltaFromLastAction: 5px;
 mvSwipeDistance: 80px;
@@ -1694,9 +1704,13 @@ photoLoaderAlphaMin: 0.1; // not less than that
 
 radialSize: size(50px, 50px);
 radialLine: 2px;
-radialDuration: 200;
-radialPeriod: 2000;
+radialDuration: 350;
+radialPeriod: 3000;
 radialBgOpacity: 0.4;
+radialDownload: sprite(346px, 0px, 50px, 50px);
+radialDownloadOpacity: 0.8;
+radialCancel: sprite(378px, 50px, 18px, 18px);
+radialCancelOpacity: 0.7;
 
 overviewLoader: size(34px, 14px);
 overviewLoaderPoint: size(4px, 4px);
