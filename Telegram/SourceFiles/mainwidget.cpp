@@ -360,7 +360,7 @@ _failDifferenceTimeout(1), _lastUpdateTime(0), _cachedX(0), _cachedY(0), _backgr
 	connect(&dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(&history, SIGNAL(cancelled()), &dialogs, SLOT(activate()));
 	connect(this, SIGNAL(peerPhotoChanged(PeerData*)), this, SIGNAL(dialogsUpdated()));
-	connect(&noUpdatesTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
+	connect(&noUpdatesTimer, SIGNAL(timeout()), this, SLOT(mtpPing()));
 	connect(&_onlineTimer, SIGNAL(timeout()), this, SLOT(updateOnline()));
 	connect(&_onlineUpdater, SIGNAL(timeout()), this, SLOT(updateOnlineDisplay()));
 	connect(&_idleFinishTimer, SIGNAL(timeout()), this, SLOT(checkIdleFinish()));
@@ -1138,6 +1138,11 @@ void MainWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 void MainWidget::itemResized(HistoryItem *row, bool scrollToIt) {
 	if (!row || (history.peer() == row->history()->peer && !row->detached())) {
 		history.itemResized(row, scrollToIt);
+	} else if (row) {
+		row->history()->width = 0;
+		if (history.peer() == row->history()->peer) {
+			history.resizeEvent(0);
+		}
 	}
 	if (overview) {
 		overview->itemResized(row, scrollToIt);
@@ -1190,7 +1195,8 @@ void MainWidget::peerUsernameChanged(PeerData *peer) {
 void MainWidget::checkLastUpdate(bool afterSleep) {
 	uint64 n = getms(true);
 	if (_lastUpdateTime && n > _lastUpdateTime + (afterSleep ? NoUpdatesAfterSleepTimeout : NoUpdatesTimeout)) {
-		getDifference();
+		_lastUpdateTime = n;
+		MTP::ping();
 	}
 }
 
@@ -1586,7 +1592,7 @@ void MainWidget::checkChatBackground() {
 			if (_background->full->isNull()) {
 				App::initBackground();
 			} else {
-				App::initBackground(_background->id, _background->full->pix().toImage());
+				App::initBackground(_background->id, _background->id ? _background->full->pix().toImage() : QImage());
 			}
 			delete _background;
 			_background = 0;
@@ -2393,6 +2399,10 @@ void MainWidget::getDifference() {
 	MTP::send(MTPupdates_GetDifference(MTP_int(updGoodPts), MTP_int(updDate), MTP_int(updQts)), rpcDone(&MainWidget::gotDifference), rpcFail(&MainWidget::failDifference));
 }
 
+void MainWidget::mtpPing() {
+	MTP::ping();
+}
+
 void MainWidget::start(const MTPUser &user) {
 	int32 uid = user.c_userSelf().vid.v;
 	if (MTP::authedId() != uid) {
@@ -2800,6 +2810,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 	case mtpc_updateShortMessage: {
 		const MTPDupdateShortMessage &d(updates.c_updateShortMessage());
 		if (!App::userLoaded(d.vuser_id.v) || (d.has_fwd_from_id() && !App::userLoaded(d.vfwd_from_id.v))) {
+			DEBUG_LOG(("Not loaded for updateShortMessage, good getDifference!"));
 			return getDifference();
 		}
 		if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
@@ -2818,6 +2829,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 	case mtpc_updateShortChatMessage: {
 		const MTPDupdateShortChatMessage &d(updates.c_updateShortChatMessage());
 		if (!App::chatLoaded(d.vchat_id.v) || !App::userLoaded(d.vfrom_id.v) || (d.has_fwd_from_id() && !App::userLoaded(d.vfwd_from_id.v))) {
+			DEBUG_LOG(("Not loaded for updateShortMessage, good getDifference!"));
 			return getDifference();
 		}
 		if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {

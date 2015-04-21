@@ -101,6 +101,7 @@ namespace MTP {
 	inline mtpRequestId send(const TRequest &request, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail = RPCFailHandlerPtr(), int32 dc = 0, uint64 msCanWait = 0, mtpRequestId after = 0) {
 		return send(request, RPCResponseHandler(onDone, onFail), dc, msCanWait, after);
 	}
+	void ping();
 	void cancel(mtpRequestId req);
 	void killSession(int32 dc);
 	void stopSession(int32 dc);

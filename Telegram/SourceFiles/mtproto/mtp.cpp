@@ -684,6 +684,13 @@ namespace MTP {
 		_mtp_internal::getSession(dc);
 	}
 
+	void ping() {
+		MTProtoSessionPtr session = _mtp_internal::getSession(0);
+		if (!session) return;
+
+		return session->ping();
+	}
+
 	void cancel(mtpRequestId requestId) {
 		mtpMsgId msgId = 0;
 		requestsDelays.remove(requestId);

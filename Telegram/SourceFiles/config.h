@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 8003;
-static const wchar_t *AppVersionStr = L"0.8.3";
+static const int32 AppVersion = 8004;
+static const wchar_t *AppVersionStr = L"0.8.4";
 static const bool DevChannel = false;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
@@ -279,8 +279,8 @@ enum {
     UploadRequestInterval = 500, // one part each half second, if not uploaded faster
 
 	MaxPhotosInMemory = 50, // try to clear some memory after 50 photos are created
-	NoUpdatesTimeout = 180 * 1000, // if nothing is received in 3 min we getDifference
-	NoUpdatesAfterSleepTimeout = 60 * 1000, // if nothing is received in 1 min when was a sleepmode we getDifference
+	NoUpdatesTimeout = 60 * 1000, // if nothing is received in 1 min we ping
+	NoUpdatesAfterSleepTimeout = 60 * 1000, // if nothing is received in 1 min when was a sleepmode we ping
 	WaitForSkippedTimeout = 1000, // 1s wait for skipped seq or pts in updates
 
 	MemoryForImageCache = 64 * 1024 * 1024, // after 64mb of unpacked images we try to clear some memory
