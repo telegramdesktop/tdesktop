@@ -662,8 +662,8 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 8002) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Link previews bugfixes\n\xe2\x80\x94 Links in preview descriptions are now clickable\n\xe2\x80\x94 Twitter and Instagram mentions and hashtags in previews are clickable\n\xe2\x80\x94 Fixed file uploading\n\xe2\x80\x94 Fixed photo, document and sticker forwarding").replace('@', qsl("@") + QChar(0x200D));
+			if (DevChannel && Local::oldMapVersion() < 8005) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 New photoviewer design\n\xe2\x80\x94 Switch through files overview in photoviewer\n\xe2\x80\x94 New default chat background image").replace('@', qsl("@") + QChar(0x200D));
 			} else if (!DevChannel && Local::oldMapVersion() < 8004) {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}

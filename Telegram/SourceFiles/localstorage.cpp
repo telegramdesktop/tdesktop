@@ -831,6 +831,9 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			cSetTileBackground(v == 1);
+			if (version < 8005 && !_backgroundKey) {
+				cSetTileBackground(false);
+			}
 		} break;
 
 		case dbiAutoLock: {
