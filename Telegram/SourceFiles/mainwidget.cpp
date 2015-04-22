@@ -2298,6 +2298,7 @@ void MainWidget::gotDifference(const MTPupdates_Difference &diff) {
 
 		updInited = true;
 
+		MTP_LOG(0, ("getDifference { good - after a slice of difference was received }"));
 		getDifference();
 	} break;
 	case mtpc_updates_difference: {
@@ -2339,18 +2340,18 @@ void MainWidget::clearSkippedPtsUpdates() {
 bool MainWidget::updPtsUpdated(int pts, int ptsCount) { // return false if need to save that update and apply later
 	if (!updInited || updSkipPtsUpdateLevel) return true;
 
-	updLastPts = qMax(updLastPts, pts);
-	updPtsCount += ptsCount;
-	if (updLastPts == updPtsCount) {
-		applySkippedPtsUpdates();
-		updGoodPts = updLastPts;
-		return true;
-	} else if (updLastPts < updPtsCount) {
-		_byPtsTimer.startIfNotActive(1);
-	} else {
-		_byPtsTimer.startIfNotActive(WaitForSkippedTimeout);
-	}
-	return !ptsCount;
+updLastPts = qMax(updLastPts, pts);
+updPtsCount += ptsCount;
+if (updLastPts == updPtsCount) {
+	applySkippedPtsUpdates();
+	updGoodPts = updLastPts;
+	return true;
+} else if (updLastPts < updPtsCount) {
+	_byPtsTimer.startIfNotActive(1);
+} else {
+	_byPtsTimer.startIfNotActive(WaitForSkippedTimeout);
+}
+return !ptsCount;
 }
 
 void MainWidget::feedDifference(const MTPVector<MTPUser> &users, const MTPVector<MTPChat> &chats, const MTPVector<MTPMessage> &msgs, const MTPVector<MTPUpdate> &other) {
@@ -2375,6 +2376,7 @@ bool MainWidget::failDifference(const RPCError &error) {
 void MainWidget::getDifferenceForce() {
 	if (MTP::authedId()) {
 		updInited = true;
+		MTP_LOG(0, ("getDifference { force - after get difference failed }"));
 		getDifference();
 	}
 }
@@ -2431,9 +2433,16 @@ bool MainWidget::started() {
 }
 
 void MainWidget::openLocalUrl(const QString &url) {
-	QRegularExpressionMatch m = QRegularExpression(qsl("^tg://resolve/?\\?domain=([a-zA-Z0-9\\.\\_]+)$"), QRegularExpression::CaseInsensitiveOption).match(url.trimmed());
-	if (m.hasMatch()) {
-		openUserByName(m.captured(1));
+	QString u(url.trimmed());
+	if (u.startsWith(QLatin1String("tg://resolve"), Qt::CaseInsensitive)) {
+		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://resolve/?\\?domain=([a-zA-Z0-9\\.\\_]+)$"), QRegularExpression::CaseInsensitiveOption).match(u);
+		if (m.hasMatch()) {
+			openUserByName(m.captured(1));
+		}
+	} else if (u.startsWith(QLatin1String("tg://join"), Qt::CaseInsensitive)) {
+		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://join/?\\?invite=([a-zA-Z0-9\\.\\_]+)$"), QRegularExpression::CaseInsensitiveOption).match(u);
+		if (m.hasMatch()) {
+		}
 	}
 }
 
@@ -2749,6 +2758,7 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 	if (mtpTypeId(*from) == mtpc_new_session_created) {
 		MTPNewSession newSession(from, end);
 		updSeq = 0;
+		MTP_LOG(0, ("getDifference { after new_session_created }"));
 		return getDifference();
 	} else {
 		try {
@@ -2811,7 +2821,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 	case mtpc_updateShortMessage: {
 		const MTPDupdateShortMessage &d(updates.c_updateShortMessage());
 		if (!App::userLoaded(d.vuser_id.v) || (d.has_fwd_from_id() && !App::userLoaded(d.vfwd_from_id.v))) {
-			DEBUG_LOG(("Not loaded for updateShortMessage, good getDifference!"));
+			MTP_LOG(0, ("getDifference { good - getting user for updateShortMessage }"));
 			return getDifference();
 		}
 		if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
@@ -2830,7 +2840,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 	case mtpc_updateShortChatMessage: {
 		const MTPDupdateShortChatMessage &d(updates.c_updateShortChatMessage());
 		if (!App::chatLoaded(d.vchat_id.v) || !App::userLoaded(d.vfrom_id.v) || (d.has_fwd_from_id() && !App::userLoaded(d.vfwd_from_id.v))) {
-			DEBUG_LOG(("Not loaded for updateShortMessage, good getDifference!"));
+			MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }"));
 			return getDifference();
 		}
 		if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
@@ -2846,6 +2856,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 	} break;
 
 	case mtpc_updatesTooLong: {
+		MTP_LOG(0, ("getDifference { good - updatesTooLong received }"));
 		return getDifference();
 	} break;
 	}

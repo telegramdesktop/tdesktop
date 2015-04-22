@@ -2225,7 +2225,8 @@ namespace Local {
 		QBuffer buf(&pngData);
 		QImageReader reader(&buf);
 		if (reader.read(&img)) {
-			App::initBackground(id, img, true);
+			if (!id) cSetTileBackground(false);
+			App::initBackground(id, id ? img : QImage(), true);
 			return true;
 		}
 		return false;

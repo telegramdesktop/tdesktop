@@ -70,7 +70,7 @@ bool gCtrlEnter = false;
 QPixmapPointer gChatBackground = 0;
 int32 gChatBackgroundId = 0;
 QPixmapPointer gChatDogImage = 0;
-bool gTileBackground = true;
+bool gTileBackground = false;
 
 uint32 gConnectionsInSession = 1;
 QString gLoggedPhoneNumber;

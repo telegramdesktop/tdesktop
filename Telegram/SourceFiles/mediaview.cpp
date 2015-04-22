@@ -1088,7 +1088,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 					p.setOpacity(_docRadialOpacity);
 					p.setPen(_docRadialPen);
 
-					int len = 512 + a_docRadial.current() * 5744;
+					int len = 16 + a_docRadial.current() * 5744;
 					p.drawArc(arc, 1440 - a_docRadialStart.current() * 5760 - len, len);
 
 					p.setOpacity(1);
