@@ -1592,8 +1592,10 @@ void MainWidget::checkChatBackground() {
 		if (_background->full->loaded()) {
 			if (_background->full->isNull()) {
 				App::initBackground();
+			} else if (_background->id == 0 || _background->id == DefaultChatBackground) {
+				App::initBackground(_background->id);
 			} else {
-				App::initBackground(_background->id, _background->id ? _background->full->pix().toImage() : QImage());
+				App::initBackground(_background->id, _background->full->pix().toImage());
 			}
 			delete _background;
 			_background = 0;
@@ -2340,18 +2342,18 @@ void MainWidget::clearSkippedPtsUpdates() {
 bool MainWidget::updPtsUpdated(int pts, int ptsCount) { // return false if need to save that update and apply later
 	if (!updInited || updSkipPtsUpdateLevel) return true;
 
-updLastPts = qMax(updLastPts, pts);
-updPtsCount += ptsCount;
-if (updLastPts == updPtsCount) {
-	applySkippedPtsUpdates();
-	updGoodPts = updLastPts;
-	return true;
-} else if (updLastPts < updPtsCount) {
-	_byPtsTimer.startIfNotActive(1);
-} else {
-	_byPtsTimer.startIfNotActive(WaitForSkippedTimeout);
-}
-return !ptsCount;
+	updLastPts = qMax(updLastPts, pts);
+	updPtsCount += ptsCount;
+	if (updLastPts == updPtsCount) {
+		applySkippedPtsUpdates();
+		updGoodPts = updLastPts;
+		return true;
+	} else if (updLastPts < updPtsCount) {
+		_byPtsTimer.startIfNotActive(1);
+	} else {
+		_byPtsTimer.startIfNotActive(WaitForSkippedTimeout);
+	}
+	return !ptsCount;
 }
 
 void MainWidget::feedDifference(const MTPVector<MTPUser> &users, const MTPVector<MTPChat> &chats, const MTPVector<MTPMessage> &msgs, const MTPVector<MTPUpdate> &other) {

@@ -37,7 +37,7 @@ _bgCount(0), _rows(0), _over(-1), _overDown(-1) {
 void BackgroundInner::gotWallpapers(const MTPVector<MTPWallPaper> &result) {
 	App::WallPapers wallpapers;
 
-	wallpapers.push_back(App::WallPaper(0, ImagePtr(st::msgBG), ImagePtr(st::msgBG)));
+	wallpapers.push_back(App::WallPaper(0, ImagePtr(st::msgBG0), ImagePtr(st::msgBG0)));
 	const QVector<MTPWallPaper> &v(result.c_vector().v);
 	for (int i = 0, l = v.size(); i < l; ++i) {
 		const MTPWallPaper w(v.at(i));
@@ -210,7 +210,7 @@ void BackgroundBox::onBackgroundChosen(int index) {
 	if (index >= 0 && index < App::cServerBackgrounds().size()) {
 		const App::WallPaper &paper(App::cServerBackgrounds().at(index));
 		if (App::main()) App::main()->setChatBackground(paper);
-		if (App::settings()) App::settings()->needBackgroundUpdate(false);
+		if (App::settings()) App::settings()->needBackgroundUpdate(!paper.id);
 	}
 	emit closed();
 }

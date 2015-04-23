@@ -2503,6 +2503,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 	case mtpc_new_session_created: {
 		if (badTime) return 0;
 
+		const mtpPrime *start = from;
 		MTPNewSession msg(from, end);
 		const MTPDnew_session_created &data(msg.c_new_session_created());
 		DEBUG_LOG(("Message Info: new server session created, unique_id %1, first_msg_id %2, server_salt %3").arg(data.vunique_id.v).arg(data.vfirst_msg_id.v).arg(data.vserver_salt.v));
@@ -2521,8 +2522,8 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 		}
 		resendMany(toResend, 10, true);
 
-		mtpBuffer update(end - from);
-		if (end > from) memcpy(update.data(), from, (end - from) * sizeof(mtpPrime));
+		mtpBuffer update(from - start);
+		if (from > start) memcpy(update.data(), start, (from - start) * sizeof(mtpPrime));
 		
 		QWriteLocker locker(sessionData->haveReceivedMutex());
 		mtpResponseMap &haveReceived(sessionData->haveReceivedMap());

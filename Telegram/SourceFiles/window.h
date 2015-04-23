@@ -61,7 +61,7 @@ class NotifyWindow : public QWidget, public Animated {
 
 public:
 
-	NotifyWindow(HistoryItem *item, int32 x, int32 y);
+	NotifyWindow(HistoryItem *item, int32 x, int32 y, int32 fwdCount);
 
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
@@ -101,6 +101,7 @@ private:
 #endif
 	History *history;
 	HistoryItem *item;
+	int32 fwdCount;
 	IconedButton close;
 	QPixmap pm;
 	float64 alphaDuration, posDuration;

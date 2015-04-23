@@ -255,6 +255,8 @@ static const char *DefaultCountry = "US";
 static const char *DefaultLanguage = "en";
 
 enum {
+	DefaultChatBackground = 21,
+
 	DialogsFirstLoad = 20, // first dialogs part size requested
 	DialogsPerPage = 40, // next dialogs part size
 

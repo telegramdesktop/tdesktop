@@ -63,7 +63,7 @@ public:
 	void psActivateNotify(NotifyWindow *w);
 	void psClearNotifies(PeerId peerId = 0);
 	void psNotifyShown(NotifyWindow *w);
-	void psPlatformNotify(HistoryItem *item);
+	void psPlatformNotify(HistoryItem *item, int32 fwdCount);
 
 	void psUpdateCounter();
 
