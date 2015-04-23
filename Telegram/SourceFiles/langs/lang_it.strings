@@ -287,7 +287,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_cloud_password_email" = "Inserisci email di recupero";
 "lng_cloud_password_bad_email" = "E-mail non valida, riprova con un'altra.";
 "lng_cloud_password_about" = "La password verrà richiesta quando ti connetti da un nuovo dispositivo in aggiunta al codice.";
-"lng_cloud_password_about_recover" = "Attenzione! Sei sicuro di non voler \naggiungere un'e-mail di recupero?\n\nSe dimentichi la tua password, perderai\nl'accesso al tuo account Telegram.";
+"lng_cloud_password_about_recover" = "Attenzione! Sei sicuro di non voler\naggiungere un'e-mail di recupero?\n\nSe dimentichi la tua password, perderai\nl'accesso al tuo account Telegram.";
 "lng_cloud_password_almost" = "Abbiamo inviato un link di conferma\nall'e-mail che ci hai fornito.\n\nLa verifica in due passaggi sarà attivata\nnon appena aprirai quel link.";
 "lng_cloud_password_was_set" = "Verifica in due passaggi abilitata.";
 "lng_cloud_password_updated" = "La tua password è stata aggiornata.";
