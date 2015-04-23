@@ -662,8 +662,8 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 8005) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 New photoviewer design\n\xe2\x80\x94 Switch through files overview in photoviewer\n\xe2\x80\x94 New default chat background image").replace('@', qsl("@") + QChar(0x200D));
+			if (DevChannel && Local::oldMapVersion() < 8006) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Old default chat background image placed first in background Gallery\n\xe2\x80\x94 Forwarded files, videos, audios and contacts original sender name is displayed\n\xe2\x80\x94 Grouped notifications when several messages are forwarded").replace('@', qsl("@") + QChar(0x200D));
 			} else if (!DevChannel && Local::oldMapVersion() < 8004) {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}

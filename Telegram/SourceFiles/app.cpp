@@ -1814,8 +1814,17 @@ namespace App {
 		QImage img(p);
 		bool remove = false;
 		if (p.isNull()) {
-			img.load(st::msgBG);
-			id = 0;
+			if (id == DefaultChatBackground) {
+				img.load(st::msgBG);
+			} else {
+				img.load(st::msgBG0);
+				if (cRetina()) {
+					img = img.scaledToWidth(img.width() * 2, Qt::SmoothTransformation);
+				} else if (cScale() != dbisOne) {
+					img = img.scaledToWidth(convertScale(img.width()), Qt::SmoothTransformation);
+				}
+				id = 0;
+			}
 			remove = true;
 		}
 		if (img.format() != QImage::Format_ARGB32 && img.format() != QImage::Format_ARGB32_Premultiplied && img.format() != QImage::Format_RGB32) {
@@ -1823,10 +1832,8 @@ namespace App {
 		}
 		img.setDevicePixelRatio(cRetinaFactor());
 
-		if (remove) {
-			Local::writeBackground(0, QImage());
-		} else if (!nowrite) {
-			Local::writeBackground(id, img);
+		if (!nowrite) {
+			Local::writeBackground(id, remove ? QImage() : img);
 		}
 
 		delete cChatBackground();

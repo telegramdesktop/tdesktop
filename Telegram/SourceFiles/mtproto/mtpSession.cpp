@@ -481,7 +481,9 @@ void MTProtoSession::tryToReceive() {
 			responses.erase(i);
 		}
 		if (requestId <= 0) {
-			_mtp_internal::globalCallback(response.constData(), response.constData() + response.size());
+			if (dcId < _mtp_internal::dcShift) { // call globalCallback only in main session
+				_mtp_internal::globalCallback(response.constData(), response.constData() + response.size());
+			}
 		} else {
 			_mtp_internal::execCallback(requestId, response.constData(), response.constData() + response.size());
 		}

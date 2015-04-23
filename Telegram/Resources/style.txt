@@ -832,6 +832,7 @@ msgPressedLinkColor: #004bad;
 msgSkip: 40px;
 msgPtr: 8px;
 msgBG: ':/gui/art/bg.jpg';
+msgBG0: ':/gui/art/bg0.png';
 
 msgSendingRect: sprite(260px, 20px, 20px, 20px);
 msgCheckRect: sprite(320px, 0px, 20px, 20px);

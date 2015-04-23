@@ -489,11 +489,11 @@ void PsMainWindow::psNotifyShown(NotifyWindow *w) {
 	psShowOverAll(w, false);
 }
 
-void PsMainWindow::psPlatformNotify(HistoryItem *item) {
+void PsMainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
 	QString title = (!App::passcoded() && cNotifyView() <= dbinvShowName) ? item->history()->peer->name : qsl("Telegram Desktop");
 	QString subtitle = (!App::passcoded() && cNotifyView() <= dbinvShowName) ? item->notificationHeader() : QString();
 	QPixmap pix = (!App::passcoded() && cNotifyView() <= dbinvShowName) ? item->history()->peer->photo->pix(st::notifyMacPhotoSize) : QPixmap();
-	QString msg = (!App::passcoded() && cNotifyView() <= dbinvShowPreview) ? item->notificationText() : lang(lng_notification_preview);
+	QString msg = (!App::passcoded() && cNotifyView() <= dbinvShowPreview) ? (fwdCount < 2 ? item->notificationText() : lng_forward_messages(lt_count, fwdCount)) : lang(lng_notification_preview);
 
 	_private.showNotify(item->history()->peer->id, item->id, pix, title, subtitle, msg, !App::passcoded() && (cNotifyView() <= dbinvShowPreview));
 }

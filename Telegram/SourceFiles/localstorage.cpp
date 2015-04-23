@@ -2181,17 +2181,8 @@ namespace Local {
 	void writeBackground(int32 id, const QImage &img) {
 		if (!_working()) return;
 
-		if (img.isNull()) {
-			if (_backgroundKey) {
-				clearKey(_backgroundKey);
-				_backgroundKey = 0;
-				_mapChanged = true;
-			}
-			_writeMap();
-			return;
-		}
 		QByteArray png;
-		{
+		if (!img.isNull()) {
 			QBuffer buf(&png);
 			if (!img.save(&buf, "BMP")) return;
 		}
@@ -2200,9 +2191,10 @@ namespace Local {
 			_mapChanged = true;
 			_writeMap(WriteMapFast);
 		}
-		quint32 size = sizeof(qint32) + sizeof(quint32) + sizeof(quint32) + png.size();
+		quint32 size = sizeof(qint32) + sizeof(quint32) + (png.isEmpty() ? 0 : (sizeof(quint32) + png.size()));
 		EncryptedDescriptor data(size);
-		data.stream << qint32(id) << png;
+		data.stream << qint32(id);
+		if (!png.isEmpty()) data.stream << png;
 
 		FileWriteDescriptor file(_backgroundKey);
 		file.writeEncrypted(data);
@@ -2222,14 +2214,23 @@ namespace Local {
 
 		QByteArray pngData;
 		qint32 id;
-		bg.stream >> id >> pngData;
+		bg.stream >> id;
+		if (!id || id == DefaultChatBackground) {
+			if (bg.version < 8005) {
+				if (!id) cSetTileBackground(!DefaultChatBackground);
+				App::initBackground(DefaultChatBackground, QImage(), true);
+			} else {
+				App::initBackground(id, QImage(), true);
+			}
+			return true;
+		}
+		bg.stream >> pngData;
 
 		QImage img;
 		QBuffer buf(&pngData);
 		QImageReader reader(&buf);
 		if (reader.read(&img)) {
-			if (!id) cSetTileBackground(false);
-			App::initBackground(id, id ? img : QImage(), true);
+			App::initBackground(id, img, true);
 			return true;
 		}
 		return false;
