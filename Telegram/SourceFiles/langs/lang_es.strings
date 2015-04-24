@@ -527,12 +527,17 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_search_found_results" = "{count:No se encontraron mensajes|Found # mensaje|Found # mensajes}";
 "lng_search_global_results" = "Resultados de la búsqueda global";
 
-"lng_mediaview_save" = "Descargar";
+"lng_media_save_progress" = "{ready} de {total} {mb}";
+"lng_mediaview_save_as" = "Guardar como...";
+"lng_mediaview_copy" = "Copiar";
 "lng_mediaview_forward" = "Reenviar";
 "lng_mediaview_delete" = "Eliminar";
+"lng_mediaview_photos_all" = "Ver todas las fotos";
+"lng_mediaview_files_all" = "Ver todos los archivos";
 "lng_mediaview_single_photo" = "Foto";
 "lng_mediaview_group_photo" = "Foto del grupo";
 "lng_mediaview_profile_photo" = "Foto de perfil";
+"lng_mediaview_file_n_of_count" = "{file} {n} de {count}";
 "lng_mediaview_n_of_count" = "Foto {n} de {count}";
 "lng_mediaview_doc_image" = "Archivo";
 "lng_mediaview_today" = "hoy a las {time}";
@@ -545,7 +550,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop fue actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Vista previa de enlaces de Twitter, YouTube, Instagram y otros\n— Verificación en dos pasos\n— Ve todas tus sesiones de Telegram y cierra sesiones específicas";
+"lng_new_version_text" = "— Visor de fotos con un nuevo diseño\n— Cambia entre archivos en el visor de fotos\n— Notificaciones agrupadas cuando se reenvían varios mensajes\n— Nuevo fondo de chat por defecto (puedes cambiarlo en Ajustes)";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

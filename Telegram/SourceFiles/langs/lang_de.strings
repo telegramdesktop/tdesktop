@@ -527,12 +527,17 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_search_found_results" = "{count:Keine Nachrichten|# Nachricht|# Nachrichten}";
 "lng_search_global_results" = "Globale Suchergebnisse";
 
-"lng_mediaview_save" = "Download";
+"lng_media_save_progress" = "{ready} von {total} {mb}";
+"lng_mediaview_save_as" = "Speichern unter…";
+"lng_mediaview_copy" = "Kopieren";
 "lng_mediaview_forward" = "Weiterleiten";
 "lng_mediaview_delete" = "Löschen";
+"lng_mediaview_photos_all" = "Alle Fotos anzeigen";
+"lng_mediaview_files_all" = "Alle Dateien anzeigen";
 "lng_mediaview_single_photo" = "Bild";
 "lng_mediaview_group_photo" = "Bild";
 "lng_mediaview_profile_photo" = "Profilbild";
+"lng_mediaview_file_n_of_count" = "{file} {n} von {count}";
 "lng_mediaview_n_of_count" = "Bild {n} von {count}";
 "lng_mediaview_doc_image" = "Datei";
 "lng_mediaview_today" = "heute um {time}";
@@ -545,7 +550,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Linkvorschau: Erhalte eine Zusammenfassung für Tweets, YouTube Videos, Instagram Fotos und sonstigen Inhalten.\n— Zweistufige Bestätigung: Lege ein zusätzliches Kennwort fest, das du für die Anmeldung bei deinem Telegram-Konto benötigst.\n— Sitzungslisten: Betrachte alle deine aktiven Telegram-Sitzungen (auf dem Desktop, Tablet und mobilen Geräten) und beende sie.";
+"lng_new_version_text" = "— Bildbetrachter in neuer Optik\n— Zwischen Dateien im Bildbetrachter wechseln\n— Gruppierte Benachrichtigungen, sofern mehrere Nachrichten weitergeleitet werden\n— Neuer Standard-Chathintergrund (kann man über die Einstellungen ändern)";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

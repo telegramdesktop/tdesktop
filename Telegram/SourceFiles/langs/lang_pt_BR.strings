@@ -527,12 +527,17 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_search_found_results" = "{count:Nenhuma mensagem encontrada|Encontrada # mensagem|Encontradas # mensagens}";
 "lng_search_global_results" = "Resultados da busca global";
 
-"lng_mediaview_save" = "Baixar";
+"lng_media_save_progress" = "{ready} de {total} {mb}";
+"lng_mediaview_save_as" = "Salvar Como..";
+"lng_mediaview_copy" = "Copiar";
 "lng_mediaview_forward" = "Encaminhar";
 "lng_mediaview_delete" = "Apagar";
+"lng_mediaview_photos_all" = "Visualizar Fotos";
+"lng_mediaview_files_all" = "Visualizar Arquivos";
 "lng_mediaview_single_photo" = "Foto Única";
 "lng_mediaview_group_photo" = "Grupo de Fotos";
 "lng_mediaview_profile_photo" = "Foto de Perfil";
+"lng_mediaview_file_n_of_count" = "{file} {n} de {count}";
 "lng_mediaview_n_of_count" = "Foto {n} de {count}";
 "lng_mediaview_doc_image" = "Arquivo";
 "lng_mediaview_today" = "hoje às {time}";
@@ -545,7 +550,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras menores melhorias";
-"lng_new_version_text" = "— Pré-visualização de links para o Twitter, YouTube, Instagram e alguns outros links\n— Verificação em duas etapas\n— Visualizar todas as suas sessões do Telegram, encerrar sessões específicas.";
+"lng_new_version_text" = "— Novo design do visualizador de fotos\n— Navegue pelos arquivos no visualizador de fotos\n— Notificações agrupadas quando muitas mensagens são encaminhadas \n— Novo plano de fundo padrão (você pode alterar nas Configurações)";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

@@ -22,9 +22,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
 Q_IMPORT_PLUGIN(QWebpPlugin)
 #elif defined Q_OS_MAC
-Q_IMPORT_PLUGIN(AVFMediaPlayerServicePlugin)
-Q_IMPORT_PLUGIN(AudioCaptureServicePlugin)
-Q_IMPORT_PLUGIN(QM3uPlaylistPlugin)
 Q_IMPORT_PLUGIN(QCoreWlanEnginePlugin)
 Q_IMPORT_PLUGIN(QGenericEnginePlugin)
 Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)

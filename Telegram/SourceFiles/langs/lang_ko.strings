@@ -527,12 +527,17 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_search_found_results" = "{count:메시지를 찾을 수 없습니다.|# 개의 메시지를 찾았습니다.|# 개의 메시지를 찾았습니다.}";
 "lng_search_global_results" = "아이디 검색 결과";
 
-"lng_mediaview_save" = "다운로드";
+"lng_media_save_progress" = "{ready} / {total} {mb}";
+"lng_mediaview_save_as" = "다른 이름으로 저장하기";
+"lng_mediaview_copy" = "복사하기";
 "lng_mediaview_forward" = "전달";
 "lng_mediaview_delete" = "삭제";
+"lng_mediaview_photos_all" = "모든 사진 보기";
+"lng_mediaview_files_all" = "모든 파일 보기";
 "lng_mediaview_single_photo" = "단일 사진";
 "lng_mediaview_group_photo" = "그룹 사진";
 "lng_mediaview_profile_photo" = "프로필 사진";
+"lng_mediaview_file_n_of_count" = "{file} {n} 중 {count}";
 "lng_mediaview_n_of_count" = "사진 {n} 중 {count}";
 "lng_mediaview_doc_image" = "파일";
 "lng_mediaview_today" = "오늘 {time}";
@@ -545,7 +550,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 트윗, 유투브 비디오, 인스터그램 사진등의 프리뷰 기능\n— 2단계 인증\n— 활성화된 모든 텔레그램 세션 확인 및 특정 세션 종료 기능";
+"lng_new_version_text" = "— 새로운 사진 뷰어 디자인\n— 사진 뷰어에서 파일간 이동 기능\n— 여러 메시지가 전달되었을시 그룹 알림 기능\n— 새로운 채팅 배경 이미지 (설정에서 변경 가능)";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

@@ -527,12 +527,17 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_search_found_results" = "{count:geen berichten gevonden|# berichten gevonden|# berichten gevonden}";
 "lng_search_global_results" = "Wereldwijde zoekresultaten";
 
-"lng_mediaview_save" = "Downloaden";
+"lng_media_save_progress" = "{ready} van {total} {mb}";
+"lng_mediaview_save_as" = "Opslaan als";
+"lng_mediaview_copy" = "Kopiëren";
 "lng_mediaview_forward" = "Doorsturen";
 "lng_mediaview_delete" = "Verwijder";
+"lng_mediaview_photos_all" = "Alle foto's weergeven";
+"lng_mediaview_files_all" = "Alle bestanden weergeven";
 "lng_mediaview_single_photo" = "Foto";
 "lng_mediaview_group_photo" = "Groepsafbeelding";
 "lng_mediaview_profile_photo" = "Profielfoto";
+"lng_mediaview_file_n_of_count" = "{file} {n} van {count}";
 "lng_mediaview_n_of_count" = "Foto {n} van {count}";
 "lng_mediaview_doc_image" = "Bestand";
 "lng_mediaview_today" = "vandaag om {time}";
@@ -545,7 +550,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Link-preview voor Twitter, YouTube, Instagram en diverse andere links\n— Twee-staps-verificatie\n— Bekijk al je Telegram-sessies, beëindig specifieke sessies.";
+"lng_new_version_text" = "— Nieuw ontwerp voor foto-weergave\n— Omschakelen naar bestanden in de foto-weergave\n— Gegroepeerde meldingen als meerdere berichten worden doorgestuurd\n— Nieuwe standaard chat-achtergrond (aan te passen via instellingen)";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
