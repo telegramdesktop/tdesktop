@@ -664,8 +664,8 @@ void Application::checkMapVersion() {
 			QString versionFeatures;
 			if (DevChannel && Local::oldMapVersion() < 8006) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Old default chat background image placed first in background Gallery\n\xe2\x80\x94 Forwarded files, videos, audios and contacts original sender name is displayed\n\xe2\x80\x94 Grouped notifications when several messages are forwarded").replace('@', qsl("@") + QChar(0x200D));
-			} else if (!DevChannel && Local::oldMapVersion() < 8004) {
-				versionFeatures = lang(lng_new_version_minor).trimmed();
+			} else if (!DevChannel && Local::oldMapVersion() < 8007) {
+				versionFeatures = lang(lng_new_version_text).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));

@@ -1595,6 +1595,21 @@ void PsUpdateDownloader::clearAll() {
 	deleteDir(cWorkingDir() + qsl("tupdates"));
 }
 
+QString winapiErrorWrap() {
+	WCHAR errMsg[2048];
+	DWORD errorCode = GetLastError();
+	LPTSTR errorText = NULL, errorTextDefault = L"(Unknown error)";
+	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errorText, 0, 0);
+	if (!errorText) {
+		errorText = errorTextDefault;
+	}
+	StringCbPrintf(errMsg, sizeof(errMsg), L"Error code: %d, error message: %s", errorCode, errorText);
+	if (errorText != errorTextDefault) {
+		LocalFree(errorText);
+	}
+	return QString::fromWCharArray(errMsg);
+}
+
 void PsUpdateDownloader::unpackUpdate() {
 	QByteArray packed;
 	if (!outputFile.open(QIODevice::ReadOnly)) {
@@ -1616,49 +1631,53 @@ void PsUpdateDownloader::unpackUpdate() {
 	deleteDir(tempDirPath);
 	deleteDir(readyDirPath);
 
-	QDir tempDir(tempDirPath), readyDir(readyDirPath);
-	if (tempDir.exists() || readyDir.exists()) {
-		LOG(("Update Error: cant clear tupdates/temp or tupdates/ready dir!"));
-		return fatalFail();
-	}
-
-	uchar sha1Buffer[20];
-	bool goodSha1 = !memcmp(compressed.constData() + hSigLen, hashSha1(compressed.constData() + hSigLen + hShaLen, compressedLen + hPropsLen + hOriginalSizeLen, sha1Buffer), hShaLen);
-	if (!goodSha1) {
-		LOG(("Update Error: bad SHA1 hash of update file!"));
-		return fatalFail();
-	}
-
-	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(DevChannel ? UpdatesPublicDevKey : UpdatesPublicKey), -1), 0, 0, 0);
-	if (!pbKey) {
-		LOG(("Update Error: cant read public rsa key!"));
-		return fatalFail();
-	}
-	if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), hSigLen, pbKey) != 1) { // verify signature
-		RSA_free(pbKey);
-		LOG(("Update Error: bad RSA signature of update file!"));
-		return fatalFail();
-	}
-	RSA_free(pbKey);
-
-	QByteArray uncompressed;
-
-	int32 uncompressedLen;
-	memcpy(&uncompressedLen, compressed.constData() + hSigLen + hShaLen + hPropsLen, hOriginalSizeLen);
-	uncompressed.resize(uncompressedLen);
-
-	size_t resultLen = uncompressed.size();
-	SizeT srcLen = compressedLen;
-	int uncompressRes = LzmaUncompress((uchar*)uncompressed.data(), &resultLen, (const uchar*)(compressed.constData() + hSize), &srcLen, (const uchar*)(compressed.constData() + hSigLen + hShaLen), LZMA_PROPS_SIZE);
-	if (uncompressRes != SZ_OK) {
-		LOG(("Update Error: could not uncompress lzma, code: %1").arg(uncompressRes));
-		return fatalFail();
-	}
-
-	tempDir.mkdir(tempDir.absolutePath());
-
-	quint32 version;
 	{
+		QDir tempDir(tempDirPath), readyDir(readyDirPath);
+		if (tempDir.exists() || readyDir.exists()) {
+			LOG(("Update Error: cant clear tupdates/temp or tupdates/ready dir!"));
+			return fatalFail();
+		}
+
+		tempDirPath = tempDir.absolutePath();
+		readyDirPath = readyDir.absolutePath();
+
+		uchar sha1Buffer[20];
+		bool goodSha1 = !memcmp(compressed.constData() + hSigLen, hashSha1(compressed.constData() + hSigLen + hShaLen, compressedLen + hPropsLen + hOriginalSizeLen, sha1Buffer), hShaLen);
+		if (!goodSha1) {
+			LOG(("Update Error: bad SHA1 hash of update file!"));
+			return fatalFail();
+		}
+
+		RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(DevChannel ? UpdatesPublicDevKey : UpdatesPublicKey), -1), 0, 0, 0);
+		if (!pbKey) {
+			LOG(("Update Error: cant read public rsa key!"));
+			return fatalFail();
+		}
+		if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), hSigLen, pbKey) != 1) { // verify signature
+			RSA_free(pbKey);
+			LOG(("Update Error: bad RSA signature of update file!"));
+			return fatalFail();
+		}
+		RSA_free(pbKey);
+
+		QByteArray uncompressed;
+
+		int32 uncompressedLen;
+		memcpy(&uncompressedLen, compressed.constData() + hSigLen + hShaLen + hPropsLen, hOriginalSizeLen);
+		uncompressed.resize(uncompressedLen);
+
+		size_t resultLen = uncompressed.size();
+		SizeT srcLen = compressedLen;
+		int uncompressRes = LzmaUncompress((uchar*)uncompressed.data(), &resultLen, (const uchar*)(compressed.constData() + hSize), &srcLen, (const uchar*)(compressed.constData() + hSigLen + hShaLen), LZMA_PROPS_SIZE);
+		if (uncompressRes != SZ_OK) {
+			LOG(("Update Error: could not uncompress lzma, code: %1").arg(uncompressRes));
+			return fatalFail();
+		}
+
+		QDir().mkdir(tempDirPath);
+
+		quint32 version;
+
 		QBuffer buffer(&uncompressed);
 		buffer.open(QIODevice::ReadOnly);
 		QDataStream stream(&buffer);
@@ -1713,15 +1732,15 @@ void PsUpdateDownloader::unpackUpdate() {
 		}
 
 		// create tdata/version file
-		tempDir.mkdir(QDir(tempDirPath + qsl("/tdata")).absolutePath());
+		QDir().mkdir(tempDirPath + qsl("/tdata"));
 		std::wstring versionString = ((version % 1000) ? QString("%1.%2.%3").arg(int(version / 1000000)).arg(int((version % 1000000) / 1000)).arg(int(version % 1000)) : QString("%1.%2").arg(int(version / 1000000)).arg(int((version % 1000000) / 1000))).toStdWString();
 		DWORD versionNum = DWORD(version), versionLen = DWORD(versionString.size() * sizeof(WCHAR));
 		WCHAR versionStr[32];
 		memcpy(versionStr, versionString.c_str(), versionLen);
 
-		QFile fVersion(tempDirPath + qsl("/tdata/version"));		
+		QFile fVersion(tempDirPath + qsl("/tdata/version"));
 		if (!fVersion.open(QIODevice::WriteOnly)) {
-			LOG(("Update Error: cant write version file '%1'").arg(tempDirPath + qsl("/version")));
+			LOG(("Update Error: cant write version file '%1'").arg(tempDirPath + qsl("/tdata/version")));
 			return fatalFail();
 		}
 		fVersion.write((const char*)&versionNum, sizeof(DWORD));
@@ -1729,10 +1748,10 @@ void PsUpdateDownloader::unpackUpdate() {
 		fVersion.write((const char*)&versionStr[0], versionLen);
 		fVersion.close();
 	}
-	
-	QFile tempDirFile(tempDir.absolutePath());
-	if (!tempDirFile.rename(readyDir.absolutePath())) {
-		LOG(("Update Error: cant rename temp dir '%1' to ready dir '%2', error %3: %4").arg(tempDir.absolutePath()).arg(readyDir.absolutePath()).arg(tempDirFile.error()).arg(tempDirFile.errorString()));
+
+	std::wstring tempDirNative = QDir::toNativeSeparators(tempDirPath).toStdWString(), readyDirNative = QDir::toNativeSeparators(readyDirPath).toStdWString();
+	if (!MoveFile(tempDirNative.c_str(), readyDirNative.c_str())) {
+		LOG(("Update Error: cant rename temp dir '%1' to ready dir '%2'. %3").arg(QString::fromStdWString(tempDirNative)).arg(QString::fromStdWString(readyDirNative)).arg(winapiErrorWrap()));
 		return fatalFail();
 	}
 	deleteDir(tempDirPath);
