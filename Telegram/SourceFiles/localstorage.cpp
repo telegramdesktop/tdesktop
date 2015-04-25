@@ -831,6 +831,9 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			cSetTileBackground(v == 1);
+			if (version < 8005 && !_backgroundKey) {
+				cSetTileBackground(false);
+			}
 		} break;
 
 		case dbiAutoLock: {
@@ -2179,7 +2182,7 @@ namespace Local {
 		if (!_working()) return;
 
 		QByteArray png;
-		{
+		if (!img.isNull()) {
 			QBuffer buf(&png);
 			if (!img.save(&buf, "BMP")) return;
 		}
@@ -2188,9 +2191,10 @@ namespace Local {
 			_mapChanged = true;
 			_writeMap(WriteMapFast);
 		}
-		quint32 size = sizeof(qint32) + sizeof(quint32) + sizeof(quint32) + png.size();
+		quint32 size = sizeof(qint32) + sizeof(quint32) + (png.isEmpty() ? 0 : (sizeof(quint32) + png.size()));
 		EncryptedDescriptor data(size);
-		data.stream << qint32(id) << png;
+		data.stream << qint32(id);
+		if (!png.isEmpty()) data.stream << png;
 
 		FileWriteDescriptor file(_backgroundKey);
 		file.writeEncrypted(data);
@@ -2210,7 +2214,17 @@ namespace Local {
 
 		QByteArray pngData;
 		qint32 id;
-		bg.stream >> id >> pngData;
+		bg.stream >> id;
+		if (!id || id == DefaultChatBackground) {
+			if (bg.version < 8005) {
+				if (!id) cSetTileBackground(!DefaultChatBackground);
+				App::initBackground(DefaultChatBackground, QImage(), true);
+			} else {
+				App::initBackground(id, QImage(), true);
+			}
+			return true;
+		}
+		bg.stream >> pngData;
 
 		QImage img;
 		QBuffer buf(&pngData);

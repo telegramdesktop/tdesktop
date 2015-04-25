@@ -20,6 +20,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "settings.h"
 #include "lang.h"
 
+bool gRtl = false;
+Qt::LayoutDirection gLangDir = Qt::LeftToRight;
+
 mtpDcOptions gDcOptions;
 
 bool gTestMode = false;
@@ -67,7 +70,7 @@ bool gCtrlEnter = false;
 QPixmapPointer gChatBackground = 0;
 int32 gChatBackgroundId = 0;
 QPixmapPointer gChatDogImage = 0;
-bool gTileBackground = true;
+bool gTileBackground = false;
 
 uint32 gConnectionsInSession = 1;
 QString gLoggedPhoneNumber;

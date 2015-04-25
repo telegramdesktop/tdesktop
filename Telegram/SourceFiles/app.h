@@ -154,8 +154,8 @@ namespace App {
 	void mousedItem(HistoryItem *item);
 	HistoryItem *mousedItem();
 
-	QPixmap &sprite();
-	QPixmap &emojis();
+	const QPixmap &sprite();
+	const QPixmap &emojis();
 	const QPixmap &emojiSingle(const EmojiData *emoji, int32 fontHeight);
 
 	void initMedia();
@@ -196,7 +196,7 @@ namespace App {
 	void openUserByName(const QString &username, bool toProfile = false);
 	void openLocalUrl(const QString &url);
 
-	void initBackground(int32 id = 0, const QImage &p = QImage(), bool nowrite = false);
+	void initBackground(int32 id = DefaultChatBackground, const QImage &p = QImage(), bool nowrite = false);
 
 	style::color msgServiceBG();
 	style::color historyScrollBarColor();

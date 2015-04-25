@@ -287,7 +287,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_cloud_password_email" = "Inserisci email di recupero";
 "lng_cloud_password_bad_email" = "E-mail non valida, riprova con un'altra.";
 "lng_cloud_password_about" = "La password verrà richiesta quando ti connetti da un nuovo dispositivo in aggiunta al codice.";
-"lng_cloud_password_about_recover" = "Attenzione! Sei sicuro di non voler \naggiungere un'e-mail di recupero?\n\nSe dimentichi la tua password, perderai\nl'accesso al tuo account Telegram.";
+"lng_cloud_password_about_recover" = "Attenzione! Sei sicuro di non voler\naggiungere un'e-mail di recupero?\n\nSe dimentichi la tua password, perderai\nl'accesso al tuo account Telegram.";
 "lng_cloud_password_almost" = "Abbiamo inviato un link di conferma\nall'e-mail che ci hai fornito.\n\nLa verifica in due passaggi sarà attivata\nnon appena aprirai quel link.";
 "lng_cloud_password_was_set" = "Verifica in due passaggi abilitata.";
 "lng_cloud_password_updated" = "La tua password è stata aggiornata.";
@@ -527,12 +527,17 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_search_found_results" = "{count:Nessun messaggio trovato|# messaggio trovato|# messaggi trovati}";
 "lng_search_global_results" = "Risultati ricerca globale";
 
-"lng_mediaview_save" = "Download";
+"lng_media_save_progress" = "{ready} di {total} {mb}";
+"lng_mediaview_save_as" = "Salva come..";
+"lng_mediaview_copy" = "Copia";
 "lng_mediaview_forward" = "Inoltra";
 "lng_mediaview_delete" = "Elimina";
+"lng_mediaview_photos_all" = "Visualizza tutte le foto";
+"lng_mediaview_files_all" = "Visualizza tutti i file";
 "lng_mediaview_single_photo" = "Foto singola";
 "lng_mediaview_group_photo" = "Foto gruppo";
 "lng_mediaview_profile_photo" = "Foto profilo";
+"lng_mediaview_file_n_of_count" = "{file} {n} di {count}";
 "lng_mediaview_n_of_count" = "Foto {n} di {count}";
 "lng_mediaview_doc_image" = "File";
 "lng_mediaview_today" = "oggi alle {time}";
@@ -545,7 +550,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli update è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "— Anteprima dei link per Twitter, Youtube, Instagram e altri contenuti.\n— Verifica in due passaggi.\n— Visualizza le sessioni attive di Telegram e termina sessioni specifiche.";
+"lng_new_version_text" = "— Nuovo design per il visualizzatore delle foto\n— Passa tra i file nel visualizzatore foto\n— Notifiche raggruppate quando più messaggi sono inoltrati\n— Nuovo sfondo chat di default (puoi cambiarlo nelle Impostazioni)";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

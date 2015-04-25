@@ -230,7 +230,7 @@ void PhotoLink::onClick(Qt::MouseButton button) const {
 	}
 }
 
-QString saveFileName(const QString &title, const QString &filter, const QString &prefix, QString name, bool savingAs, const QDir &dir = QDir()) {
+QString saveFileName(const QString &title, const QString &filter, const QString &prefix, QString name, bool savingAs, const QDir &dir) {
 #ifdef Q_OS_WIN
 	name = name.replace(QRegularExpression(qsl("[\\\\\\/\\:\\*\\?\\\"\\<\\>\\|]")), qsl("_"));
 #elif defined Q_OS_MAC
@@ -307,8 +307,7 @@ void VideoOpenLink::onClick(Qt::MouseButton button) const {
 	}
 }
 
-void VideoSaveLink::doSave(bool forceSavingAs) const {
-	VideoData *data = video();
+void VideoSaveLink::doSave(VideoData *data, bool forceSavingAs) {
 	if (!data->user && !data->date) return;
 
 	QString already = data->already(true);
@@ -336,7 +335,7 @@ void VideoSaveLink::doSave(bool forceSavingAs) const {
 
 void VideoSaveLink::onClick(Qt::MouseButton button) const {
 	if (button != Qt::LeftButton) return;
-	doSave();
+	doSave(video());
 }
 
 void VideoCancelLink::onClick(Qt::MouseButton button) const {
@@ -399,8 +398,7 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 	}
 }
 
-void AudioSaveLink::doSave(bool forceSavingAs) const {
-	AudioData *data = audio();
+void AudioSaveLink::doSave(AudioData *data, bool forceSavingAs) {
 	if (!data->user && !data->date) return;
 
 	QString already = data->already(true);
@@ -429,7 +427,7 @@ void AudioSaveLink::doSave(bool forceSavingAs) const {
 
 void AudioSaveLink::onClick(Qt::MouseButton button) const {
 	if (button != Qt::LeftButton) return;
-	doSave();
+	doSave(audio());
 }
 
 void AudioCancelLink::onClick(Qt::MouseButton button) const {
@@ -470,7 +468,7 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 				if (reader.supportsAnimation() && reader.imageCount() > 1 && App::hoveredLinkItem()) {
 					startGif(App::hoveredLinkItem(), already);
 				} else {
-					App::wnd()->showDocument(data, QPixmap::fromImage(App::readImage(already, 0, false), Qt::ColorOnly), App::hoveredLinkItem());
+					App::wnd()->showDocument(data, App::hoveredLinkItem());
 				}
 			} else {
 				psOpenFile(already);
@@ -505,8 +503,7 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 	}
 }
 
-void DocumentSaveLink::doSave(bool forceSavingAs) const {
-	DocumentData *data = document();
+void DocumentSaveLink::doSave(DocumentData *data, bool forceSavingAs) {
 	if (!data->date) return;
 
 	QString already = data->already(true);
@@ -547,7 +544,7 @@ void DocumentSaveLink::doSave(bool forceSavingAs) const {
 
 void DocumentSaveLink::onClick(Qt::MouseButton button) const {
 	if (button != Qt::LeftButton) return;
-	doSave();
+	doSave(document());
 }
 
 void DocumentCancelLink::onClick(Qt::MouseButton button) const {

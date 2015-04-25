@@ -1515,7 +1515,11 @@ namespace App {
 		audioInit();
 
 		if (!::sprite) {
-			::sprite = new QPixmap(st::spriteFile);
+			if (rtl()) {
+				::sprite = new QPixmap(QPixmap::fromImage(QImage(st::spriteFile).mirrored(true, false)));
+			} else {
+				::sprite = new QPixmap(st::spriteFile);
+			}
             if (cRetina()) ::sprite->setDevicePixelRatio(cRetinaFactor());
 		}
 		if (!::emojis) {
@@ -1598,11 +1602,11 @@ namespace App {
 		return ::mousedItem;
 	}
 
-	QPixmap &sprite() {
+	const QPixmap &sprite() {
 		return *::sprite;
 	}
 
-	QPixmap &emojis() {
+	const QPixmap &emojis() {
 		return *::emojis;
 	}
 
@@ -1808,16 +1812,29 @@ namespace App {
 		if (Local::readBackground()) return;
 
 		QImage img(p);
+		bool remove = false;
 		if (p.isNull()) {
-			img.load(st::msgBG);
-			id = 0;
+			if (id == DefaultChatBackground) {
+				img.load(st::msgBG);
+			} else {
+				img.load(st::msgBG0);
+				if (cRetina()) {
+					img = img.scaledToWidth(img.width() * 2, Qt::SmoothTransformation);
+				} else if (cScale() != dbisOne) {
+					img = img.scaledToWidth(convertScale(img.width()), Qt::SmoothTransformation);
+				}
+				id = 0;
+			}
+			remove = true;
 		}
 		if (img.format() != QImage::Format_ARGB32 && img.format() != QImage::Format_ARGB32_Premultiplied && img.format() != QImage::Format_RGB32) {
 			img = img.convertToFormat(QImage::Format_RGB32);
 		}
 		img.setDevicePixelRatio(cRetinaFactor());
 
-		if (!nowrite) Local::writeBackground(id, img);
+		if (!nowrite) {
+			Local::writeBackground(id, remove ? QImage() : img);
+		}
 
 		delete cChatBackground();
 		cSetChatBackground(new QPixmap(QPixmap::fromImage(img, Qt::ColorOnly)));

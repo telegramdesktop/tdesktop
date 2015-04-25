@@ -360,7 +360,7 @@ _failDifferenceTimeout(1), _lastUpdateTime(0), _cachedX(0), _cachedY(0), _backgr
 	connect(&dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(&history, SIGNAL(cancelled()), &dialogs, SLOT(activate()));
 	connect(this, SIGNAL(peerPhotoChanged(PeerData*)), this, SIGNAL(dialogsUpdated()));
-	connect(&noUpdatesTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
+	connect(&noUpdatesTimer, SIGNAL(timeout()), this, SLOT(mtpPing()));
 	connect(&_onlineTimer, SIGNAL(timeout()), this, SLOT(updateOnline()));
 	connect(&_onlineUpdater, SIGNAL(timeout()), this, SLOT(updateOnlineDisplay()));
 	connect(&_idleFinishTimer, SIGNAL(timeout()), this, SLOT(checkIdleFinish()));
@@ -1195,7 +1195,8 @@ void MainWidget::peerUsernameChanged(PeerData *peer) {
 void MainWidget::checkLastUpdate(bool afterSleep) {
 	uint64 n = getms(true);
 	if (_lastUpdateTime && n > _lastUpdateTime + (afterSleep ? NoUpdatesAfterSleepTimeout : NoUpdatesTimeout)) {
-		getDifference();
+		_lastUpdateTime = n;
+		MTP::ping();
 	}
 }
 
@@ -1407,7 +1408,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 						if (reader.supportsAnimation() && reader.imageCount() > 1 && item) {
 							startGif(item, already);
 						} else {
-							App::wnd()->showDocument(document, QPixmap::fromImage(App::readImage(already, 0, false), Qt::ColorOnly), item);
+							App::wnd()->showDocument(document, item);
 						}
 					} else {
 						psOpenFile(already);
@@ -1430,6 +1431,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 			msgUpdated(j.key()->history()->peer->id, j.key());
 		}
 	}
+	App::wnd()->documentUpdated(document);
 }
 
 void MainWidget::documentLoadFailed(mtpFileLoader *loader, bool started) {
@@ -1590,6 +1592,8 @@ void MainWidget::checkChatBackground() {
 		if (_background->full->loaded()) {
 			if (_background->full->isNull()) {
 				App::initBackground();
+			} else if (_background->id == 0 || _background->id == DefaultChatBackground) {
+				App::initBackground(_background->id);
 			} else {
 				App::initBackground(_background->id, _background->full->pix().toImage());
 			}
@@ -2296,6 +2300,7 @@ void MainWidget::gotDifference(const MTPupdates_Difference &diff) {
 
 		updInited = true;
 
+		MTP_LOG(0, ("getDifference { good - after a slice of difference was received }"));
 		getDifference();
 	} break;
 	case mtpc_updates_difference: {
@@ -2373,6 +2378,7 @@ bool MainWidget::failDifference(const RPCError &error) {
 void MainWidget::getDifferenceForce() {
 	if (MTP::authedId()) {
 		updInited = true;
+		MTP_LOG(0, ("getDifference { force - after get difference failed }"));
 		getDifference();
 	}
 }
@@ -2396,6 +2402,10 @@ void MainWidget::getDifference() {
 	updInited = false;
 	MTP::setGlobalDoneHandler(RPCDoneHandlerPtr(0));
 	MTP::send(MTPupdates_GetDifference(MTP_int(updGoodPts), MTP_int(updDate), MTP_int(updQts)), rpcDone(&MainWidget::gotDifference), rpcFail(&MainWidget::failDifference));
+}
+
+void MainWidget::mtpPing() {
+	MTP::ping();
 }
 
 void MainWidget::start(const MTPUser &user) {
@@ -2425,9 +2435,16 @@ bool MainWidget::started() {
 }
 
 void MainWidget::openLocalUrl(const QString &url) {
-	QRegularExpressionMatch m = QRegularExpression(qsl("^tg://resolve/?\\?domain=([a-zA-Z0-9\\.\\_]+)$"), QRegularExpression::CaseInsensitiveOption).match(url.trimmed());
-	if (m.hasMatch()) {
-		openUserByName(m.captured(1));
+	QString u(url.trimmed());
+	if (u.startsWith(QLatin1String("tg://resolve"), Qt::CaseInsensitive)) {
+		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://resolve/?\\?domain=([a-zA-Z0-9\\.\\_]+)$"), QRegularExpression::CaseInsensitiveOption).match(u);
+		if (m.hasMatch()) {
+			openUserByName(m.captured(1));
+		}
+	} else if (u.startsWith(QLatin1String("tg://join"), Qt::CaseInsensitive)) {
+		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://join/?\\?invite=([a-zA-Z0-9\\.\\_]+)$"), QRegularExpression::CaseInsensitiveOption).match(u);
+		if (m.hasMatch()) {
+		}
 	}
 }
 
@@ -2743,6 +2760,7 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 	if (mtpTypeId(*from) == mtpc_new_session_created) {
 		MTPNewSession newSession(from, end);
 		updSeq = 0;
+		MTP_LOG(0, ("getDifference { after new_session_created }"));
 		return getDifference();
 	} else {
 		try {
@@ -2805,6 +2823,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 	case mtpc_updateShortMessage: {
 		const MTPDupdateShortMessage &d(updates.c_updateShortMessage());
 		if (!App::userLoaded(d.vuser_id.v) || (d.has_fwd_from_id() && !App::userLoaded(d.vfwd_from_id.v))) {
+			MTP_LOG(0, ("getDifference { good - getting user for updateShortMessage }"));
 			return getDifference();
 		}
 		if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
@@ -2823,6 +2842,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 	case mtpc_updateShortChatMessage: {
 		const MTPDupdateShortChatMessage &d(updates.c_updateShortChatMessage());
 		if (!App::chatLoaded(d.vchat_id.v) || !App::userLoaded(d.vfrom_id.v) || (d.has_fwd_from_id() && !App::userLoaded(d.vfwd_from_id.v))) {
+			MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }"));
 			return getDifference();
 		}
 		if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
@@ -2838,6 +2858,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 	} break;
 
 	case mtpc_updatesTooLong: {
+		MTP_LOG(0, ("getDifference { good - updatesTooLong received }"));
 		return getDifference();
 	} break;
 	}

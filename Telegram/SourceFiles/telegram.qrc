@@ -4,10 +4,8 @@
     <file>art/fonts/OpenSans-Bold.ttf</file>
     <file>art/fonts/OpenSans-Semibold.ttf</file>
     <file>art/newmsg.wav</file>
-    <file>art/bg.png</file>
-    <file>art/bg_125x.png</file>
-    <file>art/bg_150x.png</file>
-    <file>art/bg_200x.png</file>
+    <file>art/bg.jpg</file>
+    <file>art/bg0.png</file>
     <file>art/sprite.png</file>
     <file>art/sprite_125x.png</file>
     <file>art/sprite_150x.png</file>

@@ -906,7 +906,7 @@ void PsMainWindow::psClearNotifies(PeerId peerId) {
 void PsMainWindow::psNotifyShown(NotifyWindow *w) {
 }
 
-void PsMainWindow::psPlatformNotify(HistoryItem *item) {
+void PsMainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
 }
 
 PsApplication::PsApplication(int &argc, char **argv) : QApplication(argc, argv) {

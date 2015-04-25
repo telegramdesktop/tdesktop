@@ -527,12 +527,17 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_search_found_results" = "{count:No messages found|Found # message|Found # messages}";
 "lng_search_global_results" = "Global search results";
 
-"lng_mediaview_save" = "Download";
+"lng_media_save_progress" = "{ready} of {total} {mb}";
+"lng_mediaview_save_as" = "Save As..";
+"lng_mediaview_copy" = "Copy";
 "lng_mediaview_forward" = "Forward";
 "lng_mediaview_delete" = "Delete";
+"lng_mediaview_photos_all" = "View all photos";
+"lng_mediaview_files_all" = "View all files";
 "lng_mediaview_single_photo" = "Single Photo";
 "lng_mediaview_group_photo" = "Group Photo";
 "lng_mediaview_profile_photo" = "Profile Photo";
+"lng_mediaview_file_n_of_count" = "{file} {n} of {count}";
 "lng_mediaview_n_of_count" = "Photo {n} of {count}";
 "lng_mediaview_doc_image" = "File";
 "lng_mediaview_today" = "today at {time}";
@@ -545,7 +550,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Link previews for Twitter, YouTube, Instagram and certain other links\n— Two-step verification\n— View all your Telegram sessions, terminate specific sessions";
+"lng_new_version_text" = "— New photo viewer design\n— Switch between files in the photo viewer\n— Grouped notifications when several messages are forwarded\n— New default chat background image (you can change it in Settings)";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

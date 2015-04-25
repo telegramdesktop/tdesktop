@@ -291,7 +291,7 @@ class VideoSaveLink : public VideoLink {
 public:
 	VideoSaveLink(VideoData *video) : VideoLink(video) {
 	}
-	void doSave(bool forceSavingAs = false) const;
+	static void doSave(VideoData *video, bool forceSavingAs = false);
 	void onClick(Qt::MouseButton button) const;
 };
 
@@ -378,7 +378,7 @@ class AudioSaveLink : public AudioLink {
 public:
 	AudioSaveLink(AudioData *audio) : AudioLink(audio) {
 	}
-	void doSave(bool forceSavingAs = false) const;
+	static void doSave(AudioData *audio, bool forceSavingAs = false);
 	void onClick(Qt::MouseButton button) const;
 };
 
@@ -481,7 +481,7 @@ class DocumentSaveLink : public DocumentLink {
 public:
 	DocumentSaveLink(DocumentData *document) : DocumentLink(document) {
 	}
-	void doSave(bool forceSavingAs = false) const;
+	static void doSave(DocumentData *document, bool forceSavingAs = false);
 	void onClick(Qt::MouseButton button) const;
 };
 
@@ -528,6 +528,7 @@ struct WebPageData {
 	int32 pendingTill;
 };
 
+QString saveFileName(const QString &title, const QString &filter, const QString &prefix, QString name, bool savingAs, const QDir &dir = QDir());
 MsgId clientMsgId();
 
 struct MessageCursor {

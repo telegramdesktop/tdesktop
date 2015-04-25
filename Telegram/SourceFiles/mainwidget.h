@@ -367,6 +367,7 @@ public slots:
 
 	void onParentResize(const QSize &newSize);
 	void getDifference();
+	void mtpPing();
 	void getDifferenceForce();
 
 	void updateOnline(bool gotOtherOffline = false);

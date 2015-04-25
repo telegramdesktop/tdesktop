@@ -20,11 +20,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "boxshadow.h"
 
 BoxShadow::BoxShadow(const style::rect &topLeft) : _size(topLeft.width() / cIntRetinaFactor()) {
+	if (!_size) return;
+
 	QImage cornersImage(_size * 2, _size * 2, QImage::Format_ARGB32_Premultiplied);
 	{
 		QPainter p(&cornersImage);
-		p.drawPixmap(QPoint(0, 0), App::sprite(), topLeft);
+		p.drawPixmap(QPoint(rtl() ? _size : 0, 0), App::sprite(), topLeft);
 	}
+	if (rtl()) cornersImage = cornersImage.mirrored(true, false);
 	uchar *bits = cornersImage.bits();
 	if (bits) {
 		for (
@@ -58,6 +61,8 @@ BoxShadow::BoxShadow(const style::rect &topLeft) : _size(topLeft.width() / cIntR
 }
 
 void BoxShadow::paint(QPainter &p, const QRect &box, const QPoint &shift, int32 flags) {
+	if (!_size) return;
+
 	int32 count = _colors.size(), minus = _size - count + 1;
 	bool left = (flags & Left), top = (flags & Top), right = (flags & Right), bottom = (flags & Bottom);
 	if (left && top) p.drawPixmap(box.left() - _size + minus + shift.x(), box.top() - _size + minus + shift.y(), _corners, 0, 0, _size, _size);

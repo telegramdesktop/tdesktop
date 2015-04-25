@@ -218,6 +218,9 @@ struct History : public QList<HistoryBlock*> {
 	HistoryItem *currentNotification() {
 		return notifies.isEmpty() ? 0 : notifies.front();
 	}
+	bool hasNotification() const {
+		return !notifies.isEmpty();
+	}
 	void skipNotification() {
 		if (!notifies.isEmpty()) {
 			notifies.pop_front();
@@ -620,6 +623,8 @@ private:
 ItemAnimations &itemAnimations();
 
 class HistoryReply; // dynamic_cast optimize
+class HistoryMessage; // dynamic_cast optimize
+class HistoryForwarded; // dynamic_cast optimize
 
 class HistoryMedia;
 class HistoryItem : public HistoryElem {
@@ -729,6 +734,18 @@ public:
 		return false;
 	}
 
+	virtual HistoryMessage *toHistoryMessage() { // dynamic_cast optimize
+		return 0;
+	}
+	virtual const HistoryMessage *toHistoryMessage() const { // dynamic_cast optimize
+		return 0;
+	}
+	virtual HistoryForwarded *toHistoryForwarded() { // dynamic_cast optimize
+		return 0;
+	}
+	virtual const HistoryForwarded *toHistoryForwarded() const { // dynamic_cast optimize
+		return 0;
+	}
 	virtual HistoryReply *toHistoryReply() { // dynamic_cast optimize
 		return 0;
 	}
@@ -1244,6 +1261,13 @@ public:
 		return from();
 	}
 
+	HistoryMessage *toHistoryMessage() { // dynamic_cast optimize
+		return this;
+	}
+	const HistoryMessage *toHistoryMessage() const { // dynamic_cast optimize
+		return this;
+	}
+
 	~HistoryMessage();
 
 protected:
@@ -1268,10 +1292,12 @@ public:
 	void fwdNameUpdated() const;
 
 	void draw(QPainter &p, uint32 selection) const;
+	void drawForwardedFrom(QPainter &p, int32 x, int32 y, int32 w, bool selected) const;
 	void drawMessageText(QPainter &p, const QRect &trect, uint32 selection) const;
 	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) const;
+	void getForwardedState(TextLinkPtr &lnk, bool &inText, int32 x, int32 w) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
 
 	QDateTime dateForwarded() const {
@@ -1281,6 +1307,13 @@ public:
 		return fwdFrom;
 	}
 	QString selectedText(uint32 selection) const;
+
+	HistoryForwarded *toHistoryForwarded() {
+		return this;
+	}
+	const HistoryForwarded *toHistoryForwarded() const {
+		return this;
+	}
 
 protected:
 

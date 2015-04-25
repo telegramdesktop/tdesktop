@@ -59,7 +59,15 @@ namespace {
 					if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 						App::wnd()->minimizeToTray();
 						return true;
+					} else {
+						App::wnd()->hide();
+						App::wnd()->updateIsActive(cOfflineBlurTimeout());
+						App::wnd()->updateGlobalMenu();
+						return true;
 					}
+				} else if (ev->key() == Qt::Key_M && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
+					App::wnd()->setWindowState(Qt::WindowMinimized);
+					return true;
 				}
 			}
 			return QObject::eventFilter(o, e);
@@ -654,10 +662,10 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 8002) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Link previews bugfixes\n\xe2\x80\x94 Links in preview descriptions are now clickable\n\xe2\x80\x94 Twitter and Instagram mentions and hashtags in previews are clickable\n\xe2\x80\x94 Fixed file uploading\n\xe2\x80\x94 Fixed photo, document and sticker forwarding").replace('@', qsl("@") + QChar(0x200D));
-			} else if (!DevChannel && Local::oldMapVersion() < 8004) {
-				versionFeatures = lang(lng_new_version_minor).trimmed();
+			if (DevChannel && Local::oldMapVersion() < 8006) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Old default chat background image placed first in background Gallery\n\xe2\x80\x94 Forwarded files, videos, audios and contacts original sender name is displayed\n\xe2\x80\x94 Grouped notifications when several messages are forwarded").replace('@', qsl("@") + QChar(0x200D));
+			} else if (!DevChannel && Local::oldMapVersion() < 8007) {
+				versionFeatures = lang(lng_new_version_text).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
@@ -671,6 +679,8 @@ void Application::startApp() {
 	cChangeTimeFormat(QLocale::system().timeFormat(QLocale::ShortFormat));
 
 	DEBUG_LOG(("Application Info: starting app.."));
+
+	QMimeDatabase().mimeTypeForName(qsl("text/plain")); // create mime database
 
 	window->createWinId();
 	window->init();

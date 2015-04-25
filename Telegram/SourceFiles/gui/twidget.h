@@ -17,38 +17,71 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-void rtl(bool is);
-bool rtl();
-Qt::LayoutDirection langDir();
-
 class Widget : public QWidget {
 public:
 
 	Widget(QWidget *parent = 0) : QWidget(parent) {
 	}
-	void moveToLeft(int x, int y, int w) {
-		move(rtl() ? (x + w - width()) : x, y);
+	void moveToLeft(int x, int y, int outerw) {
+		move(rtl() ? (outerw - x - width()) : x, y);
 	}
-	void moveToRight(int x, int y, int w) {
-		move(rtl() ? x : (x + w - width()), y);
+	void moveToRight(int x, int y, int outerw) {
+		move(rtl() ? x : (outerw - x - width()), y);
 	}
 
 };
+
+namespace App {
+	const QPixmap &sprite();
+}
 
 class Painter : public QPainter {
 public:
 	explicit Painter(QPaintDevice *device) : QPainter(device) {
 	}
 
-	void drawTextLeft(int x, int y, int w, const QString &text, int textWidth = -1) {
+	void drawTextLeft(int x, int y, int outerw, const QString &text, int textWidth = -1) {
 		QFontMetrics m(fontMetrics());
 		if (rtl() && textWidth < 0) textWidth = m.width(text);
-		drawText(x + (rtl() ? (w - textWidth) : 0), y + m.ascent(), text);
+		drawText(rtl() ? (outerw - x - textWidth) : x, y + m.ascent(), text);
 	}
-	void drawTextRight(int x, int y, int w, const QString &text, int textWidth = -1) {
+	void drawTextRight(int x, int y, int outerw, const QString &text, int textWidth = -1) {
 		QFontMetrics m(fontMetrics());
 		if (!rtl() && textWidth < 0) textWidth = m.width(text);
-		drawText(x + (rtl() ? 0 : (w - textWidth)), y + m.ascent(), text);
+		drawText(rtl() ? x : (outerw - x - textWidth), y + m.ascent(), text);
+	}
+	void drawPixmapLeft(int x, int y, int outerw, const QPixmap &pix, const QRect &from) {
+		drawPixmap(QPoint(rtl() ? (outerw - x - (from.width() / pix.devicePixelRatio())) : x, y), pix, from);
+	}
+	void drawPixmapLeft(const QPoint &p, int outerw, const QPixmap &pix, const QRect &from) {
+		return drawPixmapLeft(p.x(), p.y(), outerw, pix, from);
+	}
+	void drawPixmapRight(int x, int y, int outerw, const QPixmap &pix, const QRect &from) {
+		drawPixmap(QPoint(rtl() ? x : (outerw - x - (from.width() / pix.devicePixelRatio())), y), pix, from);
+	}
+	void drawPixmapRight(const QPoint &p, int outerw, const QPixmap &pix, const QRect &from) {
+		return drawPixmapRight(p.x(), p.y(), outerw, pix, from);
+	}
+	void drawSprite(int x, int y, const style::sprite &sprite) {
+		return drawPixmap(QPoint(x, y), App::sprite(), sprite);
+	}
+	void drawSprite(const QPoint &p, const style::sprite &sprite) {
+		return drawPixmap(p, App::sprite(), sprite);
+	}
+	void drawSpriteLeft(int x, int y, int outerw, const style::sprite &sprite) {
+		return drawPixmapLeft(x, y, outerw, App::sprite(), sprite);
+	}
+	void drawSpriteLeft(const QPoint &p, int outerw, const style::sprite &sprite) {
+		return drawPixmapLeft(p, outerw, App::sprite(), sprite);
+	}
+	void drawSpriteRight(int x, int y, int outerw, const style::sprite &sprite) {
+		return drawPixmapRight(x, y, outerw, App::sprite(), sprite);
+	}
+	void drawSpriteRight(const QPoint &p, int outerw, const style::sprite &sprite) {
+		return drawPixmapRight(p, outerw, App::sprite(), sprite);
+	}
+	void drawSpriteCenter(const QRect &in, const style::sprite &sprite) {
+		return drawPixmap(QPoint(in.x() + (in.width() - sprite.pxWidth()) / 2, in.y() + (in.height() - sprite.pxHeight()) / 2), App::sprite(), sprite);
 	}
 };
 
@@ -80,10 +113,12 @@ protected:
 	void enterEvent(QEvent *e) {
 		TWidget *p(tparent());
 		if (p) p->leaveToChildEvent(e);
+		return Widget::enterEvent(e);
 	}
 	void leaveEvent(QEvent *e) {
 		TWidget *p(tparent());
 		if (p) p->enterFromChildEvent(e);
+		return Widget::leaveEvent(e);
 	}
 
 private:

@@ -842,9 +842,9 @@ void HistoryList::saveContextFile() {
     VideoLink *lnkVideo = dynamic_cast<VideoLink*>(_contextMenuLnk.data());
     AudioLink *lnkAudio = dynamic_cast<AudioLink*>(_contextMenuLnk.data());
     DocumentLink *lnkDocument = dynamic_cast<DocumentLink*>(_contextMenuLnk.data());
-	if (lnkVideo) VideoSaveLink(lnkVideo->video()).doSave(true);
-	if (lnkAudio) AudioSaveLink(lnkAudio->audio()).doSave(true);
-	if (lnkDocument) DocumentSaveLink(lnkDocument->document()).doSave(true);
+	if (lnkVideo) VideoSaveLink::doSave(lnkVideo->video(), true);
+	if (lnkAudio) AudioSaveLink::doSave(lnkAudio->audio(), true);
+	if (lnkDocument) DocumentSaveLink::doSave(lnkDocument->document(), true);
 }
 
 void HistoryList::copyContextText() {
