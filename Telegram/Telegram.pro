@@ -312,4 +312,5 @@ OTHER_FILES += \
     SourceFiles/langs/lang_es.strings \
     SourceFiles/langs/lang_de.strings \
     SourceFiles/langs/lang_nl.strings \
-    SourceFiles/langs/lang_pt_BR.strings
+    SourceFiles/langs/lang_pt_BR.strings \
+    SourceFiles/langs/lang_fa_IR.strings

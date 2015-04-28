@@ -25,6 +25,7 @@ static const char *LanguageCodes[] = {
 	"nl",
 	"pt_BR",
 	"ko",
+	"fa_IR",
 };
 static const int languageTest = -1, languageDefault = 0, languageCount = sizeof(LanguageCodes) / sizeof(LanguageCodes[0]);
 
