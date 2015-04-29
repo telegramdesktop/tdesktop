@@ -1656,6 +1656,7 @@ void psRegisterCustomScheme() {
             s << "Name=Telegram Desktop\n";
             s << "Comment=Official desktop version of Telegram messaging app\n";
             s << "Exec=" << cExeDir().toLocal8Bit().constData() << cExeName().toLocal8Bit().constData() << " -- %u\n";
+            s << "Path=" << cExeDir().toLocal8Bit().constData();
             s << "Icon=" << icon.toLocal8Bit().constData() << "\n";
             s << "Terminal=false\n";
             s << "Type=Application\n";
