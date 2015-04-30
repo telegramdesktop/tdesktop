@@ -66,7 +66,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org */
 "lng_status_invisible" = "隐身";
 "lng_status_lastseen_now" = "刚刚在线";
 "lng_status_lastseen_minutes" = "最后登录： {count:_not_used_|# 分钟|# 分钟}之前";
-"lng_status_lastseen_hours" = "最后登录： {count:_not_used_|# 小四|# 小时}之前";
+"lng_status_lastseen_hours" = "最后登录： {count:_not_used_|# 小时|# 小时}之前";
 "lng_status_lastseen_today" = "最后登录：今天 {time} 点";
 "lng_status_lastseen_yesterday" = "最后登录：昨天 {time} 点";
 "lng_status_lastseen_date" = "最后登录：{date}";
