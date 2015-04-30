@@ -382,11 +382,24 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_kick_user" = "{from} removeu {user}";
 "lng_action_user_left" = "{from} deixou o grupo";
 "lng_action_user_joined" = "{from} entrou no grupo";
+"lng_action_user_joined_by_link" = "{from} entrou no grupo via link de convite";
 "lng_action_user_registered" = "{from} entrou para o Telegram";
 "lng_action_removed_photo" = "{from} removeu a foto do grupo";
 "lng_action_changed_photo" = "{from} alterou a foto do grupo";
 "lng_action_changed_title" = "{from} alterou o título do grupo para «{title}»";
 "lng_action_created_chat" = "{from} criou o grupo «{title}»";
+
+"lng_group_invite_bad_link" = "Link de convite quebrado\nou expirado.";
+"lng_group_invite_want_join" = "Você deseja entrar no grupo «{title}»?";
+"lng_group_invite_join" = "Entrar";
+
+"lng_group_invite_link" = "Link de convite";
+"lng_group_invite_create" = "Criar um link de convite";
+"lng_group_invite_about" = "Você pode criar um link para entrar nesse grupo.\nQuem tiver o link pode entrar no grupo.";
+"lng_group_invite_create_new" = "Criar novo link";
+"lng_group_invite_about_new" = "O link de convite atual será desativado\nquando você criar um novo.";
+"lng_group_invite_copied" = "Link de convite copiado para área de transferência.";
+"lng_group_invite_no_room" = "Não foi possível entrar no grupo porque ele\njá possui muitos membros.";
 
 "lng_forwarded_from" = "Encaminhado de";
 "lng_in_reply_to" = "Em resposta a";
@@ -550,7 +563,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras menores melhorias";
-"lng_new_version_text" = "— Novo design do visualizador de fotos\n— Navegue pelos arquivos no visualizador de fotos\n— Notificações agrupadas quando muitas mensagens são encaminhadas \n— Novo plano de fundo padrão (você pode alterar nas Configurações)";
+"lng_new_version_text" = "— Link de convite para chats em grupo\n— Contador cinza de mensagens não lidas para conversas silenciadas.";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

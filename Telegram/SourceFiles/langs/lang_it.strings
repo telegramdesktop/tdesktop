@@ -382,11 +382,24 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_kick_user" = "{from} ha espulso {user}";
 "lng_action_user_left" = "{from} ha lasciato il gruppo";
 "lng_action_user_joined" = "{from} si è unito al gruppo";
+"lng_action_user_joined_by_link" = "{from} joined the group via invite link";
 "lng_action_user_registered" = "{from} ha iniziato a usare Telegram";
 "lng_action_removed_photo" = "{from} ha rimosso la foto del gruppo";
 "lng_action_changed_photo" = "{from} ha cambiato la foto del gruppo";
 "lng_action_changed_title" = "{from} ha cambiato il nome del gruppo in «{title}»";
 "lng_action_created_chat" = "{from} ha creato il gruppo «{title}»";
+
+"lng_group_invite_bad_link" = "This invite link is broken\nor it has expired.";
+"lng_group_invite_want_join" = "Do you want to join the group «{title}»?";
+"lng_group_invite_join" = "Join";
+
+"lng_group_invite_link" = "Link di invito";
+"lng_group_invite_create" = "Crea un link di invito";
+"lng_group_invite_about" = "Puoi creare un link per unirsi a questo gruppo.\nChiunque abbia quel link potrà unirsi.";
+"lng_group_invite_create_new" = "Crea nuovo link";
+"lng_group_invite_about_new" = "Current invite link will stop working\nwhen you create a new one.";
+"lng_group_invite_copied" = "Il link di invito è stato copiato negli appunti.";
+"lng_group_invite_no_room" = "Impossibile unirsi a questo gruppo perché\nci sono già troppi membri.";
 
 "lng_forwarded_from" = "Inoltrato da";
 "lng_in_reply_to" = "In risposta a";
@@ -550,7 +563,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli update è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "— Nuovo design per il visualizzatore delle foto\n— Passa tra i file nel visualizzatore foto\n— Notifiche raggruppate quando più messaggi sono inoltrati\n— Nuovo sfondo chat di default (puoi cambiarlo nelle Impostazioni)";
+"lng_new_version_text" = "— Invite links for group chats\n— Gray unread badge for muted conversations";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

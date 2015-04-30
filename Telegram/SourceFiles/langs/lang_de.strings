@@ -382,11 +382,24 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_kick_user" = "{from} hat {user} entfernt";
 "lng_action_user_left" = "{from} hat die Gruppe verlassen";
 "lng_action_user_joined" = "{from} ist der Gruppe beigetreten";
+"lng_action_user_joined_by_link" = "{from} joined the group via invite link";
 "lng_action_user_registered" = "{from} benutzt nun auch Telegram";
 "lng_action_removed_photo" = "{from} hat das Gruppenbild entfernt";
 "lng_action_changed_photo" = "{from} hat das Gruppenbild geändert";
 "lng_action_changed_title" = "{from} hat den Gruppennamen zu «{title}» geändert";
 "lng_action_created_chat" = "{from} hat die Gruppe «{title}» erstellt";
+
+"lng_group_invite_bad_link" = "This invite link is broken\nor it has expired.";
+"lng_group_invite_want_join" = "Do you want to join the group «{title}»?";
+"lng_group_invite_join" = "Beitreten";
+
+"lng_group_invite_link" = "Einladungslink";
+"lng_group_invite_create" = "Create an invite link";
+"lng_group_invite_about" = "You can create a link for joining this group.\nAnyone who has that link can join.";
+"lng_group_invite_create_new" = "Create new link";
+"lng_group_invite_about_new" = "Current invite link will stop working\nwhen you create a new one.";
+"lng_group_invite_copied" = "Invite link was copied to clipboard.";
+"lng_group_invite_no_room" = "Unable to join this group because there are\ntoo many members in it already.";
 
 "lng_forwarded_from" = "Weitergeleitet von";
 "lng_in_reply_to" = "Antwort auf";
@@ -550,7 +563,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Bildbetrachter in neuer Optik\n— Zwischen Dateien im Bildbetrachter wechseln\n— Gruppierte Benachrichtigungen, sofern mehrere Nachrichten weitergeleitet werden\n— Neuer Standard-Chathintergrund (kann man über die Einstellungen ändern)";
+"lng_new_version_text" = "— Invite links for group chats\n— Gray unread badge for muted conversations";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

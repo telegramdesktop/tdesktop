@@ -382,11 +382,24 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_kick_user" = "{from} 님께서 {user} 님을 추방하셨습니다.";
 "lng_action_user_left" = "{from} 님이 그룹을 나가셨습니다.";
 "lng_action_user_joined" = "{from} 님이 그룹에 들어오셨습니다.";
+"lng_action_user_joined_by_link" = "{from} joined the group via invite link";
 "lng_action_user_registered" = "{from} 님이 텔레그램에 가입하셨습니다.";
 "lng_action_removed_photo" = "{from} 님이 그룹사진을 삭제하셨습니다.";
 "lng_action_changed_photo" = "{from} 님이 그룹사진을 변경하셨습니다.";
 "lng_action_changed_title" = "{from} 님이 그룹이름을 «{title}» 로 바꾸셨습니다.";
 "lng_action_created_chat" = "{from} 님이 그룹 «{title}» 을 생성하셨습니다.";
+
+"lng_group_invite_bad_link" = "This invite link is broken\nor it has expired.";
+"lng_group_invite_want_join" = "Do you want to join the group «{title}»?";
+"lng_group_invite_join" = "Join";
+
+"lng_group_invite_link" = "Invite link";
+"lng_group_invite_create" = "Create an invite link";
+"lng_group_invite_about" = "You can create a link for joining this group.\nAnyone who has that link can join.";
+"lng_group_invite_create_new" = "Create new link";
+"lng_group_invite_about_new" = "Current invite link will stop working\nwhen you create a new one.";
+"lng_group_invite_copied" = "Invite link was copied to clipboard.";
+"lng_group_invite_no_room" = "Unable to join this group because there are\ntoo many members in it already.";
 
 "lng_forwarded_from" = "전달받음";
 "lng_in_reply_to" = "다음 유저에게 답장 :";
@@ -550,7 +563,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 새로운 사진 뷰어 디자인\n— 사진 뷰어에서 파일간 이동 기능\n— 여러 메시지가 전달되었을시 그룹 알림 기능\n— 새로운 채팅 배경 이미지 (설정에서 변경 가능)";
+"lng_new_version_text" = "— Invite links for group chats\n— Gray unread badge for muted conversations";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

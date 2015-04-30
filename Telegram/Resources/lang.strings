@@ -391,7 +391,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_group_invite_bad_link" = "This invite link is broken\nor it has expired.";
 "lng_group_invite_want_join" = "Do you want to join the group «{title}»?";
-"lng_group_invite_full" = "Sorry, this group is already full.";
 "lng_group_invite_join" = "Join";
 
 "lng_group_invite_link" = "Invite link";
