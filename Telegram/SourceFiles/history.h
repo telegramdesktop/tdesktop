@@ -660,6 +660,9 @@ public:
 	bool detached() const {
 		return !_block;
 	}
+	void attach(HistoryBlock *block) {
+		_block = block;
+	}
 	bool out() const {
 		return _flags & MTPDmessage_flag_out;
 	}

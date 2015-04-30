@@ -1977,7 +1977,8 @@ void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool l
 	if (hist) {
 		if (histPeer->id == peer) {
 			if (msgId != hist->activeMsgId) {
-				if (!force && !hist->canShowAround(msgId)) {
+				bool canShowNow = hist->canShowAround(msgId);
+				if (!force && !canShowNow) {
 					if (_loadingAroundId != msgId) {
 						clearLoadingAround();
 						_loadingAroundId = msgId;
@@ -1986,9 +1987,13 @@ void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool l
 					return;
 				}
 				hist->loadAround(msgId);
-				if (histPreloading) MTP::cancel(histPreloading);
-				if (histPreloadingDown) MTP::cancel(histPreloadingDown);
-				histPreloading = histPreloadingDown = 0;
+				if (!canShowNow) {
+					histPreload.clear();
+					histPreloadDown.clear();
+					if (histPreloading) MTP::cancel(histPreloading);
+					if (histPreloadingDown) MTP::cancel(histPreloadingDown);
+					histPreloading = histPreloadingDown = 0;
+				}
 			}
 			if (_replyReturn && _replyReturn->id == msgId) calcNextReplyReturn();
 
@@ -2306,6 +2311,8 @@ bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId
 void HistoryWidget::messagesReceived(const MTPmessages_Messages &messages, mtpRequestId requestId) {
 	if (!hist) {
 		histPreloading = histPreloadingDown = _loadingAroundRequest = 0;
+		histPreload.clear();
+		histPreloadDown.clear();
 		return;
 	}
 
@@ -2355,11 +2362,13 @@ void HistoryWidget::messagesReceived(const MTPmessages_Messages &messages, mtpRe
 			_loadingAroundRequest = 0;
 			hist->loadAround(_loadingAroundId);
 			if (hist->isEmpty()) {
+				histPreload.clear();
+				histPreloadDown.clear();
+				if (histPreloading) MTP::cancel(histPreloading);
+				if (histPreloadingDown) MTP::cancel(histPreloadingDown);
+				histPreloading = histPreloadingDown = 0;
 				addMessagesToFront(*histList);
 			}
-			if (histPreloading) MTP::cancel(histPreloading);
-			if (histPreloadingDown) MTP::cancel(histPreloadingDown);
-			histPreloading = histPreloadingDown = 0;
 			showPeer(hist->peer->id, _loadingAroundId, true);
 		}
 		return;

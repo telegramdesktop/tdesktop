@@ -549,6 +549,12 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 
 	HistoryItem *existing = App::histItemById(msgId);
 	if (existing) {
+		bool regged = false;
+		if (existing->detached() && block) {
+			existing->attach(block);
+			regged = true;
+		}
+
 		const MTPMessageMedia *media = 0;
 		switch (msg.type()) {
 		case mtpc_message: media = &msg.c_message().vmedia; break;
@@ -556,7 +562,7 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 		if (media) {
 			existing->updateMedia(*media);
 		}
-		return returnExisting ? existing : 0;
+		return (returnExisting || regged) ? existing : 0;
 	}
 
 	switch (msg.type()) {
@@ -3342,7 +3348,7 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 
 		w = thumbw;
 
-		_maxw = st::webPageLeft + qMax(w, int32(st::minPhotoSize)) + parent->timeWidth(true);
+		_maxw = st::webPageLeft + qMax(thumbh, qMax(w, int32(st::minPhotoSize))) + parent->timeWidth(true);
 		_minh = qMax(thumbh, int32(st::minPhotoSize));
 		_minh += st::webPagePhotoSkip;
 	} else {
