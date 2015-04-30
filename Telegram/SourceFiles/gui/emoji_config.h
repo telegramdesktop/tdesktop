@@ -22,6 +22,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 void initEmoji();
 EmojiPtr getEmoji(uint32 code);
 
+extern int EmojiSizes[5], ESize;
+
 void findEmoji(const QChar *ch, const QChar *e, const QChar *&newEmojiEnd, uint32 &emojiCode);
 
 inline bool emojiEdge(const QChar *ch) {

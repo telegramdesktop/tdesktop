@@ -153,15 +153,17 @@ T convertScale(T v) {
 DeclareSetting(DBIEmojiTab, EmojiTab);
 
 struct EmojiData {
-	EmojiData(uint16 x, uint16 y, uint32 code, uint32 code2, uint16 len, uint16 postfix = 0) : x(x), y(y), code(code), code2(code2), len(len), postfix(postfix) {
+	EmojiData(uint16 x, uint16 y, uint32 code, uint32 code2, uint16 len, uint16 postfix, uint32 color) : x(x), y(y), code(code), code2(code2), len(len), postfix(postfix), color(color) {
 	}
 	uint16 x, y;
 	uint32 code, code2;
 	uint16 len;
 	uint16 postfix;
+	uint32 color;
 };
 
 typedef const EmojiData *EmojiPtr;
+static EmojiPtr TwoSymbolEmoji = EmojiPtr(0x01);
 
 typedef QVector<EmojiPtr> EmojiPack;
 typedef QVector<QPair<uint32, ushort> > RecentEmojiPreload;
