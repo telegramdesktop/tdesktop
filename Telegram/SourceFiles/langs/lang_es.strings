@@ -393,10 +393,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_group_invite_want_join" = "¿Quieres unirte al grupo «{title}»?";
 "lng_group_invite_join" = "Unirme";
 
-"lng_group_invite_link" = "Enlace de invitación";
+"lng_group_invite_link" = "Invitación";
 "lng_group_invite_create" = "Crear un enlace de invitación";
 "lng_group_invite_about" = "Puedes crear un enlace para unirse a este grupo.\nCualquiera que tenga ese enlace puede unirse.";
-"lng_group_invite_create_new" = "Crear un nuevo enlace";
+"lng_group_invite_create_new" = "Nuevo enlace";
 "lng_group_invite_about_new" = "El enlace actual dejará de funcionar\ncuando crees uno nuevo.";
 "lng_group_invite_copied" = "El enlace de invitación fue copiado al portapapeles.";
 "lng_group_invite_no_room" = "No puedes unirte a este grupo porque\nhay muchos miembros en él.";

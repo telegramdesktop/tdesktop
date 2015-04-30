@@ -382,24 +382,24 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_kick_user" = "{from} heeft {user} verwijderd";
 "lng_action_user_left" = "{from} heeft de groep verlaten";
 "lng_action_user_joined" = "{from} neemt deel aan de groep";
-"lng_action_user_joined_by_link" = "{from} joined the group via invite link";
+"lng_action_user_joined_by_link" = "{from} neemt deel aan de groep via uitnodigingslink";
 "lng_action_user_registered" = "{from} heeft nu Telegram";
 "lng_action_removed_photo" = "{from} heeft de groepsafbeelding verwijderd";
 "lng_action_changed_photo" = "{from} heeft de groepsafbeelding gewijzigd";
 "lng_action_changed_title" = "{from} heeft de groepsnaam gewijzigd naar «{title}»";
 "lng_action_created_chat" = "{from} heeft de groep «{title}» gemaakt";
 
-"lng_group_invite_bad_link" = "This invite link is broken\nor it has expired.";
-"lng_group_invite_want_join" = "Do you want to join the group «{title}»?";
-"lng_group_invite_join" = "Join";
+"lng_group_invite_bad_link" = "Deze uitnodigingslink is \ndefect of verlopen.";
+"lng_group_invite_want_join" = "Wil je deelnemen aan de groep «{title}»?";
+"lng_group_invite_join" = "Deelnemen";
 
-"lng_group_invite_link" = "Invite link";
-"lng_group_invite_create" = "Create an invite link";
-"lng_group_invite_about" = "You can create a link for joining this group.\nAnyone who has that link can join.";
-"lng_group_invite_create_new" = "Create new link";
-"lng_group_invite_about_new" = "Current invite link will stop working\nwhen you create a new one.";
-"lng_group_invite_copied" = "Invite link was copied to clipboard.";
-"lng_group_invite_no_room" = "Unable to join this group because there are\ntoo many members in it already.";
+"lng_group_invite_link" = "Uitnodigingslink";
+"lng_group_invite_create" = "Uitnodigingslink maken";
+"lng_group_invite_about" = "Andere gebruikers kunnen aan je groep\ndeelnemen door deze link te openen.";
+"lng_group_invite_create_new" = "Nieuwe link";
+"lng_group_invite_about_new" = "Als je een nieuwe link maakt zal \nde huidige inactief worden.";
+"lng_group_invite_copied" = "Link gekopieerd naar klembord.";
+"lng_group_invite_no_room" = "Sorry, deze groep is al vol.";
 
 "lng_forwarded_from" = "Doorgestuurd van";
 "lng_in_reply_to" = "Antwoord op";
@@ -563,7 +563,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Invite links for group chats\n— Gray unread badge for muted conversations";
+"lng_new_version_text" = "— Uitnodigingslinks voor groepschats\n— Grijs Badgenummer voor gesprekken die op stil staan";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
