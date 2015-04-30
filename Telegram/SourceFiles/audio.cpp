@@ -414,10 +414,6 @@ void VoiceMessagesFader::onTimer() {
 					if (m.state == VoiceMessagePausing || m.state == VoiceMessageFinishing) {
 						newGain = 1. - newGain;
 					}
-					if (newGain < 0) {
-						int a = 0, b;
-						b = a;
-					}
 					alSourcef(m.source, AL_GAIN, newGain);
 				}
 			} else if (playing && (state == AL_PLAYING || !m.loading)) {

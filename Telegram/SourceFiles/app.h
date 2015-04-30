@@ -72,8 +72,8 @@ namespace App {
 	QString onlineText(UserData *user, int32 nowOnServer, bool precise = false);
 	bool onlineColorUse(int32 online, int32 now);
 
-	UserData *feedUsers(const MTPVector<MTPUser> &users); // returnes last user
-	void feedChats(const MTPVector<MTPChat> &chats);
+	UserData *feedUsers(const MTPVector<MTPUser> &users); // returns last user
+	ChatData *feedChats(const MTPVector<MTPChat> &chats); // returns last chat
 	void feedParticipants(const MTPChatParticipants &p);
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d);
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d);
@@ -189,11 +189,16 @@ namespace App {
 	void unregWebPageItem(WebPageData *data, HistoryItem *item);
 	const WebPageItems &webPageItems();
 
+	void regMuted(PeerData *peer, int32 changeIn);
+	void unregMuted(PeerData *peer);
+	void updateMuted();
+
 	void setProxySettings(QNetworkAccessManager &manager);
 	void setProxySettings(QTcpSocket &socket);
 
 	void searchByHashtag(const QString &tag);
 	void openUserByName(const QString &username, bool toProfile = false);
+	void joinGroupByHash(const QString &hash);
 	void openLocalUrl(const QString &url);
 
 	void initBackground(int32 id = DefaultChatBackground, const QImage &p = QImage(), bool nowrite = false);

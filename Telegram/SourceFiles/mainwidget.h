@@ -187,6 +187,7 @@ public:
 	void start(const MTPUser &user);
 	void openLocalUrl(const QString &str);
 	void openUserByName(const QString &name, bool toProfile = false);
+	void joinGroupByHash(const QString &hash);
 	void startFull(const MTPVector<MTPUser> &users);
 	bool started();
 	void applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNotifySettings &settings, History *history = 0);
@@ -333,7 +334,12 @@ public:
 	void cancelForwarding();
 	void finishForwarding(History *hist); // send them
 
+	void audioMarkRead(AudioData *data);
+	void videoMarkRead(VideoData *data);
+	void mediaMarkRead(const HistoryItemsMap &items);
+
 	void webPageUpdated(WebPageData *page);
+	void updateMutedIn(int32 seconds);
 
 	~MainWidget();
 
@@ -392,10 +398,14 @@ public slots:
 
 	void onCacheBackground();
 
+	void onInviteImport();
+
+	void onUpdateMuted();
+
 private:
 
     void partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result);
-	void msgsWereDeleted(const MTPmessages_AffectedMessages &result);
+	void messagesAffected(const MTPmessages_AffectedMessages &result);
 	void photosLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req);
 
 	bool _started;
@@ -413,6 +423,8 @@ private:
 	QMap<WebPageId, bool> _webPagesUpdated;
 	QTimer _webPageUpdater;
 
+	SingleTimer _updateMutedTimer;
+
 	void gotDifference(const MTPupdates_Difference &diff);
 	bool failDifference(const RPCError &e);
 	void feedDifference(const MTPVector<MTPUser> &users, const MTPVector<MTPChat> &chats, const MTPVector<MTPMessage> &msgs, const MTPVector<MTPUpdate> &other);
@@ -429,6 +441,12 @@ private:
 
 	void usernameResolveDone(bool toProfile, const MTPUser &user);
 	bool usernameResolveFail(QString name, const RPCError &error);
+
+	void inviteCheckDone(QString hash, const MTPChatInvite &invite);
+	bool inviteCheckFail(const RPCError &error);
+	QString _inviteHash;
+	void inviteImportDone(const MTPUpdates &result);
+	bool inviteImportFail(const RPCError &error);
 
 	void hideAll();
 	void showAll();

@@ -294,6 +294,7 @@ void VideoOpenLink::onClick(Qt::MouseButton button) const {
 	QString already = data->already(true);
 	if (!already.isEmpty()) {
 		psOpenFile(already);
+		if (App::main()) App::main()->videoMarkRead(data);
 		return;
 	}
 
@@ -381,9 +382,11 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 				audioVoice()->pauseresume();
 			} else {
 				audioVoice()->play(data);
+				if (App::main()) App::main()->audioMarkRead(data);
 			}
 		} else {
 			psOpenFile(already);
+			if (App::main()) App::main()->audioMarkRead(data);
 		}
 		return;
 	}

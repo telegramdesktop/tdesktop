@@ -146,13 +146,13 @@ inputPhoneContact#f392b7f4 client_id:long phone:string first_name:string last_na
 inputFile#f52ff27f id:long parts:int name:string md5_checksum:string = InputFile;
 
 inputMediaEmpty#9664f57f = InputMedia;
-inputMediaUploadedPhoto#2dc53a7d file:InputFile = InputMedia;
-inputMediaPhoto#8f2ab2ec id:InputPhoto = InputMedia;
+inputMediaUploadedPhoto#f7aff1c0 file:InputFile caption:string = InputMedia;
+inputMediaPhoto#e9bfb4f3 id:InputPhoto caption:string = InputMedia;
 inputMediaGeoPoint#f9c44144 geo_point:InputGeoPoint = InputMedia;
 inputMediaContact#a6e45987 phone_number:string first_name:string last_name:string = InputMedia;
-inputMediaUploadedVideo#133ad6f6 file:InputFile duration:int w:int h:int mime_type:string = InputMedia;
-inputMediaUploadedThumbVideo#9912dabf file:InputFile thumb:InputFile duration:int w:int h:int mime_type:string = InputMedia;
-inputMediaVideo#7f023ae6 id:InputVideo = InputMedia;
+inputMediaUploadedVideo#e13fd4bc file:InputFile duration:int w:int h:int caption:string = InputMedia;
+inputMediaUploadedThumbVideo#96fb97dc file:InputFile thumb:InputFile duration:int w:int h:int caption:string = InputMedia;
+inputMediaVideo#936a4ebd id:InputVideo caption:string = InputMedia;
 
 inputChatPhotoEmpty#1ca48f57 = InputChatPhoto;
 inputChatUploadedPhoto#94254732 file:InputFile crop:InputPhotoCrop = InputChatPhoto;
@@ -210,7 +210,7 @@ chatEmpty#9ba2d800 id:int = Chat;
 chat#6e9c9bc7 id:int title:string photo:ChatPhoto participants_count:int date:int left:Bool version:int = Chat;
 chatForbidden#fb0ccc41 id:int title:string date:int = Chat;
 
-chatFull#630e61be id:int participants:ChatParticipants chat_photo:Photo notify_settings:PeerNotifySettings = ChatFull;
+chatFull#cade0791 id:int participants:ChatParticipants chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite = ChatFull;
 
 chatParticipant#c8d7493e user_id:int inviter_id:int date:int = ChatParticipant;
 
@@ -225,8 +225,8 @@ message#a7ab1991 flags:# id:int from_id:int to_id:Peer fwd_from_id:flags.2?int f
 messageService#1d86f70e flags:int id:int from_id:int to_id:Peer date:int action:MessageAction = Message;
 
 messageMediaEmpty#3ded6320 = MessageMedia;
-messageMediaPhoto#c8c45a2a photo:Photo = MessageMedia;
-messageMediaVideo#a2d24290 video:Video = MessageMedia;
+messageMediaPhoto#3d8ce53d photo:Photo caption:string = MessageMedia;
+messageMediaVideo#5bcf1675 video:Video caption:string = MessageMedia;
 messageMediaGeo#56e0d474 geo:GeoPoint = MessageMedia;
 messageMediaContact#5e7d2f39 phone_number:string first_name:string last_name:string user_id:int = MessageMedia;
 messageMediaUnsupported#9f84f49e = MessageMedia;
@@ -242,14 +242,14 @@ messageActionChatDeleteUser#b2ae9b0c user_id:int = MessageAction;
 dialog#c1dd804a peer:Peer top_message:int read_inbox_max_id:int unread_count:int notify_settings:PeerNotifySettings = Dialog;
 
 photoEmpty#2331b22d id:long = Photo;
-photo#22b56751 id:long access_hash:long user_id:int date:int caption:string geo:GeoPoint sizes:Vector<PhotoSize> = Photo;
+photo#c3838076 id:long access_hash:long user_id:int date:int geo:GeoPoint sizes:Vector<PhotoSize> = Photo;
 
 photoSizeEmpty#e17e23c type:string = PhotoSize;
 photoSize#77bfb61b type:string location:FileLocation w:int h:int size:int = PhotoSize;
 photoCachedSize#e9a734fa type:string location:FileLocation w:int h:int bytes:bytes = PhotoSize;
 
 videoEmpty#c10658a8 id:long = Video;
-video#388fa391 id:long access_hash:long user_id:int date:int caption:string duration:int mime_type:string size:int thumb:PhotoSize dc_id:int w:int h:int = Video;
+video#ee9f4a4d id:long access_hash:long user_id:int date:int duration:int size:int thumb:PhotoSize dc_id:int w:int h:int = Video;
 
 geoPointEmpty#1117dd5f = GeoPoint;
 geoPoint#2049d70c long:double lat:double = GeoPoint;
@@ -332,7 +332,6 @@ inputMessagesFilterAudio#cfc87522 = MessagesFilter;
 
 updateNewMessage#1f2b0afd message:Message pts:int pts_count:int = Update;
 updateMessageID#4e90bfd6 id:int random_id:long = Update;
-updateReadMessages#2e5ab668 messages:Vector<int> pts:int pts_count:int = Update;
 updateDeleteMessages#a20db0e5 messages:Vector<int> pts:int pts_count:int = Update;
 updateUserTyping#5c486927 user_id:int action:SendMessageAction = Update;
 updateChatUserTyping#9a65ea1f chat_id:int user_id:int action:SendMessageAction = Update;
@@ -366,7 +365,7 @@ upload.file#96a18d5 type:storage.FileType mtime:int bytes:bytes = upload.File;
 
 dcOption#2ec2a43c id:int hostname:string ip_address:string port:int = DcOption;
 
-config#68bac247 date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int broadcast_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int disabled_features:Vector<DisabledFeature> = Config;
+config#4e32b894 date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int broadcast_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int disabled_features:Vector<DisabledFeature> = Config;
 
 nearestDc#8e1a1775 country:string this_dc:int nearest_dc:int = NearestDc;
 
@@ -479,11 +478,11 @@ auth.sentAppCode#e325edcf phone_registered:Bool phone_code_hash:string send_call
 sendMessageTypingAction#16bf744e = SendMessageAction;
 sendMessageCancelAction#fd5ec8f5 = SendMessageAction;
 sendMessageRecordVideoAction#a187d66f = SendMessageAction;
-sendMessageUploadVideoAction#92042ff7 = SendMessageAction;
+sendMessageUploadVideoAction#e9763aec progress:int = SendMessageAction;
 sendMessageRecordAudioAction#d52f73f7 = SendMessageAction;
-sendMessageUploadAudioAction#e6ac8a6f = SendMessageAction;
-sendMessageUploadPhotoAction#990a3c1a = SendMessageAction;
-sendMessageUploadDocumentAction#8faee98e = SendMessageAction;
+sendMessageUploadAudioAction#f351d7ab progress:int = SendMessageAction;
+sendMessageUploadPhotoAction#d1d34a26 progress:int = SendMessageAction;
+sendMessageUploadDocumentAction#aa0cd9e4 progress:int = SendMessageAction;
 sendMessageGeoLocationAction#176f8ba1 = SendMessageAction;
 sendMessageChooseContactAction#628cbc6f = SendMessageAction;
 
@@ -573,6 +572,22 @@ account.passwordInputSettings#bcfc532c flags:# new_salt:flags.0?bytes new_passwo
 
 auth.passwordRecovery#137948a5 email_pattern:string = auth.PasswordRecovery;
 
+inputMediaVenue#2827a81a geo_point:InputGeoPoint title:string address:string provider:string venue_id:string = InputMedia;
+
+messageMediaVenue#7912b71f geo:GeoPoint title:string address:string provider:string venue_id:string = MessageMedia;
+
+receivedNotifyMessage#a384b779 id:int flags:int = ReceivedNotifyMessage;
+
+chatInviteEmpty#69df3769 = ExportedChatInvite;
+chatInviteExported#fc2e05bc link:string = ExportedChatInvite;
+
+chatInviteAlready#5a686d7c chat:Chat = ChatInvite;
+chatInvite#ce917dcd title:string = ChatInvite;
+
+messageActionChatJoinedByLink#f89cf5e8 inviter_id:int = MessageAction;
+
+updateReadMessagesContents#68c13933 messages:Vector<int> pts:int pts_count:int = Update;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -622,7 +637,7 @@ messages.search#7e9f2ab peer:InputPeer q:string filter:MessagesFilter min_date:i
 messages.readHistory#b04f2510 peer:InputPeer max_id:int offset:int = messages.AffectedHistory;
 messages.deleteHistory#f4f8fb61 peer:InputPeer offset:int = messages.AffectedHistory;
 messages.deleteMessages#a5f18925 id:Vector<int> = messages.AffectedMessages;
-messages.receivedMessages#28abcb68 max_id:int = Vector<int>;
+messages.receivedMessages#5a954c0 max_id:int = Vector<ReceivedNotifyMessage>;
 messages.setTyping#a3825e50 peer:InputPeer action:SendMessageAction = Bool;
 messages.sendMessage#9add8f26 flags:# peer:InputPeer reply_to_msg_id:flags.0?int message:string random_id:long = messages.SentMessage;
 messages.sendMedia#2d7923b1 flags:# peer:InputPeer reply_to_msg_id:flags.0?int media:InputMedia random_id:long = Updates;
@@ -724,3 +739,9 @@ account.updatePasswordSettings#fa7c4b86 current_password_hash:bytes new_settings
 auth.checkPassword#a63011e password_hash:bytes = auth.Authorization;
 auth.requestPasswordRecovery#d897bc66 = auth.PasswordRecovery;
 auth.recoverPassword#4ea56e92 code:string = auth.Authorization;
+
+invokeWithoutUpdates#bf9459b7 {X:Type} query:!X = X;
+
+messages.exportChatInvite#7d885289 chat_id:int = ExportedChatInvite;
+messages.checkChatInvite#3eadb1bb hash:string = ChatInvite;
+messages.importChatInvite#6c50051c hash:string = Updates;

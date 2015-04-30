@@ -34,6 +34,9 @@ namespace {
 	typedef QHash<PeerId, PeerData*> PeersData;
 	PeersData peersData;
 
+	typedef QMap<PeerData*, bool> MutedPeers;
+	MutedPeers mutedPeers;
+
 	typedef QHash<PhotoId, PhotoData*> PhotosData;
 	PhotosData photosData;
 
@@ -441,11 +444,12 @@ namespace App {
 		return data;
 	}
 
-	void feedChats(const MTPVector<MTPChat> &chats) {
+	ChatData *feedChats(const MTPVector<MTPChat> &chats) {
+		ChatData *data = 0;
 		const QVector<MTPChat> &v(chats.c_vector().v);
 		for (QVector<MTPChat>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 			const MTPchat &chat(*i);
-            ChatData *data = 0;
+			data = 0;
 			QString title;
 			switch (chat.type()) {
 			case mtpc_chat: {
@@ -458,7 +462,7 @@ namespace App {
 				data->setPhoto(d.vphoto);
 				data->date = d.vdate.v;
 				data->count = d.vparticipants_count.v;
-				data->left = false;
+				data->left = d.vleft.v;
 				data->forbidden = false;
 				data->access = 0;
 				if (data->version < d.vversion.v) {
@@ -507,6 +511,7 @@ namespace App {
 
 			if (App::main()) App::main()->peerUpdated(data);
 		}
+		return data;
 	}
 
 	void feedParticipants(const MTPChatParticipants &p) {
@@ -1288,7 +1293,7 @@ namespace App {
 			photoSizes.push_back(MTP_photoSize(MTP_string("a"), uphoto.vphoto_small, MTP_int(160), MTP_int(160), MTP_int(0)));
 			photoSizes.push_back(MTP_photoSize(MTP_string("c"), uphoto.vphoto_big, MTP_int(640), MTP_int(640), MTP_int(0)));
 
-			return MTP_photo(uphoto.vphoto_id, MTP_long(0), userId, date, MTP_string(""), MTP_geoPointEmpty(), MTP_vector<MTPPhotoSize>(photoSizes));
+			return MTP_photo(uphoto.vphoto_id, MTP_long(0), userId, date, MTP_geoPointEmpty(), MTP_vector<MTPPhotoSize>(photoSizes));
 		}
 		return MTP_photoEmpty(MTP_long(0));
 	}
@@ -1431,6 +1436,7 @@ namespace App {
 	void historyClearItems() {
 		historyClearMsgs();
 		randomData.clear();
+		mutedPeers.clear();
 		for (PeersData::const_iterator i = peersData.cbegin(), e = peersData.cend(); i != e; ++i) {
 			delete *i;
 		}
@@ -1772,6 +1778,34 @@ namespace App {
 		return ::webPageItems;
 	}
 
+	void regMuted(PeerData *peer, int32 changeIn) {
+		::mutedPeers.insert(peer, true);
+		if (App::main()) App::main()->updateMutedIn(changeIn);
+	}
+
+	void unregMuted(PeerData *peer) {
+		::mutedPeers.remove(peer);
+	}
+
+	void updateMuted() {
+		int32 changeInMin = 0;
+		for (MutedPeers::iterator i = ::mutedPeers.begin(); i != ::mutedPeers.end();) {
+			int32 changeIn = 0;
+			History *h = App::history(i.key()->id);
+			if (isNotifyMuted(i.key()->notify, &changeIn)) {
+				h->setMute(true);
+				if (changeIn && (!changeInMin || changeIn < changeInMin)) {
+					changeInMin = changeIn;
+				}
+				++i;
+			} else {
+				h->setMute(false);
+				i = ::mutedPeers.erase(i);
+			}
+		}
+		if (changeInMin) App::main()->updateMutedIn(changeInMin);
+	}
+
 	void setProxySettings(QNetworkAccessManager &manager) {
 		if (cConnectionType() == dbictHttpProxy) {
 			const ConnectionProxy &p(cConnectionProxy());
@@ -1799,6 +1833,12 @@ namespace App {
 	void openUserByName(const QString &username, bool toProfile) {
 		if (App::main()) {
 			App::main()->openUserByName(username, toProfile);
+		}
+	}
+
+	void joinGroupByHash(const QString &hash) {
+		if (App::main()) {
+			App::main()->joinGroupByHash(hash);
 		}
 	}
 

@@ -670,6 +670,12 @@ public:
 	bool notifyByFrom() const {
 		return _flags & MTPDmessage_flag_notify_by_from;
 	}
+	bool isMediaUnread() const {
+		return _flags & MTPDmessage_flag_media_unread;
+	}
+	void markMediaRead() {
+		_flags &= ~MTPDmessage_flag_media_unread;
+	}
 	virtual bool needCheck() const {
 		return true;
 	}
@@ -727,7 +733,7 @@ public:
 	virtual QString time() const {
 		return QString();
 	}
-	virtual int32 timeWidth() const {
+	virtual int32 timeWidth(bool forText) const {
 		return 0;
 	}
 	virtual bool animating() const {
@@ -851,7 +857,7 @@ protected:
 class HistoryPhoto : public HistoryMedia {
 public:
 
-	HistoryPhoto(const MTPDphoto &photo);
+	HistoryPhoto(const MTPDphoto &photo, const QString &caption, HistoryItem *parent);
 	HistoryPhoto(PeerData *chat, const MTPDphoto &photo, int32 width = 0);
 
 	void init();
@@ -891,6 +897,7 @@ public:
 private:
 	int16 pixw, pixh;
 	PhotoData *data;
+	Text _caption;
 	TextLinkPtr openl;
 
 };
@@ -900,7 +907,7 @@ QString formatSizeText(qint64 size);
 class HistoryVideo : public HistoryMedia {
 public:
 
-	HistoryVideo(const MTPDvideo &video);
+	HistoryVideo(const MTPDvideo &video, const QString &caption, HistoryItem *parent);
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
@@ -928,6 +935,8 @@ private:
 	VideoData *data;
 	TextLinkPtr _openl, _savel, _cancell;
 	
+	Text _caption;
+
 	QString _size;
 	int32 _thumbw, _thumbx, _thumby;
 
@@ -1172,7 +1181,7 @@ private:
 class HistoryImageLink : public HistoryMedia {
 public:
 
-	HistoryImageLink(const QString &url);
+	HistoryImageLink(const QString &url, const QString &title = QString(), const QString &description = QString());
 	int32 fullWidth() const;
 	int32 fullHeight() const;
 	void initDimensions(const HistoryItem *parent);
@@ -1194,6 +1203,7 @@ public:
 
 private:
 	ImageLinkData *data;
+	Text _title, _description;
 	TextLinkPtr link;
 
 };
@@ -1206,6 +1216,7 @@ public:
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, HistoryMedia *media);
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc);
 
+	void initTime();
 	void initMedia(const MTPMessageMedia &media, QString &currentText);
 	void initMediaFromText(QString &currentText);
 	void initMediaFromDocument(DocumentData *doc);
@@ -1247,8 +1258,8 @@ public:
 	QString time() const {
 		return _time;
 	}
-	int32 timeWidth() const {
-		return _timeWidth;
+	int32 timeWidth(bool forText) const {
+		return _timeWidth + (forText ? (st::msgDateSpace + (out() ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) - st::msgDateDelta.x()) : 0);
 	}
 	virtual bool animating() const {
 		return _media ? _media->animating() : false;

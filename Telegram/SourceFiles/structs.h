@@ -40,11 +40,16 @@ static const NotifySettingsPtr EmptyNotifySettings = NotifySettingsPtr(1);
 extern NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 extern NotifySettingsPtr globalNotifyAllPtr, globalNotifyUsersPtr, globalNotifyChatsPtr;
 
-inline bool isNotifyMuted(NotifySettingsPtr settings) {
-	if (settings == UnknownNotifySettings || settings == EmptyNotifySettings) {
-		return false;
+inline bool isNotifyMuted(NotifySettingsPtr settings, int32 *changeIn = 0) {
+	if (settings != UnknownNotifySettings && settings != EmptyNotifySettings) {
+		int32 t = unixtime();
+		if (settings->mute > t) {
+			if (changeIn) *changeIn = settings->mute - t + 1;
+			return true;
+		}
 	}
-	return (settings->mute > unixtime());
+	if (changeIn) *changeIn = 0;
+	return false;
 }
 
 style::color peerColor(int32 index);
@@ -155,6 +160,7 @@ struct ChatData : public PeerData {
 	LastAuthors lastAuthors;
 	ImagePtr photoFull;
 	PhotoId photoId;
+	QString invitationUrl;
 	// geo
 };
 

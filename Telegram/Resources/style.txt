@@ -699,6 +699,7 @@ dlgDateSkip: 5px;
 
 dlgUnreadColor: #FFF;
 dlgUnreadBG: #6fc766;
+dlgUnreadMutedBG: #bbb;
 dlgUnreadFont: font(12px bold);
 dlgUnreadPaddingHor: 5px;
 dlgUnreadPaddingVer: 1px;
@@ -919,6 +920,12 @@ mediaInColor: msgInDateColor;
 mediaOutColor: msgOutDateColor;
 mediaInSelectColor: msgInSelectDateColor;
 mediaOutSelectColor: msgOutSelectDateColor;
+mediaOutUnreadColor: #6aad60;
+mediaOutUnreadSelectColor: #5aa382;
+mediaInUnreadColor: #999;
+mediaInUnreadSelectColor: #7b95aa;
+mediaUnreadSize: 4px;
+mediaUnreadSkip: 5px;
 mediaSaveDelta: 14px; // between bubble and download
 mediaSaveButton: flatButton(btnDefFlat) {
 	color: #507da2;

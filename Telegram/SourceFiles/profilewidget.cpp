@@ -40,6 +40,8 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	_sendMessage(this, lang(lng_profile_send_message), st::btnShareContact),
 	_shareContact(this, lang(lng_profile_share_contact), st::btnShareContact),
 	_cancelPhoto(this, lang(lng_cancel)),
+	_createInvitationLink(this, lang(lng_group_invite_create)),
+	_invitationLink(this, qsl("telegram.me/joinchat/")),
 
 	a_photo(0),
 	_photoOver(false),
@@ -62,18 +64,20 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	_selectedRow(-1), _lastPreload(0), _contactId(0),
 	_kickOver(0), _kickDown(0), _kickConfirm(0),
 	
-	_loadingId(0), _menu(0) {
+	_menu(0) {
+
+	connect(App::api(), SIGNAL(fullPeerLoaded(PeerData*)), this, SLOT(onFullPeerLoaded(PeerData*)));
 
 	if (_peerUser) {
 		_phoneText = _peerUser->phone.isEmpty() ? QString() : App::formatPhone(_peerUser->phone);
-		_loadingId = MTP::send(MTPusers_GetFullUser(_peerUser->inputUser), rpcDone(&ProfileInner::gotFullUser));
+		App::api()->requestFullPeer(_peer);
 	} else if (_peerChat->photoId) {
 		PhotoData *ph = App::photo(_peerChat->photoId);
 		if (ph->date) {
 			_photoLink = TextLinkPtr(new PhotoLink(ph, _peer));
 		}
 	} else {
-		_loadingId = MTP::send(MTPmessages_GetFullChat(App::peerToMTP(_peerChat->id).c_peerChat().vchat_id), rpcDone(&ProfileInner::gotFullChat));
+		App::api()->requestFullPeer(_peer);
 	}
 
 	// profile
@@ -84,6 +88,10 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	connect(&_sendMessage, SIGNAL(clicked()), this, SLOT(onSendMessage()));
 	connect(&_shareContact, SIGNAL(clicked()), this, SLOT(onShareContact()));
 	connect(&_cancelPhoto, SIGNAL(clicked()), this, SLOT(onUpdatePhotoCancel()));
+	connect(&_createInvitationLink, SIGNAL(clicked()), this, SLOT(onCreateInvitationLink()));
+	connect(&_invitationLink, SIGNAL(clicked()), this, SLOT(onInvitationLink()));
+	_invitationLink.setAcceptBoth(true);
+	updateInvitationLink();
 
 	connect(App::app(), SIGNAL(peerPhotoDone(PeerId)), this, SLOT(onPhotoUpdateDone(PeerId)));
 	connect(App::app(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUpdateFail(PeerId)));
@@ -247,38 +255,43 @@ void ProfileInner::onMediaAudios() {
 	App::main()->showMediaOverview(_peer, OverviewAudios);
 }
 
-void ProfileInner::gotFullUser(const MTPUserFull &user) {
-	_loadingId = 0;
-	const MTPDuserFull &d(user.c_userFull());
-	App::feedPhoto(d.vprofile_photo);
-	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
-	PhotoData *userPhoto = _peerUser->photoId ? App::photo(_peerUser->photoId) : 0;
-	if (userPhoto && userPhoto->date) {
-		_photoLink = TextLinkPtr(new PhotoLink(userPhoto, _peer));
-	} else {
-		_photoLink = TextLinkPtr();
-	}
-	App::main()->gotNotifySetting(MTP_inputNotifyPeer(_peer->input), d.vnotify_settings);
-	App::feedUserLink(MTP_int(_peerUser->id), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link);
+void ProfileInner::onInvitationLink() {
+	QApplication::clipboard()->setText(_peerChat->invitationUrl);
+	App::wnd()->showLayer(new ConfirmBox(lang(lng_group_invite_copied), true));
 }
 
-void ProfileInner::gotFullChat(const MTPmessages_ChatFull &res) {
-	_loadingId = 0;
-	const MTPDmessages_chatFull &d(res.c_messages_chatFull());
-	PeerId peerId = App::peerFromChat(d.vfull_chat.c_chatFull().vid);
-	App::feedUsers(d.vusers);
-	App::feedChats(d.vchats);
-	App::feedParticipants(d.vfull_chat.c_chatFull().vparticipants);
-	App::main()->gotNotifySetting(MTP_inputNotifyPeer(_peer->input), d.vfull_chat.c_chatFull().vnotify_settings);
-	PhotoData *photo = App::feedPhoto(d.vfull_chat.c_chatFull().vchat_photo);
-	if (photo) {
-		ChatData *chat = App::peer(peerId)->asChat();
-		if (chat) {
-			chat->photoId = photo->id;
-			photo->chat = chat;
+void ProfileInner::onCreateInvitationLink() {
+	ConfirmBox *box = new ConfirmBox(lang(_peerChat->invitationUrl.isEmpty() ? lng_group_invite_about : lng_group_invite_about_new));
+	connect(box, SIGNAL(confirmed()), this, SLOT(onCreateInvitationLinkSure()));
+	App::wnd()->showLayer(box);
+}
+
+void ProfileInner::onCreateInvitationLinkSure() {
+	MTP::send(MTPmessages_ExportChatInvite(App::peerToMTP(_peerChat->id).c_peerChat().vchat_id), rpcDone(&ProfileInner::chatInviteDone));
+}
+
+void ProfileInner::chatInviteDone(const MTPExportedChatInvite &result) {
+	_peerChat->invitationUrl = (result.type() == mtpc_chatInviteExported) ? qs(result.c_chatInviteExported().vlink) : QString();
+	updateInvitationLink();
+	showAll();
+	resizeEvent(0);
+	App::wnd()->hideLayer();
+}
+
+void ProfileInner::onFullPeerLoaded(PeerData *peer) {
+	if (peer != _peer) return;
+	if (_peerUser) {
+		PhotoData *userPhoto = _peerUser->photoId ? App::photo(_peerUser->photoId) : 0;
+		if (userPhoto && userPhoto->date) {
+			_photoLink = TextLinkPtr(new PhotoLink(userPhoto, _peer));
+		} else {
+			_photoLink = TextLinkPtr();
 		}
+	} else if (_peerChat) {
+		updateInvitationLink();
+		showAll();
+		resizeEvent(0);
 	}
-	emit App::main()->peerUpdated(_peer);
 }
 
 void ProfileInner::peerUpdated(PeerData *data) {
@@ -356,8 +369,8 @@ void ProfileInner::reorderParticipants() {
 				++onlineCount;
 			}
 		}
-		if (_peerChat->count > 0 && _participants.isEmpty() && !_loadingId) {
-			_loadingId = MTP::send(MTPmessages_GetFullChat(App::peerToMTP(_peerChat->id).c_peerChat().vchat_id), rpcDone(&ProfileInner::gotFullChat));
+		if (_peerChat->count > 0 && _participants.isEmpty()) {
+			App::api()->requestFullPeer(_peer);
 			if (_onlineText.isEmpty()) _onlineText = lng_chat_status_members(lt_count, _peerChat->count);
         } else if (onlineCount && !onlyMe) {
 			_onlineText = lng_chat_status_members_online(lt_count, _participants.size(), lt_count_online, onlineCount);
@@ -420,7 +433,12 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	}
 	p.setPen((_peerUser && App::onlineColorUse(_peerUser->onlineTill, l_time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
 	p.drawText(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop + st::linkFont->ascent, _onlineText);
+	if (_chatAdmin && !_peerChat->invitationUrl.isEmpty()) {
+		p.setPen(st::black->p);
+		p.drawText(_left + st::profilePhotoSize + st::profilePhoneLeft, _createInvitationLink.y() + st::linkFont->ascent, lang(lng_group_invite_link));
+	}
 	if (!_cancelPhoto.isHidden()) {
+		p.setPen(st::profileOfflineColor->p);
 		p.drawText(_left + st::profilePhotoSize + st::profilePhoneLeft, _cancelPhoto.y() + addbyname + st::linkFont->ascent, lang(lng_settings_uploading_photo));
 	}
 
@@ -665,7 +683,20 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	
 	// profile
 	top += st::profilePadding.top();
-	_cancelPhoto.move(_left + _width - _cancelPhoto.width(), top + st::profilePhoneTop);
+	if (_chatAdmin) {
+		if (_peerChat->invitationUrl.isEmpty()) {
+			_createInvitationLink.move(_left + st::profilePhotoSize + st::profilePhoneLeft, top + st::profilePhoneTop);
+		} else {
+			_createInvitationLink.move(_left + _width - _createInvitationLink.width(), top + st::profilePhoneTop);
+		}
+		if (!_invitationText.isEmpty()) {
+			_invitationLink.setText(st::linkFont->m.elidedText(_invitationText, Qt::ElideRight, _width - st::profilePhotoSize - st::profilePhoneLeft));
+		}
+		_invitationLink.move(_left + st::profilePhotoSize + st::profilePhoneLeft, top + st::profilePhoneTop + st::linkFont->height * 1.2);
+		_cancelPhoto.move(_left + _width - _cancelPhoto.width(), top + st::profilePhotoSize - st::linkFont->height);
+	} else {
+		_cancelPhoto.move(_left + _width - _cancelPhoto.width(), top + st::profilePhoneTop);
+	}
 	top += st::profilePhotoSize;
 
 	top += st::profileButtonTop;
@@ -799,6 +830,8 @@ void ProfileInner::showAll() {
 			_uploadPhoto.hide();
 			_cancelPhoto.hide();
 			_addParticipant.hide();
+			_createInvitationLink.hide();
+			_invitationLink.hide();
 		} else {
 			if (App::app()->isPhotoUpdating(_peer->id)) {
 				_uploadPhoto.hide();
@@ -806,6 +839,17 @@ void ProfileInner::showAll() {
 			} else {
 				_uploadPhoto.show();
 				_cancelPhoto.hide();
+			}
+			if (_chatAdmin) {
+				_createInvitationLink.show();
+				if (_peerChat->invitationUrl.isEmpty()) {
+					_invitationLink.hide();
+				} else {
+					_invitationLink.show();
+				}
+			} else {
+				_createInvitationLink.hide();
+				_invitationLink.hide();
 			}
 			if (_peerChat->count < cMaxGroupCount()) {
 				_addParticipant.show();
@@ -819,6 +863,8 @@ void ProfileInner::showAll() {
 		_uploadPhoto.hide();
 		_cancelPhoto.hide();
 		_addParticipant.hide();
+		_createInvitationLink.hide();
+		_invitationLink.hide();
 		_sendMessage.show();
 		if (_peerUser->phone.isEmpty()) {
 			_shareContact.hide();
@@ -878,6 +924,21 @@ void ProfileInner::showAll() {
 		}
 	}
 	resize(width(), h);
+}
+
+void ProfileInner::updateInvitationLink() {
+	if (!_peerChat) return;
+	if (_peerChat->invitationUrl.isEmpty()) {
+		_createInvitationLink.setText(lang(lng_group_invite_create));
+	} else {
+		_createInvitationLink.setText(lang(lng_group_invite_create_new));
+		_invitationText = _peerChat->invitationUrl;
+		if (_invitationText.startsWith(QLatin1String("http://"), Qt::CaseInsensitive)) {
+			_invitationText = _invitationText.mid(7);
+		} else if (_invitationText.startsWith(QLatin1String("https://"), Qt::CaseInsensitive)) {
+			_invitationText = _invitationText.mid(8);
+		}
+	}
 }
 
 QString ProfileInner::overviewLinkText(int32 type, int32 count) {

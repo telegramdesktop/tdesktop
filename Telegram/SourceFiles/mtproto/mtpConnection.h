@@ -24,6 +24,7 @@ enum {
 	MTPDmessage_flag_unread = (1 << 0),
 	MTPDmessage_flag_out = (1 << 1),
 	MTPDmessage_flag_notify_by_from = (1 << 4),
+	MTPDmessage_flag_media_unread = (1 << 5),
 	MTPmessages_SendMessage_flag_skipWebPage = (1 << 1),
 };
 

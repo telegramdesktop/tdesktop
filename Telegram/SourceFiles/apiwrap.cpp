@@ -116,18 +116,21 @@ void ApiWrap::clearWebPageRequests() {
 
 void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result) {
 	const MTPDmessages_chatFull &d(result.c_messages_chatFull());
+	const MTPDchatFull &f(d.vfull_chat.c_chatFull());
 	App::feedUsers(d.vusers);
 	App::feedChats(d.vchats);
-	App::feedParticipants(d.vfull_chat.c_chatFull().vparticipants);
-	PhotoData *photo = App::feedPhoto(d.vfull_chat.c_chatFull().vchat_photo);
-	if (photo) {
-		ChatData *chat = peer->asChat();
-		if (chat) {
+	App::feedParticipants(f.vparticipants);
+	PhotoData *photo = App::feedPhoto(f.vchat_photo);
+	ChatData *chat = peer->asChat();
+	if (chat) {
+		if (photo) {
 			chat->photoId = photo->id;
 			photo->chat = chat;
 		}
+		chat->invitationUrl = (f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString();
 	}
-	App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), d.vfull_chat.c_chatFull().vnotify_settings);
+
+	App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
 
 	_fullRequests.remove(peer);
 	emit fullPeerLoaded(peer);
@@ -136,6 +139,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result) {
 void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result) {
 	const MTPDuserFull &d(result.c_userFull());
 	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
+	App::feedPhoto(d.vprofile_photo);
 	App::feedUserLink(MTP_int(App::userFromPeer(peer->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link);
 	App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), d.vnotify_settings);
 
