@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 8008;
-static const wchar_t *AppVersionStr = L"0.8.8";
+static const int32 AppVersion = 8009;
+static const wchar_t *AppVersionStr = L"0.8.9";
 static const bool DevChannel = true;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";

@@ -1,2 +1,2 @@
-echo 8008 0.8.8 1
+echo 8009 0.8.9 1
 # AppVersion AppVersionStr DevChannel

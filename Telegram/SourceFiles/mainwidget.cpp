@@ -2489,7 +2489,7 @@ void MainWidget::openLocalUrl(const QString &url) {
 			openUserByName(m.captured(1));
 		}
 	} else if (u.startsWith(QLatin1String("tg://join"), Qt::CaseInsensitive)) {
-		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://join/?\\?invite=([a-zA-Z0-9\\.\\_]+)$"), QRegularExpression::CaseInsensitiveOption).match(u);
+		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)$"), QRegularExpression::CaseInsensitiveOption).match(u);
 		if (m.hasMatch()) {
 			joinGroupByHash(m.captured(1));
 		}

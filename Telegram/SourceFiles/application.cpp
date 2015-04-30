@@ -662,8 +662,8 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 8006) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Old default chat background image placed first in background Gallery\n\xe2\x80\x94 Forwarded files, videos, audios and contacts original sender name is displayed\n\xe2\x80\x94 Grouped notifications when several messages are forwarded").replace('@', qsl("@") + QChar(0x200D));
+			if (DevChannel && Local::oldMapVersion() < 8009) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Invite links for group chats\n\xe2\x80\x94 Gray unread badge for muted conversations").replace('@', qsl("@") + QChar(0x200D));
 			} else if (!DevChannel && Local::oldMapVersion() < 8007) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			}
