@@ -664,7 +664,7 @@ void Application::checkMapVersion() {
 			QString versionFeatures;
 			if (DevChannel && Local::oldMapVersion() < 8010) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Critical bug fixes with message history loading").replace('@', qsl("@") + QChar(0x200D));
-			} else if (!DevChannel && Local::oldMapVersion() < 8007) {
+			} else if (!DevChannel && Local::oldMapVersion() < 8011) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
