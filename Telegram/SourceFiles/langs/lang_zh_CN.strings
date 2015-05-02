@@ -66,7 +66,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org */
 "lng_status_invisible" = "隐身";
 "lng_status_lastseen_now" = "刚刚在线";
 "lng_status_lastseen_minutes" = "最后登录： {count:_not_used_|# 分钟|# 分钟}之前";
-"lng_status_lastseen_hours" = "最后登录： {count:_not_used_|# 小时|# 小时}之前";
+"lng_status_lastseen_hours" = "最后登录： {count:_not_used_|# 小四|# 小时}之前";
 "lng_status_lastseen_today" = "最后登录：今天 {time} 点";
 "lng_status_lastseen_yesterday" = "最后登录：昨天 {time} 点";
 "lng_status_lastseen_date" = "最后登录：{date}";
@@ -170,7 +170,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org */
 "lng_settings_update_fail" = "更新检查失败:(";
 "lng_settings_workmode_tray" = "显示托盘图标";
 "lng_settings_workmode_window" = "显示任务栏图标";
-"lng_settings_auto_start" = "推出电报系统启动时";
+"lng_settings_auto_start" = "系统启动时自动开启 Telegram";
 "lng_settings_start_min" = "启动后最小化";
 "lng_settings_add_sendto" = "将 Telegram 添加到 «Send to» 菜单";
 "lng_settings_scale_label" = "界面缩放";
@@ -300,7 +300,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org */
 "lng_profile_enable_notifications" = "通知";
 "lng_profile_clear_history" = "清除历史记录";
 "lng_profile_send_message" = "发送消息";
-"lng_profile_share_contact" = "风险联系人";
+"lng_profile_share_contact" = "分享联系人";
 "lng_profile_delete_contact" = "删除";
 "lng_profile_set_group_photo" = "设置照片";
 "lng_profile_add_participant" = "添加成员";
