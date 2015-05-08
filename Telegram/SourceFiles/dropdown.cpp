@@ -1071,7 +1071,7 @@ void EmojiPanInner::onColorSelected(EmojiPtr emoji) {
 	}
 	if (_pickerSel >= 0) {
 		int tab = (_pickerSel / emojiTabShift), sel = _pickerSel % emojiTabShift;
-		if (tab > 0 && tab < emojiTabCount) {
+		if (tab >= 0 && tab < emojiTabCount) {
 			_emojis[tab][sel] = emoji;
 			update();
 		}
@@ -1143,6 +1143,8 @@ void EmojiPanInner::refreshStickers() {
 		_stickers[i] = cRecentStickers().at(i).first;
 		_isUserGen[i] = (cRecentStickers().at(i).second < 0);
 	}
+	int32 h = countHeight();
+	if (h != height()) resize(width(), h);
 }
 
 void EmojiPanInner::hideFinish() {
@@ -1159,6 +1161,8 @@ void EmojiPanInner::refreshRecent() {
 	_count += _counts[0];
 	if (_hovers[0].size() != _counts[0]) _hovers[0] = QVector<float64>(_counts[0], 0);
 	_emojis[0] = emojiPack(dbietRecent);
+	int32 h = countHeight();
+	if (h != height()) resize(width(), h);
 }
 
 void EmojiPanInner::updateSelected() {
@@ -1278,8 +1282,7 @@ bool EmojiPanInner::animStep(float64 ms) {
 void EmojiPanInner::showEmojiPack(DBIEmojiTab packIndex) {
 	clearSelection(true);
 
-	int32 h = countHeight();
-	if (h != height()) resize(width(), h);
+	refreshRecent();
 
 	int32 y = 0;
 	for (int c = 0; c < emojiTabCount; ++c) {
