@@ -20,8 +20,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "settings.h"
 #include "lang.h"
 
-bool gRtl = true;
-Qt::LayoutDirection gLangDir = Qt::RightToLeft;
+bool gRtl = false;
+Qt::LayoutDirection gLangDir = Qt::LeftToRight;
 
 mtpDcOptions gDcOptions;
 
