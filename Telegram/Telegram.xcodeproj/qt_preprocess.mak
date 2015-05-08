@@ -61,18 +61,19 @@ compiler_rcc_make_all: GeneratedFiles/qrc_telegram.cpp
 compiler_rcc_clean:
 	-$(DEL_FILE) GeneratedFiles/qrc_telegram.cpp
 GeneratedFiles/qrc_telegram.cpp: SourceFiles/telegram.qrc \
-		SourceFiles/art/emoji.png \
+		SourceFiles/art/emoji.webp \
 		SourceFiles/art/blank.gif \
 		SourceFiles/art/bg.jpg \
 		SourceFiles/art/sprite_150x.png \
 		SourceFiles/art/sprite.png \
 		SourceFiles/art/icon256.png \
-		SourceFiles/art/emoji_150x.png \
+		SourceFiles/art/emoji_150x.webp \
 		SourceFiles/art/sprite_200x.png \
 		SourceFiles/art/newmsg.wav \
 		SourceFiles/art/sprite_125x.png \
-		SourceFiles/art/emoji_200x.png \
-		SourceFiles/art/emoji_125x.png \
+		SourceFiles/art/emoji_200x.webp \
+		SourceFiles/art/emoji_250x.webp \
+		SourceFiles/art/emoji_125x.webp \
 		SourceFiles/art/fonts/OpenSans-Regular.ttf \
                 SourceFiles/art/fonts/OpenSans-Bold.ttf \
                 SourceFiles/art/fonts/OpenSans-Semibold.ttf \

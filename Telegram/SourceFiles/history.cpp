@@ -3448,9 +3448,9 @@ void HistoryWebPage::draw(QPainter &p, const HistoryItem *parent, bool selected,
 			p.fillRect(QRect(width - pixwidth, 0, pixwidth, pixheight), st::black->b);
 		}
 		if (_pixw > pixwidth) {
-			p.drawPixmap(QRect(width - pixwidth, (pixheight - _pixh) / 2, pixwidth, _pixh), pix, QRect((_pixw - pixwidth) / 2, 0, pixwidth, _pixh));
+			p.drawPixmap(QRect(width - pixwidth, (pixheight - _pixh) / 2, pixwidth, _pixh), pix, QRect(cIntRetinaFactor() * (_pixw - pixwidth) / 2, 0, cIntRetinaFactor() * pixwidth, cIntRetinaFactor() * _pixh));
 		} else if (_pixh > pixheight) {
-			p.drawPixmap(QRect(width - pixwidth + (pixwidth - _pixw) / 2, 0, _pixw, pixheight), pix, QRect(0, (_pixh - pixheight) / 2, _pixw, pixheight));
+			p.drawPixmap(QRect(width - pixwidth + (pixwidth - _pixw) / 2, 0, _pixw, pixheight), pix, QRect(0, cIntRetinaFactor() * (_pixh - pixheight) / 2, cIntRetinaFactor() * _pixw, cIntRetinaFactor() * pixheight));
 		} else {
 			p.drawPixmap(QPoint(width - pixwidth + (pixwidth - _pixw) / 2, (pixheight - _pixh) / 2), pix);
 		}

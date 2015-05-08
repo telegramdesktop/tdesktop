@@ -420,6 +420,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_video" = "Video file";
 "lng_media_audio" = "Voice message";
 
+"lng_emoji_category0" = "Frequently used";
+"lng_emoji_category1" = "People";
+"lng_emoji_category2" = "Nature";
+"lng_emoji_category3" = "Food & Drink";
+"lng_emoji_category4" = "Celebration";
+"lng_emoji_category5" = "Activity";
+"lng_emoji_category6" = "Travel & Places";
+"lng_emoji_category7" = "Objects & Symbols";
+"lng_emoji_category8" = "Stickers";
+
 "lng_in_dlg_photo" = "Photo";
 "lng_in_dlg_video" = "Video";
 "lng_in_dlg_contact" = "Contact";

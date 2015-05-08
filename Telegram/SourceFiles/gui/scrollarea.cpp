@@ -94,7 +94,7 @@ void ScrollBar::updateBar(bool force) {
 	}
 	if (newBar != _bar) {
 		_bar = newBar;
-		update();
+		parentWidget()->update(geometry());
 	}
 	if (_vertical) {
 		bool newTopSh = (_st->topsh < 0) || (_area->scrollTop() > _st->topsh), newBottomSh = (_st->bottomsh < 0) || (_area->scrollTop() < _area->scrollTopMax() - _st->bottomsh);
@@ -143,7 +143,7 @@ bool ScrollBar::animStep(float64 ms) {
 		a_bg.update(dt, anim::linear);
 		a_bar.update(dt, anim::linear);
 	}
-	update();
+	parentWidget()->update(geometry());
 	return res;
 }
 
@@ -253,19 +253,16 @@ void ScrollBar::resizeEvent(QResizeEvent *e) {
 }
 
 ScrollArea::ScrollArea(QWidget *parent, const style::flatScroll &st, bool handleTouch) : QScrollArea(parent),
-_st(st),
+_disabled(false), _st(st),
 hor(this, false, &_st), vert(this, true, &_st), topSh(this, &_st), bottomSh(this, &_st),
 _touchEnabled(handleTouch), _touchScroll(false), _touchPress(false), _touchRightButton(false),
 _touchScrollState(TouchScrollManual), _touchPrevPosValid(false), _touchWaitingAcceleration(false),
 _touchSpeedTime(0), _touchAccelerationTime(0), _touchTime(0), _widgetAcceptsTouch(false) {
-	connect(horizontalScrollBar(), SIGNAL(valueChanged(int)), this, SIGNAL(scrolled()));
-	connect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SIGNAL(scrolled()));
+	connect(horizontalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onScrolled()));
+	connect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onScrolled()));
 	connect(&vert, SIGNAL(topShadowVisibility(bool)), &topSh, SLOT(changeVisibility(bool)));
 	connect(&vert, SIGNAL(bottomShadowVisibility(bool)), &bottomSh, SLOT(changeVisibility(bool)));
 	vert.updateBar(true);
-	if (_st.hiding) {
-		connect(this, SIGNAL(scrolled()), this, SLOT(onScrolled()));
-	}
 
 	setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -292,19 +289,31 @@ void ScrollArea::touchDeaccelerate(int32 elapsed) {
 }
 
 void ScrollArea::onScrolled() {
+	bool em = false;
 	int32 horValue = horizontalScrollBar()->value(), vertValue = verticalScrollBar()->value();
 	if (_horValue != horValue) {
-		_horValue = horValue;
-		if (_st.hiding) {
-			hor.hideTimeout(_st.hiding);
+		if (_disabled) {
+			horizontalScrollBar()->setValue(_horValue);
+		} else {
+			_horValue = horValue;
+			if (_st.hiding) {
+				hor.hideTimeout(_st.hiding);
+			}
+			em = true;
 		}
 	}
 	if (_vertValue != vertValue) {
-		_vertValue = vertValue;
-		if (_st.hiding) {
-			vert.hideTimeout(_st.hiding);
+		if (_disabled) {
+			verticalScrollBar()->setValue(_vertValue);
+		} else {
+			_vertValue = vertValue;
+			if (_st.hiding) {
+				vert.hideTimeout(_st.hiding);
+			}
+			em = true;
 		}
 	}
+	if (em) emit scrolled();
 }
 
 int ScrollArea::scrollWidth() const {
@@ -528,6 +537,21 @@ void ScrollArea::touchScrollUpdated(const QPoint &screenPos) {
 	touchUpdateSpeed();
 }
 
+void ScrollArea::disableScroll(bool dis) {
+	_disabled = dis;
+	if (_disabled) {
+		hor.hideTimeout(0);
+		vert.hideTimeout(0);
+	}
+}
+
+void ScrollArea::scrollContentsBy(int dx, int dy) {
+	if (_disabled) {
+		return;
+	}
+	QScrollArea::scrollContentsBy(dx, dy);
+}
+
 bool ScrollArea::touchScroll(const QPoint &delta) {
 	int32 scTop = scrollTop(), scMax = scrollTopMax(), scNew = snap(scTop - delta.y(), 0, scMax);
 	if (scNew == scTop) return false;
@@ -559,6 +583,7 @@ void ScrollArea::keyPressEvent(QKeyEvent *e) {
 }
 
 void ScrollArea::enterEvent(QEvent *e) {
+	if (_disabled) return;
 	if (_st.hiding) {
 		hor.hideTimeout(_st.hiding);
 		vert.hideTimeout(_st.hiding);

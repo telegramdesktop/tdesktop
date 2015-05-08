@@ -240,20 +240,25 @@ const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink) 
 }
 
 QString textEmojiString(EmojiPtr emoji) {
+	if ((emoji->code & 0xFFFF0000U) == 0xFFFF0000U) { // sequence
+		return emojiGetSequence(emoji->code & 0xFFFFU);
+	}
+
 	QString result;
 	result.reserve(emoji->len + (emoji->postfix ? 1 : 0));
-	switch (emoji->len) {
-	case 1: result.append(QChar(emoji->code & 0xFFFF)); break;
-	case 2:
+	if (!(emoji->code >> 16)) {
+		result.append(QChar(emoji->code & 0xFFFF));
+	} else {
 		result.append(QChar((emoji->code >> 16) & 0xFFFF));
 		result.append(QChar(emoji->code & 0xFFFF));
-		break;
-	case 4:
-		result.append(QChar((emoji->code >> 16) & 0xFFFF));
-		result.append(QChar(emoji->code & 0xFFFF));
-		result.append(QChar((emoji->code2 >> 16) & 0xFFFF));
-		result.append(QChar(emoji->code2 & 0xFFFF));
-		break;
+		if (emoji->code2) {
+			result.append(QChar((emoji->code2 >> 16) & 0xFFFF));
+			result.append(QChar(emoji->code2 & 0xFFFF));
+		}
+	}
+	if (emoji->color && ((emoji->color & 0xFFFF0000U) != 0xFFFF0000U)) {
+		result.append(QChar((emoji->color >> 16) & 0xFFFF));
+		result.append(QChar(emoji->color & 0xFFFF));
 	}
 	if (emoji->postfix) result.append(QChar(emoji->postfix));
 	return result;
@@ -515,24 +520,15 @@ public:
 	}
 
 	void parseEmojiFromCurrent() {
-		const EmojiData *e = getEmoji(chInt);
+		int len = 0, skipped = (chInt > 0xFFFFU) ? 1 : 0;
+		EmojiPtr e = emojiFromText(ptr - skipped, end, len);
 		if (!e) return;
 
-		if (e->len > 2) {
-			if (ptr + 2 >= end || e->code2 != ((uint32((ptr + 1)->unicode()) << 16) | uint32((ptr + 2)->unicode()))) {
-				return;
-			} else {
-				_t->_text.push_back(*++ptr);
-				_t->_text.push_back(*++ptr);
-			}
-		}
-		int emojiLen = e->len;
-		if (ptr + 1 < end && (ptr + 1)->unicode() == 0xFE0F) {
+		for (int l = len - skipped - 1; l > 0; --l) {
 			_t->_text.push_back(*++ptr);
-			++emojiLen;
 		}
 
-		createBlock(-emojiLen);
+		createBlock(-len);
 		emoji = e;
 	}
 
@@ -1326,7 +1322,7 @@ public:
 							}
 						}
 					}
-					_p->drawPixmap(QPoint((glyphX + int(st::emojiPadding)).toInt(), _y + _yDelta + emojiY), App::emojis(), QRect(static_cast<EmojiBlock*>(currentBlock)->emoji->x, static_cast<EmojiBlock*>(currentBlock)->emoji->y, st::emojiImgSize, st::emojiImgSize));
+					emojiDraw(*_p, static_cast<EmojiBlock*>(currentBlock)->emoji, (glyphX + int(st::emojiPadding)).toInt(), _y + _yDelta + emojiY);
 //				} else if (_p && currentBlock->type() == TextBlockSkip) { // debug
 //					_p->fillRect(QRect(x.toInt(), _y, currentBlock->width(), static_cast<SkipBlock*>(currentBlock)->height()), QColor(0, 0, 0, 32));
 				}
@@ -4050,29 +4046,19 @@ bool textSplit(QString &sendingText, QString &leftText, int32 limit) {
 				}
 			}
 		}
-		EmojiPtr e = 0;
-		if (ch->isHighSurrogate()) {
-			if (ch + 1 < end && (ch + 1)->isLowSurrogate()) {
-				e = getEmoji((ch->unicode() << 16) | (ch + 1)->unicode());
-				if (!e) {
-					++ch;
-				}
-			}
-		} else {
-			if (ch + 1 < end) {
-				if (((ch->unicode() >= 48 && ch->unicode() < 58) || ch->unicode() == 35) && (ch + 1)->unicode() == 0x20E3) {
-					e = getEmoji((ch->unicode() << 16) | (ch + 1)->unicode());
-				} else if ((ch + 1)->unicode() == 0xFE0F) {
-					e = getEmoji(ch->unicode());
-				}
-			}
-		}
+		int elen = 0;
+		EmojiPtr e = emojiFromText(ch, end, elen);
 		if (e) {
-			ch += (e->len - 1);
-			if (ch + 1 < end && (ch + 1)->unicode() == 0xFE0F) {
-				++ch;
-				++s;
+			for (int i = 0; i < elen; ++i, ++ch, ++s) {
+				if (ch->isHighSurrogate() && i + 1 < elen && (ch + 1)->isLowSurrogate()) {
+					++ch;
+					++i;
+				}
 			}
+			--ch;
+			--s;
+		} else if (ch->isHighSurrogate() && ch + 1 < end && (ch + 1)->isLowSurrogate()) {
+			++ch;
 		}
 		if (s >= limit) {
 			sendingText = leftText.mid(0, good - start);
@@ -4249,4 +4235,8 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 	}
 
 	return lnkRanges;
+}
+
+void emojiDraw(QPainter &p, EmojiPtr e, int x, int y) {
+	p.drawPixmap(QPoint(x, y), App::emojis(), QRect(e->x * ESize, e->y * ESize, ESize, ESize));
 }

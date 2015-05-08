@@ -10,10 +10,11 @@
     <file>art/sprite_125x.png</file>
     <file>art/sprite_150x.png</file>
     <file>art/sprite_200x.png</file>
-    <file>art/emoji.png</file>
-    <file>art/emoji_125x.png</file>
-    <file>art/emoji_150x.png</file>
-    <file>art/emoji_200x.png</file>
+    <file>art/emoji.webp</file>
+    <file>art/emoji_125x.webp</file>
+    <file>art/emoji_150x.webp</file>
+    <file>art/emoji_200x.webp</file>
+    <file>art/emoji_250x.webp</file>
     <file>art/blank.gif</file>
     <file>art/icon256.png</file>
     <file>art/iconbig256.png</file>
