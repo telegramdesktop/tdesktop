@@ -4375,14 +4375,6 @@ void HistoryMessage::initDimensions(const QString &text) {
 		if (_media) {
 			_text.setText(st::msgFont, text, _historyTextOptions);
 		} else {
-/*			char tmp[64] = {0}, tmp2[64] = {0};
-			int from = 0, to = 65535;
-			QString a = QString::fromLatin1(hashMd5Hex(hashMd5(text.constData() + qMin(text.size(), from), (qMin(text.size(), to) - qMin(text.size(), from)) * 2, tmp2), tmp));
-			QString b;
-			for (int i = qMin(text.size(), from); i < qMin(text.size(), to); ++i) {
-				b.append(QString("0x%1 ").arg(text.at(i).unicode(), 0, 16));
-			}
-			_text.setText(st::msgFont, text.mid(from, to - from) + ' ' + b + a + textcmdSkipBlock(_timeWidth, st::msgDateFont->height - st::msgDateDelta.y()), _historyTextOptions);*/
 			_text.setText(st::msgFont, text + textcmdSkipBlock(_timeWidth, st::msgDateFont->height - st::msgDateDelta.y()), _historyTextOptions);
 		}
 	}
