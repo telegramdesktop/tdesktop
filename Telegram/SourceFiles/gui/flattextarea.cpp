@@ -704,10 +704,16 @@ QMimeData *FlatTextarea::createMimeDataFromSelection() const {
 
 void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 	bool shift = e->modifiers().testFlag(Qt::ShiftModifier);
+	bool macmeta = (cPlatform() == dbipMac) && e->modifiers().testFlag(Qt::ControlModifier) && !e->modifiers().testFlag(Qt::MetaModifier) && !e->modifiers().testFlag(Qt::AltModifier);
 	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier), ctrlGood = (ctrl && cCtrlEnter()) || (!ctrl && !shift && !cCtrlEnter()) || (ctrl && shift);
 	bool enter = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return);
 
-	if (enter && ctrlGood) {
+	if (macmeta && e->key() == Qt::Key_Backspace) {
+		QTextCursor tc(textCursor()), start(tc);
+		start.movePosition(QTextCursor::StartOfLine);
+		tc.setPosition(start.position(), QTextCursor::KeepAnchor);
+		tc.removeSelectedText();
+	} else if (enter && ctrlGood) {
 		emit submitted(ctrl && shift);
 	} else if (e->key() == Qt::Key_Escape) {
 		emit cancelled();
