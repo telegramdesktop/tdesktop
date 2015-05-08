@@ -258,6 +258,8 @@ hor(this, false, &_st), vert(this, true, &_st), topSh(this, &_st), bottomSh(this
 _touchEnabled(handleTouch), _touchScroll(false), _touchPress(false), _touchRightButton(false),
 _touchScrollState(TouchScrollManual), _touchPrevPosValid(false), _touchWaitingAcceleration(false),
 _touchSpeedTime(0), _touchAccelerationTime(0), _touchTime(0), _widgetAcceptsTouch(false) {
+	setLayoutDirection(cLangDir());
+
 	connect(horizontalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onScrolled()));
 	connect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onScrolled()));
 	connect(&vert, SIGNAL(topShadowVisibility(bool)), &topSh, SLOT(changeVisibility(bool)));

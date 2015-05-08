@@ -489,9 +489,10 @@ void EmojiColorPicker::paintEvent(QPaintEvent *e) {
 
 	if (_cache.isNull()) {
 		p.fillRect(r, st::white->b);
-		p.translate(w, h);
 
-		p.fillRect(2 * st::emojiColorsPadding + st::emojiPanSize.width(), st::emojiColorsPadding, st::emojiColorsSep, r.height() - st::emojiColorsPadding * 2, st::emojiColorsSepColor->b);
+		int32 x = w + 2 * st::emojiColorsPadding + st::emojiPanSize.width();
+		if (rtl()) x = width() - x - st::emojiColorsSep;
+		p.fillRect(x, h + st::emojiColorsPadding, st::emojiColorsSep, r.height() - st::emojiColorsPadding * 2, st::emojiColorsSepColor->b);
 
 		if (!_variants[0]) return;
 		for (int i = 0; i < EmojiColorsCount + 1; ++i) {
@@ -631,9 +632,9 @@ void EmojiColorPicker::clearSelection(bool fast) {
 void EmojiColorPicker::updateSelected() {
 	int32 selIndex = -1;
 	QPoint p(mapFromGlobal(_lastMousePos));
-	int32 y = p.y() - st::dropdownDef.shadow.pxHeight() - st::emojiColorsPadding;
+	int32 sx = rtl() ? (width() - p.x()) : p.x(), y = p.y() - st::dropdownDef.shadow.pxHeight() - st::emojiColorsPadding;
 	if (y >= 0 && y < st::emojiPanSize.height()) {
-		int32 x = p.x() - st::dropdownDef.shadow.pxWidth() - st::emojiColorsPadding;
+		int32 x = sx - st::dropdownDef.shadow.pxWidth() - st::emojiColorsPadding;
 		if (x >= 0 && x < st::emojiPanSize.width()) {
 			selIndex = 0;
 		} else {
@@ -669,17 +670,18 @@ void EmojiColorPicker::updateSelected() {
 void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 	float64 hover = _hovers[variant];
 
-	QPoint w(st::emojiColorsPadding + variant * st::emojiPanSize.width() + (variant ? 2 * st::emojiColorsPadding + st::emojiColorsSep : 0), st::emojiColorsPadding);
+	QPoint w(st::dropdownDef.shadow.pxWidth() + st::emojiColorsPadding + variant * st::emojiPanSize.width() + (variant ? 2 * st::emojiColorsPadding + st::emojiColorsSep : 0), st::dropdownDef.shadow.pxHeight() + st::emojiColorsPadding);
 	if (hover > 0) {
 		p.setOpacity(hover);
 		p.setBrush(st::emojiPanHover->b);
 		p.setPen(Qt::NoPen);
-		p.drawRoundedRect(QRect(w, st::emojiPanSize), st::emojiPanRound, st::emojiPanRound);
+		QPoint tl(w);
+		if (rtl()) tl.setX(width() - tl.x() - st::emojiPanSize.width());
+		p.drawRoundedRect(QRect(tl, st::emojiPanSize), st::emojiPanRound, st::emojiPanRound);
 		p.setOpacity(1);
 	}
 	int esize = EmojiSizes[EIndex + 1];
 	p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (esize / cIntRetinaFactor())) / 2, width(), App::emojisLarge(), QRect(_variants[variant]->x * esize, _variants[variant]->y * esize, esize, esize));
-
 }
 
 EmojiPanInner::EmojiPanInner(QWidget *parent) : TWidget(parent), _top(0), _selected(-1), _pressedSel(-1), _pickerSel(-1), _picker(this) {
@@ -826,7 +828,9 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 					p.setOpacity(hover);
 					p.setBrush(st::emojiPanHover->b);
 					p.setPen(Qt::NoPen);
-					p.drawRoundedRect(QRect(w, st::emojiPanSize), st::emojiPanRound, st::emojiPanRound);
+					QPoint tl(w);
+					if (rtl()) tl.setX(width() - tl.x() - st::emojiPanSize.width());
+					p.drawRoundedRect(QRect(tl, st::emojiPanSize), st::emojiPanRound, st::emojiPanRound);
 					p.setOpacity(1);
 				}
 				p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (_esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (_esize / cIntRetinaFactor())) / 2, width(), App::emojisLarge(), QRect(_emojis[c][index]->x * _esize, _emojis[c][index]->y * _esize, _esize, _esize));
@@ -868,7 +872,9 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 				p.setOpacity(hover);
 				p.setBrush(st::emojiPanHover->b);
 				p.setPen(Qt::NoPen);
-				p.drawRoundedRect(QRect(pos, QSize(stickerSize, stickerSize)), st::stickerPanRound, st::stickerPanRound);
+				QPoint tl(pos);
+				if (rtl()) tl.setX(width() - tl.x() - stickerSize);
+				p.drawRoundedRect(QRect(tl, QSize(stickerSize, stickerSize)), st::stickerPanRound, st::stickerPanRound);
 				p.setOpacity(1);
 			}
 
@@ -892,9 +898,9 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 			if (h < 1) h = 1;
 			QPoint ppos = pos + QPoint((stickerSize - w) / 2, (stickerSize - h) / 2);
 			if (sticker->sticker->isNull()) {
-				p.drawPixmap(ppos, sticker->thumb->pix(w, h));
+				p.drawPixmapLeft(ppos, width(), sticker->thumb->pix(w, h));
 			} else {
-				p.drawPixmap(ppos, sticker->sticker->pix(w, h));
+				p.drawPixmapLeft(ppos, width(), sticker->sticker->pix(w, h));
 			}
 
 			if (hover > 0 && _isUserGen[index]) {
@@ -902,7 +908,7 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 
 				QPoint xPos = pos + QPoint(stickerWidth - st::stickerPanDelete.pxWidth(), 0);
 				p.setOpacity(hover * (xHover + (1 - xHover) * st::stickerPanDeleteOpacity));
-				p.drawPixmap(xPos, App::sprite(), st::stickerPanDelete);
+				p.drawPixmapLeft(xPos, width(), App::sprite(), st::stickerPanDelete);
 				p.setOpacity(1);
 			}
 		}
@@ -1049,7 +1055,9 @@ void EmojiPanInner::onShowPicker() {
 			y += _picker.height() - st::emojiPanRound + st::emojiPanSize.height() - st::emojiPanRound;
 		}
 		int xmax = width() - _picker.width() - st::emojiPanPadding.right();
-		_picker.move(qRound(xmax * float64(sel % EmojiPadPerRow) / float64(EmojiPadPerRow - 1)), y);
+		float64 coef = float64(sel % EmojiPadPerRow) / float64(EmojiPadPerRow - 1);
+		if (rtl()) coef = 1. - coef;
+		_picker.move(qRound(xmax * coef), y);
 
 		_picker.showEmoji(_emojis[tab][sel]->code);
 		emit disableScroll(true);
@@ -1171,15 +1179,15 @@ void EmojiPanInner::updateSelected() {
 	int32 selIndex = -1;
 	QPoint p(mapFromGlobal(_lastMousePos));
 
-	int y, ytill = 0;
+	int y, ytill = 0, sx = (rtl() ? width() - p.x() : p.x());
 	for (int c = 0; c < emojiTabCount; ++c) {
 		int cnt = _counts[c];
 		y = ytill;
 		ytill = y + st::emojiPanHeader + ((cnt / EmojiPadPerRow) + ((cnt % EmojiPadPerRow) ? 1 : 0)) * st::emojiPanSize.height();
 		if (p.y() >= y && p.y() < ytill) {
 			y += st::emojiPanHeader;
-			if (p.y() >= y && p.x() >= 0 && p.x() < EmojiPadPerRow * st::emojiPanSize.width()) {
-				selIndex = qFloor((p.y() - y) / st::emojiPanSize.height()) * EmojiPadPerRow + qFloor(p.x() / st::emojiPanSize.width());
+			if (p.y() >= y && sx >= 0 && sx < EmojiPadPerRow * st::emojiPanSize.width()) {
+				selIndex = qFloor((p.y() - y) / st::emojiPanSize.height()) * EmojiPadPerRow + qFloor(sx / st::emojiPanSize.width());
 				if (selIndex >= _emojis[c].size()) {
 					selIndex = -1;
 				} else {
@@ -1193,12 +1201,12 @@ void EmojiPanInner::updateSelected() {
 	if (p.y() >= ytill) {
 		float64 stickerWidth = width() / float64(StickerPadPerRow);
 		int32 stickerSize = int32(stickerWidth);
-		if (p.x() >= 0 && p.x() < StickerPadPerRow * stickerWidth) {
-			selIndex = qFloor((p.y() - ytill) / stickerSize) * StickerPadPerRow + qFloor(p.x() / stickerWidth);
+		if (sx >= 0 && sx < StickerPadPerRow * stickerWidth) {
+			selIndex = qFloor((p.y() - ytill) / stickerSize) * StickerPadPerRow + qFloor(sx / stickerWidth);
 			if (selIndex >= _stickers.size()) {
 				selIndex = -1;
 			} else {
-				int32 inx = p.x() - (selIndex % StickerPadPerRow) * stickerWidth, iny = p.y() - ytill - ((selIndex / StickerPadPerRow) * stickerSize);
+				int32 inx = sx - (selIndex % StickerPadPerRow) * stickerWidth, iny = p.y() - ytill - ((selIndex / StickerPadPerRow) * stickerSize);
 				if (inx >= stickerWidth - st::stickerPanDelete.pxWidth() && iny < st::stickerPanDelete.pxHeight()) {
 					selIndex = _stickers.size() + selIndex;
 				}
@@ -1314,27 +1322,30 @@ _scroll(this, st::emojiScroll), _inner() {
 	_scroll.setFocusPolicy(Qt::NoFocus);
 	_scroll.viewport()->setFocusPolicy(Qt::NoFocus);
 
-	_scroll.setGeometry(st::dropdownDef.padding.left() + st::emojiPanPadding.left(), st::dropdownDef.padding.top() + _recent.height() + st::emojiPanPadding.top(), st::emojiPanPadding.left() + _inner.width() + st::emojiPanPadding.right(), EmojiPadRowsPerPage * st::emojiPanSize.height() + st::emojiPanHeader);
-	_scroll.setWidget(&_inner);
-
-	_inner.setAttribute(Qt::WA_OpaquePaintEvent);
-	_scroll.setAutoFillBackground(true);
+	_scroll.resize(st::emojiPanPadding.left() + _inner.width() + st::emojiPanPadding.right(), EmojiPadRowsPerPage * st::emojiPanSize.height() + st::emojiPanHeader);
 
 	_width = st::dropdownDef.padding.left() + st::emojiPanPadding.left() + _scroll.width() + st::emojiPanPadding.right() + st::dropdownDef.padding.right();
 	_height = st::dropdownDef.padding.top() + _recent.height() + st::emojiPanPadding.top() + _scroll.height() + st::emojiPanPadding.bottom() + st::dropdownDef.padding.bottom();
 	resize(_width, _height);
 
+	int32 sx = st::dropdownDef.padding.left() + st::emojiPanPadding.left(), sy = st::dropdownDef.padding.top() + _recent.height() + st::emojiPanPadding.top();
+	_scroll.move(rtl() ? (_width - _scroll.width() - sx) : sx, sy);
+	_scroll.setWidget(&_inner);
+
+	_inner.setAttribute(Qt::WA_OpaquePaintEvent);
+	_scroll.setAutoFillBackground(true);
+
 	int32 left = st::dropdownDef.padding.left() + (_width - st::dropdownDef.padding.left() - st::dropdownDef.padding.right() - 9 * _recent.width()) / 2;
 	int32 top = st::dropdownDef.padding.top();
-	_recent.move(left     , top); left += _recent.width();
-	_people.move(left     , top); left += _people.width();
-	_nature.move(left     , top); left += _nature.width();
-	_food.move(left       , top); left += _food.width();
-	_celebration.move(left, top); left += _celebration.width();
-	_activity.move(left   , top); left += _activity.width();
-	_travel.move(left     , top); left += _travel.width();
-	_objects.move(left    , top); left += _objects.width();
-	_stickers.move(left   , top); left += _stickers.width();
+	_recent.moveToLeft(left     , top, _width); left += _recent.width();
+	_people.moveToLeft(left     , top, _width); left += _people.width();
+	_nature.moveToLeft(left     , top, _width); left += _nature.width();
+	_food.moveToLeft(left       , top, _width); left += _food.width();
+	_celebration.moveToLeft(left, top, _width); left += _celebration.width();
+	_activity.moveToLeft(left   , top, _width); left += _activity.width();
+	_travel.moveToLeft(left     , top, _width); left += _travel.width();
+	_objects.moveToLeft(left    , top, _width); left += _objects.width();
+	_stickers.moveToLeft(left   , top, _width); left += _stickers.width();
 
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));

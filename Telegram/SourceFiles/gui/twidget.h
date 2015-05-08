@@ -56,11 +56,23 @@ public:
 	void drawPixmapLeft(const QPoint &p, int outerw, const QPixmap &pix, const QRect &from) {
 		return drawPixmapLeft(p.x(), p.y(), outerw, pix, from);
 	}
+	void drawPixmapLeft(int x, int y, int outerw, const QPixmap &pix) {
+		drawPixmap(QPoint(rtl() ? (outerw - x - (pix.width() / pix.devicePixelRatio())) : x, y), pix);
+	}
+	void drawPixmapLeft(const QPoint &p, int outerw, const QPixmap &pix) {
+		return drawPixmapLeft(p.x(), p.y(), outerw, pix);
+	}
 	void drawPixmapRight(int x, int y, int outerw, const QPixmap &pix, const QRect &from) {
 		drawPixmap(QPoint(rtl() ? x : (outerw - x - (from.width() / pix.devicePixelRatio())), y), pix, from);
 	}
 	void drawPixmapRight(const QPoint &p, int outerw, const QPixmap &pix, const QRect &from) {
 		return drawPixmapRight(p.x(), p.y(), outerw, pix, from);
+	}
+	void drawPixmapRight(int x, int y, int outerw, const QPixmap &pix) {
+		drawPixmap(QPoint(rtl() ? x : (outerw - x - (pix.width() / pix.devicePixelRatio())), y), pix);
+	}
+	void drawPixmapRight(const QPoint &p, int outerw, const QPixmap &pix) {
+		return drawPixmapRight(p.x(), p.y(), outerw, pix);
 	}
 	void drawSprite(int x, int y, const style::sprite &sprite) {
 		return drawPixmap(QPoint(x, y), App::sprite(), sprite);

@@ -75,6 +75,12 @@
     <ClCompile Include="GeneratedFiles\qrc_telegram.cpp">
       <Filter>Generated Files</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\qrc_telegram_emojis.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\qrc_telegram_wnd.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
     <ClCompile Include="SourceFiles\gui\flatinput.cpp">
       <Filter>gui</Filter>
     </ClCompile>
@@ -1127,6 +1133,8 @@
     </CustomBuild>
     <CustomBuild Include="Resources\lang.strings" />
     <CustomBuild Include="SourceFiles\telegram.qrc" />
+    <CustomBuild Include="SourceFiles\telegram_emojis.qrc" />
+    <CustomBuild Include="SourceFiles\telegram_wnd.qrc" />
     <CustomBuild Include="SourceFiles\boxes\languagebox.h">
       <Filter>boxes</Filter>
     </CustomBuild>
