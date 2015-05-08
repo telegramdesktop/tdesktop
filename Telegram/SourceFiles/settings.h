@@ -41,6 +41,11 @@ inline void cSet##Name(const Type &Name) { \
 	g##Name = Name; \
 }
 
+#define DeclareRefSetting(Type, Name) DeclareSetting(Type, Name) \
+inline Type &cRef##Name() { \
+	return g##Name; \
+}
+
 DeclareSetting(bool, Rtl);
 DeclareSetting(Qt::LayoutDirection, LangDir);
 inline bool rtl() {
@@ -153,23 +158,28 @@ T convertScale(T v) {
 DeclareSetting(DBIEmojiTab, EmojiTab);
 
 struct EmojiData {
-	EmojiData(uint16 x, uint16 y, uint32 code, uint32 code2, uint16 len, uint16 postfix = 0) : x(x), y(y), code(code), code2(code2), len(len), postfix(postfix) {
+	EmojiData(uint16 x, uint16 y, uint32 code, uint32 code2, uint16 len, uint16 postfix, uint32 color) : x(x), y(y), code(code), code2(code2), len(len), postfix(postfix), color(color) {
 	}
 	uint16 x, y;
 	uint32 code, code2;
 	uint16 len;
 	uint16 postfix;
+	uint32 color;
 };
 
 typedef const EmojiData *EmojiPtr;
+static EmojiPtr TwoSymbolEmoji = EmojiPtr(0x01);
 
 typedef QVector<EmojiPtr> EmojiPack;
-typedef QVector<QPair<uint32, ushort> > RecentEmojiPreload;
+typedef QVector<QPair<uint32, ushort> > RecentEmojisPreloadOld;
+typedef QVector<QPair<uint64, ushort> > RecentEmojisPreload;
 typedef QVector<QPair<EmojiPtr, ushort> > RecentEmojiPack;
-DeclareSetting(RecentEmojiPack, RecentEmojis);
-DeclareSetting(RecentEmojiPreload, RecentEmojisPreload);
+typedef QMap<uint32, uint64> EmojiColorVariants;
+DeclareRefSetting(RecentEmojiPack, RecentEmojis);
+DeclareSetting(RecentEmojisPreload, RecentEmojisPreload);
+DeclareRefSetting(EmojiColorVariants, EmojiVariants);
 
-const RecentEmojiPack &cGetRecentEmojis();
+RecentEmojiPack &cGetRecentEmojis();
 
 struct DocumentData;
 typedef QVector<DocumentData*> StickerPack;

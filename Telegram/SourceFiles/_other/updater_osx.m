@@ -132,7 +132,7 @@ int main(int argc, const char * argv[]) {
 	}
 
 	if (update) {
-		writeLog(@"Starting update files iteration!");
+		writeLog([@"Starting update files iteration, path: " stringByAppendingString: [workDir stringByAppendingString:@"tupdates/ready"]]);
 
 		NSFileManager *fileManager = [NSFileManager defaultManager];
 		NSString *srcDir = [workDir stringByAppendingString:@"tupdates/ready/"];
@@ -142,6 +142,7 @@ int main(int argc, const char * argv[]) {
 											 includingPropertiesForKeys:keys
 											 options:0
 											 errorHandler:^(NSURL *url, NSError *error) {
+												 writeLog([[[@"Error in enumerating " stringByAppendingString:[url absoluteString]] stringByAppendingString: @" error is: "] stringByAppendingString: [error description]]);
 												 return NO;
 											 }];
 		for (NSURL *url in enumerator) {

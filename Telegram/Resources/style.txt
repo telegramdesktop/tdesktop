@@ -21,7 +21,6 @@ semibold: 'Open Sans Semibold';
 fsize: 13px;
 
 spriteFile: ':/gui/art/sprite.png' / 2:':/gui/art/sprite_125x.png' / 3:':/gui/art/sprite_150x.png' / 4:':/gui/art/sprite_200x.png';
-emojisFile: ':/gui/art/emoji.png' / 2:':/gui/art/emoji_125x.png' / 3:':/gui/art/emoji_150x.png' / 4:':/gui/art/emoji_200x.png';
 emojiImgSize: 18px; // exceptional value for retina
 emojiSize: 18px;
 emojiPadding: 0px;
@@ -123,9 +122,9 @@ sysUnlock: sysButton(sysUpd) {
 	img: sprite(207px, 22px, 19px, 19px);
 }
 titleBackButton: iconedButton(btnDefIconed) {
-	icon: sprite(133px, 197px, 13px, 20px);
+	icon: sprite(113px, 108px, 13px, 20px);
 	iconPos: point(5px, 9px);
-	downIcon: sprite(133px, 197px, 13px, 20px);
+	downIcon: sprite(113px, 108px, 13px, 20px);
 	downIconPos: point(5px, 10px);
 
 	bgColor: #c4d8e9;
@@ -998,7 +997,7 @@ replyHeight: 49px;
 replyTop: 8px;
 replyBottom: 6px;
 replyIconPos: point(13px, 13px);
-replyIcon: sprite(174px, 195px, 24px, 24px);
+replyIcon: sprite(343px, 197px, 24px, 24px);
 replyCancel: iconedButton(btnDefIconed) {
 	icon: sprite(165px, 24px, 14px, 14px);
 	iconPos: point(17px, 17px);
@@ -1009,7 +1008,7 @@ replyCancel: iconedButton(btnDefIconed) {
 	width: 49px;
 	height: 49px;
 }
-forwardIcon: sprite(368px, 173px, 24px, 24px);
+forwardIcon: sprite(368px, 197px, 24px, 24px);
 
 historyScroll: flatScroll(scrollDef) {
 	barColor: #89a0b47a;
@@ -1460,33 +1459,39 @@ emojiScroll: flatScroll(scrollDef) {
 	topsh: 0px;
 	bottomsh: 0px;
 }
-emojiRecentActive: sprite(290px, 287px, 20px, 20px);
-emojiRecentOver: sprite(311px, 287px, 20px, 20px);
 emojiRecent: sprite(6px, 197px, 20px, 20px);
-emojiPeopleActive: sprite(290px, 221px, 20px, 20px);
-emojiPeopleOver: sprite(311px, 221px, 20px, 20px);
+emojiRecentOver: sprite(290px, 221px, 20px, 20px);
+emojiRecentActive: sprite(290px, 242px, 20px, 20px);
 emojiPeople: sprite(27px, 197px, 20px, 20px);
-emojiNatureActive: sprite(245px, 266px, 20px, 20px);
-emojiNatureOver: sprite(266px, 266px, 20px, 20px);
+emojiPeopleOver: sprite(311px, 221px, 20px, 20px);
+emojiPeopleActive: sprite(311px, 242px, 20px, 20px);
 emojiNature: sprite(48px, 197px, 20px, 20px);
-emojiObjectsActive: sprite(290px, 242px, 20px, 20px);
-emojiObjectsOver: sprite(311px, 242px, 20px, 20px);
-emojiObjects: sprite(69px, 197px, 20px, 20px);
-emojiPlacesActive: sprite(245px, 287px, 20px, 20px);
-emojiPlacesOver: sprite(266px, 287px, 20px, 20px);
-emojiPlaces: sprite(90px, 197px, 20px, 20px);
-emojiSymbolsActive: sprite(290px, 266px, 20px, 20px);
-emojiSymbolsOver: sprite(311px, 266px, 20px, 20px);
-emojiSymbols: sprite(111px, 197px, 20px, 20px);
-emojiStickersActive: sprite(311px, 308px, 20px, 20px);
-emojiStickersOver: sprite(354px, 200px, 20px, 20px);
-emojiStickers: sprite(375px, 200px, 20px, 20px);
+emojiNatureOver: sprite(245px, 266px, 20px, 20px);
+emojiNatureActive: sprite(245px, 287px, 20px, 20px);
+emojiFood: sprite(69px, 197px, 20px, 20px);
+emojiFoodOver: sprite(266px, 266px, 20px, 20px);
+emojiFoodActive: sprite(266px, 287px, 20px, 20px);
+emojiCelebration: sprite(90px, 197px, 20px, 20px);
+emojiCelebrationOver: sprite(290px, 266px, 20px, 20px);
+emojiCelebrationActive: sprite(290px, 287px, 20px, 20px);
+emojiActivity: sprite(111px, 197px, 20px, 20px);
+emojiActivityOver: sprite(311px, 266px, 20px, 20px);
+emojiActivityActive: sprite(311px, 287px, 20px, 20px);
+emojiTravel: sprite(132px, 197px, 20px, 20px);
+emojiTravelOver: sprite(321px, 344px, 20px, 20px);
+emojiTravelActive: sprite(321px, 365px, 20px, 20px);
+emojiObjects: sprite(153px, 197px, 20px, 20px);
+emojiObjectsOver: sprite(342px, 344px, 20px, 20px);
+emojiObjectsActive: sprite(342px, 365px, 20px, 20px);
+emojiStickers: sprite(174px, 197px, 20px, 20px);
+emojiStickersOver: sprite(363px, 344px, 20px, 20px);
+emojiStickersActive: sprite(363px, 365px, 20px, 20px);
 rbEmoji: flatCheckbox {
 	textColor: transparent;
 	bgColor: transparent;
 	disColor: transparent;
 
-	width: 29px;
+	width: 28px;
 	height: 36px;
 
 	textTop: 0px;
@@ -1523,6 +1528,38 @@ rbEmojiNature: flatCheckbox(rbEmoji) {
 	disImageRect: emojiNature;
 	chkDisImageRect: emojiNatureActive;
 }
+rbEmojiFood: flatCheckbox(rbEmoji) {
+	imageRect: emojiFood;
+	chkImageRect: emojiFoodActive;
+	overImageRect: emojiFoodOver;
+	chkOverImageRect: emojiFoodActive;
+	disImageRect: emojiFood;
+	chkDisImageRect: emojiFoodActive;
+}
+rbEmojiCelebration: flatCheckbox(rbEmoji) {
+	imageRect: emojiCelebration;
+	chkImageRect: emojiCelebrationActive;
+	overImageRect: emojiCelebrationOver;
+	chkOverImageRect: emojiCelebrationActive;
+	disImageRect: emojiCelebration;
+	chkDisImageRect: emojiCelebrationActive;
+}
+rbEmojiActivity: flatCheckbox(rbEmoji) {
+	imageRect: emojiActivity;
+	chkImageRect: emojiActivityActive;
+	overImageRect: emojiActivityOver;
+	chkOverImageRect: emojiActivityActive;
+	disImageRect: emojiActivity;
+	chkDisImageRect: emojiActivityActive;
+}
+rbEmojiTravel: flatCheckbox(rbEmoji) {
+	imageRect: emojiTravel;
+	chkImageRect: emojiTravelActive;
+	overImageRect: emojiTravelOver;
+	chkOverImageRect: emojiTravelActive;
+	disImageRect: emojiTravel;
+	chkDisImageRect: emojiTravelActive;
+}
 rbEmojiObjects: flatCheckbox(rbEmoji) {
 	imageRect: emojiObjects;
 	chkImageRect: emojiObjectsActive;
@@ -1530,22 +1567,6 @@ rbEmojiObjects: flatCheckbox(rbEmoji) {
 	chkOverImageRect: emojiObjectsActive;
 	disImageRect: emojiObjects;
 	chkDisImageRect: emojiObjectsActive;
-}
-rbEmojiPlaces: flatCheckbox(rbEmoji) {
-	imageRect: emojiPlaces;
-	chkImageRect: emojiPlacesActive;
-	overImageRect: emojiPlacesOver;
-	chkOverImageRect: emojiPlacesActive;
-	disImageRect: emojiPlaces;
-	chkDisImageRect: emojiPlacesActive;
-}
-rbEmojiSymbols: flatCheckbox(rbEmoji) {
-	imageRect: emojiSymbols;
-	chkImageRect: emojiSymbolsActive;
-	overImageRect: emojiSymbolsOver;
-	chkOverImageRect: emojiSymbolsActive;
-	disImageRect: emojiSymbols;
-	chkDisImageRect: emojiSymbolsActive;
 }
 rbEmojiStickers: flatCheckbox(rbEmojiRecent) {
 	imageRect: emojiStickers;
@@ -1556,15 +1577,25 @@ rbEmojiStickers: flatCheckbox(rbEmojiRecent) {
 	chkDisImageRect: emojiStickersActive;
 }
 emojiPanPadding: margins(5px, 0px, 0px, 5px);
-emojiPanSize: size(28px, 28px);
-emojiPanSub: 0px;
+emojiPanSize: size(35px, 35px);
 emojiPanDuration: 200;
 emojiPanHover: #f0f0f0;
 emojiPanRound: 2px;
 
+emojiPanHeader: 25px;
+emojiPanHeaderFont: font(fsize semibold);
+emojiPanHeaderColor: #999;
+emojiPanHeaderLeft: 5px;
+emojiPanHeaderTop: 5px;
+emojiPanHeaderBg: #fffd;
+
+emojiColorsPadding: 5px;
+emojiColorsSep: 1px;
+emojiColorsSepColor: #d5d5d5;
+
 stickerPanRound: 3px;
 stickerPanPadding: 2px;
-stickerPanDelete: sprite(158px, 197px, 12px, 12px);
+stickerPanDelete: sprite(123px, 132px, 12px, 12px);
 stickerPanDeleteOpacity: 0.5;
 
 mvBgColor: #222;
@@ -1654,7 +1685,7 @@ mvDocLink: linkButton(btnDefLink) {
 mvDeltaFromLastAction: 5px;
 mvSwipeDistance: 80px;
 
-medviewSaveMsgCheck: sprite(341px, 174px, 22px, 18px);
+medviewSaveMsgCheck: sprite(311px, 309px, 22px, 18px);
 medviewSaveMsgFont: font(16px);
 medviewSaveMsgPadding: margins(55px, 19px, 29px, 20px);
 medviewSaveMsgCheckPos: point(23px, 21px);
@@ -1664,7 +1695,7 @@ medviewSaveMsgShown: 2000;
 medviewSaveMsgHiding: 2500;
 medviewSaveMsg: #000000b2;
 
-mvTransparentBrush: sprite(148px, 197px, 8px, 8px);
+mvTransparentBrush: sprite(113px, 128px, 8px, 8px);
 
 overviewPhotoSkip: 10px;
 overviewPhotoMinSize: 100px;

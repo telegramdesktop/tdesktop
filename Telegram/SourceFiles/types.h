@@ -249,7 +249,7 @@ enum DataBlockId {
 	dbiDownloadPath = 21,
 	dbiScale = 22,
 	dbiEmojiTab = 23,
-	dbiRecentEmojis = 24,
+	dbiRecentEmojisOld = 24,
 	dbiLoggedPhoneNumber = 25,
 	dbiMutedPeers = 26,
 // 27 reserved
@@ -261,6 +261,8 @@ enum DataBlockId {
 	dbiTileBackground = 33,
 	dbiAutoLock = 34,
 	dbiDialogLastPath = 35,
+	dbiRecentEmojis = 36,
+	dbiEmojiVariants = 37,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -318,14 +320,21 @@ enum DBIScale {
 };
 
 enum DBIEmojiTab {
-	dbietRecent   = -1,
-	dbietPeople   =  0,
-	dbietNature   =  1,
-	dbietObjects  =  2,
-	dbietPlaces   =  3,
-	dbietSymbols  =  4,
-	dbietStickers =  666,
+	dbietRecent      = -1,
+	dbietPeople      =  0,
+	dbietNature      =  1,
+	dbietFood        =  2,
+	dbietCelebration =  3,
+	dbietActivity    =  4,
+	dbietTravel      =  5,
+	dbietObjects     =  6,
+	dbietStickers    =  666,
 };
+static const int emojiTabCount = 8;
+static const int emojiTabShift = 100000;
+inline DBIEmojiTab emojiTabAtIndex(int index) {
+	return (index < 0 || index >= emojiTabCount) ? dbietRecent : DBIEmojiTab(index - 1);
+}
 
 enum DBIPlatform {
     dbipWindows  = 0,

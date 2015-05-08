@@ -905,22 +905,60 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			switch (v) {
-			case dbietRecent: cSetEmojiTab(dbietRecent);   break;
-			case dbietPeople: cSetEmojiTab(dbietPeople);   break;
-			case dbietNature: cSetEmojiTab(dbietNature);   break;
-			case dbietObjects: cSetEmojiTab(dbietObjects);  break;
-			case dbietPlaces: cSetEmojiTab(dbietPlaces);   break;
-			case dbietSymbols: cSetEmojiTab(dbietSymbols);  break;
-			case dbietStickers: cSetEmojiTab(dbietStickers); break;
+			case dbietRecent     : cSetEmojiTab(dbietRecent     ); break;
+			case dbietPeople     : cSetEmojiTab(dbietPeople     ); break;
+			case dbietNature     : cSetEmojiTab(dbietNature     ); break;
+			case dbietFood       : cSetEmojiTab(dbietFood       ); break;
+			case dbietCelebration: cSetEmojiTab(dbietCelebration); break;
+			case dbietActivity   : cSetEmojiTab(dbietActivity   ); break;
+			case dbietTravel     : cSetEmojiTab(dbietTravel     ); break;
+			case dbietObjects    : cSetEmojiTab(dbietObjects    ); break;
+			case dbietStickers   : cSetEmojiTab(dbietStickers   ); break;
+			}
+		} break;
+
+		case dbiRecentEmojisOld: {
+			RecentEmojisPreloadOld v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			if (!v.isEmpty()) {
+				RecentEmojisPreload p;
+				p.reserve(v.size());
+				for (int i = 0; i < v.size(); ++i) {
+					uint64 e(v.at(i).first);
+					switch (e) {
+						case 0xD83CDDEFLLU: e = 0xD83CDDEFD83CDDF5LLU; break;
+						case 0xD83CDDF0LLU: e = 0xD83CDDF0D83CDDF7LLU; break;
+						case 0xD83CDDE9LLU: e = 0xD83CDDE9D83CDDEALLU; break;
+						case 0xD83CDDE8LLU: e = 0xD83CDDE8D83CDDF3LLU; break;
+						case 0xD83CDDFALLU: e = 0xD83CDDFAD83CDDF8LLU; break;
+						case 0xD83CDDEBLLU: e = 0xD83CDDEBD83CDDF7LLU; break;
+						case 0xD83CDDEALLU: e = 0xD83CDDEAD83CDDF8LLU; break;
+						case 0xD83CDDEELLU: e = 0xD83CDDEED83CDDF9LLU; break;
+						case 0xD83CDDF7LLU: e = 0xD83CDDF7D83CDDFALLU; break;
+						case 0xD83CDDECLLU: e = 0xD83CDDECD83CDDE7LLU; break;
+					}
+					p.push_back(qMakePair(e, v.at(i).second));
+				}
+				cSetRecentEmojisPreload(p);
 			}
 		} break;
 
 		case dbiRecentEmojis: {
-			RecentEmojiPreload v;
+			RecentEmojisPreload v;
 			stream >> v;
 			if (!_checkStreamStatus(stream)) return false;
 
 			cSetRecentEmojisPreload(v);
+		} break;
+
+		case dbiEmojiVariants: {
+			EmojiColorVariants v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetEmojiVariants(v);
 		} break;
 
 		case dbiDialogLastPath: {
@@ -1140,7 +1178,8 @@ namespace {
 
 		uint32 size = 11 * (sizeof(quint32) + sizeof(qint32));
 		size += sizeof(quint32) + _stringSize(cAskDownloadPath() ? QString() : cDownloadPath());
-		size += sizeof(quint32) + sizeof(qint32) + cGetRecentEmojis().size() * (sizeof(uint32) + sizeof(ushort));
+		size += sizeof(quint32) + sizeof(qint32) + cGetRecentEmojis().size() * (sizeof(uint64) + sizeof(ushort));
+		size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
 		size += sizeof(quint32) + _stringSize(cDialogLastPath());
 
 		EncryptedDescriptor data(size);
@@ -1158,12 +1197,14 @@ namespace {
 		data.stream << quint32(dbiEmojiTab) << qint32(cEmojiTab());
 		data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 
-		RecentEmojiPreload v;
+		RecentEmojisPreload v;
 		v.reserve(cGetRecentEmojis().size());
 		for (RecentEmojiPack::const_iterator i = cGetRecentEmojis().cbegin(), e = cGetRecentEmojis().cend(); i != e; ++i) {
-			v.push_back(qMakePair(i->first->code, i->second));
+			v.push_back(qMakePair(emojiKey(i->first), i->second));
 		}
 		data.stream << quint32(dbiRecentEmojis) << v;
+
+		data.stream << quint32(dbiEmojiVariants) << cEmojiVariants();
 
 		FileWriteDescriptor file(_userSettingsKey);
 		file.writeEncrypted(data);
