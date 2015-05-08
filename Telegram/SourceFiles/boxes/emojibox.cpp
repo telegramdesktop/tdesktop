@@ -84,7 +84,7 @@ void EmojiBox::fillBlocks() {
 	BlockRow currentRow;
 	currentRow.reserve(replacesInRow);
 	for (uint32 i = 0; i < replacesCount; ++i) {
-		Block block(getEmoji(replaces[i].code), QString::fromUtf8(replaces[i].replace));
+		Block block(emojiGet(replaces[i].code), QString::fromUtf8(replaces[i].replace));
 		currentRow.push_back(block);
         if (uint32(currentRow.size()) == replacesInRow) {
 			_blocks.push_back(currentRow);
@@ -125,8 +125,7 @@ void EmojiBox::paintEvent(QPaintEvent *e) {
 		int32 rowSize = i->size(), left = (width() - rowSize * st::emojiReplaceWidth) / 2;
 		for (BlockRow::const_iterator j = i->cbegin(), en = i->cend(); j != en; ++j) {
 			if (j->emoji) {
-				QPoint pos(left + (st::emojiReplaceWidth - st::emojiSize) / 2, top + (st::emojiReplaceHeight - _blockHeight) / 2);
-				p.drawPixmap(pos, App::emojis(), QRect(j->emoji->x, j->emoji->y, st::emojiImgSize, st::emojiImgSize));
+				emojiDraw(p, j->emoji, left + (st::emojiReplaceWidth - st::emojiSize) / 2, top + (st::emojiReplaceHeight - _blockHeight) / 2);
 			}
 			QRect trect(left, top + (st::emojiReplaceHeight + _blockHeight) / 2 - st::emojiTextFont->height, st::emojiReplaceWidth, st::emojiTextFont->height);
 			p.drawText(trect, j->text, QTextOption(Qt::AlignHCenter | Qt::AlignTop));

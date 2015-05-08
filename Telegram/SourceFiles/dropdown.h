@@ -132,7 +132,68 @@ private:
 
 };
 
-class EmojiPanInner : public QWidget, public Animated {
+static const int EmojiColorsCount = 5;
+
+class EmojiColorPicker : public TWidget, public Animated {
+	Q_OBJECT
+
+public:
+
+	EmojiColorPicker(QWidget *parent);
+
+	void showEmoji(uint32 code);
+
+	void paintEvent(QPaintEvent *e);
+	void enterEvent(QEvent *e);
+	void leaveEvent(QEvent *e);
+	void mousePressEvent(QMouseEvent *e);
+	void mouseReleaseEvent(QMouseEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+
+	bool animStep(float64 ms);
+	void showStart();
+
+	void clearSelection(bool fast = false);
+
+public slots:
+
+	void hideStart(bool fast = false);
+
+signals:
+
+	void emojiSelected(EmojiPtr emoji);
+	void hidden();
+
+private:
+
+	void drawVariant(Painter &p, int variant);
+
+	void updateSelected();
+
+	bool _ignoreShow;
+
+	EmojiPtr _variants[EmojiColorsCount + 1];
+
+	typedef QMap<int32, uint64> EmojiAnimations; // index - showing, -index - hiding
+	EmojiAnimations _emojiAnimations;
+
+	float64 _hovers[EmojiColorsCount + 1];
+
+	int32 _selected, _pressedSel;
+	QPoint _lastMousePos;
+
+	bool _hiding;
+	QPixmap _cache;
+
+	anim::fvalue a_opacity;
+
+	QTimer _hideTimer;
+
+	BoxShadow _shadow;
+
+};
+
+class EmojiPanInner : public TWidget, public Animated {
 	Q_OBJECT
 
 public:
@@ -145,38 +206,66 @@ public:
 	void mouseReleaseEvent(QMouseEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
 	void leaveEvent(QEvent *e);
+	void leaveToChildEvent(QEvent *e);
+	void enterFromChildEvent(QEvent *e);
 
 	bool animStep(float64 ms);
+	void hideFinish();
 
 	void showEmojiPack(DBIEmojiTab packIndex);
 
 	void clearSelection(bool fast = false);
+
+	DBIEmojiTab currentTab(int yOffset) const;
+
+	void refreshStickers();
+	void refreshRecent();
+
+	void setScrollTop(int top);
 	
 public slots:
 
 	void updateSelected();
 	void onSaveConfig();
 
+	void onShowPicker();
+	void onPickerHidden();
+	void onColorSelected(EmojiPtr emoji);
+
 signals:
 
 	void emojiSelected(EmojiPtr emoji);
 	void stickerSelected(DocumentData *sticker);
 
+	void scrollToY(int y);
+	void disableScroll(bool dis);
+
 private:
+
+	int countHeight();
+	void selectEmoji(EmojiPtr emoji);
 
 	typedef QMap<int32, uint64> EmojiAnimations; // index - showing, -index - hiding
 	EmojiAnimations _emojiAnimations;
 
+	int _top;
+	int _counts[emojiTabCount], _count;
+
 	StickerPack _stickers;
 	QVector<bool> _isUserGen;
-	QVector<EmojiPtr> _emojis;
-	QVector<float64> _hovers;
+	QVector<EmojiPtr> _emojis[emojiTabCount];
+	QVector<float64> _hovers[emojiTabCount + 1]; // + stickers hovers and stickers-x hovers
 
-	DBIEmojiTab _tab;
-	int32 _selected, _xSelected, _pressedSel, _xPressedSel;
+	float64 _stickerWidth;
+	int32 _esize, _stickerSize;
+
+	int32 _selected, _pressedSel, _pickerSel;
 	QPoint _lastMousePos;
 
 	QTimer _saveConfigTimer;
+
+	EmojiColorPicker _picker;
+	QTimer _showPickerTimer;
 
 };
 
@@ -203,6 +292,8 @@ public:
 
 	bool eventFilter(QObject *obj, QEvent *e);
 
+	void refreshStickers();
+
 public slots:
 
 	void hideStart();
@@ -212,6 +303,7 @@ public slots:
 	void onWndActiveChanged();
 
 	void onTabChange();
+	void onScroll();
 
 signals:
 
@@ -224,6 +316,8 @@ private:
 	void showAll();
 	void hideAll();
 
+	bool _noTabUpdate;
+
 	int32 _width, _height;
 	bool _hiding;
 	QPixmap _cache;
@@ -234,7 +328,7 @@ private:
 
 	BoxShadow _shadow;
 
-	FlatRadiobutton _recent, _people, _nature, _objects, _places, _symbols, _stickers;
+	FlatRadiobutton _recent, _people, _nature, _food, _celebration, _activity, _travel, _objects, _stickers;
 
 	int32 _emojiPack;
 	ScrollArea _scroll;

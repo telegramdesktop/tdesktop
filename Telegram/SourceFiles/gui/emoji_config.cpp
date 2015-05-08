@@ -27,17 +27,19 @@ namespace {
 	char emojisData[sizeof(EmojiData) * 1180];
 }
 
-int EmojiSizes[] = { 18, 22, 27, 36 }, ESize = 0;
-
-void initEmoji() {
+int EmojiSizes[] = { 18, 22, 27, 36, 45 }, EIndex = -1, ESize = 0;
+const char *EmojiNames[] = { ":/gui/art/emoji.webp", ":/gui/art/emoji_125x.webp", ":/gui/art/emoji_150x.webp", ":/gui/art/emoji_200x.webp", ":/gui/art/emoji_250x.webp" }, *EName = 0;
+void emojiInit() {
 	DBIScale emojiForScale = cRetina() ? dbisTwo : cScale();
 
 	switch (emojiForScale) {
-		case dbisOne: ESize = EmojiSizes[0]; break;
-		case dbisOneAndQuarter: ESize = EmojiSizes[1]; break;
-		case dbisOneAndHalf: ESize = EmojiSizes[2]; break;
-		case dbisTwo: ESize = EmojiSizes[3]; break;
+		case dbisOne: EIndex = 0; break;
+		case dbisOneAndQuarter: EIndex = 1; break;
+		case dbisOneAndHalf: EIndex = 2; break;
+		case dbisTwo: EIndex = 3; break;
 	};
+	ESize = EmojiSizes[EIndex];
+	EName = EmojiNames[EIndex];
 
 	EmojiData *toFill = emojis = (EmojiData*)emojisData;
 
@@ -1223,7 +1225,7 @@ void initEmoji() {
 	new (toFill++) EmojiData(11, 16, 0xD83DDEC0U, 0, 4, 0, 0xD83CDFFFU);
 };
 
-EmojiPtr getEmoji(uint32 code) {
+EmojiPtr emojiGet(uint32 code) {
 	if (!emojis) return 0;
 
 	uint32 highCode = code >> 16;
@@ -1376,6 +1378,13 @@ EmojiPtr getEmoji(uint32 code) {
 		return 0;
 	}
 
+	if (highCode == 0xFFFFU) {
+		static const int sequenceOffset = 835;
+
+		uint32 index = (code & 0xFFFFU);
+		return (index < 18) ? &emojis[sequenceOffset + index] : 0;
+	}
+
 	if (code < 0xD83CDC04U || code > 0xD83DDEC5U) return 0;
 
 	switch (code) {
@@ -1525,6 +1534,7 @@ EmojiPtr getEmoji(uint32 code) {
 		case 0xD83CDF82U: return &emojis[271];
 		case 0xD83CDF83U: return &emojis[272];
 		case 0xD83CDF84U: return &emojis[273];
+		case 0xD83CDF85U: return &emojis[274];
 		case 0xD83CDF86U: return &emojis[275];
 		case 0xD83CDF87U: return &emojis[276];
 		case 0xD83CDF88U: return &emojis[277];
@@ -1574,9 +1584,13 @@ EmojiPtr getEmoji(uint32 code) {
 		case 0xD83CDFC0U: return &emojis[321];
 		case 0xD83CDFC1U: return &emojis[322];
 		case 0xD83CDFC2U: return &emojis[323];
+		case 0xD83CDFC3U: return &emojis[324];
+		case 0xD83CDFC4U: return &emojis[325];
 		case 0xD83CDFC6U: return &emojis[326];
+		case 0xD83CDFC7U: return &emojis[327];
 		case 0xD83CDFC8U: return &emojis[328];
 		case 0xD83CDFC9U: return &emojis[329];
+		case 0xD83CDFCAU: return &emojis[330];
 		case 0xD83CDFE0U: return &emojis[331];
 		case 0xD83CDFE1U: return &emojis[332];
 		case 0xD83CDFE2U: return &emojis[333];
@@ -1658,8 +1672,21 @@ EmojiPtr getEmoji(uint32 code) {
 		case 0xD83DDC3DU: return &emojis[409];
 		case 0xD83DDC3EU: return &emojis[410];
 		case 0xD83DDC40U: return &emojis[411];
+		case 0xD83DDC42U: return &emojis[412];
+		case 0xD83DDC43U: return &emojis[413];
 		case 0xD83DDC44U: return &emojis[414];
 		case 0xD83DDC45U: return &emojis[415];
+		case 0xD83DDC46U: return &emojis[416];
+		case 0xD83DDC47U: return &emojis[417];
+		case 0xD83DDC48U: return &emojis[418];
+		case 0xD83DDC49U: return &emojis[419];
+		case 0xD83DDC4AU: return &emojis[420];
+		case 0xD83DDC4BU: return &emojis[421];
+		case 0xD83DDC4CU: return &emojis[422];
+		case 0xD83DDC4DU: return &emojis[423];
+		case 0xD83DDC4EU: return &emojis[424];
+		case 0xD83DDC4FU: return &emojis[425];
+		case 0xD83DDC50U: return &emojis[426];
 		case 0xD83DDC51U: return &emojis[427];
 		case 0xD83DDC52U: return &emojis[428];
 		case 0xD83DDC53U: return &emojis[429];
@@ -1681,19 +1708,40 @@ EmojiPtr getEmoji(uint32 code) {
 		case 0xD83DDC63U: return &emojis[445];
 		case 0xD83DDC64U: return &emojis[446];
 		case 0xD83DDC65U: return &emojis[447];
+		case 0xD83DDC66U: return &emojis[448];
+		case 0xD83DDC67U: return &emojis[449];
+		case 0xD83DDC68U: return &emojis[450];
+		case 0xD83DDC69U: return &emojis[451];
 		case 0xD83DDC6AU: return &emojis[452];
 		case 0xD83DDC6BU: return &emojis[453];
 		case 0xD83DDC6CU: return &emojis[454];
 		case 0xD83DDC6DU: return &emojis[455];
+		case 0xD83DDC6EU: return &emojis[456];
 		case 0xD83DDC6FU: return &emojis[457];
+		case 0xD83DDC70U: return &emojis[458];
+		case 0xD83DDC71U: return &emojis[459];
+		case 0xD83DDC72U: return &emojis[460];
+		case 0xD83DDC73U: return &emojis[461];
+		case 0xD83DDC74U: return &emojis[462];
+		case 0xD83DDC75U: return &emojis[463];
+		case 0xD83DDC76U: return &emojis[464];
+		case 0xD83DDC77U: return &emojis[465];
+		case 0xD83DDC78U: return &emojis[466];
 		case 0xD83DDC79U: return &emojis[467];
 		case 0xD83DDC7AU: return &emojis[468];
 		case 0xD83DDC7BU: return &emojis[469];
+		case 0xD83DDC7CU: return &emojis[470];
 		case 0xD83DDC7DU: return &emojis[471];
 		case 0xD83DDC7EU: return &emojis[472];
 		case 0xD83DDC7FU: return &emojis[473];
 		case 0xD83DDC80U: return &emojis[474];
+		case 0xD83DDC81U: return &emojis[475];
+		case 0xD83DDC82U: return &emojis[476];
+		case 0xD83DDC83U: return &emojis[477];
 		case 0xD83DDC84U: return &emojis[478];
+		case 0xD83DDC85U: return &emojis[479];
+		case 0xD83DDC86U: return &emojis[480];
+		case 0xD83DDC87U: return &emojis[481];
 		case 0xD83DDC88U: return &emojis[482];
 		case 0xD83DDC89U: return &emojis[483];
 		case 0xD83DDC8AU: return &emojis[484];
@@ -1728,6 +1776,7 @@ EmojiPtr getEmoji(uint32 code) {
 		case 0xD83DDCA7U: return &emojis[513];
 		case 0xD83DDCA8U: return &emojis[514];
 		case 0xD83DDCA9U: return &emojis[515];
+		case 0xD83DDCAAU: return &emojis[516];
 		case 0xD83DDCABU: return &emojis[517];
 		case 0xD83DDCACU: return &emojis[518];
 		case 0xD83DDCADU: return &emojis[519];
@@ -1965,9 +2014,17 @@ EmojiPtr getEmoji(uint32 code) {
 		case 0xD83DDE3EU: return &emojis[751];
 		case 0xD83DDE3FU: return &emojis[752];
 		case 0xD83DDE40U: return &emojis[753];
+		case 0xD83DDE45U: return &emojis[754];
+		case 0xD83DDE46U: return &emojis[755];
+		case 0xD83DDE47U: return &emojis[756];
 		case 0xD83DDE48U: return &emojis[757];
 		case 0xD83DDE49U: return &emojis[758];
 		case 0xD83DDE4AU: return &emojis[759];
+		case 0xD83DDE4BU: return &emojis[760];
+		case 0xD83DDE4CU: return &emojis[761];
+		case 0xD83DDE4DU: return &emojis[762];
+		case 0xD83DDE4EU: return &emojis[763];
+		case 0xD83DDE4FU: return &emojis[764];
 		case 0xD83DDE80U: return &emojis[765];
 		case 0xD83DDE81U: return &emojis[766];
 		case 0xD83DDE82U: return &emojis[767];
@@ -2003,6 +2060,7 @@ EmojiPtr getEmoji(uint32 code) {
 		case 0xD83DDEA0U: return &emojis[797];
 		case 0xD83DDEA1U: return &emojis[798];
 		case 0xD83DDEA2U: return &emojis[799];
+		case 0xD83DDEA3U: return &emojis[800];
 		case 0xD83DDEA4U: return &emojis[801];
 		case 0xD83DDEA5U: return &emojis[802];
 		case 0xD83DDEA6U: return &emojis[803];
@@ -2019,6 +2077,9 @@ EmojiPtr getEmoji(uint32 code) {
 		case 0xD83DDEB1U: return &emojis[814];
 		case 0xD83DDEB2U: return &emojis[815];
 		case 0xD83DDEB3U: return &emojis[816];
+		case 0xD83DDEB4U: return &emojis[817];
+		case 0xD83DDEB5U: return &emojis[818];
+		case 0xD83DDEB6U: return &emojis[819];
 		case 0xD83DDEB7U: return &emojis[820];
 		case 0xD83DDEB8U: return &emojis[821];
 		case 0xD83DDEB9U: return &emojis[822];
@@ -2028,6 +2089,7 @@ EmojiPtr getEmoji(uint32 code) {
 		case 0xD83DDEBDU: return &emojis[826];
 		case 0xD83DDEBEU: return &emojis[827];
 		case 0xD83DDEBFU: return &emojis[828];
+		case 0xD83DDEC0U: return &emojis[829];
 		case 0xD83DDEC1U: return &emojis[830];
 		case 0xD83DDEC2U: return &emojis[831];
 		case 0xD83DDEC3U: return &emojis[832];
@@ -2076,7 +2138,7 @@ EmojiPtr getEmoji(uint32 code) {
 	return 0;
 }
 
-EmojiPtr getEmoji(uint32 code, uint32 code2) {
+EmojiPtr emojiGet(uint32 code, uint32 code2) {
 	if (code < 0xD83CDDE6U || code > 0xD83CDDFFU) return 0;
 
 	switch (code) {
@@ -2187,7 +2249,7 @@ EmojiPtr getEmoji(uint32 code, uint32 code2) {
 	return 0;
 }
 
-EmojiPtr getEmoji(EmojiPtr emoji, uint32 color) {
+EmojiPtr emojiGet(EmojiPtr emoji, uint32 color) {
 	if (!emoji || ((emoji->color & 0xFFFF0000U) != 0xFFFF0000U)) return emoji;
 
 	int index = 0;
@@ -2203,7 +2265,9 @@ EmojiPtr getEmoji(EmojiPtr emoji, uint32 color) {
 	return &emojis[(emoji->color & 0xFFFFU) + index];
 }
 
-EmojiPtr getEmoji(const QChar *from, const QChar *end) {
+EmojiPtr emojiGet(const QChar *from, const QChar *end) {
+	static const int sequenceOffset = 835;
+
 	if (end < from + 8 || (from + 2)->unicode() != 0x200D || (from + 5)->unicode() != 0x200D) return 0;
 
 	static const uint32 man = 0xD83DDC68, woman = 0xD83DDC69, boy = 0xD83DDC66, girl = 0xD83DDC67, heart = 0x2764FE0F, kiss = 0xD83DDC8B;
@@ -2217,55 +2281,83 @@ EmojiPtr getEmoji(const QChar *from, const QChar *end) {
 		if (one == man) {
 			if (two == man) {
 				if (three == girl) {
-					if (four == girl) return [13];
-					if (four == boy) return [11];
+					if (four == girl) return &emojis[sequenceOffset + 13];
+					if (four == boy) return &emojis[sequenceOffset + 11];
 				} else if (three == boy) {
-					if (four == boy) return [12];
+					if (four == boy) return &emojis[sequenceOffset + 12];
 				}
 			} else if (two == woman) {
 				if (three == girl) {
-					if (four == girl) return [3];
-					if (four == boy) return [1];
+					if (four == girl) return &emojis[sequenceOffset + 3];
+					if (four == boy) return &emojis[sequenceOffset + 1];
 				} else if (three == boy) {
-					if (four == boy) return [2];
+					if (four == boy) return &emojis[sequenceOffset + 2];
 				}
 			} else if (two == heart) {
-				if (three == kiss && four == man) return [17];
+				if (three == kiss && four == man) return &emojis[sequenceOffset + 17];
 			}
 		} else {
 			if (two == woman) {
 				if (three == girl) {
-					if (four == girl) return [3];
-					if (four == boy) return [1];
+					if (four == girl) return &emojis[sequenceOffset + 8];
+					if (four == boy) return &emojis[sequenceOffset + 6];
 				} else if (three == boy) {
-					if (four == boy) return [2];
+					if (four == boy) return &emojis[sequenceOffset + 7];
 				}
 			} else if (two == heart) {
-				if (three == kiss && four == woman) return [16];
+				if (three == kiss && four == woman) return &emojis[sequenceOffset + 16];
 			}
 		}
 	}
 	if (one == man) {
 		if (two == man) {
-			if (three == girl) return [10];
-			if (three == boy) return [9];
+			if (three == girl) return &emojis[sequenceOffset + 10];
+			if (three == boy) return &emojis[sequenceOffset + 9];
 		} else if (two == woman) {
-			if (three == girl) return [0];
+			if (three == girl) return &emojis[sequenceOffset + 0];
 		} else if (two == heart) {
-			if (three == man) return [15];
+			if (three == man) return &emojis[sequenceOffset + 15];
 		}
 	} else {
 		if (two == woman) {
-			if (three == girl) return [5];
-			if (three == boy) return [4];
+			if (three == girl) return &emojis[sequenceOffset + 5];
+			if (three == boy) return &emojis[sequenceOffset + 4];
 		} else if (two == heart) {
-			if (three == woman) return [14];
+			if (three == woman) return &emojis[sequenceOffset + 14];
 		}
 	}
 	return 0;
 }
 
-void findEmoji(const QChar *ch, const QChar *e, const QChar *&newEmojiEnd, uint32 &emojiCode) {
+QString emojiGetSequence(int index) {
+	static QVector<QString> sequences;
+	if (sequences.isEmpty()) {
+		sequences.reserve(18);
+
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7"));
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa6"));
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa6\xe2\x80\x8d\xf0\x9f\x91\xa6"));
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa7"));
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa6"));
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7"));
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa6"));
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa6\xe2\x80\x8d\xf0\x9f\x91\xa6"));
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa7"));
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa6"));
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa7"));
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa6"));
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa6\xe2\x80\x8d\xf0\x9f\x91\xa6"));
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa7"));
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xe2\x9d\xa4\xef\xb8\x8f\xe2\x80\x8d\xf0\x9f\x91\xa9"));
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xe2\x9d\xa4\xef\xb8\x8f\xe2\x80\x8d\xf0\x9f\x91\xa8"));
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xe2\x9d\xa4\xef\xb8\x8f\xe2\x80\x8d\xf0\x9f\x92\x8b\xe2\x80\x8d\xf0\x9f\x91\xa9"));
+		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xe2\x9d\xa4\xef\xb8\x8f\xe2\x80\x8d\xf0\x9f\x92\x8b\xe2\x80\x8d\xf0\x9f\x91\xa8"));
+	}
+
+	return (index >= 0 && index < sequences.size()) ? sequences.at(index) : QString();
+}
+
+void emojiFind(const QChar *ch, const QChar *e, const QChar *&newEmojiEnd, uint32 &emojiCode) {
 	switch (ch->unicode()) {
 	case '}':
 		if (ch + 1 != e) switch ((ch + 1)->unicode()) {
@@ -2701,6 +2793,20 @@ void findEmoji(const QChar *ch, const QChar *e, const QChar *&newEmojiEnd, uint3
 		}
 	break;
 	}
+}
+
+int emojiPackCount(DBIEmojiTab tab) {
+	switch (tab) {
+		case dbietRecent     : return cGetRecentEmojis().size();
+		case dbietPeople     : return 153;
+		case dbietNature     : return 125;
+		case dbietFood       : return 58;
+		case dbietCelebration: return 39;
+		case dbietActivity   : return 53;
+		case dbietTravel     : return 122;
+		case dbietObjects    : return 345;
+	};
+	return 0;
 }
 
 EmojiPack emojiPack(DBIEmojiTab tab) {
@@ -3258,43 +3364,43 @@ EmojiPack emojiPack(DBIEmojiTab tab) {
 			vTravel[77] = &emojis[69];
 			vTravel[78] = &emojis[341];
 			vTravel[79] = &emojis[342];
-			vTravel[80] = &emojis[873];
-			vTravel[81] = &emojis[873];
+			vTravel[80] = &emojis[875];
+			vTravel[81] = &emojis[874];
 			vTravel[82] = &emojis[876];
-			vTravel[83] = &emojis[876];
+			vTravel[83] = &emojis[877];
 			vTravel[84] = &emojis[878];
-			vTravel[85] = &emojis[878];
-			vTravel[86] = &emojis[878];
-			vTravel[87] = &emojis[878];
-			vTravel[88] = &emojis[883];
+			vTravel[85] = &emojis[880];
+			vTravel[86] = &emojis[881];
+			vTravel[87] = &emojis[882];
+			vTravel[88] = &emojis[884];
 			vTravel[89] = &emojis[886];
-			vTravel[90] = &emojis[886];
+			vTravel[90] = &emojis[887];
 			vTravel[91] = &emojis[883];
 			vTravel[92] = &emojis[889];
-			vTravel[93] = &emojis[890];
+			vTravel[93] = &emojis[893];
 			vTravel[94] = &emojis[890];
-			vTravel[95] = &emojis[890];
-			vTravel[96] = &emojis[890];
-			vTravel[97] = &emojis[890];
+			vTravel[95] = &emojis[891];
+			vTravel[96] = &emojis[892];
+			vTravel[97] = &emojis[894];
 			vTravel[98] = &emojis[895];
 			vTravel[99] = &emojis[896];
 			vTravel[100] = &emojis[897];
-			vTravel[101] = &emojis[897];
-			vTravel[102] = &emojis[897];
+			vTravel[101] = &emojis[899];
+			vTravel[102] = &emojis[898];
 			vTravel[103] = &emojis[900];
-			vTravel[104] = &emojis[900];
-			vTravel[105] = &emojis[900];
+			vTravel[104] = &emojis[902];
+			vTravel[105] = &emojis[901];
 			vTravel[106] = &emojis[903];
-			vTravel[107] = &emojis[903];
-			vTravel[108] = &emojis[903];
-			vTravel[109] = &emojis[903];
+			vTravel[107] = &emojis[904];
+			vTravel[108] = &emojis[906];
+			vTravel[109] = &emojis[905];
 			vTravel[110] = &emojis[907];
 			vTravel[111] = &emojis[908];
-			vTravel[112] = &emojis[908];
+			vTravel[112] = &emojis[910];
 			vTravel[113] = &emojis[914];
 			vTravel[114] = &emojis[885];
-			vTravel[115] = &emojis[908];
-			vTravel[116] = &emojis[878];
+			vTravel[115] = &emojis[909];
+			vTravel[116] = &emojis[879];
 			vTravel[117] = &emojis[911];
 			vTravel[118] = &emojis[888];
 			vTravel[119] = &emojis[912];
@@ -3664,5 +3770,6 @@ EmojiPack emojiPack(DBIEmojiTab tab) {
 	for (RecentEmojiPack::const_iterator i = cGetRecentEmojis().cbegin(), e = cGetRecentEmojis().cend(); i != e; ++i) {
 		result.push_back(i->first);
 	}
-	return result;}
+	return result;
+}
 

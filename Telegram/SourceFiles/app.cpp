@@ -70,9 +70,9 @@ namespace {
 
 	HistoryItem *hoveredItem = 0, *pressedItem = 0, *hoveredLinkItem = 0, *pressedLinkItem = 0, *contextItem = 0, *mousedItem = 0;
 
-	QPixmap *sprite = 0, *emojis = 0;
+	QPixmap *sprite = 0, *emojis = 0, *emojisLarge = 0;
 
-	typedef QMap<uint32, QPixmap> EmojisMap;
+	typedef QMap<uint64, QPixmap> EmojisMap;
 	EmojisMap mainEmojisMap;
 	QMap<int32, EmojisMap> otherEmojisMap;
 
@@ -1522,11 +1522,15 @@ namespace App {
 			}
             if (cRetina()) ::sprite->setDevicePixelRatio(cRetinaFactor());
 		}
+		emojiInit();
 		if (!::emojis) {
-			::emojis = new QPixmap(st::emojisFile);
+			::emojis = new QPixmap(QLatin1String(EName));
             if (cRetina()) ::emojis->setDevicePixelRatio(cRetinaFactor());
 		}
-		initEmoji();
+		if (!::emojisLarge) {
+			::emojisLarge = new QPixmap(QLatin1String(EmojiNames[EIndex + 1]));
+			if (cRetina()) ::emojisLarge->setDevicePixelRatio(cRetinaFactor());
+		}
 	}
 	
 	void deinitMedia(bool completely) {
@@ -1542,6 +1546,8 @@ namespace App {
 			::sprite = 0;
 			delete ::emojis;
 			::emojis = 0;
+			delete ::emojisLarge;
+			::emojisLarge = 0;
 			mainEmojisMap.clear();
 			otherEmojisMap.clear();
 
@@ -1610,19 +1616,25 @@ namespace App {
 		return *::emojis;
 	}
 
-	const QPixmap &emojiSingle(const EmojiData *emoji, int32 fontHeight) {
+	const QPixmap &emojisLarge() {
+		return *::emojisLarge;
+	}
+
+	const QPixmap &emojiSingle(EmojiPtr emoji, int32 fontHeight) {
 		EmojisMap *map = &(fontHeight == st::taDefFlat.font->height ? mainEmojisMap : otherEmojisMap[fontHeight]);
-		EmojisMap::const_iterator i = map->constFind(emoji->code);
+		EmojisMap::const_iterator i = map->constFind(emojiKey(emoji));
 		if (i == map->cend()) {
-			QImage img(st::emojiImgSize + st::emojiPadding * cIntRetinaFactor() * 2, fontHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+			QImage img(ESize + st::emojiPadding * cIntRetinaFactor() * 2, fontHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
             if (cRetina()) img.setDevicePixelRatio(cRetinaFactor());
 			{
 				QPainter p(&img);
+				QPainter::CompositionMode m = p.compositionMode();
 				p.setCompositionMode(QPainter::CompositionMode_Source);
 				p.fillRect(0, 0, img.width(), img.height(), Qt::transparent);
-				p.drawPixmap(QPoint(st::emojiPadding * cIntRetinaFactor(), (fontHeight * cIntRetinaFactor() - st::emojiImgSize) / 2), App::emojis(), QRect(emoji->x, emoji->y, st::emojiImgSize, st::emojiImgSize));
+				p.setCompositionMode(m);
+				emojiDraw(p, emoji, st::emojiPadding * cIntRetinaFactor(), (fontHeight * cIntRetinaFactor() - ESize) / 2);
 			}
-			i = map->insert(emoji->code, QPixmap::fromImage(img, Qt::ColorOnly));
+			i = map->insert(emojiKey(emoji), QPixmap::fromImage(img, Qt::ColorOnly));
 		}
 		return i.value();
 	}

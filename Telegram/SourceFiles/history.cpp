@@ -3311,9 +3311,9 @@ void HistoryWebPage::draw(QPainter &p, const HistoryItem *parent, bool selected,
 			p.fillRect(QRect(width - pixwidth, 0, pixwidth, pixheight), st::black->b);
 		}
 		if (_pixw > pixwidth) {
-			p.drawPixmap(QRect(width - pixwidth, (pixheight - _pixh) / 2, pixwidth, _pixh), pix, QRect((_pixw - pixwidth) / 2, 0, pixwidth, _pixh));
+			p.drawPixmap(QRect(width - pixwidth, (pixheight - _pixh) / 2, pixwidth, _pixh), pix, QRect(cIntRetinaFactor() * (_pixw - pixwidth) / 2, 0, cIntRetinaFactor() * pixwidth, cIntRetinaFactor() * _pixh));
 		} else if (_pixh > pixheight) {
-			p.drawPixmap(QRect(width - pixwidth + (pixwidth - _pixw) / 2, 0, _pixw, pixheight), pix, QRect(0, (_pixh - pixheight) / 2, _pixw, pixheight));
+			p.drawPixmap(QRect(width - pixwidth + (pixwidth - _pixw) / 2, 0, _pixw, pixheight), pix, QRect(0, cIntRetinaFactor() * (_pixh - pixheight) / 2, cIntRetinaFactor() * _pixw, cIntRetinaFactor() * pixheight));
 		} else {
 			p.drawPixmap(QPoint(width - pixwidth + (pixwidth - _pixw) / 2, (pixheight - _pixh) / 2), pix);
 		}
@@ -4375,6 +4375,14 @@ void HistoryMessage::initDimensions(const QString &text) {
 		if (_media) {
 			_text.setText(st::msgFont, text, _historyTextOptions);
 		} else {
+/*			char tmp[64] = {0}, tmp2[64] = {0};
+			int from = 0, to = 65535;
+			QString a = QString::fromLatin1(hashMd5Hex(hashMd5(text.constData() + qMin(text.size(), from), (qMin(text.size(), to) - qMin(text.size(), from)) * 2, tmp2), tmp));
+			QString b;
+			for (int i = qMin(text.size(), from); i < qMin(text.size(), to); ++i) {
+				b.append(QString("0x%1 ").arg(text.at(i).unicode(), 0, 16));
+			}
+			_text.setText(st::msgFont, text.mid(from, to - from) + ' ' + b + a + textcmdSkipBlock(_timeWidth, st::msgDateFont->height - st::msgDateDelta.y()), _historyTextOptions);*/
 			_text.setText(st::msgFont, text + textcmdSkipBlock(_timeWidth, st::msgDateFont->height - st::msgDateDelta.y()), _historyTextOptions);
 		}
 	}

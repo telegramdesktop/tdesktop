@@ -442,225 +442,208 @@ bool DragArea::animStep(float64 ms) {
 	return res;
 }
 
-EmojiPanInner::EmojiPanInner(QWidget *parent) : QWidget(parent), _tab(cEmojiTab()), _selected(-1), _xSelected(-1), _pressedSel(-1), _xPressedSel(-1) {
-	resize(EmojiPadPerRow * st::emojiPanSize.width(), EmojiPadRowsPerPage * st::emojiPanSize.height() - st::emojiPanSub);
+EmojiColorPicker::EmojiColorPicker(QWidget *parent) : TWidget(parent),
+_ignoreShow(false), _selected(-1), _pressedSel(-1), _hiding(false), a_opacity(0), _shadow(st::dropdownDef.shadow) {
+	memset(_variants, 0, sizeof(_variants));
+	memset(_hovers, 0, sizeof(_hovers));
+
 	setMouseTracking(true);
 	setFocusPolicy(Qt::NoFocus);
 
-	_saveConfigTimer.setSingleShot(true);
-	connect(&_saveConfigTimer, SIGNAL(timeout()), this, SLOT(onSaveConfig()));
+	int32 w = st::emojiPanSize.width() * (EmojiColorsCount + 1) + 4 * st::emojiColorsPadding + st::emojiColorsSep + st::dropdownDef.shadow.pxWidth() * 2;
+	int32 h = 2 * st::emojiColorsPadding + st::emojiPanSize.height() + st::dropdownDef.shadow.pxHeight() * 2;
+	resize(w, h);
+
+	_hideTimer.setSingleShot(true);
+	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
 }
 
-void EmojiPanInner::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+void EmojiColorPicker::showEmoji(uint32 code) {
+	EmojiPtr e = emojiGet(code);
+	if (!e || e == TwoSymbolEmoji || !e->color) {
+		return;
+	}
+	_ignoreShow = false;
 
-	QRect r = e ? e->rect() : rect();
+	_variants[0] = e;
+	_variants[1] = emojiGet(e, 0xD83CDFFB);
+	_variants[2] = emojiGet(e, 0xD83CDFFC);
+	_variants[3] = emojiGet(e, 0xD83CDFFD);
+	_variants[4] = emojiGet(e, 0xD83CDFFE);
+	_variants[5] = emojiGet(e, 0xD83CDFFF);
 
-	if (_tab == dbietStickers) {
-		int32 size = _stickers.size();
-		float64 stickerWidth = width() / float64(StickerPadPerRow);
-		int32 rows = (size / StickerPadPerRow) + ((size % StickerPadPerRow) ? 1 : 0), stickerSize = int32(stickerWidth);
-		int32 fromrow = qMax(qFloor(r.top() / stickerSize), 0), torow = qMin(qCeil(r.bottom() / stickerSize) + 1, rows);
-		for (int32 i = fromrow; i < torow; ++i) {
-			for (int32 j = 0; j < StickerPadPerRow; ++j) {
-				int32 index = i * StickerPadPerRow + j;
-				if (index >= size) break;
+	if (!_cache.isNull()) _cache = QPixmap();
+	showStart();
+}
 
-				float64 hover = _hovers[index];
+void EmojiColorPicker::paintEvent(QPaintEvent *e) {
+	Painter p(this);
 
-				QPoint pos(qRound(j * stickerWidth), i * stickerSize);
-				if (hover > 0) {
-					p.setOpacity(hover);
-					p.setBrush(st::emojiPanHover->b);
-					p.setPen(Qt::NoPen);
-					p.drawRoundedRect(QRect(pos, QSize(stickerSize, stickerSize)), st::stickerPanRound, st::stickerPanRound);
-					p.setOpacity(1);
-				}
+	if (!_cache.isNull()) {
+		p.setOpacity(a_opacity.current());
+	}
 
-				DocumentData *sticker = _stickers[index];
-				bool already = !sticker->already().isEmpty(), hasdata = !sticker->data.isEmpty();
-				if (!sticker->loader && sticker->status != FileFailed && !already && !hasdata) {
-					sticker->save(QString());
-				}
-				if (sticker->sticker->isNull() && (already || hasdata)) {
-					if (already) {
-						sticker->sticker = ImagePtr(sticker->already());
-					} else {
-						sticker->sticker = ImagePtr(sticker->data);
-					}
-				}
+	int32 w = st::dropdownDef.shadow.pxWidth(), h = st::dropdownDef.shadow.pxHeight();
+	QRect r = QRect(w, h, width() - 2 * w, height() - 2 * h);
+	_shadow.paint(p, r);
 
-				float64 coef = qMin((stickerWidth - st::stickerPanPadding * 2) / float64(sticker->dimensions.width()), (stickerSize - st::stickerPanPadding * 2) / float64(sticker->dimensions.height()));
-				if (coef > 1) coef = 1;
-				int32 w = qRound(coef * sticker->dimensions.width()), h = qRound(coef * sticker->dimensions.height());
-				if (w < 1) w = 1;
-				if (h < 1) h = 1;
-				QPoint ppos = pos + QPoint((stickerSize - w) / 2, (stickerSize - h) / 2);
-				if (sticker->sticker->isNull()) {
-					p.drawPixmap(ppos, sticker->thumb->pix(w, h));
-				} else {
-					p.drawPixmap(ppos, sticker->sticker->pix(w, h));
-				}
+	if (_cache.isNull()) {
+		p.fillRect(r, st::white->b);
+		p.translate(w, h);
 
-				if (hover > 0 && _isUserGen[index]) {
-					float64 xHover = _hovers[_stickers.size() + index];
+		p.fillRect(2 * st::emojiColorsPadding + st::emojiPanSize.width(), st::emojiColorsPadding, st::emojiColorsSep, r.height() - st::emojiColorsPadding * 2, st::emojiColorsSepColor->b);
 
-					QPoint xPos = pos + QPoint(stickerWidth - st::stickerPanDelete.pxWidth(), 0);
-					p.setOpacity(hover * (xHover + (1 - xHover) * st::stickerPanDeleteOpacity));
-					p.drawPixmap(xPos, App::sprite(), st::stickerPanDelete);
-					p.setOpacity(1);
-				}
-			}
+		if (!_variants[0]) return;
+		for (int i = 0; i < EmojiColorsCount + 1; ++i) {
+			drawVariant(p, i);
 		}
 	} else {
-		int32 size = _emojis.size();
-		int32 rows = (size / EmojiPadPerRow) + ((size % EmojiPadPerRow) ? 1 : 0);
-		int32 fromrow = qMax(qFloor(r.top() / st::emojiPanSize.height()), 0), torow = qMin(qCeil(r.bottom() / st::emojiPanSize.height()) + 1, rows);
-		for (int32 i = fromrow; i < torow; ++i) {
-			for (int32 j = 0; j < EmojiPadPerRow; ++j) {
-				int32 index = i * EmojiPadPerRow + j;
-				if (index >= size) break;
-
-				float64 hover = _hovers[index];
-
-				QPoint w(j * st::emojiPanSize.width(), i * st::emojiPanSize.height());
-				if (hover > 0) {
-					p.setOpacity(hover);
-					p.setBrush(st::emojiPanHover->b);
-					p.setPen(Qt::NoPen);
-					p.drawRoundedRect(QRect(w, st::emojiPanSize), st::emojiPanRound, st::emojiPanRound);
-					p.setOpacity(1);
-				}
-				QRect r(_emojis[index]->x, _emojis[index]->y, st::emojiImgSize, st::emojiImgSize);
-				p.drawPixmap(w + QPoint((st::emojiPanSize.width() - st::emojiSize) / 2, (st::emojiPanSize.height() - st::emojiSize) / 2), App::emojis(), r);
-			}
-		}
+		p.drawPixmap(r.left(), r.top(), _cache);
 	}
+
 }
 
-void EmojiPanInner::mousePressEvent(QMouseEvent *e) {
+void EmojiColorPicker::enterEvent(QEvent *e) {
+	_hideTimer.stop();
+	if (_hiding) showStart();
+	TWidget::enterEvent(e);
+}
+
+void EmojiColorPicker::leaveEvent(QEvent *e) {
+	TWidget::leaveEvent(e);
+}
+
+void EmojiColorPicker::mousePressEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateSelected();
 	_pressedSel = _selected;
-	_xPressedSel = _xSelected;
 }
 
-void EmojiPanInner::mouseReleaseEvent(QMouseEvent *e) {
-	_lastMousePos = e->globalPos();
-	updateSelected();
-	if (_xSelected == _xPressedSel && _xSelected >= 0 && _tab == dbietStickers) {
-		RecentStickerPack recent(cRecentStickers());
-		DocumentData *sticker = _stickers.at(_xSelected - _stickers.size());
-		for (int32 i = 0, l = recent.size(); i < l; ++i) {
-			if (recent.at(i).first == sticker) {
-				recent.removeAt(i);
-				cSetRecentStickers(recent);
-				Local::writeRecentStickers();
-				showEmojiPack(dbietStickers);
-				updateSelected();
-				break;
-			}
-		}
-	} else if (_selected == _pressedSel && _selected >= 0) {
-		if (_tab == dbietStickers) {
-			if (_selected < _stickers.size()) {
-				emit stickerSelected(_stickers[_selected]);
-			}
-		} else if (_selected < _emojis.size()) {
-			EmojiPtr emoji(_emojis[_selected]);
-			RecentEmojiPack recent(cGetRecentEmojis());
-			RecentEmojiPack::iterator i = recent.begin(), e = recent.end();
-			for (; i != e; ++i) {
-				if (i->first == emoji) {
-					++i->second;
-					if (i->second > 0x8000) {
-						for (RecentEmojiPack::iterator j = recent.begin(); j != e; ++j) {
-							if (j->second > 1) {
-								j->second /= 2;
-							} else {
-								j->second = 1;
-							}
-						}
-					}
-					for (; i != recent.begin(); --i) {
-						if ((i - 1)->second > i->second) {
-							break;
-						}
-						qSwap(*i, *(i - 1));
-					}
-					break;
-				}
-			}
-			if (i == e) {
-				while (recent.size() >= EmojiPadPerRow * EmojiPadRowsPerPage) recent.pop_back();
-				recent.push_back(qMakePair(emoji, 1));
-				for (i = recent.end() - 1; i != recent.begin(); --i) {
-					if ((i - 1)->second > i->second) {
-						break;
-					}
-					qSwap(*i, *(i - 1));
-				}
-			}
-			cSetRecentEmojis(recent);
-			_saveConfigTimer.start(SaveRecentEmojisTimeout);
+void EmojiColorPicker::mouseReleaseEvent(QMouseEvent *e) {
+	_lastMousePos = e ? e->globalPos() : QCursor::pos();
+	int32 pressed = _pressedSel;
+	_pressedSel = -1;
 
-			emit emojiSelected(emoji);
+	updateSelected();
+	if (_selected >= 0 && (pressed < 0 || _selected == pressed)) {
+		emit emojiSelected(_variants[_selected]);
+	}
+	_ignoreShow = true;
+	hideStart();
+}
+
+void EmojiColorPicker::mouseMoveEvent(QMouseEvent *e) {
+	_lastMousePos = e ? e->globalPos() : QCursor::pos();
+	updateSelected();
+}
+
+bool EmojiColorPicker::animStep(float64 ms) {
+	bool res1 = true, res2 = true;
+	if (!_cache.isNull()) {
+		float64 dt = ms / st::dropdownDef.duration;
+		if (dt >= 1) {
+			a_opacity.finish();
+			_cache = QPixmap();
+			if (_hiding) {
+				hide();
+				emit hidden();
+			} else {
+				_lastMousePos = QCursor::pos();
+				updateSelected();
+			}
+			res1 = false;
+		} else {
+			a_opacity.update(dt, anim::linear);
 		}
+	}
+	if (!_emojiAnimations.isEmpty()) {
+		uint64 now = getms();
+		for (EmojiAnimations::iterator i = _emojiAnimations.begin(); i != _emojiAnimations.end();) {
+			int index = qAbs(i.key()) - 1;
+			float64 dt = float64(now - i.value()) / st::emojiPanDuration;
+			if (dt >= 1) {
+				_hovers[index] = (i.key() > 0) ? 1 : 0;
+				i = _emojiAnimations.erase(i);
+			} else {
+				_hovers[index] = (i.key() > 0) ? dt : (1 - dt);
+				++i;
+			}
+		}
+		res2 = !_emojiAnimations.isEmpty();
+	}
+	update();
+	return res1 || res2;
+}
+
+void EmojiColorPicker::hideStart(bool fast) {
+	if (fast) {
+		clearSelection(true);
+		if (animating()) anim::stop(this);
+		a_opacity = anim::fvalue(0);
+		_cache = QPixmap();
+		hide();
+		emit hidden();
+	} else {
+		if (_cache.isNull()) {
+			int32 w = st::dropdownDef.shadow.pxWidth(), h = st::dropdownDef.shadow.pxHeight();
+			_cache = myGrab(this, QRect(w, h, width() - 2 * w, height() - 2 * h));
+			clearSelection(true);
+		}
+		_hiding = true;
+		a_opacity.start(0);
+		anim::start(this);
 	}
 }
 
-void EmojiPanInner::onSaveConfig() {
-	Local::writeUserSettings();
+void EmojiColorPicker::showStart() {
+	if (_ignoreShow) return;
+
+	_hiding = false;
+	if (!isHidden() && a_opacity.current() == 1) {
+		if (animating()) {
+			anim::stop(this);
+			_cache = QPixmap();
+		}
+		return;
+	}
+	if (_cache.isNull()) {
+		int32 w = st::dropdownDef.shadow.pxWidth(), h = st::dropdownDef.shadow.pxHeight();
+		_cache = myGrab(this, QRect(w, h, width() - 2 * w, height() - 2 * h));
+		clearSelection(true);
+	}
+	show();
+	a_opacity.start(1);
+	anim::start(this);
 }
 
-void EmojiPanInner::mouseMoveEvent(QMouseEvent *e) {
-	_lastMousePos = e->globalPos();
-	updateSelected();
-}
-
-void EmojiPanInner::leaveEvent(QEvent *e) {
-	clearSelection();
-}
-
-void EmojiPanInner::clearSelection(bool fast) {
+void EmojiColorPicker::clearSelection(bool fast) {
+	_pressedSel = -1;
 	_lastMousePos = mapToGlobal(QPoint(-10, -10));
 	if (fast) {
-		if (_tab == dbietStickers) {
-			_hovers = QVector<float64>(_stickers.size() * 2, 0);
-		} else {
-			_hovers = QVector<float64>(_emojis.size(), 0);
-		}
+		_selected = -1;
+		memset(_hovers, 0, sizeof(_hovers));
 		_emojiAnimations.clear();
-		_selected = _pressedSel = _xSelected = _xPressedSel = -1;
-		anim::stop(this);
 	} else {
 		updateSelected();
 	}
 }
 
-void EmojiPanInner::updateSelected() {
-	int32 selIndex = -1, xSelIndex = -1;
+void EmojiColorPicker::updateSelected() {
+	int32 selIndex = -1;
 	QPoint p(mapFromGlobal(_lastMousePos));
-	if (_tab == dbietStickers) {
-		float64 stickerWidth = width() / float64(StickerPadPerRow);
-		int32 stickerSize = int32(stickerWidth);
-		if (p.x() >= 0 && p.y() >= 0 && p.x() < StickerPadPerRow * stickerWidth) {
-			selIndex = qFloor(p.y() / stickerSize) * StickerPadPerRow + qFloor(p.x() / stickerWidth);
-			if (selIndex >= _stickers.size()) {
-				selIndex = -1;
-			} else {
-				int32 inx = p.x() - (selIndex % StickerPadPerRow) * stickerWidth, iny = p.y() - ((selIndex / StickerPadPerRow) * stickerSize);
-				if (inx >= stickerWidth - st::stickerPanDelete.pxWidth() && iny < st::stickerPanDelete.pxHeight()) {
-					xSelIndex = _stickers.size() + selIndex;
-				}
+	int32 y = p.y() - st::dropdownDef.shadow.pxHeight() - st::emojiColorsPadding;
+	if (y >= 0 && y < st::emojiPanSize.height()) {
+		int32 x = p.x() - st::dropdownDef.shadow.pxWidth() - st::emojiColorsPadding;
+		if (x >= 0 && x < st::emojiPanSize.width()) {
+			selIndex = 0;
+		} else {
+			x -= st::emojiPanSize.width() + 2 * st::emojiColorsPadding + st::emojiColorsSep;
+			if (x >= 0 && x < st::emojiPanSize.width() * EmojiColorsCount) {
+				selIndex = (x / st::emojiPanSize.width()) + 1;
 			}
 		}
-	} else if (p.x() >= 0 && p.y() >= 0 && p.x() < EmojiPadPerRow * st::emojiPanSize.width()) {
-		selIndex = qFloor(p.y() / st::emojiPanSize.height()) * EmojiPadPerRow + qFloor(p.x() / st::emojiPanSize.width());
-		if (selIndex >= _emojis.size()) {
-			selIndex = -1;
-		}
 	}
+
 	bool startanim = false;
 	if (selIndex != _selected) {
 		if (_selected >= 0) {
@@ -680,35 +663,611 @@ void EmojiPanInner::updateSelected() {
 		}
 		setCursor((_selected >= 0) ? style::cur_pointer : style::cur_default);
 	}
-	if (xSelIndex != _xSelected) {
-		if (_xSelected >= 0) {
-			_emojiAnimations.remove(_xSelected + 1);
-			if (_emojiAnimations.find(-_xSelected - 1) == _emojiAnimations.end()) {
-				if (_emojiAnimations.isEmpty()) startanim = true;
-				_emojiAnimations.insert(-_xSelected - 1, getms());
+	if (startanim && !animating()) anim::start(this);
+}
+
+void EmojiColorPicker::drawVariant(Painter &p, int variant) {
+	float64 hover = _hovers[variant];
+
+	QPoint w(st::emojiColorsPadding + variant * st::emojiPanSize.width() + (variant ? 2 * st::emojiColorsPadding + st::emojiColorsSep : 0), st::emojiColorsPadding);
+	if (hover > 0) {
+		p.setOpacity(hover);
+		p.setBrush(st::emojiPanHover->b);
+		p.setPen(Qt::NoPen);
+		p.drawRoundedRect(QRect(w, st::emojiPanSize), st::emojiPanRound, st::emojiPanRound);
+		p.setOpacity(1);
+	}
+	int esize = EmojiSizes[EIndex + 1];
+	p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (esize / cIntRetinaFactor())) / 2, width(), App::emojisLarge(), QRect(_variants[variant]->x * esize, _variants[variant]->y * esize, esize, esize));
+
+}
+
+EmojiPanInner::EmojiPanInner(QWidget *parent) : TWidget(parent), _top(0), _selected(-1), _pressedSel(-1), _pickerSel(-1), _picker(this) {
+	resize(EmojiPadPerRow * st::emojiPanSize.width(), countHeight());
+	setMouseTracking(true);
+	setFocusPolicy(Qt::NoFocus);
+
+	_picker.hide();
+
+	_esize = EmojiSizes[EIndex + 1];
+
+	int sum = 0;
+	for (int i = 0; i < emojiTabCount; ++i) {
+		sum += (_counts[i] = emojiPackCount(emojiTabAtIndex(i)));
+		_hovers[i] = QVector<float64>(_counts[i], 0);
+	}
+	_count = sum;
+
+	_saveConfigTimer.setSingleShot(true);
+	connect(&_saveConfigTimer, SIGNAL(timeout()), this, SLOT(onSaveConfig()));
+
+	_showPickerTimer.setSingleShot(true);
+	connect(&_showPickerTimer, SIGNAL(timeout()), this, SLOT(onShowPicker()));
+	connect(&_picker, SIGNAL(emojiSelected(EmojiPtr)), this, SLOT(onColorSelected(EmojiPtr)));
+	connect(&_picker, SIGNAL(hidden()), this, SLOT(onPickerHidden()));
+}
+
+void EmojiPanInner::setScrollTop(int top) {
+	if (top == _top) return;
+
+	QRegion upd = QRect(0, _top, width(), st::emojiPanHeader);
+	_top = top;
+	upd += QRect(0, _top, width(), st::emojiPanHeader);
+	repaint(upd);
+	updateSelected();
+}
+
+int EmojiPanInner::countHeight() {
+	int result = 0;
+	for (int i = 0; i < emojiTabCount; ++i) {
+		int cnt = emojiPackCount(emojiTabAtIndex(i)), rows = (cnt / EmojiPadPerRow) + ((cnt % EmojiPadPerRow) ? 1 : 0);
+		result += st::emojiPanHeader + rows * st::emojiPanSize.height();
+	}
+
+	result += st::emojiPanHeader;
+	int32 cnt = cRecentStickers().size(), rows = (cnt / StickerPadPerRow) + ((cnt % StickerPadPerRow) ? 1 : 0);
+	_stickerWidth = (EmojiPadPerRow * st::emojiPanSize.width()) / float64(StickerPadPerRow);
+	_stickerSize = int32(_stickerWidth);
+	result += rows * _stickerSize;
+	return result;
+}
+
+void EmojiPanInner::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	QRect r = e ? e->rect() : rect();
+	if (r != rect()) {
+		p.setClipRect(r);
+	}
+	p.fillRect(r, st::white->b);
+
+	float64 stickerWidth = width() / float64(StickerPadPerRow);
+	int32 stickerSize = int32(stickerWidth);
+
+	int32 fullh = 0;
+	for (int c = 0; c < emojiTabCount; ++c) {
+		int32 size = _counts[c], rows = (size / EmojiPadPerRow) + ((size % EmojiPadPerRow) ? 1 : 0);
+		fullh += st::emojiPanHeader + (rows * st::emojiPanSize.height());
+	}
+	int32 ssize = _stickers.size(), srows = (ssize / StickerPadPerRow) + ((ssize % StickerPadPerRow) ? 1 : 0);
+	fullh += st::emojiPanHeader + ssize * stickerSize;
+	int32 downfrom = 0, uptill = (_top * _stickers.size()) / fullh;
+	if (uptill >= _stickers.size()) uptill = _stickers.size();
+	if (uptill > downfrom + StickerPadPerRow * 4) {
+		downfrom = uptill - StickerPadPerRow * 4;
+	}
+	for (int index = downfrom; index < uptill; ++index) { // preload stickers
+		DocumentData *sticker = _stickers[index];
+		bool already = !sticker->already().isEmpty(), hasdata = !sticker->data.isEmpty();
+		if (!sticker->loader && sticker->status != FileFailed && !already && !hasdata) {
+			sticker->save(QString());
+		}
+		if (sticker->sticker->isNull() && (already || hasdata)) {
+			if (already) {
+				sticker->sticker = ImagePtr(sticker->already());
+			} else {
+				sticker->sticker = ImagePtr(sticker->data);
 			}
 		}
-		_xSelected = xSelIndex;
-		if (_xSelected >= 0) {
-			_emojiAnimations.remove(-_xSelected - 1);
-			if (_emojiAnimations.find(_xSelected + 1) == _emojiAnimations.end()) {
-				if (_emojiAnimations.isEmpty()) startanim = true;
-				_emojiAnimations.insert(_xSelected + 1, getms());
+
+		float64 coef = qMin((stickerWidth - st::stickerPanPadding * 2) / float64(sticker->dimensions.width()), (stickerSize - st::stickerPanPadding * 2) / float64(sticker->dimensions.height()));
+		if (coef > 1) coef = 1;
+		int32 w = qRound(coef * sticker->dimensions.width()), h = qRound(coef * sticker->dimensions.height());
+		if (w < 1) w = 1;
+		if (h < 1) h = 1;
+		if (!sticker->sticker->isNull()) sticker->sticker->pix(w, h);
+	}
+
+	int32 y, tilly = 0;
+	for (int c = 0; c < emojiTabCount; ++c) {
+		y = tilly;
+		int32 size = _counts[c];
+		int32 rows = (size / EmojiPadPerRow) + ((size % EmojiPadPerRow) ? 1 : 0);
+		tilly = y + st::emojiPanHeader + (rows * st::emojiPanSize.height());
+		if (r.top() >= tilly) continue;
+
+		y += st::emojiPanHeader;
+
+		if (r.bottom() <= y) {
+			p.setFont(st::emojiPanHeaderFont->f);
+			p.setPen(st::emojiPanHeaderColor->p);
+			p.drawTextLeft(st::emojiPanHeaderLeft, qMax(y - int(st::emojiPanHeader), _top) + st::emojiPanHeaderTop, width(), lang(LangKey(lng_emoji_category0 + c)));
+			break;
+		}
+
+		if (_emojis[c].isEmpty()) {
+			_emojis[c] = emojiPack(emojiTabAtIndex(c));
+			if (emojiTabAtIndex(c) != dbietRecent) {
+				for (EmojiPack::iterator i = _emojis[c].begin(), e = _emojis[c].end(); i != e; ++i) {
+					if ((*i)->color) {
+						EmojiColorVariants::const_iterator j = cEmojiVariants().constFind((*i)->code);
+						if (j != cEmojiVariants().cend()) {
+							EmojiPtr replace = emojiFromKey(j.value());
+							if (replace) {
+								if (replace != TwoSymbolEmoji && replace->code == (*i)->code && replace->code2 == (*i)->code2) {
+									*i = replace;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		int32 fromrow = (r.top() <= y) ? 0 : qMax(qFloor((r.top() - y) / st::emojiPanSize.height()), 0), torow = qMin(qCeil((r.bottom() - y) / st::emojiPanSize.height()) + 1, rows);
+		for (int32 i = fromrow; i < torow; ++i) {
+			for (int32 j = 0; j < EmojiPadPerRow; ++j) {
+				int32 index = i * EmojiPadPerRow + j;
+				if (index >= size) break;
+
+				float64 hover = (!_picker.isHidden() && c * emojiTabShift + index == _pickerSel) ? 1 : _hovers[c][index];
+
+				QPoint w(j * st::emojiPanSize.width(), y + i * st::emojiPanSize.height());
+				if (hover > 0) {
+					p.setOpacity(hover);
+					p.setBrush(st::emojiPanHover->b);
+					p.setPen(Qt::NoPen);
+					p.drawRoundedRect(QRect(w, st::emojiPanSize), st::emojiPanRound, st::emojiPanRound);
+					p.setOpacity(1);
+				}
+				p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (_esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (_esize / cIntRetinaFactor())) / 2, width(), App::emojisLarge(), QRect(_emojis[c][index]->x * _esize, _emojis[c][index]->y * _esize, _esize, _esize));
+			}
+		}
+
+		if (y - int(st::emojiPanHeader) < _top) {
+			p.fillRect(QRect(0, qMin(_top, tilly - int(st::emojiPanHeader)), width(), st::emojiPanHeader), st::emojiPanHeaderBg->b);
+		}
+		p.setFont(st::emojiPanHeaderFont->f);
+		p.setPen(st::emojiPanHeaderColor->p);
+		p.drawTextLeft(st::emojiPanHeaderLeft, qMin(qMax(y - int(st::emojiPanHeader), _top), tilly - int(st::emojiPanHeader)) + st::emojiPanHeaderTop, width(), lang(LangKey(lng_emoji_category0 + c)));
+	}
+
+	y = tilly;
+	int32 size = _stickers.size(), rows = (size / StickerPadPerRow) + ((size % StickerPadPerRow) ? 1 : 0);
+	tilly = y + st::emojiPanHeader + (rows * stickerSize);
+	if (r.top() >= tilly) return;
+
+	y += st::emojiPanHeader;
+
+	if (r.bottom() <= y) {
+		p.setFont(st::emojiPanHeaderFont->f);
+		p.setPen(st::emojiPanHeaderColor->p);
+		p.drawTextLeft(st::emojiPanHeaderLeft, qMax(y - int(st::emojiPanHeader), _top) + st::emojiPanHeaderTop, width(), lang(LangKey(lng_emoji_category0 + emojiTabCount)));
+		return;
+	}
+
+	int32 fromrow = (r.top() <= y) ? 0 : qMax(qFloor((r.top() - y) / stickerSize), 0), torow = qMin(qCeil((r.bottom() - y) / stickerSize) + 1, rows);
+	for (int32 i = fromrow; i < torow; ++i) {
+		for (int32 j = 0; j < StickerPadPerRow; ++j) {
+			int32 index = i * StickerPadPerRow + j;
+			if (index >= size) break;
+
+			float64 hover = _hovers[emojiTabCount][index];
+
+			QPoint pos(qRound(j * stickerWidth), y + i * stickerSize);
+			if (hover > 0) {
+				p.setOpacity(hover);
+				p.setBrush(st::emojiPanHover->b);
+				p.setPen(Qt::NoPen);
+				p.drawRoundedRect(QRect(pos, QSize(stickerSize, stickerSize)), st::stickerPanRound, st::stickerPanRound);
+				p.setOpacity(1);
+			}
+
+			DocumentData *sticker = _stickers[index];
+			bool already = !sticker->already().isEmpty(), hasdata = !sticker->data.isEmpty();
+			if (!sticker->loader && sticker->status != FileFailed && !already && !hasdata) {
+				sticker->save(QString());
+			}
+			if (sticker->sticker->isNull() && (already || hasdata)) {
+				if (already) {
+					sticker->sticker = ImagePtr(sticker->already());
+				} else {
+					sticker->sticker = ImagePtr(sticker->data);
+				}
+			}
+
+			float64 coef = qMin((stickerWidth - st::stickerPanPadding * 2) / float64(sticker->dimensions.width()), (stickerSize - st::stickerPanPadding * 2) / float64(sticker->dimensions.height()));
+			if (coef > 1) coef = 1;
+			int32 w = qRound(coef * sticker->dimensions.width()), h = qRound(coef * sticker->dimensions.height());
+			if (w < 1) w = 1;
+			if (h < 1) h = 1;
+			QPoint ppos = pos + QPoint((stickerSize - w) / 2, (stickerSize - h) / 2);
+			if (sticker->sticker->isNull()) {
+				p.drawPixmap(ppos, sticker->thumb->pix(w, h));
+			} else {
+				p.drawPixmap(ppos, sticker->sticker->pix(w, h));
+			}
+
+			if (hover > 0 && _isUserGen[index]) {
+				float64 xHover = _hovers[emojiTabCount][_stickers.size() + index];
+
+				QPoint xPos = pos + QPoint(stickerWidth - st::stickerPanDelete.pxWidth(), 0);
+				p.setOpacity(hover * (xHover + (1 - xHover) * st::stickerPanDeleteOpacity));
+				p.drawPixmap(xPos, App::sprite(), st::stickerPanDelete);
+				p.setOpacity(1);
 			}
 		}
 	}
+
+	if (y - int(st::emojiPanHeader) < _top) {
+		p.fillRect(QRect(0, qMin(_top, tilly - int(st::emojiPanHeader)), width(), st::emojiPanHeader), st::emojiPanHeaderBg->b);
+	}
+	p.setFont(st::emojiPanHeaderFont->f);
+	p.setPen(st::emojiPanHeaderColor->p);
+	p.drawTextLeft(st::emojiPanHeaderLeft, qMax(y - int(st::emojiPanHeader), _top) + st::emojiPanHeaderTop, width(), lang(LangKey(lng_emoji_category0 + emojiTabCount)));
+}
+
+void EmojiPanInner::mousePressEvent(QMouseEvent *e) {
+	_lastMousePos = e->globalPos();
+	updateSelected();
+	if (!_picker.isHidden() && _selected == _pickerSel) {
+		_picker.hideStart();
+		return;
+	}
+	_pressedSel = _selected;
+
+	if (_selected >= 0) {
+		int tab = (_selected / emojiTabShift), sel = _selected % emojiTabShift;
+		if (tab < emojiTabCount && sel < _emojis[tab].size() && _emojis[tab][sel]->color) {
+			_pickerSel = _selected;
+			if (cEmojiVariants().constFind(_emojis[tab][sel]->code) == cEmojiVariants().cend()) {
+				onShowPicker();
+			} else {
+				_showPickerTimer.start(500);
+			}
+		}
+	}
+}
+
+void EmojiPanInner::mouseReleaseEvent(QMouseEvent *e) {
+	int32 pressed = _pressedSel;
+	_pressedSel = -1;
+
+	_lastMousePos = e->globalPos();
+	if (!_picker.isHidden()) {
+		if (_picker.rect().contains(_picker.mapFromGlobal(_lastMousePos))) {
+			return _picker.mouseReleaseEvent(0);
+		} else if (_pickerSel >= 0) {
+			int tab = (_pickerSel / emojiTabShift), sel = _pickerSel % emojiTabShift;
+			if (tab < emojiTabCount && sel < _emojis[tab].size() && _emojis[tab][sel]->color) {
+				if (cEmojiVariants().constFind(_emojis[tab][sel]->code) != cEmojiVariants().cend()) {
+					_picker.hideStart();
+				}
+			}
+		}
+	}
+	updateSelected();
+
+	if (_showPickerTimer.isActive()) {
+		_showPickerTimer.stop();
+		_pickerSel = -1;
+		_picker.hide();
+	}
+
+	if (_selected < 0 || _selected != pressed) return;
+	if (_selected >= emojiTabCount * emojiTabShift) {
+		int sel = _selected - (emojiTabCount * emojiTabShift);
+		if (sel >= _stickers.size()) {
+			RecentStickerPack recent(cRecentStickers());
+			DocumentData *sticker = _stickers.at(sel - _stickers.size());
+			for (int32 i = 0, l = recent.size(); i < l; ++i) {
+				if (recent.at(i).first == sticker) {
+					recent.removeAt(i);
+					cSetRecentStickers(recent);
+					Local::writeRecentStickers();
+					refreshStickers();
+					updateSelected();
+					break;
+				}
+			}
+		} else {
+			emit stickerSelected(_stickers[sel]);
+		}
+		return;
+	}
+	int tab = (_selected / emojiTabShift), sel = _selected % emojiTabShift;
+	if (sel < _emojis[tab].size()) {
+		EmojiPtr emoji(_emojis[tab][sel]);
+		if (emoji->color && !_picker.isHidden()) return;
+
+		selectEmoji(emoji);
+	}
+}
+
+void EmojiPanInner::selectEmoji(EmojiPtr emoji) {
+	RecentEmojiPack &recent(cGetRecentEmojis());
+	RecentEmojiPack::iterator i = recent.begin(), e = recent.end();
+	for (; i != e; ++i) {
+		if (i->first == emoji) {
+			++i->second;
+			if (i->second > 0x8000) {
+				for (RecentEmojiPack::iterator j = recent.begin(); j != e; ++j) {
+					if (j->second > 1) {
+						j->second /= 2;
+					} else {
+						j->second = 1;
+					}
+				}
+			}
+			for (; i != recent.begin(); --i) {
+				if ((i - 1)->second > i->second) {
+					break;
+				}
+				qSwap(*i, *(i - 1));
+			}
+			break;
+		}
+	}
+	if (i == e) {
+		while (recent.size() >= EmojiPadPerRow * EmojiPadRowsPerPage) recent.pop_back();
+		recent.push_back(qMakePair(emoji, 1));
+		for (i = recent.end() - 1; i != recent.begin(); --i) {
+			if ((i - 1)->second > i->second) {
+				break;
+			}
+			qSwap(*i, *(i - 1));
+		}
+	}
+	_saveConfigTimer.start(SaveRecentEmojisTimeout);
+
+	emit emojiSelected(emoji);
+}
+
+void EmojiPanInner::onSaveConfig() {
+	Local::writeUserSettings();
+}
+
+void EmojiPanInner::onShowPicker() {
+	int tab = (_pickerSel / emojiTabShift), sel = _pickerSel % emojiTabShift;
+	if (tab < emojiTabCount && sel < _emojis[tab].size() && _emojis[tab][sel]->color) {
+		int32 y = 0;
+		for (int c = 0; c <= tab; ++c) {
+			int32 size = (c == tab) ? (sel - (sel % EmojiPadPerRow)) : _counts[c], rows = (size / EmojiPadPerRow) + ((size % EmojiPadPerRow) ? 1 : 0);
+			y += st::emojiPanHeader + (rows * st::emojiPanSize.height());
+		}
+		y -= _picker.height() - st::emojiPanRound;
+		if (y < _top) {
+			y += _picker.height() - st::emojiPanRound + st::emojiPanSize.height() - st::emojiPanRound;
+		}
+		int xmax = width() - _picker.width() - st::emojiPanPadding.right();
+		_picker.move(qRound(xmax * float64(sel % EmojiPadPerRow) / float64(EmojiPadPerRow - 1)), y);
+
+		_picker.showEmoji(_emojis[tab][sel]->code);
+		emit disableScroll(true);
+	}
+}
+
+void EmojiPanInner::onPickerHidden() {
+	_pickerSel = -1;
+	update();
+	emit disableScroll(false);
+
+	_lastMousePos = QCursor::pos();
+	updateSelected();
+}
+
+void EmojiPanInner::onColorSelected(EmojiPtr emoji) {
+	if (emoji->color) {
+		cRefEmojiVariants().insert(emoji->code, emojiKey(emoji));
+	}
+	if (_pickerSel >= 0) {
+		int tab = (_pickerSel / emojiTabShift), sel = _pickerSel % emojiTabShift;
+		if (tab > 0 && tab < emojiTabCount) {
+			_emojis[tab][sel] = emoji;
+			update();
+		}
+	}
+	selectEmoji(emoji);
+	_picker.hideStart();
+}
+
+void EmojiPanInner::mouseMoveEvent(QMouseEvent *e) {
+	_lastMousePos = e->globalPos();
+	if (!_picker.isHidden()) {
+		if (_picker.rect().contains(_picker.mapFromGlobal(_lastMousePos))) {
+			return _picker.mouseMoveEvent(0);
+		} else {
+			_picker.clearSelection();
+		}
+	}
+	updateSelected();
+}
+
+void EmojiPanInner::leaveEvent(QEvent *e) {
+	clearSelection();
+}
+
+void EmojiPanInner::leaveToChildEvent(QEvent *e) {
+	clearSelection();
+}
+
+void EmojiPanInner::enterFromChildEvent(QEvent *e) {
+	_lastMousePos = QCursor::pos();
+	updateSelected();
+}
+
+void EmojiPanInner::clearSelection(bool fast) {
+	_lastMousePos = mapToGlobal(QPoint(-10, -10));
+	if (fast) {
+		for (EmojiAnimations::const_iterator i = _emojiAnimations.cbegin(); i != _emojiAnimations.cend(); ++i) {
+			int index = qAbs(i.key()) - 1, tab = (index / emojiTabShift), sel = index % emojiTabShift;
+			_hovers[tab][sel] = 0;
+		}
+		_emojiAnimations.clear();
+		_selected = _pressedSel = -1;
+		anim::stop(this);
+	} else {
+		updateSelected();
+	}
+}
+
+DBIEmojiTab EmojiPanInner::currentTab(int yOffset) const {
+	int y, ytill = 0;
+	for (int c = 0; c < emojiTabCount; ++c) {
+		int cnt = _counts[c];
+		y = ytill;
+		ytill = y + st::emojiPanHeader + ((cnt / EmojiPadPerRow) + ((cnt % EmojiPadPerRow) ? 1 : 0)) * st::emojiPanSize.height();
+		if (yOffset < ytill) {
+			return emojiTabAtIndex(c);
+		}
+	}
+	return dbietStickers;
+}
+
+void EmojiPanInner::refreshStickers() {
+	clearSelection(true);
+	int32 cnt = cRecentStickers().size();
+	_hovers[emojiTabCount] = QVector<float64>(cnt * 2, 0);
+	_stickers.resize(cnt);
+	_isUserGen.resize(cnt);
+	for (int32 i = 0; i < cnt; ++i) {
+		_stickers[i] = cRecentStickers().at(i).first;
+		_isUserGen[i] = (cRecentStickers().at(i).second < 0);
+	}
+}
+
+void EmojiPanInner::hideFinish() {
+	if (!_picker.isHidden()) {
+		_picker.hideStart(true);
+		_pickerSel = -1;
+	}
+}
+
+void EmojiPanInner::refreshRecent() {
+	clearSelection(true);
+	_count -= _counts[0];
+	_counts[0] = emojiPackCount(dbietRecent);
+	_count += _counts[0];
+	if (_hovers[0].size() != _counts[0]) _hovers[0] = QVector<float64>(_counts[0], 0);
+	_emojis[0] = emojiPack(dbietRecent);
+}
+
+void EmojiPanInner::updateSelected() {
+	if (_pressedSel >= 0 || _pickerSel >= 0) return;
+
+	int32 selIndex = -1;
+	QPoint p(mapFromGlobal(_lastMousePos));
+
+	int y, ytill = 0;
+	for (int c = 0; c < emojiTabCount; ++c) {
+		int cnt = _counts[c];
+		y = ytill;
+		ytill = y + st::emojiPanHeader + ((cnt / EmojiPadPerRow) + ((cnt % EmojiPadPerRow) ? 1 : 0)) * st::emojiPanSize.height();
+		if (p.y() >= y && p.y() < ytill) {
+			y += st::emojiPanHeader;
+			if (p.y() >= y && p.x() >= 0 && p.x() < EmojiPadPerRow * st::emojiPanSize.width()) {
+				selIndex = qFloor((p.y() - y) / st::emojiPanSize.height()) * EmojiPadPerRow + qFloor(p.x() / st::emojiPanSize.width());
+				if (selIndex >= _emojis[c].size()) {
+					selIndex = -1;
+				} else {
+					selIndex += c * emojiTabShift;
+				}
+			}
+			break;
+		}
+	}
+	ytill += st::emojiPanHeader;
+	if (p.y() >= ytill) {
+		float64 stickerWidth = width() / float64(StickerPadPerRow);
+		int32 stickerSize = int32(stickerWidth);
+		if (p.x() >= 0 && p.x() < StickerPadPerRow * stickerWidth) {
+			selIndex = qFloor((p.y() - ytill) / stickerSize) * StickerPadPerRow + qFloor(p.x() / stickerWidth);
+			if (selIndex >= _stickers.size()) {
+				selIndex = -1;
+			} else {
+				int32 inx = p.x() - (selIndex % StickerPadPerRow) * stickerWidth, iny = p.y() - ytill - ((selIndex / StickerPadPerRow) * stickerSize);
+				if (inx >= stickerWidth - st::stickerPanDelete.pxWidth() && iny < st::stickerPanDelete.pxHeight()) {
+					selIndex = _stickers.size() + selIndex;
+				}
+				selIndex += emojiTabCount * emojiTabShift;
+			}
+		}
+
+	}
+
+	bool startanim = false;
+	int oldSel = _selected, xOldSel = -1, newSel = selIndex, xNewSel = -1;
+	if (oldSel >= emojiTabCount * emojiTabShift + _stickers.size()) {
+		xOldSel = oldSel;
+		oldSel -= _stickers.size();
+	}
+	if (newSel >= emojiTabCount * emojiTabShift + _stickers.size()) {
+		xNewSel = newSel;
+		newSel -= _stickers.size();
+	}
+	if (newSel != oldSel) {
+		if (oldSel >= 0) {
+			_emojiAnimations.remove(oldSel + 1);
+			if (_emojiAnimations.find(-oldSel - 1) == _emojiAnimations.end()) {
+				if (_emojiAnimations.isEmpty()) startanim = true;
+				_emojiAnimations.insert(-oldSel - 1, getms());
+			}
+		}
+		if (newSel >= 0) {
+			_emojiAnimations.remove(-newSel - 1);
+			if (_emojiAnimations.find(newSel + 1) == _emojiAnimations.end()) {
+				if (_emojiAnimations.isEmpty()) startanim = true;
+				_emojiAnimations.insert(newSel + 1, getms());
+			}
+		}
+		setCursor((newSel >= 0) ? style::cur_pointer : style::cur_default);
+		if (newSel >= 0 && !_picker.isHidden()) {
+			if (newSel != _pickerSel) {
+				_picker.hideStart();
+			} else {
+				_picker.showStart();
+			}
+		}
+	}
+	if (xNewSel != xOldSel) {
+		if (xOldSel >= 0) {
+			_emojiAnimations.remove(xOldSel + 1);
+			if (_emojiAnimations.find(-xOldSel - 1) == _emojiAnimations.end()) {
+				if (_emojiAnimations.isEmpty()) startanim = true;
+				_emojiAnimations.insert(-xOldSel - 1, getms());
+			}
+		}
+		if (xNewSel >= 0) {
+			_emojiAnimations.remove(-xNewSel - 1);
+			if (_emojiAnimations.find(xNewSel + 1) == _emojiAnimations.end()) {
+				if (_emojiAnimations.isEmpty()) startanim = true;
+				_emojiAnimations.insert(xNewSel + 1, getms());
+			}
+		}
+	}
+	_selected = selIndex;
 	if (startanim) anim::start(this);
 }
 
 bool EmojiPanInner::animStep(float64 ms) {
 	uint64 now = getms();
 	for (EmojiAnimations::iterator i = _emojiAnimations.begin(); i != _emojiAnimations.end();) {
+		int index = qAbs(i.key()) - 1, tab = (index / emojiTabShift), sel = index % emojiTabShift;
 		float64 dt = float64(now - i.value()) / st::emojiPanDuration;
 		if (dt >= 1) {
-			_hovers[qAbs(i.key()) - 1] = (i.key() > 0) ? 1 : 0;
+			_hovers[tab][sel] = (i.key() > 0) ? 1 : 0;
 			i = _emojiAnimations.erase(i);
 		} else {
-			_hovers[qAbs(i.key()) - 1] = (i.key() > 0) ? dt : (1 - dt);
+			_hovers[tab][sel] = (i.key() > 0) ? dt : (1 - dt);
 			++i;
 		}
 	}
@@ -717,96 +1276,80 @@ bool EmojiPanInner::animStep(float64 ms) {
 }
 
 void EmojiPanInner::showEmojiPack(DBIEmojiTab packIndex) {
-	_tab = packIndex;
-	int32 h, size;
-	if (packIndex == dbietStickers) {
-		_emojis.clear();
+	clearSelection(true);
 
-		float64 stickerWidth = width() / float64(StickerPadPerRow);
-		int32 stickerSize = int32(stickerWidth);
+	int32 h = countHeight();
+	if (h != height()) resize(width(), h);
 
-		int32 l = cRecentStickers().size();
-		_stickers.resize(l);
-		_isUserGen.resize(l);
-		for (int32 i = 0; i < l; ++i) {
-			DocumentData *sticker = _stickers[i] = cRecentStickers().at(i).first;
-			_isUserGen[i] = (cRecentStickers().at(i).second < 0);
-			if (i < StickerPadPerRow * ((EmojiPadRowsPerPage * st::emojiPanSize.height() - int(st::emojiPanSub)) / stickerSize + 1)) {
-				bool already = !sticker->already().isEmpty(), hasdata = !sticker->data.isEmpty();
-				if (!sticker->loader && sticker->status != FileFailed && !already && !hasdata) {
-					sticker->save(QString());
-				}
-			}
-		}
-
-		size = _stickers.size();
-		h = ((size / StickerPadPerRow) + ((size % StickerPadPerRow) ? 1 : 0)) * stickerSize;
-		_hovers = QVector<float64>(size * 2, 0);
-	} else {
-		_emojis = emojiPack(packIndex);
-		_stickers.clear();
-		_isUserGen.clear();
-
-		size = _emojis.size();
-		h = ((size / EmojiPadPerRow) + ((size % EmojiPadPerRow) ? 1 : 0)) * st::emojiPanSize.height();
-		_hovers = QVector<float64>(size, 0);
+	int32 y = 0;
+	for (int c = 0; c < emojiTabCount; ++c) {
+		if (emojiTabAtIndex(c) == packIndex) break;
+		int rows = (_counts[c] / EmojiPadPerRow) + ((_counts[c] % EmojiPadPerRow) ? 1 : 0);
+		y += st::emojiPanHeader + rows * st::emojiPanSize.height();
 	}
-	h = qMax(h, EmojiPadRowsPerPage * st::emojiPanSize.height() - int(st::emojiPanSub));
-	_emojiAnimations.clear();
-	_selected = _pressedSel = -1;
-	resize(width(), h);
+
+	emit scrollToY(y);
+
 	_lastMousePos = QCursor::pos();
-	updateSelected();
+
 	update();
 }
 
 EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent),
-_hiding(false), a_opacity(0), _shadow(st::dropdownDef.shadow),
-_recent  (this, qsl("emoji_group"), dbietRecent  , QString(), cEmojiTab() == dbietRecent  , st::rbEmojiRecent),
-_people  (this, qsl("emoji_group"), dbietPeople  , QString(), cEmojiTab() == dbietPeople  , st::rbEmojiPeople),
-_nature  (this, qsl("emoji_group"), dbietNature  , QString(), cEmojiTab() == dbietNature  , st::rbEmojiNature),
-_objects (this, qsl("emoji_group"), dbietObjects , QString(), cEmojiTab() == dbietObjects , st::rbEmojiObjects),
-_places  (this, qsl("emoji_group"), dbietPlaces  , QString(), cEmojiTab() == dbietPlaces  , st::rbEmojiPlaces),
-_symbols (this, qsl("emoji_group"), dbietSymbols , QString(), cEmojiTab() == dbietSymbols , st::rbEmojiSymbols),
-_stickers(this, qsl("emoji_group"), dbietStickers, QString(), cEmojiTab() == dbietStickers, st::rbEmojiStickers),
+_noTabUpdate(false), _hiding(false), a_opacity(0), _shadow(st::dropdownDef.shadow),
+_recent(this     , qsl("emoji_group"), dbietRecent     , QString(), true , st::rbEmojiRecent),
+_people(this     , qsl("emoji_group"), dbietPeople     , QString(), false, st::rbEmojiPeople),
+_nature(this     , qsl("emoji_group"), dbietNature     , QString(), false, st::rbEmojiNature),
+_food(this       , qsl("emoji_group"), dbietFood       , QString(), false, st::rbEmojiFood),
+_celebration(this, qsl("emoji_group"), dbietCelebration, QString(), false, st::rbEmojiCelebration),
+_activity(this   , qsl("emoji_group"), dbietActivity   , QString(), false, st::rbEmojiActivity),
+_travel(this     , qsl("emoji_group"), dbietTravel     , QString(), false, st::rbEmojiTravel),
+_objects(this    , qsl("emoji_group"), dbietObjects    , QString(), false, st::rbEmojiObjects),
+_stickers(this   , qsl("emoji_group"), dbietStickers   , QString(), false, st::rbEmojiStickers),
 _scroll(this, st::emojiScroll), _inner() {
 	setFocusPolicy(Qt::NoFocus);
 	_scroll.setFocusPolicy(Qt::NoFocus);
 	_scroll.viewport()->setFocusPolicy(Qt::NoFocus);
 
-	if (cEmojiTab() != dbietStickers) {
-		_inner.showEmojiPack(cEmojiTab());
-	}
-
-	_scroll.setGeometry(st::dropdownDef.padding.left() + st::emojiPanPadding.left(), st::dropdownDef.padding.top() + _recent.height() + st::emojiPanPadding.top(), st::emojiPanPadding.left() + _inner.width() + st::emojiPanPadding.right(), EmojiPadRowsPerPage * st::emojiPanSize.height() - st::emojiPanSub);
+	_scroll.setGeometry(st::dropdownDef.padding.left() + st::emojiPanPadding.left(), st::dropdownDef.padding.top() + _recent.height() + st::emojiPanPadding.top(), st::emojiPanPadding.left() + _inner.width() + st::emojiPanPadding.right(), EmojiPadRowsPerPage * st::emojiPanSize.height() + st::emojiPanHeader);
 	_scroll.setWidget(&_inner);
+
+	_inner.setAttribute(Qt::WA_OpaquePaintEvent);
+	_scroll.setAutoFillBackground(true);
 
 	_width = st::dropdownDef.padding.left() + st::emojiPanPadding.left() + _scroll.width() + st::emojiPanPadding.right() + st::dropdownDef.padding.right();
 	_height = st::dropdownDef.padding.top() + _recent.height() + st::emojiPanPadding.top() + _scroll.height() + st::emojiPanPadding.bottom() + st::dropdownDef.padding.bottom();
 	resize(_width, _height);
 
-	int32 left = st::dropdownDef.padding.left() + (_width - st::dropdownDef.padding.left() - st::dropdownDef.padding.right() - 7 * _recent.width()) / 2;
+	int32 left = st::dropdownDef.padding.left() + (_width - st::dropdownDef.padding.left() - st::dropdownDef.padding.right() - 9 * _recent.width()) / 2;
 	int32 top = st::dropdownDef.padding.top();
-	_recent.move(left, top);  left += _recent.width();
-	_people.move(left, top);  left += _people.width();
-	_nature.move(left, top);  left += _nature.width();
-	_objects.move(left, top); left += _objects.width();
-	_places.move(left, top);  left += _places.width();
-	_symbols.move(left, top); left += _symbols.width();
-	_stickers.move(left, top); left += _stickers.width();
+	_recent.move(left     , top); left += _recent.width();
+	_people.move(left     , top); left += _people.width();
+	_nature.move(left     , top); left += _nature.width();
+	_food.move(left       , top); left += _food.width();
+	_celebration.move(left, top); left += _celebration.width();
+	_activity.move(left   , top); left += _activity.width();
+	_travel.move(left     , top); left += _travel.width();
+	_objects.move(left    , top); left += _objects.width();
+	_stickers.move(left   , top); left += _stickers.width();
 
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
 
-	connect(&_recent  , SIGNAL(changed()), this, SLOT(onTabChange()));
-	connect(&_people  , SIGNAL(changed()), this, SLOT(onTabChange()));
-	connect(&_nature  , SIGNAL(changed()), this, SLOT(onTabChange()));
-	connect(&_objects , SIGNAL(changed()), this, SLOT(onTabChange()));
-	connect(&_places  , SIGNAL(changed()), this, SLOT(onTabChange()));
-	connect(&_symbols , SIGNAL(changed()), this, SLOT(onTabChange()));
-	connect(&_stickers, SIGNAL(changed()), this, SLOT(onTabChange()));
+	connect(&_inner, SIGNAL(scrollToY(int)), &_scroll, SLOT(scrollToY(int)));
+	connect(&_inner, SIGNAL(disableScroll(bool)), &_scroll, SLOT(disableScroll(bool)));
 
-	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(updateSelected()));
+	connect(&_recent     , SIGNAL(changed()), this, SLOT(onTabChange()));
+	connect(&_people     , SIGNAL(changed()), this, SLOT(onTabChange()));
+	connect(&_nature     , SIGNAL(changed()), this, SLOT(onTabChange()));
+	connect(&_food       , SIGNAL(changed()), this, SLOT(onTabChange()));
+	connect(&_celebration, SIGNAL(changed()), this, SLOT(onTabChange()));
+	connect(&_activity   , SIGNAL(changed()), this, SLOT(onTabChange()));
+	connect(&_travel     , SIGNAL(changed()), this, SLOT(onTabChange()));
+	connect(&_objects    , SIGNAL(changed()), this, SLOT(onTabChange()));
+	connect(&_stickers   , SIGNAL(changed()), this, SLOT(onTabChange()));
+
+	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 
 	connect(&_inner, SIGNAL(emojiSelected(EmojiPtr)), this, SIGNAL(emojiSelected(EmojiPtr)));
 	connect(&_inner, SIGNAL(stickerSelected(DocumentData*)), this, SIGNAL(stickerSelected(DocumentData*)));
@@ -831,11 +1374,13 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 
 	QRect r(st::dropdownDef.padding.left(), st::dropdownDef.padding.top(), _width - st::dropdownDef.padding.left() - st::dropdownDef.padding.right(), _height - st::dropdownDef.padding.top() - st::dropdownDef.padding.bottom());
 
-	// draw shadow
 	_shadow.paint(p, r);
 
 	if (_cache.isNull()) {
-		p.fillRect(r, st::white->b);
+		p.fillRect(r.left(), r.top(), r.width(), _scroll.y() - r.top(), st::white->b);
+		p.fillRect(r.left(), _scroll.y(), _scroll.x() - r.left(), _scroll.height(), st::white->b);
+		p.fillRect(_scroll.x() + _scroll.width(), _scroll.y(), r.left() + r.width() - _scroll.x() - _scroll.width(), _scroll.height(), st::white->b);
+		p.fillRect(r.left(), _scroll.y() + _scroll.height(), r.width(), r.top() + r.height() - _scroll.y() - _scroll.height(), st::white->b);
 	} else {
 		p.drawPixmap(r.left(), r.top(), _cache);
 	}
@@ -877,6 +1422,10 @@ void EmojiPan::fastHide() {
 	_cache = QPixmap();
 }
 
+void EmojiPan::refreshStickers() {
+	_inner.refreshStickers();
+}
+
 bool EmojiPan::animStep(float64 ms) {
 	float64 dt = ms / st::dropdownDef.duration;
 	bool res = true;
@@ -909,6 +1458,7 @@ void EmojiPan::hideStart() {
 
 void EmojiPan::hideFinish() {
 	hide();
+	_inner.hideFinish();
 	_cache = QPixmap();
 	_recent.setChecked(true);
 }
@@ -916,6 +1466,9 @@ void EmojiPan::hideFinish() {
 void EmojiPan::showStart() {
 	if (!isHidden() && a_opacity.current() == 1) {
 		return;
+	}
+	if (isHidden()) {
+		_inner.refreshRecent();
 	}
 	if (_cache.isNull()) {
 		showAll();
@@ -926,7 +1479,7 @@ void EmojiPan::showStart() {
 	show();
 	a_opacity.start(1);
 	anim::start(this);
-	if (_stickers.checked()) emit updateStickers();
+	emit updateStickers();
 }
 
 bool EmojiPan::eventFilter(QObject *obj, QEvent *e) {
@@ -956,9 +1509,11 @@ void EmojiPan::showAll() {
 	_recent.show();
 	_people.show();
 	_nature.show();
+	_food.show();
+	_celebration.show();
+	_activity.show();
+	_travel.show();
 	_objects.show();
-	_places.show();
-	_symbols.show();
 	_stickers.show();
 	_scroll.show();
 }
@@ -967,31 +1522,51 @@ void EmojiPan::hideAll() {
 	_recent.hide();
 	_people.hide();
 	_nature.hide();
+	_food.hide();
+	_celebration.hide();
+	_activity.hide();
+	_travel.hide();
 	_objects.hide();
-	_places.hide();
-	_symbols.hide();
 	_stickers.hide();
 	_scroll.hide();
 	_inner.clearSelection(true);
 }
 
 void EmojiPan::onTabChange() {
+	if (_noTabUpdate) return;
 	DBIEmojiTab newTab = dbietRecent;
 	if (_people.checked()) newTab = dbietPeople;
 	else if (_nature.checked()) newTab = dbietNature;
+	else if (_food.checked()) newTab = dbietFood;
+	else if (_celebration.checked()) newTab = dbietCelebration;
+	else if (_activity.checked()) newTab = dbietActivity;
+	else if (_travel.checked()) newTab = dbietTravel;
 	else if (_objects.checked()) newTab = dbietObjects;
-	else if (_places.checked()) newTab = dbietPlaces;
-	else if (_symbols.checked()) newTab = dbietSymbols;
 	else if (_stickers.checked()) newTab = dbietStickers;
-	if (newTab != cEmojiTab()) {
-		cSetEmojiTab(newTab);
-		Local::writeUserSettings();
-		_scroll.scrollToY(0);
-	}
 	_inner.showEmojiPack(newTab);
-	if (newTab == dbietStickers) {
-		emit updateStickers();
+}
+
+void EmojiPan::onScroll() {
+	int top = _scroll.scrollTop();
+	DBIEmojiTab tab = _inner.currentTab(top);
+	FlatRadiobutton *check = 0;
+	switch (tab) {
+		case dbietRecent     : check = &_recent     ; break;
+		case dbietPeople     : check = &_people     ; break;
+		case dbietNature     : check = &_nature     ; break;
+		case dbietFood       : check = &_food       ; break;
+		case dbietCelebration: check = &_celebration; break;
+		case dbietActivity   : check = &_activity   ; break;
+		case dbietTravel     : check = &_travel     ; break;
+		case dbietObjects    : check = &_objects    ; break;
+		case dbietStickers   : check = &_stickers   ; break;
 	}
+	if (check && !check->checked()) {
+		_noTabUpdate = true;
+		check->setChecked(true);
+		_noTabUpdate = false;
+	}
+	_inner.setScrollTop(top);
 }
 
 MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *rows, HashtagRows *hrows) : _parent(parent), _rows(rows), _hrows(hrows), _sel(-1), _mouseSel(false), _overDelete(false) {

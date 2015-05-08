@@ -35,6 +35,8 @@ Q_IMPORT_PLUGIN(QTgaPlugin)
 Q_IMPORT_PLUGIN(QTiffPlugin)
 Q_IMPORT_PLUGIN(QWbmpPlugin)
 Q_IMPORT_PLUGIN(QWebpPlugin)
+#else
+#error Only Mac OS X is supported
 #endif
 
 typedef quint32 uint32;
@@ -94,8 +96,10 @@ const uint32 replacesCount = sizeof(replaces) / sizeof(EmojiReplace);
 typedef QMap<QString, uint32> ReplaceMap;
 ReplaceMap replaceMap;
 
-static const int variantsCount = 4, inRow = 40, imSizes[] = { 18, 22, 27, 36 };
-static const char *variantPostfix[] = { "", "_125x", "_150x", "_200x" };
+static const int variantsCount = 5, inRow = 40, imSizes[] = { 18, 22, 27, 36, 45 };
+static const int emojiFontSizes[] = { 14, 20, 27, 36, 45 };
+static const int emojiDeltas[] = { 15, 20, 25, 34, 42 };
+static const char *variantPostfix[] = { "", "_125x", "_150x", "_200x", "_250x" };
 static const char *variantNames[] = { "dbisOne", "dbisOneAndQuarter", "dbisOneAndHalf", "dbisTwo" };
 
 uint64 emojiColors[] = {
@@ -1235,7 +1239,7 @@ void writeEmojiCategory(QTextStream &tcpp, uint64 *emojiCategory, uint32 size, c
 	for (uint32 i = 0; i < size; ++i) {
 		int index = 0;
 		for (EmojisData::const_iterator j = emojisData.cbegin(), e = emojisData.cend(); j != e; ++j) {
-			if (j->code == firstCode(emojiCategory[i])) {
+			if (emojiCategory[i] == (j->code2 ? ((uint64(j->code) << 32) | j->code2) : j->code)) {
 				break;
 			}
 			++index;
@@ -1377,8 +1381,6 @@ bool genEmoji(QString, const QString &emoji_out, const QString &emoji_png) {
 
 	QStringList str = QFontDatabase::applicationFontFamilies(QFontDatabase::addApplicationFont(QStringLiteral("/System/Library/Fonts/Apple Color Emoji.ttf")));
 
-	int emojiFontSizes[4] = { 14, 20, 27, 36 };
-	int emojiDeltas[4] = { 15, 20, 25, 34 };
 	for (int variantIndex = 0; variantIndex < variantsCount; variantIndex++) {
 		int imSize = imSizes[variantIndex];
 
@@ -1456,12 +1458,12 @@ bool genEmoji(QString, const QString &emoji_out, const QString &emoji_png) {
 				p.drawImage(QRect(it->x * imSize, it->y * imSize, imSize, imSize), emojiImg, drawFrom);
 			}
 		}
-		QString postfix = variantPostfix[variantIndex], emojif = emoji_png + postfix + ".png";
+		QString postfix = variantPostfix[variantIndex], emojif = emoji_png + postfix + ".webp";
 		QByteArray emojib;
 		{
 			QBuffer ebuf(&emojib);
-			if (!emojisImg.save(&ebuf, "PNG")) {
-				cout << "Could not save 'emoji" << postfix.toUtf8().constData() << ".png'!\n";
+			if (!emojisImg.save(&ebuf, "WEBP", (variantIndex < 3) ? 100 : 99)) {
+				cout << "Could not save 'emoji" << postfix.toUtf8().constData() << ".webp'!\n";
 				return false;
 			}
 		}
@@ -1530,7 +1532,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 				tcpp << imSize;
 				if (variantIndex + 1 < variantsCount) tcpp << ", ";
 			}
-			tcpp << " }, ESize = 0;\n\n";
+			tcpp << " }, EIndex = -1, ESize = 0;\n";
+			tcpp << "const char *EmojiNames[] = { ";
+			for (int variantIndex = 0; variantIndex < variantsCount; ++variantIndex) {
+				tcpp << "\":/gui/art/emoji" << variantPostfix[variantIndex] << ".webp\"";
+				if (variantIndex + 1 < variantsCount) tcpp << ", ";
+			}
+			tcpp << " }, *EName = 0;\n";
 
 			int ind = 0;
 			for (EmojisData::const_iterator i = emojisData.cbegin(), e = emojisData.cend(); i != e; ++i) {
@@ -1549,14 +1557,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 				++ind;
 			}
 
-			tcpp << "void initEmoji() {\n";
+			tcpp << "void emojiInit() {\n";
 			tcpp << "\tDBIScale emojiForScale = cRetina() ? dbisTwo : cScale();\n\n";
             tcpp << "\tswitch (emojiForScale) {\n";
-            for (int variantIndex = 0; variantIndex < variantsCount; ++variantIndex) {
-                tcpp << "\t\tcase " << variantNames[variantIndex] << ": ESize = EmojiSizes[" << variantIndex << "]; break;\n";
+            for (int variantIndex = 0; variantIndex < variantsCount - 1; ++variantIndex) {
+                tcpp << "\t\tcase " << variantNames[variantIndex] << ": EIndex = " << variantIndex << "; break;\n";
             }
-            tcpp << "\t};\n\n";
+            tcpp << "\t};\n\tESize = EmojiSizes[EIndex];\n\tEName = EmojiNames[EIndex];\n\n";
 			tcpp << "\tEmojiData *toFill = emojis = (EmojiData*)emojisData;\n\n";
+			uint32 index = 0;
+			int sequenceOffset = 0;
 			for (EmojisData::const_iterator i = emojisData.cbegin(), e = emojisData.cend(); i != e; ++i) {
 				int len = 1;
 				if (i->code2) {
@@ -1564,6 +1574,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 				} else if (i->code >> 16) {
 					if ((i->code >> 16) == 0xFFFF) { // sequence
 						len = textEmojiString(&i.value()).size();
+						if (!sequenceOffset) sequenceOffset = index;
 					} else {
 						len = 2;
 					}
@@ -1573,20 +1584,20 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 				}
 				bool withPostfix = emojiWithPostfixes.constFind(i->code) != emojiWithPostfixes.cend();
 				tcpp << "\tnew (toFill++) EmojiData(" << i->x << ", " << i->y << ", 0x" << QString("%1").arg(i->code, 0, 16).toUpper().toUtf8().constData() << "U, 0" << (i->code2 ? ('x' + QString("%1U").arg(i->code2, 0, 16).toUpper()).toUtf8().constData() : "") << ", " << len << (withPostfix ? ", 0xFE0F, 0" : ", 0, 0") << (i->color ? ('x' + QString("%1U").arg(i->color, 0, 16).toUpper()).toUtf8().constData() : "") << ");\n";
+				++index;
 			}
 			tcpp << "};\n\n";
 
 			// getter of one symbol emojis
-			tcpp << "EmojiPtr getEmoji(uint32 code) {\n";
+			tcpp << "EmojiPtr emojiGet(uint32 code) {\n";
 			tcpp << "\tif (!emojis) return 0;\n\n";
 			tcpp << "\tuint32 highCode = code >> 16;\n";
 
-			uint32 index = 0;
 			EmojisData::const_iterator i = emojisData.cbegin(), e = emojisData.cend();
 
 			tcpp << "\tif (!highCode) {\n"; // small codes
 			tcpp << "\t\tswitch (code) {\n";
-			for (; i != e; ++i) { // two small
+			for (index = 0; i != e; ++i) { // two small
 				if (i->code2) break;
 				if (i->code != 169 && i->code != 174) break;
 
@@ -1617,6 +1628,12 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 			tcpp << "\t\treturn 0;\n";
 			tcpp << "\t}\n\n";
 
+			tcpp << "\tif (highCode == 0xFFFFU) {\n"; // sequences
+			tcpp << "\t\tstatic const int sequenceOffset = " << sequenceOffset << ";\n\n";
+			tcpp << "\t\tuint32 index = (code & 0xFFFFU);\n";
+			tcpp << "\t\treturn (index < " << (sizeof(emojiSequences) / sizeof(emojiSequences[0])) << ") ? &emojis[sequenceOffset + index] : 0;\n";
+			tcpp << "\t}\n\n";
+
             tcpp << "\tif (code < 0x" << QString("%1").arg(min2, 0, 16).toUpper().toUtf8().constData() << "U || code > 0x" << QString("%1").arg(max2, 0, 16).toUpper().toUtf8().constData() << "U) return 0;\n\n";
 			tcpp << "\tswitch (code) {\n";
 			uint32 minTwoSymbol = 0, maxTwoSymbol = 0;
@@ -1634,7 +1651,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 					index++;
 					continue;
 				}
-				if (i->color) {
+				if (i->color && ((i->color & 0xFFFF0000U) != 0xFFFF0000U)) {
 					index++;
 					continue;
 				}
@@ -1646,7 +1663,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 			tcpp << "}\n\n";
 
 			// getter of two symbol emojis
-			tcpp << "EmojiPtr getEmoji(uint32 code, uint32 code2) {\n";
+			tcpp << "EmojiPtr emojiGet(uint32 code, uint32 code2) {\n";
 			tcpp << "\tif (code < 0x" << QString("%1").arg(minTwoSymbol, 0, 16).toUpper().toUtf8().constData() << "U || code > 0x" << QString("%1").arg(maxTwoSymbol, 0, 16).toUpper().toUtf8().constData() << "U) return 0;\n\n";
 			tcpp << "\tswitch (code) {\n";
 			maxTwoSymbol = 0;
@@ -1674,7 +1691,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 			tcpp << "}\n\n";
 
 			// getter of colored emojis
-			tcpp << "EmojiPtr getEmoji(EmojiPtr emoji, uint32 color) {\n";
+			tcpp << "EmojiPtr emojiGet(EmojiPtr emoji, uint32 color) {\n";
 			tcpp << "\tif (!emoji || ((emoji->color & 0xFFFF0000U) != 0xFFFF0000U)) return emoji;\n\n";
 			tcpp << "\tint index = 0;\n";
 			tcpp << "\tswitch (color) {\n";
@@ -1691,7 +1708,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 			for (int j = 0, l = sizeof(emojiSequences) / sizeof(emojiSequences[0]); j < l; ++j) {
 				seqs[j] = QString::fromUtf8(emojiSequences[j]);
 			}
-			tcpp << "EmojiPtr getEmoji(const QChar *from, const QChar *end) {\n";
+			tcpp << "EmojiPtr emojiGet(const QChar *from, const QChar *end) {\n";
+			tcpp << "\tstatic const int sequenceOffset = " << sequenceOffset << ";\n\n";
 			tcpp << "\tif (end < from + 8 || (from + 2)->unicode() != 0x200D || (from + 5)->unicode() != 0x200D) return 0;\n\n";
 			tcpp << "\tstatic const uint32 ";
 			tcpp << "man = 0x" << QString("%1").arg((uint32(seqs[0].at(0).unicode()) << 16) | uint32(seqs[0].at(1).unicode()), 0, 16).toUpper().toUtf8().constData() << ", ";
@@ -1708,36 +1726,36 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 			tcpp << "\t\t\tif (two == man) {\n";
 
 			tcpp << "\t\t\t\tif (three == girl) {\n";
-			tcpp << "\t\t\t\t\tif (four == girl) return [13];\n";
-			tcpp << "\t\t\t\t\tif (four == boy) return [11];\n";
+			tcpp << "\t\t\t\t\tif (four == girl) return &emojis[sequenceOffset + 13];\n";
+			tcpp << "\t\t\t\t\tif (four == boy) return &emojis[sequenceOffset + 11];\n";
 			tcpp << "\t\t\t\t} else if (three == boy) {\n";
-			tcpp << "\t\t\t\t\tif (four == boy) return [12];\n";
+			tcpp << "\t\t\t\t\tif (four == boy) return &emojis[sequenceOffset + 12];\n";
 			tcpp << "\t\t\t\t}\n";
 
 			tcpp << "\t\t\t} else if (two == woman) {\n";
 
 			tcpp << "\t\t\t\tif (three == girl) {\n";
-			tcpp << "\t\t\t\t\tif (four == girl) return [3];\n";
-			tcpp << "\t\t\t\t\tif (four == boy) return [1];\n";
+			tcpp << "\t\t\t\t\tif (four == girl) return &emojis[sequenceOffset + 3];\n";
+			tcpp << "\t\t\t\t\tif (four == boy) return &emojis[sequenceOffset + 1];\n";
 			tcpp << "\t\t\t\t} else if (three == boy) {\n";
-			tcpp << "\t\t\t\t\tif (four == boy) return [2];\n";
+			tcpp << "\t\t\t\t\tif (four == boy) return &emojis[sequenceOffset + 2];\n";
 			tcpp << "\t\t\t\t}\n";
 
 			tcpp << "\t\t\t} else if (two == heart) {\n";
-			tcpp << "\t\t\t\tif (three == kiss && four == man) return [17];\n";
+			tcpp << "\t\t\t\tif (three == kiss && four == man) return &emojis[sequenceOffset + 17];\n";
 			tcpp << "\t\t\t}\n";
 			tcpp << "\t\t} else {\n"; // one == woman
 			tcpp << "\t\t\tif (two == woman) {\n";
 
 			tcpp << "\t\t\t\tif (three == girl) {\n";
-			tcpp << "\t\t\t\t\tif (four == girl) return [3];\n";
-			tcpp << "\t\t\t\t\tif (four == boy) return [1];\n";
+			tcpp << "\t\t\t\t\tif (four == girl) return &emojis[sequenceOffset + 8];\n";
+			tcpp << "\t\t\t\t\tif (four == boy) return &emojis[sequenceOffset + 6];\n";
 			tcpp << "\t\t\t\t} else if (three == boy) {\n";
-			tcpp << "\t\t\t\t\tif (four == boy) return [2];\n";
+			tcpp << "\t\t\t\t\tif (four == boy) return &emojis[sequenceOffset + 7];\n";
 			tcpp << "\t\t\t\t}\n";
 
 			tcpp << "\t\t\t} else if (two == heart) {\n";
-			tcpp << "\t\t\t\tif (three == kiss && four == woman) return [16];\n";
+			tcpp << "\t\t\t\tif (three == kiss && four == woman) return &emojis[sequenceOffset + 16];\n";
 			tcpp << "\t\t\t}\n";
 			tcpp << "\t\t}\n";
 			tcpp << "\t}\n";
@@ -1745,30 +1763,47 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 			tcpp << "\tif (one == man) {\n";
 			tcpp << "\t\tif (two == man) {\n";
 
-			tcpp << "\t\t\tif (three == girl) return [10];\n";
-			tcpp << "\t\t\tif (three == boy) return [9];\n";
+			tcpp << "\t\t\tif (three == girl) return &emojis[sequenceOffset + 10];\n";
+			tcpp << "\t\t\tif (three == boy) return &emojis[sequenceOffset + 9];\n";
 
 			tcpp << "\t\t} else if (two == woman) {\n";
-			tcpp << "\t\t\tif (three == girl) return [0];\n";
+			tcpp << "\t\t\tif (three == girl) return &emojis[sequenceOffset + 0];\n";
 			tcpp << "\t\t} else if (two == heart) {\n";
-			tcpp << "\t\t\tif (three == man) return [15];\n";
+			tcpp << "\t\t\tif (three == man) return &emojis[sequenceOffset + 15];\n";
 			tcpp << "\t\t}\n";
 			tcpp << "\t} else {\n"; // one == woman
 			tcpp << "\t\tif (two == woman) {\n";
 
-			tcpp << "\t\t\tif (three == girl) return [5];\n";
-			tcpp << "\t\t\tif (three == boy) return [4];\n";
+			tcpp << "\t\t\tif (three == girl) return &emojis[sequenceOffset + 5];\n";
+			tcpp << "\t\t\tif (three == boy) return &emojis[sequenceOffset + 4];\n";
 
 			tcpp << "\t\t} else if (two == heart) {\n";
-			tcpp << "\t\t\tif (three == woman) return [14];\n";
+			tcpp << "\t\t\tif (three == woman) return &emojis[sequenceOffset + 14];\n";
 			tcpp << "\t\t}\n";
 			tcpp << "\t}\n";
 
 			tcpp << "\treturn 0;\n";
 			tcpp << "}\n\n";
 
+			tcpp << "QString emojiGetSequence(int index) {\n";
+			tcpp << "\tstatic QVector<QString> sequences;\n";
+			tcpp << "\tif (sequences.isEmpty()) {\n";
+			tcpp << "\t\tsequences.reserve(" << (sizeof(seqs) / sizeof(seqs[0])) << ");\n\n";
+			for (uint32 j = 0; j < (sizeof(emojiSequences) / sizeof(emojiSequences[0])); ++j) {
+				uint32 len = QByteArray(emojiSequences[j]).size();
+				QString str;
+				str.reserve(4 * len);
+				for (uint32 k = 0; k < len; ++k) {
+					str.append(QString("\\x%1").arg(uint32((unsigned char)(emojiSequences[j][k])), 2, 16, QChar('0')));
+				}
+				tcpp << "\t\tsequences.push_back(QString::fromUtf8(\"" << str.toUtf8().constData() << "\"));\n";
+			}
+			tcpp << "\t}\n\n";
+			tcpp << "\treturn (index >= 0 && index < sequences.size()) ? sequences.at(index) : QString();\n";
+			tcpp << "}\n\n";
+
 			// emoji autoreplace
-			tcpp << "void findEmoji(const QChar *ch, const QChar *e, const QChar *&newEmojiEnd, uint32 &emojiCode) {\n";
+			tcpp << "void emojiFind(const QChar *ch, const QChar *e, const QChar *&newEmojiEnd, uint32 &emojiCode) {\n";
 			tcpp << "\tswitch (ch->unicode()) {\n";
 
 			QString tab("\t");
@@ -1817,6 +1852,19 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 			tcpp << "\t}\n";
 			tcpp << "}\n\n";
 
+			tcpp << "int emojiPackCount(DBIEmojiTab tab) {\n";
+			tcpp << "\tswitch (tab) {\n";
+			tcpp << "\t\tcase dbietRecent     : return cGetRecentEmojis().size();\n";
+			tcpp << "\t\tcase dbietPeople     : return " << sizeof(emojiCategory1) / sizeof(emojiCategory1[0]) << ";\n";
+			tcpp << "\t\tcase dbietNature     : return " << sizeof(emojiCategory2) / sizeof(emojiCategory2[0]) << ";\n";
+			tcpp << "\t\tcase dbietFood       : return " << sizeof(emojiCategory3) / sizeof(emojiCategory3[0]) << ";\n";
+			tcpp << "\t\tcase dbietCelebration: return " << sizeof(emojiCategory4) / sizeof(emojiCategory4[0]) << ";\n";
+			tcpp << "\t\tcase dbietActivity   : return " << sizeof(emojiCategory5) / sizeof(emojiCategory5[0]) << ";\n";
+			tcpp << "\t\tcase dbietTravel     : return " << sizeof(emojiCategory6) / sizeof(emojiCategory6[0]) << ";\n";
+			tcpp << "\t\tcase dbietObjects    : return " << sizeof(emojiCategory7) / sizeof(emojiCategory7[0]) << ";\n";
+			tcpp << "\t};\n";
+			tcpp << "\treturn 0;\n";
+			tcpp << "}\n\n";
 			tcpp << "EmojiPack emojiPack(DBIEmojiTab tab) {\n";
 			tcpp << "\tswitch (tab) {\n\n";
 			writeEmojiCategory(tcpp, emojiCategory1, sizeof(emojiCategory1) / sizeof(emojiCategory1[0]), "People");
@@ -1832,7 +1880,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 			tcpp << "\tfor (RecentEmojiPack::const_iterator i = cGetRecentEmojis().cbegin(), e = cGetRecentEmojis().cend(); i != e; ++i) {\n";
 			tcpp << "\t\tresult.push_back(i->first);\n";
 			tcpp << "\t}\n";
-			tcpp << "\treturn result;";
+			tcpp << "\treturn result;\n";
 			tcpp << "}\n\n";
 		}
 		QFile cpp(emoji_out);

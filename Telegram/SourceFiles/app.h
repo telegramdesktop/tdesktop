@@ -156,7 +156,8 @@ namespace App {
 
 	const QPixmap &sprite();
 	const QPixmap &emojis();
-	const QPixmap &emojiSingle(const EmojiData *emoji, int32 fontHeight);
+	const QPixmap &emojisLarge();
+	const QPixmap &emojiSingle(EmojiPtr emoji, int32 fontHeight);
 
 	void initMedia();
 	void deinitMedia(bool completely = true);

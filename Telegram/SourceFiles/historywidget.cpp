@@ -1763,9 +1763,7 @@ void HistoryWidget::updateTyping(bool typing) {
 //}
 
 void HistoryWidget::updateRecentStickers() {
-	if (cEmojiTab() == dbietStickers) {
-		_emojiPan.onTabChange();
-	}
+	_emojiPan.refreshStickers();
 }
 
 void HistoryWidget::typingDone(const MTPBool &result, mtpRequestId req) {
@@ -1852,7 +1850,6 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 			}
 			cSetRecentStickers(add);
 			Local::writeRecentStickers();
-			_emojiPan.onTabChange();
 		}
 		
 		const QVector<MTPStickerPack> &packs(d.vpacks.c_vector().v);
@@ -1862,23 +1859,11 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 				QString emoticon(qs(p.vemoticon));
 				EmojiPtr e = 0;
 				for (const QChar *ch = emoticon.constData(), *end = emoticon.constEnd(); ch != end; ++ch) {
-					if (ch->isHighSurrogate()) {
-						if (ch + 1 < end && (ch + 1)->isLowSurrogate()) {
-							e = getEmoji((ch->unicode() << 16) | (ch + 1)->unicode());
-							if (!e) {
-								++ch;
-							}
-						}
-					} else {
-						if (ch + 1 < end) {
-							if (((ch->unicode() >= 48 && ch->unicode() < 58) || ch->unicode() == 35) && (ch + 1)->unicode() == 0x20E3) {
-								e = getEmoji((ch->unicode() << 16) | (ch + 1)->unicode());
-							} else if ((ch + 1)->unicode() == 0xFE0F) {
-								e = getEmoji(ch->unicode());
-							}
-						}
-					}
+					int len = 0;
+					e = emojiFromText(ch, end, len);
 					if (e) break;
+
+					if (ch + 1 < end && ch->isHighSurrogate() && (ch + 1)->isLowSurrogate()) ++ch;
 				}
 				if (e) {
 					const QVector<MTPlong> docs(p.vdocuments.c_vector().v);
@@ -1912,7 +1897,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 		}
 
 //		updateStickerPan();
-		_emojiPan.onTabChange();
+		_emojiPan.refreshStickers();
 	}
 }
 

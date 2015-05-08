@@ -49,6 +49,8 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich = false);
 
 #include "gui/emoji_config.h"
 
+void emojiDraw(QPainter &p, EmojiPtr e, int x, int y);
+
 #include "../../../QtStatic/qtbase/src/gui/text/qfontengine_p.h"
 
 enum TextBlockType {

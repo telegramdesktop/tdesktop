@@ -41,6 +41,11 @@ inline void cSet##Name(const Type &Name) { \
 	g##Name = Name; \
 }
 
+#define DeclareRefSetting(Type, Name) DeclareSetting(Type, Name) \
+inline Type &cRef##Name() { \
+	return g##Name; \
+}
+
 DeclareSetting(bool, Rtl);
 DeclareSetting(Qt::LayoutDirection, LangDir);
 inline bool rtl() {
@@ -166,12 +171,15 @@ typedef const EmojiData *EmojiPtr;
 static EmojiPtr TwoSymbolEmoji = EmojiPtr(0x01);
 
 typedef QVector<EmojiPtr> EmojiPack;
-typedef QVector<QPair<uint32, ushort> > RecentEmojiPreload;
+typedef QVector<QPair<uint32, ushort> > RecentEmojisPreloadOld;
+typedef QVector<QPair<uint64, ushort> > RecentEmojisPreload;
 typedef QVector<QPair<EmojiPtr, ushort> > RecentEmojiPack;
-DeclareSetting(RecentEmojiPack, RecentEmojis);
-DeclareSetting(RecentEmojiPreload, RecentEmojisPreload);
+typedef QMap<uint32, uint64> EmojiColorVariants;
+DeclareRefSetting(RecentEmojiPack, RecentEmojis);
+DeclareSetting(RecentEmojisPreload, RecentEmojisPreload);
+DeclareRefSetting(EmojiColorVariants, EmojiVariants);
 
-const RecentEmojiPack &cGetRecentEmojis();
+RecentEmojiPack &cGetRecentEmojis();
 
 struct DocumentData;
 typedef QVector<DocumentData*> StickerPack;

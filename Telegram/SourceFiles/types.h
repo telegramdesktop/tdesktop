@@ -249,7 +249,7 @@ enum DataBlockId {
 	dbiDownloadPath = 21,
 	dbiScale = 22,
 	dbiEmojiTab = 23,
-	dbiRecentEmojis = 24,
+	dbiRecentEmojisOld = 24,
 	dbiLoggedPhoneNumber = 25,
 	dbiMutedPeers = 26,
 // 27 reserved
@@ -261,6 +261,8 @@ enum DataBlockId {
 	dbiTileBackground = 33,
 	dbiAutoLock = 34,
 	dbiDialogLastPath = 35,
+	dbiRecentEmojis = 36,
+	dbiEmojiVariants = 37,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -317,13 +319,6 @@ enum DBIScale {
 	dbisScaleCount    = 5,
 };
 
-writeEmojiCategory(tcpp, emojiCategory1, sizeof(emojiCategory1) / sizeof(emojiCategory1[0]), "People");
-writeEmojiCategory(tcpp, emojiCategory2, sizeof(emojiCategory2) / sizeof(emojiCategory2[0]), "Nature");
-writeEmojiCategory(tcpp, emojiCategory3, sizeof(emojiCategory3) / sizeof(emojiCategory3[0]), "Food");
-writeEmojiCategory(tcpp, emojiCategory4, sizeof(emojiCategory4) / sizeof(emojiCategory4[0]), "Celebration");
-writeEmojiCategory(tcpp, emojiCategory5, sizeof(emojiCategory5) / sizeof(emojiCategory5[0]), "Activity");
-writeEmojiCategory(tcpp, emojiCategory6, sizeof(emojiCategory6) / sizeof(emojiCategory6[0]), "Travel");
-writeEmojiCategory(tcpp, emojiCategory7, sizeof(emojiCategory7) / sizeof(emojiCategory7[0]), "Objects");
 enum DBIEmojiTab {
 	dbietRecent      = -1,
 	dbietPeople      =  0,
@@ -335,6 +330,11 @@ enum DBIEmojiTab {
 	dbietObjects     =  6,
 	dbietStickers    =  666,
 };
+static const int emojiTabCount = 8;
+static const int emojiTabShift = 100000;
+inline DBIEmojiTab emojiTabAtIndex(int index) {
+	return (index < 0 || index >= emojiTabCount) ? dbietRecent : DBIEmojiTab(index - 1);
+}
 
 enum DBIPlatform {
     dbipWindows  = 0,
