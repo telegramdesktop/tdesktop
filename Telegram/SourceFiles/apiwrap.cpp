@@ -85,7 +85,7 @@ void ApiWrap::requestReplyTo(HistoryReply *reply, MsgId to) {
 }
 
 void ApiWrap::requestFullPeer(PeerData *peer) {
-	if (_fullRequests.contains(peer)) return;
+	if (!peer || _fullRequests.contains(peer)) return;
 	mtpRequestId req;
 	if (peer->chat) {
 		req = MTP::send(MTPmessages_GetFullChat(MTP_int(App::chatFromPeer(peer->id))), rpcDone(&ApiWrap::gotChatFull, peer), rpcFail(&ApiWrap::gotPeerFailed, peer));

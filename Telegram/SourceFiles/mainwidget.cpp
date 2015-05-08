@@ -2979,8 +2979,10 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 
 	case mtpc_updateShortChatMessage: {
 		const MTPDupdateShortChatMessage &d(updates.c_updateShortChatMessage());
-		if (!App::chatLoaded(d.vchat_id.v) || !App::userLoaded(d.vfrom_id.v) || (d.has_fwd_from_id() && !App::userLoaded(d.vfwd_from_id.v))) {
+		bool noFrom = !App::userLoaded(d.vfrom_id.v);
+		if (!App::chatLoaded(d.vchat_id.v) || noFrom || (d.has_fwd_from_id() && !App::userLoaded(d.vfwd_from_id.v))) {
 			MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
+			if (noFrom) App::api()->requestFullPeer(App::chatLoaded(d.vchat_id.v));
 			return getDifference();
 		}
 		if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
