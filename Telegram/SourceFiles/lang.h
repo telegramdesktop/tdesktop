@@ -23,6 +23,7 @@ static const char *LanguageCodes[] = {
 	"es",
 	"de",
 	"nl",
+	"ru",
 	"pt_BR",
 	"ko",
 };
