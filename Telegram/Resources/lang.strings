@@ -395,9 +395,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_group_invite_link" = "Invite link";
 "lng_group_invite_create" = "Create an invite link";
-"lng_group_invite_about" = "Anyone who has Telegram installed will be\nable to join your group by following this link.";
+"lng_group_invite_about" = "Telegram users will be able to join\nyour group by following this link.";
 "lng_group_invite_create_new" = "Revoke invite link";
-"lng_group_invite_about_new" = "The previous invite link will become\ninactive. A new invite link will be generated.";
+"lng_group_invite_about_new" = "Your previous link will be deactivated\nand we'll generate a new invite link for you.";
 "lng_group_invite_copied" = "Invite link copied to clipboard.";
 "lng_group_invite_no_room" = "Unable to join this group because there are\ntoo many members in it already.";
 
