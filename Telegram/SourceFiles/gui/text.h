@@ -546,10 +546,11 @@ inline bool chIsTrimmed(QChar ch, bool rich = false) {
 	return (!rich || ch != TextCommand) && (chIsSpace(ch) || chIsBad(ch));
 }
 inline bool chIsDiac(QChar ch) { // diac and variation selectors
-	return (ch >= 768 && ch < 880) || (ch >= 7616 && ch < 7680) || (ch >= 8400 && ch < 8448) || (ch >= 65056 && ch < 65072);
+	QChar::Category c = ch.category();
+	return (c == QChar::Mark_NonSpacing);
 }
 inline int32 chMaxDiacAfterSymbol() {
-	return 4;
+	return 2;
 }
 inline bool chIsNewline(QChar ch) {
 	return (ch == QChar::LineFeed || ch == 156);
