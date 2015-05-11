@@ -2163,14 +2163,14 @@ namespace Local {
 				if (doc->status == FileFailed) continue;
 
 				// id + value + access + date + namelen + name + mimelen + mime + dc + size + width + height + type + alt
-				size += sizeof(quint64) + sizeof(qint16) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(doc->alt);
+				size += sizeof(quint64) + sizeof(qint16) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(doc->sticker ? doc->sticker->alt : QString());
 			}
 			EncryptedDescriptor data(size);
 			for (RecentStickerPack::const_iterator i = recent.cbegin(); i != recent.cend(); ++i) {
 				DocumentData *doc = i->first;
 				if (doc->status == FileFailed) continue;
 
-				data.stream << quint64(doc->id) << qint16(i->second) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type) << doc->alt;
+				data.stream << quint64(doc->id) << qint16(i->second) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type) << (doc->sticker ? doc->sticker->alt : QString());
 			}
 			FileWriteDescriptor file(_recentStickersKey);
 			file.writeEncrypted(data);
@@ -2207,7 +2207,7 @@ namespace Local {
 			if (type == AnimatedDocument) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (type == StickerDocument) {
-				attributes.push_back(MTP_documentAttributeSticker(MTP_string(alt)));
+				attributes.push_back(MTP_documentAttributeSticker(MTP_string(alt), MTP_inputStickerSetEmpty()));
 			}
 			if (width > 0 && height > 0) {
 				attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));

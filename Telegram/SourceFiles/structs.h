@@ -402,6 +402,15 @@ public:
 	void onClick(Qt::MouseButton button) const;
 };
 
+struct StickerData {
+	StickerData() : set(MTP_inputStickerSetEmpty()) {
+	}
+	ImagePtr img;
+	QString alt;
+
+	MTPInputStickerSet set;
+};
+
 enum DocumentType {
 	FileDocument,
 	VideoDocument,
@@ -415,7 +424,7 @@ struct DocumentData {
 
 	void forget() {
 		thumb->forget();
-		sticker->forget();
+		if (sticker) sticker->img->forget();
 		replyPreview->forget();
 	}
 
@@ -444,6 +453,9 @@ struct DocumentData {
 		loader->rpcInvalidate();
 		loader = 0;
 	}
+	~DocumentData() {
+		delete sticker;
+	}
 
 	QString already(bool check = false);
 
@@ -453,7 +465,7 @@ struct DocumentData {
 	int32 duration;
 	uint64 access;
 	int32 date;
-	QString name, mime, alt; // alt - for stickers
+	QString name, mime;
 	ImagePtr thumb, replyPreview;
 	int32 dc;
 	int32 size;
@@ -466,7 +478,7 @@ struct DocumentData {
 	FileLocation location;
 
 	QByteArray data;
-	ImagePtr sticker;
+	StickerData *sticker;
 
 	int32 md5[8];
 };

@@ -775,9 +775,9 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) {
 	_doc = doc;
 
 	QString already = _doc->already(true);
-	if (!_doc->sticker->isNull() && _doc->sticker->loaded()) {
+	if (_doc->sticker && !_doc->sticker->img->isNull() && _doc->sticker->img->loaded()) {
 		_currentGif.stop();
-		_current = _doc->sticker->pix();
+		_current = _doc->sticker->img->pix();
 	} else if (!already.isEmpty()) {
 		QImageReader reader(already);
 		if (reader.canRead()) {
@@ -980,7 +980,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		QRect imgRect(_x, _y, _w, _h);
 		const QPixmap *toDraw = _currentGif.isNull() ? &_current : &_currentGif.frames[_currentGif.frame];
 		if (imgRect.intersects(r)) {
-			if (toDraw->hasAlpha() && (!_doc || _doc->sticker->isNull())) {
+			if (toDraw->hasAlpha() && (!_doc || !_doc->sticker || _doc->sticker->img->isNull())) {
 				p.fillRect(imgRect, _transparentBrush);
 			}
 			if (_zoom) {
@@ -1368,7 +1368,7 @@ void MediaView::preloadData(int32 delta) {
 						switch (media->type()) {
 						case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->full->load(); break;
 						case MediaTypeDocument: static_cast<HistoryDocument*>(media)->document()->thumb->load(); break;
-						case MediaTypeSticker: static_cast<HistorySticker*>(media)->document()->sticker->load(); break;
+						case MediaTypeSticker: static_cast<HistorySticker*>(media)->document()->sticker->img->load(); break;
 						}
 					}
 				}

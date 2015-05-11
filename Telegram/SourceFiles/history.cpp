@@ -2894,8 +2894,8 @@ HistorySticker::HistorySticker(DocumentData *document) : HistoryMedia()
 }
 
 bool HistorySticker::updateStickerEmoji() {
-	if (!data->alt.isEmpty()) {
-		_emoji = data->alt;
+	if (!data->sticker->alt.isEmpty()) {
+		_emoji = data->sticker->alt;
 		return true;
 	}
 	const EmojiStickersMap &stickers(cEmojiStickers());
@@ -2948,24 +2948,24 @@ void HistorySticker::draw(QPainter &p, const HistoryItem *parent, bool selected,
 	if (!data->loader && data->status != FileFailed && !already && !hasdata) {
 		data->save(QString());
 	}
-	if (data->sticker->isNull() && (already || hasdata)) {
+	if (data->sticker->img->isNull() && (already || hasdata)) {
 		if (already) {
-			data->sticker = ImagePtr(data->already());
+			data->sticker->img = ImagePtr(data->already());
 		} else {
-			data->sticker = ImagePtr(data->data);
+			data->sticker->img = ImagePtr(data->data);
 		}
 	}
 	if (selected) {
-		if (data->sticker->isNull()) {
+		if (data->sticker->img->isNull()) {
 			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->thumb->pixBlurredColored(st::msgStickerOverlay, pixw, pixh));
 		} else {
-			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->sticker->pixColored(st::msgStickerOverlay, pixw, pixh));
+			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->sticker->img->pixColored(st::msgStickerOverlay, pixw, pixh));
 		}
 	} else {
-		if (data->sticker->isNull()) {
+		if (data->sticker->img->isNull()) {
 			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->thumb->pixBlurred(pixw, pixh));
 		} else {
-			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->sticker->pix(pixw, pixh));
+			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->sticker->img->pix(pixw, pixh));
 		}
 	}
 
@@ -4606,7 +4606,7 @@ void HistoryMessage::initMediaFromText(QString &currentText)  {
 }
 
 void HistoryMessage::initMediaFromDocument(DocumentData *doc) {
-	if (doc->type == StickerDocument && doc->dimensions.width() > 0 && doc->dimensions.height() > 0 && doc->dimensions.width() <= StickerMaxSize && doc->dimensions.height() <= StickerMaxSize && doc->size < StickerInMemory) {
+	if (doc->type == StickerDocument && doc->sticker && doc->dimensions.width() > 0 && doc->dimensions.height() > 0 && doc->dimensions.width() <= StickerMaxSize && doc->dimensions.height() <= StickerMaxSize && doc->size < StickerInMemory) {
 		_media = new HistorySticker(doc);
 	} else {
 		_media = new HistoryDocument(doc);

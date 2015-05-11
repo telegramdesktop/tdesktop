@@ -759,15 +759,17 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 	}
 	for (int index = downfrom; index < uptill; ++index) { // preload stickers
 		DocumentData *sticker = _stickers[index];
+		if (!sticker->sticker) continue;
+
 		bool already = !sticker->already().isEmpty(), hasdata = !sticker->data.isEmpty();
 		if (!sticker->loader && sticker->status != FileFailed && !already && !hasdata) {
 			sticker->save(QString());
 		}
-		if (sticker->sticker->isNull() && (already || hasdata)) {
+		if (sticker->sticker->img->isNull() && (already || hasdata)) {
 			if (already) {
-				sticker->sticker = ImagePtr(sticker->already());
+				sticker->sticker->img = ImagePtr(sticker->already());
 			} else {
-				sticker->sticker = ImagePtr(sticker->data);
+				sticker->sticker->img = ImagePtr(sticker->data);
 			}
 		}
 
@@ -776,7 +778,7 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 		int32 w = qRound(coef * sticker->dimensions.width()), h = qRound(coef * sticker->dimensions.height());
 		if (w < 1) w = 1;
 		if (h < 1) h = 1;
-		if (!sticker->sticker->isNull()) sticker->sticker->pix(w, h);
+		if (!sticker->sticker->img->isNull()) sticker->sticker->img->pix(w, h);
 	}
 
 	int32 y, tilly = 0;
@@ -879,15 +881,16 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 			}
 
 			DocumentData *sticker = _stickers[index];
+			if (!sticker->sticker) continue;
 			bool already = !sticker->already().isEmpty(), hasdata = !sticker->data.isEmpty();
 			if (!sticker->loader && sticker->status != FileFailed && !already && !hasdata) {
 				sticker->save(QString());
 			}
-			if (sticker->sticker->isNull() && (already || hasdata)) {
+			if (sticker->sticker->img->isNull() && (already || hasdata)) {
 				if (already) {
-					sticker->sticker = ImagePtr(sticker->already());
+					sticker->sticker->img = ImagePtr(sticker->already());
 				} else {
-					sticker->sticker = ImagePtr(sticker->data);
+					sticker->sticker->img = ImagePtr(sticker->data);
 				}
 			}
 
@@ -897,10 +900,10 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 			if (w < 1) w = 1;
 			if (h < 1) h = 1;
 			QPoint ppos = pos + QPoint((stickerSize - w) / 2, (stickerSize - h) / 2);
-			if (sticker->sticker->isNull()) {
+			if (sticker->sticker->img->isNull()) {
 				p.drawPixmapLeft(ppos, width(), sticker->thumb->pix(w, h));
 			} else {
-				p.drawPixmapLeft(ppos, width(), sticker->sticker->pix(w, h));
+				p.drawPixmapLeft(ppos, width(), sticker->sticker->img->pix(w, h));
 			}
 
 			if (hover > 0 && _isUserGen[index]) {

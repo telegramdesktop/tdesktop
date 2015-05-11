@@ -188,7 +188,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 			if (animated) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (mime == stickerMime && w > 0 && h > 0 && w <= StickerMaxSize && h <= StickerMaxSize && filesize < StickerInMemory) {
-				attributes.push_back(MTP_documentAttributeSticker(MTP_string("")));
+				attributes.push_back(MTP_documentAttributeSticker(MTP_string(""), MTP_inputStickerSetEmpty()));
 				thumbFormat = "webp";
 				thumbExt = qsl("webp");
 			}

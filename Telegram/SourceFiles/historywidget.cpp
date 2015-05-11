@@ -3256,8 +3256,8 @@ namespace {
 		}
 		if (document->type == AnimatedDocument) {
 			attributes.push_back(MTP_documentAttributeAnimated());
-		} else if (document->type == StickerDocument) {
-			attributes.push_back(MTP_documentAttributeSticker(MTP_string(document->alt)));
+		} else if (document->type == StickerDocument && document->sticker) {
+			attributes.push_back(MTP_documentAttributeSticker(MTP_string(document->sticker->alt), document->sticker->set));
 		}
 		return MTP_vector<MTPDocumentAttribute>(attributes);
 	}

@@ -1178,12 +1178,12 @@ namespace App {
 					if (result->thumb->isNull() && !thumb->isNull()) {
 						result->thumb = thumb;
 					}
-					if (result->alt.isEmpty()) {
+					if (result->sticker && result->sticker->alt.isEmpty()) {
 						for (QVector<MTPDocumentAttribute>::const_iterator i = attributes.cbegin(), e = attributes.cend(); i != e; ++i) {
 							if (i->type() == mtpc_documentAttributeSticker) {
 								const MTPDdocumentAttributeSticker &d(i->c_documentAttributeSticker());
 								if (d.valt.c_string().v.length() > 0) {
-									result->alt = qs(d.valt);
+									result->sticker->alt = qs(d.valt);
 								}
 							}
 						}

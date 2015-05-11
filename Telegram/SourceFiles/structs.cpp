@@ -558,7 +558,7 @@ void DocumentCancelLink::onClick(Qt::MouseButton button) const {
 }
 
 DocumentData::DocumentData(const DocumentId &id, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) :
-id(id), type(FileDocument), duration(0), access(access), date(date), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+id(id), type(FileDocument), duration(0), access(access), date(date), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0), sticker(0) {
 	setattributes(attributes);
 	location = Local::readFileLocation(mediaKey(mtpc_inputDocumentFileLocation, dc, id));
 }
@@ -574,7 +574,11 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 		case mtpc_documentAttributeSticker: {
 			const MTPDdocumentAttributeSticker &d(attributes[i].c_documentAttributeSticker());
 			if (type == FileDocument) type = StickerDocument;
-			alt = qs(d.valt);
+			if (type == StickerDocument && !sticker) sticker = new StickerData();
+			if (sticker) {
+				sticker->alt = qs(d.valt);
+				sticker->set = d.vstickerset;
+			}
 		} break;
 		case mtpc_documentAttributeVideo: {
 			const MTPDdocumentAttributeVideo &d(attributes[i].c_documentAttributeVideo());
