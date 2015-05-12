@@ -389,15 +389,15 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_changed_title" = "{from} alterou o título do grupo para «{title}»";
 "lng_action_created_chat" = "{from} criou o grupo «{title}»";
 
-"lng_group_invite_bad_link" = "Link de convite quebrado ou expirado.";
+"lng_group_invite_bad_link" = "Link de convite quebrado\nou expirado.";
 "lng_group_invite_want_join" = "Você deseja entrar no grupo «{title}»?";
 "lng_group_invite_join" = "Entrar";
 
 "lng_group_invite_link" = "Link de convite";
 "lng_group_invite_create" = "Criar um link de convite";
-"lng_group_invite_about" = "Você pode criar um link de convite.\nQuem abrir o link poderá entrar no grupo.";
-"lng_group_invite_create_new" = "Criar novo link";
-"lng_group_invite_about_new" = "O link de convite atual será desativado\nquando você criar um novo.";
+"lng_group_invite_about" = "Usuários do Telegram poderão entrar\nem seu grupo clicando no link.";
+"lng_group_invite_create_new" = "Desativar link";
+"lng_group_invite_about_new" = "Seu link de convite será desativado\ne iremos gerar um novo link para você.";
 "lng_group_invite_copied" = "Link copiado para área de transferência.";
 "lng_group_invite_no_room" = "Não foi possível entrar no grupo porque\nele já possui muitos membros.";
 
@@ -419,6 +419,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_cancel" = "Cancelar";
 "lng_media_video" = "Arquivo de vídeo";
 "lng_media_audio" = "Mensagem de voz";
+
+"lng_emoji_category0" = "Frequentemente usado";
+"lng_emoji_category1" = "Pessoas";
+"lng_emoji_category2" = "Natureza";
+"lng_emoji_category3" = "Comidas e Bebidas";
+"lng_emoji_category4" = "Celebração";
+"lng_emoji_category5" = "Atividade";
+"lng_emoji_category6" = "Viagens e Lugares";
+"lng_emoji_category7" = "Objetos e Símbolos";
+"lng_emoji_category8" = "Stickers";
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Vídeo";
@@ -563,7 +573,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras menores melhorias";
-"lng_new_version_text" = "— Link de convite para chats em grupo\n— Contador cinza de mensagens não lidas para conversas silenciadas.";
+"lng_new_version_text" = "— Adicionado suporte para novos emojis\n— Painel de emojis e stickers melhorado";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

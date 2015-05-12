@@ -96,9 +96,9 @@ const uint32 replacesCount = sizeof(replaces) / sizeof(EmojiReplace);
 typedef QMap<QString, uint32> ReplaceMap;
 ReplaceMap replaceMap;
 
-static const int variantsCount = 5, inRow = 40, imSizes[] = { 18, 22, 27, 36, 45 };
-static const int emojiFontSizes[] = { 14, 20, 27, 36, 45 };
-static const int emojiDeltas[] = { 15, 20, 25, 34, 42 };
+static const int variantsCount = 5, inRow = 40, imSizes[] = { 18, 22, 27, 36, 45, 180 }, badSizes[] = { 1, 1, 0, 0, 0 };
+static const int emojiFontSizes[] = { 14, 20, 27, 36, 45, 180 };
+static const int emojiDeltas[] = { 15, 20, 25, 34, 42, 167 };
 static const char *variantPostfix[] = { "", "_125x", "_150x", "_200x", "_250x" };
 static const char *variantNames[] = { "dbisOne", "dbisOneAndQuarter", "dbisOneAndHalf", "dbisTwo" };
 
@@ -1382,23 +1382,32 @@ bool genEmoji(QString, const QString &emoji_out, const QString &emoji_png) {
 	QStringList str = QFontDatabase::applicationFontFamilies(QFontDatabase::addApplicationFont(QStringLiteral("/System/Library/Fonts/Apple Color Emoji.ttf")));
 
 	for (int variantIndex = 0; variantIndex < variantsCount; variantIndex++) {
-		int imSize = imSizes[variantIndex];
+		int imSize = imSizes[variantIndex], bad = badSizes[variantIndex], badSize = (bad ? imSizes[5] : imSize);
 
 		QFont f(QGuiApplication::font());
 		f.setFamily(QStringLiteral("Apple Color Emoji"));
-		f.setPixelSize(emojiFontSizes[variantIndex]);
+		f.setPixelSize(emojiFontSizes[bad ? 5 : variantIndex]);
 
-		int s = 4 + imSize;
+		int s = 4 + badSize;
+		QImage badImg(inRow * badSize, currentRow * badSize, QImage::Format_ARGB32);
 		QImage emojisImg(inRow * imSize, currentRow * imSize, QImage::Format_ARGB32), emojiImg(s, s, QImage::Format_ARGB32);
 		{
-			QPainter p(&emojisImg);
+			QPainter p(&emojisImg), q(&badImg);
 			QPainter::CompositionMode m = p.compositionMode();
 			p.setCompositionMode(QPainter::CompositionMode_Source);
 			p.fillRect(0, 0, emojisImg.width(), emojisImg.height(), Qt::transparent);
 			p.setCompositionMode(m);
 			p.setRenderHint(QPainter::SmoothPixmapTransform);
+			if (bad) {
+				QPainter::CompositionMode m = q.compositionMode();
+				q.setCompositionMode(QPainter::CompositionMode_Source);
+				q.fillRect(0, 0, emojisImg.width(), emojisImg.height(), Qt::transparent);
+				q.setCompositionMode(m);
+				q.setRenderHint(QPainter::SmoothPixmapTransform);
+			}
 			for (EmojisData::const_iterator it = emojisData.cbegin(), e = emojisData.cend(); it != e; ++it) {
-				QRect drawFrom(2, 2, imSize, imSize);
+				QRect drawFrom(2, 2, badSize, badSize);
+				QString es = textEmojiString(&it.value());
 				{
 					QPainter q(&emojiImg);
 					q.setPen(QColor(0, 0, 0, 255));
@@ -1407,7 +1416,7 @@ bool genEmoji(QString, const QString &emoji_out, const QString &emoji_png) {
 					q.setCompositionMode(QPainter::CompositionMode_Source);
 					q.fillRect(0, 0, emojiImg.width(), emojiImg.height(), Qt::transparent);
 					q.setCompositionMode(m);
-					q.drawText(2, 2 + emojiDeltas[variantIndex], textEmojiString(&it.value()));
+					q.drawText(2, 2 + emojiDeltas[bad ? 5 : variantIndex], es);
 				}
 				int top = 1, bottom = 1, left = 1, right = 1;
 				QRgb *b = (QRgb*)emojiImg.bits();
@@ -1455,10 +1464,17 @@ bool genEmoji(QString, const QString &emoji_out, const QString &emoji_png) {
 						drawFrom.setX(drawFrom.x() - 1);
 					}
 				}
-				p.drawImage(QRect(it->x * imSize, it->y * imSize, imSize, imSize), emojiImg, drawFrom);
+				if (bad) {
+					p.drawImage(QRect(it->x * imSize, it->y * imSize, imSize, imSize), emojiImg.copy(2, 2, badSize, badSize).scaled(imSize, imSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+					q.drawImage(QRect(it->x * badSize, it->y * badSize, badSize, badSize), emojiImg, QRect(2, 2, badSize, badSize));
+				} else {
+					p.drawImage(QRect(it->x * imSize, it->y * imSize, imSize, imSize), emojiImg, drawFrom);
+				}
 			}
 		}
 		QString postfix = variantPostfix[variantIndex], emojif = emoji_png + postfix + ".webp";
+//		emojisImg.save(emoji_png + postfix + ".png");
+//		if (bad) badImg.save(emoji_png + "_bad.png");
 		QByteArray emojib;
 		{
 			QBuffer ebuf(&emojib);

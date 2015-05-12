@@ -395,9 +395,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_group_invite_link" = "초대링크";
 "lng_group_invite_create" = "초대링크 생성";
-"lng_group_invite_about" = "이 그룹방으로 초대할 수 있는 링크를 생성 할 수 있습니다.\n링크가 노출되는 모든 회원이 참여가 가능합니다.";
-"lng_group_invite_create_new" = "새로운 링크 생성";
-"lng_group_invite_about_new" = "새로 생성하실 경우\n현재 초대링크는 폐기됩니다.";
+"lng_group_invite_about" = "이 링크를 통하여,\n그룹방에 초대가 가능합니다.";
+"lng_group_invite_create_new" = "초대링크 폐기";
+"lng_group_invite_about_new" = "기존 링크는 비활성화 될 예정이며,\n새로운 링크가 재생성이 될 예정입니다.";
 "lng_group_invite_copied" = "클립보드에 초대링크가 복사 되었습니다.";
 "lng_group_invite_no_room" = "그룹방 인원 최대치가 도달하여\n더이상 참여가 안됩니다.";
 
@@ -419,6 +419,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_cancel" = "취소";
 "lng_media_video" = "비디오 파일";
 "lng_media_audio" = "음성 메시지";
+
+"lng_emoji_category0" = "자주 사용";
+"lng_emoji_category1" = "사람";
+"lng_emoji_category2" = "자연";
+"lng_emoji_category3" = "음식점";
+"lng_emoji_category4" = "기념일";
+"lng_emoji_category5" = "활동";
+"lng_emoji_category6" = "여행 및 장소";
+"lng_emoji_category7" = "오브제 & 상징";
+"lng_emoji_category8" = "스티커";
 
 "lng_in_dlg_photo" = "사진";
 "lng_in_dlg_video" = "비디오";
@@ -563,7 +573,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 그룹방 초대링크 활성화\n— 음소거된 대화는 회식 뱃지로 표기";
+"lng_new_version_text" = "— 새로운 이모티콘 지원\n— 이모티콘 및 스티커 패널 향상";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 
