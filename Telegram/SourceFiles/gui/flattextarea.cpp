@@ -373,7 +373,7 @@ QString FlatTextarea::getText(int32 start, int32 end) const {
 						QString imageName = static_cast<QTextImageFormat*>(&f)->name();
 						if (imageName.startsWith(QLatin1String("emoji://e."))) {
 							if (EmojiPtr emoji = emojiFromUrl(imageName)) {
-								emojiText = textEmojiString(emoji);
+								emojiText = emojiString(emoji);
 							}
 						}
 					}

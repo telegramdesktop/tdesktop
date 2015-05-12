@@ -534,8 +534,6 @@ QString textcmdStartColor(const style::color &color);
 QString textcmdStopColor();
 const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink = true);
 
-QString textEmojiString(EmojiPtr emoji);
-
 inline bool chIsSpace(QChar ch, bool rich = false) {
 	return ch.isSpace() || (ch < 32 && !(rich && ch == TextCommand)) || (ch == QChar::ParagraphSeparator) || (ch == QChar::LineSeparator) || (ch == QChar::ObjectReplacementCharacter) || (ch == QChar::SoftHyphen) || (ch == QChar::CarriageReturn) || (ch == QChar::Tabulation);
 }

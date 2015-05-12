@@ -84,7 +84,21 @@ void EmojiBox::fillBlocks() {
 	BlockRow currentRow;
 	currentRow.reserve(replacesInRow);
 	for (uint32 i = 0; i < replacesCount; ++i) {
-		Block block(emojiGet(replaces[i].code), QString::fromUtf8(replaces[i].replace));
+		EmojiPtr emoji = emojiGet(replaces[i].code);
+		if (!emoji || emoji == TwoSymbolEmoji) continue;
+		if (emoji->color) {
+			EmojiColorVariants::const_iterator it = cEmojiVariants().constFind(emoji->code);
+			if (it != cEmojiVariants().cend()) {
+				EmojiPtr replace = emojiFromKey(it.value());
+				if (replace) {
+					if (replace != TwoSymbolEmoji && replace->code == emoji->code && replace->code2 == emoji->code2) {
+						emoji = replace;
+					}
+				}
+			}
+		}
+
+		Block block(emoji, QString::fromUtf8(replaces[i].replace));
 		currentRow.push_back(block);
         if (uint32(currentRow.size()) == replacesInRow) {
 			_blocks.push_back(currentRow);

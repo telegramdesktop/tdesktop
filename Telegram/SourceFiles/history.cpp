@@ -2900,7 +2900,7 @@ bool HistorySticker::updateStickerEmoji() {
 	}
 	const EmojiStickersMap &stickers(cEmojiStickers());
 	EmojiStickersMap::const_iterator i = stickers.constFind(data);
-	QString emoji = (i == stickers.cend()) ? QString() : textEmojiString(i.value());
+	QString emoji = (i == stickers.cend()) ? QString() : emojiString(i.value());
 	if (emoji != _emoji) {
 		_emoji = emoji;
 		return true;

@@ -239,31 +239,6 @@ const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink) 
 	return (result < end && *result == TextCommand) ? (result + 1) : from;
 }
 
-QString textEmojiString(EmojiPtr emoji) {
-	if ((emoji->code & 0xFFFF0000U) == 0xFFFF0000U) { // sequence
-		return emojiGetSequence(emoji->code & 0xFFFFU);
-	}
-
-	QString result;
-	result.reserve(emoji->len + (emoji->postfix ? 1 : 0));
-	if (!(emoji->code >> 16)) {
-		result.append(QChar(emoji->code & 0xFFFF));
-	} else {
-		result.append(QChar((emoji->code >> 16) & 0xFFFF));
-		result.append(QChar(emoji->code & 0xFFFF));
-		if (emoji->code2) {
-			result.append(QChar((emoji->code2 >> 16) & 0xFFFF));
-			result.append(QChar(emoji->code2 & 0xFFFF));
-		}
-	}
-	if (emoji->color && ((emoji->color & 0xFFFF0000U) != 0xFFFF0000U)) {
-		result.append(QChar((emoji->color >> 16) & 0xFFFF));
-		result.append(QChar(emoji->color & 0xFFFF));
-	}
-	if (emoji->postfix) result.append(QChar(emoji->postfix));
-	return result;
-}
-
 class TextParser {
 public:
 	
@@ -526,6 +501,10 @@ public:
 
 		for (int l = len - skipped - 1; l > 0; --l) {
 			_t->_text.push_back(*++ptr);
+		}
+		if (e->postfix && _t->_text.at(_t->_text.size() - 1).unicode() != e->postfix) {
+			_t->_text.push_back(e->postfix);
+			++len;
 		}
 
 		createBlock(-len);

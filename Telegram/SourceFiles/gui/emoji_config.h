@@ -26,6 +26,31 @@ EmojiPtr emojiGet(EmojiPtr emoji, uint32 color);
 EmojiPtr emojiGet(const QChar *from, const QChar *end);
 QString emojiGetSequence(int index);
 
+inline QString emojiString(EmojiPtr emoji) {
+	if ((emoji->code & 0xFFFF0000U) == 0xFFFF0000U) { // sequence
+		return emojiGetSequence(emoji->code & 0xFFFFU);
+	}
+
+	QString result;
+	result.reserve(emoji->len + (emoji->postfix ? 1 : 0));
+	if (!(emoji->code >> 16)) {
+		result.append(QChar(emoji->code & 0xFFFF));
+	} else {
+		result.append(QChar((emoji->code >> 16) & 0xFFFF));
+		result.append(QChar(emoji->code & 0xFFFF));
+		if (emoji->code2) {
+			result.append(QChar((emoji->code2 >> 16) & 0xFFFF));
+			result.append(QChar(emoji->code2 & 0xFFFF));
+		}
+	}
+	if (emoji->color && ((emoji->color & 0xFFFF0000U) != 0xFFFF0000U)) {
+		result.append(QChar((emoji->color >> 16) & 0xFFFF));
+		result.append(QChar(emoji->color & 0xFFFF));
+	}
+	if (emoji->postfix) result.append(QChar(emoji->postfix));
+	return result;
+}
+
 inline uint64 emojiKey(EmojiPtr emoji) {
 	uint64 key = emoji->code;
 	if (emoji->code2) {
@@ -138,7 +163,8 @@ inline QString replaceEmojis(const QString &text) {
 		while (currentLink < lnkCount && ch >= lnkRanges[currentLink].from + lnkRanges[currentLink].len) {
 			++currentLink;
 		}
-		if (emojiCode &&
+		EmojiPtr emoji = emojiCode ? emojiGet(emojiCode) : 0;
+		if (emoji && emoji != TwoSymbolEmoji &&
 		    (ch == emojiStart || !ch->isLetterOrNumber() || !(ch - 1)->isLetterOrNumber()) &&
 		    (newEmojiEnd == e || !newEmojiEnd->isLetterOrNumber() || newEmojiEnd == emojiStart || !(newEmojiEnd - 1)->isLetterOrNumber()) &&
 			(currentLink >= lnkCount || (ch < lnkRanges[currentLink].from && newEmojiEnd <= lnkRanges[currentLink].from) || (ch >= lnkRanges[currentLink].from + lnkRanges[currentLink].len && newEmojiEnd > lnkRanges[currentLink].from + lnkRanges[currentLink].len))
@@ -148,10 +174,18 @@ inline QString replaceEmojis(const QString &text) {
 			if (ch > emojiEnd + (consumePrevious ? 1 : 0)) {
 				result.append(emojiEnd, ch - emojiEnd - (consumePrevious ? 1 : 0));
 			}
-			if (emojiCode > 65535) {
-				result.append(QChar((emojiCode >> 16) & 0xFFFF));
+			if (emoji->color) {
+				EmojiColorVariants::const_iterator it = cEmojiVariants().constFind(emoji->code);
+				if (it != cEmojiVariants().cend()) {
+					EmojiPtr replace = emojiFromKey(it.value());
+					if (replace) {
+						if (replace != TwoSymbolEmoji && replace->code == emoji->code && replace->code2 == emoji->code2) {
+							emoji = replace;
+						}
+					}
+				}
 			}
-			result.append(QChar(emojiCode & 0xFFFF));
+			result.append(emojiString(emoji));
 
 			ch = emojiEnd = newEmojiEnd;
 			canFindEmoji = true;
