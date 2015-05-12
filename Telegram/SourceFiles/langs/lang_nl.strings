@@ -395,9 +395,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_group_invite_link" = "Uitnodigingslink";
 "lng_group_invite_create" = "Uitnodigingslink maken";
-"lng_group_invite_about" = "Andere gebruikers kunnen aan je groep\ndeelnemen door deze link te openen.";
-"lng_group_invite_create_new" = "Nieuwe link";
-"lng_group_invite_about_new" = "Als je een nieuwe link maakt zal \nde huidige inactief worden.";
+"lng_group_invite_about" = "Gebruikers kunnen aan je groep \ndeelnemen met deze link.";
+"lng_group_invite_create_new" = "Uitnodigingslink intrekken";
+"lng_group_invite_about_new" = "Je uitnodigingslink zal inactief worden\neen nieuwe link zal worden gegenereerd.";
 "lng_group_invite_copied" = "Link gekopieerd naar klembord.";
 "lng_group_invite_no_room" = "Sorry, deze groep is al vol.";
 
@@ -419,6 +419,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_cancel" = "Annuleren";
 "lng_media_video" = "Video";
 "lng_media_audio" = "Spraakbericht";
+
+"lng_emoji_category0" = "Veelgebruikt";
+"lng_emoji_category1" = "Mensen";
+"lng_emoji_category2" = "Natuur";
+"lng_emoji_category3" = "Eten & drinken";
+"lng_emoji_category4" = "Feestelijkheid";
+"lng_emoji_category5" = "Actviteit";
+"lng_emoji_category6" = "Reizen & plekken";
+"lng_emoji_category7" = "Objecten & symbolen";
+"lng_emoji_category8" = "Stickers";
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Video";
@@ -563,7 +573,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Uitnodigingslinks voor groepschats\n— Grijs Badgenummer voor gesprekken die op stil staan";
+"lng_new_version_text" = "— Ondersteuning voor nieuwe emoji toegevoegd\n— Verbeterd emoji- en stickerspaneel";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

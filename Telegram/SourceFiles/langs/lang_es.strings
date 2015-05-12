@@ -389,16 +389,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_changed_title" = "{from} cambió el nombre del grupo a «{title}»";
 "lng_action_created_chat" = "{from} creó el grupo «{title}»";
 
-"lng_group_invite_bad_link" = "El enlace de invitación está roto\no ha expirado.";
+"lng_group_invite_bad_link" = "El enlace de invitación está \nroto o ha expirado.";
 "lng_group_invite_want_join" = "¿Quieres unirte al grupo «{title}»?";
 "lng_group_invite_join" = "Unirme";
 
 "lng_group_invite_link" = "Invitación";
 "lng_group_invite_create" = "Crear un enlace de invitación";
-"lng_group_invite_about" = "Puedes crear un enlace para unirse a este grupo.\nCualquiera que tenga ese enlace puede unirse.";
-"lng_group_invite_create_new" = "Nuevo enlace";
-"lng_group_invite_about_new" = "El enlace actual dejará de funcionar\ncuando crees uno nuevo.";
-"lng_group_invite_copied" = "El enlace de invitación fue copiado al portapapeles.";
+"lng_group_invite_about" = "Los usuarios de Telegram podrán unirse\na tu grupo a través de este enlace.";
+"lng_group_invite_create_new" = "Anular enlace de invitación";
+"lng_group_invite_about_new" = "El enlace previo será desactivado\ny generaremos uno nuevo para ti.";
+"lng_group_invite_copied" = "Enlace de invitación copiado al portapapeles.";
 "lng_group_invite_no_room" = "No puedes unirte a este grupo porque\nhay muchos miembros en él.";
 
 "lng_forwarded_from" = "Reenviado desde";
@@ -419,6 +419,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_cancel" = "Cancelar";
 "lng_media_video" = "Vídeo";
 "lng_media_audio" = "Mensaje de voz";
+
+"lng_emoji_category0" = "Usados frecuentemente";
+"lng_emoji_category1" = "Gente";
+"lng_emoji_category2" = "Naturaleza";
+"lng_emoji_category3" = "Comida y bebidas";
+"lng_emoji_category4" = "Celebración";
+"lng_emoji_category5" = "Actividad";
+"lng_emoji_category6" = "Viajes y lugares";
+"lng_emoji_category7" = "Objetos y símbolos";
+"lng_emoji_category8" = "Stickers";
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Vídeo";
@@ -563,7 +573,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop fue actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Enlaces de invitación para chats grupales\n— Globo en el ícono gris para conversaciones silenciadas";
+"lng_new_version_text" = "— Añadido el soporte para nuevos emojis\n— Pestañas de stickers y emojis mejoradas ";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

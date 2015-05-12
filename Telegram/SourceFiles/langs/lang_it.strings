@@ -240,7 +240,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_section_cache" = "Archivio locale";
 "lng_settings_no_data_cached" = "Non ci sono dati nella cache!";
 "lng_settings_images_cached" = "{count:_not_used_|# immagine|# immagini}, {size}";
-"lng_settings_audios_cached" = "{count:_not_used_|# messaggio vocale|# messaggi vocali}, {size}";
+"lng_settings_audios_cached" = "{count:_not_used_|# nota vocale|# note vocali}, {size}";
 "lng_local_storage_clear" = "Elimina tutto";
 "lng_local_storage_clearing" = "Eliminando..";
 "lng_local_storage_cleared" = "Eliminato!";
@@ -347,7 +347,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_set_group_photo" = "Imposta foto";
 "lng_profile_add_participant" = "Aggiungi membro";
 "lng_profile_delete_and_exit" = "Esci";
-"lng_profile_kick" = "Espelli";
+"lng_profile_kick" = "Rimuovi";
 "lng_profile_sure_kick" = "Espellere {user} dal gruppo?";
 "lng_profile_loading" = "Caricamento..";
 "lng_profile_shared_media" = "Media condivisi";
@@ -358,8 +358,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_videos_header" = "Panoramica video";
 "lng_profile_files" = "{count:_not_used_|# file|# file} »";
 "lng_profile_files_header" = "Panoramica file";
-"lng_profile_audios" = "{count:_not_used_|# messaggio vocale|# messaggi vocali} »";
-"lng_profile_audios_header" = "Panoramica messaggi vocali";
+"lng_profile_audios" = "{count:_not_used_|# nota vocale|# note vocali} »";
+"lng_profile_audios_header" = "Panoramica note vocali";
 "lng_profile_show_all_types" = "Mostra tutti i tipi";
 "lng_profile_copy_phone" = "Copia numero di telefono";
 
@@ -379,7 +379,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_message_empty" = "(vuoto)";
 
 "lng_action_add_user" = "{from} ha aggiunto {user}";
-"lng_action_kick_user" = "{from} ha espulso {user}";
+"lng_action_kick_user" = "{from} ha rimosso {user}";
 "lng_action_user_left" = "{from} ha lasciato il gruppo";
 "lng_action_user_joined" = "{from} si è unito al gruppo";
 "lng_action_user_joined_by_link" = "{from} si è unito al gruppo tramite link di invito";
@@ -389,16 +389,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_changed_title" = "{from} ha cambiato il nome del gruppo in «{title}»";
 "lng_action_created_chat" = "{from} ha creato il gruppo «{title}»";
 
-"lng_group_invite_bad_link" = "Questo link non funziona\no è scaduto.";
+"lng_group_invite_bad_link" = "Questo link di invito non funziona\no è scaduto.";
 "lng_group_invite_want_join" = "Vuoi unirti al gruppo «{title}»?";
 "lng_group_invite_join" = "Unisciti";
 
 "lng_group_invite_link" = "Link di invito";
 "lng_group_invite_create" = "Crea un link di invito";
-"lng_group_invite_about" = "Puoi creare un link per unirsi a questo gruppo.\nChiunque abbia quel link potrà unirsi.";
-"lng_group_invite_create_new" = "Crea nuovo link";
-"lng_group_invite_about_new" = "Il link attuale smetterà di funzionare\nquando ne viene creato uno nuovo.";
-"lng_group_invite_copied" = "Il link di invito è stato copiato negli appunti.";
+"lng_group_invite_about" = "Gli utenti di Telegram saranno in grado di \naggiungersi al tuo gruppo aprendo il link.";
+"lng_group_invite_create_new" = "Revoca link";
+"lng_group_invite_about_new" = "Il link precedente smetterà di funzionare\ne ne sarà creato uno nuovo per te.";
+"lng_group_invite_copied" = "Link di invito copiato negli appunti.";
 "lng_group_invite_no_room" = "Impossibile unirsi a questo gruppo\nperché ci sono già troppi membri.";
 
 "lng_forwarded_from" = "Inoltrato da";
@@ -412,13 +412,23 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_type_photos" = "Foto";
 "lng_media_type_videos" = "Video";
 "lng_media_type_files" = "File";
-"lng_media_type_audios" = "Messaggi vocali";
+"lng_media_type_audios" = "Note vocali";
 
 "lng_media_open_with" = "Apri con";
 "lng_media_download" = "Download";
 "lng_media_cancel" = "Annulla";
 "lng_media_video" = "Video";
-"lng_media_audio" = "Messaggio vocale";
+"lng_media_audio" = "Nota vocale";
+
+"lng_emoji_category0" = "Utilizzate di frequente";
+"lng_emoji_category1" = "Persone";
+"lng_emoji_category2" = "Natura";
+"lng_emoji_category3" = "Cibo e bevande";
+"lng_emoji_category4" = "Festeggiamenti";
+"lng_emoji_category5" = "Attività";
+"lng_emoji_category6" = "Viaggi e luoghi";
+"lng_emoji_category7" = "Oggetti e simboli";
+"lng_emoji_category8" = "Sticker";
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Video";
@@ -563,7 +573,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli update è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "— Link di invito per le chat di gruppo\n— Icona badge grigia per le conversazioni silenziate";
+"lng_new_version_text" = "— Aggiunto il supporto per nuove emoji\n— Pannello emoji e sticker migliorato";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 
