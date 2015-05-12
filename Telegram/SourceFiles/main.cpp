@@ -61,7 +61,12 @@ int main(int argc, char *argv[]) {
 	psStart();
 	int result = 0;
 	{
-		Application app(argc, argv);
+		QByteArray args[] = { "-style=0" }; // prepare fake args
+		static const int a_cnt = sizeof(args) / sizeof(args[0]);
+		int a_argc = a_cnt + 1;
+		char *a_argv[a_cnt + 1] = { argv[0], args[0].data() };
+
+		Application app(a_argc, a_argv);
 		if (!App::quiting()) {
 			result = app.exec();
 		}
