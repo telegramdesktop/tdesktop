@@ -63,11 +63,15 @@ void MTPSessionData::clear() {
 }
 
 
-MTProtoSession::MTProtoSession() : data(this), dcId(0), dc(0), msSendCall(0), msWait(0), _ping(false) {
+MTProtoSession::MTProtoSession() : _killed(false), data(this), dcWithShift(0), dc(0), msSendCall(0), msWait(0), _ping(false) {
 }
 
 void MTProtoSession::start(int32 dcenter) {
-	if (dcId) {
+	if (_killed) {
+		DEBUG_LOG(("Session Error: can't start a killed session"));
+		return;
+	}
+	if (dcWithShift) {
 		DEBUG_LOG(("Session Info: MTProtoSession::start called on already started session"));
 		return;
 	}
@@ -84,8 +88,8 @@ void MTProtoSession::start(int32 dcenter) {
 	connections.reserve(cConnectionsInSession());
 	for (uint32 i = 0; i < cConnectionsInSession(); ++i) {
 		connections.push_back(new MTProtoConnection());
-		dcId = connections.back()->start(&data, dcenter);
-		if (!dcId) {
+		dcWithShift = connections.back()->start(&data, dcenter);
+		if (!dcWithShift) {
 			for (MTProtoConnections::const_iterator j = connections.cbegin(), e = connections.cend(); j != e; ++j) {
 				delete *j;
 			}
@@ -94,11 +98,12 @@ void MTProtoSession::start(int32 dcenter) {
 			return;
 		}
 		if (!dc) {
-			dcenter = dcId;
-			MTProtoDCMap::const_iterator dcIndex = dcs.constFind(dcId % _mtp_internal::dcShift);
+			dcenter = dcWithShift;
+			int32 dcId = dcWithShift % _mtp_internal::dcShift;
+			MTProtoDCMap::const_iterator dcIndex = dcs.constFind(dcId);
 			if (dcIndex == dcs.cend()) {
-				dc = MTProtoDCPtr(new MTProtoDC(dcId % _mtp_internal::dcShift, mtpAuthKeyPtr()));
-				dcs.insert(dcId % _mtp_internal::dcShift, dc);
+				dc = MTProtoDCPtr(new MTProtoDC(dcId, mtpAuthKeyPtr()));
+				dcs.insert(dcWithShift % _mtp_internal::dcShift, dc);
 			} else {
 				dc = dcIndex.value();
 			}
@@ -115,18 +120,32 @@ void MTProtoSession::start(int32 dcenter) {
 }
 
 void MTProtoSession::restart() {
+	if (_killed) {
+		DEBUG_LOG(("Session Error: can't restart a killed session"));
+		return;
+	}
 	emit needToRestart();
 }
 
 void MTProtoSession::stop() {
-	DEBUG_LOG(("Session Info: stopping session %1").arg(dcId));
+	DEBUG_LOG(("Session Info: stopping session dcWithShift %1").arg(dcWithShift));
 	while (!connections.isEmpty()) {
 		connections.back()->stop();
 		connections.pop_back();
 	}
 }
 
+void MTProtoSession::kill() {
+	stop();
+	_killed = true;
+	DEBUG_LOG(("Session Info: marked session dcWithShift %1 as killed").arg(dcWithShift));
+}
+
 void MTProtoSession::sendAnything(quint64 msCanWait) {
+	if (_killed) {
+		DEBUG_LOG(("Session Error: can't send anything in a killed session"));
+		return;
+	}
 	uint64 ms = getms(true);
 	if (msSendCall) {
 		if (ms > msSendCall + msWait) {
@@ -141,11 +160,11 @@ void MTProtoSession::sendAnything(quint64 msCanWait) {
 		msWait = msCanWait;
 	}
 	if (msWait) {
-		DEBUG_LOG(("MTP Info: dc %1 can wait for %2ms from current %3").arg(dcId).arg(msWait).arg(msSendCall));
+		DEBUG_LOG(("MTP Info: dcWithShift %1 can wait for %2ms from current %3").arg(dcWithShift).arg(msWait).arg(msSendCall));
 		msSendCall = ms;
 		sender.start(msWait);
 	} else {
-		DEBUG_LOG(("MTP Info: dc %1 stopped send timer, can wait for %2ms from current %3").arg(dcId).arg(msWait).arg(msSendCall));
+		DEBUG_LOG(("MTP Info: dcWithShift %1 stopped send timer, can wait for %2ms from current %3").arg(dcWithShift).arg(msWait).arg(msSendCall));
 		sender.stop();
 		msSendCall = 0;
 		needToResumeAndSend();
@@ -153,20 +172,24 @@ void MTProtoSession::sendAnything(quint64 msCanWait) {
 }
 
 void MTProtoSession::needToResumeAndSend() {
+	if (_killed) {
+		DEBUG_LOG(("Session Info: can't resume a killed session"));
+		return;
+	}
 	if (connections.isEmpty()) {
-		DEBUG_LOG(("Session Info: resuming session %1").arg(dcId));
+		DEBUG_LOG(("Session Info: resuming session dcWithShift %1").arg(dcWithShift));
 		MTProtoDCMap &dcs(mtpDCMap());
 
 		connections.reserve(cConnectionsInSession());
 		for (uint32 i = 0; i < cConnectionsInSession(); ++i) {
 			connections.push_back(new MTProtoConnection());
-			if (!connections.back()->start(&data, dcId)) {
+			if (!connections.back()->start(&data, dcWithShift)) {
 				for (MTProtoConnections::const_iterator j = connections.cbegin(), e = connections.cend(); j != e; ++j) {
 					delete *j;
 				}
 				connections.clear();
-				DEBUG_LOG(("Session Info: could not start connection %1 to dc %2").arg(i).arg(dcId));
-				dcId = 0;
+				DEBUG_LOG(("Session Info: could not start connection %1 to dcWithShift %2").arg(i).arg(dcWithShift));
+				dcWithShift = 0;
 				return;
 			}
 		}
@@ -259,11 +282,11 @@ void MTProtoSession::checkRequestsByTimer() {
 }
 
 void MTProtoSession::onConnectionStateChange(qint32 newState) {
-	_mtp_internal::onStateChange(dcId, newState);
+	_mtp_internal::onStateChange(dcWithShift, newState);
 }
 
 void MTProtoSession::onResetDone() {
-	_mtp_internal::onSessionReset(dcId);
+	_mtp_internal::onSessionReset(dcWithShift);
 }
 
 void MTProtoSession::cancel(mtpRequestId requestId, mtpMsgId msgId) {
@@ -428,23 +451,23 @@ QReadWriteLock *MTProtoSession::keyMutex() const {
 }
 
 void MTProtoSession::authKeyCreatedForDC() {
-	DEBUG_LOG(("AuthKey Info: MTProtoSession::authKeyCreatedForDC slot, emitting authKeyCreated(), dc %1").arg(dcId));
+	DEBUG_LOG(("AuthKey Info: MTProtoSession::authKeyCreatedForDC slot, emitting authKeyCreated(), dcWithShift %1").arg(dcWithShift));
 	data.setKey(dc->getKey());
 	emit authKeyCreated();
 }
 
 void MTProtoSession::notifyKeyCreated(const mtpAuthKeyPtr &key) {
-	DEBUG_LOG(("AuthKey Info: MTProtoSession::keyCreated(), setting, dc %1").arg(dcId));
+	DEBUG_LOG(("AuthKey Info: MTProtoSession::keyCreated(), setting, dcWithShift %1").arg(dcWithShift));
 	dc->setKey(key);
 }
 
 void MTProtoSession::layerWasInitedForDC(bool wasInited) {
-	DEBUG_LOG(("MTP Info: MTProtoSession::layerWasInitedForDC slot, dc %1").arg(dcId));
+	DEBUG_LOG(("MTP Info: MTProtoSession::layerWasInitedForDC slot, dcWithShift %1").arg(dcWithShift));
 	data.setLayerWasInited(wasInited);
 }
 
 void MTProtoSession::notifyLayerInited(bool wasInited) {
-	DEBUG_LOG(("MTP Info: emitting MTProtoDC::layerWasInited(%1), dc %2").arg(logBool(wasInited)).arg(dcId));
+	DEBUG_LOG(("MTP Info: emitting MTProtoDC::layerWasInited(%1), dcWithShift %2").arg(logBool(wasInited)).arg(dcWithShift));
 	dc->setConnectionInited(wasInited);
 	emit dc->layerWasInited(wasInited);
 }
@@ -453,7 +476,7 @@ void MTProtoSession::destroyKey() {
 	if (!dc) return;
 
 	if (data.getKey()) {
-		DEBUG_LOG(("MTP Info: destroying auth_key for dc %1").arg(dcId));
+		DEBUG_LOG(("MTP Info: destroying auth_key for dcWithShift %1").arg(dcWithShift));
 		if (data.getKey() == dc->getKey()) {
 			dc->destroyKey();
 		}
@@ -461,8 +484,8 @@ void MTProtoSession::destroyKey() {
 	}
 }
 
-int32 MTProtoSession::getDC() const {
-	return dcId;
+int32 MTProtoSession::getDcWithShift() const {
+	return dcWithShift;
 }
 
 void MTProtoSession::tryToReceive() {
@@ -481,7 +504,7 @@ void MTProtoSession::tryToReceive() {
 			responses.erase(i);
 		}
 		if (requestId <= 0) {
-			if (dcId < int(_mtp_internal::dcShift)) { // call globalCallback only in main session
+			if (dcWithShift < int(_mtp_internal::dcShift)) { // call globalCallback only in main session
 				_mtp_internal::globalCallback(response.constData(), response.constData() + response.size());
 			}
 		} else {

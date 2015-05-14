@@ -1114,6 +1114,7 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
 //	createConn();
 
 	if (!dc) {
+		QReadLocker lock(mtpDcOptionsMutex());
 		const mtpDcOptions &options(cDcOptions());
 		if (options.isEmpty()) {
 			LOG(("MTP Error: connect failed, no DCs"));
@@ -1713,6 +1714,8 @@ void MTProtoConnectionPrivate::retryByTimer() {
 	}
 	if (keyId == mtpAuthKey::RecreateKeyId) {
 		if (sessionData->getKey()) {
+			unlockKey();
+
 			QWriteLocker lock(sessionData->keyMutex());
 			sessionData->owner()->destroyKey();
 		}
@@ -1738,31 +1741,34 @@ void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 	_pingId = _pingMsgId = _pingIdToSend = _pingSendAt = 0;
 	_pingSender.stop();
 
-	const mtpDcOption *dcOption = 0;
-	const mtpDcOptions &options(cDcOptions());
-	mtpDcOptions::const_iterator dcIndex = options.constFind(dc % _mtp_internal::dcShift);
-	DEBUG_LOG(("MTP Info: connecting to DC %1..").arg(dc));
-	if (dcIndex == options.cend()) {
+	std::string ip;
+	uint32 port = 0;
+	{
+		QReadLocker lock(mtpDcOptionsMutex());
+		const mtpDcOptions &options(cDcOptions());
+		mtpDcOptions::const_iterator dcIndex = options.constFind(dc % _mtp_internal::dcShift);
+		DEBUG_LOG(("MTP Info: connecting to DC %1..").arg(dc));
+		if (dcIndex != options.cend()) {
+			ip = dcIndex->ip;
+			port = dcIndex->port;
+		}
+	}
+	if (!port || ip.empty()) {
 		if (afterConfig) {
 			LOG(("MTP Error: DC %1 options not found right after config load!").arg(dc));
 			return restart();
-		} else {
-			DEBUG_LOG(("MTP Info: DC %1 options not found, waiting for config").arg(dc));
-			connect(mtpConfigLoader(), SIGNAL(loaded()), this, SLOT(onConfigLoaded()));
-			mtpConfigLoader()->load();
-			return;
 		}
+		DEBUG_LOG(("MTP Info: DC %1 options not found, waiting for config").arg(dc));
+		connect(mtpConfigLoader(), SIGNAL(loaded()), this, SLOT(onConfigLoaded()));
+		mtpConfigLoader()->load();
+		return;
 	}
-	dcOption = &dcIndex.value();
-
-	const char *ip(dcOption->ip.c_str());
-	uint32 port(dcOption->port);
-	DEBUG_LOG(("MTP Info: socket connection to %1:%2..").arg(ip).arg(port));
+	DEBUG_LOG(("MTP Info: socket connection to %1:%2..").arg(ip.c_str()).arg(port));
 
 	connect(conn, SIGNAL(connected()), this, SLOT(onConnected()));
 	connect(conn, SIGNAL(disconnected()), this, SLOT(restart()));
 
-	conn->connectToServer(ip, port);
+	conn->connectToServer(ip.c_str(), port);
 }
 
 void MTProtoConnectionPrivate::restart(bool maybeBadKey) {
@@ -2824,12 +2830,36 @@ void MTProtoConnectionPrivate::onConnected() {
 
 	TCP_LOG(("Connection Info: connection succeed."));
 
-	if (updateAuthKey()) {
-		DEBUG_LOG(("MTP Info: returning from socketConnected.."));
-		return;
+	updateAuthKey();
+}
+
+void MTProtoConnectionPrivate::updateAuthKey() 	{
+	QReadLocker lockFinished(&sessionDataMutex);
+	if (!sessionData || !conn) return;
+
+	DEBUG_LOG(("AuthKey Info: MTProtoConnection updating key from MTProtoSession, dc %1").arg(dc));
+	uint64 newKeyId = 0;
+	{
+		ReadLockerAttempt lock(sessionData->keyMutex());
+		if (!lock) {
+			DEBUG_LOG(("MTP Info: could not lock auth_key for read, waiting signal emit"));
+			clearMessages();
+			keyId = newKeyId;
+			return; // some other connection is getting key
+		}
+		const mtpAuthKeyPtr &key(sessionData->getKey());
+		newKeyId = key ? key->keyId() : 0;
+	}
+	if (keyId != newKeyId) {
+		clearMessages();
+		keyId = newKeyId;
+	}
+	DEBUG_LOG(("AuthKey Info: MTProtoConnection update key from MTProtoSession, dc %1 result: %2").arg(dc).arg(mb(&keyId, sizeof(keyId)).str()));
+	if (keyId) {
+		return authKeyCreated();
 	}
 
-	DEBUG_LOG(("MTP Info: will be creating auth_key"));
+	DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), will be creating auth_key"));
 	lockKey();
 
 	const mtpAuthKeyPtr &key(sessionData->getKey());
@@ -2852,36 +2882,6 @@ void MTProtoConnectionPrivate::onConnected() {
 
 	DEBUG_LOG(("AuthKey Info: sending Req_pq.."));
 	sendRequestNotSecure(req_pq);
-}
-
-bool MTProtoConnectionPrivate::updateAuthKey() 	{
-	QReadLocker lockFinished(&sessionDataMutex);
-	if (!sessionData || !conn) return false;
-
-	DEBUG_LOG(("AuthKey Info: MTProtoConnection updating key from MTProtoSession, dc %1").arg(dc));
-	uint64 newKeyId = 0;
-	{
-		ReadLockerAttempt lock(sessionData->keyMutex());
-		if (!lock) {
-			DEBUG_LOG(("MTP Info: could not lock auth_key for read, waiting signal emit"));
-			clearMessages();
-			keyId = newKeyId;
-			return true; // some other connection is getting key
-		}
-		const mtpAuthKeyPtr &key(sessionData->getKey());
-		newKeyId = key ? key->keyId() : 0;
-	}
-	if (keyId != newKeyId) {
-		clearMessages();
-		keyId = newKeyId;
-	}
-	DEBUG_LOG(("AuthKey Info: MTProtoConnection update key from MTProtoSession, dc %1 result: %2").arg(dc).arg(mb(&keyId, sizeof(keyId)).str()));
-	if (keyId) {
-		authKeyCreated();
-		return true;
-	}
-	DEBUG_LOG(("AuthKey Info: Key update failed"));
-	return false;
 }
 
 void MTProtoConnectionPrivate::clearMessages() {
@@ -3481,7 +3481,14 @@ MTProtoConnectionPrivate::~MTProtoConnectionPrivate() {
 
 void MTProtoConnectionPrivate::stop() {
 	QWriteLocker lockFinished(&sessionDataMutex);
-	sessionData = 0;
+	if (sessionData) {
+		if (myKeyLock) {
+			sessionData->owner()->notifyKeyCreated(mtpAuthKeyPtr()); // release key lock, let someone else create it
+			sessionData->keyMutex()->unlock();
+			myKeyLock = false;
+		}
+		sessionData = 0;
+	}
 }
 
 MTProtoConnection::~MTProtoConnection() {

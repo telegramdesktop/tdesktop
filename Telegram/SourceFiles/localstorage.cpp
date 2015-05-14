@@ -1077,10 +1077,17 @@ namespace {
 			LOG(("App Info: reading old user config.."));
 			qint32 version = 0;
 
-			mtpDcOptions dcOpts(cDcOptions());
+			mtpDcOptions dcOpts;
+			{
+				QReadLocker lock(MTP::dcOptionsMutex());
+				dcOpts = cDcOptions();
+			}
 			_dcOpts = &dcOpts;
 			_readOldUserSettingsFields(&file, version);
-			cSetDcOptions(dcOpts);
+			{
+				QWriteLocker lock(MTP::dcOptionsMutex());
+				cSetDcOptions(dcOpts);
+			}
 
 			file.close();
 			result = true;
@@ -1157,10 +1164,17 @@ namespace {
 			LOG(("App Info: reading old keys.."));
 			qint32 version = 0;
 
-			mtpDcOptions dcOpts(cDcOptions());
+			mtpDcOptions dcOpts;
+			{
+				QReadLocker lock(MTP::dcOptionsMutex());
+				dcOpts = cDcOptions();
+			}
 			_dcOpts = &dcOpts;
 			_readOldMtpDataFields(&file, version);
-			cSetDcOptions(dcOpts);
+			{
+				QWriteLocker lock(MTP::dcOptionsMutex());
+				cSetDcOptions(dcOpts);
+			}
 
 			file.close();
 			result = true;
@@ -1648,7 +1662,11 @@ namespace Local {
 			LOG(("App Error: could not decrypt settings from settings file, maybe bad passcode.."));
 			return writeSettings();
 		}
-		mtpDcOptions dcOpts(cDcOptions());
+		mtpDcOptions dcOpts;
+		{
+			QReadLocker lock(MTP::dcOptionsMutex());
+			dcOpts = cDcOptions();
+		}
 		_dcOpts = &dcOpts;
 		LOG(("App Info: reading encrypted settings.."));
 		while (!settings.stream.atEnd()) {
@@ -1669,7 +1687,10 @@ namespace Local {
 				DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
 			}
 		}
-		cSetDcOptions(dcOpts);
+		{
+			QWriteLocker lock(MTP::dcOptionsMutex());
+			cSetDcOptions(dcOpts);
+		}
 
 		_settingsSalt = salt;
 	}
@@ -1690,13 +1711,19 @@ namespace Local {
 		}
 		settings.writeData(_settingsSalt);
 
-		mtpDcOptions dcOpts(cDcOptions());
+		mtpDcOptions dcOpts;
+		{
+			QReadLocker lock(MTP::dcOptionsMutex());
+			dcOpts = cDcOptions();
+		}
 		if (dcOpts.isEmpty()) {
 			const BuiltInDc *bdcs = builtInDcs();
 			for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
 				dcOpts.insert(bdcs[i].id, mtpDcOption(bdcs[i].id, "", bdcs[i].ip, bdcs[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
 			}
+
+			QWriteLocker lock(MTP::dcOptionsMutex());
 			cSetDcOptions(dcOpts);
 		}
 

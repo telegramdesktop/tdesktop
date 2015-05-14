@@ -4879,7 +4879,7 @@ void HistoryMessage::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) 
 			lnk = _from->lnk;
 			return;
 		}
-//		width -= st::msgPhotoSkip;
+		//		width -= st::msgPhotoSkip;
 		left += st::msgPhotoSkip;
 	}
 	if (width < 1) return;
@@ -4900,6 +4900,10 @@ void HistoryMessage::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) 
 		}
 		r.setTop(r.top() + st::msgNameFont->height);
 	}
+	return getStateFromMessageText(lnk, inText, x, y, r);
+}
+
+void HistoryMessage::getStateFromMessageText(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const QRect &r) const {
 	QRect trect(r.marginsAdded(-st::msgPadding));
 	TextLinkPtr medialnk;
 	if (_media) {
@@ -5056,12 +5060,10 @@ void HistoryForwarded::drawForwardedFrom(QPainter &p, int32 x, int32 y, int32 w,
 }
 
 void HistoryForwarded::drawMessageText(QPainter &p, const QRect &trect, uint32 selection) const {
-	int32 h = st::msgServiceNameFont->height;
-
 	drawForwardedFrom(p, trect.x(), trect.y(), trect.width(), (selection == FullItemSel));
 
 	QRect realtrect(trect);
-	realtrect.setY(trect.y() + h);
+	realtrect.setY(trect.y() + st::msgServiceNameFont->height);
 	HistoryMessage::drawMessageText(p, realtrect, selection);
 }
 
@@ -5137,6 +5139,12 @@ void HistoryForwarded::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y
 		y -= st::msgServiceNameFont->height;
 	}
 	return HistoryMessage::getState(lnk, inText, x, y);
+}
+
+void HistoryForwarded::getStateFromMessageText(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const QRect &r) const {
+	QRect realr(r);
+	realr.setHeight(r.height() - st::msgServiceNameFont->height);
+	HistoryMessage::getStateFromMessageText(lnk, inText, x, y, realr);
 }
 
 void HistoryForwarded::getForwardedState(TextLinkPtr &lnk, bool &inText, int32 x, int32 w) const {
@@ -5443,6 +5451,14 @@ void HistoryReply::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) co
 		y -= h;
 	}
 	return HistoryMessage::getState(lnk, inText, x, y);
+}
+
+void HistoryReply::getStateFromMessageText(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const QRect &r) const {
+	int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
+
+	QRect realr(r);
+	realr.setHeight(r.height() - h);
+	HistoryMessage::getStateFromMessageText(lnk, inText, x, y, realr);
 }
 
 void HistoryReply::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const {

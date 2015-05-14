@@ -1238,7 +1238,10 @@ public:
 
 	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	bool hasPoint(int32 x, int32 y) const;
+
 	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) const;
+	virtual void getStateFromMessageText(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const QRect &r) const;
+
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
 	uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const {
 		return _text.adjustSelection(from, to, type);
@@ -1311,6 +1314,7 @@ public:
 	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) const;
+	void getStateFromMessageText(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const QRect &r) const;
 	void getForwardedState(TextLinkPtr &lnk, bool &inText, int32 x, int32 w) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
 
@@ -1363,6 +1367,7 @@ public:
 	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) const;
+	void getStateFromMessageText(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const QRect &r) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
 
 	UserData *replyTo() const {

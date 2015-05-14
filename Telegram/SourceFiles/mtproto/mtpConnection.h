@@ -366,7 +366,7 @@ public slots:
 	// Sessions signals, when we need to send something
 	void tryToSend();
 
-	bool updateAuthKey();
+	void updateAuthKey();
 
 	void onConfigLoaded();
 
