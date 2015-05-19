@@ -1834,7 +1834,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	StickerSets &sets(cRefStickerSets());
 	StickerSets::iterator def = sets.find(DefaultStickerSetId);
 	if (def == sets.cend()) {
-		def = sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, qsl("Great Minds"), QString()));
+		def = sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, lang(lng_stickers_default_set), QString()));
 	}
 	for (int32 i = 0; i < d_sets.size(); ++i) {
 		if (d_sets.at(i).type() == mtpc_stickerSet) {

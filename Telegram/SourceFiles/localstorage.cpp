@@ -2288,7 +2288,7 @@ namespace Local {
 
 		cSetStickersHash(QByteArray());
 
-		StickerSet &def(sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, qsl("Great Minds"), QString())).value());
+		StickerSet &def(sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, lang(lng_stickers_default_set), QString())).value());
 		StickerSet &custom(sets.insert(CustomStickerSetId, StickerSet(CustomStickerSetId, 0, lang(lng_custom_stickers), QString())).value());
 
 		QMap<uint64, bool> read;
@@ -2355,14 +2355,14 @@ namespace Local {
 		quint32 cnt;
 		QByteArray hash;
 		stickers.stream >> cnt >> hash;
-		for (int32 i = 0; i < cnt; ++i) {
+		for (uint32 i = 0; i < cnt; ++i) {
 			quint64 setId = 0, setAccess = 0;
 			QString setTitle, setShortName;
 			quint32 scnt = 0;
 			stickers.stream >> setId >> setAccess >> setTitle >> setShortName >> scnt;
 
 			if (setId == DefaultStickerSetId) {
-				setTitle = qsl("Great Minds");
+				setTitle = lang(lng_stickers_default_set);
 			} else if (setId == CustomStickerSetId) {
 				setTitle = lang(lng_custom_stickers);
 			}
@@ -2370,7 +2370,7 @@ namespace Local {
 			set.stickers.reserve(scnt);
 
 			QMap<uint64, bool> read;
-			for (int32 j = 0; j < scnt; ++j) {
+			for (uint32 j = 0; j < scnt; ++j) {
 				quint64 id, access;
 				QString name, mime, alt;
 				qint32 date, dc, size, width, height, type, typeOfSet;

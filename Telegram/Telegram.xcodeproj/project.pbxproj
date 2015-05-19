@@ -40,6 +40,8 @@
 		06EABCC49D2EEE4076322BE7 /* moc_mtp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 924D4939FD169BB4B8AEB1C9 /* moc_mtp.cpp */; settings = {ATTRIBUTES = (); }; };
 		07080BCF1A43588C00741A51 /* lang_auto.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07080BCD1A43588C00741A51 /* lang_auto.cpp */; };
 		07080BD21A436A5000741A51 /* lang.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07080BD01A436A5000741A51 /* lang.cpp */; };
+		0710C9FE1B0B9376001B4272 /* stickersetbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0710C9FC1B0B9376001B4272 /* stickersetbox.cpp */; };
+		0710CA051B0B9404001B4272 /* moc_stickersetbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0710CA041B0B9404001B4272 /* moc_stickersetbox.cpp */; };
 		0732E4A9199E262300D50FE7 /* overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4A7199E262300D50FE7 /* overviewwidget.cpp */; };
 		0732E4AC199E268A00D50FE7 /* moc_overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */; };
 		074756191A1372C600CA07F7 /* moc_types.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074756181A1372C600CA07F7 /* moc_types.cpp */; };
@@ -265,6 +267,9 @@
 		07080BD01A436A5000741A51 /* lang.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = lang.cpp; path = SourceFiles/lang.cpp; sourceTree = SOURCE_ROOT; };
 		07080BD11A436A5000741A51 /* lang.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = lang.h; path = SourceFiles/lang.h; sourceTree = SOURCE_ROOT; };
 		07084684195445A600B5AE3A /* Updater.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = Updater.xcodeproj; sourceTree = SOURCE_ROOT; };
+		0710C9FC1B0B9376001B4272 /* stickersetbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = stickersetbox.cpp; path = SourceFiles/boxes/stickersetbox.cpp; sourceTree = SOURCE_ROOT; };
+		0710C9FD1B0B9376001B4272 /* stickersetbox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stickersetbox.h; path = SourceFiles/boxes/stickersetbox.h; sourceTree = SOURCE_ROOT; };
+		0710CA041B0B9404001B4272 /* moc_stickersetbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_stickersetbox.cpp; path = GeneratedFiles/Debug/moc_stickersetbox.cpp; sourceTree = SOURCE_ROOT; };
 		072E117A1A56EB9400A87ACC /* lang_pt_BR.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_pt_BR.strings; path = SourceFiles/langs/lang_pt_BR.strings; sourceTree = SOURCE_ROOT; };
 		0732E4A7199E262300D50FE7 /* overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = overviewwidget.cpp; path = SourceFiles/overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
 		0732E4A8199E262300D50FE7 /* overviewwidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = overviewwidget.h; path = SourceFiles/overviewwidget.h; sourceTree = SOURCE_ROOT; };
@@ -1099,6 +1104,7 @@
 		801973D3334D0FCA849CF485 /* Debug */ = {
 			isa = PBXGroup;
 			children = (
+				0710CA041B0B9404001B4272 /* moc_stickersetbox.cpp */,
 				0755AEDA1AD12A80004D738A /* moc_abstractbox.cpp */,
 				0755AEDB1AD12A80004D738A /* moc_intropwdcheck.cpp */,
 				0755AEDC1AD12A80004D738A /* moc_sessionsbox.cpp */,
@@ -1183,6 +1189,7 @@
 				E908A6C86F93FA27DF70866C /* photocropbox.cpp */,
 				D1C9C77F1318F5A55C9BF289 /* photosendbox.cpp */,
 				07DB674B1AD07C9200A51329 /* sessionsbox.cpp */,
+				0710C9FC1B0B9376001B4272 /* stickersetbox.cpp */,
 				07D8509719F8320900623D75 /* usernamebox.cpp */,
 				143405635D04698F421A12EA /* aboutbox.h */,
 				07DB674A1AD07C9200A51329 /* abstractbox.h */,
@@ -1199,6 +1206,7 @@
 				14437BFDCD58FF1742EF1B35 /* photocropbox.h */,
 				0BDE09020E45EFA57DCB2E25 /* photosendbox.h */,
 				07DB674C1AD07C9200A51329 /* sessionsbox.h */,
+				0710C9FD1B0B9376001B4272 /* stickersetbox.h */,
 				07D8509819F8320900623D75 /* usernamebox.h */,
 			);
 			name = boxes;
@@ -1588,6 +1596,7 @@
 				074756191A1372C600CA07F7 /* moc_types.cpp in Compile Sources */,
 				98E4F55DB5D8E64AB9F08C83 /* moc_localimageloader.cpp in Compile Sources */,
 				A24E4B5B683764E07683ECEC /* moc_mainwidget.cpp in Compile Sources */,
+				0710CA051B0B9404001B4272 /* moc_stickersetbox.cpp in Compile Sources */,
 				07DE92A71AA4925B00A18F6F /* autolockbox.cpp in Compile Sources */,
 				07D8509919F8320900623D75 /* usernamebox.cpp in Compile Sources */,
 				A469EC9C4C367E0B773A9BB7 /* moc_settingswidget.cpp in Compile Sources */,
@@ -1616,6 +1625,7 @@
 				1BD711B4C358EA7D727BF358 /* moc_flatcheckbox.cpp in Compile Sources */,
 				565F748438E6CE0148C54AFE /* moc_flatinput.cpp in Compile Sources */,
 				8B71D1C7BB9DCEE6511219C2 /* moc_flatlabel.cpp in Compile Sources */,
+				0710C9FE1B0B9376001B4272 /* stickersetbox.cpp in Compile Sources */,
 				0764D55D1ABAD71B00FBFEED /* moc_apiwrap.cpp in Compile Sources */,
 				07DE92AD1AA4928B00A18F6F /* moc_passcodebox.cpp in Compile Sources */,
 				FCC949FEA178F9F5D7478027 /* moc_flattextarea.cpp in Compile Sources */,
