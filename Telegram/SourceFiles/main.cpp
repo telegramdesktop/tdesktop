@@ -26,6 +26,8 @@ int main(int argc, char *argv[]) {
 	_oldWndExceptionFilter = SetUnhandledExceptionFilter(_exceptionFilter);
 #endif
 
+	InitOpenSSL _init;
+
 	settingsParseArgs(argc, argv);
 	for (int32 i = 0; i < argc; ++i) {
 		if (string("-fixprevious") == argv[i]) {

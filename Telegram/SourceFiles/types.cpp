@@ -149,7 +149,39 @@ MTPint toServerTime(const int32 &clientTime) {
 
 // Precise timing functions / rand init
 
+struct CRYPTO_dynlock_value {
+	QMutex mutex;
+};
+
 namespace {
+	bool _sslInited = false;
+	QMutex *_sslLocks = 0;
+	void _sslLockingCallback(int mode, int type, const char *file, int line) {
+		if (!_sslLocks) return; // not inited
+
+		if (mode & CRYPTO_LOCK) {
+			_sslLocks[type].lock();
+		} else {
+			_sslLocks[type].unlock();
+		}
+	}
+	void _sslThreadId(CRYPTO_THREADID *id) {
+		CRYPTO_THREADID_set_pointer(id, QThread::currentThreadId());
+	}
+	CRYPTO_dynlock_value *_sslCreateFunction(const char *file, int line) {
+		return new CRYPTO_dynlock_value();
+	}
+	void _sslLockFunction(int mode, CRYPTO_dynlock_value *l, const char *file, int line) {
+		if (mode & CRYPTO_LOCK) {
+			l->mutex.lock();
+		} else {
+			l->mutex.unlock();
+		}
+	}
+	void _sslDestroyFunction(CRYPTO_dynlock_value *l, const char *file, int line) {
+		delete l;
+	}
+
 	float64 _msFreq;
 	float64 _msgIdCoef;
     int64 _msStart = 0, _msAddToMsStart = 0, _msAddToUnixtime = 0;
@@ -185,16 +217,6 @@ namespace {
 #endif
 			_timeStart = myunixtime();
 			srand((uint32)(_msStart & 0xFFFFFFFFL));
-			if (!RAND_status()) { // should be always inited in all modern OS
-				char buf[16];
-				memcpy(buf, &_msStart, 8);
-				memcpy(buf + 8, &_msFreq, 8);
-				uchar sha256Buffer[32];
-				RAND_seed(hashSha256(buf, 16, sha256Buffer), 32);
-				if (!RAND_status()) {
-					LOG(("MTP Error: Could not init OpenSSL rand, RAND_status() is 0.."));
-				}
-			}
 		}
 	};
 
@@ -209,6 +231,38 @@ namespace {
 		}
 	};
 	_MsStarter _msStarter;
+}
+
+InitOpenSSL::InitOpenSSL() {
+	if (!RAND_status()) { // should be always inited in all modern OS
+		char buf[16];
+		memcpy(buf, &_msStart, 8);
+		memcpy(buf + 8, &_msFreq, 8);
+		uchar sha256Buffer[32];
+		RAND_seed(hashSha256(buf, 16, sha256Buffer), 32);
+		if (!RAND_status()) {
+			LOG(("MTP Error: Could not init OpenSSL rand, RAND_status() is 0.."));
+		}
+	}
+
+	int32 numLocks = CRYPTO_num_locks();
+	if (numLocks) {
+		_sslLocks = new QMutex[numLocks];
+		CRYPTO_set_locking_callback(_sslLockingCallback);
+	} else {
+		LOG(("MTP Error: Could not init OpenSSL threads, CRYPTO_num_locks() returned zero!"));
+	}
+	CRYPTO_THREADID_set_callback(_sslThreadId);
+	CRYPTO_set_dynlock_create_callback(_sslCreateFunction);
+	CRYPTO_set_dynlock_lock_callback(_sslLockFunction);
+	CRYPTO_set_dynlock_destroy_callback(_sslDestroyFunction);
+
+	_sslInited = true;
+}
+
+InitOpenSSL::~InitOpenSSL() {
+	delete[] _sslLocks;
+	_sslLocks = 0;
 }
 
 bool checkms() {
@@ -578,7 +632,10 @@ char *hashMd5Hex(const int32 *hashmd5, void *dest) {
 }
 
 void memset_rand(void *data, uint32 len) {
-    _msInitialize();
+	if (!_sslInited) {
+		LOG(("Critical Error: memset_rand() called before OpenSSL init!"));
+		exit(-1);
+	}
 	RAND_bytes((uchar*)data, len);
 }
 
