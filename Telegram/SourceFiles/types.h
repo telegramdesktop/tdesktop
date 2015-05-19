@@ -98,6 +98,12 @@ inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
 #endif
 }
 
+class InitOpenSSL {
+public:
+	InitOpenSSL();
+	~InitOpenSSL();
+};
+
 bool checkms(); // returns true if time has changed
 uint64 getms(bool checked = false);
 
