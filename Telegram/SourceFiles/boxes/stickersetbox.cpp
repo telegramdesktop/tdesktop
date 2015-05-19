@@ -83,7 +83,19 @@ bool StickerSetInner::failedSet(const RPCError &error) {
 
 void StickerSetInner::installDone(const MTPBool &result) {
 	StickerSets &sets(cRefStickerSets());
+	StickerSets::iterator custom = sets.find(CustomStickerSetId);
 	sets.insert(_setId, StickerSet(_setId, _setAccess, _setTitle, _setShortName)).value().stickers = _pack;
+	if (custom != sets.cend()) {
+		for (int32 i = 0, l = _pack.size(); i < l; ++i) {
+			int32 index = custom->stickers.indexOf(_pack.at(i));
+			if (index >= 0) {
+				custom->stickers.removeAt(index);
+			}
+		}
+		if (custom->stickers.isEmpty()) {
+			sets.erase(custom);
+		}
+	}
 	cSetStickersHash(QByteArray());
 	Local::writeStickers();
 	emit installed(_setId);
