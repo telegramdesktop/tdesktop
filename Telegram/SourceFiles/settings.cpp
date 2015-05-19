@@ -89,12 +89,15 @@ RecentEmojiPack gRecentEmojis;
 RecentEmojisPreload gRecentEmojisPreload;
 EmojiColorVariants gEmojiVariants;
 
-AllStickers gStickers;
 QByteArray gStickersHash;
 
 EmojiStickersMap gEmojiStickers;
 
+RecentStickerPreload gRecentStickersPreload;
 RecentStickerPack gRecentStickers;
+StickerSets gStickerSets;
+
+uint64 gLastStickersUpdate = 0;
 
 RecentHashtagPack gRecentWriteHashtags, gRecentSearchHashtags;
 
@@ -249,7 +252,7 @@ RecentEmojiPack &cGetRecentEmojis() {
 			0xD83DDE15LLU,
 		};
 		for (int32 i = 0, s = sizeof(defaultRecent) / sizeof(defaultRecent[0]); i < s; ++i) {
-			if (r.size() >= EmojiPadPerRow * EmojiPadRowsPerPage) break;
+			if (r.size() >= EmojiPanPerRow * EmojiPanRowsPerPage) break;
 
 			EmojiPtr ep(emojiGet(defaultRecent[i]));
 			if (!ep || ep == TwoSymbolEmoji) continue;
@@ -267,4 +270,21 @@ RecentEmojiPack &cGetRecentEmojis() {
 		cSetRecentEmojis(r);
 	}
 	return cRefRecentEmojis();
+}
+
+RecentStickerPack &cGetRecentStickers() {
+	if (cRecentStickers().isEmpty() && !cRecentStickersPreload().isEmpty()) {
+		RecentStickerPreload p(cRecentStickersPreload());
+		cSetRecentStickersPreload(RecentStickerPreload());
+
+		RecentStickerPack &recent(cRefRecentStickers());
+		recent.reserve(p.size());
+		for (RecentStickerPreload::const_iterator i = p.cbegin(), e = p.cend(); i != e; ++i) {
+			DocumentData *doc = App::document(i->first);
+			if (!doc || !doc->sticker) continue;
+
+			recent.push_back(qMakePair(doc, i->second));
+		}
+	}
+	return cRefRecentStickers();
 }

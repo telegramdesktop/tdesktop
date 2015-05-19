@@ -173,7 +173,8 @@ flatScroll {
 	width: number;
 	minHeight: number;
 	deltax: number;
-	deltay: number;
+	deltat: number;
+	deltab: number;
 
 	topsh: number;
 	bottomsh: number;

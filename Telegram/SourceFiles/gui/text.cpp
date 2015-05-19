@@ -736,10 +736,13 @@ void TextLink::onClick(Qt::MouseButton button) const {
 		QString url = TextLink::encoded();
 		QRegularExpressionMatch telegramMeUser = QRegularExpression(qsl("^https?://telegram\\.me/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
 		QRegularExpressionMatch telegramMeGroup = QRegularExpression(qsl("^https?://telegram\\.me/joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
+		QRegularExpressionMatch telegramMeStickers = QRegularExpression(qsl("^https?://telegram\\.me/addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
 		if (telegramMeUser.hasMatch()) {
 			App::openUserByName(telegramMeUser.captured(1));
 		} else if (telegramMeGroup.hasMatch()) {
 			App::joinGroupByHash(telegramMeGroup.captured(1));
+		} else if (telegramMeStickers.hasMatch()) {
+			App::stickersBox(telegramMeStickers.captured(1));
 		} else if (QRegularExpression(qsl("^tg://[a-zA-Z0-9]+"), QRegularExpression::CaseInsensitiveOption).match(url).hasMatch()) {
 			App::openLocalUrl(url);
 		} else {

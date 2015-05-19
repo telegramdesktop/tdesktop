@@ -308,7 +308,8 @@ scrollDef: flatScroll {
 	width: 10px;
 	minHeight: 20px;
 	deltax: 3px;
-	deltay: 3px;
+	deltat: 3px;
+	deltab: 3px;
 
 	topsh: 2px;
 	bottomsh: 2px;
@@ -983,12 +984,12 @@ btnAttachPhoto: iconedButton(btnAttachDocument) {
 }
 btnAttachEmoji: iconedButton(btnAttachDocument) {
 	overBgColor: white;
-	icon: sprite(311px, 221px, 20px, 20px);
+	icon: sprite(363px, 344px, 21px, 22px);
 	iconPos: point(6px, 13px);
-	downIcon: sprite(311px, 221px, 20px, 20px);
+	downIcon: sprite(363px, 344px, 21px, 22px);
 	downIconPos: point(6px, 13px);
 
-	width: 32px;
+	width: 33px;
 }
 
 replySkip: 51px;
@@ -1020,7 +1021,8 @@ historyScroll: flatScroll(scrollDef) {
 
 	width: 12px;
 	deltax: 3px;
-	deltay: 3px;
+	deltat: 3px;
+	deltab: 3px;
 
 	topsh: 0px;
 	bottomsh: -1px;
@@ -1452,19 +1454,62 @@ dpiFont2: linkFont;
 dpiFont3: linkFont;
 dpiFont4: linkFont;
 
-emojiScroll: flatScroll(scrollDef) {
-	width: 5px;
-	deltax: 2px;
-	deltay: 1px;
+newScroll: flatScroll(scrollDef) {
+	barColor: #3f729734;
+	bgColor: #214f751a;
+	barOverColor: #3f729734;
+	bgOverColor: #214f751a;
+
+	deltax: 5px;
+	width: 14px;
+	deltat: 6px;
+	deltab: 6px;
+
 	topsh: 0px;
 	bottomsh: 0px;
+
+	hiding: 0;
+}
+
+stickersMaxHeight: 340px;
+stickersAddOrShare: 70px;
+btnStickersAdd: flatButton(btnDefNext, btnDefBig) {
+	width: 180px;
+	height: 42px;
+
+	textTop: 9px;
+	overTextTop: 9px;
+	downTextTop: 10px;
+
+	font: font(17px);
+	overFont: font(17px);
+
+	bgColor: #15c23c;
+	overBgColor: #13a835;
+	downBgColor: #13a835;
+}
+btnStickersClose: iconedButton(notifyClose) {
+	iconPos: point(21px, 21px);
+	downIconPos: point(21px, 22px);
+	width: 52px;
+	height: 48px;
+}
+stickersWidth: 344px;
+stickersPadding: 10px;
+stickersSize: size(64px, 64px);
+stickersScroll: flatScroll(newScroll) {
+	deltab: 76px;
+}
+
+emojiScroll: flatScroll(newScroll) {
+	deltat: 48px;
 }
 emojiRecent: sprite(0px, 196px, 21px, 22px);
 emojiRecentOver: sprite(287px, 220px, 21px, 22px);
 emojiRecentActive: sprite(287px, 242px, 21px, 22px);
 emojiPeople: sprite(21px, 196px, 21px, 22px);
-emojiPeopleOver: sprite(298px, 220px, 21px, 22px);
-emojiPeopleActive: sprite(298px, 242px, 21px, 22px);
+emojiPeopleOver: sprite(308px, 220px, 21px, 22px);
+emojiPeopleActive: sprite(308px, 242px, 21px, 22px);
 emojiNature: sprite(42px, 196px, 21px, 22px);
 emojiNatureOver: sprite(245px, 264px, 21px, 22px);
 emojiNatureActive: sprite(245px, 286px, 21px, 22px);
@@ -1483,10 +1528,13 @@ emojiTravelActive: sprite(321px, 366px, 21px, 22px);
 emojiObjects: sprite(147px, 196px, 21px, 22px);
 emojiObjectsOver: sprite(342px, 344px, 21px, 22px);
 emojiObjectsActive: sprite(342px, 366px, 21px, 22px);
+
+emojiPanCategories: #f7f7f7;
+
 rbEmoji: flatCheckbox {
 	textColor: transparent;
-	bgColor: transparent;
-	disColor: transparent;
+	bgColor: emojiPanCategories;
+	disColor: emojiPanCategories;
 
 	width: 36px;
 	height: 46px;
@@ -1565,27 +1613,33 @@ rbEmojiObjects: flatCheckbox(rbEmoji) {
 	disImageRect: emojiObjects;
 	chkDisImageRect: emojiObjectsActive;
 }
-emojiPanPadding: margins(5px, 0px, 0px, 5px);
+emojiPanPadding: 10px;
 emojiPanSize: size(39px, 35px);
+emojiPanFullSize: size(300px, 321px);
 emojiPanDuration: 200;
-emojiPanHover: #f0f0f0;
+emojiPanHover: #f0f4f7;
 emojiPanRound: 2px;
 
-emojiPanHeader: 25px;
+emojiPanHeader: 42px;
 emojiPanHeaderFont: font(fsize semibold);
 emojiPanHeaderColor: #999;
-emojiPanHeaderLeft: 5px;
-emojiPanHeaderTop: 5px;
-emojiPanHeaderBg: #fffd;
+emojiPanHeaderLeft: 17px;
+emojiPanHeaderTop: 12px;
+emojiPanHeaderBg: #fffffff2;
 
 emojiColorsPadding: 5px;
 emojiColorsSep: 1px;
 emojiColorsSepColor: #d5d5d5;
 
-toStickersImg: sprite();
-toEmojiImg: sprite();
+emojiSwitchSkip: 27px;
+emojiSwitchImgSkip: 21px;
+emojiSwitchStickers: sprite(318px, 328px, 8px, 12px);
+emojiSwitchEmoji: sprite(310px, 328px, 8px, 12px);
+emojiSwitchColor: #42a8db;
+
+stickerPanSize: size(55px, 55px);
 stickerPanRound: 3px;
-stickerPanPadding: 2px;
+stickerPanPadding: 11px;
 stickerPanDelete: sprite(123px, 132px, 12px, 12px);
 stickerPanDeleteOpacity: 0.5;
 

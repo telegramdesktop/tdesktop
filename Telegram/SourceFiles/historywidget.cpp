@@ -701,6 +701,13 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				_menu->addAction(lang(lng_context_reply_msg), historyWidget, SLOT(onReplyToMessage()));
 			}
 			if (item && !isUponSelected && !_contextMenuLnk) {
+				if (HistorySticker *sticker = dynamic_cast<HistorySticker*>(msg->getMedia())) {
+					DocumentData *doc = sticker->document();
+					if (doc && doc->sticker && doc->sticker->set.type() != mtpc_inputStickerSetEmpty) {
+						if (!_menu) _menu = new ContextMenu(this);
+						_menu->addAction(lang(lng_context_pack_info), historyWidget, SLOT(onStickerPackInfo()));
+					}
+				}
 				QString contextMenuText = item->selectedText(FullItemSel);
 				if (!contextMenuText.isEmpty() && (!msg || !msg->getMedia() || msg->getMedia()->type() != MediaTypeSticker)) {
 					if (!_menu) _menu = new ContextMenu(this);
@@ -771,7 +778,9 @@ void HistoryList::onMenuDestroy(QObject *obj) {
 }
 
 void HistoryList::copySelectedText() {
-	QApplication::clipboard()->setText(getSelectedText());
+	QString sel = getSelectedText();
+	DEBUG_LOG(("Setting selected text to clipboard: %1").arg(sel));
+	QApplication::clipboard()->setText(sel);
 }
 
 void HistoryList::openContextUrl() {
@@ -784,6 +793,7 @@ void HistoryList::openContextUrl() {
 void HistoryList::copyContextUrl() {
 	QString enc = _contextMenuLnk->encoded();
 	if (!enc.isEmpty()) {
+		DEBUG_LOG(("Setting text to clipboard from context url: %1").arg(enc));
 		QApplication::clipboard()->setText(enc);
 	}
 }
@@ -857,6 +867,7 @@ void HistoryList::copyContextText() {
 
 	QString contextMenuText = item->selectedText(FullItemSel);
 	if (!contextMenuText.isEmpty()) {
+		DEBUG_LOG(("Setting text to clipboard from context menu: %1").arg(contextMenuText));
 		QApplication::clipboard()->setText(contextMenuText);
 	}
 }
@@ -1569,7 +1580,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
 , _previewCancelled(false)
 , _replyForwardPressed(false)
 , _replyReturn(0)
-, _lastStickersUpdate(0)
 , _stickersUpdateRequest(0)
 , _loadingMessages(false)
 , histRequestsCount(0)
@@ -1687,6 +1697,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : QWidget(parent)
 }
 
 void HistoryWidget::start() {
+	connect(App::main(), SIGNAL(stickersUpdated()), &_emojiPan, SLOT(refreshStickers()));
 	updateRecentStickers();
 	connect(App::api(), SIGNAL(fullPeerLoaded(PeerData*)), this, SLOT(onPeerLoaded(PeerData*)));
 }
@@ -1766,6 +1777,10 @@ void HistoryWidget::updateRecentStickers() {
 	_emojiPan.refreshStickers();
 }
 
+void HistoryWidget::stickersInstalled(uint64 setId) {
+	_emojiPan.stickersInstalled(setId);
+}
+
 void HistoryWidget::typingDone(const MTPBool &result, mtpRequestId req) {
 	if (_typingRequest == req) {
 		_typingRequest = 0;
@@ -1795,116 +1810,210 @@ void HistoryWidget::activate() {
 }
 
 void HistoryWidget::updateStickers() {
-	if (_lastStickersUpdate && getms(true) < _lastStickersUpdate + StickersUpdateTimeout) return;
+	if (cLastStickersUpdate() && getms(true) < cLastStickersUpdate() + StickersUpdateTimeout) return;
 	if (_stickersUpdateRequest) return;
 
 	_stickersUpdateRequest = MTP::send(MTPmessages_GetAllStickers(MTP_string(cStickersHash())), rpcDone(&HistoryWidget::stickersGot), rpcFail(&HistoryWidget::stickersFailed));
 }
 
 void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
-	_lastStickersUpdate = getms(true);
+	cSetLastStickersUpdate(getms(true));
 	_stickersUpdateRequest = 0;
 
-	if (stickers.type() == mtpc_messages_allStickers) {
-		const MTPDmessages_allStickers &d(stickers.c_messages_allStickers());
+	if (stickers.type() != mtpc_messages_allStickers) return;
+	const MTPDmessages_allStickers &d(stickers.c_messages_allStickers());
+
+	EmojiStickersMap map;
 		
-		AllStickers all;
-		EmojiStickersMap map;
+	const QVector<MTPDocument> &d_docs(d.vdocuments.c_vector().v);
+	const QVector<MTPStickerSet> &d_sets(d.vsets.c_vector().v);
 
-		const QVector<MTPDocument> &docs(d.vdocuments.c_vector().v);
+	QByteArray wasHash = cStickersHash();
+	cSetStickersHash(qba(d.vhash));
 
-		QSet<DocumentData*> found;
-		const RecentStickerPack &recent(cRecentStickers());
-		RecentStickerPack add;
-		add.reserve(docs.size());
-		ushort addValue = recent.isEmpty() ? 1 : qAbs(recent.front().second);
-		for (int32 i = 0, l = docs.size(); i < l; ++i) {
-			DocumentData *doc = App::feedDocument(docs.at(i));
-			if (!doc) continue;
-			int32 j = 0, s = recent.size();
-			for (; j < s; ++j) {
-				if (doc == recent.at(j).first) {
+	StickerSets &sets(cRefStickerSets());
+	StickerSets::iterator def = sets.find(DefaultStickerSetId);
+	if (def == sets.cend()) {
+		def = sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, qsl("Great Minds"), QString()));
+	}
+	for (int32 i = 0; i < d_sets.size(); ++i) {
+		if (d_sets.at(i).type() == mtpc_stickerSet) {
+			const MTPDstickerSet &set(d_sets.at(i).c_stickerSet());
+			StickerSets::iterator i = sets.find(set.vid.v);
+			if (i == sets.cend()) {
+				i = sets.insert(set.vid.v, StickerSet(set.vid.v, set.vaccess_hash.v, qs(set.vtitle), qs(set.vshort_name)));
+			} else {
+				i->access = set.vaccess_hash.v;
+				i->title = qs(set.vtitle);
+				i->shortName = qs(set.vshort_name);
+			}
+		}
+	}
+
+	StickerSets::iterator custom = sets.find(CustomStickerSetId);
+
+	bool added = false, removed = false;
+	QSet<DocumentData*> found;
+	QMap<uint64, int32> wasCount;
+	for (int32 i = 0, l = d_docs.size(); i < l; ++i) {
+		DocumentData *doc = App::feedDocument(d_docs.at(i));
+		if (!doc || !doc->sticker) continue;
+
+		switch (doc->sticker->set.type()) {
+		case mtpc_inputStickerSetEmpty: { // default set - great minds
+			if (!wasCount.contains(DefaultStickerSetId)) wasCount.insert(DefaultStickerSetId, def->stickers.size());
+			if (def->stickers.indexOf(doc) < 0) {
+				def->stickers.push_back(doc);
+				added = true;
+			} else {
+				found.insert(doc);
+			}
+		} break;
+		case mtpc_inputStickerSetID: {
+			StickerSets::iterator it = sets.find(doc->sticker->set.c_inputStickerSetID().vid.v);
+			if (it == sets.cend()) {
+				LOG(("Sticker Set not found by ID: %1").arg(doc->sticker->set.c_inputStickerSetID().vid.v));
+			} else {
+				if (!wasCount.contains(it->id)) wasCount.insert(it->id, it->stickers.size());
+				if (it->stickers.indexOf(doc) < 0) {
+					it->stickers.push_back(doc);
+					added = true;
+				} else {
 					found.insert(doc);
+				}
+			}
+		} break;
+		case mtpc_inputStickerSetShortName: {
+			QString name = qs(doc->sticker->set.c_inputStickerSetShortName().vshort_name).toLower().trimmed();
+			StickerSets::iterator it = sets.begin();
+			for (; it != sets.cend(); ++it) {
+				if (it->shortName.toLower().trimmed() == name) {
 					break;
 				}
 			}
-			if (j < s) continue;
-			add.push_back(qMakePair(doc, addValue));
+			if (it == sets.cend()) {
+				LOG(("Sticker Set not found by name: %1").arg(name));
+			} else {
+				if (!wasCount.contains(it->id)) wasCount.insert(it->id, it->stickers.size());
+				if (it->stickers.indexOf(doc) < 0) {
+					it->stickers.push_back(doc);
+					added = true;
+				} else {
+					found.insert(doc);
+				}
+			}
+		} break;
 		}
-		bool needRemove = false;
-		for (int32 i = 0, l = recent.size(); i < l; ++i) {
-			if (recent.at(i).second > 0 && !found.contains(recent.at(i).first)) {
-				needRemove = true;
-				break;
+		if (custom != sets.cend()) {
+			int32 index = custom->stickers.indexOf(doc);
+			if (index >= 0) {
+				custom->stickers.removeAt(index);
+				removed = true;
 			}
 		}
-		if (!add.isEmpty() || needRemove) {
-			if (needRemove) {
-				for (int32 i = 0, l = recent.size(); i < l; ++i) {
-					if (recent.at(i).second <= 0 || found.contains(recent.at(i).first)) {
-						add.push_back(recent.at(i));
+	}
+	if (custom != sets.cend() && custom->stickers.isEmpty()) {
+		sets.erase(custom);
+		custom = sets.end();
+	}
+	bool writeRecent = false;
+	RecentStickerPack &recent(cGetRecentStickers());
+	for (StickerSets::iterator it = sets.begin(); it != sets.cend();) {
+		if (it->id == CustomStickerSetId || it->id == RecentStickerSetId) {
+			++it;
+			continue;
+		}
+		QMap<uint64, int32>::const_iterator was = wasCount.constFind(it->id);
+		if (was == wasCount.cend()) { // no such stickers added
+			for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
+				if (it->stickers.indexOf(i->first) >= 0) {
+					i = recent.erase(i);
+					writeRecent = true;
+				} else {
+					++i;
+				}
+			}
+			it = sets.erase(it);
+			removed = true;
+		} else {
+			for (int32 j = 0, l = was.value(); j < l;) {
+				if (found.contains(it->stickers.at(j))) {
+					++j;
+				} else {
+					for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
+						if (it->stickers.at(j) == i->first) {
+							i = recent.erase(i);
+							writeRecent = true;
+						} else {
+							++i;
+						}
+					}
+					it->stickers.removeAt(j);
+					--l;
+					removed = true;
+				}
+			}
+			if (it->stickers.isEmpty()) {
+				it = sets.erase(it);
+			} else {
+				++it;
+			}
+		}
+	}
+	if (added || removed || cStickersHash() != wasHash) {
+		Local::writeStickers();
+	}
+	if (writeRecent) {
+		Local::writeUserSettings();
+	}
+		
+	const QVector<MTPStickerPack> &packs(d.vpacks.c_vector().v);
+	for (int32 i = 0, l = packs.size(); i < l; ++i) {
+		if (packs.at(i).type() == mtpc_stickerPack) {
+			const MTPDstickerPack &p(packs.at(i).c_stickerPack());
+			QString emoticon(qs(p.vemoticon));
+			EmojiPtr e = 0;
+			for (const QChar *ch = emoticon.constData(), *end = emoticon.constEnd(); ch != end; ++ch) {
+				int len = 0;
+				e = emojiFromText(ch, end, len);
+				if (e) break;
+
+				if (ch + 1 < end && ch->isHighSurrogate() && (ch + 1)->isLowSurrogate()) ++ch;
+			}
+			if (e) {
+				const QVector<MTPlong> docs(p.vdocuments.c_vector().v);
+				if (!docs.isEmpty()) {
+					for (int32 j = 0, s = docs.size(); j < s; ++j) {
+						DocumentData *doc = App::document(docs.at(j).v);
+						map.insert(doc, e);
 					}
 				}
 			} else {
-				add += recent;
-			}
-			cSetRecentStickers(add);
-			Local::writeRecentStickers();
-		}
-		
-		const QVector<MTPStickerPack> &packs(d.vpacks.c_vector().v);
-		for (int32 i = 0, l = packs.size(); i < l; ++i) {
-			if (packs.at(i).type() == mtpc_stickerPack) {
-				const MTPDstickerPack &p(packs.at(i).c_stickerPack());
-				QString emoticon(qs(p.vemoticon));
-				EmojiPtr e = 0;
-				for (const QChar *ch = emoticon.constData(), *end = emoticon.constEnd(); ch != end; ++ch) {
-					int len = 0;
-					e = emojiFromText(ch, end, len);
-					if (e) break;
-
-					if (ch + 1 < end && ch->isHighSurrogate() && (ch + 1)->isLowSurrogate()) ++ch;
-				}
-				if (e) {
-					const QVector<MTPlong> docs(p.vdocuments.c_vector().v);
-					if (!docs.isEmpty()) {
-						StickerPack &pack(all[e]);
-						pack.reserve(pack.size() + docs.size());
-						for (int32 j = 0, s = docs.size(); j < s; ++j) {
-							DocumentData *doc = App::document(docs.at(j).v);
-							pack.push_back(doc);
-							map.insert(doc, e);
-						}
-					}
-				} else {
-					LOG(("Sticker Error: Could not find emoji for string: %1").arg(emoticon));
-				}
+				LOG(("Sticker Error: Could not find emoji for string: %1").arg(emoticon));
 			}
 		}
-
-		cSetStickers(all);
-		cSetStickersHash(qba(d.vhash));
-		cSetEmojiStickers(map);
-
-		const DocumentItems &items(App::documentItems());
-		for (EmojiStickersMap::const_iterator i = map.cbegin(), e = map.cend(); i != e; ++i) {
-			DocumentItems::const_iterator j = items.constFind(i.key());
-			if (j != items.cend()) {
-				for (HistoryItemsMap::const_iterator k = j->cbegin(), end = j->cend(); k != end; ++k) {
-					k.key()->updateStickerEmoji();
-				}
-			}
-		}
-
-//		updateStickerPan();
-		_emojiPan.refreshStickers();
 	}
+
+	cSetEmojiStickers(map);
+
+	const DocumentItems &items(App::documentItems());
+	for (EmojiStickersMap::const_iterator i = map.cbegin(), e = map.cend(); i != e; ++i) {
+		DocumentItems::const_iterator j = items.constFind(i.key());
+		if (j != items.cend()) {
+			for (HistoryItemsMap::const_iterator k = j->cbegin(), end = j->cend(); k != end; ++k) {
+				k.key()->updateStickerEmoji();
+			}
+		}
+	}
+
+	//	updateStickerPan();
+	if (App::main()) emit App::main()->stickersUpdated();
 }
 
 bool HistoryWidget::stickersFailed(const RPCError &error) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
 
-	_lastStickersUpdate = getms(true);
+	cSetLastStickersUpdate(getms(true));
 	_stickersUpdateRequest = 0;
 	return true;
 }
@@ -3680,6 +3789,16 @@ void HistoryWidget::onReplyForwardPreviewCancel() {
 	} else {
 		App::main()->cancelForwarding();
 		cancelReply();
+	}
+}
+
+void HistoryWidget::onStickerPackInfo() {
+	if (HistoryMessage *item = dynamic_cast<HistoryMessage*>(App::contextItem())) {
+		if (HistorySticker *sticker = dynamic_cast<HistorySticker*>(item->getMedia())) {
+			if (sticker->document() && sticker->document()->sticker && sticker->document()->sticker->set.type() != mtpc_inputStickerSetEmpty) {
+				App::main()->stickersBox(sticker->document()->sticker->set);
+			}
+		}
 	}
 }
 

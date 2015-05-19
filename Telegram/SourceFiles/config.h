@@ -17,9 +17,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 8013;
-static const wchar_t *AppVersionStr = L"0.8.13";
-static const bool DevChannel = false;
+static const int32 AppVersion = 8014;
+static const wchar_t *AppVersionStr = L"0.8.14";
+static const bool DevChannel = true;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -101,9 +101,10 @@ enum {
 	ZoomToScreenLevel = 1024, // just constant
 
 	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
-	EmojiPadPerRow = 7,
-	EmojiPadRowsPerPage = 6,
-	StickerPadPerRow = 3,
+	EmojiPanPerRow = 7,
+	EmojiPanRowsPerPage = 6,
+	StickerPanPerRow = 5,
+	StickerPanRowsPerPage = 4,
 	StickersUpdateTimeout = 3600000, // update not more than once in an hour
 
 	SearchPeopleLimit = 5,

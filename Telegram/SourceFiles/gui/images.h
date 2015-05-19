@@ -21,6 +21,20 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 QImage imageBlur(QImage img);
 
+struct StorageImageLocation {
+	StorageImageLocation() : width(0), height(0), dc(0), volume(0), local(0), secret(0) {
+	}
+	StorageImageLocation(int32 width, int32 height, int32 dc, const uint64 &volume, int32 local, const uint64 &secret) : width(width), height(height), dc(dc), volume(volume), local(local), secret(secret) {
+	}
+	StorageImageLocation(int32 width, int32 height, const MTPDfileLocation &location) : width(width), height(height), dc(location.vdc_id.v), volume(location.vvolume_id.v), local(location.vlocal_id.v), secret(location.vsecret.v) {
+	}
+	int32 width, height;
+	int32 dc;
+	uint64 volume;
+	int32 local;
+	uint64 secret;
+};
+
 class Image {
 public:
 
@@ -123,25 +137,66 @@ typedef QPair<uint64, uint64> StorageKey;
 inline uint64 storageMix32To64(int32 a, int32 b) {
 	return (uint64(*reinterpret_cast<uint32*>(&a)) << 32) | uint64(*reinterpret_cast<uint32*>(&b));
 }
-inline StorageKey storageKey(int32 dc, const int64 &volume, int32 local) {
+inline StorageKey storageKey(int32 dc, const uint64 &volume, int32 local) {
 	return StorageKey(storageMix32To64(dc, local), volume);
 }
 inline StorageKey storageKey(const MTPDfileLocation &location) {
 	return storageKey(location.vdc_id.v, location.vvolume_id.v, location.vlocal_id.v);
 }
+enum StorageFileType {
+	StorageFileUnknown = 0xaa963b05, // mtpc_storage_fileUnknown
+	StorageFileJpeg    = 0x7efe0e,   // mtpc_storage_fileJpeg
+	StorageFileGif     = 0xcae1aadf, // mtpc_storage_fileGif
+	StorageFilePng     = 0xa4f63c0,  // mtpc_storage_filePng
+	StorageFilePdf     = 0xae1e508d, // mtpc_storage_filePdf
+	StorageFileMp3     = 0x528a0677, // mtpc_storage_fileMp3
+	StorageFileMov     = 0x4b09ebbc, // mtpc_storage_fileMov
+	StorageFilePartial = 0x40bc6f52, // mtpc_storage_filePartial
+	StorageFileMp4     = 0xb3cea0e4, // mtpc_storage_fileMp4
+	StorageFileWebp    = 0x1081464c, // mtpc_storage_fileWebp
+};
+inline StorageFileType mtpToStorageType(mtpTypeId type) {
+	switch (type) {
+	case mtpc_storage_fileJpeg: return StorageFileJpeg;
+	case mtpc_storage_fileGif: return StorageFileGif;
+	case mtpc_storage_filePng: return StorageFilePng;
+	case mtpc_storage_filePdf: return StorageFilePdf;
+	case mtpc_storage_fileMp3: return StorageFileMp3;
+	case mtpc_storage_fileMov: return StorageFileMov;
+	case mtpc_storage_filePartial: return StorageFilePartial;
+	case mtpc_storage_fileMp4: return StorageFileMp4;
+	case mtpc_storage_fileWebp: return StorageFileWebp;
+	case mtpc_storage_fileUnknown:
+	default: return StorageFileUnknown;
+	}
+}
+inline mtpTypeId mtpFromStorageType(StorageFileType type) {
+	switch (type) {
+	case StorageFileGif: return mtpc_storage_fileGif;
+	case StorageFilePng: return mtpc_storage_filePng;
+	case StorageFilePdf: return mtpc_storage_filePdf;
+	case StorageFileMp3: return mtpc_storage_fileMp3;
+	case StorageFileMov: return mtpc_storage_fileMov;
+	case StorageFilePartial: return mtpc_storage_filePartial;
+	case StorageFileMp4: return mtpc_storage_fileMp4;
+	case StorageFileWebp: return mtpc_storage_fileWebp;
+	case StorageFileUnknown:
+	default: return mtpc_storage_fileUnknown;
+	}
+}
 struct StorageImageSaved {
-	StorageImageSaved() : type(mtpc_storage_fileUnknown) {
+	StorageImageSaved() : type(StorageFileUnknown) {
 	}
-	StorageImageSaved(mtpTypeId type, const QByteArray &data) : type(type), data(data) {
+	StorageImageSaved(StorageFileType type, const QByteArray &data) : type(type), data(data) {
 	}
-	mtpTypeId type;
+	StorageFileType type;
 	QByteArray data;
 };
 class StorageImage : public Image {
 public:
 
-	StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, int32 size = 0);
-	StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, QByteArray &bytes);
+	StorageImage(const StorageImageLocation &location, int32 size = 0);
+	StorageImage(const StorageImageLocation &location, QByteArray &bytes);
 	
 	int32 width() const;
 	int32 height() const;
@@ -188,8 +243,8 @@ private:
 	mutable mtpFileLoader *loader;
 };
 
-StorageImage *getImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, int32 size = 0);
-StorageImage *getImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, const QByteArray &bytes);
+StorageImage *getImage(const StorageImageLocation &location, int32 size = 0);
+StorageImage *getImage(const StorageImageLocation &location, const QByteArray &bytes);
 Image *getImage(int32 width, int32 height, const MTPFileLocation &location);
 
 class ImagePtr : public ManagedPtr<Image> {
@@ -201,9 +256,9 @@ public:
 	}
 	ImagePtr(const QPixmap &pixmap, QByteArray format) : Parent(getImage(pixmap, format)) {
 	}
-	ImagePtr(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, int32 size = 0) : Parent(getImage(width, height, dc, volume, local, secret, size)) {
+	ImagePtr(const StorageImageLocation &location, int32 size = 0) : Parent(getImage(location, size)) {
 	}
-	ImagePtr(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, const QByteArray &bytes) : Parent(getImage(width, height, dc, volume, local, secret, bytes)) {
+	ImagePtr(const StorageImageLocation &location, const QByteArray &bytes) : Parent(getImage(location, bytes)) {
 	}
 	ImagePtr(int32 width, int32 height, const MTPFileLocation &location, ImagePtr def = ImagePtr());
 };
@@ -213,16 +268,16 @@ void clearAllImages();
 int64 imageCacheSize();
 
 struct FileLocation {
-	FileLocation(mtpTypeId type, const QString &name, const QDateTime &modified, qint32 size) : type(type), name(name), modified(modified), size(size) {
+	FileLocation(StorageFileType type, const QString &name, const QDateTime &modified, qint32 size) : type(type), name(name), modified(modified), size(size) {
 	}
-	FileLocation(mtpTypeId type, const QString &name) : type(type), name(name) {
+	FileLocation(StorageFileType type, const QString &name) : type(type), name(name) {
 		QFileInfo f(name);
 		if (f.exists()) {
 			qint64 s = f.size();
 			if (s > INT_MAX) {
 				this->name = QString();
 				size = 0;
-				type = mtpc_storage_fileUnknown;
+				type = StorageFileUnknown;
 			} else {
 				modified = f.lastModified();
 				size = qint32(s);
@@ -230,7 +285,7 @@ struct FileLocation {
 		} else {
 			this->name = QString();
 			size = 0;
-			type = mtpc_storage_fileUnknown;
+			type = StorageFileUnknown;
 		}
 	}
 	FileLocation() : size(0) {
@@ -245,7 +300,7 @@ struct FileLocation {
 
 		return (f.lastModified() == modified) && (qint32(s) == size);
 	}
-	mtpTypeId type;
+	StorageFileType type;
 	QString name;
 	QDateTime modified;
 	qint32 size;
@@ -257,11 +312,34 @@ inline bool operator!=(const FileLocation &a, const FileLocation &b) {
 	return !(a == b);
 }
 
+enum LocationType {
+	UnknownFileLocation  = 0,
+	DocumentFileLocation = 0x4e45abe9, // mtpc_inputDocumentFileLocation
+	AudioFileLocation    = 0x74dc404d, // mtpc_inputAudioFileLocation
+	VideoFileLocation    = 0x3d0364ec, // mtpc_inputVideoFileLocation
+};
+inline LocationType mtpToLocationType(mtpTypeId type) {
+	switch (type) {
+	case mtpc_inputDocumentFileLocation: return DocumentFileLocation;
+	case mtpc_inputAudioFileLocation: return AudioFileLocation;
+	case mtpc_inputVideoFileLocation: return VideoFileLocation;
+	default: return UnknownFileLocation;
+	}
+}
+inline mtpTypeId mtpFromLocationType(LocationType type) {
+	switch (type) {
+	case DocumentFileLocation: return mtpc_inputDocumentFileLocation;
+	case AudioFileLocation: return mtpc_inputAudioFileLocation;
+	case VideoFileLocation: return mtpc_inputVideoFileLocation;
+	case UnknownFileLocation:
+	default: return 0;
+	}
+}
 typedef QPair<uint64, uint64> MediaKey;
-inline uint64 mediaMix32To64(mtpTypeId a, int32 b) {
+inline uint64 mediaMix32To64(int32 a, int32 b) {
 	return (uint64(*reinterpret_cast<uint32*>(&a)) << 32) | uint64(*reinterpret_cast<uint32*>(&b));
 }
-inline MediaKey mediaKey(mtpTypeId type, int32 dc, const int64 &id) {
+inline MediaKey mediaKey(LocationType type, int32 dc, const uint64 &id) {
 	return MediaKey(mediaMix32To64(type, dc), id);
 }
 inline StorageKey mediaKey(const MTPDfileLocation &location) {

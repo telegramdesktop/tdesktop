@@ -1122,7 +1122,7 @@ void DialogsListWidget::saveRecentHashtags(const QString &text) {
 			}
 		}
 		if (!found && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) {
-			Local::readRecentStickers();
+			Local::readRecentHashtags();
 			recent = cRecentSearchHashtags();
 		}
 		found = true;

@@ -253,7 +253,7 @@ struct VideoData {
 
 	void finish() {
 		if (loader->done()) {
-			location = FileLocation(loader->fileType(), loader->fileName());
+			location = FileLocation(mtpToStorageType(loader->fileType()), loader->fileName());
 		}
 		loader->deleteLater();
 		loader->rpcInvalidate();
@@ -339,7 +339,7 @@ struct AudioData {
 
 	void finish() {
 		if (loader->done()) {
-			location = FileLocation(loader->fileType(), loader->fileName());
+			location = FileLocation(mtpToStorageType(loader->fileType()), loader->fileName());
 			data = loader->bytes();
 		}
 		loader->deleteLater();
@@ -409,6 +409,7 @@ struct StickerData {
 	QString alt;
 
 	MTPInputStickerSet set;
+	StorageImageLocation loc; // doc thumb location
 };
 
 enum DocumentType {
@@ -446,7 +447,7 @@ struct DocumentData {
 
 	void finish() {
 		if (loader->done()) {
-			location = FileLocation(loader->fileType(), loader->fileName());
+			location = FileLocation(mtpToStorageType(loader->fileType()), loader->fileName());
 			data = loader->bytes();
 		}
 		loader->deleteLater();

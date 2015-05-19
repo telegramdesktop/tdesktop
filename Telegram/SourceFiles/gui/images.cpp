@@ -19,6 +19,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "gui/images.h"
 
 #include "mainwidget.h"
+#include "localstorage.h"
 
 namespace {
 	typedef QMap<QString, LocalImage*> LocalImages;
@@ -43,7 +44,7 @@ ImagePtr::ImagePtr() : Parent(blank()) {
 }
 
 ImagePtr::ImagePtr(int32 width, int32 height, const MTPFileLocation &location, ImagePtr def) :
-	Parent((location.type() == mtpc_fileLocation) ? (Image*)(getImage(width, height, location.c_fileLocation().vdc_id.v, location.c_fileLocation().vvolume_id.v, location.c_fileLocation().vlocal_id.v, location.c_fileLocation().vsecret.v)) : def.v()) {
+	Parent((location.type() == mtpc_fileLocation) ? (Image*)(getImage(StorageImageLocation(width, height, location.c_fileLocation()))) : def.v()) {
 }
 
 const QPixmap &Image::pix(int32 w, int32 h) const {
@@ -517,11 +518,14 @@ int64 imageCacheSize() {
 	return globalAquiredSize;
 }
 
-StorageImage::StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, int32 size) : w(width), h(height), loader(new mtpFileLoader(dc, volume, local, secret, size)) {
+StorageImage::StorageImage(const StorageImageLocation &location, int32 size) : w(location.width), h(location.height), loader(new mtpFileLoader(location.dc, location.volume, location.local, location.secret, size)) {
 }
 
-StorageImage::StorageImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, QByteArray &bytes) : w(width), h(height), loader(0) {
+StorageImage::StorageImage(const StorageImageLocation &location, QByteArray &bytes) : w(location.width), h(location.height), loader(0) {
 	setData(bytes);
+	if (location.dc) {
+		Local::writeImage(storageKey(location.dc, location.volume, location.local), StorageImageSaved(mtpToStorageType(mtpc_storage_filePartial), bytes));
+	}
 }
 
 const QPixmap &StorageImage::pixData() const {
@@ -608,24 +612,27 @@ bool StorageImage::loaded() const {
 	return check();
 }
 
-StorageImage *getImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, int32 size) {
-	StorageKey key(storageKey(dc, volume, local));
+StorageImage *getImage(const StorageImageLocation &location, int32 size) {
+	StorageKey key(storageKey(location.dc, location.volume, location.local));
 	StorageImages::const_iterator i = storageImages.constFind(key);
 	if (i == storageImages.cend()) {
-		i = storageImages.insert(key, new StorageImage(width, height, dc, volume, local, secret, size));
+		i = storageImages.insert(key, new StorageImage(location, size));
 	}
 	return i.value();
 }
 
-StorageImage *getImage(int32 width, int32 height, int32 dc, const int64 &volume, int32 local, const int64 &secret, const QByteArray &bytes) {
-	StorageKey key(storageKey(dc, volume, local));
+StorageImage *getImage(const StorageImageLocation &location, const QByteArray &bytes) {
+	StorageKey key(storageKey(location.dc, location.volume, location.local));
 	StorageImages::const_iterator i = storageImages.constFind(key);
     if (i == storageImages.cend()) {
         QByteArray bytesArr(bytes);
-        i = storageImages.insert(key, new StorageImage(width, height, dc, volume, local, secret, bytesArr));
+        i = storageImages.insert(key, new StorageImage(location, bytesArr));
 	} else if (!i.value()->loaded()) {
         QByteArray bytesArr(bytes);
         i.value()->setData(bytesArr);
+		if (location.dc) {
+			Local::writeImage(storageKey(location.dc, location.volume, location.local), StorageImageSaved(mtpToStorageType(mtpc_storage_filePartial), bytes));
+		}
 	}
 	return i.value();
 }

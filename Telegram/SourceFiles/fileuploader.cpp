@@ -38,7 +38,7 @@ void FileUploader::uploadMedia(MsgId msgId, const ReadyLocalMedia &media) {
 		}
 		document->status = FileUploading;
 		if (!media.file.isEmpty()) {
-			document->location = FileLocation(mtpc_storage_filePartial, media.file);
+			document->location = FileLocation(StorageFilePartial, media.file);
 		}
 	}
 	queue.insert(msgId, File(media));

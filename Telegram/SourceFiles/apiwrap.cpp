@@ -34,7 +34,6 @@ ApiWrap::ApiWrap(QObject *parent) : QObject(parent) {
 }
 
 void ApiWrap::init() {
-	App::initMedia();
 }
 
 void ApiWrap::itemRemoved(HistoryItem *item) {

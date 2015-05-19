@@ -193,6 +193,8 @@ private:
 
 };
 
+static const int32 SwitcherSelected = (INT_MAX / 2);
+
 class EmojiPanInner : public TWidget, public Animated {
 	Q_OBJECT
 
@@ -218,7 +220,6 @@ public:
 
 	DBIEmojiTab currentTab(int yOffset) const;
 
-	void refreshStickers();
 	void refreshRecent();
 
 	void setScrollTop(int top);
@@ -234,30 +235,27 @@ public slots:
 
 signals:
 
-	void emojiSelected(EmojiPtr emoji);
-	void stickerSelected(DocumentData *sticker);
+	void selected(EmojiPtr emoji);
+
+	void switchToStickers();
 
 	void scrollToY(int y);
 	void disableScroll(bool dis);
 
 private:
 
-	int countHeight();
+	int32 countHeight();
 	void selectEmoji(EmojiPtr emoji);
 
-	typedef QMap<int32, uint64> EmojiAnimations; // index - showing, -index - hiding
-	EmojiAnimations _emojiAnimations;
+	typedef QMap<int32, uint64> Animations; // index - showing, -index - hiding
+	Animations _animations;
 
-	int _top;
-	int _counts[emojiTabCount], _count;
+	int32 _top, _counts[emojiTabCount];
 
-	StickerPack _stickers;
-	QVector<bool> _isUserGen;
 	QVector<EmojiPtr> _emojis[emojiTabCount];
-	QVector<float64> _hovers[emojiTabCount + 1]; // + stickers hovers and stickers-x hovers
+	QVector<float64> _hovers[emojiTabCount];
 
-	float64 _stickerWidth;
-	int32 _esize, _stickerSize;
+	int32 _esize;
 
 	int32 _selected, _pressedSel, _pickerSel;
 	QPoint _lastMousePos;
@@ -267,6 +265,74 @@ private:
 	EmojiColorPicker _picker;
 	QTimer _showPickerTimer;
 
+	float64 _switcherHover;
+	int32 _stickersWidth;
+};
+
+class StickerPanInner : public TWidget, public Animated {
+	Q_OBJECT
+
+public:
+
+	StickerPanInner(QWidget *parent = 0);
+
+	void paintEvent(QPaintEvent *e);
+
+	void mousePressEvent(QMouseEvent *e);
+	void mouseReleaseEvent(QMouseEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void leaveEvent(QEvent *e);
+	void leaveToChildEvent(QEvent *e);
+	void enterFromChildEvent(QEvent *e);
+
+	bool animStep(float64 ms);
+
+	void showStickerSet(uint64 setId);
+
+	void clearSelection(bool fast = false);
+
+	void refreshStickers();
+	void refreshRecent(bool resize = true);
+
+	void setScrollTop(int top);
+	void preloadImages();
+
+public slots:
+
+	void updateSelected();
+
+signals:
+
+	void selected(DocumentData *sticker);
+	void removing(uint64 setId);
+
+	void switchToEmoji();
+
+	void scrollToY(int y);
+	void disableScroll(bool dis);
+
+private:
+
+	void appendSet(StickerSets::const_iterator it);
+
+	int32 countHeight();
+	void selectEmoji(EmojiPtr emoji);
+
+	typedef QMap<int32, uint64> Animations; // index - showing, -index - hiding
+	Animations _animations;
+
+	int32 _top;
+
+	QList<QString> _titles;
+	QList<uint64> _setIds;
+	QList<StickerPack> _sets;
+	QList<QVector<float64> > _hovers;
+
+	int32 _selected, _pressedSel;
+	QPoint _lastMousePos;
+
+	float64 _switcherHover;
+	int32 _emojiWidth;
 };
 
 class EmojiPan : public TWidget, public Animated {
@@ -291,10 +357,11 @@ public:
 	bool animStep(float64 ms);
 
 	bool eventFilter(QObject *obj, QEvent *e);
-
-	void refreshStickers();
+	void stickersInstalled(uint64 setId);
 
 public slots:
+
+	void refreshStickers();
 
 	void hideStart();
 	void hideFinish();
@@ -304,6 +371,11 @@ public slots:
 
 	void onTabChange();
 	void onScroll();
+	void onSwitch();
+
+	void onRemoveSet(uint64 setId);
+	void onRemoveSetSure();
+	void onDelayedHide();
 
 signals:
 
@@ -312,6 +384,8 @@ signals:
 	void updateStickers();
 
 private:
+
+	void prepareTab(int32 &left, int32 top, int32 _width, FlatRadiobutton &tab);
 
 	void showAll();
 	void hideAll();
@@ -328,11 +402,20 @@ private:
 
 	BoxShadow _shadow;
 
-	FlatRadiobutton _recent, _people, _nature, _food, _celebration, _activity, _travel, _objects, _stickers;
+	FlatRadiobutton _recent, _people, _nature, _food, _celebration, _activity, _travel, _objects;
 
-	int32 _emojiPack;
-	ScrollArea _scroll;
-	EmojiPanInner _inner;
+	bool _stickersShown;
+	QPixmap _fromCache, _toCache;
+	anim::ivalue a_fromCoord, a_toCoord;
+	anim::fvalue a_fromAlpha, a_toAlpha;
+	uint64 _moveStart;
+
+	ScrollArea e_scroll;
+	EmojiPanInner e_inner;
+	ScrollArea s_scroll;
+	StickerPanInner s_inner;
+
+	uint64 _removingSetId;
 
 };
 

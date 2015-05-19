@@ -256,6 +256,7 @@ void ProfileInner::onMediaAudios() {
 }
 
 void ProfileInner::onInvitationLink() {
+	DEBUG_LOG(("Setting text to clipboard from invite url: %1").arg(_peerChat->invitationUrl));
 	QApplication::clipboard()->setText(_peerChat->invitationUrl);
 	App::wnd()->showLayer(new ConfirmBox(lang(lng_group_invite_copied), true));
 }
@@ -769,10 +770,12 @@ void ProfileInner::onMenuDestroy(QObject *obj) {
 }
 
 void ProfileInner::onCopyPhone() {
+	DEBUG_LOG(("Setting text to clipboard from user phone: %1").arg(_phoneText));
 	QApplication::clipboard()->setText(_phoneText);
 }
 
 void ProfileInner::onCopyUsername() {
+	DEBUG_LOG(("Setting text to clipboard from username: @%1").arg(_peerUser->username));
 	QApplication::clipboard()->setText('@' + _peerUser->username);
 }
 

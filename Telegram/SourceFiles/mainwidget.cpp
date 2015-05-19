@@ -25,6 +25,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "settingswidget.h"
 #include "mainwidget.h"
 #include "boxes/confirmbox.h"
+#include "boxes/stickersetbox.h"
 
 #include "localstorage.h"
 
@@ -549,6 +550,10 @@ void MainWidget::updateMutedIn(int32 seconds) {
 	_updateMutedTimer.start(ms);
 }
 
+void MainWidget::updateStickers() {
+	history.updateStickers();
+}
+
 void MainWidget::onUpdateMuted() {
 	App::updateMuted();
 }
@@ -977,7 +982,7 @@ void MainWidget::saveRecentHashtags(const QString &text) {
 			}
 		}
 		if (!found && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) {
-			Local::readRecentStickers();
+			Local::readRecentHashtags();
 			recent = cRecentWriteHashtags();
 		}
 		found = true;
@@ -2473,7 +2478,7 @@ void MainWidget::start(const MTPUser &user) {
 	}
 	_started = true;
 	App::wnd()->sendServiceHistoryRequest();
-	Local::readRecentStickers();
+	Local::readStickers();
 	history.start();
 }
 
@@ -2493,6 +2498,11 @@ void MainWidget::openLocalUrl(const QString &url) {
 		if (m.hasMatch()) {
 			joinGroupByHash(m.captured(1));
 		}
+	} else if (u.startsWith(QLatin1String("tg://addstickers"), Qt::CaseInsensitive)) {
+		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://addstickers/?\\?set=([a-zA-Z0-9\\.\\_]+)$"), QRegularExpression::CaseInsensitiveOption).match(u);
+		if (m.hasMatch()) {
+			stickersBox(MTP_inputStickerSetShortName(MTP_string(m.captured(1))));
+		}
 	}
 }
 
@@ -2511,6 +2521,17 @@ void MainWidget::openUserByName(const QString &username, bool toProfile) {
 
 void MainWidget::joinGroupByHash(const QString &hash) {
 	MTP::send(MTPmessages_CheckChatInvite(MTP_string(hash)), rpcDone(&MainWidget::inviteCheckDone, hash), rpcFail(&MainWidget::inviteCheckFail));
+}
+
+void MainWidget::stickersBox(const MTPInputStickerSet &set) {
+	StickerSetBox *box = new StickerSetBox(set);
+	connect(box, SIGNAL(installed(uint64)), this, SLOT(onStickersInstalled(uint64)));
+	App::wnd()->showLayer(box);
+}
+
+void MainWidget::onStickersInstalled(uint64 setId) {
+	emit stickersUpdated();
+	history.stickersInstalled(setId);
 }
 
 void MainWidget::usernameResolveDone(bool toProfile, const MTPUser &user) {
@@ -2733,28 +2754,24 @@ void MainWidget::updateNotifySetting(PeerData *peer, bool enabled) {
 }
 
 void MainWidget::incrementSticker(DocumentData *sticker) {
-	RecentStickerPack recent(cRecentStickers());
+	if (!sticker || !sticker->sticker) return;
+
+	RecentStickerPack &recent(cGetRecentStickers());
 	RecentStickerPack::iterator i = recent.begin(), e = recent.end();
 	for (; i != e; ++i) {
 		if (i->first == sticker) {
-			if (i->second > 0) {
-				++i->second;
-			} else {
-				--i->second;
-			}
-			if (qAbs(i->second) > 0x4000) {
+			++i->second;
+			if (i->second > 0x8000) {
 				for (RecentStickerPack::iterator j = recent.begin(); j != e; ++j) {
-					if (qAbs(j->second) > 1) {
+					if (j->second > 1) {
 						j->second /= 2;
-					} else if (j->second > 0) {
-						j->second = 1;
 					} else {
-						j->second = -1;
+						j->second = 1;
 					}
 				}
 			}
 			for (; i != recent.begin(); --i) {
-				if (qAbs((i - 1)->second) > qAbs(i->second)) {
+				if ((i - 1)->second > i->second) {
 					break;
 				}
 				qSwap(*i, *(i - 1));
@@ -2763,11 +2780,45 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 		}
 	}
 	if (i == e) {
-		recent.push_front(qMakePair(sticker, -(recent.isEmpty() ? 1 : qAbs(recent.front().second))));
+		while (recent.size() >= StickerPanPerRow * StickerPanRowsPerPage) recent.pop_back();
+		recent.push_back(qMakePair(sticker, 1));
+		for (i = recent.end() - 1; i != recent.begin(); --i) {
+			if ((i - 1)->second > i->second) {
+				break;
+			}
+			qSwap(*i, *(i - 1));
+		}
 	}
-	cSetRecentStickers(recent);
-	Local::writeRecentStickers();
 
+	Local::writeUserSettings();
+
+	bool found = false;
+	uint64 setId = 0;
+	QString setName;
+	switch (sticker->sticker->set.type()) {
+	case mtpc_inputStickerSetID: setId = sticker->sticker->set.c_inputStickerSetID().vid.v; break;
+	case mtpc_inputStickerSetShortName: setName = qs(sticker->sticker->set.c_inputStickerSetShortName().vshort_name).toLower().trimmed(); break;
+	}
+	StickerSets &sets(cRefStickerSets());
+	for (StickerSets::const_iterator i = sets.cbegin(); i != sets.cend(); ++i) {
+		if (i->id == CustomStickerSetId || (setId && i->id == setId) || (!setName.isEmpty() && i->shortName.toLower().trimmed() == setName) || (!setId && setName.isEmpty() && i->id == DefaultStickerSetId)) {
+			for (int32 j = 0, l = i->stickers.size(); j < l; ++j) {
+				if (i->stickers.at(j) == sticker) {
+					found = true;
+					break;
+				}
+			}
+			if (found) break;
+		}
+	}
+	if (!found) {
+		StickerSets::iterator it = sets.find(CustomStickerSetId);
+		if (it == sets.cend()) {
+			it = sets.insert(CustomStickerSetId, StickerSet(CustomStickerSetId, 0, lang(lng_custom_stickers), QString()));
+		}
+		it->stickers.push_back(sticker);
+		Local::writeStickers();
+	}
 	history.updateRecentStickers();
 }
 

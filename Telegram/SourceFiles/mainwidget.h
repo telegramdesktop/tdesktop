@@ -185,9 +185,12 @@ public:
 	bool animStep(float64 ms);
 
 	void start(const MTPUser &user);
+
 	void openLocalUrl(const QString &str);
 	void openUserByName(const QString &name, bool toProfile = false);
 	void joinGroupByHash(const QString &hash);
+	void stickersBox(const MTPInputStickerSet &set);
+
 	void startFull(const MTPVector<MTPUser> &users);
 	bool started();
 	void applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNotifySettings &settings, History *history = 0);
@@ -341,6 +344,8 @@ public:
 	void webPageUpdated(WebPageData *page);
 	void updateMutedIn(int32 seconds);
 
+	void updateStickers();
+
 	~MainWidget();
 
 signals:
@@ -352,6 +357,7 @@ signals:
 	void dialogToTop(const History::DialogLinks &links);
 	void dialogsUpdated();
 	void showPeerAsync(quint64 peer, qint32 msgId, bool back, bool force);
+	void stickersUpdated();
 
 public slots:
 
@@ -401,6 +407,8 @@ public slots:
 	void onInviteImport();
 
 	void onUpdateMuted();
+
+	void onStickersInstalled(uint64 setId);
 
 private:
 

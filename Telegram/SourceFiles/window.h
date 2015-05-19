@@ -219,7 +219,6 @@ public:
 	void notifyItemRemoved(HistoryItem *item);
 	void notifyStopHiding();
 	void notifyStartHiding();
-	void notifyUpdateAllPhotos();
 	void notifyUpdateAll();
 	void notifyActivateAll();
 
@@ -270,12 +269,16 @@ public slots:
 
 	QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon);
 
+	void notifyUpdateAllPhotos();
+
 signals:
 
 	void resized(const QSize &size);
 	void tempDirCleared(int task);
 	void tempDirClearFailed(int task);
 	void newAuthorization();
+
+	void imageLoaded();
 
 private:
 

@@ -428,7 +428,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_emoji_category5" = "Activity";
 "lng_emoji_category6" = "Travel & Places";
 "lng_emoji_category7" = "Objects & Symbols";
-"lng_emoji_category8" = "Stickers";
+
+"lng_switch_stickers" = "Stickers";
+"lng_switch_emoji" = "Emoji";
+
+"lng_custom_stickers" = "Custom stickers";
+"lng_stickers_remove_pack" = "Remove «{sticker_pack}»?";
+"lng_stickers_add_pack" = "Add {count:_not_used_|# Sticker|# Stickers}";
+"lng_stickers_share_pack" = "Share Stickers";
+"lng_stickers_not_found" = "Sticker pack not found.";
+"lng_stickers_copied" = "Sticker pack link copied to clipboard.";
 
 "lng_in_dlg_photo" = "Photo";
 "lng_in_dlg_video" = "Video";
@@ -481,6 +490,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_save_video" = "Save Video As..";
 "lng_context_open_audio" = "Open Audio";
 "lng_context_save_audio" = "Save Audio As..";
+"lng_context_pack_info" = "Pack Info";
 "lng_context_open_file" = "Open File";
 "lng_context_save_file" = "Save File As..";
 "lng_context_forward_file" = "Forward File";

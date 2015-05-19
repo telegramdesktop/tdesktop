@@ -27,7 +27,7 @@ class mtpFileLoader : public QObject, public RPCSender {
 
 public:
 
-	mtpFileLoader(int32 dc, const int64 &volume, int32 local, const int64 &secret, int32 size = 0);
+	mtpFileLoader(int32 dc, const uint64 &volume, int32 local, const uint64 &secret, int32 size = 0);
 	mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, mtpTypeId locType, const QString &to, int32 size);
 	mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, mtpTypeId locType, const QString &to, int32 size, bool todata);
 	bool done() const;
@@ -82,9 +82,9 @@ private:
 	int32 dc;
 	mtpTypeId locationType; // 0 or mtpc_inputVideoFileLocation / mtpc_inputAudioFileLocation / mtpc_inputDocumentFileLocation
 
-	int64 volume; // for photo locations
+	uint64 volume; // for photo locations
 	int32 local;
-	int64 secret;
+	uint64 secret;
 
 	uint64 id; // for other locations
 	uint64 access;
