@@ -3061,7 +3061,7 @@ void HistorySticker::draw(QPainter &p, const HistoryItem *parent, bool selected,
 		int32 rw = width - usew, rh = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		int32 rx = parent->out() ? 0 : usew, ry = _height - rh;
 		
-		App::roundRect(p, rx, ry, rw, rh, App::msgServiceBg(), selected ? ServiceSelectedCorners : ServiceCorners, &App::msgServiceSelectBg());
+		App::roundRect(p, rx, ry, rw, rh, selected ? App::msgServiceSelectBg() : App::msgServiceBg(), selected ? ServiceSelectedCorners : ServiceCorners);
 
 		reply->drawReplyTo(p, rx + st::msgReplyPadding.left(), ry, rw - st::msgReplyPadding.left() - st::msgReplyPadding.right(), selected, true);
 	}

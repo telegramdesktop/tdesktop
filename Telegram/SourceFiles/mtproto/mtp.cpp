@@ -645,7 +645,7 @@ namespace MTP {
 
 		dcMask %= _mtp_internal::dcShift;
 		for (Sessions::const_iterator i = sessions.cbegin(), e = sessions.cend(); i != e; ++i) {
-			if (((*i)->getDcWithShift() % _mtp_internal::dcShift) == dcMask) {
+			if (((*i)->getDcWithShift() % int(_mtp_internal::dcShift)) == dcMask) {
 				(*i)->restart();
 			}
 		}
