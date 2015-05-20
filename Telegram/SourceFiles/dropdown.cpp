@@ -675,11 +675,9 @@ void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 	QPoint w(st::dropdownDef.shadow.pxWidth() + st::emojiColorsPadding + variant * st::emojiPanSize.width() + (variant ? 2 * st::emojiColorsPadding + st::emojiColorsSep : 0), st::dropdownDef.shadow.pxHeight() + st::emojiColorsPadding);
 	if (hover > 0) {
 		p.setOpacity(hover);
-		p.setBrush(st::emojiPanHover->b);
-		p.setPen(Qt::NoPen);
 		QPoint tl(w);
 		if (rtl()) tl.setX(width() - tl.x() - st::emojiPanSize.width());
-		p.drawRoundedRect(QRect(tl, st::emojiPanSize), st::emojiPanRound, st::emojiPanRound);
+		App::roundRect(p, QRect(tl, st::emojiPanSize), st::emojiPanHover, StickerHoverCorners);
 		p.setOpacity(1);
 	}
 	int esize = EmojiSizes[EIndex + 1];
@@ -786,11 +784,9 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 				QPoint w(st::emojiPanPadding + j * st::emojiPanSize.width(), y + i * st::emojiPanSize.height());
 				if (hover > 0) {
 					p.setOpacity(hover);
-					p.setBrush(st::emojiPanHover->b);
-					p.setPen(Qt::NoPen);
 					QPoint tl(w);
 					if (rtl()) tl.setX(width() - tl.x() - st::emojiPanSize.width());
-					p.drawRoundedRect(QRect(tl, st::emojiPanSize), st::emojiPanRound, st::emojiPanRound);
+					App::roundRect(p, QRect(tl, st::emojiPanSize), st::emojiPanHover, StickerHoverCorners);
 					p.setOpacity(1);
 				}
 				p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (_esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (_esize / cIntRetinaFactor())) / 2, width(), App::emojisLarge(), QRect(_emojis[c][index]->x * _esize, _emojis[c][index]->y * _esize, _esize, _esize));
@@ -928,9 +924,9 @@ void EmojiPanInner::onShowPicker() {
 			int32 size = (c == tab) ? (sel - (sel % EmojiPanPerRow)) : _counts[c], rows = (size / EmojiPanPerRow) + ((size % EmojiPanPerRow) ? 1 : 0);
 			y += st::emojiPanHeader + (rows * st::emojiPanSize.height());
 		}
-		y -= _picker.height() - st::emojiPanRound;
+		y -= _picker.height() - st::msgRadius;
 		if (y < _top) {
-			y += _picker.height() - st::emojiPanRound + st::emojiPanSize.height() - st::emojiPanRound;
+			y += _picker.height() - st::msgRadius + st::emojiPanSize.height() - st::msgRadius;
 		}
 		int xmax = width() - _picker.width();
 		float64 coef = float64(sel % EmojiPanPerRow) / float64(EmojiPanPerRow - 1);
@@ -1211,11 +1207,9 @@ void StickerPanInner::paintEvent(QPaintEvent *e) {
 				QPoint pos(st::stickerPanPadding + j * st::stickerPanSize.width(), y + i * st::stickerPanSize.height());
 				if (hover > 0) {
 					p.setOpacity(hover);
-					p.setBrush(st::emojiPanHover->b);
-					p.setPen(Qt::NoPen);
 					QPoint tl(pos);
 					if (rtl()) tl.setX(width() - tl.x() - st::stickerPanSize.width());
-					p.drawRoundedRect(QRect(tl, st::stickerPanSize), st::stickerPanRound, st::stickerPanRound);
+					App::roundRect(p, QRect(tl, st::stickerPanSize), st::emojiPanHover, StickerHoverCorners);
 					p.setOpacity(1);
 				}
 
@@ -1236,7 +1230,7 @@ void StickerPanInner::paintEvent(QPaintEvent *e) {
 					}
 				}
 
-				float64 coef = qMin((st::stickerPanSize.width() - st::stickerPanRound * 2) / float64(sticker->dimensions.width()), (st::stickerPanSize.height() - st::stickerPanRound * 2) / float64(sticker->dimensions.height()));
+				float64 coef = qMin((st::stickerPanSize.width() - st::msgRadius * 2) / float64(sticker->dimensions.width()), (st::stickerPanSize.height() - st::msgRadius * 2) / float64(sticker->dimensions.height()));
 				if (coef > 1) coef = 1;
 				int32 w = qRound(coef * sticker->dimensions.width()), h = qRound(coef * sticker->dimensions.height());
 				if (w < 1) w = 1;
@@ -2012,9 +2006,9 @@ void EmojiPan::onSwitch() {
 	hideAll();
 	_moveStart = getms();
 
-	a_toCoord = _stickersShown ? anim::ivalue(st::emojiPanFullSize.width(), 0) : anim::ivalue(-st::emojiPanFullSize.width(), 0);
+	a_toCoord = (_stickersShown != rtl()) ? anim::ivalue(st::emojiPanFullSize.width(), 0) : anim::ivalue(-st::emojiPanFullSize.width(), 0);
 	a_toAlpha = anim::fvalue(0, 1);
-	a_fromCoord = _stickersShown ? anim::ivalue(0, -st::emojiPanFullSize.width()) : anim::ivalue(0, st::emojiPanFullSize.width());
+	a_fromCoord = (_stickersShown != rtl()) ? anim::ivalue(0, -st::emojiPanFullSize.width()) : anim::ivalue(0, st::emojiPanFullSize.width());
 	a_fromAlpha = anim::fvalue(1, 0);
 
 	if (!animating()) anim::start(this);
@@ -2110,7 +2104,7 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 				}
 			}
 			user->photo->load();
-			p.drawPixmap(st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), user->photo->pix(st::mentionPhotoSize));
+			p.drawPixmap(st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), user->photo->pixRounded(st::mentionPhotoSize));
 			user->nameText.drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
 			p.setFont(st::mentionFont->f);
 

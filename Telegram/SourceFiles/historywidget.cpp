@@ -1424,10 +1424,8 @@ void HistoryHider::paintEvent(QPaintEvent *e) {
 			p.setPen(st::black->p);
 			toText.drawElided(p, box.left() + (box.width() - toTextWidth) / 2, box.top() + st::boxPadding.top(), toTextWidth + 1);
 		} else {
-			p.setBrush(st::forwardBG->b);
-			p.setPen(Qt::NoPen);
 			int32 w = st::forwardMargins.left() + _chooseWidth + st::forwardMargins.right(), h = st::forwardMargins.top() + st::forwardFont->height + st::forwardMargins.bottom();
-			p.drawRoundedRect((width() - w) / 2, (height() - h) / 2, w, h, st::forwardRadius, st::forwardRadius);
+			App::roundRect(p, (width() - w) / 2, (height() - h) / 2, w, h, st::forwardBg, ForwardCorners);
 
 			p.setPen(st::white->p);
 			p.drawText(box, lang(lng_forward_choose), QTextOption(style::al_center));
@@ -4096,12 +4094,7 @@ void HistoryWidget::drawFieldBackground(QPainter &p) {
 					ImagePtr replyPreview = _replyTo->getMedia()->replyPreview();
 					if (!replyPreview->isNull()) {
 						QRect to(replyLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
-						if (replyPreview->width() == replyPreview->height()) {
-							p.drawPixmap(to.x(), to.y(), replyPreview->pix());
-						} else {
-							QRect from = (replyPreview->width() > replyPreview->height()) ? QRect((replyPreview->width() - replyPreview->height()) / 2, 0, replyPreview->height(), replyPreview->height()) : QRect(0, (replyPreview->height() - replyPreview->width()) / 2, replyPreview->width(), replyPreview->width());
-							p.drawPixmap(to, replyPreview->pix(), from);
-						}
+						p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height()));
 					}
 					replyLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
 				}
@@ -4230,9 +4223,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		style::font font(st::msgServiceFont);
 		int32 w = font->m.width(lang(lng_willbe_history)) + st::msgPadding.left() + st::msgPadding.right(), h = font->height + st::msgServicePadding.top() + st::msgServicePadding.bottom() + 2;
 		QRect tr((width() - w) / 2, (height() - _field.height() - 2 * st::sendPadding - h) / 2, w, h);
-		p.setPen(Qt::NoPen);
-		p.setBrush(App::msgServiceBG()->b);
-		p.drawRoundedRect(tr, st::msgServiceRadius, st::msgServiceRadius);
+		App::roundRect(p, tr, App::msgServiceBg(), ServiceCorners);
 
 		p.setPen(st::msgServiceColor->p);
 		p.setFont(font->f);

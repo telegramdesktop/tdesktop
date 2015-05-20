@@ -47,13 +47,13 @@ public:
 		return false;
 	}
 	const QPixmap &pix(int32 w = 0, int32 h = 0) const;
+	const QPixmap &pixRounded(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixBlurred(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixColored(const style::color &add, int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixBlurredColored(const style::color &add, int32 w = 0, int32 h = 0) const;
-	const QPixmap &pixSingle(int32 w = 0, int32 h = 0) const;
-	const QPixmap &pixBlurredSingle(int32 w = 0, int32 h = 0) const;
-	QPixmap pixNoCache(int32 w = 0, int32 h = 0, bool smooth = false) const;
-	QPixmap pixBlurredNoCache(int32 w, int32 h = 0) const;
+	const QPixmap &pixSingle(int32 w, int32 y, int32 outerw, int32 outerh) const;
+	const QPixmap &pixBlurredSingle(int32 w, int32 h, int32 outerw, int32 outerh) const;
+	QPixmap pixNoCache(int32 w = 0, int32 h = 0, bool smooth = false, bool blurred = false, bool rounded = false, int32 outerw = -1, int32 outerh = -1) const;
 	QPixmap pixColoredNoCache(const style::color &add, int32 w = 0, int32 h = 0, bool smooth = false) const;
 	QPixmap pixBlurredColoredNoCache(const style::color &add, int32 w, int32 h = 0) const;
 

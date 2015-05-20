@@ -36,6 +36,31 @@ typedef QHash<AudioData*, HistoryItemsMap> AudioItems;
 typedef QHash<DocumentData*, HistoryItemsMap> DocumentItems;
 typedef QHash<WebPageData*, HistoryItemsMap> WebPageItems;
 
+enum RoundCorners {
+	MaskCorners = 0x00, // for images
+	BlackCorners,
+	ServiceCorners,
+	ServiceSelectedCorners,
+	SelectedOverlayCorners,
+	DateCorners,
+	DateSelectedCorners,
+	ForwardCorners,
+	MediaviewSaveCorners,
+	EmojiHoverCorners,
+	StickerHoverCorners,
+
+	InShadowCorners, // for photos without bg
+	InSelectedShadowCorners,
+
+	MessageInCorners, // with shadow
+	MessageInSelectedCorners,
+	MessageOutCorners,
+	MessageOutSelectedCorners,
+	ButtonHoverCorners,
+
+	RoundCornersCount
+};
+
 namespace App {
 	Application *app();
 	Window *wnd();
@@ -205,9 +230,17 @@ namespace App {
 	void stickersBox(const QString &name);
 	void openLocalUrl(const QString &url);
 
+	QImage **cornersMask();
+	QPixmap **corners(RoundCorners index);
+	void roundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *sh = 0);
+	inline void roundRect(QPainter &p, const QRect &rect, const style::color &bg, RoundCorners index, const style::color *sh = 0) {
+		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, index, sh);
+	}
+
 	void initBackground(int32 id = DefaultChatBackground, const QImage &p = QImage(), bool nowrite = false);
 
-	style::color msgServiceBG();
+	style::color msgServiceBg();
+	style::color msgServiceSelectBg();
 	style::color historyScrollBarColor();
 	style::color historyScrollBgColor();
 	style::color historyScrollBarOverColor();

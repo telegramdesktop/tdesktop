@@ -805,6 +805,9 @@ public:
 	virtual const QString inDialogsText() const = 0;
 	virtual const QString inHistoryText() const = 0;
 	virtual bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const = 0;
+	virtual bool isDisplayed() const {
+		return true;
+	}
 	virtual int32 countHeight(const HistoryItem *parent, int32 width = -1) const {
 		return height();
 	}
@@ -873,6 +876,7 @@ public:
 	}
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
+	const Text &captionForClone() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	HistoryMedia *clone() const;
@@ -914,6 +918,7 @@ public:
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	HistoryMediaType type() const {
 		return MediaTypeVideo;
 	}
@@ -1097,6 +1102,9 @@ public:
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	bool isDisplayed() const {
+		return !data->pendingTill;
+	}
 	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	HistoryMediaType type() const {
 		return MediaTypeWebPage;
@@ -1252,7 +1260,9 @@ public:
     QString notificationText() const;
     
 	void updateMedia(const MTPMessageMedia &media) {
-		if (_media) _media->updateFrom(media);
+		if (_media) {
+			_media->updateFrom(media);
+		}
 	}
 	void updateStickerEmoji();
 
