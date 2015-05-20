@@ -562,6 +562,7 @@ QPixmap OverviewInner::genPix(PhotoData *photo, int32 size) {
 	} else {
         img = img.copy(0, (img.height() - img.width()) / 2, img.width(), img.width()).scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
 	}
+//	imageRound(img);
 	img.setDevicePixelRatio(cRetinaFactor());
 	photo->forget();
 	return QPixmap::fromImage(img, Qt::ColorOnly);

@@ -239,13 +239,13 @@ namespace App {
 
 	void initBackground(int32 id = DefaultChatBackground, const QImage &p = QImage(), bool nowrite = false);
 
-	style::color msgServiceBg();
-	style::color msgServiceSelectBg();
-	style::color historyScrollBarColor();
-	style::color historyScrollBgColor();
-	style::color historyScrollBarOverColor();
-	style::color historyScrollBgOverColor();
-	style::color introPointHoverColor();
+	const style::color &msgServiceBg();
+	const style::color &msgServiceSelectBg();
+	const style::color &historyScrollBarColor();
+	const style::color &historyScrollBgColor();
+	const style::color &historyScrollBarOverColor();
+	const style::color &historyScrollBgOverColor();
+	const style::color &introPointHoverColor();
 
 	struct WallPaper {
 		WallPaper(int32 id, ImagePtr thumb, ImagePtr full) : id(id), thumb(thumb), full(full) {

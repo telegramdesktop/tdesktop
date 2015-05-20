@@ -20,6 +20,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include <QtGui/QPixmap>
 
 QImage imageBlur(QImage img);
+void imageRound(QImage &img);
 
 struct StorageImageLocation {
 	StorageImageLocation() : width(0), height(0), dc(0), volume(0), local(0), secret(0) {

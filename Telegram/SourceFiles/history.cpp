@@ -1808,7 +1808,7 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		}
 	} else {
 		QPixmap **cors = App::corners(selected ? InSelectedShadowCorners : InShadowCorners);
-		int32 cw = cors[0]->width() / cIntRetinaFactor(), ch = cors[0]->height();
+		int32 cw = cors[0]->width() / cIntRetinaFactor(), ch = cors[0]->height() / cIntRetinaFactor();
 		style::color shadow(selected ? st::msgInSelectShadow : st::msgInShadow);
 		p.fillRect(cw, _height, width - 2 * cw, st::msgShadow, shadow->b);
 		p.fillRect(0, _height - ch, cw, st::msgShadow, shadow->b);
@@ -4302,7 +4302,7 @@ void HistoryImageLink::draw(QPainter &p, const HistoryItem *parent, bool selecte
 		height -= skipy + st::mediaPadding.bottom();
 	} else {
 		QPixmap **cors = App::corners(selected ? InSelectedShadowCorners : InShadowCorners);
-		int32 cw = cors[0]->width() / cIntRetinaFactor(), ch = cors[0]->height();
+		int32 cw = cors[0]->width() / cIntRetinaFactor(), ch = cors[0]->height() / cIntRetinaFactor();
 		style::color shadow(selected ? st::msgInSelectShadow : st::msgInShadow);
 		p.fillRect(cw, _height, width - 2 * cw, st::msgShadow, shadow->b);
 		p.fillRect(0, _height - ch, cw, st::msgShadow, shadow->b);
@@ -4318,15 +4318,12 @@ void HistoryImageLink::draw(QPainter &p, const HistoryItem *parent, bool selecte
 		QPixmap pix;
 		if (width * h == height * w || (w == convertScale(fullWidth()) && h == convertScale(fullHeight()))) {
 			pix = data->thumb->pixSingle(width, height, width, height);
+		} else if (width * h > height * w) {
+			int32 nw = height * w / h;
+			pix = data->thumb->pixSingle(nw, height, width, height);
 		} else {
-			p.fillRect(QRect(skipx, skipy, width, height), st::black->b);
-			if (width * h > height * w) {
-				int32 nw = height * w / h;
-				pix = data->thumb->pixSingle(nw, height, width, height);
-			} else {
-				int32 nh = width * h / w;
-				pix = data->thumb->pixSingle(width, nh, width, height);
-			}
+			int32 nh = width * h / w;
+			pix = data->thumb->pixSingle(width, nh, width, height);
 		}
 		p.drawPixmap(QPoint(skipx, skipy), pix);
 	} else {

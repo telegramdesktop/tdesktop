@@ -418,7 +418,7 @@ QPixmap Image::pixNoCache(int32 w, int32 h, bool smooth, bool blurred, bool roun
 				if (w < outerw || h < outerh) {
 					p.fillRect(0, 0, result.width(), result.height(), st::black->b);
 				}
-				p.drawImage((result.width() - img.width()) / 2, (result.height() - img.height()) / 2, img);
+				p.drawImage((result.width() - img.width()) / (2 * cIntRetinaFactor()), (result.height() - img.height()) / (2 * cIntRetinaFactor()), img);
 			}
 			img = result;
 		}

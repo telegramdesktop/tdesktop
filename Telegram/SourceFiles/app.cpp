@@ -1633,8 +1633,7 @@ namespace App {
 		QImage mask[4];
 		prepareCorners(MaskCorners, st::msgRadius, st::white, 0, mask);
 		for (int i = 0; i < 4; ++i) {
-			::cornersMask[i] = new QImage(mask[i]);
-			::cornersMask[i]->convertToFormat(QImage::Format_ARGB32_Premultiplied);
+			::cornersMask[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
 			::cornersMask[i]->setDevicePixelRatio(cRetinaFactor());
 		}
 		prepareCorners(BlackCorners, st::msgRadius, st::black);
@@ -1645,7 +1644,7 @@ namespace App {
 		prepareCorners(DateSelectedCorners, st::msgRadius, st::msgDateImgSelectBg);
 		prepareCorners(InShadowCorners, st::msgRadius, st::msgInShadow);
 		prepareCorners(InSelectedShadowCorners, st::msgRadius, st::msgInSelectShadow);
-		prepareCorners(ForwardCorners, st::msgRadius, st::emojiPanHover);
+		prepareCorners(ForwardCorners, st::msgRadius, st::forwardBg);
 		prepareCorners(MediaviewSaveCorners, st::msgRadius, st::emojiPanHover);
 		prepareCorners(EmojiHoverCorners, st::msgRadius, st::emojiPanHover);
 		prepareCorners(StickerHoverCorners, st::msgRadius, st::emojiPanHover);
@@ -2181,31 +2180,31 @@ namespace App {
 		if (App::main()) App::main()->updateScrollColors();
 	}
 
-	style::color msgServiceBg() {
+	const style::color &msgServiceBg() {
 		return _msgServiceBg;
 	}
 
-	style::color msgServiceSelectBg() {
+	const style::color &msgServiceSelectBg() {
 		return _msgServiceSelectBg;
 	}
 
-	style::color historyScrollBarColor() {
+	const style::color &historyScrollBarColor() {
 		return _historyScrollBarColor;
 	}
 
-	style::color historyScrollBgColor() {
+	const style::color &historyScrollBgColor() {
 		return _historyScrollBgColor;
 	}
 
-	style::color historyScrollBarOverColor() {
+	const style::color &historyScrollBarOverColor() {
 		return _historyScrollBarOverColor;
 	}
 
-	style::color historyScrollBgOverColor() {
+	const style::color &historyScrollBgOverColor() {
 		return _historyScrollBgOverColor;
 	}
 
-	style::color introPointHoverColor() {
+	const style::color &introPointHoverColor() {
 		return _introPointHoverColor;
 	}
 
