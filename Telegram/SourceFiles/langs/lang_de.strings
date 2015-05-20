@@ -428,7 +428,17 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_emoji_category5" = "Aktivität";
 "lng_emoji_category6" = "Reisen & Orte";
 "lng_emoji_category7" = "Objekte & Symbole";
-"lng_emoji_category8" = "Sticker";
+
+"lng_switch_stickers" = "Sticker";
+"lng_switch_emoji" = "Emoji";
+
+"lng_custom_stickers" = "Eigene Sticker";
+"lng_stickers_remove_pack" = "«{sticker_pack}» entfernen?";
+"lng_stickers_add_pack" = "{count:_not_used_|# Sticker|# Stickers} hinzufügen";
+"lng_stickers_share_pack" = "Sticker teilen";
+"lng_stickers_not_found" = "Sticker-Paket nicht gefunden.";
+"lng_stickers_copied" = "Sticker-Paket Link in die Zwischenablage kopiert.";
+"lng_stickers_default_set" = "Große Denker";
 
 "lng_in_dlg_photo" = "Bild";
 "lng_in_dlg_video" = "Video";
@@ -481,6 +491,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_save_video" = "Video speichern unter..";
 "lng_context_open_audio" = "Sprachnachricht öffnen";
 "lng_context_save_audio" = "Sprachnachricht speichern unter..";
+"lng_context_pack_info" = "Sticker-Paket";
 "lng_context_open_file" = "Datei öffnen";
 "lng_context_save_file" = "Datei speichern als..";
 "lng_context_forward_file" = "Datei weiterleiten";
@@ -573,7 +584,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Neue Emoji hinzugefügt\n— Emoji- und Sticker-Panel wurden verbessert";
+"lng_new_version_text" = "— Installiere und teile benutzerdefinierte Sticker-Pakete\n— Neue Emoji und ein Panel für Sticker";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

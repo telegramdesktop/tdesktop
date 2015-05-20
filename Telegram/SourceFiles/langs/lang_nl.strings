@@ -428,7 +428,17 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_emoji_category5" = "Actviteit";
 "lng_emoji_category6" = "Reizen & plekken";
 "lng_emoji_category7" = "Objecten & symbolen";
-"lng_emoji_category8" = "Stickers";
+
+"lng_switch_stickers" = "Stickers";
+"lng_switch_emoji" = "Emoji";
+
+"lng_custom_stickers" = "Aangepaste stickers";
+"lng_stickers_remove_pack" = " «{sticker_pack}» verwijderen?";
+"lng_stickers_add_pack" = "{count:_not_used_|# Sticker|# Stickers} toevoegen";
+"lng_stickers_share_pack" = "Stickers delen";
+"lng_stickers_not_found" = "Stickerbundel niet gevonden.";
+"lng_stickers_copied" = "Stickerbundel-link gekopieerd naar klembord";
+"lng_stickers_default_set" = "Grote geesten";
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Video";
@@ -481,6 +491,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_save_video" = "Video opslaan als";
 "lng_context_open_audio" = "Geluidsbestand openen";
 "lng_context_save_audio" = "Geluidsbestand opslaan als";
+"lng_context_pack_info" = "Bundelinformatie";
 "lng_context_open_file" = "Bestand openen";
 "lng_context_save_file" = "Bestand opslaan als";
 "lng_context_forward_file" = "Bestand doorsturen";
@@ -573,7 +584,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Ondersteuning voor nieuwe emoji toegevoegd\n— Verbeterd emoji- en stickerspaneel";
+"lng_new_version_text" = "— Ondersteuning voor stickerbundels toegevoegd\n— Nieuw emoji- en stickerspaneel";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

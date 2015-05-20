@@ -428,7 +428,17 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_emoji_category5" = "활동";
 "lng_emoji_category6" = "여행 및 장소";
 "lng_emoji_category7" = "오브제 & 상징";
-"lng_emoji_category8" = "스티커";
+
+"lng_switch_stickers" = "스티커";
+"lng_switch_emoji" = "이모티콘";
+
+"lng_custom_stickers" = "커스텀 스티커";
+"lng_stickers_remove_pack" = "«{sticker_pack}»을 제거하시겠습니까?";
+"lng_stickers_add_pack" = "{count:_not_used_|# 스티커|# 스티커} 추가";
+"lng_stickers_share_pack" = "스티커 공유";
+"lng_stickers_not_found" = "스티커 팩을 찾을 수 없습니다.";
+"lng_stickers_copied" = "클립보드에 스티커 팩 링크가 복사 되었습니다.";
+"lng_stickers_default_set" = "Great Minds";
 
 "lng_in_dlg_photo" = "사진";
 "lng_in_dlg_video" = "비디오";
@@ -481,6 +491,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_save_video" = "비디오 이름을 다른이름으로 저장.";
 "lng_context_open_audio" = "음성메시지 열기";
 "lng_context_save_audio" = "음성메시지를 다른 이름으로 저장..";
+"lng_context_pack_info" = "팩 정보";
 "lng_context_open_file" = "파일 열기";
 "lng_context_save_file" = "파일을 다른 이름으로 저장..";
 "lng_context_forward_file" = "파일 전달";
@@ -573,7 +584,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 새로운 이모티콘 지원\n— 이모티콘 및 스티커 패널 향상";
+"lng_new_version_text" = "— 스티커 팩 기능\n— 신규 이모티콘 및 스티커 패널";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 
