@@ -1473,7 +1473,7 @@ newScroll: flatScroll(scrollDef) {
 stickersMaxHeight: 340px;
 stickersAddOrShare: 70px;
 btnStickersAdd: flatButton(btnDefNext, btnDefBig) {
-	width: 180px;
+	width: 200px;
 	height: 42px;
 
 	textTop: 9px;

@@ -434,7 +434,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_custom_stickers" = "Eigene Sticker";
 "lng_stickers_remove_pack" = "«{sticker_pack}» entfernen?";
-"lng_stickers_add_pack" = "{count:_not_used_|# Sticker|# Stickers} hinzufügen";
+"lng_stickers_add_pack" = "{count:_not_used_|# Sticker|# Sticker} hinzufügen";
 "lng_stickers_share_pack" = "Sticker teilen";
 "lng_stickers_not_found" = "Sticker-Paket nicht gefunden.";
 "lng_stickers_copied" = "Sticker-Paket Link in die Zwischenablage kopiert.";
