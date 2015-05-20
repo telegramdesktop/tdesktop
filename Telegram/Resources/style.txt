@@ -774,6 +774,8 @@ historyToEndSkip: 10px;
 activeFadeInDuration: 500;
 activeFadeOutDuration: 3000;
 
+msgRadius: 3px;
+
 msgMaxWidth: 550px;
 msgFont: font(fsize);
 msgNameFont: font(fsize semibold);
@@ -788,12 +790,11 @@ msgPadding: margins(13px, 7px, 13px, 8px);
 msgMargin: margins(13px, 4px, 53px, 4px);
 msgLnkPadding: 2px; // for media open / save links
 msgBorder: #f0f0f0;
-msgOutBG: #effdde;
-msgInBG: #fff;
-msgOutSelectBG: #b7dbdb;
-msgInSelectBG: #c2dcf2; // #358cd4 with 30% opacity
-msgOutSelectOverlay: #358cd44c;
-msgInSelectOverlay: #358cd44c;
+msgOutBg: #effdde;
+msgInBg: #fff;
+msgOutSelectBg: #b7dbdb;
+msgInSelectBg: #c2dcf2; // #358cd4 with 30% opacity
+msgSelectOverlay: #358cd44c;
 msgStickerOverlay: #358cd47f;
 msgOutServiceColor: #3a8e26;
 msgInServiceColor: #0e7acd;
@@ -818,10 +819,8 @@ msgInReplyBarColor: #2fa9e2;
 msgOutReplyBarSelColor: #4da79f;
 msgInReplyBarSelColor: #2fa9e2;
 
-msgServiceSelectBG: #fff4;
-msgServiceRadius: 2px;
-
-msgServiceBG: #89a0b47f;
+msgServiceBg: #89a0b47f;
+msgServiceSelectBg: #bbc8d4a2;
 msgServiceColor: #FFF;
 msgServicePadding: margins(12px, 3px, 12px, 4px);
 msgServiceMargin: margins(10px, 7px, 80px, 7px);
@@ -851,6 +850,7 @@ msgImgDblCheckRect: sprite(300px, 65px, 20px, 20px);
 msgDateImgDelta: 4px;
 msgDateImgColor: #fff;
 msgDateImgBg: #00000054;
+msgDateImgSelectBg: #1c4a7187;
 msgDateImgPadding: point(8px, 2px);
 msgDateImgCheckSpace: 4px;
 
@@ -862,23 +862,23 @@ defaultTextStyle: textStyle {
 	lnkOverFlags: font(fsize underline);
 	lnkColor: btnYesColor;
 	lnkDownColor: btnYesHover;
-	selectBG: msgInSelectBG;
-	selectOverlay: msgInSelectOverlay;
+	selectBg: msgInSelectBg;
+	selectOverlay: msgSelectOverlay;
 	lineHeight: 0px;
 }
 serviceTextStyle: textStyle(defaultTextStyle) {
 	lnkColor: msgServiceColor;
 	lnkDownColor: msgServiceColor;
-	selectBG: msgServiceSelectBG;
-	selectOverlay: msgServiceSelectBG;
+	selectBg: msgServiceSelectBg;
+	selectOverlay: msgServiceSelectBg;
 }
 inTextStyle: textStyle(defaultTextStyle) {
-	selectBG: msgInSelectBG;
-	selectOverlay: msgInSelectOverlay;
+	selectBg: msgInSelectBg;
+	selectOverlay: msgSelectOverlay;
 }
 outTextStyle: textStyle(defaultTextStyle) {
-	selectBG: msgOutSelectBG;
-	selectOverlay: msgOutSelectOverlay;
+	selectBg: msgOutSelectBg;
+	selectOverlay: msgSelectOverlay;
 }
 medviewSaveAsTextStyle: textStyle(defaultTextStyle) {
 	lnkColor: #91d9ff;
@@ -1177,10 +1177,9 @@ btnShareContact: flatButton(btnDefNext, btnDefBig) {
 }
 
 forwardWidth: 364px;
-forwardRadius: 2px;
 forwardMargins: margins(30px, 10px, 30px, 10px);
 forwardFont: font(16px); 
-forwardBG: rgba(0, 0, 0, 76);
+forwardBg: rgba(0, 0, 0, 76);
 btnProfileCancel: flatButton(btnDefFlat, btnDefBig) {
 	color: #666d78;
 	overColor: #666d78;
@@ -1618,7 +1617,6 @@ emojiPanSize: size(39px, 35px);
 emojiPanFullSize: size(300px, 321px);
 emojiPanDuration: 200;
 emojiPanHover: #f0f4f7;
-emojiPanRound: 2px;
 
 emojiPanHeader: 42px;
 emojiPanHeaderFont: font(fsize semibold);
@@ -1638,7 +1636,6 @@ emojiSwitchEmoji: sprite(310px, 328px, 8px, 12px);
 emojiSwitchColor: #42a8db;
 
 stickerPanSize: size(55px, 55px);
-stickerPanRound: 3px;
 stickerPanPadding: 11px;
 stickerPanDelete: sprite(123px, 132px, 12px, 12px);
 stickerPanDeleteOpacity: 0.5;
@@ -1730,11 +1727,16 @@ mvDocLink: linkButton(btnDefLink) {
 mvDeltaFromLastAction: 5px;
 mvSwipeDistance: 80px;
 
+mvCaptionPadding: margins(18px, 10px, 18px, 10px);
+mvCaptionMargin: size(11px, 11px);
+mvCaptionRadius: 2px;
+mvCaptionBg: #11111180;
+mvCaptionFont: font(fsize);
+
 medviewSaveMsgCheck: sprite(311px, 309px, 22px, 18px);
 medviewSaveMsgFont: font(16px);
 medviewSaveMsgPadding: margins(55px, 19px, 29px, 20px);
 medviewSaveMsgCheckPos: point(23px, 21px);
-medviewSaveMsgRadius: 3px;
 medviewSaveMsgShowing: 200;
 medviewSaveMsgShown: 2000;
 medviewSaveMsgHiding: 2500;

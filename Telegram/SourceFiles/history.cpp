@@ -1597,7 +1597,7 @@ void HistoryPhoto::initDimensions(const HistoryItem *parent) {
 			_minh += st::msgPadding.top() + st::msgNameFont->height;
 		}
 		if (!_caption.isEmpty()) {
-			_minh += _caption.minHeight();
+			_minh += st::webPagePhotoSkip + _caption.minHeight();
 		}
 		_minh += st::mediaPadding.bottom();
 	}
@@ -1664,6 +1664,10 @@ const QString HistoryPhoto::inDialogsText() const {
 
 const QString HistoryPhoto::inHistoryText() const {
 	return qsl("[ ") + lang(lng_in_dlg_photo) + qsl(" ]");
+}
+
+const Text &HistoryPhoto::captionForClone() const {
+	return _caption;
 }
 
 bool HistoryPhoto::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
@@ -1765,15 +1769,20 @@ void HistoryPhoto::updateFrom(const MTPMessageMedia &media) {
 void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const {
 	const HistoryReply *reply = toHistoryReply(parent);
 	const HistoryForwarded *fwd = reply ? 0 : toHistoryForwarded(parent);
+	bool out = parent->out();
+
 	if (width < 0) width = w;
 	int skipx = 0, skipy = 0, height = _height;
 	if (reply || !_caption.isEmpty()) {
 		skipx = st::mediaPadding.left();
 
-		style::color bg(selected ? (parent->out() ? st::msgOutSelectBG : st::msgInSelectBG) : (parent->out() ? st::msgOutBG : st::msgInBG));
-		p.fillRect(QRect(0, 0, width, _height), bg->b);
+		style::color bg(selected ? (out ? st::msgOutSelectBg : st::msgInSelectBg) : (out ? st::msgOutBg : st::msgInBg));
+		style::color sh(selected ? (out ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out ? st::msgOutShadow : st::msgInShadow));
+		RoundCorners cors(selected ? (out ? MessageOutSelectedCorners : MessageInSelectedCorners) : (out ? MessageOutCorners : MessageInCorners));
+		App::roundRect(p, 0, 0, width, _height, bg, cors, &sh);
+
 		int replyFrom = 0, fwdFrom = 0;
-		if (!parent->out() && parent->history()->peer->chat) {
+		if (!out && parent->history()->peer->chat) {
 			replyFrom = st::msgPadding.top() + st::msgNameFont->height;
 			fwdFrom = st::msgPadding.top() + st::msgNameFont->height;
 			skipy += replyFrom;
@@ -1797,20 +1806,25 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		if (!_caption.isEmpty()) {
 			height -= st::webPagePhotoSkip + _caption.countHeight(width);
 		}
+	} else {
+		QPixmap **cors = App::corners(selected ? InSelectedShadowCorners : InShadowCorners);
+		int32 cw = cors[0]->width() / cIntRetinaFactor(), ch = cors[0]->height();
+		style::color shadow(selected ? st::msgInSelectShadow : st::msgInShadow);
+		p.fillRect(cw, _height, width - 2 * cw, st::msgShadow, shadow->b);
+		p.fillRect(0, _height - ch, cw, st::msgShadow, shadow->b);
+		p.fillRect(width - cw, _height - ch, cw, st::msgShadow, shadow->b);
+		p.drawPixmap(0, _height - ch + st::msgShadow, *cors[2]);
+		p.drawPixmap(width - cw, _height - ch + st::msgShadow, *cors[3]);
 	}
 	data->full->load(false, false);
-	bool out = parent->out();
 	bool full = data->full->loaded();
 	QPixmap pix;
 	if (full) {
-		pix = data->full->pixSingle(pixw, pixh);
+		pix = data->full->pixSingle(pixw, pixh, width, height);
 	} else {
-		pix = data->thumb->pixBlurredSingle(pixw, pixh);
+		pix = data->thumb->pixBlurredSingle(pixw, pixh, width, height);
 	}
-	if (pixw < width || pixh < height) {
-		p.fillRect(QRect(skipx, skipy, width, height), st::black->b);
-	}
-	p.drawPixmap(QPoint(skipx + (width - pixw) / 2, skipy + (height - pixh) / 2), pix);
+	p.drawPixmap(skipx, skipy, pix);
 	if (!full) {
 		uint64 dt = itemAnimations().animate(parent, getms());
 		int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
@@ -1833,10 +1847,8 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	}
 
 	if (selected) {
-		p.fillRect(skipx, skipy, width, height, textstyleCurrent()->selectOverlay->b);
+		App::roundRect(p, skipx, skipy, width, height, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
 	}
-	style::color shadow(selected ? st::msgInSelectShadow : st::msgInShadow);
-	p.fillRect(0, _height, width + (skipx ? (st::mediaPadding.left() + st::mediaPadding.right()) : 0), st::msgShadow, shadow->b);
 
 	// date
 	QString time(parent->time());
@@ -1850,10 +1862,8 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		int32 dateW = skipx + width - dateX - st::msgDateImgDelta;
 		int32 dateH = skipy + height - dateY - st::msgDateImgDelta;
 
-		p.fillRect(dateX, dateY, dateW, dateH, st::msgDateImgBg->b);
-		if (selected) {
-			p.fillRect(dateX, dateY, dateW, dateH, textstyleCurrent()->selectOverlay->b);
-		}
+		App::roundRect(p, dateX, dateY, dateW, dateH, selected ? st::msgDateImgSelectBg : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
+
 		p.setFont(st::msgDateFont->f);
 		p.setPen(st::msgDateImgColor->p);
 		p.drawText(dateX + st::msgDateImgPadding.x(), dateY + st::msgDateImgPadding.y() + st::msgDateFont->ascent, time);
@@ -1945,6 +1955,10 @@ HistoryVideo::HistoryVideo(const MTPDvideo &video, const QString &caption, Histo
 , _dldDone(0)
 , _uplDone(0)
 {
+	if (!caption.isEmpty()) {
+		_caption.setText(st::msgFont, caption + textcmdSkipBlock(parent->timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), _historyTextOptions);
+	}
+
 	_size = formatDurationAndSizeText(data->duration, data->size);
 
 	if (!_openWithWidth) {
@@ -1988,7 +2002,11 @@ void HistoryVideo::initDimensions(const HistoryItem *parent) {
 		}
 		_minh += st::msgServiceNameFont->height;
 	}
-	_height = _minh;
+	if (_caption.isEmpty()) {
+		_height = _minh;
+	} else {
+		_minh += st::webPagePhotoSkip + _caption.minHeight();
+	}
 }
 
 void HistoryVideo::regItem(HistoryItem *item) {
@@ -2042,7 +2060,11 @@ void HistoryVideo::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, co
 	}
 
 	if (!out) { // draw Download / Save As button
-		int32 btnw = _buttonWidth, btnh = st::mediaSaveButton.height, btnx = width - _buttonWidth, btny = skipy + (_height - skipy - btnh) / 2;
+		int32 h = _height;
+		if (!_caption.isEmpty()) {
+			h -= st::webPagePhotoSkip + _caption.countHeight(width - _buttonWidth - st::mediaSaveDelta - st::mediaPadding.left() - st::mediaPadding.right());
+		}
+		int32 btnw = _buttonWidth, btnh = st::mediaSaveButton.height, btnx = width - _buttonWidth, btny = skipy + (h - skipy - btnh) / 2;
 		if (x >= btnx && y >= btny && x < btnx + btnw && y < btny + btnh) {
 			lnk = data->loader ? _cancell : _savel;
 			return;
@@ -2067,9 +2089,13 @@ void HistoryVideo::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, co
 		}
 	}
 
-	if (x >= 0 && y >= skipy && x < width && y < _height && !data->loader && data->access) {
+	int32 tw = width - st::mediaPadding.left() - st::mediaPadding.right();
+	if (x >= st::mediaPadding.left() && y >= skipy + st::mediaPadding.top() && x < st::mediaPadding.left() + tw && y < skipy + st::mediaPadding.top() + st::mediaThumbSize && !data->loader && data->access) {
 		lnk = _openl;
 		return;
+	}
+	if (!_caption.isEmpty() && x >= st::mediaPadding.left() && x < st::mediaPadding.left() + tw && y >= skipy + st::mediaPadding.top() + st::mediaThumbSize + st::webPagePhotoSkip) {
+		return _caption.getState(lnk, inText, x - st::mediaPadding.left(), y - skipy - st::mediaPadding.top() - st::mediaThumbSize - st::webPagePhotoSkip, tw);
 	}
 }
 
@@ -2110,11 +2136,16 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		pressed = hovered && ((data->loader ? _cancell : _savel) == textlnkDown());
 		if (hovered && !pressed && textlnkDown()) hovered = false;
 
-		int32 btnw = _buttonWidth, btnh = st::mediaSaveButton.height, btnx = width - _buttonWidth, btny = skipy + (_height - skipy - btnh) / 2;
-		p.fillRect(QRect(btnx, btny, btnw, btnh), (selected ? st::msgInSelectBG : (hovered ? st::mediaSaveButton.overBgColor : st::mediaSaveButton.bgColor))->b);
+		int32 h = _height;
+		if (!_caption.isEmpty()) {
+			h -= st::webPagePhotoSkip + _caption.countHeight(width - _buttonWidth - st::mediaSaveDelta - st::mediaPadding.left() - st::mediaPadding.right());
+		}
 
-		style::color shadow(selected ? (out ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out ? st::msgOutShadow : st::msgInShadow));
-		p.fillRect(btnx, btny + btnh, btnw, st::msgShadow, shadow->b);
+		int32 btnw = _buttonWidth, btnh = st::mediaSaveButton.height, btnx = width - _buttonWidth, btny = skipy + (h - skipy - btnh) / 2;
+		style::color bg(selected ? st::msgInSelectBg : (hovered ? st::mediaSaveButton.overBgColor : st::mediaSaveButton.bgColor));
+		style::color sh(selected ? st::msgInSelectShadow : st::msgInShadow);
+		RoundCorners cors(selected ? MessageInSelectedCorners : (hovered ? ButtonHoverCorners : MessageInCorners));
+		App::roundRect(p, btnx, btny, btnw, btnh, bg, cors, &sh);
 
 		p.setPen((hovered ? st::mediaSaveButton.overColor : st::mediaSaveButton.color)->p);
 		p.setFont(st::mediaSaveButton.font->f);
@@ -2124,11 +2155,10 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		width -= btnw + st::mediaSaveDelta;
 	}
 
-	style::color bg(selected ? (out ? st::msgOutSelectBG : st::msgInSelectBG) : (out ? st::msgOutBG : st::msgInBG));
-	p.fillRect(QRect(0, 0, width, _height), bg->b);
-
-	style::color shadow(selected ? (out ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out ? st::msgOutShadow : st::msgInShadow));
-	p.fillRect(0, _height, width, st::msgShadow, shadow->b);
+	style::color bg(selected ? (out ? st::msgOutSelectBg : st::msgInSelectBg) : (out ? st::msgOutBg : st::msgInBg));
+	style::color sh(selected ? (out ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out ? st::msgOutShadow : st::msgInShadow));
+	RoundCorners cors(selected ? (out ? MessageOutSelectedCorners : MessageInSelectedCorners) : (out ? MessageOutCorners : MessageInCorners));
+	App::roundRect(p, 0, 0, width, _height, bg, cors, &sh);
 
 	if (!parent->out() && parent->history()->peer->chat) {
 		p.setFont(st::msgNameFont->f);
@@ -2142,13 +2172,12 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	}
 
 	if (_thumbw) {
-        int32 rf(cIntRetinaFactor());
-		p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), data->thumb->pix(_thumbw), QRect(_thumbx * rf, _thumby * rf, st::mediaThumbSize * rf, st::mediaThumbSize * rf));
+		p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), data->thumb->pixSingle(_thumbw, 0, st::mediaThumbSize, st::mediaThumbSize));
 	} else {
 		p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), App::sprite(), (out ? st::mediaDocOutImg : st::mediaDocInImg));
 	}
 	if (selected) {
-		p.fillRect(st::mediaPadding.left(), skipy + st::mediaPadding.top(), st::mediaThumbSize, st::mediaThumbSize, (out ? st::msgOutSelectOverlay : st::msgInSelectOverlay)->b);
+		App::roundRect(p, st::mediaPadding.left(), skipy + st::mediaPadding.top(), st::mediaThumbSize, st::mediaThumbSize, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
 	}
 
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
@@ -2198,6 +2227,11 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	}
 	p.setFont(st::msgDateFont->f);
 
+	if (!_caption.isEmpty()) {
+		p.setPen(st::black->p);
+		_caption.draw(p, st::mediaPadding.left(), skipy + st::mediaPadding.top() + st::mediaThumbSize + st::webPagePhotoSkip, width - st::mediaPadding.left() - st::mediaPadding.right());
+	}
+
 	style::color date(selected ? (out ? st::msgOutSelectDateColor : st::msgInSelectDateColor) : (out ? st::msgOutDateColor : st::msgInDateColor));
 	p.setPen(date->p);
 
@@ -2216,6 +2250,32 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		}
 		p.drawPixmap(iconPos, App::sprite(), *iconRect);
 	}
+}
+
+int32 HistoryVideo::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+	w = qMin(width, _maxw);
+	if (_caption.isEmpty()) return _height;
+
+	_height = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
+	if (!parent->out() && parent->history()->peer->chat) {
+		_height += st::msgPadding.top() + st::msgNameFont->height;
+	}
+	if (const HistoryReply *reply = toHistoryReply(parent)) {
+		_height += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
+	} else if (const HistoryForwarded *fwd = toHistoryForwarded(parent)) {
+		if (parent->out() || !parent->history()->peer->chat) {
+			_height += st::msgPadding.top();
+		}
+		_height += st::msgServiceNameFont->height;
+	}
+	if (!_caption.isEmpty()) {
+		int32 textw = w - st::mediaPadding.left() - st::mediaPadding.right();
+		if (!parent->out()) { // substract Download / Save As button
+			textw -= st::mediaSaveDelta + _buttonWidth;
+		}
+		_height += st::webPagePhotoSkip + _caption.countHeight(textw);
+	}
+	return _height;
 }
 
 ImagePtr HistoryVideo::replyPreview() {
@@ -2309,11 +2369,11 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		if (hovered && !pressed && textlnkDown()) hovered = false;
 
 		int32 btnw = _buttonWidth, btnh = st::mediaSaveButton.height, btnx = width - _buttonWidth, btny = skipy + (_height - skipy - btnh) / 2;
-		p.fillRect(QRect(btnx, btny, btnw, btnh), (selected ? st::msgInSelectBG : (hovered ? st::mediaSaveButton.overBgColor : st::mediaSaveButton.bgColor))->b);
-		
-		style::color shadow(selected ? (out ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out ? st::msgOutShadow : st::msgInShadow));
-		p.fillRect(btnx, btny + btnh, btnw, st::msgShadow, shadow->b);
-		
+		style::color bg(selected ? st::msgInSelectBg : (hovered ? st::mediaSaveButton.overBgColor : st::mediaSaveButton.bgColor));
+		style::color sh(selected ? st::msgInSelectShadow : st::msgInShadow);
+		RoundCorners cors(selected ? MessageInSelectedCorners : (hovered ? ButtonHoverCorners : MessageInCorners));
+		App::roundRect(p, btnx, btny, btnw, btnh, bg, cors, &sh);
+
 		p.setPen((hovered ? st::mediaSaveButton.overColor : st::mediaSaveButton.color)->p);
 		p.setFont(st::mediaSaveButton.font->f);
 		QString btnText(lang(data->loader ? lng_media_cancel : (already ? lng_media_open_with : lng_media_download)));
@@ -2322,11 +2382,10 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		width -= btnw + st::mediaSaveDelta;
 	}
 
-	style::color bg(selected ? (out ? st::msgOutSelectBG : st::msgInSelectBG) : (out ? st::msgOutBG : st::msgInBG));
-	p.fillRect(QRect(0, 0, width, _height), bg->b);
-
-	style::color shadow(selected ? (out ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out ? st::msgOutShadow : st::msgInShadow));
-	p.fillRect(0, _height, width, st::msgShadow, shadow->b);
+	style::color bg(selected ? (out ? st::msgOutSelectBg : st::msgInSelectBg) : (out ? st::msgOutBg : st::msgInBg));
+	style::color sh(selected ? (out ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out ? st::msgOutShadow : st::msgInShadow));
+	RoundCorners cors(selected ? (out ? MessageOutSelectedCorners : MessageInSelectedCorners) : (out ? MessageOutCorners : MessageInCorners));
+	App::roundRect(p, 0, 0, width, _height, bg, cors, &sh);
 
 	if (!parent->out() && parent->history()->peer->chat) {
 		p.setFont(st::msgNameFont->f);
@@ -2354,7 +2413,7 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	}
 	p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), App::sprite(), img);
 	if (selected) {
-		p.fillRect(st::mediaPadding.left(), skipy + st::mediaPadding.top(), st::mediaThumbSize, st::mediaThumbSize, textstyleCurrent()->selectOverlay->b);
+		App::roundRect(p, st::mediaPadding.left(), skipy + st::mediaPadding.top(), st::mediaThumbSize, st::mediaThumbSize, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
 	}
 
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
@@ -2639,10 +2698,10 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 		if (hovered && !pressed && textlnkDown()) hovered = false;
 
 		int32 btnw = _buttonWidth, btnh = st::mediaSaveButton.height, btnx = width - _buttonWidth, btny = skipy + (_height - skipy - btnh) / 2;
-		p.fillRect(QRect(btnx, btny, btnw, btnh), (selected ? st::msgInSelectBG : (hovered ? st::mediaSaveButton.overBgColor : st::mediaSaveButton.bgColor))->b);
-
-		style::color shadow(selected ? (out ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out ? st::msgOutShadow : st::msgInShadow));
-		p.fillRect(btnx, btny + btnh, btnw, st::msgShadow, shadow->b);
+		style::color bg(selected ? st::msgInSelectBg : (hovered ? st::mediaSaveButton.overBgColor : st::mediaSaveButton.bgColor));
+		style::color sh(selected ? st::msgInSelectShadow : st::msgInShadow);
+		RoundCorners cors(selected ? MessageInSelectedCorners : (hovered ? ButtonHoverCorners : MessageInCorners));
+		App::roundRect(p, btnx, btny, btnw, btnh, bg, cors, &sh);
 
 		p.setPen((hovered ? st::mediaSaveButton.overColor : st::mediaSaveButton.color)->p);
 		p.setFont(st::mediaSaveButton.font->f);
@@ -2652,11 +2711,10 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 		width -= btnw + st::mediaSaveDelta;
 	}
 
-	style::color bg(selected ? (out ? st::msgOutSelectBG : st::msgInSelectBG) : (out ? st::msgOutBG : st::msgInBG));
-	p.fillRect(QRect(0, 0, width, _height), bg->b);
-
-	style::color shadow(selected ? (out ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out ? st::msgOutShadow : st::msgInShadow));
-	p.fillRect(0, _height, width, st::msgShadow, shadow->b);
+	style::color bg(selected ? (out ? st::msgOutSelectBg : st::msgInSelectBg) : (out ? st::msgOutBg : st::msgInBg));
+	style::color sh(selected ? (out ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out ? st::msgOutShadow : st::msgInShadow));
+	RoundCorners cors(selected ? (out ? MessageOutSelectedCorners : MessageInSelectedCorners) : (out ? MessageOutCorners : MessageInCorners));
+	App::roundRect(p, 0, 0, width, _height, bg, cors, &sh);
 
 	if (!parent->out() && parent->history()->peer->chat) {
 		p.setFont(st::msgNameFont->f);
@@ -2669,13 +2727,12 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 		fwd->drawForwardedFrom(p, st::mediaPadding.left(), fwdFrom, width - st::mediaPadding.left() - st::mediaPadding.right(), selected);
 	}
 	if (_thumbw) {
-        int32 rf(cIntRetinaFactor());
-		p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), data->thumb->pix(_thumbw), QRect(_thumbx * rf, _thumby * rf, st::mediaThumbSize * rf, st::mediaThumbSize * rf));
+		p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), data->thumb->pixSingle(_thumbw, 0, st::mediaThumbSize, st::mediaThumbSize));
 	} else {
 		p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), App::sprite(), (out ? st::mediaDocOutImg : st::mediaDocInImg));
 	}
 	if (selected) {
-		p.fillRect(st::mediaPadding.left(), skipy + st::mediaPadding.top(), st::mediaThumbSize, st::mediaThumbSize, textstyleCurrent()->selectOverlay->b);
+		App::roundRect(p, st::mediaPadding.left(), skipy + st::mediaPadding.top(), st::mediaThumbSize, st::mediaThumbSize, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
 	}
 
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
@@ -2980,10 +3037,8 @@ void HistorySticker::draw(QPainter &p, const HistoryItem *parent, bool selected,
 	int32 dateW = usex + usew - dateX - st::msgDateImgDelta;
 	int32 dateH = _height - dateY - st::msgDateImgDelta;
 
-	p.fillRect(dateX, dateY, dateW, dateH, st::msgDateImgBg->b);
-	if (selected) {
-		p.fillRect(dateX, dateY, dateW, dateH, textstyleCurrent()->selectOverlay->b);
-	}
+	App::roundRect(p, dateX, dateY, dateW, dateH, selected ? st::msgDateImgSelectBg : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
+
 	p.setFont(st::msgDateFont->f);
 	p.setPen(st::msgDateImgColor->p);
 	p.drawText(dateX + st::msgDateImgPadding.x(), dateY + st::msgDateImgPadding.y() + st::msgDateFont->ascent, time);
@@ -3006,14 +3061,7 @@ void HistorySticker::draw(QPainter &p, const HistoryItem *parent, bool selected,
 		int32 rw = width - usew, rh = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		int32 rx = parent->out() ? 0 : usew, ry = _height - rh;
 		
-		p.setPen(Qt::NoPen);
-		QRect r(rx, ry, rw, rh);
-		p.setBrush(App::msgServiceBG()->b);
-		p.drawRoundedRect(r, st::msgServiceRadius, st::msgServiceRadius);
-		if (selected) {
-			p.setBrush(textstyleCurrent()->selectOverlay->b);
-			p.drawRoundedRect(r, st::msgServiceRadius, st::msgServiceRadius);
-		}
+		App::roundRect(p, rx, ry, rw, rh, App::msgServiceBg(), selected ? ServiceSelectedCorners : ServiceCorners, &App::msgServiceSelectBg());
 
 		reply->drawReplyTo(p, rx + st::msgReplyPadding.left(), ry, rw - st::msgReplyPadding.left() - st::msgReplyPadding.right(), selected, true);
 	}
@@ -3217,11 +3265,10 @@ void HistoryContact::draw(QPainter &p, const HistoryItem *parent, bool selected,
 		width = _maxw;
 	}
 
-	style::color bg(selected ? (out ? st::msgOutSelectBG : st::msgInSelectBG) : (out ? st::msgOutBG : st::msgInBG));
-	p.fillRect(QRect(0, 0, width, _height), bg->b);
-
-	style::color shadow(selected ? (out ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out ? st::msgOutShadow : st::msgInShadow));
-	p.fillRect(0, _height, width, st::msgShadow, shadow->b);
+	style::color bg(selected ? (out ? st::msgOutSelectBg : st::msgInSelectBg) : (out ? st::msgOutBg : st::msgInBg));
+	style::color sh(selected ? (out ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out ? st::msgOutShadow : st::msgInShadow));
+	RoundCorners cors(selected ? (out ? MessageOutSelectedCorners : MessageInSelectedCorners) : (out ? MessageOutCorners : MessageInCorners));
+	App::roundRect(p, 0, 0, width, _height, bg, cors, &sh);
 
 	if (!parent->out() && parent->history()->peer->chat) {
 		p.setFont(st::msgNameFont->f);
@@ -3234,7 +3281,10 @@ void HistoryContact::draw(QPainter &p, const HistoryItem *parent, bool selected,
 		fwd->drawForwardedFrom(p, st::mediaPadding.left(), fwdFrom, width - st::mediaPadding.left() - st::mediaPadding.right(), selected);
 	}
 
-	p.drawPixmap(st::mediaPadding.left(), skipy + st::mediaPadding.top(), (contact ? contact->photo : userDefPhoto(1))->pix(st::mediaThumbSize));
+	p.drawPixmap(st::mediaPadding.left(), skipy + st::mediaPadding.top(), (contact ? contact->photo : userDefPhoto(1))->pixRounded(st::mediaThumbSize));
+	if (selected) {
+		App::roundRect(p, st::mediaPadding.left(), skipy + st::mediaPadding.top(), st::mediaThumbSize, st::mediaThumbSize, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
+	}
 
 	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
 	int32 twidth = width - tleft - st::mediaPadding.right();
@@ -3307,9 +3357,10 @@ HistoryWebPage::HistoryWebPage(WebPageData *data) : HistoryMedia()
 
 void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 	if (data->pendingTill) {
-		_maxw = st::webPageLeft + st::linkFont->m.width(lang((data->pendingTill < 0) ? lng_attach_failed : lng_profile_loading));
-		_minh = st::replyHeight;
-		_height = _minh;
+		_maxw = _minh = _height = 0;
+		//_maxw = st::webPageLeft + st::linkFont->m.width(lang((data->pendingTill < 0) ? lng_attach_failed : lng_profile_loading));
+		//_minh = st::replyHeight;
+		//_height = _minh;
 		return;
 	}
 	if (!_openl && !data->url.isEmpty()) _openl = TextLinkPtr(new TextLink(data->url));
@@ -3404,29 +3455,29 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 
 void HistoryWebPage::draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const {
 	if (width < 0) width = w;
-	if (width < 1) return;
+	if (width < 1 || data->pendingTill) return;
 
 	int32 bottomSkip = 0;
-	if (!data->pendingTill) {
+	//if (!data->pendingTill) {
 		if (data->photo) {
 			bottomSkip += st::webPagePhotoSkip;
 			if (_asArticle || (st::webPageLeft + qMax(_pixw, int16(st::minPhotoSize)) + parent->timeWidth(true) > width)) {
 				bottomSkip += (st::msgDateFont->height - st::msgDateDelta.y());
 			}
 		}
-	}
+	//}
 
 	style::color bar = (selected ? (parent->out() ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (parent->out() ? st::msgOutReplyBarColor : st::msgInReplyBarColor));
 	style::color semibold = (selected ? (parent->out() ? st::msgOutServiceSelColor : st::msgInServiceSelColor) : (parent->out() ? st::msgOutServiceColor : st::msgInServiceColor));
 	style::color regular = (selected ? (parent->out() ? st::msgOutSelectDateColor : st::msgInSelectDateColor) : (parent->out() ? st::msgOutDateColor : st::msgInDateColor));
 	p.fillRect(0, 0, st::webPageBar, _height - bottomSkip, bar->b);
 
-	if (data->pendingTill) {
-		p.setFont(st::linkFont->f);
-		p.setPen(regular->p);
-		p.drawText(st::webPageLeft, (_minh - st::linkFont->height) / 2 + st::linkFont->ascent, lang(data->pendingTill < 0 ? lng_attach_failed : lng_profile_loading));
-		return;
-	}
+	//if (data->pendingTill) {
+	//	p.setFont(st::linkFont->f);
+	//	p.setPen(regular->p);
+	//	p.drawText(st::webPageLeft, (_minh - st::linkFont->height) / 2 + st::linkFont->ascent, lang(data->pendingTill < 0 ? lng_attach_failed : lng_profile_loading));
+	//	return;
+	//}
 
 	p.save();
 	p.translate(st::webPageLeft, 0);
@@ -3440,19 +3491,13 @@ void HistoryWebPage::draw(QPainter &p, const HistoryItem *parent, bool selected,
 		bool full = data->photo->medium->loaded();
 		QPixmap pix;
 		if (full) {
-			pix = data->photo->medium->pixSingle(_pixw, _pixh);
+			pix = data->photo->medium->pixSingle(_pixw, _pixh, pixwidth, pixheight);
 		} else {
-			pix = data->photo->thumb->pixBlurredSingle(_pixw, _pixh);
+			pix = data->photo->thumb->pixBlurredSingle(_pixw, _pixh, pixwidth, pixheight);
 		}
-		if (_pixw < pixwidth || _pixh < pixheight) {
-			p.fillRect(QRect(width - pixwidth, 0, pixwidth, pixheight), st::black->b);
-		}
-		if (_pixw > pixwidth) {
-			p.drawPixmap(QRect(width - pixwidth, (pixheight - _pixh) / 2, pixwidth, _pixh), pix, QRect(cIntRetinaFactor() * (_pixw - pixwidth) / 2, 0, cIntRetinaFactor() * pixwidth, cIntRetinaFactor() * _pixh));
-		} else if (_pixh > pixheight) {
-			p.drawPixmap(QRect(width - pixwidth + (pixwidth - _pixw) / 2, 0, _pixw, pixheight), pix, QRect(0, cIntRetinaFactor() * (_pixh - pixheight) / 2, cIntRetinaFactor() * _pixw, cIntRetinaFactor() * pixheight));
-		} else {
-			p.drawPixmap(QPoint(width - pixwidth + (pixwidth - _pixw) / 2, (pixheight - _pixh) / 2), pix);
+		p.drawPixmap(width - pixwidth, 0, pix);
+		if (selected) {
+			App::roundRect(p, width - pixwidth, 0, pixwidth, pixheight, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
 		}
 	}
 	int32 articleLines = 5;
@@ -3511,14 +3556,11 @@ void HistoryWebPage::draw(QPainter &p, const HistoryItem *parent, bool selected,
 		bool full = data->photo->full->loaded();
 		QPixmap pix;
 		if (full) {
-			pix = data->photo->full->pixSingle(_pixw, _pixh);
+			pix = data->photo->full->pixSingle(_pixw, _pixh, pixwidth, pixheight);
 		} else {
-			pix = data->photo->thumb->pixBlurredSingle(_pixw, _pixh);
+			pix = data->photo->thumb->pixBlurredSingle(_pixw, _pixh, pixwidth, pixheight);
 		}
-		if (_pixw < pixwidth || _pixh < pixheight) {
-			p.fillRect(QRect(0, 0, pixwidth, pixheight), st::black->b);
-		}
-		p.drawPixmap(QPoint((pixwidth - _pixw) / 2, (pixheight - _pixh) / 2), pix);
+		p.drawPixmap(0, 0, pix);
 		if (!full) {
 			uint64 dt = itemAnimations().animate(parent, getms());
 			int32 cnt = int32(st::photoLoaderCnt), period = int32(st::photoLoaderPeriod), t = dt % period, delta = int32(st::photoLoaderDelta);
@@ -3541,7 +3583,7 @@ void HistoryWebPage::draw(QPainter &p, const HistoryItem *parent, bool selected,
 		}
 
 		if (selected) {
-			p.fillRect(0, 0, pixwidth, pixheight, textstyleCurrent()->selectOverlay->b);
+			App::roundRect(p, 0, 0, pixwidth, pixheight, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
 		}
 
 		if (data->type == WebPageVideo) {
@@ -3556,10 +3598,8 @@ void HistoryWebPage::draw(QPainter &p, const HistoryItem *parent, bool selected,
 				int32 dateW = pixwidth - dateX - st::msgDateImgDelta;
 				int32 dateH = pixheight - dateY - st::msgDateImgDelta;
 
-				p.fillRect(dateX, dateY, dateW, dateH, st::msgDateImgBg->b);
-				if (selected) {
-					p.fillRect(dateX, dateY, dateW, dateH, textstyleCurrent()->selectOverlay->b);
-				}
+				App::roundRect(p, dateX, dateY, dateW, dateH, selected ? st::msgDateImgSelectBg : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
+
 				p.setFont(st::msgDateFont->f);
 				p.setPen(st::msgDateImgColor->p);
 				p.drawText(dateX + st::msgDateImgPadding.x(), dateY + st::msgDateImgPadding.y() + st::msgDateFont->ascent, _duration);
@@ -4214,13 +4254,18 @@ void HistoryImageLink::draw(QPainter &p, const HistoryItem *parent, bool selecte
 	int skipx = 0, skipy = 0, height = _height;
 	const HistoryReply *reply = toHistoryReply(parent);
 	const HistoryForwarded *fwd = toHistoryForwarded(parent);
+	bool out = parent->out();
+
 	if (reply || !_title.isEmpty() || !_description.isEmpty()) {
 		skipx = st::mediaPadding.left();
 
-		style::color bg(selected ? (parent->out() ? st::msgOutSelectBG : st::msgInSelectBG) : (parent->out() ? st::msgOutBG : st::msgInBG));
-		p.fillRect(QRect(0, 0, width, _height), bg->b);
+		style::color bg(selected ? (out ? st::msgOutSelectBg : st::msgInSelectBg) : (out ? st::msgOutBg : st::msgInBg));
+		style::color sh(selected ? (out ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out ? st::msgOutShadow : st::msgInShadow));
+		RoundCorners cors(selected ? (out ? MessageOutSelectedCorners : MessageInSelectedCorners) : (out ? MessageOutCorners : MessageInCorners));
+		App::roundRect(p, 0, 0, width, _height, bg, cors, &sh);
+
 		int replyFrom = 0, fwdFrom = 0;
-		if (!parent->out() && parent->history()->peer->chat) {
+		if (!out && parent->history()->peer->chat) {
 			replyFrom = st::msgPadding.top() + st::msgNameFont->height;
 			fwdFrom = st::msgPadding.top() + st::msgNameFont->height;
 			skipy += replyFrom;
@@ -4255,27 +4300,37 @@ void HistoryImageLink::draw(QPainter &p, const HistoryItem *parent, bool selecte
 			skipy += st::webPagePhotoSkip;
 		}
 		height -= skipy + st::mediaPadding.bottom();
+	} else {
+		QPixmap **cors = App::corners(selected ? InSelectedShadowCorners : InShadowCorners);
+		int32 cw = cors[0]->width() / cIntRetinaFactor(), ch = cors[0]->height();
+		style::color shadow(selected ? st::msgInSelectShadow : st::msgInShadow);
+		p.fillRect(cw, _height, width - 2 * cw, st::msgShadow, shadow->b);
+		p.fillRect(0, _height - ch, cw, st::msgShadow, shadow->b);
+		p.fillRect(width - cw, _height - ch, cw, st::msgShadow, shadow->b);
+		p.drawPixmap(0, _height - ch + st::msgShadow, *cors[2]);
+		p.drawPixmap(width - cw, _height - ch + st::msgShadow, *cors[3]);
 	}
 
 	data->load();
-	bool out = parent->out();
 	QPixmap toDraw;
 	if (data && !data->thumb->isNull()) {
 		int32 w = data->thumb->width(), h = data->thumb->height();
+		QPixmap pix;
 		if (width * h == height * w || (w == convertScale(fullWidth()) && h == convertScale(fullHeight()))) {
-			p.drawPixmap(QPoint(skipx, skipy), data->thumb->pixSingle(width, height));
+			pix = data->thumb->pixSingle(width, height, width, height);
 		} else {
 			p.fillRect(QRect(skipx, skipy, width, height), st::black->b);
 			if (width * h > height * w) {
 				int32 nw = height * w / h;
-				p.drawPixmap(QPoint(skipx + (width - nw) / 2, skipy), data->thumb->pixSingle(nw, height));
+				pix = data->thumb->pixSingle(nw, height, width, height);
 			} else {
 				int32 nh = width * h / w;
-				p.drawPixmap(QPoint(skipx, skipy + (height - nh) / 2), data->thumb->pixSingle(width, nh));
+				pix = data->thumb->pixSingle(width, nh, width, height);
 			}
 		}
+		p.drawPixmap(QPoint(skipx, skipy), pix);
 	} else {
-		p.fillRect(QRect(skipx, skipy, width, height), st::black->b);
+		App::roundRect(p, skipx, skipy, width, height, st::black, BlackCorners);
 	}
 	if (data) {
 		switch (data->type) {
@@ -4298,10 +4353,8 @@ void HistoryImageLink::draw(QPainter &p, const HistoryItem *parent, bool selecte
 		}
 	}
 	if (selected) {
-		p.fillRect(skipx, skipy, width, height, textstyleCurrent()->selectOverlay->b);
+		App::roundRect(p, skipx, skipy, width, height, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
 	}
-	style::color shadow(selected ? st::msgInSelectShadow : st::msgInShadow);
-	p.fillRect(0, _height, width + (skipx ? (st::mediaPadding.left() + st::mediaPadding.right()) : 0), st::msgShadow, shadow->b);
 
 	// date
 	QString time(parent->time());
@@ -4314,10 +4367,8 @@ void HistoryImageLink::draw(QPainter &p, const HistoryItem *parent, bool selecte
 	int32 dateW = skipx + width - dateX - st::msgDateImgDelta;
 	int32 dateH = skipy + height - dateY - st::msgDateImgDelta;
 
-	p.fillRect(dateX, dateY, dateW, dateH, st::msgDateImgBg->b);
-	if (selected) {
-		p.fillRect(dateX, dateY, dateW, dateH, textstyleCurrent()->selectOverlay->b);
-	}
+	App::roundRect(p, dateX, dateY, dateW, dateH, selected ? st::msgDateImgSelectBg : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
+
 	p.setFont(st::msgDateFont->f);
 	p.setPen(st::msgDateImgColor->p);
 	p.drawText(dateX + st::msgDateImgPadding.x(), dateY + st::msgDateImgPadding.y() + st::msgDateFont->ascent, time);
@@ -4616,7 +4667,7 @@ void HistoryMessage::initMediaFromDocument(DocumentData *doc) {
 
 void HistoryMessage::initDimensions(const QString &text) {
 	if (!_media || !text.isEmpty()) { // !justMedia()
-		if (_media) {
+		if (_media && _media->isDisplayed()) {
 			_text.setText(st::msgFont, text, _historyTextOptions);
 		} else {
 			_text.setText(st::msgFont, text + textcmdSkipBlock(timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), _historyTextOptions);
@@ -4635,9 +4686,26 @@ void HistoryMessage::initDimensions(const HistoryItem *parent) {
 		_maxw += st::msgPadding.left() + st::msgPadding.right();
 		if (_media) {
 			_media->initDimensions(this);
-			int32 maxw = _media->maxWidth() + st::msgPadding.left() + st::msgPadding.right();
-			if (maxw > _maxw) _maxw = maxw;
-			_minh += st::msgPadding.bottom() + _media->minHeight();
+			if (_media->isDisplayed() && _text.hasSkipBlock()) {
+				QString was = HistoryMessage::selectedText(FullItemSel);
+				if (!was.isEmpty()) {
+					_text.setText(st::msgFont, was, _historyTextOptions); // without date skip
+					_textWidth = 0;
+					_textHeight = 0;
+				}
+			} else if (!_media->isDisplayed() && !_text.hasSkipBlock()) {
+				QString was = HistoryMessage::selectedText(FullItemSel);
+				if (!was.isEmpty()) {
+					_text.setText(st::msgFont, was + textcmdSkipBlock(timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), _historyTextOptions); // without date skip
+					_textWidth = 0;
+					_textHeight = 0;
+				}
+			}
+			if (_media->isDisplayed()) {
+				int32 maxw = _media->maxWidth() + st::msgPadding.left() + st::msgPadding.right();
+				if (maxw > _maxw) _maxw = maxw;
+				_minh += st::msgPadding.bottom() + _media->minHeight();
+			}
 		}
 	}
 	fromNameUpdated();
@@ -4674,18 +4742,25 @@ HistoryMedia *HistoryMessage::getMedia(bool inOverview) const {
 
 void HistoryMessage::setMedia(const MTPmessageMedia &media) {
 	if ((!_media || _media->isImageLink()) && media.type() == mtpc_messageMediaEmpty) return;
-	bool wasMedia = false;
+	bool mediaWasDisplayed = false;
 	if (_media) {
-		wasMedia = true;
+		mediaWasDisplayed = _media->isDisplayed();
 		delete _media;
 		_media = 0;
 	}
 	QString t;
 	initMedia(media, t);
-	if (_media && !wasMedia) {
+	if (_media && _media->isDisplayed() && !mediaWasDisplayed) {
 		QString was = HistoryMessage::selectedText(FullItemSel);
 		if (!was.isEmpty()) {
 			_text.setText(st::msgFont, was, _historyTextOptions); // without date skip
+			_textWidth = 0;
+			_textHeight = 0;
+		}
+	} else if (mediaWasDisplayed && (!_media || !_media->isDisplayed())) {
+		QString was = HistoryMessage::selectedText(FullItemSel);
+		if (!was.isEmpty()) {
+			_text.setText(st::msgFont, was + textcmdSkipBlock(timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), _historyTextOptions); // without date skip
 			_textWidth = 0;
 			_textHeight = 0;
 		}
@@ -4728,7 +4803,7 @@ void HistoryMessage::draw(QPainter &p, uint32 selection) const {
 	}
 
 	if (!out() && _history->peer->chat) {
-		p.drawPixmap(left, _height - st::msgMargin.bottom() - st::msgPhotoSize, _from->photo->pix(st::msgPhotoSize));
+		p.drawPixmap(left, _height - st::msgMargin.bottom() - st::msgPhotoSize, _from->photo->pixRounded(st::msgPhotoSize));
 //		width -= st::msgPhotoSkip;
 		left += st::msgPhotoSkip;
 	}
@@ -4746,11 +4821,10 @@ void HistoryMessage::draw(QPainter &p, uint32 selection) const {
 	} else {
 		QRect r(left, st::msgMargin.top(), width, _height - st::msgMargin.top() - st::msgMargin.bottom());
 
-		style::color bg(selected ? (out() ? st::msgOutSelectBG : st::msgInSelectBG) : (out() ? st::msgOutBG : st::msgInBG));
-		p.fillRect(r, bg->b);
-
-		style::color shadow(selected ? (out() ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out() ? st::msgOutShadow : st::msgInShadow));
-		p.fillRect(left, _height - st::msgMargin.bottom(), width, st::msgShadow, shadow->b);
+		style::color bg(selected ? (out() ? st::msgOutSelectBg : st::msgInSelectBg) : (out() ? st::msgOutBg : st::msgInBg));
+		style::color sh(selected ? (out() ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out() ? st::msgOutShadow : st::msgInShadow));
+		RoundCorners cors(selected ? (out() ? MessageOutSelectedCorners : MessageInSelectedCorners) : (out() ? MessageOutCorners : MessageInCorners));
+		App::roundRect(p, r, bg, cors, &sh);
 
 		if (!out() && _history->peer->chat) {
 			p.setFont(st::msgNameFont->f);
@@ -4822,7 +4896,7 @@ int32 HistoryMessage::resize(int32 width, bool dontRecountText, const HistoryIte
 			if (_media) _media->resize(_maxw - st::msgPadding.left() - st::msgPadding.right(), dontRecountText, this);
 		} else {
 			_height = _textHeight;
-			if (_media) _height += st::msgPadding.bottom() + _media->resize(nwidth, dontRecountText, this);
+			if (_media && _media->isDisplayed()) _height += st::msgPadding.bottom() + _media->resize(nwidth, dontRecountText, this);
 		}
 		if (!out() && _history->peer->chat) {
 			_height += st::msgNameFont->height;
@@ -4906,7 +4980,7 @@ void HistoryMessage::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) 
 void HistoryMessage::getStateFromMessageText(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const QRect &r) const {
 	QRect trect(r.marginsAdded(-st::msgPadding));
 	TextLinkPtr medialnk;
-	if (_media) {
+	if (_media && _media->isDisplayed()) {
 		if (y >= trect.bottom() - _media->height() && y < trect.bottom()) {
 			_media->getState(lnk, inText, x - trect.left(), y + _media->height() - trect.bottom(), this);
 			return;
@@ -4943,7 +5017,7 @@ void HistoryMessage::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x,
 		r.setTop(r.top() + st::msgNameFont->height);
 	}
 	QRect trect(r.marginsAdded(-st::msgPadding));
-	if (_media) {
+	if (_media && _media->isDisplayed()) {
 		trect.setBottom(trect.bottom() - _media->height() - st::msgPadding.bottom());
 	}
 	_text.getSymbol(symbol, after, upon, x - trect.x(), y - trect.y(), trect.width());
@@ -5323,14 +5397,9 @@ void HistoryReply::drawReplyTo(QPainter &p, int32 x, int32 y, int32 w, bool sele
 				ImagePtr replyPreview = replyToMsg->getMedia()->replyPreview();
 				if (!replyPreview->isNull()) {
 					QRect to(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
-					if (replyPreview->width() == replyPreview->height()) {
-						p.drawPixmap(to.x(), to.y(), replyPreview->pix());
-					} else {
-						QRect from = (replyPreview->width() > replyPreview->height()) ? QRect((replyPreview->width() - replyPreview->height()) / 2, 0, replyPreview->height(), replyPreview->height()) : QRect(0, (replyPreview->height() - replyPreview->width()) / 2, replyPreview->width(), replyPreview->width());
-						p.drawPixmap(to, replyPreview->pix(), from);
-					}
+					p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height()));
 					if (selected) {
-						p.fillRect(to, textstyleCurrent()->selectOverlay->b);
+						App::roundRect(p, to, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
 					}
 				}
 			}
@@ -5653,16 +5722,8 @@ void HistoryServiceMsg::draw(QPainter &p, uint32 selection) const {
 		left += (width - _maxw) / 2;
 		width = _maxw;
 	}
-//	QRect r(0, st::msgServiceMargin.top(), _history->width, height);
-	QRect r(left, st::msgServiceMargin.top(), width, height);
-	p.setBrush(App::msgServiceBG()->b);
-	p.setPen(Qt::NoPen);
-//	p.fillRect(r, App::msgServiceBG()->b);
-	p.drawRoundedRect(r, st::msgServiceRadius, st::msgServiceRadius);
-	if (selection == FullItemSel) {
-		p.setBrush(st::msgServiceSelectBG->b);
-		p.drawRoundedRect(r, st::msgServiceRadius, st::msgServiceRadius);
-	}
+	App::roundRect(p, left, st::msgServiceMargin.top(), width, height, App::msgServiceBg(), (selection == FullItemSel) ? ServiceSelectedCorners : ServiceCorners);
+
 	p.setBrush(Qt::NoBrush);
 	p.setPen(st::msgServiceColor->p);
 	p.setFont(st::msgServiceFont->f);

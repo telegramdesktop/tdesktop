@@ -99,7 +99,7 @@ public slots:
 
 private:
 
-	void displayPhoto(PhotoData *photo);
+	void displayPhoto(PhotoData *photo, HistoryItem *item);
 	void displayDocument(DocumentData *doc, HistoryItem *item);
 	void findCurrent();
 	void loadBack();
@@ -123,6 +123,9 @@ private:
 	bool _leftNavVisible, _rightNavVisible, _saveVisible, _headerHasLink;
 	QString _dateText;
 	QString _headerText;
+
+	Text _caption;
+	QRect _captionRect;
 
 	uint64 _animStarted;
 

@@ -426,6 +426,7 @@ public:
 	Text(int32 minResizeWidth = QFIXED_MAX);
 	Text(style::font font, const QString &text, const TextParseOptions &options = _defaultOptions, int32 minResizeWidth = QFIXED_MAX, bool richText = false);
 	Text(const Text &other);
+	Text &operator=(const Text &other);
 
 	int32 countHeight(int32 width) const;
 	void setText(style::font font, const QString &text, const TextParseOptions &options = _defaultOptions);
@@ -433,6 +434,10 @@ public:
 
 	void setLink(uint16 lnkIndex, const TextLinkPtr &lnk);
 	bool hasLinks() const;
+
+	bool hasSkipBlock() const {
+		return _blocks.isEmpty() ? false : _blocks.back()->type() == TextBlockSkip;
+	}
 
 	int32 maxWidth() const {
 		return _maxWidth.ceil().toInt();

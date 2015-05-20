@@ -147,8 +147,7 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 		}
 		int32 x = (width() - w) / 2, y = st::boxPadding.top() * 2 + st::boxFont->height;
 
-		p.fillRect(QRect(x, y, w, h), st::msgOutBG->b);
-		p.fillRect(x, y + h, w, st::msgShadow, st::msgOutShadow->b);
+		App::roundRect(p, x, y, w, h, st::msgOutBg, MessageOutCorners, &st::msgOutShadow);
 		if (_thumbw) {
 			int32 rf(cIntRetinaFactor());
 			p.drawPixmap(QPoint(x + st::mediaPadding.left(), y + st::mediaPadding.top()), _thumb, QRect(_thumbx * rf, _thumby * rf, st::mediaThumbSize * rf, st::mediaThumbSize * rf));

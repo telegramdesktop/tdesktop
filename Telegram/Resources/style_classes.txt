@@ -20,7 +20,7 @@ textStyle {
 	lnkOverFlags: font;
 	lnkColor: color;
 	lnkDownColor: color;
-	selectBG: color;
+	selectBg: color;
 	selectOverlay: color;
 	lineHeight: number;
 }

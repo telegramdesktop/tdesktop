@@ -688,7 +688,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 						bool out = item->out();
 						int32 mw = media->maxWidth(), left = (out ? st::msgMargin.right() : st::msgMargin.left()) + (out && mw < w ? (w - mw) : 0);
 						if (!out && _hist->peer->chat) {
-							p.drawPixmap(left, media->countHeight(item, w) - st::msgPhotoSize, item->from()->photo->pix(st::msgPhotoSize));
+							p.drawPixmap(left, media->countHeight(item, w) - st::msgPhotoSize, item->from()->photo->pixRounded(st::msgPhotoSize));
 							left += st::msgPhotoSkip;
 						}
 
@@ -720,9 +720,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 					width = strwidth;
 
 					QRect r(left, st::msgServiceMargin.top(), width, height);
-					p.setBrush(App::msgServiceBG()->b);
-					p.setPen(Qt::NoPen);
-					p.drawRoundedRect(r, st::msgServiceRadius, st::msgServiceRadius);
+					App::roundRect(p, r, App::msgServiceBg(), ServiceCorners);
 
 					p.setBrush(Qt::NoBrush);
 					p.setPen(st::msgServiceColor->p);

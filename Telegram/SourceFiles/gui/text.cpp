@@ -1129,12 +1129,12 @@ public:
 
 		if ((selectFromStart && _parDirection == Qt::LeftToRight) || (selectTillEnd && _parDirection == Qt::RightToLeft)) {
 			if (x > _x) {
-				_p->fillRect(QRectF(_x.toReal(), _y + _yDelta, (x - _x).toReal(), _fontHeight), _textStyle->selectBG->b);
+				_p->fillRect(QRectF(_x.toReal(), _y + _yDelta, (x - _x).toReal(), _fontHeight), _textStyle->selectBg->b);
 			}
 		}
 		if ((selectTillEnd && _parDirection == Qt::LeftToRight) || (selectFromStart && _parDirection == Qt::RightToLeft)) {
 			if (x < _x + _wLeft) {
-				_p->fillRect(QRectF((x + _w - _wLeft).toReal(), _y + _yDelta, (_x + _wLeft - x).toReal(), _fontHeight), _textStyle->selectBG->b);
+				_p->fillRect(QRectF((x + _w - _wLeft).toReal(), _y + _yDelta, (_x + _wLeft - x).toReal(), _fontHeight), _textStyle->selectBg->b);
 			}
 		}
 
@@ -1292,15 +1292,15 @@ public:
 						const QChar *chFrom = _str + currentBlock->from(), *chTo = chFrom + ((nextBlock ? nextBlock->from() : _t->_text.size()) - currentBlock->from());
 						if (_localFrom + si.position >= _selectedFrom) { // could be without space
 							if (chTo == chFrom || (chTo - 1)->unicode() != QChar::Space || _selectedTo >= (chTo - _str)) {
-								_p->fillRect(QRectF(x.toReal(), _y + _yDelta, si.width.toReal(), _fontHeight), _textStyle->selectBG->b);
+								_p->fillRect(QRectF(x.toReal(), _y + _yDelta, si.width.toReal(), _fontHeight), _textStyle->selectBg->b);
 							} else { // or with space
-								_p->fillRect(QRectF(glyphX.toReal(), _y + _yDelta, currentBlock->f_width().toReal(), _fontHeight), _textStyle->selectBG->b);
+								_p->fillRect(QRectF(glyphX.toReal(), _y + _yDelta, currentBlock->f_width().toReal(), _fontHeight), _textStyle->selectBg->b);
 							}
 						} else if (chTo > chFrom && (chTo - 1)->unicode() == QChar::Space && (chTo - 1 - _str) >= _selectedFrom) {
 							if (rtl) { // rtl space only
-								_p->fillRect(QRectF(x.toReal(), _y + _yDelta, (glyphX - x).toReal(), _fontHeight), _textStyle->selectBG->b);
+								_p->fillRect(QRectF(x.toReal(), _y + _yDelta, (glyphX - x).toReal(), _fontHeight), _textStyle->selectBg->b);
 							} else { // ltr space only
-								_p->fillRect(QRectF((x + currentBlock->f_width()).toReal(), _y + _yDelta, (si.width - currentBlock->f_width()).toReal(), _fontHeight), _textStyle->selectBG->b);
+								_p->fillRect(QRectF((x + currentBlock->f_width()).toReal(), _y + _yDelta, (si.width - currentBlock->f_width()).toReal(), _fontHeight), _textStyle->selectBg->b);
 							}
 						}
 					}
@@ -1426,7 +1426,7 @@ public:
 						}
 					}
 					if (rtl) selX = x + itemWidth - (selX - x) - selWidth;
-					_p->fillRect(QRectF(selX.toReal(), _y + _yDelta, selWidth.toReal(), _fontHeight), _textStyle->selectBG->b);
+					_p->fillRect(QRectF(selX.toReal(), _y + _yDelta, selWidth.toReal(), _fontHeight), _textStyle->selectBg->b);
 				}
 
 				_p->drawTextItem(QPointF(x.toReal(), textY), gf);
@@ -2241,6 +2241,21 @@ _startDir(other._startDir)
 	for (int32 i = 0, l = _blocks.size(); i < l; ++i) {
 		_blocks[i] = other._blocks.at(i)->clone();
 	}
+}
+
+Text &Text::operator=(const Text &other) {
+	_minResizeWidth = other._minResizeWidth;
+	_maxWidth = other._maxWidth;
+	_minHeight = other._minHeight;
+	_text = other._text;
+	_font = other._font;
+	_blocks = TextBlocks(other._blocks.size());
+	_links = other._links;
+	_startDir = other._startDir;
+	for (int32 i = 0, l = _blocks.size(); i < l; ++i) {
+		_blocks[i] = other._blocks.at(i)->clone();
+	}
+	return *this;
 }
 
 void Text::setText(style::font font, const QString &text, const TextParseOptions &options) {

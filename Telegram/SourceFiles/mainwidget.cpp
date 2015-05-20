@@ -1013,6 +1013,7 @@ void MainWidget::stopAnimActive() {
 }
 
 void MainWidget::searchMessages(const QString &query) {
+	App::wnd()->hideMediaview();
 	dialogs.searchMessages(query);
 	if (!cWideMode()) onShowDialogs();
 }
@@ -2507,6 +2508,8 @@ void MainWidget::openLocalUrl(const QString &url) {
 }
 
 void MainWidget::openUserByName(const QString &username, bool toProfile) {
+	App::wnd()->hideMediaview();
+
 	UserData *user = App::userByName(username);
 	if (user) {
 		if (toProfile) {
@@ -2520,10 +2523,12 @@ void MainWidget::openUserByName(const QString &username, bool toProfile) {
 }
 
 void MainWidget::joinGroupByHash(const QString &hash) {
+	App::wnd()->hideMediaview();
 	MTP::send(MTPmessages_CheckChatInvite(MTP_string(hash)), rpcDone(&MainWidget::inviteCheckDone, hash), rpcFail(&MainWidget::inviteCheckFail));
 }
 
 void MainWidget::stickersBox(const MTPInputStickerSet &set) {
+	App::wnd()->hideMediaview();
 	StickerSetBox *box = new StickerSetBox(set);
 	connect(box, SIGNAL(installed(uint64)), this, SLOT(onStickersInstalled(uint64)));
 	App::wnd()->showLayer(box);

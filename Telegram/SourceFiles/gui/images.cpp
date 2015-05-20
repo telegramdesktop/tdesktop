@@ -34,6 +34,11 @@ namespace {
 	StorageImages storageImages;
 
 	int64 globalAquiredSize = 0;
+
+	static const uint64 BlurredCacheSkip = 0x1000000000000000LLU;
+	static const uint64 ColoredCacheSkip = 0x2000000000000000LLU;
+	static const uint64 BlurredColoredCacheSkip = 0x3000000000000000LLU;
+	static const uint64 RoundedCacheSkip = 0x4000000000000000LLU;
 }
 
 bool Image::isNull() const {
@@ -70,6 +75,29 @@ const QPixmap &Image::pix(int32 w, int32 h) const {
 	return i.value();
 }
 
+const QPixmap &Image::pixRounded(int32 w, int32 h) const {
+	restore();
+	checkload();
+
+	if (w <= 0 || !width() || !height()) {
+		w = width();
+	} else if (cRetina()) {
+		w *= cIntRetinaFactor();
+		h *= cIntRetinaFactor();
+	}
+	uint64 k = RoundedCacheSkip | (uint64(w) << 32) | uint64(h);
+	Sizes::const_iterator i = _sizesCache.constFind(k);
+	if (i == _sizesCache.cend()) {
+		QPixmap p(pixNoCache(w, h, true, false, true));
+		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
+		i = _sizesCache.insert(k, p);
+		if (!p.isNull()) {
+			globalAquiredSize += int64(p.width()) * p.height() * 4;
+		}
+	}
+	return i.value();
+}
+
 const QPixmap &Image::pixBlurred(int32 w, int32 h) const {
 	restore();
 	checkload();
@@ -80,10 +108,10 @@ const QPixmap &Image::pixBlurred(int32 w, int32 h) const {
 		w *= cIntRetinaFactor();
 		h *= cIntRetinaFactor();
 	}
-	uint64 k = 0x1000000000000000LL | (uint64(w) << 32) | uint64(h);
+	uint64 k = BlurredCacheSkip | (uint64(w) << 32) | uint64(h);
 	Sizes::const_iterator i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
-		QPixmap p(pixBlurredNoCache(w, h));
+		QPixmap p(pixNoCache(w, h, true, true));
 		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
 		if (!p.isNull()) {
@@ -103,7 +131,7 @@ const QPixmap &Image::pixColored(const style::color &add, int32 w, int32 h) cons
 		w *= cIntRetinaFactor();
 		h *= cIntRetinaFactor();
 	}
-	uint64 k = 0x2000000000000000LL | (uint64(w) << 32) | uint64(h);
+	uint64 k = ColoredCacheSkip | (uint64(w) << 32) | uint64(h);
 	Sizes::const_iterator i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		QPixmap p(pixColoredNoCache(add, w, h, true));
@@ -126,7 +154,7 @@ const QPixmap &Image::pixBlurredColored(const style::color &add, int32 w, int32 
 		w *= cIntRetinaFactor();
 		h *= cIntRetinaFactor();
 	}
-	uint64 k = 0x3000000000000000LL | (uint64(w) << 32) | uint64(h);
+	uint64 k = BlurredColoredCacheSkip | (uint64(w) << 32) | uint64(h);
 	Sizes::const_iterator i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {
 		QPixmap p(pixBlurredColoredNoCache(add, w, h));
@@ -139,7 +167,7 @@ const QPixmap &Image::pixBlurredColored(const style::color &add, int32 w, int32 
 	return i.value();
 }
 
-const QPixmap &Image::pixSingle(int32 w, int32 h) const {
+const QPixmap &Image::pixSingle(int32 w, int32 h, int32 outerw, int32 outerh) const {
 	restore();
 	checkload();
 
@@ -155,7 +183,7 @@ const QPixmap &Image::pixSingle(int32 w, int32 h) const {
 		if (i != _sizesCache.cend()) {
 			globalAquiredSize -= int64(i->width()) * i->height() * 4;
 		}
-		QPixmap p(pixNoCache(w, h, true));
+		QPixmap p(pixNoCache(w, h, true, false, true, outerw, outerh));
 		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
 		if (!p.isNull()) {
@@ -165,7 +193,7 @@ const QPixmap &Image::pixSingle(int32 w, int32 h) const {
 	return i.value();
 }
 
-const QPixmap &Image::pixBlurredSingle(int32 w, int32 h) const {
+const QPixmap &Image::pixBlurredSingle(int32 w, int32 h, int32 outerw, int32 outerh) const {
 	restore();
 	checkload();
 
@@ -175,13 +203,13 @@ const QPixmap &Image::pixBlurredSingle(int32 w, int32 h) const {
 		w *= cIntRetinaFactor();
 		h *= cIntRetinaFactor();
 	}
-	uint64 k = 0x1000000000000000LL | 0LL;
+	uint64 k = BlurredCacheSkip | 0LL;
 	Sizes::const_iterator i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend() || i->width() != w || (h && i->height() != h)) {
 		if (i != _sizesCache.cend()) {
 			globalAquiredSize -= int64(i->width()) * i->height() * 4;
 		}
-		QPixmap p(pixBlurredNoCache(w, h));
+		QPixmap p(pixNoCache(w, h, true, true, true, outerw, outerh));
 		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
 		i = _sizesCache.insert(k, p);
 		if (!p.isNull()) {
@@ -309,6 +337,39 @@ yi += stride;
 	return img;
 }
 
+void imageRound(QImage &img) {
+	img.setDevicePixelRatio(cRetinaFactor());
+	img = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+
+	QImage **masks = App::cornersMask();
+	int32 w = masks[0]->width(), h = masks[0]->height();
+	int32 tw = img.width(), th = img.height();
+
+	uchar *bits = img.bits();
+	const uchar *c0 = masks[0]->constBits(), *c1 = masks[1]->constBits(), *c2 = masks[2]->constBits(), *c3 = masks[3]->constBits();
+
+	int32 s0 = 0, s1 = (tw - w) * 4, s2 = (th - h) * tw * 4, s3 = ((th - h + 1) * tw - w) * 4;
+	for (int32 i = 0; i < w; ++i) {
+		for (int32 j = 0; j < h; ++j) {
+#define update(s, c) \
+		{ \
+	uint64 color = _blurGetColors(bits + s + (j * tw + i) * 4); \
+	color *= (c[(j * w + i) * 4 + 3] + 1); \
+	color = (color >> 8); \
+	bits[s + (j * tw + i) * 4] = color & 0xFF; \
+	bits[s + (j * tw + i) * 4 + 1] = (color >> 16) & 0xFF; \
+	bits[s + (j * tw + i) * 4 + 2] = (color >> 32) & 0xFF; \
+	bits[s + (j * tw + i) * 4 + 3] = (color >> 48) & 0xFF; \
+		}
+			update(s0, c0);
+			update(s1, c1);
+			update(s2, c2);
+			update(s3, c3);
+#undef update
+		}
+	}
+}
+
 QImage imageColored(const style::color &add, QImage img) {
 	QImage::Format fmt = img.format();
 	if (fmt != QImage::Format_RGB32 && fmt != QImage::Format_ARGB32_Premultiplied) {
@@ -330,35 +391,39 @@ QImage imageColored(const style::color &add, QImage img) {
 	return img;
 }
 
-QPixmap Image::pixNoCache(int32 w, int32 h, bool smooth) const {
-	restore();
-	loaded();
-
-	const QPixmap &p(pixData());
-	if (p.isNull()) {
-		return blank()->pix();
-	}
-	if (w <= 0 || !width() || !height() || (w == width() && (h <= 0 || h == height()))) return p;
-	if (h <= 0) {
-		return QPixmap::fromImage(p.toImage().scaledToWidth(w, smooth ? Qt::SmoothTransformation : Qt::FastTransformation), Qt::ColorOnly);
-	}
-	return QPixmap::fromImage(p.toImage().scaled(w, h, Qt::IgnoreAspectRatio, smooth ? Qt::SmoothTransformation : Qt::FastTransformation), Qt::ColorOnly);
-}
-
-QPixmap Image::pixBlurredNoCache(int32 w, int32 h) const {
+QPixmap Image::pixNoCache(int32 w, int32 h, bool smooth, bool blurred, bool rounded, int32 outerw, int32 outerh) const {
 	restore();
 	loaded();
 
 	const QPixmap &p(pixData());
 	if (p.isNull()) return blank()->pix();
 
-	QImage img = imageBlur(p.toImage());
-	if (h <= 0) {
-		img = img.scaledToWidth(w, Qt::SmoothTransformation);
+	QImage img = p.toImage();
+	if (blurred) img = imageBlur(img);
+	if (w <= 0 || !width() || !height() || (w == width() && (h <= 0 || h == height()))) {
+	} else if (h <= 0) {
+		img = img.scaledToWidth(w, smooth ? Qt::SmoothTransformation : Qt::FastTransformation);
 	} else {
-		img = img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+		img = img.scaled(w, h, Qt::IgnoreAspectRatio, smooth ? Qt::SmoothTransformation : Qt::FastTransformation);
 	}
-
+	if (outerw > 0 && outerh > 0) {
+		outerw *= cIntRetinaFactor();
+		outerh *= cIntRetinaFactor();
+		if (outerw != w || outerh != h) {
+			img.setDevicePixelRatio(cRetinaFactor());
+			QImage result(outerw, outerh, QImage::Format_ARGB32_Premultiplied);
+			result.setDevicePixelRatio(cRetinaFactor());
+			{
+				QPainter p(&result);
+				if (w < outerw || h < outerh) {
+					p.fillRect(0, 0, result.width(), result.height(), st::black->b);
+				}
+				p.drawImage((result.width() - img.width()) / 2, (result.height() - img.height()) / 2, img);
+			}
+			img = result;
+		}
+	}
+	if (rounded) imageRound(img);
 	return QPixmap::fromImage(img, Qt::ColorOnly);
 }
 

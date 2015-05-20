@@ -810,9 +810,7 @@ void Window::hideLayer(bool fast) {
 			layerBG = 0;
 		}
 	}
-	if (_mediaView && !_mediaView->isHidden()) {
-		_mediaView->hide();
-	}
+	hideMediaview();
 }
 
 bool Window::hideInnerLayer() {
@@ -843,8 +841,12 @@ void Window::layerHidden() {
 		layerBG->deleteLater();
 	}
 	layerBG = 0;
-	if (_mediaView && !_mediaView->isHidden()) _mediaView->hide();
+	hideMediaview();
 	setInnerFocus();
+}
+
+void Window::hideMediaview() {
+	if (_mediaView && !_mediaView->isHidden()) _mediaView->hide();
 }
 
 void Window::setInnerFocus() {
@@ -1691,7 +1693,7 @@ QImage Window::iconWithCounter(int size, int count, style::color bg, bool smallI
 
 void Window::sendPaths() {
 	if (App::passcoded()) return;
-	if (_mediaView && !_mediaView->isHidden()) _mediaView->hide();
+	hideMediaview();
 	if (settings) {
 		hideSettings();
 	} else {

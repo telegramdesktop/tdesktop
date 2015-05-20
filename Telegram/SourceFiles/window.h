@@ -231,6 +231,7 @@ public:
 	void changingMsgId(HistoryItem *row, MsgId newId);
 
 	bool isActive(bool cached = true) const;
+	void hideMediaview();
 
 public slots:
 
