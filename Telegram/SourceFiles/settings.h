@@ -208,6 +208,8 @@ struct StickerSet {
 };
 typedef QMap<uint64, StickerSet> StickerSets;
 DeclareRefSetting(StickerSets, StickerSets);
+typedef QList<uint64> StickerSetsOrder;
+DeclareRefSetting(StickerSetsOrder, StickerSetsOrder);
 
 typedef QList<QPair<QString, ushort> > RecentHashtagPack;
 DeclareSetting(RecentHashtagPack, RecentWriteHashtags);

@@ -96,6 +96,7 @@ EmojiStickersMap gEmojiStickers;
 RecentStickerPreload gRecentStickersPreload;
 RecentStickerPack gRecentStickers;
 StickerSets gStickerSets;
+StickerSetsOrder gStickerSetsOrder;
 
 uint64 gLastStickersUpdate = 0;
 

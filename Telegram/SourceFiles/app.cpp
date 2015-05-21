@@ -1529,6 +1529,7 @@ namespace App {
 		cSetStickersHash(QByteArray());
 		cSetEmojiStickers(EmojiStickersMap());
 		cSetStickerSets(StickerSets());
+		cSetStickerSetsOrder(StickerSetsOrder());
 		cSetLastStickersUpdate(0);
 		::videoItems.clear();
 		::audioItems.clear();

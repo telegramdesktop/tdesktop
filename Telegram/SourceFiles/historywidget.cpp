@@ -1829,6 +1829,9 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	QByteArray wasHash = cStickersHash();
 	cSetStickersHash(qba(d.vhash));
 
+	StickerSetsOrder &setsOrder(cRefStickerSetsOrder());
+	setsOrder.clear();
+
 	StickerSets &sets(cRefStickerSets());
 	StickerSets::iterator def = sets.find(DefaultStickerSetId);
 	if (def == sets.cend()) {
@@ -1838,6 +1841,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 		if (d_sets.at(i).type() == mtpc_stickerSet) {
 			const MTPDstickerSet &set(d_sets.at(i).c_stickerSet());
 			StickerSets::iterator i = sets.find(set.vid.v);
+			setsOrder.push_back(set.vid.v);
 			if (i == sets.cend()) {
 				i = sets.insert(set.vid.v, StickerSet(set.vid.v, set.vaccess_hash.v, qs(set.vtitle), qs(set.vshort_name)));
 			} else {
@@ -1931,6 +1935,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 					++i;
 				}
 			}
+			setsOrder.removeOne(it->id);
 			it = sets.erase(it);
 			removed = true;
 		} else {
@@ -1952,6 +1957,7 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 				}
 			}
 			if (it->stickers.isEmpty()) {
+				setsOrder.removeOne(it->id);
 				it = sets.erase(it);
 			} else {
 				++it;

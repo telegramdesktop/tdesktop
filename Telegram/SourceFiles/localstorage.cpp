@@ -2207,6 +2207,31 @@ namespace Local {
 		return _storageAudiosSize;
 	}
 
+	void _writeStickerSet(QDataStream &stream, uint64 setId) {
+		StickerSets::const_iterator it = cStickerSets().constFind(setId);
+		if (it == cStickerSets().cend() || it->stickers.isEmpty()) return;
+
+		stream << quint64(it->id) << quint64(it->access) << it->title << it->shortName << quint32(it->stickers.size());
+		for (StickerPack::const_iterator j = it->stickers.cbegin(), e = it->stickers.cend(); j != e; ++j) {
+			DocumentData *doc = *j;
+			stream << quint64(doc->id) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type) << doc->sticker->alt;
+			switch (doc->sticker->set.type()) {
+			case mtpc_inputStickerSetID: {
+				stream << qint32(StickerSetTypeID);
+			} break;
+			case mtpc_inputStickerSetShortName: {
+				stream << qint32(StickerSetTypeShortName);
+			} break;
+			case mtpc_inputStickerSetEmpty:
+			default: {
+				stream << qint32(StickerSetTypeEmpty);
+			} break;
+			}
+			const StorageImageLocation &loc(doc->sticker->loc);
+			stream << qint32(loc.width) << qint32(loc.height) << qint32(loc.dc) << quint64(loc.volume) << qint32(loc.local) << quint64(loc.secret);
+		}
+	}
+
 	void writeStickers() {
 		if (!_working()) return;
 
@@ -2241,29 +2266,11 @@ namespace Local {
 				}
 			}
 			EncryptedDescriptor data(size);
-			data.stream << quint32(sets.size()) << cStickersHash();
-			for (StickerSets::const_iterator i = sets.cbegin(); i != sets.cend(); ++i) {
-				if (i->stickers.isEmpty()) continue;
-
-				data.stream << quint64(i->id) << quint64(i->access) << i->title << i->shortName << quint32(i->stickers.size());
-				for (StickerPack::const_iterator j = i->stickers.cbegin(), e = i->stickers.cend(); j != e; ++j) {
-					DocumentData *doc = *j;
-					data.stream << quint64(doc->id) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type) << doc->sticker->alt;
-					switch (doc->sticker->set.type()) {
-					case mtpc_inputStickerSetID: {
-						data.stream << qint32(StickerSetTypeID);
-					} break;
-					case mtpc_inputStickerSetShortName: {
-						data.stream << qint32(StickerSetTypeShortName);
-					} break;
-					case mtpc_inputStickerSetEmpty:
-					default: {
-						data.stream << qint32(StickerSetTypeEmpty);
-					} break;
-					}
-					const StorageImageLocation &loc(doc->sticker->loc);
-					data.stream << qint32(loc.width) << qint32(loc.height) << qint32(loc.dc) << quint64(loc.volume) << qint32(loc.local) << quint64(loc.secret);
-				}
+			data.stream << quint32(cStickerSetsOrder().size()) << cStickersHash();
+			_writeStickerSet(data.stream, DefaultStickerSetId);
+			_writeStickerSet(data.stream, CustomStickerSetId);
+			for (StickerSetsOrder::const_iterator i = cStickerSetsOrder().cbegin(), e = cStickerSetsOrder().cend(); i != e; ++i) {
+				_writeStickerSet(data.stream, *i);
 			}
 			FileWriteDescriptor file(_stickersKey);
 			file.writeEncrypted(data);
@@ -2283,6 +2290,8 @@ namespace Local {
 		
 		StickerSets &sets(cRefStickerSets());
 		sets.clear();
+		cSetStickerSetsOrder(StickerSetsOrder());
+
 		RecentStickerPack &recent(cRefRecentStickers());
 		recent.clear();
 
@@ -2352,6 +2361,9 @@ namespace Local {
 		StickerSets &sets(cRefStickerSets());
 		sets.clear();
 
+		StickerSetsOrder &order(cRefStickerSetsOrder());
+		order.clear();
+
 		quint32 cnt;
 		QByteArray hash;
 		stickers.stream >> cnt >> hash;
@@ -2365,6 +2377,8 @@ namespace Local {
 				setTitle = lang(lng_stickers_default_set);
 			} else if (setId == CustomStickerSetId) {
 				setTitle = lang(lng_custom_stickers);
+			} else {
+				order.push_back(setId);
 			}
 			StickerSet &set(sets.insert(setId, StickerSet(setId, setAccess, setTitle, setShortName)).value());
 			set.stickers.reserve(scnt);

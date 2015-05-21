@@ -1386,13 +1386,10 @@ void StickerPanInner::refreshStickers() {
 
 	refreshRecent(false);
 
-	StickerSets::const_iterator it;
-
-	it = sets.constFind(CustomStickerSetId); if (it != sets.cend()) appendSet(it);
-	it = sets.constFind(DefaultStickerSetId); if (it != sets.cend()) appendSet(it);
-
-	for (it = sets.cbegin(); it != sets.cend(); ++it) {
-		if (it->id != CustomStickerSetId && it->id != DefaultStickerSetId) appendSet(it);
+	appendSet(CustomStickerSetId);
+	appendSet(DefaultStickerSetId);
+	for (StickerSetsOrder::const_iterator i = cStickerSetsOrder().cbegin(), e = cStickerSetsOrder().cend(); i != e; ++i) {
+		appendSet(*i);
 	}
 
 	int32 h = countHeight();
@@ -1431,8 +1428,10 @@ void StickerPanInner::preloadImages() {
 	}
 }
 
-void StickerPanInner::appendSet(StickerSets::const_iterator it) {
-	if (it->stickers.isEmpty()) return;
+void StickerPanInner::appendSet(uint64 setId) {
+	const StickerSets &sets(cStickerSets());
+	StickerSets::const_iterator it = sets.constFind(setId);
+	if (it == sets.cend() || it->stickers.isEmpty()) return;
 
 	StickerPack pack;
 	pack.reserve(it->stickers.size());
@@ -2046,6 +2045,7 @@ void EmojiPan::onRemoveSetSure() {
 			}
 		}
 		cRefStickerSets().erase(it);
+		cRefStickerSetsOrder().removeOne(_removingSetId);
 		cSetStickersHash(QByteArray());
 		refreshStickers();
 		Local::writeStickers();

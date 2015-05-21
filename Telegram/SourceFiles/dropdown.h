@@ -313,7 +313,7 @@ signals:
 
 private:
 
-	void appendSet(StickerSets::const_iterator it);
+	void appendSet(uint64 setId);
 
 	int32 countHeight();
 	void selectEmoji(EmojiPtr emoji);
