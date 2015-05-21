@@ -2650,21 +2650,25 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 
 	bool out = parent->out(), hovered, pressed;
 	if (parent == animated.msg) {
-		if (width >= animated.w) {
-			p.drawPixmap(0, 0, animated.frames[animated.frame]);
-			if (selected) {
-				p.fillRect(0, 0, animated.w, animated.h, textstyleCurrent()->selectOverlay->b);
-			}
-		} else {
-			bool s = p.renderHints().testFlag(QPainter::SmoothPixmapTransform);
-			if (!s) p.setRenderHint(QPainter::SmoothPixmapTransform);
-			int32 h = (width == w) ? _height : (width * animated.h / animated.w);
-			if (h < 1) h = 1;
-			p.drawPixmap(QRect(0, 0, width, h), animated.frames[animated.frame]);
-			if (!s) p.setRenderHint(QPainter::SmoothPixmapTransform, false);
-			if (selected) {
-				p.fillRect(0, 0, width, h, textstyleCurrent()->selectOverlay->b);
-			}
+		int32 pw = animated.w, ph = animated.h;
+		if (width < pw) {
+			pw = width;
+			ph = (pw == w) ? _height : (pw * animated.h / animated.w);
+			if (ph < 1) ph = 1;
+		}
+
+		QPixmap **cors = App::corners(selected ? InSelectedShadowCorners : InShadowCorners);
+		int32 cw = cors[0]->width() / cIntRetinaFactor(), ch = cors[0]->height() / cIntRetinaFactor();
+		style::color shadow(selected ? st::msgInSelectShadow : st::msgInShadow);
+		p.fillRect(cw, ph, pw - 2 * cw, st::msgShadow, shadow->b);
+		p.fillRect(0, ph - ch, cw, st::msgShadow, shadow->b);
+		p.fillRect(pw - cw, ph - ch, cw, st::msgShadow, shadow->b);
+		p.drawPixmap(0, ph - ch + st::msgShadow, *cors[2]);
+		p.drawPixmap(pw - cw, ph - ch + st::msgShadow, *cors[3]);
+
+		p.drawPixmap(0, 0, animated.current(pw, ph, true));
+		if (selected) {
+			App::roundRect(p, 0, 0, pw, ph, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
 		}
 		return;
 	}
