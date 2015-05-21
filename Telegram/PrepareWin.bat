@@ -1,6 +1,6 @@
 @echo OFF
 
-set "AppVersion=8016"
+set "AppVersion=8017"
 set "AppVersionStrSmall=0.8.17"
 set "AppVersionStr=0.8.17"
 set "AppVersionStrFull=0.8.17.0"
