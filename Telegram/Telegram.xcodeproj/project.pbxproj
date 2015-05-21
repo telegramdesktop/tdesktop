@@ -215,7 +215,6 @@
 		EBA5E17368D2BBC6014E92B9 /* qcorewlanbearer in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = EE03BC5CA4628A6D6BEB0122 /* qcorewlanbearer */; };
 		EBE29731916DB43BF49FE7A4 /* aboutbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = C194EDD00F76216057D48A5C /* aboutbox.cpp */; settings = {ATTRIBUTES = (); }; };
 		ED2557A57C6782721DC494AF /* moc_connectionbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = FEC58F9D8A0963E5A9D4BE6F /* moc_connectionbox.cpp */; settings = {ATTRIBUTES = (); }; };
-		EDFF7E777D3A3730A9BB3FC2 /* QTKit.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 2AC1C71FA3CD6FD909ED0276 /* QTKit.framework */; };
 		F26454630C80841CBDCFE1CA /* Foundation.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = FCC237CA5AD60B9BA4447615 /* Foundation.framework */; };
 		F278C423357CA99797EA30AB /* photosendbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = D1C9C77F1318F5A55C9BF289 /* photosendbox.cpp */; settings = {ATTRIBUTES = (); }; };
 		F2A75ACAC9DF6A3F4E5711E7 /* AppKit.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 723F90793B2C195E2CCB2233 /* AppKit.framework */; };
@@ -395,7 +394,6 @@
 		27E7471A4EC90E84353AA16F /* mtpCoreTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = mtpCoreTypes.h; path = SourceFiles/mtproto/mtpCoreTypes.h; sourceTree = "<absolute>"; };
 		28BD0D10214709D95B161E24 /* /usr/local/Qt-5.4.0/mkspecs/modules/qt_lib_multimediawidgets.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.4.0/mkspecs/modules/qt_lib_multimediawidgets.pri"; sourceTree = "<absolute>"; };
 		293C8DEEE270847AC20E70F9 /* /usr/local/Qt-5.4.0/mkspecs/modules/qt_lib_network.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.4.0/mkspecs/modules/qt_lib_network.pri"; sourceTree = "<absolute>"; };
-		2AC1C71FA3CD6FD909ED0276 /* QTKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QTKit.framework; path = /System/Library/Frameworks/QTKit.framework; sourceTree = "<absolute>"; };
 		2BB2A1BB8DB0993F78F4E3C7 /* title.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = title.cpp; path = SourceFiles/title.cpp; sourceTree = "<absolute>"; };
 		2C540BAEABD7F9B5FA11008E /* moc_mtpDC.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_mtpDC.cpp; path = GeneratedFiles/Debug/moc_mtpDC.cpp; sourceTree = "<absolute>"; };
 		2C99425D7670941EAF07B453 /* moc_historywidget.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_historywidget.cpp; path = GeneratedFiles/Debug/moc_historywidget.cpp; sourceTree = "<absolute>"; };
@@ -715,7 +713,6 @@
 				CCA737EE379CDB10CC9A0F23 /* AVFoundation.framework in Link Binary With Libraries */,
 				B78304F135DEF1F7A68393A6 /* CoreMedia.framework in Link Binary With Libraries */,
 				F2A75ACAC9DF6A3F4E5711E7 /* AppKit.framework in Link Binary With Libraries */,
-				EDFF7E777D3A3730A9BB3FC2 /* QTKit.framework in Link Binary With Libraries */,
 				EBA5E17368D2BBC6014E92B9 /* qcorewlanbearer in Link Binary With Libraries */,
 				D0EECF370C58DDCACBC71BAD /* CoreWLAN.framework in Link Binary With Libraries */,
 				8883FF366F2623E89D90A9E6 /* qgenericbearer in Link Binary With Libraries */,
@@ -1238,7 +1235,6 @@
 				186D09F4CB713AD4B8BDD260 /* AudioUnit.framework */,
 				EDD43CF4FA85D97A1140E973 /* qavfmediaplayer */,
 				1C21DCD421D7B7E0462F1121 /* qqt7engine */,
-				2AC1C71FA3CD6FD909ED0276 /* QTKit.framework */,
 				833B45FEF5DC4AD0E8ADA64A /* Qt5MultimediaWidgets */,
 				AA5379CB06E908AC80BE7B82 /* Qt5OpenGL */,
 				A490341D0650372A5757B367 /* qtmedia_audioengine */,
