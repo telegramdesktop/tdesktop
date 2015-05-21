@@ -56,6 +56,20 @@ int32 mtpMainDC() {
 	return mainDC;
 }
 
+namespace {
+	QMap<int32, mtpRequestId> logoutGuestMap; // dcWithShift to logout request id
+	bool logoutDone(mtpRequestId req) {
+		for (QMap<int32, mtpRequestId>::iterator i = logoutGuestMap.begin(); i != logoutGuestMap.end(); ++i) {
+			if (i.value() == req) {
+				MTP::killSession(i.key());
+				logoutGuestMap.erase(i);
+				return true;
+			}
+		}
+		return false;
+	}
+}
+
 void mtpLogoutOtherDCs() {
 	QList<int32> dcs;
 	{
@@ -64,7 +78,7 @@ void mtpLogoutOtherDCs() {
 	}
 	for (int32 i = 0, cnt = dcs.size(); i != cnt; ++i) {
 		if (dcs[i] != MTP::maindc()) {
-			MTP::send(MTPauth_LogOut(), RPCResponseHandler(), dcs[i]);
+			logoutGuestMap.insert(MTP::lgt + dcs[i], MTP::send(MTPauth_LogOut(), rpcDone(&logoutDone), rpcFail(&logoutDone), MTP::lgt + dcs[i]));
 		}
 	}
 }
@@ -154,7 +168,11 @@ namespace {
 void mtpUpdateDcOptions(const QVector<MTPDcOption> &options) {
 	QSet<int32> already, restart;
 	{
-		mtpDcOptions opts(cDcOptions());
+		mtpDcOptions opts;
+		{
+			QReadLocker lock(mtpDcOptionsMutex());
+			opts = cDcOptions();
+		}
 		for (QVector<MTPDcOption>::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
 			const MTPDdcOption &optData(i->c_dcOption());
 			if (already.constFind(optData.vid.v) == already.cend()) {
@@ -168,16 +186,26 @@ void mtpUpdateDcOptions(const QVector<MTPDcOption> &options) {
 				opts.insert(optData.vid.v, mtpDcOption(optData.vid.v, optData.vhostname.c_string().v, optData.vip_address.c_string().v, optData.vport.v));
 			}
 		}
-		cSetDcOptions(opts);
+		{
+			QWriteLocker lock(mtpDcOptionsMutex());
+			cSetDcOptions(opts);
+		}
 	}
 	for (QSet<int32>::const_iterator i = restart.cbegin(), e = restart.cend(); i != e; ++i) {
 		MTP::restart(*i);
 	}
 }
 
+namespace {
+	QReadWriteLock _dcOptionsMutex;
+}
+
+QReadWriteLock *mtpDcOptionsMutex() {
+	return &_dcOptionsMutex;
+}
+
 MTProtoConfigLoader::MTProtoConfigLoader() : _enumCurrent(0), _enumRequest(0) {
 	connect(&_enumDCTimer, SIGNAL(timeout()), this, SLOT(enumDC()));
-	connect(this, SIGNAL(killCurrentSession(qint32,qint32)), this, SLOT(onKillCurrentSession(qint32,qint32)), Qt::QueuedConnection);
 }
 
 void MTProtoConfigLoader::load() {
@@ -189,23 +217,15 @@ void MTProtoConfigLoader::load() {
 	_enumDCTimer.start(MTPEnumDCTimeout);
 }
 
-void MTProtoConfigLoader::onKillCurrentSession(qint32 request, qint32 current) {
-	if (request == _enumRequest && current == _enumCurrent) {
-		if (_enumRequest) {
-			MTP::cancel(_enumRequest);
-			_enumRequest = 0;
-		}
-		if (_enumCurrent) {
-			MTP::killSession(MTP::cfg + _enumCurrent);
-			_enumCurrent = 0;
-		}
-	}
-}
-
 void MTProtoConfigLoader::done() {
 	_enumDCTimer.stop();
-	if (_enumRequest || _enumCurrent) {
-		emit killCurrentSession(_enumRequest, _enumCurrent);
+	if (_enumRequest) {
+		MTP::cancel(_enumRequest);
+		_enumRequest = 0;
+	}
+	if (_enumCurrent) {
+		MTP::killSession(MTP::cfg + _enumCurrent);
+		_enumCurrent = 0;
 	}
 	emit loaded();
 }
@@ -220,14 +240,16 @@ void MTProtoConfigLoader::enumDC() {
 	} else {
 		MTP::killSession(MTP::cfg + _enumCurrent);
 	}
-	const mtpDcOptions &options(cDcOptions());
-	for (mtpDcOptions::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
-		if (i.key() == _enumCurrent) {
-			_enumCurrent = (++i == e) ? options.cbegin().key() : i.key();
-			break;
+	{
+		QReadLocker lock(mtpDcOptionsMutex());
+		const mtpDcOptions &options(cDcOptions());
+		for (mtpDcOptions::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
+			if (i.key() == _enumCurrent) {
+				_enumCurrent = (++i == e) ? options.cbegin().key() : i.key();
+				break;
+			}
 		}
 	}
-
 	_enumRequest = MTP::send(MTPhelp_GetConfig(), rpcDone(configLoaded), rpcFail(configFailed), MTP::cfg + _enumCurrent);
 
 	_enumDCTimer.start(MTPEnumDCTimeout);

@@ -382,11 +382,24 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_kick_user" = "{from} 님께서 {user} 님을 추방하셨습니다.";
 "lng_action_user_left" = "{from} 님이 그룹을 나가셨습니다.";
 "lng_action_user_joined" = "{from} 님이 그룹에 들어오셨습니다.";
+"lng_action_user_joined_by_link" = "초대링크를 타고 {from} 님이 그룹에 참여하였습니다.";
 "lng_action_user_registered" = "{from} 님이 텔레그램에 가입하셨습니다.";
 "lng_action_removed_photo" = "{from} 님이 그룹사진을 삭제하셨습니다.";
 "lng_action_changed_photo" = "{from} 님이 그룹사진을 변경하셨습니다.";
 "lng_action_changed_title" = "{from} 님이 그룹이름을 «{title}» 로 바꾸셨습니다.";
 "lng_action_created_chat" = "{from} 님이 그룹 «{title}» 을 생성하셨습니다.";
+
+"lng_group_invite_bad_link" = "초대링크가 깨졌거나,\n폐기되었습니다.";
+"lng_group_invite_want_join" = "«{title}» 그룹방에 참여하시겠습니까?";
+"lng_group_invite_join" = "참여";
+
+"lng_group_invite_link" = "초대링크";
+"lng_group_invite_create" = "초대링크 생성";
+"lng_group_invite_about" = "이 링크를 통하여,\n그룹방에 초대가 가능합니다.";
+"lng_group_invite_create_new" = "초대링크 폐기";
+"lng_group_invite_about_new" = "기존 링크는 비활성화 될 예정이며,\n새로운 링크가 재생성이 될 예정입니다.";
+"lng_group_invite_copied" = "클립보드에 초대링크가 복사 되었습니다.";
+"lng_group_invite_no_room" = "그룹방 인원 최대치가 도달하여\n더이상 참여가 안됩니다.";
 
 "lng_forwarded_from" = "전달받음";
 "lng_in_reply_to" = "다음 유저에게 답장 :";
@@ -406,6 +419,26 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_cancel" = "취소";
 "lng_media_video" = "비디오 파일";
 "lng_media_audio" = "음성 메시지";
+
+"lng_emoji_category0" = "자주 사용";
+"lng_emoji_category1" = "사람";
+"lng_emoji_category2" = "자연";
+"lng_emoji_category3" = "음식점";
+"lng_emoji_category4" = "기념일";
+"lng_emoji_category5" = "활동";
+"lng_emoji_category6" = "여행 및 장소";
+"lng_emoji_category7" = "오브제 & 상징";
+
+"lng_switch_stickers" = "스티커";
+"lng_switch_emoji" = "이모티콘";
+
+"lng_custom_stickers" = "커스텀 스티커";
+"lng_stickers_remove_pack" = "«{sticker_pack}»을 제거하시겠습니까?";
+"lng_stickers_add_pack" = "{count:_not_used_|# 스티커|# 스티커} 추가";
+"lng_stickers_share_pack" = "스티커 공유";
+"lng_stickers_not_found" = "스티커 팩을 찾을 수 없습니다.";
+"lng_stickers_copied" = "클립보드에 스티커 팩 링크가 복사 되었습니다.";
+"lng_stickers_default_set" = "Great Minds";
 
 "lng_in_dlg_photo" = "사진";
 "lng_in_dlg_video" = "비디오";
@@ -458,6 +491,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_save_video" = "비디오 이름을 다른이름으로 저장.";
 "lng_context_open_audio" = "음성메시지 열기";
 "lng_context_save_audio" = "음성메시지를 다른 이름으로 저장..";
+"lng_context_pack_info" = "팩 정보";
 "lng_context_open_file" = "파일 열기";
 "lng_context_save_file" = "파일을 다른 이름으로 저장..";
 "lng_context_forward_file" = "파일 전달";
@@ -527,12 +561,17 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_search_found_results" = "{count:메시지를 찾을 수 없습니다.|# 개의 메시지를 찾았습니다.|# 개의 메시지를 찾았습니다.}";
 "lng_search_global_results" = "아이디 검색 결과";
 
-"lng_mediaview_save" = "다운로드";
+"lng_media_save_progress" = "{ready} / {total} {mb}";
+"lng_mediaview_save_as" = "다른 이름으로 저장하기";
+"lng_mediaview_copy" = "복사하기";
 "lng_mediaview_forward" = "전달";
 "lng_mediaview_delete" = "삭제";
+"lng_mediaview_photos_all" = "모든 사진 보기";
+"lng_mediaview_files_all" = "모든 파일 보기";
 "lng_mediaview_single_photo" = "단일 사진";
 "lng_mediaview_group_photo" = "그룹 사진";
 "lng_mediaview_profile_photo" = "프로필 사진";
+"lng_mediaview_file_n_of_count" = "{file} {n} 중 {count}";
 "lng_mediaview_n_of_count" = "사진 {n} 중 {count}";
 "lng_mediaview_doc_image" = "파일";
 "lng_mediaview_today" = "오늘 {time}";
@@ -545,7 +584,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 트윗, 유투브 비디오, 인스터그램 사진등의 프리뷰 기능\n— 2단계 인증\n— 활성화된 모든 텔레그램 세션 확인 및 특정 세션 종료 기능";
+"lng_new_version_text" = "— 스티커 팩 기능\n— 신규 이모티콘 및 스티커 패널";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

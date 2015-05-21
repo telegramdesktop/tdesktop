@@ -20,6 +20,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "settings.h"
 #include "lang.h"
 
+bool gRtl = false;
+Qt::LayoutDirection gLangDir = Qt::LeftToRight;
+
 mtpDcOptions gDcOptions;
 
 bool gTestMode = false;
@@ -68,7 +71,7 @@ bool gCtrlEnter = false;
 QPixmapPointer gChatBackground = 0;
 int32 gChatBackgroundId = 0;
 QPixmapPointer gChatDogImage = 0;
-bool gTileBackground = true;
+bool gTileBackground = false;
 
 uint32 gConnectionsInSession = 1;
 QString gLoggedPhoneNumber;
@@ -84,14 +87,18 @@ bool gHasPasscode = false;
 
 DBIEmojiTab gEmojiTab = dbietRecent;
 RecentEmojiPack gRecentEmojis;
-RecentEmojiPreload gRecentEmojisPreload;
+RecentEmojisPreload gRecentEmojisPreload;
+EmojiColorVariants gEmojiVariants;
 
-AllStickers gStickers;
 QByteArray gStickersHash;
 
 EmojiStickersMap gEmojiStickers;
 
+RecentStickerPreload gRecentStickersPreload;
 RecentStickerPack gRecentStickers;
+StickerSets gStickerSets;
+
+uint64 gLastStickersUpdate = 0;
 
 RecentHashtagPack gRecentWriteHashtags, gRecentSearchHashtags;
 
@@ -183,22 +190,22 @@ void settingsParseArgs(int argc, char *argv[]) {
 	}
 }
 
-const RecentEmojiPack &cGetRecentEmojis() {
+RecentEmojiPack &cGetRecentEmojis() {
 	if (cRecentEmojis().isEmpty()) {
 		RecentEmojiPack r;
 		if (!cRecentEmojisPreload().isEmpty()) {
-			RecentEmojiPreload p(cRecentEmojisPreload());
-			cSetRecentEmojisPreload(RecentEmojiPreload());
+			RecentEmojisPreload p(cRecentEmojisPreload());
+			cSetRecentEmojisPreload(RecentEmojisPreload());
 			r.reserve(p.size());
-			for (RecentEmojiPreload::const_iterator i = p.cbegin(), e = p.cend(); i != e; ++i) {
-				uint32 code = ((i->first & 0xFFFFU) == 0xFE0FU) ? ((i->first >> 16) & 0xFFFFU) : i->first;
-				EmojiPtr ep(getEmoji(code));
+			for (RecentEmojisPreload::const_iterator i = p.cbegin(), e = p.cend(); i != e; ++i) {
+				uint64 code = ((!(i->first & 0xFFFFFFFF00000000LLU) && (i->first & 0xFFFFU) == 0xFE0FU)) ? ((i->first >> 16) & 0xFFFFU) : i->first;
+				EmojiPtr ep(emojiFromKey(code));
 				if (!ep) continue;
 
 				if (ep->postfix) {
 					int32 j = 0, l = r.size();
 					for (; j < l; ++j) {
-						if (r[j].first->code == code) {
+						if (emojiKey(r[j].first) == code) {
 							break;
 						}
 					}
@@ -209,47 +216,47 @@ const RecentEmojiPack &cGetRecentEmojis() {
 				r.push_back(qMakePair(ep, i->second));
 			}
 		}
-		uint32 defaultRecent[] = {
-			0xD83DDE02U,
-			0xD83DDE18U,
-			0x2764U,
-			0xD83DDE0DU,
-			0xD83DDE0AU,
-			0xD83DDE01U,
-			0xD83DDC4DU,
-			0x263AU,
-			0xD83DDE14U,
-			0xD83DDE04U,
-			0xD83DDE2DU,
-			0xD83DDC8BU,
-			0xD83DDE12U,
-			0xD83DDE33U,
-			0xD83DDE1CU,
-			0xD83DDE48U,
-			0xD83DDE09U,
-			0xD83DDE03U,
-			0xD83DDE22U,
-			0xD83DDE1DU,
-			0xD83DDE31U,
-			0xD83DDE21U,
-			0xD83DDE0FU,
-			0xD83DDE1EU,
-			0xD83DDE05U,
-			0xD83DDE1AU,
-			0xD83DDE4AU,
-			0xD83DDE0CU,
-			0xD83DDE00U,
-			0xD83DDE0BU,
-			0xD83DDE06U,
-			0xD83DDC4CU,
-			0xD83DDE10U,
-			0xD83DDE15U,
+		uint64 defaultRecent[] = {
+			0xD83DDE02LLU,
+			0xD83DDE18LLU,
+			0x2764LLU,
+			0xD83DDE0DLLU,
+			0xD83DDE0ALLU,
+			0xD83DDE01LLU,
+			0xD83DDC4DLLU,
+			0x263ALLU,
+			0xD83DDE14LLU,
+			0xD83DDE04LLU,
+			0xD83DDE2DLLU,
+			0xD83DDC8BLLU,
+			0xD83DDE12LLU,
+			0xD83DDE33LLU,
+			0xD83DDE1CLLU,
+			0xD83DDE48LLU,
+			0xD83DDE09LLU,
+			0xD83DDE03LLU,
+			0xD83DDE22LLU,
+			0xD83DDE1DLLU,
+			0xD83DDE31LLU,
+			0xD83DDE21LLU,
+			0xD83DDE0FLLU,
+			0xD83DDE1ELLU,
+			0xD83DDE05LLU,
+			0xD83DDE1ALLU,
+			0xD83DDE4ALLU,
+			0xD83DDE0CLLU,
+			0xD83DDE00LLU,
+			0xD83DDE0BLLU,
+			0xD83DDE06LLU,
+			0xD83DDC4CLLU,
+			0xD83DDE10LLU,
+			0xD83DDE15LLU,
 		};
 		for (int32 i = 0, s = sizeof(defaultRecent) / sizeof(defaultRecent[0]); i < s; ++i) {
-			if (r.size() >= EmojiPadPerRow * EmojiPadRowsPerPage) break;
+			if (r.size() >= EmojiPanPerRow * EmojiPanRowsPerPage) break;
 
-			EmojiPtr ep(getEmoji(defaultRecent[i]));
-			if (!ep) continue;
+			EmojiPtr ep(emojiGet(defaultRecent[i]));
+			if (!ep || ep == TwoSymbolEmoji) continue;
 
 			int32 j = 0, l = r.size();
 			for (; j < l; ++j) {
@@ -263,5 +270,22 @@ const RecentEmojiPack &cGetRecentEmojis() {
 		}
 		cSetRecentEmojis(r);
 	}
-	return cRecentEmojis();
+	return cRefRecentEmojis();
+}
+
+RecentStickerPack &cGetRecentStickers() {
+	if (cRecentStickers().isEmpty() && !cRecentStickersPreload().isEmpty()) {
+		RecentStickerPreload p(cRecentStickersPreload());
+		cSetRecentStickersPreload(RecentStickerPreload());
+
+		RecentStickerPack &recent(cRefRecentStickers());
+		recent.reserve(p.size());
+		for (RecentStickerPreload::const_iterator i = p.cbegin(), e = p.cend(); i != e; ++i) {
+			DocumentData *doc = App::document(i->first);
+			if (!doc || !doc->sticker) continue;
+
+			recent.push_back(qMakePair(doc, i->second));
+		}
+	}
+	return cRefRecentStickers();
 }

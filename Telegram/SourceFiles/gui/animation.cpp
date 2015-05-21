@@ -18,7 +18,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 
 #include "animation.h"
-#include <QtCore/QTimer>
+
+#include "mainwidget.h"
+#include "window.h"
 
 namespace {
 	AnimationManager *manager = 0;
@@ -78,6 +80,11 @@ namespace anim {
 		manager->start(obj);
 	}
 
+	void step(Animated *obj) {
+		if (!manager) return;
+		manager->step(obj);
+	}
+
 	void stop(Animated *obj) {
 		if (!manager) return;
 		manager->stop(obj);
@@ -93,4 +100,114 @@ namespace anim {
 		manager = 0;
 	}
 
+}
+
+bool AnimatedGif::animStep(float64 ms) {
+	int32 f = frame;
+	while (f < frames.size() && ms > delays[f]) {
+		++f;
+		if (f == frames.size() && frames.size() < framesCount) {
+			if (reader->read(&img)) {
+				int64 d = reader->nextImageDelay(), delay = delays[f - 1];
+				if (!d) d = 1;
+				delay += d;
+				frames.push_back(QPixmap::fromImage(img.size() == QSize(w, h) ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly));
+				delays.push_back(delay);
+				for (int32 i = 0; i < frames.size(); ++i) {
+					if (!frames[i].isNull()) {
+						frames[i] = QPixmap();
+						break;
+					}
+				}
+			} else {
+				framesCount = frames.size();
+			}
+		}
+		if (f == frames.size()) {
+			if (!duration) {
+				duration = delays.isEmpty() ? 1 : delays.back();
+			}
+
+			f = 0;
+			for (int32 i = 0, s = delays.size() - 1; i <= s; ++i) {
+				delays[i] += duration;
+			}
+			if (frames[f].isNull()) {
+				QString fname = reader->fileName();
+				delete reader;
+				reader = new QImageReader(fname);
+			}
+		}
+		if (frames[f].isNull() && reader->read(&img)) {
+			frames[f] = QPixmap::fromImage(img.size() == QSize(w, h) ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
+		}
+	}
+	if (frame != f) {
+		frame = f;
+		if (msg && App::main()) {
+			App::main()->msgUpdated(msg->history()->peer->id, msg);
+		} else {
+			emit updated();
+		}
+	}
+	return true;
+}
+
+void AnimatedGif::start(HistoryItem *row, const QString &file) {
+	stop();
+
+	reader = new QImageReader(file);
+	if (!reader->canRead() || !reader->supportsAnimation()) {
+		stop();
+		return;
+	}
+
+	QSize s = reader->size();
+	w = s.width();
+	h = s.height();
+	framesCount = reader->imageCount();
+	if (!w || !h || !framesCount) {
+		stop();
+		return;
+	}
+
+	frames.reserve(framesCount);
+	delays.reserve(framesCount);
+
+	int32 sizeLeft = MediaViewImageSizeLimit, delay = 0;
+	for (bool read = reader->read(&img); read; read = reader->read(&img)) {
+		sizeLeft -= w * h * 4;
+		frames.push_back(QPixmap::fromImage(img.size() == s ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly));
+		int32 d = reader->nextImageDelay();
+		if (!d) d = 1;
+		delay += d;
+		delays.push_back(delay);
+		if (sizeLeft < 0) break;
+	}
+
+	msg = row;
+
+	anim::start(this);
+	if (msg) {
+		msg->initDimensions();
+		if (App::main()) App::main()->itemResized(msg, true);
+	}
+}
+
+void AnimatedGif::stop(bool onItemRemoved) {
+	if (isNull()) return;
+
+	delete reader;
+	reader = 0;
+	HistoryItem *row = msg;
+	msg = 0;
+	frames.clear();
+	delays.clear();
+	w = h = frame = framesCount = duration = 0;
+
+	anim::stop(this);
+	if (row && !onItemRemoved) {
+		row->initDimensions();
+		if (App::main()) App::main()->itemResized(row, true);
+	}
 }

@@ -25,7 +25,7 @@ class ContextMenu : public TWidget, public Animated {
 
 public:
 
-	ContextMenu(QWidget *parent, const style::iconedButton &st = st::btnContext);
+	ContextMenu(QWidget *parent, const style::dropdown &st = st::dropdownDef, const style::iconedButton &btnst = st::btnContext);
 	QAction *addAction(const QString &text, const QObject *receiver, const char* member);
 	void resetActions();
 
@@ -72,7 +72,8 @@ private:
 	int32 _width, _height;
 	bool _hiding;
 
-	const style::iconedButton &_buttonStyle;
+	const style::dropdown &_st;
+	const style::iconedButton &_btnst;
 
 	BoxShadow _shadow;
 	int32 _selected;

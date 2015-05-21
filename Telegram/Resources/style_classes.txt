@@ -20,7 +20,7 @@ textStyle {
 	lnkOverFlags: font;
 	lnkColor: color;
 	lnkDownColor: color;
-	selectBG: color;
+	selectBg: color;
 	selectOverlay: color;
 	lineHeight: number;
 }
@@ -173,7 +173,8 @@ flatScroll {
 	width: number;
 	minHeight: number;
 	deltax: number;
-	deltay: number;
+	deltat: number;
+	deltab: number;
 
 	topsh: number;
 	bottomsh: number;
@@ -245,4 +246,15 @@ switcher {
 	activeColor: color;
 
 	duration: number;
+}
+
+dropdown {
+	border: number;
+	borderColor: color;
+
+	padding: margins;
+	shadow: sprite;
+
+	duration: number;
+	width: number;
 }

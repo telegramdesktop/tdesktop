@@ -122,8 +122,8 @@ namespace Local {
 	int32 hasImages();
 	qint64 storageImagesSize();
 
-	void writeSticker(const StorageKey &location, const QByteArray &data, bool overwrite = true);
-	QByteArray readSticker(const StorageKey &location);
+	void writeStickerImage(const StorageKey &location, const QByteArray &data, bool overwrite = true);
+	QByteArray readStickerImage(const StorageKey &location);
 	int32 hasStickers();
 	qint64 storageStickersSize();
 
@@ -132,8 +132,8 @@ namespace Local {
 	int32 hasAudios();
 	qint64 storageAudiosSize();
 
-	void writeRecentStickers();
-	void readRecentStickers();
+	void writeStickers();
+	void readStickers();
 
 	void writeBackground(int32 id, const QImage &img);
 	bool readBackground();

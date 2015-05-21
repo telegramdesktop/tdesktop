@@ -37,6 +37,6 @@ mtpRequestId MTProtoSession::send(const TRequest &request, RPCResponseHandler ca
         requestId = 0;
         _mtp_internal::rpcErrorOccured(requestId, callbacks, rpcClientError("NO_REQUEST_ID", QString("send() failed to queue request, exception: %1").arg(e.what())));
     }
-    if (requestId) _mtp_internal::registerRequest(requestId, toMainDC ? -getDC() : getDC());
+	if (requestId) _mtp_internal::registerRequest(requestId, toMainDC ? -getDcWithShift() : getDcWithShift());
     return requestId;
 }

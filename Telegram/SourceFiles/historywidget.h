@@ -298,6 +298,7 @@ public:
 	void updateTyping(bool typing = true);
 //	void updateStickerPan();
 	void updateRecentStickers();
+	void stickersInstalled(uint64 setId);
 	void typingDone(const MTPBool &result, mtpRequestId req);
 
 	void destroyData();
@@ -378,6 +379,8 @@ public slots:
 	void onCancel();
 	void onReplyToMessage();
 	void onReplyForwardPreviewCancel();
+
+	void onStickerPackInfo();
 
 	void onPreviewParse();
 	void onPreviewCheck();
@@ -473,7 +476,6 @@ private:
 	void stickersGot(const MTPmessages_AllStickers &stickers);
 	bool stickersFailed(const RPCError &error);
 
-	uint64 _lastStickersUpdate;
 	mtpRequestId _stickersUpdateRequest;
 
 	void writeDraft(MsgId *replyTo = 0, const QString *text = 0, const MessageCursor *cursor = 0, bool *previewCancelled = 0);

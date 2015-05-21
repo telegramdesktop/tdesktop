@@ -185,6 +185,7 @@ namespace anim {
 	};
 
 	void start(Animated *obj);
+	void step(Animated *obj);
 	void stop(Animated *obj);
 
 	void startManager();
@@ -248,6 +249,23 @@ public:
 		obj->animInProcess = true;
 	}
 
+	void step(Animated *obj) {
+		if (iterating) return;
+
+		float64 ms = float64(getms());
+		AnimObjs::iterator i = objs.find(obj);
+		if (i != objs.cend()) {
+			Animated *obj = *i;
+			if (!obj->animStep(ms - obj->animStarted)) {
+				objs.erase(i);
+				if (!objs.size()) {
+					timer.stop();
+				}
+				obj->animInProcess = false;
+			}
+		}
+	}
+
 	void stop(Animated *obj) {
 		if (iterating) {
 			toStop.insert(obj);
@@ -306,4 +324,40 @@ private:
 	QTimer timer;
 	bool iterating;
 
+};
+
+class HistoryItem;
+class AnimatedGif : public QObject, public Animated {
+	Q_OBJECT
+
+public:
+
+	AnimatedGif() : msg(0), reader(0), w(0), h(0), frame(0), framesCount(0), duration(0) {
+	}
+
+	bool animStep(float64 ms);
+
+	void start(HistoryItem *row, const QString &file);
+	void stop(bool onItemRemoved = false);
+
+	bool isNull() const {
+		return !reader;
+	}
+
+	~AnimatedGif() {
+		stop(true);
+	}
+
+signals:
+
+	void updated();
+
+public:
+
+	HistoryItem *msg;
+	QImage img;
+	QImageReader *reader;
+	QVector<QPixmap> frames;
+	QVector<int64> delays;
+	int32 w, h, frame, framesCount, duration;
 };

@@ -41,6 +41,17 @@ inline void cSet##Name(const Type &Name) { \
 	g##Name = Name; \
 }
 
+#define DeclareRefSetting(Type, Name) DeclareSetting(Type, Name) \
+inline Type &cRef##Name() { \
+	return g##Name; \
+}
+
+DeclareSetting(bool, Rtl);
+DeclareSetting(Qt::LayoutDirection, LangDir);
+inline bool rtl() {
+	return cRtl();
+}
+
 struct mtpDcOption {
 	mtpDcOption(int _id, const string &_host, const string &_ip, int _port) : id(_id), host(_host), ip(_ip), port(_port) {
 	}
@@ -148,35 +159,56 @@ T convertScale(T v) {
 DeclareSetting(DBIEmojiTab, EmojiTab);
 
 struct EmojiData {
-	EmojiData(uint16 x, uint16 y, uint32 code, uint32 code2, uint16 len, uint16 postfix = 0) : x(x), y(y), code(code), code2(code2), len(len), postfix(postfix) {
+	EmojiData(uint16 x, uint16 y, uint32 code, uint32 code2, uint16 len, uint16 postfix, uint32 color) : x(x), y(y), code(code), code2(code2), len(len), postfix(postfix), color(color) {
 	}
 	uint16 x, y;
 	uint32 code, code2;
 	uint16 len;
 	uint16 postfix;
+	uint32 color;
 };
 
 typedef const EmojiData *EmojiPtr;
+static EmojiPtr TwoSymbolEmoji = EmojiPtr(0x01);
 
 typedef QVector<EmojiPtr> EmojiPack;
-typedef QVector<QPair<uint32, ushort> > RecentEmojiPreload;
+typedef QVector<QPair<uint32, ushort> > RecentEmojisPreloadOld;
+typedef QVector<QPair<uint64, ushort> > RecentEmojisPreload;
 typedef QVector<QPair<EmojiPtr, ushort> > RecentEmojiPack;
-DeclareSetting(RecentEmojiPack, RecentEmojis);
-DeclareSetting(RecentEmojiPreload, RecentEmojisPreload);
+typedef QMap<uint32, uint64> EmojiColorVariants;
+DeclareRefSetting(RecentEmojiPack, RecentEmojis);
+DeclareSetting(RecentEmojisPreload, RecentEmojisPreload);
+DeclareRefSetting(EmojiColorVariants, EmojiVariants);
 
-const RecentEmojiPack &cGetRecentEmojis();
+RecentEmojiPack &cGetRecentEmojis();
 
 struct DocumentData;
 typedef QVector<DocumentData*> StickerPack;
-typedef QMap<EmojiPtr, StickerPack> AllStickers;
-DeclareSetting(AllStickers, Stickers);
 DeclareSetting(QByteArray, StickersHash);
 
 typedef QMap<DocumentData*, EmojiPtr> EmojiStickersMap;
 DeclareSetting(EmojiStickersMap, EmojiStickers);
 
-typedef QList<QPair<DocumentData*, int16> > RecentStickerPack;
-DeclareSetting(RecentStickerPack, RecentStickers);
+typedef QList<QPair<DocumentData*, int16> > RecentStickerPackOld;
+typedef QVector<QPair<uint64, ushort> > RecentStickerPreload;
+typedef QVector<QPair<DocumentData*, ushort> > RecentStickerPack;
+DeclareSetting(RecentStickerPreload, RecentStickersPreload);
+DeclareRefSetting(RecentStickerPack, RecentStickers);
+
+RecentStickerPack &cGetRecentStickers();
+
+DeclareSetting(uint64, LastStickersUpdate);
+
+static const uint64 DefaultStickerSetId = 0, CustomStickerSetId = 0xFFFFFFFFFFFFFFFFLLU, RecentStickerSetId = 0xFFFFFFFFFFFFFFFELLU;
+struct StickerSet {
+	StickerSet(uint64 id, uint64 access, const QString &title, const QString &shortName) : id(id), access(access), title(title), shortName(shortName) {
+	}
+	uint64 id, access;
+	QString title, shortName;
+	StickerPack stickers;
+};
+typedef QMap<uint64, StickerSet> StickerSets;
+DeclareRefSetting(StickerSets, StickerSets);
 
 typedef QList<QPair<QString, ushort> > RecentHashtagPack;
 DeclareSetting(RecentHashtagPack, RecentWriteHashtags);

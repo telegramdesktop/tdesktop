@@ -75,6 +75,12 @@
     <ClCompile Include="GeneratedFiles\qrc_telegram.cpp">
       <Filter>Generated Files</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\qrc_telegram_emojis.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\qrc_telegram_wnd.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
     <ClCompile Include="SourceFiles\gui\flatinput.cpp">
       <Filter>gui</Filter>
     </ClCompile>
@@ -873,6 +879,18 @@
     <ClCompile Include="SourceFiles\structs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_stickersetbox.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_stickersetbox.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_stickersetbox.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="SourceFiles\boxes\stickersetbox.cpp">
+      <Filter>boxes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1127,6 +1145,8 @@
     </CustomBuild>
     <CustomBuild Include="Resources\lang.strings" />
     <CustomBuild Include="SourceFiles\telegram.qrc" />
+    <CustomBuild Include="SourceFiles\telegram_emojis.qrc" />
+    <CustomBuild Include="SourceFiles\telegram_wnd.qrc" />
     <CustomBuild Include="SourceFiles\boxes\languagebox.h">
       <Filter>boxes</Filter>
     </CustomBuild>
@@ -1159,6 +1179,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\intro\intropwdcheck.h">
       <Filter>intro</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\boxes\stickersetbox.h">
+      <Filter>boxes</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

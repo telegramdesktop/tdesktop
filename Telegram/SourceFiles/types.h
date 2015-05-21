@@ -98,6 +98,12 @@ inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
 #endif
 }
 
+class InitOpenSSL {
+public:
+	InitOpenSSL();
+	~InitOpenSSL();
+};
+
 bool checkms(); // returns true if time has changed
 uint64 getms(bool checked = false);
 
@@ -225,49 +231,52 @@ QString translitRusEng(const QString &rus);
 QString rusKeyboardLayoutSwitch(const QString &from);
 
 enum DataBlockId {
-	dbiKey = 0,
-	dbiUser = 1,
-	dbiDcOption = 2,
-	dbiMaxGroupCount = 3,
-	dbiMutePeer = 4,
-	dbiSendKey = 5,
-	dbiAutoStart = 6,
-	dbiStartMinimized = 7,
-	dbiSoundNotify = 8,
-	dbiWorkMode = 9,
-	dbiSeenTrayTooltip = 10,
-	dbiDesktopNotify = 11,
-	dbiAutoUpdate = 12,
-	dbiLastUpdateCheck = 13,
-	dbiWindowPosition = 14,
-	dbiConnectionType = 15,
+	dbiKey                 = 0x00,
+	dbiUser                = 0x01,
+	dbiDcOption            = 0x02,
+	dbiMaxGroupCount       = 0x03,
+	dbiMutePeer            = 0x04,
+	dbiSendKey             = 0x05,
+	dbiAutoStart           = 0x06,
+	dbiStartMinimized      = 0x07,
+	dbiSoundNotify         = 0x08,
+	dbiWorkMode            = 0x09,
+	dbiSeenTrayTooltip     = 0x0a,
+	dbiDesktopNotify       = 0x0b,
+	dbiAutoUpdate          = 0x0c,
+	dbiLastUpdateCheck     = 0x0d,
+	dbiWindowPosition      = 0x0e,
+	dbiConnectionType      = 0x0f,
 // 16 reserved
-	dbiDefaultAttach = 17,
-	dbiCatsAndDogs = 18,
-	dbiReplaceEmojis = 19,
-	dbiAskDownloadPath = 20,
-	dbiDownloadPath = 21,
-	dbiScale = 22,
-	dbiEmojiTab = 23,
-	dbiRecentEmojis = 24,
-	dbiLoggedPhoneNumber = 25,
-	dbiMutedPeers = 26,
+	dbiDefaultAttach       = 0x11,
+	dbiCatsAndDogs         = 0x12,
+	dbiReplaceEmojis       = 0x13,
+	dbiAskDownloadPath     = 0x14,
+	dbiDownloadPath        = 0x15,
+	dbiScale               = 0x16,
+	dbiEmojiTab            = 0x17,
+	dbiRecentEmojisOld     = 0x18,
+	dbiLoggedPhoneNumber   = 0x19,
+	dbiMutedPeers          = 0x1a,
 // 27 reserved
-	dbiNotifyView = 28,
-	dbiSendToMenu = 29,
-	dbiCompressPastedImage = 30,
-	dbiLang = 31,
-	dbiLangFile = 32,
-	dbiTileBackground = 33,
-	dbiAutoLock = 34,
-	dbiDialogLastPath = 35,
+	dbiNotifyView          = 0x1c,
+	dbiSendToMenu          = 0x1d,
+	dbiCompressPastedImage = 0x1e,
+	dbiLang                = 0x1f,
+	dbiLangFile            = 0x20,
+	dbiTileBackground      = 0x21,
+	dbiAutoLock            = 0x22,
+	dbiDialogLastPath      = 0x23,
+	dbiRecentEmojis        = 0x24,
+	dbiEmojiVariants       = 0x25,
+	dbiRecentStickers      = 0x26,
 
-	dbiEncryptedWithSalt = 333,
-	dbiEncrypted = 444,
+	dbiEncryptedWithSalt   = 333,
+	dbiEncrypted           = 444,
 
 	// 500-600 reserved
 
-	dbiVersion = 666,
+	dbiVersion             = 666,
 };
 
 enum DBISendKey {
@@ -318,14 +327,21 @@ enum DBIScale {
 };
 
 enum DBIEmojiTab {
-	dbietRecent   = -1,
-	dbietPeople   =  0,
-	dbietNature   =  1,
-	dbietObjects  =  2,
-	dbietPlaces   =  3,
-	dbietSymbols  =  4,
-	dbietStickers =  666,
+	dbietRecent      = -1,
+	dbietPeople      =  0,
+	dbietNature      =  1,
+	dbietFood        =  2,
+	dbietCelebration =  3,
+	dbietActivity    =  4,
+	dbietTravel      =  5,
+	dbietObjects     =  6,
+	dbietStickers    =  666,
 };
+static const int emojiTabCount = 8;
+static const int emojiTabShift = 100000;
+inline DBIEmojiTab emojiTabAtIndex(int index) {
+	return (index < 0 || index >= emojiTabCount) ? dbietRecent : DBIEmojiTab(index - 1);
+}
 
 enum DBIPlatform {
     dbipWindows  = 0,

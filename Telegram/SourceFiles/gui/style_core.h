@@ -26,6 +26,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include <QtGui/QCursor>
 #include <QtGui/QFont>
 
+inline QRect rtlrect(int x, int y, int w, int h, int outerw) {
+	return rtl() ? QRect(outerw - x - w, y, w, h) : QRect(x, y, w, h);
+}
+inline QRect centerrect(const QRect &inRect, const QRect &rect) {
+	return QRect(inRect.x() + (inRect.width() - rect.width()) / 2, inRect.y() + (inRect.height() - rect.height()) / 2, rect.width(), rect.height());
+}
+
 namespace style {
 	
 	class FontData;
@@ -197,14 +204,17 @@ inline bool operator!=(const Font &a, const Font &b) {
 	typedef QMap<uint32, ColorData*> ColorDatas;
 	extern ColorDatas _colorsMap;
 
+	extern int _spriteWidth;
+
 	typedef float64 number;
 	typedef QString string;
 	typedef QRect rect;
-    class sprite : public rect {
+
+	class sprite : public rect {
     public:
         sprite() {
         }
-        sprite(int left, int top, int width, int height) : rect(left, top, width, height) {
+		sprite(int left, int top, int width, int height) : rect(rtl() ? (_spriteWidth - left - width) : left, top, width, height) {
         }
         inline int pxWidth() const {
             return rect::width() / cIntRetinaFactor();
@@ -260,3 +270,7 @@ inline bool operator!=(const Font &a, const Font &b) {
 	void stopManager();
 
 };
+
+inline QRect centersprite(const QRect &inRect, const style::sprite &sprite) {
+	return centerrect(inRect, QRect(QPoint(0, 0), sprite.pxSize()));
+}

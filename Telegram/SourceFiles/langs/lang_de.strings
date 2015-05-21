@@ -382,11 +382,24 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_kick_user" = "{from} hat {user} entfernt";
 "lng_action_user_left" = "{from} hat die Gruppe verlassen";
 "lng_action_user_joined" = "{from} ist der Gruppe beigetreten";
+"lng_action_user_joined_by_link" = "{from} ist der Gruppe über den Einladungslink beigetreten";
 "lng_action_user_registered" = "{from} benutzt nun auch Telegram";
 "lng_action_removed_photo" = "{from} hat das Gruppenbild entfernt";
 "lng_action_changed_photo" = "{from} hat das Gruppenbild geändert";
 "lng_action_changed_title" = "{from} hat den Gruppennamen zu «{title}» geändert";
 "lng_action_created_chat" = "{from} hat die Gruppe «{title}» erstellt";
+
+"lng_group_invite_bad_link" = "Der Einladungslink ist \nnicht mehr gültig.";
+"lng_group_invite_want_join" = "Möchtest du der Gruppe «{title}» beitreten?";
+"lng_group_invite_join" = "Beitreten";
+
+"lng_group_invite_link" = "Einladungslink";
+"lng_group_invite_create" = "Neuer Link";
+"lng_group_invite_about" = "Jeder, der Telegram installiert hat,\nkann anhand dieses Links in deine Gruppe.";
+"lng_group_invite_create_new" = "Link widerrufen";
+"lng_group_invite_about_new" = "Dein vorheriger Link wird ungültig,\nwenn du einen neuen erstellst.";
+"lng_group_invite_copied" = "Der Einladungslink für die Gruppe\nwurde in die Zwischenablage kopiert.";
+"lng_group_invite_no_room" = "Leider kannst du dieser Gruppe nicht mehr\nbeitreten, da sie bereits voll ist.";
 
 "lng_forwarded_from" = "Weitergeleitet von";
 "lng_in_reply_to" = "Antwort auf";
@@ -406,6 +419,26 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_cancel" = "Abbrechen";
 "lng_media_video" = "Videodatei";
 "lng_media_audio" = "Sprachnachricht";
+
+"lng_emoji_category0" = "Häufig genutzt";
+"lng_emoji_category1" = "Personen";
+"lng_emoji_category2" = "Natur";
+"lng_emoji_category3" = "Essen & Trinken";
+"lng_emoji_category4" = "Feiern";
+"lng_emoji_category5" = "Aktivität";
+"lng_emoji_category6" = "Reisen & Orte";
+"lng_emoji_category7" = "Objekte & Symbole";
+
+"lng_switch_stickers" = "Sticker";
+"lng_switch_emoji" = "Emoji";
+
+"lng_custom_stickers" = "Eigene Sticker";
+"lng_stickers_remove_pack" = "«{sticker_pack}» entfernen?";
+"lng_stickers_add_pack" = "{count:_not_used_|# Sticker|# Sticker} hinzufügen";
+"lng_stickers_share_pack" = "Sticker teilen";
+"lng_stickers_not_found" = "Sticker-Paket nicht gefunden.";
+"lng_stickers_copied" = "Sticker-Paket Link in die Zwischenablage kopiert.";
+"lng_stickers_default_set" = "Große Denker";
 
 "lng_in_dlg_photo" = "Bild";
 "lng_in_dlg_video" = "Video";
@@ -458,6 +491,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_save_video" = "Video speichern unter..";
 "lng_context_open_audio" = "Sprachnachricht öffnen";
 "lng_context_save_audio" = "Sprachnachricht speichern unter..";
+"lng_context_pack_info" = "Sticker-Paket";
 "lng_context_open_file" = "Datei öffnen";
 "lng_context_save_file" = "Datei speichern als..";
 "lng_context_forward_file" = "Datei weiterleiten";
@@ -527,12 +561,17 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_search_found_results" = "{count:Keine Nachrichten|# Nachricht|# Nachrichten}";
 "lng_search_global_results" = "Globale Suchergebnisse";
 
-"lng_mediaview_save" = "Download";
+"lng_media_save_progress" = "{ready} von {total} {mb}";
+"lng_mediaview_save_as" = "Speichern unter…";
+"lng_mediaview_copy" = "Kopieren";
 "lng_mediaview_forward" = "Weiterleiten";
 "lng_mediaview_delete" = "Löschen";
+"lng_mediaview_photos_all" = "Alle Fotos anzeigen";
+"lng_mediaview_files_all" = "Alle Dateien anzeigen";
 "lng_mediaview_single_photo" = "Bild";
 "lng_mediaview_group_photo" = "Bild";
 "lng_mediaview_profile_photo" = "Profilbild";
+"lng_mediaview_file_n_of_count" = "{file} {n} von {count}";
 "lng_mediaview_n_of_count" = "Bild {n} von {count}";
 "lng_mediaview_doc_image" = "Datei";
 "lng_mediaview_today" = "heute um {time}";
@@ -545,7 +584,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Linkvorschau: Erhalte eine Zusammenfassung für Tweets, YouTube Videos, Instagram Fotos und sonstigen Inhalten.\n— Zweistufige Bestätigung: Lege ein zusätzliches Kennwort fest, das du für die Anmeldung bei deinem Telegram-Konto benötigst.\n— Sitzungslisten: Betrachte alle deine aktiven Telegram-Sitzungen (auf dem Desktop, Tablet und mobilen Geräten) und beende sie.";
+"lng_new_version_text" = "— Installiere und teile benutzerdefinierte Sticker-Pakete\n— Neue Emoji und ein Panel für Sticker";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

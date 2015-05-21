@@ -153,6 +153,7 @@ void IntroCode::activate() {
 	callTimer.start(1000);
 	error = "";
 	errorAlpha = anim::fvalue(0);
+	sentCode = QString();
 	show();
 	code.setDisabled(false);
 	code.setFocus();

@@ -59,6 +59,11 @@ namespace {
 					if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 						App::wnd()->minimizeToTray();
 						return true;
+					} else {
+						App::wnd()->hide();
+						App::wnd()->updateIsActive(cOfflineBlurTimeout());
+						App::wnd()->updateGlobalMenu();
+						return true;
 					}
 				} else if (ev->key() == Qt::Key_M && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
 					App::wnd()->setWindowState(Qt::WindowMinimized);
@@ -476,7 +481,7 @@ void Application::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId)
 
 	PhotoId id = MTP::nonce<PhotoId>();
 
-	MTPPhoto photo(MTP_photo(MTP_long(id), MTP_long(0), MTP_int(MTP::authedId()), MTP_int(unixtime()), MTP_string(""), MTP_geoPointEmpty(), MTP_vector<MTPPhotoSize>(photoSizes)));
+	MTPPhoto photo(MTP_photo(MTP_long(id), MTP_long(0), MTP_int(MTP::authedId()), MTP_int(unixtime()), MTP_geoPointEmpty(), MTP_vector<MTPPhotoSize>(photoSizes)));
 
 	QString file, filename;
 	int32 filesize = 0;
@@ -657,10 +662,10 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 8002) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Link previews bugfixes\n\xe2\x80\x94 Links in preview descriptions are now clickable\n\xe2\x80\x94 Twitter and Instagram mentions and hashtags in previews are clickable\n\xe2\x80\x94 Fixed file uploading\n\xe2\x80\x94 Fixed photo, document and sticker forwarding").replace('@', qsl("@") + QChar(0x200D));
-			} else if (!DevChannel && Local::oldMapVersion() < 8004) {
-				versionFeatures = lang(lng_new_version_minor).trimmed();
+			if (DevChannel && Local::oldMapVersion() < 8015) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Video captions are displayed\n\xe2\x80\x94 Photo captions are displayed in photo viewer\n\xe2\x80\x94 Round corners for messages").replace('@', qsl("@") + QChar(0x200D));
+			} else if (!DevChannel && Local::oldMapVersion() < 8016) {
+				versionFeatures = lang(lng_new_version_text).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
@@ -674,6 +679,8 @@ void Application::startApp() {
 	cChangeTimeFormat(QLocale::system().timeFormat(QLocale::ShortFormat));
 
 	DEBUG_LOG(("Application Info: starting app.."));
+
+	QMimeDatabase().mimeTypeForName(qsl("text/plain")); // create mime database
 
 	window->createWinId();
 	window->init();

@@ -25,6 +25,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "settingswidget.h"
 #include "mainwidget.h"
 #include "boxes/confirmbox.h"
+#include "boxes/stickersetbox.h"
 
 #include "localstorage.h"
 
@@ -376,6 +377,7 @@ _failDifferenceTimeout(1), _lastUpdateTime(0), _cachedX(0), _cachedY(0), _backgr
 		connect(audioVoice(), SIGNAL(updated(AudioData*)), this, SLOT(audioPlayProgress(AudioData*)));
 		connect(audioVoice(), SIGNAL(stopped(AudioData*)), this, SLOT(audioPlayProgress(AudioData*)));
 	}
+	connect(&_updateMutedTimer, SIGNAL(timeout()), this, SLOT(onUpdateMuted()));
 
 	_webPageUpdater.setSingleShot(true);
 	connect(&_webPageUpdater, SIGNAL(timeout()), this, SLOT(webPagesUpdate()));
@@ -525,6 +527,9 @@ void MainWidget::webPageUpdated(WebPageData *data) {
 }
 
 void MainWidget::webPagesUpdate() {
+	if (_webPagesUpdated.isEmpty()) return;
+
+	_webPageUpdater.stop();
 	const WebPageItems &items(App::webPageItems());
 	for (QMap<WebPageId, bool>::const_iterator i = _webPagesUpdated.cbegin(), e = _webPagesUpdated.cend(); i != e; ++i) {
 		WebPageItems::const_iterator j = items.constFind(App::webPage(i.key()));
@@ -536,6 +541,21 @@ void MainWidget::webPagesUpdate() {
 		}
 	}
 	_webPagesUpdated.clear();
+}
+
+void MainWidget::updateMutedIn(int32 seconds) {
+	if (seconds > 86400) seconds = 86400;
+	int32 ms = seconds * 1000;
+	if (_updateMutedTimer.isActive() && _updateMutedTimer.remainingTime() <= ms) return;
+	_updateMutedTimer.start(ms);
+}
+
+void MainWidget::updateStickers() {
+	history.updateStickers();
+}
+
+void MainWidget::onUpdateMuted() {
+	App::updateMuted();
 }
 
 void MainWidget::onShareContact(const PeerId &peer, UserData *contact) {
@@ -705,7 +725,7 @@ void MainWidget::deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHis
 }
 
 void MainWidget::deleteMessages(const QVector<MTPint> &ids) {
-	MTP::send(MTPmessages_DeleteMessages(MTP_vector<MTPint>(ids)), rpcDone(&MainWidget::msgsWereDeleted));
+	MTP::send(MTPmessages_DeleteMessages(MTP_vector<MTPint>(ids)), rpcDone(&MainWidget::messagesAffected));
 }
 
 void MainWidget::deletedContact(UserData *user, const MTPcontacts_Link &result) {
@@ -962,7 +982,7 @@ void MainWidget::saveRecentHashtags(const QString &text) {
 			}
 		}
 		if (!found && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) {
-			Local::readRecentStickers();
+			Local::readRecentHashtags();
 			recent = cRecentWriteHashtags();
 		}
 		found = true;
@@ -993,6 +1013,7 @@ void MainWidget::stopAnimActive() {
 }
 
 void MainWidget::searchMessages(const QString &query) {
+	App::wnd()->hideMediaview();
 	dialogs.searchMessages(query);
 	if (!cWideMode()) onShowDialogs();
 }
@@ -1277,7 +1298,7 @@ void MainWidget::partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &
     }
 }
 
-void MainWidget::msgsWereDeleted(const MTPmessages_AffectedMessages &result) {
+void MainWidget::messagesAffected(const MTPmessages_AffectedMessages &result) {
 	const MTPDmessages_affectedMessages &d(result.c_messages_affectedMessages());
 	updPtsUpdated(d.vpts.v, d.vpts_count.v);
 }
@@ -1408,7 +1429,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 						if (reader.supportsAnimation() && reader.imageCount() > 1 && item) {
 							startGif(item, already);
 						} else {
-							App::wnd()->showDocument(document, QPixmap::fromImage(App::readImage(already, 0, false), Qt::ColorOnly), item);
+							App::wnd()->showDocument(document, item);
 						}
 					} else {
 						psOpenFile(already);
@@ -1431,6 +1452,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 			msgUpdated(j.key()->history()->peer->id, j.key());
 		}
 	}
+	App::wnd()->documentUpdated(document);
 }
 
 void MainWidget::documentLoadFailed(mtpFileLoader *loader, bool started) {
@@ -1446,6 +1468,38 @@ void MainWidget::documentLoadRetry() {
 	App::wnd()->hideLayer();
 	DocumentData *document = App::document(failedObjId);
 	if (document) document->save(failedFileName);
+}
+
+void MainWidget::audioMarkRead(AudioData *data) {
+	const AudioItems &items(App::audioItems());
+	AudioItems::const_iterator i = items.constFind(data);
+	if (i != items.cend()) {
+		mediaMarkRead(i.value());
+	}
+}
+
+void MainWidget::videoMarkRead(VideoData *data) {
+	const VideoItems &items(App::videoItems());
+	VideoItems::const_iterator i = items.constFind(data);
+	if (i != items.cend()) {
+		mediaMarkRead(i.value());
+	}
+}
+
+void MainWidget::mediaMarkRead(const HistoryItemsMap &items) {
+	QVector<MTPint> markedIds;
+	markedIds.reserve(items.size());
+	for (HistoryItemsMap::const_iterator j = items.cbegin(), e = items.cend(); j != e; ++j) {
+		if (!j.key()->out() && j.key()->isMediaUnread()) {
+			j.key()->markMediaRead();
+			if (j.key()->id > 0) {
+				markedIds.push_back(MTP_int(j.key()->id));
+			}
+		}
+	}
+	if (!markedIds.isEmpty()) {
+		MTP::send(MTPmessages_ReadMessageContents(MTP_vector<MTPint>(markedIds)), rpcDone(&MainWidget::messagesAffected));
+	}
 }
 
 void MainWidget::onParentResize(const QSize &newSize) {
@@ -1591,8 +1645,10 @@ void MainWidget::checkChatBackground() {
 		if (_background->full->loaded()) {
 			if (_background->full->isNull()) {
 				App::initBackground();
+			} else if (_background->id == 0 || _background->id == DefaultChatBackground) {
+				App::initBackground(_background->id);
 			} else {
-				App::initBackground(_background->id, _background->id ? _background->full->pix().toImage() : QImage());
+				App::initBackground(_background->id, _background->full->pix().toImage());
 			}
 			delete _background;
 			_background = 0;
@@ -2297,6 +2353,7 @@ void MainWidget::gotDifference(const MTPupdates_Difference &diff) {
 
 		updInited = true;
 
+		MTP_LOG(0, ("getDifference { good - after a slice of difference was received }%1").arg(cTestMode() ? " TESTMODE" : ""));
 		getDifference();
 	} break;
 	case mtpc_updates_difference: {
@@ -2374,6 +2431,7 @@ bool MainWidget::failDifference(const RPCError &error) {
 void MainWidget::getDifferenceForce() {
 	if (MTP::authedId()) {
 		updInited = true;
+		MTP_LOG(0, ("getDifference { force - after get difference failed }%1").arg(cTestMode() ? " TESTMODE" : ""));
 		getDifference();
 	}
 }
@@ -2421,7 +2479,7 @@ void MainWidget::start(const MTPUser &user) {
 	}
 	_started = true;
 	App::wnd()->sendServiceHistoryRequest();
-	Local::readRecentStickers();
+	Local::readStickers();
 	history.start();
 }
 
@@ -2430,13 +2488,28 @@ bool MainWidget::started() {
 }
 
 void MainWidget::openLocalUrl(const QString &url) {
-	QRegularExpressionMatch m = QRegularExpression(qsl("^tg://resolve/?\\?domain=([a-zA-Z0-9\\.\\_]+)$"), QRegularExpression::CaseInsensitiveOption).match(url.trimmed());
-	if (m.hasMatch()) {
-		openUserByName(m.captured(1));
+	QString u(url.trimmed());
+	if (u.startsWith(QLatin1String("tg://resolve"), Qt::CaseInsensitive)) {
+		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://resolve/?\\?domain=([a-zA-Z0-9\\.\\_]+)$"), QRegularExpression::CaseInsensitiveOption).match(u);
+		if (m.hasMatch()) {
+			openUserByName(m.captured(1));
+		}
+	} else if (u.startsWith(QLatin1String("tg://join"), Qt::CaseInsensitive)) {
+		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)$"), QRegularExpression::CaseInsensitiveOption).match(u);
+		if (m.hasMatch()) {
+			joinGroupByHash(m.captured(1));
+		}
+	} else if (u.startsWith(QLatin1String("tg://addstickers"), Qt::CaseInsensitive)) {
+		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://addstickers/?\\?set=([a-zA-Z0-9\\.\\_]+)$"), QRegularExpression::CaseInsensitiveOption).match(u);
+		if (m.hasMatch()) {
+			stickersBox(MTP_inputStickerSetShortName(MTP_string(m.captured(1))));
+		}
 	}
 }
 
 void MainWidget::openUserByName(const QString &username, bool toProfile) {
+	App::wnd()->hideMediaview();
+
 	UserData *user = App::userByName(username);
 	if (user) {
 		if (toProfile) {
@@ -2447,6 +2520,23 @@ void MainWidget::openUserByName(const QString &username, bool toProfile) {
 	} else {
 		MTP::send(MTPcontacts_ResolveUsername(MTP_string(username)), rpcDone(&MainWidget::usernameResolveDone, toProfile), rpcFail(&MainWidget::usernameResolveFail, username));
 	}
+}
+
+void MainWidget::joinGroupByHash(const QString &hash) {
+	App::wnd()->hideMediaview();
+	MTP::send(MTPmessages_CheckChatInvite(MTP_string(hash)), rpcDone(&MainWidget::inviteCheckDone, hash), rpcFail(&MainWidget::inviteCheckFail));
+}
+
+void MainWidget::stickersBox(const MTPInputStickerSet &set) {
+	App::wnd()->hideMediaview();
+	StickerSetBox *box = new StickerSetBox(set);
+	connect(box, SIGNAL(installed(uint64)), this, SLOT(onStickersInstalled(uint64)));
+	App::wnd()->showLayer(box);
+}
+
+void MainWidget::onStickersInstalled(uint64 setId) {
+	emit stickersUpdated();
+	history.stickersInstalled(setId);
 }
 
 void MainWidget::usernameResolveDone(bool toProfile, const MTPUser &user) {
@@ -2464,6 +2554,83 @@ bool MainWidget::usernameResolveFail(QString name, const RPCError &error) {
 
 	if (error.code() == 400) {
 		App::wnd()->showLayer(new ConfirmBox(lng_username_not_found(lt_user, name), true));
+	}
+	return true;
+}
+
+void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
+	switch (invite.type()) {
+	case mtpc_chatInvite: {
+		const MTPDchatInvite &d(invite.c_chatInvite());
+		ConfirmBox *box = new ConfirmBox(lng_group_invite_want_join(lt_title, qs(d.vtitle)), lang(lng_group_invite_join));
+		_inviteHash = hash;
+		connect(box, SIGNAL(confirmed()), this, SLOT(onInviteImport()));
+		App::wnd()->showLayer(box);
+	} break;
+
+	case mtpc_chatInviteAlready: {
+		const MTPDchatInviteAlready &d(invite.c_chatInviteAlready());
+		ChatData *chat = App::feedChats(MTP_vector<MTPChat>(1, d.vchat));
+		if (chat) {
+			if (chat->left) {
+				ConfirmBox *box = new ConfirmBox(lng_group_invite_want_join(lt_title, chat->name), lang(lng_group_invite_join));
+				_inviteHash = '/' + QString::number(chat->id);
+				connect(box, SIGNAL(confirmed()), this, SLOT(onInviteImport()));
+				App::wnd()->showLayer(box);
+			} else {
+				showPeer(chat->id, 0, false, true);
+			}
+		}
+	} break;
+	}
+}
+
+bool MainWidget::inviteCheckFail(const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
+	if (error.code() == 400) {
+		App::wnd()->showLayer(new ConfirmBox(lang(lng_group_invite_bad_link), true));
+	}
+	return true;
+}
+
+void MainWidget::onInviteImport() {
+	if (_inviteHash.isEmpty()) return;
+	if (_inviteHash.at(0) == '/') {
+		PeerId peer = _inviteHash.midRef(1).toULongLong();
+		MTP::send(MTPmessages_AddChatUser(MTP_int(peer & 0xFFFFFFFF), App::self()->inputUser, MTP_int(ForwardOnAdd)), rpcDone(&MainWidget::inviteImportDone), rpcFail(&MainWidget::inviteImportFail), 0, 5);
+	} else {
+		MTP::send(MTPmessages_ImportChatInvite(MTP_string(_inviteHash)), rpcDone(&MainWidget::inviteImportDone), rpcFail(&MainWidget::inviteImportFail));
+	}
+}
+
+void MainWidget::inviteImportDone(const MTPUpdates &updates) {
+	App::main()->sentUpdatesReceived(updates);
+
+	App::wnd()->hideLayer();
+	const QVector<MTPChat> *v = 0;
+	switch (updates.type()) {
+	case mtpc_updates: v = &updates.c_updates().vchats.c_vector().v; break;
+	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.c_vector().v; break;
+	case mtpc_updateShort: {
+	} break;
+	case mtpc_updateShortMessage: {
+	} break;
+	case mtpc_updateShortChatMessage: {
+	} break;
+	case mtpc_updatesTooLong: {
+	} break;
+	}
+	if (v && !v->isEmpty() && v->front().type() == mtpc_chat) {
+		App::main()->showPeer(App::peerFromChat(v->front().c_chat().vid.v));
+	}
+}
+
+bool MainWidget::inviteImportFail(const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
+	if (error.code() == 400) {
+		App::wnd()->showLayer(new ConfirmBox(lang(error.type() == qsl("USERS_TOO_MUCH") ? lng_group_invite_no_room : lng_group_invite_bad_link), true), App::wnd()->layerShown());
 	}
 	return true;
 }
@@ -2490,7 +2657,9 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 					delete data->notify;
 				}
 				data->notify = EmptyNotifySettings;
-				App::history(data->id)->setMute(false);
+				App::unregMuted(data);
+				History *h = App::history(data->id);
+				h->setMute(false);
 			}
 		} break;
 		}
@@ -2498,16 +2667,15 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 	case mtpc_peerNotifySettings: {
 		const MTPDpeerNotifySettings &d(settings.c_peerNotifySettings());
 		NotifySettingsPtr setTo = UnknownNotifySettings;
-		PeerId peerId = 0;
+		PeerData *data = 0;
 		switch (peer.type()) {
 		case mtpc_notifyAll: setTo = globalNotifyAllPtr = &globalNotifyAll; break;
 		case mtpc_notifyUsers: setTo = globalNotifyUsersPtr = &globalNotifyUsers; break;
 		case mtpc_notifyChats: setTo = globalNotifyChatsPtr = &globalNotifyChats; break;
 		case mtpc_notifyPeer: {
-			PeerData *data = App::peerLoaded(App::peerFromMTP(peer.c_notifyPeer().vpeer));
+			data = App::peerLoaded(App::peerFromMTP(peer.c_notifyPeer().vpeer));
 			if (!data) break;
 
-			peerId = data->id;
 			if (data->notify == UnknownNotifySettings || data->notify == EmptyNotifySettings) {
 				data->notify = new NotifySettings();
 			}
@@ -2520,11 +2688,13 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 		setTo->sound = d.vsound.c_string().v;
 		setTo->previews = d.vshow_previews.v;
 		setTo->events = d.vevents_mask.v;
-		if (peerId) {
-			if (!history) history = App::history(peerId);
-			if (isNotifyMuted(setTo)) {
+		if (data) {
+			if (!history) history = App::history(data->id);
+			int32 changeIn = 0;
+			if (isNotifyMuted(setTo, &changeIn)) {
 				App::wnd()->notifyClear(history);
 				history->setMute(true);
+				App::regMuted(data, changeIn);
 			} else {
 				history->setMute(false);
 			}
@@ -2565,46 +2735,48 @@ bool MainWidget::failNotifySetting(MTPInputNotifyPeer peer, const RPCError &erro
 
 void MainWidget::updateNotifySetting(PeerData *peer, bool enabled) {
 	updateNotifySettingPeers.insert(peer);
+	int32 muteFor = 86400 * 365;
 	if (peer->notify == EmptyNotifySettings) {
 		if (!enabled) {
 			peer->notify = new NotifySettings();
 			peer->notify->sound = "";
-			peer->notify->mute = unixtime() + 86400 * 365;
+			peer->notify->mute = unixtime() + muteFor;
 		}
 	} else {
 		if (peer->notify == UnknownNotifySettings) {
 			peer->notify = new NotifySettings();
 		}
 		peer->notify->sound = enabled ? "default" : "";
-		peer->notify->mute = enabled ? 0 : (unixtime() + 86400 * 365);
+		peer->notify->mute = enabled ? 0 : (unixtime() + muteFor);
+	}
+	if (!enabled) {
+		App::regMuted(peer, muteFor + 1);
+	} else {
+		App::unregMuted(peer);
 	}
 	App::history(peer->id)->setMute(!enabled);
 	updateNotifySettingTimer.start(NotifySettingSaveTimeout);
 }
 
 void MainWidget::incrementSticker(DocumentData *sticker) {
-	RecentStickerPack recent(cRecentStickers());
+	if (!sticker || !sticker->sticker) return;
+
+	RecentStickerPack &recent(cGetRecentStickers());
 	RecentStickerPack::iterator i = recent.begin(), e = recent.end();
 	for (; i != e; ++i) {
 		if (i->first == sticker) {
-			if (i->second > 0) {
-				++i->second;
-			} else {
-				--i->second;
-			}
-			if (qAbs(i->second) > 0x4000) {
+			++i->second;
+			if (i->second > 0x8000) {
 				for (RecentStickerPack::iterator j = recent.begin(); j != e; ++j) {
-					if (qAbs(j->second) > 1) {
+					if (j->second > 1) {
 						j->second /= 2;
-					} else if (j->second > 0) {
-						j->second = 1;
 					} else {
-						j->second = -1;
+						j->second = 1;
 					}
 				}
 			}
 			for (; i != recent.begin(); --i) {
-				if (qAbs((i - 1)->second) > qAbs(i->second)) {
+				if ((i - 1)->second > i->second) {
 					break;
 				}
 				qSwap(*i, *(i - 1));
@@ -2613,11 +2785,45 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 		}
 	}
 	if (i == e) {
-		recent.push_front(qMakePair(sticker, -(recent.isEmpty() ? 1 : qAbs(recent.front().second))));
+		while (recent.size() >= StickerPanPerRow * StickerPanRowsPerPage) recent.pop_back();
+		recent.push_back(qMakePair(sticker, 1));
+		for (i = recent.end() - 1; i != recent.begin(); --i) {
+			if ((i - 1)->second > i->second) {
+				break;
+			}
+			qSwap(*i, *(i - 1));
+		}
 	}
-	cSetRecentStickers(recent);
-	Local::writeRecentStickers();
 
+	Local::writeUserSettings();
+
+	bool found = false;
+	uint64 setId = 0;
+	QString setName;
+	switch (sticker->sticker->set.type()) {
+	case mtpc_inputStickerSetID: setId = sticker->sticker->set.c_inputStickerSetID().vid.v; break;
+	case mtpc_inputStickerSetShortName: setName = qs(sticker->sticker->set.c_inputStickerSetShortName().vshort_name).toLower().trimmed(); break;
+	}
+	StickerSets &sets(cRefStickerSets());
+	for (StickerSets::const_iterator i = sets.cbegin(); i != sets.cend(); ++i) {
+		if (i->id == CustomStickerSetId || (setId && i->id == setId) || (!setName.isEmpty() && i->shortName.toLower().trimmed() == setName) || (!setId && setName.isEmpty() && i->id == DefaultStickerSetId)) {
+			for (int32 j = 0, l = i->stickers.size(); j < l; ++j) {
+				if (i->stickers.at(j) == sticker) {
+					found = true;
+					break;
+				}
+			}
+			if (found) break;
+		}
+	}
+	if (!found) {
+		StickerSets::iterator it = sets.find(CustomStickerSetId);
+		if (it == sets.cend()) {
+			it = sets.insert(CustomStickerSetId, StickerSet(CustomStickerSetId, 0, lang(lng_custom_stickers), QString()));
+		}
+		it->stickers.push_back(sticker);
+		Local::writeStickers();
+	}
 	history.updateRecentStickers();
 }
 
@@ -2748,6 +2954,7 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 	if (mtpTypeId(*from) == mtpc_new_session_created) {
 		MTPNewSession newSession(from, end);
 		updSeq = 0;
+		MTP_LOG(0, ("getDifference { after new_session_created }%1").arg(cTestMode() ? " TESTMODE" : ""));
 		return getDifference();
 	} else {
 		try {
@@ -2810,7 +3017,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 	case mtpc_updateShortMessage: {
 		const MTPDupdateShortMessage &d(updates.c_updateShortMessage());
 		if (!App::userLoaded(d.vuser_id.v) || (d.has_fwd_from_id() && !App::userLoaded(d.vfwd_from_id.v))) {
-			DEBUG_LOG(("Not loaded for updateShortMessage, good getDifference!"));
+			MTP_LOG(0, ("getDifference { good - getting user for updateShortMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
 			return getDifference();
 		}
 		if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
@@ -2828,8 +3035,10 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 
 	case mtpc_updateShortChatMessage: {
 		const MTPDupdateShortChatMessage &d(updates.c_updateShortChatMessage());
-		if (!App::chatLoaded(d.vchat_id.v) || !App::userLoaded(d.vfrom_id.v) || (d.has_fwd_from_id() && !App::userLoaded(d.vfwd_from_id.v))) {
-			DEBUG_LOG(("Not loaded for updateShortMessage, good getDifference!"));
+		bool noFrom = !App::userLoaded(d.vfrom_id.v);
+		if (!App::chatLoaded(d.vchat_id.v) || noFrom || (d.has_fwd_from_id() && !App::userLoaded(d.vfwd_from_id.v))) {
+			MTP_LOG(0, ("getDifference { good - getting user for updateShortChatMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
+			if (noFrom) App::api()->requestFullPeer(App::chatLoaded(d.vchat_id.v));
 			return getDifference();
 		}
 		if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
@@ -2845,6 +3054,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 	} break;
 
 	case mtpc_updatesTooLong: {
+		MTP_LOG(0, ("getDifference { good - updatesTooLong received }%1").arg(cTestMode() ? " TESTMODE" : ""));
 		return getDifference();
 	} break;
 	}
@@ -2902,13 +3112,21 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
-	case mtpc_updateReadMessages: {
-		const MTPDupdateReadMessages &d(update.c_updateReadMessages());
+	case mtpc_updateReadMessagesContents: {
+		const MTPDupdateReadMessagesContents &d(update.c_updateReadMessagesContents());
 		if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
 			_byPtsUpdate.insert(ptsKey(SkippedUpdate), update);
 			return;
 		}
-		App::feedWereRead(d.vmessages.c_vector().v);
+		const QVector<MTPint> &v(d.vmessages.c_vector().v);
+		for (int32 i = 0, l = v.size(); i < l; ++i) {
+			if (HistoryItem *item = App::histItemById(v.at(i).v)) {
+				if (item->isMediaUnread()) {
+					item->markMediaRead();
+					msgUpdated(item->history()->peer->id, item);
+				}
+			}
+		}
 	} break;
 
 	case mtpc_updateReadHistoryInbox: {
@@ -2935,6 +3153,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const MTPDupdateWebPage &d(update.c_updateWebPage());
 		App::feedWebPage(d.vwebpage);
 		history.updatePreview();
+		webPagesUpdate();
 	} break;
 
 	case mtpc_updateDeleteMessages: {

@@ -68,7 +68,7 @@ void ConnectingWidget::onReconnect() {
 	MTP::restart();
 }
 
-NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y) : history(msg->history()), item(msg)
+NotifyWindow::NotifyWindow(HistoryItem *msg, int32 x, int32 y, int32 fwdCount) : history(msg->history()), item(msg), fwdCount(fwdCount)
 #ifdef Q_OS_WIN
 , started(GetTickCount())
 #endif
@@ -192,8 +192,21 @@ void NotifyWindow::updateNotifyDisplay() {
 		if (!App::passcoded() && cNotifyView() <= dbinvShowPreview) {
 			const HistoryItem *textCachedFor = 0;
 			Text itemTextCache(itemWidth);
-			bool active = false;
-			item->drawInDialog(p, QRect(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height, itemWidth, 2 * st::dlgFont->height), active, textCachedFor, itemTextCache);
+			QRect r(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyItemTop + st::msgNameFont->height, itemWidth, 2 * st::dlgFont->height);
+			if (fwdCount < 2) {
+				bool active = false;
+				item->drawInDialog(p, r, active, textCachedFor, itemTextCache);
+			} else {
+				p.setFont(st::dlgHistFont->f);
+				if (history->peer->chat) {
+					itemTextCache.setText(st::dlgHistFont, item->from()->name);
+					p.setPen(st::dlgSystemColor->p);
+					itemTextCache.drawElided(p, r.left(), r.top(), r.width(), st::dlgHistFont->height);
+					r.setTop(r.top() + st::dlgHistFont->height);
+				}
+				p.setPen(st::dlgTextColor->p);
+				p.drawText(r.left(), r.top() + st::dlgHistFont->ascent, lng_forward_messages(lt_count, fwdCount));
+			}
 		} else {
 			static QString notifyText = st::dlgHistFont->m.elidedText(lang(lng_notification_preview), Qt::ElideRight, itemWidth);
 			p.setPen(st::dlgSystemColor->p);
@@ -368,6 +381,9 @@ _connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _shoul
 	connect(&_isActiveTimer, SIGNAL(timeout()), this, SLOT(updateIsActive()));
 
 	connect(&_autoLockTimer, SIGNAL(timeout()), this, SLOT(checkAutoLock()));
+
+	connect(this, SIGNAL(imageLoaded()), this, SLOT(update()));
+	connect(this, SIGNAL(imageLoaded()), this, SLOT(notifyUpdateAllPhotos()));
 }
 
 void Window::inactivePress(bool inactive) {
@@ -596,7 +612,7 @@ void Window::sendServiceHistoryRequest() {
 }
 
 void Window::setupMain(bool anim, const MTPUser *self) {
-	Local::readRecentStickers();
+	Local::readStickers();
 
 	QPixmap bg = anim ? myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight)) : QPixmap();
 	clearWidgets();
@@ -739,9 +755,9 @@ void Window::showPhoto(PhotoData *photo, PeerData *peer) {
 	_mediaView->setFocus();
 }
 
-void Window::showDocument(DocumentData *doc, QPixmap pix, HistoryItem *item) {
+void Window::showDocument(DocumentData *doc, HistoryItem *item) {
 	layerHidden();
-	_mediaView->showDocument(doc, pix, item);
+	_mediaView->showDocument(doc, item);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
@@ -794,9 +810,7 @@ void Window::hideLayer(bool fast) {
 			layerBG = 0;
 		}
 	}
-	if (_mediaView && !_mediaView->isHidden()) {
-		_mediaView->hide();
-	}
+	hideMediaview();
 }
 
 bool Window::hideInnerLayer() {
@@ -827,8 +841,12 @@ void Window::layerHidden() {
 		layerBG->deleteLater();
 	}
 	layerBG = 0;
-	if (_mediaView && !_mediaView->isHidden()) _mediaView->hide();
+	hideMediaview();
 	setInnerFocus();
+}
+
+void Window::hideMediaview() {
+	if (_mediaView && !_mediaView->isHidden()) _mediaView->hide();
 }
 
 void Window::setInnerFocus() {
@@ -1237,7 +1255,8 @@ void Window::notifySchedule(History *history, HistoryItem *item) {
 		App::wnd()->getNotifySetting(MTP_inputNotifyPeer(history->peer->input));
 	}
 
-	int delay = 100, t = unixtime();
+	HistoryForwarded *fwd = item->toHistoryForwarded();
+	int delay = fwd ? 500 : 100, t = unixtime();
 	uint64 ms = getms(true);
 	bool isOnline = main->lastWasOnline(), otherNotOld = ((cOtherOnline() * uint64(1000)) + cOnlineCloudTimeout() > t * uint64(1000));
 	bool otherLaterThanMe = (cOtherOnline() * uint64(1000) + (ms - main->lastSetOnline()) > t * uint64(1000));
@@ -1354,7 +1373,9 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 	for (NotifyWhenAlerts::iterator i = notifyWhenAlerts.begin(); i != notifyWhenAlerts.end();) {
 		while (!i.value().isEmpty() && i.value().begin().key() <= ms) {
 			NotifySettingsPtr n = i.key()->peer->notify, f = i.value().begin().value() ? i.value().begin().value()->notify : UnknownNotifySettings;
-			i.value().erase(i.value().begin());
+			while (!i.value().isEmpty() && i.value().begin().key() <= ms + 500) { // not more than one sound in 500ms from one peer - grouping
+				i.value().erase(i.value().begin());
+			}
 			if (n == EmptyNotifySettings || (n != UnknownNotifySettings && n->mute <= now)) {
 				alert = true;
 			} else if (f == EmptyNotifySettings || (f != UnknownNotifySettings && f->mute <= now)) { // notify by from()
@@ -1435,38 +1456,62 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 				notifyWaitTimer.start(next - ms);
 				break;
 			} else {
-                if (cCustomNotifies()) {
-                    NotifyWindow *notify = new NotifyWindow(notifyItem, x, y);
-                    notifyWindows.push_back(notify);
-					psNotifyShown(notify);
-                    --count;
-                } else {
-					psPlatformNotify(notifyItem);
-                }
+				HistoryForwarded *fwd = notifyItem->toHistoryForwarded(); // forwarded notify grouping
+				int32 fwdCount = 1;
 
 				uint64 ms = getms(true);
 				History *history = notifyItem->history();
-				history->skipNotification();
 				NotifyWhenMaps::iterator j = notifyWhenMaps.find(history);
-				if (j == notifyWhenMaps.end() || !history->currentNotification()) {
+
+				if (j == notifyWhenMaps.end()) {
 					history->clearNotifications();
+				} else {
+					HistoryItem *nextNotify = 0;
+					do {
+						history->skipNotification();
+						if (!history->hasNotification()) {
+							break;
+						}
+
+						j.value().remove((fwd ? fwd : notifyItem)->id);
+						do {
+							NotifyWhenMap::const_iterator k = j.value().constFind(history->currentNotification()->id);
+							if (k != j.value().cend()) {
+								nextNotify = history->currentNotification();
+								notifyWaiter.value().msg = k.key();
+								notifyWaiter.value().when = k.value();
+								break;
+							}
+							history->skipNotification();
+						} while (history->hasNotification());
+						if (nextNotify) {
+							if (fwd) {
+								HistoryForwarded *nextFwd = nextNotify->toHistoryForwarded();
+								if (nextFwd && fwd->from() == nextFwd->from() && qAbs(int64(nextFwd->date.toTime_t()) - int64(fwd->date.toTime_t())) < 2) {
+									fwd = nextFwd;
+									++fwdCount;
+								} else {
+									nextNotify = 0;
+								}
+							} else {
+								nextNotify = 0;
+							}
+						}
+					} while (nextNotify);
+				}
+
+				if (cCustomNotifies()) {
+					NotifyWindow *notify = new NotifyWindow(notifyItem, x, y, fwdCount);
+					notifyWindows.push_back(notify);
+					psNotifyShown(notify);
+					--count;
+				} else {
+					psPlatformNotify(notifyItem, fwdCount);
+				}
+
+				if (!history->hasNotification()) {
 					notifyWaiters.erase(notifyWaiter);
 					if (j != notifyWhenMaps.end()) notifyWhenMaps.erase(j);
-					continue;
-				}
-				j.value().remove(notifyItem->id);
-				do {
-					NotifyWhenMap::const_iterator k = j.value().constFind(history->currentNotification()->id);
-					if (k != j.value().cend()) {
-						notifyWaiter.value().msg = k.key();
-						notifyWaiter.value().when = k.value();
-						break;
-					}
-					history->skipNotification();
-				} while (history->currentNotification());
-				if (!history->currentNotification()) {
-					notifyWaiters.erase(notifyWaiter);
-					notifyWhenMaps.erase(j);
 					continue;
 				}
 			}
@@ -1648,7 +1693,7 @@ QImage Window::iconWithCounter(int size, int count, style::color bg, bool smallI
 
 void Window::sendPaths() {
 	if (App::passcoded()) return;
-	if (_mediaView && !_mediaView->isHidden()) _mediaView->hide();
+	hideMediaview();
 	if (settings) {
 		hideSettings();
 	} else {
@@ -1665,6 +1710,11 @@ void Window::mediaOverviewUpdated(PeerData *peer) {
 	if (main) main->mediaOverviewUpdated(peer);
 	if (!_mediaView || _mediaView->isHidden()) return;
 	_mediaView->mediaOverviewUpdated(peer);
+}
+
+void Window::documentUpdated(DocumentData *doc) {
+	if (!_mediaView || _mediaView->isHidden()) return;
+	_mediaView->documentUpdated(doc);
 }
 
 void Window::changingMsgId(HistoryItem *row, MsgId newId) {
