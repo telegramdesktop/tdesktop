@@ -348,6 +348,8 @@ public:
 		stop(true);
 	}
 
+	const QPixmap &current(int32 width = 0, int32 height = 0, bool rounded = false);
+
 signals:
 
 	void updated();
@@ -357,7 +359,12 @@ public:
 	HistoryItem *msg;
 	QImage img;
 	QImageReader *reader;
+	int32 w, h, frame;
+
+private:
+
 	QVector<QPixmap> frames;
+	QVector<QImage> images;
 	QVector<int64> delays;
-	int32 w, h, frame, framesCount, duration;
+	int32 framesCount, duration;
 };
