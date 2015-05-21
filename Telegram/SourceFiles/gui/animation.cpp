@@ -104,26 +104,29 @@ namespace anim {
 
 bool AnimatedGif::animStep(float64 ms) {
 	int32 f = frame;
-	while (f < frames.size() && ms > delays[f]) {
+	while (f < images.size() && ms > delays[f]) {
 		++f;
-		if (f == frames.size() && frames.size() < framesCount) {
+		if (f == images.size() && images.size() < framesCount) {
 			if (reader->read(&img)) {
 				int64 d = reader->nextImageDelay(), delay = delays[f - 1];
 				if (!d) d = 1;
 				delay += d;
-				frames.push_back(QPixmap::fromImage(img.size() == QSize(w, h) ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly));
+				if (img.size() != QSize(w, h)) img = img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+				images.push_back(img);
+				frames.push_back(QPixmap());
 				delays.push_back(delay);
-				for (int32 i = 0; i < frames.size(); ++i) {
-					if (!frames[i].isNull()) {
+				for (int32 i = 0; i < images.size(); ++i) {
+					if (!images[i].isNull() || !frames[i].isNull()) {
+						images[i] = QImage();
 						frames[i] = QPixmap();
 						break;
 					}
 				}
 			} else {
-				framesCount = frames.size();
+				framesCount = images.size();
 			}
 		}
-		if (f == frames.size()) {
+		if (f == images.size()) {
 			if (!duration) {
 				duration = delays.isEmpty() ? 1 : delays.back();
 			}
@@ -132,14 +135,16 @@ bool AnimatedGif::animStep(float64 ms) {
 			for (int32 i = 0, s = delays.size() - 1; i <= s; ++i) {
 				delays[i] += duration;
 			}
-			if (frames[f].isNull()) {
+			if (images[f].isNull()) {
 				QString fname = reader->fileName();
 				delete reader;
 				reader = new QImageReader(fname);
 			}
 		}
-		if (frames[f].isNull() && reader->read(&img)) {
-			frames[f] = QPixmap::fromImage(img.size() == QSize(w, h) ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
+		if (images[f].isNull() && reader->read(&img)) {
+			if (img.size() != QSize(w, h)) img = img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+			images[f] = img;
+			frames[f] = QPixmap();
 		}
 	}
 	if (frame != f) {
@@ -172,12 +177,15 @@ void AnimatedGif::start(HistoryItem *row, const QString &file) {
 	}
 
 	frames.reserve(framesCount);
+	images.reserve(framesCount);
 	delays.reserve(framesCount);
 
 	int32 sizeLeft = MediaViewImageSizeLimit, delay = 0;
 	for (bool read = reader->read(&img); read; read = reader->read(&img)) {
 		sizeLeft -= w * h * 4;
-		frames.push_back(QPixmap::fromImage(img.size() == s ? img : img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly));
+		if (img.size() != s) img = img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+		images.push_back(img);
+		frames.push_back(QPixmap());
 		int32 d = reader->nextImageDelay();
 		if (!d) d = 1;
 		delay += d;
@@ -202,6 +210,7 @@ void AnimatedGif::stop(bool onItemRemoved) {
 	HistoryItem *row = msg;
 	msg = 0;
 	frames.clear();
+	images.clear();
 	delays.clear();
 	w = h = frame = framesCount = duration = 0;
 
@@ -210,4 +219,17 @@ void AnimatedGif::stop(bool onItemRemoved) {
 		row->initDimensions();
 		if (App::main()) App::main()->itemResized(row, true);
 	}
+}
+
+const QPixmap &AnimatedGif::current(int32 width, int32 height, bool rounded) {
+	if (!width) width = w;
+	if (!height) height = h;
+	if ((frames[frame].isNull() || frames[frame].width() != width || frames[frame].height() != height) && !images[frame].isNull()) {
+		QImage img = images[frame];
+		if (img.width() != width || img.height() != height) img = img.scaled(width, height, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+		if (rounded) imageRound(img);
+		frames[frame] = QPixmap::fromImage(img, Qt::ColorOnly);
+		frames[frame].setDevicePixelRatio(cRetinaFactor());
+	}
+	return frames[frame];
 }

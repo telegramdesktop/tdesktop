@@ -183,7 +183,6 @@ void MediaView::documentUpdated(DocumentData *doc) {
 }
 
 void MediaView::onGifUpdated() {
-	_currentGif.frames[_currentGif.frame].setDevicePixelRatio(cRetinaFactor());
 	update(_x, _y, _w, _h);
 }
 
@@ -905,9 +904,8 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) {
 		_w = _current.width() / cIntRetinaFactor();
 		_h = _current.height() / cIntRetinaFactor();
 	} else {
-		_currentGif.frames[_currentGif.frame].setDevicePixelRatio(cRetinaFactor());
-		_w = _currentGif.frames[_currentGif.frame].width() / cIntRetinaFactor();
-		_h = _currentGif.frames[_currentGif.frame].height() / cIntRetinaFactor();
+		_w = _currentGif.w / cIntRetinaFactor();
+		_h = _currentGif.h / cIntRetinaFactor();
 	}
 	if (isHidden()) {
 		moveToScreen();
@@ -1002,7 +1000,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 	p.setOpacity(1);
 	if (_photo || !_current.isNull() || !_currentGif.isNull()) {
 		QRect imgRect(_x, _y, _w, _h);
-		const QPixmap *toDraw = _currentGif.isNull() ? &_current : &_currentGif.frames[_currentGif.frame];
+		const QPixmap *toDraw = _currentGif.isNull() ? &_current : &_currentGif.current(_currentGif.w, _currentGif.h, false);
 		if (imgRect.intersects(r)) {
 			if (toDraw->hasAlpha() && (!_doc || !_doc->sticker || _doc->sticker->img->isNull())) {
 				p.fillRect(imgRect, _transparentBrush);
@@ -1315,7 +1313,7 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 				newZoom = 0;
 			}
 			_x = -_width / 2;
-			_y = -(((_currentGif.isNull() ? _current.height() : _currentGif.frames[_currentGif.frame].height()) / cIntRetinaFactor()) / 2);
+			_y = -(((_currentGif.isNull() ? _current.height() : _currentGif.h) / cIntRetinaFactor()) / 2);
 			float64 z = (_zoom == ZoomToScreenLevel) ? _zoomToScreen : _zoom;
 			if (z >= 0) {
 				_x = qRound(_x * (z + 1));
@@ -1335,8 +1333,8 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 		}
 		if (_zoom != newZoom) {
 			float64 nx, ny, z = (_zoom == ZoomToScreenLevel) ? _zoomToScreen : _zoom;
-			_w = (_currentGif.isNull() ? _current.width() : _currentGif.frames[_currentGif.frame].width()) / cIntRetinaFactor();
-			_h = (_currentGif.isNull() ? _current.height() : _currentGif.frames[_currentGif.frame].height()) / cIntRetinaFactor();
+			_w = (_currentGif.isNull() ? _current.width() : _currentGif.w) / cIntRetinaFactor();
+			_h = (_currentGif.isNull() ? _current.height() : _currentGif.h) / cIntRetinaFactor();
 			if (z >= 0) {
 				nx = (_x - width() / 2.) / (z + 1);
 				ny = (_y - height() / 2.) / (z + 1);
