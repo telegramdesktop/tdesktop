@@ -382,11 +382,24 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_kick_user" = "{from} kicked {user}";
 "lng_action_user_left" = "{from} left the group";
 "lng_action_user_joined" = "{from} joined the group";
+"lng_action_user_joined_by_link" = "{from} joined the group via invite link";
 "lng_action_user_registered" = "{from} just joined Telegram";
 "lng_action_removed_photo" = "{from} removed group photo";
 "lng_action_changed_photo" = "{from} changed group photo";
 "lng_action_changed_title" = "{from} changed group name to «{title}»";
 "lng_action_created_chat" = "{from} created group «{title}»";
+
+"lng_group_invite_bad_link" = "This invite link is broken\nor has expired.";
+"lng_group_invite_want_join" = "Do you want to join the group «{title}»?";
+"lng_group_invite_join" = "Join";
+
+"lng_group_invite_link" = "Invite link";
+"lng_group_invite_create" = "Create an invite link";
+"lng_group_invite_about" = "Telegram users will be able to join\nyour group by following this link.";
+"lng_group_invite_create_new" = "Revoke invite link";
+"lng_group_invite_about_new" = "Your previous link will be deactivated\nand we'll generate a new invite link for you.";
+"lng_group_invite_copied" = "Invite link copied to clipboard.";
+"lng_group_invite_no_room" = "Unable to join this group because there are\ntoo many members in it already.";
 
 "lng_forwarded_from" = "Forwarded from";
 "lng_in_reply_to" = "In reply to";
@@ -406,6 +419,26 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_cancel" = "Cancel";
 "lng_media_video" = "Video file";
 "lng_media_audio" = "Voice message";
+
+"lng_emoji_category0" = "Frequently used";
+"lng_emoji_category1" = "People";
+"lng_emoji_category2" = "Nature";
+"lng_emoji_category3" = "Food & Drink";
+"lng_emoji_category4" = "Celebration";
+"lng_emoji_category5" = "Activity";
+"lng_emoji_category6" = "Travel & Places";
+"lng_emoji_category7" = "Objects & Symbols";
+
+"lng_switch_stickers" = "Stickers";
+"lng_switch_emoji" = "Emoji";
+
+"lng_custom_stickers" = "Custom stickers";
+"lng_stickers_remove_pack" = "Remove «{sticker_pack}»?";
+"lng_stickers_add_pack" = "Add {count:_not_used_|# Sticker|# Stickers}";
+"lng_stickers_share_pack" = "Share Stickers";
+"lng_stickers_not_found" = "Sticker pack not found.";
+"lng_stickers_copied" = "Sticker pack link copied to clipboard.";
+"lng_stickers_default_set" = "Great Minds";
 
 "lng_in_dlg_photo" = "Photo";
 "lng_in_dlg_video" = "Video";
@@ -458,6 +491,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_save_video" = "Save Video As..";
 "lng_context_open_audio" = "Open Audio";
 "lng_context_save_audio" = "Save Audio As..";
+"lng_context_pack_info" = "Pack Info";
 "lng_context_open_file" = "Open File";
 "lng_context_save_file" = "Save File As..";
 "lng_context_forward_file" = "Forward File";
@@ -527,12 +561,17 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_search_found_results" = "{count:No messages found|Found # message|Found # messages}";
 "lng_search_global_results" = "Global search results";
 
-"lng_mediaview_save" = "Download";
+"lng_media_save_progress" = "{ready} of {total} {mb}";
+"lng_mediaview_save_as" = "Save As..";
+"lng_mediaview_copy" = "Copy";
 "lng_mediaview_forward" = "Forward";
 "lng_mediaview_delete" = "Delete";
+"lng_mediaview_photos_all" = "View all photos";
+"lng_mediaview_files_all" = "View all files";
 "lng_mediaview_single_photo" = "Single Photo";
 "lng_mediaview_group_photo" = "Group Photo";
 "lng_mediaview_profile_photo" = "Profile Photo";
+"lng_mediaview_file_n_of_count" = "{file} {n} of {count}";
 "lng_mediaview_n_of_count" = "Photo {n} of {count}";
 "lng_mediaview_doc_image" = "File";
 "lng_mediaview_today" = "today at {time}";
@@ -545,7 +584,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Link previews for Twitter, YouTube, Instagram and certain other links\n— Two-step verification\n— View all your Telegram sessions, terminate specific sessions";
+"lng_new_version_text" = "— Added support for sticker packs\n— New emoji and sticker panel";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

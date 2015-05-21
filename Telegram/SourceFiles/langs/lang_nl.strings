@@ -264,7 +264,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_passcode_enter_first" = "Toegangscode invoeren";
 "lng_passcode_enter_new" = "Nieuwe toegangscode invoeren";
 "lng_passcode_confirm_new" = "Toegangscode opnieuw invoeren";
-"lng_passcode_about" = "Als je een toegangscode instelt verschijnt er een slotje op de chatspagina,  klikerop om de app te vergrendelen\n\nLet op: als je de toegangscode vergeet, zul je opnieuw in moeten loggen.";
+"lng_passcode_about" = "Als je een toegangscode instelt verschijnt er een slotje op de chatspagina, klik erop om de app te vergrendelen\n\nLet op: als je de toegangscode vergeet, zul je opnieuw in moeten loggen.";
 "lng_passcode_differ" = "Toegangscodes zijn verschillend";
 "lng_passcode_wrong" = "Onjuiste toegangscode";
 "lng_passcode_is_same" = "Toegangscode is niet gewijzigd";
@@ -382,11 +382,24 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_kick_user" = "{from} heeft {user} verwijderd";
 "lng_action_user_left" = "{from} heeft de groep verlaten";
 "lng_action_user_joined" = "{from} neemt deel aan de groep";
+"lng_action_user_joined_by_link" = "{from} neemt deel aan de groep via uitnodigingslink";
 "lng_action_user_registered" = "{from} heeft nu Telegram";
 "lng_action_removed_photo" = "{from} heeft de groepsafbeelding verwijderd";
 "lng_action_changed_photo" = "{from} heeft de groepsafbeelding gewijzigd";
 "lng_action_changed_title" = "{from} heeft de groepsnaam gewijzigd naar «{title}»";
 "lng_action_created_chat" = "{from} heeft de groep «{title}» gemaakt";
+
+"lng_group_invite_bad_link" = "Deze uitnodigingslink is \ndefect of verlopen.";
+"lng_group_invite_want_join" = "Wil je deelnemen aan de groep «{title}»?";
+"lng_group_invite_join" = "Deelnemen";
+
+"lng_group_invite_link" = "Uitnodigingslink";
+"lng_group_invite_create" = "Uitnodigingslink maken";
+"lng_group_invite_about" = "Gebruikers kunnen aan je groep \ndeelnemen met deze link.";
+"lng_group_invite_create_new" = "Uitnodigingslink intrekken";
+"lng_group_invite_about_new" = "Je uitnodigingslink zal inactief worden\neen nieuwe link zal worden gegenereerd.";
+"lng_group_invite_copied" = "Link gekopieerd naar klembord.";
+"lng_group_invite_no_room" = "Sorry, deze groep is al vol.";
 
 "lng_forwarded_from" = "Doorgestuurd van";
 "lng_in_reply_to" = "Antwoord op";
@@ -406,6 +419,26 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_cancel" = "Annuleren";
 "lng_media_video" = "Video";
 "lng_media_audio" = "Spraakbericht";
+
+"lng_emoji_category0" = "Veelgebruikt";
+"lng_emoji_category1" = "Mensen";
+"lng_emoji_category2" = "Natuur";
+"lng_emoji_category3" = "Eten & drinken";
+"lng_emoji_category4" = "Feestelijkheid";
+"lng_emoji_category5" = "Actviteit";
+"lng_emoji_category6" = "Reizen & plekken";
+"lng_emoji_category7" = "Objecten & symbolen";
+
+"lng_switch_stickers" = "Stickers";
+"lng_switch_emoji" = "Emoji";
+
+"lng_custom_stickers" = "Aangepaste stickers";
+"lng_stickers_remove_pack" = " «{sticker_pack}» verwijderen?";
+"lng_stickers_add_pack" = "{count:_not_used_|# Sticker|# Stickers} toevoegen";
+"lng_stickers_share_pack" = "Stickers delen";
+"lng_stickers_not_found" = "Stickerbundel niet gevonden.";
+"lng_stickers_copied" = "Stickerbundel-link gekopieerd naar klembord";
+"lng_stickers_default_set" = "Grote geesten";
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Video";
@@ -458,6 +491,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_save_video" = "Video opslaan als";
 "lng_context_open_audio" = "Geluidsbestand openen";
 "lng_context_save_audio" = "Geluidsbestand opslaan als";
+"lng_context_pack_info" = "Bundelinformatie";
 "lng_context_open_file" = "Bestand openen";
 "lng_context_save_file" = "Bestand opslaan als";
 "lng_context_forward_file" = "Bestand doorsturen";
@@ -527,12 +561,17 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_search_found_results" = "{count:geen berichten gevonden|# berichten gevonden|# berichten gevonden}";
 "lng_search_global_results" = "Wereldwijde zoekresultaten";
 
-"lng_mediaview_save" = "Downloaden";
+"lng_media_save_progress" = "{ready} van {total} {mb}";
+"lng_mediaview_save_as" = "Opslaan als";
+"lng_mediaview_copy" = "Kopiëren";
 "lng_mediaview_forward" = "Doorsturen";
 "lng_mediaview_delete" = "Verwijder";
+"lng_mediaview_photos_all" = "Alle foto's weergeven";
+"lng_mediaview_files_all" = "Alle bestanden weergeven";
 "lng_mediaview_single_photo" = "Foto";
 "lng_mediaview_group_photo" = "Groepsafbeelding";
 "lng_mediaview_profile_photo" = "Profielfoto";
+"lng_mediaview_file_n_of_count" = "{file} {n} van {count}";
 "lng_mediaview_n_of_count" = "Foto {n} van {count}";
 "lng_mediaview_doc_image" = "Bestand";
 "lng_mediaview_today" = "vandaag om {time}";
@@ -545,7 +584,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Link-preview voor Twitter, YouTube, Instagram en diverse andere links\n— Twee-staps-verificatie\n— Bekijk al je Telegram-sessies, beëindig specifieke sessies.";
+"lng_new_version_text" = "— Ondersteuning voor stickerbundels toegevoegd\n— Nieuw emoji- en stickerspaneel";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

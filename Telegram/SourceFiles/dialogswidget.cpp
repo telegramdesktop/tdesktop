@@ -67,11 +67,11 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	bool trivial = (rect() == r);
 
-	QPainter p(this); 
+	Painter p(this); 
 	if (!trivial) {
 		p.setClipRect(r);
 	}
-
+	
 	if (_state == DefaultState) {
 		int32 otherStart = dialogs.list.count * st::dlgHeight;
 		PeerData *active = App::main()->activePeer(), *selected = sel ? sel->history->peer : 0;
@@ -1122,7 +1122,7 @@ void DialogsListWidget::saveRecentHashtags(const QString &text) {
 			}
 		}
 		if (!found && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) {
-			Local::readRecentStickers();
+			Local::readRecentHashtags();
 			recent = cRecentSearchHashtags();
 		}
 		found = true;

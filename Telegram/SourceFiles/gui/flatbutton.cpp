@@ -172,16 +172,26 @@ void IconedButton::setText(const QString &text) {
 	}
 }
 
+QString IconedButton::getText() const {
+	return _text;
+}
+
 bool IconedButton::animStep(float64 ms) {
-	float64 dt = ms / _st.duration;
 	bool res = true;
-	if (dt >= 1) {
+	if (_st.duration <= 1) {
 		a_opacity.finish();
 		a_bg.finish();
 		res = false;
 	} else {
-		a_opacity.update(dt, anim::linear);
-		a_bg.update(dt, anim::linear);
+		float64 dt = ms / _st.duration;
+		if (dt >= 1) {
+			a_opacity.finish();
+			a_bg.finish();
+			res = false;
+		} else {
+			a_opacity.update(dt, anim::linear);
+			a_bg.update(dt, anim::linear);
+		}
 	}
 	update();
 	return res;

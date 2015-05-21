@@ -21,6 +21,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "lang.h"
 
 namespace {
+	enum StickerSetType {
+		StickerSetTypeEmpty     = 0,
+		StickerSetTypeID        = 1,
+		StickerSetTypeShortName = 2,
+	};
 
 	typedef quint64 FileKey;
 
@@ -138,6 +143,10 @@ namespace {
 
 	uint32 _stringSize(const QString &str) {
 		return sizeof(quint32) + str.size() * sizeof(ushort);
+	}
+
+	uint32 _bytearraySize(const QByteArray &arr) {
+		return sizeof(quint32) + arr.size();
 	}
 
 	QByteArray _settingsSalt, _passKeySalt, _passKeyEncrypted;
@@ -484,17 +493,18 @@ namespace {
 	FileKey _dataNameKey = 0;
 
 	enum { // Local Storage Keys
-		lskUserMap = 0,
-		lskDraft, // data: PeerId peer
-		lskDraftPosition, // data: PeerId peer
-		lskImages, // data: StorageKey location
-		lskLocations, // no data
-		lskStickers, // data: StorageKey location
-		lskAudios, // data: StorageKey location
-		lskRecentStickers, // no data
-		lskBackground, // no data
-		lskUserSettings, // no data
-		lskRecentHashtags, // no data
+		lskUserMap           = 0x00,
+		lskDraft             = 0x01, // data: PeerId peer
+		lskDraftPosition     = 0x02, // data: PeerId peer
+		lskImages            = 0x03, // data: StorageKey location
+		lskLocations         = 0x04, // no data
+		lskStickerImages     = 0x05, // data: StorageKey location
+		lskAudios            = 0x06, // data: StorageKey location
+		lskRecentStickersOld = 0x07, // no data
+		lskBackground        = 0x08, // no data
+		lskUserSettings      = 0x09, // no data
+		lskRecentHashtags    = 0x0a, // no data
+		lskStickers          = 0x0b, // no data
 	};
 
 	typedef QMap<PeerId, FileKey> DraftsMap;
@@ -509,7 +519,7 @@ namespace {
 	FileLocationPairs _fileLocationPairs;
 	FileKey _locationsKey = 0;
 	
-	FileKey _recentStickersKey = 0;
+	FileKey _recentStickersKeyOld = 0, _stickersKey = 0;
 	
 	FileKey _backgroundKey = 0;
 	bool _backgroundWasRead = false;
@@ -520,7 +530,7 @@ namespace {
 
 	typedef QPair<FileKey, qint32> FileDesc; // file, size
 	typedef QMap<StorageKey, FileDesc> StorageMap;
-	StorageMap _imagesMap, _stickersMap, _audiosMap;
+	StorageMap _imagesMap, _stickerImagesMap, _audiosMap;
 	int32 _storageImagesSize = 0, _storageStickersSize = 0, _storageAudiosSize = 0;
 
 	bool _mapChanged = false;
@@ -585,7 +595,7 @@ namespace {
 			locations.stream >> first >> second >> type >> loc.name >> loc.modified >> loc.size;
 
 			MediaKey key(first, second);
-			loc.type = type;
+			loc.type = StorageFileType(type);
 
 			if (loc.check()) {
 				_fileLocations.insert(key, loc);
@@ -831,6 +841,9 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			cSetTileBackground(v == 1);
+			if (version < 8005 && !_backgroundKey) {
+				cSetTileBackground(false);
+			}
 		} break;
 
 		case dbiAutoLock: {
@@ -902,22 +915,68 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			switch (v) {
-			case dbietRecent: cSetEmojiTab(dbietRecent);   break;
-			case dbietPeople: cSetEmojiTab(dbietPeople);   break;
-			case dbietNature: cSetEmojiTab(dbietNature);   break;
-			case dbietObjects: cSetEmojiTab(dbietObjects);  break;
-			case dbietPlaces: cSetEmojiTab(dbietPlaces);   break;
-			case dbietSymbols: cSetEmojiTab(dbietSymbols);  break;
-			case dbietStickers: cSetEmojiTab(dbietStickers); break;
+			case dbietRecent     : cSetEmojiTab(dbietRecent     ); break;
+			case dbietPeople     : cSetEmojiTab(dbietPeople     ); break;
+			case dbietNature     : cSetEmojiTab(dbietNature     ); break;
+			case dbietFood       : cSetEmojiTab(dbietFood       ); break;
+			case dbietCelebration: cSetEmojiTab(dbietCelebration); break;
+			case dbietActivity   : cSetEmojiTab(dbietActivity   ); break;
+			case dbietTravel     : cSetEmojiTab(dbietTravel     ); break;
+			case dbietObjects    : cSetEmojiTab(dbietObjects    ); break;
+			case dbietStickers   : cSetEmojiTab(dbietStickers   ); break;
+			}
+		} break;
+
+		case dbiRecentEmojisOld: {
+			RecentEmojisPreloadOld v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			if (!v.isEmpty()) {
+				RecentEmojisPreload p;
+				p.reserve(v.size());
+				for (int i = 0; i < v.size(); ++i) {
+					uint64 e(v.at(i).first);
+					switch (e) {
+						case 0xD83CDDEFLLU: e = 0xD83CDDEFD83CDDF5LLU; break;
+						case 0xD83CDDF0LLU: e = 0xD83CDDF0D83CDDF7LLU; break;
+						case 0xD83CDDE9LLU: e = 0xD83CDDE9D83CDDEALLU; break;
+						case 0xD83CDDE8LLU: e = 0xD83CDDE8D83CDDF3LLU; break;
+						case 0xD83CDDFALLU: e = 0xD83CDDFAD83CDDF8LLU; break;
+						case 0xD83CDDEBLLU: e = 0xD83CDDEBD83CDDF7LLU; break;
+						case 0xD83CDDEALLU: e = 0xD83CDDEAD83CDDF8LLU; break;
+						case 0xD83CDDEELLU: e = 0xD83CDDEED83CDDF9LLU; break;
+						case 0xD83CDDF7LLU: e = 0xD83CDDF7D83CDDFALLU; break;
+						case 0xD83CDDECLLU: e = 0xD83CDDECD83CDDE7LLU; break;
+					}
+					p.push_back(qMakePair(e, v.at(i).second));
+				}
+				cSetRecentEmojisPreload(p);
 			}
 		} break;
 
 		case dbiRecentEmojis: {
-			RecentEmojiPreload v;
+			RecentEmojisPreload v;
 			stream >> v;
 			if (!_checkStreamStatus(stream)) return false;
 
 			cSetRecentEmojisPreload(v);
+		} break;
+
+		case dbiRecentStickers: {
+			RecentStickerPreload v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetRecentStickersPreload(v);
+		} break;
+
+		case dbiEmojiVariants: {
+			EmojiColorVariants v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetEmojiVariants(v);
 		} break;
 
 		case dbiDialogLastPath: {
@@ -1036,10 +1095,17 @@ namespace {
 			LOG(("App Info: reading old user config.."));
 			qint32 version = 0;
 
-			mtpDcOptions dcOpts(cDcOptions());
+			mtpDcOptions dcOpts;
+			{
+				QReadLocker lock(MTP::dcOptionsMutex());
+				dcOpts = cDcOptions();
+			}
 			_dcOpts = &dcOpts;
 			_readOldUserSettingsFields(&file, version);
-			cSetDcOptions(dcOpts);
+			{
+				QWriteLocker lock(MTP::dcOptionsMutex());
+				cSetDcOptions(dcOpts);
+			}
 
 			file.close();
 			result = true;
@@ -1116,10 +1182,17 @@ namespace {
 			LOG(("App Info: reading old keys.."));
 			qint32 version = 0;
 
-			mtpDcOptions dcOpts(cDcOptions());
+			mtpDcOptions dcOpts;
+			{
+				QReadLocker lock(MTP::dcOptionsMutex());
+				dcOpts = cDcOptions();
+			}
 			_dcOpts = &dcOpts;
 			_readOldMtpDataFields(&file, version);
-			cSetDcOptions(dcOpts);
+			{
+				QWriteLocker lock(MTP::dcOptionsMutex());
+				cSetDcOptions(dcOpts);
+			}
 
 			file.close();
 			result = true;
@@ -1137,7 +1210,9 @@ namespace {
 
 		uint32 size = 11 * (sizeof(quint32) + sizeof(qint32));
 		size += sizeof(quint32) + _stringSize(cAskDownloadPath() ? QString() : cDownloadPath());
-		size += sizeof(quint32) + sizeof(qint32) + cGetRecentEmojis().size() * (sizeof(uint32) + sizeof(ushort));
+		size += sizeof(quint32) + sizeof(qint32) + (cRecentEmojisPreload().isEmpty() ? cGetRecentEmojis().size() : cRecentEmojisPreload().size()) * (sizeof(uint64) + sizeof(ushort));
+		size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
+		size += sizeof(quint32) + sizeof(qint32) + (cRecentStickersPreload().isEmpty() ? cGetRecentStickers().size() : cRecentStickersPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 		size += sizeof(quint32) + _stringSize(cDialogLastPath());
 
 		EncryptedDescriptor data(size);
@@ -1155,12 +1230,27 @@ namespace {
 		data.stream << quint32(dbiEmojiTab) << qint32(cEmojiTab());
 		data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 
-		RecentEmojiPreload v;
-		v.reserve(cGetRecentEmojis().size());
-		for (RecentEmojiPack::const_iterator i = cGetRecentEmojis().cbegin(), e = cGetRecentEmojis().cend(); i != e; ++i) {
-			v.push_back(qMakePair(i->first->code, i->second));
+		{
+			RecentEmojisPreload v(cRecentEmojisPreload());
+			if (v.isEmpty()) {
+				v.reserve(cGetRecentEmojis().size());
+				for (RecentEmojiPack::const_iterator i = cGetRecentEmojis().cbegin(), e = cGetRecentEmojis().cend(); i != e; ++i) {
+					v.push_back(qMakePair(emojiKey(i->first), i->second));
+				}
+			}
+			data.stream << quint32(dbiRecentEmojis) << v;
 		}
-		data.stream << quint32(dbiRecentEmojis) << v;
+		data.stream << quint32(dbiEmojiVariants) << cEmojiVariants();
+		{
+			RecentStickerPreload v(cRecentStickersPreload());
+			if (v.isEmpty()) {
+				v.reserve(cGetRecentStickers().size());
+				for (RecentStickerPack::const_iterator i = cGetRecentStickers().cbegin(), e = cGetRecentStickers().cend(); i != e; ++i) {
+					v.push_back(qMakePair(i->first->id, i->second));
+				}
+			}
+			data.stream << quint32(dbiRecentStickers) << v;
+		}
 
 		FileWriteDescriptor file(_userSettingsKey);
 		file.writeEncrypted(data);
@@ -1282,9 +1372,9 @@ namespace {
 
 		DraftsMap draftsMap, draftsPositionsMap;
 		DraftsNotReadMap draftsNotReadMap;
-		StorageMap imagesMap, stickersMap, audiosMap;
+		StorageMap imagesMap, stickerImagesMap, audiosMap;
 		qint64 storageImagesSize = 0, storageStickersSize = 0, storageAudiosSize = 0;
-		quint64 locationsKey = 0, recentStickersKey = 0, backgroundKey = 0, userSettingsKey = 0, recentHashtagsKey = 0;
+		quint64 locationsKey = 0, recentStickersKeyOld = 0, stickersKey = 0, backgroundKey = 0, userSettingsKey = 0, recentHashtagsKey = 0;
 		while (!map.stream.atEnd()) {
 			quint32 keyType;
 			map.stream >> keyType;
@@ -1322,7 +1412,7 @@ namespace {
 					storageImagesSize += size;
 				}
 			} break;
-			case lskStickers: {
+			case lskStickerImages: {
 				quint32 count = 0;
 				map.stream >> count;
 				for (quint32 i = 0; i < count; ++i) {
@@ -1330,7 +1420,7 @@ namespace {
 					quint64 first, second;
 					qint32 size;
 					map.stream >> key >> first >> second >> size;
-					stickersMap.insert(StorageKey(first, second), FileDesc(key, size));
+					stickerImagesMap.insert(StorageKey(first, second), FileDesc(key, size));
 					storageStickersSize += size;
 				}
 			} break;
@@ -1349,8 +1439,8 @@ namespace {
 			case lskLocations: {
 				map.stream >> locationsKey;
 			} break;
-			case lskRecentStickers: {
-				map.stream >> recentStickersKey;
+			case lskRecentStickersOld: {
+				map.stream >> recentStickersKeyOld;
 			} break;
 			case lskBackground: {
 				map.stream >> backgroundKey;
@@ -1360,6 +1450,9 @@ namespace {
 			} break;
 			case lskRecentHashtags: {
 				map.stream >> recentHashtagsKey;
+			} break;
+			case lskStickers: {
+				map.stream >> stickersKey;
 			} break;
 			default:
 				LOG(("App Error: unknown key type in encrypted map: %1").arg(keyType));
@@ -1376,13 +1469,14 @@ namespace {
 
 		_imagesMap = imagesMap;
 		_storageImagesSize = storageImagesSize;
-		_stickersMap = stickersMap;
+		_stickerImagesMap = stickerImagesMap;
 		_storageStickersSize = storageStickersSize;
 		_audiosMap = audiosMap;
 		_storageAudiosSize = storageAudiosSize;
 
 		_locationsKey = locationsKey;
-		_recentStickersKey = recentStickersKey;
+		_recentStickersKeyOld = recentStickersKeyOld;
+		_stickersKey = stickersKey;
 		_backgroundKey = backgroundKey;
 		_userSettingsKey = userSettingsKey;
 		_recentHashtagsKey = recentHashtagsKey;
@@ -1442,10 +1536,11 @@ namespace {
 		if (!_draftsMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _draftsMap.size() * sizeof(quint64) * 2;
 		if (!_draftsPositionsMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _draftsPositionsMap.size() * sizeof(quint64) * 2;
 		if (!_imagesMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _imagesMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
-		if (!_stickersMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _stickersMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
+		if (!_stickerImagesMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _stickerImagesMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
 		if (!_audiosMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _audiosMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
 		if (_locationsKey) mapSize += sizeof(quint32) + sizeof(quint64);
-		if (_recentStickersKey) mapSize += sizeof(quint32) + sizeof(quint64);
+		if (_recentStickersKeyOld) mapSize += sizeof(quint32) + sizeof(quint64);
+		if (_stickersKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_backgroundKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_userSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_recentHashtagsKey) mapSize += sizeof(quint32) + sizeof(quint64);
@@ -1468,9 +1563,9 @@ namespace {
 				mapData.stream << quint64(i.value().first) << quint64(i.key().first) << quint64(i.key().second) << qint32(i.value().second);
 			}
 		}
-		if (!_stickersMap.isEmpty()) {
-			mapData.stream << quint32(lskStickers) << quint32(_stickersMap.size());
-			for (StorageMap::const_iterator i = _stickersMap.cbegin(), e = _stickersMap.cend(); i != e; ++i) {
+		if (!_stickerImagesMap.isEmpty()) {
+			mapData.stream << quint32(lskStickerImages) << quint32(_stickerImagesMap.size());
+			for (StorageMap::const_iterator i = _stickerImagesMap.cbegin(), e = _stickerImagesMap.cend(); i != e; ++i) {
 				mapData.stream << quint64(i.value().first) << quint64(i.key().first) << quint64(i.key().second) << qint32(i.value().second);
 			}
 		}
@@ -1483,8 +1578,11 @@ namespace {
 		if (_locationsKey) {
 			mapData.stream << quint32(lskLocations) << quint64(_locationsKey);
 		}
-		if (_recentStickersKey) {
-			mapData.stream << quint32(lskRecentStickers) << quint64(_recentStickersKey);
+		if (_recentStickersKeyOld) {
+			mapData.stream << quint32(lskRecentStickersOld) << quint64(_recentStickersKeyOld);
+		}
+		if (_stickersKey) {
+			mapData.stream << quint32(lskStickers) << quint64(_stickersKey);
 		}
 		if (_backgroundKey) {
 			mapData.stream << quint32(lskBackground) << quint64(_backgroundKey);
@@ -1604,7 +1702,11 @@ namespace Local {
 			LOG(("App Error: could not decrypt settings from settings file, maybe bad passcode.."));
 			return writeSettings();
 		}
-		mtpDcOptions dcOpts(cDcOptions());
+		mtpDcOptions dcOpts;
+		{
+			QReadLocker lock(MTP::dcOptionsMutex());
+			dcOpts = cDcOptions();
+		}
 		_dcOpts = &dcOpts;
 		LOG(("App Info: reading encrypted settings.."));
 		while (!settings.stream.atEnd()) {
@@ -1625,7 +1727,10 @@ namespace Local {
 				DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
 			}
 		}
-		cSetDcOptions(dcOpts);
+		{
+			QWriteLocker lock(MTP::dcOptionsMutex());
+			cSetDcOptions(dcOpts);
+		}
 
 		_settingsSalt = salt;
 	}
@@ -1646,13 +1751,19 @@ namespace Local {
 		}
 		settings.writeData(_settingsSalt);
 
-		mtpDcOptions dcOpts(cDcOptions());
+		mtpDcOptions dcOpts;
+		{
+			QReadLocker lock(MTP::dcOptionsMutex());
+			dcOpts = cDcOptions();
+		}
 		if (dcOpts.isEmpty()) {
 			const BuiltInDc *bdcs = builtInDcs();
 			for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
 				dcOpts.insert(bdcs[i].id, mtpDcOption(bdcs[i].id, "", bdcs[i].ip, bdcs[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
 			}
+
+			QWriteLocker lock(MTP::dcOptionsMutex());
 			cSetDcOptions(dcOpts);
 		}
 
@@ -1715,9 +1826,9 @@ namespace Local {
 		_draftsPositionsMap.clear();
 		_imagesMap.clear();
 		_draftsNotReadMap.clear();
-		_stickersMap.clear();
+		_stickerImagesMap.clear();
 		_audiosMap.clear();
-		_locationsKey = _recentStickersKey = _backgroundKey = _userSettingsKey = _recentHashtagsKey = 0;
+		_locationsKey = _recentStickersKeyOld = _stickersKey = _backgroundKey = _userSettingsKey = _recentHashtagsKey = 0;
 		_mapChanged = true;
 		_writeMap(WriteMapNow);
 
@@ -1925,13 +2036,13 @@ namespace Local {
 		if (_imagesMap.constFind(location) != _imagesMap.cend()) return;
 
 		QByteArray fmt = image->savedFormat();
-		mtpTypeId format = 0;
+		StorageFileType format = StorageFileUnknown;
 		if (fmt == "JPG") {
-			format = mtpc_storage_fileJpeg;
+			format = StorageFileJpeg;
 		} else if (fmt == "PNG") {
-			format = mtpc_storage_filePng;
+			format = StorageFilePng;
 		} else if (fmt == "GIF") {
-			format = mtpc_storage_fileGif;
+			format = StorageFileGif;
 		}
 		if (format) {
 			image->forget();
@@ -1981,7 +2092,7 @@ namespace Local {
 		quint32 imageType;
 		draft.stream >> locFirst >> locSecond >> imageType >> imageData;
 
-		return (locFirst == location.first && locSecond == location.second) ? StorageImageSaved(imageType, imageData) : StorageImageSaved();
+		return (locFirst == location.first && locSecond == location.second) ? StorageImageSaved(StorageFileType(imageType), imageData) : StorageImageSaved();
 	}
 
 	int32 hasImages() {
@@ -1992,13 +2103,13 @@ namespace Local {
 		return _storageImagesSize;
 	}
 
-	void writeSticker(const StorageKey &location, const QByteArray &sticker, bool overwrite) {
+	void writeStickerImage(const StorageKey &location, const QByteArray &sticker, bool overwrite) {
 		if (!_working()) return;
 
 		qint32 size = _storageStickerSize(sticker.size());
-		StorageMap::const_iterator i = _stickersMap.constFind(location);
-		if (i == _stickersMap.cend()) {
-			i = _stickersMap.insert(location, FileDesc(genKey(UserPath), size));
+		StorageMap::const_iterator i = _stickerImagesMap.constFind(location);
+		if (i == _stickerImagesMap.cend()) {
+			i = _stickerImagesMap.insert(location, FileDesc(genKey(UserPath), size));
 			_storageStickersSize += size;
 			_mapChanged = true;
 			_writeMap();
@@ -2012,20 +2123,20 @@ namespace Local {
 		if (i.value().second != size) {
 			_storageStickersSize += size;
 			_storageStickersSize -= i.value().second;
-			_stickersMap[location].second = size;
+			_stickerImagesMap[location].second = size;
 		}
 	}
 
-	QByteArray readSticker(const StorageKey &location) {
-		StorageMap::iterator j = _stickersMap.find(location);
-		if (j == _stickersMap.cend()) {
+	QByteArray readStickerImage(const StorageKey &location) {
+		StorageMap::iterator j = _stickerImagesMap.find(location);
+		if (j == _stickerImagesMap.cend()) {
 			return QByteArray();
 		}
 		FileReadDescriptor draft;
 		if (!readEncryptedFile(draft, j.value().first, UserPath)) {
 			clearKey(j.value().first, UserPath);
 			_storageStickersSize -= j.value().second;
-			_stickersMap.erase(j);
+			_stickerImagesMap.erase(j);
 			return QByteArray();
 		}
 
@@ -2037,7 +2148,7 @@ namespace Local {
 	}
 
 	int32 hasStickers() {
-		return _stickersMap.size();
+		return _stickerImagesMap.size();
 	}
 
 	qint64 storageStickersSize() {
@@ -2096,56 +2207,100 @@ namespace Local {
 		return _storageAudiosSize;
 	}
 
-	void writeRecentStickers() {
+	void _writeStickerSet(QDataStream &stream, uint64 setId) {
+		StickerSets::const_iterator it = cStickerSets().constFind(setId);
+		if (it == cStickerSets().cend() || it->stickers.isEmpty()) return;
+
+		stream << quint64(it->id) << quint64(it->access) << it->title << it->shortName << quint32(it->stickers.size());
+		for (StickerPack::const_iterator j = it->stickers.cbegin(), e = it->stickers.cend(); j != e; ++j) {
+			DocumentData *doc = *j;
+			stream << quint64(doc->id) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type) << doc->sticker->alt;
+			switch (doc->sticker->set.type()) {
+			case mtpc_inputStickerSetID: {
+				stream << qint32(StickerSetTypeID);
+			} break;
+			case mtpc_inputStickerSetShortName: {
+				stream << qint32(StickerSetTypeShortName);
+			} break;
+			case mtpc_inputStickerSetEmpty:
+			default: {
+				stream << qint32(StickerSetTypeEmpty);
+			} break;
+			}
+			const StorageImageLocation &loc(doc->sticker->loc);
+			stream << qint32(loc.width) << qint32(loc.height) << qint32(loc.dc) << quint64(loc.volume) << qint32(loc.local) << quint64(loc.secret);
+		}
+	}
+
+	void writeStickers() {
 		if (!_working()) return;
-			
-		const RecentStickerPack &recent(cRecentStickers());
-		if (recent.isEmpty()) {
-			if (_recentStickersKey) {
-				clearKey(_recentStickersKey);
-				_recentStickersKey = 0;
+
+		const StickerSets &sets(cStickerSets());
+		if (sets.isEmpty()) {
+			if (_stickersKey) {
+				clearKey(_stickersKey);
+				_stickersKey = 0;
 				_mapChanged = true;
 			}
 			_writeMap();
 		} else {
-			if (!_recentStickersKey) {
-				_recentStickersKey = genKey();
+			if (!_stickersKey) {
+				_stickersKey = genKey();
 				_mapChanged = true;
 				_writeMap(WriteMapFast);
 			}
-			quint32 size = 0;
-			for (RecentStickerPack::const_iterator i = recent.cbegin(); i != recent.cend(); ++i) {
-				DocumentData *doc = i->first;
-				if (doc->status == FileFailed) continue;
+			quint32 size = sizeof(quint32) + _bytearraySize(cStickersHash());
+			for (StickerSets::const_iterator i = sets.cbegin(); i != sets.cend(); ++i) {
+				if (i->stickers.isEmpty()) continue;
 
-				// id + value + access + date + namelen + name + mimelen + mime + dc + size + width + height + type + alt
-				size += sizeof(quint64) + sizeof(qint16) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(doc->alt);
+				// id + access + title + shortName + stickersCount
+				size += sizeof(quint64) * 2 + _stringSize(i->title) + _stringSize(i->shortName) + sizeof(quint32);
+				for (StickerPack::const_iterator j = i->stickers.cbegin(), e = i->stickers.cend(); j != e; ++j) {
+					DocumentData *doc = *j;
+
+					// id + access + date + namelen + name + mimelen + mime + dc + size + width + height + type + alt + type-of-set
+					size += sizeof(quint64) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(doc->sticker->alt) + sizeof(qint32);
+
+					// thumb-width + thumb-height + thumb-dc + thumb-volume + thumb-local + thumb-secret
+					size += sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(quint64) + sizeof(qint32) + sizeof(quint64);
+				}
 			}
 			EncryptedDescriptor data(size);
-			for (RecentStickerPack::const_iterator i = recent.cbegin(); i != recent.cend(); ++i) {
-				DocumentData *doc = i->first;
-				if (doc->status == FileFailed) continue;
-
-				data.stream << quint64(doc->id) << qint16(i->second) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type) << doc->alt;
+			data.stream << quint32(cStickerSetsOrder().size()) << cStickersHash();
+			_writeStickerSet(data.stream, DefaultStickerSetId);
+			_writeStickerSet(data.stream, CustomStickerSetId);
+			for (StickerSetsOrder::const_iterator i = cStickerSetsOrder().cbegin(), e = cStickerSetsOrder().cend(); i != e; ++i) {
+				_writeStickerSet(data.stream, *i);
 			}
-			FileWriteDescriptor file(_recentStickersKey);
+			FileWriteDescriptor file(_stickersKey);
 			file.writeEncrypted(data);
 		}
 	}
 
-	void readRecentStickers() {
-		if (!_recentStickersKey) return;
+	void importOldRecentStickers() {
+		if (!_recentStickersKeyOld) return;
 
 		FileReadDescriptor stickers;
-		if (!readEncryptedFile(stickers, _recentStickersKey)) {
-			clearKey(_recentStickersKey);
-			_recentStickersKey = 0;
+		if (!readEncryptedFile(stickers, _recentStickersKeyOld)) {
+			clearKey(_recentStickersKeyOld);
+			_recentStickersKeyOld = 0;
 			_writeMap();
 			return;
 		}
+		
+		StickerSets &sets(cRefStickerSets());
+		sets.clear();
+		cSetStickerSetsOrder(StickerSetsOrder());
+
+		RecentStickerPack &recent(cRefRecentStickers());
+		recent.clear();
+
+		cSetStickersHash(QByteArray());
+
+		StickerSet &def(sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, lang(lng_stickers_default_set), QString())).value());
+		StickerSet &custom(sets.insert(CustomStickerSetId, StickerSet(CustomStickerSetId, 0, lang(lng_custom_stickers), QString())).value());
 
 		QMap<uint64, bool> read;
-		RecentStickerPack recent;
 		while (!stickers.stream.atEnd()) {
 			quint64 id, access;
 			QString name, mime, alt;
@@ -2155,7 +2310,7 @@ namespace Local {
 			if (stickers.version >= 7021) {
 				stickers.stream >> alt;
 			}
-			if (read.contains(id)) continue;
+			if (!value || read.contains(id)) continue;
 			read.insert(id, true);
 
 			QVector<MTPDocumentAttribute> attributes;
@@ -2163,23 +2318,127 @@ namespace Local {
 			if (type == AnimatedDocument) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (type == StickerDocument) {
-				attributes.push_back(MTP_documentAttributeSticker(MTP_string(alt)));
+				attributes.push_back(MTP_documentAttributeSticker(MTP_string(alt), MTP_inputStickerSetEmpty()));
 			}
 			if (width > 0 && height > 0) {
 				attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
 			}
 
-			recent.push_back(qMakePair(App::document(id, 0, access, date, attributes, mime, ImagePtr(), dc, size), value));
+			DocumentData *doc = App::documentSet(id, 0, access, date, attributes, mime, ImagePtr(), dc, size, StorageImageLocation());
+			if (!doc->sticker) continue;
+
+			if (value > 0) {
+				def.stickers.push_back(doc);
+			} else {
+				custom.stickers.push_back(doc);
+			}
+			if (recent.size() < StickerPanPerRow * StickerPanRowsPerPage && qAbs(value) > 1) recent.push_back(qMakePair(doc, qAbs(value)));
+		}
+		if (def.stickers.isEmpty()) sets.remove(DefaultStickerSetId);
+		if (custom.stickers.isEmpty()) sets.remove(CustomStickerSetId);
+
+		writeStickers();
+		writeUserSettings();
+
+		clearKey(_recentStickersKeyOld);
+		_recentStickersKeyOld = 0;
+		_writeMap();
+	}
+
+	void readStickers() {
+		if (!_stickersKey) {
+			return importOldRecentStickers();
 		}
 
-		cSetRecentStickers(recent);
+		FileReadDescriptor stickers;
+		if (!readEncryptedFile(stickers, _stickersKey)) {
+			clearKey(_stickersKey);
+			_stickersKey = 0;
+			_writeMap();
+			return;
+		}
+
+		StickerSets &sets(cRefStickerSets());
+		sets.clear();
+
+		StickerSetsOrder &order(cRefStickerSetsOrder());
+		order.clear();
+
+		quint32 cnt;
+		QByteArray hash;
+		stickers.stream >> cnt >> hash;
+		for (uint32 i = 0; i < cnt; ++i) {
+			quint64 setId = 0, setAccess = 0;
+			QString setTitle, setShortName;
+			quint32 scnt = 0;
+			stickers.stream >> setId >> setAccess >> setTitle >> setShortName >> scnt;
+
+			if (setId == DefaultStickerSetId) {
+				setTitle = lang(lng_stickers_default_set);
+			} else if (setId == CustomStickerSetId) {
+				setTitle = lang(lng_custom_stickers);
+			} else {
+				order.push_back(setId);
+			}
+			StickerSet &set(sets.insert(setId, StickerSet(setId, setAccess, setTitle, setShortName)).value());
+			set.stickers.reserve(scnt);
+
+			QMap<uint64, bool> read;
+			for (uint32 j = 0; j < scnt; ++j) {
+				quint64 id, access;
+				QString name, mime, alt;
+				qint32 date, dc, size, width, height, type, typeOfSet;
+				stickers.stream >> id >> access >> date >> name >> mime >> dc >> size >> width >> height >> type >> alt >> typeOfSet;
+
+				qint32 thumbWidth, thumbHeight, thumbDc, thumbLocal;
+				quint64 thumbVolume, thumbSecret;
+				stickers.stream >> thumbWidth >> thumbHeight >> thumbDc >> thumbVolume >> thumbLocal >> thumbSecret;
+
+				if (read.contains(id)) continue;
+				read.insert(id, true);
+
+				if (setId == DefaultStickerSetId || setId == CustomStickerSetId) {
+					typeOfSet = StickerSetTypeEmpty;
+				}
+
+				QVector<MTPDocumentAttribute> attributes;
+				if (!name.isEmpty()) attributes.push_back(MTP_documentAttributeFilename(MTP_string(name)));
+				if (type == AnimatedDocument) {
+					attributes.push_back(MTP_documentAttributeAnimated());
+				} else if (type == StickerDocument) {
+					switch (typeOfSet) {
+					case StickerSetTypeID: {
+						attributes.push_back(MTP_documentAttributeSticker(MTP_string(alt), MTP_inputStickerSetID(MTP_long(setId), MTP_long(setAccess))));
+					} break;
+					case StickerSetTypeShortName: {
+						attributes.push_back(MTP_documentAttributeSticker(MTP_string(alt), MTP_inputStickerSetShortName(MTP_string(setShortName))));
+					} break;
+					case StickerSetTypeEmpty:
+					default: {
+						attributes.push_back(MTP_documentAttributeSticker(MTP_string(alt), MTP_inputStickerSetEmpty()));
+					} break;
+					}
+				}
+				if (width > 0 && height > 0) {
+					attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
+				}
+
+				StorageImageLocation thumb(thumbWidth, thumbHeight, thumbDc, thumbVolume, thumbLocal, thumbSecret);
+				DocumentData *doc = App::documentSet(id, 0, access, date, attributes, mime, thumb.dc ? ImagePtr(thumb) : ImagePtr(), dc, size, thumb);
+				if (!doc->sticker) continue;
+
+				set.stickers.push_back(doc);
+			}
+		}
+
+		cSetStickersHash(hash);
 	}
 
 	void writeBackground(int32 id, const QImage &img) {
 		if (!_working()) return;
 
 		QByteArray png;
-		{
+		if (!img.isNull()) {
 			QBuffer buf(&png);
 			if (!img.save(&buf, "BMP")) return;
 		}
@@ -2188,9 +2447,10 @@ namespace Local {
 			_mapChanged = true;
 			_writeMap(WriteMapFast);
 		}
-		quint32 size = sizeof(qint32) + sizeof(quint32) + sizeof(quint32) + png.size();
+		quint32 size = sizeof(qint32) + sizeof(quint32) + (png.isEmpty() ? 0 : (sizeof(quint32) + png.size()));
 		EncryptedDescriptor data(size);
-		data.stream << qint32(id) << png;
+		data.stream << qint32(id);
+		if (!png.isEmpty()) data.stream << png;
 
 		FileWriteDescriptor file(_backgroundKey);
 		file.writeEncrypted(data);
@@ -2210,7 +2470,17 @@ namespace Local {
 
 		QByteArray pngData;
 		qint32 id;
-		bg.stream >> id >> pngData;
+		bg.stream >> id;
+		if (!id || id == DefaultChatBackground) {
+			if (bg.version < 8005) {
+				if (!id) cSetTileBackground(!DefaultChatBackground);
+				App::initBackground(DefaultChatBackground, QImage(), true);
+			} else {
+				App::initBackground(id, QImage(), true);
+			}
+			return true;
+		}
+		bg.stream >> pngData;
 
 		QImage img;
 		QBuffer buf(&pngData);
@@ -2330,8 +2600,8 @@ namespace Local {
 				_storageImagesSize = 0;
 				_mapChanged = true;
 			}
-			if (!_stickersMap.isEmpty()) {
-				_stickersMap.clear();
+			if (!_stickerImagesMap.isEmpty()) {
+				_stickerImagesMap.clear();
 				_storageStickersSize = 0;
 				_mapChanged = true;
 			}
@@ -2352,8 +2622,12 @@ namespace Local {
 				_locationsKey = 0;
 				_mapChanged = true;
 			}
-			if (_recentStickersKey) {
-				_recentStickersKey = 0;
+			if (_recentStickersKeyOld) {
+				_recentStickersKeyOld = 0;
+				_mapChanged = true;
+			}
+			if (_stickersKey) {
+				_stickersKey = 0;
 				_mapChanged = true;
 			}
 			if (_recentHashtagsKey) {
@@ -2380,9 +2654,9 @@ namespace Local {
 					_mapChanged = true;
 				}
 				if (data->stickers.isEmpty()) {
-					data->stickers = _stickersMap;
+					data->stickers = _stickerImagesMap;
 				} else {
-					for (StorageMap::const_iterator i = _stickersMap.cbegin(), e = _stickersMap.cend(); i != e; ++i) {
+					for (StorageMap::const_iterator i = _stickerImagesMap.cbegin(), e = _stickerImagesMap.cend(); i != e; ++i) {
 						StorageKey k = i.key();
 						while (data->stickers.constFind(k) != data->stickers.cend()) {
 							++k.second;
@@ -2390,8 +2664,8 @@ namespace Local {
 						data->stickers.insert(k, i.value());
 					}
 				}
-				if (!_stickersMap.isEmpty()) {
-					_stickersMap.clear();
+				if (!_stickerImagesMap.isEmpty()) {
+					_stickerImagesMap.clear();
 					_storageStickersSize = 0;
 					_mapChanged = true;
 				}

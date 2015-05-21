@@ -49,6 +49,8 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich = false);
 
 #include "gui/emoji_config.h"
 
+void emojiDraw(QPainter &p, EmojiPtr e, int x, int y);
+
 #include "../../../QtStatic/qtbase/src/gui/text/qfontengine_p.h"
 
 enum TextBlockType {
@@ -424,6 +426,7 @@ public:
 	Text(int32 minResizeWidth = QFIXED_MAX);
 	Text(style::font font, const QString &text, const TextParseOptions &options = _defaultOptions, int32 minResizeWidth = QFIXED_MAX, bool richText = false);
 	Text(const Text &other);
+	Text &operator=(const Text &other);
 
 	int32 countHeight(int32 width) const;
 	void setText(style::font font, const QString &text, const TextParseOptions &options = _defaultOptions);
@@ -431,6 +434,10 @@ public:
 
 	void setLink(uint16 lnkIndex, const TextLinkPtr &lnk);
 	bool hasLinks() const;
+
+	bool hasSkipBlock() const {
+		return _blocks.isEmpty() ? false : _blocks.back()->type() == TextBlockSkip;
+	}
 
 	int32 maxWidth() const {
 		return _maxWidth.ceil().toInt();
@@ -532,8 +539,6 @@ QString textcmdStartColor(const style::color &color);
 QString textcmdStopColor();
 const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink = true);
 
-QString textEmojiString(EmojiPtr emoji);
-
 inline bool chIsSpace(QChar ch, bool rich = false) {
 	return ch.isSpace() || (ch < 32 && !(rich && ch == TextCommand)) || (ch == QChar::ParagraphSeparator) || (ch == QChar::LineSeparator) || (ch == QChar::ObjectReplacementCharacter) || (ch == QChar::SoftHyphen) || (ch == QChar::CarriageReturn) || (ch == QChar::Tabulation);
 }
@@ -544,10 +549,11 @@ inline bool chIsTrimmed(QChar ch, bool rich = false) {
 	return (!rich || ch != TextCommand) && (chIsSpace(ch) || chIsBad(ch));
 }
 inline bool chIsDiac(QChar ch) { // diac and variation selectors
-	return (ch >= 768 && ch < 880) || (ch >= 7616 && ch < 7680) || (ch >= 8400 && ch < 8448) || (ch >= 65056 && ch < 65072);
+	QChar::Category c = ch.category();
+	return (c == QChar::Mark_NonSpacing);
 }
 inline int32 chMaxDiacAfterSymbol() {
-	return 4;
+	return 2;
 }
 inline bool chIsNewline(QChar ch) {
 	return (ch == QChar::LineFeed || ch == 156);

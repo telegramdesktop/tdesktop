@@ -161,19 +161,19 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_crop_profile" = "Elige el cuadrado para tu foto de perfil";
 "lng_settings_uploading_photo" = "Cargando foto...";
 
-"lng_username_title" = "Cambiar apodo";
-"lng_username_about" = "Puedes elegir un apodo en Telegram. \nSi lo haces, otras personas te podrán \nencontrar por ese apodo y contactarte \nsin saber tu número de teléfono.\n\nPuedes usar a-z, 0-9 y guiones bajos.\nLa longitud mínima es de 5 caracteres.";
-"lng_username_invalid" = "Este apodo es inválido.";
-"lng_username_occupied" = "Este apodo ya está ocupado.";
-"lng_username_too_short" = "Este apodo es muy corto.";
-"lng_username_bad_symbols" = "Este apodo tiene símbolos equivocados.";
-"lng_username_available" = "Este apodo está disponible.";
+"lng_username_title" = "Cambiar alias";
+"lng_username_about" = "Puedes elegir un alias en Telegram. \nSi lo haces, otras personas te podrán \nencontrar por ese alias y contactarte \nsin saber tu número de teléfono.\n\nPuedes usar a-z, 0-9 y guiones bajos.\nLa longitud mínima es de 5 caracteres.";
+"lng_username_invalid" = "Este alias es inválido.";
+"lng_username_occupied" = "Este alias ya está ocupado.";
+"lng_username_too_short" = "Este alias es muy corto.";
+"lng_username_bad_symbols" = "Este alias tiene símbolos equivocados.";
+"lng_username_available" = "Este alias está disponible.";
 "lng_username_not_found" = "No se encontró el usuario @{user}.";
 
 "lng_settings_section_contact_info" = "Información";
 "lng_settings_phone_number" = "Número de teléfono:";
-"lng_settings_username" = "Apodo:";
-"lng_settings_choose_username" = "Elige un apodo";
+"lng_settings_username" = "Alias:";
+"lng_settings_choose_username" = "Elige un alias";
 
 "lng_settings_section_notify" = "Notificaciones";
 "lng_settings_desktop_notify" = "Notificaciones de escritorio";
@@ -263,7 +263,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_passcode_enter_old" = "Pon tu código actual";
 "lng_passcode_enter_first" = "Pon un código de acceso";
 "lng_passcode_enter_new" = "Pon tu nuevo código";
-"lng_passcode_confirm_new" = "Pon, otra vez, el código";
+"lng_passcode_confirm_new" = "Repite el nuevo código";
 "lng_passcode_about" = "Cuando configuras un código, aparece un candado en el menú. Pulsa sobre él para bloquear la aplicación.\n\nNota: si olvidas el código, tendrás que reiniciar la sesión en Telegram Desktop.";
 "lng_passcode_differ" = "Los códigos de acceso son diferentes";
 "lng_passcode_wrong" = "Código de acceso equivocado";
@@ -281,7 +281,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_cloud_password_enter_old" = "Pon la vieja contraseña";
 "lng_cloud_password_enter_first" = "Pon una contraseña";
 "lng_cloud_password_enter_new" = "Pon la nueva contraseña";
-"lng_cloud_password_confirm_new" = "Pon, otra vez, la contraseña";
+"lng_cloud_password_confirm_new" = "Repite la nueva contraseña";
 "lng_cloud_password_hint" = "Pon una pista para la contraseña";
 "lng_cloud_password_bad" = "La contraseña y la pista no pueden ser iguales.";
 "lng_cloud_password_email" = "Pon un e-mail de recuperación";
@@ -307,7 +307,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_connection_tcp_proxy_rb" = "TCP con socks5-proxy personalizado";
 "lng_connection_host_ph" = "Nombre del host";
 "lng_connection_port_ph" = "Puerto";
-"lng_connection_user_ph" = "Apodo";
+"lng_connection_user_ph" = "Alias";
 "lng_connection_password_ph" = "Contraseña";
 "lng_connection_save" = "Guardar";
 "lng_settings_show_sessions" = "Mostrar todas las sesiones";
@@ -350,7 +350,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_kick" = "Expulsar";
 "lng_profile_sure_kick" = "¿Quieres expulsar a {user} del grupo?";
 "lng_profile_loading" = "Cargando...";
-"lng_profile_shared_media" = "Multimedia compartida";
+"lng_profile_shared_media" = "Todos los archivos";
 "lng_profile_no_media" = "No hay multimedia en esta conversación.";
 "lng_profile_photos" = "{count:_not_used_|# foto|# fotos} »";
 "lng_profile_photos_header" = "Todas las fotos";
@@ -382,11 +382,24 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_kick_user" = "{from} expulsó a {user}";
 "lng_action_user_left" = "{from} dejó el grupo";
 "lng_action_user_joined" = "{from} se unió al grupo";
+"lng_action_user_joined_by_link" = "{from} se unió al grupo con un enlace de invitación";
 "lng_action_user_registered" = "{from} se acaba de unir a Telegram";
 "lng_action_removed_photo" = "{from} quitó la foto del grupo";
 "lng_action_changed_photo" = "{from} cambió la foto del grupo";
 "lng_action_changed_title" = "{from} cambió el nombre del grupo a «{title}»";
 "lng_action_created_chat" = "{from} creó el grupo «{title}»";
+
+"lng_group_invite_bad_link" = "El enlace de invitación está \nroto o ha expirado.";
+"lng_group_invite_want_join" = "¿Quieres unirte al grupo «{title}»?";
+"lng_group_invite_join" = "Unirme";
+
+"lng_group_invite_link" = "Invitación";
+"lng_group_invite_create" = "Crear un enlace de invitación";
+"lng_group_invite_about" = "Los usuarios de Telegram podrán unirse\na tu grupo a través de este enlace.";
+"lng_group_invite_create_new" = "Anular enlace de invitación";
+"lng_group_invite_about_new" = "El enlace previo será desactivado\ny generaremos uno nuevo para ti.";
+"lng_group_invite_copied" = "Enlace de invitación copiado al portapapeles.";
+"lng_group_invite_no_room" = "No puedes unirte a este grupo porque\nhay muchos miembros en él.";
 
 "lng_forwarded_from" = "Reenviado desde";
 "lng_in_reply_to" = "Respondiendo a";
@@ -406,6 +419,26 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_cancel" = "Cancelar";
 "lng_media_video" = "Vídeo";
 "lng_media_audio" = "Mensaje de voz";
+
+"lng_emoji_category0" = "Usados frecuentemente";
+"lng_emoji_category1" = "Gente";
+"lng_emoji_category2" = "Naturaleza";
+"lng_emoji_category3" = "Comida y bebidas";
+"lng_emoji_category4" = "Celebración";
+"lng_emoji_category5" = "Actividad";
+"lng_emoji_category6" = "Viajes y lugares";
+"lng_emoji_category7" = "Objetos y símbolos";
+
+"lng_switch_stickers" = "Stickers";
+"lng_switch_emoji" = "Emoji";
+
+"lng_custom_stickers" = "Stickers personalizados";
+"lng_stickers_remove_pack" = "¿Quitar «{sticker_pack}»?";
+"lng_stickers_add_pack" = "Añadir {count:_not_used_|# sticker|# stickers}";
+"lng_stickers_share_pack" = "Compartir stickers";
+"lng_stickers_not_found" = "Pack de stickers no encontrado.";
+"lng_stickers_copied" = "Enlace del pack de stickers copiado al portapapeles.";
+"lng_stickers_default_set" = "Grandes personajes";
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Vídeo";
@@ -444,7 +477,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_open_hashtag" = "Buscar por hashtag";
 "lng_context_copy_hashtag" = "Copiar hashtag";
 "lng_context_open_mention" = "Abrir perfil";
-"lng_context_copy_mention" = "Copiar apodo";
+"lng_context_copy_mention" = "Copiar alias";
 "lng_context_open_image" = "Abrir imagen";
 "lng_context_save_image" = "Guardar como...";
 "lng_context_forward_image" = "Reenviar imagen";
@@ -458,6 +491,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_save_video" = "Guardar como...";
 "lng_context_open_audio" = "Abrir audio";
 "lng_context_save_audio" = "Guardar como...";
+"lng_context_pack_info" = "Información del pack";
 "lng_context_open_file" = "Abrir archivo";
 "lng_context_save_file" = "Guardar como...";
 "lng_context_forward_file" = "Reenviar archivo";
@@ -527,12 +561,17 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_search_found_results" = "{count:No se encontraron mensajes|Found # mensaje|Found # mensajes}";
 "lng_search_global_results" = "Resultados de la búsqueda global";
 
-"lng_mediaview_save" = "Descargar";
+"lng_media_save_progress" = "{ready} de {total} {mb}";
+"lng_mediaview_save_as" = "Guardar como...";
+"lng_mediaview_copy" = "Copiar";
 "lng_mediaview_forward" = "Reenviar";
 "lng_mediaview_delete" = "Eliminar";
+"lng_mediaview_photos_all" = "Ver todas las fotos";
+"lng_mediaview_files_all" = "Ver todos los archivos";
 "lng_mediaview_single_photo" = "Foto";
 "lng_mediaview_group_photo" = "Foto del grupo";
 "lng_mediaview_profile_photo" = "Foto de perfil";
+"lng_mediaview_file_n_of_count" = "{file} {n} de {count}";
 "lng_mediaview_n_of_count" = "Foto {n} de {count}";
 "lng_mediaview_doc_image" = "Archivo";
 "lng_mediaview_today" = "hoy a las {time}";
@@ -545,7 +584,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop fue actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Vista previa de enlaces de Twitter, YouTube, Instagram y otros\n— Verificación en dos pasos\n— Ve todas tus sesiones de Telegram y cierra sesiones específicas";
+"lng_new_version_text" = "— Añadido el soporte para packs de stickers\n— Nuevas pestañas de emojis y stickers";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

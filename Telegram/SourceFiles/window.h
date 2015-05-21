@@ -61,7 +61,7 @@ class NotifyWindow : public QWidget, public Animated {
 
 public:
 
-	NotifyWindow(HistoryItem *item, int32 x, int32 y);
+	NotifyWindow(HistoryItem *item, int32 x, int32 y, int32 fwdCount);
 
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
@@ -101,6 +101,7 @@ private:
 #endif
 	History *history;
 	HistoryItem *item;
+	int32 fwdCount;
 	IconedButton close;
 	QPixmap pm;
 	float64 alphaDuration, posDuration;
@@ -176,7 +177,7 @@ public:
 	void showPhoto(const PhotoLink *lnk, HistoryItem *item = 0);
 	void showPhoto(PhotoData *photo, HistoryItem *item);
 	void showPhoto(PhotoData *photo, PeerData *item);
-	void showDocument(DocumentData *doc, QPixmap pix, HistoryItem *item);
+	void showDocument(DocumentData *doc, HistoryItem *item);
 	void showLayer(LayeredWidget *w, bool fast = false);
 	void replaceLayer(LayeredWidget *w);
 	void hideLayer(bool fast = false);
@@ -218,7 +219,6 @@ public:
 	void notifyItemRemoved(HistoryItem *item);
 	void notifyStopHiding();
 	void notifyStartHiding();
-	void notifyUpdateAllPhotos();
 	void notifyUpdateAll();
 	void notifyActivateAll();
 
@@ -227,9 +227,11 @@ public:
 	void sendPaths();
 
 	void mediaOverviewUpdated(PeerData *peer);
+	void documentUpdated(DocumentData *doc);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 
 	bool isActive(bool cached = true) const;
+	void hideMediaview();
 
 public slots:
 
@@ -268,12 +270,16 @@ public slots:
 
 	QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon);
 
+	void notifyUpdateAllPhotos();
+
 signals:
 
 	void resized(const QSize &size);
 	void tempDirCleared(int task);
 	void tempDirClearFailed(int task);
 	void newAuthorization();
+
+	void imageLoaded();
 
 private:
 

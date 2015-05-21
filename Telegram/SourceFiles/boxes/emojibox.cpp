@@ -68,12 +68,12 @@ namespace {
 	const uint32 replacesCount = sizeof(replaces) / sizeof(EmojiReplace), replacesInRow = 7;
 }
 
-EmojiBox::EmojiBox() : _done(this, lang(lng_about_done), st::aboutCloseButton) {
+EmojiBox::EmojiBox() : _esize(EmojiSizes[EIndex + 1]), _done(this, lang(lng_about_done), st::aboutCloseButton) {
 	fillBlocks();
 
 	_blockHeight = st::emojiReplaceInnerHeight;
 	
-	resizeMaxHeight(_blocks[0].size() * st::emojiReplaceWidth + (st::emojiReplaceWidth - st::emojiSize), st::boxPadding.top() + st::boxFont->height + _blocks.size() * st::emojiReplaceHeight + (st::emojiReplaceHeight - _blockHeight) + _done.height());
+	resizeMaxHeight(_blocks[0].size() * st::emojiReplaceWidth + (st::emojiReplaceWidth - _esize), st::boxPadding.top() + st::boxFont->height + _blocks.size() * st::emojiReplaceHeight + (st::emojiReplaceHeight - _blockHeight) + _done.height());
 
 	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
 
@@ -84,7 +84,21 @@ void EmojiBox::fillBlocks() {
 	BlockRow currentRow;
 	currentRow.reserve(replacesInRow);
 	for (uint32 i = 0; i < replacesCount; ++i) {
-		Block block(getEmoji(replaces[i].code), QString::fromUtf8(replaces[i].replace));
+		EmojiPtr emoji = emojiGet(replaces[i].code);
+		if (!emoji || emoji == TwoSymbolEmoji) continue;
+		if (emoji->color) {
+			EmojiColorVariants::const_iterator it = cEmojiVariants().constFind(emoji->code);
+			if (it != cEmojiVariants().cend()) {
+				EmojiPtr replace = emojiFromKey(it.value());
+				if (replace) {
+					if (replace != TwoSymbolEmoji && replace->code == emoji->code && replace->code2 == emoji->code2) {
+						emoji = replace;
+					}
+				}
+			}
+		}
+
+		Block block(emoji, QString::fromUtf8(replaces[i].replace));
 		currentRow.push_back(block);
         if (uint32(currentRow.size()) == replacesInRow) {
 			_blocks.push_back(currentRow);
@@ -125,8 +139,7 @@ void EmojiBox::paintEvent(QPaintEvent *e) {
 		int32 rowSize = i->size(), left = (width() - rowSize * st::emojiReplaceWidth) / 2;
 		for (BlockRow::const_iterator j = i->cbegin(), en = i->cend(); j != en; ++j) {
 			if (j->emoji) {
-				QPoint pos(left + (st::emojiReplaceWidth - st::emojiSize) / 2, top + (st::emojiReplaceHeight - _blockHeight) / 2);
-				p.drawPixmap(pos, App::emojis(), QRect(j->emoji->x, j->emoji->y, st::emojiImgSize, st::emojiImgSize));
+				p.drawPixmap(QPoint(left + (st::emojiReplaceWidth - _esize) / 2, top + (st::emojiReplaceHeight - _blockHeight) / 2), App::emojisLarge(), QRect(j->emoji->x * _esize, j->emoji->y * _esize, _esize, _esize));
 			}
 			QRect trect(left, top + (st::emojiReplaceHeight + _blockHeight) / 2 - st::emojiTextFont->height, st::emojiReplaceWidth, st::emojiTextFont->height);
 			p.drawText(trect, j->text, QTextOption(Qt::AlignHCenter | Qt::AlignTop));

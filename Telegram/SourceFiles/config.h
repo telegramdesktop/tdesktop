@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 8003;
-static const wchar_t *AppVersionStr = L"0.8.3";
+static const int32 AppVersion = 8016;
+static const wchar_t *AppVersionStr = L"0.8.16";
 static const bool DevChannel = false;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
@@ -101,9 +101,10 @@ enum {
 	ZoomToScreenLevel = 1024, // just constant
 
 	PreloadHeightsCount = 3, // when 3 screens to scroll left make a preload request
-	EmojiPadPerRow = 7,
-	EmojiPadRowsPerPage = 6,
-	StickerPadPerRow = 3,
+	EmojiPanPerRow = 7,
+	EmojiPanRowsPerPage = 6,
+	StickerPanPerRow = 5,
+	StickerPanRowsPerPage = 4,
 	StickersUpdateTimeout = 3600000, // update not more than once in an hour
 
 	SearchPeopleLimit = 5,
@@ -255,6 +256,8 @@ static const char *DefaultCountry = "US";
 static const char *DefaultLanguage = "en";
 
 enum {
+	DefaultChatBackground = 21,
+
 	DialogsFirstLoad = 20, // first dialogs part size requested
 	DialogsPerPage = 40, // next dialogs part size
 
@@ -279,8 +282,8 @@ enum {
     UploadRequestInterval = 500, // one part each half second, if not uploaded faster
 
 	MaxPhotosInMemory = 50, // try to clear some memory after 50 photos are created
-	NoUpdatesTimeout = 180 * 1000, // if nothing is received in 3 min we getDifference
-	NoUpdatesAfterSleepTimeout = 60 * 1000, // if nothing is received in 1 min when was a sleepmode we getDifference
+	NoUpdatesTimeout = 60 * 1000, // if nothing is received in 1 min we ping
+	NoUpdatesAfterSleepTimeout = 60 * 1000, // if nothing is received in 1 min when was a sleepmode we ping
 	WaitForSkippedTimeout = 1000, // 1s wait for skipped seq or pts in updates
 
 	MemoryForImageCache = 64 * 1024 * 1024, // after 64mb of unpacked images we try to clear some memory

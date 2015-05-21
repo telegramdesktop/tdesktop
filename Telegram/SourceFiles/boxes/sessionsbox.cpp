@@ -37,7 +37,7 @@ void SessionsInner::paintEvent(QPaintEvent *e) {
 	p.fillRect(r, st::white->b);
 	p.setFont(st::linkFont->f);
 	int32 x = st::sessionPadding.left(), xact = st::sessionTerminateSkip + st::sessionTerminate.iconPos.x();// st::sessionTerminateSkip + st::sessionTerminate.width + st::sessionTerminateSkip;
-	int32 w = width() - 2 * x, availw = width() - 2 * xact;
+	int32 w = width();
 	int32 from = (r.top() >= 0) ? qFloor(r.top() / st::sessionHeight) : 0, count = _list->size();
 	if (from < count) {
 		int32 to = (r.bottom() >= 0 ? qFloor(r.bottom() / st::sessionHeight) : 0) + 1;
@@ -52,7 +52,7 @@ void SessionsInner::paintEvent(QPaintEvent *e) {
 
 			p.setFont(st::sessionActiveFont->f);
 			p.setPen(st::sessionActiveColor->p);
-			p.drawTextRight(xact, st::sessionPadding.top(), availw, auth.active, auth.activeWidth);
+			p.drawTextRight(xact, st::sessionPadding.top(), w, auth.active, auth.activeWidth);
 
 			p.setFont(st::sessionInfoFont->f);
 			p.setPen(st::black->p);
@@ -132,7 +132,7 @@ void SessionsInner::listUpdated() {
 			j = _terminateButtons.insert(_list->at(i).hash, new IconedButton(this, st::sessionTerminate));
 			connect(j.value(), SIGNAL(clicked()), this, SLOT(onTerminate()));
 		}
-		j.value()->moveToRight(st::sessionTerminateSkip, i * st::sessionHeight + st::sessionTerminateTop, width() - 2 * st::sessionTerminateSkip);
+		j.value()->moveToRight(st::sessionTerminateSkip, i * st::sessionHeight + st::sessionTerminateTop, width());
 	}
 	for (TerminateButtons::iterator i = _terminateButtons.begin(); i != _terminateButtons.cend();) {
 		if (i.value()->y() >= 0) {
@@ -175,7 +175,7 @@ _terminateAll(this, lang(lng_sessions_terminate_all)), _terminateBox(0), _shortP
 void SessionsBox::resizeEvent(QResizeEvent *e) {
 	ScrollableBox::resizeEvent(e);
 	_done.move(0, height() - _done.height());
-	_terminateAll.moveToRight(st::sessionPadding.left(), st::boxTitleHeight + st::sessionHeight + st::boxTitlePos.y() + st::boxTitleFont->ascent - st::linkFont->ascent, width() - 2 * st::sessionPadding.left());
+	_terminateAll.moveToRight(st::sessionPadding.left(), st::boxTitleHeight + st::sessionHeight + st::boxTitlePos.y() + st::boxTitleFont->ascent - st::linkFont->ascent, width());
 }
 
 void SessionsBox::hideAll() {
@@ -212,7 +212,7 @@ void SessionsBox::paintEvent(QPaintEvent *e) {
 		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_contacts_loading), style::al_center);
 	} else {
 		int32 x = st::sessionPadding.left();
-		int32 w = width() - x - st::sessionPadding.right();
+		int32 w = width();
 
 		p.setFont(st::sessionNameFont->f);
 		p.setPen(st::black->p);

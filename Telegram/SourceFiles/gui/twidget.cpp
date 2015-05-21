@@ -20,9 +20,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "application.h"
 
 namespace {
-	Qt::LayoutDirection _dir = Qt::LeftToRight;
-	bool _rtl = false;
-
 	void _sendResizeEvents(QWidget *target) {
 		QResizeEvent e(target->size(), QSize());
 		QApplication::sendEvent(target, &e);
@@ -35,19 +32,6 @@ namespace {
 			}
 		}
 	}
-}
-
-void rtl(bool is) {
-	_rtl = is;
-	_dir = _rtl ? Qt::RightToLeft : Qt::LeftToRight;
-}
-
-bool rtl() {
-	return _rtl;
-}
-
-Qt::LayoutDirection langDir() { // current lang dependent
-	return _dir;
 }
 
 QPixmap myGrab(QWidget *target, const QRect &rect) {

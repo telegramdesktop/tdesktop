@@ -448,6 +448,7 @@ static const char *variantNames[] = { "dbisOne", "dbisOneAndQuarter", "dbisOneAn
 static const char *variantPostfixes[] = { "", "_125x", "_150x", "_200x" };
 QPixmap *spriteMax = 0;
 QImage *variantSprites = 0;
+int *spriteWidths = 0;
 QImage *variantGrids = 0;
 
 void readStyleGenToken(const char *&from, const char *end, StyleGenTokenType &tokenType, string &token) {
@@ -1353,17 +1354,22 @@ bool genStyles(const QString &classes_in, const QString &classes_out, const QStr
 	}
 
 	QImage sprites[variantsCount];
+	int widths[variantsCount] = { 0 };
 	variantSprites = sprites;
+	spriteWidths = widths;
 
 	QString sprite0(path_to_sprites + "sprite" + QString(variantPostfixes[0]) + ".png"), spriteLast(path_to_sprites + "sprite" + QString(variantPostfixes[variantsCount - 1]) + ".png");
 	variantSprites[0] = QImage(sprite0);
+	spriteWidths[0] = variantSprites[0].width();
 	for (int i = 1; i < variantsCount - 1; ++i) {
 		variantSprites[i] = QImage(adjustPx(variants[i], variantSprites[0].width(), true), adjustPx(variants[i], variantSprites[0].height(), true), QImage::Format_ARGB32_Premultiplied);
+		spriteWidths[i] = variantSprites[i].width();
 		QPainter p(&variantSprites[i]);
 		p.setCompositionMode(QPainter::CompositionMode_Source);
 		p.fillRect(0, 0, variantSprites[i].width(), variantSprites[i].height(), Qt::transparent);
 	}
 	variantSprites[variantsCount - 1] = QImage(spriteLast);
+	spriteWidths[variantsCount - 1] = variantSprites[variantsCount - 1].width();
 
 	QPixmap spriteMaxPix = QPixmap::fromImage(variantSprites[variantsCount - 1], Qt::ColorOnly);
 	spriteMax = &spriteMaxPix;
@@ -1567,11 +1573,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 			tcpp << "\nnamespace style {\n\n";
 			tcpp << "\tFontFamilies _fontFamilies;\n";
 			tcpp << "\tFontDatas _fontsMap;\n";
-			tcpp << "\tColorDatas _colorsMap;\n\n";
+			tcpp << "\tColorDatas _colorsMap;\n";
+			tcpp << "int _spriteWidth = " << spriteWidths[0] << ";\n\n";
 			tcpp << "\tvoid startManager() {\n";
             
             tcpp << "\n\t\tif (cRetina()) {\n";
-            tcpp << "\t\t\tcSetRealScale(dbisOne);\n\n";
+			tcpp << "\t\t\tcSetRealScale(dbisOne);\n";
+			tcpp << "\t\t\t_spriteWidth = " << spriteWidths[variantsCount - 1] << ";\n\n";
             for (int i = 0, l = scalars.size(); i < l; ++i) {
                 Scalar &sc(scalars[i]);
                 if (sc.second.first == scSprite || sc.first == "spriteFile" || sc.first == "emojisFile" || sc.first == "emojiImgSize") {
@@ -1594,6 +1602,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 				const char *varName = variantNames[i];
 
 				tcpp << "\t\tcase " << varName << ":\n";
+				tcpp << "\t\t\t_spriteWidth = " << spriteWidths[i] << ";\n\n";
 
 				typedef QMap<string, int> FontFamilies;
 				FontFamilies fontFamilies;

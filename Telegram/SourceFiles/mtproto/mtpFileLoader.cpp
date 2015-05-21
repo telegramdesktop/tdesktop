@@ -44,7 +44,7 @@ namespace {
 	LoaderQueues queues;
 }
 
-mtpFileLoader::mtpFileLoader(int32 dc, const int64 &volume, int32 local, const int64 &secret, int32 size) : prev(0), next(0),
+mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &volume, int32 local, const uint64 &secret, int32 size) : prev(0), next(0),
 priority(0), inQueue(false), complete(false), triedLocal(false), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
 dc(dc), locationType(0), volume(volume), local(local), secret(secret),
 id(0), access(0), fileIsOpen(false), size(size), type(mtpc_storage_fileUnknown) {
@@ -184,6 +184,7 @@ bool mtpFileLoader::loadPart() {
 }
 
 void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRequestId req) {
+//	uint64 ms = getms();
 	Requests::iterator i = requests.find(req);
 	if (i == requests.cend()) return loadNext();
 
@@ -246,29 +247,31 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 			psPostprocessFile(QFileInfo(file).absoluteFilePath());
 		}
 		removeFromQueue();
-		App::wnd()->update();
-		App::wnd()->notifyUpdateAllPhotos();
+
+		emit App::wnd()->imageLoaded();
+
 		if (!queue->queries) {
 			App::app()->killDownloadSessionsStart(dc);
 		}
 
 		if (!locationType && triedLocal && (fname.isEmpty() || duplicateInData)) {
-			Local::writeImage(storageKey(dc, volume, local), StorageImageSaved(type, data));
+			Local::writeImage(storageKey(dc, volume, local), StorageImageSaved(mtpToStorageType(type), data));
 		} else if (locationType && triedLocal) {
 			if (!fname.isEmpty()) {
-				Local::writeFileLocation(mediaKey(locationType, dc, id), FileLocation(type, fname));
+				Local::writeFileLocation(mediaKey(mtpToLocationType(locationType), dc, id), FileLocation(mtpToStorageType(type), fname));
 			}
 			if (duplicateInData) {
 				if (locationType == mtpc_inputDocumentFileLocation) {
-					Local::writeSticker(mediaKey(locationType, dc, id), data);
+					Local::writeStickerImage(mediaKey(mtpToLocationType(locationType), dc, id), data);
 				} else if (locationType == mtpc_inputAudioFileLocation) {
-					Local::writeAudio(mediaKey(locationType, dc, id), data);
+					Local::writeAudio(mediaKey(mtpToLocationType(locationType), dc, id), data);
 				}
 			}
 		}
 	}
 	emit progress(this);
 	loadNext();
+//	LOG(("Part loaded, handle time: %1").arg(getms() - ms));
 }
 
 bool mtpFileLoader::partFailed(const RPCError &error) {
@@ -306,9 +309,9 @@ void mtpFileLoader::start(bool loadFirst, bool prior) {
 		if (!locationType) {
 			triedLocal = true;
 			StorageImageSaved cached = Local::readImage(storageKey(dc, volume, local));
-			if (cached.type != mtpc_storage_fileUnknown) {
+			if (cached.type != StorageFileUnknown) {
 				data = cached.data;
-				type = cached.type;
+				type = mtpFromStorageType(cached.type);
 			}
 		} else if (locationType) {
 			if (!fname.isEmpty()) {
@@ -317,11 +320,11 @@ void mtpFileLoader::start(bool loadFirst, bool prior) {
 			if (duplicateInData) {
 				if (locationType == mtpc_inputDocumentFileLocation) {
 					triedLocal = true;
-					data = Local::readSticker(mediaKey(locationType, dc, id));
+					data = Local::readStickerImage(mediaKey(mtpToLocationType(locationType), dc, id));
 					if (!data.isEmpty()) type = mtpc_storage_filePartial;
 				} else if (locationType == mtpc_inputAudioFileLocation) {
 					triedLocal = true;
-					data = Local::readAudio(mediaKey(locationType, dc, id));
+					data = Local::readAudio(mediaKey(mtpToLocationType(locationType), dc, id));
 					if (!data.isEmpty()) type = mtpc_storage_filePartial;
 				}
 			}
@@ -342,8 +345,7 @@ void mtpFileLoader::start(bool loadFirst, bool prior) {
 				fileIsOpen = false;
 				psPostprocessFile(QFileInfo(file).absoluteFilePath());
 			}
-			App::wnd()->update();
-			App::wnd()->notifyUpdateAllPhotos();
+			emit App::wnd()->imageLoaded();
 			emit progress(this);
 			return loadNext();
 		}

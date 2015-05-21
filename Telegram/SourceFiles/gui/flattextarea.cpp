@@ -174,8 +174,7 @@ EmojiPtr FlatTextarea::getSingleEmoji() const {
 	
 	if (!text.isEmpty()) {
 		QTextCharFormat format = fragment.charFormat();
-		QString imageName = static_cast<const QTextImageFormat*>(&format)->name();
-		return getEmoji(imageName.mid(8).toUInt(0, 16));
+		return emojiFromUrl(static_cast<const QTextImageFormat*>(&format)->name());
 	}
 	return 0;
 }
@@ -288,7 +287,7 @@ void FlatTextarea::getSingleEmojiFragment(QString &text, QTextFragment &fragment
 			}
 			if (f.isImageFormat() && !t.isEmpty() && t.at(0).unicode() == QChar::ObjectReplacementCharacter) {
 				QString imageName = static_cast<QTextImageFormat*>(&f)->name();
-				if (imageName.midRef(0, 8) == qsl("emoji://")) {
+				if (imageName.startsWith(QLatin1String("emoji://e."))) {
 					fragment = fr;
 					text = t;
 					return;
@@ -372,11 +371,9 @@ QString FlatTextarea::getText(int32 start, int32 end) const {
 				case QChar::ObjectReplacementCharacter:
 					if (emojiText.isEmpty() && f.isImageFormat()) {
 						QString imageName = static_cast<QTextImageFormat*>(&f)->name();
-						if (imageName.midRef(0, 8) == qsl("emoji://")) {
-							uint32 index = imageName.mid(8).toUInt(0, 16);
-							const EmojiData *emoji = getEmoji(index);
-							if (emoji) {
-								emojiText = textEmojiString(emoji);
+						if (imageName.startsWith(QLatin1String("emoji://e."))) {
+							if (EmojiPtr emoji = emojiFromUrl(imageName)) {
+								emojiText = emojiString(emoji);
 							}
 						}
 					}
@@ -520,7 +517,7 @@ void FlatTextarea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 	c.removeSelectedText();
 
 	QPixmap img(App::emojiSingle(emoji, _st.font->height));
-	QString url = qsl("emoji://") + QString::number(emoji->code, 16);
+	QString url = qsl("emoji://e.") + QString::number(emojiKey(emoji), 16);
 	document()->addResource(QTextDocument::ImageResource, QUrl(url), QVariant(img));
 	QTextImageFormat imageFormat;
 	imageFormat.setWidth(img.width() / cIntRetinaFactor());
@@ -546,33 +543,20 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 				QTextFragment fragment(iter.fragment());
 				if (!fragment.isValid()) continue;
 
-				int32 p = fragment.position(), e = p + fragment.length();
-				if (p >= end || e <= start) {
+				int32 fp = fragment.position(), fe = fp + fragment.length();
+				if (fp >= end || fe <= start) {
 					continue;
 				}
 
 				QString t(fragment.text());
-				for (const QChar *ch = t.constData(), *e = ch + t.size(); ch != e; ++ch) {
-					if (ch + 1 < e && (ch->isHighSurrogate() || (((ch->unicode() >= 48 && ch->unicode() < 58) || ch->unicode() == 35) && (ch + 1)->unicode() == 0x20E3))) {
-						emoji = getEmoji((ch->unicode() << 16) | (ch + 1)->unicode());
-						if (emoji) {
-							if (emoji->len == 4 && (ch + 3 >= e || ((uint32((ch + 2)->unicode()) << 16) | uint32((ch + 3)->unicode())) != emoji->code2)) {
-								emoji = 0;
-							} else {
-								emojiPosition = p + (ch - t.constData());
-								emojiLen = emoji->len + ((ch + emoji->len < e && (ch + emoji->len)->unicode() == 0xFE0F) ? 1 : 0);
-								break;
-							}
-						}
-						++ch;
-					} else {
-						emoji = getEmoji(ch->unicode());
-						if (emoji) {
-							emojiPosition = p + (ch - t.constData());
-							emojiLen = emoji->len + ((ch + emoji->len < e && (ch + emoji->len)->unicode() == 0xFE0F) ? 1 : 0);
-							break;
-						}
+				const QChar *ch = t.constData(), *e = ch + t.size();
+				for (; ch != e; ++ch) {
+					emoji = emojiFromText(ch, e, emojiLen);
+					if (emoji) {
+						emojiPosition = fp + (ch - t.constData());
+						break;
 					}
+					if (ch + 1 < e && ch->isHighSurrogate() && (ch + 1)->isLowSurrogate()) ++ch;
 				}
 				if (emoji) break;
 			}
@@ -720,10 +704,16 @@ QMimeData *FlatTextarea::createMimeDataFromSelection() const {
 
 void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 	bool shift = e->modifiers().testFlag(Qt::ShiftModifier);
+	bool macmeta = (cPlatform() == dbipMac) && e->modifiers().testFlag(Qt::ControlModifier) && !e->modifiers().testFlag(Qt::MetaModifier) && !e->modifiers().testFlag(Qt::AltModifier);
 	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier), ctrlGood = (ctrl && cCtrlEnter()) || (!ctrl && !shift && !cCtrlEnter()) || (ctrl && shift);
 	bool enter = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return);
 
-	if (enter && ctrlGood) {
+	if (macmeta && e->key() == Qt::Key_Backspace) {
+		QTextCursor tc(textCursor()), start(tc);
+		start.movePosition(QTextCursor::StartOfLine);
+		tc.setPosition(start.position(), QTextCursor::KeepAnchor);
+		tc.removeSelectedText();
+	} else if (enter && ctrlGood) {
 		emit submitted(ctrl && shift);
 	} else if (e->key() == Qt::Key_Escape) {
 		emit cancelled();

@@ -42,9 +42,6 @@ public:
 	PeerData *peer() const;
 	bool allMediaShown() const;
 	
-	void gotFullUser(const MTPUserFull &user);
-	void gotFullChat(const MTPmessages_ChatFull &res);
-
 	void updateOnlineDisplay();
 	void updateOnlineDisplayTimer();
 	void reorderParticipants();
@@ -93,9 +90,18 @@ public slots:
 	void onCopyPhone();
 	void onCopyUsername();
 
+	void onInvitationLink();
+	void onCreateInvitationLink();
+	void onCreateInvitationLinkSure();
+
+	void onFullPeerLoaded(PeerData *peer);
+
 private:
 
 	void showAll();
+	void updateInvitationLink();
+
+	void chatInviteDone(const MTPExportedChatInvite &result);
 
 	ProfileWidget *_profile;
 	ScrollArea *_scroll;
@@ -115,7 +121,8 @@ private:
 	TextLinkPtr _photoLink;
 	FlatButton _uploadPhoto, _addParticipant;
 	FlatButton _sendMessage, _shareContact;
-	LinkButton _cancelPhoto;
+	LinkButton _cancelPhoto, _createInvitationLink, _invitationLink;
+	QString _invitationText;
 
 	anim::fvalue a_photo;
 	bool _photoOver;
@@ -147,8 +154,6 @@ private:
 	Participants _participants;
 	typedef QVector<ParticipantData*> ParticipantsData;
 	ParticipantsData _participantsData;
-
-	mtpRequestId _loadingId;
 
 	QPoint _lastPos;
 

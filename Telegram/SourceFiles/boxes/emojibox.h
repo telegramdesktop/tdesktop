@@ -38,6 +38,7 @@ private:
 
 	void fillBlocks();
 
+	int32 _esize;
 	BottomButton _done;
 
 	int32 _blockHeight;

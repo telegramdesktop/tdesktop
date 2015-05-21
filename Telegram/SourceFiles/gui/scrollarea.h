@@ -134,6 +134,7 @@ public:
 public slots:
 
 	void scrollToY(int toTop, int toBottom = -1);
+	void disableScroll(bool dis);
 	void onScrolled();
 
 	void onTouchTimer();
@@ -146,6 +147,10 @@ signals:
 	void scrollFinished();
 	void geometryChanged();
 
+protected:
+
+	void scrollContentsBy(int dx, int dy);
+
 private:
 
 	bool touchScroll(const QPoint &delta);
@@ -155,6 +160,8 @@ private:
 	void touchResetSpeed();
 	void touchUpdateSpeed();
 	void touchDeaccelerate(int32 elapsed);
+
+	bool _disabled;
 
 	style::flatScroll _st;
 	ScrollBar hor, vert;

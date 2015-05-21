@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="/gui">
+    <file>art/osxtray.png</file>
+  </qresource>
+</RCC>

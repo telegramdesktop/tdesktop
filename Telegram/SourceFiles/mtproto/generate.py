@@ -117,6 +117,7 @@ with open('scheme.tl') as f:
     prms = {};
     conditions = {};
     prmsList = [];
+    conditionsList = [];
     isTemplate = hasFlags = hasTemplate = '';
     for param in paramsList:
       if (re.match(r'^\s*$', param)):
@@ -149,7 +150,9 @@ with open('scheme.tl') as f:
             print('Bad param found: "' + param + '" in line: ' + line);
             continue;
           ptype = pmasktype.group(3);
-          conditions[pname] = pmasktype.group(2);
+          if (not pname in conditions):
+            conditionsList.append(pname);
+            conditions[pname] = pmasktype.group(2);
         elif (ptype.find('<') >= 0):
           templ = re.match(r'^([vV]ector<)([A-Za-z0-9\._]+)>$', ptype);
           if (templ):
@@ -198,11 +201,11 @@ with open('scheme.tl') as f:
       if (len(conditions)):
         funcsText += '\n';
         funcsText += '\tenum {\n';
-        for paramName in conditions.keys():
+        for paramName in conditionsList:
           funcsText += '\t\tflag_' + paramName + ' = (1 << ' + conditions[paramName] + '),\n';
         funcsText += '\t};\n';
         funcsText += '\n';
-        for paramName in conditions.keys():
+        for paramName in conditionsList:
           funcsText += '\tbool has_' + paramName + '() const { return v' + hasFlags + '.v & flag_' + paramName + '; }\n';
 
       funcsText += '\n';
@@ -210,7 +213,7 @@ with open('scheme.tl') as f:
       size = [];
       for k in prmsList:
         v = prms[k];
-        if (k in conditions.keys()):
+        if (k in conditionsList):
           size.append('(has_' + k + '() ? v' + k + '.innerLength() : 0)');
         else:
           size.append('v' + k + '.innerLength()');
@@ -224,7 +227,7 @@ with open('scheme.tl') as f:
       funcsText += '\tvoid read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_' + name + ') {\n'; # read method
       for k in prmsList:
         v = prms[k];
-        if (k in conditions.keys()):
+        if (k in conditionsList):
           funcsText += '\t\tif (has_' + k + '()) { v' + k + '.read(from, end); } else { v' + k + ' = MTP' + v + '(); }\n';
         else:
           funcsText += '\t\tv' + k + '.read(from, end);\n';
@@ -233,7 +236,7 @@ with open('scheme.tl') as f:
       funcsText += '\tvoid write(mtpBuffer &to) const {\n'; # write method
       for k in prmsList:
         v = prms[k];
-        if (k in conditions.keys()):
+        if (k in conditionsList):
           funcsText += '\t\tif (has_' + k + '()) v' + k + '.write(to);\n';
         else:
           funcsText += '\t\tv' + k + '.write(to);\n';
@@ -269,7 +272,7 @@ with open('scheme.tl') as f:
         funcsList.append(restype);
         funcsDict[restype] = [];
 #        TypesDict[restype] = resType;
-      funcsDict[restype].append([name, typeid, prmsList, prms, hasFlags, conditions]);
+      funcsDict[restype].append([name, typeid, prmsList, prms, hasFlags, conditionsList, conditions]);
     else:
       if (isTemplate != ''):
         print('Template types not allowed: "' + resType + '" in line: ' + line);
@@ -278,7 +281,7 @@ with open('scheme.tl') as f:
         typesList.append(restype);
         typesDict[restype] = [];
       TypesDict[restype] = resType;
-      typesDict[restype].append([name, typeid, prmsList, prms, hasFlags, conditions]);
+      typesDict[restype].append([name, typeid, prmsList, prms, hasFlags, conditionsList, conditions]);
 
       consts = consts + 1;
 
@@ -292,7 +295,8 @@ def addTextSerialize(lst, dct, dataLetter):
       prmsList = data[2];
       prms = data[3];
       hasFlags = data[4];
-      conditions = data[5];
+      conditionsList = data[5];
+      conditions = data[6];
 
       if len(result):
         result += '\n';
@@ -311,7 +315,7 @@ def addTextSerialize(lst, dct, dataLetter):
           result += '\t\t\t\tcase ' + str(stage) + ': to.add("  ' + k + ': "); ++stages.back(); ';
           if (k == hasFlags):
             result += 'if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; ';
-          if (k in conditions.keys()):
+          if (k in conditionsList):
             result += 'if (flag & MTP' + dataLetter + name + '::flag_' + k + ') { ';
           result += 'types.push_back(';
           vtypeget = re.match(r'^[Vv]ector<MTP([A-Za-z0-9\._]+)>', v);
@@ -355,7 +359,7 @@ def addTextSerialize(lst, dct, dataLetter):
           else:
             result += '0); vtypes.push_back(0';
           result += '); stages.push_back(0); flags.push_back(0); ';
-          if (k in conditions.keys()):
+          if (k in conditionsList):
             result += '} else { to.add("[ SKIPPED BY BIT ' + conditions[k] + ' IN FIELD ' + hasFlags + ' ]"); } ';
           result += 'break;\n';
           stage = stage + 1;
@@ -396,7 +400,8 @@ for restype in typesList:
     prmsList = data[2];
     prms = data[3];
     hasFlags = data[4];
-    conditions = data[5];
+    conditionsList = data[5];
+    conditions = data[6];
 
     dataText = '';
     dataText += '\nclass MTPD' + name + ' : public mtpDataImpl<MTPD' + name + '> {\n'; # data class
@@ -451,7 +456,7 @@ for restype in typesList:
         if (withType):
           readText += '\t\t';
           writeText += '\t\t';
-        if (paramName in conditions.keys()):
+        if (paramName in conditionsList):
           readText += '\tif (v.has_' + paramName + '()) { v.v' + paramName + '.read(from, end); } else { v.v' + paramName + ' = MTP' + paramType + '(); }\n';
           writeText += '\tif (v.has_' + paramName + '()) v.v' + paramName + '.write(to);\n';
           sizeList.append('(v.has_' + paramName + '() ? v.v' + paramName + '.innerLength() : 0)');
@@ -482,11 +487,11 @@ for restype in typesList:
     if (len(conditions)):
       dataText += '\n';
       dataText += '\tenum {\n';
-      for paramName in conditions.keys():
+      for paramName in conditionsList:
         dataText += '\t\tflag_' + paramName + ' = (1 << ' + conditions[paramName] + '),\n';
       dataText += '\t};\n';
       dataText += '\n';
-      for paramName in conditions.keys():
+      for paramName in conditionsList:
         dataText += '\tbool has_' + paramName + '() const { return v' + hasFlags + '.v & flag_' + paramName + '; }\n';
     dataText += '};\n'; # class ending
 

@@ -218,6 +218,9 @@ struct History : public QList<HistoryBlock*> {
 	HistoryItem *currentNotification() {
 		return notifies.isEmpty() ? 0 : notifies.front();
 	}
+	bool hasNotification() const {
+		return !notifies.isEmpty();
+	}
 	void skipNotification() {
 		if (!notifies.isEmpty()) {
 			notifies.pop_front();
@@ -620,6 +623,8 @@ private:
 ItemAnimations &itemAnimations();
 
 class HistoryReply; // dynamic_cast optimize
+class HistoryMessage; // dynamic_cast optimize
+class HistoryForwarded; // dynamic_cast optimize
 
 class HistoryMedia;
 class HistoryItem : public HistoryElem {
@@ -655,6 +660,9 @@ public:
 	bool detached() const {
 		return !_block;
 	}
+	void attach(HistoryBlock *block) {
+		_block = block;
+	}
 	bool out() const {
 		return _flags & MTPDmessage_flag_out;
 	}
@@ -664,6 +672,12 @@ public:
 	}
 	bool notifyByFrom() const {
 		return _flags & MTPDmessage_flag_notify_by_from;
+	}
+	bool isMediaUnread() const {
+		return _flags & MTPDmessage_flag_media_unread;
+	}
+	void markMediaRead() {
+		_flags &= ~MTPDmessage_flag_media_unread;
 	}
 	virtual bool needCheck() const {
 		return true;
@@ -722,13 +736,25 @@ public:
 	virtual QString time() const {
 		return QString();
 	}
-	virtual int32 timeWidth() const {
+	virtual int32 timeWidth(bool forText) const {
 		return 0;
 	}
 	virtual bool animating() const {
 		return false;
 	}
 
+	virtual HistoryMessage *toHistoryMessage() { // dynamic_cast optimize
+		return 0;
+	}
+	virtual const HistoryMessage *toHistoryMessage() const { // dynamic_cast optimize
+		return 0;
+	}
+	virtual HistoryForwarded *toHistoryForwarded() { // dynamic_cast optimize
+		return 0;
+	}
+	virtual const HistoryForwarded *toHistoryForwarded() const { // dynamic_cast optimize
+		return 0;
+	}
 	virtual HistoryReply *toHistoryReply() { // dynamic_cast optimize
 		return 0;
 	}
@@ -779,6 +805,9 @@ public:
 	virtual const QString inDialogsText() const = 0;
 	virtual const QString inHistoryText() const = 0;
 	virtual bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const = 0;
+	virtual bool isDisplayed() const {
+		return true;
+	}
 	virtual int32 countHeight(const HistoryItem *parent, int32 width = -1) const {
 		return height();
 	}
@@ -800,6 +829,10 @@ public:
 	}
 
 	virtual void updateFrom(const MTPMessageMedia &media) {
+	}
+
+	virtual bool isImageLink() const {
+		return false;
 	}
 
 	virtual bool updateStickerEmoji() {
@@ -830,7 +863,7 @@ protected:
 class HistoryPhoto : public HistoryMedia {
 public:
 
-	HistoryPhoto(const MTPDphoto &photo);
+	HistoryPhoto(const MTPDphoto &photo, const QString &caption, HistoryItem *parent);
 	HistoryPhoto(PeerData *chat, const MTPDphoto &photo, int32 width = 0);
 
 	void init();
@@ -843,6 +876,7 @@ public:
 	}
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
+	const Text &captionForClone() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	HistoryMedia *clone() const;
@@ -870,6 +904,7 @@ public:
 private:
 	int16 pixw, pixh;
 	PhotoData *data;
+	Text _caption;
 	TextLinkPtr openl;
 
 };
@@ -879,10 +914,11 @@ QString formatSizeText(qint64 size);
 class HistoryVideo : public HistoryMedia {
 public:
 
-	HistoryVideo(const MTPDvideo &video);
+	HistoryVideo(const MTPDvideo &video, const QString &caption, HistoryItem *parent);
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	HistoryMediaType type() const {
 		return MediaTypeVideo;
 	}
@@ -907,6 +943,8 @@ private:
 	VideoData *data;
 	TextLinkPtr _openl, _savel, _cancell;
 	
+	Text _caption;
+
 	QString _size;
 	int32 _thumbw, _thumbx, _thumby;
 
@@ -1064,6 +1102,9 @@ public:
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	bool isDisplayed() const {
+		return !data->pendingTill;
+	}
 	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	HistoryMediaType type() const {
 		return MediaTypeWebPage;
@@ -1151,7 +1192,7 @@ private:
 class HistoryImageLink : public HistoryMedia {
 public:
 
-	HistoryImageLink(const QString &url);
+	HistoryImageLink(const QString &url, const QString &title = QString(), const QString &description = QString());
 	int32 fullWidth() const;
 	int32 fullHeight() const;
 	void initDimensions(const HistoryItem *parent);
@@ -1167,8 +1208,13 @@ public:
 	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	HistoryMedia *clone() const;
 
+	bool isImageLink() const {
+		return true;
+	}
+
 private:
 	ImageLinkData *data;
+	Text _title, _description;
 	TextLinkPtr link;
 
 };
@@ -1181,6 +1227,7 @@ public:
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, HistoryMedia *media);
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc);
 
+	void initTime();
 	void initMedia(const MTPMessageMedia &media, QString &currentText);
 	void initMediaFromText(QString &currentText);
 	void initMediaFromDocument(DocumentData *doc);
@@ -1199,7 +1246,10 @@ public:
 
 	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	bool hasPoint(int32 x, int32 y) const;
+
 	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) const;
+	virtual void getStateFromMessageText(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const QRect &r) const;
+
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
 	uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const {
 		return _text.adjustSelection(from, to, type);
@@ -1210,7 +1260,9 @@ public:
     QString notificationText() const;
     
 	void updateMedia(const MTPMessageMedia &media) {
-		if (_media) _media->updateFrom(media);
+		if (_media) {
+			_media->updateFrom(media);
+		}
 	}
 	void updateStickerEmoji();
 
@@ -1222,8 +1274,8 @@ public:
 	QString time() const {
 		return _time;
 	}
-	int32 timeWidth() const {
-		return _timeWidth;
+	int32 timeWidth(bool forText) const {
+		return _timeWidth + (forText ? (st::msgDateSpace + (out() ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) - st::msgDateDelta.x()) : 0);
 	}
 	virtual bool animating() const {
 		return _media ? _media->animating() : false;
@@ -1234,6 +1286,13 @@ public:
 	}
 	virtual UserData *fromForwarded() const { // dynamic_cast optimize
 		return from();
+	}
+
+	HistoryMessage *toHistoryMessage() { // dynamic_cast optimize
+		return this;
+	}
+	const HistoryMessage *toHistoryMessage() const { // dynamic_cast optimize
+		return this;
 	}
 
 	~HistoryMessage();
@@ -1260,10 +1319,13 @@ public:
 	void fwdNameUpdated() const;
 
 	void draw(QPainter &p, uint32 selection) const;
+	void drawForwardedFrom(QPainter &p, int32 x, int32 y, int32 w, bool selected) const;
 	void drawMessageText(QPainter &p, const QRect &trect, uint32 selection) const;
 	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) const;
+	void getStateFromMessageText(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const QRect &r) const;
+	void getForwardedState(TextLinkPtr &lnk, bool &inText, int32 x, int32 w) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
 
 	QDateTime dateForwarded() const {
@@ -1273,6 +1335,13 @@ public:
 		return fwdFrom;
 	}
 	QString selectedText(uint32 selection) const;
+
+	HistoryForwarded *toHistoryForwarded() {
+		return this;
+	}
+	const HistoryForwarded *toHistoryForwarded() const {
+		return this;
+	}
 
 protected:
 
@@ -1308,6 +1377,7 @@ public:
 	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) const;
+	void getStateFromMessageText(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const QRect &r) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
 
 	UserData *replyTo() const {

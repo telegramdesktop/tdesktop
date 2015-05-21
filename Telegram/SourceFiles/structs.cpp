@@ -230,7 +230,7 @@ void PhotoLink::onClick(Qt::MouseButton button) const {
 	}
 }
 
-QString saveFileName(const QString &title, const QString &filter, const QString &prefix, QString name, bool savingAs, const QDir &dir = QDir()) {
+QString saveFileName(const QString &title, const QString &filter, const QString &prefix, QString name, bool savingAs, const QDir &dir) {
 #ifdef Q_OS_WIN
 	name = name.replace(QRegularExpression(qsl("[\\\\\\/\\:\\*\\?\\\"\\<\\>\\|]")), qsl("_"));
 #elif defined Q_OS_MAC
@@ -294,6 +294,7 @@ void VideoOpenLink::onClick(Qt::MouseButton button) const {
 	QString already = data->already(true);
 	if (!already.isEmpty()) {
 		psOpenFile(already);
+		if (App::main()) App::main()->videoMarkRead(data);
 		return;
 	}
 
@@ -307,8 +308,7 @@ void VideoOpenLink::onClick(Qt::MouseButton button) const {
 	}
 }
 
-void VideoSaveLink::doSave(bool forceSavingAs) const {
-	VideoData *data = video();
+void VideoSaveLink::doSave(VideoData *data, bool forceSavingAs) {
 	if (!data->user && !data->date) return;
 
 	QString already = data->already(true);
@@ -336,7 +336,7 @@ void VideoSaveLink::doSave(bool forceSavingAs) const {
 
 void VideoSaveLink::onClick(Qt::MouseButton button) const {
 	if (button != Qt::LeftButton) return;
-	doSave();
+	doSave(video());
 }
 
 void VideoCancelLink::onClick(Qt::MouseButton button) const {
@@ -348,7 +348,7 @@ void VideoCancelLink::onClick(Qt::MouseButton button) const {
 
 VideoData::VideoData(const VideoId &id, const uint64 &access, int32 user, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size) :
 id(id), access(access), user(user), date(date), duration(duration), w(w), h(h), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), fileType(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
-	location = Local::readFileLocation(mediaKey(mtpc_inputVideoFileLocation, dc, id));
+	location = Local::readFileLocation(mediaKey(VideoFileLocation, dc, id));
 }
 
 void VideoData::save(const QString &toFile) {
@@ -361,7 +361,7 @@ void VideoData::save(const QString &toFile) {
 
 QString VideoData::already(bool check) {
 	if (!check) return location.name;
-	if (!location.check()) location = Local::readFileLocation(mediaKey(mtpc_inputVideoFileLocation, dc, id));
+	if (!location.check()) location = Local::readFileLocation(mediaKey(VideoFileLocation, dc, id));
 	return location.name;
 }
 
@@ -382,9 +382,11 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 				audioVoice()->pauseresume();
 			} else {
 				audioVoice()->play(data);
+				if (App::main()) App::main()->audioMarkRead(data);
 			}
 		} else {
 			psOpenFile(already);
+			if (App::main()) App::main()->audioMarkRead(data);
 		}
 		return;
 	}
@@ -399,8 +401,7 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 	}
 }
 
-void AudioSaveLink::doSave(bool forceSavingAs) const {
-	AudioData *data = audio();
+void AudioSaveLink::doSave(AudioData *data, bool forceSavingAs) {
 	if (!data->user && !data->date) return;
 
 	QString already = data->already(true);
@@ -429,7 +430,7 @@ void AudioSaveLink::doSave(bool forceSavingAs) const {
 
 void AudioSaveLink::onClick(Qt::MouseButton button) const {
 	if (button != Qt::LeftButton) return;
-	doSave();
+	doSave(audio());
 }
 
 void AudioCancelLink::onClick(Qt::MouseButton button) const {
@@ -441,7 +442,7 @@ void AudioCancelLink::onClick(Qt::MouseButton button) const {
 
 AudioData::AudioData(const AudioId &id, const uint64 &access, int32 user, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) :
 id(id), access(access), user(user), date(date), mime(mime), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
-	location = Local::readFileLocation(mediaKey(mtpc_inputAudioFileLocation, dc, id));
+	location = Local::readFileLocation(mediaKey(AudioFileLocation, dc, id));
 }
 
 void AudioData::save(const QString &toFile) {
@@ -454,7 +455,7 @@ void AudioData::save(const QString &toFile) {
 
 QString AudioData::already(bool check) {
 	if (!check) return location.name;
-	if (!location.check()) location = Local::readFileLocation(mediaKey(mtpc_inputAudioFileLocation, dc, id));
+	if (!location.check()) location = Local::readFileLocation(mediaKey(AudioFileLocation, dc, id));
 	return location.name;
 }
 
@@ -470,7 +471,7 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 				if (reader.supportsAnimation() && reader.imageCount() > 1 && App::hoveredLinkItem()) {
 					startGif(App::hoveredLinkItem(), already);
 				} else {
-					App::wnd()->showDocument(data, QPixmap::fromImage(App::readImage(already, 0, false), Qt::ColorOnly), App::hoveredLinkItem());
+					App::wnd()->showDocument(data, App::hoveredLinkItem());
 				}
 			} else {
 				psOpenFile(already);
@@ -505,8 +506,7 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 	}
 }
 
-void DocumentSaveLink::doSave(bool forceSavingAs) const {
-	DocumentData *data = document();
+void DocumentSaveLink::doSave(DocumentData *data, bool forceSavingAs) {
 	if (!data->date) return;
 
 	QString already = data->already(true);
@@ -547,7 +547,7 @@ void DocumentSaveLink::doSave(bool forceSavingAs) const {
 
 void DocumentSaveLink::onClick(Qt::MouseButton button) const {
 	if (button != Qt::LeftButton) return;
-	doSave();
+	doSave(document());
 }
 
 void DocumentCancelLink::onClick(Qt::MouseButton button) const {
@@ -558,9 +558,9 @@ void DocumentCancelLink::onClick(Qt::MouseButton button) const {
 }
 
 DocumentData::DocumentData(const DocumentId &id, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) :
-id(id), type(FileDocument), duration(0), access(access), date(date), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+id(id), type(FileDocument), duration(0), access(access), date(date), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0), sticker(0) {
 	setattributes(attributes);
-	location = Local::readFileLocation(mediaKey(mtpc_inputDocumentFileLocation, dc, id));
+	location = Local::readFileLocation(mediaKey(DocumentFileLocation, dc, id));
 }
 
 void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes) {
@@ -574,7 +574,11 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 		case mtpc_documentAttributeSticker: {
 			const MTPDdocumentAttributeSticker &d(attributes[i].c_documentAttributeSticker());
 			if (type == FileDocument) type = StickerDocument;
-			alt = qs(d.valt);
+			if (type == StickerDocument && !sticker) sticker = new StickerData();
+			if (sticker) {
+				sticker->alt = qs(d.valt);
+				sticker->set = d.vstickerset;
+			}
 		} break;
 		case mtpc_documentAttributeVideo: {
 			const MTPDdocumentAttributeVideo &d(attributes[i].c_documentAttributeVideo());
@@ -603,7 +607,7 @@ void DocumentData::save(const QString &toFile) {
 
 QString DocumentData::already(bool check) {
 	if (!check) return location.name;
-	if (!location.check()) location = Local::readFileLocation(mediaKey(mtpc_inputDocumentFileLocation, dc, id));
+	if (!location.check()) location = Local::readFileLocation(mediaKey(DocumentFileLocation, dc, id));
 	return location.name;
 }
 

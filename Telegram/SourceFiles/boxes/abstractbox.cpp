@@ -71,7 +71,7 @@ void AbstractBox::paintTitle(Painter &p, const QString &title, bool withShadow) 
 	// paint box title
 	p.setFont(st::boxTitleFont->f);
 	p.setPen(st::black->p);
-	p.drawTextLeft(st::boxTitlePos.x(), st::boxTitlePos.y(), width() - 2 * st::boxTitlePos.x(), title);
+	p.drawTextLeft(st::boxTitlePos.x(), st::boxTitlePos.y(), width(), title);
 }
 
 void AbstractBox::paintGrayTitle(QPainter &p, const QString &title) {
@@ -106,8 +106,10 @@ void AbstractBox::setMaxHeight(int32 maxHeight) {
 
 void AbstractBox::resizeMaxHeight(int32 newWidth, int32 maxHeight) {
 	if (width() != newWidth || _maxHeight != maxHeight) {
+		QRect g(geometry());
 		_maxHeight = maxHeight;
 		resize(newWidth, countHeight());
+		if (parentWidget()) parentWidget()->update(geometry().united(g).marginsAdded(QMargins(st::boxShadow.pxWidth(), st::boxShadow.pxHeight(), st::boxShadow.pxWidth(), st::boxShadow.pxHeight())));
 	}
 }
 

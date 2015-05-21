@@ -37,8 +37,8 @@ namespace _mtp_internal {
 	void execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end);
 	bool hasCallbacks(mtpRequestId requestId);
 	void globalCallback(const mtpPrime *from, const mtpPrime *end);
-	void onStateChange(int32 dc, int32 state);
-	void onSessionReset(int32 dc);
+	void onStateChange(int32 dcWithShift, int32 state);
+	void onSessionReset(int32 dcWithShift);
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err); // return true if need to clean request data
 	inline bool rpcErrorOccured(mtpRequestId requestId, const RPCResponseHandler &handler, const RPCError &err) {
 		return rpcErrorOccured(requestId, handler.onFail, err);
@@ -64,6 +64,7 @@ namespace _mtp_internal {
 namespace MTP {
 
 	static const uint32 cfg = 1 * _mtp_internal::dcShift; // send(MTPhelp_GetConfig(), MTP::cfg + dc) - for dc enum
+	static const uint32 lgt = 2 * _mtp_internal::dcShift; // send(MTPauth_LogOut(), MTP::lgt + dc) - for logout of guest dcs enum
 	static const uint32 dld[MTPDownloadSessionsCount] = { // send(req, callbacks, MTP::dld[i] + dc) - for download
 		0x10 * _mtp_internal::dcShift,
 		0x11 * _mtp_internal::dcShift,
@@ -89,18 +90,19 @@ namespace MTP {
 
 	int32 dcstate(int32 dc = 0);
 	QString dctransport(int32 dc = 0);
-	void initdc(int32 dc);
+
 	template <typename TRequest>
 	inline mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), int32 dc = 0, uint64 msCanWait = 0, mtpRequestId after = 0) {
-		MTProtoSessionPtr session = _mtp_internal::getSession(dc);
-		if (!session) return 0;
-		
-		return session->send(request, callbacks, msCanWait, true, !dc, after);
+		if (MTProtoSessionPtr session = _mtp_internal::getSession(dc)) {
+			return session->send(request, callbacks, msCanWait, true, !dc, after);
+		}
+		return 0;
 	}
 	template <typename TRequest>
 	inline mtpRequestId send(const TRequest &request, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail = RPCFailHandlerPtr(), int32 dc = 0, uint64 msCanWait = 0, mtpRequestId after = 0) {
 		return send(request, RPCResponseHandler(onDone, onFail), dc, msCanWait, after);
 	}
+	void ping();
 	void cancel(mtpRequestId req);
 	void killSession(int32 dc);
 	void stopSession(int32 dc);
@@ -137,6 +139,8 @@ namespace MTP {
 
 	mtpKeysMap getKeys();
 	void setKey(int32 dc, mtpAuthKeyPtr key);
+
+	QReadWriteLock *dcOptionsMutex();
 
 };
 

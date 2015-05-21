@@ -178,7 +178,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 			}
 			if (!filesize) filesize = jpeg.size();
 		
-			photo = MTP_photo(MTP_long(id), MTP_long(0), MTP_int(user), MTP_int(unixtime()), MTP_string(""), MTP_geoPointEmpty(), MTP_vector<MTPPhotoSize>(photoSizes));
+			photo = MTP_photo(MTP_long(id), MTP_long(0), MTP_int(user), MTP_int(unixtime()), MTP_geoPointEmpty(), MTP_vector<MTPPhotoSize>(photoSizes));
 
 			thumbId = id;
 		} else if ((type == ToPrepareVideo || type == ToPrepareDocument) && !img.isNull()) {
@@ -188,7 +188,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 			if (animated) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (mime == stickerMime && w > 0 && h > 0 && w <= StickerMaxSize && h <= StickerMaxSize && filesize < StickerInMemory) {
-				attributes.push_back(MTP_documentAttributeSticker(MTP_string("")));
+				attributes.push_back(MTP_documentAttributeSticker(MTP_string(""), MTP_inputStickerSetEmpty()));
 				thumbFormat = "webp";
 				thumbExt = qsl("webp");
 			}

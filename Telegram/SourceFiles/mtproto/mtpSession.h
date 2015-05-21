@@ -224,8 +224,9 @@ public:
 	void start(int32 dcenter = 0);
 	void restart();
 	void stop();
+	void kill();
 
-	int32 getDC() const;
+	int32 getDcWithShift() const;
 	~MTProtoSession();
 
 	QReadWriteLock *keyMutex() const;
@@ -236,6 +237,7 @@ public:
 	template <typename TRequest>
 	mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), uint64 msCanWait = 0, bool needsLayer = false, bool toMainDC = false, mtpRequestId after = 0); // send mtp request
 
+	void ping();
 	void cancel(mtpRequestId requestId, mtpMsgId msgId);
 	int32 requestState(mtpRequestId requestId) const;
 	int32 getState() const;
@@ -247,6 +249,7 @@ signals:
 
 	void authKeyCreated();
 	void needToSend();
+	void needToPing();
 	void needToRestart();
 
 public slots:
@@ -273,13 +276,17 @@ private:
 	
 	typedef QList<MTProtoConnection*> MTProtoConnections;
 	MTProtoConnections connections;
+
+	bool _killed;
 	
 	MTPSessionData data;
 
-	int32 dcId;
+	int32 dcWithShift;
 	MTProtoDCPtr dc;
 
 	uint64 msSendCall, msWait;
+
+	bool _ping;
 
 	QTimer timeouter;
 	SingleTimer sender;

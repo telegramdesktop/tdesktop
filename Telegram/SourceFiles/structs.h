@@ -40,11 +40,16 @@ static const NotifySettingsPtr EmptyNotifySettings = NotifySettingsPtr(1);
 extern NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 extern NotifySettingsPtr globalNotifyAllPtr, globalNotifyUsersPtr, globalNotifyChatsPtr;
 
-inline bool isNotifyMuted(NotifySettingsPtr settings) {
-	if (settings == UnknownNotifySettings || settings == EmptyNotifySettings) {
-		return false;
+inline bool isNotifyMuted(NotifySettingsPtr settings, int32 *changeIn = 0) {
+	if (settings != UnknownNotifySettings && settings != EmptyNotifySettings) {
+		int32 t = unixtime();
+		if (settings->mute > t) {
+			if (changeIn) *changeIn = settings->mute - t + 1;
+			return true;
+		}
 	}
-	return (settings->mute > unixtime());
+	if (changeIn) *changeIn = 0;
+	return false;
 }
 
 style::color peerColor(int32 index);
@@ -155,6 +160,7 @@ struct ChatData : public PeerData {
 	LastAuthors lastAuthors;
 	ImagePtr photoFull;
 	PhotoId photoId;
+	QString invitationUrl;
 	// geo
 };
 
@@ -247,7 +253,7 @@ struct VideoData {
 
 	void finish() {
 		if (loader->done()) {
-			location = FileLocation(loader->fileType(), loader->fileName());
+			location = FileLocation(mtpToStorageType(loader->fileType()), loader->fileName());
 		}
 		loader->deleteLater();
 		loader->rpcInvalidate();
@@ -291,7 +297,7 @@ class VideoSaveLink : public VideoLink {
 public:
 	VideoSaveLink(VideoData *video) : VideoLink(video) {
 	}
-	void doSave(bool forceSavingAs = false) const;
+	static void doSave(VideoData *video, bool forceSavingAs = false);
 	void onClick(Qt::MouseButton button) const;
 };
 
@@ -333,7 +339,7 @@ struct AudioData {
 
 	void finish() {
 		if (loader->done()) {
-			location = FileLocation(loader->fileType(), loader->fileName());
+			location = FileLocation(mtpToStorageType(loader->fileType()), loader->fileName());
 			data = loader->bytes();
 		}
 		loader->deleteLater();
@@ -378,7 +384,7 @@ class AudioSaveLink : public AudioLink {
 public:
 	AudioSaveLink(AudioData *audio) : AudioLink(audio) {
 	}
-	void doSave(bool forceSavingAs = false) const;
+	static void doSave(AudioData *audio, bool forceSavingAs = false);
 	void onClick(Qt::MouseButton button) const;
 };
 
@@ -396,6 +402,16 @@ public:
 	void onClick(Qt::MouseButton button) const;
 };
 
+struct StickerData {
+	StickerData() : set(MTP_inputStickerSetEmpty()) {
+	}
+	ImagePtr img;
+	QString alt;
+
+	MTPInputStickerSet set;
+	StorageImageLocation loc; // doc thumb location
+};
+
 enum DocumentType {
 	FileDocument,
 	VideoDocument,
@@ -409,7 +425,7 @@ struct DocumentData {
 
 	void forget() {
 		thumb->forget();
-		sticker->forget();
+		if (sticker) sticker->img->forget();
 		replyPreview->forget();
 	}
 
@@ -431,12 +447,15 @@ struct DocumentData {
 
 	void finish() {
 		if (loader->done()) {
-			location = FileLocation(loader->fileType(), loader->fileName());
+			location = FileLocation(mtpToStorageType(loader->fileType()), loader->fileName());
 			data = loader->bytes();
 		}
 		loader->deleteLater();
 		loader->rpcInvalidate();
 		loader = 0;
+	}
+	~DocumentData() {
+		delete sticker;
 	}
 
 	QString already(bool check = false);
@@ -447,7 +466,7 @@ struct DocumentData {
 	int32 duration;
 	uint64 access;
 	int32 date;
-	QString name, mime, alt; // alt - for stickers
+	QString name, mime;
 	ImagePtr thumb, replyPreview;
 	int32 dc;
 	int32 size;
@@ -460,7 +479,7 @@ struct DocumentData {
 	FileLocation location;
 
 	QByteArray data;
-	ImagePtr sticker;
+	StickerData *sticker;
 
 	int32 md5[8];
 };
@@ -481,7 +500,7 @@ class DocumentSaveLink : public DocumentLink {
 public:
 	DocumentSaveLink(DocumentData *document) : DocumentLink(document) {
 	}
-	void doSave(bool forceSavingAs = false) const;
+	static void doSave(DocumentData *document, bool forceSavingAs = false);
 	void onClick(Qt::MouseButton button) const;
 };
 
@@ -528,6 +547,7 @@ struct WebPageData {
 	int32 pendingTill;
 };
 
+QString saveFileName(const QString &title, const QString &filter, const QString &prefix, QString name, bool savingAs, const QDir &dir = QDir());
 MsgId clientMsgId();
 
 struct MessageCursor {

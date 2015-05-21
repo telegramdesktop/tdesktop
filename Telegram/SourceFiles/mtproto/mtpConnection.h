@@ -24,6 +24,7 @@ enum {
 	MTPDmessage_flag_unread = (1 << 0),
 	MTPDmessage_flag_out = (1 << 1),
 	MTPDmessage_flag_notify_by_from = (1 << 4),
+	MTPDmessage_flag_media_unread = (1 << 5),
 	MTPmessages_SendMessage_flag_skipWebPage = (1 << 1),
 };
 
@@ -341,6 +342,7 @@ public slots:
 	void restart(bool maybeBadKey = false);
 
 	void onPingSender();
+	void onPingSendForce();
 	void onBadConnection();
 	void onOldConnection();
 	void onSentSome(uint64 size);
@@ -364,7 +366,7 @@ public slots:
 	// Sessions signals, when we need to send something
 	void tryToSend();
 
-	bool updateAuthKey();
+	void updateAuthKey();
 
 	void onConfigLoaded();
 
@@ -416,7 +418,7 @@ private:
 	void requestsAcked(const QVector<MTPlong> &ids, bool byResponse = false);
 
 	mtpPingId _pingId, _pingIdToSend;
-	uint64 _pingSent;
+	uint64 _pingSendAt;
 	mtpMsgId _pingMsgId;
 	SingleTimer _pingSender;
 

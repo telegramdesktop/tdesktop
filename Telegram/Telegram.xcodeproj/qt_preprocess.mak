@@ -31,7 +31,7 @@ mocables: compiler_moc_header_make_all compiler_moc_source_make_all
 
 check: first
 
-compilers: GeneratedFiles/qrc_telegram.cpp GeneratedFiles/Debug/moc_apiwrap.cpp GeneratedFiles/Debug/moc_application.cpp GeneratedFiles/Debug/moc_audio.cpp GeneratedFiles/Debug/moc_dialogswidget.cpp GeneratedFiles/Debug/moc_dropdown.cpp\
+compilers: GeneratedFiles/qrc_telegram.cpp GeneratedFiles/qrc_telegram_emojis.cpp GeneratedFiles/qrc_telegram_mac.cpp GeneratedFiles/Debug/moc_apiwrap.cpp GeneratedFiles/Debug/moc_application.cpp GeneratedFiles/Debug/moc_audio.cpp GeneratedFiles/Debug/moc_dialogswidget.cpp GeneratedFiles/Debug/moc_dropdown.cpp\
 	 GeneratedFiles/Debug/moc_fileuploader.cpp GeneratedFiles/Debug/moc_history.cpp GeneratedFiles/Debug/moc_historywidget.cpp GeneratedFiles/Debug/moc_layerwidget.cpp\
 	 GeneratedFiles/Debug/moc_mediaview.cpp GeneratedFiles/Debug/moc_overviewwidget.cpp GeneratedFiles/Debug/moc_profilewidget.cpp\
 	 GeneratedFiles/Debug/moc_passcodewidget.cpp\
@@ -50,35 +50,28 @@ compilers: GeneratedFiles/qrc_telegram.cpp GeneratedFiles/Debug/moc_apiwrap.cpp 
 	 GeneratedFiles/Debug/moc_confirmbox.cpp GeneratedFiles/Debug/moc_connectionbox.cpp GeneratedFiles/Debug/moc_contactsbox.cpp\
 	 GeneratedFiles/Debug/moc_downloadpathbox.cpp GeneratedFiles/Debug/moc_emojibox.cpp GeneratedFiles/Debug/moc_languagebox.cpp\
 	 GeneratedFiles/Debug/moc_passcodebox.cpp\
-	 GeneratedFiles/Debug/moc_photocropbox.cpp GeneratedFiles/Debug/moc_photosendbox.cpp GeneratedFiles/Debug/moc_sessionsbox.cpp GeneratedFiles/Debug/moc_usernamebox.cpp GeneratedFiles/Debug/moc_intro.cpp\
+	 GeneratedFiles/Debug/moc_photocropbox.cpp GeneratedFiles/Debug/moc_photosendbox.cpp GeneratedFiles/Debug/moc_sessionsbox.cpp GeneratedFiles/Debug/moc_stickersetbox.cpp GeneratedFiles/Debug/moc_usernamebox.cpp GeneratedFiles/Debug/moc_intro.cpp\
 	 GeneratedFiles/Debug/moc_introcode.cpp GeneratedFiles/Debug/moc_introphone.cpp GeneratedFiles/Debug/moc_intropwdcheck.cpp GeneratedFiles/Debug/moc_introsignup.cpp\
 	 GeneratedFiles/Debug/moc_pspecific_mac.cpp
 compiler_objective_c_make_all:
 compiler_objective_c_clean:
 compiler_no_pch_compiler_make_all:
 compiler_no_pch_compiler_clean:
-compiler_rcc_make_all: GeneratedFiles/qrc_telegram.cpp
+compiler_rcc_make_all: GeneratedFiles/qrc_telegram.cpp GeneratedFiles/qrc_telegram_emojis.cpp GeneratedFiles/qrc_telegram_mac.cpp
 compiler_rcc_clean:
-	-$(DEL_FILE) GeneratedFiles/qrc_telegram.cpp
+	-$(DEL_FILE) GeneratedFiles/qrc_telegram.cpp GeneratedFiles/qrc_telegram_emojis.cpp GeneratedFiles/qrc_telegram_mac.cpp
 GeneratedFiles/qrc_telegram.cpp: SourceFiles/telegram.qrc \
-		SourceFiles/art/emoji.png \
 		SourceFiles/art/blank.gif \
-		SourceFiles/art/bg.png \
+		SourceFiles/art/bg.jpg \
 		SourceFiles/art/sprite_150x.png \
 		SourceFiles/art/sprite.png \
 		SourceFiles/art/icon256.png \
-		SourceFiles/art/emoji_150x.png \
-		SourceFiles/art/bg_150x.png \
 		SourceFiles/art/sprite_200x.png \
 		SourceFiles/art/newmsg.wav \
 		SourceFiles/art/sprite_125x.png \
-		SourceFiles/art/emoji_200x.png \
-		SourceFiles/art/bg_200x.png \
-		SourceFiles/art/emoji_125x.png \
-		SourceFiles/art/bg_125x.png \
 		SourceFiles/art/fonts/OpenSans-Regular.ttf \
-                SourceFiles/art/fonts/OpenSans-Bold.ttf \
-                SourceFiles/art/fonts/OpenSans-Semibold.ttf \
+    SourceFiles/art/fonts/OpenSans-Bold.ttf \
+    SourceFiles/art/fonts/OpenSans-Semibold.ttf \
 		SourceFiles/qmime/freedesktop.org.xml \
 		SourceFiles/art/usercolor4.png \
 		SourceFiles/art/chatcolor1.png \
@@ -94,9 +87,21 @@ GeneratedFiles/qrc_telegram.cpp: SourceFiles/telegram.qrc \
 		SourceFiles/art/chatcolor2.png
 	/usr/local/Qt-5.4.0/bin/rcc -name telegram SourceFiles/telegram.qrc -o GeneratedFiles/qrc_telegram.cpp
 
-compiler_moc_header_make_all: GeneratedFiles/Debug/moc_apiwrap.cpp GeneratedFiles/Debug/moc_application.cpp GeneratedFiles/Debug/moc_audio.cpp GeneratedFiles/Debug/moc_dialogswidget.cpp GeneratedFiles/Debug/moc_dropdown.cpp GeneratedFiles/Debug/moc_fileuploader.cpp GeneratedFiles/Debug/moc_history.cpp GeneratedFiles/Debug/moc_historywidget.cpp GeneratedFiles/Debug/moc_layerwidget.cpp GeneratedFiles/Debug/moc_mediaview.cpp GeneratedFiles/Debug/moc_overviewwidget.cpp GeneratedFiles/Debug/moc_profilewidget.cpp GeneratedFiles/Debug/moc_passcodewidget.cpp GeneratedFiles/Debug/moc_localimageloader.cpp GeneratedFiles/Debug/moc_localstorage.cpp GeneratedFiles/Debug/moc_mainwidget.cpp GeneratedFiles/Debug/moc_settingswidget.cpp GeneratedFiles/Debug/moc_sysbuttons.cpp GeneratedFiles/Debug/moc_title.cpp GeneratedFiles/Debug/moc_types.cpp GeneratedFiles/Debug/moc_window.cpp GeneratedFiles/Debug/moc_mtp.cpp GeneratedFiles/Debug/moc_mtpConnection.cpp GeneratedFiles/Debug/moc_mtpDC.cpp GeneratedFiles/Debug/moc_mtpFileLoader.cpp GeneratedFiles/Debug/moc_mtpSession.cpp GeneratedFiles/Debug/moc_animation.cpp GeneratedFiles/Debug/moc_button.cpp GeneratedFiles/Debug/moc_contextmenu.cpp GeneratedFiles/Debug/moc_countrycodeinput.cpp GeneratedFiles/Debug/moc_countryinput.cpp GeneratedFiles/Debug/moc_flatbutton.cpp GeneratedFiles/Debug/moc_flatcheckbox.cpp GeneratedFiles/Debug/moc_flatinput.cpp GeneratedFiles/Debug/moc_flatlabel.cpp GeneratedFiles/Debug/moc_flattextarea.cpp GeneratedFiles/Debug/moc_switcher.cpp GeneratedFiles/Debug/moc_phoneinput.cpp GeneratedFiles/Debug/moc_scrollarea.cpp GeneratedFiles/Debug/moc_twidget.cpp GeneratedFiles/Debug/moc_aboutbox.cpp GeneratedFiles/Debug/moc_abstractbox.cpp GeneratedFiles/Debug/moc_addcontactbox.cpp GeneratedFiles/Debug/moc_autolockbox.cpp GeneratedFiles/Debug/moc_backgroundbox.cpp GeneratedFiles/Debug/moc_confirmbox.cpp GeneratedFiles/Debug/moc_connectionbox.cpp GeneratedFiles/Debug/moc_contactsbox.cpp GeneratedFiles/Debug/moc_downloadpathbox.cpp GeneratedFiles/Debug/moc_emojibox.cpp GeneratedFiles/Debug/moc_languagebox.cpp GeneratedFiles/Debug/moc_passcodebox.cpp GeneratedFiles/Debug/moc_photocropbox.cpp GeneratedFiles/Debug/moc_photosendbox.cpp GeneratedFiles/Debug/moc_sessionsbox.cpp GeneratedFiles/Debug/moc_usernamebox.cpp GeneratedFiles/Debug/moc_intro.cpp GeneratedFiles/Debug/moc_introcode.cpp GeneratedFiles/Debug/moc_introphone.cpp GeneratedFiles/Debug/moc_intropwdcheck.cpp GeneratedFiles/Debug/moc_introsignup.cpp GeneratedFiles/Debug/moc_pspecific_mac.cpp
+GeneratedFiles/qrc_telegram_emojis.cpp: SourceFiles/telegram_emojis.qrc \
+		SourceFiles/art/emoji.webp \
+		SourceFiles/art/emoji_150x.webp \
+		SourceFiles/art/emoji_200x.webp \
+		SourceFiles/art/emoji_250x.webp \
+		SourceFiles/art/emoji_125x.webp
+	/usr/local/Qt-5.4.0/bin/rcc -name telegram_emojis SourceFiles/telegram_emojis.qrc -o GeneratedFiles/qrc_telegram_emojis.cpp
+
+GeneratedFiles/qrc_telegram_mac.cpp: SourceFiles/telegram_mac.qrc \
+		SourceFiles/art/osxtray.png
+	/usr/local/Qt-5.4.0/bin/rcc -name telegram_mac SourceFiles/telegram_mac.qrc -o GeneratedFiles/qrc_telegram_mac.cpp
+
+compiler_moc_header_make_all: GeneratedFiles/Debug/moc_apiwrap.cpp GeneratedFiles/Debug/moc_application.cpp GeneratedFiles/Debug/moc_audio.cpp GeneratedFiles/Debug/moc_dialogswidget.cpp GeneratedFiles/Debug/moc_dropdown.cpp GeneratedFiles/Debug/moc_fileuploader.cpp GeneratedFiles/Debug/moc_history.cpp GeneratedFiles/Debug/moc_historywidget.cpp GeneratedFiles/Debug/moc_layerwidget.cpp GeneratedFiles/Debug/moc_mediaview.cpp GeneratedFiles/Debug/moc_overviewwidget.cpp GeneratedFiles/Debug/moc_profilewidget.cpp GeneratedFiles/Debug/moc_passcodewidget.cpp GeneratedFiles/Debug/moc_localimageloader.cpp GeneratedFiles/Debug/moc_localstorage.cpp GeneratedFiles/Debug/moc_mainwidget.cpp GeneratedFiles/Debug/moc_settingswidget.cpp GeneratedFiles/Debug/moc_sysbuttons.cpp GeneratedFiles/Debug/moc_title.cpp GeneratedFiles/Debug/moc_types.cpp GeneratedFiles/Debug/moc_window.cpp GeneratedFiles/Debug/moc_mtp.cpp GeneratedFiles/Debug/moc_mtpConnection.cpp GeneratedFiles/Debug/moc_mtpDC.cpp GeneratedFiles/Debug/moc_mtpFileLoader.cpp GeneratedFiles/Debug/moc_mtpSession.cpp GeneratedFiles/Debug/moc_animation.cpp GeneratedFiles/Debug/moc_button.cpp GeneratedFiles/Debug/moc_contextmenu.cpp GeneratedFiles/Debug/moc_countrycodeinput.cpp GeneratedFiles/Debug/moc_countryinput.cpp GeneratedFiles/Debug/moc_flatbutton.cpp GeneratedFiles/Debug/moc_flatcheckbox.cpp GeneratedFiles/Debug/moc_flatinput.cpp GeneratedFiles/Debug/moc_flatlabel.cpp GeneratedFiles/Debug/moc_flattextarea.cpp GeneratedFiles/Debug/moc_switcher.cpp GeneratedFiles/Debug/moc_phoneinput.cpp GeneratedFiles/Debug/moc_scrollarea.cpp GeneratedFiles/Debug/moc_twidget.cpp GeneratedFiles/Debug/moc_aboutbox.cpp GeneratedFiles/Debug/moc_abstractbox.cpp GeneratedFiles/Debug/moc_addcontactbox.cpp GeneratedFiles/Debug/moc_autolockbox.cpp GeneratedFiles/Debug/moc_backgroundbox.cpp GeneratedFiles/Debug/moc_confirmbox.cpp GeneratedFiles/Debug/moc_connectionbox.cpp GeneratedFiles/Debug/moc_contactsbox.cpp GeneratedFiles/Debug/moc_downloadpathbox.cpp GeneratedFiles/Debug/moc_emojibox.cpp GeneratedFiles/Debug/moc_languagebox.cpp GeneratedFiles/Debug/moc_passcodebox.cpp GeneratedFiles/Debug/moc_photocropbox.cpp GeneratedFiles/Debug/moc_photosendbox.cpp GeneratedFiles/Debug/moc_sessionsbox.cpp GeneratedFiles/Debug/moc_stickersetbox.cpp GeneratedFiles/Debug/moc_usernamebox.cpp GeneratedFiles/Debug/moc_intro.cpp GeneratedFiles/Debug/moc_introcode.cpp GeneratedFiles/Debug/moc_introphone.cpp GeneratedFiles/Debug/moc_intropwdcheck.cpp GeneratedFiles/Debug/moc_introsignup.cpp GeneratedFiles/Debug/moc_pspecific_mac.cpp
 compiler_moc_header_clean:
-	-$(DEL_FILE) GeneratedFiles/Debug/moc_apiwrap.cpp GeneratedFiles/Debug/moc_application.cpp GeneratedFiles/Debug/moc_audio.cpp GeneratedFiles/Debug/moc_dialogswidget.cpp GeneratedFiles/Debug/moc_dropdown.cpp GeneratedFiles/Debug/moc_fileuploader.cpp GeneratedFiles/Debug/moc_history.cpp GeneratedFiles/Debug/moc_historywidget.cpp GeneratedFiles/Debug/moc_layerwidget.cpp GeneratedFiles/Debug/moc_mediaview.cpp GeneratedFiles/Debug/moc_overviewwidget.cpp GeneratedFiles/Debug/moc_profilewidget.cpp GeneratedFiles/Debug/moc_passcodewidget.cpp GeneratedFiles/Debug/moc_localimageloader.cpp GeneratedFiles/Debug/moc_localstorage.cpp GeneratedFiles/Debug/moc_mainwidget.cpp GeneratedFiles/Debug/moc_settingswidget.cpp GeneratedFiles/Debug/moc_sysbuttons.cpp GeneratedFiles/Debug/moc_title.cpp GeneratedFiles/Debug/moc_types.cpp GeneratedFiles/Debug/moc_window.cpp GeneratedFiles/Debug/moc_mtp.cpp GeneratedFiles/Debug/moc_mtpConnection.cpp GeneratedFiles/Debug/moc_mtpDC.cpp GeneratedFiles/Debug/moc_mtpFileLoader.cpp GeneratedFiles/Debug/moc_mtpSession.cpp GeneratedFiles/Debug/moc_animation.cpp GeneratedFiles/Debug/moc_button.cpp GeneratedFiles/Debug/moc_contextmenu.cpp GeneratedFiles/Debug/moc_countrycodeinput.cpp GeneratedFiles/Debug/moc_countryinput.cpp GeneratedFiles/Debug/moc_flatbutton.cpp GeneratedFiles/Debug/moc_flatcheckbox.cpp GeneratedFiles/Debug/moc_flatinput.cpp GeneratedFiles/Debug/moc_flatlabel.cpp GeneratedFiles/Debug/moc_flattextarea.cpp GeneratedFiles/Debug/moc_switcher.cpp GeneratedFiles/Debug/moc_phoneinput.cpp GeneratedFiles/Debug/moc_scrollarea.cpp GeneratedFiles/Debug/moc_twidget.cpp GeneratedFiles/Debug/moc_aboutbox.cpp GeneratedFiles/Debug/moc_abstractbox.cpp GeneratedFiles/Debug/moc_addcontactbox.cpp GeneratedFiles/Debug/moc_autolockbox.cpp GeneratedFiles/Debug/moc_backgroundbox.cpp GeneratedFiles/Debug/moc_confirmbox.cpp GeneratedFiles/Debug/moc_connectionbox.cpp GeneratedFiles/Debug/moc_contactsbox.cpp GeneratedFiles/Debug/moc_downloadpathbox.cpp GeneratedFiles/Debug/moc_emojibox.cpp GeneratedFiles/Debug/moc_languagebox.cpp GeneratedFiles/Debug/moc_passcodebox.cpp GeneratedFiles/Debug/moc_photocropbox.cpp GeneratedFiles/Debug/moc_photosendbox.cpp GeneratedFiles/Debug/moc_sessionsbox.cpp GeneratedFiles/Debug/moc_usernamedbox.cpp GeneratedFiles/Debug/moc_intro.cpp GeneratedFiles/Debug/moc_introcode.cpp GeneratedFiles/Debug/moc_introphone.cpp GeneratedFiles/Debug/moc_intropwdcheck.cpp GeneratedFiles/Debug/moc_introsignup.cpp GeneratedFiles/Debug/moc_pspecific_mac.cpp
+	-$(DEL_FILE) GeneratedFiles/Debug/moc_apiwrap.cpp GeneratedFiles/Debug/moc_application.cpp GeneratedFiles/Debug/moc_audio.cpp GeneratedFiles/Debug/moc_dialogswidget.cpp GeneratedFiles/Debug/moc_dropdown.cpp GeneratedFiles/Debug/moc_fileuploader.cpp GeneratedFiles/Debug/moc_history.cpp GeneratedFiles/Debug/moc_historywidget.cpp GeneratedFiles/Debug/moc_layerwidget.cpp GeneratedFiles/Debug/moc_mediaview.cpp GeneratedFiles/Debug/moc_overviewwidget.cpp GeneratedFiles/Debug/moc_profilewidget.cpp GeneratedFiles/Debug/moc_passcodewidget.cpp GeneratedFiles/Debug/moc_localimageloader.cpp GeneratedFiles/Debug/moc_localstorage.cpp GeneratedFiles/Debug/moc_mainwidget.cpp GeneratedFiles/Debug/moc_settingswidget.cpp GeneratedFiles/Debug/moc_sysbuttons.cpp GeneratedFiles/Debug/moc_title.cpp GeneratedFiles/Debug/moc_types.cpp GeneratedFiles/Debug/moc_window.cpp GeneratedFiles/Debug/moc_mtp.cpp GeneratedFiles/Debug/moc_mtpConnection.cpp GeneratedFiles/Debug/moc_mtpDC.cpp GeneratedFiles/Debug/moc_mtpFileLoader.cpp GeneratedFiles/Debug/moc_mtpSession.cpp GeneratedFiles/Debug/moc_animation.cpp GeneratedFiles/Debug/moc_button.cpp GeneratedFiles/Debug/moc_contextmenu.cpp GeneratedFiles/Debug/moc_countrycodeinput.cpp GeneratedFiles/Debug/moc_countryinput.cpp GeneratedFiles/Debug/moc_flatbutton.cpp GeneratedFiles/Debug/moc_flatcheckbox.cpp GeneratedFiles/Debug/moc_flatinput.cpp GeneratedFiles/Debug/moc_flatlabel.cpp GeneratedFiles/Debug/moc_flattextarea.cpp GeneratedFiles/Debug/moc_switcher.cpp GeneratedFiles/Debug/moc_phoneinput.cpp GeneratedFiles/Debug/moc_scrollarea.cpp GeneratedFiles/Debug/moc_twidget.cpp GeneratedFiles/Debug/moc_aboutbox.cpp GeneratedFiles/Debug/moc_abstractbox.cpp GeneratedFiles/Debug/moc_addcontactbox.cpp GeneratedFiles/Debug/moc_autolockbox.cpp GeneratedFiles/Debug/moc_backgroundbox.cpp GeneratedFiles/Debug/moc_confirmbox.cpp GeneratedFiles/Debug/moc_connectionbox.cpp GeneratedFiles/Debug/moc_contactsbox.cpp GeneratedFiles/Debug/moc_downloadpathbox.cpp GeneratedFiles/Debug/moc_emojibox.cpp GeneratedFiles/Debug/moc_languagebox.cpp GeneratedFiles/Debug/moc_passcodebox.cpp GeneratedFiles/Debug/moc_photocropbox.cpp GeneratedFiles/Debug/moc_photosendbox.cpp GeneratedFiles/Debug/moc_sessionsbox.cpp GeneratedFiles/Debug/moc_stickersetbox.cpp GeneratedFiles/Debug/moc_usernamedbox.cpp GeneratedFiles/Debug/moc_intro.cpp GeneratedFiles/Debug/moc_introcode.cpp GeneratedFiles/Debug/moc_introphone.cpp GeneratedFiles/Debug/moc_intropwdcheck.cpp GeneratedFiles/Debug/moc_introsignup.cpp GeneratedFiles/Debug/moc_pspecific_mac.cpp
 GeneratedFiles/Debug/moc_apiwrap.cpp: SourceFiles/types.h \
 		SourceFiles/logs.h \
 		SourceFiles/apiwrap.h
@@ -563,6 +568,12 @@ GeneratedFiles/Debug/moc_sessionsbox.cpp: SourceFiles/boxes/abstractbox.h \
 		SourceFiles/localimageloader.h \
 		SourceFiles/boxes/sessionsbox.h
 	/usr/local/Qt-5.4.0/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.4.0/mkspecs/macx-clang -I. -I/usr/local/Qt-5.4.0/include/QtGui/5.4.0/QtGui -I/usr/local/Qt-5.4.0/include/QtCore/5.4.0/QtCore -I/usr/local/Qt-5.4.0/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.4.0/include -I/usr/local/Qt-5.4.0/include/QtMultimedia -I/usr/local/Qt-5.4.0/include/QtWidgets -I/usr/local/Qt-5.4.0/include/QtNetwork -I/usr/local/Qt-5.4.0/include/QtGui -I/usr/local/Qt-5.4.0/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/boxes/sessionsbox.h -o GeneratedFiles/Debug/moc_sessionsbox.cpp
+
+GeneratedFiles/Debug/moc_stickersetbox.cpp: SourceFiles/boxes/abstractbox.h \
+		SourceFiles/gui/boxshadow.h \
+		SourceFiles/localimageloader.h \
+		SourceFiles/boxes/stickersetbox.h
+	/usr/local/Qt-5.4.0/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.4.0/mkspecs/macx-clang -I. -I/usr/local/Qt-5.4.0/include/QtGui/5.4.0/QtGui -I/usr/local/Qt-5.4.0/include/QtCore/5.4.0/QtCore -I/usr/local/Qt-5.4.0/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.4.0/include -I/usr/local/Qt-5.4.0/include/QtMultimedia -I/usr/local/Qt-5.4.0/include/QtWidgets -I/usr/local/Qt-5.4.0/include/QtNetwork -I/usr/local/Qt-5.4.0/include/QtGui -I/usr/local/Qt-5.4.0/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/boxes/stickersetbox.h -o GeneratedFiles/Debug/moc_stickersetbox.cpp
 
 GeneratedFiles/Debug/moc_usernamebox.cpp: SourceFiles/boxes/abstractbox.h \
 		SourceFiles/gui/boxshadow.h \

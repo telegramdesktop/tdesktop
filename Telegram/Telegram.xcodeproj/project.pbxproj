@@ -40,6 +40,8 @@
 		06EABCC49D2EEE4076322BE7 /* moc_mtp.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 924D4939FD169BB4B8AEB1C9 /* moc_mtp.cpp */; settings = {ATTRIBUTES = (); }; };
 		07080BCF1A43588C00741A51 /* lang_auto.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07080BCD1A43588C00741A51 /* lang_auto.cpp */; };
 		07080BD21A436A5000741A51 /* lang.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07080BD01A436A5000741A51 /* lang.cpp */; };
+		0710C9FE1B0B9376001B4272 /* stickersetbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0710C9FC1B0B9376001B4272 /* stickersetbox.cpp */; };
+		0710CA051B0B9404001B4272 /* moc_stickersetbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0710CA041B0B9404001B4272 /* moc_stickersetbox.cpp */; };
 		0732E4A9199E262300D50FE7 /* overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4A7199E262300D50FE7 /* overviewwidget.cpp */; };
 		0732E4AC199E268A00D50FE7 /* moc_overviewwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0732E4AB199E268A00D50FE7 /* moc_overviewwidget.cpp */; };
 		074756191A1372C600CA07F7 /* moc_types.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 074756181A1372C600CA07F7 /* moc_types.cpp */; };
@@ -58,10 +60,15 @@
 		078A2FCD1A811CA600CCC7A0 /* backgroundbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 078A2FCB1A811CA600CCC7A0 /* backgroundbox.cpp */; };
 		07A69332199277BA0099CB9F /* mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A69330199277BA0099CB9F /* mediaview.cpp */; };
 		07A6933519927B160099CB9F /* moc_mediaview.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07A6933419927B160099CB9F /* moc_mediaview.cpp */; };
+		07AF95F41AFD03B90060B057 /* qrc_telegram_emojis.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07AF95F21AFD03B90060B057 /* qrc_telegram_emojis.cpp */; };
+		07AF95F51AFD03B90060B057 /* qrc_telegram_mac.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07AF95F31AFD03B90060B057 /* qrc_telegram_mac.cpp */; };
+		07AF95F91AFD03C80060B057 /* telegram_emojis.qrc in Resources */ = {isa = PBXBuildFile; fileRef = 07AF95F71AFD03C80060B057 /* telegram_emojis.qrc */; };
+		07AF95FA1AFD03C80060B057 /* telegram_mac.qrc in Resources */ = {isa = PBXBuildFile; fileRef = 07AF95F81AFD03C80060B057 /* telegram_mac.qrc */; };
 		07BE850F1A2093C9008ACB9F /* localstorage.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07BE850D1A2093C9008ACB9F /* localstorage.cpp */; };
 		07BE85121A20961F008ACB9F /* moc_localstorage.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07BE85111A20961F008ACB9F /* moc_localstorage.cpp */; };
 		07C4753B1967DF1C00CAAFE9 /* switcher.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C475391967DF1C00CAAFE9 /* switcher.cpp */; };
 		07C4753F1967E37300CAAFE9 /* moc_switcher.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */; };
+		07CAACD81AEA64F00058E508 /* AudioUnit.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 07CAACD71AEA64F00058E508 /* AudioUnit.framework */; };
 		07D7034B19B8755A00C4EED2 /* audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D7034919B8755A00C4EED2 /* audio.cpp */; };
 		07D703BB19B88FB900C4EED2 /* moc_audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D703BA19B88FB900C4EED2 /* moc_audio.cpp */; };
 		07D7EABA1A597DD000838BA2 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 07D7EABC1A597DD000838BA2 /* Localizable.strings */; };
@@ -92,7 +99,6 @@
 		1DF53374E3B6A31661548D08 /* historywidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = A83D2C19F756D3371E5999A8 /* historywidget.cpp */; settings = {ATTRIBUTES = (); }; };
 		26A81090DC8B5BCF7278FDFF /* qrc_telegram.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = D6FF6676816C4E374D374060 /* qrc_telegram.cpp */; settings = {ATTRIBUTES = (); }; };
 		298BFAB73BF182297584F96F /* contactsbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 8C800AAC9549E6E9E7046BED /* contactsbox.cpp */; settings = {ATTRIBUTES = (); }; };
-		2A20C3BF118707980A2493E1 /* qtmultimedia_m3u in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 4EC011DBE92DD1FD208D94D2 /* qtmultimedia_m3u */; };
 		2A500B102B7CE80F3EB6E13E /* moc_mtpFileLoader.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 5591A965D1DC024FBDB40151 /* moc_mtpFileLoader.cpp */; settings = {ATTRIBUTES = (); }; };
 		2EF5D0AC9A18F9FE9B8A1ACA /* moc_introsignup.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 58A7114F60E7D09E73283983 /* moc_introsignup.cpp */; settings = {ATTRIBUTES = (); }; };
 		328FD74542F6E2C873EE4D4B /* ApplicationServices.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = DFD7912080BC557230093752 /* ApplicationServices.framework */; };
@@ -116,7 +122,6 @@
 		4FEA8F51B7BC7CAC71347A1A /* connectionbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 51355181C0E6689B0B764543 /* connectionbox.cpp */; settings = {ATTRIBUTES = (); }; };
 		5058CB9D7BFFCE9F404A3700 /* Qt5Network in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 6700DD555BF1C0FC338FB959 /* Qt5Network */; };
 		565F748438E6CE0148C54AFE /* moc_flatinput.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 1E5EEB5782B6357057356F9E /* moc_flatinput.cpp */; settings = {ATTRIBUTES = (); }; };
-		597623A24AE744145BE84968 /* qtmedia_audioengine in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = A490341D0650372A5757B367 /* qtmedia_audioengine */; };
 		59789101736112A570B8EFE6 /* qjp2 in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = F0681BC551FC8A2B132FC646 /* qjp2 */; };
 		5CE57D44510AB2A11886AB52 /* title.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 2BB2A1BB8DB0993F78F4E3C7 /* title.cpp */; settings = {ATTRIBUTES = (); }; };
 		5FC914F652D1B16FDA8F0634 /* moc_contactsbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 26083D8E535AFF927591E1A5 /* moc_contactsbox.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -156,7 +161,6 @@
 		99F0A9B2AFE5ABDCBFC04510 /* mtpRPC.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 89F92B278CA31C393E245056 /* mtpRPC.cpp */; settings = {ATTRIBUTES = (); }; };
 		9A0D5DDC7816FC2538EB6A96 /* moc_window.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 6B46A0EE3C3B9D3B5A24946E /* moc_window.cpp */; settings = {ATTRIBUTES = (); }; };
 		9A523F51135FD4E2464673A6 /* moc_mtpSession.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 63AF8520023B4EA40306CB03 /* moc_mtpSession.cpp */; settings = {ATTRIBUTES = (); }; };
-		9B6E32D1B74A14273D68E439 /* Qt5MultimediaWidgets in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 833B45FEF5DC4AD0E8ADA64A /* Qt5MultimediaWidgets */; };
 		9D294F23E02CFDF22C288382 /* moc_emojibox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0C0DC15EB416789673526AA5 /* moc_emojibox.cpp */; settings = {ATTRIBUTES = (); }; };
 		9F33AC0693BC81B27D8F518D /* Qt5Gui in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 04391BE7A8B9D811E255100A /* Qt5Gui */; };
 		A0A6B97F7DBEC81004EC9461 /* confirmbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 6610564B876E47D289A596DB /* confirmbox.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -169,7 +173,6 @@
 		ADE99904299B99EB6135E8D9 /* scrollarea.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 6E1859D714E4471E053D90C9 /* scrollarea.cpp */; settings = {ATTRIBUTES = (); }; };
 		B0B88EFE444C0DE673389418 /* moc_flatbutton.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = C9FFCCE4FCB845744636795F /* moc_flatbutton.cpp */; settings = {ATTRIBUTES = (); }; };
 		B2F5B08BFFBBE7E37D3863BB /* moc_button.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 46292F489228B60010794CE4 /* moc_button.cpp */; settings = {ATTRIBUTES = (); }; };
-		B3C3392253201C328D9C6736 /* qtaudio_coreaudio in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 3BBB805F6180E363BF89151A /* qtaudio_coreaudio */; };
 		B3CD52E504409DC1B560024F /* countrycodeinput.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 751C8D0E0BE6D16937B77A2C /* countrycodeinput.cpp */; settings = {ATTRIBUTES = (); }; };
 		B460F624007324313696BE86 /* QuartzCore.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 7EC00404ACD5AB0E97726B0E /* QuartzCore.framework */; };
 		B6346B66B0A2228A91D8A5D9 /* mtpDC.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 315C7FACB4A9E18AA95486CA /* mtpDC.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -185,11 +188,9 @@
 		BE6AB9DF1C4880624131C669 /* Qt5Widgets in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 4689C06178B60B84E7F3A3B7 /* Qt5Widgets */; };
 		C03447C9A7D9FF73463B8BB5 /* countryinput.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 3E329D4547CC23585307FA32 /* countryinput.cpp */; settings = {ATTRIBUTES = (); }; };
 		C06DDE378A7AC1FA9E6FF69A /* qtiff in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = F2453BA07315EB9F34F1CD57 /* qtiff */; };
-		C0D2E925FB8B08D9AA280753 /* Qt5Multimedia in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 112159B026FDEF9CD4E24175 /* Qt5Multimedia */; };
 		C14E6C902F6435B3149ECD64 /* moc_profilewidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 48003469151B9DDE82E851FB /* moc_profilewidget.cpp */; settings = {ATTRIBUTES = (); }; };
 		C1F9D5CA8AF3AD8EBC9D7310 /* moc_application.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = E181C525E21A16F2D4396CA7 /* moc_application.cpp */; settings = {ATTRIBUTES = (); }; };
 		C329997D36D34D568CE16C9A /* moc_animation.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = A1479F94376F9732B57C69DB /* moc_animation.cpp */; settings = {ATTRIBUTES = (); }; };
-		C9CC5CE020283D113D81179C /* Qt5OpenGL in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = AA5379CB06E908AC80BE7B82 /* Qt5OpenGL */; };
 		CCA737EE379CDB10CC9A0F23 /* AVFoundation.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 21F907AB8D19BD779147A085 /* AVFoundation.framework */; };
 		CDB0266A8B7CB20A95266BCD /* emoji_config.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = B3062303CE8F4EB9325CB3DC /* emoji_config.cpp */; settings = {ATTRIBUTES = (); }; };
 		D0EECF370C58DDCACBC71BAD /* CoreWLAN.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = F26998DF735BCE5F975508ED /* CoreWLAN.framework */; };
@@ -201,7 +202,6 @@
 		D7EF8F129FCCE9AB3F3F081F /* button.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 4D55B83DFDFE3D492CDBD27A /* button.cpp */; settings = {ATTRIBUTES = (); }; };
 		D846C6F212B438DC2FD5FF71 /* moc_dialogswidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 3B3ED09AB00290D78CF1181B /* moc_dialogswidget.cpp */; settings = {ATTRIBUTES = (); }; };
 		D87463318C8E5211C8C8670A /* stdafx.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 5A5431331A13AA7B07414240 /* stdafx.cpp */; settings = {ATTRIBUTES = (); }; };
-		DAD6F5593C3427F014531342 /* AudioUnit.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 186D09F4CB713AD4B8BDD260 /* AudioUnit.framework */; };
 		DE6A34CA3A5561888FA01AF1 /* flatlabel.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 763ED3C6815ED6C89E352652 /* flatlabel.cpp */; settings = {ATTRIBUTES = (); }; };
 		DF259E9677CC63AF8754032B /* mtpConnection.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = B8D9AFA42E8633154A9817A2 /* mtpConnection.cpp */; settings = {ATTRIBUTES = (); }; };
 		DF36EA42D67ED39E58CB7DF9 /* settings.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 8A28F7789408AA839F48A5F2 /* settings.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -215,7 +215,6 @@
 		EBA5E17368D2BBC6014E92B9 /* qcorewlanbearer in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = EE03BC5CA4628A6D6BEB0122 /* qcorewlanbearer */; };
 		EBE29731916DB43BF49FE7A4 /* aboutbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = C194EDD00F76216057D48A5C /* aboutbox.cpp */; settings = {ATTRIBUTES = (); }; };
 		ED2557A57C6782721DC494AF /* moc_connectionbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = FEC58F9D8A0963E5A9D4BE6F /* moc_connectionbox.cpp */; settings = {ATTRIBUTES = (); }; };
-		EEBE9C2FA7C9F066508EF99B /* qavfmediaplayer in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = EDD43CF4FA85D97A1140E973 /* qavfmediaplayer */; };
 		F26454630C80841CBDCFE1CA /* Foundation.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = FCC237CA5AD60B9BA4447615 /* Foundation.framework */; };
 		F278C423357CA99797EA30AB /* photosendbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = D1C9C77F1318F5A55C9BF289 /* photosendbox.cpp */; settings = {ATTRIBUTES = (); }; };
 		F2A75ACAC9DF6A3F4E5711E7 /* AppKit.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 723F90793B2C195E2CCB2233 /* AppKit.framework */; };
@@ -267,6 +266,9 @@
 		07080BD01A436A5000741A51 /* lang.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = lang.cpp; path = SourceFiles/lang.cpp; sourceTree = SOURCE_ROOT; };
 		07080BD11A436A5000741A51 /* lang.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = lang.h; path = SourceFiles/lang.h; sourceTree = SOURCE_ROOT; };
 		07084684195445A600B5AE3A /* Updater.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = Updater.xcodeproj; sourceTree = SOURCE_ROOT; };
+		0710C9FC1B0B9376001B4272 /* stickersetbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = stickersetbox.cpp; path = SourceFiles/boxes/stickersetbox.cpp; sourceTree = SOURCE_ROOT; };
+		0710C9FD1B0B9376001B4272 /* stickersetbox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stickersetbox.h; path = SourceFiles/boxes/stickersetbox.h; sourceTree = SOURCE_ROOT; };
+		0710CA041B0B9404001B4272 /* moc_stickersetbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_stickersetbox.cpp; path = GeneratedFiles/Debug/moc_stickersetbox.cpp; sourceTree = SOURCE_ROOT; };
 		072E117A1A56EB9400A87ACC /* lang_pt_BR.strings */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.strings; name = lang_pt_BR.strings; path = SourceFiles/langs/lang_pt_BR.strings; sourceTree = SOURCE_ROOT; };
 		0732E4A7199E262300D50FE7 /* overviewwidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = overviewwidget.cpp; path = SourceFiles/overviewwidget.cpp; sourceTree = SOURCE_ROOT; };
 		0732E4A8199E262300D50FE7 /* overviewwidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = overviewwidget.h; path = SourceFiles/overviewwidget.h; sourceTree = SOURCE_ROOT; };
@@ -299,6 +301,10 @@
 		07A69330199277BA0099CB9F /* mediaview.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mediaview.cpp; path = SourceFiles/mediaview.cpp; sourceTree = SOURCE_ROOT; };
 		07A69331199277BA0099CB9F /* mediaview.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = mediaview.h; path = SourceFiles/mediaview.h; sourceTree = SOURCE_ROOT; };
 		07A6933419927B160099CB9F /* moc_mediaview.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_mediaview.cpp; path = GeneratedFiles/Debug/moc_mediaview.cpp; sourceTree = SOURCE_ROOT; };
+		07AF95F21AFD03B90060B057 /* qrc_telegram_emojis.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = qrc_telegram_emojis.cpp; path = GeneratedFiles/qrc_telegram_emojis.cpp; sourceTree = SOURCE_ROOT; };
+		07AF95F31AFD03B90060B057 /* qrc_telegram_mac.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = qrc_telegram_mac.cpp; path = GeneratedFiles/qrc_telegram_mac.cpp; sourceTree = SOURCE_ROOT; };
+		07AF95F71AFD03C80060B057 /* telegram_emojis.qrc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = telegram_emojis.qrc; path = SourceFiles/telegram_emojis.qrc; sourceTree = SOURCE_ROOT; };
+		07AF95F81AFD03C80060B057 /* telegram_mac.qrc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = telegram_mac.qrc; path = SourceFiles/telegram_mac.qrc; sourceTree = SOURCE_ROOT; };
 		07BE850D1A2093C9008ACB9F /* localstorage.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = localstorage.cpp; path = SourceFiles/localstorage.cpp; sourceTree = SOURCE_ROOT; };
 		07BE850E1A2093C9008ACB9F /* localstorage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = localstorage.h; path = SourceFiles/localstorage.h; sourceTree = SOURCE_ROOT; };
 		07BE85111A20961F008ACB9F /* moc_localstorage.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_localstorage.cpp; path = GeneratedFiles/Debug/moc_localstorage.cpp; sourceTree = SOURCE_ROOT; };
@@ -309,6 +315,7 @@
 		07C475391967DF1C00CAAFE9 /* switcher.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = switcher.cpp; path = SourceFiles/gui/switcher.cpp; sourceTree = SOURCE_ROOT; };
 		07C4753A1967DF1C00CAAFE9 /* switcher.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = switcher.h; path = SourceFiles/gui/switcher.h; sourceTree = SOURCE_ROOT; };
 		07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_switcher.cpp; path = GeneratedFiles/Debug/moc_switcher.cpp; sourceTree = SOURCE_ROOT; };
+		07CAACD71AEA64F00058E508 /* AudioUnit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioUnit.framework; path = System/Library/Frameworks/AudioUnit.framework; sourceTree = SDKROOT; };
 		07D7034919B8755A00C4EED2 /* audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = audio.cpp; path = SourceFiles/audio.cpp; sourceTree = SOURCE_ROOT; };
 		07D7034A19B8755A00C4EED2 /* audio.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = audio.h; path = SourceFiles/audio.h; sourceTree = SOURCE_ROOT; };
 		07D703BA19B88FB900C4EED2 /* moc_audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_audio.cpp; path = GeneratedFiles/Debug/moc_audio.cpp; sourceTree = SOURCE_ROOT; };
@@ -691,6 +698,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				07CAACD81AEA64F00058E508 /* AudioUnit.framework in Link Binary With Libraries */,
 				1BB705CDB741E2B7450201A5 /* Cocoa.framework in Link Binary With Libraries */,
 				328FD74542F6E2C873EE4D4B /* ApplicationServices.framework in Link Binary With Libraries */,
 				668DDDA0C55405E7FCFD6CA5 /* CoreServices.framework in Link Binary With Libraries */,
@@ -707,14 +715,6 @@
 				CCA737EE379CDB10CC9A0F23 /* AVFoundation.framework in Link Binary With Libraries */,
 				B78304F135DEF1F7A68393A6 /* CoreMedia.framework in Link Binary With Libraries */,
 				F2A75ACAC9DF6A3F4E5711E7 /* AppKit.framework in Link Binary With Libraries */,
-				DAD6F5593C3427F014531342 /* AudioUnit.framework in Link Binary With Libraries */,
-				EEBE9C2FA7C9F066508EF99B /* qavfmediaplayer in Link Binary With Libraries */,
-				9B6E32D1B74A14273D68E439 /* Qt5MultimediaWidgets in Link Binary With Libraries */,
-				C9CC5CE020283D113D81179C /* Qt5OpenGL in Link Binary With Libraries */,
-				597623A24AE744145BE84968 /* qtmedia_audioengine in Link Binary With Libraries */,
-				B3C3392253201C328D9C6736 /* qtaudio_coreaudio in Link Binary With Libraries */,
-				2A20C3BF118707980A2493E1 /* qtmultimedia_m3u in Link Binary With Libraries */,
-				C0D2E925FB8B08D9AA280753 /* Qt5Multimedia in Link Binary With Libraries */,
 				EBA5E17368D2BBC6014E92B9 /* qcorewlanbearer in Link Binary With Libraries */,
 				D0EECF370C58DDCACBC71BAD /* CoreWLAN.framework in Link Binary With Libraries */,
 				8883FF366F2623E89D90A9E6 /* qgenericbearer in Link Binary With Libraries */,
@@ -1103,6 +1103,7 @@
 		801973D3334D0FCA849CF485 /* Debug */ = {
 			isa = PBXGroup;
 			children = (
+				0710CA041B0B9404001B4272 /* moc_stickersetbox.cpp */,
 				0755AEDA1AD12A80004D738A /* moc_abstractbox.cpp */,
 				0755AEDB1AD12A80004D738A /* moc_intropwdcheck.cpp */,
 				0755AEDC1AD12A80004D738A /* moc_sessionsbox.cpp */,
@@ -1187,6 +1188,7 @@
 				E908A6C86F93FA27DF70866C /* photocropbox.cpp */,
 				D1C9C77F1318F5A55C9BF289 /* photosendbox.cpp */,
 				07DB674B1AD07C9200A51329 /* sessionsbox.cpp */,
+				0710C9FC1B0B9376001B4272 /* stickersetbox.cpp */,
 				07D8509719F8320900623D75 /* usernamebox.cpp */,
 				143405635D04698F421A12EA /* aboutbox.h */,
 				07DB674A1AD07C9200A51329 /* abstractbox.h */,
@@ -1203,6 +1205,7 @@
 				14437BFDCD58FF1742EF1B35 /* photocropbox.h */,
 				0BDE09020E45EFA57DCB2E25 /* photosendbox.h */,
 				07DB674C1AD07C9200A51329 /* sessionsbox.h */,
+				0710C9FD1B0B9376001B4272 /* stickersetbox.h */,
 				07D8509819F8320900623D75 /* usernamebox.h */,
 			);
 			name = boxes;
@@ -1211,6 +1214,7 @@
 		AF39DD055C3EF8226FBE929D /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				07CAACD71AEA64F00058E508 /* AudioUnit.framework */,
 				07055CC3194EE85B0008DEF6 /* libcrypto.a */,
 				AEA456A2F75ED9F5CDA7BCBE /* Cocoa.framework */,
 				4AF15B5A0A43EB62D6DAF211 /* libexif.a */,
@@ -1269,6 +1273,8 @@
 		D0B536A85E53302E4F66CE23 /* GeneratedFiles */ = {
 			isa = PBXGroup;
 			children = (
+				07AF95F21AFD03B90060B057 /* qrc_telegram_emojis.cpp */,
+				07AF95F31AFD03B90060B057 /* qrc_telegram_mac.cpp */,
 				D6FF6676816C4E374D374060 /* qrc_telegram.cpp */,
 				801973D3334D0FCA849CF485 /* Debug */,
 			);
@@ -1290,6 +1296,8 @@
 				07080BCB1A4357F300741A51 /* lang.strings */,
 				07C3AF2919433ABF0016CFF1 /* style_classes.txt */,
 				07C3AF2A19433ABF0016CFF1 /* style.txt */,
+				07AF95F71AFD03C80060B057 /* telegram_emojis.qrc */,
+				07AF95F81AFD03C80060B057 /* telegram_mac.qrc */,
 				1292B92B4848460640F6A391 /* telegram.qrc */,
 			);
 			name = Telegram;
@@ -1334,7 +1342,7 @@
 		6DB9C3763D02B1415CD9D565 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0610;
+				LastUpgradeCheck = 0630;
 				TargetAttributes = {
 					7CCA95B9FCAD34D929431AD6 = {
 						DevelopmentTeam = 6N38VWS5BX;
@@ -1392,7 +1400,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				0749CE69194D723400345D61 /* Images.xcassets in Resources */,
+				07AF95FA1AFD03C80060B057 /* telegram_mac.qrc in Resources */,
 				07D7EABA1A597DD000838BA2 /* Localizable.strings in Resources */,
+				07AF95F91AFD03C80060B057 /* telegram_emojis.qrc in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1565,6 +1575,7 @@
 				8B22E794EFF0EAFF964A3043 /* introsteps.cpp in Compile Sources */,
 				74343521EECC740F777DAFE6 /* pspecific_mac.cpp in Compile Sources */,
 				26A81090DC8B5BCF7278FDFF /* qrc_telegram.cpp in Compile Sources */,
+				07AF95F51AFD03B90060B057 /* qrc_telegram_mac.cpp in Compile Sources */,
 				C1F9D5CA8AF3AD8EBC9D7310 /* moc_application.cpp in Compile Sources */,
 				D846C6F212B438DC2FD5FF71 /* moc_dialogswidget.cpp in Compile Sources */,
 				6C79FBC5CFA36AC3EA6ABBD4 /* moc_dropdown.cpp in Compile Sources */,
@@ -1575,6 +1586,7 @@
 				074756191A1372C600CA07F7 /* moc_types.cpp in Compile Sources */,
 				98E4F55DB5D8E64AB9F08C83 /* moc_localimageloader.cpp in Compile Sources */,
 				A24E4B5B683764E07683ECEC /* moc_mainwidget.cpp in Compile Sources */,
+				0710CA051B0B9404001B4272 /* moc_stickersetbox.cpp in Compile Sources */,
 				07DE92A71AA4925B00A18F6F /* autolockbox.cpp in Compile Sources */,
 				07D8509919F8320900623D75 /* usernamebox.cpp in Compile Sources */,
 				A469EC9C4C367E0B773A9BB7 /* moc_settingswidget.cpp in Compile Sources */,
@@ -1603,6 +1615,7 @@
 				1BD711B4C358EA7D727BF358 /* moc_flatcheckbox.cpp in Compile Sources */,
 				565F748438E6CE0148C54AFE /* moc_flatinput.cpp in Compile Sources */,
 				8B71D1C7BB9DCEE6511219C2 /* moc_flatlabel.cpp in Compile Sources */,
+				0710C9FE1B0B9376001B4272 /* stickersetbox.cpp in Compile Sources */,
 				0764D55D1ABAD71B00FBFEED /* moc_apiwrap.cpp in Compile Sources */,
 				07DE92AD1AA4928B00A18F6F /* moc_passcodebox.cpp in Compile Sources */,
 				FCC949FEA178F9F5D7478027 /* moc_flattextarea.cpp in Compile Sources */,
@@ -1617,6 +1630,7 @@
 				5FC914F652D1B16FDA8F0634 /* moc_contactsbox.cpp in Compile Sources */,
 				074968D01A44D14C00394F46 /* languagebox.cpp in Compile Sources */,
 				07BE85121A20961F008ACB9F /* moc_localstorage.cpp in Compile Sources */,
+				07AF95F41AFD03B90060B057 /* qrc_telegram_emojis.cpp in Compile Sources */,
 				07DB674E1AD07C9200A51329 /* sessionsbox.cpp in Compile Sources */,
 				49C3C1BF153F7FC078A25CE4 /* moc_downloadpathbox.cpp in Compile Sources */,
 				9D294F23E02CFDF22C288382 /* moc_emojibox.cpp in Compile Sources */,
@@ -1673,7 +1687,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.8.3;
+				CURRENT_PROJECT_VERSION = 0.8.16;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -1691,7 +1705,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 0.8.3;
+				CURRENT_PROJECT_VERSION = 0.8.16;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
@@ -1717,14 +1731,15 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.8.3;
+				CURRENT_PROJECT_VERSION = 0.8.16;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DYLIB_COMPATIBILITY_VERSION = 0.8;
-				DYLIB_CURRENT_VERSION = 0.8.3;
+				DYLIB_CURRENT_VERSION = 0.8.16;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = SourceFiles/stdafx.h;
@@ -1858,14 +1873,15 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.8.3;
+				CURRENT_PROJECT_VERSION = 0.8.16;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 0.8;
-				DYLIB_CURRENT_VERSION = 0.8.3;
+				DYLIB_CURRENT_VERSION = 0.8.16;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = SourceFiles/stdafx.h;
