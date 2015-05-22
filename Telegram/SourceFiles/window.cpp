@@ -57,7 +57,7 @@ void ConnectingWidget::set(const QString &text, const QString &reconnect) {
 void ConnectingWidget::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
-	_shadow.paint(p, QRect(0, st::boxShadow.pxHeight(), width() - st::boxShadow.pxWidth(), height() - st::boxShadow.pxHeight()), QPoint(0, 0), BoxShadow::Top | BoxShadow::Right);
+	_shadow.paint(p, QRect(0, st::boxShadow.pxHeight(), width() - st::boxShadow.pxWidth(), height() - st::boxShadow.pxHeight()), 0, BoxShadow::Top | BoxShadow::Right);
 	p.fillRect(0, st::boxShadow.pxHeight(), width() - st::boxShadow.pxWidth(), height() - st::boxShadow.pxHeight(), st::connectingBG->b);
 	p.setFont(st::linkFont->f);
 	p.setPen(st::connectingColor->p);

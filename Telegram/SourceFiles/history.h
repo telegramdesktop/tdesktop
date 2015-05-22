@@ -34,7 +34,6 @@ extern TextParseOptions _textNameOptions, _textDlgOptions;
 
 #include "structs.h"
 
-
 struct History;
 struct Histories : public QHash<PeerId, History*>, public Animated {
 	typedef QHash<PeerId, History*> Parent;

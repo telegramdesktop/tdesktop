@@ -144,7 +144,7 @@ void ContextMenu::paintEvent(QPaintEvent *e) {
 
 	QRect r(_st.padding.left(), _st.padding.top(), _width - _st.padding.left() - _st.padding.right(), _height - _st.padding.top() - _st.padding.bottom());
 	// draw shadow
-	_shadow.paint(p, r);
+	_shadow.paint(p, r, _st.shadowShift);
 }
 
 void ContextMenu::keyPressEvent(QKeyEvent *e) {

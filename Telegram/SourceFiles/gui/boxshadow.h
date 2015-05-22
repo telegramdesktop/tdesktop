@@ -27,14 +27,14 @@ public:
 		Bottom = 8
 	};
 
-	BoxShadow(const style::rect &topLeft);
+	BoxShadow(const style::sprite &topLeft);
 
-	void paint(QPainter &p, const QRect &box, const QPoint &shift = QPoint(0, 1), int32 flags = Left | Top | Right | Bottom);
+	void paint(QPainter &p, const QRect &box, int32 shifty, int32 flags = Left | Top | Right | Bottom);
 
 private:
 
-	int32 _size;
-	QPixmap _corners;
+	int32 _size, _pixsize;
+	QPixmap _corners, _left, _top, _right, _bottom;
 	QVector<style::color> _colors;
 
 };

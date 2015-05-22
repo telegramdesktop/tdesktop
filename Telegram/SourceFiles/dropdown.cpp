@@ -120,7 +120,7 @@ void Dropdown::paintEvent(QPaintEvent *e) {
 
 	// draw shadow
 	QRect r(_st.padding.left(), _st.padding.top(), _width - _st.padding.left() - _st.padding.right(), _height - _st.padding.top() - _st.padding.bottom());
-	_shadow.paint(p, r);
+	_shadow.paint(p, r, _st.shadowShift);
 
 	if (!_buttons.isEmpty() && _st.border > 0) { // paint separators
 		p.setPen(_st.borderColor->p);
@@ -308,7 +308,7 @@ bool Dropdown::eventFilter(QObject *obj, QEvent *e) {
 }
 
 DragArea::DragArea(QWidget *parent) : TWidget(parent),
-	_hiding(false), _in(false), a_opacity(0), a_color(st::dragColor->c), _shadow(st::boxShadow) {
+_hiding(false), _in(false), a_opacity(0), a_color(st::dragColor->c), _shadow(st::boxShadow) {
 	setMouseTracking(true);
 	setAcceptDrops(true);
 }
@@ -354,7 +354,7 @@ void DragArea::paintEvent(QPaintEvent *e) {
 	QRect r(st::dragPadding.left(), st::dragPadding.top(), width() - st::dragPadding.left() - st::dragPadding.right(), height() - st::dragPadding.top() - st::dragPadding.bottom());
 
 	// draw shadow
-	_shadow.paint(p, r);
+	_shadow.paint(p, r, st::boxShadowShift);
 
 	p.fillRect(r, st::white->b);
 
@@ -487,7 +487,7 @@ void EmojiColorPicker::paintEvent(QPaintEvent *e) {
 
 	int32 w = st::dropdownDef.shadow.pxWidth(), h = st::dropdownDef.shadow.pxHeight();
 	QRect r = QRect(w, h, width() - 2 * w, height() - 2 * h);
-	_shadow.paint(p, r);
+	_shadow.paint(p, r, st::dropdownDef.shadowShift);
 
 	if (_cache.isNull()) {
 		p.fillRect(r, st::white->b);
@@ -1697,7 +1697,7 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 
 	QRect r(st::dropdownDef.padding.left(), st::dropdownDef.padding.top(), _width - st::dropdownDef.padding.left() - st::dropdownDef.padding.right(), _height - st::dropdownDef.padding.top() - st::dropdownDef.padding.bottom());
 
-	_shadow.paint(p, r);
+	_shadow.paint(p, r, st::dropdownDef.shadowShift);
 
 	if (_toCache.isNull()) {
 		if (_cache.isNull()) {

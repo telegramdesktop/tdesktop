@@ -236,6 +236,10 @@ namespace App {
 	inline void roundRect(QPainter &p, const QRect &rect, const style::color &bg, RoundCorners index, const style::color *sh = 0) {
 		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, index, sh);
 	}
+	void roundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, const style::color &sh, RoundCorners index);
+	inline void roundShadow(QPainter &p, const QRect &rect, const style::color &sh, RoundCorners index) {
+		return roundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), sh, index);
+	}
 
 	void initBackground(int32 id = DefaultChatBackground, const QImage &p = QImage(), bool nowrite = false);
 

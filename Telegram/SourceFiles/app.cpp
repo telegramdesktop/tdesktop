@@ -2016,6 +2016,16 @@ namespace App {
 		p.drawPixmap(QPoint(x + w - cw, y + h - ch), *c[3]);
 	}
 
+	void roundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, const style::color &sh, RoundCorners index) {
+		QPixmap **c = App::corners(index);
+		int32 cw = c[0]->width() / cIntRetinaFactor(), ch = c[0]->height() / cIntRetinaFactor();
+		p.fillRect(x + cw, y + h, w - 2 * cw, st::msgShadow, sh->b);
+		p.fillRect(x, y + h - ch, cw, st::msgShadow, sh->b);
+		p.fillRect(x + w - cw, y + h - ch, cw, st::msgShadow, sh->b);
+		p.drawPixmap(x, y + h - ch + st::msgShadow, *c[2]);
+		p.drawPixmap(x + w - cw, y + h - ch + st::msgShadow, *c[3]);
+	}
+
 	void initBackground(int32 id, const QImage &p, bool nowrite) {
 		if (Local::readBackground()) return;
 

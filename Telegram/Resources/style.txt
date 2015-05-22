@@ -54,7 +54,7 @@ wndBG: #FFF;
 wndShadow: sprite(209px, 46px, 19px, 19px);
 wndShadowShift: 1px;
 
-layerAlpha: 0.3;
+layerAlpha: 0.5;
 layerBG: #000;
 
 titleBG: #6389a8;
@@ -390,7 +390,8 @@ btnIntroNext: flatButton(btnDefNext, btnDefBig) {
 	width: 300px;
 }
 
-boxShadow: sprite(230px, 46px, 9px, 9px);
+boxShadow: sprite(363px, 50px, 15px, 15px);
+boxShadowShift: 2px;
 
 introCountry: countryInput {
 	width: 300px;
@@ -776,7 +777,7 @@ activeFadeOutDuration: 3000;
 
 msgRadius: 3px;
 
-msgMaxWidth: 550px;
+msgMaxWidth: 430px;
 msgFont: font(fsize);
 msgNameFont: font(fsize semibold);
 msgServiceFont: font(fsize semibold);
@@ -1375,6 +1376,7 @@ dropdownDef: dropdown {
 
 	padding: margins(10px, 10px, 10px, 10px);
 	shadow: sprite(241px, 46px, 6px, 6px);
+	shadowShift: 1px;
 
 	duration: 150;
 	width: 0px;
@@ -1796,7 +1798,7 @@ radialBgOpacity: 0.4;
 radialDownload: sprite(346px, 0px, 50px, 50px);
 radialDownloadOpacity: 0.8;
 radialCancel: sprite(378px, 50px, 18px, 18px);
-radialCancelOpacity: 0.7;
+radialCancelOpacity: 1.0;
 
 overviewLoader: size(34px, 14px);
 overviewLoaderPoint: size(4px, 4px);

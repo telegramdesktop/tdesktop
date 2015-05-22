@@ -19,13 +19,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "boxshadow.h"
 
-BoxShadow::BoxShadow(const style::rect &topLeft) : _size(topLeft.width() / cIntRetinaFactor()) {
+BoxShadow::BoxShadow(const style::sprite &topLeft) : _size(topLeft.pxWidth()), _pixsize(_size * cIntRetinaFactor()) {
 	if (!_size) return;
 
-	QImage cornersImage(_size * 2, _size * 2, QImage::Format_ARGB32_Premultiplied);
+	QImage cornersImage(_pixsize * 2, _pixsize * 2, QImage::Format_ARGB32_Premultiplied);
+	cornersImage.setDevicePixelRatio(cRetinaFactor());
 	{
 		QPainter p(&cornersImage);
-		p.drawPixmap(QPoint(rtl() ? _size : 0, 0), App::sprite(), topLeft);
+		p.drawPixmap(QPoint(rtl() ? _pixsize : 0, 0), App::sprite(), topLeft);
 	}
 	if (rtl()) cornersImage = cornersImage.mirrored(true, false);
 	uchar *bits = cornersImage.bits();
@@ -41,39 +42,61 @@ BoxShadow::BoxShadow(const style::rect &topLeft) : _size(topLeft.width() / cIntR
 	{
 		QPainter p(&cornersImage);
 		p.setCompositionMode(QPainter::CompositionMode_Source);
-		p.drawImage(0, _size, cornersImage.mirrored(), 0, _size, _size, _size);
+		p.drawImage(0, _pixsize, cornersImage.mirrored(), 0, _pixsize, _pixsize, _pixsize);
 	}
 	{
 		QPainter p(&cornersImage);
 		p.setCompositionMode(QPainter::CompositionMode_Source);
-		p.drawImage(_size, 0, cornersImage.mirrored(true, false), _size, 0, _size, _size * 2);
+		p.drawImage(_pixsize, 0, cornersImage.mirrored(true, false), _pixsize, 0, _pixsize, _pixsize * 2);
 	}
 	_corners = QPixmap::fromImage(cornersImage, Qt::ColorOnly);
-	_colors.reserve(_size);
+	_corners.setDevicePixelRatio(cRetinaFactor());
+	_colors.reserve(_pixsize);
 	uchar prev = 0;
-	for (int32 i = 0; i < _size; ++i) {
-		uchar a = (cornersImage.pixel(QPoint(i, _size - 1)) >> 24);
+	for (int32 i = 0; i < _pixsize; ++i) {
+		uchar a = (cornersImage.pixel(QPoint(i, _pixsize - 1)) >> 24);
 		if (a < prev) break;
 
 		_colors.push_back(style::color(0, 0, 0, a));
 		prev = a;
 	}
+	if (cRetina()) {
+		_left = QPixmap::fromImage(cornersImage.copy(0, _pixsize - 1, _colors.size(), 1), Qt::ColorOnly);
+		_left.setDevicePixelRatio(cRetinaFactor());
+		_top = QPixmap::fromImage(cornersImage.copy(_pixsize - 1, 0, 1, _colors.size()), Qt::ColorOnly);
+		_top.setDevicePixelRatio(cRetinaFactor());
+		_right = QPixmap::fromImage(cornersImage.copy(_pixsize * 2 - _colors.size(), _pixsize, _colors.size(), 1), Qt::ColorOnly);
+		_right.setDevicePixelRatio(cRetinaFactor());
+		_bottom = QPixmap::fromImage(cornersImage.copy(_pixsize, _pixsize * 2 - _colors.size(), 1, _colors.size()), Qt::ColorOnly);
+		_bottom.setDevicePixelRatio(cRetinaFactor());
+	}
 }
 
-void BoxShadow::paint(QPainter &p, const QRect &box, const QPoint &shift, int32 flags) {
+void BoxShadow::paint(QPainter &p, const QRect &box, int32 shifty, int32 flags) {
 	if (!_size) return;
 
-	int32 count = _colors.size(), minus = _size - count + 1;
+	int32 add = shifty;
+	int32 count = _colors.size(), minus = _size - count + add;
 	bool left = (flags & Left), top = (flags & Top), right = (flags & Right), bottom = (flags & Bottom);
-	if (left && top) p.drawPixmap(box.left() - _size + minus + shift.x(), box.top() - _size + minus + shift.y(), _corners, 0, 0, _size, _size);
-	if (right && top) p.drawPixmap(box.right() - minus + 1 + shift.x(), box.top() - _size + minus + shift.y(), _corners, _size, 0, _size, _size);
-	if (right && bottom) p.drawPixmap(box.right() - minus + 1 + shift.x(), box.bottom() - minus + 1 + shift.y(), _corners, _size, _size, _size, _size);
-	if (left && bottom) p.drawPixmap(box.left() - _size + minus + shift.x(), box.bottom() - minus + 1 + shift.y(), _corners, 0, _size, _size, _size);
-	for (int32 i = 1; i <= count; ++i) {
-		p.setPen(_colors[i - 1]->p);
-		if (top) p.fillRect(box.left() + (left ? minus : 0) + shift.x(), box.top() - count + i + shift.y(), box.width() - (right ? minus : 0) - (left ? minus : 0), cIntRetinaFactor(), _colors[i - 1]->b);
-		if (right) p.fillRect(box.right() + count - i + shift.x(), box.top() + (top ? minus : 0) + shift.y(), cIntRetinaFactor(), box.height() - (bottom ? minus : 0) - (top ? minus : 0), _colors[i - 1]->b);
-		if (bottom) p.fillRect(box.left() + (left ? minus : 0) + shift.x(), box.bottom() + count - i + shift.y(), box.width() - (right ? minus : 0) - (left ? minus : 0), cIntRetinaFactor(), _colors[i - 1]->b);
-		if (left) p.fillRect(box.left() - count + i + shift.x(), box.top() + (top ? minus : 0) + shift.y(), cIntRetinaFactor(), box.height() - (bottom ? minus : 0) - (top ? minus : 0), _colors[i - 1]->b);
+	if (left && top) p.drawPixmap(box.left() - _size + minus, box.top() - _size + minus + shifty, _corners, 0, 0, _size, _size);
+	if (right && top) p.drawPixmap(box.left() + box.width() - minus, box.top() - _size + minus + shifty, _corners, _size, 0, _size, _size);
+	if (right && bottom) p.drawPixmap(box.left() + box.width() - minus, box.top() + box.height() - minus + shifty, _corners, _size, _size, _size, _size);
+	if (left && bottom) p.drawPixmap(box.left() - _size + minus, box.top() + box.height() - minus + shifty, _corners, 0, _size, _size, _size);
+	if (cRetina()) {
+		bool wasSmooth = p.renderHints().testFlag(QPainter::SmoothPixmapTransform);
+		if (wasSmooth) p.setRenderHint(QPainter::SmoothPixmapTransform, false);
+		if (left) p.drawPixmap(box.left() - count + add, box.top() + (top ? minus : 0) + shifty, count - add, box.height() - (bottom ? minus : 0) - (top ? minus : 0), _left, 0, 0, count - add, 1);
+		if (top) p.drawPixmap(box.left() + (left ? minus : 0), box.top() - count + add + shifty, box.width() - (right ? minus : 0) - (left ? minus : 0), count - add - shifty, _top, 0, 0, 1, count - add - shifty);
+		if (right) p.drawPixmap(box.left() + box.width(), box.top() + (top ? minus : 0) + shifty, count - add, box.height() - (bottom ? minus : 0) - (top ? minus : 0), _right, add, 0, count - add, 1);
+		if (bottom) p.drawPixmap(box.left() + (left ? minus : 0), box.top() + box.height(), box.width() - (right ? minus : 0) - (left ? minus : 0), count, _bottom, 0, 0, 1, count);
+		if (wasSmooth) p.setRenderHint(QPainter::SmoothPixmapTransform);
+	} else {
+		p.setPen(Qt::NoPen);
+		for (int32 i = 0; i < count; ++i) {
+			if (left && i + add < count) p.fillRect(box.left() - count + i + add, box.top() + (top ? minus : 0) + shifty, 1, box.height() - (bottom ? minus : 0) - (top ? minus : 0), _colors[i]->b);
+			if (top && i + add + shifty < count) p.fillRect(box.left() + (left ? minus : 0), box.top() - count + i + add + shifty, box.width() - (right ? minus : 0) - (left ? minus : 0), 1, _colors[i]->b);
+			if (right && i + add < count) p.fillRect(box.left() + box.width() + count - i - add - 1, box.top() + (top ? minus : 0) + shifty, 1, box.height() - (bottom ? minus : 0) - (top ? minus : 0), _colors[i]->b);
+			if (bottom && i + add - shifty < count) p.fillRect(box.left() + (left ? minus : 0), box.top() + box.height() + count - i - add + shifty - 1, box.width() - (right ? minus : 0) - (left ? minus : 0), 1, _colors[i]->b);
+		}
 	}
 }

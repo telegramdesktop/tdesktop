@@ -1807,14 +1807,7 @@ void HistoryPhoto::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 			height -= st::webPagePhotoSkip + _caption.countHeight(width);
 		}
 	} else {
-		QPixmap **cors = App::corners(selected ? InSelectedShadowCorners : InShadowCorners);
-		int32 cw = cors[0]->width() / cIntRetinaFactor(), ch = cors[0]->height() / cIntRetinaFactor();
-		style::color shadow(selected ? st::msgInSelectShadow : st::msgInShadow);
-		p.fillRect(cw, _height, width - 2 * cw, st::msgShadow, shadow->b);
-		p.fillRect(0, _height - ch, cw, st::msgShadow, shadow->b);
-		p.fillRect(width - cw, _height - ch, cw, st::msgShadow, shadow->b);
-		p.drawPixmap(0, _height - ch + st::msgShadow, *cors[2]);
-		p.drawPixmap(width - cw, _height - ch + st::msgShadow, *cors[3]);
+		App::roundShadow(p, 0, 0, width, _height, selected ? st::msgInSelectShadow : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
 	}
 	data->full->load(false, false);
 	bool full = data->full->loaded();
@@ -2657,14 +2650,7 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 			if (ph < 1) ph = 1;
 		}
 
-		QPixmap **cors = App::corners(selected ? InSelectedShadowCorners : InShadowCorners);
-		int32 cw = cors[0]->width() / cIntRetinaFactor(), ch = cors[0]->height() / cIntRetinaFactor();
-		style::color shadow(selected ? st::msgInSelectShadow : st::msgInShadow);
-		p.fillRect(cw, ph, pw - 2 * cw, st::msgShadow, shadow->b);
-		p.fillRect(0, ph - ch, cw, st::msgShadow, shadow->b);
-		p.fillRect(pw - cw, ph - ch, cw, st::msgShadow, shadow->b);
-		p.drawPixmap(0, ph - ch + st::msgShadow, *cors[2]);
-		p.drawPixmap(pw - cw, ph - ch + st::msgShadow, *cors[3]);
+		App::roundShadow(p, 0, 0, pw, ph, selected ? st::msgInSelectShadow : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
 
 		p.drawPixmap(0, 0, animated.current(pw, ph, true));
 		if (selected) {
@@ -4305,14 +4291,7 @@ void HistoryImageLink::draw(QPainter &p, const HistoryItem *parent, bool selecte
 		}
 		height -= skipy + st::mediaPadding.bottom();
 	} else {
-		QPixmap **cors = App::corners(selected ? InSelectedShadowCorners : InShadowCorners);
-		int32 cw = cors[0]->width() / cIntRetinaFactor(), ch = cors[0]->height() / cIntRetinaFactor();
-		style::color shadow(selected ? st::msgInSelectShadow : st::msgInShadow);
-		p.fillRect(cw, _height, width - 2 * cw, st::msgShadow, shadow->b);
-		p.fillRect(0, _height - ch, cw, st::msgShadow, shadow->b);
-		p.fillRect(width - cw, _height - ch, cw, st::msgShadow, shadow->b);
-		p.drawPixmap(0, _height - ch + st::msgShadow, *cors[2]);
-		p.drawPixmap(width - cw, _height - ch + st::msgShadow, *cors[3]);
+		App::roundShadow(p, 0, 0, width, _height, selected ? st::msgInSelectShadow : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
 	}
 
 	data->load();

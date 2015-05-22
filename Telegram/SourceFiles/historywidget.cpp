@@ -1316,35 +1316,35 @@ void MessageField::focusInEvent(QFocusEvent *e) {
 }
 
 HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : QWidget(parent)
-    , _sharedContact(0)
-    , _forwardSelected(forwardSelected)
-	, _sendPath(false)
-    , forwardButton(this, lang(lng_forward), st::btnSelectDone)
-    , cancelButton(this, lang(lng_cancel), st::btnSelectCancel)
-    , offered(0)
-    , aOpacity(0, 1)
-    , aOpacityFunc(anim::easeOutCirc)
-    , hiding(false)
-    , _forwardRequest(0)
-    , toTextWidth(0)
-    , shadow(st::boxShadow)
+, _sharedContact(0)
+, _forwardSelected(forwardSelected)
+, _sendPath(false)
+, forwardButton(this, lang(lng_forward), st::btnSelectDone)
+, cancelButton(this, lang(lng_cancel), st::btnSelectCancel)
+, offered(0)
+, aOpacity(0, 1)
+, aOpacityFunc(anim::easeOutCirc)
+, hiding(false)
+, _forwardRequest(0)
+, toTextWidth(0)
+, shadow(st::boxShadow)
 {
 	init();
 }
 
 HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : QWidget(parent)
-    , _sharedContact(sharedContact)
-    , _forwardSelected(false)
-	, _sendPath(false)
-	, forwardButton(this, lang(lng_forward_send), st::btnSelectDone)
-    , cancelButton(this, lang(lng_cancel), st::btnSelectCancel)
-    , offered(0)
-    , aOpacity(0, 1)
-    , aOpacityFunc(anim::easeOutCirc)
-    , hiding(false)
-    , _forwardRequest(0)
-    , toTextWidth(0)
-    , shadow(st::boxShadow)
+, _sharedContact(sharedContact)
+, _forwardSelected(false)
+, _sendPath(false)
+, forwardButton(this, lang(lng_forward_send), st::btnSelectDone)
+, cancelButton(this, lang(lng_cancel), st::btnSelectCancel)
+, offered(0)
+, aOpacity(0, 1)
+, aOpacityFunc(anim::easeOutCirc)
+, hiding(false)
+, _forwardRequest(0)
+, toTextWidth(0)
+, shadow(st::boxShadow)
 {
 	init();
 }
@@ -1410,7 +1410,7 @@ void HistoryHider::paintEvent(QPaintEvent *e) {
 	if (cacheForAnim.isNull() || !offered) {
 		p.setFont(st::forwardFont->f);
 		if (offered) {
-			shadow.paint(p, box);
+			shadow.paint(p, box, st::boxShadowShift);
 
 			// fill bg
 			p.fillRect(box, st::boxBG->b);
