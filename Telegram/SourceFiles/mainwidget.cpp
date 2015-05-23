@@ -1369,6 +1369,7 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 						audioVoice()->pauseresume();
 					} else {
 						audioVoice()->play(audio);
+						if (App::main()) App::main()->audioMarkRead(audio);
 					}
 				} else {
 					QPoint pos(QCursor::pos());
@@ -1377,6 +1378,7 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 					} else {
 						psOpenFile(already, audio->openOnSave < 0);
 					}
+					if (App::main()) App::main()->audioMarkRead(audio);
 				}
 			}
 		}
