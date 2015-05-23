@@ -1606,7 +1606,7 @@ void psOpenFile(const QString &name, bool openWith) {
 
 void psShowInFolder(const QString &name) {
     App::wnd()->layerHidden();
-    system(("nautilus \"" + QFileInfo(name).absoluteDir().absolutePath() + "\"").toLocal8Bit().constData());
+    system(("nautilus \"" + QFileInfo(name).absoluteDir().absolutePath() + "\"").toUtf8().constData());
 }
 
 void psStart() {
@@ -1617,12 +1617,12 @@ void psFinish() {
 
 namespace {
     bool _psRunCommand(const QString &command) {
-        int result = system(command.toLocal8Bit().constData());
+        int result = system(command.toUtf8().constData());
         if (result) {
-            DEBUG_LOG(("App Error: command failed, code: %1, command: %2").arg(result).arg(command.toLocal8Bit().constData()));
+            DEBUG_LOG(("App Error: command failed, code: %1, command: %2").arg(result).arg(command.toUtf8().constData()));
             return false;
         }
-        DEBUG_LOG(("App Info: command succeeded, command: %1").arg(command.toLocal8Bit().constData()));
+        DEBUG_LOG(("App Info: command succeeded, command: %1").arg(command.toUtf8().constData()));
         return true;
     }
 }
@@ -1655,8 +1655,8 @@ void psRegisterCustomScheme() {
             s << "Version=1.0\n";
             s << "Name=Telegram Desktop\n";
             s << "Comment=Official desktop version of Telegram messaging app\n";
-            s << "Exec=" << cExeDir().toLocal8Bit().constData() << cExeName().toLocal8Bit().constData() << " -- %u\n";
-            s << "Icon=" << icon.toLocal8Bit().constData() << "\n";
+            s << "Exec=" << cExeDir().toUTF8().constData() << cExeName().toUTF8().constData() << " -- %u\n";
+            s << "Icon=" << icon.toUTF8().constData() << "\n";
             s << "Terminal=false\n";
             s << "Type=Application\n";
             s << "Categories=Network;\n";
@@ -1697,7 +1697,7 @@ void psRegisterCustomScheme() {
             QTextStream s(&f);
             s.setCodec("UTF-8");
             s << "[Protocol]\n";
-            s << "exec=" << cExeDir().toLocal8Bit().constData() << cExeName().toLocal8Bit().constData() << " -- %u\n";
+            s << "exec=" << cExeDir().toUTF8().constData() << cExeName().toUtf8().constData() << " -- %u\n";
             s << "protocol=tg\n";
             s << "input=none\n";
             s << "output=none\n";
@@ -1741,7 +1741,7 @@ bool _execUpdater(bool update = true) {
             args[argIndex++] = p_datafile;
         }
     }
-    QByteArray pathf = cWorkingDir().toLocal8Bit();
+    QByteArray pathf = cWorkingDir().toUtf8();
     if (pathf.size() < MaxLen) {
         memcpy(p_pathbuf, pathf.constData(), pathf.size());
         args[argIndex++] = p_path;
