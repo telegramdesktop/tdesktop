@@ -24,9 +24,18 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include <ogg/ogg.h>
 
 #include <mpg123.h>
-#include <mpeghead.h>
+
+#define _test_HDR_SYNC              0xffe00000
+#define _test_HDR_LAYER             0x00060000
+#define _test_HDR_LAYER_VAL(h)      (((h)&_test_HDR_LAYER) >> 17)
+#define _test_HDR_BITRATE           0x0000f000
+#define _test_HDR_BITRATE_VAL(h)    (((h)&_test_HDR_BITRATE) >> 12)
+#define _test_HDR_SAMPLERATE        0x00000c00
+#define _test_HDR_SAMPLERATE_VAL(h) (((h)&_test_HDR_SAMPLERATE) >> 10)
 
 #include <neaacdec.h>
+
+#define HAVE_STDINT_H
 #include <mp4ff.h>
 
 namespace {
@@ -555,7 +564,9 @@ public:
 
 		OpusFileCallbacks cb = { &OggOpusLoader::_read_data, &OggOpusLoader::_seek_data, &OggOpusLoader::_tell_data, 0 };
 		if (data.isEmpty()) {
-			cb = { &OggOpusLoader::_read_file, &OggOpusLoader::_seek_file, &OggOpusLoader::_tell_file, 0 };
+            cb.read = &OggOpusLoader::_read_file;
+            cb.seek = &OggOpusLoader::_seek_file;
+            cb.tell = &OggOpusLoader::_tell_file;
 		}
 
 		int ret = 0;
@@ -880,10 +891,15 @@ trackId(-1), sampleId(0), samplesCount(0) {
 		}
 
 		if (data.isEmpty()) {
-			mp4cb = { &FAADMp4Loader::_read_file, 0, &FAADMp4Loader::_seek_file, 0, static_cast<void*>(this) };
+            mp4cb.read = &FAADMp4Loader::_read_file;
+            mp4cb.seek = &FAADMp4Loader::_seek_file;
 		} else {
-			mp4cb = { &FAADMp4Loader::_read_data, 0, &FAADMp4Loader::_seek_data, 0, static_cast<void*>(this) };
+            mp4cb.read = &FAADMp4Loader::_read_data;
+            mp4cb.seek = &FAADMp4Loader::_seek_data;
 		}
+        mp4cb.write = 0;
+        mp4cb.truncate = 0;
+        mp4cb.user_data = static_cast<void*>(this);
 
 		hDecoder = NeAACDecOpen();
 
@@ -1142,17 +1158,19 @@ void VoiceMessagesLoaders::onLoad(AudioData *audio) {
 					if (!f.open(QIODevice::ReadOnly)) {
 						LOG(("Audio Error: could not open file '%1'").arg(m.fname));
 						m.state = VoiceMessageStoppedAtStart;
-						return emit error(audio);
+                        emit error(audio);
+                        return;
 					}
 					header = f.read(8);
 				}
 				if (header.size() < 8) {
 					LOG(("Audio Error: could not read header from file '%1', data size %2").arg(m.fname).arg(m.data.isEmpty() ? QFileInfo(m.fname).size() : m.data.size()));
 					m.state = VoiceMessageStoppedAtStart;
-					return emit error(audio);
+                    emit error(audio);
+                    return;
 				}
 				uint32 mpegHead = (uint32(uchar(header.at(0))) << 24) | (uint32(uchar(header.at(1))) << 16) | (uint32(uchar(header.at(2))) << 8) | uint32(uchar(header.at(3)));
-				bool validMpegHead = ((mpegHead & HDR_SYNC) == HDR_SYNC) && !!(HDR_LAYER_VAL(mpegHead)) && (HDR_BITRATE_VAL(mpegHead) != 0x0F) && (HDR_SAMPLERATE_VAL(mpegHead) != 0x03);
+                bool validMpegHead = ((mpegHead & _test_HDR_SYNC) == _test_HDR_SYNC) && !!(_test_HDR_LAYER_VAL(mpegHead)) && (_test_HDR_BITRATE_VAL(mpegHead) != 0x0F) && (_test_HDR_SAMPLERATE_VAL(mpegHead) != 0x03);
 
 				if (header.at(0) == 'O' && header.at(1) == 'g' && header.at(2) == 'g' && header.at(3) == 'S') {
 					j = _loaders.insert(audio, new OggOpusLoader(m.fname, m.data));
@@ -1169,7 +1187,8 @@ void VoiceMessagesLoaders::onLoad(AudioData *audio) {
 				} else {
 					LOG(("Audio Error: could not guess file format from header, header %1 file '%2', data size %3").arg(mb(header.constData(), header.size()).str()).arg(m.fname).arg(m.data.isEmpty() ? QFileInfo(m.fname).size() : m.data.size()));
 					m.state = VoiceMessageStoppedAtStart;
-					return emit error(audio);
+                    emit error(audio);
+                    return;
 				}
 				l = j.value();
 				
