@@ -987,7 +987,7 @@ trackId(-1), sampleId(0), samplesCount(0) {
 		}
 
 		uint32 delay = 0;
-		if (initial && (sample_count < framesize * frameInfo.channels) && (frameInfo.samples > sample_count)) {
+		if (initial && (sample_count < framesize * uint32(frameInfo.channels)) && (frameInfo.samples > sample_count)) {
 			delay = frameInfo.samples - sample_count;
 		}
 
@@ -1027,7 +1027,8 @@ private:
 	mp4ff_callback_t mp4cb;
 
 	bool initial, useAacLength;
-	int32 framesize, timescale;
+	uint32 framesize;
+	int32 timescale;
 	int32 trackId, sampleId, samplesCount;
 
 	int32 getAACTrack() {

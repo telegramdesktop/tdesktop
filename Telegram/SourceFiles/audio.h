@@ -36,7 +36,7 @@ enum VoiceMessageState {
 };
 
 class VoiceMessagesFader;
-class VoiceMessagesLoader;
+class VoiceMessagesLoaders;
 
 class VoiceMessages : public QObject {
 	Q_OBJECT
