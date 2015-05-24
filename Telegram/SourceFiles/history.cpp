@@ -2351,8 +2351,7 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		width = _maxw;
 	}
 
-	bool mp3 = (data->mime == QLatin1String("audio/mp3"));
-	if (!data->loader && !mp3 && data->status != FileFailed && !already && !hasdata && data->size < AudioVoiceMsgInMemory) {
+	if (!data->loader && data->status != FileFailed && !already && !hasdata && data->size < AudioVoiceMsgInMemory) {
 		data->save(QString());
 	}
 
@@ -2394,11 +2393,13 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	AudioData *playing = 0;
 	VoiceMessageState playingState = VoiceMessageStopped;
 	int64 playingPosition = 0, playingDuration = 0;
-	if (!mp3 && audioVoice()) {
-		audioVoice()->currentState(&playing, &playingState, &playingPosition, &playingDuration);
+	int32 playingFrequency = 0;
+	if (audioVoice()) {
+		audioVoice()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
 	}
+
 	QRect img;
-	if (!mp3 && (already || hasdata)) {
+	if (already || hasdata) {
 		bool showPause = (playing == data) && (playingState == VoiceMessagePlaying || playingState == VoiceMessageResuming || playingState == VoiceMessageStarting);
 		img = out ? (showPause ? st::mediaPauseOutImg : st::mediaPlayOutImg) : (showPause ? st::mediaPauseInImg : st::mediaPlayInImg);
 	} else {
@@ -2422,9 +2423,9 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 
 	style::color status(selected ? (out ? st::mediaOutSelectColor : st::mediaInSelectColor) : (out ? st::mediaOutColor : st::mediaInColor));
 	p.setPen(status->p);
-	if (!mp3 && (already || hasdata)) {
-		if (playing == data && playingState != VoiceMessageStopped) {
-			statusText = formatDurationText(playingPosition / AudioVoiceMsgFrequency) + qsl(" / ") + formatDurationText(playingDuration / AudioVoiceMsgFrequency);
+	if (already || hasdata) {
+		if (playing == data && playingState != VoiceMessageStopped && playingState != VoiceMessageStoppedAtStart) {
+			statusText = formatDurationText(playingPosition / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency)) + qsl(" / ") + formatDurationText(playingDuration / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency));
 		} else {
 			statusText = formatDurationText(data->duration);
 		}

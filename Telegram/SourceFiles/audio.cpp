@@ -23,6 +23,12 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include <opusfile.h>
 #include <ogg/ogg.h>
 
+#include <mpg123.h>
+#include <mpeghead.h>
+
+#include <neaacdec.h>
+#include <mp4ff.h>
+
 namespace {
 	ALCdevice *audioDevice = 0;
 	ALCcontext *audioContext = 0;
@@ -30,6 +36,7 @@ namespace {
 	ALuint notifyBuffer = 0;
 	QMutex voicemsgsMutex;
 	VoiceMessages *voicemsgs = 0;
+	bool _mpg123 = false;
 }
 
 bool _checkALCError() {
@@ -150,6 +157,14 @@ void audioInit() {
 
 	voicemsgs = new VoiceMessages();
 	alcSuspendContext(audioContext);
+
+	int mpg123res = mpg123_init();
+	if (mpg123res == MPG123_OK) {
+		_mpg123 = true;
+	} else {
+		LOG(("Could not init MPG123, result: %1").arg(mpg123res));
+	}
+
 	LOG(("Audio init time: %1").arg(getms() - ms));
 }
 
@@ -190,10 +205,12 @@ void audioFinish() {
 		alcCloseDevice(audioDevice);
 		audioDevice = 0;
 	}
+
+	if (_mpg123) mpg123_exit();
 }
 
 VoiceMessages::VoiceMessages() : _current(0),
-_fader(new VoiceMessagesFader(&_faderThread)), _loader(new VoiceMessagesLoader(&_loaderThread)) {
+_fader(new VoiceMessagesFader(&_faderThread)), _loader(new VoiceMessagesLoaders(&_loaderThread)) {
 	connect(this, SIGNAL(faderOnTimer()), _fader, SLOT(onTimer()));
 	connect(this, SIGNAL(loaderOnStart(AudioData*)), _loader, SLOT(onStart(AudioData*)));
 	connect(this, SIGNAL(loaderOnCancel(AudioData*)), _loader, SLOT(onCancel(AudioData*)));
@@ -326,12 +343,20 @@ void VoiceMessages::pauseresume() {
 	emit faderOnTimer();
 }
 
-void VoiceMessages::currentState(AudioData **audio, VoiceMessageState *state, int64 *position, int64 *duration) {
+void VoiceMessages::currentState(AudioData **audio, VoiceMessageState *state, int64 *position, int64 *duration, int32 *frequency) {
 	QMutexLocker lock(&voicemsgsMutex);
 	if (audio) *audio = _data[_current].audio;
 	if (state) *state = _data[_current].state;
 	if (position) *position = _data[_current].position;
 	if (duration) *duration = _data[_current].duration;
+	if (frequency) *frequency = _data[_current].frequency;
+}
+
+void VoiceMessages::clearStoppedAtStart(AudioData *audio) {
+	QMutexLocker lock(&voicemsgsMutex);
+	if (_data[_current].audio == audio && _data[_current].state == VoiceMessageStoppedAtStart) {
+		_data[_current].state = VoiceMessageStopped;
+	}
 }
 
 void VoiceMessages::processContext() {
@@ -366,7 +391,7 @@ void VoiceMessagesFader::onTimer() {
 
 	for (int32 i = 0; i < AudioVoiceMsgSimultaneously; ++i) {
 		VoiceMessages::Msg &m(voice->_data[i]);
-		if (m.state == VoiceMessageStopped || m.state == VoiceMessagePaused || !m.source) continue;
+		if (m.state == VoiceMessageStopped || m.state == VoiceMessageStoppedAtStart || m.state == VoiceMessagePaused || !m.source) continue;
 
 		bool playing = false, fading = false;
 		ALint pos = 0;
@@ -397,7 +422,7 @@ void VoiceMessagesFader::onTimer() {
 					}
 					m.state = VoiceMessageStopped;
 					emit audioStopped(m.audio);
-				} else if (1000 * (pos + m.skipStart - m.started) >= AudioFadeDuration * AudioVoiceMsgFrequency) {
+				} else if (1000 * (pos + m.skipStart - m.started) >= AudioFadeDuration * m.frequency) {
 					fading = false;
 					alSourcef(m.source, AL_GAIN, 1);
 					switch (m.state) {
@@ -410,7 +435,7 @@ void VoiceMessagesFader::onTimer() {
 					break;
 					}
 				} else {
-					float64 newGain = 1000. * (pos + m.skipStart - m.started) / (AudioFadeDuration * AudioVoiceMsgFrequency);
+					float64 newGain = 1000. * (pos + m.skipStart - m.started) / (AudioFadeDuration * m.frequency);
 					if (m.state == VoiceMessagePausing || m.state == VoiceMessageFinishing) {
 						newGain = 1. - newGain;
 					}
@@ -477,34 +502,603 @@ void VoiceMessagesFader::processContext() {
 	alcProcessContext(audioContext);
 }
 
-struct VoiceMessagesLoader::Loader {
+class VoiceMessagesLoader {
+public:
+	VoiceMessagesLoader(const QString &fname, const QByteArray &data) : fname(fname), data(data), dataPos(0) {
+	}
+	virtual ~VoiceMessagesLoader() {
+	}
+
+	bool check(const QString &fname, const QByteArray &data) {
+		return this->fname == fname && this->data.size() == data.size();
+	}
+
+	virtual bool open() = 0;
+	virtual int64 duration() = 0;
+	virtual int32 frequency() = 0;
+	virtual int32 format() = 0;
+	virtual void started() = 0;
+	virtual bool readMore(QByteArray &result, int64 &samplesAdded) = 0;
+
+protected:
+
 	QString fname;
 	QByteArray data;
+
+	QFile f;
+	int32 dataPos;
+	
+	bool openFile() {
+		if (data.isEmpty()) {
+			if (f.isOpen()) f.close();
+			f.setFileName(fname);
+			if (!f.open(QIODevice::ReadOnly)) {
+				LOG(("Audio Error: could not open file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(f.error()).arg(f.errorString()));
+				return false;
+			}
+		}
+		dataPos = 0;
+		return true;
+	}
+
+};
+
+class OggOpusLoader : public VoiceMessagesLoader {
+public:
+	OggOpusLoader(const QString &fname, const QByteArray &data) : VoiceMessagesLoader(fname, data), file(0), pcm_offset(0), pcm_print_offset(0), prev_li(-1) {
+	}
+
+	bool open() {
+		if (!VoiceMessagesLoader::openFile()) {
+			return false;
+		}
+
+		OpusFileCallbacks cb = { &OggOpusLoader::_read_data, &OggOpusLoader::_seek_data, &OggOpusLoader::_tell_data, 0 };
+		if (data.isEmpty()) {
+			cb = { &OggOpusLoader::_read_file, &OggOpusLoader::_seek_file, &OggOpusLoader::_tell_file, 0 };
+		}
+
+		int ret = 0;
+		file = op_open_callbacks(reinterpret_cast<void*>(this), &cb, 0, 0, &ret);
+		if (!file) {
+			LOG(("Audio Error: op_open_file failed for '%1', data size '%2', error code %3").arg(fname).arg(data.size()).arg(ret));
+			return false;
+		}
+		return true;
+	}
+
+	int64 duration() {
+		ogg_int64_t duration = op_pcm_total(file, -1);
+		if (duration < 0) {
+			LOG(("Audio Error: op_pcm_total failed to get full duration for '%1', data size '%2', error code %3").arg(fname).arg(data.size()).arg(duration));
+		}
+		return duration;
+	}
+
+	int32 frequency() {
+		return AudioVoiceMsgFrequency;
+	}
+
+	int32 format() {
+		return AL_FORMAT_STEREO16;
+	}
+
+	void started() {
+		pcm_offset = op_pcm_tell(file);
+		pcm_print_offset = pcm_offset - AudioVoiceMsgFrequency;
+	}
+
+	bool readMore(QByteArray &result, int64 &samplesAdded) {
+		DEBUG_LOG(("Audio Info: reading buffer for file '%1', data size '%2', current pcm_offset %3").arg(fname).arg(data.size()).arg(pcm_offset));
+		
+		opus_int16 pcm[AudioVoiceMsgFrequency * AudioVoiceMsgChannels];
+
+		int ret = op_read_stereo(file, pcm, sizeof(pcm) / sizeof(*pcm));
+		if (ret < 0) {
+			LOG(("Audio Error: op_read_stereo failed, error code %1 (corrupted voice message?)").arg(ret));
+			return false;
+		}
+
+		int li = op_current_link(file);
+		if (li != prev_li) {
+			const OpusHead *head = op_head(file, li);
+			const OpusTags *tags = op_tags(file, li);
+			for (int32 ci = 0; ci < tags->comments; ++ci) {
+				const char *comment = tags->user_comments[ci];
+				if (opus_tagncompare("METADATA_BLOCK_PICTURE", 22, comment) == 0) {
+					OpusPictureTag pic;
+					int err = opus_picture_tag_parse(&pic, comment);
+					if (err >= 0) {
+						opus_picture_tag_clear(&pic);
+					}
+				}
+			}
+			if (!op_seekable(file)) {
+				pcm_offset = op_pcm_tell(file) - ret;
+			}
+		}
+		if (li != prev_li || pcm_offset >= pcm_print_offset + AudioVoiceMsgFrequency) {
+			pcm_print_offset = pcm_offset;
+		}
+		pcm_offset = op_pcm_tell(file);
+
+		if (!ret) {
+			DEBUG_LOG(("Audio Info: read completed"));
+			return false;
+		}
+		result.append((const char*)pcm, sizeof(*pcm) * ret * AudioVoiceMsgChannels);
+		prev_li = li;
+		samplesAdded += ret;
+		return true;
+	}
+
+	~OggOpusLoader() {
+	}
+
+private:
 	OggOpusFile *file;
+
 	ogg_int64_t pcm_offset;
 	ogg_int64_t pcm_print_offset;
 	int prev_li;
 
-	Loader() : file(0), pcm_offset(0), pcm_print_offset(0), prev_li(-1) {
+	static int _read_data(void *_stream, unsigned char *_ptr, int _nbytes) {
+		OggOpusLoader *l = reinterpret_cast<OggOpusLoader*>(_stream);
 
+		int32 nbytes = qMin(l->data.size() - l->dataPos, _nbytes);
+		if (nbytes <= 0) {
+			return 0;
+		}
+
+		memcpy(_ptr, l->data.constData() + l->dataPos, nbytes);
+		l->dataPos += nbytes;
+		return nbytes;
+	}
+
+	static int _seek_data(void *_stream, opus_int64 _offset, int _whence) {
+		OggOpusLoader *l = reinterpret_cast<OggOpusLoader*>(_stream);
+
+		int32 newPos = -1;
+		switch (_whence) {
+		case SEEK_SET: newPos = _offset; break;
+		case SEEK_CUR: newPos = l->dataPos + _offset; break;
+		case SEEK_END: newPos = l->data.size() + _offset; break;
+		}
+		if (newPos < 0 || newPos > l->data.size()) {
+			return -1;
+		}
+		l->dataPos = newPos;
+		return 0;
+	}
+
+	static opus_int64 _tell_data(void *_stream) {
+		OggOpusLoader *l = reinterpret_cast<OggOpusLoader*>(_stream);
+		return l->dataPos;
+	}
+
+	static int _read_file(void *_stream, unsigned char *_ptr, int _nbytes) {
+		OggOpusLoader *l = reinterpret_cast<OggOpusLoader*>(_stream);
+		return int(l->f.read((char*)(_ptr), _nbytes));
+	}
+
+	static int _seek_file(void *_stream, opus_int64 _offset, int _whence) {
+		OggOpusLoader *l = reinterpret_cast<OggOpusLoader*>(_stream);
+
+		switch (_whence) {
+		case SEEK_SET: return l->f.seek(_offset) ? 0 : -1;
+		case SEEK_CUR: return l->f.seek(l->f.pos() + _offset) ? 0 : -1;
+		case SEEK_END: return l->f.seek(l->f.size() + _offset) ? 0 : -1;
+		}
+		return -1;
+	}
+
+	static opus_int64 _tell_file(void *_stream) {
+		OggOpusLoader *l = reinterpret_cast<OggOpusLoader*>(_stream);
+		return l->f.pos();
 	}
 };
 
-VoiceMessagesLoader::VoiceMessagesLoader(QThread *thread) {
+class Mpg123Loader : public VoiceMessagesLoader {
+public:
+	Mpg123Loader(const QString &fname, const QByteArray &data) : VoiceMessagesLoader(fname, data),
+		handle(0), opened(false), freq(AudioVoiceMsgFrequency), fmt(AL_FORMAT_STEREO16), channels(0) {
+		int ret = 0;
+		handle = mpg123_new(NULL, &ret);
+		if (!handle) {
+			LOG(("Audio Error: Unable to create mpg123 handle: %1\n").arg(mpg123_plain_strerror(ret)));
+			return;
+		}
+		mpg123_param(handle, MPG123_REMOVE_FLAGS, MPG123_FORCE_FLOAT, 0.); // not float
+	}
+
+	bool open() {
+		if (!VoiceMessagesLoader::openFile()) {
+			return false;
+		}
+
+		int res;
+		if (data.isEmpty()) {
+			res = mpg123_replace_reader_handle(handle, &Mpg123Loader::_read_file, &Mpg123Loader::_seek_file, 0);
+		} else {
+			res = mpg123_replace_reader_handle(handle, &Mpg123Loader::_read_data, &Mpg123Loader::_seek_data, 0);
+		}
+		if (res != MPG123_OK) {
+			LOG(("Audio Error: Unable to mpg123_replace_reader_handle() file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(mpg123_strerror(handle)));
+			return false;
+		}
+		res = mpg123_open_handle(handle, reinterpret_cast<void*>(this));
+		if (res != MPG123_OK) {
+			LOG(("Audio Error: Unable to mpg123_open() file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(mpg123_strerror(handle)));
+			return false;
+		}
+		opened = true;
+
+		int encoding = 0;
+		long rate = 0;
+		res = mpg123_getformat(handle, &rate, &channels, &encoding);
+		if (res != MPG123_OK) {
+			LOG(("Audio Error: Unable to mpg123_getformat() file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(mpg123_strerror(handle)));
+			return false;
+		}
+		if (channels == 2) {
+			if (encoding == MPG123_ENC_SIGNED_16) {
+				fmt = AL_FORMAT_STEREO16;
+			} else if (encoding == MPG123_ENC_UNSIGNED_8) {
+				fmt = AL_FORMAT_STEREO8;
+			} else {
+				LOG(("Audio Error: Bad encoding for 2 channels in mpg123_getformat() file '%1', data size '%2', encoding %3").arg(fname).arg(data.size()).arg(encoding));
+				return false;
+			}
+		} else if (channels == 1) {
+			if (encoding == MPG123_ENC_SIGNED_16) {
+				fmt = AL_FORMAT_MONO16;
+			} else if (encoding == MPG123_ENC_UNSIGNED_8) {
+				fmt = AL_FORMAT_MONO8;
+			} else {
+				LOG(("Audio Error: Bad encoding for 1 channel in mpg123_getformat() file '%1', data size '%2', encoding %3").arg(fname).arg(data.size()).arg(encoding));
+				return false;
+			}
+		} else {
+			LOG(("Audio Error: Bad channels in mpg123_getformat() file '%1', data size '%2', channels %3").arg(fname).arg(data.size()).arg(channels));
+			return false;
+		}
+		freq = rate;
+
+		mpg123_format_none(handle);
+		res = mpg123_format(handle, freq, channels, encoding);
+		if (res != MPG123_OK) {
+			LOG(("Audio Error: Unable to mpg123_format() file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(mpg123_strerror(handle)));
+			return false;
+		}
+		return true;
+	}
+
+	int64 duration() {
+		return mpg123_length(handle);
+	}
+
+	int32 frequency() {
+		return freq;
+	}
+
+	int32 format() {
+		return fmt;
+	}
+
+	void started() {
+	}
+
+	bool readMore(QByteArray &result, int64 &samplesAdded) {
+		int64 more_samples;
+		uchar buffer[sizeof(short) * AudioVoiceMsgFrequency * AudioVoiceMsgChannels];
+		size_t buffer_size = sizeof(buffer), done = 0;
+		int res = mpg123_read(handle, buffer, buffer_size, &done);
+		if (done) {
+			samplesAdded += done / (sizeof(short) * channels);
+			result.append((const char*)buffer, done);
+		}
+		if (res == MPG123_DONE) return false;
+		if (res != MPG123_OK) {
+			LOG(("Audio Error: Unable to mpg123_read() file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(mpg123_strerror(handle)));
+			return false;
+		}
+		return true;
+	}
+
+	~Mpg123Loader() {
+		if (handle) {
+			if (opened) mpg123_close(handle);
+			mpg123_delete(handle);
+		}
+	}
+
+private:
+	mpg123_handle *handle;
+	bool opened;
+	int32 freq, fmt;
+	int32 channels;
+
+	static ssize_t _read_data(void *_stream, void *_ptr, size_t _nbytes) {
+		Mpg123Loader *l = reinterpret_cast<Mpg123Loader*>(_stream);
+
+		int32 nbytes = qMin(l->data.size() - l->dataPos, int32(_nbytes));
+		if (nbytes <= 0) {
+			return 0;
+		}
+
+		memcpy(_ptr, l->data.constData() + l->dataPos, nbytes);
+		l->dataPos += nbytes;
+		return nbytes;
+	}
+
+	static off_t _seek_data(void *_stream, off_t _offset, int _whence) {
+		Mpg123Loader *l = reinterpret_cast<Mpg123Loader*>(_stream);
+
+		int32 newPos = -1;
+		switch (_whence) {
+		case SEEK_SET: newPos = _offset; break;
+		case SEEK_CUR: newPos = l->dataPos + _offset; break;
+		case SEEK_END: newPos = l->data.size() + _offset; break;
+		}
+		if (newPos < 0) {
+			return -1;
+		}
+		l->dataPos = newPos;
+		return l->dataPos;
+	}
+
+	static ssize_t _read_file(void *_stream, void *_ptr, size_t _nbytes) {
+		Mpg123Loader *l = reinterpret_cast<Mpg123Loader*>(_stream);
+		return ssize_t(l->f.read((char*)(_ptr), _nbytes));
+	}
+
+	static off_t _seek_file(void *_stream, off_t _offset, int _whence) {
+		Mpg123Loader *l = reinterpret_cast<Mpg123Loader*>(_stream);
+
+		switch (_whence) {
+		case SEEK_SET: return l->f.seek(_offset) ? l->f.pos() : -1;
+		case SEEK_CUR: return l->f.seek(l->f.pos() + _offset) ? l->f.pos() : -1;
+		case SEEK_END: return l->f.seek(l->f.size() + _offset) ? l->f.pos() : -1;
+		}
+		return -1;
+	}
+};
+
+class FAADMp4Loader : public VoiceMessagesLoader {
+public:
+	FAADMp4Loader(const QString &fname, const QByteArray &data) : VoiceMessagesLoader(fname, data),
+freq(AudioVoiceMsgFrequency), fmt(AL_FORMAT_STEREO16), len(0),
+mp4f(0),
+initial(true), useAacLength(false),
+framesize(1024), timescale(AudioVoiceMsgFrequency),
+trackId(-1), sampleId(0), samplesCount(0) {
+	}
+
+	bool open() {
+		if (!VoiceMessagesLoader::openFile()) {
+			return false;
+		}
+
+		if (data.isEmpty()) {
+			mp4cb = { &FAADMp4Loader::_read_file, 0, &FAADMp4Loader::_seek_file, 0, static_cast<void*>(this) };
+		} else {
+			mp4cb = { &FAADMp4Loader::_read_data, 0, &FAADMp4Loader::_seek_data, 0, static_cast<void*>(this) };
+		}
+
+		hDecoder = NeAACDecOpen();
+
+		config = NeAACDecGetCurrentConfiguration(hDecoder);
+		config->outputFormat = FAAD_FMT_16BIT;
+		config->downMatrix = 1; // Down matrix 5.1 to 2 channels
+		NeAACDecSetConfiguration(hDecoder, config);
+
+		mp4f = mp4ff_open_read(&mp4cb);
+		if (!mp4f) {
+			LOG(("Audio Error: Unable to mp4ff_open_read() file '%1', data size '%2'").arg(fname).arg(data.size()));
+			return false;
+		}
+
+		trackId = getAACTrack();
+		if (trackId < 0) {
+			LOG(("Audio Error: Unable to find correct AAC sound track in the MP4 file '%1', data size '%2'").arg(fname).arg(data.size()));
+			return false;
+		}
+
+		uchar *buffer = 0;
+		uint buffer_size = 0;
+		mp4ff_get_decoder_config(mp4f, trackId, &buffer, &buffer_size);
+
+		unsigned long samplerate = 0;
+		uchar channels = 2;
+		if (NeAACDecInit2(hDecoder, buffer, buffer_size, &samplerate, &channels) < 0) {
+			free(buffer);
+			LOG(("Audio Error: Error initializaing decoder library for file '%1', data size '%2'").arg(fname).arg(data.size()));
+			return false;
+		}
+		freq = samplerate;
+		switch (channels) {
+		case 1: fmt = AL_FORMAT_MONO16; break;
+		case 2: fmt = AL_FORMAT_STEREO16; break;
+		}
+
+		timescale = mp4ff_time_scale(mp4f, trackId);
+		if (buffer) {
+			if (NeAACDecAudioSpecificConfig(buffer, buffer_size, &mp4ASC) >= 0) {
+				if (mp4ASC.frameLengthFlag == 1) framesize = 960;
+				if (mp4ASC.sbr_present_flag == 1) framesize *= 2;
+			}
+			free(buffer);
+		}
+
+		samplesCount = mp4ff_num_samples(mp4f, trackId);
+		int32 f = 1024;
+		if (mp4ASC.sbr_present_flag == 1) {
+			f *= 2;
+		}
+		len = int64(samplesCount) * (f - 1);
+		return true;
+	}
+
+	int64 duration() {
+		return len;
+	}
+
+	int32 frequency() {
+		return freq;
+	}
+
+	int32 format() {
+		return fmt;
+	}
+
+	void started() {
+	}
+
+	bool readMore(QByteArray &result, int64 &samplesAdded) {
+		if (sampleId >= samplesCount) return false;
+
+		int32 dur = mp4ff_get_sample_duration(mp4f, trackId, sampleId);
+
+		uchar *buffer = 0;
+		uint32 buffer_size = 0;
+		if (!mp4ff_read_sample(mp4f, trackId, sampleId, &buffer, &buffer_size)) {
+			LOG(("Audio Error: Unable to mp4ff_read_sample() file '%1', data size '%2'").arg(fname).arg(data.size()));
+			return false;
+		}
+
+		void *sample_buffer = NeAACDecDecode(hDecoder, &frameInfo, buffer, buffer_size);
+
+		if (buffer) free(buffer);
+
+		if (sampleId == 0) dur = 0;
+
+		uint32 sample_count = frameInfo.samples;
+		if (!useAacLength && timescale == freq) {
+			sample_count = (uint32)(dur * frameInfo.channels);
+			if (sample_count > frameInfo.samples) {
+				sample_count = frameInfo.samples;
+			}
+
+			if (!initial && (sampleId < samplesCount / 2) && (sample_count != frameInfo.samples)) {
+				DEBUG_LOG(("Audio Warning: MP4 seems to have incorrect frame duration, using values from AAC data in file '%1', data size '%2'").arg(fname).arg(data.size()));
+				useAacLength = true;
+				sample_count = frameInfo.samples;
+			}
+		}
+
+		uint32 delay = 0;
+		if (initial && (sample_count < framesize * frameInfo.channels) && (frameInfo.samples > sample_count)) {
+			delay = frameInfo.samples - sample_count;
+		}
+
+		switch (frameInfo.channels) {
+		case 1: fmt = AL_FORMAT_MONO16; break;
+		case 2: fmt = AL_FORMAT_STEREO16; break;
+		}
+
+		if (sample_count > 0) initial = false;
+
+		if (frameInfo.error) {
+			DEBUG_LOG(("Audio Warning: Read frame error in file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(frameInfo.error).arg(NeAACDecGetErrorMessage(frameInfo.error)));
+		} else if (sample_count > 0) {
+			samplesAdded += sample_count / frameInfo.channels;
+			result.append((const char*)sample_buffer + delay * sizeof(short), sample_count * sizeof(short)); // delay
+		}
+
+		++sampleId;
+		return true;
+	}
+
+	~FAADMp4Loader() {
+		NeAACDecClose(hDecoder);
+		mp4ff_close(mp4f);
+	}
+
+private:
+	int32 freq, fmt;
+	int64 len;
+
+	NeAACDecHandle hDecoder;
+	NeAACDecConfigurationPtr config;
+	NeAACDecFrameInfo frameInfo;
+	mp4AudioSpecificConfig mp4ASC;
+
+	mp4ff_t *mp4f;
+	mp4ff_callback_t mp4cb;
+
+	bool initial, useAacLength;
+	int32 framesize, timescale;
+	int32 trackId, sampleId, samplesCount;
+
+	int32 getAACTrack() {
+		int32 rc;
+		for (int32 i = 0, numTracks = mp4ff_total_tracks(mp4f); i < numTracks; i++)
+		{
+			uchar *buff = 0;
+			uint32 buff_size = 0;
+			mp4ff_get_decoder_config(mp4f, i, &buff, &buff_size);
+			if (buff) {
+				mp4AudioSpecificConfig mp4ASC;
+				rc = NeAACDecAudioSpecificConfig(buff, buff_size, &mp4ASC);
+				free(buff);
+				if (rc < 0) continue;
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	static uint32_t _read_data(void *_stream, void *_ptr, uint32_t _nbytes) {
+		FAADMp4Loader *l = reinterpret_cast<FAADMp4Loader*>(_stream);
+
+		int32 nbytes = qMin(l->data.size() - l->dataPos, int32(_nbytes));
+		if (nbytes <= 0) {
+			return 0;
+		}
+
+		memcpy(_ptr, l->data.constData() + l->dataPos, nbytes);
+		l->dataPos += nbytes;
+		return nbytes;
+	}
+
+	static uint32_t _seek_data(void *_stream, uint64_t _offset) {
+		FAADMp4Loader *l = reinterpret_cast<FAADMp4Loader*>(_stream);
+
+		int32 newPos = _offset;
+		if (newPos < 0) {
+			return (uint32_t)-1;
+		}
+		l->dataPos = newPos;
+		return 0;
+	}
+
+	static uint32_t _read_file(void *_stream, void *_ptr, uint32_t _nbytes) {
+		FAADMp4Loader *l = reinterpret_cast<FAADMp4Loader*>(_stream);
+		return ssize_t(l->f.read((char*)(_ptr), _nbytes));
+	}
+
+	static uint32_t _seek_file(void *_stream, uint64_t _offset) {
+		FAADMp4Loader *l = reinterpret_cast<FAADMp4Loader*>(_stream);
+
+		return l->f.seek(_offset) ? 0 : (uint32_t)-1;
+	}
+};
+
+VoiceMessagesLoaders::VoiceMessagesLoaders(QThread *thread) {
 	moveToThread(thread);
 }
 
-VoiceMessagesLoader::~VoiceMessagesLoader() {
+VoiceMessagesLoaders::~VoiceMessagesLoaders() {
 	for (Loaders::iterator i = _loaders.begin(), e = _loaders.end(); i != e; ++i) {
 		delete i.value();
 	}
 	_loaders.clear();
 }
 
-void VoiceMessagesLoader::onInit() {
+void VoiceMessagesLoaders::onInit() {
 }
 
-void VoiceMessagesLoader::onStart(AudioData *audio) {
+void VoiceMessagesLoaders::onStart(AudioData *audio) {
 	Loaders::iterator i = _loaders.find(audio);
 	if (i != _loaders.end()) {
 		delete (*i);
@@ -513,16 +1107,16 @@ void VoiceMessagesLoader::onStart(AudioData *audio) {
 	onLoad(audio);
 }
 
-void VoiceMessagesLoader::loadError(Loaders::iterator i) {
+void VoiceMessagesLoaders::loadError(Loaders::iterator i) {
 	emit error(i.key());
 	delete (*i);
 	_loaders.erase(i);
 }
 
-void VoiceMessagesLoader::onLoad(AudioData *audio) {
+void VoiceMessagesLoaders::onLoad(AudioData *audio) {
 	bool started = false;
 	int32 audioindex = -1;
-	Loader *l = 0;
+	VoiceMessagesLoader *l = 0;
 	Loaders::iterator j = _loaders.end();
 	{
 		QMutexLocker lock(&voicemsgsMutex);
@@ -535,34 +1129,62 @@ void VoiceMessagesLoader::onLoad(AudioData *audio) {
 
 			audioindex = i;
 			j = _loaders.find(audio);
-			if (j != _loaders.end() && (j.value()->fname != m.fname || j.value()->data.size() != m.data.size())) {
+			if (j != _loaders.end() && !j.value()->check(m.fname, m.data)) {
 				delete j.value();
 				_loaders.erase(j);
 				j = _loaders.end();
 			}
 			if (j == _loaders.end()) {
-				l = (j = _loaders.insert(audio, new Loader())).value();
-				l->fname = m.fname;
-				l->data = m.data;
+				QByteArray header = m.data.mid(0, 8);
+				if (header.isEmpty()) {
+					QFile f(m.fname);
+					if (!f.open(QIODevice::ReadOnly)) {
+						LOG(("Audio Error: could not open file '%1'").arg(m.fname));
+						m.state = VoiceMessageStoppedAtStart;
+						return emit error(audio);
+					}
+					header = f.read(8);
+				}
+				if (header.size() < 8) {
+					LOG(("Audio Error: could not read header from file '%1', data size %2").arg(m.fname).arg(m.data.isEmpty() ? QFileInfo(m.fname).size() : m.data.size()));
+					m.state = VoiceMessageStoppedAtStart;
+					return emit error(audio);
+				}
+				uint32 mpegHead = (uint32(uchar(header.at(0))) << 24) | (uint32(uchar(header.at(1))) << 16) | (uint32(uchar(header.at(2))) << 8) | uint32(uchar(header.at(3)));
+				bool validMpegHead = ((mpegHead & HDR_SYNC) == HDR_SYNC) && !!(HDR_LAYER_VAL(mpegHead)) && (HDR_BITRATE_VAL(mpegHead) != 0x0F) && (HDR_SAMPLERATE_VAL(mpegHead) != 0x03);
+
+				if (header.at(0) == 'O' && header.at(1) == 'g' && header.at(2) == 'g' && header.at(3) == 'S') {
+					j = _loaders.insert(audio, new OggOpusLoader(m.fname, m.data));
+				} else if (header.at(4) == 'f' && header.at(5) == 't' && header.at(6) == 'y' && header.at(7) == 'p') {
+					j = _loaders.insert(audio, new FAADMp4Loader(m.fname, m.data));
+				} else if ((header.at(0) == 'I' && header.at(1) == 'D' && header.at(2) == '3') || validMpegHead) {
+					if (m.data.isEmpty()) {
+						QFile f(m.fname);
+						f.open(QIODevice::ReadOnly);
+						m.data = f.readAll();
+						m.fname = QString();
+					}
+					j = _loaders.insert(audio, new Mpg123Loader(m.fname, m.data));
+				} else {
+					LOG(("Audio Error: could not guess file format from header, header %1 file '%2', data size %3").arg(mb(header.constData(), header.size()).str()).arg(m.fname).arg(m.data.isEmpty() ? QFileInfo(m.fname).size() : m.data.size()));
+					m.state = VoiceMessageStoppedAtStart;
+					return emit error(audio);
+				}
+				l = j.value();
 				
 				int ret;
-				if (m.data.isEmpty()) {
-					l->file = op_open_file(m.fname.toUtf8().constData(), &ret);
-				} else {
-					l->file = op_open_memory((const unsigned char*)m.data.constData(), m.data.size(), &ret);
-				}
-				if (!l->file) {
-					LOG(("Audio Error: op_open_file failed for '%1', data size '%2', error code %3").arg(m.fname).arg(m.data.size()).arg(ret));
-					m.state = VoiceMessageStopped;
+				if (!l->open()) {
+					m.state = VoiceMessageStoppedAtStart;
 					return loadError(j);
 				}
-				ogg_int64_t duration = op_pcm_total(l->file, -1);
-				if (duration < 0) {
-					LOG(("Audio Error: op_pcm_total failed to get full duration for '%1', data size '%2', error code %3").arg(m.fname).arg(m.data.size()).arg(duration));
-					m.state = VoiceMessageStopped;
+				int64 duration = l->duration();
+				if (duration <= 0) {
+					m.state = VoiceMessageStoppedAtStart;
 					return loadError(j);
 				}
 				m.duration = duration;
+				m.frequency = l->frequency();
+				if (!m.frequency) m.frequency = AudioVoiceMsgFrequency;
 				m.skipStart = 0;
 				m.skipEnd = duration;
 				m.position = 0;
@@ -582,75 +1204,25 @@ void VoiceMessagesLoader::onLoad(AudioData *audio) {
 		return;
 	}
 	if (started) {
-		l->pcm_offset = op_pcm_tell(l->file);
-		l->pcm_print_offset = l->pcm_offset - AudioVoiceMsgFrequency;
+		l->started();
 	}
 
 	bool finished = false;
-    DEBUG_LOG(("Audio Info: reading buffer for file '%1', data size '%2', current pcm_offset %3").arg(l->fname).arg(l->data.size()).arg(l->pcm_offset));
 
 	QByteArray result;
-	int64 samplesAdded = 0;
+	int64 samplesAdded = 0, frequency = l->frequency(), format = l->format();
 	while (result.size() < AudioVoiceMsgBufferSize) {
-		opus_int16 pcm[AudioVoiceMsgFrequency * AudioVoiceMsgChannels];
-
-		int ret = op_read_stereo(l->file, pcm, sizeof(pcm) / sizeof(*pcm));
-		if (ret < 0) {
-			/*{
-				QMutexLocker lock(&voicemsgsMutex);
-				VoiceMessages *voice = audioVoice();
-				if (voice) {
-					VoiceMessages::Msg &m(voice->_data[audioindex]);
-					if (m.audio == audio) {
-						m.state = VoiceMessageStopped;
-					}
-				}
-			}*/
-			LOG(("Audio Error: op_read_stereo failed, error code %1 (corrupted voice message?)").arg(ret));
-			finished = true;
-			break;
-//			return loadError(j);
-		}
-
-		int li = op_current_link(l->file);
-		if (li != l->prev_li) {
-			const OpusHead *head = op_head(l->file, li);
-			const OpusTags *tags = op_tags(l->file, li);
-			for (int32 ci = 0; ci < tags->comments; ++ci) {
-				const char *comment = tags->user_comments[ci];
-				if (opus_tagncompare("METADATA_BLOCK_PICTURE", 22, comment) == 0) {
-					OpusPictureTag pic;
-					int err = opus_picture_tag_parse(&pic, comment);
-					if (err >= 0) {
-						opus_picture_tag_clear(&pic);
-					}
-				}
-			}
-			if (!op_seekable(l->file)) {
-				l->pcm_offset = op_pcm_tell(l->file) - ret;
-			}
-		}
-		if (li != l->prev_li || l->pcm_offset >= l->pcm_print_offset + AudioVoiceMsgFrequency) {
-			l->pcm_print_offset = l->pcm_offset;
-		}
-		l->pcm_offset = op_pcm_tell(l->file);
-
-		if (!ret) {
-			DEBUG_LOG(("Audio Info: read completed"));
+		if (!l->readMore(result, samplesAdded)) {
 			finished = true;
 			break;
 		}
-		result.append((const char*)pcm, sizeof(*pcm) * ret * AudioVoiceMsgChannels);
-		l->prev_li = li;
-		samplesAdded += ret;
-
 		{
 			QMutexLocker lock(&voicemsgsMutex);
 			VoiceMessages *voice = audioVoice();
 			if (!voice) return;
 
 			VoiceMessages::Msg &m(voice->_data[audioindex]);
-			if (m.audio != audio || !m.loading || m.fname != l->fname || m.data.size() != l->data.size()) {
+			if (m.audio != audio || !m.loading || !l->check(m.fname, m.data)) {
 				LOG(("Audio Error: playing changed while loading"));
 				m.state = VoiceMessageStopped;
 				return loadError(j);
@@ -663,7 +1235,7 @@ void VoiceMessagesLoader::onLoad(AudioData *audio) {
 	if (!voice) return;
 
 	VoiceMessages::Msg &m(voice->_data[audioindex]);
-	if (m.audio != audio || !m.loading || m.fname != l->fname || m.data.size() != l->data.size()) {
+	if (m.audio != audio || !m.loading || !l->check(m.fname, m.data)) {
 		LOG(("Audio Error: playing changed while loading"));
 		m.state = VoiceMessageStopped;
 		return loadError(j);
@@ -702,7 +1274,7 @@ void VoiceMessagesLoader::onLoad(AudioData *audio) {
 		}
 
 		m.samplesCount[m.nextBuffer] = samplesAdded;
-		alBufferData(m.buffers[m.nextBuffer], AL_FORMAT_STEREO16, result.constData(), result.size(), AudioVoiceMsgFrequency);
+		alBufferData(m.buffers[m.nextBuffer], format, result.constData(), result.size(), frequency);
 		alSourceQueueBuffers(m.source, 1, m.buffers + m.nextBuffer);
 		m.skipEnd -= samplesAdded;
 
@@ -733,7 +1305,7 @@ void VoiceMessagesLoader::onLoad(AudioData *audio) {
 	}
 }
 
-void VoiceMessagesLoader::onCancel(AudioData *audio) {
+void VoiceMessagesLoaders::onCancel(AudioData *audio) {
 	Loaders::iterator i = _loaders.find(audio);
 	if (i != _loaders.end()) {
 		delete (*i);

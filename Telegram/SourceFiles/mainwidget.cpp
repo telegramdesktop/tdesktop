@@ -1357,9 +1357,8 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 	if (audio->loader) {
 		if (audio->loader->done()) {
 			audio->finish();
-			bool mp3 = (audio->mime == QLatin1String("audio/mp3"));
 			QString already = audio->already();
-			bool play = !mp3 && audio->openOnSave > 0 && audioVoice();
+			bool play = audio->openOnSave > 0 && audioVoice();
 			if ((!already.isEmpty() && audio->openOnSave) || (!audio->data.isEmpty() && play)) {
 				if (play) {
 					AudioData *playing = 0;
@@ -1393,6 +1392,32 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 }
 
 void MainWidget::audioPlayProgress(AudioData *audio) {
+	AudioData *playing = 0;
+	VoiceMessageState state = VoiceMessageStopped;
+	audioVoice()->currentState(&playing, &state);
+	if (playing == audio && state == VoiceMessageStoppedAtStart) {
+		audioVoice()->clearStoppedAtStart(audio);
+		QString already = audio->already(true);
+		if (already.isEmpty() && !audio->data.isEmpty()) {
+			bool mp3 = (audio->mime == QLatin1String("audio/mp3"));
+			QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), mp3 ? qsl(".mp3") : qsl(".ogg"), false);
+			if (!filename.isEmpty()) {
+				QFile f(filename);
+				if (f.open(QIODevice::WriteOnly)) {
+					if (f.write(audio->data) == audio->data.size()) {
+						f.close();
+						already = filename;
+						audio->location = FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename);
+						Local::writeFileLocation(mediaKey(mtpToLocationType(mtpc_inputAudioFileLocation), audio->dc, audio->id), FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename));
+					}
+				}
+			}
+		}
+		if (!already.isEmpty()) {
+			psOpenFile(already);
+		}
+	}
+
 	const AudioItems &items(App::audioItems());
 	AudioItems::const_iterator i = items.constFind(audio);
 	if (i != items.cend()) {

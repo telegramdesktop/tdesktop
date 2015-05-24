@@ -26,6 +26,7 @@ void audioFinish();
 
 enum VoiceMessageState {
 	VoiceMessageStopped,
+	VoiceMessageStoppedAtStart,
 	VoiceMessageStarting,
 	VoiceMessagePlaying,
 	VoiceMessageFinishing,
@@ -47,7 +48,8 @@ public:
 	void play(AudioData *audio);
 	void pauseresume();
 
-	void currentState(AudioData **audio, VoiceMessageState *state = 0, int64 *position = 0, int64 *duration = 0);
+	void currentState(AudioData **audio, VoiceMessageState *state = 0, int64 *position = 0, int64 *duration = 0, int32 *frequency = 0);
+	void clearStoppedAtStart(AudioData *audio);
 	void processContext();
 
 	~VoiceMessages();
@@ -70,7 +72,7 @@ private:
 	bool updateCurrentStarted(int32 pos = -1);
 
 	struct Msg {
-		Msg() : audio(0), position(0), duration(0), skipStart(0), skipEnd(0), loading(0), started(0),
+		Msg() : audio(0), position(0), duration(0), frequency(AudioVoiceMsgFrequency), skipStart(0), skipEnd(0), loading(0), started(0),
 		state(VoiceMessageStopped), source(0), nextBuffer(0) {
 			memset(buffers, 0, sizeof(buffers));
 			memset(samplesCount, 0, sizeof(samplesCount));
@@ -79,6 +81,7 @@ private:
 		QString fname;
 		QByteArray data;
 		int64 position, duration;
+		int32 frequency;
 		int64 skipStart, skipEnd;
 		bool loading;
 		int64 started;
@@ -96,12 +99,12 @@ private:
 	QMutex _mutex;
 
 	friend class VoiceMessagesFader;
-	friend class VoiceMessagesLoader;
+	friend class VoiceMessagesLoaders;
 
 	QThread _faderThread;
 	QThread _loaderThread;
 	VoiceMessagesFader *_fader;
-	VoiceMessagesLoader *_loader;
+	VoiceMessagesLoaders *_loader;
 
 };
 
@@ -139,13 +142,14 @@ private:
 
 };
 
-class VoiceMessagesLoader : public QObject {
+class VoiceMessagesLoader;
+class VoiceMessagesLoaders : public QObject {
 	Q_OBJECT
 
 public:
 
-	VoiceMessagesLoader(QThread *thread);
-	~VoiceMessagesLoader();
+	VoiceMessagesLoaders(QThread *thread);
+	~VoiceMessagesLoaders();
 
 signals:
 
@@ -161,8 +165,7 @@ public slots:
 	
 private:
 
-	struct Loader;
-	typedef QMap<AudioData*, Loader*> Loaders;
+	typedef QMap<AudioData*, VoiceMessagesLoader*> Loaders;
 	Loaders _loaders;
 
 	void loadError(Loaders::iterator i);
