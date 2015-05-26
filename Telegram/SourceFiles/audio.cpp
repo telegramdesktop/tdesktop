@@ -29,6 +29,15 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include <neaacdec.h>
 #include <mp4ff.h>
 
+extern "C" {
+
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/opt.h>
+#include <libswresample/swresample.h>
+
+}
+
 namespace {
 	ALCdevice *audioDevice = 0;
 	ALCcontext *audioContext = 0;
@@ -164,6 +173,9 @@ void audioInit() {
 	} else {
 		LOG(("Could not init MPG123, result: %1").arg(mpg123res));
 	}
+
+	av_register_all();
+	avcodec_register_all();
 
 	LOG(("Audio init time: %1").arg(getms() - ms));
 }
@@ -1084,6 +1096,288 @@ private:
 	}
 };
 
+static const uint32 AVBlockSize = 4096; // 4Kb
+static const AVSampleFormat _toFormat = AV_SAMPLE_FMT_S16;
+static const int64_t _toChannelLayout = AV_CH_LAYOUT_STEREO;
+static const int32 _toChannels = 2;
+class FFMpegLoader : public VoiceMessagesLoader {
+public:
+
+	FFMpegLoader(const QString &fname, const QByteArray &data) : VoiceMessagesLoader(fname, data),
+		freq(AudioVoiceMsgFrequency), fmt(AL_FORMAT_STEREO16),
+		sampleSize(2 * sizeof(short)), srcRate(AudioVoiceMsgFrequency), dstRate(AudioVoiceMsgFrequency),
+		maxResampleSamples(1024), resampleData(0), len(0),
+		ioBuffer(0), ioContext(0), fmtContext(0), codec(0), codecContext(0), streamId(0), frame(0), swrContext(0),
+		_opened(false) {
+		frame = av_frame_alloc();
+	}
+
+	bool open() {
+		if (!VoiceMessagesLoader::openFile()) {
+			return false;
+		}
+
+		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+		ioBuffer = (uchar*)av_malloc(AVBlockSize);
+		if (data.isEmpty()) {
+			ioContext = avio_alloc_context(ioBuffer, AVBlockSize, 0, static_cast<void*>(this), &FFMpegLoader::_read_file, 0, &FFMpegLoader::_seek_file);
+		} else {
+			ioContext = avio_alloc_context(ioBuffer, AVBlockSize, 0, static_cast<void*>(this), &FFMpegLoader::_read_data, 0, &FFMpegLoader::_seek_data);
+		}
+		fmtContext = avformat_alloc_context();
+		fmtContext->pb = ioContext;
+		if (!fmtContext) {
+			LOG(("Audio Error: Unable to avformat_alloc_context for file '%1', data size '%2'").arg(fname).arg(data.size()));
+			return false;
+		}
+		int res = 0;
+		if ((res = avformat_open_input(&fmtContext, 0, 0, 0)) < 0) {
+			LOG(("Audio Error: Unable to avformat_open_input for file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			return false;
+		}
+		_opened = true;
+
+		if ((res = avformat_find_stream_info(fmtContext, 0)) < 0) {
+			LOG(("Audio Error: Unable to avformat_find_stream_info for file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			return false;
+		}
+
+		streamId = av_find_best_stream(fmtContext, AVMEDIA_TYPE_AUDIO, -1, -1, &codec, 0);
+		if (streamId < 0) {
+			LOG(("Audio Error: Unable to av_find_best_stream for file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(streamId).arg(av_make_error_string(err, sizeof(err), streamId)));
+			return false;
+		}
+
+		// Get a pointer to the codec context for the audio stream
+		codecContext = fmtContext->streams[streamId]->codec;
+		av_opt_set_int(codecContext, "refcounted_frames", 1, 0);
+		if ((res = avcodec_open2(codecContext, codec, 0)) < 0) {
+			LOG(("Audio Error: Unable to avcodec_open2 for file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			return false;
+		}
+
+		freq = fmtContext->streams[streamId]->codec->sample_rate;
+		len = (fmtContext->streams[streamId]->duration * freq) / fmtContext->streams[streamId]->time_base.den;
+		uint64_t layout = fmtContext->streams[streamId]->codec->channel_layout;
+		inputFormat = fmtContext->streams[streamId]->codec->sample_fmt;
+		switch (layout) {
+		case AV_CH_LAYOUT_MONO:
+			switch (inputFormat) {
+			case AV_SAMPLE_FMT_U8:
+			case AV_SAMPLE_FMT_U8P: fmt = AL_FORMAT_MONO8; sampleSize = 1; break;
+			case AV_SAMPLE_FMT_S16:
+			case AV_SAMPLE_FMT_S16P: fmt = AL_FORMAT_MONO16; sampleSize = 2; break;
+			default:
+				sampleSize = -1; // convert needed
+				break;
+			}
+			break;
+		case AV_CH_LAYOUT_STEREO:
+			switch (inputFormat) {
+			case AV_SAMPLE_FMT_U8: fmt = AL_FORMAT_STEREO8; sampleSize = sizeof(short); break;
+			case AV_SAMPLE_FMT_S16: fmt = AL_FORMAT_STEREO16; sampleSize = 2 * sizeof(short); break;
+			default:
+				sampleSize = -1; // convert needed
+				break;
+			}
+			break;
+		default:
+			sampleSize = -1; // convert needed
+			break;
+		}
+		if (freq != 44100 && freq != 48000) {
+			sampleSize = -1; // convert needed
+		}
+
+		if (sampleSize < 0) {
+			swrContext = swr_alloc();
+			if (!swrContext) {
+				LOG(("Audio Error: Unable to swr_alloc for file '%1', data size '%2'").arg(fname).arg(data.size()));
+				return false;
+			}
+			int64_t src_ch_layout = layout, dst_ch_layout = _toChannelLayout;
+			srcRate = freq;
+			AVSampleFormat src_sample_fmt = inputFormat, dst_sample_fmt = _toFormat;
+			dstRate = (freq != 44100 && freq != 48000) ? AudioVoiceMsgFrequency : freq;
+
+			av_opt_set_int(swrContext, "in_channel_layout", src_ch_layout, 0);
+			av_opt_set_int(swrContext, "in_sample_rate", srcRate, 0);
+			av_opt_set_sample_fmt(swrContext, "in_sample_fmt", src_sample_fmt, 0);
+			av_opt_set_int(swrContext, "out_channel_layout", dst_ch_layout, 0);
+			av_opt_set_int(swrContext, "out_sample_rate", dstRate, 0);
+			av_opt_set_sample_fmt(swrContext, "out_sample_fmt", dst_sample_fmt, 0);
+
+			if ((res = swr_init(swrContext)) < 0) {
+				LOG(("Audio Error: Unable to swr_init for file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+				return false;
+			}
+
+			sampleSize = _toChannels * sizeof(short);
+			freq = dstRate;
+			len = av_rescale_rnd(len, dstRate, srcRate, AV_ROUND_UP);
+			fmt = AL_FORMAT_STEREO16;
+
+			maxResampleSamples = av_rescale_rnd(AVBlockSize / sampleSize, dstRate, srcRate, AV_ROUND_UP);
+			if ((res = av_samples_alloc_array_and_samples(&resampleData, 0, _toChannels, maxResampleSamples, _toFormat, 0)) < 0) {
+				LOG(("Audio Error: Unable to av_samples_alloc for file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	int64 duration() {
+		return len;
+	}
+
+	int32 frequency() {
+		return freq;
+	}
+
+	int32 format() {
+		return fmt;
+	}
+
+	void started() {
+	}
+
+	bool readMore(QByteArray &result, int64 &samplesAdded) {
+		int res;
+		if ((res = av_read_frame(fmtContext, &avpkt)) < 0) {
+			if (res != AVERROR_EOF) {
+				char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+				LOG(("Audio Error: Unable to av_read_frame() file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			}
+			return false;
+		}
+		if (avpkt.stream_index == streamId) {
+			avcodec_get_frame_defaults(frame);
+			int got_frame = 0;
+			if ((res = avcodec_decode_audio4(codecContext, frame, &got_frame, &avpkt)) < 0) {
+				char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+				LOG(("Audio Error: Unable to avcodec_decode_audio4() file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+				return false;
+			}
+
+			if (got_frame) {
+				if (resampleData) { // convert needed
+					int64_t dstSamples = av_rescale_rnd(swr_get_delay(swrContext, srcRate) + frame->nb_samples, dstRate, srcRate, AV_ROUND_UP);
+					if (dstSamples > maxResampleSamples) {
+						maxResampleSamples = dstSamples;
+						av_free(resampleData[0]);
+
+						if ((res = av_samples_alloc(resampleData, 0, _toChannels, maxResampleSamples, _toFormat, 1)) < 0) {
+							resampleData[0] = 0;
+							char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+							LOG(("Audio Error: Unable to av_samples_alloc for file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+							return false;
+						}
+					}
+					if ((res = swr_convert(swrContext, resampleData, dstSamples, (const uint8_t**)frame->extended_data, frame->nb_samples)) < 0) {
+						char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+						LOG(("Audio Error: Unable to swr_convert for file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+						return false;
+					}
+					int32 resultLen = av_samples_get_buffer_size(0, _toChannels, res, _toFormat, 1);
+					result.append((const char*)resampleData[0], resultLen);
+					samplesAdded += resultLen / sampleSize;
+				} else {
+					result.append((const char*)frame->extended_data[0], frame->nb_samples * sampleSize);
+					samplesAdded += frame->nb_samples;
+				}
+			}
+		}
+		av_free_packet(&avpkt);
+		return true;
+	}
+
+	~FFMpegLoader() {
+		if (ioContext) av_free(ioContext);
+		if (codecContext) avcodec_close(codecContext);
+		if (swrContext) swr_free(&swrContext);
+		if (resampleData) {
+			if (resampleData[0]) {
+				av_freep(&resampleData[0]);
+			}
+			av_freep(&resampleData);
+		}
+		if (_opened) {
+			avformat_close_input(&fmtContext);
+		} else {
+			av_free(ioBuffer);
+		}
+		if (fmtContext) avformat_free_context(fmtContext);
+		av_frame_free(&frame);
+	}
+
+private:
+
+	int32 freq, fmt, channels;
+	int32 sampleSize, srcRate, dstRate, maxResampleSamples;
+	uint8_t **resampleData;
+	int64 len;
+
+	uchar *ioBuffer;
+	AVIOContext *ioContext;
+	AVFormatContext *fmtContext;
+	AVCodec *codec;
+	AVCodecContext *codecContext;
+	AVPacket avpkt;
+	int32 streamId;
+	AVSampleFormat inputFormat;
+	AVFrame *frame;
+
+	SwrContext *swrContext;
+
+	bool _opened;
+
+	static int _read_data(void *opaque, uint8_t *buf, int buf_size) {
+		FFMpegLoader *l = reinterpret_cast<FFMpegLoader*>(opaque);
+
+		int32 nbytes = qMin(l->data.size() - l->dataPos, int32(buf_size));
+		if (nbytes <= 0) {
+			return 0;
+		}
+
+		memcpy(buf, l->data.constData() + l->dataPos, nbytes);
+		l->dataPos += nbytes;
+		return nbytes;
+	}
+
+	static int64_t _seek_data(void *opaque, int64_t offset, int whence) {
+		FFMpegLoader *l = reinterpret_cast<FFMpegLoader*>(opaque);
+
+		int32 newPos = -1;
+		switch (whence) {
+		case SEEK_SET: newPos = offset; break;
+		case SEEK_CUR: newPos = l->dataPos + offset; break;
+		case SEEK_END: newPos = l->data.size() + offset; break;
+		}
+		if (newPos < 0 || newPos > l->data.size()) {
+			return -1;
+		}
+		l->dataPos = newPos;
+		return l->dataPos;
+	}
+
+	static int _read_file(void *opaque, uint8_t *buf, int buf_size) {
+		FFMpegLoader *l = reinterpret_cast<FFMpegLoader*>(opaque);
+		return ssize_t(l->f.read((char*)(buf), buf_size));
+	}
+
+	static int64_t _seek_file(void *opaque, int64_t offset, int whence) {
+		FFMpegLoader *l = reinterpret_cast<FFMpegLoader*>(opaque);
+
+		switch (whence) {
+		case SEEK_SET: return l->f.seek(offset) ? l->f.pos() : -1;
+		case SEEK_CUR: return l->f.seek(l->f.pos() + offset) ? l->f.pos() : -1;
+		case SEEK_END: return l->f.seek(l->f.size() + offset) ? l->f.pos() : -1;
+		}
+		return -1;
+	}
+};
+
 VoiceMessagesLoaders::VoiceMessagesLoaders(QThread *thread) {
 	moveToThread(thread);
 }
@@ -1153,7 +1447,9 @@ void VoiceMessagesLoaders::onLoad(AudioData *audio) {
 				uint32 mpegHead = (uint32(uchar(header.at(0))) << 24) | (uint32(uchar(header.at(1))) << 16) | (uint32(uchar(header.at(2))) << 8) | uint32(uchar(header.at(3)));
 				bool validMpegHead = ((mpegHead & HDR_SYNC) == HDR_SYNC) && !!(HDR_LAYER_VAL(mpegHead)) && (HDR_BITRATE_VAL(mpegHead) != 0x0F) && (HDR_SAMPLERATE_VAL(mpegHead) != 0x03);
 
-				if (header.at(0) == 'O' && header.at(1) == 'g' && header.at(2) == 'g' && header.at(3) == 'S') {
+				if (true) {
+					j = _loaders.insert(audio, new FFMpegLoader(m.fname, m.data));
+				}  else if (header.at(0) == 'O' && header.at(1) == 'g' && header.at(2) == 'g' && header.at(3) == 'S') {
 					j = _loaders.insert(audio, new OggOpusLoader(m.fname, m.data));
 				} else if (header.at(4) == 'f' && header.at(5) == 't' && header.at(6) == 'y' && header.at(7) == 'p') {
 					j = _loaders.insert(audio, new FAADMp4Loader(m.fname, m.data));

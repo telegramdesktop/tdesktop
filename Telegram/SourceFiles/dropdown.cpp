@@ -1816,8 +1816,8 @@ bool EmojiPan::animStep(float64 ms) {
 				res1 = false;
 				hideFinish();
 			} else {
-				if (_toCache.isNull()) showAll();
 				_cache = QPixmap();
+				if (_toCache.isNull()) showAll();
 			}
 		} else {
 			a_opacity.update(dt, anim::linear);
