@@ -300,8 +300,14 @@ INCLUDEPATH += "/usr/include/atk-1.0"
 INCLUDEPATH += "/usr/include/dee-1.0"
 INCLUDEPATH += "/usr/include/libdbusmenu-glib-0.4"
 
+INCLUDEPATH += "/usr/lib/glib-2.0/include"
+INCLUDEPATH += "/usr/lib/gtk-2.0/include"
+INCLUDEPATH += "/usr/include/opus"
+
 LIBS += -lcrypto -lssl -lz -ldl -llzma -lexif -lopus -lopusfile -logg -lopenal
 LIBS += ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a
+LIBS += ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libibusplatforminputcontextplugin.a
+LIBS += ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a
 
 RESOURCES += \
     ./SourceFiles/telegram.qrc \
@@ -312,6 +318,7 @@ OTHER_FILES += \
     Resources/style_classes.txt \
     Resources/style.txt \
     Resources/lang.strings \
+	SourceFiles/langs/lang_zh_CN.strings \
     SourceFiles/langs/lang_it.strings \
     SourceFiles/langs/lang_es.strings \
     SourceFiles/langs/lang_de.strings \
