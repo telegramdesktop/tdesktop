@@ -92,6 +92,13 @@ Apply patch:
 
     git apply _qt_5_4_0_patch.diff
 
+Add fcitx-qt5:
+
+	copy everything from **/home/user/TBuild/tdesktop/fcitx-qt5** to **/home/user/TBuild/Libraries/QtStatic/qtbase/src/plugins/platforminputcontexts/fcitx,and go **/home/user/TBuild/Libraries/QtStatic/qtbase/src/plugins/platforminputcontexts/** in Terminal and run
+
+	git apply fcitx/platforminputcontexts.pro.patch.diff
+
+
 #####Building library
 
 Install some packages for Qt (see **/home/user/TBuild/Libraries/QtStatic/qtbase/src/plugins/platforms/xcb/README**)
