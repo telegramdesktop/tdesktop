@@ -2391,16 +2391,16 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	}
 
 	AudioData *playing = 0;
-	VoiceMessageState playingState = VoiceMessageStopped;
+	AudioPlayerState playingState = AudioPlayerStopped;
 	int64 playingPosition = 0, playingDuration = 0;
 	int32 playingFrequency = 0;
-	if (audioVoice()) {
-		audioVoice()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
+	if (audioPlayer()) {
+		audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
 	}
 
 	QRect img;
 	if (already || hasdata) {
-		bool showPause = (playing == data) && (playingState == VoiceMessagePlaying || playingState == VoiceMessageResuming || playingState == VoiceMessageStarting);
+		bool showPause = (playing == data) && (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
 		img = out ? (showPause ? st::mediaPauseOutImg : st::mediaPlayOutImg) : (showPause ? st::mediaPauseInImg : st::mediaPlayInImg);
 	} else {
 		img = out ? st::mediaAudioOutImg : st::mediaAudioInImg;
@@ -2423,32 +2423,28 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 
 	style::color status(selected ? (out ? st::mediaOutSelectColor : st::mediaInSelectColor) : (out ? st::mediaOutColor : st::mediaInColor));
 	p.setPen(status->p);
-	if (already || hasdata) {
-		if (playing == data && playingState != VoiceMessageStopped && playingState != VoiceMessageStoppedAtStart) {
+	if (data->status == FileFailed) {
+		statusText = lang(lng_attach_failed);
+	} else if (data->status == FileUploading) {
+		if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
+			_uplDone = data->uploadOffset;
+			_uplTextCache = formatDownloadText(_uplDone, data->size);
+		}
+		statusText = _uplTextCache;
+	} else if (already || hasdata) {
+		if (playing == data && playingState != AudioPlayerStopped && playingState != AudioPlayerStoppedAtStart) {
 			statusText = formatDurationText(playingPosition / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency)) + qsl(" / ") + formatDurationText(playingDuration / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency));
 		} else {
 			statusText = formatDurationText(data->duration);
 		}
-	} else {
-		if (data->loader) {
-			if (_dldTextCache.isEmpty() || _dldDone != data->loader->currentOffset()) {
-				_dldDone = data->loader->currentOffset();
-				_dldTextCache = formatDownloadText(_dldDone, data->size);
-			}
-			statusText = _dldTextCache;
-		} else {
-			if (data->status == FileFailed) {
-				statusText = lang(lng_attach_failed);
-			} else if (data->status == FileUploading) {
-				if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
-					_uplDone = data->uploadOffset;
-					_uplTextCache = formatDownloadText(_uplDone, data->size);
-				}
-				statusText = _uplTextCache;
-			} else {
-				statusText = _size;
-			}
+	} else if (data->loader) {
+		if (_dldTextCache.isEmpty() || _dldDone != data->loader->currentOffset()) {
+			_dldDone = data->loader->currentOffset();
+			_dldTextCache = formatDownloadText(_dldDone, data->size);
 		}
+		statusText = _dldTextCache;
+	} else {
+		statusText = _size;
 	}
 	int32 texty = skipy + st::mediaPadding.top() + st::mediaThumbSize - st::mediaDetailsShift - st::mediaFont->height;
 	p.drawText(tleft, texty + st::mediaFont->ascent, statusText);
@@ -2490,6 +2486,15 @@ void HistoryAudio::regItem(HistoryItem *item) {
 
 void HistoryAudio::unregItem(HistoryItem *item) {
 	App::unregAudioItem(data, item);
+}
+
+void HistoryAudio::updateFrom(const MTPMessageMedia &media) {
+	if (media.type() == mtpc_messageMediaAudio) {
+		App::feedAudio(media.c_messageMediaAudio().vaudio, data);
+		if (!data->data.isEmpty()) {
+			Local::writeAudio(mediaKey(mtpToLocationType(mtpc_inputAudioFileLocation), data->dc, data->id), data->data);
+		}
+	}
 }
 
 const QString HistoryAudio::inDialogsText() const {
@@ -2744,24 +2749,22 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 	style::color status(selected ? (out ? st::mediaOutSelectColor : st::mediaInSelectColor) : (out ? st::mediaOutColor : st::mediaInColor));
 	p.setPen(status->p);
 
-	if (data->loader) {
+	if (data->status == FileFailed) {
+		statusText = lang(lng_attach_failed);
+	} else if (data->status == FileUploading) {
+		if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
+			_uplDone = data->uploadOffset;
+			_uplTextCache = formatDownloadText(_uplDone, data->size);
+		}
+		statusText = _uplTextCache;
+	} else if (data->loader) {
 		if (_dldTextCache.isEmpty() || _dldDone != data->loader->currentOffset()) {
 			_dldDone = data->loader->currentOffset();
 			_dldTextCache = formatDownloadText(_dldDone, data->size);
 		}
 		statusText = _dldTextCache;
 	} else {
-		if (data->status == FileFailed) {
-			statusText = lang(lng_attach_failed);
-		} else if (data->status == FileUploading) {
-			if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
-				_uplDone = data->uploadOffset;
-				_uplTextCache = formatDownloadText(_uplDone, data->size);
-			}
-			statusText = _uplTextCache;
-		} else {
-			statusText = _size;
-		}
+		statusText = _size;
 	}
 	p.drawText(tleft, skipy + st::mediaPadding.top() + st::mediaThumbSize - st::mediaDetailsShift - st::mediaFont->descent, statusText);
 
@@ -3075,6 +3078,9 @@ void HistorySticker::unregItem(HistoryItem *item) {
 void HistorySticker::updateFrom(const MTPMessageMedia &media) {
 	if (media.type() == mtpc_messageMediaDocument) {
 		App::feedDocument(media.c_messageMediaDocument().vdocument, data);
+		if (!data->data.isEmpty()) {
+			Local::writeStickerImage(mediaKey(mtpToLocationType(mtpc_inputDocumentFileLocation), data->dc, data->id), data->data);
+		}
 		if (App::main()) App::main()->incrementSticker(data);
 	}
 }

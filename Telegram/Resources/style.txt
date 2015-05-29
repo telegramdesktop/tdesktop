@@ -992,6 +992,15 @@ btnAttachEmoji: iconedButton(btnAttachDocument) {
 
 	width: 33px;
 }
+btnRecordAudio: sprite(363px, 366px, 16px, 24px);
+btnRecordAudioActive: sprite(379px, 366px, 16px, 24px);
+recordSignalColor: #f17077;
+recordSignalMin: 5px;
+recordSignalMax: 10px;
+recordCancel: #aaa;
+recordCancelActive: #ec6466;
+recordFont: font(16px);
+recordTextTop: 12px;
 
 replySkip: 51px;
 replyColor: #377aae;

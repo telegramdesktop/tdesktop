@@ -422,7 +422,7 @@ void PsMainWindow::psMacUpdateMenu() {
 		canPaste = !App::app()->clipboard()->text().isEmpty();
 	} else if (FlatTextarea *edit = qobject_cast<FlatTextarea*>(focused)) {
 		canCut = canCopy = canDelete = edit->textCursor().hasSelection();
-		canSelectAll = edit->hasText();
+		canSelectAll = !edit->getLastText().isEmpty();
 		canUndo = edit->isUndoAvailable();
 		canRedo = edit->isRedoAvailable();
 		canPaste = !App::app()->clipboard()->text().isEmpty();

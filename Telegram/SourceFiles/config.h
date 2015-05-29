@@ -86,8 +86,12 @@ enum {
 	AudioCheckPositionDelta = 4800, // update position called each 4800 samples
 	AudioFadeTimeout = 10, // 10ms
 	AudioFadeDuration = 500,
+	AudioVoiceMsgSkip = 400, // 200ms
+	AudioVoiceMsgFade = 300, // 300ms
 	AudioPreloadSamples = 5 * 48000, // preload next part if less than 5 seconds remains
 	AudioVoiceMsgFrequency = 48000, // 48 kHz
+	AudioVoiceMsgMaxLength = 100 * 60, // 100 minutes
+	AudioVoiceMsgUpdateView = 100, // 100ms
 	AudioVoiceMsgChannels = 2, // stereo
 	AudioVoiceMsgBufferSize = 1024 * 1024, // 1 Mb buffers
 	AudioVoiceMsgInMemory = 1024 * 1024, // 1 Mb audio is hold in memory and auto loaded

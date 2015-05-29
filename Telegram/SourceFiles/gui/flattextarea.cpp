@@ -681,8 +681,12 @@ bool FlatTextarea::animStep(float64 ms) {
 	return res;
 }
 
+const QString &FlatTextarea::getLastText() const {
+	return _oldtext;
+}
+
 void FlatTextarea::updatePlaceholder() {
-	bool vis = !hasText();
+	bool vis = getLastText().isEmpty();
 	if (vis == _phVisible) return;
 
 	a_phLeft.start(vis ? 0 : _st.phShift);

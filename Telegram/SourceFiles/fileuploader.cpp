@@ -40,6 +40,10 @@ void FileUploader::uploadMedia(MsgId msgId, const ReadyLocalMedia &media) {
 		if (!media.file.isEmpty()) {
 			document->location = FileLocation(StorageFilePartial, media.file);
 		}
+	} else if (media.type == ToPrepareAudio) {
+		AudioData *audio = App::feedAudio(media.audio);
+		audio->status = FileUploading;
+		audio->data = media.data;
 	}
 	queue.insert(msgId, File(media));
 	sendNext();
@@ -56,6 +60,12 @@ void FileUploader::currentFailed() {
 				doc->status = FileFailed;
 			}
 			emit documentFailed(j.key());
+		} else if (j->media.type == ToPrepareAudio) {
+			AudioData *audio = App::audio(j->media.id);
+			if (audio->status == FileUploading) {
+				audio->status = FileFailed;
+			}
+			emit audioFailed(j.key());
 		}
 		queue.erase(j);
 	}
@@ -112,7 +122,7 @@ void FileUploader::sendNext() {
 					emit photoReady(uploading, MTP_inputFile(MTP_long(i->media.id), MTP_int(i->partsCount), MTP_string(i->media.filename), MTP_string(i->media.jpeg_md5)));
 				} else if (i->media.type == ToPrepareDocument) {
 					QByteArray docMd5(32, Qt::Uninitialized);
-					hashMd5Hex(i->docHash.result(), docMd5.data());
+					hashMd5Hex(i->md5Hash.result(), docMd5.data());
 
 					MTPInputFile doc = (i->docSize > UseBigFilesFrom) ? MTP_inputFileBig(MTP_long(i->media.id), MTP_int(i->docPartsCount), MTP_string(i->media.filename)) : MTP_inputFile(MTP_long(i->media.id), MTP_int(i->docPartsCount), MTP_string(i->media.filename), MTP_string(docMd5));
 					if (i->partsCount) {
@@ -120,6 +130,12 @@ void FileUploader::sendNext() {
 					} else {
 						emit documentReady(uploading, doc);
 					}
+				} else if (i->media.type == ToPrepareAudio) {
+					QByteArray audioMd5(32, Qt::Uninitialized);
+					hashMd5Hex(i->md5Hash.result(), audioMd5.data());
+
+					MTPInputFile audio = (i->docSize > UseBigFilesFrom) ? MTP_inputFileBig(MTP_long(i->media.id), MTP_int(i->docPartsCount), MTP_string(i->media.filename)) : MTP_inputFile(MTP_long(i->media.id), MTP_int(i->docPartsCount), MTP_string(i->media.filename), MTP_string(audioMd5));
+					emit audioReady(uploading, audio);
 				}
 				queue.remove(uploading);
 				uploading = 0;
@@ -139,12 +155,12 @@ void FileUploader::sendNext() {
 			}
 			toSend = i->docFile->read(i->docPartSize);
 			if (i->docSize <= UseBigFilesFrom) {
-				i->docHash.feed(toSend.constData(), toSend.size());
+				i->md5Hash.feed(toSend.constData(), toSend.size());
 			}
 		} else {
 			toSend = i->media.data.mid(i->docSentParts * i->docPartSize, i->docPartSize);
-			if (i->media.type == ToPrepareDocument && i->docSentParts <= UseBigFilesFrom) {
-				i->docHash.feed(toSend.constData(), toSend.size());
+			if ((i->media.type == ToPrepareDocument || i->media.type == ToPrepareAudio) && i->docSentParts <= UseBigFilesFrom) {
+				i->md5Hash.feed(toSend.constData(), toSend.size());
 			}
 		}
 		if (toSend.size() > i->docPartSize || (toSend.size() < i->docPartSize && i->docSentParts + 1 != i->docPartsCount)) {
@@ -249,6 +265,14 @@ void FileUploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 					}
 				}
 				emit documentProgress(k.key());
+			} else if (k->media.type == ToPrepareAudio) {
+				AudioData *audio = App::audio(k->media.id);
+				if (audio->status == FileUploading) {
+					audio->uploadOffset = (k->docSentParts - docRequestsSent.size()) * k->docPartSize;
+					if (audio->uploadOffset > audio->size) {
+						audio->uploadOffset = audio->size;
+					}
+				}
 			}
 		}
 	}

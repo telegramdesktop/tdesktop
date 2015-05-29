@@ -596,6 +596,9 @@ void ScrollArea::enterEvent(QEvent *e) {
 		hor.hideTimeout(_st.hiding);
 		vert.hideTimeout(_st.hiding);
 	}
+	TWidget *p(tparent());
+	if (p) p->leaveToChildEvent(e);
+	return QScrollArea::enterEvent(e);
 }
 
 void ScrollArea::leaveEvent(QEvent *e) {
@@ -603,6 +606,9 @@ void ScrollArea::leaveEvent(QEvent *e) {
 		hor.hideTimeout(0);
 		vert.hideTimeout(0);
 	}
+	TWidget *p(tparent());
+	if (p) p->enterFromChildEvent(e);
+	return QScrollArea::leaveEvent(e);
 }
 
 void ScrollArea::scrollToY(int toTop, int toBottom) {

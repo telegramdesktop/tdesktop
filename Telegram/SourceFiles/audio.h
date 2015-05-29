@@ -24,35 +24,32 @@ bool audioWorks();
 void audioPlayNotify();
 void audioFinish();
 
-enum VoiceMessageState {
-	VoiceMessageStopped,
-	VoiceMessageStoppedAtStart,
-	VoiceMessageStarting,
-	VoiceMessagePlaying,
-	VoiceMessageFinishing,
-	VoiceMessagePausing,
-	VoiceMessagePaused,
-	VoiceMessageResuming,
+enum AudioPlayerState {
+	AudioPlayerStopped,
+	AudioPlayerStoppedAtStart,
+	AudioPlayerStarting,
+	AudioPlayerPlaying,
+	AudioPlayerFinishing,
+	AudioPlayerPausing,
+	AudioPlayerPaused,
+	AudioPlayerResuming,
 };
 
-class VoiceMessagesFader;
-class VoiceMessagesLoaders;
-
-class VoiceMessages : public QObject {
+class AudioPlayer : public QObject {
 	Q_OBJECT
 
 public:
 
-	VoiceMessages();
+	AudioPlayer();
 
 	void play(AudioData *audio);
 	void pauseresume();
 
-	void currentState(AudioData **audio, VoiceMessageState *state = 0, int64 *position = 0, int64 *duration = 0, int32 *frequency = 0);
+	void currentState(AudioData **audio, AudioPlayerState *state = 0, int64 *position = 0, int64 *duration = 0, int32 *frequency = 0);
 	void clearStoppedAtStart(AudioData *audio);
 	void processContext();
 
-	~VoiceMessages();
+	~AudioPlayer();
 
 public slots:
 
@@ -73,7 +70,7 @@ private:
 
 	struct Msg {
 		Msg() : audio(0), position(0), duration(0), frequency(AudioVoiceMsgFrequency), skipStart(0), skipEnd(0), loading(0), started(0),
-		state(VoiceMessageStopped), source(0), nextBuffer(0) {
+			state(AudioPlayerStopped), source(0), nextBuffer(0) {
 			memset(buffers, 0, sizeof(buffers));
 			memset(samplesCount, 0, sizeof(samplesCount));
 		}
@@ -85,7 +82,7 @@ private:
 		int64 skipStart, skipEnd;
 		bool loading;
 		int64 started;
-		VoiceMessageState state;
+		AudioPlayerState state;
 
 		uint32 source;
 		int32 nextBuffer;
@@ -98,24 +95,54 @@ private:
 
 	QMutex _mutex;
 
-	friend class VoiceMessagesFader;
-	friend class VoiceMessagesLoaders;
+	friend class AudioPlayerFader;
+	friend class AudioPlayerLoaders;
 
-	QThread _faderThread;
-	QThread _loaderThread;
-	VoiceMessagesFader *_fader;
-	VoiceMessagesLoaders *_loader;
+	QThread _faderThread, _loaderThread;
+	AudioPlayerFader *_fader;
+	AudioPlayerLoaders *_loader;
 
 };
 
-VoiceMessages *audioVoice();
-
-class VoiceMessagesFader : public QObject {
+class AudioCapture : public QObject {
 	Q_OBJECT
 
 public:
 
-	VoiceMessagesFader(QThread *thread);
+	AudioCapture();
+
+	void start();
+	void stop(bool needResult);
+
+	~AudioCapture();
+
+signals:
+
+	void captureOnStart();
+	void captureOnStop(bool needResult);
+
+	void onDone(QByteArray data, qint32 samples);
+	void onUpdate(qint16 level, qint32 samples);
+	void onError();
+
+private:
+
+	friend class AudioCaptureInner;
+
+	QThread _captureThread;
+	AudioCaptureInner *_capture;
+
+};
+
+AudioPlayer *audioPlayer();
+AudioCapture *audioCapture();
+
+class AudioPlayerFader : public QObject {
+	Q_OBJECT
+
+public:
+
+	AudioPlayerFader(QThread *thread);
 	void processContext();
 
 signals:
@@ -142,14 +169,14 @@ private:
 
 };
 
-class VoiceMessagesLoader;
-class VoiceMessagesLoaders : public QObject {
+class AudioPlayerLoader;
+class AudioPlayerLoaders : public QObject {
 	Q_OBJECT
 
 public:
 
-	VoiceMessagesLoaders(QThread *thread);
-	~VoiceMessagesLoaders();
+	AudioPlayerLoaders(QThread *thread);
+	~AudioPlayerLoaders();
 
 signals:
 
@@ -165,9 +192,42 @@ public slots:
 	
 private:
 
-	typedef QMap<AudioData*, VoiceMessagesLoader*> Loaders;
+	typedef QMap<AudioData*, AudioPlayerLoader*> Loaders;
 	Loaders _loaders;
 
 	void loadError(Loaders::iterator i);
+
+};
+
+class AudioCaptureInner : public QObject {
+	Q_OBJECT
+
+public:
+
+	AudioCaptureInner(QThread *thread);
+	~AudioCaptureInner();
+
+signals:
+
+	void error();
+	void update(qint16 level, qint32 samples);
+	void done(QByteArray data, qint32 samples);
+
+public slots:
+
+	void onInit();
+	void onStart();
+	void onStop(bool needResult);
+
+	void onTimeout();
+
+private:
+
+	void writeFrame(int32 offset, int32 framesize);
+
+	friend struct AudioCapturePrivate;
+	AudioCapturePrivate *d;
+	QTimer _timer;
+	QByteArray _captured;
 
 };

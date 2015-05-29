@@ -118,6 +118,7 @@ namespace App {
 	PhotoData *feedPhoto(const MTPPhoto &photo, PhotoData *convert = 0);
 	PhotoData *feedPhoto(const MTPDphoto &photo, PhotoData *convert = 0);
 	VideoData *feedVideo(const MTPDvideo &video, VideoData *convert = 0);
+	AudioData *feedAudio(const MTPaudio &audio, AudioData *convert = 0);
 	AudioData *feedAudio(const MTPDaudio &audio, AudioData *convert = 0);
 	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb);
 	DocumentData *feedDocument(const MTPdocument &document, DocumentData *convert = 0);

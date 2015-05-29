@@ -303,7 +303,7 @@ void VideoOpenLink::onClick(Qt::MouseButton button) const {
 	QString filename = saveFileName(lang(lng_save_video), qsl("MOV Video (*.mov);;All files (*.*)"), qsl("video"), qsl(".mov"), false);
 	if (!filename.isEmpty()) {
 		data->openOnSave = 1;
-		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
+		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : (App::contextItem() ? App::contextItem()->id : 0);
 		data->save(filename);
 	}
 }
@@ -370,16 +370,16 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
 
 	QString already = data->already(true);
-	bool play = audioVoice();
+	bool play = audioPlayer();
 	if (!already.isEmpty() || (!data->data.isEmpty() && play)) {
 		if (play) {
 			AudioData *playing = 0;
-			VoiceMessageState playingState = VoiceMessageStopped;
-			audioVoice()->currentState(&playing, &playingState);
-			if (playing == data && playingState != VoiceMessageStopped) {
-				audioVoice()->pauseresume();
+			AudioPlayerState playingState = AudioPlayerStopped;
+			audioPlayer()->currentState(&playing, &playingState);
+			if (playing == data && playingState != AudioPlayerStopped) {
+				audioPlayer()->pauseresume();
 			} else {
-				audioVoice()->play(data);
+				audioPlayer()->play(data);
 				if (App::main()) App::main()->audioMarkRead(data);
 			}
 		} else {
@@ -395,7 +395,7 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 	QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), mp3 ? qsl(".mp3") : qsl(".ogg"), false);
 	if (!filename.isEmpty()) {
 		data->openOnSave = 1;
-		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
+		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : (App::contextItem() ? App::contextItem()->id : 0);
 		data->save(filename);
 	}
 }
@@ -420,7 +420,7 @@ void AudioSaveLink::doSave(AudioData *data, bool forceSavingAs) {
 				data->cancel();
 			} else if (!already.isEmpty()) {
 				data->openOnSave = -1;
-				data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
+				data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : (App::contextItem() ? App::contextItem()->id : 0);
 			}
 			data->save(filename);
 		}
@@ -469,8 +469,10 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 			if (reader.canRead()) {
 				if (reader.supportsAnimation() && reader.imageCount() > 1 && App::hoveredLinkItem()) {
 					startGif(App::hoveredLinkItem(), already);
+				} else if (App::hoveredLinkItem() || App::contextItem()) {
+					App::wnd()->showDocument(data, App::hoveredLinkItem() ? App::hoveredLinkItem() : App::contextItem());
 				} else {
-					App::wnd()->showDocument(data, App::hoveredLinkItem());
+					psOpenFile(already);
 				}
 			} else {
 				psOpenFile(already);
@@ -500,7 +502,7 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 	QString filename = saveFileName(lang(lng_save_file), filter, qsl("doc"), name, false);
 	if (!filename.isEmpty()) {
 		data->openOnSave = 1;
-		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
+		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : (App::contextItem() ? App::contextItem()->id : 0);
 		data->save(filename);
 	}
 }
@@ -537,7 +539,7 @@ void DocumentSaveLink::doSave(DocumentData *data, bool forceSavingAs) {
 				data->cancel();
 			} else if (!already.isEmpty()) {
 				data->openOnSave = -1;
-				data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : 0;
+				data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : (App::contextItem() ? App::contextItem()->id : 0);
 			}
 			data->save(filename);
 		}

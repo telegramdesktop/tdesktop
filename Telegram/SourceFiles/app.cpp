@@ -896,6 +896,18 @@ namespace App {
 		return App::video(video.vid.v, convert, video.vaccess_hash.v, video.vuser_id.v, video.vdate.v, video.vduration.v, video.vw.v, video.vh.v, App::image(video.vthumb), video.vdc_id.v, video.vsize.v);
 	}
 
+	AudioData *feedAudio(const MTPaudio &audio, AudioData *convert) {
+		switch (audio.type()) {
+		case mtpc_audio: {
+			return feedAudio(audio.c_audio(), convert);
+		} break;
+		case mtpc_audioEmpty: {
+			return App::audio(audio.c_audioEmpty().vid.v, convert);
+		} break;
+		}
+		return App::audio(0);
+	}
+
 	AudioData *feedAudio(const MTPDaudio &audio, AudioData *convert) {
 		return App::audio(audio.vid.v, convert, audio.vaccess_hash.v, audio.vuser_id.v, audio.vdate.v, qs(audio.vmime_type), audio.vduration.v, audio.vdc_id.v, audio.vsize.v);
 	}
