@@ -49,7 +49,7 @@ typedef QList<ToPrepareMedia> ToPrepareMedias;
 typedef QMap<int32, QByteArray> LocalFileParts;
 struct ReadyLocalMedia {
 	ReadyLocalMedia(ToPrepareMediaType type, const QString &file, const QString &filename, int32 filesize, const QByteArray &data, const uint64 &id, const uint64 &thumbId, const QString &thumbExt, const PeerId &peer, const MTPPhoto &photo, const MTPAudio &audio, const PreparedPhotoThumbs &photoThumbs, const MTPDocument &document, const QByteArray &jpeg, bool ctrlShiftEnter, MsgId replyTo) :
-		replyTo(replyTo), type(type), file(file), filename(filename), filesize(filesize), data(data), thumbExt(thumbExt), id(id), thumbId(thumbId), peer(peer), photo(photo), document(document), photoThumbs(photoThumbs), audio(audio), ctrlShiftEnter(ctrlShiftEnter) {
+		replyTo(replyTo), type(type), file(file), filename(filename), filesize(filesize), data(data), thumbExt(thumbExt), id(id), thumbId(thumbId), peer(peer), photo(photo), document(document), audio(audio), photoThumbs(photoThumbs), ctrlShiftEnter(ctrlShiftEnter) {
 		if (!jpeg.isEmpty()) {
 			int32 size = jpeg.size();
 			for (int32 i = 0, part = 0; i < size; i += UploadPartSize, ++part) {

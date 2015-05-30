@@ -3031,6 +3031,7 @@ void HistoryWidget::stopRecording(bool send) {
 	_recordingAnim.stop();
 
 	_recording = false;
+	_recordingSamples = 0;
 	updateControlsVisibility();
 	activate();
 

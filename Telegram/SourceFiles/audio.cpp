@@ -30,6 +30,30 @@ extern "C" {
 
 }
 
+#ifdef Q_OS_MAC
+
+extern "C" {
+
+#include <iconv.h>
+
+#undef iconv_open
+#undef iconv
+#undef iconv_close
+
+iconv_t iconv_open (const char* tocode, const char* fromcode) {
+	return libiconv_open(tocode, fromcode);
+}
+size_t iconv (iconv_t cd,  char* * inbuf, size_t *inbytesleft, char* * outbuf, size_t *outbytesleft) {
+	return libiconv(cd, inbuf, inbytesleft, outbuf, outbytesleft);
+}
+int iconv_close (iconv_t cd) {
+	return libiconv_close(cd);
+}
+
+}
+
+#endif
+
 namespace {
 	ALCdevice *audioDevice = 0;
 	ALCcontext *audioContext = 0;
@@ -285,48 +309,53 @@ bool AudioPlayer::updateCurrentStarted(int32 pos) {
 }
 
 void AudioPlayer::play(AudioData *audio) {
-	QMutexLocker lock(&playerMutex);
+	AudioData *stopped = 0;
 
-	bool startNow = true;
-	if (_data[_current].audio != audio) {
-		switch (_data[_current].state) {
-		case AudioPlayerStarting:
-		case AudioPlayerResuming:
-		case AudioPlayerPlaying:
-			_data[_current].state = AudioPlayerFinishing;
-			updateCurrentStarted();
-			startNow = false;
-			break;
-		case AudioPlayerPausing: _data[_current].state = AudioPlayerFinishing; startNow = false; break;
-		case AudioPlayerPaused: _data[_current].state = AudioPlayerStopped; break;
-		}
-		if (_data[_current].audio) {
-			emit loaderOnCancel(_data[_current].audio);
-			emit faderOnTimer();
-		}
-	}
+	{
+		QMutexLocker lock(&playerMutex);
 
-	int32 index = 0;
-	for (; index < AudioVoiceMsgSimultaneously; ++index) {
-		if (_data[index].audio == audio) {
-			_current = index;
-			break;
+		bool startNow = true;
+		if (_data[_current].audio != audio) {
+			switch (_data[_current].state) {
+				case AudioPlayerStarting:
+				case AudioPlayerResuming:
+				case AudioPlayerPlaying:
+					_data[_current].state = AudioPlayerFinishing;
+					updateCurrentStarted();
+					startNow = false;
+					break;
+				case AudioPlayerPausing: _data[_current].state = AudioPlayerFinishing; startNow = false; break;
+				case AudioPlayerPaused: _data[_current].state = AudioPlayerStopped; stopped = _data[_current].audio; break;
+			}
+			if (_data[_current].audio) {
+				emit loaderOnCancel(_data[_current].audio);
+				emit faderOnTimer();
+			}
+		}
+
+		int32 index = 0;
+		for (; index < AudioVoiceMsgSimultaneously; ++index) {
+			if (_data[index].audio == audio) {
+				_current = index;
+				break;
+			}
+		}
+		if (index == AudioVoiceMsgSimultaneously && ++_current >= AudioVoiceMsgSimultaneously) {
+			_current -= AudioVoiceMsgSimultaneously;
+		}
+		_data[_current].audio = audio;
+		_data[_current].fname = audio->already(true);
+		_data[_current].data = audio->data;
+		if (_data[_current].fname.isEmpty() && _data[_current].data.isEmpty()) {
+			_data[_current].state = AudioPlayerStopped;
+			onError(audio);
+		} else if (updateCurrentStarted(0)) {
+			_data[_current].state = startNow ? AudioPlayerPlaying : AudioPlayerStarting;
+			_data[_current].loading = true;
+			emit loaderOnStart(audio);
 		}
 	}
-	if (index == AudioVoiceMsgSimultaneously && ++_current >= AudioVoiceMsgSimultaneously) {
-		_current -= AudioVoiceMsgSimultaneously;
-	}
-	_data[_current].audio = audio;
-	_data[_current].fname = audio->already(true);
-	_data[_current].data = audio->data;
-	if (_data[_current].fname.isEmpty() && _data[_current].data.isEmpty()) {
-		_data[_current].state = AudioPlayerStopped;
-		onError(audio);
-	} else if (updateCurrentStarted(0)) {
-		_data[_current].state = startNow ? AudioPlayerPlaying : AudioPlayerStarting;
-		_data[_current].loading = true;
-		emit loaderOnStart(audio);
-	}
+	if (stopped) emit updated(stopped);
 }
 
 void AudioPlayer::pauseresume() {
@@ -491,7 +520,7 @@ void AudioPlayerFader::onTimer() {
 					emit audioStopped(m.audio);
 				}
 			}
-			if (pos + m.skipStart - m.position >= AudioCheckPositionDelta) {
+			if (state == AL_PLAYING && pos + m.skipStart - m.position >= AudioCheckPositionDelta) {
 				m.position = pos + m.skipStart;
 				emit playPositionUpdated(m.audio);
 			}
@@ -739,7 +768,7 @@ public:
 			return false;
 		}
 		if (avpkt.stream_index == streamId) {
-			avcodec_get_frame_defaults(frame);
+			av_frame_unref(frame);
 			int got_frame = 0;
 			if ((res = avcodec_decode_audio4(codecContext, frame, &got_frame, &avpkt)) < 0) {
 				char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
@@ -800,7 +829,7 @@ public:
 
 private:
 
-	int32 freq, fmt, channels;
+	int32 freq, fmt;
 	int32 sampleSize, srcRate, dstRate, maxResampleSamples;
 	uint8_t **dstSamplesData;
 	int64 len;
@@ -1054,6 +1083,8 @@ void AudioPlayerLoaders::onLoad(AudioData *audio) {
 	if (finished) {
 		m.skipEnd = 0;
 		m.duration = m.skipStart + m.samplesCount[0] + m.samplesCount[1] + m.samplesCount[2];
+		delete j.value();
+		_loaders.erase(j);
 	}
 	m.loading = false;
 	if (m.state == AudioPlayerResuming || m.state == AudioPlayerPlaying || m.state == AudioPlayerStarting) {
@@ -1172,7 +1203,7 @@ void AudioCaptureInner::onStart() {
 	
 	// Start OpenAL Capture
 
-	d->device = alcCaptureOpenDevice(0, AudioVoiceMsgFrequency, AL_FORMAT_MONO16, AudioVoiceMsgBufferSize);
+	d->device = alcCaptureOpenDevice(0, AudioVoiceMsgFrequency, AL_FORMAT_MONO16, AudioVoiceMsgFrequency / 5);
 	if (!d->device) {
 		LOG(("Audio Error: capture device not present!"));
 		emit error();
@@ -1457,7 +1488,7 @@ void AudioCaptureInner::onTimeout() {
 		}
 		// Write frames
 		int32 framesize = d->srcSamples * d->codecContext->channels * sizeof(short), encoded = 0;
-		while (_captured.size() >= encoded + framesize + fadeSamples * sizeof(short)) {
+		while (uint32(_captured.size()) >= encoded + framesize + fadeSamples * sizeof(short)) {
 			writeFrame(encoded, framesize);
 			encoded += framesize;
 		}
@@ -1527,8 +1558,9 @@ void AudioCaptureInner::writeFrame(int32 offset, int32 framesize) {
 
 	// Write audio frame
 
-	AVPacket pkt = { 0 }; // data and size must be 0;
-	AVFrame *frame = avcodec_alloc_frame();
+	AVPacket pkt;
+	memset(&pkt, 0, sizeof(pkt)); // data and size must be 0;
+	AVFrame *frame = av_frame_alloc();
 	int gotPacket;
 	av_init_packet(&pkt);
 
@@ -1552,5 +1584,5 @@ void AudioCaptureInner::writeFrame(int32 offset, int32 framesize) {
 	}
 	d->fullSamples += samplesCnt;
 
-	avcodec_free_frame(&frame);
+	av_frame_free(&frame);
 }

@@ -131,6 +131,7 @@ GeneratedFiles/Debug/moc_application.cpp: ../../Libraries/QtStatic/qtbase/includ
 	/usr/local/Qt-5.4.0/bin/moc $(DEFINES) -D__APPLE__ -D__GNUC__=4 -I/usr/local/Qt-5.4.0/mkspecs/macx-clang -I. -I/usr/local/Qt-5.4.0/include/QtGui/5.4.0/QtGui -I/usr/local/Qt-5.4.0/include/QtCore/5.4.0/QtCore -I/usr/local/Qt-5.4.0/include -I./SourceFiles -I./GeneratedFiles -I../../Libraries/lzma/C -I../../Libraries/libexif-0.6.20 -I/usr/local/Qt-5.4.0/include -I/usr/local/Qt-5.4.0/include/QtMultimedia -I/usr/local/Qt-5.4.0/include/QtWidgets -I/usr/local/Qt-5.4.0/include/QtNetwork -I/usr/local/Qt-5.4.0/include/QtGui -I/usr/local/Qt-5.4.0/include/QtCore -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1 -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include/c++/4.2.1/backward -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/5.1/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/include SourceFiles/application.h -o GeneratedFiles/Debug/moc_application.cpp
 
 GeneratedFiles/Debug/moc_audio.cpp: SourceFiles/types.h \
+		SourceFiles/audio.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QReadWriteLock \
 		SourceFiles/logs.h \
 		../../Libraries/QtStatic/qtbase/include/QtCore/QTimer \

@@ -35,6 +35,9 @@ enum AudioPlayerState {
 	AudioPlayerResuming,
 };
 
+class AudioPlayerFader;
+class AudioPlayerLoaders;
+
 class AudioPlayer : public QObject {
 	Q_OBJECT
 
@@ -103,6 +106,8 @@ private:
 	AudioPlayerLoaders *_loader;
 
 };
+
+class AudioCaptureInner;
 
 class AudioCapture : public QObject {
 	Q_OBJECT
@@ -199,6 +204,8 @@ private:
 
 };
 
+struct AudioCapturePrivate;
+
 class AudioCaptureInner : public QObject {
 	Q_OBJECT
 
@@ -225,7 +232,6 @@ private:
 
 	void writeFrame(int32 offset, int32 framesize);
 
-	friend struct AudioCapturePrivate;
 	AudioCapturePrivate *d;
 	QTimer _timer;
 	QByteArray _captured;

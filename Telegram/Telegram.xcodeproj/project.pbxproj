@@ -1863,6 +1863,11 @@
 					/usr/local/lib/libmpg123.a,
 					/usr/local/lib/libfaad.a,
 					/usr/local/lib/libmp4ff.a,
+					/usr/local/lib/libavcodec.a,
+					/usr/local/lib/libavformat.a,
+					/usr/local/lib/libswresample.a,
+					/usr/local/lib/libavutil.a,
+					/usr/local/lib/libiconv.a,
 					"../../Libraries/openssl-xcode/libcrypto.a",
 				);
 				PRODUCT_NAME = Telegram;
@@ -2010,6 +2015,11 @@
 					/usr/local/lib/libmpg123.a,
 					/usr/local/lib/libfaad.a,
 					/usr/local/lib/libmp4ff.a,
+					/usr/local/lib/libavcodec.a,
+					/usr/local/lib/libavformat.a,
+					/usr/local/lib/libswresample.a,
+					/usr/local/lib/libavutil.a,
+					/usr/local/lib/libiconv.a,
 					"../../Libraries/openssl-xcode/libcrypto.a",
 				);
 				PRODUCT_NAME = Telegram;
