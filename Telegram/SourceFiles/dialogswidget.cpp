@@ -24,6 +24,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/contactsbox.h"
+#include "boxes/confirmbox.h"
 
 #include "localstorage.h"
 
@@ -322,7 +323,69 @@ void DialogsListWidget::mousePressEvent(QMouseEvent *e) {
 	if (e->button() == Qt::LeftButton) {
 		choosePeer();
 	}
+	if (e->button() == Qt::RightButton) {
+		rightClickSelection = sel;
+		QContextMenuEvent contextMenu(QContextMenuEvent::Mouse, mapFromGlobal(lastMousePos), lastMousePos);
+		showContextMenu(&contextMenu);
+	}
 }
+
+void DialogsListWidget::showContextMenu(QContextMenuEvent *e)
+{
+	_menu = new ContextMenu(dialogWidget);
+	_menu->addAction(lang(lng_dialog_open_conversation), this, SLOT(onOpenConversation()));
+	_menu->addAction(lang(lng_dialog_remove_conversation), this, SLOT(onDeleteSelectedConversation()));
+	_menu->addAction(lang(lng_dialog_open_contact_info), this, SLOT(onViewSelectedProfile()));
+
+	if (_menu){
+		_menu->deleteOnHide();
+		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
+		_menu->popup(e->globalPos());
+		
+		e->accept();
+	}
+
+}
+
+void DialogsListWidget::onViewSelectedProfile(){
+	sel = rightClickSelection;
+	PeerData *peer = sel->history->peer;
+	App::main()->showPeerProfile(peer);
+}
+
+void DialogsListWidget::onMenuDestroy(QObject *obj){
+	if (_menu == obj) {
+		_menu = 0;
+	}
+}
+
+void DialogsListWidget::onDeleteSelectedConversation(){
+	sel = rightClickSelection;
+	PeerData *p = sel->history->peer;
+	if (p){
+		ConfirmBox *box = new ConfirmBox(lng_sure_delete_and_exit(lt_group, p->name));
+		connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteSelectedConversationtSure()));
+		App::wnd()->showLayer(box);
+	}
+}
+
+void DialogsListWidget::onDeleteSelectedConversationtSure() {
+	PeerData *p = sel->history->peer;
+	if (p) {
+		App::main()->showPeer(0, 0, true);
+		App::wnd()->hideLayer();
+		App::main()->clearHistory(p);
+		//MTP::send(MTPmessages_DeleteChatUser(MTP_int(p->id & 0xFFFFFFFF), App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistory, p), App::main()->rpcFail(&MainWidget::leaveChatFailed, p));
+	}
+}
+
+void DialogsListWidget::onOpenConversation()
+{
+	sel = rightClickSelection;
+	
+	choosePeer();
+}
+
 
 void DialogsListWidget::resizeEvent(QResizeEvent *e) {
 	_addContactLnk.move((width() - _addContactLnk.width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);

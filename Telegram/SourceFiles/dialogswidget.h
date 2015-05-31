@@ -19,6 +19,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 class MainWidget;
 
+class DialogsWidget;
 class DialogsListWidget : public QWidget {
 	Q_OBJECT
 
@@ -46,6 +47,7 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
+	void showContextMenu(QContextMenuEvent *e);
 
 	void peopleResultPaint(UserData *user, QPainter &p, int32 w, bool act, bool sel) const;
 
@@ -108,6 +110,11 @@ public slots:
 	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 	void onPeerPhotoChanged(PeerData *peer);
 	void onDialogRowReplaced(DialogRow *oldRow, DialogRow *newRow);
+	void onOpenConversation();
+	void onDeleteSelectedConversation();
+	void onDeleteSelectedConversationtSure();
+	void onMenuDestroy(QObject *obj);
+	void onViewSelectedProfile();
 
 signals:
 
@@ -127,6 +134,9 @@ private:
 	DialogsIndexed contactsNoDialogs;
 	DialogsIndexed contacts;
 	DialogRow *sel;
+	DialogRow *rightClickSelection;
+	DialogsWidget *dialogWidget;
+
 	bool contactSel;
 	bool selByMouse;
 
@@ -156,6 +166,8 @@ private:
 	LinkButton _addContactLnk;
 
 	bool _overDelete;
+
+	ContextMenu *_menu;
 
 };
 
