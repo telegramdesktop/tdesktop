@@ -1925,12 +1925,23 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop,
 
 void MainWidget::showBackFromStack() {
 	if (_stack.isEmpty() || selectingPeer()) return;
+
+	if (_stack.back()->type() == ProfileStackItem){
+		while (_stack.back()->type() == ProfileStackItem)
+			_stack.pop_back();
+	}
+
 	StackItem *item = _stack.back();
 	_stack.pop_back();
+
 	if (item->type() == HistoryStackItem) {
 		StackItemHistory *histItem = static_cast<StackItemHistory*>(item);
-		showPeer(histItem->peer->id, App::main()->activeMsgId(), true);
-		history.setReplyReturns(histItem->peer->id, histItem->replyReturns);
+
+		if (histItem->peer != NULL){
+			showPeer(histItem->peer->id, App::main()->activeMsgId(), true);
+			history.setReplyReturns(histItem->peer->id, histItem->replyReturns);
+		}
+
 	} else if (item->type() == ProfileStackItem) {
 		StackItemProfile *profItem = static_cast<StackItemProfile*>(item);
 		showPeerProfile(profItem->peer, true, profItem->lastScrollTop, profItem->allMediaShown);

@@ -343,6 +343,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_edit_contact" = "Edit";
 "lng_profile_enable_notifications" = "Notifications";
 "lng_profile_clear_history" = "Clear history";
+"lng_profile_export_history" = "Export history";
 "lng_profile_send_message" = "Send Message";
 "lng_profile_share_contact" = "Share Contact";
 "lng_profile_delete_contact" = "Delete";
@@ -472,6 +473,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_duration_and_size" = "{duration}, {size}";
 "lng_choose_images" = "Choose images";
 "lng_choose_tone" = "Choose tones";
+
+"lng_dialog_open_conversation" = "Open";
+"lng_dialog_remove_conversation" = "Delete";
+"lng_dialog_open_contact_info" = "View Profile";
 
 "lng_context_open_link" = "Open Link";
 "lng_context_copy_link" = "Copy Link";
