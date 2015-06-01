@@ -96,6 +96,7 @@ bool _checkALError() {
 void audioInit() {
 	if (!capture) {
 		capture = new AudioCapture();
+		cSetHasAudioCapture(capture->check());
 	}
 
 	uint64 ms = getms();
@@ -202,6 +203,7 @@ void audioInit() {
 	avcodec_register_all();
 
 	LOG(("Audio init time: %1").arg(getms() - ms));
+	cSetHasAudioPlayer(true);
 }
 
 void audioPlayNotify() {
@@ -240,6 +242,9 @@ void audioFinish() {
 		alcCloseDevice(audioDevice);
 		audioDevice = 0;
 	}
+
+	cSetHasAudioCapture(false);
+	cSetHasAudioPlayer(false);
 }
 
 AudioPlayer::AudioPlayer() : _current(0),
@@ -419,6 +424,16 @@ void AudioCapture::start() {
 
 void AudioCapture::stop(bool needResult) {
 	emit captureOnStop(needResult);
+}
+
+bool AudioCapture::check() {
+	if (const ALCchar *def = alcGetString(0, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER)) {
+		if (ALCdevice *dev = alcCaptureOpenDevice(def, AudioVoiceMsgFrequency, AL_FORMAT_MONO16, AudioVoiceMsgFrequency / 5)) {
+			alcCaptureCloseDevice(dev);
+			return _checkALCError();
+		}
+	}
+	return false;
 }
 
 AudioCapture::~AudioCapture() {

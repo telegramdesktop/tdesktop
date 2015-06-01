@@ -105,7 +105,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 			}
 			if (mime == "image/jpeg") {
 				filename = filedialogDefaultName(qsl("image"), qsl(".jpg"), QString(), true);
-			} else if (mime == "application/ogg" && type == ToPrepareAudio) {
+			} else if (type == ToPrepareAudio) {
 				filename = filedialogDefaultName(qsl("audio"), qsl(".ogg"), QString(), true);
 				mime = "audio/ogg";
 			} else {

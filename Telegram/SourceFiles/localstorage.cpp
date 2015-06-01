@@ -2278,16 +2278,20 @@ namespace Local {
 	}
 
 	void importOldRecentStickers() {
+		LOG(("Stickers: importOldStickers()"));
 		if (!_recentStickersKeyOld) return;
 
 		FileReadDescriptor stickers;
 		if (!readEncryptedFile(stickers, _recentStickersKeyOld)) {
+			LOG(("Stickers: could not readEncryptedFile(_recentStickersKeyOld)!"));
 			clearKey(_recentStickersKeyOld);
 			_recentStickersKeyOld = 0;
 			_writeMap();
 			return;
 		}
 		
+		LOG(("Stickers: clearing everything in import-old!"));
+
 		StickerSets &sets(cRefStickerSets());
 		sets.clear();
 		cSetStickerSetsOrder(StickerSetsOrder());
@@ -2334,6 +2338,7 @@ namespace Local {
 			}
 			if (recent.size() < StickerPanPerRow * StickerPanRowsPerPage && qAbs(value) > 1) recent.push_back(qMakePair(doc, qAbs(value)));
 		}
+		LOG(("Stickers: read %1 default stickers and %2 custom stickers").arg(def.stickers.size()).arg(custom.stickers.size()));
 		if (def.stickers.isEmpty()) sets.remove(DefaultStickerSetId);
 		if (custom.stickers.isEmpty()) sets.remove(CustomStickerSetId);
 
@@ -2343,21 +2348,25 @@ namespace Local {
 		clearKey(_recentStickersKeyOld);
 		_recentStickersKeyOld = 0;
 		_writeMap();
+		LOG(("Stickers: writing stickers and clearing old-stickers"));
 	}
 
 	void readStickers() {
+		LOG(("Stickers: readStickers()"));
 		if (!_stickersKey) {
 			return importOldRecentStickers();
 		}
 
 		FileReadDescriptor stickers;
 		if (!readEncryptedFile(stickers, _stickersKey)) {
+			LOG(("Stickers: could not readEncryptedFile(_stickersKey)!"));
 			clearKey(_stickersKey);
 			_stickersKey = 0;
 			_writeMap();
 			return;
 		}
 
+		LOG(("Stickers: clearing everything in read"));
 		StickerSets &sets(cRefStickerSets());
 		sets.clear();
 
@@ -2432,6 +2441,8 @@ namespace Local {
 		}
 
 		cSetStickersHash(hash);
+
+		LOG(("Stickers: read %1 sets").arg(sets.size()));
 	}
 
 	void writeBackground(int32 id, const QImage &img) {
