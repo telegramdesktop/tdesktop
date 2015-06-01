@@ -28,7 +28,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_open_from_tray" = "Apri Telegram";
 "lng_minimize_to_tray" = "Minimizza";
 "lng_quit_from_tray" = "Chiudi Telegram";
-"lng_tray_icon_text" = "Telegram è ancora aperto qui,\npuoi cambiare questo nelle impostazioni.\n\nSe l'icona scompare dalla barra tray,\npuoi riportarla indietro dalle icone nascoste.";
+"lng_tray_icon_text" = "Telegram è ancora aperto qui,\npuoi cambiare questo nelle impostazioni.\n\nSe l'icona scompare dall'area di notifica,\npuoi riportarla indietro dalle icone nascoste.";
 
 "lng_month1" = "Gennaio";
 "lng_month2" = "Febbraio";
@@ -196,10 +196,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_update_ready" = "La nuova versione è pronta";
 "lng_settings_update_now" = "Riavvia ora";
 "lng_settings_update_fail" = "Ricerca aggiornamenti fallita :(";
-"lng_settings_workmode_tray" = "Mostra icona nella barra tray";
+"lng_settings_workmode_tray" = "Mostra icona nell'area di notifica";
 "lng_settings_workmode_window" = "Mostra icona nella barra applicazioni";
 "lng_settings_auto_start" = "Avvia Telegram all'avvio del sistema";
-"lng_settings_start_min" = "Avvia minimizzato";
+"lng_settings_start_min" = "Avvia ridotto a icona";
 "lng_settings_add_sendto" = "Inserisci Telegram nel menu «Invia a»";
 "lng_settings_scale_label" = "Ridimensiona interfaccia";
 "lng_settings_scale_auto" = "Auto ({cur})";
@@ -434,7 +434,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_custom_stickers" = "Sticker personalizzati";
 "lng_stickers_remove_pack" = "Rimuovere «{sticker_pack}»?";
-"lng_stickers_add_pack" = "Aggiungi {count:_not_used_|# sticker|# stickers}";
+"lng_stickers_add_pack" = "Aggiungi {count:_not_used_|# sticker|# sticker}";
 "lng_stickers_share_pack" = "Condividi sticker";
 "lng_stickers_not_found" = "Pacchetto di sticker non trovato.";
 "lng_stickers_copied" = "Link degli sticker copiato negli appunti.";
@@ -491,7 +491,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_save_video" = "Salva video come..";
 "lng_context_open_audio" = "Apri audio";
 "lng_context_save_audio" = "Salva audio come..";
-"lng_context_pack_info" = "Info pacchetto";
+"lng_context_pack_info" = "Mostra sticker";
 "lng_context_open_file" = "Apri file";
 "lng_context_save_file" = "Salva file come..";
 "lng_context_forward_file" = "Inoltra file";
@@ -584,7 +584,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli update è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "— Aggiunto supporto ai pacchetti di sticker\n— Nuove emoji e pannello sticker";
+"lng_new_version_text" = "— Aggiunto supporto ai set di sticker\n— Nuove emoji e pannello sticker";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

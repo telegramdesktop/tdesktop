@@ -396,7 +396,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_group_invite_link" = "Invitación";
 "lng_group_invite_create" = "Crear un enlace de invitación";
 "lng_group_invite_about" = "Los usuarios de Telegram podrán unirse\na tu grupo a través de este enlace.";
-"lng_group_invite_create_new" = "Anular enlace de invitación";
+"lng_group_invite_create_new" = "Anular enlace";
 "lng_group_invite_about_new" = "El enlace previo será desactivado\ny generaremos uno nuevo para ti.";
 "lng_group_invite_copied" = "Enlace de invitación copiado al portapapeles.";
 "lng_group_invite_no_room" = "No puedes unirte a este grupo porque\nhay muchos miembros en él.";
