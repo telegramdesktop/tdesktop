@@ -1710,18 +1710,20 @@ void HistoryWidget::start() {
 void HistoryWidget::onTextChange() {
 	updateTyping();
 
-	if (_field.getLastText().isEmpty()) {
-		_previewCancelled = false;
-		_send.hide();
-		setMouseTracking(true);
-		mouseMoveEvent(0);
-	} else if (!_field.isHidden()) {
-		_send.show();
-		setMouseTracking(false);
-		_recordAnim.stop();
-		_inRecord = _inField = false;
-		a_recordOver = a_recordDown = anim::fvalue(0, 0);
-		a_recordCancel = anim::cvalue(st::recordCancel->c, st::recordCancel->c);
+	if (cHasAudioCapture()) {
+		if (_field.getLastText().isEmpty()) {
+			_previewCancelled = false;
+			_send.hide();
+			setMouseTracking(true);
+			mouseMoveEvent(0);
+		} else if (!_field.isHidden() && _send.isHidden()) {
+			_send.show();
+			setMouseTracking(false);
+			_recordAnim.stop();
+			_inRecord = _inField = false;
+			a_recordOver = a_recordDown = anim::fvalue(0, 0);
+			a_recordCancel = anim::cvalue(st::recordCancel->c, st::recordCancel->c);
+		}
 	}
 
 	if (!hist || _synthedTextUpdate) return;
@@ -1849,6 +1851,8 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	cSetLastStickersUpdate(getms(true));
 	_stickersUpdateRequest = 0;
 
+	LOG(("Stickers: got from server!"));
+
 	if (stickers.type() != mtpc_messages_allStickers) return;
 	const MTPDmessages_allStickers &d(stickers.c_messages_allStickers());
 
@@ -1856,6 +1860,8 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 		
 	const QVector<MTPDocument> &d_docs(d.vdocuments.c_vector().v);
 	const QVector<MTPStickerSet> &d_sets(d.vsets.c_vector().v);
+
+	LOG(("Stickers: clearing everything, got all stickers"));
 
 	QByteArray wasHash = cStickersHash();
 	cSetStickersHash(qba(d.vhash));
@@ -1995,10 +2001,13 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 			}
 		}
 	}
+	LOG(("Stickers: now %1 sets, %2 recent").arg(sets.size()).arg(recent.size()));
 	if (added || removed || cStickersHash() != wasHash) {
+		LOG(("Stickers: writing stickers from gotAll!"));
 		Local::writeStickers();
 	}
 	if (writeRecent) {
+		LOG(("Stickers: writing recent stickers from gotAll!"));
 		Local::writeUserSettings();
 	}
 		
@@ -2046,6 +2055,8 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 
 bool HistoryWidget::stickersFailed(const RPCError &error) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
+	LOG(("App Fail: Failed to get stickers!"));
 
 	cSetLastStickersUpdate(getms(true));
 	_stickersUpdateRequest = 0;
@@ -2329,7 +2340,7 @@ void HistoryWidget::updateControlsVisibility() {
 			_toHistoryEnd.show();
 		}
 		if (!histPeer->chat || !histPeer->asChat()->forbidden) {
-			if (_field.getLastText().isEmpty()) {
+			if (cHasAudioCapture() && _field.getLastText().isEmpty()) {
 				_send.hide();
 				setMouseTracking(true);
 				mouseMoveEvent(0);
@@ -3019,7 +3030,7 @@ void HistoryWidget::mouseReleaseEvent(QMouseEvent *e) {
 		_attachDrag = DragStateNone;
 		updateDragAreas();
 	}
-	if (_recording && audioCapture()) {
+	if (_recording && cHasAudioCapture()) {
 		stopRecording(_inField);
 	}
 }
@@ -3796,7 +3807,7 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 	_replyForwardPressed = QRect(0, _field.y() - st::replyHeight, st::replySkip, st::replyHeight).contains(e->pos());
 	if (_replyForwardPressed && !_replyForwardPreviewCancel.isHidden()) {
 		update(0, _field.y() - st::sendPadding - st::replyHeight, width(), st::replyHeight);
-	} else if (_inRecord && audioCapture()) {
+	} else if (_inRecord && cHasAudioCapture()) {
 		audioCapture()->start();
 
 		_recording = _inField = true;

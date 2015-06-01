@@ -66,6 +66,7 @@ void debugLogWrite(const char *file, int32 line, const QString &v) {
 
 	{
 		QMutexLocker lock(&debugLogMutex);
+		if (!cDebug() || !debugLogStream) return;
 
 		logsInitDebug(); // maybe need to reopen new file
 
@@ -87,6 +88,7 @@ void tcpLogWrite(const QString &v) {
 
 	{
 		QMutexLocker lock(&debugLogMutex);
+		if (!cDebug() || !tcpLogStream) return;
 
 		logsInitDebug(); // maybe need to reopen new file
 
@@ -100,6 +102,7 @@ void mtpLogWrite(int32 dc, const QString &v) {
 
 	{
 		QMutexLocker lock(&debugLogMutex);
+		if (!cDebug() || !mtpLogStream) return;
 
 		logsInitDebug(); // maybe need to reopen new file
 
@@ -109,7 +112,7 @@ void mtpLogWrite(int32 dc, const QString &v) {
 }
 
 void logWrite(const QString &v) {
-	if (!mainLog.isOpen()) return;
+	if (!mainLogStream) return;
 
 	time_t t = time(NULL);
 	struct tm tm;
@@ -117,6 +120,8 @@ void logWrite(const QString &v) {
 
 	{
 		QMutexLocker lock(&mainLogMutex);
+		if (!mainLogStream) return;
+
 		QString msg(QString("[%1.%2.%3 %4:%5:%6] %7\n").arg(tm.tm_year + 1900).arg(tm.tm_mon + 1, 2, 10, zero).arg(tm.tm_mday, 2, 10, zero).arg(tm.tm_hour, 2, 10, zero).arg(tm.tm_min, 2, 10, zero).arg(tm.tm_sec, 2, 10, zero).arg(v));
 		(*mainLogStream) << msg;
 		mainLogStream->flush();

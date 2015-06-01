@@ -119,6 +119,8 @@ public:
 	void start();
 	void stop(bool needResult);
 
+	bool check();
+
 	~AudioCapture();
 
 signals:
