@@ -1202,8 +1202,9 @@ void AudioCaptureInner::onInit() {
 void AudioCaptureInner::onStart() {
 	
 	// Start OpenAL Capture
-
-	d->device = alcCaptureOpenDevice(0, AudioVoiceMsgFrequency, AL_FORMAT_MONO16, AudioVoiceMsgFrequency / 5);
+    const ALCchar *dName = alcGetString(0, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER);
+    DEBUG_LOG(("Audio Info: Capture device name '%1'").arg(dName));
+    d->device = alcCaptureOpenDevice(dName, AudioVoiceMsgFrequency, AL_FORMAT_MONO16, AudioVoiceMsgFrequency / 5);
 	if (!d->device) {
 		LOG(("Audio Error: capture device not present!"));
 		emit error();
@@ -1255,7 +1256,7 @@ void AudioCaptureInner::onStart() {
 		emit error();
 		return;
 	}
-	d->stream = avformat_new_stream(d->fmtContext, d->codec);
+    d->stream = avformat_new_stream(d->fmtContext, d->codec);
 	if (!d->stream) {
 		LOG(("Audio Error: Unable to avformat_new_stream for capture"));
 		onStop(false);
@@ -1267,7 +1268,8 @@ void AudioCaptureInner::onStart() {
 	av_opt_set_int(d->codecContext, "refcounted_frames", 1, 0);
 
 	d->codecContext->sample_fmt = AV_SAMPLE_FMT_FLTP;
-	d->codecContext->bit_rate = 0;// 64000;
+    d->codecContext->bit_rate = 64000;
+    d->codecContext->channel_layout = AV_CH_LAYOUT_MONO;
 	d->codecContext->sample_rate = AudioVoiceMsgFrequency;
 	d->codecContext->channels = 1;
 
@@ -1342,9 +1344,10 @@ void AudioCaptureInner::onStop(bool needResult) {
 	if (!_timer.isActive()) return; // in onStop() already
 	_timer.stop();
 
-	if (needResult) {
-		onTimeout(); // get last data
-	}
+    if (d->device) {
+        alcCaptureStop(d->device);
+        onTimeout(); // get last data
+    }
 
 	// Write what is left
 	if (!_captured.isEmpty()) {
