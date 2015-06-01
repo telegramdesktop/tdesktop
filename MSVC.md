@@ -111,14 +111,16 @@ http://msys2.github.io/ > Download [msys2-x86_64-20150512.exe](http://sourceforg
 
 #####Building libraries
 
-* Open **VS2013 x86 Native Tools Command Prompt.bat** (should be in **\\Program Files (x86)\\Microsoft Visual Studio 12.0\\Common7\\Tools\\Shortcuts\\** folder)
-* Go to **D:\\msys64\\** and launch **msys2_shell.bat**
-* Run command **PATH="/c/Program Files (x86)/Microsoft Visual Studio 12.0/VC/BIN:$PATH"** to get link.exe from VS2013 ahead of link.exe from /usr/bin in PATH and run
+Open **VS2013 x86 Native Tools Command Prompt.bat** (should be in **\\Program Files (x86)\\Microsoft Visual Studio 12.0\\Common7\\Tools\\Shortcuts\\** folder), go to **D:\\msys64\\** and launch **msys2_shell.bat**, there run
 
-  cd /c/TBuild/Libraries/ffmpeg-2.6.3
+  PATH="/c/Program Files (x86)/Microsoft Visual Studio 12.0/VC/BIN:$PATH"
+
+  cd /d/TBuild/Libraries/ffmpeg-2.6.3
   pacman -S msys/make
   pacman -S mingw64/mingw-w64-x86_64-opus
+
   ./configure --toolchain=msvc --disable-programs --disable-everything --enable-libopus --enable-decoder=aac --enable-decoder=aac_latm --enable-decoder=aasc --enable-decoder=mp1 --enable-decoder=mp1float --enable-decoder=mp2 --enable-decoder=mp2float --enable-decoder=mp3 --enable-decoder=mp3adu --enable-decoder=mp3adufloat --enable-decoder=mp3float --enable-decoder=mp3on4 --enable-decoder=mp3on4float --enable-decoder=wavpack --enable-decoder=opus --enable-decoder=vorbis --enable-decoder=wmalossless --enable-decoder=wmapro --enable-decoder=wmav1 --enable-decoder=wmav2 --enable-decoder=wmavoice --enable-encoder=libopus --enable-parser=aac --enable-parser=aac_latm --enable-parser=mpegaudio --enable-parser=opus --enable-parser=vorbis --enable-demuxer=aac --enable-demuxer=wav --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=mov --enable-muxer=ogg --enable-muxer=opus --extra-ldflags="-libpath:/d/TBuild/Libraries/opus/win32/VS2010/Win32/Release celt.lib silk_common.lib silk_float.lib"
+
   make
   make install
 
