@@ -1,4 +1,4 @@
-##Build instructions for Xcode 5.1.1
+##Build instructions for Xcode 6.3.1
 
 ###Prepare folder
 

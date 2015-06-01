@@ -25,9 +25,9 @@ Source code is published under GPL v3, license is available [here](https://githu
 
 ###[Build instructions for Visual Studio 2013](https://github.com/telegramdesktop/tdesktop/blob/master/MSVC.md)
 
-###[Build instructions for XCode 5.1.1](https://github.com/telegramdesktop/tdesktop/blob/master/XCODE.md)
+###[Build instructions for XCode 6.3.1](https://github.com/telegramdesktop/tdesktop/blob/master/XCODE.md)
 
-###[Build instructions for Qt Creator 3.1.2 Ubuntu](https://github.com/telegramdesktop/tdesktop/blob/master/QTCREATOR.md)
+###[Build instructions for Qt Creator 3.2.0 Ubuntu](https://github.com/telegramdesktop/tdesktop/blob/master/QTCREATOR.md)
 
 ##Projects in Telegram solution
 
