@@ -4411,7 +4411,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 					p.setBrush(st::recordSignalColor->b);
 					p.setRenderHint(QPainter::HighQualityAntialiasing);
 					float64 delta = qMin(float64(a_recordingLevel.current()) * 3 * M_PI / 0x7fff, 1.);
-					int32 d = 2 * (st::recordSignalMin + (delta * (st::recordSignalMax - st::recordSignalMin)));
+					int32 d = 2 * qRound(st::recordSignalMin + (delta * (st::recordSignalMax - st::recordSignalMin)));
 					p.drawEllipse(_attachPhoto.x() + (_attachEmoji.width() - d) / 2, _attachPhoto.y() + (_attachPhoto.height() - d) / 2, d, d);
 					p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
