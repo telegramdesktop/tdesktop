@@ -1384,8 +1384,6 @@ void StickerPanInner::refreshStickers() {
 	_hovers.clear(); _hovers.reserve(sets.size() + 1);
 	_titles.clear(); _titles.reserve(sets.size() + 1);
 
-	LOG(("Stickers: refreshing pan, sets size: %1").arg(sets.size()));
-
 	refreshRecent(false);
 
 	appendSet(CustomStickerSetId);
@@ -1431,12 +1429,10 @@ void StickerPanInner::preloadImages() {
 }
 
 void StickerPanInner::appendSet(uint64 setId) {
-	LOG(("Stickers: appending set %1..").arg(setId));
 	const StickerSets &sets(cStickerSets());
 	StickerSets::const_iterator it = sets.constFind(setId);
 	if (it == sets.cend() || it->stickers.isEmpty()) return;
 
-	LOG(("Stickers: set %1 found! %2 stickers there.").arg(setId).arg(it->stickers.size()));
 	StickerPack pack;
 	pack.reserve(it->stickers.size());
 	for (int32 i = 0, l = it->stickers.size(); i < l; ++i) {
@@ -1452,7 +1448,6 @@ void StickerPanInner::appendSet(uint64 setId) {
 void StickerPanInner::refreshRecent(bool performResize) {
 	clearSelection(true);
 	if (cGetRecentStickers().isEmpty()) {
-		LOG(("Stickers: no recent!"));
 		if (!_setIds.isEmpty() && _setIds.at(0) == RecentStickerSetId) {
 			_setIds.pop_front();
 			_sets.pop_front();
@@ -1460,7 +1455,6 @@ void StickerPanInner::refreshRecent(bool performResize) {
 			_titles.pop_front();
 		}
 	} else {
-		LOG(("Stickers: %1 recent stickers!").arg(cGetRecentStickers().size()));
 		StickerPack recent;
 		recent.reserve(cGetRecentStickers().size());
 		for (int32 i = 0, l = cGetRecentStickers().size(); i < l; ++i) {
@@ -2050,7 +2044,6 @@ void EmojiPan::onRemoveSetSure() {
 				++i;
 			}
 		}
-		LOG(("Stickers: removed one set, %1.").arg(_removingSetId));
 		cRefStickerSets().erase(it);
 		cRefStickerSetsOrder().removeOne(_removingSetId);
 		cSetStickersHash(QByteArray());
