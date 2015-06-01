@@ -1543,7 +1543,6 @@ namespace App {
 		cSetStickerSets(StickerSets());
 		cSetStickerSetsOrder(StickerSetsOrder());
 		cSetLastStickersUpdate(0);
-		LOG(("Stickers: cleared everything!"));
 		::videoItems.clear();
 		::audioItems.clear();
 		::documentItems.clear();

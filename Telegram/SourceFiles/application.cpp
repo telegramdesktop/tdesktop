@@ -662,8 +662,8 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 8015) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Video captions are displayed\n\xe2\x80\x94 Photo captions are displayed in photo viewer\n\xe2\x80\x94 Round corners for messages").replace('@', qsl("@") + QChar(0x200D));
+			if (DevChannel && Local::oldMapVersion() < 8019) {
+				versionFeatures = lang(lng_new_version_text).trimmed();// QString::fromUtf8("\xe2\x80\x94 Video captions are displayed\n\xe2\x80\x94 Photo captions are displayed in photo viewer\n\xe2\x80\x94 Round corners for messages").replace('@', qsl("@") + QChar(0x200D));
 			} else if (!DevChannel && Local::oldMapVersion() < 8016) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			} else if (!DevChannel && Local::oldMapVersion() < 8017) {

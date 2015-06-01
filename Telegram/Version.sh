@@ -1,2 +1,2 @@
-echo 8018 0.8.18 1
+echo 8019 0.8.19 1
 # AppVersion AppVersionStr DevChannel

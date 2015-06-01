@@ -1851,8 +1851,6 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	cSetLastStickersUpdate(getms(true));
 	_stickersUpdateRequest = 0;
 
-	LOG(("Stickers: got from server!"));
-
 	if (stickers.type() != mtpc_messages_allStickers) return;
 	const MTPDmessages_allStickers &d(stickers.c_messages_allStickers());
 
@@ -1860,8 +1858,6 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 		
 	const QVector<MTPDocument> &d_docs(d.vdocuments.c_vector().v);
 	const QVector<MTPStickerSet> &d_sets(d.vsets.c_vector().v);
-
-	LOG(("Stickers: clearing everything, got all stickers"));
 
 	QByteArray wasHash = cStickersHash();
 	cSetStickersHash(qba(d.vhash));
@@ -2001,13 +1997,10 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 			}
 		}
 	}
-	LOG(("Stickers: now %1 sets, %2 recent").arg(sets.size()).arg(recent.size()));
 	if (added || removed || cStickersHash() != wasHash) {
-		LOG(("Stickers: writing stickers from gotAll!"));
 		Local::writeStickers();
 	}
 	if (writeRecent) {
-		LOG(("Stickers: writing recent stickers from gotAll!"));
 		Local::writeUserSettings();
 	}
 		
