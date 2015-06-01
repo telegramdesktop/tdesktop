@@ -39,7 +39,7 @@ Extract to **D:\TBuild\Libraries**
 
 http://www.zlib.net/ > Download [**zlib source code, version 1.2.8, zipfile format**](http://zlib.net/zlib128.zip)
 
-Extract to **D:\TBuild\Libraries\**
+Extract to **D:\\TBuild\\Libraries\\**
 
 #####Building library
 
@@ -87,35 +87,40 @@ to have **D:\TBuild\Libraries\openal-soft\CMakeLists.txt**
   * OpenAL32 Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded (/MT)** – **OK**
   * common Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded (/MT)** – **OK**
 
-####libogg 1.3.2
-
-Get sources from http://xiph.org/downloads/ – in [ZIP](http://downloads.xiph.org/releases/ogg/libogg-1.3.2.zip) and extract to **D:\TBuild\Libraries\**
-
-#####Building library
-
-* Open in VS2013 **D:\TBuild\Libraries\libogg-1.3.2\win32\VS2010\libogg_static.sln** > One-way upgrade – **OK**
-* Build Debug configuration
-* Build Release configuration
-
-####Opus codec, opusfile
+####Opus codec
 
 Get sources by git – in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries** and run
 
-    git clone git://git.opus-codec.org/opus.git
-    git clone git://git.xiph.org/opusfile.git
+    git clone https://github.com/telegramdesktop/opus.git
 
 to have **D:\TBuild\Libraries\opus\win32**
 
 #####Building libraries
 
-* Open in VS2013 **D:\TBuild\Libraries\opus\win32\VS2010\opus.sln** > One-way upgrade – **OK**
+* Open in VS2013 **D:\TBuild\Libraries\opus\win32\VS2010\opus.sln**
 * Build Debug configuration
-* Build Release configuration
-* Open in VS2013 **D:\TBuild\Libraries\opusfile\win32\VS2010\opusfile.sln** > One-way upgrade – **OK**
-* For **Debug** and **Release** configurations
-  * opusfile > C/C++ > General > Additional include directories > Add **../../../libogg-1.3.2/include;**
-* Build Debug configuration
-* Build Release configuration
+* Build Release configuration (it will be required in **FFmpeg** build!)
+
+####FFmpeg
+
+https://www.ffmpeg.org/download.html > Download [ffmpeg-2.6.3.tar.bz2](http://ffmpeg.org/releases/ffmpeg-2.6.3.tar.bz2)
+
+Extract to **D:\\TBuild\\Libraries**
+
+http://msys2.github.io/ > Download [msys2-x86_64-20150512.exe](http://sourceforge.net/projects/msys2/files/Base/x86_64/msys2-x86_64-20150512.exe/download) and install to **D:\\msys64**
+
+#####Building libraries
+
+* Open **VS2013 x86 Native Tools Command Prompt.bat** (should be in **\\Program Files (x86)\\Microsoft Visual Studio 12.0\\Common7\\Tools\\Shortcuts\\** folder)
+* Go to **D:\\msys64\\** and launch **msys2_shell.bat**
+* Run command **PATH="/c/Program Files (x86)/Microsoft Visual Studio 12.0/VC/BIN:$PATH"** to get link.exe from VS2013 ahead of link.exe from /usr/bin in PATH and run
+
+  cd /c/TBuild/Libraries/ffmpeg-2.6.3
+  pacman -S msys/make
+  pacman -S mingw64/mingw-w64-x86_64-opus
+  ./configure --toolchain=msvc --disable-programs --disable-everything --enable-libopus --enable-decoder=aac --enable-decoder=aac_latm --enable-decoder=aasc --enable-decoder=mp1 --enable-decoder=mp1float --enable-decoder=mp2 --enable-decoder=mp2float --enable-decoder=mp3 --enable-decoder=mp3adu --enable-decoder=mp3adufloat --enable-decoder=mp3float --enable-decoder=mp3on4 --enable-decoder=mp3on4float --enable-decoder=wavpack --enable-decoder=opus --enable-decoder=vorbis --enable-decoder=wmalossless --enable-decoder=wmapro --enable-decoder=wmav1 --enable-decoder=wmav2 --enable-decoder=wmavoice --enable-encoder=libopus --enable-parser=aac --enable-parser=aac_latm --enable-parser=mpegaudio --enable-parser=opus --enable-parser=vorbis --enable-demuxer=aac --enable-demuxer=wav --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=mov --enable-muxer=ogg --enable-muxer=opus --extra-ldflags="-libpath:/d/TBuild/Libraries/opus/win32/VS2010/Win32/Release celt.lib silk_common.lib silk_float.lib"
+  make
+  make install
 
 ####Qt 5.4.0, slightly patched
 

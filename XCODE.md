@@ -87,21 +87,9 @@ In Terminal go to **/Users/user/TBuild/Libraries/openal-soft/build** and there r
     make
     sudo make install
 
-####libogg 1.3.2
+####Opus codec
 
-Get sources from http://xiph.org/downloads/ – in [ZIP](http://downloads.xiph.org/releases/ogg/libogg-1.3.2.zip) and extract to **/Users/user/TBuild/Libraries**
-
-#####Building library
-
-In Terminal go to **/Users/user/TBuild/Libraries/libogg-1.3.2** and there run
-
-    ./configure
-    make
-    sudo make install
-
-####Opus codec, opusfile
-
-Download sources [opus-1.1.tar.gz](http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz) and [opusfile-0.6.tar.gz](http://downloads.xiph.org/releases/opus/opusfile-0.6.tar.gz) from http://www.opus-codec.org/downloads/, extract to **/Users/user/TBuild/Libraries** and rename to have **/Users/user/TBuild/Libraries/opus/configure** and **/Users/user/TBuild/Libraries/opusfile/configure**
+Download sources [opus-1.1.tar.gz](http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz) from http://www.opus-codec.org/downloads/, extract to **/Users/user/TBuild/Libraries** and rename to have **/Users/user/TBuild/Libraries/opus/configure**
 
 #####Building libraries
 
@@ -119,9 +107,32 @@ then go to **/Users/user/TBuild/Libraries/opus** and there run
     make
     sudo make install
 
-then go to **/Users/user/TBuild/Libraries/opusfile** and there run
+####FFmpeg
 
-    ./configure
+Download sources [ffmpeg-2.6.3.tar.bz2](http://ffmpeg.org/releases/ffmpeg-2.6.3.tar.bz2) from https://www.ffmpeg.org/download.html, extract to **/Users/user/TBuild/Libraries** to have **/Users/user/TBuild/Libraries/ffmpeg-2.6.3**
+
+#####Building libraries
+
+Download [libiconv-1.14](http://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.14.tar.gz) from http://www.gnu.org/software/libiconv/#downloading, extract it to **/Users/user/TBuild/Libraries**
+
+In Termianl go to **/Users/user/TBuild/Libraries/libiconv-1.14** and run
+
+    ./configure --enable-static
+    make
+    sudo make install
+
+Then in Terminal go to **/Users/user/TBuild/Libraries/ffmpeg-2.6.3** and run
+
+    ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+
+    brew install automake fdk-aac git lame libass libtool libvorbis libvpx opus sdl shtool texi2html theora wget x264 xvid yasm
+
+    CFLAGS=`freetype-config --cflags`
+    LDFLAGS=`freetype-config --libs`
+    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
+
+    ./configure --prefix=/usr/local --disable-programs --disable-everything --enable-libopus --enable-decoder=aac --enable-decoder=aac_latm --enable-decoder=aasc --enable-decoder=mp1 --enable-decoder=mp1float --enable-decoder=mp2 --enable-decoder=mp2float --enable-decoder=mp3 --enable-decoder=mp3adu --enable-decoder=mp3adufloat --enable-decoder=mp3float --enable-decoder=mp3on4 --enable-decoder=mp3on4float --enable-decoder=wavpack --enable-decoder=opus --enable-decoder=vorbis --enable-decoder=wmalossless --enable-decoder=wmapro --enable-decoder=wmav1 --enable-decoder=wmav2 --enable-decoder=wmavoice --enable-encoder=libopus --enable-parser=aac --enable-parser=aac_latm --enable-parser=mpegaudio --enable-parser=opus --enable-parser=vorbis --enable-demuxer=aac --enable-demuxer=wav --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=mov --enable-muxer=ogg --enable-muxer=opus --extra-cflags="-mmacosx-version-min=10.7" --extra-cxxflags="-mmacosx-version-min=10.7" --extra-ldflags="-mmacosx-version-min=10.7"
+
     make
     sudo make install
 
