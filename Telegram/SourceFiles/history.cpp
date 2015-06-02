@@ -2617,8 +2617,8 @@ HistoryDocument::HistoryDocument(DocumentData *document) : HistoryMedia()
 
 void HistoryDocument::initDimensions(const HistoryItem *parent) {
 	if (parent == animated.msg) {
-		_maxw = animated.w;
-		_minh = animated.h;
+		_maxw = animated.w / cIntRetinaFactor();
+		_minh = animated.h / cIntRetinaFactor();
 	} else {
 		_maxw = st::mediaMaxWidth;
 		int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
@@ -2651,7 +2651,7 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 
 	bool out = parent->out(), hovered, pressed;
 	if (parent == animated.msg) {
-		int32 pw = animated.w, ph = animated.h;
+		int32 pw = animated.w / cIntRetinaFactor(), ph = animated.h / cIntRetinaFactor();
 		if (width < pw) {
 			pw = width;
 			ph = (pw == w) ? _height : (pw * animated.h / animated.w);
@@ -2660,7 +2660,7 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 
 		App::roundShadow(p, 0, 0, pw, ph, selected ? st::msgInSelectShadow : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
 
-		p.drawPixmap(0, 0, animated.current(pw, ph, true));
+		p.drawPixmap(0, 0, animated.current(pw * cIntRetinaFactor(), ph * cIntRetinaFactor(), true));
 		if (selected) {
 			App::roundRect(p, 0, 0, pw, ph, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
 		}
@@ -2812,9 +2812,9 @@ int32 HistoryDocument::resize(int32 width, bool dontRecountText, const HistoryIt
 		if (w > st::maxMediaSize) {
 			w = st::maxMediaSize;
 		}
-		_height = animated.h;
-		if (animated.w > w) {
-			_height = (w * _height / animated.w);
+		_height = animated.h / cIntRetinaFactor();
+		if (animated.w / cIntRetinaFactor() > w) {
+			_height = (w * _height / (animated.w / cIntRetinaFactor()));
 			if (_height <= 0) _height = 1;
 		}
 	} else {
