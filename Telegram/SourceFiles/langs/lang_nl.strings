@@ -450,6 +450,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_send_button" = "Stuur";
 "lng_message_ph" = "Bericht schrijven";
+"lng_record_cancel" = "Annuleren: uit het vak loslaten";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Kies een chat om te beginnen";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
@@ -584,7 +585,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Ondersteuning voor stickerbundels toegevoegd\n— Nieuw emoji- en stickerspaneel";
+"lng_new_version_text" = "— Je kunt nu spraakberichten versturen\n— Verdwijnende stickers opgelost";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
