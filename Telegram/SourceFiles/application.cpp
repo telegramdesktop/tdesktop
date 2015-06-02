@@ -666,8 +666,8 @@ void Application::checkMapVersion() {
 				versionFeatures = lang(lng_new_version_minor).trimmed();// QString::fromUtf8("\xe2\x80\x94 Video captions are displayed\n\xe2\x80\x94 Photo captions are displayed in photo viewer\n\xe2\x80\x94 Round corners for messages").replace('@', qsl("@") + QChar(0x200D));
 			} else if (!DevChannel && Local::oldMapVersion() < 8016) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
-			} else if (!DevChannel && Local::oldMapVersion() < 8017) {
-				versionFeatures = lang(lng_new_version_minor).trimmed();
+			} else if (!DevChannel && Local::oldMapVersion() < 8021) {
+				versionFeatures = lang(lng_new_version_text).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
