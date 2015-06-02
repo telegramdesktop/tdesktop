@@ -232,6 +232,8 @@ void logsInit() {
 		logsInitDebug();
 		cSetDebug(true);
 	}
+
+	QDir().setCurrent(cWorkingDir());
 }
 
 void logsInitDebug() {

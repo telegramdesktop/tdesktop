@@ -524,6 +524,7 @@ void HistoryList::dragActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 		App::pressedItem(0);
 	}
 	if (needClick) {
+		DEBUG_LOG(("Clicked link: %1 (%2) %3").arg(needClick->text()).arg(needClick->readable()).arg(needClick->encoded()));
 		needClick->onClick(button);
 		dragActionCancel();
 		return;
