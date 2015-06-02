@@ -658,7 +658,7 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 }
 
 void Application::checkMapVersion() {
-	if (Local::oldMapVersion() < AppVersion) {
+    if (Local::oldMapVersion() < AppVersion) {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;

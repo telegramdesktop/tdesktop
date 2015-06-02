@@ -43,6 +43,29 @@ extern "C" {
 #include <unity/unity/unity.h>
 
 namespace {
+    QString escapeShell(const QString &str) {
+        QString result;
+        const QChar *b = str.constData(), *e = str.constEnd();
+        for (const QChar *ch = b; ch != e; ++ch) {
+            if (*ch == ' ' || *ch == '"' || *ch == '\'' || *ch == '\\') {
+                if (result.isEmpty()) {
+                    result.reserve(str.size() * 2);
+                }
+                if (ch > b) {
+                    result.append(b, ch - b);
+                }
+                result.append('\\');
+                b = ch;
+            }
+        }
+        if (result.isEmpty()) return str;
+
+        if (e > b) {
+            result.append(b, e - b);
+        }
+        return result;
+    }
+
 	bool frameless = true;
 	bool finished = true;
     bool noQtTrayIcon = false;
@@ -1606,7 +1629,7 @@ void psOpenFile(const QString &name, bool openWith) {
 
 void psShowInFolder(const QString &name) {
     App::wnd()->layerHidden();
-    system(("nautilus \"" + QFileInfo(name).absoluteDir().absolutePath() + "\"").toLocal8Bit().constData());
+    system((qsl("nautilus ") + escapeShell(QFileInfo(name).absoluteDir().absolutePath())).toUtf8().constData());
 }
 
 void psStart() {
@@ -1617,12 +1640,12 @@ void psFinish() {
 
 namespace {
     bool _psRunCommand(const QString &command) {
-        int result = system(command.toLocal8Bit().constData());
+        int result = system(command.toUtf8().constData());
         if (result) {
-            DEBUG_LOG(("App Error: command failed, code: %1, command: %2").arg(result).arg(command.toLocal8Bit().constData()));
+            DEBUG_LOG(("App Error: command failed, code: %1, command (in utf8): %2").arg(result).arg(command));
             return false;
         }
-        DEBUG_LOG(("App Info: command succeeded, command: %1").arg(command.toLocal8Bit().constData()));
+        DEBUG_LOG(("App Info: command succeeded, command (in utf8): %1").arg(command));
         return true;
     }
 }
@@ -1655,19 +1678,19 @@ void psRegisterCustomScheme() {
             s << "Version=1.0\n";
             s << "Name=Telegram Desktop\n";
             s << "Comment=Official desktop version of Telegram messaging app\n";
-            s << "Exec=" << cExeDir().toLocal8Bit().constData() << cExeName().toLocal8Bit().constData() << " -- %u\n";
-            s << "Icon=" << icon.toLocal8Bit().constData() << "\n";
+            s << "Exec=" << escapeShell(cExeDir() + cExeName()) << " -- %u\n";
+            s << "Icon=" << icon << "\n";
             s << "Terminal=false\n";
             s << "Type=Application\n";
             s << "Categories=Network;\n";
             s << "MimeType=application/x-xdg-protocol-tg;x-scheme-handler/tg;\n";
             f.close();
 
-            if (_psRunCommand(qsl("desktop-file-install --dir=%1.local/share/applications --delete-original \"%2\"").arg(home).arg(file))) {
+            if (_psRunCommand(qsl("desktop-file-install --dir=%1 --delete-original %2").arg(escapeShell(home + qsl(".local/share/applications"))).arg(escapeShell(file)))) {
                 DEBUG_LOG(("App Info: removing old .desktop file"));
                 QFile(qsl("%1.local/share/applications/telegram.desktop").arg(home)).remove();
 
-                _psRunCommand(qsl("update-desktop-database %1.local/share/applications").arg(home));
+                _psRunCommand(qsl("update-desktop-database %1").arg(escapeShell(home + qsl(".local/share/applications"))));
                 _psRunCommand(qsl("xdg-mime default telegramdesktop.desktop x-scheme-handler/tg"));
             }
         } else {
@@ -1676,7 +1699,7 @@ void psRegisterCustomScheme() {
     }
 
     DEBUG_LOG(("App Info: registerting for Gnome"));
-    if (_psRunCommand(qsl("gconftool-2 -t string -s /desktop/gnome/url-handlers/tg/command \"%1 -- %s\"").arg(cExeDir() + cExeName()))) {
+    if (_psRunCommand(qsl("gconftool-2 -t string -s /desktop/gnome/url-handlers/tg/command %1").arg(escapeShell(qsl("%1 -- %s").arg(escapeShell(cExeDir() + cExeName())))))) {
         _psRunCommand(qsl("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/needs_terminal false"));
         _psRunCommand(qsl("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/enabled true"));
     }
@@ -1697,7 +1720,7 @@ void psRegisterCustomScheme() {
             QTextStream s(&f);
             s.setCodec("UTF-8");
             s << "[Protocol]\n";
-            s << "exec=" << cExeDir().toLocal8Bit().constData() << cExeName().toLocal8Bit().constData() << " -- %u\n";
+            s << "exec=" << escapeShell(cExeDir() + cExeName()) << " -- %u\n";
             s << "protocol=tg\n";
             s << "input=none\n";
             s << "output=none\n";
@@ -1741,7 +1764,7 @@ bool _execUpdater(bool update = true) {
             args[argIndex++] = p_datafile;
         }
     }
-    QByteArray pathf = cWorkingDir().toLocal8Bit();
+    QByteArray pathf = cWorkingDir().toUtf8();
     if (pathf.size() < MaxLen) {
         memcpy(p_pathbuf, pathf.constData(), pathf.size());
         args[argIndex++] = p_path;
