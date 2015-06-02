@@ -986,9 +986,9 @@ btnAttachPhoto: iconedButton(btnAttachDocument) {
 btnAttachEmoji: iconedButton(btnAttachDocument) {
 	overBgColor: white;
 	icon: sprite(363px, 344px, 21px, 22px);
-	iconPos: point(6px, 13px);
+	iconPos: point(6px, 12px);
 	downIcon: sprite(363px, 344px, 21px, 22px);
-	downIconPos: point(6px, 13px);
+	downIconPos: point(6px, 12px);
 
 	width: 33px;
 }
@@ -1726,9 +1726,13 @@ mvDocExtColor: white;
 mvDocExtPadding: 10px;
 mvDocLinksTop: 57px;
 mvDocRed: sprite(0px, 400px, 80px, 80px);
+mvDocRedColor: #e47272;
 mvDocYellow: sprite(80px, 400px, 80px, 80px);
+mvDocYellowColor: #efc274;
 mvDocGreen: sprite(160px, 400px, 80px, 80px);
+mvDocGreenColor: #61b96e;
 mvDocBlue: sprite(240px, 400px, 80px, 80px);
+mvDocBlueColor: #72b1df;
 mvDocLink: linkButton(btnDefLink) {
 	color: #4595d3;
 	overColor: #4595d3;

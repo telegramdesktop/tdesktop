@@ -1711,7 +1711,7 @@ void HistoryWidget::onTextChange() {
 	updateTyping();
 
 	if (cHasAudioCapture()) {
-		if (_field.getLastText().isEmpty()) {
+		if (_field.getLastText().isEmpty() && !App::main()->hasForwardingItems()) {
 			_previewCancelled = false;
 			_send.hide();
 			setMouseTracking(true);
@@ -1831,6 +1831,10 @@ void HistoryWidget::onRecordDone(QByteArray result, qint32 samples) {
 }
 
 void HistoryWidget::onRecordUpdate(qint16 level, qint32 samples) {
+	if (!_recording) {
+		return;
+	}
+
 	a_recordingLevel.start(level);
 	_recordingAnim.start();
 	_recordingSamples = samples;
@@ -2333,7 +2337,7 @@ void HistoryWidget::updateControlsVisibility() {
 			_toHistoryEnd.show();
 		}
 		if (!histPeer->chat || !histPeer->asChat()->forbidden) {
-			if (cHasAudioCapture() && _field.getLastText().isEmpty()) {
+			if (cHasAudioCapture() && _field.getLastText().isEmpty() && !App::main()->hasForwardingItems()) {
 				_send.hide();
 				setMouseTracking(true);
 				mouseMoveEvent(0);
@@ -2360,10 +2364,14 @@ void HistoryWidget::updateControlsVisibility() {
 					_attachPhoto.hide();
 				}
 			}
-			if ((_replyToId || App::main()->hasForwardingItems() || (_previewData && _previewData->pendingTill >= 0)) && _replyForwardPreviewCancel.isHidden()) {
-				_replyForwardPreviewCancel.show();
-				resizeEvent(0);
-				update();
+			if ((_replyToId || App::main()->hasForwardingItems() || (_previewData && _previewData->pendingTill >= 0))) {
+				if (_replyForwardPreviewCancel.isHidden()) {
+					_replyForwardPreviewCancel.show();
+					resizeEvent(0);
+					update();
+				}
+			} else {
+				_replyForwardPreviewCancel.hide();
 			}
 		} else {
 			_attachMention.hide();
@@ -2668,7 +2676,7 @@ void HistoryWidget::loadMessagesAround() {
 void HistoryWidget::onListScroll() {
 	App::checkImageCacheSize();
 
-	if (histPreloading || !hist || ((_list->isHidden() || _scroll.isHidden() || !App::wnd()->windowHandle()->isVisible()) && hist->readyForWork())) {
+	if (histPreloading || !hist || ((_list->isHidden() || _scroll.isHidden() || _showAnim.animating() || !App::wnd()->windowHandle()->isVisible()) && hist->readyForWork())) {
 		checkUnreadLoaded(true);
 		return;
 	}
@@ -2849,7 +2857,6 @@ bool HistoryWidget::showStep(float64 ms) {
 		_bgAnimCache = _animCache = _animTopBarCache = _bgAnimTopBarCache = QPixmap();
 		App::main()->topBar()->stopAnim();
 		App::main()->topBar()->enableShadow();
-		updateControlsVisibility();
 		if (hist && hist->readyForWork()) {
 			_scroll.show();
 			if (hist->lastScrollTop == History::ScrollMax) {
@@ -2857,6 +2864,10 @@ bool HistoryWidget::showStep(float64 ms) {
 			}
 			onListScroll();
 		}
+		if (hist && !_histInited) {
+			checkUnreadLoaded();
+		}
+		updateControlsVisibility();
 		App::wnd()->setInnerFocus();
 	} else {
 		a_bgCoord.update(dt1, st::introHideFunc);
@@ -3702,7 +3713,7 @@ MsgId HistoryWidget::replyToId() const {
 void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, HistoryItem *resizedItem, bool scrollToIt) {
 	if (!hist || (!_histInited && !initial)) return;
 
-	if (!isVisible()) {
+	if (!isVisible() || _showAnim.animating()) {
 		if (initial) _histInited = false;
 		if (resizedItem) _list->recountHeight(true);
 		return; // scrollTopMax etc are not working after recountHeight()
@@ -3959,7 +3970,7 @@ void HistoryWidget::cancelReply() {
 }
 
 void HistoryWidget::cancelForwarding() {
-	if (!_previewData || _previewData->pendingTill < 0) _replyForwardPreviewCancel.hide();
+	updateControlsVisibility();
 	resizeEvent(0);
 	update();
 }
@@ -4241,10 +4252,11 @@ void HistoryWidget::updateReplyTo(bool force) {
 
 void HistoryWidget::updateForwarding(bool force) {
 	if (App::main()->hasForwardingItems()) {
-		_replyForwardPreviewCancel.show();
+		updateControlsVisibility();
+	} else {
+		resizeEvent(0);
+		update();
 	}
-	resizeEvent(0);
-	update();
 }
 
 void HistoryWidget::updateReplyToName() {

@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 8019;
-static const wchar_t *AppVersionStr = L"0.8.19";
+static const int32 AppVersion = 8020;
+static const wchar_t *AppVersionStr = L"0.8.20";
 static const bool DevChannel = true;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
@@ -40,6 +40,8 @@ enum {
 	MTPContainerLives = 600, // container lives 10 minutes in haveSent map
 	MTPMinReceiveDelay = 4000, // 4 seconds
 	MTPMaxReceiveDelay = 64000, // 64 seconds
+	MTPMinConnectDelay = 1000, // tcp connect should take less then 1 second
+	MTPMaxConnectDelay = 8000, // tcp connect should take 8 seconds max
 	MTPConnectionOldTimeout = 192000, // 192 seconds
 	MTPTcpConnectionWaitTimeout = 3000, // 3 seconds waiting for tcp, until we accept http
 	MTPMillerRabinIterCount = 30, // 30 Miller-Rabin iterations for dh_prime primality check

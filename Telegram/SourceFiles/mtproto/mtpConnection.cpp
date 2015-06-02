@@ -1093,6 +1093,7 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
     , retryTimeout(1)
     , oldConnection(true)
     , receiveDelay(MTPMinReceiveDelay)
+	, connectDelay(MTPMinConnectDelay)
     , firstSentAt(-1)
     , _pingId(0)
 	, _pingIdToSend(0)
@@ -1106,6 +1107,7 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
 	, authKeyStrings(0) {
 
 	oldConnectionTimer.moveToThread(thread);
+	cantConnectTimer.moveToThread(thread);
 	connCheckTimer.moveToThread(thread);
 	_pingSender.moveToThread(thread);
 	retryTimer.moveToThread(thread);
@@ -1130,6 +1132,7 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
 
 	connect(&retryTimer, SIGNAL(timeout()), this, SLOT(retryByTimer()));
 	connect(&connCheckTimer, SIGNAL(timeout()), this, SLOT(onBadConnection()));
+	connect(&cantConnectTimer, SIGNAL(timeout()), this, SLOT(onCantConnect()));
 	connect(&oldConnectionTimer, SIGNAL(timeout()), this, SLOT(onOldConnection()));
 	connect(&_pingSender, SIGNAL(timeout()), this, SLOT(onPingSender()));
 	connect(sessionData->owner(), SIGNAL(authKeyCreated()), this, SLOT(updateAuthKey()), Qt::QueuedConnection);
@@ -1732,6 +1735,8 @@ void MTProtoConnectionPrivate::restartNow() {
 
 void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 	if (!conn) createConn();
+	retryTimer.stop();
+	cantConnectTimer.stop();
 
 	if (conn->isConnected()) {
 		onConnected();
@@ -1768,6 +1773,7 @@ void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 	connect(conn, SIGNAL(connected()), this, SLOT(onConnected()));
 	connect(conn, SIGNAL(disconnected()), this, SLOT(restart()));
 
+	cantConnectTimer.start(connectDelay);
 	conn->connectToServer(ip.c_str(), port);
 }
 
@@ -1778,6 +1784,7 @@ void MTProtoConnectionPrivate::restart(bool maybeBadKey) {
 	DEBUG_LOG(("MTP Info: restarting MTProtoConnection, maybe bad key = %1").arg(logBool(maybeBadKey)));
 
 	connCheckTimer.stop();
+	cantConnectTimer.stop();
 
 	mtpAuthKeyPtr key(sessionData->getKey());
 	if (key) {
@@ -1879,6 +1886,17 @@ void MTProtoConnectionPrivate::onBadConnection() {
 	doDisconnect();
 	restarted = true;
 	if (retryTimer.isActive()) return;
+
+	DEBUG_LOG(("MTP Info: immediate restart!"));
+	QTimer::singleShot(0, this, SLOT(socketStart()));
+}
+
+void MTProtoConnectionPrivate::onCantConnect() {
+	DEBUG_LOG(("MTP Info: can't connect in %1ms").arg(connectDelay));
+	if (connectDelay < MTPMaxConnectDelay) connectDelay *= 2;
+
+	doDisconnect();
+	restarted = true;
 
 	DEBUG_LOG(("MTP Info: immediate restart!"));
 	QTimer::singleShot(0, this, SLOT(socketStart()));
@@ -2819,6 +2837,9 @@ void MTProtoConnectionPrivate::resendMany(QVector<quint64> msgIds, quint64 msCan
 }
 
 void MTProtoConnectionPrivate::onConnected() {
+	connectDelay = MTPMinConnectDelay;
+	cantConnectTimer.stop();
+
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData) return;
 
@@ -3308,6 +3329,8 @@ void MTProtoConnectionPrivate::clearAuthKeyData() {
 }
 
 void MTProtoConnectionPrivate::onError(bool mayBeBadKey) {
+	cantConnectTimer.stop();
+
 	MTP_LOG(dc, ("Restarting after error, maybe bad key: %1..").arg(logBool(mayBeBadKey)));
 	return restart(mayBeBadKey);
 }

@@ -1061,10 +1061,6 @@ void PsMainWindow::psInitSize() {
 	setMinimumHeight(st::wndMinHeight);
 
 	TWindowPos pos(cWindowPos());
-	if (cDebug()) { // temp while design
-		pos.w = st::wndDefWidth;
-		pos.h = st::wndDefHeight;
-	}
 	QRect avail(App::app() ? App::app()->desktop()->availableGeometry() : QDesktopWidget().availableGeometry());
 	bool maximized = false;
 	QRect geom(avail.x() + (avail.width() - st::wndDefWidth) / 2, avail.y() + (avail.height() - st::wndDefHeight) / 2, st::wndDefWidth, st::wndDefHeight);
