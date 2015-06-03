@@ -450,7 +450,7 @@ AudioCapture *audioCapture() {
 	return capture;
 }
 
-AudioPlayerFader::AudioPlayerFader(QThread *thread) : _timer(this), _suspendFlag(false) {
+AudioPlayerFader::AudioPlayerFader(QThread *thread) : _timer(this), _suspendFlag(false), _suspended(true) {
 	moveToThread(thread);
 	_timer.moveToThread(thread);
 	_suspendTimer.moveToThread(thread);
@@ -570,6 +570,7 @@ void AudioPlayerFader::onTimer() {
 void AudioPlayerFader::onSuspendTimer() {
 	QMutexLocker lock(&_suspendMutex);
 	if (_suspendFlag) {
+		_suspended = true;
 		alcSuspendContext(audioContext);
 	}
 }
@@ -582,7 +583,10 @@ void AudioPlayerFader::processContext() {
 	QMutexLocker lock(&_suspendMutex);
 	_suspendFlag = false;
 	emit stopSuspend();
-	alcProcessContext(audioContext);
+	if (_suspended) {
+		_suspended = false;
+		alcProcessContext(audioContext);
+	}
 }
 
 class AudioPlayerLoader {

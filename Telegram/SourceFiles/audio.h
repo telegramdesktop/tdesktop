@@ -172,7 +172,7 @@ private:
 
 	QTimer _timer, _suspendTimer;
 	QMutex _suspendMutex;
-	bool _suspendFlag;
+	bool _suspendFlag, _suspended;
 
 };
 
