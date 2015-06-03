@@ -4402,7 +4402,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 			if (!_field.isHidden() || _recording) {
 				drawFieldBackground(p);
 			}
-			if (_send.isHidden()) {
+			if (!_field.isHidden() && _send.isHidden()) {
 				if (a_recordDown.current() < 1) {
 					p.setOpacity(st::btnAttachEmoji.opacity * (1 - a_recordOver.current()) + st::btnAttachEmoji.overOpacity * a_recordOver.current());
 					p.drawSprite(_send.x() + (_send.width() - st::btnRecordAudio.pxWidth()) / 2, _send.y() + (_send.height() - st::btnRecordAudio.pxHeight()) / 2, st::btnRecordAudio);

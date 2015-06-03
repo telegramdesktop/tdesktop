@@ -83,6 +83,7 @@ SOURCES += \
     ./SourceFiles/app.cpp \
     ./SourceFiles/application.cpp \
     ./SourceFiles/audio.cpp \
+    ./SourceFiles/autoupdater.cpp \
     ./SourceFiles/dialogswidget.cpp \
     ./SourceFiles/dropdown.cpp \
     ./SourceFiles/fileuploader.cpp \
@@ -166,6 +167,7 @@ HEADERS += \
     ./SourceFiles/app.h \
     ./SourceFiles/application.h \
     ./SourceFiles/audio.h \
+    ./SourceFiles/autoupdater.h \
     ./SourceFiles/config.h \
     ./SourceFiles/countries.h \
     ./SourceFiles/dialogswidget.h \
