@@ -4401,38 +4401,38 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		if (!_scroll.isHidden()) {
 			if (!_field.isHidden() || _recording) {
 				drawFieldBackground(p);
-			}
-			if (!_field.isHidden() && _send.isHidden()) {
-				if (a_recordDown.current() < 1) {
-					p.setOpacity(st::btnAttachEmoji.opacity * (1 - a_recordOver.current()) + st::btnAttachEmoji.overOpacity * a_recordOver.current());
-					p.drawSprite(_send.x() + (_send.width() - st::btnRecordAudio.pxWidth()) / 2, _send.y() + (_send.height() - st::btnRecordAudio.pxHeight()) / 2, st::btnRecordAudio);
-				}
-				if (a_recordDown.current() > 0) {
-					p.setOpacity(a_recordDown.current());
-					p.drawSprite(_send.x() + (_send.width() - st::btnRecordAudioActive.pxWidth()) / 2, _send.y() + (_send.height() - st::btnRecordAudioActive.pxHeight()) / 2, st::btnRecordAudioActive);
-				}
-				p.setOpacity(1);
-				if (_recording) {
-					p.setPen(Qt::NoPen);
-					p.setBrush(st::recordSignalColor->b);
-					p.setRenderHint(QPainter::HighQualityAntialiasing);
-					float64 delta = qMin(float64(a_recordingLevel.current()) * 3 * M_PI / 0x7fff, 1.);
-					int32 d = 2 * qRound(st::recordSignalMin + (delta * (st::recordSignalMax - st::recordSignalMin)));
-					p.drawEllipse(_attachPhoto.x() + (_attachEmoji.width() - d) / 2, _attachPhoto.y() + (_attachPhoto.height() - d) / 2, d, d);
-					p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+                if (_send.isHidden()) {
+                    if (a_recordDown.current() < 1) {
+                        p.setOpacity(st::btnAttachEmoji.opacity * (1 - a_recordOver.current()) + st::btnAttachEmoji.overOpacity * a_recordOver.current());
+                        p.drawSprite(_send.x() + (_send.width() - st::btnRecordAudio.pxWidth()) / 2, _send.y() + (_send.height() - st::btnRecordAudio.pxHeight()) / 2, st::btnRecordAudio);
+                    }
+                    if (a_recordDown.current() > 0) {
+                        p.setOpacity(a_recordDown.current());
+                        p.drawSprite(_send.x() + (_send.width() - st::btnRecordAudioActive.pxWidth()) / 2, _send.y() + (_send.height() - st::btnRecordAudioActive.pxHeight()) / 2, st::btnRecordAudioActive);
+                    }
+                    p.setOpacity(1);
+                    if (_recording) {
+                        p.setPen(Qt::NoPen);
+                        p.setBrush(st::recordSignalColor->b);
+                        p.setRenderHint(QPainter::HighQualityAntialiasing);
+                        float64 delta = qMin(float64(a_recordingLevel.current()) * 3 * M_PI / 0x7fff, 1.);
+                        int32 d = 2 * qRound(st::recordSignalMin + (delta * (st::recordSignalMax - st::recordSignalMin)));
+                        p.drawEllipse(_attachPhoto.x() + (_attachEmoji.width() - d) / 2, _attachPhoto.y() + (_attachPhoto.height() - d) / 2, d, d);
+                        p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
-					QString duration = formatDurationText(_recordingSamples / AudioVoiceMsgFrequency);
-					p.setFont(st::recordFont->f);
+                        QString duration = formatDurationText(_recordingSamples / AudioVoiceMsgFrequency);
+                        p.setFont(st::recordFont->f);
 
-					p.setPen(st::black->p);
-					p.drawText(_attachPhoto.x() + _attachEmoji.width(), _attachPhoto.y() + st::recordTextTop + st::recordFont->ascent, duration);
+                        p.setPen(st::black->p);
+                        p.drawText(_attachPhoto.x() + _attachEmoji.width(), _attachPhoto.y() + st::recordTextTop + st::recordFont->ascent, duration);
 
-					int32 left = _attachPhoto.x() + _attachEmoji.width() + st::recordFont->m.width(duration) + ((_send.width() - st::btnRecordAudio.pxWidth()) / 2);
-					int32 right = width() - _send.width();
+                        int32 left = _attachPhoto.x() + _attachEmoji.width() + st::recordFont->m.width(duration) + ((_send.width() - st::btnRecordAudio.pxWidth()) / 2);
+                        int32 right = width() - _send.width();
 
-					p.setPen(a_recordCancel.current());
-					p.drawText(left + (right - left - _recordCancelWidth) / 2, _attachPhoto.y() + st::recordTextTop + st::recordFont->ascent, lang(lng_record_cancel));
-				}
+                        p.setPen(a_recordCancel.current());
+                        p.drawText(left + (right - left - _recordCancelWidth) / 2, _attachPhoto.y() + st::recordTextTop + st::recordFont->ascent, lang(lng_record_cancel));
+                    }
+                }
 			}
 		} else {
 			QPoint dogPos((width() - st::msgDogImg.pxWidth()) / 2, ((height() - _field.height() - 2 * st::sendPadding - st::msgDogImg.pxHeight()) * 4) / 9);
