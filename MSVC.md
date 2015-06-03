@@ -66,13 +66,23 @@ or download in ZIP and extract to **D:\TBuild\Libraries\**, rename **libexif-0.6
 * Build Debug configuration
 * Build Release configuration
 
-####OpenAL Soft
+####OpenAL Soft, slightly patched
 
 Get sources by git – in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries** and run
 
     git clone git://repo.or.cz/openal-soft.git
 
-to have **D:\TBuild\Libraries\openal-soft\CMakeLists.txt**
+to have **D:\TBuild\Libraries\openal-soft\CMakeLists.txt**, then in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries/openal-soft** and run
+
+    git checkout 9479ea656b
+
+Apply patch
+
+* OR copy (with overwrite!) everything from **D:\\TBuild\\tdesktop\\\_openal\_patch\\** to **D:\\TBuild\\Libraries\\openal-soft\\**
+* OR in Git Bash go to **/d/tbuild/libraries/openal-soft/** and run
+
+    git apply ./../../tdesktop/Telegram/_openal_patch.diff
+
 
 #####Building library
 
@@ -138,9 +148,9 @@ Extract to **D:\TBuild\Libraries\**, rename **qt-everywhere-opensource-src-5.4.0
 Apply patch
 
 * OR copy (with overwrite!) everything from **D:\TBuild\tdesktop\\\_qt\_5\_4\_0\_patch\** to **D:\TBuild\Libraries\QtStatic\**
-* OR copy **D:\TBuild\tdesktop\\\_qt\_5\_4\_0\_patch.diff** to **D:\TBuild\Libraries\QtStatic\**, go there in Git Bash and run
+* OR in Git Bash go to **/d/TBuild/Libraries/QtStatic/** and run
 
-    git apply _qt_5_4_0_patch.diff
+    git apply ./../../tdesktop/Telegram/_qt_5_4_0_patch.diff
 
 #####Building library
 

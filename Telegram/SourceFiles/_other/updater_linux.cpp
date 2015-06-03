@@ -136,7 +136,7 @@ bool remove_directory(const string &path) { // from http://stackoverflow.com/que
 
     if (!d) {
         writeLog("Could not open dir '%s'", path.c_str());
-        return false;
+        return (errno == ENOENT);
     }
 
     while (struct dirent *p = readdir(d)) {
@@ -201,18 +201,30 @@ bool equal(string a, string b) {
 }
 
 void delFolder() {
-    string delPath = workDir + "tupdates/ready", delFolder = workDir + "tupdates";
-    writeLog("Fully clearing path '%s'..", delPath.c_str());
-    if (!remove_directory(delPath)) {
-        writeLog("Error: failed to clear path! :(");
+    string delPathOld = workDir + "tupdates/ready", delPath = workDir + "tupdates/temp", delFolder = workDir + "tupdates";
+    writeLog("Fully clearing old path '%s'..", delPathOld.c_str());
+    if (!remove_directory(delPathOld)) {
+        writeLog("Error: failed to clear old path! :(");
     }
-    rmdir(delFolder.c_str());
+	writeLog("Fully clearing path '%s'..", delPath.c_str());
+	if (!remove_directory(delPath)) {
+		writeLog("Error: failed to clear path! :(");
+	}
+	rmdir(delFolder.c_str());
 }
 
 bool update() {
     writeLog("Update started..");
 
-    string updDir = workDir + "tupdates/ready";
+	string updDir = workDir + "tupdates/temp", readyFilePath = workDir + "tupdates/temp/ready";
+	{
+		FILE *readyFile = fopen(readyFilePath.c_str(), "rb");
+		if (readyFile) {
+			fclose(readyFile);
+		} else {
+			updDir = workDir + "tupdates/ready"; // old
+		}
+	}
 
     deque<string> dirs;
 	dirs.push_back(updDir);
@@ -253,9 +265,13 @@ bool update() {
                         delFolder();
                         return false;
                     }
-                    from.push_back(fname);
-                    to.push_back(tofname);
-                    writeLog("Added file '%s' to be copied to '%s'", fname.c_str(), tofname.c_str());
+					if (fname == readyFilePath) {
+						writeLog("Skipped ready file '%s'", fname.c_str());
+					} else {
+						from.push_back(fname);
+						to.push_back(tofname);
+						writeLog("Added file '%s' to be copied to '%s'", fname.c_str(), tofname.c_str());
+					}
                 }
             } else {
                 writeLog("Could not get stat() for file %s", fname.c_str());
@@ -336,7 +352,7 @@ int main(int argc, char *argv[]) {
             exeDir = exeName.substr(0, exeName.size() - 7);
             writeLog("Exe dir is: %s", exeDir.c_str());
             if (needupdate) {
-                if (workDir.empty()) { // old app launched
+                if (workDir.empty()) { // old app launched, update prepared in tupdates/ready (not in tupdates/temp)
                     writeLog("No workdir, trying to figure it out");
                     struct passwd *pw = getpwuid(getuid());
                     if (pw && pw->pw_dir && strlen(pw->pw_dir)) {

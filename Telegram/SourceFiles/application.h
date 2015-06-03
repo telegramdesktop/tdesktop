@@ -27,6 +27,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 class MainWidget;
 class FileUploader;
 class Translator;
+class UpdateDownloader;
 
 class Application : public PsApplication, public RPCSender {
 	Q_OBJECT
@@ -41,9 +42,6 @@ public:
 	static QString language();
 	static int32 languageId();
 	static MainWidget *main();
-
-	void onAppUpdate(const MTPhelp_AppUpdate &response);
-	bool onAppUpdateFail();
 
 	enum UpdatingState {
 		UpdatingNone,
@@ -79,6 +77,12 @@ public:
 	void checkMapVersion();
 
 signals:
+
+	void updateChecking();
+	void updateLatest();
+	void updateDownloading(qint64 ready, qint64 total);
+	void updateReady();
+	void updateFailed();
 
 	void peerPhotoDone(PeerId peer);
 	void peerPhotoFail(PeerId peer);
@@ -143,7 +147,7 @@ private:
 	QNetworkReply *updateReply;
 	SingleTimer updateCheckTimer;
 	QThread *updateThread;
-	PsUpdateDownloader *updateDownloader;
+	UpdateDownloader *updateDownloader;
 
 	QTimer writeUserConfigTimer;
 

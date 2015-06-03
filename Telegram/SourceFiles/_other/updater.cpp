@@ -96,12 +96,11 @@ void writeLog(const wstring &msg) {
 	}
 }
 
-void delFolder() {
-	wstring delPath = L"tupdates\\ready", delFolder = L"tupdates";
+void fullClearPath(const wstring &dir) {
 	WCHAR path[4096];
-	memcpy(path, delPath.c_str(), (delPath.size() + 1) * sizeof(WCHAR));
-	path[delPath.size() + 1] = 0;
-	writeLog(L"Fully clearing path '" + delPath + L"'..");
+	memcpy(path, dir.c_str(), (dir.size() + 1) * sizeof(WCHAR));
+	path[dir.size() + 1] = 0;
+	writeLog(L"Fully clearing path '" + dir + L"'..");
 	SHFILEOPSTRUCT file_op = {
 		NULL,
 		FO_DELETE,
@@ -116,13 +115,27 @@ void delFolder() {
 	};
 	int res = SHFileOperation(&file_op);
 	if (res) writeLog(L"Error: failed to clear path! :(");
+}
+
+void delFolder() {
+	wstring delPathOld = L"tupdates\\ready", delPath = L"tupdates\\temp", delFolder = L"tupdates";
+	fullClearPath(delPathOld);
+	fullClearPath(delPath);
 	RemoveDirectory(delFolder.c_str());
 }
 
 bool update() {
 	writeLog(L"Update started..");
 
-	wstring updDir = L"tupdates\\ready";
+	wstring updDir = L"tupdates\\temp", readyFilePath = L"tupdates\\temp\\ready";
+	{
+		HANDLE readyFile = CreateFile(readyFilePath.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+		if (readyFile != INVALID_HANDLE_VALUE) {
+			CloseHandle(readyFile);
+		} else {
+			updDir = L"tupdates\\ready"; // old
+		}
+	}
 
 	deque<wstring> dirs;
 	dirs.push_back(updDir);
@@ -166,10 +179,13 @@ bool update() {
 					writeLog(L"Error: bad update, has Updater.exe! '" + tofname + L"' equal '" + exeName + L"'");
 					delFolder();
 					return false;
+				} else if (equal(fname, readyFilePath)) {
+					writeLog(L"Skipped ready file '" + fname + L"'");
+				} else {
+					from.push_back(fname);
+					to.push_back(tofname);
+					writeLog(L"Added file '" + fname + L"' to be copied to '" + tofname + L"'");
 				}
-				from.push_back(fname);
-				to.push_back(tofname);
-				writeLog(L"Added file '" + fname + L"' to be copied to '" + tofname + L"'");
 			}
 		} while (FindNextFile(findHandle, &findData));
 		DWORD errorCode = GetLastError();
@@ -357,7 +373,7 @@ int APIENTRY WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdParama
 					updateRegistry();
 				}
 				if (writeprotected) { // if we can't clear all tupdates\ready (Updater.exe is there) - clear only version
-					if (DeleteFile(L"tupdates\\ready\\tdata\\version")) {
+					if (DeleteFile(L"tupdates\\temp\\tdata\\version") || DeleteFile(L"tupdates\\ready\\tdata\\version")) {
 						writeLog(L"Version file deleted!");
 					} else {
 						writeLog(L"Error: could not delete version file");
@@ -386,7 +402,6 @@ int APIENTRY WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdParama
 
 		HRESULT hres = CoInitialize(0);
 		if (SUCCEEDED(hres)) {
-			wstring lnk = L"tupdates\\ready\\temp.lnk";
 			IShellLink* psl;
 			HRESULT hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
 			if (SUCCEEDED(hres)) {
@@ -401,7 +416,12 @@ int APIENTRY WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdParama
 				hres = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf);
 
 				if (SUCCEEDED(hres)) {
+					wstring lnk = L"tupdates\\temp\\temp.lnk";
 					hres = ppf->Save(lnk.c_str(), TRUE);
+					if (!SUCCEEDED(hres)) {
+						lnk = L"tupdates\\ready\\temp.lnk"; // old
+						hres = ppf->Save(lnk.c_str(), TRUE);
+					}
 					ppf->Release();
 
 					if (SUCCEEDED(hres)) {
