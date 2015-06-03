@@ -68,6 +68,8 @@
 		07BE85121A20961F008ACB9F /* moc_localstorage.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07BE85111A20961F008ACB9F /* moc_localstorage.cpp */; };
 		07C4753B1967DF1C00CAAFE9 /* switcher.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C475391967DF1C00CAAFE9 /* switcher.cpp */; };
 		07C4753F1967E37300CAAFE9 /* moc_switcher.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */; };
+		07C7596F1B1F7E0000662169 /* autoupdater.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C7596D1B1F7E0000662169 /* autoupdater.cpp */; };
+		07C759721B1F7E2800662169 /* moc_autoupdater.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07C759711B1F7E2800662169 /* moc_autoupdater.cpp */; };
 		07CAACD81AEA64F00058E508 /* AudioUnit.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 07CAACD71AEA64F00058E508 /* AudioUnit.framework */; };
 		07D7034B19B8755A00C4EED2 /* audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D7034919B8755A00C4EED2 /* audio.cpp */; };
 		07D703BB19B88FB900C4EED2 /* moc_audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D703BA19B88FB900C4EED2 /* moc_audio.cpp */; };
@@ -314,6 +316,9 @@
 		07C475391967DF1C00CAAFE9 /* switcher.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = switcher.cpp; path = SourceFiles/gui/switcher.cpp; sourceTree = SOURCE_ROOT; };
 		07C4753A1967DF1C00CAAFE9 /* switcher.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = switcher.h; path = SourceFiles/gui/switcher.h; sourceTree = SOURCE_ROOT; };
 		07C4753E1967E37300CAAFE9 /* moc_switcher.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_switcher.cpp; path = GeneratedFiles/Debug/moc_switcher.cpp; sourceTree = SOURCE_ROOT; };
+		07C7596D1B1F7E0000662169 /* autoupdater.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = autoupdater.cpp; path = SourceFiles/autoupdater.cpp; sourceTree = SOURCE_ROOT; };
+		07C7596E1B1F7E0000662169 /* autoupdater.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = autoupdater.h; path = SourceFiles/autoupdater.h; sourceTree = SOURCE_ROOT; };
+		07C759711B1F7E2800662169 /* moc_autoupdater.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_autoupdater.cpp; path = GeneratedFiles/Debug/moc_autoupdater.cpp; sourceTree = SOURCE_ROOT; };
 		07CAACD71AEA64F00058E508 /* AudioUnit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioUnit.framework; path = System/Library/Frameworks/AudioUnit.framework; sourceTree = SDKROOT; };
 		07D7034919B8755A00C4EED2 /* audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = audio.cpp; path = SourceFiles/audio.cpp; sourceTree = SOURCE_ROOT; };
 		07D7034A19B8755A00C4EED2 /* audio.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = audio.h; path = SourceFiles/audio.h; sourceTree = SOURCE_ROOT; };
@@ -899,6 +904,7 @@
 				06E379415713F34B83F99C35 /* app.cpp */,
 				C20F9DD8C7B031B8E20D5653 /* application.cpp */,
 				07D7034919B8755A00C4EED2 /* audio.cpp */,
+				07C7596D1B1F7E0000662169 /* autoupdater.cpp */,
 				E466873F01ABA1E55E914489 /* dialogswidget.cpp */,
 				710C982FC773400941B3AFBC /* dropdown.cpp */,
 				9B36BB8C5B8CA7B07F3F35F0 /* fileuploader.cpp */,
@@ -934,6 +940,7 @@
 				C19DF71B273A4843553518F2 /* app.h */,
 				09FD01F2BD652EB838A296D8 /* application.h */,
 				07D7034A19B8755A00C4EED2 /* audio.h */,
+				07C7596E1B1F7E0000662169 /* autoupdater.h */,
 				24F7D3E789E91B10E422C116 /* config.h */,
 				206B4F5CBD5354BCE19FF32F /* countries.h */,
 				55B4A93DD455EED91C899A8E /* dialogswidget.h */,
@@ -1101,6 +1108,7 @@
 		801973D3334D0FCA849CF485 /* Debug */ = {
 			isa = PBXGroup;
 			children = (
+				07C759711B1F7E2800662169 /* moc_autoupdater.cpp */,
 				0710CA041B0B9404001B4272 /* moc_stickersetbox.cpp */,
 				0755AEDA1AD12A80004D738A /* moc_abstractbox.cpp */,
 				0755AEDB1AD12A80004D738A /* moc_intropwdcheck.cpp */,
@@ -1565,6 +1573,7 @@
 				07C4753B1967DF1C00CAAFE9 /* switcher.cpp in Compile Sources */,
 				A0A6B97F7DBEC81004EC9461 /* confirmbox.cpp in Compile Sources */,
 				4FEA8F51B7BC7CAC71347A1A /* connectionbox.cpp in Compile Sources */,
+				07C7596F1B1F7E0000662169 /* autoupdater.cpp in Compile Sources */,
 				078A2FCA1A811C5900CCC7A0 /* moc_backgroundbox.cpp in Compile Sources */,
 				298BFAB73BF182297584F96F /* contactsbox.cpp in Compile Sources */,
 				BA41D511A9BBCA09365DF88C /* downloadpathbox.cpp in Compile Sources */,
@@ -1637,6 +1646,7 @@
 				074968D01A44D14C00394F46 /* languagebox.cpp in Compile Sources */,
 				07BE85121A20961F008ACB9F /* moc_localstorage.cpp in Compile Sources */,
 				07AF95F41AFD03B90060B057 /* qrc_telegram_emojis.cpp in Compile Sources */,
+				07C759721B1F7E2800662169 /* moc_autoupdater.cpp in Compile Sources */,
 				07DB674E1AD07C9200A51329 /* sessionsbox.cpp in Compile Sources */,
 				49C3C1BF153F7FC078A25CE4 /* moc_downloadpathbox.cpp in Compile Sources */,
 				9D294F23E02CFDF22C288382 /* moc_emojibox.cpp in Compile Sources */,

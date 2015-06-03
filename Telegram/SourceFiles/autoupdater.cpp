@@ -28,7 +28,7 @@ typedef int VerInt;
 typedef wchar_t VerChar;
 #endif
 
-UpdateDownloader::UpdateDownloader(QThread *thread, const QString &url) : already(0), reply(0), full(0) {
+UpdateDownloader::UpdateDownloader(QThread *thread, const QString &url) : reply(0), already(0), full(0) {
 	updateUrl = url;
 	moveToThread(thread);
 	manager.moveToThread(thread);
@@ -511,7 +511,7 @@ bool checkReadyUpdate() {
 		return false;
 	}
 #elif defined Q_OS_LINUX
-	if (!moveFile(QFile::encodeName(updater.absoluteFilePath()).constData(), QFile::encodeName(curUpdater).constData())) {
+	if (!linuxMoveFile(QFile::encodeName(updater.absoluteFilePath()).constData(), QFile::encodeName(curUpdater).constData())) {
 		UpdateDownloader::clearAll();
 		return false;
 	}
