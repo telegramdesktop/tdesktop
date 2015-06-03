@@ -50,7 +50,7 @@ public:
 
 	void currentState(AudioData **audio, AudioPlayerState *state = 0, int64 *position = 0, int64 *duration = 0, int32 *frequency = 0);
 	void clearStoppedAtStart(AudioData *audio);
-	void processContext();
+	void resumeDevice();
 
 	~AudioPlayer();
 
@@ -150,7 +150,7 @@ class AudioPlayerFader : public QObject {
 public:
 
 	AudioPlayerFader(QThread *thread);
-	void processContext();
+	void resumeDevice();
 
 signals:
 
@@ -159,20 +159,20 @@ signals:
 	void audioStopped(AudioData *audio);
 	void needToPreload(AudioData *audio);
 
-	void stopSuspend();
+	void stopPauseDevice();
 
 public slots:
 
 	void onInit();
 	void onTimer();
-	void onSuspendTimer();
-	void onSuspendTimerStop();
+	void onPauseTimer();
+	void onPauseTimerStop();
 
 private:
 
-	QTimer _timer, _suspendTimer;
-	QMutex _suspendMutex;
-	bool _suspendFlag, _suspended;
+	QTimer _timer, _pauseTimer;
+	QMutex _pauseMutex;
+	bool _pauseFlag, _paused;
 
 };
 

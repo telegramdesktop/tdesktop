@@ -97,7 +97,7 @@ enum {
 	AudioVoiceMsgChannels = 2, // stereo
 	AudioVoiceMsgBufferSize = 1024 * 1024, // 1 Mb buffers
 	AudioVoiceMsgInMemory = 1024 * 1024, // 1 Mb audio is hold in memory and auto loaded
-	AudioSuspendTimeout = 3000, // suspend in 3 secs after playing is over
+	AudioPauseDeviceTimeout = 3000, // pause in 3 secs after playing is over
 
 	StickerInMemory = 256 * 1024, // 128 Kb stickers hold in memory, auto loaded and displayed inline
 	StickerMaxSize = 2048, // 2048x2048 is a max image size for sticker

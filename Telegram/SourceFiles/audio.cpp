@@ -21,6 +21,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include <AL/al.h>
 #include <AL/alc.h>
 
+#define AL_ALEXT_PROTOTYPES
+#include <AL/alext.h>
+
 extern "C" {
 
 #include <libavcodec/avcodec.h>
@@ -197,7 +200,7 @@ void audioInit() {
 	if (!_checkALError()) return audioFinish();
 
 	player = new AudioPlayer();
-	alcSuspendContext(audioContext);
+	alcDevicePauseSOFT(audioDevice);
 
 	av_register_all();
 	avcodec_register_all();
@@ -209,7 +212,7 @@ void audioInit() {
 void audioPlayNotify() {
 	if (!audioPlayer()) return;
 
-	audioPlayer()->processContext();
+	audioPlayer()->resumeDevice();
 	alSourcePlay(notifySource);
 	emit audioPlayer()->faderOnTimer();
 }
@@ -373,7 +376,7 @@ void AudioPlayer::pauseresume() {
 			updateCurrentStarted();
 		}
 		_data[_current].state = AudioPlayerResuming;
-		processContext();
+		resumeDevice();
 		alSourcePlay(_data[_current].source);
 	break;
 	case AudioPlayerStarting:
@@ -403,8 +406,8 @@ void AudioPlayer::clearStoppedAtStart(AudioData *audio) {
 	}
 }
 
-void AudioPlayer::processContext() {
-	_fader->processContext();
+void AudioPlayer::resumeDevice() {
+	_fader->resumeDevice();
 }
 
 AudioCapture::AudioCapture() : _capture(new AudioCaptureInner(&_captureThread)) {
@@ -450,17 +453,17 @@ AudioCapture *audioCapture() {
 	return capture;
 }
 
-AudioPlayerFader::AudioPlayerFader(QThread *thread) : _timer(this), _suspendFlag(false), _suspended(true) {
+AudioPlayerFader::AudioPlayerFader(QThread *thread) : _timer(this), _pauseFlag(false), _paused(true) {
 	moveToThread(thread);
 	_timer.moveToThread(thread);
-	_suspendTimer.moveToThread(thread);
+	_pauseTimer.moveToThread(thread);
 
 	_timer.setSingleShot(true);
 	connect(&_timer, SIGNAL(timeout()), this, SLOT(onTimer()));
 
-	_suspendTimer.setSingleShot(true);
-	connect(&_suspendTimer, SIGNAL(timeout()), this, SLOT(onSuspendTimer()));
-	connect(this, SIGNAL(stopSuspend()), this, SLOT(onSuspendTimerStop()), Qt::QueuedConnection);
+	_pauseTimer.setSingleShot(true);
+	connect(&_pauseTimer, SIGNAL(timeout()), this, SLOT(onPauseTimer()));
+	connect(this, SIGNAL(stopPauseDevice()), this, SLOT(onPauseTimerStop()), Qt::QueuedConnection);
 }
 
 void AudioPlayerFader::onInit() {
@@ -556,36 +559,36 @@ void AudioPlayerFader::onTimer() {
 	}
 	if (hasFading) {
 		_timer.start(AudioFadeTimeout);
-		processContext();
+		resumeDevice();
 	} else if (hasPlaying) {
 		_timer.start(AudioCheckPositionTimeout);
-		processContext();
+		resumeDevice();
 	} else {
-		QMutexLocker lock(&_suspendMutex);
-		_suspendFlag = true;
-		_suspendTimer.start(AudioSuspendTimeout);
+		QMutexLocker lock(&_pauseMutex);
+		_pauseFlag = true;
+		_pauseTimer.start(AudioPauseDeviceTimeout);
 	}
 }
 
-void AudioPlayerFader::onSuspendTimer() {
-	QMutexLocker lock(&_suspendMutex);
-	if (_suspendFlag) {
-		_suspended = true;
-		alcSuspendContext(audioContext);
+void AudioPlayerFader::onPauseTimer() {
+	QMutexLocker lock(&_pauseMutex);
+	if (_pauseFlag) {
+		_paused = true;
+		alcDevicePauseSOFT(audioDevice);
 	}
 }
 
-void AudioPlayerFader::onSuspendTimerStop() {
-	if (_suspendTimer.isActive()) _suspendTimer.stop();
+void AudioPlayerFader::onPauseTimerStop() {
+	if (_pauseTimer.isActive()) _pauseTimer.stop();
 }
 
-void AudioPlayerFader::processContext() {
-	QMutexLocker lock(&_suspendMutex);
-	_suspendFlag = false;
-	emit stopSuspend();
-	if (_suspended) {
-		_suspended = false;
-		alcProcessContext(audioContext);
+void AudioPlayerFader::resumeDevice() {
+	QMutexLocker lock(&_pauseMutex);
+	_pauseFlag = false;
+	emit stopPauseDevice();
+	if (_paused) {
+		_paused = false;
+		alcDeviceResumeSOFT(audioDevice);
 	}
 }
 
@@ -1111,7 +1114,7 @@ void AudioPlayerLoaders::onLoad(AudioData *audio) {
 		alGetSourcei(m.source, AL_SOURCE_STATE, &state);
 		if (_checkALError()) {
 			if (state != AL_PLAYING) {
-				voice->processContext();
+				voice->resumeDevice();
 				alSourcePlay(m.source);
 				emit needToCheck();
 			}
