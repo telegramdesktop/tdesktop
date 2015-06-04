@@ -271,8 +271,6 @@ bool update() {
                     }
 					if (fname == readyFilePath) {
 						writeLog("Skipped ready file '%s'", fname.c_str());
-                    } else if (fname == versionFilePath) {
-                        writeLog("Skipped version file '%s'", fname.c_str());
                     } else {
 						from.push_back(fname);
 						to.push_back(tofname);
