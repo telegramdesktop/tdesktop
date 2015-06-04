@@ -215,7 +215,7 @@ void delFolder() {
 bool update() {
     writeLog("Update started..");
 
-	string updDir = workDir + "tupdates/temp", readyFilePath = workDir + "tupdates/temp/ready";
+    string updDir = workDir + "tupdates/temp", readyFilePath = workDir + "tupdates/temp/ready", tdataDir = workDir + "tupdates/temp/tdata";
 	{
 		FILE *readyFile = fopen(readyFilePath.c_str(), "rb");
 		if (readyFile) {
@@ -223,6 +223,7 @@ bool update() {
             writeLog("Ready file found! Using new path '%s'..", updDir.c_str());
         } else {
             updDir = workDir + "tupdates/ready"; // old
+            tdataDir = workDir + "tupdates/ready/tdata";
             writeLog("Ready file not found! Using old path '%s'..", updDir.c_str());
         }
 	}
@@ -255,7 +256,9 @@ bool update() {
 
             string fname = dir + '/' + p->d_name;
             struct stat statbuf;
-            if (!stat(fname.c_str(), &statbuf)) {
+            if (fname.substr(0, tdataDir.size()) == tdataDir && (fname.size() <= tdataDir.size() || fname.at(tdataDir.size()) == '/')) {
+                writeLog("Skipping 'tdata' path '%s'", fname.c_str());
+            } else if (!stat(fname.c_str(), &statbuf)) {
                 if (S_ISDIR(statbuf.st_mode)) {
                     dirs.push_back(fname);
                     writeLog("Added dir '%s' in update tree..", fname.c_str());
@@ -268,7 +271,9 @@ bool update() {
                     }
 					if (fname == readyFilePath) {
 						writeLog("Skipped ready file '%s'", fname.c_str());
-					} else {
+                    } else if (fname == versionFilePath) {
+                        writeLog("Skipped version file '%s'", fname.c_str());
+                    } else {
 						from.push_back(fname);
 						to.push_back(tofname);
 						writeLog("Added file '%s' to be copied to '%s'", fname.c_str(), tofname.c_str());
@@ -326,7 +331,6 @@ int main(int argc, char *argv[]) {
             autostart = true;
 		} else if (equal(argv[i], "-debug")) {
 			debug = _debug = true;
-			openLog();
 		} else if (equal(argv[i], "-startintray")) {
 			startintray = true;
 		} else if (equal(argv[i], "-testmode")) {
