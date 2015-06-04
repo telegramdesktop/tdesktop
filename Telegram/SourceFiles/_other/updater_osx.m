@@ -55,8 +55,14 @@ void writeLog(NSString *msg) {
 }
 
 void delFolder() {
-	[[NSFileManager defaultManager] removeItemAtPath:[workDir stringByAppendingString:@"tupdates/ready"] error:nil]; // remove old
-	[[NSFileManager defaultManager] removeItemAtPath:[workDir stringByAppendingString:@"tupdates/temp"] error:nil];
+	writeLog([@"Fully clearing old path: " stringByAppendingString:[workDir stringByAppendingString:@"tupdates/ready"]]);
+	if (![[NSFileManager defaultManager] removeItemAtPath:[workDir stringByAppendingString:@"tupdates/ready"] error:nil]) {
+		writeLog(@"Failed to clear old path! :( New path was used?..");
+	}
+	writeLog([@"Fully clearing new path: " stringByAppendingString:[workDir stringByAppendingString:@"tupdates/temp"]]);
+	if (![[NSFileManager defaultManager] removeItemAtPath:[workDir stringByAppendingString:@"tupdates/temp"] error:nil]) {
+		writeLog(@"Error: failed to clear new path! :(");
+	}
 	rmdir([[workDir stringByAppendingString:@"tupdates"] fileSystemRepresentation]);
 }
 
@@ -136,9 +142,12 @@ int main(int argc, const char * argv[]) {
 		NSFileManager *fileManager = [NSFileManager defaultManager];
 		NSString *readyFilePath = [workDir stringByAppendingString:@"tupdates/temp/ready"];
 		NSString *srcDir = [workDir stringByAppendingString:@"tupdates/temp/"], *srcEnum = [workDir stringByAppendingString:@"tupdates/temp"];
-		if (![fileManager fileExistsAtPath:readyFilePath]) {
+		if ([fileManager fileExistsAtPath:readyFilePath]) {
+			writeLog([@"Ready file found! Using new path: " stringByAppendingString: srcEnum]);
+		} else {
 			srcDir = [workDir stringByAppendingString:@"tupdates/ready/"]; // old
 			srcEnum = [workDir stringByAppendingString:@"tupdates/ready"];
+			writeLog([@"Ready file not found! Using old path: " stringByAppendingString: srcEnum]);
 		}
 
 		writeLog([@"Starting update files iteration, path: " stringByAppendingString: srcEnum]);

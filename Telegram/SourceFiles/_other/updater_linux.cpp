@@ -49,12 +49,13 @@ bool do_mkdir(const char *path) { // from http://stackoverflow.com/questions/675
 }
 
 bool _debug = false;
+string exeName, exeDir, workDir;
 
 FILE *_logFile = 0;
 void openLog() {
     if (!_debug || _logFile) return;
 
-    if (!do_mkdir("DebugLogs")) {
+    if (!do_mkdir((workDir + "DebugLogs").c_str())) {
         return;
     }
 
@@ -65,7 +66,7 @@ void openLog() {
 
     static const int maxFileLen = 65536;
     char logName[maxFileLen];
-    sprintf(logName, "DebugLogs/%04d%02d%02d_%02d%02d%02d_upd.txt",
+    sprintf(logName, "%sDebugLogs/%04d%02d%02d_%02d%02d%02d_upd.txt", workDir.c_str(),
         t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
     _logFile = fopen(logName, "w");
 }
@@ -192,8 +193,6 @@ bool mkpath(const char *path) {
     return do_mkdir(path);
 }
 
-string exeName, exeDir, workDir;
-
 bool equal(string a, string b) {
     std::transform(a.begin(), a.end(), a.begin(), ::tolower);
     std::transform(b.begin(), b.end(), b.begin(), ::tolower);
@@ -204,7 +203,7 @@ void delFolder() {
     string delPathOld = workDir + "tupdates/ready", delPath = workDir + "tupdates/temp", delFolder = workDir + "tupdates";
     writeLog("Fully clearing old path '%s'..", delPathOld.c_str());
     if (!remove_directory(delPathOld)) {
-        writeLog("Error: failed to clear old path! :(");
+        writeLog("Failed to clear old path! :( New path was used?..");
     }
 	writeLog("Fully clearing path '%s'..", delPath.c_str());
 	if (!remove_directory(delPath)) {
@@ -221,9 +220,11 @@ bool update() {
 		FILE *readyFile = fopen(readyFilePath.c_str(), "rb");
 		if (readyFile) {
 			fclose(readyFile);
-		} else {
-			updDir = workDir + "tupdates/ready"; // old
-		}
+            writeLog("Ready file found! Using new path '%s'..", updDir.c_str());
+        } else {
+            updDir = workDir + "tupdates/ready"; // old
+            writeLog("Ready file not found! Using old path '%s'..", updDir.c_str());
+        }
 	}
 
     deque<string> dirs;
@@ -315,10 +316,6 @@ bool update() {
 }
 
 int main(int argc, char *argv[]) {
-    openLog();
-
-    writeLog("Updater started..");
-
     bool needupdate = true, autostart = false, debug = false, tosettings = false, startintray = false, testmode = false;
 
     char *key = 0;
@@ -341,6 +338,12 @@ int main(int argc, char *argv[]) {
         } else if (equal(argv[i], "-workpath") && ++i < argc) {
             workDir = argv[i];
         }
+    }
+    openLog();
+
+    writeLog("Updater started..");
+    for (int i = 0; i < argc; ++i) {
+        writeLog("Argument: '%s'", argv[i]);
     }
     if (needupdate) writeLog("Need to update!");
     if (autostart) writeLog("From autostart!");
