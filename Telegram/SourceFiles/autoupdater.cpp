@@ -441,6 +441,9 @@ UpdateDownloader::~UpdateDownloader() {
 bool checkReadyUpdate() {
 	QString readyFilePath = cWorkingDir() + qsl("tupdates/temp/ready"), readyPath = cWorkingDir() + qsl("tupdates/temp");
 	if (!QFile(readyFilePath).exists()) {
+		if (QDir(cWorkingDir() + qsl("tupdates/ready")).exists()) { // old dir after elevated update
+			UpdateDownloader::clearAll();
+		}
 		return false;
 	}
 
