@@ -445,7 +445,9 @@ private:
 	Animation _iconAnim;
 	QPoint _iconsMousePos, _iconsMouseDown;
 	int32 _iconsLeft, _iconsTop;
-	int32 _iconsX, _iconsStartX, _iconsMax;
+	int32 _iconsStartX, _iconsMax;
+	anim::ivalue _iconsX;
+	uint64 _iconsStartAnim;
 
 	bool _stickersShown;
 	QPixmap _fromCache, _toCache;

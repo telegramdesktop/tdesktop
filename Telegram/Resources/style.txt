@@ -1656,6 +1656,7 @@ stickerIconSel: #dfe3e6;
 stickerIconRecent: sprite(342px, 50px, 21px, 22px);
 stickerIconLeft: sprite(342px, 72px, 40px, 1px);
 stickerIconRight: sprite(342px, 73px, 40px, 1px);
+stickerIconMove: 400;
 
 mvBgColor: #222;
 mvBgOpacity: 0.92;
