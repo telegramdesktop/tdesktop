@@ -1498,6 +1498,8 @@ void StickerPanInner::refreshRecent(bool performResize) {
 
 void StickerPanInner::fillIcons(QVector<StickerIcon> &icons) {
 	icons.clear();
+	if (_setIds.isEmpty()) return;
+
 	icons.reserve(_sets.size());
 	int32 i = 0;
 	if (_setIds.at(0) == RecentStickerSetId) ++i;
@@ -1774,6 +1776,7 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 					x -= _iconsX % int(st::rbEmoji.width);
 					for (int32 l = qMin(_icons.size(), i + 8 + (_icons.at(0).sticker ? 1 : 0)); i < l; ++i) {
 						const StickerIcon &s(_icons.at(i));
+						s.sticker->thumb->load();
 						QPixmap pix(s.sticker->thumb->pix(s.pixw, s.pixh));
 						if (_iconSel == i) {
 							p.fillRect(rtl() ? (width() - x - st::rbEmoji.width) : x, _iconsTop, st::rbEmoji.width, st::rbEmoji.height, st::stickerIconSel->b);
