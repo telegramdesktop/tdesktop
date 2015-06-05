@@ -2066,7 +2066,7 @@ bool EmojiPan::iconAnim(float64 ms) {
 			_iconsStartAnim = 0;
 			_iconsX.finish();
 		} else {
-			_iconsX.update(dt, anim::sineInOut);
+			_iconsX.update(dt, anim::linear);
 		}
 		updateSelected();
 	}
