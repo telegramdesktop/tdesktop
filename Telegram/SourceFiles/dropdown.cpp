@@ -1657,7 +1657,7 @@ _travel(this     , qsl("emoji_group"), dbietTravel     , QString(), false, st::r
 _objects(this    , qsl("emoji_group"), dbietObjects    , QString(), false, st::rbEmojiObjects),
 _iconOver(-1), _iconSel(0), _iconDown(-1), _iconsDragging(false),
 _iconAnim(animFunc(this, &EmojiPan::iconAnim)),
-_iconsLeft(0), _iconsTop(0), _iconsX(0), _iconsStartX(0), _iconsMax(0),
+_iconsLeft(0), _iconsTop(0), _iconsStartX(0), _iconsMax(0), _iconsX(0, 0), _iconsStartAnim(0),
 _stickersShown(false), _moveStart(0),
 e_scroll(this, st::emojiScroll), e_inner(), s_scroll(this, st::emojiScroll), s_inner(), _removingSetId(0) {
 	setFocusPolicy(Qt::NoFocus);
@@ -1719,7 +1719,7 @@ e_scroll(this, st::emojiScroll), e_inner(), s_scroll(this, st::emojiScroll), s_i
 	}
 
 	setMouseTracking(true);
-	setAttribute(Qt::WA_AcceptTouchEvents);
+//	setAttribute(Qt::WA_AcceptTouchEvents);
 }
 
 void EmojiPan::prepareTab(int32 &left, int32 top, int32 _width, FlatRadiobutton &tab) {
@@ -1770,8 +1770,8 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 					if (rtl()) clip.moveLeft(width() - x - clip.width());
 					p.setClipRect(clip);
 
-					i += _iconsX / int(st::rbEmoji.width);
-					x -= _iconsX % int(st::rbEmoji.width);
+					i += _iconsX.current() / int(st::rbEmoji.width);
+					x -= _iconsX.current() % int(st::rbEmoji.width);
 					for (int32 l = qMin(_icons.size(), i + 8 + (_icons.at(0).sticker ? 1 : 0)); i < l; ++i) {
 						const StickerIcon &s(_icons.at(i));
 						QPixmap pix(s.sticker->thumb->pix(s.pixw, s.pixh));
@@ -1785,12 +1785,12 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 						p.drawPixmapLeft(x + (st::rbEmoji.width - s.pixw) / 2, _iconsTop + (st::rbEmoji.height - s.pixh) / 2, width(), pix);
 						x += st::rbEmoji.width;
 					}
-					float64 o_left = snap(float64(_iconsX) / st::stickerIconLeft.pxWidth(), 0., 1.);
+					float64 o_left = snap(float64(_iconsX.current()) / st::stickerIconLeft.pxWidth(), 0., 1.);
 					if (o_left > 0) {
 						p.setOpacity(o_left);
 						p.drawSpriteLeft(QRect(_iconsLeft + (_icons.at(0).sticker ? 0 : st::rbEmoji.width), _iconsTop, st::stickerIconLeft.pxWidth(), st::rbEmoji.height), width(), st::stickerIconLeft);
 					}
-					float64 o_right = snap(float64(_iconsMax - _iconsX) / st::stickerIconRight.pxWidth(), 0., 1.);
+					float64 o_right = snap(float64(_iconsMax - _iconsX.current()) / st::stickerIconRight.pxWidth(), 0., 1.);
 					if (o_right > 0) {
 						p.setOpacity(o_right);
 						p.drawSpriteRight(QRect(width() - _iconsLeft - 8 * st::rbEmoji.width, _iconsTop, st::stickerIconRight.pxWidth(), st::rbEmoji.height), width(), st::stickerIconRight);
@@ -1871,7 +1871,7 @@ void EmojiPan::mousePressEvent(QMouseEvent *e) {
 
 	_iconDown = _iconOver;
 	_iconsMouseDown = _iconsMousePos;
-	_iconsStartX = _iconsX;
+	_iconsStartX = _iconsX.current();
 }
 
 void EmojiPan::mouseMoveEvent(QMouseEvent *e) {
@@ -1886,8 +1886,10 @@ void EmojiPan::mouseMoveEvent(QMouseEvent *e) {
 	}
 	if (_iconsDragging) {
 		int32 newX = snap(_iconsStartX + _iconsMouseDown.x() - _iconsMousePos.x(), 0, _iconsMax);
-		if (newX != _iconsX) {
-			_iconsX = newX;
+		if (newX != _iconsX.current()) {
+			_iconsX = anim::ivalue(newX, newX);
+			_iconsStartAnim = 0;
+			if (_iconAnimations.isEmpty()) _iconAnim.stop();
 			updateIcons();
 		}
 	}
@@ -1902,8 +1904,10 @@ void EmojiPan::mouseReleaseEvent(QMouseEvent *e) {
 	_iconsMousePos = e ? e->globalPos() : QCursor::pos();
 	if (_iconsDragging) {
 		int32 newX = snap(_iconsStartX + _iconsMouseDown.x() - _iconsMousePos.x(), 0, _iconsMax);
-		if (newX != _iconsX) {
-			_iconsX = newX;
+		if (newX != _iconsX.current()) {
+			_iconsX = anim::ivalue(newX, newX);
+			_iconsStartAnim = 0;
+			if (_iconAnimations.isEmpty()) _iconAnim.stop();
 			updateIcons();
 		}
 		_iconsDragging = false;
@@ -1920,15 +1924,21 @@ void EmojiPan::mouseReleaseEvent(QMouseEvent *e) {
 bool EmojiPan::event(QEvent *e) {
 	if (e->type() == QEvent::TouchBegin) {
 		int a = 0;
-	} else if (e->type() == QEvent::Wheel && _iconOver >= ((_icons.isEmpty() || _icons.at(0).sticker) ? 0 : 1)) {
+	} else if (e->type() == QEvent::Wheel && _iconOver >= ((_icons.isEmpty() || _icons.at(0).sticker) ? 0 : 1) && _iconDown < 0) {
 		QWheelEvent *ev = static_cast<QWheelEvent*>(e);
-		if (ev->angleDelta().x() != 0 || ev->orientation() == Qt::Horizontal) _horizontal = true;
-		if (/*_horizontal && */ev->orientation() == Qt::Horizontal) {
-			_iconsX = snap(_iconsX - (rtl() ? -1 : 1) * ev->angleDelta().x(), 0, _iconsMax);
-			updateSelected();
-			updateIcons();
-		} else if (/*!_horizontal && */ev->orientation() == Qt::Vertical) {
-			_iconsX = snap(_iconsX - ev->angleDelta().y(), 0, _iconsMax);
+		bool hor = (ev->angleDelta().x() != 0 || ev->orientation() == Qt::Horizontal);
+		bool ver = (ev->angleDelta().y() != 0 || ev->orientation() == Qt::Vertical);
+		if (hor) _horizontal = true;
+		int32 newX = _iconsX.current();
+		if (/*_horizontal && */hor) {
+			newX = snap(newX - (rtl() ? -1 : 1) * (ev->pixelDelta().x() ? ev->pixelDelta().x() : ev->angleDelta().x()), 0, _iconsMax);
+		} else if (/*!_horizontal && */ver) {
+			newX = snap(newX - (ev->pixelDelta().y() ? ev->pixelDelta().y() : ev->angleDelta().y()), 0, _iconsMax);
+		}
+		if (newX != _iconsX.current()) {
+			_iconsX = anim::ivalue(newX, newX);
+			_iconsStartAnim = 0;
+			if (_iconAnimations.isEmpty()) _iconAnim.stop();
 			updateSelected();
 			updateIcons();
 		}
@@ -1958,7 +1968,9 @@ void EmojiPan::onRefreshIcons() {
 	_iconHovers.clear();
 	_iconAnimations.clear();
 	s_inner.fillIcons(_icons);
-	_iconsX = 0;
+	_iconsX = anim::ivalue(0, 0);
+	_iconsStartAnim = 0;
+	_iconAnim.stop();
 	if (_icons.isEmpty()) {
 		_iconsMax = 0;
 	} else {
@@ -1992,7 +2004,7 @@ void EmojiPan::updateSelected() {
 			}
 		}
 		if (newOver < 0) {
-			x += _iconsX;
+			x += _iconsX.current();
 			newOver = qFloor(x / st::rbEmoji.width) + (_icons.at(0).sticker ? 0 : 1);
 		}
 	}
@@ -2006,7 +2018,7 @@ void EmojiPan::updateSelected() {
 		if (_iconOver >= 0) {
 			_iconAnimations.remove(_iconOver + 1);
 			if (_iconAnimations.find(-_iconOver - 1) == _iconAnimations.end()) {
-				if (_iconAnimations.isEmpty()) startanim = true;
+				if (_iconAnimations.isEmpty() && !_iconsStartAnim) startanim = true;
 				_iconAnimations.insert(-_iconOver - 1, getms());
 			}
 		}
@@ -2014,7 +2026,7 @@ void EmojiPan::updateSelected() {
 		if (_iconOver >= 0) {
 			_iconAnimations.remove(-_iconOver - 1);
 			if (_iconAnimations.find(_iconOver + 1) == _iconAnimations.end()) {
-				if (_iconAnimations.isEmpty()) startanim = true;
+				if (_iconAnimations.isEmpty() && !_iconsStartAnim) startanim = true;
 				_iconAnimations.insert(_iconOver + 1, getms());
 			}
 		}
@@ -2045,9 +2057,20 @@ bool EmojiPan::iconAnim(float64 ms) {
 		}
 	}
 
+	if (_iconsStartAnim) {
+		float64 dt = (now - _iconsStartAnim) / st::stickerIconMove;
+		if (dt >= 1) {
+			_iconsStartAnim = 0;
+			_iconsX.finish();
+		} else {
+			_iconsX.update(dt, anim::sineInOut);
+		}
+		updateSelected();
+	}
+
 	updateIcons();
 
-	return !_iconAnimations.isEmpty();
+	return !_iconAnimations.isEmpty() || _iconsStartAnim;
 }
 
 bool EmojiPan::animStep(float64 ms) {
@@ -2123,7 +2146,9 @@ void EmojiPan::hideFinish() {
 	s_scroll.scrollToY(0);
 	_iconOver = _iconDown = -1;
 	_iconSel = 0;
-	_iconsX = 0;
+	_iconsX = anim::ivalue(0, 0);
+	_iconsStartAnim = 0;
+	_iconAnim.stop();
 	_iconHovers = _icons.isEmpty() ? QVector<float64>() : QVector<float64>(_icons.size(), 0);
 	_iconAnimations.clear();
 }
@@ -2280,7 +2305,9 @@ void EmojiPan::onScroll() {
 		}
 		if (newSel != _iconSel) {
 			_iconSel = newSel;
-			_iconsX = snap((2 * newSel - 7 - ((_icons.isEmpty() || _icons.at(0).sticker) ? 0 : 1)) * int(st::rbEmoji.width) / 2, 0, _iconsMax);
+			_iconsX.start(snap((2 * newSel - 7 - ((_icons.isEmpty() || _icons.at(0).sticker) ? 0 : 1)) * int(st::rbEmoji.width) / 2, 0, _iconsMax));
+			_iconsStartAnim = getms();
+			_iconAnim.start();
 			updateSelected();
 			updateIcons();
 		}
