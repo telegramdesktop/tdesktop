@@ -1650,6 +1650,12 @@ stickerPanSize: size(55px, 55px);
 stickerPanPadding: 11px;
 stickerPanDelete: sprite(123px, 132px, 12px, 12px);
 stickerPanDeleteOpacity: 0.5;
+stickerIconPadding: 3px;
+stickerIconHover: #e8ecef;
+stickerIconSel: #dfe3e6;
+stickerIconRecent: sprite(342px, 50px, 21px, 22px);
+stickerIconLeft: sprite(342px, 72px, 40px, 1px);
+stickerIconRight: sprite(342px, 73px, 40px, 1px);
 
 mvBgColor: #222;
 mvBgOpacity: 0.92;

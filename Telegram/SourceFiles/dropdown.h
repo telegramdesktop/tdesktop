@@ -269,6 +269,16 @@ private:
 	int32 _stickersWidth;
 };
 
+struct StickerIcon {
+	StickerIcon() : setId(RecentStickerSetId), sticker(0), pixw(0), pixh(0) {
+	}
+	StickerIcon(uint64 setId, DocumentData *sticker, int32 pixw, int32 pixh) : setId(setId), sticker(sticker), pixw(pixw), pixh(pixh) {
+	}
+	uint64 setId;
+	DocumentData *sticker;
+	int32 pixw, pixh;
+};
+
 class StickerPanInner : public TWidget, public Animated {
 	Q_OBJECT
 
@@ -294,8 +304,12 @@ public:
 	void refreshStickers();
 	void refreshRecent(bool resize = true);
 
+	void fillIcons(QVector<StickerIcon> &icons);
+
 	void setScrollTop(int top);
 	void preloadImages();
+
+	uint64 currentSet(int yOffset) const;
 
 public slots:
 
@@ -305,6 +319,8 @@ signals:
 
 	void selected(DocumentData *sticker);
 	void removing(uint64 setId);
+
+	void refreshIcons();
 
 	void switchToEmoji();
 
@@ -349,12 +365,20 @@ public:
 	void otherEnter();
 	void otherLeave();
 
+	void mousePressEvent(QMouseEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mouseReleaseEvent(QMouseEvent *e);
+
+	bool event(QEvent *e);
+
 	void fastHide();
 	bool hiding() const {
 		return _hiding || _hideTimer.isActive();
 	}
 
 	bool animStep(float64 ms);
+
+	bool iconAnim(float64 ms);
 
 	bool eventFilter(QObject *obj, QEvent *e);
 	void stickersInstalled(uint64 setId);
@@ -377,6 +401,8 @@ public slots:
 	void onRemoveSetSure();
 	void onDelayedHide();
 
+	void onRefreshIcons();
+
 signals:
 
 	void emojiSelected(EmojiPtr emoji);
@@ -384,6 +410,13 @@ signals:
 	void updateStickers();
 
 private:
+
+	bool _horizontal;
+
+	void leaveToChildEvent(QEvent *e);
+
+	void updateSelected();
+	void updateIcons();
 
 	void prepareTab(int32 &left, int32 top, int32 _width, FlatRadiobutton &tab);
 
@@ -403,6 +436,16 @@ private:
 	BoxShadow _shadow;
 
 	FlatRadiobutton _recent, _people, _nature, _food, _celebration, _activity, _travel, _objects;
+	QVector<StickerIcon> _icons;
+	QVector<float64> _iconHovers;
+	int32 _iconOver, _iconSel, _iconDown;
+	bool _iconsDragging;
+	typedef QMap<int32, uint64> Animations; // index - showing, -index - hiding
+	Animations _iconAnimations;
+	Animation _iconAnim;
+	QPoint _iconsMousePos, _iconsMouseDown;
+	int32 _iconsLeft, _iconsTop;
+	int32 _iconsX, _iconsStartX, _iconsMax;
 
 	bool _stickersShown;
 	QPixmap _fromCache, _toCache;
