@@ -1415,7 +1415,8 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 	while (count > 0) {
 		uint64 next = 0;
 		HistoryItem *notifyItem = 0;
-		NotifyWaiters::iterator notifyWaiter;
+		History *notifyHistory = 0;
+		NotifyWaiters::iterator notifyWaiter = notifyWaiters.end();
 		for (NotifyWaiters::iterator i = notifyWaiters.begin(); i != notifyWaiters.end(); ++i) {
 			History *history = i.key();
 			if (history->currentNotification() && history->currentNotification()->id != i.value().msg) {
@@ -1423,6 +1424,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 				if (j == notifyWhenMaps.end()) {
 					history->clearNotifications();
 					i = notifyWaiters.erase(i);
+					if (notifyHistory) notifyWaiter = notifyWaiters.find(notifyHistory);
 					continue;
 				}
 				do {
@@ -1438,12 +1440,14 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 			if (!history->currentNotification()) {
 				notifyWhenMaps.remove(history);
 				i = notifyWaiters.erase(i);
+				if (notifyHistory) notifyWaiter = notifyWaiters.find(notifyHistory);
 				continue;
 			}
 			uint64 when = i.value().when;
 			if (!notifyItem || next > when) {
 				next = when;
 				notifyItem = history->currentNotification();
+				notifyHistory = history;
 				notifyWaiter = i;
 			}
 		}
@@ -1510,8 +1514,8 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 				}
 
 				if (!history->hasNotification()) {
-					notifyWaiters.erase(notifyWaiter);
-					if (j != notifyWhenMaps.end()) notifyWhenMaps.erase(j);
+					if (notifyWaiter != notifyWaiters.cend()) notifyWaiters.erase(notifyWaiter);
+					if (j != notifyWhenMaps.cend()) notifyWhenMaps.erase(j);
 					continue;
 				}
 			}
