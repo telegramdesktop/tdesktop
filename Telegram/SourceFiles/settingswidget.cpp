@@ -37,6 +37,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "langloaderplain.h"
 #include "gui/filedialog.h"
 
+#include "autoupdater.h"
+
 #include "localstorage.h"
 
 Slider::Slider(QWidget *parent, const style::slider &st, int32 count, int32 sel) : QWidget(parent),
@@ -1172,7 +1174,7 @@ void SettingsInner::onCheckNow() {
 }
 
 void SettingsInner::onRestartNow() {
-	psCheckReadyUpdate();
+	checkReadyUpdate();
 	if (_updatingState == UpdatingReady) {
 		cSetRestartingUpdate(true);
 	} else {

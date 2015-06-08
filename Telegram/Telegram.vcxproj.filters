@@ -891,6 +891,18 @@
     <ClCompile Include="SourceFiles\boxes\stickersetbox.cpp">
       <Filter>boxes</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\autoupdater.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_autoupdater.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_autoupdater.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_autoupdater.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -1182,6 +1194,9 @@
     </CustomBuild>
     <CustomBuild Include="SourceFiles\boxes\stickersetbox.h">
       <Filter>boxes</Filter>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\autoupdater.h">
+      <Filter>Source Files</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

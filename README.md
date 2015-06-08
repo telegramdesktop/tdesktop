@@ -6,17 +6,9 @@ Source code is published under GPL v3, license is available [here](https://githu
 
 ###Supported systems
 
-* Windows XP
-* Windows Vista
-* Windows 7
-* Windows 8 (**not** RT)
-* Windows 8.1 (**not** RT)
-* OS X 10.7
-* OS X 10.8
-* OS X 10.9
-* Ubuntu 12.04
-* Ubuntu 13.04
-* Ubuntu 14.04
+* Windows XP - Windows 8.1 (**not** RT)
+* Mac OS X 10.7 - Mac OS X 10.10
+* Ubuntu 12.04 - Ubuntu 14.04
 
 ###Third-party
 
@@ -27,15 +19,15 @@ Source code is published under GPL v3, license is available [here](https://githu
 * LZMA SDK 9.20 ([public domain](http://www.7-zip.org/sdk.html))
 * liblzma ([public domain](http://tukaani.org/xz/))
 * OpenAL Soft ([LGPL](http://kcat.strangesoft.net/openal.html))
-* Opus codec, opusfile ([BSD license](http://www.opus-codec.org/license/))
-* libogg ([BSD license](http://www.xiph.org/downloads/))
+* Opus codec ([BSD license](http://www.opus-codec.org/license/))
+* FFmpeg ([LGPL](https://www.ffmpeg.org/legal.html))
 * Open Sans font ([Apache License](http://www.apache.org/licenses/LICENSE-2.0.html))
 
 ###[Build instructions for Visual Studio 2013](https://github.com/telegramdesktop/tdesktop/blob/master/MSVC.md)
 
-###[Build instructions for XCode 5.1.1](https://github.com/telegramdesktop/tdesktop/blob/master/XCODE.md)
+###[Build instructions for XCode 6.3.1](https://github.com/telegramdesktop/tdesktop/blob/master/XCODE.md)
 
-###[Build instructions for Qt Creator 3.1.2 Ubuntu](https://github.com/telegramdesktop/tdesktop/blob/master/QTCREATOR.md)
+###[Build instructions for Qt Creator 3.2.0 Ubuntu](https://github.com/telegramdesktop/tdesktop/blob/master/QTCREATOR.md)
 
 ##Projects in Telegram solution
 

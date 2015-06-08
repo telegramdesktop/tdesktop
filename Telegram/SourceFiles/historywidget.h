@@ -250,7 +250,7 @@ private:
 
 };
 
-class HistoryWidget : public QWidget, public RPCSender, public Animated {
+class HistoryWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -273,6 +273,8 @@ public:
 	void leaveEvent(QEvent *e);
     void dropEvent(QDropEvent *e);
 	void mouseReleaseEvent(QMouseEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void leaveToChildEvent(QEvent *e);
 	void contextMenuEvent(QContextMenuEvent *e);
 
 	void updateTopBarSelection();
@@ -296,7 +298,6 @@ public:
 	QRect historyRect() const;
 
 	void updateTyping(bool typing = true);
-//	void updateStickerPan();
 	void updateRecentStickers();
 	void stickersInstalled(uint64 setId);
 	void typingDone(const MTPBool &result, mtpRequestId req);
@@ -317,7 +318,6 @@ public:
 	void updateOnlineDisplay(int32 x, int32 w);
 	void updateOnlineDisplayTimer();
 
-//	mtpRequestId onForward(const PeerId &peer, SelectedItemSet toForward);
 	void onShareContact(const PeerId &peer, UserData *contact);
 	void onSendPaths(const PeerId &peer);
 
@@ -330,7 +330,7 @@ public:
 	int32 lastScrollTop() const;
 
 	void animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
-	bool animStep(float64 ms);
+	bool showStep(float64 ms);
 	void animStop();
 
 	QPoint clampMousePosition(QPoint point);
@@ -367,6 +367,10 @@ public:
 	void updatePreview();
 	void previewCancel();
 
+	bool recordStep(float64 ms);
+	bool recordingStep(float64 ms);
+	void stopRecording(bool send);
+
 	~HistoryWidget();
 
 signals:
@@ -394,10 +398,13 @@ public slots:
 	void onPhotoUploaded(MsgId msgId, const MTPInputFile &file);
 	void onDocumentUploaded(MsgId msgId, const MTPInputFile &file);
 	void onThumbDocumentUploaded(MsgId msgId, const MTPInputFile &file, const MTPInputFile &thumb);
+	void onAudioUploaded(MsgId msgId, const MTPInputFile &file);
 
 	void onDocumentProgress(MsgId msgId);
+	void onAudioProgress(MsgId msgId);
 
 	void onDocumentFailed(MsgId msgId);
+	void onAudioFailed(MsgId msgId);
 
 	void onListScroll();
 	void onHistoryToEnd();
@@ -442,6 +449,10 @@ public slots:
 	void onDraftSave(bool delayed = false);
 
 	void updateStickers();
+
+	void onRecordError();
+	void onRecordDone(QByteArray result, qint32 samples);
+	void onRecordUpdate(qint16 level, qint32 samples);
 
 private:
 
@@ -509,10 +520,16 @@ private:
 	FlatButton _send;
 	IconedButton _attachDocument, _attachPhoto, _attachEmoji;
 	MessageField _field;
+	Animation _recordAnim, _recordingAnim;
+	bool _recording, _inRecord, _inField;
+	anim::ivalue a_recordingLevel;
+	int32 _recordingSamples;
+	anim::fvalue a_recordOver, a_recordDown;
+	anim::cvalue a_recordCancel;
+	int32 _recordCancelWidth;
 
 	Dropdown _attachType;
 	EmojiPan _emojiPan;
-//	StickerPan _stickerPan;
 	DragState _attachDrag;
 	DragArea _attachDragDocument, _attachDragPhoto;
 
@@ -532,6 +549,7 @@ private:
 
 	bool hiderOffered;
 
+	Animation _showAnim;
 	QPixmap _animCache, _bgAnimCache, _animTopBarCache, _bgAnimTopBarCache;
 	anim::ivalue a_coord, a_bgCoord;
 	anim::fvalue a_alpha, a_bgAlpha;

@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 8016;
-static const wchar_t *AppVersionStr = L"0.8.16";
+static const int32 AppVersion = 8024;
+static const wchar_t *AppVersionStr = L"0.8.24";
 static const bool DevChannel = false;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
@@ -40,6 +40,8 @@ enum {
 	MTPContainerLives = 600, // container lives 10 minutes in haveSent map
 	MTPMinReceiveDelay = 4000, // 4 seconds
 	MTPMaxReceiveDelay = 64000, // 64 seconds
+	MTPMinConnectDelay = 1000, // tcp connect should take less then 1 second
+	MTPMaxConnectDelay = 8000, // tcp connect should take 8 seconds max
 	MTPConnectionOldTimeout = 192000, // 192 seconds
 	MTPTcpConnectionWaitTimeout = 3000, // 3 seconds waiting for tcp, until we accept http
 	MTPMillerRabinIterCount = 30, // 30 Miller-Rabin iterations for dh_prime primality check
@@ -86,12 +88,16 @@ enum {
 	AudioCheckPositionDelta = 4800, // update position called each 4800 samples
 	AudioFadeTimeout = 10, // 10ms
 	AudioFadeDuration = 500,
+	AudioVoiceMsgSkip = 400, // 200ms
+	AudioVoiceMsgFade = 300, // 300ms
 	AudioPreloadSamples = 5 * 48000, // preload next part if less than 5 seconds remains
 	AudioVoiceMsgFrequency = 48000, // 48 kHz
+	AudioVoiceMsgMaxLength = 100 * 60, // 100 minutes
+	AudioVoiceMsgUpdateView = 100, // 100ms
 	AudioVoiceMsgChannels = 2, // stereo
 	AudioVoiceMsgBufferSize = 1024 * 1024, // 1 Mb buffers
 	AudioVoiceMsgInMemory = 1024 * 1024, // 1 Mb audio is hold in memory and auto loaded
-	AudioSuspendTimeout = 3000, // suspend in 3 secs after playing is over
+	AudioPauseDeviceTimeout = 3000, // pause in 3 secs after playing is over
 
 	StickerInMemory = 256 * 1024, // 128 Kb stickers hold in memory, auto loaded and displayed inline
 	StickerMaxSize = 2048, // 2048x2048 is a max image size for sticker

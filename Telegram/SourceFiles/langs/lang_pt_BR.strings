@@ -450,6 +450,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_send_button" = "Enviar";
 "lng_message_ph" = "Escrever a mensagem..";
+"lng_record_cancel" = "Solte fora daqui para cancelar";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Selecione um chat para começar a conversar";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
@@ -584,7 +585,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras menores melhorias";
-"lng_new_version_text" = "— Suporte para os pacotes de sticker adicionado\n— Novo painel de sticker e emoji";
+"lng_new_version_text" = "— Painel de sticker melhorado\n— Resolução de bugs e pequenas melhorias";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

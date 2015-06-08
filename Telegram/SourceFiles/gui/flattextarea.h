@@ -37,6 +37,7 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void mousePressEvent(QMouseEvent *e);
 
+	const QString &getLastText() const;
 	void updatePlaceholder();
 
 	QRect getTextRect() const;
@@ -85,6 +86,22 @@ signals:
 protected:
 
 	void insertEmoji(EmojiPtr emoji, QTextCursor c);
+	TWidget *tparent() {
+		return qobject_cast<TWidget*>(parentWidget());
+	}
+	const TWidget *tparent() const {
+		return qobject_cast<const TWidget*>(parentWidget());
+	}
+	void enterEvent(QEvent *e) {
+		TWidget *p(tparent());
+		if (p) p->leaveToChildEvent(e);
+		return QTextEdit::enterEvent(e);
+	}
+	void leaveEvent(QEvent *e) {
+		TWidget *p(tparent());
+		if (p) p->enterFromChildEvent(e);
+		return QTextEdit::leaveEvent(e);
+	}
 
 private:
 

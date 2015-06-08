@@ -39,7 +39,7 @@ Extract to **D:\TBuild\Libraries**
 
 http://www.zlib.net/ > Download [**zlib source code, version 1.2.8, zipfile format**](http://zlib.net/zlib128.zip)
 
-Extract to **D:\TBuild\Libraries\**
+Extract to **D:\\TBuild\\Libraries\\**
 
 #####Building library
 
@@ -66,13 +66,23 @@ or download in ZIP and extract to **D:\TBuild\Libraries\**, rename **libexif-0.6
 * Build Debug configuration
 * Build Release configuration
 
-####OpenAL Soft
+####OpenAL Soft, slightly patched
 
 Get sources by git – in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries** and run
 
     git clone git://repo.or.cz/openal-soft.git
 
-to have **D:\TBuild\Libraries\openal-soft\CMakeLists.txt**
+to have **D:\TBuild\Libraries\openal-soft\CMakeLists.txt**, then in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries/openal-soft** and run
+
+    git checkout 9479ea656b
+
+Apply patch
+
+* OR copy (with overwrite!) everything from **D:\\TBuild\\tdesktop\\\_openal\_patch\\** to **D:\\TBuild\\Libraries\\openal-soft\\**
+* OR in Git Bash go to **/d/tbuild/libraries/openal-soft/** and run
+
+    git apply ./../../tdesktop/Telegram/_openal_patch.diff
+
 
 #####Building library
 
@@ -87,35 +97,47 @@ to have **D:\TBuild\Libraries\openal-soft\CMakeLists.txt**
   * OpenAL32 Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded (/MT)** – **OK**
   * common Properties > C/C++ > Code Generation > Runtime Library = **Multi-threaded (/MT)** – **OK**
 
-####libogg 1.3.2
-
-Get sources from http://xiph.org/downloads/ – in [ZIP](http://downloads.xiph.org/releases/ogg/libogg-1.3.2.zip) and extract to **D:\TBuild\Libraries\**
-
-#####Building library
-
-* Open in VS2013 **D:\TBuild\Libraries\libogg-1.3.2\win32\VS2010\libogg_static.sln** > One-way upgrade – **OK**
-* Build Debug configuration
-* Build Release configuration
-
-####Opus codec, opusfile
+####Opus codec
 
 Get sources by git – in [Git Bash](http://git-scm.com/downloads) go to **/d/tbuild/libraries** and run
 
-    git clone git://git.opus-codec.org/opus.git
-    git clone git://git.xiph.org/opusfile.git
+    git clone https://github.com/telegramdesktop/opus.git
 
 to have **D:\TBuild\Libraries\opus\win32**
 
 #####Building libraries
 
-* Open in VS2013 **D:\TBuild\Libraries\opus\win32\VS2010\opus.sln** > One-way upgrade – **OK**
+* Open in VS2013 **D:\TBuild\Libraries\opus\win32\VS2010\opus.sln**
 * Build Debug configuration
-* Build Release configuration
-* Open in VS2013 **D:\TBuild\Libraries\opusfile\win32\VS2010\opusfile.sln** > One-way upgrade – **OK**
-* For **Debug** and **Release** configurations
-  * opusfile > C/C++ > General > Additional include directories > Add **../../../libogg-1.3.2/include;**
-* Build Debug configuration
-* Build Release configuration
+* Build Release configuration (it will be required in **FFmpeg** build!)
+
+####FFmpeg
+
+https://www.ffmpeg.org/download.html > Download [ffmpeg-2.6.3.tar.bz2](http://ffmpeg.org/releases/ffmpeg-2.6.3.tar.bz2)
+
+Extract to **D:\\TBuild\\Libraries**
+
+http://msys2.github.io/ > Download [msys2-x86_64-20150512.exe](http://sourceforge.net/projects/msys2/files/Base/x86_64/msys2-x86_64-20150512.exe/download) and install to **D:\\msys64**
+
+#####Building libraries
+
+Download [yasm for Win64](http://www.tortall.net/projects/yasm/releases/yasm-1.3.0-win64.exe) from http://yasm.tortall.net/Download.html, rename **yasm-1.3.0-win64.exe** to **yasm.exe** and place it to your Visual C++ **bin** directory, like **\\Program Files (x86)\\Microsoft Visual Studio 12\\VC\\bin\\**
+
+Open **VS2013 x86 Native Tools Command Prompt.bat** (should be in **\\Program Files (x86)\\Microsoft Visual Studio 12.0\\Common7\\Tools\\Shortcuts\\** folder), go to **D:\\msys64\\** and launch **msys2_shell.bat**, there run
+
+    PATH="/c/Program Files (x86)/Microsoft Visual Studio 12.0/VC/BIN:$PATH"
+
+    cd /d/TBuild/Libraries/ffmpeg-2.6.3
+    pacman -S msys/make
+    pacman -S mingw64/mingw-w64-x86_64-opus
+    pacman -S pkg-config
+
+    PKG_CONFIG_PATH="/mingw64/lib/pkgconfig:$PKG_CONFIG_PATH"
+
+    ./configure --toolchain=msvc --disable-programs --disable-everything --enable-libopus --enable-decoder=aac --enable-decoder=aac_latm --enable-decoder=aasc --enable-decoder=mp1 --enable-decoder=mp1float --enable-decoder=mp2 --enable-decoder=mp2float --enable-decoder=mp3 --enable-decoder=mp3adu --enable-decoder=mp3adufloat --enable-decoder=mp3float --enable-decoder=mp3on4 --enable-decoder=mp3on4float --enable-decoder=wavpack --enable-decoder=opus --enable-decoder=vorbis --enable-decoder=wmalossless --enable-decoder=wmapro --enable-decoder=wmav1 --enable-decoder=wmav2 --enable-decoder=wmavoice --enable-encoder=libopus --enable-parser=aac --enable-parser=aac_latm --enable-parser=mpegaudio --enable-parser=opus --enable-parser=vorbis --enable-demuxer=aac --enable-demuxer=wav --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=mov --enable-muxer=ogg --enable-muxer=opus --extra-ldflags="-libpath:/d/TBuild/Libraries/opus/win32/VS2010/Win32/Release celt.lib silk_common.lib silk_float.lib"
+
+    make
+    make install
 
 ####Qt 5.4.0, slightly patched
 
@@ -126,9 +148,9 @@ Extract to **D:\TBuild\Libraries\**, rename **qt-everywhere-opensource-src-5.4.0
 Apply patch
 
 * OR copy (with overwrite!) everything from **D:\TBuild\tdesktop\\\_qt\_5\_4\_0\_patch\** to **D:\TBuild\Libraries\QtStatic\**
-* OR copy **D:\TBuild\tdesktop\\\_qt\_5\_4\_0\_patch.diff** to **D:\TBuild\Libraries\QtStatic\**, go there in Git Bash and run
+* OR in Git Bash go to **/d/TBuild/Libraries/QtStatic/** and run
 
-    git apply _qt_5_4_0_patch.diff
+    git apply ./../../tdesktop/Telegram/_qt_5_4_0_patch.diff
 
 #####Building library
 

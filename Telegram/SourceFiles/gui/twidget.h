@@ -56,6 +56,12 @@ public:
 	void drawPixmapLeft(const QPoint &p, int outerw, const QPixmap &pix, const QRect &from) {
 		return drawPixmapLeft(p.x(), p.y(), outerw, pix, from);
 	}
+	void drawPixmapLeft(int x, int y, int w, int h, int outerw, const QPixmap &pix, const QRect &from) {
+		drawPixmap(QRect(rtl() ? (outerw - x - w) : x, y, w, h), pix, from);
+	}
+	void drawPixmapLeft(const QRect &r, int outerw, const QPixmap &pix, const QRect &from) {
+		return drawPixmapLeft(r.x(), r.y(), r.width(), r.height(), outerw, pix, from);
+	}
 	void drawPixmapLeft(int x, int y, int outerw, const QPixmap &pix) {
 		drawPixmap(QPoint(rtl() ? (outerw - x - (pix.width() / pix.devicePixelRatio())) : x, y), pix);
 	}
@@ -67,6 +73,12 @@ public:
 	}
 	void drawPixmapRight(const QPoint &p, int outerw, const QPixmap &pix, const QRect &from) {
 		return drawPixmapRight(p.x(), p.y(), outerw, pix, from);
+	}
+	void drawPixmapRight(int x, int y, int w, int h, int outerw, const QPixmap &pix, const QRect &from) {
+		drawPixmap(QRect(rtl() ? x : (outerw - x - w), y, w, h), pix, from);
+	}
+	void drawPixmapRight(const QRect &r, int outerw, const QPixmap &pix, const QRect &from) {
+		return drawPixmapRight(r.x(), r.y(), r.width(), r.height(), outerw, pix, from);
 	}
 	void drawPixmapRight(int x, int y, int outerw, const QPixmap &pix) {
 		drawPixmap(QPoint(rtl() ? x : (outerw - x - (pix.width() / pix.devicePixelRatio())), y), pix);
@@ -86,11 +98,23 @@ public:
 	void drawSpriteLeft(const QPoint &p, int outerw, const style::sprite &sprite) {
 		return drawPixmapLeft(p, outerw, App::sprite(), sprite);
 	}
+	void drawSpriteLeft(int x, int y, int w, int h, int outerw, const style::sprite &sprite) {
+		return drawPixmapLeft(x, y, w, h, outerw, App::sprite(), sprite);
+	}
+	void drawSpriteLeft(const QRect &r, int outerw, const style::sprite &sprite) {
+		return drawPixmapLeft(r, outerw, App::sprite(), sprite);
+	}
 	void drawSpriteRight(int x, int y, int outerw, const style::sprite &sprite) {
 		return drawPixmapRight(x, y, outerw, App::sprite(), sprite);
 	}
 	void drawSpriteRight(const QPoint &p, int outerw, const style::sprite &sprite) {
 		return drawPixmapRight(p, outerw, App::sprite(), sprite);
+	}
+	void drawSpriteRight(int x, int y, int w, int h, int outerw, const style::sprite &sprite) {
+		return drawPixmapRight(x, y, w, h, outerw, App::sprite(), sprite);
+	}
+	void drawSpriteRight(const QRect &r, int outerw, const style::sprite &sprite) {
+		return drawPixmapRight(r, outerw, App::sprite(), sprite);
 	}
 	void drawSpriteCenter(const QRect &in, const style::sprite &sprite) {
 		return drawPixmap(QPoint(in.x() + (in.width() - sprite.pxWidth()) / 2, in.y() + (in.height() - sprite.pxHeight()) / 2), App::sprite(), sprite);

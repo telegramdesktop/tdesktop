@@ -45,19 +45,22 @@ signals:
 	void photoReady(MsgId msgId, const MTPInputFile &file);
 	void documentReady(MsgId msgId, const MTPInputFile &file);
 	void thumbDocumentReady(MsgId msgId, const MTPInputFile &file, const MTPInputFile &thumb);
+	void audioReady(MsgId msgId, const MTPInputFile &file);
 
 	void photoProgress(MsgId msgId);
 	void documentProgress(MsgId msgId);
+	void audioProgress(MsgId msgId);
 
 	void photoFailed(MsgId msgId);
 	void documentFailed(MsgId msgId);
+	void audioFailed(MsgId msgId);
 
 private:
 
 	struct File {
 		File(const ReadyLocalMedia &media) : media(media), docSentParts(0) {
 			partsCount = media.parts.size();
-			if (media.type == ToPrepareDocument) {
+			if (media.type == ToPrepareDocument || media.type == ToPrepareAudio) {
 				docSize = media.file.isEmpty() ? media.data.size() : media.filesize;
 				if (docSize >= 1024 * 1024 || !setPartSize(DocumentUploadPartSize0)) {
 					if (docSize > 32 * 1024 * 1024 || !setPartSize(DocumentUploadPartSize1)) {
@@ -83,12 +86,13 @@ private:
 		ReadyLocalMedia media;
 		int32 partsCount;
 
+		HashMd5 md5Hash;
+
 		QSharedPointer<QFile> docFile;
 		int32 docSentParts;
 		int32 docSize;
 		int32 docPartSize;
 		int32 docPartsCount;
-		HashMd5 docHash;
 	};
 	typedef QMap<MsgId, File> Queue;
 

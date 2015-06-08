@@ -35,7 +35,7 @@ void openLog() {
 		return;
 	}
 
-	NSDateFormatter *fmt = [[NSDateFormatter alloc] initWithDateFormat:@"DebugLogs/%Y%m%d %H%M%S_upd.txt" allowNaturalLanguage:NO];
+	NSDateFormatter *fmt = [[NSDateFormatter alloc] initWithDateFormat:@"DebugLogs/%Y%m%d_%H%M%S_upd.txt" allowNaturalLanguage:NO];
 	NSString *logPath = [workDir stringByAppendingString:[fmt stringFromDate:[NSDate date]]];
 	[[NSFileManager defaultManager] createFileAtPath:logPath contents:nil attributes:nil];
 	_logFile = [NSFileHandle fileHandleForWritingAtPath:logPath];
@@ -55,7 +55,14 @@ void writeLog(NSString *msg) {
 }
 
 void delFolder() {
-	[[NSFileManager defaultManager] removeItemAtPath:[workDir stringByAppendingString:@"tupdates/ready"] error:nil];
+	writeLog([@"Fully clearing old path: " stringByAppendingString:[workDir stringByAppendingString:@"tupdates/ready"]]);
+	if (![[NSFileManager defaultManager] removeItemAtPath:[workDir stringByAppendingString:@"tupdates/ready"] error:nil]) {
+		writeLog(@"Failed to clear old path! :( New path was used?..");
+	}
+	writeLog([@"Fully clearing new path: " stringByAppendingString:[workDir stringByAppendingString:@"tupdates/temp"]]);
+	if (![[NSFileManager defaultManager] removeItemAtPath:[workDir stringByAppendingString:@"tupdates/temp"] error:nil]) {
+		writeLog(@"Error: failed to clear new path! :(");
+	}
 	rmdir([[workDir stringByAppendingString:@"tupdates"] fileSystemRepresentation]);
 }
 
@@ -132,13 +139,22 @@ int main(int argc, const char * argv[]) {
 	}
 
 	if (update) {
-		writeLog([@"Starting update files iteration, path: " stringByAppendingString: [workDir stringByAppendingString:@"tupdates/ready"]]);
-
 		NSFileManager *fileManager = [NSFileManager defaultManager];
-		NSString *srcDir = [workDir stringByAppendingString:@"tupdates/ready/"];
+		NSString *readyFilePath = [workDir stringByAppendingString:@"tupdates/temp/ready"];
+		NSString *srcDir = [workDir stringByAppendingString:@"tupdates/temp/"], *srcEnum = [workDir stringByAppendingString:@"tupdates/temp"];
+		if ([fileManager fileExistsAtPath:readyFilePath]) {
+			writeLog([@"Ready file found! Using new path: " stringByAppendingString: srcEnum]);
+		} else {
+			srcDir = [workDir stringByAppendingString:@"tupdates/ready/"]; // old
+			srcEnum = [workDir stringByAppendingString:@"tupdates/ready"];
+			writeLog([@"Ready file not found! Using old path: " stringByAppendingString: srcEnum]);
+		}
+
+		writeLog([@"Starting update files iteration, path: " stringByAppendingString: srcEnum]);
+
 		NSArray *keys = [NSArray arrayWithObject:NSURLIsDirectoryKey];
 		NSDirectoryEnumerator *enumerator = [fileManager
-											 enumeratorAtURL:[NSURL fileURLWithPath:[workDir stringByAppendingString:@"tupdates/ready"]]
+											 enumeratorAtURL:[NSURL fileURLWithPath:srcEnum]
 											 includingPropertiesForKeys:keys
 											 options:0
 											 errorHandler:^(NSURL *url, NSError *error) {
@@ -163,18 +179,20 @@ int main(int argc, const char * argv[]) {
 			NSString *dstPath = [appDirFull stringByAppendingString:[pathPart substringFromIndex:r.length]];
 			NSError *error;
 			NSNumber *isDirectory = nil;
-			writeLog([[NSArray arrayWithObjects: @"Copying file ", srcPath, @" to ", dstPath, nil] componentsJoinedByString:@""]);
 			if (![url getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:&error]) {
 				writeLog([@"Failed to get IsDirectory for file " stringByAppendingString:[url path]]);
 				delFolder();
 				break;
 			}
 			if ([isDirectory boolValue]) {
+				writeLog([[NSArray arrayWithObjects: @"Copying dir ", srcPath, @" to ", dstPath, nil] componentsJoinedByString:@""]);
 				if (![fileManager createDirectoryAtPath:dstPath withIntermediateDirectories:YES attributes:nil error:nil]) {
 					writeLog([@"Failed to force path for directory " stringByAppendingString:dstPath]);
 					delFolder();
 					break;
 				}
+			} else if ([srcPath isEqualToString:readyFilePath]) {
+				writeLog([[NSArray arrayWithObjects: @"Skipping ready file ", srcPath, nil] componentsJoinedByString:@""]);
 			} else if ([fileManager fileExistsAtPath:dstPath]) {
 				if (![[NSData dataWithContentsOfFile:srcPath] writeToFile:dstPath atomically:YES]) {
 					writeLog([@"Failed to edit file " stringByAppendingString:dstPath]);

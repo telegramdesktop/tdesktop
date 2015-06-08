@@ -117,55 +117,9 @@ public:
 	void psInstallEventFilter();
 	~PsApplication();
 
-signals:
-
-	void updateChecking();
-	void updateLatest();
-	void updateDownloading(qint64 ready, qint64 total);
-	void updateReady();
-	void updateFailed();
-
 };
 
-class PsUpdateDownloader : public QObject {
-	Q_OBJECT
-
-public:
-	PsUpdateDownloader(QThread *thread, const MTPDhelp_appUpdate &update);
-	PsUpdateDownloader(QThread *thread, const QString &url);
-
-	void unpackUpdate();
-
-	int32 ready();
-	int32 size();
-
-	static void deleteDir(const QString &dir);
-	static void clearAll();
-
-	~PsUpdateDownloader();
-
-public slots:
-
-	void start();
-	void partMetaGot();
-	void partFinished(qint64 got, qint64 total);
-	void partFailed(QNetworkReply::NetworkError e);
-	void sendRequest();
-
-private:
-	void initOutput();
-
-	void fatalFail();
-
-	QString updateUrl;
-	QNetworkAccessManager manager;
-	QNetworkReply *reply;
-	int32 already, full;
-	QFile outputFile;
-
-	QMutex mutex;
-
-};
+void psDeleteDir(const QString &dir);
 
 void psUserActionDone();
 bool psIdleSupported();
@@ -196,7 +150,6 @@ void psBringToBack(QWidget *w);
 int psCleanup();
 int psFixPrevious();
 
-bool psCheckReadyUpdate();
 void psExecUpdater();
 void psExecTelegram();
 

@@ -29,6 +29,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "localstorage.h"
 
+#include "autoupdater.h"
+
 namespace {
 	Application *mainApp = 0;
 	FileUploader *uploader = 0;
@@ -181,29 +183,6 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	}
 }
 
-void Application::onAppUpdate(const MTPhelp_AppUpdate &response) {
-    updateRequestId = 0;
-
-	cSetLastUpdateCheck(unixtime());
-	Local::writeSettings();
-	if (response.type() == mtpc_help_noAppUpdate) {
-		startUpdateCheck();
-	} else {
-		updateThread = new QThread();
-		connect(updateThread, SIGNAL(finished()), updateThread, SLOT(deleteLater()));
-		updateDownloader = new PsUpdateDownloader(updateThread, response.c_help_appUpdate());
-		updateThread->start();
-	}
-}
-
-bool Application::onAppUpdateFail() {
-	updateRequestId = 0;
-	cSetLastUpdateCheck(unixtime());
-	Local::writeSettings();
-	startUpdateCheck();
-	return true;
-}
-
 void Application::updateGotCurrent() {
 	if (!updateReply || updateThread) return;
 
@@ -214,7 +193,7 @@ void Application::updateGotCurrent() {
 		if (currentVersion > AppVersion) {
 			updateThread = new QThread();
 			connect(updateThread, SIGNAL(finished()), updateThread, SLOT(deleteLater()));
-			updateDownloader = new PsUpdateDownloader(updateThread, m.captured(2));
+			updateDownloader = new UpdateDownloader(updateThread, m.captured(2));
 			updateThread->start();
 		}
 	}
@@ -488,7 +467,7 @@ void Application::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId)
 	int32 filesize = 0;
 	QByteArray data;
 
-	ReadyLocalMedia ready(ToPreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false, 0);
+	ReadyLocalMedia ready(ToPreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, MTP_audioEmpty(MTP_long(0)), photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false, 0);
 
 	connect(App::uploader(), SIGNAL(photoReady(MsgId, const MTPInputFile &)), App::app(), SLOT(photoUpdated(MsgId, const MTPInputFile &)), Qt::UniqueConnection);
 
@@ -541,7 +520,6 @@ void Application::startUpdateCheck(bool forceWait) {
 		updateReply = updateManager.get(checkVersion);
 		connect(updateReply, SIGNAL(finished()), this, SLOT(updateGotCurrent()));
 		connect(updateReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(updateFailedCurrent(QNetworkReply::NetworkError)));
-//		updateRequestId = MTP::send(MTPhelp_GetAppUpdate(MTP_string(cApiDeviceModel()), MTP_string(cApiSystemVersion()), MTP_string(cApiAppVersion()), MTP_string(cApiLang())), rpcDone(&Application::onAppUpdate), rpcFail(&Application::onAppUpdateFail);
 		emit updateChecking();
 	} else {
 		updateCheckTimer.start((updateInSecs + 5) * 1000);
@@ -649,7 +627,7 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 		return App::quit();
 	}
 
-	if (!cNoStartUpdate() && psCheckReadyUpdate()) {
+	if (!cNoStartUpdate() && checkReadyUpdate()) {
 		cSetRestartingUpdate(true);
 		DEBUG_LOG(("Application Info: installing update instead of starting app.."));
 		return App::quit();
@@ -659,13 +637,13 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 }
 
 void Application::checkMapVersion() {
-	if (Local::oldMapVersion() < AppVersion) {
+    if (Local::oldMapVersion() < AppVersion) {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 8015) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Video captions are displayed\n\xe2\x80\x94 Photo captions are displayed in photo viewer\n\xe2\x80\x94 Round corners for messages").replace('@', qsl("@") + QChar(0x200D));
-			} else if (!DevChannel && Local::oldMapVersion() < 8016) {
+			if (DevChannel && Local::oldMapVersion() < 8023) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Improved sticker panel\n\xe2\x80\x94 Bug fixes and minor stuff");// .replace('@', qsl("@") + QChar(0x200D));
+			} else if (!DevChannel && Local::oldMapVersion() < 8024) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {

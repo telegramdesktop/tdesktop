@@ -485,7 +485,7 @@ void CountrySelect::paintEvent(QPaintEvent *e) {
 		p.setOpacity(1);
 
 		QRect inner(_innerLeft, _innerTop, _innerWidth, _innerHeight);
-		_shadow.paint(p, inner);
+		_shadow.paint(p, inner, st::boxShadowShift);
 		if (trivial || e->rect().intersects(inner)) {
 			// fill bg
 			p.fillRect(inner, st::white->b);

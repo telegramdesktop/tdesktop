@@ -34,27 +34,24 @@ Install dev libraries
 
 Install audio libraries
 
-####libogg-1.3.2
-
-[Download libogg-1.3.2 sources](http://downloads.xiph.org/releases/ogg/libogg-1.3.2.tar.xz) from http://xiph.org/downloads, extract to **/home/user/TBuild/Libraries**, go to **/home/user/TBuild/Libraries/libogg-1.3.2** and run
-
-    ./configure
-    make
-    sudo make install
-
 ####Opus codec 1.1
 
-[Download opus-1.1 sources](http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz) from http://www.opus-codec.org/downloads, extract to **/home/user/TBuild/Libraries**, go to **/home/user/TBuild/Libraries/opus-1.1** and run
+Download [opus-1.1 sources](http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz) from http://www.opus-codec.org/downloads, extract to **/home/user/TBuild/Libraries**, go to **/home/user/TBuild/Libraries/opus-1.1** and run
 
     ./configure
     make
     sudo make install
 
-####opusfile-0.6
+####FFmpeg
 
-[Download opusfile-0.6 sources](http://downloads.xiph.org/releases/opus/opusfile-0.6.tar.gz) from http://www.opus-codec.org/downloads, extract to **/home/user/TBuild/Libraries**, go to **/home/user/TBuild/Libraries/opusfile-0.6** and run
+Download sources [ffmpeg-2.6.3.tar.bz2](http://ffmpeg.org/releases/ffmpeg-2.6.3.tar.bz2) from https://www.ffmpeg.org/download.html, extract to **/home/user/TBuild/Libraries** to have **/home/user/TBuild/Libraries/ffmpeg-2.6.3**, go to **/home/user/TBuild/Libraries/ffmpeg-2.6.3** and run
 
-    ./configure
+    sudo apt-get update
+    sudo apt-get -y --force-yes install autoconf automake build-essential libass-dev libfreetype6-dev libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev libvdpau-dev libvorbis-dev libxcb1-dev libxcb-shm0-dev libxcb-xfixes0-dev pkg-config texi2html zlib1g-dev
+    sudo apt-get install yasm
+
+    ./configure --prefix=/usr/local --disable-programs --disable-everything --enable-libopus --enable-decoder=aac --enable-decoder=aac_latm --enable-decoder=aasc --enable-decoder=mp1 --enable-decoder=mp1float --enable-decoder=mp2 --enable-decoder=mp2float --enable-decoder=mp3 --enable-decoder=mp3adu --enable-decoder=mp3adufloat --enable-decoder=mp3float --enable-decoder=mp3on4 --enable-decoder=mp3on4float --enable-decoder=wavpack --enable-decoder=opus --enable-decoder=vorbis --enable-decoder=wmalossless --enable-decoder=wmapro --enable-decoder=wmav1 --enable-decoder=wmav2 --enable-decoder=wmavoice --enable-encoder=libopus --enable-parser=aac --enable-parser=aac_latm --enable-parser=mpegaudio --enable-parser=opus --enable-parser=vorbis --enable-demuxer=aac --enable-demuxer=wav --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=mov --enable-muxer=ogg --enable-muxer=opus
+
     make
     sudo make install
 
@@ -72,7 +69,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
 
     git clone git://repo.or.cz/openal-soft.git
 
-then go to **/home/user/TBuild/Libraries/openal-soft/build** and run 
+then go to **/home/user/TBuild/Libraries/openal-soft/build** and run
 
     sudo apt-get install cmake
     cmake -D LIBTYPE:STRING=STATIC ..

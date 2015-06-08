@@ -96,12 +96,11 @@ void writeLog(const wstring &msg) {
 	}
 }
 
-void delFolder() {
-	wstring delPath = L"tupdates\\ready", delFolder = L"tupdates";
+void fullClearPath(const wstring &dir) {
 	WCHAR path[4096];
-	memcpy(path, delPath.c_str(), (delPath.size() + 1) * sizeof(WCHAR));
-	path[delPath.size() + 1] = 0;
-	writeLog(L"Fully clearing path '" + delPath + L"'..");
+	memcpy(path, dir.c_str(), (dir.size() + 1) * sizeof(WCHAR));
+	path[dir.size() + 1] = 0;
+	writeLog(L"Fully clearing path '" + dir + L"'..");
 	SHFILEOPSTRUCT file_op = {
 		NULL,
 		FO_DELETE,
@@ -116,13 +115,46 @@ void delFolder() {
 	};
 	int res = SHFileOperation(&file_op);
 	if (res) writeLog(L"Error: failed to clear path! :(");
+}
+
+void delFolder() {
+	wstring delPathOld = L"tupdates\\ready", delPath = L"tupdates\\temp", delFolder = L"tupdates";
+	fullClearPath(delPathOld);
+	fullClearPath(delPath);
 	RemoveDirectory(delFolder.c_str());
 }
+
+DWORD versionNum = 0, versionLen = 0, readLen = 0;
+WCHAR versionStr[32] = { 0 };
 
 bool update() {
 	writeLog(L"Update started..");
 
-	wstring updDir = L"tupdates\\ready";
+	wstring updDir = L"tupdates\\temp", readyFilePath = L"tupdates\\temp\\ready", tdataDir = L"tupdates\\temp\\tdata";
+	{
+		HANDLE readyFile = CreateFile(readyFilePath.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+		if (readyFile != INVALID_HANDLE_VALUE) {
+			CloseHandle(readyFile);
+		} else {
+			updDir = L"tupdates\\ready"; // old
+			tdataDir = L"tupdates\\ready\\tdata";
+		}
+	}
+
+	HANDLE versionFile = CreateFile((tdataDir + L"\\version").c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+	if (versionFile != INVALID_HANDLE_VALUE) {
+		if (ReadFile(versionFile, &versionNum, sizeof(DWORD), &readLen, NULL) != TRUE || readLen != sizeof(DWORD)) {
+			versionNum = 0;
+		} else if (ReadFile(versionFile, &versionLen, sizeof(DWORD), &readLen, NULL) != TRUE || readLen != sizeof(DWORD) || versionLen > 63) {
+			versionNum = 0;
+		} else if (ReadFile(versionFile, versionStr, versionLen, &readLen, NULL) != TRUE || readLen != versionLen) {
+			versionNum = 0;
+		}
+		CloseHandle(versionFile);
+		writeLog(L"Version file read.");
+	} else {
+		writeLog(L"Could not open version file to update registry :(");
+	}
 
 	deque<wstring> dirs;
 	dirs.push_back(updDir);
@@ -154,22 +186,27 @@ bool update() {
 		}
 
 		do {
-			if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+			wstring fname = dir + L"\\" + findData.cFileName;
+			if (fname.substr(0, tdataDir.size()) == tdataDir && (fname.size() <= tdataDir.size() || fname.at(tdataDir.size()) == '/')) {
+				writeLog(L"Skipped 'tdata' path '" + fname + L"'");
+			} else if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
 				if (findData.cFileName != wstring(L".") && findData.cFileName != wstring(L"..")) {
-					dirs.push_back(dir + L"\\" + findData.cFileName);
-					writeLog(L"Added dir '" + dir + L"\\" + findData.cFileName + L"' in update tree..");
+					dirs.push_back(fname);
+					writeLog(L"Added dir '" + fname + L"' in update tree..");
 				}
 			} else {
-				wstring fname = dir + L"\\" + findData.cFileName;
 				wstring tofname = updateTo + fname.substr(updDir.size() + 1);
 				if (equal(tofname, exeName)) { // bad update - has Updater.exe - delete all dir
 					writeLog(L"Error: bad update, has Updater.exe! '" + tofname + L"' equal '" + exeName + L"'");
 					delFolder();
 					return false;
+				} else if (equal(fname, readyFilePath)) {
+					writeLog(L"Skipped ready file '" + fname + L"'");
+				} else {
+					from.push_back(fname);
+					to.push_back(tofname);
+					writeLog(L"Added file '" + fname + L"' to be copied to '" + tofname + L"'");
 				}
-				from.push_back(fname);
-				to.push_back(tofname);
-				writeLog(L"Added file '" + fname + L"' to be copied to '" + tofname + L"'");
 			}
 		} while (FindNextFile(findHandle, &findData));
 		DWORD errorCode = GetLastError();
@@ -230,73 +267,57 @@ bool update() {
 }
 
 void updateRegistry() {
-	HANDLE versionFile = CreateFile((updateTo + L"tdata\\version").c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-	if (versionFile != INVALID_HANDLE_VALUE) {
+	if (versionNum) {
 		writeLog(L"Updating registry..");
-		DWORD versionNum = 0, versionLen = 0, readLen = 0;
-		WCHAR versionStr[32];
-		if (ReadFile(versionFile, &versionNum, sizeof(DWORD), &readLen, NULL) != TRUE || readLen != sizeof(DWORD)) {
-			versionNum = 0;
-		} else if (ReadFile(versionFile, &versionLen, sizeof(DWORD), &readLen, NULL) != TRUE || readLen != sizeof(DWORD) || versionLen > 63) {
-			versionNum = 0;
-		} else if (ReadFile(versionFile, versionStr, versionLen, &readLen, NULL) != TRUE || readLen != versionLen) {
-			versionNum = 0;
-		}
-		CloseHandle(versionFile);
-		writeLog(L"Version file read.");
-		if (versionNum) {
-			versionStr[versionLen / 2] = 0;
-			HKEY rkey;
-			LSTATUS status = RegOpenKeyEx(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{53F49750-6209-4FBF-9CA8-7A333C87D1ED}_is1", 0, KEY_QUERY_VALUE | KEY_SET_VALUE, &rkey);
-			if (status == ERROR_SUCCESS) {
-				writeLog(L"Checking registry install location..");
-				static const int bufSize = 4096;
-				DWORD locationType, locationSize = bufSize * 2;
-				WCHAR locationStr[bufSize], exp[bufSize];
-				if (RegQueryValueEx(rkey, L"InstallLocation", 0, &locationType, (BYTE*)locationStr, &locationSize) == ERROR_SUCCESS) {
-					locationSize /= 2;
-					if (locationStr[locationSize - 1]) {
-						locationStr[locationSize++] = 0;
+		versionStr[versionLen / 2] = 0;
+		HKEY rkey;
+		LSTATUS status = RegOpenKeyEx(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{53F49750-6209-4FBF-9CA8-7A333C87D1ED}_is1", 0, KEY_QUERY_VALUE | KEY_SET_VALUE, &rkey);
+		if (status == ERROR_SUCCESS) {
+			writeLog(L"Checking registry install location..");
+			static const int bufSize = 4096;
+			DWORD locationType, locationSize = bufSize * 2;
+			WCHAR locationStr[bufSize], exp[bufSize];
+			if (RegQueryValueEx(rkey, L"InstallLocation", 0, &locationType, (BYTE*)locationStr, &locationSize) == ERROR_SUCCESS) {
+				locationSize /= 2;
+				if (locationStr[locationSize - 1]) {
+					locationStr[locationSize++] = 0;
+				}
+				if (locationType == REG_EXPAND_SZ) {
+					DWORD copy = ExpandEnvironmentStrings(locationStr, exp, bufSize);
+					if (copy <= bufSize) {
+						memcpy(locationStr, exp, copy * sizeof(WCHAR));
 					}
-					if (locationType == REG_EXPAND_SZ) {
-						DWORD copy = ExpandEnvironmentStrings(locationStr, exp, bufSize);
-						if (copy <= bufSize) {
-							memcpy(locationStr, exp, copy * sizeof(WCHAR));
-						}
-					}
-					if (locationType == REG_EXPAND_SZ || locationType == REG_SZ) {
-						if (PathCanonicalize(exp, locationStr) == TRUE) {
-							memcpy(locationStr, exp, bufSize * sizeof(WCHAR));
-							if (GetFullPathName(L".", bufSize, exp, 0) < bufSize) {
-								wstring installpath = locationStr, mypath = exp;
-								if (installpath == mypath + L"\\" || true) { // always update reg info, if we found it
-									WCHAR nameStr[bufSize], dateStr[bufSize], publisherStr[bufSize], icongroupStr[bufSize];
-									SYSTEMTIME stLocalTime;
-									GetLocalTime(&stLocalTime);
-									RegSetValueEx(rkey, L"DisplayVersion", 0, REG_SZ, (BYTE*)versionStr, ((versionLen / 2) + 1) * sizeof(WCHAR));
-									wsprintf(nameStr, L"Telegram Desktop version %s", versionStr);
-									RegSetValueEx(rkey, L"DisplayName", 0, REG_SZ, (BYTE*)nameStr, (wcslen(nameStr) + 1) * sizeof(WCHAR));
-									wsprintf(publisherStr, L"Telegram Messenger LLP");
-									RegSetValueEx(rkey, L"Publisher", 0, REG_SZ, (BYTE*)publisherStr, (wcslen(publisherStr) + 1) * sizeof(WCHAR));
-									wsprintf(icongroupStr, L"Telegram Desktop");
-									RegSetValueEx(rkey, L"Inno Setup: Icon Group", 0, REG_SZ, (BYTE*)icongroupStr, (wcslen(icongroupStr) + 1) * sizeof(WCHAR));
-									wsprintf(dateStr, L"%04d%02d%02d", stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay);
-									RegSetValueEx(rkey, L"InstallDate", 0, REG_SZ, (BYTE*)dateStr, (wcslen(dateStr) + 1) * sizeof(WCHAR));
+				}
+				if (locationType == REG_EXPAND_SZ || locationType == REG_SZ) {
+					if (PathCanonicalize(exp, locationStr) == TRUE) {
+						memcpy(locationStr, exp, bufSize * sizeof(WCHAR));
+						if (GetFullPathName(L".", bufSize, exp, 0) < bufSize) {
+							wstring installpath = locationStr, mypath = exp;
+							if (installpath == mypath + L"\\" || true) { // always update reg info, if we found it
+								WCHAR nameStr[bufSize], dateStr[bufSize], publisherStr[bufSize], icongroupStr[bufSize];
+								SYSTEMTIME stLocalTime;
+								GetLocalTime(&stLocalTime);
+								RegSetValueEx(rkey, L"DisplayVersion", 0, REG_SZ, (BYTE*)versionStr, ((versionLen / 2) + 1) * sizeof(WCHAR));
+								wsprintf(nameStr, L"Telegram Desktop version %s", versionStr);
+								RegSetValueEx(rkey, L"DisplayName", 0, REG_SZ, (BYTE*)nameStr, (wcslen(nameStr) + 1) * sizeof(WCHAR));
+								wsprintf(publisherStr, L"Telegram Messenger LLP");
+								RegSetValueEx(rkey, L"Publisher", 0, REG_SZ, (BYTE*)publisherStr, (wcslen(publisherStr) + 1) * sizeof(WCHAR));
+								wsprintf(icongroupStr, L"Telegram Desktop");
+								RegSetValueEx(rkey, L"Inno Setup: Icon Group", 0, REG_SZ, (BYTE*)icongroupStr, (wcslen(icongroupStr) + 1) * sizeof(WCHAR));
+								wsprintf(dateStr, L"%04d%02d%02d", stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay);
+								RegSetValueEx(rkey, L"InstallDate", 0, REG_SZ, (BYTE*)dateStr, (wcslen(dateStr) + 1) * sizeof(WCHAR));
 
-									WCHAR *appURL = L"https://desktop.telegram.org";
-									RegSetValueEx(rkey, L"HelpLink", 0, REG_SZ, (BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
-									RegSetValueEx(rkey, L"URLInfoAbout", 0, REG_SZ, (BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
-									RegSetValueEx(rkey, L"URLUpdateInfo", 0, REG_SZ, (BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
-								}
+								WCHAR *appURL = L"https://desktop.telegram.org";
+								RegSetValueEx(rkey, L"HelpLink", 0, REG_SZ, (BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
+								RegSetValueEx(rkey, L"URLInfoAbout", 0, REG_SZ, (BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
+								RegSetValueEx(rkey, L"URLUpdateInfo", 0, REG_SZ, (BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
 							}
 						}
 					}
 				}
-				RegCloseKey(rkey);
 			}
+			RegCloseKey(rkey);
 		}
-	} else {
-		writeLog(L"Could not open version file to update registry :(");
 	}
 }
 
@@ -357,7 +378,7 @@ int APIENTRY WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdParama
 					updateRegistry();
 				}
 				if (writeprotected) { // if we can't clear all tupdates\ready (Updater.exe is there) - clear only version
-					if (DeleteFile(L"tupdates\\ready\\tdata\\version")) {
+					if (DeleteFile(L"tupdates\\temp\\tdata\\version") || DeleteFile(L"tupdates\\ready\\tdata\\version")) {
 						writeLog(L"Version file deleted!");
 					} else {
 						writeLog(L"Error: could not delete version file");
@@ -386,7 +407,6 @@ int APIENTRY WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdParama
 
 		HRESULT hres = CoInitialize(0);
 		if (SUCCEEDED(hres)) {
-			wstring lnk = L"tupdates\\ready\\temp.lnk";
 			IShellLink* psl;
 			HRESULT hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
 			if (SUCCEEDED(hres)) {
@@ -401,7 +421,12 @@ int APIENTRY WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdParama
 				hres = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf);
 
 				if (SUCCEEDED(hres)) {
+					wstring lnk = L"tupdates\\temp\\temp.lnk";
 					hres = ppf->Save(lnk.c_str(), TRUE);
+					if (!SUCCEEDED(hres)) {
+						lnk = L"tupdates\\ready\\temp.lnk"; // old
+						hres = ppf->Save(lnk.c_str(), TRUE);
+					}
 					ppf->Release();
 
 					if (SUCCEEDED(hres)) {

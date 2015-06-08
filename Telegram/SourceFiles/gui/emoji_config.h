@@ -81,9 +81,6 @@ inline EmojiPtr emojiFromUrl(const QString &url) {
 }
 
 inline EmojiPtr emojiFromText(const QChar *ch, const QChar *e, int &len) {
-	QString tmp(ch, e - ch);
-	QByteArray tmp2 = tmp.toUtf8();
-	const char *tmp3 = tmp2.constData();
 	EmojiPtr emoji = 0;
 	if (ch + 1 < e && ((ch->isHighSurrogate() && (ch + 1)->isLowSurrogate()) || (((ch->unicode() >= 48 && ch->unicode() < 58) || ch->unicode() == 35) && (ch + 1)->unicode() == 0x20E3))) {
 		uint32 code = (ch->unicode() << 16) | (ch + 1)->unicode();

@@ -25,7 +25,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "gui/filedialog.h"
 
 BackgroundWidget::BackgroundWidget(QWidget *parent, LayeredWidget *w) : QWidget(parent), w(w), _hidden(0),
-	aBackground(0), aBackgroundFunc(anim::easeOutCirc), hiding(false), shadow(st::boxShadow) {
+aBackground(0), aBackgroundFunc(anim::easeOutCirc), hiding(false), shadow(st::boxShadow) {
 	w->setParent(this);
 	setGeometry(0, 0, App::wnd()->width(), App::wnd()->height());
 	aBackground.start(1);
@@ -54,7 +54,7 @@ void BackgroundWidget::paintEvent(QPaintEvent *e) {
 	p.fillRect(rect(), st::layerBG->b);
 
 	p.setOpacity(aBackground.current());
-	shadow.paint(p, w->boxRect());
+	shadow.paint(p, w->boxRect(), st::boxShadowShift);
 }
 
 void BackgroundWidget::keyPressEvent(QKeyEvent *e) {

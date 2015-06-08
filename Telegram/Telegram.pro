@@ -83,6 +83,7 @@ SOURCES += \
     ./SourceFiles/app.cpp \
     ./SourceFiles/application.cpp \
     ./SourceFiles/audio.cpp \
+    ./SourceFiles/autoupdater.cpp \
     ./SourceFiles/dialogswidget.cpp \
     ./SourceFiles/dropdown.cpp \
     ./SourceFiles/fileuploader.cpp \
@@ -166,6 +167,7 @@ HEADERS += \
     ./SourceFiles/app.h \
     ./SourceFiles/application.h \
     ./SourceFiles/audio.h \
+    ./SourceFiles/autoupdater.h \
     ./SourceFiles/config.h \
     ./SourceFiles/countries.h \
     ./SourceFiles/dialogswidget.h \
@@ -300,7 +302,7 @@ INCLUDEPATH += "/usr/include/atk-1.0"
 INCLUDEPATH += "/usr/include/dee-1.0"
 INCLUDEPATH += "/usr/include/libdbusmenu-glib-0.4"
 
-LIBS += -lcrypto -lssl -lz -ldl -llzma -lexif -lopus -lopusfile -logg -lopenal
+LIBS += -lcrypto -lssl -lz -ldl -llzma -lexif -lopenal -lavformat -lavcodec -lswresample -lavutil -lopus
 LIBS += ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a
 
 RESOURCES += \

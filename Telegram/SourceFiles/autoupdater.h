@@ -17,24 +17,46 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-class BoxShadow {
+#include <QtNetwork/QLocalSocket>
+#include <QtNetwork/QLocalServer>
+#include <QtNetwork/QNetworkReply>
+
+class UpdateDownloader : public QObject {
+	Q_OBJECT
+
 public:
+	UpdateDownloader(QThread *thread, const QString &url);
 
-	enum {
-		Left = 1,
-		Top = 2,
-		Right = 4,
-		Bottom = 8
-	};
+	void unpackUpdate();
 
-	BoxShadow(const style::sprite &topLeft);
+	int32 ready();
+	int32 size();
 
-	void paint(QPainter &p, const QRect &box, int32 shifty, int32 flags = Left | Top | Right | Bottom);
+	static void clearAll();
+
+	~UpdateDownloader();
+
+public slots:
+
+	void start();
+	void partMetaGot();
+	void partFinished(qint64 got, qint64 total);
+	void partFailed(QNetworkReply::NetworkError e);
+	void sendRequest();
 
 private:
+	void initOutput();
 
-	int32 _size, _pixsize;
-	QPixmap _corners, _left, _top, _right, _bottom;
-	QVector<style::color> _colors;
+	void fatalFail();
+
+	QString updateUrl;
+	QNetworkAccessManager manager;
+	QNetworkReply *reply;
+	int32 already, full;
+	QFile outputFile;
+
+	QMutex mutex;
 
 };
+
+bool checkReadyUpdate();

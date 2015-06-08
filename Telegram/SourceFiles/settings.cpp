@@ -84,6 +84,9 @@ QString gTimeFormat = qsl("hh:mm");
 int32 gAutoLock = 3600;
 bool gHasPasscode = false;
 
+bool gHasAudioPlayer = true;
+bool gHasAudioCapture = true;
+
 DBIEmojiTab gEmojiTab = dbietRecent;
 RecentEmojiPack gRecentEmojis;
 RecentEmojisPreload gRecentEmojisPreload;

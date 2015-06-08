@@ -37,6 +37,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 	QByteArray data;
 	PeerId peer;
     uint64 id, thumbId = 0;
+	int32 duration = 0;
 	QString thumbExt = "jpg";
 	ToPrepareMediaType type;
 	bool animated = false;
@@ -53,6 +54,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 		peer = list.front().peer;
 		id = list.front().id;
 		type = list.front().type;
+		duration = list.front().duration;
 		ctrlShiftEnter = list.front().ctrlShiftEnter;
 		replyTo = list.front().replyTo;
 	}
@@ -85,29 +87,34 @@ void LocalImageLoaderPrivate::prepareImages() {
 			filename = info.fileName();
 			filesize = info.size();
 		} else if (!data.isEmpty()) {
-			img = App::readImage(data, 0, true, &animated);
-			if (type == ToPrepareAuto) {
-				if (!img.isNull() && data.size() < MaxUploadPhotoSize) {
-					type = ToPreparePhoto;
-				} else if (data.size() < MaxUploadDocumentSize) {
-					type = ToPrepareDocument;
-				} else {
-					img = QImage();
+			if (type != ToPrepareAudio) {
+				img = App::readImage(data, 0, true, &animated);
+				if (type == ToPrepareAuto) {
+					if (!img.isNull() && data.size() < MaxUploadPhotoSize) {
+						type = ToPreparePhoto;
+					} else if (data.size() < MaxUploadDocumentSize) {
+						type = ToPrepareDocument;
+					} else {
+						img = QImage();
+					}
 				}
 			}
 			MimeType mimeType = mimeTypeForData(data);
-			if (type == ToPrepareDocument) {
+			if (type == ToPrepareDocument || type == ToPrepareAudio) {
 				mime = mimeType.name();
 			}
 			if (mime == "image/jpeg") {
 				filename = filedialogDefaultName(qsl("image"), qsl(".jpg"), QString(), true);
+			} else if (type == ToPrepareAudio) {
+				filename = filedialogDefaultName(qsl("audio"), qsl(".ogg"), QString(), true);
+				mime = "audio/ogg";
 			} else {
 				QString ext;
 				QStringList patterns = mimeType.globPatterns();
 				if (!patterns.isEmpty()) {
 					ext = patterns.front().replace('*', QString());
 				}
-				filename = filedialogDefaultName(qsl("doc"), ext, QString(), true);
+				filename = filedialogDefaultName((type == ToPrepareAudio) ? qsl("audio") : qsl("doc"), ext, QString(), true);
 			}
 			filesize = data.size();
 		}
@@ -136,7 +143,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 		}
 	}
 
-	if ((img.isNull() && (type != ToPrepareDocument || !filesize)) || type == ToPrepareAuto || (img.isNull() && file.isEmpty() && data.isEmpty())) { // if could not decide what type
+	if ((img.isNull() && ((type != ToPrepareDocument && type != ToPrepareAudio) || !filesize)) || type == ToPrepareAuto || (img.isNull() && file.isEmpty() && data.isEmpty())) { // if could not decide what type
 		{
 			QMutexLocker lock(loader->toPrepareMutex());
 			ToPrepareMedias &list(loader->toPrepareMedias());
@@ -155,6 +162,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 		MTPPhotoSize thumb(MTP_photoSizeEmpty(MTP_string("")));
 		MTPPhoto photo(MTP_photoEmpty(MTP_long(0)));
 		MTPDocument document(MTP_documentEmpty(MTP_long(0)));
+		MTPAudio audio(MTP_audioEmpty(MTP_long(0)));
 
 		QByteArray jpeg;
 		if (type == ToPreparePhoto) {
@@ -210,11 +218,13 @@ void LocalImageLoaderPrivate::prepareImages() {
 
 		if (type == ToPrepareDocument) {
 			document = MTP_document(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_string(mime), MTP_int(filesize), thumb, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
+		} else if (type == ToPrepareAudio) {
+			audio = MTP_audio(MTP_long(id), MTP_long(0), MTP_int(user), MTP_int(unixtime()), MTP_int(duration), MTP_string(mime), MTP_int(filesize), MTP_int(MTP::maindc()));
 		}
 
 		{
 			QMutexLocker lock(loader->readyMutex());
-			loader->readyList().push_back(ReadyLocalMedia(type, file, filename, filesize, data, id, thumbId, thumbExt, peer, photo, photoThumbs, document, jpeg, ctrlShiftEnter, replyTo));
+			loader->readyList().push_back(ReadyLocalMedia(type, file, filename, filesize, data, id, thumbId, thumbExt, peer, photo, audio, photoThumbs, document, jpeg, ctrlShiftEnter, replyTo));
 		}
 
 		{
@@ -256,6 +266,22 @@ PhotoId LocalImageLoader::append(const QByteArray &img, const PeerId &peer, MsgI
 	{
 		QMutexLocker lock(toPrepareMutex());
 		toPrepare.push_back(ToPrepareMedia(img, peer, t, false, replyTo));
+		result = toPrepare.back().id;
+	}
+	if (!thread) {
+		thread = new QThread();
+		priv = new LocalImageLoaderPrivate(MTP::authedId(), this, thread);
+		thread->start();
+	}
+	emit needToPrepare();
+	return result;
+}
+
+AudioId LocalImageLoader::append(const QByteArray &audio, int32 duration, const PeerId &peer, MsgId replyTo, ToPrepareMediaType t) {
+	AudioId result = 0;
+	{
+		QMutexLocker lock(toPrepareMutex());
+		toPrepare.push_back(ToPrepareMedia(audio, duration, peer, t, false, replyTo));
 		result = toPrepare.back().id;
 	}
 	if (!thread) {

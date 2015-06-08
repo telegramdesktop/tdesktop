@@ -54,7 +54,7 @@ wndBG: #FFF;
 wndShadow: sprite(209px, 46px, 19px, 19px);
 wndShadowShift: 1px;
 
-layerAlpha: 0.3;
+layerAlpha: 0.5;
 layerBG: #000;
 
 titleBG: #6389a8;
@@ -390,7 +390,8 @@ btnIntroNext: flatButton(btnDefNext, btnDefBig) {
 	width: 300px;
 }
 
-boxShadow: sprite(230px, 46px, 9px, 9px);
+boxShadow: sprite(363px, 50px, 15px, 15px);
+boxShadowShift: 2px;
 
 introCountry: countryInput {
 	width: 300px;
@@ -776,7 +777,7 @@ activeFadeOutDuration: 3000;
 
 msgRadius: 3px;
 
-msgMaxWidth: 550px;
+msgMaxWidth: 430px;
 msgFont: font(fsize);
 msgNameFont: font(fsize semibold);
 msgServiceFont: font(fsize semibold);
@@ -985,12 +986,21 @@ btnAttachPhoto: iconedButton(btnAttachDocument) {
 btnAttachEmoji: iconedButton(btnAttachDocument) {
 	overBgColor: white;
 	icon: sprite(363px, 344px, 21px, 22px);
-	iconPos: point(6px, 13px);
+	iconPos: point(6px, 12px);
 	downIcon: sprite(363px, 344px, 21px, 22px);
-	downIconPos: point(6px, 13px);
+	downIconPos: point(6px, 12px);
 
 	width: 33px;
 }
+btnRecordAudio: sprite(363px, 366px, 16px, 24px);
+btnRecordAudioActive: sprite(379px, 366px, 16px, 24px);
+recordSignalColor: #f17077;
+recordSignalMin: 5px;
+recordSignalMax: 10px;
+recordCancel: #aaa;
+recordCancelActive: #ec6466;
+recordFont: font(16px);
+recordTextTop: 12px;
 
 replySkip: 51px;
 replyColor: #377aae;
@@ -1375,6 +1385,7 @@ dropdownDef: dropdown {
 
 	padding: margins(10px, 10px, 10px, 10px);
 	shadow: sprite(241px, 46px, 6px, 6px);
+	shadowShift: 1px;
 
 	duration: 150;
 	width: 0px;
@@ -1639,6 +1650,13 @@ stickerPanSize: size(55px, 55px);
 stickerPanPadding: 11px;
 stickerPanDelete: sprite(123px, 132px, 12px, 12px);
 stickerPanDeleteOpacity: 0.5;
+stickerIconPadding: 3px;
+stickerIconHover: #e8ecef;
+stickerIconSel: #dfe3e6;
+stickerIconRecent: sprite(342px, 50px, 21px, 22px);
+stickerIconLeft: sprite(342px, 72px, 40px, 1px);
+stickerIconRight: sprite(342px, 73px, 40px, 1px);
+stickerIconMove: 400;
 
 mvBgColor: #222;
 mvBgOpacity: 0.92;
@@ -1715,9 +1733,13 @@ mvDocExtColor: white;
 mvDocExtPadding: 10px;
 mvDocLinksTop: 57px;
 mvDocRed: sprite(0px, 400px, 80px, 80px);
+mvDocRedColor: #e47272;
 mvDocYellow: sprite(80px, 400px, 80px, 80px);
+mvDocYellowColor: #efc274;
 mvDocGreen: sprite(160px, 400px, 80px, 80px);
+mvDocGreenColor: #61b96e;
 mvDocBlue: sprite(240px, 400px, 80px, 80px);
+mvDocBlueColor: #72b1df;
 mvDocLink: linkButton(btnDefLink) {
 	color: #4595d3;
 	overColor: #4595d3;
@@ -1796,7 +1818,7 @@ radialBgOpacity: 0.4;
 radialDownload: sprite(346px, 0px, 50px, 50px);
 radialDownloadOpacity: 0.8;
 radialCancel: sprite(378px, 50px, 18px, 18px);
-radialCancelOpacity: 0.7;
+radialCancelOpacity: 1.0;
 
 overviewLoader: size(34px, 14px);
 overviewLoaderPoint: size(4px, 4px);

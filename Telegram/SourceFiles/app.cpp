@@ -896,6 +896,18 @@ namespace App {
 		return App::video(video.vid.v, convert, video.vaccess_hash.v, video.vuser_id.v, video.vdate.v, video.vduration.v, video.vw.v, video.vh.v, App::image(video.vthumb), video.vdc_id.v, video.vsize.v);
 	}
 
+	AudioData *feedAudio(const MTPaudio &audio, AudioData *convert) {
+		switch (audio.type()) {
+		case mtpc_audio: {
+			return feedAudio(audio.c_audio(), convert);
+		} break;
+		case mtpc_audioEmpty: {
+			return App::audio(audio.c_audioEmpty().vid.v, convert);
+		} break;
+		}
+		return App::audio(0);
+	}
+
 	AudioData *feedAudio(const MTPDaudio &audio, AudioData *convert) {
 		return App::audio(audio.vid.v, convert, audio.vaccess_hash.v, audio.vuser_id.v, audio.vdate.v, qs(audio.vmime_type), audio.vduration.v, audio.vdc_id.v, audio.vsize.v);
 	}
@@ -2014,6 +2026,16 @@ namespace App {
 		p.drawPixmap(QPoint(x + w - cw, y), *c[1]);
 		p.drawPixmap(QPoint(x, y + h - ch), *c[2]);
 		p.drawPixmap(QPoint(x + w - cw, y + h - ch), *c[3]);
+	}
+
+	void roundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, const style::color &sh, RoundCorners index) {
+		QPixmap **c = App::corners(index);
+		int32 cw = c[0]->width() / cIntRetinaFactor(), ch = c[0]->height() / cIntRetinaFactor();
+		p.fillRect(x + cw, y + h, w - 2 * cw, st::msgShadow, sh->b);
+		p.fillRect(x, y + h - ch, cw, st::msgShadow, sh->b);
+		p.fillRect(x + w - cw, y + h - ch, cw, st::msgShadow, sh->b);
+		p.drawPixmap(x, y + h - ch + st::msgShadow, *c[2]);
+		p.drawPixmap(x + w - cw, y + h - ch + st::msgShadow, *c[3]);
 	}
 
 	void initBackground(int32 id, const QImage &p, bool nowrite) {

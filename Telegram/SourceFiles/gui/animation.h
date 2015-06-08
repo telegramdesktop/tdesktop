@@ -223,6 +223,63 @@ private:
 
 };
 
+class AnimationFunc {
+public:
+	virtual bool animStep(float64 ms) = 0;
+	virtual ~AnimationFunc() {
+	}
+};
+
+template <typename Type>
+class AnimationFuncOwned : public AnimationFunc {
+public:
+	typedef bool (Type::*Method)(float64);
+
+	AnimationFuncOwned(Type *obj, Method method) : _obj(obj), _method(method) {
+	}
+
+	bool animStep(float64 ms) {
+		return (_obj->*_method)(ms);
+	}
+	
+private:
+	Type *_obj;
+	Method _method;
+	
+};
+
+template <typename Type>
+AnimationFunc *animFunc(Type *obj, typename AnimationFuncOwned<Type>::Method method) {
+	return new AnimationFuncOwned<Type>(obj, method);
+}
+
+class Animation : public Animated {
+public:
+
+	Animation(AnimationFunc *func) : _func(func) {
+	}
+
+	void start() {
+		anim::start(this);
+	}
+	void stop() {
+		anim::stop(this);
+	}
+
+	//Animation
+	bool animStep(float64 ms) {
+		return _func->animStep(ms);
+	}
+
+	~Animation() {
+		delete _func;
+	}
+
+private:
+	AnimationFunc *_func;
+
+};
+
 class AnimationManager : public QObject {
 Q_OBJECT
 

@@ -2266,7 +2266,7 @@ namespace Local {
 				}
 			}
 			EncryptedDescriptor data(size);
-			data.stream << quint32(cStickerSetsOrder().size()) << cStickersHash();
+			data.stream << quint32(cStickerSets().size()) << cStickersHash();
 			_writeStickerSet(data.stream, DefaultStickerSetId);
 			_writeStickerSet(data.stream, CustomStickerSetId);
 			for (StickerSetsOrder::const_iterator i = cStickerSetsOrder().cbegin(), e = cStickerSetsOrder().cend(); i != e; ++i) {
@@ -2287,7 +2287,7 @@ namespace Local {
 			_writeMap();
 			return;
 		}
-		
+
 		StickerSets &sets(cRefStickerSets());
 		sets.clear();
 		cSetStickerSetsOrder(StickerSetsOrder());
@@ -2367,6 +2367,10 @@ namespace Local {
 		quint32 cnt;
 		QByteArray hash;
 		stickers.stream >> cnt >> hash;
+		if (stickers.version < 8019) {
+			hash.clear(); // bad data in old caches
+			cnt += 2; // try to read at least something
+		}
 		for (uint32 i = 0; i < cnt; ++i) {
 			quint64 setId = 0, setAccess = 0;
 			QString setTitle, setShortName;
@@ -2377,8 +2381,10 @@ namespace Local {
 				setTitle = lang(lng_stickers_default_set);
 			} else if (setId == CustomStickerSetId) {
 				setTitle = lang(lng_custom_stickers);
-			} else {
+			} else if (setId) {
 				order.push_back(setId);
+			} else {
+				continue;
 			}
 			StickerSet &set(sets.insert(setId, StickerSet(setId, setAccess, setTitle, setShortName)).value());
 			set.stickers.reserve(scnt);

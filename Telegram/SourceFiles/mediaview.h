@@ -140,6 +140,7 @@ private:
 	int32 _full; // -1 - thumb, 0 - medium, 1 - full
 
 	style::sprite _docIcon;
+	style::color _docIconColor;
 	QString _docName, _docSize, _docExt;
 	int32 _docNameWidth, _docSizeWidth, _docExtWidth;
 	QRect _docRect, _docIconRect;

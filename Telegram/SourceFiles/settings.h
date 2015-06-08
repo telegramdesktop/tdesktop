@@ -134,6 +134,9 @@ DeclareSetting(QString, TimeFormat);
 DeclareSetting(int32, AutoLock);
 DeclareSetting(bool, HasPasscode);
 
+DeclareSetting(bool, HasAudioPlayer);
+DeclareSetting(bool, HasAudioCapture);
+
 inline void cChangeTimeFormat(const QString &newFormat) {
 	if (!newFormat.isEmpty()) cSetTimeFormat(newFormat);
 }

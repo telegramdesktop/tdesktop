@@ -150,6 +150,12 @@ signals:
 protected:
 
 	void scrollContentsBy(int dx, int dy);
+	TWidget *tparent() {
+		return qobject_cast<TWidget*>(parentWidget());
+	}
+	const TWidget *tparent() const {
+		return qobject_cast<const TWidget*>(parentWidget());
+	}
 
 private:
 

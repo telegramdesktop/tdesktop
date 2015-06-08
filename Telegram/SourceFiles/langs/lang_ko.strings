@@ -450,6 +450,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_send_button" = "보내기";
 "lng_message_ph" = "메시지 쓰기";
+"lng_record_cancel" = "이 영역에서 마우스 클릭을 해제하시면 취소가 됩니다.";
 "lng_empty_history" = "";
 "lng_willbe_history" = "대화하실 방을 선택해주세요.";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
@@ -584,7 +585,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 스티커 팩 기능\n— 신규 이모티콘 및 스티커 패널";
+"lng_new_version_text" = "— 스티커 패널 향상\n— 버그 픽스 및 세부 수정등";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

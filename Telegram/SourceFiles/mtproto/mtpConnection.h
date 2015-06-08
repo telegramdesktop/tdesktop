@@ -344,6 +344,7 @@ public slots:
 	void onPingSender();
 	void onPingSendForce();
 	void onBadConnection();
+	void onCantConnect();
 	void onOldConnection();
 	void onSentSome(uint64 size);
 	void onReceivedSome();
@@ -405,8 +406,8 @@ private:
 	SingleTimer oldConnectionTimer;
 	bool oldConnection;
 
-	SingleTimer connCheckTimer;
-	uint32 receiveDelay;
+	SingleTimer connCheckTimer, cantConnectTimer;
+	uint32 receiveDelay, connectDelay;
 	int64 firstSentAt;
 
 	QVector<MTPlong> ackRequestData, resendRequestData;

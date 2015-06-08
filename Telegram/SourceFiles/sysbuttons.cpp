@@ -23,6 +23,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "passcodewidget.h"
 #include "window.h"
 #include "application.h"
+#include "autoupdater.h"
 
 SysBtn::SysBtn(QWidget *parent, const style::sysButton &st, const QString &text) : Button(parent),
 _st(st), a_color(_st.color->c), _overLevel(0), _text(text) {
@@ -142,7 +143,7 @@ UpdateBtn::UpdateBtn(QWidget *parent, Window *window, const QString &text) : Sys
 }
 
 void UpdateBtn::onClick() {
-	psCheckReadyUpdate();
+	checkReadyUpdate();
 	if (App::app()->updatingState() == Application::UpdatingReady) {
 		cSetRestartingUpdate(true);
 	} else {

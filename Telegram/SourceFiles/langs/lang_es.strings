@@ -396,7 +396,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_group_invite_link" = "Invitación";
 "lng_group_invite_create" = "Crear un enlace de invitación";
 "lng_group_invite_about" = "Los usuarios de Telegram podrán unirse\na tu grupo a través de este enlace.";
-"lng_group_invite_create_new" = "Anular enlace de invitación";
+"lng_group_invite_create_new" = "Anular enlace";
 "lng_group_invite_about_new" = "El enlace previo será desactivado\ny generaremos uno nuevo para ti.";
 "lng_group_invite_copied" = "Enlace de invitación copiado al portapapeles.";
 "lng_group_invite_no_room" = "No puedes unirte a este grupo porque\nhay muchos miembros en él.";
@@ -450,6 +450,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_send_button" = "Enviar";
 "lng_message_ph" = "Escribir un mensaje...";
+"lng_record_cancel" = "Suelta fuera de aquí para cancelar";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Por favor, elige un chat para comenzar a conversar";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
@@ -584,7 +585,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop fue actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Añadido el soporte para packs de stickers\n— Nuevas pestañas de emojis y stickers";
+"lng_new_version_text" = "— Pestaña de stickers mejorada\n— Corrección de errores y elementos menores";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

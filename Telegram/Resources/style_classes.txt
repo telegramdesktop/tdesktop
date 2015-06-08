@@ -254,6 +254,7 @@ dropdown {
 
 	padding: margins;
 	shadow: sprite;
+	shadowShift: number;
 
 	duration: number;
 	width: number;
