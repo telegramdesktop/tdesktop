@@ -642,7 +642,7 @@ void Application::checkMapVersion() {
 			QString versionFeatures;
 			if (DevChannel && Local::oldMapVersion() < 8023) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Improved sticker panel\n\xe2\x80\x94 Bug fixes and minor stuff");// .replace('@', qsl("@") + QChar(0x200D));
-			} else if (!DevChannel && Local::oldMapVersion() < 8021) {
+			} else if (!DevChannel && Local::oldMapVersion() < 8024) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
