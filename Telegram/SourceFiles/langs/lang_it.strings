@@ -585,7 +585,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli update è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "— Aggiunto invio di note vocali\n— Risolta la scomparsa degli sticker";
+"lng_new_version_text" = "— Pannello sticker migliorato\n— Risoluzione bug e miglioramenti minori";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

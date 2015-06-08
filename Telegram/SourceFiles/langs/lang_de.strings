@@ -585,7 +585,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Verschicke Sprachnachrichten\n— Sticker verschwinden nicht mehr (Fehlerbehebung)";
+"lng_new_version_text" = "— Sticker Panel wurde verbessert\n— Fehlerbehebungen und sonstige Kleinigkeiten";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 
