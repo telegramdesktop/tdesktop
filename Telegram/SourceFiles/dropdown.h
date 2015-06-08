@@ -343,6 +343,7 @@ private:
 	QList<uint64> _setIds;
 	QList<StickerPack> _sets;
 	QList<QVector<float64> > _hovers;
+	QList<bool> _custom;
 
 	int32 _selected, _pressedSel;
 	QPoint _lastMousePos;
