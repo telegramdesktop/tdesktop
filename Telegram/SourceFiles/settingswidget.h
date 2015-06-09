@@ -94,6 +94,9 @@ public slots:
 
 	void onUpdatePhoto();
 	void onUpdatePhotoCancel();
+    
+    void onChangeTone();
+    void onResetTone();
 
 	void onAutoUpdate();
 	void onCheckNow();
@@ -195,6 +198,8 @@ private:
 	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _soundNotify;
 
 	// general
+    LinkButton _changeNotificationSound;
+    LinkButton _resetNotificationSound;
 	LinkButton _changeLanguage;
 	FlatCheckbox _autoUpdate;
 	LinkButton _checkNow, _restartNow;
@@ -204,7 +209,9 @@ private:
 	FlatCheckbox _dpiAutoScale;
 	Slider _dpiSlider;
 	int32 _dpiWidth1, _dpiWidth2, _dpiWidth3, _dpiWidth4;
-
+    
+    
+    
 	QString _curVersionText, _newVersionText;
 	int32 _curVersionWidth, _newVersionWidth;
 
