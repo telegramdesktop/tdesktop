@@ -4,7 +4,7 @@
 
 * Install git by command **sudo apt-get install git** in Terminal
 * Install g++ by command **sudo apt-get install g++** in Terminal
-* Install Qt Creator from [**Downloads page**](https://qt-project.org/downloads)
+* Install Qt Creator from [**Downloads page**](https://www.qt.io/download/)
 
 For 32 bit Ubuntu you need to install g++ version 4.8 manually by such commands
 
