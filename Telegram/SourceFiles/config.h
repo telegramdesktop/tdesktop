@@ -43,7 +43,8 @@ enum {
 	MTPMinConnectDelay = 1000, // tcp connect should take less then 1 second
 	MTPMaxConnectDelay = 8000, // tcp connect should take 8 seconds max
 	MTPConnectionOldTimeout = 192000, // 192 seconds
-	MTPTcpConnectionWaitTimeout = 3000, // 3 seconds waiting for tcp, until we accept http
+	MTPTcpConnectionWaitTimeout = 2000, // 2 seconds waiting for tcp, until we accept http
+	MTPIPv4ConnectionWaitTimeout = 1000, // 1 seconds waiting for ipv4, until we accept ipv6
 	MTPMillerRabinIterCount = 30, // 30 Miller-Rabin iterations for dh_prime primality check
 
 	MTPUploadSessionsCount = 4, // max 4 upload sessions is created
@@ -125,7 +126,7 @@ enum {
 	SaveDraftTimeout = 1000, // save draft after 1 secs of not changing text
 	SaveDraftAnywayTimeout = 5000, // or save anyway each 5 secs
 
-	HiddenIsOnlineAfterMessage = 30, // user with hidden last seen stays online for such amount of seconds in the interface
+	SetOnlineAfterActivity = 30, // user with hidden last seen stays online for such amount of seconds in the interface
 
 	ServiceUserId = 777000,
 	WebPageUserId = 701000,
@@ -186,10 +187,24 @@ static const BuiltInDc _builtInDcs[] = {
 	{ 5, "149.154.171.5", 443 }
 };
 
+static const BuiltInDc _builtInDcsIPv6[] = {
+	{ 1, "2001:b28:f23d:f001::a", 443 },
+	{ 2, "2001:67c:4e8:f002::a", 443 },
+	{ 3, "2001:b28:f23d:f003::a", 443 },
+	{ 4, "2001:67c:4e8:f004::a", 443 },
+	{ 5, "2001:b28:f23f:f005::a", 443 }
+};
+
 static const BuiltInDc _builtInTestDcs[] = {
 	{ 1, "149.154.175.10", 443 },
 	{ 2, "149.154.167.40", 443 },
-	{ 3, "174.140.142.5", 443 }
+	{ 3, "149.154.175.117", 443 }
+};
+
+static const BuiltInDc _builtInTestDcsIPv6[] = {
+	{ 1, "2001:b28:f23d:f001::e", 443 },
+	{ 2, "2001:67c:4e8:f002::e", 443 },
+	{ 3, "2001:b28:f23d:f003::e", 443 }
 };
 
 inline const BuiltInDc *builtInDcs() {
@@ -198,6 +213,14 @@ inline const BuiltInDc *builtInDcs() {
 
 inline int builtInDcsCount() {
 	return (cTestMode() ? sizeof(_builtInTestDcs) : sizeof(_builtInDcs)) / sizeof(BuiltInDc);
+}
+
+inline const BuiltInDc *builtInDcsIPv6() {
+	return cTestMode() ? _builtInTestDcsIPv6 : _builtInDcsIPv6;
+}
+
+inline int builtInDcsCountIPv6() {
+	return (cTestMode() ? sizeof(_builtInTestDcsIPv6) : sizeof(_builtInDcsIPv6)) / sizeof(BuiltInDc);
 }
 
 static const char *UpdatesPublicKey = "\

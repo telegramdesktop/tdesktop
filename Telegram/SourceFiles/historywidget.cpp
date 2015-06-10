@@ -2779,14 +2779,15 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 	h->loadAround(0);
 
 	PeerData *p = App::peer(peer);
-	int32 flags = (p->input.type() == mtpc_inputPeerSelf) ? 0 : (MTPDmessage_flag_unread | MTPDmessage_flag_out); // unread, out
+	int32 flags = newMessageFlags(p); // unread, out
+	
 	int32 sendFlags = 0;
 	if (replyTo) {
 		flags |= MTPDmessage::flag_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 	}
-	h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(peer), MTPint(), MTPint(), MTP_int(_replyToId), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId))));
-	h->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), p->input, MTP_int(replyTo), MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+	h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(peer), MTPint(), MTPint(), MTP_int(_replyToId), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup));
+	h->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), p->input, MTP_int(replyTo), MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 
 	App::historyRegRandom(randomId, newId);
 
@@ -3287,13 +3288,13 @@ void HistoryWidget::updateOnlineDisplayTimer() {
 		if (chat->participants.isEmpty()) return;
 
 		for (ChatData::Participants::const_iterator i = chat->participants.cbegin(), e = chat->participants.cend(); i != e; ++i) {
-			int32 onlineWillChangeIn = App::onlineWillChangeIn(i.key()->onlineTill, t);
+			int32 onlineWillChangeIn = App::onlineWillChangeIn(i.key(), t);
 			if (onlineWillChangeIn < minIn) {
 				minIn = onlineWillChangeIn;
 			}
 		}
 	} else {
-		minIn = App::onlineWillChangeIn(histPeer->asUser()->onlineTill, t);
+		minIn = App::onlineWillChangeIn(histPeer->asUser(), t);
 	}
 	App::main()->updateOnlineDisplayIn(minIn * 1000);
 }
@@ -3458,21 +3459,15 @@ void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
 	App::uploader()->uploadMedia(newId, img);
 
 	History *h = App::history(img.peer);
+	h->loadAround(0);
+	int32 flags = newMessageFlags(h->peer); // unread, out
+	if (img.replyTo) flags |= MTPDmessage::flag_reply_to_msg_id;
 	if (img.type == ToPreparePhoto) {
-		h->loadAround(0);
-		int32 flags = (h->peer->input.type() == mtpc_inputPeerSelf) ? 0 : (MTPDmessage_flag_unread | MTPDmessage_flag_out); // unread, out
-		if (img.replyTo) flags |= MTPDmessage::flag_reply_to_msg_id;
-		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(img.peer), MTPint(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(img.photo, MTP_string(""))));
+		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(img.peer), MTPint(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(img.photo, MTP_string("")), MTPnullMarkup));
 	} else if (img.type == ToPrepareDocument) {
-		h->loadAround(0);
-		int32 flags = (h->peer->input.type() == mtpc_inputPeerSelf) ? 0 : (MTPDmessage_flag_unread | MTPDmessage_flag_out); // unread, out
-		if (img.replyTo) flags |= MTPDmessage::flag_reply_to_msg_id;
-		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(img.peer), MTPint(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(img.document)));
+		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(img.peer), MTPint(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(img.document), MTPnullMarkup));
 	} else if (img.type == ToPrepareAudio) {
-		h->loadAround(0);
-		int32 flags = (h->peer->input.type() == mtpc_inputPeerSelf) ? 0 : (MTPDmessage_flag_unread | MTPDmessage_flag_out | MTPDmessage_flag_media_unread); // unread, out
-		if (img.replyTo) flags |= MTPDmessage::flag_reply_to_msg_id;
-		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(img.peer), MTPint(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaAudio(img.audio)));
+		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(img.peer), MTPint(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaAudio(img.audio), MTPnullMarkup));
 	}
 
 	if (hist && histPeer && img.peer == histPeer->id) {
@@ -3503,7 +3498,7 @@ void HistoryWidget::onPhotoUploaded(MsgId newId, const MTPInputFile &file) {
 		if (replyTo) {
 			sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 		}
-		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedPhoto(file, MTP_string("")), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendPhotoFailed, randomId), 0, 0, hist->sendRequestId);
+		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedPhoto(file, MTP_string("")), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendPhotoFailed, randomId), 0, 0, hist->sendRequestId);
 	}
 }
 
@@ -3543,7 +3538,7 @@ void HistoryWidget::onDocumentUploaded(MsgId newId, const MTPInputFile &file) {
 			if (replyTo) {
 				sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 			}
-			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedDocument(file, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedDocument(file, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 		}
 	}
 }
@@ -3569,7 +3564,7 @@ void HistoryWidget::onThumbDocumentUploaded(MsgId newId, const MTPInputFile &fil
 			if (replyTo) {
 				sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 			}
-			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedThumbDocument(file, thumb, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedThumbDocument(file, thumb, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 		}
 	}
 }
@@ -3593,7 +3588,7 @@ void HistoryWidget::onAudioUploaded(MsgId newId, const MTPInputFile &file) {
 			if (replyTo) {
 				sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 			}
-			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedAudio(file, MTP_int(audio->duration), MTP_string(audio->mime)), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedAudio(file, MTP_int(audio->duration), MTP_string(audio->mime)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 		}
 	}
 }
@@ -3895,7 +3890,7 @@ void HistoryWidget::onStickerSend(DocumentData *sticker) {
 	hist->loadAround(0);
 
 	bool out = (histPeer->input.type() != mtpc_inputPeerSelf), unread = (histPeer->input.type() != mtpc_inputPeerSelf);
-	int32 flags = (histPeer->input.type() != mtpc_inputPeerSelf) ? (MTPDmessage_flag_out | MTPDmessage_flag_unread) : 0;
+	int32 flags = newMessageFlags(histPeer); // unread, out
 	int32 sendFlags = 0;
 	if (_replyToId) {
 		flags |= MTPDmessage::flag_reply_to_msg_id;
@@ -3903,7 +3898,7 @@ void HistoryWidget::onStickerSend(DocumentData *sticker) {
 	}
 	hist->addToBackDocument(newId, flags, _replyToId, date(MTP_int(unixtime())), MTP::authedId(), sticker);
 
-	hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), histPeer->input, MTP_int(_replyToId), MTP_inputMediaDocument(MTP_inputDocument(MTP_long(sticker->id), MTP_long(sticker->access))), MTP_long(randomId)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+	hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), histPeer->input, MTP_int(_replyToId), MTP_inputMediaDocument(MTP_inputDocument(MTP_long(sticker->id), MTP_long(sticker->access))), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 	App::main()->finishForwarding(hist);
 	cancelReply();
 

@@ -201,8 +201,56 @@ void UserData::setPhone(const QString &newPhone) {
 	++nameVersion;
 }
 
+void UserData::setBotInfoVersion(int32 version) {
+	if (!botInfo) {
+		botInfo = new BotInfo();
+		botInfo->version = version;
+	} else if (botInfo->version < version) {
+		botInfo->commands.clear();
+		botInfo->description.clear();
+		botInfo->shareText.clear();
+		botInfo->version = version;
+	}
+}
+void UserData::setBotInfo(const MTPBotInfo &info) {
+	switch (info.type()) {
+	case mtpc_botInfoEmpty:
+		delete botInfo;
+		botInfo = 0;
+	break;
+	case mtpc_botInfo: {
+		const MTPDbotInfo &d(info.c_botInfo());
+		if (d.vuser_id.v != id) return;
+		setBotInfoVersion(d.vversion.v);
+		if (botInfo->version > d.vversion.v) return;
+		botInfo->description = qs(d.vdescription);
+		botInfo->shareText = qs(d.vshare_text);
+		
+		const QVector<MTPBotCommand> &v(d.vcommands.c_vector().v);
+		botInfo->commands.clear();
+		botInfo->commands.reserve(v.size());
+		for (int32 i = 0, l = v.size(); i < l; ++i) {
+			if (v.at(i).type() == mtpc_botCommand) {
+				botInfo->commands.push_back(BotCommand(qs(v.at(i).c_botCommand().vcommand), qs(v.at(i).c_botCommand().vparams), qs(v.at(i).c_botCommand().vdescription)));
+			}
+		}
+	} break;
+	}
+}
+
 void UserData::nameUpdated() {
 	nameText.setText(st::msgNameFont, name, _textNameOptions);
+}
+
+void UserData::madeAction() {
+	int32 t = unixtime();
+	if (onlineTill <= 0 && -onlineTill < t) {
+		onlineTill = -t - SetOnlineAfterActivity;
+		if (App::main()) App::main()->peerUpdated(this);
+	} else if (onlineTill > 0 && onlineTill < t + 1) {
+		onlineTill = t + SetOnlineAfterActivity;
+		if (App::main()) App::main()->peerUpdated(this);
+	}
 }
 
 void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) {

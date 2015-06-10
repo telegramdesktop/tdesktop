@@ -118,14 +118,29 @@ private:
 	PeerData *_peer;
 };
 
+struct BotCommand {
+	BotCommand(const QString &command, const QString &params, const QString &description) : command(command), params(params), description(description) {
+	}
+	QString command, params, description;
+};
+struct BotInfo {
+	int32 version;
+	QString shareText, description;
+	QList<BotCommand> commands;
+};
+
 struct PhotoData;
 struct UserData : public PeerData {
-	UserData(const PeerId &id) : PeerData(id), lnk(new PeerLink(this)), onlineTill(0), contact(-1), photosCount(-1) {
+	UserData(const PeerId &id) : PeerData(id), lnk(new PeerLink(this)), photoId(0), onlineTill(0), contact(-1), photosCount(-1), botInfo(0) {
 	}
 	void setPhoto(const MTPUserProfilePhoto &photo);
 	void setName(const QString &first, const QString &last, const QString &phoneName, const QString &username);
 	void setPhone(const QString &newPhone);
+	void setBotInfoVersion(int32 version);
+	void setBotInfo(const MTPBotInfo &info);
 	void nameUpdated();
+
+	void madeAction(); // pseudo-online
 
 	QString firstName;
 	QString lastName;
@@ -140,6 +155,8 @@ struct UserData : public PeerData {
 	typedef QList<PhotoData*> Photos;
 	Photos photos;
 	int32 photosCount; // -1 not loaded, 0 all loaded
+
+	BotInfo *botInfo;
 };
 
 struct ChatData : public PeerData {
@@ -163,6 +180,10 @@ struct ChatData : public PeerData {
 	QString invitationUrl;
 	// geo
 };
+
+inline int32 newMessageFlags(PeerData *p) {
+	return (p->input.type() == mtpc_inputPeerSelf) ? 0 : (((p->chat || !p->asUser()->botInfo) ? MTPDmessage_flag_unread : 0) | MTPDmessage_flag_out);
+}
 
 typedef QMap<char, QPixmap> PreparedPhotoThumbs;
 struct PhotoData {

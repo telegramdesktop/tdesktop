@@ -1109,96 +1109,24 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
-			case mtpc_userSelf:
+			case mtpc_user:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
 				} else {
-					to.add("{ userSelf");
+					to.add("{ user");
 					to.add("\n").addSpaces(lev);
 				}
 				switch (stage) {
-				case 0: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  first_name: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  last_name: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  username: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 4: to.add("  phone: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 5: to.add("  photo: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 6: to.add("  status: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_userContact:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ userContact");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  first_name: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  last_name: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  username: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 4: to.add("  access_hash: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 5: to.add("  phone: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 6: to.add("  photo: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 7: to.add("  status: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_userRequest:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ userRequest");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  first_name: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  last_name: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  username: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 4: to.add("  access_hash: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 5: to.add("  phone: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 6: to.add("  photo: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 7: to.add("  status: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_userForeign:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ userForeign");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  first_name: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  last_name: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  username: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 4: to.add("  access_hash: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 5: to.add("  photo: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 6: to.add("  status: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_userDeleted:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ userDeleted");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  first_name: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  last_name: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  username: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  access_hash: "); ++stages.back(); if (flag & MTPDuser::flag_access_hash) { types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+				case 3: to.add("  first_name: "); ++stages.back(); if (flag & MTPDuser::flag_first_name) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+				case 4: to.add("  last_name: "); ++stages.back(); if (flag & MTPDuser::flag_last_name) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
+				case 5: to.add("  username: "); ++stages.back(); if (flag & MTPDuser::flag_username) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
+				case 6: to.add("  phone: "); ++stages.back(); if (flag & MTPDuser::flag_phone) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 4 IN FIELD flags ]"); } break;
+				case 7: to.add("  photo: "); ++stages.back(); if (flag & MTPDuser::flag_photo) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 5 IN FIELD flags ]"); } break;
+				case 8: to.add("  status: "); ++stages.back(); if (flag & MTPDuser::flag_status) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
+				case 9: to.add("  bot_info_version: "); ++stages.back(); if (flag & MTPDuser::flag_bot_info_version) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 14 IN FIELD flags ]"); } break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -1347,6 +1275,7 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				case 2: to.add("  chat_photo: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 3: to.add("  notify_settings: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 4: to.add("  exported_invite: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 5: to.add("  bot_info: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -1444,6 +1373,7 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				case 7: to.add("  date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 8: to.add("  message: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 9: to.add("  media: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 10: to.add("  reply_markup: "); ++stages.back(); if (flag & MTPDmessage::flag_reply_markup) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -1893,8 +1823,7 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 					to.add("\n").addSpaces(lev);
 				}
 				switch (stage) {
-				case 0: to.add("  expires: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  user: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 0: to.add("  user: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -2048,8 +1977,7 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				case 2: to.add("  profile_photo: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 3: to.add("  notify_settings: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 4: to.add("  blocked: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 5: to.add("  real_first_name: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 6: to.add("  real_last_name: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 5: to.add("  bot_info: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -3057,8 +2985,8 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 					to.add("\n").addSpaces(lev);
 				}
 				switch (stage) {
-				case 0: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  hostname: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 2: to.add("  ip_address: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 3: to.add("  port: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
@@ -4353,6 +4281,81 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
+			case mtpc_botCommand:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ botCommand");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  command: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  params: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  description: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_botInfoEmpty:
+				to.add("{ botInfoEmpty }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+			break;
+
+			case mtpc_botInfo:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ botInfo");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  user_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  version: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  share_text: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 3: to.add("  description: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 4: to.add("  commands: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_keyboardButton:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ keyboardButton");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  text: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_keyboardButtonRow:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ keyboardButtonRow");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  buttons: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_replyKeyboardMarkup:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ replyKeyboardMarkup");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  rows: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
 			case mtpc_req_pq:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
@@ -5018,6 +5021,22 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
+			case mtpc_auth_importBotAuthorization:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ auth_importBotAuthorization");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  flags: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  api_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  api_hash: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 3: to.add("  bot_auth_token: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
 			case mtpc_auth_checkPassword:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
@@ -5388,6 +5407,7 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				case 2: to.add("  reply_to_msg_id: "); ++stages.back(); if (flag & MTPmessages_sendMessage::flag_reply_to_msg_id) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 				case 3: to.add("  message: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 4: to.add("  random_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 5: to.add("  reply_markup: "); ++stages.back(); if (flag & MTPmessages_sendMessage::flag_reply_markup) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -5405,6 +5425,7 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				case 2: to.add("  reply_to_msg_id: "); ++stages.back(); if (flag & MTPmessages_sendMedia::flag_reply_to_msg_id) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 				case 3: to.add("  media: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 4: to.add("  random_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 5: to.add("  reply_markup: "); ++stages.back(); if (flag & MTPmessages_sendMedia::flag_reply_markup) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 2 IN FIELD flags ]"); } break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;

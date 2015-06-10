@@ -206,7 +206,11 @@ namespace App {
         return (peer_id & 0x100000000L) ? int32(peer_id & 0xFFFFFFFFL) : 0;
     }
 
-	int32 onlineForSort(int32 online, int32 now) {
+	int32 onlineForSort(UserData *user, int32 now) {
+		if (isServiceUser(user->id) || user->botInfo) {
+			return now - 1;
+		}
+		int32 online = user->onlineTill;
 		if (online <= 0) {
 			switch (online) {
 			case 0:
@@ -232,8 +236,12 @@ namespace App {
 		return online;
 	}
 
-	int32 onlineWillChangeIn(int32 online, int32 now) {
-        if (online <= 0) {
+	int32 onlineWillChangeIn(UserData *user, int32 now) {
+		if (isServiceUser(user->id) || user->botInfo) {
+			return 86400;
+		}
+		int32 online = user->onlineTill;
+		if (online <= 0) {
             if (-online > now) return -online - now;
             return 86400;
         }
@@ -255,6 +263,8 @@ namespace App {
 	QString onlineText(UserData *user, int32 now, bool precise) {
 		if (isServiceUser(user->id)) {
 			return lang(lng_status_service_notifications);
+		} else if (user->botInfo) {
+			return lang(lng_status_bot);
 		}
 		int32 online = user->onlineTill;
 		if (online <= 0) {
@@ -337,83 +347,47 @@ namespace App {
 				status = &emptyStatus;
 				data->contact = -1;
 			} break;
-			case mtpc_userDeleted: {
-				const MTPDuserDeleted &d(user.c_userDeleted());
+			case mtpc_user: {
+				const MTPDuser &d(user.c_user());
 
 				PeerId peer(peerFromUser(d.vid.v));
 				data = App::user(peer);
-				data->input = MTP_inputPeerContact(d.vid);
-				data->inputUser = MTP_inputUserContact(d.vid);
-				data->setName(lang(lng_deleted), QString(), QString(), QString());
-//				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString(), textOneLine(qs(d.vusername)));
-				data->setPhoto(MTP_userProfilePhotoEmpty());
-				data->access = UserNoAccess;
+				int32 flags = d.vflags.v;
+				if (flags & MTPDuser_flag_self) {
+					data->input = MTP_inputPeerSelf();
+					data->inputUser = MTP_inputUserSelf();
+				} else if ((flags & (MTPDuser_flag_contact | MTPDuser_flag_mutual_contact)) || !d.has_access_hash()) {
+					data->input = MTP_inputPeerContact(d.vid);
+					data->inputUser = MTP_inputUserContact(d.vid);
+				} else {
+					data->input = MTP_inputPeerForeign(d.vid, d.vaccess_hash);
+					data->inputUser = MTP_inputUserForeign(d.vid, d.vaccess_hash);
+				}
+				if (flags & MTPDuser_flag_deleted) {
+					data->setPhone(QString());
+					data->setName(lang(lng_deleted), QString(), QString(), QString());
+					data->setPhoto(MTP_userProfilePhotoEmpty());
+					data->access = UserNoAccess;
+					status = &emptyStatus;
+				} else {
+					data->setPhone(d.has_phone() ? qs(d.vphone) : QString());
+					QString fname = d.has_first_name() ? textOneLine(qs(d.vfirst_name)) : QString();
+					QString lname = d.has_last_name() ? textOneLine(qs(d.vlast_name)) : QString();
+					QString uname = d.has_username() ? textOneLine(qs(d.vusername)) : QString();
+					bool showPhone = !isServiceUser(data->id) && !(flags & (MTPDuser_flag_self | MTPDuser_flag_contact | MTPDuser_flag_mutual_contact));
+					QString pname = (showPhone && !data->phone.isEmpty()) ? formatPhone(data->phone) : QString();
+					data->setName(fname, lname, QString(), uname);
+					data->setPhoto(d.has_photo() ? d.vphoto : MTP_userProfilePhotoEmpty());
+					if (d.has_access_hash()) data->access = d.vaccess_hash.v;
+					status = d.has_status() ? &d.vstatus : &emptyStatus;
+				}
 				wasContact = (data->contact > 0);
-				status = &emptyStatus;
-				data->contact = -1;
-			} break;
-			case mtpc_userSelf: {
-				const MTPDuserSelf &d(user.c_userSelf());
-
-				PeerId peer(peerFromUser(d.vid.v));
-				data = App::user(peer);
-				data->input = MTP_inputPeerSelf();
-				data->inputUser = MTP_inputUserSelf();
-				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString(), textOneLine(qs(d.vusername)));
-				data->setPhoto(d.vphoto);
-				data->setPhone(qs(d.vphone));
-				data->access = 0;
-				wasContact = (data->contact > 0);
-				status = &d.vstatus;
-
-				if (::self != data) {
+				if (d.has_bot_info_version()) data->setBotInfoVersion(d.vbot_info_version.v);
+				data->contact = (flags & (MTPDuser_flag_contact | MTPDuser_flag_mutual_contact)) ? 1 : (data->phone.isEmpty() ? -1 : 0);
+				if ((flags & MTPDuser_flag_self) && ::self != data) {
 					::self = data;
 					if (App::wnd()) App::wnd()->updateGlobalMenu();
 				}
-			} break;
-			case mtpc_userContact: {
-				const MTPDuserContact &d(user.c_userContact());
-
-				PeerId peer(peerFromUser(d.vid.v));
-				data = App::user(peer);
-				data->input = MTP_inputPeerContact(d.vid);
-				data->inputUser = MTP_inputUserContact(d.vid);
-				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString(), textOneLine(qs(d.vusername)));
-				data->setPhoto(d.vphoto);
-				data->setPhone(qs(d.vphone));
-				data->access = d.vaccess_hash.v;
-				wasContact = (data->contact > 0);
-				data->contact = 1;
-				status = &d.vstatus;
-			} break;
-			case mtpc_userRequest: {
-				const MTPDuserRequest &d(user.c_userRequest());
-				
-				PeerId peer(peerFromUser(d.vid.v));
-				data = App::user(peer);
-				data->input = MTP_inputPeerForeign(d.vid, d.vaccess_hash);
-				data->inputUser = MTP_inputUserForeign(d.vid, d.vaccess_hash);
-				data->setPhone(qs(d.vphone));
-				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), (!isServiceUser(data->id) && !data->phone.isEmpty()) ? formatPhone(data->phone) : QString(), textOneLine(qs(d.vusername)));
-				data->setPhoto(d.vphoto);
-				data->access = d.vaccess_hash.v;
-				wasContact = (data->contact > 0);
-				data->contact = 0;
-				status = &d.vstatus;
-			} break;
-			case mtpc_userForeign: {
-				const MTPDuserForeign &d(user.c_userForeign());
-
-				PeerId peer(peerFromUser(d.vid.v));
-				data = App::user(peer);
-				data->input = MTP_inputPeerForeign(d.vid, d.vaccess_hash);
-				data->inputUser = MTP_inputUserForeign(d.vid, d.vaccess_hash);
-				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString(), textOneLine(qs(d.vusername)));
-				data->setPhoto(d.vphoto);
-				data->access = d.vaccess_hash.v;
-				wasContact = (data->contact > 0);
-				data->contact = -1;
-				status = &d.vstatus;
 			} break;
 			}
 
@@ -731,11 +705,7 @@ namespace App {
 			MTPint userId(MTP_int(0));
 			switch (dv.vuser.type()) {
 			case mtpc_userEmpty: userId = dv.vuser.c_userEmpty().vid; break;
-			case mtpc_userDeleted: userId = dv.vuser.c_userDeleted().vid; break;
-			case mtpc_userContact: userId = dv.vuser.c_userContact().vid; break;
-			case mtpc_userSelf: userId = dv.vuser.c_userSelf().vid; break;
-			case mtpc_userRequest: userId = dv.vuser.c_userRequest().vid; break;
-			case mtpc_userForeign: userId = dv.vuser.c_userForeign().vid; break;
+			case mtpc_user: userId = dv.vuser.c_user().vid; break;
 			}
 			if (userId.v) {
 				feedUserLink(userId, dv.vmy_link, dv.vforeign_link);
@@ -1183,6 +1153,7 @@ namespace App {
 	}
 
 	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation) {
+		bool sentSticker = false;
 		if (convert) {
 			if (convert->id != document) {
 				DocumentsData::iterator i = documentsData.find(convert->id);
@@ -1191,6 +1162,7 @@ namespace App {
 				}
 				convert->id = document;
 				convert->status = FileReady;
+				sentSticker = !!convert->sticker;
 			}
 			convert->access = access;
 			if (!convert->date && date) {
@@ -1266,6 +1238,7 @@ namespace App {
 				}
 			}
 		}
+		if (sentSticker && App::main()) App::main()->incrementSticker(result);
 		return result;
 	}
 

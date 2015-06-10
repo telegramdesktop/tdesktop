@@ -92,8 +92,8 @@ namespace App {
     int32 userFromPeer(const PeerId &peer_id);
     int32 chatFromPeer(const PeerId &peer_id);
 
-	int32 onlineForSort(int32 online, int32 now);
-	int32 onlineWillChangeIn(int32 onlineOnServer, int32 nowOnServer);
+	int32 onlineForSort(UserData *user, int32 now);
+	int32 onlineWillChangeIn(UserData *user, int32 nowOnServer);
 	QString onlineText(UserData *user, int32 nowOnServer, bool precise = false);
 	bool onlineColorUse(int32 online, int32 now);
 

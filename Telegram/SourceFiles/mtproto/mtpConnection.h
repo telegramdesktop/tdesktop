@@ -25,8 +25,22 @@ enum {
 	MTPDmessage_flag_out = (1 << 1),
 	MTPDmessage_flag_notify_by_from = (1 << 4),
 	MTPDmessage_flag_media_unread = (1 << 5),
+
 	MTPmessages_SendMessage_flag_skipWebPage = (1 << 1),
+
+	MTPDdcOption_flag_ipv6 = (1 << 0),
+	MTPDdcOption_flag_files = (1 << 1),
+
+	MTPDuser_flag_self = (1 << 10),
+	MTPDuser_flag_contact = (1 << 11),
+	MTPDuser_flag_mutual_contact = (1 << 12),
+	MTPDuser_flag_deleted = (1 << 13),
+	MTPDuser_flag_bot = (1 << 14),
+	MTPDuser_flag_bot_reads_all = (1 << 15),
+	MTPDuser_flag_bot_cant_join = (1 << 16),
 };
+
+static const MTPReplyMarkup MTPnullMarkup = MTP_replyKeyboardMarkup(MTP_vector<MTPKeyboardButtonRow>(0));
 
 #include "mtproto/mtpPublicRSA.h"
 #include "mtproto/mtpAuthKey.h"
@@ -97,11 +111,6 @@ public:
 	int32 state() const;
 	QString transport() const;
 
-    /*template <typename TRequest> // not used
-    uint64 sendAsync(const TRequest &request) {
-        return data->sendAsync(request);
-    }*/
-
 private:
 
 	QThread *thread;
@@ -125,7 +134,7 @@ public:
 
 	virtual void sendData(mtpBuffer &buffer) = 0; // has size + 3, buffer[0] = len, buffer[1] = packetnum, buffer[last] = crc32
 	virtual void disconnectFromServer() = 0;
-	virtual void connectToServer(const QString &addr, int32 port) = 0;
+	virtual void connectToServer(const QString &addr, int32 port, int32 flags) = 0;
 	virtual bool isConnected() = 0;
 	virtual bool usingHttpWait() {
 		return false;
@@ -193,7 +202,7 @@ public:
 
 	void sendData(mtpBuffer &buffer);
 	void disconnectFromServer();
-	void connectToServer(const QString &addr, int32 port);
+	void connectToServer(const QString &addr, int32 port, int32 flags);
 	bool isConnected();
 	bool usingHttpWait();
 	bool needHttpWait();
@@ -255,7 +264,7 @@ public:
 
 	void sendData(mtpBuffer &buffer);
 	void disconnectFromServer();
-	void connectToServer(const QString &addr, int32 port);
+	void connectToServer(const QString &addr, int32 port, int32 flags);
 	bool isConnected();
 
 	int32 debugState() const;
@@ -281,7 +290,7 @@ public:
 	
 	void sendData(mtpBuffer &buffer);
 	void disconnectFromServer();
-	void connectToServer(const QString &addr, int32 port);
+	void connectToServer(const QString &addr, int32 port, int32 flags);
 	bool isConnected();
 	bool usingHttpWait();
 	bool needHttpWait();
@@ -343,16 +352,25 @@ public slots:
 
 	void onPingSender();
 	void onPingSendForce();
-	void onBadConnection();
-	void onCantConnect();
+
+	void onWaitConnectedFailed();
+	void onWaitReceivedFailed();
+	void onWaitIPv4Failed();
+
 	void onOldConnection();
 	void onSentSome(uint64 size);
 	void onReceivedSome();
 
-	void onError(bool maybeBadKey = false);
 	void onReadyData();
 	void socketStart(bool afterConfig = false);
-	void onConnected();
+
+	void onConnected4();
+	void onConnected6();
+	void onDisconnected4();
+	void onDisconnected6();
+	void onError4(bool maybeBadKey = false);
+	void onError6(bool maybeBadKey = false);
+
 	void doDisconnect();
 	void doFinish();
 
@@ -373,7 +391,8 @@ public slots:
 
 private:
 
-	void createConn();
+	void createConn(bool createIPv4, bool createIPv6);
+	void destroyConn(MTPabstractConnection **conn = 0); // 0 - destory all
 
 	mtpMsgId placeToContainer(mtpRequest &toSendRequest, mtpMsgId &bigMsgId, mtpMsgId *&haveSentArr, mtpRequest &req);
 	mtpMsgId prepareToSend(mtpRequest &request, mtpMsgId currentLastId);
@@ -397,7 +416,7 @@ private:
 
 	uint32 dc;
 	MTProtoConnection *_owner;
-	MTPabstractConnection *conn;
+	MTPabstractConnection *_conn, *_conn4, *_conn6;
 
 	SingleTimer retryTimer; // exp retry timer
 	uint32 retryTimeout;
@@ -406,8 +425,8 @@ private:
 	SingleTimer oldConnectionTimer;
 	bool oldConnection;
 
-	SingleTimer connCheckTimer, cantConnectTimer;
-	uint32 receiveDelay, connectDelay;
+	SingleTimer _waitForConnectedTimer, _waitForReceivedTimer, _waitForIPv4Timer;
+	uint32 _waitForReceived, _waitForConnected;
 	int64 firstSentAt;
 
 	QVector<MTPlong> ackRequestData, resendRequestData;

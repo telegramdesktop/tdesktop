@@ -460,6 +460,8 @@ void Histories::regTyping(History *history, UserData *user) {
 	uint64 ms = getms(true);
 	history->typing[user] = ms + 6000;
 
+	user->madeAction();
+
 	TypingHistories::const_iterator i = typing.find(history);
 	if (i == typing.cend()) {
 		typing.insert(history, ms);
@@ -802,10 +804,7 @@ void History::newItemAdded(HistoryItem *item) {
 	App::checkImageCacheSize();
 	if (item->from()) {
 		unregTyping(item->from());
-        if (item->from()->onlineTill < 0) {
-			item->from()->onlineTill = -unixtime() - HiddenIsOnlineAfterMessage; // pseudo-online
-			if (App::main()) App::main()->peerUpdated(item->from());
-        }
+		item->from()->madeAction();
 	}
 	if (item->out()) {
 		if (unreadBar) unreadBar->destroy();
@@ -3083,7 +3082,6 @@ void HistorySticker::updateFrom(const MTPMessageMedia &media) {
 		if (!data->data.isEmpty()) {
 			Local::writeStickerImage(mediaKey(mtpToLocationType(mtpc_inputDocumentFileLocation), data->dc, data->id), data->data);
 		}
-		if (App::main()) App::main()->incrementSticker(data);
 	}
 }
 
@@ -3417,11 +3415,13 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 	}
 	QString title(data->title.isEmpty() ? data->author : data->title);
 	if (!title.isEmpty()) {
-		_title.setText(st::webPageTitleFont, textClean(title), _webpageTitleOptions);
+		title = textClean(title);
+		if (!_asArticle && !data->photo && data->description.isEmpty()) title += textcmdSkipBlock(parent->timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y());
+		_title.setText(st::webPageTitleFont, title, _webpageTitleOptions);
 		if (_asArticle) {
 			_maxw = qMax(_maxw, int32(st::webPageLeft + _title.maxWidth() + st::webPagePhotoDelta + st::webPagePhotoSize));
 		} else {
-			_maxw = qMax(_maxw, int32(st::webPageLeft + _title.maxWidth() + (data->photo ? parent->timeWidth(true) : 0)));
+			_maxw = qMax(_maxw, int32(st::webPageLeft + _title.maxWidth()));
 			_minh += qMin(_title.minHeight(), 2 * st::webPageTitleFont->height);
 		}
 	}

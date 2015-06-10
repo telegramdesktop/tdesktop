@@ -325,13 +325,13 @@ void ProfileInner::updateOnlineDisplayTimer() {
 		if (_peerChat->participants.isEmpty()) return;
 
 		for (ChatData::Participants::const_iterator i = _peerChat->participants.cbegin(), e = _peerChat->participants.cend(); i != e; ++i) {
-			int32 onlineWillChangeIn = App::onlineWillChangeIn(i.key()->onlineTill, t);
+			int32 onlineWillChangeIn = App::onlineWillChangeIn(i.key(), t);
 			if (onlineWillChangeIn < minIn) {
 				minIn = onlineWillChangeIn;
 			}
 		}
 	} else {
-		minIn = App::onlineWillChangeIn(_peerUser->onlineTill, t);
+		minIn = App::onlineWillChangeIn(_peerUser, t);
 	}
 	App::main()->updateOnlineDisplayIn(minIn * 1000);
 }
@@ -354,13 +354,13 @@ void ProfileInner::reorderParticipants() {
         bool onlyMe = true;
         for (ChatData::Participants::const_iterator i = _peerChat->participants.cbegin(), e = _peerChat->participants.cend(); i != e; ++i) {
 			UserData *user = i.key();
-			int32 until = App::onlineForSort(user->onlineTill, t);
+			int32 until = App::onlineForSort(user, t);
 			Participants::iterator before = _participants.begin();
 			if (user != self) {
 				if (before != _participants.end() && (*before) == self) {
 					++before;
 				}
-				while (before != _participants.end() && App::onlineForSort((*before)->onlineTill, t) >= until) {
+				while (before != _participants.end() && App::onlineForSort(*before, t) >= until) {
 					++before;
 				}
                 if (until > t && onlyMe) onlyMe = false;

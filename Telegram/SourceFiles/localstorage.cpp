@@ -609,13 +609,22 @@ namespace {
 	mtpDcOptions *_dcOpts = 0;
 	bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		switch (blockId) {
-		case dbiDcOption: {
+		case dbiDcOptionOld: {
 			quint32 dcId, port;
 			QString host, ip;
 			stream >> dcId >> host >> ip >> port;
 			if (!_checkStreamStatus(stream)) return false;
 
-			if (_dcOpts) _dcOpts->insert(dcId, mtpDcOption(dcId, host.toUtf8().constData(), ip.toUtf8().constData(), port));
+			if (_dcOpts) _dcOpts->insert(dcId, mtpDcOption(dcId, 0, ip.toUtf8().constData(), port));
+		} break;
+
+		case dbiDcOption: {
+			quint32 dcIdWithShift, flags, port;
+			QString ip;
+			stream >> dcIdWithShift >> flags >> ip >> port;
+			if (!_checkStreamStatus(stream)) return false;
+
+			if (_dcOpts) _dcOpts->insert(dcIdWithShift, mtpDcOption(dcIdWithShift % _mtp_internal::dcShift, flags, ip.toUtf8().constData(), port));
 		} break;
 
 		case dbiMaxGroupCount: {
@@ -1723,8 +1732,15 @@ namespace Local {
 		if (dcOpts.isEmpty()) {
 			const BuiltInDc *bdcs = builtInDcs();
 			for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
-				dcOpts.insert(bdcs[i].id, mtpDcOption(bdcs[i].id, "", bdcs[i].ip, bdcs[i].port));
+				dcOpts.insert(bdcs[i].id, mtpDcOption(bdcs[i].id, 0, bdcs[i].ip, bdcs[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
+			}
+
+			const BuiltInDc *bdcsipv6 = builtInDcsIPv6();
+			for (int i = 0, l = builtInDcsCountIPv6(); i < l; ++i) {
+				int32 flags = MTPDdcOption_flag_ipv6, idWithShift = bdcsipv6[i].id + (flags * _mtp_internal::dcShift);
+				dcOpts.insert(idWithShift, mtpDcOption(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port));
+				DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
 			}
 		}
 		{
@@ -1759,8 +1775,14 @@ namespace Local {
 		if (dcOpts.isEmpty()) {
 			const BuiltInDc *bdcs = builtInDcs();
 			for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
-				dcOpts.insert(bdcs[i].id, mtpDcOption(bdcs[i].id, "", bdcs[i].ip, bdcs[i].port));
+				dcOpts.insert(bdcs[i].id, mtpDcOption(bdcs[i].id, 0, bdcs[i].ip, bdcs[i].port));
 				DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
+			}
+
+			const BuiltInDc *bdcsipv6 = builtInDcsIPv6();
+			for (int i = 0, l = builtInDcsCountIPv6(); i < l; ++i) {
+				dcOpts.insert(bdcsipv6[i].id + (MTPDdcOption_flag_ipv6 * _mtp_internal::dcShift), mtpDcOption(bdcsipv6[i].id, MTPDdcOption_flag_ipv6, bdcsipv6[i].ip, bdcsipv6[i].port));
+				DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
 			}
 
 			QWriteLocker lock(MTP::dcOptionsMutex());
@@ -1770,7 +1792,7 @@ namespace Local {
 		quint32 size = 10 * (sizeof(quint32) + sizeof(qint32));
 		for (mtpDcOptions::const_iterator i = dcOpts.cbegin(), e = dcOpts.cend(); i != e; ++i) {
 			size += sizeof(quint32) + sizeof(quint32) + sizeof(quint32);
-			size += _stringSize(QString::fromUtf8(i->host.data(), i->host.size())) + _stringSize(QString::fromUtf8(i->ip.data(), i->ip.size()));
+			size += sizeof(quint32) + _stringSize(QString::fromUtf8(i->ip.data(), i->ip.size()));
 		}
 		size += sizeof(quint32) + _stringSize(cLangFile());
 
@@ -1794,8 +1816,8 @@ namespace Local {
 		data.stream << quint32(dbiScale) << qint32(cConfigScale());
 		data.stream << quint32(dbiLang) << qint32(cLang());
 		for (mtpDcOptions::const_iterator i = dcOpts.cbegin(), e = dcOpts.cend(); i != e; ++i) {
-			data.stream << quint32(dbiDcOption) << quint32(i->id);
-			data.stream << QString::fromUtf8(i->host.data(), i->host.size()) << QString::fromUtf8(i->ip.data(), i->ip.size());
+			data.stream << quint32(dbiDcOption) << quint32(i.key());
+			data.stream << quint32(i->flags) << QString::fromUtf8(i->ip.data(), i->ip.size());
 			data.stream << quint32(i->port);
 		}			
 		data.stream << quint32(dbiLangFile) << cLangFile();

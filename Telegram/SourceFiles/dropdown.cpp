@@ -2635,7 +2635,7 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 				UserData *user = i.key();
 				if (user->username.isEmpty()) continue;
 				if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
-				ordered.insertMulti(App::onlineForSort(user->onlineTill, now), user);
+				ordered.insertMulti(App::onlineForSort(user, now), user);
 			}
 		}
 		for (MentionRows::const_iterator i = _chat->lastAuthors.cbegin(), e = _chat->lastAuthors.cend(); i != e; ++i) {
@@ -2644,7 +2644,7 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 			if (_filter.size() > 1 && (!user->username.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || user->username.size() + 1 == _filter.size())) continue;
 			rows.push_back(user);
 			if (!ordered.isEmpty()) {
-				ordered.remove(App::onlineForSort(user->onlineTill, now), user);
+				ordered.remove(App::onlineForSort(user, now), user);
 			}
 		}
 		if (!ordered.isEmpty()) {

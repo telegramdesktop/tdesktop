@@ -69,6 +69,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_reconnecting_try_now" = "Try now";
 
 "lng_status_service_notifications" = "service notifications";
+"lng_status_bot" = "bot";
 "lng_status_offline" = "last seen a long time ago";
 "lng_status_recently" = "last seen recently";
 "lng_status_last_week" = "last seen within a week";
