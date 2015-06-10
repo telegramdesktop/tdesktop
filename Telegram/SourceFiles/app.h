@@ -225,6 +225,7 @@ namespace App {
 	void setProxySettings(QNetworkAccessManager &manager);
 	void setProxySettings(QTcpSocket &socket);
 
+	void sendBotCommand(const QString &cmd);
 	void searchByHashtag(const QString &tag);
 	void openUserByName(const QString &username, bool toProfile = false);
 	void joinGroupByHash(const QString &hash);

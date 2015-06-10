@@ -1016,6 +1016,12 @@ void MainWidget::stopAnimActive() {
 	history.stopAnimActive();
 }
 
+void MainWidget::sendBotCommand(const QString &cmd) {
+	if (history.peer()) {
+		sendMessage(App::history(history.peer()->id), cmd, 0);
+	}
+}
+
 void MainWidget::searchMessages(const QString &query) {
 	App::wnd()->hideMediaview();
 	dialogs.searchMessages(query);

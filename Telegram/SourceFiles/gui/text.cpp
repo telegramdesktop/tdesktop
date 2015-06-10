@@ -30,6 +30,7 @@ namespace {
 	const QRegularExpression _reMailStart(qsl("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
 	const QRegularExpression _reHashtag(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[\\w]{2,64}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
 	const QRegularExpression _reMention(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])@[A-Za-z_0-9]{5,32}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
+	const QRegularExpression _reBotCommand(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])/[\\w]{1,64}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
 	QSet<int32> _validProtocols, _validTopDomains;
 
 	const style::textStyle *_textStyle = 0;
@@ -59,6 +60,10 @@ const QRegularExpression &reMailName() {
 
 const QRegularExpression &reHashtag() {
 	return _reHashtag;
+}
+
+const QRegularExpression &reBotCommand() {
+	return _reBotCommand;
 }
 
 const style::textStyle *textstyleCurrent() {
@@ -302,7 +307,10 @@ public:
 	}
 
 	void getLinkData(const QString &original, QString &result, int32 &fullDisplayed) {
-		if (!original.isEmpty() && original.at(0) == '@') {
+		if (!original.isEmpty() && original.at(0) == '/') {
+			result = original;
+			fullDisplayed = -4; // bot command 
+		} else if (!original.isEmpty() && original.at(0) == '@') {
 			result = original;
 			fullDisplayed = -3; // mention
 		} else if (!original.isEmpty() && original.at(0) == '#') {
@@ -567,7 +575,9 @@ public:
 					_t->_links.resize(lnkIndex);
 					const TextLinkData &data(links[lnkIndex - maxLnkIndex - 1]);
 					TextLinkPtr lnk;
-					if (data.fullDisplayed < -2) { // mention
+					if (data.fullDisplayed < -3) { // bot command
+						lnk = TextLinkPtr(new BotCommandLink(data.url));
+					} else if (data.fullDisplayed < -2) { // mention
 						if (options.flags & TextTwitterMentions) {
 							lnk = TextLinkPtr(new TextLink(qsl("https://twitter.com/") + data.url.mid(1), true));
 						} else if (options.flags & TextInstagramMentions) {
@@ -612,7 +622,7 @@ private:
 		TextLinkData(const QString &url = QString(), int32 fullDisplayed = 1) : url(url), fullDisplayed(fullDisplayed) {
 		}
 		QString url;
-		int32 fullDisplayed; // -3 - mention, -2 - hashtag, -1 - email
+		int32 fullDisplayed; // -4 - bot command, -3 - mention, -2 - hashtag, -1 - email
 	};
 	typedef QVector<TextLinkData> TextLinks;
 	TextLinks links;
@@ -760,6 +770,12 @@ void MentionLink::onClick(Qt::MouseButton button) const {
 void HashtagLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
 		App::searchByHashtag(_tag);
+	}
+}
+
+void BotCommandLink::onClick(Qt::MouseButton button) const {
+	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
+		App::sendBotCommand(_cmd);
 	}
 }
 
@@ -4071,7 +4087,9 @@ bool textSplit(QString &sendingText, QString &leftText, int32 limit) {
 LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some code is duplicated in flattextarea.cpp!
 	LinkRanges lnkRanges;
 
-	bool withHashtags = (flags & TextParseHashtags), withMentions = (flags & TextParseMentions);
+	bool withHashtags = (flags & TextParseHashtags);
+	bool withMentions = (flags & TextParseMentions);
+	bool withBotCommands = (flags & TextParseBotCommands);
 
 	initLinkSets();
 	int32 len = text.size(), nextCmd = rich ? 0 : len;
@@ -4088,6 +4106,7 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 		QRegularExpressionMatch mExplicitDomain = _reExplicitDomain.match(text, matchOffset);
 		QRegularExpressionMatch mHashtag = withHashtags ? _reHashtag.match(text, matchOffset) : QRegularExpressionMatch();
 		QRegularExpressionMatch mMention = withMentions ? _reMention.match(text, qMax(mentionSkip, matchOffset)) : QRegularExpressionMatch();
+		QRegularExpressionMatch mBotCommand = withBotCommands ? _reBotCommand.match(text, matchOffset) : QRegularExpressionMatch();
 
 		LinkRange link;
 		int32 domainOffset = mDomain.hasMatch() ? mDomain.capturedStart() : INT_MAX,
@@ -4097,7 +4116,9 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 			hashtagOffset = mHashtag.hasMatch() ? mHashtag.capturedStart() : INT_MAX,
 			hashtagEnd = mHashtag.hasMatch() ? mHashtag.capturedEnd() : INT_MAX,
 			mentionOffset = mMention.hasMatch() ? mMention.capturedStart() : INT_MAX,
-			mentionEnd = mMention.hasMatch() ? mMention.capturedEnd() : INT_MAX;
+			mentionEnd = mMention.hasMatch() ? mMention.capturedEnd() : INT_MAX,
+			botCommandOffset = mBotCommand.hasMatch() ? mBotCommand.capturedStart() : INT_MAX,
+			botCommandEnd = mBotCommand.hasMatch() ? mBotCommand.capturedEnd() : INT_MAX;
 		if (mHashtag.hasMatch()) {
 			if (!mHashtag.capturedRef(1).isEmpty()) {
 				++hashtagOffset;
@@ -4127,14 +4148,24 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 				break;
 			}
 		}
-		if (!mMention.hasMatch() && !mDomain.hasMatch() && !mExplicitDomain.hasMatch() && !mHashtag.hasMatch()) break;
+		if (mBotCommand.hasMatch()) {
+			if (!mBotCommand.capturedRef(1).isEmpty()) {
+				++botCommandOffset;
+			}
+			if (!mBotCommand.capturedRef(2).isEmpty()) {
+				--botCommandEnd;
+			}
+		}
+		if (!mDomain.hasMatch() && !mExplicitDomain.hasMatch() && !mHashtag.hasMatch() && !mMention.hasMatch() && !mBotCommand.hasMatch()) {
+			break;
+		}
 
 		if (explicitDomainOffset < domainOffset) {
 			domainOffset = explicitDomainOffset;
 			domainEnd = explicitDomainEnd;
 			mDomain = mExplicitDomain;
 		}
-		if (mentionOffset < hashtagOffset && mentionOffset < domainOffset) {
+		if (mentionOffset < hashtagOffset && mentionOffset < domainOffset && mentionOffset < botCommandOffset) {
 			if (mentionOffset > nextCmd) {
 				const QChar *after = textSkipCommand(start + nextCmd, start + len);
 				if (after > start + nextCmd && mentionOffset < (after - start)) {
@@ -4145,7 +4176,7 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 
 			link.from = start + mentionOffset;
 			link.len = start + mentionEnd - link.from;
-		} else if (hashtagOffset < domainOffset) {
+		} else if (hashtagOffset < domainOffset && hashtagOffset < botCommandOffset) {
 			if (hashtagOffset > nextCmd) {
 				const QChar *after = textSkipCommand(start + nextCmd, start + len);
 				if (after > start + nextCmd && hashtagOffset < (after - start)) {
@@ -4156,6 +4187,17 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 
 			link.from = start + hashtagOffset;
 			link.len = start + hashtagEnd - link.from;
+		} else if (botCommandOffset < domainOffset) {
+			if (botCommandOffset > nextCmd) {
+				const QChar *after = textSkipCommand(start + nextCmd, start + len);
+				if (after > start + nextCmd && botCommandOffset < (after - start)) {
+					nextCmd = offset = matchOffset = after - start;
+					continue;
+				}
+			}
+
+			link.from = start + botCommandOffset;
+			link.len = start + botCommandEnd - link.from;
 		} else {
 			if (domainOffset > nextCmd) {
 				const QChar *after = textSkipCommand(start + nextCmd, start + len);

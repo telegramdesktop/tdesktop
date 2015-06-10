@@ -142,6 +142,8 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result) {
 	App::feedUserLink(MTP_int(App::userFromPeer(peer->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link);
 	App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), d.vnotify_settings);
 
+	peer->asUser()->setBotInfo(d.vbot_info);
+
 	_fullRequests.remove(peer);
 	emit fullPeerLoaded(peer);
 }

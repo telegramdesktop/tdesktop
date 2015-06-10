@@ -41,14 +41,20 @@ TextParseOptions _textDlgOptions = {
 	1, // maxh
 	Qt::LayoutDirectionAuto, // lang-dependent
 };
+TextParseOptions _historyTextOptions = {
+	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
+	0, // maxw
+	0, // maxh
+	Qt::LayoutDirectionAuto, // dir
+};
+TextParseOptions _historyBotOptions = {
+	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands | TextParseMultiline | TextParseRichText, // flags
+	0, // maxw
+	0, // maxh
+	Qt::LayoutDirectionAuto, // dir
+};
 
 namespace {
-	TextParseOptions _historyTextOptions = {
-		TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
-		0, // maxw
-		0, // maxh
-		Qt::LayoutDirectionAuto, // dir
-	};
 	TextParseOptions _historySrvOptions = {
 		TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
 		0, // maxw
@@ -1548,7 +1554,8 @@ HistoryPhoto::HistoryPhoto(const MTPDphoto &photo, const QString &caption, Histo
 , _caption(st::minPhotoSize)
 , openl(new PhotoLink(data)) {
 	if (!caption.isEmpty()) {
-		_caption.setText(st::msgFont, caption + textcmdSkipBlock(parent->timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), _historyTextOptions);
+		bool bot = (!parent->history()->peer->chat && parent->history()->peer->asUser()->botInfo) || (!parent->from()->chat && parent->from()->asUser()->botInfo);
+		_caption.setText(st::msgFont, caption + textcmdSkipBlock(parent->timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), bot ? _historyBotOptions : _historyTextOptions);
 	}
 	init();
 }
@@ -1948,7 +1955,8 @@ HistoryVideo::HistoryVideo(const MTPDvideo &video, const QString &caption, Histo
 , _uplDone(0)
 {
 	if (!caption.isEmpty()) {
-		_caption.setText(st::msgFont, caption + textcmdSkipBlock(parent->timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), _historyTextOptions);
+		bool bot = (!parent->history()->peer->chat && parent->history()->peer->asUser()->botInfo) || (!parent->from()->chat && parent->from()->asUser()->botInfo);
+		_caption.setText(st::msgFont, caption + textcmdSkipBlock(parent->timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), bot ? _historyBotOptions : _historyTextOptions);
 	}
 
 	_size = formatDurationAndSizeText(data->duration, data->size);
@@ -4656,10 +4664,11 @@ void HistoryMessage::initMediaFromDocument(DocumentData *doc) {
 
 void HistoryMessage::initDimensions(const QString &text) {
 	if (!_media || !text.isEmpty()) { // !justMedia()
+		bool bot = (!history()->peer->chat && history()->peer->asUser()->botInfo) || (!from()->chat && from()->asUser()->botInfo);
 		if (_media && _media->isDisplayed()) {
-			_text.setText(st::msgFont, text, _historyTextOptions);
+			_text.setText(st::msgFont, text, bot ? _historyBotOptions : _historyTextOptions);
 		} else {
-			_text.setText(st::msgFont, text + textcmdSkipBlock(timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), _historyTextOptions);
+			_text.setText(st::msgFont, text + textcmdSkipBlock(timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), bot ? _historyBotOptions : _historyTextOptions);
 		}
 	}
 }
@@ -4675,17 +4684,18 @@ void HistoryMessage::initDimensions(const HistoryItem *parent) {
 		_maxw += st::msgPadding.left() + st::msgPadding.right();
 		if (_media) {
 			_media->initDimensions(this);
+			bool bot = (!history()->peer->chat && history()->peer->asUser()->botInfo) || (!from()->chat && from()->asUser()->botInfo);
 			if (_media->isDisplayed() && _text.hasSkipBlock()) {
 				QString was = HistoryMessage::selectedText(FullItemSel);
 				if (!was.isEmpty()) {
-					_text.setText(st::msgFont, was, _historyTextOptions); // without date skip
+					_text.setText(st::msgFont, was, bot ? _historyBotOptions : _historyTextOptions); // without date skip
 					_textWidth = 0;
 					_textHeight = 0;
 				}
 			} else if (!_media->isDisplayed() && !_text.hasSkipBlock()) {
 				QString was = HistoryMessage::selectedText(FullItemSel);
 				if (!was.isEmpty()) {
-					_text.setText(st::msgFont, was + textcmdSkipBlock(timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), _historyTextOptions); // without date skip
+					_text.setText(st::msgFont, was + textcmdSkipBlock(timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), bot ? _historyBotOptions : _historyTextOptions); // without date skip
 					_textWidth = 0;
 					_textHeight = 0;
 				}
@@ -4739,17 +4749,18 @@ void HistoryMessage::setMedia(const MTPmessageMedia &media) {
 	}
 	QString t;
 	initMedia(media, t);
+	bool bot = (!history()->peer->chat && history()->peer->asUser()->botInfo) || (!from()->chat && from()->asUser()->botInfo);
 	if (_media && _media->isDisplayed() && !mediaWasDisplayed) {
 		QString was = HistoryMessage::selectedText(FullItemSel);
 		if (!was.isEmpty()) {
-			_text.setText(st::msgFont, was, _historyTextOptions); // without date skip
+			_text.setText(st::msgFont, was, bot ? _historyBotOptions : _historyTextOptions); // without date skip
 			_textWidth = 0;
 			_textHeight = 0;
 		}
 	} else if (mediaWasDisplayed && (!_media || !_media->isDisplayed())) {
 		QString was = HistoryMessage::selectedText(FullItemSel);
 		if (!was.isEmpty()) {
-			_text.setText(st::msgFont, was + textcmdSkipBlock(timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), _historyTextOptions); // without date skip
+			_text.setText(st::msgFont, was + textcmdSkipBlock(timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), bot ? _historyBotOptions : _historyTextOptions); // without date skip
 			_textWidth = 0;
 			_textHeight = 0;
 		}

@@ -1946,6 +1946,12 @@ namespace App {
 		}
 	}	
 
+	void sendBotCommand(const QString &cmd) {
+		if (App::main()) {
+			App::main()->sendBotCommand(cmd);
+		}
+	}
+
 	void searchByHashtag(const QString &tag) {
 		if (App::main()) {
 			App::main()->searchMessages(tag + ' ');

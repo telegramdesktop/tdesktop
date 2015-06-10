@@ -295,6 +295,8 @@ public:
 	uint64 animActiveTime() const;
 	void stopAnimActive();
 
+	void sendBotCommand(const QString &cmd);
+
 	void searchMessages(const QString &query);
 	void preloadOverviews(PeerData *peer);
 	void mediaOverviewUpdated(PeerData *peer);

@@ -36,6 +36,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 HistoryList::HistoryList(HistoryWidget *historyWidget, ScrollArea *scroll, History *history) : QWidget(0)
     , hist(history)
+	, ySkip(0)
+	, botInfo(history->peer->chat ? 0 : history->peer->asUser()->botInfo)
+	, botDescWidth(0), botDescHeight(0)
     , historyWidget(historyWidget)
     , scrollArea(scroll)
     , currentBlock(0)
@@ -69,6 +72,8 @@ HistoryList::HistoryList(HistoryWidget *historyWidget, ScrollArea *scroll, Histo
 
 	_trippleClickTimer.setSingleShot(true);
 
+	if (botInfo && !botInfo->inited) App::api()->requestFullPeer(hist->peer);
+
 	setMouseTracking(true);
 }
 
@@ -82,7 +87,7 @@ void HistoryList::messagesReceivedDown(const QVector<MTPMessage> &messages) {
 
 void HistoryList::updateMsg(const HistoryItem *msg) {
 	if (!msg || msg->detached() || !hist || hist != msg->history()) return;
-	update(0, height() - hist->height - st::historyPadding + msg->block()->y + msg->y, width(), msg->height());
+	update(0, ySkip + msg->block()->y + msg->y, width(), msg->height());
 }
 
 void HistoryList::paintEvent(QPaintEvent *e) {
@@ -94,10 +99,24 @@ void HistoryList::paintEvent(QPaintEvent *e) {
 		p.setClipRect(r);
 	}
 
-	if (hist->isEmpty()) {
+	if (botInfo && !botInfo->text.isEmpty() && botDescHeight > 0) {
+		if (r.top() < botDescRect.y() + botDescRect.height() && r.bottom() > botDescRect.y()) {
+			textstyleSet(&st::inTextStyle);
+			App::roundRect(p, botDescRect, st::msgInBg, MessageInCorners, &st::msgInShadow);
+
+			p.setFont(st::msgNameFont->f);
+			p.setPen(st::black->p);
+			p.drawText(botDescRect.left() + st::msgPadding.left(), botDescRect.top() + st::msgPadding.top() + st::msgNameFont->ascent, lang(lng_bot_description));
+
+			botInfo->text.draw(p, botDescRect.left() + st::msgPadding.left(), botDescRect.top() + st::msgPadding.top() + st::msgNameFont->height + st::botDescSkip, botDescWidth);
+
+			textstyleRestore();
+		}
+	} else if (hist->isEmpty()) {
 		QPoint dogPos((width() - st::msgDogImg.pxWidth()) / 2, ((height() - st::msgDogImg.pxHeight()) * 4) / 9);
 		p.drawPixmap(dogPos, *cChatDogImage());
-	} else {
+	}
+	if (!hist->isEmpty()) {
 		adjustCurrent(r.top());
 		HistoryBlock *block = (*hist)[currentBlock];
 		HistoryItem *item = (*block)[currentItem];
@@ -105,7 +124,7 @@ void HistoryList::paintEvent(QPaintEvent *e) {
 		SelectedItems::const_iterator selEnd = _selected.cend();
 		bool hasSel = !_selected.isEmpty();
 
-		int32 firstItemY = height() - hist->height - st::historyPadding, drawToY = r.bottom() - firstItemY;
+		int32 drawToY = r.bottom() - ySkip;
 
 		int32 selfromy = 0, seltoy = 0;
 		if (_dragSelFrom && _dragSelTo) {
@@ -114,7 +133,7 @@ void HistoryList::paintEvent(QPaintEvent *e) {
 		}
 
 		int32 iBlock = currentBlock, iItem = currentItem, y = block->y + item->y;
-		p.translate(0, firstItemY + y);
+		p.translate(0, ySkip + y);
 		while (y < drawToY) {
 			int32 h = item->height();
 			uint32 sel = 0;
@@ -922,13 +941,85 @@ void HistoryList::keyPressEvent(QKeyEvent *e) {
 int32 HistoryList::recountHeight(bool dontRecountText) {
 	int32 st = hist->lastScrollTop;
 	hist->geomResize(scrollArea->width(), &st, dontRecountText);
+	updateBotInfo(false);
+	if (botInfo && !botInfo->text.isEmpty()) {
+		int32 tw = scrollArea->width() - st::msgMargin.left() - st::msgMargin.right();
+		if (tw > st::msgMaxWidth) tw = st::msgMaxWidth;
+		tw -= st::msgPadding.left() + st::msgPadding.right();
+		int32 mw = qMax(botInfo->text.maxWidth(), st::msgNameFont->m.width(lang(lng_bot_description)));
+		if (tw > mw) tw = mw;
+
+		botDescWidth = tw;
+		botDescHeight = botInfo->text.countHeight(botDescWidth);
+
+		int32 descH = st::msgMargin.top() + st::msgPadding.top() + st::msgNameFont->height + st::botDescSkip + botDescHeight + st::msgPadding.bottom() + st::msgMargin.bottom();
+		int32 descAtX = (scrollArea->width() - botDescWidth) / 2 - st::msgPadding.left();
+		int32 descAtY = qMin(ySkip - descH, (scrollArea->height() - descH) / 2) + st::msgMargin.top();
+
+		botDescRect = QRect(descAtX, descAtY, botDescWidth + st::msgPadding.left() + st::msgPadding.right(), descH - st::msgMargin.top() - st::msgMargin.bottom());
+	} else {
+		botDescWidth = botDescHeight = 0;
+		botDescRect = QRect();
+	}
 	return st;
 }
 
+void HistoryList::updateBotInfo(bool recount) {
+	int32 newh = 0;
+	if (botInfo && !botInfo->description.isEmpty()) {
+		if (botInfo->text.isEmpty()) {
+			botInfo->text.setText(st::msgFont, botInfo->description, _historyBotOptions);
+			if (recount) {
+				int32 tw = scrollArea->width() - st::msgMargin.left() - st::msgMargin.right();
+				if (tw > st::msgMaxWidth) tw = st::msgMaxWidth;
+				tw -= st::msgPadding.left() + st::msgPadding.right();
+				int32 mw = qMax(botInfo->text.maxWidth(), st::msgNameFont->m.width(lang(lng_bot_description)));
+				if (tw > mw) tw = mw;
+
+				botDescWidth = tw;
+				newh = botInfo->text.countHeight(botDescWidth);
+			}
+		}
+	}
+	if (recount) {
+		if (botDescHeight != newh) {
+			botDescHeight = newh;
+			updateSize();
+		}
+		if (botDescHeight > 0) {
+			int32 descH = st::msgMargin.top() + st::msgPadding.top() + st::msgNameFont->height + st::botDescSkip + botDescHeight + st::msgPadding.bottom() + st::msgMargin.bottom();
+			int32 descAtX = (scrollArea->width() - botDescWidth) / 2 - st::msgPadding.left();
+			int32 descAtY = qMin(ySkip - descH, (scrollArea->height() - descH) / 2) + st::msgMargin.top();
+
+			botDescRect = QRect(descAtX, descAtY, botDescWidth + st::msgPadding.left() + st::msgPadding.right(), descH - st::msgMargin.top() - st::msgMargin.bottom());
+		} else {
+			botDescWidth = 0;
+			botDescRect = QRect();
+		}
+	}
+}
+
 void HistoryList::updateSize() {
-	int32 ph = scrollArea->height(), nh = (hist->height + st::historyPadding) > ph ? (hist->height + st::historyPadding) : ph;
+	int32 ph = scrollArea->height(), minadd = 0;
+	ySkip = ph - (hist->height + st::historyPadding);
+	if (botInfo && !botInfo->text.isEmpty()) {
+		minadd = st::msgMargin.top() + st::msgMargin.bottom() + st::msgPadding.top() + st::msgPadding.bottom() + st::msgNameFont->height + st::botDescSkip + botDescHeight;
+	}
+	if (ySkip < minadd) ySkip = minadd;
+
+	if (botDescHeight > 0) {
+		int32 descH = st::msgMargin.top() + st::msgPadding.top() + st::msgNameFont->height + st::botDescSkip + botDescHeight + st::msgPadding.bottom() + st::msgMargin.bottom();
+		int32 descAtX = (scrollArea->width() - botDescWidth) / 2 - st::msgPadding.left();
+		int32 descAtY = qMin(ySkip - descH, (scrollArea->height() - descH) / 2) + st::msgMargin.top();
+
+		botDescRect = QRect(descAtX, descAtY, botDescWidth + st::msgPadding.left() + st::msgPadding.right(), descH - st::msgMargin.top() - st::msgMargin.bottom());
+	}
+
+	int32 nh = hist->height + st::historyPadding + ySkip;
 	if (width() != scrollArea->width() || height() != nh) {
 		resize(scrollArea->width(), nh);
+
+		dragActionUpdate(QCursor::pos());
 	} else {
 		update();
 	}
@@ -964,12 +1055,11 @@ void HistoryList::adjustCurrent(int32 y) {
 		currentItem = 0;
 	}
 
-	int32 dh = height() - hist->height - st::historyPadding;
-	while ((*hist)[currentBlock]->y + dh > y && currentBlock > 0) {
+	while ((*hist)[currentBlock]->y + ySkip > y && currentBlock > 0) {
 		--currentBlock;
 		currentItem = 0;
 	}
-	while ((*hist)[currentBlock]->y + (*hist)[currentBlock]->height + dh <= y && currentBlock + 1 < hist->size()) {
+	while ((*hist)[currentBlock]->y + (*hist)[currentBlock]->height + ySkip <= y && currentBlock + 1 < hist->size()) {
 		++currentBlock;
 		currentItem = 0;
 	}
@@ -978,10 +1068,10 @@ void HistoryList::adjustCurrent(int32 y) {
 		currentItem = block->size() - 1;
 	}
 	int32 by = block->y;
-	while ((*block)[currentItem]->y + by + dh > y && currentItem > 0) {
+	while ((*block)[currentItem]->y + by + ySkip > y && currentItem > 0) {
 		--currentItem;
 	}
-	while ((*block)[currentItem]->y + (*block)[currentItem]->height() + by + dh <= y && currentItem + 1 < block->size()) {
+	while ((*block)[currentItem]->y + (*block)[currentItem]->height() + by + ySkip <= y && currentItem + 1 < block->size()) {
 		++currentItem;
 	}
 }
@@ -1076,13 +1166,14 @@ void HistoryList::onUpdateSelected() {
 	if (!hist || hist->isEmpty()) return;
 
 	QPoint mousePos(mapFromGlobal(_dragPos));
-	QPoint m(historyWidget->clampMousePosition(mousePos));
-	adjustCurrent(m.y());
+	QPoint point(historyWidget->clampMousePosition(mousePos));
+
+	adjustCurrent(point.y());
 
 	HistoryBlock *block = (*hist)[currentBlock];
 	HistoryItem *item = (*block)[currentItem];
 	App::mousedItem(item);
-	m = mapMouseToItem(m, item);
+	QPoint m = mapMouseToItem(point, item);
 	if (item->hasPoint(m.x(), m.y())) {
 		updateMsg(App::hoveredItem());
 		App::hoveredItem(item);
@@ -1094,17 +1185,36 @@ void HistoryList::onUpdateSelected() {
 	linkTipTimer.start(1000);
 
 	Qt::CursorShape cur = style::cur_default;
-	bool inText, lnkChanged = false;
+	bool inText = false, lnkChanged = false, lnkInDesc = false;
 
 	TextLinkPtr lnk;
-	item->getState(lnk, inText, m.x(), m.y());
+	if (point.y() < ySkip) {
+		if (botInfo && !botInfo->text.isEmpty() && botDescHeight > 0) {
+			botInfo->text.getState(lnk, inText, point.x() - botDescRect.left() - st::msgPadding.left(), point.y() - botDescRect.top() - st::msgPadding.top() - st::botDescSkip - st::msgNameFont->height, botDescWidth);
+			lnkInDesc = true;
+		}
+	} else {
+		item->getState(lnk, inText, m.x(), m.y());
+	}
 	if (lnk != textlnkOver()) {
 		lnkChanged = true;
-		updateMsg(App::hoveredLinkItem());
+		if (textlnkOver()) {
+			if (App::hoveredLinkItem()) {
+				updateMsg(App::hoveredLinkItem());
+			} else {
+				update(botDescRect);
+			}
+		}
 		textlnkOver(lnk);
 		QToolTip::showText(_dragPos, QString(), App::wnd());
-		App::hoveredLinkItem(lnk ? item : 0);
-		updateMsg(App::hoveredLinkItem());
+		App::hoveredLinkItem((lnk && !lnkInDesc) ? item : 0);
+		if (textlnkOver()) {
+			if (App::hoveredLinkItem()) {
+				updateMsg(App::hoveredLinkItem());
+			} else {
+				update(botDescRect);
+			}
+		}
 	}
 
 	if (_dragAction == NoDrag) {
@@ -4110,8 +4220,9 @@ void HistoryWidget::onCancel() {
 
 void HistoryWidget::onPeerLoaded(PeerData *data) {
 	peerUpdated(data);
-	if (data == histPeer) {
+	if (_list && data == histPeer) {
 		checkMentionDropdown();
+		_list->updateBotInfo();
 	}
 }
 

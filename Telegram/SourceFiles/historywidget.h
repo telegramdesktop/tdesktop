@@ -79,6 +79,8 @@ public:
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
+	void updateBotInfo(bool recount = true);
+
 	~HistoryList();
 	
 public slots:
@@ -116,6 +118,12 @@ private:
 	void applyDragSelection();
 
 	History *hist;
+
+	int32 ySkip;
+	BotInfo *botInfo;
+	int32 botDescWidth, botDescHeight;
+	QRect botDescRect;
+
 	HistoryWidget *historyWidget;
 	ScrollArea *scrollArea;
 	int32 currentBlock, currentItem;

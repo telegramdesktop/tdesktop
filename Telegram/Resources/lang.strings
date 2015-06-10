@@ -456,6 +456,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_willbe_history" = "Please select chat to start messaging";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "You";
+"lng_bot_description" = "What can this bot do?";
 
 "lng_typing" = "typing";
 "lng_user_typing" = "{user} is typing";

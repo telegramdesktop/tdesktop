@@ -30,7 +30,7 @@ static const uint32 FullItemSel = 0xFFFFFFFF;
 
 typedef QMap<int32, HistoryItem*> SelectedItemSet;
 
-extern TextParseOptions _textNameOptions, _textDlgOptions;
+extern TextParseOptions _textNameOptions, _textDlgOptions, _historyTextOptions, _historyBotOptions;
 
 #include "structs.h"
 

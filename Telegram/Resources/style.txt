@@ -1915,3 +1915,5 @@ webPageDescriptionFont: font(fsize);
 webPagePhotoSkip: 5px;
 webPagePhotoSize: 100px;
 webPagePhotoDelta: 8px;
+
+botDescSkip: 8px;

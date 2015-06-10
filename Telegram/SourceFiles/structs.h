@@ -124,9 +124,13 @@ struct BotCommand {
 	QString command, params, description;
 };
 struct BotInfo {
+	BotInfo() : inited(false), version(0), text(st::msgMinWidth) {
+	}
+	bool inited;
 	int32 version;
 	QString shareText, description;
 	QList<BotCommand> commands;
+	Text text; // description
 };
 
 struct PhotoData;

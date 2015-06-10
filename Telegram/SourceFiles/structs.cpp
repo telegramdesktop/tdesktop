@@ -210,6 +210,7 @@ void UserData::setBotInfoVersion(int32 version) {
 		botInfo->description.clear();
 		botInfo->shareText.clear();
 		botInfo->version = version;
+		botInfo->inited = false;
 	}
 }
 void UserData::setBotInfo(const MTPBotInfo &info) {
@@ -221,9 +222,18 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 	case mtpc_botInfo: {
 		const MTPDbotInfo &d(info.c_botInfo());
 		if (d.vuser_id.v != id) return;
-		setBotInfoVersion(d.vversion.v);
-		if (botInfo->version > d.vversion.v) return;
-		botInfo->description = qs(d.vdescription);
+		
+		if (botInfo) {
+			botInfo->version = d.vversion.v;
+		} else {
+			setBotInfoVersion(d.vversion.v);
+		}
+
+		QString desc = qs(d.vdescription) + "\n\nhttps://telegram.org test #test test /help test";
+		if (botInfo->description != desc) {
+			botInfo->description = desc;
+			botInfo->text = Text();
+		}
 		botInfo->shareText = qs(d.vshare_text);
 		
 		const QVector<MTPBotCommand> &v(d.vcommands.c_vector().v);
@@ -234,6 +244,8 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 				botInfo->commands.push_back(BotCommand(qs(v.at(i).c_botCommand().vcommand), qs(v.at(i).c_botCommand().vparams), qs(v.at(i).c_botCommand().vdescription)));
 			}
 		}
+
+		botInfo->inited = true;
 	} break;
 	}
 }
