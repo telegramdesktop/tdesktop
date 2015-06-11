@@ -9,6 +9,7 @@ Source code is published under GPL v3, license is available [here](https://githu
 * Windows XP - Windows 8.1 (**not** RT)
 * Mac OS X 10.7 - Mac OS X 10.10
 * Ubuntu 12.04 - Ubuntu 14.04
+* Fedora 22
 
 ###Third-party
 
