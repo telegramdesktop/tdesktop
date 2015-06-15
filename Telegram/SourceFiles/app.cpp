@@ -381,7 +381,11 @@ namespace App {
 					bool showPhone = !isServiceUser(data->id) && !(flags & (MTPDuser_flag_self | MTPDuser_flag_contact | MTPDuser_flag_mutual_contact));
 					QString pname = (showPhone && !data->phone.isEmpty()) ? formatPhone(data->phone) : QString();
 					data->setName(fname, lname, QString(), uname);
-					data->setPhoto(d.has_photo() ? d.vphoto : MTP_userProfilePhotoEmpty());
+					if (d.has_photo()) {
+						data->setPhoto(d.vphoto);
+					} else {
+						data->setPhoto(MTP_userProfilePhotoEmpty());
+					}
 					if (d.has_access_hash()) data->access = d.vaccess_hash.v;
 					status = d.has_status() ? &d.vstatus : &emptyStatus;
 				}

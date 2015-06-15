@@ -136,7 +136,7 @@ struct BotInfo {
 
 struct PhotoData;
 struct UserData : public PeerData {
-	UserData(const PeerId &id) : PeerData(id), lnk(new PeerLink(this)), photoId(0), onlineTill(0), contact(-1), photosCount(-1), botInfo(0) {
+	UserData(const PeerId &id) : PeerData(id), photoId(0), lnk(new PeerLink(this)), onlineTill(0), contact(-1), photosCount(-1), botInfo(0) {
 	}
 	void setPhoto(const MTPUserProfilePhoto &photo);
 	void setName(const QString &first, const QString &last, const QString &phoneName, const QString &username);

@@ -1446,7 +1446,8 @@ void MessageField::focusInEvent(QFocusEvent *e) {
 	emit focused();
 }
 
-BotKeyboard::BotKeyboard() : _wasForMsgId(0), _hoverAnim(animFunc(this, &BotKeyboard::hoverStep)), _st(&st::botKbButton), _sel(-1), _down(-1) {
+BotKeyboard::BotKeyboard() : _wasForMsgId(0),
+_sel(-1), _down(-1), _hoverAnim(animFunc(this, &BotKeyboard::hoverStep)), _st(&st::botKbButton) {
 	setGeometry(0, 0, _st->margin, _st->margin);
 	setMouseTracking(true);
 
@@ -4343,7 +4344,7 @@ void HistoryWidget::addMessagesToBack(const QVector<MTPMessage> &messages) {
 void HistoryWidget::updateBotKeyboard() {
 	bool changed = false;
 	bool wasVisible = _kbShown;
-	if (_replyToId && !_replyTo || !hist) {
+	if ((_replyToId && !_replyTo) || !hist) {
 		changed = _keyboard.updateMarkup(0);
 	} else if (_replyTo) {
 		changed = _keyboard.updateMarkup(_replyTo);

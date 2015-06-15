@@ -224,7 +224,7 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 	break;
 	case mtpc_botInfo: {
 		const MTPDbotInfo &d(info.c_botInfo());
-		if (d.vuser_id.v != id) return;
+		if (App::peerFromUser(d.vuser_id.v) != id) return;
 		
 		if (botInfo) {
 			botInfo->version = d.vversion.v;
