@@ -2017,61 +2017,8 @@ namespace App {
 
 	const ReplyMarkup &replyMarkup(MsgId msgId) {
 		static ReplyMarkup zeroMarkup;
-		if (zeroMarkup.isEmpty()) {
-			QList<QString> cmds;
-			cmds.push_back("Test command 1Test comma");
-			cmds.push_back("Test comma" + emojiGetSequence(0));
-			zeroMarkup.push_back(cmds);
-			cmds.clear();
-			cmds.push_back("123 Test command 1");
-			cmds.push_back("321 Test command 3");
-			cmds.push_back("123 Test command 4");
-			zeroMarkup.push_back(cmds);
-			cmds.clear();
-			cmds.push_back("Test command 11111");
-			cmds.push_back("Test command 222222");
-			cmds.push_back("Test command 33333");
-			cmds.push_back("Test command 444444");
-			cmds.push_back("Test command 55555");
-			zeroMarkup.push_back(cmds);
-			cmds.clear();
-			cmds.push_back("123 1");
-			cmds.push_back("321 3");
-			zeroMarkup.push_back(cmds);
-			cmds.clear();
-			cmds.push_back("Test command 11111");
-			cmds.push_back("Test command 222222");
-			cmds.push_back("Test command 33333");
-			cmds.push_back("Test command 444444");
-			cmds.push_back("Test command 55555");
-			cmds.push_back("123 Test command 1");
-			cmds.push_back("321 Test command 3");
-			cmds.push_back("123 Test command 4");
-			zeroMarkup.push_back(cmds);
-			cmds.clear();
-			cmds.push_back("Test command 11111");
-			cmds.push_back("Test command 222222");
-			cmds.push_back("Test command 33333");
-			cmds.push_back("Test command 444444");
-			cmds.push_back("Test command 55555");
-			cmds.push_back("123 Test command 1");
-			cmds.push_back("321 Test command 3");
-			cmds.push_back("123 Test command 4");
-			zeroMarkup.push_back(cmds);
-			cmds.clear();
-			cmds.push_back("Test command 11111");
-			cmds.push_back("Test command 222222");
-			cmds.push_back("Test command 33333");
-			cmds.push_back("Test command 444444");
-			cmds.push_back("Test command 55555");
-			cmds.push_back("123 Test command 1");
-			cmds.push_back("321 Test command 3");
-			cmds.push_back("123 Test command 4");
-			zeroMarkup.push_back(cmds);
-			cmds.clear();
-		}
 		ReplyMarkups::const_iterator i = replyMarkups.constFind(msgId);
-		if (i == replyMarkups.cend() || true) return zeroMarkup;
+        if (i == replyMarkups.cend()) return zeroMarkup;
 		return i.value();
 	}
 
