@@ -557,6 +557,7 @@ void Window::checkAutoLock() {
 
 void Window::setupIntro(bool anim) {
 	cSetContactsReceived(false);
+	cSetDialogsReceived(false);
 	if (intro && (intro->animating() || intro->isVisible()) && !main) return;
 
 	QPixmap bg = anim ? myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight)) : QPixmap();

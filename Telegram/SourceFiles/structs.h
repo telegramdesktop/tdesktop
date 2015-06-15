@@ -124,9 +124,10 @@ struct BotCommand {
 	QString command, params, description;
 };
 struct BotInfo {
-	BotInfo() : inited(false), version(0), text(st::msgMinWidth) {
+	BotInfo() : inited(false), readsAllHistory(false), cantJoinGroups(false), version(0), text(st::msgMinWidth) {
 	}
 	bool inited;
+	bool readsAllHistory, cantJoinGroups;
 	int32 version;
 	QString shareText, description;
 	QList<BotCommand> commands;
@@ -164,7 +165,7 @@ struct UserData : public PeerData {
 };
 
 struct ChatData : public PeerData {
-	ChatData(const PeerId &id) : PeerData(id), count(0), date(0), version(0), left(false), forbidden(true), photoId(0) {
+	ChatData(const PeerId &id) : PeerData(id), count(0), date(0), version(0), left(false), forbidden(true), botStatus(0), photoId(0) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = 0);
 	int32 count;
@@ -179,6 +180,7 @@ struct ChatData : public PeerData {
 	CanKick cankick;
 	typedef QList<UserData*> LastAuthors;
 	LastAuthors lastAuthors;
+	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 	ImagePtr photoFull;
 	PhotoId photoId;
 	QString invitationUrl;

@@ -30,7 +30,7 @@ namespace {
 	const QRegularExpression _reMailStart(qsl("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
 	const QRegularExpression _reHashtag(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[\\w]{2,64}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
 	const QRegularExpression _reMention(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])@[A-Za-z_0-9]{5,32}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
-	const QRegularExpression _reBotCommand(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])/[\\w]{1,64}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
+	const QRegularExpression _reBotCommand(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])/[\\w]{1,64}(@[A-Za-z_0-9]{5,32})?([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
 	QSet<int32> _validProtocols, _validTopDomains;
 
 	const style::textStyle *_textStyle = 0;
@@ -1104,8 +1104,32 @@ public:
 		if (_yTo >= 0 && _y + _yDelta >= _yTo) return false;
 		if (_y + _yDelta + _fontHeight <= _yFrom) return true;
 
+		uint16 trimmedLineEnd = _lineEnd;
+		for (; trimmedLineEnd > _lineStart; --trimmedLineEnd) {
+			QChar ch = _t->_text.at(trimmedLineEnd - 1);
+			if ((ch != QChar::Space || trimmedLineEnd == _lineStart + 1) && ch != QChar::LineFeed) {
+				break;
+			}
+		}
+
 		ITextBlock *_endBlock = (_endBlockIter == _end) ? 0 : (*_endBlockIter);
 		bool elidedLine = _elideLast && _endBlock && (_y + _lineHeight >= _yTo);
+
+		int blockIndex = _lineStartBlock;
+		ITextBlock *currentBlock = _t->_blocks[blockIndex];
+		ITextBlock *nextBlock = (++blockIndex < _blocksSize) ? _t->_blocks[blockIndex] : 0;
+
+		int32 delta = (currentBlock->from() < _lineStart ? qMin(_lineStart - currentBlock->from(), 2) : 0);
+		_localFrom = _lineStart - delta;
+		int32 lineEnd = (_endBlock && _endBlock->from() < trimmedLineEnd && !elidedLine) ? qMin(uint16(trimmedLineEnd + 2), _blockEnd(_t, _endBlockIter, _end)) : trimmedLineEnd;
+
+		QString lineText = _t->_text.mid(_localFrom, lineEnd - _localFrom);
+		int32 lineStart = delta, lineLength = trimmedLineEnd - _lineStart;
+
+		if (elidedLine) {
+			initParagraphBidi();
+			prepareElidedLine(lineText, lineStart, lineLength, _endBlock);
+		}
 
 		QFixed x = _x;
 		if (_align & Qt::AlignHCenter) {
@@ -1154,34 +1178,9 @@ public:
 			}
 		}
 
-		/* // lpadding is counted to _wLeft
-		for (; _lineStart < _lineEnd; ++_lineStart) {
-			if (_t->_text.at(_lineStart) != QChar::Space) {
-				break;
-			}
-		}/**/
-        for (; _lineEnd > _lineStart; --_lineEnd) {
-			QChar ch = _t->_text.at(_lineEnd - 1);
-            if ((ch != QChar::Space || _lineEnd == _lineStart + 1) && ch != QChar::LineFeed) {
-				break;
-			}
-		}/**/
-		if (_lineEnd == _lineStart && !elidedLine) return true;
+		if (trimmedLineEnd == _lineStart && !elidedLine) return true;
 
-		initParagraphBidi(); // if was not inited
-
-		int blockIndex = _lineStartBlock;
-		ITextBlock *currentBlock = _t->_blocks[blockIndex];
-		ITextBlock *nextBlock = (++blockIndex < _blocksSize) ? _t->_blocks[blockIndex] : 0;
-
-		int32 delta = (currentBlock->from() < _lineStart ? qMin(_lineStart - currentBlock->from(), 2) : 0);
-		_localFrom = _lineStart - delta;
-		int32 lineEnd = (_endBlock && _endBlock->from() < _lineEnd && !elidedLine) ? qMin(uint16(_lineEnd + 2), _blockEnd(_t, _endBlockIter, _end)) : _lineEnd;
-
-		QString lineText = _t->_text.mid(_localFrom, lineEnd - _localFrom);
-		int32 lineStart = delta, lineLength = _lineEnd - _lineStart;
-
-		if (elidedLine) prepareElidedLine(lineText, lineStart, lineLength, _endBlock);
+		if (!elidedLine) initParagraphBidi(); // if was not inited
 
 		_f = _t->_font;
 		QStackTextEngine engine(lineText, _f->f);
@@ -1218,7 +1217,7 @@ public:
 			}
 			if (si.analysis.flags == QScriptAnalysis::Object) {
 				if (_type == TextBlockEmoji || _type == TextBlockSkip) {
-					si.width = currentBlock->f_width() + (nextBlock == _endBlock && (!nextBlock || nextBlock->from() >= _lineEnd) ? 0 : currentBlock->f_rpadding());
+					si.width = currentBlock->f_width() + (nextBlock == _endBlock && (!nextBlock || nextBlock->from() >= trimmedLineEnd) ? 0 : currentBlock->f_rpadding());
 				}
 			}
 		}
@@ -1266,8 +1265,8 @@ public:
 							*_getSymbolAfter = false;
 							*_getSymbolUpon = false;
 						} else {
-							*_getSymbol = (_lineEnd > _lineStart) ? (_lineEnd - 1) : _lineStart;
-							*_getSymbolAfter = (_lineEnd > _lineStart) ? true : false;
+							*_getSymbol = (trimmedLineEnd > _lineStart) ? (trimmedLineEnd - 1) : _lineStart;
+							*_getSymbolAfter = (trimmedLineEnd > _lineStart) ? true : false;
 							*_getSymbolUpon = false;
 						}
 						return false;
@@ -4152,7 +4151,7 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 			if (!mBotCommand.capturedRef(1).isEmpty()) {
 				++botCommandOffset;
 			}
-			if (!mBotCommand.capturedRef(2).isEmpty()) {
+			if (!mBotCommand.capturedRef(3).isEmpty()) {
 				--botCommandEnd;
 			}
 		}

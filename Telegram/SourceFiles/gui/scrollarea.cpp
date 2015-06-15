@@ -661,3 +661,7 @@ void ScrollArea::updateColors(const style::color &bar, const style::color &bg, c
 	hor.update();
 	vert.update();
 }
+
+ScrollArea::~ScrollArea() {
+	takeWidget();
+}

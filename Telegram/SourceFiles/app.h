@@ -35,6 +35,7 @@ typedef QHash<VideoData*, HistoryItemsMap> VideoItems;
 typedef QHash<AudioData*, HistoryItemsMap> AudioItems;
 typedef QHash<DocumentData*, HistoryItemsMap> DocumentItems;
 typedef QHash<WebPageData*, HistoryItemsMap> WebPageItems;
+typedef QList<QList<QString> > ReplyMarkup;
 
 enum RoundCorners {
 	MaskCorners = 0x00, // for images
@@ -48,6 +49,9 @@ enum RoundCorners {
 	MediaviewSaveCorners,
 	EmojiHoverCorners,
 	StickerHoverCorners,
+	BotKeyboardCorners,
+	BotKeyboardOverCorners,
+	BotKeyboardDownCorners,
 
 	InShadowCorners, // for photos without bg
 	InSelectedShadowCorners,
@@ -99,7 +103,7 @@ namespace App {
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users); // returns last user
 	ChatData *feedChats(const MTPVector<MTPChat> &chats); // returns last chat
-	void feedParticipants(const MTPChatParticipants &p);
+	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos = false);
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d);
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d);
 	void feedMsgs(const MTPVector<MTPMessage> &msgs, int msgsState = 0); // 2 - new read message, 1 - new unread message, 0 - not new message, -1 - searched message
@@ -222,10 +226,14 @@ namespace App {
 	void unregMuted(PeerData *peer);
 	void updateMuted();
 
+	void feedReplyMarkup(MsgId msgId, const MTPReplyMarkup &markup);
+	void clearReplyMarkup(MsgId msgId);
+	const ReplyMarkup &replyMarkup(MsgId msgId);
+
 	void setProxySettings(QNetworkAccessManager &manager);
 	void setProxySettings(QTcpSocket &socket);
 
-	void sendBotCommand(const QString &cmd);
+	void sendBotCommand(const QString &cmd, MsgId replyTo = 0);
 	void searchByHashtag(const QString &tag);
 	void openUserByName(const QString &username, bool toProfile = false);
 	void joinGroupByHash(const QString &hash);

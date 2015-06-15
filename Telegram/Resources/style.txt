@@ -992,6 +992,18 @@ btnAttachEmoji: iconedButton(btnAttachDocument) {
 
 	width: 33px;
 }
+btnBotKbShow: iconedButton(btnAttachEmoji) {
+	icon: sprite(375px, 74px, 21px, 16px);
+	iconPos: point(6px, 16px);
+	downIcon: sprite(375px, 74px, 21px, 16px);
+	downIconPos: point(6px, 16px);
+}
+btnBotKbHide: iconedButton(btnAttachEmoji) {
+	icon: sprite(352px, 74px, 23px, 14px);
+	iconPos: point(5px, 17px);
+	downIcon: sprite(352px, 74px, 23px, 14px);
+	downIconPos: point(5px, 17px);
+}
 btnRecordAudio: sprite(363px, 366px, 16px, 24px);
 btnRecordAudioActive: sprite(379px, 366px, 16px, 24px);
 recordSignalColor: #f17077;
@@ -1041,7 +1053,7 @@ textRectMargins: margins(-2px, -1px, -2px, -1px);
 taMsgField: flatTextarea(taDefFlat) {
 	font: msgFont;
 }
-maxFieldHeight: 250px;
+maxFieldHeight: 265px;
 
 newMsgSound: ':/gui/art/newmsg.wav';
 
@@ -1658,6 +1670,31 @@ stickerIconLeft: sprite(342px, 72px, 40px, 1px);
 stickerIconRight: sprite(342px, 73px, 40px, 1px);
 stickerIconMove: 400;
 
+botKbDuration: 200;
+botKbBg: #f7f7f7;
+botKbOverBg: #e8ecef;
+botKbDownBg: #dfe3e6;
+botKbColor: #8a8a8f;
+botKbFont: font(16px);
+botKbButton: botKeyboardButton {
+	margin: 10px;
+	padding: 14px;
+	height: 46px;
+	textTop: 13px;
+	downTextTop: 14px;
+}
+botKbTinyButton: botKeyboardButton {
+	margin: 4px;
+	padding: 3px;
+	height: 25px;
+	textTop: 2px;
+	downTextTop: 3px;
+}
+botKbScroll: flatScroll(newScroll) {
+	deltax: 3px;
+	width: 10px;
+}
+
 mvBgColor: #222;
 mvBgOpacity: 0.92;
 mvThickFont: font(fsize semibold);
@@ -1887,6 +1924,8 @@ mentionPadding: margins(8px, 5px, 8px, 5px);
 mentionTop: 11px;
 mentionFont: linkFont;
 mentionPhotoSize: msgPhotoSize;
+botCommandFont: font(fsize semibold);
+botDescFont: font(fsize italic);
 
 sessionsHeight: 440px;
 sessionHeight: 70px;

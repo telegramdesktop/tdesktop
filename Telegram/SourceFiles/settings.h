@@ -290,6 +290,7 @@ DeclareReadSetting(DBIPlatform, Platform);
 DeclareReadSetting(QUrl, UpdateURL);
 
 DeclareSetting(bool, ContactsReceived);
+DeclareSetting(bool, DialogsReceived);
 
 DeclareSetting(bool, WideMode);
 

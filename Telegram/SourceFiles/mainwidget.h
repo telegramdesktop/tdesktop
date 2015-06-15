@@ -270,7 +270,7 @@ public:
 	void removeContact(UserData *user);
 
 	void addParticipants(ChatData *chat, const QVector<UserData*> &users);
-	bool addParticipantFail(ChatData *chat, const RPCError &e);
+	bool addParticipantFail(UserData *user, const RPCError &e);
 
 	void kickParticipant(ChatData *chat, UserData *user);
 	bool kickParticipantFail(ChatData *chat, const RPCError &e);
@@ -285,6 +285,7 @@ public:
 	void clearSelectedItems();
 
 	DialogsIndexed &contactsList();
+	DialogsIndexed &dialogsList();
     
     void sendMessage(History *history, const QString &text, MsgId replyTo);
 	void sendPreparedText(History *hist, const QString &text, MsgId replyTo, WebPageId webPageId = 0);
@@ -295,7 +296,7 @@ public:
 	uint64 animActiveTime() const;
 	void stopAnimActive();
 
-	void sendBotCommand(const QString &cmd);
+	void sendBotCommand(const QString &cmd, MsgId msgId);
 
 	void searchMessages(const QString &query);
 	void preloadOverviews(PeerData *peer);

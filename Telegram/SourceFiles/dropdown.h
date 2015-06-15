@@ -467,6 +467,7 @@ private:
 
 typedef QList<UserData*> MentionRows;
 typedef QList<QString> HashtagRows;
+typedef QList<QPair<UserData*, BotCommand> > BotCommandRows;
 
 class MentionsDropdown;
 class MentionsInner : public QWidget {
@@ -474,7 +475,7 @@ class MentionsInner : public QWidget {
 
 public:
 
-	MentionsInner(MentionsDropdown *parent, MentionRows *rows, HashtagRows *hrows);
+	MentionsInner(MentionsDropdown *parent, MentionRows *rows, HashtagRows *hrows, BotCommandRows *crows);
 
 	void paintEvent(QPaintEvent *e);
 
@@ -505,6 +506,7 @@ private:
 	MentionsDropdown *_parent;
 	MentionRows *_rows;
 	HashtagRows *_hrows;
+	BotCommandRows *_crows;
 	int32 _sel;
 	bool _mouseSel;
 	QPoint _mousePos;
@@ -523,13 +525,14 @@ public:
 
 	void fastHide();
 
-	void showFiltered(ChatData *chat, QString start);
+	void showFiltered(PeerData *peer, QString start);
 	void updateFiltered(bool toDown = false);
 	void setBoundings(QRect boundings);
 
 	bool animStep(float64 ms);
 
 	const QString &filter() const;
+	ChatData *chat() const;
 
 	int32 innerTop();
 	int32 innerBottom();
@@ -556,11 +559,13 @@ private:
 	QPixmap _cache;
 	MentionRows _rows;
 	HashtagRows _hrows;
+	BotCommandRows _crows;
 
 	ScrollArea _scroll;
 	MentionsInner _inner;
 
 	ChatData *_chat;
+	UserData *_user;
 	QString _filter;
 	QRect _boundings;
 

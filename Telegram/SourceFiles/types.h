@@ -327,6 +327,8 @@ enum DBIScale {
 	dbisScaleCount    = 5,
 };
 
+static const int MatrixRowShift = 40000;
+
 enum DBIEmojiTab {
 	dbietRecent      = -1,
 	dbietPeople      =  0,
@@ -339,7 +341,6 @@ enum DBIEmojiTab {
 	dbietStickers    =  666,
 };
 static const int emojiTabCount = 8;
-static const int emojiTabShift = 100000;
 inline DBIEmojiTab emojiTabAtIndex(int index) {
 	return (index < 0 || index >= emojiTabCount) ? dbietRecent : DBIEmojiTab(index - 1);
 }

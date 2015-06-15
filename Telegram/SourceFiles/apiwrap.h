@@ -40,7 +40,7 @@ public:
 
 signals:
 
-	void fullPeerLoaded(PeerData *peer);
+	void fullPeerUpdated(PeerData *peer);
 
 public slots:
 

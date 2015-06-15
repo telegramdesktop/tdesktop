@@ -435,8 +435,7 @@ struct TextParseOptions {
 	int32 maxh;
 	Qt::LayoutDirection dir;
 };
-extern const TextParseOptions _defaultOptions;
-extern const TextParseOptions _textPlainOptions;
+extern const TextParseOptions _defaultOptions, _textPlainOptions;
 
 enum TextSelectType {
 	TextSelectLetters    = 0x01,

@@ -28,9 +28,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 DialogsListWidget::DialogsListWidget(QWidget *parent, MainWidget *main) : QWidget(parent),
-dialogs(false),
-contactsNoDialogs(true),
-contacts(true),
+dialogs(DialogsSortByDate),
+contactsNoDialogs(DialogsSortByName),
+contacts(DialogsSortByName),
 sel(0),
 contactSel(false),
 selByMouse(false),
@@ -64,6 +64,8 @@ int32 DialogsListWidget::searchedOffset() const {
 }
 
 void DialogsListWidget::paintEvent(QPaintEvent *e) {
+	if (!App::main()) return;
+
 	QRect r(e->rect());
 	bool trivial = (rect() == r);
 
@@ -95,7 +97,7 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 			}
 			p.translate(0, from * st::mentionHeight);
 			if (from < hashtagResults.size()) {
-				int32 to = (r.bottom() / int32(st::mentionHeight)) + 1, w = width();
+				int32 to = (r.bottom() / int32(st::mentionHeight)) + 1, w = width(), htagwidth = w - st::dlgPaddingHor * 2;
 				if (to > hashtagResults.size()) to = hashtagResults.size();
 				p.setFont(st::mentionFont->f);
 				p.setPen(st::black->p);
@@ -106,8 +108,27 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 						int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
 						p.drawPixmap(QPoint(w - st::notifyClose.icon.pxWidth() - skip, skip), App::sprite(), st::notifyClose.icon);
 					}
-					QString tag = st::mentionFont->m.elidedText('#' + hashtagResults.at(from), Qt::ElideRight, w - st::dlgPaddingHor * 2);
-					p.drawText(st::dlgPaddingHor, st::mentionTop + st::mentionFont->ascent, tag);
+
+					QString first = (_hashtagFilter.size() < 2) ? QString() : ('#' + hashtagResults.at(from).mid(0, _hashtagFilter.size() - 1)), second = (_hashtagFilter.size() < 2) ? ('#' + hashtagResults.at(from)) : hashtagResults.at(from).mid(_hashtagFilter.size() - 1);
+					int32 firstwidth = st::mentionFont->m.width(first), secondwidth = st::mentionFont->m.width(second);
+					if (htagwidth < firstwidth + secondwidth) {
+						if (htagwidth < firstwidth + st::mentionFont->elidew) {
+							first = st::mentionFont->m.elidedText(first + second, Qt::ElideRight, htagwidth);
+							second = QString();
+						} else {
+							second = st::mentionFont->m.elidedText(second, Qt::ElideRight, htagwidth - firstwidth);
+						}
+					}
+
+					p.setFont(st::mentionFont->f);
+					if (!first.isEmpty()) {
+						p.setPen(st::profileOnlineColor->p);
+						p.drawText(st::dlgPaddingHor, st::mentionTop + st::mentionFont->ascent, first);
+					}
+					if (!second.isEmpty()) {
+						p.setPen(st::profileOfflineColor->p);
+						p.drawText(st::dlgPaddingHor + firstwidth, st::mentionTop + st::mentionFont->ascent, second);
+					}
 					p.translate(0, st::mentionHeight);
 				}
 			}
@@ -607,8 +628,9 @@ void DialogsListWidget::onFilterUpdate(QString newFilter, bool force) {
 	}
 }
 
-void DialogsListWidget::onHashtagFilterUpdate(QString newFilter) {
+void DialogsListWidget::onHashtagFilterUpdate(QStringRef newFilter) {
 	if (newFilter.isEmpty() || newFilter.at(0) != '#') {
+		_hashtagFilter = QString();
 		if (!hashtagResults.isEmpty()) {
 			hashtagResults.clear();
 			refresh(true);
@@ -616,6 +638,7 @@ void DialogsListWidget::onHashtagFilterUpdate(QString newFilter) {
 		}
 		return;
 	}
+	_hashtagFilter = newFilter.toString();
 	if (cRecentSearchHashtags().isEmpty() && cRecentWriteHashtags().isEmpty()) {
 		Local::readRecentHashtags();
 	}
@@ -624,7 +647,7 @@ void DialogsListWidget::onHashtagFilterUpdate(QString newFilter) {
 	if (!recent.isEmpty()) {
 		hashtagResults.reserve(qMin(recent.size(), 5));
 		for (RecentHashtagPack::const_iterator i = recent.cbegin(), e = recent.cend(); i != e; ++i) {
-			if (i->first.startsWith(newFilter.midRef(1), Qt::CaseInsensitive) && i->first.size() + 1 != newFilter.size()) {
+			if (i->first.startsWith(_hashtagFilter.midRef(1), Qt::CaseInsensitive) && i->first.size() + 1 != newFilter.size()) {
 				hashtagResults.push_back(i->first);
 				if (hashtagResults.size() == 5) break;
 			}
@@ -1604,7 +1627,10 @@ void DialogsWidget::onSearchMore(MsgId minMsgId) {
 
 void DialogsWidget::loadDialogs() {
 	if (dlgPreloading) return;
-	if (dlgCount >= 0 && dlgOffset >= dlgCount) return;
+	if (dlgCount >= 0 && dlgOffset >= dlgCount) {
+		cSetDialogsReceived(true);
+		return;
+	}
 
 	int32 loadCount = dlgOffset ? DialogsPerPage : DialogsFirstLoad;
 	dlgPreloading = MTP::send(MTPmessages_GetDialogs(MTP_int(dlgOffset), MTP_int(0), MTP_int(loadCount)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
@@ -1752,12 +1778,13 @@ void DialogsWidget::onFilterUpdate(bool force) {
 
 void DialogsWidget::onFilterCursorMoved(int from, int to) {
 	if (to < 0) to = _filter.cursorPosition();
-	QString t = _filter.text(), r;
+	QString t = _filter.text();
+	QStringRef r;
 	for (int start = to; start > 0;) {
 		--start;
 		if (t.size() <= start) break;
 		if (t.at(start) == '#') {
-			r = t.mid(start, to - start);
+			r = t.midRef(start, to - start);
 			break;
 		}
 		if (!t.at(start).isLetterOrNumber() && t.at(start) != '_') break;
@@ -1884,6 +1911,10 @@ void DialogsWidget::removeContact(UserData *user) {
 
 DialogsIndexed &DialogsWidget::contactsList() {
 	return list.contactsList();
+}
+
+DialogsIndexed &DialogsWidget::dialogsList() {
+	return list.dialogsList();
 }
 
 void DialogsWidget::onAddContact() {

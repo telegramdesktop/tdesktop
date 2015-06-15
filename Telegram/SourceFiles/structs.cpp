@@ -202,7 +202,10 @@ void UserData::setPhone(const QString &newPhone) {
 }
 
 void UserData::setBotInfoVersion(int32 version) {
-	if (!botInfo) {
+	if (version < 0) {
+		delete botInfo;
+		botInfo = 0;
+	} else if (!botInfo) {
 		botInfo = new BotInfo();
 		botInfo->version = version;
 	} else if (botInfo->version < version) {
@@ -229,10 +232,10 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 			setBotInfoVersion(d.vversion.v);
 		}
 
-		QString desc = qs(d.vdescription) + "\n\nhttps://telegram.org test #test test /help test";
+		QString desc = qs(d.vdescription);
 		if (botInfo->description != desc) {
 			botInfo->description = desc;
-			botInfo->text = Text();
+			botInfo->text = Text(st::msgMinWidth);
 		}
 		botInfo->shareText = qs(d.vshare_text);
 		

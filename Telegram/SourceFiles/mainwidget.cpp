@@ -766,19 +766,21 @@ void MainWidget::removeContact(UserData *user) {
 
 void MainWidget::addParticipants(ChatData *chat, const QVector<UserData*> &users) {
 	for (QVector<UserData*>::const_iterator i = users.cbegin(), e = users.cend(); i != e; ++i) {
-		MTP::send(MTPmessages_AddChatUser(MTP_int(chat->id & 0xFFFFFFFF), (*i)->inputUser, MTP_int(ForwardOnAdd)), rpcDone(&MainWidget::sentUpdatesReceived), rpcFail(&MainWidget::addParticipantFail, chat), 0, 5);
+		MTP::send(MTPmessages_AddChatUser(MTP_int(chat->id & 0xFFFFFFFF), (*i)->inputUser, MTP_int(ForwardOnAdd)), rpcDone(&MainWidget::sentUpdatesReceived), rpcFail(&MainWidget::addParticipantFail, *i), 0, 5);
 	}
 	App::wnd()->hideLayer();
 	showPeer(chat->id, 0, false);
 }
 
-bool MainWidget::addParticipantFail(ChatData *chat, const RPCError &error) {
+bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
 
-	ConfirmBox *box = new ConfirmBox(lang(lng_failed_add_participant), true);
-	App::wnd()->showLayer(box);
+	QString text = lang(lng_failed_add_participant);
 	if (error.type() == "USER_LEFT_CHAT") { // trying to return banned user to his group
+	} else if (error.type() == "USER_ALREADY_PARTICIPANT" && user->botInfo) {
+		text = lang(lng_bot_already_in_group);
 	}
+	App::wnd()->showLayer(new ConfirmBox(text, true));
 	return false;
 }
 
@@ -821,7 +823,7 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 		dialogs.removePeer(peer);
 	} else {
 		History *h = App::historyLoaded(peer->id);
-		if (!h->last) {
+		if (!h->lastMsg) {
 			h->addToBack((*v)[0], 0);
 		}
 	}
@@ -933,6 +935,10 @@ DialogsIndexed &MainWidget::contactsList() {
 	return dialogs.contactsList();
 }
 
+DialogsIndexed &MainWidget::dialogsList() {
+	return dialogs.dialogsList();
+}
+
 void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId replyTo, WebPageId webPageId) {
 	saveRecentHashtags(text);
 	QString sendingText, leftText = text;
@@ -1016,10 +1022,8 @@ void MainWidget::stopAnimActive() {
 	history.stopAnimActive();
 }
 
-void MainWidget::sendBotCommand(const QString &cmd) {
-	if (history.peer()) {
-		sendMessage(App::history(history.peer()->id), cmd, 0);
-	}
+void MainWidget::sendBotCommand(const QString &cmd, MsgId replyTo) {
+	history.sendBotCommand(cmd, replyTo);
 }
 
 void MainWidget::searchMessages(const QString &query) {
@@ -3229,7 +3233,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateChatParticipants: {
 		const MTPDupdateChatParticipants &d(update.c_updateChatParticipants());
-		App::feedParticipants(d.vparticipants);
+		App::feedParticipants(d.vparticipants, true);
 	} break;
 
 	case mtpc_updateChatParticipantAdd: {

@@ -55,6 +55,9 @@ namespace {
 	typedef QHash<WebPageId, WebPageData*> WebPagesData;
 	WebPagesData webPagesData;
 
+	typedef QMap<MsgId, ReplyMarkup> ReplyMarkups;
+	ReplyMarkups replyMarkups;
+
 	VideoItems videoItems;
 	AudioItems audioItems;
 	DocumentItems documentItems;
@@ -208,7 +211,7 @@ namespace App {
 
 	int32 onlineForSort(UserData *user, int32 now) {
 		if (isServiceUser(user->id) || user->botInfo) {
-			return now - 1;
+			return -1;
 		}
 		int32 online = user->onlineTill;
 		if (online <= 0) {
@@ -343,6 +346,7 @@ namespace App {
 				data->setName(lang(lng_deleted), QString(), QString(), QString());
 				data->setPhoto(MTP_userProfilePhotoEmpty());
 				data->access = UserNoAccess;
+				data->setBotInfoVersion(-1);
 				wasContact = (data->contact > 0);
 				status = &emptyStatus;
 				data->contact = -1;
@@ -382,7 +386,13 @@ namespace App {
 					status = d.has_status() ? &d.vstatus : &emptyStatus;
 				}
 				wasContact = (data->contact > 0);
-				if (d.has_bot_info_version()) data->setBotInfoVersion(d.vbot_info_version.v);
+				if (d.has_bot_info_version()) {
+					data->setBotInfoVersion(d.vbot_info_version.v);
+					data->botInfo->readsAllHistory = (d.vflags.v & MTPDuser_flag_bot_reads_all);
+					data->botInfo->cantJoinGroups = (d.vflags.v & MTPDuser_flag_bot_cant_join);
+				} else {
+					data->setBotInfoVersion(-1);
+				}
 				data->contact = (flags & (MTPDuser_flag_contact | MTPDuser_flag_mutual_contact)) ? 1 : (data->phone.isEmpty() ? -1 : 0);
 				if ((flags & MTPDuser_flag_self) && ::self != data) {
 					::self = data;
@@ -446,6 +456,7 @@ namespace App {
 				if (data->version < d.vversion.v) {
 					data->version = d.vversion.v;
 					data->participants = ChatData::Participants();
+					data->botStatus = 0;
 				}
 			} break;
 			case mtpc_chatForbidden: {
@@ -479,6 +490,7 @@ namespace App {
 				if (data->version < d.vversion.v) {
 					data->version = d.vversion.v;
 					data->participants = ChatData::Participants();
+					data->botStatus = 0;
 				}/**/
 			} break;
 			}
@@ -492,7 +504,7 @@ namespace App {
 		return data;
 	}
 
-	void feedParticipants(const MTPChatParticipants &p) {
+	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos) {
 		switch (p.type()) {
 		case mtpc_chatParticipantsForbidden: {
 			const MTPDchatParticipantsForbidden &d(p.c_chatParticipantsForbidden());
@@ -519,17 +531,24 @@ namespace App {
 						}
 					} else {
 						chat->participants = ChatData::Participants();
+						chat->botStatus = 0;
 						break;
 					}
 				}
 				if (!chat->participants.isEmpty()) {
+					int32 botStatus = -1;
 					for (ChatData::Participants::iterator i = chat->participants.begin(), e = chat->participants.end(); i != e;) {
 						if (i.value() < pversion) {
 							i = chat->participants.erase(i);
 						} else {
+							if (i.key()->botInfo) {
+								botStatus = (botStatus > 0 || i.key()->botInfo->readsAllHistory) ? 2 : 1;
+								if (requestBotInfos && !i.key()->botInfo->inited) App::api()->requestFullPeer(i.key());
+							}
 							++i;
 						}
 					}
+					chat->botStatus = botStatus;
 				}
 				if (App::main()) App::main()->peerUpdated(chat);
 			}
@@ -545,6 +564,7 @@ namespace App {
 			if (user) {
 				if (chat->participants.isEmpty() && chat->count) {
 					chat->count++;
+					chat->botStatus = 0;
 				} else if (chat->participants.find(user) == chat->participants.end()) {
 					chat->participants[user] = (chat->participants.isEmpty() ? 1 : chat->participants.begin().value());
 					if (d.vinviter_id.v == MTP::authedId()) {
@@ -553,9 +573,14 @@ namespace App {
 						chat->cankick.remove(user);
 					}
 					chat->count++;
+					if (user->botInfo) {
+						chat->botStatus = (chat->botStatus > 0 || !user->botInfo->readsAllHistory) ? 2 : 1;
+						if (!user->botInfo->inited) App::api()->requestFullPeer(user);
+					}
 				}
 			} else {
 				chat->participants = ChatData::Participants();
+				chat->botStatus = 0;
 				chat->count++;
 			}
 			if (App::main()) App::main()->peerUpdated(chat);
@@ -576,9 +601,23 @@ namespace App {
 						chat->participants.erase(i);
 						chat->count--;
 					}
+					if (chat->botStatus > 0 && user->botInfo) {
+						int32 botStatus = -1;
+						for (ChatData::Participants::const_iterator j = chat->participants.cbegin(), e = chat->participants.cend(); j != e; ++j) {
+							if (j.key()->botInfo) {
+								if (botStatus > 0 || !j.key()->botInfo->readsAllHistory) {
+									botStatus = 2;
+									break;
+								}
+								botStatus = 1;
+							}
+						}
+						chat->botStatus = botStatus;
+					}
 				}
 			} else {
 				chat->participants = ChatData::Participants();
+				chat->botStatus = 0;
 				chat->count--;
 			}
 			if (App::main()) App::main()->peerUpdated(chat);
@@ -1479,6 +1518,7 @@ namespace App {
 		}
 		::maxMsgId = 0;
 		::hoveredItem = ::pressedItem = ::hoveredLinkItem = ::pressedLinkItem = ::contextItem = 0;
+		replyMarkups.clear();
 	}
 
 	void historyClearItems() {
@@ -1634,6 +1674,9 @@ namespace App {
 		prepareCorners(MediaviewSaveCorners, st::msgRadius, st::emojiPanHover);
 		prepareCorners(EmojiHoverCorners, st::msgRadius, st::emojiPanHover);
 		prepareCorners(StickerHoverCorners, st::msgRadius, st::emojiPanHover);
+		prepareCorners(BotKeyboardCorners, st::msgRadius, st::botKbBg);
+		prepareCorners(BotKeyboardOverCorners, st::msgRadius, st::botKbOverBg);
+		prepareCorners(BotKeyboardDownCorners, st::msgRadius, st::botKbDownBg);
 
 		prepareCorners(MessageInCorners, st::msgRadius, st::msgInBg, &st::msgInShadow);
 		prepareCorners(MessageInSelectedCorners, st::msgRadius, st::msgInSelectBg, &st::msgInSelectShadow);
@@ -1928,6 +1971,106 @@ namespace App {
 		if (changeInMin) App::main()->updateMutedIn(changeInMin);
 	}
 
+	void feedReplyMarkup(MsgId msgId, const MTPReplyMarkup &markup) {
+		ReplyMarkup data;
+		switch (markup.type()) {
+		case mtpc_replyKeyboardMarkup: {
+			const MTPDreplyKeyboardMarkup &d(markup.c_replyKeyboardMarkup());
+			const QVector<MTPKeyboardButtonRow> &v(d.vrows.c_vector().v);
+			if (!v.isEmpty()) {
+				data.reserve(v.size());
+				for (int32 i = 0, l = v.size(); i < l; ++i) {
+					switch (v.at(i).type()) {
+					case mtpc_keyboardButtonRow: {
+						const MTPDkeyboardButtonRow &r(v.at(i).c_keyboardButtonRow());
+						const QVector<MTPKeyboardButton> &b(r.vbuttons.c_vector().v);
+						if (!b.isEmpty()) {
+							QList<QString> btns;
+							btns.reserve(b.size());
+							for (int32 j = 0, s = b.size(); j < s; ++j) {
+								switch (b.at(j).type()) {
+								case mtpc_keyboardButton: {
+									btns.push_back(qs(b.at(j).c_keyboardButton().vtext));
+								} break;
+								}
+							}
+							if (!btns.isEmpty()) data.push_back(btns);
+						}
+					} break;
+					}
+				}
+				if (!data.isEmpty()) {
+					replyMarkups.insert(msgId, data);
+				}
+			}
+		} break;
+		}
+	}
+
+	void clearReplyMarkup(MsgId msgId) {
+		replyMarkups.remove(msgId);
+	}
+
+	const ReplyMarkup &replyMarkup(MsgId msgId) {
+		static ReplyMarkup zeroMarkup;
+		if (zeroMarkup.isEmpty()) {
+			QList<QString> cmds;
+			cmds.push_back("Test command 1Test comma");
+			cmds.push_back("Test comma" + emojiGetSequence(0));
+			zeroMarkup.push_back(cmds);
+			cmds.clear();
+			cmds.push_back("123 Test command 1");
+			cmds.push_back("321 Test command 3");
+			cmds.push_back("123 Test command 4");
+			zeroMarkup.push_back(cmds);
+			cmds.clear();
+			cmds.push_back("Test command 11111");
+			cmds.push_back("Test command 222222");
+			cmds.push_back("Test command 33333");
+			cmds.push_back("Test command 444444");
+			cmds.push_back("Test command 55555");
+			zeroMarkup.push_back(cmds);
+			cmds.clear();
+			cmds.push_back("123 1");
+			cmds.push_back("321 3");
+			zeroMarkup.push_back(cmds);
+			cmds.clear();
+			cmds.push_back("Test command 11111");
+			cmds.push_back("Test command 222222");
+			cmds.push_back("Test command 33333");
+			cmds.push_back("Test command 444444");
+			cmds.push_back("Test command 55555");
+			cmds.push_back("123 Test command 1");
+			cmds.push_back("321 Test command 3");
+			cmds.push_back("123 Test command 4");
+			zeroMarkup.push_back(cmds);
+			cmds.clear();
+			cmds.push_back("Test command 11111");
+			cmds.push_back("Test command 222222");
+			cmds.push_back("Test command 33333");
+			cmds.push_back("Test command 444444");
+			cmds.push_back("Test command 55555");
+			cmds.push_back("123 Test command 1");
+			cmds.push_back("321 Test command 3");
+			cmds.push_back("123 Test command 4");
+			zeroMarkup.push_back(cmds);
+			cmds.clear();
+			cmds.push_back("Test command 11111");
+			cmds.push_back("Test command 222222");
+			cmds.push_back("Test command 33333");
+			cmds.push_back("Test command 444444");
+			cmds.push_back("Test command 55555");
+			cmds.push_back("123 Test command 1");
+			cmds.push_back("321 Test command 3");
+			cmds.push_back("123 Test command 4");
+			zeroMarkup.push_back(cmds);
+			cmds.clear();
+		}
+		ReplyMarkups::const_iterator i = replyMarkups.constFind(msgId);
+		if (i == replyMarkups.cend() || true) return zeroMarkup;
+		return i.value();
+	}
+
 	void setProxySettings(QNetworkAccessManager &manager) {
 		if (cConnectionType() == dbictHttpProxy) {
 			const ConnectionProxy &p(cConnectionProxy());
@@ -1946,9 +2089,9 @@ namespace App {
 		}
 	}	
 
-	void sendBotCommand(const QString &cmd) {
+	void sendBotCommand(const QString &cmd, MsgId replyTo) {
 		if (App::main()) {
-			App::main()->sendBotCommand(cmd);
+			App::main()->sendBotCommand(cmd, replyTo);
 		}
 	}
 

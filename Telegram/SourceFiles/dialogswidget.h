@@ -94,7 +94,7 @@ public:
 	bool hasFilteredResults() const;
 
 	void onFilterUpdate(QString newFilter, bool force = false);
-	void onHashtagFilterUpdate(QString newFilter);
+	void onHashtagFilterUpdate(QStringRef newFilter);
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
@@ -130,7 +130,7 @@ private:
 	bool contactSel;
 	bool selByMouse;
 
-	QString filter;
+	QString filter, _hashtagFilter;
 
 	QStringList hashtagResults;
 	int32 hashtagSel;
@@ -197,6 +197,7 @@ public:
 	void removeContact(UserData *user);
 
 	DialogsIndexed &contactsList();
+	DialogsIndexed &dialogsList();
 
 	void enableShadow(bool enable = true);
 	

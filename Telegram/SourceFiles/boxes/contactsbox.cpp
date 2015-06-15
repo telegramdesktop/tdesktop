@@ -23,7 +23,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "window.h"
 
-ContactsInner::ContactsInner(bool creatingChat) : _chat(0), _creatingChat(creatingChat),
+#include "confirmbox.h"
+
+ContactsInner::ContactsInner(bool creatingChat) : _chat(0), _bot(0), _creatingChat(creatingChat), _addToChat(0),
 _contacts(&App::main()->contactsList()),
 _sel(0),
 _filteredSel(-1),
@@ -35,7 +37,7 @@ _addContactLnk(this, lang(lng_add_contact_button)) {
 	init();
 }
 
-ContactsInner::ContactsInner(ChatData *chat) : _chat(chat), _creatingChat(false),
+ContactsInner::ContactsInner(ChatData *chat) : _chat(chat), _bot(0), _creatingChat(false), _addToChat(0),
 _contacts(&App::main()->contactsList()),
 _sel(0),
 _filteredSel(-1),
@@ -44,6 +46,24 @@ _selCount(0),
 _searching(false),
 _byUsernameSel(-1),
 _addContactLnk(this, lang(lng_add_contact_button)) {
+	init();
+}
+
+ContactsInner::ContactsInner(UserData *bot) : _chat(0), _bot(bot), _creatingChat(false), _addToChat(0),
+_contacts(new DialogsIndexed(DialogsSortByAdd)),
+_sel(0),
+_filteredSel(-1),
+_mouseSel(false),
+_selCount(0),
+_searching(false),
+_byUsernameSel(-1),
+_addContactLnk(this, lang(lng_add_contact_button)) {
+	DialogsIndexed &v(App::main()->dialogsList());
+	for (DialogRow *r = v.list.begin; r != v.list.end; r = r->next) {
+		if (r->history->peer->chat && !r->history->peer->asChat()->forbidden) {
+			_contacts->addToEnd(r->history);
+		}
+	}
 	init();
 }
 
@@ -59,8 +79,19 @@ void ContactsInner::init() {
 
 	connect(App::main(), SIGNAL(dialogRowReplaced(DialogRow *, DialogRow *)), this, SLOT(onDialogRowReplaced(DialogRow *, DialogRow *)));
 	connect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData *)));
-	connect(App::main(), SIGNAL(peerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)), this, SLOT(peerUpdated(PeerData *)));
+	connect(App::main(), SIGNAL(peerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)), this, SLOT(onPeerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)));
 	connect(App::main(), SIGNAL(peerPhotoChanged(PeerData *)), this, SLOT(peerUpdated(PeerData *)));
+}
+
+void ContactsInner::onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
+	if (bot()) {
+		_contacts->peerNameChanged(peer, oldNames, oldChars);
+	}
+	peerUpdated(peer);
+}
+
+void ContactsInner::onAddBot() {
+	App::main()->addParticipants(_addToChat, QVector<UserData*>(1, _bot));
 }
 
 void ContactsInner::peerUpdated(PeerData *peer) {
@@ -81,8 +112,8 @@ void ContactsInner::peerUpdated(PeerData *peer) {
 				}
 			}
 		}
-	} else if (!peer->chat) {
-		ContactsData::iterator i = _contactsData.find(peer->asUser());
+	} else {
+		ContactsData::iterator i = _contactsData.find(peer);
 		if (i != _contactsData.cend()) {
 			for (DialogRow *row = _contacts->list.begin; row->next; row = row->next) {
 				if (row->attached == i.value()) row->attached = 0;
@@ -136,14 +167,23 @@ void ContactsInner::loadProfilePhotos(int32 yFrom) {
 ContactsInner::ContactData *ContactsInner::contactData(DialogRow *row) {
 	ContactData *data = (ContactData*)row->attached;
 	if (!data) {
-		UserData *user = row->history->peer->asUser();
-		ContactsData::const_iterator i = _contactsData.constFind(user);
+		PeerData *peer = row->history->peer;
+		ContactsData::const_iterator i = _contactsData.constFind(peer);
 		if (i == _contactsData.cend()) {
-			_contactsData.insert(user, data = new ContactData());
-			data->inchat = _chat ? _chat->participants.contains(user) : false;
+			_contactsData.insert(peer, data = new ContactData());
+			data->inchat = (_chat && !peer->chat) ? _chat->participants.contains(peer->asUser()) : false;
 			data->check = false;
-			data->name.setText(st::profileListNameFont, user->name, _textNameOptions);
-			data->online = App::onlineText(user, _time);
+			data->name.setText(st::profileListNameFont, peer->name, _textNameOptions);
+			if (peer->chat) {
+				ChatData *chat = peer->asChat();
+				if (chat->forbidden) {
+					data->online = lang(lng_chat_status_unaccessible);
+				} else {
+					data->online = lng_chat_status_members(lt_count, chat->count);
+				}
+			} else {
+				data->online = App::onlineText(peer->asUser(), _time);
+			}
 		} else {
 			data = i.value();
 		}
@@ -152,8 +192,10 @@ ContactsInner::ContactData *ContactsInner::contactData(DialogRow *row) {
 	return data;
 }
 
-void ContactsInner::paintDialog(QPainter &p, UserData *user, ContactData *data, bool sel) {
+void ContactsInner::paintDialog(QPainter &p, PeerData *peer, ContactData *data, bool sel) {
 	int32 left = st::profileListPadding.width();
+
+	UserData *user = peer->chat ? 0 : peer->asUser();
 
 	if (data->inchat || data->check || _selCount + (_chat ? _chat->count : 0) >= cMaxGroupCount()) {
 		sel = false;
@@ -163,7 +205,7 @@ void ContactsInner::paintDialog(QPainter &p, UserData *user, ContactData *data, 
 		p.fillRect(0, 0, width(), 2 * st::profileListPadding.height() + st::profileListPhotoSize, ((data->inchat || data->check) ? st::profileActiveBG : st::profileHoverBG)->b);
 	}
 
-	p.drawPixmap(left, st::profileListPadding.height(), user->photo->pix(st::profileListPhotoSize));
+	p.drawPixmap(left, st::profileListPadding.height(), peer->photo->pix(st::profileListPhotoSize));
 
 	if (data->inchat || data->check) {
 		p.setPen(st::white->p);
@@ -181,8 +223,7 @@ void ContactsInner::paintDialog(QPainter &p, UserData *user, ContactData *data, 
 		p.drawPixmap(QPoint(width() - st::contactsImg.pxWidth() - st::profileCheckDeltaX, st::profileListPadding.height() + (st::profileListPhotoSize - st::contactsImg.pxHeight()) / 2 - st::profileCheckDeltaY), App::sprite(), st::contactsImg);
 	}
 
-
-	bool uname = (data->online.at(0) == '@');
+	bool uname = user && (data->online.at(0) == '@');
 	p.setFont(st::profileSubFont->f);
 	if (uname && !data->inchat && !data->check && !_lastQuery.isEmpty() && user->username.startsWith(_lastQuery, Qt::CaseInsensitive)) {
 		int32 availw = width() - (left + st::profileListPhotoSize + st::profileListPadding.width() * 2);
@@ -200,8 +241,10 @@ void ContactsInner::paintDialog(QPainter &p, UserData *user, ContactData *data, 
 	} else {
 		if (data->inchat || data->check) {
 			p.setPen(st::white->p);
+		} else if (user && (uname || App::onlineColorUse(user->onlineTill, _time))) {
+			p.setPen(st::profileOnlineColor->p);
 		} else {
-			p.setPen(((uname || App::onlineColorUse(user->onlineTill, _time)) ? st::profileOnlineColor : st::profileOfflineColor)->p);
+			p.setPen(st::profileOfflineColor->p);
 		}
 		p.drawText(left + st::profileListPhotoSize + st::profileListPadding.width(), st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, data->online);
 	}
@@ -224,7 +267,7 @@ void ContactsInner::paintEvent(QPaintEvent *e) {
 				DialogRow *drawFrom = _contacts->list.current;
 				p.translate(0, drawFrom->pos * rh);
 				while (drawFrom != _contacts->list.end && drawFrom->pos * rh < yTo) {
-					paintDialog(p, drawFrom->history->peer->asUser(), contactData(drawFrom), (drawFrom == _sel));
+					paintDialog(p, drawFrom->history->peer, contactData(drawFrom), (drawFrom == _sel));
 					p.translate(0, rh);
 					drawFrom = drawFrom->next;
 				}
@@ -253,13 +296,29 @@ void ContactsInner::paintEvent(QPaintEvent *e) {
 		} else {
 			p.setFont(st::noContactsFont->f);
 			p.setPen(st::noContactsColor->p);
-			p.drawText(QRect(0, 0, width(), st::noContactsHeight - ((cContactsReceived() && !_searching) ? st::noContactsFont->height : 0)), lang((cContactsReceived() && !_searching) ? lng_no_contacts : lng_contacts_loading), style::al_center);
+			QString text;
+			int32 skip = 0;
+			if (bot()) {
+				text = lang(cDialogsReceived() ? lng_bot_no_groups : lng_contacts_loading);
+			} else if (cContactsReceived() && !_searching) {
+				text = lang(lng_no_contacts);
+				skip = st::noContactsFont->height;
+			} else {
+				text = lang(lng_contacts_loading);
+			}
+			p.drawText(QRect(0, 0, width(), st::noContactsHeight - skip), text, style::al_center);
 		}
 	} else {
 		if (_filtered.isEmpty() && _byUsernameFiltered.isEmpty()) {
 			p.setFont(st::noContactsFont->f);
 			p.setPen(st::noContactsColor->p);
-			p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang((cContactsReceived() && !_searching) ? lng_contacts_not_found : lng_contacts_loading), style::al_center);
+			QString text;
+			if (bot()) {
+				text = lang(cDialogsReceived() ? lng_bot_groups_not_found : lng_contacts_loading);
+			} else {
+				text = lang((cContactsReceived() && !_searching) ? lng_contacts_not_found : lng_contacts_loading);
+			}
+			p.drawText(QRect(0, 0, width(), st::noContactsHeight), text, style::al_center);
 		} else {
 			if (!_filtered.isEmpty()) {
 				int32 from = (yFrom >= 0) ? (yFrom / rh) : 0;
@@ -269,7 +328,7 @@ void ContactsInner::paintEvent(QPaintEvent *e) {
 
 					p.translate(0, from * rh);
 					for (; from < to; ++from) {
-						paintDialog(p, _filtered[from]->history->peer->asUser(), contactData(_filtered[from]), (_filteredSel == from));
+						paintDialog(p, _filtered[from]->history->peer, contactData(_filtered[from]), (_filteredSel == from));
 						p.translate(0, rh);
 					}
 				}
@@ -371,25 +430,32 @@ void ContactsInner::chooseParticipant() {
 		}
 	} else {
 		int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2, from;
-		PeerId peer = 0;
+		PeerData *peer = 0;
 		if (_filter.isEmpty()) {
 			if (_byUsernameSel >= 0 && _byUsernameSel < _byUsername.size()) {
-				peer = _byUsername[_byUsernameSel]->id;
-			} else {
-				peer = _sel ? _sel->history->peer->id : 0;
+				peer = _byUsername[_byUsernameSel];
+			} else if (_sel) {
+				peer = _sel->history->peer;
 			}
 		} else {
 			if (_byUsernameSel >= 0 && _byUsernameSel < _byUsernameFiltered.size()) {
-				peer = _byUsernameFiltered[_byUsernameSel]->id;
+				peer = _byUsernameFiltered[_byUsernameSel];
 			} else {
 				if (_filteredSel < 0 || _filteredSel >= _filtered.size()) return;
-				peer = _filtered[_filteredSel]->history->peer->id;
+				peer = _filtered[_filteredSel]->history->peer;
 			}
 		}
 		if (peer) {
-			App::wnd()->hideSettings(true);
-			App::main()->showPeer(peer, 0, false, true);
-			App::wnd()->hideLayer();
+			if (bot() && peer->chat) {
+				_addToChat = peer->asChat();
+				ConfirmBox *box = new ConfirmBox(lng_bot_sure_invite(lt_group, peer->name));
+				connect(box, SIGNAL(confirmed()), this, SLOT(onAddBot()));
+				App::wnd()->replaceLayer(box);
+			} else {
+				App::wnd()->hideSettings(true);
+				App::main()->showPeer(peer->id, 0, false, true);
+				App::wnd()->hideLayer();
+			}
 		}
 	}
 	parentWidget()->update();
@@ -562,8 +628,10 @@ void ContactsInner::updateFilter(QString filter) {
 
 			refresh();
 
-			_searching = true;
-			emit searchByUsername();
+			if (!bot()) {
+				_searching = true;
+				emit searchByUsername();
+			}
 		}
 		if (parentWidget()) parentWidget()->update();
 		loadProfilePhotos(0);
@@ -612,6 +680,8 @@ void ContactsInner::peopleReceived(const QString &query, const QVector<MTPContac
 		}
 		if (j == already) {
 			UserData *u = App::user(uid);
+			if (u->botInfo && u->botInfo->cantJoinGroups && (_chat || _creatingChat)) continue; // skip bot's that can't be invited to groups
+
 			ContactData *d = new ContactData();
 			_byUsernameDatas.push_back(d);
 			d->inchat = _chat ? _chat->participants.contains(u) : false;
@@ -634,7 +704,7 @@ void ContactsInner::refresh() {
 			if (!_addContactLnk.isHidden()) _addContactLnk.hide();
 			resize(width(), (_contacts->list.count * rh) + (_byUsername.isEmpty() ? 0 : (st::searchedBarHeight + _byUsername.size() * rh)));
 		} else {
-			if (cContactsReceived()) {
+			if (cContactsReceived() && !bot()) {
 				if (_addContactLnk.isHidden()) _addContactLnk.show();
 			} else {
 				if (!_addContactLnk.isHidden()) _addContactLnk.hide();
@@ -656,6 +726,10 @@ ChatData *ContactsInner::chat() const {
 	return _chat;
 }
 
+UserData *ContactsInner::bot() const {
+	return _bot;
+}
+
 bool ContactsInner::creatingChat() const {
 	return _creatingChat;
 }
@@ -664,6 +738,7 @@ ContactsInner::~ContactsInner() {
 	for (ContactsData::iterator i = _contactsData.begin(), e = _contactsData.end(); i != e; ++i) {
 		delete *i;
 	}
+	if (_bot) delete _contacts;
 }
 
 void ContactsInner::resizeEvent(QResizeEvent *e) {
@@ -796,8 +871,8 @@ QVector<UserData*> ContactsInner::selected() {
 	QVector<UserData*> result;
 	result.reserve(_contactsData.size());
 	for (ContactsData::const_iterator i = _contactsData.cbegin(), e = _contactsData.cend(); i != e; ++i) {
-		if (i.value()->check) {
-			result.push_back(i.key());
+		if (i.value()->check && !i.key()->chat) {
+			result.push_back(i.key()->asUser());
 		}
 	}
 	for (int32 i = 0, l = _byUsername.size(); i < l; ++i) {
@@ -812,7 +887,7 @@ QVector<MTPInputUser> ContactsInner::selectedInputs() {
 	QVector<MTPInputUser> result;
 	result.reserve(_contactsData.size());
 	for (ContactsData::const_iterator i = _contactsData.cbegin(), e = _contactsData.cend(); i != e; ++i) {
-		if (i.value()->check) {
+		if (i.value()->check && !i.key()->chat) {
 			result.push_back(i.key()->inputUser);
 		}
 	}
@@ -851,6 +926,14 @@ _addContact(this, lang(lng_add_contact_button), st::contactsAdd),
 _filter(this, st::contactsFilter, lang(lng_participant_filter)),
 _next(this, lang(lng_participant_invite), st::btnSelectDone),
 _cancel(this, lang(lng_cancel), st::btnSelectCancel) {
+	init();
+}
+
+ContactsBox::ContactsBox(UserData *bot) : ItemListBox(st::boxNoTopScroll), _inner(bot),
+_addContact(this, lang(lng_add_contact_button), st::contactsAdd),
+_filter(this, st::contactsFilter, lang(lng_participant_filter)),
+_next(this, lang(lng_create_group_next), st::btnSelectDone),
+_cancel(this, lang(lng_cancel), st::contactsClose) {
 	init();
 }
 
@@ -961,14 +1044,17 @@ void ContactsBox::hideAll() {
 
 void ContactsBox::showAll() {
 	ItemListBox::showAll();
-	_addContact.show();
 	_filter.show();
 	if (_inner.chat() || _inner.creatingChat()) {
 		_next.show();
 		_addContact.hide();
 	} else {
 		_next.hide();
-		_addContact.show();
+		if (_inner.bot()) {
+			_addContact.hide();
+		} else {
+			_addContact.show();
+		}
 	}
 	_cancel.show();
 }
@@ -1010,6 +1096,8 @@ void ContactsBox::paintEvent(QPaintEvent *e) {
 
 		// paint button sep
 		p.fillRect(st::btnSelectCancel.width, size().height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
+	} else if (_inner.bot()) {
+		paintTitle(p, lang(lng_bot_choose_group), true);
 	} else {
 		paintTitle(p, lang(lng_contacts_header), true);
 	}

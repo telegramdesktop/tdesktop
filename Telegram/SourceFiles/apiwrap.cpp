@@ -119,6 +119,19 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result) {
 	App::feedUsers(d.vusers);
 	App::feedChats(d.vchats);
 	App::feedParticipants(f.vparticipants);
+	const QVector<MTPBotInfo> &v(f.vbot_info.c_vector().v);
+	for (QVector<MTPBotInfo>::const_iterator i = v.cbegin(), e = v.cend(); i < e; ++i) {
+		switch (i->type()) {
+		case mtpc_botInfo: {
+			const MTPDbotInfo &b(i->c_botInfo());
+			UserData *user = App::userLoaded(b.vuser_id.v);
+			if (user) {
+				user->setBotInfo(*i);
+				emit fullPeerUpdated(user);
+			}
+		} break;
+		}
+	}
 	PhotoData *photo = App::feedPhoto(f.vchat_photo);
 	ChatData *chat = peer->asChat();
 	if (chat) {
@@ -132,7 +145,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result) {
 	App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
 
 	_fullRequests.remove(peer);
-	emit fullPeerLoaded(peer);
+	emit fullPeerUpdated(peer);
 }
 
 void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result) {
@@ -145,7 +158,7 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result) {
 	peer->asUser()->setBotInfo(d.vbot_info);
 
 	_fullRequests.remove(peer);
-	emit fullPeerLoaded(peer);
+	emit fullPeerUpdated(peer);
 }
 
 bool ApiWrap::gotPeerFailed(PeerData *peer, const RPCError &error) {

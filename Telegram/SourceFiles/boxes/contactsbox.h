@@ -30,6 +30,7 @@ public:
 
 	ContactsInner(bool creatingChat);
 	ContactsInner(ChatData *chat);
+	ContactsInner(UserData *bot);
 	void init();
 
 	void paintEvent(QPaintEvent *e);
@@ -39,7 +40,7 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
 	
-	void paintDialog(QPainter &p, UserData *user, ContactData *data, bool sel);
+	void paintDialog(QPainter &p, PeerData *peer, ContactData *data, bool sel);
 	void updateFilter(QString filter = QString());
 
 	void selectSkip(int32 dir);
@@ -59,6 +60,7 @@ public:
 	void refresh();
 
 	ChatData *chat() const;
+	UserData *bot() const;
 	bool creatingChat() const;
 
 	~ContactsInner();
@@ -75,11 +77,17 @@ public slots:
 
 	void updateSel();
 	void peerUpdated(PeerData *peer);
+	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
+
+	void onAddBot();
 
 private:
 
 	ChatData *_chat;
+	UserData *_bot;
 	bool _creatingChat;
+
+	ChatData *_addToChat;
 	
 	int32 _time;
 
@@ -99,7 +107,7 @@ private:
 		bool inchat;
 		bool check;
 	};
-	typedef QMap<UserData*, ContactData*> ContactsData;
+	typedef QMap<PeerData*, ContactData*> ContactsData;
 	ContactsData _contactsData;
 
 	ContactData *contactData(DialogRow *row);
@@ -125,6 +133,7 @@ public:
 
 	ContactsBox(bool creatingChat = false);
 	ContactsBox(ChatData *chat);
+	ContactsBox(UserData *bot);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);

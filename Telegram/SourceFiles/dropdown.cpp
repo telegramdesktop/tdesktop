@@ -779,7 +779,7 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 				int32 index = i * EmojiPanPerRow + j;
 				if (index >= size) break;
 
-				float64 hover = (!_picker.isHidden() && c * emojiTabShift + index == _pickerSel) ? 1 : _hovers[c][index];
+				float64 hover = (!_picker.isHidden() && c * MatrixRowShift + index == _pickerSel) ? 1 : _hovers[c][index];
 
 				QPoint w(st::emojiPanPadding + j * st::emojiPanSize.width(), y + i * st::emojiPanSize.height());
 				if (hover > 0) {
@@ -817,7 +817,7 @@ void EmojiPanInner::mousePressEvent(QMouseEvent *e) {
 	_pressedSel = _selected;
 
 	if (_selected >= 0 && _selected != SwitcherSelected) {
-		int tab = (_selected / emojiTabShift), sel = _selected % emojiTabShift;
+		int tab = (_selected / MatrixRowShift), sel = _selected % MatrixRowShift;
 		if (tab < emojiTabCount && sel < _emojis[tab].size() && _emojis[tab][sel]->color) {
 			_pickerSel = _selected;
 			if (cEmojiVariants().constFind(_emojis[tab][sel]->code) == cEmojiVariants().cend()) {
@@ -838,7 +838,7 @@ void EmojiPanInner::mouseReleaseEvent(QMouseEvent *e) {
 		if (_picker.rect().contains(_picker.mapFromGlobal(_lastMousePos))) {
 			return _picker.mouseReleaseEvent(0);
 		} else if (_pickerSel >= 0) {
-			int tab = (_pickerSel / emojiTabShift), sel = _pickerSel % emojiTabShift;
+			int tab = (_pickerSel / MatrixRowShift), sel = _pickerSel % MatrixRowShift;
 			if (tab < emojiTabCount && sel < _emojis[tab].size() && _emojis[tab][sel]->color) {
 				if (cEmojiVariants().constFind(_emojis[tab][sel]->code) != cEmojiVariants().cend()) {
 					_picker.hideStart();
@@ -860,11 +860,11 @@ void EmojiPanInner::mouseReleaseEvent(QMouseEvent *e) {
 		return;
 	}
 
-	if (_selected >= emojiTabCount * emojiTabShift) {
+	if (_selected >= emojiTabCount * MatrixRowShift) {
 		return;
 	}
 
-	int tab = (_selected / emojiTabShift), sel = _selected % emojiTabShift;
+	int tab = (_selected / MatrixRowShift), sel = _selected % MatrixRowShift;
 	if (sel < _emojis[tab].size()) {
 		EmojiPtr emoji(_emojis[tab][sel]);
 		if (emoji->color && !_picker.isHidden()) return;
@@ -917,7 +917,7 @@ void EmojiPanInner::onSaveConfig() {
 }
 
 void EmojiPanInner::onShowPicker() {
-	int tab = (_pickerSel / emojiTabShift), sel = _pickerSel % emojiTabShift;
+	int tab = (_pickerSel / MatrixRowShift), sel = _pickerSel % MatrixRowShift;
 	if (tab < emojiTabCount && sel < _emojis[tab].size() && _emojis[tab][sel]->color) {
 		int32 y = 0;
 		for (int c = 0; c <= tab; ++c) {
@@ -952,7 +952,7 @@ void EmojiPanInner::onColorSelected(EmojiPtr emoji) {
 		cRefEmojiVariants().insert(emoji->code, emojiKey(emoji));
 	}
 	if (_pickerSel >= 0) {
-		int tab = (_pickerSel / emojiTabShift), sel = _pickerSel % emojiTabShift;
+		int tab = (_pickerSel / MatrixRowShift), sel = _pickerSel % MatrixRowShift;
 		if (tab >= 0 && tab < emojiTabCount) {
 			_emojis[tab][sel] = emoji;
 			update();
@@ -991,7 +991,7 @@ void EmojiPanInner::clearSelection(bool fast) {
 	_lastMousePos = mapToGlobal(QPoint(-10, -10));
 	if (fast) {
 		for (Animations::const_iterator i = _animations.cbegin(); i != _animations.cend(); ++i) {
-			int index = qAbs(i.key()) - 1, tab = (index / emojiTabShift), sel = index % emojiTabShift;
+			int index = qAbs(i.key()) - 1, tab = (index / MatrixRowShift), sel = index % MatrixRowShift;
 			(index == SwitcherSelected ? _switcherHover : _hovers[tab][sel]) = 0;
 		}
 		_animations.clear();
@@ -1055,7 +1055,7 @@ void EmojiPanInner::updateSelected() {
 					if (selIndex >= _emojis[c].size()) {
 						selIndex = -1;
 					} else {
-						selIndex += c * emojiTabShift;
+						selIndex += c * MatrixRowShift;
 					}
 				}
 				break;
@@ -1098,7 +1098,7 @@ void EmojiPanInner::updateSelected() {
 bool EmojiPanInner::animStep(float64 ms) {
 	uint64 now = getms();
 	for (Animations::iterator i = _animations.begin(); i != _animations.end();) {
-		int index = qAbs(i.key()) - 1, tab = (index / emojiTabShift), sel = index % emojiTabShift;
+		int index = qAbs(i.key()) - 1, tab = (index / MatrixRowShift), sel = index % MatrixRowShift;
 		float64 dt = float64(now - i.value()) / st::emojiPanDuration;
 		if (dt >= 1) {
 			(index == SwitcherSelected ? _switcherHover : _hovers[tab][sel]) = (i.key() > 0) ? 1 : 0;
@@ -1293,11 +1293,11 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 		emit switchToEmoji();
 		return;
 	}
-	if (_selected >= emojiTabShift * _setIds.size()) {
+	if (_selected >= MatrixRowShift * _setIds.size()) {
 		return;
 	}
 
-	int tab = (_selected / emojiTabShift), sel = _selected % emojiTabShift;
+	int tab = (_selected / MatrixRowShift), sel = _selected % MatrixRowShift;
 	if (_setIds[tab] == RecentStickerSetId && sel >= _sets[tab].size() && sel < _sets[tab].size() * 2 && _custom.at(sel - _sets[tab].size())) {
 		clearSelection(true);
 		bool refresh = false;
@@ -1362,7 +1362,7 @@ void StickerPanInner::clearSelection(bool fast) {
 	_lastMousePos = mapToGlobal(QPoint(-10, -10));
 	if (fast) {
 		for (Animations::const_iterator i = _animations.cbegin(); i != _animations.cend(); ++i) {
-			int index = qAbs(i.key()) - 1, tab = (index / emojiTabShift), sel = index % emojiTabShift;
+			int index = qAbs(i.key()) - 1, tab = (index / MatrixRowShift), sel = index % MatrixRowShift;
 			(index == SwitcherSelected ? _switcherHover : _hovers[tab][sel]) = 0;
 		}
 		_animations.clear();
@@ -1554,7 +1554,7 @@ void StickerPanInner::updateSelected() {
 			ytill = y + st::emojiPanHeader + ((cnt / StickerPanPerRow) + ((cnt % StickerPanPerRow) ? 1 : 0)) * st::stickerPanSize.height();
 			if (p.y() >= y && p.y() < ytill) {
 				if (!special && p.y() >= y && p.y() < y + st::emojiPanHeader && sx + st::stickerPanPadding >= width() - st::emojiPanHeaderLeft - st::notifyClose.icon.pxWidth() && sx + st::stickerPanPadding < width() - st::emojiPanHeaderLeft) {
-					selIndex = c * emojiTabShift + _sets[c].size();
+					selIndex = c * MatrixRowShift + _sets[c].size();
 				} else {
 					y += st::emojiPanHeader;
 					if (p.y() >= y && sx >= 0 && sx < StickerPanPerRow * st::stickerPanSize.width()) {
@@ -1568,7 +1568,7 @@ void StickerPanInner::updateSelected() {
 									selIndex += _sets[c].size();
 								}
 							}
-							selIndex += c * emojiTabShift;
+							selIndex += c * MatrixRowShift;
 						}
 					}
 				}
@@ -1578,12 +1578,12 @@ void StickerPanInner::updateSelected() {
 	}
 
 	bool startanim = false;
-	int oldSel = _selected, oldSelTab = oldSel / emojiTabShift, xOldSel = -1, newSel = selIndex, newSelTab = newSel / emojiTabShift, xNewSel = -1;
-	if (oldSel >= 0 && oldSelTab < _setIds.size() && _setIds[oldSelTab] == RecentStickerSetId && oldSel >= oldSelTab * emojiTabShift + _sets[oldSelTab].size()) {
+	int oldSel = _selected, oldSelTab = oldSel / MatrixRowShift, xOldSel = -1, newSel = selIndex, newSelTab = newSel / MatrixRowShift, xNewSel = -1;
+	if (oldSel >= 0 && oldSelTab < _setIds.size() && _setIds[oldSelTab] == RecentStickerSetId && oldSel >= oldSelTab * MatrixRowShift + _sets[oldSelTab].size()) {
 		xOldSel = oldSel;
 		oldSel -= _sets[oldSelTab].size();
 	}
-	if (newSel >= 0 && newSelTab < _setIds.size() && _setIds[newSelTab] == RecentStickerSetId && newSel >= newSelTab * emojiTabShift + _sets[newSelTab].size()) {
+	if (newSel >= 0 && newSelTab < _setIds.size() && _setIds[newSelTab] == RecentStickerSetId && newSel >= newSelTab * MatrixRowShift + _sets[newSelTab].size()) {
 		xNewSel = newSel;
 		newSel -= _sets[newSelTab].size();
 	}
@@ -1627,7 +1627,7 @@ void StickerPanInner::updateSelected() {
 bool StickerPanInner::animStep(float64 ms) {
 	uint64 now = getms();
 	for (Animations::iterator i = _animations.begin(); i != _animations.end();) {
-		int index = qAbs(i.key()) - 1, tab = (index / emojiTabShift), sel = index % emojiTabShift;
+		int index = qAbs(i.key()) - 1, tab = (index / MatrixRowShift), sel = index % MatrixRowShift;
 		float64 dt = float64(now - i.value()) / st::emojiPanDuration;
 		if (dt >= 1) {
 			(index == SwitcherSelected ? _switcherHover : _hovers[tab][sel]) = (i.key() > 0) ? 1 : 0;
@@ -2403,7 +2403,7 @@ void EmojiPan::onDelayedHide() {
 	_removingSetId = 0;
 }
 
-MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *rows, HashtagRows *hrows) : _parent(parent), _rows(rows), _hrows(hrows), _sel(-1), _mouseSel(false), _overDelete(false) {
+MentionsInner::MentionsInner(MentionsDropdown *parent, MentionRows *rows, HashtagRows *hrows, BotCommandRows *crows) : _parent(parent), _rows(rows), _hrows(hrows), _crows(crows), _sel(-1), _mouseSel(false), _overDelete(false) {
 }
 
 void MentionsInner::paintEvent(QPaintEvent *e) {
@@ -2413,28 +2413,26 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 	int32 availwidth = width() - 2 * st::mentionPadding.left() - st::mentionPhotoSize - 2 * st::mentionPadding.right();
 	int32 htagleft = st::btnAttachPhoto.width + st::taMsgField.textMrg.left() - st::dlgShadow, htagwidth = width() - st::mentionPadding.right() - htagleft;
 
-	int32 from = qFloor(e->rect().top() / st::mentionHeight), to = qFloor(e->rect().bottom() / st::mentionHeight) + 1, last = _rows->isEmpty() ? _hrows->size() : _rows->size();
+	int32 from = qFloor(e->rect().top() / st::mentionHeight), to = qFloor(e->rect().bottom() / st::mentionHeight) + 1;
+	int32 last = _rows->isEmpty() ? (_hrows->isEmpty() ? _crows->size() : _hrows->size()) : _rows->size();
+	bool hasUsername = _parent->filter().indexOf('@') > 1;
 	for (int32 i = from; i < to; ++i) {
 		if (i >= last) break;
 
 		if (i == _sel) {
 			p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::dlgHoverBG->b);
 			int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
-			if (_rows->isEmpty()) p.drawPixmap(QPoint(width() - st::notifyClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), App::sprite(), st::notifyClose.icon);
+			if (!_hrows->isEmpty()) p.drawPixmap(QPoint(width() - st::notifyClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), App::sprite(), st::notifyClose.icon);
 		}
 		p.setPen(st::black->p);
-		if (_rows->isEmpty()) {
-			QString tag = st::mentionFont->m.elidedText('#' + _hrows->at(last - i - 1), Qt::ElideRight, htagwidth);
-			p.setFont(st::mentionFont->f);
-			p.drawText(htagleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, tag);
-		} else {
+		if (!_rows->isEmpty()) {
 			UserData *user = _rows->at(last - i - 1);
 			QString first = (_parent->filter().size() < 2) ? QString() : ('@' + user->username.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('@' + user->username) : user->username.mid(_parent->filter().size() - 1);
 			int32 firstwidth = st::mentionFont->m.width(first), secondwidth = st::mentionFont->m.width(second), unamewidth = firstwidth + secondwidth, namewidth = user->nameText.maxWidth();
 			if (availwidth < unamewidth + namewidth) {
 				namewidth = (availwidth * namewidth) / (namewidth + unamewidth);
 				unamewidth = availwidth - namewidth;
-				if (firstwidth <= unamewidth) {
+				if (firstwidth < unamewidth + st::mentionFont->elidew) {
 					if (firstwidth < unamewidth) {
 						first = st::mentionFont->m.elidedText(first, Qt::ElideRight, unamewidth);
 					} else if (!second.isEmpty()) {
@@ -2448,13 +2446,95 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 			user->photo->load();
 			p.drawPixmap(st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), user->photo->pixRounded(st::mentionPhotoSize));
 			user->nameText.drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
+			
 			p.setFont(st::mentionFont->f);
-
 			p.setPen(st::profileOnlineColor->p);
 			p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize + namewidth + st::mentionPadding.right(), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
 			if (!second.isEmpty()) {
 				p.setPen(st::profileOfflineColor->p);
 				p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize + namewidth + st::mentionPadding.right() + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
+			}
+		} else if (!_hrows->isEmpty()) {
+			QString first = (_parent->filter().size() < 2) ? QString() : ('#' + _hrows->at(last - i - 1).mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('#' + _hrows->at(last - i - 1)) : _hrows->at(last - i - 1).mid(_parent->filter().size() - 1);
+			int32 firstwidth = st::mentionFont->m.width(first), secondwidth = st::mentionFont->m.width(second);
+			if (htagwidth < firstwidth + secondwidth) {
+				if (htagwidth < firstwidth + st::mentionFont->elidew) {
+					first = st::mentionFont->m.elidedText(first + second, Qt::ElideRight, htagwidth);
+					second = QString();
+				} else {
+					second = st::mentionFont->m.elidedText(second, Qt::ElideRight, htagwidth - firstwidth);
+				}
+			}
+
+			p.setFont(st::mentionFont->f);
+			if (!first.isEmpty()) {
+				p.setPen(st::profileOnlineColor->p);
+				p.drawText(htagleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
+			}
+			if (!second.isEmpty()) {
+				p.setPen(st::profileOfflineColor->p);
+				p.drawText(htagleft + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
+			}
+		} else {
+			UserData *user = _crows->at(last - i - 1).first;
+
+			const BotCommand &command = _crows->at(last - i - 1).second;
+			QString toHighlight = command.command;
+			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : -1;
+			if (hasUsername || botStatus == 0 || botStatus == 2) {
+				toHighlight += '@' + user->username;
+				if (botStatus == 0 || botStatus == 2) {
+					user->photo->load();
+					p.drawPixmap(st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), user->photo->pixRounded(st::mentionPhotoSize));
+				}
+			}
+
+			int32 addleft = 0, widthleft = htagwidth;
+			QString first = (_parent->filter().size() < 2) ? QString() : ('/' + toHighlight.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('/' + toHighlight) : toHighlight.mid(_parent->filter().size() - 1);
+			int32 firstwidth = st::botCommandFont->m.width(first), secondwidth = st::botCommandFont->m.width(second);
+			if (htagwidth < firstwidth + secondwidth) {
+				if (htagwidth < firstwidth + st::botCommandFont->elidew) {
+					first = st::botCommandFont->m.elidedText(first + second, Qt::ElideRight, htagwidth);
+					second = QString();
+				} else {
+					second = st::botCommandFont->m.elidedText(second, Qt::ElideRight, htagwidth - firstwidth);
+				}
+			}
+			p.setFont(st::botCommandFont->f);
+			if (!first.isEmpty()) {
+				p.setPen(st::profileOnlineColor->p);
+				p.drawText(htagleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
+			}
+			if (!second.isEmpty()) {
+				p.setPen(st::profileOfflineColor->p);
+				p.drawText(htagleft + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
+			}
+			addleft += firstwidth + secondwidth + st::mentionPadding.left();
+			widthleft -= firstwidth + secondwidth + st::mentionPadding.left();
+
+			QString params = command.params;
+			if (widthleft > st::mentionFont->elidew && !params.isEmpty()) {
+				p.setFont(st::mentionFont->f);
+				int32 paramswidth = st::mentionFont->m.width(params);
+				if (widthleft < paramswidth) {
+					params = st::mentionFont->m.elidedText(params, Qt::ElideRight, widthleft);
+				}
+				p.setPen(st::profileOfflineColor->p);
+				p.drawText(htagleft + addleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, params);
+
+				addleft += paramswidth + st::mentionPadding.left();
+				widthleft -= paramswidth + st::mentionPadding.left();
+			}
+			QString description = command.description;
+			if (widthleft > st::botDescFont->elidew && !description.isEmpty()) {
+				p.setFont(st::botDescFont->f);
+				int32 descwidth = st::botDescFont->m.width(description);
+				if (widthleft < descwidth) {
+					description = st::botDescFont->m.elidedText(description, Qt::ElideRight, widthleft);
+					descwidth = st::botDescFont->m.width(description);
+				}
+				p.setPen(st::profileOfflineColor->p);
+				p.drawText(htagleft + addleft + (widthleft - descwidth), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, description);
 			}
 		}
 	}
@@ -2476,7 +2556,7 @@ void MentionsInner::clearSel() {
 
 bool MentionsInner::moveSel(int direction) {
 	_mouseSel = false;
-	int32 maxSel = (_rows->isEmpty() ? _hrows->size() : _rows->size());
+	int32 maxSel = (_rows->isEmpty() ? (_hrows->isEmpty() ? _crows->size() : _hrows->size()) : _rows->size());
 	if (_sel >= maxSel || _sel < 0) {
 		if (direction < 0) setSel(maxSel - 1, true);
 		return (_sel >= 0 && _sel < maxSel);
@@ -2488,9 +2568,23 @@ bool MentionsInner::moveSel(int direction) {
 }
 
 bool MentionsInner::select() {
-	int32 maxSel = (_rows->isEmpty() ? _hrows->size() : _rows->size());
+	int32 maxSel = (_rows->isEmpty() ? (_hrows->isEmpty() ? _crows->size() : _hrows->size()) : _rows->size());
 	if (_sel >= 0 && _sel < maxSel) {
-		QString result = _rows->isEmpty() ? ('#' + _hrows->at(_hrows->size() - _sel - 1)) : ('@' + _rows->at(_rows->size() - _sel - 1)->username);
+		QString result;
+		if (!_rows->isEmpty()) {
+			result = '@' + _rows->at(_rows->size() - _sel - 1)->username;
+		} else if (!_hrows->isEmpty()) {
+			result = '#' + _hrows->at(_hrows->size() - _sel - 1);
+		} else {
+			UserData *user = _crows->at(_crows->size() - _sel - 1).first;
+			const BotCommand &command(_crows->at(_crows->size() - _sel - 1).second);
+			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : -1;
+			if (botStatus == 0 || botStatus == 2 || _parent->filter().indexOf('@') > 1) {
+				result = '/' + command.command + '@' + user->username;
+			} else {
+				result = '/' + command.command;
+			}
+		}
 		emit chosen(result);
 		return true;
 	}
@@ -2542,7 +2636,7 @@ void MentionsInner::leaveEvent(QEvent *e) {
 void MentionsInner::setSel(int sel, bool scroll) {
 	_sel = sel;
 	parentWidget()->update();
-	int32 maxSel = _rows->isEmpty() ? _hrows->size() : _rows->size();
+	int32 maxSel = _rows->isEmpty() ? (_hrows->isEmpty() ? _crows->size() : _hrows->size()) : _rows->size();
 	if (scroll && _sel >= 0 && _sel < maxSel) emit mustScrollTo(_sel * st::mentionHeight, (_sel + 1) * st::mentionHeight);
 }
 
@@ -2552,7 +2646,7 @@ void MentionsInner::onUpdateSelected(bool force) {
 
 	int w = width(), mouseY = mouse.y();
 	_overDelete = _rows->isEmpty() && (mouse.x() >= w - st::mentionHeight);
-	int32 sel = mouseY / int32(st::mentionHeight), maxSel = _rows->isEmpty() ? _hrows->size() : _rows->size();
+	int32 sel = mouseY / int32(st::mentionHeight), maxSel = _rows->isEmpty() ? (_hrows->isEmpty() ? _crows->size() : _hrows->size()) : _rows->size();
 	if (sel < 0 || sel >= maxSel) {
 		sel = -1;
 	}
@@ -2570,7 +2664,7 @@ void MentionsInner::onParentGeometryChanged() {
 }
 
 MentionsDropdown::MentionsDropdown(QWidget *parent) : QWidget(parent),
-_scroll(this, st::mentionScroll), _inner(this, &_rows, &_hrows), _chat(0), _hiding(false), a_opacity(0), _shadow(st::dropdownDef.shadow) {
+_scroll(this, st::mentionScroll), _inner(this, &_rows, &_hrows, &_crows), _chat(0), _hiding(false), a_opacity(0), _shadow(st::dropdownDef.shadow) {
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
 	connect(&_inner, SIGNAL(chosen(QString)), this, SIGNAL(chosen(QString)));
@@ -2608,8 +2702,9 @@ void MentionsDropdown::paintEvent(QPaintEvent *e) {
 
 }
 
-void MentionsDropdown::showFiltered(ChatData *chat, QString start) {
-	_chat = chat;
+void MentionsDropdown::showFiltered(PeerData *peer, QString start) {
+	_chat = peer->chat ? peer->asChat() : 0;
+	_user = peer->chat ? 0 : peer->asUser();
 	start = start.toLower();
 	bool toDown = (_filter != start);
 	if (toDown) {
@@ -2621,10 +2716,11 @@ void MentionsDropdown::showFiltered(ChatData *chat, QString start) {
 
 void MentionsDropdown::updateFiltered(bool toDown) {
 	int32 now = unixtime();
-	QMultiMap<int32, UserData*> ordered;
 	MentionRows rows;
 	HashtagRows hrows;
+	BotCommandRows crows;
 	if (_filter.at(0) == '@') {
+		QMultiMap<int32, UserData*> ordered;
 		rows.reserve(_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size());
 		if (_chat->participants.isEmpty()) {
 			if (_chat->count > 0) {
@@ -2653,23 +2749,79 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 				rows.push_back(i.value());
 			}
 		}
-	} else {
+	} else if (_filter.at(0) == '#') {
 		const RecentHashtagPack &recent(cRecentWriteHashtags());
 		hrows.reserve(recent.size());
 		for (RecentHashtagPack::const_iterator i = recent.cbegin(), e = recent.cend(); i != e; ++i) {
 			if (_filter.size() > 1 && (!i->first.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || i->first.size() + 1 == _filter.size())) continue;
 			hrows.push_back(i->first);
 		}
+	} else if (_filter.at(0) == '/') {
+		bool hasUsername = _filter.indexOf('@') > 1;
+		QMap<UserData*, bool> bots;
+		int32 cnt = 0;
+		if (_chat) {
+			if (_chat->participants.isEmpty()) {
+				if (_chat->count > 0) {
+					App::api()->requestFullPeer(_chat);
+				}
+			} else {
+				int32 index = 0;
+				for (ChatData::Participants::const_iterator i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
+					UserData *user = i.key();
+					if (!user->botInfo || user->botInfo->commands.isEmpty()) continue;
+					bots.insert(user, true);
+					cnt += user->botInfo->commands.size();
+				}
+			}
+		} else if (_user->botInfo) {
+			cnt = _user->botInfo->commands.size();
+			bots.insert(_user, true);
+		}
+		if (cnt) {
+			crows.reserve(cnt);
+			int32 botStatus = _chat ? _chat->botStatus : -1;
+			if (_chat) {
+				for (MentionRows::const_iterator i = _chat->lastAuthors.cbegin(), e = _chat->lastAuthors.cend(); i != e; ++i) {
+					UserData *user = *i;
+					if (!user->botInfo || user->botInfo->commands.isEmpty()) continue;
+					for (int32 j = 0, l = user->botInfo->commands.size(); j < l; ++j) {
+						if (_filter.size() > 1) {
+							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? user->botInfo->commands.at(j).command + '@' + user->username : user->botInfo->commands.at(j).command;
+							if (!toFilter.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || toFilter.size() + 1 == _filter.size()) continue;
+						}
+						crows.push_back(qMakePair(user, user->botInfo->commands.at(j)));
+					}
+					if (!bots.isEmpty()) {
+						bots.remove(user);
+					}
+				}
+			}
+			if (!bots.isEmpty()) {
+				for (QMap<UserData*, bool>::const_iterator i = bots.cbegin(), e = bots.cend(); i != e; ++i) {
+					UserData *user = i.key();
+					for (int32 j = 0, l = user->botInfo->commands.size(); j < l; ++j) {
+						if (_filter.size() > 1) {
+							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? user->botInfo->commands.at(j).command + '@' + user->username : user->botInfo->commands.at(j).command;
+							if (!toFilter.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || toFilter.size() + 1 == _filter.size()) continue;
+						}
+						crows.push_back(qMakePair(user, user->botInfo->commands.at(j)));
+					}
+				}
+			}
+		}
 	}
-	if (rows.isEmpty() && hrows.isEmpty()) {
+	if (rows.isEmpty() && hrows.isEmpty() && crows.isEmpty()) {
 		if (!isHidden()) {
 			hideStart();
 			_rows.clear();
 			_hrows.clear();
+			_crows.clear();
 		}
 	} else {
 		_rows = rows;
 		_hrows = hrows;
+		_crows = crows;
 		bool hidden = _hiding || isHidden();
 		if (hidden) {
 			show();
@@ -2692,7 +2844,7 @@ void MentionsDropdown::setBoundings(QRect boundings) {
 }
 
 void MentionsDropdown::recount(bool toDown) {
-	int32 h = (_rows.isEmpty() ? _hrows.size() : _rows.size()) * st::mentionHeight, oldst = _scroll.scrollTop(), st = oldst;
+	int32 h = (_rows.isEmpty() ? (_hrows.isEmpty() ? _crows.size() : _hrows.size()) : _rows.size()) * st::mentionHeight, oldst = _scroll.scrollTop(), st = oldst;
 	
 	if (_inner.height() != h) {
 		st += h - _inner.height();
@@ -2778,6 +2930,10 @@ bool MentionsDropdown::animStep(float64 ms) {
 
 const QString &MentionsDropdown::filter() const {
 	return _filter;
+}
+
+ChatData *MentionsDropdown::chat() const {
+	return _chat;
 }
 
 int32 MentionsDropdown::innerTop() {

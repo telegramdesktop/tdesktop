@@ -198,7 +198,7 @@ struct History : public QList<HistoryBlock*> {
 
 	PeerData *peer;
 	bool oldLoaded, newLoaded;
-	HistoryItem *last;
+	HistoryItem *lastMsg;
 	MsgId activeMsgId;
 
 	typedef QList<HistoryItem*> NotifyQueue;
@@ -238,8 +238,8 @@ struct History : public QList<HistoryBlock*> {
 				}
 			}
 		}
-		if (last == old) {
-			last = item;
+		if (lastMsg == old) {
+			lastMsg = item;
 		}
 		// showFrom can't be detached
 	}
@@ -250,6 +250,9 @@ struct History : public QList<HistoryBlock*> {
 	bool draftPreviewCancelled;
 	int32 lastWidth, lastScrollTop;
 	bool mute;
+
+	MsgId lastKeyboardId;
+	PeerId lastKeyboardFrom;
 
 	mtpRequestId sendRequestId;
 
@@ -284,8 +287,14 @@ struct History : public QList<HistoryBlock*> {
 	static const int32 ScrollMax = INT_MAX;
 };
 
+enum DialogsSortMode {
+	DialogsSortByDate,
+	DialogsSortByName,
+	DialogsSortByAdd
+};
+
 struct DialogsList {
-	DialogsList(bool sortByName) : begin(&last), end(&last), byName(sortByName), count(0), current(&last) {
+	DialogsList(DialogsSortMode sortMode) : begin(&last), end(&last), sortMode(sortMode), count(0), current(&last) {
 	}
 
 	void adjustCurrent(int32 y, int32 h) const {
@@ -323,10 +332,10 @@ struct DialogsList {
 		end->pos++;
 		if (begin == end) {
 			begin = current = result;
-			if (!byName && updatePos) history->posInDialogs = 0;
+			if (sortMode == DialogsSortByDate && updatePos) history->posInDialogs = 0;
 		} else {
 			end->prev->next = result;
-			if (!byName && updatePos) history->posInDialogs = end->prev->history->posInDialogs + 1;
+			if (sortMode == DialogsSortByDate && updatePos) history->posInDialogs = end->prev->history->posInDialogs + 1;
 		}
 		rowByPeer.insert(history->peer->id, result);
 		++count;
@@ -334,7 +343,7 @@ struct DialogsList {
 	}
 
 	void bringToTop(DialogRow *row, bool updatePos = true) {
-		if (!byName && updatePos && row != begin) {
+		if (sortMode == DialogsSortByDate && updatePos && row != begin) {
 			row->history->posInDialogs = begin->history->posInDialogs - 1;
 		}
 		insertBefore(row, begin);
@@ -389,7 +398,7 @@ struct DialogsList {
 	}
 
 	DialogRow *adjustByName(const PeerData *peer) {
-		if (!byName) return 0;
+		if (sortMode != DialogsSortByName) return 0;
 
 		RowByPeer::iterator i = rowByPeer.find(peer->id);
 		if (i == rowByPeer.cend()) return 0;
@@ -408,7 +417,7 @@ struct DialogsList {
 	}
 
 	DialogRow *addByName(History *history) {
-		if (!byName) return 0;
+		if (sortMode != DialogsSortByName) return 0;
 
 		DialogRow *row = addToEnd(history), *change = row;
 		const QString &peerName(history->peer->name);
@@ -425,7 +434,7 @@ struct DialogsList {
 	}
 
 	void adjustByPos(DialogRow *row) {
-		if (byName) return;
+		if (sortMode != DialogsSortByDate) return;
 
 		DialogRow *change = row;
 		while (change->prev && change->prev->history->posInDialogs > row->history->posInDialogs) {
@@ -440,7 +449,7 @@ struct DialogsList {
 	}
 
 	DialogRow *addByPos(History *history) {
-		if (byName) return 0;
+		if (sortMode != DialogsSortByDate) return 0;
 
 		DialogRow *row = addToEnd(history, false);
 		adjustByPos(row);
@@ -475,7 +484,7 @@ struct DialogsList {
 
 	DialogRow last;
 	DialogRow *begin, *end;
-	bool byName;
+	DialogsSortMode sortMode;
 	int32 count;
 
 	typedef QHash<PeerId, DialogRow*> RowByPeer;
@@ -485,7 +494,7 @@ struct DialogsList {
 };
 
 struct DialogsIndexed {
-	DialogsIndexed(bool sortByName) : byName(sortByName), list(byName) {
+	DialogsIndexed(DialogsSortMode sortMode) : sortMode(sortMode), list(sortMode) {
 	}
 
 	History::DialogLinks addToEnd(History *history) {
@@ -499,7 +508,7 @@ struct DialogsIndexed {
 		for (PeerData::NameFirstChars::const_iterator i = history->peer->chars.cbegin(), e = history->peer->chars.cend(); i != e; ++i) {
 			DialogsIndex::iterator j = index.find(*i);
 			if (j == index.cend()) {
-				j = index.insert(*i, new DialogsList(byName));
+				j = index.insert(*i, new DialogsList(sortMode));
 			}
 			result.insert(*i, j.value()->addToEnd(history));
 		}
@@ -517,7 +526,7 @@ struct DialogsIndexed {
 		for (PeerData::NameFirstChars::const_iterator i = history->peer->chars.cbegin(), e = history->peer->chars.cend(); i != e; ++i) {
 			DialogsIndex::iterator j = index.find(*i);
 			if (j == index.cend()) {
-				j = index.insert(*i, new DialogsList(byName));
+				j = index.insert(*i, new DialogsList(sortMode));
 			}
 			j.value()->addByName(history);
 		}
@@ -556,7 +565,7 @@ struct DialogsIndexed {
 
 	void clear();
 
-	bool byName;
+	DialogsSortMode sortMode;
 	DialogsList list;
 	typedef QMap<QChar, DialogsList*> DialogsIndex;
 	DialogsIndex index;
@@ -677,6 +686,9 @@ public:
 	}
 	void markMediaRead() {
 		_flags &= ~MTPDmessage_flag_media_unread;
+	}
+	bool hasReplyMarkup() const {
+		return _flags & MTPDmessage::flag_reply_markup;
 	}
 	virtual bool needCheck() const {
 		return true;
