@@ -1574,7 +1574,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 			tcpp << "\tFontFamilies _fontFamilies;\n";
 			tcpp << "\tFontDatas _fontsMap;\n";
 			tcpp << "\tColorDatas _colorsMap;\n";
-			tcpp << "int _spriteWidth = " << spriteWidths[0] << ";\n\n";
+			tcpp << "\tint _spriteWidth = " << spriteWidths[0] << ";\n\n";
 			tcpp << "\tvoid startManager() {\n";
             
             tcpp << "\n\t\tif (cRetina()) {\n";
