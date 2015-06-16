@@ -2052,9 +2052,9 @@ namespace App {
 		}
 	}
 
-	void openUserByName(const QString &username, bool toProfile) {
+	void openUserByName(const QString &username, bool toProfile, const QString &start, const QString &startToken) {
 		if (App::main()) {
-			App::main()->openUserByName(username, toProfile);
+			App::main()->openUserByName(username, toProfile, start, startToken);
 		}
 	}
 

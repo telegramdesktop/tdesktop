@@ -235,7 +235,7 @@ namespace App {
 
 	void sendBotCommand(const QString &cmd, MsgId replyTo = 0);
 	void searchByHashtag(const QString &tag);
-	void openUserByName(const QString &username, bool toProfile = false);
+	void openUserByName(const QString &username, bool toProfile = false, const QString &start = QString(), const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
 	void stickersBox(const QString &name);
 	void openLocalUrl(const QString &url);

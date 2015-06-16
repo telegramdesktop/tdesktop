@@ -602,7 +602,7 @@ keyboardButton#a2fa4880 text:string = KeyboardButton;
 
 keyboardButtonRow#77608b83 buttons:Vector<KeyboardButton> = KeyboardButtonRow;
 
-replyKeyboardMarkup#d59bfc31 rows:Vector<KeyboardButtonRow> = ReplyMarkup;
+replyKeyboardMarkup#3502758c flags:# rows:Vector<KeyboardButtonRow> = ReplyMarkup;
 
 ---functions---
 
@@ -766,3 +766,4 @@ messages.importChatInvite#6c50051c hash:string = Updates;
 messages.getStickerSet#2619a90e stickerset:InputStickerSet = messages.StickerSet;
 messages.installStickerSet#efbbfae9 stickerset:InputStickerSet = Bool;
 messages.uninstallStickerSet#f96e55de stickerset:InputStickerSet = Bool;
+messages.startBot#1b3e0ffc bot:InputUser chat_id:int random_id:long start_param:string = Updates;

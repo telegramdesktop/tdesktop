@@ -70,8 +70,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_status_service_notifications" = "service notifications";
 "lng_status_bot" = "bot";
-"lng_status_bot_reads_all" = "sees all messages";
-"lng_status_bot_not_reads_all" = "only sees messages starting with /";
+"lng_status_bot_reads_all" = "has access to messages";
+"lng_status_bot_not_reads_all" = "has no access to messages";
 "lng_status_offline" = "last seen a long time ago";
 "lng_status_recently" = "last seen recently";
 "lng_status_last_week" = "last seen within a week";

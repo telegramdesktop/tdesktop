@@ -187,7 +187,7 @@ public:
 	void start(const MTPUser &user);
 
 	void openLocalUrl(const QString &str);
-	void openUserByName(const QString &name, bool toProfile = false);
+	void openUserByName(const QString &name, bool toProfile = false, const QString &start = QString(), const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
 	void stickersBox(const MTPInputStickerSet &set);
 
