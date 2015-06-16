@@ -383,7 +383,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_user_left" = "{from} ha lasciato il gruppo";
 "lng_action_user_joined" = "{from} si è unito al gruppo";
 "lng_action_user_joined_by_link" = "{from} si è unito al gruppo tramite link di invito";
-"lng_action_user_registered" = "{from} ha iniziato a usare Telegram";
+"lng_action_user_registered" = "{from} si è unito a Telegram";
 "lng_action_removed_photo" = "{from} ha rimosso la foto del gruppo";
 "lng_action_changed_photo" = "{from} ha cambiato la foto del gruppo";
 "lng_action_changed_title" = "{from} ha cambiato il nome del gruppo in «{title}»";

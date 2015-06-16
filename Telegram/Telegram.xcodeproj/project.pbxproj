@@ -214,7 +214,6 @@
 		E8D95529CED88F18818C9A8B /* intro.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 0771C4C94B623FC34BF62983 /* intro.cpp */; settings = {ATTRIBUTES = (); }; };
 		E97B3CFAB59B49BACFFC5F7C /* moc_title.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 1080B6D395843B8F76A2E45E /* moc_title.cpp */; settings = {ATTRIBUTES = (); }; };
 		E9F1CE7F9B18C7C85A50E62D /* style_auto.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 99B8D38F7F5858601230911E /* style_auto.cpp */; settings = {ATTRIBUTES = (); }; };
-		EBA5E17368D2BBC6014E92B9 /* qcorewlanbearer in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = EE03BC5CA4628A6D6BEB0122 /* qcorewlanbearer */; };
 		EBE29731916DB43BF49FE7A4 /* aboutbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = C194EDD00F76216057D48A5C /* aboutbox.cpp */; settings = {ATTRIBUTES = (); }; };
 		ED2557A57C6782721DC494AF /* moc_connectionbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = FEC58F9D8A0963E5A9D4BE6F /* moc_connectionbox.cpp */; settings = {ATTRIBUTES = (); }; };
 		F26454630C80841CBDCFE1CA /* Foundation.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = FCC237CA5AD60B9BA4447615 /* Foundation.framework */; };
@@ -718,7 +717,6 @@
 				CCA737EE379CDB10CC9A0F23 /* AVFoundation.framework in Link Binary With Libraries */,
 				B78304F135DEF1F7A68393A6 /* CoreMedia.framework in Link Binary With Libraries */,
 				F2A75ACAC9DF6A3F4E5711E7 /* AppKit.framework in Link Binary With Libraries */,
-				EBA5E17368D2BBC6014E92B9 /* qcorewlanbearer in Link Binary With Libraries */,
 				D0EECF370C58DDCACBC71BAD /* CoreWLAN.framework in Link Binary With Libraries */,
 				8883FF366F2623E89D90A9E6 /* qgenericbearer in Link Binary With Libraries */,
 				5058CB9D7BFFCE9F404A3700 /* Qt5Network in Link Binary With Libraries */,

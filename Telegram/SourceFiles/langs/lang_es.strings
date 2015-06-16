@@ -420,13 +420,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_video" = "Vídeo";
 "lng_media_audio" = "Mensaje de voz";
 
-"lng_emoji_category0" = "Usados frecuentemente";
-"lng_emoji_category1" = "Gente";
+"lng_emoji_category0" = "Usados con frecuencia";
+"lng_emoji_category1" = "Personas";
 "lng_emoji_category2" = "Naturaleza";
-"lng_emoji_category3" = "Comida y bebidas";
+"lng_emoji_category3" = "Comida y bebida";
 "lng_emoji_category4" = "Celebración";
 "lng_emoji_category5" = "Actividad";
-"lng_emoji_category6" = "Viajes y lugares";
+"lng_emoji_category6" = "Viajes y destinos";
 "lng_emoji_category7" = "Objetos y símbolos";
 
 "lng_switch_stickers" = "Stickers";
