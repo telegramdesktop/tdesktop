@@ -101,6 +101,24 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	_invitationLink.setAcceptBoth(true);
 	updateInvitationLink();
 
+	if (_peerChat) {
+		QString maxStr = lang(_uploadPhoto.textWidth() > _addParticipant.textWidth() ? lng_profile_set_group_photo : lng_profile_add_participant);
+		_uploadPhoto.setAutoFontSize(st::profileMinBtnPadding, maxStr);
+		_uploadPhoto.setAutoFontSize(st::profileMinBtnPadding, maxStr);
+	} else if (_peerUser) {
+		QString maxStr;
+		if (_peerUser->botInfo && !_peerUser->botInfo->cantJoinGroups) {
+			maxStr = lang(_sendMessage.textWidth() > _inviteToGroup.textWidth() ? lng_profile_send_message : lng_profile_invite_to_group);
+		} else if (!_peerUser->phone.isEmpty()) {
+			maxStr = lang(_sendMessage.textWidth() > _shareContact.textWidth() ? lng_profile_send_message : lng_profile_share_contact);
+		} else {
+			maxStr = lang(lng_profile_send_message);
+		}
+		_sendMessage.setAutoFontSize(st::profileMinBtnPadding, maxStr);
+		_shareContact.setAutoFontSize(st::profileMinBtnPadding, maxStr);
+		_inviteToGroup.setAutoFontSize(st::profileMinBtnPadding, maxStr);
+	}
+
 	connect(&_botSettings, SIGNAL(clicked()), this, SLOT(onBotSettings()));
 	connect(&_botHelp, SIGNAL(clicked()), this, SLOT(onBotHelp()));
 
@@ -633,7 +651,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 					} else {
 						p.setPen(st::btnDefLink.color->p);
 					}
-					p.drawText(_left + _width - _kickWidth, top + (_pHeight - st::linkFont->height) / 2 + st::linkFont->ascent, lang(lng_profile_kick));
+					p.drawText(_left + _width - _kickWidth, top + st::profileListNameTop + st::linkFont->ascent, lang(lng_profile_kick));
 				}
 			}
 			top += fullCnt * _pHeight;
@@ -685,7 +703,7 @@ void ProfileInner::updateSelected() {
 	if (newSelected >= 0 && newSelected < _participants.size()) {
 		ParticipantData *data = _participantsData[newSelected];
 		if (data && data->cankick) {
-			int32 top = partfrom + newSelected * _pHeight + (_pHeight - st::linkFont->height) / 2;
+			int32 top = partfrom + newSelected * _pHeight + st::profileListNameTop;
 			if ((lp.x() >= _left + _width - _kickWidth) && (lp.x() < _left + _width) && (lp.y() >= top) && (lp.y() < top + st::linkFont->height)) {
 				newKickOver = _participants[newSelected];
 			}
@@ -804,11 +822,14 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	top += st::profilePhotoSize;
 
 	top += st::profileButtonTop;
+
 	_uploadPhoto.setGeometry(_left, top, btnWidth, _uploadPhoto.height());
-	_sendMessage.setGeometry(_left, top, btnWidth, _sendMessage.height());
 	_addParticipant.setGeometry(_left + _width - btnWidth, top, btnWidth, _addParticipant.height());
+
+	_sendMessage.setGeometry(_left, top, btnWidth, _sendMessage.height());
 	_shareContact.setGeometry(_left + _width - btnWidth, top, btnWidth, _shareContact.height());
 	_inviteToGroup.setGeometry(_left + _width - btnWidth, top, btnWidth, _inviteToGroup.height());
+
 	top += _shareContact.height();
 
 	// about

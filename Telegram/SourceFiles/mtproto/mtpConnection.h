@@ -40,7 +40,7 @@ enum {
 	MTPDuser_flag_bot_cant_join = (1 << 16),
 };
 
-static const MTPReplyMarkup MTPnullMarkup = MTP_replyKeyboardMarkup(MTP_vector<MTPKeyboardButtonRow>(0));
+static const MTPReplyMarkup MTPnullMarkup = MTP_replyKeyboardMarkup(MTP_int(0), MTP_vector<MTPKeyboardButtonRow>(0));
 
 #include "mtproto/mtpPublicRSA.h"
 #include "mtproto/mtpAuthKey.h"

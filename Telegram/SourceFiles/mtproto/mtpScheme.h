@@ -384,7 +384,7 @@ enum {
 	mtpc_botInfo = 0x9cf585d,
 	mtpc_keyboardButton = 0xa2fa4880,
 	mtpc_keyboardButtonRow = 0x77608b83,
-	mtpc_replyKeyboardMarkup = 0xd59bfc31,
+	mtpc_replyKeyboardMarkup = 0x3502758c,
 	mtpc_invokeAfterMsg = 0xcb9f372d,
 	mtpc_invokeAfterMsgs = 0x3dc4b4f0,
 	mtpc_auth_checkPhone = 0x6fe51dfb,
@@ -511,7 +511,8 @@ enum {
 	mtpc_messages_importChatInvite = 0x6c50051c,
 	mtpc_messages_getStickerSet = 0x2619a90e,
 	mtpc_messages_installStickerSet = 0xefbbfae9,
-	mtpc_messages_uninstallStickerSet = 0xf96e55de
+	mtpc_messages_uninstallStickerSet = 0xf96e55de,
+	mtpc_messages_startBot = 0x1b3e0ffc
 };
 
 // Type forward declarations
@@ -8005,7 +8006,7 @@ public:
 private:
 	explicit MTPreplyMarkup(MTPDreplyKeyboardMarkup *_data);
 
-	friend MTPreplyMarkup MTP_replyKeyboardMarkup(const MTPVector<MTPKeyboardButtonRow> &_rows);
+	friend MTPreplyMarkup MTP_replyKeyboardMarkup(MTPint _flags, const MTPVector<MTPKeyboardButtonRow> &_rows);
 };
 typedef MTPBoxed<MTPreplyMarkup> MTPReplyMarkup;
 
@@ -11259,9 +11260,10 @@ class MTPDreplyKeyboardMarkup : public mtpDataImpl<MTPDreplyKeyboardMarkup> {
 public:
 	MTPDreplyKeyboardMarkup() {
 	}
-	MTPDreplyKeyboardMarkup(const MTPVector<MTPKeyboardButtonRow> &_rows) : vrows(_rows) {
+	MTPDreplyKeyboardMarkup(MTPint _flags, const MTPVector<MTPKeyboardButtonRow> &_rows) : vflags(_flags), vrows(_rows) {
 	}
 
+	MTPint vflags;
 	MTPVector<MTPKeyboardButtonRow> vrows;
 };
 
@@ -16931,6 +16933,54 @@ public:
 	MTPmessages_UninstallStickerSet(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_uninstallStickerSet>(from, end, cons) {
 	}
 	MTPmessages_UninstallStickerSet(const MTPInputStickerSet &_stickerset) : MTPBoxed<MTPmessages_uninstallStickerSet>(MTPmessages_uninstallStickerSet(_stickerset)) {
+	}
+};
+
+class MTPmessages_startBot { // RPC method 'messages.startBot'
+public:
+	MTPInputUser vbot;
+	MTPint vchat_id;
+	MTPlong vrandom_id;
+	MTPstring vstart_param;
+
+	MTPmessages_startBot() {
+	}
+	MTPmessages_startBot(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_startBot) {
+		read(from, end, cons);
+	}
+	MTPmessages_startBot(const MTPInputUser &_bot, MTPint _chat_id, const MTPlong &_random_id, const MTPstring &_start_param) : vbot(_bot), vchat_id(_chat_id), vrandom_id(_random_id), vstart_param(_start_param) {
+	}
+
+	uint32 innerLength() const {
+		return vbot.innerLength() + vchat_id.innerLength() + vrandom_id.innerLength() + vstart_param.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_messages_startBot;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_startBot) {
+		vbot.read(from, end);
+		vchat_id.read(from, end);
+		vrandom_id.read(from, end);
+		vstart_param.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vbot.write(to);
+		vchat_id.write(to);
+		vrandom_id.write(to);
+		vstart_param.write(to);
+	}
+
+	typedef MTPUpdates ResponseType;
+};
+class MTPmessages_StartBot : public MTPBoxed<MTPmessages_startBot> {
+public:
+	MTPmessages_StartBot() {
+	}
+	MTPmessages_StartBot(const MTPmessages_startBot &v) : MTPBoxed<MTPmessages_startBot>(v) {
+	}
+	MTPmessages_StartBot(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_startBot>(from, end, cons) {
+	}
+	MTPmessages_StartBot(const MTPInputUser &_bot, MTPint _chat_id, const MTPlong &_random_id, const MTPstring &_start_param) : MTPBoxed<MTPmessages_startBot>(MTPmessages_startBot(_bot, _chat_id, _random_id, _start_param)) {
 	}
 };
 
@@ -25869,7 +25919,7 @@ inline MTPreplyMarkup::MTPreplyMarkup() : mtpDataOwner(new MTPDreplyKeyboardMark
 
 inline uint32 MTPreplyMarkup::innerLength() const {
 	const MTPDreplyKeyboardMarkup &v(c_replyKeyboardMarkup());
-	return v.vrows.innerLength();
+	return v.vflags.innerLength() + v.vrows.innerLength();
 }
 inline mtpTypeId MTPreplyMarkup::type() const {
 	return mtpc_replyKeyboardMarkup;
@@ -25879,16 +25929,18 @@ inline void MTPreplyMarkup::read(const mtpPrime *&from, const mtpPrime *end, mtp
 
 	if (!data) setData(new MTPDreplyKeyboardMarkup());
 	MTPDreplyKeyboardMarkup &v(_replyKeyboardMarkup());
+	v.vflags.read(from, end);
 	v.vrows.read(from, end);
 }
 inline void MTPreplyMarkup::write(mtpBuffer &to) const {
 	const MTPDreplyKeyboardMarkup &v(c_replyKeyboardMarkup());
+	v.vflags.write(to);
 	v.vrows.write(to);
 }
 inline MTPreplyMarkup::MTPreplyMarkup(MTPDreplyKeyboardMarkup *_data) : mtpDataOwner(_data) {
 }
-inline MTPreplyMarkup MTP_replyKeyboardMarkup(const MTPVector<MTPKeyboardButtonRow> &_rows) {
-	return MTPreplyMarkup(new MTPDreplyKeyboardMarkup(_rows));
+inline MTPreplyMarkup MTP_replyKeyboardMarkup(MTPint _flags, const MTPVector<MTPKeyboardButtonRow> &_rows) {
+	return MTPreplyMarkup(new MTPDreplyKeyboardMarkup(_flags, _rows));
 }
 
 // Human-readable text serialization

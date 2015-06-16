@@ -1197,6 +1197,7 @@ btnShareContact: flatButton(btnDefNext, btnDefBig) {
 	font: font(17px);
 	overFont: font(17px);
 }
+profileMinBtnPadding: 10px;
 
 forwardWidth: 364px;
 forwardMargins: margins(30px, 10px, 30px, 10px);

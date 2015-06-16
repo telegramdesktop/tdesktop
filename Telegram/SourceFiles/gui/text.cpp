@@ -748,7 +748,16 @@ void TextLink::onClick(Qt::MouseButton button) const {
 		QRegularExpressionMatch telegramMeGroup = QRegularExpression(qsl("^https?://telegram\\.me/joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
 		QRegularExpressionMatch telegramMeStickers = QRegularExpression(qsl("^https?://telegram\\.me/addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
 		if (telegramMeUser.hasMatch()) {
-			App::openUserByName(telegramMeUser.captured(1));
+			QString params = url.mid(telegramMeUser.captured(0).size()), start, startToken;
+			if (!params.isEmpty()) {
+				QRegularExpressionMatch startParams = QRegularExpression(qsl("(^|&)(s|sg)=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), QRegularExpression::CaseInsensitiveOption).match(params);
+				if (startParams.hasMatch()) {
+					start = startParams.captured(2);
+					startToken = startParams.captured(3);
+					start = (start == qsl("sg") ? qsl("startgroup") : (start == qsl("s") ? qsl("start") : QString()));
+				}
+			}
+			App::openUserByName(telegramMeUser.captured(1), start == qsl("startgroup"), start, startToken);
 		} else if (telegramMeGroup.hasMatch()) {
 			App::joinGroupByHash(telegramMeGroup.captured(1));
 		} else if (telegramMeStickers.hasMatch()) {

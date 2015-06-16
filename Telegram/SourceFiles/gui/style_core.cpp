@@ -61,6 +61,10 @@ namespace style {
 		return _flags;
 	}
 
+	uint32 FontData::family() const {
+		return _family;
+	}
+
 	Font FontData::otherFlagsFont(uint32 flag, bool set) const {
 		int32 newFlags = set ? (_flags | flag) : (_flags & ~flag);
 		if (!modified[newFlags].v()) {
