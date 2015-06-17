@@ -1,0 +1,641 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014 John Preston, https://desktop.telegram.org
+*/
+"lng_language_name" = "Polski";
+"lng_switch_to_this" = "Zmień na polski";
+
+"lng_menu_contacts" = "Kontakty";
+"lng_menu_settings" = "Ustawienia";
+"lng_menu_about" = "O programie";
+"lng_menu_update" = "Aktualizacja";
+"lng_menu_restart" = "Restart";
+"lng_menu_back" = "Wróć";
+
+"lng_open_from_tray" = "Otwórz Telegram";
+"lng_minimize_to_tray" = "Zminimalizuj do zasobnika";
+"lng_quit_from_tray" = "Zamknij Telegram";
+"lng_tray_icon_text" = "Telegram wciąż działa,\nmożesz zmienić to zachowanie w ustawieniach.\n\nJeżeli ta ikona zniknie z zasobnika,\nmożesz ją tu przywrócić z ukrytych ikon.";
+
+"lng_month1" = "Styczeń";
+"lng_month2" = "Luty";
+"lng_month3" = "Marzec";
+"lng_month4" = "Kwiecień";
+"lng_month5" = "Maj";
+"lng_month6" = "Czerwiec";
+"lng_month7" = "Lipiec";
+"lng_month8" = "Sierpień";
+"lng_month9" = "Wrzesień";
+"lng_month10" = "Październik";
+"lng_month11" = "Listopad";
+"lng_month12" = "Grudzień";
+
+"lng_weekday1" = "Pon";
+"lng_weekday2" = "Wto";
+"lng_weekday3" = "Śro";
+"lng_weekday4" = "Czw";
+"lng_weekday5" = "Pią";
+"lng_weekday6" = "Sob";
+"lng_weekday7" = "Nie";
+
+"lng_weekday1_full" = "Poniedziałek";
+"lng_weekday2_full" = "Wtorek";
+"lng_weekday3_full" = "Środa";
+"lng_weekday4_full" = "Czwartek";
+"lng_weekday5_full" = "Piątek";
+"lng_weekday6_full" = "Sobota";
+"lng_weekday7_full" = "Niedziela";
+
+"lng_month_day" = "{month} {day}";
+
+"lng_cancel" = "Anuluj";
+"lng_continue" = "Kontynuuj";
+"lng_close" = "Zamknij";
+"lng_connecting" = "Łączę..";
+"lng_reconnecting" = "Ponowne łączenie {count:teraz|za # s|za # s}..";
+"lng_reconnecting_try_now" = "Spróbuj ponownie";
+
+"lng_status_service_notifications" = "powiadomienia usługi";
+"lng_status_offline" = "ostatnio widziany dawno temu";
+"lng_status_recently" = "ostatnio widziany niedawno";
+"lng_status_last_week" = "ostatnio widziany w ciągu ostatniego tygodnia";
+"lng_status_last_month" = "ostatnio widziany w ciągu ostatniego miesiąca";
+"lng_status_invisible" = "niewidzialny";
+"lng_status_lastseen_now" = "ostatnio widziany przed chwilą";
+"lng_status_lastseen_minutes" = "ostatnio widziany {count:_not_used_|# minuty|# minut} temu";
+"lng_status_lastseen_hours" = "ostatnio widziany {count:_not_used_|# godziny|# godzin} temu";
+"lng_status_lastseen_today" = "ostatnio widziany dziś o {time}";
+"lng_status_lastseen_yesterday" = "ostatnio widziany wczoraj o {time}";
+"lng_status_lastseen_date" = "ostatnio widziany {date}";
+"lng_status_lastseen_date_time" = "ostatnio widziany {date} o {time}";
+"lng_status_online" = "online";
+"lng_status_connecting" = "łączę..";
+
+"lng_chat_status_unaccessible" = "grupa jest niedostępna";
+"lng_chat_status_members" = "{count:brak członków|# członek|# członków}";
+"lng_chat_status_members_online" = "{count:_not_used_|# członek|# członków}, {count_online:_not_used_|# online|# online}";
+
+"lng_server_error" = "Wewnętrzny błąd serwera.";
+"lng_flood_error" = "Zbyt wiele prób. Spróbuj ponownie później.";
+"lng_deleted" = "Nieznany";
+"lng_deleted_message" = "Usunięta wiadomość";
+
+"lng_intro" = "Witaj w oficjalnej aplikacji [a href=\"https://telegram.org/\"]Telegram[/a].\nJest [b]szybka[/b] i [b]bezpieczna[/b].";
+"lng_start_msgs" = "ROZPOCZNIJ KOMUNIKACJĘ";
+
+"lng_intro_next" = "NASTĘPNA";
+"lng_intro_finish" = "ZAPISZ SIĘ";
+"lng_intro_submit" = "WYŚLIJ";
+
+"lng_phone_ph" = "Twój numer telefonu";
+"lng_phone_title" = "Twój telefon";
+"lng_phone_desc" = "Potwierdź proszę numer kierunkowy swojego kraju i\nwprowadź numer telefonu.";
+"lng_phone_notreg" = "Uwaga: jeżeli jeszcze nie posiadasz konta Telegram,\n[b]zapisz się[/b] proszę korzystając z [a href=\"https://telegram.org/\"]iOS / Android[/a] lub {signup_start}tego »{signup_end}";
+"lng_country_code" = "Kod kraju";
+"lng_bad_country_code" = "Nieprawidłowy kod kraju";
+"lng_country_ph" = "Szukaj";
+"lng_country_done" = "Zrobione";
+"lng_country_none" = "Kraj nie został znaleziony";
+"lng_country_select" = "Wybierz kraj";
+
+"lng_code_ph" = "Twój kod";
+"lng_code_desc" = "Wysłaliśmy wiadomość z kodem\naktywacyjnym na Twój telefon. Wprowadź go proszę poniżej.";
+"lng_code_call" = "Telegram zadzwoni pod Twój numer za {minutes}:{seconds}";
+"lng_code_calling" = "Oczekiwanie na połączenie z Telegramem..";
+"lng_code_called" = "Telegram zadzwonił pod Twój numer";
+
+"lng_bad_phone" = "Nieprawidłowy numer telefonu. Proszę spróbuj ponownie.";
+"lng_bad_phone_noreg" = "Numer telefonu nie został zarejestrowany.";
+"lng_bad_code" = "Wprowadzono nieprawidłowy kod. Proszę wprowadź go ponownie.";
+"lng_bad_name" = "Wprowadź proszę swoje imię i nazwisko.";
+"lng_bad_photo" = "Wybrano niewłaściwe zdjęcie.";
+
+"lng_bad_image_for_photo" = "Ten obraz nie może zostać wysłany w ten sposób.\nCzy chcesz go wysłać w formie pliku?";
+
+"lng_signin_title" = "Sprawdzenie hasła do chmury";
+"lng_signin_desc" = "Wprowadź proszę swoje hasło do chmury.";
+"lng_signin_recover_desc" = "Wprowadź proszę kod z e-maila.";
+"lng_signin_password" = "Twoje hasło do chmury";
+"lng_signin_code" = "Kod z e-maila";
+"lng_signin_recover" = "Zapomniane hasło?";
+"lng_signin_hint" = "Podpowiedź: {password_hint}";
+"lng_signin_recover_hint" = "Kod został wysłany na {recover_email}";
+"lng_signin_bad_password" = "Wprowadzono nieprawidłowe hasło.";
+"lng_signin_wrong_code" = "Wprowadzono nieprawidłowy kod. Proszę spróbuj ponownie.";
+"lng_signin_try_password" = "Masz problem z dostępem do swojego maila?";
+"lng_signin_password_removed" = "Twoje hasło do chmury zostało zdezaktywowane.\nMożesz ustawić nowe w Ustawieniach.";
+"lng_signin_no_email_forgot" = "Ze względu na to, że nie podano zapasowego\ne-maila podczas ustawiania hasła, teraz możesz jedynie spróbować przypomnieć sobie hasło, bądź zresetować konto.";
+"lng_signin_cant_email_forgot" = "Jeżeli nie możesz odzyskać dostępu do e-maila, pozostaje Ci jedynie spróbować przypomnieć sobie hasło, bądź zresetować konto.";
+"lng_signin_reset_account" = "Zresetuj swoje konto";
+"lng_sigin_sure_reset" = "Uwaga!\n\nStracisz wszystkie swoje rozmowy i wiadomości,\nwłącznie z mediami i plikami, które udostępniłeś!\n\nCzy nadal chcesz zresetować swoje konto?";
+"lng_sigin_reset" = "Reset";
+
+"lng_signup_title" = "Informacje i zdjęcie";
+"lng_signup_desc" = "Wprowadź proszę swoje imię i\nprześlij swoje zdjęcie.";
+
+"lng_signup_firstname" = "Imię";
+"lng_signup_lastname" = "Nazwisko";
+
+"lng_dlg_filter" = "Szukaj";
+"lng_dlg_new_group_name" = "Nazwa grupy";
+"lng_dlg_create_group" = "Stwórz";
+"lng_no_contacts" = "Nie posiadasz kontaktów";
+"lng_contacts_loading" = "Ładowanie..";
+"lng_contacts_not_found" = "Nie znaleziono kontaktów";
+
+"lng_settings_save" = "Zapisz";
+"lng_settings_upload" = "Ustaw zdjęcie profilowe";
+"lng_settings_crop_profile" = "Zaznacz kwadra, który posłuży za Twoje zdjęcie profilowe";
+"lng_settings_uploading_photo" = "Przesyłanie zdjęcia..";
+
+"lng_username_title" = "Zmień nazwę użytkownika";
+"lng_username_about" = "Możesz wybrać nazwę użytkownika w Telegramie.\nJeżeli to zrobisz, inni będą Cię w stanie znaleźć\nkorzystając z niej i kontaktować się z Tobą\nbez potrzeby znajomości Twojego numeru telefonu.\n\nMożesz użyć a-z, 0-9 i podkreślenia.\nMinimalna długość to 5 znaków.";
+"lng_username_invalid" = "Ta nazwa jest niewłaściwa.";
+"lng_username_occupied" = "Ta nazwa jest już używana.";
+"lng_username_too_short" = "Ta nazwa jest za krótka.";
+"lng_username_bad_symbols" = "Ta nazwa zawiera niedozwolone znaki.";
+"lng_username_available" = "Ta nazwa jest dostępna.";
+"lng_username_not_found" = "Nie znaleziono użytkownika @{user}.";
+
+"lng_settings_section_contact_info" = "Informacje kontaktu";
+"lng_settings_phone_number" = "Numer telefonu:";
+"lng_settings_username" = "Nazwa użytkownika:";
+"lng_settings_choose_username" = "Wybierz nawę użytkownika";
+
+"lng_settings_section_notify" = "Powiadomienia";
+"lng_settings_desktop_notify" = "Powiadomienia pulpitu";
+"lng_settings_show_name" = "Pokaż nazwę nadawcy";
+"lng_settings_show_preview" = "Pokaż podgląd wiadomości";
+"lng_settings_sound_notify" = "Odtwórz dźwięk";
+
+"lng_notification_preview" = "Masz nową wiadomość";
+
+"lng_settings_section_general" = "Ogólne";
+"lng_settings_change_lang" = "Zmień język";
+"lng_languages" = "Języki";
+"lng_sure_save_language" = "Telegram zostanie ponownie uruchomiony\nw celu zmiany języka";
+"lng_settings_auto_update" = "Aktualizuj automatycznie";
+"lng_settings_current_version" = "Wersja {version}";
+"lng_settings_check_now" = "Sprawdź aktualizacje";
+"lng_settings_update_checking" = "Sprawdzanie aktualizacji..";
+"lng_settings_latest_installed" = "Najnowsza wersja jest już zainstalowana";
+"lng_settings_downloading" = "Ściąganie aktualizacji {ready} / {total} MB..";
+"lng_settings_update_ready" = "Nowa wersja jest gotowa";
+"lng_settings_update_now" = "Uruchom ponownie";
+"lng_settings_update_fail" = "Sprawdzanie aktualizacji zakończone fiaskiem :(";
+"lng_settings_workmode_tray" = "Pokaż ikonę w zasobniku";
+"lng_settings_workmode_window" = "Pokaż ikonę w pasku zadań";
+"lng_settings_auto_start" = "Uruchamiaj Telegram wraz ze startem systemu";
+"lng_settings_start_min" = "Uruchom zminimalizowany";
+"lng_settings_add_sendto" = "Dodaj Telegram do menu «Wyślij do»";
+"lng_settings_scale_label" = "Skalowanie interfejsu";
+"lng_settings_scale_auto" = "Auto ({cur})";
+
+"lng_settings_section_chat" = "Opcje rozmów";
+"lng_settings_replace_emojis" = "Zamieniaj emotki";
+"lng_settings_view_emojis" = "Wyświetl listę";
+"lng_settings_emoji_list" = "Lista wspieranych emotek";
+"lng_settings_send_enter" = "Wysyłaj przy pomocy Entera";
+"lng_settings_send_ctrlenter" = "Wysyłaj przy pomocy Ctrl+Enter";
+"lng_settings_send_cmdenter" = "Wysyłaj przy pomocy Cmd+Enter";
+
+"lng_settings_section_background" = "Tło rozmowy";
+"lng_settings_bg_from_gallery" = "Wybierz z galerii";
+"lng_settings_bg_from_file" = "Wybierz z pliku";
+"lng_settings_bg_tile" = "Tło kafelkowe";
+
+"lng_backgrounds_header" = "Wybierz swoje nowe tło rozmów";
+
+"lng_download_path_dont_ask" = "Nie pytaj o miejsce pobierania dla każdego pliku";
+"lng_download_path_label" = "Ścieżka pobierania:";
+"lng_download_path_temp" = "katalog tymczasowy";
+"lng_download_path_default" = "katalog domyślny";
+"lng_download_path_clear" = "Wyczyść wszystko";
+"lng_download_path_header" = "Wybierz ścieżkę pobierania";
+"lng_download_path_default_radio" = "Katalog Telegramu w systemowym katalogu «Pobrane»";
+"lng_download_path_temp_radio" = "Katalog tymczasowy, czyszczony przy wylogowaniu się lub deinstalacji";
+"lng_download_path_dir_radio" = "Samodzielnie wybrany katalog, czyszczony ręcznie";
+"lng_download_path_choose" = "Wybierz ścieżkę pobierania";
+"lng_sure_clear_downloads" = "Czy chcesz usunąć wszystkie pobrane pliki w katalogu tymczasowym? Jest to robione automatycznie przy wylogowaniu się, bądź deinstalacji programu.";
+"lng_download_path_failed" = "Nie można rozpocząć pobierania pliku. Przyczyną może być źle wybrana ścieżka pobierania.\n\nŚcieżkę pobierania możesz zmienić w Ustawieniach.";
+"lng_download_path_settings" = "Idź do Ustawień";
+"lng_download_finish_failed" = "Nie można zakończyć pobierania pliku.\n\nCzy spróbować ponownie?";
+"lng_download_path_clearing" = "Czyszczenie..";
+"lng_download_path_cleared" = "Wyczyszczono!";
+"lng_download_path_clear_failed" = "Czyszczenie zakończyło się niepowodzeniem :(";
+
+"lng_settings_section_cache" = "Magazyn lokalny";
+"lng_settings_no_data_cached" = "Brak danych w pamięci podręcznej!";
+"lng_settings_images_cached" = "{count:_not_used_|# zdjęcie|# zdjęcia}, {size}";
+"lng_settings_audios_cached" = "{count:_not_used_|# wiadomość głosowa|# wiadomości głosowych}, {size}";
+"lng_local_storage_clear" = "Wyczyść wszystko";
+"lng_local_storage_clearing" = "Czyszczenie..";
+"lng_local_storage_cleared" = "Wyczyszczono!";
+"lng_local_storage_clear_failed" = "Czyszczenie zakończyło się niepowodzeniem :(";
+
+"lng_settings_section_advanced" = "Zaawansowane";
+
+"lng_passcode_remove_button" = "Usuń";
+
+"lng_passcode_turn_on" = "Włącz hasło lokalne";
+"lng_passcode_change" = "Zmień hasło lokalne";
+"lng_passcode_create" = "Utwórz hasło lokalne";
+"lng_passcode_remove" = "Usuń hasło lokalne";
+"lng_passcode_turn_off" = "Wyłącz";
+"lng_passcode_autolock" = "Automatyczne blokowanie";
+"lng_passcode_autolock_away" = "Blokuj automatycznie, jeżeli nie ma Cię od:";
+"lng_passcode_autolock_inactive" = "Blokuj automatycznie, jeżeli brak aktywności od:";
+"lng_passcode_autolock_minutes" = "{count:_not_used_|# minuty|# minut}";
+"lng_passcode_autolock_hours" = "{count:_not_used_|# godziny|# godzin}";
+"lng_passcode_enter_old" = "Wprowadź stare hasło";
+"lng_passcode_enter_first" = "Wprowadź hasło";
+"lng_passcode_enter_new" = "Wprowadź nowe hasło";
+"lng_passcode_confirm_new" = "Wprowadź ponownie nowe hasło";
+"lng_passcode_about" = "W przypadku ustawienia hasła lokalnego, w górnym menu pojawi się ikona kłódki. Kliknij ją, aby zablokować aplikację.\n\nPamiętaj: jeżeli zapomnisz hasła lokalnego, będzie wymagane ponowne zalogowanie się do Telegramu Desktop.";
+"lng_passcode_differ" = "Hasła są różne";
+"lng_passcode_wrong" = "Niewłaściwe hasło";
+"lng_passcode_is_same" = "Hasło nie zostało zmienione";
+"lng_passcode_enter" = "Wprowadź swoje lokalne hasło";
+"lng_passcode_submit" = "Wyślij";
+"lng_passcode_logout" = "Wyloguj się";
+
+"lng_cloud_password_waiting" = "Potwierdzenie zostało wysłane na adres {email}..";
+"lng_cloud_password_change" = "Zmień hasło do chmury";
+"lng_cloud_password_create" = "Stwórz hasło do chmury";
+"lng_cloud_password_remove" = "Usuń hasło do chmury";
+"lng_cloud_password_set" = "Aktywuj dwuetapowe uwierzytelnianie";
+"lng_cloud_password_edit" = "Zmień hasło do chmury";
+"lng_cloud_password_enter_old" = "Wprowadź stare hasło";
+"lng_cloud_password_enter_first" = "Wprowadź hasło";
+"lng_cloud_password_enter_new" = "Wprowadź nowe hasło";
+"lng_cloud_password_confirm_new" = "Wprowadź ponownie nowe hasło";
+"lng_cloud_password_hint" = "Wprowadź podpowiedź do hasła";
+"lng_cloud_password_bad" = "Hasło i podpowiedź nie mogą być takie same.";
+"lng_cloud_password_email" = "Wprowadź zapasowy e-mail";
+"lng_cloud_password_bad_email" = "Niewłaściwy e-mail, spróbuj proszę z innym.";
+"lng_cloud_password_about" = "To hasło będzie potrzebne w momencie logowania z nowego urządzenia jako dodatek do kodu PIN.";
+"lng_cloud_password_about_recover" = "Uwaga! Czy na pewno nie dodawać\nzapasowego adresu e-mail?\n\nJeżeli zapomnisz hasła do chmury\nstracisz dostęp do swojego konta Telegram.";
+"lng_cloud_password_almost" = "Link potwierdzający został wysłany\nna wcześniej podany adres e-mail.\n\nDwuetapowe uwierzytelnianie zostanie uruchomione\njak tylko klikniesz w link.";
+"lng_cloud_password_was_set" = "Uaktywniono uwierzytelnianie dwuetapowe.";
+"lng_cloud_password_updated" = "Twoje hasło do chmury zostało zaktualizowane.";
+"lng_cloud_password_removed" = "Zdezaktywowano uwierzytelnianie dwuetapowe.";
+"lng_cloud_password_differ" = "Hasła nie są takie same";
+"lng_cloud_password_wrong" = "Niewłaściwe hasło do chmury";
+"lng_cloud_password_is_same" = "Hasło nie zostało zmienione";
+
+"lng_connection_type" = "Rodzaj połączenia:";
+"lng_connection_auto_connecting" = "Domyślne (łączenie..)";
+"lng_connection_auto" = "Domyślne (wykorzystano {type})";
+"lng_connection_http_proxy" = "HTTP z proxy";
+"lng_connection_tcp_proxy" = "TCP z proxy";
+"lng_connection_header" = "Rodzaj połączenia";
+"lng_connection_auto_rb" = "Automatycznie (TCP jeżeli dostępne, albo HTTP)";
+"lng_connection_http_proxy_rb" = "HTTP z wybranym http-proxy";
+"lng_connection_tcp_proxy_rb" = "TCP z wybranym socks5-proxy";
+"lng_connection_host_ph" = "Nazwa hosta";
+"lng_connection_port_ph" = "Port";
+"lng_connection_user_ph" = "Nazwa użytkownika";
+"lng_connection_password_ph" = "Hasło";
+"lng_connection_save" = "Zapisz";
+"lng_settings_show_sessions" = "Pokaż wszystkie sesje";
+"lng_settings_reset" = "Zakończ wszystkie sesje inne, niż obecna";
+"lng_settings_reset_sure" = "Czy na pewno zakończyć wszystkie\ninne sesje?";
+"lng_settings_reset_one_sure" = "Czy chcesz zakończyć obecną sesję?";
+"lng_settings_reset_button" = "Zakończ";
+"lng_settings_reset_done" = "Zakończono pozostałe sesje";
+"lng_settings_logout" = "Wyloguj się";
+"lng_sure_logout" = "Czy na pewno chcesz się wylogować?";
+
+"lng_settings_need_restart" = "Aby zastosować ustawienia należy\nzrestartować aplikację. Zrobić to teraz?";
+"lng_settings_restart_now" = "Restart";
+"lng_settings_restart_later" = "Później";
+
+"lng_sessions_header" = "Obecna sesja";
+"lng_sessions_other_header" = "Aktywne sesje";
+"lng_sessions_no_other" = "Brak innych sesji";
+"lng_sessions_other_desc" = "Możesz się zalogować do Telegramu z innego\ntelefonu, tabletu lub komputera korzystając\nz tego samego numeru telefonu. Wszystkie Twoje dane\nzostaną natychmiast zsynchronizowane.";
+"lng_sessions_terminate_all" = "Zakończ wszystkie";
+
+"lng_preview_loading" = "Pobieranie informacji o linku..";
+
+"lng_profile_chat_unaccessible" = "Grupa jest niedostępna";
+"lng_topbar_info" = "Informacje";
+"lng_profile_settings_section" = "Ustawienia";
+"lng_profile_participants_section" = "Członkowie";
+"lng_profile_info" = "Informacje kontaktowe";
+"lng_profile_group_info" = "Informacje o grupie";
+"lng_profile_add_contact" = "Dodaj kontakt";
+"lng_profile_edit_contact" = "Edytuj";
+"lng_profile_enable_notifications" = "Powiadomienia";
+"lng_profile_clear_history" = "Wyczyść historię";
+"lng_profile_send_message" = "Wyślij wiadomość";
+"lng_profile_share_contact" = "Udostępnij kontakt";
+"lng_profile_delete_contact" = "Usuń";
+"lng_profile_set_group_photo" = "Ustaw zdjęcie";
+"lng_profile_add_participant" = "Dodaj członka";
+"lng_profile_delete_and_exit" = "Opuść";
+"lng_profile_kick" = "Wyrzuć";
+"lng_profile_sure_kick" = "Wyrzucić {user} z grupy?";
+"lng_profile_loading" = "Ładowanie..";
+"lng_profile_shared_media" = "Udostępnione media";
+"lng_profile_no_media" = "Brak mediów w tej rozmowie.";
+"lng_profile_photos" = "{count:_not_used_|# zdjęcie|# zdjęć} »";
+"lng_profile_photos_header" = "Podgląd zdjęć";
+"lng_profile_videos" = "{count:_not_used_|# film|# filmów} »";
+"lng_profile_videos_header" = "Podgląd filmów";
+"lng_profile_files" = "{count:_not_used_|# plik|# plików} »";
+"lng_profile_files_header" = "Podgląd zdjęć";
+"lng_profile_audios" = "{count:_not_used_|# wiadomość głosowa|# wiadomości głosowych} »";
+"lng_profile_audios_header" = "Podgląd wiadomości głosowych";
+"lng_profile_show_all_types" = "Pokaż wszystkie typy";
+"lng_profile_copy_phone" = "Skopiuj numer telefonu";
+
+"lng_participant_filter" = "Szukaj";
+"lng_participant_invite" = "Zaproś";
+"lng_create_new_group" = "Nowa grupa";
+"lng_create_group_next" = "Następna";
+"lng_create_group_title" = "Nowa grupa";
+
+"lng_failed_add_participant" = "Nie można dodać użytkownika. Spróbuj ponownie później.";
+
+"lng_sure_delete_contact" = "Czy na pewno chcesz usunąć {contact} ze swojej listy kontaktów?";
+"lng_sure_delete_history" = "Czy na pewno chcesz usunąć całą historię wiadomości z {contact}?\n\nTej czynności nie można cofnąć.";
+
+"lng_sure_delete_and_exit" = "Czy na pewno chcesz usunąć całą historię wiadomości i opuścić «{group}»?\n\nTej czynności nie można cofnąć.";
+
+"lng_message_empty" = "(pusta)";
+
+"lng_action_add_user" = "{from} dodał/a {user}";
+"lng_action_kick_user" = "{from} wyrzucił/a {user}";
+"lng_action_user_left" = "{from} opuścił/a grupę";
+"lng_action_user_joined" = "{from} dołączył/a do grupy";
+"lng_action_user_joined_by_link" = "{from} dołączył/a do grupy korzystając z linka z zaproszeniem";
+"lng_action_user_registered" = "{from} dołączył/a do Telegramu";
+"lng_action_removed_photo" = "{from} wyłączył/a zdjęcie grupy";
+"lng_action_changed_photo" = "{from} zmienił/a zdjęcie grupy";
+"lng_action_changed_title" = "{from} zmienił/a nazwę grupy na «{title}»";
+"lng_action_created_chat" = "{from} utworzył/a grupę «{title}»";
+
+"lng_group_invite_bad_link" = "Ten link z zaproszeniem jest nieprawidłowy\nalbo wygasł.";
+"lng_group_invite_want_join" = "Czy chcesz dołączyć do grupy «{title}»?";
+"lng_group_invite_join" = "Dołącz";
+
+"lng_group_invite_link" = "Link z zaproszeniem";
+"lng_group_invite_create" = "Utwórz link z zaproszeniem";
+"lng_group_invite_about" = "Użytkownik Telegramu będzie mógł dołączyć do\nTwojej grupy podążając za tym linkiem.";
+"lng_group_invite_create_new" = "Unieważnij link z zaproszeniem";
+"lng_group_invite_about_new" = "Twój poprzedni link zostanie zdezaktywowany\ni wygenerujemy dla Ciebie nowy link.";
+"lng_group_invite_copied" = "Link z zaproszeniem został skopiowany do schowka.";
+"lng_group_invite_no_room" = "Nie można dołączyć do wskazanej grupy\nze względu nadmierną liczbę uczestników w nim obecnych.";
+
+"lng_forwarded_from" = "Przesłano od";
+"lng_in_reply_to" = "W odpowiedzi na";
+
+"lng_attach_failed" = "Porażka";
+"lng_attach_file" = "Plik";
+"lng_attach_photo" = "Zdjęcie";
+
+"lng_media_type" = "Rodzaj medium";
+"lng_media_type_photos" = "Zdjęcia";
+"lng_media_type_videos" = "Filmy";
+"lng_media_type_files" = "Pliki";
+"lng_media_type_audios" = "Wiadomości głosowe";
+
+"lng_media_open_with" = "Otwórz korzystając z";
+"lng_media_download" = "Pobierz";
+"lng_media_cancel" = "Anuluj";
+"lng_media_video" = "Film";
+"lng_media_audio" = "Wiadomość głosowa";
+
+"lng_emoji_category0" = "Często używane";
+"lng_emoji_category1" = "Ludzie";
+"lng_emoji_category2" = "Natura";
+"lng_emoji_category3" = "Jedzenie i napoje";
+"lng_emoji_category4" = "Świętowanie";
+"lng_emoji_category5" = "Aktywność";
+"lng_emoji_category6" = "Podróże i miejsca";
+"lng_emoji_category7" = "Rzeczy i symbole";
+
+"lng_switch_stickers" = "Naklejki";
+"lng_switch_emoji" = "Emotki";
+
+"lng_custom_stickers" = "Niestandardowe naklejki";
+"lng_stickers_remove_pack" = "Usunąć «{sticker_pack}»?";
+"lng_stickers_add_pack" = "Dodaj {count:_not_used_|# naklejkę|# naklejki}";
+"lng_stickers_share_pack" = "Udostępnij naklejki";
+"lng_stickers_not_found" = "Nie znaleziono paczki z naklejkami.";
+"lng_stickers_copied" = "Link do paczki z naklejkami skopiowany do schowka.";
+"lng_stickers_default_set" = "Wielkie umysły";
+
+"lng_in_dlg_photo" = "Zdjęcie";
+"lng_in_dlg_video" = "Film";
+"lng_in_dlg_contact" = "Kontakt";
+"lng_in_dlg_audio" = "Audio";
+"lng_in_dlg_file" = "Plik";
+"lng_in_dlg_sticker" = "Naklejka";
+"lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
+
+"lng_send_button" = "Wyślij";
+"lng_message_ph" = "Napisz wiadomość..";
+"lng_record_cancel" = "Zwolnij klawisz poza tym miejscem, aby anulować nagrywanie";
+"lng_empty_history" = "";
+"lng_willbe_history" = "Wybierz rozmowę, aby wysłać wiadomość";
+"lng_message_with_from" = "[c]{from}:[/c] {message}";
+"lng_from_you" = "Ty";
+
+"lng_typing" = "pisze";
+"lng_user_typing" = "{user} pisze";
+"lng_users_typing" = "{user} i {second_user} piszą";
+"lng_many_typing" = "{count:_not_used_|# pisze|# piszą}";
+"lng_unread_bar" = "{count:_not_used_|# nieprzeczytana wiadomość|# nieprzeczytane wiadomości}";
+
+"lng_maps_point" = "Lokalizacja";
+"lng_save_photo" = "Zapisz zdjęcie";
+"lng_save_video" = "Zapisz film";
+"lng_save_audio" = "Zapisz audio";
+"lng_save_file" = "Zapisz plik";
+"lng_save_downloaded" = "{ready} / {total} {mb}";
+"lng_duration_and_size" = "{duration}, {size}";
+"lng_choose_images" = "Wybierz zdjęcia";
+
+"lng_context_open_link" = "Otwórz link";
+"lng_context_copy_link" = "Skopiuj link";
+"lng_context_open_email" = "Napisz do tego adresu";
+"lng_context_copy_email" = "Skopiuj adres e-mail";
+"lng_context_open_hashtag" = "Szukaj korzystając z hashtaga";
+"lng_context_copy_hashtag" = "Skopiuj hashtag";
+"lng_context_open_mention" = "Otwórz profil";
+"lng_context_copy_mention" = "Skopiuj nazwę użytkownika";
+"lng_context_open_image" = "Otwórz zdjęcie";
+"lng_context_save_image" = "Zapisz zdjęcie jako..";
+"lng_context_forward_image" = "Prześlij dalej zdjęcie";
+"lng_context_delete_image" = "Usuń zdjęcie";
+"lng_context_copy_image" = "Skopiuj zdjęcie";
+"lng_context_close_image" = "Zamknij zdjęcie";
+"lng_context_cancel_download" = "Anuluj pobieranie";
+"lng_context_show_in_folder" = "Pokaż w folderze";
+"lng_context_show_in_finder" = "Pokaż w Finderze";
+"lng_context_open_video" = "Otwórz film";
+"lng_context_save_video" = "Zapisz film jako..";
+"lng_context_open_audio" = "Otwórz audio";
+"lng_context_save_audio" = "Otwórz audio jako..";
+"lng_context_pack_info" = "Informacje o paczce";
+"lng_context_open_file" = "Otwórz plik";
+"lng_context_save_file" = "Zapisz plik jako..";
+"lng_context_forward_file" = "Prześlij dalej plik";
+"lng_context_delete_file" = "Usuń plik";
+"lng_context_close_file" = "Zamknij plik";
+"lng_context_copy_text" = "Skopiuj tekst";
+"lng_context_to_msg" = "Idź do wiadomości";
+"lng_context_reply_msg" = "Odpowiedz";
+"lng_context_forward_msg" = "Prześlij dalej wiadomość";
+"lng_context_delete_msg" = "Usuń wiadomość";
+"lng_context_select_msg" = "Wybierz wiadomość";
+"lng_context_cancel_upload" = "Anuluj wysyłanie";
+"lng_context_copy_selected" = "Skopiuj zaznaczony tekst";
+"lng_context_forward_selected" = "Prześlij dalej zaznaczone";
+"lng_context_delete_selected" = "Usuń zaznaczone";
+"lng_context_clear_selection" = "Wyczyść zaznaczenie";
+"lng_really_send_image" = "Czy chcesz wysłać to zdjęcie?";
+"lng_really_send_file" = "Czy chcesz wysłać ten plik?";
+"lng_really_share_contact" = "Czy chcesz udostępnić ten kontakt?";
+"lng_send_image_compressed" = "Wyślij skompresowane zdjęcie";
+
+"lng_forward_choose" = "Wybierz odbiorcę..";
+"lng_forward_confirm" = "Czy przesłać dalej do {recipient}?";
+"lng_forward_share_contact" = "Czy udostępnić kontakt {recipient}?";
+"lng_forward_send_file_confirm" = "Czy wysłać «{name}» do {recipient}?";
+"lng_forward_send_files_confirm" = "Czy wysłać zaznaczone pliki do {recipient}?";
+"lng_forward" = "Prześlij dalej";
+"lng_forward_send" = "Wyślij";
+"lng_forward_messages" = "{count:_not_used_|przesłana dalej wiadomość|# przesłanych dalej wiadomości}";
+"lng_forwarding_from" = "{user} i {count:_not_used_|# inny|# innych}";
+"lng_forwarding_from_two" = "{user} i {second_user}";
+
+"lng_contact_phone" = "Numer telefonu";
+"lng_enter_contact_data" = "Nowy kontakt";
+"lng_edit_group_title" = "Edytuj nazwę grupy";
+"lng_edit_contact_title" = "Edytuj nazwę kontaktu";
+"lng_edit_self_title" = "Edytuj swoją nazwę";
+"lng_confirm_contact_data" = "Nowy kontakt";
+"lng_add_contact" = "Utwórz";
+"lng_add_contact_button" = "Dodaj kontakt";
+"lng_contacts_header" = "Kontakty";
+"lng_contact_not_joined" = "Niestety, {name} nie dołączył/a jeszcze do Telegramu, ale możesz wysłać zaproszenie.\n\nPoinformujemy Cię o każdym kontakcie dołączającym do Telegramu.";
+"lng_try_other_contact" = "Spróbuj inny";
+"lng_contacts_done" = "Anuluj";
+
+"lng_drag_images_here" = "Upuść zdjęcia tutaj";
+"lng_drag_photos_here" = "Upuść zdjęcia tutaj";
+"lng_drag_files_here" = "Upuść pliki tutaj";
+
+"lng_drag_to_send_quick" = "aby wysłać je w szybki sposób";
+"lng_drag_to_send_no_compression" = "aby wysłać je bez kompresji";
+"lng_drag_to_send_files" = "aby wysłać je jako pliki";
+
+"lng_selected_clear" = "Anuluj";
+"lng_selected_delete" = "Usuń";
+"lng_selected_forward" = "Prześlij dalej";
+"lng_selected_count" = "{count:_not_used_|# wiadomość|# wiadomości}";
+"lng_selected_cancel_sure_this" = "Czy chcesz anulować to wysyłanie?";
+"lng_selected_delete_sure_this" = "Czy chcesz usunąć tą wiadomość?";
+"lng_selected_delete_sure" = "Czy chcesz usunąć {count:_not_used_|# wiadomość|# wiadomości}?";
+"lng_selected_delete_confirm" = "Usuń";
+
+"lng_about_version" = "Wersja {version}";
+"lng_about_text" = "Oficjalny i darmowy komunikator bazujący na [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a]\ni [a href=\"https://core.telegram.org/api\"]Telegram API[/a] stworzony z myślą o szybkości działania i bezpieczeństwie.\n\nNiniejsze oprogramowanie jest dystrybuowane na licencji [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] w wersji 3,\nkod źródłowy jest dostępny w serwisie [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
+"lng_about_done" = "Zamknij";
+
+"lng_search_found_results" = "{count:Nie znaleziono wiadomości|Znaleziono # wiadomość|Znaleziono # wiadomości}";
+"lng_search_global_results" = "Globalne wyniki wyszukiwania";
+
+"lng_media_save_progress" = "{ready} z {total} {mb}";
+"lng_mediaview_save_as" = "Zapisz jako..";
+"lng_mediaview_copy" = "Kopiuj";
+"lng_mediaview_forward" = "Prześlij dalej";
+"lng_mediaview_delete" = "Usuń";
+"lng_mediaview_photos_all" = "Wyświetl wszystkie zdjęcia";
+"lng_mediaview_files_all" = "Wyświetl wszystkie pliki";
+"lng_mediaview_single_photo" = "Pojedyncze zdjęcie";
+
+"lng_mediaview_group_photo" = "Zdjęcie grupy";
+"lng_mediaview_profile_photo" = "Zdjęcie profilowe";
+"lng_mediaview_file_n_of_count" = "{file} {n} z {count}";
+"lng_mediaview_n_of_count" = "Zdjęcie {n} z {count}";
+"lng_mediaview_doc_image" = "Plik";
+"lng_mediaview_today" = "dziś o {time}";
+"lng_mediaview_yesterday" = "wczoraj o {time}";
+"lng_mediaview_date_time" = "{date} o {time}";
+
+"lng_mediaview_saved" = "Zdjęcie zostało zapisane do Twojego katalogu [c]Pobrane[/c]";
+
+"lng_new_authorization" = "{name},\nWykryliśmy, że {day}, {date} o {time} zalogowano się na Twoje konto z nowego urządzenia.\n\nUrządzenie: {device}\nLokalizacja: {location}\n\nJeżeli to nie Ty, możesz przejść do karty Ustawienia — Pokaż wszystkie sesje i zakończyć tę sesję.\n\nJeżeli myślisz, że ktoś zalogował się na Twoje konto wbrew Twojej woli, możesz włączyć dwuetapowe uwierzytelnianie w Ustawieniach.\n\nPozdrawiamy,\nZespół Telegramu";
+
+"lng_new_version_wrap" = "Telegram Desktop został zaktualizowany do wersji {version}\n\n{changes}\n\nPełna historia zmian dostępna jest tutaj:\n{link}";
+"lng_new_version_minor" = "— Poprawki błędów i inne drobne ulepszenia";
+"lng_new_version_text" = "— Usprawniony panel naklejek\n— Poprawki błędów i drobne rzeczy";
+
+"lng_menu_insert_unicode" = "Wprowadź znak kontrolny Unicode";
+
+// Wnd specific
+
+"lng_wnd_choose_program_menu" = "Wybierz domyślny program...";
+
+"lng_wnd_menu_undo" = "Cofnij";
+"lng_wnd_menu_redo" = "Powtórz";
+
+// Linux specific
+
+"lng_linux_menu_undo" = "Cofnij";
+"lng_linux_menu_redo" = "Powtórz";
+
+// Mac specific
+
+"lng_mac_choose_program_menu" = "Inne...";
+
+"lng_mac_choose_app" = "Wybierz aplikację";
+"lng_mac_choose_text" = "Wybierz aplikację, aby otworzyć dokument \"{file}\".";
+"lng_mac_enable_filter" = "Włącz:";
+"lng_mac_recommended_apps" = "Zalecane aplikacje";
+"lng_mac_all_apps" = "Wszystkie aplikacje";
+"lng_mac_always_open_with" = "Zawsze otwieraj używając";
+"lng_mac_this_app_can_open" = "Ta aplikacja potrafi otworzyć \"{file}\".";
+"lng_mac_not_known_app" = "Nie wiadomo, czy ta aplikacja potrafi otworzyć \"{file}\".";
+
+"lng_mac_menu_services" = "Usługi";
+"lng_mac_menu_hide_telegram" = "Ukryj {telegram}";
+"lng_mac_menu_hide_others" = "Ukryj inne";
+"lng_mac_menu_show_all" = "Pokaż wszystkie";
+"lng_mac_menu_preferences" = "Preferencje...";
+"lng_mac_menu_quit_telegram" = "Zamknij {telegram}";
+"lng_mac_menu_about_telegram" = "O {telegram}";
+"lng_mac_menu_file" = "Plik";
+"lng_mac_menu_logout" = "Wyloguj się";
+"lng_mac_menu_edit" = "Edytuj";
+"lng_mac_menu_undo" = "Cofnij";
+"lng_mac_menu_redo" = "Powtórz";
+"lng_mac_menu_cut" = "Wytnij";
+"lng_mac_menu_copy" = "Kopiuj";
+"lng_mac_menu_paste" = "Wklej";
+"lng_mac_menu_delete" = "Usuń";
+"lng_mac_menu_select_all" = "Zaznacz wszystko";
+"lng_mac_menu_window" = "Okno";
+"lng_mac_menu_contacts" = "Kontakty";
+"lng_mac_menu_add_contact" = "Dodaj kontakt";
+"lng_mac_menu_new_group" = "Nowa grupa";
+"lng_mac_menu_show" = "Pokaż Telegram";
+
+// Keys finished
