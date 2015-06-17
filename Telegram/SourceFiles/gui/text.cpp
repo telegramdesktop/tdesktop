@@ -750,11 +750,10 @@ void TextLink::onClick(Qt::MouseButton button) const {
 		if (telegramMeUser.hasMatch()) {
 			QString params = url.mid(telegramMeUser.captured(0).size()), start, startToken;
 			if (!params.isEmpty()) {
-				QRegularExpressionMatch startParams = QRegularExpression(qsl("(^|&)(s|sg)=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), QRegularExpression::CaseInsensitiveOption).match(params);
+				QRegularExpressionMatch startParams = QRegularExpression(qsl("(^|&)(start|startgroup)=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), QRegularExpression::CaseInsensitiveOption).match(params);
 				if (startParams.hasMatch()) {
 					start = startParams.captured(2);
 					startToken = startParams.captured(3);
-					start = (start == qsl("sg") ? qsl("startgroup") : (start == qsl("s") ? qsl("start") : QString()));
 				}
 			}
 			App::openUserByName(telegramMeUser.captured(1), start == qsl("startgroup"), startToken);
