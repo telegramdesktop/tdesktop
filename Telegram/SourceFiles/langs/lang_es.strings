@@ -70,8 +70,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_status_service_notifications" = "servicio de notificaciones";
 "lng_status_bot" = "bot";
-"lng_status_bot_reads_all" = "ve todos los mensajes";
-"lng_status_bot_not_reads_all" = "sólo ve mensajes iniciados con /";
+"lng_status_bot_reads_all" = "tiene acceso a los mensajes";
+"lng_status_bot_not_reads_all" = "no tiene acceso a los mensajes";
 "lng_status_offline" = "última vez hace mucho tiempo";
 "lng_status_recently" = "última vez recientemente";
 "lng_status_last_week" = "última vez hace unos días";
@@ -457,13 +457,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_send_button" = "Enviar";
 "lng_message_ph" = "Escribir un mensaje...";
-"lng_record_cancel" = "Suelta fuera de aquí para cancelar";
+"lng_record_cancel" = "Suelta fuera de este campo para cancelar";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Por favor, elige un chat para comenzar a conversar";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Tú";
 "lng_bot_description" = "¿Qué puede hacer este bot?";
 
+"lng_bot_start" = "Empezar";
 "lng_bot_choose_group" = "Elegir grupo";
 "lng_bot_no_groups" = "No tienes grupos";
 "lng_bot_groups_not_found" = "No se encontraron grupos";
@@ -599,7 +600,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop fue actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "Esta nueva versión incluye el soporte para bots, usando la nueva API para bots. Si eres un ingeniero, crea tus propios bots como @quiz_bot o @hot_or_bot usando el @botfather.\n\nConoce más en {blog_link}";
+"lng_new_version_text" = "Esta nueva versión incluye el soporte para bots, usando la nueva API para bots, gratis para todos. Si eres un ingeniero, crea tus propios bots para juegos, servicios o integraciones .\n\nConoce más en {blog_link}";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

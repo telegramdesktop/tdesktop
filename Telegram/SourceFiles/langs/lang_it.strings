@@ -70,8 +70,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_status_service_notifications" = "notifiche di servizio";
 "lng_status_bot" = "bot";
-"lng_status_bot_reads_all" = "vede tutti i messaggi";
-"lng_status_bot_not_reads_all" = "vede solo i messaggi che iniziano con /";
+"lng_status_bot_reads_all" = "ha accesso ai messaggi";
+"lng_status_bot_not_reads_all" = "non ha accesso ai messaggi";
 "lng_status_offline" = "ultimo accesso molto tempo fa";
 "lng_status_recently" = "ultimo accesso di recente";
 "lng_status_last_week" = "ultimo accesso entro una settimana";
@@ -457,13 +457,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_send_button" = "Invia";
 "lng_message_ph" = "Scrivi un messaggio..";
-"lng_record_cancel" = "Rilascia fuori per annullare";
+"lng_record_cancel" = "Rilascia fuori da questo campo per annullare";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Seleziona una chat per iniziare a messaggiare";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Tu";
 "lng_bot_description" = "Cosa può fare questo bot?";
 
+"lng_bot_start" = "Avvia";
 "lng_bot_choose_group" = "Scegli gruppo";
 "lng_bot_no_groups" = "Non hai gruppi";
 "lng_bot_groups_not_found" = "Nessun gruppo trovato";
@@ -599,7 +600,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli update è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "Questa nuova versione include il support per i bot usando la nuova API per i bot. Se sei un ingegnere, crea i tuoi bot come @quiz_bot o @hot_or_bot usando il @botfather.\n\nScopri di più su {blog_link}";
+"lng_new_version_text" = "Questa nuova versione include il support per i bot usando la nuova API per i bot. Se sei un ingegnere, crea i tuoi bot per giochi, servizi o integrazioni. Scopri di più su {blog_link}";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

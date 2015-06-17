@@ -54,10 +54,11 @@ private:
 	int32 _textWidth;
 
 	style::flatButton _st;
-	anim::cvalue a_bg, a_text;
 
 	int32 _autoFontPadding;
 	style::font _autoFont;
+
+	anim::cvalue a_bg, a_text;
 	float64 _opacity;
 };
 

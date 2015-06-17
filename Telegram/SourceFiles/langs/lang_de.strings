@@ -70,8 +70,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_status_service_notifications" = "Servicemeldungen";
 "lng_status_bot" = "Bot";
-"lng_status_bot_reads_all" = "sieht alle Nachrichten";
-"lng_status_bot_not_reads_all" = "sieht nur Nachrichten, die mit / anfangen";
+"lng_status_bot_reads_all" = "hat Zugriff auf Nachrichten";
+"lng_status_bot_not_reads_all" = "hat keinen Zugriff auf Nachrichten";
 "lng_status_offline" = "vor langer Zeit gesehen";
 "lng_status_recently" = "kürzlich gesehen";
 "lng_status_last_week" = "innerhalb einer Woche gesehen";
@@ -349,7 +349,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_clear_history" = "Chatverlauf löschen";
 "lng_profile_send_message" = "Nachricht senden";
 "lng_profile_share_contact" = "Kontakt teilen";
-"lng_profile_invite_to_group" = "Zu einer Gruppe hinzufügen";
+"lng_profile_invite_to_group" = "In eine Gruppe einladen";
 "lng_profile_delete_contact" = "Löschen";
 "lng_profile_set_group_photo" = "Bild festlegen";
 "lng_profile_add_participant" = "Neues Mitglied";
@@ -464,6 +464,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_from_you" = "Ich";
 "lng_bot_description" = "Was kann dieser Bot?";
 
+"lng_bot_start" = "Starten";
 "lng_bot_choose_group" = "Gruppe auswählen";
 "lng_bot_no_groups" = "Du hast keine Gruppen";
 "lng_bot_groups_not_found" = "Keine Gruppen gefunden";
@@ -599,7 +600,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "Diese neue Version enthält Unterstützung für die neue Bot API. Kannst du programmieren? Erstelle deine eigenen Bots wie den @quiz_bot oder @hot_or_bot mit dem @botfather.\n\nMehr dazu unter {blog_link}";
+"lng_new_version_text" = "Diese neue Version enthält Unterstützung für die neue Bot API, welche für alle kostenlos verfügbar ist. Kannst du programmieren? Erstelle deine eigenen Bots für Spiele, Dienste oder Integrationen.\n\nMehr dazu unter {blog_link}";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

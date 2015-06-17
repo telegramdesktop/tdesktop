@@ -70,8 +70,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_status_service_notifications" = "servicemeldingen";
 "lng_status_bot" = "bot";
-"lng_status_bot_reads_all" = "ziet alle berichten";
-"lng_status_bot_not_reads_all" = "ziet berichten die beginnen met /";
+"lng_status_bot_reads_all" = "toegang tot  berichten";
+"lng_status_bot_not_reads_all" = "geen toegang tot berichten";
 "lng_status_offline" = "lang geleden gezien";
 "lng_status_recently" = "recent gezien";
 "lng_status_last_week" = "afgelopen week gezien";
@@ -457,13 +457,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_send_button" = "Stuur";
 "lng_message_ph" = "Bericht schrijven";
-"lng_record_cancel" = "Annuleren: uit het vak loslaten";
+"lng_record_cancel" = "Release outside this field to cancel";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Kies een chat om te beginnen";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Jij";
 "lng_bot_description" = "Wat kan deze bot? ";
 
+"lng_bot_start" = "Start";
 "lng_bot_choose_group" = "Groep kiezen";
 "lng_bot_no_groups" = "Je hebt geen groepen";
 "lng_bot_groups_not_found" = "Geen groepen gevonden";
@@ -599,7 +600,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "Deze versie heeft ondersteuning voor de nieuwe bot-API, gratis voor iedereen. Handig met programmeren? Maak dan je eigen bots zoals @quiz_bot of @hot_or_bot via @botfather. \n\nMeer weten? kijk op: {blog_link}";
+"lng_new_version_text" = "This new version includes support for bots using the new bot API, free for everyone. If you're an engineer, create your own bots for games, services or integrations.\n\nLearn more at {blog_link}";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

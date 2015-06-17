@@ -457,13 +457,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_send_button" = "Send";
 "lng_message_ph" = "Write a message..";
-"lng_record_cancel" = "Release out of here to cancel";
+"lng_record_cancel" = "Release outside this field to cancel";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Please select chat to start messaging";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "You";
 "lng_bot_description" = "What can this bot do?";
 
+"lng_bot_start" = "Start";
 "lng_bot_choose_group" = "Choose Group";
 "lng_bot_no_groups" = "You have no groups";
 "lng_bot_groups_not_found" = "No groups found";
@@ -599,7 +600,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "This new version includes support for bots using the new bot API. If you're an engineer, create your own bots like @quiz_bot or @hot_or_bot using the @botfather.\n\nLearn more at {blog_link}";
+"lng_new_version_text" = "This new version includes support for bots using the new bot API, free for everyone. If you're an engineer, create your own bots for games, services or integrations.\n\nLearn more at {blog_link}";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 
