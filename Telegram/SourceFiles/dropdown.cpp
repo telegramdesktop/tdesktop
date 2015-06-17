@@ -2483,10 +2483,10 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : -1;
 			if (hasUsername || botStatus == 0 || botStatus == 2) {
 				toHighlight += '@' + user->username;
-				if (botStatus == 0 || botStatus == 2) {
-					user->photo->load();
-					p.drawPixmap(st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), user->photo->pixRounded(st::mentionPhotoSize));
-				}
+			}
+			if (_parent->chat() || botStatus == 0 || botStatus == 2) {
+				user->photo->load();
+				p.drawPixmap(st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), user->photo->pixRounded(st::mentionPhotoSize));
 			}
 
 			int32 addleft = 0, widthleft = htagwidth;

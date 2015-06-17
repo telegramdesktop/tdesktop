@@ -3617,7 +3617,7 @@ void HistoryWidget::sendBotCommand(const QString &cmd, MsgId replyTo) { // reply
 	hist->loadAround(0);
 
 	int32 botStatus = histPeer->chat ? histPeer->asChat()->botStatus : -1;
-	App::main()->sendPreparedText(hist, cmd, replyTo ? ((histPeer->chat && (botStatus == 0 || botStatus == 2)) ? replyTo : -1) : 0);
+	App::main()->sendPreparedText(hist, cmd, replyTo ? ((histPeer->chat/* && (botStatus == 0 || botStatus == 2)*/) ? replyTo : -1) : 0);
 	if (replyTo) {
 		cancelReply();
 		if (_keyboard.hasMarkup() && _keyboard.singleUse() && _keyboard.forMsgId() == replyTo) {
@@ -3633,7 +3633,7 @@ void HistoryWidget::insertBotCommand(const QString &cmd) {
 	QString toInsert = cmd;
 	UserData *bot = histPeer->chat ? (App::hoveredLinkItem() ? (App::hoveredLinkItem()->toHistoryForwarded() ? App::hoveredLinkItem()->toHistoryForwarded()->fromForwarded() : App::hoveredLinkItem()->from()) : 0) : histPeer->asUser();
 	QString username = (bot && bot->botInfo) ? bot->username : QString();
-	if (cmd.indexOf('@') < 2 && !username.isEmpty()) {
+	if (cmd.indexOf('@') < 2 && histPeer->chat && !username.isEmpty() && (histPeer->asChat()->botStatus == 0 || histPeer->asChat()->botStatus == 2)) {
 		toInsert += '@' + username;
 	}
 	toInsert += ' ';

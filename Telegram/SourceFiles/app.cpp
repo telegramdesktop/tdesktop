@@ -546,7 +546,7 @@ namespace App {
 							i = chat->participants.erase(i);
 						} else {
 							if (i.key()->botInfo) {
-								botStatus = (botStatus > 0 || i.key()->botInfo->readsAllHistory) ? 2 : 1;
+								botStatus = (botStatus > 0/* || i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
 								if (requestBotInfos && !i.key()->botInfo->inited) App::api()->requestFullPeer(i.key());
 							}
 							++i;
@@ -578,7 +578,7 @@ namespace App {
 					}
 					chat->count++;
 					if (user->botInfo) {
-						chat->botStatus = (chat->botStatus > 0 || !user->botInfo->readsAllHistory) ? 2 : 1;
+						chat->botStatus = (chat->botStatus > 0/* || !user->botInfo->readsAllHistory*/) ? 2 : 1;
 						if (!user->botInfo->inited) App::api()->requestFullPeer(user);
 					}
 				}
@@ -609,7 +609,7 @@ namespace App {
 						int32 botStatus = -1;
 						for (ChatData::Participants::const_iterator j = chat->participants.cbegin(), e = chat->participants.cend(); j != e; ++j) {
 							if (j.key()->botInfo) {
-								if (botStatus > 0 || !j.key()->botInfo->readsAllHistory) {
+								if (botStatus > 0/* || !j.key()->botInfo->readsAllHistory*/) {
 									botStatus = 2;
 									break;
 								}
