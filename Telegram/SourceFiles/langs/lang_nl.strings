@@ -457,14 +457,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_send_button" = "Stuur";
 "lng_message_ph" = "Bericht schrijven";
-"lng_record_cancel" = "Release outside this field to cancel";
+"lng_record_cancel" = "Annuleren: uit het vak loslaten";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Kies een chat om te beginnen";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Jij";
 "lng_bot_description" = "Wat kan deze bot? ";
 
-"lng_bot_start" = "Start";
+"lng_bot_start" = "Begin";
 "lng_bot_choose_group" = "Groep kiezen";
 "lng_bot_no_groups" = "Je hebt geen groepen";
 "lng_bot_groups_not_found" = "Geen groepen gevonden";
@@ -600,7 +600,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "This new version includes support for bots using the new bot API, free for everyone. If you're an engineer, create your own bots for games, services or integrations.\n\nLearn more at {blog_link}";
+"lng_new_version_text" = "Deze versie heeft ondersteuning voor de nieuwe bot-API, gratis voor iedereen. Handig met programmeren? Maak dan je eigen bots voor spelletjes, diensten en integraties. \n\nMeer weten? kijk op: {blog_link}";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
