@@ -1011,8 +1011,8 @@ recordSignalMin: 5px;
 recordSignalMax: 10px;
 recordCancel: #aaa;
 recordCancelActive: #ec6466;
-recordFont: font(16px);
-recordTextTop: 12px;
+recordFont: font(13px);
+recordTextTop: 14px;
 
 replySkip: 51px;
 replyColor: #377aae;
@@ -1679,7 +1679,7 @@ botKbColor: #8a8a8f;
 botKbFont: font(16px);
 botKbButton: botKeyboardButton {
 	margin: 10px;
-	padding: 14px;
+	padding: 10px;
 	height: 46px;
 	textTop: 13px;
 	downTextTop: 14px;

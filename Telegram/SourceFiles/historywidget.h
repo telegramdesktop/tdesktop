@@ -216,7 +216,10 @@ public:
 	bool hasMarkup() const;
 
 	bool hoverStep(float64 ms);
-	void resizeToWidth(int32 width);
+	void resizeToWidth(int32 width, int32 maxOuterHeight);
+
+	bool maximizeSize() const;
+	bool singleUse() const;
 
 	MsgId forMsgId() const {
 		return _wasForMsgId;
@@ -233,6 +236,8 @@ private:
 	void clearSelection();
 
 	MsgId _wasForMsgId;
+	int32 _height, _maxOuterHeight;
+	bool _maximizeSize, _singleUse;
 	QTimer _cmdTipTimer;
 
 	QPoint _lastMousePos;
@@ -364,6 +369,7 @@ public:
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyToDown(History *history);
 	void historyWasRead(bool force = true);
+	void historyCleared(History *history);
 
 	QRect historyRect() const;
 
@@ -441,7 +447,10 @@ public:
 	bool recordingStep(float64 ms);
 	void stopRecording(bool send);
 
+	void onListEscapePressed();
+
 	void sendBotCommand(const QString &cmd, MsgId replyTo);
+	void insertBotCommand(const QString &cmd);
 
 	~HistoryWidget();
 
@@ -481,13 +490,14 @@ public slots:
 	void onListScroll();
 	void onHistoryToEnd();
 	void onSend(bool ctrlShiftEnter = false, MsgId replyTo = -1);
+	void onBotStart();
 
 	void onPhotoSelect();
 	void onDocumentSelect();
 	void onPhotoDrop(QDropEvent *e);
 	void onDocumentDrop(QDropEvent *e);
 
-	void onKbToggle();
+	void onKbToggle(bool manual = true);
 
 	void onPhotoReady();
 	void onSendConfirmed();
@@ -597,7 +607,7 @@ private:
 
 	MentionsDropdown _attachMention;
 
-	FlatButton _send;
+	FlatButton _send, _botStart;
 	IconedButton _attachDocument, _attachPhoto, _attachEmoji, _kbShow, _kbHide;
 	MessageField _field;
 	Animation _recordAnim, _recordingAnim;

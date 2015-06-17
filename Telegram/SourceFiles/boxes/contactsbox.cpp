@@ -91,7 +91,15 @@ void ContactsInner::onPeerNameChanged(PeerData *peer, const PeerData::Names &old
 }
 
 void ContactsInner::onAddBot() {
-	App::main()->addParticipants(_addToChat, QVector<UserData*>(1, _bot));
+	if (_bot->botInfo && !_bot->botInfo->startGroupToken.isEmpty()) {
+		uint64 randomId = MTP::nonce<uint64>();
+		MTP::send(MTPmessages_StartBot(_bot->inputUser, MTP_int(App::chatFromPeer(_addToChat->id)), MTP_long(randomId), MTP_string(_bot->botInfo->startGroupToken)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _bot));
+
+		App::wnd()->hideLayer();
+		App::main()->showPeer(_addToChat->id, 0, false);
+	} else {
+		App::main()->addParticipants(_addToChat, QVector<UserData*>(1, _bot));
+	}
 }
 
 void ContactsInner::peerUpdated(PeerData *peer) {
@@ -738,7 +746,10 @@ ContactsInner::~ContactsInner() {
 	for (ContactsData::iterator i = _contactsData.begin(), e = _contactsData.end(); i != e; ++i) {
 		delete *i;
 	}
-	if (_bot) delete _contacts;
+	if (_bot) {
+		delete _contacts;
+		if (_bot->botInfo) _bot->botInfo->startGroupToken = QString();
+	}
 }
 
 void ContactsInner::resizeEvent(QResizeEvent *e) {

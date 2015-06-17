@@ -132,6 +132,8 @@ struct BotInfo {
 	QString shareText, description;
 	QList<BotCommand> commands;
 	Text text; // description
+
+	QString startToken, startGroupToken;
 };
 
 struct PhotoData;
@@ -180,6 +182,8 @@ struct ChatData : public PeerData {
 	CanKick cankick;
 	typedef QList<UserData*> LastAuthors;
 	LastAuthors lastAuthors;
+	typedef QMap<UserData*, bool> MarkupSenders;
+	MarkupSenders markupSenders;
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 	ImagePtr photoFull;
 	PhotoId photoId;

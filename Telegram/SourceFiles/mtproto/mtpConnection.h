@@ -38,6 +38,10 @@ enum {
 	MTPDuser_flag_bot = (1 << 14),
 	MTPDuser_flag_bot_reads_all = (1 << 15),
 	MTPDuser_flag_bot_cant_join = (1 << 16),
+
+	MTPDreplyKeyboardMarkup_flag_resize = (1 << 0),
+	MTPDreplyKeyboardMarkup_flag_single_use = (1 << 1),
+	MTPDreplyKeyboardMarkup_flag_ZERO = (1 << 31) // client side flag for zeroMarkup
 };
 
 static const MTPReplyMarkup MTPnullMarkup = MTP_replyKeyboardMarkup(MTP_int(0), MTP_vector<MTPKeyboardButtonRow>(0));

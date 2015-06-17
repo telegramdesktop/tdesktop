@@ -187,7 +187,7 @@ public:
 	void start(const MTPUser &user);
 
 	void openLocalUrl(const QString &str);
-	void openUserByName(const QString &name, bool toProfile = false, const QString &start = QString(), const QString &startToken = QString());
+	void openUserByName(const QString &name, bool toProfile = false, const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
 	void stickersBox(const MTPInputStickerSet &set);
 
@@ -216,6 +216,7 @@ public:
 	void dialogsToUp();
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyWasRead();
+	void historyCleared(History *history);
 
 	void peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
 	void peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
@@ -297,6 +298,7 @@ public:
 	void stopAnimActive();
 
 	void sendBotCommand(const QString &cmd, MsgId msgId);
+	void insertBotCommand(const QString &cmd);
 
 	void searchMessages(const QString &query);
 	void preloadOverviews(PeerData *peer);
@@ -450,7 +452,7 @@ private:
 	void handleUpdates(const MTPUpdates &updates);
 	bool updateFail(const RPCError &e);
 
-	void usernameResolveDone(bool toProfile, const MTPUser &user);
+	void usernameResolveDone(QPair<bool, QString> toProfileStartToken, const MTPUser &result);
 	bool usernameResolveFail(QString name, const RPCError &error);
 
 	void inviteCheckDone(QString hash, const MTPChatInvite &invite);

@@ -30,7 +30,7 @@ namespace {
 	const QRegularExpression _reMailStart(qsl("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
 	const QRegularExpression _reHashtag(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[\\w]{2,64}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
 	const QRegularExpression _reMention(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])@[A-Za-z_0-9]{5,32}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
-	const QRegularExpression _reBotCommand(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])/[\\w]{1,64}(@[A-Za-z_0-9]{5,32})?([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
+	const QRegularExpression _reBotCommand(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])/[A-Za-z_0-9]{1,64}(@[A-Za-z_0-9]{5,32})?([\\W]|$)"));
 	QSet<int32> _validProtocols, _validTopDomains;
 
 	const style::textStyle *_textStyle = 0;
@@ -757,7 +757,7 @@ void TextLink::onClick(Qt::MouseButton button) const {
 					start = (start == qsl("sg") ? qsl("startgroup") : (start == qsl("s") ? qsl("start") : QString()));
 				}
 			}
-			App::openUserByName(telegramMeUser.captured(1), start == qsl("startgroup"), start, startToken);
+			App::openUserByName(telegramMeUser.captured(1), start == qsl("startgroup"), startToken);
 		} else if (telegramMeGroup.hasMatch()) {
 			App::joinGroupByHash(telegramMeGroup.captured(1));
 		} else if (telegramMeStickers.hasMatch()) {
@@ -784,7 +784,8 @@ void HashtagLink::onClick(Qt::MouseButton button) const {
 
 void BotCommandLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		App::sendBotCommand(_cmd);
+		App::insertBotCommand(_cmd);
+//		App::sendBotCommand(_cmd);
 	}
 }
 

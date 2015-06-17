@@ -26,6 +26,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "boxes/confirmbox.h"
 #include "boxes/stickersetbox.h"
+#include "boxes/contactsbox.h"
 
 #include "localstorage.h"
 
@@ -973,6 +974,7 @@ void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId repl
 void MainWidget::sendMessage(History *hist, const QString &text, MsgId replyTo) {
 	readServerHistory(hist, false);
 	hist->loadAround(0);
+	if (history.peer())
 	sendPreparedText(hist, history.prepareMessage(text), replyTo);
 }
 
@@ -1024,6 +1026,10 @@ void MainWidget::stopAnimActive() {
 
 void MainWidget::sendBotCommand(const QString &cmd, MsgId replyTo) {
 	history.sendBotCommand(cmd, replyTo);
+}
+
+void MainWidget::insertBotCommand(const QString &cmd) {
+	history.insertBotCommand(cmd);
 }
 
 void MainWidget::searchMessages(const QString &query) {
@@ -1779,6 +1785,7 @@ void MainWidget::showPeer(quint64 peerId, qint32 msgId, bool back, bool force) {
 		if (profile || overview) {
 			if (profile) {
 				profile->hide();
+				profile->clear();
 				profile->deleteLater();
 				profile->rpcInvalidate();
 				profile = 0;
@@ -1902,6 +1909,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	}
 	if (profile) {
 		profile->hide();
+		profile->clear();
 		profile->deleteLater();
 		profile->rpcInvalidate();
 		profile = 0;
@@ -1949,6 +1957,7 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop,
 	}
 	if (profile) {
 		profile->hide();
+		profile->clear();
 		profile->deleteLater();
 		profile->rpcInvalidate();
 	}
@@ -2071,6 +2080,10 @@ void MainWidget::newUnreadMsg(History *hist, HistoryItem *item) {
 
 void MainWidget::historyWasRead() {
 	history.historyWasRead(false);
+}
+
+void MainWidget::historyCleared(History *hist) {
+	history.historyCleared(hist);
 }
 
 void MainWidget::animShow(const QPixmap &bgAnimCache, bool back) {
@@ -2536,7 +2549,7 @@ void MainWidget::openLocalUrl(const QString &url) {
 		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://resolve/?\\?domain=([a-zA-Z0-9\\.\\_]+)(&(start|startgroup)=([a-zA-Z0-9\\.\\_\\-]+))?(&|$)"), QRegularExpression::CaseInsensitiveOption).match(u);
 		if (m.hasMatch()) {
 			QString start = m.captured(3), startToken = m.captured(4);
-			openUserByName(m.captured(1), (start == qsl("startgroup")), start, startToken);
+			openUserByName(m.captured(1), (start == qsl("startgroup")), startToken);
 		}
 	} else if (u.startsWith(QLatin1String("tg://join"), Qt::CaseInsensitive)) {
 		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), QRegularExpression::CaseInsensitiveOption).match(u);
@@ -2551,18 +2564,24 @@ void MainWidget::openLocalUrl(const QString &url) {
 	}
 }
 
-void MainWidget::openUserByName(const QString &username, bool toProfile, const QString &start, const QString &startToken) {
+void MainWidget::openUserByName(const QString &username, bool toProfile, const QString &startToken) {
 	App::wnd()->hideMediaview();
 
 	UserData *user = App::userByName(username);
 	if (user) {
 		if (toProfile) {
-			showPeerProfile(user);
+			if (user->botInfo && !user->botInfo->cantJoinGroups && !startToken.isEmpty()) {
+				user->botInfo->startGroupToken = startToken;
+				App::wnd()->showLayer(new ContactsBox(user));
+			} else {
+				showPeerProfile(user);
+			}
 		} else {
+			if (user->botInfo) user->botInfo->startToken = startToken;
 			emit showPeerAsync(user->id, 0, false, true);
 		}
 	} else {
-		MTP::send(MTPcontacts_ResolveUsername(MTP_string(username)), rpcDone(&MainWidget::usernameResolveDone, toProfile), rpcFail(&MainWidget::usernameResolveFail, username));
+		MTP::send(MTPcontacts_ResolveUsername(MTP_string(username)), rpcDone(&MainWidget::usernameResolveDone, qMakePair(toProfile, startToken)), rpcFail(&MainWidget::usernameResolveFail, username));
 	}
 }
 
@@ -2583,13 +2602,19 @@ void MainWidget::onStickersInstalled(uint64 setId) {
 	history.stickersInstalled(setId);
 }
 
-void MainWidget::usernameResolveDone(bool toProfile, const MTPUser &user) {
+void MainWidget::usernameResolveDone(QPair<bool, QString> toProfileStartToken, const MTPUser &result) {
 	App::wnd()->hideLayer();
-	UserData *u = App::feedUsers(MTP_vector<MTPUser>(1, user));
-	if (toProfile) {
-		showPeerProfile(u);
+	UserData *user = App::feedUsers(MTP_vector<MTPUser>(1, result));
+	if (toProfileStartToken.first) {
+		if (user->botInfo && !user->botInfo->cantJoinGroups && !toProfileStartToken.second.isEmpty()) {
+			user->botInfo->startGroupToken = toProfileStartToken.second;
+			App::wnd()->showLayer(new ContactsBox(user));
+		} else {
+			showPeerProfile(user);
+		}
 	} else {
-		showPeer(u->id, 0, false, true);
+		if (user->botInfo) user->botInfo->startToken = toProfileStartToken.second;
+		showPeer(user->id, 0, false, true);
 	}
 }
 

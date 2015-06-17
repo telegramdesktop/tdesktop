@@ -35,7 +35,13 @@ typedef QHash<VideoData*, HistoryItemsMap> VideoItems;
 typedef QHash<AudioData*, HistoryItemsMap> AudioItems;
 typedef QHash<DocumentData*, HistoryItemsMap> DocumentItems;
 typedef QHash<WebPageData*, HistoryItemsMap> WebPageItems;
-typedef QList<QList<QString> > ReplyMarkup;
+struct ReplyMarkup {
+	ReplyMarkup(int32 flags = 0) : flags(flags) {
+	}
+	typedef QList<QList<QString> > Commands;
+	Commands commands;
+	int32 flags;
+};
 
 enum RoundCorners {
 	MaskCorners = 0x00, // for images
@@ -234,8 +240,9 @@ namespace App {
 	void setProxySettings(QTcpSocket &socket);
 
 	void sendBotCommand(const QString &cmd, MsgId replyTo = 0);
+	void insertBotCommand(const QString &cmd);
 	void searchByHashtag(const QString &tag);
-	void openUserByName(const QString &username, bool toProfile = false, const QString &start = QString(), const QString &startToken = QString());
+	void openUserByName(const QString &username, bool toProfile = false, const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
 	void stickersBox(const QString &name);
 	void openLocalUrl(const QString &url);

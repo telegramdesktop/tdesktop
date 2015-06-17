@@ -25,6 +25,8 @@ public:
 
 	ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const PeerData *peer);
 
+	void start();
+
 	bool event(QEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
@@ -200,6 +202,7 @@ public:
 	void updateNotifySettings();
 	void mediaOverviewUpdated(PeerData *peer);
 
+	void clear();
 	~ProfileWidget();
 
 public slots:

@@ -469,6 +469,9 @@ void ProfileInner::reorderParticipants() {
 	}
 }
 
+void ProfileInner::start() {
+}
+
 bool ProfileInner::event(QEvent *e) {
 	if (e->type() == QEvent::MouseMove) {
 		_lastPos = static_cast<QMouseEvent*>(e)->globalPos();
@@ -1220,6 +1223,7 @@ bool ProfileWidget::animStep(float64 ms) {
 		_bgAnimCache = _animCache = _animTopBarCache = _bgAnimTopBarCache = QPixmap();
 		App::main()->topBar()->stopAnim();
 		_scroll.show();
+		_inner.start();
 		activate();
 	} else {
 		a_bgCoord.update(dt1, st::introHideFunc);
@@ -1247,6 +1251,12 @@ void ProfileWidget::updateNotifySettings() {
 
 void ProfileWidget::mediaOverviewUpdated(PeerData *peer) {
 	_inner.mediaOverviewUpdated(peer);
+}
+
+void ProfileWidget::clear() {
+	if (_inner.peer() && !_inner.peer()->chat && _inner.peer()->asUser()->botInfo) {
+		_inner.peer()->asUser()->botInfo->startGroupToken = QString();
+	}
 }
 
 ProfileWidget::~ProfileWidget() {
