@@ -2786,7 +2786,9 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 				int32 index = 0;
 				for (ChatData::Participants::const_iterator i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
 					UserData *user = i.key();
-					if (!user->botInfo || user->botInfo->commands.isEmpty()) continue;
+					if (!user->botInfo) continue;
+					if (!user->botInfo->inited) App::api()->requestFullPeer(user);
+					if (user->botInfo->commands.isEmpty()) continue;
 					bots.insert(user, true);
 					cnt += user->botInfo->commands.size();
 				}
@@ -2801,7 +2803,9 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 			if (_chat) {
 				for (MentionRows::const_iterator i = _chat->lastAuthors.cbegin(), e = _chat->lastAuthors.cend(); i != e; ++i) {
 					UserData *user = *i;
-					if (!user->botInfo || user->botInfo->commands.isEmpty()) continue;
+					if (!user->botInfo) continue;
+					if (!user->botInfo->inited) App::api()->requestFullPeer(user);
+					if (user->botInfo->commands.isEmpty()) continue;
 					for (int32 j = 0, l = user->botInfo->commands.size(); j < l; ++j) {
 						if (_filter.size() > 1) {
 							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? user->botInfo->commands.at(j).command + '@' + user->username : user->botInfo->commands.at(j).command;
