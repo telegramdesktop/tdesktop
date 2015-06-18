@@ -457,14 +457,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_send_button" = "보내기";
 "lng_message_ph" = "메시지 쓰기";
-"lng_record_cancel" = "Release outside this field to cancel";
+"lng_record_cancel" = "이 영역에서 마우스 클릭을 해제하시면 취소가 됩니다.";
 "lng_empty_history" = "";
 "lng_willbe_history" = "대화하실 방을 선택해주세요.";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "회원님";
 "lng_bot_description" = "봇이 할 수 있는 일은 무엇일까요?";
 
-"lng_bot_start" = "Start";
+"lng_bot_start" = "시작";
 "lng_bot_choose_group" = "그룹 선택";
 "lng_bot_no_groups" = "그룹이 존재하지 않습니다.";
 "lng_bot_groups_not_found" = "그룹을 찾을 수 없습니다.";
@@ -600,7 +600,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "This new version includes support for bots using the new bot API, free for everyone. If you're an engineer, create your own bots for games, services or integrations.\n\nLearn more at {blog_link}";
+"lng_new_version_text" = "새로운 버전에서는 신규 봇 API를 무료로 공개합니다. 개발자라면 누구나 게임, 서비스나 통합 봇등 개발이 가능합니다. \n\n{blog_link}에서 자세한 사항을 알아보세요.";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 
