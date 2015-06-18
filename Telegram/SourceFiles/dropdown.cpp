@@ -1670,7 +1670,7 @@ _travel(this     , qsl("emoji_group"), dbietTravel     , QString(), false, st::r
 _objects(this    , qsl("emoji_group"), dbietObjects    , QString(), false, st::rbEmojiObjects),
 _iconOver(-1), _iconSel(0), _iconDown(-1), _iconsDragging(false),
 _iconAnim(animFunc(this, &EmojiPan::iconAnim)),
-_iconsLeft(0), _iconsTop(0), _iconsStartX(0), _iconsMax(0), _iconsX(0, 0), _iconsStartAnim(0),
+_iconsLeft(0), _iconsTop(0), _iconsStartX(0), _iconsMax(0), _iconsX(0, 0), _iconSelX(0, 0), _iconsStartAnim(0),
 _stickersShown(false), _moveStart(0),
 e_scroll(this, st::emojiScroll), e_inner(), s_scroll(this, st::emojiScroll), s_inner(), _removingSetId(0) {
 	setFocusPolicy(Qt::NoFocus);
@@ -1765,16 +1765,21 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 			if (_stickersShown) {
 				p.fillRect(r.left(), _iconsTop, r.width(), st::rbEmoji.height, st::emojiPanCategories->b);
 				if (!_icons.isEmpty()) {
-					int32 x = _iconsLeft, i = 0;
+					int32 x = _iconsLeft, i = 0, selxrel = _iconSelX.current(), selx = x + selxrel - _iconsX.current();
 					if (!_icons.at(i).sticker) {
-						if (_iconSel == i) {
-							p.fillRect(rtl() ? (width() - x - st::rbEmoji.width) : x, _iconsTop, st::rbEmoji.width, st::rbEmoji.height, st::stickerIconSel->b);
-						} else if (_iconHovers.at(i) > 0) {
-							p.setOpacity(_iconHovers.at(i));
-							p.fillRect(rtl() ? (width() - x - st::rbEmoji.width) : x, _iconsTop, st::rbEmoji.width, st::rbEmoji.height, st::stickerIconHover->b);
+						if (selxrel > 0) {
+							if (_iconHovers.at(i) < 1) {
+								p.drawSpriteLeft(x + st::rbEmojiRecent.imagePos.x(), _iconsTop + st::rbEmojiRecent.imagePos.y(), width(), st::rbEmojiRecent.imageRect);
+							}
+							if (_iconHovers.at(i) > 0) {
+								p.drawSpriteLeft(x + st::rbEmojiRecent.imagePos.x(), _iconsTop + st::rbEmojiRecent.imagePos.y(), width(), st::rbEmojiRecent.overImageRect);
+							}
+						}
+						if (selxrel < st::rbEmoji.width) {
+							p.setOpacity(1 - (selxrel / st::rbEmoji.width));
+							p.drawSpriteLeft(x + st::rbEmojiRecent.imagePos.x(), _iconsTop + st::rbEmojiRecent.imagePos.y(), width(), st::rbEmojiRecent.chkImageRect);
 							p.setOpacity(1);
 						}
-						p.drawSpriteLeft(x + st::rbEmojiRecent.imagePos.x(), _iconsTop + st::rbEmojiRecent.imagePos.y(), width(), st::stickerIconRecent);
 						x += st::rbEmoji.width;
 						++i;
 					}
@@ -1790,15 +1795,19 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 						s.sticker->thumb->load();
 						QPixmap pix(s.sticker->thumb->pix(s.pixw, s.pixh));
 						if (_iconSel == i) {
-							p.fillRect(rtl() ? (width() - x - st::rbEmoji.width) : x, _iconsTop, st::rbEmoji.width, st::rbEmoji.height, st::stickerIconSel->b);
-						} else if (_iconHovers.at(i) > 0) {
-							p.setOpacity(_iconHovers.at(i));
-							p.fillRect(rtl() ? (width() - x - st::rbEmoji.width) : x, _iconsTop, st::rbEmoji.width, st::rbEmoji.height, st::stickerIconHover->b);
 							p.setOpacity(1);
+						} else {
+							p.setOpacity(1. * _iconHovers.at(i) + st::stickerIconOpacity * (1 - _iconHovers.at(i)));
 						}
 						p.drawPixmapLeft(x + (st::rbEmoji.width - s.pixw) / 2, _iconsTop + (st::rbEmoji.height - s.pixh) / 2, width(), pix);
 						x += st::rbEmoji.width;
+						p.setOpacity(1);
 					}
+
+					if (rtl()) selx = width() - selx - st::rbEmoji.width;
+					p.setOpacity(_icons.at(0).sticker ? 1. : qMax(1., selx / st::rbEmoji.width));
+					p.fillRect(selx, _iconsTop + st::rbEmoji.height - st::stickerIconPadding, st::rbEmoji.width, st::stickerIconSel, st::stickerIconSelColor->b);
+
 					float64 o_left = snap(float64(_iconsX.current()) / st::stickerIconLeft.pxWidth(), 0., 1.);
 					if (o_left > 0) {
 						p.setOpacity(o_left);
@@ -1983,6 +1992,7 @@ void EmojiPan::onRefreshIcons() {
 	_iconAnimations.clear();
 	s_inner.fillIcons(_icons);
 	_iconsX = anim::ivalue(0, 0);
+	_iconSelX.finish();
 	_iconsStartAnim = 0;
 	_iconAnim.stop();
 	if (_icons.isEmpty()) {
@@ -2076,8 +2086,10 @@ bool EmojiPan::iconAnim(float64 ms) {
 		if (dt >= 1) {
 			_iconsStartAnim = 0;
 			_iconsX.finish();
+			_iconSelX.finish();
 		} else {
 			_iconsX.update(dt, anim::linear);
+			_iconSelX.update(dt, anim::linear);
 		}
 		updateSelected();
 	}
@@ -2161,6 +2173,7 @@ void EmojiPan::hideFinish() {
 	_iconOver = _iconDown = -1;
 	_iconSel = 0;
 	_iconsX = anim::ivalue(0, 0);
+	_iconSelX = anim::ivalue(0, 0);
 	_iconsStartAnim = 0;
 	_iconAnim.stop();
 	_iconHovers = _icons.isEmpty() ? QVector<float64>() : QVector<float64>(_icons.size(), 0);
@@ -2319,6 +2332,7 @@ void EmojiPan::onScroll() {
 		}
 		if (newSel != _iconSel) {
 			_iconSel = newSel;
+			_iconSelX.start(newSel * st::rbEmoji.width);
 			_iconsX.start(snap((2 * newSel - 7 - ((_icons.isEmpty() || _icons.at(0).sticker) ? 0 : 1)) * int(st::rbEmoji.width) / 2, 0, _iconsMax));
 			_iconsStartAnim = getms();
 			_iconAnim.start();
@@ -2426,7 +2440,7 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 		}
 		p.setPen(st::black->p);
 		if (!_rows->isEmpty()) {
-			UserData *user = _rows->at(last - i - 1);
+			UserData *user = _rows->at(i);
 			QString first = (_parent->filter().size() < 2) ? QString() : ('@' + user->username.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('@' + user->username) : user->username.mid(_parent->filter().size() - 1);
 			int32 firstwidth = st::mentionFont->m.width(first), secondwidth = st::mentionFont->m.width(second), unamewidth = firstwidth + secondwidth, namewidth = user->nameText.maxWidth();
 			if (availwidth < unamewidth + namewidth) {
@@ -2455,7 +2469,8 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 				p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize + namewidth + st::mentionPadding.right() + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
 			}
 		} else if (!_hrows->isEmpty()) {
-			QString first = (_parent->filter().size() < 2) ? QString() : ('#' + _hrows->at(last - i - 1).mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('#' + _hrows->at(last - i - 1)) : _hrows->at(last - i - 1).mid(_parent->filter().size() - 1);
+			QString hrow = _hrows->at(i);
+			QString first = (_parent->filter().size() < 2) ? QString() : ('#' + hrow.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('#' + hrow) : hrow.mid(_parent->filter().size() - 1);
 			int32 firstwidth = st::mentionFont->m.width(first), secondwidth = st::mentionFont->m.width(second);
 			if (htagwidth < firstwidth + secondwidth) {
 				if (htagwidth < firstwidth + st::mentionFont->elidew) {
@@ -2476,9 +2491,9 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 				p.drawText(htagleft + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
 			}
 		} else {
-			UserData *user = _crows->at(last - i - 1).first;
+			UserData *user = _crows->at(i).first;
 
-			const BotCommand &command = _crows->at(last - i - 1).second;
+			const BotCommand &command = _crows->at(i).second;
 			QString toHighlight = command.command;
 			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : -1;
 			if (hasUsername || botStatus == 0 || botStatus == 2) {
@@ -2551,19 +2566,21 @@ void MentionsInner::mouseMoveEvent(QMouseEvent *e) {
 
 void MentionsInner::clearSel() {
 	_mouseSel = _overDelete = false;
-	setSel(-1);
+	setSel((_rows->isEmpty() && _crows->isEmpty() && _hrows->isEmpty()) ? -1 : 0);
 }
 
 bool MentionsInner::moveSel(int direction) {
 	_mouseSel = false;
 	int32 maxSel = (_rows->isEmpty() ? (_hrows->isEmpty() ? _crows->size() : _hrows->size()) : _rows->size());
 	if (_sel >= maxSel || _sel < 0) {
-		if (direction < 0) setSel(maxSel - 1, true);
+		if (direction < 0) {
+			setSel(maxSel - 1, true);
+		} else {
+			setSel(0, true);
+		}
 		return (_sel >= 0 && _sel < maxSel);
 	}
-	if (_sel > 0 || direction > 0) {
-		setSel((_sel + direction >= maxSel) ? -1 : (_sel + direction), true);
-	}
+	setSel((_sel + direction >= maxSel) ? -1 : (_sel + direction), true);
 	return true;
 }
 
@@ -2572,12 +2589,12 @@ bool MentionsInner::select() {
 	if (_sel >= 0 && _sel < maxSel) {
 		QString result;
 		if (!_rows->isEmpty()) {
-			result = '@' + _rows->at(_rows->size() - _sel - 1)->username;
+			result = '@' + _rows->at(_sel)->username;
 		} else if (!_hrows->isEmpty()) {
-			result = '#' + _hrows->at(_hrows->size() - _sel - 1);
+			result = '#' + _hrows->at(_sel);
 		} else {
-			UserData *user = _crows->at(_crows->size() - _sel - 1).first;
-			const BotCommand &command(_crows->at(_crows->size() - _sel - 1).second);
+			UserData *user = _crows->at(_sel).first;
+			const BotCommand &command(_crows->at(_sel).second);
 			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : -1;
 			if (botStatus == 0 || botStatus == 2 || _parent->filter().indexOf('@') > 1) {
 				result = '/' + command.command + '@' + user->username;
@@ -2599,7 +2616,7 @@ void MentionsInner::mousePressEvent(QMouseEvent *e) {
 		if (_overDelete && _sel >= 0 && _sel < _hrows->size()) {
 			_mousePos = mapToGlobal(e->pos());
 
-			QString toRemove = _hrows->at(_hrows->size() - _sel - 1);
+			QString toRemove = _hrows->at(_sel);
 			RecentHashtagPack recent(cRecentWriteHashtags());
 			for (RecentHashtagPack::iterator i = recent.begin(); i != recent.cend();) {
 				if (i->first == toRemove) {
@@ -2851,7 +2868,7 @@ void MentionsDropdown::recount(bool toDown) {
 		_inner.resize(width(), h);
 	}
 	if (h > _boundings.height()) h = _boundings.height();
-	if (h > 5 * st::mentionHeight) h = 5 * st::mentionHeight;
+	if (h > 4.5 * st::mentionHeight) h = 4.5 * st::mentionHeight;
 	if (height() != h) {
 		st += _scroll.height() - h;
 		setGeometry(0, _boundings.height() - h, width(), h);
@@ -2859,7 +2876,7 @@ void MentionsDropdown::recount(bool toDown) {
 	} else if (y() != _boundings.height() - h) {
 		move(0, _boundings.height() - h);
 	}
-	if (toDown) st = _scroll.scrollTopMax();
+	if (toDown) st = 0;// _scroll.scrollTopMax();
 	if (st != oldst) _scroll.scrollToY(st);
 	if (toDown) _inner.clearSel();
 }
@@ -2953,7 +2970,7 @@ bool MentionsDropdown::eventFilter(QObject *obj, QEvent *e) {
 			return true;
 		} else if (ev->key() == Qt::Key_Down) {
 			return _inner.moveSel(1);
-		} else if (ev->key() == Qt::Key_Enter || ev->key() == Qt::Key_Return || ev->key() == Qt::Key_Space) {
+		} else if (ev->key() == Qt::Key_Enter || ev->key() == Qt::Key_Return) {
 			return _inner.select();
 		}
 	}

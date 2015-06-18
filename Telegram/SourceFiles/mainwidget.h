@@ -333,6 +333,7 @@ public:
 
 	ApiWrap *api();
 	void updateReplyTo();
+	void updateBotKeyboard();
 
 	void pushReplyReturn(HistoryItem *item);
 	

@@ -540,6 +540,8 @@ namespace App {
 					}
 				}
 				if (!chat->participants.isEmpty()) {
+					History *h = App::historyLoaded(chat->id);
+					bool found = !h || !h->lastKeyboardFrom;
 					int32 botStatus = -1;
 					for (ChatData::Participants::iterator i = chat->participants.begin(), e = chat->participants.end(); i != e;) {
 						if (i.value() < pversion) {
@@ -549,10 +551,18 @@ namespace App {
 								botStatus = (botStatus > 0/* || i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
 								if (requestBotInfos && !i.key()->botInfo->inited) App::api()->requestFullPeer(i.key());
 							}
+							if (!found && i.key()->id == h->lastKeyboardFrom) {
+								found = true;
+							}
 							++i;
 						}
 					}
 					chat->botStatus = botStatus;
+					if (!found) {
+						h->lastKeyboardId = 0;
+						h->lastKeyboardFrom = 0;
+						if (App::main()) App::main()->updateBotKeyboard();
+					}
 				}
 				if (App::main()) App::main()->peerUpdated(chat);
 			}
@@ -604,6 +614,13 @@ namespace App {
 					if (i != chat->participants.end()) {
 						chat->participants.erase(i);
 						chat->count--;
+
+						History *h = App::historyLoaded(chat->id);
+						if (h && h->lastKeyboardFrom == user->id) {
+							h->lastKeyboardId = 0;
+							h->lastKeyboardFrom = 0;
+							if (App::main()) App::main()->updateBotKeyboard();
+						}
 					}
 					if (chat->botStatus > 0 && user->botInfo) {
 						int32 botStatus = -1;

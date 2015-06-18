@@ -1053,7 +1053,7 @@ textRectMargins: margins(-2px, -1px, -2px, -1px);
 taMsgField: flatTextarea(taDefFlat) {
 	font: msgFont;
 }
-maxFieldHeight: 265px;
+maxFieldHeight: 223px;
 
 newMsgSound: ':/gui/art/newmsg.wav';
 
@@ -1664,8 +1664,9 @@ stickerPanPadding: 11px;
 stickerPanDelete: sprite(123px, 132px, 12px, 12px);
 stickerPanDeleteOpacity: 0.5;
 stickerIconPadding: 3px;
-stickerIconHover: #e8ecef;
-stickerIconSel: #dfe3e6;
+stickerIconOpacity: 0.7;
+stickerIconSel: 2px;
+stickerIconSelColor: #58b2ed;
 stickerIconRecent: sprite(342px, 50px, 21px, 22px);
 stickerIconLeft: sprite(342px, 72px, 40px, 1px);
 stickerIconRight: sprite(342px, 73px, 40px, 1px);
@@ -1680,9 +1681,9 @@ botKbFont: font(16px);
 botKbButton: botKeyboardButton {
 	margin: 10px;
 	padding: 10px;
-	height: 46px;
-	textTop: 13px;
-	downTextTop: 14px;
+	height: 36px;
+	textTop: 8px;
+	downTextTop: 9px;
 }
 botKbTinyButton: botKeyboardButton {
 	margin: 4px;

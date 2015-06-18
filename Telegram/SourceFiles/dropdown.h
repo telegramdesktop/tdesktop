@@ -447,7 +447,7 @@ private:
 	QPoint _iconsMousePos, _iconsMouseDown;
 	int32 _iconsLeft, _iconsTop;
 	int32 _iconsStartX, _iconsMax;
-	anim::ivalue _iconsX;
+	anim::ivalue _iconsX, _iconSelX;
 	uint64 _iconsStartAnim;
 
 	bool _stickersShown;

@@ -2032,7 +2032,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _field(this, st::taMsgField, lang(lng_message_ph))
 , _recordAnim(animFunc(this, &HistoryWidget::recordStep))
 , _recordingAnim(animFunc(this, &HistoryWidget::recordingStep))
-, _recording(false), _inRecord(false), _inField(false)
+, _recording(false), _inRecord(false), _inField(false), _inReply(false)
 , a_recordingLevel(0, 0), _recordingSamples(0)
 , a_recordOver(0, 0), a_recordDown(0, 0), a_recordCancel(st::recordCancel->c, st::recordCancel->c)
 , _recordCancelWidth(st::recordFont->m.width(lang(lng_record_cancel)))
@@ -2118,6 +2118,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	updateScrollColors();
 
 	_toHistoryEnd.hide();
+	_toHistoryEnd.installEventFilter(this);
 
 	_attachMention.hide();
 	connect(&_attachMention, SIGNAL(chosen(QString)), &_field, SLOT(onMentionHashtagOrBotCommandInsert(QString)));
@@ -2632,7 +2633,7 @@ void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool l
 	}
 	if (_previewData && _previewData->pendingTill >= 0) {
 		_previewData = 0;
-		if (!App::main()->hasForwardingItems()) _replyForwardPreviewCancel.hide();
+		_replyForwardPreviewCancel.hide();
 	}
 	_previewCache.clear();
 	_scroll.setWidget(0);
@@ -2786,13 +2787,13 @@ void HistoryWidget::updateControlsVisibility() {
 		_kbScroll.hide();
 		_send.hide();
 		_botStart.hide();
-		_toHistoryEnd.hide();
 		_attachMention.hide();
 		_field.hide();
 		_replyForwardPreviewCancel.hide();
 		_attachDocument.hide();
 		_attachPhoto.hide();
 		_attachEmoji.hide();
+		_toHistoryEnd.hide();
 		_kbShow.hide();
 		_kbHide.hide();
 		_attachType.hide();
@@ -2800,12 +2801,8 @@ void HistoryWidget::updateControlsVisibility() {
 		return;
 	}
 
+	updateToEndVisibility();
 	if (hist->readyForWork()) {
-		if (hist->loadedAtBottom() && !_replyReturn) {
-			_toHistoryEnd.hide();
-		} else {
-			_toHistoryEnd.show();
-		}
 		if (!histPeer->chat || !histPeer->asChat()->forbidden) {
 			checkMentionDropdown();
 			bool botStart = !histPeer->chat && histPeer->asUser()->botInfo && (!histPeer->asUser()->botInfo->startToken.isEmpty() || hist->isEmpty() && !hist->lastMsg);
@@ -2873,7 +2870,7 @@ void HistoryWidget::updateControlsVisibility() {
 						_attachPhoto.hide();
 					}
 				}
-				if ((_replyToId || App::main()->hasForwardingItems() || (_previewData && _previewData->pendingTill >= 0))) {
+				if (_replyToId || App::main()->hasForwardingItems() || (_previewData && _previewData->pendingTill >= 0) || _kbReplyTo) {
 					if (_replyForwardPreviewCancel.isHidden()) {
 						_replyForwardPreviewCancel.show();
 						resizeEvent(0);
@@ -2919,7 +2916,6 @@ void HistoryWidget::updateControlsVisibility() {
 			_kbHide.hide();
 			_attachType.hide();
 			_emojiPan.hide();
-			_toHistoryEnd.hide();
 			_replyForwardPreviewCancel.hide();
 			if (!_field.isHidden()) {
 				_field.hide();
@@ -3205,6 +3201,8 @@ void HistoryWidget::onListScroll() {
 		return;
 	}
 
+	updateToEndVisibility();
+	
 	int st = _scroll.scrollTop(), stm = _scroll.scrollTopMax(), sh = _scroll.height();
 	if (hist->readyForWork() && (st + PreloadHeightsCount * sh > stm)) {
 		loadMessagesDown();
@@ -3245,11 +3243,8 @@ QString HistoryWidget::prepareMessage(QString result) {
 void HistoryWidget::onHistoryToEnd() {
 	if (_replyReturn) {
 		showPeer(histPeer->id, _replyReturn->id);
-	} else {
-		_toHistoryEnd.hide();
-		if (hist && !hist->loadedAtBottom()) {
-			showPeer(histPeer->id, 0);
-		}
+	} else if (hist) {
+		showPeer(histPeer->id, 0);
 	}
 }
 
@@ -3555,6 +3550,7 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 	QPoint pos(e ? e->pos() : mapFromGlobal(QCursor::pos()));
 	bool inRecord = _send.geometry().contains(pos);
 	bool inField = pos.y() >= (_scroll.y() + _scroll.height()) && pos.y() < height() && pos.x() >= 0 && pos.x() < width();
+	bool inReply = QRect(st::replySkip, _field.y() - st::sendPadding - st::replyHeight, width() - st::replySkip - _replyForwardPreviewCancel.width(), st::replyHeight).contains(pos) && (_replyToId || _kbReplyTo);
 	bool startAnim = false;
 	if (inRecord != _inRecord) {
 		_inRecord = inRecord;
@@ -3569,6 +3565,10 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 		a_recordDown.start(_inField ? 1 : 0);
 		a_recordCancel.start(_inField ? st::recordCancel->c : st::recordCancelActive->c);
 		startAnim = true;
+	}
+	if (inReply != _inReply) {
+		_inReply = inReply;
+		setCursor(inReply ? style::cur_pointer : style::cur_default);
 	}
 	if (startAnim) _recordAnim.start();
 }
@@ -3616,8 +3616,15 @@ void HistoryWidget::sendBotCommand(const QString &cmd, MsgId replyTo) { // reply
 	App::main()->readServerHistory(hist, false);
 	hist->loadAround(0);
 
+	QString toSend = cmd;
+	UserData *bot = histPeer->chat ? (App::hoveredLinkItem() ? (App::hoveredLinkItem()->toHistoryForwarded() ? App::hoveredLinkItem()->toHistoryForwarded()->fromForwarded() : App::hoveredLinkItem()->from()) : 0) : histPeer->asUser();
+	QString username = (bot && bot->botInfo) ? bot->username : QString();
+	if (!replyTo && toSend.indexOf('@') < 2 && histPeer->chat && !username.isEmpty() && (histPeer->asChat()->botStatus == 0 || histPeer->asChat()->botStatus == 2)) {
+		toSend += '@' + username;
+	}
+
 	int32 botStatus = histPeer->chat ? histPeer->asChat()->botStatus : -1;
-	App::main()->sendPreparedText(hist, cmd, replyTo ? ((histPeer->chat/* && (botStatus == 0 || botStatus == 2)*/) ? replyTo : -1) : 0);
+	App::main()->sendPreparedText(hist, toSend, replyTo ? ((histPeer->chat/* && (botStatus == 0 || botStatus == 2)*/) ? replyTo : -1) : 0);
 	if (replyTo) {
 		cancelReply();
 		if (_keyboard.hasMarkup() && _keyboard.singleUse() && _keyboard.forMsgId() == replyTo) {
@@ -3633,7 +3640,7 @@ void HistoryWidget::insertBotCommand(const QString &cmd) {
 	QString toInsert = cmd;
 	UserData *bot = histPeer->chat ? (App::hoveredLinkItem() ? (App::hoveredLinkItem()->toHistoryForwarded() ? App::hoveredLinkItem()->toHistoryForwarded()->fromForwarded() : App::hoveredLinkItem()->from()) : 0) : histPeer->asUser();
 	QString username = (bot && bot->botInfo) ? bot->username : QString();
-	if (cmd.indexOf('@') < 2 && histPeer->chat && !username.isEmpty() && (histPeer->asChat()->botStatus == 0 || histPeer->asChat()->botStatus == 2)) {
+	if (toInsert.indexOf('@') < 2 && histPeer->chat && !username.isEmpty() && (histPeer->asChat()->botStatus == 0 || histPeer->asChat()->botStatus == 2)) {
 		toInsert += '@' + username;
 	}
 	toInsert += ' ';
@@ -3650,6 +3657,13 @@ void HistoryWidget::insertBotCommand(const QString &cmd) {
 	QTextCursor cur(_field.textCursor());
 	cur.movePosition(QTextCursor::End);
 	_field.setTextCursor(cur);
+}
+
+bool HistoryWidget::eventFilter(QObject *obj, QEvent *e) {
+	if (obj == &_toHistoryEnd && e->type() == QEvent::Wheel) {
+		return _scroll.viewportEvent(e);
+	}
+	return TWidget::eventFilter(obj, e);
 }
 
 DragState HistoryWidget::getDragState(const QMimeData *d) {
@@ -3744,17 +3758,28 @@ void HistoryWidget::onKbToggle(bool manual) {
 		_kbShow.show();
 		_kbScroll.hide();
 		_kbShown = false;
+
+		_field.setMaxHeight(st::maxFieldHeight);
+
 		_kbReplyTo = 0;
+		if (!App::main()->hasForwardingItems() && (!_previewData || _previewData->pendingTill < 0) && !_replyToId) {
+			_replyForwardPreviewCancel.hide();
+		}
 		if (manual) _kbWasHidden = true;
 	} else {
 		_kbHide.show();
 		_kbShow.hide();
 		_kbScroll.show();
 		_kbShown = true;
+
+		int32 maxh = qMin(_keyboard.height(), int(st::maxFieldHeight) - (int(st::maxFieldHeight) / 2));
+		_field.setMaxHeight(st::maxFieldHeight - maxh);
+
 		_kbReplyTo = hist->peer->chat ? App::histItemById(_keyboard.forMsgId()) : 0;
 		if (_kbReplyTo && !_replyToId) {
 			updateReplyToName();
 			_replyToText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);
+			_replyForwardPreviewCancel.show();
 		}
 		if (manual) _kbWasHidden = false;
 	}
@@ -4502,6 +4527,7 @@ void HistoryWidget::updateBotKeyboard() {
 			if (_kbReplyTo && !_replyToId) {
 				updateReplyToName();
 				_replyToText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);
+				_replyForwardPreviewCancel.show();
 			}
 		} else {
 			if (!_showAnim.animating()) {
@@ -4513,6 +4539,9 @@ void HistoryWidget::updateBotKeyboard() {
 			_field.setMaxHeight(st::maxFieldHeight);
 			_kbShown = false;
 			_kbReplyTo = 0;
+			if (!App::main()->hasForwardingItems() && (!_previewData || _previewData->pendingTill < 0) && !_replyToId) {
+				_replyForwardPreviewCancel.hide();
+			}
 		}
 	} else {
 		if (!_scroll.isHidden()) {
@@ -4524,13 +4553,25 @@ void HistoryWidget::updateBotKeyboard() {
 		_field.setMaxHeight(st::maxFieldHeight);
 		_kbShown = false;
 		_kbReplyTo = 0;
+		if (!App::main()->hasForwardingItems() && (!_previewData || _previewData->pendingTill < 0) && !_replyToId) {
+			_replyForwardPreviewCancel.hide();
+		}
 	}
 	resizeEvent(0);
 	update();
 }
 
+void HistoryWidget::updateToEndVisibility() {
+	bool toEndVisible = !_showAnim.animating() && hist && hist->readyForWork() && (!hist->loadedAtBottom() || _replyReturn || _scroll.scrollTop() + st::wndMinHeight < _scroll.scrollTopMax());
+	if (toEndVisible && _toHistoryEnd.isHidden()) {
+		_toHistoryEnd.show();
+	} else if (!toEndVisible && !_toHistoryEnd.isHidden()) {
+		_toHistoryEnd.hide();
+	}
+}
+
 void HistoryWidget::mousePressEvent(QMouseEvent *e) {
-	_replyForwardPressed = QRect(0, _field.y() - st::replyHeight, st::replySkip, st::replyHeight).contains(e->pos());
+	_replyForwardPressed = QRect(0, _field.y() - st::sendPadding - st::replyHeight, st::replySkip, st::replyHeight).contains(e->pos());
 	if (_replyForwardPressed && !_replyForwardPreviewCancel.isHidden()) {
 		updateField();
 	} else if (_inRecord && cHasAudioCapture()) {
@@ -4545,6 +4586,8 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		a_recordDown.start(1);
 		a_recordOver.restart();
 		_recordAnim.start();
+	} else if (_inReply) {
+		App::main()->showPeer(histPeer->id, _replyToId ? _replyToId : _kbReplyTo->id);
 	}
 }
 
@@ -4628,6 +4671,8 @@ void HistoryWidget::onStickerSend(DocumentData *sticker) {
 	App::main()->finishForwarding(hist);
 	cancelReply();
 
+	if (sticker->sticker) App::main()->incrementSticker(sticker);
+
 	App::historyRegRandom(randomId, newId);
 	App::main()->historyToDown(hist);
 
@@ -4683,8 +4728,9 @@ void HistoryWidget::cancelReply() {
 	if (!_replyToId) return;
 	_replyTo = 0;
 	_replyToId = 0;
-	if (!App::main()->hasForwardingItems()) {
-		if (!_previewData || _previewData->pendingTill < 0) _replyForwardPreviewCancel.hide();
+	mouseMoveEvent(0);
+	if (!App::main()->hasForwardingItems() && (!_previewData || _previewData->pendingTill < 0) && !_kbReplyTo) {
+		_replyForwardPreviewCancel.hide();
 	}
 
 	updateBotKeyboard();
@@ -4712,9 +4758,12 @@ void HistoryWidget::onReplyForwardPreviewCancel() {
 		_saveDraftText = true;
 		_saveDraftStart = getms();
 		onDraftSave();
-	} else {
+	} else if (App::main()->hasForwardingItems()) {
 		App::main()->cancelForwarding();
+	} else if (_replyToId) {
 		cancelReply();
+	} else if (_kbReplyTo) {
+		onKbToggle();
 	}
 }
 
@@ -4734,7 +4783,7 @@ void HistoryWidget::previewCancel() {
 	_previewData = 0;
 	_previewLinks.clear();
 	updatePreview();
-	if (!_replyToId && !App::main()->hasForwardingItems()) _replyForwardPreviewCancel.hide();
+	if (!_replyToId && !App::main()->hasForwardingItems() && !_kbReplyTo) _replyForwardPreviewCancel.hide();
 }
 
 void HistoryWidget::onPreviewParse() {
@@ -4828,7 +4877,7 @@ void HistoryWidget::updatePreview() {
 			_previewTitle.setText(st::msgServiceNameFont, title, _textNameOptions);
 			_previewDescription.setText(st::msgFont, desc, _textDlgOptions);
 		}
-	} else if (!App::main()->hasForwardingItems() && !_replyToId) {
+	} else if (!App::main()->hasForwardingItems() && !_replyToId && !_kbReplyTo) {
 		_replyForwardPreviewCancel.hide();
 	}
 	resizeEvent(0);

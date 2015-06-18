@@ -631,6 +631,11 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 
 			case mtpc_messageActionChatDeleteUser: {
 				const MTPDmessageActionChatDeleteUser &d(action.c_messageActionChatDeleteUser());
+				if (lastKeyboardFrom == App::peerFromUser(d.vuser_id)) {
+					lastKeyboardInited = true;
+					lastKeyboardId = 0;
+					lastKeyboardFrom = 0;
+				}
 				// App::peer(App::peerFromUser(d.vuser_id)); left
 			} break;
 
@@ -825,6 +830,10 @@ HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *
 					lastKeyboardId = 0;
 					lastKeyboardFrom = 0;
 				}
+			} else if (peer->chat && (peer->asChat()->count < 1 || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(adding->from())) {
+				lastKeyboardInited = true;
+				lastKeyboardId = 0;
+				lastKeyboardFrom = 0;
 			} else {
 				lastKeyboardInited = true;
 				lastKeyboardId = adding->id;
@@ -947,7 +956,7 @@ void History::addToFront(const QVector<MTPMessage> &slice) {
 							if (!(App::replyMarkup(item->id).flags & MTPDreplyKeyboardMarkup_flag_ZERO)) {
 								if (!lastKeyboardInited) {
 									lastKeyboardInited = true;
-									if (wasKeyboardHide) {
+									if (wasKeyboardHide || ((peer->asChat()->count < 1 || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(item->from()))) {
 										lastKeyboardId = 0;
 										lastKeyboardFrom = 0;
 									} else {

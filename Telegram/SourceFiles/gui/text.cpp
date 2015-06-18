@@ -783,8 +783,8 @@ void HashtagLink::onClick(Qt::MouseButton button) const {
 
 void BotCommandLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		App::insertBotCommand(_cmd);
-//		App::sendBotCommand(_cmd);
+//		App::insertBotCommand(_cmd);
+		App::sendBotCommand(_cmd);
 	}
 }
 

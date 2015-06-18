@@ -1718,6 +1718,10 @@ void MainWidget::updateReplyTo() {
 	history.updateReplyTo(true);
 }
 
+void MainWidget::updateBotKeyboard() {
+	history.updateBotKeyboard();
+}
+
 void MainWidget::pushReplyReturn(HistoryItem *item) {
 	history.pushReplyReturn(item);
 }
