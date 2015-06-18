@@ -2808,7 +2808,7 @@ void HistoryWidget::updateControlsVisibility() {
 		}
 		if (!histPeer->chat || !histPeer->asChat()->forbidden) {
 			checkMentionDropdown();
-			bool botStart = !histPeer->chat && histPeer->asUser()->botInfo && (!histPeer->asUser()->botInfo->startToken.isEmpty() || hist->isEmpty() && !hist->lastMsg);
+			bool botStart = !histPeer->chat && histPeer->asUser()->botInfo && (!histPeer->asUser()->botInfo->startToken.isEmpty() || (hist->isEmpty() && !hist->lastMsg));
 			if (botStart) {
 				if (_botStart.isHidden()) {
 					_botStart.clearState();
