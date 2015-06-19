@@ -613,6 +613,8 @@ private:
 
 	MentionsDropdown _attachMention;
 
+	bool isBotStart() const;
+
 	FlatButton _send, _botStart;
 	IconedButton _attachDocument, _attachPhoto, _attachEmoji, _kbShow, _kbHide;
 	MessageField _field;

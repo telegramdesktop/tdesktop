@@ -2264,7 +2264,7 @@ void HistoryWidget::activate() {
 		}
 	}
 	if (_list) {
-		if (_selCount || _recording || !_botStart.isHidden()) {
+		if (_selCount || _recording || isBotStart()) {
 			_list->setFocus();
 		} else {
 			_field.setFocus();
@@ -2829,8 +2829,7 @@ void HistoryWidget::updateControlsVisibility() {
 	if (hist->readyForWork()) {
 		if (!histPeer->chat || !histPeer->asChat()->forbidden) {
 			checkMentionDropdown();
-			bool botStart = !histPeer->chat && histPeer->asUser()->botInfo && (!histPeer->asUser()->botInfo->startToken.isEmpty() || (hist->isEmpty() && !hist->lastMsg));
-			if (botStart) {
+			if (isBotStart()) {
 				if (_botStart.isHidden()) {
 					_botStart.clearState();
 					_botStart.show();
@@ -3462,7 +3461,7 @@ void HistoryWidget::animStop() {
 bool HistoryWidget::recordStep(float64 ms) {
 	float64 dt = ms / st::btnSend.duration;
 	bool res = true;
-	if (dt >= 1 || !_send.isHidden() || !_botStart.isHidden()) {
+	if (dt >= 1 || !_send.isHidden() || isBotStart()) {
 		res = false;
 		a_recordOver.finish();
 		a_recordDown.finish();
@@ -3766,6 +3765,11 @@ void HistoryWidget::updateDragAreas() {
 	break;
 	};
 	resizeEvent(0);
+}
+
+bool HistoryWidget::isBotStart() const {
+	if (histPeer->chat || !histPeer->asUser()->botInfo) return false;
+	return !histPeer->asUser()->botInfo->startToken.isEmpty() || (hist->isEmpty() && !hist->lastMsg);
 }
 
 void HistoryWidget::dropEvent(QDropEvent *e) {
@@ -4431,7 +4435,9 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 	}
 
 	int32 newScrollHeight = height();
-	if (_botStart.isHidden()) {
+	if (isBotStart()) {
+		newScrollHeight -= _botStart.height();
+	} else {
 		if (hist->readyForWork() && (!histPeer->chat || !histPeer->asChat()->forbidden)) {
 			newScrollHeight -= (_field.height() + 2 * st::sendPadding);
 		}
@@ -4441,8 +4447,6 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 		if (_kbShown) {
 			newScrollHeight -= _kbScroll.height();
 		}
-	} else {
-		newScrollHeight -= _botStart.height();
 	}
 	bool wasAtBottom = _scroll.scrollTop() + 1 > _scroll.scrollTopMax(), needResize = _scroll.width() != width() || _scroll.height() != newScrollHeight;
 	if (needResize) {
@@ -4544,7 +4548,7 @@ void HistoryWidget::updateBotKeyboard() {
 
 	if (_keyboard.hasMarkup()) {
 		if (_keyboard.singleUse() && _keyboard.forMsgId() == hist->lastKeyboardId && hist->lastKeyboardUsed) _kbWasHidden = true;
-		if (_botStart.isHidden() && (wasVisible || _replyTo || (_field.getLastText().isEmpty() && !_kbWasHidden))) {
+		if (!isBotStart() && (wasVisible || _replyTo || (_field.getLastText().isEmpty() && !_kbWasHidden))) {
 			if (!_showAnim.animating()) {
 				_kbScroll.show();
 				_attachEmoji.hide();
@@ -5043,7 +5047,7 @@ void HistoryWidget::updateTopBarSelection() {
 	updateControlsVisibility();
 	updateListSize();
 	if (!App::wnd()->layerShown() && !App::passcoded()) {
-		if (_selCount || _recording || !_botStart.isHidden()) {
+		if (_selCount || _recording || isBotStart()) {
 			_list->setFocus();
 		} else {
 			_field.setFocus();
