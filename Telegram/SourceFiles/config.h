@@ -325,7 +325,7 @@ enum {
 };
 
 inline const QRegularExpression &cWordSplit() {
-	static QRegularExpression regexp(qsl("[\\s\\-\\+\\)\\(\\,\\.\\:\\!\\_\\;\\\"\\'\\x0]"));
+	static QRegularExpression regexp(qsl("[\\@\\s\\-\\+\\)\\(\\,\\.\\:\\!\\_\\;\\\"\\'\\x0]"));
 	return regexp;
 }
 

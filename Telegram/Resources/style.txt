@@ -1573,67 +1573,67 @@ rbEmoji: flatCheckbox {
 	imagePos: point(8px, 12px);
 }
 rbEmojiRecent: flatCheckbox(rbEmoji) {
-	imageRect: emojiRecent;
+	imageRect: emojiRecentOver;
 	chkImageRect: emojiRecentActive;
 	overImageRect: emojiRecentOver;
 	chkOverImageRect: emojiRecentActive;
-	disImageRect: emojiRecent;
+	disImageRect: emojiRecentOver;
 	chkDisImageRect: emojiRecentActive;
 }
 rbEmojiPeople: flatCheckbox(rbEmoji) {
-	imageRect: emojiPeople;
+	imageRect: emojiPeopleOver;
 	chkImageRect: emojiPeopleActive;
 	overImageRect: emojiPeopleOver;
 	chkOverImageRect: emojiPeopleActive;
-	disImageRect: emojiPeople;
+	disImageRect: emojiPeopleOver;
 	chkDisImageRect: emojiPeopleActive;
 }
 rbEmojiNature: flatCheckbox(rbEmoji) {
-	imageRect: emojiNature;
+	imageRect: emojiNatureOver;
 	chkImageRect: emojiNatureActive;
 	overImageRect: emojiNatureOver;
 	chkOverImageRect: emojiNatureActive;
-	disImageRect: emojiNature;
+	disImageRect: emojiNatureOver;
 	chkDisImageRect: emojiNatureActive;
 }
 rbEmojiFood: flatCheckbox(rbEmoji) {
-	imageRect: emojiFood;
+	imageRect: emojiFoodOver;
 	chkImageRect: emojiFoodActive;
 	overImageRect: emojiFoodOver;
 	chkOverImageRect: emojiFoodActive;
-	disImageRect: emojiFood;
+	disImageRect: emojiFoodOver;
 	chkDisImageRect: emojiFoodActive;
 }
 rbEmojiCelebration: flatCheckbox(rbEmoji) {
-	imageRect: emojiCelebration;
+	imageRect: emojiCelebrationOver;
 	chkImageRect: emojiCelebrationActive;
 	overImageRect: emojiCelebrationOver;
 	chkOverImageRect: emojiCelebrationActive;
-	disImageRect: emojiCelebration;
+	disImageRect: emojiCelebrationOver;
 	chkDisImageRect: emojiCelebrationActive;
 }
 rbEmojiActivity: flatCheckbox(rbEmoji) {
-	imageRect: emojiActivity;
+	imageRect: emojiActivityOver;
 	chkImageRect: emojiActivityActive;
 	overImageRect: emojiActivityOver;
 	chkOverImageRect: emojiActivityActive;
-	disImageRect: emojiActivity;
+	disImageRect: emojiActivityOver;
 	chkDisImageRect: emojiActivityActive;
 }
 rbEmojiTravel: flatCheckbox(rbEmoji) {
-	imageRect: emojiTravel;
+	imageRect: emojiTravelOver;
 	chkImageRect: emojiTravelActive;
 	overImageRect: emojiTravelOver;
 	chkOverImageRect: emojiTravelActive;
-	disImageRect: emojiTravel;
+	disImageRect: emojiTravelOver;
 	chkDisImageRect: emojiTravelActive;
 }
 rbEmojiObjects: flatCheckbox(rbEmoji) {
-	imageRect: emojiObjects;
+	imageRect: emojiObjectsOver;
 	chkImageRect: emojiObjectsActive;
 	overImageRect: emojiObjectsOver;
 	chkOverImageRect: emojiObjectsActive;
-	disImageRect: emojiObjects;
+	disImageRect: emojiObjectsOver;
 	chkDisImageRect: emojiObjectsActive;
 }
 emojiPanPadding: 10px;

@@ -440,6 +440,8 @@ struct StickerData {
 	QString alt;
 
 	MTPInputStickerSet set;
+	bool setInstalled() const;
+
 	StorageImageLocation loc; // doc thumb location
 };
 

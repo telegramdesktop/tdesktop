@@ -502,6 +502,21 @@ void AudioCancelLink::onClick(Qt::MouseButton button) const {
 	data->cancel();
 }
 
+bool StickerData::setInstalled() const {
+	switch (set.type()) {
+	case mtpc_inputStickerSetID: {
+		return (cStickerSets().constFind(set.c_inputStickerSetID().vid.v) != cStickerSets().cend());
+	} break;
+	case mtpc_inputStickerSetShortName: {
+		QString name = qs(set.c_inputStickerSetShortName().vshort_name).toLower();
+		for (StickerSets::const_iterator i = cStickerSets().cbegin(), e = cStickerSets().cend(); i != e; ++i) {
+			if (i->shortName.toLower() == name) return true;
+		}
+	} break;
+	}
+	return false;
+}
+
 AudioData::AudioData(const AudioId &id, const uint64 &access, int32 user, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) :
 id(id), access(access), user(user), date(date), mime(mime), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
 	location = Local::readFileLocation(mediaKey(AudioFileLocation, dc, id));

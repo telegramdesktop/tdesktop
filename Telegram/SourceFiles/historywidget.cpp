@@ -726,7 +726,7 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					DocumentData *doc = sticker->document();
 					if (doc && doc->sticker && doc->sticker->set.type() != mtpc_inputStickerSetEmpty) {
 						if (!_menu) _menu = new ContextMenu(this);
-						_menu->addAction(lang(lng_context_pack_info), historyWidget, SLOT(onStickerPackInfo()));
+						_menu->addAction(lang(doc->sticker->setInstalled() ? lng_context_pack_info : lng_context_pack_add), historyWidget, SLOT(onStickerPackInfo()));
 					}
 				}
 				QString contextMenuText = item->selectedText(FullItemSel);

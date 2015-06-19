@@ -1794,11 +1794,11 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 						const StickerIcon &s(_icons.at(i));
 						s.sticker->thumb->load();
 						QPixmap pix(s.sticker->thumb->pix(s.pixw, s.pixh));
-						if (_iconSel == i) {
-							p.setOpacity(1);
-						} else {
-							p.setOpacity(1. * _iconHovers.at(i) + st::stickerIconOpacity * (1 - _iconHovers.at(i)));
-						}
+						//if (_iconSel == i) {
+						//	p.setOpacity(1);
+						//} else {
+						//	p.setOpacity(1. * _iconHovers.at(i) + st::stickerIconOpacity * (1 - _iconHovers.at(i)));
+						//}
 						p.drawPixmapLeft(x + (st::rbEmoji.width - s.pixw) / 2, _iconsTop + (st::rbEmoji.height - s.pixh) / 2, width(), pix);
 						x += st::rbEmoji.width;
 						p.setOpacity(1);
@@ -1939,6 +1939,7 @@ void EmojiPan::mouseReleaseEvent(QMouseEvent *e) {
 		updateSelected();
 
 		if (wasDown == _iconOver && _iconOver >= 0) {
+			_iconSelX = anim::ivalue(_iconOver * st::rbEmoji.width, _iconOver * st::rbEmoji.width);
 			s_inner.showStickerSet(_icons.at(_iconOver).setId);
 		}
 	}
