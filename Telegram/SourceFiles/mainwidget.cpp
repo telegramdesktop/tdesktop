@@ -1902,7 +1902,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		} else if (profile) {
 			_stack.push_back(new StackItemProfile(profile->peer(), profile->lastScrollTop(), profile->allMediaShown()));
 		} else {
-			_stack.push_back(new StackItemHistory(history.peer(), history.lastWidth(), history.lastScrollTop(), history.replyReturns()));
+			_stack.push_back(new StackItemHistory(history.peer(), history.lastWidth(), history.lastScrollTop(), history.replyReturns(), history.kbWasHidden()));
 		}
 	}
 	if (overview) {
@@ -1949,7 +1949,7 @@ void MainWidget::showPeerProfile(PeerData *peer, bool back, int32 lastScrollTop,
 		} else if (profile) {
 			_stack.push_back(new StackItemProfile(profile->peer(), profile->lastScrollTop(), profile->allMediaShown()));
 		} else {
-			_stack.push_back(new StackItemHistory(history.peer(), history.lastWidth(), history.lastScrollTop(), history.replyReturns()));
+			_stack.push_back(new StackItemHistory(history.peer(), history.lastWidth(), history.lastScrollTop(), history.replyReturns(), history.kbWasHidden()));
 		}
 	}
 	if (overview) {
@@ -1987,6 +1987,7 @@ void MainWidget::showBackFromStack() {
 		StackItemHistory *histItem = static_cast<StackItemHistory*>(item);
 		showPeer(histItem->peer->id, App::main()->activeMsgId(), true);
 		history.setReplyReturns(histItem->peer->id, histItem->replyReturns);
+		if (histItem->kbWasHidden) history.setKbWasHidden();
 	} else if (item->type() == ProfileStackItem) {
 		StackItemProfile *profItem = static_cast<StackItemProfile*>(item);
 		showPeerProfile(profItem->peer, true, profItem->lastScrollTop, profItem->allMediaShown);
@@ -2581,7 +2582,13 @@ void MainWidget::openUserByName(const QString &username, bool toProfile, const Q
 				showPeerProfile(user);
 			}
 		} else {
-			if (user->botInfo) user->botInfo->startToken = startToken;
+			if (user->botInfo) {
+				user->botInfo->startToken = startToken;
+				if (user == history.peer()) {
+					history.updateControlsVisibility();
+					history.resizeEvent(0);
+				}
+			}
 			emit showPeerAsync(user->id, 0, false, true);
 		}
 	} else {
@@ -2617,7 +2624,13 @@ void MainWidget::usernameResolveDone(QPair<bool, QString> toProfileStartToken, c
 			showPeerProfile(user);
 		}
 	} else {
-		if (user->botInfo) user->botInfo->startToken = toProfileStartToken.second;
+		if (user->botInfo) {
+			user->botInfo->startToken = toProfileStartToken.second;
+			if (user == history.peer()) {
+				history.updateControlsVisibility();
+				history.resizeEvent(0);
+			}
+		}
 		showPeer(user->id, 0, false, true);
 	}
 }

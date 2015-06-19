@@ -2557,6 +2557,30 @@ void HistoryWidget::calcNextReplyReturn() {
 	if (!_replyReturn) updateControlsVisibility();
 }
 
+bool HistoryWidget::kbWasHidden() {
+	return _kbWasHidden;
+}
+
+void HistoryWidget::setKbWasHidden() {
+	if (_kbWasHidden || !_keyboard.hasMarkup()) return;
+
+	_kbWasHidden = true;
+	if (!_showAnim.animating()) {
+		_kbScroll.hide();
+		_attachEmoji.show();
+		_kbHide.hide();
+		_kbShow.show();
+	}
+	_field.setMaxHeight(st::maxFieldHeight);
+	_kbShown = false;
+	_kbReplyTo = 0;
+	if (!App::main()->hasForwardingItems() && (!_previewData || _previewData->pendingTill < 0) && !_replyToId) {
+		_replyForwardPreviewCancel.hide();
+	}
+	resizeEvent(0);
+	update();
+}
+
 void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool leaveActive) {
 	if (App::main()->selectingPeer() && !force) {
 		hiderOffered = true;
@@ -2810,6 +2834,7 @@ void HistoryWidget::updateControlsVisibility() {
 				if (_botStart.isHidden()) {
 					_botStart.clearState();
 					_botStart.show();
+					_kbShown = false;
 				}
 				_send.hide();
 				_field.hide();
@@ -3291,6 +3316,12 @@ void HistoryWidget::onBotStart() {
 		MTP::send(MTPmessages_StartBot(histPeer->asUser()->inputUser, MTP_int(0), MTP_long(randomId), MTP_string(token)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, histPeer->asUser()));
 
 		histPeer->asUser()->botInfo->startToken = QString();
+		if (_keyboard.hasMarkup()) {
+			if (_keyboard.singleUse() && _keyboard.forMsgId() == hist->lastKeyboardId && hist->lastKeyboardUsed) _kbWasHidden = true;
+			if (!_kbWasHidden) _kbShown = true;
+		}
+		updateControlsVisibility();
+		resizeEvent(0);
 	}
 }
 
@@ -4325,7 +4356,7 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	_replyForwardPreviewCancel.move(width() - _replyForwardPreviewCancel.width(), _field.y() - st::sendPadding - _replyForwardPreviewCancel.height());
 	updateListSize();
 
-	_field.resize(width() - _send.width() - _attachDocument.width() - _attachEmoji.width() - (_kbShow.isHidden() ? 0 : _kbShow.width()), _field.height());
+	_field.resize(width() - _send.width() - _attachDocument.width() - _attachEmoji.width() - ((_kbShown || !_keyboard.hasMarkup()) ? 0 : _kbShow.width()), _field.height());
 
 	_toHistoryEnd.move((width() - _toHistoryEnd.width()) / 2, _scroll.y() + _scroll.height() - _toHistoryEnd.height() - st::historyToEndSkip);
 

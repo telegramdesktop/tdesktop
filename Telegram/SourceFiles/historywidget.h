@@ -440,6 +440,9 @@ public:
 	void setReplyReturns(PeerId peer, const QList<MsgId> &replyReturns);
 	void calcNextReplyReturn();
 
+	bool kbWasHidden();
+	void setKbWasHidden();
+
 	void updatePreview();
 	void previewCancel();
 

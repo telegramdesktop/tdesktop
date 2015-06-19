@@ -1053,7 +1053,7 @@ textRectMargins: margins(-2px, -1px, -2px, -1px);
 taMsgField: flatTextarea(taDefFlat) {
 	font: msgFont;
 }
-maxFieldHeight: 223px;
+maxFieldHeight: 243px;
 
 newMsgSound: ':/gui/art/newmsg.wav';
 
@@ -1926,6 +1926,11 @@ mentionPadding: margins(8px, 5px, 8px, 5px);
 mentionTop: 11px;
 mentionFont: linkFont;
 mentionPhotoSize: msgPhotoSize;
+mentionBgOver: #f5f5f5;
+mentionFg: #777;
+mentionFgOver: #707070;
+mentionFgActive: #0080c0;
+mentionFgOverActive: #0077b3;
 botCommandFont: font(fsize semibold);
 botDescFont: font(fsize italic);
 

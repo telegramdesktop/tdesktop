@@ -2433,8 +2433,9 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 	for (int32 i = from; i < to; ++i) {
 		if (i >= last) break;
 
-		if (i == _sel) {
-			p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::dlgHoverBG->b);
+		bool selected = (i == _sel);
+		if (selected) {
+			p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::mentionBgOver->b);
 			int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
 			if (!_hrows->isEmpty()) p.drawPixmap(QPoint(width() - st::notifyClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), App::sprite(), st::notifyClose.icon);
 		}
@@ -2462,10 +2463,10 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 			user->nameText.drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
 			
 			p.setFont(st::mentionFont->f);
-			p.setPen(st::profileOnlineColor->p);
+			p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
 			p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize + namewidth + st::mentionPadding.right(), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
 			if (!second.isEmpty()) {
-				p.setPen(st::profileOfflineColor->p);
+				p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
 				p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize + namewidth + st::mentionPadding.right() + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
 			}
 		} else if (!_hrows->isEmpty()) {
@@ -2483,11 +2484,11 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 
 			p.setFont(st::mentionFont->f);
 			if (!first.isEmpty()) {
-				p.setPen(st::profileOnlineColor->p);
+				p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
 				p.drawText(htagleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
 			}
 			if (!second.isEmpty()) {
-				p.setPen(st::profileOfflineColor->p);
+				p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
 				p.drawText(htagleft + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
 			}
 		} else {
@@ -2517,11 +2518,11 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 			}
 			p.setFont(st::botCommandFont->f);
 			if (!first.isEmpty()) {
-				p.setPen(st::profileOnlineColor->p);
+				p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
 				p.drawText(htagleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
 			}
 			if (!second.isEmpty()) {
-				p.setPen(st::profileOfflineColor->p);
+				p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
 				p.drawText(htagleft + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
 			}
 			addleft += firstwidth + secondwidth + st::mentionPadding.left();
@@ -2534,7 +2535,7 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 				if (widthleft < paramswidth) {
 					params = st::mentionFont->m.elidedText(params, Qt::ElideRight, widthleft);
 				}
-				p.setPen(st::profileOfflineColor->p);
+				p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
 				p.drawText(htagleft + addleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, params);
 
 				addleft += paramswidth + st::mentionPadding.left();
@@ -2548,7 +2549,7 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 					description = st::botDescFont->m.elidedText(description, Qt::ElideRight, widthleft);
 					descwidth = st::botDescFont->m.width(description);
 				}
-				p.setPen(st::profileOfflineColor->p);
+				p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
 				p.drawText(htagleft + addleft + (widthleft - descwidth), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, description);
 			}
 		}

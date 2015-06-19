@@ -104,7 +104,7 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 				for (; from < to; ++from) {
 					bool selected = (from == hashtagSel);
 					if (selected) {
-						p.fillRect(0, 0, w, st::mentionHeight, st::dlgHoverBG->b);
+						p.fillRect(0, 0, w, st::mentionHeight, st::mentionBgOver->b);
 						int skip = (st::mentionHeight - st::notifyClose.icon.pxHeight()) / 2;
 						p.drawPixmap(QPoint(w - st::notifyClose.icon.pxWidth() - skip, skip), App::sprite(), st::notifyClose.icon);
 					}
@@ -122,11 +122,11 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 
 					p.setFont(st::mentionFont->f);
 					if (!first.isEmpty()) {
-						p.setPen(st::profileOnlineColor->p);
+						p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
 						p.drawText(st::dlgPaddingHor, st::mentionTop + st::mentionFont->ascent, first);
 					}
 					if (!second.isEmpty()) {
-						p.setPen(st::profileOfflineColor->p);
+						p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
 						p.drawText(st::dlgPaddingHor + firstwidth, st::mentionTop + st::mentionFont->ascent, second);
 					}
 					p.translate(0, st::mentionHeight);
