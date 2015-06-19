@@ -87,9 +87,6 @@
     <ClCompile Include="SourceFiles\gui\phoneinput.cpp">
       <Filter>gui</Filter>
     </ClCompile>
-    <ClCompile Include="SourceFiles\gui\countrycodeinput.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
     <ClCompile Include="SourceFiles\gui\countryinput.cpp">
       <Filter>gui</Filter>
     </ClCompile>
@@ -544,15 +541,6 @@
       <Filter>Generated Files\Debug</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_countryinput.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Deploy\moc_countrycodeinput.cpp">
-      <Filter>Generated Files\Deploy</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_countrycodeinput.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_countrycodeinput.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_contactsbox.cpp">
@@ -1018,9 +1006,6 @@
       <Filter>gui</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\gui\phoneinput.h">
-      <Filter>gui</Filter>
-    </CustomBuild>
-    <CustomBuild Include="SourceFiles\gui\countrycodeinput.h">
       <Filter>gui</Filter>
     </CustomBuild>
     <CustomBuild Include="SourceFiles\gui\countryinput.h">

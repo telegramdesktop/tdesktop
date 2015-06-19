@@ -20,11 +20,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "flatinput.h"
 #include "window.h"
+#include "countryinput.h"
 
 namespace {
-	class FlatInputStyle : public QCommonStyle {
+	template <typename InputClass>
+	class InputStyle : public QCommonStyle {
 	public:
-		FlatInputStyle() {
+		InputStyle() {
 		}
 
 		void drawPrimitive(PrimitiveElement element, const QStyleOption *option, QPainter *painter, const QWidget *widget = 0) const {
@@ -32,14 +34,15 @@ namespace {
 		QRect subElementRect(SubElement r, const QStyleOption *opt, const QWidget *widget = 0) const {
 			switch (r) {
 				case SE_LineEditContents:
-					const FlatInput *w = widget ? qobject_cast<const FlatInput*>(widget) : 0;
+					const InputClass *w = widget ? qobject_cast<const InputClass*>(widget) : 0;
 					return w ? w->getTextRect() : QCommonStyle::subElementRect(r, opt, widget);
 				break;
 			}
 			return QCommonStyle::subElementRect(r, opt, widget);
 		}
 	};
-	FlatInputStyle _flatInputStyle;
+	InputStyle<FlatInput> _flatInputStyle;
+	InputStyle<InputField> _inputFieldStyle;
 }
 
 FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString &pholder, const QString &v) : QLineEdit(v, parent), _fullph(pholder), _oldtext(v), _kev(0), _customUpDown(false), _phVisible(!v.length()),
@@ -284,4 +287,360 @@ void FlatInput::notaBene() {
 	setFocus();
 	a_borderColor.start(_st.borderError->c);
 	anim::start(this);
+}
+
+CountryCodeInput::CountryCodeInput(QWidget *parent, const style::flatInput &st) : FlatInput(parent, st), _nosignal(false) {
+
+}
+
+void CountryCodeInput::startErasing(QKeyEvent *e) {
+	setFocus();
+	keyPressEvent(e);
+}
+
+void CountryCodeInput::codeSelected(const QString &code) {
+	QString old(text());
+	setText('+' + code);
+	_nosignal = true;
+	correctValue(0, old);
+	_nosignal = false;
+	emit changed();
+}
+
+void CountryCodeInput::correctValue(QKeyEvent *e, const QString &was) {
+	QString oldText(text()), newText, addToNumber;
+	int oldPos(cursorPosition()), newPos(-1), oldLen(oldText.length()), start = 0, digits = 5;
+	newText.reserve(oldLen + 1);
+	newText += '+';
+	if (oldLen && oldText[0] == '+') {
+		++start;
+	}
+	for (int i = start; i < oldLen; ++i) {
+		QChar ch(oldText[i]);
+		if (ch.isDigit()) {
+			if (!digits || !--digits) {
+				addToNumber += ch;
+			} else {
+				newText += ch;
+			}
+		}
+		if (i == oldPos) {
+			newPos = newText.length();
+		}
+	}
+	if (!addToNumber.isEmpty()) {
+		QString validCode = findValidCode(newText.mid(1));
+		addToNumber = newText.mid(1 + validCode.length()) + addToNumber;
+		newText = '+' + validCode;
+	}
+	if (newPos < 0 || newPos > newText.length()) {
+		newPos = newText.length();
+	}
+	if (newText != oldText) {
+		setText(newText);
+		if (newPos != oldPos) {
+			setCursorPosition(newPos);
+		}
+	}
+	if (!_nosignal && was != newText) {
+		emit codeChanged(newText.mid(1));
+	}
+	if (!addToNumber.isEmpty()) {
+		emit addedToNumber(addToNumber);
+	}
+}
+
+InputField::InputField(QWidget *parent, const style::InputField &st, const QString &pholder, const QString &v) : QLineEdit(v, parent),
+_lastText(v),
+_keyEvent(0),
+_customUpDown(false),
+
+_placeholderFull(pholder),
+_placeholderVisible(!v.length()),
+a_placeholderLeft(_placeholderVisible ? 0 : st.placeholderShift),
+a_placeholderOpacity(_placeholderVisible ? 1 : 0),
+a_placeholderFg(st.placeholderFg->c),
+_placeholderFgAnim(animFunc(this, &InputField::placeholderFgStep)),
+_placeholderShiftAnim(animFunc(this, &InputField::placeholderShiftStep)),
+
+a_borderFg(st.borderFg->c),
+a_borderOpacityActive(0),
+_borderAnim(animFunc(this, &InputField::borderStep)),
+
+_focused(false), _error(false), _st(&st) {
+	resize(_st->width, _st->height);
+
+	setFont(_st->font->f);
+	setAlignment(_st->textAlign);
+	setLayoutDirection(cLangDir());
+
+	QPalette p(palette());
+	p.setColor(QPalette::Text, _st->textFg->c);
+	setPalette(p);
+
+	connect(this, SIGNAL(textChanged(const QString &)), this, SLOT(onTextChange(const QString &)));
+	connect(this, SIGNAL(textEdited(const QString &)), this, SLOT(onTextEdited()));
+	if (App::wnd()) connect(this, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
+
+	setStyle(&_inputFieldStyle);
+	setTextMargins(0, 0, 0, 0);
+	setContentsMargins(0, 0, 0, 0);
+
+	setAttribute(Qt::WA_AcceptTouchEvents);
+	_touchTimer.setSingleShot(true);
+	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
+}
+
+void InputField::setCustomUpDown(bool customUpDown) {
+	_customUpDown = customUpDown;
+}
+
+void InputField::onTouchTimer() {
+	_touchRightButton = true;
+}
+
+bool InputField::event(QEvent *e) {
+	if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
+		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
+		if (ev->device()->type() == QTouchDevice::TouchScreen) {
+			touchEvent(ev);
+			return QLineEdit::event(e);
+		}
+	}
+	return QLineEdit::event(e);
+}
+
+void InputField::touchEvent(QTouchEvent *e) {
+	switch (e->type()) {
+	case QEvent::TouchBegin:
+		if (_touchPress || e->touchPoints().isEmpty()) return;
+		_touchTimer.start(QApplication::startDragTime());
+		_touchPress = true;
+		_touchMove = _touchRightButton = false;
+		_touchStart = e->touchPoints().cbegin()->screenPos().toPoint();
+		break;
+
+	case QEvent::TouchUpdate:
+		if (!_touchPress || e->touchPoints().isEmpty()) return;
+		if (!_touchMove && (e->touchPoints().cbegin()->screenPos().toPoint() - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
+			_touchMove = true;
+		}
+		break;
+
+	case QEvent::TouchEnd:
+		if (!_touchPress) return;
+		if (!_touchMove && window()) {
+			Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
+			QPoint mapped(mapFromGlobal(_touchStart)), winMapped(window()->mapFromGlobal(_touchStart));
+
+			if (_touchRightButton) {
+				QContextMenuEvent contextEvent(QContextMenuEvent::Mouse, mapped, _touchStart);
+				contextMenuEvent(&contextEvent);
+			}
+		}
+		_touchTimer.stop();
+		_touchPress = _touchMove = _touchRightButton = false;
+		break;
+
+	case QEvent::TouchCancel:
+		_touchPress = false;
+		_touchTimer.stop();
+		break;
+	}
+}
+
+QRect InputField::getTextRect() const {
+	QMargins m = _st->textMargins + QMargins(-2, -1, -2, -1);
+	if (rtl()) {
+		int l = m.left();
+		m.setLeft(m.right());
+		m.setRight(l);
+	}
+	return rect().marginsRemoved(m);
+}
+
+void InputField::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	if (_st->border) {
+		p.fillRect(0, height() - _st->border, width(), _st->border, _st->borderFg->b);
+	}
+	if (_st->borderActive && a_borderOpacityActive.current() > 0) {
+		p.setOpacity(a_borderOpacityActive.current());
+		p.fillRect(0, height() - _st->borderActive, width(), _st->borderActive, a_borderFg.current());
+		p.setOpacity(1);
+	}
+	if (_st->iconSprite.pxWidth()) {
+		p.drawSpriteLeft(_st->iconPosition, width(), _st->iconSprite);
+	}
+
+	bool drawPlaceholder = _placeholderVisible;
+	if (_placeholderShiftAnim.animating()) {
+		p.setOpacity(a_placeholderOpacity.current());
+		drawPlaceholder = true;
+	}
+	if (drawPlaceholder) {
+		p.save();
+		p.setClipRect(rect());
+
+		QRect r(rect().marginsRemoved(_st->textMargins + _st->placeholderMargins));
+		r.moveLeft(r.left() + a_placeholderLeft.current());
+		if (rtl()) r.moveLeft(width() - r.left() - r.width());
+
+		p.setFont(_st->font->f);
+		p.setPen(a_placeholderFg.current());
+		p.drawText(r, _placeholder, _st->placeholderAlign);
+
+		p.restore();
+	}
+	QLineEdit::paintEvent(e);
+}
+
+void InputField::focusInEvent(QFocusEvent *e) {
+	if (!_focused) {
+		_focused = true;
+
+		a_placeholderFg.start(_st->placeholderFgActive->c);
+		_placeholderFgAnim.start();
+
+		a_borderFg.start((_error ? _st->borderFgError : _st->borderFgActive)->c);
+		a_borderOpacityActive.start(1);
+		_borderAnim.start();
+	}
+	QLineEdit::focusInEvent(e);
+	emit focused();
+}
+
+void InputField::focusOutEvent(QFocusEvent *e) {
+	if (_focused) {
+		_focused = false;
+
+		a_placeholderFg.start(_st->placeholderFg->c);
+		_placeholderFgAnim.start();
+
+		a_borderFg.start((_error ? _st->borderFgError : _st->borderFg)->c);
+		a_borderOpacityActive.start(_error ? 1 : 0);
+		_borderAnim.start();
+	}
+	QLineEdit::focusOutEvent(e);
+	emit blurred();
+}
+
+void InputField::resizeEvent(QResizeEvent *e) {
+	int32 availw = width() - _st->textMargins.left() - _st->textMargins.right() - _st->placeholderMargins.left() - _st->placeholderMargins.right() - 2;
+	_placeholder = (_st->font->m.width(_placeholderFull) > availw) ? _st->font->m.elidedText(_placeholderFull, Qt::ElideRight, availw) : _placeholderFull;
+	update();
+}
+
+QSize InputField::sizeHint() const {
+	return geometry().size();
+}
+
+QSize InputField::minimumSizeHint() const {
+	return geometry().size();
+}
+
+bool InputField::placeholderFgStep(float64 ms) {
+	float dt = ms / _st->duration;
+	bool res = true;
+	if (dt >= 1) {
+		res = false;
+		a_placeholderFg.finish();
+	} else {
+		a_placeholderFg.update(dt, anim::linear);
+	}
+	update();
+	return res;
+}
+
+bool InputField::placeholderShiftStep(float64 ms) {
+	float dt = ms / _st->duration;
+	bool res = true;
+	if (dt >= 1) {
+		res = false;
+		a_placeholderLeft.finish();
+		a_placeholderOpacity.finish();
+	} else {
+		a_placeholderLeft.update(dt, anim::linear);
+		a_placeholderOpacity.update(dt, anim::linear);
+	}
+	update();
+	return res;
+}
+
+bool InputField::borderStep(float64 ms) {
+	float dt = ms / _st->duration;
+	bool res = true;
+	if (dt >= 1) {
+		res = false;
+		a_borderFg.finish();
+		a_borderOpacityActive.finish();
+	} else {
+		a_borderFg.update(dt, anim::linear);
+		a_borderOpacityActive.update(dt, anim::linear);
+	}
+	update();
+	return res;
+}
+
+void InputField::updatePlaceholder() {
+	bool placeholderVisible = !_lastText.isEmpty();
+	if (placeholderVisible != _placeholderVisible) {
+		_placeholderVisible = placeholderVisible;
+
+		a_placeholderLeft.start(_placeholderVisible ? 0 : _st->placeholderShift);
+		a_placeholderOpacity.start(_placeholderVisible ? 1 : 0);
+		_placeholderShiftAnim.start();
+	}
+}
+
+void InputField::correctValue(QKeyEvent *e, const QString &was) {
+}
+
+void InputField::keyPressEvent(QKeyEvent *e) {
+	QString was(_lastText);
+
+	_keyEvent = e;
+	if (_customUpDown && (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down)) {
+		e->ignore();
+	} else {
+		QLineEdit::keyPressEvent(e);
+	}
+
+	if (was == _lastText) { // call correct manually
+		correctValue(_keyEvent, was);
+		_lastText = text();
+		if (was != _lastText) emit changed();
+		updatePlaceholder();
+	}
+	if (e->key() == Qt::Key_Escape) {
+		emit cancelled();
+	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
+		emit accepted();
+	}
+	_keyEvent = 0;
+}
+
+void InputField::onTextEdited() {
+	QString was(_lastText);
+	correctValue(_keyEvent, was);
+	_lastText = text();
+	if (was != _lastText) emit changed();
+	updatePlaceholder();
+	if (App::wnd()) App::wnd()->updateGlobalMenu();
+}
+
+void InputField::onTextChange(const QString &text) {
+	_lastText = text;
+	if (App::wnd()) App::wnd()->updateGlobalMenu();
+}
+
+void InputField::setError(bool error) {
+	if (error != _error) {
+		_error = error;
+
+		a_borderFg.start((_error ? _st->borderFgError : (_focused ? _st->borderFgActive : _st->borderFg))->c);
+		a_borderOpacityActive.start((_error || _focused) ? 1 : 0);
+		_borderAnim.start();
+	}
 }

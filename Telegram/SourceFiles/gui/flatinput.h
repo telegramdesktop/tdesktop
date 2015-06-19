@@ -89,3 +89,106 @@ private:
 	bool _touchPress, _touchRightButton, _touchMove;
 	QPoint _touchStart;
 };
+
+class CountryCodeInput : public FlatInput {
+	Q_OBJECT
+
+public:
+
+	CountryCodeInput(QWidget *parent, const style::flatInput &st);
+
+	public slots:
+
+	void startErasing(QKeyEvent *e);
+	void codeSelected(const QString &code);
+
+signals:
+
+	void codeChanged(const QString &code);
+	void addedToNumber(const QString &added);
+
+protected:
+
+	void correctValue(QKeyEvent *e, const QString &was);
+
+private:
+
+	bool _nosignal;
+
+};
+
+class InputField : public QLineEdit {
+	Q_OBJECT
+
+public:
+
+	InputField(QWidget *parent, const style::InputField &st, const QString &ph = QString(), const QString &val = QString());
+
+	bool event(QEvent *e);
+	void touchEvent(QTouchEvent *e);
+	void paintEvent(QPaintEvent *e);
+	void focusInEvent(QFocusEvent *e);
+	void focusOutEvent(QFocusEvent *e);
+	void keyPressEvent(QKeyEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+	void setError(bool error);
+
+	void updatePlaceholder();
+
+	QRect getTextRect() const;
+
+	bool placeholderFgStep(float64 ms);
+	bool placeholderShiftStep(float64 ms);
+	bool borderStep(float64 ms);
+
+	QSize sizeHint() const;
+	QSize minimumSizeHint() const;
+
+	void setCustomUpDown(bool customUpDown);
+
+public slots:
+
+	void onTextChange(const QString &text);
+	void onTextEdited();
+
+	void onTouchTimer();
+
+signals:
+
+	void changed();
+	void cancelled();
+	void accepted();
+	void focused();
+	void blurred();
+
+protected:
+
+	virtual void correctValue(QKeyEvent *e, const QString &was);
+
+private:
+
+	QString _lastText;
+	QKeyEvent *_keyEvent;
+
+	bool _customUpDown;
+
+	QString _placeholder, _placeholderFull;
+	bool _placeholderVisible;
+	anim::ivalue a_placeholderLeft;
+	anim::fvalue a_placeholderOpacity;
+	anim::cvalue a_placeholderFg;
+	Animation _placeholderFgAnim, _placeholderShiftAnim;
+
+	anim::fvalue a_borderOpacityActive;
+	anim::cvalue a_borderFg;
+	Animation _borderAnim;
+
+	bool _focused, _error;
+
+	const style::InputField *_st;
+
+	QTimer _touchTimer;
+	bool _touchPress, _touchRightButton, _touchMove;
+	QPoint _touchStart;
+};
