@@ -508,6 +508,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_open_audio" = "Sprachnachricht öffnen";
 "lng_context_save_audio" = "Sprachnachricht speichern unter..";
 "lng_context_pack_info" = "Sticker-Paket";
+"lng_context_pack_add" = "Sticker hinzufügen";
 "lng_context_open_file" = "Datei öffnen";
 "lng_context_save_file" = "Datei speichern als..";
 "lng_context_forward_file" = "Datei weiterleiten";

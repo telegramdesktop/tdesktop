@@ -508,6 +508,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_open_audio" = "음성메시지 열기";
 "lng_context_save_audio" = "음성메시지를 다른 이름으로 저장..";
 "lng_context_pack_info" = "팩 정보";
+"lng_context_pack_add" = "스티커 추가";
 "lng_context_open_file" = "파일 열기";
 "lng_context_save_file" = "파일을 다른 이름으로 저장..";
 "lng_context_forward_file" = "파일 전달";
