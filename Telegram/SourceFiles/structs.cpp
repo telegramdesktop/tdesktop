@@ -244,7 +244,7 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 		botInfo->commands.reserve(v.size());
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
 			if (v.at(i).type() == mtpc_botCommand) {
-				botInfo->commands.push_back(BotCommand(qs(v.at(i).c_botCommand().vcommand), qs(v.at(i).c_botCommand().vparams), qs(v.at(i).c_botCommand().vdescription)));
+				botInfo->commands.push_back(BotCommand(qs(v.at(i).c_botCommand().vcommand), qs(v.at(i).c_botCommand().vdescription)));
 			}
 		}
 

@@ -214,6 +214,7 @@ public:
 
 	bool updateMarkup(HistoryItem *last);
 	bool hasMarkup() const;
+	bool forceReply() const;
 
 	bool hoverStep(float64 ms);
 	void resizeToWidth(int32 width, int32 maxOuterHeight);
@@ -237,7 +238,7 @@ private:
 
 	MsgId _wasForMsgId;
 	int32 _height, _maxOuterHeight;
-	bool _maximizeSize, _singleUse;
+	bool _maximizeSize, _singleUse, _forceReply;
 	QTimer _cmdTipTimer;
 
 	QPoint _lastMousePos;
@@ -430,7 +431,8 @@ public:
 
 	MsgId replyToId() const;
 	void updateReplyTo(bool force = false);
-	void cancelReply();
+	bool lastForceReplyReplied(MsgId replyTo = -1) const;
+	void cancelReply(bool lastKeyboardUsed = false);
 	void updateForwarding(bool force = false);
 	void cancelForwarding(); // called by MainWidget
 

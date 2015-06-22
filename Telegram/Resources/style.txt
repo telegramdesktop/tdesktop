@@ -1931,8 +1931,6 @@ mentionFg: #777;
 mentionFgOver: #707070;
 mentionFgActive: #0080c0;
 mentionFgOverActive: #0077b3;
-botCommandFont: font(fsize semibold);
-botDescFont: font(fsize italic);
 
 sessionsHeight: 440px;
 sessionHeight: 70px;

@@ -1999,7 +1999,7 @@ namespace App {
 		case mtpc_replyKeyboardMarkup: {
 			const MTPDreplyKeyboardMarkup &d(markup.c_replyKeyboardMarkup());
 			data.flags = d.vflags.v;
-
+			
 			const QVector<MTPKeyboardButtonRow> &v(d.vrows.c_vector().v);
 			if (!v.isEmpty()) {
 				commands.reserve(v.size());
@@ -2027,6 +2027,18 @@ namespace App {
 					replyMarkups.insert(msgId, data);
 				}
 			}
+		} break;
+
+		case mtpc_replyKeyboardHide: {
+			const MTPDreplyKeyboardHide &d(markup.c_replyKeyboardHide());
+			if (d.vflags.v) {
+				replyMarkups.insert(msgId, ReplyMarkup(d.vflags.v | MTPDreplyKeyboardMarkup_flag_ZERO));
+			}
+		} break;
+
+		case mtpc_replyKeyboardForceReply: {
+			const MTPDreplyKeyboardForceReply &d(markup.c_replyKeyboardForceReply());
+			replyMarkups.insert(msgId, ReplyMarkup(d.vflags.v | MTPDreplyKeyboardMarkup_flag_FORCE_REPLY));
 		} break;
 		}
 	}

@@ -594,7 +594,7 @@ messages.stickerSet#b60a24a6 set:StickerSet packs:Vector<StickerPack> documents:
 
 user#22e49072 flags:# id:int access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int = User;
 
-botCommand#b79d22ab command:string params:string description:string = BotCommand;
+botCommand#c27ac8c7 command:string description:string = BotCommand;
 
 botInfoEmpty#bb2e37ce = BotInfo;
 botInfo#9cf585d user_id:int version:int share_text:string description:string commands:Vector<BotCommand> = BotInfo;
@@ -603,7 +603,8 @@ keyboardButton#a2fa4880 text:string = KeyboardButton;
 
 keyboardButtonRow#77608b83 buttons:Vector<KeyboardButton> = KeyboardButtonRow;
 
-replyKeyboardHide#ced6ebbc = ReplyMarkup;
+replyKeyboardHide#a03e5b85 flags:# = ReplyMarkup;
+replyKeyboardForceReply#f4108aa0 flags:# = ReplyMarkup;
 replyKeyboardMarkup#3502758c flags:# rows:Vector<KeyboardButtonRow> = ReplyMarkup;
 
 ---functions---

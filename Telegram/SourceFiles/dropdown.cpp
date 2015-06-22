@@ -2508,16 +2508,16 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 
 			int32 addleft = 0, widthleft = htagwidth;
 			QString first = (_parent->filter().size() < 2) ? QString() : ('/' + toHighlight.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('/' + toHighlight) : toHighlight.mid(_parent->filter().size() - 1);
-			int32 firstwidth = st::botCommandFont->m.width(first), secondwidth = st::botCommandFont->m.width(second);
+			int32 firstwidth = st::mentionFont->m.width(first), secondwidth = st::mentionFont->m.width(second);
 			if (htagwidth < firstwidth + secondwidth) {
-				if (htagwidth < firstwidth + st::botCommandFont->elidew) {
-					first = st::botCommandFont->m.elidedText(first + second, Qt::ElideRight, htagwidth);
+				if (htagwidth < firstwidth + st::mentionFont->elidew) {
+					first = st::mentionFont->m.elidedText(first + second, Qt::ElideRight, htagwidth);
 					second = QString();
 				} else {
-					second = st::botCommandFont->m.elidedText(second, Qt::ElideRight, htagwidth - firstwidth);
+					second = st::mentionFont->m.elidedText(second, Qt::ElideRight, htagwidth - firstwidth);
 				}
 			}
-			p.setFont(st::botCommandFont->f);
+			p.setFont(st::mentionFont->f);
 			if (!first.isEmpty()) {
 				p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
 				p.drawText(htagleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
@@ -2529,26 +2529,13 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 			addleft += firstwidth + secondwidth + st::mentionPadding.left();
 			widthleft -= firstwidth + secondwidth + st::mentionPadding.left();
 
-			QString params = command.params;
-			if (widthleft > st::mentionFont->elidew && !params.isEmpty()) {
-				p.setFont(st::mentionFont->f);
-				int32 paramswidth = st::mentionFont->m.width(params);
-				if (widthleft < paramswidth) {
-					params = st::mentionFont->m.elidedText(params, Qt::ElideRight, widthleft);
-				}
-				p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
-				p.drawText(htagleft + addleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, params);
-
-				addleft += paramswidth + st::mentionPadding.left();
-				widthleft -= paramswidth + st::mentionPadding.left();
-			}
 			QString description = command.description;
-			if (widthleft > st::botDescFont->elidew && !description.isEmpty()) {
-				p.setFont(st::botDescFont->f);
-				int32 descwidth = st::botDescFont->m.width(description);
+			if (widthleft > st::mentionFont->elidew && !description.isEmpty()) {
+				p.setFont(st::mentionFont->f);
+				int32 descwidth = st::mentionFont->m.width(description);
 				if (widthleft < descwidth) {
-					description = st::botDescFont->m.elidedText(description, Qt::ElideRight, widthleft);
-					descwidth = st::botDescFont->m.width(description);
+					description = st::mentionFont->m.elidedText(description, Qt::ElideRight, widthleft);
+					descwidth = st::mentionFont->m.width(description);
 				}
 				p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
 				p.drawText(htagleft + addleft + (widthleft - descwidth), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, description);

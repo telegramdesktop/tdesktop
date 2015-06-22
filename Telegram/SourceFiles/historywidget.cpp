@@ -1449,7 +1449,7 @@ void MessageField::focusInEvent(QFocusEvent *e) {
 	emit focused();
 }
 
-BotKeyboard::BotKeyboard() : _wasForMsgId(0), _height(0), _maxOuterHeight(0), _maximizeSize(false), _singleUse(false),
+BotKeyboard::BotKeyboard() : _wasForMsgId(0), _height(0), _maxOuterHeight(0), _maximizeSize(false), _singleUse(false), _forceReply(false),
 _sel(-1), _down(-1), _hoverAnim(animFunc(this, &BotKeyboard::hoverStep)), _st(&st::botKbButton) {
 	setGeometry(0, 0, _st->margin, _st->margin);
 	_height = _st->margin;
@@ -1579,6 +1579,7 @@ bool BotKeyboard::updateMarkup(HistoryItem *to) {
 		clearSelection();
 		_btns.clear();
 		const ReplyMarkup &markup(App::replyMarkup(to->id));
+		_forceReply = markup.flags | MTPDreplyKeyboardMarkup_flag_FORCE_REPLY;
 		_maximizeSize = !(markup.flags & MTPDreplyKeyboardMarkup_flag_resize);
 		_singleUse = markup.flags & MTPDreplyKeyboardMarkup_flag_single_use;
 
@@ -1609,7 +1610,7 @@ bool BotKeyboard::updateMarkup(HistoryItem *to) {
 		return true;
 	}
 	if (_wasForMsgId) {
-		_maximizeSize = _singleUse = false;
+		_maximizeSize = _singleUse = _forceReply = false;
 		_wasForMsgId = 0;
 		clearSelection();
 		_btns.clear();
@@ -1620,6 +1621,10 @@ bool BotKeyboard::updateMarkup(HistoryItem *to) {
 
 bool BotKeyboard::hasMarkup() const {
 	return !_btns.isEmpty();
+}
+
+bool BotKeyboard::forceReply() const {
+	return _forceReply;
 }
 
 bool BotKeyboard::hoverStep(float64 ms) {
@@ -2279,8 +2284,8 @@ void HistoryWidget::onRecordError() {
 void HistoryWidget::onRecordDone(QByteArray result, qint32 samples) {
 	App::wnd()->activateWindow();
 	int32 duration = samples / AudioVoiceMsgFrequency;
-	imageLoader.append(result, duration, histPeer->id, _replyToId, ToPrepareAudio);
-	cancelReply();
+	imageLoader.append(result, duration, histPeer->id, replyToId(), ToPrepareAudio);
+	cancelReply(lastForceReplyReplied());
 }
 
 void HistoryWidget::onRecordUpdate(qint16 level, qint32 samples) {
@@ -2562,7 +2567,7 @@ bool HistoryWidget::kbWasHidden() {
 }
 
 void HistoryWidget::setKbWasHidden() {
-	if (_kbWasHidden || !_keyboard.hasMarkup()) return;
+	if (_kbWasHidden || (!_keyboard.hasMarkup() && !_keyboard.forceReply())) return;
 
 	_kbWasHidden = true;
 	if (!_showAnim.animating()) {
@@ -2876,11 +2881,16 @@ void HistoryWidget::updateControlsVisibility() {
 						_attachEmoji.hide();
 						_kbHide.show();
 						_kbShow.hide();
+					} else if (_kbReplyTo) {
+						_kbScroll.hide();
+						_attachEmoji.show();
+						_kbHide.hide();
+						_kbShow.hide();
 					} else {
 						_kbScroll.hide();
 						_attachEmoji.show();
 						_kbHide.hide();
-						if (_keyboard.hasMarkup()) {
+						if (_keyboard.hasMarkup() || _keyboard.forceReply()) {
 							_kbShow.show();
 						} else {
 							_kbShow.hide();
@@ -3275,6 +3285,7 @@ void HistoryWidget::onHistoryToEnd() {
 void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 	if (!hist) return;
 
+	bool lastKeyboardUsed = lastForceReplyReplied(replyTo);
 	QString text = prepareMessage(_field.getLastText());
 	if (!text.isEmpty()) {
 		App::main()->readServerHistory(hist, false);
@@ -3297,7 +3308,7 @@ void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 
 		App::main()->finishForwarding(hist);
 	}
-	if (replyTo < 0) cancelReply();
+	if (replyTo < 0) cancelReply(lastKeyboardUsed);
 	if (_previewData && _previewData->pendingTill) previewCancel();
 	_field.setFocus();
 }
@@ -3315,13 +3326,13 @@ void HistoryWidget::onBotStart() {
 		MTP::send(MTPmessages_StartBot(histPeer->asUser()->inputUser, MTP_int(0), MTP_long(randomId), MTP_string(token)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, histPeer->asUser()));
 
 		histPeer->asUser()->botInfo->startToken = QString();
-		if (_keyboard.hasMarkup()) {
+		if (_keyboard.hasMarkup() || _keyboard.forceReply()) {
 			if (_keyboard.singleUse() && _keyboard.forMsgId() == hist->lastKeyboardId && hist->lastKeyboardUsed) _kbWasHidden = true;
-			if (!_kbWasHidden) _kbShown = true;
+			if (!_kbWasHidden) _kbShown = _keyboard.hasMarkup();
 		}
-		updateControlsVisibility();
-		resizeEvent(0);
 	}
+	updateControlsVisibility();
+	resizeEvent(0);
 }
 
 void HistoryWidget::onShareContact(const PeerId &peer, UserData *contact) {
@@ -3330,7 +3341,7 @@ void HistoryWidget::onShareContact(const PeerId &peer, UserData *contact) {
 	App::main()->showPeer(peer, 0, false, true);
 	if (!hist) return;
 
-	shareContact(peer, contact->phone, contact->firstName, contact->lastName, _replyToId, int32(contact->id & 0xFFFFFFFF));
+	shareContact(peer, contact->phone, contact->firstName, contact->lastName, replyToId(), int32(contact->id & 0xFFFFFFFF));
 }
 
 void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, int32 userId) {
@@ -3345,18 +3356,20 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 	PeerData *p = App::peer(peer);
 	int32 flags = newMessageFlags(p); // unread, out
 	
+	bool lastKeyboardUsed = lastForceReplyReplied(replyTo);
+
 	int32 sendFlags = 0;
 	if (replyTo) {
 		flags |= MTPDmessage::flag_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 	}
-	h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(peer), MTPint(), MTPint(), MTP_int(_replyToId), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup));
+	h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(peer), MTPint(), MTPint(), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup));
 	h->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), p->input, MTP_int(replyTo), MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 
 	App::historyRegRandom(randomId, newId);
 
 	App::main()->finishForwarding(h);
-	cancelReply();
+	cancelReply(lastKeyboardUsed);
 }
 
 void HistoryWidget::onSendPaths(const PeerId &peer) {
@@ -3580,7 +3593,7 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 	QPoint pos(e ? e->pos() : mapFromGlobal(QCursor::pos()));
 	bool inRecord = _send.geometry().contains(pos);
 	bool inField = pos.y() >= (_scroll.y() + _scroll.height()) && pos.y() < height() && pos.x() >= 0 && pos.x() < width();
-	bool inReply = QRect(st::replySkip, _field.y() - st::sendPadding - st::replyHeight, width() - st::replySkip - _replyForwardPreviewCancel.width(), st::replyHeight).contains(pos) && (_replyToId || _kbReplyTo);
+	bool inReply = QRect(st::replySkip, _field.y() - st::sendPadding - st::replyHeight, width() - st::replySkip - _replyForwardPreviewCancel.width(), st::replyHeight).contains(pos) && replyToId();
 	bool startAnim = false;
 	if (inRecord != _inRecord) {
 		_inRecord = inRecord;
@@ -3646,6 +3659,8 @@ void HistoryWidget::sendBotCommand(const QString &cmd, MsgId replyTo) { // reply
 	App::main()->readServerHistory(hist, false);
 	hist->loadAround(0);
 
+	bool lastKeyboardUsed = (_keyboard.forMsgId() == hist->lastKeyboardId) && (_keyboard.forMsgId() == replyTo);
+
 	QString toSend = cmd;
 	UserData *bot = histPeer->chat ? (App::hoveredLinkItem() ? (App::hoveredLinkItem()->toHistoryForwarded() ? App::hoveredLinkItem()->toHistoryForwarded()->fromForwarded() : App::hoveredLinkItem()->from()) : 0) : histPeer->asUser();
 	QString username = (bot && bot->botInfo) ? bot->username : QString();
@@ -3657,7 +3672,7 @@ void HistoryWidget::sendBotCommand(const QString &cmd, MsgId replyTo) { // reply
 	App::main()->sendPreparedText(hist, toSend, replyTo ? ((histPeer->chat/* && (botStatus == 0 || botStatus == 2)*/) ? replyTo : -1) : 0);
 	if (replyTo) {
 		cancelReply();
-		if (_keyboard.hasMarkup() && _keyboard.singleUse() && _keyboard.forMsgId() == replyTo) {
+		if (_keyboard.singleUse() && _keyboard.hasMarkup() && lastKeyboardUsed) {
 			if (_kbShown) onKbToggle(false);
 			hist->lastKeyboardUsed = true;
 		}
@@ -3788,7 +3803,7 @@ void HistoryWidget::onDocumentDrop(QDropEvent *e) {
 }
 
 void HistoryWidget::onKbToggle(bool manual) {
-	if (_kbShown) {
+	if (_kbShown || _kbReplyTo) {
 		_kbHide.hide();
 		_kbShow.show();
 		_kbScroll.hide();
@@ -3801,6 +3816,21 @@ void HistoryWidget::onKbToggle(bool manual) {
 			_replyForwardPreviewCancel.hide();
 		}
 		if (manual) _kbWasHidden = true;
+	} else if (!_keyboard.hasMarkup() && _keyboard.forceReply()) {
+		_kbHide.hide();
+		_kbShow.hide();
+		_kbScroll.hide();
+		_kbShown = false;
+
+		_field.setMaxHeight(st::maxFieldHeight);
+
+		_kbReplyTo = hist->peer->chat ? App::histItemById(_keyboard.forMsgId()) : 0;
+		if (_kbReplyTo && !_replyToId) {
+			updateReplyToName();
+			_replyToText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);
+			_replyForwardPreviewCancel.show();
+		}
+		if (manual) _kbWasHidden = false;
 	} else {
 		_kbHide.show();
 		_kbShow.hide();
@@ -4038,7 +4068,7 @@ void HistoryWidget::uploadImage(const QImage &img, bool withText, const QString 
 	confirmImage = img;
 	confirmWithText = withText;
 	confirmSource = source;
-	confirmImageId = imageLoader.append(img, histPeer->id, _replyToId, ToPreparePhoto);
+	confirmImageId = imageLoader.append(img, histPeer->id, replyToId(), ToPreparePhoto);
 }
 
 void HistoryWidget::uploadFile(const QString &file, bool withText) {
@@ -4046,7 +4076,7 @@ void HistoryWidget::uploadFile(const QString &file, bool withText) {
 
 	App::wnd()->activateWindow();
 	confirmWithText = withText;
-	confirmImageId = imageLoader.append(file, histPeer->id, _replyToId, ToPrepareDocument);
+	confirmImageId = imageLoader.append(file, histPeer->id, replyToId(), ToPrepareDocument);
 }
 
 void HistoryWidget::shareContactConfirmation(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool withText) {
@@ -4066,27 +4096,28 @@ void HistoryWidget::uploadConfirmImageUncompressed(bool ctrlShiftEnter, MsgId re
 	if (confirmWithText) {
 		onSend(ctrlShiftEnter, replyTo);
 	}
+	bool lastKeyboardUsed = lastForceReplyReplied(replyTo);
 	imageLoader.append(confirmImage, peerId, replyTo, ToPrepareDocument, ctrlShiftEnter);
 	confirmImageId = 0;
 	confirmWithText = false;
 	confirmImage = QImage();
-	cancelReply();
+	cancelReply(lastKeyboardUsed);
 }
 
 void HistoryWidget::uploadMedias(const QStringList &files, ToPrepareMediaType type) {
 	if (!hist) return;
 
 	App::wnd()->activateWindow();
-	imageLoader.append(files, histPeer->id, _replyToId, type);
-	cancelReply();
+	imageLoader.append(files, histPeer->id, replyToId(), type);
+	cancelReply(lastForceReplyReplied());
 }
 
 void HistoryWidget::uploadMedia(const QByteArray &fileContent, ToPrepareMediaType type, PeerId peer) {
 	if (!peer && !hist) return;
 
 	App::wnd()->activateWindow();
-	imageLoader.append(fileContent, peer ? peer : histPeer->id, _replyToId, type);
-	cancelReply();
+	imageLoader.append(fileContent, peer ? peer : histPeer->id, replyToId(), type);
+	cancelReply(lastForceReplyReplied());
 }
 
 void HistoryWidget::onPhotoReady() {
@@ -4360,7 +4391,7 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	_replyForwardPreviewCancel.move(width() - _replyForwardPreviewCancel.width(), _field.y() - st::sendPadding - _replyForwardPreviewCancel.height());
 	updateListSize();
 
-	_field.resize(width() - _send.width() - _attachDocument.width() - _attachEmoji.width() - ((_kbShown || !_keyboard.hasMarkup()) ? 0 : _kbShow.width()), _field.height());
+	_field.resize(width() - _send.width() - _attachDocument.width() - _attachEmoji.width() - ((_kbShown || (!_keyboard.hasMarkup() && !_keyboard.forceReply())) ? 0 : _kbShow.width()), _field.height());
 
 	_toHistoryEnd.move((width() - _toHistoryEnd.width()) / 2, _scroll.y() + _scroll.height() - _toHistoryEnd.height() - st::historyToEndSkip);
 
@@ -4418,7 +4449,7 @@ void HistoryWidget::updateScrollColors() {
 }
 
 MsgId HistoryWidget::replyToId() const {
-	return _replyToId;
+	return _replyToId ? _replyToId : (_kbReplyTo ? _kbReplyTo->id : 0);
 }
 
 void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, HistoryItem *resizedItem, bool scrollToIt) {
@@ -4441,7 +4472,7 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 		if (hist->readyForWork() && (!histPeer->chat || !histPeer->asChat()->forbidden)) {
 			newScrollHeight -= (_field.height() + 2 * st::sendPadding);
 		}
-		if (_replyToId || _kbReplyTo || App::main()->hasForwardingItems() || (_previewData && _previewData->pendingTill >= 0)) {
+		if (replyToId() || App::main()->hasForwardingItems() || (_previewData && _previewData->pendingTill >= 0)) {
 			newScrollHeight -= st::replyHeight;
 		}
 		if (_kbShown) {
@@ -4536,7 +4567,7 @@ void HistoryWidget::addMessagesToBack(const QVector<MTPMessage> &messages) {
 
 void HistoryWidget::updateBotKeyboard() {
 	bool changed = false;
-	bool wasVisible = _kbShown;
+	bool wasVisible = _kbShown || _kbReplyTo;
 	if ((_replyToId && !_replyTo) || !hist) {
 		changed = _keyboard.updateMarkup(0);
 	} else if (_replyTo) {
@@ -4546,18 +4577,25 @@ void HistoryWidget::updateBotKeyboard() {
 	}
 	if (!changed) return;
 
-	if (_keyboard.hasMarkup()) {
+	bool hasMarkup = _keyboard.hasMarkup(), forceReply = _keyboard.forceReply() && !_replyTo;
+	if (hasMarkup || forceReply) {
 		if (_keyboard.singleUse() && _keyboard.forMsgId() == hist->lastKeyboardId && hist->lastKeyboardUsed) _kbWasHidden = true;
 		if (!isBotStart() && (wasVisible || _replyTo || (_field.getLastText().isEmpty() && !_kbWasHidden))) {
 			if (!_showAnim.animating()) {
-				_kbScroll.show();
-				_attachEmoji.hide();
-				_kbHide.show();
+				if (hasMarkup) {
+					_kbScroll.show();
+					_attachEmoji.hide();
+					_kbHide.show();
+				} else {
+					_kbScroll.hide();
+					_attachEmoji.show();
+					_kbHide.hide();
+				}
 				_kbShow.hide();
 			}
-			int32 maxh = qMin(_keyboard.height(), int(st::maxFieldHeight) - (int(st::maxFieldHeight) / 2));
+			int32 maxh = hasMarkup ? qMin(_keyboard.height(), int(st::maxFieldHeight) - (int(st::maxFieldHeight) / 2)) : 0;
 			_field.setMaxHeight(st::maxFieldHeight - maxh);
-			_kbShown = true;
+			_kbShown = hasMarkup;
 			_kbReplyTo = hist->peer->chat ? App::histItemById(_keyboard.forMsgId()) : 0;
 			if (_kbReplyTo && !_replyToId) {
 				updateReplyToName();
@@ -4622,7 +4660,7 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		a_recordOver.restart();
 		_recordAnim.start();
 	} else if (_inReply) {
-		App::main()->showPeer(histPeer->id, _replyToId ? _replyToId : _kbReplyTo->id);
+		App::main()->showPeer(histPeer->id, replyToId());
 	}
 }
 
@@ -4693,18 +4731,20 @@ void HistoryWidget::onStickerSend(DocumentData *sticker) {
 
 	hist->loadAround(0);
 
+	bool lastKeyboardUsed = lastForceReplyReplied();
+
 	bool out = (histPeer->input.type() != mtpc_inputPeerSelf), unread = (histPeer->input.type() != mtpc_inputPeerSelf);
 	int32 flags = newMessageFlags(histPeer); // unread, out
 	int32 sendFlags = 0;
-	if (_replyToId) {
+	if (replyToId()) {
 		flags |= MTPDmessage::flag_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 	}
-	hist->addToBackDocument(newId, flags, _replyToId, date(MTP_int(unixtime())), MTP::authedId(), sticker);
+	hist->addToBackDocument(newId, flags, replyToId(), date(MTP_int(unixtime())), MTP::authedId(), sticker);
 
-	hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), histPeer->input, MTP_int(_replyToId), MTP_inputMediaDocument(MTP_inputDocument(MTP_long(sticker->id), MTP_long(sticker->access))), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+	hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), histPeer->input, MTP_int(replyToId()), MTP_inputMediaDocument(MTP_inputDocument(MTP_long(sticker->id), MTP_long(sticker->access))), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 	App::main()->finishForwarding(hist);
-	cancelReply();
+	cancelReply(lastKeyboardUsed);
 
 	if (sticker->sticker) App::main()->incrementSticker(sticker);
 
@@ -4759,23 +4799,32 @@ void HistoryWidget::onReplyToMessage() {
 	_field.setFocus();
 }
 
-void HistoryWidget::cancelReply() {
-	if (!_replyToId) return;
-	_replyTo = 0;
-	_replyToId = 0;
-	mouseMoveEvent(0);
-	if (!App::main()->hasForwardingItems() && (!_previewData || _previewData->pendingTill < 0) && !_kbReplyTo) {
-		_replyForwardPreviewCancel.hide();
+bool HistoryWidget::lastForceReplyReplied(MsgId replyTo) const {
+	return _keyboard.forceReply() && _keyboard.forMsgId() == hist->lastKeyboardId && _keyboard.forMsgId() == (replyTo < 0 ? replyToId() : replyTo);
+}
+
+void HistoryWidget::cancelReply(bool lastKeyboardUsed) {
+	if (_replyToId) {
+		_replyTo = 0;
+		_replyToId = 0;
+		mouseMoveEvent(0);
+		if (!App::main()->hasForwardingItems() && (!_previewData || _previewData->pendingTill < 0) && !_kbReplyTo) {
+			_replyForwardPreviewCancel.hide();
+		}
+
+		updateBotKeyboard();
+
+		resizeEvent(0);
+		update();
+
+		_saveDraftText = true;
+		_saveDraftStart = getms();
+		onDraftSave();
 	}
-
-	updateBotKeyboard();
-
-	resizeEvent(0);
-	update();
-
-	_saveDraftText = true;
-	_saveDraftStart = getms();
-	onDraftSave();
+	if (_keyboard.singleUse() && _keyboard.forceReply() && lastKeyboardUsed) {
+		if (_kbReplyTo) onKbToggle(false);
+		hist->lastKeyboardUsed = true;
+	}
 }
 
 void HistoryWidget::cancelForwarding() {
@@ -4912,7 +4961,7 @@ void HistoryWidget::updatePreview() {
 			_previewTitle.setText(st::msgServiceNameFont, title, _textNameOptions);
 			_previewDescription.setText(st::msgFont, desc, _textDlgOptions);
 		}
-	} else if (!App::main()->hasForwardingItems() && !_replyToId && !_kbReplyTo) {
+	} else if (!App::main()->hasForwardingItems() && !replyToId()) {
 		_replyForwardPreviewCancel.hide();
 	}
 	resizeEvent(0);

@@ -119,9 +119,9 @@ private:
 };
 
 struct BotCommand {
-	BotCommand(const QString &command, const QString &params, const QString &description) : command(command), params(params), description(description) {
+	BotCommand(const QString &command, const QString &description) : command(command), description(description) {
 	}
-	QString command, params, description;
+	QString command, description;
 };
 struct BotInfo {
 	BotInfo() : inited(false), readsAllHistory(false), cantJoinGroups(false), version(0), text(st::msgMinWidth) {

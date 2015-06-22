@@ -380,12 +380,13 @@ enum {
 	mtpc_stickerSet = 0xa7a43b17,
 	mtpc_messages_stickerSet = 0xb60a24a6,
 	mtpc_user = 0x22e49072,
-	mtpc_botCommand = 0xb79d22ab,
+	mtpc_botCommand = 0xc27ac8c7,
 	mtpc_botInfoEmpty = 0xbb2e37ce,
 	mtpc_botInfo = 0x9cf585d,
 	mtpc_keyboardButton = 0xa2fa4880,
 	mtpc_keyboardButtonRow = 0x77608b83,
-	mtpc_replyKeyboardHide = 0xced6ebbc,
+	mtpc_replyKeyboardHide = 0xa03e5b85,
+	mtpc_replyKeyboardForceReply = 0xf4108aa0,
 	mtpc_replyKeyboardMarkup = 0x3502758c,
 	mtpc_invokeAfterMsg = 0xcb9f372d,
 	mtpc_invokeAfterMsgs = 0x3dc4b4f0,
@@ -1078,6 +1079,8 @@ class MTPkeyboardButtonRow;
 class MTPDkeyboardButtonRow;
 
 class MTPreplyMarkup;
+class MTPDreplyKeyboardHide;
+class MTPDreplyKeyboardForceReply;
 class MTPDreplyKeyboardMarkup;
 
 
@@ -7878,7 +7881,7 @@ public:
 private:
 	explicit MTPbotCommand(MTPDbotCommand *_data);
 
-	friend MTPbotCommand MTP_botCommand(const MTPstring &_command, const MTPstring &_params, const MTPstring &_description);
+	friend MTPbotCommand MTP_botCommand(const MTPstring &_command, const MTPstring &_description);
 };
 typedef MTPBoxed<MTPbotCommand> MTPBotCommand;
 
@@ -7990,6 +7993,30 @@ public:
 		read(from, end, cons);
 	}
 
+	MTPDreplyKeyboardHide &_replyKeyboardHide() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_replyKeyboardHide) throw mtpErrorWrongTypeId(_type, mtpc_replyKeyboardHide);
+		split();
+		return *(MTPDreplyKeyboardHide*)data;
+	}
+	const MTPDreplyKeyboardHide &c_replyKeyboardHide() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_replyKeyboardHide) throw mtpErrorWrongTypeId(_type, mtpc_replyKeyboardHide);
+		return *(const MTPDreplyKeyboardHide*)data;
+	}
+
+	MTPDreplyKeyboardForceReply &_replyKeyboardForceReply() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_replyKeyboardForceReply) throw mtpErrorWrongTypeId(_type, mtpc_replyKeyboardForceReply);
+		split();
+		return *(MTPDreplyKeyboardForceReply*)data;
+	}
+	const MTPDreplyKeyboardForceReply &c_replyKeyboardForceReply() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_replyKeyboardForceReply) throw mtpErrorWrongTypeId(_type, mtpc_replyKeyboardForceReply);
+		return *(const MTPDreplyKeyboardForceReply*)data;
+	}
+
 	MTPDreplyKeyboardMarkup &_replyKeyboardMarkup() {
 		if (!data) throw mtpErrorUninitialized();
 		if (_type != mtpc_replyKeyboardMarkup) throw mtpErrorWrongTypeId(_type, mtpc_replyKeyboardMarkup);
@@ -8011,9 +8038,12 @@ public:
 
 private:
 	explicit MTPreplyMarkup(mtpTypeId type);
+	explicit MTPreplyMarkup(MTPDreplyKeyboardHide *_data);
+	explicit MTPreplyMarkup(MTPDreplyKeyboardForceReply *_data);
 	explicit MTPreplyMarkup(MTPDreplyKeyboardMarkup *_data);
 
-	friend MTPreplyMarkup MTP_replyKeyboardHide();
+	friend MTPreplyMarkup MTP_replyKeyboardHide(MTPint _flags);
+	friend MTPreplyMarkup MTP_replyKeyboardForceReply(MTPint _flags);
 	friend MTPreplyMarkup MTP_replyKeyboardMarkup(MTPint _flags, const MTPVector<MTPKeyboardButtonRow> &_rows);
 
 	mtpTypeId _type;
@@ -11224,11 +11254,10 @@ class MTPDbotCommand : public mtpDataImpl<MTPDbotCommand> {
 public:
 	MTPDbotCommand() {
 	}
-	MTPDbotCommand(const MTPstring &_command, const MTPstring &_params, const MTPstring &_description) : vcommand(_command), vparams(_params), vdescription(_description) {
+	MTPDbotCommand(const MTPstring &_command, const MTPstring &_description) : vcommand(_command), vdescription(_description) {
 	}
 
 	MTPstring vcommand;
-	MTPstring vparams;
 	MTPstring vdescription;
 };
 
@@ -11264,6 +11293,26 @@ public:
 	}
 
 	MTPVector<MTPKeyboardButton> vbuttons;
+};
+
+class MTPDreplyKeyboardHide : public mtpDataImpl<MTPDreplyKeyboardHide> {
+public:
+	MTPDreplyKeyboardHide() {
+	}
+	MTPDreplyKeyboardHide(MTPint _flags) : vflags(_flags) {
+	}
+
+	MTPint vflags;
+};
+
+class MTPDreplyKeyboardForceReply : public mtpDataImpl<MTPDreplyKeyboardForceReply> {
+public:
+	MTPDreplyKeyboardForceReply() {
+	}
+	MTPDreplyKeyboardForceReply(MTPint _flags) : vflags(_flags) {
+	}
+
+	MTPint vflags;
 };
 
 class MTPDreplyKeyboardMarkup : public mtpDataImpl<MTPDreplyKeyboardMarkup> {
@@ -25792,7 +25841,7 @@ inline MTPbotCommand::MTPbotCommand() : mtpDataOwner(new MTPDbotCommand()) {
 
 inline uint32 MTPbotCommand::innerLength() const {
 	const MTPDbotCommand &v(c_botCommand());
-	return v.vcommand.innerLength() + v.vparams.innerLength() + v.vdescription.innerLength();
+	return v.vcommand.innerLength() + v.vdescription.innerLength();
 }
 inline mtpTypeId MTPbotCommand::type() const {
 	return mtpc_botCommand;
@@ -25803,19 +25852,17 @@ inline void MTPbotCommand::read(const mtpPrime *&from, const mtpPrime *end, mtpT
 	if (!data) setData(new MTPDbotCommand());
 	MTPDbotCommand &v(_botCommand());
 	v.vcommand.read(from, end);
-	v.vparams.read(from, end);
 	v.vdescription.read(from, end);
 }
 inline void MTPbotCommand::write(mtpBuffer &to) const {
 	const MTPDbotCommand &v(c_botCommand());
 	v.vcommand.write(to);
-	v.vparams.write(to);
 	v.vdescription.write(to);
 }
 inline MTPbotCommand::MTPbotCommand(MTPDbotCommand *_data) : mtpDataOwner(_data) {
 }
-inline MTPbotCommand MTP_botCommand(const MTPstring &_command, const MTPstring &_params, const MTPstring &_description) {
-	return MTPbotCommand(new MTPDbotCommand(_command, _params, _description));
+inline MTPbotCommand MTP_botCommand(const MTPstring &_command, const MTPstring &_description) {
+	return MTPbotCommand(new MTPDbotCommand(_command, _description));
 }
 
 inline uint32 MTPbotInfo::innerLength() const {
@@ -25931,6 +25978,14 @@ inline MTPkeyboardButtonRow MTP_keyboardButtonRow(const MTPVector<MTPKeyboardBut
 
 inline uint32 MTPreplyMarkup::innerLength() const {
 	switch (_type) {
+		case mtpc_replyKeyboardHide: {
+			const MTPDreplyKeyboardHide &v(c_replyKeyboardHide());
+			return v.vflags.innerLength();
+		}
+		case mtpc_replyKeyboardForceReply: {
+			const MTPDreplyKeyboardForceReply &v(c_replyKeyboardForceReply());
+			return v.vflags.innerLength();
+		}
 		case mtpc_replyKeyboardMarkup: {
 			const MTPDreplyKeyboardMarkup &v(c_replyKeyboardMarkup());
 			return v.vflags.innerLength() + v.vrows.innerLength();
@@ -25945,7 +26000,16 @@ inline mtpTypeId MTPreplyMarkup::type() const {
 inline void MTPreplyMarkup::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != _type) setData(0);
 	switch (cons) {
-		case mtpc_replyKeyboardHide: _type = cons; break;
+		case mtpc_replyKeyboardHide: _type = cons; {
+			if (!data) setData(new MTPDreplyKeyboardHide());
+			MTPDreplyKeyboardHide &v(_replyKeyboardHide());
+			v.vflags.read(from, end);
+		} break;
+		case mtpc_replyKeyboardForceReply: _type = cons; {
+			if (!data) setData(new MTPDreplyKeyboardForceReply());
+			MTPDreplyKeyboardForceReply &v(_replyKeyboardForceReply());
+			v.vflags.read(from, end);
+		} break;
 		case mtpc_replyKeyboardMarkup: _type = cons; {
 			if (!data) setData(new MTPDreplyKeyboardMarkup());
 			MTPDreplyKeyboardMarkup &v(_replyKeyboardMarkup());
@@ -25957,6 +26021,14 @@ inline void MTPreplyMarkup::read(const mtpPrime *&from, const mtpPrime *end, mtp
 }
 inline void MTPreplyMarkup::write(mtpBuffer &to) const {
 	switch (_type) {
+		case mtpc_replyKeyboardHide: {
+			const MTPDreplyKeyboardHide &v(c_replyKeyboardHide());
+			v.vflags.write(to);
+		} break;
+		case mtpc_replyKeyboardForceReply: {
+			const MTPDreplyKeyboardForceReply &v(c_replyKeyboardForceReply());
+			v.vflags.write(to);
+		} break;
 		case mtpc_replyKeyboardMarkup: {
 			const MTPDreplyKeyboardMarkup &v(c_replyKeyboardMarkup());
 			v.vflags.write(to);
@@ -25966,15 +26038,23 @@ inline void MTPreplyMarkup::write(mtpBuffer &to) const {
 }
 inline MTPreplyMarkup::MTPreplyMarkup(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
-		case mtpc_replyKeyboardHide: break;
+		case mtpc_replyKeyboardHide: setData(new MTPDreplyKeyboardHide()); break;
+		case mtpc_replyKeyboardForceReply: setData(new MTPDreplyKeyboardForceReply()); break;
 		case mtpc_replyKeyboardMarkup: setData(new MTPDreplyKeyboardMarkup()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPreplyMarkup");
 	}
 }
+inline MTPreplyMarkup::MTPreplyMarkup(MTPDreplyKeyboardHide *_data) : mtpDataOwner(_data), _type(mtpc_replyKeyboardHide) {
+}
+inline MTPreplyMarkup::MTPreplyMarkup(MTPDreplyKeyboardForceReply *_data) : mtpDataOwner(_data), _type(mtpc_replyKeyboardForceReply) {
+}
 inline MTPreplyMarkup::MTPreplyMarkup(MTPDreplyKeyboardMarkup *_data) : mtpDataOwner(_data), _type(mtpc_replyKeyboardMarkup) {
 }
-inline MTPreplyMarkup MTP_replyKeyboardHide() {
-	return MTPreplyMarkup(mtpc_replyKeyboardHide);
+inline MTPreplyMarkup MTP_replyKeyboardHide(MTPint _flags) {
+	return MTPreplyMarkup(new MTPDreplyKeyboardHide(_flags));
+}
+inline MTPreplyMarkup MTP_replyKeyboardForceReply(MTPint _flags) {
+	return MTPreplyMarkup(new MTPDreplyKeyboardForceReply(_flags));
 }
 inline MTPreplyMarkup MTP_replyKeyboardMarkup(MTPint _flags, const MTPVector<MTPKeyboardButtonRow> &_rows) {
 	return MTPreplyMarkup(new MTPDreplyKeyboardMarkup(_flags, _rows));
