@@ -573,7 +573,7 @@ void HistoryList::dragActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 	} else if (_dragAction == Selecting) {
 		if (_dragSelFrom && _dragSelTo) {
 			applyDragSelection();
-		} else if (!_selected.isEmpty() && !_dragWasInactive) {
+		} else if (!_selected.isEmpty()) {
 			uint32 sel = _selected.cbegin().value();
 			if (sel != FullItemSel && (sel & 0xFFFF) == ((sel >> 16) & 0xFFFF)) {
 				_selected.clear();
