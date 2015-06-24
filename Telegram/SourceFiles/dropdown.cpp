@@ -2794,17 +2794,16 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 				for (MentionRows::const_iterator i = _chat->lastAuthors.cbegin(), e = _chat->lastAuthors.cend(); i != e; ++i) {
 					UserData *user = *i;
 					if (!user->botInfo) continue;
+					if (!bots.contains(user)) continue;
 					if (!user->botInfo->inited) App::api()->requestFullPeer(user);
 					if (user->botInfo->commands.isEmpty()) continue;
+					bots.remove(user);
 					for (int32 j = 0, l = user->botInfo->commands.size(); j < l; ++j) {
 						if (_filter.size() > 1) {
 							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? user->botInfo->commands.at(j).command + '@' + user->username : user->botInfo->commands.at(j).command;
 							if (!toFilter.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || toFilter.size() + 1 == _filter.size()) continue;
 						}
 						crows.push_back(qMakePair(user, user->botInfo->commands.at(j)));
-					}
-					if (!bots.isEmpty()) {
-						bots.remove(user);
 					}
 				}
 			}
