@@ -35,6 +35,13 @@ typedef QHash<VideoData*, HistoryItemsMap> VideoItems;
 typedef QHash<AudioData*, HistoryItemsMap> AudioItems;
 typedef QHash<DocumentData*, HistoryItemsMap> DocumentItems;
 typedef QHash<WebPageData*, HistoryItemsMap> WebPageItems;
+struct ReplyMarkup {
+	ReplyMarkup(int32 flags = 0) : flags(flags) {
+	}
+	typedef QList<QList<QString> > Commands;
+	Commands commands;
+	int32 flags;
+};
 
 enum RoundCorners {
 	MaskCorners = 0x00, // for images
@@ -48,6 +55,9 @@ enum RoundCorners {
 	MediaviewSaveCorners,
 	EmojiHoverCorners,
 	StickerHoverCorners,
+	BotKeyboardCorners,
+	BotKeyboardOverCorners,
+	BotKeyboardDownCorners,
 
 	InShadowCorners, // for photos without bg
 	InSelectedShadowCorners,
@@ -92,14 +102,14 @@ namespace App {
     int32 userFromPeer(const PeerId &peer_id);
     int32 chatFromPeer(const PeerId &peer_id);
 
-	int32 onlineForSort(int32 online, int32 now);
-	int32 onlineWillChangeIn(int32 onlineOnServer, int32 nowOnServer);
+	int32 onlineForSort(UserData *user, int32 now);
+	int32 onlineWillChangeIn(UserData *user, int32 nowOnServer);
 	QString onlineText(UserData *user, int32 nowOnServer, bool precise = false);
-	bool onlineColorUse(int32 online, int32 now);
+	bool onlineColorUse(UserData *user, int32 now);
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users); // returns last user
 	ChatData *feedChats(const MTPVector<MTPChat> &chats); // returns last chat
-	void feedParticipants(const MTPChatParticipants &p);
+	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos = false);
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d);
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d);
 	void feedMsgs(const MTPVector<MTPMessage> &msgs, int msgsState = 0); // 2 - new read message, 1 - new unread message, 0 - not new message, -1 - searched message
@@ -222,11 +232,17 @@ namespace App {
 	void unregMuted(PeerData *peer);
 	void updateMuted();
 
+	void feedReplyMarkup(MsgId msgId, const MTPReplyMarkup &markup);
+	void clearReplyMarkup(MsgId msgId);
+	const ReplyMarkup &replyMarkup(MsgId msgId);
+
 	void setProxySettings(QNetworkAccessManager &manager);
 	void setProxySettings(QTcpSocket &socket);
 
+	void sendBotCommand(const QString &cmd, MsgId replyTo = 0);
+	void insertBotCommand(const QString &cmd);
 	void searchByHashtag(const QString &tag);
-	void openUserByName(const QString &username, bool toProfile = false);
+	void openUserByName(const QString &username, bool toProfile = false, const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
 	void stickersBox(const QString &name);
 	void openLocalUrl(const QString &url);

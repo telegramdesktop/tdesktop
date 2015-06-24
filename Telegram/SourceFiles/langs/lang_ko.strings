@@ -69,6 +69,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_reconnecting_try_now" = "다시 시도";
 
 "lng_status_service_notifications" = "서비스 알림";
+"lng_status_bot" = "bot";
+"lng_status_bot_reads_all" = "메시지 접근 권한이 있습니다.";
+"lng_status_bot_not_reads_all" = "메시지 접근 권한이 없습니다.";
 "lng_status_offline" = "마지막으로 접속한 지 오래됨";
 "lng_status_recently" = "최근에 접속";
 "lng_status_last_week" = "일주일 이내 마지막으로 접속";
@@ -333,7 +336,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_profile_chat_unaccessible" = "그룹에 접근할 수 없습니다.";
 "lng_topbar_info" = "정보";
+"lng_profile_about_section" = "취소";
 "lng_profile_settings_section" = "환경설정";
+"lng_profile_bot_settings" = "환경설정";
+"lng_profile_bot_help" = "도움말";
 "lng_profile_participants_section" = "사용자";
 "lng_profile_info" = "연락처 정보";
 "lng_profile_group_info" = "그룹 정보";
@@ -343,6 +349,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_clear_history" = "히스토리 초기화";
 "lng_profile_send_message" = "메세지 전송";
 "lng_profile_share_contact" = "연락처 공유";
+"lng_profile_invite_to_group" = "그룹에 추가";
 "lng_profile_delete_contact" = "삭제";
 "lng_profile_set_group_photo" = "사진 설정";
 "lng_profile_add_participant" = "대화상대 추가";
@@ -455,6 +462,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_willbe_history" = "대화하실 방을 선택해주세요.";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "회원님";
+"lng_bot_description" = "봇이 할 수 있는 일은 무엇일까요?";
+
+"lng_bot_start" = "시작";
+"lng_bot_choose_group" = "그룹 선택";
+"lng_bot_no_groups" = "그룹이 존재하지 않습니다.";
+"lng_bot_groups_not_found" = "그룹을 찾을 수 없습니다.";
+"lng_bot_sure_invite" = "<<{group}>>에 봇을 추가 하시겠습니까?";
+"lng_bot_already_in_group" = "봇이 이미 그룹의 멤버입니다.";
 
 "lng_typing" = "입력중";
 "lng_user_typing" = "{user}님이 입력중입니다.";
@@ -493,6 +508,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_open_audio" = "음성메시지 열기";
 "lng_context_save_audio" = "음성메시지를 다른 이름으로 저장..";
 "lng_context_pack_info" = "팩 정보";
+"lng_context_pack_add" = "스티커 추가";
 "lng_context_open_file" = "파일 열기";
 "lng_context_save_file" = "파일을 다른 이름으로 저장..";
 "lng_context_forward_file" = "파일 전달";
@@ -585,7 +601,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 스티커 패널 향상\n— 버그 픽스 및 세부 수정등";
+"lng_new_version_text" = "새로운 버전에서는 신규 봇 API를 무료로 공개합니다. 개발자라면 누구나 게임, 서비스나 통합 봇등 개발이 가능합니다. \n\n{blog_link}에서 자세한 사항을 알아보세요.";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

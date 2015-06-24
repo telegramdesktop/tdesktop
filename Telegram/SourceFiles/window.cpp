@@ -557,6 +557,7 @@ void Window::checkAutoLock() {
 
 void Window::setupIntro(bool anim) {
 	cSetContactsReceived(false);
+	cSetDialogsReceived(false);
 	if (intro && (intro->animating() || intro->isVisible()) && !main) return;
 
 	QPixmap bg = anim ? myGrab(this, QRect(0, st::titleHeight, width(), height() - st::titleHeight)) : QPixmap();
@@ -606,7 +607,8 @@ void Window::sendServiceHistoryRequest() {
 
 	UserData *user = App::userLoaded(ServiceUserId);
 	if (!user) {
-		user = App::feedUsers(MTP_vector<MTPUser>(1, MTP_userRequest(MTP_int(ServiceUserId), MTP_string("Telegram"), MTP_string(""), MTP_string(""), MTP_long(-1), MTP_string("42777"), MTP_userProfilePhotoEmpty(), MTP_userStatusRecently())));
+		int32 userFlags = MTPDuser::flag_first_name | MTPDuser::flag_phone | MTPDuser::flag_status;
+		user = App::feedUsers(MTP_vector<MTPUser>(1, MTP_user(MTP_int(userFlags), MTP_int(ServiceUserId), MTPlong(), MTP_string("Telegram"), MTPstring(), MTPstring(), MTP_string("42777"), MTP_userProfilePhotoEmpty(), MTP_userStatusRecently(), MTPint())));
 	}
 	_serviceHistoryRequest = MTP::send(MTPmessages_GetHistory(user->input, MTP_int(0), MTP_int(0), MTP_int(1)), main->rpcDone(&MainWidget::serviceHistoryDone), main->rpcFail(&MainWidget::serviceHistoryFail));
 }

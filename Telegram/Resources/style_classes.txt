@@ -259,3 +259,11 @@ dropdown {
 	duration: number;
 	width: number;
 }
+
+botKeyboardButton {
+	margin: number;
+	padding: number;
+	height: number;
+	textTop: number;
+	downTextTop: number;
+}

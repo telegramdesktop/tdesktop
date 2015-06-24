@@ -53,11 +53,11 @@ inline bool rtl() {
 }
 
 struct mtpDcOption {
-	mtpDcOption(int _id, const string &_host, const string &_ip, int _port) : id(_id), host(_host), ip(_ip), port(_port) {
+	mtpDcOption(int id, int flags, const string &ip, int port) : id(id), flags(flags), ip(ip), port(port) {
 	}
 
 	int id;
-	string host;
+	int flags;
 	string ip;
 	int port;
 };
@@ -290,6 +290,7 @@ DeclareReadSetting(DBIPlatform, Platform);
 DeclareReadSetting(QUrl, UpdateURL);
 
 DeclareSetting(bool, ContactsReceived);
+DeclareSetting(bool, DialogsReceived);
 
 DeclareSetting(bool, WideMode);
 

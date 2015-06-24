@@ -30,6 +30,7 @@ namespace {
 	const QRegularExpression _reMailStart(qsl("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
 	const QRegularExpression _reHashtag(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[\\w]{2,64}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
 	const QRegularExpression _reMention(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])@[A-Za-z_0-9]{5,32}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
+	const QRegularExpression _reBotCommand(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])/[A-Za-z_0-9]{1,64}(@[A-Za-z_0-9]{5,32})?([\\W]|$)"));
 	QSet<int32> _validProtocols, _validTopDomains;
 
 	const style::textStyle *_textStyle = 0;
@@ -59,6 +60,10 @@ const QRegularExpression &reMailName() {
 
 const QRegularExpression &reHashtag() {
 	return _reHashtag;
+}
+
+const QRegularExpression &reBotCommand() {
+	return _reBotCommand;
 }
 
 const style::textStyle *textstyleCurrent() {
@@ -302,7 +307,10 @@ public:
 	}
 
 	void getLinkData(const QString &original, QString &result, int32 &fullDisplayed) {
-		if (!original.isEmpty() && original.at(0) == '@') {
+		if (!original.isEmpty() && original.at(0) == '/') {
+			result = original;
+			fullDisplayed = -4; // bot command 
+		} else if (!original.isEmpty() && original.at(0) == '@') {
 			result = original;
 			fullDisplayed = -3; // mention
 		} else if (!original.isEmpty() && original.at(0) == '#') {
@@ -567,7 +575,9 @@ public:
 					_t->_links.resize(lnkIndex);
 					const TextLinkData &data(links[lnkIndex - maxLnkIndex - 1]);
 					TextLinkPtr lnk;
-					if (data.fullDisplayed < -2) { // mention
+					if (data.fullDisplayed < -3) { // bot command
+						lnk = TextLinkPtr(new BotCommandLink(data.url));
+					} else if (data.fullDisplayed < -2) { // mention
 						if (options.flags & TextTwitterMentions) {
 							lnk = TextLinkPtr(new TextLink(qsl("https://twitter.com/") + data.url.mid(1), true));
 						} else if (options.flags & TextInstagramMentions) {
@@ -612,7 +622,7 @@ private:
 		TextLinkData(const QString &url = QString(), int32 fullDisplayed = 1) : url(url), fullDisplayed(fullDisplayed) {
 		}
 		QString url;
-		int32 fullDisplayed; // -3 - mention, -2 - hashtag, -1 - email
+		int32 fullDisplayed; // -4 - bot command, -3 - mention, -2 - hashtag, -1 - email
 	};
 	typedef QVector<TextLinkData> TextLinks;
 	TextLinks links;
@@ -734,11 +744,19 @@ namespace {
 void TextLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
 		QString url = TextLink::encoded();
-		QRegularExpressionMatch telegramMeUser = QRegularExpression(qsl("^https?://telegram\\.me/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
+		QRegularExpressionMatch telegramMeUser = QRegularExpression(qsl("^https?://telegram\\.me/([a-zA-Z0-9\\.\\_]+)/?(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
 		QRegularExpressionMatch telegramMeGroup = QRegularExpression(qsl("^https?://telegram\\.me/joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
 		QRegularExpressionMatch telegramMeStickers = QRegularExpression(qsl("^https?://telegram\\.me/addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), QRegularExpression::CaseInsensitiveOption).match(url);
 		if (telegramMeUser.hasMatch()) {
-			App::openUserByName(telegramMeUser.captured(1));
+			QString params = url.mid(telegramMeUser.captured(0).size()), start, startToken;
+			if (!params.isEmpty()) {
+				QRegularExpressionMatch startParams = QRegularExpression(qsl("(^|&)(start|startgroup)=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), QRegularExpression::CaseInsensitiveOption).match(params);
+				if (startParams.hasMatch()) {
+					start = startParams.captured(2);
+					startToken = startParams.captured(3);
+				}
+			}
+			App::openUserByName(telegramMeUser.captured(1), start == qsl("startgroup"), startToken);
 		} else if (telegramMeGroup.hasMatch()) {
 			App::joinGroupByHash(telegramMeGroup.captured(1));
 		} else if (telegramMeStickers.hasMatch()) {
@@ -760,6 +778,13 @@ void MentionLink::onClick(Qt::MouseButton button) const {
 void HashtagLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
 		App::searchByHashtag(_tag);
+	}
+}
+
+void BotCommandLink::onClick(Qt::MouseButton button) const {
+	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
+//		App::insertBotCommand(_cmd);
+		App::sendBotCommand(_cmd);
 	}
 }
 
@@ -1088,8 +1113,32 @@ public:
 		if (_yTo >= 0 && _y + _yDelta >= _yTo) return false;
 		if (_y + _yDelta + _fontHeight <= _yFrom) return true;
 
+		uint16 trimmedLineEnd = _lineEnd;
+		for (; trimmedLineEnd > _lineStart; --trimmedLineEnd) {
+			QChar ch = _t->_text.at(trimmedLineEnd - 1);
+			if ((ch != QChar::Space || trimmedLineEnd == _lineStart + 1) && ch != QChar::LineFeed) {
+				break;
+			}
+		}
+
 		ITextBlock *_endBlock = (_endBlockIter == _end) ? 0 : (*_endBlockIter);
 		bool elidedLine = _elideLast && _endBlock && (_y + _lineHeight >= _yTo);
+
+		int blockIndex = _lineStartBlock;
+		ITextBlock *currentBlock = _t->_blocks[blockIndex];
+		ITextBlock *nextBlock = (++blockIndex < _blocksSize) ? _t->_blocks[blockIndex] : 0;
+
+		int32 delta = (currentBlock->from() < _lineStart ? qMin(_lineStart - currentBlock->from(), 2) : 0);
+		_localFrom = _lineStart - delta;
+		int32 lineEnd = (_endBlock && _endBlock->from() < trimmedLineEnd && !elidedLine) ? qMin(uint16(trimmedLineEnd + 2), _blockEnd(_t, _endBlockIter, _end)) : trimmedLineEnd;
+
+		QString lineText = _t->_text.mid(_localFrom, lineEnd - _localFrom);
+		int32 lineStart = delta, lineLength = trimmedLineEnd - _lineStart;
+
+		if (elidedLine) {
+			initParagraphBidi();
+			prepareElidedLine(lineText, lineStart, lineLength, _endBlock);
+		}
 
 		QFixed x = _x;
 		if (_align & Qt::AlignHCenter) {
@@ -1138,34 +1187,9 @@ public:
 			}
 		}
 
-		/* // lpadding is counted to _wLeft
-		for (; _lineStart < _lineEnd; ++_lineStart) {
-			if (_t->_text.at(_lineStart) != QChar::Space) {
-				break;
-			}
-		}/**/
-        for (; _lineEnd > _lineStart; --_lineEnd) {
-			QChar ch = _t->_text.at(_lineEnd - 1);
-            if ((ch != QChar::Space || _lineEnd == _lineStart + 1) && ch != QChar::LineFeed) {
-				break;
-			}
-		}/**/
-		if (_lineEnd == _lineStart && !elidedLine) return true;
+		if (trimmedLineEnd == _lineStart && !elidedLine) return true;
 
-		initParagraphBidi(); // if was not inited
-
-		int blockIndex = _lineStartBlock;
-		ITextBlock *currentBlock = _t->_blocks[blockIndex];
-		ITextBlock *nextBlock = (++blockIndex < _blocksSize) ? _t->_blocks[blockIndex] : 0;
-
-		int32 delta = (currentBlock->from() < _lineStart ? qMin(_lineStart - currentBlock->from(), 2) : 0);
-		_localFrom = _lineStart - delta;
-		int32 lineEnd = (_endBlock && _endBlock->from() < _lineEnd && !elidedLine) ? qMin(uint16(_lineEnd + 2), _blockEnd(_t, _endBlockIter, _end)) : _lineEnd;
-
-		QString lineText = _t->_text.mid(_localFrom, lineEnd - _localFrom);
-		int32 lineStart = delta, lineLength = _lineEnd - _lineStart;
-
-		if (elidedLine) prepareElidedLine(lineText, lineStart, lineLength, _endBlock);
+		if (!elidedLine) initParagraphBidi(); // if was not inited
 
 		_f = _t->_font;
 		QStackTextEngine engine(lineText, _f->f);
@@ -1202,7 +1226,7 @@ public:
 			}
 			if (si.analysis.flags == QScriptAnalysis::Object) {
 				if (_type == TextBlockEmoji || _type == TextBlockSkip) {
-					si.width = currentBlock->f_width() + (nextBlock == _endBlock && (!nextBlock || nextBlock->from() >= _lineEnd) ? 0 : currentBlock->f_rpadding());
+					si.width = currentBlock->f_width() + (nextBlock == _endBlock && (!nextBlock || nextBlock->from() >= trimmedLineEnd) ? 0 : currentBlock->f_rpadding());
 				}
 			}
 		}
@@ -1250,8 +1274,8 @@ public:
 							*_getSymbolAfter = false;
 							*_getSymbolUpon = false;
 						} else {
-							*_getSymbol = (_lineEnd > _lineStart) ? (_lineEnd - 1) : _lineStart;
-							*_getSymbolAfter = (_lineEnd > _lineStart) ? true : false;
+							*_getSymbol = (trimmedLineEnd > _lineStart) ? (trimmedLineEnd - 1) : _lineStart;
+							*_getSymbolAfter = (trimmedLineEnd > _lineStart) ? true : false;
 							*_getSymbolUpon = false;
 						}
 						return false;
@@ -4071,7 +4095,9 @@ bool textSplit(QString &sendingText, QString &leftText, int32 limit) {
 LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some code is duplicated in flattextarea.cpp!
 	LinkRanges lnkRanges;
 
-	bool withHashtags = (flags & TextParseHashtags), withMentions = (flags & TextParseMentions);
+	bool withHashtags = (flags & TextParseHashtags);
+	bool withMentions = (flags & TextParseMentions);
+	bool withBotCommands = (flags & TextParseBotCommands);
 
 	initLinkSets();
 	int32 len = text.size(), nextCmd = rich ? 0 : len;
@@ -4088,6 +4114,7 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 		QRegularExpressionMatch mExplicitDomain = _reExplicitDomain.match(text, matchOffset);
 		QRegularExpressionMatch mHashtag = withHashtags ? _reHashtag.match(text, matchOffset) : QRegularExpressionMatch();
 		QRegularExpressionMatch mMention = withMentions ? _reMention.match(text, qMax(mentionSkip, matchOffset)) : QRegularExpressionMatch();
+		QRegularExpressionMatch mBotCommand = withBotCommands ? _reBotCommand.match(text, matchOffset) : QRegularExpressionMatch();
 
 		LinkRange link;
 		int32 domainOffset = mDomain.hasMatch() ? mDomain.capturedStart() : INT_MAX,
@@ -4097,7 +4124,9 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 			hashtagOffset = mHashtag.hasMatch() ? mHashtag.capturedStart() : INT_MAX,
 			hashtagEnd = mHashtag.hasMatch() ? mHashtag.capturedEnd() : INT_MAX,
 			mentionOffset = mMention.hasMatch() ? mMention.capturedStart() : INT_MAX,
-			mentionEnd = mMention.hasMatch() ? mMention.capturedEnd() : INT_MAX;
+			mentionEnd = mMention.hasMatch() ? mMention.capturedEnd() : INT_MAX,
+			botCommandOffset = mBotCommand.hasMatch() ? mBotCommand.capturedStart() : INT_MAX,
+			botCommandEnd = mBotCommand.hasMatch() ? mBotCommand.capturedEnd() : INT_MAX;
 		if (mHashtag.hasMatch()) {
 			if (!mHashtag.capturedRef(1).isEmpty()) {
 				++hashtagOffset;
@@ -4127,14 +4156,24 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 				break;
 			}
 		}
-		if (!mMention.hasMatch() && !mDomain.hasMatch() && !mExplicitDomain.hasMatch() && !mHashtag.hasMatch()) break;
+		if (mBotCommand.hasMatch()) {
+			if (!mBotCommand.capturedRef(1).isEmpty()) {
+				++botCommandOffset;
+			}
+			if (!mBotCommand.capturedRef(3).isEmpty()) {
+				--botCommandEnd;
+			}
+		}
+		if (!mDomain.hasMatch() && !mExplicitDomain.hasMatch() && !mHashtag.hasMatch() && !mMention.hasMatch() && !mBotCommand.hasMatch()) {
+			break;
+		}
 
 		if (explicitDomainOffset < domainOffset) {
 			domainOffset = explicitDomainOffset;
 			domainEnd = explicitDomainEnd;
 			mDomain = mExplicitDomain;
 		}
-		if (mentionOffset < hashtagOffset && mentionOffset < domainOffset) {
+		if (mentionOffset < hashtagOffset && mentionOffset < domainOffset && mentionOffset < botCommandOffset) {
 			if (mentionOffset > nextCmd) {
 				const QChar *after = textSkipCommand(start + nextCmd, start + len);
 				if (after > start + nextCmd && mentionOffset < (after - start)) {
@@ -4145,7 +4184,7 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 
 			link.from = start + mentionOffset;
 			link.len = start + mentionEnd - link.from;
-		} else if (hashtagOffset < domainOffset) {
+		} else if (hashtagOffset < domainOffset && hashtagOffset < botCommandOffset) {
 			if (hashtagOffset > nextCmd) {
 				const QChar *after = textSkipCommand(start + nextCmd, start + len);
 				if (after > start + nextCmd && hashtagOffset < (after - start)) {
@@ -4156,6 +4195,17 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 
 			link.from = start + hashtagOffset;
 			link.len = start + hashtagEnd - link.from;
+		} else if (botCommandOffset < domainOffset) {
+			if (botCommandOffset > nextCmd) {
+				const QChar *after = textSkipCommand(start + nextCmd, start + len);
+				if (after > start + nextCmd && botCommandOffset < (after - start)) {
+					nextCmd = offset = matchOffset = after - start;
+					continue;
+				}
+			}
+
+			link.from = start + botCommandOffset;
+			link.len = start + botCommandEnd - link.from;
 		} else {
 			if (domainOffset > nextCmd) {
 				const QChar *after = textSkipCommand(start + nextCmd, start + len);

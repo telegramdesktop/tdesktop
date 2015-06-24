@@ -110,13 +110,14 @@ public:
 
 class StackItemHistory : public StackItem {
 public:
-	StackItemHistory(PeerData *peer, int32 lastWidth, int32 lastScrollTop, QList<MsgId> replyReturns) : StackItem(peer), replyReturns(replyReturns), lastWidth(lastWidth), lastScrollTop(lastScrollTop) {
+	StackItemHistory(PeerData *peer, int32 lastWidth, int32 lastScrollTop, QList<MsgId> replyReturns, bool kbWasHidden) : StackItem(peer), replyReturns(replyReturns), lastWidth(lastWidth), lastScrollTop(lastScrollTop), kbWasHidden(kbWasHidden) {
 	}
 	StackItemType type() const {
 		return HistoryStackItem;
 	}
 	QList<MsgId> replyReturns;
 	int32 lastWidth, lastScrollTop;
+	bool kbWasHidden;
 };
 
 class StackItemProfile : public StackItem {
@@ -187,7 +188,7 @@ public:
 	void start(const MTPUser &user);
 
 	void openLocalUrl(const QString &str);
-	void openUserByName(const QString &name, bool toProfile = false);
+	void openUserByName(const QString &name, bool toProfile = false, const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
 	void stickersBox(const MTPInputStickerSet &set);
 
@@ -216,6 +217,7 @@ public:
 	void dialogsToUp();
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyWasRead();
+	void historyCleared(History *history);
 
 	void peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
 	void peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
@@ -260,6 +262,8 @@ public:
 	void focusPeerSelect();
 	void dialogsActivate();
 
+	DragState getDragState(const QMimeData *mime);
+
 	bool leaveChatFailed(PeerData *peer, const RPCError &e);
 	void deleteHistory(PeerData *peer, const MTPUpdates &updates);
 	void deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result);
@@ -270,7 +274,7 @@ public:
 	void removeContact(UserData *user);
 
 	void addParticipants(ChatData *chat, const QVector<UserData*> &users);
-	bool addParticipantFail(ChatData *chat, const RPCError &e);
+	bool addParticipantFail(UserData *user, const RPCError &e);
 
 	void kickParticipant(ChatData *chat, UserData *user);
 	bool kickParticipantFail(ChatData *chat, const RPCError &e);
@@ -285,6 +289,7 @@ public:
 	void clearSelectedItems();
 
 	DialogsIndexed &contactsList();
+	DialogsIndexed &dialogsList();
     
     void sendMessage(History *history, const QString &text, MsgId replyTo);
 	void sendPreparedText(History *hist, const QString &text, MsgId replyTo, WebPageId webPageId = 0);
@@ -294,6 +299,9 @@ public:
 
 	uint64 animActiveTime() const;
 	void stopAnimActive();
+
+	void sendBotCommand(const QString &cmd, MsgId msgId);
+	void insertBotCommand(const QString &cmd);
 
 	void searchMessages(const QString &query);
 	void preloadOverviews(PeerData *peer);
@@ -328,6 +336,7 @@ public:
 
 	ApiWrap *api();
 	void updateReplyTo();
+	void updateBotKeyboard();
 
 	void pushReplyReturn(HistoryItem *item);
 	
@@ -447,7 +456,7 @@ private:
 	void handleUpdates(const MTPUpdates &updates);
 	bool updateFail(const RPCError &e);
 
-	void usernameResolveDone(bool toProfile, const MTPUser &user);
+	void usernameResolveDone(QPair<bool, QString> toProfileStartToken, const MTPUser &result);
 	bool usernameResolveFail(QString name, const RPCError &error);
 
 	void inviteCheckDone(QString hash, const MTPChatInvite &invite);

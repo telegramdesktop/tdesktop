@@ -104,6 +104,7 @@ namespace style {
 		Font underline(bool set = true) const;
 
 		uint32 flags() const;
+		uint32 family() const;
 
 		QFont f;
 		QFontMetrics m;

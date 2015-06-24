@@ -79,6 +79,10 @@ public:
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
+	void updateBotInfo(bool recount = true);
+
+	bool wasSelectedText() const;
+
 	~HistoryList();
 	
 public slots:
@@ -113,9 +117,14 @@ private:
 	HistoryItem *prevItem(HistoryItem *item);
 	HistoryItem *nextItem(HistoryItem *item);
 	void updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting, bool force = false);
-	void applyDragSelection();
 
 	History *hist;
+
+	int32 ySkip;
+	BotInfo *botInfo;
+	int32 botDescWidth, botDescHeight;
+	QRect botDescRect;
+
 	HistoryWidget *historyWidget;
 	ScrollArea *scrollArea;
 	int32 currentBlock, currentItem;
@@ -125,6 +134,9 @@ private:
 	Qt::CursorShape _cursor;
 	typedef QMap<HistoryItem*, uint32> SelectedItems;
 	SelectedItems _selected;
+	void applyDragSelection();
+	void applyDragSelection(SelectedItems *toItems) const;
+
 	enum DragAction {
 		NoDrag        = 0x00,
 		PrepareDrag   = 0x01,
@@ -146,6 +158,7 @@ private:
 
 	HistoryItem *_dragSelFrom, *_dragSelTo;
 	bool _dragSelecting;
+	bool _wasSelectedText; // was some text selected in current drag action
 
 	bool _touchScroll, _touchSelect, _touchInProgress;
 	QPoint _touchStart, _touchPrevPos, _touchPos;
@@ -172,6 +185,7 @@ public:
 	void insertFromMimeData(const QMimeData *source);
 
 	void focusInEvent(QFocusEvent *e);
+	void setMaxHeight(int32 maxHeight);
 
 public slots:
 
@@ -185,6 +199,73 @@ signals:
 
 private:
 	HistoryWidget *history;
+	int32 _maxHeight;
+
+};
+
+class BotKeyboard : public QWidget {
+	Q_OBJECT
+
+public:
+
+	BotKeyboard();
+
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+	void mousePressEvent(QMouseEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mouseReleaseEvent(QMouseEvent *e);
+	void leaveEvent(QEvent *e);
+
+	bool updateMarkup(HistoryItem *last);
+	bool hasMarkup() const;
+	bool forceReply() const;
+
+	bool hoverStep(float64 ms);
+	void resizeToWidth(int32 width, int32 maxOuterHeight);
+
+	bool maximizeSize() const;
+	bool singleUse() const;
+
+	MsgId forMsgId() const {
+		return _wasForMsgId;
+	}
+
+public slots:
+
+	void showCommandTip();
+	void updateSelected();
+
+private:
+
+	void updateStyle(int32 w = -1);
+	void clearSelection();
+
+	MsgId _wasForMsgId;
+	int32 _height, _maxOuterHeight;
+	bool _maximizeSize, _singleUse, _forceReply;
+	QTimer _cmdTipTimer;
+
+	QPoint _lastMousePos;
+	struct Button {
+		Button(const QString &str = QString()) : cmd(str), text(1), cwidth(0), hover(0), full(true) {
+		}
+		QRect rect;
+		QString cmd;
+		Text text;
+		int32 cwidth;
+		float64 hover;
+		bool full;
+	};
+	int32 _sel, _down;
+	QList<QList<Button> > _btns;
+
+	typedef QMap<int32, uint64> Animations;
+	Animations _animations;
+	Animation _hoverAnim;
+
+	const style::botKeyboardButton *_st;
+
 };
 
 class HistoryHider : public QWidget, public Animated {
@@ -294,6 +375,7 @@ public:
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyToDown(History *history);
 	void historyWasRead(bool force = true);
+	void historyCleared(History *history);
 
 	QRect historyRect() const;
 
@@ -354,7 +436,8 @@ public:
 
 	MsgId replyToId() const;
 	void updateReplyTo(bool force = false);
-	void cancelReply();
+	bool lastForceReplyReplied(MsgId replyTo = -1) const;
+	void cancelReply(bool lastKeyboardUsed = false);
 	void updateForwarding(bool force = false);
 	void cancelForwarding(); // called by MainWidget
 
@@ -364,12 +447,25 @@ public:
 	void setReplyReturns(PeerId peer, const QList<MsgId> &replyReturns);
 	void calcNextReplyReturn();
 
+	bool kbWasHidden();
+	void setKbWasHidden();
+
 	void updatePreview();
 	void previewCancel();
 
 	bool recordStep(float64 ms);
 	bool recordingStep(float64 ms);
 	void stopRecording(bool send);
+
+	void onListEscapePressed();
+
+	void sendBotCommand(const QString &cmd, MsgId replyTo);
+	void insertBotCommand(const QString &cmd);
+
+	bool eventFilter(QObject *obj, QEvent *e);
+	void updateBotKeyboard();
+
+	DragState getDragState(const QMimeData *d);
 
 	~HistoryWidget();
 
@@ -391,7 +487,7 @@ public slots:
 	void onPreviewTimeout();
 
 	void peerUpdated(PeerData *data);
-	void onPeerLoaded(PeerData *data);
+	void onFullPeerUpdated(PeerData *data);
 
 	void cancelTyping();
 
@@ -409,11 +505,15 @@ public slots:
 	void onListScroll();
 	void onHistoryToEnd();
 	void onSend(bool ctrlShiftEnter = false, MsgId replyTo = -1);
+	void onBotStart();
 
 	void onPhotoSelect();
 	void onDocumentSelect();
 	void onPhotoDrop(QDropEvent *e);
 	void onDocumentDrop(QDropEvent *e);
+
+	void onKbToggle(bool manual = true);
+	void onCmdStart();
 
 	void onPhotoReady();
 	void onSendConfirmed();
@@ -422,6 +522,7 @@ public slots:
 	void showPeer(const PeerId &peer, MsgId msgId = 0, bool force = false, bool leaveActive = false);
 	void clearLoadingAround();
 	void activate();
+	void onMentionHashtagOrBotCommandInsert(QString str);
 	void onTextChange();
 
 	void onStickerSend(DocumentData *sticker);
@@ -462,7 +563,11 @@ private:
 	int32 _replyToNameVersion;
 	IconedButton _replyForwardPreviewCancel;
 	void updateReplyToName();
-	void drawFieldBackground(QPainter &p);
+
+	void drawField(Painter &p);
+	void drawRecordButton(Painter &p);
+	void drawRecording(Painter &p);
+	void updateField();
 
 	QString _previewLinks;
 	WebPageData *_previewData;
@@ -484,6 +589,8 @@ private:
 	void addMessagesToFront(const QVector<MTPMessage> &messages);
 	void addMessagesToBack(const QVector<MTPMessage> &messages);
 
+	void updateToEndVisibility();
+
 	void stickersGot(const MTPmessages_AllStickers &stickers);
 	bool stickersFailed(const RPCError &error);
 
@@ -493,7 +600,6 @@ private:
 	void setFieldText(const QString &text);
 
 	QStringList getMediasFromMime(const QMimeData *d);
-	DragState getDragState(const QMimeData *d);
 
 	void updateDragAreas();
 
@@ -511,22 +617,31 @@ private:
 	ScrollArea _scroll;
 	HistoryList *_list;
 	History *hist;
-	bool _histInited; // initial updateListSize() called
+	bool _histInited, _histNeedUpdate; // initial updateListSize() called
 
 	IconedButton _toHistoryEnd;
 
 	MentionsDropdown _attachMention;
 
-	FlatButton _send;
-	IconedButton _attachDocument, _attachPhoto, _attachEmoji;
+	bool isBotStart() const;
+	bool updateCmdStartShown();
+
+	FlatButton _send, _botStart;
+	IconedButton _attachDocument, _attachPhoto, _attachEmoji, _kbShow, _kbHide, _cmdStart;
+	bool _cmdStartShown;
 	MessageField _field;
 	Animation _recordAnim, _recordingAnim;
-	bool _recording, _inRecord, _inField;
+	bool _recording, _inRecord, _inField, _inReply;
 	anim::ivalue a_recordingLevel;
 	int32 _recordingSamples;
 	anim::fvalue a_recordOver, a_recordDown;
 	anim::cvalue a_recordCancel;
 	int32 _recordCancelWidth;
+
+	bool _kbShown, _kbWasHidden;
+	HistoryItem *_kbReplyTo;
+	ScrollArea _kbScroll;
+	BotKeyboard _keyboard;
 
 	Dropdown _attachType;
 	EmojiPan _emojiPan;

@@ -202,7 +202,7 @@ void IntroCode::codeSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
 	code.setDisabled(false);
 	const MTPDauth_authorization &d(result.c_auth_authorization());
-	if (d.vuser.type() != mtpc_userSelf) { // wtf?
+	if (d.vuser.type() != mtpc_user || !(d.vuser.c_user().vflags.v & MTPDuser_flag_self)) { // wtf?
 		showError(lang(lng_server_error));
 		return;
 	}

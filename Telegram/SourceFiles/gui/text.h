@@ -31,11 +31,12 @@ enum {
 	TextParseRichText = 0x004,
 	TextParseMentions = 0x008,
 	TextParseHashtags = 0x010,
+	TextParseBotCommands = 0x020,
 
-	TextTwitterMentions = 0x020,
-	TextTwitterHashtags = 0x040,
-	TextInstagramMentions = 0x080,
-	TextInstagramHashtags = 0x100,
+	TextTwitterMentions = 0x040,
+	TextTwitterHashtags = 0x080,
+	TextInstagramMentions = 0x100,
+	TextInstagramHashtags = 0x200,
 };
 
 struct LinkRange {
@@ -288,7 +289,7 @@ public:
 
 	QString encoded() const {
 		QUrl u(_url), good(u.isValid() ? u.toEncoded() : QString());
-		QString result(good.isValid() ? good.toEncoded() : _url);
+		QString result(good.isValid() ? QString::fromUtf8(good.toEncoded()) : _url);
 
 		if (!QRegularExpression(qsl("^[a-zA-Z]+://")).match(result).hasMatch()) { // no protocol
 			return qsl("http://") + result;
@@ -385,6 +386,32 @@ private:
 
 };
 
+class BotCommandLink : public ITextLink {
+public:
+
+	BotCommandLink(const QString &cmd) : _cmd(cmd) {
+	}
+
+	const QString &text() const {
+		return _cmd;
+	}
+
+	void onClick(Qt::MouseButton button) const;
+
+	const QString &readable() const {
+		return _cmd;
+	}
+
+	QString encoded() const {
+		return _cmd;
+	}
+
+private:
+
+	QString _cmd;
+
+};
+
 static const QChar TextCommand(0x0010);
 enum TextCommands {
 	TextCommandBold        = 0x01,
@@ -408,8 +435,7 @@ struct TextParseOptions {
 	int32 maxh;
 	Qt::LayoutDirection dir;
 };
-extern const TextParseOptions _defaultOptions;
-extern const TextParseOptions _textPlainOptions;
+extern const TextParseOptions _defaultOptions, _textPlainOptions;
 
 enum TextSelectType {
 	TextSelectLetters    = 0x01,
@@ -512,6 +538,7 @@ const QSet<int32> &validTopDomains();
 const QRegularExpression &reDomain();
 const QRegularExpression &reMailName();
 const QRegularExpression &reHashtag();
+const QRegularExpression &reBotCommand();
 
 // text style
 const style::textStyle *textstyleCurrent();

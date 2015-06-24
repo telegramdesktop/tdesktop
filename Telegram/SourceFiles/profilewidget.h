@@ -25,6 +25,8 @@ public:
 
 	ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const PeerData *peer);
 
+	void start();
+
 	bool event(QEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
@@ -64,6 +66,7 @@ public slots:
 	void deleteContextImage();
 
 	void onShareContact();
+	void onInviteToGroup();
 	void onSendMessage();
 	void onEnableNotifications();
 
@@ -94,12 +97,16 @@ public slots:
 	void onCreateInvitationLink();
 	void onCreateInvitationLinkSure();
 
-	void onFullPeerLoaded(PeerData *peer);
+	void onFullPeerUpdated(PeerData *peer);
+
+	void onBotSettings();
+	void onBotHelp();
 
 private:
 
 	void showAll();
 	void updateInvitationLink();
+	void updateBotLinksVisibility();
 
 	void chatInviteDone(const MTPExportedChatInvite &result);
 
@@ -120,9 +127,13 @@ private:
 	QString _phoneText;
 	TextLinkPtr _photoLink;
 	FlatButton _uploadPhoto, _addParticipant;
-	FlatButton _sendMessage, _shareContact;
+	FlatButton _sendMessage, _shareContact, _inviteToGroup;
 	LinkButton _cancelPhoto, _createInvitationLink, _invitationLink;
 	QString _invitationText;
+	LinkButton _botSettings, _botHelp;
+
+	Text _about;
+	int32 _aboutTop, _aboutHeight;
 
 	anim::fvalue a_photo;
 	bool _photoOver;
@@ -191,6 +202,7 @@ public:
 	void updateNotifySettings();
 	void mediaOverviewUpdated(PeerData *peer);
 
+	void clear();
 	~ProfileWidget();
 
 public slots:

@@ -175,15 +175,16 @@ void mtpUpdateDcOptions(const QVector<MTPDcOption> &options) {
 		}
 		for (QVector<MTPDcOption>::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
 			const MTPDdcOption &optData(i->c_dcOption());
-			if (already.constFind(optData.vid.v) == already.cend()) {
-				already.insert(optData.vid.v);
-				mtpDcOptions::const_iterator a = opts.constFind(optData.vid.v);
+			int32 id = optData.vid.v, idWithShift = id + (optData.vflags.v * _mtp_internal::dcShift);
+			if (already.constFind(idWithShift) == already.cend()) {
+				already.insert(idWithShift);
+				mtpDcOptions::const_iterator a = opts.constFind(idWithShift);
 				if (a != opts.cend()) {
 					if (a.value().ip != optData.vip_address.c_string().v || a.value().port != optData.vport.v) {
-						restart.insert(optData.vid.v);
+						restart.insert(id);
 					}
 				}
-				opts.insert(optData.vid.v, mtpDcOption(optData.vid.v, optData.vhostname.c_string().v, optData.vip_address.c_string().v, optData.vport.v));
+				opts.insert(idWithShift, mtpDcOption(id, optData.vflags.v, optData.vip_address.c_string().v, optData.vport.v));
 			}
 		}
 		{

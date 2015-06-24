@@ -94,9 +94,11 @@ public:
 	bool hasFilteredResults() const;
 
 	void onFilterUpdate(QString newFilter, bool force = false);
-	void onHashtagFilterUpdate(QString newFilter);
+	void onHashtagFilterUpdate(QStringRef newFilter);
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
+
+	PeerData *updateFromParentDrag(QPoint globalPos);
 
 	~DialogsListWidget();
 
@@ -130,7 +132,7 @@ private:
 	bool contactSel;
 	bool selByMouse;
 
-	QString filter;
+	QString filter, _hashtagFilter;
 
 	QStringList hashtagResults;
 	int32 hashtagSel;
@@ -171,6 +173,12 @@ public:
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
 	bool addNewContact(int32 uid, bool show = true);
 	
+	void dragEnterEvent(QDragEnterEvent *e);
+	void dragMoveEvent(QDragMoveEvent *e);
+	void dragLeaveEvent(QDragLeaveEvent *e);
+	void dropEvent(QDropEvent *e);
+	void updateDragInScroll(bool inScroll);
+
 	void resizeEvent(QResizeEvent *e);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
@@ -197,6 +205,7 @@ public:
 	void removeContact(UserData *user);
 
 	DialogsIndexed &contactsList();
+	DialogsIndexed &dialogsList();
 
 	void enableShadow(bool enable = true);
 	
@@ -230,6 +239,8 @@ public slots:
 private:
 
 	bool _drawShadow;
+
+	bool _dragInScroll, _dragForward;
 
 	void unreadCountsReceived(const QVector<MTPDialog> &dialogs);
 	bool dialogsFailed(const RPCError &error);

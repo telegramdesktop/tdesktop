@@ -1101,7 +1101,7 @@ void psOpenFile(const QString &name, bool openWith) {
 
 void psShowInFolder(const QString &name) {
     App::wnd()->layerHidden();
-    system((qsl("nautilus ") + escapeShell(QFileInfo(name).absoluteDir().absolutePath())).toUtf8().constData());
+    system((qsl("xdg-open ") + escapeShell(QFileInfo(name).absoluteDir().absolutePath())).toUtf8().constData());
 }
 
 void psStart() {

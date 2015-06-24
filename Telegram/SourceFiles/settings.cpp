@@ -139,6 +139,7 @@ QUrl gUpdateURL = QUrl(qsl("http://tdesktop.com/linux/tupdates/current"));
 #endif
 
 bool gContactsReceived = false;
+bool gDialogsReceived = false;
 
 bool gWideMode = true;
 

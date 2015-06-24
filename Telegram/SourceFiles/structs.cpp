@@ -201,8 +201,73 @@ void UserData::setPhone(const QString &newPhone) {
 	++nameVersion;
 }
 
+void UserData::setBotInfoVersion(int32 version) {
+	if (version < 0) {
+		delete botInfo;
+		botInfo = 0;
+	} else if (!botInfo) {
+		botInfo = new BotInfo();
+		botInfo->version = version;
+	} else if (botInfo->version < version) {
+		botInfo->commands.clear();
+		botInfo->description.clear();
+		botInfo->shareText.clear();
+		botInfo->version = version;
+		botInfo->inited = false;
+	}
+}
+void UserData::setBotInfo(const MTPBotInfo &info) {
+	switch (info.type()) {
+	case mtpc_botInfoEmpty:
+		delete botInfo;
+		botInfo = 0;
+	break;
+	case mtpc_botInfo: {
+		const MTPDbotInfo &d(info.c_botInfo());
+		if (App::peerFromUser(d.vuser_id.v) != id) return;
+		
+		if (botInfo) {
+			botInfo->version = d.vversion.v;
+		} else {
+			setBotInfoVersion(d.vversion.v);
+		}
+
+		QString desc = qs(d.vdescription);
+		if (botInfo->description != desc) {
+			botInfo->description = desc;
+			botInfo->text = Text(st::msgMinWidth);
+		}
+		botInfo->shareText = qs(d.vshare_text);
+		
+		const QVector<MTPBotCommand> &v(d.vcommands.c_vector().v);
+		botInfo->commands.clear();
+		botInfo->commands.reserve(v.size());
+		for (int32 i = 0, l = v.size(); i < l; ++i) {
+			if (v.at(i).type() == mtpc_botCommand) {
+				botInfo->commands.push_back(BotCommand(qs(v.at(i).c_botCommand().vcommand), qs(v.at(i).c_botCommand().vdescription)));
+			}
+		}
+
+		botInfo->inited = true;
+	} break;
+	}
+}
+
 void UserData::nameUpdated() {
 	nameText.setText(st::msgNameFont, name, _textNameOptions);
+}
+
+void UserData::madeAction() {
+	if (botInfo || isServiceUser(id)) return;
+
+	int32 t = unixtime();
+	if (onlineTill <= 0 && -onlineTill < t) {
+		onlineTill = -t - SetOnlineAfterActivity;
+		if (App::main()) App::main()->peerUpdated(this);
+	} else if (onlineTill > 0 && onlineTill < t + 1) {
+		onlineTill = t + SetOnlineAfterActivity;
+		if (App::main()) App::main()->peerUpdated(this);
+	}
 }
 
 void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) {
@@ -437,6 +502,21 @@ void AudioCancelLink::onClick(Qt::MouseButton button) const {
 	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
 
 	data->cancel();
+}
+
+bool StickerData::setInstalled() const {
+	switch (set.type()) {
+	case mtpc_inputStickerSetID: {
+		return (cStickerSets().constFind(set.c_inputStickerSetID().vid.v) != cStickerSets().cend());
+	} break;
+	case mtpc_inputStickerSetShortName: {
+		QString name = qs(set.c_inputStickerSetShortName().vshort_name).toLower();
+		for (StickerSets::const_iterator i = cStickerSets().cbegin(), e = cStickerSets().cend(); i != e; ++i) {
+			if (i->shortName.toLower() == name) return true;
+		}
+	} break;
+	}
+	return false;
 }
 
 AudioData::AudioData(const AudioId &id, const uint64 &access, int32 user, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) :

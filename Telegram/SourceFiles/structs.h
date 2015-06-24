@@ -118,14 +118,36 @@ private:
 	PeerData *_peer;
 };
 
+struct BotCommand {
+	BotCommand(const QString &command, const QString &description) : command(command), description(description) {
+	}
+	QString command, description;
+};
+struct BotInfo {
+	BotInfo() : inited(false), readsAllHistory(false), cantJoinGroups(false), version(0), text(st::msgMinWidth) {
+	}
+	bool inited;
+	bool readsAllHistory, cantJoinGroups;
+	int32 version;
+	QString shareText, description;
+	QList<BotCommand> commands;
+	Text text; // description
+
+	QString startToken, startGroupToken;
+};
+
 struct PhotoData;
 struct UserData : public PeerData {
-	UserData(const PeerId &id) : PeerData(id), lnk(new PeerLink(this)), onlineTill(0), contact(-1), photosCount(-1) {
+	UserData(const PeerId &id) : PeerData(id), photoId(0), lnk(new PeerLink(this)), onlineTill(0), contact(-1), photosCount(-1), botInfo(0) {
 	}
 	void setPhoto(const MTPUserProfilePhoto &photo);
 	void setName(const QString &first, const QString &last, const QString &phoneName, const QString &username);
 	void setPhone(const QString &newPhone);
+	void setBotInfoVersion(int32 version);
+	void setBotInfo(const MTPBotInfo &info);
 	void nameUpdated();
+
+	void madeAction(); // pseudo-online
 
 	QString firstName;
 	QString lastName;
@@ -140,10 +162,12 @@ struct UserData : public PeerData {
 	typedef QList<PhotoData*> Photos;
 	Photos photos;
 	int32 photosCount; // -1 not loaded, 0 all loaded
+
+	BotInfo *botInfo;
 };
 
 struct ChatData : public PeerData {
-	ChatData(const PeerId &id) : PeerData(id), count(0), date(0), version(0), left(false), forbidden(true), photoId(0) {
+	ChatData(const PeerId &id) : PeerData(id), count(0), date(0), version(0), left(false), forbidden(true), botStatus(0), photoId(0) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = 0);
 	int32 count;
@@ -158,11 +182,18 @@ struct ChatData : public PeerData {
 	CanKick cankick;
 	typedef QList<UserData*> LastAuthors;
 	LastAuthors lastAuthors;
+	typedef QMap<UserData*, bool> MarkupSenders;
+	MarkupSenders markupSenders;
+	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 	ImagePtr photoFull;
 	PhotoId photoId;
 	QString invitationUrl;
 	// geo
 };
+
+inline int32 newMessageFlags(PeerData *p) {
+	return (p->input.type() == mtpc_inputPeerSelf) ? 0 : (((p->chat || !p->asUser()->botInfo) ? MTPDmessage_flag_unread : 0) | MTPDmessage_flag_out);
+}
 
 typedef QMap<char, QPixmap> PreparedPhotoThumbs;
 struct PhotoData {
@@ -409,6 +440,8 @@ struct StickerData {
 	QString alt;
 
 	MTPInputStickerSet set;
+	bool setInstalled() const;
+
 	StorageImageLocation loc; // doc thumb location
 };
 

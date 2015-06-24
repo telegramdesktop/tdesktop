@@ -55,6 +55,9 @@ namespace {
 	typedef QHash<WebPageId, WebPageData*> WebPagesData;
 	WebPagesData webPagesData;
 
+	typedef QMap<MsgId, ReplyMarkup> ReplyMarkups;
+	ReplyMarkups replyMarkups;
+
 	VideoItems videoItems;
 	AudioItems audioItems;
 	DocumentItems documentItems;
@@ -206,7 +209,11 @@ namespace App {
         return (peer_id & 0x100000000L) ? int32(peer_id & 0xFFFFFFFFL) : 0;
     }
 
-	int32 onlineForSort(int32 online, int32 now) {
+	int32 onlineForSort(UserData *user, int32 now) {
+		if (isServiceUser(user->id) || user->botInfo) {
+			return -1;
+		}
+		int32 online = user->onlineTill;
 		if (online <= 0) {
 			switch (online) {
 			case 0:
@@ -232,8 +239,12 @@ namespace App {
 		return online;
 	}
 
-	int32 onlineWillChangeIn(int32 online, int32 now) {
-        if (online <= 0) {
+	int32 onlineWillChangeIn(UserData *user, int32 now) {
+		if (isServiceUser(user->id) || user->botInfo) {
+			return 86400;
+		}
+		int32 online = user->onlineTill;
+		if (online <= 0) {
             if (-online > now) return -online - now;
             return 86400;
         }
@@ -255,6 +266,8 @@ namespace App {
 	QString onlineText(UserData *user, int32 now, bool precise) {
 		if (isServiceUser(user->id)) {
 			return lang(lng_status_service_notifications);
+		} else if (user->botInfo) {
+			return lang(lng_status_bot);
 		}
 		int32 online = user->onlineTill;
 		if (online <= 0) {
@@ -299,7 +312,11 @@ namespace App {
 		return lng_status_lastseen_date(lt_date, dOnline.date().toString(qsl("dd.MM.yy")));
 	}
 
-	bool onlineColorUse(int32 online, int32 now) {
+	bool onlineColorUse(UserData *user, int32 now) {
+		if (isServiceUser(user->id) || user->botInfo) {
+			return false;
+		}
+		int32 online = user->onlineTill;
 		if (online <= 0) {
 			switch (online) {
 			case 0:
@@ -333,87 +350,62 @@ namespace App {
 				data->setName(lang(lng_deleted), QString(), QString(), QString());
 				data->setPhoto(MTP_userProfilePhotoEmpty());
 				data->access = UserNoAccess;
+				data->setBotInfoVersion(-1);
 				wasContact = (data->contact > 0);
 				status = &emptyStatus;
 				data->contact = -1;
 			} break;
-			case mtpc_userDeleted: {
-				const MTPDuserDeleted &d(user.c_userDeleted());
+			case mtpc_user: {
+				const MTPDuser &d(user.c_user());
 
 				PeerId peer(peerFromUser(d.vid.v));
 				data = App::user(peer);
-				data->input = MTP_inputPeerContact(d.vid);
-				data->inputUser = MTP_inputUserContact(d.vid);
-				data->setName(lang(lng_deleted), QString(), QString(), QString());
-//				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString(), textOneLine(qs(d.vusername)));
-				data->setPhoto(MTP_userProfilePhotoEmpty());
-				data->access = UserNoAccess;
+				int32 flags = d.vflags.v;
+				if (flags & MTPDuser_flag_self) {
+					data->input = MTP_inputPeerSelf();
+					data->inputUser = MTP_inputUserSelf();
+				} else if ((flags & (MTPDuser_flag_contact | MTPDuser_flag_mutual_contact)) || !d.has_access_hash()) {
+					data->input = MTP_inputPeerContact(d.vid);
+					data->inputUser = MTP_inputUserContact(d.vid);
+				} else {
+					data->input = MTP_inputPeerForeign(d.vid, d.vaccess_hash);
+					data->inputUser = MTP_inputUserForeign(d.vid, d.vaccess_hash);
+				}
+				if (flags & MTPDuser_flag_deleted) {
+					data->setPhone(QString());
+					data->setName(lang(lng_deleted), QString(), QString(), QString());
+					data->setPhoto(MTP_userProfilePhotoEmpty());
+					data->access = UserNoAccess;
+					status = &emptyStatus;
+				} else {
+					data->setPhone(d.has_phone() ? qs(d.vphone) : QString());
+					QString fname = d.has_first_name() ? textOneLine(qs(d.vfirst_name)) : QString();
+					QString lname = d.has_last_name() ? textOneLine(qs(d.vlast_name)) : QString();
+					QString uname = d.has_username() ? textOneLine(qs(d.vusername)) : QString();
+					bool showPhone = !isServiceUser(data->id) && !(flags & (MTPDuser_flag_self | MTPDuser_flag_contact | MTPDuser_flag_mutual_contact));
+					QString pname = (showPhone && !data->phone.isEmpty()) ? formatPhone(data->phone) : QString();
+					data->setName(fname, lname, QString(), uname);
+					if (d.has_photo()) {
+						data->setPhoto(d.vphoto);
+					} else {
+						data->setPhoto(MTP_userProfilePhotoEmpty());
+					}
+					if (d.has_access_hash()) data->access = d.vaccess_hash.v;
+					status = d.has_status() ? &d.vstatus : &emptyStatus;
+				}
 				wasContact = (data->contact > 0);
-				status = &emptyStatus;
-				data->contact = -1;
-			} break;
-			case mtpc_userSelf: {
-				const MTPDuserSelf &d(user.c_userSelf());
-
-				PeerId peer(peerFromUser(d.vid.v));
-				data = App::user(peer);
-				data->input = MTP_inputPeerSelf();
-				data->inputUser = MTP_inputUserSelf();
-				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString(), textOneLine(qs(d.vusername)));
-				data->setPhoto(d.vphoto);
-				data->setPhone(qs(d.vphone));
-				data->access = 0;
-				wasContact = (data->contact > 0);
-				status = &d.vstatus;
-
-				if (::self != data) {
+				if (d.has_bot_info_version()) {
+					data->setBotInfoVersion(d.vbot_info_version.v);
+					data->botInfo->readsAllHistory = (d.vflags.v & MTPDuser_flag_bot_reads_all);
+					data->botInfo->cantJoinGroups = (d.vflags.v & MTPDuser_flag_bot_cant_join);
+				} else {
+					data->setBotInfoVersion(-1);
+				}
+				data->contact = (flags & (MTPDuser_flag_contact | MTPDuser_flag_mutual_contact)) ? 1 : (data->phone.isEmpty() ? -1 : 0);
+				if ((flags & MTPDuser_flag_self) && ::self != data) {
 					::self = data;
 					if (App::wnd()) App::wnd()->updateGlobalMenu();
 				}
-			} break;
-			case mtpc_userContact: {
-				const MTPDuserContact &d(user.c_userContact());
-
-				PeerId peer(peerFromUser(d.vid.v));
-				data = App::user(peer);
-				data->input = MTP_inputPeerContact(d.vid);
-				data->inputUser = MTP_inputUserContact(d.vid);
-				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString(), textOneLine(qs(d.vusername)));
-				data->setPhoto(d.vphoto);
-				data->setPhone(qs(d.vphone));
-				data->access = d.vaccess_hash.v;
-				wasContact = (data->contact > 0);
-				data->contact = 1;
-				status = &d.vstatus;
-			} break;
-			case mtpc_userRequest: {
-				const MTPDuserRequest &d(user.c_userRequest());
-				
-				PeerId peer(peerFromUser(d.vid.v));
-				data = App::user(peer);
-				data->input = MTP_inputPeerForeign(d.vid, d.vaccess_hash);
-				data->inputUser = MTP_inputUserForeign(d.vid, d.vaccess_hash);
-				data->setPhone(qs(d.vphone));
-				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), (!isServiceUser(data->id) && !data->phone.isEmpty()) ? formatPhone(data->phone) : QString(), textOneLine(qs(d.vusername)));
-				data->setPhoto(d.vphoto);
-				data->access = d.vaccess_hash.v;
-				wasContact = (data->contact > 0);
-				data->contact = 0;
-				status = &d.vstatus;
-			} break;
-			case mtpc_userForeign: {
-				const MTPDuserForeign &d(user.c_userForeign());
-
-				PeerId peer(peerFromUser(d.vid.v));
-				data = App::user(peer);
-				data->input = MTP_inputPeerForeign(d.vid, d.vaccess_hash);
-				data->inputUser = MTP_inputUserForeign(d.vid, d.vaccess_hash);
-				data->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), QString(), textOneLine(qs(d.vusername)));
-				data->setPhoto(d.vphoto);
-				data->access = d.vaccess_hash.v;
-				wasContact = (data->contact > 0);
-				data->contact = -1;
-				status = &d.vstatus;
 			} break;
 			}
 
@@ -472,6 +464,7 @@ namespace App {
 				if (data->version < d.vversion.v) {
 					data->version = d.vversion.v;
 					data->participants = ChatData::Participants();
+					data->botStatus = 0;
 				}
 			} break;
 			case mtpc_chatForbidden: {
@@ -505,6 +498,7 @@ namespace App {
 				if (data->version < d.vversion.v) {
 					data->version = d.vversion.v;
 					data->participants = ChatData::Participants();
+					data->botStatus = 0;
 				}/**/
 			} break;
 			}
@@ -518,7 +512,7 @@ namespace App {
 		return data;
 	}
 
-	void feedParticipants(const MTPChatParticipants &p) {
+	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos) {
 		switch (p.type()) {
 		case mtpc_chatParticipantsForbidden: {
 			const MTPDchatParticipantsForbidden &d(p.c_chatParticipantsForbidden());
@@ -545,16 +539,33 @@ namespace App {
 						}
 					} else {
 						chat->participants = ChatData::Participants();
+						chat->botStatus = 0;
 						break;
 					}
 				}
 				if (!chat->participants.isEmpty()) {
+					History *h = App::historyLoaded(chat->id);
+					bool found = !h || !h->lastKeyboardFrom;
+					int32 botStatus = -1;
 					for (ChatData::Participants::iterator i = chat->participants.begin(), e = chat->participants.end(); i != e;) {
 						if (i.value() < pversion) {
 							i = chat->participants.erase(i);
 						} else {
+							if (i.key()->botInfo) {
+								botStatus = (botStatus > 0/* || i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
+								if (requestBotInfos && !i.key()->botInfo->inited) App::api()->requestFullPeer(i.key());
+							}
+							if (!found && i.key()->id == h->lastKeyboardFrom) {
+								found = true;
+							}
 							++i;
 						}
+					}
+					chat->botStatus = botStatus;
+					if (!found) {
+						h->lastKeyboardId = 0;
+						h->lastKeyboardFrom = 0;
+						if (App::main()) App::main()->updateBotKeyboard();
 					}
 				}
 				if (App::main()) App::main()->peerUpdated(chat);
@@ -571,6 +582,7 @@ namespace App {
 			if (user) {
 				if (chat->participants.isEmpty() && chat->count) {
 					chat->count++;
+					chat->botStatus = 0;
 				} else if (chat->participants.find(user) == chat->participants.end()) {
 					chat->participants[user] = (chat->participants.isEmpty() ? 1 : chat->participants.begin().value());
 					if (d.vinviter_id.v == MTP::authedId()) {
@@ -579,9 +591,14 @@ namespace App {
 						chat->cankick.remove(user);
 					}
 					chat->count++;
+					if (user->botInfo) {
+						chat->botStatus = (chat->botStatus > 0/* || !user->botInfo->readsAllHistory*/) ? 2 : 1;
+						if (!user->botInfo->inited) App::api()->requestFullPeer(user);
+					}
 				}
 			} else {
 				chat->participants = ChatData::Participants();
+				chat->botStatus = 0;
 				chat->count++;
 			}
 			if (App::main()) App::main()->peerUpdated(chat);
@@ -601,10 +618,31 @@ namespace App {
 					if (i != chat->participants.end()) {
 						chat->participants.erase(i);
 						chat->count--;
+
+						History *h = App::historyLoaded(chat->id);
+						if (h && h->lastKeyboardFrom == user->id) {
+							h->lastKeyboardId = 0;
+							h->lastKeyboardFrom = 0;
+							if (App::main()) App::main()->updateBotKeyboard();
+						}
+					}
+					if (chat->botStatus > 0 && user->botInfo) {
+						int32 botStatus = -1;
+						for (ChatData::Participants::const_iterator j = chat->participants.cbegin(), e = chat->participants.cend(); j != e; ++j) {
+							if (j.key()->botInfo) {
+								if (botStatus > 0/* || !j.key()->botInfo->readsAllHistory*/) {
+									botStatus = 2;
+									break;
+								}
+								botStatus = 1;
+							}
+						}
+						chat->botStatus = botStatus;
 					}
 				}
 			} else {
 				chat->participants = ChatData::Participants();
+				chat->botStatus = 0;
 				chat->count--;
 			}
 			if (App::main()) App::main()->peerUpdated(chat);
@@ -731,11 +769,7 @@ namespace App {
 			MTPint userId(MTP_int(0));
 			switch (dv.vuser.type()) {
 			case mtpc_userEmpty: userId = dv.vuser.c_userEmpty().vid; break;
-			case mtpc_userDeleted: userId = dv.vuser.c_userDeleted().vid; break;
-			case mtpc_userContact: userId = dv.vuser.c_userContact().vid; break;
-			case mtpc_userSelf: userId = dv.vuser.c_userSelf().vid; break;
-			case mtpc_userRequest: userId = dv.vuser.c_userRequest().vid; break;
-			case mtpc_userForeign: userId = dv.vuser.c_userForeign().vid; break;
+			case mtpc_user: userId = dv.vuser.c_user().vid; break;
 			}
 			if (userId.v) {
 				feedUserLink(userId, dv.vmy_link, dv.vforeign_link);
@@ -1183,6 +1217,7 @@ namespace App {
 	}
 
 	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation) {
+		bool sentSticker = false;
 		if (convert) {
 			if (convert->id != document) {
 				DocumentsData::iterator i = documentsData.find(convert->id);
@@ -1191,6 +1226,7 @@ namespace App {
 				}
 				convert->id = document;
 				convert->status = FileReady;
+				sentSticker = !!convert->sticker;
 			}
 			convert->access = access;
 			if (!convert->date && date) {
@@ -1266,6 +1302,7 @@ namespace App {
 				}
 			}
 		}
+		if (sentSticker && App::main()) App::main()->incrementSticker(result);
 		return result;
 	}
 
@@ -1506,6 +1543,7 @@ namespace App {
 		}
 		::maxMsgId = 0;
 		::hoveredItem = ::pressedItem = ::hoveredLinkItem = ::pressedLinkItem = ::contextItem = 0;
+		replyMarkups.clear();
 	}
 
 	void historyClearItems() {
@@ -1661,6 +1699,9 @@ namespace App {
 		prepareCorners(MediaviewSaveCorners, st::msgRadius, st::emojiPanHover);
 		prepareCorners(EmojiHoverCorners, st::msgRadius, st::emojiPanHover);
 		prepareCorners(StickerHoverCorners, st::msgRadius, st::emojiPanHover);
+		prepareCorners(BotKeyboardCorners, st::msgRadius, st::botKbBg);
+		prepareCorners(BotKeyboardOverCorners, st::msgRadius, st::botKbOverBg);
+		prepareCorners(BotKeyboardDownCorners, st::msgRadius, st::botKbDownBg);
 
 		prepareCorners(MessageInCorners, st::msgRadius, st::msgInBg, &st::msgInShadow);
 		prepareCorners(MessageInSelectedCorners, st::msgRadius, st::msgInSelectBg, &st::msgInSelectShadow);
@@ -1955,6 +1996,68 @@ namespace App {
 		if (changeInMin) App::main()->updateMutedIn(changeInMin);
 	}
 
+	void feedReplyMarkup(MsgId msgId, const MTPReplyMarkup &markup) {
+		ReplyMarkup data;
+		ReplyMarkup::Commands &commands(data.commands);
+		switch (markup.type()) {
+		case mtpc_replyKeyboardMarkup: {
+			const MTPDreplyKeyboardMarkup &d(markup.c_replyKeyboardMarkup());
+			data.flags = d.vflags.v;
+			
+			const QVector<MTPKeyboardButtonRow> &v(d.vrows.c_vector().v);
+			if (!v.isEmpty()) {
+				commands.reserve(v.size());
+				for (int32 i = 0, l = v.size(); i < l; ++i) {
+					switch (v.at(i).type()) {
+					case mtpc_keyboardButtonRow: {
+						const MTPDkeyboardButtonRow &r(v.at(i).c_keyboardButtonRow());
+						const QVector<MTPKeyboardButton> &b(r.vbuttons.c_vector().v);
+						if (!b.isEmpty()) {
+							QList<QString> btns;
+							btns.reserve(b.size());
+							for (int32 j = 0, s = b.size(); j < s; ++j) {
+								switch (b.at(j).type()) {
+								case mtpc_keyboardButton: {
+									btns.push_back(qs(b.at(j).c_keyboardButton().vtext));
+								} break;
+								}
+							}
+							if (!btns.isEmpty()) commands.push_back(btns);
+						}
+					} break;
+					}
+				}
+				if (!commands.isEmpty()) {
+					replyMarkups.insert(msgId, data);
+				}
+			}
+		} break;
+
+		case mtpc_replyKeyboardHide: {
+			const MTPDreplyKeyboardHide &d(markup.c_replyKeyboardHide());
+			if (d.vflags.v) {
+				replyMarkups.insert(msgId, ReplyMarkup(d.vflags.v | MTPDreplyKeyboardMarkup_flag_ZERO));
+			}
+		} break;
+
+		case mtpc_replyKeyboardForceReply: {
+			const MTPDreplyKeyboardForceReply &d(markup.c_replyKeyboardForceReply());
+			replyMarkups.insert(msgId, ReplyMarkup(d.vflags.v | MTPDreplyKeyboardMarkup_flag_FORCE_REPLY));
+		} break;
+		}
+	}
+
+	void clearReplyMarkup(MsgId msgId) {
+		replyMarkups.remove(msgId);
+	}
+
+	const ReplyMarkup &replyMarkup(MsgId msgId) {
+		static ReplyMarkup zeroMarkup(MTPDreplyKeyboardMarkup_flag_ZERO);
+		ReplyMarkups::const_iterator i = replyMarkups.constFind(msgId);
+        if (i == replyMarkups.cend()) return zeroMarkup;
+		return i.value();
+	}
+
 	void setProxySettings(QNetworkAccessManager &manager) {
 		if (cConnectionType() == dbictHttpProxy) {
 			const ConnectionProxy &p(cConnectionProxy());
@@ -1973,15 +2076,27 @@ namespace App {
 		}
 	}	
 
+	void sendBotCommand(const QString &cmd, MsgId replyTo) {
+		if (App::main()) {
+			App::main()->sendBotCommand(cmd, replyTo);
+		}
+	}
+
+	void insertBotCommand(const QString &cmd) {
+		if (App::main()) {
+			App::main()->insertBotCommand(cmd);
+		}
+	}
+
 	void searchByHashtag(const QString &tag) {
 		if (App::main()) {
 			App::main()->searchMessages(tag + ' ');
 		}
 	}
 
-	void openUserByName(const QString &username, bool toProfile) {
+	void openUserByName(const QString &username, bool toProfile, const QString &startToken) {
 		if (App::main()) {
-			App::main()->openUserByName(username, toProfile);
+			App::main()->openUserByName(username, toProfile, startToken);
 		}
 	}
 

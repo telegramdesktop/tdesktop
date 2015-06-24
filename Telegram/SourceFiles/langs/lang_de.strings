@@ -69,6 +69,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_reconnecting_try_now" = "Jetzt versuchen";
 
 "lng_status_service_notifications" = "Servicemeldungen";
+"lng_status_bot" = "Bot";
+"lng_status_bot_reads_all" = "hat Zugriff auf Nachrichten";
+"lng_status_bot_not_reads_all" = "hat keinen Zugriff auf Nachrichten";
 "lng_status_offline" = "vor langer Zeit gesehen";
 "lng_status_recently" = "kürzlich gesehen";
 "lng_status_last_week" = "innerhalb einer Woche gesehen";
@@ -333,7 +336,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_profile_chat_unaccessible" = "Gruppe nicht verfügbar";
 "lng_topbar_info" = "Info";
+"lng_profile_about_section" = "Info";
 "lng_profile_settings_section" = "Einstellungen";
+"lng_profile_bot_settings" = "Einstellungen";
+"lng_profile_bot_help" = "Hilfe";
 "lng_profile_participants_section" = "Teilnehmer";
 "lng_profile_info" = "Kontaktinfo";
 "lng_profile_group_info" = "Gruppeninfo";
@@ -343,6 +349,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_clear_history" = "Chatverlauf löschen";
 "lng_profile_send_message" = "Nachricht senden";
 "lng_profile_share_contact" = "Kontakt teilen";
+"lng_profile_invite_to_group" = "In eine Gruppe einladen";
 "lng_profile_delete_contact" = "Löschen";
 "lng_profile_set_group_photo" = "Bild festlegen";
 "lng_profile_add_participant" = "Neues Mitglied";
@@ -455,6 +462,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_willbe_history" = "Wähle einen Chat aus, um zu schreiben";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Ich";
+"lng_bot_description" = "Was kann dieser Bot?";
+
+"lng_bot_start" = "Starten";
+"lng_bot_choose_group" = "Gruppe auswählen";
+"lng_bot_no_groups" = "Du hast keine Gruppen";
+"lng_bot_groups_not_found" = "Keine Gruppen gefunden";
+"lng_bot_sure_invite" = "Den Bot zu «{group}» hinzufügen?";
+"lng_bot_already_in_group" = "Der Bot ist schon in dieser Gruppe.";
 
 "lng_typing" = "tippt";
 "lng_user_typing" = "{user} tippt";
@@ -493,6 +508,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_open_audio" = "Sprachnachricht öffnen";
 "lng_context_save_audio" = "Sprachnachricht speichern unter..";
 "lng_context_pack_info" = "Sticker-Paket";
+"lng_context_pack_add" = "Sticker hinzufügen";
 "lng_context_open_file" = "Datei öffnen";
 "lng_context_save_file" = "Datei speichern als..";
 "lng_context_forward_file" = "Datei weiterleiten";
@@ -585,7 +601,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Sticker Panel wurde verbessert\n— Fehlerbehebungen und sonstige Kleinigkeiten";
+"lng_new_version_text" = "Diese neue Version enthält Unterstützung für die neue Bot API, welche für alle kostenlos verfügbar ist. Kannst du programmieren? Erstelle deine eigenen Bots für Spiele, Dienste oder Integrationen.\n\nMehr dazu unter {blog_link}";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

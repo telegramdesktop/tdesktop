@@ -69,6 +69,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_reconnecting_try_now" = "Prova ora";
 
 "lng_status_service_notifications" = "notifiche di servizio";
+"lng_status_bot" = "bot";
+"lng_status_bot_reads_all" = "ha accesso ai messaggi";
+"lng_status_bot_not_reads_all" = "non ha accesso ai messaggi";
 "lng_status_offline" = "ultimo accesso molto tempo fa";
 "lng_status_recently" = "ultimo accesso di recente";
 "lng_status_last_week" = "ultimo accesso entro una settimana";
@@ -333,7 +336,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_profile_chat_unaccessible" = "Gruppo non accessibile";
 "lng_topbar_info" = "Info";
+"lng_profile_about_section" = "Info";
 "lng_profile_settings_section" = "Impostazioni";
+"lng_profile_bot_settings" = "Impostazioni";
+"lng_profile_bot_help" = "Aiuto";
 "lng_profile_participants_section" = "Membri";
 "lng_profile_info" = "Info contatto";
 "lng_profile_group_info" = "Nome gruppo";
@@ -343,12 +349,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_clear_history" = "Cancella la cronologia";
 "lng_profile_send_message" = "Invia messaggio";
 "lng_profile_share_contact" = "Condividi contatto";
+"lng_profile_invite_to_group" = "Aggiungi a un gruppo";
 "lng_profile_delete_contact" = "Elimina";
 "lng_profile_set_group_photo" = "Imposta foto";
 "lng_profile_add_participant" = "Aggiungi membro";
 "lng_profile_delete_and_exit" = "Esci";
 "lng_profile_kick" = "Rimuovi";
-"lng_profile_sure_kick" = "Espellere {user} dal gruppo?";
+"lng_profile_sure_kick" = "Rimuovere {user} dal gruppo?";
 "lng_profile_loading" = "Caricamento..";
 "lng_profile_shared_media" = "Media condivisi";
 "lng_profile_no_media" = "Nessun media in questa chat.";
@@ -383,7 +390,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_user_left" = "{from} ha lasciato il gruppo";
 "lng_action_user_joined" = "{from} si è unito al gruppo";
 "lng_action_user_joined_by_link" = "{from} si è unito al gruppo tramite link di invito";
-"lng_action_user_registered" = "{from} ha iniziato a usare Telegram";
+"lng_action_user_registered" = "{from} si è unito a Telegram";
 "lng_action_removed_photo" = "{from} ha rimosso la foto del gruppo";
 "lng_action_changed_photo" = "{from} ha cambiato la foto del gruppo";
 "lng_action_changed_title" = "{from} ha cambiato il nome del gruppo in «{title}»";
@@ -450,11 +457,19 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_send_button" = "Invia";
 "lng_message_ph" = "Scrivi un messaggio..";
-"lng_record_cancel" = "Rilascia fuori per annullare";
+"lng_record_cancel" = "Rilascia fuori da qui per annullare";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Seleziona una chat per iniziare a messaggiare";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Tu";
+"lng_bot_description" = "Cosa può fare questo bot?";
+
+"lng_bot_start" = "Avvia";
+"lng_bot_choose_group" = "Scegli gruppo";
+"lng_bot_no_groups" = "Non hai gruppi";
+"lng_bot_groups_not_found" = "Nessun gruppo trovato";
+"lng_bot_sure_invite" = "Aggiungere il bot a «{group}»?";
+"lng_bot_already_in_group" = "Questo bot è già membro del gruppo.";
 
 "lng_typing" = "sta scrivendo";
 "lng_user_typing" = "{user} sta scrivendo";
@@ -493,6 +508,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_open_audio" = "Apri audio";
 "lng_context_save_audio" = "Salva audio come..";
 "lng_context_pack_info" = "Mostra sticker";
+"lng_context_pack_add" = "Aggiungi sticker";
 "lng_context_open_file" = "Apri file";
 "lng_context_save_file" = "Salva file come..";
 "lng_context_forward_file" = "Inoltra file";
@@ -585,7 +601,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli update è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "— Pannello sticker migliorato\n— Risoluzione bug e miglioramenti minori";
+"lng_new_version_text" = "Questa nuova versione include il support per i bot usando la nuova API per i bot. Se sei un ingegnere, crea i tuoi bot per giochi, servizi o integrazioni. Scopri di più su {blog_link}";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

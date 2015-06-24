@@ -20,7 +20,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 FlatButton::FlatButton(QWidget *parent, const QString &text, const style::flatButton &st) : Button(parent),
 	_text(text),
-	_st(st),
+	_st(st), _autoFontPadding(0),
 	a_bg(st.bgColor->c), a_text(st.color->c), _opacity(1) {
 	if (_st.width < 0) {
 		_st.width = textWidth() - _st.width;
@@ -52,8 +52,33 @@ void FlatButton::setWidth(int32 w) {
 	resize(_st.width, height());
 }
 
+void FlatButton::setAutoFontSize(int32 padding, const QString &txt) {
+	_autoFontPadding = padding;
+	if (_autoFontPadding) {
+		_textForAutoSize = txt;
+		resizeEvent(0);
+	} else {
+		_textForAutoSize = QString();
+		_autoFont = style::font();
+	}
+	update();
+}
+
 int32 FlatButton::textWidth() const {
 	return _st.font->m.width(_text);
+}
+
+void FlatButton::resizeEvent(QResizeEvent *e) {
+	if (_autoFontPadding) {
+		_autoFont = _st.font;
+		for (int32 s = _st.font->f.pixelSize(); s >= st::fsize; --s) {
+			_autoFont = style::font(s, _st.font->flags(), _st.font->family());
+			if (2 * _autoFontPadding + _autoFont->m.width(_textForAutoSize) <= width()) {
+				break;
+			}
+		}
+	}
+	return Button::resizeEvent(e);
 }
 
 bool FlatButton::animStep(float64 ms) {
@@ -95,12 +120,15 @@ void FlatButton::paintEvent(QPaintEvent *e) {
 	p.setOpacity(_opacity);
 	p.fillRect(r, a_bg.current());
 
-	p.setFont(((_state & StateOver) ? _st.overFont : _st.font)->f);
+	p.setFont((_autoFont ? _autoFont : ((_state & StateOver) ? _st.overFont : _st.font))->f);
 	p.setRenderHint(QPainter::TextAntialiasing);
 	p.setPen(a_text.current());
 
-	r.setTop((_state & StateOver) ? ((_state & StateDown) ? _st.downTextTop : _st.overTextTop) : _st.textTop);
-	p.drawText(r, _text, QTextOption(Qt::AlignHCenter));
+	int32 top = (_state & StateOver) ? ((_state & StateDown) ? _st.downTextTop : _st.overTextTop) : _st.textTop;
+	if (_autoFont) top += (_st.font->height - _autoFont->height) / 2;
+	r.setTop(top);
+
+	p.drawText(r, _text, style::al_top);
 }
 
 BottomButton::BottomButton(QWidget *w, const QString &t, const style::flatButton &s) : FlatButton(w, t, s) {

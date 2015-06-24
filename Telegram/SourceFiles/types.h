@@ -233,7 +233,7 @@ QString rusKeyboardLayoutSwitch(const QString &from);
 enum DataBlockId {
 	dbiKey                 = 0x00,
 	dbiUser                = 0x01,
-	dbiDcOption            = 0x02,
+	dbiDcOptionOld         = 0x02,
 	dbiMaxGroupCount       = 0x03,
 	dbiMutePeer            = 0x04,
 	dbiSendKey             = 0x05,
@@ -270,6 +270,7 @@ enum DataBlockId {
 	dbiRecentEmojis        = 0x24,
 	dbiEmojiVariants       = 0x25,
 	dbiRecentStickers      = 0x26,
+	dbiDcOption            = 0x27,
 
 	dbiEncryptedWithSalt   = 333,
 	dbiEncrypted           = 444,
@@ -326,6 +327,8 @@ enum DBIScale {
 	dbisScaleCount    = 5,
 };
 
+static const int MatrixRowShift = 40000;
+
 enum DBIEmojiTab {
 	dbietRecent      = -1,
 	dbietPeople      =  0,
@@ -338,7 +341,6 @@ enum DBIEmojiTab {
 	dbietStickers    =  666,
 };
 static const int emojiTabCount = 8;
-static const int emojiTabShift = 100000;
 inline DBIEmojiTab emojiTabAtIndex(int index) {
 	return (index < 0 || index >= emojiTabCount) ? dbietRecent : DBIEmojiTab(index - 1);
 }

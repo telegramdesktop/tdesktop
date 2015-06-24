@@ -131,6 +131,8 @@ public:
 
 	void updateColors(const style::color &bar, const style::color &bg, const style::color &barOver, const style::color &bgOver);
 
+	~ScrollArea();
+
 public slots:
 
 	void scrollToY(int toTop, int toBottom = -1);

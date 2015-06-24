@@ -992,6 +992,24 @@ btnAttachEmoji: iconedButton(btnAttachDocument) {
 
 	width: 33px;
 }
+btnBotKbShow: iconedButton(btnAttachEmoji) {
+	icon: sprite(375px, 74px, 21px, 21px);
+	iconPos: point(6px, 12px);
+	downIcon: sprite(375px, 74px, 21px, 21px);
+	downIconPos: point(6px, 12px);
+}
+btnBotCmdStart: iconedButton(btnAttachEmoji) {
+	icon: sprite(354px, 74px, 21px, 21px);
+	iconPos: point(6px, 12px);
+	downIcon: sprite(354px, 74px, 21px, 21px);
+	downIconPos: point(6px, 12px);
+}
+btnBotKbHide: iconedButton(btnAttachEmoji) {
+	icon: sprite(373px, 95px, 23px, 14px);
+	iconPos: point(5px, 17px);
+	downIcon: sprite(373px, 95px, 23px, 14px);
+	downIconPos: point(5px, 17px);
+}
 btnRecordAudio: sprite(363px, 366px, 16px, 24px);
 btnRecordAudioActive: sprite(379px, 366px, 16px, 24px);
 recordSignalColor: #f17077;
@@ -999,8 +1017,8 @@ recordSignalMin: 5px;
 recordSignalMax: 10px;
 recordCancel: #aaa;
 recordCancelActive: #ec6466;
-recordFont: font(16px);
-recordTextTop: 12px;
+recordFont: font(13px);
+recordTextTop: 14px;
 
 replySkip: 51px;
 replyColor: #377aae;
@@ -1041,7 +1059,7 @@ textRectMargins: margins(-2px, -1px, -2px, -1px);
 taMsgField: flatTextarea(taDefFlat) {
 	font: msgFont;
 }
-maxFieldHeight: 250px;
+maxFieldHeight: 243px;
 
 newMsgSound: ':/gui/art/newmsg.wav';
 
@@ -1185,6 +1203,7 @@ btnShareContact: flatButton(btnDefNext, btnDefBig) {
 	font: font(17px);
 	overFont: font(17px);
 }
+profileMinBtnPadding: 10px;
 
 forwardWidth: 364px;
 forwardMargins: margins(30px, 10px, 30px, 10px);
@@ -1560,67 +1579,67 @@ rbEmoji: flatCheckbox {
 	imagePos: point(8px, 12px);
 }
 rbEmojiRecent: flatCheckbox(rbEmoji) {
-	imageRect: emojiRecent;
+	imageRect: emojiRecentOver;
 	chkImageRect: emojiRecentActive;
 	overImageRect: emojiRecentOver;
 	chkOverImageRect: emojiRecentActive;
-	disImageRect: emojiRecent;
+	disImageRect: emojiRecentOver;
 	chkDisImageRect: emojiRecentActive;
 }
 rbEmojiPeople: flatCheckbox(rbEmoji) {
-	imageRect: emojiPeople;
+	imageRect: emojiPeopleOver;
 	chkImageRect: emojiPeopleActive;
 	overImageRect: emojiPeopleOver;
 	chkOverImageRect: emojiPeopleActive;
-	disImageRect: emojiPeople;
+	disImageRect: emojiPeopleOver;
 	chkDisImageRect: emojiPeopleActive;
 }
 rbEmojiNature: flatCheckbox(rbEmoji) {
-	imageRect: emojiNature;
+	imageRect: emojiNatureOver;
 	chkImageRect: emojiNatureActive;
 	overImageRect: emojiNatureOver;
 	chkOverImageRect: emojiNatureActive;
-	disImageRect: emojiNature;
+	disImageRect: emojiNatureOver;
 	chkDisImageRect: emojiNatureActive;
 }
 rbEmojiFood: flatCheckbox(rbEmoji) {
-	imageRect: emojiFood;
+	imageRect: emojiFoodOver;
 	chkImageRect: emojiFoodActive;
 	overImageRect: emojiFoodOver;
 	chkOverImageRect: emojiFoodActive;
-	disImageRect: emojiFood;
+	disImageRect: emojiFoodOver;
 	chkDisImageRect: emojiFoodActive;
 }
 rbEmojiCelebration: flatCheckbox(rbEmoji) {
-	imageRect: emojiCelebration;
+	imageRect: emojiCelebrationOver;
 	chkImageRect: emojiCelebrationActive;
 	overImageRect: emojiCelebrationOver;
 	chkOverImageRect: emojiCelebrationActive;
-	disImageRect: emojiCelebration;
+	disImageRect: emojiCelebrationOver;
 	chkDisImageRect: emojiCelebrationActive;
 }
 rbEmojiActivity: flatCheckbox(rbEmoji) {
-	imageRect: emojiActivity;
+	imageRect: emojiActivityOver;
 	chkImageRect: emojiActivityActive;
 	overImageRect: emojiActivityOver;
 	chkOverImageRect: emojiActivityActive;
-	disImageRect: emojiActivity;
+	disImageRect: emojiActivityOver;
 	chkDisImageRect: emojiActivityActive;
 }
 rbEmojiTravel: flatCheckbox(rbEmoji) {
-	imageRect: emojiTravel;
+	imageRect: emojiTravelOver;
 	chkImageRect: emojiTravelActive;
 	overImageRect: emojiTravelOver;
 	chkOverImageRect: emojiTravelActive;
-	disImageRect: emojiTravel;
+	disImageRect: emojiTravelOver;
 	chkDisImageRect: emojiTravelActive;
 }
 rbEmojiObjects: flatCheckbox(rbEmoji) {
-	imageRect: emojiObjects;
+	imageRect: emojiObjectsOver;
 	chkImageRect: emojiObjectsActive;
 	overImageRect: emojiObjectsOver;
 	chkOverImageRect: emojiObjectsActive;
-	disImageRect: emojiObjects;
+	disImageRect: emojiObjectsOver;
 	chkDisImageRect: emojiObjectsActive;
 }
 emojiPanPadding: 10px;
@@ -1651,12 +1670,38 @@ stickerPanPadding: 11px;
 stickerPanDelete: sprite(123px, 132px, 12px, 12px);
 stickerPanDeleteOpacity: 0.5;
 stickerIconPadding: 3px;
-stickerIconHover: #e8ecef;
-stickerIconSel: #dfe3e6;
+stickerIconOpacity: 0.7;
+stickerIconSel: 2px;
+stickerIconSelColor: #58b2ed;
 stickerIconRecent: sprite(342px, 50px, 21px, 22px);
 stickerIconLeft: sprite(342px, 72px, 40px, 1px);
 stickerIconRight: sprite(342px, 73px, 40px, 1px);
 stickerIconMove: 400;
+
+botKbDuration: 200;
+botKbBg: #f7f7f7;
+botKbOverBg: #e8ecef;
+botKbDownBg: #dfe3e6;
+botKbColor: #8a8a8f;
+botKbFont: font(16px);
+botKbButton: botKeyboardButton {
+	margin: 10px;
+	padding: 10px;
+	height: 36px;
+	textTop: 8px;
+	downTextTop: 9px;
+}
+botKbTinyButton: botKeyboardButton {
+	margin: 4px;
+	padding: 3px;
+	height: 25px;
+	textTop: 2px;
+	downTextTop: 3px;
+}
+botKbScroll: flatScroll(newScroll) {
+	deltax: 3px;
+	width: 10px;
+}
 
 mvBgColor: #222;
 mvBgOpacity: 0.92;
@@ -1887,6 +1932,11 @@ mentionPadding: margins(8px, 5px, 8px, 5px);
 mentionTop: 11px;
 mentionFont: linkFont;
 mentionPhotoSize: msgPhotoSize;
+mentionBgOver: #f5f5f5;
+mentionFg: #777;
+mentionFgOver: #707070;
+mentionFgActive: #0080c0;
+mentionFgOverActive: #0077b3;
 
 sessionsHeight: 440px;
 sessionHeight: 70px;
@@ -1915,3 +1965,5 @@ webPageDescriptionFont: font(fsize);
 webPagePhotoSkip: 5px;
 webPagePhotoSize: 100px;
 webPagePhotoDelta: 8px;
+
+botDescSkip: 8px;

@@ -69,6 +69,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_reconnecting_try_now" = "Try now";
 
 "lng_status_service_notifications" = "service notifications";
+"lng_status_bot" = "bot";
+"lng_status_bot_reads_all" = "has access to messages";
+"lng_status_bot_not_reads_all" = "has no access to messages";
 "lng_status_offline" = "last seen a long time ago";
 "lng_status_recently" = "last seen recently";
 "lng_status_last_week" = "last seen within a week";
@@ -333,7 +336,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_profile_chat_unaccessible" = "Group is unaccessible";
 "lng_topbar_info" = "Info";
+"lng_profile_about_section" = "About";
 "lng_profile_settings_section" = "Settings";
+"lng_profile_bot_settings" = "Settings";
+"lng_profile_bot_help" = "Help";
 "lng_profile_participants_section" = "Members";
 "lng_profile_info" = "Contact info";
 "lng_profile_group_info" = "Group info";
@@ -343,6 +349,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_clear_history" = "Clear history";
 "lng_profile_send_message" = "Send Message";
 "lng_profile_share_contact" = "Share Contact";
+"lng_profile_invite_to_group" = "Add to Group";
 "lng_profile_delete_contact" = "Delete";
 "lng_profile_set_group_photo" = "Set Photo";
 "lng_profile_add_participant" = "Add Member";
@@ -450,11 +457,19 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_send_button" = "Send";
 "lng_message_ph" = "Write a message..";
-"lng_record_cancel" = "Release out of here to cancel";
+"lng_record_cancel" = "Release outside this field to cancel";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Please select chat to start messaging";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "You";
+"lng_bot_description" = "What can this bot do?";
+
+"lng_bot_start" = "Start";
+"lng_bot_choose_group" = "Choose Group";
+"lng_bot_no_groups" = "You have no groups";
+"lng_bot_groups_not_found" = "No groups found";
+"lng_bot_sure_invite" = "Add the bot to «{group}»?";
+"lng_bot_already_in_group" = "The bot is already a member of the group.";
 
 "lng_typing" = "typing";
 "lng_user_typing" = "{user} is typing";
@@ -493,6 +508,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_open_audio" = "Open Audio";
 "lng_context_save_audio" = "Save Audio As..";
 "lng_context_pack_info" = "Pack Info";
+"lng_context_pack_add" = "Add Stickers";
 "lng_context_open_file" = "Open File";
 "lng_context_save_file" = "Save File As..";
 "lng_context_forward_file" = "Forward File";
@@ -585,7 +601,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Improved sticker panel\n— Bug fixes and minor stuff";
+"lng_new_version_text" = "This new version includes support for bots using the new bot API, free for everyone. If you're an engineer, create your own bots for games, services or integrations.\n\nLearn more at {blog_link}";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

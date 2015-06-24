@@ -29,12 +29,15 @@ public:
 
 	FlatButton(QWidget *parent, const QString &text, const style::flatButton &st);
 
+	void resizeEvent(QResizeEvent *e);
+
 	bool animStep(float64 ms);
 	void paintEvent(QPaintEvent *e);
 	void setOpacity(float64 o);
 
 	void setText(const QString &text);
 	void setWidth(int32 w);
+	void setAutoFontSize(int32 padding, const QString &txt);
 
 	int32 textWidth() const;
 
@@ -47,12 +50,15 @@ public slots:
 
 private:
 
-	QString _text;
+	QString _text, _textForAutoSize;
 	int32 _textWidth;
 
 	style::flatButton _st;
-	anim::cvalue a_bg, a_text;
 
+	int32 _autoFontPadding;
+	style::font _autoFont;
+
+	anim::cvalue a_bg, a_text;
 	float64 _opacity;
 };
 

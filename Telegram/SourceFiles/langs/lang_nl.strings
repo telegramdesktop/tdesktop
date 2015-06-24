@@ -69,6 +69,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_reconnecting_try_now" = "Probeer nu";
 
 "lng_status_service_notifications" = "servicemeldingen";
+"lng_status_bot" = "bot";
+"lng_status_bot_reads_all" = "toegang tot  berichten";
+"lng_status_bot_not_reads_all" = "geen toegang tot berichten";
 "lng_status_offline" = "lang geleden gezien";
 "lng_status_recently" = "recent gezien";
 "lng_status_last_week" = "afgelopen week gezien";
@@ -333,7 +336,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_profile_chat_unaccessible" = "Groep is ontoegankelijk";
 "lng_topbar_info" = "Info";
+"lng_profile_about_section" = "Over";
 "lng_profile_settings_section" = "Instellingen";
+"lng_profile_bot_settings" = "Instellingen";
+"lng_profile_bot_help" = "Help";
 "lng_profile_participants_section" = "Deelnemers";
 "lng_profile_info" = "Contactinformatie";
 "lng_profile_group_info" = "Groepsinformatie";
@@ -343,6 +349,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_clear_history" = "Geschiedenis wissen";
 "lng_profile_send_message" = "Bericht sturen";
 "lng_profile_share_contact" = "Contact delen";
+"lng_profile_invite_to_group" = "Groepslid maken";
 "lng_profile_delete_contact" = "Verwijder";
 "lng_profile_set_group_photo" = "Foto instellen";
 "lng_profile_add_participant" = "Lid toevoegen";
@@ -455,6 +462,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_willbe_history" = "Kies een chat om te beginnen";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Jij";
+"lng_bot_description" = "Wat kan deze bot? ";
+
+"lng_bot_start" = "Begin";
+"lng_bot_choose_group" = "Groep kiezen";
+"lng_bot_no_groups" = "Je hebt geen groepen";
+"lng_bot_groups_not_found" = "Geen groepen gevonden";
+"lng_bot_sure_invite" = "De bot toevoegen aan  «{group}»?";
+"lng_bot_already_in_group" = "De bot neemt al deel aan de groep.";
 
 "lng_typing" = "aan het typen";
 "lng_user_typing" = "{user} is aan het typen";
@@ -493,6 +508,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_context_open_audio" = "Geluidsbestand openen";
 "lng_context_save_audio" = "Geluidsbestand opslaan als";
 "lng_context_pack_info" = "Bundelinformatie";
+"lng_context_pack_add" = "Stickers toevoegen";
 "lng_context_open_file" = "Bestand openen";
 "lng_context_save_file" = "Bestand opslaan als";
 "lng_context_forward_file" = "Bestand doorsturen";
@@ -585,7 +601,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Verbeterd stickerpaneel\n— Probleemoplossing en kleine wijzigingen";
+"lng_new_version_text" = "Deze versie heeft ondersteuning voor de nieuwe bot-API, gratis voor iedereen. Handig met programmeren? Maak dan je eigen bots voor spelletjes, diensten en integraties. \n\nMeer weten? kijk op: {blog_link}";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
