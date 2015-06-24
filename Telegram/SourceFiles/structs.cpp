@@ -258,6 +258,8 @@ void UserData::nameUpdated() {
 }
 
 void UserData::madeAction() {
+	if (botInfo || isServiceUser(id)) return;
+
 	int32 t = unixtime();
 	if (onlineTill <= 0 && -onlineTill < t) {
 		onlineTill = -t - SetOnlineAfterActivity;

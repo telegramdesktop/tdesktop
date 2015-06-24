@@ -249,7 +249,7 @@ void ContactsInner::paintDialog(QPainter &p, PeerData *peer, ContactData *data, 
 	} else {
 		if (data->inchat || data->check) {
 			p.setPen(st::white->p);
-		} else if (user && (uname || App::onlineColorUse(user->onlineTill, _time))) {
+		} else if (user && (uname || App::onlineColorUse(user, _time))) {
 			p.setPen(st::profileOnlineColor->p);
 		} else {
 			p.setPen(st::profileOfflineColor->p);

@@ -680,6 +680,26 @@ void DialogsListWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem)
 	}
 }
 
+PeerData *DialogsListWidget::updateFromParentDrag(QPoint globalPos) {
+	lastMousePos = globalPos;
+	selByMouse = true;
+	onUpdateSelected(true);
+	update();
+
+	if (_state == DefaultState) {
+		if (sel) return sel->history->peer;
+	} else if (_state == FilteredState || _state == SearchedState) {
+		if (filteredSel >= 0 && filteredSel < filterResults.size()) {
+			return filterResults[filteredSel]->history->peer;
+		} else if (peopleSel >= 0 && peopleSel < peopleResults.size()) {
+			return peopleResults[peopleSel];
+		} else if (searchedSel >= 0 && searchedSel < searchResults.size()) {
+			return searchResults[searchedSel]->_item->history()->peer;
+		}
+	}
+	return 0;
+}
+
 void DialogsListWidget::itemRemoved(HistoryItem *item) {
 	int wasCount = searchResults.size();
 	for (int i = 0; i < searchResults.size();) {
@@ -1356,6 +1376,8 @@ MsgId DialogsListWidget::lastSearchId() const {
 
 DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
 , _drawShadow(true)
+, _dragInScroll(false)
+, _dragForward(false)
 , dlgOffset(0)
 , dlgCount(-1)
 , dlgPreloading(0)
@@ -1387,6 +1409,8 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
 	connect(&_addContact, SIGNAL(clicked()), this, SLOT(onAddContact()));
 	connect(&_newGroup, SIGNAL(clicked()), this, SLOT(onNewGroup()));
 	connect(&_cancelSearch, SIGNAL(clicked()), this, SLOT(onCancelSearch()));
+
+	setAcceptDrops(true);
 
 	_searchTimer.setSingleShot(true);
 	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchMessages()));
@@ -1739,6 +1763,69 @@ bool DialogsWidget::addNewContact(int32 uid, bool show) {
 	list.refresh();
 	scroll.scrollToY(to);
 	return true;
+}
+
+void DialogsWidget::dragEnterEvent(QDragEnterEvent *e) {
+	if (App::main()->selectingPeer()) return;
+
+	_dragInScroll = false;
+	_dragForward = cWideMode() && e->mimeData()->hasFormat(qsl("application/x-td-forward-selected"));
+	if (_dragForward) {
+		e->setDropAction(Qt::CopyAction);
+		e->accept();
+		updateDragInScroll(scroll.geometry().contains(e->pos()));
+	} else if (false && App::main() && App::main()->getDragState(e->mimeData()) != DragStateNone) {
+		e->setDropAction(Qt::CopyAction);
+		e->accept();
+	}
+}
+
+void DialogsWidget::dragMoveEvent(QDragMoveEvent *e) {
+	if (scroll.geometry().contains(e->pos())) {
+		if (_dragForward) updateDragInScroll(true);
+		PeerData *p = list.updateFromParentDrag(mapToGlobal(e->pos()));
+		if (p) {
+			e->setDropAction(Qt::CopyAction);
+		} else {
+			e->setDropAction(Qt::IgnoreAction);
+		}
+	} else {
+		if (_dragForward) updateDragInScroll(false);
+		list.leaveEvent(0);
+		e->setDropAction(Qt::IgnoreAction);
+	}
+	e->accept();
+}
+
+void DialogsWidget::dragLeaveEvent(QDragLeaveEvent *e) {
+	if (_dragForward) updateDragInScroll(false);
+	list.leaveEvent(0);
+	e->accept();
+}
+
+void DialogsWidget::updateDragInScroll(bool inScroll) {
+	if (_dragInScroll != inScroll) {
+		_dragInScroll = inScroll;
+		if (_dragInScroll) {
+			App::main()->forwardLayer(1);
+		} else {
+			App::main()->dialogsCancelled();
+		}
+	}
+}
+
+void DialogsWidget::dropEvent(QDropEvent *e) {
+	if (scroll.geometry().contains(e->pos())) {
+		PeerData *p = list.updateFromParentDrag(mapToGlobal(e->pos()));
+		if (p) {
+			e->acceptProposedAction();
+			if (e->mimeData()->hasFormat(qsl("application/x-td-forward-selected"))) {
+				App::main()->onForward(p->id, true);
+			} else {
+				App::main()->showPeer(p->id, 0, false, true);
+			}
+		}
+	}
 }
 
 void DialogsWidget::onListScroll() {

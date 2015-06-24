@@ -235,7 +235,6 @@ void StickerSetBox::onAddStickers() {
 
 void StickerSetBox::onShareStickers() {
 	QString url = qsl("https://telegram.me/addstickers/") + _inner.shortName();
-	DEBUG_LOG(("Setting text to clipboard from stickerset box: %1").arg(url));
 	QApplication::clipboard()->setText(url);
 	App::wnd()->showLayer(new ConfirmBox(lang(lng_stickers_copied), true), true);
 }

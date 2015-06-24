@@ -289,7 +289,7 @@ public:
 
 	QString encoded() const {
 		QUrl u(_url), good(u.isValid() ? u.toEncoded() : QString());
-		QString result(good.isValid() ? good.toEncoded() : _url);
+		QString result(good.isValid() ? QString::fromUtf8(good.toEncoded()) : _url);
 
 		if (!QRegularExpression(qsl("^[a-zA-Z]+://")).match(result).hasMatch()) { // no protocol
 			return qsl("http://") + result;

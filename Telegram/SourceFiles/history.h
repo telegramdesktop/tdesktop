@@ -254,6 +254,7 @@ struct History : public QList<HistoryBlock*> {
 	bool lastKeyboardInited, lastKeyboardUsed;
 	MsgId lastKeyboardId;
 	PeerId lastKeyboardFrom;
+	void clearLastKeyboard();
 
 	mtpRequestId sendRequestId;
 

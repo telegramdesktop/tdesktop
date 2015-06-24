@@ -105,7 +105,7 @@ namespace App {
 	int32 onlineForSort(UserData *user, int32 now);
 	int32 onlineWillChangeIn(UserData *user, int32 nowOnServer);
 	QString onlineText(UserData *user, int32 nowOnServer, bool precise = false);
-	bool onlineColorUse(int32 online, int32 now);
+	bool onlineColorUse(UserData *user, int32 now);
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users); // returns last user
 	ChatData *feedChats(const MTPVector<MTPChat> &chats); // returns last chat

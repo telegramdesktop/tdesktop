@@ -98,6 +98,8 @@ public:
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
+	PeerData *updateFromParentDrag(QPoint globalPos);
+
 	~DialogsListWidget();
 
 public slots:
@@ -171,6 +173,12 @@ public:
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
 	bool addNewContact(int32 uid, bool show = true);
 	
+	void dragEnterEvent(QDragEnterEvent *e);
+	void dragMoveEvent(QDragMoveEvent *e);
+	void dragLeaveEvent(QDragLeaveEvent *e);
+	void dropEvent(QDropEvent *e);
+	void updateDragInScroll(bool inScroll);
+
 	void resizeEvent(QResizeEvent *e);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
@@ -231,6 +239,8 @@ public slots:
 private:
 
 	bool _drawShadow;
+
+	bool _dragInScroll, _dragForward;
 
 	void unreadCountsReceived(const QVector<MTPDialog> &dialogs);
 	bool dialogsFailed(const RPCError &error);

@@ -312,7 +312,11 @@ namespace App {
 		return lng_status_lastseen_date(lt_date, dOnline.date().toString(qsl("dd.MM.yy")));
 	}
 
-	bool onlineColorUse(int32 online, int32 now) {
+	bool onlineColorUse(UserData *user, int32 now) {
+		if (isServiceUser(user->id) || user->botInfo) {
+			return false;
+		}
+		int32 online = user->onlineTill;
 		if (online <= 0) {
 			switch (online) {
 			case 0:

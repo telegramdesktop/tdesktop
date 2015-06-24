@@ -262,6 +262,8 @@ public:
 	void focusPeerSelect();
 	void dialogsActivate();
 
+	DragState getDragState(const QMimeData *mime);
+
 	bool leaveChatFailed(PeerData *peer, const RPCError &e);
 	void deleteHistory(PeerData *peer, const MTPUpdates &updates);
 	void deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result);

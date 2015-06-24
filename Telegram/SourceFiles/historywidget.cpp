@@ -51,6 +51,7 @@ HistoryList::HistoryList(HistoryWidget *historyWidget, ScrollArea *scroll, Histo
     , _dragSelFrom(0)
     , _dragSelTo(0)
     , _dragSelecting(false)
+	, _wasSelectedText(false)
     , _touchScroll(false)
     , _touchSelect(false)
     , _touchInProgress(false)
@@ -482,6 +483,7 @@ void HistoryList::dragActionCancel() {
 	_dragAction = NoDrag;
 	_dragStartPos = QPoint(0, 0);
 	_dragSelFrom = _dragSelTo = 0;
+	_wasSelectedText = false;
 	historyWidget->noSelectingScroll();
 }
 
@@ -542,6 +544,9 @@ void HistoryList::dragActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 		updateMsg(App::pressedItem());
 		App::pressedItem(0);
 	}
+
+	_wasSelectedText = false;
+
 	if (needClick) {
 		DEBUG_LOG(("Clicked link: %1 (%2) %3").arg(needClick->text()).arg(needClick->readable()).arg(needClick->encoded()));
 		needClick->onClick(button);
@@ -573,6 +578,7 @@ void HistoryList::dragActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 	} else if (_dragAction == Selecting) {
 		if (_dragSelFrom && _dragSelTo) {
 			applyDragSelection();
+			_dragSelFrom = _dragSelTo = 0;
 		} else if (!_selected.isEmpty() && !_dragWasInactive) {
 			uint32 sel = _selected.cbegin().value();
 			if (sel != FullItemSel && (sel & 0xFFFF) == ((sel >> 16) & 0xFFFF)) {
@@ -595,6 +601,8 @@ void HistoryList::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void HistoryList::mouseDoubleClickEvent(QMouseEvent *e) {
+	if (!hist) return;
+
 	if (((_dragAction == Selecting && !_selected.isEmpty() && _selected.cbegin().value() != FullItemSel) || (_dragAction == NoDrag && (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel))) && _dragSelType == TextSelectLetters && _dragItem) {
 		bool afterDragSymbol, uponSelected;
 		uint16 symbol;
@@ -610,7 +618,7 @@ void HistoryList::mouseDoubleClickEvent(QMouseEvent *e) {
 					_selected.clear();
 				}
 				_selected.insert(_dragItem, selStatus);
-			} 
+			}
 			mouseMoveEvent(e);
 
 	        _trippleClickPoint = e->globalPos();
@@ -800,8 +808,9 @@ void HistoryList::onMenuDestroy(QObject *obj) {
 
 void HistoryList::copySelectedText() {
 	QString sel = getSelectedText();
-	DEBUG_LOG(("Setting selected text to clipboard: %1").arg(sel));
-	QApplication::clipboard()->setText(sel);
+	if (!sel.isEmpty()) {
+		QApplication::clipboard()->setText(sel);
+	}
 }
 
 void HistoryList::openContextUrl() {
@@ -814,7 +823,6 @@ void HistoryList::openContextUrl() {
 void HistoryList::copyContextUrl() {
 	QString enc = _contextMenuLnk->encoded();
 	if (!enc.isEmpty()) {
-		DEBUG_LOG(("Setting text to clipboard from context url: %1").arg(enc));
 		QApplication::clipboard()->setText(enc);
 	}
 }
@@ -888,7 +896,6 @@ void HistoryList::copyContextText() {
 
 	QString contextMenuText = item->selectedText(FullItemSel);
 	if (!contextMenuText.isEmpty()) {
-		DEBUG_LOG(("Setting text to clipboard from context menu: %1").arg(contextMenuText));
 		QApplication::clipboard()->setText(contextMenuText);
 	}
 }
@@ -898,15 +905,21 @@ void HistoryList::resizeEvent(QResizeEvent *e) {
 }
 
 QString HistoryList::getSelectedText() const {
-	if (_selected.isEmpty()) return QString();
-	if (_selected.cbegin().value() != FullItemSel) {
-		return _selected.cbegin().key()->selectedText(_selected.cbegin().value());
+	SelectedItems sel = _selected;
+
+	if (_dragAction == Selecting && _dragSelFrom && _dragSelTo) {
+		applyDragSelection(&sel);
+	}
+
+	if (sel.isEmpty()) return QString();
+	if (sel.cbegin().value() != FullItemSel) {
+		return sel.cbegin().key()->selectedText(sel.cbegin().value());
 	}
 
 	int32 fullSize = 0;
 	QString timeFormat(qsl(", [dd.MM.yy hh:mm]\n"));
 	QMap<int32, QString> texts;
-	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
+	for (SelectedItems::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
 		HistoryItem *item = i.key();
 		QString text, sel = item->selectedText(FullItemSel), time = item->date.toString(timeFormat);
 		int32 size = item->from()->name.size() + time.size() + sel.size();
@@ -997,6 +1010,10 @@ void HistoryList::updateBotInfo(bool recount) {
 			botDescRect = QRect();
 		}
 	}
+}
+
+bool HistoryList::wasSelectedText() const {
+	return _wasSelectedText;
 }
 
 void HistoryList::updateSize() {
@@ -1236,6 +1253,61 @@ void HistoryList::onUpdateSelected() {
 		if (item != _dragItem || (m - _dragStartPos).manhattanLength() >= QApplication::startDragDistance()) {
 			if (_dragAction == PrepareDrag) {
 				_dragAction = Dragging;
+
+				bool uponSelected = false;
+				if (_dragItem) {
+					bool afterDragSymbol;
+					uint16 symbol;
+					if (!_selected.isEmpty() && _selected.cbegin().value() == FullItemSel) {
+						uponSelected = _selected.contains(_dragItem);
+					} else {
+						_dragItem->getSymbol(symbol, afterDragSymbol, uponSelected, _dragStartPos.x(), _dragStartPos.y());
+						if (uponSelected) {
+							if (_selected.isEmpty() ||
+								_selected.cbegin().value() == FullItemSel ||
+								_selected.cbegin().key() != _dragItem
+								) {
+								uponSelected = false;
+							} else {
+								uint16 selFrom = (_selected.cbegin().value() >> 16) & 0xFFFF, selTo = _selected.cbegin().value() & 0xFFFF;
+								if (symbol < selFrom || symbol >= selTo) {
+									uponSelected = false;
+								}
+							}
+						}
+					}
+				}
+				QString sel;
+				QList<QUrl> urls;
+				if (uponSelected) {
+					sel = getSelectedText();
+				} else if (textlnkDown()) {
+					sel = textlnkDown()->encoded();
+					if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
+						urls.push_back(QUrl::fromEncoded(sel.toUtf8()));
+					}
+				}
+				if (!sel.isEmpty()) {
+					updateDragSelection(0, 0, false);
+					historyWidget->noSelectingScroll();
+
+					QDrag *drag = new QDrag(App::wnd());
+					QMimeData *mimeData = new QMimeData;
+					
+					mimeData->setText(sel);
+					if (!urls.isEmpty()) mimeData->setUrls(urls);
+					if (uponSelected && !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel && cWideMode()) {
+						QStringList ids;
+						ids.reserve(_selected.size());
+						for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
+							ids.push_back(QString::number(i.key()->id, 16));
+						}
+						mimeData->setData(qsl("application/x-td-forward-selected"), "1");
+					}
+					drag->setMimeData(mimeData);
+					drag->exec();
+					return;
+				}
 			} else if (_dragAction == PrepareSelect) {
 				_dragAction = Selecting;
 			}
@@ -1247,7 +1319,12 @@ void HistoryList::onUpdateSelected() {
 				uint16 second;
 				_dragItem->getSymbol(second, afterSymbol, uponSymbol, m.x(), m.y());
 				if (afterSymbol && _dragSelType == TextSelectLetters) ++second;
-				_selected[_dragItem] = _dragItem->adjustSelection(qMin(second, _dragSymbol), qMax(second, _dragSymbol), _dragSelType);
+				uint32 selState = _dragItem->adjustSelection(qMin(second, _dragSymbol), qMax(second, _dragSymbol), _dragSelType);
+				_selected[_dragItem] = selState;
+				if (!_wasSelectedText && (selState == FullItemSel || (selState & 0xFFFF) != ((selState >> 16) & 0xFFFF))) {
+					_wasSelectedText = true;
+					setFocus();
+				}
 				updateDragSelection(0, 0, false);
 			} else {
 				bool selectingDown = (_dragItem->block()->y < item->block()->y) || ((_dragItem->block() == item->block()) && (_dragItem->y < item->y || (_dragItem == item && _dragStartPos.y() < m.y())));
@@ -1316,6 +1393,10 @@ void HistoryList::updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dra
 			qSwap(_dragSelFrom, _dragSelTo);
 		}
 		_dragSelecting = dragSelecting;
+		if (!_wasSelectedText && _dragSelFrom && _dragSelTo && _dragSelecting) {
+			_wasSelectedText = true;
+			setFocus();
+		}
 		force = true;
 	}
 	if (!force) return;
@@ -1324,9 +1405,14 @@ void HistoryList::updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dra
 }
 
 void HistoryList::applyDragSelection() {
-	if (!_selected.isEmpty() && _selected.cbegin().value() != FullItemSel) {
-		_selected.clear();
+	applyDragSelection(&_selected);
+}
+
+void HistoryList::applyDragSelection(SelectedItems *toItems) const {
+	if (!toItems->isEmpty() && toItems->cbegin().value() != FullItemSel) {
+		toItems->clear();
 	}
+
 	int32 fromy = _dragSelFrom->y + _dragSelFrom->block()->y, toy = _dragSelTo->y + _dragSelTo->block()->y + _dragSelTo->height();
 	if (_dragSelecting) {
 		int32 fromblock = hist->indexOf(_dragSelFrom->block()), fromitem = _dragSelFrom->block()->indexOf(_dragSelFrom);
@@ -1336,35 +1422,34 @@ void HistoryList::applyDragSelection() {
 				HistoryBlock *block = (*hist)[fromblock];
 				for (int32 cnt = (fromblock < toblock) ? block->size() : (toitem + 1); fromitem < cnt; ++fromitem) {
 					HistoryItem *item = (*block)[fromitem];
-					SelectedItems::iterator i = _selected.find(item);
+					SelectedItems::iterator i = toItems->find(item);
 					if (item->id > 0 && !item->serviceMsg()) {
-						if (i == _selected.cend()) {
-							if (_selected.size() >= MaxSelectedItems) break;
-							_selected.insert(item, FullItemSel);
+						if (i == toItems->cend()) {
+							if (toItems->size() >= MaxSelectedItems) break;
+							toItems->insert(item, FullItemSel);
 						} else if (i.value() != FullItemSel) {
 							*i = FullItemSel;
 						}
 					} else {
-						if (i != _selected.cend()) {
-							_selected.erase(i);
+						if (i != toItems->cend()) {
+							toItems->erase(i);
 						}
 					}
 				}
-				if (_selected.size() >= MaxSelectedItems) break;
+				if (toItems->size() >= MaxSelectedItems) break;
 				fromitem = 0;
 			}
 		}
 	} else {
-		for (SelectedItems::iterator i = _selected.begin(); i != _selected.cend(); ) {
+		for (SelectedItems::iterator i = toItems->begin(); i != toItems->cend();) {
 			int32 iy = i.key()->y + i.key()->block()->y;
 			if (iy >= fromy && iy < toy) {
-				i = _selected.erase(i);
+				i = toItems->erase(i);
 			} else {
 				++i;
 			}
 		}
 	}
-	_dragSelFrom = _dragSelTo = 0;
 }
 
 void HistoryList::showLinkTip() {
@@ -1579,9 +1664,9 @@ bool BotKeyboard::updateMarkup(HistoryItem *to) {
 		clearSelection();
 		_btns.clear();
 		const ReplyMarkup &markup(App::replyMarkup(to->id));
-		_forceReply = markup.flags | MTPDreplyKeyboardMarkup_flag_FORCE_REPLY;
+		_forceReply = markup.flags & MTPDreplyKeyboardMarkup_flag_FORCE_REPLY;
 		_maximizeSize = !(markup.flags & MTPDreplyKeyboardMarkup_flag_resize);
-		_singleUse = markup.flags & MTPDreplyKeyboardMarkup_flag_single_use;
+		_singleUse = _forceReply || (markup.flags & MTPDreplyKeyboardMarkup_flag_single_use);
 
 		const ReplyMarkup::Commands &commands(markup.commands);
 		if (!commands.isEmpty()) {
@@ -2034,6 +2119,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _attachEmoji(this, st::btnAttachEmoji)
 , _kbShow(this, st::btnBotKbShow)
 , _kbHide(this, st::btnBotKbHide)
+, _cmdStart(this, st::btnBotCmdStart)
+, _cmdStartShown(false)
 , _field(this, st::taMsgField, lang(lng_message_ph))
 , _recordAnim(animFunc(this, &HistoryWidget::recordStep))
 , _recordingAnim(animFunc(this, &HistoryWidget::recordingStep))
@@ -2126,7 +2213,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_toHistoryEnd.installEventFilter(this);
 
 	_attachMention.hide();
-	connect(&_attachMention, SIGNAL(chosen(QString)), &_field, SLOT(onMentionHashtagOrBotCommandInsert(QString)));
+	connect(&_attachMention, SIGNAL(chosen(QString)), this, SLOT(onMentionHashtagOrBotCommandInsert(QString)));
 	_field.installEventFilter(&_attachMention);
 
 	_field.hide();
@@ -2139,6 +2226,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_attachEmoji.hide();
 	_kbShow.hide();
 	_kbHide.hide();
+	_cmdStart.hide();
 
 	_attachDocument.installEventFilter(&_attachType);
 	_attachPhoto.installEventFilter(&_attachType);
@@ -2146,6 +2234,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 
 	connect(&_kbShow, SIGNAL(clicked()), this, SLOT(onKbToggle()));
 	connect(&_kbHide, SIGNAL(clicked()), this, SLOT(onKbToggle()));
+	connect(&_cmdStart, SIGNAL(clicked()), this, SLOT(onCmdStart()));
 
 	connect(_attachType.addButton(new IconedButton(this, st::dropdownAttachDocument, lang(lng_attach_file))), SIGNAL(clicked()), this, SLOT(onDocumentSelect()));
 	connect(_attachType.addButton(new IconedButton(this, st::dropdownAttachPhoto, lang(lng_attach_photo))), SIGNAL(clicked()), this, SLOT(onPhotoSelect()));
@@ -2162,6 +2251,15 @@ void HistoryWidget::start() {
 	connect(App::main(), SIGNAL(stickersUpdated()), &_emojiPan, SLOT(refreshStickers()));
 	updateRecentStickers();
 	connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
+}
+
+void HistoryWidget::onMentionHashtagOrBotCommandInsert(QString str) {
+	if (str.at(0) == '/') { // bot command
+		App::sendBotCommand(str);
+		setFieldText(_field.getLastText().mid(_field.textCursor().position()));
+	} else {
+		_field.onMentionHashtagOrBotCommandInsert(str);
+	}
 }
 
 void HistoryWidget::onTextChange() {
@@ -2181,6 +2279,11 @@ void HistoryWidget::onTextChange() {
 			a_recordOver = a_recordDown = anim::fvalue(0, 0);
 			a_recordCancel = anim::cvalue(st::recordCancel->c, st::recordCancel->c);
 		}
+	}
+	if (updateCmdStartShown()) {
+		updateControlsVisibility();
+		resizeEvent(0);
+		update();
 	}
 
 	if (!hist || _synthedTextUpdate) return;
@@ -2269,7 +2372,7 @@ void HistoryWidget::activate() {
 		}
 	}
 	if (_list) {
-		if (_selCount || _recording || isBotStart()) {
+		if (_selCount || (_list && _list->wasSelectedText()) || _recording || isBotStart()) {
 			_list->setFocus();
 		} else {
 			_field.setFocus();
@@ -2574,6 +2677,7 @@ void HistoryWidget::setKbWasHidden() {
 		_kbScroll.hide();
 		_attachEmoji.show();
 		_kbHide.hide();
+		_cmdStart.hide();
 		_kbShow.show();
 	}
 	_field.setMaxHeight(st::maxFieldHeight);
@@ -2710,6 +2814,8 @@ void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool l
 	App::contextItem(0);
 	App::mousedItem(0);
 
+	_kbWasHidden = false;
+
 	if (peer) {
 		App::forgetMedia();
 		serviceImageCacheSize = imageCacheSize();
@@ -2737,6 +2843,7 @@ void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool l
 		_scroll.setWidget(_list);
 		_list->show();
 
+		updateBotKeyboard();
 		checkUnreadLoaded();
 
 		App::main()->peerUpdated(histPeer);
@@ -2774,11 +2881,9 @@ void HistoryWidget::showPeer(const PeerId &peer, MsgId msgId, bool force, bool l
 		connect(&_scroll, SIGNAL(geometryChanged()), _list, SLOT(onParentGeometryChanged()));
 		connect(&_scroll, SIGNAL(scrolled()), _list, SLOT(onUpdateSelected()));
 	} else {
+		updateBotKeyboard();
 		updateControlsVisibility();
 	}
-
-	_kbWasHidden = false;
-	updateBotKeyboard();
 
 	emit peerShown(histPeer);
 	App::main()->topBar()->update();
@@ -2825,6 +2930,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_toHistoryEnd.hide();
 		_kbShow.hide();
 		_kbHide.hide();
+		_cmdStart.hide();
 		_attachType.hide();
 		_emojiPan.hide();
 		return;
@@ -2845,6 +2951,7 @@ void HistoryWidget::updateControlsVisibility() {
 				_attachEmoji.hide();
 				_kbShow.hide();
 				_kbHide.hide();
+				_cmdStart.hide();
 				_attachDocument.hide();
 				_attachPhoto.hide();
 				_kbScroll.hide();
@@ -2867,6 +2974,7 @@ void HistoryWidget::updateControlsVisibility() {
 					_attachEmoji.hide();
 					_kbShow.hide();
 					_kbHide.hide();
+					_cmdStart.hide();
 					_attachDocument.hide();
 					_attachPhoto.hide();
 					if (_kbShown) {
@@ -2881,19 +2989,27 @@ void HistoryWidget::updateControlsVisibility() {
 						_attachEmoji.hide();
 						_kbHide.show();
 						_kbShow.hide();
+						_cmdStart.hide();
 					} else if (_kbReplyTo) {
 						_kbScroll.hide();
 						_attachEmoji.show();
 						_kbHide.hide();
 						_kbShow.hide();
+						_cmdStart.hide();
 					} else {
 						_kbScroll.hide();
 						_attachEmoji.show();
 						_kbHide.hide();
-						if (_keyboard.hasMarkup() || _keyboard.forceReply()) {
+						if (_keyboard.hasMarkup()) {
 							_kbShow.show();
+							_cmdStart.hide();
 						} else {
 							_kbShow.hide();
+							if (_cmdStartShown) {
+								_cmdStart.show();
+							} else {
+								_cmdStart.hide();
+							}
 						}
 					}
 					if (cDefaultAttach() == dbidaPhoto) {
@@ -2923,6 +3039,7 @@ void HistoryWidget::updateControlsVisibility() {
 			_attachEmoji.hide();
 			_kbShow.hide();
 			_kbHide.hide();
+			_cmdStart.hide();
 			_attachType.hide();
 			_emojiPan.hide();
 			if (!_field.isHidden()) {
@@ -2948,6 +3065,7 @@ void HistoryWidget::updateControlsVisibility() {
 			_attachEmoji.hide();
 			_kbShow.hide();
 			_kbHide.hide();
+			_cmdStart.hide();
 			_attachType.hide();
 			_emojiPan.hide();
 			_replyForwardPreviewCancel.hide();
@@ -3302,6 +3420,7 @@ void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 		if (!_attachMention.isHidden()) _attachMention.hideStart();
 		if (!_attachType.isHidden()) _attachType.hideStart();
 		if (!_emojiPan.isHidden()) _emojiPan.hideStart();
+
 	} else if (App::main()->hasForwardingItems()) {
 		App::main()->readServerHistory(hist, false);
 		hist->loadAround(0);
@@ -3311,6 +3430,8 @@ void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 	if (replyTo < 0) cancelReply(lastKeyboardUsed);
 	if (_previewData && _previewData->pendingTill) previewCancel();
 	_field.setFocus();
+
+	if (!_keyboard.hasMarkup() && _keyboard.forceReply() && !_kbReplyTo) onKbToggle();
 }
 
 void HistoryWidget::onBotStart() {
@@ -3326,7 +3447,7 @@ void HistoryWidget::onBotStart() {
 		MTP::send(MTPmessages_StartBot(histPeer->asUser()->inputUser, MTP_int(0), MTP_long(randomId), MTP_string(token)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, histPeer->asUser()));
 
 		histPeer->asUser()->botInfo->startToken = QString();
-		if (_keyboard.hasMarkup() || _keyboard.forceReply()) {
+		if (_keyboard.hasMarkup()) {
 			if (_keyboard.singleUse() && _keyboard.forMsgId() == hist->lastKeyboardId && hist->lastKeyboardUsed) _kbWasHidden = true;
 			if (!_kbWasHidden) _kbShown = _keyboard.hasMarkup();
 		}
@@ -3415,6 +3536,7 @@ void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 	_attachMention.hide();
 	_kbShow.hide();
 	_kbHide.hide();
+	_cmdStart.hide();
 	_field.hide();
 	_replyForwardPreviewCancel.hide();
 	_send.hide();
@@ -3783,8 +3905,24 @@ void HistoryWidget::updateDragAreas() {
 }
 
 bool HistoryWidget::isBotStart() const {
-	if (histPeer->chat || !histPeer->asUser()->botInfo) return false;
+	if (!hist || !histPeer || histPeer->chat || !histPeer->asUser()->botInfo) return false;
 	return !histPeer->asUser()->botInfo->startToken.isEmpty() || (hist->isEmpty() && !hist->lastMsg);
+}
+
+bool HistoryWidget::updateCmdStartShown() {
+	bool cmdStartShown = false;
+	if (hist && histPeer && ((histPeer->chat && histPeer->asChat()->botStatus > 0) || (!histPeer->chat && histPeer->asUser()->botInfo))) {
+		if (!isBotStart() && !_keyboard.hasMarkup() && !_keyboard.forceReply()) {
+			if (_field.getLastText().isEmpty()) {
+				cmdStartShown = true;
+			}
+		}
+	}
+	if (_cmdStartShown != cmdStartShown) {
+		_cmdStartShown = cmdStartShown;
+		return true;
+	}
+	return false;
 }
 
 void HistoryWidget::dropEvent(QDropEvent *e) {
@@ -3805,20 +3943,29 @@ void HistoryWidget::onDocumentDrop(QDropEvent *e) {
 void HistoryWidget::onKbToggle(bool manual) {
 	if (_kbShown || _kbReplyTo) {
 		_kbHide.hide();
-		_kbShow.show();
-		_kbScroll.hide();
-		_kbShown = false;
+		if (_kbShown) {
+			_kbShow.show();
+			if (manual) _kbWasHidden = true;
 
-		_field.setMaxHeight(st::maxFieldHeight);
+			_kbScroll.hide();
+			_kbShown = false;
 
-		_kbReplyTo = 0;
-		if (!App::main()->hasForwardingItems() && (!_previewData || _previewData->pendingTill < 0) && !_replyToId) {
-			_replyForwardPreviewCancel.hide();
+			_field.setMaxHeight(st::maxFieldHeight);
+
+			_kbReplyTo = 0;
+			if (!App::main()->hasForwardingItems() && (!_previewData || _previewData->pendingTill < 0) && !_replyToId) {
+				_replyForwardPreviewCancel.hide();
+			}
+		} else {
+			if (hist) {
+				hist->clearLastKeyboard();
+			}
+			updateBotKeyboard();
 		}
-		if (manual) _kbWasHidden = true;
 	} else if (!_keyboard.hasMarkup() && _keyboard.forceReply()) {
 		_kbHide.hide();
 		_kbShow.hide();
+		_cmdStart.show();
 		_kbScroll.hide();
 		_kbShown = false;
 
@@ -3855,6 +4002,11 @@ void HistoryWidget::onKbToggle(bool manual) {
 		_attachEmoji.hide();
 	}
 	updateField();
+}
+
+void HistoryWidget::onCmdStart() {
+	setFieldText(qsl("/"));
+	_field.moveCursor(QTextCursor::End);
 }
 
 void HistoryWidget::onPhotoDrop(QDropEvent *e) {
@@ -4029,6 +4181,7 @@ void HistoryWidget::onFieldResize() {
 	_attachEmoji.move(_send.x() - _attachEmoji.width(), height() - kbh - _attachEmoji.height());
 	_kbShow.move(_attachEmoji.x() - _kbShow.width(), height() - kbh - _kbShow.height());
 	_kbHide.move(_attachEmoji.x(), _attachEmoji.y());
+	_cmdStart.move(_attachEmoji.x() - _cmdStart.width(), height() - kbh - _cmdStart.height());
 
 	_attachType.move(0, _attachDocument.y() - _attachType.height());
 	_emojiPan.move(width() - _emojiPan.width(), _attachEmoji.y() - _emojiPan.height());
@@ -4391,7 +4544,8 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	_replyForwardPreviewCancel.move(width() - _replyForwardPreviewCancel.width(), _field.y() - st::sendPadding - _replyForwardPreviewCancel.height());
 	updateListSize();
 
-	_field.resize(width() - _send.width() - _attachDocument.width() - _attachEmoji.width() - ((_kbShown || (!_keyboard.hasMarkup() && !_keyboard.forceReply())) ? 0 : _kbShow.width()), _field.height());
+	bool kbShowShown = hist && !_kbShown && _keyboard.hasMarkup();
+	_field.resize(width() - _send.width() - _attachDocument.width() - _attachEmoji.width() - (kbShowShown ? _kbShow.width() : 0) - (_cmdStartShown ? _cmdStart.width() : 0), _field.height());
 
 	_toHistoryEnd.move((width() - _toHistoryEnd.width()) / 2, _scroll.y() + _scroll.height() - _toHistoryEnd.height() - st::historyToEndSkip);
 
@@ -4400,6 +4554,7 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	_attachEmoji.move(_send.x() - _attachEmoji.width(), height() - kbh - _attachEmoji.height());
 	_kbShow.move(_attachEmoji.x() - _kbShow.width(), height() - kbh - _kbShow.height());
 	_kbHide.move(_attachEmoji.x(), _attachEmoji.y());
+	_cmdStart.move(_attachEmoji.x() - _cmdStart.width(), height() - kbh - _cmdStart.height());
 
 	_attachType.move(0, _attachDocument.y() - _attachType.height());
 	_emojiPan.move(width() - _emojiPan.width(), _attachEmoji.y() - _emojiPan.height());
@@ -4575,11 +4730,12 @@ void HistoryWidget::updateBotKeyboard() {
 	} else {
 		changed = _keyboard.updateMarkup(hist->lastKeyboardId ? App::histItemById(hist->lastKeyboardId) : 0);
 	}
+	updateCmdStartShown();
 	if (!changed) return;
 
 	bool hasMarkup = _keyboard.hasMarkup(), forceReply = _keyboard.forceReply() && !_replyTo;
 	if (hasMarkup || forceReply) {
-		if (_keyboard.singleUse() && _keyboard.forMsgId() == hist->lastKeyboardId && hist->lastKeyboardUsed) _kbWasHidden = true;
+		if (_keyboard.singleUse() && _keyboard.hasMarkup() && _keyboard.forMsgId() == hist->lastKeyboardId && hist->lastKeyboardUsed) _kbWasHidden = true;
 		if (!isBotStart() && (wasVisible || _replyTo || (_field.getLastText().isEmpty() && !_kbWasHidden))) {
 			if (!_showAnim.animating()) {
 				if (hasMarkup) {
@@ -4592,6 +4748,7 @@ void HistoryWidget::updateBotKeyboard() {
 					_kbHide.hide();
 				}
 				_kbShow.hide();
+				_cmdStart.hide();
 			}
 			int32 maxh = hasMarkup ? qMin(_keyboard.height(), int(st::maxFieldHeight) - (int(st::maxFieldHeight) / 2)) : 0;
 			_field.setMaxHeight(st::maxFieldHeight - maxh);
@@ -4608,6 +4765,7 @@ void HistoryWidget::updateBotKeyboard() {
 				_attachEmoji.show();
 				_kbHide.hide();
 				_kbShow.show();
+				_cmdStart.hide();
 			}
 			_field.setMaxHeight(st::maxFieldHeight);
 			_kbShown = false;
@@ -4622,6 +4780,7 @@ void HistoryWidget::updateBotKeyboard() {
 			_attachEmoji.show();
 			_kbHide.hide();
 			_kbShow.hide();
+			_cmdStart.show();
 		}
 		_field.setMaxHeight(st::maxFieldHeight);
 		_kbShown = false;
@@ -4822,8 +4981,9 @@ void HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 		onDraftSave();
 	}
 	if (_keyboard.singleUse() && _keyboard.forceReply() && lastKeyboardUsed) {
-		if (_kbReplyTo) onKbToggle(false);
-		hist->lastKeyboardUsed = true;
+		if (_kbReplyTo) {
+			onKbToggle(false);
+		}
 	}
 }
 
@@ -4979,6 +5139,11 @@ void HistoryWidget::onFullPeerUpdated(PeerData *data) {
 		checkMentionDropdown();
 		_list->updateBotInfo();
 	}
+	if (updateCmdStartShown()) {
+		updateControlsVisibility();
+		resizeEvent(0);
+		update();
+	}
 }
 
 void HistoryWidget::peerUpdated(PeerData *data) {
@@ -5096,7 +5261,7 @@ void HistoryWidget::updateTopBarSelection() {
 	updateControlsVisibility();
 	updateListSize();
 	if (!App::wnd()->layerShown() && !App::passcoded()) {
-		if (_selCount || _recording || isBotStart()) {
+		if (_selCount || (_list && _list->wasSelectedText()) || _recording || isBotStart()) {
 			_list->setFocus();
 		} else {
 			_field.setFocus();

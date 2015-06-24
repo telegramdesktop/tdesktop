@@ -326,6 +326,12 @@ History::History(const PeerId &peerId) : width(0), height(0)
 	}
 }
 
+void History::clearLastKeyboard() {
+	lastKeyboardInited = true;
+	lastKeyboardId = 0;
+	lastKeyboardFrom = 0;
+}
+
 void History::updateNameText() {
 	nameText.setText(st::msgNameFont, peer->nameOrPhone.isEmpty() ? peer->name : peer->nameOrPhone, _textNameOptions);
 }
@@ -632,9 +638,7 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 			case mtpc_messageActionChatDeleteUser: {
 				const MTPDmessageActionChatDeleteUser &d(action.c_messageActionChatDeleteUser());
 				if (lastKeyboardFrom == App::peerFromUser(d.vuser_id)) {
-					lastKeyboardInited = true;
-					lastKeyboardId = 0;
-					lastKeyboardFrom = 0;
+					clearLastKeyboard();
 				}
 				// App::peer(App::peerFromUser(d.vuser_id)); left
 			} break;
@@ -828,14 +832,10 @@ HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *
 				}
 				if (markupFlags & MTPDreplyKeyboardMarkup_flag_ZERO) { // zero markup means replyKeyboardHide
 					if (lastKeyboardFrom == adding->from()->id || (!lastKeyboardInited && !peer->chat && !adding->out())) {
-						lastKeyboardInited = true;
-						lastKeyboardId = 0;
-						lastKeyboardFrom = 0;
+						clearLastKeyboard();
 					}
 				} else if (peer->chat && (peer->asChat()->count < 1 || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(adding->from())) {
-					lastKeyboardInited = true;
-					lastKeyboardId = 0;
-					lastKeyboardFrom = 0;
+					clearLastKeyboard();
 				} else {
 					lastKeyboardInited = true;
 					lastKeyboardId = adding->id;
@@ -960,11 +960,10 @@ void History::addToFront(const QVector<MTPMessage> &slice) {
 								}
 								if (!(markupFlags & MTPDreplyKeyboardMarkup_flag_ZERO)) {
 									if (!lastKeyboardInited) {
-										lastKeyboardInited = true;
 										if (wasKeyboardHide || ((peer->asChat()->count < 1 || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(item->from()))) {
-											lastKeyboardId = 0;
-											lastKeyboardFrom = 0;
+											clearLastKeyboard();
 										} else {
+											lastKeyboardInited = true;
 											lastKeyboardId = item->id;
 											lastKeyboardFrom = item->from()->id;
 											lastKeyboardUsed = false;
@@ -976,10 +975,8 @@ void History::addToFront(const QVector<MTPMessage> &slice) {
 					} else if (!lastKeyboardInited && item->hasReplyMarkup() && !item->out()) { // conversations with bots
 						int32 markupFlags = App::replyMarkup(item->id).flags;
 						if (!(markupFlags & MTPDreplyKeyboardMarkup_flag_personal) || item->notifyByFrom()) {
-							lastKeyboardInited = true;
 							if (markupFlags & MTPDreplyKeyboardMarkup_flag_ZERO) {
-								lastKeyboardId = 0;
-								lastKeyboardFrom = 0;
+								clearLastKeyboard();
 							} else {
 								lastKeyboardInited = true;
 								lastKeyboardId = item->id;

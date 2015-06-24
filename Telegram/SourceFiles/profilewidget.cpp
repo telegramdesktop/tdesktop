@@ -300,7 +300,6 @@ void ProfileInner::onMediaAudios() {
 }
 
 void ProfileInner::onInvitationLink() {
-	DEBUG_LOG(("Setting text to clipboard from invite url: %1").arg(_peerChat->invitationUrl));
 	QApplication::clipboard()->setText(_peerChat->invitationUrl);
 	App::wnd()->showLayer(new ConfirmBox(lang(lng_group_invite_copied), true));
 }
@@ -512,7 +511,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 		p.setPen(st::black->p);
 		p.drawText(_left + st::profilePhotoSize + st::profileStatusLeft, top + st::profileStatusTop + st::linkFont->ascent, '@' + _peerUser->username);
 	}
-	p.setPen((_peerUser && App::onlineColorUse(_peerUser->onlineTill, l_time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
+	p.setPen((_peerUser && App::onlineColorUse(_peerUser, l_time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
 	p.drawText(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop + st::linkFont->ascent, _onlineText);
 	if (_chatAdmin && !_peerChat->invitationUrl.isEmpty()) {
 		p.setPen(st::black->p);
@@ -643,7 +642,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 				p.setFont(st::linkFont->f);
 				data->name.drawElided(p, _left + st::profileListPhotoSize + st::profileListPadding.width(), top + st::profileListNameTop, _width - _kickWidth - st::profileListPadding.width() - st::profileListPhotoSize - st::profileListPadding.width());
 				p.setFont(st::profileSubFont->f);
-				p.setPen((App::onlineColorUse(user->onlineTill, l_time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
+				p.setPen((App::onlineColorUse(user, l_time) ? st::profileOnlineColor : st::profileOfflineColor)->p);
 				p.drawText(_left + st::profileListPhotoSize + st::profileListPadding.width(), top + st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, data->online);
 
 				if (data->cankick) {
@@ -906,12 +905,10 @@ void ProfileInner::onMenuDestroy(QObject *obj) {
 }
 
 void ProfileInner::onCopyPhone() {
-	DEBUG_LOG(("Setting text to clipboard from user phone: %1").arg(_phoneText));
 	QApplication::clipboard()->setText(_phoneText);
 }
 
 void ProfileInner::onCopyUsername() {
-	DEBUG_LOG(("Setting text to clipboard from username: @%1").arg(_peerUser->username));
 	QApplication::clipboard()->setText('@' + _peerUser->username);
 }
 

@@ -2425,7 +2425,8 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
 	int32 atwidth = st::mentionFont->m.width('@'), hashwidth = st::mentionFont->m.width('#');
-	int32 availwidth = width() - 2 * st::mentionPadding.left() - st::mentionPhotoSize - 2 * st::mentionPadding.right();
+	int32 mentionleft = 2 * st::mentionPadding.left() + st::mentionPhotoSize;
+	int32 mentionwidth = width() - mentionleft - 2 * st::mentionPadding.right();
 	int32 htagleft = st::btnAttachPhoto.width + st::taMsgField.textMrg.left() - st::dlgShadow, htagwidth = width() - st::mentionPadding.right() - htagleft - st::mentionScroll.width;
 
 	int32 from = qFloor(e->rect().top() / st::mentionHeight), to = qFloor(e->rect().bottom() / st::mentionHeight) + 1;
@@ -2445,9 +2446,9 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 			UserData *user = _rows->at(i);
 			QString first = (_parent->filter().size() < 2) ? QString() : ('@' + user->username.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('@' + user->username) : user->username.mid(_parent->filter().size() - 1);
 			int32 firstwidth = st::mentionFont->m.width(first), secondwidth = st::mentionFont->m.width(second), unamewidth = firstwidth + secondwidth, namewidth = user->nameText.maxWidth();
-			if (availwidth < unamewidth + namewidth) {
-				namewidth = (availwidth * namewidth) / (namewidth + unamewidth);
-				unamewidth = availwidth - namewidth;
+			if (mentionwidth < unamewidth + namewidth) {
+				namewidth = (mentionwidth * namewidth) / (namewidth + unamewidth);
+				unamewidth = mentionwidth - namewidth;
 				if (firstwidth < unamewidth + st::mentionFont->elidew) {
 					if (firstwidth < unamewidth) {
 						first = st::mentionFont->m.elidedText(first, Qt::ElideRight, unamewidth);
@@ -2465,10 +2466,10 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 			
 			p.setFont(st::mentionFont->f);
 			p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
-			p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize + namewidth + st::mentionPadding.right(), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
+			p.drawText(mentionleft + namewidth + st::mentionPadding.right(), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
 			if (!second.isEmpty()) {
 				p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
-				p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize + namewidth + st::mentionPadding.right() + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
+				p.drawText(mentionleft + namewidth + st::mentionPadding.right() + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
 			}
 		} else if (!_hrows->isEmpty()) {
 			QString hrow = _hrows->at(i);
@@ -2501,30 +2502,30 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 			if (hasUsername || botStatus == 0 || botStatus == 2) {
 				toHighlight += '@' + user->username;
 			}
-			if (_parent->chat() || botStatus == 0 || botStatus == 2) {
+			if (true || _parent->chat() || botStatus == 0 || botStatus == 2) {
 				user->photo->load();
 				p.drawPixmap(st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), user->photo->pixRounded(st::mentionPhotoSize));
 			}
 
-			int32 addleft = 0, widthleft = htagwidth;
+			int32 addleft = 0, widthleft = mentionwidth;
 			QString first = (_parent->filter().size() < 2) ? QString() : ('/' + toHighlight.mid(0, _parent->filter().size() - 1)), second = (_parent->filter().size() < 2) ? ('/' + toHighlight) : toHighlight.mid(_parent->filter().size() - 1);
 			int32 firstwidth = st::mentionFont->m.width(first), secondwidth = st::mentionFont->m.width(second);
-			if (htagwidth < firstwidth + secondwidth) {
-				if (htagwidth < firstwidth + st::mentionFont->elidew) {
-					first = st::mentionFont->m.elidedText(first + second, Qt::ElideRight, htagwidth);
+			if (widthleft < firstwidth + secondwidth) {
+				if (widthleft < firstwidth + st::mentionFont->elidew) {
+					first = st::mentionFont->m.elidedText(first + second, Qt::ElideRight, widthleft);
 					second = QString();
 				} else {
-					second = st::mentionFont->m.elidedText(second, Qt::ElideRight, htagwidth - firstwidth);
+					second = st::mentionFont->m.elidedText(second, Qt::ElideRight, widthleft - firstwidth);
 				}
 			}
 			p.setFont(st::mentionFont->f);
 			if (!first.isEmpty()) {
 				p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
-				p.drawText(htagleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
+				p.drawText(mentionleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
 			}
 			if (!second.isEmpty()) {
 				p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
-				p.drawText(htagleft + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
+				p.drawText(mentionleft + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
 			}
 			addleft += firstwidth + secondwidth + st::mentionPadding.left();
 			widthleft -= firstwidth + secondwidth + st::mentionPadding.left();
@@ -2538,7 +2539,7 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 					descwidth = st::mentionFont->m.width(description);
 				}
 				p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
-				p.drawText(htagleft + addleft + (widthleft - descwidth), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, description);
+				p.drawText(mentionleft + addleft + (widthleft - descwidth), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, description);
 			}
 		}
 	}

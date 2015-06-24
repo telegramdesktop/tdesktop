@@ -694,6 +694,10 @@ void MainWidget::dialogsActivate() {
 	dialogs.activate();
 }
 
+DragState MainWidget::getDragState(const QMimeData *mime) {
+	return history.getDragState(mime);
+}
+
 bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &error) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
 
