@@ -863,7 +863,7 @@ public:
 	}
 
 	void draw(int32 left, int32 top, int32 w, style::align align, int32 yFrom, int32 yTo, uint16 selectedFrom = 0, uint16 selectedTo = 0) {
-		if (_t->_blocks.isEmpty()) return;
+		if (_t->isEmpty()) return;
 
 		_blocksSize = _t->_blocks.size();
 		if (!_textStyle) _initDefault();
@@ -1043,7 +1043,7 @@ public:
 	}
 
 	void drawElided(int32 left, int32 top, int32 w, style::align align, int32 lines, int32 yFrom, int32 yTo, int32 removeFromEnd) {
-		if (lines <= 0) return;
+		if (lines <= 0 || _t->isNull()) return;
 
 		if (yTo < 0 || (lines - 1) * _t->_font->height < yTo) {
 			yTo = lines * _t->_font->height;
@@ -1057,7 +1057,7 @@ public:
 		_lnkX = x;
 		_lnkY = y;
 		_lnkResult = &_zeroLnk;
-		if (_lnkX >= 0 && _lnkX < w && _lnkY >= 0) {
+		if (!_t->isNull() && _lnkX >= 0 && _lnkX < w && _lnkY >= 0) {
 			draw(0, 0, w, align, _lnkY, _lnkY + 1);
 		}
 		return *_lnkResult;
@@ -1067,7 +1067,7 @@ public:
 		lnk = TextLinkPtr();
 		inText = false;
 
-		if (x >= 0 && x < w && y >= 0) {
+		if (!_t->isNull() && x >= 0 && x < w && y >= 0) {
 			_lnkX = x;
 			_lnkY = y;
 			_lnkResult = &lnk;
@@ -1081,8 +1081,7 @@ public:
 		symbol = 0;
 		after = false;
 		upon = false;
-
-		if (y >= 0) {
+		if (!_t->isNull() && y >= 0) {
 			_lnkX = x;
 			_lnkY = y;
 			_getSymbol = &symbol;

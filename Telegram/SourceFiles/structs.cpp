@@ -126,10 +126,10 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone,
 	NameFirstChars oldChars = chars;
 	fillNames();
 	App::history(id)->updateNameText();
+	nameUpdated();
 	if (App::main()) {
 		emit App::main()->peerNameChanged(this, oldNames, oldChars);
 	}
-	nameUpdated();
 }
 
 void UserData::setPhoto(const MTPUserProfilePhoto &p) {
@@ -198,7 +198,6 @@ void UserData::setName(const QString &first, const QString &last, const QString 
 
 void UserData::setPhone(const QString &newPhone) {
 	phone = newPhone;
-	++nameVersion;
 }
 
 void UserData::setBotInfoVersion(int32 version) {

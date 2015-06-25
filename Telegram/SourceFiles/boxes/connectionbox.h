@@ -47,4 +47,5 @@ private:
 	PortInput _portInput;
 	FlatInput _userInput, _passwordInput;
 	FlatRadiobutton _autoRadio, _httpProxyRadio, _tcpProxyRadio;
+	FlatCheckbox _tryIPv6;
 };

@@ -182,7 +182,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_passwordEdit(this, lang(lng_cloud_password_set)),
 	_passwordTurnOff(this, lang(lng_passcode_turn_off)),
 	_hasPasswordRecovery(false),
-	_connectionType(this, lng_connection_auto(lt_type, QString())),
+	_connectionType(this, lang(lng_connection_auto_connecting)),
 	_connectionTypeText(lang(lng_connection_type) + ' '),
 	_connectionTypeWidth(st::linkFont->m.width(_connectionTypeText)),
 	_showSessions(this, lang(lng_settings_show_sessions)),
@@ -820,18 +820,19 @@ void SettingsInner::updateOnlineDisplay() {
 }
 
 void SettingsInner::updateConnectionType() {
+	QString connection;
 	switch (cConnectionType()) {
 	case dbictAuto: {
 		QString transport = MTP::dctransport();
-		if (transport.isEmpty()) {
-			_connectionType.setText(lang(lng_connection_auto_connecting));
-		} else {
-			_connectionType.setText(lng_connection_auto(lt_type, transport));
-		}
+		connection = transport.isEmpty() ? lang(lng_connection_auto_connecting) : lng_connection_auto(lt_transport, transport);
 	} break;
-	case dbictHttpProxy: _connectionType.setText(lang(lng_connection_http_proxy)); break;
-	case dbictTcpProxy: _connectionType.setText(lang(lng_connection_tcp_proxy)); break;
+	case dbictHttpProxy:
+	case dbictTcpProxy: {
+		QString transport = MTP::dctransport();
+		connection = transport.isEmpty() ? lang(lng_connection_proxy_connecting) : lng_connection_proxy(lt_transport, transport);
+	} break;
 	}
+	_connectionType.setText(connection);
 }
 
 void SettingsInner::passcodeChanged() {

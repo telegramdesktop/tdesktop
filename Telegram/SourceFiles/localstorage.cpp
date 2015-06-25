@@ -736,6 +736,14 @@ namespace {
 			};
 		} break;
 
+		case dbiTryIPv6: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetTryIPv6(v == 1);
+		} break;
+
 		case dbiSeenTrayTooltip: {
 			qint32 v;
 			stream >> v;
@@ -1789,7 +1797,7 @@ namespace Local {
 			cSetDcOptions(dcOpts);
 		}
 
-		quint32 size = 10 * (sizeof(quint32) + sizeof(qint32));
+		quint32 size = 11 * (sizeof(quint32) + sizeof(qint32));
 		for (mtpDcOptions::const_iterator i = dcOpts.cbegin(), e = dcOpts.cend(); i != e; ++i) {
 			size += sizeof(quint32) + sizeof(quint32) + sizeof(quint32);
 			size += sizeof(quint32) + _stringSize(QString::fromUtf8(i->ip.data(), i->ip.size()));
@@ -1827,6 +1835,7 @@ namespace Local {
 			const ConnectionProxy &proxy(cConnectionProxy());
 			data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
 		}
+		data.stream << quint32(dbiTryIPv6) << qint32(cTryIPv6());
 
 		TWindowPos pos(cWindowPos());
 		data.stream << quint32(dbiWindowPosition) << qint32(pos.x) << qint32(pos.y) << qint32(pos.w) << qint32(pos.h) << qint32(pos.moncrc) << qint32(pos.maximized);

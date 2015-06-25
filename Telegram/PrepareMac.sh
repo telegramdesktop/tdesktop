@@ -1,6 +1,7 @@
-AppVersion=`./Version.sh | awk -F " " '{print $1}'`
-AppVersionStr=`./Version.sh | awk -F " " '{print $2}'`
-DevChannel=`./Version.sh | awk -F " " '{print $3}'`
+AppVersionStrMajor=`./Version.sh | awk -F " " '{print $1}'`
+AppVersion=`./Version.sh | awk -F " " '{print $2}'`
+AppVersionStr=`./Version.sh | awk -F " " '{print $3}'`
+DevChannel=`./Version.sh | awk -F " " '{print $4}'`
 DevPostfix=''
 DevParam=''
 if [ "$DevChannel" != "0" ]; then
@@ -12,12 +13,12 @@ echo ""
 echo "Preparing version $AppVersionStr$DevPostfix.."
 echo ""
 
-if [ -d "./../Mac/Release/deploy/$AppVersionStr.dev" ]; then
+if [ -d "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr.dev" ]; then
   echo "Deploy folder for version $AppVersionStr.dev already exists!"
   exit 1
 fi
 
-if [ -d "./../Mac/Release/deploy/$AppVersionStr" ]; then
+if [ -d "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr" ]; then
   echo "Deploy folder for version $AppVersionStr already exists!"
   exit 1
 fi
@@ -63,11 +64,15 @@ if [ ! -d "./../Mac/Release/deploy/" ]; then
   mkdir "./../Mac/Release/deploy"
 fi
 
-echo "Copying Telegram Desktop.app to deploy/$AppVersionStr..";
-mkdir "./../Mac/Release/deploy/$AppVersionStr"
-cp -r "./../Mac/Release/Telegram Desktop.app" ./../Mac/Release/deploy/$AppVersionStr/
-mv "./../Mac/Release/Telegram Desktop.pkg" ./../Mac/Release/deploy/$AppVersionStr/
-mv "./../Mac/Release/Telegram Desktop.app.dSYM" ./../Mac/Release/deploy/$AppVersionStr/
+if [ ! -d "./../Mac/Release/deploy/$AppVersionStrMajor" ]; then
+  mkdir "./../Mac/Release/deploy/$AppVersionStrMajor"
+fi
+
+echo "Copying Telegram Desktop.app to deploy/$AppVersionStrMajor/$AppVersionStr..";
+mkdir "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr"
+cp -r "./../Mac/Release/Telegram Desktop.app" ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr/
+mv "./../Mac/Release/Telegram Desktop.pkg" ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr/
+mv "./../Mac/Release/Telegram Desktop.app.dSYM" ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr/
 rm "./../Mac/Release/Telegram Desktop.app/Contents/MacOS/Telegram Desktop"
 rm -rf "./../Mac/Release/Telegram Desktop.app/Contents/_CodeSignature"
 echo "Version $AppVersionStr prepared!";

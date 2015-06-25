@@ -1,6 +1,7 @@
-AppVersion=`./Version.sh | awk -F " " '{print $1}'`
-AppVersionStr=`./Version.sh | awk -F " " '{print $2}'`
-DevChannel=`./Version.sh | awk -F " " '{print $3}'`
+AppVersionStrMajor=`./Version.sh | awk -F " " '{print $1}'`
+AppVersion=`./Version.sh | awk -F " " '{print $2}'`
+AppVersionStr=`./Version.sh | awk -F " " '{print $3}'`
+DevChannel=`./Version.sh | awk -F " " '{print $4}'`
 DevPostfix=''
 DevParam=''
 if [ "$DevChannel" != "0" ]; then
@@ -8,12 +9,12 @@ if [ "$DevChannel" != "0" ]; then
   DevParam='-dev'
 fi
 
-if [ -d "./../Linux/Release/deploy/$AppVersionStr.dev" ]; then
+if [ -d "./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStr.dev" ]; then
   echo "Deploy folder for version $AppVersionStr.dev already exists!"
   exit 1
 fi
 
-if [ -d "./../Linux/Release/deploy/$AppVersionStr" ]; then
+if [ -d "./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStr" ]; then
   echo "Deploy folder for version $AppVersionStr already exists!"
   exit 1
 fi
@@ -40,12 +41,17 @@ echo "Packer done!"
 if [ ! -d "./../Linux/Release/deploy" ]; then
   mkdir "./../Linux/Release/deploy"
 fi
+
+if [ ! -d "./../Linux/Release/deploy/$AppVersionStrMajor" ]; then
+  mkdir "./../Linux/Release/deploy/$AppVersionStrMajor"
+fi
+
 echo "Copying Telegram, Updater and tlinux32upd$AppVersion to deploy/$AppVersionStr$DevPostfix..";
-mkdir "./../Linux/Release/deploy/$AppVersionStr$DevPostfix"
-mkdir "./../Linux/Release/deploy/$AppVersionStr$DevPostfix/Telegram"
-mv ./../Linux/Release/Telegram ./../Linux/Release/deploy/$AppVersionStr$DevPostfix/Telegram/
-mv ./../Linux/Release/Updater ./../Linux/Release/deploy/$AppVersionStr$DevPostfix/Telegram/
-mv ./../Linux/Release/tlinux32upd$AppVersion ./../Linux/Release/deploy/$AppVersionStr$DevPostfix/
-cd ./../Linux/Release/deploy/$AppVersionStr$DevPostfix && tar -cJvf tsetup32.$AppVersionStr$DevPostfix.tar.xz Telegram/ && cd ./../../../../Telegram
+mkdir "./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix"
+mkdir "./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram"
+mv ./../Linux/Release/Telegram ./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram/
+mv ./../Linux/Release/Updater ./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram/
+mv ./../Linux/Release/tlinux32upd$AppVersion ./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
+cd ./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix && tar -cJvf tsetup32.$AppVersionStr$DevPostfix.tar.xz Telegram/ && cd ./../../../../../Telegram
 echo "Version $AppVersionStr$DevPostfix prepared!";
 
