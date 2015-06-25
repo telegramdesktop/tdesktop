@@ -36,17 +36,13 @@ if [ ! -d "./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor" ]; then
   mkdir "./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor"
 fi
 
-if [ ! -d "./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix" ]; then
-  mkdir "./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix"
-fi
-
 scp ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/tmacupd$AppVersion tmaster:tdesktop/www/tmac/
 scp ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/tsetup.$AppVersionStr$DevPostfix.dmg tmaster:tdesktop/www/tmac/
 scp ./../../tother/tsetup/$AppVersionStrMajor/$AppVersionStr$DevPostfix/tupdate$AppVersion tmaster:tdesktop/www/tsetup/
 scp ./../../tother/tsetup/$AppVersionStrMajor/$AppVersionStr$DevPostfix/tportable.$AppVersionStr$DevPostfix.zip tmaster:tdesktop/www/tsetup/
 scp ./../../tother/tsetup/$AppVersionStrMajor/$AppVersionStr$DevPostfix/tsetup.$AppVersionStr$DevPostfix.exe tmaster:tdesktop/www/tsetup/
 
-mv -rv ./../../tother/tsetup/$AppVersionStrMajor/$AppVersionStr$DevPostfix ./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/
+mv -v ./../../tother/tsetup/$AppVersionStrMajor/$AppVersionStr$DevPostfix ./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/
 
 cp -v ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/tmacupd$AppVersion ./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
 cp -v ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/tsetup.$AppVersionStr$DevPostfix.dmg ./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/

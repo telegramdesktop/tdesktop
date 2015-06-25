@@ -186,6 +186,7 @@ void ConnectionBox::onSave() {
 		cSetRestartingToSettings(true);
 		App::quit();
 	} else {
+		cSetTryIPv6(_tryIPv6.checked());
 		Local::writeSettings();
 		MTP::restart();
 		reinitImageLinkManager();
