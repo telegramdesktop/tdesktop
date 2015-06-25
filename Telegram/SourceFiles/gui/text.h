@@ -485,6 +485,9 @@ public:
 	bool isEmpty() const {
 		return _text.isEmpty();
 	}
+	bool isNull() const {
+		return !_font;
+	}
 	QString original(uint16 selectedFrom = 0, uint16 selectedTo = 0xFFFF, bool expandLinks = true) const;
 
 	bool lastDots(int32 dots, int32 maxdots = 3) { // hack for typing animation

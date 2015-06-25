@@ -1800,7 +1800,7 @@ void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 
 	if (afterConfig && (_conn4 || _conn6)) return;
 
-	createConn(!noIPv4, !noIPv6);
+	createConn(!noIPv4, false/*!noIPv6*/);
 	retryTimer.stop();
 	_waitForConnectedTimer.stop();
 
