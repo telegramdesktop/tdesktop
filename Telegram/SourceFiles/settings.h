@@ -109,6 +109,7 @@ DeclareSetting(TWindowPos, WindowPos);
 DeclareSetting(bool, SupportTray);
 DeclareSetting(DBIWorkMode, WorkMode);
 DeclareSetting(DBIConnectionType, ConnectionType);
+DeclareSetting(bool, TryIPv6);
 DeclareSetting(DBIDefaultAttach, DefaultAttach);
 DeclareSetting(ConnectionProxy, ConnectionProxy);
 DeclareSetting(bool, SeenTrayTooltip);

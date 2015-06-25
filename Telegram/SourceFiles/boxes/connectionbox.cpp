@@ -33,7 +33,8 @@ ConnectionBox::ConnectionBox() :
 	_passwordInput(this, st::inpConnectionPassword, lang(lng_connection_password_ph), cConnectionProxy().password),
 	_autoRadio(this, qsl("conn_type"), dbictAuto, lang(lng_connection_auto_rb), (cConnectionType() == dbictAuto)),
 	_httpProxyRadio(this, qsl("conn_type"), dbictHttpProxy, lang(lng_connection_http_proxy_rb), (cConnectionType() == dbictHttpProxy)),
-	_tcpProxyRadio(this, qsl("conn_type"), dbictTcpProxy, lang(lng_connection_tcp_proxy_rb), (cConnectionType() == dbictTcpProxy)) {
+	_tcpProxyRadio(this, qsl("conn_type"), dbictTcpProxy, lang(lng_connection_tcp_proxy_rb), (cConnectionType() == dbictTcpProxy)),
+	_tryIPv6(this, lang(lng_connection_try_ipv6), cTryIPv6()) {
 
 	connect(&_saveButton, SIGNAL(clicked()), this, SLOT(onSave()));
 	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -51,6 +52,7 @@ void ConnectionBox::hideAll() {
 	_autoRadio.hide();
 	_httpProxyRadio.hide();
 	_tcpProxyRadio.hide();
+	_tryIPv6.hide();
 
 	_hostInput.hide();
 	_portInput.hide();
@@ -65,8 +67,9 @@ void ConnectionBox::showAll() {
 	_autoRadio.show();
 	_httpProxyRadio.show();
 	_tcpProxyRadio.show();
+	_tryIPv6.show();
 
-	int32 h = st::boxTitleHeight + st::connectionSkip + _autoRadio.height() + st::connectionSkip + _httpProxyRadio.height() + st::connectionSkip + _tcpProxyRadio.height() + st::connectionSkip;
+	int32 h = st::boxTitleHeight + st::connectionSkip + _autoRadio.height() + st::connectionSkip + _httpProxyRadio.height() + st::connectionSkip + _tcpProxyRadio.height() + st::connectionSkip + st::lineWidth + st::connectionSkip + _tryIPv6.height() + st::connectionSkip;
 	if (_httpProxyRadio.checked() || _tcpProxyRadio.checked()) {
 		h += 2 * st::boxPadding.top() + 2 * _hostInput.height();
 		_hostInput.show();
@@ -99,6 +102,9 @@ void ConnectionBox::paintEvent(QPaintEvent *e) {
 
 	paintTitle(p, lang(lng_connection_header), true);
 
+	// paint separator
+	p.fillRect(st::boxPadding.left(), _tryIPv6.y() - st::connectionSkip - st::lineWidth, width() - st::boxPadding.left() - st::boxPadding.right(), st::lineWidth, st::scrollDef.shColor->b);
+
 	// paint shadow
 	p.fillRect(0, height() - st::btnSelectCancel.height - st::scrollDef.bottomsh, width(), st::scrollDef.bottomsh, st::scrollDef.shColor->b);
 
@@ -128,10 +134,11 @@ void ConnectionBox::resizeEvent(QResizeEvent *e) {
 		_passwordInput.move(width() - st::boxPadding.right() - _passwordInput.width(), _userInput.y());
 	}
 
-	int32 buttony = (_tcpProxyRadio.checked() ? (_userInput.y() + _userInput.height()) : (_tcpProxyRadio.y() + _tcpProxyRadio.height())) + st::connectionSkip;
+	int32 tryipv6y = (_tcpProxyRadio.checked() ? (_userInput.y() + _userInput.height()) : (_tcpProxyRadio.y() + _tcpProxyRadio.height())) + st::connectionSkip + st::lineWidth + st::connectionSkip;
+	_tryIPv6.move(st::boxPadding.left(), tryipv6y);
 
-	_saveButton.move(width() - _saveButton.width(), buttony);
-	_cancelButton.move(0, buttony);
+	_saveButton.move(width() - _saveButton.width(), _tryIPv6.y() + _tryIPv6.height() + st::connectionSkip);
+	_cancelButton.move(0, _saveButton.y());
 }
 
 void ConnectionBox::onChange() {
@@ -172,8 +179,16 @@ void ConnectionBox::onSave() {
 		QNetworkProxyFactory::setUseSystemConfiguration(false);
 		QNetworkProxyFactory::setUseSystemConfiguration(true);
 	}
-	Local::writeSettings();
-	MTP::restart();
-	reinitImageLinkManager();
-	emit closed();
+	if (cPlatform() == dbipWindows && cTryIPv6() != _tryIPv6.checked()) {
+		cSetTryIPv6(_tryIPv6.checked());
+		Local::writeSettings();
+		cSetRestarting(true);
+		cSetRestartingToSettings(true);
+		App::quit();
+	} else {
+		Local::writeSettings();
+		MTP::restart();
+		reinitImageLinkManager();
+		emit closed();
+	}
 }

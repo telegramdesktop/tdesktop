@@ -52,6 +52,11 @@ bool gSupportTray = true;
 DBIWorkMode gWorkMode = dbiwmWindowAndTray;
 DBIConnectionType gConnectionType = dbictAuto;
 ConnectionProxy gConnectionProxy;
+#ifdef Q_OS_WIN
+bool gTryIPv6 = false;
+#else
+bool gTryIPv6 = true;
+#endif
 bool gSeenTrayTooltip = false;
 bool gRestartingUpdate = false, gRestarting = false, gRestartingToSettings = false, gWriteProtected = false;
 int32 gLastUpdateCheck = 0;

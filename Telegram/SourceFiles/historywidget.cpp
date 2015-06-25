@@ -1670,7 +1670,7 @@ bool BotKeyboard::updateMarkup(HistoryItem *to) {
 
 		const ReplyMarkup::Commands &commands(markup.commands);
 		if (!commands.isEmpty()) {
-			int32 i = 0, l = qMin(commands.size(), 32);
+			int32 i = 0, l = qMin(commands.size(), 512);
 			_btns.reserve(l);
 			for (; i != l; ++i) {
 				const QList<QString> &row(commands.at(i));

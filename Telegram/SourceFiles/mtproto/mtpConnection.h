@@ -141,7 +141,7 @@ public:
 	virtual void sendData(mtpBuffer &buffer) = 0; // has size + 3, buffer[0] = len, buffer[1] = packetnum, buffer[last] = crc32
 	virtual void disconnectFromServer() = 0;
 	virtual void connectToServer(const QString &addr, int32 port, int32 flags) = 0;
-	virtual bool isConnected() = 0;
+	virtual bool isConnected() const = 0;
 	virtual bool usingHttpWait() {
 		return false;
 	}
@@ -209,7 +209,7 @@ public:
 	void sendData(mtpBuffer &buffer);
 	void disconnectFromServer();
 	void connectToServer(const QString &addr, int32 port, int32 flags);
-	bool isConnected();
+	bool isConnected() const;
 	bool usingHttpWait();
 	bool needHttpWait();
 
@@ -256,7 +256,7 @@ private:
 	Requests requests;
 
 	QString _addr;
-	int32 _port, _tcpTimeout;
+	int32 _port, _tcpTimeout, _flags;
 	QTimer tcpTimeoutTimer;
 
 };
@@ -271,7 +271,7 @@ public:
 	void sendData(mtpBuffer &buffer);
 	void disconnectFromServer();
 	void connectToServer(const QString &addr, int32 port, int32 flags);
-	bool isConnected();
+	bool isConnected() const;
 
 	int32 debugState() const;
 
@@ -281,9 +281,28 @@ public slots:
 
 	void socketError(QAbstractSocket::SocketError e);
 
+	void onSocketConnected();
+	void onSocketDisconnected();
+
+	void onTcpTimeoutTimer();
+
 protected:
 
 	void socketPacket(mtpPrime *packet, uint32 packetSize);
+
+private:
+
+	enum Status {
+		WaitingTcp = 0,
+		UsingTcp,
+		FinishedWork
+	};
+	Status status;
+	MTPint128 tcpNonce;
+
+	QString _addr;
+	int32 _port, _tcpTimeout, _flags;
+	QTimer tcpTimeoutTimer;
 
 };
 
@@ -297,7 +316,7 @@ public:
 	void sendData(mtpBuffer &buffer);
 	void disconnectFromServer();
 	void connectToServer(const QString &addr, int32 port, int32 flags);
-	bool isConnected();
+	bool isConnected() const;
 	bool usingHttpWait();
 	bool needHttpWait();
 
@@ -310,6 +329,15 @@ public slots:
 	void requestFinished(QNetworkReply *reply);
 
 private:
+
+	enum Status {
+		WaitingHttp = 0,
+		UsingHttp,
+		FinishedWork
+	};
+	Status status;
+	MTPint128 httpNonce;
+	int32 _flags;
 
 	QNetworkAccessManager manager;
 	QUrl address;
@@ -414,7 +442,7 @@ private:
 	void clearMessages();
 
 	bool setState(int32 state, int32 ifState = MTProtoConnection::UpdateAlways);
-	mutable QReadWriteLock stateMutex;
+	mutable QReadWriteLock stateConnMutex;
 	int32 _state;
 
 	bool _needSessionReset;

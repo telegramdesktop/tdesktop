@@ -2857,13 +2857,13 @@ void MentionsDropdown::recount(bool toDown) {
 	int32 h = (_rows.isEmpty() ? (_hrows.isEmpty() ? _crows.size() : _hrows.size()) : _rows.size()) * st::mentionHeight, oldst = _scroll.scrollTop(), st = oldst;
 	
 	if (_inner.height() != h) {
-		st += h - _inner.height();
+//		st += h - _inner.height();
 		_inner.resize(width(), h);
 	}
 	if (h > _boundings.height()) h = _boundings.height();
 	if (h > 4.5 * st::mentionHeight) h = 4.5 * st::mentionHeight;
 	if (height() != h) {
-		st += _scroll.height() - h;
+//		st += _scroll.height() - h;
 		setGeometry(0, _boundings.height() - h, width(), h);
 		_scroll.resize(width(), h);
 	} else if (y() != _boundings.height() - h) {
