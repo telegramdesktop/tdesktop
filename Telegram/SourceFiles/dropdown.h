@@ -110,7 +110,7 @@ public:
 
 signals:
 
-	void dropped(QDropEvent *e);
+	void dropped(const QMimeData *data);
 
 public slots:
 

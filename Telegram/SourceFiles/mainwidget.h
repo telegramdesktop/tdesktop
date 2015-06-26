@@ -257,6 +257,7 @@ public:
 	void onForward(const PeerId &peer, bool forwardSelected);
 	void onShareContact(const PeerId &peer, UserData *contact);
 	void onSendPaths(const PeerId &peer);
+	void onFilesDrop(const PeerId &peer, const QMimeData *data);
 	bool selectingPeer(bool withConfirm = false);
 	void offerPeer(PeerId peer);
 	void focusPeerSelect();

@@ -236,11 +236,14 @@ public slots:
 	bool onSearchMessages(bool searchCache = false);
 	void onNeedSearchMessages();
 
+	void onChooseByDrag();
+
 private:
 
 	bool _drawShadow;
 
 	bool _dragInScroll, _dragForward;
+	QTimer _chooseByDragTimer;
 
 	void unreadCountsReceived(const QVector<MTPDialog> &dialogs);
 	bool dialogsFailed(const RPCError &error);

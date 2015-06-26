@@ -509,8 +509,9 @@ public slots:
 
 	void onPhotoSelect();
 	void onDocumentSelect();
-	void onPhotoDrop(QDropEvent *e);
-	void onDocumentDrop(QDropEvent *e);
+	void onPhotoDrop(const QMimeData *data);
+	void onDocumentDrop(const QMimeData *data);
+	void onFilesDrop(const QMimeData *data);
 
 	void onKbToggle(bool manual = true);
 	void onCmdStart();
