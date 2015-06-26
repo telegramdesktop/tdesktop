@@ -384,7 +384,7 @@ void DragArea::dragLeaveEvent(QDragLeaveEvent *e) {
 void DragArea::dropEvent(QDropEvent *e) {
 	static_cast<HistoryWidget*>(parentWidget())->dropEvent(e);
 	if (e->isAccepted()) {
-		emit dropped(e);
+		emit dropped(e->mimeData());
 	}
 }
 

@@ -139,6 +139,8 @@ enum {
 
 	WrongPasscodeTimeout = 1500,
 	SessionsShortPollTimeout = 60000,
+
+	ChoosePeerByDragTimeout = 1000, // 1 second mouse not moved to choose dialog when dragging a file
 };
 
 inline bool isServiceUser(uint64 id) {

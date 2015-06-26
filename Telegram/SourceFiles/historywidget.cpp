@@ -2243,8 +2243,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_attachDragDocument.hide();
 	_attachDragPhoto.hide();
 
-	connect(&_attachDragDocument, SIGNAL(dropped(QDropEvent*)), this, SLOT(onDocumentDrop(QDropEvent*)));
-	connect(&_attachDragPhoto, SIGNAL(dropped(QDropEvent*)), this, SLOT(onPhotoDrop(QDropEvent*)));
+	connect(&_attachDragDocument, SIGNAL(dropped(const QMimeData*)), this, SLOT(onDocumentDrop(const QMimeData*)));
+	connect(&_attachDragPhoto, SIGNAL(dropped(const QMimeData*)), this, SLOT(onPhotoDrop(const QMimeData*)));
 }
 
 void HistoryWidget::start() {
@@ -3931,13 +3931,43 @@ void HistoryWidget::dropEvent(QDropEvent *e) {
 	e->acceptProposedAction();
 }
 
-void HistoryWidget::onDocumentDrop(QDropEvent *e) {
+void HistoryWidget::onPhotoDrop(const QMimeData *data) {
 	if (!hist) return;
 
-	QStringList files = getMediasFromMime(e->mimeData());
+	if (data->hasImage()) {
+		QImage image = qvariant_cast<QImage>(data->imageData());
+		if (image.isNull()) return;
+
+		uploadImage(image, false, data->text());
+	} else {
+		QStringList files = getMediasFromMime(data);
+		if (files.isEmpty()) return;
+
+		uploadMedias(files, ToPreparePhoto);
+	}
+}
+
+void HistoryWidget::onDocumentDrop(const QMimeData *data) {
+	if (!hist) return;
+
+	QStringList files = getMediasFromMime(data);
 	if (files.isEmpty()) return;
 
 	uploadMedias(files, ToPrepareDocument);
+}
+
+void HistoryWidget::onFilesDrop(const QMimeData *data) {
+	if (data->hasImage()) {
+		QImage image = qvariant_cast<QImage>(data->imageData());
+		if (image.isNull()) return;
+
+		uploadImage(image, false, data->text());
+	} else {
+		QStringList files = getMediasFromMime(data);
+		if (files.isEmpty()) return;
+
+		uploadMedias(files, ToPrepareAuto);
+	}
 }
 
 void HistoryWidget::onKbToggle(bool manual) {
@@ -4007,22 +4037,6 @@ void HistoryWidget::onKbToggle(bool manual) {
 void HistoryWidget::onCmdStart() {
 	setFieldText(qsl("/"));
 	_field.moveCursor(QTextCursor::End);
-}
-
-void HistoryWidget::onPhotoDrop(QDropEvent *e) {
-	if (!hist) return;
-
-	if (e->mimeData()->hasImage()) {
-		QImage image = qvariant_cast<QImage>(e->mimeData()->imageData());
-		if (image.isNull()) return;
-		
-		uploadImage(image);
-	} else {
-		QStringList files = getMediasFromMime(e->mimeData());
-		if (files.isEmpty()) return;
-
-		uploadMedias(files, ToPreparePhoto);
-	}
 }
 
 void HistoryWidget::contextMenuEvent(QContextMenuEvent *e) {
