@@ -571,6 +571,11 @@ void MainWidget::onSendPaths(const PeerId &peer) {
 	history.onSendPaths(peer);
 }
 
+void MainWidget::onFilesDrop(const PeerId &peer, const QMimeData *data) {
+	showPeer(peer, 0, false, true);
+	history.onFilesDrop(data);
+}
+
 void MainWidget::noHider(HistoryHider *destroyed) {
 	if (hider == destroyed) {
 		hider = 0;
@@ -616,12 +621,13 @@ void MainWidget::hiderLayer(HistoryHider *h) {
 
 	hider = h;
 	connect(hider, SIGNAL(forwarded()), &dialogs, SLOT(onCancelSearch()));
-	dialogsToUp();
 	if (cWideMode()) {
 		hider->show();
 		resizeEvent(0);
 		dialogs.activate();
 	} else {
+		dialogsToUp();
+
 		hider->hide();
 		dialogs.enableShadow(false);
 		QPixmap animCache = myGrab(this, QRect(0, 0, _dialogsWidth, height()));
