@@ -43,7 +43,9 @@ namespace {
 			countryForReg = nearest.vcountry.c_string().v.c_str();
 			emit signalEmitOn->countryChanged();
 		}
+		#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 		if (App::app()) App::app()->startUpdateCheck();
+		#endif
 	}
 }
 

@@ -143,6 +143,7 @@ UpdateBtn::UpdateBtn(QWidget *parent, Window *window, const QString &text) : Sys
 }
 
 void UpdateBtn::onClick() {
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	checkReadyUpdate();
 	if (App::app()->updatingState() == Application::UpdatingReady) {
 		cSetRestartingUpdate(true);
@@ -150,6 +151,10 @@ void UpdateBtn::onClick() {
 		cSetRestarting(true);
 		cSetRestartingToSettings(false);
 	}
+	#else
+	cSetRestarting(true);
+	cSetRestartingToSettings(false);
+	#endif
 	App::quit();
 }
 
