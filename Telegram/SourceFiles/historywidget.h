@@ -148,6 +148,7 @@ private:
 	TextSelectType _dragSelType;
 	QPoint _dragStartPos, _dragPos;
 	HistoryItem *_dragItem;
+	HistoryCursorState _dragCursorState;
 	uint16 _dragSymbol;
 	bool _dragWasInactive;
 

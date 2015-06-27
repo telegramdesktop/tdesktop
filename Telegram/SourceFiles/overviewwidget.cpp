@@ -824,9 +824,9 @@ void OverviewInner::onUpdateSelected() {
 							}
 							left += st::msgPhotoSkip;
 						}
-						bool inText = false;
+						HistoryCursorState cursorState = HistoryDefaultCursorState;
 						TextLinkPtr link;
-						media->getState(link, inText, m.x() - left, m.y() - y - st::msgMargin.top(), item, w);
+						media->getState(link, cursorState, m.x() - left, m.y() - y - st::msgMargin.top(), item, w);
 						if (link) lnk = link;
 					}
 				} else {
@@ -841,7 +841,7 @@ void OverviewInner::onUpdateSelected() {
 	m = mapMouseToItem(m, _mousedItem, _mousedItemIndex);
 
 	Qt::CursorShape cur = style::cur_default;
-	bool inText = false, lnkChanged = false;
+	bool lnkChanged = false;
 	if (lnk != textlnkOver()) {
 		lnkChanged = true;
 		updateMsg(App::hoveredLinkItem());

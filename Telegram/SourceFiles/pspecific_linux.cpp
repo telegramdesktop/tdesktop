@@ -352,7 +352,7 @@ namespace {
     public:
         _PsInitializer() {
             QString cdesktop = QString(getenv("XDG_CURRENT_DESKTOP")).toLower();
-            noQtTrayIcon = (cdesktop == QLatin1String("unity")) || (cdesktop == QLatin1String("pantheon")) || (cdesktop == QLatin1String("gnome"));
+			noQtTrayIcon = (cdesktop == qstr("unity")) || (cdesktop == qstr("pantheon")) || (cdesktop == qstr("gnome"));
 
             if (noQtTrayIcon) cSetSupportTray(false);
             std::cout << "libs init..\n";
@@ -460,7 +460,7 @@ namespace {
         void setupUnity() {
             if (!useGtkBase || !noQtTrayIcon) return;
 
-            QLibrary lib_unity(QLatin1String("unity"), 9, 0);
+			QLibrary lib_unity(qstr("unity"), 9, 0);
             if (!loadLibrary(lib_unity, "unity", 9)) return;
 
             if (!loadFunction(lib_unity, "unity_launcher_entry_get_for_desktop_id", ps_unity_launcher_entry_get_for_desktop_id)) return;

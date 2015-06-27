@@ -163,6 +163,13 @@ public:
 	}
 };
 
+enum ForwardWhatMessages {
+	ForwardSelectedMessages,
+	ForwardContextMessage,
+	ForwardPressedMessage,
+	ForwardPressedLinkMessage
+};
+
 class MainWidget : public QWidget, public Animated, public RPCSender {
 	Q_OBJECT
 
@@ -254,10 +261,10 @@ public:
 	void shareContactLayer(UserData *contact);
 	void hiderLayer(HistoryHider *h);
 	void noHider(HistoryHider *destroyed);
-	void onForward(const PeerId &peer, bool forwardSelected);
+	void onForward(const PeerId &peer, ForwardWhatMessages what);
 	void onShareContact(const PeerId &peer, UserData *contact);
 	void onSendPaths(const PeerId &peer);
-	void onFilesDrop(const PeerId &peer, const QMimeData *data);
+	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);
 	bool selectingPeer(bool withConfirm = false);
 	void offerPeer(PeerId peer);
 	void focusPeerSelect();

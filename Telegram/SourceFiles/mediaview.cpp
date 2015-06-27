@@ -26,6 +26,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 namespace {
 	class SaveMsgLink : public ITextLink {
+		TEXT_LINK_CLASS(SaveMsgLink)
+
 	public:
 
 		SaveMsgLink(MediaView *view) : _view(view) {
@@ -826,33 +828,33 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) {
 			style::sprite thumbs[] = { st::mvDocBlue, st::mvDocGreen, st::mvDocRed, st::mvDocYellow };
 			style::color colors[] = { st::mvDocBlueColor, st::mvDocGreenColor, st::mvDocRedColor, st::mvDocYellowColor };
 			QString name = _doc->name.toLower(), mime = _doc->mime.toLower();
-			if (name.endsWith(QLatin1String(".doc")) ||
-				name.endsWith(QLatin1String(".txt")) ||
-				name.endsWith(QLatin1String(".psd")) ||
-				mime.startsWith(QLatin1String("text/"))
+			if (name.endsWith(qstr(".doc")) ||
+				name.endsWith(qstr(".txt")) ||
+				name.endsWith(qstr(".psd")) ||
+				mime.startsWith(qstr("text/"))
 			) {
 				_docIcon = thumbs[0];
 				_docIconColor = colors[0];
 			} else if (
-				name.endsWith(QLatin1String(".xls")) ||
-				name.endsWith(QLatin1String(".csv"))
+				name.endsWith(qstr(".xls")) ||
+				name.endsWith(qstr(".csv"))
 			) {
 				_docIcon = thumbs[1];
 				_docIconColor = colors[1];
 			} else if (
-				name.endsWith(QLatin1String(".pdf")) ||
-				name.endsWith(QLatin1String(".ppt")) ||
-				name.endsWith(QLatin1String(".key"))
+				name.endsWith(qstr(".pdf")) ||
+				name.endsWith(qstr(".ppt")) ||
+				name.endsWith(qstr(".key"))
 			) {
 				_docIcon = thumbs[2];
 				_docIconColor = colors[2];
 			} else if (
-				name.endsWith(QLatin1String(".zip")) ||
-				name.endsWith(QLatin1String(".rar")) ||
-				name.endsWith(QLatin1String(".ai")) ||
-				name.endsWith(QLatin1String(".mp3")) ||
-				name.endsWith(QLatin1String(".mov")) ||
-				name.endsWith(QLatin1String(".avi"))
+				name.endsWith(qstr(".zip")) ||
+				name.endsWith(qstr(".rar")) ||
+				name.endsWith(qstr(".ai")) ||
+				name.endsWith(qstr(".mp3")) ||
+				name.endsWith(qstr(".mov")) ||
+				name.endsWith(qstr(".avi"))
 			) {
 				_docIcon = thumbs[3];
 				_docIconColor = colors[3];

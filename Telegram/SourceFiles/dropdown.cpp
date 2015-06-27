@@ -2784,6 +2784,7 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 				}
 			}
 		} else if (_user->botInfo) {
+			if (!_user->botInfo->inited) App::api()->requestFullPeer(_user);
 			cnt = _user->botInfo->commands.size();
 			bots.insert(_user, true);
 		}

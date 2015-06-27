@@ -455,7 +455,7 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 
 	if (data->status != FileReady) return;
 
-	bool mp3 = (data->mime == QLatin1String("audio/mp3"));
+	bool mp3 = (data->mime == qstr("audio/mp3"));
 	QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), mp3 ? qsl(".mp3") : qsl(".ogg"), false);
 	if (!filename.isEmpty()) {
 		data->openOnSave = 1;
@@ -476,7 +476,7 @@ void AudioSaveLink::doSave(AudioData *data, bool forceSavingAs) {
 	} else {
 		QFileInfo alreadyInfo(already);
 		QDir alreadyDir(already.isEmpty() ? QDir() : alreadyInfo.dir());
-		bool mp3 = (data->mime == QLatin1String("audio/mp3"));
+		bool mp3 = (data->mime == qstr("audio/mp3"));
 		QString name = already.isEmpty() ? (mp3 ? qsl(".mp3") : qsl(".ogg")) : alreadyInfo.fileName();
 		QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), name, forceSavingAs, alreadyDir);
 		if (!filename.isEmpty()) {

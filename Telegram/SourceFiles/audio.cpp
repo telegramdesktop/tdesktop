@@ -1249,7 +1249,7 @@ void AudioCaptureInner::onStart() {
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 	AVOutputFormat *fmt = 0;
 	while ((fmt = av_oformat_next(fmt))) {
-		if (fmt->name == QLatin1String("opus")) {
+		if (fmt->name == qstr("opus")) {
 			break;
 		}
 	}

@@ -2780,7 +2780,7 @@ namespace Local {
 						if (!QDir(di.filePath()).removeRecursively()) result = false;
 					} else {
 						QString path = di.filePath();
-						if (!path.endsWith(QLatin1String("map0")) && !path.endsWith(QLatin1String("map1"))) {
+						if (!path.endsWith(qstr("map0")) && !path.endsWith(qstr("map1"))) {
 							if (!QFile::remove(di.filePath())) result = false;
 						}
 					}

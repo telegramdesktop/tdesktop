@@ -264,12 +264,12 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 
 		QString appName, appVer = qs(d.vapp_version), systemVer = qs(d.vsystem_version), deviceModel = qs(d.vdevice_model);
 		if (d.vapi_id.v == 2040 || d.vapi_id.v == 17349) {
-			appName = (d.vapi_id.v == 2040) ? qsl("Telegram Desktop") : qsl("Telegram Desktop (GitHub)");
-		//	if (systemVer == QLatin1String("windows")) {
+			appName = (d.vapi_id.v == 2040) ? qstr("Telegram Desktop") : qstr("Telegram Desktop (GitHub)");
+		//	if (systemVer == qstr("windows")) {
 		//		deviceModel = qsl("Windows");
-		//	} else if (systemVer == QLatin1String("os x")) {
+		//	} else if (systemVer == qstr("os x")) {
 		//		deviceModel = qsl("OS X");
-		//	} else if (systemVer == QLatin1String("linux")) {
+		//	} else if (systemVer == qstr("linux")) {
 		//		deviceModel = qsl("Linux");
 		//	}
 			if (appVer == QString::number(appVer.toInt())) {
@@ -293,7 +293,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 		MTPint active = d.vdate_active.v ? d.vdate_active : d.vdate_created;
 		data.activeTime = active.v;
 
-		data.info = qs(d.vdevice_model) + QLatin1String(", ") + (platform.isEmpty() ? QString() : platform + ' ') + qs(d.vsystem_version);
+		data.info = qs(d.vdevice_model) + qstr(", ") + (platform.isEmpty() ? QString() : platform + ' ') + qs(d.vsystem_version);
 		data.ip = qs(d.vip) + (country.isEmpty() ? QString() : QString::fromUtf8(" \xe2\x80\x93 ") + country);
 		if (!data.hash || (d.vflags.v & 1)) {
 			data.active = QString();

@@ -731,14 +731,14 @@ void SettingsInner::keyPressEvent(QKeyEvent *e) {
 	int32 size = _secretText.size(), from = 0;
 	while (size > from) {
 		QStringRef str(_secretText.midRef(from));
-		if (str == QLatin1String("debugmode")) {
+		if (str == qstr("debugmode")) {
 			QString text = cDebug() ? qsl("Do you want to disable DEBUG logs?") : qsl("Do you want to enable DEBUG logs?\n\nAll network events will be logged.");
 			ConfirmBox *box = new ConfirmBox(text);
 			connect(box, SIGNAL(confirmed()), App::app(), SLOT(onSwitchDebugMode()));
 			App::wnd()->showLayer(box);
 			from = size;
 			break;
-		} else if (str == QLatin1String("testmode")) {
+		} else if (str == qstr("testmode")) {
 			QString text = cTestMode() ? qsl("Do you want to disable TEST mode?") : qsl("Do you want to enable TEST mode?\n\nYou will be switched to test cloud.");
 			ConfirmBox *box = new ConfirmBox(text);
 			connect(box, SIGNAL(confirmed()), App::app(), SLOT(onSwitchTestMode()));

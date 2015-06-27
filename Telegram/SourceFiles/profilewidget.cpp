@@ -1076,9 +1076,9 @@ void ProfileInner::updateInvitationLink() {
 	} else {
 		_createInvitationLink.setText(lang(lng_group_invite_create_new));
 		_invitationText = _peerChat->invitationUrl;
-		if (_invitationText.startsWith(QLatin1String("http://"), Qt::CaseInsensitive)) {
+		if (_invitationText.startsWith(qstr("http://"), Qt::CaseInsensitive)) {
 			_invitationText = _invitationText.mid(7);
-		} else if (_invitationText.startsWith(QLatin1String("https://"), Qt::CaseInsensitive)) {
+		} else if (_invitationText.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
 			_invitationText = _invitationText.mid(8);
 		}
 	}
