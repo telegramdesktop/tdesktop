@@ -44,6 +44,7 @@ public:
 	void dragActionUpdate(const QPoint &screenPos);
 	void dragActionFinish(const QPoint &screenPos, Qt::MouseButton button = Qt::LeftButton);
 	void dragActionCancel();
+	void dragExec();
 
 	void touchScrollUpdated(const QPoint &screenPos);
 	QPoint mapMouseToItem(QPoint p, MsgId itemId, int32 itemIndex);
@@ -57,7 +58,7 @@ public:
 
 	void setSelectMode(bool enabled);
 
-	void mediaOverviewUpdated();
+	void mediaOverviewUpdated(bool fromResize = false);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void msgUpdated(const HistoryItem *msg);
 	void itemRemoved(HistoryItem *item);
@@ -107,7 +108,7 @@ private:
 	void applyDragSelection();
 
 	QPixmap genPix(PhotoData *photo, int32 size);
-	void showAll();
+	void showAll(bool recountHeights = false);
 
 	OverviewWidget *_overview;
 	ScrollArea *_scroll;

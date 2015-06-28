@@ -202,6 +202,7 @@ public:
 
 	EmojiPanInner(QWidget *parent = 0);
 
+	void setMaxHeight(int32 h);
 	void paintEvent(QPaintEvent *e);
 
 	void mousePressEvent(QMouseEvent *e);
@@ -243,6 +244,8 @@ signals:
 	void disableScroll(bool dis);
 
 private:
+
+	int32 _maxHeight;
 
 	int32 countHeight();
 	void selectEmoji(EmojiPtr emoji);
@@ -286,6 +289,7 @@ public:
 
 	StickerPanInner(QWidget *parent = 0);
 
+	void setMaxHeight(int32 h);
 	void paintEvent(QPaintEvent *e);
 
 	void mousePressEvent(QMouseEvent *e);
@@ -329,6 +333,8 @@ signals:
 
 private:
 
+	int32 _maxHeight;
+
 	void appendSet(uint64 setId);
 
 	int32 countHeight();
@@ -339,10 +345,16 @@ private:
 
 	int32 _top;
 
-	QList<QString> _titles;
-	QList<uint64> _setIds;
-	QList<StickerPack> _sets;
-	QList<QVector<float64> > _hovers;
+	struct DisplayedSet {
+		DisplayedSet(uint64 id, int32 flags, const QString &title, int32 hoversSize, const StickerPack &pack = StickerPack()) : id(id), flags(flags), title(title), hovers(hoversSize, 0), pack(pack) {
+		}
+		uint64 id;
+		int32 flags;
+		QString title;
+		QVector<float64> hovers;
+		StickerPack pack;
+	};
+	QList<DisplayedSet> _sets;
 	QList<bool> _custom;
 
 	int32 _selected, _pressedSel;
@@ -359,6 +371,7 @@ public:
 
 	EmojiPan(QWidget *parent);
 
+	void setMaxHeight(int32 h);
 	void paintEvent(QPaintEvent *e);
 
 	void enterEvent(QEvent *e);
@@ -412,6 +425,7 @@ signals:
 
 private:
 
+	int32 _maxHeight;
 	bool _horizontal;
 
 	void leaveToChildEvent(QEvent *e);

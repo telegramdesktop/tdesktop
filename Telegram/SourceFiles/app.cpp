@@ -741,6 +741,9 @@ namespace App {
 		History *h = App::historyLoaded(peer);
 		if (h) {
 			h->outboxRead(upTo);
+			if (!h->peer->chat) {
+				h->peer->asUser()->madeAction();
+			}
 		}
 	}
 
@@ -1577,7 +1580,6 @@ namespace App {
 		if (api()) api()->clearWebPageRequests();
 		cSetRecentStickers(RecentStickerPack());
 		cSetStickersHash(QByteArray());
-		cSetEmojiStickers(EmojiStickersMap());
 		cSetStickerSets(StickerSets());
 		cSetStickerSetsOrder(StickerSetsOrder());
 		cSetLastStickersUpdate(0);

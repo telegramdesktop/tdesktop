@@ -466,11 +466,11 @@ struct StickerData {
 };
 
 enum DocumentType {
-	FileDocument,
-	VideoDocument,
-	AudioDocument,
-	StickerDocument,
-	AnimatedDocument
+	FileDocument     = 0,
+	VideoDocument    = 1,
+	AudioDocument    = 2,
+	StickerDocument  = 3,
+	AnimatedDocument = 4,
 };
 struct DocumentData {
 	DocumentData(const DocumentId &id, const uint64 &access = 0, int32 date = 0, const QVector<MTPDocumentAttribute> &attributes = QVector<MTPDocumentAttribute>(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);

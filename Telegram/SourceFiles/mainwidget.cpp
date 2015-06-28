@@ -1948,9 +1948,9 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	}
 	overview = new OverviewWidget(this, peer, type);
 	_mediaTypeMask = 0;
-	mediaOverviewUpdated(peer);
 	_topBar.show();
 	resizeEvent(0);
+	mediaOverviewUpdated(peer);
 	overview->animShow(animCache, animTopBarCache, back, lastScrollTop);
 	history.animStop();
 	history.showPeer(0, 0, false, true);
@@ -2920,7 +2920,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	}
 	StickerSets &sets(cRefStickerSets());
 	for (StickerSets::const_iterator i = sets.cbegin(); i != sets.cend(); ++i) {
-		if (i->id == CustomStickerSetId || (setId && i->id == setId) || (!setName.isEmpty() && i->shortName.toLower().trimmed() == setName) || (!setId && setName.isEmpty() && i->id == DefaultStickerSetId)) {
+		if (i->id == CustomStickerSetId || i->id == DefaultStickerSetId || (setId && i->id == setId) || (!setName.isEmpty() && i->shortName.toLower().trimmed() == setName)) {
 			for (int32 j = 0, l = i->stickers.size(); j < l; ++j) {
 				if (i->stickers.at(j) == sticker) {
 					found = true;
@@ -2933,9 +2933,10 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	if (!found) {
 		StickerSets::iterator it = sets.find(CustomStickerSetId);
 		if (it == sets.cend()) {
-			it = sets.insert(CustomStickerSetId, StickerSet(CustomStickerSetId, 0, lang(lng_custom_stickers), QString()));
+			it = sets.insert(CustomStickerSetId, StickerSet(CustomStickerSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, 0));
 		}
 		it->stickers.push_back(sticker);
+		++it->count;
 		Local::writeStickers();
 	}
 	history.updateRecentStickers();
@@ -3238,6 +3239,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				if (item->isMediaUnread()) {
 					item->markMediaRead();
 					msgUpdated(item->history()->peer->id, item);
+					if (item->out() && !item->history()->peer->chat) {
+						item->history()->peer->asUser()->madeAction();
+					}
 				}
 			}
 		}

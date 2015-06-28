@@ -40,7 +40,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, const
 	, _photosInRow(1)
 	, _photosToAdd(0)
 	, _selMode(false)
-	, _width(0)
+	, _width(st::wndMinWidth)
 	, _height(0)
 	, _minHeight(0)
 	, _addToY(0)
@@ -73,7 +73,6 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, const
 	setAttribute(Qt::WA_AcceptTouchEvents);
 	connect(&_touchScrollTimer, SIGNAL(timeout()), this, SLOT(onTouchScrollTimer()));
 
-	mediaOverviewUpdated();
 	setMouseTracking(true);
 }
 
@@ -367,12 +366,11 @@ void OverviewInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton but
 	_dragStartPos = mapMouseToItem(mapFromGlobal(screenPos), _dragItem, _dragItemIndex);
 	_dragWasInactive = App::wnd()->inactivePress();
 	if (_dragWasInactive) App::wnd()->inactivePress(false);
-	bool textLink = textlnkDown() && !textlnkDown()->encoded().isEmpty();
-	if (textLink) {
+	if (textlnkDown() && _selected.isEmpty()) {
 		_dragAction = PrepareDrag;
 	} else if (!_selected.isEmpty()) {
 		if (_selected.cbegin().value() == FullItemSel) {
-			if (_selected.constFind(_dragItem) != _selected.cend() && App::hoveredItem()) {
+			if (_selected.constFind(_dragItem) != _selected.cend() && textlnkDown()) {
 				_dragAction = PrepareDrag; // start items drag
 			} else {
 				_dragAction = PrepareSelect; // start items select
@@ -382,23 +380,25 @@ void OverviewInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton but
 	if (_dragAction == NoDrag && _dragItem) {
 		bool afterDragSymbol = false , uponSymbol = false;
 		uint16 symbol = 0;
-		if (textlnkDown()) {
-			_dragSymbol = symbol;
-			uint32 selStatus = (_dragSymbol << 16) | _dragSymbol;
-			if (selStatus != FullItemSel && (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel)) {
-				if (!_selected.isEmpty()) {
-					updateMsg(_selected.cbegin().key(), -1);
-					_selected.clear();
+		if (!_dragWasInactive) {
+			if (textlnkDown()) {
+				_dragSymbol = symbol;
+				uint32 selStatus = (_dragSymbol << 16) | _dragSymbol;
+				if (selStatus != FullItemSel && (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel)) {
+					if (!_selected.isEmpty()) {
+						updateMsg(_selected.cbegin().key(), -1);
+						_selected.clear();
+					}
+					_selected.insert(_dragItem, selStatus);
+					_dragAction = Selecting;
+					updateMsg(_dragItem, _dragItemIndex);
+					_overview->updateTopBarSelection();
+				} else {
+					_dragAction = PrepareSelect;
 				}
-				_selected.insert(_dragItem, selStatus);
-				_dragAction = Selecting;
-				updateMsg(_dragItem, _dragItemIndex);
-				_overview->updateTopBarSelection();
 			} else {
-				_dragAction = PrepareSelect;
+				_dragAction = PrepareSelect; // start items select
 			}
-		} else {
-			_dragAction = PrepareSelect; // start items select
 		}
 	}
 
@@ -461,6 +461,11 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 		if (i != _selected.cend() && i.value() == FullItemSel) {
 			_selected.erase(i);
 			updateMsg(_dragItem, _dragItemIndex);
+		} else if (i == _selected.cend() && _dragItem > 0 && !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel) {
+			if (_selected.size() < MaxSelectedItems) {
+				_selected.insert(_dragItem, FullItemSel);
+				updateMsg(_dragItem, _dragItemIndex);
+			}
 		} else {
 			_selected.clear();
 			parentWidget()->update();
@@ -479,6 +484,71 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 	_dragAction = NoDrag;
 	_overview->noSelectingScroll();
 	_overview->updateTopBarSelection();
+}
+
+void OverviewInner::dragExec() {
+	bool uponSelected = false;
+	if (_dragItem) {
+		bool afterDragSymbol;
+		uint16 symbol;
+		if (!_selected.isEmpty() && _selected.cbegin().value() == FullItemSel) {
+			uponSelected = _selected.contains(_dragItem);
+		} else {
+			uponSelected = false;
+		}
+	}
+	QString sel;
+	QList<QUrl> urls;
+	bool forwardSelected = false;
+	if (uponSelected) {
+		forwardSelected = !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel && cWideMode();
+	} else if (textlnkDown()) {
+		sel = textlnkDown()->encoded();
+		if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
+			urls.push_back(QUrl::fromEncoded(sel.toUtf8()));
+		}
+	}
+	if (!sel.isEmpty() || forwardSelected) {
+		updateDragSelection(0, -1, 0, -1, false);
+		_overview->noSelectingScroll();
+
+		QDrag *drag = new QDrag(App::wnd());
+		QMimeData *mimeData = new QMimeData;
+
+		if (!sel.isEmpty()) mimeData->setText(sel);
+		if (!urls.isEmpty()) mimeData->setUrls(urls);
+		if (forwardSelected) {
+			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
+		}
+		drag->setMimeData(mimeData);
+		drag->exec();
+		return;
+	} else {
+		HistoryItem *pressedLnkItem = App::pressedLinkItem(), *pressedItem = App::pressedItem();
+		QLatin1String lnkType = (textlnkDown() && pressedLnkItem) ? textlnkDown()->type() : qstr("");
+		bool lnkPhoto = (lnkType == qstr("PhotoLink")),
+			lnkVideo = (lnkType == qstr("VideoOpenLink")),
+			lnkAudio = (lnkType == qstr("AudioOpenLink")),
+			lnkDocument = (lnkType == qstr("DocumentOpenLink"));
+		if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument) {
+			QDrag *drag = new QDrag(App::wnd());
+			QMimeData *mimeData = new QMimeData;
+
+			mimeData->setData(qsl("application/x-td-forward-pressed-link"), "1");
+			if (lnkDocument) {
+				QString already = static_cast<DocumentOpenLink*>(textlnkDown().data())->document()->already(true);
+				if (!already.isEmpty()) {
+					QList<QUrl> urls;
+					urls.push_back(QUrl::fromLocalFile(already));
+					mimeData->setUrls(urls);
+				}
+			}
+
+			drag->setMimeData(mimeData);
+			drag->exec(Qt::CopyAction);
+			return;
+		}
+	}
 }
 
 void OverviewInner::touchScrollUpdated(const QPoint &screenPos) {
@@ -866,6 +936,7 @@ void OverviewInner::onUpdateSelected() {
 		if (_mousedItem != _dragItem || (m - _dragStartPos).manhattanLength() >= QApplication::startDragDistance()) {
 			if (_dragAction == PrepareDrag) {
 				_dragAction = Dragging;
+				dragExec();
 			} else if (_dragAction == PrepareSelect) {
 				_dragAction = Selecting;
 			}
@@ -1021,7 +1092,7 @@ void OverviewInner::leaveEvent(QEvent *e) {
 
 void OverviewInner::resizeEvent(QResizeEvent *e) {
 	_width = width();
-	showAll();
+	showAll(true);
 	onUpdateSelected();
 	update();
 }
@@ -1304,7 +1375,7 @@ void OverviewInner::onTouchScrollTimer() {
 	}
 }
 
-void OverviewInner::mediaOverviewUpdated() {
+void OverviewInner::mediaOverviewUpdated(bool fromResize) {
 	int32 oldHeight = _height;
 	if (_type != OverviewPhotos) {
 		History::MediaOverview &o(_hist->_overview[_type]);
@@ -1312,6 +1383,7 @@ void OverviewInner::mediaOverviewUpdated() {
 		_items.reserve(2 * l); // day items
 
 		int32 y = 0, in = 0;
+		int32 w = _width - st::msgMargin.left() - st::msgMargin.right();
 		bool allGood = true;
 		QDate prevDate;
 		for (int32 i = 0; i < l; ++i) {
@@ -1319,14 +1391,36 @@ void OverviewInner::mediaOverviewUpdated() {
 			if (allGood) {
 				if (_items.size() > in && _items.at(in).msgid == msgid) {
 					prevDate = _items.at(in).date;
-					y = _items.at(in).y;
+					if (fromResize) {
+						HistoryItem *item = App::histItemById(msgid);
+						HistoryMedia *media = item ? item->getMedia(true) : 0;
+						if (media) {
+							y += media->countHeight(item, w) + st::msgMargin.top() + st::msgMargin.bottom(); // item height
+						}
+						_items[in].y = y;
+					} else {
+						y = _items.at(in).y;
+					}
 					++in;
 					continue;
 				}
 				if (_items.size() > in + 1 && !_items.at(in).msgid && _items.at(in + 1).msgid == msgid) { // day item
+					if (fromResize) {
+						y += st::msgServiceFont->height + st::msgServicePadding.top() + st::msgServicePadding.bottom() + st::msgServiceMargin.top() + st::msgServiceMargin.bottom(); // day item height
+						_items[in].y = y;
+					}
 					++in;
 					prevDate = _items.at(in).date;
-					y = _items.at(in).y;
+					if (fromResize) {
+						HistoryItem *item = App::histItemById(msgid);
+						HistoryMedia *media = item ? item->getMedia(true) : 0;
+						if (media) {
+							y += media->countHeight(item, w) + st::msgMargin.top() + st::msgMargin.bottom(); // item height
+						}
+						_items[in].y = y;
+					} else {
+						y = _items.at(in).y;
+					}
 					++in;
 					continue;
 				}
@@ -1353,7 +1447,6 @@ void OverviewInner::mediaOverviewUpdated() {
 			} else {
 				prevDate = date;
 			}
-			int32 w = _width - st::msgMargin.left() - st::msgMargin.right();
 			media->initDimensions(item);
 			y += media->countHeight(item, w) + st::msgMargin.top() + st::msgMargin.bottom(); // item height
 			if (_items.size() > in) {
@@ -1378,8 +1471,10 @@ void OverviewInner::mediaOverviewUpdated() {
 		}
 		if (_height != y) {
 			_height = y;
-			_addToY = (_height < _minHeight) ? (_minHeight - _height) : 0;
-			resize(width(), _minHeight > _height ? _minHeight : _height);
+			if (!fromResize) {
+				_addToY = (_height < _minHeight) ? (_minHeight - _height) : 0;
+				resize(width(), _minHeight > _height ? _minHeight : _height);
+			}
 		}
 	}
 
@@ -1388,9 +1483,11 @@ void OverviewInner::mediaOverviewUpdated() {
 	fixItemIndex(_mousedItemIndex, _mousedItem);
 	fixItemIndex(_dragItemIndex, _dragItem);
 
-	resizeEvent(0);
-	if (_height != oldHeight) {
-		_overview->scrollBy(_height - oldHeight);
+	if (!fromResize) {
+		resizeEvent(0);
+		if (_height != oldHeight) {
+			_overview->scrollBy(_height - oldHeight);
+		}
 	}
 }
 
@@ -1503,7 +1600,7 @@ void OverviewInner::msgUpdated(const HistoryItem *msg) {
 	}
 }
 
-void OverviewInner::showAll() {
+void OverviewInner::showAll(bool recountHeights) {
 	int32 newHeight = height();
 	if (_type == OverviewPhotos) {
 		_photosInRow = int32(width() - st::overviewPhotoSkip) / int32(st::overviewPhotoMinSize + st::overviewPhotoSkip);
@@ -1518,10 +1615,13 @@ void OverviewInner::showAll() {
 		}
 		int32 rows = ((_photosToAdd + count) / _photosInRow) + (((_photosToAdd + count) % _photosInRow) ? 1 : 0);
 		newHeight = _height = (_vsize + st::overviewPhotoSkip) * rows + st::overviewPhotoSkip;
-		_addToY = (_height < _minHeight) ? (_minHeight - _height) : 0;
 	} else {
+		if (recountHeights && _type == OverviewVideos) { // recount heights because of captions
+			mediaOverviewUpdated(true);
+		}
 		newHeight = _height;
 	}
+	_addToY = (_height < _minHeight) ? (_minHeight - _height) : 0;
 	if (newHeight < _minHeight) {
 		newHeight = _minHeight;
 	}

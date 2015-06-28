@@ -99,8 +99,6 @@ EmojiColorVariants gEmojiVariants;
 
 QByteArray gStickersHash;
 
-EmojiStickersMap gEmojiStickers;
-
 RecentStickerPreload gRecentStickersPreload;
 RecentStickerPack gRecentStickers;
 StickerSets gStickerSets;

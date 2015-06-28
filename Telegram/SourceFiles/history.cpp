@@ -2123,15 +2123,55 @@ const QString HistoryVideo::inHistoryText() const {
 }
 
 bool HistoryVideo::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+	int32 height = _height;
+	if (width < 0) {
+		width = w;
+	} else if (!_caption.isEmpty()) {
+		height = countHeight(parent, width);
+	}
+	if (width >= _maxw) {
+		width = _maxw;
+	}
+	return (x >= 0 && y >= 0 && x < width && y < height);
+}
+
+int32 HistoryVideo::countHeight(const HistoryItem *parent, int32 width) const {
+	if (_caption.isEmpty()) return _height;
+
 	if (width < 0) width = w;
 	if (width >= _maxw) {
 		width = _maxw;
 	}
-	return (x >= 0 && y >= 0 && x < width && y < _height);
+
+	int32 h = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
+	if (!parent->out() && parent->history()->peer->chat) {
+		h += st::msgPadding.top() + st::msgNameFont->height;
+	}
+	if (const HistoryReply *reply = toHistoryReply(parent)) {
+		h += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
+	} else if (const HistoryForwarded *fwd = toHistoryForwarded(parent)) {
+		if (parent->out() || !parent->history()->peer->chat) {
+			h += st::msgPadding.top();
+		}
+		h += st::msgServiceNameFont->height;
+	}
+	if (!_caption.isEmpty()) {
+		int32 textw = width - st::mediaPadding.left() - st::mediaPadding.right();
+		if (!parent->out()) { // substract Download / Save As button
+			textw -= st::mediaSaveDelta + _buttonWidth;
+		}
+		h += st::webPagePhotoSkip + _caption.countHeight(textw);
+	}
+	return h;
 }
 
 void HistoryVideo::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
-	if (width < 0) width = w;
+	int32 height = _height;
+	if (width < 0) {
+		width = w;
+	} else if (!_caption.isEmpty()) {
+		height = countHeight(parent, width);
+	}
 	if (width < 1) return;
 
 	const HistoryReply *reply = toHistoryReply(parent);
@@ -2157,7 +2197,7 @@ void HistoryVideo::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 	}
 
 	if (!out) { // draw Download / Save As button
-		int32 h = _height;
+		int32 h = height;
 		if (!_caption.isEmpty()) {
 			h -= st::webPagePhotoSkip + _caption.countHeight(width - _buttonWidth - st::mediaSaveDelta - st::mediaPadding.left() - st::mediaPadding.right());
 		}
@@ -2203,7 +2243,12 @@ HistoryMedia *HistoryVideo::clone() const {
 }
 
 void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const {
-	if (width < 0) width = w;
+	int32 height = _height;
+	if (width < 0) {
+		width = w;
+	} else if (!_caption.isEmpty()) {
+		height = countHeight(parent, width);
+	}
 	if (width < 1) return;
 
 	const HistoryReply *reply = toHistoryReply(parent);
@@ -2235,7 +2280,7 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		pressed = hovered && ((data->loader ? _cancell : _savel) == textlnkDown());
 		if (hovered && !pressed && textlnkDown()) hovered = false;
 
-		int32 h = _height;
+		int32 h = height;
 		if (!_caption.isEmpty()) {
 			h -= st::webPagePhotoSkip + _caption.countHeight(width - _buttonWidth - st::mediaSaveDelta - st::mediaPadding.left() - st::mediaPadding.right());
 		}
@@ -2257,7 +2302,7 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	style::color bg(selected ? (out ? st::msgOutSelectBg : st::msgInSelectBg) : (out ? st::msgOutBg : st::msgInBg));
 	style::color sh(selected ? (out ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out ? st::msgOutShadow : st::msgInShadow));
 	RoundCorners cors(selected ? (out ? MessageOutSelectedCorners : MessageInSelectedCorners) : (out ? MessageOutCorners : MessageInCorners));
-	App::roundRect(p, 0, 0, width, _height, bg, cors, &sh);
+	App::roundRect(p, 0, 0, width, height, bg, cors, &sh);
 
 	if (!parent->out() && parent->history()->peer->chat) {
 		p.setFont(st::msgNameFont->f);
@@ -2334,9 +2379,9 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	style::color date(selected ? (out ? st::msgOutSelectDateColor : st::msgInSelectDateColor) : (out ? st::msgOutDateColor : st::msgInDateColor));
 	p.setPen(date->p);
 
-	p.drawText(width + st::msgDateDelta.x() - fullTimeWidth + st::msgDateSpace, _height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->descent, parent->time());
+	p.drawText(width + st::msgDateDelta.x() - fullTimeWidth + st::msgDateSpace, height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->descent, parent->time());
 	if (out) {
-		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.pxWidth(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.pxHeight());
+		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.pxWidth(), height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.pxHeight());
 		const QRect *iconRect;
 		if (parent->id > 0) {
 			if (parent->unread()) {
@@ -3049,22 +3094,6 @@ HistorySticker::HistorySticker(DocumentData *document) : HistoryMedia()
 , pixw(1), pixh(1), data(document), lastw(0)
 {
 	data->thumb->load();
-	updateStickerEmoji();
-}
-
-bool HistorySticker::updateStickerEmoji() {
-	if (!data->sticker->alt.isEmpty()) {
-		_emoji = data->sticker->alt;
-		return true;
-	}
-	const EmojiStickersMap &stickers(cEmojiStickers());
-	EmojiStickersMap::const_iterator i = stickers.constFind(data);
-	QString emoji = (i == stickers.cend()) ? QString() : emojiString(i.value());
-	if (emoji != _emoji) {
-		_emoji = emoji;
-		return true;
-	}
-	return false;
 }
 
 void HistorySticker::initDimensions(const HistoryItem *parent) {
@@ -5167,15 +5196,6 @@ QString HistoryMessage::notificationText() const {
 	QString msg(inDialogsText());
     if (msg.size() > 0xFF) msg = msg.mid(0, 0xFF) + qsl("..");
     return msg;
-}
-
-void HistoryMessage::updateStickerEmoji() {
-	if (_media) {
-		if (_media->updateStickerEmoji()) {
-			_history->textCachedFor = 0;
-			if (App::wnd()) App::wnd()->update();
-		}
-	}
 }
 
 HistoryMessage::~HistoryMessage() {

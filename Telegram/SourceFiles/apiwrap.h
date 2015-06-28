@@ -36,6 +36,9 @@ public:
 	void clearWebPageRequest(WebPageData *page);
 	void clearWebPageRequests();
 
+	void scheduleStickerSetRequest(uint64 setId, uint64 access);
+	void requestStickerSets();
+
 	~ApiWrap();
 
 signals:
@@ -70,5 +73,9 @@ private:
 	typedef QMap<WebPageData*, mtpRequestId> WebPagesPending;
 	WebPagesPending _webPagesPending;
 	SingleTimer _webPagesTimer;
+
+	QMap<uint64, QPair<uint64, mtpRequestId> > _stickerSetRequests;
+	void gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result);
+	bool gotStickerSetFail(uint64 setId, const RPCError &error);
 
 };

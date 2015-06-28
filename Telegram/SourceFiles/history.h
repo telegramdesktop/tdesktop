@@ -724,8 +724,6 @@ public:
 	}
 	virtual void updateMedia(const MTPMessageMedia &media) {
 	}
-	virtual void updateStickerEmoji() {
-	}
 
 	virtual QString selectedText(uint32 selection) const {
 		return qsl("[-]");
@@ -856,10 +854,6 @@ public:
 		return false;
 	}
 
-	virtual bool updateStickerEmoji() {
-		return false;
-	}
-	
 	virtual bool animating() const {
 		return false;
 	}
@@ -947,6 +941,7 @@ public:
 	const QString inDialogsText() const;
 	const QString inHistoryText() const;
 	bool hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
+	int32 countHeight(const HistoryItem *parent, int32 width = -1) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const;
 	bool uploading() const {
 		return (data->status == FileUploading);
@@ -1086,7 +1081,6 @@ public:
 	void unregItem(HistoryItem *item);
 
 	void updateFrom(const MTPMessageMedia &media);
-	bool updateStickerEmoji();
 
 private:
 
@@ -1292,7 +1286,6 @@ public:
 			_media->updateFrom(media);
 		}
 	}
-	void updateStickerEmoji();
 
 	QString selectedText(uint32 selection) const;
 	QString inDialogsText() const;
