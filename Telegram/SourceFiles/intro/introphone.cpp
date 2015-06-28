@@ -26,6 +26,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 namespace {
 	class SignUpLink : public ITextLink {
+		TEXT_LINK_CLASS(SignUpLink)
+
 	public:
 
 		SignUpLink(IntroPhone *widget) : _widget(widget) {

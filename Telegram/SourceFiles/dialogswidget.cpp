@@ -1776,7 +1776,10 @@ void DialogsWidget::dragEnterEvent(QDragEnterEvent *e) {
 	if (App::main()->selectingPeer()) return;
 
 	_dragInScroll = false;
-	_dragForward = cWideMode() && e->mimeData()->hasFormat(qsl("application/x-td-forward-selected"));
+	_dragForward = e->mimeData()->hasFormat(qsl("application/x-td-forward-selected"));
+	if (!_dragForward) _dragForward = e->mimeData()->hasFormat(qsl("application/x-td-forward-pressed-link"));
+	if (!_dragForward) _dragForward = e->mimeData()->hasFormat(qsl("application/x-td-forward-pressed"));
+	if (_dragForward && !cWideMode()) _dragForward = false;
 	if (_dragForward) {
 		e->setDropAction(Qt::CopyAction);
 		e->accept();
@@ -1836,11 +1839,7 @@ void DialogsWidget::dropEvent(QDropEvent *e) {
 		PeerData *p = list.updateFromParentDrag(mapToGlobal(e->pos()));
 		if (p) {
 			e->acceptProposedAction();
-			if (e->mimeData()->hasFormat(qsl("application/x-td-forward-selected"))) {
-				App::main()->onForward(p->id, true);
-			} else {
-				App::main()->onFilesDrop(p->id, e->mimeData());
-			}
+			App::main()->onFilesOrForwardDrop(p->id, e->mimeData());
 		}
 	}
 }

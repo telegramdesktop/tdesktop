@@ -189,9 +189,6 @@ struct DocumentData;
 typedef QVector<DocumentData*> StickerPack;
 DeclareSetting(QByteArray, StickersHash);
 
-typedef QMap<DocumentData*, EmojiPtr> EmojiStickersMap;
-DeclareSetting(EmojiStickersMap, EmojiStickers);
-
 typedef QList<QPair<DocumentData*, int16> > RecentStickerPackOld;
 typedef QVector<QPair<uint64, ushort> > RecentStickerPreload;
 typedef QVector<QPair<DocumentData*, ushort> > RecentStickerPack;
@@ -202,12 +199,14 @@ RecentStickerPack &cGetRecentStickers();
 
 DeclareSetting(uint64, LastStickersUpdate);
 
-static const uint64 DefaultStickerSetId = 0, CustomStickerSetId = 0xFFFFFFFFFFFFFFFFLLU, RecentStickerSetId = 0xFFFFFFFFFFFFFFFELLU;
+static const uint64 DefaultStickerSetId = 0; // for backward compatibility
+static const uint64 CustomStickerSetId = 0xFFFFFFFFFFFFFFFFLLU, RecentStickerSetId = 0xFFFFFFFFFFFFFFFELLU;
 struct StickerSet {
-	StickerSet(uint64 id, uint64 access, const QString &title, const QString &shortName) : id(id), access(access), title(title), shortName(shortName) {
+	StickerSet(uint64 id, uint64 access, const QString &title, const QString &shortName, int32 count, int32 hash, int32 flags) : id(id), access(access), title(title), shortName(shortName), count(count), hash(hash), flags(flags) {
 	}
 	uint64 id, access;
 	QString title, shortName;
+	int32 count, hash, flags;
 	StickerPack stickers;
 };
 typedef QMap<uint64, StickerSet> StickerSets;

@@ -409,17 +409,27 @@ _failDifferenceTimeout(1), _lastUpdateTime(0), _cachedX(0), _cachedY(0), _backgr
 	_api->init();
 }
 
-void MainWidget::onForward(const PeerId &peer, bool forwardSelected) {
+void MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 	history.cancelReply();
 	_toForward.clear();
-	if (forwardSelected) {
+	if (what == ForwardSelectedMessages) {
 		if (overview) {
 			overview->fillSelectedItems(_toForward, false);
 		} else {
 			history.fillSelectedItems(_toForward, false);
 		}
-	} else if (App::contextItem() && dynamic_cast<HistoryMessage*>(App::contextItem()) && App::contextItem()->id > 0) {
-		_toForward.insert(App::contextItem()->id, App::contextItem());
+	} else {
+		HistoryItem *item = 0;
+		if (what == ForwardContextMessage) {
+			item = App::contextItem();
+		} else if (what == ForwardPressedMessage) {
+			item = App::pressedItem();
+		} else if (what == ForwardPressedLinkMessage) {
+			item = App::pressedLinkItem();
+		}
+		if (dynamic_cast<HistoryMessage*>(item) && item->id > 0) {
+			_toForward.insert(item->id, item);
+		}
 	}
 	updateForwardingTexts();
 	showPeer(peer, 0, false, true);
@@ -571,9 +581,17 @@ void MainWidget::onSendPaths(const PeerId &peer) {
 	history.onSendPaths(peer);
 }
 
-void MainWidget::onFilesDrop(const PeerId &peer, const QMimeData *data) {
-	showPeer(peer, 0, false, true);
-	history.onFilesDrop(data);
+void MainWidget::onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data) {
+	if (data->hasFormat(qsl("application/x-td-forward-selected"))) {
+		onForward(peer, ForwardSelectedMessages);
+	} else if (data->hasFormat(qsl("application/x-td-forward-pressed-link"))) {
+		onForward(peer, ForwardPressedLinkMessage);
+	} else if (data->hasFormat(qsl("application/x-td-forward-pressed"))) {
+		onForward(peer, ForwardPressedMessage);
+	} else {
+		showPeer(peer, 0, false, true);
+		history.onFilesDrop(data);
+	}
 }
 
 void MainWidget::noHider(HistoryHider *destroyed) {
@@ -1429,7 +1447,7 @@ void MainWidget::audioPlayProgress(AudioData *audio) {
 		audioPlayer()->clearStoppedAtStart(audio);
 		QString already = audio->already(true);
 		if (already.isEmpty() && !audio->data.isEmpty()) {
-			bool mp3 = (audio->mime == QLatin1String("audio/mp3"));
+			bool mp3 = (audio->mime == qstr("audio/mp3"));
 			QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), mp3 ? qsl(".mp3") : qsl(".ogg"), false);
 			if (!filename.isEmpty()) {
 				QFile f(filename);
@@ -1930,9 +1948,9 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	}
 	overview = new OverviewWidget(this, peer, type);
 	_mediaTypeMask = 0;
-	mediaOverviewUpdated(peer);
 	_topBar.show();
 	resizeEvent(0);
+	mediaOverviewUpdated(peer);
 	overview->animShow(animCache, animTopBarCache, back, lastScrollTop);
 	history.animStop();
 	history.showPeer(0, 0, false, true);
@@ -2562,18 +2580,18 @@ bool MainWidget::started() {
 
 void MainWidget::openLocalUrl(const QString &url) {
 	QString u(url.trimmed());
-	if (u.startsWith(QLatin1String("tg://resolve"), Qt::CaseInsensitive)) {
+	if (u.startsWith(qstr("tg://resolve"), Qt::CaseInsensitive)) {
 		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://resolve/?\\?domain=([a-zA-Z0-9\\.\\_]+)(&(start|startgroup)=([a-zA-Z0-9\\.\\_\\-]+))?(&|$)"), QRegularExpression::CaseInsensitiveOption).match(u);
 		if (m.hasMatch()) {
 			QString start = m.captured(3), startToken = m.captured(4);
 			openUserByName(m.captured(1), (start == qsl("startgroup")), startToken);
 		}
-	} else if (u.startsWith(QLatin1String("tg://join"), Qt::CaseInsensitive)) {
+	} else if (u.startsWith(qstr("tg://join"), Qt::CaseInsensitive)) {
 		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), QRegularExpression::CaseInsensitiveOption).match(u);
 		if (m.hasMatch()) {
 			joinGroupByHash(m.captured(1));
 		}
-	} else if (u.startsWith(QLatin1String("tg://addstickers"), Qt::CaseInsensitive)) {
+	} else if (u.startsWith(qstr("tg://addstickers"), Qt::CaseInsensitive)) {
 		QRegularExpressionMatch m = QRegularExpression(qsl("^tg://addstickers/?\\?set=([a-zA-Z0-9\\.\\_]+)(&|$)"), QRegularExpression::CaseInsensitiveOption).match(u);
 		if (m.hasMatch()) {
 			stickersBox(MTP_inputStickerSetShortName(MTP_string(m.captured(1))));
@@ -2904,7 +2922,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	}
 	StickerSets &sets(cRefStickerSets());
 	for (StickerSets::const_iterator i = sets.cbegin(); i != sets.cend(); ++i) {
-		if (i->id == CustomStickerSetId || (setId && i->id == setId) || (!setName.isEmpty() && i->shortName.toLower().trimmed() == setName) || (!setId && setName.isEmpty() && i->id == DefaultStickerSetId)) {
+		if (i->id == CustomStickerSetId || i->id == DefaultStickerSetId || (setId && i->id == setId) || (!setName.isEmpty() && i->shortName.toLower().trimmed() == setName)) {
 			for (int32 j = 0, l = i->stickers.size(); j < l; ++j) {
 				if (i->stickers.at(j) == sticker) {
 					found = true;
@@ -2917,9 +2935,10 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	if (!found) {
 		StickerSets::iterator it = sets.find(CustomStickerSetId);
 		if (it == sets.cend()) {
-			it = sets.insert(CustomStickerSetId, StickerSet(CustomStickerSetId, 0, lang(lng_custom_stickers), QString()));
+			it = sets.insert(CustomStickerSetId, StickerSet(CustomStickerSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, 0));
 		}
 		it->stickers.push_back(sticker);
+		++it->count;
 		Local::writeStickers();
 	}
 	history.updateRecentStickers();
@@ -3222,6 +3241,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				if (item->isMediaUnread()) {
 					item->markMediaRead();
 					msgUpdated(item->history()->peer->id, item);
+					if (item->out() && !item->history()->peer->chat) {
+						item->history()->peer->asUser()->madeAction();
+					}
 				}
 			}
 		}

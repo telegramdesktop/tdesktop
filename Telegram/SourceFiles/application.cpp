@@ -653,8 +653,8 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 8033) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 IPv6 connection checkbox added to Connection Type box in Settings");// .replace('@', qsl("@") + QChar(0x200D));
+			if (DevChannel && Local::oldMapVersion() < 8034) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Forward photos, media and stickers with drag-n-drop\n\xe2\x80\x94 Drag-n-drop text messages by timestamp to forward them\n\xe2\x80\x94 Larger stickers panel");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (!DevChannel && Local::oldMapVersion() < 8030) {
 				versionFeatures = lng_new_version_text(lt_blog_link, qsl("https://telegram.org/blog/bot-revolution"));// lang(lng_new_version_text).trimmed();
 			}

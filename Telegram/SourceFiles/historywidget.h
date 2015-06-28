@@ -106,6 +106,7 @@ public slots:
 	void onMenuDestroy(QObject *obj);
 	void onTouchSelect();
 	void onTouchScrollTimer();
+	void onDragExec();
 
 private:
 
@@ -148,6 +149,7 @@ private:
 	TextSelectType _dragSelType;
 	QPoint _dragStartPos, _dragPos;
 	HistoryItem *_dragItem;
+	HistoryCursorState _dragCursorState;
 	uint16 _dragSymbol;
 	bool _dragWasInactive;
 

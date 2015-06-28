@@ -524,7 +524,7 @@ documentAttributeImageSize#6c37c15c w:int h:int = DocumentAttribute;
 documentAttributeAnimated#11b58939 = DocumentAttribute;
 documentAttributeSticker#3a556302 alt:string stickerset:InputStickerSet = DocumentAttribute;
 documentAttributeVideo#5910cccb duration:int w:int h:int = DocumentAttribute;
-documentAttributeAudio#51448e5 duration:int = DocumentAttribute;
+documentAttributeAudio#ded218e0 duration:int title:string performer:string = DocumentAttribute;
 documentAttributeFilename#15590068 file_name:string = DocumentAttribute;
 
 messages.stickersNotModified#f1749a22 = messages.Stickers;
@@ -533,7 +533,7 @@ messages.stickers#8a8ecd32 hash:string stickers:Vector<Document> = messages.Stic
 stickerPack#12b299d4 emoticon:string documents:Vector<long> = StickerPack;
 
 messages.allStickersNotModified#e86602c3 = messages.AllStickers;
-messages.allStickers#5ce352ec hash:string packs:Vector<StickerPack> sets:Vector<StickerSet> documents:Vector<Document> = messages.AllStickers;
+messages.allStickers#d51dafdb hash:string sets:Vector<StickerSet> = messages.AllStickers;
 
 disabledFeature#ae636f24 feature:string description:string = DisabledFeature;
 
@@ -588,7 +588,7 @@ inputStickerSetEmpty#ffb62b95 = InputStickerSet;
 inputStickerSetID#9de7a269 id:long access_hash:long = InputStickerSet;
 inputStickerSetShortName#861cc8a0 short_name:string = InputStickerSet;
 
-stickerSet#a7a43b17 id:long access_hash:long title:string short_name:string = StickerSet;
+stickerSet#cd303b41 flags:# id:long access_hash:long title:string short_name:string count:int hash:int = StickerSet;
 
 messages.stickerSet#b60a24a6 set:StickerSet packs:Vector<StickerPack> documents:Vector<Document> = messages.StickerSet;
 
@@ -767,6 +767,6 @@ messages.exportChatInvite#7d885289 chat_id:int = ExportedChatInvite;
 messages.checkChatInvite#3eadb1bb hash:string = ChatInvite;
 messages.importChatInvite#6c50051c hash:string = Updates;
 messages.getStickerSet#2619a90e stickerset:InputStickerSet = messages.StickerSet;
-messages.installStickerSet#efbbfae9 stickerset:InputStickerSet = Bool;
+messages.installStickerSet#7b30c3a6 stickerset:InputStickerSet disabled:Bool = Bool;
 messages.uninstallStickerSet#f96e55de stickerset:InputStickerSet = Bool;
 messages.startBot#1b3e0ffc bot:InputUser chat_id:int random_id:long start_param:string = Updates;

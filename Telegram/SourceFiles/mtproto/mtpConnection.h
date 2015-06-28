@@ -43,7 +43,12 @@ enum {
 	MTPDreplyKeyboardMarkup_flag_single_use = (1 << 1),
 	MTPDreplyKeyboardMarkup_flag_personal = (1 << 2),
 	MTPDreplyKeyboardMarkup_flag_FORCE_REPLY = (1 << 30), // client side flag for forceReply
-	MTPDreplyKeyboardMarkup_flag_ZERO = (1 << 31) // client side flag for zeroMarkup
+	MTPDreplyKeyboardMarkup_flag_ZERO = (1 << 31), // client side flag for zeroMarkup
+
+	MTPDstickerSet_flag_installed = (1 << 0),
+	MTPDstickerSet_flag_disabled = (1 << 1),
+	MTPDstickerSet_flag_official = (1 << 2),
+	MTPDstickerSet_flag_NOT_LOADED = (1 << 31), // client side flag for not yet loaded set
 };
 
 static const MTPReplyMarkup MTPnullMarkup = MTP_replyKeyboardMarkup(MTP_int(0), MTP_vector<MTPKeyboardButtonRow>(0));

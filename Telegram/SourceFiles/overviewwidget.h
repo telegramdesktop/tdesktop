@@ -57,7 +57,7 @@ public:
 
 	void setSelectMode(bool enabled);
 
-	void mediaOverviewUpdated();
+	void mediaOverviewUpdated(bool fromResize = false);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void msgUpdated(const HistoryItem *msg);
 	void itemRemoved(HistoryItem *item);
@@ -88,6 +88,8 @@ public slots:
 	void onTouchSelect();
 	void onTouchScrollTimer();
 
+	void onDragExec();
+
 private:
 
 	void fixItemIndex(int32 &current, MsgId msgId) const;
@@ -107,7 +109,7 @@ private:
 	void applyDragSelection();
 
 	QPixmap genPix(PhotoData *photo, int32 size);
-	void showAll();
+	void showAll(bool recountHeights = false);
 
 	OverviewWidget *_overview;
 	ScrollArea *_scroll;

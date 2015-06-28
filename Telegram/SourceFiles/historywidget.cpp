@@ -47,6 +47,7 @@ HistoryList::HistoryList(HistoryWidget *historyWidget, ScrollArea *scroll, Histo
     , _dragAction(NoDrag)
     , _dragSelType(TextSelectLetters)
     , _dragItem(0)
+	, _dragCursorState(HistoryDefaultCursorState)
     , _dragWasInactive(false)
     , _dragSelFrom(0)
     , _dragSelTo(0)
@@ -396,8 +397,7 @@ void HistoryList::dragActionStart(const QPoint &screenPos, Qt::MouseButton butto
 	_dragStartPos = mapMouseToItem(mapFromGlobal(screenPos), _dragItem);
 	_dragWasInactive = App::wnd()->inactivePress();
 	if (_dragWasInactive) App::wnd()->inactivePress(false);
-	bool textLink = textlnkDown() && !textlnkDown()->encoded().isEmpty();
-	if (textLink) {
+	if (textlnkDown()) {
 		_dragAction = PrepareDrag;
 	} else if (!_selected.isEmpty()) {
 		if (_selected.cbegin().value() == FullItemSel) {
@@ -451,18 +451,22 @@ void HistoryList::dragActionStart(const QPoint &screenPos, Qt::MouseButton butto
 				if (uponSelected) {
 					_dragAction = PrepareDrag; // start text drag
 				} else if (!_dragWasInactive) {
-					if (afterDragSymbol) ++_dragSymbol;
-					uint32 selStatus = (_dragSymbol << 16) | _dragSymbol;
-					if (selStatus != FullItemSel && (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel)) {
-						if (!_selected.isEmpty()) {
-							updateMsg(_selected.cbegin().key());
-							_selected.clear();
-						}
-						_selected.insert(_dragItem, selStatus);
-						_dragAction = Selecting;
-						updateMsg(_dragItem);
+					if (dynamic_cast<HistorySticker*>(App::pressedItem()->getMedia()) || _dragCursorState == HistoryInDateCursorState) {
+						_dragAction = PrepareDrag; // start sticker drag or by-date drag
 					} else {
-						_dragAction = PrepareSelect;
+						if (afterDragSymbol) ++_dragSymbol;
+						uint32 selStatus = (_dragSymbol << 16) | _dragSymbol;
+						if (selStatus != FullItemSel && (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel)) {
+							if (!_selected.isEmpty()) {
+								updateMsg(_selected.cbegin().key());
+								_selected.clear();
+							}
+							_selected.insert(_dragItem, selStatus);
+							_dragAction = Selecting;
+							updateMsg(_dragItem);
+						} else {
+							_dragAction = PrepareSelect;
+						}
 					}
 				}
 			} else if (!_dragWasInactive) {
@@ -485,6 +489,92 @@ void HistoryList::dragActionCancel() {
 	_dragSelFrom = _dragSelTo = 0;
 	_wasSelectedText = false;
 	historyWidget->noSelectingScroll();
+}
+
+void HistoryList::onDragExec() {
+	if (_dragAction != Dragging) return;
+
+	bool uponSelected = false;
+	if (_dragItem) {
+		bool afterDragSymbol;
+		uint16 symbol;
+		if (!_selected.isEmpty() && _selected.cbegin().value() == FullItemSel) {
+			uponSelected = _selected.contains(_dragItem);
+		} else {
+			_dragItem->getSymbol(symbol, afterDragSymbol, uponSelected, _dragStartPos.x(), _dragStartPos.y());
+			if (uponSelected) {
+				if (_selected.isEmpty() ||
+					_selected.cbegin().value() == FullItemSel ||
+					_selected.cbegin().key() != _dragItem
+					) {
+					uponSelected = false;
+				} else {
+					uint16 selFrom = (_selected.cbegin().value() >> 16) & 0xFFFF, selTo = _selected.cbegin().value() & 0xFFFF;
+					if (symbol < selFrom || symbol >= selTo) {
+						uponSelected = false;
+					}
+				}
+			}
+		}
+	}
+	QString sel;
+	QList<QUrl> urls;
+	if (uponSelected) {
+		sel = getSelectedText();
+	} else if (textlnkDown()) {
+		sel = textlnkDown()->encoded();
+		if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
+//			urls.push_back(QUrl::fromEncoded(sel.toUtf8())); // Google Chrome crashes in Mac OS X O_o
+		}
+	}
+	if (!sel.isEmpty()) {
+		updateDragSelection(0, 0, false);
+		historyWidget->noSelectingScroll();
+
+		QDrag *drag = new QDrag(App::wnd());
+		QMimeData *mimeData = new QMimeData;
+
+		mimeData->setText(sel);
+		if (!urls.isEmpty()) mimeData->setUrls(urls);
+		if (uponSelected && !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel && cWideMode()) {
+			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
+		}
+		drag->setMimeData(mimeData);
+		drag->exec(Qt::CopyAction);
+		return;
+	} else {
+		HistoryItem *pressedLnkItem = App::pressedLinkItem(), *pressedItem = App::pressedItem();
+		QLatin1String lnkType = (textlnkDown() && pressedLnkItem) ? textlnkDown()->type() : qstr("");
+		bool lnkPhoto = (lnkType == qstr("PhotoLink")),
+			lnkVideo = (lnkType == qstr("VideoOpenLink")),
+			lnkAudio = (lnkType == qstr("AudioOpenLink")),
+			lnkDocument = (lnkType == qstr("DocumentOpenLink")),
+			lnkContact = (lnkType == qstr("PeerLink") && dynamic_cast<HistoryContact*>(pressedLnkItem->getMedia())),
+			dragSticker = dynamic_cast<HistorySticker*>(pressedItem ? pressedItem->getMedia() : 0),
+			dragByDate = (_dragCursorState == HistoryInDateCursorState);
+		if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument || lnkContact || dragSticker || dragByDate) {
+			QDrag *drag = new QDrag(App::wnd());
+			QMimeData *mimeData = new QMimeData;
+
+			if (dragSticker || dragByDate) {
+				mimeData->setData(qsl("application/x-td-forward-pressed"), "1");
+			} else {
+				mimeData->setData(qsl("application/x-td-forward-pressed-link"), "1");
+			}
+			if (lnkDocument) {
+				QString already = static_cast<DocumentOpenLink*>(textlnkDown().data())->document()->already(true);
+				if (!already.isEmpty()) {
+					QList<QUrl> urls;
+					urls.push_back(QUrl::fromLocalFile(already));
+					mimeData->setUrls(urls);
+				}
+			}
+
+			drag->setMimeData(mimeData);
+			drag->exec(Qt::CopyAction);
+			return;
+		}
+	}
 }
 
 void HistoryList::itemRemoved(HistoryItem *item) {
@@ -529,6 +619,18 @@ void HistoryList::dragActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 	if (textlnkOver()) {
 		if (textlnkDown() == textlnkOver() && _dragAction != Dragging) {
 			needClick = textlnkDown();
+
+			QLatin1String lnkType = needClick->type();
+			bool lnkPhoto = (lnkType == qstr("PhotoLink")),
+				lnkVideo = (lnkType == qstr("VideoOpenLink")),
+				lnkAudio = (lnkType == qstr("AudioOpenLink")),
+				lnkDocument = (lnkType == qstr("DocumentOpenLink")),
+				lnkContact = (lnkType == qstr("PeerLink") && dynamic_cast<HistoryContact*>(App::pressedLinkItem() ? App::pressedLinkItem()->getMedia() : 0));
+			if (_dragAction == PrepareDrag && !_dragWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel && button != Qt::RightButton) {
+				if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument || lnkContact) {
+					needClick = TextLinkPtr();
+				}
+			}
 		}
 	}
 	if (textlnkDown()) {
@@ -553,7 +655,7 @@ void HistoryList::dragActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 		dragActionCancel();
 		return;
 	}
-	if (_dragAction == PrepareSelect && !needClick && !_dragWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel) {
+	if (_dragAction == PrepareSelect && !_dragWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel) {
 		SelectedItems::iterator i = _selected.find(_dragItem);
 		if (i == _selected.cend() && !_dragItem->serviceMsg() && _dragItem->id > 0) {
 			if (_selected.size() < MaxSelectedItems) {
@@ -566,11 +668,16 @@ void HistoryList::dragActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 			_selected.erase(i);
 		}
 		updateMsg(_dragItem);
-	} else if (_dragAction == PrepareDrag && !needClick && !_dragWasInactive && button != Qt::RightButton) {
+	} else if (_dragAction == PrepareDrag && !_dragWasInactive && button != Qt::RightButton) {
 		SelectedItems::iterator i = _selected.find(_dragItem);
 		if (i != _selected.cend() && i.value() == FullItemSel) {
 			_selected.erase(i);
 			updateMsg(_dragItem);
+		} else if (i == _selected.cend() && !_dragItem->serviceMsg() && _dragItem->id > 0 && !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel) {
+			if (_selected.size() < MaxSelectedItems) {
+				_selected.insert(_dragItem, FullItemSel);
+				updateMsg(_dragItem);
+			}
 		} else {
 			_selected.clear();
 			parentWidget()->update();
@@ -1063,6 +1170,7 @@ void HistoryList::leaveEvent(QEvent *e) {
 
 HistoryList::~HistoryList() {
 	delete _menu;
+	_dragAction = NoDrag;
 }
 
 void HistoryList::adjustCurrent(int32 y) {
@@ -1211,16 +1319,19 @@ void HistoryList::onUpdateSelected() {
 	linkTipTimer.start(1000);
 
 	Qt::CursorShape cur = style::cur_default;
-	bool inText = false, lnkChanged = false, lnkInDesc = false;
+	HistoryCursorState cursorState = HistoryDefaultCursorState;
+	bool lnkChanged = false, lnkInDesc = false;
 
 	TextLinkPtr lnk;
 	if (point.y() < ySkip) {
 		if (botInfo && !botInfo->text.isEmpty() && botDescHeight > 0) {
+			bool inText = false;
 			botInfo->text.getState(lnk, inText, point.x() - botDescRect.left() - st::msgPadding.left(), point.y() - botDescRect.top() - st::msgPadding.top() - st::botDescSkip - st::msgNameFont->height, botDescWidth);
+			cursorState = inText ? HistoryInTextCursorState : HistoryDefaultCursorState;
 			lnkInDesc = true;
 		}
 	} else if (item) {
-		item->getState(lnk, inText, m.x(), m.y());
+		item->getState(lnk, cursorState, m.x(), m.y());
 	}
 	if (lnk != textlnkOver()) {
 		lnkChanged = true;
@@ -1244,70 +1355,19 @@ void HistoryList::onUpdateSelected() {
 	}
 
 	if (_dragAction == NoDrag) {
+		_dragCursorState = cursorState;
 		if (lnk) {
 			cur = style::cur_pointer;
-		} else if (inText && (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel)) {
+		} else if (_dragCursorState == HistoryInTextCursorState && (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel)) {
 			cur = style::cur_text;
+		} else if (_dragCursorState == HistoryInDateCursorState) {
+//			cur = style::cur_cross;
 		}
 	} else if (item) {		
 		if (item != _dragItem || (m - _dragStartPos).manhattanLength() >= QApplication::startDragDistance()) {
 			if (_dragAction == PrepareDrag) {
 				_dragAction = Dragging;
-
-				bool uponSelected = false;
-				if (_dragItem) {
-					bool afterDragSymbol;
-					uint16 symbol;
-					if (!_selected.isEmpty() && _selected.cbegin().value() == FullItemSel) {
-						uponSelected = _selected.contains(_dragItem);
-					} else {
-						_dragItem->getSymbol(symbol, afterDragSymbol, uponSelected, _dragStartPos.x(), _dragStartPos.y());
-						if (uponSelected) {
-							if (_selected.isEmpty() ||
-								_selected.cbegin().value() == FullItemSel ||
-								_selected.cbegin().key() != _dragItem
-								) {
-								uponSelected = false;
-							} else {
-								uint16 selFrom = (_selected.cbegin().value() >> 16) & 0xFFFF, selTo = _selected.cbegin().value() & 0xFFFF;
-								if (symbol < selFrom || symbol >= selTo) {
-									uponSelected = false;
-								}
-							}
-						}
-					}
-				}
-				QString sel;
-				QList<QUrl> urls;
-				if (uponSelected) {
-					sel = getSelectedText();
-				} else if (textlnkDown()) {
-					sel = textlnkDown()->encoded();
-					if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
-						urls.push_back(QUrl::fromEncoded(sel.toUtf8()));
-					}
-				}
-				if (!sel.isEmpty()) {
-					updateDragSelection(0, 0, false);
-					historyWidget->noSelectingScroll();
-
-					QDrag *drag = new QDrag(App::wnd());
-					QMimeData *mimeData = new QMimeData;
-					
-					mimeData->setText(sel);
-					if (!urls.isEmpty()) mimeData->setUrls(urls);
-					if (uponSelected && !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel && cWideMode()) {
-						QStringList ids;
-						ids.reserve(_selected.size());
-						for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
-							ids.push_back(QString::number(i.key()->id, 16));
-						}
-						mimeData->setData(qsl("application/x-td-forward-selected"), "1");
-					}
-					drag->setMimeData(mimeData);
-					drag->exec();
-					return;
-				}
+				QTimer::singleShot(1, this, SLOT(onDragExec()));
 			} else if (_dragAction == PrepareSelect) {
 				_dragAction = Selecting;
 			}
@@ -2000,7 +2060,7 @@ void HistoryHider::forward() {
 		} else if (_sendPath) {
 			parent()->onSendPaths(offered->id);
 		} else {
-			parent()->onForward(offered->id, _forwardSelected);
+			parent()->onForward(offered->id, _forwardSelected ? ForwardSelectedMessages : ForwardContextMessage);
 		}
 	}
 	emit forwarded();
@@ -2056,7 +2116,7 @@ bool HistoryHider::offerPeer(PeerId peer) {
 	} else {
 		PeerId to = offered->id;
 		offered = 0;
-		parent()->onForward(to, _forwardSelected);
+		parent()->onForward(to, _forwardSelected ? ForwardSelectedMessages : ForwardContextMessage);
 		startHide();
 		return false;
 	}
@@ -2419,9 +2479,6 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	if (stickers.type() != mtpc_messages_allStickers) return;
 	const MTPDmessages_allStickers &d(stickers.c_messages_allStickers());
 
-	EmojiStickersMap map;
-		
-	const QVector<MTPDocument> &d_docs(d.vdocuments.c_vector().v);
 	const QVector<MTPStickerSet> &d_sets(d.vsets.c_vector().v);
 
 	QByteArray wasHash = cStickersHash();
@@ -2431,182 +2488,61 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	setsOrder.clear();
 
 	StickerSets &sets(cRefStickerSets());
-	StickerSets::iterator def = sets.find(DefaultStickerSetId);
-	if (def == sets.cend()) {
-		def = sets.insert(DefaultStickerSetId, StickerSet(DefaultStickerSetId, 0, lang(lng_stickers_default_set), QString()));
+	QMap<uint64, uint64> setsToRequest;
+	for (StickerSets::iterator i = sets.begin(), e = sets.end(); i != e; ++i) {
+		i->access = 0; // mark for removing
 	}
 	for (int32 i = 0, l = d_sets.size(); i != l; ++i) {
 		if (d_sets.at(i).type() == mtpc_stickerSet) {
 			const MTPDstickerSet &set(d_sets.at(i).c_stickerSet());
 			StickerSets::iterator i = sets.find(set.vid.v);
-			setsOrder.push_back(set.vid.v);
+			QString title = qs(set.vtitle);
+			if (set.vflags.v & MTPDstickerSet_flag_official) {
+				if (!title.compare(qstr("Great Minds"), Qt::CaseInsensitive)) {
+					title = lang(lng_stickers_default_set);
+				}
+				setsOrder.push_front(set.vid.v);
+			} else {
+				setsOrder.push_back(set.vid.v);
+			}
+
 			if (i == sets.cend()) {
-				i = sets.insert(set.vid.v, StickerSet(set.vid.v, set.vaccess_hash.v, qs(set.vtitle), qs(set.vshort_name)));
+				i = sets.insert(set.vid.v, StickerSet(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | MTPDstickerSet_flag_NOT_LOADED));
+				if (!(i->flags & MTPDstickerSet_flag_disabled)) {
+					setsToRequest.insert(set.vid.v, set.vaccess_hash.v);
+				}
 			} else {
 				i->access = set.vaccess_hash.v;
-				i->title = qs(set.vtitle);
+				i->title = title;
 				i->shortName = qs(set.vshort_name);
+				i->flags = set.vflags.v;
+				if (i->count != set.vcount.v || i->hash != set.vhash.v) {
+					i->count = set.vcount.v;
+					i->hash = set.vhash.v;
+					i->flags |= MTPDstickerSet_flag_NOT_LOADED; // need to request this set
+					if (!(i->flags & MTPDstickerSet_flag_disabled)) {
+						setsToRequest.insert(set.vid.v, set.vaccess_hash.v);
+					}
+				}
 			}
 		}
 	}
-
-	StickerSets::iterator custom = sets.find(CustomStickerSetId);
-
-	bool added = false, removed = false;
-	QSet<DocumentData*> found;
-	QMap<uint64, int32> wasCount;
-	for (int32 i = 0, l = d_docs.size(); i != l; ++i) {
-		DocumentData *doc = App::feedDocument(d_docs.at(i));
-		if (!doc || !doc->sticker) continue;
-
-		switch (doc->sticker->set.type()) {
-		case mtpc_inputStickerSetEmpty: { // default set - great minds
-			if (!wasCount.contains(DefaultStickerSetId)) wasCount.insert(DefaultStickerSetId, def->stickers.size());
-			if (def->stickers.indexOf(doc) < 0) {
-				def->stickers.push_back(doc);
-				added = true;
-			} else {
-				found.insert(doc);
-			}
-		} break;
-		case mtpc_inputStickerSetID: {
-			StickerSets::iterator it = sets.find(doc->sticker->set.c_inputStickerSetID().vid.v);
-			if (it == sets.cend()) {
-				LOG(("Sticker Set not found by ID: %1").arg(doc->sticker->set.c_inputStickerSetID().vid.v));
-			} else {
-				if (!wasCount.contains(it->id)) wasCount.insert(it->id, it->stickers.size());
-				if (it->stickers.indexOf(doc) < 0) {
-					it->stickers.push_back(doc);
-					added = true;
-				} else {
-					found.insert(doc);
-				}
-			}
-		} break;
-		case mtpc_inputStickerSetShortName: {
-			QString name = qs(doc->sticker->set.c_inputStickerSetShortName().vshort_name).toLower().trimmed();
-			StickerSets::iterator it = sets.begin();
-			for (; it != sets.cend(); ++it) {
-				if (it->shortName.toLower().trimmed() == name) {
-					break;
-				}
-			}
-			if (it == sets.cend()) {
-				LOG(("Sticker Set not found by name: %1").arg(name));
-			} else {
-				if (!wasCount.contains(it->id)) wasCount.insert(it->id, it->stickers.size());
-				if (it->stickers.indexOf(doc) < 0) {
-					it->stickers.push_back(doc);
-					added = true;
-				} else {
-					found.insert(doc);
-				}
-			}
-		} break;
-		}
-		if (custom != sets.cend()) {
-			int32 index = custom->stickers.indexOf(doc);
-			if (index >= 0) {
-				custom->stickers.removeAt(index);
-				removed = true;
-			}
-		}
-	}
-	if (custom != sets.cend() && custom->stickers.isEmpty()) {
-		sets.erase(custom);
-		custom = sets.end();
-	}
-	bool writeRecent = false;
-	RecentStickerPack &recent(cGetRecentStickers());
-	for (StickerSets::iterator it = sets.begin(); it != sets.cend();) {
-		if (it->id == CustomStickerSetId || it->id == RecentStickerSetId) {
-			++it;
-			continue;
-		}
-		QMap<uint64, int32>::const_iterator was = wasCount.constFind(it->id);
-		if (was == wasCount.cend()) { // no such stickers added
-			for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
-				if (it->stickers.indexOf(i->first) >= 0) {
-					i = recent.erase(i);
-					writeRecent = true;
-				} else {
-					++i;
-				}
-			}
-			setsOrder.removeOne(it->id);
-			it = sets.erase(it);
-			removed = true;
+	for (StickerSets::iterator i = sets.begin(), e = sets.end(); i != e;) {
+		if (i->id == CustomStickerSetId || i->access != 0) {
+			++i;
 		} else {
-			for (int32 j = 0, l = was.value(); j < l;) {
-				if (found.contains(it->stickers.at(j))) {
-					++j;
-				} else {
-					for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
-						if (it->stickers.at(j) == i->first) {
-							i = recent.erase(i);
-							writeRecent = true;
-						} else {
-							++i;
-						}
-					}
-					it->stickers.removeAt(j);
-					--l;
-					removed = true;
-				}
-			}
-			if (it->stickers.isEmpty()) {
-				setsOrder.removeOne(it->id);
-				it = sets.erase(it);
-			} else {
-				++it;
-			}
-		}
-	}
-	if (added || removed || cStickersHash() != wasHash) {
-		Local::writeStickers();
-	}
-	if (writeRecent) {
-		Local::writeUserSettings();
-	}
-		
-	const QVector<MTPStickerPack> &packs(d.vpacks.c_vector().v);
-	for (int32 i = 0, l = packs.size(); i != l; ++i) {
-		if (packs.at(i).type() == mtpc_stickerPack) {
-			const MTPDstickerPack &p(packs.at(i).c_stickerPack());
-			QString emoticon(qs(p.vemoticon));
-			EmojiPtr e = 0;
-			for (const QChar *ch = emoticon.constData(), *end = emoticon.constEnd(); ch != end; ++ch) {
-				int len = 0;
-				e = emojiFromText(ch, end, len);
-				if (e) break;
-
-				if (ch + 1 < end && ch->isHighSurrogate() && (ch + 1)->isLowSurrogate()) ++ch;
-			}
-			if (e) {
-				const QVector<MTPlong> docs(p.vdocuments.c_vector().v);
-				if (!docs.isEmpty()) {
-					for (int32 j = 0, s = docs.size(); j < s; ++j) {
-						DocumentData *doc = App::document(docs.at(j).v);
-						map.insert(doc, e);
-					}
-				}
-			} else {
-				LOG(("Sticker Error: Could not find emoji for string: %1").arg(emoticon));
-			}
+			i = sets.erase(i);
 		}
 	}
 
-	cSetEmojiStickers(map);
-
-	const DocumentItems &items(App::documentItems());
-	for (EmojiStickersMap::const_iterator i = map.cbegin(), e = map.cend(); i != e; ++i) {
-		DocumentItems::const_iterator j = items.constFind(i.key());
-		if (j != items.cend()) {
-			for (HistoryItemsMap::const_iterator k = j->cbegin(), end = j->cend(); k != end; ++k) {
-				k.key()->updateStickerEmoji();
-			}
+	if (!setsToRequest.isEmpty()) {
+		for (QMap<uint64, uint64>::const_iterator i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
+			App::api()->scheduleStickerSetRequest(i.key(), i.value());
 		}
+		App::api()->requestStickerSets();
 	}
+
+	Local::writeStickers();
 
 	if (App::main()) emit App::main()->stickersUpdated();
 }
@@ -3834,7 +3770,7 @@ bool HistoryWidget::eventFilter(QObject *obj, QEvent *e) {
 }
 
 DragState HistoryWidget::getDragState(const QMimeData *d) {
-	if (!d) return DragStateNone;
+	if (!d || d->hasFormat(qsl("application/x-td-forward-pressed-link"))) return DragStateNone;
 
 	if (d->hasImage()) return DragStateImage;
 
@@ -4571,6 +4507,7 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	_cmdStart.move(_attachEmoji.x() - _cmdStart.width(), height() - kbh - _cmdStart.height());
 
 	_attachType.move(0, _attachDocument.y() - _attachType.height());
+	_emojiPan.setMaxHeight(height() - st::dropdownDef.padding.top() - st::dropdownDef.padding.bottom() - _attachEmoji.height());
 	_emojiPan.move(width() - _emojiPan.width(), _attachEmoji.y() - _emojiPan.height());
 
 	switch (_attachDrag) {

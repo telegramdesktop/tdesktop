@@ -83,6 +83,54 @@ void ApiWrap::requestReplyTo(HistoryReply *reply, MsgId to) {
 	if (!req.req) _replyToTimer.start(1);
 }
 
+void ApiWrap::resolveReplyTo() {
+	if (_replyToRequests.isEmpty()) return;
+
+	QVector<MTPint> ids;
+	ids.reserve(_replyToRequests.size());
+	for (ReplyToRequests::const_iterator i = _replyToRequests.cbegin(), e = _replyToRequests.cend(); i != e; ++i) {
+		if (!i.value().req) {
+			ids.push_back(MTP_int(i.key()));
+		}
+	}
+	if (!ids.isEmpty()) {
+		mtpRequestId req = MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotReplyTo));
+		for (ReplyToRequests::iterator i = _replyToRequests.begin(), e = _replyToRequests.end(); i != e; ++i) {
+			i.value().req = req;
+		}
+	}
+}
+
+void ApiWrap::gotReplyTo(const MTPmessages_Messages &msgs, mtpRequestId req) {
+	switch (msgs.type()) {
+	case mtpc_messages_messages:
+		App::feedUsers(msgs.c_messages_messages().vusers);
+		App::feedChats(msgs.c_messages_messages().vchats);
+		App::feedMsgs(msgs.c_messages_messages().vmessages, -1);
+		break;
+
+	case mtpc_messages_messagesSlice:
+		App::feedUsers(msgs.c_messages_messagesSlice().vusers);
+		App::feedChats(msgs.c_messages_messagesSlice().vchats);
+		App::feedMsgs(msgs.c_messages_messagesSlice().vmessages, -1);
+		break;
+	}
+	for (ReplyToRequests::iterator i = _replyToRequests.begin(); i != _replyToRequests.cend();) {
+		if (i.value().req == req) {
+			for (QList<HistoryReply*>::const_iterator j = i.value().replies.cbegin(), e = i.value().replies.cend(); j != e; ++j) {
+				if (*j) {
+					(*j)->updateReplyTo(true);
+				} else {
+					App::main()->updateReplyTo();
+				}
+			}
+			i = _replyToRequests.erase(i);
+		} else {
+			++i;
+		}
+	}
+}
+
 void ApiWrap::requestFullPeer(PeerData *peer) {
 	if (!peer || _fullRequests.contains(peer)) return;
 	mtpRequestId req;
@@ -92,25 +140,6 @@ void ApiWrap::requestFullPeer(PeerData *peer) {
 		req = MTP::send(MTPusers_GetFullUser(peer->asUser()->inputUser), rpcDone(&ApiWrap::gotUserFull, peer), rpcFail(&ApiWrap::gotPeerFailed, peer));
 	}
 	_fullRequests.insert(peer, req);
-}
-
-void ApiWrap::requestWebPageDelayed(WebPageData *page) {
-	if (page->pendingTill <= 0) return;
-	_webPagesPending.insert(page, 0);
-	int32 left = (page->pendingTill - unixtime()) * 1000;
-	if (!_webPagesTimer.isActive() || left <= _webPagesTimer.remainingTime()) {
-		_webPagesTimer.start((left < 0 ? 0 : left) + 1);
-	}
-}
-
-void ApiWrap::clearWebPageRequest(WebPageData *page) {
-	_webPagesPending.remove(page);
-	if (_webPagesPending.isEmpty() && _webPagesTimer.isActive()) _webPagesTimer.stop();
-}
-
-void ApiWrap::clearWebPageRequests() {
-	_webPagesPending.clear();
-	_webPagesTimer.stop();
 }
 
 void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result) {
@@ -168,22 +197,143 @@ bool ApiWrap::gotPeerFailed(PeerData *peer, const RPCError &error) {
 	return true;
 }
 
-void ApiWrap::resolveReplyTo() {
-	if (_replyToRequests.isEmpty()) return;
+void ApiWrap::scheduleStickerSetRequest(uint64 setId, uint64 access) {
+	if (!_stickerSetRequests.contains(setId)) {
+		_stickerSetRequests.insert(setId, qMakePair(access, 0));
+	}
+}
 
-	QVector<MTPint> ids;
-	ids.reserve(_replyToRequests.size());
-	for (ReplyToRequests::const_iterator i = _replyToRequests.cbegin(), e = _replyToRequests.cend(); i != e; ++i) {
-		if (!i.value().req) {
-			ids.push_back(MTP_int(i.key()));
+void ApiWrap::requestStickerSets() {
+	for (QMap<uint64, QPair<uint64, mtpRequestId> >::iterator i = _stickerSetRequests.begin(), j = i, e = _stickerSetRequests.end(); i != e; i = j) {
+		if (i.value().second) continue;
+
+		++j;
+		int32 wait = (j == e) ? 0 : 10;
+		i.value().second = MTP::send(MTPmessages_GetStickerSet(MTP_inputStickerSetID(MTP_long(i.key()), MTP_long(i.value().first))), rpcDone(&ApiWrap::gotStickerSet, i.key()), rpcFail(&ApiWrap::gotStickerSetFail, i.key()), 0, wait);
+	}
+}
+
+void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) {
+	_stickerSetRequests.remove(setId);
+	
+	if (result.type() != mtpc_messages_stickerSet) return;
+	const MTPDmessages_stickerSet &d(result.c_messages_stickerSet());
+	
+	if (d.vset.type() != mtpc_stickerSet) return;
+	const MTPDstickerSet &s(d.vset.c_stickerSet());
+
+	StickerSets &sets(cRefStickerSets());
+	StickerSets::iterator it = sets.find(setId);
+	if (it == sets.cend()) return;
+
+	it->access = s.vaccess_hash.v;
+	it->hash = s.vhash.v;
+	it->shortName = qs(s.vshort_name);
+	QString title = qs(s.vtitle);
+	if ((it->flags & MTPDstickerSet_flag_official) && !title.compare(qstr("Great Minds"), Qt::CaseInsensitive)) {
+		title = lang(lng_stickers_default_set);
+	}
+	it->title = title;
+	it->flags = s.vflags.v;
+
+	const QVector<MTPDocument> &d_docs(d.vdocuments.c_vector().v);
+	StickerSets::iterator custom = sets.find(CustomStickerSetId);
+
+	QSet<DocumentData*> found;
+	int32 wasCount = -1;
+	for (int32 i = 0, l = d_docs.size(); i != l; ++i) {
+		DocumentData *doc = App::feedDocument(d_docs.at(i));
+		if (!doc || !doc->sticker) continue;
+
+		if (wasCount < 0) wasCount = it->stickers.size();
+		if (it->stickers.indexOf(doc) < 0) {
+			it->stickers.push_back(doc);
+		} else {
+			found.insert(doc);
+		}
+
+		if (custom != sets.cend()) {
+			int32 index = custom->stickers.indexOf(doc);
+			if (index >= 0) {
+				custom->stickers.removeAt(index);
+			}
 		}
 	}
-	if (!ids.isEmpty()) {
-		mtpRequestId req = MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotReplyTo));
-		for (ReplyToRequests::iterator i = _replyToRequests.begin(), e = _replyToRequests.end(); i != e; ++i) {
-			i.value().req = req;
+	if (custom != sets.cend() && custom->stickers.isEmpty()) {
+		sets.erase(custom);
+		custom = sets.end();
+	}
+
+	bool writeRecent = false;
+	RecentStickerPack &recent(cGetRecentStickers());
+
+	if (wasCount < 0) { // no stickers received
+		for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
+			if (it->stickers.indexOf(i->first) >= 0) {
+				i = recent.erase(i);
+				writeRecent = true;
+			} else {
+				++i;
+			}
+		}
+		cRefStickerSetsOrder().removeOne(setId);
+		sets.erase(it);
+	} else {
+		for (int32 j = 0, l = wasCount; j < l;) {
+			if (found.contains(it->stickers.at(j))) {
+				++j;
+			} else {
+				for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
+					if (it->stickers.at(j) == i->first) {
+						i = recent.erase(i);
+						writeRecent = true;
+					} else {
+						++i;
+					}
+				}
+				it->stickers.removeAt(j);
+				--l;
+			}
+		}
+		if (it->stickers.isEmpty()) {
+			cRefStickerSetsOrder().removeOne(setId);
+			sets.erase(it);
 		}
 	}
+
+	if (writeRecent) {
+		Local::writeUserSettings();
+	}
+
+	Local::writeStickers();
+
+	if (App::main()) emit App::main()->stickersUpdated();
+}
+
+bool ApiWrap::gotStickerSetFail(uint64 setId, const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
+	_stickerSetRequests.remove(setId);
+	return true;
+}
+
+void ApiWrap::requestWebPageDelayed(WebPageData *page) {
+	if (page->pendingTill <= 0) return;
+	_webPagesPending.insert(page, 0);
+	int32 left = (page->pendingTill - unixtime()) * 1000;
+	if (!_webPagesTimer.isActive() || left <= _webPagesTimer.remainingTime()) {
+		_webPagesTimer.start((left < 0 ? 0 : left) + 1);
+	}
+}
+
+void ApiWrap::clearWebPageRequest(WebPageData *page) {
+	_webPagesPending.remove(page);
+	if (_webPagesPending.isEmpty() && _webPagesTimer.isActive()) _webPagesTimer.stop();
+}
+
+void ApiWrap::clearWebPageRequests() {
+	_webPagesPending.clear();
+	_webPagesTimer.stop();
 }
 
 void ApiWrap::resolveWebPages() {
@@ -212,36 +362,6 @@ void ApiWrap::resolveWebPages() {
 		}
 	}
 	if (m < INT_MAX) _webPagesTimer.start(m * 1000);
-}
-
-void ApiWrap::gotReplyTo(const MTPmessages_Messages &msgs, mtpRequestId req) {
-	switch (msgs.type()) {
-	case mtpc_messages_messages:
-		App::feedUsers(msgs.c_messages_messages().vusers);
-		App::feedChats(msgs.c_messages_messages().vchats);
-		App::feedMsgs(msgs.c_messages_messages().vmessages, -1);
-		break;
-
-	case mtpc_messages_messagesSlice:
-		App::feedUsers(msgs.c_messages_messagesSlice().vusers);
-		App::feedChats(msgs.c_messages_messagesSlice().vchats);
-		App::feedMsgs(msgs.c_messages_messagesSlice().vmessages, -1);
-		break;
-	}
-	for (ReplyToRequests::iterator i = _replyToRequests.begin(); i != _replyToRequests.cend();) {
-		if (i.value().req == req) {
-			for (QList<HistoryReply*>::const_iterator j = i.value().replies.cbegin(), e = i.value().replies.cend(); j != e; ++j) {
-				if (*j) {
-					(*j)->updateReplyTo(true);
-				} else {
-					App::main()->updateReplyTo();
-				}
-			}
-			i = _replyToRequests.erase(i);
-		} else {
-			++i;
-		}
-	}
 }
 
 void ApiWrap::gotWebPages(const MTPmessages_Messages &msgs, mtpRequestId req) {

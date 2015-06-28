@@ -199,6 +199,7 @@ private:
 };
 
 #define qsl(s) QStringLiteral(s)
+#define qstr(s) QLatin1String(s, sizeof(s) - 1)
 
 static const QRegularExpression::PatternOptions reMultiline(QRegularExpression::DotMatchesEverythingOption | QRegularExpression::MultilineOption);
 

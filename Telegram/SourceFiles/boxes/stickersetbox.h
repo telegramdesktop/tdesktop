@@ -57,6 +57,7 @@ private:
 	bool _loaded;
 	uint64 _setId, _setAccess;
 	QString _title, _setTitle, _setShortName;
+	int32 _setCount, _setHash, _setFlags;
 
 	int32 _bottom;
 	MTPInputStickerSet _input;

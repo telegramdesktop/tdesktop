@@ -1565,7 +1565,7 @@ rbEmoji: flatCheckbox {
 	bgColor: emojiPanCategories;
 	disColor: emojiPanCategories;
 
-	width: 36px;
+	width: 42px;
 	height: 46px;
 
 	textTop: 0px;
@@ -1576,7 +1576,7 @@ rbEmoji: flatCheckbox {
 	cursor: cursor(pointer);
 
 	disabledCursor: cursor(default);
-	imagePos: point(8px, 12px);
+	imagePos: point(11px, 12px);
 }
 rbEmojiRecent: flatCheckbox(rbEmoji) {
 	imageRect: emojiRecentOver;
@@ -1642,16 +1642,17 @@ rbEmojiObjects: flatCheckbox(rbEmoji) {
 	disImageRect: emojiObjectsOver;
 	chkDisImageRect: emojiObjectsActive;
 }
-emojiPanPadding: 10px;
-emojiPanSize: size(39px, 35px);
-emojiPanFullSize: size(300px, 321px);
+emojiPanPadding: 12px;
+emojiPanSize: size(45px, 41px);
+emojiPanWidth: 345px;
+emojiPanMaxHeight: 366px;
 emojiPanDuration: 200;
 emojiPanHover: #f0f4f7;
 
 emojiPanHeader: 42px;
 emojiPanHeaderFont: font(fsize semibold);
 emojiPanHeaderColor: #999;
-emojiPanHeaderLeft: 17px;
+emojiPanHeaderLeft: 22px;
 emojiPanHeaderTop: 12px;
 emojiPanHeaderBg: #fffffff2;
 
@@ -1665,7 +1666,7 @@ emojiSwitchStickers: sprite(318px, 328px, 8px, 12px);
 emojiSwitchEmoji: sprite(310px, 328px, 8px, 12px);
 emojiSwitchColor: #42a8db;
 
-stickerPanSize: size(55px, 55px);
+stickerPanSize: size(64px, 64px);
 stickerPanPadding: 11px;
 stickerPanDelete: sprite(123px, 132px, 12px, 12px);
 stickerPanDeleteOpacity: 0.5;
