@@ -486,7 +486,9 @@ void OverviewInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 	_overview->updateTopBarSelection();
 }
 
-void OverviewInner::dragExec() {
+void OverviewInner::onDragExec() {
+	if (_dragAction != Dragging) return;
+
 	bool uponSelected = false;
 	if (_dragItem) {
 		bool afterDragSymbol;
@@ -936,7 +938,7 @@ void OverviewInner::onUpdateSelected() {
 		if (_mousedItem != _dragItem || (m - _dragStartPos).manhattanLength() >= QApplication::startDragDistance()) {
 			if (_dragAction == PrepareDrag) {
 				_dragAction = Dragging;
-				dragExec();
+				QTimer::singleShot(1, this, SLOT(onDragExec()));
 			} else if (_dragAction == PrepareSelect) {
 				_dragAction = Selecting;
 			}
@@ -1631,6 +1633,7 @@ void OverviewInner::showAll(bool recountHeights) {
 }
 
 OverviewInner::~OverviewInner() {
+	_dragAction = NoDrag;
 }
 
 OverviewWidget::OverviewWidget(QWidget *parent, const PeerData *peer, MediaOverviewType type) : QWidget(parent)

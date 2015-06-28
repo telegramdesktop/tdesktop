@@ -59,7 +59,6 @@ public:
 	void dragActionUpdate(const QPoint &screenPos);
 	void dragActionFinish(const QPoint &screenPos, Qt::MouseButton button = Qt::LeftButton);
 	void dragActionCancel();
-	void dragExec();
 
 	void touchScrollUpdated(const QPoint &screenPos);
 	QPoint mapMouseToItem(QPoint p, HistoryItem *item);
@@ -107,6 +106,7 @@ public slots:
 	void onMenuDestroy(QObject *obj);
 	void onTouchSelect();
 	void onTouchScrollTimer();
+	void onDragExec();
 
 private:
 

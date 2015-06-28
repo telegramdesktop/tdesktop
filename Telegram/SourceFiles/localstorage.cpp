@@ -2458,7 +2458,7 @@ namespace Local {
 			set.stickers.reserve(scnt);
 
 			QMap<uint64, bool> read;
-			for (uint32 j = 0; j < scnt; ++j) {
+			for (int32 j = 0; j < scnt; ++j) {
 				quint64 id, access;
 				QString name, mime, alt;
 				qint32 date, dc, size, width, height, type, typeOfSet;
