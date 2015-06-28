@@ -301,13 +301,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_connection_type" = "Tipo de conexión:";
 "lng_connection_auto_connecting" = "Por defecto (conectando...)";
-"lng_connection_auto" = "Por defecto ({type} en uso)";
-"lng_connection_http_proxy" = "HTTP con proxy";
-"lng_connection_tcp_proxy" = "TCP con proxy";
+"lng_connection_auto" = "Por defecto ({transport} en uso)";
+"lng_connection_proxy_connecting" = "Conectando a través de un proxy...";
+"lng_connection_proxy" = "{transport} con un proxy";
 "lng_connection_header" = "Tipo de conexión";
 "lng_connection_auto_rb" = "Automático (TCP si está disponible o HTTP)";
 "lng_connection_http_proxy_rb" = "HTTP con http-proxy personalizado";
 "lng_connection_tcp_proxy_rb" = "TCP con socks5-proxy personalizado";
+"lng_connection_try_ipv6" = "Intentar conectar a través de IPv6";
 "lng_connection_host_ph" = "Nombre del host";
 "lng_connection_port_ph" = "Puerto";
 "lng_connection_user_ph" = "Alias";
