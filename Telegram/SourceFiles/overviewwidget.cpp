@@ -65,6 +65,8 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, const
 	, _touchTime(0)
 	, _menu(0) {
 
+	resize(_width, height());
+
 	App::contextItem(0);
 
 	_touchSelectTimer.setSingleShot(true);
@@ -73,6 +75,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, const
 	setAttribute(Qt::WA_AcceptTouchEvents);
 	connect(&_touchScrollTimer, SIGNAL(timeout()), this, SLOT(onTouchScrollTimer()));
 
+	mediaOverviewUpdated();
 	setMouseTracking(true);
 }
 
