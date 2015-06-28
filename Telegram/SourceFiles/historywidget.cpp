@@ -524,7 +524,7 @@ void HistoryList::onDragExec() {
 	} else if (textlnkDown()) {
 		sel = textlnkDown()->encoded();
 		if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
-			urls.push_back(QUrl::fromEncoded(sel.toUtf8()));
+//			urls.push_back(QUrl::fromEncoded(sel.toUtf8())); // Google Chrome crashes in Mac OS X O_o
 		}
 	}
 	if (!sel.isEmpty()) {
@@ -540,7 +540,7 @@ void HistoryList::onDragExec() {
 			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
 		}
 		drag->setMimeData(mimeData);
-		drag->exec();
+		drag->exec(Qt::CopyAction);
 		return;
 	} else {
 		HistoryItem *pressedLnkItem = App::pressedLinkItem(), *pressedItem = App::pressedItem();
