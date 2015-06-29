@@ -3735,6 +3735,8 @@ void HistoryWidget::sendBotCommand(const QString &cmd, MsgId replyTo) { // reply
 			hist->lastKeyboardUsed = true;
 		}
 	}
+
+	_field.setFocus();
 }
 
 void HistoryWidget::insertBotCommand(const QString &cmd) {

@@ -2010,10 +2010,10 @@ ImagePtr HistoryPhoto::replyPreview() {
 QString formatSizeText(qint64 size) {
 	if (size >= 1024 * 1024) { // more than 1 mb
 		qint64 sizeTenthMb = (size * 10 / (1024 * 1024));
-		return QString::number(sizeTenthMb / 10) + '.' + QString::number(sizeTenthMb % 10) + qsl("MB");
+		return QString::number(sizeTenthMb / 10) + '.' + QString::number(sizeTenthMb % 10) + qsl(" MB");
 	}
 	qint64 sizeTenthKb = (size * 10 / 1024);
-	return QString::number(sizeTenthKb / 10) + '.' + QString::number(sizeTenthKb % 10) + qsl("KB");
+	return QString::number(sizeTenthKb / 10) + '.' + QString::number(sizeTenthKb % 10) + qsl(" KB");
 }
 
 QString formatDownloadText(qint64 ready, qint64 total) {

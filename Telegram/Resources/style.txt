@@ -961,9 +961,9 @@ btnSend: flatButton(btnDefFlat) {
 	width: -32px;
 	height: 46px;
 
-	textTop: 13px;
-	overTextTop: 13px;
-	downTextTop: 14px;
+	textTop: 12px;
+	overTextTop: 12px;
+	downTextTop: 13px;
 
 	font: font(16px);
 	overFont: font(16px);

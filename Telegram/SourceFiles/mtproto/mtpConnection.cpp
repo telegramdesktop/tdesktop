@@ -1198,15 +1198,21 @@ void MTProtoConnectionPrivate::createConn(bool createIPv4, bool createIPv6) {
 
 void MTProtoConnectionPrivate::destroyConn(MTPabstractConnection **conn) {
 	if (conn) {
-		QWriteLocker lock(&stateConnMutex);
-		if (*conn) {
-			disconnect(*conn, SIGNAL(disconnected()), 0, 0);
-			disconnect(*conn, SIGNAL(receivedData()), 0, 0);
-			disconnect(*conn, SIGNAL(receivedSome()), 0, 0);
+		MTPabstractConnection *toDisconnect = 0;
 
-			(*conn)->disconnectFromServer();
-			(*conn)->deleteLater();
-			*conn = 0;
+		{
+			QWriteLocker lock(&stateConnMutex);
+			if (*conn) {
+				toDisconnect = *conn;
+				disconnect(*conn, SIGNAL(disconnected()), 0, 0);
+				disconnect(*conn, SIGNAL(receivedData()), 0, 0);
+				disconnect(*conn, SIGNAL(receivedSome()), 0, 0);
+				*conn = 0;
+			}
+		}
+		if (toDisconnect) {
+			toDisconnect->disconnectFromServer();
+			toDisconnect->deleteLater();
 		}
 	} else {
 		destroyConn(&_conn4);

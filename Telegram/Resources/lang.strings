@@ -166,11 +166,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_username_title" = "Change username";
 "lng_username_about" = "You can choose a username on Telegram.\nIf you do, other people will be able to find\nyou by this username and contact you\nwithout knowing your phone number.\n\nYou can use a-z, 0-9 and underscores.\nMinimum length is 5 characters.";
-"lng_username_invalid" = "This name is invalid.";
-"lng_username_occupied" = "This name is already occupied.";
-"lng_username_too_short" = "This name is too short.";
-"lng_username_bad_symbols" = "This name has bad symbols.";
-"lng_username_available" = "This name is available.";
+"lng_username_invalid" = "This username is invalid.";
+"lng_username_occupied" = "This username is already occupied.";
+"lng_username_too_short" = "This username is too short.";
+"lng_username_bad_symbols" = "This username has bad symbols.";
+"lng_username_available" = "This username is available.";
 "lng_username_not_found" = "User @{user} not found.";
 
 "lng_settings_section_contact_info" = "Contact info";
