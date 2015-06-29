@@ -1099,6 +1099,8 @@ void HistoryList::updateBotInfo(bool recount) {
 				botDescWidth = tw;
 				newh = botInfo->text.countHeight(botDescWidth);
 			}
+		} else if (recount) {
+			newh = botDescHeight;
 		}
 	}
 	if (recount) {
@@ -3735,6 +3737,8 @@ void HistoryWidget::sendBotCommand(const QString &cmd, MsgId replyTo) { // reply
 			hist->lastKeyboardUsed = true;
 		}
 	}
+
+	_field.setFocus();
 }
 
 void HistoryWidget::insertBotCommand(const QString &cmd) {
@@ -4464,6 +4468,10 @@ void HistoryWidget::peerMessagesUpdated(PeerId peer) {
 	if (histPeer && _list && peer == histPeer->id) {
 		updateListSize();
 		updateBotKeyboard();
+		if (!_scroll.isHidden() && _botStart.isHidden() == isBotStart()) {
+			updateControlsVisibility();
+			resizeEvent(0);
+		}
 	}
 }
 
