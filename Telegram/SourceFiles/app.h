@@ -107,18 +107,23 @@ namespace App {
 	QString onlineText(UserData *user, int32 nowOnServer, bool precise = false);
 	bool onlineColorUse(UserData *user, int32 now);
 
-	UserData *feedUsers(const MTPVector<MTPUser> &users); // returns last user
-	ChatData *feedChats(const MTPVector<MTPChat> &chats); // returns last chat
-	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos = false);
-	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d);
-	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d);
+	UserData *feedUsers(const MTPVector<MTPUser> &users, bool emitPeerUpdated = true); // returns last user
+	ChatData *feedChats(const MTPVector<MTPChat> &chats, bool emitPeerUpdated = true); // returns last chat
+	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos, bool emitPeerUpdated = true);
+	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated = true);
+	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated = true);
 	void feedMsgs(const MTPVector<MTPMessage> &msgs, int msgsState = 0); // 2 - new read message, 1 - new unread message, 0 - not new message, -1 - searched message
 	void feedWereRead(const QVector<MTPint> &msgsIds);
 	void feedInboxRead(const PeerId &peer, int32 upTo);
 	void feedOutboxRead(const PeerId &peer, int32 upTo);
 	void feedWereDeleted(const QVector<MTPint> &msgsIds);
-	void feedUserLinks(const MTPVector<MTPcontacts_Link> &links);
-	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink);
+	void feedUserLinks(const MTPVector<MTPcontacts_Link> &links, bool emitPeerUpdated = true);
+	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink, bool emitPeerUpdated = true);
+
+	void markPeerUpdated(PeerData *data);
+	void clearPeerUpdated(PeerData *data);
+	void emitPeerUpdated();
+
 	int32 maxMsgId();
 
 	ImagePtr image(const MTPPhotoSize &size);

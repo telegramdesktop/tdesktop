@@ -31,6 +31,7 @@ public:
 	void requestReplyTo(HistoryReply *reply, MsgId to);
 
 	void requestFullPeer(PeerData *peer);
+	void requestPeer(PeerData *peer);
 
 	void requestWebPageDelayed(WebPageData *page);
 	void clearWebPageRequest(WebPageData *page);
@@ -65,9 +66,14 @@ private:
 
 	void gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result);
 	void gotUserFull(PeerData *peer, const MTPUserFull &result);
+	bool gotPeerFullFailed(PeerData *peer, const RPCError &err);
+	typedef QMap<PeerData*, mtpRequestId> PeerRequests;
+	PeerRequests _fullPeerRequests;
+	
+	void gotChat(PeerData *peer, const MTPmessages_Chats &result);
+	void gotUser(PeerData *peer, const MTPVector<MTPUser> &result);
 	bool gotPeerFailed(PeerData *peer, const RPCError &err);
-	typedef QMap<PeerData*, mtpRequestId> FullRequests;
-	FullRequests _fullRequests;
+	PeerRequests _peerRequests;
 
 	void gotWebPages(const MTPmessages_Messages &result, mtpRequestId req);
 	typedef QMap<WebPageData*, mtpRequestId> WebPagesPending;
