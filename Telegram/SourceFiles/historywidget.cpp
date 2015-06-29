@@ -1099,6 +1099,8 @@ void HistoryList::updateBotInfo(bool recount) {
 				botDescWidth = tw;
 				newh = botInfo->text.countHeight(botDescWidth);
 			}
+		} else if (recount) {
+			newh = botDescHeight;
 		}
 	}
 	if (recount) {
@@ -4466,6 +4468,10 @@ void HistoryWidget::peerMessagesUpdated(PeerId peer) {
 	if (histPeer && _list && peer == histPeer->id) {
 		updateListSize();
 		updateBotKeyboard();
+		if (!_scroll.isHidden() && _botStart.isHidden() == isBotStart()) {
+			updateControlsVisibility();
+			resizeEvent(0);
+		}
 	}
 }
 
