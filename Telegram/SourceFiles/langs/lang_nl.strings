@@ -166,11 +166,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_username_title" = "Gebruikersnaam wijzigen";
 "lng_username_about" = "Je kunt hier je gebruikersnaam kiezen. \nHiermee kunnen anderen je vinden \nen contact met je opnemen zonder \nje telefoonnummer te weten.\n\na-z, 0-9 en underscore is toegestaan. \nDe minimale lengte is 5 tekens.";
-"lng_username_invalid" = "Deze naam is ongeldig.";
-"lng_username_occupied" = "Sorry, deze gebruikersnaam is al bezet.";
-"lng_username_too_short" = "Deze naam is te kort.";
-"lng_username_bad_symbols" = "Sorry, deze naam bevat ongeldige tekens.";
-"lng_username_available" = "Deze naam is beschikbaar.";
+"lng_username_invalid" = "Deze gebruikersnaam is ongeldig.";
+"lng_username_occupied" = "Deze gebruikersnaam is al bezet";
+"lng_username_too_short" = "Deze gebruikersnaam is te kort.";
+"lng_username_bad_symbols" = "Deze gebruikersnaam bevat ongeldige tekens.";
+"lng_username_available" = "Deze gebruikersnaam is beschikbaar.";
 "lng_username_not_found" = "Gebruiker @{user} niet gevonden.";
 
 "lng_settings_section_contact_info" = "Contactgegevens";
@@ -602,7 +602,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "Deze versie heeft ondersteuning voor de nieuwe bot-API, gratis voor iedereen. Handig met programmeren? Maak dan je eigen bots voor spelletjes, diensten en integraties. \n\nMeer weten? kijk op: {blog_link}";
+"lng_new_version_text" = "— Foto's media en stickers doorsturen door slepen en los te laten.\n— Berichten doorsturen door de tijdsaanduiding aan te klikken, slepen en los te laten.\n— Groter stickerspaneel\n— IPv6 optie toegevoegd aan de connectietypes onder instellingen.";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
