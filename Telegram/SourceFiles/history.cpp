@@ -3094,6 +3094,9 @@ HistorySticker::HistorySticker(DocumentData *document) : HistoryMedia()
 , pixw(1), pixh(1), data(document), lastw(0)
 {
 	data->thumb->load();
+	if (!data->sticker->alt.isEmpty()) {
+		_emoji = data->sticker->alt;
+	}
 }
 
 void HistorySticker::initDimensions(const HistoryItem *parent) {
