@@ -46,7 +46,7 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 		_pack.reserve(v.size());
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
 			DocumentData *doc = App::feedDocument(v.at(i));
-			if (!doc || !doc->sticker) continue;
+			if (!doc || !doc->sticker()) continue;
 			
 			_pack.push_back(doc);
 		}
@@ -156,11 +156,11 @@ void StickerSetInner::paintEvent(QPaintEvent *e) {
 				if (!doc->loader && doc->status != FileFailed && !already && !hasdata) {
 					doc->save(QString());
 				}
-				if (doc->sticker->img->isNull() && (already || hasdata)) {
+				if (doc->sticker()->img->isNull() && (already || hasdata)) {
 					if (already) {
-						doc->sticker->img = ImagePtr(doc->already());
+						doc->sticker()->img = ImagePtr(doc->already());
 					} else {
-						doc->sticker->img = ImagePtr(doc->data);
+						doc->sticker()->img = ImagePtr(doc->data);
 					}
 				}
 			}
@@ -173,8 +173,8 @@ void StickerSetInner::paintEvent(QPaintEvent *e) {
 			QPoint ppos = pos + QPoint((st::stickersSize.width() - w) / 2, (st::stickersSize.height() - h) / 2);
 			if (goodThumb) {
 				p.drawPixmapLeft(ppos, width(), doc->thumb->pix(w, h));
-			} else if (!doc->sticker->img->isNull()) {
-				p.drawPixmapLeft(ppos, width(), doc->sticker->img->pix(w, h));
+			} else if (!doc->sticker()->img->isNull()) {
+				p.drawPixmapLeft(ppos, width(), doc->sticker()->img->pix(w, h));
 			}
 		}
 	}

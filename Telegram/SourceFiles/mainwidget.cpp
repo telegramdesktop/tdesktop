@@ -376,8 +376,10 @@ _failDifferenceTimeout(1), _lastUpdateTime(0), _cachedX(0), _cachedY(0), _backgr
 	connect(&updateNotifySettingTimer, SIGNAL(timeout()), this, SLOT(onUpdateNotifySettings()));
 	connect(this, SIGNAL(showPeerAsync(quint64,qint32,bool,bool)), this, SLOT(showPeer(quint64,qint32,bool,bool)), Qt::QueuedConnection);
 	if (audioPlayer()) {
-		connect(audioPlayer(), SIGNAL(updated(AudioData*)), this, SLOT(audioPlayProgress(AudioData*)));
-		connect(audioPlayer(), SIGNAL(stopped(AudioData*)), this, SLOT(audioPlayProgress(AudioData*)));
+		connect(audioPlayer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(audioPlayProgress(const AudioMsgId&)));
+		connect(audioPlayer(), SIGNAL(stopped(const AudioMsgId&)), this, SLOT(audioPlayProgress(const AudioMsgId&)));
+		connect(audioPlayer(), SIGNAL(updated(const SongMsgId&)), this, SLOT(documentPlayProgress(const SongMsgId&)));
+		connect(audioPlayer(), SIGNAL(stopped(const SongMsgId&)), this, SLOT(documentPlayProgress(const SongMsgId&)));
 	}
 	connect(&_updateMutedTimer, SIGNAL(timeout()), this, SLOT(onUpdateMuted()));
 
@@ -1409,16 +1411,16 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 		if (audio->loader->done()) {
 			audio->finish();
 			QString already = audio->already();
-			bool play = audio->openOnSave > 0 && audioPlayer();
+			bool play = audio->openOnSave > 0 && audio->openOnSaveMsgId && audioPlayer();
 			if ((!already.isEmpty() && audio->openOnSave) || (!audio->data.isEmpty() && play)) {
 				if (play) {
-					AudioData *playing = 0;
+					AudioMsgId playing;
 					AudioPlayerState state = AudioPlayerStopped;
 					audioPlayer()->currentState(&playing, &state);
-					if (playing == audio && state != AudioPlayerStopped) {
-						audioPlayer()->pauseresume();
+					if (playing.msgId == audio->openOnSaveMsgId && state != AudioPlayerStopped) {
+						audioPlayer()->pauseresume(OverviewAudios);
 					} else {
-						audioPlayer()->play(audio);
+						audioPlayer()->play(AudioMsgId(audio, audio->openOnSaveMsgId));
 						if (App::main()) App::main()->audioMarkRead(audio);
 					}
 				} else {
@@ -1442,12 +1444,14 @@ void MainWidget::audioLoadProgress(mtpFileLoader *loader) {
 	}
 }
 
-void MainWidget::audioPlayProgress(AudioData *audio) {
-	AudioData *playing = 0;
+void MainWidget::audioPlayProgress(const AudioMsgId &audioId) {
+	AudioMsgId playing;
 	AudioPlayerState state = AudioPlayerStopped;
 	audioPlayer()->currentState(&playing, &state);
-	if (playing == audio && state == AudioPlayerStoppedAtStart) {
-		audioPlayer()->clearStoppedAtStart(audio);
+	if (playing == audioId && state == AudioPlayerStoppedAtStart) {
+		audioPlayer()->clearStoppedAtStart(audioId);
+
+		AudioData *audio = audioId.audio;
 		QString already = audio->already(true);
 		if (already.isEmpty() && !audio->data.isEmpty()) {
 			bool mp3 = (audio->mime == qstr("audio/mp3"));
@@ -1469,12 +1473,53 @@ void MainWidget::audioPlayProgress(AudioData *audio) {
 		}
 	}
 
-	const AudioItems &items(App::audioItems());
-	AudioItems::const_iterator i = items.constFind(audio);
-	if (i != items.cend()) {
-		for (HistoryItemsMap::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
-			msgUpdated(j.key()->history()->peer->id, j.key());
+	if (HistoryItem *item = App::histItemById(audioId.msgId)) {
+		msgUpdated(item->history()->peer->id, item);
+	}
+}
+
+void MainWidget::documentPlayProgress(const SongMsgId &songId) {
+	SongMsgId playing;
+	AudioPlayerState state = AudioPlayerStopped;
+	audioPlayer()->currentState(&playing, &state);
+	if (playing == songId && state == AudioPlayerStoppedAtStart) {
+		audioPlayer()->clearStoppedAtStart(songId);
+
+		DocumentData *document = songId.song;
+		QString already = document->already(true);
+		if (already.isEmpty() && !document->data.isEmpty()) {
+			QString name = document->name, filter;
+			MimeType mimeType = mimeTypeForName(document->mime);
+			QStringList p = mimeType.globPatterns();
+			QString pattern = p.isEmpty() ? QString() : p.front();
+			if (name.isEmpty()) {
+				name = pattern.isEmpty() ? qsl(".unknown") : pattern.replace('*', QString());
+			}
+			if (pattern.isEmpty()) {
+				filter = qsl("All files (*.*)");
+			} else {
+				filter = mimeType.filterString() + qsl(";;All files (*.*)");
+			}
+			QString filename = saveFileName(lang(lng_save_file), filter, qsl("doc"), name, false);
+			if (!filename.isEmpty()) {
+				QFile f(filename);
+				if (f.open(QIODevice::WriteOnly)) {
+					if (f.write(document->data) == document->data.size()) {
+						f.close();
+						already = filename;
+						document->location = FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename);
+						Local::writeFileLocation(mediaKey(mtpToLocationType(mtpc_inputDocumentFileLocation), document->dc, document->id), FileLocation(mtpToStorageType(mtpc_storage_filePartial), filename));
+					}
+				}
+			}
 		}
+		if (!already.isEmpty()) {
+			psOpenFile(already);
+		}
+	}
+
+	if (HistoryItem *item = App::histItemById(songId.msgId)) {
+		msgUpdated(item->history()->peer->id, item);
 	}
 }
 
@@ -1499,11 +1544,22 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 		if (document->loader->done()) {
 			document->finish();
 			QString already = document->already();
-			if (!already.isEmpty() && document->openOnSave) {
-				if (document->openOnSave > 0 && document->size < MediaViewImageSizeLimit) {
+
+			HistoryItem *item = (document->openOnSave && document->openOnSaveMsgId) ? App::histItemById(document->openOnSaveMsgId) : 0;
+			bool play = document->song() && audioPlayer() && document->openOnSave && item;
+			if ((!already.isEmpty() || (!document->data.isEmpty() && play)) && document->openOnSave) {
+				if (play) {
+					SongMsgId playing;
+					AudioPlayerState playingState = AudioPlayerStopped;
+					audioPlayer()->currentState(&playing, &playingState);
+					if (playing.msgId == item->id && playingState != AudioPlayerStopped) {
+						audioPlayer()->pauseresume(OverviewDocuments);
+					} else {
+						audioPlayer()->play(SongMsgId(document, item->id));
+					}
+				} else if(document->openOnSave > 0 && document->size < MediaViewImageSizeLimit) {
 					QImageReader reader(already);
 					if (reader.canRead()) {
-						HistoryItem *item = App::histItemById(document->openOnSaveMsgId);
 						if (reader.supportsAnimation() && reader.imageCount() > 1 && item) {
 							startGif(item, already);
 						} else if (item) {
@@ -2884,7 +2940,7 @@ void MainWidget::updateNotifySetting(PeerData *peer, bool enabled) {
 }
 
 void MainWidget::incrementSticker(DocumentData *sticker) {
-	if (!sticker || !sticker->sticker) return;
+	if (!sticker || !sticker->sticker()) return;
 
 	RecentStickerPack &recent(cGetRecentStickers());
 	RecentStickerPack::iterator i = recent.begin(), e = recent.end();
@@ -2925,9 +2981,9 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	bool found = false;
 	uint64 setId = 0;
 	QString setName;
-	switch (sticker->sticker->set.type()) {
-	case mtpc_inputStickerSetID: setId = sticker->sticker->set.c_inputStickerSetID().vid.v; break;
-	case mtpc_inputStickerSetShortName: setName = qs(sticker->sticker->set.c_inputStickerSetShortName().vshort_name).toLower().trimmed(); break;
+	switch (sticker->sticker()->set.type()) {
+	case mtpc_inputStickerSetID: setId = sticker->sticker()->set.c_inputStickerSetID().vid.v; break;
+	case mtpc_inputStickerSetShortName: setName = qs(sticker->sticker()->set.c_inputStickerSetShortName().vshort_name).toLower().trimmed(); break;
 	}
 	StickerSets &sets(cRefStickerSets());
 	for (StickerSets::const_iterator i = sets.cbegin(); i != sets.cend(); ++i) {

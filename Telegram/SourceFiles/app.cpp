@@ -1295,7 +1295,7 @@ namespace App {
 				}
 				convert->id = document;
 				convert->status = FileReady;
-				sentSticker = !!convert->sticker;
+				sentSticker = !!convert->sticker();
 			}
 			convert->access = access;
 			if (!convert->date && date) {
@@ -1309,20 +1309,20 @@ namespace App {
 				if (!thumb->isNull() && (convert->thumb->isNull() || convert->thumb->width() < thumb->width() || convert->thumb->height() < thumb->height())) {
 					convert->thumb = thumb;
 				}
-				if (convert->sticker && !attributes.isEmpty() && (convert->sticker->alt.isEmpty() || convert->sticker->set.type() == mtpc_inputStickerSetEmpty)) {
+				if (convert->sticker() && !attributes.isEmpty() && (convert->sticker()->alt.isEmpty() || convert->sticker()->set.type() == mtpc_inputStickerSetEmpty)) {
 					for (QVector<MTPDocumentAttribute>::const_iterator i = attributes.cbegin(), e = attributes.cend(); i != e; ++i) {
 						if (i->type() == mtpc_documentAttributeSticker) {
 							const MTPDdocumentAttributeSticker &d(i->c_documentAttributeSticker());
 							if (d.valt.c_string().v.length() > 0) {
-								convert->sticker->alt = qs(d.valt);
-								convert->sticker->set = d.vstickerset;
+								convert->sticker()->alt = qs(d.valt);
+								convert->sticker()->set = d.vstickerset;
 							}
 						}
 					}
 				}
 			}
-			if (convert->sticker && !convert->sticker->loc.dc && thumbLocation.dc) {
-				convert->sticker->loc = thumbLocation;
+			if (convert->sticker() && !convert->sticker()->loc.dc && thumbLocation.dc) {
+				convert->sticker()->loc = thumbLocation;
 			}
 
 			if (convert->location.check()) {
@@ -1336,7 +1336,7 @@ namespace App {
 				result = convert;
 			} else {
 				result = new DocumentData(document, access, date, attributes, mime, thumb, dc, size);
-				if (result->sticker) result->sticker->loc = thumbLocation;
+				if (result->sticker()) result->sticker()->loc = thumbLocation;
 			}
 			documentsData.insert(document, result);
 		} else {
@@ -1354,19 +1354,19 @@ namespace App {
 					if (!thumb->isNull() && (result->thumb->isNull() || result->thumb->width() < thumb->width() || result->thumb->height() < thumb->height())) {
 						result->thumb = thumb;
 					}
-					if (result->sticker && !attributes.isEmpty() && (result->sticker->alt.isEmpty() || result->sticker->set.type() == mtpc_inputStickerSetEmpty)) {
+					if (result->sticker() && !attributes.isEmpty() && (result->sticker()->alt.isEmpty() || result->sticker()->set.type() == mtpc_inputStickerSetEmpty)) {
 						for (QVector<MTPDocumentAttribute>::const_iterator i = attributes.cbegin(), e = attributes.cend(); i != e; ++i) {
 							if (i->type() == mtpc_documentAttributeSticker) {
 								const MTPDdocumentAttributeSticker &d(i->c_documentAttributeSticker());
 								if (d.valt.c_string().v.length() > 0) {
-									result->sticker->alt = qs(d.valt);
-									result->sticker->set = d.vstickerset;
+									result->sticker()->alt = qs(d.valt);
+									result->sticker()->set = d.vstickerset;
 								}
 							}
 						}
 					}
-					if (result->sticker && !result->sticker->loc.dc && thumbLocation.dc) {
-						result->sticker->loc = thumbLocation;
+					if (result->sticker() && !result->sticker()->loc.dc && thumbLocation.dc) {
+						result->sticker()->loc = thumbLocation;
 					}
 				}
 			}

@@ -2541,7 +2541,7 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		fwd->drawForwardedFrom(p, st::mediaPadding.left(), fwdFrom, width - st::mediaPadding.left() - st::mediaPadding.right(), selected);
 	}
 
-	AudioData *playing = 0;
+	AudioMsgId playing;
 	AudioPlayerState playingState = AudioPlayerStopped;
 	int64 playingPosition = 0, playingDuration = 0;
 	int32 playingFrequency = 0;
@@ -2563,7 +2563,7 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		img = out ? st::mediaAudioOutImg : st::mediaAudioInImg;
 	} else if (already || hasdata) {
 		bool showPause = false;
-		if (playing == data && playingState != AudioPlayerStopped && playingState != AudioPlayerStoppedAtStart) {
+		if (playing.msgId == parent->id && playingState != AudioPlayerStopped && playingState != AudioPlayerStoppedAtStart) {
 			statusText = formatDurationText(playingPosition / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency)) + qsl(" / ") + formatDurationText(playingDuration / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency));
 			showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
 		} else {
@@ -2728,18 +2728,26 @@ HistoryMedia *HistoryAudio::clone() const {
 	return new HistoryAudio(*this);
 }
 
+namespace {
+	QString documentName(DocumentData *document) {
+		SongData *song = document->song();
+		if (!song || (song->title.isEmpty() && song->performer.isEmpty())) return document->name;
+		if (song->performer.isEmpty()) return song->title;
+		return song->performer + QString::fromUtf8(" \xe2\x80\x94 ") + (song->title.isEmpty() ? qsl("Unknown Track") : song->title);
+	}
+}
+
 HistoryDocument::HistoryDocument(DocumentData *document) : HistoryMedia()
 , data(document)
 , _openl(new DocumentOpenLink(data))
 , _savel(new DocumentSaveLink(data))
 , _cancell(new DocumentCancelLink(data))
-, _name(data->name)
+, _name(documentName(data))
 , _dldDone(0)
 , _uplDone(0)
 {
 	_namew = st::mediaFont->m.width(_name.isEmpty() ? qsl("Document") : _name);
-
-	_size = formatSizeText(data->size);
+	_size = document->song() ? formatDurationAndSizeText(document->song()->duration, data->size) : formatSizeText(data->size);
 
 	_height = _minh = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
 
@@ -2800,7 +2808,7 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 	if (width < 0) width = w;
 	if (width < 1) return;
 
-	bool out = parent->out(), hovered, pressed;
+	bool out = parent->out(), hovered, pressed, already = !data->already().isEmpty(), hasdata = !data->data.isEmpty();
 	if (parent == animated.msg) {
 		int32 pw = animated.w / cIntRetinaFactor(), ph = animated.h / cIntRetinaFactor();
 		if (width < pw) {
@@ -2835,8 +2843,6 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 		skipy += fwdFrom;
 	}
 
-	data->thumb->checkload();
-
 	if (width >= _maxw) {
 		width = _maxw;
 	}
@@ -2854,8 +2860,8 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 
 		p.setPen((hovered ? st::mediaSaveButton.overColor : st::mediaSaveButton.color)->p);
 		p.setFont(st::mediaSaveButton.font->f);
-		QString btnText(lang(data->loader ? lng_media_cancel : (data->already().isEmpty() ? lng_media_download : lng_media_open_with)));
-		int32 btnTextWidth = data->loader ? _cancelWidth : (data->already().isEmpty() ? _downloadWidth : _openWithWidth);
+		QString btnText(lang(data->loader ? lng_media_cancel : (already ? lng_media_open_with : lng_media_download)));
+		int32 btnTextWidth = data->loader ? _cancelWidth : (already ? _openWithWidth : _downloadWidth);
 		p.drawText(btnx + (btnw - btnTextWidth) / 2, btny + (pressed ? st::mediaSaveButton.downTextTop : st::mediaSaveButton.textTop) + st::mediaSaveButton.font->ascent, btnText);
 		width -= btnw + st::mediaSaveDelta;
 	}
@@ -2875,10 +2881,76 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 	} else if (fwd) {
 		fwd->drawForwardedFrom(p, st::mediaPadding.left(), fwdFrom, width - st::mediaPadding.left() - st::mediaPadding.right(), selected);
 	}
-	if (_thumbw) {
-		p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), data->thumb->pixSingle(_thumbw, 0, st::mediaThumbSize, st::mediaThumbSize));
+
+	QString statusText;
+	if (data->song()) {
+		SongMsgId playing;
+		AudioPlayerState playingState = AudioPlayerStopped;
+		int64 playingPosition = 0, playingDuration = 0;
+		int32 playingFrequency = 0;
+		if (audioPlayer()) {
+			audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
+		}
+
+		QRect img;
+		if (data->status == FileFailed) {
+			statusText = lang(lng_attach_failed);
+			img = out ? st::mediaAudioOutImg : st::mediaAudioInImg;
+		} else if (data->status == FileUploading) {
+			if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
+				_uplDone = data->uploadOffset;
+				_uplTextCache = formatDownloadText(_uplDone, data->size);
+			}
+			statusText = _uplTextCache;
+			img = out ? st::mediaAudioOutImg : st::mediaAudioInImg;
+		} else if (already || hasdata) {
+			bool showPause = false;
+			if (playing.msgId == parent->id && playingState != AudioPlayerStopped && playingState != AudioPlayerStoppedAtStart) {
+				statusText = formatDurationText(playingPosition / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency)) + qsl(" / ") + formatDurationText(playingDuration / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency));
+				showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
+			} else {
+				statusText = formatDurationText(data->song()->duration);
+			}
+			img = out ? (showPause ? st::mediaPauseOutImg : st::mediaPlayOutImg) : (showPause ? st::mediaPauseInImg : st::mediaPlayInImg);
+		} else {
+			if (data->loader) {
+				if (_dldTextCache.isEmpty() || _dldDone != data->loader->currentOffset()) {
+					_dldDone = data->loader->currentOffset();
+					_dldTextCache = formatDownloadText(_dldDone, data->size);
+				}
+				statusText = _dldTextCache;
+			} else {
+				statusText = _size;
+			}
+			img = out ? st::mediaAudioOutImg : st::mediaAudioInImg;
+		}
+
+		p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), App::sprite(), img);
 	} else {
-		p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), App::sprite(), (out ? st::mediaDocOutImg : st::mediaDocInImg));
+		if (data->status == FileFailed) {
+			statusText = lang(lng_attach_failed);
+		} else if (data->status == FileUploading) {
+			if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
+				_uplDone = data->uploadOffset;
+				_uplTextCache = formatDownloadText(_uplDone, data->size);
+			}
+			statusText = _uplTextCache;
+		} else if (data->loader) {
+			if (_dldTextCache.isEmpty() || _dldDone != data->loader->currentOffset()) {
+				_dldDone = data->loader->currentOffset();
+				_dldTextCache = formatDownloadText(_dldDone, data->size);
+			}
+			statusText = _dldTextCache;
+		} else {
+			statusText = _size;
+		}
+
+		if (_thumbw) {
+			data->thumb->checkload();
+			p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), data->thumb->pixSingle(_thumbw, 0, st::mediaThumbSize, st::mediaThumbSize));
+		} else {
+			p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), App::sprite(), (out ? st::mediaDocOutImg : st::mediaDocInImg));
+		}
 	}
 	if (selected) {
 		App::roundRect(p, st::mediaPadding.left(), skipy + st::mediaPadding.top(), st::mediaThumbSize, st::mediaThumbSize, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
@@ -2897,28 +2969,9 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 		p.drawText(tleft, skipy + st::mediaPadding.top() + st::mediaNameTop + st::mediaFont->ascent, _name);
 	}
 
-	QString statusText;
-
 	style::color status(selected ? (out ? st::mediaOutSelectColor : st::mediaInSelectColor) : (out ? st::mediaOutColor : st::mediaInColor));
 	p.setPen(status->p);
 
-	if (data->status == FileFailed) {
-		statusText = lang(lng_attach_failed);
-	} else if (data->status == FileUploading) {
-		if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
-			_uplDone = data->uploadOffset;
-			_uplTextCache = formatDownloadText(_uplDone, data->size);
-		}
-		statusText = _uplTextCache;
-	} else if (data->loader) {
-		if (_dldTextCache.isEmpty() || _dldDone != data->loader->currentOffset()) {
-			_dldDone = data->loader->currentOffset();
-			_dldTextCache = formatDownloadText(_dldDone, data->size);
-		}
-		statusText = _dldTextCache;
-	} else {
-		statusText = _size;
-	}
 	p.drawText(tleft, skipy + st::mediaPadding.top() + st::mediaThumbSize - st::mediaDetailsShift - st::mediaFont->descent, statusText);
 
 	p.setFont(st::msgDateFont->f);
@@ -2975,11 +3028,11 @@ int32 HistoryDocument::resize(int32 width, bool dontRecountText, const HistoryIt
 }
 
 const QString HistoryDocument::inDialogsText() const {
-	return data->name.isEmpty() ? lang(lng_in_dlg_file) : data->name;
+	return _name.isEmpty() ? lang(lng_in_dlg_file) : _name;
 }
 
 const QString HistoryDocument::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_file) + (data->name.isEmpty() ? QString() : (qsl(" : ") + data->name)) + qsl(" ]");
+	return qsl("[ ") + lang(lng_in_dlg_file) + (_name.isEmpty() ? QString() : (qsl(" : ") + _name)) + qsl(" ]");
 }
 
 bool HistoryDocument::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
@@ -3136,24 +3189,24 @@ void HistorySticker::draw(QPainter &p, const HistoryItem *parent, bool selected,
 	if (!data->loader && data->status != FileFailed && !already && !hasdata) {
 		data->save(QString());
 	}
-	if (data->sticker->img->isNull() && (already || hasdata)) {
+	if (data->sticker()->img->isNull() && (already || hasdata)) {
 		if (already) {
-			data->sticker->img = ImagePtr(data->already());
+			data->sticker()->img = ImagePtr(data->already());
 		} else {
-			data->sticker->img = ImagePtr(data->data);
+			data->sticker()->img = ImagePtr(data->data);
 		}
 	}
 	if (selected) {
-		if (data->sticker->img->isNull()) {
+		if (data->sticker()->img->isNull()) {
 			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->thumb->pixBlurredColored(st::msgStickerOverlay, pixw, pixh));
 		} else {
-			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->sticker->img->pixColored(st::msgStickerOverlay, pixw, pixh));
+			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->sticker()->img->pixColored(st::msgStickerOverlay, pixw, pixh));
 		}
 	} else {
-		if (data->sticker->img->isNull()) {
+		if (data->sticker()->img->isNull()) {
 			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->thumb->pixBlurred(pixw, pixh));
 		} else {
-			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->sticker->img->pix(pixw, pixh));
+			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->sticker()->img->pix(pixw, pixh));
 		}
 	}
 
@@ -4785,7 +4838,7 @@ void HistoryMessage::initMediaFromText(QString &currentText)  {
 }
 
 void HistoryMessage::initMediaFromDocument(DocumentData *doc) {
-	if (doc->type == StickerDocument && doc->sticker && doc->dimensions.width() > 0 && doc->dimensions.height() > 0 && doc->dimensions.width() <= StickerMaxSize && doc->dimensions.height() <= StickerMaxSize && doc->size < StickerInMemory) {
+	if (doc->sticker()) {
 		_media = new HistorySticker(doc);
 	} else {
 		_media = new HistoryDocument(doc);

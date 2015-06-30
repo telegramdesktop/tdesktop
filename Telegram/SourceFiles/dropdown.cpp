@@ -1216,7 +1216,7 @@ void StickerPanInner::paintEvent(QPaintEvent *e) {
 				float64 hover = _sets[c].hovers[index];
 
 				DocumentData *sticker = _sets[c].pack[index];
-				if (!sticker->sticker) continue;
+				if (!sticker->sticker()) continue;
 
 				QPoint pos(st::stickerPanPadding + j * st::stickerPanSize.width(), y + i * st::stickerPanSize.height());
 				if (hover > 0) {
@@ -1235,11 +1235,11 @@ void StickerPanInner::paintEvent(QPaintEvent *e) {
 					if (!sticker->loader && sticker->status != FileFailed && !already && !hasdata) {
 						sticker->save(QString());
 					}
-					if (sticker->sticker->img->isNull() && (already || hasdata)) {
+					if (sticker->sticker()->img->isNull() && (already || hasdata)) {
 						if (already) {
-							sticker->sticker->img = ImagePtr(sticker->already());
+							sticker->sticker()->img = ImagePtr(sticker->already());
 						} else {
-							sticker->sticker->img = ImagePtr(sticker->data);
+							sticker->sticker()->img = ImagePtr(sticker->data);
 						}
 					}
 				}
@@ -1252,8 +1252,8 @@ void StickerPanInner::paintEvent(QPaintEvent *e) {
 				QPoint ppos = pos + QPoint((st::stickerPanSize.width() - w) / 2, (st::stickerPanSize.height() - h) / 2);
 				if (goodThumb) {
 					p.drawPixmapLeft(ppos, width(), sticker->thumb->pix(w, h));
-				} else if (!sticker->sticker->img->isNull()) {
-					p.drawPixmapLeft(ppos, width(), sticker->sticker->img->pix(w, h));
+				} else if (!sticker->sticker()->img->isNull()) {
+					p.drawPixmapLeft(ppos, width(), sticker->sticker()->img->pix(w, h));
 				}
 
 				if (hover > 0 && _sets[c].id == RecentStickerSetId && _custom.at(index)) {
@@ -1411,7 +1411,7 @@ void StickerPanInner::preloadImages() {
 			if (++k > StickerPanPerRow * (StickerPanPerRow + 1)) break;
 
 			DocumentData *sticker = _sets.at(i).pack.at(j);
-			if (!sticker || !sticker->sticker) continue;
+			if (!sticker || !sticker->sticker()) continue;
 
 			bool goodThumb = !sticker->thumb->isNull() && ((sticker->thumb->width() >= 128) || (sticker->thumb->height() >= 128));
 			if (goodThumb) {

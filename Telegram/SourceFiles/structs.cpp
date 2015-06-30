@@ -442,16 +442,16 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
 
 	QString already = data->already(true);
-	bool play = audioPlayer();
+	bool play = App::hoveredLinkItem() && audioPlayer();
 	if (!already.isEmpty() || (!data->data.isEmpty() && play)) {
 		if (play) {
-			AudioData *playing = 0;
+			AudioMsgId playing;
 			AudioPlayerState playingState = AudioPlayerStopped;
 			audioPlayer()->currentState(&playing, &playingState);
-			if (playing == data && playingState != AudioPlayerStopped) {
-				audioPlayer()->pauseresume();
+			if (playing.msgId == App::hoveredLinkItem()->id && playingState != AudioPlayerStopped) {
+				audioPlayer()->pauseresume(OverviewAudios);
 			} else {
-				audioPlayer()->play(data);
+				audioPlayer()->play(AudioMsgId(data, App::hoveredLinkItem()->id));
 				if (App::main()) App::main()->audioMarkRead(data);
 			}
 		} else {
@@ -549,9 +549,19 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 	DocumentData *data = document();
 	if (!data->date || button != Qt::LeftButton) return;
 
+	bool play = data->song() && App::hoveredLinkItem() && audioPlayer();
 	QString already = data->already(true);
-	if (!already.isEmpty()) {
-		if (data->size < MediaViewImageSizeLimit) {
+	if (!already.isEmpty() || (!data->data.isEmpty() && play)) {
+		if (play) {
+			SongMsgId playing;
+			AudioPlayerState playingState = AudioPlayerStopped;
+			audioPlayer()->currentState(&playing, &playingState);
+			if (playing.msgId == App::hoveredLinkItem()->id && playingState != AudioPlayerStopped) {
+				audioPlayer()->pauseresume(OverviewDocuments);
+			} else {
+				audioPlayer()->play(SongMsgId(data, App::hoveredLinkItem()->id));
+			}
+		} else if (data->size < MediaViewImageSizeLimit) {
 			QImageReader reader(already);
 			if (reader.canRead()) {
 				if (reader.supportsAnimation() && reader.imageCount() > 1 && App::hoveredLinkItem()) {
@@ -646,7 +656,7 @@ void DocumentCancelLink::onClick(Qt::MouseButton button) const {
 }
 
 DocumentData::DocumentData(const DocumentId &id, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) :
-id(id), type(FileDocument), duration(0), access(access), date(date), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0), sticker(0) {
+id(id), type(FileDocument), access(access), date(date), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0), _additional(0) {
 	setattributes(attributes);
 	location = Local::readFileLocation(mediaKey(DocumentFileLocation, dc, id));
 }
@@ -658,12 +668,17 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			const MTPDdocumentAttributeImageSize &d(attributes[i].c_documentAttributeImageSize());
 			dimensions = QSize(d.vw.v, d.vh.v);
 		} break;
-		case mtpc_documentAttributeAnimated: if (type == FileDocument || type == StickerDocument) type = AnimatedDocument; break;
+		case mtpc_documentAttributeAnimated: if (type == FileDocument || type == StickerDocument) {
+			type = AnimatedDocument;
+			delete _additional;
+			_additional = 0;
+		} break;
 		case mtpc_documentAttributeSticker: {
 			const MTPDdocumentAttributeSticker &d(attributes[i].c_documentAttributeSticker());
-			if (type == FileDocument) type = StickerDocument;
-			if (type == StickerDocument && !sticker) sticker = new StickerData();
-			if (sticker) {
+			if (type == FileDocument) {
+				type = StickerDocument;
+				StickerData *sticker = new StickerData();
+				_additional = sticker;
 				sticker->alt = qs(d.valt);
 				sticker->set = d.vstickerset;
 			}
@@ -671,15 +686,26 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 		case mtpc_documentAttributeVideo: {
 			const MTPDdocumentAttributeVideo &d(attributes[i].c_documentAttributeVideo());
 			type = VideoDocument;
-			duration = d.vduration.v;
+//			duration = d.vduration.v;
 			dimensions = QSize(d.vw.v, d.vh.v);
 		} break;
 		case mtpc_documentAttributeAudio: {
 			const MTPDdocumentAttributeAudio &d(attributes[i].c_documentAttributeAudio());
-			type = AudioDocument;
-			duration = d.vduration.v;
+			type = SongDocument;
+			SongData *song = new SongData();
+			_additional = song;
+			song->duration = d.vduration.v;
+			song->title = qs(d.vtitle);
+			song->performer = qs(d.vperformer);
 		} break;
 		case mtpc_documentAttributeFilename: name = qs(attributes[i].c_documentAttributeFilename().vfile_name); break;
+		}
+	}
+	if (type == StickerDocument) {
+		if (dimensions.width() <= 0 || dimensions.height() <= 0 || dimensions.width() > StickerMaxSize || dimensions.height() > StickerMaxSize || size > StickerInMemory) {
+			type = FileDocument;
+			delete _additional;
+			_additional = 0;
 		}
 	}
 }

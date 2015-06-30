@@ -839,9 +839,9 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			if (item && !isUponSelected && !_contextMenuLnk) {
 				if (HistorySticker *sticker = dynamic_cast<HistorySticker*>(msg ? msg->getMedia() : 0)) {
 					DocumentData *doc = sticker->document();
-					if (doc && doc->sticker && doc->sticker->set.type() != mtpc_inputStickerSetEmpty) {
+					if (doc && doc->sticker() && doc->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
 						if (!_menu) _menu = new ContextMenu(this);
-						_menu->addAction(lang(doc->sticker->setInstalled() ? lng_context_pack_info : lng_context_pack_add), historyWidget, SLOT(onStickerPackInfo()));
+						_menu->addAction(lang(doc->sticker()->setInstalled() ? lng_context_pack_info : lng_context_pack_add), historyWidget, SLOT(onStickerPackInfo()));
 					}
 				}
 				QString contextMenuText = item->selectedText(FullItemSel);
@@ -4349,8 +4349,10 @@ namespace {
 		}
 		if (document->type == AnimatedDocument) {
 			attributes.push_back(MTP_documentAttributeAnimated());
-		} else if (document->type == StickerDocument && document->sticker) {
-			attributes.push_back(MTP_documentAttributeSticker(MTP_string(document->sticker->alt), document->sticker->set));
+		} else if (document->type == StickerDocument && document->sticker()) {
+			attributes.push_back(MTP_documentAttributeSticker(MTP_string(document->sticker()->alt), document->sticker()->set));
+		} else if (document->type == SongDocument && document->song()) {
+			attributes.push_back(MTP_documentAttributeAudio(MTP_int(document->song()->duration), MTP_string(document->song()->title), MTP_string(document->song()->performer)));
 		}
 		return MTP_vector<MTPDocumentAttribute>(attributes);
 	}
@@ -4864,7 +4866,7 @@ void HistoryWidget::onStickerSend(DocumentData *sticker) {
 	App::main()->finishForwarding(hist);
 	cancelReply(lastKeyboardUsed);
 
-	if (sticker->sticker) App::main()->incrementSticker(sticker);
+	if (sticker->sticker()) App::main()->incrementSticker(sticker);
 
 	App::historyRegRandom(randomId, newId);
 	App::main()->historyToDown(hist);
@@ -4973,8 +4975,8 @@ void HistoryWidget::onReplyForwardPreviewCancel() {
 void HistoryWidget::onStickerPackInfo() {
 	if (HistoryMessage *item = dynamic_cast<HistoryMessage*>(App::contextItem())) {
 		if (HistorySticker *sticker = dynamic_cast<HistorySticker*>(item->getMedia())) {
-			if (sticker->document() && sticker->document()->sticker && sticker->document()->sticker->set.type() != mtpc_inputStickerSetEmpty) {
-				App::main()->stickersBox(sticker->document()->sticker->set);
+			if (sticker->document() && sticker->document()->sticker() && sticker->document()->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
+				App::main()->stickersBox(sticker->document()->sticker()->set);
 			}
 		}
 	}

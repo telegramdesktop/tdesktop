@@ -517,6 +517,8 @@ namespace {
 	typedef QPair<MediaKey, FileLocation> FileLocationPair;
 	typedef QMap<QString, FileLocationPair> FileLocationPairs;
 	FileLocationPairs _fileLocationPairs;
+	typedef QMap<MediaKey, MediaKey> FileLocationAliases;
+	FileLocationAliases _fileLocationAliases;
 	FileKey _locationsKey = 0;
 	
 	FileKey _recentStickersKeyOld = 0, _stickersKey = 0;
@@ -566,14 +568,28 @@ namespace {
 				_writeMap(WriteMapFast);
 			}
 			quint32 size = 0;
-			for (FileLocations::const_iterator i = _fileLocations.cbegin(); i != _fileLocations.cend(); ++i) {
+			for (FileLocations::const_iterator i = _fileLocations.cbegin(), e = _fileLocations.cend(); i != e; ++i) {
 				// location + type + namelen + name + date + size
 				size += sizeof(quint64) * 2 + sizeof(quint32) + _stringSize(i.value().name) + _dateTimeSize() + sizeof(quint32);
 			}
+			//end mark
+			size += sizeof(quint64) * 2 + sizeof(quint32) + _stringSize(QString()) + _dateTimeSize() + sizeof(quint32);
+			size += sizeof(quint32); // aliases count
+			for (FileLocationAliases::const_iterator i = _fileLocationAliases.cbegin(), e = _fileLocationAliases.cend(); i != e; ++i) {
+				// alias + location
+				size += sizeof(quint64) * 2 + sizeof(quint64) * 2;
+			}
+
 			EncryptedDescriptor data(size);
 			for (FileLocations::const_iterator i = _fileLocations.cbegin(); i != _fileLocations.cend(); ++i) {
 				data.stream << quint64(i.key().first) << quint64(i.key().second) << quint32(i.value().type) << i.value().name << i.value().modified << quint32(i.value().size);
 			}
+			data.stream << quint64(0) << quint64(0) << quint32(0) << QString() << QDateTime::currentDateTime() << quint32(0);
+			data.stream << quint32(_fileLocationAliases.size());
+			for (FileLocationAliases::const_iterator i = _fileLocationAliases.cbegin(), e = _fileLocationAliases.cend(); i != e; ++i) {
+				data.stream << quint64(i.key().first) << quint64(i.key().second) << quint64(i.value().first) << quint64(i.value().second);
+			}
+
 			FileWriteDescriptor file(_locationsKey);
 			file.writeEncrypted(data);
 		}
@@ -588,11 +604,17 @@ namespace {
 			return;
 		}
 
+		bool endMarkFound = false;
 		while (!locations.stream.atEnd()) {
 			quint64 first, second;
 			FileLocation loc;
 			quint32 type;
 			locations.stream >> first >> second >> type >> loc.name >> loc.modified >> loc.size;
+
+			if (!first && !second && !type && loc.name.isEmpty() && !loc.size) { // end mark
+				endMarkFound = true;
+				break;
+			}
 
 			MediaKey key(first, second);
 			loc.type = StorageFileType(type);
@@ -602,6 +624,16 @@ namespace {
 				_fileLocationPairs.insert(loc.name, FileLocationPair(key, loc));
 			} else {
 				_writeLocations();
+			}
+		}
+
+		if (endMarkFound) {
+			quint32 cnt;
+			locations.stream >> cnt;
+			for (int32 i = 0; i < cnt; ++i) {
+				quint64 kfirst, ksecond, vfirst, vsecond;
+				locations.stream >> kfirst >> ksecond >> vfirst >> vsecond;
+				_fileLocationAliases.insert(MediaKey(kfirst, ksecond), MediaKey(vfirst, vsecond));
 			}
 		}
 	}
@@ -1998,12 +2030,21 @@ namespace Local {
 		return (_draftsPositionsMap.constFind(peer) != _draftsPositionsMap.cend());
 	}
 
-	void writeFileLocation(const MediaKey &location, const FileLocation &local) {
+	void writeFileLocation(MediaKey location, const FileLocation &local) {
 		if (local.name.isEmpty()) return;
+
+		FileLocationAliases::const_iterator aliasIt = _fileLocationAliases.constFind(location);
+		if (aliasIt != _fileLocationAliases.cend()) {
+			location = aliasIt.value();
+		}
 
 		FileLocationPairs::iterator i = _fileLocationPairs.find(local.name);
 		if (i != _fileLocationPairs.cend()) {
 			if (i.value().second == local) {
+				if (i.value().first != location) {
+					_fileLocationAliases.insert(location, i.value().first);
+					_writeLocations(WriteMapFast);
+				}
 				return;
 			}
 			if (i.value().first != location) {
@@ -2021,7 +2062,12 @@ namespace Local {
 		_writeLocations(WriteMapFast);
 	}
 
-	FileLocation readFileLocation(const MediaKey &location, bool check) {
+	FileLocation readFileLocation(MediaKey location, bool check) {
+		FileLocationAliases::const_iterator aliasIt = _fileLocationAliases.constFind(location);
+		if (aliasIt != _fileLocationAliases.cend()) {
+			location = aliasIt.value();
+		}
+
 		FileLocations::iterator i = _fileLocations.find(location);
 		for (FileLocations::iterator i = _fileLocations.find(location); (i != _fileLocations.end()) && (i.key() == location);) {
 			if (check) {
@@ -2253,8 +2299,8 @@ namespace Local {
 		stream << quint64(it->id) << quint64(it->access) << it->title << it->shortName << qint32(it->stickers.size()) << qint32(it->hash) << qint32(it->flags);
 		for (StickerPack::const_iterator j = it->stickers.cbegin(), e = it->stickers.cend(); j != e; ++j) {
 			DocumentData *doc = *j;
-			stream << quint64(doc->id) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type) << doc->sticker->alt;
-			switch (doc->sticker->set.type()) {
+			stream << quint64(doc->id) << quint64(doc->access) << qint32(doc->date) << doc->name << doc->mime << qint32(doc->dc) << qint32(doc->size) << qint32(doc->dimensions.width()) << qint32(doc->dimensions.height()) << qint32(doc->type) << doc->sticker()->alt;
+			switch (doc->sticker()->set.type()) {
 			case mtpc_inputStickerSetID: {
 				stream << qint32(StickerSetTypeID);
 			} break;
@@ -2266,7 +2312,7 @@ namespace Local {
 				stream << qint32(StickerSetTypeEmpty);
 			} break;
 			}
-			const StorageImageLocation &loc(doc->sticker->loc);
+			const StorageImageLocation &loc(doc->sticker()->loc);
 			stream << qint32(loc.width) << qint32(loc.height) << qint32(loc.dc) << quint64(loc.volume) << qint32(loc.local) << quint64(loc.secret);
 		}
 	}
@@ -2301,7 +2347,7 @@ namespace Local {
 					DocumentData *doc = *j;
 
 					// id + access + date + namelen + name + mimelen + mime + dc + size + width + height + type + alt + type-of-set
-					size += sizeof(quint64) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(doc->sticker->alt) + sizeof(qint32);
+					size += sizeof(quint64) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(doc->sticker()->alt) + sizeof(qint32);
 
 					// thumb-width + thumb-height + thumb-dc + thumb-volume + thumb-local + thumb-secret
 					size += sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(quint64) + sizeof(qint32) + sizeof(quint64);
@@ -2375,7 +2421,7 @@ namespace Local {
 			}
 
 			DocumentData *doc = App::documentSet(id, 0, access, date, attributes, mime, ImagePtr(), dc, size, StorageImageLocation());
-			if (!doc->sticker) continue;
+			if (!doc->sticker()) continue;
 
 			if (value > 0) {
 				def.stickers.push_back(doc);
@@ -2499,7 +2545,7 @@ namespace Local {
 
 				StorageImageLocation thumb(thumbWidth, thumbHeight, thumbDc, thumbVolume, thumbLocal, thumbSecret);
 				DocumentData *doc = App::documentSet(id, 0, access, date, attributes, mime, thumb.dc ? ImagePtr(thumb) : ImagePtr(), dc, size, thumb);
-				if (!doc->sticker) continue;
+				if (!doc->sticker()) continue;
 
 				set.stickers.push_back(doc);
 				++set.count;
