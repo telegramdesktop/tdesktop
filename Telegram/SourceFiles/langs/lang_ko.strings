@@ -166,11 +166,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_username_title" = "아이디 변경";
 "lng_username_about" = "텔레그램 아이디를 설정할 수 있습니다. \n아이디를 설정하면 회원님의 전화번호를 몰라도 아이디로 회원님을 찾아 대화를 나눌 수 있습니다.\n아이디는 영문, 밑줄, 숫자로 a-z, _, 0-9, \n다섯 글자 이상으로 설정해 주세요.";
-"lng_username_invalid" = "This username is invalid.";
-"lng_username_occupied" = "This username is already occupied.";
-"lng_username_too_short" = "This username is too short.";
-"lng_username_bad_symbols" = "This username has bad symbols.";
-"lng_username_available" = "This username is available.";
+"lng_username_invalid" = "올바르지 않은 아이디입니다.";
+"lng_username_occupied" = "사용중인 아이디입니다.";
+"lng_username_too_short" = "아이디가 너무 짧습니다.";
+"lng_username_bad_symbols" = "아이디에 올바르지 않은 문자가 있습니다.";
+"lng_username_available" = "사용 가능한 아이디입니다.";
 "lng_username_not_found" = "아이디 @{user}를 찾을 수 없습니다.";
 
 "lng_settings_section_contact_info" = "연락처 정보";
@@ -602,7 +602,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— Forward photos, media and stickers with drag-n-drop\n— Drag-n-drop text messages by timestamp to forward them\n— Larger stickers panel\n— IPv6 checkbox added to Connection Type in Settings";
+"lng_new_version_text" = "— 드래그 앤 드롭으로 사진, 미디어와 스티커 전달\n— 드래그 앤 드롭으로 타임스탬프 순 메시지 전달\n— 큰 스티커 패널\n— IPv6 설정 추가";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 
