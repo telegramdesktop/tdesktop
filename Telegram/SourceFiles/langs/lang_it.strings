@@ -166,11 +166,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_username_title" = "Cambia username";
 "lng_username_about" = "Puoi scegliere un username su Telegram.\nSe lo fai, le altre persone potranno trovarti\ntramite questo nome utente e contattarti \nsenza conoscere il tuo numero di telefono.\n\nPuoi usare a-z, 0-9 e underscore.\nLa lunghezza minima è di 5 caratteri.";
-"lng_username_invalid" = "Il nome non è valido.";
-"lng_username_occupied" = "Il nome è già occupato.";
-"lng_username_too_short" = "Il nome è troppo corto.";
-"lng_username_bad_symbols" = "Questo nome ha simboli errati.";
-"lng_username_available" = "Il nome è disponibile.";
+"lng_username_invalid" = "L'username non è valido.";
+"lng_username_occupied" = "L'username è già occupato.";
+"lng_username_too_short" = "L'username è troppo corto.";
+"lng_username_bad_symbols" = "Questo username ha simboli errati.";
+"lng_username_available" = "L'username è disponibile.";
 "lng_username_not_found" = "Utente @{user} non trovato.";
 
 "lng_settings_section_contact_info" = "Informazioni di contatto";
@@ -602,7 +602,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli update è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "Questa nuova versione include il support per i bot usando la nuova API per i bot. Se sei un ingegnere, crea i tuoi bot per giochi, servizi o integrazioni. Scopri di più su {blog_link}";
+"lng_new_version_text" = "— Inoltra foto, media e sticker trascinandoli e rilasciandoli\n— Trascina e rilascia messaggi di testo premendo sull'orario per inoltrarli\n— Pannello degli sticker più largo\n— Aggiunto checkbox per l'IPv6 nelle Impostazioni di Connessione";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

@@ -132,22 +132,27 @@ void ApiWrap::gotReplyTo(const MTPmessages_Messages &msgs, mtpRequestId req) {
 }
 
 void ApiWrap::requestFullPeer(PeerData *peer) {
-	if (!peer || _fullRequests.contains(peer)) return;
+	if (!peer || _fullPeerRequests.contains(peer)) return;
+
 	mtpRequestId req;
 	if (peer->chat) {
-		req = MTP::send(MTPmessages_GetFullChat(MTP_int(App::chatFromPeer(peer->id))), rpcDone(&ApiWrap::gotChatFull, peer), rpcFail(&ApiWrap::gotPeerFailed, peer));
+		req = MTP::send(MTPmessages_GetFullChat(MTP_int(App::chatFromPeer(peer->id))), rpcDone(&ApiWrap::gotChatFull, peer), rpcFail(&ApiWrap::gotPeerFullFailed, peer));
 	} else {
-		req = MTP::send(MTPusers_GetFullUser(peer->asUser()->inputUser), rpcDone(&ApiWrap::gotUserFull, peer), rpcFail(&ApiWrap::gotPeerFailed, peer));
+		req = MTP::send(MTPusers_GetFullUser(peer->asUser()->inputUser), rpcDone(&ApiWrap::gotUserFull, peer), rpcFail(&ApiWrap::gotPeerFullFailed, peer));
 	}
-	_fullRequests.insert(peer, req);
+	_fullPeerRequests.insert(peer, req);
 }
 
 void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result) {
 	const MTPDmessages_chatFull &d(result.c_messages_chatFull());
 	const MTPDchatFull &f(d.vfull_chat.c_chatFull());
-	App::feedUsers(d.vusers);
-	App::feedChats(d.vchats);
-	App::feedParticipants(f.vparticipants);
+
+	const QVector<MTPChat> &vc(d.vchats.c_vector().v);
+	bool badVersion = (!vc.isEmpty() && vc.at(0).type() == mtpc_chat && vc.at(0).c_chat().vversion.v < peer->asChat()->version);
+
+	App::feedUsers(d.vusers, false);
+	App::feedChats(d.vchats, false);
+	App::feedParticipants(f.vparticipants, false, false);
 	const QVector<MTPBotInfo> &v(f.vbot_info.c_vector().v);
 	for (QVector<MTPBotInfo>::const_iterator i = v.cbegin(), e = v.cend(); i < e; ++i) {
 		switch (i->type()) {
@@ -156,6 +161,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result) {
 			UserData *user = App::userLoaded(b.vuser_id.v);
 			if (user) {
 				user->setBotInfo(*i);
+				App::clearPeerUpdated(user);
 				emit fullPeerUpdated(user);
 			}
 		} break;
@@ -167,33 +173,86 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result) {
 		if (photo) {
 			chat->photoId = photo->id;
 			photo->chat = chat;
+		} else {
+			chat->photoId = 0;
 		}
 		chat->invitationUrl = (f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString();
 	}
 
 	App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
 
-	_fullRequests.remove(peer);
+	_fullPeerRequests.remove(peer);
+	if (badVersion) {
+		peer->asChat()->version = vc.at(0).c_chat().vversion.v;
+		requestPeer(peer);
+	}
+	App::clearPeerUpdated(peer);
 	emit fullPeerUpdated(peer);
+	App::emitPeerUpdated();
 }
 
 void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result) {
 	const MTPDuserFull &d(result.c_userFull());
-	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
+	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser), false);
 	App::feedPhoto(d.vprofile_photo);
-	App::feedUserLink(MTP_int(App::userFromPeer(peer->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link);
+	App::feedUserLink(MTP_int(App::userFromPeer(peer->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link, false);
 	App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), d.vnotify_settings);
 
 	peer->asUser()->setBotInfo(d.vbot_info);
 
-	_fullRequests.remove(peer);
+	_fullPeerRequests.remove(peer);
+	App::clearPeerUpdated(peer);
 	emit fullPeerUpdated(peer);
+	App::emitPeerUpdated();
+}
+
+bool ApiWrap::gotPeerFullFailed(PeerData *peer, const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
+	_fullPeerRequests.remove(peer);
+	return true;
+}
+
+void ApiWrap::requestPeer(PeerData *peer) {
+	if (!peer || _fullPeerRequests.contains(peer) || _peerRequests.contains(peer)) return;
+
+	mtpRequestId req;
+	if (peer->chat) {
+		req = MTP::send(MTPmessages_GetChats(MTP_vector<MTPint>(1, MTP_int(App::chatFromPeer(peer->id)))), rpcDone(&ApiWrap::gotChat, peer), rpcFail(&ApiWrap::gotPeerFailed, peer));
+	} else {
+		req = MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(1, peer->asUser()->inputUser)), rpcDone(&ApiWrap::gotUser, peer), rpcFail(&ApiWrap::gotPeerFailed, peer));
+	}
+	_peerRequests.insert(peer, req);
+}
+
+void ApiWrap::gotChat(PeerData *peer, const MTPmessages_Chats &result) {
+	_peerRequests.remove(peer);
+	
+	if (result.type() == mtpc_messages_chats) {
+		const QVector<MTPChat> &v(result.c_messages_chats().vchats.c_vector().v);
+		bool badVersion = (!v.isEmpty() && v.at(0).type() == mtpc_chat && v.at(0).c_chat().vversion.v < peer->asChat()->version);
+		ChatData *chat = App::feedChats(result.c_messages_chats().vchats);
+		if (chat == peer) {
+			if (badVersion) {
+				peer->asChat()->version = v.at(0).c_chat().vversion.v;
+				requestPeer(peer);
+			}
+		}
+	}
+}
+
+void ApiWrap::gotUser(PeerData *peer, const MTPVector<MTPUser> &result) {
+	_peerRequests.remove(peer);
+
+	UserData *user = App::feedUsers(result);
+	if (user == peer) {
+	}
 }
 
 bool ApiWrap::gotPeerFailed(PeerData *peer, const RPCError &error) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
 
-	_fullRequests.remove(peer);
+	_peerRequests.remove(peer);
 	return true;
 }
 

@@ -192,7 +192,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 {
 	if (self()) {
 		_nameText.setText(st::setNameFont, _nameCache, _textNameOptions);
-		PhotoData *selfPhoto = self()->photoId ? App::photo(self()->photoId) : 0;
+		PhotoData *selfPhoto = (self()->photoId && self()->photoId != UnknownPeerPhotoId) ? App::photo(self()->photoId) : 0;
 		if (selfPhoto && selfPhoto->date) _photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
 		MTP::send(MTPusers_GetFullUser(self()->inputUser), rpcDone(&SettingsInner::gotFullSelf), RPCFailHandlerPtr(), 0, 10);
 		onReloadPassword();
@@ -320,7 +320,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 
 void SettingsInner::peerUpdated(PeerData *data) {
 	if (self() && data == self()) {
-		if (self()->photoId) {
+		if (self()->photoId && self()->photoId != UnknownPeerPhotoId) {
 			PhotoData *selfPhoto = App::photo(self()->photoId);
 			if (selfPhoto->date) {
 				_photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
@@ -863,7 +863,7 @@ void SettingsInner::gotFullSelf(const MTPUserFull &selfFull) {
 	if (!self()) return;
 	App::feedPhoto(selfFull.c_userFull().vprofile_photo);
 	App::feedUsers(MTP_vector<MTPUser>(1, selfFull.c_userFull().vuser));
-	PhotoData *selfPhoto = self()->photoId ? App::photo(self()->photoId) : 0;
+	PhotoData *selfPhoto = (self()->photoId && self()->photoId != UnknownPeerPhotoId) ? App::photo(self()->photoId) : 0;
 	if (selfPhoto && selfPhoto->date) {
 		_photoLink = TextLinkPtr(new PhotoLink(selfPhoto, self()));
 	} else {

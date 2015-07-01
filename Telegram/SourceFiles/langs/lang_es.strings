@@ -602,7 +602,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop fue actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "Esta nueva versión incluye el soporte para bots, usando la nueva API para bots, gratis para todos. Si eres un ingeniero, crea tus propios bots para juegos, servicios o integraciones .\n\nConoce más en {blog_link}";
+"lng_new_version_text" = "— Reenvía fotos, multimedia y stickers arrastrándolos y soltándolos\n— Arrastrar y soltar para mensajes (mantén pulsado sobre la hora del mensaje en el chat y suéltalo)\n— Panel de stickers más grande\n— Opción de IPv6 añadida al Tipo de conexión, en Ajustes.";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

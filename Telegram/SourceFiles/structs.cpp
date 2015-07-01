@@ -133,23 +133,31 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone,
 }
 
 void UserData::setPhoto(const MTPUserProfilePhoto &p) {
+	PhotoId newPhotoId = photoId;
+	ImagePtr newPhoto = photo;
 	switch (p.type()) {
 	case mtpc_userProfilePhoto: {
 		const MTPDuserProfilePhoto d(p.c_userProfilePhoto());
-		photoId = d.vphoto_id.v;
-		photo = ImagePtr(160, 160, d.vphoto_small, userDefPhoto(colorIndex));
-		//		App::feedPhoto(App::photoFromUserPhoto(MTP_int(id & 0xFFFFFFFF), MTP_int(unixtime()), p));
+		newPhotoId = d.vphoto_id.v;
+		newPhoto = ImagePtr(160, 160, d.vphoto_small, userDefPhoto(colorIndex));
+		//App::feedPhoto(App::photoFromUserPhoto(MTP_int(id & 0xFFFFFFFF), MTP_int(unixtime()), p));
 	} break;
 	default: {
-		photoId = 0;
+		newPhotoId = 0;
 		if (id == ServiceUserId) {
-			photo = ImagePtr(QPixmap::fromImage(App::wnd()->iconLarge().scaledToWidth(160, Qt::SmoothTransformation), Qt::ColorOnly), "PNG");
+			if (photo->isNull()) {
+				newPhoto = ImagePtr(QPixmap::fromImage(App::wnd()->iconLarge().scaledToWidth(160, Qt::SmoothTransformation), Qt::ColorOnly), "PNG");
+			}
 		} else {
-			photo = userDefPhoto(colorIndex);
+			newPhoto = userDefPhoto(colorIndex);
 		}
 	} break;
 	}
-	emit App::main()->peerPhotoChanged(this);
+	if (newPhotoId != photoId || newPhoto.v() != photo.v()) {
+		photoId = newPhotoId;
+		photo = newPhoto;
+		emit App::main()->peerPhotoChanged(this);
+	}
 }
 
 void PeerData::fillNames() {
@@ -262,10 +270,10 @@ void UserData::madeAction() {
 	int32 t = unixtime();
 	if (onlineTill <= 0 && -onlineTill < t) {
 		onlineTill = -t - SetOnlineAfterActivity;
-		if (App::main()) App::main()->peerUpdated(this);
+		App::markPeerUpdated(this);
 	} else if (onlineTill > 0 && onlineTill < t + 1) {
 		onlineTill = t + SetOnlineAfterActivity;
-		if (App::main()) App::main()->peerUpdated(this);
+		App::markPeerUpdated(this);
 	}
 }
 
@@ -275,7 +283,7 @@ void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) {
 		const MTPDchatPhoto d(p.c_chatPhoto());
 		photo = ImagePtr(160, 160, d.vphoto_small, chatDefPhoto(colorIndex));
 		photoFull = ImagePtr(640, 640, d.vphoto_big, chatDefPhoto(colorIndex));
-		if (phId) {
+		if (phId != UnknownPeerPhotoId) {
 			photoId = phId;
 		}
 	} break;

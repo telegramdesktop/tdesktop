@@ -138,9 +138,11 @@ struct BotInfo {
 	QString startToken, startGroupToken;
 };
 
+static const PhotoId UnknownPeerPhotoId = 0xFFFFFFFFFFFFFFFFULL;
+
 struct PhotoData;
 struct UserData : public PeerData {
-	UserData(const PeerId &id) : PeerData(id), photoId(0), lnk(new PeerLink(this)), onlineTill(0), contact(-1), photosCount(-1), botInfo(0) {
+	UserData(const PeerId &id) : PeerData(id), photoId(UnknownPeerPhotoId), lnk(new PeerLink(this)), onlineTill(0), contact(-1), photosCount(-1), botInfo(0) {
 	}
 	void setPhoto(const MTPUserProfilePhoto &photo);
 	void setName(const QString &first, const QString &last, const QString &phoneName, const QString &username);
@@ -169,9 +171,9 @@ struct UserData : public PeerData {
 };
 
 struct ChatData : public PeerData {
-	ChatData(const PeerId &id) : PeerData(id), count(0), date(0), version(0), left(false), forbidden(true), botStatus(0), photoId(0) {
+	ChatData(const PeerId &id) : PeerData(id), count(0), date(0), version(0), left(false), forbidden(true), botStatus(0), photoId(UnknownPeerPhotoId) {
 	}
-	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = 0);
+	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
 	int32 count;
 	int32 date;
 	int32 version;

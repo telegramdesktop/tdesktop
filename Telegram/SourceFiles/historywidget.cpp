@@ -5093,7 +5093,6 @@ void HistoryWidget::onCancel() {
 }
 
 void HistoryWidget::onFullPeerUpdated(PeerData *data) {
-	peerUpdated(data);
 	if (_list && data == histPeer) {
 		checkMentionDropdown();
 		_list->updateBotInfo();

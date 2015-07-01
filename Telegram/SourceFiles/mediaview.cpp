@@ -682,7 +682,7 @@ void MediaView::showPhoto(PhotoData *photo, PeerData *context) {
 	_photo = photo;
 	_overview = OverviewCount;
 	if (_user) {
-		if (_user->photos.isEmpty() && _user->photosCount < 0 && _user->photoId) {
+		if (_user->photos.isEmpty() && _user->photosCount < 0 && _user->photoId && _user->photoId != UnknownPeerPhotoId) {
 			_index = 0;
 		}
 		for (int i = 0, l = _user->photos.size(); i < l; ++i) {
