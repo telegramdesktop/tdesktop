@@ -77,3 +77,5 @@ rm "./../Mac/Release/Telegram Desktop.app/Contents/MacOS/Telegram Desktop"
 rm -rf "./../Mac/Release/Telegram Desktop.app/Contents/_CodeSignature"
 echo "Version $AppVersionStr prepared!";
 
+cp -rv "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram Desktop.app" ./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
+cp -rv "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram Desktop.app.dSYM" ./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
