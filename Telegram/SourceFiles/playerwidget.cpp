@@ -545,4 +545,8 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 			startPlay(o->at(_index + 1));
 		}
 	}
+
+	if (songChanged) {
+		emit playerSongChanged(_song.msgId);
+	}
 }

@@ -1997,3 +1997,5 @@ playerVolume: sprite(352px, 179px, 44px, 12px);
 playerInactiveOpacity: 0.8;
 playerUnavailableOpacity: 0.3;
 playerDuration: 200;
+
+playlistHoverBg: #f2f2f2;

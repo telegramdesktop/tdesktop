@@ -44,6 +44,10 @@ public:
 
 	bool seekingSong(const SongMsgId &song) const;
 
+signals:
+
+	void playerSongChanged(MsgId msgId);
+
 private:
 
 	enum OverState {

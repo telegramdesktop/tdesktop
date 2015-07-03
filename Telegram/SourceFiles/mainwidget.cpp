@@ -2076,8 +2076,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	if (!animCache.isNull()) {
 		overview->animShow(animCache, animTopBarCache, back, lastScrollTop);
 	} else {
-		overview->show();
-		overview->activate();
+		overview->fastShow();
 	}
 	history.animStop();
 	history.showPeer(0, 0, false, true);

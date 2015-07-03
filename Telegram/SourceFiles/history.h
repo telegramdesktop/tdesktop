@@ -1046,6 +1046,9 @@ public:
 	}
 	ImagePtr replyPreview();
 
+	void drawInPlaylist(QPainter &p, const HistoryItem *parent, bool selected, bool over, int32 width) const;
+	TextLinkPtr linkInPlaylist();
+
 private:
 
 	DocumentData *data;

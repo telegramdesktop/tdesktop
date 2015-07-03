@@ -26,6 +26,7 @@ public:
 	OverviewInner(OverviewWidget *overview, ScrollArea *scroll, const PeerData *peer, MediaOverviewType type);
 
 	void clear();
+	int32 itemTop(MsgId msgId) const;
 
 	bool event(QEvent *e);
 	void touchEvent(QTouchEvent *e);
@@ -130,6 +131,9 @@ private:
 	CachedSizes _cached;
 	bool _selMode;
 
+	// audio documents
+	int32 _audioLeft, _audioWidth, _audioHeight;
+
 	// other
 	typedef struct _CachedItem {
 		_CachedItem() : msgid(0), y(0) {
@@ -158,7 +162,7 @@ private:
 	};
 	DragAction _dragAction;
 	QPoint _dragStartPos, _dragPos;
-	MsgId _dragItem;
+	MsgId _dragItem, _selectedMsgId;
 	int32 _dragItemIndex;
 	MsgId _mousedItem;
 	int32 _mousedItemIndex;
@@ -210,7 +214,9 @@ public:
 
 	int32 lastWidth() const;
 	int32 lastScrollTop() const;
+	int32 countBestScroll() const;
 
+	void fastShow(bool back = false, int32 lastScrollTop = -1);
 	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1);
 	bool animStep(float64 ms);
 
@@ -241,6 +247,7 @@ public slots:
 	void onScroll();
 
 	void onScrollTimer();
+	void onPlayerSongChanged(MsgId msgId);
 
 	void onForwardSelected();
 	void onDeleteSelected();

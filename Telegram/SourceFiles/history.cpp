@@ -3053,6 +3053,116 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 	}
 }
 
+void HistoryDocument::drawInPlaylist(QPainter &p, const HistoryItem *parent, bool selected, bool over, int32 width) const {
+	bool out = parent->out(), already = !data->already().isEmpty(), hasdata = !data->data.isEmpty();
+	int32 height = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
+
+	style::color bg(selected ? st::msgInSelectBg : (over ? st::playlistHoverBg : st::msgInBg));
+	p.fillRect(0, 0, width, height, bg->b);
+
+	QString statusText;
+	if (data->song()) {
+		SongMsgId playing;
+		AudioPlayerState playingState = AudioPlayerStopped;
+		int64 playingPosition = 0, playingDuration = 0;
+		int32 playingFrequency = 0;
+		if (audioPlayer()) {
+			audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
+		}
+
+		QRect img;
+		if (data->status == FileFailed) {
+			statusText = lang(lng_attach_failed);
+			img = st::mediaAudioInImg;
+		} else if (data->status == FileUploading) {
+			if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
+				_uplDone = data->uploadOffset;
+				_uplTextCache = formatDownloadText(_uplDone, data->size);
+			}
+			statusText = _uplTextCache;
+			img = st::mediaAudioInImg;
+		} else if (already || hasdata) {
+			bool isPlaying = (playing.msgId == parent->id);
+			bool showPause = false;
+			if (playing.msgId == parent->id && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+				statusText = formatDurationText(playingPosition / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency)) + qsl(" / ") + formatDurationText(playingDuration / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency));
+				showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
+			} else {
+				statusText = formatDurationText(data->song()->duration);
+			}
+			if (!showPause && playing.msgId == parent->id && App::main() && App::main()->player()->seekingSong(playing)) showPause = true;
+			img = isPlaying ? (showPause ? st::mediaPauseOutImg : st::mediaPlayOutImg) : (showPause ? st::mediaPauseInImg : st::mediaPlayInImg);
+		} else {
+			if (data->loader) {
+				int32 offset = data->loader->currentOffset();
+				if (_dldTextCache.isEmpty() || _dldDone != offset) {
+					_dldDone = offset;
+					_dldTextCache = formatDownloadText(_dldDone, data->size);
+				}
+				statusText = _dldTextCache;
+			} else {
+				statusText = _size;
+			}
+			img = st::mediaAudioInImg;
+		}
+
+		p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), App::sprite(), img);
+	} else {
+		if (data->status == FileFailed) {
+			statusText = lang(lng_attach_failed);
+		} else if (data->status == FileUploading) {
+			if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
+				_uplDone = data->uploadOffset;
+				_uplTextCache = formatDownloadText(_uplDone, data->size);
+			}
+			statusText = _uplTextCache;
+		} else if (data->loader) {
+			int32 offset = data->loader->currentOffset();
+			if (_dldTextCache.isEmpty() || _dldDone != offset) {
+				_dldDone = offset;
+				_dldTextCache = formatDownloadText(_dldDone, data->size);
+			}
+			statusText = _dldTextCache;
+		} else {
+			statusText = _size;
+		}
+
+		if (_thumbw) {
+			data->thumb->checkload();
+			p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), data->thumb->pixSingle(_thumbw, 0, st::mediaThumbSize, st::mediaThumbSize));
+		} else {
+			p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), App::sprite(), st::mediaDocInImg);
+		}
+	}
+	if (selected) {
+		App::roundRect(p, st::mediaPadding.left(), st::mediaPadding.top(), st::mediaThumbSize, st::mediaThumbSize, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
+	}
+
+	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
+	int32 twidth = width - tleft - st::mediaPadding.right();
+	int32 fullTimeWidth = parent->timeWidth(true) + st::msgPadding.right();
+	int32 secondwidth = width - tleft - fullTimeWidth;
+
+	p.setFont(st::mediaFont->f);
+	p.setPen(st::black->c);
+	if (twidth < _namew) {
+		p.drawText(tleft, st::mediaPadding.top() + st::mediaNameTop + st::mediaFont->ascent, st::mediaFont->m.elidedText(_name, Qt::ElideRight, twidth));
+	} else {
+		p.drawText(tleft, st::mediaPadding.top() + st::mediaNameTop + st::mediaFont->ascent, _name);
+	}
+
+	style::color status(selected ? st::mediaInSelectColor : st::mediaInColor);
+	p.setPen(status->p);
+	p.drawText(tleft, st::mediaPadding.top() + st::mediaThumbSize - st::mediaDetailsShift - st::mediaFont->descent, statusText);
+}
+
+TextLinkPtr HistoryDocument::linkInPlaylist() {
+	if (!data->loader && data->access) {
+		return _openl;
+	}
+	return TextLinkPtr();
+}
+
 void HistoryDocument::regItem(HistoryItem *item) {
 	App::regDocumentItem(data, item);
 }
