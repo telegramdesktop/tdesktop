@@ -361,13 +361,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_shared_media" = "Mídia compartilhada";
 "lng_profile_no_media" = "Nenhuma mídia nessa conversa.";
 "lng_profile_photos" = "{count:_not_used_|# foto|# fotos} »";
-"lng_profile_photos_header" = "Visualização de fotos";
+"lng_profile_photos_header" = "Fotos";
 "lng_profile_videos" = "{count:_not_used_|# arquivo de vídeo|# arquivo de vídeos} »";
-"lng_profile_videos_header" = "Visualização de vídeos";
+"lng_profile_videos_header" = "Vídeos";
 "lng_profile_files" = "{count:_not_used_|# arquivo|# arquivos} »";
-"lng_profile_files_header" = "Visualização de arquivos";
+"lng_profile_files_header" = "Arquivos";
 "lng_profile_audios" = "{count:_not_used_|# mensagem de voz|# mensagens de voz} »";
-"lng_profile_audios_header" = "Visualização de mensagens de voz";
+"lng_profile_audios_header" = "Mensagens de voz";
+"lng_profile_audio_files_header" = "Reprodução";
 "lng_profile_show_all_types" = "Mostrar todos os tipos";
 "lng_profile_copy_phone" = "Copiar número de telefone";
 
@@ -602,7 +603,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras menores melhorias";
-"lng_new_version_text" = "— Encaminhar fotos, mídias e stickers com arrastar-e-soltar\n— Encaminhar textos pressionando sobre a data e hora da mensagem e arrastando para outra conversa\n— Painel de stickers maior\n— IPv6 adicionado em 'Tipos de Conexão' nas Configurações";
+"lng_new_version_text" = "— Reprodução de mídia no app melhorada\n— Resolução de bugs e menores melhorias";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

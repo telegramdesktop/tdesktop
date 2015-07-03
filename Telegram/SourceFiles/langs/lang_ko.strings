@@ -368,6 +368,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_files_header" = "파일 내역";
 "lng_profile_audios" = "{count:_not_used_|#개의 음성 메시지|#개의 음성 메시지} »";
 "lng_profile_audios_header" = "음성 메시지 내역";
+"lng_profile_audio_files_header" = "재생목록";
 "lng_profile_show_all_types" = "모든 유형 보기";
 "lng_profile_copy_phone" = "전화번호 복사";
 
@@ -602,7 +603,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 드래그 앤 드롭으로 사진, 미디어와 스티커 전달\n— 드래그 앤 드롭으로 타임스탬프 순 메시지 전달\n— 큰 스티커 패널\n— IPv6 설정 추가";
+"lng_new_version_text" = "— 앱내 미디어 재생 기능 향상\n— 버그 수정 및 마이나 기능 향상";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 
