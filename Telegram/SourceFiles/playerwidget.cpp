@@ -31,7 +31,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 PlayerWidget::PlayerWidget(QWidget *parent) : TWidget(parent),
 _prevAvailable(false), _nextAvailable(false), _fullAvailable(false),
-_over(OverNone), _down(OverNone), _downCoord(0), _downProgress(0.), _downFrequency(AudioVoiceMsgFrequency),
+_over(OverNone), _down(OverNone), _downCoord(0), _downFrequency(AudioVoiceMsgFrequency), _downProgress(0.),
 _stateAnim(animFunc(this, &PlayerWidget::stateStep)),
 _index(-1), _history(0), _showPause(false), _position(0), _duration(0), _loaded(0),
 a_progress(0., 0.), a_loadProgress(0., 0.), _progressAnim(animFunc(this, &PlayerWidget::progressStep)) {
@@ -322,7 +322,7 @@ bool PlayerWidget::seekingSong(const SongMsgId &song) const {
 	return (_down == OverPlayback) && (song == _song);
 }
 
-bool PlayerWidget::stateStep(float64 msñ) {
+bool PlayerWidget::stateStep(float64 msc) {
 	bool result = false;
 	uint64 ms = getms();
 	for (StateAnimations::iterator i = _stateAnimations.begin(); i != _stateAnimations.cend();) {

@@ -630,7 +630,7 @@ namespace {
 		if (endMarkFound) {
 			quint32 cnt;
 			locations.stream >> cnt;
-			for (int32 i = 0; i < cnt; ++i) {
+			for (quint32 i = 0; i < cnt; ++i) {
 				quint64 kfirst, ksecond, vfirst, vsecond;
 				locations.stream >> kfirst >> ksecond >> vfirst >> vsecond;
 				_fileLocationAliases.insert(MediaKey(kfirst, ksecond), MediaKey(vfirst, vsecond));
