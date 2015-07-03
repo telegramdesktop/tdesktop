@@ -136,19 +136,19 @@ void MediaView::moveToScreen() {
 	}
 	
 	int32 navSkip = 2 * st::mvControlMargin + st::mvControlSize;
-	_closeNav = rtlrect(width() - st::mvControlMargin - st::mvControlSize, st::mvControlMargin, st::mvControlSize, st::mvControlSize, width());
+	_closeNav = myrtlrect(width() - st::mvControlMargin - st::mvControlSize, st::mvControlMargin, st::mvControlSize, st::mvControlSize);
 	_closeNavIcon = centersprite(_closeNav, st::mvClose);
-	_leftNav = rtlrect(st::mvControlMargin, navSkip, st::mvControlSize, height() - 2 * navSkip, width());
+	_leftNav = myrtlrect(st::mvControlMargin, navSkip, st::mvControlSize, height() - 2 * navSkip);
 	_leftNavIcon = centersprite(_leftNav, st::mvLeft);
-	_rightNav = rtlrect(width() - st::mvControlMargin - st::mvControlSize, navSkip, st::mvControlSize, height() - 2 * navSkip, width());
+	_rightNav = myrtlrect(width() - st::mvControlMargin - st::mvControlSize, navSkip, st::mvControlSize, height() - 2 * navSkip);
 	_rightNavIcon = centersprite(_rightNav, st::mvRight);
 
 	_saveMsg.moveTo((width() - _saveMsg.width()) / 2, (height() - _saveMsg.height()) / 2);
 }
 
-void MediaView::mediaOverviewUpdated(PeerData *peer) {
+void MediaView::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 	if (!_photo && !_doc) return;
-	if (_history && _history->peer == peer) {
+	if (_history && _history->peer == peer && type == _overview) {
 		_index = -1;
 		for (int i = 0, l = _history->_overview[_overview].size(); i < l; ++i) {
 			if (_history->_overview[_overview].at(i) == _msgid) {
@@ -158,7 +158,7 @@ void MediaView::mediaOverviewUpdated(PeerData *peer) {
 		}
 		updateControls();
 		preloadData(0);
-	} else if (_user == peer) {
+	} else if (_user == peer && type == OverviewCount) {
 		if (!_photo) return;
 
 		_index = -1;
@@ -192,7 +192,7 @@ void MediaView::changingMsgId(HistoryItem *row, MsgId newId) {
 	if (row->id == _msgid) {
 		_msgid = newId;
 	}
-	mediaOverviewUpdated(row->history()->peer);
+	mediaOverviewUpdated(row->history()->peer, _overview);
 }
 
 void MediaView::updateDocSize() {
@@ -258,9 +258,9 @@ void MediaView::updateControls() {
 	}
 
 	_saveVisible = ((_photo && _photo->full->loaded()) || (_doc && (!_doc->already(true).isEmpty() || (_current.isNull() && _currentGif.isNull()))));
-	_saveNav = rtlrect(width() - st::mvIconSize.width() * 2, height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height(), width());
+	_saveNav = myrtlrect(width() - st::mvIconSize.width() * 2, height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height());
 	_saveNavIcon = centersprite(_saveNav, st::mvSave);
-	_moreNav = rtlrect(width() - st::mvIconSize.width(), height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height(), width());
+	_moreNav = myrtlrect(width() - st::mvIconSize.width(), height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height());
 	_moreNavIcon = centersprite(_moreNav, st::mvMore);
 
 	QDateTime d(date(_photo ? _photo->date : _doc->date)), dNow(date(unixtime()));
@@ -273,11 +273,11 @@ void MediaView::updateControls() {
 	}
 	if (_from) {
 		_fromName.setText(st::mvFont, _from->name);
-		_nameNav = rtlrect(st::mvTextLeft, height() - st::mvTextTop, qMin(_fromName.maxWidth(), width() / 3), st::mvFont->height, width());
-		_dateNav = rtlrect(st::mvTextLeft + _nameNav.width() + st::mvTextSkip, height() - st::mvTextTop, st::mvFont->m.width(_dateText), st::mvFont->height, width());
+		_nameNav = myrtlrect(st::mvTextLeft, height() - st::mvTextTop, qMin(_fromName.maxWidth(), width() / 3), st::mvFont->height);
+		_dateNav = myrtlrect(st::mvTextLeft + _nameNav.width() + st::mvTextSkip, height() - st::mvTextTop, st::mvFont->m.width(_dateText), st::mvFont->height);
 	} else {
 		_nameNav = QRect();
-		_dateNav = rtlrect(st::mvTextLeft, height() - st::mvTextTop, st::mvFont->m.width(_dateText), st::mvFont->height, width());
+		_dateNav = myrtlrect(st::mvTextLeft, height() - st::mvTextTop, st::mvFont->m.width(_dateText), st::mvFont->height);
 	}
 	updateHeader();
 	if (_photo) {
@@ -349,7 +349,6 @@ bool MediaView::animStep(float64 msp) {
 			a_cOpacity.finish();
 			_controlsState = (_controlsState == ControlsShowing ? ControlsShown : ControlsHidden);
 			setCursor(_controlsState == ControlsHidden ? Qt::BlankCursor : (_over == OverNone ? style::cur_default : style::cur_pointer));
-			LOG(("Finished with controls!"));
 		} else {
 			a_cOpacity.update(dt, anim::linear);
 		}
@@ -410,7 +409,6 @@ void MediaView::close() {
 void MediaView::activateControls() {
 	_controlsHideTimer.start(int(st::mvWaitHide));
 	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) {
-		LOG(("Showing controls.."));
 		_controlsState = ControlsShowing;
 		_controlsAnimStarted = getms();
 		a_cOpacity.start(1);
@@ -421,7 +419,6 @@ void MediaView::activateControls() {
 void MediaView::onHideControls(bool force) {
 	if (!force && !_dropdown.isHidden()) return;
 	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) return;
-	LOG(("Hiding controls.."));
 	_controlsState = ControlsHiding;
 	_controlsAnimStarted = getms();
 	a_cOpacity.start(0);
@@ -906,7 +903,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) {
 		// _docSize is updated in updateControls()
 
 		_docRect = QRect((width() - st::mvDocSize.width()) / 2, (height() - st::mvDocSize.height()) / 2, st::mvDocSize.width(), st::mvDocSize.height());
-		_docIconRect = rtlrect(_docRect.x() + st::mvDocPadding, _docRect.y() + st::mvDocPadding, st::mvDocBlue.pxWidth(), st::mvDocBlue.pxHeight(), width());
+		_docIconRect = myrtlrect(_docRect.x() + st::mvDocPadding, _docRect.y() + st::mvDocPadding, st::mvDocBlue.pxWidth(), st::mvDocBlue.pxHeight());
 	} else if (!_current.isNull()) {
 		_current.setDevicePixelRatio(cRetinaFactor());
 		_w = _current.width() / cIntRetinaFactor();
@@ -1264,11 +1261,6 @@ void MediaView::paintEvent(QPaintEvent *e) {
 			}
 		}
 	}
-
-//	static uint64 t = getms();
-//	uint64 t2 = getms();
-//	LOG(("paint: %1, wait: %2, name: %3, icon: %4").arg(t2 - ms).arg(t2 - t).arg(logBool(name)).arg(logBool(icon)));
-//	t = t2;
 }
 
 void MediaView::keyPressEvent(QKeyEvent *e) {
@@ -1828,7 +1820,7 @@ void MediaView::findCurrent() {
 		}
 	}
 
-	if (_history->_overviewCount[_overview] < 0) {
+	if (_history->_overviewCount[_overview] < 0 || (!_index && _history->_overviewCount[_overview] > 0)) {
 		loadBack();
 	}
 }
@@ -1877,7 +1869,7 @@ void MediaView::userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mt
 		photo->thumb->load();
 		u->photos.push_back(photo);
 	}
-	if (App::wnd()) App::wnd()->mediaOverviewUpdated(u);
+	if (App::wnd()) App::wnd()->mediaOverviewUpdated(u, OverviewCount);
 }
 
 void MediaView::updateHeader() {
@@ -1913,7 +1905,7 @@ void MediaView::updateHeader() {
 		hwidth = width() / 3;
 		_headerText = st::mvThickFont->m.elidedText(_headerText, Qt::ElideMiddle, hwidth);
 	}
-	_headerNav = rtlrect(st::mvTextLeft, height() - st::mvHeaderTop, hwidth, st::mvThickFont->height, width());
+	_headerNav = myrtlrect(st::mvTextLeft, height() - st::mvHeaderTop, hwidth, st::mvThickFont->height);
 }
 //
 //void MediaView::updatePolaroid() {

@@ -448,7 +448,7 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 			AudioMsgId playing;
 			AudioPlayerState playingState = AudioPlayerStopped;
 			audioPlayer()->currentState(&playing, &playingState);
-			if (playing.msgId == App::hoveredLinkItem()->id && playingState != AudioPlayerStopped) {
+			if (playing.msgId == App::hoveredLinkItem()->id && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
 				audioPlayer()->pauseresume(OverviewAudios);
 			} else {
 				audioPlayer()->play(AudioMsgId(data, App::hoveredLinkItem()->id));
@@ -545,9 +545,8 @@ QString AudioData::already(bool check) {
 	return location.name;
 }
 
-void DocumentOpenLink::onClick(Qt::MouseButton button) const {
-	DocumentData *data = document();
-	if (!data->date || button != Qt::LeftButton) return;
+void DocumentOpenLink::doOpen(DocumentData *data) {
+	if (!data->date) return;
 
 	bool play = data->song() && App::hoveredLinkItem() && audioPlayer();
 	QString already = data->already(true);
@@ -556,10 +555,12 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 			SongMsgId playing;
 			AudioPlayerState playingState = AudioPlayerStopped;
 			audioPlayer()->currentState(&playing, &playingState);
-			if (playing.msgId == App::hoveredLinkItem()->id && playingState != AudioPlayerStopped) {
+			if (playing.msgId == App::hoveredLinkItem()->id && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
 				audioPlayer()->pauseresume(OverviewDocuments);
 			} else {
-				audioPlayer()->play(SongMsgId(data, App::hoveredLinkItem()->id));
+				SongMsgId song(data, App::hoveredLinkItem()->id);
+				audioPlayer()->play(song);
+				if (App::main()) App::main()->documentPlayProgress(song);
 			}
 		} else if (data->size < MediaViewImageSizeLimit) {
 			QImageReader reader(already);
@@ -602,6 +603,11 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : (App::contextItem() ? App::contextItem()->id : 0);
 		data->save(filename);
 	}
+}
+
+void DocumentOpenLink::onClick(Qt::MouseButton button) const {
+	if (button != Qt::LeftButton) return;
+	doOpen(document());
 }
 
 void DocumentSaveLink::doSave(DocumentData *data, bool forceSavingAs) {

@@ -627,6 +627,7 @@ class DocumentOpenLink : public DocumentLink {
 public:
 	DocumentOpenLink(DocumentData *document) : DocumentLink(document) {
 	}
+	static void doOpen(DocumentData *document);
 	void onClick(Qt::MouseButton button) const;
 };
 

@@ -156,6 +156,8 @@ int gNotifyDefaultDelay = 1500;
 
 int gOtherOnline = 0;
 
+float64 gSongVolume = 0.9;
+
 void settingsParseArgs(int argc, char *argv[]) {
 #ifdef Q_OS_MAC
 	gCustomNotifies = (QSysInfo::macVersion() < QSysInfo::MV_10_8);

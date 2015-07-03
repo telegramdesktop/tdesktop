@@ -2225,6 +2225,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(&_attachPhoto, SIGNAL(clicked()), this, SLOT(onPhotoSelect()));
 	connect(&_field, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
 	connect(&_field, SIGNAL(cancelled()), this, SLOT(onCancel()));
+	connect(&_field, SIGNAL(tabbed()), this, SLOT(onFieldTabbed()));
 	connect(&_field, SIGNAL(resized()), this, SLOT(onFieldResize()));
 	connect(&_field, SIGNAL(focused()), this, SLOT(onFieldFocused()));
 	connect(&imageLoader, SIGNAL(imageReady()), this, SLOT(onPhotoReady()));
@@ -3501,20 +3502,7 @@ bool HistoryWidget::showStep(float64 ms) {
 		_bgAnimCache = _animCache = _animTopBarCache = _bgAnimTopBarCache = QPixmap();
 		App::main()->topBar()->stopAnim();
 		App::main()->topBar()->enableShadow();
-		if (hist && hist->readyForWork()) {
-			_scroll.show();
-			if (hist->lastScrollTop == History::ScrollMax) {
-				_scroll.scrollToY(hist->lastScrollTop);
-			}
-
-			onListScroll();
-		}
-		if (hist) {
-			if (!_histInited) checkUnreadLoaded();
-			if (_histNeedUpdate) updateListSize();
-		}
-		updateControlsVisibility();
-		App::wnd()->setInnerFocus();
+		doneShow();
 	} else {
 		a_bgCoord.update(dt1, st::introHideFunc);
 		a_bgAlpha.update(dt1, st::introAlphaHideFunc);
@@ -3524,6 +3512,23 @@ bool HistoryWidget::showStep(float64 ms) {
 	update();
 	App::main()->topBar()->update();
 	return res;
+}
+
+void HistoryWidget::doneShow() {
+	if (hist && hist->readyForWork()) {
+		_scroll.show();
+		if (hist->lastScrollTop == History::ScrollMax) {
+			_scroll.scrollToY(hist->lastScrollTop);
+		}
+
+		onListScroll();
+	}
+	if (hist) {
+		if (!_histInited) checkUnreadLoaded();
+		if (_histNeedUpdate) updateListSize();
+	}
+	updateControlsVisibility();
+	App::wnd()->setInnerFocus();
 }
 
 void HistoryWidget::animStop() {
@@ -4502,7 +4507,7 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	_attachPhoto.move(_attachDocument.x(), _attachDocument.y());
 
 	_replyForwardPreviewCancel.move(width() - _replyForwardPreviewCancel.width(), _field.y() - st::sendPadding - _replyForwardPreviewCancel.height());
-	updateListSize();
+	updateListSize(App::main() ? App::main()->contentScrollAddToY() : 0);
 
 	bool kbShowShown = hist && !_kbShown && _keyboard.hasMarkup();
 	_field.resize(width() - _send.width() - _attachDocument.width() - _attachEmoji.width() - (kbShowShown ? _kbShow.width() : 0) - (_cmdStartShown ? _cmdStart.width() : 0), _field.height());
@@ -4838,6 +4843,13 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		if (p) App::main()->showPeer(p->id, m);
 	} else {
 		e->ignore();
+	}
+}
+
+void HistoryWidget::onFieldTabbed() {
+	QString sel = _attachMention.isHidden() ? QString() : _attachMention.getSelected();
+	if (!sel.isEmpty()) {
+		_field.onMentionHashtagOrBotCommandInsert(sel);
 	}
 }
 
@@ -5403,9 +5415,9 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	bool hasTopBar = !App::main()->topBar()->isHidden();
+	bool hasTopBar = !App::main()->topBar()->isHidden(), hasPlayer = !App::main()->player()->isHidden();
 	QRect fill(0, 0, width(), App::main()->height());
-	int fromy = hasTopBar ? (-st::topBarHeight) : 0, x = 0, y = 0;
+	int fromy = (hasTopBar ? (-st::topBarHeight) : 0) + (hasPlayer ? (-st::playerHeight) : 0), x = 0, y = 0;
 	QPixmap cached = App::main()->cachedBackground(fill, x, y);
 	if (cached.isNull()) {
 		const QPixmap &pix(*cChatBackground());

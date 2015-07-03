@@ -142,6 +142,7 @@ private:
 	} CachedItem;
 	typedef QVector<CachedItem> CachedItems;
 	CachedItems _items;
+
 	int32 _width, _height, _minHeight, _addToY;
 
 	// selection support, like in HistoryWidget
@@ -199,6 +200,7 @@ public:
 	void scrollBy(int32 add);
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
+	void topBarShadowParams(int32 &x, float64 &o);
 	void topBarClick();
 
 	PeerData *peer() const;
@@ -212,7 +214,9 @@ public:
 	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1);
 	bool animStep(float64 ms);
 
-	void mediaOverviewUpdated(PeerData *peer);
+	void doneShow();
+
+	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void msgUpdated(PeerId peer, const HistoryItem *msg);
 	void itemRemoved(HistoryItem *item);

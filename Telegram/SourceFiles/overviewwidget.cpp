@@ -1681,8 +1681,12 @@ void OverviewWidget::onScroll() {
 }
 
 void OverviewWidget::resizeEvent(QResizeEvent *e) {
+	int32 st = _scroll.scrollTop();
 	_scroll.resize(size());
-	int32 newScrollTop = _inner.resizeToWidth(width(), _scroll.scrollTop(), height());
+	int32 newScrollTop = _inner.resizeToWidth(width(), st, height());
+	if (int32 addToY = App::main() ? App::main()->contentScrollAddToY() : 0) {
+		newScrollTop += addToY;
+	}
 	if (newScrollTop != _scroll.scrollTop()) {
 		_noDropResizeIndex = true;
 		_scroll.scrollToY(newScrollTop);
@@ -1700,33 +1704,36 @@ void OverviewWidget::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	bool hasTopBar = !App::main()->topBar()->isHidden();
 	QRect r(e->rect());
 	if (type() == OverviewPhotos) {
 		p.fillRect(r, st::white->b);
-	} else if (cTileBackground()) {
-		int left = r.left(), top = r.top(), right = r.left() + r.width(), bottom = r.top() + r.height();
-		if (right > 0 && bottom > 0) {
-			QRect fill(left, top + (hasTopBar ? st::topBarHeight : 0), right, bottom + (hasTopBar ? st::topBarHeight : 0));
-
-			if (hasTopBar) p.translate(0, -st::topBarHeight);
-			p.fillRect(fill, QBrush(*cChatBackground()));
-			if (hasTopBar) p.translate(0, st::topBarHeight);
-		}
 	} else {
+		bool hasTopBar = !App::main()->topBar()->isHidden(), hasPlayer = !App::main()->player()->isHidden();
 		QRect fill(0, 0, width(), App::main()->height());
-		int fromy = hasTopBar ? (-st::topBarHeight) : 0, x = 0, y = 0;
+		int fromy = (hasTopBar ? (-st::topBarHeight) : 0) + (hasPlayer ? (-st::playerHeight) : 0), x = 0, y = 0;
 		QPixmap cached = App::main()->cachedBackground(fill, x, y);
 		if (cached.isNull()) {
-			bool smooth = p.renderHints().testFlag(QPainter::SmoothPixmapTransform);
-			p.setRenderHint(QPainter::SmoothPixmapTransform);
+			const QPixmap &pix(*cChatBackground());
+			if (cTileBackground()) {
+				int left = r.left(), top = r.top(), right = r.left() + r.width(), bottom = r.top() + r.height();
+				float64 w = pix.width() / cRetinaFactor(), h = pix.height() / cRetinaFactor();
+				int sx = qFloor(left / w), sy = qFloor((top - fromy) / h), cx = qCeil(right / w), cy = qCeil((bottom - fromy) / h);
+				for (int i = sx; i < cx; ++i) {
+					for (int j = sy; j < cy; ++j) {
+						p.drawPixmap(QPointF(i * w, fromy + j * h), pix);
+					}
+				}
+			} else {
+				bool smooth = p.renderHints().testFlag(QPainter::SmoothPixmapTransform);
+				p.setRenderHint(QPainter::SmoothPixmapTransform);
 
-			QRect to, from;
-			App::main()->backgroundParams(fill, to, from);
-			to.moveTop(to.top() + fromy);
-			p.drawPixmap(to, *cChatBackground(), from);
+				QRect to, from;
+				App::main()->backgroundParams(fill, to, from);
+				to.moveTop(to.top() + fromy);
+				p.drawPixmap(to, pix, from);
 
-			if (!smooth) p.setRenderHint(QPainter::SmoothPixmapTransform, false);
+				if (!smooth) p.setRenderHint(QPainter::SmoothPixmapTransform, false);
+			}
 		} else {
 			p.drawPixmap(x, fromy + y, cached);
 		}
@@ -1760,6 +1767,13 @@ void OverviewWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth)
 	}
 }
 
+void OverviewWidget::topBarShadowParams(int32 &x, float64 &o) {
+	if (animating() && a_coord.current() >= 0) {
+		x = a_coord.current();
+		o = a_alpha.current();
+	}
+}
+
 void OverviewWidget::topBarClick() {
 	App::main()->showBackFromStack();
 }
@@ -1781,6 +1795,7 @@ void OverviewWidget::switchType(MediaOverviewType type) {
 	case OverviewVideos: _header = lang(lng_profile_videos_header); break;
 	case OverviewDocuments: _header = lang(lng_profile_files_header); break;
 	case OverviewAudios: _header = lang(lng_profile_audios_header); break;
+	case OverviewAudioDocuments: _header = lang(lng_profile_audio_files_header); break;
 	}
 	noSelectingScroll();
 	App::main()->topBar()->showSelected(0);
@@ -1847,10 +1862,7 @@ bool OverviewWidget::animStep(float64 ms) {
 		a_alpha.finish();
 		_bgAnimCache = _animCache = _animTopBarCache = _bgAnimTopBarCache = QPixmap();
 		App::main()->topBar()->stopAnim();
-		_scroll.show();
-		_scroll.scrollToY(_scrollSetAfterShow);
-		activate();
-		onScroll();
+		doneShow();
 	} else {
 		a_bgCoord.update(dt1, st::introHideFunc);
 		a_bgAlpha.update(dt1, st::introAlphaHideFunc);
@@ -1862,8 +1874,15 @@ bool OverviewWidget::animStep(float64 ms) {
 	return res;
 }
 
-void OverviewWidget::mediaOverviewUpdated(PeerData *p) {
-	if (peer() == p) {
+void OverviewWidget::doneShow() {
+	_scroll.show();
+	_scroll.scrollToY(_scrollSetAfterShow);
+	activate();
+	onScroll();
+}
+
+void OverviewWidget::mediaOverviewUpdated(PeerData *p, MediaOverviewType t) {
+	if (peer() == p && t == type()) {
 		_inner.mediaOverviewUpdated();
 		onScroll();
 		updateTopBarSelection();

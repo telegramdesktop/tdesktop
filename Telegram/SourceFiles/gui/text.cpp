@@ -24,7 +24,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 namespace {
 
-	const QRegularExpression _reDomain(QString::fromUtf8("(?<![\\w\\$\\-\\_%=\\.])(?:([a-zA-Z]+)://)?((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){1,5}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"), QRegularExpression::UseUnicodePropertiesOption);
+	const QRegularExpression _reDomain(QString::fromUtf8("(?<![\\w\\$\\-\\_%=\\.])(?:([a-zA-Z]+)://)?((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){1,10}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"), QRegularExpression::UseUnicodePropertiesOption);
 	const QRegularExpression _reExplicitDomain(QString::fromUtf8("(?<![\\w\\$\\-\\_%=\\.])(?:([a-zA-Z]+)://)((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){0,5}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"), QRegularExpression::UseUnicodePropertiesOption);
 	const QRegularExpression _reMailName(qsl("[a-zA-Z\\-_\\.0-9]{1,256}$"));
 	const QRegularExpression _reMailStart(qsl("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
@@ -1617,21 +1617,23 @@ public:
 	void eSetFont(ITextBlock *block) {
 		style::font newFont = _t->_font;
 		int flags = block->flags();
-		if (!flags && block->lnkIndex()) {
+		if (block->lnkIndex()) {
 			const TextLinkPtr &l(_t->_links.at(block->lnkIndex() - 1));
 			if (l == _overLnk) {
 				if (l == _downLnk || !_downLnk) {
-					flags = _textStyle->lnkOverFlags->flags();
+					newFont = _textStyle->lnkOverFlags;
 				} else {
-					flags = _textStyle->lnkFlags->flags();
+					newFont = _textStyle->lnkFlags;
 				}
 			} else {
-				flags = _textStyle->lnkFlags->flags();
+				newFont = _textStyle->lnkFlags;
 			}
+		} else {
+			flags = block->flags();
+			if (flags & TextBlockBold) newFont = newFont->bold();
+			if (flags & TextBlockItalic) newFont = newFont->italic();
+			if (flags & TextBlockUnderline) newFont = newFont->underline();
 		}
-		if (flags & TextBlockBold) newFont = newFont->bold();
-		if (flags & TextBlockItalic) newFont = newFont->italic();
-		if (flags & TextBlockUnderline) newFont = newFont->underline();
 		if (newFont != _f) {
 			_f = newFont;
 			_e->fnt = _f->f;

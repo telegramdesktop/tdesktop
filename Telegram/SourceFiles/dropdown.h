@@ -503,6 +503,8 @@ public:
 	bool moveSel(int direction);
 	bool select();
 
+	QString getSelected() const;
+
 signals:
 
 	void chosen(QString mentionOrHashtag);
@@ -552,6 +554,7 @@ public:
 	int32 innerBottom();
 
 	bool eventFilter(QObject *obj, QEvent *e);
+	QString getSelected() const;
 
 	~MentionsDropdown();
 

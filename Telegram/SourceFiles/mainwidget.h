@@ -21,6 +21,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "historywidget.h"
 #include "profilewidget.h"
 #include "overviewwidget.h"
+#include "playerwidget.h"
 #include "apiwrap.h"
 
 class Window;
@@ -189,6 +190,9 @@ public:
 	void topBarShadowParams(int32 &x, float64 &o);
 	TopBarWidget *topBar();
 
+	PlayerWidget *player();
+	int32 contentScrollAddToY() const;
+
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
 	bool animStep(float64 ms);
 
@@ -233,6 +237,7 @@ public:
 	PeerData *activePeer();
 	MsgId activeMsgId();
 	PeerData *profilePeer();
+	PeerData *overviewPeer();
 	bool mediaTypeSwitch();
 	void showPeerProfile(PeerData *peer, bool back = false, int32 lastScrollTop = -1, bool allMediaShown = false);
 	void showMediaOverview(PeerData *peer, MediaOverviewType type, bool back = false, int32 lastScrollTop = -1);
@@ -313,7 +318,7 @@ public:
 
 	void searchMessages(const QString &query);
 	void preloadOverviews(PeerData *peer);
-	void mediaOverviewUpdated(PeerData *peer);
+	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
@@ -391,6 +396,7 @@ public slots:
 	void documentLoadFailed(mtpFileLoader *loader, bool started);
 	void documentLoadRetry();
 	void documentPlayProgress(const SongMsgId &songId);
+	void hidePlayer();
 
 	void setInnerFocus();
 	void dialogsCancelled();
@@ -490,11 +496,15 @@ private:
 	HistoryWidget history;
 	ProfileWidget *profile;
 	OverviewWidget *overview;
+	PlayerWidget _player;
 	TopBarWidget _topBar;
 	ConfirmBox *_forwardConfirm; // for narrow mode
 	HistoryHider *hider;
 	StackItems _stack;
 	QPixmap profileAnimCache;
+
+	int32 _playerHeight;
+	int32 _contentScrollAddToY;
 
 	Dropdown _mediaType;
 	int32 _mediaTypeMask;

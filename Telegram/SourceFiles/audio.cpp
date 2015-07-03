@@ -273,8 +273,9 @@ _loader(new AudioPlayerLoaders(&_loaderThread)) {
 	connect(this, SIGNAL(suppressSong()), _fader, SLOT(onSuppressSong()));
 	connect(this, SIGNAL(unsuppressSong()), _fader, SLOT(onUnsuppressSong()));
 	connect(this, SIGNAL(suppressAll()), _fader, SLOT(onSuppressAll()));
-	connect(this, SIGNAL(loaderOnStart(const AudioMsgId&)), _loader, SLOT(onStart(const AudioMsgId&)));
-	connect(this, SIGNAL(loaderOnStart(const SongMsgId&)), _loader, SLOT(onStart(const SongMsgId&)));
+	connect(this, SIGNAL(songVolumeChanged()), _fader, SLOT(onSongVolumeChanged()));
+	connect(this, SIGNAL(loaderOnStart(const AudioMsgId&,qint64)), _loader, SLOT(onStart(const AudioMsgId&,qint64)));
+	connect(this, SIGNAL(loaderOnStart(const SongMsgId&,qint64)), _loader, SLOT(onStart(const SongMsgId&,qint64)));
 	connect(this, SIGNAL(loaderOnCancel(const AudioMsgId&)), _loader, SLOT(onCancel(const AudioMsgId&)));
 	connect(this, SIGNAL(loaderOnCancel(const SongMsgId&)), _loader, SLOT(onCancel(const SongMsgId&)));
 	connect(&_faderThread, SIGNAL(started()), _fader, SLOT(onInit()));
@@ -292,6 +293,8 @@ _loader(new AudioPlayerLoaders(&_loaderThread)) {
 	connect(_fader, SIGNAL(audioStopped(const SongMsgId&)), this, SLOT(onStopped(const SongMsgId&)));
 	connect(_fader, SIGNAL(error(const AudioMsgId&)), this, SLOT(onError(const AudioMsgId&)));
 	connect(_fader, SIGNAL(error(const SongMsgId&)), this, SLOT(onError(const SongMsgId&)));
+	connect(this, SIGNAL(stoppedOnError(const AudioMsgId&)), this, SIGNAL(stopped(const AudioMsgId&)), Qt::QueuedConnection);
+	connect(this, SIGNAL(stoppedOnError(const SongMsgId&)), this, SIGNAL(stopped(const SongMsgId&)), Qt::QueuedConnection);
 	_loaderThread.start();
 	_faderThread.start();
 }
@@ -335,12 +338,12 @@ AudioPlayer::~AudioPlayer() {
 }
 
 void AudioPlayer::onError(const AudioMsgId &audio) {
-	emit stopped(audio);
+	emit stoppedOnError(audio);
 	emit unsuppressSong();
 }
 
 void AudioPlayer::onError(const SongMsgId &song) {
-	emit stopped(song);
+	emit stoppedOnError(song);
 }
 
 void AudioPlayer::onStopped(const AudioMsgId &audio) {
@@ -366,20 +369,20 @@ bool AudioPlayer::updateCurrentStarted(MediaOverviewType type, int32 pos) {
 		} else {
 			pos = 0;
 		}
-	}
-	if (!_checkALError()) {
-		data->state = AudioPlayerStopped;
-		switch (type) {
-		case OverviewAudios: onError(_audioData[_audioCurrent].audio); break;
-		case OverviewDocuments: onError(_songData[_songCurrent].song); break;
+		if (!_checkALError()) {
+			setStoppedState(data, AudioPlayerStoppedAtError);
+			switch (type) {
+			case OverviewAudios: onError(_audioData[_audioCurrent].audio); break;
+			case OverviewDocuments: onError(_songData[_songCurrent].song); break;
+			}
+			return false;
 		}
-		return false;
 	}
 	data->started = data->position = pos + data->skipStart;
 	return true;
 }
 
-bool AudioPlayer::startedOther(MediaOverviewType type, bool &fadedStart) {
+bool AudioPlayer::fadedStop(MediaOverviewType type, bool *fadedStart) {
 	Msg *current = 0;
 	switch (type) {
 	case OverviewAudios: current = &_audioData[_audioCurrent]; break;
@@ -393,20 +396,21 @@ bool AudioPlayer::startedOther(MediaOverviewType type, bool &fadedStart) {
 	case AudioPlayerPlaying:
 		current->state = AudioPlayerFinishing;
 		updateCurrentStarted(type);
-		fadedStart = true;
+		if (fadedStart) *fadedStart = true;
 		break;
 	case AudioPlayerPausing:
 		current->state = AudioPlayerFinishing;
-		fadedStart = true;
+		if (fadedStart) *fadedStart = true;
 		break;
 	case AudioPlayerPaused:
-		current->state = AudioPlayerStopped;
+	case AudioPlayerPausedAtEnd:
+		setStoppedState(current);
 		return true;
 	}
 	return false;
 }
 
-void AudioPlayer::play(const AudioMsgId &audio) {
+void AudioPlayer::play(const AudioMsgId &audio, int64 position) {
 	AudioMsgId stopped;
 	{
 		QMutexLocker lock(&playerMutex);
@@ -414,7 +418,7 @@ void AudioPlayer::play(const AudioMsgId &audio) {
 		bool fadedStart = false;
 		AudioMsg *current = &_audioData[_audioCurrent];
 		if (current->audio != audio) {
-			if (startedOther(OverviewAudios, fadedStart)) {
+			if (fadedStop(OverviewAudios, &fadedStart)) {
 				stopped = current->audio;
 			}
 			if (current->audio) {
@@ -438,19 +442,19 @@ void AudioPlayer::play(const AudioMsgId &audio) {
 		current->fname = audio.audio->already(true);
 		current->data = audio.audio->data;
 		if (current->fname.isEmpty() && current->data.isEmpty()) {
-			current->state = AudioPlayerStopped;
+			setStoppedState(current, AudioPlayerStoppedAtError);
 			onError(audio);
-		} else if (updateCurrentStarted(OverviewAudios, 0)) {
+		} else {
 			current->state = fadedStart ? AudioPlayerStarting : AudioPlayerPlaying;
 			current->loading = true;
-			emit loaderOnStart(audio);
+			emit loaderOnStart(audio, position);
 			emit suppressSong();
 		}
 	}
 	if (stopped) emit updated(stopped);
 }
 
-void AudioPlayer::play(const SongMsgId &song) {
+void AudioPlayer::play(const SongMsgId &song, int64 position) {
 	SongMsgId stopped;
 	{
 		QMutexLocker lock(&playerMutex);
@@ -458,7 +462,7 @@ void AudioPlayer::play(const SongMsgId &song) {
 		bool fadedStart = false;
 		SongMsg *current = &_songData[_songCurrent];
 		if (current->song != song) {
-			if (startedOther(OverviewDocuments, fadedStart)) {
+			if (fadedStop(OverviewDocuments, &fadedStart)) {
 				stopped = current->song;
 			}
 			if (current->song) {
@@ -482,18 +486,38 @@ void AudioPlayer::play(const SongMsgId &song) {
 		current->fname = song.song->already(true);
 		current->data = song.song->data;
 		if (current->fname.isEmpty() && current->data.isEmpty()) {
-			current->state = AudioPlayerStopped;
-			onError(song);
-		} else if (updateCurrentStarted(OverviewDocuments, 0)) {
+			setStoppedState(current);
+			if (!song.song->loader) {
+				DocumentOpenLink::doOpen(song.song);
+				song.song->openOnSave = song.song->openOnSaveMsgId = 0;
+				if (song.song->loader) song.song->loader->start(true, true);
+			}
+		} else {
 			current->state = fadedStart ? AudioPlayerStarting : AudioPlayerPlaying;
 			current->loading = true;
-			emit loaderOnStart(song);
+			emit loaderOnStart(song, position);
 		}
 	}
 	if (stopped) emit updated(stopped);
 }
 
-void AudioPlayer::pauseresume(MediaOverviewType type) {
+bool AudioPlayer::checkCurrentALError(MediaOverviewType type) {
+	if (_checkALError()) return true;
+	
+	switch (type) {
+	case OverviewAudios:
+		setStoppedState(&_audioData[_audioCurrent], AudioPlayerStoppedAtError);
+		onError(_audioData[_audioCurrent].audio);
+		break;
+	case OverviewDocuments:
+		setStoppedState(&_songData[_songCurrent], AudioPlayerStoppedAtError);
+		onError(_songData[_songCurrent].song);
+		break;
+	}
+	return false;
+}
+
+void AudioPlayer::pauseresume(MediaOverviewType type, bool fast) {
 	QMutexLocker lock(&playerMutex);
 
 	Msg *current = 0;
@@ -505,21 +529,38 @@ void AudioPlayer::pauseresume(MediaOverviewType type) {
 		break;
 	case OverviewDocuments:
 		current = &_songData[_songCurrent];
-		suppressGain = suppressSongGain;
+		suppressGain = suppressSongGain * cSongVolume();
 		break;
 	}
 	switch (current->state) {
 	case AudioPlayerPausing:
 	case AudioPlayerPaused:
+	case AudioPlayerPausedAtEnd: {
 		if (current->state == AudioPlayerPaused) {
 			updateCurrentStarted(type);
+		} else if (current->state == AudioPlayerPausedAtEnd) {
+			if (alIsSource(current->source)) {
+				alSourcei(current->source, AL_SAMPLE_OFFSET, qMax(current->position - current->skipStart, 0LL));
+				if (!checkCurrentALError(type)) return;
+			}
 		}
-		current->state = AudioPlayerResuming;
-		resumeDevice();
-		alSourcef(current->source, AL_GAIN, suppressGain);
-		alSourcePlay(current->source);
+		current->state = fast ? AudioPlayerPlaying : AudioPlayerResuming;
+
+		ALint state = AL_INITIAL;
+		alGetSourcei(current->source, AL_SOURCE_STATE, &state);
+		if (!checkCurrentALError(type)) return;
+
+		if (state != AL_PLAYING) {
+			audioPlayer()->resumeDevice();
+
+			alSourcef(current->source, AL_GAIN, suppressGain);
+			if (!checkCurrentALError(type)) return;
+
+			alSourcePlay(current->source);
+			if (!checkCurrentALError(type)) return;
+		}
 		if (type == OverviewAudios) emit suppressSong();
-	break;
+	} break;
 	case AudioPlayerStarting:
 	case AudioPlayerResuming:
 	case AudioPlayerPlaying:
@@ -530,6 +571,78 @@ void AudioPlayer::pauseresume(MediaOverviewType type) {
 	case AudioPlayerFinishing: current->state = AudioPlayerPausing; break;
 	}
 	emit faderOnTimer();
+}
+
+void AudioPlayer::seek(int64 position) {
+	QMutexLocker lock(&playerMutex);
+
+	MediaOverviewType type = OverviewDocuments;
+	Msg *current = 0;
+	float64 suppressGain = 1.;
+	AudioMsgId audio;
+	SongMsgId song;
+	switch (type) {
+	case OverviewAudios:
+		current = &_audioData[_audioCurrent];
+		audio = _audioData[_audioCurrent].audio;
+		suppressGain = suppressAllGain;
+		break;
+	case OverviewDocuments:
+		current = &_songData[_songCurrent];
+		song = _songData[_songCurrent].song;
+		suppressGain = suppressSongGain * cSongVolume();
+		break;
+	}
+
+	bool isSource = alIsSource(current->source);
+	bool fastSeek = (position >= current->skipStart && position < current->duration - current->skipEnd - (current->skipEnd ? AudioVoiceMsgFrequency : 0));
+	if (fastSeek && isSource) {
+		alSourcei(current->source, AL_SAMPLE_OFFSET, position - current->skipStart);
+		if (!checkCurrentALError(type)) return;
+		alSourcef(current->source, AL_GAIN, 1. * suppressGain);
+		if (!checkCurrentALError(type)) return;
+		updateCurrentStarted(type, position - current->skipStart);
+	} else {
+		setStoppedState(current);
+		if (isSource) alSourceStop(current->source);
+	}
+	switch (current->state) {
+	case AudioPlayerPausing:
+	case AudioPlayerPaused:
+	case AudioPlayerPausedAtEnd: {
+		if (current->state == AudioPlayerPausedAtEnd) {
+			current->state = AudioPlayerPaused;
+		}
+		lock.unlock();
+		return pauseresume(type, true);
+	} break;
+	case AudioPlayerStarting:
+	case AudioPlayerResuming:
+	case AudioPlayerPlaying:
+		current->state = AudioPlayerPausing;
+		updateCurrentStarted(type);
+		if (type == OverviewAudios) emit unsuppressSong();
+		break;
+	case AudioPlayerFinishing:
+	case AudioPlayerStopped:
+	case AudioPlayerStoppedAtEnd:
+	case AudioPlayerStoppedAtError:
+	case AudioPlayerStoppedAtStart:
+		lock.unlock();
+		switch (type) {
+		case OverviewAudios: if (audio) return play(audio, position);
+		case OverviewDocuments: if (song) return play(song, position);
+		}
+	}
+	emit faderOnTimer();
+}
+
+void AudioPlayer::stop(MediaOverviewType type) {
+	fadedStop(type);
+	switch (type) {
+	case OverviewAudios: if (_audioData[_audioCurrent].audio) emit updated(_audioData[_audioCurrent].audio); break;
+	case OverviewDocuments: if (_songData[_songCurrent].song) emit updated(_songData[_songCurrent].song); break;
+	}
 }
 
 void AudioPlayer::currentState(AudioMsgId *audio, AudioPlayerState *state, int64 *position, int64 *duration, int32 *frequency) {
@@ -553,17 +666,22 @@ void AudioPlayer::currentState(Msg *current, AudioPlayerState *state, int64 *pos
 	if (frequency) *frequency = current->frequency;
 }
 
+void AudioPlayer::setStoppedState(Msg *current, AudioPlayerState state) {
+	current->state = state;
+	current->position = 0;
+}
+
 void AudioPlayer::clearStoppedAtStart(const AudioMsgId &audio) {
 	QMutexLocker lock(&playerMutex);
 	if (_audioData[_audioCurrent].audio == audio && _audioData[_audioCurrent].state == AudioPlayerStoppedAtStart) {
-		_audioData[_audioCurrent].state = AudioPlayerStopped;
+		setStoppedState(&_audioData[_audioCurrent]);
 	}
 }
 
 void AudioPlayer::clearStoppedAtStart(const SongMsgId &song) {
 	QMutexLocker lock(&playerMutex);
 	if (_songData[_songCurrent].song == song && _songData[_songCurrent].state == AudioPlayerStoppedAtStart) {
-		_songData[_songCurrent].state = AudioPlayerStopped;
+		setStoppedState(&_songData[_songCurrent]);
 	}
 }
 
@@ -676,7 +794,7 @@ void AudioPlayerFader::onTimer() {
 
 	for (int32 i = 0; i < AudioVoiceMsgSimultaneously; ++i) {
 		AudioPlayer::AudioMsg &m(voice->_audioData[i]);
-		if (m.state == AudioPlayerStopped || m.state == AudioPlayerStoppedAtStart || m.state == AudioPlayerPaused || !m.source) continue;
+		if ((m.state & AudioPlayerStoppedMask) || m.state == AudioPlayerPaused || !m.source) continue;
 
 		int32 emitSignals = updateOnePlayback(&m, hasPlaying, hasFading, suppressAllGain, suppressAudioChanged);
 		if (emitSignals & EmitError) emit error(m.audio);
@@ -687,14 +805,15 @@ void AudioPlayerFader::onTimer() {
 
 	for (int32 i = 0; i < AudioSongSimultaneously; ++i) {
 		AudioPlayer::SongMsg &m(voice->_songData[i]);
-		if (m.state == AudioPlayerStopped || m.state == AudioPlayerStoppedAtStart || m.state == AudioPlayerPaused || !m.source) continue;
+		if ((m.state & AudioPlayerStoppedMask) || m.state == AudioPlayerPaused || !m.source) continue;
 
-		int32 emitSignals = updateOnePlayback(&m, hasPlaying, hasFading, suppressSongGain, suppressSongChanged);
+		int32 emitSignals = updateOnePlayback(&m, hasPlaying, hasFading, suppressSongGain * cSongVolume(), suppressSongChanged || _songVolumeChanged);
 		if (emitSignals & EmitError) emit error(m.song);
 		if (emitSignals & EmitStopped) emit audioStopped(m.song);
 		if (emitSignals & EmitPositionUpdated) emit playPositionUpdated(m.song);
 		if (emitSignals & EmitNeedToPreload) emit needToPreload(m.song);
 	}
+	_songVolumeChanged = false;
 
 	if (!hasFading) {
 		if (!hasPlaying) {
@@ -724,11 +843,9 @@ int32 AudioPlayerFader::updateOnePlayback(AudioPlayer::Msg *m, bool &hasPlaying,
 	ALint pos = 0;
 	ALint state = AL_INITIAL;
 	alGetSourcei(m->source, AL_SAMPLE_OFFSET, &pos);
+	if (!_checkALError()) { setStoppedState(m, AudioPlayerStoppedAtError); return EmitError; }
 	alGetSourcei(m->source, AL_SOURCE_STATE, &state);
-	if (!_checkALError()) {
-		m->state = AudioPlayerStopped;
-		return EmitError;
-	}
+	if (!_checkALError()) { setStoppedState(m, AudioPlayerStoppedAtError); return EmitError; }
 
 	int32 emitSignals = 0;
 	switch (m->state) {
@@ -746,17 +863,33 @@ int32 AudioPlayerFader::updateOnePlayback(AudioPlayer::Msg *m, bool &hasPlaying,
 		if (state != AL_PLAYING) {
 			fading = false;
 			if (m->source) {
-				alSourcef(m->source, AL_GAIN, 1);
 				alSourceStop(m->source);
+				if (!_checkALError()) { setStoppedState(m, AudioPlayerStoppedAtError); return EmitError; }
+				alSourcef(m->source, AL_GAIN, 1);
+				if (!_checkALError()) { setStoppedState(m, AudioPlayerStoppedAtError); return EmitError; }
 			}
-			m->state = AudioPlayerStopped;
+			if (m->state == AudioPlayerPausing) {
+				m->state = AudioPlayerPausedAtEnd;
+			} else {
+				setStoppedState(m, AudioPlayerStoppedAtEnd);
+			}
 			emitSignals |= EmitStopped;
 		} else if (1000 * (pos + m->skipStart - m->started) >= AudioFadeDuration * m->frequency) {
 			fading = false;
 			alSourcef(m->source, AL_GAIN, 1. * suppressGain);
+			if (!_checkALError()) { setStoppedState(m, AudioPlayerStoppedAtError); return EmitError; }
 			switch (m->state) {
-			case AudioPlayerFinishing: alSourceStop(m->source); m->state = AudioPlayerStopped; break;
-			case AudioPlayerPausing: alSourcePause(m->source); m->state = AudioPlayerPaused; break;
+			case AudioPlayerFinishing:
+				alSourceStop(m->source);
+				if (!_checkALError()) { setStoppedState(m, AudioPlayerStoppedAtError); return EmitError; }
+				setStoppedState(m);
+				state = AL_STOPPED;
+				break;
+			case AudioPlayerPausing:
+				alSourcePause(m->source);
+				if (!_checkALError()) { setStoppedState(m, AudioPlayerStoppedAtError); return EmitError; }
+				m->state = AudioPlayerPaused;
+				break;
 			case AudioPlayerStarting:
 			case AudioPlayerResuming:
 				m->state = AudioPlayerPlaying;
@@ -769,18 +902,22 @@ int32 AudioPlayerFader::updateOnePlayback(AudioPlayer::Msg *m, bool &hasPlaying,
 				newGain = 1. - newGain;
 			}
 			alSourcef(m->source, AL_GAIN, newGain * suppressGain);
+			if (!_checkALError()) { setStoppedState(m, AudioPlayerStoppedAtError); return EmitError; }
 		}
 	} else if (playing && (state == AL_PLAYING || !m->loading)) {
 		if (state != AL_PLAYING) {
 			playing = false;
 			if (m->source) {
 				alSourceStop(m->source);
+				if (!_checkALError()) { setStoppedState(m, AudioPlayerStoppedAtError); return EmitError; }
 				alSourcef(m->source, AL_GAIN, 1);
+				if (!_checkALError()) { setStoppedState(m, AudioPlayerStoppedAtError); return EmitError; }
 			}
-			m->state = AudioPlayerStopped;
+			setStoppedState(m, AudioPlayerStoppedAtEnd);
 			emitSignals |= EmitStopped;
 		} else if (suppressGainChanged) {
 			alSourcef(m->source, AL_GAIN, suppressGain);
+			if (!_checkALError()) { setStoppedState(m, AudioPlayerStoppedAtError); return EmitError; }
 		}
 	}
 	if (state == AL_PLAYING && pos + m->skipStart - m->position >= AudioCheckPositionDelta) {
@@ -797,6 +934,11 @@ int32 AudioPlayerFader::updateOnePlayback(AudioPlayer::Msg *m, bool &hasPlaying,
 	if (fading) hasFading = true;
 
 	return emitSignals;
+}
+
+void AudioPlayerFader::setStoppedState(AudioPlayer::Msg *m, AudioPlayerState state) {
+	m->state = state;
+	m->position = 0;
 }
 
 void AudioPlayerFader::onPauseTimer() {
@@ -838,6 +980,11 @@ void AudioPlayerFader::onSuppressAll() {
 	onTimer();
 }
 
+void AudioPlayerFader::onSongVolumeChanged() {
+	_songVolumeChanged = true;
+	onTimer();
+}
+
 void AudioPlayerFader::resumeDevice() {
 	QMutexLocker lock(&_pauseMutex);
 	_pauseFlag = false;
@@ -859,7 +1006,7 @@ public:
 		return this->fname == fname && this->data.size() == data.size();
 	}
 
-	virtual bool open() = 0;
+	virtual bool open(qint64 position = 0) = 0;
 	virtual int64 duration() = 0;
 	virtual int32 frequency() = 0;
 	virtual int32 format() = 0;
@@ -904,7 +1051,7 @@ public:
 		frame = av_frame_alloc();
 	}
 
-	bool open() {
+	bool open(qint64 position = 0) {
 		if (!AudioPlayerLoader::openFile()) {
 			return false;
 		}
@@ -950,7 +1097,7 @@ public:
 		}
 
 		freq = fmtContext->streams[streamId]->codec->sample_rate;
-		len = (fmtContext->streams[streamId]->duration * freq) / fmtContext->streams[streamId]->time_base.den;
+		len = (fmtContext->streams[streamId]->duration * freq * fmtContext->streams[streamId]->time_base.num) / fmtContext->streams[streamId]->time_base.den;
 		uint64_t layout = fmtContext->streams[streamId]->codec->channel_layout;
 		inputFormat = fmtContext->streams[streamId]->codec->sample_fmt;
 		switch (layout) {
@@ -1015,6 +1162,16 @@ public:
 				LOG(("Audio Error: Unable to av_samples_alloc for file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 				return false;
 			}
+		}
+		if (position) {
+			int64 ts = (position * fmtContext->streams[streamId]->time_base.den) / (freq * fmtContext->streams[streamId]->time_base.num);
+			if (av_seek_frame(fmtContext, streamId, ts, AVSEEK_FLAG_ANY) < 0) {
+				if (av_seek_frame(fmtContext, streamId, ts, 0) < 0) {
+				}
+			}
+			//if (dstSamplesData) {
+			//	position = qRound(srcRate * (position / float64(dstRate)));
+			//}
 		}
 
 		return true;
@@ -1180,18 +1337,18 @@ AudioPlayerLoaders::~AudioPlayerLoaders() {
 void AudioPlayerLoaders::onInit() {
 }
 
-void AudioPlayerLoaders::onStart(const AudioMsgId &audio) {
+void AudioPlayerLoaders::onStart(const AudioMsgId &audio, qint64 position) {
 	_audio = AudioMsgId();
 	delete _audioLoader;
 	_audioLoader = 0;
-	onLoad(audio);
+	loadData(OverviewAudios, static_cast<const void*>(&audio), position);
 }
 
-void AudioPlayerLoaders::onStart(const SongMsgId &song) {
+void AudioPlayerLoaders::onStart(const SongMsgId &song, qint64 position) {
 	_song = SongMsgId();
 	delete _songLoader;
 	_songLoader = 0;
-	onLoad(song);
+	loadData(OverviewDocuments, static_cast<const void*>(&song), position);
 }
 
 void AudioPlayerLoaders::clear(MediaOverviewType type) {
@@ -1199,6 +1356,11 @@ void AudioPlayerLoaders::clear(MediaOverviewType type) {
 	case OverviewAudios: clearAudio(); break;
 	case OverviewDocuments: clearSong(); break;
 	}
+}
+
+void AudioPlayerLoaders::setStoppedState(AudioPlayer::Msg *m, AudioPlayerState state) {
+	m->state = state;
+	m->position = 0;
 }
 
 void AudioPlayerLoaders::emitError(MediaOverviewType type) {
@@ -1225,16 +1387,16 @@ SongMsgId AudioPlayerLoaders::clearSong() {
 }
 
 void AudioPlayerLoaders::onLoad(const AudioMsgId &audio) {
-	loadData(OverviewAudios, static_cast<const void*>(&audio));
+	loadData(OverviewAudios, static_cast<const void*>(&audio), 0);
 }
 
 void AudioPlayerLoaders::onLoad(const SongMsgId &song) {
-	loadData(OverviewDocuments, static_cast<const void*>(&song));
+	loadData(OverviewDocuments, static_cast<const void*>(&song), 0);
 }
 
-void AudioPlayerLoaders::loadData(MediaOverviewType type, const void *objId) {
+void AudioPlayerLoaders::loadData(MediaOverviewType type, const void *objId, qint64 position) {
 	SetupError err = SetupNoErrorStarted;
-	AudioPlayerLoader *l = setupLoader(type, objId, err);
+	AudioPlayerLoader *l = setupLoader(type, objId, err, position);
 	if (!l) {
 		if (err == SetupErrorAtStart) {
 			emitError(type);
@@ -1277,19 +1439,22 @@ void AudioPlayerLoaders::loadData(MediaOverviewType type, const void *objId) {
 			}
 			m->nextBuffer = 0;
 		}
+		m->skipStart = position;
+		m->skipEnd = m->duration - position;
+		m->position = 0;
+		m->started = 0;
 	}
 	if (samplesAdded) {
 		if (!m->source) {
 			alGenSources(1, &m->source);
 			alSourcef(m->source, AL_PITCH, 1.f);
-			alSourcef(m->source, AL_GAIN, 1.f);
 			alSource3f(m->source, AL_POSITION, 0, 0, 0);
 			alSource3f(m->source, AL_VELOCITY, 0, 0, 0);
 			alSourcei(m->source, AL_LOOPING, 0);
 		}
 		if (!m->buffers[m->nextBuffer]) alGenBuffers(3, m->buffers);
 		if (!_checkALError()) {
-			m->state = AudioPlayerStopped;
+			setStoppedState(m, AudioPlayerStoppedAtError);
 			emitError(type);
 			return;
 		}
@@ -1307,7 +1472,7 @@ void AudioPlayerLoaders::loadData(MediaOverviewType type, const void *objId) {
 		m->nextBuffer = (m->nextBuffer + 1) % 3;
 
 		if (!_checkALError()) {
-			m->state = AudioPlayerStopped;
+			setStoppedState(m, AudioPlayerStoppedAtError);
 			emitError(type);
 			return;
 		}
@@ -1326,18 +1491,34 @@ void AudioPlayerLoaders::loadData(MediaOverviewType type, const void *objId) {
 		if (_checkALError()) {
 			if (state != AL_PLAYING) {
 				audioPlayer()->resumeDevice();
+
 				switch (type) {
 				case OverviewAudios: alSourcef(m->source, AL_GAIN, suppressAllGain); break;
-				case OverviewDocuments: alSourcef(m->source, AL_GAIN, suppressSongGain); break;
+				case OverviewDocuments: alSourcef(m->source, AL_GAIN, suppressSongGain * cSongVolume()); break;
 				}
+				if (!_checkALError()) {
+					setStoppedState(m, AudioPlayerStoppedAtError);
+					emitError(type);
+					return;
+				}
+
 				alSourcePlay(m->source);
+				if (!_checkALError()) {
+					setStoppedState(m, AudioPlayerStoppedAtError);
+					emitError(type);
+					return;
+				}
+
 				emit needToCheck();
 			}
+		} else {
+			setStoppedState(m, AudioPlayerStoppedAtError);
+			emitError(type);
 		}
 	}
 }
 
-AudioPlayerLoader *AudioPlayerLoaders::setupLoader(MediaOverviewType type, const void *objId, SetupError &err) {
+AudioPlayerLoader *AudioPlayerLoaders::setupLoader(MediaOverviewType type, const void *objId, SetupError &err, qint64 position) {
 	err = SetupErrorAtStart;
 	QMutexLocker lock(&playerMutex);
 	AudioPlayer *voice = audioPlayer();
@@ -1410,7 +1591,7 @@ AudioPlayerLoader *AudioPlayerLoaders::setupLoader(MediaOverviewType type, const
 		*l = new FFMpegLoader(m->fname, m->data);
 
 		int ret;
-		if (!(*l)->open()) {
+		if (!(*l)->open(position)) {
 			m->state = AudioPlayerStoppedAtStart;
 			return 0;
 		}
@@ -1422,10 +1603,6 @@ AudioPlayerLoader *AudioPlayerLoaders::setupLoader(MediaOverviewType type, const
 		m->duration = duration;
 		m->frequency = (*l)->frequency();
 		if (!m->frequency) m->frequency = AudioVoiceMsgFrequency;
-		m->skipStart = 0;
-		m->skipEnd = duration;
-		m->position = 0;
-		m->started = 0;
 		err = SetupNoErrorStarted;
 	} else {
 		if (!m->skipEnd) {
@@ -1985,7 +2162,7 @@ public:
 		_opened(false) {
 	}
 
-	bool open() {
+	bool open(qint64 position = 0) {
 		if (!AudioPlayerLoader::openFile()) {
 			return false;
 		}

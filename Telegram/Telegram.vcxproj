@@ -352,6 +352,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_playerwidget.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="GeneratedFiles\Debug\moc_profilewidget.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
@@ -615,6 +619,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Deploy\moc_photosendbox.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_playerwidget.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
@@ -909,6 +917,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_playerwidget.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_profilewidget.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -1044,6 +1056,7 @@
     <ClCompile Include="SourceFiles\mtproto\mtpSession.cpp" />
     <ClCompile Include="SourceFiles\overviewwidget.cpp" />
     <ClCompile Include="SourceFiles\passcodewidget.cpp" />
+    <ClCompile Include="SourceFiles\playerwidget.cpp" />
     <ClCompile Include="SourceFiles\profilewidget.cpp" />
     <ClCompile Include="SourceFiles\pspecific_linux.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -1992,6 +2005,20 @@
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Moc%27ing passcodewidget.h...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp"  -DAL_LIBTYPE_STATIC -DUNICODE -D_WITH_DEBUG -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG  "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\OpenSSL-Win32\include" "-I.\..\..\Libraries\libogg-1.3.2\include" "-I.\..\..\Libraries\opus\include" "-I.\..\..\Libraries\opusfile\include" "-I.\..\..\Libraries\mpg123-1.22.1\ports\MSVC++" "-I.\..\..\Libraries\mpg123-1.22.1\src\libmpg123" "-I.\..\..\Libraries\faad2-2.7\include" "-I.\..\..\Libraries\faad2-2.7\common\mp4ff" "-I.\..\..\Libraries\ffmpeg-2.6.3" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.4.0\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.4.0\QtGui" "-fstdafx.h" "-f../../SourceFiles/passcodewidget.h"</Command>
+    </CustomBuild>
+    <CustomBuild Include="SourceFiles\playerwidget.h">
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">Moc%27ing playerwidget.h...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/playerwidget.h"  -DAL_LIBTYPE_STATIC -DCUSTOM_API_ID -DUNICODE -D_WITH_DEBUG -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\OpenSSL-Win32\include" "-I.\..\..\Libraries\ffmpeg-2.6.3" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.4.0\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.4.0\QtGui"</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing playerwidget.h...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/playerwidget.h"  -DAL_LIBTYPE_STATIC -DUNICODE -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\OpenSSL-Win32\include" "-I.\..\..\Libraries\ffmpeg-2.6.3" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.4.0\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.4.0\QtGui"</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(QTDIR)\bin\moc.exe;%(FullPath)</AdditionalInputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Moc%27ing playerwidget.h...</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTDIR)\bin\moc.exe"  "%(FullPath)" -o ".\GeneratedFiles\$(ConfigurationName)\moc_%(Filename).cpp" "-fstdafx.h" "-f../../SourceFiles/playerwidget.h"  -DAL_LIBTYPE_STATIC -DUNICODE -D_WITH_DEBUG -DWIN32 -DWIN64 -DHAVE_STDINT_H -DZLIB_WINAPI -DQT_NO_DEBUG -DNDEBUG "-I.\..\..\Libraries\lzma\C" "-I.\..\..\Libraries\libexif-0.6.20" "-I.\..\..\Libraries\zlib-1.2.8" "-I.\..\..\Libraries\OpenSSL-Win32\include" "-I.\..\..\Libraries\libogg-1.3.2\include" "-I.\..\..\Libraries\opus\include" "-I.\..\..\Libraries\opusfile\include" "-I.\..\..\Libraries\mpg123-1.22.1\ports\MSVC++" "-I.\..\..\Libraries\mpg123-1.22.1\src\libmpg123" "-I.\..\..\Libraries\faad2-2.7\include" "-I.\..\..\Libraries\faad2-2.7\common\mp4ff" "-I.\..\..\Libraries\ffmpeg-2.6.3" "-I.\..\..\Libraries\openal-soft\include" "-I.\SourceFiles" "-I.\GeneratedFiles" "-I." "-I$(QTDIR)\include" "-I.\GeneratedFiles\$(ConfigurationName)\." "-I.\..\..\Libraries\QtStatic\qtbase\include\QtCore\5.4.0\QtCore" "-I.\..\..\Libraries\QtStatic\qtbase\include\QtGui\5.4.0\QtGui"</Command>
     </CustomBuild>
     <ClInclude Include="SourceFiles\pspecific.h" />
     <CustomBuild Include="SourceFiles\pspecific_linux.h">

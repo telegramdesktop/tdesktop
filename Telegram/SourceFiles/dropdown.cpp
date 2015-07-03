@@ -2611,6 +2611,15 @@ bool MentionsInner::moveSel(int direction) {
 }
 
 bool MentionsInner::select() {
+	QString sel = getSelected();
+	if (!sel.isEmpty()) {
+		emit chosen(sel);
+		return true;
+	}
+	return false;
+}
+
+QString MentionsInner::getSelected() const {
 	int32 maxSel = (_rows->isEmpty() ? (_hrows->isEmpty() ? _crows->size() : _hrows->size()) : _rows->size());
 	if (_sel >= 0 && _sel < maxSel) {
 		QString result;
@@ -2628,10 +2637,9 @@ bool MentionsInner::select() {
 				result = '/' + command.command;
 			}
 		}
-		emit chosen(result);
-		return true;
+		return result;
 	}
-	return false;
+	return QString();
 }
 
 void MentionsInner::mousePressEvent(QMouseEvent *e) {
@@ -2989,6 +2997,10 @@ int32 MentionsDropdown::innerTop() {
 
 int32 MentionsDropdown::innerBottom() {
 	return _scroll.scrollTop() + _scroll.height();
+}
+
+QString MentionsDropdown::getSelected() const {
+	return _inner.getSelected();
 }
 
 bool MentionsDropdown::eventFilter(QObject *obj, QEvent *e) {

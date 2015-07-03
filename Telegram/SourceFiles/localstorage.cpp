@@ -1036,6 +1036,14 @@ namespace {
 			cSetDialogLastPath(path);
 		} break;
 
+		case dbiSongVolume: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetSongVolume(snap(v / 1e6, 0., 1.));
+		} break;
+
 		default:
 			LOG(("App Error: unknown blockId in _readSetting: %1").arg(blockId));
 			return false;
@@ -1257,7 +1265,7 @@ namespace {
 			_writeMap(WriteMapFast);
 		}
 
-		uint32 size = 11 * (sizeof(quint32) + sizeof(qint32));
+		uint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
 		size += sizeof(quint32) + _stringSize(cAskDownloadPath() ? QString() : cDownloadPath());
 		size += sizeof(quint32) + sizeof(qint32) + (cRecentEmojisPreload().isEmpty() ? cGetRecentEmojis().size() : cRecentEmojisPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 		size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
@@ -1278,6 +1286,7 @@ namespace {
 		data.stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());
 		data.stream << quint32(dbiEmojiTab) << qint32(cEmojiTab());
 		data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
+		data.stream << quint32(dbiSongVolume) << qint32(qRound(cSongVolume() * 1e6));
 
 		{
 			RecentEmojisPreload v(cRecentEmojisPreload());

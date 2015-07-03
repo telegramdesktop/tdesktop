@@ -87,7 +87,7 @@ enum {
 	AudioVoiceMsgSimultaneously = 4,
 	AudioSongSimultaneously = 4,
 	AudioCheckPositionTimeout = 100, // 100ms per check audio pos
-	AudioCheckPositionDelta = 4800, // update position called each 4800 samples
+	AudioCheckPositionDelta = 2400, // update position called each 2400 samples
 	AudioFadeTimeout = 7, // 7ms
 	AudioFadeDuration = 500,
 	AudioVoiceMsgSkip = 400, // 200ms
