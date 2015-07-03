@@ -2849,10 +2849,12 @@ void HistoryDocument::initDimensions(const HistoryItem *parent) {
 		if (const HistoryReply *reply = toHistoryReply(parent)) {
 			_minh += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		} else if (const HistoryForwarded *fwd = toHistoryForwarded(parent)) {
-			if (parent->out() || !parent->history()->peer->chat) {
-				_minh += st::msgPadding.top();
+			if (!data->song()) {
+				if (parent->out() || !parent->history()->peer->chat) {
+					_minh += st::msgPadding.top();
+				}
+				_minh += st::msgServiceNameFont->height;
 			}
-			_minh += st::msgServiceNameFont->height;
 		}
 	}
 	_height = _minh;
@@ -2881,7 +2883,7 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 	}
 
 	const HistoryReply *reply = toHistoryReply(parent);
-	const HistoryForwarded *fwd = reply ? 0 : toHistoryForwarded(parent);
+	const HistoryForwarded *fwd = (reply || data->song()) ? 0 : toHistoryForwarded(parent);
 	int skipy = 0, replyFrom = 0, fwdFrom = 0;
 	if (reply) {
 		skipy = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
@@ -2949,14 +2951,14 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 		QRect img;
 		if (data->status == FileFailed) {
 			statusText = lang(lng_attach_failed);
-			img = out ? st::mediaAudioOutImg : st::mediaAudioInImg;
+			img = out ? st::mediaMusicOutImg : st::mediaMusicInImg;
 		} else if (data->status == FileUploading) {
 			if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
 				_uplDone = data->uploadOffset;
 				_uplTextCache = formatDownloadText(_uplDone, data->size);
 			}
 			statusText = _uplTextCache;
-			img = out ? st::mediaAudioOutImg : st::mediaAudioInImg;
+			img = out ? st::mediaMusicOutImg : st::mediaMusicInImg;
 		} else if (already || hasdata) {
 			bool showPause = false;
 			if (playing.msgId == parent->id && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
@@ -2978,7 +2980,7 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 			} else {
 				statusText = _size;
 			}
-			img = out ? st::mediaAudioOutImg : st::mediaAudioInImg;
+			img = out ? st::mediaMusicOutImg : st::mediaMusicInImg;
 		}
 
 		p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), App::sprite(), img);
@@ -3073,14 +3075,14 @@ void HistoryDocument::drawInPlaylist(QPainter &p, const HistoryItem *parent, boo
 		QRect img;
 		if (data->status == FileFailed) {
 			statusText = lang(lng_attach_failed);
-			img = st::mediaAudioInImg;
+			img = st::mediaMusicInImg;
 		} else if (data->status == FileUploading) {
 			if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
 				_uplDone = data->uploadOffset;
 				_uplTextCache = formatDownloadText(_uplDone, data->size);
 			}
 			statusText = _uplTextCache;
-			img = st::mediaAudioInImg;
+			img = st::mediaMusicInImg;
 		} else if (already || hasdata) {
 			bool isPlaying = (playing.msgId == parent->id);
 			bool showPause = false;
@@ -3103,7 +3105,7 @@ void HistoryDocument::drawInPlaylist(QPainter &p, const HistoryItem *parent, boo
 			} else {
 				statusText = _size;
 			}
-			img = st::mediaAudioInImg;
+			img = st::mediaMusicInImg;
 		}
 
 		p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), App::sprite(), img);
@@ -3244,7 +3246,7 @@ void HistoryDocument::getState(TextLinkPtr &lnk, HistoryCursorState &state, int3
 	}
 
 	const HistoryReply *reply = toHistoryReply(parent);
-	const HistoryForwarded *fwd = reply ? 0 : toHistoryForwarded(parent);
+	const HistoryForwarded *fwd = (reply || data->song()) ? 0 : toHistoryForwarded(parent);
 	int skipy = 0, replyFrom = 0, fwdFrom = 0;
 	if (reply) {
 		skipy = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
