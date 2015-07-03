@@ -363,11 +363,12 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_photos" = "{count:_not_used_|# foto|# fotos} »";
 "lng_profile_photos_header" = "Todas las fotos";
 "lng_profile_videos" = "{count:_not_used_|# vídeo|# vídeos} »";
-"lng_profile_videos_header" = "Todos los vídeos";
+"lng_profile_videos_header" = "Vídeos";
 "lng_profile_files" = "{count:_not_used_|# archivo|# archivos} »";
-"lng_profile_files_header" = "Todos los archivos";
+"lng_profile_files_header" = "Archivos";
 "lng_profile_audios" = "{count:_not_used_|# mensaje de voz|# mensajes de voz} »";
-"lng_profile_audios_header" = "Todos los mensajes de voz";
+"lng_profile_audios_header" = "Mensajes de voz";
+"lng_profile_audio_files_header" = "Lista de reproducción";
 "lng_profile_show_all_types" = "Mostrar todos los tipos";
 "lng_profile_copy_phone" = "Copiar número";
 
@@ -602,7 +603,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop fue actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Reenvía fotos, multimedia y stickers arrastrándolos y soltándolos\n— Arrastrar y soltar para mensajes (mantén pulsado sobre la hora del mensaje en el chat y suéltalo)\n— Panel de stickers más grande\n— Opción de IPv6 añadida al Tipo de conexión, en Ajustes.";
+"lng_new_version_text" = "— Reproducción de la multimedia dentro de la aplicación mejorada\n— Corrección de errores y otras mejoras menores";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

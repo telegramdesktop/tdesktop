@@ -368,6 +368,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_files_header" = "Bestandsoverzicht";
 "lng_profile_audios" = "{count:_not_used_|# spraakbericht|# spraakberichten} »";
 "lng_profile_audios_header" = "Overzicht van spraakberichten";
+"lng_profile_audio_files_header" = "Afspeellijst";
 "lng_profile_show_all_types" = "Alles weergeven";
 "lng_profile_copy_phone" = "Telefoonnummer kopiëren";
 
@@ -602,7 +603,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Foto's media en stickers doorsturen door slepen en los te laten.\n— Berichten doorsturen door de tijdsaanduiding aan te klikken, slepen en los te laten.\n— Groter stickerspaneel\n— IPv6 optie toegevoegd aan de connectietypes onder instellingen.";
+"lng_new_version_text" = "— Media afspelen binnen de app verbeterd\n— Probleemoplossing en kleine verbeteringen";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
