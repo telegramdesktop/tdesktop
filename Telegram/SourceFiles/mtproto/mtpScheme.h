@@ -338,13 +338,13 @@ enum {
 	mtpc_documentAttributeAnimated = 0x11b58939,
 	mtpc_documentAttributeSticker = 0x3a556302,
 	mtpc_documentAttributeVideo = 0x5910cccb,
-	mtpc_documentAttributeAudio = 0x51448e5,
+	mtpc_documentAttributeAudio = 0xded218e0,
 	mtpc_documentAttributeFilename = 0x15590068,
 	mtpc_messages_stickersNotModified = 0xf1749a22,
 	mtpc_messages_stickers = 0x8a8ecd32,
 	mtpc_stickerPack = 0x12b299d4,
 	mtpc_messages_allStickersNotModified = 0xe86602c3,
-	mtpc_messages_allStickers = 0x5ce352ec,
+	mtpc_messages_allStickers = 0xd51dafdb,
 	mtpc_disabledFeature = 0xae636f24,
 	mtpc_updateReadHistoryInbox = 0x9961fd5c,
 	mtpc_updateReadHistoryOutbox = 0x2f2f21bf,
@@ -377,7 +377,7 @@ enum {
 	mtpc_inputStickerSetEmpty = 0xffb62b95,
 	mtpc_inputStickerSetID = 0x9de7a269,
 	mtpc_inputStickerSetShortName = 0x861cc8a0,
-	mtpc_stickerSet = 0xa7a43b17,
+	mtpc_stickerSet = 0xcd303b41,
 	mtpc_messages_stickerSet = 0xb60a24a6,
 	mtpc_user = 0x22e49072,
 	mtpc_botCommand = 0xc27ac8c7,
@@ -513,7 +513,7 @@ enum {
 	mtpc_messages_checkChatInvite = 0x3eadb1bb,
 	mtpc_messages_importChatInvite = 0x6c50051c,
 	mtpc_messages_getStickerSet = 0x2619a90e,
-	mtpc_messages_installStickerSet = 0xefbbfae9,
+	mtpc_messages_installStickerSet = 0x7b30c3a6,
 	mtpc_messages_uninstallStickerSet = 0xf96e55de,
 	mtpc_messages_startBot = 0x1b3e0ffc
 };
@@ -7146,7 +7146,7 @@ private:
 	friend MTPdocumentAttribute MTP_documentAttributeAnimated();
 	friend MTPdocumentAttribute MTP_documentAttributeSticker(const MTPstring &_alt, const MTPInputStickerSet &_stickerset);
 	friend MTPdocumentAttribute MTP_documentAttributeVideo(MTPint _duration, MTPint _w, MTPint _h);
-	friend MTPdocumentAttribute MTP_documentAttributeAudio(MTPint _duration);
+	friend MTPdocumentAttribute MTP_documentAttributeAudio(MTPint _duration, const MTPstring &_title, const MTPstring &_performer);
 	friend MTPdocumentAttribute MTP_documentAttributeFilename(const MTPstring &_file_name);
 
 	mtpTypeId _type;
@@ -7254,7 +7254,7 @@ private:
 	explicit MTPmessages_allStickers(MTPDmessages_allStickers *_data);
 
 	friend MTPmessages_allStickers MTP_messages_allStickersNotModified();
-	friend MTPmessages_allStickers MTP_messages_allStickers(const MTPstring &_hash, const MTPVector<MTPStickerPack> &_packs, const MTPVector<MTPStickerSet> &_sets, const MTPVector<MTPDocument> &_documents);
+	friend MTPmessages_allStickers MTP_messages_allStickers(const MTPstring &_hash, const MTPVector<MTPStickerSet> &_sets);
 
 	mtpTypeId _type;
 };
@@ -7819,7 +7819,7 @@ public:
 private:
 	explicit MTPstickerSet(MTPDstickerSet *_data);
 
-	friend MTPstickerSet MTP_stickerSet(const MTPlong &_id, const MTPlong &_access_hash, const MTPstring &_title, const MTPstring &_short_name);
+	friend MTPstickerSet MTP_stickerSet(MTPint _flags, const MTPlong &_id, const MTPlong &_access_hash, const MTPstring &_title, const MTPstring &_short_name, MTPint _count, MTPint _hash);
 };
 typedef MTPBoxed<MTPstickerSet> MTPStickerSet;
 
@@ -10916,10 +10916,12 @@ class MTPDdocumentAttributeAudio : public mtpDataImpl<MTPDdocumentAttributeAudio
 public:
 	MTPDdocumentAttributeAudio() {
 	}
-	MTPDdocumentAttributeAudio(MTPint _duration) : vduration(_duration) {
+	MTPDdocumentAttributeAudio(MTPint _duration, const MTPstring &_title, const MTPstring &_performer) : vduration(_duration), vtitle(_title), vperformer(_performer) {
 	}
 
 	MTPint vduration;
+	MTPstring vtitle;
+	MTPstring vperformer;
 };
 
 class MTPDdocumentAttributeFilename : public mtpDataImpl<MTPDdocumentAttributeFilename> {
@@ -10958,13 +10960,11 @@ class MTPDmessages_allStickers : public mtpDataImpl<MTPDmessages_allStickers> {
 public:
 	MTPDmessages_allStickers() {
 	}
-	MTPDmessages_allStickers(const MTPstring &_hash, const MTPVector<MTPStickerPack> &_packs, const MTPVector<MTPStickerSet> &_sets, const MTPVector<MTPDocument> &_documents) : vhash(_hash), vpacks(_packs), vsets(_sets), vdocuments(_documents) {
+	MTPDmessages_allStickers(const MTPstring &_hash, const MTPVector<MTPStickerSet> &_sets) : vhash(_hash), vsets(_sets) {
 	}
 
 	MTPstring vhash;
-	MTPVector<MTPStickerPack> vpacks;
 	MTPVector<MTPStickerSet> vsets;
-	MTPVector<MTPDocument> vdocuments;
 };
 
 class MTPDdisabledFeature : public mtpDataImpl<MTPDdisabledFeature> {
@@ -11229,13 +11229,16 @@ class MTPDstickerSet : public mtpDataImpl<MTPDstickerSet> {
 public:
 	MTPDstickerSet() {
 	}
-	MTPDstickerSet(const MTPlong &_id, const MTPlong &_access_hash, const MTPstring &_title, const MTPstring &_short_name) : vid(_id), vaccess_hash(_access_hash), vtitle(_title), vshort_name(_short_name) {
+	MTPDstickerSet(MTPint _flags, const MTPlong &_id, const MTPlong &_access_hash, const MTPstring &_title, const MTPstring &_short_name, MTPint _count, MTPint _hash) : vflags(_flags), vid(_id), vaccess_hash(_access_hash), vtitle(_title), vshort_name(_short_name), vcount(_count), vhash(_hash) {
 	}
 
+	MTPint vflags;
 	MTPlong vid;
 	MTPlong vaccess_hash;
 	MTPstring vtitle;
 	MTPstring vshort_name;
+	MTPint vcount;
+	MTPint vhash;
 };
 
 class MTPDmessages_stickerSet : public mtpDataImpl<MTPDmessages_stickerSet> {
@@ -16920,26 +16923,29 @@ public:
 class MTPmessages_installStickerSet { // RPC method 'messages.installStickerSet'
 public:
 	MTPInputStickerSet vstickerset;
+	MTPBool vdisabled;
 
 	MTPmessages_installStickerSet() {
 	}
 	MTPmessages_installStickerSet(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_installStickerSet) {
 		read(from, end, cons);
 	}
-	MTPmessages_installStickerSet(const MTPInputStickerSet &_stickerset) : vstickerset(_stickerset) {
+	MTPmessages_installStickerSet(const MTPInputStickerSet &_stickerset, MTPBool _disabled) : vstickerset(_stickerset), vdisabled(_disabled) {
 	}
 
 	uint32 innerLength() const {
-		return vstickerset.innerLength();
+		return vstickerset.innerLength() + vdisabled.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_messages_installStickerSet;
 	}
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_installStickerSet) {
 		vstickerset.read(from, end);
+		vdisabled.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
 		vstickerset.write(to);
+		vdisabled.write(to);
 	}
 
 	typedef MTPBool ResponseType;
@@ -16952,7 +16958,7 @@ public:
 	}
 	MTPmessages_InstallStickerSet(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_installStickerSet>(from, end, cons) {
 	}
-	MTPmessages_InstallStickerSet(const MTPInputStickerSet &_stickerset) : MTPBoxed<MTPmessages_installStickerSet>(MTPmessages_installStickerSet(_stickerset)) {
+	MTPmessages_InstallStickerSet(const MTPInputStickerSet &_stickerset, MTPBool _disabled) : MTPBoxed<MTPmessages_installStickerSet>(MTPmessages_installStickerSet(_stickerset, _disabled)) {
 	}
 };
 
@@ -24857,7 +24863,7 @@ inline uint32 MTPdocumentAttribute::innerLength() const {
 		}
 		case mtpc_documentAttributeAudio: {
 			const MTPDdocumentAttributeAudio &v(c_documentAttributeAudio());
-			return v.vduration.innerLength();
+			return v.vduration.innerLength() + v.vtitle.innerLength() + v.vperformer.innerLength();
 		}
 		case mtpc_documentAttributeFilename: {
 			const MTPDdocumentAttributeFilename &v(c_documentAttributeFilename());
@@ -24897,6 +24903,8 @@ inline void MTPdocumentAttribute::read(const mtpPrime *&from, const mtpPrime *en
 			if (!data) setData(new MTPDdocumentAttributeAudio());
 			MTPDdocumentAttributeAudio &v(_documentAttributeAudio());
 			v.vduration.read(from, end);
+			v.vtitle.read(from, end);
+			v.vperformer.read(from, end);
 		} break;
 		case mtpc_documentAttributeFilename: _type = cons; {
 			if (!data) setData(new MTPDdocumentAttributeFilename());
@@ -24927,6 +24935,8 @@ inline void MTPdocumentAttribute::write(mtpBuffer &to) const {
 		case mtpc_documentAttributeAudio: {
 			const MTPDdocumentAttributeAudio &v(c_documentAttributeAudio());
 			v.vduration.write(to);
+			v.vtitle.write(to);
+			v.vperformer.write(to);
 		} break;
 		case mtpc_documentAttributeFilename: {
 			const MTPDdocumentAttributeFilename &v(c_documentAttributeFilename());
@@ -24967,8 +24977,8 @@ inline MTPdocumentAttribute MTP_documentAttributeSticker(const MTPstring &_alt, 
 inline MTPdocumentAttribute MTP_documentAttributeVideo(MTPint _duration, MTPint _w, MTPint _h) {
 	return MTPdocumentAttribute(new MTPDdocumentAttributeVideo(_duration, _w, _h));
 }
-inline MTPdocumentAttribute MTP_documentAttributeAudio(MTPint _duration) {
-	return MTPdocumentAttribute(new MTPDdocumentAttributeAudio(_duration));
+inline MTPdocumentAttribute MTP_documentAttributeAudio(MTPint _duration, const MTPstring &_title, const MTPstring &_performer) {
+	return MTPdocumentAttribute(new MTPDdocumentAttributeAudio(_duration, _title, _performer));
 }
 inline MTPdocumentAttribute MTP_documentAttributeFilename(const MTPstring &_file_name) {
 	return MTPdocumentAttribute(new MTPDdocumentAttributeFilename(_file_name));
@@ -25058,7 +25068,7 @@ inline uint32 MTPmessages_allStickers::innerLength() const {
 	switch (_type) {
 		case mtpc_messages_allStickers: {
 			const MTPDmessages_allStickers &v(c_messages_allStickers());
-			return v.vhash.innerLength() + v.vpacks.innerLength() + v.vsets.innerLength() + v.vdocuments.innerLength();
+			return v.vhash.innerLength() + v.vsets.innerLength();
 		}
 	}
 	return 0;
@@ -25075,9 +25085,7 @@ inline void MTPmessages_allStickers::read(const mtpPrime *&from, const mtpPrime 
 			if (!data) setData(new MTPDmessages_allStickers());
 			MTPDmessages_allStickers &v(_messages_allStickers());
 			v.vhash.read(from, end);
-			v.vpacks.read(from, end);
 			v.vsets.read(from, end);
-			v.vdocuments.read(from, end);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessages_allStickers");
 	}
@@ -25087,9 +25095,7 @@ inline void MTPmessages_allStickers::write(mtpBuffer &to) const {
 		case mtpc_messages_allStickers: {
 			const MTPDmessages_allStickers &v(c_messages_allStickers());
 			v.vhash.write(to);
-			v.vpacks.write(to);
 			v.vsets.write(to);
-			v.vdocuments.write(to);
 		} break;
 	}
 }
@@ -25105,8 +25111,8 @@ inline MTPmessages_allStickers::MTPmessages_allStickers(MTPDmessages_allStickers
 inline MTPmessages_allStickers MTP_messages_allStickersNotModified() {
 	return MTPmessages_allStickers(mtpc_messages_allStickersNotModified);
 }
-inline MTPmessages_allStickers MTP_messages_allStickers(const MTPstring &_hash, const MTPVector<MTPStickerPack> &_packs, const MTPVector<MTPStickerSet> &_sets, const MTPVector<MTPDocument> &_documents) {
-	return MTPmessages_allStickers(new MTPDmessages_allStickers(_hash, _packs, _sets, _documents));
+inline MTPmessages_allStickers MTP_messages_allStickers(const MTPstring &_hash, const MTPVector<MTPStickerSet> &_sets) {
+	return MTPmessages_allStickers(new MTPDmessages_allStickers(_hash, _sets));
 }
 
 inline MTPdisabledFeature::MTPdisabledFeature() : mtpDataOwner(new MTPDdisabledFeature()) {
@@ -25777,7 +25783,7 @@ inline MTPstickerSet::MTPstickerSet() : mtpDataOwner(new MTPDstickerSet()) {
 
 inline uint32 MTPstickerSet::innerLength() const {
 	const MTPDstickerSet &v(c_stickerSet());
-	return v.vid.innerLength() + v.vaccess_hash.innerLength() + v.vtitle.innerLength() + v.vshort_name.innerLength();
+	return v.vflags.innerLength() + v.vid.innerLength() + v.vaccess_hash.innerLength() + v.vtitle.innerLength() + v.vshort_name.innerLength() + v.vcount.innerLength() + v.vhash.innerLength();
 }
 inline mtpTypeId MTPstickerSet::type() const {
 	return mtpc_stickerSet;
@@ -25787,22 +25793,28 @@ inline void MTPstickerSet::read(const mtpPrime *&from, const mtpPrime *end, mtpT
 
 	if (!data) setData(new MTPDstickerSet());
 	MTPDstickerSet &v(_stickerSet());
+	v.vflags.read(from, end);
 	v.vid.read(from, end);
 	v.vaccess_hash.read(from, end);
 	v.vtitle.read(from, end);
 	v.vshort_name.read(from, end);
+	v.vcount.read(from, end);
+	v.vhash.read(from, end);
 }
 inline void MTPstickerSet::write(mtpBuffer &to) const {
 	const MTPDstickerSet &v(c_stickerSet());
+	v.vflags.write(to);
 	v.vid.write(to);
 	v.vaccess_hash.write(to);
 	v.vtitle.write(to);
 	v.vshort_name.write(to);
+	v.vcount.write(to);
+	v.vhash.write(to);
 }
 inline MTPstickerSet::MTPstickerSet(MTPDstickerSet *_data) : mtpDataOwner(_data) {
 }
-inline MTPstickerSet MTP_stickerSet(const MTPlong &_id, const MTPlong &_access_hash, const MTPstring &_title, const MTPstring &_short_name) {
-	return MTPstickerSet(new MTPDstickerSet(_id, _access_hash, _title, _short_name));
+inline MTPstickerSet MTP_stickerSet(MTPint _flags, const MTPlong &_id, const MTPlong &_access_hash, const MTPstring &_title, const MTPstring &_short_name, MTPint _count, MTPint _hash) {
+	return MTPstickerSet(new MTPDstickerSet(_flags, _id, _access_hash, _title, _short_name, _count, _hash));
 }
 
 inline MTPmessages_stickerSet::MTPmessages_stickerSet() : mtpDataOwner(new MTPDmessages_stickerSet()) {

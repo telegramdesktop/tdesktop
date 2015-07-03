@@ -166,11 +166,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_username_title" = "Change username";
 "lng_username_about" = "You can choose a username on Telegram.\nIf you do, other people will be able to find\nyou by this username and contact you\nwithout knowing your phone number.\n\nYou can use a-z, 0-9 and underscores.\nMinimum length is 5 characters.";
-"lng_username_invalid" = "This name is invalid.";
-"lng_username_occupied" = "This name is already occupied.";
-"lng_username_too_short" = "This name is too short.";
-"lng_username_bad_symbols" = "This name has bad symbols.";
-"lng_username_available" = "This name is available.";
+"lng_username_invalid" = "This username is invalid.";
+"lng_username_occupied" = "This username is already occupied.";
+"lng_username_too_short" = "This username is too short.";
+"lng_username_bad_symbols" = "This username has bad symbols.";
+"lng_username_available" = "This username is available.";
 "lng_username_not_found" = "User @{user} not found.";
 
 "lng_settings_section_contact_info" = "Contact info";
@@ -368,6 +368,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_files_header" = "Files overview";
 "lng_profile_audios" = "{count:_not_used_|# voice message|# voice messages} »";
 "lng_profile_audios_header" = "Voice messages overview";
+"lng_profile_audio_files_header" = "Playlist";
 "lng_profile_show_all_types" = "Show all types";
 "lng_profile_copy_phone" = "Copy phone number";
 
@@ -602,7 +603,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "This new version includes support for bots using the new bot API, free for everyone. If you're an engineer, create your own bots for games, services or integrations.\n\nLearn more at {blog_link}";
+"lng_new_version_text" = "— Improved in-app media playback\n— Bug fixes and other minor improvements";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

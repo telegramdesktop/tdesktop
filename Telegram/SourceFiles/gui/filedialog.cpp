@@ -25,9 +25,9 @@ void filedialogInit() {
 	if (cDialogLastPath().isEmpty()) {
 #ifdef Q_OS_WIN
 		// hack to restore previous dir without hurting performance
-		QSettings settings(QSettings::UserScope, QLatin1String("QtProject"));
-		settings.beginGroup(QLatin1String("Qt"));
-		QByteArray sd = settings.value(QLatin1String("filedialog")).toByteArray();
+		QSettings settings(QSettings::UserScope, qstr("QtProject"));
+		settings.beginGroup(qstr("Qt"));
+		QByteArray sd = settings.value(qstr("filedialog")).toByteArray();
 		QDataStream stream(&sd, QIODevice::ReadOnly);
 		if (!stream.atEnd()) {
 			int version = 3, _QFileDialogMagic = 190;

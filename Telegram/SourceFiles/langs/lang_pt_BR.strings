@@ -166,11 +166,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_username_title" = "Alterar nome de usuário";
 "lng_username_about" = "Você pode escolher um nome de usuário no Telegram.\nAssim, outras pessoas poderão te encontrar\npelo nome de usuário e entrar em contato\nsem precisar saber seu telefone.\n\nVocê pode usar a-z, 0-9 e underline.\nO tamanho mínimo é 5 caracteres.";
-"lng_username_invalid" = "Esse nome é inválido.";
-"lng_username_occupied" = "Esse nome já está ocupado.";
-"lng_username_too_short" = "Esse nome é muito curto.";
-"lng_username_bad_symbols" = "Esse nome contém símbolos incompatíveis.";
-"lng_username_available" = "Esse nome está disponível.";
+"lng_username_invalid" = "Nome de usuário inválido.";
+"lng_username_occupied" = "Nome de usuário ocupado.";
+"lng_username_too_short" = "Nome de usuário muito curto.";
+"lng_username_bad_symbols" = "Nome de usuário com símbolos incompatíveis.";
+"lng_username_available" = "Nome de usuário disponível.";
 "lng_username_not_found" = "Usuário @{user} não encontrado.";
 
 "lng_settings_section_contact_info" = "Informação de contato";
@@ -361,13 +361,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_shared_media" = "Mídia compartilhada";
 "lng_profile_no_media" = "Nenhuma mídia nessa conversa.";
 "lng_profile_photos" = "{count:_not_used_|# foto|# fotos} »";
-"lng_profile_photos_header" = "Visualização de fotos";
+"lng_profile_photos_header" = "Fotos";
 "lng_profile_videos" = "{count:_not_used_|# arquivo de vídeo|# arquivo de vídeos} »";
-"lng_profile_videos_header" = "Visualização de vídeos";
+"lng_profile_videos_header" = "Vídeos";
 "lng_profile_files" = "{count:_not_used_|# arquivo|# arquivos} »";
-"lng_profile_files_header" = "Visualização de arquivos";
+"lng_profile_files_header" = "Arquivos";
 "lng_profile_audios" = "{count:_not_used_|# mensagem de voz|# mensagens de voz} »";
-"lng_profile_audios_header" = "Visualização de mensagens de voz";
+"lng_profile_audios_header" = "Mensagens de voz";
+"lng_profile_audio_files_header" = "Reprodução";
 "lng_profile_show_all_types" = "Mostrar todos os tipos";
 "lng_profile_copy_phone" = "Copiar número de telefone";
 
@@ -602,7 +603,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras menores melhorias";
-"lng_new_version_text" = "Essa nova versão inclui suporte para bots usando a nova API de bots. Se você for um engenheiro, crie seus próprios bots para jogos, serviços ou integrações.\n\nLeia mais em {blog_link}";
+"lng_new_version_text" = "— Reprodução de mídia no app melhorada\n— Resolução de bugs e menores melhorias";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

@@ -1712,10 +1712,10 @@ void Window::sendPaths() {
 	}
 }
 
-void Window::mediaOverviewUpdated(PeerData *peer) {
-	if (main) main->mediaOverviewUpdated(peer);
+void Window::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
+	if (main) main->mediaOverviewUpdated(peer, type);
 	if (!_mediaView || _mediaView->isHidden()) return;
-	_mediaView->mediaOverviewUpdated(peer);
+	_mediaView->mediaOverviewUpdated(peer, type);
 }
 
 void Window::documentUpdated(DocumentData *doc) {

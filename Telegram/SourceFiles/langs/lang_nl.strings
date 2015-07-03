@@ -166,11 +166,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_username_title" = "Gebruikersnaam wijzigen";
 "lng_username_about" = "Je kunt hier je gebruikersnaam kiezen. \nHiermee kunnen anderen je vinden \nen contact met je opnemen zonder \nje telefoonnummer te weten.\n\na-z, 0-9 en underscore is toegestaan. \nDe minimale lengte is 5 tekens.";
-"lng_username_invalid" = "Deze naam is ongeldig.";
-"lng_username_occupied" = "Sorry, deze gebruikersnaam is al bezet.";
-"lng_username_too_short" = "Deze naam is te kort.";
-"lng_username_bad_symbols" = "Sorry, deze naam bevat ongeldige tekens.";
-"lng_username_available" = "Deze naam is beschikbaar.";
+"lng_username_invalid" = "Deze gebruikersnaam is ongeldig.";
+"lng_username_occupied" = "Deze gebruikersnaam is al bezet";
+"lng_username_too_short" = "Deze gebruikersnaam is te kort.";
+"lng_username_bad_symbols" = "Deze gebruikersnaam bevat ongeldige tekens.";
+"lng_username_available" = "Deze gebruikersnaam is beschikbaar.";
 "lng_username_not_found" = "Gebruiker @{user} niet gevonden.";
 
 "lng_settings_section_contact_info" = "Contactgegevens";
@@ -368,6 +368,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_files_header" = "Bestandsoverzicht";
 "lng_profile_audios" = "{count:_not_used_|# spraakbericht|# spraakberichten} »";
 "lng_profile_audios_header" = "Overzicht van spraakberichten";
+"lng_profile_audio_files_header" = "Afspeellijst";
 "lng_profile_show_all_types" = "Alles weergeven";
 "lng_profile_copy_phone" = "Telefoonnummer kopiëren";
 
@@ -602,7 +603,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "Deze versie heeft ondersteuning voor de nieuwe bot-API, gratis voor iedereen. Handig met programmeren? Maak dan je eigen bots voor spelletjes, diensten en integraties. \n\nMeer weten? kijk op: {blog_link}";
+"lng_new_version_text" = "— Media afspelen binnen de app verbeterd\n— Probleemoplossing en kleine verbeteringen";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

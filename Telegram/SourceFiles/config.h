@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 8030;
-static const wchar_t *AppVersionStr = L"0.8.30";
+static const int32 AppVersion = 8038;
+static const wchar_t *AppVersionStr = L"0.8.38";
 static const bool DevChannel = false;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
@@ -85,9 +85,10 @@ enum {
 	MediaOverviewPreloadCount = 4,
 
 	AudioVoiceMsgSimultaneously = 4,
+	AudioSongSimultaneously = 4,
 	AudioCheckPositionTimeout = 100, // 100ms per check audio pos
-	AudioCheckPositionDelta = 4800, // update position called each 4800 samples
-	AudioFadeTimeout = 10, // 10ms
+	AudioCheckPositionDelta = 2400, // update position called each 2400 samples
+	AudioFadeTimeout = 7, // 7ms
 	AudioFadeDuration = 500,
 	AudioVoiceMsgSkip = 400, // 200ms
 	AudioVoiceMsgFade = 300, // 300ms
@@ -100,7 +101,7 @@ enum {
 	AudioVoiceMsgInMemory = 1024 * 1024, // 1 Mb audio is hold in memory and auto loaded
 	AudioPauseDeviceTimeout = 3000, // pause in 3 secs after playing is over
 
-	StickerInMemory = 256 * 1024, // 128 Kb stickers hold in memory, auto loaded and displayed inline
+	StickerInMemory = 1024 * 1024, // 1024 Kb stickers hold in memory, auto loaded and displayed inline
 	StickerMaxSize = 2048, // 2048x2048 is a max image size for sticker
 
 	MediaViewImageSizeLimit = 100 * 1024 * 1024, // show up to 100mb jpg/png/gif docs in app

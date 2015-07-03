@@ -199,6 +199,7 @@ private:
 };
 
 #define qsl(s) QStringLiteral(s)
+#define qstr(s) QLatin1String(s, sizeof(s) - 1)
 
 static const QRegularExpression::PatternOptions reMultiline(QRegularExpression::DotMatchesEverythingOption | QRegularExpression::MultilineOption);
 
@@ -272,6 +273,7 @@ enum DataBlockId {
 	dbiRecentStickers      = 0x26,
 	dbiDcOption            = 0x27,
 	dbiTryIPv6             = 0x28,
+	dbiSongVolume          = 0x29,
 
 	dbiEncryptedWithSalt   = 333,
 	dbiEncrypted           = 444,

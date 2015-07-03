@@ -166,11 +166,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_username_title" = "Benutzernamen ändern";
 "lng_username_about" = "Wähle einen (optionalen) öffentlichen \nBenutzernamen, wenn du von anderen \ngefunden werden willst, ohne, dass sie \ndeine Nummer kennen müssen.\n\nErlaubt sind a-z, 0-9 und Unterstriche. \nDie Mindestlänge beträgt 5 Zeichen.";
-"lng_username_invalid" = "Der Benutzername ist fehlerhaft.";
-"lng_username_occupied" = "Der Benutzername ist bereits belegt.";
-"lng_username_too_short" = "Der Benutzername ist zu kurz.";
-"lng_username_bad_symbols" = "Nur a-z, 0-9 und Unterstriche sind erlaubt.";
-"lng_username_available" = "Der Benutzername ist noch verfügbar.";
+"lng_username_invalid" = "Benutzername ungültig.";
+"lng_username_occupied" = "Benutzername ist bereits belegt.";
+"lng_username_too_short" = "Benutzername ist zu kurz.";
+"lng_username_bad_symbols" = "Ungültige Zeichen im Benutzernamen.";
+"lng_username_available" = "Benutzername ist verfügbar.";
 "lng_username_not_found" = "Kontakt @{user} konnte nicht gefunden werden.";
 
 "lng_settings_section_contact_info" = "Kontaktprofil";
@@ -368,6 +368,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_files_header" = "Dateiübersicht";
 "lng_profile_audios" = "{count:_not_used_|# Sprachnachricht|# Sprachnachrichten} »";
 "lng_profile_audios_header" = "Übersicht Sprachnachrichten";
+"lng_profile_audio_files_header" = "Wiedergabeliste";
 "lng_profile_show_all_types" = "Alle Filter anzeigen";
 "lng_profile_copy_phone" = "Telefonnummer kopieren";
 
@@ -573,7 +574,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_selected_delete_confirm" = "Löschen";
 
 "lng_about_version" = "Version {version}";
-"lng_about_text" = "Telegram Desktop basiert auf [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] und\ndem [a href=\"https://core.telegram.org/api\"]Telegram API[/a], um Geschwindigkeit \nund Sicherheit zu gewährleisten.\n\nSoftware steht unter der [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] Version 3,\nQuelltext ist bei [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a] verfügbar.";
+"lng_about_text" = "Telegram Desktop basiert auf [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] und\nder [a href=\"https://core.telegram.org/api\"]Telegram API[/a], um Geschwindigkeit \nund Sicherheit zu gewährleisten.\n\nSoftware steht unter der [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] Version 3,\nQuelltext ist bei [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a] verfügbar.";
 "lng_about_done" = "Fertig";
 
 "lng_search_found_results" = "{count:Keine Nachrichten|# Nachricht|# Nachrichten}";
@@ -602,7 +603,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "Diese neue Version enthält Unterstützung für die neue Bot API, welche für alle kostenlos verfügbar ist. Kannst du programmieren? Erstelle deine eigenen Bots für Spiele, Dienste oder Integrationen.\n\nMehr dazu unter {blog_link}";
+"lng_new_version_text" = "— In-App Medienwiedergabe optimiert\n— Fehlerbehebungen und kleinere Verbesserungen";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

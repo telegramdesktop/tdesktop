@@ -303,7 +303,7 @@ void FlatTextarea::getSingleEmojiFragment(QString &text, QTextFragment &fragment
 			}
 			if (f.isImageFormat() && !t.isEmpty() && t.at(0).unicode() == QChar::ObjectReplacementCharacter) {
 				QString imageName = static_cast<QTextImageFormat*>(&f)->name();
-				if (imageName.startsWith(QLatin1String("emoji://e."))) {
+				if (imageName.startsWith(qstr("emoji://e."))) {
 					fragment = fr;
 					text = t;
 					return;
@@ -387,7 +387,7 @@ QString FlatTextarea::getText(int32 start, int32 end) const {
 				case QChar::ObjectReplacementCharacter:
 					if (emojiText.isEmpty() && f.isImageFormat()) {
 						QString imageName = static_cast<QTextImageFormat*>(&f)->name();
-						if (imageName.startsWith(QLatin1String("emoji://e."))) {
+						if (imageName.startsWith(qstr("emoji://e."))) {
 							if (EmojiPtr emoji = emojiFromUrl(imageName)) {
 								emojiText = emojiString(emoji);
 							}

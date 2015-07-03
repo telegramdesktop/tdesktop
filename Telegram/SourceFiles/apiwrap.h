@@ -31,10 +31,14 @@ public:
 	void requestReplyTo(HistoryReply *reply, MsgId to);
 
 	void requestFullPeer(PeerData *peer);
+	void requestPeer(PeerData *peer);
 
 	void requestWebPageDelayed(WebPageData *page);
 	void clearWebPageRequest(WebPageData *page);
 	void clearWebPageRequests();
+
+	void scheduleStickerSetRequest(uint64 setId, uint64 access);
+	void requestStickerSets();
 
 	~ApiWrap();
 
@@ -62,13 +66,22 @@ private:
 
 	void gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result);
 	void gotUserFull(PeerData *peer, const MTPUserFull &result);
+	bool gotPeerFullFailed(PeerData *peer, const RPCError &err);
+	typedef QMap<PeerData*, mtpRequestId> PeerRequests;
+	PeerRequests _fullPeerRequests;
+	
+	void gotChat(PeerData *peer, const MTPmessages_Chats &result);
+	void gotUser(PeerData *peer, const MTPVector<MTPUser> &result);
 	bool gotPeerFailed(PeerData *peer, const RPCError &err);
-	typedef QMap<PeerData*, mtpRequestId> FullRequests;
-	FullRequests _fullRequests;
+	PeerRequests _peerRequests;
 
 	void gotWebPages(const MTPmessages_Messages &result, mtpRequestId req);
 	typedef QMap<WebPageData*, mtpRequestId> WebPagesPending;
 	WebPagesPending _webPagesPending;
 	SingleTimer _webPagesTimer;
+
+	QMap<uint64, QPair<uint64, mtpRequestId> > _stickerSetRequests;
+	void gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result);
+	bool gotStickerSetFail(uint64 setId, const RPCError &error);
 
 };

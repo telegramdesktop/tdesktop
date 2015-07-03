@@ -725,6 +725,7 @@ void MTPautoConnection::httpSend(mtpBuffer &buffer) {
 
 void MTPautoConnection::disconnectFromServer() {
 	if (status == FinishedWork) return;
+	status = FinishedWork;
 
 	Requests copy = requests;
 	requests.clear();
@@ -741,7 +742,6 @@ void MTPautoConnection::disconnectFromServer() {
 	sock.close();
 
 	httpStartTimer.stop();
-	status = FinishedWork;
 }
 
 void MTPautoConnection::connectToServer(const QString &addr, int32 port, int32 flags) {
@@ -972,6 +972,8 @@ void MTPtcpConnection::onSocketDisconnected() {
 }
 
 void MTPtcpConnection::sendData(mtpBuffer &buffer) {
+	if (status == FinishedWork) return;
+
 	if (buffer.size() < 3) {
 		LOG(("TCP Error: writing bad packet, len = %1").arg(buffer.size() * sizeof(mtpPrime)));
 		TCP_LOG(("TCP Error: bad packet %1").arg(mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
@@ -990,6 +992,9 @@ void MTPtcpConnection::sendData(mtpBuffer &buffer) {
 }
 
 void MTPtcpConnection::disconnectFromServer() {
+	if (status == FinishedWork) return;
+	status = FinishedWork;
+
 	disconnect(&sock, SIGNAL(readyRead()), 0, 0);
 	sock.close();
 }
@@ -1043,6 +1048,8 @@ QString MTPtcpConnection::transport() const {
 }
 
 void MTPtcpConnection::socketError(QAbstractSocket::SocketError e) {
+	if (status == FinishedWork) return;
+
 	_handleTcpError(e, sock);
 	emit error();
 }
@@ -1054,6 +1061,8 @@ MTPhttpConnection::MTPhttpConnection(QThread *thread) : status(WaitingHttp), htt
 }
 
 void MTPhttpConnection::sendData(mtpBuffer &buffer) {
+	if (status == FinishedWork) return;
+
 	if (buffer.size() < 3) {
 		LOG(("TCP Error: writing bad packet, len = %1").arg(buffer.size() * sizeof(mtpPrime)));
 		TCP_LOG(("TCP Error: bad packet %1").arg(mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
@@ -1072,6 +1081,9 @@ void MTPhttpConnection::sendData(mtpBuffer &buffer) {
 }
 
 void MTPhttpConnection::disconnectFromServer() {
+	if (status == FinishedWork) return;
+	status = FinishedWork;
+
 	Requests copy = requests;
 	requests.clear();
 	for (Requests::const_iterator i = copy.cbegin(), e = copy.cend(); i != e; ++i) {
@@ -1198,15 +1210,23 @@ void MTProtoConnectionPrivate::createConn(bool createIPv4, bool createIPv6) {
 
 void MTProtoConnectionPrivate::destroyConn(MTPabstractConnection **conn) {
 	if (conn) {
-		QWriteLocker lock(&stateConnMutex);
-		if (*conn) {
-			disconnect(*conn, SIGNAL(disconnected()), 0, 0);
-			disconnect(*conn, SIGNAL(receivedData()), 0, 0);
-			disconnect(*conn, SIGNAL(receivedSome()), 0, 0);
+		MTPabstractConnection *toDisconnect = 0;
 
-			(*conn)->disconnectFromServer();
-			(*conn)->deleteLater();
-			*conn = 0;
+		{
+			QWriteLocker lock(&stateConnMutex);
+			if (*conn) {
+				toDisconnect = *conn;
+				disconnect(*conn, SIGNAL(connected()), 0, 0);
+				disconnect(*conn, SIGNAL(disconnected()), 0, 0);
+				disconnect(*conn, SIGNAL(error(bool)), 0, 0);
+				disconnect(*conn, SIGNAL(receivedData()), 0, 0);
+				disconnect(*conn, SIGNAL(receivedSome()), 0, 0);
+				*conn = 0;
+			}
+		}
+		if (toDisconnect) {
+			toDisconnect->disconnectFromServer();
+			toDisconnect->deleteLater();
 		}
 	} else {
 		destroyConn(&_conn4);
@@ -3020,7 +3040,7 @@ void MTProtoConnectionPrivate::onConnected6() {
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData) return;
 
-	disconnect(_conn6, SIGNAL(connected()), this, SLOT(onConnected()));
+	disconnect(_conn6, SIGNAL(connected()), this, SLOT(onConnected6()));
 	if (!_conn6->isConnected()) {
 		LOG(("Connection Error: not connected in onConnected(), state: %1").arg(_conn6->debugState()));
 		return restart();

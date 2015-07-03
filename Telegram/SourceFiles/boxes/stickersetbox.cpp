@@ -27,7 +27,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 StickerSetInner::StickerSetInner(const MTPInputStickerSet &set) :
-_loaded(false), _setId(0), _setAccess(0), _bottom(0),
+_loaded(false), _setId(0), _setAccess(0), _setCount(0), _setHash(0), _setFlags(0), _bottom(0),
 _input(set), _installRequest(0) {
 	switch (set.type()) {
 	case mtpc_inputStickerSetID: _setId = set.c_inputStickerSetID().vid.v; _setAccess = set.c_inputStickerSetID().vaccess_hash.v; break;
@@ -46,7 +46,7 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 		_pack.reserve(v.size());
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
 			DocumentData *doc = App::feedDocument(v.at(i));
-			if (!doc || !doc->sticker) continue;
+			if (!doc || !doc->sticker()) continue;
 			
 			_pack.push_back(doc);
 		}
@@ -57,6 +57,9 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 			_setShortName = qs(s.vshort_name);
 			_setId = s.vid.v;
 			_setAccess = s.vaccess_hash.v;
+			_setCount = s.vcount.v;
+			_setHash = s.vhash.v;
+			_setFlags = s.vflags.v;
 		}
 	}
 
@@ -84,13 +87,25 @@ bool StickerSetInner::failedSet(const RPCError &error) {
 void StickerSetInner::installDone(const MTPBool &result) {
 	StickerSets &sets(cRefStickerSets());
 
-	sets.insert(_setId, StickerSet(_setId, _setAccess, _setTitle, _setShortName)).value().stickers = _pack;
-	int32 index = cStickerSetsOrder().indexOf(_setId);
-	if (index > 0) {
-		cRefStickerSetsOrder().removeAt(index);
-		cRefStickerSetsOrder().push_front(_setId);
-	} else if (index < 0) {
-		cRefStickerSetsOrder().push_front(_setId);
+	sets.insert(_setId, StickerSet(_setId, _setAccess, _setTitle, _setShortName, _setCount, _setHash, _setFlags)).value().stickers = _pack;
+
+	int32 insertAtIndex = 0;
+	StickerSetsOrder &order(cRefStickerSetsOrder());
+	for (int32 s = order.size(); insertAtIndex < s; ++insertAtIndex) {
+		StickerSets::const_iterator i = sets.constFind(order.at(insertAtIndex));
+		if (i == sets.cend() || !(i->flags & MTPDstickerSet_flag_official)) {
+			break;
+		}
+	}
+	int32 currentIndex = cStickerSetsOrder().indexOf(_setId);
+	if (currentIndex != insertAtIndex) {
+		if (currentIndex > 0) {
+			order.removeAt(currentIndex);
+			if (currentIndex < insertAtIndex) {
+				--insertAtIndex;
+			}
+		}
+		order.insert(insertAtIndex, _setId);
 	}
 
 	StickerSets::iterator custom = sets.find(CustomStickerSetId);
@@ -141,11 +156,11 @@ void StickerSetInner::paintEvent(QPaintEvent *e) {
 				if (!doc->loader && doc->status != FileFailed && !already && !hasdata) {
 					doc->save(QString());
 				}
-				if (doc->sticker->img->isNull() && (already || hasdata)) {
+				if (doc->sticker()->img->isNull() && (already || hasdata)) {
 					if (already) {
-						doc->sticker->img = ImagePtr(doc->already());
+						doc->sticker()->img = ImagePtr(doc->already());
 					} else {
-						doc->sticker->img = ImagePtr(doc->data);
+						doc->sticker()->img = ImagePtr(doc->data);
 					}
 				}
 			}
@@ -158,8 +173,8 @@ void StickerSetInner::paintEvent(QPaintEvent *e) {
 			QPoint ppos = pos + QPoint((st::stickersSize.width() - w) / 2, (st::stickersSize.height() - h) / 2);
 			if (goodThumb) {
 				p.drawPixmapLeft(ppos, width(), doc->thumb->pix(w, h));
-			} else if (!doc->sticker->img->isNull()) {
-				p.drawPixmapLeft(ppos, width(), doc->sticker->img->pix(w, h));
+			} else if (!doc->sticker()->img->isNull()) {
+				p.drawPixmapLeft(ppos, width(), doc->sticker()->img->pix(w, h));
 			}
 		}
 	}
@@ -193,7 +208,7 @@ QString StickerSetInner::shortName() const {
 
 void StickerSetInner::install() {
 	if (_installRequest) return;
-	_installRequest = MTP::send(MTPmessages_InstallStickerSet(_input), rpcDone(&StickerSetInner::installDone), rpcFail(&StickerSetInner::installFailed));
+	_installRequest = MTP::send(MTPmessages_InstallStickerSet(_input, MTP_bool(false)), rpcDone(&StickerSetInner::installDone), rpcFail(&StickerSetInner::installFailed));
 }
 
 StickerSetInner::~StickerSetInner() {

@@ -96,6 +96,7 @@ SOURCES += \
     ./SourceFiles/overviewwidget.cpp \
     ./SourceFiles/passcodewidget.cpp \
     ./SourceFiles/profilewidget.cpp \
+    ./SourceFiles/playerwidget.cpp \
     ./SourceFiles/localimageloader.cpp \
     ./SourceFiles/localstorage.cpp \
     ./SourceFiles/logs.cpp \
@@ -182,6 +183,7 @@ HEADERS += \
     ./SourceFiles/overviewwidget.h \
     ./SourceFiles/passcodewidget.h \
     ./SourceFiles/profilewidget.h \
+    ./SourceFiles/playerwidget.h \
     ./SourceFiles/localimageloader.h \
     ./SourceFiles/localstorage.h \
     ./SourceFiles/logs.h \

@@ -106,6 +106,7 @@ public slots:
 	void onMenuDestroy(QObject *obj);
 	void onTouchSelect();
 	void onTouchScrollTimer();
+	void onDragExec();
 
 private:
 
@@ -148,6 +149,7 @@ private:
 	TextSelectType _dragSelType;
 	QPoint _dragStartPos, _dragPos;
 	HistoryItem *_dragItem;
+	HistoryCursorState _dragCursorState;
 	uint16 _dragSymbol;
 	bool _dragWasInactive;
 
@@ -414,6 +416,7 @@ public:
 	void animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
 	bool showStep(float64 ms);
 	void animStop();
+	void doneShow();
 
 	QPoint clampMousePosition(QPoint point);
 
@@ -526,6 +529,7 @@ public slots:
 	void onMentionHashtagOrBotCommandInsert(QString str);
 	void onTextChange();
 
+	void onFieldTabbed();
 	void onStickerSend(DocumentData *sticker);
 
 	void onVisibleChanged();
@@ -551,6 +555,7 @@ public slots:
 	void onDraftSave(bool delayed = false);
 
 	void updateStickers();
+	void botCommandsChanged(UserData *user);
 
 	void onRecordError();
 	void onRecordDone(QByteArray result, qint32 samples);
