@@ -578,6 +578,10 @@ void MainWidget::updateStickers() {
 	history.updateStickers();
 }
 
+void MainWidget::botCommandsChanged(UserData *bot) {
+	history.botCommandsChanged(bot);
+}
+
 void MainWidget::onUpdateMuted() {
 	App::updateMuted();
 }

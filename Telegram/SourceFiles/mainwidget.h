@@ -367,6 +367,7 @@ public:
 	void updateMutedIn(int32 seconds);
 
 	void updateStickers();
+	void botCommandsChanged(UserData *bot);
 
 	~MainWidget();
 

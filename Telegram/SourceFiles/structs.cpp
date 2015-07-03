@@ -216,7 +216,10 @@ void UserData::setBotInfoVersion(int32 version) {
 		botInfo = new BotInfo();
 		botInfo->version = version;
 	} else if (botInfo->version < version) {
-		botInfo->commands.clear();
+		if (!botInfo->commands.isEmpty()) {
+			botInfo->commands.clear();
+			if (App::main()) App::main()->botCommandsChanged(this);
+		}
 		botInfo->description.clear();
 		botInfo->shareText.clear();
 		botInfo->version = version;
@@ -226,6 +229,9 @@ void UserData::setBotInfoVersion(int32 version) {
 void UserData::setBotInfo(const MTPBotInfo &info) {
 	switch (info.type()) {
 	case mtpc_botInfoEmpty:
+		if (botInfo && !botInfo->commands.isEmpty()) {
+			if (App::main()) App::main()->botCommandsChanged(this);
+		}
 		delete botInfo;
 		botInfo = 0;
 	break;
@@ -247,15 +253,37 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 		botInfo->shareText = qs(d.vshare_text);
 		
 		const QVector<MTPBotCommand> &v(d.vcommands.c_vector().v);
-		botInfo->commands.clear();
 		botInfo->commands.reserve(v.size());
+		bool changedCommands = false;
+		int32 j = 0;
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
-			if (v.at(i).type() == mtpc_botCommand) {
-				botInfo->commands.push_back(BotCommand(qs(v.at(i).c_botCommand().vcommand), qs(v.at(i).c_botCommand().vdescription)));
+			if (v.at(i).type() != mtpc_botCommand) continue;
+
+			QString cmd = qs(v.at(i).c_botCommand().vcommand), desc = qs(v.at(i).c_botCommand().vdescription);
+			if (botInfo->commands.size() <= j) {
+				botInfo->commands.push_back(BotCommand(cmd, desc));
+				changedCommands = true;
+			} else {
+				if (botInfo->commands[j].command != cmd) {
+					botInfo->commands[j].command = cmd;
+					changedCommands = true;
+				}
+				if (botInfo->commands[j].setDescription(desc)) {
+					changedCommands = true;
+				}
 			}
+			++j;
+		}
+		while (j < botInfo->commands.size()) {
+			botInfo->commands.pop_back();
+			changedCommands = true;
 		}
 
 		botInfo->inited = true;
+
+		if (changedCommands && App::main()) {
+			App::main()->botCommandsChanged(this);
+		}
 	} break;
 	}
 }

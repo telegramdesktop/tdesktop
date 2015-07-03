@@ -555,6 +555,7 @@ public slots:
 	void onDraftSave(bool delayed = false);
 
 	void updateStickers();
+	void botCommandsChanged(UserData *user);
 
 	void onRecordError();
 	void onRecordDone(QByteArray result, qint32 samples);

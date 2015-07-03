@@ -1614,6 +1614,14 @@ public:
 		}
 	}
 
+	style::font applyFlags(int32 flags, const style::font &f) {
+		style::font result = f;
+		if (flags & TextBlockBold) result = result->bold();
+		if (flags & TextBlockItalic) result = result->italic();
+		if (flags & TextBlockUnderline) result = result->underline();
+		return result;
+	}
+
 	void eSetFont(ITextBlock *block) {
 		style::font newFont = _t->_font;
 		int flags = block->flags();
@@ -1628,13 +1636,11 @@ public:
 			} else {
 				newFont = _textStyle->lnkFlags;
 			}
-		} else {
-			flags = block->flags();
-			if (flags & TextBlockBold) newFont = newFont->bold();
-			if (flags & TextBlockItalic) newFont = newFont->italic();
-			if (flags & TextBlockUnderline) newFont = newFont->underline();
 		}
 		if (newFont != _f) {
+			if (newFont->family() == _t->_font->family()) {
+				newFont = applyFlags(flags | newFont->flags(), _t->_font);
+			}
 			_f = newFont;
 			_e->fnt = _f->f;
 			_e->resetFontEngineCache();

@@ -929,6 +929,7 @@ private:
 };
 
 QString formatSizeText(qint64 size);
+QString formatDownloadText(qint64 ready, qint64 total);
 QString formatDurationText(qint64 duration);
 
 class HistoryVideo : public HistoryMedia {

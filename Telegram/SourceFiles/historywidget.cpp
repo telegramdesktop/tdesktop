@@ -2475,6 +2475,14 @@ void HistoryWidget::updateStickers() {
 	_stickersUpdateRequest = MTP::send(MTPmessages_GetAllStickers(MTP_string(cStickersHash())), rpcDone(&HistoryWidget::stickersGot), rpcFail(&HistoryWidget::stickersFailed));
 }
 
+void HistoryWidget::botCommandsChanged(UserData *user) {
+	if (histPeer && (histPeer == user || histPeer->chat)) {
+		if (_attachMention.clearFilteredCommands()) {
+			checkMentionDropdown();
+		}
+	}
+}
+
 void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	cSetLastStickersUpdate(getms(true));
 	_stickersUpdateRequest = 0;
@@ -3946,7 +3954,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 
 		_field.setMaxHeight(st::maxFieldHeight);
 
-		_kbReplyTo = hist->peer->chat ? App::histItemById(_keyboard.forMsgId()) : 0;
+		_kbReplyTo = App::histItemById(_keyboard.forMsgId());
 		if (_kbReplyTo && !_replyToId) {
 			updateReplyToName();
 			_replyToText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);

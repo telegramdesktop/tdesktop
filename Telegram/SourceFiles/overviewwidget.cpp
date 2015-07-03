@@ -878,7 +878,7 @@ void OverviewInner::onUpdateSelected() {
 	TextLinkPtr lnk;
 	HistoryItem *item = 0;
 	int32 index = -1;
-	_selectedMsgId = 0;
+	int32 newsel = 0;
 	if (_type == OverviewPhotos) {
 		float64 w = (float64(_width - st::overviewPhotoSkip) / _photosInRow);
 		int32 inRow = int32((m.x() - (st::overviewPhotoSkip / 2)) / w), vsize = (_vsize + st::overviewPhotoSkip);
@@ -919,14 +919,12 @@ void OverviewInner::onUpdateSelected() {
 		if (!count) return;
 
 		bool upon = true;
-		if (i < 0) {
+		if (m.y() < _addToY) {
 			i = 0;
-			_selectedMsgId = -1;
 			upon = false;
 		}
 		if (i >= count) {
 			i = count - 1;
-			_selectedMsgId = -1;
 			upon = false;
 		}
 		MsgId msgid = _hist->_overview[_type][i];
@@ -938,10 +936,19 @@ void OverviewInner::onUpdateSelected() {
 				HistoryMedia *media = item->getMedia(true);
 				if (media && media->type() == MediaTypeDocument) {
 					lnk = static_cast<HistoryDocument*>(media)->linkInPlaylist();
-					if (_selectedMsgId >= 0) _selectedMsgId = item->id;
+					newsel = item->id;
 				}
 			}
+			if (newsel != _selectedMsgId) {
+				updateMsg(App::histItemById(_selectedMsgId));
+				_selectedMsgId = newsel;
+				updateMsg(item);
+			}
 		} else {
+			if (newsel != _selectedMsgId) {
+				updateMsg(App::histItemById(_selectedMsgId));
+				_selectedMsgId = newsel;
+			}
 			return;
 		}
 	} else {
@@ -1184,8 +1191,8 @@ void OverviewInner::enterEvent(QEvent *e) {
 
 void OverviewInner::leaveEvent(QEvent *e) {
 	if (_selectedMsgId > 0) {
-		_selectedMsgId = 0;
 		updateMsg(App::histItemById(_selectedMsgId));
+		_selectedMsgId = 0;
 	}
 	if (textlnkOver()) {
 		updateMsg(App::hoveredLinkItem());
@@ -1306,7 +1313,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 int32 OverviewInner::resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeight) {
 	if (width() == nwidth && minHeight == _minHeight) return scrollTop;
 	_minHeight = minHeight;
-	_addToY = (_type != OverviewAudioDocuments && _height < _minHeight) ? (_minHeight - _height) : 0;
+	_addToY = (_type == OverviewAudioDocuments) ? st::playlistPadding : ((_height < _minHeight) ? (_minHeight - _height) : 0);
 	if (_type == OverviewPhotos && _resizeIndex < 0) {
 		_resizeIndex = _photosInRow * ((scrollTop + minHeight) / int32(_vsize + st::overviewPhotoSkip)) + _photosInRow - 1;
 		_resizeSkip = (scrollTop + minHeight) - ((scrollTop + minHeight) / int32(_vsize + st::overviewPhotoSkip)) * int32(_vsize + st::overviewPhotoSkip);
@@ -1591,7 +1598,7 @@ void OverviewInner::mediaOverviewUpdated(bool fromResize) {
 		if (_height != y) {
 			_height = y;
 			if (!fromResize) {
-				_addToY = (_type != OverviewAudioDocuments && _height < _minHeight) ? (_minHeight - _height) : 0;
+				_addToY = (_type == OverviewAudioDocuments) ? st::playlistPadding : ((_height < _minHeight) ? (_minHeight - _height) : 0);
 				resize(width(), _minHeight > _height ? _minHeight : _height);
 			}
 		}
@@ -1676,7 +1683,7 @@ void OverviewInner::itemResized(HistoryItem *item, bool scrollToIt) {
 						_items[j].y += newh;
 					}
 					_height = _items[l - 1].y;
-					_addToY = (_type != OverviewAudioDocuments && _height < _minHeight) ? (_minHeight - _height) : 0;
+					_addToY = (_type == OverviewAudioDocuments) ? st::playlistPadding : ((_height < _minHeight) ? (_minHeight - _height) : 0);
 					resize(width(), _minHeight > _height ? _minHeight : _height);
 					if (scrollToIt) {
 						if (_addToY + _height - from > _scroll->scrollTop() + _scroll->height()) {
@@ -1741,14 +1748,14 @@ void OverviewInner::showAll(bool recountHeights) {
 		newHeight = _height = (_vsize + st::overviewPhotoSkip) * rows + st::overviewPhotoSkip;
 	} else if (_type == OverviewAudioDocuments) {
 		int32 count = _hist->_overview[_type].size(), fullCount = _hist->_overviewCount[_type];
-		newHeight = _height = count * _audioHeight;
+		newHeight = _height = count * _audioHeight + 2 * st::playlistPadding;
 	} else {
 		if (recountHeights && _type == OverviewVideos) { // recount heights because of captions
 			mediaOverviewUpdated(true);
 		}
 		newHeight = _height;
 	}
-	_addToY = (_type != OverviewAudioDocuments && _height < _minHeight) ? (_minHeight - _height) : 0;
+	_addToY = (_type == OverviewAudioDocuments) ? st::playlistPadding : ((_height < _minHeight) ? (_minHeight - _height) : 0);
 	if (newHeight < _minHeight) {
 		newHeight = _minHeight;
 	}

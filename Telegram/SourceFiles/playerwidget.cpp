@@ -494,15 +494,24 @@ void PlayerWidget::updateState(SongMsgId playing, AudioPlayerState playingState,
 	} else if (_song) {
 		display = _song.song->song()->duration;
 	}
-	QString time = (_down == OverPlayback) ? _time : formatDurationText(display);
 	bool showPause = false, stopped = ((playingState & AudioPlayerStoppedMask) || playingState == AudioPlayerFinishing);
 	bool wasPlaying = !!_duration;
 	if (!stopped) {
 		showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
 	}
-	float64 progress = duration ? snap(float64(position) / duration, 0., 1.) : 0.;
-	int32 loaded = duration ? _song.song->size : (_song.song->loader ? _song.song->loader->currentOffset() : 0);
-	float64 loadProgress = (duration || !_song.song->loader) ? 1. : snap(float64(loaded) / qMax(_song.song->size, 1), 0., 1.);
+	QString time;
+	float64 progress = 0.;
+	int32 loaded;
+	float64 loadProgress = 1.;
+	if (duration || !_song.song->loader) {
+		time = (_down == OverPlayback) ? _time : formatDurationText(display);
+		progress = duration ? snap(float64(position) / duration, 0., 1.) : 0.;
+		loaded = duration ? _song.song->size : 0;
+	} else {
+		loaded = _song.song->loader ? _song.song->loader->currentOffset() : 0;
+		time = formatDownloadText(loaded, _song.song->size);
+		loadProgress = snap(float64(loaded) / qMax(_song.song->size, 1), 0., 1.);
+	}
 	if (time != _time || showPause != _showPause) {
 		if (_time != time) {
 			_time = time;

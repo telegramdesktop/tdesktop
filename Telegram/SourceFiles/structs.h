@@ -120,11 +120,35 @@ private:
 	PeerData *_peer;
 };
 
-struct BotCommand {
-	BotCommand(const QString &command, const QString &description) : command(command), description(description) {
+class BotCommand {
+public:
+	BotCommand(const QString &command, const QString &description) : command(command), _description(description) {
+		
 	}
-	QString command, description;
+	QString command;
+
+	bool setDescription(const QString &description) {
+		if (_description != description) {
+			_description = description;
+			_descriptionText = Text();
+			return true;
+		}
+		return false;
+	}
+
+	const Text &descriptionText() const {
+		if (_descriptionText.isEmpty() && !_description.isEmpty()) {
+			_descriptionText.setText(st::mentionFont, _description, _textNameOptions);
+		}
+		return _descriptionText;
+	}
+
+private:
+	QString _description;
+	mutable Text _descriptionText;
+
 };
+
 struct BotInfo {
 	BotInfo() : inited(false), readsAllHistory(false), cantJoinGroups(false), version(0), text(st::msgMinWidth) {
 	}
