@@ -868,6 +868,8 @@ defaultTextStyle: textStyle {
 	lineHeight: 0px;
 }
 serviceTextStyle: textStyle(defaultTextStyle) {
+	lnkFlags: msgServiceFont;
+	lnkOverFlags: font(fsize semibold underline);
 	lnkColor: msgServiceColor;
 	lnkDownColor: msgServiceColor;
 	selectBg: msgServiceSelectBg;

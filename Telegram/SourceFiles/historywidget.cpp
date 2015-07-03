@@ -3954,7 +3954,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 
 		_field.setMaxHeight(st::maxFieldHeight);
 
-		_kbReplyTo = App::histItemById(_keyboard.forMsgId());
+		_kbReplyTo = (hist->peer->chat || _keyboard.forceReply()) ? App::histItemById(_keyboard.forMsgId()) : 0;
 		if (_kbReplyTo && !_replyToId) {
 			updateReplyToName();
 			_replyToText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);
@@ -3970,7 +3970,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		int32 maxh = qMin(_keyboard.height(), int(st::maxFieldHeight) - (int(st::maxFieldHeight) / 2));
 		_field.setMaxHeight(st::maxFieldHeight - maxh);
 
-		_kbReplyTo = hist->peer->chat ? App::histItemById(_keyboard.forMsgId()) : 0;
+		_kbReplyTo = (hist->peer->chat || _keyboard.forceReply()) ? App::histItemById(_keyboard.forMsgId()) : 0;
 		if (_kbReplyTo && !_replyToId) {
 			updateReplyToName();
 			_replyToText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);
@@ -4559,6 +4559,10 @@ void HistoryWidget::itemRemoved(HistoryItem *item) {
 	if (item == _replyReturn) {
 		calcNextReplyReturn();
 	}
+	if (_kbReplyTo && item == _kbReplyTo) {
+		onKbToggle();
+		_kbReplyTo = 0;
+	}
 }
 
 void HistoryWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
@@ -4727,7 +4731,7 @@ void HistoryWidget::updateBotKeyboard() {
 			int32 maxh = hasMarkup ? qMin(_keyboard.height(), int(st::maxFieldHeight) - (int(st::maxFieldHeight) / 2)) : 0;
 			_field.setMaxHeight(st::maxFieldHeight - maxh);
 			_kbShown = hasMarkup;
-			_kbReplyTo = hist->peer->chat ? App::histItemById(_keyboard.forMsgId()) : 0;
+			_kbReplyTo = (hist->peer->chat || _keyboard.forceReply()) ? App::histItemById(_keyboard.forMsgId()) : 0;
 			if (_kbReplyTo && !_replyToId) {
 				updateReplyToName();
 				_replyToText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);

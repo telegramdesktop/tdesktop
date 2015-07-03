@@ -1625,16 +1625,19 @@ public:
 	void eSetFont(ITextBlock *block) {
 		style::font newFont = _t->_font;
 		int flags = block->flags();
+		if (flags) {
+			newFont = applyFlags(flags, _t->_font);
+		}
 		if (block->lnkIndex()) {
 			const TextLinkPtr &l(_t->_links.at(block->lnkIndex() - 1));
 			if (l == _overLnk) {
 				if (l == _downLnk || !_downLnk) {
-					newFont = _textStyle->lnkOverFlags;
+					if (_t->_font != _textStyle->lnkOverFlags) newFont = _textStyle->lnkOverFlags;
 				} else {
-					newFont = _textStyle->lnkFlags;
+					if (_t->_font != _textStyle->lnkFlags) newFont = _textStyle->lnkFlags;
 				}
 			} else {
-				newFont = _textStyle->lnkFlags;
+				if (_t->_font != _textStyle->lnkFlags) newFont = _textStyle->lnkFlags;
 			}
 		}
 		if (newFont != _f) {
