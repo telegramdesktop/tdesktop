@@ -353,7 +353,7 @@ MainWidget *TopBarWidget::main() {
 MainWidget::MainWidget(Window *window) : QWidget(window),
 _started(0), failedObjId(0), _toForwardNameVersion(0), _dialogsWidth(st::dlgMinWidth),
 dialogs(this), history(this), profile(0), overview(0), _player(this), _topBar(this),
-_forwardConfirm(0), hider(0), _contentScrollAddToY(0), _playerHeight(0), _mediaType(this), _mediaTypeMask(0),
+_forwardConfirm(0), hider(0), _playerHeight(0), _contentScrollAddToY(0), _mediaType(this), _mediaTypeMask(0),
 updGoodPts(0), updLastPts(0), updPtsCount(0), updDate(0), updQts(-1), updSeq(0), updInited(false), updSkipPtsUpdateLevel(0),
 _onlineRequest(0), _lastWasOnline(false), _lastSetOnline(0), _isIdle(false),
 _failDifferenceTimeout(1), _lastUpdateTime(0), _cachedX(0), _cachedY(0), _background(0), _api(new ApiWrap(this)) {
