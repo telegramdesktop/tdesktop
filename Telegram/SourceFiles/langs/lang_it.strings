@@ -368,6 +368,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_files_header" = "Panoramica file";
 "lng_profile_audios" = "{count:_not_used_|# nota vocale|# note vocali} »";
 "lng_profile_audios_header" = "Panoramica note vocali";
+"lng_profile_audio_files_header" = "Playlist";
 "lng_profile_show_all_types" = "Mostra tutti i tipi";
 "lng_profile_copy_phone" = "Copia numero di telefono";
 
@@ -602,7 +603,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli update è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "— Inoltra foto, media e sticker trascinandoli e rilasciandoli\n— Trascina e rilascia messaggi di testo premendo sull'orario per inoltrarli\n— Pannello degli sticker più largo\n— Aggiunto checkbox per l'IPv6 nelle Impostazioni di Connessione";
+"lng_new_version_text" = "— Riproduzione dei media migliorata\n— Risoluzione di bug e miglioramenti minori";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 
