@@ -1426,7 +1426,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 				if (j == notifyWhenMaps.end()) {
 					history->clearNotifications();
 					i = notifyWaiters.erase(i);
-					if (notifyHistory) notifyWaiter = notifyWaiters.find(notifyHistory);
+					notifyWaiter = notifyHistory ? notifyWaiters.find(notifyHistory) : notifyWaiters.end();
 					continue;
 				}
 				do {
@@ -1442,7 +1442,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 			if (!history->currentNotification()) {
 				notifyWhenMaps.remove(history);
 				i = notifyWaiters.erase(i);
-				if (notifyHistory) notifyWaiter = notifyWaiters.find(notifyHistory);
+				notifyWaiter = notifyHistory ? notifyWaiters.find(notifyHistory) : notifyWaiters.end();
 				continue;
 			}
 			uint64 when = i.value().when;
