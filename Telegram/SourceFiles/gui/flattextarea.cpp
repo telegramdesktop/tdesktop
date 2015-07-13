@@ -654,7 +654,14 @@ void FlatTextarea::onDocumentContentsChange(int position, int charsRemoved, int 
 	}
 	if (charsAdded <= 0) return;
 
-	_insertions.push_back(Insertion(position, charsAdded));
+	//	_insertions.push_back(Insertion(position, charsAdded));
+	_replacingEmojis = true;
+	QSizeF s = document()->pageSize();
+	processDocumentContentsChange(position, charsAdded);
+	if (document()->pageSize() != s) {
+		document()->setPageSize(s);
+	}
+	_replacingEmojis = false;
 }
 
 void FlatTextarea::onDocumentContentsChanged() {
