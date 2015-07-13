@@ -128,7 +128,8 @@ int32 FlatTextarea::fakeMargin() const {
 
 void FlatTextarea::paintEvent(QPaintEvent *e) {
 	QPainter p(viewport());
-	p.fillRect(rect(), _st.bgColor->b);
+	QRect r(rect().intersected(e->rect()));
+	p.fillRect(r, _st.bgColor->b);
 	bool phDraw = _phVisible;
 	if (animating()) {
 		p.setOpacity(a_phAlpha.current());
@@ -136,7 +137,7 @@ void FlatTextarea::paintEvent(QPaintEvent *e) {
 	}
 	if (phDraw) {
 		p.save();
-		p.setClipRect(rect());
+		p.setClipRect(r);
 		QRect phRect(_st.textMrg.left() - _fakeMargin + _st.phPos.x() + a_phLeft.current(), _st.textMrg.top() - _fakeMargin + _st.phPos.y(), width() - _st.textMrg.left() - _st.textMrg.right(), height() - _st.textMrg.top() - _st.textMrg.bottom());
 		p.setFont(_st.font->f);
 		p.setPen(a_phColor.current());

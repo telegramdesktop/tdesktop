@@ -149,26 +149,12 @@ void PlayerWidget::mousePressEvent(QMouseEvent *e) {
 	if (e->button() == Qt::LeftButton) {
 		_down = OverNone;
 		if (_song && _over == OverPlay) {
-			SongMsgId playing;
-			AudioPlayerState playingState = AudioPlayerStopped;
-			audioPlayer()->currentState(&playing, &playingState);
-			if (playing == _song && !(playingState & AudioPlayerStoppedMask)) {
-				audioPlayer()->pauseresume(OverviewDocuments);
-			} else {
-				audioPlayer()->play(_song);
-				if (App::main()) App::main()->documentPlayProgress(_song);
-			}
+			playPausePressed();
 			return;
 		} else if (_over == OverPrev) {
-			const History::MediaOverview *o = _history ? &_history->_overview[OverviewAudioDocuments] : 0;
-			if (audioPlayer() && o && _index > 0 && _index <= o->size() && !o->isEmpty()) {
-				startPlay(o->at(_index - 1));
-			}
+			prevPressed();
 		} else if (_over == OverNext) {
-			const History::MediaOverview *o = _history ? &_history->_overview[OverviewAudioDocuments] : 0;
-			if (audioPlayer() && o && _index >= 0 && _index < o->size() - 1) {
-				startPlay(o->at(_index + 1));
-			}
+			nextPressed();
 		} else if (_over == OverClose) {
 			_down = OverClose;
 		} else if (_over == OverVolume) {
@@ -411,12 +397,77 @@ void PlayerWidget::mouseReleaseEvent(QMouseEvent *e) {
 		}
 		update();
 	} else if (_down == OverClose && _over == OverClose) {
-		if (_song) {
-			audioPlayer()->stop(OverviewDocuments);
-			if (App::main()) App::main()->hidePlayer();
-		}
+		stopPressed();
 	}
 	_down = OverNone;
+}
+
+void PlayerWidget::playPressed() {
+	if (!_song || isHidden()) return;
+
+	SongMsgId playing;
+	AudioPlayerState playingState = AudioPlayerStopped;
+	audioPlayer()->currentState(&playing, &playingState);
+	if (playing == _song && !(playingState & AudioPlayerStoppedMask)) {
+		if (playingState == AudioPlayerPausing || playingState == AudioPlayerPaused || playingState == AudioPlayerPausedAtEnd) {
+			audioPlayer()->pauseresume(OverviewDocuments);
+		}
+	} else {
+		audioPlayer()->play(_song);
+		if (App::main()) App::main()->documentPlayProgress(_song);
+	}
+}
+
+void PlayerWidget::pausePressed() {
+	if (!_song || isHidden()) return;
+
+	SongMsgId playing;
+	AudioPlayerState playingState = AudioPlayerStopped;
+	audioPlayer()->currentState(&playing, &playingState);
+	if (playing == _song && !(playingState & AudioPlayerStoppedMask)) {
+		if (playingState == AudioPlayerStarting || playingState == AudioPlayerResuming || playingState == AudioPlayerPlaying || playingState == AudioPlayerFinishing) {
+			audioPlayer()->pauseresume(OverviewDocuments);
+		}
+	}
+}
+
+void PlayerWidget::playPausePressed() {
+	if (!_song || isHidden()) return;
+
+	SongMsgId playing;
+	AudioPlayerState playingState = AudioPlayerStopped;
+	audioPlayer()->currentState(&playing, &playingState);
+	if (playing == _song && !(playingState & AudioPlayerStoppedMask)) {
+		audioPlayer()->pauseresume(OverviewDocuments);
+	} else {
+		audioPlayer()->play(_song);
+		if (App::main()) App::main()->documentPlayProgress(_song);
+	}
+}
+
+void PlayerWidget::prevPressed() {
+	if (isHidden() || !_prevAvailable) return;
+
+	const History::MediaOverview *o = _history ? &_history->_overview[OverviewAudioDocuments] : 0;
+	if (audioPlayer() && o && _index > 0 && _index <= o->size() && !o->isEmpty()) {
+		startPlay(o->at(_index - 1));
+	}
+}
+
+void PlayerWidget::nextPressed() {
+	if (isHidden() || !_nextAvailable) return;
+
+	const History::MediaOverview *o = _history ? &_history->_overview[OverviewAudioDocuments] : 0;
+	if (audioPlayer() && o && _index >= 0 && _index < o->size() - 1) {
+		startPlay(o->at(_index + 1));
+	}
+}
+
+void PlayerWidget::stopPressed() {
+	if (!_song || isHidden()) return;
+
+	audioPlayer()->stop(OverviewDocuments);
+	if (App::main()) App::main()->hidePlayer();
 }
 
 void PlayerWidget::resizeEvent(QResizeEvent *e) {

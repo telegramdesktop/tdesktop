@@ -33,7 +33,9 @@ public:
     void clearNotifies(uint64 peer = 0);
     
     void enableShadow(WId winId);
-        
+
+	bool filterNativeEvent(void *event);
+
     virtual void activeSpaceChanged() {
     }
 	virtual void darkModeChanged() {

@@ -33,6 +33,13 @@ public:
 	void mouseReleaseEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
+	void playPressed();
+	void pausePressed();
+	void playPausePressed();
+	void prevPressed();
+	void nextPressed();
+	void stopPressed();
+
 	bool progressStep(float64 ms);
 	bool stateStep(float64 ms);
 
