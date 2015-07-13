@@ -48,28 +48,43 @@ namespace {
 		}
 	}
 
-	class EventFilterForMac : public QObject {
+	class EventFilterForKeys : public QObject {
 	public:
 
-		EventFilterForMac(QObject *parent) : QObject(parent) {
+		EventFilterForKeys(QObject *parent) : QObject(parent) {
 
 		}
 		bool eventFilter(QObject *o, QEvent *e) {
 			if (e->type() == QEvent::KeyPress) {
 				QKeyEvent *ev = static_cast<QKeyEvent*>(e);
-				if (ev->key() == Qt::Key_W && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
-					if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
-						App::wnd()->minimizeToTray();
-						return true;
-					} else {
-						App::wnd()->hide();
-						App::wnd()->updateIsActive(cOfflineBlurTimeout());
-						App::wnd()->updateGlobalMenu();
+				if (cPlatform() == dbipMac) {
+					if (ev->key() == Qt::Key_W && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
+						if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+							App::wnd()->minimizeToTray();
+							return true;
+						} else {
+							App::wnd()->hide();
+							App::wnd()->updateIsActive(cOfflineBlurTimeout());
+							App::wnd()->updateGlobalMenu();
+							return true;
+						}
+					} else if (ev->key() == Qt::Key_M && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
+						App::wnd()->setWindowState(Qt::WindowMinimized);
 						return true;
 					}
-				} else if (ev->key() == Qt::Key_M && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
-					App::wnd()->setWindowState(Qt::WindowMinimized);
-					return true;
+				}
+				if (ev->key() == Qt::Key_MediaPlay) {
+					if (App::main()) App::main()->player()->playPressed();
+				} else if (ev->key() == Qt::Key_MediaPause) {
+					if (App::main()) App::main()->player()->pausePressed();
+				} else if (ev->key() == Qt::Key_MediaTogglePlayPause) {
+					if (App::main()) App::main()->player()->playPausePressed();
+				} else if (ev->key() == Qt::Key_MediaStop) {
+					if (App::main()) App::main()->player()->stopPressed();
+				} else if (ev->key() == Qt::Key_MediaPrevious) {
+					if (App::main()) App::main()->player()->prevPressed();
+				} else if (ev->key() == Qt::Key_MediaNext) {
+					if (App::main()) App::main()->player()->nextPressed();
 				}
 			}
 			return QObject::eventFilter(o, e);
@@ -95,9 +110,8 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	}
 	mainApp = this;
 
-	if (cPlatform() == dbipMac) {
-		installEventFilter(new EventFilterForMac(this));
-	}
+
+	installEventFilter(new EventFilterForKeys(this));
 
     QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Regular.ttf"));
     QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Bold.ttf"));
