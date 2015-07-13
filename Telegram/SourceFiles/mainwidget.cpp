@@ -1575,6 +1575,7 @@ void MainWidget::audioLoadRetry() {
 }
 
 void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
+	bool songPlayActivated = false;
 	DocumentData *document = App::document(loader->objId());
 	if (document->loader) {
 		if (document->loader->done()) {
@@ -1595,6 +1596,8 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 						audioPlayer()->play(song);
 						if (App::main()) App::main()->documentPlayProgress(song);
 					}
+
+					songPlayActivated = true;
 				} else if(document->openOnSave > 0 && document->size < MediaViewImageSizeLimit) {
 					QImageReader reader(already);
 					if (reader.canRead()) {
@@ -1628,7 +1631,7 @@ void MainWidget::documentLoadProgress(mtpFileLoader *loader) {
 	}
 	App::wnd()->documentUpdated(document);
 
-	if (audioPlayer()) {
+	if (!songPlayActivated && audioPlayer()) {
 		SongMsgId playing;
 		AudioPlayerState playingState = AudioPlayerStopped;
 		int64 playingPosition = 0, playingDuration = 0;

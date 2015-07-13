@@ -1341,6 +1341,15 @@ void AudioPlayerLoaders::onStart(const AudioMsgId &audio, qint64 position) {
 	_audio = AudioMsgId();
 	delete _audioLoader;
 	_audioLoader = 0;
+
+	{
+		QMutexLocker lock(&playerMutex);
+		AudioPlayer *voice = audioPlayer();
+		if (!voice) return;
+
+		voice->_audioData[voice->_audioCurrent].loading = true;
+	}
+
 	loadData(OverviewAudios, static_cast<const void*>(&audio), position);
 }
 
@@ -1348,6 +1357,15 @@ void AudioPlayerLoaders::onStart(const SongMsgId &song, qint64 position) {
 	_song = SongMsgId();
 	delete _songLoader;
 	_songLoader = 0;
+
+	{
+		QMutexLocker lock(&playerMutex);
+		AudioPlayer *voice = audioPlayer();
+		if (!voice) return;
+
+		voice->_songData[voice->_songCurrent].loading = true;
+	}
+
 	loadData(OverviewDocuments, static_cast<const void*>(&song), position);
 }
 
@@ -1404,15 +1422,25 @@ void AudioPlayerLoaders::loadData(MediaOverviewType type, const void *objId, qin
 		return;
 	}
 
-	bool started = (err == SetupNoErrorStarted), finished = false;
+	bool started = (err == SetupNoErrorStarted), finished = false, errAtStart = started;
 
 	QByteArray result;
 	int64 samplesAdded = 0, frequency = l->frequency(), format = l->format();
 	while (result.size() < AudioVoiceMsgBufferSize) {
 		if (!l->readMore(result, samplesAdded)) {
+			if (errAtStart) {
+				{
+					QMutexLocker lock(&playerMutex);
+					AudioPlayer::Msg *m = checkLoader(type);
+					if (m) m->state = AudioPlayerStoppedAtStart;
+				}
+				emitError(type);
+				return;
+			}
 			finished = true;
 			break;
 		}
+		errAtStart = false;
 
 		QMutexLocker lock(&playerMutex);
 		if (!checkLoader(type)) {
