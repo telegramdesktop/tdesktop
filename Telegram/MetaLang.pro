@@ -27,7 +27,7 @@ HEADERS += \
     ./SourceFiles/_other/mlmain.h \
     ./SourceFiles/_other/genlang.h \
 
-INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.4.0/QtGui\
-               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.4.0/QtCore\
+INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.0/QtGui\
+               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.5.0/QtCore\
                ./../../Libraries/QtStatic/qtbase/include\
 
