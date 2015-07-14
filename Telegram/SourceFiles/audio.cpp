@@ -1010,7 +1010,7 @@ public:
 	virtual int64 duration() = 0;
 	virtual int32 frequency() = 0;
 	virtual int32 format() = 0;
-	virtual bool readMore(QByteArray &result, int64 &samplesAdded) = 0;
+	virtual int readMore(QByteArray &result, int64 &samplesAdded) = 0; // < 0 - error, 0 - nothing read, > 0 - read something
 
 protected:
 
@@ -1189,14 +1189,14 @@ public:
 		return fmt;
 	}
 
-	bool readMore(QByteArray &result, int64 &samplesAdded) {
+	int readMore(QByteArray &result, int64 &samplesAdded) {
 		int res;
 		if ((res = av_read_frame(fmtContext, &avpkt)) < 0) {
 			if (res != AVERROR_EOF) {
 				char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 				LOG(("Audio Error: Unable to av_read_frame() file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 			}
-			return false;
+			return -1;
 		}
 		if (avpkt.stream_index == streamId) {
 			av_frame_unref(frame);
@@ -1204,7 +1204,10 @@ public:
 			if ((res = avcodec_decode_audio4(codecContext, frame, &got_frame, &avpkt)) < 0) {
 				char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 				LOG(("Audio Error: Unable to avcodec_decode_audio4() file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-				return false;
+
+				av_free_packet(&avpkt);
+				if (res == AVERROR_INVALIDDATA) return 0; // try to skip bad packet
+				return -1;
 			}
 
 			if (got_frame) {
@@ -1218,13 +1221,17 @@ public:
 							dstSamplesData[0] = 0;
 							char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 							LOG(("Audio Error: Unable to av_samples_alloc for file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-							return false;
+
+							av_free_packet(&avpkt);
+							return -1;
 						}
 					}
 					if ((res = swr_convert(swrContext, dstSamplesData, dstSamples, (const uint8_t**)frame->extended_data, frame->nb_samples)) < 0) {
 						char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 						LOG(("Audio Error: Unable to swr_convert for file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
-						return false;
+
+						av_free_packet(&avpkt);
+						return -1;
 					}
 					int32 resultLen = av_samples_get_buffer_size(0, _toChannels, res, _toFormat, 1);
 					result.append((const char*)dstSamplesData[0], resultLen);
@@ -1236,7 +1243,7 @@ public:
 			}
 		}
 		av_free_packet(&avpkt);
-		return true;
+		return 1;
 	}
 
 	~FFMpegLoader() {
@@ -1427,7 +1434,8 @@ void AudioPlayerLoaders::loadData(MediaOverviewType type, const void *objId, qin
 	QByteArray result;
 	int64 samplesAdded = 0, frequency = l->frequency(), format = l->format();
 	while (result.size() < AudioVoiceMsgBufferSize) {
-		if (!l->readMore(result, samplesAdded)) {
+		int res = l->readMore(result, samplesAdded);
+		if (res < 0) {
 			if (errAtStart) {
 				{
 					QMutexLocker lock(&playerMutex);
@@ -1440,7 +1448,7 @@ void AudioPlayerLoaders::loadData(MediaOverviewType type, const void *objId, qin
 			finished = true;
 			break;
 		}
-		errAtStart = false;
+		if (res > 0) errAtStart = false;
 
 		QMutexLocker lock(&playerMutex);
 		if (!checkLoader(type)) {
@@ -2309,9 +2317,9 @@ public:
 		return _coverFormat;
 	}
 
-	bool readMore(QByteArray &result, int64 &samplesAdded) {
+	int readMore(QByteArray &result, int64 &samplesAdded) {
 		DEBUG_LOG(("Audio Read Error: should not call this"));
-		return false;
+		return -1;
 	}
 
 	~FFMpegAttributesReader() {

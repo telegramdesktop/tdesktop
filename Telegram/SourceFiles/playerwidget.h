@@ -65,6 +65,7 @@ private:
 		OverClose,
 		OverVolume,
 		OverFull,
+		OverRepeat,
 		OverPlayback,
 
 		OverStateCount
@@ -97,8 +98,9 @@ private:
 	int32 _index;
 	History *_history;
 	QRect _playRect, _prevRect, _nextRect, _playbackRect;
-	QRect _closeRect, _volumeRect, _fullRect, _infoRect;
+	QRect _closeRect, _volumeRect, _fullRect, _repeatRect, _infoRect;
 	int32 _timeWidth;
+	bool _repeat;
 	QString _time;
 	Text _name;
 	bool _showPause;
