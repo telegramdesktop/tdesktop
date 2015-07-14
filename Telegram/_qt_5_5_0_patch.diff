@@ -64,6 +64,19 @@ index 0907653..96f6e19 100644
      {
      /* High surrogate. Must be a followed by a low surrogate. */
      if (length == 0)
+diff --git a/qtbase/src/corelib/kernel/qobjectdefs.h b/qtbase/src/corelib/kernel/qobjectdefs.h
+index 4d01264..fd3854f 100644
+--- a/qtbase/src/corelib/kernel/qobjectdefs.h
++++ b/qtbase/src/corelib/kernel/qobjectdefs.h
+@@ -142,7 +142,7 @@ inline void qYouForgotTheQ_OBJECT_Macro(T1, T2) {}
+ # define Q_DECL_HIDDEN_STATIC_METACALL Q_DECL_HIDDEN
+ #endif
+ 
+-#if defined(Q_CC_CLANG) && Q_CC_CLANG >= 306
++#if defined(Q_CC_CLANG) && Q_CC_CLANG >= 306 && false
+ #  define Q_OBJECT_NO_OVERRIDE_WARNING      QT_WARNING_DISABLE_CLANG("-Winconsistent-missing-override")
+ #else
+ #  define Q_OBJECT_NO_OVERRIDE_WARNING
 diff --git a/qtbase/src/corelib/tools/qunicodetables.cpp b/qtbase/src/corelib/tools/qunicodetables.cpp
 index 73dce81..76c6933 100644
 --- a/qtbase/src/corelib/tools/qunicodetables.cpp
