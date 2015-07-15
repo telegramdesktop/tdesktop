@@ -622,18 +622,79 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 		result = new HistoryServiceMsg(this, block, msg.c_messageEmpty().vid.v, date(), lang(lng_message_empty));
 	break;
 
-	case mtpc_message:
-		if ((msg.c_message().has_fwd_date() && msg.c_message().vfwd_date.v > 0) || (msg.c_message().has_fwd_from_id() && msg.c_message().vfwd_from_id.v != 0)) {
-			result = new HistoryForwarded(this, block, msg.c_message());
-		} else if (msg.c_message().has_reply_to_msg_id() && msg.c_message().vreply_to_msg_id.v > 0) {
-			result = new HistoryReply(this, block, msg.c_message());
+	case mtpc_message: {
+		const MTPDmessage m(msg.c_message());
+		int badMedia = 0; // 1 - unsupported, 2 - empty
+		switch (m.vmedia.type()) {
+		case mtpc_messageMediaEmpty: break;
+		case mtpc_messageMediaGeo:
+			switch (m.vmedia.c_messageMediaGeo().vgeo.type()) {
+			case mtpc_geoPoint: break;
+			case mtpc_geoPointEmpty: badMedia = 2; break;
+			default: badMedia = 1; break;
+			}
+			break;
+		case mtpc_messageMediaVenue:
+			switch (m.vmedia.c_messageMediaVenue().vgeo.type()) {
+			case mtpc_geoPoint: break;
+			case mtpc_geoPointEmpty: badMedia = 2; break;
+			default: badMedia = 1; break;
+			}
+			break;
+		case mtpc_messageMediaPhoto:
+			switch (m.vmedia.c_messageMediaPhoto().vphoto.type()) {
+			case mtpc_photo: break;
+			case mtpc_photoEmpty: badMedia = 2; break;
+			default: badMedia = 1; break;
+			}
+			break;
+		case mtpc_messageMediaVideo:
+			switch (m.vmedia.c_messageMediaVideo().vvideo.type()) {
+			case mtpc_video: break;
+			case mtpc_videoEmpty: badMedia = 2; break;
+			default: badMedia = 1; break;
+			}
+			break;
+		case mtpc_messageMediaAudio:
+			switch (m.vmedia.c_messageMediaAudio().vaudio.type()) {
+			case mtpc_audio: break;
+			case mtpc_audioEmpty: badMedia = 2; break;
+			default: badMedia = 1; break;
+			}
+			break;
+		case mtpc_messageMediaDocument:
+			switch (m.vmedia.c_messageMediaDocument().vdocument.type()) {
+			case mtpc_document: break;
+			case mtpc_documentEmpty: badMedia = 2; break;
+			default: badMedia = 1; break;
+			}
+			break;
+		case mtpc_messageMediaWebPage:
+			switch (m.vmedia.c_messageMediaWebPage().vwebpage.type()) {
+			case mtpc_webPage:
+			case mtpc_webPageEmpty:
+			case mtpc_webPagePending: break;
+			default: badMedia = 1; break;
+			}
+			break;
+		case mtpc_messageMediaUnsupported:
+		default: badMedia = 1; break;
+		}
+		if (badMedia) {
+			result = new HistoryServiceMsg(this, block, m.vid.v, date(m.vdate), lang((badMedia == 2) ? lng_message_empty : lng_media_unsupported), m.vflags.v, 0, m.vfrom_id.v);
 		} else {
-			result = new HistoryMessage(this, block, msg.c_message());
+			if ((m.has_fwd_date() && m.vfwd_date.v > 0) || (m.has_fwd_from_id() && m.vfwd_from_id.v != 0)) {
+				result = new HistoryForwarded(this, block, m);
+			} else if (m.has_reply_to_msg_id() && m.vreply_to_msg_id.v > 0) {
+				result = new HistoryReply(this, block, m);
+			} else {
+				result = new HistoryMessage(this, block, m);
+			}
+			if (m.has_reply_markup()) {
+				App::feedReplyMarkup(msgId, m.vreply_markup);
+			}
 		}
-		if (msg.c_message().has_reply_markup()) {
-			App::feedReplyMarkup(msgId, msg.c_message().vreply_markup);
-		}
-	break;
+	} break;
 
 	case mtpc_messageService: {
 		const MTPDmessageService &d(msg.c_messageService());
@@ -4938,7 +4999,6 @@ void HistoryMessage::initTime() {
 
 void HistoryMessage::initMedia(const MTPMessageMedia &media, QString &currentText) {
 	switch (media.type()) {
-	case mtpc_messageMediaEmpty: initMediaFromText(currentText); break;
 	case mtpc_messageMediaContact: {
 		const MTPDmessageMediaContact &d(media.c_messageMediaContact());
 		_media = new HistoryContact(d.vuser_id.v, qs(d.vfirst_name), qs(d.vlast_name), qs(d.vphone_number));
@@ -4995,8 +5055,7 @@ void HistoryMessage::initMedia(const MTPMessageMedia &media, QString &currentTex
 		} break;
 		}
 	} break;
-	case mtpc_messageMediaUnsupported:
-	default: currentText += " (unsupported media)"; break;
+	default: initMediaFromText(currentText); break;
 	};
 	if (_media) _media->regItem(this);
 }
@@ -6020,8 +6079,8 @@ HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, cons
 	setMessageByAction(msg.vaction);
 }
 
-HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, int32 flags, HistoryMedia *media) :
-	HistoryItem(history, block, msgId, flags, date, 0)
+HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, int32 flags, HistoryMedia *media, int32 from) :
+	HistoryItem(history, block, msgId, flags, date, from)
 , _text(st::msgServiceFont, msg, _historySrvOptions, st::dlgMinWidth)
 , _media(media)
 {

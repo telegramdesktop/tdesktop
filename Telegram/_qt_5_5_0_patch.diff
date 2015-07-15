@@ -126,6 +126,22 @@ index 8b2b988..2d1cdd9 100644
      virtual void setFilter() = 0;
      virtual void selectNameFilter(const QString &filter) = 0;
      virtual QString selectedNameFilter() const = 0;
+diff --git a/qtbase/src/gui/painting/qimagescale.cpp b/qtbase/src/gui/painting/qimagescale.cpp
+index 9b4eabc..a3e0e04 100644
+--- a/qtbase/src/gui/painting/qimagescale.cpp
++++ b/qtbase/src/gui/painting/qimagescale.cpp
+@@ -313,7 +313,10 @@ static void qt_qimageScaleAARGBA_up_xy(QImageScaleInfo *isi, unsigned int *dest,
+             for (int x = dxx; x < end; x++) {
+                 const unsigned int *pix = sptr + xpoints[x];
+                 const int xap = xapoints[x];
+-                *dptr = INTERPOLATE_PIXEL_256(pix[0], 256 - xap, pix[1], xap);
++				if (xap > 0)
++					*dptr = INTERPOLATE_PIXEL_256(pix[0], 256 - xap, pix[1], xap);
++				else
++					*dptr = pix[0];
+                 dptr++;
+             }
+         }
 diff --git a/qtbase/src/gui/painting/qpaintengine_p.h b/qtbase/src/gui/painting/qpaintengine_p.h
 index c58662e..468d671 100644
 --- a/qtbase/src/gui/painting/qpaintengine_p.h

@@ -1439,7 +1439,7 @@ class HistoryServiceMsg : public HistoryItem {
 public:
 
 	HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDmessageService &msg);
-	HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, int32 flags = 0, HistoryMedia *media = 0);
+	HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, int32 flags = 0, HistoryMedia *media = 0, int32 from = 0);
 
 	void initDimensions(const HistoryItem *parent = 0);
 
