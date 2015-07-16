@@ -120,11 +120,35 @@ private:
 	PeerData *_peer;
 };
 
-struct BotCommand {
-	BotCommand(const QString &command, const QString &description) : command(command), description(description) {
+class BotCommand {
+public:
+	BotCommand(const QString &command, const QString &description) : command(command), _description(description) {
+		
 	}
-	QString command, description;
+	QString command;
+
+	bool setDescription(const QString &description) {
+		if (_description != description) {
+			_description = description;
+			_descriptionText = Text();
+			return true;
+		}
+		return false;
+	}
+
+	const Text &descriptionText() const {
+		if (_descriptionText.isEmpty() && !_description.isEmpty()) {
+			_descriptionText.setText(st::mentionFont, _description, _textNameOptions);
+		}
+		return _descriptionText;
+	}
+
+private:
+	QString _description;
+	mutable Text _descriptionText;
+
 };
+
 struct BotInfo {
 	BotInfo() : inited(false), readsAllHistory(false), cantJoinGroups(false), version(0), text(st::msgMinWidth) {
 	}
@@ -413,6 +437,27 @@ struct AudioData {
 	int32 md5[8];
 };
 
+struct AudioMsgId {
+	AudioMsgId() : audio(0), msgId(0) {
+	}
+	AudioMsgId(AudioData *audio, MsgId msgId) : audio(audio), msgId(msgId) {
+	}
+	operator bool() const {
+		return audio;
+	}
+	AudioData *audio;
+	MsgId msgId;
+};
+inline bool operator<(const AudioMsgId &a, const AudioMsgId &b) {
+	return quintptr(a.audio) < quintptr(b.audio) || (quintptr(a.audio) == quintptr(b.audio) && a.msgId < b.msgId);
+}
+inline bool operator==(const AudioMsgId &a, const AudioMsgId &b) {
+	return a.audio == b.audio && a.msgId == b.msgId;
+}
+inline bool operator!=(const AudioMsgId &a, const AudioMsgId &b) {
+	return !(a == b);
+}
+
 class AudioLink : public ITextLink {
 	TEXT_LINK_CLASS(AudioLink)
 
@@ -455,7 +500,18 @@ public:
 	void onClick(Qt::MouseButton button) const;
 };
 
-struct StickerData {
+enum DocumentType {
+	FileDocument     = 0,
+	VideoDocument    = 1,
+	SongDocument     = 2,
+	StickerDocument  = 3,
+	AnimatedDocument = 4,
+};
+
+struct DocumentAdditionalData {
+};
+
+struct StickerData : public DocumentAdditionalData {
 	StickerData() : set(MTP_inputStickerSetEmpty()) {
 	}
 	ImagePtr img;
@@ -467,20 +523,20 @@ struct StickerData {
 	StorageImageLocation loc; // doc thumb location
 };
 
-enum DocumentType {
-	FileDocument     = 0,
-	VideoDocument    = 1,
-	AudioDocument    = 2,
-	StickerDocument  = 3,
-	AnimatedDocument = 4,
+struct SongData : public DocumentAdditionalData {
+	SongData() : duration(0) {
+	}
+	int32 duration;
+	QString title, performer;
 };
+
 struct DocumentData {
 	DocumentData(const DocumentId &id, const uint64 &access = 0, int32 date = 0, const QVector<MTPDocumentAttribute> &attributes = QVector<MTPDocumentAttribute>(), const QString &mime = QString(), const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
 	void setattributes(const QVector<MTPDocumentAttribute> &attributes);
 
 	void forget() {
 		thumb->forget();
-		if (sticker) sticker->img->forget();
+		if (sticker()) sticker()->img->forget();
 		replyPreview->forget();
 	}
 
@@ -510,15 +566,20 @@ struct DocumentData {
 		loader = 0;
 	}
 	~DocumentData() {
-		delete sticker;
+		delete _additional;
 	}
 
 	QString already(bool check = false);
+	StickerData *sticker() {
+		return (type == StickerDocument) ? static_cast<StickerData*>(_additional) : 0;
+	}
+	SongData *song() {
+		return (type == SongDocument) ? static_cast<SongData*>(_additional) : 0;
+	}
 
 	DocumentId id;
 	DocumentType type;
 	QSize dimensions;
-	int32 duration;
 	uint64 access;
 	int32 date;
 	QString name, mime;
@@ -534,10 +595,31 @@ struct DocumentData {
 	FileLocation location;
 
 	QByteArray data;
-	StickerData *sticker;
+	DocumentAdditionalData *_additional;
 
 	int32 md5[8];
 };
+
+struct SongMsgId {
+	SongMsgId() : song(0), msgId(0) {
+	}
+	SongMsgId(DocumentData *song, MsgId msgId) : song(song), msgId(msgId) {
+	}
+	operator bool() const {
+		return song;
+	}
+	DocumentData *song;
+	MsgId msgId;
+};
+inline bool operator<(const SongMsgId &a, const SongMsgId &b) {
+	return quintptr(a.song) < quintptr(b.song) || (quintptr(a.song) == quintptr(b.song) && a.msgId < b.msgId);
+}
+inline bool operator==(const SongMsgId &a, const SongMsgId &b) {
+	return a.song == b.song && a.msgId == b.msgId;
+}
+inline bool operator!=(const SongMsgId &a, const SongMsgId &b) {
+	return !(a == b);
+}
 
 class DocumentLink : public ITextLink {
 	TEXT_LINK_CLASS(DocumentLink)
@@ -569,6 +651,7 @@ class DocumentOpenLink : public DocumentLink {
 public:
 	DocumentOpenLink(DocumentData *document) : DocumentLink(document) {
 	}
+	static void doOpen(DocumentData *document);
 	void onClick(Qt::MouseButton button) const;
 };
 

@@ -25,14 +25,19 @@ void audioPlayNotify();
 void audioFinish();
 
 enum AudioPlayerState {
-	AudioPlayerStopped,
-	AudioPlayerStoppedAtStart,
-	AudioPlayerStarting,
-	AudioPlayerPlaying,
-	AudioPlayerFinishing,
-	AudioPlayerPausing,
-	AudioPlayerPaused,
-	AudioPlayerResuming,
+	AudioPlayerStopped        = 0x01,
+	AudioPlayerStoppedAtEnd   = 0x02,
+	AudioPlayerStoppedAtError = 0x03,
+	AudioPlayerStoppedAtStart = 0x04,
+	AudioPlayerStoppedMask    = 0x07,
+
+	AudioPlayerStarting       = 0x08,
+	AudioPlayerPlaying        = 0x10,
+	AudioPlayerFinishing      = 0x18,
+	AudioPlayerPausing        = 0x20,
+	AudioPlayerPaused         = 0x28,
+	AudioPlayerPausedAtEnd    = 0x30,
+	AudioPlayerResuming       = 0x38,
 };
 
 class AudioPlayerFader;
@@ -45,39 +50,68 @@ public:
 
 	AudioPlayer();
 
-	void play(AudioData *audio);
-	void pauseresume();
+	void play(const AudioMsgId &audio, int64 position = 0);
+	void play(const SongMsgId &song, int64 position = 0);
+	void pauseresume(MediaOverviewType type, bool fast = false);
+	void seek(int64 position); // type == OverviewDocuments
+	void stop(MediaOverviewType type);
 
-	void currentState(AudioData **audio, AudioPlayerState *state = 0, int64 *position = 0, int64 *duration = 0, int32 *frequency = 0);
-	void clearStoppedAtStart(AudioData *audio);
+	void currentState(AudioMsgId *audio, AudioPlayerState *state = 0, int64 *position = 0, int64 *duration = 0, int32 *frequency = 0);
+	void currentState(SongMsgId *song, AudioPlayerState *state = 0, int64 *position = 0, int64 *duration = 0, int32 *frequency = 0);
+
+	void clearStoppedAtStart(const AudioMsgId &audio);
+	void clearStoppedAtStart(const SongMsgId &song);
+
 	void resumeDevice();
 
 	~AudioPlayer();
 
 public slots:
 
-	void onError(AudioData *audio);
+	void onError(const AudioMsgId &audio);
+	void onError(const SongMsgId &song);
+
+	void onStopped(const AudioMsgId &audio);
+	void onStopped(const SongMsgId &song);
 
 signals:
 
-	void updated(AudioData *audio);
-	void stopped(AudioData *audio);
+	void updated(const AudioMsgId &audio);
+	void updated(const SongMsgId &song);
+
+	void stopped(const AudioMsgId &audio);
+	void stopped(const SongMsgId &song);
+
+	void stoppedOnError(const AudioMsgId &audio);
+	void stoppedOnError(const SongMsgId &song);
+
+	void loaderOnStart(const AudioMsgId &audio, qint64 position);
+	void loaderOnStart(const SongMsgId &song, qint64 position);
+
+	void loaderOnCancel(const AudioMsgId &audio);
+	void loaderOnCancel(const SongMsgId &song);
 
 	void faderOnTimer();
-	void loaderOnStart(AudioData *audio);
-	void loaderOnCancel(AudioData *audio);
+
+	void suppressSong();
+	void unsuppressSong();
+	void suppressAll();
+
+	void songVolumeChanged();
 
 private:
 
-	bool updateCurrentStarted(int32 pos = -1);
+	bool fadedStop(MediaOverviewType type, bool *fadedStart = 0);
+	bool updateCurrentStarted(MediaOverviewType type, int32 pos = -1);
+	bool checkCurrentALError(MediaOverviewType type);
 
 	struct Msg {
-		Msg() : audio(0), position(0), duration(0), frequency(AudioVoiceMsgFrequency), skipStart(0), skipEnd(0), loading(0), started(0),
+		Msg() : position(0), duration(0), frequency(AudioVoiceMsgFrequency), skipStart(0), skipEnd(0), loading(0), started(0),
 			state(AudioPlayerStopped), source(0), nextBuffer(0) {
 			memset(buffers, 0, sizeof(buffers));
 			memset(samplesCount, 0, sizeof(samplesCount));
 		}
-		AudioData *audio;
+
 		QString fname;
 		QByteArray data;
 		int64 position, duration;
@@ -92,9 +126,25 @@ private:
 		uint32 buffers[3];
 		int64 samplesCount[3];
 	};
+	struct AudioMsg : public Msg {
+		AudioMsg() {
+		}
+		AudioMsgId audio;
+	};
+	struct SongMsg : public Msg {
+		SongMsg() {
+		}
+		SongMsgId song;
+	};
 
-	int32 _current;
-	Msg _data[AudioVoiceMsgSimultaneously];
+	void currentState(Msg *current, AudioPlayerState *state, int64 *position, int64 *duration, int32 *frequency);
+	void setStoppedState(Msg *current, AudioPlayerState state = AudioPlayerStopped);
+
+	int32 _audioCurrent;
+	AudioMsg _audioData[AudioVoiceMsgSimultaneously];
+
+	int32 _songCurrent;
+	SongMsg _songData[AudioSongSimultaneously];
 
 	QMutex _mutex;
 
@@ -154,10 +204,14 @@ public:
 
 signals:
 
-	void error(AudioData *audio);
-	void playPositionUpdated(AudioData *audio);
-	void audioStopped(AudioData *audio);
-	void needToPreload(AudioData *audio);
+	void error(const AudioMsgId &audio);
+	void error(const SongMsgId &audio);
+	void playPositionUpdated(const AudioMsgId &audio);
+	void playPositionUpdated(const SongMsgId &audio);
+	void audioStopped(const AudioMsgId &audio);
+	void audioStopped(const SongMsgId &audio);
+	void needToPreload(const AudioMsgId &audio);
+	void needToPreload(const SongMsgId &audio);
 
 	void stopPauseDevice();
 
@@ -168,11 +222,29 @@ public slots:
 	void onPauseTimer();
 	void onPauseTimerStop();
 
+	void onSuppressSong();
+	void onUnsuppressSong();
+	void onSuppressAll();
+	void onSongVolumeChanged();
+
 private:
+
+	enum {
+		EmitError           = 0x01,
+		EmitStopped         = 0x02,
+		EmitPositionUpdated = 0x04,
+		EmitNeedToPreload   = 0x08,
+	};
+	int32 updateOnePlayback(AudioPlayer::Msg *m, bool &hasPlaying, bool &hasFading, float64 suppressGain, bool suppressGainChanged);
+	void setStoppedState(AudioPlayer::Msg *m, AudioPlayerState state = AudioPlayerStopped);
 
 	QTimer _timer, _pauseTimer;
 	QMutex _pauseMutex;
 	bool _pauseFlag, _paused;
+
+	bool _suppressAll, _suppressAllAnim, _suppressSong, _suppressSongAnim, _songVolumeChanged;
+	anim::fvalue _suppressAllGain, _suppressSongGain;
+	uint64 _suppressAllStart, _suppressSongStart;
 
 };
 
@@ -187,22 +259,46 @@ public:
 
 signals:
 
-	void error(AudioData *audio);
+	void error(const AudioMsgId &audio);
+	void error(const SongMsgId &song);
 	void needToCheck();
 
 public slots:
 
 	void onInit();
-	void onStart(AudioData *audio);
-	void onLoad(AudioData *audio);
-	void onCancel(AudioData *audio);
-	
+
+	void onStart(const AudioMsgId &audio, qint64 position);
+	void onStart(const SongMsgId &audio, qint64 position);
+
+	void onLoad(const AudioMsgId &audio);
+	void onLoad(const SongMsgId &audio);
+
+	void onCancel(const AudioMsgId &audio);
+	void onCancel(const SongMsgId &audio);
+
 private:
 
-	typedef QMap<AudioData*, AudioPlayerLoader*> Loaders;
-	Loaders _loaders;
+	AudioMsgId _audio;
+	AudioPlayerLoader *_audioLoader;
 
-	void loadError(Loaders::iterator i);
+	SongMsgId _song;
+	AudioPlayerLoader *_songLoader;
+
+	void emitError(MediaOverviewType type);
+	void clear(MediaOverviewType type);
+	void setStoppedState(AudioPlayer::Msg *m, AudioPlayerState state = AudioPlayerStopped);
+	AudioMsgId clearAudio();
+	SongMsgId clearSong();
+
+	enum SetupError {
+		SetupErrorAtStart    = 0,
+		SetupErrorNotPlaying = 1,
+		SetupErrorLoadedFull = 2,
+		SetupNoErrorStarted  = 3,
+	};
+	void loadData(MediaOverviewType type, const void *objId, qint64 position);
+	AudioPlayerLoader *setupLoader(MediaOverviewType type, const void *objId, SetupError &err, qint64 position);
+	AudioPlayer::Msg *checkLoader(MediaOverviewType type);
 
 };
 
@@ -239,3 +335,5 @@ private:
 	QByteArray _captured;
 
 };
+
+MTPDocumentAttribute audioReadSongAttributes(const QString &fname, const QByteArray &data, QImage &cover, QByteArray &coverBytes, QByteArray &coverFormat);

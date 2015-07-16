@@ -48,28 +48,43 @@ namespace {
 		}
 	}
 
-	class EventFilterForMac : public QObject {
+	class EventFilterForKeys : public QObject {
 	public:
 
-		EventFilterForMac(QObject *parent) : QObject(parent) {
+		EventFilterForKeys(QObject *parent) : QObject(parent) {
 
 		}
 		bool eventFilter(QObject *o, QEvent *e) {
 			if (e->type() == QEvent::KeyPress) {
 				QKeyEvent *ev = static_cast<QKeyEvent*>(e);
-				if (ev->key() == Qt::Key_W && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
-					if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
-						App::wnd()->minimizeToTray();
-						return true;
-					} else {
-						App::wnd()->hide();
-						App::wnd()->updateIsActive(cOfflineBlurTimeout());
-						App::wnd()->updateGlobalMenu();
+				if (cPlatform() == dbipMac) {
+					if (ev->key() == Qt::Key_W && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
+						if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+							App::wnd()->minimizeToTray();
+							return true;
+						} else {
+							App::wnd()->hide();
+							App::wnd()->updateIsActive(cOfflineBlurTimeout());
+							App::wnd()->updateGlobalMenu();
+							return true;
+						}
+					} else if (ev->key() == Qt::Key_M && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
+						App::wnd()->setWindowState(Qt::WindowMinimized);
 						return true;
 					}
-				} else if (ev->key() == Qt::Key_M && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
-					App::wnd()->setWindowState(Qt::WindowMinimized);
-					return true;
+				}
+				if (ev->key() == Qt::Key_MediaPlay) {
+					if (App::main()) App::main()->player()->playPressed();
+				} else if (ev->key() == Qt::Key_MediaPause) {
+					if (App::main()) App::main()->player()->pausePressed();
+				} else if (ev->key() == Qt::Key_MediaTogglePlayPause) {
+					if (App::main()) App::main()->player()->playPausePressed();
+				} else if (ev->key() == Qt::Key_MediaStop) {
+					if (App::main()) App::main()->player()->stopPressed();
+				} else if (ev->key() == Qt::Key_MediaPrevious) {
+					if (App::main()) App::main()->player()->prevPressed();
+				} else if (ev->key() == Qt::Key_MediaNext) {
+					if (App::main()) App::main()->player()->nextPressed();
 				}
 			}
 			return QObject::eventFilter(o, e);
@@ -98,9 +113,8 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	}
 	mainApp = this;
 
-	if (cPlatform() == dbipMac) {
-		installEventFilter(new EventFilterForMac(this));
-	}
+
+	installEventFilter(new EventFilterForKeys(this));
 
     QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Regular.ttf"));
     QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Bold.ttf"));
@@ -653,9 +667,9 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 8035) {
-				versionFeatures = lang(lng_new_version_minor);// QString::fromUtf8("\xe2\x80\x94 Forward photos, media and stickers with drag-n-drop\n\xe2\x80\x94 Drag-n-drop text messages by timestamp to forward them\n\xe2\x80\x94 Larger stickers panel");// .replace('@', qsl("@") + QChar(0x200D));
-			} else if (!DevChannel && Local::oldMapVersion() < 8036) {
+			if (DevChannel && Local::oldMapVersion() < 8039) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Moved to Qt 5.5\n\xe2\x80\x94 Some bugfixes and optimizations\n\xe2\x80\x94 In OS X 10.10.3 location marks sent from mobile should be displayed now");// .replace('@', qsl("@") + QChar(0x200D));
+			} else if (!DevChannel && Local::oldMapVersion() < 8038) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {

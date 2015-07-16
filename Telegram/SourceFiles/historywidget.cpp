@@ -839,9 +839,9 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			if (item && !isUponSelected && !_contextMenuLnk) {
 				if (HistorySticker *sticker = dynamic_cast<HistorySticker*>(msg ? msg->getMedia() : 0)) {
 					DocumentData *doc = sticker->document();
-					if (doc && doc->sticker && doc->sticker->set.type() != mtpc_inputStickerSetEmpty) {
+					if (doc && doc->sticker() && doc->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
 						if (!_menu) _menu = new ContextMenu(this);
-						_menu->addAction(lang(doc->sticker->setInstalled() ? lng_context_pack_info : lng_context_pack_add), historyWidget, SLOT(onStickerPackInfo()));
+						_menu->addAction(lang(doc->sticker()->setInstalled() ? lng_context_pack_info : lng_context_pack_add), historyWidget, SLOT(onStickerPackInfo()));
 					}
 				}
 				QString contextMenuText = item->selectedText(FullItemSel);
@@ -2225,6 +2225,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(&_attachPhoto, SIGNAL(clicked()), this, SLOT(onPhotoSelect()));
 	connect(&_field, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
 	connect(&_field, SIGNAL(cancelled()), this, SLOT(onCancel()));
+	connect(&_field, SIGNAL(tabbed()), this, SLOT(onFieldTabbed()));
 	connect(&_field, SIGNAL(resized()), this, SLOT(onFieldResize()));
 	connect(&_field, SIGNAL(focused()), this, SLOT(onFieldFocused()));
 	connect(&imageLoader, SIGNAL(imageReady()), this, SLOT(onPhotoReady()));
@@ -2472,6 +2473,14 @@ void HistoryWidget::updateStickers() {
 	if (_stickersUpdateRequest) return;
 
 	_stickersUpdateRequest = MTP::send(MTPmessages_GetAllStickers(MTP_string(cStickersHash())), rpcDone(&HistoryWidget::stickersGot), rpcFail(&HistoryWidget::stickersFailed));
+}
+
+void HistoryWidget::botCommandsChanged(UserData *user) {
+	if (histPeer && (histPeer == user || histPeer->chat)) {
+		if (_attachMention.clearFilteredCommands()) {
+			checkMentionDropdown();
+		}
+	}
 }
 
 void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
@@ -3501,20 +3510,7 @@ bool HistoryWidget::showStep(float64 ms) {
 		_bgAnimCache = _animCache = _animTopBarCache = _bgAnimTopBarCache = QPixmap();
 		App::main()->topBar()->stopAnim();
 		App::main()->topBar()->enableShadow();
-		if (hist && hist->readyForWork()) {
-			_scroll.show();
-			if (hist->lastScrollTop == History::ScrollMax) {
-				_scroll.scrollToY(hist->lastScrollTop);
-			}
-
-			onListScroll();
-		}
-		if (hist) {
-			if (!_histInited) checkUnreadLoaded();
-			if (_histNeedUpdate) updateListSize();
-		}
-		updateControlsVisibility();
-		App::wnd()->setInnerFocus();
+		doneShow();
 	} else {
 		a_bgCoord.update(dt1, st::introHideFunc);
 		a_bgAlpha.update(dt1, st::introAlphaHideFunc);
@@ -3524,6 +3520,23 @@ bool HistoryWidget::showStep(float64 ms) {
 	update();
 	App::main()->topBar()->update();
 	return res;
+}
+
+void HistoryWidget::doneShow() {
+	if (hist && hist->readyForWork()) {
+		_scroll.show();
+		if (hist->lastScrollTop == History::ScrollMax) {
+			_scroll.scrollToY(hist->lastScrollTop);
+		}
+
+		onListScroll();
+	}
+	if (hist) {
+		if (!_histInited) checkUnreadLoaded();
+		if (_histNeedUpdate) updateListSize();
+	}
+	updateControlsVisibility();
+	App::wnd()->setInnerFocus();
 }
 
 void HistoryWidget::animStop() {
@@ -3941,7 +3954,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 
 		_field.setMaxHeight(st::maxFieldHeight);
 
-		_kbReplyTo = hist->peer->chat ? App::histItemById(_keyboard.forMsgId()) : 0;
+		_kbReplyTo = (hist->peer->chat || _keyboard.forceReply()) ? App::histItemById(_keyboard.forMsgId()) : 0;
 		if (_kbReplyTo && !_replyToId) {
 			updateReplyToName();
 			_replyToText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);
@@ -3957,7 +3970,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		int32 maxh = qMin(_keyboard.height(), int(st::maxFieldHeight) - (int(st::maxFieldHeight) / 2));
 		_field.setMaxHeight(st::maxFieldHeight - maxh);
 
-		_kbReplyTo = hist->peer->chat ? App::histItemById(_keyboard.forMsgId()) : 0;
+		_kbReplyTo = (hist->peer->chat || _keyboard.forceReply()) ? App::histItemById(_keyboard.forMsgId()) : 0;
 		if (_kbReplyTo && !_replyToId) {
 			updateReplyToName();
 			_replyToText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);
@@ -4349,8 +4362,10 @@ namespace {
 		}
 		if (document->type == AnimatedDocument) {
 			attributes.push_back(MTP_documentAttributeAnimated());
-		} else if (document->type == StickerDocument && document->sticker) {
-			attributes.push_back(MTP_documentAttributeSticker(MTP_string(document->sticker->alt), document->sticker->set));
+		} else if (document->type == StickerDocument && document->sticker()) {
+			attributes.push_back(MTP_documentAttributeSticker(MTP_string(document->sticker()->alt), document->sticker()->set));
+		} else if (document->type == SongDocument && document->song()) {
+			attributes.push_back(MTP_documentAttributeAudio(MTP_int(document->song()->duration), MTP_string(document->song()->title), MTP_string(document->song()->performer)));
 		}
 		return MTP_vector<MTPDocumentAttribute>(attributes);
 	}
@@ -4500,7 +4515,7 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	_attachPhoto.move(_attachDocument.x(), _attachDocument.y());
 
 	_replyForwardPreviewCancel.move(width() - _replyForwardPreviewCancel.width(), _field.y() - st::sendPadding - _replyForwardPreviewCancel.height());
-	updateListSize();
+	updateListSize(App::main() ? App::main()->contentScrollAddToY() : 0);
 
 	bool kbShowShown = hist && !_kbShown && _keyboard.hasMarkup();
 	_field.resize(width() - _send.width() - _attachDocument.width() - _attachEmoji.width() - (kbShowShown ? _kbShow.width() : 0) - (_cmdStartShown ? _cmdStart.width() : 0), _field.height());
@@ -4543,6 +4558,10 @@ void HistoryWidget::itemRemoved(HistoryItem *item) {
 	}
 	if (item == _replyReturn) {
 		calcNextReplyReturn();
+	}
+	if (_kbReplyTo && item == _kbReplyTo) {
+		onKbToggle();
+		_kbReplyTo = 0;
 	}
 }
 
@@ -4712,7 +4731,7 @@ void HistoryWidget::updateBotKeyboard() {
 			int32 maxh = hasMarkup ? qMin(_keyboard.height(), int(st::maxFieldHeight) - (int(st::maxFieldHeight) / 2)) : 0;
 			_field.setMaxHeight(st::maxFieldHeight - maxh);
 			_kbShown = hasMarkup;
-			_kbReplyTo = hist->peer->chat ? App::histItemById(_keyboard.forMsgId()) : 0;
+			_kbReplyTo = (hist->peer->chat || _keyboard.forceReply()) ? App::histItemById(_keyboard.forMsgId()) : 0;
 			if (_kbReplyTo && !_replyToId) {
 				updateReplyToName();
 				_replyToText.setText(st::msgFont, _kbReplyTo->inDialogsText(), _textDlgOptions);
@@ -4839,6 +4858,13 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
+void HistoryWidget::onFieldTabbed() {
+	QString sel = _attachMention.isHidden() ? QString() : _attachMention.getSelected();
+	if (!sel.isEmpty()) {
+		_field.onMentionHashtagOrBotCommandInsert(sel);
+	}
+}
+
 void HistoryWidget::onStickerSend(DocumentData *sticker) {
 	if (!hist || !sticker) return;
 
@@ -4864,7 +4890,7 @@ void HistoryWidget::onStickerSend(DocumentData *sticker) {
 	App::main()->finishForwarding(hist);
 	cancelReply(lastKeyboardUsed);
 
-	if (sticker->sticker) App::main()->incrementSticker(sticker);
+	if (sticker->sticker()) App::main()->incrementSticker(sticker);
 
 	App::historyRegRandom(randomId, newId);
 	App::main()->historyToDown(hist);
@@ -4973,8 +4999,8 @@ void HistoryWidget::onReplyForwardPreviewCancel() {
 void HistoryWidget::onStickerPackInfo() {
 	if (HistoryMessage *item = dynamic_cast<HistoryMessage*>(App::contextItem())) {
 		if (HistorySticker *sticker = dynamic_cast<HistorySticker*>(item->getMedia())) {
-			if (sticker->document() && sticker->document()->sticker && sticker->document()->sticker->set.type() != mtpc_inputStickerSetEmpty) {
-				App::main()->stickersBox(sticker->document()->sticker->set);
+			if (sticker->document() && sticker->document()->sticker() && sticker->document()->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
+				App::main()->stickersBox(sticker->document()->sticker()->set);
 			}
 		}
 	}
@@ -5401,9 +5427,9 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	bool hasTopBar = !App::main()->topBar()->isHidden();
+	bool hasTopBar = !App::main()->topBar()->isHidden(), hasPlayer = !App::main()->player()->isHidden();
 	QRect fill(0, 0, width(), App::main()->height());
-	int fromy = hasTopBar ? (-st::topBarHeight) : 0, x = 0, y = 0;
+	int fromy = (hasTopBar ? (-st::topBarHeight) : 0) + (hasPlayer ? (-st::playerHeight) : 0), x = 0, y = 0;
 	QPixmap cached = App::main()->cachedBackground(fill, x, y);
 	if (cached.isNull()) {
 		const QPixmap &pix(*cChatBackground());

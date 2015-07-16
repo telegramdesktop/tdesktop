@@ -17,20 +17,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-class Widget : public QWidget {
-public:
-
-	Widget(QWidget *parent = 0) : QWidget(parent) {
-	}
-	void moveToLeft(int x, int y, int outerw) {
-		move(rtl() ? (outerw - x - width()) : x, y);
-	}
-	void moveToRight(int x, int y, int outerw) {
-		move(rtl() ? x : (outerw - x - width()), y);
-	}
-
-};
-
 namespace App {
 	const QPixmap &sprite();
 }
@@ -119,14 +105,20 @@ public:
 	void drawSpriteCenter(const QRect &in, const style::sprite &sprite) {
 		return drawPixmap(QPoint(in.x() + (in.width() - sprite.pxWidth()) / 2, in.y() + (in.height() - sprite.pxHeight()) / 2), App::sprite(), sprite);
 	}
+	void drawSpriteCenterLeft(const QRect &in, int outerw, const style::sprite &sprite) {
+		return drawPixmapLeft(QPoint(in.x() + (in.width() - sprite.pxWidth()) / 2, in.y() + (in.height() - sprite.pxHeight()) / 2), outerw, App::sprite(), sprite);
+	}
+	void drawSpriteCenterRight(const QRect &in, int outerw, const style::sprite &sprite) {
+		return drawPixmapRight(QPoint(in.x() + (in.width() - sprite.pxWidth()) / 2, in.y() + (in.height() - sprite.pxHeight()) / 2), outerw, App::sprite(), sprite);
+	}
 };
 
-class TWidget : public Widget {
+class TWidget : public QWidget {
 	Q_OBJECT
 
 public:
 
-	TWidget(QWidget *parent = 0) : Widget(parent) {
+	TWidget(QWidget *parent = 0) : QWidget(parent) {
 	}
 	TWidget *tparent() {
 		return qobject_cast<TWidget*>(parentWidget());
@@ -140,6 +132,27 @@ public:
 	virtual void enterFromChildEvent(QEvent *e) { // e -- from leaveEvent() of child TWidget
 	}
 
+	void moveToLeft(int x, int y, int outerw) {
+		move(rtl() ? (outerw - x - width()) : x, y);
+	}
+	void moveToRight(int x, int y, int outerw) {
+		move(rtl() ? x : (outerw - x - width()), y);
+	}
+	QPoint myrtlpoint(int x, int y) const {
+		return rtlpoint(x, y, width());
+	}
+	QPoint myrtlpoint(const QPoint p) const {
+		return rtlpoint(p, width());
+	}
+	QRect myrtlrect(int x, int y, int w, int h) const {
+		return rtlrect(x, y, w, h, width());
+	}
+	QRect myrtlrect(const QRect &r) {
+		return rtlrect(r, width());
+	}
+	void rtlupdate(const QRect &r) {
+		update(myrtlrect(r));
+	}
 	bool event(QEvent *e) {
 		return QWidget::event(e);
 	}
@@ -149,12 +162,12 @@ protected:
 	void enterEvent(QEvent *e) {
 		TWidget *p(tparent());
 		if (p) p->leaveToChildEvent(e);
-		return Widget::enterEvent(e);
+		return QWidget::enterEvent(e);
 	}
 	void leaveEvent(QEvent *e) {
 		TWidget *p(tparent());
 		if (p) p->enterFromChildEvent(e);
-		return Widget::leaveEvent(e);
+		return QWidget::leaveEvent(e);
 	}
 
 private:

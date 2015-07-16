@@ -113,8 +113,8 @@ namespace Local {
 	MessageCursor readDraftPositions(const PeerId &peer);
 	bool hasDraftPositions(const PeerId &peer);
 
-	void writeFileLocation(const StorageKey &location, const FileLocation &local);
-	FileLocation readFileLocation(const StorageKey &location, bool check = true);
+	void writeFileLocation(MediaKey location, const FileLocation &local);
+	FileLocation readFileLocation(MediaKey location, bool check = true);
 
 	void writeImage(const StorageKey &location, const ImagePtr &img);
 	void writeImage(const StorageKey &location, const StorageImageSaved &jpeg, bool overwrite = true);

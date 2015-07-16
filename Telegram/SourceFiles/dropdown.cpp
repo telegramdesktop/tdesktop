@@ -1216,7 +1216,7 @@ void StickerPanInner::paintEvent(QPaintEvent *e) {
 				float64 hover = _sets[c].hovers[index];
 
 				DocumentData *sticker = _sets[c].pack[index];
-				if (!sticker->sticker) continue;
+				if (!sticker->sticker()) continue;
 
 				QPoint pos(st::stickerPanPadding + j * st::stickerPanSize.width(), y + i * st::stickerPanSize.height());
 				if (hover > 0) {
@@ -1235,11 +1235,11 @@ void StickerPanInner::paintEvent(QPaintEvent *e) {
 					if (!sticker->loader && sticker->status != FileFailed && !already && !hasdata) {
 						sticker->save(QString());
 					}
-					if (sticker->sticker->img->isNull() && (already || hasdata)) {
+					if (sticker->sticker()->img->isNull() && (already || hasdata)) {
 						if (already) {
-							sticker->sticker->img = ImagePtr(sticker->already());
+							sticker->sticker()->img = ImagePtr(sticker->already());
 						} else {
-							sticker->sticker->img = ImagePtr(sticker->data);
+							sticker->sticker()->img = ImagePtr(sticker->data);
 						}
 					}
 				}
@@ -1252,8 +1252,8 @@ void StickerPanInner::paintEvent(QPaintEvent *e) {
 				QPoint ppos = pos + QPoint((st::stickerPanSize.width() - w) / 2, (st::stickerPanSize.height() - h) / 2);
 				if (goodThumb) {
 					p.drawPixmapLeft(ppos, width(), sticker->thumb->pix(w, h));
-				} else if (!sticker->sticker->img->isNull()) {
-					p.drawPixmapLeft(ppos, width(), sticker->sticker->img->pix(w, h));
+				} else if (!sticker->sticker()->img->isNull()) {
+					p.drawPixmapLeft(ppos, width(), sticker->sticker()->img->pix(w, h));
 				}
 
 				if (hover > 0 && _sets[c].id == RecentStickerSetId && _custom.at(index)) {
@@ -1411,7 +1411,7 @@ void StickerPanInner::preloadImages() {
 			if (++k > StickerPanPerRow * (StickerPanPerRow + 1)) break;
 
 			DocumentData *sticker = _sets.at(i).pack.at(j);
-			if (!sticker || !sticker->sticker) continue;
+			if (!sticker || !sticker->sticker()) continue;
 
 			bool goodThumb = !sticker->thumb->isNull() && ((sticker->thumb->width() >= 128) || (sticker->thumb->height() >= 128));
 			if (goodThumb) {
@@ -2532,8 +2532,8 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 		} else {
 			UserData *user = _crows->at(i).first;
 
-			const BotCommand &command = _crows->at(i).second;
-			QString toHighlight = command.command;
+			const BotCommand *command = _crows->at(i).second;
+			QString toHighlight = command->command;
 			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : -1;
 			if (hasUsername || botStatus == 0 || botStatus == 2) {
 				toHighlight += '@' + user->username;
@@ -2565,17 +2565,9 @@ void MentionsInner::paintEvent(QPaintEvent *e) {
 			}
 			addleft += firstwidth + secondwidth + st::mentionPadding.left();
 			widthleft -= firstwidth + secondwidth + st::mentionPadding.left();
-
-			QString description = command.description;
-			if (widthleft > st::mentionFont->elidew && !description.isEmpty()) {
-				p.setFont(st::mentionFont->f);
-				int32 descwidth = st::mentionFont->m.width(description);
-				if (widthleft < descwidth) {
-					description = st::mentionFont->m.elidedText(description, Qt::ElideRight, widthleft);
-					descwidth = st::mentionFont->m.width(description);
-				}
+			if (widthleft > st::mentionFont->elidew && !command->descriptionText().isEmpty()) {
 				p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
-				p.drawText(mentionleft + addleft + (widthleft - descwidth), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, description);
+				command->descriptionText().drawElided(p, mentionleft + addleft, i * st::mentionHeight + st::mentionTop, widthleft, 1, style::al_right);
 			}
 		}
 	}
@@ -2611,6 +2603,15 @@ bool MentionsInner::moveSel(int direction) {
 }
 
 bool MentionsInner::select() {
+	QString sel = getSelected();
+	if (!sel.isEmpty()) {
+		emit chosen(sel);
+		return true;
+	}
+	return false;
+}
+
+QString MentionsInner::getSelected() const {
 	int32 maxSel = (_rows->isEmpty() ? (_hrows->isEmpty() ? _crows->size() : _hrows->size()) : _rows->size());
 	if (_sel >= 0 && _sel < maxSel) {
 		QString result;
@@ -2620,18 +2621,17 @@ bool MentionsInner::select() {
 			result = '#' + _hrows->at(_sel);
 		} else {
 			UserData *user = _crows->at(_sel).first;
-			const BotCommand &command(_crows->at(_sel).second);
+			const BotCommand *command(_crows->at(_sel).second);
 			int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : -1;
 			if (botStatus == 0 || botStatus == 2 || _parent->filter().indexOf('@') > 1) {
-				result = '/' + command.command + '@' + user->username;
+				result = '/' + command->command + '@' + user->username;
 			} else {
-				result = '/' + command.command;
+				result = '/' + command->command;
 			}
 		}
-		emit chosen(result);
-		return true;
+		return result;
 	}
-	return false;
+	return QString();
 }
 
 void MentionsInner::mousePressEvent(QMouseEvent *e) {
@@ -2757,6 +2757,12 @@ void MentionsDropdown::showFiltered(PeerData *peer, QString start) {
 	updateFiltered(toDown);
 }
 
+bool MentionsDropdown::clearFilteredCommands() {
+	if (_crows.isEmpty()) return false;
+	_crows.clear();
+	return true;
+}
+
 void MentionsDropdown::updateFiltered(bool toDown) {
 	int32 now = unixtime();
 	MentionRows rows;
@@ -2838,9 +2844,9 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 					for (int32 j = 0, l = user->botInfo->commands.size(); j < l; ++j) {
 						if (_filter.size() > 1) {
 							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? user->botInfo->commands.at(j).command + '@' + user->username : user->botInfo->commands.at(j).command;
-							if (!toFilter.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || toFilter.size() + 1 == _filter.size()) continue;
+							if (!toFilter.startsWith(_filter.midRef(1), Qt::CaseInsensitive)/* || toFilter.size() + 1 == _filter.size()*/) continue;
 						}
-						crows.push_back(qMakePair(user, user->botInfo->commands.at(j)));
+						crows.push_back(qMakePair(user, &user->botInfo->commands.at(j)));
 					}
 				}
 			}
@@ -2850,9 +2856,9 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 					for (int32 j = 0, l = user->botInfo->commands.size(); j < l; ++j) {
 						if (_filter.size() > 1) {
 							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? user->botInfo->commands.at(j).command + '@' + user->username : user->botInfo->commands.at(j).command;
-							if (!toFilter.startsWith(_filter.midRef(1), Qt::CaseInsensitive) || toFilter.size() + 1 == _filter.size()) continue;
+							if (!toFilter.startsWith(_filter.midRef(1), Qt::CaseInsensitive)/* || toFilter.size() + 1 == _filter.size()*/) continue;
 						}
-						crows.push_back(qMakePair(user, user->botInfo->commands.at(j)));
+						crows.push_back(qMakePair(user, &user->botInfo->commands.at(j)));
 					}
 				}
 			}
@@ -2861,10 +2867,10 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 	if (rows.isEmpty() && hrows.isEmpty() && crows.isEmpty()) {
 		if (!isHidden()) {
 			hideStart();
-			_rows.clear();
-			_hrows.clear();
-			_crows.clear();
 		}
+		_rows.clear();
+		_hrows.clear();
+		_crows.clear();
 	} else {
 		_rows = rows;
 		_hrows = hrows;
@@ -2989,6 +2995,10 @@ int32 MentionsDropdown::innerTop() {
 
 int32 MentionsDropdown::innerBottom() {
 	return _scroll.scrollTop() + _scroll.height();
+}
+
+QString MentionsDropdown::getSelected() const {
+	return _inner.getSelected();
 }
 
 bool MentionsDropdown::eventFilter(QObject *obj, QEvent *e) {

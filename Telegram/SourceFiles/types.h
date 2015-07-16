@@ -273,6 +273,7 @@ enum DataBlockId {
 	dbiRecentStickers      = 0x26,
 	dbiDcOption            = 0x27,
 	dbiTryIPv6             = 0x28,
+	dbiSongVolume          = 0x29,
 
 	dbiEncryptedWithSalt   = 333,
 	dbiEncrypted           = 444,

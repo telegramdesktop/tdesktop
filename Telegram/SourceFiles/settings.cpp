@@ -156,6 +156,8 @@ int gNotifyDefaultDelay = 1500;
 
 int gOtherOnline = 0;
 
+float64 gSongVolume = 0.9;
+
 void settingsParseArgs(int argc, char *argv[]) {
 #ifdef Q_OS_MAC
 	gCustomNotifies = (QSysInfo::macVersion() < QSysInfo::MV_10_8);
@@ -289,7 +291,7 @@ RecentStickerPack &cGetRecentStickers() {
 		recent.reserve(p.size());
 		for (RecentStickerPreload::const_iterator i = p.cbegin(), e = p.cend(); i != e; ++i) {
 			DocumentData *doc = App::document(i->first);
-			if (!doc || !doc->sticker) continue;
+			if (!doc || !doc->sticker()) continue;
 
 			recent.push_back(qMakePair(doc, i->second));
 		}

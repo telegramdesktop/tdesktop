@@ -139,18 +139,18 @@ Open **VS2013 x86 Native Tools Command Prompt.bat** (should be in **\\Program Fi
     make
     make install
 
-####Qt 5.4.0, slightly patched
+####Qt 5.5.0, slightly patched
 
-http://download.qt-project.org/official_releases/qt/5.4/5.4.0/single/qt-everywhere-opensource-src-5.4.0.zip
+http://download.qt-project.org/official_releases/qt/5.5/5.5.0/single/qt-everywhere-opensource-src-5.5.0.zip
 
-Extract to **D:\TBuild\Libraries\**, rename **qt-everywhere-opensource-src-5.4.0** to **QtStatic** to have **D:\TBuild\Libraries\QtStatic\qtbase\** folder
+Extract to **D:\TBuild\Libraries\**, rename **qt-everywhere-opensource-src-5.5.0** to **QtStatic** to have **D:\TBuild\Libraries\QtStatic\qtbase\** folder
 
 Apply patch
 
-* OR copy (with overwrite!) everything from **D:\TBuild\tdesktop\\\_qt\_5\_4\_0\_patch\** to **D:\TBuild\Libraries\QtStatic\**
+* OR copy (with overwrite!) everything from **D:\TBuild\tdesktop\\\_qt\_5\_5\_0\_patch\** to **D:\TBuild\Libraries\QtStatic\**
 * OR in Git Bash go to **/d/TBuild/Libraries/QtStatic/** and run
 
-    git apply ./../../tdesktop/Telegram/_qt_5_4_0_patch.diff
+    git apply ./../../tdesktop/Telegram/_qt_5_5_0_patch.diff
 
 #####Building library
 
@@ -183,8 +183,8 @@ Close all VS2013 instances and install to default location
 
 * Launch VS2013 for configuring Qt Addin
 * QT5 > Qt Options > Add
-  * Version name: **QtStatic.5.4.0**
+  * Version name: **QtStatic.5.5.0**
   * Path: **D:\TBuild\Libraries\QtStatic\qtbase**
-* Default Qt/Win version: **QtStatic.5.4.0** – **OK**
+* Default Qt/Win version: **QtStatic.5.5.0** – **OK**
 * File > Open > Project/Solution > **D:\TBuild\tdesktop\Telegram.sln**
 * Build \ Build Solution (Debug and Release configurations)

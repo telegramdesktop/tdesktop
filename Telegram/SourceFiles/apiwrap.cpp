@@ -302,7 +302,7 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	int32 wasCount = -1;
 	for (int32 i = 0, l = d_docs.size(); i != l; ++i) {
 		DocumentData *doc = App::feedDocument(d_docs.at(i));
-		if (!doc || !doc->sticker) continue;
+		if (!doc || !doc->sticker()) continue;
 
 		if (wasCount < 0) wasCount = it->stickers.size();
 		if (it->stickers.indexOf(doc) < 0) {

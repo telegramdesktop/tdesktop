@@ -416,6 +416,7 @@ public:
 	void animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
 	bool showStep(float64 ms);
 	void animStop();
+	void doneShow();
 
 	QPoint clampMousePosition(QPoint point);
 
@@ -528,6 +529,7 @@ public slots:
 	void onMentionHashtagOrBotCommandInsert(QString str);
 	void onTextChange();
 
+	void onFieldTabbed();
 	void onStickerSend(DocumentData *sticker);
 
 	void onVisibleChanged();
@@ -553,6 +555,7 @@ public slots:
 	void onDraftSave(bool delayed = false);
 
 	void updateStickers();
+	void botCommandsChanged(UserData *user);
 
 	void onRecordError();
 	void onRecordDone(QByteArray result, qint32 samples);

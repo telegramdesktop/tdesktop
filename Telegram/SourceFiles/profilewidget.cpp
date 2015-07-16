@@ -579,6 +579,8 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	p.setPen(st::black->p);
 	int oneState = 0; // < 0 - loading, 0 - no media, > 0 - link shown
 	for (int i = 0; i < OverviewCount; ++i) {
+		if (i == OverviewAudioDocuments) continue;
+
 		int32 count = (_hist->_overviewCount[i] > 0) ? _hist->_overviewCount[i] : (_hist->_overviewCount[i] == 0 ? _hist->_overview[i].size() : -1);
 		if (count < 0) {
 			if (!oneState) oneState = count;
@@ -859,6 +861,8 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	_mediaShowAll.move(_left + _width - _mediaShowAll.width(), top);
 	int wasCount = 0; // < 0 - loading, 0 - no media, > 0 - link shown
 	for (int i = 0; i < OverviewCount; ++i) {
+		if (i == OverviewAudioDocuments) continue;
+
 		if (_allMediaTypes) {
 			int32 count = (_hist->_overviewCount[i] > 0) ? _hist->_overviewCount[i] : (_hist->_overviewCount[i] == 0 ? _hist->_overview[i].size() : -1);
 			if (count > 0) {
@@ -957,7 +961,7 @@ void ProfileInner::updateNotifySettings() {
 	_enableNotifications.setChecked(_peer->notify == EmptyNotifySettings || _peer->notify == UnknownNotifySettings || _peer->notify->mute < unixtime());
 }
 
-void ProfileInner::mediaOverviewUpdated(PeerData *peer) {
+void ProfileInner::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 	if (peer == _peer) {
 		resizeEvent(0);
 		showAll();
@@ -1029,6 +1033,8 @@ void ProfileInner::showAll() {
 	// shared media
 	bool first = false, wasCount = false, manyCounts = false;
 	for (int i = 0; i < OverviewCount; ++i) {
+		if (i == OverviewAudioDocuments) continue;
+
 		int32 count = (_hist->_overviewCount[i] > 0) ? _hist->_overviewCount[i] : (_hist->_overviewCount[i] == 0 ? _hist->_overview[i].size() : -1);
 		if (count > 0) {
 			if (wasCount) {
@@ -1136,8 +1142,13 @@ void ProfileWidget::onScroll() {
 }
 
 void ProfileWidget::resizeEvent(QResizeEvent *e) {
+	int32 addToY = App::main() ? App::main()->contentScrollAddToY() : 0;
+	int32 newScrollY = _scroll.scrollTop() + addToY;
 	_scroll.resize(size());
 	_inner.resize(width(), _inner.height());
+	if (addToY) {
+		_scroll.scrollToY(newScrollY);
+	}
 }
 
 void ProfileWidget::mousePressEvent(QMouseEvent *e) {
@@ -1173,6 +1184,13 @@ void ProfileWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 		p.setFont(st::topBarBackFont->f);
 		p.setPen(st::topBarBackColor->p);
 		p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.pxWidth() + st::topBarBackPadding.right(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, lang(peer()->chat ? lng_profile_group_info : lng_profile_info));
+	}
+}
+
+void ProfileWidget::topBarShadowParams(int32 &x, float64 &o) {
+	if (animating() && a_coord.current() >= 0) {
+		x = a_coord.current();
+		o = a_alpha.current();
 	}
 }
 
@@ -1253,8 +1271,8 @@ void ProfileWidget::updateNotifySettings() {
 	_inner.updateNotifySettings();
 }
 
-void ProfileWidget::mediaOverviewUpdated(PeerData *peer) {
-	_inner.mediaOverviewUpdated(peer);
+void ProfileWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
+	_inner.mediaOverviewUpdated(peer, type);
 }
 
 void ProfileWidget::clear() {

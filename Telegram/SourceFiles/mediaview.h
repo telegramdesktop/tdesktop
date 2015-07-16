@@ -55,7 +55,7 @@ public:
 		updateOver(mapFromGlobal(QCursor::pos()));
 	}
 
-	void mediaOverviewUpdated(PeerData *peer);
+	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void documentUpdated(DocumentData *doc);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void updateDocSize();
