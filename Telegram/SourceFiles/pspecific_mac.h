@@ -36,7 +36,7 @@ public:
 	void darkModeChanged();
     void notifyClicked(unsigned long long peer, int msgid);
     void notifyReplied(unsigned long long peer, int msgid, const char *str);
-    
+
 };
 
 class NotifyWindow;
@@ -71,6 +71,8 @@ public:
 	bool psPosInited() const {
 		return posInited;
 	}
+
+	bool psFilterNativeEvent(void *event);
 
 	void psActivateNotify(NotifyWindow *w);
 	void psClearNotifies(PeerId peerId = 0);

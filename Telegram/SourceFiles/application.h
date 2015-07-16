@@ -48,9 +48,11 @@ public:
 		UpdatingDownload,
 		UpdatingReady,
 	};
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	UpdatingState updatingState();
 	int32 updatingSize();
 	int32 updatingReady();
+	#endif
 
 	FileUploader *uploader();
 	void uploadProfilePhoto(const QImage &tosend, const PeerId &peerId);
@@ -78,11 +80,13 @@ public:
 
 signals:
 
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void updateChecking();
 	void updateLatest();
 	void updateDownloading(qint64 ready, qint64 total);
 	void updateReady();
 	void updateFailed();
+	#endif
 
 	void peerPhotoDone(PeerId peer);
 	void peerPhotoFail(PeerId peer);
@@ -91,7 +95,9 @@ signals:
 
 public slots:
 
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void startUpdateCheck(bool forceWait = false);
+	#endif
 	void socketConnected();
 	void socketError(QLocalSocket::LocalSocketError e);
 	void socketDisconnected();
@@ -103,11 +109,13 @@ public slots:
 	void readClients();
 	void removeClients();
 
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void updateGotCurrent();
 	void updateFailedCurrent(QNetworkReply::NetworkError e);
 
 	void onUpdateReady();
 	void onUpdateFailed();
+	#endif
 
 	void photoUpdated(MsgId msgId, const MTPInputFile &file);
 
@@ -142,12 +150,14 @@ private:
 
 	Window *window;
 
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	mtpRequestId updateRequestId;
 	QNetworkAccessManager updateManager;
 	QNetworkReply *updateReply;
 	SingleTimer updateCheckTimer;
 	QThread *updateThread;
 	UpdateDownloader *updateDownloader;
+	#endif
 
 	QTimer writeUserConfigTimer;
 

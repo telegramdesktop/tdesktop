@@ -1426,7 +1426,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 				if (j == notifyWhenMaps.end()) {
 					history->clearNotifications();
 					i = notifyWaiters.erase(i);
-					if (notifyHistory) notifyWaiter = notifyWaiters.find(notifyHistory);
+					notifyWaiter = notifyHistory ? notifyWaiters.find(notifyHistory) : notifyWaiters.end();
 					continue;
 				}
 				do {
@@ -1442,7 +1442,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 			if (!history->currentNotification()) {
 				notifyWhenMaps.remove(history);
 				i = notifyWaiters.erase(i);
-				if (notifyHistory) notifyWaiter = notifyWaiters.find(notifyHistory);
+				notifyWaiter = notifyHistory ? notifyWaiters.find(notifyHistory) : notifyWaiters.end();
 				continue;
 			}
 			uint64 when = i.value().when;
@@ -1712,10 +1712,10 @@ void Window::sendPaths() {
 	}
 }
 
-void Window::mediaOverviewUpdated(PeerData *peer) {
-	if (main) main->mediaOverviewUpdated(peer);
+void Window::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
+	if (main) main->mediaOverviewUpdated(peer, type);
 	if (!_mediaView || _mediaView->isHidden()) return;
-	_mediaView->mediaOverviewUpdated(peer);
+	_mediaView->mediaOverviewUpdated(peer, type);
 }
 
 void Window::documentUpdated(DocumentData *doc) {

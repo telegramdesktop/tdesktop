@@ -1,2 +1,2 @@
-echo 0.8 8036 0.8.36 0
+echo 0.8 8039 0.8.39 1
 # AppVersionStrMajor AppVersion AppVersionStr DevChannel

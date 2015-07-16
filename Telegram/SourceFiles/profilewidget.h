@@ -53,7 +53,7 @@ public:
 	void loadProfilePhotos(int32 yFrom);
 
 	void updateNotifySettings();
-	void mediaOverviewUpdated(PeerData *peer);
+	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 
 	~ProfileInner();
 	
@@ -187,6 +187,7 @@ public:
     void dropEvent(QDropEvent *e);
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
+	void topBarShadowParams(int32 &x, float64 &o);
 	void topBarClick();
 
 	PeerData *peer() const;
@@ -200,7 +201,7 @@ public:
 	void updateOnlineDisplayTimer();
 
 	void updateNotifySettings();
-	void mediaOverviewUpdated(PeerData *peer);
+	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 
 	void clear();
 	~ProfileWidget();

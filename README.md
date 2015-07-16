@@ -12,7 +12,7 @@ Source code is published under GPL v3, license is available [here](https://githu
 
 ###Third-party
 
-* Qt 5.4.0, slightly patched ([LGPL](http://qt-project.org/doc/qt-5/lgpl.html))
+* Qt 5.5.0, slightly patched ([LGPL](http://qt-project.org/doc/qt-5/lgpl.html))
 * OpenSSL 1.0.1g ([OpenSSL License](https://www.openssl.org/source/license.html))
 * zlib 1.2.8 ([zlib License](http://www.zlib.net/zlib_license.html))
 * libexif 0.6.20 ([LGPL](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html))
@@ -25,7 +25,7 @@ Source code is published under GPL v3, license is available [here](https://githu
 
 ###[Build instructions for Visual Studio 2013](https://github.com/telegramdesktop/tdesktop/blob/master/MSVC.md)
 
-###[Build instructions for XCode 6.3.1](https://github.com/telegramdesktop/tdesktop/blob/master/XCODE.md)
+###[Build instructions for XCode 6.4](https://github.com/telegramdesktop/tdesktop/blob/master/XCODE.md)
 
 ###[Build instructions for Qt Creator 3.2.0 Ubuntu](https://github.com/telegramdesktop/tdesktop/blob/master/QTCREATOR.md)
 

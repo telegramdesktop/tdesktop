@@ -48,28 +48,43 @@ namespace {
 		}
 	}
 
-	class EventFilterForMac : public QObject {
+	class EventFilterForKeys : public QObject {
 	public:
 
-		EventFilterForMac(QObject *parent) : QObject(parent) {
+		EventFilterForKeys(QObject *parent) : QObject(parent) {
 
 		}
 		bool eventFilter(QObject *o, QEvent *e) {
 			if (e->type() == QEvent::KeyPress) {
 				QKeyEvent *ev = static_cast<QKeyEvent*>(e);
-				if (ev->key() == Qt::Key_W && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
-					if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
-						App::wnd()->minimizeToTray();
-						return true;
-					} else {
-						App::wnd()->hide();
-						App::wnd()->updateIsActive(cOfflineBlurTimeout());
-						App::wnd()->updateGlobalMenu();
+				if (cPlatform() == dbipMac) {
+					if (ev->key() == Qt::Key_W && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
+						if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+							App::wnd()->minimizeToTray();
+							return true;
+						} else {
+							App::wnd()->hide();
+							App::wnd()->updateIsActive(cOfflineBlurTimeout());
+							App::wnd()->updateGlobalMenu();
+							return true;
+						}
+					} else if (ev->key() == Qt::Key_M && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
+						App::wnd()->setWindowState(Qt::WindowMinimized);
 						return true;
 					}
-				} else if (ev->key() == Qt::Key_M && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
-					App::wnd()->setWindowState(Qt::WindowMinimized);
-					return true;
+				}
+				if (ev->key() == Qt::Key_MediaPlay) {
+					if (App::main()) App::main()->player()->playPressed();
+				} else if (ev->key() == Qt::Key_MediaPause) {
+					if (App::main()) App::main()->player()->pausePressed();
+				} else if (ev->key() == Qt::Key_MediaTogglePlayPause) {
+					if (App::main()) App::main()->player()->playPausePressed();
+				} else if (ev->key() == Qt::Key_MediaStop) {
+					if (App::main()) App::main()->player()->stopPressed();
+				} else if (ev->key() == Qt::Key_MediaPrevious) {
+					if (App::main()) App::main()->player()->prevPressed();
+				} else if (ev->key() == Qt::Key_MediaNext) {
+					if (App::main()) App::main()->player()->nextPressed();
 				}
 			}
 			return QObject::eventFilter(o, e);
@@ -80,7 +95,10 @@ namespace {
 
 Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
     serverName(psServerPrefix() + cGUIDStr()), closing(false),
-	updateRequestId(0), updateReply(0), updateThread(0), updateDownloader(0), _translator(0) {
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	updateRequestId(0), updateReply(0), updateThread(0), updateDownloader(0),
+	#endif
+	_translator(0) {
 
 	DEBUG_LOG(("Application Info: creation.."));
 
@@ -95,9 +113,8 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	}
 	mainApp = this;
 
-	if (cPlatform() == dbipMac) {
-		installEventFilter(new EventFilterForMac(this));
-	}
+
+	installEventFilter(new EventFilterForKeys(this));
 
     QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Regular.ttf"));
     QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Bold.ttf"));
@@ -165,9 +182,11 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	connect(&socket, SIGNAL(readyRead()), this, SLOT(socketReading()));
 	connect(&server, SIGNAL(newConnection()), this, SLOT(newInstanceConnected()));
 	connect(this, SIGNAL(aboutToQuit()), this, SLOT(closeApplication()));
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	connect(&updateCheckTimer, SIGNAL(timeout()), this, SLOT(startUpdateCheck()));
 	connect(this, SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
 	connect(this, SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
+	#endif
 	connect(this, SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
 	//connect(&writeUserConfigTimer, SIGNAL(timeout()), this, SLOT(onWriteUserConfig()));
 	//writeUserConfigTimer.setSingleShot(true);
@@ -182,6 +201,7 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	}
 }
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 void Application::updateGotCurrent() {
 	if (!updateReply || updateThread) return;
 
@@ -245,6 +265,7 @@ void Application::onUpdateFailed() {
 	cSetLastUpdateCheck(unixtime());
 	Local::writeSettings();
 }
+#endif
 
 void Application::regPhotoUpdate(const PeerId &peer, MsgId msgId) {
 	photoUpdates.insert(msgId, peer);
@@ -417,6 +438,7 @@ void Application::onSwitchTestMode() {
 	App::quit();
 }
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 Application::UpdatingState Application::updatingState() {
 	if (!updateThread) return Application::UpdatingNone;
 	if (!updateDownloader) return Application::UpdatingReady;
@@ -432,6 +454,7 @@ int32 Application::updatingReady() {
 	if (!updateDownloader) return 0;
 	return updateDownloader->ready();
 }
+#endif
 
 FileUploader *Application::uploader() {
 	if (!::uploader) ::uploader = new FileUploader();
@@ -475,6 +498,7 @@ void Application::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId)
 	App::uploader()->uploadMedia(newId, ready);
 }
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 void Application::stopUpdate() {
 	if (updateReply) {
 		updateReply->abort();
@@ -524,6 +548,7 @@ void Application::startUpdateCheck(bool forceWait) {
 		updateCheckTimer.start((updateInSecs + 5) * 1000);
 	}
 }
+#endif
 
 namespace {
 	QChar _toHex(ushort v) {
@@ -626,11 +651,13 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 		return App::quit();
 	}
 
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (!cNoStartUpdate() && checkReadyUpdate()) {
 		cSetRestartingUpdate(true);
 		DEBUG_LOG(("Application Info: installing update instead of starting app.."));
 		return App::quit();
 	}
+	#endif
 
 	startApp();
 }
@@ -640,9 +667,9 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 8035) {
-				versionFeatures = lang(lng_new_version_minor);// QString::fromUtf8("\xe2\x80\x94 Forward photos, media and stickers with drag-n-drop\n\xe2\x80\x94 Drag-n-drop text messages by timestamp to forward them\n\xe2\x80\x94 Larger stickers panel");// .replace('@', qsl("@") + QChar(0x200D));
-			} else if (!DevChannel && Local::oldMapVersion() < 8036) {
+			if (DevChannel && Local::oldMapVersion() < 8039) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Moved to Qt 5.5\n\xe2\x80\x94 Some bugfixes and optimizations\n\xe2\x80\x94 In OS X 10.10.3 location marks sent from mobile should be displayed now");// .replace('@', qsl("@") + QChar(0x200D));
+			} else if (!DevChannel && Local::oldMapVersion() < 8038) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
@@ -817,13 +844,15 @@ Application::~Application() {
 	App::deinitMedia();
 	deinitImageLinkManager();
 	mainApp = 0;
-	delete updateReply;
 	delete ::uploader;
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	delete updateReply;
 	updateReply = 0;
 	if (updateDownloader) updateDownloader->deleteLater();
 	updateDownloader = 0;
 	if (updateThread) updateThread->quit();
 	updateThread = 0;
+	#endif
 
 	delete window;
 

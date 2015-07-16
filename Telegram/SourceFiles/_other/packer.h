@@ -23,6 +23,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include <QtCore/QDir>
 #include <QtCore/QStringList>
 #include <QtCore/QBuffer>
+#include <QtCore/QDataStream>
 
 #include <zlib.h>
 

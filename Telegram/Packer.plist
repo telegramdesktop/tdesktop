@@ -9,7 +9,7 @@
 	<key>CFBundleIconFile</key>
 	<string></string>
 	<key>CFBundleIdentifier</key>
-	<string>com.ddesktop.${PRODUCT_NAME:rfc1034identifier}</string>
+	<string>com.tdesktop.$(PRODUCT_NAME:rfc1034identifier)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleSignature</key>

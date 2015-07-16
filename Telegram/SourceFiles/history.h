@@ -106,6 +106,7 @@ enum MediaOverviewType {
 	OverviewVideos,
 	OverviewDocuments,
 	OverviewAudios,
+	OverviewAudioDocuments,
 
 	OverviewCount
 };
@@ -127,6 +128,7 @@ inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	case OverviewVideos: return MTP_inputMessagesFilterVideo();
 	case OverviewDocuments: return MTP_inputMessagesFilterDocument();
 	case OverviewAudios: return MTP_inputMessagesFilterAudio();
+	case OverviewAudioDocuments: return MTP_inputMessagesFilterAudioDocuments();
 	default: type = OverviewCount; break;
 	}
 	return MTPMessagesFilter();
@@ -285,6 +287,8 @@ struct History : public QList<HistoryBlock*> {
 	MediaOverview _overview[OverviewCount];
 	MediaOverviewIds _overviewIds[OverviewCount];
 	int32 _overviewCount[OverviewCount]; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
+
+	void eraseFromOverview(MediaOverviewType type, MsgId msgId);
 
 	static const int32 ScrollMax = INT_MAX;
 };
@@ -925,6 +929,7 @@ private:
 };
 
 QString formatSizeText(qint64 size);
+QString formatDownloadText(qint64 ready, qint64 total);
 QString formatDurationText(qint64 duration);
 
 class HistoryVideo : public HistoryMedia {
@@ -1041,6 +1046,9 @@ public:
 		return !data->thumb->isNull();
 	}
 	ImagePtr replyPreview();
+
+	void drawInPlaylist(QPainter &p, const HistoryItem *parent, bool selected, bool over, int32 width) const;
+	TextLinkPtr linkInPlaylist();
 
 private:
 
@@ -1431,7 +1439,7 @@ class HistoryServiceMsg : public HistoryItem {
 public:
 
 	HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDmessageService &msg);
-	HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, int32 flags = 0, HistoryMedia *media = 0);
+	HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, int32 flags = 0, HistoryMedia *media = 0, int32 from = 0);
 
 	void initDimensions(const HistoryItem *parent = 0);
 

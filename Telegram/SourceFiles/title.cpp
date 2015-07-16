@@ -69,7 +69,12 @@ TitleWidget::TitleWidget(Window *window)
 	_update.hide();
     _cancel.hide();
     _back.hide();
-	if (App::app()->updatingState() == Application::UpdatingReady || cHasPasscode()) {
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	if (App::app()->updatingState() == Application::UpdatingReady || cHasPasscode())
+	#else
+	if (cHasPasscode())
+	#endif
+	{
 		showUpdateBtn();
 	}
 	stateChanged();
@@ -80,7 +85,9 @@ TitleWidget::TitleWidget(Window *window)
 	connect(&_contacts, SIGNAL(clicked()), this, SLOT(onContacts()));
 	connect(&_about, SIGNAL(clicked()), this, SLOT(onAbout()));
 	connect(wnd->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(stateChanged(Qt::WindowState)));
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	connect(App::app(), SIGNAL(updateReady()), this, SLOT(showUpdateBtn()));
+	#endif
 	
     if (cPlatform() != dbipWindows) {
         _minimize.hide();
@@ -316,9 +323,18 @@ void TitleWidget::showUpdateBtn() {
 	} else {
 		_lock.hide();
 	}
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	bool updateReady = App::app()->updatingState() == Application::UpdatingReady;
-	if (updateReady || cEvalScale(cConfigScale()) != cEvalScale(cRealScale())) {
+	if (updateReady || cEvalScale(cConfigScale()) != cEvalScale(cRealScale()))
+	#else
+	if (cEvalScale(cConfigScale()) != cEvalScale(cRealScale()))
+	#endif
+	{
+		#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 		_update.setText(lang(updateReady ? lng_menu_update : lng_menu_restart));
+		#else
+		_update.setText(lang(lng_menu_restart));
+		#endif
 		_update.show();
 		resizeEvent(0);
 		_minimize.hide();

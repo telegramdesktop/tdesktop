@@ -304,4 +304,6 @@ DeclareSetting(int, NotifyDefaultDelay);
 
 DeclareSetting(int, OtherOnline);
 
+DeclareSetting(float64, SongVolume);
+
 void settingsParseArgs(int argc, char *argv[]);

@@ -481,7 +481,7 @@ private:
 
 typedef QList<UserData*> MentionRows;
 typedef QList<QString> HashtagRows;
-typedef QList<QPair<UserData*, BotCommand> > BotCommandRows;
+typedef QList<QPair<UserData*, const BotCommand*> > BotCommandRows;
 
 class MentionsDropdown;
 class MentionsInner : public QWidget {
@@ -502,6 +502,8 @@ public:
 	void clearSel();
 	bool moveSel(int direction);
 	bool select();
+
+	QString getSelected() const;
 
 signals:
 
@@ -539,6 +541,7 @@ public:
 
 	void fastHide();
 
+	bool clearFilteredCommands();
 	void showFiltered(PeerData *peer, QString start);
 	void updateFiltered(bool toDown = false);
 	void setBoundings(QRect boundings);
@@ -552,6 +555,7 @@ public:
 	int32 innerBottom();
 
 	bool eventFilter(QObject *obj, QEvent *e);
+	QString getSelected() const;
 
 	~MentionsDropdown();
 

@@ -1,4 +1,4 @@
-##Build instructions for Xcode 6.3.1
+##Build instructions for Xcode 6.4
 
 ###Prepare folder
 
@@ -136,26 +136,26 @@ Then in Terminal go to **/Users/user/TBuild/Libraries/ffmpeg-2.6.3** and run
     make
     sudo make install
 
-####Qt 5.4.0, slightly patched
+####Qt 5.5.0, slightly patched
 
-http://download.qt-project.org/official_releases/qt/5.4/5.4.0/single/qt-everywhere-opensource-src-5.4.0.tar.gz
+http://download.qt-project.org/official_releases/qt/5.5/5.5.0/single/qt-everywhere-opensource-src-5.5.0.tar.gz
 
-Extract to **/Users/user/TBuild/Libraries**, rename **qt-everywhere-opensource-src-5.4.0** to **QtStatic** to have **/Users/user/TBuild/Libraries/QtStatic/qtbase** folder
+Extract to **/Users/user/TBuild/Libraries**, rename **qt-everywhere-opensource-src-5.5.0** to **QtStatic** to have **/Users/user/TBuild/Libraries/QtStatic/qtbase** folder
 
 Apply patch:
 
-* OR copy (with overwrite!) everything from **/Users/user/TBuild/tdesktop/\_qt\_5\_4\_0\_patch/** to **/Users/user/TBuild/Libraries/QtStatic/**
-* OR copy **/Users/user/TBuild/tdesktop/\_qt\_5\_4\_0\_patch.diff** to **/Users/user/TBuild/Libraries/QtStatic/**, go there in Terminal and run
+* OR copy (with overwrite!) everything from **/Users/user/TBuild/tdesktop/\_qt\_5\_5\_0\_patch/** to **/Users/user/TBuild/Libraries/QtStatic/**
+* OR copy **/Users/user/TBuild/tdesktop/\_qt\_5\_5\_0\_patch.diff** to **/Users/user/TBuild/Libraries/QtStatic/**, go there in Terminal and run
 
-    git apply _qt_5_4_0_patch.diff
+    git apply _qt_5_5_0_patch.diff
 
 #####Building library
 
 In Terminal go to **/Users/user/TBuild/Libraries/QtStatic** and there run
 
-    ./configure -debug-and-release -opensource -confirm-license -static -opengl desktop -nomake examples -nomake tests -platform macx-clang
-    make -j4 module-qtbase module-qtimageformats module-qtmultimedia
-    sudo make module-qtbase-install_subtargets module-qtimageformats-install_subtargets module-qtmultimedia-install_subtargets
+    ./configure -debug-and-release -opensource -confirm-license -static -opengl desktop -no-openssl -securetransport -nomake examples -nomake tests -platform macx-clang
+    make -j4 module-qtbase module-qtimageformats
+    sudo make module-qtbase-install_subtargets module-qtimageformats-install_subtargets
 
 building (**make** command) will take really long time.
 
@@ -167,4 +167,4 @@ building (**make** command) will take really long time.
 * Open MetaLang.xcodeproj and build for Debug (Release optionally)
 * Open Telegram.xcodeproj and build for Debug
 * Build Updater target as well, it is required for Telegram relaunch
-* Release Telegram build will require removing **CUSTOM_API_ID** definition in Telegram target settings (Apple LLVM 5.1 - Custom Compiler Flags > Other C / C++ Flags > Release)
+* Release Telegram build will require removing **CUSTOM_API_ID** definition in Telegram target settings (Apple LLVM 6.1 - Custom Compiler Flags > Other C / C++ Flags > Release)
