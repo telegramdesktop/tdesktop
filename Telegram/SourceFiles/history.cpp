@@ -305,10 +305,10 @@ History::History(const PeerId &peerId) : width(0), height(0)
 , oldLoaded(false)
 , newLoaded(true)
 , lastMsg(0)
-, activeMsgId(0)
 , draftToId(0)
 , lastWidth(0)
 , lastScrollTop(History::ScrollMax)
+, lastShowAtMsgId(ShowAtUnreadMsgId)
 , mute(isNotifyMuted(peer->notify))
 , lastKeyboardInited(false)
 , lastKeyboardUsed(false)
@@ -1010,7 +1010,7 @@ void History::addToFront(const QVector<MTPMessage> &slice) {
 		block->height += dayItem->resize(width);
 	}
 	if (block->size()) {
-		if (wasMsgCount < unreadCount && msgCount >= unreadCount && !activeMsgId) {
+		if (loadedAtBottom() && wasMsgCount < unreadCount && msgCount >= unreadCount) {
 			for (int32 i = block->size(); i > 0; --i) {
 				if ((*block)[i - 1]->itemType() == HistoryItem::MsgType) {
 					++wasMsgCount;
@@ -1233,6 +1233,7 @@ void History::inboxRead(int32 upTo) {
 	if (!dialogs.isEmpty()) {
 		if (App::main()) App::main()->dlgUpdated(dialogs[0]);
 	}
+	showFrom = 0;
 	App::wnd()->notifyClear(this);
 	clearNotifications();
 }
@@ -1254,7 +1255,7 @@ void History::outboxRead(HistoryItem *wasRead) {
 
 void History::setUnreadCount(int32 newUnreadCount, bool psUpdate) {
 	if (unreadCount != newUnreadCount) {
-		if (!unreadCount && newUnreadCount == 1 && loadedAtBottom()) {
+		if (newUnreadCount == 1 && loadedAtBottom()) {
 			showFrom = isEmpty() ? 0 : back()->back();
 		} else if (!newUnreadCount) {
 			showFrom = 0;
@@ -1283,10 +1284,6 @@ void History::setMsgCount(int32 newMsgCount) {
 }
 
 void History::getNextShowFrom(HistoryBlock *block, int32 i) {
-	if (!loadedAtBottom()) {
-		showFrom = 0;
-		return;
-	}
 	if (i >= 0) {
 		int32 l = block->size();
 		for (++i; i < l; ++i) {
@@ -1313,7 +1310,7 @@ void History::getNextShowFrom(HistoryBlock *block, int32 i) {
 }
 
 void History::addUnreadBar() {
-	if (unreadBar || !showFrom || !unreadCount || !loadedAtBottom()) return;
+	if (unreadBar || !showFrom || showFrom->detached() || !unreadCount) return;
 
 	HistoryBlock *block = showFrom->block();
 	int32 i = block->indexOf(showFrom);
@@ -1341,16 +1338,34 @@ void History::clearNotifications() {
 	notifies.clear();
 }
 
-bool History::readyForWork() const {
-	return activeMsgId ? !isEmpty() : (unreadCount <= msgCount);
-}
-
 bool History::loadedAtBottom() const {
 	return newLoaded;
 }
 
 bool History::loadedAtTop() const {
 	return oldLoaded;
+}
+
+bool History::isReadyFor(MsgId msgId, bool check) const {
+	if (msgId == ShowAtTheEndMsgId) {
+		return loadedAtBottom();
+	} else if (msgId == ShowAtUnreadMsgId) {
+		return check ? (loadedAtBottom() && (msgCount >= unreadCount)) : !isEmpty();
+	} else if (check) {
+		HistoryItem *item = App::histItemById(msgId);
+		return item && item->history() == this && !item->detached();
+	}
+	return !isEmpty();
+}
+
+void History::getReadyFor(MsgId msgId) {
+	if (!isReadyFor(msgId, true)) {
+		clear(true);
+		newLoaded = (msgId == ShowAtTheEndMsgId) || (lastMsg && !lastMsg->detached());
+		oldLoaded = false;
+		lastWidth = 0;
+		lastShowAtMsgId = msgId;
+	}
 }
 
 void History::fixLastMessage(bool wasAtBottom) {
@@ -1365,37 +1380,6 @@ void History::fixLastMessage(bool wasAtBottom) {
 			App::main()->checkPeerHistory(peer);
 		}
 	}
-}
-
-void History::loadAround(MsgId msgId) {
-	if (activeMsgId != msgId) {
-		activeMsgId = msgId;
-		lastWidth = 0;
-		if (activeMsgId) {
-			HistoryItem *item = App::histItemById(activeMsgId);
-			if (!item || !item->block()) {
-				clear(true);
-			}
-			newLoaded = lastMsg && !lastMsg->detached();
-		} else {
-			if (!loadedAtBottom()) {
-				clear(true);
-			}
-			newLoaded = isEmpty() || (lastMsg && !lastMsg->detached());
-		}
-	}
-}
-
-bool History::canShowAround(MsgId msgId) const {
-	if (activeMsgId != msgId) {
-		if (msgId) {
-			HistoryItem *item = App::histItemById(msgId);
-			return item && item->block();
-		} else {
-			return loadedAtBottom();
-		}
-	}
-	return true;
 }
 
 MsgId History::minMsgId() const {
@@ -5184,18 +5168,16 @@ void HistoryMessage::setMedia(const MTPmessageMedia &media) {
 void HistoryMessage::draw(QPainter &p, uint32 selection) const {
 	textstyleSet(&(out() ? st::outTextStyle : st::inTextStyle));
 
-	if (id == _history->activeMsgId) {
-		uint64 ms = App::main() ? App::main()->animActiveTime() : 0;
-		if (ms) {
-			if (ms > st::activeFadeInDuration + st::activeFadeOutDuration) {
-				App::main()->stopAnimActive();
-			} else {
-				float64 dt = (ms > st::activeFadeInDuration) ? (1 - (ms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (ms / float64(st::activeFadeInDuration));
-				float64 o = p.opacity();
-				p.setOpacity(o * dt);
-				p.fillRect(0, 0, _history->width, _height, textstyleCurrent()->selectOverlay->b);
-				p.setOpacity(o);
-			}
+	uint64 ms = App::main() ? App::main()->animActiveTime(id) : 0;
+	if (ms) {
+		if (ms > st::activeFadeInDuration + st::activeFadeOutDuration) {
+			App::main()->stopAnimActive();
+		} else {
+			float64 dt = (ms > st::activeFadeInDuration) ? (1 - (ms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (ms / float64(st::activeFadeInDuration));
+			float64 o = p.opacity();
+			p.setOpacity(o * dt);
+			p.fillRect(0, 0, _history->width, _height, textstyleCurrent()->selectOverlay->b);
+			p.setOpacity(o);
 		}
 	}
 
@@ -6108,19 +6090,17 @@ QString HistoryServiceMsg::inReplyText() const {
 }
 
 void HistoryServiceMsg::draw(QPainter &p, uint32 selection) const {
-	if (id == _history->activeMsgId) {
-		uint64 ms = App::main() ? App::main()->animActiveTime() : 0;
-		if (ms) {
-			if (ms > st::activeFadeInDuration + st::activeFadeOutDuration) {
-				App::main()->stopAnimActive();
-			} else {
-				textstyleSet(&st::inTextStyle);
-				float64 dt = (ms > st::activeFadeInDuration) ? (1 - (ms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (ms / float64(st::activeFadeInDuration));
-				float64 o = p.opacity();
-				p.setOpacity(o * dt);
-				p.fillRect(0, 0, _history->width, _height, textstyleCurrent()->selectOverlay->b);
-				p.setOpacity(o);
-			}
+	uint64 ms = App::main() ? App::main()->animActiveTime(id) : 0;
+	if (ms) {
+		if (ms > st::activeFadeInDuration + st::activeFadeOutDuration) {
+			App::main()->stopAnimActive();
+		} else {
+			textstyleSet(&st::inTextStyle);
+			float64 dt = (ms > st::activeFadeInDuration) ? (1 - (ms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (ms / float64(st::activeFadeInDuration));
+			float64 o = p.opacity();
+			p.setOpacity(o * dt);
+			p.fillRect(0, 0, _history->width, _height, textstyleCurrent()->selectOverlay->b);
+			p.setOpacity(o);
 		}
 	}
 

@@ -1367,7 +1367,7 @@ void OverviewInner::goToMessage() {
 	HistoryItem *item = App::contextItem();
 	if (!item) return;
 
-	App::main()->showPeer(item->history()->peer->id, item->id, true, true);
+	App::main()->showPeerHistory(item->history()->peer->id, item->id);
 }
 
 void OverviewInner::forwardMessage() {

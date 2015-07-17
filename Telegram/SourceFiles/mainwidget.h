@@ -111,13 +111,14 @@ public:
 
 class StackItemHistory : public StackItem {
 public:
-	StackItemHistory(PeerData *peer, int32 lastWidth, int32 lastScrollTop, QList<MsgId> replyReturns, bool kbWasHidden) : StackItem(peer), replyReturns(replyReturns), lastWidth(lastWidth), lastScrollTop(lastScrollTop), kbWasHidden(kbWasHidden) {
+	StackItemHistory(PeerData *peer, MsgId msgId, QList<MsgId> replyReturns, bool kbWasHidden) : StackItem(peer),
+msgId(msgId), replyReturns(replyReturns), kbWasHidden(kbWasHidden) {
 	}
 	StackItemType type() const {
 		return HistoryStackItem;
 	}
+	MsgId msgId;
 	QList<MsgId> replyReturns;
-	int32 lastWidth, lastScrollTop;
 	bool kbWasHidden;
 };
 
@@ -184,7 +185,7 @@ public:
 
 	void updateWideMode();
 	bool needBackButton();
-	void onShowDialogs();
+	void showDialogs();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
 	void topBarShadowParams(int32 &x, float64 &o);
@@ -234,14 +235,17 @@ public:
 	void peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
 	PeerData *historyPeer();
 	PeerData *peer();
+
 	PeerData *activePeer();
 	MsgId activeMsgId();
+
 	PeerData *profilePeer();
 	PeerData *overviewPeer();
 	bool mediaTypeSwitch();
 	void showPeerProfile(PeerData *peer, bool back = false, int32 lastScrollTop = -1, bool allMediaShown = false);
 	void showMediaOverview(PeerData *peer, MediaOverviewType type, bool back = false, int32 lastScrollTop = -1);
 	void showBackFromStack();
+	void orderWidgets();
 	QRect historyRect() const;
 
 	void confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo);
@@ -272,7 +276,6 @@ public:
 	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);
 	bool selectingPeer(bool withConfirm = false);
 	void offerPeer(PeerId peer);
-	void focusPeerSelect();
 	void dialogsActivate();
 
 	DragState getDragState(const QMimeData *mime);
@@ -310,7 +313,7 @@ public:
     
     void readServerHistory(History *history, bool force = true);
 
-	uint64 animActiveTime() const;
+	uint64 animActiveTime(MsgId id) const;
 	void stopAnimActive();
 
 	void sendBotCommand(const QString &cmd, MsgId msgId);
@@ -369,6 +372,9 @@ public:
 	void updateStickers();
 	void botCommandsChanged(UserData *bot);
 
+	void choosePeer(PeerId peerId, MsgId showAtMsgId); // does offerPeer or showPeerHistory
+	void clearBotStartToken(PeerData *peer);
+
 	~MainWidget();
 
 signals:
@@ -379,7 +385,7 @@ signals:
 	void dialogRowReplaced(DialogRow *oldRow, DialogRow *newRow);
 	void dialogToTop(const History::DialogLinks &links);
 	void dialogsUpdated();
-	void showPeerAsync(quint64 peer, qint32 msgId, bool back, bool force);
+	void showPeerAsync(quint64 peerId, qint32 showAtMsgId);
 	void stickersUpdated();
 
 public slots:
@@ -411,7 +417,7 @@ public slots:
 	void checkIdleFinish();
 	void updateOnlineDisplay();
 
-	void showPeer(quint64 peer, qint32 msgId = 0, bool back = false, bool force = false); // PeerId, MsgId
+	void showPeerHistory(quint64 peer, qint32 msgId, bool back = false);
 	void onTopBarClick();
 	void onPeerShown(PeerData *peer);
 
@@ -500,10 +506,11 @@ private:
 	PlayerWidget _player;
 	TopBarWidget _topBar;
 	ConfirmBox *_forwardConfirm; // for narrow mode
-	HistoryHider *hider;
+	HistoryHider *_hider;
 	StackItems _stack;
-	QPixmap profileAnimCache;
-
+	PeerData *_peerInStack;
+	MsgId _msgIdInStack;
+	
 	int32 _playerHeight;
 	int32 _contentScrollAddToY;
 

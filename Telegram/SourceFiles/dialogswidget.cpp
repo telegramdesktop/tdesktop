@@ -1094,7 +1094,7 @@ void DialogsListWidget::loadPeerPhotos(int32 yFrom) {
 
 bool DialogsListWidget::choosePeer() {
 	History *history = 0;
-	MsgId msgId = 0;
+	MsgId msgId = ShowAtUnreadMsgId;
 	if (_state == DefaultState) {
 		if (sel) history = sel->history;
 	} else if (_state == FilteredState || _state == SearchedState) {
@@ -1133,11 +1133,11 @@ bool DialogsListWidget::choosePeer() {
 		}
 	}
 	if (history) {
-		if (msgId) {
+		if (msgId > 0) {
 			saveRecentHashtags(filter);
 		}
 		bool chosen = (!App::main()->selectingPeer(true) && (_state == FilteredState || _state == SearchedState) && filteredSel >= 0 && filteredSel < filterResults.size());
-		App::main()->showPeer(history->peer->id, msgId);
+		App::main()->choosePeer(history->peer->id, msgId);
 		if (chosen) {
 			emit searchResultChosen();
 		}
@@ -1204,11 +1204,11 @@ void DialogsListWidget::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData
 			}
 			if (i.value()->prev) {
 				outPeer = i.value()->prev->history->peer;
-				outMsg = 0;
+				outMsg = ShowAtUnreadMsgId;
 				return;
 			} else if (dialogs.list.count) {
 				outPeer = dialogs.list.end->prev->history->peer;
-				outMsg = 0;
+				outMsg = ShowAtUnreadMsgId;
 				return;
 			}
 			outPeer = 0;
@@ -1217,7 +1217,7 @@ void DialogsListWidget::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData
 		}
 		if (i.value()->prev) {
 			outPeer = i.value()->prev->history->peer;
-			outMsg = 0;
+			outMsg = ShowAtUnreadMsgId;
 			return;
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
@@ -1231,7 +1231,7 @@ void DialogsListWidget::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData
 				}
 			}
 			if (searchResults.at(0)->_item->history()->peer == inPeer && searchResults.at(0)->_item->id == inMsg) {
-				outMsg = 0;
+				outMsg = ShowAtUnreadMsgId;
 				if (peopleResults.isEmpty()) {
 					if (filterResults.isEmpty()) {
 						outPeer = 0;
@@ -1246,14 +1246,14 @@ void DialogsListWidget::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData
 		}
 		if (!peopleResults.isEmpty() && peopleResults.at(0) == inPeer) {
 			outPeer = filterResults.isEmpty() ? 0 : filterResults.back()->history->peer;
-			outMsg = 0;
+			outMsg = ShowAtUnreadMsgId;
 			return;
 		}
 		if (!peopleResults.isEmpty()) {
 			for (PeopleResults::const_iterator b = peopleResults.cbegin(), i = b + 1, e = peopleResults.cend(); i != e; ++i) {
 				if ((*i) == inPeer) {
 					outPeer = (*(i - 1));
-					outMsg = 0;
+					outMsg = ShowAtUnreadMsgId;
 					return;
 				}
 			}
@@ -1267,7 +1267,7 @@ void DialogsListWidget::peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData
 		for (FilteredDialogs::const_iterator b = filterResults.cbegin(), i = b + 1, e = filterResults.cend(); i != e; ++i) {
 			if ((*i)->history->peer == inPeer) {
 				outPeer = (*(i - 1))->history->peer;
-				outMsg = 0;
+				outMsg = ShowAtUnreadMsgId;
 				return;
 			}
 		}
@@ -1288,7 +1288,7 @@ void DialogsListWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData 
 			}
 			if (i.value()->next != contactsNoDialogs.list.end) {
 				outPeer = i.value()->next->history->peer;
-				outMsg = 0;
+				outMsg = ShowAtUnreadMsgId;
 				return;
 			}
 			outPeer = 0;
@@ -1298,11 +1298,11 @@ void DialogsListWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData 
 
 		if (i.value()->next != dialogs.list.end) {
 			outPeer = i.value()->next->history->peer;
-			outMsg = 0;
+			outMsg = ShowAtUnreadMsgId;
 			return;
 		} else if (contactsNoDialogs.list.count) {
 			outPeer = contactsNoDialogs.list.begin->history->peer;
-			outMsg = 0;
+			outMsg = ShowAtUnreadMsgId;
 			return;
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
@@ -1324,7 +1324,7 @@ void DialogsListWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData 
 					outMsg = searchResults.front()->_item->id;
 				} else {
 					outPeer = (i == e) ? 0 : (*i);
-					outMsg = 0;
+					outMsg = ShowAtUnreadMsgId;
 				}
 				return;
 			}
@@ -1334,13 +1334,13 @@ void DialogsListWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData 
 				++i;
 				if (i == e && !peopleResults.isEmpty()) {
 					outPeer = peopleResults.front();
-					outMsg = 0;
+					outMsg = ShowAtUnreadMsgId;
 				} else if (i == e && !searchResults.isEmpty()) {
 					outPeer = searchResults.front()->_item->history()->peer;
 					outMsg = searchResults.front()->_item->id;
 				} else {
 					outPeer = (i == e) ? 0 : (*i)->history->peer;
-					outMsg = 0;
+					outMsg = ShowAtUnreadMsgId;
 				}
 				return;
 			}
@@ -1452,10 +1452,6 @@ void DialogsWidget::dialogsToUp() {
 	if (_filter.text().trimmed().isEmpty()) {
 		scroll.scrollToY(0);
 	}
-}
-
-void DialogsWidget::setInnerFocus() {
-	_filter.setFocus();
 }
 
 void DialogsWidget::animShow(const QPixmap &bgAnimCache) {

@@ -34,12 +34,16 @@ namespace {
 	}
 }
 
+void myEnsureResized(QWidget *target) {
+	if (target && (target->testAttribute(Qt::WA_PendingResizeEvent) || !target->testAttribute(Qt::WA_WState_Created))) {
+		_sendResizeEvents(target);
+	}
+}
+
 QPixmap myGrab(QWidget *target, const QRect &rect) {
     if (!cRetina()) return target->grab(rect);
-        
-    if (target->testAttribute(Qt::WA_PendingResizeEvent) || !target->testAttribute(Qt::WA_WState_Created)) {
-        _sendResizeEvents(target);
-    }
+    
+	myEnsureResized(target);
     
     qreal dpr = App::app()->devicePixelRatio();
     QPixmap result(rect.size() * dpr);
