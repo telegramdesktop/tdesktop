@@ -446,7 +446,7 @@ void MediaView::onToMessage() {
 	if (HistoryItem *item = _msgid ? App::histItemById(_msgid) : 0) {
 		if (App::wnd()) {
 			close();
-			if (App::main()) App::main()->showPeer(item->history()->peer->id, _msgid, false, true);
+			if (App::main()) App::main()->showPeerHistory(item->history()->peer->id, _msgid);
 		}
 	}
 }

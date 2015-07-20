@@ -25,6 +25,9 @@ typedef uint64 DocumentId;
 typedef uint64 WebPageId;
 typedef int32 MsgId;
 
+static const MsgId ShowAtTheEndMsgId = -0x40000000;
+static const MsgId ShowAtUnreadMsgId = 0;
+
 struct NotifySettings {
 	NotifySettings() : mute(0), sound("default"), previews(true), events(1) {
 	}

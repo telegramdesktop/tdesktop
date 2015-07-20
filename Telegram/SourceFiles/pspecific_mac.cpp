@@ -76,7 +76,7 @@ void MacPrivate::notifyClicked(unsigned long long peer, int msgid) {
 				tomsg = false;
 			}
 		}
-		App::main()->showPeer(history->peer->id, tomsg ? msgid : 0, false, true);
+		App::main()->showPeerHistory(history->peer->id, tomsg ? msgid : ShowAtUnreadMsgId);
 		App::wnd()->notifyClear(history);
 	}
 }

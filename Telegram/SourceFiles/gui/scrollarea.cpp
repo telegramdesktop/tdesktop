@@ -47,7 +47,7 @@ ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::flatScroll *st)
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideTimer()));
 
-	connect(_connected, SIGNAL(valueChanged(int)), this, SLOT(updateBar()));
+	connect(_connected, SIGNAL(valueChanged(int)), this, SLOT(onValueChanged()));
 	connect(_connected, SIGNAL(rangeChanged(int, int)), this, SLOT(updateBar()));
 
 	updateBar();
@@ -55,6 +55,11 @@ ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::flatScroll *st)
 
 void ScrollBar::recountSize() {
 	setGeometry(_vertical ? QRect(rtl() ? 0 : (_area->width() - _st->width), _st->deltat, _st->width, _area->height() - _st->deltat - _st->deltab) : QRect(_st->deltat, _area->height() - _st->width, _area->width() - _st->deltat - _st->deltab, _st->width));
+}
+
+void ScrollBar::onValueChanged() {
+	_area->onScrolled();
+	updateBar();
 }
 
 void ScrollBar::updateBar(bool force) {
@@ -266,8 +271,6 @@ _touchScrollState(TouchScrollManual), _touchPrevPosValid(false), _touchWaitingAc
 _touchSpeedTime(0), _touchAccelerationTime(0), _touchTime(0), _widgetAcceptsTouch(false) {
 	setLayoutDirection(cLangDir());
 
-	connect(horizontalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onScrolled()));
-	connect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onScrolled()));
 	connect(&vert, SIGNAL(topShadowVisibility(bool)), &topSh, SLOT(changeVisibility(bool)));
 	connect(&vert, SIGNAL(bottomShadowVisibility(bool)), &bottomSh, SLOT(changeVisibility(bool)));
 	vert.updateBar(true);
@@ -297,6 +300,8 @@ void ScrollArea::touchDeaccelerate(int32 elapsed) {
 }
 
 void ScrollArea::onScrolled() {
+	myEnsureResized(widget());
+
 	bool em = false;
 	int32 horValue = horizontalScrollBar()->value(), vertValue = verticalScrollBar()->value();
 	if (_horValue != horValue) {
@@ -325,27 +330,29 @@ void ScrollArea::onScrolled() {
 }
 
 int ScrollArea::scrollWidth() const {
-	return scrollLeftMax() + width();
+	QWidget *w(widget());
+	return w ? qMax(w->width(), width()) : width();
 }
 
 int ScrollArea::scrollHeight() const {
-	return scrollTopMax() + height();
+	QWidget *w(widget());
+	return w ? qMax(w->height(), height()) : height();
 }
 
 int ScrollArea::scrollLeftMax() const {
-	return horizontalScrollBar()->maximum();
+	return scrollWidth() - width();
 }
 
 int ScrollArea::scrollTopMax() const {
-	return verticalScrollBar()->maximum();
+	return scrollHeight() - height();
 }
 
 int ScrollArea::scrollLeft() const {
-	return horizontalScrollBar()->value();
+	return _horValue;
 }
 
 int ScrollArea::scrollTop() const {
-	return verticalScrollBar()->value();
+	return _vertValue;
 }
 
 void ScrollArea::onTouchTimer() {
@@ -612,6 +619,8 @@ void ScrollArea::leaveEvent(QEvent *e) {
 }
 
 void ScrollArea::scrollToY(int toTop, int toBottom) {
+	myEnsureResized(widget());
+
 	int toMin = 0, toMax = scrollTopMax();
 	if (toTop < toMin) {
 		toTop = toMin;

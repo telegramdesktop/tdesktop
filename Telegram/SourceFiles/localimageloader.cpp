@@ -168,9 +168,10 @@ void LocalImageLoaderPrivate::prepareImages() {
 		bool isSong = false;
 		QByteArray jpeg;
 		if (type == ToPrepareDocument) {
-			if (mime == qstr("audio/mp3") || mime == qstr("audio/m4a") || mime == qstr("audio/aac") || mime == qstr("audio/ogg") ||
+			if (mime == qstr("audio/mp3") || mime == qstr("audio/m4a") || mime == qstr("audio/aac") || mime == qstr("audio/ogg") || mime == qstr("audio/flac") ||
 				filename.endsWith(qstr(".mp3"), Qt::CaseInsensitive) || filename.endsWith(qstr(".m4a"), Qt::CaseInsensitive) ||
-				filename.endsWith(qstr(".aac"), Qt::CaseInsensitive) || filename.endsWith(qstr(".ogg"), Qt::CaseInsensitive)) {
+				filename.endsWith(qstr(".aac"), Qt::CaseInsensitive) || filename.endsWith(qstr(".ogg"), Qt::CaseInsensitive) ||
+				filename.endsWith(qstr(".flac"), Qt::CaseInsensitive)) {
 				
 				QImage cover;
 				QByteArray coverBytes, coverFormat;

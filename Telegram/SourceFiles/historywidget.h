@@ -82,6 +82,7 @@ public:
 	void updateBotInfo(bool recount = true);
 
 	bool wasSelectedText() const;
+	void setFirstLoading(bool loading);
 
 	~HistoryList();
 	
@@ -129,6 +130,8 @@ private:
 	HistoryWidget *historyWidget;
 	ScrollArea *scrollArea;
 	int32 currentBlock, currentItem;
+
+	bool _firstLoading;
 
 	QTimer linkTipTimer;
 
@@ -343,6 +346,7 @@ public:
 	void start();
 
 	void messagesReceived(const MTPmessages_Messages &messages, mtpRequestId requestId);
+	void historyLoaded();
 
 	void windowShown();
 	bool isActive() const;
@@ -369,7 +373,8 @@ public:
 
 	void loadMessages();
 	void loadMessagesDown();
-	void loadMessagesAround();
+	void firstLoadMessages();
+	void delayedShowAt(MsgId showAtMsgId);
 	void peerMessagesUpdated(PeerId peer);
 	void peerMessagesUpdated();
 
@@ -397,7 +402,6 @@ public:
 	void confirmSendImage(const ReadyLocalMedia &img);
 	void cancelSendImage();
 
-	void checkUnreadLoaded(bool checkOnlyShow = false);
 	void updateControlsVisibility();
 	void updateOnlineDisplay(int32 x, int32 w);
 	void updateOnlineDisplayTimer();
@@ -408,10 +412,7 @@ public:
 	void shareContact(const PeerId &peer, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, int32 userId = 0);
 
 	PeerData *peer() const;
-	PeerData *activePeer() const;
-	MsgId activeMsgId() const;
-	int32 lastWidth() const;
-	int32 lastScrollTop() const;
+	MsgId msgId() const;
 
 	void animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
 	bool showStep(float64 ms);
@@ -427,7 +428,7 @@ public:
     
 	QString prepareMessage(QString text);
 
-	uint64 animActiveTime() const;
+	uint64 animActiveTime(MsgId id) const;
 	void stopAnimActive();
 
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
@@ -469,6 +470,11 @@ public:
 	void updateBotKeyboard();
 
 	DragState getDragState(const QMimeData *d);
+
+	void fastShowAtEnd(History *h);
+	void showPeerHistory(const PeerId &peer, MsgId showAtMsgId);
+	void clearDelayedShowAt();
+	void clearAllLoadRequests();
 
 	~HistoryWidget();
 
@@ -523,8 +529,7 @@ public slots:
 	void onSendConfirmed();
 	void onSendCancelled();
 	void onPhotoFailed(quint64 id);
-	void showPeer(const PeerId &peer, MsgId msgId = 0, bool force = false, bool leaveActive = false);
-	void clearLoadingAround();
+
 	void activate();
 	void onMentionHashtagOrBotCommandInsert(QString str);
 	void onTextChange();
@@ -595,6 +600,8 @@ private:
 	void addMessagesToFront(const QVector<MTPMessage> &messages);
 	void addMessagesToBack(const QVector<MTPMessage> &messages);
 
+	void countHistoryShowFrom();
+
 	void updateToEndVisibility();
 
 	void stickersGot(const MTPmessages_AllStickers &stickers);
@@ -609,21 +616,20 @@ private:
 
 	void updateDragAreas();
 
-	bool _loadingMessages;
-	int32 histRequestsCount;
-	PeerData *histPeer;
-	History *_activeHist;
-	MTPinputPeer histInputPeer;
-	mtpRequestId histPreloading, histPreloadingDown;
-	QVector<MTPMessage> histPreload, histPreloadDown;
+	PeerData *_peer;
+	MsgId _showAtMsgId;
 
-	int32 _loadingAroundId;
-	mtpRequestId _loadingAroundRequest;
+	mtpRequestId _firstLoadRequest, _preloadRequest, _preloadDownRequest;
+
+	MsgId _delayedShowAtMsgId;
+	mtpRequestId _delayedShowAtRequest;
+
+	MsgId _activeAnimMsgId;
 
 	ScrollArea _scroll;
 	HistoryList *_list;
-	History *hist;
-	bool _histInited, _histNeedUpdate; // initial updateListSize() called
+	History *_history;
+	bool _histInited; // initial updateListSize() called
 
 	IconedButton _toHistoryEnd;
 
@@ -656,19 +662,17 @@ private:
 
 	int32 _selCount; // < 0 - text selected, focus list, not _field
 
-	LocalImageLoader imageLoader;
+	LocalImageLoader _imageLoader;
 	bool _synthedTextUpdate;
 
-	int64 serviceImageCacheSize;
-	QImage confirmImage;
-	PhotoId confirmImageId;
-	bool confirmWithText;
-	QString confirmSource;
+	int64 _serviceImageCacheSize;
+	QImage _confirmImage;
+	PhotoId _confirmImageId;
+	bool _confirmWithText;
+	QString _confirmSource;
 
-	QString titlePeerText;
-	int32 titlePeerTextWidth;
-
-	bool hiderOffered;
+	QString _titlePeerText;
+	int32 _titlePeerTextWidth;
 
 	Animation _showAnim;
 	QPixmap _animCache, _bgAnimCache, _animTopBarCache, _bgAnimTopBarCache;

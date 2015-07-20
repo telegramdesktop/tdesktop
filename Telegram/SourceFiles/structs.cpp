@@ -775,7 +775,7 @@ void MessageLink::onClick(Qt::MouseButton button) const {
 		if (current && current->history()->peer->id == peer()) {
 			App::main()->pushReplyReturn(current);
 		}
-		App::main()->showPeer(peer(), msgid());
+		App::main()->showPeerHistory(peer(), msgid());
 	}
 }
 

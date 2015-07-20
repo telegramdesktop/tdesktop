@@ -193,8 +193,6 @@ public:
 	void animShow(const QPixmap &bgAnimCache);
 	bool animStep(float64 ms);
 
-	void setInnerFocus();
-
 	void destroyData();
 
 	void peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg) const;

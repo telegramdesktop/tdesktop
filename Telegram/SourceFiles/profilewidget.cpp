@@ -178,7 +178,7 @@ void ProfileInner::onInviteToGroup() {
 }
 
 void ProfileInner::onSendMessage() {
-	App::main()->showPeer(_peer->id);
+	App::main()->showPeerHistory(_peer->id, ShowAtUnreadMsgId);
 }
 
 void ProfileInner::onEnableNotifications() {
@@ -250,7 +250,7 @@ void ProfileInner::onClearHistory() {
 }
 
 void ProfileInner::onClearHistorySure() {
-	App::main()->showPeer(0, 0, true);
+	App::main()->showDialogs();
 	App::wnd()->hideLayer();
 	App::main()->clearHistory(_peer);
 }
@@ -358,7 +358,7 @@ void ProfileInner::onBotSettings() {
 	for (int32 i = 0, l = _peerUser->botInfo->commands.size(); i != l; ++i) {
 		QString cmd = _peerUser->botInfo->commands.at(i).command;
 		if (!cmd.compare(qsl("settings"), Qt::CaseInsensitive)) {
-			App::main()->showPeer(_peer->id);
+			App::main()->showPeerHistory(_peer->id, ShowAtTheEndMsgId);
 			App::main()->sendBotCommand('/' + cmd, 0);
 			return;
 		}
@@ -370,7 +370,7 @@ void ProfileInner::onBotHelp() {
 	for (int32 i = 0, l = _peerUser->botInfo->commands.size(); i != l; ++i) {
 		QString cmd = _peerUser->botInfo->commands.at(i).command;
 		if (!cmd.compare(qsl("help"), Qt::CaseInsensitive)) {
-			App::main()->showPeer(_peer->id);
+			App::main()->showPeerHistory(_peer->id, ShowAtTheEndMsgId);
 			App::main()->sendBotCommand('/' + cmd, 0);
 			return;
 		}
@@ -766,7 +766,7 @@ void ProfileInner::mouseReleaseEvent(QMouseEvent *e) {
 		textlnkDown(TextLinkPtr());
 		if (lnk == textlnkOver()) {
 			if (reBotCommand().match(lnk->encoded()).hasMatch()) {
-				App::main()->showPeer(_peer->id);
+				App::main()->showPeerHistory(_peer->id, ShowAtTheEndMsgId);
 			}
 			lnk->onClick(e->button());
 		}

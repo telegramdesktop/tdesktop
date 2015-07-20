@@ -180,14 +180,12 @@ struct History : public QList<HistoryBlock*> {
 	void addUnreadBar();
 	void clearNotifications();
 
-	bool readyForWork() const; // all unread loaded or loaded around activeMsgId
 	bool loadedAtBottom() const; // last message is in the list
 	bool loadedAtTop() const; // nothing was added after loading history back
+	bool isReadyFor(MsgId msgId, bool check = false) const; // has messages for showing history at msgId
+	void getReadyFor(MsgId msgId);
 
 	void fixLastMessage(bool wasAtBottom);
-
-	void loadAround(MsgId msgId);
-	bool canShowAround(MsgId msgId) const;
 
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
@@ -201,7 +199,6 @@ struct History : public QList<HistoryBlock*> {
 	PeerData *peer;
 	bool oldLoaded, newLoaded;
 	HistoryItem *lastMsg;
-	MsgId activeMsgId;
 
 	typedef QList<HistoryItem*> NotifyQueue;
 	NotifyQueue notifies;
@@ -251,6 +248,7 @@ struct History : public QList<HistoryBlock*> {
 	MessageCursor draftCursor;
 	bool draftPreviewCancelled;
 	int32 lastWidth, lastScrollTop;
+	MsgId lastShowAtMsgId;
 	bool mute;
 
 	bool lastKeyboardInited, lastKeyboardUsed;

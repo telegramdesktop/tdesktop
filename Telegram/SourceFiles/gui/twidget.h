@@ -174,4 +174,5 @@ private:
 
 };
 
+void myEnsureResized(QWidget *target);
 QPixmap myGrab(QWidget *target, const QRect &rect);

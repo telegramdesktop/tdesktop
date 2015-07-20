@@ -96,7 +96,7 @@ void ContactsInner::onAddBot() {
 		MTP::send(MTPmessages_StartBot(_bot->inputUser, MTP_int(App::chatFromPeer(_addToChat->id)), MTP_long(randomId), MTP_string(_bot->botInfo->startGroupToken)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _bot));
 
 		App::wnd()->hideLayer();
-		App::main()->showPeer(_addToChat->id, 0, false);
+		App::main()->showPeerHistory(_addToChat->id, ShowAtUnreadMsgId);
 	} else {
 		App::main()->addParticipants(_addToChat, QVector<UserData*>(1, _bot));
 	}
@@ -461,7 +461,7 @@ void ContactsInner::chooseParticipant() {
 				App::wnd()->replaceLayer(box);
 			} else {
 				App::wnd()->hideSettings(true);
-				App::main()->showPeer(peer->id, 0, false, true);
+				App::main()->choosePeer(peer->id, ShowAtUnreadMsgId);
 				App::wnd()->hideLayer();
 			}
 		}
@@ -1149,7 +1149,7 @@ void ContactsBox::onNext() {
 		_filter.setFocus();
 		_filter.notaBene();
 	} else if (v.size() == 1) {
-		App::main()->showPeer(_inner.selectedUser()->id);
+		App::main()->showPeerHistory(_inner.selectedUser()->id, ShowAtUnreadMsgId);
 	} else {
 		App::wnd()->replaceLayer(new CreateGroupBox(users));
 	}
@@ -1258,7 +1258,7 @@ void CreateGroupBox::created(const MTPUpdates &updates) {
 	} break;
 	}
 	if (v && !v->isEmpty() && v->front().type() == mtpc_chat) {
-		App::main()->showPeer(App::peerFromChat(v->front().c_chat().vid.v));
+		App::main()->choosePeer(App::peerFromChat(v->front().c_chat().vid.v), ShowAtUnreadMsgId);
 	}
 }
 
