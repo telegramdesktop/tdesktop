@@ -415,9 +415,24 @@ namespace {
         }
 
         void setupGtk() {
-            if (!noQtTrayIcon) return;
-
             QLibrary lib_gtk, lib_indicator;
+            if (!noQtTrayIcon) {
+                if (!noTryUnity) {
+                    if (loadLibrary(lib_gtk, "gtk-3", 0)) {
+                        setupGtkBase(lib_gtk);
+                    }
+                    if (!useGtkBase) {
+                        if (loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
+                            setupGtkBase(lib_gtk);
+                        }
+                    }
+                    if (!useGtkBase) {
+                        noTryUnity = true;
+                    }
+                }
+                return;
+            }
+
             if (loadLibrary(lib_indicator, "appindicator3", 1)) {
                 if (loadLibrary(lib_gtk, "gtk-3", 0)) {
                     setupGtkBase(lib_gtk);
@@ -745,6 +760,14 @@ void PsMainWindow::psUpdatedPosition() {
 void PsMainWindow::psCreateTrayIcon() {
     if (!noQtTrayIcon) {
         cSetSupportTray(QSystemTrayIcon::isSystemTrayAvailable());
+        if (!noTryUnity) {
+            if (ps_gtk_init_check(0, 0)) {
+                DEBUG_LOG(("Checked gtk with gtk_init_check!"));
+            } else {
+                DEBUG_LOG(("Failed to gtk_init_check(0, 0)!"));
+                useUnityCount = false;
+            }
+        }
         return;
     }
 
