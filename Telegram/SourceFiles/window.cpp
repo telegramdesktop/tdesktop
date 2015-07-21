@@ -429,16 +429,11 @@ void Window::init() {
 
 	title = new TitleWidget(this);
 
-	psInitSize();
-	psUpdateWorkmode();
-}
-
-void Window::firstShow() {
 #ifdef Q_OS_WIN
     trayIconMenu = new ContextMenu(this);
 #else
-	trayIconMenu = new QMenu(this);
-	trayIconMenu->setFont(QFont("Tahoma"));
+    trayIconMenu = new QMenu(this);
+    trayIconMenu->setFont(QFont("Tahoma"));
 #endif
     if (cPlatform() == dbipWindows || cPlatform() == dbipMac) {
         trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
@@ -449,8 +444,12 @@ void Window::firstShow() {
         trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
     }
 
-	psFirstShow();
+    psInitSize();
+	psUpdateWorkmode();
+}
 
+void Window::firstShow() {
+	psFirstShow();
 	updateTrayMenu();
 }
 
