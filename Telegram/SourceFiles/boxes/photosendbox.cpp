@@ -61,7 +61,8 @@ PhotoSendBox::PhotoSendBox(const ReadyLocalMedia &img) : _img(new ReadyLocalMedi
 		}
 		resizeMaxHeight(st::boxWidth, _thumbh + st::boxPadding.top() + st::boxFont->height + st::boxPadding.bottom() + st::boxPadding.bottom() + _compressed.height() + _sendButton.height());
 
-		_thumb = QPixmap::fromImage(_thumb.toImage().scaled(_thumbw, _thumbh, Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
+		_thumb = QPixmap::fromImage(_thumb.toImage().scaled(_thumbw * cIntRetinaFactor(), _thumbh * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly);
+		_thumb.setDevicePixelRatio(cRetinaFactor());
 	} else {
 		_compressed.hide();
 		if (!_img->photoThumbs.isEmpty()) {

@@ -26,6 +26,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "localstorage.h"
 
+#include "numbers.h"
+
 namespace {
 	bool quiting = false;
 
@@ -107,7 +109,27 @@ namespace {
 namespace App {
 
 	QString formatPhone(QString phone) {
-		return '+' + phone.replace(QRegularExpression(qsl("[^\\d]")), QString());
+		if (phone.isEmpty()) return QString();
+		QString number = phone;
+		for (const QChar *ch = phone.constData(), *e = ch + phone.size(); ch != e; ++ch) {
+			if (ch->unicode() < '0' || ch->unicode() > '9') {
+				number = phone.replace(QRegularExpression(qsl("[^\\d]")), QString());
+			}
+		}
+		QVector<int> groups = phoneNumberParse(number);
+		if (groups.isEmpty()) return '+' + number;
+
+		QString result;
+		result.reserve(number.size() + groups.size() + 1);
+		result.append('+');
+		int32 sum = 0;
+		for (int32 i = 0, l = groups.size(); i < l; ++i) {
+			result.append(number.midRef(sum, groups.at(i)));
+			sum += groups.at(i);
+			if (sum < number.size()) result.append(' ');
+		}
+		if (sum < number.size()) result.append(number.midRef(sum));
+		return result;
 	}
 
 	Application *app() {
@@ -381,13 +403,22 @@ namespace App {
 					data->access = UserNoAccess;
 					status = &emptyStatus;
 				} else {
-					data->setPhone(d.has_phone() ? qs(d.vphone) : QString());
+					QString phone = d.has_phone() ? qs(d.vphone) : QString();
 					QString fname = d.has_first_name() ? textOneLine(qs(d.vfirst_name)) : QString();
 					QString lname = d.has_last_name() ? textOneLine(qs(d.vlast_name)) : QString();
 					QString uname = d.has_username() ? textOneLine(qs(d.vusername)) : QString();
+
+					bool phoneChanged = (data->phone != phone);
+					if (phoneChanged) data->setPhone(phone);
+
+					bool nameChanged = (data->firstName != fname) || (data->lastName != lname);
+
 					bool showPhone = !isServiceUser(data->id) && !(flags & (MTPDuser_flag_self | MTPDuser_flag_contact | MTPDuser_flag_mutual_contact));
-					QString pname = (showPhone && !data->phone.isEmpty()) ? formatPhone(data->phone) : QString();
-					data->setName(fname, lname, QString(), uname);
+					bool showPhoneChanged = !isServiceUser(data->id) && !(flags & (MTPDuser_flag_self)) && ((showPhone && data->contact) || (!showPhone && !data->contact));
+
+					QString pname = (showPhoneChanged || phoneChanged || nameChanged) ? ((showPhone && !phone.isEmpty()) ? formatPhone(phone) : QString()) : data->nameOrPhone;
+
+					data->setName(fname, lname, pname, uname);
 					if (d.has_photo()) {
 						data->setPhoto(d.vphoto);
 					} else {
@@ -825,6 +856,7 @@ namespace App {
 		UserData *user = userLoaded(userId.v);
 		if (user) {
 			bool wasContact = (user->contact > 0);
+			bool wasShowPhone = !user->contact;
 			switch (myLink.type()) {
 			case mtpc_contactLinkContact:
 				user->contact = 1;
@@ -855,7 +887,12 @@ namespace App {
 					App::main()->removeContact(user);
 				}
 			}
-			user->setName(textOneLine(user->firstName), textOneLine(user->lastName), (user->contact || isServiceUser(user->id) || user->phone.isEmpty()) ? QString() : App::formatPhone(user->phone), textOneLine(user->username));
+
+			bool showPhone = !isServiceUser(user->id) && (user->input.type() != mtpc_inputPeerSelf) && !user->contact;
+			bool showPhoneChanged = !isServiceUser(user->id) && (user->input.type() != mtpc_inputPeerSelf) && ((showPhone && !wasShowPhone) || (!showPhone && wasShowPhone));
+			if (showPhoneChanged) {
+				user->setName(textOneLine(user->firstName), textOneLine(user->lastName), showPhone ? App::formatPhone(user->phone) : QString(), textOneLine(user->username));
+			}
 			if (App::main()) {
 				if (emitPeerUpdated) {
 					App::main()->peerUpdated(user);
@@ -891,7 +928,7 @@ namespace App {
 			return feedPhoto(photo.c_photo(), convert);
 		} break;
 		case mtpc_photoEmpty: {
-			return App::photo(photo.c_photoEmpty().vid.v, convert);
+			return App::photoSet(photo.c_photoEmpty().vid.v, convert, 0, 0, 0, ImagePtr(), ImagePtr(), ImagePtr());
 		} break;
 		}
 		return App::photo(0);
@@ -935,7 +972,7 @@ namespace App {
 		switch (photo.type()) {
 		case mtpc_photo: {
 			const MTPDphoto &ph(photo.c_photo());
-			return App::photo(ph.vid.v, 0, ph.vaccess_hash.v, ph.vuser_id.v, ph.vdate.v, ImagePtr(*thumb, "JPG"), ImagePtr(*medium, "JPG"), ImagePtr(*full, "JPG"));
+			return App::photoSet(ph.vid.v, 0, ph.vaccess_hash.v, ph.vuser_id.v, ph.vdate.v, ImagePtr(*thumb, "JPG"), ImagePtr(*medium, "JPG"), ImagePtr(*full, "JPG"));
 		} break;
 		case mtpc_photoEmpty: return App::photo(photo.c_photoEmpty().vid.v);
 		}
@@ -990,13 +1027,13 @@ namespace App {
 			}
 		}
 		if (thumb && medium && full) {
-			return App::photo(photo.vid.v, convert, photo.vaccess_hash.v, photo.vuser_id.v, photo.vdate.v, App::image(*thumb), App::image(*medium), App::image(*full));
+			return App::photoSet(photo.vid.v, convert, photo.vaccess_hash.v, photo.vuser_id.v, photo.vdate.v, App::image(*thumb), App::image(*medium), App::image(*full));
 		}
-		return App::photo(photo.vid.v, convert);
+		return App::photoSet(photo.vid.v, convert, 0, 0, 0, ImagePtr(), ImagePtr(), ImagePtr());
 	}
 	
 	VideoData *feedVideo(const MTPDvideo &video, VideoData *convert) {
-		return App::video(video.vid.v, convert, video.vaccess_hash.v, video.vuser_id.v, video.vdate.v, video.vduration.v, video.vw.v, video.vh.v, App::image(video.vthumb), video.vdc_id.v, video.vsize.v);
+		return App::videoSet(video.vid.v, convert, video.vaccess_hash.v, video.vuser_id.v, video.vdate.v, video.vduration.v, video.vw.v, video.vh.v, App::image(video.vthumb), video.vdc_id.v, video.vsize.v);
 	}
 
 	AudioData *feedAudio(const MTPaudio &audio, AudioData *convert) {
@@ -1005,14 +1042,14 @@ namespace App {
 			return feedAudio(audio.c_audio(), convert);
 		} break;
 		case mtpc_audioEmpty: {
-			return App::audio(audio.c_audioEmpty().vid.v, convert);
+			return App::audioSet(audio.c_audioEmpty().vid.v, convert, 0, 0, 0, QString(), 0, 0, 0);
 		} break;
 		}
 		return App::audio(0);
 	}
 
 	AudioData *feedAudio(const MTPDaudio &audio, AudioData *convert) {
-		return App::audio(audio.vid.v, convert, audio.vaccess_hash.v, audio.vuser_id.v, audio.vdate.v, qs(audio.vmime_type), audio.vduration.v, audio.vdc_id.v, audio.vsize.v);
+		return App::audioSet(audio.vid.v, convert, audio.vaccess_hash.v, audio.vuser_id.v, audio.vdate.v, qs(audio.vmime_type), audio.vduration.v, audio.vdc_id.v, audio.vsize.v);
 	}
 
 	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb) {
@@ -1043,11 +1080,11 @@ namespace App {
 	}
 
 	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert) {
-		return App::webPage(webpage.vid.v, convert, webpage.has_type() ? qs(webpage.vtype) : qsl("article"), qs(webpage.vurl), qs(webpage.vdisplay_url), webpage.has_site_name() ? qs(webpage.vsite_name) : QString(), webpage.has_title() ? qs(webpage.vtitle) : QString(), webpage.has_description() ? qs(webpage.vdescription) : QString(), webpage.has_photo() ? App::feedPhoto(webpage.vphoto) : 0, webpage.has_duration() ? webpage.vduration.v : 0, webpage.has_author() ? qs(webpage.vauthor) : QString(), 0);
+		return App::webPageSet(webpage.vid.v, convert, webpage.has_type() ? qs(webpage.vtype) : qsl("article"), qs(webpage.vurl), qs(webpage.vdisplay_url), webpage.has_site_name() ? qs(webpage.vsite_name) : QString(), webpage.has_title() ? qs(webpage.vtitle) : QString(), webpage.has_description() ? qs(webpage.vdescription) : QString(), webpage.has_photo() ? App::feedPhoto(webpage.vphoto) : 0, webpage.has_duration() ? webpage.vduration.v : 0, webpage.has_author() ? qs(webpage.vauthor) : QString(), 0);
 	}
 
 	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert) {
-		return App::webPage(webpage.vid.v, convert, QString(), QString(), QString(), QString(), QString(), QString(), 0, 0, QString(), webpage.vdate.v);
+		return App::webPageSet(webpage.vid.v, convert, QString(), QString(), QString(), QString(), QString(), QString(), 0, 0, QString(), webpage.vdate.v);
 	}
 
 	WebPageData *feedWebPage(const MTPWebPage &webpage) {
@@ -1131,7 +1168,15 @@ namespace App {
 		return App::peer(App::peerFromChat(chat))->asChat();
 	}
 
-	PhotoData *photo(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 user, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full) {
+	PhotoData *photo(const PhotoId &photo) {
+		PhotosData::const_iterator i = photosData.constFind(photo);
+		if (i == photosData.cend()) {
+			i = photosData.insert(photo, new PhotoData(photo));
+		}
+		return i.value();
+	}
+
+	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 user, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full) {
 		if (convert) {
 			if (convert->id != photo) {
 				PhotosData::iterator i = photosData.find(convert->id);
@@ -1185,7 +1230,15 @@ namespace App {
 		return result;
 	}
 
-	VideoData *video(const VideoId &video, VideoData *convert, const uint64 &access, int32 user, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size) {
+	VideoData *video(const VideoId &video) {
+		VideosData::const_iterator i = videosData.constFind(video);
+		if (i == videosData.cend()) {
+			i = videosData.insert(video, new VideoData(video));
+		}
+		return i.value();
+	}
+
+	VideoData *videoSet(const VideoId &video, VideoData *convert, const uint64 &access, int32 user, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size) {
 		if (convert) {
 			if (convert->id != video) {
 				VideosData::iterator i = videosData.find(convert->id);
@@ -1233,7 +1286,15 @@ namespace App {
 		return result;
 	}
 
-	AudioData *audio(const AudioId &audio, AudioData *convert, const uint64 &access, int32 user, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) {
+	AudioData *audio(const AudioId &audio) {
+		AudiosData::const_iterator i = audiosData.constFind(audio);
+		if (i == audiosData.cend()) {
+			i = audiosData.insert(audio, new AudioData(audio));
+		}
+		return i.value();
+	}
+
+	AudioData *audioSet(const AudioId &audio, AudioData *convert, const uint64 &access, int32 user, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) {
 		if (convert) {
 			if (convert->id != audio) {
 				AudiosData::iterator i = audiosData.find(convert->id);
@@ -1375,7 +1436,15 @@ namespace App {
 		return result;
 	}
 
-	WebPageData *webPage(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, int32 duration, const QString &author, int32 pendingTill) {
+	WebPageData *webPage(const WebPageId &webPage) {
+		WebPagesData::const_iterator i = webPagesData.constFind(webPage);
+		if (i == webPagesData.cend()) {
+			i = webPagesData.insert(webPage, new WebPageData(webPage));
+		}
+		return i.value();
+	}
+
+	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, int32 duration, const QString &author, int32 pendingTill) {
 		if (convert) {
 			if (convert->id != webPage) {
 				WebPagesData::iterator i = webPagesData.find(convert->id);
@@ -1433,7 +1502,15 @@ namespace App {
 		return result;
 	}
 	
-	ImageLinkData *imageLink(const QString &imageLink, ImageLinkType type, const QString &url) {
+	ImageLinkData *imageLink(const QString &imageLink) {
+		ImageLinksData::const_iterator i = imageLinksData.constFind(imageLink);
+		if (i == imageLinksData.cend()) {
+			i = imageLinksData.insert(imageLink, new ImageLinkData(imageLink));
+		}
+		return i.value();
+	}
+		
+	ImageLinkData *imageLinkSet(const QString &imageLink, ImageLinkType type, const QString &url) {
 		ImageLinksData::const_iterator i = imageLinksData.constFind(imageLink);
 		ImageLinkData *result;
 		if (i == imageLinksData.cend()) {

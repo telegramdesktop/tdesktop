@@ -65,7 +65,7 @@ index 0907653..96f6e19 100644
      /* High surrogate. Must be a followed by a low surrogate. */
      if (length == 0)
 diff --git a/qtbase/src/corelib/kernel/qobjectdefs.h b/qtbase/src/corelib/kernel/qobjectdefs.h
-index 4d01264..fd3854f 100644
+index 4d01264..9bee473 100644
 --- a/qtbase/src/corelib/kernel/qobjectdefs.h
 +++ b/qtbase/src/corelib/kernel/qobjectdefs.h
 @@ -142,7 +142,7 @@ inline void qYouForgotTheQ_OBJECT_Macro(T1, T2) {}
@@ -73,7 +73,7 @@ index 4d01264..fd3854f 100644
  #endif
  
 -#if defined(Q_CC_CLANG) && Q_CC_CLANG >= 306
-+#if defined(Q_CC_CLANG) && Q_CC_CLANG >= 306 && false
++#if defined(Q_CC_CLANG) && (Q_CC_CLANG >= 306) && 0
  #  define Q_OBJECT_NO_OVERRIDE_WARNING      QT_WARNING_DISABLE_CLANG("-Winconsistent-missing-override")
  #else
  #  define Q_OBJECT_NO_OVERRIDE_WARNING

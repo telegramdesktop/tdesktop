@@ -671,8 +671,8 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 8040) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Fixed critical Qt bug in image scale\n\xe2\x80\x94 Huge amount of unread messages are loaded much faster\n\xe2\x80\x94 Flac audio files are played in-app\n\xe2\x80\x94 Some bugfixes and optimizations");// .replace('@', qsl("@") + QChar(0x200D));
+			if (DevChannel && Local::oldMapVersion() < 8041) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Pretty phone number formatting\n\xe2\x80\x94 Fixed shared contacts display\n\xe2\x80\x94 Fix KDE crash, use Qt tray icon in all Linux systems");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (!DevChannel && Local::oldMapVersion() < 8038) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			}

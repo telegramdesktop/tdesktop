@@ -63,7 +63,7 @@ void StickerSetInner::gotSet(const MTPmessages_StickerSet &set) {
 		}
 	}
 
-	if (_pack.isEmpty() || _setShortName.isEmpty()) {
+	if (_pack.isEmpty()) {
 		App::wnd()->showLayer(new ConfirmBox(lang(lng_stickers_not_found), true), true);
 	} else {
 		int32 rows = _pack.size() / StickerPanPerRow + ((_pack.size() % StickerPanPerRow) ? 1 : 0);
@@ -198,6 +198,10 @@ int32 StickerSetInner::notInstalled() const {
 	return (_loaded && (cStickerSets().constFind(_setId) == cStickerSets().cend())) ? _pack.size() : 0;
 }
 
+bool StickerSetInner::official() const {
+	return _loaded && _setShortName.isEmpty();
+}
+
 QString StickerSetInner::title() const {
 	return _loaded ? (_pack.isEmpty() ? lang(lng_attach_failed) : _title) : lang(lng_contacts_loading);
 }
@@ -217,7 +221,8 @@ StickerSetInner::~StickerSetInner() {
 StickerSetBox::StickerSetBox(const MTPInputStickerSet &set) : ScrollableBox(st::stickersScroll), _inner(set),
 _close(this, st::btnStickersClose),
 _addStickers(this, lng_stickers_add_pack(lt_count, 0), st::btnStickersAdd),
-_shareStickers(this, lang(lng_stickers_share_pack), st::btnStickersAdd) {
+_shareStickers(this, lang(lng_stickers_share_pack), st::btnStickersAdd),
+_closeStickers(this, lang(lng_close), st::btnStickersAdd) {
 	resize(st::stickersWidth, height());
 	setMaxHeight(st::stickersMaxHeight);
 	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
@@ -227,6 +232,7 @@ _shareStickers(this, lang(lng_stickers_share_pack), st::btnStickersAdd) {
 	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
 	connect(&_addStickers, SIGNAL(clicked()), this, SLOT(onAddStickers()));
 	connect(&_shareStickers, SIGNAL(clicked()), this, SLOT(onShareStickers()));
+	connect(&_closeStickers, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	connect(&_inner, SIGNAL(updateButtons()), this, SLOT(onUpdateButtons()));
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
@@ -274,19 +280,26 @@ void StickerSetBox::showAll() {
 	_close.show();
 	int32 cnt = _inner.notInstalled();
 	if (_inner.loaded()) {
-		if (_inner.notInstalled()) {
+		if (_inner.official()) {
+			_addStickers.hide();
+			_shareStickers.hide();
+			_closeStickers.show();
+		} else if (_inner.notInstalled()) {
 			_addStickers.setText(lng_stickers_add_pack(lt_count, cnt));
 			_addStickers.show();
 			_addStickers.raise();
 			_shareStickers.hide();
+			_closeStickers.hide();
 		} else {
 			_shareStickers.show();
 			_shareStickers.raise();
 			_addStickers.hide();
+			_closeStickers.hide();
 		}
 	} else {
 		_addStickers.hide();
 		_shareStickers.hide();
+		_closeStickers.hide();
 	}
 	update();
 }
@@ -304,4 +317,5 @@ void StickerSetBox::resizeEvent(QResizeEvent *e) {
 	_close.moveToRight(0, 0, width());
 	_addStickers.move((width() - _addStickers.width()) / 2, height() - (st::stickersAddOrShare + _addStickers.height()) / 2);
 	_shareStickers.move((width() - _shareStickers.width()) / 2, height() - (st::stickersAddOrShare + _shareStickers.height()) / 2);
+	_closeStickers.move((width() - _closeStickers.width()) / 2, height() - (st::stickersAddOrShare + _closeStickers.height()) / 2);
 }

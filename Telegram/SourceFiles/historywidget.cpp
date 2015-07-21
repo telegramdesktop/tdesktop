@@ -2678,6 +2678,10 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 			_histInited = false;
 
 			historyLoaded();
+
+			emit peerShown(_peer);
+			App::main()->topBar()->update();
+			update();
 			return;
 		}
 		updateTyping(false);
@@ -5235,7 +5239,7 @@ void HistoryWidget::drawField(Painter &p) {
 				}
 				p.setPen(st::replyColor->p);
 				_replyToName.drawElided(p, replyLeft, backy + st::msgReplyPadding.top(), width() - replyLeft - _replyForwardPreviewCancel.width() - st::msgReplyPadding.right());
-				p.setPen(((drawReplyTo->getMedia() || drawReplyTo->serviceMsg()) ? st::msgInDateColor : st::msgColor)->p);
+				p.setPen((((drawReplyTo->toHistoryMessage() && drawReplyTo->toHistoryMessage()->justMedia()) || drawReplyTo->serviceMsg()) ? st::msgInDateColor : st::msgColor)->p);
 				_replyToText.drawElided(p, replyLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - replyLeft - _replyForwardPreviewCancel.width() - st::msgReplyPadding.right());
 			} else {
 				p.setFont(st::msgDateFont->f);

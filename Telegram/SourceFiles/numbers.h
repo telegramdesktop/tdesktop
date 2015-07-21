@@ -15,47 +15,7 @@ GNU General Public License for more details.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
+
 #pragma once
 
-#include "gui/flatinput.h"
-
-class PhoneInput : public FlatInput {
-	Q_OBJECT
-
-public:
-
-	PhoneInput(QWidget *parent, const style::flatInput &st);
-
-	void paintEvent(QPaintEvent *e);
-
-public slots:
-
-	void addedToNumber(const QString &added);
-	void onChooseCode(const QString &code);
-
-signals:
-
-	void voidBackspace(QKeyEvent *e);
-
-protected:
-
-	void correctValue(QKeyEvent *e, const QString &was);
-
-private:
-
-	QVector<int> pattern;
-
-};
-
-class PortInput : public FlatInput {
-	Q_OBJECT
-
-public:
-
-	PortInput(QWidget *parent, const style::flatInput &st, const QString &ph, const QString &val);
-
-protected:
-
-	void correctValue(QKeyEvent *e, const QString &was);
-
-};
+QVector<int> phoneNumberParse(const QString &number);

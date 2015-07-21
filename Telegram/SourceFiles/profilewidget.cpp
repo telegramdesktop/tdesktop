@@ -76,7 +76,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
 
 	if (_peerUser) {
-		_phoneText = _peerUser->phone.isEmpty() ? QString() : App::formatPhone(_peerUser->phone);
+		_phoneText = App::formatPhone(_peerUser->phone);
 		PhotoData *userPhoto = (_peerUser->photoId && _peerUser->photoId != UnknownPeerPhotoId) ? App::photo(_peerUser->photoId) : 0;
 		if (userPhoto && userPhoto->date) {
 			_photoLink = TextLinkPtr(new PhotoLink(userPhoto, _peer));
@@ -382,7 +382,7 @@ void ProfileInner::peerUpdated(PeerData *data) {
 	if (data == _peer) {
 		PhotoData *photo = 0;
 		if (_peerUser) {
-			_phoneText = _peerUser->phone.isEmpty() ? QString() : App::formatPhone(_peerUser->phone);
+			_phoneText = App::formatPhone(_peerUser->phone);
 			if (_peerUser->photoId && _peerUser->photoId != UnknownPeerPhotoId) photo = App::photo(_peerUser->photoId);
 		} else {
 			if (_peerChat->photoId && _peerChat->photoId != UnknownPeerPhotoId) photo = App::photo(_peerChat->photoId);

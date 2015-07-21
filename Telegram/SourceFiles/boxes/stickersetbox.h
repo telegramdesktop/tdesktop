@@ -32,6 +32,7 @@ public:
 	
 	bool loaded() const;
 	int32 notInstalled() const;
+	bool official() const;
 	QString title() const;
 	QString shortName() const;
 
@@ -97,5 +98,5 @@ private:
 
 	StickerSetInner _inner;
 	IconedButton _close;
-	FlatButton _addStickers, _shareStickers;
+	FlatButton _addStickers, _shareStickers, _closeStickers;
 };
