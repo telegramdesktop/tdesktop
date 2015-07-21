@@ -2678,6 +2678,10 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 			_histInited = false;
 
 			historyLoaded();
+
+			emit peerShown(_peer);
+			App::main()->topBar()->update();
+			update();
 			return;
 		}
 		updateTyping(false);

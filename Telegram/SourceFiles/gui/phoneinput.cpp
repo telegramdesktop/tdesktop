@@ -136,7 +136,7 @@ void PhoneInput::onChooseCode(const QString &code) {
 		ph.reserve(20);
 		for (int i = 0, l = pattern.size(); i < l; ++i) {
 			ph.append(' ');
-			ph.append(qsl("X").repeated(pattern.at(i)));
+			ph.append(QString(QChar(0x2212)).repeated(pattern.at(i)));
 		}
 		setPlaceholder(ph);
 	}

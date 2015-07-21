@@ -429,26 +429,26 @@ void Window::init() {
 
 	title = new TitleWidget(this);
 
-#ifdef Q_OS_WIN
-    trayIconMenu = new ContextMenu(this);
-#else
-    trayIconMenu = new QMenu(this);
-    trayIconMenu->setFont(QFont("Tahoma"));
-#endif
-    if (cPlatform() == dbipWindows || cPlatform() == dbipMac) {
-        trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
-        trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
-    } else {
-        trayIconMenu->addAction(lang(lng_open_from_tray), this, SLOT(showFromTray()))->setEnabled(true);
-        trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
-        trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
-    }
-
     psInitSize();
-	psUpdateWorkmode();
 }
 
 void Window::firstShow() {
+#ifdef Q_OS_WIN
+	trayIconMenu = new ContextMenu(this);
+#else
+	trayIconMenu = new QMenu(this);
+	trayIconMenu->setFont(QFont("Tahoma"));
+#endif
+	if (cPlatform() == dbipWindows || cPlatform() == dbipMac) {
+		trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
+		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
+	} else {
+		trayIconMenu->addAction(lang(lng_open_from_tray), this, SLOT(showFromTray()))->setEnabled(true);
+		trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
+		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
+	}
+	psUpdateWorkmode();
+
 	psFirstShow();
 	updateTrayMenu();
 }
