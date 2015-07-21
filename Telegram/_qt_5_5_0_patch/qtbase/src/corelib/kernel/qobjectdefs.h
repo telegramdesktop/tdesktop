@@ -142,7 +142,7 @@ inline void qYouForgotTheQ_OBJECT_Macro(T1, T2) {}
 # define Q_DECL_HIDDEN_STATIC_METACALL Q_DECL_HIDDEN
 #endif
 
-#if defined(Q_CC_CLANG) && Q_CC_CLANG >= 306 && false
+#if defined(Q_CC_CLANG) && (Q_CC_CLANG >= 306) && 0
 #  define Q_OBJECT_NO_OVERRIDE_WARNING      QT_WARNING_DISABLE_CLANG("-Winconsistent-missing-override")
 #else
 #  define Q_OBJECT_NO_OVERRIDE_WARNING
