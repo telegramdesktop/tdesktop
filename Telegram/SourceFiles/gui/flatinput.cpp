@@ -42,7 +42,8 @@ namespace {
 	FlatInputStyle _flatInputStyle;
 }
 
-FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString &pholder, const QString &v) : QLineEdit(v, parent), _fullph(pholder), _oldtext(v), _kev(0), _customUpDown(false), _phVisible(!v.length()),
+FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString &pholder, const QString &v) : QLineEdit(v, parent),
+_fullph(pholder), _fastph(false), _oldtext(v), _kev(0), _customUpDown(false), _phVisible(!v.length()),
 	a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c),
     a_borderColor(st.borderColor->c), a_bgColor(st.bgColor->c), _notingBene(0), _st(st) {
 	resize(_st.width, _st.height);
@@ -130,7 +131,7 @@ QRect FlatInput::getTextRect() const {
 }
 
 void FlatInput::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 	p.fillRect(rect(), a_bgColor.current());
 	if (_st.borderWidth) {
 		QBrush b(a_borderColor.current());
@@ -151,9 +152,9 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 	if (phDraw) {
 		p.save();
 		p.setClipRect(rect());
-		QRect phRect(_st.textMrg.left() + _st.phPos.x() + a_phLeft.current(), _st.textMrg.top() + _st.phPos.y(), width() - _st.textMrg.left() - _st.textMrg.right(), height() - _st.textMrg.top() - _st.textMrg.bottom());
-		p.setFont(_st.font->f);
-		p.setPen(a_phColor.current());
+		QRect phRect(placeholderRect());
+		phRect.moveLeft(phRect.left() + a_phLeft.current());
+		phPrepare(p);
 		p.drawText(phRect, _ph, QTextOption(_st.phAlign));
 		p.restore();
 	}
@@ -228,18 +229,51 @@ bool FlatInput::animStep(float64 ms) {
 	return res;
 }
 
+void FlatInput::setPlaceholder(const QString &ph) {
+	_fullph = ph;
+	resizeEvent(0);
+	update();
+}
+
+void FlatInput::setPlaceholderFast(bool fast) {
+	_fastph = fast;
+	if (_fastph) {
+		a_phLeft = anim::ivalue(_phVisible ? 0 : _st.phShift, _phVisible ? 0 : _st.phShift);
+		a_phAlpha = anim::fvalue(_phVisible ? 1 : 0, _phVisible ? 1 : 0);
+		update();
+	}
+}
+
 void FlatInput::updatePlaceholder() {
 	bool vis = !text().length();
 	if (vis == _phVisible) return;
 
-	a_phLeft.start(vis ? 0 : _st.phShift);
-	a_phAlpha.start(vis ? 1 : 0);
-	anim::start(this);
-
+	if (_fastph) {
+		a_phLeft = anim::ivalue(vis ? 0 : _st.phShift, vis ? 0 : _st.phShift);
+		a_phAlpha = anim::fvalue(vis ? 1 : 0, vis ? 1 : 0);
+		update();
+	} else {
+		a_phLeft.start(vis ? 0 : _st.phShift);
+		a_phAlpha.start(vis ? 1 : 0);
+		anim::start(this);
+	}
 	_phVisible = vis;
 }
 
+const QString &FlatInput::placeholder() const {
+	return _fullph;
+}
+
+QRect FlatInput::placeholderRect() const {
+	return QRect(_st.textMrg.left() + _st.phPos.x(), _st.textMrg.top() + _st.phPos.y(), width() - _st.textMrg.left() - _st.textMrg.right(), height() - _st.textMrg.top() - _st.textMrg.bottom());
+}
+
 void FlatInput::correctValue(QKeyEvent *e, const QString &was) {
+}
+
+void FlatInput::phPrepare(Painter &p) {
+	p.setFont(_st.font->f);
+	p.setPen(a_phColor.current());
 }
 
 void FlatInput::keyPressEvent(QKeyEvent *e) {

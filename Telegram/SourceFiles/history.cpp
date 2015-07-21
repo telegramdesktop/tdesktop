@@ -626,7 +626,8 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 		const MTPDmessage m(msg.c_message());
 		int badMedia = 0; // 1 - unsupported, 2 - empty
 		switch (m.vmedia.type()) {
-		case mtpc_messageMediaEmpty: break;
+		case mtpc_messageMediaEmpty:
+		case mtpc_messageMediaContact: break;
 		case mtpc_messageMediaGeo:
 			switch (m.vmedia.c_messageMediaGeo().vgeo.type()) {
 			case mtpc_geoPoint: break;
@@ -4552,7 +4553,7 @@ _description(st::msgMinWidth) {
 		QString lnk = qsl("https://maps.google.com/maps?q=") + url.mid(9) + qsl("&ll=") + url.mid(9) + qsl("&z=17");
 		link.reset(new TextLink(lnk));
 
-		data = App::imageLink(url, GoogleMapsLink, lnk);
+		data = App::imageLinkSet(url, GoogleMapsLink, lnk);
 	} else {
 		link.reset(new TextLink(url));
 
@@ -4563,15 +4564,15 @@ _description(st::msgMinWidth) {
 			matchIndex = 3;
 		}
 		if (m.hasMatch()) {
-			data = App::imageLink(qsl("youtube:") + m.captured(matchIndex), YouTubeLink, url);
+			data = App::imageLinkSet(qsl("youtube:") + m.captured(matchIndex), YouTubeLink, url);
 		} else {
 			m = reVimeo.match(url);
 			if (m.hasMatch()) {
-				data = App::imageLink(qsl("vimeo:") + m.captured(3), VimeoLink, url);
+				data = App::imageLinkSet(qsl("vimeo:") + m.captured(3), VimeoLink, url);
 			} else {
 				m = reInstagram.match(url);
 				if (m.hasMatch()) {
-					data = App::imageLink(qsl("instagram:") + m.captured(3), InstagramLink, url);
+					data = App::imageLinkSet(qsl("instagram:") + m.captured(3), InstagramLink, url);
 					data->title = qsl("instagram.com/p/") + m.captured(3);
 				} else {
 					data = 0;

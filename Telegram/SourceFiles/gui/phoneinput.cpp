@@ -19,8 +19,30 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "style.h"
 
 #include "gui/phoneinput.h"
+#include "numbers.h"
+#include "lang.h"
 
-PhoneInput::PhoneInput(QWidget *parent, const style::flatInput &st, const QString &ph) : FlatInput(parent, st, ph) {
+PhoneInput::PhoneInput(QWidget *parent, const style::flatInput &st) : FlatInput(parent, st, lang(lng_phone_ph)) {
+}
+
+void PhoneInput::paintEvent(QPaintEvent *e) {
+	FlatInput::paintEvent(e);
+
+	Painter p(this);
+	QString t(text());
+	if (!pattern.isEmpty() && !t.isEmpty()) {
+		QString ph = placeholder().mid(t.size());
+		if (!ph.isEmpty()) {
+			p.setClipRect(rect());
+			QRect phRect(placeholderRect());
+			int tw = phFont()->m.width(t);
+			if (tw < phRect.width()) {
+				phRect.setLeft(phRect.left() + tw);
+				phPrepare(p);
+				p.drawText(phRect, ph, style::al_left);
+			}
+		}
+	}
 }
 
 void PhoneInput::correctValue(QKeyEvent *e, const QString &was) {
@@ -36,34 +58,58 @@ void PhoneInput::correctValue(QKeyEvent *e, const QString &was) {
 		}
 	}
 	if (digitCount > MaxPhoneTailLength) digitCount = MaxPhoneTailLength;
-	bool strict = (digitCount == MaxPhoneTailLength);
 
+	bool inPart = !pattern.isEmpty();
+	int curPart = -1, leftInPart = 0;
 	newText.reserve(oldLen);
 	for (int i = 0; i < oldLen; ++i) {
+		if (i == oldPos && newPos < 0) {
+			newPos = newText.length();
+		}
+
 		QChar ch(oldText[i]);
 		if (ch.isDigit()) {
 			if (!digitCount--) {
 				break;
 			}
-			newText += ch;
-			if (strict && !digitCount) {
-				break;
+			if (inPart) {
+				if (leftInPart) {
+					--leftInPart;
+				} else {
+					newText += ' ';
+					++curPart;
+					inPart = curPart < pattern.size();
+					leftInPart = inPart ? (pattern.at(curPart) - 1) : 0;
+
+					++oldPos;
+				}
 			}
-		} else if (ch == ' ' || ch == '-' || ch == '(' || ch == ')') {
 			newText += ch;
-		}
-		if (i == oldPos) {
-			newPos = newText.length();
+		} else if (ch == ' ' || ch == '-' || ch == '(' || ch == ')') {
+			if (inPart) {
+				if (leftInPart) {
+				} else {
+					newText += ch;
+					++curPart;
+					inPart = curPart < pattern.size();
+					leftInPart = inPart ? pattern.at(curPart) : 0;
+				}
+			} else {
+				newText += ch;
+			}
 		}
 	}
+	int32 newlen = newText.size();
+	while (newlen > 0 && newText.at(newlen - 1).isSpace()) {
+		--newlen;
+	}
+	if (newlen < newText.size()) newText = newText.mid(0, newlen);
 	if (newPos < 0) {
 		newPos = newText.length();
 	}
 	if (newText != oldText) {
 		setText(newText);
-		if (newPos != oldPos) {
-			setCursorPosition(newPos);
-		}
+		setCursorPosition(newPos);
 	}
 }
 
@@ -73,6 +119,29 @@ void PhoneInput::addedToNumber(const QString &added) {
 	setText(added + text());
 	setCursorPosition(added.length());
 	correctValue(0, was);
+	updatePlaceholder();
+}
+
+void PhoneInput::onChooseCode(const QString &code) {
+	pattern = phoneNumberParse(code);
+	if (!pattern.isEmpty() && pattern.at(0) == code.size()) {
+		pattern.pop_front();
+	} else {
+		pattern.clear();
+	}
+	if (pattern.isEmpty()) {
+		setPlaceholder(lang(lng_phone_ph));
+	} else {
+		QString ph;
+		ph.reserve(20);
+		for (int i = 0, l = pattern.size(); i < l; ++i) {
+			ph.append(' ');
+			ph.append(qsl("X").repeated(pattern.at(i)));
+		}
+		setPlaceholder(ph);
+	}
+	correctValue(0, text());
+	setPlaceholderFast(!pattern.isEmpty());
 	updatePlaceholder();
 }
 
