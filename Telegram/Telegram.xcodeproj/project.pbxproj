@@ -75,6 +75,7 @@
 		07CAACD81AEA64F00058E508 /* AudioUnit.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 07CAACD71AEA64F00058E508 /* AudioUnit.framework */; };
 		07D7034B19B8755A00C4EED2 /* audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D7034919B8755A00C4EED2 /* audio.cpp */; };
 		07D703BB19B88FB900C4EED2 /* moc_audio.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D703BA19B88FB900C4EED2 /* moc_audio.cpp */; };
+		07D7954A1B5544B200DE9598 /* qtpcre in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 07D795491B5544B200DE9598 /* qtpcre */; };
 		07D7EABA1A597DD000838BA2 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 07D7EABC1A597DD000838BA2 /* Localizable.strings */; };
 		07D8509419F5C97E00623D75 /* mtpCoreTypes.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D8509219F5C97E00623D75 /* mtpCoreTypes.cpp */; };
 		07D8509519F5C97E00623D75 /* mtpScheme.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07D8509319F5C97E00623D75 /* mtpScheme.cpp */; };
@@ -84,6 +85,7 @@
 		07DB674D1AD07C9200A51329 /* abstractbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DB67491AD07C9200A51329 /* abstractbox.cpp */; };
 		07DB674E1AD07C9200A51329 /* sessionsbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DB674B1AD07C9200A51329 /* sessionsbox.cpp */; };
 		07DB67511AD07CB800A51329 /* intropwdcheck.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DB674F1AD07CB800A51329 /* intropwdcheck.cpp */; };
+		07DC42A01B5EA15300B6B888 /* numbers.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DC429F1B5EA15300B6B888 /* numbers.cpp */; };
 		07DE92A01AA4923300A18F6F /* passcodewidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DE929F1AA4923200A18F6F /* passcodewidget.cpp */; };
 		07DE92A71AA4925B00A18F6F /* autolockbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DE92A31AA4925B00A18F6F /* autolockbox.cpp */; };
 		07DE92A81AA4925B00A18F6F /* passcodebox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 07DE92A51AA4925B00A18F6F /* passcodebox.cpp */; };
@@ -97,7 +99,6 @@
 		1299DDAE203A7EDFED9F5D6B /* main.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 5271C394C1E7646D117CE67E /* main.cpp */; settings = {ATTRIBUTES = (); }; };
 		15364689D2AB5A30E87A689F /* Security.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 205259EEEE2BADA5E64741E3 /* Security.framework */; };
 		19A66ECD6EE2F8356F27D32D /* layerwidget.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 5A9B4C6C59856143F3D0DE53 /* layerwidget.cpp */; settings = {ATTRIBUTES = (); }; };
-		07D7954A1B5544B200DE9598 /* qtpcre in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 07D795491B5544B200DE9598 /* qtpcre */; };
 		1A681B886F50EE30FBE62B4B /* Qt5PrintSupport in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = DBF506D10449BFABD45B82DA /* Qt5PrintSupport */; };
 		1BB705CDB741E2B7450201A5 /* Cocoa.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = AEA456A2F75ED9F5CDA7BCBE /* Cocoa.framework */; };
 		1BD711B4C358EA7D727BF358 /* moc_flatcheckbox.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 58E05D0B8B104D83F43F9859 /* moc_flatcheckbox.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -328,6 +329,7 @@
 		07D7034919B8755A00C4EED2 /* audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = audio.cpp; path = SourceFiles/audio.cpp; sourceTree = SOURCE_ROOT; };
 		07D7034A19B8755A00C4EED2 /* audio.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = audio.h; path = SourceFiles/audio.h; sourceTree = SOURCE_ROOT; };
 		07D703BA19B88FB900C4EED2 /* moc_audio.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = moc_audio.cpp; path = GeneratedFiles/Debug/moc_audio.cpp; sourceTree = SOURCE_ROOT; };
+		07D795491B5544B200DE9598 /* qtpcre */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtpcre; path = "usr/local/Qt-5.5.0/lib/libqtpcre$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<group>"; };
 		07D7EABB1A597DD000838BA2 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		07D7EABD1A597DD200838BA2 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		07D7EABE1A597DD300838BA2 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -347,6 +349,8 @@
 		07DB674C1AD07C9200A51329 /* sessionsbox.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = sessionsbox.h; path = SourceFiles/boxes/sessionsbox.h; sourceTree = SOURCE_ROOT; };
 		07DB674F1AD07CB800A51329 /* intropwdcheck.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = intropwdcheck.cpp; path = SourceFiles/intro/intropwdcheck.cpp; sourceTree = SOURCE_ROOT; };
 		07DB67501AD07CB800A51329 /* intropwdcheck.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = intropwdcheck.h; path = SourceFiles/intro/intropwdcheck.h; sourceTree = SOURCE_ROOT; };
+		07DC429D1B5EA0E600B6B888 /* numbers.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = numbers.h; path = SourceFiles/numbers.h; sourceTree = SOURCE_ROOT; };
+		07DC429F1B5EA15300B6B888 /* numbers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = numbers.cpp; path = GeneratedFiles/numbers.cpp; sourceTree = SOURCE_ROOT; };
 		07DE929F1AA4923200A18F6F /* passcodewidget.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = passcodewidget.cpp; path = SourceFiles/passcodewidget.cpp; sourceTree = SOURCE_ROOT; };
 		07DE92A21AA4924400A18F6F /* passcodewidget.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = passcodewidget.h; path = SourceFiles/passcodewidget.h; sourceTree = SOURCE_ROOT; };
 		07DE92A31AA4925B00A18F6F /* autolockbox.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = autolockbox.cpp; path = SourceFiles/boxes/autolockbox.cpp; sourceTree = SOURCE_ROOT; };
@@ -359,7 +363,6 @@
 		08A7682548FB7E671FF03822 /* boxshadow.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = boxshadow.cpp; path = SourceFiles/gui/boxshadow.cpp; sourceTree = "<absolute>"; };
 		098EA7CE256AAFAE4A17EB77 /* introcode.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = introcode.h; path = SourceFiles/intro/introcode.h; sourceTree = "<absolute>"; };
 		09FD01F2BD652EB838A296D8 /* application.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = application.h; path = SourceFiles/application.h; sourceTree = "<absolute>"; };
-		07D795491B5544B200DE9598 /* qtpcre */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtpcre; path = "usr/local/Qt-5.5.0/lib/libqtpcre$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<group>"; };
 		0ABCEA8D0DD45589040B0AF2 /* /usr/local/Qt-5.5.0/mkspecs/common/unix.conf */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.0/mkspecs/common/unix.conf"; sourceTree = "<absolute>"; };
 		0BDE09020E45EFA57DCB2E25 /* photosendbox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = photosendbox.h; path = SourceFiles/boxes/photosendbox.h; sourceTree = "<absolute>"; };
 		0C0DC15EB416789673526AA5 /* moc_emojibox.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_emojibox.cpp; path = GeneratedFiles/Debug/moc_emojibox.cpp; sourceTree = "<absolute>"; };
@@ -771,6 +774,7 @@
 		130BDDB6FC4D60CF394D95AF /* GeneratedFiles */ = {
 			isa = PBXGroup;
 			children = (
+				07DC429F1B5EA15300B6B888 /* numbers.cpp */,
 				07080BCD1A43588C00741A51 /* lang_auto.cpp */,
 				07080BCE1A43588C00741A51 /* lang_auto.h */,
 				99B8D38F7F5858601230911E /* style_auto.cpp */,
@@ -954,6 +958,7 @@
 				25CA12A22B83B0B038C5B5DE /* langloaderplain.h */,
 				6C86B6E6AB1857B735B720D6 /* layerwidget.h */,
 				07A69331199277BA0099CB9F /* mediaview.h */,
+				07DC429D1B5EA0E600B6B888 /* numbers.h */,
 				0732E4A8199E262300D50FE7 /* overviewwidget.h */,
 				07DE92A21AA4924400A18F6F /* passcodewidget.h */,
 				07B604311B46A0EC00CA29FE /* playerwidget.h */,
@@ -1549,6 +1554,7 @@
 				8F65F0D95B1F0CEB859F2FB3 /* boxshadow.cpp in Compile Sources */,
 				D7EF8F129FCCE9AB3F3F081F /* button.cpp in Compile Sources */,
 				B3CD52E504409DC1B560024F /* countrycodeinput.cpp in Compile Sources */,
+				07DC42A01B5EA15300B6B888 /* numbers.cpp in Compile Sources */,
 				C03447C9A7D9FF73463B8BB5 /* countryinput.cpp in Compile Sources */,
 				07BE850F1A2093C9008ACB9F /* localstorage.cpp in Compile Sources */,
 				CDB0266A8B7CB20A95266BCD /* emoji_config.cpp in Compile Sources */,
