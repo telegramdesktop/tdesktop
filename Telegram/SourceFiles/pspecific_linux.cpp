@@ -68,7 +68,7 @@ namespace {
 
 	bool frameless = true;
 	bool finished = true;
-    bool noQtTrayIcon = false;
+    bool noQtTrayIcon = false, noTryUnity = false;
     bool useGtkBase = false, useAppIndicator = false, useStatusIcon = false, trayIconChecked = false, useUnityCount = false;
 
     AppIndicator *_trayIndicator = 0;
@@ -351,10 +351,16 @@ namespace {
     class _PsInitializer {
     public:
         _PsInitializer() {
+            static bool inited = false;
+            if (inited) return;
+            inited = true;
+
             QString cdesktop = QString(getenv("XDG_CURRENT_DESKTOP")).toLower();
-			noQtTrayIcon = (cdesktop == qstr("unity")) || (cdesktop == qstr("pantheon")) || (cdesktop == qstr("gnome"));
+            noQtTrayIcon = false;//(cdesktop == qstr("pantheon")) || (cdesktop == qstr("gnome"));
+            noTryUnity = (cdesktop != qstr("unity"));
 
             if (noQtTrayIcon) cSetSupportTray(false);
+
             std::cout << "libs init..\n";
             setupGtk();
             setupUnity();
@@ -458,9 +464,9 @@ namespace {
         }
 
         void setupUnity() {
-            if (!useGtkBase || !noQtTrayIcon) return;
+            if (noTryUnity) return;
 
-			QLibrary lib_unity(qstr("unity"), 9, 0);
+            QLibrary lib_unity(qstr("unity"), 9, 0);
             if (!loadLibrary(lib_unity, "unity", 9)) return;
 
             if (!loadFunction(lib_unity, "unity_launcher_entry_get_for_desktop_id", ps_unity_launcher_entry_get_for_desktop_id)) return;
@@ -470,7 +476,6 @@ namespace {
             std::cout << "unity count api loaded\n";
         }
     };
-    _PsInitializer _psInitializer;
 
     class _PsEventFilter : public QAbstractNativeEventFilter {
 	public:
@@ -933,6 +938,8 @@ void PsMainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
 }
 
 PsApplication::PsApplication(int &argc, char **argv) : QApplication(argc, argv) {
+    _PsInitializer _psInitializer;
+    Q_UNUSED(_psInitializer);
 }
 
 void PsApplication::psInstallEventFilter() {
