@@ -1029,6 +1029,8 @@ QString HistoryList::getSelectedText() const {
 	QMap<int32, QString> texts;
 	for (SelectedItems::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
 		HistoryItem *item = i.key();
+		if (item->detached()) continue;
+
 		QString text, sel = item->selectedText(FullItemSel), time = item->date.toString(timeFormat);
 		int32 size = item->from()->name.size() + time.size() + sel.size();
 		text.reserve(size);

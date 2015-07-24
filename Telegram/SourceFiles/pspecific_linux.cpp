@@ -356,7 +356,7 @@ namespace {
             inited = true;
 
             QString cdesktop = QString(getenv("XDG_CURRENT_DESKTOP")).toLower();
-            noQtTrayIcon = false;//(cdesktop == qstr("pantheon")) || (cdesktop == qstr("gnome"));
+			noQtTrayIcon = (cdesktop == qstr("pantheon"));// || (cdesktop == qstr("gnome"));
             noTryUnity = (cdesktop != qstr("unity"));
 
             if (noQtTrayIcon) cSetSupportTray(false);
