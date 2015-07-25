@@ -656,8 +656,8 @@ void Application::checkMapVersion() {
 			QString versionFeatures;
 			if (DevChannel && Local::oldMapVersion() < 8041) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Pretty phone number formatting\n\xe2\x80\x94 Fixed shared contacts display\n\xe2\x80\x94 Fix KDE crash, use Qt tray icon in all Linux systems");// .replace('@', qsl("@") + QChar(0x200D));
-			} else if (!DevChannel && Local::oldMapVersion() < 8038) {
-				versionFeatures = lang(lng_new_version_text).trimmed();
+			} else if (!DevChannel && Local::oldMapVersion() < 8042) {
+				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
