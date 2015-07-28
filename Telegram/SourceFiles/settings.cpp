@@ -25,6 +25,7 @@ Qt::LayoutDirection gLangDir = Qt::LeftToRight;
 
 mtpDcOptions gDcOptions;
 
+bool gDevVersion = DevVersion;
 bool gTestMode = false;
 bool gDebug = false;
 bool gManyInstance = false;
@@ -159,10 +160,13 @@ int gOtherOnline = 0;
 float64 gSongVolume = 0.9;
 
 void settingsParseArgs(int argc, char *argv[]) {
-#ifdef Q_OS_MAC
-	gCustomNotifies = (QSysInfo::macVersion() < QSysInfo::MV_10_8);
-#else
 	gCustomNotifies = true;
+#ifdef Q_OS_MAC
+	if (QSysInfo::macVersion() < QSysInfo::MV_10_8) {
+		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac32/tupdates/current"));
+	} else {
+		gCustomNotifies = false;
+	}
 #endif
     memset_rand(&gInstance, sizeof(gInstance));
 	gExeDir = psCurrentExeDirectory(argc, argv);

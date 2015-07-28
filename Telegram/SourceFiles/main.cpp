@@ -80,6 +80,15 @@ int main(int argc, char *argv[]) {
 
 	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (cRestartingUpdate()) {
+		if (DevVersion) {
+			LOG(("Writing 'withdebug' file before launching the Updater!"));
+			QFile f(cWorkingDir() + qsl("tdata/withdebug"));
+			if (!f.exists() && f.open(QIODevice::WriteOnly)) {
+				f.write("1");
+				f.close();
+			}
+		}
+
 		DEBUG_LOG(("Application Info: executing updater to install update.."));
 		psExecUpdater();
 	} else

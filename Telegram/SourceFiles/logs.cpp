@@ -232,6 +232,9 @@ void logsInit() {
 		logsInitDebug();
 		cSetDebug(true);
 	}
+	if (!cDevVersion() && QFile(cWorkingDir() + qsl("tdata/devversion")).exists()) {
+		cSetDevVersion(true);
+	}
 
 	QDir().setCurrent(cWorkingDir());
 }

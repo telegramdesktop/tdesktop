@@ -64,6 +64,8 @@ struct mtpDcOption {
 typedef QMap<int, mtpDcOption> mtpDcOptions;
 DeclareSetting(mtpDcOptions, DcOptions);
 
+DeclareSetting(bool, DevVersion);
+
 DeclareSetting(bool, TestMode);
 DeclareSetting(QString, LoggedPhoneNumber);
 DeclareReadSetting(uint32, ConnectionsInSession);

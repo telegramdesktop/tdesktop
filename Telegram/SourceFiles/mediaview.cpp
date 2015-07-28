@@ -315,7 +315,7 @@ void MediaView::updateDropdown() {
 	_btnSaveAs->setVisible(true);
 	_btnCopy->setVisible((_doc && !_current.isNull()) || (_photo && _photo->full->loaded()));
 	_btnForward->setVisible(_msgid > 0);
-	_btnDelete->setVisible(_msgid > 0 || (App::self() && App::self()->photoId == _photo->id) || (_photo->chat && _photo->chat->photoId == _photo->id));
+	_btnDelete->setVisible(_msgid > 0 || (_photo && App::self() && App::self()->photoId == _photo->id) || (_photo && _photo->chat && _photo->chat->photoId == _photo->id));
 	_btnViewAll->setVisible((_overview != OverviewCount) && _history);
 	_btnViewAll->setText(lang(_doc ? lng_mediaview_files_all : lng_mediaview_photos_all));
 	_dropdown.updateButtons();

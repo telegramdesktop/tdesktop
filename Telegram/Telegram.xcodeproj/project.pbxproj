@@ -373,7 +373,6 @@
 		0FC38EE7F29EF895925A2C49 /* style_core.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = style_core.h; path = SourceFiles/gui/style_core.h; sourceTree = "<absolute>"; };
 		1080B6D395843B8F76A2E45E /* moc_title.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_title.cpp; path = GeneratedFiles/Debug/moc_title.cpp; sourceTree = "<absolute>"; };
 		111BBEE3D1432C3B517FD539 /* /usr/local/Qt-5.5.0/mkspecs/modules/qt_plugin_qdds.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.0/mkspecs/modules/qt_plugin_qdds.pri"; sourceTree = "<absolute>"; };
-		112159B026FDEF9CD4E24175 /* Qt5Multimedia */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = Qt5Multimedia; path = "/usr/local/Qt-5.5.0/lib/libQt5Multimedia$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		120EBCD9A37DB9A36BFE58C0 /* contactsbox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = contactsbox.h; path = SourceFiles/boxes/contactsbox.h; sourceTree = "<absolute>"; };
 		1292B92B4848460640F6A391 /* telegram.qrc */ = {isa = PBXFileReference; lastKnownFileType = text; name = telegram.qrc; path = SourceFiles/telegram.qrc; sourceTree = "<absolute>"; };
 		135FD3715BFDC50AD7B00E04 /* text.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = text.cpp; path = SourceFiles/gui/text.cpp; sourceTree = "<absolute>"; };
@@ -448,7 +447,6 @@
 		4D55B83DFDFE3D492CDBD27A /* button.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = button.cpp; path = SourceFiles/gui/button.cpp; sourceTree = "<absolute>"; };
 		4D765E1B1EA6C757220C63E7 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = /System/Library/Frameworks/CoreFoundation.framework; sourceTree = "<absolute>"; };
 		4E4D06EC4D2C82C7D6E079A2 /* flatinput.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = flatinput.h; path = SourceFiles/gui/flatinput.h; sourceTree = "<absolute>"; };
-		4EC011DBE92DD1FD208D94D2 /* qtmultimedia_m3u */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = qtmultimedia_m3u; path = "/usr/local/Qt-5.5.0/plugins/playlistformats/libqtmultimedia_m3u$(QT_LIBRARY_SUFFIX).a"; sourceTree = "<absolute>"; };
 		4FB6657DA22BC68B819B64B3 /* /usr/local/Qt-5.5.0/mkspecs/modules/qt_lib_qmldevtools_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.0/mkspecs/modules/qt_lib_qmldevtools_private.pri"; sourceTree = "<absolute>"; };
 		5059175BDCEC77B7246DE1B9 /* flatcheckbox.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = flatcheckbox.h; path = SourceFiles/gui/flatcheckbox.h; sourceTree = "<absolute>"; };
 		507CCEEC4CBA3E3BD6EEDED1 /* twidget.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = twidget.h; path = SourceFiles/gui/twidget.h; sourceTree = "<absolute>"; };
@@ -1252,8 +1250,6 @@
 				186D09F4CB713AD4B8BDD260 /* AudioUnit.framework */,
 				AA5379CB06E908AC80BE7B82 /* Qt5OpenGL */,
 				3BBB805F6180E363BF89151A /* qtaudio_coreaudio */,
-				4EC011DBE92DD1FD208D94D2 /* qtmultimedia_m3u */,
-				112159B026FDEF9CD4E24175 /* Qt5Multimedia */,
 				A7782E2B07CB2D1D14F431B0 /* qtaccessiblewidgets */,
 				EE03BC5CA4628A6D6BEB0122 /* qcorewlanbearer */,
 				F26998DF735BCE5F975508ED /* CoreWLAN.framework */,
@@ -1711,7 +1707,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.8.41;
+				CURRENT_PROJECT_VERSION = 0.8.42;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -1729,7 +1725,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 0.8.41;
+				CURRENT_PROJECT_VERSION = 0.8.42;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
@@ -1755,10 +1751,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.8.41;
+				CURRENT_PROJECT_VERSION = 0.8.42;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DYLIB_COMPATIBILITY_VERSION = 0.8;
-				DYLIB_CURRENT_VERSION = 0.8.41;
+				DYLIB_CURRENT_VERSION = 0.8.42;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
@@ -1786,7 +1782,6 @@
 					"./../../Libraries/openal-soft/include",
 					"./../../Libraries/libexif-0.6.20",
 					"/usr/local/Qt-5.5.0/include",
-					"/usr/local/Qt-5.5.0/include/QtMultimedia",
 					"/usr/local/Qt-5.5.0/include/QtWidgets",
 					"/usr/local/Qt-5.5.0/include/QtNetwork",
 					"/usr/local/Qt-5.5.0/include/QtGui",
@@ -1816,7 +1811,6 @@
 					"-W",
 					"-fPIE",
 					"-D_WITH_DEBUG",
-					"-DQT_MULTIMEDIA_LIB",
 					"-DQT_WIDGETS_LIB",
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",
@@ -1838,7 +1832,6 @@
 					"-W",
 					"-fPIE",
 					"-D_WITH_DEBUG",
-					"-DQT_MULTIMEDIA_LIB",
 					"-DQT_WIDGETS_LIB",
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",
@@ -1892,10 +1885,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.8.41;
+				CURRENT_PROJECT_VERSION = 0.8.42;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 0.8;
-				DYLIB_CURRENT_VERSION = 0.8.41;
+				DYLIB_CURRENT_VERSION = 0.8.42;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
@@ -1923,7 +1916,6 @@
 					"./../../Libraries/openal-soft/include",
 					"./../../Libraries/libexif-0.6.20",
 					"/usr/local/Qt-5.5.0/include",
-					"/usr/local/Qt-5.5.0/include/QtMultimedia",
 					"/usr/local/Qt-5.5.0/include/QtWidgets",
 					"/usr/local/Qt-5.5.0/include/QtNetwork",
 					"/usr/local/Qt-5.5.0/include/QtGui",
@@ -1954,7 +1946,6 @@
 					"-W",
 					"-fPIE",
 					"-D_DEBUG",
-					"-DQT_MULTIMEDIA_LIB",
 					"-DQT_WIDGETS_LIB",
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",
@@ -1975,7 +1966,6 @@
 					"-W",
 					"-fPIE",
 					"-D_DEBUG",
-					"-DQT_MULTIMEDIA_LIB",
 					"-DQT_WIDGETS_LIB",
 					"-DQT_NETWORK_LIB",
 					"-DQT_GUI_LIB",

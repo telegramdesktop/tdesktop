@@ -1029,6 +1029,8 @@ QString HistoryList::getSelectedText() const {
 	QMap<int32, QString> texts;
 	for (SelectedItems::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
 		HistoryItem *item = i.key();
+		if (item->detached()) continue;
+
 		QString text, sel = item->selectedText(FullItemSel), time = item->date.toString(timeFormat);
 		int32 size = item->from()->name.size() + time.size() + sel.size();
 		text.reserve(size);
@@ -2458,6 +2460,8 @@ void HistoryWidget::onRecordError() {
 }
 
 void HistoryWidget::onRecordDone(QByteArray result, qint32 samples) {
+	if (!_peer) return;
+
 	App::wnd()->activateWindow();
 	int32 duration = samples / AudioVoiceMsgFrequency;
 	_imageLoader.append(result, duration, _peer->id, replyToId(), ToPrepareAudio);
@@ -2473,7 +2477,7 @@ void HistoryWidget::onRecordUpdate(qint16 level, qint32 samples) {
 	_recordingAnim.start();
 	_recordingSamples = samples;
 	if (samples < 0 || samples >= AudioVoiceMsgFrequency * AudioVoiceMsgMaxLength) {
-		stopRecording(samples > 0 && _inField);
+		stopRecording(_peer && samples > 0 && _inField);
 	}
 	updateField();
 }
@@ -3586,7 +3590,7 @@ void HistoryWidget::mouseReleaseEvent(QMouseEvent *e) {
 		updateDragAreas();
 	}
 	if (_recording && cHasAudioCapture()) {
-		stopRecording(_inField);
+		stopRecording(_peer && _inField);
 	}
 }
 
