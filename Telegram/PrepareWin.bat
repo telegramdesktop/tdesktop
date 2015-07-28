@@ -5,7 +5,7 @@ set "AppVersion=8042"
 set "AppVersionStrSmall=0.8.42"
 set "AppVersionStr=0.8.42"
 set "AppVersionStrFull=0.8.42.0"
-set "DevChannel=0"
+set "DevChannel=1"
 
 if %DevChannel% neq 0 goto preparedev
 
