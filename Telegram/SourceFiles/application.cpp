@@ -217,7 +217,7 @@ void Application::updateGotCurrent() {
 		if (updates.exists()) {
 			QFileInfoList list = updates.entryInfoList(QDir::Files);
 			for (QFileInfoList::iterator i = list.begin(), e = list.end(); i != e; ++i) {
-                if (QRegularExpression("^(tupdate|tmacupd|tlinuxupd|tlinux32upd)\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
+                if (QRegularExpression("^(tupdate|tmacupd|tmac32upd|tlinuxupd|tlinux32upd)\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
 					QFile(i->absoluteFilePath()).remove();
 				}
 			}
@@ -514,7 +514,7 @@ void Application::startUpdateCheck(bool forceWait) {
 		if (updates.exists()) {
 			QFileInfoList list = updates.entryInfoList(QDir::Files);
 			for (QFileInfoList::iterator i = list.begin(), e = list.end(); i != e; ++i) {
-                if (QRegularExpression("^(tupdate|tmacupd|tlinuxupd|tlinux32upd)\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
+                if (QRegularExpression("^(tupdate|tmacupd|tmac32upd|tlinuxupd|tlinux32upd)\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
 					sendRequest = true;
 				}
 			}
@@ -524,7 +524,11 @@ void Application::startUpdateCheck(bool forceWait) {
 
 	if (sendRequest) {
 		QUrl url(cUpdateURL());
-		if (DevChannel) url.setQuery("dev=1");
+		if (cDevVersion()) {
+			url.setQuery(qsl("version=%1&dev=1").arg(AppVersion));
+		} else {
+			url.setQuery(qsl("version=%1").arg(AppVersion));
+		}
 		QString u = url.toString();
 		QNetworkRequest checkVersion(url);
 		if (updateReply) updateReply->deleteLater();
@@ -654,9 +658,9 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 8041) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Pretty phone number formatting\n\xe2\x80\x94 Fixed shared contacts display\n\xe2\x80\x94 Fix KDE crash, use Qt tray icon in all Linux systems");// .replace('@', qsl("@") + QChar(0x200D));
-			} else if (!DevChannel && Local::oldMapVersion() < 8042) {
+			if (cDevVersion() && Local::oldMapVersion() < 8042) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Dev version will now get updated to stable as well");// .replace('@', qsl("@") + QChar(0x200D));
+			} else if (!cDevVersion() && Local::oldMapVersion() < 8043) {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
