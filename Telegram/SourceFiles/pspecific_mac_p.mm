@@ -540,7 +540,10 @@ bool objc_idleTime(int64 &idleTime) { // taken from https://github.com/trueinter
 					if (!showVersion) {
 						NSError *error = NULL;
 						NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"^\\d+\\.\\d+\\.\\d+(\\.\\d+)?$" options:NSRegularExpressionCaseInsensitive error:&error];
-						showVersion = ![regex numberOfMatchesInString:version options:NSMatchingWithoutAnchoringBounds range:{0,[version length]}];
+						NSRange rng;
+						rng.location = 0;
+						rng.length = [version length];
+						showVersion = ![regex numberOfMatchesInString:version options:NSMatchingWithoutAnchoringBounds range:rng];
 					}
 					if (showVersion) fullname = [[NSArray arrayWithObjects:fullname, @" (", version, @")", nil] componentsJoinedByString:@""];
 					[a setFullname:fullname];

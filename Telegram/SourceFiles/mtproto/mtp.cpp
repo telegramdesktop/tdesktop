@@ -66,6 +66,7 @@ namespace {
 	MTPStateChangedHandler stateChangedHandler = 0;
 	MTPSessionResetHandler sessionResetHandler = 0;
 	_mtp_internal::RequestResender *resender = 0;
+	_mtp_internal::SessionKiller *sesskiller = 0;
 
 	void importDone(const MTPauth_Authorization &result, mtpRequestId req) {
 		QMutexLocker locker1(&requestByDCLock);
@@ -606,6 +607,12 @@ namespace _mtp_internal {
 			_timer.start(delayedRequests.front().second - now);
 		}
 	}
+
+	void SessionKiller::killSessionsDelayed() {
+		if (!sessionsToKill.isEmpty()) {
+			sessionsToKill.clear();
+		}
+	}
 };
 
 namespace MTP {
@@ -623,6 +630,7 @@ namespace MTP {
 
 		_started = true;
 		resender = new _mtp_internal::RequestResender();
+		sesskiller = new _mtp_internal::SessionKiller();
 
 		if (mtpNeedConfig()) {
 			mtpConfigLoader()->load();
@@ -729,19 +737,13 @@ namespace MTP {
 		_mtp_internal::clearCallbacks(requestId);
 	}
 
-	void killSessionsDelayed() {
-		if (!sessionsToKill.isEmpty()) {
-			sessionsToKill.clear();
-		}
-	}
-
 	void killSession(int32 dc) {
 		Sessions::iterator i = sessions.find(dc);
 		if (i != sessions.end()) {
 			bool wasMain = (i.value() == mainSession);
 
 			i.value()->kill();
-			if (sessionsToKill.isEmpty()) QTimer::singleShot(0, killSessionsDelayed);
+			if (sessionsToKill.isEmpty() && sesskiller) QTimer::singleShot(0, sesskiller, SLOT(killSessionsDelayed()));
 			sessionsToKill.push_back(i.value());
 			sessions.erase(i);
 
@@ -786,8 +788,13 @@ namespace MTP {
 		}
 		sessions.clear();
 		mainSession = MTProtoSessionPtr();
+
 		delete resender;
 		resender = 0;
+
+		delete sesskiller;
+		sesskiller = 0;
+
 		mtpDestroyConfigLoader();
 
 		_started = false;

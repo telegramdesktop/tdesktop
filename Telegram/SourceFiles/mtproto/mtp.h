@@ -59,6 +59,14 @@ namespace _mtp_internal {
 
 		SingleTimer _timer;
 	};
+
+	class SessionKiller : public QObject {
+		Q_OBJECT
+
+	public slots:
+
+		void killSessionsDelayed();
+	};
 };
 
 namespace MTP {

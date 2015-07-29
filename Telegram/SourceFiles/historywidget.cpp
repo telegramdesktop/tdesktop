@@ -4978,7 +4978,7 @@ void HistoryWidget::updatePreview() {
 		_replyForwardPreviewCancel.show();
 		if (_previewData->pendingTill) {
 			_previewTitle.setText(st::msgServiceNameFont, lang(lng_preview_loading), _textNameOptions);
-			_previewDescription.setText(st::msgFont, _previewLinks.splitRef(' ').at(0).toString(), _textDlgOptions);
+			_previewDescription.setText(st::msgFont, _previewLinks.split(' ').at(0), _textDlgOptions);
 
 			int32 t = (_previewData->pendingTill - unixtime()) * 1000;
 			if (t <= 0) t = 1;
