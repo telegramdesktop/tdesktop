@@ -444,7 +444,7 @@ int main(int argc, char *argv[])
 #ifdef Q_OS_WIN
 	QString outName(QString("tupdate%1").arg(version));
 #elif defined Q_OS_MAC
-	QString outName(QString("tmacupd%1").arg(version));
+	QString outName(QString("tmac32upd%1").arg(version));
 #elif defined Q_OS_LINUX32
     QString outName(QString("tlinux32upd%1").arg(version));
 #elif defined Q_OS_LINUX64
