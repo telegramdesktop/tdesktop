@@ -23,7 +23,7 @@ if [ -d "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr" ]; then
   exit 1
 fi
 
-if [ -f "./../Mac/Release/tupdate$AppVersion" ]; then
+if [ -f "./../Mac/Release/tmacupd$AppVersion" ]; then
   echo "Update file for version $AppVersion already exists!"
   exit 1
 fi
