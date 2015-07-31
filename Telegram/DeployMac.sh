@@ -27,4 +27,4 @@ fi
 
 cp -v ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/tmac32upd$AppVersion ./../../../TBuild/tother/tmac32/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
 cp -v ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/tsetup32.$AppVersionStr$DevPostfix.dmg ./../../../TBuild/tother/tmac32/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
-
+cp -rv ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram.app.dSYM ./../../../TBuild/tother/tmac32/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
