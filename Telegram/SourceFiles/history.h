@@ -41,7 +41,7 @@ struct Histories : public QHash<PeerId, History*>, public Animated {
 	Histories() : unreadFull(0), unreadMuted(0) {
 	}
 
-	void regTyping(History *history, UserData *user);
+	void regSendAction(History *history, UserData *user, const MTPSendMessageAction &action);
 	bool animStep(float64 ms);
 
 	void clear();
@@ -133,6 +133,25 @@ inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	}
 	return MTPMessagesFilter();
 }
+
+enum SendActionType {
+	SendActionTyping,
+	SendActionRecordVideo,
+	SendActionUploadVideo,
+	SendActionRecordAudio,
+	SendActionUploadAudio,
+	SendActionUploadPhoto,
+	SendActionUploadFile,
+	SendActionChooseLocation,
+	SendActionChooseContact,
+};
+struct SendAction {
+	SendAction(SendActionType type, uint64 until, int32 progress = 0) : type(type), until(until), progress(progress) {
+	}
+	SendActionType type;
+	uint64 until;
+	int32 progress;
+};
 
 class HistoryMedia;
 class HistoryMessage;
@@ -273,11 +292,13 @@ struct History : public QList<HistoryBlock*> {
 
 	typedef QMap<UserData*, uint64> TypingUsers;
 	TypingUsers typing;
+	typedef QMap<UserData*, SendAction> SendActionUsers;
+	SendActionUsers sendActions;
 	QString typingStr;
 	Text typingText;
 	uint32 typingFrame;
 	bool updateTyping(uint64 ms = 0, uint32 dots = 0, bool force = false);
-	uint64 myTyping;
+	QMap<SendActionType, uint64> mySendActions;
 
 	typedef QList<MsgId> MediaOverview;
 	typedef QMap<MsgId, NullType> MediaOverviewIds;

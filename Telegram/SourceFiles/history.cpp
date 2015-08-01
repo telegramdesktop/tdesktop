@@ -167,7 +167,7 @@ void DialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
 	if (!last) {
 		p.setFont(st::dlgHistFont->f);
 		p.setPen((act ? st::dlgActiveColor : st::dlgSystemColor)->p);
-		if (history->typing.isEmpty()) {
+		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
 			p.drawText(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgFont->ascent + st::dlgSep, lang(lng_empty_history));
 		} else {
 			history->typingText.drawElided(p, nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth);
@@ -223,7 +223,7 @@ void DialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
 			p.setPen((act ? st::dlgActiveUnreadColor : st::dlgUnreadColor)->p);
 			p.drawText(unreadRectLeft + st::dlgUnreadPaddingHor, unreadRectTop + st::dlgUnreadPaddingVer + st::dlgUnreadFont->ascent, unreadStr);
 		}
-		if (history->typing.isEmpty()) {
+		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
 			last->drawInDialog(p, QRect(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, lastWidth, st::dlgFont->height), act, history->textCachedFor, history->lastItemTextCache);
 		} else {
 			p.setPen((act ? st::dlgActiveColor : st::dlgSystemColor)->p);
@@ -319,7 +319,6 @@ History::History(const PeerId &peerId) : width(0), height(0)
 , lastItemTextCache(st::dlgRichMinWidth)
 , posInDialogs(0)
 , typingText(st::dlgRichMinWidth)
-, myTyping(0)
 {
 	for (int32 i = 0; i < OverviewCount; ++i) {
 		_overviewCount[i] = -1; // not loaded yet
@@ -347,6 +346,14 @@ bool History::updateTyping(uint64 ms, uint32 dots, bool force) {
 			++i;
 		}
 	}
+	for (SendActionUsers::iterator i = sendActions.begin(), e = sendActions.end(); i != e;) {
+		if (ms >= i.value().until) {
+			i = sendActions.erase(i);
+			changed = true;
+		} else {
+			++i;
+		}
+	}
 	if (changed) {
 		QString newTypingStr;
 		int32 cnt = typing.size();
@@ -356,6 +363,17 @@ bool History::updateTyping(uint64 ms, uint32 dots, bool force) {
 			newTypingStr = lng_users_typing(lt_user, typing.begin().key()->firstName, lt_second_user, (typing.end() - 1).key()->firstName);
 		} else if (cnt) {
 			newTypingStr = peer->chat ? lng_user_typing(lt_user, typing.begin().key()->firstName) : lang(lng_typing);
+		} else if (!sendActions.isEmpty()) {
+			switch (sendActions.begin().value().type) {
+			case SendActionRecordVideo: newTypingStr = peer->chat ? lng_user_action_record_video(lt_user, sendActions.begin().key()->firstName) : lang(lng_send_action_record_video); break;
+			case SendActionUploadVideo: newTypingStr = peer->chat ? lng_user_action_upload_video(lt_user, sendActions.begin().key()->firstName) : lang(lng_send_action_upload_video); break;
+			case SendActionRecordAudio: newTypingStr = peer->chat ? lng_user_action_record_audio(lt_user, sendActions.begin().key()->firstName) : lang(lng_send_action_record_audio); break;
+			case SendActionUploadAudio: newTypingStr = peer->chat ? lng_user_action_upload_audio(lt_user, sendActions.begin().key()->firstName) : lang(lng_send_action_upload_audio); break;
+			case SendActionUploadPhoto: newTypingStr = peer->chat ? lng_user_action_upload_photo(lt_user, sendActions.begin().key()->firstName) : lang(lng_send_action_upload_photo); break;
+			case SendActionUploadFile: newTypingStr = peer->chat ? lng_user_action_upload_file(lt_user, sendActions.begin().key()->firstName) : lang(lng_send_action_upload_file); break;
+			case SendActionChooseLocation: newTypingStr = peer->chat ? lng_user_action_geo_location(lt_user, sendActions.begin().key()->firstName) : lang(lng_send_action_geo_location); break;
+			case SendActionChooseContact: newTypingStr = peer->chat ? lng_user_action_choose_contact(lt_user, sendActions.begin().key()->firstName) : lang(lng_send_action_choose_contact); break;
+			}
 		}
 		if (!newTypingStr.isEmpty()) {
 			newTypingStr += qsl("...");
@@ -506,9 +524,25 @@ void Histories::clear() {
 	Parent::clear();
 }
 
-void Histories::regTyping(History *history, UserData *user) {
+void Histories::regSendAction(History *history, UserData *user, const MTPSendMessageAction &action) {
+	if (action.type() == mtpc_sendMessageCancelAction) {
+		history->unregTyping(user);
+		return;
+	}
+
 	uint64 ms = getms(true);
-	history->typing[user] = ms + 6000;
+	switch (action.type()) {
+	case mtpc_sendMessageTypingAction: history->typing[user] = ms + 6000; break;
+	case mtpc_sendMessageRecordVideoAction: history->sendActions.insert(user, SendAction(SendActionRecordVideo, ms + 6000)); break;
+	case mtpc_sendMessageUploadVideoAction: history->sendActions.insert(user, SendAction(SendActionUploadVideo, ms + 6000, action.c_sendMessageUploadVideoAction().vprogress.v)); break;
+	case mtpc_sendMessageRecordAudioAction: history->sendActions.insert(user, SendAction(SendActionRecordAudio, ms + 6000)); break;
+	case mtpc_sendMessageUploadAudioAction: history->sendActions.insert(user, SendAction(SendActionUploadAudio, ms + 6000, action.c_sendMessageUploadAudioAction().vprogress.v)); break;
+	case mtpc_sendMessageUploadPhotoAction: history->sendActions.insert(user, SendAction(SendActionUploadPhoto, ms + 6000, action.c_sendMessageUploadPhotoAction().vprogress.v)); break;
+	case mtpc_sendMessageUploadDocumentAction: history->sendActions.insert(user, SendAction(SendActionUploadFile, ms + 6000, action.c_sendMessageUploadDocumentAction().vprogress.v)); break;
+	case mtpc_sendMessageGeoLocationAction: history->sendActions.insert(user, SendAction(SendActionChooseLocation, ms + 6000)); break;
+	case mtpc_sendMessageChooseContactAction: history->sendActions.insert(user, SendAction(SendActionChooseContact, ms + 6000)); break;
+	default: return;
+	}
 
 	user->madeAction();
 
@@ -530,7 +564,7 @@ bool Histories::animStep(float64) {
 			App::main()->dlgUpdated(i.key());
 			App::main()->topBar()->update();
 		}
-		if (i.key()->typing.isEmpty()) {
+		if (i.key()->typing.isEmpty() && i.key()->sendActions.isEmpty()) {
 			i = typing.erase(i);
 		} else {
 			++i;
@@ -943,11 +977,22 @@ HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *
 }
 
 void History::unregTyping(UserData *from) {
+	bool update = false;
+	uint64 updateAtMs = 0;
 	TypingUsers::iterator i = typing.find(from);
 	if (i != typing.end()) {
-		uint64 ms = getms(true);
-		i.value() = ms;
-		updateTyping(ms, 0, true);
+		updateAtMs = getms(true);
+		i.value() = updateAtMs;
+		update = true;
+	}
+	SendActionUsers::iterator j = sendActions.find(from);
+	if (j != sendActions.end()) {
+		if (!updateAtMs) updateAtMs = getms(true);
+		j.value().until = updateAtMs;
+		update = true;
+	}
+	if (updateAtMs) {
+		updateTyping(updateAtMs, 0, true);
 		App::main()->topBar()->update();
 	}
 }
