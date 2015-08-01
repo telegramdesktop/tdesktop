@@ -1,0 +1,493 @@
+diff --git a/qtbase/qmake/generators/mac/pbuilder_pbx.cpp b/qtbase/qmake/generators/mac/pbuilder_pbx.cpp
+index e1e3737..8f42584 100644
+--- a/qtbase/qmake/generators/mac/pbuilder_pbx.cpp
++++ b/qtbase/qmake/generators/mac/pbuilder_pbx.cpp
+@@ -1419,11 +1419,15 @@ ProjectBuilderMakefileGenerator::writeMakeParts(QTextStream &t)
+                             plist_in_text = plist_in_text.replace("@TYPEINFO@",
+                                 (project->isEmpty("QMAKE_PKGINFO_TYPEINFO")
+                                     ? QString::fromLatin1("????") : project->first("QMAKE_PKGINFO_TYPEINFO").left(4).toQString()));
+-                            QFile plist_out_file("Info.plist");
++							QString plist_dir;
++							if (!project->isEmpty("PLIST_DIR"))
++								plist_dir = project->first("PLIST_DIR").toQString();
++							QString plist_in_filename = QFileInfo(plist_in_file).fileName();
++							QFile plist_out_file(plist_dir + plist_in_filename);
+                             if (plist_out_file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                                 QTextStream plist_out(&plist_out_file);
+                                 plist_out << plist_in_text;
+-                                t << "\t\t\t\t" << writeSettings("INFOPLIST_FILE", "Info.plist") << ";\n";
++                                t << "\t\t\t\t" << writeSettings("INFOPLIST_FILE", fixForOutput(plist_dir + plist_in_filename)) << ";\n";
+                             }
+                         }
+                     }
+diff --git a/qtbase/qmake/generators/makefile.cpp b/qtbase/qmake/generators/makefile.cpp
+index 0e3e058..4242f93 100644
+--- a/qtbase/qmake/generators/makefile.cpp
++++ b/qtbase/qmake/generators/makefile.cpp
+@@ -219,7 +219,7 @@ MakefileGenerator::initOutPaths()
+         v["PRECOMPILED_DIR"] = v["OBJECTS_DIR"];
+     static const char * const dirs[] = { "OBJECTS_DIR", "DESTDIR",
+                                          "SUBLIBS_DIR", "DLLDESTDIR",
+-                                         "PRECOMPILED_DIR", 0 };
++                                         "PRECOMPILED_DIR", "PLIST_DIR", 0 };
+     for (int x = 0; dirs[x]; x++) {
+         const ProKey dkey(dirs[x]);
+         if (v[dkey].isEmpty())
+diff --git a/qtbase/src/3rdparty/pcre/pcre16_valid_utf16.c b/qtbase/src/3rdparty/pcre/pcre16_valid_utf16.c
+index 1987f27..6b36e4f 100644
+--- a/qtbase/src/3rdparty/pcre/pcre16_valid_utf16.c
++++ b/qtbase/src/3rdparty/pcre/pcre16_valid_utf16.c
+@@ -101,7 +101,7 @@ for (p = string; length-- > 0; p++)
+     {
+     /* Normal UTF-16 code point. Neither high nor low surrogate. */
+     }
+-  else if ((c & 0x0400) == 0)
++  else if ((c & 0xfc00) == 0xd800)
+     {
+     /* High surrogate. Must be a followed by a low surrogate. */
+     if (length == 0)
+diff --git a/qtbase/src/gui/image/qbmphandler.cpp b/qtbase/src/gui/image/qbmphandler.cpp
+index bb79a13..7d2bcd5 100644
+--- a/qtbase/src/gui/image/qbmphandler.cpp
++++ b/qtbase/src/gui/image/qbmphandler.cpp
+@@ -220,6 +220,9 @@ static bool read_dib_body(QDataStream &s, const BMP_INFOHDR &bi, int offset, int
+     int blue_scale = 0;
+     int alpha_scale = 0;
+ 
++	if (!d->isSequential())
++		d->seek(startpos + BMP_FILEHDR_SIZE + (bi.biSize >= BMP_WIN4? BMP_WIN : bi.biSize)); // goto start of colormap
++
+     if (bi.biSize >= BMP_WIN4 || (comp == BMP_BITFIELDS && (nbits == 16 || nbits == 32))) {
+         if (d->read((char *)&red_mask, sizeof(red_mask)) != sizeof(red_mask))
+             return false;
+@@ -307,9 +310,6 @@ static bool read_dib_body(QDataStream &s, const BMP_INFOHDR &bi, int offset, int
+     image.setDotsPerMeterX(bi.biXPelsPerMeter);
+     image.setDotsPerMeterY(bi.biYPelsPerMeter);
+ 
+-    if (!d->isSequential())
+-        d->seek(startpos + BMP_FILEHDR_SIZE + (bi.biSize >= BMP_WIN4? BMP_WIN : bi.biSize)); // goto start of colormap
+-
+     if (ncols > 0) {                                // read color table
+         uchar rgb[4];
+         int   rgb_len = t == BMP_OLD ? 3 : 4;
+diff --git a/qtbase/src/gui/painting/qpaintengine_p.h b/qtbase/src/gui/painting/qpaintengine_p.h
+index ebff950..642e5b7 100644
+--- a/qtbase/src/gui/painting/qpaintengine_p.h
++++ b/qtbase/src/gui/painting/qpaintengine_p.h
+@@ -87,8 +87,18 @@ public:
+         if (hasSystemTransform) {
+             if (systemTransform.type() <= QTransform::TxTranslate)
+                 systemClip.translate(qRound(systemTransform.dx()), qRound(systemTransform.dy()));
+-            else
+-                systemClip = systemTransform.map(systemClip);
++			else {
++				// Transform the system clip region back from device pixels to device-independent pixels before
++				// applying systemTransform, which already has transform from device-independent pixels to device pixels
++#ifdef Q_OS_MAC
++				QTransform scaleTransform;
++				const qreal invDevicePixelRatio = 1. / pdev->devicePixelRatio();
++				scaleTransform.scale(invDevicePixelRatio, invDevicePixelRatio);
++				systemClip = systemTransform.map(scaleTransform.map(systemClip));
++#else
++				systemClip = systemTransform.map(systemClip);
++#endif
++			}
+         }
+ 
+         // Make sure we're inside the viewport.
+diff --git a/qtbase/src/gui/text/qtextlayout.h b/qtbase/src/gui/text/qtextlayout.h
+index cbe42c3..2209490 100644
+--- a/qtbase/src/gui/text/qtextlayout.h
++++ b/qtbase/src/gui/text/qtextlayout.h
+@@ -194,6 +194,8 @@ private:
+                                QRectF *brect, int tabstops, int* tabarray, int tabarraylen,
+                                QPainter *painter);
+     QTextEngine *d;
++
++	friend class TextBlock;
+ };
+ 
+ 
+diff --git a/qtbase/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm b/qtbase/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
+index ca7afb7..9d1783a 100644
+--- a/qtbase/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
++++ b/qtbase/src/platformsupport/fontdatabases/mac/qcoretextfontdatabase.mm
+@@ -256,6 +256,10 @@ static void getFontDescription(CTFontDescriptorRef font, FontDescription *fd)
+ 
+     fd->foundryName = QStringLiteral("CoreText");
+     fd->familyName = (CFStringRef) CTFontDescriptorCopyAttribute(font, kCTFontFamilyNameAttribute);
++	QCFString _displayName = (CFStringRef) CTFontDescriptorCopyAttribute(font, kCTFontDisplayNameAttribute);
++	if (_displayName == QStringLiteral("Open Sans Semibold")) {
++		fd->familyName = _displayName;
++	}
+     fd->styleName = (CFStringRef)CTFontDescriptorCopyAttribute(font, kCTFontStyleNameAttribute);
+     fd->weight = QFont::Normal;
+     fd->style = QFont::StyleNormal;
+diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm b/qtbase/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
+index 92358ec..50a5130 100644
+--- a/qtbase/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
++++ b/qtbase/src/plugins/platforms/cocoa/qcocoaapplicationdelegate.mm
+@@ -213,7 +213,7 @@ static void cleanupCocoaApplicationDelegate()
+     if (reflectionDelegate) {
+         if ([reflectionDelegate respondsToSelector:@selector(applicationShouldTerminate:)])
+             return [reflectionDelegate applicationShouldTerminate:sender];
+-        return NSTerminateNow;
++//        return NSTerminateNow;
+     }
+ 
+     if ([self canQuit]) {
+@@ -411,7 +411,7 @@ static void cleanupCocoaApplicationDelegate()
+ {
+     Q_UNUSED(replyEvent);
+     NSString *urlString = [[event paramDescriptorForKeyword:keyDirectObject] stringValue];
+-    QWindowSystemInterface::handleFileOpenEvent(QUrl(QCFString::toQString(urlString)));
++    QWindowSystemInterface::handleFileOpenEvent(QUrl::fromNSURL([NSURL URLWithString:urlString]));
+ }
+ 
+ - (void)appleEventQuit:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent
+diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm b/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
+index 83c960d..74fa84d 100755
+--- a/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
++++ b/qtbase/src/plugins/platforms/cocoa/qcocoasystemtrayicon.mm
+@@ -102,7 +102,7 @@ QT_USE_NAMESPACE
+     QCocoaSystemTrayIcon *systray;
+     NSStatusItem *item;
+     QCocoaMenu *menu;
+-    bool menuVisible;
++    bool menuVisible, iconSelected;
+     QIcon icon;
+     QT_MANGLE_NAMESPACE(QNSImageView) *imageCell;
+ }
+@@ -124,6 +124,7 @@ QT_USE_NAMESPACE
+     QT_MANGLE_NAMESPACE(QNSStatusItem) *parent;
+ }
+ -(id)initWithParent:(QT_MANGLE_NAMESPACE(QNSStatusItem)*)myParent;
++-(void)updateIconSelection;
+ -(void)menuTrackingDone:(NSNotification*)notification;
+ -(void)mousePressed:(NSEvent *)mouseEvent button:(Qt::MouseButton)mouseButton;
+ @end
+@@ -187,6 +188,14 @@ void QCocoaSystemTrayIcon::cleanup()
+     m_sys = 0;
+ }
+ 
++qreal _devicePixelRatio() {
++	qreal result = 1.0;
++	foreach (QScreen *screen, QGuiApplication::screens()) {
++		result = qMax(result, screen->devicePixelRatio());
++	}
++	return result;
++}
++
+ void QCocoaSystemTrayIcon::updateIcon(const QIcon &icon)
+ {
+     if (!m_sys)
+@@ -194,13 +203,11 @@ void QCocoaSystemTrayIcon::updateIcon(const QIcon &icon)
+ 
+     m_sys->item->icon = icon;
+ 
+-    const bool menuVisible = m_sys->item->menu && m_sys->item->menuVisible;
+-
+     CGFloat hgt = [[[NSApplication sharedApplication] mainMenu] menuBarHeight];
+-    const short scale = hgt - 4;
++    const short scale = hgt * _devicePixelRatio();
+ 
+-    QPixmap pm = m_sys->item->icon.pixmap(QSize(scale, scale),
+-                                          menuVisible ? QIcon::Selected : QIcon::Normal);
++	QPixmap pm = m_sys->item->icon.pixmap(QSize(scale, scale),
++										  m_sys->item->iconSelected ? QIcon::Selected : QIcon::Normal);
+     if (pm.isNull()) {
+         pm = QPixmap(scale, scale);
+         pm.fill(Qt::transparent);
+@@ -322,25 +329,31 @@ QT_END_NAMESPACE
+     return self;
+ }
+ 
++-(void)updateIconSelection
++{
++	CGFloat hgt = [[[NSApplication sharedApplication] mainMenu] menuBarHeight];
++	const short scale = hgt * _devicePixelRatio();
++	QPixmap pm = parent->icon.pixmap(QSize(scale, scale),
++									 parent->iconSelected ? QIcon::Selected : QIcon::Normal);
++	if (pm.isNull()) {
++		pm = QPixmap(scale, scale);
++		pm.fill(Qt::transparent);
++	}
++	NSImage *nsaltimage = static_cast<NSImage *>(qt_mac_create_nsimage(pm));
++	[self setImage: nsaltimage];
++	[nsaltimage release];
++}
++
+ -(void)menuTrackingDone:(NSNotification*)notification
+ {
+     Q_UNUSED(notification);
+     down = NO;
+ 
+-    CGFloat hgt = [[[NSApplication sharedApplication] mainMenu] menuBarHeight];
+-    const short scale = hgt - 4;
+-
+-    QPixmap pm = parent->icon.pixmap(QSize(scale, scale), QIcon::Normal);
+-    if (pm.isNull()) {
+-        pm = QPixmap(scale, scale);
+-        pm.fill(Qt::transparent);
+-    }
+-    NSImage *nsaltimage = static_cast<NSImage *>(qt_mac_create_nsimage(pm));
+-    [self setImage: nsaltimage];
+-    [nsaltimage release];
+-
+     parent->menuVisible = false;
+ 
++	parent->iconSelected = false;
++	[self updateIconSelection];
++	
+     [self setNeedsDisplay:YES];
+ }
+ 
+@@ -350,19 +363,9 @@ QT_END_NAMESPACE
+     int clickCount = [mouseEvent clickCount];
+     [self setNeedsDisplay:YES];
+ 
+-    CGFloat hgt = [[[NSApplication sharedApplication] mainMenu] menuBarHeight];
+-    const short scale = hgt - 4;
+-
+-    QPixmap pm = parent->icon.pixmap(QSize(scale, scale),
+-                                     parent->menuVisible ? QIcon::Selected : QIcon::Normal);
+-    if (pm.isNull()) {
+-        pm = QPixmap(scale, scale);
+-        pm.fill(Qt::transparent);
+-    }
+-    NSImage *nsaltimage = static_cast<NSImage *>(qt_mac_create_nsimage(pm));
+-    [self setImage: nsaltimage];
+-    [nsaltimage release];
+-
++	parent->iconSelected = (clickCount != 2) && parent->menu;
++	[self updateIconSelection];
++	
+     if (clickCount == 2) {
+         [self menuTrackingDone:nil];
+         [parent doubleClickSelector:self];
+@@ -380,6 +383,9 @@ QT_END_NAMESPACE
+ {
+     Q_UNUSED(mouseEvent);
+     [self menuTrackingDone:nil];
++
++	parent->iconSelected = false;
++	[self updateIconSelection];
+ }
+ 
+ - (void)rightMouseDown:(NSEvent *)mouseEvent
+@@ -391,6 +397,9 @@ QT_END_NAMESPACE
+ {
+     Q_UNUSED(mouseEvent);
+     [self menuTrackingDone:nil];
++
++	parent->iconSelected = false;
++	[self updateIconSelection];
+ }
+ 
+ - (void)otherMouseDown:(NSEvent *)mouseEvent
+@@ -405,7 +414,7 @@ QT_END_NAMESPACE
+ }
+ 
+ -(void)drawRect:(NSRect)rect {
+-    [[parent item] drawStatusBarBackgroundInRect:rect withHighlight:down];
++    [[parent item] drawStatusBarBackgroundInRect:rect withHighlight:parent->menu ? down : NO];
+     [super drawRect:rect];
+ }
+ @end
+diff --git a/qtbase/src/plugins/platforms/cocoa/qcocoawindow.mm b/qtbase/src/plugins/platforms/cocoa/qcocoawindow.mm
+index 4d0458a..24a6fd1 100644
+--- a/qtbase/src/plugins/platforms/cocoa/qcocoawindow.mm
++++ b/qtbase/src/plugins/platforms/cocoa/qcocoawindow.mm
+@@ -167,7 +167,7 @@ static bool isMouseEvent(NSEvent *ev)
+     if (!self.window.delegate)
+         return; // Already detached, pending NSAppKitDefined event
+ 
+-    if (pw && pw->frameStrutEventsEnabled() && isMouseEvent(theEvent)) {
++    if (pw && pw->frameStrutEventsEnabled() && pw->m_synchedWindowState != Qt::WindowMinimized && pw->m_isExposed && isMouseEvent(theEvent)) {
+         NSPoint loc = [theEvent locationInWindow];
+         NSRect windowFrame = [self.window legacyConvertRectFromScreen:[self.window frame]];
+         NSRect contentFrame = [[self.window contentView] frame];
+@@ -914,6 +914,14 @@ void QCocoaWindow::setWindowFilePath(const QString &filePath)
+     [m_nsWindow setRepresentedFilename: fi.exists() ? QCFString::toNSString(filePath) : @""];
+ }
+ 
++qreal _win_devicePixelRatio() {
++	qreal result = 1.0;
++	foreach (QScreen *screen, QGuiApplication::screens()) {
++		result = qMax(result, screen->devicePixelRatio());
++	}
++	return result;
++}
++
+ void QCocoaWindow::setWindowIcon(const QIcon &icon)
+ {
+     QCocoaAutoReleasePool pool;
+@@ -929,7 +937,8 @@ void QCocoaWindow::setWindowIcon(const QIcon &icon)
+     if (icon.isNull()) {
+         [iconButton setImage:nil];
+     } else {
+-        QPixmap pixmap = icon.pixmap(QSize(22, 22));
++		CGFloat hgt = 16. * _win_devicePixelRatio();
++		QPixmap pixmap = icon.pixmap(QSize(hgt, hgt));
+         NSImage *image = static_cast<NSImage *>(qt_mac_create_nsimage(pixmap));
+         [iconButton setImage:image];
+         [image release];
+diff --git a/qtbase/src/plugins/platforms/cocoa/qnsview.mm b/qtbase/src/plugins/platforms/cocoa/qnsview.mm
+index a18ee7f..23069a9 100644
+--- a/qtbase/src/plugins/platforms/cocoa/qnsview.mm
++++ b/qtbase/src/plugins/platforms/cocoa/qnsview.mm
+@@ -393,7 +393,7 @@ static NSString *_q_NSWindowDidChangeOcclusionStateNotification = nil;
+         [self notifyWindowStateChanged:newState];
+         // NSWindowDidOrderOnScreenAndFinishAnimatingNotification is private API, and not
+         // emitted in 10.6, so we bring back the old behavior for that case alone.
+-        if (newState == Qt::WindowNoState && QSysInfo::QSysInfo::MacintoshVersion == QSysInfo::MV_10_6)
++        if (newState == Qt::WindowNoState/* && QSysInfo::QSysInfo::MacintoshVersion == QSysInfo::MV_10_6*/)
+             m_platformWindow->exposeWindow();
+     } else if ([notificationName isEqualToString: @"NSWindowDidOrderOffScreenNotification"]) {
+         m_platformWindow->obscureWindow();
+@@ -1300,7 +1300,7 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
+ #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_8
+         if (QSysInfo::QSysInfo::MacintoshVersion >= QSysInfo::MV_10_8) {
+             // On 10.8 and above, MayBegin is likely to happen.  We treat it the same as an actual begin.
+-            if (phase == NSEventPhaseMayBegin)
++            if (phase == NSEventPhaseMayBegin || phase == NSEventPhaseBegan)
+                 ph = Qt::ScrollBegin;
+         } else
+ #endif
+@@ -1437,7 +1437,10 @@ static QTabletEvent::TabletDevice wacomTabletDevice(NSEvent *theEvent)
+                 && qtKey == Qt::Key_Period) {
+             [self handleKeyEvent:nsevent eventType:int(QEvent::KeyPress)];
+             return YES;
+-        }
++		} else if ([nsevent modifierFlags] & NSControlKeyMask && (qtKey == Qt::Key_Tab || qtKey == Qt::Key_Backtab)) {
++			[self handleKeyEvent:nsevent eventType:int(QEvent::KeyPress)];
++			return YES;
++		}
+     }
+     return [super performKeyEquivalent:nsevent];
+ }
+diff --git a/qtbase/src/widgets/kernel/qwidget.cpp b/qtbase/src/widgets/kernel/qwidget.cpp
+index 7396808..e3e2faa 100644
+--- a/qtbase/src/widgets/kernel/qwidget.cpp
++++ b/qtbase/src/widgets/kernel/qwidget.cpp
+@@ -7983,7 +7983,7 @@ bool QWidget::event(QEvent *event)
+     case QEvent::KeyPress: {
+         QKeyEvent *k = (QKeyEvent *)event;
+         bool res = false;
+-        if (!(k->modifiers() & (Qt::ControlModifier | Qt::AltModifier))) {  //### Add MetaModifier?
++        if (!(k->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {  //### Add MetaModifier?
+             if (k->key() == Qt::Key_Backtab
+                 || (k->key() == Qt::Key_Tab && (k->modifiers() & Qt::ShiftModifier)))
+                 res = focusNextPrevChild(false);
+diff --git a/qtbase/src/widgets/styles/qmacstyle_mac.mm b/qtbase/src/widgets/styles/qmacstyle_mac.mm
+index 0845a5e..57a5144 100644
+--- a/qtbase/src/widgets/styles/qmacstyle_mac.mm
++++ b/qtbase/src/widgets/styles/qmacstyle_mac.mm
+@@ -3667,9 +3667,9 @@ void QMacStyle::drawControl(ControlElement ce, const QStyleOption *opt, QPainter
+ 
+                 NSBezierPath *pushButtonFocusRingPath;
+                 if (bdi.kind == kThemeBevelButton)
+-                    pushButtonFocusRingPath = [NSBezierPath bezierPathWithRect:focusRect];
++                    pushButtonFocusRingPath = [NSBezierPath bezierPathWithRect:NSRectFromCGRect(focusRect)];
+                 else
+-                    pushButtonFocusRingPath = [NSBezierPath bezierPathWithRoundedRect:focusRect xRadius:4 yRadius:4];
++                    pushButtonFocusRingPath = [NSBezierPath bezierPathWithRoundedRect:NSRectFromCGRect(focusRect) xRadius:4 yRadius:4];
+                 qt_drawFocusRingOnPath(cg, pushButtonFocusRingPath);
+             }
+ 
+diff --git a/qtbase/src/widgets/util/qsystemtrayicon_qpa.cpp b/qtbase/src/widgets/util/qsystemtrayicon_qpa.cpp
+index f98aeaf..a0c5987 100644
+--- a/qtbase/src/widgets/util/qsystemtrayicon_qpa.cpp
++++ b/qtbase/src/widgets/util/qsystemtrayicon_qpa.cpp
+@@ -99,14 +99,18 @@ void QSystemTrayIconPrivate::updateIcon_sys()
+ 
+ void QSystemTrayIconPrivate::updateMenu_sys()
+ {
+-    if (qpa_sys && menu) {
+-        if (!menu->platformMenu()) {
+-            QPlatformMenu *platformMenu = qpa_sys->createMenu();
+-            if (platformMenu)
+-                menu->setPlatformMenu(platformMenu);
+-        }
+-        qpa_sys->updateMenu(menu->platformMenu());
+-    }
++	if (qpa_sys) {
++		if (menu) {
++			if (!menu->platformMenu()) {
++				QPlatformMenu *platformMenu = qpa_sys->createMenu();
++				if (platformMenu)
++					menu->setPlatformMenu(platformMenu);
++			}
++			qpa_sys->updateMenu(menu->platformMenu());
++		} else {
++			qpa_sys->updateMenu(0);
++		}
++	}
+ }
+ 
+ void QSystemTrayIconPrivate::updateToolTip_sys()
+diff --git a/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp b/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp
+index 75f3059..a5bfc79 100644
+--- a/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp
++++ b/qtbase/src/widgets/widgets/qwidgetlinecontrol.cpp
+@@ -1867,7 +1867,7 @@ void QWidgetLineControl::processKeyEvent(QKeyEvent* event)
+ 
+     if (unknown && !isReadOnly()) {
+         QString t = event->text();
+-        if (!t.isEmpty() && t.at(0).isPrint()) {
++        if (!t.isEmpty() && (t.at(0).isPrint() || t.at(0).unicode() == 0x200C || t.at(0).unicode() == 0x200D)) {
+             insert(t);
+ #ifndef QT_NO_COMPLETER
+             complete(event->key());
+diff --git a/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp b/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp
+index 96438a0..e6a8a6e 100644
+--- a/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp
++++ b/qtbase/src/widgets/widgets/qwidgettextcontrol.cpp
+@@ -1342,7 +1342,7 @@ void QWidgetTextControlPrivate::keyPressEvent(QKeyEvent *e)
+ process:
+     {
+         QString text = e->text();
+-        if (!text.isEmpty() && (text.at(0).isPrint() || text.at(0) == QLatin1Char('\t'))) {
++        if (!text.isEmpty() && (text.at(0).isPrint() || text.at(0) == QLatin1Char('\t') || text.at(0).unicode() == 0x200C || text.at(0).unicode() == 0x200D)) {
+             if (overwriteMode
+                 // no need to call deleteChar() if we have a selection, insertText
+                 // does it already
+diff --git a/qtimageformats/src/3rdparty/libwebp/src/dec/vp8l.c b/qtimageformats/src/3rdparty/libwebp/src/dec/vp8l.c
+index ea0254d..e516a7a 100644
+--- a/qtimageformats/src/3rdparty/libwebp/src/dec/vp8l.c
++++ b/qtimageformats/src/3rdparty/libwebp/src/dec/vp8l.c
+@@ -12,7 +12,6 @@
+ // Authors: Vikas Arora (vikaas.arora@gmail.com)
+ //          Jyrki Alakuijala (jyrki@google.com)
+ 
+-#include <stdio.h>
+ #include <stdlib.h>
+ #include "./alphai.h"
+ #include "./vp8li.h"
+@@ -740,6 +739,7 @@ static int DecodeAlphaData(VP8LDecoder* const dec, uint8_t* const data,
+   const int len_code_limit = NUM_LITERAL_CODES + NUM_LENGTH_CODES;
+   const int mask = hdr->huffman_mask_;
+   assert(htree_group != NULL);
++  assert(pos < end);
+   assert(last_row <= height);
+   assert(Is8bOptimizable(hdr));
+ 
+@@ -830,6 +830,7 @@ static int DecodeImageData(VP8LDecoder* const dec, uint32_t* const data,
+       (hdr->color_cache_size_ > 0) ? &hdr->color_cache_ : NULL;
+   const int mask = hdr->huffman_mask_;
+   assert(htree_group != NULL);
++  assert(src < src_end);
+   assert(src_last <= src_end);
+ 
+   while (!br->eos_ && src < src_last) {
+@@ -1294,6 +1295,10 @@ int VP8LDecodeAlphaImageStream(ALPHDecoder* const alph_dec, int last_row) {
+   assert(dec->action_ == READ_DATA);
+   assert(last_row <= dec->height_);
+ 
++  if (dec->last_pixel_ == dec->width_ * dec->height_) {
++    return 1; // done
++  }
++
+   // Decode (with special row processing).
+   return alph_dec->use_8b_decode ?
+       DecodeAlphaData(dec, (uint8_t*)dec->pixels_, dec->width_, dec->height_,
