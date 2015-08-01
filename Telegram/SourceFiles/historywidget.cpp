@@ -2233,7 +2233,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _titlePeerTextWidth(0)
 , _showAnim(animFunc(this, &HistoryWidget::showStep))
 , _scrollDelta(0)
-, _typingRequest(0)
 , _saveDraftStart(0)
 , _saveDraftText(false) {
 	_scroll.setFocusPolicy(Qt::NoFocus);
@@ -2262,7 +2261,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(&_emojiPan, SIGNAL(emojiSelected(EmojiPtr)), &_field, SLOT(onEmojiInsert(EmojiPtr)));
 	connect(&_emojiPan, SIGNAL(stickerSelected(DocumentData*)), this, SLOT(onStickerSend(DocumentData*)));
 	connect(&_emojiPan, SIGNAL(updateStickers()), this, SLOT(updateStickers()));
-	connect(&_typingStopTimer, SIGNAL(timeout()), this, SLOT(cancelTyping()));
+	connect(&_sendActionStopTimer, SIGNAL(timeout()), this, SLOT(onCancelSendAction()));
 	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreviewTimeout()));
 	if (audioCapture()) {
 		connect(audioCapture(), SIGNAL(onError()), this, SLOT(onRecordError()));
@@ -2272,7 +2271,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 
 	_scrollTimer.setSingleShot(false);
 
-	_typingStopTimer.setSingleShot(true);
+	_sendActionStopTimer.setSingleShot(true);
 
 	_animActiveTimer.setSingleShot(false);
 	connect(&_animActiveTimer, SIGNAL(timeout()), this, SLOT(onAnimActiveStep()));
@@ -2350,7 +2349,7 @@ void HistoryWidget::onMentionHashtagOrBotCommandInsert(QString str) {
 }
 
 void HistoryWidget::onTextChange() {
-	updateTyping();
+	updateSendAction(_history, SendActionTyping);
 
 	if (cHasAudioCapture()) {
 		if (_field.getLastText().isEmpty() && !App::main()->hasForwardingItems()) {
@@ -2369,8 +2368,8 @@ void HistoryWidget::onTextChange() {
 	}
 	if (updateCmdStartShown()) {
 		updateControlsVisibility();
-		resizeEvent(0);
-		update();
+resizeEvent(0);
+update();
 	}
 
 	if (!_history || _synthedTextUpdate) return;
@@ -2411,22 +2410,55 @@ void HistoryWidget::writeDraft(MsgId *replyTo, const QString *text, const Messag
 	if (save) Local::writeDraftPositions(_history->peer->id, cursor ? (*cursor) : MessageCursor(_field));
 }
 
-void HistoryWidget::cancelTyping() {
-	if (_typingRequest) {
-		MTP::cancel(_typingRequest);
-		_typingRequest = 0;
+void HistoryWidget::cancelSendAction(History *history, SendActionType type) {
+	QMap<QPair<History*, SendActionType>, mtpRequestId>::iterator i = _sendActionRequests.find(qMakePair(history, type));
+	if (i != _sendActionRequests.cend()) {
+		MTP::cancel(i.value());
+		_sendActionRequests.erase(i);
 	}
 }
 
-void HistoryWidget::updateTyping(bool typing) {
-	uint64 ms = getms(true) + 10000;
-	if (_synthedTextUpdate || !_history || (typing && (_history->myTyping + 5000 > ms)) || (!typing && (_history->myTyping + 5000 <= ms))) return;
+void HistoryWidget::onCancelSendAction() {
+	cancelSendAction(_history, SendActionTyping);
+}
 
-	_history->myTyping = typing ? ms : 0;
-	cancelTyping();
-	if (typing) {
-		_typingRequest = MTP::send(MTPmessages_SetTyping(_peer->input, typing ? MTP_sendMessageTypingAction() : MTP_sendMessageCancelAction()), rpcDone(&HistoryWidget::typingDone));
-		_typingStopTimer.start(5000);
+void HistoryWidget::updateSendAction(History *history, SendActionType type, int32 progress) {
+	if (!history) return;
+	if (type == SendActionTyping && _synthedTextUpdate) return;
+
+	bool doing = (progress >= 0);
+
+	uint64 ms = getms(true) + 10000;
+	QMap<SendActionType, uint64>::iterator i = history->mySendActions.find(type);
+	if (doing && i != history->mySendActions.cend() && i.value() + 5000 > ms) return;
+	if (!doing && (i == history->mySendActions.cend() || i.value() + 5000 <= ms)) return;
+
+	if (doing) {
+		if (i == history->mySendActions.cend()) {
+			history->mySendActions.insert(type, ms);
+		} else {
+			i.value() = ms;
+		}
+	} else if (i != history->mySendActions.cend()) {
+		history->mySendActions.erase(i);
+	}
+
+	cancelSendAction(history, type);
+	if (doing) {
+		MTPsendMessageAction action;
+		switch (type) {
+		case SendActionTyping: action = MTP_sendMessageTypingAction(); break;
+		case SendActionRecordVideo: action = MTP_sendMessageRecordVideoAction(); break;
+		case SendActionUploadVideo: action = MTP_sendMessageUploadVideoAction(MTP_int(progress)); break;
+		case SendActionRecordAudio: action = MTP_sendMessageRecordAudioAction(); break;
+		case SendActionUploadAudio: action = MTP_sendMessageUploadAudioAction(MTP_int(progress)); break;
+		case SendActionUploadPhoto: action = MTP_sendMessageUploadPhotoAction(MTP_int(progress)); break;
+		case SendActionUploadFile: action = MTP_sendMessageUploadDocumentAction(MTP_int(progress)); break;
+		case SendActionChooseLocation: action = MTP_sendMessageGeoLocationAction(); break;
+		case SendActionChooseContact: action = MTP_sendMessageChooseContactAction(); break;
+		}
+		_sendActionRequests.insert(qMakePair(history, type), MTP::send(MTPmessages_SetTyping(_peer->input, action), rpcDone(&HistoryWidget::sendActionDone)));
+		if (type == SendActionTyping) _sendActionStopTimer.start(5000);
 	}
 }
 
@@ -2438,9 +2470,12 @@ void HistoryWidget::stickersInstalled(uint64 setId) {
 	_emojiPan.stickersInstalled(setId);
 }
 
-void HistoryWidget::typingDone(const MTPBool &result, mtpRequestId req) {
-	if (_typingRequest == req) {
-		_typingRequest = 0;
+void HistoryWidget::sendActionDone(const MTPBool &result, mtpRequestId req) {
+	for (QMap<QPair<History*, SendActionType>, mtpRequestId>::iterator i = _sendActionRequests.begin(), e = _sendActionRequests.end(); i != e; ++i) {
+		if (i.value() == req) {
+			_sendActionRequests.erase(i);
+			break;
+		}
 	}
 }
 
@@ -2480,6 +2515,7 @@ void HistoryWidget::onRecordUpdate(qint16 level, qint32 samples) {
 		stopRecording(_peer && samples > 0 && _inField);
 	}
 	updateField();
+	updateSendAction(_history, SendActionRecordAudio);
 }
 
 void HistoryWidget::updateStickers() {
@@ -2688,7 +2724,7 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 			update();
 			return;
 		}
-		updateTyping(false);
+		if (_history->mySendActions.contains(SendActionTyping)) updateSendAction(_history, SendActionTyping, false);
 	}
 
 	stopGif();
@@ -3602,6 +3638,8 @@ void HistoryWidget::stopRecording(bool send) {
 
 	_recording = false;
 	_recordingSamples = 0;
+	updateSendAction(_history, SendActionRecordAudio, -1);
+
 	updateControlsVisibility();
 	activate();
 
@@ -3922,7 +3960,7 @@ void HistoryWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 	decreaseWidth += increaseLeft;
 	QRect rectForName(st::topBarForwardPadding.left() + increaseLeft, st::topBarForwardPadding.top(), width() - decreaseWidth - st::topBarForwardPadding.left() - st::topBarForwardPadding.right(), st::msgNameFont->height);
 	p.setFont(st::dlgHistFont->f);
-	if (_history->typing.isEmpty()) {
+	if (_history->typing.isEmpty() && _history->sendActions.isEmpty()) {
 		p.setPen(st::titleStatusColor->p);
 		p.drawText(rectForName.x(), st::topBarHeight - st::topBarForwardPadding.bottom() - st::dlgHistFont->height + st::dlgHistFont->ascent, _titlePeerText);
 	} else {
@@ -4188,10 +4226,10 @@ void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
 	connect(App::uploader(), SIGNAL(documentReady(MsgId, const MTPInputFile &)), this, SLOT(onDocumentUploaded(MsgId, const MTPInputFile &)), Qt::UniqueConnection);
 	connect(App::uploader(), SIGNAL(thumbDocumentReady(MsgId, const MTPInputFile &, const MTPInputFile &)), this, SLOT(onThumbDocumentUploaded(MsgId, const MTPInputFile &, const MTPInputFile &)), Qt::UniqueConnection);
 	connect(App::uploader(), SIGNAL(audioReady(MsgId, const MTPInputFile &)), this, SLOT(onAudioUploaded(MsgId, const MTPInputFile &)), Qt::UniqueConnection);
-//	connect(App::uploader(), SIGNAL(photoProgress(MsgId)), this, SLOT(onPhotoProgress(MsgId)), Qt::UniqueConnection);
+	connect(App::uploader(), SIGNAL(photoProgress(MsgId)), this, SLOT(onPhotoProgress(MsgId)), Qt::UniqueConnection);
 	connect(App::uploader(), SIGNAL(documentProgress(MsgId)), this, SLOT(onDocumentProgress(MsgId)), Qt::UniqueConnection);
 	connect(App::uploader(), SIGNAL(audioProgress(MsgId)), this, SLOT(onAudioProgress(MsgId)), Qt::UniqueConnection);
-//	connect(App::uploader(), SIGNAL(photoFailed(MsgId)), this, SLOT(onPhotoFailed(MsgId)), Qt::UniqueConnection);
+	connect(App::uploader(), SIGNAL(photoFailed(MsgId)), this, SLOT(onPhotoFailed(MsgId)), Qt::UniqueConnection);
 	connect(App::uploader(), SIGNAL(documentFailed(MsgId)), this, SLOT(onDocumentFailed(MsgId)), Qt::UniqueConnection);
 	connect(App::uploader(), SIGNAL(audioFailed(MsgId)), this, SLOT(onAudioFailed(MsgId)), Qt::UniqueConnection);
 
@@ -4328,10 +4366,22 @@ void HistoryWidget::onAudioUploaded(MsgId newId, const MTPInputFile &file) {
 	}
 }
 
+void HistoryWidget::onPhotoProgress(MsgId newId) {
+	if (!MTP::authedId()) return;
+	HistoryItem *item = App::histItemById(newId);
+	if (item) {
+		PhotoData *photo = (item->getMedia() && item->getMedia()->type() == MediaTypePhoto) ? static_cast<HistoryPhoto*>(item->getMedia())->photo() : 0;
+		updateSendAction(item->history(), SendActionUploadPhoto, 0);
+//		msgUpdated(item->history()->peer->id, item);
+	}
+}
+
 void HistoryWidget::onDocumentProgress(MsgId newId) {
 	if (!MTP::authedId()) return;
 	HistoryItem *item = App::histItemById(newId);
 	if (item) {
+		DocumentData *doc = (item->getMedia() && item->getMedia()->type() == MediaTypeDocument) ? static_cast<HistoryDocument*>(item->getMedia())->document() : 0;
+		updateSendAction(item->history(), SendActionUploadFile, doc->uploadOffset);
 		msgUpdated(item->history()->peer->id, item);
 	}
 }
@@ -4340,7 +4390,18 @@ void HistoryWidget::onAudioProgress(MsgId newId) {
 	if (!MTP::authedId()) return;
 	HistoryItem *item = App::histItemById(newId);
 	if (item) {
+		AudioData *audio = (item->getMedia() && item->getMedia()->type() == MediaTypeAudio) ? static_cast<HistoryAudio*>(item->getMedia())->audio() : 0;
+		updateSendAction(item->history(), SendActionUploadAudio, audio->uploadOffset);
 		msgUpdated(item->history()->peer->id, item);
+	}
+}
+
+void HistoryWidget::onPhotoFailed(MsgId newId) {
+	if (!MTP::authedId()) return;
+	HistoryItem *item = App::histItemById(newId);
+	if (item) {
+		updateSendAction(item->history(), SendActionUploadPhoto, -1);
+//		msgUpdated(item->history()->peer->id, item);
 	}
 }
 
@@ -4348,6 +4409,7 @@ void HistoryWidget::onDocumentFailed(MsgId newId) {
 	if (!MTP::authedId()) return;
 	HistoryItem *item = App::histItemById(newId);
 	if (item) {
+		updateSendAction(item->history(), SendActionUploadFile, -1);
 		msgUpdated(item->history()->peer->id, item);
 	}
 }
@@ -4356,6 +4418,7 @@ void HistoryWidget::onAudioFailed(MsgId newId) {
 	if (!MTP::authedId()) return;
 	HistoryItem *item = App::histItemById(newId);
 	if (item) {
+		updateSendAction(item->history(), SendActionUploadAudio, -1);
 		msgUpdated(item->history()->peer->id, item);
 	}
 }

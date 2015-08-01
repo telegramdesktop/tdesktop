@@ -3483,11 +3483,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		History *history = App::historyLoaded(App::peerFromUser(d.vuser_id));
 		UserData *user = App::userLoaded(d.vuser_id.v);
 		if (history && user) {
-			if (d.vaction.type() == mtpc_sendMessageTypingAction) {
-				App::histories().regTyping(history, user);
-			} else if (d.vaction.type() == mtpc_sendMessageCancelAction) {
-				history->unregTyping(user);
-			}
+			App::histories().regSendAction(history, user, d.vaction);
 		}
 	} break;
 
@@ -3496,7 +3492,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		History *history = App::historyLoaded(App::peerFromChat(d.vchat_id));
 		UserData *user = (d.vuser_id.v == MTP::authedId()) ? 0 : App::userLoaded(d.vuser_id.v);
 		if (history && user) {
-			App::histories().regTyping(history, user);
+			App::histories().regSendAction(history, user, d.vaction);
 		}
 	} break;
 

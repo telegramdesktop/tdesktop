@@ -386,10 +386,12 @@ public:
 
 	QRect historyRect() const;
 
-	void updateTyping(bool typing = true);
+	void updateSendAction(History *history, SendActionType type, int32 progress = 0);
+	void cancelSendAction(History *history, SendActionType type);
+
 	void updateRecentStickers();
 	void stickersInstalled(uint64 setId);
-	void typingDone(const MTPBool &result, mtpRequestId req);
+	void sendActionDone(const MTPBool &result, mtpRequestId req);
 
 	void destroyData();
 	void uploadImage(const QImage &img, bool withText = false, const QString &source = QString());
@@ -489,6 +491,8 @@ public slots:
 	void onReplyToMessage();
 	void onReplyForwardPreviewCancel();
 
+	void onCancelSendAction();
+
 	void onStickerPackInfo();
 
 	void onPreviewParse();
@@ -498,16 +502,16 @@ public slots:
 	void peerUpdated(PeerData *data);
 	void onFullPeerUpdated(PeerData *data);
 
-	void cancelTyping();
-
 	void onPhotoUploaded(MsgId msgId, const MTPInputFile &file);
 	void onDocumentUploaded(MsgId msgId, const MTPInputFile &file);
 	void onThumbDocumentUploaded(MsgId msgId, const MTPInputFile &file, const MTPInputFile &thumb);
 	void onAudioUploaded(MsgId msgId, const MTPInputFile &file);
 
+	void onPhotoProgress(MsgId msgId);
 	void onDocumentProgress(MsgId msgId);
 	void onAudioProgress(MsgId msgId);
 
+	void onPhotoFailed(MsgId msgId);
 	void onDocumentFailed(MsgId msgId);
 	void onAudioFailed(MsgId msgId);
 
@@ -685,8 +689,8 @@ private:
 	QTimer _animActiveTimer;
 	float64 _animActiveStart;
 
-	mtpRequestId _typingRequest;
-	QTimer _typingStopTimer;
+	QMap<QPair<History*, SendActionType>, mtpRequestId> _sendActionRequests;
+	QTimer _sendActionStopTimer;
 
 	uint64 _saveDraftStart;
 	bool _saveDraftText;

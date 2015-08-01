@@ -273,6 +273,7 @@ void FileUploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 						audio->uploadOffset = audio->size;
 					}
 				}
+				emit audioProgress(k.key());
 			}
 		}
 	}
