@@ -7,12 +7,13 @@ Source code is published under GPL v3, license is available [here](https://githu
 ###Supported systems
 
 * Windows XP - Windows 8.1 (**not** RT)
-* Mac OS X 10.7 - Mac OS X 10.10
+* Mac OS X 10.8 - Mac OS X 10.10
+* Mac OS X 10.6 - Mac OS X 10.7 (separate build)
 * Ubuntu 12.04 - Ubuntu 14.04
 
 ###Third-party
 
-* Qt 5.5.0, slightly patched ([LGPL](http://qt-project.org/doc/qt-5/lgpl.html))
+* Qt 5.3.2 and 5.5.0, slightly patched ([LGPL](http://qt-project.org/doc/qt-5/lgpl.html))
 * OpenSSL 1.0.1g ([OpenSSL License](https://www.openssl.org/source/license.html))
 * zlib 1.2.8 ([zlib License](http://www.zlib.net/zlib_license.html))
 * libexif 0.6.20 ([LGPL](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.en.html))
@@ -26,6 +27,8 @@ Source code is published under GPL v3, license is available [here](https://githu
 ###[Build instructions for Visual Studio 2013](https://github.com/telegramdesktop/tdesktop/blob/master/MSVC.md)
 
 ###[Build instructions for XCode 6.4](https://github.com/telegramdesktop/tdesktop/blob/master/XCODE.md)
+
+###[Build instructions for XCode 6.4 for OS X 10.6 and 10.7](https://github.com/telegramdesktop/tdesktop/blob/master/XCODEold.md)
 
 ###[Build instructions for Qt Creator 3.2.0 Ubuntu](https://github.com/telegramdesktop/tdesktop/blob/master/QTCREATOR.md)
 
@@ -58,15 +61,12 @@ for Mac:
 
 ####MetaEmoji
 
-from two folders
-* SourceFiles/art/Emoji
-* SourceFiles/art/Emoji_200x
-
-and some inner config creates four sprites and text2emoji replace code
+creates four sprites and text2emoji replace code
 * SourceFiles/art/emoji.png
 * SourceFiles/art/emoji_125x.png
 * SourceFiles/art/emoji_150x.png
 * SourceFiles/art/emoji_200x.png
+* SourceFiles/art/emoji_250x.png
 * SourceFiles/gui/emoji_config.cpp
 
 ####MetaStyle
