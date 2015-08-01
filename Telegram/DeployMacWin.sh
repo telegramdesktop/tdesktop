@@ -59,4 +59,7 @@ mv -v ./../../tother/tsetup/$AppVersionStrMajor/$AppVersionStr$DevPostfix ./../.
 cp -v ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/tmacupd$AppVersion ./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
 cp -v ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/tsetup.$AppVersionStr$DevPostfix.dmg ./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
 cp -rv ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram.app.dSYM ./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
+cp -v ./../../tother/tmac32/$AppVersionStrMajor/$AppVersionStr$DevPostfix/tmac32upd$AppVersion ./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
+cp -v ./../../tother/tmac32/$AppVersionStrMajor/$AppVersionStr$DevPostfix/tsetup32.$AppVersionStr$DevPostfix.dmg ./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
+cp -rv ./../../tother/tmac32/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram.app.dSYM ./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram32.app.dSYM
 
