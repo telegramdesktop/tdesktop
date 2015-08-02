@@ -190,7 +190,11 @@ void PhotoSendBox::hideAll() {
 void PhotoSendBox::showAll() {
 	_sendButton.show();
 	_cancelButton.show();
-	_compressed.show();
+	if (_img && _img->type == ToPreparePhoto) {
+		_compressed.show();
+	} else {
+		_compressed.hide();
+	}
 }
 
 void PhotoSendBox::onSend(bool ctrlShiftEnter) {

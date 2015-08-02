@@ -26,9 +26,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_menu_back" = "Indietro";
 
 "lng_open_from_tray" = "Apri Telegram";
-"lng_minimize_to_tray" = "Minimizza";
+"lng_minimize_to_tray" = "Riduci a icona";
 "lng_quit_from_tray" = "Chiudi Telegram";
-"lng_tray_icon_text" = "Telegram è ancora aperto qui,\npuoi cambiare questo nelle impostazioni.\n\nSe l'icona scompare dall'area di notifica,\npuoi riportarla indietro dalle icone nascoste.";
+"lng_tray_icon_text" = "Telegram è ancora attivo qui,\npuoi modificarlo nelle impostazioni.\n\nSe l'icona scompare dall'area di notifica,\npuoi ripristinarla dalle icone nascoste.";
 
 "lng_month1" = "Gennaio";
 "lng_month2" = "Febbraio";

@@ -214,7 +214,8 @@ namespace {
 			if (max_h < st::wndMinHeight) max_h = st::wndMinHeight;
 
 			HINSTANCE appinst = (HINSTANCE)GetModuleHandle(0);
-		
+			HWND hwnd = Application::wnd() ? Application::wnd()->psHwnd() : 0;
+
 			for (int i = 0; i < 4; ++i) {
 				QString cn = QString("TelegramShadow%1").arg(i);
 				LPCWSTR _cn = (LPCWSTR)cn.utf16();
@@ -244,6 +245,9 @@ namespace {
 					destroy();
 					return false;
 				}
+//				if (QSysInfo::windowsVersion() >= QSysInfo::WV_WINDOWS8) {
+					SetWindowLong(hwnds[i], GWL_HWNDPARENT, (LONG)hwnd);
+//				}
 
 				dcs[i] = CreateCompatibleDC(screenDC);
 				if (!dcs[i]) {
