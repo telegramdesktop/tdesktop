@@ -333,6 +333,9 @@ void DialogsListWidget::onUpdateSelected(bool force) {
 				parentWidget()->update();
 			}
 		}
+		if (mouseY >= 0 && hashtagSel < 0 && filteredSel < 0 && peopleSel < 0 && searchedSel < 0) {
+			setCursor(style::cur_default);
+		}
 	}
 }
 
