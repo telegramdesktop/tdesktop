@@ -28,7 +28,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_open_from_tray" = "Telegram openen";
 "lng_minimize_to_tray" = "Minimaliseer naar systeemvak";
 "lng_quit_from_tray" = "Telegram afsluiten";
-"lng_tray_icon_text" = "Telegram is nog steeds actief,\nJe kunt dit wijzigen via instellingen.\n\nAls dit icoon verdwijnt van het systeemvak,\nkun je deze terugslepen vanaf de verborgen iconen.";
+"lng_tray_icon_text" = "Telegram is nog steeds actief, \nje kunt dit wijzigen via instellingen.\nAls dit icoon verdwijnt van het systeemvak,\nkun je deze terugslepen vanaf de verborgen iconen.";
 
 "lng_month1" = "januari";
 "lng_month2" = "februari";
@@ -385,7 +385,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_sure_delete_and_exit" = "Wil je de groep «{group}» verlaten en de geschiedenis wissen?\n\nDeze actie kan niet ongedaan worden gemaakt.";
 
-"lng_message_empty" = "(leeg)";
+"lng_message_empty" = "Leeg bericht";
+"lng_media_unsupported" = "Niet-ondersteunde media";
 
 "lng_action_add_user" = "{from} heeft {user} toegevoegd";
 "lng_action_kick_user" = "{from} heeft {user} verwijderd";
@@ -477,6 +478,22 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_user_typing" = "{user} is aan het typen";
 "lng_users_typing" = "{user} en {second_user} zijn aan het typen";
 "lng_many_typing" = "{count:_not_used_|# is|# zijn} aan het typen";
+"lng_send_action_record_video" = "video opnemen";
+"lng_user_action_record_video" = "{user} neemt video op";
+"lng_send_action_upload_video" = "video versturen";
+"lng_user_action_upload_video" = "{user} verstuurt video";
+"lng_send_action_record_audio" = "geluid opnemen";
+"lng_user_action_record_audio" = "{user} neemt geluid op";
+"lng_send_action_upload_audio" = "geluid versturen";
+"lng_user_action_upload_audio" = "{user} verstuurt geluid";
+"lng_send_action_upload_photo" = "foto versturen";
+"lng_user_action_upload_photo" = "{user} verstuurt een foto";
+"lng_send_action_upload_file" = "bestand versturen";
+"lng_user_action_upload_file" = "{user} verstuurt een bestand";
+"lng_send_action_geo_location" = "locatie kiezen";
+"lng_user_action_geo_location" = "{user} kiest een locatie";
+"lng_send_action_choose_contact" = "contact kiezen";
+"lng_user_action_choose_contact" = "{user} kiest een contact";
 "lng_unread_bar" = "{count:_not_used_|# ongelezen bericht|# ongelezen berichten}";
 
 "lng_maps_point" = "Locatie";

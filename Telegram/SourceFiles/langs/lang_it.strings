@@ -28,7 +28,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_open_from_tray" = "Apri Telegram";
 "lng_minimize_to_tray" = "Riduci a icona";
 "lng_quit_from_tray" = "Chiudi Telegram";
-"lng_tray_icon_text" = "Telegram è ancora attivo qui,\npuoi modificarlo nelle impostazioni.\n\nSe l'icona scompare dall'area di notifica,\npuoi ripristinarla dalle icone nascoste.";
+"lng_tray_icon_text" = "Telegram è ancora attivo qui,\npuoi modificarlo nelle impostazioni.\nSe l'icona scompare dall'area di notifica,\npuoi ripristinarla dalle icone nascoste.";
 
 "lng_month1" = "Gennaio";
 "lng_month2" = "Febbraio";
@@ -385,7 +385,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_sure_delete_and_exit" = "Sicuro di voler eliminare tutta la cronologia dei messaggi e abbandonare «{group}»?\n\nQuesta azione non può essere annullata.";
 
-"lng_message_empty" = "(vuoto)";
+"lng_message_empty" = "Messaggio vuoto";
+"lng_media_unsupported" = "Media non supportato";
 
 "lng_action_add_user" = "{from} ha aggiunto {user}";
 "lng_action_kick_user" = "{from} ha rimosso {user}";
@@ -477,6 +478,22 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_user_typing" = "{user} sta scrivendo";
 "lng_users_typing" = "{user} e {second_user} stanno scrivendo";
 "lng_many_typing" = "{count:_not_used_|# sta|# stanno} scrivendo";
+"lng_send_action_record_video" = "registrando un video";
+"lng_user_action_record_video" = "{user} sta registrando un video";
+"lng_send_action_upload_video" = "inviando un video";
+"lng_user_action_upload_video" = "{user} sta inviando un video";
+"lng_send_action_record_audio" = "registrando un audio";
+"lng_user_action_record_audio" = "{user} sta registrando un audio";
+"lng_send_action_upload_audio" = "inviando un audio";
+"lng_user_action_upload_audio" = "{user} sta inviando un audio";
+"lng_send_action_upload_photo" = "inviando una foto";
+"lng_user_action_upload_photo" = "{user} sta inviando una foto";
+"lng_send_action_upload_file" = "inviando un file";
+"lng_user_action_upload_file" = "{user} sta inviando un file";
+"lng_send_action_geo_location" = "selezionando una posizione";
+"lng_user_action_geo_location" = "{user} sta selezionando una posizione";
+"lng_send_action_choose_contact" = "selezionando un contatto";
+"lng_user_action_choose_contact" = "{user} sta selezionando un contatto";
 "lng_unread_bar" = "{count:_not_used_|# messaggio non letto|# messaggi non letti}";
 
 "lng_maps_point" = "Posizione";
