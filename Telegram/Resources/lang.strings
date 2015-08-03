@@ -490,8 +490,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_user_action_upload_photo" = "{user} is sending photo";
 "lng_send_action_upload_file" = "sending file";
 "lng_user_action_upload_file" = "{user} is sending file";
-"lng_send_action_geo_location" = "choosing location";
-"lng_user_action_geo_location" = "{user} is choosing location";
+"lng_send_action_geo_location" = "picking location";
+"lng_user_action_geo_location" = "{user} is picking location";
 "lng_send_action_choose_contact" = "choosing contact";
 "lng_user_action_choose_contact" = "{user} is choosing contact";
 "lng_unread_bar" = "{count:_not_used_|# unread message|# unread messages}";

@@ -28,7 +28,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_open_from_tray" = "Telegram öffnen";
 "lng_minimize_to_tray" = "Minimieren";
 "lng_quit_from_tray" = "Telegram beenden";
-"lng_tray_icon_text" = "Telegram ist noch aktiv,\ndu kannst das in den Einstellungen anpassen.\n\nWenn dieses Symbol aus der Taskleiste verschwindet,\nkannst du es wieder hierher ziehen.";
+"lng_tray_icon_text" = "Telegram ist minimiert und läuft im Hintergrund,\ndu kannst das in den Einstellungen ändern.\nUm Telegram wieder anzuzeigen, klicke auf \ndas Symbol im Benachrichtigungsfeld.";
 
 "lng_month1" = "Januar";
 "lng_month2" = "Februar";
@@ -385,7 +385,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_sure_delete_and_exit" = "Deinen Verlauf von «{group}» löschen und die Gruppe verlassen?\n\nDas kann man nicht rückgängig machen.";
 
-"lng_message_empty" = "(empty)";
+"lng_message_empty" = "Leere Nachricht";
+"lng_media_unsupported" = "Format Nicht Unterstützt";
 
 "lng_action_add_user" = "{from} hat {user} hinzugefügt";
 "lng_action_kick_user" = "{from} hat {user} entfernt";
@@ -477,6 +478,22 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_user_typing" = "{user} tippt";
 "lng_users_typing" = "{user} und {second_user} tippen";
 "lng_many_typing" = "{count:_not_used_|# tippt|# tippen}";
+"lng_send_action_record_video" = "schickt Video";
+"lng_user_action_record_video" = "{user} sendet Video";
+"lng_send_action_upload_video" = "schickt Video";
+"lng_user_action_upload_video" = "{user} sendet Video";
+"lng_send_action_record_audio" = "nimmt Audio auf";
+"lng_user_action_record_audio" = "{user} nimmt Audio auf";
+"lng_send_action_upload_audio" = "nimmt Audio auf";
+"lng_user_action_upload_audio" = "{user} sendet Audio";
+"lng_send_action_upload_photo" = "sendet Bild";
+"lng_user_action_upload_photo" = "{user} sendet Bild";
+"lng_send_action_upload_file" = "sendet Datei";
+"lng_user_action_upload_file" = "{user} sendet Datei";
+"lng_send_action_geo_location" = "wählt Standort aus";
+"lng_user_action_geo_location" = "{user} wählt Standort aus";
+"lng_send_action_choose_contact" = "wählt Kontakt aus";
+"lng_user_action_choose_contact" = "{user} wählt Kontakt aus";
 "lng_unread_bar" = "{count:_not_used_|# Ungelesene Nachricht|# Ungelesene Nachrichten}";
 
 "lng_maps_point" = "Standort";

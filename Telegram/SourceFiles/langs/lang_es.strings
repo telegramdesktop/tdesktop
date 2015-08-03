@@ -28,7 +28,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_open_from_tray" = "Abrir Telegram";
 "lng_minimize_to_tray" = "Minimizar al icono";
 "lng_quit_from_tray" = "Salir de Telegram";
-"lng_tray_icon_text" = "Telegram sigue funcionando aquí, \npuedes cambiar esto desde los ajustes.\n\nSi este ícono desaparece desde el menú,\npuedes arrastrarlo de regreso desde los iconos ocultos.";
+"lng_tray_icon_text" = "Telegram aún está funcionando,\npuedes cambiar esto en los ajustes. \nSi este icono desaparece del menú, \npuedes arrastrarlo aquí desde los iconos ocultos.";
 
 "lng_month1" = "enero";
 "lng_month2" = "febrero";
@@ -385,7 +385,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_sure_delete_and_exit" = "¿Quieres eliminar todo el historial de mensajes y dejar el grupo «{group}»?\n\nEsta acción no se puede deshacer.";
 
-"lng_message_empty" = "(vacío)";
+"lng_message_empty" = "Mensaje vacío";
+"lng_media_unsupported" = "Multimedia no soportada";
 
 "lng_action_add_user" = "{from} añadió a {user}";
 "lng_action_kick_user" = "{from} expulsó a {user}";
@@ -477,6 +478,22 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_user_typing" = "{user} está escribiendo";
 "lng_users_typing" = "{user} y {second_user} están escribiendo";
 "lng_many_typing" = "{count:_not_used_|# está|# están} escribiendo";
+"lng_send_action_record_video" = "grabando vídeo";
+"lng_user_action_record_video" = "{user} está grabando un vídeo";
+"lng_send_action_upload_video" = "enviando vídeo";
+"lng_user_action_upload_video" = "{user} está enviando un vídeo";
+"lng_send_action_record_audio" = "grabando audio";
+"lng_user_action_record_audio" = "{user} está grabando un audio";
+"lng_send_action_upload_audio" = "enviando audio";
+"lng_user_action_upload_audio" = "{user} está enviando un audio";
+"lng_send_action_upload_photo" = "enviando foto";
+"lng_user_action_upload_photo" = "{user} está enviando una foto";
+"lng_send_action_upload_file" = "enviando archivo";
+"lng_user_action_upload_file" = "{user} está enviando un archivo";
+"lng_send_action_geo_location" = "obteniendo ubicación";
+"lng_user_action_geo_location" = "{user} está obteniendo una ubicación";
+"lng_send_action_choose_contact" = "eligiendo contacto";
+"lng_user_action_choose_contact" = "{user} está eligiendo un contacto";
 "lng_unread_bar" = "{count:_not_used_|# mensaje sin leer|# mensajes sin leer}";
 
 "lng_maps_point" = "Ubicación";
