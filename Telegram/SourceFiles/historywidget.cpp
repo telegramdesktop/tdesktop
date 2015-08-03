@@ -2457,7 +2457,7 @@ void HistoryWidget::updateSendAction(History *history, SendActionType type, int3
 		case SendActionChooseLocation: action = MTP_sendMessageGeoLocationAction(); break;
 		case SendActionChooseContact: action = MTP_sendMessageChooseContactAction(); break;
 		}
-		_sendActionRequests.insert(qMakePair(history, type), MTP::send(MTPmessages_SetTyping(_peer->input, action), rpcDone(&HistoryWidget::sendActionDone)));
+		_sendActionRequests.insert(qMakePair(history, type), MTP::send(MTPmessages_SetTyping(history->peer->input, action), rpcDone(&HistoryWidget::sendActionDone)));
 		if (type == SendActionTyping) _sendActionStopTimer.start(5000);
 	}
 }
