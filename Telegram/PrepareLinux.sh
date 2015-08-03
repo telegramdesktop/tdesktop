@@ -46,7 +46,7 @@ if [ ! -d "./../Linux/Release/deploy/$AppVersionStrMajor" ]; then
   mkdir "./../Linux/Release/deploy/$AppVersionStrMajor"
 fi
 
-echo "Copying Telegram, Updater and tlinuxupd$AppVersion to deploy/$AppVersionStr$DevPostfix..";
+echo "Copying Telegram, Updater and tlinuxupd$AppVersion to deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix..";
 mkdir "./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix"
 mkdir "./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram"
 mv ./../Linux/Release/Telegram ./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram/

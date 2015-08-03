@@ -28,7 +28,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_open_from_tray" = "Open Telegram";
 "lng_minimize_to_tray" = "Minimize to tray";
 "lng_quit_from_tray" = "Quit Telegram";
-"lng_tray_icon_text" = "Telegram is still running here,\nyou can change this from settings page.\n\nIf this icon disappears from tray menu,\nyou can drag it back here from hidden icons.";
+"lng_tray_icon_text" = "Telegram is still running here,\nyou can change this from settings page.\nIf this icon disappears from tray menu,\nyou can drag it here from hidden icons.";
 
 "lng_month1" = "January";
 "lng_month2" = "February";
@@ -490,8 +490,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_user_action_upload_photo" = "{user} is sending photo";
 "lng_send_action_upload_file" = "sending file";
 "lng_user_action_upload_file" = "{user} is sending file";
-"lng_send_action_geo_location" = "choosing location";
-"lng_user_action_geo_location" = "{user} is choosing location";
+"lng_send_action_geo_location" = "picking location";
+"lng_user_action_geo_location" = "{user} is picking location";
 "lng_send_action_choose_contact" = "choosing contact";
 "lng_user_action_choose_contact" = "{user} is choosing contact";
 "lng_unread_bar" = "{count:_not_used_|# unread message|# unread messages}";

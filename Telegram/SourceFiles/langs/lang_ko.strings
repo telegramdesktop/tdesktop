@@ -28,7 +28,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_open_from_tray" = "텔레그램 실행";
 "lng_minimize_to_tray" = "창을 최소화";
 "lng_quit_from_tray" = "텔레그램 종료";
-"lng_tray_icon_text" = "텔레그램은 아직 실행중입니다.\n설정 화면에서 실행설정을 변경하실 수 있습니다.\n\n트레이메뉴에서 이 아이콘이 사라질 경우.\n숨겨진 아이콘 목록에서 다시 복원할 수 있습니다.";
+"lng_tray_icon_text" = "텔레그램은 아직 실행중입니다. \n설정 화면에서 실행설정을 변경하실 수 있습니다. \n트레이메뉴에서 이 아이콘이 사라질 경우. \n숨겨진 아이콘 목록에서 다시 복원할 수 있습니다.";
 
 "lng_month1" = "1월";
 "lng_month2" = "2월";
@@ -385,7 +385,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_sure_delete_and_exit" = "그룹 «{group}» 방에서 모든 메시지를 \n삭제하시고 퇴장하시겠습니까?\n\n삭제 하실 경우 취소가 불가능합니다.";
 
-"lng_message_empty" = "(없음)";
+"lng_message_empty" = "메시지 없음";
+"lng_media_unsupported" = "지원하지 않는 미디어";
 
 "lng_action_add_user" = "{from} 님께서 {user} 님을 초대하셨습니다.";
 "lng_action_kick_user" = "{from} 님께서 {user} 님을 추방하셨습니다.";
@@ -459,7 +460,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_send_button" = "보내기";
 "lng_message_ph" = "메시지 쓰기";
-"lng_record_cancel" = "이 영역에서 마우스 클릭을 해제하시면 취소가 됩니다.";
+"lng_record_cancel" = "이 영역 밖에서 마우스 클릭을 해제하시면 취소가 됩니다.";
 "lng_empty_history" = "";
 "lng_willbe_history" = "대화하실 방을 선택해주세요.";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
@@ -477,6 +478,22 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_user_typing" = "{user}님이 입력중입니다.";
 "lng_users_typing" = "{user}님과 {second_user}님이 입력중입니다.";
 "lng_many_typing" = "{count:_not_used_|#명이|#명이} 입력중입니다";
+"lng_send_action_record_video" = "비디오 녹화 중";
+"lng_user_action_record_video" = "{user}님이 녹화중입니다.";
+"lng_send_action_upload_video" = "비디오 전송 중";
+"lng_user_action_upload_video" = "{user}님이 비디오를 전송 중입니다.";
+"lng_send_action_record_audio" = "오디오 녹음 중";
+"lng_user_action_record_audio" = "{user}님이 오디오를 녹음 중입니다.";
+"lng_send_action_upload_audio" = "오디오 전송 중";
+"lng_user_action_upload_audio" = "{user}님이 오디오를 전송 중입니다.";
+"lng_send_action_upload_photo" = "사진 전송 중";
+"lng_user_action_upload_photo" = "{user}님이 사진을 전송 중입니다.";
+"lng_send_action_upload_file" = "파일을 전송 중";
+"lng_user_action_upload_file" = "{user}님이 사진을 전송 중입니다.";
+"lng_send_action_geo_location" = "위치 선택 중";
+"lng_user_action_geo_location" = "{user}님이 위치를 선택 중입니다.";
+"lng_send_action_choose_contact" = "연락처 선택 중";
+"lng_user_action_choose_contact" = "{user}님이 연락처를 선택 중입니다.";
 "lng_unread_bar" = "{count:_not_used_|#개의 읽지 않은 메시지|#개의 읽지 않은 메시지}";
 
 "lng_maps_point" = "위치";

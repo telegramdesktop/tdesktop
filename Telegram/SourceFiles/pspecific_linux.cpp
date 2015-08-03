@@ -68,7 +68,7 @@ namespace {
 
 	bool frameless = true;
 	bool finished = true;
-    bool noQtTrayIcon = false, noTryUnity = false;
+    bool noQtTrayIcon = false, noTryUnity = false, tryAppIndicator = false;
     bool useGtkBase = false, useAppIndicator = false, useStatusIcon = false, trayIconChecked = false, useUnityCount = false;
 
     AppIndicator *_trayIndicator = 0;
@@ -356,7 +356,8 @@ namespace {
             inited = true;
 
             QString cdesktop = QString(getenv("XDG_CURRENT_DESKTOP")).toLower();
-			noQtTrayIcon = (cdesktop == qstr("pantheon"));// || (cdesktop == qstr("gnome"));
+            noQtTrayIcon = (cdesktop == qstr("pantheon")) || (cdesktop == qstr("gnome"));
+            tryAppIndicator = (cdesktop == qstr("xfce"));
             noTryUnity = (cdesktop != qstr("unity"));
 
             if (noQtTrayIcon) cSetSupportTray(false);
@@ -401,6 +402,9 @@ namespace {
             if (!loadFunction(lib_gtk, "g_type_check_instance_cast", ps_g_type_check_instance_cast)) return;
             if (!loadFunction(lib_gtk, "g_signal_connect_data", ps_g_signal_connect_data)) return;
 
+            if (!loadFunction(lib_gtk, "g_object_ref_sink", ps_g_object_ref_sink)) return;
+            if (!loadFunction(lib_gtk, "g_object_unref", ps_g_object_unref)) return;
+
             useGtkBase = true;
             std::cout << "loaded gtk funcs!\n";
         }
@@ -416,7 +420,7 @@ namespace {
 
         void setupGtk() {
             QLibrary lib_gtk, lib_indicator;
-            if (!noQtTrayIcon) {
+            if (!noQtTrayIcon && !tryAppIndicator) {
                 if (!noTryUnity) {
                     if (loadLibrary(lib_gtk, "gtk-3", 0)) {
                         setupGtkBase(lib_gtk);
@@ -448,6 +452,14 @@ namespace {
                     }
                 }
             }
+            if (tryAppIndicator) {
+                if (useGtkBase && useAppIndicator) {
+                    noQtTrayIcon = true;
+                    cSetSupportTray(false);
+                }
+                return;
+            }
+
             if (!useGtkBase && lib_gtk.isLoaded()) {
                 std::cout << "no appindicator, trying to load gtk..\n";
                 setupGtkBase(lib_gtk);
@@ -471,8 +483,6 @@ namespace {
             if (!loadFunction(lib_gtk, "gtk_status_icon_position_menu", ps_gtk_status_icon_position_menu)) return;
             if (!loadFunction(lib_gtk, "gtk_menu_popup", ps_gtk_menu_popup)) return;
             if (!loadFunction(lib_gtk, "gtk_get_current_event_time", ps_gtk_get_current_event_time)) return;
-            if (!loadFunction(lib_gtk, "g_object_ref_sink", ps_g_object_ref_sink)) return;
-            if (!loadFunction(lib_gtk, "g_object_unref", ps_g_object_unref)) return;
             if (!loadFunction(lib_gtk, "g_idle_add", ps_g_idle_add)) return;
             useStatusIcon = true;
             std::cout << "status icon api loaded\n";

@@ -489,6 +489,7 @@ void DialogsListWidget::leaveEvent(QEvent *e) {
 	if (sel || filteredSel >= 0 || hashtagSel >= 0 || searchedSel >= 0 || peopleSel >= 0) {
 		sel = 0;
 		filteredSel = searchedSel = peopleSel = hashtagSel = -1;
+		setCursor(style::cur_default);
 		parentWidget()->update();
 	}
 }
@@ -837,6 +838,7 @@ void DialogsListWidget::setMouseSel(bool msel, bool toTop) {
 			contactSel = !dialogs.list.count && contactsNoDialogs.list.count;
 		} else if (_state == FilteredState || _state == SearchedState) { // don't select first elem in search
 			filteredSel = peopleSel = searchedSel = hashtagSel = -1;
+			setCursor(style::cur_default);
 		}
 	}
 }
