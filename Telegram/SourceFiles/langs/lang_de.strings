@@ -473,10 +473,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bot_sure_invite" = "Den Bot zu «{group}» hinzufügen?";
 "lng_bot_already_in_group" = "Der Bot ist schon in dieser Gruppe.";
 
-"lng_typing" = "tippt";
-"lng_user_typing" = "{user} tippt";
-"lng_users_typing" = "{user} und {second_user} tippen";
-"lng_many_typing" = "{count:_not_used_|# tippt|# tippen}";
+"lng_typing" = "schreibt";
+"lng_user_typing" = "{user} schreibt";
+"lng_users_typing" = "{user} und {second_user} schreiben";
+"lng_many_typing" = "{count:_not_used_|# schreibt|# schreiben}";
 "lng_unread_bar" = "{count:_not_used_|# Ungelesene Nachricht|# Ungelesene Nachrichten}";
 
 "lng_maps_point" = "Standort";
