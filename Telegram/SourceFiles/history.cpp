@@ -1481,9 +1481,16 @@ void History::clear(bool leaveItems) {
 	if (showFrom) {
 		showFrom = 0;
 	}
+	if (!leaveItems) {
+		lastMsg = 0;
+	}
 	for (int32 i = 0; i < OverviewCount; ++i) {
 		if (!_overview[i].isEmpty() || !_overviewIds[i].isEmpty()) {
-			if (_overviewCount[i] == 0) _overviewCount[i] = _overview[i].size();
+			if (leaveItems) {
+				if (_overviewCount[i] == 0) _overviewCount[i] = _overview[i].size();
+			} else {
+				_overviewCount[i] = -1; // not loaded yet
+			}
 			_overview[i].clear();
 			_overviewIds[i].clear();
 			if (App::wnd() && !App::quiting()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(i));
@@ -1501,7 +1508,6 @@ void History::clear(bool leaveItems) {
 		lastKeyboardInited = false;
 	} else {
 		setUnreadCount(0);
-		lastMsg = 0;
 	}
 	height = 0;
 	oldLoaded = false;

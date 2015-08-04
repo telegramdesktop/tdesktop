@@ -281,11 +281,11 @@ public:
 	DragState getDragState(const QMimeData *mime);
 
 	bool leaveChatFailed(PeerData *peer, const RPCError &e);
-	void deleteHistory(PeerData *peer, const MTPUpdates &updates);
+	void deleteHistoryAfterLeave(PeerData *peer, const MTPUpdates &updates);
 	void deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result);
 	void deleteMessages(const QVector<MTPint> &ids);
 	void deletedContact(UserData *user, const MTPcontacts_Link &result);
-	void deleteHistoryAndContact(UserData *user, const MTPcontacts_Link &result);
+	void deleteConversation(PeerData *peer);
 	void clearHistory(PeerData *peer);
 	void removeContact(UserData *user);
 
@@ -420,6 +420,8 @@ public slots:
 	void showPeerHistory(quint64 peer, qint32 msgId, bool back = false);
 	void onTopBarClick();
 	void onPeerShown(PeerData *peer);
+
+	void searchInPeer(PeerData *peer);
 
 	void onUpdateNotifySettings();
 

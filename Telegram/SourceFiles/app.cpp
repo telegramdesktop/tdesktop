@@ -1752,15 +1752,6 @@ namespace App {
 		}
 	}
 
-	/* // don't delete history without deleting its' peerdata
-	void deleteHistory(const PeerId &peer) {
-		Histories::iterator i = ::histories.find(peer);
-		if (i != ::histories.end()) {
-			::histories.typing.remove(i.value());
-			::histories.erase(i);
-		}
-	}
-/**/
 	void historyRegRandom(uint64 randomId, MsgId itemId) {
 		randomData.insert(randomId, itemId);
 	}

@@ -55,7 +55,11 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 
 	// settings
 	_enableNotifications(this, lang(lng_profile_enable_notifications)),
+
+	// actions
+	_searchInPeer(this, lang(lng_profile_search_messages)),
 	_clearHistory(this, lang(lng_profile_clear_history)),
+	_deleteConversation(this, lang(_peer->chat ? lng_profile_clear_and_exit : lng_profile_delete_conversation)),
 
 	// shared media
 	_allMediaTypes(false),
@@ -96,7 +100,6 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 
 	// profile
 	_nameText.setText(st::profileNameFont, _nameCache, _textNameOptions);
-
 	connect(&_uploadPhoto, SIGNAL(clicked()), this, SLOT(onUpdatePhoto()));
 	connect(&_addParticipant, SIGNAL(clicked()), this, SLOT(onAddParticipant()));
 	connect(&_sendMessage, SIGNAL(clicked()), this, SLOT(onSendMessage()));
@@ -149,7 +152,11 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 
 	// settings
 	connect(&_enableNotifications, SIGNAL(clicked()), this, SLOT(onEnableNotifications()));
+
+	// actions
+	connect(&_searchInPeer, SIGNAL(clicked()), this, SLOT(onSearchInPeer()));
 	connect(&_clearHistory, SIGNAL(clicked()), this, SLOT(onClearHistory()));
+	connect(&_deleteConversation, SIGNAL(clicked()), this, SLOT(onDeleteConversation()));
 
 	// shared media
 	connect(&_mediaShowAll, SIGNAL(clicked()), this, SLOT(onMediaShowAll()));
@@ -179,6 +186,10 @@ void ProfileInner::onInviteToGroup() {
 
 void ProfileInner::onSendMessage() {
 	App::main()->showPeerHistory(_peer->id, ShowAtUnreadMsgId);
+}
+
+void ProfileInner::onSearchInPeer() {
+	App::main()->searchInPeer(_peer);
 }
 
 void ProfileInner::onEnableNotifications() {
@@ -244,15 +255,30 @@ void ProfileInner::onUpdatePhoto() {
 }
 
 void ProfileInner::onClearHistory() {
-	ConfirmBox *box = new ConfirmBox(lng_sure_delete_history(lt_contact, _peer->name));
+	ConfirmBox *box = new ConfirmBox(_peer->chat ? lng_sure_delete_group_history(lt_group, _peer->name) : lng_sure_delete_history(lt_contact, _peer->name));
 	connect(box, SIGNAL(confirmed()), this, SLOT(onClearHistorySure()));
 	App::wnd()->showLayer(box);
 }
 
 void ProfileInner::onClearHistorySure() {
-	App::main()->showDialogs();
 	App::wnd()->hideLayer();
 	App::main()->clearHistory(_peer);
+}
+
+void ProfileInner::onDeleteConversation() {
+	ConfirmBox *box = new ConfirmBox(_peer->chat ? lng_sure_delete_and_exit(lt_group, _peer->name) : lng_sure_delete_history(lt_contact, _peer->name));
+	connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteConversationSure()));
+	App::wnd()->showLayer(box);
+}
+
+void ProfileInner::onDeleteConversationSure() {
+	if (_peer->chat) {
+		App::wnd()->hideLayer();
+		App::main()->showDialogs();
+		MTP::send(MTPmessages_DeleteChatUser(MTP_int(_peer->id & 0xFFFFFFFF), App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _peer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _peer));
+	} else {
+		App::main()->deleteConversation(_peer);
+	}
 }
 
 void ProfileInner::onAddParticipant() {
@@ -569,6 +595,14 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 
 	top += _enableNotifications.height();
 
+	// actions
+	p.setFont(st::profileHeaderFont->f);
+	p.setPen(st::profileHeaderColor->p);
+	p.drawText(_left + st::profileHeaderLeft, top + st::profileHeaderTop + st::profileHeaderFont->ascent, lang(lng_profile_actions_section));
+	top += st::profileHeaderSkip;
+
+	top += _searchInPeer.height() + st::setLittleSkip + _clearHistory.height() + st::setLittleSkip + _deleteConversation.height();
+
 	// shared media
 	p.setFont(st::profileHeaderFont->f);
 	p.setPen(st::profileHeaderColor->p);
@@ -855,6 +889,12 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	top += st::profileHeaderSkip;
 	_enableNotifications.move(_left, top); top += _enableNotifications.height();
 
+	// actions
+	top += st::profileHeaderSkip;
+	_searchInPeer.move(_left, top);	top += _searchInPeer.height() + st::setLittleSkip;
+	_clearHistory.move(_left, top); top += _clearHistory.height() + st::setLittleSkip;
+	_deleteConversation.move(_left, top); top += _deleteConversation.height();
+
 	// shared media
 	top += st::profileHeaderSkip;
 
@@ -883,7 +923,6 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 		}
 	}
 	top += st::profileHeaderTop + st::profileHeaderFont->ascent - st::linkFont->ascent;
-	_clearHistory.move(_left, top);
 }
 
 void ProfileInner::contextMenuEvent(QContextMenuEvent *e) {
@@ -970,6 +1009,9 @@ void ProfileInner::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) 
 }
 
 void ProfileInner::showAll() {
+	_searchInPeer.show();
+	_clearHistory.show();
+	_deleteConversation.show();
 	if (_peerChat) {
 		_sendMessage.hide();
 		_shareContact.hide();
@@ -1006,7 +1048,6 @@ void ProfileInner::showAll() {
 			}
 		}
 		_enableNotifications.show();
-		_clearHistory.hide();
 	} else {
 		_uploadPhoto.hide();
 		_cancelPhoto.hide();
@@ -1070,7 +1111,13 @@ void ProfileInner::showAll() {
 	reorderParticipants();
 	int32 h;
 	if (_peerUser) {
-		h = _clearHistory.y() + _clearHistory.height() + st::profileHeaderSkip;
+		h = _mediaShowAll.y() + _mediaShowAll.height() + st::profileHeaderSkip;
+		if (_mediaShowAll.isHidden()) {
+			for (int i = 0; i < OverviewCount; ++i) {
+				if (i == OverviewAudioDocuments) continue;
+				if (!_mediaLinks[i]->isHidden()) h += _mediaLinks[i]->height() + st::setLittleSkip;
+			}
+		}
 	} else {
 		h = _mediaAudios.y() + _mediaAudios.height() + st::profileHeaderSkip;
 		if (!_participants.isEmpty()) {

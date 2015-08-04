@@ -183,7 +183,6 @@ namespace App {
 	void historyClearItems();
 	void historyRegReply(HistoryReply *reply, HistoryItem *to);
 	void historyUnregReply(HistoryReply *reply, HistoryItem *to);
-//	void deleteHistory(const PeerId &peer);
 
 	void historyRegRandom(uint64 randomId, MsgId itemId);
 	void historyUnregRandom(uint64 randomId);

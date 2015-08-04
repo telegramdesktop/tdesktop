@@ -4816,6 +4816,8 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 			App::main()->peerAfter(_peer, msgid, p, m);
 		}
 		if (p) App::main()->showPeerHistory(p->id, m);
+	} else if (_history && (e->key() == Qt::Key_Search || e == QKeySequence::Find)) {
+		App::main()->searchInPeer(_history->peer);
 	} else {
 		e->ignore();
 	}

@@ -122,7 +122,7 @@ void TopBarWidget::onDeleteAndExitSure() {
 	if (c) {
 		App::main()->showDialogs();
 		App::wnd()->hideLayer();
-		MTP::send(MTPmessages_DeleteChatUser(MTP_int(p->id & 0xFFFFFFFF), App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistory, p), App::main()->rpcFail(&MainWidget::leaveChatFailed, p));
+		MTP::send(MTPmessages_DeleteChatUser(MTP_int(p->id & 0xFFFFFFFF), App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, p), App::main()->rpcFail(&MainWidget::leaveChatFailed, p));
 	}
 }
 
@@ -738,20 +738,20 @@ bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &error) {
 			showDialogs();
 		}
 		dialogs.removePeer(peer);
-		App::histories().remove(peer->id);
+		App::history(peer->id)->clear();
 		MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
 		return true;
 	}
 	return false;
 }
 
-void MainWidget::deleteHistory(PeerData *peer, const MTPUpdates &updates) {
+void MainWidget::deleteHistoryAfterLeave(PeerData *peer, const MTPUpdates &updates) {
 	sentUpdatesReceived(updates);
 	if ((profile && profile->peer() == peer) || (overview && overview->peer() == peer) || _stack.contains(peer) || history.peer() == peer) {
 		showDialogs();
 	}
 	dialogs.removePeer(peer);
-	App::histories().remove(peer->id);
+	App::history(peer->id)->clear();
 	MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
 }
 
@@ -776,26 +776,23 @@ void MainWidget::deletedContact(UserData *user, const MTPcontacts_Link &result) 
 	App::emitPeerUpdated();
 }
 
-void MainWidget::deleteHistoryAndContact(UserData *user, const MTPcontacts_Link &result) {
-	const MTPDcontacts_link &d(result.c_contacts_link());
-	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser), false);
-	App::feedUserLink(MTP_int(user->id & 0xFFFFFFFF), d.vmy_link, d.vforeign_link, false);
-	App::emitPeerUpdated();
-
-	if ((profile && profile->peer() == user) || (overview && overview->peer() == user) || _stack.contains(user) || history.peer() == user) {
-		showDialogs();
-	}
-	dialogs.removePeer(user);
-	MTP::send(MTPmessages_DeleteHistory(user->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, (PeerData*)user));
+void MainWidget::deleteConversation(PeerData *peer) {
+	dialogs.removePeer(peer);
+	History *h = App::history(peer->id);
+	h->clear();
+	h->newLoaded = h->oldLoaded = true;
+	showDialogs();
+	MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
 }
 
 void MainWidget::clearHistory(PeerData *peer) {
-	if (!peer->chat && peer->asUser()->contact <= 0) {
-		dialogs.removePeer(peer->asUser());
+	History *h = App::history(peer->id);
+	if (h->lastMsg) {
+//		Local::savePeerPosition(h->peer, h->lastMsg->date);
 	}
-	dialogsToUp();
-	dialogs.update();
-	App::history(peer->id)->clear();
+	h->clear();
+	h->newLoaded = h->oldLoaded = true;
+	showPeerHistory(peer->id, ShowAtUnreadMsgId);
 	MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
 }
 
@@ -2528,6 +2525,16 @@ void MainWidget::onPeerShown(PeerData *peer) {
 	}
 	resizeEvent(0);
 	if (animating()) _topBar.hide();
+}
+
+void MainWidget::searchInPeer(PeerData *peer) {
+	dialogs.searchInPeer(peer);
+	if (cWideMode()) {
+		dialogs.activate();
+	} else {
+		dialogsToUp();
+		showDialogs();
+	}
 }
 
 void MainWidget::onUpdateNotifySettings() {
