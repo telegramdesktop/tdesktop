@@ -4381,7 +4381,7 @@ void HistoryWidget::onDocumentProgress(MsgId newId) {
 	HistoryItem *item = App::histItemById(newId);
 	if (item) {
 		DocumentData *doc = (item->getMedia() && item->getMedia()->type() == MediaTypeDocument) ? static_cast<HistoryDocument*>(item->getMedia())->document() : 0;
-		updateSendAction(item->history(), SendActionUploadFile, doc->uploadOffset);
+		updateSendAction(item->history(), SendActionUploadFile, doc ? doc->uploadOffset : 0);
 		msgUpdated(item->history()->peer->id, item);
 	}
 }
