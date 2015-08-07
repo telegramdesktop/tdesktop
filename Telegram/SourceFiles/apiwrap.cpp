@@ -225,6 +225,23 @@ void ApiWrap::requestPeer(PeerData *peer) {
 	_peerRequests.insert(peer, req);
 }
 
+void ApiWrap::requestPeers(const QList<PeerData*> &peers) {
+	QVector<MTPint> chats;
+	QVector<MTPInputUser> users;
+	chats.reserve(peers.size());
+	users.reserve(peers.size());
+	for (QList<PeerData*>::const_iterator i = peers.cbegin(), e = peers.cend(); i != e; ++i) {
+		if (!*i || _fullPeerRequests.contains(*i) || _peerRequests.contains(*i)) continue;
+		if ((*i)->chat) {
+			chats.push_back(MTP_int(App::chatFromPeer((*i)->id)));
+		} else {
+			users.push_back((*i)->asUser()->inputUser);
+		}
+	}
+	if (!chats.isEmpty()) MTP::send(MTPmessages_GetChats(MTP_vector<MTPint>(chats)), rpcDone(&ApiWrap::gotChats));
+	if (!users.isEmpty()) MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(users)), rpcDone(&ApiWrap::gotUsers));
+}
+
 void ApiWrap::gotChat(PeerData *peer, const MTPmessages_Chats &result) {
 	_peerRequests.remove(peer);
 	
@@ -247,6 +264,14 @@ void ApiWrap::gotUser(PeerData *peer, const MTPVector<MTPUser> &result) {
 	UserData *user = App::feedUsers(result);
 	if (user == peer) {
 	}
+}
+
+void ApiWrap::gotChats(const MTPmessages_Chats &result) {
+	App::feedChats(result.c_messages_chats().vchats);
+}
+
+void ApiWrap::gotUsers(const MTPVector<MTPUser> &result) {
+	App::feedUsers(result);
 }
 
 bool ApiWrap::gotPeerFailed(PeerData *peer, const RPCError &error) {

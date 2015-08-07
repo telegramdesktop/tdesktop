@@ -416,6 +416,8 @@ namespace App {
 					bool showPhone = !isServiceUser(data->id) && !(flags & (MTPDuser_flag_self | MTPDuser_flag_contact | MTPDuser_flag_mutual_contact));
 					bool showPhoneChanged = !isServiceUser(data->id) && !(flags & (MTPDuser_flag_self)) && ((showPhone && data->contact) || (!showPhone && !data->contact));
 
+					// see also Local::readPeer
+
 					QString pname = (showPhoneChanged || phoneChanged || nameChanged) ? ((showPhone && !phone.isEmpty()) ? formatPhone(phone) : QString()) : data->nameOrPhone;
 
 					data->setName(fname, lname, pname, uname);
@@ -500,7 +502,6 @@ namespace App {
 				data->count = d.vparticipants_count.v;
 				data->left = d.vleft.v;
 				data->forbidden = false;
-				data->access = 0;
 				if (data->version < d.vversion.v) {
 					data->version = d.vversion.v;
 					data->participants = ChatData::Participants();
@@ -519,7 +520,6 @@ namespace App {
 				data->count = -1;
 				data->left = false;
 				data->forbidden = true;
-				data->access = 0;
 			} break;
 			case mtpc_geoChat: {
 				const MTPDgeoChat &d(chat.c_geoChat());
@@ -760,27 +760,23 @@ namespace App {
 		return ImagePtr();
 	}
 
+	StorageImageLocation imageLocation(int32 w, int32 h, const MTPFileLocation &loc) {
+		if (loc.type() == mtpc_fileLocation) {
+			const MTPDfileLocation &l(loc.c_fileLocation());
+			return StorageImageLocation(w, h, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v);
+		}
+		return StorageImageLocation(w, h, 0, 0, 0, 0);
+	}
+
 	StorageImageLocation imageLocation(const MTPPhotoSize &size) {
 		switch (size.type()) {
 		case mtpc_photoSize: {
 			const MTPDphotoSize &d(size.c_photoSize());
-			if (d.vlocation.type() == mtpc_fileLocation) {
-				const MTPDfileLocation &l(d.vlocation.c_fileLocation());
-				return StorageImageLocation(d.vw.v, d.vh.v, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v);
-			}
+			return imageLocation(d.vw.v, d.vh.v, d.vlocation);
 		} break;
 		case mtpc_photoCachedSize: {
 			const MTPDphotoCachedSize &d(size.c_photoCachedSize());
-			if (d.vlocation.type() == mtpc_fileLocation) {
-				const MTPDfileLocation &l(d.vlocation.c_fileLocation());
-				const string &s(d.vbytes.c_string().v);
-				QByteArray bytes(s.data(), s.size());
-				return StorageImageLocation(d.vw.v, d.vh.v, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v);
-			} else if (d.vlocation.type() == mtpc_fileLocationUnavailable) {
-				const string &s(d.vbytes.c_string().v);
-				QByteArray bytes(s.data(), s.size());
-				return StorageImageLocation(d.vw.v, d.vh.v, 0, 0, 0, 0);
-			}
+			return imageLocation(d.vw.v, d.vh.v, d.vlocation);
 		} break;
 		}
 		return StorageImageLocation();
@@ -1697,6 +1693,8 @@ namespace App {
 		randomData.clear();
 		mutedPeers.clear();
 		updatedPeers.clear();
+		cSetSavedPeers(SavedPeers());
+		cSetSavedPeersByTime(SavedPeersByTime());
 		for (PeersData::const_iterator i = peersData.cbegin(), e = peersData.cend(); i != e; ++i) {
 			delete *i;
 		}
@@ -1752,15 +1750,6 @@ namespace App {
 		}
 	}
 
-	/* // don't delete history without deleting its' peerdata
-	void deleteHistory(const PeerId &peer) {
-		Histories::iterator i = ::histories.find(peer);
-		if (i != ::histories.end()) {
-			::histories.typing.remove(i.value());
-			::histories.erase(i);
-		}
-	}
-/**/
 	void historyRegRandom(uint64 randomId, MsgId itemId) {
 		randomData.insert(randomId, itemId);
 	}

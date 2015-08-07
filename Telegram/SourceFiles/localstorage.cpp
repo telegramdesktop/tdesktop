@@ -18,6 +18,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "localstorage.h"
 
+#include "mainwidget.h"
 #include "lang.h"
 
 namespace {
@@ -505,6 +506,7 @@ namespace {
 		lskUserSettings      = 0x09, // no data
 		lskRecentHashtags    = 0x0a, // no data
 		lskStickers          = 0x0b, // no data
+		lskSavedPeers        = 0x0c, // no data
 	};
 
 	typedef QMap<PeerId, FileKey> DraftsMap;
@@ -529,6 +531,8 @@ namespace {
 	FileKey _userSettingsKey = 0;
 	FileKey _recentHashtagsKey = 0;
 	bool _recentHashtagsWereRead = false;
+
+	FileKey _savedPeersKey = 0;
 
 	typedef QPair<FileKey, qint32> FileDesc; // file, size
 	typedef QMap<StorageKey, FileDesc> StorageMap;
@@ -1432,7 +1436,7 @@ namespace {
 		DraftsNotReadMap draftsNotReadMap;
 		StorageMap imagesMap, stickerImagesMap, audiosMap;
 		qint64 storageImagesSize = 0, storageStickersSize = 0, storageAudiosSize = 0;
-		quint64 locationsKey = 0, recentStickersKeyOld = 0, stickersKey = 0, backgroundKey = 0, userSettingsKey = 0, recentHashtagsKey = 0;
+		quint64 locationsKey = 0, recentStickersKeyOld = 0, stickersKey = 0, backgroundKey = 0, userSettingsKey = 0, recentHashtagsKey = 0, savedPeersKey = 0;
 		while (!map.stream.atEnd()) {
 			quint32 keyType;
 			map.stream >> keyType;
@@ -1512,6 +1516,9 @@ namespace {
 			case lskStickers: {
 				map.stream >> stickersKey;
 			} break;
+			case lskSavedPeers: {
+				map.stream >> savedPeersKey;
+			} break;
 			default:
 				LOG(("App Error: unknown key type in encrypted map: %1").arg(keyType));
 				return Local::ReadMapFailed;
@@ -1535,6 +1542,7 @@ namespace {
 		_locationsKey = locationsKey;
 		_recentStickersKeyOld = recentStickersKeyOld;
 		_stickersKey = stickersKey;
+		_savedPeersKey = savedPeersKey;
 		_backgroundKey = backgroundKey;
 		_userSettingsKey = userSettingsKey;
 		_recentHashtagsKey = recentHashtagsKey;
@@ -1599,6 +1607,7 @@ namespace {
 		if (_locationsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_recentStickersKeyOld) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_stickersKey) mapSize += sizeof(quint32) + sizeof(quint64);
+		if (_savedPeersKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_backgroundKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_userSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_recentHashtagsKey) mapSize += sizeof(quint32) + sizeof(quint64);
@@ -1641,6 +1650,9 @@ namespace {
 		}
 		if (_stickersKey) {
 			mapData.stream << quint32(lskStickers) << quint64(_stickersKey);
+		}
+		if (_savedPeersKey) {
+			mapData.stream << quint32(lskSavedPeers) << quint64(_savedPeersKey);
 		}
 		if (_backgroundKey) {
 			mapData.stream << quint32(lskBackground) << quint64(_backgroundKey);
@@ -1900,7 +1912,7 @@ namespace Local {
 		_draftsNotReadMap.clear();
 		_stickerImagesMap.clear();
 		_audiosMap.clear();
-		_locationsKey = _recentStickersKeyOld = _stickersKey = _backgroundKey = _userSettingsKey = _recentHashtagsKey = 0;
+		_locationsKey = _recentStickersKeyOld = _stickersKey = _backgroundKey = _userSettingsKey = _recentHashtagsKey = _savedPeersKey = 0;
 		_mapChanged = true;
 		_writeMap(WriteMapNow);
 
@@ -2293,6 +2305,23 @@ namespace Local {
 		return _storageAudiosSize;
 	}
 
+	void _writeStorageImageLocation(QDataStream &stream, const StorageImageLocation &loc) {
+		stream << qint32(loc.width) << qint32(loc.height);
+		stream << qint32(loc.dc) << quint64(loc.volume) << qint32(loc.local) << quint64(loc.secret);
+	}
+
+	uint32 _storageImageLocationSize() {
+		// width + height + dc + volume + local + secret
+		return sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(quint64) + sizeof(qint32) + sizeof(quint64);
+	}
+
+	StorageImageLocation _readStorageImageLocation(FileReadDescriptor &from) {
+		qint32 thumbWidth, thumbHeight, thumbDc, thumbLocal;
+		quint64 thumbVolume, thumbSecret;
+		from.stream >> thumbWidth >> thumbHeight >> thumbDc >> thumbVolume >> thumbLocal >> thumbSecret;
+		return StorageImageLocation(thumbWidth, thumbHeight, thumbDc, thumbVolume, thumbLocal, thumbSecret);
+	}
+
 	void _writeStickerSet(QDataStream &stream, uint64 setId) {
 		StickerSets::const_iterator it = cStickerSets().constFind(setId);
 		if (it == cStickerSets().cend()) return;
@@ -2321,8 +2350,7 @@ namespace Local {
 				stream << qint32(StickerSetTypeEmpty);
 			} break;
 			}
-			const StorageImageLocation &loc(doc->sticker()->loc);
-			stream << qint32(loc.width) << qint32(loc.height) << qint32(loc.dc) << quint64(loc.volume) << qint32(loc.local) << quint64(loc.secret);
+			_writeStorageImageLocation(stream, doc->sticker()->loc);
 		}
 	}
 
@@ -2358,8 +2386,8 @@ namespace Local {
 					// id + access + date + namelen + name + mimelen + mime + dc + size + width + height + type + alt + type-of-set
 					size += sizeof(quint64) + sizeof(quint64) + sizeof(qint32) + _stringSize(doc->name) + _stringSize(doc->mime) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(doc->sticker()->alt) + sizeof(qint32);
 
-					// thumb-width + thumb-height + thumb-dc + thumb-volume + thumb-local + thumb-secret
-					size += sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(quint64) + sizeof(qint32) + sizeof(quint64);
+					// loc
+					size += _storageImageLocationSize();
 				}
 				++setsCount;
 			}
@@ -2519,9 +2547,7 @@ namespace Local {
 				qint32 date, dc, size, width, height, type, typeOfSet;
 				stickers.stream >> id >> access >> date >> name >> mime >> dc >> size >> width >> height >> type >> alt >> typeOfSet;
 
-				qint32 thumbWidth, thumbHeight, thumbDc, thumbLocal;
-				quint64 thumbVolume, thumbSecret;
-				stickers.stream >> thumbWidth >> thumbHeight >> thumbDc >> thumbVolume >> thumbLocal >> thumbSecret;
+				StorageImageLocation thumb(_readStorageImageLocation(stickers));
 
 				if (read.contains(id)) continue;
 				read.insert(id, true);
@@ -2552,7 +2578,6 @@ namespace Local {
 					attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
 				}
 
-				StorageImageLocation thumb(thumbWidth, thumbHeight, thumbDc, thumbVolume, thumbLocal, thumbSecret);
 				DocumentData *doc = App::documentSet(id, 0, access, date, attributes, mime, thumb.dc ? ImagePtr(thumb) : ImagePtr(), dc, size, thumb);
 				if (!doc->sticker()) continue;
 
@@ -2705,6 +2730,193 @@ namespace Local {
 		cSetRecentSearchHashtags(search);
 	}
 
+	uint32 _peerSize(PeerData *peer) {
+		uint32 result = sizeof(quint64) + sizeof(quint64) + _storageImageLocationSize();
+		if (peer->chat) {
+			ChatData *chat = peer->asChat();
+
+			// name + count + date + version + admin + forbidden + left + invitationUrl
+			result += _stringSize(chat->name) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(chat->invitationUrl);
+		} else {
+			UserData *user = peer->asUser();
+
+			// first + last + phone + username + access + onlineTill + contact + botInfoVersion
+			result += _stringSize(user->firstName) + _stringSize(user->lastName) + _stringSize(user->phone) + _stringSize(user->username) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
+		}
+		return result;
+	}
+
+	void _writePeer(QDataStream &stream, PeerData *peer) {
+		stream << quint64(peer->id) << quint64(peer->photoId);
+		_writeStorageImageLocation(stream, peer->photoLoc);
+		if (peer->chat) {
+			ChatData *chat = peer->asChat();
+
+			stream << chat->name << qint32(chat->count) << qint32(chat->date) << qint32(chat->version) << qint32(chat->admin);
+			stream << qint32(chat->forbidden ? 1 : 0) << qint32(chat->left ? 1 : 0) << chat->invitationUrl;
+		} else {
+			UserData *user = peer->asUser();
+
+			stream << user->firstName << user->lastName << user->phone << user->username << quint64(user->access) << qint32(user->onlineTill) << qint32(user->contact) << qint32(user->botInfo ? user->botInfo->version : -1);
+		}
+	}
+
+	PeerData *_readPeer(FileReadDescriptor &from) {
+		PeerData *result = 0;
+		quint64 peerId = 0, photoId = 0;
+		from.stream >> peerId >> photoId;
+
+		StorageImageLocation photoLoc(_readStorageImageLocation(from));
+
+		result = App::peer(peerId);
+		result->loaded = true;
+		if (result->chat) {
+			ChatData *chat = result->asChat();
+
+			QString name, invitationUrl;
+			qint32 count, date, version, admin, forbidden, left;
+			from.stream >> name >> count >> date >> version >> admin >> forbidden >> left >> invitationUrl;
+
+			chat->updateName(name, QString(), QString());
+			chat->count = count;
+			chat->date = date;
+			chat->version = version;
+			chat->admin = admin;
+			chat->forbidden = (forbidden == 1);
+			chat->left = (left == 1);
+			chat->invitationUrl = invitationUrl;
+
+			chat->input = MTP_inputPeerChat(MTP_int(App::chatFromPeer(chat->id)));
+
+			chat->photo = photoLoc.isNull() ? ImagePtr(chatDefPhoto(chat->colorIndex)) : ImagePtr(photoLoc);
+		} else {
+			UserData *user = result->asUser();
+
+			QString first, last, phone, username;
+			quint64 access;
+			qint32 onlineTill, contact, botInfoVersion;
+			from.stream >> first >> last >> phone >> username >> access >> onlineTill >> contact >> botInfoVersion;
+
+			bool showPhone = !isServiceUser(user->id) && (user->id != MTP::authedId()) && (contact <= 0);
+			QString pname = (showPhone && !phone.isEmpty()) ? App::formatPhone(phone) : QString();
+
+			user->setName(first, last, pname, username);
+
+			user->access = access;
+			user->onlineTill = onlineTill;
+			user->contact = contact;
+			user->setBotInfoVersion(botInfoVersion);
+
+			if (user->id == MTP::authedId()) {
+				user->input = MTP_inputPeerSelf();
+				user->inputUser = MTP_inputUserSelf();
+			} else if (user->contact > 0 || !user->access) {
+				user->input = MTP_inputPeerContact(MTP_int(App::userFromPeer(user->id)));
+				user->inputUser = MTP_inputUserContact(MTP_int(App::userFromPeer(user->id)));
+			} else {
+				user->input = MTP_inputPeerForeign(MTP_int(App::userFromPeer(user->id)), MTP_long(user->access));
+				user->inputUser = MTP_inputUserForeign(MTP_int(App::userFromPeer(user->id)), MTP_long(user->access));
+			}
+
+			user->photo = photoLoc.isNull() ? ImagePtr(userDefPhoto(user->colorIndex)) : ImagePtr(photoLoc);
+		}
+		App::markPeerUpdated(result);
+		emit App::main()->peerPhotoChanged(result);
+		return result;
+	}
+
+	void writeSavedPeers() {
+		if (!_working()) return;
+
+		const SavedPeers &saved(cSavedPeers());
+		if (saved.isEmpty()) {
+			if (_savedPeersKey) {
+				clearKey(_savedPeersKey);
+				_savedPeersKey = 0;
+				_mapChanged = true;
+			}
+			_writeMap();
+		} else {
+			if (!_savedPeersKey) {
+				_savedPeersKey = genKey();
+				_mapChanged = true;
+				_writeMap(WriteMapFast);
+			}
+			quint32 size = sizeof(quint32);
+			for (SavedPeers::const_iterator i = saved.cbegin(); i != saved.cend(); ++i) {
+				size += _peerSize(i.key()) + _dateTimeSize();
+			}
+
+			EncryptedDescriptor data(size);
+			data.stream << quint32(saved.size());
+			for (SavedPeers::const_iterator i = saved.cbegin(); i != saved.cend(); ++i) {
+				_writePeer(data.stream, i.key());
+				data.stream << i.value();
+			}
+
+			FileWriteDescriptor file(_savedPeersKey);
+			file.writeEncrypted(data);
+		}
+	}
+
+	void readSavedPeers() {
+		if (!_savedPeersKey) return;
+
+		FileReadDescriptor saved;
+		if (!readEncryptedFile(saved, _savedPeersKey)) {
+			clearKey(_savedPeersKey);
+			_savedPeersKey = 0;
+			_writeMap();
+			return;
+		}
+
+		quint32 count = 0;
+		saved.stream >> count;
+		cRefSavedPeers().clear();
+		cRefSavedPeersByTime().clear();
+		QList<PeerData*> peers;
+		peers.reserve(count);
+		for (uint32 i = 0; i < count; ++i) {
+			PeerData *peer = _readPeer(saved);
+			if (!peer) break;
+
+			QDateTime t;
+			saved.stream >> t;
+			
+			cRefSavedPeers().insert(peer, t);
+			cRefSavedPeersByTime().insert(t, peer);
+			peers.push_back(peer);
+		}
+		App::emitPeerUpdated();
+		App::api()->requestPeers(peers);
+	}
+
+	void addSavedPeer(PeerData *peer, const QDateTime &position) {
+		SavedPeers &savedPeers(cRefSavedPeers());
+		SavedPeers::iterator i = savedPeers.find(peer);
+		if (i == savedPeers.cend()) {
+			savedPeers.insert(peer, position);
+		} else if (i.value() != position) {
+			cRefSavedPeersByTime().remove(i.value(), peer);
+			i.value() = position;
+			cRefSavedPeersByTime().insert(i.value(), peer);
+		}
+		writeSavedPeers();
+	}
+
+	void removeSavedPeer(PeerData *peer) {
+		SavedPeers &savedPeers(cRefSavedPeers());
+		if (savedPeers.isEmpty()) return;
+
+		SavedPeers::iterator i = savedPeers.find(peer);
+		if (i != savedPeers.cend()) {
+			cRefSavedPeersByTime().remove(i.value(), peer);
+			savedPeers.erase(i);
+
+			writeSavedPeers();
+		}
+	}
+
 	struct ClearManagerData {
 		QThread *thread;
 		StorageMap images, stickers, audios;
@@ -2762,6 +2974,10 @@ namespace Local {
 			}
 			if (_recentHashtagsKey) {
 				_recentHashtagsKey = 0;
+				_mapChanged = true;
+			}
+			if (_savedPeersKey) {
+				_savedPeersKey = 0;
 				_mapChanged = true;
 			}
 			_writeMap();

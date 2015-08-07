@@ -141,4 +141,8 @@ namespace Local {
 	void writeRecentHashtags();
 	void readRecentHashtags();
 
+	void addSavedPeer(PeerData *peer, const QDateTime &position);
+	void removeSavedPeer(PeerData *peer);
+	void readSavedPeers();
+
 };

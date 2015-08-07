@@ -658,8 +658,8 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 8044) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Sending media and recording audio status display");// .replace('@', qsl("@") + QChar(0x200D));
+			if (cDevVersion() && Local::oldMapVersion() < 8047) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Search for messages in conversation\n\xe2\x80\x94 Clear messages history in groups\n\xe2\x80\x94 Contacts without messages are hidden from the conversations list");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (!cDevVersion() && Local::oldMapVersion() < 8045) {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}

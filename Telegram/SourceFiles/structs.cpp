@@ -90,10 +90,10 @@ NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersP
 PeerData::PeerData(const PeerId &id) : id(id)
 , loaded(false)
 , chat(App::isChat(id))
-, access(0)
 , colorIndex(peerColorIndex(id))
 , color(peerColor(colorIndex))
 , photo(chat ? chatDefPhoto(colorIndex) : userDefPhoto(colorIndex))
+, photoId(UnknownPeerPhotoId)
 , nameVersion(0)
 , notify(UnknownNotifySettings)
 {
@@ -132,14 +132,16 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone,
 	}
 }
 
-void UserData::setPhoto(const MTPUserProfilePhoto &p) {
+void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
 	ImagePtr newPhoto = photo;
+	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_userProfilePhoto: {
 		const MTPDuserProfilePhoto d(p.c_userProfilePhoto());
 		newPhotoId = d.vphoto_id.v;
-		newPhoto = ImagePtr(160, 160, d.vphoto_small, userDefPhoto(colorIndex));
+		newPhotoLoc = App::imageLocation(160, 160, d.vphoto_small);
+		newPhoto = newPhotoLoc.isNull() ? userDefPhoto(colorIndex) : ImagePtr(newPhotoLoc);
 		//App::feedPhoto(App::photoFromUserPhoto(MTP_int(id & 0xFFFFFFFF), MTP_int(unixtime()), p));
 	} break;
 	default: {
@@ -151,11 +153,13 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) {
 		} else {
 			newPhoto = userDefPhoto(colorIndex);
 		}
+		newPhotoLoc = StorageImageLocation();
 	} break;
 	}
-	if (newPhotoId != photoId || newPhoto.v() != photo.v()) {
+	if (newPhotoId != photoId || newPhoto.v() != photo.v() || newPhotoLoc != photoLoc) {
 		photoId = newPhotoId;
 		photo = newPhoto;
+		photoLoc = newPhotoLoc;
 		emit App::main()->peerPhotoChanged(this);
 	}
 }
@@ -226,6 +230,7 @@ void UserData::setBotInfoVersion(int32 version) {
 		botInfo->inited = false;
 	}
 }
+
 void UserData::setBotInfo(const MTPBotInfo &info) {
 	switch (info.type()) {
 	case mtpc_botInfoEmpty:
@@ -305,23 +310,33 @@ void UserData::madeAction() {
 	}
 }
 
-void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) {
+void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
+	PhotoId newPhotoId = photoId;
+	ImagePtr newPhoto = photo;
+	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_chatPhoto: {
 		const MTPDchatPhoto d(p.c_chatPhoto());
-		photo = ImagePtr(160, 160, d.vphoto_small, chatDefPhoto(colorIndex));
-		photoFull = ImagePtr(640, 640, d.vphoto_big, chatDefPhoto(colorIndex));
 		if (phId != UnknownPeerPhotoId) {
-			photoId = phId;
+			newPhotoId = phId;
 		}
+		newPhotoLoc = App::imageLocation(160, 160, d.vphoto_small);
+		newPhoto = newPhotoLoc.isNull() ? chatDefPhoto(colorIndex) : ImagePtr(newPhotoLoc);
+//		photoFull = ImagePtr(640, 640, d.vphoto_big, chatDefPhoto(colorIndex));
 	} break;
 	default: {
-		photo = chatDefPhoto(colorIndex);
-		photoFull = ImagePtr();
-		photoId = 0;
+		newPhotoId = 0;
+		newPhotoLoc = StorageImageLocation();
+		newPhoto = chatDefPhoto(colorIndex);
+//		photoFull = ImagePtr();
 	} break;
 	}
-	emit App::main()->peerPhotoChanged(this);
+	if (newPhotoId != photoId || newPhoto.v() != photo.v() || newPhotoLoc != photoLoc) {
+		photoId = newPhotoId;
+		photo = newPhoto;
+		photoLoc = newPhotoLoc;
+		emit App::main()->peerPhotoChanged(this);
+	}
 }
 
 void PhotoLink::onClick(Qt::MouseButton button) const {
