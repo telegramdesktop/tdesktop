@@ -86,12 +86,12 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 		if (otherStart) {
 			dialogs.list.paint(p, width(), r.top(), r.bottom(), active, selected);
 		}
-		if (contactsNoDialogs.list.count) {
+		if (contactsNoDialogs.list.count && false) {
 			contactsNoDialogs.list.paint(p, width(), r.top() - otherStart, r.bottom() - otherStart, active, selected);
 		} else if (!otherStart) {
 			p.setFont(st::noContactsFont->f);
 			p.setPen(st::noContactsColor->p);
-			p.drawText(QRect(0, 0, width(), st::noContactsHeight - (cContactsReceived() ? st::noContactsFont->height : 0)), lang(cContactsReceived() ? lng_no_contacts : lng_contacts_loading), style::al_center);
+			p.drawText(QRect(0, 0, width(), st::noContactsHeight - (cContactsReceived() ? st::noContactsFont->height : 0)), lang(cContactsReceived() ? lng_no_chats : lng_contacts_loading), style::al_center);
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
 		if (!hashtagResults.isEmpty()) {
@@ -317,7 +317,7 @@ void DialogsListWidget::onUpdateSelected(bool force) {
 		if (newSel) {
 			contactSel = false;
 		} else {
-			newSel = contactsNoDialogs.list.rowAtY(mouseY - otherStart, st::dlgHeight);
+			newSel = 0;// contactsNoDialogs.list.rowAtY(mouseY - otherStart, st::dlgHeight);
 			contactSel = true;
 		}
 		if (newSel != sel) {
@@ -442,6 +442,8 @@ void DialogsListWidget::removePeer(PeerData *peer) {
 		}
 	}
 
+	Local::removeSavedPeer(peer);
+
 	emit App::main()->dialogsUpdated();
 
 	refresh();
@@ -481,7 +483,7 @@ void DialogsListWidget::dlgUpdated(History *history) {
 		if (i != dialogs.list.rowByPeer.cend()) {
 			update(0, i.value()->pos * st::dlgHeight, width(), st::dlgHeight);
 		} else {
-			i = contactsNoDialogs.list.rowByPeer.find(history->peer->id);
+			i = contactsNoDialogs.list.rowByPeer.end();// find(history->peer->id);
 			if (i != contactsNoDialogs.list.rowByPeer.cend()) {
 				update(0, (dialogs.list.count + i.value()->pos) * st::dlgHeight, width(), st::dlgHeight);
 			}
@@ -771,6 +773,16 @@ void DialogsListWidget::dialogsReceived(const QVector<MTPDialog> &added) {
 	refresh();
 }
 
+void DialogsListWidget::addAllSavedPeers() {
+	SavedPeersByTime &saved(cRefSavedPeersByTime());
+	while (!saved.isEmpty()) {
+		History *history = App::history(saved.last()->id);
+		history->dialogs = dialogs.addToEnd(history);
+		contactsNoDialogs.del(history->peer);
+		saved.remove(saved.lastKey(), saved.last());
+	}
+}
+
 void DialogsListWidget::searchReceived(const QVector<MTPMessage> &messages, bool fromStart, int32 fullCount) {
 	if (fromStart) {
 		clearSearchResults(false);
@@ -810,7 +822,7 @@ void DialogsListWidget::contactsReceived(const QVector<MTPContact> &contacts) {
 			App::self()->contact = 1;
 		}
 	}
-	if (!sel && contactsNoDialogs.list.count) {
+	if (!sel && contactsNoDialogs.list.count && false) {
 		sel = contactsNoDialogs.list.begin;
 		contactSel = true;
 	}
@@ -827,11 +839,11 @@ int32 DialogsListWidget::addNewContact(int32 uid, bool select) {
 	if (i == dialogs.list.rowByPeer.cend()) {
 		DialogRow *added = contactsNoDialogs.addByName(history);
 		if (!added) return -1;
-		if (select) {
+		if (select && false) {
 			sel = added;
 			contactSel = true;
 		}
-		if (contactsNoDialogs.list.count == 1 && !dialogs.list.count) refresh();
+//		if (contactsNoDialogs.list.count == 1 && !dialogs.list.count) refresh();
 		return added ? ((dialogs.list.count + added->pos) * st::dlgHeight) : -1;
 	}
 	if (select) {
@@ -844,7 +856,7 @@ int32 DialogsListWidget::addNewContact(int32 uid, bool select) {
 void DialogsListWidget::refresh(bool toTop) {
 	int32 h = 0;
 	if (_state == DefaultState) {
-		h = (dialogs.list.count + contactsNoDialogs.list.count) * st::dlgHeight;
+		h = (dialogs.list.count/* + contactsNoDialogs.list.count*/) * st::dlgHeight;
 		if (h) {
 			if (!_addContactLnk.isHidden()) _addContactLnk.hide();
 		} else {
@@ -936,6 +948,15 @@ void DialogsListWidget::clearFilter() {
 
 void DialogsListWidget::addDialog(const MTPDdialog &dialog) {
 	History *history = App::history(App::peerFromMTP(dialog.vpeer), dialog.vunread_count.v, dialog.vread_inbox_max_id.v);
+	if (history->lastMsg) {
+		SavedPeersByTime &saved(cRefSavedPeersByTime());
+		while (!saved.isEmpty() && history->lastMsg->date < saved.lastKey()) {
+			History *history = App::history(saved.last()->id);
+			history->dialogs = dialogs.addToEnd(history);
+			contactsNoDialogs.del(history->peer);
+			saved.remove(saved.lastKey(), saved.last());
+		}
+	}
 	History::DialogLinks links = dialogs.addToEnd(history);
 	history->dialogs = links;
 	contactsNoDialogs.del(history->peer);
@@ -1714,6 +1735,7 @@ void DialogsWidget::onSearchMore(MsgId minMsgId) {
 void DialogsWidget::loadDialogs() {
 	if (dlgPreloading) return;
 	if (dlgCount >= 0 && dlgOffset >= dlgCount) {
+		list.addAllSavedPeers();
 		cSetDialogsReceived(true);
 		return;
 	}

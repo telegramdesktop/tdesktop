@@ -27,6 +27,7 @@ public:
 	DialogsListWidget(QWidget *parent, MainWidget *main);
 
 	void dialogsReceived(const QVector<MTPDialog> &dialogs);
+	void addAllSavedPeers();
 	void searchReceived(const QVector<MTPMessage> &messages, bool fromStart, int32 fullCount);
 	void peopleReceived(const QString &query, const QVector<MTPContactFound> &people);
 	void showMore(int32 pixels);

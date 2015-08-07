@@ -788,7 +788,7 @@ void MainWidget::deleteConversation(PeerData *peer) {
 void MainWidget::clearHistory(PeerData *peer) {
 	History *h = App::history(peer->id);
 	if (h->lastMsg) {
-//		Local::savePeerPosition(h->peer, h->lastMsg->date);
+		Local::addSavedPeer(h->peer, h->lastMsg->date);
 	}
 	h->clear();
 	h->newLoaded = h->oldLoaded = true;
@@ -813,6 +813,8 @@ bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
 
 	QString text = lang(lng_failed_add_participant);
 	if (error.type() == "USER_LEFT_CHAT") { // trying to return banned user to his group
+	} else if (error.type() == "USER_NOT_MUTUAL_CONTACT") { // trying to return user who does not have me in contacts
+		text = lang(lng_failed_add_not_mutual);
 	} else if (error.type() == "USER_ALREADY_PARTICIPANT" && user->botInfo) {
 		text = lang(lng_bot_already_in_group);
 	}
@@ -856,7 +858,12 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 		if ((profile && profile->peer() == peer) || (overview && overview->peer() == peer) || _stack.contains(peer) || history.peer() == peer) {
 			showDialogs();
 		}
-		dialogs.removePeer(peer);
+		if (peer->chat && peer->asChat()->left) {
+			dialogs.removePeer(peer);
+		} else {
+			History *h = App::historyLoaded(peer->id);
+			if (h) Local::addSavedPeer(peer, h->lastMsgDate);
+		}
 	} else {
 		History *h = App::historyLoaded(peer->id);
 		if (!h->lastMsg) {
@@ -2756,6 +2763,8 @@ void MainWidget::start(const MTPUser &user) {
 		MTP::authed(uid);
 		Local::writeMtpData();
 	}
+
+	Local::readSavedPeers();
 
 	cSetOtherOnline(0);
 	App::feedUsers(MTP_vector<MTPUser>(1, user));

@@ -32,6 +32,7 @@ public:
 
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
+	void requestPeers(const QList<PeerData*> &peers);
 
 	void requestWebPageDelayed(WebPageData *page);
 	void clearWebPageRequest(WebPageData *page);
@@ -72,6 +73,8 @@ private:
 	
 	void gotChat(PeerData *peer, const MTPmessages_Chats &result);
 	void gotUser(PeerData *peer, const MTPVector<MTPUser> &result);
+	void gotChats(const MTPmessages_Chats &result);
+	void gotUsers(const MTPVector<MTPUser> &result);
 	bool gotPeerFailed(PeerData *peer, const RPCError &err);
 	PeerRequests _peerRequests;
 

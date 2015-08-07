@@ -127,6 +127,7 @@ namespace App {
 	int32 maxMsgId();
 
 	ImagePtr image(const MTPPhotoSize &size);
+	StorageImageLocation imageLocation(int32 w, int32 h, const MTPFileLocation &loc);
 	StorageImageLocation imageLocation(const MTPPhotoSize &size);
 
 	PhotoData *feedPhoto(const MTPPhoto &photo, const PreparedPhotoThumbs &thumbs);

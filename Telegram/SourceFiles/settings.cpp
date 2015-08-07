@@ -159,6 +159,9 @@ int gOtherOnline = 0;
 
 float64 gSongVolume = 0.9;
 
+SavedPeers gSavedPeers;
+SavedPeersByTime gSavedPeersByTime;
+
 void settingsParseArgs(int argc, char *argv[]) {
 	gCustomNotifies = true;
 #ifdef Q_OS_MAC

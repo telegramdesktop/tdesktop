@@ -156,6 +156,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_dlg_new_group_name" = "Group name";
 "lng_dlg_create_group" = "Create";
 "lng_no_contacts" = "You have no contacts";
+"lng_no_chats" = "Your chats will be here";
 "lng_contacts_loading" = "Loading..";
 "lng_contacts_not_found" = "No contacts found";
 "lng_dlg_search_chat" = "Search in this chat";
@@ -385,6 +386,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_title" = "New Group";
 
 "lng_failed_add_participant" = "Could not add user. Try again later.";
+"lng_failed_add_not_mutual" = "Sorry, if a person left a group, only a\nmutual contact can bring them back\n(they need to have your phone\nnumber, and you need theirs).";
 
 "lng_sure_delete_contact" = "Are you sure, you want to delete {contact} from your contact list?";
 "lng_sure_delete_history" = "Are you sure, you want to delete all message history with {contact}?\n\nThis action cannot be undone.";
@@ -469,7 +471,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_message_ph" = "Write a message..";
 "lng_record_cancel" = "Release outside this field to cancel";
 "lng_empty_history" = "";
-"lng_willbe_history" = "Please select chat to start messaging";
+"lng_willbe_history" = "Please select a chat to start messaging";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "You";
 "lng_bot_description" = "What can this bot do?";
@@ -627,7 +629,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Improved in-app media playback\n— Bug fixes and other minor improvements";
+"lng_new_version_text" = "— Search for messages in conversation\n— Clear messages history in groups\n— Contacts without messages are hidden from the conversations list";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 
