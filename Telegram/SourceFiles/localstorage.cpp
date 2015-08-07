@@ -2797,7 +2797,7 @@ namespace Local {
 			qint32 onlineTill, contact, botInfoVersion;
 			from.stream >> first >> last >> phone >> username >> access >> onlineTill >> contact >> botInfoVersion;
 
-			bool showPhone = !isServiceUser(user->id) && (user->id != MTP::authedId()) && (contact <= 0);
+			bool showPhone = !isServiceUser(user->id) && (App::userFromPeer(user->id) != MTP::authedId()) && (contact <= 0);
 			QString pname = (showPhone && !phone.isEmpty()) ? App::formatPhone(phone) : QString();
 
 			user->setName(first, last, pname, username);
@@ -2807,7 +2807,7 @@ namespace Local {
 			user->contact = contact;
 			user->setBotInfoVersion(botInfoVersion);
 
-			if (user->id == MTP::authedId()) {
+			if (App::userFromPeer(user->id) == MTP::authedId()) {
 				user->input = MTP_inputPeerSelf();
 				user->inputUser = MTP_inputUserSelf();
 			} else if (user->contact > 0 || !user->access) {
