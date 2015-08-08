@@ -156,8 +156,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_dlg_new_group_name" = "Nome gruppo";
 "lng_dlg_create_group" = "Crea";
 "lng_no_contacts" = "Non hai contatti";
+"lng_no_chats" = "Le tua chat saranno qui";
 "lng_contacts_loading" = "Caricamento..";
 "lng_contacts_not_found" = "Nessun contatto trovato";
+"lng_dlg_search_chat" = "Cerca in questa chat";
+"lng_dlg_search_for_messages" = "Cerca messaggi";
 
 "lng_settings_save" = "Salva";
 "lng_settings_upload" = "Imposta foto profilo";
@@ -267,7 +270,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_passcode_enter_first" = "Inserisci un codice";
 "lng_passcode_enter_new" = "Inserisci il nuovo codice";
 "lng_passcode_confirm_new" = "Reinserisci il nuovo codice";
-"lng_passcode_about" = "Quando imposti un codice, un'icona col lucchetto apparirà nel menu in alto. Premi su di essa per bloccare l'app. \n\nNota: se ti dimentichi il codice, dovrai rifare il login su Telegram Desktop.";
+"lng_passcode_about" = "Quando imposti un codice, un'icona col lucchetto apparirà nel menu in alto. Premi su di essa per bloccare l'app. \n\nNota: se dimentichi il codice, dovrai rifare l'accesso su Telegram Desktop.";
 "lng_passcode_differ" = "I codici sono diversi";
 "lng_passcode_wrong" = "Codice errato";
 "lng_passcode_is_same" = "Il codice non è stato cambiato";
@@ -339,6 +342,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_topbar_info" = "Info";
 "lng_profile_about_section" = "Info";
 "lng_profile_settings_section" = "Impostazioni";
+"lng_profile_actions_section" = "Azioni";
 "lng_profile_bot_settings" = "Impostazioni";
 "lng_profile_bot_help" = "Aiuto";
 "lng_profile_participants_section" = "Membri";
@@ -348,6 +352,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_edit_contact" = "Modifica";
 "lng_profile_enable_notifications" = "Notifiche";
 "lng_profile_clear_history" = "Cancella la cronologia";
+"lng_profile_delete_conversation" = "Elimina chat";
+"lng_profile_clear_and_exit" = "Elimina ed esci";
+"lng_profile_search_messages" = "Cerca messaggi";
 "lng_profile_send_message" = "Invia messaggio";
 "lng_profile_share_contact" = "Condividi contatto";
 "lng_profile_invite_to_group" = "Aggiungi a un gruppo";
@@ -379,9 +386,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_title" = "Nuovo gruppo";
 
 "lng_failed_add_participant" = "Impossibile aggiungere l'utente. Riprova più tardi.";
+"lng_failed_add_not_mutual" = "Se una persona lascia un gruppo,\nsolo un contatto in comune può reinvitarlo\n(devono avere il tuo numero\ndi telefono, e tu il loro).";
 
 "lng_sure_delete_contact" = "Sicuro di volere eliminare {contact} dalla tua lista dei contatti?";
 "lng_sure_delete_history" = "Sicuro di voler eliminare tutta la cronologia dei messaggi con {contact}?\n\nQuesta azione non può essere annullata.";
+"lng_sure_delete_group_history" = "Sicuro di voler eliminare tutta la cronologia dei messaggi in «{group}»?\n\nQuesta azione non può essere annullata.";
 
 "lng_sure_delete_and_exit" = "Sicuro di voler eliminare tutta la cronologia dei messaggi e abbandonare «{group}»?\n\nQuesta azione non può essere annullata.";
 
@@ -620,7 +629,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli update è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "— Riproduzione dei media migliorata\n— Risoluzione di bug e miglioramenti minori";
+"lng_new_version_text" = "— Cerca messaggi in una chat\n— Pulisci la cronologia dei messaggi nei gruppi\n— I contatti senza messaggi sono nascosti dalla lista delle chat";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 
