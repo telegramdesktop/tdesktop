@@ -156,8 +156,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_dlg_new_group_name" = "Groepsnaam";
 "lng_dlg_create_group" = "Maak";
 "lng_no_contacts" = "Je hebt geen contacten";
+"lng_no_chats" = "Hier komen je chats";
 "lng_contacts_loading" = "Bezig met laden";
 "lng_contacts_not_found" = "Geen contacten gevonden";
+"lng_dlg_search_chat" = "Zoek in deze chat";
+"lng_dlg_search_for_messages" = "Zoek berichten";
 
 "lng_settings_save" = "Opslaan";
 "lng_settings_upload" = "Profielfoto instellen";
@@ -289,7 +292,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_cloud_password_bad" = "De hint moet anders zijn dan je wachtwoord.";
 "lng_cloud_password_email" = "Herstel-e-mailadres invoeren";
 "lng_cloud_password_bad_email" = "Ongeldig e-mailadres, probeer een andere.";
-"lng_cloud_password_about" = "Naast de code die je per SMS ontvangt kun je een extra wachtwoord instellen voor als je inlogt op een nieuw apparaat.";
+"lng_cloud_password_about" = "Dit wachtwoord is nodig als je inlogt vanaf een nieuw apparaat, naast de SMS die je ontvangt.";
 "lng_cloud_password_about_recover" = "Let op: Echt geen herstel-emailadres\nopgeven voor je wachtwoord?\n\nBij verlies van je wachtwoord ben je\nook de toegang tot Telegram kwijt.";
 "lng_cloud_password_almost" = "Een bevestigingslink is naar\nhet e-mailadres verstuurd.\n\ntwee-staps-verificatie is actief\nna het klikken van de e-mail-link.";
 "lng_cloud_password_was_set" = "Twee-staps-verificatie ingeschakeld.";
@@ -339,6 +342,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_topbar_info" = "Info";
 "lng_profile_about_section" = "Over";
 "lng_profile_settings_section" = "Instellingen";
+"lng_profile_actions_section" = "Acties";
 "lng_profile_bot_settings" = "Instellingen";
 "lng_profile_bot_help" = "Help";
 "lng_profile_participants_section" = "Deelnemers";
@@ -348,6 +352,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_edit_contact" = "Wijzig";
 "lng_profile_enable_notifications" = "Meldingen";
 "lng_profile_clear_history" = "Geschiedenis wissen";
+"lng_profile_delete_conversation" = "Gesprek verwijderen";
+"lng_profile_clear_and_exit" = "Verwijder en verlaat";
+"lng_profile_search_messages" = "Zoek berichten";
 "lng_profile_send_message" = "Bericht sturen";
 "lng_profile_share_contact" = "Contact delen";
 "lng_profile_invite_to_group" = "Groepslid maken";
@@ -379,9 +386,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_title" = "Nieuwe groep";
 
 "lng_failed_add_participant" = "Gebruiker toevoegen mislukt. Probeer het later nog eens.";
+"lng_failed_add_not_mutual" = "Sorry,  als een persoon verlaat, \nKan alleen een wederzijds\ncontact ze weer toevoegen\n(opgeslagen telefoonnummers).";
 
 "lng_sure_delete_contact" = "{contact} echt verwijderen uit contacten?";
 "lng_sure_delete_history" = "Geschiedenis met {contact} echt wissen? \n\nDeze actie kan niet ongedaan worden gemaakt.";
+"lng_sure_delete_group_history" = "Echt de geschiedenis van «{group}» wissen?\n\nHerstellen is niet mogelijk. ";
 
 "lng_sure_delete_and_exit" = "Wil je de groep «{group}» verlaten en de geschiedenis wissen?\n\nDeze actie kan niet ongedaan worden gemaakt.";
 
@@ -620,7 +629,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Media afspelen binnen de app verbeterd\n— Probleemoplossing en kleine verbeteringen";
+"lng_new_version_text" = "— Zoek berichten binnen gesprekken\n— Berichtengeschiedenis van groepen wissen\n— Contacten zonder berichten zijn verborgen in de gesprekslijst";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
