@@ -156,8 +156,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_dlg_new_group_name" = "Nome do grupo";
 "lng_dlg_create_group" = "Criar";
 "lng_no_contacts" = "Você não possui contatos";
+"lng_no_chats" = "Seus chats estarão aqui";
 "lng_contacts_loading" = "Carregando..";
 "lng_contacts_not_found" = "Nenhum contato encontrado";
+"lng_dlg_search_chat" = "Buscar nesse chat";
+"lng_dlg_search_for_messages" = "Buscar por mensagens";
 
 "lng_settings_save" = "Salvar";
 "lng_settings_upload" = "Definir Foto de Perfil";
@@ -339,6 +342,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_topbar_info" = "Info";
 "lng_profile_about_section" = "Sobre";
 "lng_profile_settings_section" = "Configurações";
+"lng_profile_actions_section" = "Ações";
 "lng_profile_bot_settings" = "Configurações";
 "lng_profile_bot_help" = "Ajuda";
 "lng_profile_participants_section" = "Membros";
@@ -348,6 +352,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_edit_contact" = "Editar";
 "lng_profile_enable_notifications" = "Notificações";
 "lng_profile_clear_history" = "Limpar histórico";
+"lng_profile_delete_conversation" = "Apagar conversa";
+"lng_profile_clear_and_exit" = "Apagar e sair";
+"lng_profile_search_messages" = "Buscar mensagens";
 "lng_profile_send_message" = "Enviar Mensagem";
 "lng_profile_share_contact" = "Compartilhar";
 "lng_profile_invite_to_group" = "Adicionar ao Grupo";
@@ -379,9 +386,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_title" = "Novo Grupo";
 
 "lng_failed_add_participant" = "Não foi possível adicionar o usuário. Tente novamente mais tarde.";
+"lng_failed_add_not_mutual" = "Desculpe, se uma pessoa deixou o\ngrupo, apenas um contato mútuo pode\ncolocá-la de volta (eles precisam do seu \ncontato no telefone e você o deles)";
 
 "lng_sure_delete_contact" = "Você tem certeza que deseja remover {contact} da sua lista de contatos?";
 "lng_sure_delete_history" = "Você tem certeza que deseja apagar todo o seu histórico de mensagens com {contact}?\n\nEssa ação não pode ser desfeita.";
+"lng_sure_delete_group_history" = "Você tem certeza que deseja apagar todo o histórico de «{group}»?\n\nEssa ação não pode ser desfeita.";
 
 "lng_sure_delete_and_exit" = "Você tem certeza que deseja apagar todo o seu histórico de mensagens e deixar «{group}»?\n\nEssa ação não pode ser desfeita.";
 
@@ -620,7 +629,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras menores melhorias";
-"lng_new_version_text" = "— Reprodução de mídia no app melhorada\n— Resolução de bugs e menores melhorias";
+"lng_new_version_text" = "— Buscar mensagens em uma conversa\n— Limpar histórico de mensagens em grupos\n— Contatos sem mensagens estão ocultos da lista de conversas";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

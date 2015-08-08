@@ -774,6 +774,8 @@ void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 		} else {
 			emit tabbed();
 		}
+	} else if (e->key() == Qt::Key_Search || e == QKeySequence::Find) {
+		e->ignore();
 	} else {
 		QTextCursor tc(textCursor());
 		if (enter && ctrl) {

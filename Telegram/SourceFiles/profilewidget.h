@@ -68,10 +68,13 @@ public slots:
 	void onShareContact();
 	void onInviteToGroup();
 	void onSendMessage();
+	void onSearchInPeer();
 	void onEnableNotifications();
 
 	void onClearHistory();
 	void onClearHistorySure();
+	void onDeleteConversation();
+	void onDeleteConversationSure();
 	void onAddParticipant();
 
 	void onUpdatePhoto();
@@ -142,7 +145,9 @@ private:
 
 	// settings
 	FlatCheckbox _enableNotifications;
-	LinkButton _clearHistory;
+
+	// actions
+	LinkButton _searchInPeer, _clearHistory, _deleteConversation;
 
 	// shared media
 	bool _allMediaTypes;

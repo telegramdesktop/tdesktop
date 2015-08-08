@@ -156,8 +156,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_dlg_new_group_name" = "Name der Gruppe";
 "lng_dlg_create_group" = "Erstellen";
 "lng_no_contacts" = "Du hast keine Kontakte";
+"lng_no_chats" = "Noch keine Chats";
 "lng_contacts_loading" = "Lade..";
 "lng_contacts_not_found" = "Keine Kontakte gefunden";
+"lng_dlg_search_chat" = "In diesem Chat suchen";
+"lng_dlg_search_for_messages" = "Nach Nachrichten suchen";
 
 "lng_settings_save" = "Speichern";
 "lng_settings_upload" = "Profilbild festlegen";
@@ -289,7 +292,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_cloud_password_bad" = "Kennwort und Hinweis müssen sich unterscheiden.";
 "lng_cloud_password_email" = "E-Mail für die Wiederherstellung";
 "lng_cloud_password_bad_email" = "Ungültige E-Mai, bitte erneut versuchen.";
-"lng_cloud_password_about" = "Du kannst ein eigenes Kennwort festlegen, um dich an einem neuen Gerät anzumelden, zusätzlich zum SMS-Code.";
+"lng_cloud_password_about" = "Dieses Kennwort brauchst du, wenn du dich mit einem neuen Gerät anmeldest.";
 "lng_cloud_password_about_recover" = "Hinweis! Möchtest du wirklich keine E-Mail\nAdresse hinterlegen? \n\nWenn dir dein Kennwort nicht mehr einfällt, \nverlierst du Zugriff auf dein Telegram Konto.";
 "lng_cloud_password_almost" = "Ein Bestätigungslink wurde an\ndeine E-Mail Adresse gesendet.\n\nZweistufige Bestätigung wird aktiviert,\nsobald du den Link öffnest.";
 "lng_cloud_password_was_set" = "Zweistufige Bestätigung aktiviert.";
@@ -339,6 +342,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_topbar_info" = "Info";
 "lng_profile_about_section" = "Info";
 "lng_profile_settings_section" = "Einstellungen";
+"lng_profile_actions_section" = "Aktionen";
 "lng_profile_bot_settings" = "Einstellungen";
 "lng_profile_bot_help" = "Hilfe";
 "lng_profile_participants_section" = "Teilnehmer";
@@ -348,6 +352,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_edit_contact" = "Bearbeiten";
 "lng_profile_enable_notifications" = "Benachrichtigungen";
 "lng_profile_clear_history" = "Chatverlauf löschen";
+"lng_profile_delete_conversation" = "Verlauf löschen";
+"lng_profile_clear_and_exit" = "Löschen und verlassen";
+"lng_profile_search_messages" = "In diesem Chat suchen";
 "lng_profile_send_message" = "Nachricht senden";
 "lng_profile_share_contact" = "Kontakt teilen";
 "lng_profile_invite_to_group" = "In eine Gruppe einladen";
@@ -379,9 +386,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_title" = "Neue Gruppe erstellen";
 
 "lng_failed_add_participant" = "Kann Teilnehmer nicht hinzufügen. Später erneut versuchen.";
+"lng_failed_add_not_mutual" = "Wenn man eine Gruppe verlässt, kann nur \nein gemeinsamer Kontakt die Person erneut \neinladen (beide Seiten müssen die Nummer\n des anderen gespeichert haben).";
 
 "lng_sure_delete_contact" = "Bist du sicher, dass du {contact} von deinen Kontakten löschen willst?";
 "lng_sure_delete_history" = "Sicher, dass du den kompletten Verlauf mit {contact} löschen willst?\n\nDas kann man nicht rückgängig machen.";
+"lng_sure_delete_group_history" = "Möchtest du wirklich deinen Verlauf von «{group}» löschen?\n\nDas kann man nicht rückgängig machen.";
 
 "lng_sure_delete_and_exit" = "Deinen Verlauf von «{group}» löschen und die Gruppe verlassen?\n\nDas kann man nicht rückgängig machen.";
 
@@ -462,7 +471,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_message_ph" = "Schreibe deine Nachricht..";
 "lng_record_cancel" = "Zum Abbrechen rausbewegen";
 "lng_empty_history" = "";
-"lng_willbe_history" = "Wähle einen Chat aus, um zu schreiben";
+"lng_willbe_history" = "Chat auswählen um zu schreiben";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Ich";
 "lng_bot_description" = "Was kann dieser Bot?";
@@ -620,7 +629,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— In-App Medienwiedergabe optimiert\n— Fehlerbehebungen und kleinere Verbesserungen";
+"lng_new_version_text" = "— Direkte Suche in Chats (Chat auswählen und STRG+F drücken)\n— Verlauf in Gruppen löschen (in der Gruppe auf den Gruppennamen tippen)\n— Kontakte, mit denen du nicht chattest, werden nicht mehr in der Übersicht gezeigt";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

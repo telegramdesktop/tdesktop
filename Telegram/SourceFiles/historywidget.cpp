@@ -2724,7 +2724,7 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 			update();
 			return;
 		}
-		if (_history->mySendActions.contains(SendActionTyping)) updateSendAction(_history, SendActionTyping, false);
+		if (_history->mySendActions.contains(SendActionTyping)) updateSendAction(_history, SendActionTyping, -1);
 	}
 
 	stopGif();
@@ -2912,7 +2912,7 @@ void HistoryWidget::updateControlsVisibility() {
 	} else {
 		_scroll.show();
 	}
-	if (!_peer->chat || !_peer->asChat()->forbidden) {
+	if ((_peer->chat && !_peer->asChat()->forbidden && !_peer->asChat()->left) || (!_peer->chat && _peer->asUser()->access != UserNoAccess)) {
 		checkMentionDropdown();
 		if (isBotStart()) {
 			if (_botStart.isHidden()) {
@@ -4002,7 +4002,7 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 	int32 t = unixtime();
 	if (_peer->chat) {
 		ChatData *chat = _peer->asChat();
-		if (chat->forbidden) {
+		if (chat->forbidden || chat->left) {
 			text = lang(lng_chat_status_unaccessible);
 		} else if (chat->participants.isEmpty()) {
 			text = _titlePeerText.isEmpty() ? lng_chat_status_members(lt_count, chat->count < 0 ? 0 : chat->count) : _titlePeerText;
@@ -4391,7 +4391,7 @@ void HistoryWidget::onAudioProgress(MsgId newId) {
 	HistoryItem *item = App::histItemById(newId);
 	if (item) {
 		AudioData *audio = (item->getMedia() && item->getMedia()->type() == MediaTypeAudio) ? static_cast<HistoryAudio*>(item->getMedia())->audio() : 0;
-		updateSendAction(item->history(), SendActionUploadAudio, audio->uploadOffset);
+		updateSendAction(item->history(), SendActionUploadAudio, audio ? audio->uploadOffset : 0);
 		msgUpdated(item->history()->peer->id, item);
 	}
 }
@@ -4540,7 +4540,7 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 	if (isBotStart()) {
 		newScrollHeight -= _botStart.height();
 	} else {
-		if (!_peer->chat || !_peer->asChat()->forbidden) {
+		if ((_peer->chat && !_peer->asChat()->forbidden && !_peer->asChat()->left) || (!_peer->chat && _peer->asUser()->access != UserNoAccess)) {
 			newScrollHeight -= (_field.height() + 2 * st::sendPadding);
 		}
 		if (replyToId() || App::main()->hasForwardingItems() || (_previewData && _previewData->pendingTill >= 0)) {
@@ -4816,6 +4816,8 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 			App::main()->peerAfter(_peer, msgid, p, m);
 		}
 		if (p) App::main()->showPeerHistory(p->id, m);
+	} else if (_history && (e->key() == Qt::Key_Search || e == QKeySequence::Find)) {
+		App::main()->searchInPeer(_history->peer);
 	} else {
 		e->ignore();
 	}

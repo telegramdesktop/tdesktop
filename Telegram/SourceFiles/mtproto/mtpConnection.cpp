@@ -1253,6 +1253,7 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
     , _pingMsgId(0)
     , restarted(false)
     , keyId(0)
+//	, sessionDataMutex(QReadWriteLock::Recursive)
     , sessionData(data)
     , myKeyLock(false)
 	, authKeyData(0)
@@ -1856,7 +1857,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 		}
 	}
 	mtpRequestData::padding(toSendRequest);
-	sendRequest(toSendRequest, needAnyResponse);
+	sendRequest(toSendRequest, needAnyResponse, lockFinished);
 }
 
 void MTProtoConnectionPrivate::retryByTimer() {
@@ -1971,8 +1972,11 @@ void MTProtoConnectionPrivate::restart(bool maybeBadKey) {
 		}
 	}
 
+	lockFinished.unlock();
 	doDisconnect();
-	if (_needSessionReset) {
+
+	lockFinished.relock();
+	if (sessionData && _needSessionReset) {
 		resetSession();
 	}
 	restarted = true;
@@ -2089,7 +2093,12 @@ void MTProtoConnectionPrivate::onWaitIPv4Failed() {
 void MTProtoConnectionPrivate::doDisconnect() {
 	destroyConn();
 
-	unlockKey();
+	{
+		QReadLocker lockFinished(&sessionDataMutex);
+		if (sessionData) {
+			unlockKey();
+		}
+	}
 
 	clearAuthKeyData();
 
@@ -2113,12 +2122,16 @@ void MTProtoConnectionPrivate::handleReceived() {
 		DEBUG_LOG(("MTP Error: auth_key for dc %1 busy, cant lock").arg(dc));
 		clearMessages();
 		keyId = 0;
+
+		lockFinished.unlock();
 		return restart();
 	}
 
 	mtpAuthKeyPtr key(sessionData->getKey());
 	if (!key || key->keyId() != keyId) {
 		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed").arg(dc));
+
+		lockFinished.unlock();
 		return restart();
 	}
 
@@ -2129,11 +2142,15 @@ void MTProtoConnectionPrivate::handleReceived() {
 		if (len < 18) { // 2 auth_key_id, 4 msg_key, 2 salt, 2 session, 2 msg_id, 1 seq_no, 1 length, (1 data + 3 padding) min
 			LOG(("TCP Error: bad message received, len %1").arg(len * sizeof(mtpPrime)));
 			TCP_LOG(("TCP Error: bad message %1").arg(mb(encrypted, len * sizeof(mtpPrime)).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		if (keyId != *(uint64*)encrypted) {
 			LOG(("TCP Error: bad auth_key_id %1 instead of %2 received").arg(keyId).arg(*(uint64*)encrypted));
 			TCP_LOG(("TCP Error: bad message %1").arg(mb(encrypted, len * sizeof(mtpPrime)).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 
@@ -2152,6 +2169,8 @@ void MTProtoConnectionPrivate::handleReceived() {
 			LOG(("TCP Error: bad msg_len received %1, data size: %2").arg(msgLen).arg(dataBuffer.size()));
 			TCP_LOG(("TCP Error: bad message %1").arg(mb(encrypted, len * sizeof(mtpPrime)).str()));
 			_conn->received().pop_front();
+
+			lockFinished.unlock();
 			return restart();
 		}
 		uchar sha1Buffer[20];
@@ -2159,6 +2178,8 @@ void MTProtoConnectionPrivate::handleReceived() {
 			LOG(("TCP Error: bad SHA1 hash after aesDecrypt in message"));
 			TCP_LOG(("TCP Error: bad message %1").arg(mb(encrypted, len * sizeof(mtpPrime)).str()));
 			_conn->received().pop_front();
+
+			lockFinished.unlock();
 			return restart();
 		}
 		TCP_LOG(("TCP Info: decrypted message %1,%2,%3 is %4 len").arg(msgId).arg(seqNo).arg(logBool(needAck)).arg(msgLen + 8 * sizeof(mtpPrime)));
@@ -2168,6 +2189,8 @@ void MTProtoConnectionPrivate::handleReceived() {
 			LOG(("MTP Error: bad server session received"));
 			TCP_LOG(("MTP Error: bad server session %1 instead of %2 in message received").arg(session).arg(serverSession));
 			_conn->received().pop_front();
+
+			lockFinished.unlock();
 			return restart();
 		}
 
@@ -2177,6 +2200,8 @@ void MTProtoConnectionPrivate::handleReceived() {
 		bool isReply = ((msgId & 0x03) == 1);
 		if (!isReply && ((msgId & 0x03) != 3)) {
 			LOG(("MTP Error: bad msg_id %1 in message received").arg(msgId));
+
+			lockFinished.unlock();
 			return restart();
 		}
 
@@ -2252,6 +2277,8 @@ void MTProtoConnectionPrivate::handleReceived() {
 
 		if (res < 0) {
 			_needSessionReset = (res < -1);
+
+			lockFinished.unlock();
 			return restart();
 		}
 		retryTimeout = 1; // reset restart() timer
@@ -3022,6 +3049,8 @@ void MTProtoConnectionPrivate::onConnected4() {
 	disconnect(_conn4, SIGNAL(connected()), this, SLOT(onConnected4()));
 	if (!_conn4->isConnected()) {
 		LOG(("Connection Error: not connected in onConnected4(), state: %1").arg(_conn4->debugState()));
+
+		lockFinished.unlock();
 		return restart();
 	}
 
@@ -3030,6 +3059,7 @@ void MTProtoConnectionPrivate::onConnected4() {
 
 	DEBUG_LOG(("MTP Info: connection through IPv4 succeed."));
 
+	lockFinished.unlock();
 	updateAuthKey();
 }
 
@@ -3043,6 +3073,8 @@ void MTProtoConnectionPrivate::onConnected6() {
 	disconnect(_conn6, SIGNAL(connected()), this, SLOT(onConnected6()));
 	if (!_conn6->isConnected()) {
 		LOG(("Connection Error: not connected in onConnected(), state: %1").arg(_conn6->debugState()));
+
+		lockFinished.unlock();
 		return restart();
 	}
 
@@ -3121,6 +3153,7 @@ void MTProtoConnectionPrivate::updateAuthKey() 	{
 	connect(_conn, SIGNAL(receivedData()), this, SLOT(pqAnswered()));
 
 	DEBUG_LOG(("AuthKey Info: sending Req_pq.."));
+	lockFinished.unlock();
 	sendRequestNotSecure(req_pq);
 }
 
@@ -3424,6 +3457,7 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 
 	MTPSet_client_DH_params::ResponseType res_client_DH_params;
 	if (!readResponseNotSecure(res_client_DH_params)) {
+		lockFinished.unlock();
 		return restart();
 	}
 
@@ -3433,11 +3467,15 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 		if (resDH.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_ok)!"));
 			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(mb(&resDH.vnonce, 16).str()).arg(mb(&authKeyData->nonce, 16).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		if (resDH.vserver_nonce != authKeyData->server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in dh_gen_ok)!"));
 			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(mb(&resDH.vserver_nonce, 16).str()).arg(mb(&authKeyData->server_nonce, 16).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		authKeyData->new_nonce_buf[32] = 1;
@@ -3445,6 +3483,8 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 		if (resDH.vnew_nonce_hash1 != *(MTPint128*)(hashSha1(authKeyData->new_nonce_buf, 41, sha1Buffer) + 1)) {
 			LOG(("AuthKey Error: received new_nonce_hash1 did not match!"));
 			DEBUG_LOG(("AuthKey Error: received new_nonce_hash1: %1, new_nonce_buf: %2").arg(mb(&resDH.vnew_nonce_hash1, 16).str()).arg(mb(authKeyData->new_nonce_buf, 41).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 
@@ -3467,11 +3507,15 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 		if (resDH.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_retry)!"));
 			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(mb(&resDH.vnonce, 16).str()).arg(mb(&authKeyData->nonce, 16).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		if (resDH.vserver_nonce != authKeyData->server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in dh_gen_retry)!"));
 			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(mb(&resDH.vserver_nonce, 16).str()).arg(mb(&authKeyData->server_nonce, 16).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		authKeyData->new_nonce_buf[32] = 2;
@@ -3479,6 +3523,8 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 		if (resDH.vnew_nonce_hash2 != *(MTPint128*)(hashSha1(authKeyData->new_nonce_buf, 41, sha1Buffer) + 1)) {
 			LOG(("AuthKey Error: received new_nonce_hash2 did not match!"));
 			DEBUG_LOG(("AuthKey Error: received new_nonce_hash2: %1, new_nonce_buf: %2").arg(mb(&resDH.vnew_nonce_hash2, 16).str()).arg(mb(authKeyData->new_nonce_buf, 41).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		authKeyData->retry_id = authKeyData->auth_key_aux_hash;
@@ -3489,11 +3535,15 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 		if (resDH.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_fail)!"));
 			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(mb(&resDH.vnonce, 16).str()).arg(mb(&authKeyData->nonce, 16).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		if (resDH.vserver_nonce != authKeyData->server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in dh_gen_fail)!"));
 			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(mb(&resDH.vserver_nonce, 16).str()).arg(mb(&authKeyData->server_nonce, 16).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		authKeyData->new_nonce_buf[32] = 3;
@@ -3501,13 +3551,20 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
         if (resDH.vnew_nonce_hash3 != *(MTPint128*)(hashSha1(authKeyData->new_nonce_buf, 41, sha1Buffer) + 1)) {
 			LOG(("AuthKey Error: received new_nonce_hash3 did not match!"));
 			DEBUG_LOG(("AuthKey Error: received new_nonce_hash3: %1, new_nonce_buf: %2").arg(mb(&resDH.vnew_nonce_hash3, 16).str()).arg(mb(authKeyData->new_nonce_buf, 41).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		LOG(("AuthKey Error: dh_gen_fail received!"));
-	} return restart();
+	}
+
+		lockFinished.unlock();
+		return restart();
 
 	}
 	LOG(("AuthKey Error: unknown set_client_DH_params_answer received, typeId = %1").arg(res_client_DH_params.type()));
+
+	lockFinished.unlock();
 	return restart();
 }
 
@@ -3646,7 +3703,7 @@ bool MTProtoConnectionPrivate::readResponseNotSecure(TResponse &response) {
 	return true;
 }
 
-bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse) {
+bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse, QReadLocker &lockFinished) {
 	uint32 fullSize = request->size();
 	if (fullSize < 9) return false;
 
@@ -3656,6 +3713,8 @@ bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResp
 	ReadLockerAttempt lock(sessionData->keyMutex());
 	if (!lock) {
 		DEBUG_LOG(("MTP Info: could not lock key for read in sendBuffer(), dc %1, restarting..").arg(dc));
+
+		lockFinished.unlock();
 		restart();
 		return false;
 	}
@@ -3663,6 +3722,8 @@ bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResp
 	mtpAuthKeyPtr key(sessionData->getKey());
 	if (!key || key->keyId() != keyId) {
 		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed").arg(dc));
+
+		lockFinished.unlock();
 		restart();
 		return false;
 	}
@@ -3729,9 +3790,6 @@ void MTProtoConnectionPrivate::lockKey() {
 }
 
 void MTProtoConnectionPrivate::unlockKey() {
-	QReadLocker lockFinished(&sessionDataMutex);
-	if (!sessionData) return;
-
 	if (myKeyLock) {
 		myKeyLock = false;
 		sessionData->keyMutex()->unlock();
