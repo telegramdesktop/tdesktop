@@ -156,8 +156,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_dlg_new_group_name" = "Nombre del grupo";
 "lng_dlg_create_group" = "Crear";
 "lng_no_contacts" = "No tienes contactos";
+"lng_no_chats" = "Tus chats estarán aquí";
 "lng_contacts_loading" = "Cargando...";
 "lng_contacts_not_found" = "No se encontraron contactos";
+"lng_dlg_search_chat" = "Buscar en este chat";
+"lng_dlg_search_for_messages" = "Buscar mensajes";
 
 "lng_settings_save" = "Guardar";
 "lng_settings_upload" = "Poner foto de perfil";
@@ -289,7 +292,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_cloud_password_bad" = "La contraseña y la pista no pueden ser iguales.";
 "lng_cloud_password_email" = "Pon un e-mail de recuperación";
 "lng_cloud_password_bad_email" = "E-mail incorrecto. Por favor, prueba otro.";
-"lng_cloud_password_about" = "Esta contraseña será requerida cuando inicies sesión en un nuevo dispositivo, además del código de activación.";
+"lng_cloud_password_about" = "Necesitarás la contraseña al iniciar sesión en un nuevo dispositivo, además del código de activación.";
 "lng_cloud_password_about_recover" = "¡Advertencia! ¿No quieres añadir un e-mail \nde recuperación para la contraseña?\n\nSi olvidas tu contraseña, perderás\nel acceso a tu cuenta de Telegram.";
 "lng_cloud_password_almost" = "Un enlace de confirmación fue enviado\nal e-mail que estableciste.\n\nLa verificación en dos pasos se activará\nen cuanto sigas ese enlace.";
 "lng_cloud_password_was_set" = "Verificación en dos pasos activada.";
@@ -339,6 +342,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_topbar_info" = "Información";
 "lng_profile_about_section" = "Acerca de";
 "lng_profile_settings_section" = "Ajustes";
+"lng_profile_actions_section" = "Acciones";
 "lng_profile_bot_settings" = "Ajustes";
 "lng_profile_bot_help" = "Ayuda";
 "lng_profile_participants_section" = "Miembros";
@@ -348,6 +352,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_edit_contact" = "Editar";
 "lng_profile_enable_notifications" = "Notificaciones";
 "lng_profile_clear_history" = "Borrar historial";
+"lng_profile_delete_conversation" = "Eliminar chat";
+"lng_profile_clear_and_exit" = "Eliminar y salir";
+"lng_profile_search_messages" = "Buscar mensajes";
 "lng_profile_send_message" = "Enviar mensaje";
 "lng_profile_share_contact" = "Compartir contacto";
 "lng_profile_invite_to_group" = "Añadir al grupo";
@@ -359,7 +366,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_sure_kick" = "¿Quieres expulsar a {user} del grupo?";
 "lng_profile_loading" = "Cargando...";
 "lng_profile_shared_media" = "Todos los archivos";
-"lng_profile_no_media" = "No hay multimedia en esta conversación.";
+"lng_profile_no_media" = "No hay multimedia en este chat.";
 "lng_profile_photos" = "{count:_not_used_|# foto|# fotos} »";
 "lng_profile_photos_header" = "Todas las fotos";
 "lng_profile_videos" = "{count:_not_used_|# vídeo|# vídeos} »";
@@ -379,9 +386,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_title" = "Nuevo grupo";
 
 "lng_failed_add_participant" = "No se pudo añadir el usuario. Por favor, inténtalo más tarde.";
+"lng_failed_add_not_mutual" = "Si una persona dejó el grupo, sólo\nun contacto mutuo puede volver \na invitarlo (necesitan tener tu \nnúmero y tú el de ellos).";
 
 "lng_sure_delete_contact" = "¿Quieres eliminar a {contact} de tu lista de contactos?";
 "lng_sure_delete_history" = "¿Quieres eliminar todo el historial de mensajes con {contact}?\n\nEsta acción no se puede deshacer.";
+"lng_sure_delete_group_history" = "¿Quieres borrar todo el historial en «{group}»?\n\nEsta acción no se puede deshacer.";
 
 "lng_sure_delete_and_exit" = "¿Quieres eliminar todo el historial de mensajes y dejar el grupo «{group}»?\n\nEsta acción no se puede deshacer.";
 
@@ -462,7 +471,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_message_ph" = "Escribir un mensaje...";
 "lng_record_cancel" = "Suelta fuera de aquí para cancelar";
 "lng_empty_history" = "";
-"lng_willbe_history" = "Por favor, elige un chat para comenzar a conversar";
+"lng_willbe_history" = "Por favor, elige un chat para comenzar";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Tú";
 "lng_bot_description" = "¿Qué puede hacer este bot?";
@@ -620,7 +629,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop fue actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Reproducción de la multimedia dentro de la aplicación mejorada\n— Corrección de errores y otras mejoras menores";
+"lng_new_version_text" = "— Busca mensajes en un chat\n— Borra el historial de mensajes en grupos\n— Los contactos sin mensajes se ocultarán de la lista de chats";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 
