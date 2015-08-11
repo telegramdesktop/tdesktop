@@ -125,6 +125,8 @@ public slots:
 	void onSenderName();
 	void onMessagePreview();
 
+	void onWindowsNotifications();
+
 	void onReplaceEmojis();
 	void onViewEmojis();
 
@@ -192,7 +194,7 @@ private:
 	LinkButton _chooseUsername;
 
 	// notifications
-	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _soundNotify;
+	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _windowsNotifications, _soundNotify;
 
 	// general
 	LinkButton _changeLanguage;

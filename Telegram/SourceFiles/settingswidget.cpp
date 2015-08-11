@@ -122,6 +122,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_desktopNotify(this, lang(lng_settings_desktop_notify), cDesktopNotify()),
 	_senderName(this, lang(lng_settings_show_name), cNotifyView() <= dbinvShowName),
 	_messagePreview(this, lang(lng_settings_show_preview), cNotifyView() <= dbinvShowPreview),
+	_windowsNotifications(this, lang(lng_settings_use_windows), cWindowsNotifications()),
 	_soundNotify(this, lang(lng_settings_sound_notify), cSoundNotify()),
 
 	// general
@@ -217,6 +218,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	connect(&_desktopNotify, SIGNAL(changed()), this, SLOT(onDesktopNotify()));
 	connect(&_senderName, SIGNAL(changed()), this, SLOT(onSenderName()));
 	connect(&_messagePreview, SIGNAL(changed()), this, SLOT(onMessagePreview()));
+	connect(&_windowsNotifications, SIGNAL(changed()), this, SLOT(onWindowsNotifications()));
 	connect(&_soundNotify, SIGNAL(changed()), this, SLOT(onSoundNotify()));
 
 	// general
@@ -411,6 +413,9 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		top += _desktopNotify.height() + st::setLittleSkip;
 		top += _senderName.height() + st::setLittleSkip;
 		top += _messagePreview.height() + st::setSectionSkip;
+		if (App::wnd()->psHasNativeNotifications() && cPlatform() == dbipWindows) {
+			top += _windowsNotifications.height() + st::setSectionSkip;
+		}
 		top += _soundNotify.height();
 	}
 
@@ -637,6 +642,9 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		_desktopNotify.move(_left, top); top += _desktopNotify.height() + st::setLittleSkip;
 		_senderName.move(_left, top); top += _senderName.height() + st::setLittleSkip;
 		_messagePreview.move(_left, top); top += _messagePreview.height() + st::setSectionSkip;
+		if (App::wnd()->psHasNativeNotifications() && cPlatform() == dbipWindows) {
+			_windowsNotifications.move(_left, top); top += _windowsNotifications.height() + st::setSectionSkip;
+		}
 		_soundNotify.move(_left, top); top += _soundNotify.height();
 	}
 
@@ -936,11 +944,17 @@ void SettingsInner::showAll() {
 		_desktopNotify.show();
 		_senderName.show();
 		_messagePreview.show();
+		if (App::wnd()->psHasNativeNotifications() && cPlatform() == dbipWindows) {
+			_windowsNotifications.show();
+		} else {
+			_windowsNotifications.hide();
+		}
 		_soundNotify.show();
 	} else {
 		_desktopNotify.hide();
 		_senderName.hide();
 		_messagePreview.hide();
+		_windowsNotifications.hide();
 		_soundNotify.hide();
 	}
 
@@ -1346,6 +1360,13 @@ void SettingsInner::setScale(DBIScale newScale) {
 
 void SettingsInner::onSoundNotify() {
 	cSetSoundNotify(_soundNotify.checked());
+	Local::writeUserSettings();
+}
+
+void SettingsInner::onWindowsNotifications() {
+	cSetWindowsNotifications(!cWindowsNotifications());
+	App::wnd()->notifyClearFast();
+	cSetCustomNotifies(!cWindowsNotifications());
 	Local::writeUserSettings();
 }
 

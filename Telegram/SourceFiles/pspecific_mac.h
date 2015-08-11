@@ -83,6 +83,10 @@ public:
 
 	void psUpdateCounter();
 
+	bool psHasNativeNotifications() {
+		return !(QSysInfo::macVersion() < QSysInfo::MV_10_8);
+	}
+
 	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
 
 	~PsMainWindow();
