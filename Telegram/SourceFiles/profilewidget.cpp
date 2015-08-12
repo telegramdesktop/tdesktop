@@ -676,7 +676,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	top += st::profileHeaderSkip;
 
 	top += _searchInPeer.height() + st::setLittleSkip + _clearHistory.height() + st::setLittleSkip + _deleteConversation.height();
-	if (_peerUser && _peerUser->id != MTP::authedId()) top += st::setSectionSkip + _blockUser.height();
+	if (_peerUser && App::userFromPeer(_peerUser->id) != MTP::authedId()) top += st::setSectionSkip + _blockUser.height();
 
 	// participants
 	if (_peerChat && (_peerChat->count > 0 || !_participants.isEmpty())) {
@@ -947,7 +947,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	_searchInPeer.move(_left, top);	top += _searchInPeer.height() + st::setLittleSkip;
 	_clearHistory.move(_left, top); top += _clearHistory.height() + st::setLittleSkip;
 	_deleteConversation.move(_left, top); top += _deleteConversation.height();
-	if (_peerUser && _peerUser->id != MTP::authedId()) {
+	if (_peerUser && App::userFromPeer(_peerUser->id) != MTP::authedId()) {
 		top += st::setSectionSkip;
 		_blockUser.move(_left, top); top += _blockUser.height();
 	}
@@ -1105,7 +1105,7 @@ void ProfileInner::showAll() {
 			_inviteToGroup.hide();
 		}
 		_clearHistory.show();
-		if (_peerUser->id != MTP::authedId()) {
+		if (App::userFromPeer(_peerUser->id) != MTP::authedId()) {
 			_blockUser.show();
 		} else {
 			_blockUser.hide();
@@ -1154,7 +1154,7 @@ void ProfileInner::showAll() {
 	reorderParticipants();
 	int32 h;
 	if (_peerUser) {
-		if (_peerUser->id == MTP::authedId()) {
+		if (App::userFromPeer(_peerUser->id) == MTP::authedId()) {
 			h = _deleteConversation.y() + _deleteConversation.height() + st::profileHeaderSkip;
 		} else {
 			h = _blockUser.y() + _blockUser.height() + st::profileHeaderSkip;
