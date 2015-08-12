@@ -404,7 +404,7 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 
 void VideoOpenLink::onClick(Qt::MouseButton button) const {
 	VideoData *data = video();
-	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
+	if (!data->date || button != Qt::LeftButton) return;
 
 	QString already = data->already(true);
 	if (!already.isEmpty()) {
@@ -424,7 +424,7 @@ void VideoOpenLink::onClick(Qt::MouseButton button) const {
 }
 
 void VideoSaveLink::doSave(VideoData *data, bool forceSavingAs) {
-	if (!data->user && !data->date) return;
+	if (!data->date) return;
 
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
@@ -456,13 +456,13 @@ void VideoSaveLink::onClick(Qt::MouseButton button) const {
 
 void VideoCancelLink::onClick(Qt::MouseButton button) const {
 	VideoData *data = video();
-	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
+	if (!data->date || button != Qt::LeftButton) return;
 
 	data->cancel();
 }
 
-VideoData::VideoData(const VideoId &id, const uint64 &access, int32 user, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size) :
-id(id), access(access), user(user), date(date), duration(duration), w(w), h(h), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), fileType(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+VideoData::VideoData(const VideoId &id, const uint64 &access, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size) :
+id(id), access(access), date(date), duration(duration), w(w), h(h), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), fileType(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
 	location = Local::readFileLocation(mediaKey(VideoFileLocation, dc, id));
 }
 
@@ -482,7 +482,7 @@ QString VideoData::already(bool check) {
 
 void AudioOpenLink::onClick(Qt::MouseButton button) const {
 	AudioData *data = audio();
-	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
+	if (!data->date || button != Qt::LeftButton) return;
 
 	QString already = data->already(true);
 	bool play = App::hoveredLinkItem() && audioPlayer();
@@ -516,7 +516,7 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 }
 
 void AudioSaveLink::doSave(AudioData *data, bool forceSavingAs) {
-	if (!data->user && !data->date) return;
+	if (!data->date) return;
 
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
@@ -549,7 +549,7 @@ void AudioSaveLink::onClick(Qt::MouseButton button) const {
 
 void AudioCancelLink::onClick(Qt::MouseButton button) const {
 	AudioData *data = audio();
-	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
+	if (!data->date || button != Qt::LeftButton) return;
 
 	data->cancel();
 }
@@ -569,8 +569,8 @@ bool StickerData::setInstalled() const {
 	return false;
 }
 
-AudioData::AudioData(const AudioId &id, const uint64 &access, int32 user, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) :
-id(id), access(access), user(user), date(date), mime(mime), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+AudioData::AudioData(const AudioId &id, const uint64 &access, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) :
+id(id), access(access), date(date), mime(mime), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
 	location = Local::readFileLocation(mediaKey(AudioFileLocation, dc, id));
 }
 

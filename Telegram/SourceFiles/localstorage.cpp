@@ -19,6 +19,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 #include "mainwidget.h"
+#include "window.h"
 #include "lang.h"
 
 namespace {
@@ -737,6 +738,15 @@ namespace {
 			cSetDesktopNotify(v == 1);
 		} break;
 
+		case dbiWindowsNotifications: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetWindowsNotifications(v == 1);
+			cSetCustomNotifies((App::wnd() ? App::wnd()->psHasNativeNotifications() : true) && !cWindowsNotifications());
+		} break;
+
 		case dbiWorkMode: {
 			qint32 v;
 			stream >> v;
@@ -1269,7 +1279,7 @@ namespace {
 			_writeMap(WriteMapFast);
 		}
 
-		uint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
+		uint32 size = 13 * (sizeof(quint32) + sizeof(qint32));
 		size += sizeof(quint32) + _stringSize(cAskDownloadPath() ? QString() : cDownloadPath());
 		size += sizeof(quint32) + sizeof(qint32) + (cRecentEmojisPreload().isEmpty() ? cGetRecentEmojis().size() : cRecentEmojisPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 		size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
@@ -1285,6 +1295,7 @@ namespace {
 		data.stream << quint32(dbiSoundNotify) << qint32(cSoundNotify());
 		data.stream << quint32(dbiDesktopNotify) << qint32(cDesktopNotify());
 		data.stream << quint32(dbiNotifyView) << qint32(cNotifyView());
+		data.stream << quint32(dbiWindowsNotifications) << qint32(cWindowsNotifications());
 		data.stream << quint32(dbiAskDownloadPath) << qint32(cAskDownloadPath());
 		data.stream << quint32(dbiDownloadPath) << (cAskDownloadPath() ? QString() : cDownloadPath());
 		data.stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());
@@ -2810,12 +2821,9 @@ namespace Local {
 			if (App::userFromPeer(user->id) == MTP::authedId()) {
 				user->input = MTP_inputPeerSelf();
 				user->inputUser = MTP_inputUserSelf();
-			} else if (user->contact > 0 || !user->access) {
-				user->input = MTP_inputPeerContact(MTP_int(App::userFromPeer(user->id)));
-				user->inputUser = MTP_inputUserContact(MTP_int(App::userFromPeer(user->id)));
 			} else {
-				user->input = MTP_inputPeerForeign(MTP_int(App::userFromPeer(user->id)), MTP_long(user->access));
-				user->inputUser = MTP_inputUserForeign(MTP_int(App::userFromPeer(user->id)), MTP_long(user->access));
+				user->input = MTP_inputPeerUser(MTP_int(App::userFromPeer(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
+				user->inputUser = MTP_inputUser(MTP_int(App::userFromPeer(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
 			}
 
 			user->photo = photoLoc.isNull() ? ImagePtr(userDefPhoto(user->colorIndex)) : ImagePtr(photoLoc);

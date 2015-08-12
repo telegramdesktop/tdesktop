@@ -3040,8 +3040,7 @@ void MainWidget::gotNotifySetting(MTPInputNotifyPeer peer, const MTPPeerNotifySe
 		switch (peer.c_inputNotifyPeer().vpeer.type()) {
 		case mtpc_inputPeerEmpty: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(MTP_int(0))), settings); break;
 		case mtpc_inputPeerSelf: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(MTP_int(MTP::authedId()))), settings); break;
-		case mtpc_inputPeerContact: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(peer.c_inputNotifyPeer().vpeer.c_inputPeerContact().vuser_id)), settings); break;
-		case mtpc_inputPeerForeign: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(peer.c_inputNotifyPeer().vpeer.c_inputPeerForeign().vuser_id)), settings); break;
+		case mtpc_inputPeerUser: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(peer.c_inputNotifyPeer().vpeer.c_inputPeerUser().vuser_id)), settings); break;
 		case mtpc_inputPeerChat: applyNotifySetting(MTP_notifyPeer(MTP_peerChat(peer.c_inputNotifyPeer().vpeer.c_inputPeerChat().vchat_id)), settings); break;
 		}
 	break;
@@ -3650,6 +3649,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateUserBlocked: {
 		const MTPDupdateUserBlocked &d(update.c_updateUserBlocked());
+		if (UserData *user = App::userLoaded(d.vuser_id.v)) {
+			user->blocked = d.vblocked.v ? UserIsBlocked : UserIsNotBlocked;
+			App::markPeerUpdated(user);
+		}
 	} break;
 
 	case mtpc_updateNewAuthorization: {

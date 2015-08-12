@@ -221,7 +221,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 			}
 			if (!filesize) filesize = jpeg.size();
 		
-			photo = MTP_photo(MTP_long(id), MTP_long(0), MTP_int(user), MTP_int(unixtime()), MTP_geoPointEmpty(), MTP_vector<MTPPhotoSize>(photoSizes));
+			photo = MTP_photo(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes));
 
 			thumbId = id;
 		} else if ((type == ToPrepareVideo || type == ToPrepareDocument) && !img.isNull() && !isSong) {
@@ -254,7 +254,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 		if (type == ToPrepareDocument) {
 			document = MTP_document(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_string(mime), MTP_int(filesize), thumb, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
 		} else if (type == ToPrepareAudio) {
-			audio = MTP_audio(MTP_long(id), MTP_long(0), MTP_int(user), MTP_int(unixtime()), MTP_int(duration), MTP_string(mime), MTP_int(filesize), MTP_int(MTP::maindc()));
+			audio = MTP_audio(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_int(duration), MTP_string(mime), MTP_int(filesize), MTP_int(MTP::maindc()));
 		}
 
 		{
