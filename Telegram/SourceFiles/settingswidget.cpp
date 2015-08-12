@@ -187,7 +187,10 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_connectionTypeText(lang(lng_connection_type) + ' '),
 	_connectionTypeWidth(st::linkFont->m.width(_connectionTypeText)),
 	_showSessions(this, lang(lng_settings_show_sessions)),
-	_logOut(this, lang(lng_settings_logout), st::btnLogout)
+	_askQuestion(this, lang(lng_settings_ask_question)),
+	_telegramFAQ(this, lang(lng_settings_faq)),
+	_logOut(this, lang(lng_settings_logout), st::btnLogout),
+	_supportGetRequest(0)
 {
 	if (self()) {
 		_nameText.setText(st::setNameFont, _nameCache, _textNameOptions);
@@ -290,6 +293,8 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	connect(&_passwordTurnOff, SIGNAL(clicked()), this, SLOT(onPasswordOff()));
 	connect(&_connectionType, SIGNAL(clicked()), this, SLOT(onConnectionType()));
 	connect(&_showSessions, SIGNAL(clicked()), this, SLOT(onShowSessions()));
+	connect(&_askQuestion, SIGNAL(clicked()), this, SLOT(onAskQuestion()));
+	connect(&_telegramFAQ, SIGNAL(clicked()), this, SLOT(onTelegramFAQ()));
 	connect(&_logOut, SIGNAL(clicked()), App::wnd(), SLOT(onLogout()));
 
     if (App::main()) {
@@ -727,7 +732,12 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 	_connectionType.move(_left + _connectionTypeWidth, top); top += _connectionType.height() + st::setLittleSkip;
 	if (self()) {
 		_showSessions.move(_left, top); top += _showSessions.height() + st::setSectionSkip;
+		_askQuestion.move(_left, top); top += _askQuestion.height() + st::setLittleSkip;
+		_telegramFAQ.move(_left, top); top += _telegramFAQ.height() + st::setSectionSkip;
 		_logOut.move(_left, top);
+	} else {
+		top += st::setSectionSkip - st::setLittleSkip;
+		_telegramFAQ.move(_left, top);
 	}
 }
 
@@ -818,7 +828,7 @@ bool SettingsInner::animStep(float64 ms) {
 
 void SettingsInner::updateSize(int32 newWidth) {
 	if (_logOut.isHidden()) {
-		resize(newWidth, _connectionType.geometry().bottom() + st::setBottom);
+		resize(newWidth, _telegramFAQ.geometry().bottom() + st::setBottom);
 	} else {
 		resize(newWidth, _logOut.geometry().bottom() + st::setBottom);
 	}
@@ -1063,6 +1073,7 @@ void SettingsInner::showAll() {
 			_passwordTurnOff.show();
 		}
 		_showSessions.show();
+		_askQuestion.show();
 		_logOut.show();
 	} else {
 		_passcodeEdit.hide();
@@ -1071,14 +1082,27 @@ void SettingsInner::showAll() {
 		_passwordEdit.hide();
 		_passwordTurnOff.hide();
 		_showSessions.hide();
+		_askQuestion.hide();
 		_logOut.hide();
 	}
+	_telegramFAQ.show();
 }
 
 void SettingsInner::saveError(const QString &str) {
 	_errorText = str;
 	resizeEvent(0);
 	update();
+}
+
+void SettingsInner::supportGot(const MTPhelp_Support &support) {
+	if (!App::main()) return;
+
+	if (support.type() == mtpc_help_support) {
+		const MTPDhelp_support &d(support.c_help_support());
+		UserData *u = App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
+		App::main()->showPeerHistory(u->id, ShowAtUnreadMsgId);
+		App::wnd()->hideSettings();
+	}
 }
 
 void SettingsInner::onUpdatePhotoCancel() {
@@ -1122,6 +1146,25 @@ void SettingsInner::onUpdatePhoto() {
 void SettingsInner::onShowSessions() {
 	SessionsBox *box = new SessionsBox();
 	App::wnd()->showLayer(box);
+}
+
+void SettingsInner::onAskQuestion() {
+	if (!App::self()) return;
+
+	ConfirmBox *box = new ConfirmBox(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), lang(lng_settings_faq_button));
+	connect(box, SIGNAL(confirmed()), this, SLOT(onAskQuestionSure()));
+	connect(box, SIGNAL(cancelPressed()), this, SLOT(onTelegramFAQ()));
+	App::wnd()->showLayer(box);
+}
+
+void SettingsInner::onAskQuestionSure() {
+	if (_supportGetRequest) return;
+	_supportGetRequest = MTP::send(MTPhelp_GetSupport(), rpcDone(&SettingsInner::supportGot));
+}
+
+void SettingsInner::onTelegramFAQ() {
+	App::wnd()->hideLayer();
+	QDesktopServices::openUrl(qsl("https://telegram.org/faq#general"));
 }
 
 void SettingsInner::onChangeLanguage() {

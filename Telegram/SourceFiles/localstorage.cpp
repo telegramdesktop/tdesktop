@@ -2821,12 +2821,9 @@ namespace Local {
 			if (App::userFromPeer(user->id) == MTP::authedId()) {
 				user->input = MTP_inputPeerSelf();
 				user->inputUser = MTP_inputUserSelf();
-			} else if (user->contact > 0 || !user->access) {
-				user->input = MTP_inputPeerContact(MTP_int(App::userFromPeer(user->id)));
-				user->inputUser = MTP_inputUserContact(MTP_int(App::userFromPeer(user->id)));
 			} else {
-				user->input = MTP_inputPeerForeign(MTP_int(App::userFromPeer(user->id)), MTP_long(user->access));
-				user->inputUser = MTP_inputUserForeign(MTP_int(App::userFromPeer(user->id)), MTP_long(user->access));
+				user->input = MTP_inputPeerUser(MTP_int(App::userFromPeer(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
+				user->inputUser = MTP_inputUser(MTP_int(App::userFromPeer(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
 			}
 
 			user->photo = photoLoc.isNull() ? ImagePtr(userDefPhoto(user->colorIndex)) : ImagePtr(photoLoc);

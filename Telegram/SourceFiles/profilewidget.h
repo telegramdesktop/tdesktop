@@ -75,6 +75,7 @@ public slots:
 	void onClearHistorySure();
 	void onDeleteConversation();
 	void onDeleteConversationSure();
+	void onBlockUser();
 	void onAddParticipant();
 
 	void onUpdatePhoto();
@@ -146,14 +147,17 @@ private:
 	// settings
 	FlatCheckbox _enableNotifications;
 
-	// actions
-	LinkButton _searchInPeer, _clearHistory, _deleteConversation;
-
 	// shared media
 	bool _allMediaTypes;
 	LinkButton _mediaShowAll, _mediaPhotos, _mediaVideos, _mediaDocuments, _mediaAudios;
 	LinkButton *_mediaLinks[OverviewCount];
 	QString overviewLinkText(int32 type, int32 count);
+
+	// actions
+	LinkButton _searchInPeer, _clearHistory, _deleteConversation;
+	UserBlockedStatus _wasBlocked;
+	mtpRequestId _blockRequest;
+	LinkButton _blockUser;
 
 	// participants
 	int32 _pHeight;
@@ -175,6 +179,9 @@ private:
 
 	QString _onlineText;
 	ContextMenu *_menu;
+
+	void blockDone(bool blocked, const MTPBool &result);
+	bool blockFail(const RPCError &error);
 
 };
 

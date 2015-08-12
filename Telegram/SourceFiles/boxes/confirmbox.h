@@ -35,10 +35,15 @@ public:
 	void leaveEvent(QEvent *e);
 	void updateLink();
 
+public slots:
+
+	void onCancel();
+
 signals:
 
 	void confirmed();
 	void cancelled();
+	void cancelPressed();
 
 protected:
 

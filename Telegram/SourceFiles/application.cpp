@@ -474,7 +474,7 @@ void Application::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId)
 
 	PhotoId id = MTP::nonce<PhotoId>();
 
-	MTPPhoto photo(MTP_photo(MTP_long(id), MTP_long(0), MTP_int(MTP::authedId()), MTP_int(unixtime()), MTP_geoPointEmpty(), MTP_vector<MTPPhotoSize>(photoSizes)));
+	MTPPhoto photo(MTP_photo(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes)));
 
 	QString file, filename;
 	int32 filesize = 0;
@@ -658,8 +658,8 @@ void Application::checkMapVersion() {
 		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 8047) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Search for messages in conversation\n\xe2\x80\x94 Clear messages history in groups\n\xe2\x80\x94 Contacts without messages are hidden from the conversations list");// .replace('@', qsl("@") + QChar(0x200D));
+			if (cDevVersion() && Local::oldMapVersion() < 8049) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Block users from user profile\n\xe2\x80\x94 Ask support team a question from Settings\n\xe2\x80\x94 Windows toast notifications support added");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (!cDevVersion() && Local::oldMapVersion() < 8048) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			}

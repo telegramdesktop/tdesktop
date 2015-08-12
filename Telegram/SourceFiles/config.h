@@ -17,9 +17,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 8048;
-static const wchar_t *AppVersionStr = L"0.8.48";
-static const bool DevVersion = false;
+static const int32 AppVersion = 8049;
+static const wchar_t *AppVersionStr = L"0.8.49";
+static const bool DevVersion = true;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -144,8 +144,12 @@ enum {
 	ChoosePeerByDragTimeout = 1000, // 1 second mouse not moved to choose dialog when dragging a file
 };
 
-inline bool isServiceUser(uint64 id) {
+inline bool isNotificationsUser(uint64 id) {
 	return (id == 333000) || (id == ServiceUserId);
+}
+
+inline bool isServiceUser(uint64 id) {
+	return !(id % 1000);// (id == 333000) || (id == ServiceUserId);
 }
 
 #ifdef Q_OS_WIN

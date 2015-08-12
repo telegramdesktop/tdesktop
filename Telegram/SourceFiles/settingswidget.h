@@ -164,9 +164,15 @@ public slots:
 
 	void onUpdateLocalStorage();
 
+	void onAskQuestion();
+	void onAskQuestionSure();
+	void onTelegramFAQ();
+
 private:
 
 	void saveError(const QString &str = QString());
+
+	void supportGot(const MTPhelp_Support &support);
 
 	void setScale(DBIScale newScale);
 
@@ -263,8 +269,10 @@ private:
 	LinkButton _connectionType;
 	QString _connectionTypeText;
 	int32 _connectionTypeWidth;
-	LinkButton _showSessions;
+	LinkButton _showSessions, _askQuestion, _telegramFAQ;
 	FlatButton _logOut;
+
+	mtpRequestId _supportGetRequest;
 
 	void gotPassword(const MTPaccount_Password &result);
 	void offPasswordDone(const MTPBool &result);

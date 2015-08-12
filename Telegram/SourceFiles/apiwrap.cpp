@@ -199,6 +199,7 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result) {
 	App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), d.vnotify_settings);
 
 	peer->asUser()->setBotInfo(d.vbot_info);
+	peer->asUser()->blocked = d.vblocked.v ? UserIsBlocked : UserIsNotBlocked;
 
 	_fullPeerRequests.remove(peer);
 	App::clearPeerUpdated(peer);

@@ -775,18 +775,14 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	_x = (width() - _w) / 2;
 	_y = (height() - _h) / 2;
 	_width = _w;
-	if (_photo->user == WebPageUserId && _msgid) {
-		if (HistoryItem *item = App::histItemById(_msgid)) {
-			if (dynamic_cast<HistoryForwarded*>(item)) {
-				_from = static_cast<HistoryForwarded*>(item)->fromForwarded();
-			} else {
-				_from = item->from();
-			}
+	if (_msgid && item) {
+		if (HistoryForwarded *fwd = item->toHistoryForwarded()) {
+			_from = fwd->fromForwarded();
 		} else {
-			_from = App::user(_photo->user);
+			_from = item->from();
 		}
 	} else {
-		_from = App::user(_photo->user);
+		_from = _user;
 	}
 	updateControls();
 	_photo->full->load();
@@ -955,10 +951,10 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 	}
 	_x = (width() - _w) / 2;
 	_y = (height() - _h) / 2;
-	if (HistoryForwarded *fwd = dynamic_cast<HistoryForwarded*>(item)) {
-		_from = fwd->fromForwarded()->asUser();
+	if (HistoryForwarded *fwd = item->toHistoryForwarded()) {
+		_from = fwd->fromForwarded();
 	} else {
-		_from = item->from()->asUser();
+		_from = item->from();
 	}
 	_full = 1;
 	updateControls();
@@ -1850,7 +1846,7 @@ void MediaView::loadBack() {
 		if (App::main()) App::main()->loadMediaBack(_history->peer, _overview);
 	} else if (_user && _user->photosCount != 0) {
 		int32 limit = (_index < MediaOverviewStartPerPage && _user->photos.size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
-		_loadRequest = MTP::send(MTPphotos_GetUserPhotos(_user->inputUser, MTP_int(_user->photos.size()), MTP_int(0), MTP_int(limit)), rpcDone(&MediaView::userPhotosLoaded, _user));
+		_loadRequest = MTP::send(MTPphotos_GetUserPhotos(_user->inputUser, MTP_int(_user->photos.size()), MTP_long(0), MTP_int(limit)), rpcDone(&MediaView::userPhotosLoaded, _user));
 	}
 }
 
