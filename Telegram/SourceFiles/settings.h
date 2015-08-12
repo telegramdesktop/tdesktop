@@ -101,6 +101,8 @@ DeclareSetting(bool, DesktopNotify);
 DeclareSetting(DBINotifyView, NotifyView);
 DeclareSetting(bool, AutoUpdate);
 
+DeclareSetting(bool, WindowsNotifications);
+
 struct TWindowPos {
 	TWindowPos() : moncrc(0), maximized(0), x(0), y(0), w(0), h(0) {
 	}

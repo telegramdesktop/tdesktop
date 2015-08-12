@@ -972,6 +972,11 @@ btnSend: flatButton(btnDefFlat) {
 	font: font(16px);
 	overFont: font(16px);
 }
+btnUnblock: flatButton(btnSend) {
+	color: #d15948;
+	overColor: #d15948;
+	downColor: #db6352;
+}
 
 btnAttachDocument: iconedButton(btnDefIconed) {
 	icon: sprite(218px, 68px, 24px, 24px);

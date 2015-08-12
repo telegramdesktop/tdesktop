@@ -289,8 +289,10 @@ namespace App {
 	}
 
 	QString onlineText(UserData *user, int32 now, bool precise) {
-		if (isServiceUser(user->id)) {
+		if (isNotificationsUser(user->id)) {
 			return lang(lng_status_service_notifications);
+		} else if (isServiceUser(user->id)) {
+			return lang(lng_status_support);
 		} else if (user->botInfo) {
 			return lang(lng_status_bot);
 		}
@@ -370,8 +372,8 @@ namespace App {
 
 				PeerId peer(peerFromUser(d.vid.v));
 				data = App::user(peer);
-				data->input = MTP_inputPeerContact(d.vid);
-				data->inputUser = MTP_inputUserContact(d.vid);
+				data->input = MTP_inputPeerUser(d.vid, MTP_long(0));
+				data->inputUser = MTP_inputUser(d.vid, MTP_long(0));
 				data->setName(lang(lng_deleted), QString(), QString(), QString());
 				data->setPhoto(MTP_userProfilePhotoEmpty());
 				data->access = UserNoAccess;
@@ -389,12 +391,12 @@ namespace App {
 				if (flags & MTPDuser_flag_self) {
 					data->input = MTP_inputPeerSelf();
 					data->inputUser = MTP_inputUserSelf();
-				} else if ((flags & (MTPDuser_flag_contact | MTPDuser_flag_mutual_contact)) || !d.has_access_hash()) {
-					data->input = MTP_inputPeerContact(d.vid);
-					data->inputUser = MTP_inputUserContact(d.vid);
+				} else if (!d.has_access_hash()) {
+					data->input = MTP_inputPeerUser(d.vid, MTP_long((data->access == UserNoAccess) ? 0 : data->access));
+					data->inputUser = MTP_inputUser(d.vid, MTP_long((data->access == UserNoAccess) ? 0 : data->access));
 				} else {
-					data->input = MTP_inputPeerForeign(d.vid, d.vaccess_hash);
-					data->inputUser = MTP_inputUserForeign(d.vid, d.vaccess_hash);
+					data->input = MTP_inputPeerUser(d.vid, d.vaccess_hash);
+					data->inputUser = MTP_inputUser(d.vid, d.vaccess_hash);
 				}
 				if (flags & MTPDuser_flag_deleted) {
 					data->setPhone(QString());
@@ -868,14 +870,8 @@ namespace App {
 			if (user->contact > 0) {
 				if (!wasContact) {
 					App::main()->addNewContact(App::userFromPeer(user->id), false);
-					if (user->input.type() != mtpc_inputPeerSelf) user->input = MTP_inputPeerContact(userId);
-					if (user->inputUser.type() != mtpc_inputUserSelf) user->inputUser = MTP_inputUserContact(userId);
 				}
 			} else {
-				if (user->access && user->access != UserNoAccess) {
-					if (user->input.type() != mtpc_inputPeerSelf) user->input = MTP_inputPeerForeign(userId, MTP_long(user->access));
-					if (user->inputUser.type() != mtpc_inputUserSelf) user->inputUser = MTP_inputUserForeign(userId, MTP_long(user->access));
-				}
 				if (user->contact < 0 && !user->phone.isEmpty() && App::userFromPeer(user->id) != MTP::authedId()) {
 					user->contact = 0;
 				}
@@ -924,7 +920,7 @@ namespace App {
 			return feedPhoto(photo.c_photo(), convert);
 		} break;
 		case mtpc_photoEmpty: {
-			return App::photoSet(photo.c_photoEmpty().vid.v, convert, 0, 0, 0, ImagePtr(), ImagePtr(), ImagePtr());
+			return App::photoSet(photo.c_photoEmpty().vid.v, convert, 0, 0, ImagePtr(), ImagePtr(), ImagePtr());
 		} break;
 		}
 		return App::photo(0);
@@ -968,7 +964,7 @@ namespace App {
 		switch (photo.type()) {
 		case mtpc_photo: {
 			const MTPDphoto &ph(photo.c_photo());
-			return App::photoSet(ph.vid.v, 0, ph.vaccess_hash.v, ph.vuser_id.v, ph.vdate.v, ImagePtr(*thumb, "JPG"), ImagePtr(*medium, "JPG"), ImagePtr(*full, "JPG"));
+			return App::photoSet(ph.vid.v, 0, ph.vaccess_hash.v, ph.vdate.v, ImagePtr(*thumb, "JPG"), ImagePtr(*medium, "JPG"), ImagePtr(*full, "JPG"));
 		} break;
 		case mtpc_photoEmpty: return App::photo(photo.c_photoEmpty().vid.v);
 		}
@@ -1023,13 +1019,13 @@ namespace App {
 			}
 		}
 		if (thumb && medium && full) {
-			return App::photoSet(photo.vid.v, convert, photo.vaccess_hash.v, photo.vuser_id.v, photo.vdate.v, App::image(*thumb), App::image(*medium), App::image(*full));
+			return App::photoSet(photo.vid.v, convert, photo.vaccess_hash.v, photo.vdate.v, App::image(*thumb), App::image(*medium), App::image(*full));
 		}
-		return App::photoSet(photo.vid.v, convert, 0, 0, 0, ImagePtr(), ImagePtr(), ImagePtr());
+		return App::photoSet(photo.vid.v, convert, 0, 0, ImagePtr(), ImagePtr(), ImagePtr());
 	}
 	
 	VideoData *feedVideo(const MTPDvideo &video, VideoData *convert) {
-		return App::videoSet(video.vid.v, convert, video.vaccess_hash.v, video.vuser_id.v, video.vdate.v, video.vduration.v, video.vw.v, video.vh.v, App::image(video.vthumb), video.vdc_id.v, video.vsize.v);
+		return App::videoSet(video.vid.v, convert, video.vaccess_hash.v, video.vdate.v, video.vduration.v, video.vw.v, video.vh.v, App::image(video.vthumb), video.vdc_id.v, video.vsize.v);
 	}
 
 	AudioData *feedAudio(const MTPaudio &audio, AudioData *convert) {
@@ -1038,14 +1034,14 @@ namespace App {
 			return feedAudio(audio.c_audio(), convert);
 		} break;
 		case mtpc_audioEmpty: {
-			return App::audioSet(audio.c_audioEmpty().vid.v, convert, 0, 0, 0, QString(), 0, 0, 0);
+			return App::audioSet(audio.c_audioEmpty().vid.v, convert, 0, 0, QString(), 0, 0, 0);
 		} break;
 		}
 		return App::audio(0);
 	}
 
 	AudioData *feedAudio(const MTPDaudio &audio, AudioData *convert) {
-		return App::audioSet(audio.vid.v, convert, audio.vaccess_hash.v, audio.vuser_id.v, audio.vdate.v, qs(audio.vmime_type), audio.vduration.v, audio.vdc_id.v, audio.vsize.v);
+		return App::audioSet(audio.vid.v, convert, audio.vaccess_hash.v, audio.vdate.v, qs(audio.vmime_type), audio.vduration.v, audio.vdc_id.v, audio.vsize.v);
 	}
 
 	DocumentData *feedDocument(const MTPdocument &document, const QPixmap &thumb) {
@@ -1172,7 +1168,7 @@ namespace App {
 		return i.value();
 	}
 
-	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 user, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full) {
+	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full) {
 		if (convert) {
 			if (convert->id != photo) {
 				PhotosData::iterator i = photosData.find(convert->id);
@@ -1182,8 +1178,7 @@ namespace App {
 				convert->id = photo;
 			}
 			convert->access = access;
-			if (!convert->user && !convert->date && (user || date)) {
-				convert->user = user;
+			if (!convert->date && date) {
 				convert->date = date;
 				convert->thumb = thumb;
 				convert->medium = medium;
@@ -1197,14 +1192,13 @@ namespace App {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new PhotoData(photo, access, user, date, thumb, medium, full);
+				result = new PhotoData(photo, access, date, thumb, medium, full);
 			}
 			photosData.insert(photo, result);
 		} else {
 			result = i.value();
-			if (result != convert && !result->user && !result->date && (user || date)) {
+			if (result != convert && !result->date && date) {
 				result->access = access;
-				result->user = user;
 				result->date = date;
 				result->thumb = thumb;
 				result->medium = medium;
@@ -1234,7 +1228,7 @@ namespace App {
 		return i.value();
 	}
 
-	VideoData *videoSet(const VideoId &video, VideoData *convert, const uint64 &access, int32 user, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size) {
+	VideoData *videoSet(const VideoId &video, VideoData *convert, const uint64 &access, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size) {
 		if (convert) {
 			if (convert->id != video) {
 				VideosData::iterator i = videosData.find(convert->id);
@@ -1245,8 +1239,7 @@ namespace App {
 				convert->status = FileReady;
 			}
 			convert->access = access;
-			if (!convert->user && !convert->date && (user || date)) {
-				convert->user = user;
+			if (!convert->date && date) {
 				convert->date = date;
 				convert->duration = duration;
 				convert->w = w;
@@ -1262,14 +1255,13 @@ namespace App {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new VideoData(video, access, user, date, duration, w, h, thumb, dc, size);
+				result = new VideoData(video, access, date, duration, w, h, thumb, dc, size);
 			}
 			videosData.insert(video, result);
 		} else {
 			result = i.value();
-			if (result != convert && !result->user && !result->date && (user || date)) {
+			if (result != convert && !result->date && date) {
 				result->access = access;
-				result->user = user;
 				result->date = date;
 				result->duration = duration;
 				result->w = w;
@@ -1290,7 +1282,7 @@ namespace App {
 		return i.value();
 	}
 
-	AudioData *audioSet(const AudioId &audio, AudioData *convert, const uint64 &access, int32 user, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) {
+	AudioData *audioSet(const AudioId &audio, AudioData *convert, const uint64 &access, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) {
 		if (convert) {
 			if (convert->id != audio) {
 				AudiosData::iterator i = audiosData.find(convert->id);
@@ -1301,8 +1293,7 @@ namespace App {
 				convert->status = FileReady;
 			}
 			convert->access = access;
-			if (!convert->user && !convert->date && (user || date)) {
-				convert->user = user;
+			if (!convert->date && date) {
 				convert->date = date;
 				convert->mime = mime;
 				convert->duration = duration;
@@ -1316,14 +1307,13 @@ namespace App {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new AudioData(audio, access, user, date, mime, duration, dc, size);
+				result = new AudioData(audio, access, date, mime, duration, dc, size);
 			}
 			audiosData.insert(audio, result);
 		} else {
 			result = i.value();
-			if (result != convert && !result->user && !result->date && (user || date)) {
+			if (result != convert && !result->date && date) {
 				result->access = access;
-				result->user = user;
 				result->date = date;
 				result->mime = mime;
 				result->duration = duration;
@@ -1547,7 +1537,7 @@ namespace App {
 			photoSizes.push_back(MTP_photoSize(MTP_string("a"), uphoto.vphoto_small, MTP_int(160), MTP_int(160), MTP_int(0)));
 			photoSizes.push_back(MTP_photoSize(MTP_string("c"), uphoto.vphoto_big, MTP_int(640), MTP_int(640), MTP_int(0)));
 
-			return MTP_photo(uphoto.vphoto_id, MTP_long(0), userId, date, MTP_geoPointEmpty(), MTP_vector<MTPPhotoSize>(photoSizes));
+			return MTP_photo(uphoto.vphoto_id, MTP_long(0), date, MTP_vector<MTPPhotoSize>(photoSizes));
 		}
 		return MTP_photoEmpty(MTP_long(0));
 	}

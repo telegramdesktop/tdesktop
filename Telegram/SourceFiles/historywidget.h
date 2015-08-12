@@ -518,6 +518,7 @@ public slots:
 	void onListScroll();
 	void onHistoryToEnd();
 	void onSend(bool ctrlShiftEnter = false, MsgId replyTo = -1);
+	void onUnblock();
 	void onBotStart();
 
 	void onPhotoSelect();
@@ -604,6 +605,9 @@ private:
 	void addMessagesToFront(const QVector<MTPMessage> &messages);
 	void addMessagesToBack(const QVector<MTPMessage> &messages);
 
+	void unblockDone(PeerData *peer, const MTPBool &result);
+	bool unblockFail(const RPCError &error);
+
 	void countHistoryShowFrom();
 
 	void updateToEndVisibility();
@@ -640,9 +644,11 @@ private:
 	MentionsDropdown _attachMention;
 
 	bool isBotStart() const;
+	bool isBlocked() const;
 	bool updateCmdStartShown();
 
-	FlatButton _send, _botStart;
+	FlatButton _send, _unblock, _botStart;
+	mtpRequestId _unblockRequest;
 	IconedButton _attachDocument, _attachPhoto, _attachEmoji, _kbShow, _kbHide, _cmdStart;
 	bool _cmdStartShown;
 	MessageField _field;

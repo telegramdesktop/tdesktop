@@ -154,6 +154,10 @@ inline StorageKey storageKey(int32 dc, const uint64 &volume, int32 local) {
 inline StorageKey storageKey(const MTPDfileLocation &location) {
 	return storageKey(location.vdc_id.v, location.vvolume_id.v, location.vlocal_id.v);
 }
+inline StorageKey storageKey(const StorageImageLocation &location) {
+	return storageKey(location.dc, location.volume, location.local);
+}
+
 enum StorageFileType {
 	StorageFileUnknown = 0xaa963b05, // mtpc_storage_fileUnknown
 	StorageFileJpeg    = 0x7efe0e,   // mtpc_storage_fileJpeg

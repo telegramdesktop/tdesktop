@@ -68,6 +68,10 @@ public:
 
 	void psUpdateCounter();
 
+	bool psHasNativeNotifications() {
+		return false;
+	}
+
 	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
 
 	~PsMainWindow();

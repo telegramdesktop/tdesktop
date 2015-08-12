@@ -985,8 +985,12 @@ void objc_execTelegram() {
 	_execUpdater(NO);
 }
 
-void objc_activateProgram() {
+void objc_activateProgram(WId winId) {
 	[NSApp activateIgnoringOtherApps:YES];
+	if (winId) {
+		NSWindow *w = [reinterpret_cast<NSView*>(winId) window];
+		[w makeKeyAndOrderFront:NSApp];
+	}
 }
 
 bool objc_moveFile(const QString &from, const QString &to) {
