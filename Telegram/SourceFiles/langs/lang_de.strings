@@ -352,7 +352,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_edit_contact" = "Bearbeiten";
 "lng_profile_enable_notifications" = "Benachrichtigungen";
 "lng_profile_clear_history" = "Chatverlauf löschen";
-"lng_profile_delete_conversation" = "Verlauf löschen";
+"lng_profile_delete_conversation" = "Chat entfernen";
 "lng_profile_clear_and_exit" = "Löschen und verlassen";
 "lng_profile_search_messages" = "In diesem Chat suchen";
 "lng_profile_send_message" = "Nachricht senden";
