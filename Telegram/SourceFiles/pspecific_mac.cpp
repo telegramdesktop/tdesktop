@@ -653,7 +653,7 @@ void psFinish() {
     objc_finish();
 }
 
-void psRegisterCustomScheme() {
+void psNewVersion() {
 	objc_registerCustomScheme();
 }
 

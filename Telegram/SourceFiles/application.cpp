@@ -110,7 +110,6 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	}
 	mainApp = this;
 
-
 	installEventFilter(new EventFilterForKeys(this));
 
     QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Regular.ttf"));
@@ -655,7 +654,6 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 
 void Application::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
-		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
 			if (cDevVersion() && Local::oldMapVersion() < 8049) {
