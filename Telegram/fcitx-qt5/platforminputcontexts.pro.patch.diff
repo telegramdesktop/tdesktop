@@ -1,0 +1,10 @@
+--- ../platforminputcontexts.pro.new	2015-05-27 20:39:56.338329292 +0800
++++ ../platforminputcontexts.pro	2015-05-26 19:59:29.425588386 +0800
+@@ -2,6 +2,7 @@
+ 
+ qtHaveModule(dbus) {
+ !mac:!win32:SUBDIRS += ibus
++!mac:!win32:SUBDIRS += fcitx
+ }
+ 
+ contains(QT_CONFIG, xcb-plugin): SUBDIRS += compose
