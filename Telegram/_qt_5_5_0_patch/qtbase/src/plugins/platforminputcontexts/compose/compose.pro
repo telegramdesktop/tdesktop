@@ -22,7 +22,7 @@ contains(QT_CONFIG, xkbcommon-qt): {
     QT_CONFIG -= use-xkbcommon-x11support
 #    include(../../../3rdparty/xkbcommon.pri)
 } else {
-#    LIBS += $$QMAKE_LIBS_XKBCOMMON
+    LIBS += $$QMAKE_LIBS_XKBCOMMON
     QMAKE_CXXFLAGS += $$QMAKE_CFLAGS_XKBCOMMON
 }
 

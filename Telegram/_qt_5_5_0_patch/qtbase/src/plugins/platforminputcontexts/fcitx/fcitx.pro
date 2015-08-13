@@ -35,4 +35,4 @@ HEADERS +=	$$PWD/fcitxqtconnection.h \
 			$$PWD/qfcitxplatforminputcontext.h \
 			$$PWD/utils.h
 
-OTHER_FILES += $$PWD/fcitx.jsn
+OTHER_FILES += $$PWD/fcitx.json
