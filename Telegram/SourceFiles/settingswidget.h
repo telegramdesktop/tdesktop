@@ -78,6 +78,8 @@ public:
 
 	void showAll();
 
+    void chooseCustomLang();
+
 	void updateChatBackground();
 	void needBackgroundUpdate(bool tile);
 

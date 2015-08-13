@@ -313,7 +313,9 @@ INCLUDEPATH += "/usr/include/libdbusmenu-glib-0.4"
 
 LIBS += -lcrypto -lssl -lz -ldl -llzma -lexif -lopenal -lavformat -lavcodec -lswresample -lavutil -lopus
 LIBS += ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a \
-	./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libibusplatforminputcontextplugin.a
+        ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libibusplatforminputcontextplugin.a \
+        ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a
+LIBS += /usr/local/lib/libxkbcommon.a
 
 RESOURCES += \
     ./SourceFiles/telegram.qrc \
