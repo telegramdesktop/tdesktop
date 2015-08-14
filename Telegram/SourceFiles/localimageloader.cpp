@@ -78,12 +78,15 @@ void LocalImageLoaderPrivate::prepareImages() {
 					type = ToPrepareDocument;
 				}
 			}
-			if (type == ToPrepareDocument) {
-				mime = mimeTypeForFile(info).name();
-			}
 			if (type != ToPrepareAuto && info.size() < MaxUploadPhotoSize) {
 				bool opaque = (mime != stickerMime);
 				img = App::readImage(file, 0, opaque, &animated);
+				if (animated) {
+					type = ToPrepareDocument;
+				}
+			}
+			if (type == ToPrepareDocument) {
+				mime = mimeTypeForFile(info).name();
 			}
 			filename = info.fileName();
 			filesize = info.size();

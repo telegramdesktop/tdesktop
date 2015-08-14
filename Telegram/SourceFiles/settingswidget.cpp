@@ -763,7 +763,9 @@ void SettingsInner::keyPressEvent(QKeyEvent *e) {
 			App::wnd()->showLayer(box);
 			from = size;
 			break;
-		} else if (qsl("debugmode").startsWith(str) || qsl("testmode").startsWith(str)) {
+        } else if (str == qstr("loadlang")) {
+            chooseCustomLang();
+        } else if (qsl("debugmode").startsWith(str) || qsl("testmode").startsWith(str) || qsl("loadlang").startsWith(str)) {
 			break;
 		}
 		++from;
@@ -1167,25 +1169,29 @@ void SettingsInner::onTelegramFAQ() {
 	QDesktopServices::openUrl(qsl("https://telegram.org/faq#general"));
 }
 
+void SettingsInner::chooseCustomLang() {
+    QString file;
+    QByteArray arr;
+    if (filedialogGetOpenFile(file, arr, qsl("Choose language .strings file"), qsl("Language files (*.strings)"))) {
+        _testlang = QFileInfo(file).absoluteFilePath();
+        LangLoaderPlain loader(_testlang, LangLoaderRequest(lng_sure_save_language, lng_cancel, lng_continue));
+        if (loader.errors().isEmpty()) {
+            LangLoaderResult result = loader.found();
+            QString text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
+                save = result.value(lng_continue, langOriginal(lng_continue)),
+                cancel = result.value(lng_cancel, langOriginal(lng_cancel));
+            ConfirmBox *box = new ConfirmBox(text, save, cancel);
+            connect(box, SIGNAL(confirmed()), this, SLOT(onSaveTestLang()));
+            App::wnd()->showLayer(box);
+        } else {
+            App::wnd()->showLayer(new ConfirmBox("Custom lang failed :(\n\nError: " + loader.errors(), true, lang(lng_close)));
+        }
+    }
+}
+
 void SettingsInner::onChangeLanguage() {
 	if ((_changeLanguage.clickModifiers() & Qt::ShiftModifier) && (_changeLanguage.clickModifiers() & Qt::AltModifier)) {
-		QString file;
-		QByteArray arr;
-		if (filedialogGetOpenFile(file, arr, qsl("Choose language .strings file"), qsl("Language files (*.strings)"))) {
-			_testlang = QFileInfo(file).absoluteFilePath();
-			LangLoaderPlain loader(_testlang, LangLoaderRequest(lng_sure_save_language, lng_cancel, lng_continue));
-			if (loader.errors().isEmpty()) {
-				LangLoaderResult result = loader.found();
-				QString text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
-					save = result.value(lng_continue, langOriginal(lng_continue)),
-					cancel = result.value(lng_cancel, langOriginal(lng_cancel));
-				ConfirmBox *box = new ConfirmBox(text, save, cancel);
-				connect(box, SIGNAL(confirmed()), this, SLOT(onSaveTestLang()));
-				App::wnd()->showLayer(box);
-			} else {
-				App::wnd()->showLayer(new ConfirmBox("Custom lang failed :(\n\nError: " + loader.errors(), true, lang(lng_close)));
-			}
-		}
+        chooseCustomLang();
 	} else {
 		App::wnd()->showLayer(new LanguageBox());
 	}

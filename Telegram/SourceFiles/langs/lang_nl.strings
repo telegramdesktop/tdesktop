@@ -69,6 +69,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_reconnecting_try_now" = "Probeer nu";
 
 "lng_status_service_notifications" = "servicemeldingen";
+"lng_status_support" = "ondersteuning";
 "lng_status_bot" = "bot";
 "lng_status_bot_reads_all" = "toegang tot berichten";
 "lng_status_bot_not_reads_all" = "geen toegang tot berichten";
@@ -185,6 +186,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_desktop_notify" = "Desktopmeldingen";
 "lng_settings_show_name" = "Afzender weergeven";
 "lng_settings_show_preview" = "Voorvertoning weergeven";
+"lng_settings_use_windows" = "Windows-berichtgeving gebruiken";
 "lng_settings_sound_notify" = "Geluiden afspelen";
 
 "lng_notification_preview" = "Je hebt een nieuw bericht";
@@ -323,6 +325,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_reset_one_sure" = "Deze sessie beëindigen?";
 "lng_settings_reset_button" = "Beëindigen";
 "lng_settings_reset_done" = "Alle andere sessies zijn beëindigd";
+"lng_settings_ask_question" = "Een vraag stellen";
+"lng_settings_ask_sure" = "De ondersteuning voor Telegram wordt gedaan door vrijwilligers.  We proberen zo snel mogelijk te reageren maar het kan even duren. \n\nBekijk ook de veelgestelde vragen,  deze bevat belangrijke tips en antwoorden op de meest gestelde vragen. ";
+"lng_settings_faq_button" = "Veelgestelde vragen";
+"lng_settings_ask_ok" = "Vraag";
+"lng_settings_faq" = "Veelgestelde vragen";
 "lng_settings_logout" = "Uitloggen";
 "lng_sure_logout" = "Weet je zeker dat je wilt uitloggen?";
 
@@ -355,6 +362,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_delete_conversation" = "Gesprek verwijderen";
 "lng_profile_clear_and_exit" = "Verwijder en verlaat";
 "lng_profile_search_messages" = "Zoek berichten";
+"lng_profile_block_user" = "Blokkeer gebruiker";
+"lng_profile_unblock_user" = "Deblokkeer gebruiker";
+"lng_profile_block_bot" = "Stop en blokkeer bot";
+"lng_profile_unblock_bot" = "Deblokkeer bot";
 "lng_profile_send_message" = "Bericht sturen";
 "lng_profile_share_contact" = "Contact delen";
 "lng_profile_invite_to_group" = "Groepslid maken";
@@ -475,6 +486,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Jij";
 "lng_bot_description" = "Wat kan deze bot? ";
+"lng_unblock_button" = "Deblokkeer";
 
 "lng_bot_start" = "Begin";
 "lng_bot_choose_group" = "Groep kiezen";

@@ -76,6 +76,16 @@ then go to **/home/user/TBuild/Libraries/openal-soft/build** and run
     make
     sudo make install
 
+####libxkbcommon (required for Fcitx Qt plugin)
+
+In Terminal go to **/home/user/TBuild/Libraries** and run
+
+    sudo apt-get install xutils-dev bison python-xcbgen
+    git clone https://github.com/xkbcommon/libxkbcommon.git
+    ./autogen.sh --disable-x11
+    make
+    sudo make install
+
 ####Qt 5.5.0, slightly patched
 
 http://download.qt-project.org/official_releases/qt/5.5/5.5.0/single/qt-everywhere-opensource-src-5.5.0.tar.gz
