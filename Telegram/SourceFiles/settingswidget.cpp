@@ -1165,7 +1165,6 @@ void SettingsInner::onAskQuestionSure() {
 }
 
 void SettingsInner::onTelegramFAQ() {
-	App::wnd()->hideLayer();
 	QDesktopServices::openUrl(qsl("https://telegram.org/faq#general"));
 }
 
