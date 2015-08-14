@@ -656,8 +656,8 @@ void Application::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 8049) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Block users from user profile\n\xe2\x80\x94 Ask support team a question from Settings\n\xe2\x80\x94 Windows toast notifications support added");// .replace('@', qsl("@") + QChar(0x200D));
+			if (cDevVersion() && Local::oldMapVersion() < 8050) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Bug fixes in Windows notifications\n\xe2\x80\x94 Fixed input methods on Linux (Fcitx and IBus)");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (!cDevVersion() && Local::oldMapVersion() < 8048) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			}

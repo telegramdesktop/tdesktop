@@ -2696,7 +2696,7 @@ QString toastImage(const StorageKey &key, PeerData *peer) {
 		} else if (!key.first && key.second) {
 			(peer->chat ? chatDefPhoto : userDefPhoto)(peer->colorIndex)->pix().save(v.path, "PNG");
 		} else {
-			QFile(":/gui/art/iconbig256.png").copy(v.path);
+			App::wnd()->iconLarge().save(v.path, "PNG");
 		}
 		i = toastImages.insert(key, v);
 	}

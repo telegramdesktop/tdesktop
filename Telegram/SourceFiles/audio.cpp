@@ -1099,7 +1099,11 @@ public:
 		}
 
 		freq = fmtContext->streams[streamId]->codec->sample_rate;
-		len = (fmtContext->streams[streamId]->duration * freq * fmtContext->streams[streamId]->time_base.num) / fmtContext->streams[streamId]->time_base.den;
+		if (fmtContext->streams[streamId]->duration == AV_NOPTS_VALUE) {
+			len = (fmtContext->duration * freq) / AV_TIME_BASE;
+		} else {
+			len = (fmtContext->streams[streamId]->duration * freq * fmtContext->streams[streamId]->time_base.num) / fmtContext->streams[streamId]->time_base.den;
+		}
 		uint64_t layout = fmtContext->streams[streamId]->codec->channel_layout;
 		inputFormat = fmtContext->streams[streamId]->codec->sample_fmt;
 		switch (layout) {
@@ -2244,7 +2248,11 @@ public:
 		}
 
 		freq = fmtContext->streams[streamId]->codec->sample_rate;
-		len = (fmtContext->streams[streamId]->duration * freq) / fmtContext->streams[streamId]->time_base.den;
+		if (fmtContext->streams[streamId]->duration == AV_NOPTS_VALUE) {
+			len = (fmtContext->duration * freq) / AV_TIME_BASE;
+		} else {
+			len = (fmtContext->streams[streamId]->duration * freq * fmtContext->streams[streamId]->time_base.num) / fmtContext->streams[streamId]->time_base.den;
+		}
 
 		for (int32 i = 0, l = fmtContext->nb_streams; i < l; ++i) {
 			AVStream *stream = fmtContext->streams[i];
