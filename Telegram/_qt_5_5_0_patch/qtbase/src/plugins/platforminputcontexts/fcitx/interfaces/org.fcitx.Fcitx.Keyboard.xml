@@ -1,0 +1,20 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+    <interface name="org.fcitx.Fcitx.Keyboard">
+        <method name="GetLayouts">
+            <arg name="layouts" direction="out" type="a(ssss)"/>
+            <annotation name="com.trolltech.QtDBus.QtTypeName.Out0" value="FcitxQtKeyboardLayoutList" />
+            <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="FcitxQtKeyboardLayoutList" />
+        </method>
+        <method name="GetLayoutForIM">
+            <arg name="im" direction="in" type="s"/>
+            <arg name="layout" direction="out" type="s"/>
+            <arg name="variant" direction="out" type="s"/>
+        </method>
+        <method name="SetLayoutForIM">
+            <arg name="im" direction="in" type="s"/>
+            <arg name="layout" direction="in" type="s"/>
+            <arg name="variant" direction="in" type="s"/>
+        </method>
+    </interface>
+</node>

@@ -1197,6 +1197,7 @@ void PsMainWindow::psInitSize() {
 
 bool InitToastManager();
 bool CreateToast(PeerData *peer, int32 msgId, bool showpix, const QString &title, const QString &subtitle, const QString &msg);
+void CheckPinnedAppUserModelId();
 void CleanupAppUserModelIdShortcut();
 
 void PsMainWindow::psInitFrameless() {
@@ -2197,9 +2198,7 @@ namespace {
 	}
 }
 
-void psRegisterCustomScheme() {
-
-
+void RegisterCustomScheme() {
 	DEBUG_LOG(("App Info: Checking custom scheme 'tg'.."));
 
 	HKEY rkey;
@@ -2216,6 +2215,11 @@ void psRegisterCustomScheme() {
 	if (!_psOpenRegKey(L"Software\\Classes\\tg\\shell\\open", &rkey)) return;
 	if (!_psOpenRegKey(L"Software\\Classes\\tg\\shell\\open\\command", &rkey)) return;
 	if (!_psSetKeyValue(rkey, 0, '"' + exe + qsl("\" -workdir \"") + cWorkingDir() + qsl("\" -- \"%1\""))) return;
+}
+
+void psNewVersion() {
+	RegisterCustomScheme();
+	CheckPinnedAppUserModelId();
 }
 
 void psExecUpdater() {
@@ -2692,7 +2696,7 @@ QString toastImage(const StorageKey &key, PeerData *peer) {
 		} else if (!key.first && key.second) {
 			(peer->chat ? chatDefPhoto : userDefPhoto)(peer->colorIndex)->pix().save(v.path, "PNG");
 		} else {
-			QFile(":/gui/art/iconbig256.png").copy(v.path);
+			App::wnd()->iconLarge().save(v.path, "PNG");
 		}
 		i = toastImages.insert(key, v);
 	}
@@ -2803,6 +2807,120 @@ bool CreateToast(PeerData *peer, int32 msgId, bool showpix, const QString &title
 	i->insert(msgId, toast);
 
 	return true;
+}
+
+QString pinnedPath() {
+	static const int maxFileLen = MAX_PATH * 10;
+	WCHAR wstrPath[maxFileLen];
+	if (GetEnvironmentVariable(L"APPDATA", wstrPath, maxFileLen)) {
+		QDir appData(QString::fromStdWString(std::wstring(wstrPath)));
+		return appData.absolutePath() + qsl("/Microsoft/Internet Explorer/Quick Launch/User Pinned/TaskBar/");
+	}
+	return QString();
+}
+
+void CheckPinnedAppUserModelId() {
+	static const int maxFileLen = MAX_PATH * 10;
+
+	HRESULT hr = CoInitialize(0);
+	if (!SUCCEEDED(hr)) return;
+
+	QString path = pinnedPath();
+	std::wstring p = QDir::toNativeSeparators(path).toStdWString();
+
+	WCHAR src[MAX_PATH];
+	GetModuleFileNameEx(GetCurrentProcess(), nullptr, src, MAX_PATH);
+	BY_HANDLE_FILE_INFORMATION srcinfo = { 0 };
+	HANDLE srcfile = CreateFile(src, 0x00, 0x00, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (srcfile == INVALID_HANDLE_VALUE) return;
+	BOOL srcres = GetFileInformationByHandle(srcfile, &srcinfo);
+	CloseHandle(srcfile);
+	if (!srcres) return;
+	LOG(("Checking.."));
+	WIN32_FIND_DATA findData;
+	HANDLE findHandle = FindFirstFileEx((p + L"*").c_str(), FindExInfoStandard, &findData, FindExSearchNameMatch, 0, 0);
+	if (findHandle == INVALID_HANDLE_VALUE) {
+		LOG(("Init Error: could not find files in pinned folder"));
+		return;
+	}
+	do {
+		std::wstring fname = p + findData.cFileName;
+		LOG(("Checking %1").arg(QString::fromStdWString(fname)));
+		if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+			continue;
+		} else {
+			DWORD attributes = GetFileAttributes(fname.c_str());
+			if (attributes >= 0xFFFFFFF) continue; // file does not exist
+
+			ComPtr<IShellLink> shellLink;
+			HRESULT hr = CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&shellLink));
+			if (!SUCCEEDED(hr)) continue;
+
+			ComPtr<IPersistFile> persistFile;
+			hr = shellLink.As(&persistFile);
+			if (!SUCCEEDED(hr)) continue;
+
+			hr = persistFile->Load(fname.c_str(), STGM_READWRITE);
+			if (!SUCCEEDED(hr)) continue;
+
+			WCHAR dst[MAX_PATH];
+			hr = shellLink->GetPath(dst, MAX_PATH, 0, 0);
+			if (!SUCCEEDED(hr)) continue;
+
+			BY_HANDLE_FILE_INFORMATION dstinfo = { 0 };
+			HANDLE dstfile = CreateFile(dst, 0x00, 0x00, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (dstfile == INVALID_HANDLE_VALUE) continue;
+			BOOL dstres = GetFileInformationByHandle(dstfile, &dstinfo);
+			CloseHandle(dstfile);
+			if (!dstres) continue;
+			
+			if (srcinfo.dwVolumeSerialNumber == dstinfo.dwVolumeSerialNumber && srcinfo.nFileIndexLow == dstinfo.nFileIndexLow && srcinfo.nFileIndexHigh == dstinfo.nFileIndexHigh) {
+				ComPtr<IPropertyStore> propertyStore;
+				hr = shellLink.As(&propertyStore);
+				if (!SUCCEEDED(hr)) return;
+
+				PROPVARIANT appIdPropVar;
+				hr = propertyStore->GetValue(pkey_AppUserModel_ID, &appIdPropVar);
+				if (!SUCCEEDED(hr)) return;
+				LOG(("Reading.."));
+				WCHAR already[MAX_PATH];
+				hr = propVariantToString(appIdPropVar, already, MAX_PATH);
+				if (SUCCEEDED(hr)) {
+					if (std::wstring(AppUserModelId) == already) {
+						LOG(("Already!"));
+						PropVariantClear(&appIdPropVar);
+						return;
+					}
+				}
+				if (appIdPropVar.vt != VT_EMPTY) {
+					PropVariantClear(&appIdPropVar);
+					return;
+				}
+				PropVariantClear(&appIdPropVar);
+
+				hr = InitPropVariantFromString(AppUserModelId, &appIdPropVar);
+				if (!SUCCEEDED(hr)) return;
+
+				hr = propertyStore->SetValue(pkey_AppUserModel_ID, appIdPropVar);
+				PropVariantClear(&appIdPropVar);
+				if (!SUCCEEDED(hr)) return;
+
+				hr = propertyStore->Commit();
+				if (!SUCCEEDED(hr)) return;
+
+				if (persistFile->IsDirty() == S_OK) {
+					persistFile->Save(fname.c_str(), TRUE);
+				}
+				return;
+			}
+		}
+	} while (FindNextFile(findHandle, &findData));
+	DWORD errorCode = GetLastError();
+	if (errorCode && errorCode != ERROR_NO_MORE_FILES) { // everything is found
+		LOG(("Init Error: could not find some files in pinned folder"));
+		return;
+	}
+	FindClose(findHandle);
 }
 
 QString systemShortcutPath() {
@@ -2963,7 +3081,6 @@ bool ValidateAppUserModelIdShortcut() {
 
 bool InitToastManager() {
 	if (!useToast || !ValidateAppUserModelIdShortcut()) return false;
-
 	if (!SUCCEEDED(setCurrentProcessExplicitAppUserModelID(AppUserModelId))) {
 		return false;
 	}

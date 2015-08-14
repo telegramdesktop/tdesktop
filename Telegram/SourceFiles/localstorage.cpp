@@ -541,7 +541,7 @@ namespace {
 	int32 _storageImagesSize = 0, _storageStickersSize = 0, _storageAudiosSize = 0;
 
 	bool _mapChanged = false;
-	int32 _oldMapVersion = 0;
+	int32 _oldMapVersion = 0, _oldSettingsVersion = 0;
 
 	enum WriteMapWhen {
 		WriteMapNow,
@@ -1573,6 +1573,9 @@ namespace {
 		_readMtpData();
 
 		LOG(("Map read time: %1").arg(getms() - ms));
+		if (_oldSettingsVersion < AppVersion) {
+			Local::writeSettings();
+		}
 		return Local::ReadMapDone;
 	}
 
@@ -1820,6 +1823,7 @@ namespace Local {
 			cSetDcOptions(dcOpts);
 		}
 
+		_oldSettingsVersion = settingsData.version;
 		_settingsSalt = salt;
 	}
 
@@ -1960,6 +1964,10 @@ namespace Local {
 
 	int32 oldMapVersion() {
 		return _oldMapVersion;
+	}
+
+	int32 oldSettingsVersion() {
+		return _oldSettingsVersion;
 	}
 
 	void writeDraft(const PeerId &peer, const MessageDraft &draft) {
