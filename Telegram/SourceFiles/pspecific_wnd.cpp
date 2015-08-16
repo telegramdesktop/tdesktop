@@ -2219,7 +2219,9 @@ void RegisterCustomScheme() {
 
 void psNewVersion() {
 	RegisterCustomScheme();
-	CheckPinnedAppUserModelId();
+	if (Local::oldSettingsVersion() < 8050) {
+		CheckPinnedAppUserModelId();
+	}
 }
 
 void psExecUpdater() {

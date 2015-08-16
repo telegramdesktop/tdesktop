@@ -1165,7 +1165,16 @@ void SettingsInner::onAskQuestionSure() {
 }
 
 void SettingsInner::onTelegramFAQ() {
-	QDesktopServices::openUrl(qsl("https://telegram.org/faq#general"));
+	QString url = qsl("https://telegram.org/faq");
+	if (cLang() > languageDefault && cLang() < languageCount) {
+		const char *code = LanguageCodes[cLang()];
+		if (qstr("de") == code || qstr("es") == code || qstr("it") == code || qstr("ko") == code) {
+			url += qsl("/") + code;
+		} else if (qstr("pt_BR") == code) {
+			url += qsl("/br");
+		}
+	}
+	QDesktopServices::openUrl(url);
 }
 
 void SettingsInner::chooseCustomLang() {
