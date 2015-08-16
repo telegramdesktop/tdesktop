@@ -969,7 +969,7 @@ void DialogsListWidget::selectSkip(int32 direction) {
 		if (!sel) {
 			if (dialogs.list.count && direction > 0) {
 				sel = dialogs.list.begin;
-			} else if (contactsNoDialogs.list.count && direction > 0) {
+			} else if (false && contactsNoDialogs.list.count && direction > 0) {
 				sel = contactsNoDialogs.list.begin;
 			} else {
 				return;
@@ -977,14 +977,14 @@ void DialogsListWidget::selectSkip(int32 direction) {
 		} else if (direction > 0) {
 			if (sel->next->next) {
 				sel = sel->next;
-			} else if (sel->next == dialogs.list.end && contactsNoDialogs.list.count) {
+			} else if (false && sel->next == dialogs.list.end && contactsNoDialogs.list.count) {
 				sel = contactsNoDialogs.list.begin;
 				contactSel = true;
 			}
 		} else {
 			if (sel->prev) {
 				sel = sel->prev;
-			} else if (sel == contactsNoDialogs.list.begin && dialogs.list.count) {
+			} else if (false && sel == contactsNoDialogs.list.begin && dialogs.list.count) {
 				sel = dialogs.list.end->prev;
 				contactSel = false;
 			}
@@ -1042,7 +1042,7 @@ void DialogsListWidget::scrollToPeer(const PeerId &peer, MsgId msgId) {
 		DialogsList::RowByPeer::const_iterator i = dialogs.list.rowByPeer.constFind(peer);
 		if (i != dialogs.list.rowByPeer.cend()) {
 			fromY = i.value()->pos * st::dlgHeight;
-		} else {
+		} else if (false) {
 			i = contactsNoDialogs.list.rowByPeer.constFind(peer);
 			if (i != contactsNoDialogs.list.rowByPeer.cend()) {
 				fromY = (i.value()->pos + dialogs.list.count) * st::dlgHeight;
@@ -1077,7 +1077,7 @@ void DialogsListWidget::selectSkipPage(int32 pixels, int32 direction) {
 		if (!sel) {
 			if (direction > 0 && dialogs.list.count) {
 				sel = dialogs.list.begin;
-			} else if (direction > 0 && contactsNoDialogs.list.count) {
+			} else if (false && direction > 0 && contactsNoDialogs.list.count) {
 				sel = contactsNoDialogs.list.begin;
 			} else {
 				return;
@@ -1087,7 +1087,7 @@ void DialogsListWidget::selectSkipPage(int32 pixels, int32 direction) {
 			while (toSkip-- && sel->next->next) {
 				sel = sel->next;
 			}
-			if (toSkip >= 0 && sel->next == dialogs.list.end && contactsNoDialogs.list.count) {
+			if (false && toSkip >= 0 && sel->next == dialogs.list.end && contactsNoDialogs.list.count) {
 				sel = contactsNoDialogs.list.begin;
 				while (toSkip-- && sel->next->next) {
 					sel = sel->next;
@@ -1358,17 +1358,17 @@ void DialogsListWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData 
 	if (_state == DefaultState) {
 		DialogsList::RowByPeer::const_iterator i = dialogs.list.rowByPeer.constFind(inPeer->id);
 		if (i == dialogs.list.rowByPeer.constEnd()) {
-			i = contactsNoDialogs.list.rowByPeer.constFind(inPeer->id);
-			if (i == contactsNoDialogs.list.rowByPeer.cend()) {
-				outPeer = 0;
-				outMsg = 0;
-				return;
-			}
-			if (i.value()->next != contactsNoDialogs.list.end) {
-				outPeer = i.value()->next->history->peer;
-				outMsg = ShowAtUnreadMsgId;
-				return;
-			}
+			//i = contactsNoDialogs.list.rowByPeer.constFind(inPeer->id);
+			//if (i == contactsNoDialogs.list.rowByPeer.cend()) {
+			//	outPeer = 0;
+			//	outMsg = 0;
+			//	return;
+			//}
+			//if (i.value()->next != contactsNoDialogs.list.end) {
+			//	outPeer = i.value()->next->history->peer;
+			//	outMsg = ShowAtUnreadMsgId;
+			//	return;
+			//}
 			outPeer = 0;
 			outMsg = 0;
 			return;
@@ -1378,7 +1378,7 @@ void DialogsListWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData 
 			outPeer = i.value()->next->history->peer;
 			outMsg = ShowAtUnreadMsgId;
 			return;
-		} else if (contactsNoDialogs.list.count) {
+		} else if (false && contactsNoDialogs.list.count) {
 			outPeer = contactsNoDialogs.list.begin->history->peer;
 			outMsg = ShowAtUnreadMsgId;
 			return;
