@@ -69,6 +69,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_reconnecting_try_now" = "Jetzt versuchen";
 
 "lng_status_service_notifications" = "Servicemeldungen";
+"lng_status_support" = "Support";
 "lng_status_bot" = "Bot";
 "lng_status_bot_reads_all" = "hat Zugriff auf Nachrichten";
 "lng_status_bot_not_reads_all" = "hat keinen Zugriff auf Nachrichten";
@@ -183,8 +184,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_settings_section_notify" = "Benachrichtigungen";
 "lng_settings_desktop_notify" = "Desktopbenachrichtigungen";
-"lng_settings_show_name" = "Sendername anzeigen";
+"lng_settings_show_name" = "Absendername anzeigen";
 "lng_settings_show_preview" = "Nachrichtenvorschau anzeigen";
+"lng_settings_use_windows" = "Windows Benachrichtigungen";
 "lng_settings_sound_notify" = "Ton abspielen";
 
 "lng_notification_preview" = "Du hast eine neue Nachricht";
@@ -323,6 +325,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_reset_one_sure" = "Dieses Gerät wirklich abmelden?";
 "lng_settings_reset_button" = "Beenden";
 "lng_settings_reset_done" = "Alle anderen Sitzungen wurden erfolgreich beendet.";
+"lng_settings_ask_question" = "Eine Frage stellen";
+"lng_settings_ask_sure" = "Bedenke bitte, dass der Telegram Support von ehrenamtlichen Helfern betreut wird.\n\nKennst du schon die Telegram FAQ? Dort findest du Antworten auf die am häufigsten gestellten Fragen.";
+"lng_settings_faq_button" = "FAQ öffnen";
+"lng_settings_ask_ok" = "Frage stellen";
+"lng_settings_faq" = "Telegram FAQ";
 "lng_settings_logout" = "Abmelden";
 "lng_sure_logout" = "Du kannst Telegram von all deinen Geräten gleichzeitig nutzen. Wirklich abmelden?";
 
@@ -352,9 +359,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_edit_contact" = "Bearbeiten";
 "lng_profile_enable_notifications" = "Benachrichtigungen";
 "lng_profile_clear_history" = "Chatverlauf löschen";
-"lng_profile_delete_conversation" = "Verlauf löschen";
+"lng_profile_delete_conversation" = "Chat entfernen";
 "lng_profile_clear_and_exit" = "Löschen und verlassen";
 "lng_profile_search_messages" = "In diesem Chat suchen";
+"lng_profile_block_user" = "Blockieren";
+"lng_profile_unblock_user" = "Freigeben";
+"lng_profile_block_bot" = "Bot anhalten und blockieren";
+"lng_profile_unblock_bot" = "Bot freigeben";
 "lng_profile_send_message" = "Nachricht senden";
 "lng_profile_share_contact" = "Kontakt teilen";
 "lng_profile_invite_to_group" = "In eine Gruppe einladen";
@@ -475,6 +486,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Ich";
 "lng_bot_description" = "Was kann dieser Bot?";
+"lng_unblock_button" = "Freigeben";
 
 "lng_bot_start" = "Starten";
 "lng_bot_choose_group" = "Gruppe auswählen";
@@ -629,7 +641,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Direkte Suche in Chats (Chat auswählen und STRG+F drücken)\n— Verlauf in Gruppen löschen (in der Gruppe auf den Gruppennamen tippen)\n— Kontakte, mit denen du nicht chattest, werden nicht mehr in der Übersicht gezeigt";
+"lng_new_version_text" = "— Blockiere Nutzer über die Profilseite (im Chat auf den Namen oben tippen)\n— Windows 8, 8.1 und 10: Native Windowsbenachrichtigungen\n— Fehlerbehebung: Eingabemethoden unter Linux (Fcitx und iBus)";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

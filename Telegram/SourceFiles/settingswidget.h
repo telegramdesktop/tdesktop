@@ -78,6 +78,8 @@ public:
 
 	void showAll();
 
+    void chooseCustomLang();
+
 	void updateChatBackground();
 	void needBackgroundUpdate(bool tile);
 
@@ -127,6 +129,8 @@ public slots:
 	void onSenderName();
 	void onMessagePreview();
 
+	void onWindowsNotifications();
+
 	void onReplaceEmojis();
 	void onViewEmojis();
 
@@ -166,9 +170,15 @@ public slots:
 
 	void onUpdateLocalStorage();
 
+	void onAskQuestion();
+	void onAskQuestionSure();
+	void onTelegramFAQ();
+
 private:
 
 	void saveError(const QString &str = QString());
+
+	void supportGot(const MTPhelp_Support &support);
 
 	void setScale(DBIScale newScale);
 
@@ -196,7 +206,7 @@ private:
 	LinkButton _chooseUsername;
 
 	// notifications
-	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _soundNotify;
+	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _windowsNotifications, _soundNotify;
 
 	// general
 	LinkButton _changeLanguage;
@@ -267,8 +277,10 @@ private:
 	LinkButton _connectionType;
 	QString _connectionTypeText;
 	int32 _connectionTypeWidth;
-	LinkButton _showSessions;
+	LinkButton _showSessions, _askQuestion, _telegramFAQ;
 	FlatButton _logOut;
+
+	mtpRequestId _supportGetRequest;
 
 	void gotPassword(const MTPaccount_Password &result);
 	void offPasswordDone(const MTPBool &result);

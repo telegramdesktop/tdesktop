@@ -68,6 +68,10 @@ public:
 
 	void psUpdateCounter();
 
+	bool psHasNativeNotifications() {
+		return false;
+	}
+
 	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
 
 	~PsMainWindow();
@@ -159,7 +163,7 @@ void psShowInFolder(const QString &name);
 void psStart();
 void psFinish();
 
-void psRegisterCustomScheme();
+void psNewVersion();
 
 void psUpdateOverlayed(QWidget *widget);
 inline QString psConvertFileUrl(const QString &url) {

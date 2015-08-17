@@ -69,6 +69,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_reconnecting_try_now" = "Try now";
 
 "lng_status_service_notifications" = "service notifications";
+"lng_status_support" = "support";
 "lng_status_bot" = "bot";
 "lng_status_bot_reads_all" = "has access to messages";
 "lng_status_bot_not_reads_all" = "has no access to messages";
@@ -185,6 +186,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_desktop_notify" = "Desktop notifications";
 "lng_settings_show_name" = "Show sender's name";
 "lng_settings_show_preview" = "Show message preview";
+"lng_settings_use_windows" = "Use Windows notifications";
 "lng_settings_sound_notify" = "Play sound";
 
 "lng_notification_preview" = "You have a new message";
@@ -323,6 +325,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_reset_one_sure" = "Do you want to terminate this session?";
 "lng_settings_reset_button" = "Terminate";
 "lng_settings_reset_done" = "Other sessions terminated";
+"lng_settings_ask_question" = "Ask a Question";
+"lng_settings_ask_sure" = "Please note that Telegram Support is done by volunteers. We try to respond as quickly as possible, but it may take a while.\n\nPlease take a look at the Telegram FAQ: it has important troubleshooting tips and answers to most questions.";
+"lng_settings_faq_button" = "Go to FAQ";
+"lng_settings_ask_ok" = "Ask";
+"lng_settings_faq" = "Telegram FAQ";
 "lng_settings_logout" = "Log Out";
 "lng_sure_logout" = "Are you sure you want to log out?";
 
@@ -355,6 +362,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_delete_conversation" = "Delete conversation";
 "lng_profile_clear_and_exit" = "Delete and exit";
 "lng_profile_search_messages" = "Search for messages";
+"lng_profile_block_user" = "Block user";
+"lng_profile_unblock_user" = "Unblock user";
+"lng_profile_block_bot" = "Stop and block bot";
+"lng_profile_unblock_bot" = "Unblock bot";
 "lng_profile_send_message" = "Send Message";
 "lng_profile_share_contact" = "Share Contact";
 "lng_profile_invite_to_group" = "Add to Group";
@@ -475,6 +486,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "You";
 "lng_bot_description" = "What can this bot do?";
+"lng_unblock_button" = "Unblock";
 
 "lng_bot_start" = "Start";
 "lng_bot_choose_group" = "Choose Group";
@@ -629,7 +641,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Search for messages in conversation\n— Clear messages history in groups\n— Contacts without messages are hidden from the conversations list";
+"lng_new_version_text" = "— Block users from their profile page\n— Added support for Windows toast notifications\n— Fixed input methods on Linux (Fcitx and IBus)";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

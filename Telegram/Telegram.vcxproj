@@ -54,14 +54,17 @@
     <IntDir>$(SolutionDir)$(Platform)\$(Configuration)Intermediate\</IntDir>
     <CustomBuildBeforeTargets>
     </CustomBuildBeforeTargets>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)$(Platform)\$(Configuration)Intermediate\</IntDir>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Deploy|Win32'">
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)$(Platform)\$(Configuration)Intermediate\</IntDir>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -80,7 +83,7 @@
       <SubSystem>Windows</SubSystem>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>.\..\..\Libraries\lzma\C\Util\LzmaLib\Debug;.\..\..\Libraries\libexif-0.6.20\win32\Debug;.\..\..\Libraries\ffmpeg-2.6.3;.\..\..\Libraries\opus\win32\VS2010\Win32\Debug;.\..\..\Libraries\openal-soft\build\Debug;.\..\..\Libraries\zlib-1.2.8\contrib\vstudio\vc11\x86\ZlibStatDebug;.\..\..\Libraries\OpenSSL-Win32\lib\VC\static;$(QTDIR)\lib;$(QTDIR)\plugins;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;imm32.lib;winmm.lib;qtmaind.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Cored.lib;Qt5Guid.lib;qtharfbuzzngd.lib;qtpcred.lib;qtfreetyped.lib;Qt5Widgetsd.lib;Qt5Networkd.lib;Qt5PlatformSupportd.lib;platforms\qwindowsd.lib;imageformats\qwebpd.lib;libeay32MTd.lib;ssleay32MTd.lib;Crypt32.lib;zlibstat.lib;LzmaLib.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;OpenAL32.lib;common.lib;libavformat\libavformat.a;libavcodec\libavcodec.a;libavutil\libavutil.a;libswresample\libswresample.a;opus.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;Shlwapi.lib;Gdiplus.lib;imm32.lib;winmm.lib;qtmaind.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Cored.lib;Qt5Guid.lib;qtharfbuzzngd.lib;qtpcred.lib;qtfreetyped.lib;Qt5Widgetsd.lib;Qt5Networkd.lib;Qt5PlatformSupportd.lib;platforms\qwindowsd.lib;imageformats\qwebpd.lib;libeay32MTd.lib;ssleay32MTd.lib;Crypt32.lib;zlibstat.lib;LzmaLib.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;OpenAL32.lib;common.lib;libavformat\libavformat.a;libavcodec\libavcodec.a;libavutil\libavutil.a;libswresample\libswresample.a;opus.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ImageHasSafeExceptionHandlers />
       <IgnoreSpecificDefaultLibraries>LIBCMT</IgnoreSpecificDefaultLibraries>
@@ -108,7 +111,7 @@
       <SubSystem>Windows</SubSystem>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>.\..\..\Libraries\lzma\C\Util\LzmaLib\Release;.\..\..\Libraries\libexif-0.6.20\win32\Release;.\..\..\Libraries\ffmpeg-2.6.3;.\..\..\Libraries\opus\win32\VS2010\Win32\Release;.\..\..\Libraries\openal-soft\build\Release;.\..\..\Libraries\zlib-1.2.8\contrib\vstudio\vc11\x86\ZlibStatRelease;.\..\..\Libraries\OpenSSL-Win32\lib\VC\static;$(QTDIR)\lib;$(QTDIR)\plugins;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;imm32.lib;winmm.lib;qtmain.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Core.lib;Qt5Gui.lib;qtharfbuzzng.lib;qtpcre.lib;qtfreetype.lib;Qt5Widgets.lib;Qt5Network.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;imageformats\qwebp.lib;libeay32MT.lib;ssleay32MT.lib;Crypt32.lib;zlibstat.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;LzmaLib.lib;OpenAL32.lib;common.lib;libavformat\libavformat.a;libavcodec\libavcodec.a;libavutil\libavutil.a;libswresample\libswresample.a;opus.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;Shlwapi.lib;Gdiplus.lib;imm32.lib;winmm.lib;qtmain.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Core.lib;Qt5Gui.lib;qtharfbuzzng.lib;qtpcre.lib;qtfreetype.lib;Qt5Widgets.lib;Qt5Network.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;imageformats\qwebp.lib;libeay32MT.lib;ssleay32MT.lib;Crypt32.lib;zlibstat.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;LzmaLib.lib;OpenAL32.lib;common.lib;libavformat\libavformat.a;libavcodec\libavcodec.a;libavutil\libavutil.a;libswresample\libswresample.a;opus.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers />
       <ImportLibrary>$(SolutionDir)$(Platform)\$(Configuration)Intermediate\$(TargetName).lib</ImportLibrary>
       <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
@@ -136,7 +139,7 @@
       <SubSystem>Windows</SubSystem>
       <OutputFile>$(OutDir)$(ProjectName).exe</OutputFile>
       <AdditionalLibraryDirectories>.\..\..\Libraries\lzma\C\Util\LzmaLib\Release;.\..\..\Libraries\libexif-0.6.20\win32\Release;.\..\..\Libraries\ffmpeg-2.6.3;.\..\..\Libraries\opus\win32\VS2010\Win32\Release;.\..\..\Libraries\openal-soft\build\Release;.\..\..\Libraries\zlib-1.2.8\contrib\vstudio\vc11\x86\ZlibStatRelease;.\..\..\Libraries\OpenSSL-Win32\lib\VC\static;$(QTDIR)\lib;$(QTDIR)\plugins;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;imm32.lib;winmm.lib;qtmain.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Core.lib;Qt5Gui.lib;qtharfbuzzng.lib;qtpcre.lib;qtfreetype.lib;Qt5Widgets.lib;Qt5Network.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;imageformats\qwebp.lib;libeay32MT.lib;ssleay32MT.lib;Crypt32.lib;zlibstat.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;LzmaLib.lib;OpenAL32.lib;common.lib;libavformat\libavformat.a;libavcodec\libavcodec.a;libavutil\libavutil.a;libswresample\libswresample.a;opus.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;shell32.lib;uuid.lib;ole32.lib;advapi32.lib;ws2_32.lib;gdi32.lib;comdlg32.lib;oleaut32.lib;Shlwapi.lib;Gdiplus.lib;imm32.lib;winmm.lib;qtmain.lib;glu32.lib;opengl32.lib;Strmiids.lib;Qt5Core.lib;Qt5Gui.lib;qtharfbuzzng.lib;qtpcre.lib;qtfreetype.lib;Qt5Widgets.lib;Qt5Network.lib;Qt5PlatformSupport.lib;platforms\qwindows.lib;imageformats\qwebp.lib;libeay32MT.lib;ssleay32MT.lib;Crypt32.lib;zlibstat.lib;lib_exif.lib;UxTheme.lib;DbgHelp.lib;LzmaLib.lib;OpenAL32.lib;common.lib;libavformat\libavformat.a;libavcodec\libavcodec.a;libavutil\libavutil.a;libswresample\libswresample.a;opus.lib;celt.lib;silk_common.lib;silk_float.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>
       </ImageHasSafeExceptionHandlers>
       <ImportLibrary>$(SolutionDir)$(Platform)\$(Configuration)Intermediate\$(TargetName).lib</ImportLibrary>

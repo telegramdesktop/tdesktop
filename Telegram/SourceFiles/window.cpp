@@ -1467,8 +1467,8 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 				uint64 ms = getms(true);
 				History *history = notifyItem->history();
 				NotifyWhenMaps::iterator j = notifyWhenMaps.find(history);
-
-				if (j == notifyWhenMaps.end()) {
+				bool notifyWhenFound = (j != notifyWhenMaps.cend());
+				if (!notifyWhenFound) {
 					history->clearNotifications();
 				} else {
 					HistoryItem *nextNotify = 0;
@@ -1516,7 +1516,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 
 				if (!history->hasNotification()) {
 					if (notifyWaiter != notifyWaiters.cend()) notifyWaiters.erase(notifyWaiter);
-					if (j != notifyWhenMaps.cend()) notifyWhenMaps.erase(j);
+					if (notifyWhenFound) notifyWhenMaps.erase(j);
 					continue;
 				}
 			}

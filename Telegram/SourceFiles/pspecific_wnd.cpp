@@ -24,19 +24,40 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "localstorage.h"
 
+#include "passcodewidget.h"
+
 #include <Shobjidl.h>
-#include <dbghelp.h>
 #include <shellapi.h>
+
+#include <roapi.h>
+#include <wrl\client.h>
+#include <wrl\implements.h>
+#include <windows.ui.notifications.h>
+
+#include <dbghelp.h>
 #include <Shlwapi.h>
 #include <Strsafe.h>
 #include <shlobj.h>
 #include <Windowsx.h>
 #include <WtsApi32.h>
 
+#include <SDKDDKVer.h>
+
+#include <sal.h>
+#include <Psapi.h>
+#include <strsafe.h>
+#include <ObjBase.h>
+#include <propvarutil.h>
+#include <functiondiscoverykeys.h>
+#include <intsafe.h>
+#include <guiddef.h>
+
 #include <qpa/qplatformnativeinterface.h>
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) < (b) ? (b) : (a))
+
+#include <gdiplus.h>
 
 #ifndef DCX_USESTYLE
 #define DCX_USESTYLE 0x00010000
@@ -48,9 +69,15 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #define WM_NCPOINTERUP                  0x0243
 #endif
 
-#include <gdiplus.h>
-#pragma comment (lib,"Gdiplus.lib")
-#pragma comment (lib,"Msimg32.lib")
+const WCHAR AppUserModelId[] = L"Telegram.TelegramDesktop";
+
+static const PROPERTYKEY pkey_AppUserModel_ID = { { 0x9F4C2855, 0x9F79, 0x4B39, { 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3 } }, 5 };
+static const PROPERTYKEY pkey_AppUserModel_StartPinOption = { { 0x9F4C2855, 0x9F79, 0x4B39, { 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3 } }, 12 };
+
+using namespace Microsoft::WRL;
+using namespace ABI::Windows::UI::Notifications;
+using namespace ABI::Windows::Data::Xml::Dom;
+using namespace Windows::Foundation;
 
 namespace {
     QStringList _initLogs;
@@ -61,6 +88,7 @@ namespace {
 	bool useOpenAs = false;
 	bool useWtsapi = false;
 	bool useShellapi = false;
+	bool useToast = false;
 	bool themeInited = false;
 	bool finished = true;
 	int menuShown = 0, menuHidden = 0;
@@ -70,7 +98,27 @@ namespace {
 	bool sessionLoggedOff = false;
 
 	UINT tbCreatedMsgId = 0;
-	ITaskbarList3 *tbListInterface = 0;
+	
+	ComPtr<ITaskbarList3> taskbarList;
+
+	ComPtr<IToastNotificationManagerStatics> toastNotificationManager;
+	ComPtr<IToastNotifier> toastNotifier;
+	ComPtr<IToastNotificationFactory> toastNotificationFactory;
+	struct ToastNotificationPtr {
+		ToastNotificationPtr() {
+		}
+		ToastNotificationPtr(const ComPtr<IToastNotification> &ptr) : p(ptr) {
+		}
+		ComPtr<IToastNotification> p;
+	};
+	typedef QMap<PeerId, QMap<MsgId, ToastNotificationPtr> > ToastNotifications;
+	ToastNotifications toastNotifications;
+	struct ToastImage {
+		uint64 until;
+		QString path;
+	};
+	typedef QMap<StorageKey, ToastImage> ToastImages;
+	ToastImages toastImages;
 
 	HWND createTaskbarHider() {
 		HINSTANCE appinst = (HINSTANCE)GetModuleHandle(0);
@@ -245,9 +293,7 @@ namespace {
 					destroy();
 					return false;
 				}
-//				if (QSysInfo::windowsVersion() >= QSysInfo::WV_WINDOWS8) {
-					SetWindowLong(hwnds[i], GWL_HWNDPARENT, (LONG)hwnd);
-//				}
+				SetWindowLong(hwnds[i], GWL_HWNDPARENT, (LONG)hwnd);
 
 				dcs[i] = CreateCompatibleDC(screenDC);
 				if (!dcs[i]) {
@@ -629,9 +675,6 @@ namespace {
 	typedef HRESULT (FAR STDAPICALLTYPE *f_shCreateItemFromParsingName)(PCWSTR pszPath, IBindCtx *pbc, REFIID riid, void **ppv);
 	f_shCreateItemFromParsingName shCreateItemFromParsingName = 0;
 
-	typedef HRESULT (FAR STDAPICALLTYPE *f_shLoadIndirectString)(LPCWSTR pszSource, LPWSTR pszOutBuf, UINT cchOutBuf, void **ppvReserved);
-	f_shLoadIndirectString shLoadIndirectString = 0;
-
 	typedef BOOL (FAR STDAPICALLTYPE *f_wtsRegisterSessionNotification)(HWND hWnd, DWORD dwFlags);
 	f_wtsRegisterSessionNotification wtsRegisterSessionNotification = 0;
 
@@ -640,6 +683,21 @@ namespace {
 
 	typedef HRESULT (FAR STDAPICALLTYPE *f_shQueryUserNotificationState)(QUERY_USER_NOTIFICATION_STATE *pquns);
 	f_shQueryUserNotificationState shQueryUserNotificationState = 0;
+		
+	typedef HRESULT (FAR STDAPICALLTYPE *f_setCurrentProcessExplicitAppUserModelID)(__in PCWSTR AppID);
+	f_setCurrentProcessExplicitAppUserModelID setCurrentProcessExplicitAppUserModelID = 0;
+
+	typedef HRESULT (FAR STDAPICALLTYPE *f_roGetActivationFactory)(_In_ HSTRING activatableClassId,	_In_ REFIID iid, _COM_Outptr_ void ** factory);
+	f_roGetActivationFactory roGetActivationFactory = 0;
+
+	typedef HRESULT (FAR STDAPICALLTYPE *f_windowsCreateStringReference)(_In_reads_opt_(length + 1) PCWSTR sourceString, UINT32 length,	_Out_ HSTRING_HEADER * hstringHeader, _Outptr_result_maybenull_ _Result_nullonfailure_ HSTRING * string);
+	f_windowsCreateStringReference windowsCreateStringReference = 0;
+
+	typedef HRESULT (FAR STDAPICALLTYPE *f_windowsDeleteString)(_In_opt_ HSTRING string);
+	f_windowsDeleteString windowsDeleteString = 0;
+
+	typedef HRESULT (FAR STDAPICALLTYPE *f_propVariantToString)(_In_ REFPROPVARIANT propvar, _Out_writes_(cch) PWSTR psz, _In_ UINT cch);
+	f_propVariantToString propVariantToString = 0;
 
 	template <typename TFunction>
 	bool loadFunction(HINSTANCE dll, LPCSTR name, TFunction &func) {
@@ -657,30 +715,38 @@ namespace {
 			setupUx();
 			setupShell();
 			setupWtsapi();
+			setupPropSys();
+			setupCombase();
+
+			useTheme = !!setWindowTheme;
 		}
 		void setupUx() {
 			HINSTANCE procId = LoadLibrary(L"UXTHEME.DLL");
 
-			if (!loadFunction(procId, "SetWindowTheme", setWindowTheme)) return;
-			useTheme = true;
+			loadFunction(procId, "SetWindowTheme", setWindowTheme);
 		}
 		void setupShell() {
 			HINSTANCE procId = LoadLibrary(L"SHELL32.DLL");
 			setupOpenWith(procId);
 			setupOpenAs(procId);
 			setupShellapi(procId);
+			setupAppUserModel(procId);
 		}
 		void setupOpenWith(HINSTANCE procId) {
 			if (!loadFunction(procId, "SHAssocEnumHandlers", shAssocEnumHandlers)) return;
 			if (!loadFunction(procId, "SHCreateItemFromParsingName", shCreateItemFromParsingName)) return;
 			useOpenWith = true;
-
-			HINSTANCE otherProcId = LoadLibrary(L"SHLWAPI.DLL");
-			if (otherProcId) loadFunction(otherProcId, "SHLoadIndirectString", shLoadIndirectString);
 		}
 		void setupOpenAs(HINSTANCE procId) {
 			if (!loadFunction(procId, "SHOpenWithDialog", shOpenWithDialog) && !loadFunction(procId, "OpenAs_RunDLLW", openAs_RunDLL)) return;
 			useOpenAs = true;
+		}
+		void setupShellapi(HINSTANCE procId) {
+			if (!loadFunction(procId, "SHQueryUserNotificationState", shQueryUserNotificationState)) return;
+			useShellapi = true;
+		}
+		void setupAppUserModel(HINSTANCE procId) {
+			if (!loadFunction(procId, "SetCurrentProcessExplicitAppUserModelID", setCurrentProcessExplicitAppUserModelID)) return;
 		}
 		void setupWtsapi() {
 			HINSTANCE procId = LoadLibrary(L"WTSAPI32.DLL");
@@ -689,9 +755,26 @@ namespace {
 			if (!loadFunction(procId, "WTSUnRegisterSessionNotification", wtsUnRegisterSessionNotification)) return;
 			useWtsapi = true;
 		}
-		void setupShellapi(HINSTANCE procId) {
-			if (!loadFunction(procId, "SHQueryUserNotificationState", shQueryUserNotificationState)) return;
-			useShellapi = true;
+		void setupCombase() {
+			if (!setCurrentProcessExplicitAppUserModelID) return;
+
+			HINSTANCE procId = LoadLibrary(L"COMBASE.DLL");
+			setupToast(procId);
+		}
+		void setupPropSys() {
+			HINSTANCE procId = LoadLibrary(L"PROPSYS.DLL");
+			if (!loadFunction(procId, "PropVariantToString", propVariantToString)) return;
+		}
+		void setupToast(HINSTANCE procId) {
+			if (!propVariantToString) return;
+			if (QSysInfo::windowsVersion() < QSysInfo::WV_WINDOWS8) return;
+			if (!loadFunction(procId, "RoGetActivationFactory", roGetActivationFactory)) return;
+
+			HINSTANCE otherProcId = LoadLibrary(L"api-ms-win-core-winrt-string-l1-1-0.dll");
+			if (!loadFunction(otherProcId, "WindowsCreateStringReference", windowsCreateStringReference)) return;
+			if (!loadFunction(otherProcId, "WindowsDeleteString", windowsDeleteString)) return;
+
+			useToast = true;
 		}
 	};
 	_PsInitializer _psInitializer;
@@ -718,8 +801,9 @@ namespace {
 
 		bool mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LRESULT *result) {
 			if (tbCreatedMsgId && msg == tbCreatedMsgId) {
-				if (CoCreateInstance(CLSID_TaskbarList, NULL, CLSCTX_ALL, IID_ITaskbarList3, (void**)&tbListInterface) != S_OK) {
-					tbListInterface = 0;
+				HRESULT hr = CoCreateInstance(CLSID_TaskbarList, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&taskbarList));
+				if (!SUCCEEDED(hr)) {
+					taskbarList.Reset();
 				}
 			}
 			switch (msg) {
@@ -915,10 +999,39 @@ namespace {
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent), ps_hWnd(0), ps_menu(0), icon256(qsl(":/gui/art/icon256.png")), iconbig256(qsl(":/gui/art/iconbig256.png")), wndIcon(QPixmap::fromImage(icon256, Qt::ColorOnly)),
     ps_iconBig(0), ps_iconSmall(0), ps_iconOverlay(0), trayIcon(0), trayIconMenu(0), posInited(false), ps_tbHider_hWnd(createTaskbarHider()) {
 	tbCreatedMsgId = RegisterWindowMessage(L"TaskbarButtonCreated");
+	connect(&ps_cleanNotifyPhotosTimer, SIGNAL(timeout()), this, SLOT(psCleanNotifyPhotos()));
 }
 
 void PsMainWindow::psShowTrayMenu() {
 	trayIconMenu->popup(QCursor::pos());
+}
+
+void PsMainWindow::psCleanNotifyPhotosIn(int32 dt) {
+	if (dt < 0) {
+		if (ps_cleanNotifyPhotosTimer.isActive() && ps_cleanNotifyPhotosTimer.remainingTime() <= -dt) return;
+		dt = -dt;
+	}
+	ps_cleanNotifyPhotosTimer.start(dt);
+}
+
+void PsMainWindow::psCleanNotifyPhotos() {
+	uint64 ms = getms(true), minuntil = 0;
+	for (ToastImages::iterator i = toastImages.begin(); i != toastImages.end();) {
+		if (!i->until) {
+			++i;
+			continue;
+		}
+		if (i->until <= ms) {
+			QFile(i->path).remove();
+			i = toastImages.erase(i);
+		} else {
+			if (!minuntil || minuntil > i->until) {
+				minuntil = i->until;
+			}
+			++i;
+		}
+	}
+	if (minuntil) psCleanNotifyPhotosIn(int32(minuntil - ms));
 }
 
 void PsMainWindow::psRefreshTaskbarIcon() {
@@ -1008,8 +1121,8 @@ void PsMainWindow::psUpdateCounter() {
 	QIcon iconSmall, iconBig;
 	iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(16, counter, bg, true), Qt::ColorOnly));
 	iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(32, counter, bg, true), Qt::ColorOnly));
-	iconBig.addPixmap(QPixmap::fromImage(iconWithCounter(32, tbListInterface ? 0 : counter, bg, false), Qt::ColorOnly));
-	iconBig.addPixmap(QPixmap::fromImage(iconWithCounter(64, tbListInterface ? 0 : counter, bg, false), Qt::ColorOnly));
+	iconBig.addPixmap(QPixmap::fromImage(iconWithCounter(32, taskbarList.Get() ? 0 : counter, bg, false), Qt::ColorOnly));
+	iconBig.addPixmap(QPixmap::fromImage(iconWithCounter(64, taskbarList.Get() ? 0 : counter, bg, false), Qt::ColorOnly));
 	if (trayIcon) {
 		trayIcon->setIcon(iconSmall);
 	}
@@ -1020,7 +1133,7 @@ void PsMainWindow::psUpdateCounter() {
     ps_iconBig = _qt_createHIcon(iconBig, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON));
     SendMessage(ps_hWnd, WM_SETICON, 0, (LPARAM)ps_iconSmall);
 	SendMessage(ps_hWnd, WM_SETICON, 1, (LPARAM)(ps_iconBig ? ps_iconBig : ps_iconSmall));
-	if (tbListInterface) {
+	if (taskbarList.Get()) {
 		if (counter > 0) {
 			QIcon iconOverlay;
 			iconOverlay.addPixmap(QPixmap::fromImage(iconWithCounter(-16, counter, bg, false), Qt::ColorOnly));
@@ -1028,9 +1141,7 @@ void PsMainWindow::psUpdateCounter() {
 			ps_iconOverlay = _qt_createHIcon(iconOverlay, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
 		}
 		QString description = counter > 0 ? QString("%1 unread messages").arg(counter) : qsl("No unread messages");
-		static WCHAR descriptionArr[1024];
-		description.toWCharArray(descriptionArr);
-		tbListInterface->SetOverlayIcon(ps_hWnd, ps_iconOverlay, descriptionArr);
+		taskbarList->SetOverlayIcon(ps_hWnd, ps_iconOverlay, description.toStdWString().c_str());
 	}
 	SetWindowPos(ps_hWnd, 0, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
@@ -1089,6 +1200,11 @@ void PsMainWindow::psInitSize() {
 	setGeometry(geom);
 }
 
+bool InitToastManager();
+bool CreateToast(PeerData *peer, int32 msgId, bool showpix, const QString &title, const QString &subtitle, const QString &msg);
+void CheckPinnedAppUserModelId();
+void CleanupAppUserModelIdShortcut();
+
 void PsMainWindow::psInitFrameless() {
 	psUpdatedPositionTimer.setSingleShot(true);
 	connect(&psUpdatedPositionTimer, SIGNAL(timeout()), this, SLOT(psSavePosition()));
@@ -1105,6 +1221,9 @@ void PsMainWindow::psInitFrameless() {
 	}
 
 //	RegisterApplicationRestart(NULL, 0);
+	if (!InitToastManager()) {
+		useToast = false;
+	}
 
 	psInitSysMenu();
 }
@@ -1151,8 +1270,18 @@ void PsMainWindow::psUpdatedPosition() {
 	psUpdatedPositionTimer.start(SaveWindowPositionTimeout);
 }
 
+bool PsMainWindow::psHasNativeNotifications() {
+	return useToast;
+}
+
 Q_DECLARE_METATYPE(QMargins);
 void PsMainWindow::psFirstShow() {
+	if (useToast) {
+		cSetCustomNotifies(!cWindowsNotifications());
+	} else {
+		cSetCustomNotifies(true);
+	}
+
 	_psShadowWindows.init(_shActive);
 	finished = false;
 
@@ -1328,6 +1457,13 @@ PsMainWindow::~PsMainWindow() {
 		}
 	}
 
+	if (taskbarList) taskbarList.Reset();
+
+	toastNotifications.clear();
+	if (toastNotificationManager) toastNotificationManager.Reset();
+	if (toastNotifier) toastNotifier.Reset();
+	if (toastNotificationFactory) toastNotificationFactory.Reset();
+
 	finished = true;
 	if (ps_menu) DestroyMenu(ps_menu);
 	psDestroyIcons();
@@ -1367,12 +1503,40 @@ void PsMainWindow::psActivateNotify(NotifyWindow *w) {
 }
 
 void PsMainWindow::psClearNotifies(PeerId peerId) {
+	if (!toastNotifier) return;
+
+	if (peerId) {
+		ToastNotifications::iterator i = toastNotifications.find(peerId);
+		if (i != toastNotifications.cend()) {
+			QMap<MsgId, ToastNotificationPtr> temp = i.value();
+			toastNotifications.erase(i);
+
+			for (QMap<MsgId, ToastNotificationPtr>::const_iterator j = temp.cbegin(), e = temp.cend(); j != e; ++j) {
+				toastNotifier->Hide(j->p.Get());
+			}
+		}
+	} else {
+		ToastNotifications temp = toastNotifications;
+		toastNotifications.clear();
+
+		for (ToastNotifications::const_iterator i = temp.cbegin(), end = temp.cend(); i != end; ++i) {
+			for (QMap<MsgId, ToastNotificationPtr>::const_iterator j = i->cbegin(), e = i->cend(); j != e; ++j) {
+				toastNotifier->Hide(j->p.Get());
+			}
+		}
+	}
 }
 
 void PsMainWindow::psNotifyShown(NotifyWindow *w) {
 }
 
 void PsMainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
+	QString title = (!App::passcoded() && cNotifyView() <= dbinvShowName) ? item->history()->peer->name : qsl("Telegram Desktop");
+	QString subtitle = (!App::passcoded() && cNotifyView() <= dbinvShowName) ? item->notificationHeader() : QString();
+	bool showpix = (!App::passcoded() && cNotifyView() <= dbinvShowName);
+	QString msg = (!App::passcoded() && cNotifyView() <= dbinvShowPreview) ? (fwdCount < 2 ? item->notificationText() : lng_forward_messages(lt_count, fwdCount)) : lang(lng_notification_preview);
+
+	CreateToast(item->history()->peer, item->id, showpix, title, subtitle, msg);
 }
 
 PsApplication::PsApplication(int &argc, char **argv) : QApplication(argc, argv) {
@@ -1704,6 +1868,7 @@ void psDoCleanup() {
 	try {
 		psAutoStart(false, true);
 		psSendToMenu(false, true);
+		CleanupAppUserModelIdShortcut();
 	} catch (...) {
 	}
 }
@@ -1822,7 +1987,7 @@ namespace {
 	HBITMAP _iconToBitmap(LPWSTR icon, int iconindex) {
 		if (!icon) return 0;
 		WCHAR tmpIcon[4096];
-		if (icon[0] == L'@' && shLoadIndirectString && SUCCEEDED(shLoadIndirectString(icon, tmpIcon, 4096, 0))) {
+		if (icon[0] == L'@' && SUCCEEDED(SHLoadIndirectString(icon, tmpIcon, 4096, 0))) {
 			icon = tmpIcon;
 		}
 		int32 w = GetSystemMetrics(SM_CXSMICON), h = GetSystemMetrics(SM_CYSMICON);
@@ -1983,6 +2148,7 @@ void psStart() {
 }
 
 void psFinish() {
+	psDeleteDir(cWorkingDir() + qsl("tdata/temp"));
 }
 
 namespace {
@@ -2037,11 +2203,11 @@ namespace {
 	}
 }
 
-void psRegisterCustomScheme() {
+void RegisterCustomScheme() {
 	DEBUG_LOG(("App Info: Checking custom scheme 'tg'.."));
 
 	HKEY rkey;
-	QString exe = QDir::toNativeSeparators(QDir(cExeDir()).absolutePath() + '/' + QString::fromWCharArray(AppFile) + qsl(".exe"));
+	QString exe = QDir::toNativeSeparators(cExeDir() + cExeName());
 
 	if (!_psOpenRegKey(L"Software\\Classes\\tg", &rkey)) return;
 	if (!_psSetKeyValue(rkey, L"URL Protocol", QString())) return;
@@ -2054,6 +2220,13 @@ void psRegisterCustomScheme() {
 	if (!_psOpenRegKey(L"Software\\Classes\\tg\\shell\\open", &rkey)) return;
 	if (!_psOpenRegKey(L"Software\\Classes\\tg\\shell\\open\\command", &rkey)) return;
 	if (!_psSetKeyValue(rkey, 0, '"' + exe + qsl("\" -workdir \"") + cWorkingDir() + qsl("\" -- \"%1\""))) return;
+}
+
+void psNewVersion() {
+	RegisterCustomScheme();
+	if (Local::oldSettingsVersion() < 8051) {
+		CheckPinnedAppUserModelId();
+	}
 }
 
 void psExecUpdater() {
@@ -2084,9 +2257,9 @@ void psExecTelegram() {
 	if (cTestMode()) targs += qsl(" -testmode");
 	if (cDataFile() != qsl("data")) targs += qsl(" -key \"") + cDataFile() + '"';
 
-	QString telegram(QDir::toNativeSeparators(cExeDir() + QString::fromWCharArray(AppFile) + qsl(".exe"))), wdir(QDir::toNativeSeparators(cWorkingDir()));
+	QString telegram(QDir::toNativeSeparators(cExeDir() + cExeName())), wdir(QDir::toNativeSeparators(cWorkingDir()));
 
-	DEBUG_LOG(("Application Info: executing %1 %2").arg(cExeDir() + QString::fromWCharArray(AppFile) + qsl(".exe")).arg(targs));
+	DEBUG_LOG(("Application Info: executing %1 %2").arg(cExeDir() + cExeName()).arg(targs));
 	HINSTANCE r = ShellExecute(0, 0, telegram.toStdWString().c_str(), targs.toStdWString().c_str(), wdir.isEmpty() ? 0 : wdir.toStdWString().c_str(), SW_SHOWNORMAL);
 	if (long(r) < 32) {
 		DEBUG_LOG(("Application Error: failed to execute %1, working directory: '%2', result: %3").arg(telegram).arg(wdir).arg(long(r)));
@@ -2095,38 +2268,49 @@ void psExecTelegram() {
 
 void _manageAppLnk(bool create, bool silent, int path_csidl, const wchar_t *args, const wchar_t *description) {
 	WCHAR startupFolder[MAX_PATH];
-	HRESULT hres = SHGetFolderPath(0, path_csidl, 0, SHGFP_TYPE_CURRENT, startupFolder);
-	if (SUCCEEDED(hres)) {
+	HRESULT hr = SHGetFolderPath(0, path_csidl, 0, SHGFP_TYPE_CURRENT, startupFolder);
+	if (SUCCEEDED(hr)) {
 		QString lnk = QString::fromWCharArray(startupFolder) + '\\' + QString::fromWCharArray(AppFile) + qsl(".lnk");
 		if (create) {
-			IShellLink* psl;
-			hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
-			if (SUCCEEDED(hres)) {
-				IPersistFile* ppf;
+			ComPtr<IShellLink> shellLink;
+			hr = CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&shellLink));
+			if (SUCCEEDED(hr)) {
+				ComPtr<IPersistFile> persistFile;
 
-				QString exe = QDir::toNativeSeparators(QDir(cExeDir()).absolutePath() + '/' + QString::fromWCharArray(AppFile) + qsl(".exe")), dir = QDir::toNativeSeparators(QDir(cWorkingDir()).absolutePath());
-				psl->SetArguments(args);
-				psl->SetPath(exe.toStdWString().c_str());
-				psl->SetWorkingDirectory(dir.toStdWString().c_str());
-				psl->SetDescription(description);
+				QString exe = QDir::toNativeSeparators(cExeDir() + cExeName()), dir = QDir::toNativeSeparators(QDir(cWorkingDir()).absolutePath());
+				shellLink->SetArguments(args);
+				shellLink->SetPath(exe.toStdWString().c_str());
+				shellLink->SetWorkingDirectory(dir.toStdWString().c_str());
+				shellLink->SetDescription(description);
 
-				hres = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf);
-
-				if (SUCCEEDED(hres)) {
-					hres = ppf->Save(lnk.toStdWString().c_str(), TRUE);
-					ppf->Release();
-				} else {
-					if (!silent) LOG(("App Error: could not create interface IID_IPersistFile %1").arg(hres));
+				ComPtr<IPropertyStore> propertyStore;
+				hr = shellLink.As(&propertyStore);
+				if (SUCCEEDED(hr)) {
+					PROPVARIANT appIdPropVar;
+					hr = InitPropVariantFromString(AppUserModelId, &appIdPropVar);
+					if (SUCCEEDED(hr)) {
+						hr = propertyStore->SetValue(pkey_AppUserModel_ID, appIdPropVar);
+						PropVariantClear(&appIdPropVar);
+						if (SUCCEEDED(hr)) {
+							hr = propertyStore->Commit();
+						}
+					}
 				}
-				psl->Release();
+
+				hr = shellLink.As(&persistFile);
+				if (SUCCEEDED(hr)) {
+					hr = persistFile->Save(lnk.toStdWString().c_str(), TRUE);
+				} else {
+					if (!silent) LOG(("App Error: could not create interface IID_IPersistFile %1").arg(hr));
+				}
 			} else {
-				if (!silent) LOG(("App Error: could not create instance of IID_IShellLink %1").arg(hres));
+				if (!silent) LOG(("App Error: could not create instance of IID_IShellLink %1").arg(hr));
 			}
 		} else {
 			QFile::remove(lnk);
 		}
 	} else {
-		if (!silent) LOG(("App Error: could not get CSIDL %1 folder %2").arg(path_csidl).arg(hres));
+		if (!silent) LOG(("App Error: could not get CSIDL %1 folder %2").arg(path_csidl).arg(hr));
 	}
 }
 
@@ -2247,3 +2431,677 @@ LONG CALLBACK _exceptionFilter(EXCEPTION_POINTERS* pExceptionPointers) {
     return _oldWndExceptionFilter ? (*_oldWndExceptionFilter)(pExceptionPointers) : EXCEPTION_CONTINUE_SEARCH;
 }
 #endif
+
+class StringReferenceWrapper {
+public:
+
+	StringReferenceWrapper(_In_reads_(length) PCWSTR stringRef, _In_ UINT32 length) throw()	{
+		HRESULT hr = windowsCreateStringReference(stringRef, length, &_header, &_hstring);
+		if (!SUCCEEDED(hr)) {
+			RaiseException(static_cast<DWORD>(STATUS_INVALID_PARAMETER), EXCEPTION_NONCONTINUABLE, 0, nullptr);
+		}
+	}
+
+	~StringReferenceWrapper() {
+		windowsDeleteString(_hstring);
+	}
+
+	template <size_t N>
+	StringReferenceWrapper(_In_reads_(N) wchar_t const (&stringRef)[N]) throw() {
+		UINT32 length = N - 1;
+		HRESULT hr = windowsCreateStringReference(stringRef, length, &_header, &_hstring);
+		if (!SUCCEEDED(hr))	{
+			RaiseException(static_cast<DWORD>(STATUS_INVALID_PARAMETER), EXCEPTION_NONCONTINUABLE, 0, nullptr);
+		}
+	}
+
+	template <size_t _>
+	StringReferenceWrapper(_In_reads_(_) wchar_t(&stringRef)[_]) throw() {
+		UINT32 length;
+		HRESULT hr = SizeTToUInt32(wcslen(stringRef), &length);
+		if (!SUCCEEDED(hr)) {
+			RaiseException(static_cast<DWORD>(STATUS_INVALID_PARAMETER), EXCEPTION_NONCONTINUABLE, 0, nullptr);
+		}
+
+		windowsCreateStringReference(stringRef, length, &_header, &_hstring);
+	}
+
+	HSTRING Get() const throw()	{
+		return _hstring;
+	}
+
+private:
+	HSTRING _hstring;
+	HSTRING_HEADER _header;
+
+};
+
+HRESULT SetNodeValueString(_In_ HSTRING inputString, _In_ IXmlNode *node, _In_ IXmlDocument *xml) {
+	ComPtr<IXmlText> inputText;
+
+	HRESULT hr = xml->CreateTextNode(inputString, &inputText);
+	if (!SUCCEEDED(hr)) return hr;
+	ComPtr<IXmlNode> inputTextNode;
+
+	hr = inputText.As(&inputTextNode);
+	if (!SUCCEEDED(hr)) return hr;
+
+	ComPtr<IXmlNode> pAppendedChild;
+	return node->AppendChild(inputTextNode.Get(), &pAppendedChild);
+}
+
+HRESULT SetAudioSilent(_In_ IXmlDocument *toastXml) {
+	ComPtr<IXmlNodeList> nodeList;
+	HRESULT hr = toastXml->GetElementsByTagName(StringReferenceWrapper(L"audio").Get(), &nodeList);
+	if (!SUCCEEDED(hr)) return hr;
+
+	ComPtr<IXmlNode> audioNode;
+	hr = nodeList->Item(0, &audioNode);
+	if (!SUCCEEDED(hr)) return hr;
+
+	if (audioNode) {
+		ComPtr<IXmlElement> audioElement;
+		hr = audioNode.As(&audioElement);
+		if (!SUCCEEDED(hr)) return hr;
+
+		hr = audioElement->SetAttribute(StringReferenceWrapper(L"silent").Get(), StringReferenceWrapper(L"true").Get());
+		if (!SUCCEEDED(hr)) return hr;
+	} else {
+		ComPtr<IXmlElement> audioElement;
+		hr = toastXml->CreateElement(StringReferenceWrapper(L"audio").Get(), &audioElement);
+		if (!SUCCEEDED(hr)) return hr;
+
+		hr = audioElement->SetAttribute(StringReferenceWrapper(L"silent").Get(), StringReferenceWrapper(L"true").Get());
+		if (!SUCCEEDED(hr)) return hr;
+
+		ComPtr<IXmlNode> audioNode;
+		hr = audioElement.As(&audioNode);
+		if (!SUCCEEDED(hr)) return hr;
+
+		ComPtr<IXmlNodeList> nodeList;
+		hr = toastXml->GetElementsByTagName(StringReferenceWrapper(L"toast").Get(), &nodeList);
+		if (!SUCCEEDED(hr)) return hr;
+
+		ComPtr<IXmlNode> toastNode;
+		hr = nodeList->Item(0, &toastNode);
+		if (!SUCCEEDED(hr)) return hr;
+
+		ComPtr<IXmlNode> appendedNode;
+		hr = toastNode->AppendChild(audioNode.Get(), &appendedNode);
+	}
+	return hr;
+}
+
+HRESULT SetImageSrc(_In_z_ const wchar_t *imagePath, _In_ IXmlDocument *toastXml) {
+	wchar_t imageSrc[MAX_PATH] = L"file:///";
+	HRESULT hr = StringCchCat(imageSrc, ARRAYSIZE(imageSrc), imagePath);
+	if (!SUCCEEDED(hr)) return hr;
+
+	ComPtr<IXmlNodeList> nodeList;
+	hr = toastXml->GetElementsByTagName(StringReferenceWrapper(L"image").Get(), &nodeList);
+	if (!SUCCEEDED(hr)) return hr;
+
+	ComPtr<IXmlNode> imageNode;
+	hr = nodeList->Item(0, &imageNode);
+	if (!SUCCEEDED(hr)) return hr;
+
+	ComPtr<IXmlNamedNodeMap> attributes;
+	hr = imageNode->get_Attributes(&attributes);
+	if (!SUCCEEDED(hr)) return hr;
+
+	ComPtr<IXmlNode> srcAttribute;
+	hr = attributes->GetNamedItem(StringReferenceWrapper(L"src").Get(), &srcAttribute);
+	if (!SUCCEEDED(hr)) return hr;
+
+	return SetNodeValueString(StringReferenceWrapper(imageSrc).Get(), srcAttribute.Get(), toastXml);
+}
+
+typedef ABI::Windows::Foundation::ITypedEventHandler<ToastNotification*, ::IInspectable *> DesktopToastActivatedEventHandler;
+typedef ABI::Windows::Foundation::ITypedEventHandler<ToastNotification*, ToastDismissedEventArgs*> DesktopToastDismissedEventHandler;
+typedef ABI::Windows::Foundation::ITypedEventHandler<ToastNotification*, ToastFailedEventArgs*> DesktopToastFailedEventHandler;
+
+class ToastEventHandler : public Implements<DesktopToastActivatedEventHandler, DesktopToastDismissedEventHandler, DesktopToastFailedEventHandler> {
+public:
+	ToastEventHandler::ToastEventHandler(uint64 peer, int32 msg) : _ref(1), _peerId(peer), _msgId(msg) {
+	}
+	~ToastEventHandler() {
+	}
+
+	// DesktopToastActivatedEventHandler 
+	IFACEMETHODIMP Invoke(_In_ IToastNotification *sender, _In_ IInspectable* args) {
+		ToastNotifications::iterator i = toastNotifications.find(_peerId);
+		if (i != toastNotifications.cend()) {
+			i.value().remove(_msgId);
+			if (i.value().isEmpty()) {
+				toastNotifications.erase(i);
+			}
+		}
+		if (App::wnd()) {
+			History *history = App::history(PeerId(_peerId));
+
+			App::wnd()->showFromTray();
+			if (App::passcoded()) {
+				App::wnd()->passcodeWidget()->setInnerFocus();
+				App::wnd()->notifyClear();
+			} else {
+				App::wnd()->hideSettings();
+				bool tomsg = history->peer->chat && (_msgId > 0);
+				if (tomsg) {
+					HistoryItem *item = App::histItemById(_msgId);
+					if (!item || !item->notifyByFrom()) {
+						tomsg = false;
+					}
+				}
+				App::main()->showPeerHistory(history->peer->id, tomsg ? _msgId : ShowAtUnreadMsgId);
+				App::wnd()->notifyClear(history);
+			}
+			SetForegroundWindow(App::wnd()->psHwnd());
+		}
+		return S_OK;
+	}
+
+	// DesktopToastDismissedEventHandler
+	IFACEMETHODIMP Invoke(_In_ IToastNotification *sender, _In_ IToastDismissedEventArgs *e)  {
+		ToastDismissalReason tdr;
+		if (SUCCEEDED(e->get_Reason(&tdr))) {
+			switch (tdr) {
+			case ToastDismissalReason_ApplicationHidden:
+				break;
+			case ToastDismissalReason_UserCanceled:
+			case ToastDismissalReason_TimedOut:
+			default:
+				ToastNotifications::iterator i = toastNotifications.find(_peerId);
+				if (i != toastNotifications.cend()) {
+					i.value().remove(_msgId);
+					if (i.value().isEmpty()) {
+						toastNotifications.erase(i);
+					}
+				}
+				break;
+			}
+		}
+		return S_OK;
+	}
+
+	// DesktopToastFailedEventHandler
+	IFACEMETHODIMP Invoke(_In_ IToastNotification *sender, _In_ IToastFailedEventArgs *e) {
+		ToastNotifications::iterator i = toastNotifications.find(_peerId);
+		if (i != toastNotifications.cend()) {
+			i.value().remove(_msgId);
+			if (i.value().isEmpty()) {
+				toastNotifications.erase(i);
+			}
+		}
+		return S_OK;
+	}
+
+	// IUnknown
+	IFACEMETHODIMP_(ULONG) AddRef() {
+		return InterlockedIncrement(&_ref);
+	}
+
+	IFACEMETHODIMP_(ULONG) Release() {
+		ULONG l = InterlockedDecrement(&_ref);
+		if (l == 0) delete this;
+		return l;
+	}
+
+	IFACEMETHODIMP QueryInterface(_In_ REFIID riid, _COM_Outptr_ void **ppv) {
+		if (IsEqualIID(riid, IID_IUnknown))
+			*ppv = static_cast<IUnknown*>(static_cast<DesktopToastActivatedEventHandler*>(this));
+		else if (IsEqualIID(riid, __uuidof(DesktopToastActivatedEventHandler)))
+			*ppv = static_cast<DesktopToastActivatedEventHandler*>(this);
+		else if (IsEqualIID(riid, __uuidof(DesktopToastDismissedEventHandler)))
+			*ppv = static_cast<DesktopToastDismissedEventHandler*>(this);
+		else if (IsEqualIID(riid, __uuidof(DesktopToastFailedEventHandler)))
+			*ppv = static_cast<DesktopToastFailedEventHandler*>(this);
+		else *ppv = nullptr;
+
+		if (*ppv) {
+			reinterpret_cast<IUnknown*>(*ppv)->AddRef();
+			return S_OK;
+		}
+
+		return E_NOINTERFACE;
+	}
+
+private:
+	ULONG _ref;
+	uint64 _peerId;
+	int32 _msgId;
+};
+
+template<class T>
+_Check_return_ __inline HRESULT _1_GetActivationFactory(_In_ HSTRING activatableClassId, _COM_Outptr_ T** factory) {
+	return roGetActivationFactory(activatableClassId, IID_INS_ARGS(factory));
+}
+
+template<typename T>
+inline HRESULT wrap_GetActivationFactory(_In_ HSTRING activatableClassId, _Inout_ Details::ComPtrRef<T> factory) throw() {
+	return _1_GetActivationFactory(activatableClassId, factory.ReleaseAndGetAddressOf());
+}
+
+QString toastImage(const StorageKey &key, PeerData *peer) {
+	uint64 ms = getms(true);
+	ToastImages::iterator i = toastImages.find(key);
+	if (i != toastImages.cend()) {
+		if (i->until) {
+			i->until = ms + NotifyDeletePhotoAfter;
+			if (App::wnd()) App::wnd()->psCleanNotifyPhotosIn(-NotifyDeletePhotoAfter);
+		}
+	} else {
+		ToastImage v;
+		if (key.first) {
+			v.until = ms + NotifyDeletePhotoAfter;
+			if (App::wnd()) App::wnd()->psCleanNotifyPhotosIn(-NotifyDeletePhotoAfter);
+		} else {
+			v.until = 0;
+		}
+		v.path = cWorkingDir() + qsl("tdata/temp/") + QString::number(MTP::nonce<uint64>(), 16) + qsl(".png");
+		if (peer->photo->loaded() && (key.first || key.second)) {
+			peer->photo->pix().save(v.path, "PNG");
+		} else if (!key.first && key.second) {
+			(peer->chat ? chatDefPhoto : userDefPhoto)(peer->colorIndex)->pix().save(v.path, "PNG");
+		} else {
+			App::wnd()->iconLarge().save(v.path, "PNG");
+		}
+		i = toastImages.insert(key, v);
+	}
+	return i->path;
+}
+
+bool CreateToast(PeerData *peer, int32 msgId, bool showpix, const QString &title, const QString &subtitle, const QString &msg) {
+	if (!useToast || !toastNotificationManager || !toastNotifier || !toastNotificationFactory) return false;
+
+	ComPtr<IXmlDocument> toastXml;
+	bool withSubtitle = !subtitle.isEmpty();
+
+	HRESULT hr = toastNotificationManager->GetTemplateContent(withSubtitle ? ToastTemplateType_ToastImageAndText04 : ToastTemplateType_ToastImageAndText02, &toastXml);
+	if (!SUCCEEDED(hr)) return false;
+
+	hr = SetAudioSilent(toastXml.Get());
+	if (!SUCCEEDED(hr)) return false;
+
+	StorageKey key;
+	QString imagePath;
+	if (showpix) {
+		if (peer->photoLoc.isNull() || !peer->photo->loaded()) {
+			key = StorageKey(0, (peer->chat ? 0x2000 : 0x1000) | peer->colorIndex);
+		} else {
+			key = storageKey(peer->photoLoc);
+		}
+	} else {
+		key = StorageKey(0, 0);
+	}
+	QString image = toastImage(key, peer);
+	std::wstring wimage = QDir::toNativeSeparators(image).toStdWString();
+
+	hr = SetImageSrc(wimage.c_str(), toastXml.Get());
+	if (!SUCCEEDED(hr)) return false;
+
+	ComPtr<IXmlNodeList> nodeList;
+	hr = toastXml->GetElementsByTagName(StringReferenceWrapper(L"text").Get(), &nodeList);
+	if (!SUCCEEDED(hr)) return false;
+
+	UINT32 nodeListLength;
+	hr = nodeList->get_Length(&nodeListLength);
+	if (!SUCCEEDED(hr)) return false;
+
+	if (nodeListLength < (withSubtitle ? 3 : 2)) return false;
+
+	{
+		ComPtr<IXmlNode> textNode;
+		hr = nodeList->Item(0, &textNode);
+		if (!SUCCEEDED(hr)) return false;
+
+		std::wstring wtitle = title.toStdWString();
+		hr = SetNodeValueString(StringReferenceWrapper(wtitle.data(), wtitle.size()).Get(), textNode.Get(), toastXml.Get());
+		if (!SUCCEEDED(hr)) return false;
+	}
+	if (withSubtitle) {
+		ComPtr<IXmlNode> textNode;
+		hr = nodeList->Item(1, &textNode);
+		if (!SUCCEEDED(hr)) return false;
+
+		std::wstring wsubtitle = subtitle.toStdWString();
+		hr = SetNodeValueString(StringReferenceWrapper(wsubtitle.data(), wsubtitle.size()).Get(), textNode.Get(), toastXml.Get());
+		if (!SUCCEEDED(hr)) return false;
+	}
+	{
+		ComPtr<IXmlNode> textNode;
+		hr = nodeList->Item(withSubtitle ? 2 : 1, &textNode);
+		if (!SUCCEEDED(hr)) return false;
+
+		std::wstring wmsg = msg.toStdWString();
+		hr = SetNodeValueString(StringReferenceWrapper(wmsg.data(), wmsg.size()).Get(), textNode.Get(), toastXml.Get());
+		if (!SUCCEEDED(hr)) return false;
+	}
+
+	ComPtr<IToastNotification> toast;
+	hr = toastNotificationFactory->CreateToastNotification(toastXml.Get(), &toast);
+	if (!SUCCEEDED(hr)) return false;
+
+	EventRegistrationToken activatedToken, dismissedToken, failedToken;
+	ComPtr<ToastEventHandler> eventHandler(new ToastEventHandler(peer->id, msgId));
+
+	hr = toast->add_Activated(eventHandler.Get(), &activatedToken);
+	if (!SUCCEEDED(hr)) return false;
+
+	hr = toast->add_Dismissed(eventHandler.Get(), &dismissedToken);
+	if (!SUCCEEDED(hr)) return false;
+
+	hr = toast->add_Failed(eventHandler.Get(), &failedToken);
+	if (!SUCCEEDED(hr)) return false;
+
+	ToastNotifications::iterator i = toastNotifications.find(peer->id);
+	if (i == toastNotifications.cend()) {
+		i = toastNotifications.insert(peer->id, QMap<MsgId, ToastNotificationPtr>());
+	} else {
+		QMap<MsgId, ToastNotificationPtr>::iterator j = i->find(msgId);
+		if (j != i->cend()) {
+			toastNotifier->Hide(j->p.Get());
+			i->erase(j);
+			if (i->isEmpty()) {
+				toastNotifications.erase(i);
+			}
+		}
+	}
+	hr = toastNotifier->Show(toast.Get());
+	if (!SUCCEEDED(hr)) {
+		if (i->isEmpty()) toastNotifications.erase(i);
+		return false;
+	}
+	i->insert(msgId, toast);
+
+	return true;
+}
+
+QString pinnedPath() {
+	static const int maxFileLen = MAX_PATH * 10;
+	WCHAR wstrPath[maxFileLen];
+	if (GetEnvironmentVariable(L"APPDATA", wstrPath, maxFileLen)) {
+		QDir appData(QString::fromStdWString(std::wstring(wstrPath)));
+		return appData.absolutePath() + qsl("/Microsoft/Internet Explorer/Quick Launch/User Pinned/TaskBar/");
+	}
+	return QString();
+}
+
+void CheckPinnedAppUserModelId() {
+	if (!propVariantToString) return;
+
+	static const int maxFileLen = MAX_PATH * 10;
+
+	HRESULT hr = CoInitialize(0);
+	if (!SUCCEEDED(hr)) return;
+
+	QString path = pinnedPath();
+	std::wstring p = QDir::toNativeSeparators(path).toStdWString();
+	
+	WCHAR src[MAX_PATH];
+	GetModuleFileName(GetModuleHandle(0), src, MAX_PATH);
+	BY_HANDLE_FILE_INFORMATION srcinfo = { 0 };
+	HANDLE srcfile = CreateFile(src, 0x00, 0x00, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (srcfile == INVALID_HANDLE_VALUE) return;
+	BOOL srcres = GetFileInformationByHandle(srcfile, &srcinfo);
+	CloseHandle(srcfile);
+	if (!srcres) return;
+	LOG(("Checking.."));
+	WIN32_FIND_DATA findData;
+	HANDLE findHandle = FindFirstFileEx((p + L"*").c_str(), FindExInfoStandard, &findData, FindExSearchNameMatch, 0, 0);
+	if (findHandle == INVALID_HANDLE_VALUE) {
+		LOG(("Init Error: could not find files in pinned folder"));
+		return;
+	}
+	do {
+		std::wstring fname = p + findData.cFileName;
+		LOG(("Checking %1").arg(QString::fromStdWString(fname)));
+		if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+			continue;
+		} else {
+			DWORD attributes = GetFileAttributes(fname.c_str());
+			if (attributes >= 0xFFFFFFF) continue; // file does not exist
+
+			ComPtr<IShellLink> shellLink;
+			HRESULT hr = CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&shellLink));
+			if (!SUCCEEDED(hr)) continue;
+
+			ComPtr<IPersistFile> persistFile;
+			hr = shellLink.As(&persistFile);
+			if (!SUCCEEDED(hr)) continue;
+
+			hr = persistFile->Load(fname.c_str(), STGM_READWRITE);
+			if (!SUCCEEDED(hr)) continue;
+
+			WCHAR dst[MAX_PATH];
+			hr = shellLink->GetPath(dst, MAX_PATH, 0, 0);
+			if (!SUCCEEDED(hr)) continue;
+
+			BY_HANDLE_FILE_INFORMATION dstinfo = { 0 };
+			HANDLE dstfile = CreateFile(dst, 0x00, 0x00, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (dstfile == INVALID_HANDLE_VALUE) continue;
+			BOOL dstres = GetFileInformationByHandle(dstfile, &dstinfo);
+			CloseHandle(dstfile);
+			if (!dstres) continue;
+			
+			if (srcinfo.dwVolumeSerialNumber == dstinfo.dwVolumeSerialNumber && srcinfo.nFileIndexLow == dstinfo.nFileIndexLow && srcinfo.nFileIndexHigh == dstinfo.nFileIndexHigh) {
+				ComPtr<IPropertyStore> propertyStore;
+				hr = shellLink.As(&propertyStore);
+				if (!SUCCEEDED(hr)) return;
+
+				PROPVARIANT appIdPropVar;
+				hr = propertyStore->GetValue(pkey_AppUserModel_ID, &appIdPropVar);
+				if (!SUCCEEDED(hr)) return;
+				LOG(("Reading.."));
+				WCHAR already[MAX_PATH];
+				hr = propVariantToString(appIdPropVar, already, MAX_PATH);
+				if (SUCCEEDED(hr)) {
+					if (std::wstring(AppUserModelId) == already) {
+						LOG(("Already!"));
+						PropVariantClear(&appIdPropVar);
+						return;
+					}
+				}
+				if (appIdPropVar.vt != VT_EMPTY) {
+					PropVariantClear(&appIdPropVar);
+					return;
+				}
+				PropVariantClear(&appIdPropVar);
+
+				hr = InitPropVariantFromString(AppUserModelId, &appIdPropVar);
+				if (!SUCCEEDED(hr)) return;
+
+				hr = propertyStore->SetValue(pkey_AppUserModel_ID, appIdPropVar);
+				PropVariantClear(&appIdPropVar);
+				if (!SUCCEEDED(hr)) return;
+
+				hr = propertyStore->Commit();
+				if (!SUCCEEDED(hr)) return;
+
+				if (persistFile->IsDirty() == S_OK) {
+					persistFile->Save(fname.c_str(), TRUE);
+				}
+				return;
+			}
+		}
+	} while (FindNextFile(findHandle, &findData));
+	DWORD errorCode = GetLastError();
+	if (errorCode && errorCode != ERROR_NO_MORE_FILES) { // everything is found
+		LOG(("Init Error: could not find some files in pinned folder"));
+		return;
+	}
+	FindClose(findHandle);
+}
+
+QString systemShortcutPath() {
+	static const int maxFileLen = MAX_PATH * 10;
+	WCHAR wstrPath[maxFileLen];
+	if (GetEnvironmentVariable(L"APPDATA", wstrPath, maxFileLen)) {
+		QDir appData(QString::fromStdWString(std::wstring(wstrPath)));
+		return appData.absolutePath() + qsl("/Microsoft/Windows/Start Menu/Programs/");
+	}
+	return QString();
+}
+
+void CleanupAppUserModelIdShortcut() {
+	static const int maxFileLen = MAX_PATH * 10;
+
+	QString path = systemShortcutPath() + qsl("Telegram.lnk");
+	std::wstring p = QDir::toNativeSeparators(path).toStdWString();
+
+	DWORD attributes = GetFileAttributes(p.c_str());
+	if (attributes >= 0xFFFFFFF) return; // file does not exist
+
+	ComPtr<IShellLink> shellLink;
+	HRESULT hr = CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&shellLink));
+	if (!SUCCEEDED(hr)) return;
+
+	ComPtr<IPersistFile> persistFile;
+	hr = shellLink.As(&persistFile);
+	if (!SUCCEEDED(hr)) return;
+
+	hr = persistFile->Load(p.c_str(), STGM_READWRITE);
+	if (!SUCCEEDED(hr)) return;
+
+	WCHAR szGotPath[MAX_PATH];
+	WIN32_FIND_DATA wfd;
+	hr = shellLink->GetPath(szGotPath, MAX_PATH, (WIN32_FIND_DATA*)&wfd, SLGP_SHORTPATH);
+	if (!SUCCEEDED(hr)) return;
+
+	if (QDir::toNativeSeparators(cExeDir() + cExeName()).toStdWString() == szGotPath) {
+		QFile().remove(path);
+	}
+}
+
+bool ValidateAppUserModelIdShortcutAt(const QString &path) {
+	static const int maxFileLen = MAX_PATH * 10;
+	
+	std::wstring p = QDir::toNativeSeparators(path).toStdWString();
+
+	DWORD attributes = GetFileAttributes(p.c_str());
+	if (attributes >= 0xFFFFFFF) return false; // file does not exist
+
+	ComPtr<IShellLink> shellLink;
+	HRESULT hr = CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&shellLink));
+	if (!SUCCEEDED(hr)) return false;
+
+	ComPtr<IPersistFile> persistFile;
+	hr = shellLink.As(&persistFile);
+	if (!SUCCEEDED(hr)) return false;
+
+	hr = persistFile->Load(p.c_str(), STGM_READWRITE);
+	if (!SUCCEEDED(hr)) return false;
+
+	ComPtr<IPropertyStore> propertyStore;
+	hr = shellLink.As(&propertyStore);
+	if (!SUCCEEDED(hr)) return false;
+
+	PROPVARIANT appIdPropVar;
+	hr = propertyStore->GetValue(pkey_AppUserModel_ID, &appIdPropVar);
+	if (!SUCCEEDED(hr)) return false;
+
+	WCHAR already[MAX_PATH];
+	hr = propVariantToString(appIdPropVar, already, MAX_PATH);
+	if (SUCCEEDED(hr)) {
+		if (std::wstring(AppUserModelId) == already) {
+			PropVariantClear(&appIdPropVar);
+			return true;
+		}
+	}
+	if (appIdPropVar.vt != VT_EMPTY) {
+		PropVariantClear(&appIdPropVar);
+		return false;
+	}
+	PropVariantClear(&appIdPropVar);
+
+	hr = InitPropVariantFromString(AppUserModelId, &appIdPropVar);
+	if (!SUCCEEDED(hr)) return false;
+
+	hr = propertyStore->SetValue(pkey_AppUserModel_ID, appIdPropVar);
+	PropVariantClear(&appIdPropVar);
+	if (!SUCCEEDED(hr)) return false;
+
+	hr = propertyStore->Commit();
+	if (!SUCCEEDED(hr)) return false;
+
+	if (persistFile->IsDirty() == S_OK) {
+		persistFile->Save(p.c_str(), TRUE);
+	}
+
+	return true;
+}
+
+bool ValidateAppUserModelIdShortcut() {
+	if (!useToast) return false;
+
+	QString path = systemShortcutPath();
+	if (path.isEmpty()) return false;
+
+	if (ValidateAppUserModelIdShortcutAt(path + qsl("Telegram Desktop/Telegram.lnk"))) return true;
+	if (ValidateAppUserModelIdShortcutAt(path + qsl("Telegram Win (Unofficial)/Telegram.lnk"))) return true;
+	
+	path += qsl("Telegram.lnk");
+	if (ValidateAppUserModelIdShortcutAt(path)) return true;
+
+	ComPtr<IShellLink> shellLink;
+	HRESULT hr = CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&shellLink));
+	if (!SUCCEEDED(hr)) return false;
+
+	hr = shellLink->SetPath(QDir::toNativeSeparators(cExeDir() + cExeName()).toStdWString().c_str());
+	if (!SUCCEEDED(hr)) return false;
+
+	hr = shellLink->SetArguments(L"");
+	if (!SUCCEEDED(hr)) return false;
+
+	hr = shellLink->SetWorkingDirectory(QDir::toNativeSeparators(QDir(cWorkingDir()).absolutePath()).toStdWString().c_str());
+	if (!SUCCEEDED(hr)) return false;
+
+	ComPtr<IPropertyStore> propertyStore;
+	hr = shellLink.As(&propertyStore);
+	if (!SUCCEEDED(hr)) return false;
+
+	PROPVARIANT appIdPropVar;
+	hr = InitPropVariantFromString(AppUserModelId, &appIdPropVar);
+	if (!SUCCEEDED(hr)) return false;
+
+	hr = propertyStore->SetValue(pkey_AppUserModel_ID, appIdPropVar);
+	PropVariantClear(&appIdPropVar);
+	if (!SUCCEEDED(hr)) return false;
+
+	PROPVARIANT startPinPropVar;
+	hr = InitPropVariantFromUInt32(APPUSERMODEL_STARTPINOPTION_NOPINONINSTALL, &startPinPropVar);
+	if (!SUCCEEDED(hr)) return false;
+
+	hr = propertyStore->SetValue(pkey_AppUserModel_StartPinOption, startPinPropVar);
+	PropVariantClear(&startPinPropVar);
+	if (!SUCCEEDED(hr)) return false;
+
+	hr = propertyStore->Commit();
+	if (!SUCCEEDED(hr)) return false;
+
+	ComPtr<IPersistFile> persistFile;
+	hr = shellLink.As(&persistFile);
+	if (!SUCCEEDED(hr)) return false;
+
+	hr = persistFile->Save(QDir::toNativeSeparators(path).toStdWString().c_str(), TRUE);
+	if (!SUCCEEDED(hr)) return false;
+
+	return true;
+}
+
+bool InitToastManager() {
+	if (!useToast || !ValidateAppUserModelIdShortcut()) return false;
+	if (!SUCCEEDED(setCurrentProcessExplicitAppUserModelID(AppUserModelId))) {
+		return false;
+	}
+	if (!SUCCEEDED(wrap_GetActivationFactory(StringReferenceWrapper(RuntimeClass_Windows_UI_Notifications_ToastNotificationManager).Get(), &toastNotificationManager))) {
+		return false;
+	}
+	if (!SUCCEEDED(toastNotificationManager->CreateToastNotifierWithId(StringReferenceWrapper(AppUserModelId).Get(), &toastNotifier))) {
+		return false;
+	}
+	if (!SUCCEEDED(wrap_GetActivationFactory(StringReferenceWrapper(RuntimeClass_Windows_UI_Notifications_ToastNotification).Get(), &toastNotificationFactory))) {
+		return false;
+	}
+	QDir().mkpath(cWorkingDir() + qsl("tdata/temp"));
+	return true;
+}

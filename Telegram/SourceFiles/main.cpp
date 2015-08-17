@@ -39,6 +39,9 @@ int main(int argc, char *argv[]) {
 	logsInit();
 
 	Local::readSettings();
+	if (Local::oldSettingsVersion() < AppVersion) {
+		psNewVersion();
+	}
 	if (cFromAutoStart() && !cAutoStart()) {
 		psAutoStart(false, true);
 		Local::stop();

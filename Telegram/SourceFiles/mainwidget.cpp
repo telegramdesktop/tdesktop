@@ -1006,8 +1006,8 @@ void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId repl
 			WebPageData *page = App::webPage(webPageId);
 			media = MTP_messageMediaWebPage(MTP_webPagePending(MTP_long(page->id), MTP_int(page->pendingTill)));
 		}
-		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTPint(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup));
-		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTPint(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, MTPnullEntities));
+		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, MTPnullEntities), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 	}
 
 	finishForwarding(hist);
@@ -1734,7 +1734,7 @@ void MainWidget::serviceNotification(const QString &msg, const MTPMessageMedia &
 	QString sendingText, leftText = msg;
 	HistoryItem *item = 0;
 	while (textSplit(sendingText, leftText, MaxMessageSize)) {
-		item = App::histories().addToBack(MTP_message(MTP_int(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTPint(), MTPint(), MTPint(), MTP_int(unixtime()), MTP_string(sendingText), media, MTPnullMarkup), unread ? 1 : 2);
+		item = App::histories().addToBack(MTP_message(MTP_int(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTPint(), MTPint(), MTPint(), MTP_int(unixtime()), MTP_string(sendingText), media, MTPnullMarkup, MTPnullEntities), unread ? 1 : 2);
 	}
 	if (item) {
 		history.peerMessagesUpdated(item->history()->peer->id);
@@ -3042,8 +3042,7 @@ void MainWidget::gotNotifySetting(MTPInputNotifyPeer peer, const MTPPeerNotifySe
 		switch (peer.c_inputNotifyPeer().vpeer.type()) {
 		case mtpc_inputPeerEmpty: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(MTP_int(0))), settings); break;
 		case mtpc_inputPeerSelf: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(MTP_int(MTP::authedId()))), settings); break;
-		case mtpc_inputPeerContact: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(peer.c_inputNotifyPeer().vpeer.c_inputPeerContact().vuser_id)), settings); break;
-		case mtpc_inputPeerForeign: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(peer.c_inputNotifyPeer().vpeer.c_inputPeerForeign().vuser_id)), settings); break;
+		case mtpc_inputPeerUser: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(peer.c_inputNotifyPeer().vpeer.c_inputPeerUser().vuser_id)), settings); break;
 		case mtpc_inputPeerChat: applyNotifySetting(MTP_notifyPeer(MTP_peerChat(peer.c_inputNotifyPeer().vpeer.c_inputPeerChat().vchat_id)), settings); break;
 		}
 	break;
@@ -3352,7 +3351,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 			return;
 		}
 		bool out = (d.vflags.v & MTPDmessage_flag_out);
-		HistoryItem *item = App::histories().addToBack(MTP_message(d.vflags, d.vid, out ? MTP_int(MTP::authedId()) : d.vuser_id, MTP_peerUser(out ? d.vuser_id : MTP_int(MTP::authedId())), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup));
+		HistoryItem *item = App::histories().addToBack(MTP_message(d.vflags, d.vid, out ? MTP_int(MTP::authedId()) : d.vuser_id, MTP_peerUser(out ? d.vuser_id : MTP_int(MTP::authedId())), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, MTPnullEntities));
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
 		}
@@ -3372,7 +3371,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 			_byPtsUpdates.insert(ptsKey(SkippedUpdates), updates);
 			return;
 		}
-		HistoryItem *item = App::histories().addToBack(MTP_message(d.vflags, d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup));
+		HistoryItem *item = App::histories().addToBack(MTP_message(d.vflags, d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, MTPnullEntities));
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
 		}
@@ -3652,6 +3651,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateUserBlocked: {
 		const MTPDupdateUserBlocked &d(update.c_updateUserBlocked());
+		if (UserData *user = App::userLoaded(d.vuser_id.v)) {
+			user->blocked = d.vblocked.v ? UserIsBlocked : UserIsNotBlocked;
+			App::markPeerUpdated(user);
+		}
 	} break;
 
 	case mtpc_updateNewAuthorization: {
