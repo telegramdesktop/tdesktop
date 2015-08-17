@@ -24,11 +24,14 @@ class PhoneInput : public FlatInput {
 
 public:
 
-	PhoneInput(QWidget *parent, const style::flatInput &st, const QString &ph);
+	PhoneInput(QWidget *parent, const style::flatInput &st);
+
+	void paintEvent(QPaintEvent *e);
 
 public slots:
 
 	void addedToNumber(const QString &added);
+	void onChooseCode(const QString &code);
 
 signals:
 
@@ -37,6 +40,10 @@ signals:
 protected:
 
 	void correctValue(QKeyEvent *e, const QString &was);
+
+private:
+
+	QVector<int> pattern;
 
 };
 

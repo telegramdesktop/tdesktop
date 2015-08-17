@@ -19,6 +19,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "pspecific_mac_p.h"
 
 #include "window.h"
+#include "mainwidget.h"
 #include "application.h"
 
 #include "lang.h"
@@ -26,6 +27,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include <Cocoa/Cocoa.h>
 #include <IOKit/IOKitLib.h>
 #include <CoreFoundation/CFURL.h>
+
+#include <IOKit/hidsystem/ev_keymap.h>
 
 @interface qVisualize : NSObject {
 }
@@ -303,6 +306,41 @@ void PsMacWindowPrivate::enableShadow(WId winId) {
 //    [[(NSView*)winId window] setStyleMask:NSBorderlessWindowMask];
 //    [[(NSView*)winId window] setHasShadow:YES];
 }
+
+bool PsMacWindowPrivate::filterNativeEvent(void *event) {
+	NSEvent *e = static_cast<NSEvent*>(event);
+	if (e && [e type] == NSSystemDefined && [e subtype] == 8) {
+		int keyCode = (([e data1] & 0xFFFF0000) >> 16);
+		int keyFlags = ([e data1] & 0x0000FFFF);
+		int keyState = (((keyFlags & 0xFF00) >> 8)) == 0xA;
+		int keyRepeat = (keyFlags & 0x1);
+
+		switch (keyCode) {
+		case NX_KEYTYPE_PLAY:
+			if (keyState == 0) { // Play pressed and released
+				if (App::main()) App::main()->player()->playPausePressed();
+				return true;
+			}
+			break;
+
+		case NX_KEYTYPE_FAST:
+			if (keyState == 0) { // Next pressed and released
+				if (App::main()) App::main()->player()->nextPressed();
+				return true;
+			}
+			break;
+
+		case NX_KEYTYPE_REWIND:
+			if (keyState == 0) { // Previous pressed and released
+				if (App::main()) App::main()->player()->prevPressed();
+				return true;
+			}
+			break;
+		}
+	}
+	return false;
+}
+
 
 void PsMacWindowPrivate::clearNotifies(unsigned long long peer) {
     NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
@@ -948,8 +986,12 @@ void objc_execTelegram() {
 	_execUpdater(NO);
 }
 
-void objc_activateProgram() {
+void objc_activateProgram(WId winId) {
 	[NSApp activateIgnoringOtherApps:YES];
+	if (winId) {
+		NSWindow *w = [reinterpret_cast<NSView*>(winId) window];
+		[w makeKeyAndOrderFront:NSApp];
+	}
 }
 
 bool objc_moveFile(const QString &from, const QString &to) {

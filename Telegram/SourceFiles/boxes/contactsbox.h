@@ -53,7 +53,7 @@ public:
 	void loadProfilePhotos(int32 yFrom);
 	void chooseParticipant();
 	void changeCheckState(DialogRow *row);
-	void changeCheckState(ContactData *data);
+	void changeCheckState(ContactData *data, PeerData *peer);
 
 	void peopleReceived(const QString &query, const QVector<MTPContactFound> &people);
 
@@ -109,6 +109,8 @@ private:
 	};
 	typedef QMap<PeerData*, ContactData*> ContactsData;
 	ContactsData _contactsData;
+	typedef QMap<PeerData*, bool> CheckedContacts;
+	CheckedContacts _checkedContacts;
 
 	ContactData *contactData(DialogRow *row);
 

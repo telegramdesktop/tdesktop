@@ -103,6 +103,8 @@ protected:
 		return QTextEdit::leaveEvent(e);
 	}
 
+	QVariant loadResource(int type, const QUrl &name);
+
 private:
 
 	void getSingleEmojiFragment(QString &text, QTextFragment &fragment) const;

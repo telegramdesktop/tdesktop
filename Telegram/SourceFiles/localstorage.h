@@ -100,6 +100,8 @@ namespace Local {
 	ReadMapState readMap(const QByteArray &pass);
 	int32 oldMapVersion();
 
+	int32 oldSettingsVersion();
+
 	struct MessageDraft {
 		MessageDraft(MsgId replyTo = 0, QString text = QString(), bool previewCancelled = false) : replyTo(replyTo), text(text), previewCancelled(previewCancelled) {
 		}
@@ -140,5 +142,9 @@ namespace Local {
 
 	void writeRecentHashtags();
 	void readRecentHashtags();
+
+	void addSavedPeer(PeerData *peer, const QDateTime &position);
+	void removeSavedPeer(PeerData *peer);
+	void readSavedPeers();
 
 };

@@ -18,6 +18,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "genstyles.h"
 
 #include <QtCore/QtPlugin>
+#include <QtCore/QRegularExpression>
 
 #ifdef Q_OS_WIN
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
@@ -1345,10 +1346,30 @@ bool genStyles(const QString &classes_in, const QString &classes_out, const QStr
 		QCoreApplication::exit(1);
 		return false;
 	}
+	QString numbers_cpp = QString(styles_cpp).replace("style_auto.cpp", "numbers.cpp");
+	if (numbers_cpp == styles_cpp) {
+		cout << "Bad output file name '" << numbers_cpp.toUtf8().constData() << "'!\n";
+		QCoreApplication::exit(1);
+		return false;
+	}
 
 	QFile f(styles_in);
 	if (!f.open(QIODevice::ReadOnly)) {
 		cout << "Could not open styles input file '" << styles_in.toUtf8().constData() << "'!\n";
+		QCoreApplication::exit(1);
+		return false;
+	}
+
+	QString numbers_in = QString(styles_in).replace("style.txt", "numbers.txt");
+	if (numbers_in == styles_in) {
+		cout << "Bad input file name '" << numbers_in.toUtf8().constData() << "'!\n";
+		QCoreApplication::exit(1);
+		return false;
+	}
+
+	QFile fnum(numbers_in);
+	if (!fnum.open(QIODevice::ReadOnly)) {
+		cout << "Could not open numbers input file '" << numbers_in.toUtf8().constData() << "'!\n";
 		QCoreApplication::exit(1);
 		return false;
 	}
@@ -1853,6 +1874,137 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 			if (!write_out) cout << "Style updated, writing " << scalars.size() << " scalars and " << objects.size() << " objects.\n";
 			if (!cpp.open(QIODevice::WriteOnly)) throw Exception("Could not open style_auto.cpp for writing!");
 			if (cpp.write(cppText) != cppText.size()) throw Exception("Could not open style_auto.cpp for writing!");
+		}
+
+		QMap<QString, QVector<int> > numberRules;
+		QList<QByteArray> numlines = fnum.readAll().split('\n');
+		for (int i = 0, l = numlines.size(); i < l; ++i) {
+			QList<QByteArray> strs = numlines.at(i).split(';');
+			if (strs.isEmpty()) continue;
+
+			QString code = QString::fromLatin1(strs.at(0)).trimmed();
+			if (code.isEmpty() || QRegularExpression("[^0-9]").match(code).hasMatch()) {
+				throw Exception("Bad string in number.txt: " + numlines.at(i));
+			}
+
+			if (strs.size() < 5) {
+				numberRules.insert(code, QVector<int>());
+			} else {
+				QString lenstr = QString::fromLatin1(strs.at(4)).trimmed(), pattern = QString::fromLatin1(strs.at(3)).trimmed();
+				if (QRegularExpression("[^0-9]").match(lenstr).hasMatch() || !pattern.startsWith(code + ' ')) {
+					throw Exception("Bad string in number.txt: " + numlines.at(i));
+				}
+				QStringList lst = pattern.mid(code.size() + 1).split(' ');
+				int len = lenstr.toInt(), sum = code.size();
+				QVector<int> result;
+				for (int j = 0, c = lst.size(); j < c; ++j) {
+					if (lst.at(j).isEmpty()) continue;
+					if (QRegularExpression("[^X]").match(lst.at(j)).hasMatch()) {
+						throw Exception("Bad string in number.txt: " + numlines.at(i));
+					}
+					result.push_back(lst.at(j).size());
+					sum += lst.at(j).size();
+				}
+				if (sum != len) {
+					throw Exception("Bad length in number.txt: " + numlines.at(i));
+				}
+				numberRules.insert(code, result);
+			}
+		}
+
+		QByteArray numText;
+		{
+			QTextStream tnum(&numText);
+			tnum << "\
+/*\n\
+Created from \'/Resources/style.txt\' by \'/MetaStyle\' project\n\
+\n\
+WARNING! All changes made in this file will be lost!\n\
+\n\
+This file is part of Telegram Desktop,\n\
+the official desktop version of Telegram messaging app, see https://telegram.org\n\
+\n\
+Telegram Desktop is free software: you can redistribute it and/or modify\n\
+it under the terms of the GNU General Public License as published by\n\
+the Free Software Foundation, either version 3 of the License, or\n\
+(at your option) any later version.\n\
+\n\
+It is distributed in the hope that it will be useful,\n\
+but WITHOUT ANY WARRANTY; without even the implied warranty of\n\
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n\
+GNU General Public License for more details.\n\
+\n\
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
+Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
+*/\n";
+			tnum << "#include \"stdafx.h\"\n#include \"numbers.h\"\n\n";
+			tnum << "QVector<int> phoneNumberParse(const QString &number) {\n";
+			tnum << "\tQVector<int> result;\n\n";
+			tnum << "\tint32 len = number.size();\n";
+			tnum << "\tif (len > 0) switch (number.at(0).unicode()) {\n";
+			QString already;
+			for (QMap<QString, QVector<int> >::const_iterator i = numberRules.cend(), e = numberRules.cbegin(); i != e;) {
+				--i;
+				QString k = i.key();
+				bool onlyLastChanged = true;
+				while (!already.isEmpty() && (already.size() > k.size() || !already.endsWith(k.at(already.size() - 1)))) {
+					if (!onlyLastChanged) {
+						tnum << QString("\t").repeated(1 + already.size()) << "}\n";
+						tnum << QString("\t").repeated(1 + already.size()) << "return result;\n";
+					}
+					already = already.mid(0, already.size() - 1);
+					onlyLastChanged = false;
+				}
+				if (already == k) {
+					tnum << QString("\t").repeated(1 + already.size()) << "}\n";
+				} else {
+					bool onlyFirstCheck = true;
+					while (already.size() < k.size()) {
+						if (!onlyFirstCheck) tnum << QString("\t").repeated(1 + already.size()) << "if (len > " << already.size() << ") switch (number.at(" << already.size() << ").unicode()) {\n";
+						tnum << QString("\t").repeated(1 + already.size()) << "case '" << k.at(already.size()).toLatin1() << "':\n";
+						already.push_back(k.at(already.size()));
+						onlyFirstCheck = false;
+					}
+				}
+				if (i.value().isEmpty()) {
+					tnum << QString("\t").repeated(1 + already.size()) << "return QVector<int>(1, " << k.size() << ");\n";
+				} else {
+					tnum << QString("\t").repeated(1 + already.size()) << "result.reserve(" << (i.value().size() + 1) << ");\n";
+					tnum << QString("\t").repeated(1 + already.size()) << "result.push_back(" << k.size() << ");\n";
+					for (int j = 0, l = i.value().size(); j < l; ++j) {
+						tnum << QString("\t").repeated(1 + already.size()) << "result.push_back(" << i.value().at(j) << ");\n";
+					}
+					tnum << QString("\t").repeated(1 + already.size()) << "return result;\n";
+				}
+			}
+			bool onlyLastChanged = true;
+			while (!already.isEmpty()) {
+				if (!onlyLastChanged) {
+					tnum << QString("\t").repeated(1 + already.size()) << "}\n";
+//					tnum << QString("\t").repeated(1 + already.size()) << "\return result;\n";
+				}
+				already = already.mid(0, already.size() - 1);
+				onlyLastChanged = false;
+			}
+			tnum << "\t}\n\n";
+			tnum << "\treturn result;\n";
+			tnum << "}\n";
+		}
+		QFile num(numbers_cpp);
+		bool write_num = true;
+		if (num.open(QIODevice::ReadOnly)) {
+			QByteArray wasNum = num.readAll();
+			if (wasNum.size() == numText.size()) {
+				if (!memcmp(wasNum.constData(), numText.constData(), numText.size())) {
+					write_num = false;
+				}
+			}
+			num.close();
+		}
+		if (write_num) {
+			cout << "Numbers compiled, writing..\n";
+			if (!num.open(QIODevice::WriteOnly)) throw Exception("Could not open numbers.cpp for writing!");
+			if (num.write(numText) != numText.size()) throw Exception("Could not open numbers.cpp for writing!");
 		}
 	} catch (exception &e) {
 		cout << e.what() << "\n";

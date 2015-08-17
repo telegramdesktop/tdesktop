@@ -33,6 +33,13 @@ public:
 	void mouseReleaseEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
+	void playPressed();
+	void pausePressed();
+	void playPausePressed();
+	void prevPressed();
+	void nextPressed();
+	void stopPressed();
+
 	bool progressStep(float64 ms);
 	bool stateStep(float64 ms);
 
@@ -58,6 +65,7 @@ private:
 		OverClose,
 		OverVolume,
 		OverFull,
+		OverRepeat,
 		OverPlayback,
 
 		OverStateCount
@@ -90,8 +98,9 @@ private:
 	int32 _index;
 	History *_history;
 	QRect _playRect, _prevRect, _nextRect, _playbackRect;
-	QRect _closeRect, _volumeRect, _fullRect, _infoRect;
+	QRect _closeRect, _volumeRect, _fullRect, _repeatRect, _infoRect;
 	int32 _timeWidth;
+	bool _repeat;
 	QString _time;
 	Text _name;
 	bool _showPause;

@@ -90,10 +90,10 @@ NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersP
 PeerData::PeerData(const PeerId &id) : id(id)
 , loaded(false)
 , chat(App::isChat(id))
-, access(0)
 , colorIndex(peerColorIndex(id))
 , color(peerColor(colorIndex))
 , photo(chat ? chatDefPhoto(colorIndex) : userDefPhoto(colorIndex))
+, photoId(UnknownPeerPhotoId)
 , nameVersion(0)
 , notify(UnknownNotifySettings)
 {
@@ -132,14 +132,16 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone,
 	}
 }
 
-void UserData::setPhoto(const MTPUserProfilePhoto &p) {
+void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
 	ImagePtr newPhoto = photo;
+	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_userProfilePhoto: {
 		const MTPDuserProfilePhoto d(p.c_userProfilePhoto());
 		newPhotoId = d.vphoto_id.v;
-		newPhoto = ImagePtr(160, 160, d.vphoto_small, userDefPhoto(colorIndex));
+		newPhotoLoc = App::imageLocation(160, 160, d.vphoto_small);
+		newPhoto = newPhotoLoc.isNull() ? userDefPhoto(colorIndex) : ImagePtr(newPhotoLoc);
 		//App::feedPhoto(App::photoFromUserPhoto(MTP_int(id & 0xFFFFFFFF), MTP_int(unixtime()), p));
 	} break;
 	default: {
@@ -151,11 +153,13 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) {
 		} else {
 			newPhoto = userDefPhoto(colorIndex);
 		}
+		newPhotoLoc = StorageImageLocation();
 	} break;
 	}
-	if (newPhotoId != photoId || newPhoto.v() != photo.v()) {
+	if (newPhotoId != photoId || newPhoto.v() != photo.v() || newPhotoLoc != photoLoc) {
 		photoId = newPhotoId;
 		photo = newPhoto;
+		photoLoc = newPhotoLoc;
 		emit App::main()->peerPhotoChanged(this);
 	}
 }
@@ -226,6 +230,7 @@ void UserData::setBotInfoVersion(int32 version) {
 		botInfo->inited = false;
 	}
 }
+
 void UserData::setBotInfo(const MTPBotInfo &info) {
 	switch (info.type()) {
 	case mtpc_botInfoEmpty:
@@ -305,23 +310,33 @@ void UserData::madeAction() {
 	}
 }
 
-void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) {
+void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
+	PhotoId newPhotoId = photoId;
+	ImagePtr newPhoto = photo;
+	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_chatPhoto: {
 		const MTPDchatPhoto d(p.c_chatPhoto());
-		photo = ImagePtr(160, 160, d.vphoto_small, chatDefPhoto(colorIndex));
-		photoFull = ImagePtr(640, 640, d.vphoto_big, chatDefPhoto(colorIndex));
 		if (phId != UnknownPeerPhotoId) {
-			photoId = phId;
+			newPhotoId = phId;
 		}
+		newPhotoLoc = App::imageLocation(160, 160, d.vphoto_small);
+		newPhoto = newPhotoLoc.isNull() ? chatDefPhoto(colorIndex) : ImagePtr(newPhotoLoc);
+//		photoFull = ImagePtr(640, 640, d.vphoto_big, chatDefPhoto(colorIndex));
 	} break;
 	default: {
-		photo = chatDefPhoto(colorIndex);
-		photoFull = ImagePtr();
-		photoId = 0;
+		newPhotoId = 0;
+		newPhotoLoc = StorageImageLocation();
+		newPhoto = chatDefPhoto(colorIndex);
+//		photoFull = ImagePtr();
 	} break;
 	}
-	emit App::main()->peerPhotoChanged(this);
+	if (newPhotoId != photoId || newPhoto.v() != photo.v() || newPhotoLoc != photoLoc) {
+		photoId = newPhotoId;
+		photo = newPhoto;
+		photoLoc = newPhotoLoc;
+		emit App::main()->peerPhotoChanged(this);
+	}
 }
 
 void PhotoLink::onClick(Qt::MouseButton button) const {
@@ -389,7 +404,7 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 
 void VideoOpenLink::onClick(Qt::MouseButton button) const {
 	VideoData *data = video();
-	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
+	if (!data->date || button != Qt::LeftButton) return;
 
 	QString already = data->already(true);
 	if (!already.isEmpty()) {
@@ -409,7 +424,7 @@ void VideoOpenLink::onClick(Qt::MouseButton button) const {
 }
 
 void VideoSaveLink::doSave(VideoData *data, bool forceSavingAs) {
-	if (!data->user && !data->date) return;
+	if (!data->date) return;
 
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
@@ -441,13 +456,13 @@ void VideoSaveLink::onClick(Qt::MouseButton button) const {
 
 void VideoCancelLink::onClick(Qt::MouseButton button) const {
 	VideoData *data = video();
-	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
+	if (!data->date || button != Qt::LeftButton) return;
 
 	data->cancel();
 }
 
-VideoData::VideoData(const VideoId &id, const uint64 &access, int32 user, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size) :
-id(id), access(access), user(user), date(date), duration(duration), w(w), h(h), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), fileType(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+VideoData::VideoData(const VideoId &id, const uint64 &access, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size) :
+id(id), access(access), date(date), duration(duration), w(w), h(h), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), fileType(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
 	location = Local::readFileLocation(mediaKey(VideoFileLocation, dc, id));
 }
 
@@ -467,7 +482,7 @@ QString VideoData::already(bool check) {
 
 void AudioOpenLink::onClick(Qt::MouseButton button) const {
 	AudioData *data = audio();
-	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
+	if (!data->date || button != Qt::LeftButton) return;
 
 	QString already = data->already(true);
 	bool play = App::hoveredLinkItem() && audioPlayer();
@@ -501,7 +516,7 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 }
 
 void AudioSaveLink::doSave(AudioData *data, bool forceSavingAs) {
-	if (!data->user && !data->date) return;
+	if (!data->date) return;
 
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
@@ -534,7 +549,7 @@ void AudioSaveLink::onClick(Qt::MouseButton button) const {
 
 void AudioCancelLink::onClick(Qt::MouseButton button) const {
 	AudioData *data = audio();
-	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
+	if (!data->date || button != Qt::LeftButton) return;
 
 	data->cancel();
 }
@@ -554,8 +569,8 @@ bool StickerData::setInstalled() const {
 	return false;
 }
 
-AudioData::AudioData(const AudioId &id, const uint64 &access, int32 user, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) :
-id(id), access(access), user(user), date(date), mime(mime), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+AudioData::AudioData(const AudioId &id, const uint64 &access, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) :
+id(id), access(access), date(date), mime(mime), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
 	location = Local::readFileLocation(mediaKey(AudioFileLocation, dc, id));
 }
 
@@ -775,7 +790,7 @@ void MessageLink::onClick(Qt::MouseButton button) const {
 		if (current && current->history()->peer->id == peer()) {
 			App::main()->pushReplyReturn(current);
 		}
-		App::main()->showPeer(peer(), msgid());
+		App::main()->showPeerHistory(peer(), msgid());
 	}
 }
 

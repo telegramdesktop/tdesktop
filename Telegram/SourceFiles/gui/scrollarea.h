@@ -70,6 +70,7 @@ public:
 
 public slots:
 
+	void onValueChanged();
 	void updateBar(bool force = false);
 	void onHideTimer();
 

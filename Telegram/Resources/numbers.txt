@@ -1,0 +1,231 @@
+1876;JM;Jamaica;1876 XXX XXXX;11;
+1869;KN;Saint Kitts & Nevis;1869 XXX XXXX;11;
+1868;TT;Trinidad & Tobago;1868 XXX XXXX;11;
+1784;VC;Saint Vincent & the Grenadines;1784 XXX XXXX;11;
+1767;DM;Dominica;1767 XXX XXXX;11;
+1758;LC;Saint Lucia;1758 XXX XXXX;11;
+1721;SX;Sint Maarten;1721 XXX XXXX;11;
+1684;AS;American Samoa;1684 XXX XXXX;11;
+1671;GU;Guam;1671 XXX XXXX;11;
+1670;MP;Northern Mariana Islands;1670 XXX XXXX;11;
+1664;MS;Montserrat;1664 XXX XXXX;11;
+1649;TC;Turks & Caicos Islands;1649 XXX XXXX;11;
+1473;GD;Grenada;1473 XXX XXXX;11;
+1441;BM;Bermuda;1441 XXX XXXX;11;
+1345;KY;Cayman Islands;1345 XXX XXXX;11;
+1340;VI;US Virgin Islands;1340 XXX XXXX;11;
+1284;VG;British Virgin Islands;1284 XXX XXXX;11;
+1268;AG;Antigua & Barbuda;1268 XXX XXXX;11;
+1264;AI;Anguilla;1264 XXX XXXX;11;
+1246;BB;Barbados;1246 XXX XXXX;11;
+1242;BS;Bahamas;1242 XXX XXXX;11;
+998;UZ;Uzbekistan;998 XX XXXXXXX;12;
+996;KG;Kyrgyzstan
+995;GE;Georgia
+994;AZ;Azerbaijan;994 XX XXX XX XX;12;
+993;TM;Turkmenistan;993 XX XXXXXX;11;
+992;TJ;Tajikistan
+977;NP;Nepal
+976;MN;Mongolia
+975;BT;Bhutan
+974;QA;Qatar
+973;BH;Bahrain;973 XXXX XXXX;11;
+972;IL;Israel;972 XX XXX XXXX;12;
+971;AE;United Arab Emirates;971 XX XXX XXXX;12;
+970;PS;Palestine;970 XXX XX XXXX;12;
+968;OM;Oman;968 XXXX XXXX;11;
+967;YE;Yemen;967 XXX XXX XXX;12;
+966;SA;Saudi Arabia;
+965;KW;Kuwait;965 XXXX XXXX;11;
+964;IQ;Iraq;964 XXX XXX XXXX;13;
+963;SY;Syria
+962;JO;Jordan;962 X XXXX XXXX;12;
+961;LB;Lebanon
+960;MV;Maldives
+886;TW;Taiwan
+880;BD;Bangladesh
+856;LA;Laos
+855;KH;Cambodia
+853;MO;Macau
+852;HK;Hong Kong
+850;KP;North Korea
+692;MH;Marshall Islands
+691;FM;Micronesia
+690;TK;Tokelau
+689;PF;French Polynesia
+688;TV;Tuvalu
+687;NC;New Caledonia
+686;KI;Kiribati
+685;WS;Samoa
+683;NU;Niue
+682;CK;Cook Islands
+681;WF;Wallis & Futuna
+680;PW;Palau
+679;FJ;Fiji
+678;VU;Vanuatu
+677;SB;Solomon Islands
+676;TO;Tonga
+675;PG;Papua New Guinea
+674;NR;Nauru
+673;BN;Brunei Darussalam;673 XXX XXXX;10;
+672;NF;Norfolk Island
+670;TL;Timor-Leste
+599;BQ;Bonaire, Sint Eustatius & Saba
+599;CW;Curaçao
+598;UY;Uruguay;598 XXXX XXXX;11;
+597;SR;Suriname;597 XXX XXXX;10;
+596;MQ;Martinique
+595;PY;Paraguay;595 XXX XXX XXX;12;
+594;GF;French Guiana
+593;EC;Ecuador
+592;GY;Guyana
+591;BO;Bolivia;591 X XXX XXXX;11;
+590;GP;Guadeloupe
+509;HT;Haiti
+508;PM;Saint Pierre & Miquelon
+507;PA;Panama;507 XXXX XXXX;11;
+506;CR;Costa Rica
+505;NI;Nicaragua;505 XXXX XXXX;11;
+504;HN;Honduras;504 XXXX XXXX;11;
+503;SV;El Salvador;503 XXXX XXXX;11;
+502;GT;Guatemala;502 X XXX XXXX;11;
+501;BZ;Belize
+500;FK;Falkland Islands
+423;LI;Liechtenstein
+421;SK;Slovakia
+420;CZ;Czech Republic
+389;MK;Macedonia
+387;BA;Bosnia & Herzegovina
+386;SI;Slovenia
+385;HR;Croatia
+382;ME;Montenegro
+381;RS;Serbia;381 XX XXX XXXX;12;
+380;UA;Ukraine;380 XX XXX XX XX;12;
+378;SM;San Marino;378 XXX XXX XXXX;13;
+377;MC;Monaco;377 XXXX XXXX;11;
+376;AD;Andorra;376 XX XX XX;9;
+375;BY;Belarus;375 XX XXX XXXX;12;
+374;AM;Armenia;374 XX XXX XXX;11;
+373;MD;Moldova;373 XX XXX XXX;11;
+372;EE;Estonia;
+371;LV;Latvia;371 XXX XXXXX;11;
+370;LT;Lithuania;370 XXX XXXXX;11;
+359;BG;Bulgaria;
+358;FI;Finland;
+357;CY;Cyprus;357 XXXX XXXX;11;
+356;MT;Malta;356 XX XX XX XX;11;
+355;AL;Albania;355 XX XXX XXXX;12;
+354;IS;Iceland;354 XXX XXXX;10;
+353;IE;Ireland;353 XX XXX XXXX;12;
+352;LU;Luxembourg
+351;PT;Portugal;351 X XXXX XXXX;12;
+350;GI;Gibraltar;350 XXXX XXXX;11;
+299;GL;Greenland;299 XXX XXX;9;
+298;FO;Faroe Islands;298 XXX XXX;9;
+297;AW;Aruba;297 XXX XXXX;10;
+291;ER;Eritrea;291 X XXX XXX;10;
+290;SH;Saint Helena;290 XX XXX;8;
+269;KM;Comoros;269 XXX XXXX;10;
+268;SZ;Swaziland;268 XXXX XXXX;11;
+267;BW;Botswana;267 XX XXX XXX;11;
+266;LS;Lesotho;266 XX XXX XXX;11;
+265;MW;Malawi
+264;NA;Namibia;264 XX XXX XXXX;12;
+263;ZW;Zimbabwe;263 XX XXX XXXX;12;
+262;RE;Réunion;262 XXX XXX XXX;12;
+261;MG;Madagascar;261 XX XX XXX XX;12;
+260;ZM;Zambia;260 XX XXX XXXX;12;
+258;MZ;Mozambique;258 XX XXX XXXX;12;
+257;BI;Burundi;257 XX XX XXXX;11;
+256;UG;Uganda;256 XX XXX XXXX;12;
+255;TZ;Tanzania;255 XX XXX XXXX;12;
+254;KE;Kenya;254 XXX XXX XXX;12;
+253;DJ;Djibouti;253 XX XX XX XX;11;
+252;SO;Somalia;252 XX XXX XXX;11;
+251;ET;Ethiopia;251 XX XXX XXXX;12;
+250;RW;Rwanda;250 XXX XXX XXX;12;
+249;SD;Sudan;249 XX XXX XXXX;12;
+248;SC;Seychelles;248 X XX XX XX;10;
+247;SH;Saint Helena;247 XXXX;7;
+246;IO;Diego Garcia;246 XXX XXXX;10;
+245;GW;Guinea-Bissau;245 XXX XXXX;10;
+244;AO;Angola;244 XXX XXX XXX;12;
+243;CD;Congo (Dem. Rep.);243 XX XXX XXXX;12;
+242;CG;Congo (Rep.);242 XX XXX XXXX;12;
+241;GA;Gabon;241 X XX XX XX;10;
+240;GQ;Equatorial Guinea;240 XXX XXX XXX;12;
+239;ST;São Tomé & Príncipe;239 XX XXXXX;10;
+238;CV;Cape Verde;238 XXX XXXX;10;
+237;CM;Cameroon;237 XXXX XXXX;11;
+236;CF;Central African Rep.;236 XX XX XX XX;11;
+235;TD;Chad;235 XX XX XX XX;11;
+234;NG;Nigeria
+233;GH;Ghana
+232;SL;Sierra Leone;232 XX XXX XXX;11;
+231;LR;Liberia;
+230;MU;Mauritius;
+229;BJ;Benin;229 XX XXX XXX;11;
+228;TG;Togo;228 XX XXX XXX;11;
+227;NE;Niger;227 XX XX XX XX;11;
+226;BF;Burkina Faso;226 XX XX XX XX;11;
+225;CI;Côte d`Ivoire;225 XX XXX XXX;11;
+224;GN;Guinea;224 XXX XXX XXX;12;
+223;ML;Mali;223 XXXX XXXX;11;
+222;MR;Mauritania;222 XXXX XXXX;11;
+221;SN;Senegal;221 XX XXX XXXX;12;
+220;GM;Gambia;220 XXX XXXX;10;
+218;LY;Libya;218 XX XXX XXXX;12;
+216;TN;Tunisia;216 XX XXX XXX;11;
+213;DZ;Algeria;213 XXX XX XX XX;12;
+212;MA;Morocco;212 XX XXX XXXX;12;
+211;SS;South Sudan;211 XX XXX XXXX;12;
+98;IR;Iran;98 XXX XXX XXXX;12;
+95;MM;Myanmar;
+94;LK;Sri Lanka;94 XX XXX XXXX;11;
+93;AF;Afghanistan;93 XXX XXX XXX;11;
+92;PK;Pakistan;92 XXX XXX XXXX;12;
+91;IN;India;91 XXXXX XXXXX;12;
+90;TR;Turkey;90 XXX XXX XXXX;12
+86;CN;China;86 XXX XXXX XXXX;13;
+84;VN;Vietnam;
+82;KR;South Korea;
+81;JP;Japan;81 XX XXXX XXXX;12;
+66;TH;Thailand;66 X XXXX XXXX;11;
+65;SG;Singapore;65 XXXX XXXX;10;
+64;NZ;New Zealand;
+63;PH;Philippines;63 XXX XXX XXXX;12;
+62;ID;Indonesia;
+61;AU;Australia;61 XXX XXX XXX;11;
+60;MY;Malaysia;
+58;VE;Venezuela;58 XXX XXX XXXX;12;
+57;CO;Colombia;57 XXX XXX XXXX;12;
+56;CL;Chile;56 X XXXX XXXX;11;
+55;BR;Brazil;55 XX XXXXX XXXX;13;
+54;AR;Argentina;
+53;CU;Cuba;53 XXXX XXXX;10;
+52;MX;Mexico;
+51;PE;Peru;51 XXX XXX XXX;11;
+49;DE;Germany;49 XXX XXXXXXXX;13;
+48;PL;Poland;48 XX XXX XXXX;11;
+47;NO;Norway;47 XXXX XXXX;10;
+46;SE;Sweden;46 XX XXX XXXX;11;
+45;DK;Denmark;45 XXXX XXXX;10;
+44;GB;United Kingdom;44 XXXX XXXXXX;12;
+43;AT;Austria;
+41;CH;Switzerland;41 XX XXX XXXX;11;
+40;RO;Romania;40 XXX XXX XXX;11;
+39;IT;Italy;39 XXX XXX XXXX;12;
+36;HU;Hungary;36 XX XXX XXXX;11;
+34;ES;Spain;34 XXX XXX XXX;11;
+33;FR;France;33 X XX XX XX XX;11;
+32;BE;Belgium;32 XXX XX XX XX;11;
+31;NL;Netherlands;31 X XX XX XX XX;11;
+30;GR;Greece;30 XX XXXX XXXX;12;
+27;ZA;South Africa;27 XX XXX XXXX;11;
+20;EG;Egypt;20 XX XXX XXXX;11;
+7;RU;Russian Federation;7 XXX XXX XX XX;11;
+7;KZ;Kazakhstan;7 XXX XXX XX XX;11
+1;US;USA;1 XXX XXX XXXX;11;
+1;PR;Puerto Rico;1 XXX XXX XXXX;11;
+1;DO;Dominican Rep.;1 XXX XXX XXXX;11;
+1;CA;Canada;1 XXX XXX XXXX;11;

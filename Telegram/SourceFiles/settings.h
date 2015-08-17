@@ -64,6 +64,8 @@ struct mtpDcOption {
 typedef QMap<int, mtpDcOption> mtpDcOptions;
 DeclareSetting(mtpDcOptions, DcOptions);
 
+DeclareSetting(bool, DevVersion);
+
 DeclareSetting(bool, TestMode);
 DeclareSetting(QString, LoggedPhoneNumber);
 DeclareReadSetting(uint32, ConnectionsInSession);
@@ -98,6 +100,8 @@ DeclareSetting(bool, NeedConfigResave);
 DeclareSetting(bool, DesktopNotify);
 DeclareSetting(DBINotifyView, NotifyView);
 DeclareSetting(bool, AutoUpdate);
+
+DeclareSetting(bool, WindowsNotifications);
 
 struct TWindowPos {
 	TWindowPos() : moncrc(0), maximized(0), x(0), y(0), w(0), h(0) {
@@ -305,5 +309,11 @@ DeclareSetting(int, NotifyDefaultDelay);
 DeclareSetting(int, OtherOnline);
 
 DeclareSetting(float64, SongVolume);
+
+struct PeerData;
+typedef QMap<PeerData*, QDateTime> SavedPeers;
+typedef QMultiMap<QDateTime, PeerData*> SavedPeersByTime;
+DeclareRefSetting(SavedPeers, SavedPeers);
+DeclareRefSetting(SavedPeersByTime, SavedPeersByTime);
 
 void settingsParseArgs(int argc, char *argv[]);

@@ -60,7 +60,7 @@ _byUsernameSel(-1),
 _addContactLnk(this, lang(lng_add_contact_button)) {
 	DialogsIndexed &v(App::main()->dialogsList());
 	for (DialogRow *r = v.list.begin; r != v.list.end; r = r->next) {
-		if (r->history->peer->chat && !r->history->peer->asChat()->forbidden) {
+		if (r->history->peer->chat && !r->history->peer->asChat()->forbidden && !r->history->peer->asChat()->left) {
 			_contacts->addToEnd(r->history);
 		}
 	}
@@ -96,7 +96,7 @@ void ContactsInner::onAddBot() {
 		MTP::send(MTPmessages_StartBot(_bot->inputUser, MTP_int(App::chatFromPeer(_addToChat->id)), MTP_long(randomId), MTP_string(_bot->botInfo->startGroupToken)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _bot));
 
 		App::wnd()->hideLayer();
-		App::main()->showPeer(_addToChat->id, 0, false);
+		App::main()->showPeerHistory(_addToChat->id, ShowAtUnreadMsgId);
 	} else {
 		App::main()->addParticipants(_addToChat, QVector<UserData*>(1, _bot));
 	}
@@ -104,7 +104,7 @@ void ContactsInner::onAddBot() {
 
 void ContactsInner::peerUpdated(PeerData *peer) {
 	if (_chat && (!peer || peer == _chat)) {
-		if (_chat->forbidden) {
+		if (_chat->forbidden || _chat->left) {
 			App::wnd()->hideLayer();
 		} else if (!_chat->participants.isEmpty() || _chat->count <= 0) {
 			for (ContactsData::iterator i = _contactsData.begin(), e = _contactsData.end(); i != e; ++i) {
@@ -180,11 +180,11 @@ ContactsInner::ContactData *ContactsInner::contactData(DialogRow *row) {
 		if (i == _contactsData.cend()) {
 			_contactsData.insert(peer, data = new ContactData());
 			data->inchat = (_chat && !peer->chat) ? _chat->participants.contains(peer->asUser()) : false;
-			data->check = false;
+			data->check = _checkedContacts.contains(peer);
 			data->name.setText(st::profileListNameFont, peer->name, _textNameOptions);
 			if (peer->chat) {
 				ChatData *chat = peer->asChat();
-				if (chat->forbidden) {
+				if (chat->forbidden || chat->left) {
 					data->online = lang(lng_chat_status_unaccessible);
 				} else {
 					data->online = lng_chat_status_members(lt_count, chat->count);
@@ -401,7 +401,7 @@ void ContactsInner::chooseParticipant() {
 		if (_filter.isEmpty()) {
 			if (_byUsernameSel >= 0 && _byUsernameSel < _byUsername.size()) {
 				if (d_byUsername[_byUsernameSel]->inchat) return;
-				changeCheckState(d_byUsername[_byUsernameSel]);
+				changeCheckState(d_byUsername[_byUsernameSel], _byUsername[_byUsernameSel]);
 			} else {
 				if (!_sel || contactData(_sel)->inchat) return;
 				changeCheckState(_sel);
@@ -409,7 +409,7 @@ void ContactsInner::chooseParticipant() {
 		} else {
 			if (_byUsernameSel >= 0 && _byUsernameSel < _byUsernameFiltered.size()) {
 				if (d_byUsernameFiltered[_byUsernameSel]->inchat) return;
-				changeCheckState(d_byUsernameFiltered[_byUsernameSel]);
+				changeCheckState(d_byUsernameFiltered[_byUsernameSel], _byUsernameFiltered[_byUsernameSel]);
 
 				ContactData *moving = d_byUsernameFiltered[_byUsernameSel];
 				int32 i = 0, l = d_byUsername.size();
@@ -461,7 +461,7 @@ void ContactsInner::chooseParticipant() {
 				App::wnd()->replaceLayer(box);
 			} else {
 				App::wnd()->hideSettings(true);
-				App::main()->showPeer(peer->id, 0, false, true);
+				App::main()->choosePeer(peer->id, ShowAtUnreadMsgId);
 				App::wnd()->hideLayer();
 			}
 		}
@@ -470,15 +470,17 @@ void ContactsInner::chooseParticipant() {
 }
 
 void ContactsInner::changeCheckState(DialogRow *row) {
-	changeCheckState(contactData(row));
+	changeCheckState(contactData(row), row->history->peer);
 }
 
-void ContactsInner::changeCheckState(ContactData *data) {
+void ContactsInner::changeCheckState(ContactData *data, PeerData *peer) {
 	if (data->check) {
 		data->check = false;
+		_checkedContacts.remove(peer);
 		--_selCount;
 	} else if (_selCount + (_chat ? _chat->count : 0) < cMaxGroupCount()) {
 		data->check = true;
+		_checkedContacts.insert(peer, true);
 		++_selCount;
 	}
 }
@@ -693,7 +695,7 @@ void ContactsInner::peopleReceived(const QString &query, const QVector<MTPContac
 			ContactData *d = new ContactData();
 			_byUsernameDatas.push_back(d);
 			d->inchat = _chat ? _chat->participants.contains(u) : false;
-			d->check = false;
+			d->check = _checkedContacts.contains(u);
 			d->name.setText(st::profileListNameFont, u->name, _textNameOptions);
 			d->online = '@' + u->username;
 
@@ -880,6 +882,11 @@ void ContactsInner::selectSkipPage(int32 h, int32 dir) {
 
 QVector<UserData*> ContactsInner::selected() {
 	QVector<UserData*> result;
+	for (DialogRow *row = _contacts->list.begin; row->next; row = row->next) {
+		if (_checkedContacts.contains(row->history->peer)) {
+			contactData(row); // fill _contactsData
+		}
+	}
 	result.reserve(_contactsData.size());
 	for (ContactsData::const_iterator i = _contactsData.cbegin(), e = _contactsData.cend(); i != e; ++i) {
 		if (i.value()->check && !i.key()->chat) {
@@ -896,10 +903,15 @@ QVector<UserData*> ContactsInner::selected() {
 
 QVector<MTPInputUser> ContactsInner::selectedInputs() {
 	QVector<MTPInputUser> result;
+	for (DialogRow *row = _contacts->list.begin; row->next; row = row->next) {
+		if (_checkedContacts.contains(row->history->peer)) {
+			contactData(row); // fill _contactsData
+		}
+	}
 	result.reserve(_contactsData.size());
 	for (ContactsData::const_iterator i = _contactsData.cbegin(), e = _contactsData.cend(); i != e; ++i) {
 		if (i.value()->check && !i.key()->chat) {
-			result.push_back(i.key()->inputUser);
+			result.push_back(i.key()->asUser()->inputUser);
 		}
 	}
 	for (int32 i = 0, l = _byUsername.size(); i < l; ++i) {
@@ -911,6 +923,11 @@ QVector<MTPInputUser> ContactsInner::selectedInputs() {
 }
 
 PeerData *ContactsInner::selectedUser() {
+	for (DialogRow *row = _contacts->list.begin; row->next; row = row->next) {
+		if (_checkedContacts.contains(row->history->peer)) {
+			contactData(row); // fill _contactsData
+		}
+	}
 	for (ContactsData::const_iterator i = _contactsData.cbegin(), e = _contactsData.cend(); i != e; ++i) {
 		if (i.value()->check) {
 			return i.key();
@@ -1149,7 +1166,7 @@ void ContactsBox::onNext() {
 		_filter.setFocus();
 		_filter.notaBene();
 	} else if (v.size() == 1) {
-		App::main()->showPeer(_inner.selectedUser()->id);
+		App::main()->showPeerHistory(_inner.selectedUser()->id, ShowAtUnreadMsgId);
 	} else {
 		App::wnd()->replaceLayer(new CreateGroupBox(users));
 	}
@@ -1258,7 +1275,7 @@ void CreateGroupBox::created(const MTPUpdates &updates) {
 	} break;
 	}
 	if (v && !v->isEmpty() && v->front().type() == mtpc_chat) {
-		App::main()->showPeer(App::peerFromChat(v->front().c_chat().vid.v));
+		App::main()->choosePeer(App::peerFromChat(v->front().c_chat().vid.v), ShowAtUnreadMsgId);
 	}
 }
 

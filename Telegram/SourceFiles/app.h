@@ -127,6 +127,7 @@ namespace App {
 	int32 maxMsgId();
 
 	ImagePtr image(const MTPPhotoSize &size);
+	StorageImageLocation imageLocation(int32 w, int32 h, const MTPFileLocation &loc);
 	StorageImageLocation imageLocation(const MTPPhotoSize &size);
 
 	PhotoData *feedPhoto(const MTPPhoto &photo, const PreparedPhotoThumbs &thumbs);
@@ -156,13 +157,18 @@ namespace App {
 	ChatData *chat(const PeerId &peer);
 	ChatData *chat(int32 chat);
 	QString peerName(const PeerData *peer, bool forDialogs = false);
-	PhotoData *photo(const PhotoId &photo, PhotoData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, const ImagePtr &thumb = ImagePtr(), const ImagePtr &medium = ImagePtr(), const ImagePtr &full = ImagePtr());
-	VideoData *video(const VideoId &video, VideoData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
-	AudioData *audio(const AudioId &audio, AudioData *convert = 0, const uint64 &access = 0, int32 user = 0, int32 date = 0, const QString &mime = QString(), int32 duration = 0, int32 dc = 0, int32 size = 0);
+	PhotoData *photo(const PhotoId &photo);
+	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full);
+	VideoData *video(const VideoId &video);
+	VideoData *videoSet(const VideoId &video, VideoData *convert, const uint64 &access, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size);
+	AudioData *audio(const AudioId &audio);
+	AudioData *audioSet(const AudioId &audio, AudioData *convert, const uint64 &access, int32 date, const QString &mime, int32 duration, int32 dc, int32 size);
 	DocumentData *document(const DocumentId &document);
 	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation);
-	WebPageData *webPage(const WebPageId &webPage, WebPageData *convert = 0, const QString &type = QString(), const QString &url = QString(), const QString &displayUrl = QString(), const QString &siteName = QString(), const QString &title = QString(), const QString &description = QString(), PhotoData *photo = 0, int32 duration = 0, const QString &author = QString(), int32 pendingTill = -2);
-	ImageLinkData *imageLink(const QString &imageLink, ImageLinkType type = InvalidImageLink, const QString &url = QString());
+	WebPageData *webPage(const WebPageId &webPage);
+	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, int32 duration, const QString &author, int32 pendingTill);
+	ImageLinkData *imageLink(const QString &imageLink);
+	ImageLinkData *imageLinkSet(const QString &imageLink, ImageLinkType type, const QString &url);
 	void forgetMedia();
 
 	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo);
@@ -178,7 +184,6 @@ namespace App {
 	void historyClearItems();
 	void historyRegReply(HistoryReply *reply, HistoryItem *to);
 	void historyUnregReply(HistoryReply *reply, HistoryItem *to);
-//	void deleteHistory(const PeerId &peer);
 
 	void historyRegRandom(uint64 randomId, MsgId itemId);
 	void historyUnregRandom(uint64 randomId);

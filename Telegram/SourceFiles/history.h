@@ -41,7 +41,7 @@ struct Histories : public QHash<PeerId, History*>, public Animated {
 	Histories() : unreadFull(0), unreadMuted(0) {
 	}
 
-	void regTyping(History *history, UserData *user);
+	void regSendAction(History *history, UserData *user, const MTPSendMessageAction &action);
 	bool animStep(float64 ms);
 
 	void clear();
@@ -134,6 +134,25 @@ inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	return MTPMessagesFilter();
 }
 
+enum SendActionType {
+	SendActionTyping,
+	SendActionRecordVideo,
+	SendActionUploadVideo,
+	SendActionRecordAudio,
+	SendActionUploadAudio,
+	SendActionUploadPhoto,
+	SendActionUploadFile,
+	SendActionChooseLocation,
+	SendActionChooseContact,
+};
+struct SendAction {
+	SendAction(SendActionType type, uint64 until, int32 progress = 0) : type(type), until(until), progress(progress) {
+	}
+	SendActionType type;
+	uint64 until;
+	int32 progress;
+};
+
 class HistoryMedia;
 class HistoryMessage;
 class HistoryUnreadBar;
@@ -180,14 +199,13 @@ struct History : public QList<HistoryBlock*> {
 	void addUnreadBar();
 	void clearNotifications();
 
-	bool readyForWork() const; // all unread loaded or loaded around activeMsgId
 	bool loadedAtBottom() const; // last message is in the list
 	bool loadedAtTop() const; // nothing was added after loading history back
+	bool isReadyFor(MsgId msgId, bool check = false) const; // has messages for showing history at msgId
+	void getReadyFor(MsgId msgId);
 
+	void setLastMessage(HistoryItem *msg);
 	void fixLastMessage(bool wasAtBottom);
-
-	void loadAround(MsgId msgId);
-	bool canShowAround(MsgId msgId) const;
 
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
@@ -201,7 +219,7 @@ struct History : public QList<HistoryBlock*> {
 	PeerData *peer;
 	bool oldLoaded, newLoaded;
 	HistoryItem *lastMsg;
-	MsgId activeMsgId;
+	QDateTime lastMsgDate;
 
 	typedef QList<HistoryItem*> NotifyQueue;
 	NotifyQueue notifies;
@@ -251,6 +269,7 @@ struct History : public QList<HistoryBlock*> {
 	MessageCursor draftCursor;
 	bool draftPreviewCancelled;
 	int32 lastWidth, lastScrollTop;
+	MsgId lastShowAtMsgId;
 	bool mute;
 
 	bool lastKeyboardInited, lastKeyboardUsed;
@@ -275,11 +294,13 @@ struct History : public QList<HistoryBlock*> {
 
 	typedef QMap<UserData*, uint64> TypingUsers;
 	TypingUsers typing;
+	typedef QMap<UserData*, SendAction> SendActionUsers;
+	SendActionUsers sendActions;
 	QString typingStr;
 	Text typingText;
 	uint32 typingFrame;
 	bool updateTyping(uint64 ms = 0, uint32 dots = 0, bool force = false);
-	uint64 myTyping;
+	QMap<SendActionType, uint64> mySendActions;
 
 	typedef QList<MsgId> MediaOverview;
 	typedef QMap<MsgId, NullType> MediaOverviewIds;
@@ -427,11 +448,11 @@ struct DialogsList {
 
 		DialogRow *row = addToEnd(history), *change = row;
 		const QString &peerName(history->peer->name);
-		while (change->prev && change->prev->history->peer->name > peerName) {
+		while (change->prev && change->prev->history->peer->name.compare(peerName, Qt::CaseInsensitive) > 0) {
 			change = change->prev;
 		}
 		if (!insertBefore(row, change)) {
-			while (change->next != end && change->next->history->peer->name < peerName) {
+			while (change->next != end && change->next->history->peer->name.compare(peerName, Qt::CaseInsensitive) < 0) {
 				change = change->next;
 			}
 			insertAfter(row, change);
@@ -1439,7 +1460,7 @@ class HistoryServiceMsg : public HistoryItem {
 public:
 
 	HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDmessageService &msg);
-	HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, int32 flags = 0, HistoryMedia *media = 0);
+	HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, int32 flags = 0, HistoryMedia *media = 0, int32 from = 0);
 
 	void initDimensions(const HistoryItem *parent = 0);
 

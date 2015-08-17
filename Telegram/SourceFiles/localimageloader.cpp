@@ -78,12 +78,15 @@ void LocalImageLoaderPrivate::prepareImages() {
 					type = ToPrepareDocument;
 				}
 			}
-			if (type == ToPrepareDocument) {
-				mime = mimeTypeForFile(info).name();
-			}
 			if (type != ToPrepareAuto && info.size() < MaxUploadPhotoSize) {
 				bool opaque = (mime != stickerMime);
 				img = App::readImage(file, 0, opaque, &animated);
+				if (animated) {
+					type = ToPrepareDocument;
+				}
+			}
+			if (type == ToPrepareDocument) {
+				mime = mimeTypeForFile(info).name();
 			}
 			filename = info.fileName();
 			filesize = info.size();
@@ -168,9 +171,10 @@ void LocalImageLoaderPrivate::prepareImages() {
 		bool isSong = false;
 		QByteArray jpeg;
 		if (type == ToPrepareDocument) {
-			if (mime == qstr("audio/mp3") || mime == qstr("audio/m4a") || mime == qstr("audio/aac") || mime == qstr("audio/ogg") ||
+			if (mime == qstr("audio/mp3") || mime == qstr("audio/m4a") || mime == qstr("audio/aac") || mime == qstr("audio/ogg") || mime == qstr("audio/flac") ||
 				filename.endsWith(qstr(".mp3"), Qt::CaseInsensitive) || filename.endsWith(qstr(".m4a"), Qt::CaseInsensitive) ||
-				filename.endsWith(qstr(".aac"), Qt::CaseInsensitive) || filename.endsWith(qstr(".ogg"), Qt::CaseInsensitive)) {
+				filename.endsWith(qstr(".aac"), Qt::CaseInsensitive) || filename.endsWith(qstr(".ogg"), Qt::CaseInsensitive) ||
+				filename.endsWith(qstr(".flac"), Qt::CaseInsensitive)) {
 				
 				QImage cover;
 				QByteArray coverBytes, coverFormat;
@@ -220,7 +224,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 			}
 			if (!filesize) filesize = jpeg.size();
 		
-			photo = MTP_photo(MTP_long(id), MTP_long(0), MTP_int(user), MTP_int(unixtime()), MTP_geoPointEmpty(), MTP_vector<MTPPhotoSize>(photoSizes));
+			photo = MTP_photo(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes));
 
 			thumbId = id;
 		} else if ((type == ToPrepareVideo || type == ToPrepareDocument) && !img.isNull() && !isSong) {
@@ -253,7 +257,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 		if (type == ToPrepareDocument) {
 			document = MTP_document(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_string(mime), MTP_int(filesize), thumb, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
 		} else if (type == ToPrepareAudio) {
-			audio = MTP_audio(MTP_long(id), MTP_long(0), MTP_int(user), MTP_int(unixtime()), MTP_int(duration), MTP_string(mime), MTP_int(filesize), MTP_int(MTP::maindc()));
+			audio = MTP_audio(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_int(duration), MTP_string(mime), MTP_int(filesize), MTP_int(MTP::maindc()));
 		}
 
 		{

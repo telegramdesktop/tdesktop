@@ -32,17 +32,22 @@ linux {
 style_auto_cpp.target = ./GeneratedFiles/style_auto.cpp
 style_auto_cpp.depends = FORCE
 style_auto_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
-style_auto_cpp.depends = ./../../Telegram/Resources/style.txt ./../../Telegram/Resources/style_classes.txt
+style_auto_cpp.depends = ./../../Telegram/Resources/style.txt
 
 style_auto_h.target = ./GeneratedFiles/style_auto.h
 style_auto_h.depends = FORCE
 style_auto_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
-style_auto_h.depends = ./../../Telegram/Resources/style.txt ./../../Telegram/Resources/style_classes.txt
+style_auto_h.depends = ./../../Telegram/Resources/style.txt
 
 style_classes_h.target = ./GeneratedFiles/style_classes.h
 style_classes_h.depends = FORCE
 style_classes_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
-style_classes_h.depends = ./../../Telegram/Resources/style.txt ./../../Telegram/Resources/style_classes.txt
+style_classes_h.depends = ./../../Telegram/Resources/style_classes.txt
+
+numbers_cpp.target = ./GeneratedFiles/numbers.cpp
+numbers_cpp.depends = FORCE
+numbers_cpp.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugStyle/MetaStyle -classes_in ./../../Telegram/Resources/style_classes.txt -classes_out ./../../Telegram/GeneratedFiles/style_classes.h -styles_in ./../../Telegram/Resources/style.txt -styles_out ./../../Telegram/GeneratedFiles/style_auto.h -path_to_sprites ./../../Telegram/SourceFiles/art/
+numbers_cpp.depends = ./../../Telegram/Resources/numbers.txt 
 
 lang_auto_cpp.target = ./GeneratedFiles/lang_auto.cpp
 lang_auto_cpp.depends = FORCE
@@ -54,13 +59,13 @@ lang_auto_h.depends = FORCE
 lang_auto_h.commands = mkdir -p ./../../Telegram/GeneratedFiles && ./../DebugLang/MetaLang -lang_in ./../../Telegram/Resources/lang.strings -lang_out ./../../Telegram/GeneratedFiles/lang_auto
 lang_auto_h.depends = ./../../Telegram/Resources/lang.strings
 
-hook.depends = style_auto_cpp style_auto_h style_classes_h lang_auto_cpp lang_auto_h
+hook.depends = style_auto_cpp style_auto_h style_classes_h numbers_cpp lang_auto_cpp lang_auto_h
 CONFIG(debug,debug|release):hook.target = Makefile.Debug
 CONFIG(release,debug|release):hook.target = Makefile.Release
 
-QMAKE_EXTRA_TARGETS += style_auto_cpp style_auto_h style_classes_h lang_auto_cpp lang_auto_h hook
+QMAKE_EXTRA_TARGETS += style_auto_cpp style_auto_h style_classes_h numbers_cpp lang_auto_cpp lang_auto_h hook
 
-PRE_TARGETDEPS += ./GeneratedFiles/style_auto.cpp ./GeneratedFiles/style_auto.h ./GeneratedFiles/style_classes.h ./GeneratedFiles/lang_auto.h ./GeneratedFiles/lang_auto.cpp
+PRE_TARGETDEPS += ./GeneratedFiles/style_auto.cpp ./GeneratedFiles/style_auto.h ./GeneratedFiles/style_classes.h ./GeneratedFiles/numbers.cpp ./GeneratedFiles/lang_auto.h ./GeneratedFiles/lang_auto.cpp
 
 unix {
     linux-g++:QMAKE_TARGET.arch = $$QMAKE_HOST.arch
@@ -138,6 +143,7 @@ SOURCES += \
     ./SourceFiles/gui/switcher.cpp \
     ./GeneratedFiles/lang_auto.cpp \
     ./GeneratedFiles/style_auto.cpp \
+    ./GeneratedFiles/numbers.cpp \
     ./SourceFiles/boxes/aboutbox.cpp \
     ./SourceFiles/boxes/abstractbox.cpp \
     ./SourceFiles/boxes/addcontactbox.cpp \
@@ -180,6 +186,7 @@ HEADERS += \
     ./SourceFiles/langloaderplain.h \
     ./SourceFiles/layerwidget.h \
     ./SourceFiles/mediaview.h \
+    ./SourceFiles/numbers.h \
     ./SourceFiles/overviewwidget.h \
     ./SourceFiles/passcodewidget.h \
     ./SourceFiles/profilewidget.h \
@@ -282,8 +289,8 @@ CONFIG(release, debug|release) {
     QMAKE_LFLAGS_RELEASE += -Ofast -flto
 }
 
-INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.4.0/QtGui\
-               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.4.0/QtCore\
+INCLUDEPATH += ./../../Libraries/QtStatic/qtbase/include/QtGui/5.5.0/QtGui\
+               ./../../Libraries/QtStatic/qtbase/include/QtCore/5.5.0/QtCore\
                ./../../Libraries/QtStatic/qtbase/include\
                /usr/local/include/opus\
                ./SourceFiles\
@@ -305,7 +312,10 @@ INCLUDEPATH += "/usr/include/dee-1.0"
 INCLUDEPATH += "/usr/include/libdbusmenu-glib-0.4"
 
 LIBS += -lcrypto -lssl -lz -ldl -llzma -lexif -lopenal -lavformat -lavcodec -lswresample -lavutil -lopus
-LIBS += ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a
+LIBS += ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libcomposeplatforminputcontextplugin.a \
+        ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libibusplatforminputcontextplugin.a \
+        ./../../../Libraries/QtStatic/qtbase/plugins/platforminputcontexts/libfcitxplatforminputcontextplugin.a
+LIBS += /usr/local/lib/libxkbcommon.a
 
 RESOURCES += \
     ./SourceFiles/telegram.qrc \

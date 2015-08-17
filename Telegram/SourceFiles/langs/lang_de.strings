@@ -28,7 +28,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_open_from_tray" = "Telegram öffnen";
 "lng_minimize_to_tray" = "Minimieren";
 "lng_quit_from_tray" = "Telegram beenden";
-"lng_tray_icon_text" = "Telegram ist noch aktiv,\ndu kannst das in den Einstellungen anpassen.\n\nWenn dieses Symbol aus der Taskleiste verschwindet,\nkannst du es wieder hierher ziehen.";
+"lng_tray_icon_text" = "Telegram ist minimiert und läuft im Hintergrund,\ndu kannst das in den Einstellungen ändern.\nUm Telegram wieder anzuzeigen, klicke auf \ndas Symbol im Benachrichtigungsfeld.";
 
 "lng_month1" = "Januar";
 "lng_month2" = "Februar";
@@ -69,6 +69,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_reconnecting_try_now" = "Jetzt versuchen";
 
 "lng_status_service_notifications" = "Servicemeldungen";
+"lng_status_support" = "Support";
 "lng_status_bot" = "Bot";
 "lng_status_bot_reads_all" = "hat Zugriff auf Nachrichten";
 "lng_status_bot_not_reads_all" = "hat keinen Zugriff auf Nachrichten";
@@ -156,8 +157,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_dlg_new_group_name" = "Name der Gruppe";
 "lng_dlg_create_group" = "Erstellen";
 "lng_no_contacts" = "Du hast keine Kontakte";
+"lng_no_chats" = "Noch keine Chats";
 "lng_contacts_loading" = "Lade..";
 "lng_contacts_not_found" = "Keine Kontakte gefunden";
+"lng_dlg_search_chat" = "In diesem Chat suchen";
+"lng_dlg_search_for_messages" = "Nach Nachrichten suchen";
 
 "lng_settings_save" = "Speichern";
 "lng_settings_upload" = "Profilbild festlegen";
@@ -180,8 +184,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_settings_section_notify" = "Benachrichtigungen";
 "lng_settings_desktop_notify" = "Desktopbenachrichtigungen";
-"lng_settings_show_name" = "Sendername anzeigen";
+"lng_settings_show_name" = "Absendername anzeigen";
 "lng_settings_show_preview" = "Nachrichtenvorschau anzeigen";
+"lng_settings_use_windows" = "Windows Benachrichtigungen";
 "lng_settings_sound_notify" = "Ton abspielen";
 
 "lng_notification_preview" = "Du hast eine neue Nachricht";
@@ -289,7 +294,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_cloud_password_bad" = "Kennwort und Hinweis müssen sich unterscheiden.";
 "lng_cloud_password_email" = "E-Mail für die Wiederherstellung";
 "lng_cloud_password_bad_email" = "Ungültige E-Mai, bitte erneut versuchen.";
-"lng_cloud_password_about" = "Du kannst ein eigenes Kennwort festlegen, um dich an einem neuen Gerät anzumelden, zusätzlich zum SMS-Code.";
+"lng_cloud_password_about" = "Dieses Kennwort brauchst du, wenn du dich mit einem neuen Gerät anmeldest.";
 "lng_cloud_password_about_recover" = "Hinweis! Möchtest du wirklich keine E-Mail\nAdresse hinterlegen? \n\nWenn dir dein Kennwort nicht mehr einfällt, \nverlierst du Zugriff auf dein Telegram Konto.";
 "lng_cloud_password_almost" = "Ein Bestätigungslink wurde an\ndeine E-Mail Adresse gesendet.\n\nZweistufige Bestätigung wird aktiviert,\nsobald du den Link öffnest.";
 "lng_cloud_password_was_set" = "Zweistufige Bestätigung aktiviert.";
@@ -320,6 +325,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_reset_one_sure" = "Dieses Gerät wirklich abmelden?";
 "lng_settings_reset_button" = "Beenden";
 "lng_settings_reset_done" = "Alle anderen Sitzungen wurden erfolgreich beendet.";
+"lng_settings_ask_question" = "Eine Frage stellen";
+"lng_settings_ask_sure" = "Bedenke bitte, dass der Telegram Support von ehrenamtlichen Helfern betreut wird.\n\nKennst du schon die Telegram FAQ? Dort findest du Antworten auf die am häufigsten gestellten Fragen.";
+"lng_settings_faq_button" = "FAQ öffnen";
+"lng_settings_ask_ok" = "Frage stellen";
+"lng_settings_faq" = "Telegram FAQ";
 "lng_settings_logout" = "Abmelden";
 "lng_sure_logout" = "Du kannst Telegram von all deinen Geräten gleichzeitig nutzen. Wirklich abmelden?";
 
@@ -339,6 +349,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_topbar_info" = "Info";
 "lng_profile_about_section" = "Info";
 "lng_profile_settings_section" = "Einstellungen";
+"lng_profile_actions_section" = "Aktionen";
 "lng_profile_bot_settings" = "Einstellungen";
 "lng_profile_bot_help" = "Hilfe";
 "lng_profile_participants_section" = "Teilnehmer";
@@ -348,6 +359,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_edit_contact" = "Bearbeiten";
 "lng_profile_enable_notifications" = "Benachrichtigungen";
 "lng_profile_clear_history" = "Chatverlauf löschen";
+"lng_profile_delete_conversation" = "Chat entfernen";
+"lng_profile_clear_and_exit" = "Löschen und verlassen";
+"lng_profile_search_messages" = "In diesem Chat suchen";
+"lng_profile_block_user" = "Blockieren";
+"lng_profile_unblock_user" = "Freigeben";
+"lng_profile_block_bot" = "Bot anhalten und blockieren";
+"lng_profile_unblock_bot" = "Bot freigeben";
 "lng_profile_send_message" = "Nachricht senden";
 "lng_profile_share_contact" = "Kontakt teilen";
 "lng_profile_invite_to_group" = "In eine Gruppe einladen";
@@ -379,13 +397,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_title" = "Neue Gruppe erstellen";
 
 "lng_failed_add_participant" = "Kann Teilnehmer nicht hinzufügen. Später erneut versuchen.";
+"lng_failed_add_not_mutual" = "Wenn man eine Gruppe verlässt, kann nur \nein gemeinsamer Kontakt die Person erneut \neinladen (beide Seiten müssen die Nummer\n des anderen gespeichert haben).";
 
 "lng_sure_delete_contact" = "Bist du sicher, dass du {contact} von deinen Kontakten löschen willst?";
 "lng_sure_delete_history" = "Sicher, dass du den kompletten Verlauf mit {contact} löschen willst?\n\nDas kann man nicht rückgängig machen.";
+"lng_sure_delete_group_history" = "Möchtest du wirklich deinen Verlauf von «{group}» löschen?\n\nDas kann man nicht rückgängig machen.";
 
 "lng_sure_delete_and_exit" = "Deinen Verlauf von «{group}» löschen und die Gruppe verlassen?\n\nDas kann man nicht rückgängig machen.";
 
-"lng_message_empty" = "(empty)";
+"lng_message_empty" = "Leere Nachricht";
+"lng_media_unsupported" = "Format Nicht Unterstützt";
 
 "lng_action_add_user" = "{from} hat {user} hinzugefügt";
 "lng_action_kick_user" = "{from} hat {user} entfernt";
@@ -461,10 +482,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_message_ph" = "Schreibe deine Nachricht..";
 "lng_record_cancel" = "Zum Abbrechen rausbewegen";
 "lng_empty_history" = "";
-"lng_willbe_history" = "Wähle einen Chat aus, um zu schreiben";
+"lng_willbe_history" = "Chat auswählen um zu schreiben";
 "lng_message_with_from" = "[c]{from}:[/c] {message}";
 "lng_from_you" = "Ich";
 "lng_bot_description" = "Was kann dieser Bot?";
+"lng_unblock_button" = "Freigeben";
 
 "lng_bot_start" = "Starten";
 "lng_bot_choose_group" = "Gruppe auswählen";
@@ -477,6 +499,22 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_user_typing" = "{user} tippt";
 "lng_users_typing" = "{user} und {second_user} tippen";
 "lng_many_typing" = "{count:_not_used_|# tippt|# tippen}";
+"lng_send_action_record_video" = "schickt Video";
+"lng_user_action_record_video" = "{user} sendet Video";
+"lng_send_action_upload_video" = "schickt Video";
+"lng_user_action_upload_video" = "{user} sendet Video";
+"lng_send_action_record_audio" = "nimmt Audio auf";
+"lng_user_action_record_audio" = "{user} nimmt Audio auf";
+"lng_send_action_upload_audio" = "nimmt Audio auf";
+"lng_user_action_upload_audio" = "{user} sendet Audio";
+"lng_send_action_upload_photo" = "sendet Bild";
+"lng_user_action_upload_photo" = "{user} sendet Bild";
+"lng_send_action_upload_file" = "sendet Datei";
+"lng_user_action_upload_file" = "{user} sendet Datei";
+"lng_send_action_geo_location" = "wählt Standort aus";
+"lng_user_action_geo_location" = "{user} wählt Standort aus";
+"lng_send_action_choose_contact" = "wählt Kontakt aus";
+"lng_user_action_choose_contact" = "{user} wählt Kontakt aus";
 "lng_unread_bar" = "{count:_not_used_|# Ungelesene Nachricht|# Ungelesene Nachrichten}";
 
 "lng_maps_point" = "Standort";
@@ -603,7 +641,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— In-App Medienwiedergabe optimiert\n— Fehlerbehebungen und kleinere Verbesserungen";
+"lng_new_version_text" = "— Blockiere Nutzer über die Profilseite (im Chat auf den Namen oben tippen)\n— Windows 8, 8.1 und 10: Native Windowsbenachrichtigungen\n— Fehlerbehebung: Eingabemethoden unter Linux (Fcitx und iBus)";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

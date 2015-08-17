@@ -128,7 +128,8 @@ int32 FlatTextarea::fakeMargin() const {
 
 void FlatTextarea::paintEvent(QPaintEvent *e) {
 	QPainter p(viewport());
-	p.fillRect(rect(), _st.bgColor->b);
+	QRect r(rect().intersected(e->rect()));
+	p.fillRect(r, _st.bgColor->b);
 	bool phDraw = _phVisible;
 	if (animating()) {
 		p.setOpacity(a_phAlpha.current());
@@ -136,7 +137,7 @@ void FlatTextarea::paintEvent(QPaintEvent *e) {
 	}
 	if (phDraw) {
 		p.save();
-		p.setClipRect(rect());
+		p.setClipRect(r);
 		QRect phRect(_st.textMrg.left() - _fakeMargin + _st.phPos.x() + a_phLeft.current(), _st.textMrg.top() - _fakeMargin + _st.phPos.y(), width() - _st.textMrg.left() - _st.textMrg.right(), height() - _st.textMrg.top() - _st.textMrg.bottom());
 		p.setFont(_st.font->f);
 		p.setPen(a_phColor.current());
@@ -174,7 +175,10 @@ EmojiPtr FlatTextarea::getSingleEmoji() const {
 	
 	if (!text.isEmpty()) {
 		QTextCharFormat format = fragment.charFormat();
-		return emojiFromUrl(static_cast<const QTextImageFormat*>(&format)->name());
+		QString imageName = static_cast<QTextImageFormat*>(&format)->name();
+		if (imageName.startsWith(qstr("emoji://e."))) {
+			return emojiFromUrl(imageName);
+		}
 	}
 	return 0;
 }
@@ -530,17 +534,25 @@ void FlatTextarea::insertFromMimeData(const QMimeData *source) {
 }
 
 void FlatTextarea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
-	c.removeSelectedText();
-
-	QPixmap img(App::emojiSingle(emoji, _st.font->height));
-	QString url = qsl("emoji://e.") + QString::number(emojiKey(emoji), 16);
-	document()->addResource(QTextDocument::ImageResource, QUrl(url), QVariant(img));
 	QTextImageFormat imageFormat;
-	imageFormat.setWidth(img.width() / cIntRetinaFactor());
-	imageFormat.setHeight(img.height() / cIntRetinaFactor());
-	imageFormat.setName(url);
+	int32 ew = ESize + st::emojiPadding * cIntRetinaFactor() * 2, eh = _st.font->height * cIntRetinaFactor();
+	imageFormat.setWidth(ew / cIntRetinaFactor());
+	imageFormat.setHeight(eh / cIntRetinaFactor());
+	imageFormat.setName(qsl("emoji://e.") + QString::number(emojiKey(emoji), 16));
 	imageFormat.setVerticalAlignment(QTextCharFormat::AlignBaseline);
-	c.insertImage(imageFormat);
+
+	static QString objectReplacement(QChar::ObjectReplacementCharacter);
+	c.insertText(objectReplacement, imageFormat);
+}
+
+QVariant FlatTextarea::loadResource(int type, const QUrl &name) {
+	QString imageName = name.toDisplayString();
+	if (imageName.startsWith(qstr("emoji://e."))) {
+		if (EmojiPtr emoji = emojiFromUrl(imageName)) {
+			return QVariant(App::emojiSingle(emoji, _st.font->height));
+		}
+	}
+	return QVariant();
 }
 
 void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
@@ -579,6 +591,10 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 			if (emoji) break;
 		}
 		if (emoji) {
+			if (!document()->pageSize().isNull()) {
+				document()->setPageSize(QSizeF(0, 0));
+			}
+
 			QTextCursor c(doc->docHandle(), emojiPosition);
 			c.setPosition(emojiPosition + emojiLen, QTextCursor::KeepAnchor);
 			int32 removedUpto = c.position();
@@ -608,6 +624,8 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 }
 
 void FlatTextarea::onDocumentContentsChange(int position, int charsRemoved, int charsAdded) {
+	if (_replacingEmojis) return;
+
 	if (!_links.isEmpty()) {
 		bool changed = false;
 		for (LinkRanges::iterator i = _links.begin(); i != _links.end();) {
@@ -624,7 +642,7 @@ void FlatTextarea::onDocumentContentsChange(int position, int charsRemoved, int 
 		if (changed) emit linksChanged();
 	}
 
-	if (_replacingEmojis || document()->availableRedoSteps() > 0) return;
+	if (document()->availableRedoSteps() > 0) return;
 
 	const int takeBack = 3;
 
@@ -636,7 +654,14 @@ void FlatTextarea::onDocumentContentsChange(int position, int charsRemoved, int 
 	}
 	if (charsAdded <= 0) return;
 
-	_insertions.push_back(Insertion(position, charsAdded));
+	//	_insertions.push_back(Insertion(position, charsAdded));
+	_replacingEmojis = true;
+	QSizeF s = document()->pageSize();
+	processDocumentContentsChange(position, charsAdded);
+	if (document()->pageSize() != s) {
+		document()->setPageSize(s);
+	}
+	_replacingEmojis = false;
 }
 
 void FlatTextarea::onDocumentContentsChanged() {
@@ -647,6 +672,8 @@ void FlatTextarea::onDocumentContentsChanged() {
 			_insertions.clear();
 		} else {
 			_replacingEmojis = true;
+			QSizeF s = document()->pageSize();
+			
 			do {
 				Insertion i = _insertions.front();
 				_insertions.pop_front();
@@ -654,6 +681,10 @@ void FlatTextarea::onDocumentContentsChanged() {
 					processDocumentContentsChange(i.first, i.second);
 				}
 			} while (!_insertions.isEmpty());
+
+			if (document()->pageSize() != s) {
+				document()->setPageSize(s);
+			}
 			_replacingEmojis = false;
 		}
 	}
@@ -743,6 +774,8 @@ void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 		} else {
 			emit tabbed();
 		}
+	} else if (e->key() == Qt::Key_Search || e == QKeySequence::Find) {
+		e->ignore();
 	} else {
 		QTextCursor tc(textCursor());
 		if (enter && ctrl) {

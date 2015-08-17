@@ -38,7 +38,11 @@ public:
 
 	void notaBene();
 
+	void setPlaceholder(const QString &ph);
+	void setPlaceholderFast(bool fast);
 	void updatePlaceholder();
+	const QString &placeholder() const;
+	QRect placeholderRect() const;
 
 	QRect getTextRect() const;
 
@@ -68,9 +72,16 @@ protected:
 
 	virtual void correctValue(QKeyEvent *e, const QString &was);
 
+	style::font phFont() {
+		return _st.font;
+	}
+
+	void phPrepare(Painter &p);
+
 private:
 
 	QString _ph, _fullph, _oldtext;
+	bool _fastph;
 	QKeyEvent *_kev;
 
 	bool _customUpDown;
