@@ -397,7 +397,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_title" = "Nuovo gruppo";
 
 "lng_failed_add_participant" = "Impossibile aggiungere l'utente. Riprova più tardi.";
-"lng_failed_add_not_mutual" = "Se una persona lascia un gruppo,\nsolo un contatto in comune può reinvitarlo\n(devono avere il tuo numero\ndi telefono, e tu il loro).";
+"lng_failed_add_not_mutual" = "Se una persona lascia un gruppo,\nsolo un contatto in comune può reinvitarla\n(lei deve avere il tuo numero\ndi telefono, e tu il suo).";
 
 "lng_sure_delete_contact" = "Sicuro di volere eliminare {contact} dalla tua lista dei contatti?";
 "lng_sure_delete_history" = "Sicuro di voler eliminare tutta la cronologia dei messaggi con {contact}?\n\nQuesta azione non può essere annullata.";
@@ -641,7 +641,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli update è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "— Cerca messaggi in una chat\n— Pulisci la cronologia dei messaggi nei gruppi\n— I contatti senza messaggi sono nascosti dalla lista delle chat";
+"lng_new_version_text" = "— Blocca gli utenti dalla loro pagina profilo\n— Aggiunto il supporto per le notifiche toast di Windows\n— Risolti i problemi con alcuni metodi di input su Linux (Fcitx and IBus)";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

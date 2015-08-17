@@ -641,7 +641,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Direkte Suche in Chats (Chat auswählen und STRG+F drücken)\n— Verlauf in Gruppen löschen (in der Gruppe auf den Gruppennamen tippen)\n— Kontakte, mit denen du nicht chattest, werden nicht mehr in der Übersicht gezeigt";
+"lng_new_version_text" = "— Blockiere Nutzer über die Profilseite (im Chat auf den Namen oben tippen)\n— Windows 8, 8.1 und 10: Native Windowsbenachrichtigungen\n— Fehlerbehebung: Eingabemethoden unter Linux (Fcitx und iBus)";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

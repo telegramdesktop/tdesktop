@@ -641,7 +641,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop fue actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Busca mensajes en un chat\n— Borra el historial de mensajes en grupos\n— Los contactos sin mensajes se ocultarán de la lista de chats";
+"lng_new_version_text" = "— Bloquea usuarios desde sus perfiles\n— Añadido el soporte para notificaciones Windows toast\n— Arreglados los métodos de entrada en Linux (Fcitx e IBus)";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 
