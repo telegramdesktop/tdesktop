@@ -27,8 +27,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "passcodewidget.h"
 
 #include <Shobjidl.h>
-#include <dbghelp.h>
 #include <shellapi.h>
+
+#include <roapi.h>
+#include <wrl\client.h>
+#include <wrl\implements.h>
+#include <windows.ui.notifications.h>
+
+#include <dbghelp.h>
 #include <Shlwapi.h>
 #include <Strsafe.h>
 #include <shlobj.h>
@@ -45,11 +51,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include <functiondiscoverykeys.h>
 #include <intsafe.h>
 #include <guiddef.h>
-
-#include <roapi.h>
-#include <wrl\client.h>
-#include <wrl\implements.h>
-#include <windows.ui.notifications.h>
 
 #include <qpa/qplatformnativeinterface.h>
 
@@ -714,13 +715,15 @@ namespace {
 			setupUx();
 			setupShell();
 			setupWtsapi();
+			setupPropSys();
 			setupCombase();
+
+			useTheme = !!setWindowTheme;
 		}
 		void setupUx() {
 			HINSTANCE procId = LoadLibrary(L"UXTHEME.DLL");
 
-			if (!loadFunction(procId, "SetWindowTheme", setWindowTheme)) return;
-			useTheme = true;
+			loadFunction(procId, "SetWindowTheme", setWindowTheme);
 		}
 		void setupShell() {
 			HINSTANCE procId = LoadLibrary(L"SHELL32.DLL");
@@ -758,16 +761,18 @@ namespace {
 			HINSTANCE procId = LoadLibrary(L"COMBASE.DLL");
 			setupToast(procId);
 		}
+		void setupPropSys() {
+			HINSTANCE procId = LoadLibrary(L"PROPSYS.DLL");
+			if (!loadFunction(procId, "PropVariantToString", propVariantToString)) return;
+		}
 		void setupToast(HINSTANCE procId) {
+			if (!propVariantToString) return;
 			if (QSysInfo::windowsVersion() < QSysInfo::WV_WINDOWS8) return;
 			if (!loadFunction(procId, "RoGetActivationFactory", roGetActivationFactory)) return;
 
 			HINSTANCE otherProcId = LoadLibrary(L"api-ms-win-core-winrt-string-l1-1-0.dll");
 			if (!loadFunction(otherProcId, "WindowsCreateStringReference", windowsCreateStringReference)) return;
 			if (!loadFunction(otherProcId, "WindowsDeleteString", windowsDeleteString)) return;
-
-			HINSTANCE otherOtherProcId = LoadLibrary(L"PROPSYS.DLL");
-			if (!loadFunction(otherOtherProcId, "PropVariantToString", propVariantToString)) return;
 
 			useToast = true;
 		}
@@ -2219,7 +2224,9 @@ void RegisterCustomScheme() {
 
 void psNewVersion() {
 	RegisterCustomScheme();
-	CheckPinnedAppUserModelId();
+	if (Local::oldSettingsVersion() < 8051) {
+		CheckPinnedAppUserModelId();
+	}
 }
 
 void psExecUpdater() {
@@ -2820,6 +2827,8 @@ QString pinnedPath() {
 }
 
 void CheckPinnedAppUserModelId() {
+	if (!propVariantToString) return;
+
 	static const int maxFileLen = MAX_PATH * 10;
 
 	HRESULT hr = CoInitialize(0);
@@ -2827,9 +2836,9 @@ void CheckPinnedAppUserModelId() {
 
 	QString path = pinnedPath();
 	std::wstring p = QDir::toNativeSeparators(path).toStdWString();
-
+	
 	WCHAR src[MAX_PATH];
-	GetModuleFileNameEx(GetCurrentProcess(), nullptr, src, MAX_PATH);
+	GetModuleFileName(GetModuleHandle(0), src, MAX_PATH);
 	BY_HANDLE_FILE_INFORMATION srcinfo = { 0 };
 	HANDLE srcfile = CreateFile(src, 0x00, 0x00, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (srcfile == INVALID_HANDLE_VALUE) return;

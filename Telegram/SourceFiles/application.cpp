@@ -658,7 +658,7 @@ void Application::checkMapVersion() {
 			QString versionFeatures;
 			if (cDevVersion() && Local::oldMapVersion() < 8050) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Bug fixes in Windows notifications\n\xe2\x80\x94 Fixed input methods on Linux (Fcitx and IBus)");// .replace('@', qsl("@") + QChar(0x200D));
-			} else if (!cDevVersion() && Local::oldMapVersion() < 8048) {
+			} else if (!cDevVersion() && Local::oldMapVersion() < 8051) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {

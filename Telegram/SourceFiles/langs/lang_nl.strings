@@ -641,7 +641,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Zoek berichten binnen gesprekken\n— Berichtengeschiedenis van groepen wissen\n— Contacten zonder berichten zijn verborgen in de gesprekslijst";
+"lng_new_version_text" = "— Blokkeer gebruikers vanaf de profielpagina\n— Ondersteuning voor Windows toast-meldingen\n— Problemen met invoermethodes onder Linux (Fcitx and IBus) opgelost";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
