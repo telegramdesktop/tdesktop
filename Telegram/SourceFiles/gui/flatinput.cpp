@@ -42,7 +42,6 @@ namespace {
 		}
 	};
 	InputStyle<FlatInput> _flatInputStyle;
-	InputStyle<InputField> _inputFieldStyle;
 }
 
 FlatInput::FlatInput(QWidget *parent, const style::flatInput &st, const QString &pholder, const QString &v) : QLineEdit(v, parent),
@@ -384,7 +383,8 @@ void CountryCodeInput::correctValue(QKeyEvent *e, const QString &was) {
 	}
 }
 
-InputField::InputField(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val) : QTextEdit(val, parent),
+InputField::InputField(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val) : TWidget(parent),
+_inner(this, val),
 _oldtext(val),
 _keyEvent(0),
 
@@ -406,20 +406,22 @@ a_borderFg(st.borderFg->c),
 a_borderOpacityActive(0),
 _borderAnim(animFunc(this, &InputField::borderStep)),
 
+_focused(false), _error(false),
+
 _st(&st),
 
 _touchPress(false),
 _touchRightButton(false),
 _touchMove(false),
 _replacingEmojis(false) {
-	setAcceptRichText(false);
+	_inner.setAcceptRichText(false);
 	resize(_st->width, _st->height);
 
-	setWordWrapMode(QTextOption::NoWrap);
-	setLineWrapMode(QTextEdit::NoWrap);
+	_inner.setWordWrapMode(QTextOption::NoWrap);
+	_inner.setLineWrapMode(QTextEdit::NoWrap);
 
-	setFont(_st->font->f);
-	setAlignment(cRtl() ? Qt::AlignRight : Qt::AlignLeft);
+	_inner.setFont(_st->font->f);
+	_inner.setAlignment(cRtl() ? Qt::AlignRight : Qt::AlignLeft);
 
 	_placeholder = _st->font->m.elidedText(_placeholderFull, Qt::ElideRight, width() - _st->textMargins.left() - _st->textMargins.right() - _st->placeholderMargins.left() - _st->placeholderMargins.right() - 1);
 
@@ -427,42 +429,39 @@ _replacingEmojis(false) {
 	p.setColor(QPalette::Text, _st->textFg->c);
 	setPalette(p);
 
-	setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-	setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	_inner.setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	_inner.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-	setFrameStyle(QFrame::NoFrame | QFrame::Plain);
-	viewport()->setAutoFillBackground(false);
+	_inner.setFrameStyle(QFrame::NoFrame | QFrame::Plain);
+	_inner.viewport()->setAutoFillBackground(false);
 
-	setContentsMargins(0, 0, 0, 0);
+	_inner.setContentsMargins(0, 0, 0, 0);
+	_inner.document()->setDocumentMargin(0);
 
-	//switch (cScale()) {
-	//case dbisOneAndQuarter: _fakeMargin = 1; break;
-	//case dbisOneAndHalf: _fakeMargin = 2; break;
-	//case dbisTwo: _fakeMargin = 4; break;
-	//}
-	//setStyleSheet(qsl("QTextEdit { margin: %1px; }").arg(_fakeMargin));
-	setStyleSheet(qsl("QTextEdit { padding: 2px 74px; }"));
-
-	viewport()->setAttribute(Qt::WA_AcceptTouchEvents);
+	setAttribute(Qt::WA_AcceptTouchEvents);
+	_inner.viewport()->setAttribute(Qt::WA_AcceptTouchEvents);
 	_touchTimer.setSingleShot(true);
 	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
 
-	connect(document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(onDocumentContentsChange(int, int, int)));
-	connect(document(), SIGNAL(contentsChanged()), this, SLOT(onDocumentContentsChanged()));
-	connect(this, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
-	connect(this, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
-	if (App::wnd()) connect(this, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
+	connect(_inner.document(), SIGNAL(contentsChange(int, int, int)), this, SLOT(onDocumentContentsChange(int, int, int)));
+	connect(_inner.document(), SIGNAL(contentsChanged()), this, SLOT(onDocumentContentsChanged()));
+	connect(&_inner, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
+	connect(&_inner, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
+	if (App::wnd()) connect(&_inner, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
 }
 
 void InputField::onTouchTimer() {
 	_touchRightButton = true;
 }
 
-bool InputField::viewportEvent(QEvent *e) {
+InputField::InputFieldInner::InputFieldInner(InputField *parent, const QString &val) : QTextEdit(val, parent) {
+}
+
+bool InputField::InputFieldInner::viewportEvent(QEvent *e) {
 	if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
 		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
 		if (ev->device()->type() == QTouchDevice::TouchScreen) {
-			touchEvent(ev);
+			qobject_cast<InputField*>(parentWidget())->touchEvent(ev);
 			return QTextEdit::viewportEvent(e);
 		}
 	}
@@ -508,16 +507,12 @@ void InputField::touchEvent(QTouchEvent *e) {
 	}
 }
 
-QRect InputField::getTextRect() const {
-	return rect().marginsRemoved(_st->textMargins + st::textRectMargins);
-}
-
 int32 InputField::fakeMargin() const {
 	return _fakeMargin;
 }
 
 void InputField::paintEvent(QPaintEvent *e) {
-	Painter p(viewport());
+	Painter p(this);
 
 	QRect r(rect().intersected(e->rect()));
 	p.fillRect(r, st::white->b);
@@ -552,37 +547,57 @@ void InputField::paintEvent(QPaintEvent *e) {
 	
 		p.restore();
 	}
-	QTextEdit::paintEvent(e);
+	TWidget::paintEvent(e);
 }
 
 void InputField::focusInEvent(QFocusEvent *e) {
+	_inner.setFocus();
+}
+
+void InputField::mousePressEvent(QMouseEvent *e) {
+	_inner.setFocus();
+}
+
+void InputField::contextMenuEvent(QContextMenuEvent *e) {
+	_inner.contextMenuEvent(e);
+}
+
+void InputField::InputFieldInner::focusInEvent(QFocusEvent *e) {
+	f()->focusInInner();
+	QTextEdit::focusInEvent(e);
+	emit f()->focused();
+}
+
+void InputField::focusInInner() {
 	if (!_focused) {
 		_focused = true;
-	
+
 		a_placeholderFg.start(_st->placeholderFgActive->c);
 		_placeholderFgAnim.start();
-	
+
 		a_borderFg.start((_error ? _st->borderFgError : _st->borderFgActive)->c);
 		a_borderOpacityActive.start(1);
 		_borderAnim.start();
 	}
-	QTextEdit::focusInEvent(e);
-	emit focused();
 }
 
-void InputField::focusOutEvent(QFocusEvent *e) {
+void InputField::InputFieldInner::focusOutEvent(QFocusEvent *e) {
+	f()->focusOutInner();
+	QTextEdit::focusOutEvent(e);
+	emit f()->blurred();
+}
+
+void InputField::focusOutInner() {
 	if (_focused) {
 		_focused = false;
-	
+
 		a_placeholderFg.start(_st->placeholderFg->c);
 		_placeholderFgAnim.start();
-	
+
 		a_borderFg.start((_error ? _st->borderFgError : _st->borderFg)->c);
 		a_borderOpacityActive.start(_error ? 1 : 0);
 		_borderAnim.start();
 	}
-	QTextEdit::focusOutEvent(e);
-	emit blurred();
 }
 
 QSize InputField::sizeHint() const {
@@ -599,7 +614,7 @@ QString InputField::getText(int32 start, int32 end) const {
 	if (start < 0) start = 0;
 	bool full = (start == 0) && (end < 0);
 
-	QTextDocument *doc(document());
+	QTextDocument *doc(_inner.document());
 	QTextBlock from = full ? doc->begin() : doc->findBlock(start), till = (end < 0) ? doc->end() : doc->findBlock(end);
 	if (till.isValid()) till = till.next();
 
@@ -671,7 +686,7 @@ QString InputField::getText(int32 start, int32 end) const {
 }
 
 bool InputField::hasText() const {
-	QTextDocument *doc(document());
+	QTextDocument *doc(_inner.document());
 	QTextBlock from = doc->begin(), till = doc->end();
 
 	if (from == till) return false;
@@ -704,11 +719,11 @@ void InputField::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 	c.insertText(objectReplacement, imageFormat);
 }
 
-QVariant InputField::loadResource(int type, const QUrl &name) {
+QVariant InputField::InputFieldInner::loadResource(int type, const QUrl &name) {
 	QString imageName = name.toDisplayString();
 	if (imageName.startsWith(qstr("emoji://e."))) {
 		if (EmojiPtr emoji = emojiFromUrl(imageName)) {
-			return QVariant(App::emojiSingle(emoji, _st->font->height));
+			return QVariant(App::emojiSingle(emoji, f()->_st->font->height));
 		}
 	}
 	return QVariant();
@@ -718,8 +733,11 @@ void InputField::processDocumentContentsChange(int position, int charsAdded) {
 	int32 emojiPosition = 0, emojiLen = 0;
 	const EmojiData *emoji = 0;
 
-	QTextDocument *doc(document());
+	static QString space(' ');
 
+	QTextDocument *doc(_inner.document());
+	QTextCursor c(_inner.textCursor());
+	c.joinPreviousEditBlock();
 	while (true) {
 		int32 start = position, end = position + charsAdded;
 		QTextBlock from = doc->findBlock(start), till = doc->findBlock(end);
@@ -738,6 +756,19 @@ void InputField::processDocumentContentsChange(int position, int charsAdded) {
 				QString t(fragment.text());
 				const QChar *ch = t.constData(), *e = ch + t.size();
 				for (; ch != e; ++ch) {
+					// QTextBeginningOfFrame // QTextEndOfFrame
+					if (ch->unicode() == 0xfdd0 || ch->unicode() == 0xfdd1 || ch->unicode() == QChar::ParagraphSeparator || ch->unicode() == QChar::LineSeparator || ch->unicode() == '\n' || ch->unicode() == '\r') {
+						if (!_inner.document()->pageSize().isNull()) {
+							_inner.document()->setPageSize(QSizeF(0, 0));
+						}
+						int32 nlPosition = fp + (ch - t.constData());
+						QTextCursor c(doc->docHandle(), nlPosition);
+						c.setPosition(nlPosition + 1, QTextCursor::KeepAnchor);
+						c.insertText(space);
+						position = nlPosition + 1;
+						emoji = TwoSymbolEmoji; // just a flag
+						break;
+					}
 					emoji = emojiFromText(ch, e, emojiLen);
 					if (emoji) {
 						emojiPosition = fp + (ch - t.constData());
@@ -748,10 +779,22 @@ void InputField::processDocumentContentsChange(int position, int charsAdded) {
 				if (emoji) break;
 			}
 			if (emoji) break;
+			if (b.next() != doc->end()) {
+				int32 nlPosition = b.next().position() - 1;
+				QTextCursor c(doc->docHandle(), nlPosition);
+				c.setPosition(nlPosition + 1, QTextCursor::KeepAnchor);
+				c.insertText(space);
+				position = nlPosition + 1;
+				emoji = TwoSymbolEmoji; // just a flag
+				break;
+			}
 		}
-		if (emoji) {
-			if (!document()->pageSize().isNull()) {
-				document()->setPageSize(QSizeF(0, 0));
+		if (emoji == TwoSymbolEmoji) { // just skip
+			emoji = 0;
+			emojiPosition = 0;
+		} else if (emoji) {
+			if (!_inner.document()->pageSize().isNull()) {
+				_inner.document()->setPageSize(QSizeF(0, 0));
 			}
 
 			QTextCursor c(doc->docHandle(), emojiPosition);
@@ -780,12 +823,13 @@ void InputField::processDocumentContentsChange(int position, int charsAdded) {
 			break;
 		}
 	}
+	c.endEditBlock();
 }
 
 void InputField::onDocumentContentsChange(int position, int charsRemoved, int charsAdded) {
 	if (_replacingEmojis) return;
 
-	if (document()->availableRedoSteps() > 0) return;
+	if (_inner.document()->availableRedoSteps() > 0) return;
 
 	const int takeBack = 3;
 
@@ -799,10 +843,10 @@ void InputField::onDocumentContentsChange(int position, int charsRemoved, int ch
 
 	//	_insertions.push_back(Insertion(position, charsAdded));
 	_replacingEmojis = true;
-	QSizeF s = document()->pageSize();
+	QSizeF s = _inner.document()->pageSize();
 	processDocumentContentsChange(position, charsAdded);
-	if (document()->pageSize() != s) {
-		document()->setPageSize(s);
+	if (_inner.document()->pageSize() != s) {
+		_inner.document()->setPageSize(s);
 	}
 	_replacingEmojis = false;
 }
@@ -811,11 +855,11 @@ void InputField::onDocumentContentsChanged() {
 	if (_replacingEmojis) return;
 
 	if (!_insertions.isEmpty()) {
-		if (document()->availableRedoSteps() > 0) {
+		if (_inner.document()->availableRedoSteps() > 0) {
 			_insertions.clear();
 		} else {
 			_replacingEmojis = true;
-			QSizeF s = document()->pageSize();
+			QSizeF s = _inner.document()->pageSize();
 
 			do {
 				Insertion i = _insertions.front();
@@ -825,8 +869,8 @@ void InputField::onDocumentContentsChanged() {
 				}
 			} while (!_insertions.isEmpty());
 
-			if (document()->pageSize() != s) {
-				document()->setPageSize(s);
+			if (_inner.document()->pageSize() != s) {
+				_inner.document()->setPageSize(s);
 			}
 			_replacingEmojis = false;
 		}
@@ -911,12 +955,12 @@ void InputField::updatePlaceholder() {
 void InputField::correctValue(QKeyEvent *e, const QString &was) {
 }
 
-QMimeData *InputField::createMimeDataFromSelection() const {
+QMimeData *InputField::InputFieldInner::createMimeDataFromSelection() const {
 	QMimeData *result = new QMimeData();
 	QTextCursor c(textCursor());
 	int32 start = c.selectionStart(), end = c.selectionEnd();
 	if (end > start) {
-		result->setText(getText(start, end));
+		result->setText(f()->getText(start, end));
 	}
 	return result;
 }
@@ -925,10 +969,10 @@ void InputField::customUpDown(bool custom) {
 	_customUpDown = custom;
 }
 
-void InputField::keyPressEvent(QKeyEvent *e) {
+void InputField::InputFieldInner::keyPressEvent(QKeyEvent *e) {
 	bool shift = e->modifiers().testFlag(Qt::ShiftModifier);
 	bool macmeta = (cPlatform() == dbipMac) && e->modifiers().testFlag(Qt::ControlModifier) && !e->modifiers().testFlag(Qt::MetaModifier) && !e->modifiers().testFlag(Qt::AltModifier);
-	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier), ctrlGood = (ctrl && cCtrlEnter()) || (!ctrl && !shift && !cCtrlEnter()) || (ctrl && shift);
+	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier), ctrlGood = true;
 	bool enter = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return);
 
 	if (macmeta && e->key() == Qt::Key_Backspace) {
@@ -937,16 +981,18 @@ void InputField::keyPressEvent(QKeyEvent *e) {
 		tc.setPosition(start.position(), QTextCursor::KeepAnchor);
 		tc.removeSelectedText();
 	} else if (enter && ctrlGood) {
-		emit submitted(ctrl && shift);
+		emit f()->submitted(ctrl && shift);
 	} else if (e->key() == Qt::Key_Escape) {
-		emit cancelled();
+		emit f()->cancelled();
 	} else if (e->key() == Qt::Key_Tab || (ctrl && e->key() == Qt::Key_Backtab)) {
 		if (ctrl) {
 			e->ignore();
 		} else {
-			emit tabbed();
+			emit f()->tabbed();
 		}
 	} else if (e->key() == Qt::Key_Search || e == QKeySequence::Find) {
+		e->ignore();
+	} else if (f()->_customUpDown && (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down)) {
 		e->ignore();
 	} else {
 		QTextCursor tc(textCursor());
@@ -974,8 +1020,12 @@ void InputField::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
+void InputField::InputFieldInner::paintEvent(QPaintEvent *e) {
+	return QTextEdit::paintEvent(e);
+}
+
 void InputField::resizeEvent(QResizeEvent *e) {
 	_placeholder = _st->font->m.elidedText(_placeholderFull, Qt::ElideRight, width() - _st->textMargins.left() - _st->textMargins.right() - _st->placeholderMargins.left() - _st->placeholderMargins.right() - 1);
-	viewport()->setGeometry(rect().marginsRemoved(_st->textMargins));
-	QTextEdit::resizeEvent(e);
+	_inner.setGeometry(rect().marginsRemoved(_st->textMargins));
+	TWidget::resizeEvent(e);
 }

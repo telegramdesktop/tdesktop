@@ -66,9 +66,9 @@ defaultInputField: InputField {
 	placeholderFg: #999;
 	placeholderFgActive: #aaa;
 	placeholderMargins: margins(2px, 0px, 2px, 0px);
-	placeholderAlign: align(left);
+	placeholderAlign: align(topleft);
 	placeholderShift: 50px;
-	duration: 200;
+	duration: 100;
 
 	borderFg: #e0e0e0;
 	borderFgActive: #62c0f7;
@@ -83,7 +83,7 @@ defaultInputField: InputField {
 	height: 32px;
 }
 dialogsSearchField: InputField(defaultInputField) {
-	textMargins: margins(34px, 5px, 34px, 5px);
+	textMargins: margins(34px, 7px, 34px, 7px);
 
 	iconSprite: sprite(227px, 21px, 24px, 24px);
 	iconPosition: point(6px, 5px);
