@@ -256,15 +256,28 @@ void UpdateDownloader::unpackUpdate() {
 		return fatalFail();
 	}
 
-	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(DevChannel ? UpdatesPublicDevKey : UpdatesPublicKey), -1), 0, 0, 0);
+	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(DevVersion ? UpdatesPublicDevKey : UpdatesPublicKey), -1), 0, 0, 0);
 	if (!pbKey) {
 		LOG(("Update Error: cant read public rsa key!"));
 		return fatalFail();
 	}
 	if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), hSigLen, pbKey) != 1) { // verify signature
 		RSA_free(pbKey);
-		LOG(("Update Error: bad RSA signature of update file!"));
-		return fatalFail();
+		if (cDevVersion()) { // try other public key, if we are in dev version
+			pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(DevVersion ? UpdatesPublicKey : UpdatesPublicDevKey), -1), 0, 0, 0);
+			if (!pbKey) {
+				LOG(("Update Error: cant read public rsa key!"));
+				return fatalFail();
+			}
+			if (RSA_verify(NID_sha1, (const uchar*)(compressed.constData() + hSigLen), hShaLen, (const uchar*)(compressed.constData()), hSigLen, pbKey) != 1) { // verify signature
+				RSA_free(pbKey);
+				LOG(("Update Error: bad RSA signature of update file!"));
+				return fatalFail();
+			}
+		} else {
+			LOG(("Update Error: bad RSA signature of update file!"));
+			return fatalFail();
+		}
 	}
 	RSA_free(pbKey);
 

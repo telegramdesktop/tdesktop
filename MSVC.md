@@ -134,23 +134,23 @@ Open **VS2013 x86 Native Tools Command Prompt.bat** (should be in **\\Program Fi
 
     PKG_CONFIG_PATH="/mingw64/lib/pkgconfig:$PKG_CONFIG_PATH"
 
-    ./configure --toolchain=msvc --disable-programs --disable-everything --enable-libopus --enable-decoder=aac --enable-decoder=aac_latm --enable-decoder=aasc --enable-decoder=mp1 --enable-decoder=mp1float --enable-decoder=mp2 --enable-decoder=mp2float --enable-decoder=mp3 --enable-decoder=mp3adu --enable-decoder=mp3adufloat --enable-decoder=mp3float --enable-decoder=mp3on4 --enable-decoder=mp3on4float --enable-decoder=wavpack --enable-decoder=opus --enable-decoder=vorbis --enable-decoder=wmalossless --enable-decoder=wmapro --enable-decoder=wmav1 --enable-decoder=wmav2 --enable-decoder=wmavoice --enable-encoder=libopus --enable-parser=aac --enable-parser=aac_latm --enable-parser=mpegaudio --enable-parser=opus --enable-parser=vorbis --enable-demuxer=aac --enable-demuxer=wav --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=mov --enable-muxer=ogg --enable-muxer=opus --extra-ldflags="-libpath:/d/TBuild/Libraries/opus/win32/VS2010/Win32/Release celt.lib silk_common.lib silk_float.lib"
+    ./configure --toolchain=msvc --disable-programs --disable-everything --enable-libopus --enable-decoder=aac --enable-decoder=aac_latm --enable-decoder=aasc --enable-decoder=mp1 --enable-decoder=mp1float --enable-decoder=mp2 --enable-decoder=mp2float --enable-decoder=mp3 --enable-decoder=mp3adu --enable-decoder=mp3adufloat --enable-decoder=mp3float --enable-decoder=mp3on4 --enable-decoder=mp3on4float --enable-decoder=wavpack --enable-decoder=opus --enable-decoder=vorbis --enable-decoder=wmalossless --enable-decoder=wmapro --enable-decoder=wmav1 --enable-decoder=wmav2 --enable-decoder=wmavoice --enable-decoder=flac --enable-encoder=libopus --enable-parser=aac --enable-parser=aac_latm --enable-parser=mpegaudio --enable-parser=opus --enable-parser=vorbis --enable-parser=flac --enable-demuxer=aac --enable-demuxer=wav --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=mov --enable-demuxer=flac --enable-muxer=ogg --enable-muxer=opus --extra-ldflags="-libpath:/d/TBuild/Libraries/opus/win32/VS2010/Win32/Release celt.lib silk_common.lib silk_float.lib"
 
     make
     make install
 
-####Qt 5.4.0, slightly patched
+####Qt 5.5.0, slightly patched
 
-http://download.qt-project.org/official_releases/qt/5.4/5.4.0/single/qt-everywhere-opensource-src-5.4.0.zip
+http://download.qt-project.org/official_releases/qt/5.5/5.5.0/single/qt-everywhere-opensource-src-5.5.0.zip
 
-Extract to **D:\TBuild\Libraries\**, rename **qt-everywhere-opensource-src-5.4.0** to **QtStatic** to have **D:\TBuild\Libraries\QtStatic\qtbase\** folder
+Extract to **D:\TBuild\Libraries\**, rename **qt-everywhere-opensource-src-5.5.0** to **QtStatic** to have **D:\TBuild\Libraries\QtStatic\qtbase\** folder
 
 Apply patch
 
-* OR copy (with overwrite!) everything from **D:\TBuild\tdesktop\\\_qt\_5\_4\_0\_patch\** to **D:\TBuild\Libraries\QtStatic\**
+* OR copy (with overwrite!) everything from **D:\TBuild\tdesktop\\\_qt\_5\_5\_0\_patch\** to **D:\TBuild\Libraries\QtStatic\**
 * OR in Git Bash go to **/d/TBuild/Libraries/QtStatic/** and run
 
-    git apply ./../../tdesktop/Telegram/_qt_5_4_0_patch.diff
+    git apply ./../../tdesktop/Telegram/_qt_5_5_0_patch.diff
 
 #####Building library
 
@@ -183,8 +183,8 @@ Close all VS2013 instances and install to default location
 
 * Launch VS2013 for configuring Qt Addin
 * QT5 > Qt Options > Add
-  * Version name: **QtStatic.5.4.0**
+  * Version name: **QtStatic.5.5.0**
   * Path: **D:\TBuild\Libraries\QtStatic\qtbase**
-* Default Qt/Win version: **QtStatic.5.4.0** – **OK**
+* Default Qt/Win version: **QtStatic.5.5.0** – **OK**
 * File > Open > Project/Solution > **D:\TBuild\tdesktop\Telegram.sln**
 * Build \ Build Solution (Debug and Release configurations)

@@ -24,7 +24,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 namespace {
 
-	const QRegularExpression _reDomain(QString::fromUtf8("(?<![\\w\\$\\-\\_%=\\.])(?:([a-zA-Z]+)://)?((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){1,5}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"), QRegularExpression::UseUnicodePropertiesOption);
+	const QRegularExpression _reDomain(QString::fromUtf8("(?<![\\w\\$\\-\\_%=\\.])(?:([a-zA-Z]+)://)?((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){1,10}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"), QRegularExpression::UseUnicodePropertiesOption);
 	const QRegularExpression _reExplicitDomain(QString::fromUtf8("(?<![\\w\\$\\-\\_%=\\.])(?:([a-zA-Z]+)://)((?:[A-Za-zА-яА-ЯёЁ0-9\\-\\_]+\\.){0,5}([A-Za-zрф\\-\\d]{2,22})(\\:\\d+)?)"), QRegularExpression::UseUnicodePropertiesOption);
 	const QRegularExpression _reMailName(qsl("[a-zA-Z\\-_\\.0-9]{1,256}$"));
 	const QRegularExpression _reMailStart(qsl("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
@@ -863,7 +863,7 @@ public:
 	}
 
 	void draw(int32 left, int32 top, int32 w, style::align align, int32 yFrom, int32 yTo, uint16 selectedFrom = 0, uint16 selectedTo = 0) {
-		if (_t->_blocks.isEmpty()) return;
+		if (_t->isEmpty()) return;
 
 		_blocksSize = _t->_blocks.size();
 		if (!_textStyle) _initDefault();
@@ -1043,7 +1043,7 @@ public:
 	}
 
 	void drawElided(int32 left, int32 top, int32 w, style::align align, int32 lines, int32 yFrom, int32 yTo, int32 removeFromEnd) {
-		if (lines <= 0) return;
+		if (lines <= 0 || _t->isNull()) return;
 
 		if (yTo < 0 || (lines - 1) * _t->_font->height < yTo) {
 			yTo = lines * _t->_font->height;
@@ -1057,7 +1057,7 @@ public:
 		_lnkX = x;
 		_lnkY = y;
 		_lnkResult = &_zeroLnk;
-		if (_lnkX >= 0 && _lnkX < w && _lnkY >= 0) {
+		if (!_t->isNull() && _lnkX >= 0 && _lnkX < w && _lnkY >= 0) {
 			draw(0, 0, w, align, _lnkY, _lnkY + 1);
 		}
 		return *_lnkResult;
@@ -1067,7 +1067,7 @@ public:
 		lnk = TextLinkPtr();
 		inText = false;
 
-		if (x >= 0 && x < w && y >= 0) {
+		if (!_t->isNull() && x >= 0 && x < w && y >= 0) {
 			_lnkX = x;
 			_lnkY = y;
 			_lnkResult = &lnk;
@@ -1081,8 +1081,7 @@ public:
 		symbol = 0;
 		after = false;
 		upon = false;
-
-		if (y >= 0) {
+		if (!_t->isNull() && y >= 0) {
 			_lnkX = x;
 			_lnkY = y;
 			_getSymbol = &symbol;
@@ -1615,25 +1614,36 @@ public:
 		}
 	}
 
+	style::font applyFlags(int32 flags, const style::font &f) {
+		style::font result = f;
+		if (flags & TextBlockBold) result = result->bold();
+		if (flags & TextBlockItalic) result = result->italic();
+		if (flags & TextBlockUnderline) result = result->underline();
+		return result;
+	}
+
 	void eSetFont(ITextBlock *block) {
 		style::font newFont = _t->_font;
 		int flags = block->flags();
-		if (!flags && block->lnkIndex()) {
+		if (flags) {
+			newFont = applyFlags(flags, _t->_font);
+		}
+		if (block->lnkIndex()) {
 			const TextLinkPtr &l(_t->_links.at(block->lnkIndex() - 1));
 			if (l == _overLnk) {
 				if (l == _downLnk || !_downLnk) {
-					flags = _textStyle->lnkOverFlags->flags();
+					if (_t->_font != _textStyle->lnkOverFlags) newFont = _textStyle->lnkOverFlags;
 				} else {
-					flags = _textStyle->lnkFlags->flags();
+					if (_t->_font != _textStyle->lnkFlags) newFont = _textStyle->lnkFlags;
 				}
 			} else {
-				flags = _textStyle->lnkFlags->flags();
+				if (_t->_font != _textStyle->lnkFlags) newFont = _textStyle->lnkFlags;
 			}
 		}
-		if (flags & TextBlockBold) newFont = newFont->bold();
-		if (flags & TextBlockItalic) newFont = newFont->italic();
-		if (flags & TextBlockUnderline) newFont = newFont->underline();
 		if (newFont != _f) {
+			if (newFont->family() == _t->_font->family()) {
+				newFont = applyFlags(flags | newFont->flags(), _t->_font);
+			}
 			_f = newFont;
 			_e->fnt = _f->f;
 			_e->resetFontEngineCache();

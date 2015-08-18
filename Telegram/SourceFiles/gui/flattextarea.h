@@ -35,7 +35,6 @@ public:
 	void focusOutEvent(QFocusEvent *e);
 	void keyPressEvent(QKeyEvent *e);
 	void resizeEvent(QResizeEvent *e);
-	void mousePressEvent(QMouseEvent *e);
 
 	const QString &getLastText() const;
 	void updatePlaceholder();
@@ -61,6 +60,8 @@ public:
 	QStringList linksList() const;
 
 	void insertFromMimeData(const QMimeData *source);
+
+	QMimeData *createMimeDataFromSelection() const;
 
 public slots:
 
@@ -103,12 +104,12 @@ protected:
 		return QTextEdit::leaveEvent(e);
 	}
 
+	QVariant loadResource(int type, const QUrl &name);
+
 private:
 
 	void getSingleEmojiFragment(QString &text, QTextFragment &fragment) const;
 	void processDocumentContentsChange(int position, int charsAdded);
-
-	QMimeData *createMimeDataFromSelection() const;
 
 	QString _ph, _phelided, _oldtext;
 	bool _phVisible;

@@ -100,6 +100,8 @@ namespace Local {
 	ReadMapState readMap(const QByteArray &pass);
 	int32 oldMapVersion();
 
+	int32 oldSettingsVersion();
+
 	struct MessageDraft {
 		MessageDraft(MsgId replyTo = 0, QString text = QString(), bool previewCancelled = false) : replyTo(replyTo), text(text), previewCancelled(previewCancelled) {
 		}
@@ -113,8 +115,8 @@ namespace Local {
 	MessageCursor readDraftPositions(const PeerId &peer);
 	bool hasDraftPositions(const PeerId &peer);
 
-	void writeFileLocation(const StorageKey &location, const FileLocation &local);
-	FileLocation readFileLocation(const StorageKey &location, bool check = true);
+	void writeFileLocation(MediaKey location, const FileLocation &local);
+	FileLocation readFileLocation(MediaKey location, bool check = true);
 
 	void writeImage(const StorageKey &location, const ImagePtr &img);
 	void writeImage(const StorageKey &location, const StorageImageSaved &jpeg, bool overwrite = true);
@@ -140,5 +142,9 @@ namespace Local {
 
 	void writeRecentHashtags();
 	void readRecentHashtags();
+
+	void addSavedPeer(PeerData *peer, const QDateTime &position);
+	void removeSavedPeer(PeerData *peer);
+	void readSavedPeers();
 
 };

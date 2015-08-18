@@ -18,6 +18,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "localimageloader.h"
 #include "gui/filedialog.h"
+#include "audio.h"
 #include <libexif/exif-data.h>
 
 LocalImageLoaderPrivate::LocalImageLoaderPrivate(int32 currentUser, LocalImageLoader *loader, QThread *thread) : QObject(0)
@@ -77,12 +78,15 @@ void LocalImageLoaderPrivate::prepareImages() {
 					type = ToPrepareDocument;
 				}
 			}
-			if (type == ToPrepareDocument) {
-				mime = mimeTypeForFile(info).name();
-			}
 			if (type != ToPrepareAuto && info.size() < MaxUploadPhotoSize) {
 				bool opaque = (mime != stickerMime);
 				img = App::readImage(file, 0, opaque, &animated);
+				if (animated) {
+					type = ToPrepareDocument;
+				}
+			}
+			if (type == ToPrepareDocument) {
+				mime = mimeTypeForFile(info).name();
 			}
 			filename = info.fileName();
 			filesize = info.size();
@@ -164,7 +168,41 @@ void LocalImageLoaderPrivate::prepareImages() {
 		MTPDocument document(MTP_documentEmpty(MTP_long(0)));
 		MTPAudio audio(MTP_audioEmpty(MTP_long(0)));
 
+		bool isSong = false;
 		QByteArray jpeg;
+		if (type == ToPrepareDocument) {
+			if (mime == qstr("audio/mp3") || mime == qstr("audio/m4a") || mime == qstr("audio/aac") || mime == qstr("audio/ogg") || mime == qstr("audio/flac") ||
+				filename.endsWith(qstr(".mp3"), Qt::CaseInsensitive) || filename.endsWith(qstr(".m4a"), Qt::CaseInsensitive) ||
+				filename.endsWith(qstr(".aac"), Qt::CaseInsensitive) || filename.endsWith(qstr(".ogg"), Qt::CaseInsensitive) ||
+				filename.endsWith(qstr(".flac"), Qt::CaseInsensitive)) {
+				
+				QImage cover;
+				QByteArray coverBytes, coverFormat;
+				MTPDocumentAttribute audioAttribute = audioReadSongAttributes(file, data, cover, coverBytes, coverFormat);
+				if (audioAttribute.type() == mtpc_documentAttributeAudio) {
+					attributes.push_back(audioAttribute);
+					isSong = true;
+					if (!cover.isNull()) { // cover to thumb
+						int32 cw = cover.width(), ch = cover.height();
+						if (cw < 20 * ch && ch < 20 * cw) {
+							QPixmap full = (cw > 90 || ch > 90) ? QPixmap::fromImage(cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation), Qt::ColorOnly) : QPixmap::fromImage(cover, Qt::ColorOnly);
+							{
+								QByteArray thumbFormat = "JPG";
+								int32 thumbQuality = 87;
+
+								QBuffer jpegBuffer(&jpeg);
+								full.save(&jpegBuffer, thumbFormat, thumbQuality);
+							}
+
+							photoThumbs.insert('0', full);
+							thumb = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
+
+							thumbId = MTP::nonce<uint64>();
+						}
+					}
+				}
+			}
+		}
 		if (type == ToPreparePhoto) {
 			int32 w = img.width(), h = img.height();
 
@@ -186,10 +224,10 @@ void LocalImageLoaderPrivate::prepareImages() {
 			}
 			if (!filesize) filesize = jpeg.size();
 		
-			photo = MTP_photo(MTP_long(id), MTP_long(0), MTP_int(user), MTP_int(unixtime()), MTP_geoPointEmpty(), MTP_vector<MTPPhotoSize>(photoSizes));
+			photo = MTP_photo(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes));
 
 			thumbId = id;
-		} else if ((type == ToPrepareVideo || type == ToPrepareDocument) && !img.isNull()) {
+		} else if ((type == ToPrepareVideo || type == ToPrepareDocument) && !img.isNull() && !isSong) {
 			int32 w = img.width(), h = img.height();
 			QByteArray thumbFormat = "JPG";
 			int32 thumbQuality = 87;
@@ -219,7 +257,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 		if (type == ToPrepareDocument) {
 			document = MTP_document(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_string(mime), MTP_int(filesize), thumb, MTP_int(MTP::maindc()), MTP_vector<MTPDocumentAttribute>(attributes));
 		} else if (type == ToPrepareAudio) {
-			audio = MTP_audio(MTP_long(id), MTP_long(0), MTP_int(user), MTP_int(unixtime()), MTP_int(duration), MTP_string(mime), MTP_int(filesize), MTP_int(MTP::maindc()));
+			audio = MTP_audio(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_int(duration), MTP_string(mime), MTP_int(filesize), MTP_int(MTP::maindc()));
 		}
 
 		{

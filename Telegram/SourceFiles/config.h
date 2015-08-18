@@ -17,9 +17,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 8028;
-static const wchar_t *AppVersionStr = L"0.8.28";
-static const bool DevChannel = true;
+static const int32 AppVersion = 8051;
+static const wchar_t *AppVersionStr = L"0.8.51";
+static const bool DevVersion = false;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
 static const wchar_t *AppName = L"Telegram Desktop";
@@ -85,9 +85,10 @@ enum {
 	MediaOverviewPreloadCount = 4,
 
 	AudioVoiceMsgSimultaneously = 4,
+	AudioSongSimultaneously = 4,
 	AudioCheckPositionTimeout = 100, // 100ms per check audio pos
-	AudioCheckPositionDelta = 4800, // update position called each 4800 samples
-	AudioFadeTimeout = 10, // 10ms
+	AudioCheckPositionDelta = 2400, // update position called each 2400 samples
+	AudioFadeTimeout = 7, // 7ms
 	AudioFadeDuration = 500,
 	AudioVoiceMsgSkip = 400, // 200ms
 	AudioVoiceMsgFade = 300, // 300ms
@@ -100,7 +101,7 @@ enum {
 	AudioVoiceMsgInMemory = 1024 * 1024, // 1 Mb audio is hold in memory and auto loaded
 	AudioPauseDeviceTimeout = 3000, // pause in 3 secs after playing is over
 
-	StickerInMemory = 256 * 1024, // 128 Kb stickers hold in memory, auto loaded and displayed inline
+	StickerInMemory = 1024 * 1024, // 1024 Kb stickers hold in memory, auto loaded and displayed inline
 	StickerMaxSize = 2048, // 2048x2048 is a max image size for sticker
 
 	MediaViewImageSizeLimit = 100 * 1024 * 1024, // show up to 100mb jpg/png/gif docs in app
@@ -139,10 +140,16 @@ enum {
 
 	WrongPasscodeTimeout = 1500,
 	SessionsShortPollTimeout = 60000,
+
+	ChoosePeerByDragTimeout = 1000, // 1 second mouse not moved to choose dialog when dragging a file
 };
 
-inline bool isServiceUser(uint64 id) {
+inline bool isNotificationsUser(uint64 id) {
 	return (id == 333000) || (id == ServiceUserId);
+}
+
+inline bool isServiceUser(uint64 id) {
+	return !(id % 1000);// (id == 333000) || (id == ServiceUserId);
 }
 
 #ifdef Q_OS_WIN
@@ -288,7 +295,7 @@ enum {
 	DefaultChatBackground = 21,
 
 	DialogsFirstLoad = 20, // first dialogs part size requested
-	DialogsPerPage = 40, // next dialogs part size
+	DialogsPerPage = 200, // next dialogs part size
 
 	MessagesFirstLoad = 30, // first history part size requested
 	MessagesPerPage = 50, // next history part size
@@ -318,6 +325,7 @@ enum {
 	MemoryForImageCache = 64 * 1024 * 1024, // after 64mb of unpacked images we try to clear some memory
 	NotifyWindowsCount = 3, // 3 desktop notifies at the same time
 	NotifySettingSaveTimeout = 1000, // wait 1 second before saving notify setting to server
+	NotifyDeletePhotoAfter = 60000, // delete notify photo after 1 minute
 	UpdateChunk = 100 * 1024, // 100kb parts when downloading the update
 	IdleMsecs = 60 * 1000, // after 60secs without user input we think we are idle
 
@@ -325,7 +333,7 @@ enum {
 };
 
 inline const QRegularExpression &cWordSplit() {
-	static QRegularExpression regexp(qsl("[\\s\\-\\+\\)\\(\\,\\.\\:\\!\\_\\;\\\"\\'\\x0]"));
+	static QRegularExpression regexp(qsl("[\\@\\s\\-\\+\\)\\(\\,\\.\\:\\!\\_\\;\\\"\\'\\x0]"));
 	return regexp;
 }
 

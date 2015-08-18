@@ -24,7 +24,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 AboutBox::AboutBox() :
 _done(this, lang(lng_about_done), st::aboutCloseButton),
-_version(this, qsl("[a href=\"https://desktop.telegram.org/#changelog\"]") + textClean(lng_about_version(lt_version, QString::fromWCharArray(AppVersionStr) + (DevChannel ? " dev" : ""))) + qsl("[/a]"), st::aboutVersion, st::defaultTextStyle),
+_version(this, qsl("[a href=\"https://desktop.telegram.org/#changelog\"]") + textClean(lng_about_version(lt_version, QString::fromWCharArray(AppVersionStr) + (cDevVersion() ? " dev" : ""))) + qsl("[/a]"), st::aboutVersion, st::defaultTextStyle),
 _text(this, lang(lng_about_text), st::aboutLabel, st::aboutTextStyle) {
 	
 	resizeMaxHeight(st::aboutWidth, st::aboutHeight);

@@ -606,7 +606,7 @@ void MTPabstractTcpConnection::socketRead() {
 }
 
 MTPautoConnection::MTPautoConnection(QThread *thread) : status(WaitingBoth),
-tcpNonce(MTP::nonce<MTPint128>()), httpNonce(MTP::nonce<MTPint128>()), _tcpTimeout(MTPMinReceiveDelay) {
+tcpNonce(MTP::nonce<MTPint128>()), httpNonce(MTP::nonce<MTPint128>()), _tcpTimeout(MTPMinReceiveDelay), _flags(0) {
 	moveToThread(thread);
 
 	manager.moveToThread(thread);
@@ -615,6 +615,7 @@ tcpNonce(MTP::nonce<MTPint128>()), httpNonce(MTP::nonce<MTPint128>()), _tcpTimeo
 	httpStartTimer.moveToThread(thread);
 	httpStartTimer.setSingleShot(true);
 	connect(&httpStartTimer, SIGNAL(timeout()), this, SLOT(onHttpStart()));
+
 	tcpTimeoutTimer.moveToThread(thread);
 	tcpTimeoutTimer.setSingleShot(true);
 	connect(&tcpTimeoutTimer, SIGNAL(timeout()), this, SLOT(onTcpTimeoutTimer()));
@@ -628,7 +629,7 @@ tcpNonce(MTP::nonce<MTPint128>()), httpNonce(MTP::nonce<MTPint128>()), _tcpTimeo
 
 void MTPautoConnection::onHttpStart() {
 	if (status == HttpReady) {
-		DEBUG_LOG(("Connection Info: Http-transport chosen by timer"));
+		DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by timer").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
 		status = UsingHttp;
 		sock.disconnectFromHost();
 		emit connected();
@@ -639,7 +640,7 @@ void MTPautoConnection::onSocketConnected() {
 	if (status == HttpReady || status == WaitingBoth || status == WaitingTcp) {
 		mtpBuffer buffer(_preparePQFake(tcpNonce));
 
-		DEBUG_LOG(("Connection Info: sending fake req_pq through tcp transport"));
+		DEBUG_LOG(("Connection Info: sending fake req_pq through TCP/%1 transport").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
 
 		if (_tcpTimeout < 0) _tcpTimeout = -_tcpTimeout;
 		tcpTimeoutTimer.start(_tcpTimeout);
@@ -677,7 +678,7 @@ void MTPautoConnection::onSocketDisconnected() {
 	} else if (status == WaitingTcp || status == UsingTcp) {
 		emit disconnected();
 	} else if (status == HttpReady) {
-		DEBUG_LOG(("Connection Info: Http-transport chosen by socket disconnect"));
+		DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by socket disconnect").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
 		status = UsingHttp;
 		emit connected();
 	}
@@ -724,6 +725,7 @@ void MTPautoConnection::httpSend(mtpBuffer &buffer) {
 
 void MTPautoConnection::disconnectFromServer() {
 	if (status == FinishedWork) return;
+	status = FinishedWork;
 
 	Requests copy = requests;
 	requests.clear();
@@ -740,7 +742,6 @@ void MTPautoConnection::disconnectFromServer() {
 	sock.close();
 
 	httpStartTimer.stop();
-	status = FinishedWork;
 }
 
 void MTPautoConnection::connectToServer(const QString &addr, int32 port, int32 flags) {
@@ -750,19 +751,20 @@ void MTPautoConnection::connectToServer(const QString &addr, int32 port, int32 f
 
 	_addr = addr;
 	_port = port;
+	_flags = flags;
 
 	connect(&sock, SIGNAL(readyRead()), this, SLOT(socketRead()));
 	sock.connectToHost(QHostAddress(_addr), _port);
 
 	mtpBuffer buffer(_preparePQFake(httpNonce));
 
-	DEBUG_LOG(("Connection Info: sending fake req_pq through http transport"));
+	DEBUG_LOG(("Connection Info: sending fake req_pq through HTTP/%1 transport").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
 
 	httpSend(buffer);
 }
 
-bool MTPautoConnection::isConnected() {
-	return status != FinishedWork && !address.isEmpty();
+bool MTPautoConnection::isConnected() const {
+	return (status == UsingTcp) || (status == UsingHttp);
 }
 
 void MTPautoConnection::requestFinished(QNetworkReply *reply) {
@@ -792,13 +794,14 @@ void MTPautoConnection::requestFinished(QNetworkReply *reply) {
 							status = HttpReady;
 							httpStartTimer.start(MTPTcpConnectionWaitTimeout);
 						} else {
-							DEBUG_LOG(("Connection Info: Http-transport chosen by pq-response, awaited"));
+							DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by pq-response, awaited").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
 							status = UsingHttp;
 							sock.disconnectFromHost();
 							emit connected();
 						}
 					}
 				} catch (Exception &e) {
+					DEBUG_LOG(("Connection Error: exception in parsing HTTP fake pq-responce, %1").arg(e.what()));
 					if (status == WaitingBoth) {
 						status = WaitingTcp;
 					} else {
@@ -834,7 +837,7 @@ void MTPautoConnection::socketPacket(mtpPrime *packet, uint32 size) {
 			status = WaitingHttp;
 			sock.disconnectFromHost();
 		} else if (status == HttpReady) {
-			DEBUG_LOG(("Connection Info: Http-transport chosen by bad tcp response, ready"));
+			DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by bad tcp response, ready").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
 			status = UsingHttp;
 			sock.disconnectFromHost();
 			emit connected();
@@ -853,16 +856,17 @@ void MTPautoConnection::socketPacket(mtpPrime *packet, uint32 size) {
 			MTPResPQ res_pq = _readPQFakeReply(data);
 			const MTPDresPQ &res_pq_data(res_pq.c_resPQ());
 			if (res_pq_data.vnonce == tcpNonce) {
-				DEBUG_LOG(("Connection Info: Tcp-transport chosen by pq-response"));
+				DEBUG_LOG(("Connection Info: TCP/%1-transport chosen by pq-response").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
 				status = UsingTcp;
 				emit connected();
 			}
 		} catch (Exception &e) {
+			DEBUG_LOG(("Connection Error: exception in parsing TCP fake pq-responce, %1").arg(e.what()));
 			if (status == WaitingBoth) {
 				status = WaitingHttp;
 				sock.disconnectFromHost();
 			} else if (status == HttpReady) {
-				DEBUG_LOG(("Connection Info: Http-transport chosen by bad tcp response, awaited"));
+				DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by bad tcp response, awaited").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
 				status = UsingHttp;
 				sock.disconnectFromHost();
 				emit connected();
@@ -902,7 +906,7 @@ void MTPautoConnection::socketError(QAbstractSocket::SocketError e) {
 	if (status == WaitingBoth) {
 		status = WaitingHttp;
 	} else if (status == HttpReady) {
-		DEBUG_LOG(("Connection Info: Http-transport chosen by tcp error, ready"));
+		DEBUG_LOG(("Connection Info: HTTP/%1-transport chosen by tcp error, ready").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
 		status = UsingHttp;
 		emit connected();
 	} else if (status == WaitingTcp || status == UsingTcp) {
@@ -912,16 +916,64 @@ void MTPautoConnection::socketError(QAbstractSocket::SocketError e) {
 	}
 }
 
-MTPtcpConnection::MTPtcpConnection(QThread *thread) {
+MTPtcpConnection::MTPtcpConnection(QThread *thread) : status(WaitingTcp),
+tcpNonce(MTP::nonce<MTPint128>()), _tcpTimeout(MTPMinReceiveDelay), _flags(0) {
 	moveToThread(thread);
+
+	tcpTimeoutTimer.moveToThread(thread);
+	tcpTimeoutTimer.setSingleShot(true);
+	connect(&tcpTimeoutTimer, SIGNAL(timeout()), this, SLOT(onTcpTimeoutTimer()));
+
 	sock.moveToThread(thread);
 	App::setProxySettings(sock);
 	connect(&sock, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(socketError(QAbstractSocket::SocketError)));
-	connect(&sock, SIGNAL(connected()), this, SIGNAL(connected()));
-	connect(&sock, SIGNAL(disconnected()), this, SIGNAL(disconnected()));
+	connect(&sock, SIGNAL(connected()), this, SLOT(onSocketConnected()));
+	connect(&sock, SIGNAL(disconnected()), this, SLOT(onSocketDisconnected()));
+}
+
+void MTPtcpConnection::onSocketConnected() {
+	if (status == WaitingTcp) {
+		mtpBuffer buffer(_preparePQFake(tcpNonce));
+
+		DEBUG_LOG(("Connection Info: sending fake req_pq through TCP/%1 transport").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
+
+		if (_tcpTimeout < 0) _tcpTimeout = -_tcpTimeout;
+		tcpTimeoutTimer.start(_tcpTimeout);
+
+		sendData(buffer);
+	}
+}
+
+void MTPtcpConnection::onTcpTimeoutTimer() {
+	if (status == WaitingTcp) {
+		if (_tcpTimeout < MTPMaxReceiveDelay) _tcpTimeout *= 2;
+		_tcpTimeout = -_tcpTimeout;
+
+		QAbstractSocket::SocketState state = sock.state();
+		if (state == QAbstractSocket::ConnectedState || state == QAbstractSocket::ConnectingState || state == QAbstractSocket::HostLookupState) {
+			sock.disconnectFromHost();
+		} else if (state != QAbstractSocket::ClosingState) {
+			sock.connectToHost(QHostAddress(_addr), _port);
+		}
+	}
+}
+
+void MTPtcpConnection::onSocketDisconnected() {
+	if (_tcpTimeout < 0) {
+		_tcpTimeout = -_tcpTimeout;
+		if (status == WaitingTcp) {
+			sock.connectToHost(QHostAddress(_addr), _port);
+			return;
+		}
+	}
+	if (status == WaitingTcp || status == UsingTcp) {
+		emit disconnected();
+	}
 }
 
 void MTPtcpConnection::sendData(mtpBuffer &buffer) {
+	if (status == FinishedWork) return;
+
 	if (buffer.size() < 3) {
 		LOG(("TCP Error: writing bad packet, len = %1").arg(buffer.size() * sizeof(mtpPrime)));
 		TCP_LOG(("TCP Error: bad packet %1").arg(mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
@@ -940,28 +992,51 @@ void MTPtcpConnection::sendData(mtpBuffer &buffer) {
 }
 
 void MTPtcpConnection::disconnectFromServer() {
+	if (status == FinishedWork) return;
+	status = FinishedWork;
+
 	disconnect(&sock, SIGNAL(readyRead()), 0, 0);
 	sock.close();
 }
 
 void MTPtcpConnection::connectToServer(const QString &addr, int32 port, int32 flags) {
+	_addr = addr;
+	_port = port;
+	_flags = flags;
+
 	connect(&sock, SIGNAL(readyRead()), this, SLOT(socketRead()));
-	sock.connectToHost(QHostAddress(addr), port);
+	sock.connectToHost(QHostAddress(_addr), _port);
 }
 
 void MTPtcpConnection::socketPacket(mtpPrime *packet, uint32 size) {
+	if (status == FinishedWork) return;
+
 	mtpBuffer data = _handleTcpResponse(packet, size);
 	if (data.size() == 1) {
 		bool mayBeBadKey = (data[0] == -404) && _sentEncrypted;
 		emit error(mayBeBadKey);
+	} else if (status == UsingTcp) {
+		receivedQueue.push_back(data);
+		emit receivedData();
+	} else if (status == WaitingTcp) {
+		tcpTimeoutTimer.stop();
+		try {
+			MTPResPQ res_pq = _readPQFakeReply(data);
+			const MTPDresPQ &res_pq_data(res_pq.c_resPQ());
+			if (res_pq_data.vnonce == tcpNonce) {
+				DEBUG_LOG(("Connection Info: TCP/%1-transport chosen by pq-response").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
+				status = UsingTcp;
+				emit connected();
+			}
+		} catch (Exception &e) {
+			DEBUG_LOG(("Connection Error: exception in parsing TCP fake pq-responce, %1").arg(e.what()));
+			emit error();
+		}
 	}
-
-	receivedQueue.push_back(data);
-	emit receivedData();
 }
 
-bool MTPtcpConnection::isConnected() {
-	return sock.state() == QAbstractSocket::ConnectedState;
+bool MTPtcpConnection::isConnected() const {
+	return (status == UsingTcp);
 }
 
 int32 MTPtcpConnection::debugState() const {
@@ -969,21 +1044,25 @@ int32 MTPtcpConnection::debugState() const {
 }
 
 QString MTPtcpConnection::transport() const {
-	return qsl("TCP");
+	return isConnected() ? qsl("TCP") : QString();
 }
 
 void MTPtcpConnection::socketError(QAbstractSocket::SocketError e) {
+	if (status == FinishedWork) return;
+
 	_handleTcpError(e, sock);
 	emit error();
 }
 
-MTPhttpConnection::MTPhttpConnection(QThread *thread) {
+MTPhttpConnection::MTPhttpConnection(QThread *thread) : status(WaitingHttp), httpNonce(MTP::nonce<MTPint128>()), _flags(0) {
 	moveToThread(thread);
 	manager.moveToThread(thread);
 	App::setProxySettings(manager);
 }
 
 void MTPhttpConnection::sendData(mtpBuffer &buffer) {
+	if (status == FinishedWork) return;
+
 	if (buffer.size() < 3) {
 		LOG(("TCP Error: writing bad packet, len = %1").arg(buffer.size() * sizeof(mtpPrime)));
 		TCP_LOG(("TCP Error: bad packet %1").arg(mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
@@ -1002,6 +1081,9 @@ void MTPhttpConnection::sendData(mtpBuffer &buffer) {
 }
 
 void MTPhttpConnection::disconnectFromServer() {
+	if (status == FinishedWork) return;
+	status = FinishedWork;
+
 	Requests copy = requests;
 	requests.clear();
 	for (Requests::const_iterator i = copy.cbegin(), e = copy.cend(); i != e; ++i) {
@@ -1018,14 +1100,23 @@ void MTPhttpConnection::connectToServer(const QString &addr, int32 p, int32 flag
 	address = QUrl(((flags & MTPDdcOption_flag_ipv6) ? qsl("http://[%1]:%2/api") : qsl("http://%1:%2/api")).arg(addr).arg(80));//not p - always 80 port for http transport
 	TCP_LOG(("HTTP Info: address is %1").arg(address.toDisplayString()));
 	connect(&manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(requestFinished(QNetworkReply*)));
-	emit connected();
+
+	_flags = flags;
+
+	mtpBuffer buffer(_preparePQFake(httpNonce));
+
+	DEBUG_LOG(("Connection Info: sending fake req_pq through HTTP/%1 transport").arg((flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
+
+	sendData(buffer);
 }
 
-bool MTPhttpConnection::isConnected() {
-	return !address.isEmpty();
+bool MTPhttpConnection::isConnected() const {
+	return (status == UsingHttp);
 }
 
 void MTPhttpConnection::requestFinished(QNetworkReply *reply) {
+	if (status == FinishedWork) return;
+
 	reply->deleteLater();
 	if (reply->error() == QNetworkReply::NoError) {
 		requests.remove(reply);
@@ -1034,8 +1125,23 @@ void MTPhttpConnection::requestFinished(QNetworkReply *reply) {
 		if (data.size() == 1) {
 			emit error();
 		} else if (!data.isEmpty()) {
-			receivedQueue.push_back(data);
-			emit receivedData();
+			if (status == UsingHttp) {
+				receivedQueue.push_back(data);
+				emit receivedData();
+			} else {
+				try {
+					MTPResPQ res_pq = _readPQFakeReply(data);
+					const MTPDresPQ &res_pq_data(res_pq.c_resPQ());
+					if (res_pq_data.vnonce == httpNonce) {
+						DEBUG_LOG(("Connection Info: HTTP/%1-transport connected by pq-response").arg((_flags & MTPDdcOption_flag_ipv6) ? "IPv6" : "IPv4"));
+						status = UsingHttp;
+						emit connected();
+					}
+				} catch (Exception &e) {
+					DEBUG_LOG(("Connection Error: exception in parsing HTTP fake pq-responce, %1").arg(e.what()));
+					emit error();
+				}
+			}
 		}
 	} else {
 		if (!requests.remove(reply)) {
@@ -1061,12 +1167,17 @@ int32 MTPhttpConnection::debugState() const {
 }
 
 QString MTPhttpConnection::transport() const {
-	return qsl("HTTP");
+	if (status == UsingHttp) {
+		return qsl("HTTP");
+	} else {
+		return QString();
+	}
 }
 
 void MTProtoConnectionPrivate::createConn(bool createIPv4, bool createIPv6) {
 	destroyConn();
 	if (createIPv4) {
+		QWriteLocker lock(&stateConnMutex);
 		if (cConnectionType() == dbictAuto) {
 			_conn4 = new MTPautoConnection(thread());
 		} else if (cConnectionType() == dbictTcpProxy) {
@@ -1078,6 +1189,7 @@ void MTProtoConnectionPrivate::createConn(bool createIPv4, bool createIPv6) {
 		connect(_conn4, SIGNAL(receivedSome()), this, SLOT(onReceivedSome()));
 	}
 	if (createIPv6) {
+		QWriteLocker lock(&stateConnMutex);
 		if (cConnectionType() == dbictAuto) {
 			_conn6 = new MTPautoConnection(thread());
 		} else if (cConnectionType() == dbictTcpProxy) {
@@ -1098,14 +1210,23 @@ void MTProtoConnectionPrivate::createConn(bool createIPv4, bool createIPv6) {
 
 void MTProtoConnectionPrivate::destroyConn(MTPabstractConnection **conn) {
 	if (conn) {
-		if (*conn) {
-			disconnect(*conn, SIGNAL(disconnected()), 0, 0);
-			disconnect(*conn, SIGNAL(receivedData()), 0, 0);
-			disconnect(*conn, SIGNAL(receivedSome()), 0, 0);
+		MTPabstractConnection *toDisconnect = 0;
 
-			(*conn)->disconnectFromServer();
-			(*conn)->deleteLater();
-			*conn = 0;
+		{
+			QWriteLocker lock(&stateConnMutex);
+			if (*conn) {
+				toDisconnect = *conn;
+				disconnect(*conn, SIGNAL(connected()), 0, 0);
+				disconnect(*conn, SIGNAL(disconnected()), 0, 0);
+				disconnect(*conn, SIGNAL(error(bool)), 0, 0);
+				disconnect(*conn, SIGNAL(receivedData()), 0, 0);
+				disconnect(*conn, SIGNAL(receivedSome()), 0, 0);
+				*conn = 0;
+			}
+		}
+		if (toDisconnect) {
+			toDisconnect->disconnectFromServer();
+			toDisconnect->deleteLater();
 		}
 	} else {
 		destroyConn(&_conn4);
@@ -1132,6 +1253,7 @@ MTProtoConnectionPrivate::MTProtoConnectionPrivate(QThread *thread, MTProtoConne
     , _pingMsgId(0)
     , restarted(false)
     , keyId(0)
+//	, sessionDataMutex(QReadWriteLock::Recursive)
     , sessionData(data)
     , myKeyLock(false)
 	, authKeyData(0)
@@ -1200,7 +1322,7 @@ int32 MTProtoConnectionPrivate::getDC() const {
 }
 
 int32 MTProtoConnectionPrivate::getState() const {
-	QReadLocker lock(&stateMutex);
+	QReadLocker lock(&stateConnMutex);
 	int32 result = _state;
 	if (_state < 0) {
 		if (retryTimer.isActive()) {
@@ -1214,18 +1336,21 @@ int32 MTProtoConnectionPrivate::getState() const {
 }
 
 QString MTProtoConnectionPrivate::transport() const {
-	if ((!_conn4 && !_conn6) || _state < 0) {
+	QReadLocker lock(&stateConnMutex);
+	if ((!_conn4 && !_conn6) || (_conn4 && _conn6) || (_state < 0)) {
 		return QString();
 	}
-	return (_conn4 ? _conn4 : _conn6)->transport();
+	QString result = (_conn4 ? _conn4 : _conn6)->transport();
+	if (!result.isEmpty() && cTryIPv6()) result += (_conn4 ? "/IPv4" : "/IPv6");
+	return result;
 }
 
 bool MTProtoConnectionPrivate::setState(int32 state, int32 ifState) {
 	if (ifState != MTProtoConnection::UpdateAlways) {
-		QReadLocker lock(&stateMutex);
+		QReadLocker lock(&stateConnMutex);
 		if (_state != ifState) return false;
 	}
-	QWriteLocker lock(&stateMutex);
+	QWriteLocker lock(&stateConnMutex);
 	if (_state == state) return false;
 	_state = state;
 	if (state < 0) {
@@ -1732,7 +1857,7 @@ void MTProtoConnectionPrivate::tryToSend() {
 		}
 	}
 	mtpRequestData::padding(toSendRequest);
-	sendRequest(toSendRequest, needAnyResponse);
+	sendRequest(toSendRequest, needAnyResponse, lockFinished);
 }
 
 void MTProtoConnectionPrivate::retryByTimer() {
@@ -1784,15 +1909,15 @@ void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 			port6 = dcIndex6->port;
 		}
 	}
-	bool noIPv4 = (!port4 || ip4.empty()), noIPv6 = (!port6 || ip6.empty());
+	bool noIPv4 = (!port4 || ip4.empty()), noIPv6 = (!cTryIPv6() || !port6 || ip6.empty());
 	if (noIPv4 && noIPv6) {
 		if (afterConfig) {
 			if (noIPv4) LOG(("MTP Error: DC %1 options for IPv4 not found right after config load!").arg(dc));
-			if (noIPv6) LOG(("MTP Error: DC %1 options for IPv6 not found right after config load!").arg(dc));
+			if (cTryIPv6() && noIPv6) LOG(("MTP Error: DC %1 options for IPv6 not found right after config load!").arg(dc));
 			return restart();
 		}
 		if (noIPv4) DEBUG_LOG(("MTP Info: DC %1 options for IPv4 not found, waiting for config").arg(dc));
-		if (noIPv6) DEBUG_LOG(("MTP Info: DC %1 options for IPv6 not found, waiting for config").arg(dc));
+		if (cTryIPv6() && noIPv6) DEBUG_LOG(("MTP Info: DC %1 options for IPv6 not found, waiting for config").arg(dc));
 		connect(mtpConfigLoader(), SIGNAL(loaded()), this, SLOT(onConfigLoaded()));
 		mtpConfigLoader()->load();
 		return;
@@ -1847,8 +1972,11 @@ void MTProtoConnectionPrivate::restart(bool maybeBadKey) {
 		}
 	}
 
+	lockFinished.unlock();
 	doDisconnect();
-	if (_needSessionReset) {
+
+	lockFinished.relock();
+	if (sessionData && _needSessionReset) {
 		resetSession();
 	}
 	restarted = true;
@@ -1965,7 +2093,12 @@ void MTProtoConnectionPrivate::onWaitIPv4Failed() {
 void MTProtoConnectionPrivate::doDisconnect() {
 	destroyConn();
 
-	unlockKey();
+	{
+		QReadLocker lockFinished(&sessionDataMutex);
+		if (sessionData) {
+			unlockKey();
+		}
+	}
 
 	clearAuthKeyData();
 
@@ -1989,12 +2122,16 @@ void MTProtoConnectionPrivate::handleReceived() {
 		DEBUG_LOG(("MTP Error: auth_key for dc %1 busy, cant lock").arg(dc));
 		clearMessages();
 		keyId = 0;
+
+		lockFinished.unlock();
 		return restart();
 	}
 
 	mtpAuthKeyPtr key(sessionData->getKey());
 	if (!key || key->keyId() != keyId) {
 		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed").arg(dc));
+
+		lockFinished.unlock();
 		return restart();
 	}
 
@@ -2005,11 +2142,15 @@ void MTProtoConnectionPrivate::handleReceived() {
 		if (len < 18) { // 2 auth_key_id, 4 msg_key, 2 salt, 2 session, 2 msg_id, 1 seq_no, 1 length, (1 data + 3 padding) min
 			LOG(("TCP Error: bad message received, len %1").arg(len * sizeof(mtpPrime)));
 			TCP_LOG(("TCP Error: bad message %1").arg(mb(encrypted, len * sizeof(mtpPrime)).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		if (keyId != *(uint64*)encrypted) {
 			LOG(("TCP Error: bad auth_key_id %1 instead of %2 received").arg(keyId).arg(*(uint64*)encrypted));
 			TCP_LOG(("TCP Error: bad message %1").arg(mb(encrypted, len * sizeof(mtpPrime)).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 
@@ -2028,6 +2169,8 @@ void MTProtoConnectionPrivate::handleReceived() {
 			LOG(("TCP Error: bad msg_len received %1, data size: %2").arg(msgLen).arg(dataBuffer.size()));
 			TCP_LOG(("TCP Error: bad message %1").arg(mb(encrypted, len * sizeof(mtpPrime)).str()));
 			_conn->received().pop_front();
+
+			lockFinished.unlock();
 			return restart();
 		}
 		uchar sha1Buffer[20];
@@ -2035,6 +2178,8 @@ void MTProtoConnectionPrivate::handleReceived() {
 			LOG(("TCP Error: bad SHA1 hash after aesDecrypt in message"));
 			TCP_LOG(("TCP Error: bad message %1").arg(mb(encrypted, len * sizeof(mtpPrime)).str()));
 			_conn->received().pop_front();
+
+			lockFinished.unlock();
 			return restart();
 		}
 		TCP_LOG(("TCP Info: decrypted message %1,%2,%3 is %4 len").arg(msgId).arg(seqNo).arg(logBool(needAck)).arg(msgLen + 8 * sizeof(mtpPrime)));
@@ -2044,6 +2189,8 @@ void MTProtoConnectionPrivate::handleReceived() {
 			LOG(("MTP Error: bad server session received"));
 			TCP_LOG(("MTP Error: bad server session %1 instead of %2 in message received").arg(session).arg(serverSession));
 			_conn->received().pop_front();
+
+			lockFinished.unlock();
 			return restart();
 		}
 
@@ -2053,6 +2200,8 @@ void MTProtoConnectionPrivate::handleReceived() {
 		bool isReply = ((msgId & 0x03) == 1);
 		if (!isReply && ((msgId & 0x03) != 3)) {
 			LOG(("MTP Error: bad msg_id %1 in message received").arg(msgId));
+
+			lockFinished.unlock();
 			return restart();
 		}
 
@@ -2128,6 +2277,8 @@ void MTProtoConnectionPrivate::handleReceived() {
 
 		if (res < 0) {
 			_needSessionReset = (res < -1);
+
+			lockFinished.unlock();
 			return restart();
 		}
 		retryTimeout = 1; // reset restart() timer
@@ -2898,6 +3049,8 @@ void MTProtoConnectionPrivate::onConnected4() {
 	disconnect(_conn4, SIGNAL(connected()), this, SLOT(onConnected4()));
 	if (!_conn4->isConnected()) {
 		LOG(("Connection Error: not connected in onConnected4(), state: %1").arg(_conn4->debugState()));
+
+		lockFinished.unlock();
 		return restart();
 	}
 
@@ -2906,6 +3059,7 @@ void MTProtoConnectionPrivate::onConnected4() {
 
 	DEBUG_LOG(("MTP Info: connection through IPv4 succeed."));
 
+	lockFinished.unlock();
 	updateAuthKey();
 }
 
@@ -2916,9 +3070,11 @@ void MTProtoConnectionPrivate::onConnected6() {
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData) return;
 
-	disconnect(_conn6, SIGNAL(connected()), this, SLOT(onConnected()));
+	disconnect(_conn6, SIGNAL(connected()), this, SLOT(onConnected6()));
 	if (!_conn6->isConnected()) {
 		LOG(("Connection Error: not connected in onConnected(), state: %1").arg(_conn6->debugState()));
+
+		lockFinished.unlock();
 		return restart();
 	}
 
@@ -2997,6 +3153,7 @@ void MTProtoConnectionPrivate::updateAuthKey() 	{
 	connect(_conn, SIGNAL(receivedData()), this, SLOT(pqAnswered()));
 
 	DEBUG_LOG(("AuthKey Info: sending Req_pq.."));
+	lockFinished.unlock();
 	sendRequestNotSecure(req_pq);
 }
 
@@ -3300,6 +3457,7 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 
 	MTPSet_client_DH_params::ResponseType res_client_DH_params;
 	if (!readResponseNotSecure(res_client_DH_params)) {
+		lockFinished.unlock();
 		return restart();
 	}
 
@@ -3309,11 +3467,15 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 		if (resDH.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_ok)!"));
 			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(mb(&resDH.vnonce, 16).str()).arg(mb(&authKeyData->nonce, 16).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		if (resDH.vserver_nonce != authKeyData->server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in dh_gen_ok)!"));
 			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(mb(&resDH.vserver_nonce, 16).str()).arg(mb(&authKeyData->server_nonce, 16).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		authKeyData->new_nonce_buf[32] = 1;
@@ -3321,6 +3483,8 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 		if (resDH.vnew_nonce_hash1 != *(MTPint128*)(hashSha1(authKeyData->new_nonce_buf, 41, sha1Buffer) + 1)) {
 			LOG(("AuthKey Error: received new_nonce_hash1 did not match!"));
 			DEBUG_LOG(("AuthKey Error: received new_nonce_hash1: %1, new_nonce_buf: %2").arg(mb(&resDH.vnew_nonce_hash1, 16).str()).arg(mb(authKeyData->new_nonce_buf, 41).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 
@@ -3343,11 +3507,15 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 		if (resDH.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_retry)!"));
 			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(mb(&resDH.vnonce, 16).str()).arg(mb(&authKeyData->nonce, 16).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		if (resDH.vserver_nonce != authKeyData->server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in dh_gen_retry)!"));
 			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(mb(&resDH.vserver_nonce, 16).str()).arg(mb(&authKeyData->server_nonce, 16).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		authKeyData->new_nonce_buf[32] = 2;
@@ -3355,6 +3523,8 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 		if (resDH.vnew_nonce_hash2 != *(MTPint128*)(hashSha1(authKeyData->new_nonce_buf, 41, sha1Buffer) + 1)) {
 			LOG(("AuthKey Error: received new_nonce_hash2 did not match!"));
 			DEBUG_LOG(("AuthKey Error: received new_nonce_hash2: %1, new_nonce_buf: %2").arg(mb(&resDH.vnew_nonce_hash2, 16).str()).arg(mb(authKeyData->new_nonce_buf, 41).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		authKeyData->retry_id = authKeyData->auth_key_aux_hash;
@@ -3365,11 +3535,15 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
 		if (resDH.vnonce != authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_fail)!"));
 			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(mb(&resDH.vnonce, 16).str()).arg(mb(&authKeyData->nonce, 16).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		if (resDH.vserver_nonce != authKeyData->server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in dh_gen_fail)!"));
 			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(mb(&resDH.vserver_nonce, 16).str()).arg(mb(&authKeyData->server_nonce, 16).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		authKeyData->new_nonce_buf[32] = 3;
@@ -3377,13 +3551,20 @@ void MTProtoConnectionPrivate::dhClientParamsAnswered() {
         if (resDH.vnew_nonce_hash3 != *(MTPint128*)(hashSha1(authKeyData->new_nonce_buf, 41, sha1Buffer) + 1)) {
 			LOG(("AuthKey Error: received new_nonce_hash3 did not match!"));
 			DEBUG_LOG(("AuthKey Error: received new_nonce_hash3: %1, new_nonce_buf: %2").arg(mb(&resDH.vnew_nonce_hash3, 16).str()).arg(mb(authKeyData->new_nonce_buf, 41).str()));
+
+			lockFinished.unlock();
 			return restart();
 		}
 		LOG(("AuthKey Error: dh_gen_fail received!"));
-	} return restart();
+	}
+
+		lockFinished.unlock();
+		return restart();
 
 	}
 	LOG(("AuthKey Error: unknown set_client_DH_params_answer received, typeId = %1").arg(res_client_DH_params.type()));
+
+	lockFinished.unlock();
 	return restart();
 }
 
@@ -3479,7 +3660,7 @@ void MTProtoConnectionPrivate::sendRequestNotSecure(const TRequest &request) {
 
 		onSentSome(buffer.size() * sizeof(mtpPrime));
 
-	} catch(Exception &e) {
+	} catch (Exception &e) {
 		return restart();
 	}
 }
@@ -3516,13 +3697,13 @@ bool MTProtoConnectionPrivate::readResponseNotSecure(TResponse &response) {
 		}
 		const mtpPrime *from(answer + 5), *end(from + len - 5);
 		response.read(from, end);
-	} catch(Exception &e) {
+	} catch (Exception &e) {
 		return false;
 	}
 	return true;
 }
 
-bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse) {
+bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse, QReadLocker &lockFinished) {
 	uint32 fullSize = request->size();
 	if (fullSize < 9) return false;
 
@@ -3532,6 +3713,8 @@ bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResp
 	ReadLockerAttempt lock(sessionData->keyMutex());
 	if (!lock) {
 		DEBUG_LOG(("MTP Info: could not lock key for read in sendBuffer(), dc %1, restarting..").arg(dc));
+
+		lockFinished.unlock();
 		restart();
 		return false;
 	}
@@ -3539,6 +3722,8 @@ bool MTProtoConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResp
 	mtpAuthKeyPtr key(sessionData->getKey());
 	if (!key || key->keyId() != keyId) {
 		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed").arg(dc));
+
+		lockFinished.unlock();
 		restart();
 		return false;
 	}
@@ -3605,9 +3790,6 @@ void MTProtoConnectionPrivate::lockKey() {
 }
 
 void MTProtoConnectionPrivate::unlockKey() {
-	QReadLocker lockFinished(&sessionDataMutex);
-	if (!sessionData) return;
-
 	if (myKeyLock) {
 		myKeyLock = false;
 		sessionData->keyMutex()->unlock();

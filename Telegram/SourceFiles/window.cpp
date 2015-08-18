@@ -287,7 +287,7 @@ void NotifyWindow::mousePressEvent(QMouseEvent *e) {
 			App::wnd()->notifyClear();
 		} else {
 			App::wnd()->hideSettings();
-			App::main()->showPeer(peer, (history->peer->chat && item && item->notifyByFrom() && item->id > 0) ? item->id : 0, false, true);
+			App::main()->showPeerHistory(peer, (history->peer->chat && item && item->notifyByFrom() && item->id > 0) ? item->id : ShowAtUnreadMsgId);
 		}
 		e->ignore();
 	}
@@ -429,28 +429,27 @@ void Window::init() {
 
 	title = new TitleWidget(this);
 
-	psInitSize();
-	psUpdateWorkmode();
+    psInitSize();
 }
 
 void Window::firstShow() {
 #ifdef Q_OS_WIN
-    trayIconMenu = new ContextMenu(this);
+	trayIconMenu = new ContextMenu(this);
 #else
 	trayIconMenu = new QMenu(this);
 	trayIconMenu->setFont(QFont("Tahoma"));
 #endif
-    if (cPlatform() == dbipWindows || cPlatform() == dbipMac) {
-        trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
-        trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
-    } else {
-        trayIconMenu->addAction(lang(lng_open_from_tray), this, SLOT(showFromTray()))->setEnabled(true);
-        trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
-        trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
-    }
+	if (cPlatform() == dbipWindows || cPlatform() == dbipMac) {
+		trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
+		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
+	} else {
+		trayIconMenu->addAction(lang(lng_open_from_tray), this, SLOT(showFromTray()))->setEnabled(true);
+		trayIconMenu->addAction(lang(lng_minimize_to_tray), this, SLOT(minimizeToTray()))->setEnabled(true);
+		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
+	}
+	psUpdateWorkmode();
 
 	psFirstShow();
-
 	updateTrayMenu();
 }
 
@@ -1426,7 +1425,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 				if (j == notifyWhenMaps.end()) {
 					history->clearNotifications();
 					i = notifyWaiters.erase(i);
-					if (notifyHistory) notifyWaiter = notifyWaiters.find(notifyHistory);
+					notifyWaiter = notifyHistory ? notifyWaiters.find(notifyHistory) : notifyWaiters.end();
 					continue;
 				}
 				do {
@@ -1442,7 +1441,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 			if (!history->currentNotification()) {
 				notifyWhenMaps.remove(history);
 				i = notifyWaiters.erase(i);
-				if (notifyHistory) notifyWaiter = notifyWaiters.find(notifyHistory);
+				notifyWaiter = notifyHistory ? notifyWaiters.find(notifyHistory) : notifyWaiters.end();
 				continue;
 			}
 			uint64 when = i.value().when;
@@ -1468,8 +1467,8 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 				uint64 ms = getms(true);
 				History *history = notifyItem->history();
 				NotifyWhenMaps::iterator j = notifyWhenMaps.find(history);
-
-				if (j == notifyWhenMaps.end()) {
+				bool notifyWhenFound = (j != notifyWhenMaps.cend());
+				if (!notifyWhenFound) {
 					history->clearNotifications();
 				} else {
 					HistoryItem *nextNotify = 0;
@@ -1517,7 +1516,7 @@ void Window::notifyShowNext(NotifyWindow *remove) {
 
 				if (!history->hasNotification()) {
 					if (notifyWaiter != notifyWaiters.cend()) notifyWaiters.erase(notifyWaiter);
-					if (j != notifyWhenMaps.cend()) notifyWhenMaps.erase(j);
+					if (notifyWhenFound) notifyWhenMaps.erase(j);
 					continue;
 				}
 			}
@@ -1712,10 +1711,10 @@ void Window::sendPaths() {
 	}
 }
 
-void Window::mediaOverviewUpdated(PeerData *peer) {
-	if (main) main->mediaOverviewUpdated(peer);
+void Window::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
+	if (main) main->mediaOverviewUpdated(peer, type);
 	if (!_mediaView || _mediaView->isHidden()) return;
-	_mediaView->mediaOverviewUpdated(peer);
+	_mediaView->mediaOverviewUpdated(peer, type);
 }
 
 void Window::documentUpdated(DocumentData *doc) {

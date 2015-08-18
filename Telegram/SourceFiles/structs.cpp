@@ -90,10 +90,10 @@ NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersP
 PeerData::PeerData(const PeerId &id) : id(id)
 , loaded(false)
 , chat(App::isChat(id))
-, access(0)
 , colorIndex(peerColorIndex(id))
 , color(peerColor(colorIndex))
 , photo(chat ? chatDefPhoto(colorIndex) : userDefPhoto(colorIndex))
+, photoId(UnknownPeerPhotoId)
 , nameVersion(0)
 , notify(UnknownNotifySettings)
 {
@@ -126,30 +126,42 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone,
 	NameFirstChars oldChars = chars;
 	fillNames();
 	App::history(id)->updateNameText();
+	nameUpdated();
 	if (App::main()) {
 		emit App::main()->peerNameChanged(this, oldNames, oldChars);
 	}
-	nameUpdated();
 }
 
-void UserData::setPhoto(const MTPUserProfilePhoto &p) {
+void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer as well
+	PhotoId newPhotoId = photoId;
+	ImagePtr newPhoto = photo;
+	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_userProfilePhoto: {
 		const MTPDuserProfilePhoto d(p.c_userProfilePhoto());
-		photoId = d.vphoto_id.v;
-		photo = ImagePtr(160, 160, d.vphoto_small, userDefPhoto(colorIndex));
-		//		App::feedPhoto(App::photoFromUserPhoto(MTP_int(id & 0xFFFFFFFF), MTP_int(unixtime()), p));
+		newPhotoId = d.vphoto_id.v;
+		newPhotoLoc = App::imageLocation(160, 160, d.vphoto_small);
+		newPhoto = newPhotoLoc.isNull() ? userDefPhoto(colorIndex) : ImagePtr(newPhotoLoc);
+		//App::feedPhoto(App::photoFromUserPhoto(MTP_int(id & 0xFFFFFFFF), MTP_int(unixtime()), p));
 	} break;
 	default: {
-		photoId = 0;
+		newPhotoId = 0;
 		if (id == ServiceUserId) {
-			photo = ImagePtr(QPixmap::fromImage(App::wnd()->iconLarge().scaledToWidth(160, Qt::SmoothTransformation), Qt::ColorOnly), "PNG");
+			if (photo->isNull()) {
+				newPhoto = ImagePtr(QPixmap::fromImage(App::wnd()->iconLarge().scaledToWidth(160, Qt::SmoothTransformation), Qt::ColorOnly), "PNG");
+			}
 		} else {
-			photo = userDefPhoto(colorIndex);
+			newPhoto = userDefPhoto(colorIndex);
 		}
+		newPhotoLoc = StorageImageLocation();
 	} break;
 	}
-	emit App::main()->peerPhotoChanged(this);
+	if (newPhotoId != photoId || newPhoto.v() != photo.v() || newPhotoLoc != photoLoc) {
+		photoId = newPhotoId;
+		photo = newPhoto;
+		photoLoc = newPhotoLoc;
+		emit App::main()->peerPhotoChanged(this);
+	}
 }
 
 void PeerData::fillNames() {
@@ -198,7 +210,6 @@ void UserData::setName(const QString &first, const QString &last, const QString 
 
 void UserData::setPhone(const QString &newPhone) {
 	phone = newPhone;
-	++nameVersion;
 }
 
 void UserData::setBotInfoVersion(int32 version) {
@@ -209,16 +220,23 @@ void UserData::setBotInfoVersion(int32 version) {
 		botInfo = new BotInfo();
 		botInfo->version = version;
 	} else if (botInfo->version < version) {
-		botInfo->commands.clear();
+		if (!botInfo->commands.isEmpty()) {
+			botInfo->commands.clear();
+			if (App::main()) App::main()->botCommandsChanged(this);
+		}
 		botInfo->description.clear();
 		botInfo->shareText.clear();
 		botInfo->version = version;
 		botInfo->inited = false;
 	}
 }
+
 void UserData::setBotInfo(const MTPBotInfo &info) {
 	switch (info.type()) {
 	case mtpc_botInfoEmpty:
+		if (botInfo && !botInfo->commands.isEmpty()) {
+			if (App::main()) App::main()->botCommandsChanged(this);
+		}
 		delete botInfo;
 		botInfo = 0;
 	break;
@@ -240,15 +258,37 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 		botInfo->shareText = qs(d.vshare_text);
 		
 		const QVector<MTPBotCommand> &v(d.vcommands.c_vector().v);
-		botInfo->commands.clear();
 		botInfo->commands.reserve(v.size());
+		bool changedCommands = false;
+		int32 j = 0;
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
-			if (v.at(i).type() == mtpc_botCommand) {
-				botInfo->commands.push_back(BotCommand(qs(v.at(i).c_botCommand().vcommand), qs(v.at(i).c_botCommand().vparams), qs(v.at(i).c_botCommand().vdescription)));
+			if (v.at(i).type() != mtpc_botCommand) continue;
+
+			QString cmd = qs(v.at(i).c_botCommand().vcommand), desc = qs(v.at(i).c_botCommand().vdescription);
+			if (botInfo->commands.size() <= j) {
+				botInfo->commands.push_back(BotCommand(cmd, desc));
+				changedCommands = true;
+			} else {
+				if (botInfo->commands[j].command != cmd) {
+					botInfo->commands[j].command = cmd;
+					changedCommands = true;
+				}
+				if (botInfo->commands[j].setDescription(desc)) {
+					changedCommands = true;
+				}
 			}
+			++j;
+		}
+		while (j < botInfo->commands.size()) {
+			botInfo->commands.pop_back();
+			changedCommands = true;
 		}
 
 		botInfo->inited = true;
+
+		if (changedCommands && App::main()) {
+			App::main()->botCommandsChanged(this);
+		}
 	} break;
 	}
 }
@@ -258,33 +298,45 @@ void UserData::nameUpdated() {
 }
 
 void UserData::madeAction() {
+	if (botInfo || isServiceUser(id)) return;
+
 	int32 t = unixtime();
 	if (onlineTill <= 0 && -onlineTill < t) {
 		onlineTill = -t - SetOnlineAfterActivity;
-		if (App::main()) App::main()->peerUpdated(this);
+		App::markPeerUpdated(this);
 	} else if (onlineTill > 0 && onlineTill < t + 1) {
 		onlineTill = t + SetOnlineAfterActivity;
-		if (App::main()) App::main()->peerUpdated(this);
+		App::markPeerUpdated(this);
 	}
 }
 
-void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) {
+void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
+	PhotoId newPhotoId = photoId;
+	ImagePtr newPhoto = photo;
+	StorageImageLocation newPhotoLoc = photoLoc;
 	switch (p.type()) {
 	case mtpc_chatPhoto: {
 		const MTPDchatPhoto d(p.c_chatPhoto());
-		photo = ImagePtr(160, 160, d.vphoto_small, chatDefPhoto(colorIndex));
-		photoFull = ImagePtr(640, 640, d.vphoto_big, chatDefPhoto(colorIndex));
-		if (phId) {
-			photoId = phId;
+		if (phId != UnknownPeerPhotoId) {
+			newPhotoId = phId;
 		}
+		newPhotoLoc = App::imageLocation(160, 160, d.vphoto_small);
+		newPhoto = newPhotoLoc.isNull() ? chatDefPhoto(colorIndex) : ImagePtr(newPhotoLoc);
+//		photoFull = ImagePtr(640, 640, d.vphoto_big, chatDefPhoto(colorIndex));
 	} break;
 	default: {
-		photo = chatDefPhoto(colorIndex);
-		photoFull = ImagePtr();
-		photoId = 0;
+		newPhotoId = 0;
+		newPhotoLoc = StorageImageLocation();
+		newPhoto = chatDefPhoto(colorIndex);
+//		photoFull = ImagePtr();
 	} break;
 	}
-	emit App::main()->peerPhotoChanged(this);
+	if (newPhotoId != photoId || newPhoto.v() != photo.v() || newPhotoLoc != photoLoc) {
+		photoId = newPhotoId;
+		photo = newPhoto;
+		photoLoc = newPhotoLoc;
+		emit App::main()->peerPhotoChanged(this);
+	}
 }
 
 void PhotoLink::onClick(Qt::MouseButton button) const {
@@ -352,7 +404,7 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 
 void VideoOpenLink::onClick(Qt::MouseButton button) const {
 	VideoData *data = video();
-	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
+	if (!data->date || button != Qt::LeftButton) return;
 
 	QString already = data->already(true);
 	if (!already.isEmpty()) {
@@ -372,7 +424,7 @@ void VideoOpenLink::onClick(Qt::MouseButton button) const {
 }
 
 void VideoSaveLink::doSave(VideoData *data, bool forceSavingAs) {
-	if (!data->user && !data->date) return;
+	if (!data->date) return;
 
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
@@ -404,13 +456,13 @@ void VideoSaveLink::onClick(Qt::MouseButton button) const {
 
 void VideoCancelLink::onClick(Qt::MouseButton button) const {
 	VideoData *data = video();
-	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
+	if (!data->date || button != Qt::LeftButton) return;
 
 	data->cancel();
 }
 
-VideoData::VideoData(const VideoId &id, const uint64 &access, int32 user, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size) :
-id(id), access(access), user(user), date(date), duration(duration), w(w), h(h), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), fileType(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+VideoData::VideoData(const VideoId &id, const uint64 &access, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size) :
+id(id), access(access), date(date), duration(duration), w(w), h(h), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), fileType(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
 	location = Local::readFileLocation(mediaKey(VideoFileLocation, dc, id));
 }
 
@@ -430,19 +482,19 @@ QString VideoData::already(bool check) {
 
 void AudioOpenLink::onClick(Qt::MouseButton button) const {
 	AudioData *data = audio();
-	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
+	if (!data->date || button != Qt::LeftButton) return;
 
 	QString already = data->already(true);
-	bool play = audioPlayer();
+	bool play = App::hoveredLinkItem() && audioPlayer();
 	if (!already.isEmpty() || (!data->data.isEmpty() && play)) {
 		if (play) {
-			AudioData *playing = 0;
+			AudioMsgId playing;
 			AudioPlayerState playingState = AudioPlayerStopped;
 			audioPlayer()->currentState(&playing, &playingState);
-			if (playing == data && playingState != AudioPlayerStopped) {
-				audioPlayer()->pauseresume();
+			if (playing.msgId == App::hoveredLinkItem()->id && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+				audioPlayer()->pauseresume(OverviewAudios);
 			} else {
-				audioPlayer()->play(data);
+				audioPlayer()->play(AudioMsgId(data, App::hoveredLinkItem()->id));
 				if (App::main()) App::main()->audioMarkRead(data);
 			}
 		} else {
@@ -454,7 +506,7 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 
 	if (data->status != FileReady) return;
 
-	bool mp3 = (data->mime == QLatin1String("audio/mp3"));
+	bool mp3 = (data->mime == qstr("audio/mp3"));
 	QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), mp3 ? qsl(".mp3") : qsl(".ogg"), false);
 	if (!filename.isEmpty()) {
 		data->openOnSave = 1;
@@ -464,7 +516,7 @@ void AudioOpenLink::onClick(Qt::MouseButton button) const {
 }
 
 void AudioSaveLink::doSave(AudioData *data, bool forceSavingAs) {
-	if (!data->user && !data->date) return;
+	if (!data->date) return;
 
 	QString already = data->already(true);
 	if (!already.isEmpty() && !forceSavingAs) {
@@ -475,7 +527,7 @@ void AudioSaveLink::doSave(AudioData *data, bool forceSavingAs) {
 	} else {
 		QFileInfo alreadyInfo(already);
 		QDir alreadyDir(already.isEmpty() ? QDir() : alreadyInfo.dir());
-		bool mp3 = (data->mime == QLatin1String("audio/mp3"));
+		bool mp3 = (data->mime == qstr("audio/mp3"));
 		QString name = already.isEmpty() ? (mp3 ? qsl(".mp3") : qsl(".ogg")) : alreadyInfo.fileName();
 		QString filename = saveFileName(lang(lng_save_audio), mp3 ? qsl("MP3 Audio (*.mp3);;All files (*.*)") : qsl("OGG Opus Audio (*.ogg);;All files (*.*)"), qsl("audio"), name, forceSavingAs, alreadyDir);
 		if (!filename.isEmpty()) {
@@ -497,13 +549,28 @@ void AudioSaveLink::onClick(Qt::MouseButton button) const {
 
 void AudioCancelLink::onClick(Qt::MouseButton button) const {
 	AudioData *data = audio();
-	if ((!data->user && !data->date) || button != Qt::LeftButton) return;
+	if (!data->date || button != Qt::LeftButton) return;
 
 	data->cancel();
 }
 
-AudioData::AudioData(const AudioId &id, const uint64 &access, int32 user, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) :
-id(id), access(access), user(user), date(date), mime(mime), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
+bool StickerData::setInstalled() const {
+	switch (set.type()) {
+	case mtpc_inputStickerSetID: {
+		return (cStickerSets().constFind(set.c_inputStickerSetID().vid.v) != cStickerSets().cend());
+	} break;
+	case mtpc_inputStickerSetShortName: {
+		QString name = qs(set.c_inputStickerSetShortName().vshort_name).toLower();
+		for (StickerSets::const_iterator i = cStickerSets().cbegin(), e = cStickerSets().cend(); i != e; ++i) {
+			if (i->shortName.toLower() == name) return true;
+		}
+	} break;
+	}
+	return false;
+}
+
+AudioData::AudioData(const AudioId &id, const uint64 &access, int32 date, const QString &mime, int32 duration, int32 dc, int32 size) :
+id(id), access(access), date(date), mime(mime), duration(duration), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0) {
 	location = Local::readFileLocation(mediaKey(AudioFileLocation, dc, id));
 }
 
@@ -521,13 +588,24 @@ QString AudioData::already(bool check) {
 	return location.name;
 }
 
-void DocumentOpenLink::onClick(Qt::MouseButton button) const {
-	DocumentData *data = document();
-	if (!data->date || button != Qt::LeftButton) return;
+void DocumentOpenLink::doOpen(DocumentData *data) {
+	if (!data->date) return;
 
+	bool play = data->song() && App::hoveredLinkItem() && audioPlayer();
 	QString already = data->already(true);
-	if (!already.isEmpty()) {
-		if (data->size < MediaViewImageSizeLimit) {
+	if (!already.isEmpty() || (!data->data.isEmpty() && play)) {
+		if (play) {
+			SongMsgId playing;
+			AudioPlayerState playingState = AudioPlayerStopped;
+			audioPlayer()->currentState(&playing, &playingState);
+			if (playing.msgId == App::hoveredLinkItem()->id && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+				audioPlayer()->pauseresume(OverviewDocuments);
+			} else {
+				SongMsgId song(data, App::hoveredLinkItem()->id);
+				audioPlayer()->play(song);
+				if (App::main()) App::main()->documentPlayProgress(song);
+			}
+		} else if (data->size < MediaViewImageSizeLimit) {
 			QImageReader reader(already);
 			if (reader.canRead()) {
 				if (reader.supportsAnimation() && reader.imageCount() > 1 && App::hoveredLinkItem()) {
@@ -568,6 +646,11 @@ void DocumentOpenLink::onClick(Qt::MouseButton button) const {
 		data->openOnSaveMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->id : (App::contextItem() ? App::contextItem()->id : 0);
 		data->save(filename);
 	}
+}
+
+void DocumentOpenLink::onClick(Qt::MouseButton button) const {
+	if (button != Qt::LeftButton) return;
+	doOpen(document());
 }
 
 void DocumentSaveLink::doSave(DocumentData *data, bool forceSavingAs) {
@@ -622,7 +705,7 @@ void DocumentCancelLink::onClick(Qt::MouseButton button) const {
 }
 
 DocumentData::DocumentData(const DocumentId &id, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size) :
-id(id), type(FileDocument), duration(0), access(access), date(date), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0), sticker(0) {
+id(id), type(FileDocument), access(access), date(date), mime(mime), thumb(thumb), dc(dc), size(size), status(FileReady), uploadOffset(0), openOnSave(0), openOnSaveMsgId(0), loader(0), _additional(0) {
 	setattributes(attributes);
 	location = Local::readFileLocation(mediaKey(DocumentFileLocation, dc, id));
 }
@@ -634,12 +717,17 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			const MTPDdocumentAttributeImageSize &d(attributes[i].c_documentAttributeImageSize());
 			dimensions = QSize(d.vw.v, d.vh.v);
 		} break;
-		case mtpc_documentAttributeAnimated: if (type == FileDocument || type == StickerDocument) type = AnimatedDocument; break;
+		case mtpc_documentAttributeAnimated: if (type == FileDocument || type == StickerDocument) {
+			type = AnimatedDocument;
+			delete _additional;
+			_additional = 0;
+		} break;
 		case mtpc_documentAttributeSticker: {
 			const MTPDdocumentAttributeSticker &d(attributes[i].c_documentAttributeSticker());
-			if (type == FileDocument) type = StickerDocument;
-			if (type == StickerDocument && !sticker) sticker = new StickerData();
-			if (sticker) {
+			if (type == FileDocument) {
+				type = StickerDocument;
+				StickerData *sticker = new StickerData();
+				_additional = sticker;
 				sticker->alt = qs(d.valt);
 				sticker->set = d.vstickerset;
 			}
@@ -647,15 +735,26 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 		case mtpc_documentAttributeVideo: {
 			const MTPDdocumentAttributeVideo &d(attributes[i].c_documentAttributeVideo());
 			type = VideoDocument;
-			duration = d.vduration.v;
+//			duration = d.vduration.v;
 			dimensions = QSize(d.vw.v, d.vh.v);
 		} break;
 		case mtpc_documentAttributeAudio: {
 			const MTPDdocumentAttributeAudio &d(attributes[i].c_documentAttributeAudio());
-			type = AudioDocument;
-			duration = d.vduration.v;
+			type = SongDocument;
+			SongData *song = new SongData();
+			_additional = song;
+			song->duration = d.vduration.v;
+			song->title = qs(d.vtitle);
+			song->performer = qs(d.vperformer);
 		} break;
 		case mtpc_documentAttributeFilename: name = qs(attributes[i].c_documentAttributeFilename().vfile_name); break;
+		}
+	}
+	if (type == StickerDocument) {
+		if (dimensions.width() <= 0 || dimensions.height() <= 0 || dimensions.width() > StickerMaxSize || dimensions.height() > StickerMaxSize || size > StickerInMemory) {
+			type = FileDocument;
+			delete _additional;
+			_additional = 0;
 		}
 	}
 }
@@ -691,7 +790,7 @@ void MessageLink::onClick(Qt::MouseButton button) const {
 		if (current && current->history()->peer->id == peer()) {
 			App::main()->pushReplyReturn(current);
 		}
-		App::main()->showPeer(peer(), msgid());
+		App::main()->showPeerHistory(peer(), msgid());
 	}
 }
 

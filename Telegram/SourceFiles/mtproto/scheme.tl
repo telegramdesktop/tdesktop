@@ -132,14 +132,10 @@ null#56730bcc = Null;
 
 inputPeerEmpty#7f3b18ea = InputPeer;
 inputPeerSelf#7da07ec9 = InputPeer;
-inputPeerContact#1023dbe8 user_id:int = InputPeer;
-inputPeerForeign#9b447325 user_id:int access_hash:long = InputPeer;
 inputPeerChat#179be863 chat_id:int = InputPeer;
 
 inputUserEmpty#b98886cf = InputUser;
 inputUserSelf#f7c1b13f = InputUser;
-inputUserContact#86e94f65 user_id:int = InputUser;
-inputUserForeign#655e74ff user_id:int access_hash:long = InputUser;
 
 inputPhoneContact#f392b7f4 client_id:long phone:string first_name:string last_name:string = InputContact;
 
@@ -216,7 +212,7 @@ chatPhotoEmpty#37c1011c = ChatPhoto;
 chatPhoto#6153276a photo_small:FileLocation photo_big:FileLocation = ChatPhoto;
 
 messageEmpty#83e5de54 id:int = Message;
-message#c3060325 flags:# id:int from_id:int to_id:Peer fwd_from_id:flags.2?int fwd_date:flags.2?int reply_to_msg_id:flags.3?int date:int message:string media:MessageMedia reply_markup:flags.6?ReplyMarkup = Message;
+message#f07814c8 flags:# id:int from_id:int to_id:Peer fwd_from_id:flags.2?int fwd_date:flags.2?int reply_to_msg_id:flags.3?int date:int message:string media:MessageMedia reply_markup:flags.6?ReplyMarkup entities:flags.7?Vector<MessageEntity> = Message;
 messageService#1d86f70e flags:int id:int from_id:int to_id:Peer date:int action:MessageAction = Message;
 
 messageMediaEmpty#3ded6320 = MessageMedia;
@@ -237,14 +233,14 @@ messageActionChatDeleteUser#b2ae9b0c user_id:int = MessageAction;
 dialog#c1dd804a peer:Peer top_message:int read_inbox_max_id:int unread_count:int notify_settings:PeerNotifySettings = Dialog;
 
 photoEmpty#2331b22d id:long = Photo;
-photo#c3838076 id:long access_hash:long user_id:int date:int geo:GeoPoint sizes:Vector<PhotoSize> = Photo;
+photo#cded42fe id:long access_hash:long date:int sizes:Vector<PhotoSize> = Photo;
 
 photoSizeEmpty#e17e23c type:string = PhotoSize;
 photoSize#77bfb61b type:string location:FileLocation w:int h:int size:int = PhotoSize;
 photoCachedSize#e9a734fa type:string location:FileLocation w:int h:int bytes:bytes = PhotoSize;
 
 videoEmpty#c10658a8 id:long = Video;
-video#ee9f4a4d id:long access_hash:long user_id:int date:int duration:int size:int thumb:PhotoSize dc_id:int w:int h:int = Video;
+video#f72887d3 id:long access_hash:long date:int duration:int mime_type:string size:int thumb:PhotoSize dc_id:int w:int h:int = Video;
 
 geoPointEmpty#1117dd5f = GeoPoint;
 geoPoint#2049d70c long:double lat:double = GeoPoint;
@@ -307,9 +303,7 @@ messages.dialogsSlice#71e094f3 count:int dialogs:Vector<Dialog> messages:Vector<
 messages.messages#8c718e87 messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = messages.Messages;
 messages.messagesSlice#b446ae3 count:int messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = messages.Messages;
 
-messages.messageEmpty#3f4e0648 = messages.Message;
-
-messages.sentMessage#4c3d47f3 id:int date:int media:MessageMedia pts:int pts_count:int = messages.SentMessage;
+messages.sentMessage#8a99d8e0 id:int date:int media:MessageMedia entities:Vector<MessageEntity> pts:int pts_count:int = messages.SentMessage;
 
 messages.chats#64ff9fd5 chats:Vector<Chat> = messages.Chats;
 
@@ -325,6 +319,7 @@ inputMessagesFilterPhotoVideoDocuments#d95e73bb = MessagesFilter;
 inputMessagesFilterDocument#9eddf188 = MessagesFilter;
 inputMessagesFilterAudio#cfc87522 = MessagesFilter;
 inputMessagesFilterAudioDocuments#5afbf764 = MessagesFilter;
+inputMessagesFilterUrl#7ef0dd87 = MessagesFilter;
 
 updateNewMessage#1f2b0afd message:Message pts:int pts_count:int = Update;
 updateMessageID#4e90bfd6 id:int random_id:long = Update;
@@ -346,8 +341,8 @@ updates.difference#f49ca0 new_messages:Vector<Message> new_encrypted_messages:Ve
 updates.differenceSlice#a8fb1981 new_messages:Vector<Message> new_encrypted_messages:Vector<EncryptedMessage> other_updates:Vector<Update> chats:Vector<Chat> users:Vector<User> intermediate_state:updates.State = updates.Difference;
 
 updatesTooLong#e317af7e = Updates;
-updateShortMessage#ed5c2127 flags:# id:int user_id:int message:string pts:int pts_count:int date:int fwd_from_id:flags.2?int fwd_date:flags.2?int reply_to_msg_id:flags.3?int = Updates;
-updateShortChatMessage#52238b3c flags:# id:int from_id:int chat_id:int message:string pts:int pts_count:int date:int fwd_from_id:flags.2?int fwd_date:flags.2?int reply_to_msg_id:flags.3?int = Updates;
+updateShortMessage#3f32d858 flags:# id:int user_id:int message:string pts:int pts_count:int date:int fwd_from_id:flags.2?int fwd_date:flags.2?int reply_to_msg_id:flags.3?int entities:flags.7?Vector<MessageEntity> = Updates;
+updateShortChatMessage#f9409b3d flags:# id:int from_id:int chat_id:int message:string pts:int pts_count:int date:int fwd_from_id:flags.2?int fwd_date:flags.2?int reply_to_msg_id:flags.3?int entities:flags.7?Vector<MessageEntity> = Updates;
 updateShort#78d4dec1 update:Update date:int = Updates;
 updatesCombined#725b04c3 updates:Vector<Update> users:Vector<User> chats:Vector<Chat> date:int seq_start:int seq:int = Updates;
 updates#74ae4240 updates:Vector<Update> users:Vector<User> chats:Vector<Chat> date:int seq:int = Updates;
@@ -454,7 +449,7 @@ inputAudioFileLocation#74dc404d id:long access_hash:long = InputFileLocation;
 inputDocumentFileLocation#4e45abe9 id:long access_hash:long = InputFileLocation;
 
 audioEmpty#586988d8 id:long = Audio;
-audio#c7ac6496 id:long access_hash:long user_id:int date:int duration:int mime_type:string size:int dc_id:int = Audio;
+audio#f9e35055 id:long access_hash:long date:int duration:int mime_type:string size:int dc_id:int = Audio;
 
 documentEmpty#36f8c871 id:long = Document;
 document#f9a39f4f id:long access_hash:long date:int mime_type:string size:int thumb:PhotoSize dc_id:int attributes:Vector<DocumentAttribute> = Document;
@@ -524,7 +519,7 @@ documentAttributeImageSize#6c37c15c w:int h:int = DocumentAttribute;
 documentAttributeAnimated#11b58939 = DocumentAttribute;
 documentAttributeSticker#3a556302 alt:string stickerset:InputStickerSet = DocumentAttribute;
 documentAttributeVideo#5910cccb duration:int w:int h:int = DocumentAttribute;
-documentAttributeAudio#51448e5 duration:int = DocumentAttribute;
+documentAttributeAudio#ded218e0 duration:int title:string performer:string = DocumentAttribute;
 documentAttributeFilename#15590068 file_name:string = DocumentAttribute;
 
 messages.stickersNotModified#f1749a22 = messages.Stickers;
@@ -533,7 +528,7 @@ messages.stickers#8a8ecd32 hash:string stickers:Vector<Document> = messages.Stic
 stickerPack#12b299d4 emoticon:string documents:Vector<long> = StickerPack;
 
 messages.allStickersNotModified#e86602c3 = messages.AllStickers;
-messages.allStickers#5ce352ec hash:string packs:Vector<StickerPack> sets:Vector<StickerSet> documents:Vector<Document> = messages.AllStickers;
+messages.allStickers#d51dafdb hash:string sets:Vector<StickerSet> = messages.AllStickers;
 
 disabledFeature#ae636f24 feature:string description:string = DisabledFeature;
 
@@ -588,13 +583,13 @@ inputStickerSetEmpty#ffb62b95 = InputStickerSet;
 inputStickerSetID#9de7a269 id:long access_hash:long = InputStickerSet;
 inputStickerSetShortName#861cc8a0 short_name:string = InputStickerSet;
 
-stickerSet#a7a43b17 id:long access_hash:long title:string short_name:string = StickerSet;
+stickerSet#cd303b41 flags:# id:long access_hash:long title:string short_name:string count:int hash:int = StickerSet;
 
 messages.stickerSet#b60a24a6 set:StickerSet packs:Vector<StickerPack> documents:Vector<Document> = messages.StickerSet;
 
 user#22e49072 flags:# id:int access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int = User;
 
-botCommand#b79d22ab command:string params:string description:string = BotCommand;
+botCommand#c27ac8c7 command:string description:string = BotCommand;
 
 botInfoEmpty#bb2e37ce = BotInfo;
 botInfo#9cf585d user_id:int version:int share_text:string description:string commands:Vector<BotCommand> = BotInfo;
@@ -603,8 +598,28 @@ keyboardButton#a2fa4880 text:string = KeyboardButton;
 
 keyboardButtonRow#77608b83 buttons:Vector<KeyboardButton> = KeyboardButtonRow;
 
-replyKeyboardHide#ced6ebbc = ReplyMarkup;
+replyKeyboardHide#a03e5b85 flags:# = ReplyMarkup;
+replyKeyboardForceReply#f4108aa0 flags:# = ReplyMarkup;
 replyKeyboardMarkup#3502758c flags:# rows:Vector<KeyboardButtonRow> = ReplyMarkup;
+
+inputPeerUser#7b8e7de6 user_id:int access_hash:long = InputPeer;
+
+inputUser#d8292816 user_id:int access_hash:long = InputUser;
+
+help.appChangelogEmpty#af7e0394 = help.AppChangelog;
+help.appChangelog#4668e6bd text:string = help.AppChangelog;
+
+messageEntityUnknown#bb92ba95 offset:int length:int = MessageEntity;
+messageEntityMention#fa04579d offset:int length:int = MessageEntity;
+messageEntityHashtag#6f635b0d offset:int length:int = MessageEntity;
+messageEntityBotCommand#6cef8ac7 offset:int length:int = MessageEntity;
+messageEntityUrl#6ed02538 offset:int length:int = MessageEntity;
+messageEntityEmail#64e475c2 offset:int length:int = MessageEntity;
+messageEntityBold#bd610bc9 offset:int length:int = MessageEntity;
+messageEntityItalic#826f8b60 offset:int length:int = MessageEntity;
+messageEntityCode#28a20571 offset:int length:int = MessageEntity;
+messageEntityPre#73924be0 offset:int length:int language:string = MessageEntity;
+messageEntityTextUrl#76a6d327 offset:int length:int url:string = MessageEntity;
 
 ---functions---
 
@@ -657,7 +672,7 @@ messages.deleteHistory#f4f8fb61 peer:InputPeer offset:int = messages.AffectedHis
 messages.deleteMessages#a5f18925 id:Vector<int> = messages.AffectedMessages;
 messages.receivedMessages#5a954c0 max_id:int = Vector<ReceivedNotifyMessage>;
 messages.setTyping#a3825e50 peer:InputPeer action:SendMessageAction = Bool;
-messages.sendMessage#fc55e6b5 flags:# peer:InputPeer reply_to_msg_id:flags.0?int message:string random_id:long reply_markup:flags.2?ReplyMarkup = messages.SentMessage;
+messages.sendMessage#df12390 flags:# peer:InputPeer reply_to_msg_id:flags.0?int message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> = messages.SentMessage;
 messages.sendMedia#c8f16791 flags:# peer:InputPeer reply_to_msg_id:flags.0?int media:InputMedia random_id:long reply_markup:flags.2?ReplyMarkup = Updates;
 messages.forwardMessages#55e1728d peer:InputPeer id:Vector<int> random_id:Vector<long> = Updates;
 messages.getChats#3c6aa187 id:Vector<int> = messages.Chats;
@@ -684,7 +699,7 @@ help.getAppUpdate#c812ac7e device_model:string system_version:string app_version
 help.saveAppLog#6f02f748 events:Vector<InputAppEvent> = Bool;
 help.getInviteText#a4a95186 lang_code:string = help.InviteText;
 
-photos.getUserPhotos#b7ee553c user_id:InputUser offset:int max_id:int limit:int = photos.Photos;
+photos.getUserPhotos#91cd32a8 user_id:InputUser offset:int max_id:long limit:int = photos.Photos;
 
 messages.forwardMessage#33963bf9 peer:InputPeer id:int random_id:long = Updates;
 messages.sendBroadcast#bf73f4da contacts:Vector<InputUser> random_id:Vector<long> message:string media:InputMedia = Updates;
@@ -766,6 +781,8 @@ messages.exportChatInvite#7d885289 chat_id:int = ExportedChatInvite;
 messages.checkChatInvite#3eadb1bb hash:string = ChatInvite;
 messages.importChatInvite#6c50051c hash:string = Updates;
 messages.getStickerSet#2619a90e stickerset:InputStickerSet = messages.StickerSet;
-messages.installStickerSet#efbbfae9 stickerset:InputStickerSet = Bool;
+messages.installStickerSet#7b30c3a6 stickerset:InputStickerSet disabled:Bool = Bool;
 messages.uninstallStickerSet#f96e55de stickerset:InputStickerSet = Bool;
 messages.startBot#1b3e0ffc bot:InputUser chat_id:int random_id:long start_param:string = Updates;
+
+help.getAppChangelog#5bab7fb2 device_model:string system_version:string app_version:string lang_code:string = help.AppChangelog;

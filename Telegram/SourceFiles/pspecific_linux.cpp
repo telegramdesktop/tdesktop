@@ -68,7 +68,7 @@ namespace {
 
 	bool frameless = true;
 	bool finished = true;
-    bool noQtTrayIcon = false;
+    bool noQtTrayIcon = false, noTryUnity = false, tryAppIndicator = false;
     bool useGtkBase = false, useAppIndicator = false, useStatusIcon = false, trayIconChecked = false, useUnityCount = false;
 
     AppIndicator *_trayIndicator = 0;
@@ -351,10 +351,17 @@ namespace {
     class _PsInitializer {
     public:
         _PsInitializer() {
+            static bool inited = false;
+            if (inited) return;
+            inited = true;
+
             QString cdesktop = QString(getenv("XDG_CURRENT_DESKTOP")).toLower();
-            noQtTrayIcon = (cdesktop == QLatin1String("unity")) || (cdesktop == QLatin1String("pantheon")) || (cdesktop == QLatin1String("gnome"));
+            noQtTrayIcon = (cdesktop == qstr("pantheon")) || (cdesktop == qstr("gnome"));
+            tryAppIndicator = (cdesktop == qstr("xfce"));
+            noTryUnity = (cdesktop != qstr("unity"));
 
             if (noQtTrayIcon) cSetSupportTray(false);
+
             std::cout << "libs init..\n";
             setupGtk();
             setupUnity();
@@ -395,6 +402,9 @@ namespace {
             if (!loadFunction(lib_gtk, "g_type_check_instance_cast", ps_g_type_check_instance_cast)) return;
             if (!loadFunction(lib_gtk, "g_signal_connect_data", ps_g_signal_connect_data)) return;
 
+            if (!loadFunction(lib_gtk, "g_object_ref_sink", ps_g_object_ref_sink)) return;
+            if (!loadFunction(lib_gtk, "g_object_unref", ps_g_object_unref)) return;
+
             useGtkBase = true;
             std::cout << "loaded gtk funcs!\n";
         }
@@ -409,9 +419,24 @@ namespace {
         }
 
         void setupGtk() {
-            if (!noQtTrayIcon) return;
-
             QLibrary lib_gtk, lib_indicator;
+            if (!noQtTrayIcon && !tryAppIndicator) {
+                if (!noTryUnity) {
+                    if (loadLibrary(lib_gtk, "gtk-3", 0)) {
+                        setupGtkBase(lib_gtk);
+                    }
+                    if (!useGtkBase) {
+                        if (loadLibrary(lib_gtk, "gtk-x11-2.0", 0)) {
+                            setupGtkBase(lib_gtk);
+                        }
+                    }
+                    if (!useGtkBase) {
+                        noTryUnity = true;
+                    }
+                }
+                return;
+            }
+
             if (loadLibrary(lib_indicator, "appindicator3", 1)) {
                 if (loadLibrary(lib_gtk, "gtk-3", 0)) {
                     setupGtkBase(lib_gtk);
@@ -427,6 +452,14 @@ namespace {
                     }
                 }
             }
+            if (tryAppIndicator) {
+                if (useGtkBase && useAppIndicator) {
+                    noQtTrayIcon = true;
+                    cSetSupportTray(false);
+                }
+                return;
+            }
+
             if (!useGtkBase && lib_gtk.isLoaded()) {
                 std::cout << "no appindicator, trying to load gtk..\n";
                 setupGtkBase(lib_gtk);
@@ -450,17 +483,15 @@ namespace {
             if (!loadFunction(lib_gtk, "gtk_status_icon_position_menu", ps_gtk_status_icon_position_menu)) return;
             if (!loadFunction(lib_gtk, "gtk_menu_popup", ps_gtk_menu_popup)) return;
             if (!loadFunction(lib_gtk, "gtk_get_current_event_time", ps_gtk_get_current_event_time)) return;
-            if (!loadFunction(lib_gtk, "g_object_ref_sink", ps_g_object_ref_sink)) return;
-            if (!loadFunction(lib_gtk, "g_object_unref", ps_g_object_unref)) return;
             if (!loadFunction(lib_gtk, "g_idle_add", ps_g_idle_add)) return;
             useStatusIcon = true;
             std::cout << "status icon api loaded\n";
         }
 
         void setupUnity() {
-            if (!useGtkBase || !noQtTrayIcon) return;
+            if (noTryUnity) return;
 
-            QLibrary lib_unity(QLatin1String("unity"), 9, 0);
+            QLibrary lib_unity(qstr("unity"), 9, 0);
             if (!loadLibrary(lib_unity, "unity", 9)) return;
 
             if (!loadFunction(lib_unity, "unity_launcher_entry_get_for_desktop_id", ps_unity_launcher_entry_get_for_desktop_id)) return;
@@ -470,7 +501,6 @@ namespace {
             std::cout << "unity count api loaded\n";
         }
     };
-    _PsInitializer _psInitializer;
 
     class _PsEventFilter : public QAbstractNativeEventFilter {
 	public:
@@ -740,6 +770,14 @@ void PsMainWindow::psUpdatedPosition() {
 void PsMainWindow::psCreateTrayIcon() {
     if (!noQtTrayIcon) {
         cSetSupportTray(QSystemTrayIcon::isSystemTrayAvailable());
+        if (!noTryUnity) {
+            if (ps_gtk_init_check(0, 0)) {
+                DEBUG_LOG(("Checked gtk with gtk_init_check!"));
+            } else {
+                DEBUG_LOG(("Failed to gtk_init_check(0, 0)!"));
+                useUnityCount = false;
+            }
+        }
         return;
     }
 
@@ -933,6 +971,8 @@ void PsMainWindow::psPlatformNotify(HistoryItem *item, int32 fwdCount) {
 }
 
 PsApplication::PsApplication(int &argc, char **argv) : QApplication(argc, argv) {
+    _PsInitializer _psInitializer;
+    Q_UNUSED(_psInitializer);
 }
 
 void PsApplication::psInstallEventFilter() {
@@ -1207,6 +1247,10 @@ void psRegisterCustomScheme() {
             LOG(("App Error: Could not open '%1' for write").arg(file));
         }
     }
+}
+
+void psNewVersion() {
+	psRegisterCustomScheme();
 }
 
 bool _execUpdater(bool update = true) {

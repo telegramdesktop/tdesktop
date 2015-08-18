@@ -32,6 +32,7 @@ public:
 	
 	bool loaded() const;
 	int32 notInstalled() const;
+	bool official() const;
 	QString title() const;
 	QString shortName() const;
 
@@ -57,6 +58,7 @@ private:
 	bool _loaded;
 	uint64 _setId, _setAccess;
 	QString _title, _setTitle, _setShortName;
+	int32 _setCount, _setHash, _setFlags;
 
 	int32 _bottom;
 	MTPInputStickerSet _input;
@@ -96,5 +98,5 @@ private:
 
 	StickerSetInner _inner;
 	IconedButton _close;
-	FlatButton _addStickers, _shareStickers;
+	FlatButton _addStickers, _shareStickers, _closeStickers;
 };

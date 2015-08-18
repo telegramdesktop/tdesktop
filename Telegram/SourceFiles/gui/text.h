@@ -259,13 +259,23 @@ public:
 	virtual QString encoded() const {
 		return QString();
 	}
+	virtual const QLatin1String &type() const = 0;
 	virtual ~ITextLink() {
 	}
 
 };
+
+#define TEXT_LINK_CLASS(ClassName) public: \
+const QLatin1String &type() const { \
+	static const QLatin1String _type(qstr(#ClassName)); \
+	return _type; \
+}
+
 typedef QSharedPointer<ITextLink> TextLinkPtr;
 
 class TextLink : public ITextLink {
+	TEXT_LINK_CLASS(TextLink)
+
 public:
 
 	TextLink(const QString &url, bool fullDisplayed = true) : _url(url), _fullDisplayed(fullDisplayed) {
@@ -289,7 +299,7 @@ public:
 
 	QString encoded() const {
 		QUrl u(_url), good(u.isValid() ? u.toEncoded() : QString());
-		QString result(good.isValid() ? good.toEncoded() : _url);
+		QString result(good.isValid() ? QString::fromUtf8(good.toEncoded()) : _url);
 
 		if (!QRegularExpression(qsl("^[a-zA-Z]+://")).match(result).hasMatch()) { // no protocol
 			return qsl("http://") + result;
@@ -305,6 +315,8 @@ private:
 };
 
 class EmailLink : public ITextLink {
+	TEXT_LINK_CLASS(EmailLink)
+
 public:
 
 	EmailLink(const QString &email) : _email(email) {
@@ -335,6 +347,8 @@ private:
 };
 
 class MentionLink : public ITextLink {
+	TEXT_LINK_CLASS(MentionLink)
+
 public:
 
 	MentionLink(const QString &tag) : _tag(tag) {
@@ -361,6 +375,8 @@ private:
 };
 
 class HashtagLink : public ITextLink {
+	TEXT_LINK_CLASS(HashtagLink)
+
 public:
 
 	HashtagLink(const QString &tag) : _tag(tag) {
@@ -387,6 +403,8 @@ private:
 };
 
 class BotCommandLink : public ITextLink {
+	TEXT_LINK_CLASS(BotCommandLink)
+
 public:
 
 	BotCommandLink(const QString &cmd) : _cmd(cmd) {
@@ -484,6 +502,9 @@ public:
 
 	bool isEmpty() const {
 		return _text.isEmpty();
+	}
+	bool isNull() const {
+		return !_font;
 	}
 	QString original(uint16 selectedFrom = 0, uint16 selectedTo = 0xFFFF, bool expandLinks = true) const;
 

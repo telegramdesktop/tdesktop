@@ -48,28 +48,43 @@ namespace {
 		}
 	}
 
-	class EventFilterForMac : public QObject {
+	class EventFilterForKeys : public QObject {
 	public:
 
-		EventFilterForMac(QObject *parent) : QObject(parent) {
+		EventFilterForKeys(QObject *parent) : QObject(parent) {
 
 		}
 		bool eventFilter(QObject *o, QEvent *e) {
 			if (e->type() == QEvent::KeyPress) {
 				QKeyEvent *ev = static_cast<QKeyEvent*>(e);
-				if (ev->key() == Qt::Key_W && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
-					if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
-						App::wnd()->minimizeToTray();
-						return true;
-					} else {
-						App::wnd()->hide();
-						App::wnd()->updateIsActive(cOfflineBlurTimeout());
-						App::wnd()->updateGlobalMenu();
+				if (cPlatform() == dbipMac) {
+					if (ev->key() == Qt::Key_W && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
+						if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+							App::wnd()->minimizeToTray();
+							return true;
+						} else {
+							App::wnd()->hide();
+							App::wnd()->updateIsActive(cOfflineBlurTimeout());
+							App::wnd()->updateGlobalMenu();
+							return true;
+						}
+					} else if (ev->key() == Qt::Key_M && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
+						App::wnd()->setWindowState(Qt::WindowMinimized);
 						return true;
 					}
-				} else if (ev->key() == Qt::Key_M && (ev->modifiers() & (Qt::MetaModifier | Qt::ControlModifier))) {
-					App::wnd()->setWindowState(Qt::WindowMinimized);
-					return true;
+				}
+				if (ev->key() == Qt::Key_MediaPlay) {
+					if (App::main()) App::main()->player()->playPressed();
+				} else if (ev->key() == Qt::Key_MediaPause) {
+					if (App::main()) App::main()->player()->pausePressed();
+				} else if (ev->key() == Qt::Key_MediaTogglePlayPause) {
+					if (App::main()) App::main()->player()->playPausePressed();
+				} else if (ev->key() == Qt::Key_MediaStop) {
+					if (App::main()) App::main()->player()->stopPressed();
+				} else if (ev->key() == Qt::Key_MediaPrevious) {
+					if (App::main()) App::main()->player()->prevPressed();
+				} else if (ev->key() == Qt::Key_MediaNext) {
+					if (App::main()) App::main()->player()->nextPressed();
 				}
 			}
 			return QObject::eventFilter(o, e);
@@ -95,9 +110,7 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	}
 	mainApp = this;
 
-	if (cPlatform() == dbipMac) {
-		installEventFilter(new EventFilterForMac(this));
-	}
+	installEventFilter(new EventFilterForKeys(this));
 
     QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Regular.ttf"));
     QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Bold.ttf"));
@@ -203,7 +216,7 @@ void Application::updateGotCurrent() {
 		if (updates.exists()) {
 			QFileInfoList list = updates.entryInfoList(QDir::Files);
 			for (QFileInfoList::iterator i = list.begin(), e = list.end(); i != e; ++i) {
-                if (QRegularExpression("^(tupdate|tmacupd|tlinuxupd|tlinux32upd)\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
+                if (QRegularExpression("^(tupdate|tmacupd|tmac32upd|tlinuxupd|tlinux32upd)\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
 					QFile(i->absoluteFilePath()).remove();
 				}
 			}
@@ -460,7 +473,7 @@ void Application::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId)
 
 	PhotoId id = MTP::nonce<PhotoId>();
 
-	MTPPhoto photo(MTP_photo(MTP_long(id), MTP_long(0), MTP_int(MTP::authedId()), MTP_int(unixtime()), MTP_geoPointEmpty(), MTP_vector<MTPPhotoSize>(photoSizes)));
+	MTPPhoto photo(MTP_photo(MTP_long(id), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes)));
 
 	QString file, filename;
 	int32 filesize = 0;
@@ -500,7 +513,7 @@ void Application::startUpdateCheck(bool forceWait) {
 		if (updates.exists()) {
 			QFileInfoList list = updates.entryInfoList(QDir::Files);
 			for (QFileInfoList::iterator i = list.begin(), e = list.end(); i != e; ++i) {
-                if (QRegularExpression("^(tupdate|tmacupd|tlinuxupd|tlinux32upd)\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
+                if (QRegularExpression("^(tupdate|tmacupd|tmac32upd|tlinuxupd|tlinux32upd)\\d+$", QRegularExpression::CaseInsensitiveOption).match(i->fileName()).hasMatch()) {
 					sendRequest = true;
 				}
 			}
@@ -510,7 +523,11 @@ void Application::startUpdateCheck(bool forceWait) {
 
 	if (sendRequest) {
 		QUrl url(cUpdateURL());
-		if (DevChannel) url.setQuery("dev=1");
+		if (cDevVersion()) {
+			url.setQuery(qsl("version=%1&dev=1").arg(AppVersion));
+		} else {
+			url.setQuery(qsl("version=%1").arg(AppVersion));
+		}
 		QString u = url.toString();
 		QNetworkRequest checkVersion(url);
 		if (updateReply) updateReply->deleteLater();
@@ -637,13 +654,12 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 
 void Application::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
-		psRegisterCustomScheme();
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (DevChannel && Local::oldMapVersion() < 8028) {
-				versionFeatures = lang(lng_new_version_minor);// QString::fromUtf8("\xe2\x80\x94 IPv6 connections support\n\xe2\x80\x94 Bug fixes and minor stuff");// .replace('@', qsl("@") + QChar(0x200D));
-			} else if (!DevChannel && Local::oldMapVersion() < 8024) {
-				versionFeatures = lng_new_version_text(lt_blog_link, qsl("https://telegram.org/blog/bot-revolution"));// lang(lng_new_version_text).trimmed();
+			if (cDevVersion() && Local::oldMapVersion() < 8050) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Bug fixes in Windows notifications\n\xe2\x80\x94 Fixed input methods on Linux (Fcitx and IBus)");// .replace('@', qsl("@") + QChar(0x200D));
+			} else if (!cDevVersion() && Local::oldMapVersion() < 8051) {
+				versionFeatures = lang(lng_new_version_text).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));

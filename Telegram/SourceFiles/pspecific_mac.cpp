@@ -41,7 +41,7 @@ namespace {
 			Window *wnd = Application::wnd();
 			if (!wnd) return false;
 
-			return false;
+			return wnd->psFilterNativeEvent(message);
 		}
 	};
     _PsEventFilter *_psEventFilter = 0;
@@ -76,7 +76,7 @@ void MacPrivate::notifyClicked(unsigned long long peer, int msgid) {
 				tomsg = false;
 			}
 		}
-		App::main()->showPeer(history->peer->id, tomsg ? msgid : 0, false, true);
+		App::main()->showPeerHistory(history->peer->id, tomsg ? msgid : ShowAtUnreadMsgId);
 		App::wnd()->notifyClear(history);
 	}
 }
@@ -460,6 +460,10 @@ void PsMainWindow::psActivateNotify(NotifyWindow *w) {
 	objc_activateWnd(w->winId());
 }
 
+bool PsMainWindow::psFilterNativeEvent(void *event) {
+	return _private.filterNativeEvent(event);
+}
+
 namespace {
 	QRect _monitorRect;
 	uint64 _monitorLastGot = 0;
@@ -560,7 +564,9 @@ void psClearInitLogs() {
 }
 
 void psActivateProcess(uint64 pid) {
-	objc_activateProgram();
+	if (!pid) {
+		objc_activateProgram(App::wnd() ? App::wnd()->winId() : 0);
+	}
 }
 
 QString psCurrentCountry() {
@@ -647,7 +653,7 @@ void psFinish() {
     objc_finish();
 }
 
-void psRegisterCustomScheme() {
+void psNewVersion() {
 	objc_registerCustomScheme();
 }
 

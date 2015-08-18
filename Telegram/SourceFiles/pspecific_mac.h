@@ -36,7 +36,7 @@ public:
 	void darkModeChanged();
     void notifyClicked(unsigned long long peer, int msgid);
     void notifyReplied(unsigned long long peer, int msgid, const char *str);
-    
+
 };
 
 class NotifyWindow;
@@ -72,6 +72,8 @@ public:
 		return posInited;
 	}
 
+	bool psFilterNativeEvent(void *event);
+
 	void psActivateNotify(NotifyWindow *w);
 	void psClearNotifies(PeerId peerId = 0);
 	void psNotifyShown(NotifyWindow *w);
@@ -80,6 +82,10 @@ public:
 	bool eventFilter(QObject *obj, QEvent *evt);
 
 	void psUpdateCounter();
+
+	bool psHasNativeNotifications() {
+		return !(QSysInfo::macVersion() < QSysInfo::MV_10_8);
+	}
 
 	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
 
@@ -187,7 +193,7 @@ void psShowInFolder(const QString &name);
 void psStart();
 void psFinish();
 
-void psRegisterCustomScheme();
+void psNewVersion();
 
 void psUpdateOverlayed(QWidget *widget);
 QString psConvertFileUrl(const QString &url);

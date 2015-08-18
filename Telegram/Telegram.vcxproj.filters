@@ -891,6 +891,21 @@
     <ClCompile Include="GeneratedFiles\Release\moc_autoupdater.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
+    <ClCompile Include="SourceFiles\playerwidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Deploy\moc_playerwidget.cpp">
+      <Filter>Generated Files\Deploy</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_playerwidget.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_playerwidget.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\numbers.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SourceFiles\stdafx.h">
@@ -975,6 +990,9 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="SourceFiles\structs.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SourceFiles\numbers.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -1183,6 +1201,10 @@
     <CustomBuild Include="SourceFiles\autoupdater.h">
       <Filter>Source Files</Filter>
     </CustomBuild>
+    <CustomBuild Include="SourceFiles\playerwidget.h">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Resources\numbers.txt" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="SourceFiles\art\icon256.ico" />

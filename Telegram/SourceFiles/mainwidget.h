@@ -21,6 +21,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "historywidget.h"
 #include "profilewidget.h"
 #include "overviewwidget.h"
+#include "playerwidget.h"
 #include "apiwrap.h"
 
 class Window;
@@ -110,13 +111,14 @@ public:
 
 class StackItemHistory : public StackItem {
 public:
-	StackItemHistory(PeerData *peer, int32 lastWidth, int32 lastScrollTop, QList<MsgId> replyReturns, bool kbWasHidden) : StackItem(peer), replyReturns(replyReturns), lastWidth(lastWidth), lastScrollTop(lastScrollTop), kbWasHidden(kbWasHidden) {
+	StackItemHistory(PeerData *peer, MsgId msgId, QList<MsgId> replyReturns, bool kbWasHidden) : StackItem(peer),
+msgId(msgId), replyReturns(replyReturns), kbWasHidden(kbWasHidden) {
 	}
 	StackItemType type() const {
 		return HistoryStackItem;
 	}
+	MsgId msgId;
 	QList<MsgId> replyReturns;
-	int32 lastWidth, lastScrollTop;
 	bool kbWasHidden;
 };
 
@@ -163,6 +165,13 @@ public:
 	}
 };
 
+enum ForwardWhatMessages {
+	ForwardSelectedMessages,
+	ForwardContextMessage,
+	ForwardPressedMessage,
+	ForwardPressedLinkMessage
+};
+
 class MainWidget : public QWidget, public Animated, public RPCSender {
 	Q_OBJECT
 
@@ -176,11 +185,14 @@ public:
 
 	void updateWideMode();
 	bool needBackButton();
-	void onShowDialogs();
+	void showDialogs();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
 	void topBarShadowParams(int32 &x, float64 &o);
 	TopBarWidget *topBar();
+
+	PlayerWidget *player();
+	int32 contentScrollAddToY() const;
 
 	void animShow(const QPixmap &bgAnimCache, bool back = false);
 	bool animStep(float64 ms);
@@ -223,13 +235,17 @@ public:
 	void peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
 	PeerData *historyPeer();
 	PeerData *peer();
+
 	PeerData *activePeer();
 	MsgId activeMsgId();
+
 	PeerData *profilePeer();
+	PeerData *overviewPeer();
 	bool mediaTypeSwitch();
 	void showPeerProfile(PeerData *peer, bool back = false, int32 lastScrollTop = -1, bool allMediaShown = false);
 	void showMediaOverview(PeerData *peer, MediaOverviewType type, bool back = false, int32 lastScrollTop = -1);
 	void showBackFromStack();
+	void orderWidgets();
 	QRect historyRect() const;
 
 	void confirmShareContact(bool ctrlShiftEnter, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo);
@@ -254,20 +270,22 @@ public:
 	void shareContactLayer(UserData *contact);
 	void hiderLayer(HistoryHider *h);
 	void noHider(HistoryHider *destroyed);
-	void onForward(const PeerId &peer, bool forwardSelected);
+	void onForward(const PeerId &peer, ForwardWhatMessages what);
 	void onShareContact(const PeerId &peer, UserData *contact);
 	void onSendPaths(const PeerId &peer);
+	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);
 	bool selectingPeer(bool withConfirm = false);
 	void offerPeer(PeerId peer);
-	void focusPeerSelect();
 	void dialogsActivate();
 
+	DragState getDragState(const QMimeData *mime);
+
 	bool leaveChatFailed(PeerData *peer, const RPCError &e);
-	void deleteHistory(PeerData *peer, const MTPUpdates &updates);
+	void deleteHistoryAfterLeave(PeerData *peer, const MTPUpdates &updates);
 	void deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result);
 	void deleteMessages(const QVector<MTPint> &ids);
 	void deletedContact(UserData *user, const MTPcontacts_Link &result);
-	void deleteHistoryAndContact(UserData *user, const MTPcontacts_Link &result);
+	void deleteConversation(PeerData *peer);
 	void clearHistory(PeerData *peer);
 	void removeContact(UserData *user);
 
@@ -295,7 +313,7 @@ public:
     
     void readServerHistory(History *history, bool force = true);
 
-	uint64 animActiveTime() const;
+	uint64 animActiveTime(MsgId id) const;
 	void stopAnimActive();
 
 	void sendBotCommand(const QString &cmd, MsgId msgId);
@@ -303,7 +321,7 @@ public:
 
 	void searchMessages(const QString &query);
 	void preloadOverviews(PeerData *peer);
-	void mediaOverviewUpdated(PeerData *peer);
+	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
@@ -352,6 +370,10 @@ public:
 	void updateMutedIn(int32 seconds);
 
 	void updateStickers();
+	void botCommandsChanged(UserData *bot);
+
+	void choosePeer(PeerId peerId, MsgId showAtMsgId); // does offerPeer or showPeerHistory
+	void clearBotStartToken(PeerData *peer);
 
 	~MainWidget();
 
@@ -363,7 +385,7 @@ signals:
 	void dialogRowReplaced(DialogRow *oldRow, DialogRow *newRow);
 	void dialogToTop(const History::DialogLinks &links);
 	void dialogsUpdated();
-	void showPeerAsync(quint64 peer, qint32 msgId, bool back, bool force);
+	void showPeerAsync(quint64 peerId, qint32 showAtMsgId);
 	void stickersUpdated();
 
 public slots:
@@ -376,10 +398,12 @@ public slots:
 	void audioLoadProgress(mtpFileLoader *loader);
 	void audioLoadFailed(mtpFileLoader *loader, bool started);
 	void audioLoadRetry();
-	void audioPlayProgress(AudioData *audio);
+	void audioPlayProgress(const AudioMsgId &audioId);
 	void documentLoadProgress(mtpFileLoader *loader);
 	void documentLoadFailed(mtpFileLoader *loader, bool started);
 	void documentLoadRetry();
+	void documentPlayProgress(const SongMsgId &songId);
+	void hidePlayer();
 
 	void setInnerFocus();
 	void dialogsCancelled();
@@ -393,9 +417,11 @@ public slots:
 	void checkIdleFinish();
 	void updateOnlineDisplay();
 
-	void showPeer(quint64 peer, qint32 msgId = 0, bool back = false, bool force = false); // PeerId, MsgId
+	void showPeerHistory(quint64 peer, qint32 msgId, bool back = false);
 	void onTopBarClick();
 	void onPeerShown(PeerData *peer);
+
+	void searchInPeer(PeerData *peer);
 
 	void onUpdateNotifySettings();
 
@@ -479,11 +505,16 @@ private:
 	HistoryWidget history;
 	ProfileWidget *profile;
 	OverviewWidget *overview;
+	PlayerWidget _player;
 	TopBarWidget _topBar;
 	ConfirmBox *_forwardConfirm; // for narrow mode
-	HistoryHider *hider;
+	HistoryHider *_hider;
 	StackItems _stack;
-	QPixmap profileAnimCache;
+	PeerData *_peerInStack;
+	MsgId _msgIdInStack;
+	
+	int32 _playerHeight;
+	int32 _contentScrollAddToY;
 
 	Dropdown _mediaType;
 	int32 _mediaTypeMask;

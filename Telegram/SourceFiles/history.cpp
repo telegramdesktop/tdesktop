@@ -167,7 +167,7 @@ void DialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
 	if (!last) {
 		p.setFont(st::dlgHistFont->f);
 		p.setPen((act ? st::dlgActiveColor : st::dlgSystemColor)->p);
-		if (history->typing.isEmpty()) {
+		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
 			p.drawText(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgFont->ascent + st::dlgSep, lang(lng_empty_history));
 		} else {
 			history->typingText.drawElided(p, nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth);
@@ -223,7 +223,7 @@ void DialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
 			p.setPen((act ? st::dlgActiveUnreadColor : st::dlgUnreadColor)->p);
 			p.drawText(unreadRectLeft + st::dlgUnreadPaddingHor, unreadRectTop + st::dlgUnreadPaddingVer + st::dlgUnreadFont->ascent, unreadStr);
 		}
-		if (history->typing.isEmpty()) {
+		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
 			last->drawInDialog(p, QRect(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, lastWidth, st::dlgFont->height), act, history->textCachedFor, history->lastItemTextCache);
 		} else {
 			p.setPen((act ? st::dlgActiveColor : st::dlgSystemColor)->p);
@@ -305,10 +305,10 @@ History::History(const PeerId &peerId) : width(0), height(0)
 , oldLoaded(false)
 , newLoaded(true)
 , lastMsg(0)
-, activeMsgId(0)
 , draftToId(0)
 , lastWidth(0)
 , lastScrollTop(History::ScrollMax)
+, lastShowAtMsgId(ShowAtUnreadMsgId)
 , mute(isNotifyMuted(peer->notify))
 , lastKeyboardInited(false)
 , lastKeyboardUsed(false)
@@ -319,11 +319,16 @@ History::History(const PeerId &peerId) : width(0), height(0)
 , lastItemTextCache(st::dlgRichMinWidth)
 , posInDialogs(0)
 , typingText(st::dlgRichMinWidth)
-, myTyping(0)
 {
 	for (int32 i = 0; i < OverviewCount; ++i) {
 		_overviewCount[i] = -1; // not loaded yet
 	}
+}
+
+void History::clearLastKeyboard() {
+	lastKeyboardInited = true;
+	lastKeyboardId = 0;
+	lastKeyboardFrom = 0;
 }
 
 void History::updateNameText() {
@@ -341,6 +346,14 @@ bool History::updateTyping(uint64 ms, uint32 dots, bool force) {
 			++i;
 		}
 	}
+	for (SendActionUsers::iterator i = sendActions.begin(), e = sendActions.end(); i != e;) {
+		if (ms >= i.value().until) {
+			i = sendActions.erase(i);
+			changed = true;
+		} else {
+			++i;
+		}
+	}
 	if (changed) {
 		QString newTypingStr;
 		int32 cnt = typing.size();
@@ -350,6 +363,17 @@ bool History::updateTyping(uint64 ms, uint32 dots, bool force) {
 			newTypingStr = lng_users_typing(lt_user, typing.begin().key()->firstName, lt_second_user, (typing.end() - 1).key()->firstName);
 		} else if (cnt) {
 			newTypingStr = peer->chat ? lng_user_typing(lt_user, typing.begin().key()->firstName) : lang(lng_typing);
+		} else if (!sendActions.isEmpty()) {
+			switch (sendActions.begin().value().type) {
+			case SendActionRecordVideo: newTypingStr = peer->chat ? lng_user_action_record_video(lt_user, sendActions.begin().key()->firstName) : lang(lng_send_action_record_video); break;
+			case SendActionUploadVideo: newTypingStr = peer->chat ? lng_user_action_upload_video(lt_user, sendActions.begin().key()->firstName) : lang(lng_send_action_upload_video); break;
+			case SendActionRecordAudio: newTypingStr = peer->chat ? lng_user_action_record_audio(lt_user, sendActions.begin().key()->firstName) : lang(lng_send_action_record_audio); break;
+			case SendActionUploadAudio: newTypingStr = peer->chat ? lng_user_action_upload_audio(lt_user, sendActions.begin().key()->firstName) : lang(lng_send_action_upload_audio); break;
+			case SendActionUploadPhoto: newTypingStr = peer->chat ? lng_user_action_upload_photo(lt_user, sendActions.begin().key()->firstName) : lang(lng_send_action_upload_photo); break;
+			case SendActionUploadFile: newTypingStr = peer->chat ? lng_user_action_upload_file(lt_user, sendActions.begin().key()->firstName) : lang(lng_send_action_upload_file); break;
+			case SendActionChooseLocation: newTypingStr = peer->chat ? lng_user_action_geo_location(lt_user, sendActions.begin().key()->firstName) : lang(lng_send_action_geo_location); break;
+			case SendActionChooseContact: newTypingStr = peer->chat ? lng_user_action_choose_contact(lt_user, sendActions.begin().key()->firstName) : lang(lng_send_action_choose_contact); break;
+			}
 		}
 		if (!newTypingStr.isEmpty()) {
 			newTypingStr += qsl("...");
@@ -364,6 +388,28 @@ bool History::updateTyping(uint64 ms, uint32 dots, bool force) {
 		}
 	}
 	return changed;
+}
+
+void History::eraseFromOverview(MediaOverviewType type, MsgId msgId) {
+	if (_overviewIds[type].isEmpty()) return;
+
+	History::MediaOverviewIds::iterator i = _overviewIds[type].find(msgId);
+	if (i == _overviewIds[type].cend()) return;
+
+	_overviewIds[type].erase(i);
+	for (History::MediaOverview::iterator i = _overview[type].begin(), e = _overview[type].end(); i != e; ++i) {
+		if ((*i) == msgId) {
+			_overview[type].erase(i);
+			if (_overviewCount[type] > 0) {
+				--_overviewCount[type];
+				if (!_overviewCount[type]) {
+					_overviewCount[type] = -1;
+				}
+			}
+			break;
+		}
+	}
+	if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer, type);
 }
 
 bool DialogsList::del(const PeerId &peerId, DialogRow *replacedBy) {
@@ -478,9 +524,25 @@ void Histories::clear() {
 	Parent::clear();
 }
 
-void Histories::regTyping(History *history, UserData *user) {
+void Histories::regSendAction(History *history, UserData *user, const MTPSendMessageAction &action) {
+	if (action.type() == mtpc_sendMessageCancelAction) {
+		history->unregTyping(user);
+		return;
+	}
+
 	uint64 ms = getms(true);
-	history->typing[user] = ms + 6000;
+	switch (action.type()) {
+	case mtpc_sendMessageTypingAction: history->typing[user] = ms + 6000; break;
+	case mtpc_sendMessageRecordVideoAction: history->sendActions.insert(user, SendAction(SendActionRecordVideo, ms + 6000)); break;
+	case mtpc_sendMessageUploadVideoAction: history->sendActions.insert(user, SendAction(SendActionUploadVideo, ms + 6000, action.c_sendMessageUploadVideoAction().vprogress.v)); break;
+	case mtpc_sendMessageRecordAudioAction: history->sendActions.insert(user, SendAction(SendActionRecordAudio, ms + 6000)); break;
+	case mtpc_sendMessageUploadAudioAction: history->sendActions.insert(user, SendAction(SendActionUploadAudio, ms + 6000, action.c_sendMessageUploadAudioAction().vprogress.v)); break;
+	case mtpc_sendMessageUploadPhotoAction: history->sendActions.insert(user, SendAction(SendActionUploadPhoto, ms + 6000, action.c_sendMessageUploadPhotoAction().vprogress.v)); break;
+	case mtpc_sendMessageUploadDocumentAction: history->sendActions.insert(user, SendAction(SendActionUploadFile, ms + 6000, action.c_sendMessageUploadDocumentAction().vprogress.v)); break;
+	case mtpc_sendMessageGeoLocationAction: history->sendActions.insert(user, SendAction(SendActionChooseLocation, ms + 6000)); break;
+	case mtpc_sendMessageChooseContactAction: history->sendActions.insert(user, SendAction(SendActionChooseContact, ms + 6000)); break;
+	default: return;
+	}
 
 	user->madeAction();
 
@@ -502,7 +564,7 @@ bool Histories::animStep(float64) {
 			App::main()->dlgUpdated(i.key());
 			App::main()->topBar()->update();
 		}
-		if (i.key()->typing.isEmpty()) {
+		if (i.key()->typing.isEmpty() && i.key()->sendActions.isEmpty()) {
 			i = typing.erase(i);
 		} else {
 			++i;
@@ -551,7 +613,7 @@ HistoryItem *Histories::addToBack(const MTPmessage &msg, int msgState) {
 	if (!h.value()->loadedAtBottom()) {
 		HistoryItem *item = h.value()->addToHistory(msg);
 		if (item) {
-			h.value()->lastMsg = item;
+			h.value()->setLastMessage(item);
 			if (msgState > 0) {
 				h.value()->newItemAdded(item);
 			}
@@ -594,18 +656,80 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 		result = new HistoryServiceMsg(this, block, msg.c_messageEmpty().vid.v, date(), lang(lng_message_empty));
 	break;
 
-	case mtpc_message:
-		if ((msg.c_message().has_fwd_date() && msg.c_message().vfwd_date.v > 0) || (msg.c_message().has_fwd_from_id() && msg.c_message().vfwd_from_id.v != 0)) {
-			result = new HistoryForwarded(this, block, msg.c_message());
-		} else if (msg.c_message().has_reply_to_msg_id() && msg.c_message().vreply_to_msg_id.v > 0) {
-			result = new HistoryReply(this, block, msg.c_message());
+	case mtpc_message: {
+		const MTPDmessage m(msg.c_message());
+		int badMedia = 0; // 1 - unsupported, 2 - empty
+		switch (m.vmedia.type()) {
+		case mtpc_messageMediaEmpty:
+		case mtpc_messageMediaContact: break;
+		case mtpc_messageMediaGeo:
+			switch (m.vmedia.c_messageMediaGeo().vgeo.type()) {
+			case mtpc_geoPoint: break;
+			case mtpc_geoPointEmpty: badMedia = 2; break;
+			default: badMedia = 1; break;
+			}
+			break;
+		case mtpc_messageMediaVenue:
+			switch (m.vmedia.c_messageMediaVenue().vgeo.type()) {
+			case mtpc_geoPoint: break;
+			case mtpc_geoPointEmpty: badMedia = 2; break;
+			default: badMedia = 1; break;
+			}
+			break;
+		case mtpc_messageMediaPhoto:
+			switch (m.vmedia.c_messageMediaPhoto().vphoto.type()) {
+			case mtpc_photo: break;
+			case mtpc_photoEmpty: badMedia = 2; break;
+			default: badMedia = 1; break;
+			}
+			break;
+		case mtpc_messageMediaVideo:
+			switch (m.vmedia.c_messageMediaVideo().vvideo.type()) {
+			case mtpc_video: break;
+			case mtpc_videoEmpty: badMedia = 2; break;
+			default: badMedia = 1; break;
+			}
+			break;
+		case mtpc_messageMediaAudio:
+			switch (m.vmedia.c_messageMediaAudio().vaudio.type()) {
+			case mtpc_audio: break;
+			case mtpc_audioEmpty: badMedia = 2; break;
+			default: badMedia = 1; break;
+			}
+			break;
+		case mtpc_messageMediaDocument:
+			switch (m.vmedia.c_messageMediaDocument().vdocument.type()) {
+			case mtpc_document: break;
+			case mtpc_documentEmpty: badMedia = 2; break;
+			default: badMedia = 1; break;
+			}
+			break;
+		case mtpc_messageMediaWebPage:
+			switch (m.vmedia.c_messageMediaWebPage().vwebpage.type()) {
+			case mtpc_webPage:
+			case mtpc_webPageEmpty:
+			case mtpc_webPagePending: break;
+			default: badMedia = 1; break;
+			}
+			break;
+		case mtpc_messageMediaUnsupported:
+		default: badMedia = 1; break;
+		}
+		if (badMedia) {
+			result = new HistoryServiceMsg(this, block, m.vid.v, date(m.vdate), lang((badMedia == 2) ? lng_message_empty : lng_media_unsupported), m.vflags.v, 0, m.vfrom_id.v);
 		} else {
-			result = new HistoryMessage(this, block, msg.c_message());
+			if ((m.has_fwd_date() && m.vfwd_date.v > 0) || (m.has_fwd_from_id() && m.vfwd_from_id.v != 0)) {
+				result = new HistoryForwarded(this, block, m);
+			} else if (m.has_reply_to_msg_id() && m.vreply_to_msg_id.v > 0) {
+				result = new HistoryReply(this, block, m);
+			} else {
+				result = new HistoryMessage(this, block, m);
+			}
+			if (m.has_reply_markup()) {
+				App::feedReplyMarkup(msgId, m.vreply_markup);
+			}
 		}
-		if (msg.c_message().has_reply_markup()) {
-			App::feedReplyMarkup(msgId, msg.c_message().vreply_markup);
-		}
-	break;
+	} break;
 
 	case mtpc_messageService: {
 		const MTPDmessageService &d(msg.c_messageService());
@@ -632,9 +756,7 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 			case mtpc_messageActionChatDeleteUser: {
 				const MTPDmessageActionChatDeleteUser &d(action.c_messageActionChatDeleteUser());
 				if (lastKeyboardFrom == App::peerFromUser(d.vuser_id)) {
-					lastKeyboardInited = true;
-					lastKeyboardId = 0;
-					lastKeyboardFrom = 0;
+					clearLastKeyboard();
 				}
 				// App::peer(App::peerFromUser(d.vuser_id)); left
 			} break;
@@ -786,7 +908,8 @@ HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *
 		}
 	}
 	to->push_back(adding);
-	lastMsg = adding;
+	setLastMessage(adding);
+
 	adding->y = to->height;
 	if (width) {
 		int32 dh = adding->resize(width);
@@ -797,15 +920,26 @@ HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *
 	if (newMsg) {
 		newItemAdded(adding);
 	}
+
 	HistoryMedia *media = adding->getMedia(true);
 	if (media) {
-		MediaOverviewType t = mediaToOverviewType(media->type());
+		HistoryMediaType mt = media->type();
+		MediaOverviewType t = mediaToOverviewType(mt);
 		if (t != OverviewCount) {
 			if (_overviewIds[t].constFind(adding->id) == _overviewIds[t].cend()) {
 				_overview[t].push_back(adding->id);
 				_overviewIds[t].insert(adding->id, NullType());
 				if (_overviewCount[t] > 0) ++_overviewCount[t];
-				if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer);
+				if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer, t);
+			}
+			if (mt == MediaTypeDocument && static_cast<HistoryDocument*>(media)->document()->song()) {
+				t = OverviewAudioDocuments;
+				if (_overviewIds[t].constFind(adding->id) == _overviewIds[t].cend()) {
+					_overview[t].push_back(adding->id);
+					_overviewIds[t].insert(adding->id, NullType());
+					if (_overviewCount[t] > 0) ++_overviewCount[t];
+					if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer, t);
+				}
 			}
 		}
 	}
@@ -821,24 +955,23 @@ HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *
 			}
 		}
 		if (adding->hasReplyMarkup()) {
-			if (peer->chat) {
-				peer->asChat()->markupSenders.insert(adding->from(), true);
-			}
-			if (App::replyMarkup(adding->id).flags & MTPDreplyKeyboardMarkup_flag_ZERO) { // zero markup means replyKeyboardHide
-				if (lastKeyboardFrom == adding->from()->id || (!lastKeyboardInited && !peer->chat && !adding->out())) {
-					lastKeyboardInited = true;
-					lastKeyboardId = 0;
-					lastKeyboardFrom = 0;
+			int32 markupFlags = App::replyMarkup(adding->id).flags;
+			if (!(markupFlags & MTPDreplyKeyboardMarkup_flag_personal) || adding->notifyByFrom()) {
+				if (peer->chat) {
+					peer->asChat()->markupSenders.insert(adding->from(), true);
 				}
-			} else if (peer->chat && (peer->asChat()->count < 1 || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(adding->from())) {
-				lastKeyboardInited = true;
-				lastKeyboardId = 0;
-				lastKeyboardFrom = 0;
-			} else {
-				lastKeyboardInited = true;
-				lastKeyboardId = adding->id;
-				lastKeyboardFrom = adding->from()->id;
-				lastKeyboardUsed = false;
+				if (markupFlags & MTPDreplyKeyboardMarkup_flag_ZERO) { // zero markup means replyKeyboardHide
+					if (lastKeyboardFrom == adding->from()->id || (!lastKeyboardInited && !peer->chat && !adding->out())) {
+						clearLastKeyboard();
+					}
+				} else if (peer->chat && (peer->asChat()->count < 1 || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(adding->from())) {
+					clearLastKeyboard();
+				} else {
+					lastKeyboardInited = true;
+					lastKeyboardId = adding->id;
+					lastKeyboardFrom = adding->from()->id;
+					lastKeyboardUsed = false;
+				}
 			}
 		}
 	}
@@ -846,11 +979,22 @@ HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *
 }
 
 void History::unregTyping(UserData *from) {
+	bool update = false;
+	uint64 updateAtMs = 0;
 	TypingUsers::iterator i = typing.find(from);
 	if (i != typing.end()) {
-		uint64 ms = getms(true);
-		i.value() = ms;
-		updateTyping(ms, 0, true);
+		updateAtMs = getms(true);
+		i.value() = updateAtMs;
+		update = true;
+	}
+	SendActionUsers::iterator j = sendActions.find(from);
+	if (j != sendActions.end()) {
+		if (!updateAtMs) updateAtMs = getms(true);
+		j.value().until = updateAtMs;
+		update = true;
+	}
+	if (updateAtMs) {
+		updateTyping(updateAtMs, 0, true);
 		App::main()->topBar()->update();
 	}
 }
@@ -914,7 +1058,7 @@ void History::addToFront(const QVector<MTPMessage> &slice) {
 		block->height += dayItem->resize(width);
 	}
 	if (block->size()) {
-		if (wasMsgCount < unreadCount && msgCount >= unreadCount && !activeMsgId) {
+		if (loadedAtBottom() && wasMsgCount < unreadCount && msgCount >= unreadCount) {
 			for (int32 i = block->size(); i > 0; --i) {
 				if ((*block)[i - 1]->itemType() == HistoryItem::MsgType) {
 					++wasMsgCount;
@@ -930,16 +1074,27 @@ void History::addToFront(const QVector<MTPMessage> &slice) {
 		++skip;
 
 		if (loadedAtBottom()) { // add photos to overview and authors to lastAuthors
+			int32 mask = 0;
 			QList<UserData*> *lastAuthors = peer->chat ? &(peer->asChat()->lastAuthors) : 0;
 			for (int32 i = block->size(); i > 0; --i) {
 				HistoryItem *item = (*block)[i - 1];
 				HistoryMedia *media = item->getMedia(true);
 				if (media) {
-					MediaOverviewType t = mediaToOverviewType(media->type());
+					HistoryMediaType mt = media->type();
+					MediaOverviewType t = mediaToOverviewType(mt);
 					if (t != OverviewCount) {
 						if (_overviewIds[t].constFind(item->id) == _overviewIds[t].cend()) {
 							_overview[t].push_front(item->id);
 							_overviewIds[t].insert(item->id, NullType());
+							mask |= (1 << t);
+						}
+						if (mt == MediaTypeDocument && static_cast<HistoryDocument*>(media)->document()->song()) {
+							t = OverviewAudioDocuments;
+							if (_overviewIds[t].constFind(item->id) == _overviewIds[t].cend()) {
+								_overview[t].push_front(item->id);
+								_overviewIds[t].insert(item->id, NullType());
+								mask |= (1 << t);
+							}
 						}
 					}
 				}
@@ -949,39 +1104,44 @@ void History::addToFront(const QVector<MTPMessage> &slice) {
 							lastAuthors->push_back(item->from());
 						}
 						if (!lastKeyboardInited && item->hasReplyMarkup() && !item->out()) { // chats with bots
-							bool wasKeyboardHide = peer->asChat()->markupSenders.contains(item->from());
-							if (!wasKeyboardHide) {
-								peer->asChat()->markupSenders.insert(item->from(), true);
-							}
-							if (!(App::replyMarkup(item->id).flags & MTPDreplyKeyboardMarkup_flag_ZERO)) {
-								if (!lastKeyboardInited) {
-									lastKeyboardInited = true;
-									if (wasKeyboardHide || ((peer->asChat()->count < 1 || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(item->from()))) {
-										lastKeyboardId = 0;
-										lastKeyboardFrom = 0;
-									} else {
-										lastKeyboardId = item->id;
-										lastKeyboardFrom = item->from()->id;
-										lastKeyboardUsed = false;
+							int32 markupFlags = App::replyMarkup(item->id).flags;
+							if (!(markupFlags & MTPDreplyKeyboardMarkup_flag_personal) || item->notifyByFrom()) {
+								bool wasKeyboardHide = peer->asChat()->markupSenders.contains(item->from());
+								if (!wasKeyboardHide) {
+									peer->asChat()->markupSenders.insert(item->from(), true);
+								}
+								if (!(markupFlags & MTPDreplyKeyboardMarkup_flag_ZERO)) {
+									if (!lastKeyboardInited) {
+										if (wasKeyboardHide || ((peer->asChat()->count < 1 || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(item->from()))) {
+											clearLastKeyboard();
+										} else {
+											lastKeyboardInited = true;
+											lastKeyboardId = item->id;
+											lastKeyboardFrom = item->from()->id;
+											lastKeyboardUsed = false;
+										}
 									}
 								}
 							}
 						}
 					} else if (!lastKeyboardInited && item->hasReplyMarkup() && !item->out()) { // conversations with bots
-						lastKeyboardInited = true;
-						if (App::replyMarkup(item->id).flags & MTPDreplyKeyboardMarkup_flag_ZERO) {
-							lastKeyboardId = 0;
-							lastKeyboardFrom = 0;
-						} else {
-							lastKeyboardInited = true;
-							lastKeyboardId = item->id;
-							lastKeyboardFrom = item->from()->id;
-							lastKeyboardUsed = false;
+						int32 markupFlags = App::replyMarkup(item->id).flags;
+						if (!(markupFlags & MTPDreplyKeyboardMarkup_flag_personal) || item->notifyByFrom()) {
+							if (markupFlags & MTPDreplyKeyboardMarkup_flag_ZERO) {
+								clearLastKeyboard();
+							} else {
+								lastKeyboardInited = true;
+								lastKeyboardId = item->id;
+								lastKeyboardFrom = item->from()->id;
+								lastKeyboardUsed = false;
+							}
 						}
 					}
 				}
 			}
-			if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer);
+			for (int32 t = 0; t < OverviewCount; ++t) {
+				if ((mask & (1 << t)) && App::wnd()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(t));
+			}
 		}
 	} else {
 		delete block;
@@ -1056,10 +1216,14 @@ void History::addToBack(const QVector<MTPMessage> &slice) {
 		delete block;
 	}
 	if (!wasLoadedAtBottom && loadedAtBottom()) { // add all loaded photos to overview
+		int32 mask = 0;
 		for (int32 i = 0; i < OverviewCount; ++i) {
 			if (_overviewCount[i] == 0) continue; // all loaded
-			_overview[i].clear();
-			_overviewIds[i].clear();
+			if (!_overview[i].isEmpty() || !_overviewIds[i].isEmpty()) {
+				_overview[i].clear();
+				_overviewIds[i].clear();
+				mask |= (1 << i);
+			}
 		}
 		for (int32 i = 0; i < size(); ++i) {
 			HistoryBlock *b = (*this)[i];
@@ -1067,15 +1231,29 @@ void History::addToBack(const QVector<MTPMessage> &slice) {
 				HistoryItem *item = (*b)[j];
 				HistoryMedia *media = item->getMedia(true);
 				if (media) {
-					MediaOverviewType t = mediaToOverviewType(media->type());
-					if (t != OverviewCount && _overviewCount[t] != 0) {
-						_overview[t].push_back(item->id);
-						_overviewIds[t].insert(item->id, NullType());
+					HistoryMediaType mt = media->type();
+					MediaOverviewType t = mediaToOverviewType(mt);
+					if (t != OverviewCount) {
+						if (_overviewCount[t] != 0) {
+							_overview[t].push_back(item->id);
+							_overviewIds[t].insert(item->id, NullType());
+							mask |= (1 << t);
+						}
+						if (mt == MediaTypeDocument && static_cast<HistoryDocument*>(media)->document()->song()) {
+							t = OverviewAudioDocuments;
+							if (_overviewCount[t] != 0) {
+								_overview[t].push_back(item->id);
+								_overviewIds[t].insert(item->id, NullType());
+								mask |= (1 << t);
+							}
+						}
 					}
 				}
 			}
 		}
-		if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer);
+		for (int32 t = 0; t < OverviewCount; ++t) {
+			if ((mask & (1 << t)) && App::wnd()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(t));
+		}
 	}
 	if (wasEmpty && !isEmpty()) {
 		HistoryBlock *dateBlock = new HistoryBlock(this);
@@ -1103,6 +1281,7 @@ void History::inboxRead(int32 upTo) {
 	if (!dialogs.isEmpty()) {
 		if (App::main()) App::main()->dlgUpdated(dialogs[0]);
 	}
+	showFrom = 0;
 	App::wnd()->notifyClear(this);
 	clearNotifications();
 }
@@ -1124,7 +1303,7 @@ void History::outboxRead(HistoryItem *wasRead) {
 
 void History::setUnreadCount(int32 newUnreadCount, bool psUpdate) {
 	if (unreadCount != newUnreadCount) {
-		if (!unreadCount && newUnreadCount == 1 && loadedAtBottom()) {
+		if (newUnreadCount == 1 && loadedAtBottom()) {
 			showFrom = isEmpty() ? 0 : back()->back();
 		} else if (!newUnreadCount) {
 			showFrom = 0;
@@ -1153,10 +1332,6 @@ void History::setMsgCount(int32 newMsgCount) {
 }
 
 void History::getNextShowFrom(HistoryBlock *block, int32 i) {
-	if (!loadedAtBottom()) {
-		showFrom = 0;
-		return;
-	}
 	if (i >= 0) {
 		int32 l = block->size();
 		for (++i; i < l; ++i) {
@@ -1183,7 +1358,7 @@ void History::getNextShowFrom(HistoryBlock *block, int32 i) {
 }
 
 void History::addUnreadBar() {
-	if (unreadBar || !showFrom || !unreadCount || !loadedAtBottom()) return;
+	if (unreadBar || !showFrom || showFrom->detached() || !unreadCount) return;
 
 	HistoryBlock *block = showFrom->block();
 	int32 i = block->indexOf(showFrom);
@@ -1211,10 +1386,6 @@ void History::clearNotifications() {
 	notifies.clear();
 }
 
-bool History::readyForWork() const {
-	return activeMsgId ? !isEmpty() : (unreadCount <= msgCount);
-}
-
 bool History::loadedAtBottom() const {
 	return newLoaded;
 }
@@ -1223,49 +1394,50 @@ bool History::loadedAtTop() const {
 	return oldLoaded;
 }
 
+bool History::isReadyFor(MsgId msgId, bool check) const {
+	if (msgId == ShowAtTheEndMsgId) {
+		return loadedAtBottom();
+	} else if (msgId == ShowAtUnreadMsgId) {
+		return check ? (loadedAtBottom() && (msgCount >= unreadCount)) : !isEmpty();
+	} else if (check) {
+		HistoryItem *item = App::histItemById(msgId);
+		return item && item->history() == this && !item->detached();
+	}
+	return !isEmpty();
+}
+
+void History::getReadyFor(MsgId msgId) {
+	if (!isReadyFor(msgId, true)) {
+		clear(true);
+		newLoaded = (msgId == ShowAtTheEndMsgId) || (lastMsg && !lastMsg->detached());
+		oldLoaded = false;
+		lastWidth = 0;
+		lastShowAtMsgId = msgId;
+	}
+}
+
+void History::setLastMessage(HistoryItem *msg) {
+	if (msg) {
+		if (!lastMsg) Local::removeSavedPeer(peer);
+		lastMsg = msg;
+		lastMsgDate = msg->date;
+	} else {
+		lastMsg = 0;
+	}
+}
+
 void History::fixLastMessage(bool wasAtBottom) {
 	if (wasAtBottom && isEmpty()) {
 		wasAtBottom = false;
 	}
 	if (wasAtBottom) {
-		lastMsg = back()->back();
+		setLastMessage(back()->back());
 	} else {
-		lastMsg = 0;
+		setLastMessage(0);
 		if (App::main()) {
 			App::main()->checkPeerHistory(peer);
 		}
 	}
-}
-
-void History::loadAround(MsgId msgId) {
-	if (activeMsgId != msgId) {
-		activeMsgId = msgId;
-		lastWidth = 0;
-		if (activeMsgId) {
-			HistoryItem *item = App::histItemById(activeMsgId);
-			if (!item || !item->block()) {
-				clear(true);
-			}
-			newLoaded = lastMsg && !lastMsg->detached();
-		} else {
-			if (!loadedAtBottom()) {
-				clear(true);
-			}
-			newLoaded = isEmpty() || (lastMsg && !lastMsg->detached());
-		}
-	}
-}
-
-bool History::canShowAround(MsgId msgId) const {
-	if (activeMsgId != msgId) {
-		if (msgId) {
-			HistoryItem *item = App::histItemById(msgId);
-			return item && item->block();
-		} else {
-			return loadedAtBottom();
-		}
-	}
-	return true;
 }
 
 MsgId History::minMsgId() const {
@@ -1321,12 +1493,21 @@ void History::clear(bool leaveItems) {
 	if (showFrom) {
 		showFrom = 0;
 	}
-	for (int32 i = 0; i < OverviewCount; ++i) {
-		if (_overviewCount[i] == 0) _overviewCount[i] = _overview[i].size();
-		_overview[i].clear();
-		_overviewIds[i].clear();
+	if (!leaveItems) {
+		setLastMessage(0);
 	}
-	if (App::wnd() && !App::quiting()) App::wnd()->mediaOverviewUpdated(peer);
+	for (int32 i = 0; i < OverviewCount; ++i) {
+		if (!_overview[i].isEmpty() || !_overviewIds[i].isEmpty()) {
+			if (leaveItems) {
+				if (_overviewCount[i] == 0) _overviewCount[i] = _overview[i].size();
+			} else {
+				_overviewCount[i] = -1; // not loaded yet
+			}
+			_overview[i].clear();
+			_overviewIds[i].clear();
+			if (App::wnd() && !App::quiting()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(i));
+		}
+	}
 	for (Parent::const_iterator i = cbegin(), e = cend(); i != e; ++i) {
 		if (leaveItems) {
 			(*i)->clear(true);
@@ -1339,7 +1520,6 @@ void History::clear(bool leaveItems) {
 		lastKeyboardInited = false;
 	} else {
 		setUnreadCount(0);
-		lastMsg = 0;
 	}
 	height = 0;
 	oldLoaded = false;
@@ -1574,23 +1754,10 @@ void HistoryItem::destroy() {
 	}
 	HistoryMedia *m = getMedia(true);
 	MediaOverviewType t = m ? mediaToOverviewType(m->type()) : OverviewCount;
-	if (t != OverviewCount && !history()->_overviewIds[t].isEmpty()) {
-		History::MediaOverviewIds::iterator i = history()->_overviewIds[t].find(id);
-		if (i != history()->_overviewIds[t].cend()) {
-			history()->_overviewIds[t].erase(i);
-			for (History::MediaOverview::iterator i = history()->_overview[t].begin(), e = history()->_overview[t].end(); i != e; ++i) {
-				if ((*i) == id) {
-					history()->_overview[t].erase(i);
-					if (history()->_overviewCount[t] > 0) {
-						--history()->_overviewCount[t];
-						if (!history()->_overviewCount[t]) {
-							history()->_overviewCount[t] = -1;
-						}
-					}
-					break;
-				}
-			}
-			if (App::wnd()) App::wnd()->mediaOverviewUpdated(history()->peer);
+	if (t != OverviewCount) {
+		history()->eraseFromOverview(t, id);
+		if (m->type() == MediaTypeDocument && static_cast<HistoryDocument*>(m)->document()->song()) {
+			history()->eraseFromOverview(OverviewAudioDocuments, id);
 		}
 	}
 	delete this;
@@ -1771,7 +1938,7 @@ bool HistoryPhoto::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 w
 	return (x >= 0 && y >= 0 && x < width && y < _height);
 }
 
-void HistoryPhoto::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+void HistoryPhoto::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 	if (width < 1) return;
 
@@ -1806,7 +1973,7 @@ void HistoryPhoto::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, co
 			}
 		} else if (fwd) {
 			if (y >= fwdFrom && y < fwdFrom + st::msgServiceNameFont->height) {
-				return fwd->getForwardedState(lnk, inText, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
+				return fwd->getForwardedState(lnk, state, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
 			}
 		}
 		height -= st::mediaPadding.bottom();
@@ -1814,7 +1981,9 @@ void HistoryPhoto::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, co
 		if (!_caption.isEmpty()) {
 			height -= _caption.countHeight(width) + st::webPagePhotoSkip;
 			if (x >= skipx && y >= height + st::webPagePhotoSkip && x < skipx + width && y < _height) {
-				return _caption.getState(lnk, inText, x - skipx, y - height - st::webPagePhotoSkip, width);
+				bool inText = false;
+				_caption.getState(lnk, inText, x - skipx, y - height - st::webPagePhotoSkip, width);
+				state = inText ? HistoryInTextCursorState : HistoryDefaultCursorState;
 			}
 		}
 	}
@@ -2002,10 +2171,10 @@ ImagePtr HistoryPhoto::replyPreview() {
 QString formatSizeText(qint64 size) {
 	if (size >= 1024 * 1024) { // more than 1 mb
 		qint64 sizeTenthMb = (size * 10 / (1024 * 1024));
-		return QString::number(sizeTenthMb / 10) + '.' + QString::number(sizeTenthMb % 10) + qsl("MB");
+		return QString::number(sizeTenthMb / 10) + '.' + QString::number(sizeTenthMb % 10) + qsl(" MB");
 	}
 	qint64 sizeTenthKb = (size * 10 / 1024);
-	return QString::number(sizeTenthKb / 10) + '.' + QString::number(sizeTenthKb % 10) + qsl("KB");
+	return QString::number(sizeTenthKb / 10) + '.' + QString::number(sizeTenthKb % 10) + qsl(" KB");
 }
 
 QString formatDownloadText(qint64 ready, qint64 total) {
@@ -2115,15 +2284,55 @@ const QString HistoryVideo::inHistoryText() const {
 }
 
 bool HistoryVideo::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+	int32 height = _height;
+	if (width < 0) {
+		width = w;
+	} else if (!_caption.isEmpty()) {
+		height = countHeight(parent, width);
+	}
+	if (width >= _maxw) {
+		width = _maxw;
+	}
+	return (x >= 0 && y >= 0 && x < width && y < height);
+}
+
+int32 HistoryVideo::countHeight(const HistoryItem *parent, int32 width) const {
+	if (_caption.isEmpty()) return _height;
+
 	if (width < 0) width = w;
 	if (width >= _maxw) {
 		width = _maxw;
 	}
-	return (x >= 0 && y >= 0 && x < width && y < _height);
+
+	int32 h = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
+	if (!parent->out() && parent->history()->peer->chat) {
+		h += st::msgPadding.top() + st::msgNameFont->height;
+	}
+	if (const HistoryReply *reply = toHistoryReply(parent)) {
+		h += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
+	} else if (const HistoryForwarded *fwd = toHistoryForwarded(parent)) {
+		if (parent->out() || !parent->history()->peer->chat) {
+			h += st::msgPadding.top();
+		}
+		h += st::msgServiceNameFont->height;
+	}
+	if (!_caption.isEmpty()) {
+		int32 textw = width - st::mediaPadding.left() - st::mediaPadding.right();
+		if (!parent->out()) { // substract Download / Save As button
+			textw -= st::mediaSaveDelta + _buttonWidth;
+		}
+		h += st::webPagePhotoSkip + _caption.countHeight(textw);
+	}
+	return h;
 }
 
-void HistoryVideo::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
-	if (width < 0) width = w;
+void HistoryVideo::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+	int32 height = _height;
+	if (width < 0) {
+		width = w;
+	} else if (!_caption.isEmpty()) {
+		height = countHeight(parent, width);
+	}
 	if (width < 1) return;
 
 	const HistoryReply *reply = toHistoryReply(parent);
@@ -2149,7 +2358,7 @@ void HistoryVideo::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, co
 	}
 
 	if (!out) { // draw Download / Save As button
-		int32 h = _height;
+		int32 h = height;
 		if (!_caption.isEmpty()) {
 			h -= st::webPagePhotoSkip + _caption.countHeight(width - _buttonWidth - st::mediaSaveDelta - st::mediaPadding.left() - st::mediaPadding.right());
 		}
@@ -2174,7 +2383,7 @@ void HistoryVideo::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, co
 		}
 	} else if (fwd) {
 		if (y >= fwdFrom && y < skipy) {
-			return fwd->getForwardedState(lnk, inText, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
+			return fwd->getForwardedState(lnk, state, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
 		}
 	}
 
@@ -2184,7 +2393,9 @@ void HistoryVideo::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, co
 		return;
 	}
 	if (!_caption.isEmpty() && x >= st::mediaPadding.left() && x < st::mediaPadding.left() + tw && y >= skipy + st::mediaPadding.top() + st::mediaThumbSize + st::webPagePhotoSkip) {
-		return _caption.getState(lnk, inText, x - st::mediaPadding.left(), y - skipy - st::mediaPadding.top() - st::mediaThumbSize - st::webPagePhotoSkip, tw);
+		bool inText = false;
+		_caption.getState(lnk, inText, x - st::mediaPadding.left(), y - skipy - st::mediaPadding.top() - st::mediaThumbSize - st::webPagePhotoSkip, tw);
+		state = inText ? HistoryInTextCursorState : HistoryDefaultCursorState;
 	}
 }
 
@@ -2193,7 +2404,12 @@ HistoryMedia *HistoryVideo::clone() const {
 }
 
 void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const {
-	if (width < 0) width = w;
+	int32 height = _height;
+	if (width < 0) {
+		width = w;
+	} else if (!_caption.isEmpty()) {
+		height = countHeight(parent, width);
+	}
 	if (width < 1) return;
 
 	const HistoryReply *reply = toHistoryReply(parent);
@@ -2225,7 +2441,7 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		pressed = hovered && ((data->loader ? _cancell : _savel) == textlnkDown());
 		if (hovered && !pressed && textlnkDown()) hovered = false;
 
-		int32 h = _height;
+		int32 h = height;
 		if (!_caption.isEmpty()) {
 			h -= st::webPagePhotoSkip + _caption.countHeight(width - _buttonWidth - st::mediaSaveDelta - st::mediaPadding.left() - st::mediaPadding.right());
 		}
@@ -2247,7 +2463,7 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	style::color bg(selected ? (out ? st::msgOutSelectBg : st::msgInSelectBg) : (out ? st::msgOutBg : st::msgInBg));
 	style::color sh(selected ? (out ? st::msgOutSelectShadow : st::msgInSelectShadow) : (out ? st::msgOutShadow : st::msgInShadow));
 	RoundCorners cors(selected ? (out ? MessageOutSelectedCorners : MessageInSelectedCorners) : (out ? MessageOutCorners : MessageInCorners));
-	App::roundRect(p, 0, 0, width, _height, bg, cors, &sh);
+	App::roundRect(p, 0, 0, width, height, bg, cors, &sh);
 
 	if (!parent->out() && parent->history()->peer->chat) {
 		p.setFont(st::msgNameFont->f);
@@ -2284,8 +2500,9 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	p.setPen(status->p);
 
 	if (data->loader) {
-		if (_dldTextCache.isEmpty() || _dldDone != data->loader->currentOffset()) {
-			_dldDone = data->loader->currentOffset();
+		int32 offset = data->loader->currentOffset();
+		if (_dldTextCache.isEmpty() || _dldDone != offset) {
+			_dldDone = offset;
 			_dldTextCache = formatDownloadText(_dldDone, data->size);
 		}
 		statusText = _dldTextCache;
@@ -2324,9 +2541,9 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	style::color date(selected ? (out ? st::msgOutSelectDateColor : st::msgInSelectDateColor) : (out ? st::msgOutDateColor : st::msgInDateColor));
 	p.setPen(date->p);
 
-	p.drawText(width + st::msgDateDelta.x() - fullTimeWidth + st::msgDateSpace, _height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->descent, parent->time());
+	p.drawText(width + st::msgDateDelta.x() - fullTimeWidth + st::msgDateSpace, height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->descent, parent->time());
 	if (out) {
-		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.pxWidth(), _height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.pxHeight());
+		QPoint iconPos(width + 5 - st::msgPadding.right() - st::msgCheckRect.pxWidth(), height + 1 - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgCheckRect.pxHeight());
 		const QRect *iconRect;
 		if (parent->id > 0) {
 			if (parent->unread()) {
@@ -2486,7 +2703,7 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		fwd->drawForwardedFrom(p, st::mediaPadding.left(), fwdFrom, width - st::mediaPadding.left() - st::mediaPadding.right(), selected);
 	}
 
-	AudioData *playing = 0;
+	AudioMsgId playing;
 	AudioPlayerState playingState = AudioPlayerStopped;
 	int64 playingPosition = 0, playingDuration = 0;
 	int32 playingFrequency = 0;
@@ -2508,7 +2725,7 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		img = out ? st::mediaAudioOutImg : st::mediaAudioInImg;
 	} else if (already || hasdata) {
 		bool showPause = false;
-		if (playing == data && playingState != AudioPlayerStopped && playingState != AudioPlayerStoppedAtStart) {
+		if (playing.msgId == parent->id && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
 			statusText = formatDurationText(playingPosition / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency)) + qsl(" / ") + formatDurationText(playingDuration / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency));
 			showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
 		} else {
@@ -2517,8 +2734,9 @@ void HistoryAudio::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 		img = out ? (showPause ? st::mediaPauseOutImg : st::mediaPlayOutImg) : (showPause ? st::mediaPauseInImg : st::mediaPlayInImg);
 	} else {
 		if (data->loader) {
-			if (_dldTextCache.isEmpty() || _dldDone != data->loader->currentOffset()) {
-				_dldDone = data->loader->currentOffset();
+			int32 offset = data->loader->currentOffset();
+			if (_dldTextCache.isEmpty() || _dldDone != offset) {
+				_dldDone = offset;
 				_dldTextCache = formatDownloadText(_dldDone, data->size);
 			}
 			statusText = _dldTextCache;
@@ -2611,7 +2829,7 @@ bool HistoryAudio::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 w
 	return (x >= 0 && y >= 0 && x < width && y < _height);
 }
 
-void HistoryAudio::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+void HistoryAudio::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 	if (width < 1) return;
 
@@ -2659,7 +2877,7 @@ void HistoryAudio::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, co
 		}
 	} else if (fwd) {
 		if (y >= fwdFrom && y < skipy) {
-			return fwd->getForwardedState(lnk, inText, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
+			return fwd->getForwardedState(lnk, state, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
 		}
 	}
 
@@ -2673,18 +2891,26 @@ HistoryMedia *HistoryAudio::clone() const {
 	return new HistoryAudio(*this);
 }
 
+namespace {
+	QString documentName(DocumentData *document) {
+		SongData *song = document->song();
+		if (!song || (song->title.isEmpty() && song->performer.isEmpty())) return document->name;
+		if (song->performer.isEmpty()) return song->title;
+		return song->performer + QString::fromUtf8(" \xe2\x80\x93 ") + (song->title.isEmpty() ? qsl("Unknown Track") : song->title);
+	}
+}
+
 HistoryDocument::HistoryDocument(DocumentData *document) : HistoryMedia()
 , data(document)
 , _openl(new DocumentOpenLink(data))
 , _savel(new DocumentSaveLink(data))
 , _cancell(new DocumentCancelLink(data))
-, _name(data->name)
+, _name(documentName(data))
 , _dldDone(0)
 , _uplDone(0)
 {
 	_namew = st::mediaFont->m.width(_name.isEmpty() ? qsl("Document") : _name);
-
-	_size = formatSizeText(data->size);
+	_size = document->song() ? formatDurationAndSizeText(document->song()->duration, data->size) : formatSizeText(data->size);
 
 	_height = _minh = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
 
@@ -2732,10 +2958,12 @@ void HistoryDocument::initDimensions(const HistoryItem *parent) {
 		if (const HistoryReply *reply = toHistoryReply(parent)) {
 			_minh += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		} else if (const HistoryForwarded *fwd = toHistoryForwarded(parent)) {
-			if (parent->out() || !parent->history()->peer->chat) {
-				_minh += st::msgPadding.top();
+			if (!data->song()) {
+				if (parent->out() || !parent->history()->peer->chat) {
+					_minh += st::msgPadding.top();
+				}
+				_minh += st::msgServiceNameFont->height;
 			}
-			_minh += st::msgServiceNameFont->height;
 		}
 	}
 	_height = _minh;
@@ -2745,7 +2973,7 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 	if (width < 0) width = w;
 	if (width < 1) return;
 
-	bool out = parent->out(), hovered, pressed;
+	bool out = parent->out(), hovered, pressed, already = !data->already().isEmpty(), hasdata = !data->data.isEmpty();
 	if (parent == animated.msg) {
 		int32 pw = animated.w / cIntRetinaFactor(), ph = animated.h / cIntRetinaFactor();
 		if (width < pw) {
@@ -2764,7 +2992,7 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 	}
 
 	const HistoryReply *reply = toHistoryReply(parent);
-	const HistoryForwarded *fwd = reply ? 0 : toHistoryForwarded(parent);
+	const HistoryForwarded *fwd = (reply || data->song()) ? 0 : toHistoryForwarded(parent);
 	int skipy = 0, replyFrom = 0, fwdFrom = 0;
 	if (reply) {
 		skipy = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
@@ -2779,8 +3007,6 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 		fwdFrom = st::msgPadding.top();
 		skipy += fwdFrom;
 	}
-
-	data->thumb->checkload();
 
 	if (width >= _maxw) {
 		width = _maxw;
@@ -2799,8 +3025,8 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 
 		p.setPen((hovered ? st::mediaSaveButton.overColor : st::mediaSaveButton.color)->p);
 		p.setFont(st::mediaSaveButton.font->f);
-		QString btnText(lang(data->loader ? lng_media_cancel : (data->already().isEmpty() ? lng_media_download : lng_media_open_with)));
-		int32 btnTextWidth = data->loader ? _cancelWidth : (data->already().isEmpty() ? _downloadWidth : _openWithWidth);
+		QString btnText(lang(data->loader ? lng_media_cancel : (already ? lng_media_open_with : lng_media_download)));
+		int32 btnTextWidth = data->loader ? _cancelWidth : (already ? _openWithWidth : _downloadWidth);
 		p.drawText(btnx + (btnw - btnTextWidth) / 2, btny + (pressed ? st::mediaSaveButton.downTextTop : st::mediaSaveButton.textTop) + st::mediaSaveButton.font->ascent, btnText);
 		width -= btnw + st::mediaSaveDelta;
 	}
@@ -2820,10 +3046,79 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 	} else if (fwd) {
 		fwd->drawForwardedFrom(p, st::mediaPadding.left(), fwdFrom, width - st::mediaPadding.left() - st::mediaPadding.right(), selected);
 	}
-	if (_thumbw) {
-		p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), data->thumb->pixSingle(_thumbw, 0, st::mediaThumbSize, st::mediaThumbSize));
+
+	QString statusText;
+	if (data->song()) {
+		SongMsgId playing;
+		AudioPlayerState playingState = AudioPlayerStopped;
+		int64 playingPosition = 0, playingDuration = 0;
+		int32 playingFrequency = 0;
+		if (audioPlayer()) {
+			audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
+		}
+
+		QRect img;
+		if (data->status == FileFailed) {
+			statusText = lang(lng_attach_failed);
+			img = out ? st::mediaMusicOutImg : st::mediaMusicInImg;
+		} else if (data->status == FileUploading) {
+			if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
+				_uplDone = data->uploadOffset;
+				_uplTextCache = formatDownloadText(_uplDone, data->size);
+			}
+			statusText = _uplTextCache;
+			img = out ? st::mediaMusicOutImg : st::mediaMusicInImg;
+		} else if (already || hasdata) {
+			bool showPause = false;
+			if (playing.msgId == parent->id && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+				statusText = formatDurationText(playingPosition / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency)) + qsl(" / ") + formatDurationText(playingDuration / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency));
+				showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
+			} else {
+				statusText = formatDurationText(data->song()->duration);
+			}
+			if (!showPause && playing.msgId == parent->id && App::main() && App::main()->player()->seekingSong(playing)) showPause = true;
+			img = out ? (showPause ? st::mediaPauseOutImg : st::mediaPlayOutImg) : (showPause ? st::mediaPauseInImg : st::mediaPlayInImg);
+		} else {
+			if (data->loader) {
+				int32 offset = data->loader->currentOffset();
+				if (_dldTextCache.isEmpty() || _dldDone != offset) {
+					_dldDone = offset;
+					_dldTextCache = formatDownloadText(_dldDone, data->size);
+				}
+				statusText = _dldTextCache;
+			} else {
+				statusText = _size;
+			}
+			img = out ? st::mediaMusicOutImg : st::mediaMusicInImg;
+		}
+
+		p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), App::sprite(), img);
 	} else {
-		p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), App::sprite(), (out ? st::mediaDocOutImg : st::mediaDocInImg));
+		if (data->status == FileFailed) {
+			statusText = lang(lng_attach_failed);
+		} else if (data->status == FileUploading) {
+			if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
+				_uplDone = data->uploadOffset;
+				_uplTextCache = formatDownloadText(_uplDone, data->size);
+			}
+			statusText = _uplTextCache;
+		} else if (data->loader) {
+			int32 offset = data->loader->currentOffset();
+			if (_dldTextCache.isEmpty() || _dldDone != offset) {
+				_dldDone = offset;
+				_dldTextCache = formatDownloadText(_dldDone, data->size);
+			}
+			statusText = _dldTextCache;
+		} else {
+			statusText = _size;
+		}
+
+		if (_thumbw) {
+			data->thumb->checkload();
+			p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), data->thumb->pixSingle(_thumbw, 0, st::mediaThumbSize, st::mediaThumbSize));
+		} else {
+			p.drawPixmap(QPoint(st::mediaPadding.left(), skipy + st::mediaPadding.top()), App::sprite(), (out ? st::mediaDocOutImg : st::mediaDocInImg));
+		}
 	}
 	if (selected) {
 		App::roundRect(p, st::mediaPadding.left(), skipy + st::mediaPadding.top(), st::mediaThumbSize, st::mediaThumbSize, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
@@ -2842,28 +3137,9 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 		p.drawText(tleft, skipy + st::mediaPadding.top() + st::mediaNameTop + st::mediaFont->ascent, _name);
 	}
 
-	QString statusText;
-
 	style::color status(selected ? (out ? st::mediaOutSelectColor : st::mediaInSelectColor) : (out ? st::mediaOutColor : st::mediaInColor));
 	p.setPen(status->p);
 
-	if (data->status == FileFailed) {
-		statusText = lang(lng_attach_failed);
-	} else if (data->status == FileUploading) {
-		if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
-			_uplDone = data->uploadOffset;
-			_uplTextCache = formatDownloadText(_uplDone, data->size);
-		}
-		statusText = _uplTextCache;
-	} else if (data->loader) {
-		if (_dldTextCache.isEmpty() || _dldDone != data->loader->currentOffset()) {
-			_dldDone = data->loader->currentOffset();
-			_dldTextCache = formatDownloadText(_dldDone, data->size);
-		}
-		statusText = _dldTextCache;
-	} else {
-		statusText = _size;
-	}
 	p.drawText(tleft, skipy + st::mediaPadding.top() + st::mediaThumbSize - st::mediaDetailsShift - st::mediaFont->descent, statusText);
 
 	p.setFont(st::msgDateFont->f);
@@ -2886,6 +3162,116 @@ void HistoryDocument::draw(QPainter &p, const HistoryItem *parent, bool selected
 		}
 		p.drawPixmap(iconPos, App::sprite(), *iconRect);
 	}
+}
+
+void HistoryDocument::drawInPlaylist(QPainter &p, const HistoryItem *parent, bool selected, bool over, int32 width) const {
+	bool out = parent->out(), already = !data->already().isEmpty(), hasdata = !data->data.isEmpty();
+	int32 height = st::mediaPadding.top() + st::mediaThumbSize + st::mediaPadding.bottom();
+
+	style::color bg(selected ? st::msgInSelectBg : (over ? st::playlistHoverBg : st::msgInBg));
+	p.fillRect(0, 0, width, height, bg->b);
+
+	QString statusText;
+	if (data->song()) {
+		SongMsgId playing;
+		AudioPlayerState playingState = AudioPlayerStopped;
+		int64 playingPosition = 0, playingDuration = 0;
+		int32 playingFrequency = 0;
+		if (audioPlayer()) {
+			audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
+		}
+
+		QRect img;
+		if (data->status == FileFailed) {
+			statusText = lang(lng_attach_failed);
+			img = st::mediaMusicInImg;
+		} else if (data->status == FileUploading) {
+			if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
+				_uplDone = data->uploadOffset;
+				_uplTextCache = formatDownloadText(_uplDone, data->size);
+			}
+			statusText = _uplTextCache;
+			img = st::mediaMusicInImg;
+		} else if (already || hasdata) {
+			bool isPlaying = (playing.msgId == parent->id);
+			bool showPause = false;
+			if (playing.msgId == parent->id && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+				statusText = formatDurationText(playingPosition / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency)) + qsl(" / ") + formatDurationText(playingDuration / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency));
+				showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
+			} else {
+				statusText = formatDurationText(data->song()->duration);
+			}
+			if (!showPause && playing.msgId == parent->id && App::main() && App::main()->player()->seekingSong(playing)) showPause = true;
+			img = isPlaying ? (showPause ? st::mediaPauseOutImg : st::mediaPlayOutImg) : (showPause ? st::mediaPauseInImg : st::mediaPlayInImg);
+		} else {
+			if (data->loader) {
+				int32 offset = data->loader->currentOffset();
+				if (_dldTextCache.isEmpty() || _dldDone != offset) {
+					_dldDone = offset;
+					_dldTextCache = formatDownloadText(_dldDone, data->size);
+				}
+				statusText = _dldTextCache;
+			} else {
+				statusText = _size;
+			}
+			img = st::mediaMusicInImg;
+		}
+
+		p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), App::sprite(), img);
+	} else {
+		if (data->status == FileFailed) {
+			statusText = lang(lng_attach_failed);
+		} else if (data->status == FileUploading) {
+			if (_uplTextCache.isEmpty() || _uplDone != data->uploadOffset) {
+				_uplDone = data->uploadOffset;
+				_uplTextCache = formatDownloadText(_uplDone, data->size);
+			}
+			statusText = _uplTextCache;
+		} else if (data->loader) {
+			int32 offset = data->loader->currentOffset();
+			if (_dldTextCache.isEmpty() || _dldDone != offset) {
+				_dldDone = offset;
+				_dldTextCache = formatDownloadText(_dldDone, data->size);
+			}
+			statusText = _dldTextCache;
+		} else {
+			statusText = _size;
+		}
+
+		if (_thumbw) {
+			data->thumb->checkload();
+			p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), data->thumb->pixSingle(_thumbw, 0, st::mediaThumbSize, st::mediaThumbSize));
+		} else {
+			p.drawPixmap(QPoint(st::mediaPadding.left(), st::mediaPadding.top()), App::sprite(), st::mediaDocInImg);
+		}
+	}
+	if (selected) {
+		App::roundRect(p, st::mediaPadding.left(), st::mediaPadding.top(), st::mediaThumbSize, st::mediaThumbSize, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
+	}
+
+	int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
+	int32 twidth = width - tleft - st::mediaPadding.right();
+	int32 fullTimeWidth = parent->timeWidth(true) + st::msgPadding.right();
+	int32 secondwidth = width - tleft - fullTimeWidth;
+
+	p.setFont(st::mediaFont->f);
+	p.setPen(st::black->c);
+	if (twidth < _namew) {
+		p.drawText(tleft, st::mediaPadding.top() + st::mediaNameTop + st::mediaFont->ascent, st::mediaFont->m.elidedText(_name, Qt::ElideRight, twidth));
+	} else {
+		p.drawText(tleft, st::mediaPadding.top() + st::mediaNameTop + st::mediaFont->ascent, _name);
+	}
+
+	style::color status(selected ? st::mediaInSelectColor : st::mediaInColor);
+	p.setPen(status->p);
+	p.drawText(tleft, st::mediaPadding.top() + st::mediaThumbSize - st::mediaDetailsShift - st::mediaFont->descent, statusText);
+}
+
+TextLinkPtr HistoryDocument::linkInPlaylist() {
+	if (!data->loader && data->access) {
+		return _openl;
+	}
+	return TextLinkPtr();
 }
 
 void HistoryDocument::regItem(HistoryItem *item) {
@@ -2920,11 +3306,11 @@ int32 HistoryDocument::resize(int32 width, bool dontRecountText, const HistoryIt
 }
 
 const QString HistoryDocument::inDialogsText() const {
-	return data->name.isEmpty() ? lang(lng_in_dlg_file) : data->name;
+	return _name.isEmpty() ? lang(lng_in_dlg_file) : _name;
 }
 
 const QString HistoryDocument::inHistoryText() const {
-	return qsl("[ ") + lang(lng_in_dlg_file) + (data->name.isEmpty() ? QString() : (qsl(" : ") + data->name)) + qsl(" ]");
+	return qsl("[ ") + lang(lng_in_dlg_file) + (_name.isEmpty() ? QString() : (qsl(" : ") + _name)) + qsl(" ]");
 }
 
 bool HistoryDocument::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32 width) const {
@@ -2953,7 +3339,7 @@ int32 HistoryDocument::countHeight(const HistoryItem *parent, int32 width) const
 	return _height;
 }
 
-void HistoryDocument::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+void HistoryDocument::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 	if (width < 1) return;
 
@@ -2969,7 +3355,7 @@ void HistoryDocument::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y,
 	}
 
 	const HistoryReply *reply = toHistoryReply(parent);
-	const HistoryForwarded *fwd = reply ? 0 : toHistoryForwarded(parent);
+	const HistoryForwarded *fwd = (reply || data->song()) ? 0 : toHistoryForwarded(parent);
 	int skipy = 0, replyFrom = 0, fwdFrom = 0;
 	if (reply) {
 		skipy = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
@@ -3007,7 +3393,7 @@ void HistoryDocument::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y,
 		}
 	} else if (fwd) {
 		if (y >= fwdFrom && y < skipy) {
-			return fwd->getForwardedState(lnk, inText, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
+			return fwd->getForwardedState(lnk, state, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
 		}
 	}
 
@@ -3039,22 +3425,9 @@ HistorySticker::HistorySticker(DocumentData *document) : HistoryMedia()
 , pixw(1), pixh(1), data(document), lastw(0)
 {
 	data->thumb->load();
-	updateStickerEmoji();
-}
-
-bool HistorySticker::updateStickerEmoji() {
-	if (!data->sticker->alt.isEmpty()) {
-		_emoji = data->sticker->alt;
-		return true;
+	if (!data->sticker()->alt.isEmpty()) {
+		_emoji = data->sticker()->alt;
 	}
-	const EmojiStickersMap &stickers(cEmojiStickers());
-	EmojiStickersMap::const_iterator i = stickers.constFind(data);
-	QString emoji = (i == stickers.cend()) ? QString() : emojiString(i.value());
-	if (emoji != _emoji) {
-		_emoji = emoji;
-		return true;
-	}
-	return false;
 }
 
 void HistorySticker::initDimensions(const HistoryItem *parent) {
@@ -3097,24 +3470,24 @@ void HistorySticker::draw(QPainter &p, const HistoryItem *parent, bool selected,
 	if (!data->loader && data->status != FileFailed && !already && !hasdata) {
 		data->save(QString());
 	}
-	if (data->sticker->img->isNull() && (already || hasdata)) {
+	if (data->sticker()->img->isNull() && (already || hasdata)) {
 		if (already) {
-			data->sticker->img = ImagePtr(data->already());
+			data->sticker()->img = ImagePtr(data->already());
 		} else {
-			data->sticker->img = ImagePtr(data->data);
+			data->sticker()->img = ImagePtr(data->data);
 		}
 	}
 	if (selected) {
-		if (data->sticker->img->isNull()) {
+		if (data->sticker()->img->isNull()) {
 			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->thumb->pixBlurredColored(st::msgStickerOverlay, pixw, pixh));
 		} else {
-			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->sticker->img->pixColored(st::msgStickerOverlay, pixw, pixh));
+			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->sticker()->img->pixColored(st::msgStickerOverlay, pixw, pixh));
 		}
 	} else {
-		if (data->sticker->img->isNull()) {
+		if (data->sticker()->img->isNull()) {
 			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->thumb->pixBlurred(pixw, pixh));
 		} else {
-			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->sticker->img->pix(pixw, pixh));
+			p.drawPixmap(QPoint(usex + (usew - pixw) / 2, (_minh - pixh) / 2), data->sticker()->img->pix(pixw, pixh));
 		}
 	}
 
@@ -3198,7 +3571,7 @@ int32 HistorySticker::countHeight(const HistoryItem *parent, int32 width) const 
 	return _minh;
 }
 
-void HistorySticker::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+void HistorySticker::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 	if (width < 1) return;
 
@@ -3279,7 +3652,7 @@ bool HistoryContact::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32
 	return (x >= 0 && y <= 0 && x < w && y < _height);
 }
 
-void HistoryContact::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+void HistoryContact::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 
 	const HistoryReply *reply = toHistoryReply(parent);
@@ -3312,7 +3685,7 @@ void HistoryContact::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, 
 		}
 	} else if (fwd) {
 		if (y >= fwdFrom && y < skipy) {
-			return fwd->getForwardedState(lnk, inText, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
+			return fwd->getForwardedState(lnk, state, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
 		}
 	}
 
@@ -3462,7 +3835,7 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 	if (data->photo && data->type != WebPagePhoto && data->type != WebPageVideo) {
 		if (data->type == WebPageProfile) {
 			_asArticle = true;
-		} else if (data->siteName == QLatin1String("Twitter") || data->siteName == QLatin1String("Facebook")) {
+		} else if (data->siteName == qstr("Twitter") || data->siteName == qstr("Facebook")) {
 			_asArticle = false;
 		} else {
 			_asArticle = true;
@@ -3526,9 +3899,9 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 		QString text = textClean(data->description);
 		if (!_asArticle && !data->photo) text += textcmdSkipBlock(parent->timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y());
 		const TextParseOptions *opts = &_webpageDescriptionOptions;
-		if (data->siteName == QLatin1String("Twitter")) {
+		if (data->siteName == qstr("Twitter")) {
 			opts = &_twitterDescriptionOptions;
-		} else if (data->siteName == QLatin1String("Instagram")) {
+		} else if (data->siteName == qstr("Instagram")) {
 			opts = &_instagramDescriptionOptions;
 		}
 		_description.setText(st::webPageDescriptionFont, text, *opts);
@@ -3683,7 +4056,7 @@ void HistoryWebPage::draw(QPainter &p, const HistoryItem *parent, bool selected,
 		}
 
 		if (data->type == WebPageVideo) {
-			if (data->siteName == QLatin1String("YouTube")) {
+			if (data->siteName == qstr("YouTube")) {
 				p.drawPixmap(QPoint((pixwidth - st::youtubeIcon.pxWidth()) / 2, (pixheight - st::youtubeIcon.pxHeight()) / 2), App::sprite(), st::youtubeIcon);
 			} else {
 				p.drawPixmap(QPoint((pixwidth - st::videoIcon.pxWidth()) / 2, (pixheight - st::videoIcon.pxHeight()) / 2), App::sprite(), st::videoIcon);
@@ -3808,7 +4181,7 @@ bool HistoryWebPage::hasPoint(int32 x, int32 y, const HistoryItem *parent, int32
 	return (x >= 0 && y >= 0 && x < width && y < _height);
 }
 
-void HistoryWebPage::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+void HistoryWebPage::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 	if (width < 1) return;
 
@@ -3849,11 +4222,14 @@ void HistoryWebPage::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, 
 		} else if (!data->photo) {
 			articleLines = 3;
 		}
-		if (y >= 0 && y < st::webPageDescriptionFont->height * articleLines) {
+		int32 desch = qMin(_description.countHeight(width), st::webPageDescriptionFont->height * articleLines);
+		if (y >= 0 && y < desch) {
+			bool inText = false;
 			_description.getState(lnk, inText, x, y, availw);
+			state = inText ? HistoryInTextCursorState : HistoryDefaultCursorState;
 			return;
 		}
-		y -= qMin(_description.countHeight(width), st::webPageDescriptionFont->height * articleLines);
+		y -= desch;
 	}
 	if (_siteNameWidth || !_title.isEmpty() || !_description.isEmpty()) {
 		y -= st::webPagePhotoSkip;
@@ -4240,7 +4616,7 @@ _description(st::msgMinWidth) {
 		QString lnk = qsl("https://maps.google.com/maps?q=") + url.mid(9) + qsl("&ll=") + url.mid(9) + qsl("&z=17");
 		link.reset(new TextLink(lnk));
 
-		data = App::imageLink(url, GoogleMapsLink, lnk);
+		data = App::imageLinkSet(url, GoogleMapsLink, lnk);
 	} else {
 		link.reset(new TextLink(url));
 
@@ -4251,15 +4627,15 @@ _description(st::msgMinWidth) {
 			matchIndex = 3;
 		}
 		if (m.hasMatch()) {
-			data = App::imageLink(qsl("youtube:") + m.captured(matchIndex), YouTubeLink, url);
+			data = App::imageLinkSet(qsl("youtube:") + m.captured(matchIndex), YouTubeLink, url);
 		} else {
 			m = reVimeo.match(url);
 			if (m.hasMatch()) {
-				data = App::imageLink(qsl("vimeo:") + m.captured(3), VimeoLink, url);
+				data = App::imageLinkSet(qsl("vimeo:") + m.captured(3), VimeoLink, url);
 			} else {
 				m = reInstagram.match(url);
 				if (m.hasMatch()) {
-					data = App::imageLink(qsl("instagram:") + m.captured(3), InstagramLink, url);
+					data = App::imageLinkSet(qsl("instagram:") + m.captured(3), InstagramLink, url);
 					data->title = qsl("instagram.com/p/") + m.captured(3);
 				} else {
 					data = 0;
@@ -4562,7 +4938,7 @@ bool HistoryImageLink::hasPoint(int32 x, int32 y, const HistoryItem *parent, int
 	return (x >= 0 && y >= 0 && x < width && y < _height);
 }
 
-void HistoryImageLink::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
+void HistoryImageLink::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width) const {
 	if (width < 0) width = w;
 	int skipx = 0, skipy = 0, height = _height;
 	const HistoryReply *reply = toHistoryReply(parent);
@@ -4595,7 +4971,7 @@ void HistoryImageLink::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y
 			}
 		} else if (fwd) {
 			if (y >= fwdFrom && y < fwdFrom + st::msgServiceNameFont->height) {
-				return fwd->getForwardedState(lnk, inText, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
+				return fwd->getForwardedState(lnk, state, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
 			}
 		}
 		height -= st::mediaPadding.bottom();
@@ -4671,7 +5047,6 @@ void HistoryMessage::initTime() {
 
 void HistoryMessage::initMedia(const MTPMessageMedia &media, QString &currentText) {
 	switch (media.type()) {
-	case mtpc_messageMediaEmpty: initMediaFromText(currentText); break;
 	case mtpc_messageMediaContact: {
 		const MTPDmessageMediaContact &d(media.c_messageMediaContact());
 		_media = new HistoryContact(d.vuser_id.v, qs(d.vfirst_name), qs(d.vlast_name), qs(d.vphone_number));
@@ -4728,8 +5103,7 @@ void HistoryMessage::initMedia(const MTPMessageMedia &media, QString &currentTex
 		} break;
 		}
 	} break;
-	case mtpc_messageMediaUnsupported:
-	default: currentText += " (unsupported media)"; break;
+	default: initMediaFromText(currentText); break;
 	};
 	if (_media) _media->regItem(this);
 }
@@ -4743,7 +5117,7 @@ void HistoryMessage::initMediaFromText(QString &currentText)  {
 }
 
 void HistoryMessage::initMediaFromDocument(DocumentData *doc) {
-	if (doc->type == StickerDocument && doc->sticker && doc->dimensions.width() > 0 && doc->dimensions.height() > 0 && doc->dimensions.width() <= StickerMaxSize && doc->dimensions.height() <= StickerMaxSize && doc->size < StickerInMemory) {
+	if (doc->sticker()) {
 		_media = new HistorySticker(doc);
 	} else {
 		_media = new HistoryDocument(doc);
@@ -4858,18 +5232,16 @@ void HistoryMessage::setMedia(const MTPmessageMedia &media) {
 void HistoryMessage::draw(QPainter &p, uint32 selection) const {
 	textstyleSet(&(out() ? st::outTextStyle : st::inTextStyle));
 
-	if (id == _history->activeMsgId) {
-		uint64 ms = App::main() ? App::main()->animActiveTime() : 0;
-		if (ms) {
-			if (ms > st::activeFadeInDuration + st::activeFadeOutDuration) {
-				App::main()->stopAnimActive();
-			} else {
-				float64 dt = (ms > st::activeFadeInDuration) ? (1 - (ms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (ms / float64(st::activeFadeInDuration));
-				float64 o = p.opacity();
-				p.setOpacity(o * dt);
-				p.fillRect(0, 0, _history->width, _height, textstyleCurrent()->selectOverlay->b);
-				p.setOpacity(o);
-			}
+	uint64 ms = App::main() ? App::main()->animActiveTime(id) : 0;
+	if (ms) {
+		if (ms > st::activeFadeInDuration + st::activeFadeOutDuration) {
+			App::main()->stopAnimActive();
+		} else {
+			float64 dt = (ms > st::activeFadeInDuration) ? (1 - (ms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (ms / float64(st::activeFadeInDuration));
+			float64 o = p.opacity();
+			p.setOpacity(o * dt);
+			p.fillRect(0, 0, _history->width, _height, textstyleCurrent()->selectOverlay->b);
+			p.setOpacity(o);
 		}
 	}
 
@@ -5020,8 +5392,8 @@ bool HistoryMessage::hasPoint(int32 x, int32 y) const {
 	return r.contains(x, y);
 }
 
-void HistoryMessage::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) const {
-	inText = false;
+void HistoryMessage::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const {
+	state = HistoryDefaultCursorState;
 	lnk = TextLinkPtr();
 
 	int32 left = out() ? st::msgMargin.right() : st::msgMargin.left(), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
@@ -5049,31 +5421,46 @@ void HistoryMessage::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) 
 		width = _maxw;
 	}
 	if (justMedia()) {
-		_media->getState(lnk, inText, x - left, y - st::msgMargin.top(), this);
+		_media->getState(lnk, state, x - left, y - st::msgMargin.top(), this);
 		return;
 	}
 	QRect r(left, st::msgMargin.top(), width, _height - st::msgMargin.top() - st::msgMargin.bottom());
 	if (!out() && _history->peer->chat) { // from user left name
-		if (x >= r.left() + st::msgPadding.left() && y >= r.top() + st::msgPadding.top() && y < r.top() + st::msgPadding.top() + st::msgNameFont->height && x < r.right() - st::msgPadding.right() && x < r.left() + st::msgPadding.left() + _from->nameText.maxWidth()) {
+		if (x >= r.left() + st::msgPadding.left() && y >= r.top() + st::msgPadding.top() && y < r.top() + st::msgPadding.top() + st::msgNameFont->height && x < r.left() + r.width() - st::msgPadding.right() && x < r.left() + st::msgPadding.left() + _from->nameText.maxWidth()) {
 			lnk = _from->lnk;
 			return;
 		}
 		r.setTop(r.top() + st::msgNameFont->height);
 	}
-	return getStateFromMessageText(lnk, inText, x, y, r);
+
+	getStateFromMessageText(lnk, state, x, y, r);
 }
 
-void HistoryMessage::getStateFromMessageText(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const QRect &r) const {
+void HistoryMessage::getStateFromMessageText(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const QRect &r) const {
+	int32 dateX = r.right() - st::msgPadding.right() + st::msgDateDelta.x() - timeWidth(true) + st::msgDateSpace;
+	int32 dateY = r.bottom() - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->height;
+	bool inDate = QRect(dateX, dateY, timeWidth(true) - st::msgDateSpace, st::msgDateFont->height).contains(x, y);
+
 	QRect trect(r.marginsAdded(-st::msgPadding));
 	TextLinkPtr medialnk;
 	if (_media && _media->isDisplayed()) {
 		if (y >= trect.bottom() - _media->height() && y < trect.bottom()) {
-			_media->getState(lnk, inText, x - trect.left(), y + _media->height() - trect.bottom(), this);
+			_media->getState(lnk, state, x - trect.left(), y + _media->height() - trect.bottom(), this);
+			if (inDate) state = HistoryInDateCursorState;
 			return;
 		}
 		trect.setBottom(trect.bottom() - _media->height() - st::msgPadding.bottom());
 	}
+	bool inText = false;
 	_text.getState(lnk, inText, x - trect.x(), y - trect.y(), trect.width());
+
+	if (inDate) {
+		state = HistoryInDateCursorState;
+	} else if (inText) {
+		state = HistoryInTextCursorState;
+	} else {
+		state = HistoryDefaultCursorState;
+	}
 }
 
 void HistoryMessage::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const {
@@ -5139,15 +5526,6 @@ QString HistoryMessage::notificationText() const {
 	QString msg(inDialogsText());
     if (msg.size() > 0xFF) msg = msg.mid(0, 0xFF) + qsl("..");
     return msg;
-}
-
-void HistoryMessage::updateStickerEmoji() {
-	if (_media) {
-		if (_media->updateStickerEmoji()) {
-			_history->textCachedFor = 0;
-			if (App::wnd()) App::wnd()->update();
-		}
-	}
 }
 
 HistoryMessage::~HistoryMessage() {
@@ -5262,9 +5640,9 @@ bool HistoryForwarded::hasPoint(int32 x, int32 y) const {
 	return HistoryMessage::hasPoint(x, y);
 }
 
-void HistoryForwarded::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) const {
+void HistoryForwarded::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const {
 	lnk = TextLinkPtr();
-	inText = false;
+	state = HistoryDefaultCursorState;
 
 	if (!justMedia()) {
 		int32 left = out() ? st::msgMargin.right() : st::msgMargin.left(), width = _history->width - st::msgMargin.left() - st::msgMargin.right();
@@ -5275,7 +5653,7 @@ void HistoryForwarded::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y
 
 		if (!out() && _history->peer->chat) { // from user left photo
 			if (x >= left && x < left + st::msgPhotoSize) {
-				return HistoryMessage::getState(lnk, inText, x, y);
+				return HistoryMessage::getState(lnk, state, x, y);
 			}
 //			width -= st::msgPhotoSkip;
 			left += st::msgPhotoSkip;
@@ -5290,28 +5668,28 @@ void HistoryForwarded::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y
 		if (!out() && _history->peer->chat) {
 			style::font nameFont(st::msgNameFont);
 			if (y >= r.top() + st::msgPadding.top() && y < r.top() + st::msgPadding.top() + nameFont->height) {
-				return HistoryMessage::getState(lnk, inText, x, y);
+				return HistoryMessage::getState(lnk, state, x, y);
 			}
 			r.setTop(r.top() + nameFont->height);
 		}
 		QRect trect(r.marginsAdded(-st::msgPadding));
 
 		if (y >= trect.top() && y < trect.top() + st::msgServiceNameFont->height) {
-			return getForwardedState(lnk, inText, x - trect.left(), trect.right() - trect.left());
+			return getForwardedState(lnk, state, x - trect.left(), trect.right() - trect.left());
 		}
 		y -= st::msgServiceNameFont->height;
 	}
-	return HistoryMessage::getState(lnk, inText, x, y);
+	return HistoryMessage::getState(lnk, state, x, y);
 }
 
-void HistoryForwarded::getStateFromMessageText(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const QRect &r) const {
+void HistoryForwarded::getStateFromMessageText(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const QRect &r) const {
 	QRect realr(r);
 	realr.setHeight(r.height() - st::msgServiceNameFont->height);
-	HistoryMessage::getStateFromMessageText(lnk, inText, x, y, realr);
+	HistoryMessage::getStateFromMessageText(lnk, state, x, y, realr);
 }
 
-void HistoryForwarded::getForwardedState(TextLinkPtr &lnk, bool &inText, int32 x, int32 w) const {
-	inText = false;
+void HistoryForwarded::getForwardedState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 w) const {
+	state = HistoryDefaultCursorState;
 	if (x >= fromWidth && x < w && x < fromWidth + fwdFromName.maxWidth()) {
 		lnk = fwdFrom->lnk;
 	} else {
@@ -5565,9 +5943,9 @@ bool HistoryReply::hasPoint(int32 x, int32 y) const {
 	return HistoryMessage::hasPoint(x, y);
 }
 
-void HistoryReply::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) const {
+void HistoryReply::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const {
 	lnk = TextLinkPtr();
-	inText = false;
+	state = HistoryDefaultCursorState;
 
 	if (!justMedia()) {
 		int32 left = out() ? st::msgMargin.right() : st::msgMargin.left(), width = _history->width - st::msgMargin.left() - st::msgMargin.right();
@@ -5578,7 +5956,7 @@ void HistoryReply::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) co
 
 		if (!out() && _history->peer->chat) { // from user left photo
 			if (x >= left && x < left + st::msgPhotoSize) {
-				return HistoryMessage::getState(lnk, inText, x, y);
+				return HistoryMessage::getState(lnk, state, x, y);
 			}
 //			width -= st::msgPhotoSkip;
 			left += st::msgPhotoSkip;
@@ -5593,7 +5971,7 @@ void HistoryReply::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) co
 		if (!out() && _history->peer->chat) {
 			style::font nameFont(st::msgNameFont);
 			if (y >= r.top() + st::msgPadding.top() && y < r.top() + st::msgPadding.top() + nameFont->height) {
-				return HistoryMessage::getState(lnk, inText, x, y);
+				return HistoryMessage::getState(lnk, state, x, y);
 			}
 			r.setTop(r.top() + nameFont->height);
 		}
@@ -5608,15 +5986,15 @@ void HistoryReply::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) co
 		}
 		y -= h;
 	}
-	return HistoryMessage::getState(lnk, inText, x, y);
+	return HistoryMessage::getState(lnk, state, x, y);
 }
 
-void HistoryReply::getStateFromMessageText(TextLinkPtr &lnk, bool &inText, int32 x, int32 y, const QRect &r) const {
+void HistoryReply::getStateFromMessageText(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const QRect &r) const {
 	int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 
 	QRect realr(r);
 	realr.setHeight(r.height() - h);
-	HistoryMessage::getStateFromMessageText(lnk, inText, x, y, realr);
+	HistoryMessage::getStateFromMessageText(lnk, state, x, y, realr);
 }
 
 void HistoryReply::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const {
@@ -5747,8 +6125,8 @@ HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, cons
 	setMessageByAction(msg.vaction);
 }
 
-HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, int32 flags, HistoryMedia *media) :
-	HistoryItem(history, block, msgId, flags, date, 0)
+HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, int32 flags, HistoryMedia *media, int32 from) :
+	HistoryItem(history, block, msgId, flags, date, from)
 , _text(st::msgServiceFont, msg, _historySrvOptions, st::dlgMinWidth)
 , _media(media)
 {
@@ -5776,19 +6154,17 @@ QString HistoryServiceMsg::inReplyText() const {
 }
 
 void HistoryServiceMsg::draw(QPainter &p, uint32 selection) const {
-	if (id == _history->activeMsgId) {
-		uint64 ms = App::main() ? App::main()->animActiveTime() : 0;
-		if (ms) {
-			if (ms > st::activeFadeInDuration + st::activeFadeOutDuration) {
-				App::main()->stopAnimActive();
-			} else {
-				textstyleSet(&st::inTextStyle);
-				float64 dt = (ms > st::activeFadeInDuration) ? (1 - (ms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (ms / float64(st::activeFadeInDuration));
-				float64 o = p.opacity();
-				p.setOpacity(o * dt);
-				p.fillRect(0, 0, _history->width, _height, textstyleCurrent()->selectOverlay->b);
-				p.setOpacity(o);
-			}
+	uint64 ms = App::main() ? App::main()->animActiveTime(id) : 0;
+	if (ms) {
+		if (ms > st::activeFadeInDuration + st::activeFadeOutDuration) {
+			App::main()->stopAnimActive();
+		} else {
+			textstyleSet(&st::inTextStyle);
+			float64 dt = (ms > st::activeFadeInDuration) ? (1 - (ms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (ms / float64(st::activeFadeInDuration));
+			float64 o = p.opacity();
+			p.setOpacity(o * dt);
+			p.fillRect(0, 0, _history->width, _height, textstyleCurrent()->selectOverlay->b);
+			p.setOpacity(o);
 		}
 	}
 
@@ -5855,9 +6231,9 @@ bool HistoryServiceMsg::hasPoint(int32 x, int32 y) const {
 	return QRect(left, st::msgServiceMargin.top(), width, height).contains(x, y);
 }
 
-void HistoryServiceMsg::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 y) const {
+void HistoryServiceMsg::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const {
 	lnk = TextLinkPtr();
-	inText = false;
+	state = HistoryDefaultCursorState;
 
 	int32 left = st::msgServiceMargin.left(), width = _history->width - st::msgServiceMargin.left() - st::msgServiceMargin.left(), height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom(); // two small margins
 	if (width < 1) return;
@@ -5867,10 +6243,11 @@ void HistoryServiceMsg::getState(TextLinkPtr &lnk, bool &inText, int32 x, int32 
 	}
 	QRect trect(QRect(left, st::msgServiceMargin.top(), width, height).marginsAdded(-st::msgServicePadding));
 	if (trect.contains(x, y)) {
-		return _text.getState(lnk, inText, x - trect.x(), y - trect.y(), trect.width(), Qt::AlignCenter);
-	}
-	if (_media) {
-		_media->getState(lnk, inText, x - st::msgServiceMargin.left() - (width - _media->maxWidth()) / 2, y - st::msgServiceMargin.top() - height - st::msgServiceMargin.top(), this);
+		bool inText = false;
+		_text.getState(lnk, inText, x - trect.x(), y - trect.y(), trect.width(), Qt::AlignCenter);
+		state = inText ? HistoryInTextCursorState : HistoryDefaultCursorState;
+	} else if (_media) {
+		_media->getState(lnk, state, x - st::msgServiceMargin.left() - (width - _media->maxWidth()) / 2, y - st::msgServiceMargin.top() - height - st::msgServiceMargin.top(), this);
 	}
 }
 

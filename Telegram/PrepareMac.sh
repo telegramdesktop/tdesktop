@@ -1,6 +1,7 @@
-AppVersion=`./Version.sh | awk -F " " '{print $1}'`
-AppVersionStr=`./Version.sh | awk -F " " '{print $2}'`
-DevChannel=`./Version.sh | awk -F " " '{print $3}'`
+AppVersionStrMajor=`./Version.sh | awk -F " " '{print $1}'`
+AppVersion=`./Version.sh | awk -F " " '{print $2}'`
+AppVersionStr=`./Version.sh | awk -F " " '{print $3}'`
+DevChannel=`./Version.sh | awk -F " " '{print $4}'`
 DevPostfix=''
 DevParam=''
 if [ "$DevChannel" != "0" ]; then
@@ -12,17 +13,17 @@ echo ""
 echo "Preparing version $AppVersionStr$DevPostfix.."
 echo ""
 
-if [ -d "./../Mac/Release/deploy/$AppVersionStr.dev" ]; then
+if [ -d "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr.dev" ]; then
   echo "Deploy folder for version $AppVersionStr.dev already exists!"
   exit 1
 fi
 
-if [ -d "./../Mac/Release/deploy/$AppVersionStr" ]; then
+if [ -d "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr" ]; then
   echo "Deploy folder for version $AppVersionStr already exists!"
   exit 1
 fi
 
-if [ -f "./../Mac/Release/tupdate$AppVersion" ]; then
+if [ -f "./../Mac/Release/tmacupd$AppVersion" ]; then
   echo "Update file for version $AppVersion already exists!"
   exit 1
 fi
@@ -73,19 +74,23 @@ hdiutil convert tsetup.dmg -format UDZO -imagekey zlib-level=9 -ov -o tsetup.$Ap
 cd ./../../Telegram
 cd ./../Mac/Release && ./Packer.app/Contents/MacOS/Packer -path Telegram.app -version $AppVersion $DevParam && cd ./../../Telegram
 
-if [ ! -d "./../Mac/Release/deploy/" ]; then
+if [ ! -d "./../Mac/Release/deploy" ]; then
   mkdir "./../Mac/Release/deploy"
 fi
 
-echo "Copying Telegram.app and tmacupd$AppVersion to deploy/$AppVersionStr..";
-mkdir "./../Mac/Release/deploy/$AppVersionStr$DevPostfix"
-mkdir "./../Mac/Release/deploy/$AppVersionStr$DevPostfix/Telegram"
-cp -r ./../Mac/Release/Telegram.app ./../Mac/Release/deploy/$AppVersionStr$DevPostfix/Telegram/
-mv ./../Mac/Release/Telegram.app.dSYM ./../Mac/Release/deploy/$AppVersionStr$DevPostfix/
+if [ ! -d "./../Mac/Release/deploy/$AppVersionStrMajor" ]; then
+  mkdir "./../Mac/Release/deploy/$AppVersionStrMajor"
+fi
+
+echo "Copying Telegram.app and tmacupd$AppVersion to deploy/$AppVersionStrMajor/$AppVersionStr..";
+mkdir "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix"
+mkdir "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram"
+cp -r ./../Mac/Release/Telegram.app ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram/
+mv ./../Mac/Release/Telegram.app.dSYM ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
 rm ./../Mac/Release/Telegram.app/Contents/MacOS/Telegram
 rm ./../Mac/Release/Telegram.app/Contents/Frameworks/Updater
 rm -rf ./../Mac/Release/Telegram.app/Contents/_CodeSignature
-mv ./../Mac/Release/tmacupd$AppVersion ./../Mac/Release/deploy/$AppVersionStr$DevPostfix/
-mv ./../Mac/Release/tsetup.$AppVersionStr$DevPostfix.dmg ./../Mac/Release/deploy/$AppVersionStr$DevPostfix/tsetup.$AppVersionStr$DevPostfix.dmg
+mv ./../Mac/Release/tmacupd$AppVersion ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
+mv ./../Mac/Release/tsetup.$AppVersionStr$DevPostfix.dmg ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/tsetup.$AppVersionStr$DevPostfix.dmg
 echo "Version $AppVersionStr$DevPostfix prepared!";
 

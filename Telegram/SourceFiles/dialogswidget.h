@@ -27,6 +27,7 @@ public:
 	DialogsListWidget(QWidget *parent, MainWidget *main);
 
 	void dialogsReceived(const QVector<MTPDialog> &dialogs);
+	void addAllSavedPeers();
 	void searchReceived(const QVector<MTPMessage> &messages, bool fromStart, int32 fullCount);
 	void peopleReceived(const QString &query, const QVector<MTPContactFound> &people);
 	void showMore(int32 pixels);
@@ -48,6 +49,7 @@ public:
 	void leaveEvent(QEvent *e);
 
 	void peopleResultPaint(UserData *user, QPainter &p, int32 w, bool act, bool sel) const;
+	void searchInPeerPaint(QPainter &p, int32 w) const;
 
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
@@ -93,10 +95,14 @@ public:
 	State state() const;
 	bool hasFilteredResults() const;
 
+	void searchInPeer(PeerData *peer);
+
 	void onFilterUpdate(QString newFilter, bool force = false);
 	void onHashtagFilterUpdate(QStringRef newFilter);
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
+
+	PeerData *updateFromParentDrag(QPoint globalPos);
 
 	~DialogsListWidget();
 
@@ -115,6 +121,7 @@ signals:
 	void dialogToTopFrom(int movedFrom);
 	void searchMessages();
 	void searchResultChosen();
+	void cancelSearchInPeer();
 	void completeHashtag(QString tag);
 	void refreshHashtags();
 
@@ -154,8 +161,11 @@ private:
 	void paintDialog(QPainter &p, DialogRow *dialog);
 
 	LinkButton _addContactLnk;
+	IconedButton _cancelSearchInPeer;
 
 	bool _overDelete;
+
+	PeerData *_searchInPeer;
 
 };
 
@@ -171,9 +181,17 @@ public:
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
 	bool addNewContact(int32 uid, bool show = true);
 	
+	void dragEnterEvent(QDragEnterEvent *e);
+	void dragMoveEvent(QDragMoveEvent *e);
+	void dragLeaveEvent(QDragLeaveEvent *e);
+	void dropEvent(QDropEvent *e);
+	void updateDragInScroll(bool inScroll);
+
 	void resizeEvent(QResizeEvent *e);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
+
+	void searchInPeer(PeerData *peer);
 
 	void loadDialogs();
 	void createDialogAtTop(History *history, int32 unreadCount);
@@ -184,8 +202,6 @@ public:
 
 	void animShow(const QPixmap &bgAnimCache);
 	bool animStep(float64 ms);
-
-	void setInnerFocus();
 
 	void destroyData();
 
@@ -220,6 +236,7 @@ public slots:
 	void onAddContact();
 	void onNewGroup();
 	bool onCancelSearch();
+	void onCancelSearchInPeer();
 
 	void onFilterCursorMoved(int from = -1, int to = -1);
 	void onCompleteHashtag(QString tag);
@@ -228,9 +245,14 @@ public slots:
 	bool onSearchMessages(bool searchCache = false);
 	void onNeedSearchMessages();
 
+	void onChooseByDrag();
+
 private:
 
 	bool _drawShadow;
+
+	bool _dragInScroll, _dragForward;
+	QTimer _chooseByDragTimer;
 
 	void unreadCountsReceived(const QVector<MTPDialog> &dialogs);
 	bool dialogsFailed(const RPCError &error);
@@ -242,7 +264,7 @@ private:
 	mtpRequestId dlgPreloading;
 	mtpRequestId contactsRequest;
 
-	FlatInput _filter;
+	InputField _filter;
 	IconedButton _newGroup, _addContact, _cancelSearch;
 	ScrollArea scroll;
 	DialogsListWidget list;
@@ -250,6 +272,8 @@ private:
 	QPixmap _animCache, _bgAnimCache;
 	anim::ivalue a_coord, a_bgCoord;
 	anim::fvalue a_alpha, a_bgAlpha;
+
+	PeerData *_searchInPeer;
 
 	QTimer _searchTimer;
 	QString _searchQuery, _peopleQuery;

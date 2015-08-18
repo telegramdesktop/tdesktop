@@ -38,7 +38,11 @@ public:
 
 	void notaBene();
 
+	void setPlaceholder(const QString &ph);
+	void setPlaceholderFast(bool fast);
 	void updatePlaceholder();
+	const QString &placeholder() const;
+	QRect placeholderRect() const;
 
 	QRect getTextRect() const;
 
@@ -68,9 +72,16 @@ protected:
 
 	virtual void correctValue(QKeyEvent *e, const QString &was);
 
+	style::font phFont() {
+		return _st.font;
+	}
+
+	void phPrepare(Painter &p);
+
 private:
 
 	QString _ph, _fullph, _oldtext;
+	bool _fastph;
 	QKeyEvent *_kev;
 
 	bool _customUpDown;
@@ -116,15 +127,118 @@ private:
 	bool _nosignal;
 
 };
+//
+//class InputField : public QTextEdit {
+//	Q_OBJECT
+//
+//public:
+//
+//	InputField(QWidget *parent, const style::InputField &st, const QString &ph = QString(), const QString &val = QString());
+//
+//	bool event(QEvent *e);
+//	void touchEvent(QTouchEvent *e);
+//	void paintEvent(QPaintEvent *e);
+//	void focusInEvent(QFocusEvent *e);
+//	void focusOutEvent(QFocusEvent *e);
+//	void keyPressEvent(QKeyEvent *e);
+//	void resizeEvent(QResizeEvent *e);
+//
+//	void setError(bool error);
+//
+//	void updatePlaceholder();
+//
+//	QRect getTextRect() const;
+//
+//	bool placeholderFgStep(float64 ms);
+//	bool placeholderShiftStep(float64 ms);
+//	bool borderStep(float64 ms);
+//
+//	QSize sizeHint() const;
+//	QSize minimumSizeHint() const;
+//
+//	void setCustomUpDown(bool customUpDown);
+//
+//public slots:
+//
+//	void onTextChange(const QString &text);
+//	void onTextEdited();
+//
+//	void onTouchTimer();
+//
+//	void onDocumentContentsChange(int position, int charsRemoved, int charsAdded);
+//	void onDocumentContentsChanged();
+//
+//	void onUndoAvailable(bool avail);
+//	void onRedoAvailable(bool avail);
+//
+//signals:
+//
+//	void changed();
+//	void cancelled();
+//	void accepted();
+//	void focused();
+//	void blurred();
+//
+//protected:
+//
+//	virtual void correctValue(QKeyEvent *e, const QString &was);
+//
+//	void insertEmoji(EmojiPtr emoji, QTextCursor c);
+//	TWidget *tparent() {
+//		return qobject_cast<TWidget*>(parentWidget());
+//	}
+//	const TWidget *tparent() const {
+//		return qobject_cast<const TWidget*>(parentWidget());
+//	}
+//	void enterEvent(QEvent *e) {
+//		TWidget *p(tparent());
+//		if (p) p->leaveToChildEvent(e);
+//		return QTextEdit::enterEvent(e);
+//	}
+//	void leaveEvent(QEvent *e) {
+//		TWidget *p(tparent());
+//		if (p) p->enterFromChildEvent(e);
+//		return QTextEdit::leaveEvent(e);
+//	}
+//
+//	QVariant loadResource(int type, const QUrl &name);
+//
+//private:
+//
+//	QString _lastText;
+//	QKeyEvent *_keyEvent;
+//
+//	bool _customUpDown;
+//
+//	QString _placeholder, _placeholderFull;
+//	bool _placeholderVisible;
+//	anim::ivalue a_placeholderLeft;
+//	anim::fvalue a_placeholderOpacity;
+//	anim::cvalue a_placeholderFg;
+//	Animation _placeholderFgAnim, _placeholderShiftAnim;
+//
+//	anim::fvalue a_borderOpacityActive;
+//	anim::cvalue a_borderFg;
+//	Animation _borderAnim;
+//
+//	bool _focused, _error;
+//
+//	const style::InputField *_st;
+//
+//	QTimer _touchTimer;
+//	bool _touchPress, _touchRightButton, _touchMove;
+//	QPoint _touchStart;
+//};
 
-class InputField : public QLineEdit {
+
+class InputField : public QTextEdit {
 	Q_OBJECT
 
 public:
 
 	InputField(QWidget *parent, const style::InputField &st, const QString &ph = QString(), const QString &val = QString());
 
-	bool event(QEvent *e);
+	bool viewportEvent(QEvent *e);
 	void touchEvent(QTouchEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void focusInEvent(QFocusEvent *e);
@@ -132,11 +246,11 @@ public:
 	void keyPressEvent(QKeyEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
-	void setError(bool error);
-
+	const QString &getLastText() const;
 	void updatePlaceholder();
 
 	QRect getTextRect() const;
+	int32 fakeMargin() const;
 
 	bool placeholderFgStep(float64 ms);
 	bool placeholderShiftStep(float64 ms);
@@ -145,50 +259,95 @@ public:
 	QSize sizeHint() const;
 	QSize minimumSizeHint() const;
 
-	void setCustomUpDown(bool customUpDown);
+	QString getText(int32 start = 0, int32 end = -1) const;
+	bool hasText() const;
+
+	bool isUndoAvailable() const;
+	bool isRedoAvailable() const;
+
+	QMimeData *createMimeDataFromSelection() const;
+
+	void customUpDown(bool isCustom);
 
 public slots:
 
-	void onTextChange(const QString &text);
-	void onTextEdited();
-
 	void onTouchTimer();
+
+	void onDocumentContentsChange(int position, int charsRemoved, int charsAdded);
+	void onDocumentContentsChanged();
+
+	void onUndoAvailable(bool avail);
+	void onRedoAvailable(bool avail);
 
 signals:
 
 	void changed();
+	void submitted(bool ctrlShiftEnter);
 	void cancelled();
-	void accepted();
+	void tabbed();
+
 	void focused();
 	void blurred();
 
 protected:
 
 	virtual void correctValue(QKeyEvent *e, const QString &was);
+	
+	void insertEmoji(EmojiPtr emoji, QTextCursor c);
+	TWidget *tparent() {
+		return qobject_cast<TWidget*>(parentWidget());
+	}
+	const TWidget *tparent() const {
+		return qobject_cast<const TWidget*>(parentWidget());
+	}
+	void enterEvent(QEvent *e) {
+		TWidget *p(tparent());
+		if (p) p->leaveToChildEvent(e);
+		return QTextEdit::enterEvent(e);
+	}
+	void leaveEvent(QEvent *e) {
+		TWidget *p(tparent());
+		if (p) p->enterFromChildEvent(e);
+		return QTextEdit::leaveEvent(e);
+	}
+
+	QVariant loadResource(int type, const QUrl &name);
 
 private:
 
-	QString _lastText;
+	void processDocumentContentsChange(int position, int charsAdded);
+
+	QString _oldtext;
+
 	QKeyEvent *_keyEvent;
 
-	bool _customUpDown;
+	bool _undoAvailable, _redoAvailable;
 
+	int32 _fakeMargin;
+	
+	bool _customUpDown;
+	
 	QString _placeholder, _placeholderFull;
 	bool _placeholderVisible;
 	anim::ivalue a_placeholderLeft;
 	anim::fvalue a_placeholderOpacity;
 	anim::cvalue a_placeholderFg;
 	Animation _placeholderFgAnim, _placeholderShiftAnim;
-
+	
 	anim::fvalue a_borderOpacityActive;
 	anim::cvalue a_borderFg;
 	Animation _borderAnim;
-
+	
 	bool _focused, _error;
-
+	
 	const style::InputField *_st;
 
 	QTimer _touchTimer;
 	bool _touchPress, _touchRightButton, _touchMove;
 	QPoint _touchStart;
+
+	bool _replacingEmojis;
+	typedef QPair<int, int> Insertion;
+	typedef QList<Insertion> Insertions;
+	Insertions _insertions;
 };

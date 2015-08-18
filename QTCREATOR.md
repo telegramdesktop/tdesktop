@@ -50,7 +50,7 @@ Download sources [ffmpeg-2.6.3.tar.bz2](http://ffmpeg.org/releases/ffmpeg-2.6.3.
     sudo apt-get -y --force-yes install autoconf automake build-essential libass-dev libfreetype6-dev libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev libvdpau-dev libvorbis-dev libxcb1-dev libxcb-shm0-dev libxcb-xfixes0-dev pkg-config texi2html zlib1g-dev
     sudo apt-get install yasm
 
-    ./configure --prefix=/usr/local --disable-programs --disable-everything --enable-libopus --enable-decoder=aac --enable-decoder=aac_latm --enable-decoder=aasc --enable-decoder=mp1 --enable-decoder=mp1float --enable-decoder=mp2 --enable-decoder=mp2float --enable-decoder=mp3 --enable-decoder=mp3adu --enable-decoder=mp3adufloat --enable-decoder=mp3float --enable-decoder=mp3on4 --enable-decoder=mp3on4float --enable-decoder=wavpack --enable-decoder=opus --enable-decoder=vorbis --enable-decoder=wmalossless --enable-decoder=wmapro --enable-decoder=wmav1 --enable-decoder=wmav2 --enable-decoder=wmavoice --enable-encoder=libopus --enable-parser=aac --enable-parser=aac_latm --enable-parser=mpegaudio --enable-parser=opus --enable-parser=vorbis --enable-demuxer=aac --enable-demuxer=wav --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=mov --enable-muxer=ogg --enable-muxer=opus
+    ./configure --prefix=/usr/local --disable-programs --disable-everything --enable-libopus --enable-decoder=aac --enable-decoder=aac_latm --enable-decoder=aasc --enable-decoder=mp1 --enable-decoder=mp1float --enable-decoder=mp2 --enable-decoder=mp2float --enable-decoder=mp3 --enable-decoder=mp3adu --enable-decoder=mp3adufloat --enable-decoder=mp3float --enable-decoder=mp3on4 --enable-decoder=mp3on4float --enable-decoder=wavpack --enable-decoder=opus --enable-decoder=vorbis --enable-decoder=wmalossless --enable-decoder=wmapro --enable-decoder=wmav1 --enable-decoder=wmav2 --enable-decoder=wmavoice --enable-decoder=flac --enable-encoder=libopus --enable-parser=aac --enable-parser=aac_latm --enable-parser=mpegaudio --enable-parser=opus --enable-parser=vorbis --enable-parser=flac --enable-demuxer=aac --enable-demuxer=wav --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=mov --enable-demuxer=flac --enable-muxer=ogg --enable-muxer=opus
 
     make
     sudo make install
@@ -76,18 +76,28 @@ then go to **/home/user/TBuild/Libraries/openal-soft/build** and run
     make
     sudo make install
 
-####Qt 5.4.0, slightly patched
+####libxkbcommon (required for Fcitx Qt plugin)
 
-http://download.qt-project.org/official_releases/qt/5.4/5.4.0/single/qt-everywhere-opensource-src-5.4.0.tar.gz
+In Terminal go to **/home/user/TBuild/Libraries** and run
 
-Extract to **/home/user/TBuild/Libraries**, rename **qt-everywhere-opensource-src-5.4.0** to **QtStatic** to have **/home/user/TBuild/Libraries/QtStatic/qtbase** folder
+    sudo apt-get install xutils-dev bison python-xcbgen
+    git clone https://github.com/xkbcommon/libxkbcommon.git
+    ./autogen.sh --disable-x11
+    make
+    sudo make install
+
+####Qt 5.5.0, slightly patched
+
+http://download.qt-project.org/official_releases/qt/5.5/5.5.0/single/qt-everywhere-opensource-src-5.5.0.tar.gz
+
+Extract to **/home/user/TBuild/Libraries**, rename **qt-everywhere-opensource-src-5.5.0** to **QtStatic** to have **/home/user/TBuild/Libraries/QtStatic/qtbase** folder
 
 Apply patch:
 
-* OR copy (with overwrite!) everything from **/home/user/TBuild/tdesktop/Telegram/\_qt\_5\_4\_0\_patch/** to **/home/user/TBuild/Libraries/QtStatic/**
-* OR copy **/home/user/TBuild/tdesktop/Telegram/\_qt\_5\_4\_0\_patch.diff** to **/home/user/TBuild/Libraries/QtStatic/**, go there in Terminal and run
+* OR copy (with overwrite!) everything from **/home/user/TBuild/tdesktop/Telegram/\_qt\_5\_5\_0\_patch/** to **/home/user/TBuild/Libraries/QtStatic/**
+* OR copy **/home/user/TBuild/tdesktop/Telegram/\_qt\_5\_5\_0\_patch.diff** to **/home/user/TBuild/Libraries/QtStatic/**, go there in Terminal and run
 
-    git apply _qt_5_4_0_patch.diff
+    git apply _qt_5_5_0_patch.diff
 
 #####Building library
 
@@ -106,8 +116,8 @@ building (**make** command) will take really long time.
 ###Building Telegram Desktop
 
 * Launch Qt Creator, all projects will be taken from **/home/user/TBuild/tdesktop/Telegram**
-* Tools > Options > Build & Run > Qt Versions tab > Add > File System /usr/local/Qt-5.4.0/bin/qmake > **Qt 5.4.0 (Qt-5.4.0)** > Apply
-* Tools > Options > Build & Run > Kits tab > Desktop (default) > change **Qt version** to **Qt 5.4.0 (Qt-5.4.0)** > Apply
+* Tools > Options > Build & Run > Qt Versions tab > Add > File System /usr/local/Qt-5.5.0/bin/qmake > **Qt 5.5.0 (Qt-5.5.0)** > Apply
+* Tools > Options > Build & Run > Kits tab > Desktop (default) > change **Qt version** to **Qt 5.5.0 (Qt-5.5.0)** > Apply
 * Open MetaStyle.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateStyle** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateStyle** and build for Debug
 * Open MetaEmoji.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateEmoji** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateEmoji** and build for Debug
 * Open MetaLang.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateLang** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateLang** and build for Debug

@@ -26,6 +26,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 namespace {
 	class SignUpLink : public ITextLink {
+		TEXT_LINK_CLASS(SignUpLink)
+
 	public:
 
 		SignUpLink(IntroPhone *widget) : _widget(widget) {
@@ -44,7 +46,7 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStage(parent),
     errorAlpha(0), changed(false),
 	next(this, lang(lng_intro_next), st::btnIntroNext),
 	country(this, st::introCountry),
-	phone(this, st::inpIntroPhone, lang(lng_phone_ph)), code(this, st::inpIntroCountryCode),
+	phone(this, st::inpIntroPhone), code(this, st::inpIntroCountryCode),
 	_signup(this, lng_phone_notreg(lt_signup_start, textcmdStartLink(1), lt_signup_end, textcmdStopLink()), st::introErrLabel, st::introErrLabelTextStyle),
     _showSignup(false) {
 	setVisible(false);
@@ -55,6 +57,8 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStage(parent),
 	connect(&phone, SIGNAL(voidBackspace(QKeyEvent*)), &code, SLOT(startErasing(QKeyEvent*)));
 	connect(&country, SIGNAL(codeChanged(const QString &)), &code, SLOT(codeSelected(const QString &)));
 	connect(&code, SIGNAL(codeChanged(const QString &)), &country, SLOT(onChooseCode(const QString &)));
+	connect(&code, SIGNAL(codeChanged(const QString &)), &phone, SLOT(onChooseCode(const QString &)));
+	connect(&country, SIGNAL(codeChanged(const QString &)), &phone, SLOT(onChooseCode(const QString &)));
 	connect(&code, SIGNAL(addedToNumber(const QString &)), &phone, SLOT(addedToNumber(const QString &)));
 	connect(&country, SIGNAL(selectClosed()), this, SLOT(onSelectClose()));
 	connect(&phone, SIGNAL(changed()), this, SLOT(onInputChange()));
