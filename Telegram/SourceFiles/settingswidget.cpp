@@ -127,9 +127,11 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 
 	// general
 	_changeLanguage(this, lang(lng_settings_change_lang)),
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	_autoUpdate(this, lang(lng_settings_auto_update), cAutoUpdate()),
 	_checkNow(this, lang(lng_settings_check_now)),
 	_restartNow(this, lang(lng_settings_update_now)),
+	#endif
 
     _supportTray(cSupportTray()),
 	_workmodeTray(this, lang(lng_settings_workmode_tray), (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray)),
@@ -226,9 +228,11 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 
 	// general
 	connect(&_changeLanguage, SIGNAL(clicked()), this, SLOT(onChangeLanguage()));
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	connect(&_autoUpdate, SIGNAL(changed()), this, SLOT(onAutoUpdate()));
 	connect(&_checkNow, SIGNAL(clicked()), this, SLOT(onCheckNow()));
 	connect(&_restartNow, SIGNAL(clicked()), this, SLOT(onRestartNow()));
+	#endif
 
 	connect(&_workmodeTray, SIGNAL(changed()), this, SLOT(onWorkmodeTray()));
 	connect(&_workmodeWindow, SIGNAL(changed()), this, SLOT(onWorkmodeWindow()));
@@ -246,11 +250,13 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_newVersionText = lang(lng_settings_update_ready) + ' ';
 	_newVersionWidth = st::linkFont->m.width(_newVersionText);
 
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	connect(App::app(), SIGNAL(updateChecking()), this, SLOT(onUpdateChecking()));
 	connect(App::app(), SIGNAL(updateLatest()), this, SLOT(onUpdateLatest()));
 	connect(App::app(), SIGNAL(updateDownloading(qint64,qint64)), this, SLOT(onUpdateDownloading(qint64,qint64)));
 	connect(App::app(), SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
 	connect(App::app(), SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
+	#endif
 
 	// chat options
 	connect(&_replaceEmojis, SIGNAL(changed()), this, SLOT(onReplaceEmojis()));
@@ -303,6 +309,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 
 	updateOnlineDisplay();
 
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	switch (App::app()->updatingState()) {
 	case Application::UpdatingDownload:
 		setUpdatingState(UpdatingDownload, true);
@@ -311,6 +318,9 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	case Application::UpdatingReady: setUpdatingState(UpdatingReady, true); break;
 	default: setUpdatingState(UpdatingNone, true); break;
 	}
+	#else
+	_updatingState = UpdatingNone;
+	#endif
 
 	updateConnectionType();
 
@@ -430,6 +440,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	p.drawText(_left + st::setHeaderLeft, top + st::setHeaderTop + st::setHeaderFont->ascent, lang(lng_settings_section_general));
 	top += st::setHeaderSkip;
 
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	top += _autoUpdate.height(); 
 	QString textToDraw;
 	if (cAutoUpdate()) {
@@ -448,6 +459,7 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 	p.setPen(st::setVersionColor->p);
 	p.drawText(_left + st::setVersionLeft, top + st::setVersionTop + st::linkFont->ascent, textToDraw);
 	top += st::setVersionHeight;
+	#endif
 
     if (cPlatform() == dbipWindows) {
         top += _workmodeTray.height() + st::setLittleSkip;
@@ -656,10 +668,12 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 	// general
 	top += st::setHeaderSkip;
 	_changeLanguage.move(_left + st::setWidth - _changeLanguage.width(), top - st::setHeaderSkip + st::setHeaderTop + st::setHeaderFont->ascent - st::linkFont->ascent);
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	_autoUpdate.move(_left, top);
 	_checkNow.move(_left + st::setWidth - _checkNow.width(), top + st::cbDefFlat.textTop); top += _autoUpdate.height();
 	_restartNow.move(_left + st::setWidth - _restartNow.width(), top + st::setVersionTop);
 	top += st::setVersionHeight;
+	#endif
 
     if (cPlatform() == dbipWindows) {
         _workmodeTray.move(_left, top); top += _workmodeTray.height() + st::setLittleSkip;
@@ -972,8 +986,10 @@ void SettingsInner::showAll() {
 
 	// general
 	_changeLanguage.show();
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	_autoUpdate.show();
 	setUpdatingState(_updatingState, true);
+	#endif
     if (cPlatform() == dbipWindows) {
         _workmodeTray.show();
         _workmodeWindow.show();
@@ -1219,6 +1235,7 @@ void SettingsInner::onUpdateLocalStorage() {
 	update();
 }
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 void SettingsInner::onAutoUpdate() {
 	cSetAutoUpdate(!cAutoUpdate());
 	Local::writeSettings();
@@ -1244,8 +1261,10 @@ void SettingsInner::onCheckNow() {
 	cSetLastUpdateCheck(0);
 	App::app()->startUpdateCheck();
 }
+#endif
 
 void SettingsInner::onRestartNow() {
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	checkReadyUpdate();
 	if (_updatingState == UpdatingReady) {
 		cSetRestartingUpdate(true);
@@ -1253,6 +1272,10 @@ void SettingsInner::onRestartNow() {
 		cSetRestarting(true);
 		cSetRestartingToSettings(true);
 	}
+	#else
+	cSetRestarting(true);
+	cSetRestartingToSettings(true);
+	#endif
 	App::quit();
 }
 
@@ -1636,6 +1659,7 @@ void SettingsInner::onTempDirClearFailed(int task) {
 	update();
 }
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 void SettingsInner::setUpdatingState(UpdatingState state, bool force) {
 	if (_updatingState != state || force) {
 		_updatingState = state;
@@ -1689,6 +1713,7 @@ void SettingsInner::onUpdateReady() {
 void SettingsInner::onUpdateFailed() {
 	setUpdatingState(UpdatingFail);
 }
+#endif
 
 void SettingsInner::onPhotoUpdateStart() {
 	showAll();
