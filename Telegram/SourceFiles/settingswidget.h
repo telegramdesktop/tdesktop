@@ -78,6 +78,8 @@ public:
 
 	void showAll();
 
+    void chooseCustomLang();
+
 	void updateChatBackground();
 	void needBackgroundUpdate(bool tile);
 
@@ -95,8 +97,10 @@ public slots:
 	void onUpdatePhoto();
 	void onUpdatePhotoCancel();
 
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void onAutoUpdate();
 	void onCheckNow();
+	#endif
 	void onRestartNow();
 
 	void onPasscode();
@@ -125,6 +129,8 @@ public slots:
 	void onSenderName();
 	void onMessagePreview();
 
+	void onWindowsNotifications();
+
 	void onReplaceEmojis();
 	void onViewEmojis();
 
@@ -145,11 +151,13 @@ public slots:
 
 	void onLocalStorageClear();
 
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void onUpdateChecking();
 	void onUpdateLatest();
 	void onUpdateDownloading(qint64 ready, qint64 total);
 	void onUpdateReady();
 	void onUpdateFailed();
+	#endif
 
 	void onShowSessions();
 
@@ -162,9 +170,15 @@ public slots:
 
 	void onUpdateLocalStorage();
 
+	void onAskQuestion();
+	void onAskQuestionSure();
+	void onTelegramFAQ();
+
 private:
 
 	void saveError(const QString &str = QString());
+
+	void supportGot(const MTPhelp_Support &support);
 
 	void setScale(DBIScale newScale);
 
@@ -192,12 +206,14 @@ private:
 	LinkButton _chooseUsername;
 
 	// notifications
-	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _soundNotify;
+	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _windowsNotifications, _soundNotify;
 
 	// general
 	LinkButton _changeLanguage;
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	FlatCheckbox _autoUpdate;
 	LinkButton _checkNow, _restartNow;
+	#endif
     bool _supportTray; // cSupportTray() value on settings create
 	FlatCheckbox _workmodeTray, _workmodeWindow;
 	FlatCheckbox _autoStart, _startMinimized, _sendToMenu;
@@ -261,15 +277,19 @@ private:
 	LinkButton _connectionType;
 	QString _connectionTypeText;
 	int32 _connectionTypeWidth;
-	LinkButton _showSessions;
+	LinkButton _showSessions, _askQuestion, _telegramFAQ;
 	FlatButton _logOut;
+
+	mtpRequestId _supportGetRequest;
 
 	void gotPassword(const MTPaccount_Password &result);
 	void offPasswordDone(const MTPBool &result);
 	bool offPasswordFail(const RPCError &error);
 
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void setUpdatingState(UpdatingState state, bool force = false);
 	void setDownloadProgress(qint64 ready, qint64 total);
+	#endif
 
 
 };

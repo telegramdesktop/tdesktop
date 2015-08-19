@@ -127,6 +127,7 @@ namespace App {
 	int32 maxMsgId();
 
 	ImagePtr image(const MTPPhotoSize &size);
+	StorageImageLocation imageLocation(int32 w, int32 h, const MTPFileLocation &loc);
 	StorageImageLocation imageLocation(const MTPPhotoSize &size);
 
 	PhotoData *feedPhoto(const MTPPhoto &photo, const PreparedPhotoThumbs &thumbs);
@@ -157,11 +158,11 @@ namespace App {
 	ChatData *chat(int32 chat);
 	QString peerName(const PeerData *peer, bool forDialogs = false);
 	PhotoData *photo(const PhotoId &photo);
-	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 user, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full);
+	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full);
 	VideoData *video(const VideoId &video);
-	VideoData *videoSet(const VideoId &video, VideoData *convert, const uint64 &access, int32 user, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size);
+	VideoData *videoSet(const VideoId &video, VideoData *convert, const uint64 &access, int32 date, int32 duration, int32 w, int32 h, const ImagePtr &thumb, int32 dc, int32 size);
 	AudioData *audio(const AudioId &audio);
-	AudioData *audioSet(const AudioId &audio, AudioData *convert, const uint64 &access, int32 user, int32 date, const QString &mime, int32 duration, int32 dc, int32 size);
+	AudioData *audioSet(const AudioId &audio, AudioData *convert, const uint64 &access, int32 date, const QString &mime, int32 duration, int32 dc, int32 size);
 	DocumentData *document(const DocumentId &document);
 	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation);
 	WebPageData *webPage(const WebPageId &webPage);
@@ -183,7 +184,6 @@ namespace App {
 	void historyClearItems();
 	void historyRegReply(HistoryReply *reply, HistoryItem *to);
 	void historyUnregReply(HistoryReply *reply, HistoryItem *to);
-//	void deleteHistory(const PeerId &peer);
 
 	void historyRegRandom(uint64 randomId, MsgId itemId);
 	void historyUnregRandom(uint64 randomId);

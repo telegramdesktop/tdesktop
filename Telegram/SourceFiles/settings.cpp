@@ -42,6 +42,7 @@ QString gDialogLastPath, gDialogHelperPath; // optimize QFileDialog
 bool gSoundNotify = true;
 bool gDesktopNotify = true;
 DBINotifyView gNotifyView = dbinvShowPreview;
+bool gWindowsNotifications = true;
 bool gStartMinimized = false;
 bool gStartInTray = false;
 bool gAutoStart = false;
@@ -119,11 +120,7 @@ QString gLangFile;
 bool gRetina = false;
 float64 gRetinaFactor = 1.;
 int32 gIntRetinaFactor = 1;
-#ifdef Q_OS_MAC
-bool gCustomNotifies = false;
-#else
 bool gCustomNotifies = true;
-#endif
 uint64 gInstance = 0.;
 
 #ifdef Q_OS_WIN
@@ -159,8 +156,10 @@ int gOtherOnline = 0;
 
 float64 gSongVolume = 0.9;
 
+SavedPeers gSavedPeers;
+SavedPeersByTime gSavedPeersByTime;
+
 void settingsParseArgs(int argc, char *argv[]) {
-	gCustomNotifies = true;
 #ifdef Q_OS_MAC
 	if (QSysInfo::macVersion() < QSysInfo::MV_10_8) {
 		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac32/tupdates/current"));

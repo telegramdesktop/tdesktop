@@ -613,7 +613,7 @@ HistoryItem *Histories::addToBack(const MTPmessage &msg, int msgState) {
 	if (!h.value()->loadedAtBottom()) {
 		HistoryItem *item = h.value()->addToHistory(msg);
 		if (item) {
-			h.value()->lastMsg = item;
+			h.value()->setLastMessage(item);
 			if (msgState > 0) {
 				h.value()->newItemAdded(item);
 			}
@@ -908,7 +908,8 @@ HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *
 		}
 	}
 	to->push_back(adding);
-	lastMsg = adding;
+	setLastMessage(adding);
+
 	adding->y = to->height;
 	if (width) {
 		int32 dh = adding->resize(width);
@@ -919,6 +920,7 @@ HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *
 	if (newMsg) {
 		newItemAdded(adding);
 	}
+
 	HistoryMedia *media = adding->getMedia(true);
 	if (media) {
 		HistoryMediaType mt = media->type();
@@ -1414,14 +1416,24 @@ void History::getReadyFor(MsgId msgId) {
 	}
 }
 
+void History::setLastMessage(HistoryItem *msg) {
+	if (msg) {
+		if (!lastMsg) Local::removeSavedPeer(peer);
+		lastMsg = msg;
+		lastMsgDate = msg->date;
+	} else {
+		lastMsg = 0;
+	}
+}
+
 void History::fixLastMessage(bool wasAtBottom) {
 	if (wasAtBottom && isEmpty()) {
 		wasAtBottom = false;
 	}
 	if (wasAtBottom) {
-		lastMsg = back()->back();
+		setLastMessage(back()->back());
 	} else {
-		lastMsg = 0;
+		setLastMessage(0);
 		if (App::main()) {
 			App::main()->checkPeerHistory(peer);
 		}
@@ -1481,9 +1493,16 @@ void History::clear(bool leaveItems) {
 	if (showFrom) {
 		showFrom = 0;
 	}
+	if (!leaveItems) {
+		setLastMessage(0);
+	}
 	for (int32 i = 0; i < OverviewCount; ++i) {
 		if (!_overview[i].isEmpty() || !_overviewIds[i].isEmpty()) {
-			if (_overviewCount[i] == 0) _overviewCount[i] = _overview[i].size();
+			if (leaveItems) {
+				if (_overviewCount[i] == 0) _overviewCount[i] = _overview[i].size();
+			} else {
+				_overviewCount[i] = -1; // not loaded yet
+			}
 			_overview[i].clear();
 			_overviewIds[i].clear();
 			if (App::wnd() && !App::quiting()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(i));
@@ -1501,7 +1520,6 @@ void History::clear(bool leaveItems) {
 		lastKeyboardInited = false;
 	} else {
 		setUnreadCount(0);
-		lastMsg = 0;
 	}
 	height = 0;
 	oldLoaded = false;

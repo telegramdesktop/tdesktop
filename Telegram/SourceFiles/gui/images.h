@@ -29,12 +29,22 @@ struct StorageImageLocation {
 	}
 	StorageImageLocation(int32 width, int32 height, const MTPDfileLocation &location) : width(width), height(height), dc(location.vdc_id.v), volume(location.vvolume_id.v), local(location.vlocal_id.v), secret(location.vsecret.v) {
 	}
+	bool isNull() const {
+		return !dc;
+	}
 	int32 width, height;
 	int32 dc;
 	uint64 volume;
 	int32 local;
 	uint64 secret;
 };
+
+inline bool operator==(const StorageImageLocation &a, const StorageImageLocation &b) {
+	return !memcmp(&a, &b, sizeof(StorageImageLocation));
+}
+inline bool operator!=(const StorageImageLocation &a, const StorageImageLocation &b) {
+	return !(a == b);
+}
 
 class Image {
 public:
@@ -144,6 +154,10 @@ inline StorageKey storageKey(int32 dc, const uint64 &volume, int32 local) {
 inline StorageKey storageKey(const MTPDfileLocation &location) {
 	return storageKey(location.vdc_id.v, location.vvolume_id.v, location.vlocal_id.v);
 }
+inline StorageKey storageKey(const StorageImageLocation &location) {
+	return storageKey(location.dc, location.volume, location.local);
+}
+
 enum StorageFileType {
 	StorageFileUnknown = 0xaa963b05, // mtpc_storage_fileUnknown
 	StorageFileJpeg    = 0x7efe0e,   // mtpc_storage_fileJpeg

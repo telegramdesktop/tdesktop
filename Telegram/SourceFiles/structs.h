@@ -59,8 +59,10 @@ style::color peerColor(int32 index);
 ImagePtr userDefPhoto(int32 index);
 ImagePtr chatDefPhoto(int32 index);
 
-struct ChatData;
+static const PhotoId UnknownPeerPhotoId = 0xFFFFFFFFFFFFFFFFULL;
+
 struct UserData;
+struct ChatData;
 struct PeerData {
 	PeerData(const PeerId &id);
 	virtual ~PeerData() {
@@ -94,13 +96,13 @@ struct PeerData {
 
 	bool loaded;
 	bool chat;
-	uint64 access;
 	MTPinputPeer input;
-	MTPinputUser inputUser;
 
 	int32 colorIndex;
 	style::color color;
 	ImagePtr photo;
+	PhotoId photoId;
+	StorageImageLocation photoLoc;
 
 	int32 nameVersion;
 
@@ -165,11 +167,15 @@ struct BotInfo {
 	QString startToken, startGroupToken;
 };
 
-static const PhotoId UnknownPeerPhotoId = 0xFFFFFFFFFFFFFFFFULL;
+enum UserBlockedStatus {
+	UserBlockUnknown = 0,
+	UserIsBlocked,
+	UserIsNotBlocked,
+};
 
 struct PhotoData;
 struct UserData : public PeerData {
-	UserData(const PeerId &id) : PeerData(id), photoId(UnknownPeerPhotoId), lnk(new PeerLink(this)), onlineTill(0), contact(-1), photosCount(-1), botInfo(0) {
+	UserData(const PeerId &id) : PeerData(id), access(0), lnk(new PeerLink(this)), onlineTill(0), contact(-1), blocked(UserBlockUnknown), photosCount(-1), botInfo(0) {
 	}
 	void setPhoto(const MTPUserProfilePhoto &photo);
 	void setName(const QString &first, const QString &last, const QString &phoneName, const QString &username);
@@ -180,15 +186,19 @@ struct UserData : public PeerData {
 
 	void madeAction(); // pseudo-online
 
+	uint64 access;
+
+	MTPinputUser inputUser;
+
 	QString firstName;
 	QString lastName;
 	QString username;
 	QString phone;
 	Text nameText;
-	PhotoId photoId;
 	TextLinkPtr lnk;
 	int32 onlineTill;
 	int32 contact; // -1 - not contact, cant add (self, empty, deleted, foreign), 0 - not contact, can add (request), 1 - contact
+	UserBlockedStatus blocked;
 
 	typedef QList<PhotoData*> Photos;
 	Photos photos;
@@ -198,7 +208,7 @@ struct UserData : public PeerData {
 };
 
 struct ChatData : public PeerData {
-	ChatData(const PeerId &id) : PeerData(id), count(0), date(0), version(0), left(false), forbidden(true), botStatus(0), photoId(UnknownPeerPhotoId) {
+	ChatData(const PeerId &id) : PeerData(id), count(0), date(0), version(0), left(false), forbidden(true), botStatus(0) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
 	int32 count;
@@ -216,8 +226,7 @@ struct ChatData : public PeerData {
 	typedef QMap<UserData*, bool> MarkupSenders;
 	MarkupSenders markupSenders;
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
-	ImagePtr photoFull;
-	PhotoId photoId;
+//	ImagePtr photoFull;
 	QString invitationUrl;
 	// geo
 };
@@ -228,8 +237,8 @@ inline int32 newMessageFlags(PeerData *p) {
 
 typedef QMap<char, QPixmap> PreparedPhotoThumbs;
 struct PhotoData {
-	PhotoData(const PhotoId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, const ImagePtr &thumb = ImagePtr(), const ImagePtr &medium = ImagePtr(), const ImagePtr &full = ImagePtr()) :
-		id(id), access(access), user(user), date(date), thumb(thumb), medium(medium), full(full), chat(0) {
+	PhotoData(const PhotoId &id, const uint64 &access = 0, int32 date = 0, const ImagePtr &thumb = ImagePtr(), const ImagePtr &medium = ImagePtr(), const ImagePtr &full = ImagePtr()) :
+		id(id), access(access), date(date), thumb(thumb), medium(medium), full(full), chat(0) {
 	}
 	void forget() {
 		thumb->forget();
@@ -252,7 +261,6 @@ struct PhotoData {
 	}
 	PhotoId id;
 	uint64 access;
-	int32 user;
 	int32 date;
 	ImagePtr thumb, replyPreview;
 	ImagePtr medium;
@@ -292,7 +300,7 @@ enum FileStatus {
 };
 
 struct VideoData {
-	VideoData(const VideoId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
+	VideoData(const VideoId &id, const uint64 &access = 0, int32 date = 0, int32 duration = 0, int32 w = 0, int32 h = 0, const ImagePtr &thumb = ImagePtr(), int32 dc = 0, int32 size = 0);
 
 	void forget() {
 		thumb->forget();
@@ -328,7 +336,6 @@ struct VideoData {
 
 	VideoId id;
 	uint64 access;
-	int32 user;
 	int32 date;
 	int32 duration;
 	int32 w, h;
@@ -388,7 +395,7 @@ public:
 };
 
 struct AudioData {
-	AudioData(const AudioId &id, const uint64 &access = 0, int32 user = 0, int32 date = 0, const QString &mime = QString(), int32 duration = 0, int32 dc = 0, int32 size = 0);
+	AudioData(const AudioId &id, const uint64 &access = 0, int32 date = 0, const QString &mime = QString(), int32 duration = 0, int32 dc = 0, int32 size = 0);
 
 	void forget() {
 	}
@@ -423,7 +430,6 @@ struct AudioData {
 
 	AudioId id;
 	uint64 access;
-	int32 user;
 	int32 date;
 	QString mime;
 	int32 duration;

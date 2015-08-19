@@ -67,6 +67,9 @@ public:
 
 	void psUpdateCounter();
 
+	bool psHasNativeNotifications();
+	void psCleanNotifyPhotosIn(int32 dt);
+
 	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
 
 	~PsMainWindow();
@@ -76,6 +79,8 @@ public slots:
 	void psUpdateDelegate();
 	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
     void psShowTrayMenu();
+
+	void psCleanNotifyPhotos();
 
 protected:
 
@@ -99,6 +104,8 @@ private:
 	HWND ps_tbHider_hWnd;
 	HMENU ps_menu;
 	HICON ps_iconBig, ps_iconSmall, ps_iconOverlay;
+
+	SingleTimer ps_cleanNotifyPhotosTimer;
 
 	void psDestroyIcons();
 };
@@ -161,7 +168,7 @@ void psShowInFolder(const QString &name);
 void psStart();
 void psFinish();
 
-void psRegisterCustomScheme();
+void psNewVersion();
 
 void psUpdateOverlayed(TWidget *widget);
 inline QString psConvertFileUrl(const QString &url) {

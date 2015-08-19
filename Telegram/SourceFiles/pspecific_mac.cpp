@@ -564,7 +564,9 @@ void psClearInitLogs() {
 }
 
 void psActivateProcess(uint64 pid) {
-	objc_activateProgram();
+	if (!pid) {
+		objc_activateProgram(App::wnd() ? App::wnd()->winId() : 0);
+	}
 }
 
 QString psCurrentCountry() {
@@ -651,7 +653,7 @@ void psFinish() {
     objc_finish();
 }
 
-void psRegisterCustomScheme() {
+void psNewVersion() {
 	objc_registerCustomScheme();
 }
 

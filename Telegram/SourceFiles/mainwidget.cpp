@@ -122,7 +122,7 @@ void TopBarWidget::onDeleteAndExitSure() {
 	if (c) {
 		App::main()->showDialogs();
 		App::wnd()->hideLayer();
-		MTP::send(MTPmessages_DeleteChatUser(MTP_int(p->id & 0xFFFFFFFF), App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistory, p), App::main()->rpcFail(&MainWidget::leaveChatFailed, p));
+		MTP::send(MTPmessages_DeleteChatUser(MTP_int(p->id & 0xFFFFFFFF), App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, p), App::main()->rpcFail(&MainWidget::leaveChatFailed, p));
 	}
 }
 
@@ -738,20 +738,20 @@ bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &error) {
 			showDialogs();
 		}
 		dialogs.removePeer(peer);
-		App::histories().remove(peer->id);
+		App::history(peer->id)->clear();
 		MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
 		return true;
 	}
 	return false;
 }
 
-void MainWidget::deleteHistory(PeerData *peer, const MTPUpdates &updates) {
+void MainWidget::deleteHistoryAfterLeave(PeerData *peer, const MTPUpdates &updates) {
 	sentUpdatesReceived(updates);
 	if ((profile && profile->peer() == peer) || (overview && overview->peer() == peer) || _stack.contains(peer) || history.peer() == peer) {
 		showDialogs();
 	}
 	dialogs.removePeer(peer);
-	App::histories().remove(peer->id);
+	App::history(peer->id)->clear();
 	MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
 }
 
@@ -776,26 +776,23 @@ void MainWidget::deletedContact(UserData *user, const MTPcontacts_Link &result) 
 	App::emitPeerUpdated();
 }
 
-void MainWidget::deleteHistoryAndContact(UserData *user, const MTPcontacts_Link &result) {
-	const MTPDcontacts_link &d(result.c_contacts_link());
-	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser), false);
-	App::feedUserLink(MTP_int(user->id & 0xFFFFFFFF), d.vmy_link, d.vforeign_link, false);
-	App::emitPeerUpdated();
-
-	if ((profile && profile->peer() == user) || (overview && overview->peer() == user) || _stack.contains(user) || history.peer() == user) {
-		showDialogs();
-	}
-	dialogs.removePeer(user);
-	MTP::send(MTPmessages_DeleteHistory(user->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, (PeerData*)user));
+void MainWidget::deleteConversation(PeerData *peer) {
+	dialogs.removePeer(peer);
+	History *h = App::history(peer->id);
+	h->clear();
+	h->newLoaded = h->oldLoaded = true;
+	showDialogs();
+	MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
 }
 
 void MainWidget::clearHistory(PeerData *peer) {
-	if (!peer->chat && peer->asUser()->contact <= 0) {
-		dialogs.removePeer(peer->asUser());
+	History *h = App::history(peer->id);
+	if (h->lastMsg) {
+		Local::addSavedPeer(h->peer, h->lastMsg->date);
 	}
-	dialogsToUp();
-	dialogs.update();
-	App::history(peer->id)->clear();
+	h->clear();
+	h->newLoaded = h->oldLoaded = true;
+	showPeerHistory(peer->id, ShowAtUnreadMsgId);
 	MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
 }
 
@@ -816,6 +813,8 @@ bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
 
 	QString text = lang(lng_failed_add_participant);
 	if (error.type() == "USER_LEFT_CHAT") { // trying to return banned user to his group
+	} else if (error.type() == "USER_NOT_MUTUAL_CONTACT") { // trying to return user who does not have me in contacts
+		text = lang(lng_failed_add_not_mutual);
 	} else if (error.type() == "USER_ALREADY_PARTICIPANT" && user->botInfo) {
 		text = lang(lng_bot_already_in_group);
 	}
@@ -859,7 +858,12 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 		if ((profile && profile->peer() == peer) || (overview && overview->peer() == peer) || _stack.contains(peer) || history.peer() == peer) {
 			showDialogs();
 		}
-		dialogs.removePeer(peer);
+		if (peer->chat && peer->asChat()->left) {
+			dialogs.removePeer(peer);
+		} else {
+			History *h = App::historyLoaded(peer->id);
+			if (h) Local::addSavedPeer(peer, h->lastMsgDate);
+		}
 	} else {
 		History *h = App::historyLoaded(peer->id);
 		if (!h->lastMsg) {
@@ -1002,8 +1006,8 @@ void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId repl
 			WebPageData *page = App::webPage(webPageId);
 			media = MTP_messageMediaWebPage(MTP_webPagePending(MTP_long(page->id), MTP_int(page->pendingTill)));
 		}
-		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTPint(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup));
-		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTPint(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, MTPnullEntities));
+		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, MTPnullEntities), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 	}
 
 	finishForwarding(hist);
@@ -1730,7 +1734,7 @@ void MainWidget::serviceNotification(const QString &msg, const MTPMessageMedia &
 	QString sendingText, leftText = msg;
 	HistoryItem *item = 0;
 	while (textSplit(sendingText, leftText, MaxMessageSize)) {
-		item = App::histories().addToBack(MTP_message(MTP_int(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTPint(), MTPint(), MTPint(), MTP_int(unixtime()), MTP_string(sendingText), media, MTPnullMarkup), unread ? 1 : 2);
+		item = App::histories().addToBack(MTP_message(MTP_int(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTPint(), MTPint(), MTPint(), MTP_int(unixtime()), MTP_string(sendingText), media, MTPnullMarkup, MTPnullEntities), unread ? 1 : 2);
 	}
 	if (item) {
 		history.peerMessagesUpdated(item->history()->peer->id);
@@ -2530,6 +2534,16 @@ void MainWidget::onPeerShown(PeerData *peer) {
 	if (animating()) _topBar.hide();
 }
 
+void MainWidget::searchInPeer(PeerData *peer) {
+	dialogs.searchInPeer(peer);
+	if (cWideMode()) {
+		dialogs.activate();
+	} else {
+		dialogsToUp();
+		showDialogs();
+	}
+}
+
 void MainWidget::onUpdateNotifySettings() {
 	if (this != App::main()) return;
 	while (!updateNotifySettingPeers.isEmpty()) {
@@ -2750,9 +2764,13 @@ void MainWidget::start(const MTPUser &user) {
 		Local::writeMtpData();
 	}
 
+	Local::readSavedPeers();
+
 	cSetOtherOnline(0);
 	App::feedUsers(MTP_vector<MTPUser>(1, user));
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	App::app()->startUpdateCheck();
+	#endif
 	MTP::send(MTPupdates_GetState(), rpcDone(&MainWidget::gotState));
 	update();
 	if (!cStartUrl().isEmpty()) {
@@ -3024,8 +3042,7 @@ void MainWidget::gotNotifySetting(MTPInputNotifyPeer peer, const MTPPeerNotifySe
 		switch (peer.c_inputNotifyPeer().vpeer.type()) {
 		case mtpc_inputPeerEmpty: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(MTP_int(0))), settings); break;
 		case mtpc_inputPeerSelf: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(MTP_int(MTP::authedId()))), settings); break;
-		case mtpc_inputPeerContact: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(peer.c_inputNotifyPeer().vpeer.c_inputPeerContact().vuser_id)), settings); break;
-		case mtpc_inputPeerForeign: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(peer.c_inputNotifyPeer().vpeer.c_inputPeerForeign().vuser_id)), settings); break;
+		case mtpc_inputPeerUser: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(peer.c_inputNotifyPeer().vpeer.c_inputPeerUser().vuser_id)), settings); break;
 		case mtpc_inputPeerChat: applyNotifySetting(MTP_notifyPeer(MTP_peerChat(peer.c_inputNotifyPeer().vpeer.c_inputPeerChat().vchat_id)), settings); break;
 		}
 	break;
@@ -3334,7 +3351,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 			return;
 		}
 		bool out = (d.vflags.v & MTPDmessage_flag_out);
-		HistoryItem *item = App::histories().addToBack(MTP_message(d.vflags, d.vid, out ? MTP_int(MTP::authedId()) : d.vuser_id, MTP_peerUser(out ? d.vuser_id : MTP_int(MTP::authedId())), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup));
+		HistoryItem *item = App::histories().addToBack(MTP_message(d.vflags, d.vid, out ? MTP_int(MTP::authedId()) : d.vuser_id, MTP_peerUser(out ? d.vuser_id : MTP_int(MTP::authedId())), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, MTPnullEntities));
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
 		}
@@ -3354,7 +3371,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 			_byPtsUpdates.insert(ptsKey(SkippedUpdates), updates);
 			return;
 		}
-		HistoryItem *item = App::histories().addToBack(MTP_message(d.vflags, d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup));
+		HistoryItem *item = App::histories().addToBack(MTP_message(d.vflags, d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, MTPnullEntities));
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
 		}
@@ -3634,6 +3651,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateUserBlocked: {
 		const MTPDupdateUserBlocked &d(update.c_updateUserBlocked());
+		if (UserData *user = App::userLoaded(d.vuser_id.v)) {
+			user->blocked = d.vblocked.v ? UserIsBlocked : UserIsNotBlocked;
+			App::markPeerUpdated(user);
+		}
 	} break;
 
 	case mtpc_updateNewAuthorization: {

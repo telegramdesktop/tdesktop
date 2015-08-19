@@ -17,6 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+
 #include <QtNetwork/QLocalSocket>
 #include <QtNetwork/QLocalServer>
 #include <QtNetwork/QNetworkReply>
@@ -60,3 +62,5 @@ private:
 };
 
 bool checkReadyUpdate();
+
+#endif

@@ -204,6 +204,7 @@ struct History : public QList<HistoryBlock*> {
 	bool isReadyFor(MsgId msgId, bool check = false) const; // has messages for showing history at msgId
 	void getReadyFor(MsgId msgId);
 
+	void setLastMessage(HistoryItem *msg);
 	void fixLastMessage(bool wasAtBottom);
 
 	MsgId minMsgId() const;
@@ -218,6 +219,7 @@ struct History : public QList<HistoryBlock*> {
 	PeerData *peer;
 	bool oldLoaded, newLoaded;
 	HistoryItem *lastMsg;
+	QDateTime lastMsgDate;
 
 	typedef QList<HistoryItem*> NotifyQueue;
 	NotifyQueue notifies;
@@ -446,11 +448,11 @@ struct DialogsList {
 
 		DialogRow *row = addToEnd(history), *change = row;
 		const QString &peerName(history->peer->name);
-		while (change->prev && change->prev->history->peer->name > peerName) {
+		while (change->prev && change->prev->history->peer->name.compare(peerName, Qt::CaseInsensitive) > 0) {
 			change = change->prev;
 		}
 		if (!insertBefore(row, change)) {
-			while (change->next != end && change->next->history->peer->name < peerName) {
+			while (change->next != end && change->next->history->peer->name.compare(peerName, Qt::CaseInsensitive) < 0) {
 				change = change->next;
 			}
 			insertAfter(row, change);

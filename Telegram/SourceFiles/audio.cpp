@@ -1099,7 +1099,11 @@ public:
 		}
 
 		freq = fmtContext->streams[streamId]->codec->sample_rate;
-		len = (fmtContext->streams[streamId]->duration * freq * fmtContext->streams[streamId]->time_base.num) / fmtContext->streams[streamId]->time_base.den;
+		if (fmtContext->streams[streamId]->duration == AV_NOPTS_VALUE) {
+			len = (fmtContext->duration * freq) / AV_TIME_BASE;
+		} else {
+			len = (fmtContext->streams[streamId]->duration * freq * fmtContext->streams[streamId]->time_base.num) / fmtContext->streams[streamId]->time_base.den;
+		}
 		uint64_t layout = fmtContext->streams[streamId]->codec->channel_layout;
 		inputFormat = fmtContext->streams[streamId]->codec->sample_fmt;
 		switch (layout) {
@@ -2221,7 +2225,9 @@ public:
 		int res = 0;
 		char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 		if ((res = avformat_open_input(&fmtContext, 0, 0, 0)) < 0) {
-			DEBUG_LOG(("Audio Read Error: Unable to avformat_open_input for file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+            ioBuffer = 0;
+
+            DEBUG_LOG(("Audio Read Error: Unable to avformat_open_input for file '%1', data size '%2', error %3, %4").arg(fname).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 			return false;
 		}
 		_opened = true;
@@ -2244,7 +2250,11 @@ public:
 		}
 
 		freq = fmtContext->streams[streamId]->codec->sample_rate;
-		len = (fmtContext->streams[streamId]->duration * freq) / fmtContext->streams[streamId]->time_base.den;
+		if (fmtContext->streams[streamId]->duration == AV_NOPTS_VALUE) {
+			len = (fmtContext->duration * freq) / AV_TIME_BASE;
+		} else {
+			len = (fmtContext->streams[streamId]->duration * freq * fmtContext->streams[streamId]->time_base.num) / fmtContext->streams[streamId]->time_base.den;
+		}
 
 		for (int32 i = 0, l = fmtContext->nb_streams; i < l; ++i) {
 			AVStream *stream = fmtContext->streams[i];

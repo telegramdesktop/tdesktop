@@ -16,7 +16,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #define __HUGE
-
+#define PSAPI_VERSION 1 // fix WinXP
 //#define Q_NO_TEMPLATE_FRIENDS // fix some compiler difference issues
 
 #include <openssl/bn.h>

@@ -52,6 +52,7 @@ enum {
 };
 
 static const MTPReplyMarkup MTPnullMarkup = MTP_replyKeyboardMarkup(MTP_int(0), MTP_vector<MTPKeyboardButtonRow>(0));
+static const MTPVector<MTPMessageEntity> MTPnullEntities = MTP_vector<MTPMessageEntity>(0);
 
 #include "mtproto/mtpPublicRSA.h"
 #include "mtproto/mtpAuthKey.h"
@@ -410,7 +411,6 @@ public slots:
 	void onError4(bool maybeBadKey = false);
 	void onError6(bool maybeBadKey = false);
 
-	void doDisconnect();
 	void doFinish();
 
 	// Auth key creation packet receive slots
@@ -430,6 +430,8 @@ public slots:
 
 private:
 
+	void doDisconnect();
+
 	void createConn(bool createIPv4, bool createIPv6);
 	void destroyConn(MTPabstractConnection **conn = 0); // 0 - destory all
 
@@ -437,7 +439,7 @@ private:
 	mtpMsgId prepareToSend(mtpRequest &request, mtpMsgId currentLastId);
 	mtpMsgId replaceMsgId(mtpRequest &request, mtpMsgId newId);
 
-	bool sendRequest(mtpRequest &request, bool needAnyResponse);
+	bool sendRequest(mtpRequest &request, bool needAnyResponse, QReadLocker &lockFinished);
 	mtpRequestId wasSent(mtpMsgId msgId) const;
 
 	int32 handleOneReceived(const mtpPrime *from, const mtpPrime *end, uint64 msgId, int32 serverTime, uint64 serverSalt, bool badTime);

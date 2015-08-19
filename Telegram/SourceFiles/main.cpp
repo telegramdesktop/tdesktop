@@ -39,6 +39,9 @@ int main(int argc, char *argv[]) {
 	logsInit();
 
 	Local::readSettings();
+	if (Local::oldSettingsVersion() < AppVersion) {
+		psNewVersion();
+	}
 	if (cFromAutoStart() && !cAutoStart()) {
 		psAutoStart(false, true);
 		Local::stop();
@@ -78,6 +81,7 @@ int main(int argc, char *argv[]) {
 
 	DEBUG_LOG(("Application Info: Telegram done, result: %1").arg(result));
 
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (cRestartingUpdate()) {
 		if (DevVersion) {
 			LOG(("Writing 'devversion' file before launching the Updater!"));
@@ -90,7 +94,9 @@ int main(int argc, char *argv[]) {
 
 		DEBUG_LOG(("Application Info: executing updater to install update.."));
 		psExecUpdater();
-	} else if (cRestarting()) {
+	} else
+	#endif
+	if (cRestarting()) {
 		DEBUG_LOG(("Application Info: executing Telegram, because of restart.."));
 		psExecTelegram();
 	}

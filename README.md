@@ -6,10 +6,11 @@ Source code is published under GPL v3, license is available [here](https://githu
 
 ###Supported systems
 
-* Windows XP - Windows 8.1 (**not** RT)
+* Windows XP - Windows 10 (**not** RT)
 * Mac OS X 10.8 - Mac OS X 10.10
 * Mac OS X 10.6 - Mac OS X 10.7 (separate build)
 * Ubuntu 12.04 - Ubuntu 14.04
+* Fedora 22
 
 ###Third-party
 

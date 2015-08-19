@@ -150,6 +150,13 @@ with open('scheme.tl') as f:
             print('Bad param found: "' + param + '" in line: ' + line);
             continue;
           ptype = pmasktype.group(3);
+          if (ptype.find('<') >= 0):
+            templ = re.match(r'^([vV]ector<)([A-Za-z0-9\._]+)>$', ptype);
+            if (templ):
+              ptype = templ.group(1) + 'MTP' + templ.group(2).replace('.', '_') + '>';
+            else:
+              print('Bad template type: ' + ptype);
+              continue;
           if (not pname in conditions):
             conditionsList.append(pname);
             conditions[pname] = pmasktype.group(2);

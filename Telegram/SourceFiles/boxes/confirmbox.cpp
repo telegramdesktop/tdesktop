@@ -56,17 +56,22 @@ void ConfirmBox::init(const QString &text) {
 		_confirm.hide();
 		_cancel.hide();
 
-		connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
+		connect(&_close, SIGNAL(clicked()), this, SLOT(onCancel()));
 
 		setMouseTracking(_text.hasLinks());
 	} else {
 		_close.hide();
 
 		connect(&_confirm, SIGNAL(clicked()), this, SIGNAL(confirmed()));
-		connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+		connect(&_cancel, SIGNAL(clicked()), this, SLOT(onCancel()));
 	}
 
 	prepare();
+}
+
+void ConfirmBox::onCancel() {
+	emit cancelPressed();
+	onClose();
 }
 
 void ConfirmBox::mouseMoveEvent(QMouseEvent *e) {
