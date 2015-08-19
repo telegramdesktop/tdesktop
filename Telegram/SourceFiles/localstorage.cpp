@@ -744,7 +744,9 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			cSetWindowsNotifications(v == 1);
-			cSetCustomNotifies((App::wnd() ? App::wnd()->psHasNativeNotifications() : true) && !cWindowsNotifications());
+			if (cPlatform() == dbipWindows) {
+				cSetCustomNotifies((App::wnd() ? !App::wnd()->psHasNativeNotifications() : true) || !cWindowsNotifications());
+			}
 		} break;
 
 		case dbiWorkMode: {

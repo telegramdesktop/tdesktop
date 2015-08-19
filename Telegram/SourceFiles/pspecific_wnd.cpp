@@ -119,6 +119,7 @@ namespace {
 	};
 	typedef QMap<StorageKey, ToastImage> ToastImages;
 	ToastImages toastImages;
+	bool toastImageSaved = false;
 
 	HWND createTaskbarHider() {
 		HINSTANCE appinst = (HINSTANCE)GetModuleHandle(0);
@@ -2148,7 +2149,9 @@ void psStart() {
 }
 
 void psFinish() {
-	psDeleteDir(cWorkingDir() + qsl("tdata/temp"));
+	if (toastImageSaved) {
+		psDeleteDir(cWorkingDir() + qsl("tdata/temp"));
+	}
 }
 
 namespace {
@@ -2706,6 +2709,7 @@ QString toastImage(const StorageKey &key, PeerData *peer) {
 			App::wnd()->iconLarge().save(v.path, "PNG");
 		}
 		i = toastImages.insert(key, v);
+		toastImageSaved = true;
 	}
 	return i->path;
 }
