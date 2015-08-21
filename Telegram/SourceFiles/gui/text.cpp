@@ -2299,7 +2299,10 @@ void Text::setText(style::font font, const QString &text, const TextParseOptions
 	{
 		TextParser parser(this, text, options);
 	}
+	recountNaturalSize(true, options.dir);
+}
 
+void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 	NewlineBlock *lastNewline = 0;
 
 	int32 lineHeight = 0;
@@ -2313,14 +2316,16 @@ void Text::setText(style::font font, const QString &text, const TextParseOptions
 
 		if (_btype == TextBlockNewline) {
 			if (!lineHeight) lineHeight = blockHeight;
-			Qt::LayoutDirection dir = options.dir;
-			if (dir == Qt::LayoutDirectionAuto) {
-				dir = TextParser::stringDirection(_text, lastNewlineStart, b->from());
-			}
-			if (lastNewline) {
-				lastNewline->_nextDir = dir;
-			} else {
-				_startDir = dir;
+			if (initial) {
+				Qt::LayoutDirection dir = optionsDir;
+				if (dir == Qt::LayoutDirectionAuto) {
+					dir = TextParser::stringDirection(_text, lastNewlineStart, b->from());
+				}
+				if (lastNewline) {
+					lastNewline->_nextDir = dir;
+				} else {
+					_startDir = dir;
+				}
 			}
 			lastNewlineStart = b->from();
 			lastNewline = static_cast<NewlineBlock*>(b);
@@ -2344,14 +2349,16 @@ void Text::setText(style::font font, const QString &text, const TextParseOptions
 		last_rPadding = b->f_rpadding();
 		continue;
 	}
-	Qt::LayoutDirection dir = options.dir;
-	if (dir == Qt::LayoutDirectionAuto) {
-		dir = TextParser::stringDirection(_text, lastNewlineStart, _text.size());
-	}
-	if (lastNewline) {
-		lastNewline->_nextDir = dir;
-	} else {
-		_startDir = dir;
+	if (initial) {
+		Qt::LayoutDirection dir = optionsDir;
+		if (dir == Qt::LayoutDirectionAuto) {
+			dir = TextParser::stringDirection(_text, lastNewlineStart, _text.size());
+		}
+		if (lastNewline) {
+			lastNewline->_nextDir = dir;
+		} else {
+			_startDir = dir;
+		}
 	}
 	if (_width > 0) {
 		if (!lineHeight) lineHeight = _blockHeight(_blocks.back(), _font);
@@ -2360,6 +2367,10 @@ void Text::setText(style::font font, const QString &text, const TextParseOptions
 			_maxWidth = _width;
 		}
 	}
+}
+
+void Text::setMarkedText(style::font font, const QString &text, const LinksInText &links) {
+
 }
 
 void Text::setRichText(style::font font, const QString &text, TextParseOptions options, const TextCustomTagsMap &custom) {
@@ -2447,6 +2458,18 @@ void Text::setLink(uint16 lnkIndex, const TextLinkPtr &lnk) {
 
 bool Text::hasLinks() const {
 	return !_links.isEmpty();
+}
+
+void Text::setSkipBlock(int32 width) {
+
+}
+
+void Text::removeSkipBlock() {
+
+}
+
+LinksInText Text::calcLinksInText() const {
+	return LinksInText();
 }
 
 int32 Text::countHeight(int32 w) const {

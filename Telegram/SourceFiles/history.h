@@ -107,6 +107,7 @@ enum MediaOverviewType {
 	OverviewDocuments,
 	OverviewAudios,
 	OverviewAudioDocuments,
+	OverviewLinks,
 
 	OverviewCount
 };
@@ -116,7 +117,7 @@ inline MediaOverviewType mediaToOverviewType(HistoryMediaType t) {
 	case MediaTypePhoto: return OverviewPhotos;
 	case MediaTypeVideo: return OverviewVideos;
 	case MediaTypeDocument: return OverviewDocuments;
-		//	case MediaTypeSticker: return OverviewDocuments;
+//	case MediaTypeSticker: return OverviewDocuments;
 	case MediaTypeAudio: return OverviewAudios;
 	}
 	return OverviewCount;
@@ -129,6 +130,7 @@ inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	case OverviewDocuments: return MTP_inputMessagesFilterDocument();
 	case OverviewAudios: return MTP_inputMessagesFilterAudio();
 	case OverviewAudioDocuments: return MTP_inputMessagesFilterAudioDocuments();
+	case OverviewLinks: return MTP_inputMessagesFilterUrl();
 	default: type = OverviewCount; break;
 	}
 	return MTPMessagesFilter();
@@ -723,6 +725,9 @@ public:
 	bool hasReplyMarkup() const {
 		return _flags & MTPDmessage::flag_reply_markup;
 	}
+	bool hasTextLinks() const {
+		return _flags & MTPDmessage_flag_HAS_TEXT_LINKS;
+	}
 	virtual bool needCheck() const {
 		return true;
 	}
@@ -1274,8 +1279,8 @@ class HistoryMessage : public HistoryItem {
 public:
 
 	HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const MTPMessageMedia &media);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, HistoryMedia *media);
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, const MTPMessageMedia &media);
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, HistoryMedia *media);
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc);
 
 	void initTime();
@@ -1283,7 +1288,7 @@ public:
 	void initMediaFromText(QString &currentText);
 	void initMediaFromDocument(DocumentData *doc);
 	void initDimensions(const HistoryItem *parent = 0);
-	void initDimensions(const QString &text);
+	void initDimensions(const QString &text, const LinksInText &links);
 	void fromNameUpdated() const;
 
 	bool justMedia() const {

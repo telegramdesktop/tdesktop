@@ -464,6 +464,23 @@ enum TextSelectType {
 typedef QPair<QString, QString> TextCustomTag; // open str and close str
 typedef QMap<QChar, TextCustomTag> TextCustomTagsMap;
 
+enum LinkInTextType {
+	LinkInTextUrl,
+	LinkInTextCustomUrl,
+	LinkInTextEmail,
+	LinkInTextHashtag,
+	LinkInTextMention,
+	LinkInTextBotCommand,
+};
+struct LinkInText {
+	LinkInText(LinkInTextType type, int32 offset, int32 length, const QString &text = QString()) : type(type), offset(offset), length(length), text(text) {
+	}
+	LinkInTextType type;
+	int32 offset, length;
+	QString text;
+};
+typedef QList<LinkInText> LinksInText;
+
 class Text {
 public:
 
@@ -475,6 +492,7 @@ public:
 	int32 countHeight(int32 width) const;
 	void setText(style::font font, const QString &text, const TextParseOptions &options = _defaultOptions);
 	void setRichText(style::font font, const QString &text, TextParseOptions options = _defaultOptions, const TextCustomTagsMap &custom = TextCustomTagsMap());
+	void setMarkedText(style::font font, const QString &text, const LinksInText &links);
 
 	void setLink(uint16 lnkIndex, const TextLinkPtr &lnk);
 	bool hasLinks() const;
@@ -482,6 +500,9 @@ public:
 	bool hasSkipBlock() const {
 		return _blocks.isEmpty() ? false : _blocks.back()->type() == TextBlockSkip;
 	}
+	void setSkipBlock(int32 width);
+	void removeSkipBlock();
+	LinksInText calcLinksInText() const;
 
 	int32 maxWidth() const {
 		return _maxWidth.ceil().toInt();
@@ -533,6 +554,8 @@ public:
 	}
 
 private:
+
+	void recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir = Qt::LayoutDirectionAuto);
 
 	QFixed _minResizeWidth, _maxWidth;
 	int32 _minHeight;
