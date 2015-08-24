@@ -2806,7 +2806,9 @@ void MainWidget::start(const MTPUser &user) {
 
 	cSetOtherOnline(0);
 	App::feedUsers(MTP_vector<MTPUser>(1, user));
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	App::app()->startUpdateCheck();
+	#endif
 	MTP::send(MTPupdates_GetState(), rpcDone(&MainWidget::gotState));
 	update();
 	if (!cStartUrl().isEmpty()) {

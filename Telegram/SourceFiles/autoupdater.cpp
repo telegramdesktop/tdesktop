@@ -15,6 +15,9 @@ GNU General Public License for more details.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+
 #include "stdafx.h"
 #include "application.h"
 #include "pspecific.h"
@@ -534,3 +537,5 @@ bool checkReadyUpdate() {
 #endif
 	return true;
 }
+
+#endif
