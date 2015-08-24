@@ -982,6 +982,12 @@ DialogsIndexed &MainWidget::dialogsList() {
 	return dialogs.dialogsList();
 }
 
+QString cleanMessage(const QString &text) {
+	QString result = text.trimmed();
+	// clean bad symbols
+	return result;
+}
+
 void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId replyTo, WebPageId webPageId) {
 	saveRecentHashtags(text);
 	QString sendingText, leftText = text;
@@ -990,7 +996,10 @@ void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId repl
 		MsgId newId = clientMsgId();
 		uint64 randomId = MTP::nonce<uint64>();
 
+		sendingText = cleanMessage(sendingText);
+
 		App::historyRegRandom(randomId, newId);
+		App::historyRegSentText(randomId, sendingText);
 
 		MTPstring msgText(MTP_string(sendingText));
 		int32 flags = newMessageFlags(hist->peer); // unread, out
@@ -1006,8 +1015,9 @@ void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId repl
 			WebPageData *page = App::webPage(webPageId);
 			media = MTP_messageMediaWebPage(MTP_webPagePending(MTP_long(page->id), MTP_int(page->pendingTill)));
 		}
+		MTPVector<MTPMessageEntity> localEntities = linksToMTP(textParseLinks(sendingText, itemTextParseOptions(hist, App::self()).flags));
 		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTPint(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, MTPnullEntities));
-		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, MTPnullEntities), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, localEntities), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 	}
 
 	finishForwarding(hist);
@@ -2221,8 +2231,21 @@ void MainWidget::sentDataReceived(uint64 randomId, const MTPmessages_SentMessage
 	switch (result.type()) {
 	case mtpc_messages_sentMessage: {
 		const MTPDmessages_sentMessage &d(result.c_messages_sentMessage());
-
-		if (randomId) feedUpdate(MTP_updateMessageID(d.vid, MTP_long(randomId))); // ignore real date
+		
+		HistoryItem *item = 0;
+		if (randomId) {
+			QString text = App::histSentTextByItem(randomId);
+			feedUpdate(MTP_updateMessageID(d.vid, MTP_long(randomId))); // ignore real date
+			LinksInText links(linksFromMTP(d.ventities.c_vector().v));			
+			if (!text.isEmpty() && !links.isEmpty()) {
+				item = App::histItemById(d.vid.v);
+				if (item) {
+					item->setText(text, links);
+					item->initDimensions(0);
+					itemResized(item);
+				}
+			}
+		}
 
 		if (updInited) {
 			if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
@@ -2231,7 +2254,9 @@ void MainWidget::sentDataReceived(uint64 randomId, const MTPmessages_SentMessage
 			}
 		}
 
-		HistoryItem *item = App::histItemById(d.vid.v);
+		if (!item) {
+			item = App::histItemById(d.vid.v);
+		}
 		if (item) {
 			item->setMedia(d.vmedia);
 		}
@@ -2240,7 +2265,20 @@ void MainWidget::sentDataReceived(uint64 randomId, const MTPmessages_SentMessage
 	case mtpc_messages_sentMessageLink: {
 		const MTPDmessages_sentMessageLink &d(result.c_messages_sentMessageLink());
 
-		if (randomId) feedUpdate(MTP_updateMessageID(d.vid, MTP_long(randomId))); // ignore real date
+		HistoryItem *item = 0;
+		if (randomId) {
+			//QString text = App::histSentTextByItem(randomId);
+			feedUpdate(MTP_updateMessageID(d.vid, MTP_long(randomId))); // ignore real date
+			//LinksInText links(linksFromMTP(d.ventities.c_vector().v));
+			//if (!text.isEmpty() && !links.isEmpty()) {
+			//	item = App::histItemById(d.vid.v);
+			//	if (item) {
+			//		item->setText(text, links);
+			//		item->initDimensions(0);
+			//		itemResized(item);
+			//	}
+			//}
+		}
 
 		if (updInited) {
 			if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
@@ -2250,11 +2288,11 @@ void MainWidget::sentDataReceived(uint64 randomId, const MTPmessages_SentMessage
 		}
 		App::feedUserLinks(d.vlinks);
 
-		if (d.vmedia.type() != mtpc_messageMediaEmpty) {
-			HistoryItem *item = App::histItemById(d.vid.v);
-			if (item) {
-				item->setMedia(d.vmedia);
-			}
+		if (!item) {
+			item = App::histItemById(d.vid.v);
+		}
+		if (item) {
+			item->setMedia(d.vmedia);
 		}
 	} break;
 	};
@@ -3434,6 +3472,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			}
 			App::historyUnregRandom(d.vrandom_id.v);
 		}
+		App::historyUnregSentText(d.vrandom_id.v);
 	} break;
 
 	case mtpc_updateReadMessagesContents: {

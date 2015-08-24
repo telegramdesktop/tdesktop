@@ -79,6 +79,9 @@ namespace {
 	typedef QMap<uint64, MsgId> RandomData;
 	RandomData randomData;
 
+	typedef QMap<uint64, QString> SentTextData;
+	SentTextData sentTextData;
+
 	HistoryItem *hoveredItem = 0, *pressedItem = 0, *hoveredLinkItem = 0, *pressedLinkItem = 0, *contextItem = 0, *mousedItem = 0;
 
 	QPixmap *sprite = 0, *emojis = 0, *emojisLarge = 0;
@@ -1681,6 +1684,7 @@ namespace App {
 	void historyClearItems() {
 		historyClearMsgs();
 		randomData.clear();
+		sentTextData.clear();
 		mutedPeers.clear();
 		updatedPeers.clear();
 		cSetSavedPeers(SavedPeers());
@@ -1754,6 +1758,18 @@ namespace App {
 			return i.value();
 		}
 		return 0;
+	}
+
+	void historyRegSentText(uint64 randomId, const QString &text) {
+		sentTextData.insert(randomId, text);
+	}
+
+	void historyUnregSentText(uint64 randomId) {
+		sentTextData.remove(randomId);
+	}
+
+	QString histSentTextByItem(uint64 randomId) {
+		return sentTextData.value(randomId);
 	}
 
 	void prepareCorners(RoundCorners index, int32 radius, const style::color &color, const style::color *shadow = 0, QImage *cors = 0) {

@@ -780,6 +780,8 @@ public:
 	}
 	virtual void setMedia(const MTPmessageMedia &media) {
 	}
+	virtual void setText(const QString &text, const LinksInText &links) {
+	}
 	virtual QString time() const {
 		return QString();
 	}
@@ -1288,7 +1290,6 @@ public:
 	void initMediaFromText(QString &currentText);
 	void initMediaFromDocument(DocumentData *doc);
 	void initDimensions(const HistoryItem *parent = 0);
-	void initDimensions(const QString &text, const LinksInText &links);
 	void fromNameUpdated() const;
 
 	bool justMedia() const {
@@ -1322,9 +1323,11 @@ public:
 	}
 
 	QString selectedText(uint32 selection) const;
+	LinksInText textLinks() const;
 	QString inDialogsText() const;
 	HistoryMedia *getMedia(bool inOverview = false) const;
 	void setMedia(const MTPmessageMedia &media);
+	void setText(const QString &text, const LinksInText &links);
 
 	QString time() const {
 		return _time;
@@ -1559,3 +1562,5 @@ protected:
 	QString text;
 	bool freezed;
 };
+
+const TextParseOptions &itemTextParseOptions(History *h, UserData *f);

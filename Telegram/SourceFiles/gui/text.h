@@ -39,14 +39,57 @@ enum {
 	TextInstagramHashtags = 0x200,
 };
 
-struct LinkRange {
-	LinkRange() : from(0), len(0) {
-	}
-	const QChar *from;
-	int32 len;
+enum LinkInTextType {
+	LinkInTextUrl,
+	LinkInTextCustomUrl,
+	LinkInTextEmail,
+	LinkInTextHashtag,
+	LinkInTextMention,
+	LinkInTextBotCommand,
 };
-typedef QVector<LinkRange> LinkRanges;
-LinkRanges textParseLinks(const QString &text, int32 flags, bool rich = false);
+struct LinkInText {
+	LinkInText(LinkInTextType type, int32 offset, int32 length, const QString &text = QString()) : type(type), offset(offset), length(length), text(text) {
+	}
+	LinkInTextType type;
+	int32 offset, length;
+	QString text;
+};
+typedef QList<LinkInText> LinksInText;
+inline LinksInText linksFromMTP(const QVector<MTPMessageEntity> &entities) {
+	LinksInText result;
+	if (!entities.isEmpty()) {
+		result.reserve(entities.size());
+		for (int32 i = 0, l = entities.size(); i != l; ++i) {
+			const MTPMessageEntity &e(entities.at(i));
+			switch (e.type()) {
+			case mtpc_messageEntityUrl: { const MTPDmessageEntityUrl &d(e.c_messageEntityUrl()); result.push_back(LinkInText(LinkInTextUrl, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityTextUrl: { const MTPDmessageEntityTextUrl &d(e.c_messageEntityTextUrl()); result.push_back(LinkInText(LinkInTextCustomUrl, d.voffset.v, d.vlength.v, textClean(qs(d.vurl)))); } break;
+			case mtpc_messageEntityEmail: { const MTPDmessageEntityEmail &d(e.c_messageEntityEmail()); result.push_back(LinkInText(LinkInTextEmail, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityHashtag: { const MTPDmessageEntityHashtag &d(e.c_messageEntityHashtag()); result.push_back(LinkInText(LinkInTextHashtag, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityMention: { const MTPDmessageEntityMention &d(e.c_messageEntityMention()); result.push_back(LinkInText(LinkInTextMention, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityBotCommand: { const MTPDmessageEntityBotCommand &d(e.c_messageEntityBotCommand()); result.push_back(LinkInText(LinkInTextBotCommand, d.voffset.v, d.vlength.v)); } break;
+			}
+		}
+	}
+	return result;
+}
+inline MTPVector<MTPMessageEntity> linksToMTP(const LinksInText &links) {
+	MTPVector<MTPMessageEntity> result(MTP_vector<MTPMessageEntity>(0));
+	QVector<MTPMessageEntity> &v(result._vector().v);
+	for (int32 i = 0, s = links.size(); i != s; ++i) {
+		const LinkInText &l(links.at(i));
+		switch (l.type) {
+		case LinkInTextUrl: v.push_back(MTP_messageEntityUrl(MTP_int(l.offset), MTP_int(l.length))); break;
+		case LinkInTextCustomUrl: v.push_back(MTP_messageEntityTextUrl(MTP_int(l.offset), MTP_int(l.length), MTP_string(l.text))); break;
+		case LinkInTextEmail: v.push_back(MTP_messageEntityEmail(MTP_int(l.offset), MTP_int(l.length))); break;
+		case LinkInTextHashtag: v.push_back(MTP_messageEntityHashtag(MTP_int(l.offset), MTP_int(l.length))); break;
+		case LinkInTextMention: v.push_back(MTP_messageEntityMention(MTP_int(l.offset), MTP_int(l.length))); break;
+		case LinkInTextBotCommand: v.push_back(MTP_messageEntityBotCommand(MTP_int(l.offset), MTP_int(l.length))); break;
+		}
+	}
+	return result;
+}
+LinksInText textParseLinks(const QString &text, int32 flags, bool rich = false);
 
 #include "gui/emoji_config.h"
 
@@ -464,23 +507,6 @@ enum TextSelectType {
 typedef QPair<QString, QString> TextCustomTag; // open str and close str
 typedef QMap<QChar, TextCustomTag> TextCustomTagsMap;
 
-enum LinkInTextType {
-	LinkInTextUrl,
-	LinkInTextCustomUrl,
-	LinkInTextEmail,
-	LinkInTextHashtag,
-	LinkInTextMention,
-	LinkInTextBotCommand,
-};
-struct LinkInText {
-	LinkInText(LinkInTextType type, int32 offset, int32 length, const QString &text = QString()) : type(type), offset(offset), length(length), text(text) {
-	}
-	LinkInTextType type;
-	int32 offset, length;
-	QString text;
-};
-typedef QList<LinkInText> LinksInText;
-
 class Text {
 public:
 
@@ -492,7 +518,7 @@ public:
 	int32 countHeight(int32 width) const;
 	void setText(style::font font, const QString &text, const TextParseOptions &options = _defaultOptions);
 	void setRichText(style::font font, const QString &text, TextParseOptions options = _defaultOptions, const TextCustomTagsMap &custom = TextCustomTagsMap());
-	void setMarkedText(style::font font, const QString &text, const LinksInText &links);
+	void setMarkedText(style::font font, const QString &text, const LinksInText &links, const TextParseOptions &options = _defaultOptions);
 
 	void setLink(uint16 lnkIndex, const TextLinkPtr &lnk);
 	bool hasLinks() const;
@@ -500,7 +526,7 @@ public:
 	bool hasSkipBlock() const {
 		return _blocks.isEmpty() ? false : _blocks.back()->type() == TextBlockSkip;
 	}
-	void setSkipBlock(int32 width);
+	void setSkipBlock(int32 width, int32 height);
 	void removeSkipBlock();
 	LinksInText calcLinksInText() const;
 
