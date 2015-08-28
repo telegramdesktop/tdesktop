@@ -20,6 +20,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "lang.h"
 
+#include "pspecific.h"
+
 #include <private/qharfbuzz_p.h>
 
 namespace {
@@ -784,6 +786,15 @@ void TextLink::onClick(Qt::MouseButton button) const {
 			App::openLocalUrl(url);
 		} else {
 			QDesktopServices::openUrl(url);
+		}
+	}
+}
+
+void EmailLink::onClick(Qt::MouseButton button) const {
+	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
+		QUrl url(qstr("mailto:") + _email);
+		if (!QDesktopServices::openUrl(url)) {
+			psOpenFile(url.toString(QUrl::FullyEncoded), true);
 		}
 	}
 }

@@ -125,6 +125,7 @@ public slots:
 	void onScaleChange();
 
 	void onSoundNotify();
+	void onIncludeMuted();
 	void onDesktopNotify();
 	void onSenderName();
 	void onMessagePreview();
@@ -206,7 +207,7 @@ private:
 	LinkButton _chooseUsername;
 
 	// notifications
-	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _windowsNotifications, _soundNotify;
+	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _windowsNotifications, _soundNotify, _includeMuted;
 
 	// general
 	LinkButton _changeLanguage;

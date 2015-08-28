@@ -174,7 +174,7 @@ void _placeCounter(QImage &img, int size, int count, style::color bg, style::col
 }
 
 void PsMainWindow::psUpdateCounter() {
-	int32 counter = App::histories().unreadFull;
+	int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted);
 
     setWindowTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
 	setWindowIcon(wndIcon);
@@ -183,14 +183,16 @@ void PsMainWindow::psUpdateCounter() {
     _private.setWindowBadge(counter ? cnt : QString());
 
 	if (trayIcon) {
-		bool dm = objc_darkMode(), important = (App::histories().unreadMuted < counter);
-		style::color bg = important ? st::counterBG : st::counterMuteBG;
+		bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
+		bool dm = objc_darkMode();
+
+		style::color bg = muted ? st::counterMuteBG : st::counterBG;
 		QIcon icon;
 		QImage img(psTrayIcon(dm)), imgsel(psTrayIcon(true));
 		img.detach();
 		imgsel.detach();
 		int32 size = cRetina() ? 44 : 22;
-		_placeCounter(img, size, counter, bg, (dm && !important) ? st::counterMacInvColor : st::counterColor);
+		_placeCounter(img, size, counter, bg, (dm && muted) ? st::counterMacInvColor : st::counterColor);
 		_placeCounter(imgsel, size, counter, st::white, st::counterMacInvColor);
 		icon.addPixmap(QPixmap::fromImage(img, Qt::ColorOnly));
 		icon.addPixmap(QPixmap::fromImage(imgsel, Qt::ColorOnly), QIcon::Selected);

@@ -1183,6 +1183,7 @@ void MainWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 					case OverviewVideos: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaVideos, lang(lng_media_type_videos))), SIGNAL(clicked()), this, SLOT(onVideosSelect())); break;
 					case OverviewDocuments: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaDocuments, lang(lng_media_type_files))), SIGNAL(clicked()), this, SLOT(onDocumentsSelect())); break;
 					case OverviewAudios: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaAudios, lang(lng_media_type_audios))), SIGNAL(clicked()), this, SLOT(onAudiosSelect())); break;
+					case OverviewLinks: connect(_mediaType.addButton(new IconedButton(this, st::dropdownMediaLinks, lang(lng_media_type_links))), SIGNAL(clicked()), this, SLOT(onLinksSelect())); break;
 					}
 				}
 			}
@@ -1202,6 +1203,9 @@ void MainWidget::itemRemoved(HistoryItem *item) {
 	dialogs.itemRemoved(item);
 	if (history.peer() == item->history()->peer) {
 		history.itemRemoved(item);
+	}
+	if (overview && overview->peer() == item->history()->peer) {
+		overview->itemRemoved(item);
 	}
 	itemRemovedGif(item);
 	if (!_toForward.isEmpty()) {
@@ -2240,9 +2244,13 @@ void MainWidget::sentDataReceived(uint64 randomId, const MTPmessages_SentMessage
 			if (!text.isEmpty() && !links.isEmpty()) {
 				item = App::histItemById(d.vid.v);
 				if (item) {
+					bool was = item->hasTextLinks();
 					item->setText(text, links);
 					item->initDimensions(0);
 					itemResized(item);
+					if (!was && item->hasTextLinks()) {
+						item->history()->addToOverview(item, OverviewLinks);
+					}
 				}
 			}
 		}
@@ -2273,9 +2281,13 @@ void MainWidget::sentDataReceived(uint64 randomId, const MTPmessages_SentMessage
 			//if (!text.isEmpty() && !links.isEmpty()) {
 			//	item = App::histItemById(d.vid.v);
 			//	if (item) {
+			//		bool was = item->hasTextLinks();
 			//		item->setText(text, links);
 			//		item->initDimensions(0);
 			//		itemResized(item);
+			//		if (!was && item->hasTextLinks()) {
+			//			item->history()->addToOverview(item, OverviewLinks);
+			//		}
 			//	}
 			//}
 		}
@@ -2541,6 +2553,11 @@ void MainWidget::onDocumentsSelect() {
 
 void MainWidget::onAudiosSelect() {
 	if (overview) overview->switchType(OverviewAudios);
+	_mediaType.hideStart();
+}
+
+void MainWidget::onLinksSelect() {
+	if (overview) overview->switchType(OverviewLinks);
 	_mediaType.hideStart();
 }
 
@@ -3389,7 +3406,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 			return;
 		}
 		bool out = (d.vflags.v & MTPDmessage_flag_out);
-		HistoryItem *item = App::histories().addToBack(MTP_message(d.vflags, d.vid, out ? MTP_int(MTP::authedId()) : d.vuser_id, MTP_peerUser(out ? d.vuser_id : MTP_int(MTP::authedId())), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, MTPnullEntities));
+		HistoryItem *item = App::histories().addToBack(MTP_message(d.vflags, d.vid, out ? MTP_int(MTP::authedId()) : d.vuser_id, MTP_peerUser(out ? d.vuser_id : MTP_int(MTP::authedId())), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities));
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
 		}
@@ -3409,7 +3426,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 			_byPtsUpdates.insert(ptsKey(SkippedUpdates), updates);
 			return;
 		}
-		HistoryItem *item = App::histories().addToBack(MTP_message(d.vflags, d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, MTPnullEntities));
+		HistoryItem *item = App::histories().addToBack(MTP_message(d.vflags, d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities));
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
 		}

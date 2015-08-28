@@ -1843,6 +1843,12 @@ namespace App {
 		prepareCorners(BotKeyboardCorners, st::msgRadius, st::botKbBg);
 		prepareCorners(BotKeyboardOverCorners, st::msgRadius, st::botKbOverBg);
 		prepareCorners(BotKeyboardDownCorners, st::msgRadius, st::botKbDownBg);
+		prepareCorners(PhotoSelectOverlayCorners, st::msgRadius, st::overviewPhotoSelectOverlay);
+
+		prepareCorners(DocRedCorners, st::msgRadius, st::mvDocRedColor);
+		prepareCorners(DocYellowCorners, st::msgRadius, st::mvDocYellowColor);
+		prepareCorners(DocGreenCorners, st::msgRadius, st::mvDocGreenColor);
+		prepareCorners(DocBlueCorners, st::msgRadius, st::mvDocBlueColor);
 
 		prepareCorners(MessageInCorners, st::msgRadius, st::msgInBg, &st::msgInShadow);
 		prepareCorners(MessageInSelectedCorners, st::msgRadius, st::msgInSelectBg, &st::msgInSelectShadow);

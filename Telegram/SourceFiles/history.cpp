@@ -644,11 +644,23 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 		}
 
 		const MTPMessageMedia *media = 0;
+		const QVector<MTPMessageEntity> *entities = 0;
 		switch (msg.type()) {
-		case mtpc_message: media = &msg.c_message().vmedia; break;
+		case mtpc_message:
+			media = &msg.c_message().vmedia;
+			entities = msg.c_message().has_entities() ? (&msg.c_message().ventities.c_vector().v) : 0;
+		break;
 		}
 		if (media) {
 			existing->updateMedia(*media);
+		}
+		if (entities && !existing->hasTextLinks()) { // index forwarded messages to links overview
+			existing->setText(qs(msg.c_message().vmessage), linksFromMTP(*entities));
+			existing->initDimensions(0);
+			if (App::main()) App::main()->itemResized(existing);
+			if (existing->hasTextLinks()) {
+				existing->history()->addToOverview(existing, OverviewLinks);
+			}
 		}
 		return (returnExisting || regged) ? existing : 0;
 	}
@@ -888,6 +900,24 @@ void History::createInitialDateBlock(const QDateTime &date) {
 	push_front(dateBlock); // date block
 }
 
+void History::addToOverview(HistoryItem *item, MediaOverviewType type) {
+	if (_overviewIds[type].constFind(item->id) == _overviewIds[type].cend()) {
+		_overview[type].push_back(item->id);
+		_overviewIds[type].insert(item->id, NullType());
+		if (_overviewCount[type] > 0) ++_overviewCount[type];
+		if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer, type);
+	}
+}
+
+bool History::addToOverviewFront(HistoryItem *item, MediaOverviewType type) {
+	if (_overviewIds[type].constFind(item->id) == _overviewIds[type].cend()) {
+		_overview[type].push_front(item->id);
+		_overviewIds[type].insert(item->id, NullType());
+		return true;
+	}
+	return false;
+}
+
 HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *adding, bool newMsg) {
 	if (!adding) {
 		if (newBlock) delete to;
@@ -928,31 +958,14 @@ HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *
 		HistoryMediaType mt = media->type();
 		MediaOverviewType t = mediaToOverviewType(mt);
 		if (t != OverviewCount) {
-			if (_overviewIds[t].constFind(adding->id) == _overviewIds[t].cend()) {
-				_overview[t].push_back(adding->id);
-				_overviewIds[t].insert(adding->id, NullType());
-				if (_overviewCount[t] > 0) ++_overviewCount[t];
-				if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer, t);
-			}
+			addToOverview(adding, t);
 			if (mt == MediaTypeDocument && static_cast<HistoryDocument*>(media)->document()->song()) {
-				t = OverviewAudioDocuments;
-				if (_overviewIds[t].constFind(adding->id) == _overviewIds[t].cend()) {
-					_overview[t].push_back(adding->id);
-					_overviewIds[t].insert(adding->id, NullType());
-					if (_overviewCount[t] > 0) ++_overviewCount[t];
-					if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer, t);
-				}
+				addToOverview(adding, OverviewAudioDocuments);
 			}
 		}
 	}
 	if (adding->hasTextLinks()) {
-		MediaOverviewType t = OverviewLinks;
-		if (_overviewIds[t].constFind(adding->id) == _overviewIds[t].cend()) {
-			_overview[t].push_back(adding->id);
-			_overviewIds[t].insert(adding->id, NullType());
-			if (_overviewCount[t] > 0) ++_overviewCount[t];
-			if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer, t);
-		}
+		addToOverview(adding, OverviewLinks);
 	}
 	if (adding->from()->id) {
 		if (peer->chat) {
@@ -1102,28 +1115,14 @@ void History::addToFront(const QVector<MTPMessage> &slice) {
 					HistoryMediaType mt = media->type();
 					MediaOverviewType t = mediaToOverviewType(mt);
 					if (t != OverviewCount) {
-						if (_overviewIds[t].constFind(item->id) == _overviewIds[t].cend()) {
-							_overview[t].push_front(item->id);
-							_overviewIds[t].insert(item->id, NullType());
-							mask |= (1 << t);
-						}
+						if (addToOverviewFront(item, t)) mask |= (1 << t);
 						if (mt == MediaTypeDocument && static_cast<HistoryDocument*>(media)->document()->song()) {
-							t = OverviewAudioDocuments;
-							if (_overviewIds[t].constFind(item->id) == _overviewIds[t].cend()) {
-								_overview[t].push_front(item->id);
-								_overviewIds[t].insert(item->id, NullType());
-								mask |= (1 << t);
-							}
+							if (addToOverviewFront(item, OverviewAudioDocuments)) mask |= (1 << OverviewAudioDocuments);
 						}
 					}
 				}
 				if (item->hasTextLinks()) {
-					MediaOverviewType t = OverviewLinks;
-					if (_overviewIds[t].constFind(item->id) == _overviewIds[t].cend()) {
-						_overview[t].push_front(item->id);
-						_overviewIds[t].insert(item->id, NullType());
-						mask |= (1 << t);
-					}
+					if (addToOverviewFront(item, OverviewLinks)) mask |= (1 << OverviewLinks);
 				}
 				if (item->from()->id) {
 					if (lastAuthors) { // chats
@@ -1348,7 +1347,7 @@ void History::setUnreadCount(int32 newUnreadCount, bool psUpdate) {
 		App::histories().unreadFull += newUnreadCount - unreadCount;
 		if (mute) App::histories().unreadMuted += newUnreadCount - unreadCount;
 		unreadCount = newUnreadCount;
-		if (psUpdate) App::wnd()->updateCounter();
+		if (psUpdate && (!mute || cIncludeMuted())) App::wnd()->updateCounter();
 		if (unreadBar) unreadBar->setCount(unreadCount);
 	}
 }
@@ -5271,6 +5270,12 @@ void HistoryMessage::setText(const QString &text, const LinksInText &links) {
 		_textWidth = 0;
 		_textHeight = 0;
 	}
+}
+
+void HistoryMessage::getTextWithLinks(QString &text, LinksInText &links) {
+	if (_text.isEmpty()) return;
+	links = _text.calcLinksInText();
+	text = _text.original();
 }
 
 void HistoryMessage::draw(QPainter &p, uint32 selection) const {

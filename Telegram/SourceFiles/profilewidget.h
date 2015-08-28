@@ -92,6 +92,7 @@ public slots:
 	void onMediaVideos();
 	void onMediaDocuments();
 	void onMediaAudios();
+	void onMediaLinks();
 
 	void onMenuDestroy(QObject *obj);
 	void onCopyPhone();
@@ -149,8 +150,8 @@ private:
 
 	// shared media
 	bool _allMediaTypes;
-	LinkButton _mediaShowAll, _mediaPhotos, _mediaVideos, _mediaDocuments, _mediaAudios;
-	LinkButton *_mediaLinks[OverviewCount];
+	LinkButton _mediaShowAll;
+	LinkButton *_mediaButtons[OverviewCount];
 	QString overviewLinkText(int32 type, int32 count);
 
 	// actions

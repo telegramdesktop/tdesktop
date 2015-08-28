@@ -185,6 +185,8 @@ struct History : public QList<HistoryBlock*> {
 	void addToBack(const QVector<MTPMessage> &slice);
 	void createInitialDateBlock(const QDateTime &date);
 	HistoryItem *doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *adding, bool newMsg);
+	void addToOverview(HistoryItem *item, MediaOverviewType type);
+	bool addToOverviewFront(HistoryItem *item, MediaOverviewType type);
 
 	void newItemAdded(HistoryItem *item);
 	void unregTyping(UserData *from);
@@ -782,6 +784,8 @@ public:
 	}
 	virtual void setText(const QString &text, const LinksInText &links) {
 	}
+	virtual void getTextWithLinks(QString &text, LinksInText &links) {
+	}
 	virtual QString time() const {
 		return QString();
 	}
@@ -1181,6 +1185,10 @@ public:
 	}
 	ImagePtr replyPreview();
 
+	WebPageData *webpage() {
+		return data;
+	}
+
 private:
 	WebPageData *data;
 	TextLinkPtr _openl, _photol;
@@ -1328,6 +1336,7 @@ public:
 	HistoryMedia *getMedia(bool inOverview = false) const;
 	void setMedia(const MTPmessageMedia &media);
 	void setText(const QString &text, const LinksInText &links);
+	void getTextWithLinks(QString &text, LinksInText &links);
 
 	QString time() const {
 		return _time;

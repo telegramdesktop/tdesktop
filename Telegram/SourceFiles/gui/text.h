@@ -369,11 +369,7 @@ public:
 		return _email;
 	}
 
-	void onClick(Qt::MouseButton button) const {
-		if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-			QDesktopServices::openUrl(qsl("mailto:") + _email);
-		}
-	}
+	void onClick(Qt::MouseButton button) const;
 
 	const QString &readable() const {
 		return _email;

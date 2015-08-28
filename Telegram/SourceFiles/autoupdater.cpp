@@ -16,12 +16,12 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-
 #include "stdafx.h"
 #include "application.h"
 #include "pspecific.h"
 #include "autoupdater.h"
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 
 #ifdef Q_OS_WIN
 typedef DWORD VerInt;

@@ -124,6 +124,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	_messagePreview(this, lang(lng_settings_show_preview), cNotifyView() <= dbinvShowPreview),
 	_windowsNotifications(this, lang(lng_settings_use_windows), cWindowsNotifications()),
 	_soundNotify(this, lang(lng_settings_sound_notify), cSoundNotify()),
+	_includeMuted(this, lang(lng_settings_include_muted), cIncludeMuted()),
 
 	// general
 	_changeLanguage(this, lang(lng_settings_change_lang)),
@@ -225,6 +226,7 @@ SettingsInner::SettingsInner(SettingsWidget *parent) : QWidget(parent),
 	connect(&_messagePreview, SIGNAL(changed()), this, SLOT(onMessagePreview()));
 	connect(&_windowsNotifications, SIGNAL(changed()), this, SLOT(onWindowsNotifications()));
 	connect(&_soundNotify, SIGNAL(changed()), this, SLOT(onSoundNotify()));
+	connect(&_includeMuted, SIGNAL(changed()), this, SLOT(onIncludeMuted()));
 
 	// general
 	connect(&_changeLanguage, SIGNAL(clicked()), this, SLOT(onChangeLanguage()));
@@ -431,7 +433,8 @@ void SettingsInner::paintEvent(QPaintEvent *e) {
 		if (App::wnd()->psHasNativeNotifications() && cPlatform() == dbipWindows) {
 			top += _windowsNotifications.height() + st::setSectionSkip;
 		}
-		top += _soundNotify.height();
+		top += _soundNotify.height() + st::setSectionSkip;
+		top += _includeMuted.height();
 	}
 
 	// general
@@ -662,7 +665,8 @@ void SettingsInner::resizeEvent(QResizeEvent *e) {
 		if (App::wnd()->psHasNativeNotifications() && cPlatform() == dbipWindows) {
 			_windowsNotifications.move(_left, top); top += _windowsNotifications.height() + st::setSectionSkip;
 		}
-		_soundNotify.move(_left, top); top += _soundNotify.height();
+		_soundNotify.move(_left, top); top += _soundNotify.height() + st::setSectionSkip;
+		_includeMuted.move(_left, top); top += _includeMuted.height();
 	}
 
 	// general
@@ -976,12 +980,14 @@ void SettingsInner::showAll() {
 			_windowsNotifications.hide();
 		}
 		_soundNotify.show();
+		_includeMuted.show();
 	} else {
 		_desktopNotify.hide();
 		_senderName.hide();
 		_messagePreview.hide();
 		_windowsNotifications.hide();
 		_soundNotify.hide();
+		_includeMuted.hide();
 	}
 
 	// general
@@ -1440,6 +1446,12 @@ void SettingsInner::setScale(DBIScale newScale) {
 
 void SettingsInner::onSoundNotify() {
 	cSetSoundNotify(_soundNotify.checked());
+	Local::writeUserSettings();
+}
+
+void SettingsInner::onIncludeMuted() {
+	cSetIncludeMuted(_includeMuted.checked());
+	if (App::wnd()) App::wnd()->updateCounter();
 	Local::writeUserSettings();
 }
 

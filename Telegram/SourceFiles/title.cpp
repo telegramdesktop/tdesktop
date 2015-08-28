@@ -258,8 +258,10 @@ void TitleWidget::updateWideMode() {
 void TitleWidget::updateCounter() {
 	if (cWideMode() || !MTP::authedId()) return;
 
-	int32 counter = App::histories().unreadFull;
-	style::color bg = (App::histories().unreadMuted < counter) ? st::counterBG : st::counterMuteBG;
+	int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted);
+	bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
+
+	style::color bg = muted ? st::counterMuteBG : st::counterBG;
 	
 	if (counter > 0) {
 		int32 size = cRetina() ? -32 : -16;
