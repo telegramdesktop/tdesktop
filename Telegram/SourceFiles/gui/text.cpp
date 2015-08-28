@@ -554,15 +554,16 @@ public:
 		start = src.constData();
 		end = start + src.size();
 
-		while (start != end && chIsTrimmed(*start, rich)) {
-			++start;
+		ptr = start;
+		while (ptr != end && chIsTrimmed(*ptr, rich)) {
+			++ptr;
 		}
-		while (start != end && chIsTrimmed(*(end - 1), rich)) {
+		while (ptr != end && chIsTrimmed(*(end - 1), rich)) {
 			--end;
 		}
 
 		_t->_text.resize(0);
-		_t->_text.reserve(end - start);
+		_t->_text.reserve(end - ptr);
 
 		diacs = 0;
 		sumWidth = 0;
@@ -575,7 +576,7 @@ public:
 		lastSpace = true;
 		waitingLink = lnkRanges.cbegin();
 		linksEnd = lnkRanges.cend();
-		for (ptr = start; ptr <= end; ++ptr) {
+		for (; ptr <= end; ++ptr) {
 			if (!checkWaitedLink()) {
 				break;
 			}

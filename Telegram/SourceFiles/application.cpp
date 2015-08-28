@@ -674,7 +674,7 @@ void Application::checkMapVersion() {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
 			if (cDevVersion() && Local::oldMapVersion() < 8053) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Include muted chats in the unread badge setting\n\xe2\x80\x94 Shared links overview and search in shared media");// .replace('@', qsl("@") + QChar(0x200D));
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Include muted chats in unread count in Settings\n\xe2\x80\x94 Shared links overview and search in shared media");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (!cDevVersion() && Local::oldMapVersion() < 8052) {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}

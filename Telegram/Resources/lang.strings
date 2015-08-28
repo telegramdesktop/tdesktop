@@ -188,7 +188,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_show_preview" = "Show message preview";
 "lng_settings_use_windows" = "Use Windows notifications";
 "lng_settings_sound_notify" = "Play sound";
-"lng_settings_include_muted" = "Include muted chats in the unread badge";
+"lng_settings_include_muted" = "Include muted chats in unread count";
 
 "lng_notification_preview" = "You have a new message";
 
