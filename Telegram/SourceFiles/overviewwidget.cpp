@@ -68,7 +68,7 @@ OverviewInner::CachedLink::CachedLink(HistoryItem *item) : text(st::msgMinWidth)
 		till = msgText.size();
 	}
 	if (till > from) {
-		TextParseOptions opts = { TextParseMultiline, st::linksMaxWidth, 3 * st::msgFont->height, Qt::LayoutDirectionAuto };
+		TextParseOptions opts = { TextParseMultiline, int32(st::linksMaxWidth), 3 * st::msgFont->height, Qt::LayoutDirectionAuto };
 		text.setText(st::msgFont, msgText.mid(from, till - from), opts);
 	}
 	if (page && page->photo) {
