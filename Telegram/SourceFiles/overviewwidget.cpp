@@ -93,9 +93,9 @@ OverviewInner::CachedLink::CachedLink(HistoryItem *item) : text(st::msgMinWidth)
 	if (page) {
 		title = page->title;
 	}
-	QVector<QStringRef> parts = (page ? page->url : (urls.isEmpty() ? QString() : urls.at(0).url)).splitRef('/');
+	QStringList parts = (page ? page->url : (urls.isEmpty() ? QString() : urls.at(0).url)).split('/');
 	if (!parts.isEmpty()) {
-		QStringRef domain = parts.at(0);
+		QString domain = parts.at(0);
 		if (parts.size() > 2 && domain.endsWith(':') && parts.at(1).isEmpty()) { // http:// and others
 			domain = parts.at(2);
 		}
