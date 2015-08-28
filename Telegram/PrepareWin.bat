@@ -1,11 +1,11 @@
 @echo OFF
 
 set "AppVersionStrMajor=0.8"
-set "AppVersion=8052"
-set "AppVersionStrSmall=0.8.52"
-set "AppVersionStr=0.8.52"
-set "AppVersionStrFull=0.8.52.0"
-set "DevChannel=0"
+set "AppVersion=8053"
+set "AppVersionStrSmall=0.8.53"
+set "AppVersionStr=0.8.53"
+set "AppVersionStrFull=0.8.53.0"
+set "DevChannel=1"
 
 if %DevChannel% neq 0 goto preparedev
 

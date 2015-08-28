@@ -1700,7 +1700,6 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 	return false;
 }
 
-
 void DialogsWidget::onNeedSearchMessages() {
 	if (!onSearchMessages(true)) {
 		_searchTimer.start(AutoSearchTimeout);

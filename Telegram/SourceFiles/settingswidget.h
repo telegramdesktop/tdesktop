@@ -97,8 +97,10 @@ public slots:
 	void onUpdatePhoto();
 	void onUpdatePhotoCancel();
 
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void onAutoUpdate();
 	void onCheckNow();
+	#endif
 	void onRestartNow();
 
 	void onPasscode();
@@ -123,6 +125,7 @@ public slots:
 	void onScaleChange();
 
 	void onSoundNotify();
+	void onIncludeMuted();
 	void onDesktopNotify();
 	void onSenderName();
 	void onMessagePreview();
@@ -149,11 +152,13 @@ public slots:
 
 	void onLocalStorageClear();
 
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void onUpdateChecking();
 	void onUpdateLatest();
 	void onUpdateDownloading(qint64 ready, qint64 total);
 	void onUpdateReady();
 	void onUpdateFailed();
+	#endif
 
 	void onShowSessions();
 
@@ -202,12 +207,14 @@ private:
 	LinkButton _chooseUsername;
 
 	// notifications
-	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _windowsNotifications, _soundNotify;
+	FlatCheckbox _desktopNotify, _senderName, _messagePreview, _windowsNotifications, _soundNotify, _includeMuted;
 
 	// general
 	LinkButton _changeLanguage;
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	FlatCheckbox _autoUpdate;
 	LinkButton _checkNow, _restartNow;
+	#endif
     bool _supportTray; // cSupportTray() value on settings create
 	FlatCheckbox _workmodeTray, _workmodeWindow;
 	FlatCheckbox _autoStart, _startMinimized, _sendToMenu;
@@ -280,8 +287,10 @@ private:
 	void offPasswordDone(const MTPBool &result);
 	bool offPasswordFail(const RPCError &error);
 
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void setUpdatingState(UpdatingState state, bool force = false);
 	void setDownloadProgress(qint64 ready, qint64 total);
+	#endif
 
 
 };

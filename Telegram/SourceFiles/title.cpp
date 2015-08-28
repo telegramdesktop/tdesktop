@@ -80,7 +80,9 @@ TitleWidget::TitleWidget(Window *window)
 	connect(&_contacts, SIGNAL(clicked()), this, SLOT(onContacts()));
 	connect(&_about, SIGNAL(clicked()), this, SLOT(onAbout()));
 	connect(wnd->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(stateChanged(Qt::WindowState)));
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	connect(App::app(), SIGNAL(updateReady()), this, SLOT(showUpdateBtn()));
+	#endif
 	
     if (cPlatform() != dbipWindows) {
         _minimize.hide();
@@ -256,8 +258,10 @@ void TitleWidget::updateWideMode() {
 void TitleWidget::updateCounter() {
 	if (cWideMode() || !MTP::authedId()) return;
 
-	int32 counter = App::histories().unreadFull;
-	style::color bg = (App::histories().unreadMuted < counter) ? st::counterBG : st::counterMuteBG;
+	int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted);
+	bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
+
+	style::color bg = muted ? st::counterMuteBG : st::counterBG;
 	
 	if (counter > 0) {
 		int32 size = cRetina() ? -32 : -16;

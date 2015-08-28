@@ -58,6 +58,12 @@ enum RoundCorners {
 	BotKeyboardCorners,
 	BotKeyboardOverCorners,
 	BotKeyboardDownCorners,
+	PhotoSelectOverlayCorners,
+	
+	DocRedCorners,
+	DocYellowCorners,
+	DocGreenCorners,
+	DocBlueCorners,
 
 	InShadowCorners, // for photos without bg
 	InSelectedShadowCorners,
@@ -188,6 +194,9 @@ namespace App {
 	void historyRegRandom(uint64 randomId, MsgId itemId);
 	void historyUnregRandom(uint64 randomId);
 	MsgId histItemByRandom(uint64 randomId);
+	void historyRegSentText(uint64 itemId, const QString &text);
+	void historyUnregSentText(uint64 itemId);
+	QString histSentTextByItem(uint64 itemId);
 
 	void hoveredItem(HistoryItem *item);
 	HistoryItem *hoveredItem();

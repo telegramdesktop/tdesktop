@@ -95,7 +95,10 @@ namespace {
 
 Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
     serverName(psServerPrefix() + cGUIDStr()), closing(false),
-	updateRequestId(0), updateReply(0), updateThread(0), updateDownloader(0), _translator(0) {
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	updateRequestId(0), updateReply(0), updateThread(0), updateDownloader(0),
+	#endif
+	_translator(0) {
 
 	DEBUG_LOG(("Application Info: creation.."));
 
@@ -178,9 +181,11 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	connect(&socket, SIGNAL(readyRead()), this, SLOT(socketReading()));
 	connect(&server, SIGNAL(newConnection()), this, SLOT(newInstanceConnected()));
 	connect(this, SIGNAL(aboutToQuit()), this, SLOT(closeApplication()));
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	connect(&updateCheckTimer, SIGNAL(timeout()), this, SLOT(startUpdateCheck()));
 	connect(this, SIGNAL(updateFailed()), this, SLOT(onUpdateFailed()));
 	connect(this, SIGNAL(updateReady()), this, SLOT(onUpdateReady()));
+	#endif
 	connect(this, SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
 	//connect(&writeUserConfigTimer, SIGNAL(timeout()), this, SLOT(onWriteUserConfig()));
 	//writeUserConfigTimer.setSingleShot(true);
@@ -195,6 +200,7 @@ Application::Application(int &argc, char **argv) : PsApplication(argc, argv),
 	}
 }
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 void Application::updateGotCurrent() {
 	if (!updateReply || updateThread) return;
 
@@ -258,6 +264,7 @@ void Application::onUpdateFailed() {
 	cSetLastUpdateCheck(unixtime());
 	Local::writeSettings();
 }
+#endif
 
 void Application::regPhotoUpdate(const PeerId &peer, MsgId msgId) {
 	photoUpdates.insert(msgId, peer);
@@ -431,11 +438,16 @@ void Application::onSwitchTestMode() {
 }
 
 Application::UpdatingState Application::updatingState() {
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (!updateThread) return Application::UpdatingNone;
 	if (!updateDownloader) return Application::UpdatingReady;
 	return Application::UpdatingDownload;
+	#else
+	return Application::UpdatingNone;
+	#endif
 }
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 int32 Application::updatingSize() {
 	if (!updateDownloader) return 0;
 	return updateDownloader->size();
@@ -445,6 +457,7 @@ int32 Application::updatingReady() {
 	if (!updateDownloader) return 0;
 	return updateDownloader->ready();
 }
+#endif
 
 FileUploader *Application::uploader() {
 	if (!::uploader) ::uploader = new FileUploader();
@@ -488,6 +501,7 @@ void Application::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId)
 	App::uploader()->uploadMedia(newId, ready);
 }
 
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 void Application::stopUpdate() {
 	if (updateReply) {
 		updateReply->abort();
@@ -541,6 +555,7 @@ void Application::startUpdateCheck(bool forceWait) {
 		updateCheckTimer.start((updateInSecs + 5) * 1000);
 	}
 }
+#endif
 
 namespace {
 	QChar _toHex(ushort v) {
@@ -643,11 +658,13 @@ void Application::socketError(QLocalSocket::LocalSocketError e) {
 		return App::quit();
 	}
 
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (!cNoStartUpdate() && checkReadyUpdate()) {
 		cSetRestartingUpdate(true);
 		DEBUG_LOG(("Application Info: installing update instead of starting app.."));
 		return App::quit();
 	}
+	#endif
 
 	startApp();
 }
@@ -656,8 +673,8 @@ void Application::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 8050) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Bug fixes in Windows notifications\n\xe2\x80\x94 Fixed input methods on Linux (Fcitx and IBus)");// .replace('@', qsl("@") + QChar(0x200D));
+			if (cDevVersion() && Local::oldMapVersion() < 8053) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Include muted chats in the unread badge setting\n\xe2\x80\x94 Shared links overview and search in shared media");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (!cDevVersion() && Local::oldMapVersion() < 8052) {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
@@ -833,13 +850,15 @@ Application::~Application() {
 	App::deinitMedia();
 	deinitImageLinkManager();
 	mainApp = 0;
-	delete updateReply;
 	delete ::uploader;
+	#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	delete updateReply;
 	updateReply = 0;
 	if (updateDownloader) updateDownloader->deleteLater();
 	updateDownloader = 0;
 	if (updateThread) updateThread->quit();
 	updateThread = 0;
+	#endif
 
 	delete window;
 

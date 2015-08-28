@@ -188,6 +188,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_show_preview" = "Show message preview";
 "lng_settings_use_windows" = "Use Windows notifications";
 "lng_settings_sound_notify" = "Play sound";
+"lng_settings_include_muted" = "Include muted chats in the unread badge";
 
 "lng_notification_preview" = "You have a new message";
 
@@ -386,6 +387,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_files_header" = "Files overview";
 "lng_profile_audios" = "{count:_not_used_|# voice message|# voice messages} »";
 "lng_profile_audios_header" = "Voice messages overview";
+"lng_profile_shared_links" = "{count:_not_used_|# shared link|# shared links} »";
+"lng_profile_shared_links_header" = "Shared links overview";
 "lng_profile_audio_files_header" = "Playlist";
 "lng_profile_show_all_types" = "Show all types";
 "lng_profile_copy_phone" = "Copy phone number";
@@ -443,6 +446,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_type_videos" = "Video files";
 "lng_media_type_files" = "Files";
 "lng_media_type_audios" = "Voice messages";
+"lng_media_type_links" = "Shared links";
 
 "lng_media_open_with" = "Open With";
 "lng_media_download" = "Download";

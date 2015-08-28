@@ -110,13 +110,15 @@ namespace {
 		return item ? item->toHistoryForwarded() : 0;
 	}
 	inline const TextParseOptions &itemTextParseOptions(HistoryItem *item) {
-		History *h = item->history();
-		UserData *f = item->from();
-		if ((!h->peer->chat && h->peer->asUser()->botInfo) || (!f->chat && f->asUser()->botInfo) || (h->peer->chat && h->peer->asChat()->botStatus >= 0)) {
-			return _historyBotOptions;
-		}
-		return _historyTextOptions;
+		return itemTextParseOptions(item->history(), item->from());
 	}
+}
+
+const TextParseOptions &itemTextParseOptions(History *h, UserData *f) {
+	if ((!h->peer->chat && h->peer->asUser()->botInfo) || (!f->chat && f->asUser()->botInfo) || (h->peer->chat && h->peer->asChat()->botStatus >= 0)) {
+		return _historyBotOptions;
+	}
+	return _historyTextOptions;
 }
 
 void historyInit() {
@@ -642,11 +644,23 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 		}
 
 		const MTPMessageMedia *media = 0;
+		const QVector<MTPMessageEntity> *entities = 0;
 		switch (msg.type()) {
-		case mtpc_message: media = &msg.c_message().vmedia; break;
+		case mtpc_message:
+			media = &msg.c_message().vmedia;
+			entities = msg.c_message().has_entities() ? (&msg.c_message().ventities.c_vector().v) : 0;
+		break;
 		}
 		if (media) {
 			existing->updateMedia(*media);
+		}
+		if (entities && !existing->hasTextLinks()) { // index forwarded messages to links overview
+			existing->setText(qs(msg.c_message().vmessage), linksFromMTP(*entities));
+			existing->initDimensions(0);
+			if (App::main()) App::main()->itemResized(existing);
+			if (existing->hasTextLinks()) {
+				existing->history()->addToOverview(existing, OverviewLinks);
+			}
 		}
 		return (returnExisting || regged) ? existing : 0;
 	}
@@ -886,6 +900,24 @@ void History::createInitialDateBlock(const QDateTime &date) {
 	push_front(dateBlock); // date block
 }
 
+void History::addToOverview(HistoryItem *item, MediaOverviewType type) {
+	if (_overviewIds[type].constFind(item->id) == _overviewIds[type].cend()) {
+		_overview[type].push_back(item->id);
+		_overviewIds[type].insert(item->id, NullType());
+		if (_overviewCount[type] > 0) ++_overviewCount[type];
+		if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer, type);
+	}
+}
+
+bool History::addToOverviewFront(HistoryItem *item, MediaOverviewType type) {
+	if (_overviewIds[type].constFind(item->id) == _overviewIds[type].cend()) {
+		_overview[type].push_front(item->id);
+		_overviewIds[type].insert(item->id, NullType());
+		return true;
+	}
+	return false;
+}
+
 HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *adding, bool newMsg) {
 	if (!adding) {
 		if (newBlock) delete to;
@@ -926,22 +958,14 @@ HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *
 		HistoryMediaType mt = media->type();
 		MediaOverviewType t = mediaToOverviewType(mt);
 		if (t != OverviewCount) {
-			if (_overviewIds[t].constFind(adding->id) == _overviewIds[t].cend()) {
-				_overview[t].push_back(adding->id);
-				_overviewIds[t].insert(adding->id, NullType());
-				if (_overviewCount[t] > 0) ++_overviewCount[t];
-				if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer, t);
-			}
+			addToOverview(adding, t);
 			if (mt == MediaTypeDocument && static_cast<HistoryDocument*>(media)->document()->song()) {
-				t = OverviewAudioDocuments;
-				if (_overviewIds[t].constFind(adding->id) == _overviewIds[t].cend()) {
-					_overview[t].push_back(adding->id);
-					_overviewIds[t].insert(adding->id, NullType());
-					if (_overviewCount[t] > 0) ++_overviewCount[t];
-					if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer, t);
-				}
+				addToOverview(adding, OverviewAudioDocuments);
 			}
 		}
+	}
+	if (adding->hasTextLinks()) {
+		addToOverview(adding, OverviewLinks);
 	}
 	if (adding->from()->id) {
 		if (peer->chat) {
@@ -1026,7 +1050,7 @@ void History::addToFront(const QVector<MTPMessage> &slice) {
 
 	int32 addToH = 0, skip = 0;
 	if (!isEmpty()) {
-		addToH = -front()->height;
+		if (width) addToH = -front()->height;
 		pop_front(); // remove date block
 	}
 	HistoryItem *till = isEmpty() ? 0 : front()->front(), *prev = 0;
@@ -1040,12 +1064,16 @@ void History::addToFront(const QVector<MTPMessage> &slice) {
 			if (prev && prev->date.date() != adding->date.date()) {
 				HistoryItem *dayItem = createDayServiceMsg(this, block, adding->date);
 				block->push_back(dayItem);
-				dayItem->y = block->height;
-				block->height += dayItem->resize(width);
+				if (width) {
+					dayItem->y = block->height;
+					block->height += dayItem->resize(width);
+				}
 			}
 			block->push_back(adding);
-			adding->y = block->height;
-			block->height += adding->resize(width);
+			if (width) {
+				adding->y = block->height;
+				block->height += adding->resize(width);
+			}
 			setMsgCount(msgCount + 1);
 			prev = adding;
 		}
@@ -1054,8 +1082,10 @@ void History::addToFront(const QVector<MTPMessage> &slice) {
 	if (till && prev && prev->date.date() != till->date.date()) {
 		HistoryItem *dayItem = createDayServiceMsg(this, block, till->date);
 		block->push_back(dayItem);
-		dayItem->y = block->height;
-		block->height += dayItem->resize(width);
+		if (width) {
+			dayItem->y = block->height;
+			block->height += dayItem->resize(width);
+		}
 	}
 	if (block->size()) {
 		if (loadedAtBottom() && wasMsgCount < unreadCount && msgCount >= unreadCount) {
@@ -1070,8 +1100,10 @@ void History::addToFront(const QVector<MTPMessage> &slice) {
 			}
 		}
 		push_front(block);
-		addToH += block->height;
-		++skip;
+		if (width) {
+			addToH += block->height;
+			++skip;
+		}
 
 		if (loadedAtBottom()) { // add photos to overview and authors to lastAuthors
 			int32 mask = 0;
@@ -1083,20 +1115,14 @@ void History::addToFront(const QVector<MTPMessage> &slice) {
 					HistoryMediaType mt = media->type();
 					MediaOverviewType t = mediaToOverviewType(mt);
 					if (t != OverviewCount) {
-						if (_overviewIds[t].constFind(item->id) == _overviewIds[t].cend()) {
-							_overview[t].push_front(item->id);
-							_overviewIds[t].insert(item->id, NullType());
-							mask |= (1 << t);
-						}
+						if (addToOverviewFront(item, t)) mask |= (1 << t);
 						if (mt == MediaTypeDocument && static_cast<HistoryDocument*>(media)->document()->song()) {
-							t = OverviewAudioDocuments;
-							if (_overviewIds[t].constFind(item->id) == _overviewIds[t].cend()) {
-								_overview[t].push_front(item->id);
-								_overviewIds[t].insert(item->id, NullType());
-								mask |= (1 << t);
-							}
+							if (addToOverviewFront(item, OverviewAudioDocuments)) mask |= (1 << OverviewAudioDocuments);
 						}
 					}
+				}
+				if (item->hasTextLinks()) {
+					if (addToOverviewFront(item, OverviewLinks)) mask |= (1 << OverviewLinks);
 				}
 				if (item->from()->id) {
 					if (lastAuthors) { // chats
@@ -1150,16 +1176,18 @@ void History::addToFront(const QVector<MTPMessage> &slice) {
 		HistoryBlock *dateBlock = new HistoryBlock(this);
 		HistoryItem *dayItem = createDayServiceMsg(this, dateBlock, front()->front()->date);
 		dateBlock->push_back(dayItem);
-		int32 dh = dayItem->resize(width);
-		dateBlock->height = dh;
-		if (skip) {
-			front()->y += dh;
+		if (width) {
+			int32 dh = dayItem->resize(width);
+			dateBlock->height = dh;
+			if (skip) {
+				front()->y += dh;
+			}
+			addToH += dh;
+			++skip;
 		}
 		push_front(dateBlock); // date block
-		addToH += dh;
-		++skip;
 	}
-	if (addToH) {
+	if (width && addToH) {
 		for (iterator i = begin(), e = end(); i != e; ++i) {
 			if (skip) {
 				--skip;
@@ -1249,6 +1277,14 @@ void History::addToBack(const QVector<MTPMessage> &slice) {
 						}
 					}
 				}
+				if (item->hasTextLinks()) {
+					MediaOverviewType t = OverviewLinks;
+					if (_overviewCount[t] != 0) {
+						_overview[t].push_back(item->id);
+						_overviewIds[t].insert(item->id, NullType());
+						mask |= (1 << t);
+					}
+				}
 			}
 		}
 		for (int32 t = 0; t < OverviewCount; ++t) {
@@ -1311,7 +1347,7 @@ void History::setUnreadCount(int32 newUnreadCount, bool psUpdate) {
 		App::histories().unreadFull += newUnreadCount - unreadCount;
 		if (mute) App::histories().unreadMuted += newUnreadCount - unreadCount;
 		unreadCount = newUnreadCount;
-		if (psUpdate) App::wnd()->updateCounter();
+		if (psUpdate && (!mute || cIncludeMuted())) App::wnd()->updateCounter();
 		if (unreadBar) unreadBar->setCount(unreadCount);
 	}
 }
@@ -1759,6 +1795,9 @@ void HistoryItem::destroy() {
 		if (m->type() == MediaTypeDocument && static_cast<HistoryDocument*>(m)->document()->song()) {
 			history()->eraseFromOverview(OverviewAudioDocuments, id);
 		}
+	}
+	if (hasTextLinks()) {
+		history()->eraseFromOverview(OverviewLinks, id);
 	}
 	delete this;
 }
@@ -4994,13 +5033,14 @@ HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, const MTPD
 , _textHeight(0)
 , _media(0)
 {
+	//if (msg.has_entities()) msg.ventities.c_vector().v.size()
 	QString text(textClean(qs(msg.vmessage)));
 	initTime();
 	initMedia(msg.vmedia, text);
-	initDimensions(text);
+	setText(text, msg.has_entities() ? linksFromMTP(msg.ventities.c_vector().v) : LinksInText());
 }
 
-HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const MTPMessageMedia &media) :
+HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, const MTPMessageMedia &media) :
 HistoryItem(history, block, msgId, flags, date, from)
 , _text(st::msgMinWidth)
 , _textWidth(0)
@@ -5010,10 +5050,10 @@ HistoryItem(history, block, msgId, flags, date, from)
 	QString text(msg);
 	initTime();
 	initMedia(media, text);
-	initDimensions(text);
+	setText(text, links);
 }
 
-HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, HistoryMedia *fromMedia) :
+HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, HistoryMedia *fromMedia) :
 HistoryItem(history, block, msgId, flags, date, from)
 , _text(st::msgMinWidth)
 , _textWidth(0)
@@ -5025,7 +5065,7 @@ HistoryItem(history, block, msgId, flags, date, from)
 		_media = fromMedia->clone();
 		_media->regItem(this);
 	}
-	initDimensions(msg);
+	setText(msg, links);
 }
 
 HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc) :
@@ -5037,7 +5077,7 @@ HistoryItem(history, block, msgId, flags, date, from)
 {
 	initTime();
 	initMediaFromDocument(doc);
-	initDimensions(QString());
+	setText(QString(), LinksInText());
 }
 
 void HistoryMessage::initTime() {
@@ -5125,16 +5165,6 @@ void HistoryMessage::initMediaFromDocument(DocumentData *doc) {
 	_media->regItem(this);
 }
 
-void HistoryMessage::initDimensions(const QString &text) {
-	if (!_media || !text.isEmpty()) { // !justMedia()
-		if (_media && _media->isDisplayed()) {
-			_text.setText(st::msgFont, text, itemTextParseOptions(this));
-		} else {
-			_text.setText(st::msgFont, text + textcmdSkipBlock(timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), itemTextParseOptions(this));
-		}
-	}
-}
-
 void HistoryMessage::initDimensions(const HistoryItem *parent) {
 	if (justMedia()) {
 		_media->initDimensions(this);
@@ -5147,19 +5177,13 @@ void HistoryMessage::initDimensions(const HistoryItem *parent) {
 		if (_media) {
 			_media->initDimensions(this);
 			if (_media->isDisplayed() && _text.hasSkipBlock()) {
-				QString was = HistoryMessage::selectedText(FullItemSel);
-				if (!was.isEmpty()) {
-					_text.setText(st::msgFont, was, itemTextParseOptions(this)); // without date skip
-					_textWidth = 0;
-					_textHeight = 0;
-				}
+				_text.removeSkipBlock();
+				_textWidth = 0;
+				_textHeight = 0;
 			} else if (!_media->isDisplayed() && !_text.hasSkipBlock()) {
-				QString was = HistoryMessage::selectedText(FullItemSel);
-				if (!was.isEmpty()) {
-					_text.setText(st::msgFont, was + textcmdSkipBlock(timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), itemTextParseOptions(this)); // without date skip
-					_textWidth = 0;
-					_textHeight = 0;
-				}
+				_text.setSkipBlock(timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y());
+				_textWidth = 0;
+				_textHeight = 0;
 			}
 			if (_media->isDisplayed()) {
 				int32 maxw = _media->maxWidth() + st::msgPadding.left() + st::msgPadding.right();
@@ -5191,6 +5215,10 @@ QString HistoryMessage::selectedText(uint32 selection) const {
 	return _text.original(selectedFrom, selectedTo);
 }
 
+LinksInText HistoryMessage::textLinks() const {
+	return _text.calcLinksInText();
+}
+
 QString HistoryMessage::inDialogsText() const {
 	QString result = _media ? _media->inDialogsText() : QString();
 	return result.isEmpty() ? _text.original(0, 0xFFFF, false) : result;
@@ -5202,6 +5230,7 @@ HistoryMedia *HistoryMessage::getMedia(bool inOverview) const {
 
 void HistoryMessage::setMedia(const MTPmessageMedia &media) {
 	if ((!_media || _media->isImageLink()) && media.type() == mtpc_messageMediaEmpty) return;
+
 	bool mediaWasDisplayed = false;
 	if (_media) {
 		mediaWasDisplayed = _media->isDisplayed();
@@ -5211,22 +5240,42 @@ void HistoryMessage::setMedia(const MTPmessageMedia &media) {
 	QString t;
 	initMedia(media, t);
 	if (_media && _media->isDisplayed() && !mediaWasDisplayed) {
-		QString was = HistoryMessage::selectedText(FullItemSel);
-		if (!was.isEmpty()) {
-			_text.setText(st::msgFont, was, itemTextParseOptions(this)); // without date skip
-			_textWidth = 0;
-			_textHeight = 0;
-		}
+		_text.removeSkipBlock();
+		_textWidth = 0;
+		_textHeight = 0;
 	} else if (mediaWasDisplayed && (!_media || !_media->isDisplayed())) {
-		QString was = HistoryMessage::selectedText(FullItemSel);
-		if (!was.isEmpty()) {
-			_text.setText(st::msgFont, was + textcmdSkipBlock(timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), itemTextParseOptions(this)); // without date skip
-			_textWidth = 0;
-			_textHeight = 0;
-		}
+		_text.setSkipBlock(timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y());
+		_textWidth = 0;
+		_textHeight = 0;
 	}
 	initDimensions(0);
 	if (App::main()) App::main()->itemResized(this);
+}
+
+void HistoryMessage::setText(const QString &text, const LinksInText &links) {
+	if (!_media || !text.isEmpty()) { // !justMedia()
+		if (_media && _media->isDisplayed()) {
+			_text.setMarkedText(st::msgFont, text, links, itemTextParseOptions(this));
+		} else {
+			_text.setMarkedText(st::msgFont, text + textcmdSkipBlock(timeWidth(true), st::msgDateFont->height - st::msgDateDelta.y()), links, itemTextParseOptions(this));
+		}
+		if (id > 0) {
+			for (int32 i = 0, l = links.size(); i != l; ++i) {
+				if (links.at(i).type == LinkInTextUrl || links.at(i).type == LinkInTextCustomUrl || links.at(i).type == LinkInTextEmail) {
+					_flags |= MTPDmessage_flag_HAS_TEXT_LINKS;
+					break;
+				}
+			}
+		}
+		_textWidth = 0;
+		_textHeight = 0;
+	}
+}
+
+void HistoryMessage::getTextWithLinks(QString &text, LinksInText &links) {
+	if (_text.isEmpty()) return;
+	links = _text.calcLinksInText();
+	text = _text.original();
 }
 
 void HistoryMessage::draw(QPainter &p, uint32 selection) const {
@@ -5333,6 +5382,8 @@ void HistoryMessage::drawMessageText(QPainter &p, const QRect &trect, uint32 sel
 }
 
 int32 HistoryMessage::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+	if (width < st::msgMinWidth) return _height;
+
 	width -= st::msgMargin.left() + st::msgMargin.right();
 	if (justMedia()) {
 		_height = _media->resize(width, dontRecountText, this);
@@ -5538,7 +5589,7 @@ HistoryMessage::~HistoryMessage() {
 	}
 }
 
-HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg) : HistoryMessage(history, block, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.vfrom_id.v, textClean(qs(msg.vmessage)), msg.vmedia)
+HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg) : HistoryMessage(history, block, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.vfrom_id.v, textClean(qs(msg.vmessage)), msg.has_entities() ? linksFromMTP(msg.ventities.c_vector().v) : LinksInText(), msg.vmedia)
 , fwdDate(::date(msg.vfwd_date))
 , fwdFrom(App::user(msg.vfwd_from_id.v))
 , fwdFromVersion(fwdFrom->nameVersion)
@@ -5547,7 +5598,7 @@ HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const 
 	fwdNameUpdated();
 }
 
-HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, HistoryMessage *msg) : HistoryMessage(history, block, id, ((history->peer->input.type() != mtpc_inputPeerSelf) ? (MTPDmessage_flag_out | MTPDmessage_flag_unread) : 0) | (msg->getMedia() && (msg->getMedia()->type() == MediaTypeAudio/* || msg->getMedia()->type() == MediaTypeVideo*/) ? MTPDmessage_flag_media_unread : 0), ::date(unixtime()), MTP::authedId(), msg->justMedia() ? QString() : msg->HistoryMessage::selectedText(FullItemSel), msg->getMedia())
+HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, HistoryMessage *msg) : HistoryMessage(history, block, id, ((history->peer->input.type() != mtpc_inputPeerSelf) ? (MTPDmessage_flag_out | MTPDmessage_flag_unread) : 0) | (msg->getMedia() && (msg->getMedia()->type() == MediaTypeAudio/* || msg->getMedia()->type() == MediaTypeVideo*/) ? MTPDmessage_flag_media_unread : 0), ::date(unixtime()), MTP::authedId(), msg->justMedia() ? QString() : msg->HistoryMessage::selectedText(FullItemSel), msg->HistoryMessage::textLinks(), msg->getMedia())
 , fwdDate(msg->dateForwarded())
 , fwdFrom(msg->fromForwarded())
 , fwdFromVersion(fwdFrom->nameVersion)
@@ -5734,7 +5785,7 @@ void HistoryForwarded::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 
 	return HistoryMessage::getSymbol(symbol, after, upon, x, y);
 }
 
-HistoryReply::HistoryReply(History *history, HistoryBlock *block, const MTPDmessage &msg) : HistoryMessage(history, block, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.vfrom_id.v, textClean(qs(msg.vmessage)), msg.vmedia)
+HistoryReply::HistoryReply(History *history, HistoryBlock *block, const MTPDmessage &msg) : HistoryMessage(history, block, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.vfrom_id.v, textClean(qs(msg.vmessage)), msg.has_entities() ? linksFromMTP(msg.ventities.c_vector().v) : LinksInText(), msg.vmedia)
 , replyToMsgId(msg.vreply_to_msg_id.v)
 , replyToMsg(0)
 , replyToVersion(0)

@@ -429,6 +429,7 @@ public slots:
 	void onVideosSelect();
 	void onDocumentsSelect();
 	void onAudiosSelect();
+	void onLinksSelect();
 
 	void onForwardCancel(QObject *obj = 0);
 
