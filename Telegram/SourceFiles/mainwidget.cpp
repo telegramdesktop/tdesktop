@@ -1002,7 +1002,7 @@ void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId repl
 		App::historyRegSentText(randomId, sendingText);
 
 		MTPstring msgText(MTP_string(sendingText));
-		int32 flags = newMessageFlags(hist->peer); // unread, out
+		int32 flags = newMessageFlags(hist->peer) | MTPDmessage::flag_entities; // unread, out
 		int32 sendFlags = 0;
 		if (replyTo) {
 			flags |= MTPDmessage::flag_reply_to_msg_id;
@@ -1016,7 +1016,7 @@ void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId repl
 			media = MTP_messageMediaWebPage(MTP_webPagePending(MTP_long(page->id), MTP_int(page->pendingTill)));
 		}
 		MTPVector<MTPMessageEntity> localEntities = linksToMTP(textParseLinks(sendingText, itemTextParseOptions(hist, App::self()).flags));
-		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTPint(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, MTPnullEntities));
+		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTPint(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities));
 		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, localEntities), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 	}
 
@@ -1744,11 +1744,12 @@ void MainWidget::dialogsCancelled() {
 }
 
 void MainWidget::serviceNotification(const QString &msg, const MTPMessageMedia &media, bool unread) {
-	int32 flags = unread ? MTPDmessage_flag_unread : 0;
+	int32 flags = (unread ? MTPDmessage_flag_unread : 0) | MTPDmessage::flag_entities;
 	QString sendingText, leftText = msg;
 	HistoryItem *item = 0;
 	while (textSplit(sendingText, leftText, MaxMessageSize)) {
-		item = App::histories().addToBack(MTP_message(MTP_int(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTPint(), MTPint(), MTPint(), MTP_int(unixtime()), MTP_string(sendingText), media, MTPnullMarkup, MTPnullEntities), unread ? 1 : 2);
+		MTPVector<MTPMessageEntity> localEntities = linksToMTP(textParseLinks(sendingText, _historyTextOptions.flags));
+		item = App::histories().addToBack(MTP_message(MTP_int(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTPint(), MTPint(), MTPint(), MTP_int(unixtime()), MTP_string(sendingText), media, MTPnullMarkup, localEntities), unread ? 1 : 2);
 	}
 	if (item) {
 		history.peerMessagesUpdated(item->history()->peer->id);
