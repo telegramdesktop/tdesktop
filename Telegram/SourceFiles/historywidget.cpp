@@ -5114,18 +5114,25 @@ void HistoryWidget::updatePreview() {
 				if (_previewData->title.isEmpty()) {
 					if (_previewData->description.isEmpty()) {
 						title = _previewData->author;
-						desc = _previewData->url;
+						desc = ((_previewData->doc && !_previewData->doc->name.isEmpty()) ? _previewData->doc->name : _previewData->url);
 					} else {
 						title = _previewData->description;
-						desc = _previewData->author.isEmpty() ? _previewData->url : _previewData->author;
+						desc = _previewData->author.isEmpty() ? ((_previewData->doc && !_previewData->doc->name.isEmpty()) ? _previewData->doc->name : _previewData->url) : _previewData->author;
 					}
 				} else {
 					title = _previewData->title;
-					desc = _previewData->description.isEmpty() ? (_previewData->author.isEmpty() ? _previewData->url : _previewData->author) : _previewData->description;
+					desc = _previewData->description.isEmpty() ? (_previewData->author.isEmpty() ? ((_previewData->doc && !_previewData->doc->name.isEmpty()) ? _previewData->doc->name : _previewData->url) : _previewData->author) : _previewData->description;
 				}
 			} else {
 				title = _previewData->siteName;
-				desc = _previewData->title.isEmpty() ? (_previewData->description.isEmpty() ? (_previewData->author.isEmpty() ? _previewData->url : _previewData->author) : _previewData->description) : _previewData->title;
+				desc = _previewData->title.isEmpty() ? (_previewData->description.isEmpty() ? (_previewData->author.isEmpty() ? ((_previewData->doc && !_previewData->doc->name.isEmpty()) ? _previewData->doc->name : _previewData->url) : _previewData->author) : _previewData->description) : _previewData->title;
+			}
+			if (title.isEmpty()) {
+				if (_previewData->photo) {
+					title = lang(lng_attach_photo);
+				} else if (_previewData->doc) {
+					title = lang(lng_attach_file);
+				}
 			}
 			_previewTitle.setText(st::msgServiceNameFont, title, _textNameOptions);
 			_previewDescription.setText(st::msgFont, desc, _textDlgOptions);
@@ -5407,8 +5414,8 @@ void HistoryWidget::drawField(Painter &p) {
 	if (drawPreview) {
 		int32 previewLeft = st::replySkip + st::webPageLeft;
 		p.fillRect(st::replySkip, backy + st::msgReplyPadding.top(), st::webPageBar, st::msgReplyBarSize.height(), st::msgInReplyBarColor->b);
-		if (_previewData->photo && !_previewData->photo->thumb->isNull()) {
-			ImagePtr replyPreview = _previewData->photo->makeReplyPreview();
+		if ((_previewData->photo && !_previewData->photo->thumb->isNull()) || (_previewData->doc && !_previewData->doc->thumb->isNull())) {
+			ImagePtr replyPreview = _previewData->photo ? _previewData->photo->makeReplyPreview() : _previewData->doc->makeReplyPreview();
 			if (!replyPreview->isNull()) {
 				QRect to(previewLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
 				if (replyPreview->width() == replyPreview->height()) {

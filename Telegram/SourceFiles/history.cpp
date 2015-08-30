@@ -647,7 +647,7 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 		const QVector<MTPMessageEntity> *entities = 0;
 		switch (msg.type()) {
 		case mtpc_message:
-			media = &msg.c_message().vmedia;
+			media = msg.c_message().has_media() ? (&msg.c_message().vmedia) : 0;
 			entities = msg.c_message().has_entities() ? (&msg.c_message().ventities.c_vector().v) : 0;
 		break;
 		}
@@ -673,7 +673,7 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 	case mtpc_message: {
 		const MTPDmessage m(msg.c_message());
 		int badMedia = 0; // 1 - unsupported, 2 - empty
-		switch (m.vmedia.type()) {
+		if (m.has_media()) switch (m.vmedia.type()) {
 		case mtpc_messageMediaEmpty:
 		case mtpc_messageMediaContact: break;
 		case mtpc_messageMediaGeo:
@@ -2269,15 +2269,11 @@ HistoryVideo::HistoryVideo(const MTPDvideo &video, const QString &caption, Histo
 
 	int32 tw = data->thumb->width(), th = data->thumb->height();
 	if (data->thumb->isNull() || !tw || !th) {
-		_thumbw = _thumbx = _thumby = 0;
+		_thumbw = 0;
 	} else if (tw > th) {
 		_thumbw = (tw * st::mediaThumbSize) / th;
-		_thumbx = (_thumbw - st::mediaThumbSize) / 2;
-		_thumby = 0;
 	} else {
 		_thumbw = st::mediaThumbSize;
-		_thumbx = 0;
-		_thumby = ((th * _thumbw) / tw - st::mediaThumbSize) / 2;
 	}
 }
 
@@ -2964,15 +2960,11 @@ HistoryDocument::HistoryDocument(DocumentData *document) : HistoryMedia()
 
 	int32 tw = data->thumb->width(), th = data->thumb->height();
 	if (data->thumb->isNull() || !tw || !th) {
-		_thumbw = _thumbx = _thumby = 0;
+		_thumbw = 0;
 	} else if (tw > th) {
 		_thumbw = (tw * st::mediaThumbSize) / th;
-		_thumbx = (_thumbw - st::mediaThumbSize) / 2;
-		_thumby = 0;
 	} else {
 		_thumbw = st::mediaThumbSize;
-		_thumbx = 0;
-		_thumby = ((th * _thumbw) / tw - st::mediaThumbSize) / 2;
 	}
 }
 
@@ -3447,17 +3439,7 @@ HistoryMedia *HistoryDocument::clone() const {
 }
 
 ImagePtr HistoryDocument::replyPreview() {
-	if (data->replyPreview->isNull() && !data->thumb->isNull()) {
-		if (data->thumb->loaded()) {
-			int w = data->thumb->width(), h = data->thumb->height();
-			if (w <= 0) w = 1;
-			if (h <= 0) h = 1;
-			data->replyPreview = ImagePtr(w > h ? data->thumb->pix(w * st::msgReplyBarSize.height() / h, st::msgReplyBarSize.height()) : data->thumb->pix(st::msgReplyBarSize.height()), "PNG");
-		} else {
-			data->thumb->load();
-		}
-	}
-	return data->replyPreview;
+	return data->makeReplyPreview();
 }
 
 HistorySticker::HistorySticker(DocumentData *document) : HistoryMedia()
@@ -3851,14 +3833,30 @@ void HistoryContact::updateFrom(const MTPMessageMedia &media) {
 HistoryWebPage::HistoryWebPage(WebPageData *data) : HistoryMedia()
 , data(data)
 , _openl(data->url.isEmpty() ? 0 : new TextLink(data->url))
-, _photol((data->photo && data->type != WebPageVideo) ? new PhotoLink(data->photo) : 0)
+, _attachl((data->photo && data->type != WebPageVideo) ? static_cast<ITextLink*>(new PhotoLink(data->photo)) : static_cast<ITextLink*>(data->doc ? new DocumentOpenLink(data->doc) : 0))
 , _asArticle(false)
 , _title(st::msgMinWidth - st::webPageLeft)
 , _description(st::msgMinWidth - st::webPageLeft)
 , _siteNameWidth(0)
+, _docSize(data->doc ? (data->doc->song() ? formatDurationAndSizeText(data->doc->song()->duration, data->doc->size) : formatSizeText(data->doc->size)) : QString())
+, _docName(data->doc ? documentName(data->doc) : QString())
 , _durationWidth(0)
+, _docNameWidth(data->doc ? (st::mediaFont->m.width(_docName.isEmpty() ? qsl("Document") : _docName)) : 0)
+, _docDownloadDone(0)
 , _pixw(0), _pixh(0)
 {
+	if (data->doc) {
+		data->doc->thumb->load();
+
+		int32 tw = data->doc->thumb->width(), th = data->doc->thumb->height();
+		if (data->doc->thumb->isNull() || !tw || !th) {
+			_docThumbWidth = 0;
+		} else if (tw > th) {
+			_docThumbWidth = (tw * st::mediaThumbSize) / th;
+		} else {
+			_docThumbWidth = st::mediaThumbSize;
+		}
+	}
 }
 
 void HistoryWebPage::initDimensions(const HistoryItem *parent) {
@@ -3870,7 +3868,8 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 		return;
 	}
 	if (!_openl && !data->url.isEmpty()) _openl = TextLinkPtr(new TextLink(data->url));
-	if (!_photol && data->photo && data->type != WebPageVideo) _photol = TextLinkPtr(new PhotoLink(data->photo));
+	if (!_attachl && data->photo && data->type != WebPageVideo) _attachl = TextLinkPtr(new PhotoLink(data->photo));
+	if (!_attachl && data->doc) _attachl = TextLinkPtr(new DocumentOpenLink(data->doc));
 	if (data->photo && data->type != WebPagePhoto && data->type != WebPageVideo) {
 		if (data->type == WebPageProfile) {
 			_asArticle = true;
@@ -3908,6 +3907,15 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 		_maxw = st::webPageLeft + qMax(thumbh, qMax(w, int32(st::minPhotoSize))) + parent->timeWidth(true);
 		_minh = qMax(thumbh, int32(st::minPhotoSize));
 		_minh += st::webPagePhotoSkip;
+	} else if (data->doc) {
+		if (parent == animated.msg) {
+			_maxw = st::webPageLeft + (animated.w / cIntRetinaFactor()) + parent->timeWidth(true);
+			_minh = animated.h / cIntRetinaFactor();
+			_minh += st::webPagePhotoSkip;
+		} else {
+			_maxw = qMax(st::webPageLeft + st::mediaThumbSize + st::mediaPadding.right() + _docNameWidth + st::mediaPadding.right(), st::mediaMaxWidth);
+			_minh = st::mediaThumbSize;
+		}
 	} else {
 		_maxw = st::webPageLeft;
 		_minh = 0;
@@ -3951,7 +3959,7 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 			_minh += qMin(_description.minHeight(), 3 * st::webPageTitleFont->height);
 		}
 	}
-	if (!_asArticle && data->photo && (_siteNameWidth || !_title.isEmpty() || !_description.isEmpty())) {
+	if (!_asArticle && (data->photo || data->doc) && (_siteNameWidth || !_title.isEmpty() || !_description.isEmpty())) {
 		_minh += st::webPagePhotoSkip;
 	}
 	if (data->type == WebPageVideo && data->duration) {
@@ -3965,15 +3973,29 @@ void HistoryWebPage::draw(QPainter &p, const HistoryItem *parent, bool selected,
 	if (width < 0) width = w;
 	if (width < 1 || data->pendingTill) return;
 
-	int32 bottomSkip = 0;
-	//if (!data->pendingTill) {
-		if (data->photo) {
-			bottomSkip += st::webPagePhotoSkip;
-			if (_asArticle || (st::webPageLeft + qMax(_pixw, int16(st::minPhotoSize)) + parent->timeWidth(true) > width)) {
-				bottomSkip += (st::msgDateFont->height - st::msgDateDelta.y());
-			}
+	int16 animw = 0, animh = 0;
+	if (data->doc && animated.msg == parent) {
+		animw = animated.w / cIntRetinaFactor();
+		animh = animated.h / cIntRetinaFactor();
+		if (width - st::webPageLeft < animw) {
+			animw = width - st::webPageLeft;
+			animh = (animw * animated.h / animated.w);
+			if (animh < 1) animh = 1;
 		}
-	//}
+	}
+
+	int32 bottomSkip = 0;
+	if (data->photo) {
+		bottomSkip += st::webPagePhotoSkip;
+		if (_asArticle || (st::webPageLeft + qMax(_pixw, int16(st::minPhotoSize)) + parent->timeWidth(true) > width)) {
+			bottomSkip += (st::msgDateFont->height - st::msgDateDelta.y());
+		}
+	} else if (data->doc && animated.msg == parent) {
+		bottomSkip += st::webPagePhotoSkip;
+		if (st::webPageLeft + qMax(animw, int16(st::minPhotoSize)) + parent->timeWidth(true) > width) {
+			bottomSkip += (st::msgDateFont->height - st::msgDateDelta.y());
+		}
+	}
 
 	style::color bar = (selected ? (parent->out() ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (parent->out() ? st::msgOutReplyBarColor : st::msgInReplyBarColor));
 	style::color semibold = (selected ? (parent->out() ? st::msgOutServiceSelColor : st::msgInServiceSelColor) : (parent->out() ? st::msgOutServiceColor : st::msgInServiceColor));
@@ -4115,6 +4137,100 @@ void HistoryWebPage::draw(QPainter &p, const HistoryItem *parent, bool selected,
 		}
 
 		p.translate(0, pixheight);
+	} else if (!_asArticle && data->doc) {
+		if (_siteNameWidth || !_title.isEmpty() || !_description.isEmpty()) {
+			p.translate(0, st::webPagePhotoSkip);
+		}
+
+		if (parent == animated.msg) {
+			p.drawPixmap(0, 0, animated.current(animw * cIntRetinaFactor(), animh * cIntRetinaFactor(), true));
+			if (selected) {
+				App::roundRect(p, 0, 0, animw, animh, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
+			}
+		} else {
+			QString statusText;
+			if (data->doc->song()) {
+				SongMsgId playing;
+				AudioPlayerState playingState = AudioPlayerStopped;
+				int64 playingPosition = 0, playingDuration = 0;
+				int32 playingFrequency = 0;
+				if (audioPlayer()) {
+					audioPlayer()->currentState(&playing, &playingState, &playingPosition, &playingDuration, &playingFrequency);
+				}
+
+				bool already = !data->doc->already().isEmpty(), hasdata = !data->doc->data.isEmpty();
+				QRect img;
+				if (data->doc->status == FileFailed) {
+					statusText = lang(lng_attach_failed);
+					img = parent->out() ? st::mediaMusicOutImg : st::mediaMusicInImg;
+				} else if (already || hasdata) {
+					bool showPause = false;
+					if (playing.msgId == parent->id && !(playingState & AudioPlayerStoppedMask) && playingState != AudioPlayerFinishing) {
+						statusText = formatDurationText(playingPosition / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency)) + qsl(" / ") + formatDurationText(playingDuration / (playingFrequency ? playingFrequency : AudioVoiceMsgFrequency));
+						showPause = (playingState == AudioPlayerPlaying || playingState == AudioPlayerResuming || playingState == AudioPlayerStarting);
+					} else {
+						statusText = formatDurationText(data->doc->song()->duration);
+					}
+					if (!showPause && playing.msgId == parent->id && App::main() && App::main()->player()->seekingSong(playing)) showPause = true;
+					img = parent->out() ? (showPause ? st::mediaPauseOutImg : st::mediaPlayOutImg) : (showPause ? st::mediaPauseInImg : st::mediaPlayInImg);
+				} else {
+					if (data->doc->loader) {
+						int32 offset = data->doc->loader->currentOffset();
+						if (_docDownloadTextCache.isEmpty() || _docDownloadDone != offset) {
+							_docDownloadDone = offset;
+							_docDownloadTextCache = formatDownloadText(_docDownloadDone, data->doc->size);
+						}
+						statusText = _docDownloadTextCache;
+					} else {
+						statusText = _docSize;
+					}
+					img = parent->out() ? st::mediaMusicOutImg : st::mediaMusicInImg;
+				}
+
+				p.drawPixmap(QPoint(0, 0), App::sprite(), img);
+			} else {
+				if (data->doc->status == FileFailed) {
+					statusText = lang(lng_attach_failed);
+				} else if (data->doc->loader) {
+					int32 offset = data->doc->loader->currentOffset();
+					if (_docDownloadTextCache.isEmpty() || _docDownloadDone != offset) {
+						_docDownloadDone = offset;
+						_docDownloadTextCache = formatDownloadText(_docDownloadDone, data->doc->size);
+					}
+					statusText = _docDownloadTextCache;
+				} else {
+					statusText = _docSize;
+				}
+
+				if (_docThumbWidth) {
+					data->doc->thumb->checkload();
+					p.drawPixmap(QPoint(0, 0), data->doc->thumb->pixSingle(_docThumbWidth, 0, st::mediaThumbSize, st::mediaThumbSize));
+				} else {
+					p.drawPixmap(QPoint(0, 0), App::sprite(), (parent->out() ? st::mediaDocOutImg : st::mediaDocInImg));
+				}
+			}
+			if (selected) {
+				App::roundRect(p, 0, 0, st::mediaThumbSize, st::mediaThumbSize, textstyleCurrent()->selectOverlay, SelectedOverlayCorners);
+			}
+
+			int32 tleft = st::mediaPadding.left() + st::mediaThumbSize + st::mediaPadding.right();
+			int32 twidth = width - tleft - st::mediaPadding.right();
+			int32 fullTimeWidth = parent->timeWidth(true) + st::msgPadding.right();
+			int32 secondwidth = width - tleft - fullTimeWidth;
+
+			p.setFont(st::mediaFont->f);
+			p.setPen(st::black->c);
+			if (twidth < _docNameWidth) {
+				p.drawText(tleft, st::mediaNameTop + st::mediaFont->ascent, st::mediaFont->m.elidedText(_docName, Qt::ElideRight, twidth));
+			} else {
+				p.drawText(tleft, st::mediaNameTop + st::mediaFont->ascent, _docName);
+			}
+
+			style::color status(selected ? (parent->out() ? st::mediaOutSelectColor : st::mediaInSelectColor) : (parent->out() ? st::mediaOutColor : st::mediaInColor));
+			p.setPen(status->p);
+
+			p.drawText(tleft, st::mediaThumbSize - st::mediaDetailsShift - st::mediaFont->descent, statusText);
+		}
 	}
 
 	p.restore();
@@ -4147,7 +4263,7 @@ int32 HistoryWebPage::resize(int32 width, bool dontRecountText, const HistoryIte
 		_height = st::webPagePhotoSize;
 		_height += st::webPagePhotoSkip + (st::msgDateFont->height - st::msgDateDelta.y());
 	} else if (data->photo) {
-		_pixw = qMin(width, int32(_maxw - st::webPageLeft));
+		_pixw = qMin(width, int32(_maxw - st::webPageLeft - parent->timeWidth(true)));
 
 		int32 tw = convertScale(data->photo->full->width()), th = convertScale(data->photo->full->height());
 		if (tw > st::maxMediaSize) {
@@ -4175,6 +4291,24 @@ int32 HistoryWebPage::resize(int32 width, bool dontRecountText, const HistoryIte
 		if (qMax(_pixw, int16(st::minPhotoSize)) + parent->timeWidth(true) > width) {
 			_height += (st::msgDateFont->height - st::msgDateDelta.y());
 		}
+	} else if (data->doc) {
+		if (parent == animated.msg) {
+			int32 w = qMin(width, int32(animated.w / cIntRetinaFactor()));
+			if (w > st::maxMediaSize) {
+				w = st::maxMediaSize;
+			}
+			_height = animated.h / cIntRetinaFactor();
+			if (animated.w / cIntRetinaFactor() > w) {
+				_height = (w * _height / (animated.w / cIntRetinaFactor()));
+				if (_height <= 0) _height = 1;
+			}
+			_height += st::webPagePhotoSkip;
+			if (w + parent->timeWidth(true) > width) {
+				_height += (st::msgDateFont->height - st::msgDateDelta.y());
+			}
+		} else {
+			_height = st::mediaThumbSize;
+		}
 	} else {
 		_height = 0;
 	}
@@ -4189,7 +4323,7 @@ int32 HistoryWebPage::resize(int32 width, bool dontRecountText, const HistoryIte
 		if (!_description.isEmpty()) {
 			_height += qMin(_description.countHeight(width), st::webPageDescriptionFont->height * 3);
 		}
-		if (data->photo && (_siteNameWidth || !_title.isEmpty() || !_description.isEmpty())) {
+		if ((data->photo || data->doc) && (_siteNameWidth || !_title.isEmpty() || !_description.isEmpty())) {
 			_height += st::webPagePhotoSkip;
 		}
 	}
@@ -4199,10 +4333,12 @@ int32 HistoryWebPage::resize(int32 width, bool dontRecountText, const HistoryIte
 
 void HistoryWebPage::regItem(HistoryItem *item) {
 	App::regWebPageItem(data, item);
+	if (data->doc) App::regDocumentItem(data->doc, item);
 }
 
 void HistoryWebPage::unregItem(HistoryItem *item) {
 	App::unregWebPageItem(data, item);
+	if (data->doc) App::unregDocumentItem(data->doc, item);
 }
 
 const QString HistoryWebPage::inDialogsText() const {
@@ -4274,10 +4410,20 @@ void HistoryWebPage::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32
 		y -= st::webPagePhotoSkip;
 	}
 	if (!_asArticle) {
-		int32 pixwidth = qMax(_pixw, int16(st::minPhotoSize)), pixheight = qMax(_pixh, int16(st::minPhotoSize));
-		if (x >= 0 && y >= 0 && x < pixwidth && y < pixheight) {
-			lnk = _photol ? _photol : _openl;
-			return;
+		if (data->doc && parent == animated.msg) {
+			int32 h = (width == w) ? _height : (width * animated.h / animated.w);
+			if (h < 1) h = 1;
+			if (x >= 0 && y >= 0 && x < width && y < h) {
+				lnk = _attachl;
+				return;
+			}
+		} else {
+			int32 attachwidth = data->doc ? (width - st::mediaPadding.right()) : qMax(_pixw, int16(st::minPhotoSize));
+			int32 attachheight = data->doc ? st::mediaThumbSize : qMax(_pixh, int16(st::minPhotoSize));
+			if (x >= 0 && y >= 0 && x < attachwidth && y < attachheight) {
+				lnk = _attachl ? _attachl : _openl;
+				return;
+			}
 		}
 	}
 }
@@ -4287,7 +4433,7 @@ HistoryMedia *HistoryWebPage::clone() const {
 }
 
 ImagePtr HistoryWebPage::replyPreview() {
-	return data->photo ? data->photo->makeReplyPreview() : ImagePtr();
+	return data->photo ? data->photo->makeReplyPreview() : (data->doc ? data->doc->makeReplyPreview() : ImagePtr());
 }
 
 namespace {
@@ -5036,11 +5182,11 @@ HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, const MTPD
 	//if (msg.has_entities()) msg.ventities.c_vector().v.size()
 	QString text(textClean(qs(msg.vmessage)));
 	initTime();
-	initMedia(msg.vmedia, text);
+	initMedia(msg.has_media() ? (&msg.vmedia) : 0, text);
 	setText(text, msg.has_entities() ? linksFromMTP(msg.ventities.c_vector().v) : LinksInText());
 }
 
-HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, const MTPMessageMedia &media) :
+HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, const MTPMessageMedia *media) :
 HistoryItem(history, block, msgId, flags, date, from)
 , _text(st::msgMinWidth)
 , _textWidth(0)
@@ -5085,53 +5231,53 @@ void HistoryMessage::initTime() {
 	_timeWidth = st::msgDateFont->m.width(_time);
 }
 
-void HistoryMessage::initMedia(const MTPMessageMedia &media, QString &currentText) {
-	switch (media.type()) {
+void HistoryMessage::initMedia(const MTPMessageMedia *media, QString &currentText) {
+	switch (media ? media->type() : mtpc_messageMediaEmpty) {
 	case mtpc_messageMediaContact: {
-		const MTPDmessageMediaContact &d(media.c_messageMediaContact());
+		const MTPDmessageMediaContact &d(media->c_messageMediaContact());
 		_media = new HistoryContact(d.vuser_id.v, qs(d.vfirst_name), qs(d.vlast_name), qs(d.vphone_number));
 	} break;
 	case mtpc_messageMediaGeo: {
-		const MTPGeoPoint &point(media.c_messageMediaGeo().vgeo);
+		const MTPGeoPoint &point(media->c_messageMediaGeo().vgeo);
 		if (point.type() == mtpc_geoPoint) {
 			const MTPDgeoPoint &d(point.c_geoPoint());
 			_media = new HistoryImageLink(qsl("location:%1,%2").arg(d.vlat.v).arg(d.vlong.v));
 		}
 	} break;
 	case mtpc_messageMediaVenue: {
-		const MTPDmessageMediaVenue &d(media.c_messageMediaVenue());
+		const MTPDmessageMediaVenue &d(media->c_messageMediaVenue());
 		if (d.vgeo.type() == mtpc_geoPoint) {
 			const MTPDgeoPoint &g(d.vgeo.c_geoPoint());
 			_media = new HistoryImageLink(qsl("location:%1,%2").arg(g.vlat.v).arg(g.vlong.v), qs(d.vtitle), qs(d.vaddress));
 		}
 	} break;
 	case mtpc_messageMediaPhoto: {
-		const MTPDmessageMediaPhoto &photo(media.c_messageMediaPhoto());
+		const MTPDmessageMediaPhoto &photo(media->c_messageMediaPhoto());
 		if (photo.vphoto.type() == mtpc_photo) {
 			_media = new HistoryPhoto(photo.vphoto.c_photo(), qs(photo.vcaption), this);
 		}
 	} break;
 	case mtpc_messageMediaVideo: {
-		const MTPDmessageMediaVideo &video(media.c_messageMediaVideo());
+		const MTPDmessageMediaVideo &video(media->c_messageMediaVideo());
 		if (video.vvideo.type() == mtpc_video) {
 			_media = new HistoryVideo(video.vvideo.c_video(), qs(video.vcaption), this);
 		}
 	} break;
 	case mtpc_messageMediaAudio: {
-		const MTPAudio &audio(media.c_messageMediaAudio().vaudio);
+		const MTPAudio &audio(media->c_messageMediaAudio().vaudio);
 		if (audio.type() == mtpc_audio) {
 			_media = new HistoryAudio(audio.c_audio());
 		}
 	} break;
 	case mtpc_messageMediaDocument: {
-		const MTPDocument &document(media.c_messageMediaDocument().vdocument);
+		const MTPDocument &document(media->c_messageMediaDocument().vdocument);
 		if (document.type() == mtpc_document) {
 			DocumentData *doc = App::feedDocument(document);
 			return initMediaFromDocument(doc);
 		}
 	} break;
 	case mtpc_messageMediaWebPage: {
-		const MTPWebPage &d(media.c_messageMediaWebPage().vwebpage);
+		const MTPWebPage &d(media->c_messageMediaWebPage().vwebpage);
 		switch (d.type()) {
 		case mtpc_webPageEmpty: initMediaFromText(currentText); break;
 		case mtpc_webPagePending: {
@@ -5228,8 +5374,8 @@ HistoryMedia *HistoryMessage::getMedia(bool inOverview) const {
 	return _media;
 }
 
-void HistoryMessage::setMedia(const MTPmessageMedia &media) {
-	if ((!_media || _media->isImageLink()) && media.type() == mtpc_messageMediaEmpty) return;
+void HistoryMessage::setMedia(const MTPMessageMedia *media) {
+	if ((!_media || _media->isImageLink()) && (!media || media->type() == mtpc_messageMediaEmpty)) return;
 
 	bool mediaWasDisplayed = false;
 	if (_media) {
@@ -5589,7 +5735,7 @@ HistoryMessage::~HistoryMessage() {
 	}
 }
 
-HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg) : HistoryMessage(history, block, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.vfrom_id.v, textClean(qs(msg.vmessage)), msg.has_entities() ? linksFromMTP(msg.ventities.c_vector().v) : LinksInText(), msg.vmedia)
+HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg) : HistoryMessage(history, block, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.vfrom_id.v, textClean(qs(msg.vmessage)), msg.has_entities() ? linksFromMTP(msg.ventities.c_vector().v) : LinksInText(), msg.has_media() ? (&msg.vmedia) : 0)
 , fwdDate(::date(msg.vfwd_date))
 , fwdFrom(App::user(msg.vfwd_from_id.v))
 , fwdFromVersion(fwdFrom->nameVersion)
@@ -5785,7 +5931,7 @@ void HistoryForwarded::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 
 	return HistoryMessage::getSymbol(symbol, after, upon, x, y);
 }
 
-HistoryReply::HistoryReply(History *history, HistoryBlock *block, const MTPDmessage &msg) : HistoryMessage(history, block, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.vfrom_id.v, textClean(qs(msg.vmessage)), msg.has_entities() ? linksFromMTP(msg.ventities.c_vector().v) : LinksInText(), msg.vmedia)
+HistoryReply::HistoryReply(History *history, HistoryBlock *block, const MTPDmessage &msg) : HistoryMessage(history, block, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.vfrom_id.v, textClean(qs(msg.vmessage)), msg.has_entities() ? linksFromMTP(msg.ventities.c_vector().v) : LinksInText(), msg.has_media() ? (&msg.vmedia) : 0)
 , replyToMsgId(msg.vreply_to_msg_id.v)
 , replyToMsg(0)
 , replyToVersion(0)

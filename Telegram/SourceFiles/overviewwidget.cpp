@@ -1105,6 +1105,8 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 							pix = page->photo->thumb->pixBlurredSingle(lnk->pixw, lnk->pixh, st::dlgPhotoSize, st::dlgPhotoSize);
 						}
 						p.drawPixmap(0, top, pix);
+					} else if (page && page->doc && !page->doc->thumb->isNull()) {
+						p.drawPixmap(0, top, page->doc->thumb->pixSingle(lnk->pixw, lnk->pixh, st::dlgPhotoSize, st::dlgPhotoSize));
 					} else {
 						int32 index = lnk->letter.isEmpty() ? 0 : (lnk->letter.at(0).unicode() % 4);
 						switch (index) {

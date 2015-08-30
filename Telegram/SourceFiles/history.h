@@ -780,7 +780,7 @@ public:
 	virtual HistoryMedia *getMedia(bool inOverview = false) const {
 		return 0;
 	}
-	virtual void setMedia(const MTPmessageMedia &media) {
+	virtual void setMedia(const MTPMessageMedia *media) {
 	}
 	virtual void setText(const QString &text, const LinksInText &links) {
 	}
@@ -1000,7 +1000,7 @@ private:
 	Text _caption;
 
 	QString _size;
-	int32 _thumbw, _thumbx, _thumby;
+	int32 _thumbw;
 
 	mutable QString _dldTextCache, _uplTextCache;
 	mutable int32 _dldDone, _uplDone;
@@ -1191,14 +1191,16 @@ public:
 
 private:
 	WebPageData *data;
-	TextLinkPtr _openl, _photol;
+	TextLinkPtr _openl, _attachl;
 	bool _asArticle;
 
 	Text _title, _description;
 	int32 _siteNameWidth;
 
-	QString _duration;
-	int32 _durationWidth;
+	QString _duration, _docName, _docSize;
+	int32 _durationWidth, _docNameWidth, _docThumbWidth;
+	mutable QString _docDownloadTextCache;
+	mutable int32 _docDownloadDone;
 
 	int16 _pixw, _pixh;
 };
@@ -1289,12 +1291,12 @@ class HistoryMessage : public HistoryItem {
 public:
 
 	HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, const MTPMessageMedia &media);
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, const MTPMessageMedia *media);
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, HistoryMedia *media);
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc);
 
 	void initTime();
-	void initMedia(const MTPMessageMedia &media, QString &currentText);
+	void initMedia(const MTPMessageMedia *media, QString &currentText);
 	void initMediaFromText(QString &currentText);
 	void initMediaFromDocument(DocumentData *doc);
 	void initDimensions(const HistoryItem *parent = 0);
@@ -1334,7 +1336,7 @@ public:
 	LinksInText textLinks() const;
 	QString inDialogsText() const;
 	HistoryMedia *getMedia(bool inOverview = false) const;
-	void setMedia(const MTPmessageMedia &media);
+	void setMedia(const MTPMessageMedia *media);
 	void setText(const QString &text, const LinksInText &links);
 	void getTextWithLinks(QString &text, LinksInText &links);
 

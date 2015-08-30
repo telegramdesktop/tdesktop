@@ -526,26 +526,6 @@ namespace App {
 				data->left = false;
 				data->forbidden = true;
 			} break;
-			case mtpc_geoChat: {
-				const MTPDgeoChat &d(chat.c_geoChat());
-				data = 0;
-/*				title = qs(d.vtitle);
-
-				PeerId peer(peerFromChat(d.vid.v));
-				data = App::chat(peer);
-				data->input = MTP_inputPeerChat(d.vid);
-				data->setPhoto(d.vphoto);
-				data->date = d.vdate.v;
-				data->count = d.vparticipants_count.v;
-				data->left = false;
-				data->forbidden = false;
-				data->access = d.vaccess_hash.v;
-				if (data->version < d.vversion.v) {
-					data->version = d.vversion.v;
-					data->participants = ChatData::Participants();
-					data->botStatus = 0;
-				}/**/
-			} break;
 			}
 			if (!data) continue;
 
@@ -1075,11 +1055,11 @@ namespace App {
 	}
 
 	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert) {
-		return App::webPageSet(webpage.vid.v, convert, webpage.has_type() ? qs(webpage.vtype) : qsl("article"), qs(webpage.vurl), qs(webpage.vdisplay_url), webpage.has_site_name() ? qs(webpage.vsite_name) : QString(), webpage.has_title() ? qs(webpage.vtitle) : QString(), webpage.has_description() ? qs(webpage.vdescription) : QString(), webpage.has_photo() ? App::feedPhoto(webpage.vphoto) : 0, webpage.has_duration() ? webpage.vduration.v : 0, webpage.has_author() ? qs(webpage.vauthor) : QString(), 0);
+		return App::webPageSet(webpage.vid.v, convert, webpage.has_type() ? qs(webpage.vtype) : qsl("article"), qs(webpage.vurl), qs(webpage.vdisplay_url), webpage.has_site_name() ? qs(webpage.vsite_name) : QString(), webpage.has_title() ? qs(webpage.vtitle) : QString(), webpage.has_description() ? qs(webpage.vdescription) : QString(), webpage.has_photo() ? App::feedPhoto(webpage.vphoto) : 0, webpage.has_document() ? App::feedDocument(webpage.vdocument) : 0, webpage.has_duration() ? webpage.vduration.v : 0, webpage.has_author() ? qs(webpage.vauthor) : QString(), 0);
 	}
 
 	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert) {
-		return App::webPageSet(webpage.vid.v, convert, QString(), QString(), QString(), QString(), QString(), QString(), 0, 0, QString(), webpage.vdate.v);
+		return App::webPageSet(webpage.vid.v, convert, QString(), QString(), QString(), QString(), QString(), QString(), 0, 0, 0, QString(), webpage.vdate.v);
 	}
 
 	WebPageData *feedWebPage(const MTPWebPage &webpage) {
@@ -1433,7 +1413,7 @@ namespace App {
 		return i.value();
 	}
 
-	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, int32 duration, const QString &author, int32 pendingTill) {
+	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill) {
 		if (convert) {
 			if (convert->id != webPage) {
 				WebPagesData::iterator i = webPagesData.find(convert->id);
@@ -1450,6 +1430,7 @@ namespace App {
 				convert->title = title;
 				convert->description = description;
 				convert->photo = photo;
+				convert->doc = doc;
 				convert->duration = duration;
 				convert->author = author;
 				if (convert->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(convert);
@@ -1463,7 +1444,7 @@ namespace App {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new WebPageData(webPage, toWebPageType(type), url, displayUrl, siteName, title, description, photo, duration, author, (pendingTill >= -1) ? pendingTill : -1);
+				result = new WebPageData(webPage, toWebPageType(type), url, displayUrl, siteName, title, description, photo, doc, duration, author, (pendingTill >= -1) ? pendingTill : -1);
 				if (pendingTill > 0 && api()) {
 					api()->requestWebPageDelayed(result);
 				}
@@ -1480,6 +1461,7 @@ namespace App {
 					result->title = title;
 					result->description = description;
 					result->photo = photo;
+					result->doc = doc;
 					result->duration = duration;
 					result->author = author;
 					if (result->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(result);
