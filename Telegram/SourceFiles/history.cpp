@@ -348,7 +348,7 @@ bool History::updateTyping(uint64 ms, uint32 dots, bool force) {
 			++i;
 		}
 	}
-	for (SendActionUsers::iterator i = sendActions.begin(), e = sendActions.end(); i != e;) {
+	for (SendActionUsers::iterator i = sendActions.begin(); i != sendActions.cend();) {
 		if (ms >= i.value().until) {
 			i = sendActions.erase(i);
 			changed = true;

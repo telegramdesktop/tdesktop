@@ -2809,9 +2809,6 @@ bool CreateToast(PeerData *peer, int32 msgId, bool showpix, const QString &title
 		if (j != i->cend()) {
 			toastNotifier->Hide(j->p.Get());
 			i->erase(j);
-			if (i->isEmpty()) {
-				toastNotifications.erase(i);
-			}
 		}
 	}
 	hr = toastNotifier->Show(toast.Get());

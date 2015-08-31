@@ -673,8 +673,8 @@ void Application::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 8053) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Include muted chats in unread count in Settings\n\xe2\x80\x94 Shared links overview and search in shared media");// .replace('@', qsl("@") + QChar(0x200D));
+			if (cDevVersion() && Local::oldMapVersion() < 8054) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Preview when sending links to GIF animations and PDF files\n\xe2\x80\x94 Full date and time shown when mouse over message timestamp");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (!cDevVersion() && Local::oldMapVersion() < 8052) {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
