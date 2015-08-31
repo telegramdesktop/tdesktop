@@ -146,8 +146,8 @@ inputMediaUploadedPhoto#f7aff1c0 file:InputFile caption:string = InputMedia;
 inputMediaPhoto#e9bfb4f3 id:InputPhoto caption:string = InputMedia;
 inputMediaGeoPoint#f9c44144 geo_point:InputGeoPoint = InputMedia;
 inputMediaContact#a6e45987 phone_number:string first_name:string last_name:string = InputMedia;
-inputMediaUploadedVideo#e13fd4bc file:InputFile duration:int w:int h:int caption:string = InputMedia;
-inputMediaUploadedThumbVideo#96fb97dc file:InputFile thumb:InputFile duration:int w:int h:int caption:string = InputMedia;
+inputMediaUploadedVideo#82713fdf file:InputFile duration:int w:int h:int mime_type:string caption:string = InputMedia;
+inputMediaUploadedThumbVideo#7780ddf9 file:InputFile thumb:InputFile duration:int w:int h:int mime_type:string caption:string = InputMedia;
 inputMediaVideo#936a4ebd id:InputVideo caption:string = InputMedia;
 
 inputChatPhotoEmpty#1ca48f57 = InputChatPhoto;
@@ -212,7 +212,7 @@ chatPhotoEmpty#37c1011c = ChatPhoto;
 chatPhoto#6153276a photo_small:FileLocation photo_big:FileLocation = ChatPhoto;
 
 messageEmpty#83e5de54 id:int = Message;
-message#f07814c8 flags:# id:int from_id:int to_id:Peer fwd_from_id:flags.2?int fwd_date:flags.2?int reply_to_msg_id:flags.3?int date:int message:string media:MessageMedia reply_markup:flags.6?ReplyMarkup entities:flags.7?Vector<MessageEntity> = Message;
+message#2bebfa86 flags:# id:int from_id:int to_id:Peer fwd_from_id:flags.2?int fwd_date:flags.2?int reply_to_msg_id:flags.3?int date:int message:string media:flags.9?MessageMedia reply_markup:flags.6?ReplyMarkup entities:flags.7?Vector<MessageEntity> = Message;
 messageService#1d86f70e flags:int id:int from_id:int to_id:Peer date:int action:MessageAction = Message;
 
 messageMediaEmpty#3ded6320 = MessageMedia;
@@ -283,8 +283,6 @@ contactSuggested#3de191a1 user_id:int mutual_contacts:int = ContactSuggested;
 
 contactStatus#d3680c61 user_id:int status:UserStatus = ContactStatus;
 
-chatLocated#3631cf4c chat_id:int distance:int = ChatLocated;
-
 contacts.link#3ace484c my_link:ContactLink foreign_link:ContactLink user:User = contacts.Link;
 
 contacts.contactsNotModified#b74ba9d2 = contacts.Contacts;
@@ -302,8 +300,6 @@ messages.dialogsSlice#71e094f3 count:int dialogs:Vector<Dialog> messages:Vector<
 
 messages.messages#8c718e87 messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = messages.Messages;
 messages.messagesSlice#b446ae3 count:int messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = messages.Messages;
-
-messages.sentMessage#8a99d8e0 id:int date:int media:MessageMedia entities:Vector<MessageEntity> pts:int pts_count:int = messages.SentMessage;
 
 messages.chats#64ff9fd5 chats:Vector<Chat> = messages.Chats;
 
@@ -364,30 +360,6 @@ help.appUpdate#8987f311 id:int critical:Bool url:string text:string = help.AppUp
 help.noAppUpdate#c45a6536 = help.AppUpdate;
 
 help.inviteText#18cb9f78 message:string = help.InviteText;
-
-messages.sentMessageLink#35a1a663 id:int date:int media:MessageMedia pts:int pts_count:int links:Vector<contacts.Link> seq:int = messages.SentMessage;
-
-inputGeoChat#74d456fa chat_id:int access_hash:long = InputGeoChat;
-
-inputNotifyGeoChatPeer#4d8ddec8 peer:InputGeoChat = InputNotifyPeer;
-
-geoChat#75eaea5a id:int access_hash:long title:string address:string venue:string geo:GeoPoint photo:ChatPhoto participants_count:int date:int checked_in:Bool version:int = Chat;
-
-geoChatMessageEmpty#60311a9b chat_id:int id:int = GeoChatMessage;
-geoChatMessage#4505f8e1 chat_id:int id:int from_id:int date:int message:string media:MessageMedia = GeoChatMessage;
-geoChatMessageService#d34fa24e chat_id:int id:int from_id:int date:int action:MessageAction = GeoChatMessage;
-
-geochats.statedMessage#17b1578b message:GeoChatMessage chats:Vector<Chat> users:Vector<User> seq:int = geochats.StatedMessage;
-
-geochats.located#48feb267 results:Vector<ChatLocated> messages:Vector<GeoChatMessage> chats:Vector<Chat> users:Vector<User> = geochats.Located;
-
-geochats.messages#d1526db1 messages:Vector<GeoChatMessage> chats:Vector<Chat> users:Vector<User> = geochats.Messages;
-geochats.messagesSlice#bc5863e8 count:int messages:Vector<GeoChatMessage> chats:Vector<Chat> users:Vector<User> = geochats.Messages;
-
-messageActionGeoChatCreate#6f038ebc title:string address:string = MessageAction;
-messageActionGeoChatCheckin#c7d53de = MessageAction;
-
-updateNewGeoChatMessage#5a68e3f7 message:GeoChatMessage = Update;
 
 wallPaperSolid#63117f24 id:int title:string bg_color:int color:int = WallPaper;
 
@@ -546,7 +518,7 @@ updateWebPage#2cc36971 webpage:WebPage = Update;
 
 webPageEmpty#eb1477e8 id:long = WebPage;
 webPagePending#c586da1c id:long date:int = WebPage;
-webPage#a31ea0b5 flags:# id:long url:string display_url:string type:flags.0?string site_name:flags.1?string title:flags.2?string description:flags.3?string photo:flags.4?Photo embed_url:flags.5?string embed_type:flags.5?string embed_width:flags.6?int embed_height:flags.6?int duration:flags.7?int author:flags.8?string = WebPage;
+webPage#ca820ed7 flags:# id:long url:string display_url:string type:flags.0?string site_name:flags.1?string title:flags.2?string description:flags.3?string photo:flags.4?Photo embed_url:flags.5?string embed_type:flags.5?string embed_width:flags.6?int embed_height:flags.6?int duration:flags.7?int author:flags.8?string document:flags.9?Document = WebPage;
 
 messageMediaWebPage#a32dd600 webpage:WebPage = MessageMedia;
 
@@ -621,6 +593,8 @@ messageEntityCode#28a20571 offset:int length:int = MessageEntity;
 messageEntityPre#73924be0 offset:int length:int language:string = MessageEntity;
 messageEntityTextUrl#76a6d327 offset:int length:int url:string = MessageEntity;
 
+updateShortSentMessage#11f1331c flags:# id:int pts:int pts_count:int date:int media:flags.9?MessageMedia entities:flags.7?Vector<MessageEntity> = Updates;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -672,7 +646,7 @@ messages.deleteHistory#f4f8fb61 peer:InputPeer offset:int = messages.AffectedHis
 messages.deleteMessages#a5f18925 id:Vector<int> = messages.AffectedMessages;
 messages.receivedMessages#5a954c0 max_id:int = Vector<ReceivedNotifyMessage>;
 messages.setTyping#a3825e50 peer:InputPeer action:SendMessageAction = Bool;
-messages.sendMessage#df12390 flags:# peer:InputPeer reply_to_msg_id:flags.0?int message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> = messages.SentMessage;
+messages.sendMessage#fa88427a flags:# peer:InputPeer reply_to_msg_id:flags.0?int message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> = Updates;
 messages.sendMedia#c8f16791 flags:# peer:InputPeer reply_to_msg_id:flags.0?int media:InputMedia random_id:long reply_markup:flags.2?ReplyMarkup = Updates;
 messages.forwardMessages#55e1728d peer:InputPeer id:Vector<int> random_id:Vector<long> = Updates;
 messages.getChats#3c6aa187 id:Vector<int> = messages.Chats;
@@ -703,20 +677,6 @@ photos.getUserPhotos#91cd32a8 user_id:InputUser offset:int max_id:long limit:int
 
 messages.forwardMessage#33963bf9 peer:InputPeer id:int random_id:long = Updates;
 messages.sendBroadcast#bf73f4da contacts:Vector<InputUser> random_id:Vector<long> message:string media:InputMedia = Updates;
-
-geochats.getLocated#7f192d8f geo_point:InputGeoPoint radius:int limit:int = geochats.Located;
-geochats.getRecents#e1427e6f offset:int limit:int = geochats.Messages;
-geochats.checkin#55b3e8fb peer:InputGeoChat = geochats.StatedMessage;
-geochats.getFullChat#6722dd6f peer:InputGeoChat = messages.ChatFull;
-geochats.editChatTitle#4c8e2273 peer:InputGeoChat title:string address:string = geochats.StatedMessage;
-geochats.editChatPhoto#35d81a95 peer:InputGeoChat photo:InputChatPhoto = geochats.StatedMessage;
-geochats.search#cfcdc44d peer:InputGeoChat q:string filter:MessagesFilter min_date:int max_date:int offset:int max_id:int limit:int = geochats.Messages;
-geochats.getHistory#b53f7a68 peer:InputGeoChat offset:int max_id:int limit:int = geochats.Messages;
-geochats.setTyping#8b8a729 peer:InputGeoChat typing:Bool = Bool;
-geochats.sendMessage#61b0044 peer:InputGeoChat message:string random_id:long = geochats.StatedMessage;
-geochats.sendMedia#b8f0deff peer:InputGeoChat media:InputMedia random_id:long = geochats.StatedMessage;
-geochats.createGeoChat#e092e16 title:string geo_point:InputGeoPoint address:string venue:string = geochats.StatedMessage;
-
 messages.getDhConfig#26cf8950 version:int random_length:int = messages.DhConfig;
 messages.requestEncryption#f64daf43 user_id:InputUser random_id:int g_a:bytes = EncryptedChat;
 messages.acceptEncryption#3dbc0415 peer:InputEncryptedChat g_b:bytes key_fingerprint:long = EncryptedChat;

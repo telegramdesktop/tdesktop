@@ -172,7 +172,7 @@ namespace App {
 	DocumentData *document(const DocumentId &document);
 	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation);
 	WebPageData *webPage(const WebPageId &webPage);
-	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, int32 duration, const QString &author, int32 pendingTill);
+	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill);
 	ImageLinkData *imageLink(const QString &imageLink);
 	ImageLinkData *imageLinkSet(const QString &imageLink, ImageLinkType type, const QString &url);
 	void forgetMedia();

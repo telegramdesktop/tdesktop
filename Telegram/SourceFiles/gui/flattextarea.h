@@ -36,6 +36,7 @@ public:
 	void keyPressEvent(QKeyEvent *e);
 	void resizeEvent(QResizeEvent *e);
 	void mousePressEvent(QMouseEvent *e);
+	void dropEvent(QDropEvent *e);
 
 	const QString &getLastText() const;
 	void updatePlaceholder();
@@ -119,7 +120,7 @@ private:
 	anim::cvalue a_phColor;
 	style::flatTextarea _st;
 
-	bool _undoAvailable, _redoAvailable;
+	bool _undoAvailable, _redoAvailable, _inDrop;
 
 	int32 _fakeMargin;
 

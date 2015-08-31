@@ -64,8 +64,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_cancel" = "Annulla";
 "lng_continue" = "Continua";
 "lng_close" = "Chiudi";
-"lng_connecting" = "Connessione...";
-"lng_reconnecting" = "Riconnessione {count:ora|in # s|in # s}...";
+"lng_connecting" = "Connetto...";
+"lng_reconnecting" = "Riconnetto {count:ora|in # s|in # s}...";
 "lng_reconnecting_try_now" = "Prova ora";
 
 "lng_status_service_notifications" = "notifiche di servizio";
@@ -86,7 +86,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_status_lastseen_date" = "ultimo accesso {date}";
 "lng_status_lastseen_date_time" = "ultimo accesso {date} alle {time}";
 "lng_status_online" = "in linea";
-"lng_status_connecting" = "connessione...";
+"lng_status_connecting" = "connetto...";
 
 "lng_chat_status_unaccessible" = "gruppo non accessibile";
 "lng_chat_status_members" = "{count:nessun membro|# membro|# membri}";
@@ -188,6 +188,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_show_preview" = "Mostra anteprima messaggio";
 "lng_settings_use_windows" = "Usa le notifiche di Windows";
 "lng_settings_sound_notify" = "Riproduci suono";
+"lng_settings_include_muted" = "Includi chat silenziate nel badge";
 
 "lng_notification_preview" = "Hai un nuovo messaggio";
 
@@ -234,7 +235,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_download_path_clear" = "Elimina tutto";
 "lng_download_path_header" = "Scegli il percorso di download";
 "lng_download_path_default_radio" = "Cartella Telegram in «Download»";
-"lng_download_path_temp_radio" = "Cartella temporanea, pulita alla disconnessione";
+"lng_download_path_temp_radio" = "Cartella temporanea, pulita quando ti disconnetti";
 "lng_download_path_dir_radio" = "Cartella personalizzata, pulita manualmente";
 "lng_download_path_choose" = "Scegli il percorso di download";
 "lng_sure_clear_downloads" = "Vuoi eliminare tutti i file scaricati nella cartella temporanea? Sarà fatto automaticamente alla disconnessione o alla disinstallazione del programma";
@@ -305,9 +306,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_cloud_password_is_same" = "La password non è stata cambiata";
 
 "lng_connection_type" = "Tipo di connessione:";
-"lng_connection_auto_connecting" = "Default (connessione..)";
+"lng_connection_auto_connecting" = "Default (connetto..)";
 "lng_connection_auto" = "Predefinito ({transport} in uso)";
-"lng_connection_proxy_connecting" = "Connessione tramite proxy..";
+"lng_connection_proxy_connecting" = "Connetto tramite proxy..";
 "lng_connection_proxy" = "{transport} con proxy";
 "lng_connection_header" = "Tipo di connessione";
 "lng_connection_auto_rb" = "Auto (TCP se disponibile o HTTP)";
@@ -386,6 +387,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_files_header" = "Panoramica file";
 "lng_profile_audios" = "{count:_not_used_|# nota vocale|# note vocali} »";
 "lng_profile_audios_header" = "Panoramica note vocali";
+"lng_profile_shared_links" = "{count:_not_used_|# link condiviso|# link condivisi} »";
+"lng_profile_shared_links_header" = "Panoramica link condivisi";
 "lng_profile_audio_files_header" = "Playlist";
 "lng_profile_show_all_types" = "Mostra tutti i tipi";
 "lng_profile_copy_phone" = "Copia numero di telefono";
@@ -397,7 +400,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_title" = "Nuovo gruppo";
 
 "lng_failed_add_participant" = "Impossibile aggiungere l'utente. Riprova più tardi.";
-"lng_failed_add_not_mutual" = "Se una persona lascia un gruppo,\nsolo un contatto in comune può reinvitarla\n(lei deve avere il tuo numero\ndi telefono, e tu il suo).";
+"lng_failed_add_not_mutual" = "Se una persona lascia un gruppo, solo\nun contatto in comune può reinvitarla\n(chi ti invita deve avere il tuo\ncontatto su Telegram, e viceversa).";
 
 "lng_sure_delete_contact" = "Sicuro di volere eliminare {contact} dalla tua lista dei contatti?";
 "lng_sure_delete_history" = "Sicuro di voler eliminare tutta la cronologia dei messaggi con {contact}?\n\nQuesta azione non può essere annullata.";
@@ -443,6 +446,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_type_videos" = "Video";
 "lng_media_type_files" = "File";
 "lng_media_type_audios" = "Note vocali";
+"lng_media_type_links" = "Link condivisi";
 
 "lng_media_open_with" = "Apri con";
 "lng_media_download" = "Download";
@@ -641,7 +645,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli update è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "— Blocca gli utenti dalla loro pagina profilo\n— Aggiunto il supporto per le notifiche toast di Windows\n— Risolti i problemi con alcuni metodi di input su Linux (Fcitx and IBus)";
+"lng_new_version_text" = "— Includi chat silenziate nel badge nelle Impostazioni\n— Panoramica dei link condivisi e ricerca nei media condivisi\n— Anteprima quando invii una GIF o un file PDF.";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

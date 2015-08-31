@@ -982,9 +982,59 @@ DialogsIndexed &MainWidget::dialogsList() {
 	return dialogs.dialogsList();
 }
 
+inline bool replaceCharBySpace(ushort code) {
+	// \xe2\x80[\xa8 - \xac\xad] // 8232 - 8237
+	// QString from1 = QString::fromUtf8("\xe2\x80\xa8"), to1 = QString::fromUtf8("\xe2\x80\xad");
+	// \xcc[\xb3\xbf\x8a] // 819, 831, 778
+	// QString bad1 = QString::fromUtf8("\xcc\xb3"), bad2 = QString::fromUtf8("\xcc\xbf"), bad3 = QString::fromUtf8("\xcc\x8a");
+	// [\x00\x01\x02\x07\x08\x0b-\x1f] // '\t' = 0x09
+	return (code >= 0x00 && code <= 0x02) || (code >= 0x07 && code <= 0x09) || (code >= 0x0b && code <= 0x1f) ||
+		(code == 819) || (code == 831) || (code == 778) || (code >= 8232 && code <= 8237);
+}
+
 QString cleanMessage(const QString &text) {
-	QString result = text.trimmed();
-	// clean bad symbols
+	QString result = text;
+	QChar *_start = result.data(), *_end = _start + result.size(), *start = _start, *end = _end, *ch = start, *copy = 0;
+	for (; ch != end; ++ch) {
+		if (ch->unicode() == '\r') {
+			copy = ch + 1;
+			break;
+		} else if (replaceCharBySpace(ch->unicode())) {
+			*ch = ' ';
+		}
+	}
+	if (copy) {
+		for (; copy != end; ++copy) {
+			if (copy->unicode() == '\r') {
+				continue;
+			} else if (replaceCharBySpace(copy->unicode())) {
+				*ch++ = ' ';
+			} else {
+				*ch++ = *copy;
+			}
+		}
+		end = ch;
+	}
+
+	// PHP trim() removes [ \t\n\r\x00\x0b], we have removed [\t\r\x00\x0b] before, so
+	for (; start != end; ++start) {
+		if (start->unicode() != ' ' && start->unicode() != '\n') {
+			break;
+		}
+	}
+	for (QChar *e = end - 1; start != end; end = e) {
+		if (e->unicode() != ' ' && e->unicode() != '\n') {
+			break;
+		}
+		--e;
+	}
+	if (start == end) {
+		return QString();
+	} else if (start > _start) {
+		return QString(start, end - start);
+	} else if (end < _end) {
+		result.resize(end - start);
+	}
 	return result;
 }
 
@@ -1014,10 +1064,11 @@ void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId repl
 		} else if (webPageId) {
 			WebPageData *page = App::webPage(webPageId);
 			media = MTP_messageMediaWebPage(MTP_webPagePending(MTP_long(page->id), MTP_int(page->pendingTill)));
+			flags |= MTPDmessage::flag_media;
 		}
 		MTPVector<MTPMessageEntity> localEntities = linksToMTP(textParseLinks(sendingText, itemTextParseOptions(hist, App::self()).flags));
 		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTPint(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities));
-		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, localEntities), App::main()->rpcDone(&MainWidget::sentDataReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, localEntities), App::main()->rpcDone(&MainWidget::sentUpdatesReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 	}
 
 	finishForwarding(hist);
@@ -2232,87 +2283,8 @@ void MainWidget::windowShown() {
 	history.windowShown();
 }
 
-void MainWidget::sentDataReceived(uint64 randomId, const MTPmessages_SentMessage &result) {
-	switch (result.type()) {
-	case mtpc_messages_sentMessage: {
-		const MTPDmessages_sentMessage &d(result.c_messages_sentMessage());
-		
-		HistoryItem *item = 0;
-		if (randomId) {
-			QString text = App::histSentTextByItem(randomId);
-			feedUpdate(MTP_updateMessageID(d.vid, MTP_long(randomId))); // ignore real date
-			LinksInText links(linksFromMTP(d.ventities.c_vector().v));			
-			if (!text.isEmpty() && !links.isEmpty()) {
-				item = App::histItemById(d.vid.v);
-				if (item) {
-					bool was = item->hasTextLinks();
-					item->setText(text, links);
-					item->initDimensions(0);
-					itemResized(item);
-					if (!was && item->hasTextLinks()) {
-						item->history()->addToOverview(item, OverviewLinks);
-					}
-				}
-			}
-		}
-
-		if (updInited) {
-			if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
-				_byPtsSentMessage.insert(ptsKey(SkippedSentMessage), result);
-				return;
-			}
-		}
-
-		if (!item) {
-			item = App::histItemById(d.vid.v);
-		}
-		if (item) {
-			item->setMedia(d.vmedia);
-		}
-	} break;
-
-	case mtpc_messages_sentMessageLink: {
-		const MTPDmessages_sentMessageLink &d(result.c_messages_sentMessageLink());
-
-		HistoryItem *item = 0;
-		if (randomId) {
-			//QString text = App::histSentTextByItem(randomId);
-			feedUpdate(MTP_updateMessageID(d.vid, MTP_long(randomId))); // ignore real date
-			//LinksInText links(linksFromMTP(d.ventities.c_vector().v));
-			//if (!text.isEmpty() && !links.isEmpty()) {
-			//	item = App::histItemById(d.vid.v);
-			//	if (item) {
-			//		bool was = item->hasTextLinks();
-			//		item->setText(text, links);
-			//		item->initDimensions(0);
-			//		itemResized(item);
-			//		if (!was && item->hasTextLinks()) {
-			//			item->history()->addToOverview(item, OverviewLinks);
-			//		}
-			//	}
-			//}
-		}
-
-		if (updInited) {
-			if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
-				_byPtsSentMessage.insert(ptsKey(SkippedSentMessage), result);
-				return;
-			}
-		}
-		App::feedUserLinks(d.vlinks);
-
-		if (!item) {
-			item = App::histItemById(d.vid.v);
-		}
-		if (item) {
-			item->setMedia(d.vmedia);
-		}
-	} break;
-	};
-}
-
-void MainWidget::sentUpdatesReceived(const MTPUpdates &result) {
-	handleUpdates(result);
+void MainWidget::sentUpdatesReceived(uint64 randomId, const MTPUpdates &result) {
+	handleUpdates(result, randomId);
 	App::emitPeerUpdated();
 }
 
@@ -2728,7 +2700,7 @@ void MainWidget::applySkippedPtsUpdates() {
 		switch (i.value()) {
 		case SkippedUpdate: feedUpdate(_byPtsUpdate.value(i.key())); break;
 		case SkippedUpdates: handleUpdates(_byPtsUpdates.value(i.key())); break;
-		case SkippedSentMessage: sentDataReceived(0, _byPtsSentMessage.value(i.key())); break;
+//		case SkippedSentMessage: sentDataReceived(0, _byPtsSentMessage.value(i.key())); break;
 		}
 	}
 	--updSkipPtsUpdateLevel;
@@ -2740,7 +2712,7 @@ void MainWidget::clearSkippedPtsUpdates() {
 	_byPtsQueue.clear();
 	_byPtsUpdate.clear();
 	_byPtsUpdates.clear();
-	_byPtsSentMessage.clear();
+//	_byPtsSentMessage.clear();
 	updSkipPtsUpdateLevel = 0;
 }
 
@@ -2999,6 +2971,8 @@ void MainWidget::inviteImportDone(const MTPUpdates &updates) {
 	} break;
 	case mtpc_updateShortChatMessage: {
 	} break;
+	case mtpc_updateShortSentMessage: {
+	} break;
 	case mtpc_updatesTooLong: {
 	} break;
 	}
@@ -3093,7 +3067,6 @@ void MainWidget::gotNotifySetting(MTPInputNotifyPeer peer, const MTPPeerNotifySe
 	case mtpc_inputNotifyAll: applyNotifySetting(MTP_notifyAll(), settings); break;
 	case mtpc_inputNotifyUsers: applyNotifySetting(MTP_notifyUsers(), settings); break;
 	case mtpc_inputNotifyChats: applyNotifySetting(MTP_notifyChats(), settings); break;
-	case mtpc_inputNotifyGeoChatPeer: break; // no MTP_peerGeoChat
 	case mtpc_inputNotifyPeer:
 		switch (peer.c_inputNotifyPeer().vpeer.type()) {
 		case mtpc_inputPeerEmpty: applyNotifySetting(MTP_notifyPeer(MTP_peerUser(MTP_int(0))), settings); break;
@@ -3352,7 +3325,7 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 	update();
 }
 
-void MainWidget::handleUpdates(const MTPUpdates &updates) {
+void MainWidget::handleUpdates(const MTPUpdates &updates, uint64 randomId) {
 	switch (updates.type()) {
 	case mtpc_updates: {
 		const MTPDupdates &d(updates.c_updates());
@@ -3430,6 +3403,41 @@ void MainWidget::handleUpdates(const MTPUpdates &updates) {
 		HistoryItem *item = App::histories().addToBack(MTP_message(d.vflags, d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities));
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
+		}
+
+		updSetState(0, d.vdate.v, updQts, updSeq);
+	} break;
+
+	case mtpc_updateShortSentMessage: {
+		const MTPDupdateShortSentMessage &d(updates.c_updateShortSentMessage());
+		HistoryItem *item = 0;
+		if (randomId) {
+			QString text = d.has_entities() ? App::histSentTextByItem(randomId) : QString();
+			feedUpdate(MTP_updateMessageID(d.vid, MTP_long(randomId))); // ignore real date
+			if (!text.isEmpty()) {
+				LinksInText links(linksFromMTP(d.ventities.c_vector().v));
+				item = App::histItemById(d.vid.v);
+				if (item && !links.isEmpty()) {
+					bool was = item->hasTextLinks();
+					item->setText(text, links);
+					item->initDimensions(0);
+					itemResized(item);
+					if (!was && item->hasTextLinks()) {
+						item->history()->addToOverview(item, OverviewLinks);
+					}
+				}
+			}
+		}
+		
+		if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
+			_byPtsUpdates.insert(ptsKey(SkippedUpdates), updates);
+			return;
+		}
+		if (!item) {
+			item = App::histItemById(d.vid.v);
+		}
+		if (item) {
+			item->setMedia(d.has_media() ? (&d.vmedia) : 0);
 		}
 
 		updSetState(0, d.vdate.v, updQts, updSeq);
@@ -3684,10 +3692,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			user->setName(user->firstName, user->lastName, (user->contact || isServiceUser(user->id) || user->input.type() == mtpc_inputPeerSelf || user->phone.isEmpty()) ? QString() : App::formatPhone(user->phone), user->username);
 			App::markPeerUpdated(user);
 		}
-	} break;
-
-	case mtpc_updateNewGeoChatMessage: {
-		const MTPDupdateNewGeoChatMessage &d(update.c_updateNewGeoChatMessage());
 	} break;
 
 	case mtpc_updateNewEncryptedMessage: {

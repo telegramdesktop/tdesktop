@@ -69,6 +69,9 @@ void CodeInput::correctValue(QKeyEvent *e, const QString &was) {
 
 IntroCode::IntroCode(IntroWidget *parent) : IntroStage(parent), errorAlpha(0),
 	next(this, lang(lng_intro_next), st::btnIntroNext),
+	_desc(st::introTextSize.width()),
+	_noTelegramCode(this, lang(lng_code_no_telegram), st::introLink),
+	_noTelegramCodeRequestId(0),
 	code(this, st::inpIntroCode, lang(lng_code_ph)), waitTillCall(intro()->getCallTimeout()) {
 	setVisible(false);
 	setGeometry(parent->innerRect());
@@ -78,6 +81,24 @@ IntroCode::IntroCode(IntroWidget *parent) : IntroStage(parent), errorAlpha(0),
 	connect(&code, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(&callTimer, SIGNAL(timeout()), this, SLOT(onSendCall()));
 	connect(&checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
+	connect(&_noTelegramCode, SIGNAL(clicked()), this, SLOT(onNoTelegramCode()));
+
+	updateDescText();
+}
+
+void IntroCode::updateDescText() {
+	_desc.setRichText(st::introFont, lang(intro()->codeByTelegram() ? lng_code_telegram : lng_code_desc));
+	if (intro()->codeByTelegram()) {
+		_noTelegramCode.show();
+		callTimer.stop();
+	} else {
+		_noTelegramCode.hide();
+		waitTillCall = intro()->getCallTimeout();
+		if (!callTimer.isActive()) {
+			callTimer.start(1000);
+		}
+	}
+	update();
 }
 
 void IntroCode::paintEvent(QPaintEvent *e) {
@@ -87,21 +108,25 @@ void IntroCode::paintEvent(QPaintEvent *e) {
 	if (!trivial) {
 		p.setClipRect(e->rect());
 	}
+	bool codeByTelegram = intro()->codeByTelegram();
 	if (trivial || e->rect().intersects(textRect)) {
 		p.setFont(st::introHeaderFont->f);
 		p.drawText(textRect, intro()->getPhone(), style::al_top);
 		p.setFont(st::introFont->f);
-		p.drawText(textRect, lang(lng_code_desc), style::al_bottom);
+		_desc.draw(p, textRect.x(), textRect.y() + textRect.height() - 2 * st::introFont->height, textRect.width(), style::al_top);
 	}
-	QString callText = lang(lng_code_calling);
-	if (waitTillCall >= 3600) {
-		callText = lng_code_call(lt_minutes, qsl("%1:%2").arg(waitTillCall / 3600).arg((waitTillCall / 60) % 60, 2, 10, QChar('0')), lt_seconds, qsl("%1").arg(waitTillCall % 60, 2, 10, QChar('0')));
-	} else if (waitTillCall > 0) {
-		callText = lng_code_call(lt_minutes, QString::number(waitTillCall / 60), lt_seconds, qsl("%1").arg(waitTillCall % 60, 2, 10, QChar('0')));
-	} else if (waitTillCall < 0) {
-		callText = lang(lng_code_called);
+	if (codeByTelegram) {
+	} else {
+		QString callText = lang(lng_code_calling);
+		if (waitTillCall >= 3600) {
+			callText = lng_code_call(lt_minutes, qsl("%1:%2").arg(waitTillCall / 3600).arg((waitTillCall / 60) % 60, 2, 10, QChar('0')), lt_seconds, qsl("%1").arg(waitTillCall % 60, 2, 10, QChar('0')));
+		} else if (waitTillCall > 0) {
+			callText = lng_code_call(lt_minutes, QString::number(waitTillCall / 60), lt_seconds, qsl("%1").arg(waitTillCall % 60, 2, 10, QChar('0')));
+		} else if (waitTillCall < 0) {
+			callText = lang(lng_code_called);
+		}
+		p.drawText(QRect(textRect.left(), code.y() + code.height() + st::introCallSkip, st::introTextSize.width(), st::introErrHeight), callText, style::al_center);
 	}
-	p.drawText(QRect(textRect.left(), code.y() + code.height() + st::introCallSkip, st::introTextSize.width(), st::introErrHeight), callText, style::al_center);
 	if (animating() || error.length()) {
 		p.setOpacity(errorAlpha.current());
 		p.setFont(st::introErrFont->f);
@@ -116,6 +141,7 @@ void IntroCode::resizeEvent(QResizeEvent *e) {
 		code.move((width() - code.width()) / 2, st::introTextTop + st::introTextSize.height() + st::introCountry.top);
 	}
 	textRect = QRect((width() - st::introTextSize.width()) / 2, st::introTextTop, st::introTextSize.width(), st::introTextSize.height());
+	_noTelegramCode.move(textRect.left() + (st::introTextSize.width() - _noTelegramCode.width()) / 2, code.y() + code.height() + st::introCallSkip + (st::introErrHeight - _noTelegramCode.height()) / 2);
 }
 
 void IntroCode::showError(const QString &err) {
@@ -150,7 +176,9 @@ bool IntroCode::animStep(float64 ms) {
 
 void IntroCode::activate() {
 	waitTillCall = intro()->getCallTimeout();
-	callTimer.start(1000);
+	if (!intro()->codeByTelegram()) {
+		callTimer.start(1000);
+	}
 	error = "";
 	errorAlpha = anim::fvalue(0);
 	sentCode = QString();
@@ -298,6 +326,31 @@ void IntroCode::onSubmitCode(bool force) {
 	intro()->setHasRecovery(false);
 	intro()->setPwdHint(QString());
 	sentRequest = MTP::send(MTPauth_SignIn(MTP_string(intro()->getPhone()), MTP_string(intro()->getPhoneHash()), MTP_string(sentCode)), rpcDone(&IntroCode::codeSubmitDone), rpcFail(&IntroCode::codeSubmitFail));
+}
+
+void IntroCode::onNoTelegramCode() {
+	if (_noTelegramCodeRequestId) return;
+	_noTelegramCodeRequestId = MTP::send(MTPauth_SendSms(MTP_string(intro()->getPhone()), MTP_string(intro()->getPhoneHash())), rpcDone(&IntroCode::noTelegramCodeDone), rpcFail(&IntroCode::noTelegramCodeFail));
+}
+
+void IntroCode::noTelegramCodeDone(const MTPBool &result) {
+	intro()->setCodeByTelegram(false);
+	updateDescText();
+}
+
+bool IntroCode::noTelegramCodeFail(const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) {
+		showError(lang(lng_flood_error));
+		code.setFocus();
+		return true;
+	}
+	if (cDebug()) { // internal server error
+		showError(error.type() + ": " + error.description());
+	} else {
+		showError(lang(lng_server_error));
+	}
+	code.setFocus();
+	return false;
 }
 
 void IntroCode::onNext() {

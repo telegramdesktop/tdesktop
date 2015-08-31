@@ -78,7 +78,13 @@ LangString langCounted(ushort key0, ushort tag, float64 value);
 const char *langKeyName(LangKey key);
 
 inline LangString langDayOfMonth(const QDate &date) {
-	int32 month = date.month(), day = date.day();
+	QDate c(QDate::currentDate());
+	int32 month = date.month(), day = date.day(), year = date.year(), cyear = c.year(), cmonth = c.month();
+	if (year != cyear) {
+		if (year > cyear + 1 || cyear > year + 1 || (year == cyear + 1 && month + 12 > cmonth + 3) || (cyear == year + 1 && cmonth + 12 > month + 3)) {
+			return (month > 0 && month <= 12) ? lng_month_day_year(lt_month, lang(LangKey(lng_month1 + month - 1)), lt_day, QString::number(day), lt_year, QString::number(year)) : qsl("MONTH_ERR");
+		}
+	}
 	return (month > 0 && month <= 12) ? lng_month_day(lt_month, lang(LangKey(lng_month1 + month - 1)), lt_day, QString::number(day)) : qsl("MONTH_ERR");
 }
 

@@ -60,6 +60,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_weekday7_full" = "Sunday";
 
 "lng_month_day" = "{month} {day}";
+"lng_month_day_year" = "{month} {day}, {year}";
 
 "lng_cancel" = "Cancel";
 "lng_continue" = "Continue";
@@ -117,6 +118,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_code_ph" = "Your code";
 "lng_code_desc" = "We have sent you a message with activation\ncode to your phone. Please enter it below.";
+"lng_code_telegram" = "Please enter the code you've just\nreceived in your previous [b]Telegram[/b] app.";
+"lng_code_no_telegram" = "Send code via SMS";
 "lng_code_call" = "Telegram will dial your number in {minutes}:{seconds}";
 "lng_code_calling" = "Requesting a call from Telegram..";
 "lng_code_called" = "Telegram dialed your number";
@@ -645,7 +648,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Block users from their profile page\n— Added support for Windows toast notifications\n— Fixed input methods on Linux (Fcitx and IBus)";
+"lng_new_version_text" = "— Include muted chats in unread count in Settings\n— Shared links overview and search in shared media\n— Preview when sending links to GIF animations and PDF files";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

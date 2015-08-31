@@ -188,6 +188,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_show_preview" = "Mostrar pré-visualização da mensagem";
 "lng_settings_use_windows" = "Usar notificações do Windows";
 "lng_settings_sound_notify" = "Tocar som";
+"lng_settings_include_muted" = "Incluir chats silenciados no contador de notificações";
 
 "lng_notification_preview" = "Você tem uma nova mensagem";
 
@@ -380,12 +381,14 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_no_media" = "Nenhuma mídia nessa conversa.";
 "lng_profile_photos" = "{count:_not_used_|# foto|# fotos} »";
 "lng_profile_photos_header" = "Fotos";
-"lng_profile_videos" = "{count:_not_used_|# arquivo de vídeo|# arquivo de vídeos} »";
+"lng_profile_videos" = "{count:_not_used_|# vídeo|# vídeos} »";
 "lng_profile_videos_header" = "Vídeos";
 "lng_profile_files" = "{count:_not_used_|# arquivo|# arquivos} »";
 "lng_profile_files_header" = "Arquivos";
 "lng_profile_audios" = "{count:_not_used_|# mensagem de voz|# mensagens de voz} »";
 "lng_profile_audios_header" = "Mensagens de voz";
+"lng_profile_shared_links" = "{count:_not_used_|# link|# links} »";
+"lng_profile_shared_links_header" = "Links";
 "lng_profile_audio_files_header" = "Reprodução";
 "lng_profile_show_all_types" = "Mostrar todos os tipos";
 "lng_profile_copy_phone" = "Copiar número de telefone";
@@ -440,14 +443,15 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_media_type" = "Tipo de mídia";
 "lng_media_type_photos" = "Fotos";
-"lng_media_type_videos" = "Arquivos de vídeo";
+"lng_media_type_videos" = "Vídeos";
 "lng_media_type_files" = "Arquivos";
 "lng_media_type_audios" = "Mensagens de voz";
+"lng_media_type_links" = "Links";
 
 "lng_media_open_with" = "Abrir Com";
 "lng_media_download" = "Download";
 "lng_media_cancel" = "Cancelar";
-"lng_media_video" = "Arquivo de vídeo";
+"lng_media_video" = "Vídeos";
 "lng_media_audio" = "Mensagem de voz";
 
 "lng_emoji_category0" = "Frequentemente usado";
@@ -641,7 +645,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras menores melhorias";
-"lng_new_version_text" = "— Bloqueie usuários direto da página do perfil\n— Adicionado suporte às notificações de sistema do Windows\n— Consertado métodos de entrada no Linux (Fcitx e IBus)";
+"lng_new_version_text" = "— Incluir chats silenciados no contador de notificações em Configurações\n— Visão geral dos links compartilhados e busca nas mídias compartilhadas\n— Pré-visualização em links com GIF e arquivos em PDF";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

@@ -774,8 +774,8 @@ QString DocumentData::already(bool check) {
 	return location.name;
 }
 
-WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, int32 duration, const QString &author, int32 pendingTill) :
-id(id), type(type), url(url), displayUrl(displayUrl), siteName(siteName), title(title), description(description), duration(duration), author(author), photo(photo), pendingTill(pendingTill) {
+WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill) :
+id(id), type(type), url(url), displayUrl(displayUrl), siteName(siteName), title(title), description(description), duration(duration), author(author), photo(photo), doc(doc), pendingTill(pendingTill) {
 }
 
 void PeerLink::onClick(Qt::MouseButton button) const {

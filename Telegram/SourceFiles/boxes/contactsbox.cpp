@@ -1271,6 +1271,8 @@ void CreateGroupBox::created(const MTPUpdates &updates) {
 	} break;
 	case mtpc_updateShortChatMessage: {
 	} break;
+	case mtpc_updateShortSentMessage: {
+	} break;
 	case mtpc_updatesTooLong: {
 	} break;
 	}

@@ -188,6 +188,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_show_preview" = "Mostrar la vista previa del mensaje";
 "lng_settings_use_windows" = "Usar notificaciones de Windows";
 "lng_settings_sound_notify" = "Reproducir sonido";
+"lng_settings_include_muted" = "Incluir los chats silenciados en el conteo de 'no leídos'";
 
 "lng_notification_preview" = "Tienes un nuevo mensaje";
 
@@ -386,6 +387,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_files_header" = "Archivos";
 "lng_profile_audios" = "{count:_not_used_|# mensaje de voz|# mensajes de voz} »";
 "lng_profile_audios_header" = "Mensajes de voz";
+"lng_profile_shared_links" = "{count:_not_used_|# enlace|# enlaces} »";
+"lng_profile_shared_links_header" = "Enlaces";
 "lng_profile_audio_files_header" = "Lista de reproducción";
 "lng_profile_show_all_types" = "Mostrar todos los tipos";
 "lng_profile_copy_phone" = "Copiar número";
@@ -443,6 +446,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_type_videos" = "Vídeos";
 "lng_media_type_files" = "Archivos";
 "lng_media_type_audios" = "Mensajes de voz";
+"lng_media_type_links" = "Enlaces";
 
 "lng_media_open_with" = "Abrir con";
 "lng_media_download" = "Descargar";
@@ -641,7 +645,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop fue actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Bloquea usuarios desde sus perfiles\n— Añadido el soporte para notificaciones Windows toast\n— Arreglados los métodos de entrada en Linux (Fcitx e IBus)";
+"lng_new_version_text" = "— Incluye los chats silenciados en el conteo de 'no leídos', en Ajustes\n— Vista y búsqueda de los enlaces compartidos, en 'Todos los archivos'\n— Vista previa al enviar enlaces a GIF animados o archivos PDF";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 
