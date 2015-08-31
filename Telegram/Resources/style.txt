@@ -340,6 +340,10 @@ introHeaderFont: font(24px);
 introHeaderSkip: 14px;
 introIconSkip: 54px;
 introFont: font(16px);
+introLink: linkButton(btnDefLink) {
+	font: introFont;
+	overFont: font(16px underline);
+}
 introColor: black;
 introLabel: flatLabel(labelDefFlat) {
 	font: introFont;

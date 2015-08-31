@@ -52,6 +52,7 @@ public:
 	void setPwdSalt(const QByteArray &salt);
 	void setHasRecovery(bool hasRecovery);
 	void setPwdHint(const QString &hint);
+	void setCodeByTelegram(bool byTelegram);
 
 	const QString &getPhone() const;
 	const QString &getPhoneHash() const;
@@ -60,6 +61,7 @@ public:
 	const QByteArray &getPwdSalt() const;
 	bool getHasRecovery() const;
 	const QString &getPwdHint() const;
+	bool codeByTelegram() const;
 
 	void finish(const MTPUser &user, const QImage &photo = QImage());
 
@@ -114,7 +116,7 @@ private:
 	QString _code;
 
 	QByteArray _pwdSalt;
-	bool _hasRecovery;
+	bool _hasRecovery, _codeByTelegram;
 	QString _pwdHint;
 
 	QString _firstname, _lastname;

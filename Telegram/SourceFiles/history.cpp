@@ -2015,19 +2015,37 @@ void HistoryPhoto::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 				return fwd->getForwardedState(lnk, state, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
 			}
 		}
-		height -= st::mediaPadding.bottom();
+		height -= skipy + st::mediaPadding.bottom();
 		width -= st::mediaPadding.left() + st::mediaPadding.right();
 		if (!_caption.isEmpty()) {
+			int32 dateX = skipx + width + st::msgDateDelta.x() - parent->timeWidth(true) + st::msgDateSpace;
+			int32 dateY = _height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->height;
+			bool inDate = QRect(dateX, dateY, parent->timeWidth(true) - st::msgDateSpace, st::msgDateFont->height).contains(x, y);
+			if (inDate) {
+				state = HistoryInDateCursorState;
+			}
+
 			height -= _caption.countHeight(width) + st::webPagePhotoSkip;
-			if (x >= skipx && y >= height + st::webPagePhotoSkip && x < skipx + width && y < _height) {
+			if (x >= skipx && y >= skipy + height + st::webPagePhotoSkip && x < skipx + width && y < _height) {
 				bool inText = false;
-				_caption.getState(lnk, inText, x - skipx, y - height - st::webPagePhotoSkip, width);
-				state = inText ? HistoryInTextCursorState : HistoryDefaultCursorState;
+				_caption.getState(lnk, inText, x - skipx, y - skipy - height - st::webPagePhotoSkip, width);
+				state = inDate ? HistoryInDateCursorState : (inText ? HistoryInTextCursorState : HistoryDefaultCursorState);
 			}
 		}
 	}
-	if (x >= skipx && y >= skipy && x < skipx + width && y < height) {
+	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height) {
 		lnk = openl;
+		if (_caption.isEmpty()) {
+			int32 dateX = skipx + width - parent->timeWidth(false) - st::msgDateImgDelta - st::msgDateImgPadding.x();
+			int32 dateY = skipy + height - st::msgDateFont->height - st::msgDateImgDelta - st::msgDateImgPadding.y();
+			if (parent->out()) {
+				dateX -= st::msgCheckRect.pxWidth() + st::msgDateImgCheckSpace;
+			}
+			bool inDate = QRect(dateX, dateY, parent->timeWidth(true) - st::msgDateSpace, st::msgDateFont->height).contains(x, y);
+			if (inDate) {
+				state = HistoryInDateCursorState;
+			}
+		}
 		return;
 	}
 }
@@ -2422,6 +2440,13 @@ void HistoryVideo::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 		}
 	}
 
+	int32 dateX = width - st::msgPadding.right() + st::msgDateDelta.x() - parent->timeWidth(true) + st::msgDateSpace;
+	int32 dateY = _height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->height;
+	bool inDate = QRect(dateX, dateY, parent->timeWidth(true) - st::msgDateSpace, st::msgDateFont->height).contains(x, y);
+	if (inDate) {
+		state = HistoryInDateCursorState;
+	}
+
 	int32 tw = width - st::mediaPadding.left() - st::mediaPadding.right();
 	if (x >= st::mediaPadding.left() && y >= skipy + st::mediaPadding.top() && x < st::mediaPadding.left() + tw && y < skipy + st::mediaPadding.top() + st::mediaThumbSize && !data->loader && data->access) {
 		lnk = _openl;
@@ -2430,7 +2455,7 @@ void HistoryVideo::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 	if (!_caption.isEmpty() && x >= st::mediaPadding.left() && x < st::mediaPadding.left() + tw && y >= skipy + st::mediaPadding.top() + st::mediaThumbSize + st::webPagePhotoSkip) {
 		bool inText = false;
 		_caption.getState(lnk, inText, x - st::mediaPadding.left(), y - skipy - st::mediaPadding.top() - st::mediaThumbSize - st::webPagePhotoSkip, tw);
-		state = inText ? HistoryInTextCursorState : HistoryDefaultCursorState;
+		state = inDate ? HistoryInDateCursorState : (inText ? HistoryInTextCursorState : HistoryDefaultCursorState);
 	}
 }
 
@@ -2918,6 +2943,14 @@ void HistoryAudio::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 
 	if (x >= 0 && y >= skipy && x < width && y < _height && !data->loader && data->access) {
 		lnk = _openl;
+
+		int32 dateX = width - st::msgPadding.right() + st::msgDateDelta.x() - parent->timeWidth(true) + st::msgDateSpace;
+		int32 dateY = _height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->height;
+		bool inDate = QRect(dateX, dateY, parent->timeWidth(true) - st::msgDateSpace, st::msgDateFont->height).contains(x, y);
+		if (inDate) {
+			state = HistoryInDateCursorState;
+		}
+
 		return;
 	}
 }
@@ -3430,6 +3463,14 @@ void HistoryDocument::getState(TextLinkPtr &lnk, HistoryCursorState &state, int3
 
 	if (x >= 0 && y >= skipy && x < width && y < _height && !data->loader && data->access) {
 		lnk = _openl;
+
+		int32 dateX = width - st::msgPadding.right() + st::msgDateDelta.x() - parent->timeWidth(true) + st::msgDateSpace;
+		int32 dateY = _height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->height;
+		bool inDate = QRect(dateX, dateY, parent->timeWidth(true) - st::msgDateSpace, st::msgDateFont->height).contains(x, y);
+		if (inDate) {
+			state = HistoryInDateCursorState;
+		}
+
 		return;
 	}
 }
@@ -3602,12 +3643,25 @@ void HistorySticker::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32
 	const HistoryReply *reply = toHistoryReply(parent);
 	if (reply) {
 		usew -= reply->replyToWidth();
+		if (parent->out()) {
+			usex = width - usew;
+		}
+
 		int32 rw = width - usew, rh = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		int32 rx = parent->out() ? 0 : usew, ry = _height - rh;
 		if (x >= rx && y >= ry && x < rx + rw && y < ry + rh) {
 			lnk = reply->replyToLink();
 			return;
 		}
+	}
+	int32 dateX = usex + usew - parent->timeWidth(false) - st::msgDateImgDelta - st::msgDateImgPadding.x();
+	int32 dateY = _height - st::msgDateFont->height - st::msgDateImgDelta - st::msgDateImgPadding.y();
+	if (parent->out()) {
+		dateX -= st::msgCheckRect.pxWidth() + st::msgDateImgCheckSpace;
+	}
+	bool inDate = QRect(dateX, dateY, parent->timeWidth(true) - st::msgDateSpace, st::msgDateFont->height).contains(x, y);
+	if (inDate) {
+		state = HistoryInDateCursorState;
 	}
 }
 
@@ -5159,11 +5213,22 @@ void HistoryImageLink::getState(TextLinkPtr &lnk, HistoryCursorState &state, int
 				return fwd->getForwardedState(lnk, state, x - st::mediaPadding.left(), width - st::mediaPadding.left() - st::mediaPadding.right());
 			}
 		}
-		height -= st::mediaPadding.bottom();
+		height -= skipy + st::mediaPadding.bottom();
 		width -= st::mediaPadding.left() + st::mediaPadding.right();
 	}
-	if (x >= skipx && y >= skipy && x < skipx + width && y < height && data) {
+	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height && data) {
 		lnk = link;
+
+		int32 dateX = skipx + width - parent->timeWidth(false) - st::msgDateImgDelta - st::msgDateImgPadding.x();
+		int32 dateY = skipy + height - st::msgDateFont->height - st::msgDateImgDelta - st::msgDateImgPadding.y();
+		if (parent->out()) {
+			dateX -= st::msgCheckRect.pxWidth() + st::msgDateImgCheckSpace;
+		}
+		bool inDate = QRect(dateX, dateY, parent->timeWidth(true) - st::msgDateSpace, st::msgDateFont->height).contains(x, y);
+		if (inDate) {
+			state = HistoryInDateCursorState;
+		}
+
 		return;
 	}
 }

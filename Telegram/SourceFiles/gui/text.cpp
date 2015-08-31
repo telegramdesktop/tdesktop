@@ -542,7 +542,27 @@ public:
 		flags(0),
 		lnkIndex(0),
 		stopAfterWidth(QFIXED_MAX) {
-		lnkRanges = links;
+		if ((options.flags & TextParseLinks) && !links.isEmpty()) {
+			bool parseMentions = (options.flags & TextParseMentions);
+			bool parseHashtags = (options.flags & TextParseHashtags);
+			bool parseBotCommands = (options.flags & TextParseBotCommands);
+			if (parseMentions && parseHashtags && parseBotCommands) {
+				lnkRanges = links;
+			} else {
+				int32 i = 0, l = links.size();
+				lnkRanges.reserve(l);
+				const QChar *p = text.constData(), s = text.size();
+				for (; i < l; ++i) {
+					LinkInTextType t = links.at(i).type;
+					if ((t == LinkInTextMention && !parseMentions) ||
+						(t == LinkInTextHashtag && !parseHashtags) ||
+						(t == LinkInTextBotCommand && !parseBotCommands)) {
+						continue;
+					}
+					lnkRanges.push_back(links.at(i));
+				}
+			}
+		}
 		parse(options);
 	}
 	void parse(const TextParseOptions &options) {

@@ -64,9 +64,12 @@ public:
 	void codeSubmitDone(const MTPauth_Authorization &result);
 	bool codeSubmitFail(const RPCError &error);
 
+	void updateDescText();
+
 public slots:
 
 	void onSubmitCode(bool force = false);
+	void onNoTelegramCode();
 	void onInputChange();
 	void onSendCall();
 	void onCheckRequest();
@@ -84,7 +87,13 @@ private:
 
 	FlatButton next;
 
+	Text _desc;
+	LinkButton _noTelegramCode;
+	mtpRequestId _noTelegramCodeRequestId;
 	QRect textRect;
+
+	void noTelegramCodeDone(const MTPBool &result);
+	bool noTelegramCodeFail(const RPCError &result);
 
 	CodeInput code;
 	QString sentCode;
