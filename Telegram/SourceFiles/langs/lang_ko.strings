@@ -188,6 +188,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_show_preview" = "메시지 미리보기";
 "lng_settings_use_windows" = "윈도우 알림 사용";
 "lng_settings_sound_notify" = "소리 재생";
+"lng_settings_include_muted" = "안 읽은 메시지에 음소거된 채팅방 포함";
 
 "lng_notification_preview" = "새로운 메시지가 있습니다.";
 
@@ -386,6 +387,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_files_header" = "파일 내역";
 "lng_profile_audios" = "{count:_not_used_|#개의 음성 메시지|#개의 음성 메시지} »";
 "lng_profile_audios_header" = "음성 메시지 내역";
+"lng_profile_shared_links" = "{count:_not_used_|# 공유된 링크|# 공유된 링크} »";
+"lng_profile_shared_links_header" = "공유된 링크 현황";
 "lng_profile_audio_files_header" = "재생목록";
 "lng_profile_show_all_types" = "모든 유형 보기";
 "lng_profile_copy_phone" = "전화번호 복사";
@@ -443,6 +446,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_type_videos" = "비디오 파일";
 "lng_media_type_files" = "파일";
 "lng_media_type_audios" = "음성 메시지";
+"lng_media_type_links" = "공유된 링크";
 
 "lng_media_open_with" = "다음으로 열기";
 "lng_media_download" = "다운로드";
@@ -641,7 +645,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 프로필 화면에서 사용자 차단\n— 윈도우 알림 지원\n— 리눅스 입력 방법 수정 (Fcitx and IBus)";
+"lng_new_version_text" = "— 설정에서 안 읽은 메시지 수에 음소거된 채팅방 포함\n— 공유된 링크 현황과 공유된 미디어 검색 기능\n— GIF 링크 및 PDF 파일 전송시 프리뷰 기능";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 
