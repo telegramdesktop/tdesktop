@@ -699,13 +699,33 @@ namespace App {
 		}
 	}
 
+	void checkEntitiesUpdate(const MTPDmessage &m) {
+		if (HistoryItem *existing = App::histItemById(m.vid.v)) {
+			bool hasLinks = m.has_entities() && !m.ventities.c_vector().v.isEmpty();
+			if ((hasLinks && !existing->hasTextLinks()) || (!hasLinks && existing->textHasLinks())) {
+				existing->setText(qs(m.vmessage), m.has_entities() ? linksFromMTP(m.ventities.c_vector().v) : LinksInText());
+				existing->initDimensions(0);
+				if (App::main()) App::main()->itemResized(existing);
+				if (existing->hasTextLinks()) {
+					existing->history()->addToOverview(existing, OverviewLinks);
+				}
+			}
+		}
+	}
+
 	void feedMsgs(const MTPVector<MTPMessage> &msgs, int msgsState) {
 		const QVector<MTPMessage> &v(msgs.c_vector().v);
 		QMap<int32, int32> msgsIds;
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
 			const MTPMessage &msg(v.at(i));
 			switch (msg.type()) {
-			case mtpc_message: msgsIds.insert(msg.c_message().vid.v, i); break;
+			case mtpc_message: {
+				const MTPDmessage &d(msg.c_message());
+				msgsIds.insert(d.vid.v, i);
+				if (msgsState == 1) { // new message, index my forwarded messages to links overview
+					checkEntitiesUpdate(d);
+				}
+			} break;
 			case mtpc_messageEmpty: msgsIds.insert(msg.c_messageEmpty().vid.v, i); break;
 			case mtpc_messageService: msgsIds.insert(msg.c_messageService().vid.v, i); break;
 			}

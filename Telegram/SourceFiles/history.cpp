@@ -644,23 +644,13 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 		}
 
 		const MTPMessageMedia *media = 0;
-		const QVector<MTPMessageEntity> *entities = 0;
 		switch (msg.type()) {
 		case mtpc_message:
 			media = msg.c_message().has_media() ? (&msg.c_message().vmedia) : 0;
-			entities = msg.c_message().has_entities() ? (&msg.c_message().ventities.c_vector().v) : 0;
 		break;
 		}
 		if (media) {
 			existing->updateMedia(*media);
-		}
-		if (entities && !existing->hasTextLinks()) { // index forwarded messages to links overview
-			existing->setText(qs(msg.c_message().vmessage), linksFromMTP(*entities));
-			existing->initDimensions(0);
-			if (App::main()) App::main()->itemResized(existing);
-			if (existing->hasTextLinks()) {
-				existing->history()->addToOverview(existing, OverviewLinks);
-			}
 		}
 		return (returnExisting || regged) ? existing : 0;
 	}
@@ -5249,7 +5239,6 @@ HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, const MTPD
 , _textHeight(0)
 , _media(0)
 {
-	//if (msg.has_entities()) msg.ventities.c_vector().v.size()
 	QString text(textClean(qs(msg.vmessage)));
 	initTime();
 	initMedia(msg.has_media() ? (&msg.vmedia) : 0, text);
@@ -5492,6 +5481,10 @@ void HistoryMessage::getTextWithLinks(QString &text, LinksInText &links) {
 	if (_text.isEmpty()) return;
 	links = _text.calcLinksInText();
 	text = _text.original();
+}
+
+bool HistoryMessage::textHasLinks() {
+	return _text.hasLinks();
 }
 
 void HistoryMessage::draw(QPainter &p, uint32 selection) const {
