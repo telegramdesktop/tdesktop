@@ -2441,7 +2441,7 @@ void HistoryVideo::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 	}
 
 	int32 dateX = width - st::msgPadding.right() + st::msgDateDelta.x() - parent->timeWidth(true) + st::msgDateSpace;
-	int32 dateY = _height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->height;
+	int32 dateY = height - st::msgPadding.bottom() + st::msgDateDelta.y() - st::msgDateFont->height;
 	bool inDate = QRect(dateX, dateY, parent->timeWidth(true) - st::msgDateSpace, st::msgDateFont->height).contains(x, y);
 	if (inDate) {
 		state = HistoryInDateCursorState;
@@ -3886,31 +3886,18 @@ void HistoryContact::updateFrom(const MTPMessageMedia &media) {
 
 HistoryWebPage::HistoryWebPage(WebPageData *data) : HistoryMedia()
 , data(data)
-, _openl(data->url.isEmpty() ? 0 : new TextLink(data->url))
-, _attachl((data->photo && data->type != WebPageVideo) ? static_cast<ITextLink*>(new PhotoLink(data->photo)) : static_cast<ITextLink*>(data->doc ? new DocumentOpenLink(data->doc) : 0))
+, _openl(0)
+, _attachl(0)
 , _asArticle(false)
 , _title(st::msgMinWidth - st::webPageLeft)
 , _description(st::msgMinWidth - st::webPageLeft)
 , _siteNameWidth(0)
-, _docSize(data->doc ? (data->doc->song() ? formatDurationAndSizeText(data->doc->song()->duration, data->doc->size) : formatSizeText(data->doc->size)) : QString())
-, _docName(data->doc ? documentName(data->doc) : QString())
 , _durationWidth(0)
-, _docNameWidth(data->doc ? (st::mediaFont->m.width(_docName.isEmpty() ? qsl("Document") : _docName)) : 0)
+, _docNameWidth(0)
+, _docThumbWidth(0)
 , _docDownloadDone(0)
 , _pixw(0), _pixh(0)
 {
-	if (data->doc) {
-		data->doc->thumb->load();
-
-		int32 tw = data->doc->thumb->width(), th = data->doc->thumb->height();
-		if (data->doc->thumb->isNull() || !tw || !th) {
-			_docThumbWidth = 0;
-		} else if (tw > th) {
-			_docThumbWidth = (tw * st::mediaThumbSize) / th;
-		} else {
-			_docThumbWidth = st::mediaThumbSize;
-		}
-	}
 }
 
 void HistoryWebPage::initDimensions(const HistoryItem *parent) {
@@ -3924,6 +3911,7 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 	if (!_openl && !data->url.isEmpty()) _openl = TextLinkPtr(new TextLink(data->url));
 	if (!_attachl && data->photo && data->type != WebPageVideo) _attachl = TextLinkPtr(new PhotoLink(data->photo));
 	if (!_attachl && data->doc) _attachl = TextLinkPtr(new DocumentOpenLink(data->doc));
+
 	if (data->photo && data->type != WebPagePhoto && data->type != WebPageVideo) {
 		if (data->type == WebPageProfile) {
 			_asArticle = true;
@@ -3935,6 +3923,7 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 	} else {
 		_asArticle = false;
 	}
+
 	if (_asArticle) {
 		w = st::webPagePhotoSize;
 		_maxw = st::webPageLeft + st::webPagePhotoSize;
@@ -3962,6 +3951,22 @@ void HistoryWebPage::initDimensions(const HistoryItem *parent) {
 		_minh = qMax(thumbh, int32(st::minPhotoSize));
 		_minh += st::webPagePhotoSkip;
 	} else if (data->doc) {
+		if (!data->doc->thumb->isNull()) {
+			data->doc->thumb->load();
+
+			int32 tw = data->doc->thumb->width(), th = data->doc->thumb->height();
+			if (data->doc->thumb->isNull() || !tw || !th) {
+				_docThumbWidth = 0;
+			} else if (tw > th) {
+				_docThumbWidth = (tw * st::mediaThumbSize) / th;
+			} else {
+				_docThumbWidth = st::mediaThumbSize;
+			}
+		}
+		_docName = documentName(data->doc);
+		_docSize = data->doc->song() ? formatDurationAndSizeText(data->doc->song()->duration, data->doc->size) : formatSizeText(data->doc->size);
+		_docNameWidth = st::mediaFont->m.width(_docName.isEmpty() ? qsl("Document") : _docName);
+
 		if (parent == animated.msg) {
 			_maxw = st::webPageLeft + (animated.w / cIntRetinaFactor()) + parent->timeWidth(true);
 			_minh = animated.h / cIntRetinaFactor();

@@ -60,6 +60,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_weekday7_full" = "domingo";
 
 "lng_month_day" = "{day} de {month}";
+"lng_month_day_year" = "{day} de {month} de {year}";
 
 "lng_cancel" = "Cancelar";
 "lng_continue" = "Continuar";
@@ -117,6 +118,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_code_ph" = "Tu código";
 "lng_code_desc" = "Hemos enviado un mensaje con un código de \nactivación a tu teléfono. Por favor, ponlo abajo.";
+"lng_code_telegram" = "Por favor, pon el código que acabas\nde recibir en tu otra aplicación de [b]Telegram[/b].";
+"lng_code_no_telegram" = "Enviar el código vía SMS";
 "lng_code_call" = "Telegram marcará tu número en {minutes}:{seconds}";
 "lng_code_calling" = "Solicitando una llamada de Telegram...";
 "lng_code_called" = "Telegram marcó tu número";

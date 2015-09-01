@@ -27,7 +27,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "gui/filedialog.h"
 
-OverviewInner::CachedLink::CachedLink(HistoryItem *item) : text(st::msgMinWidth) {
+OverviewInner::CachedLink::CachedLink(HistoryItem *item) : titleWidth(0), page(0), pixw(0), pixh(0), text(st::msgMinWidth) {
 	QString msgText;
 	LinksInText msgLinks;
 	item->getTextWithLinks(msgText, msgLinks);
@@ -71,24 +71,31 @@ OverviewInner::CachedLink::CachedLink(HistoryItem *item) : text(st::msgMinWidth)
 		TextParseOptions opts = { TextParseMultiline, int32(st::linksMaxWidth), 3 * st::msgFont->height, Qt::LayoutDirectionAuto };
 		text.setText(st::msgFont, msgText.mid(from, till - from), opts);
 	}
+	int32 tw = 0, th = 0;
 	if (page && page->photo) {
 		if (!page->photo->full->loaded()) page->photo->medium->load(false, false);
 
-		int32 tw = convertScale(page->photo->medium->width()), th = convertScale(page->photo->medium->height());
-		if (tw > st::dlgPhotoSize) {
-			if (th > tw) {
-				th = th * st::dlgPhotoSize / tw;
-				tw = st::dlgPhotoSize;
-			} else if (th > st::dlgPhotoSize) {
-				tw = tw * st::dlgPhotoSize / th;
-				th = st::dlgPhotoSize;
-			}
-		}
-		pixw = tw;
-		pixh = th;
-		if (pixw < 1) pixw = 1;
-		if (pixh < 1) pixh = 1;
+		tw = convertScale(page->photo->medium->width());
+		th = convertScale(page->photo->medium->height());
+	} else if (page && page->doc) {
+		if (!page->doc->thumb->loaded()) page->doc->thumb->load(false, false);
+
+		tw = convertScale(page->doc->thumb->width());
+		th = convertScale(page->doc->thumb->height());
 	}
+	if (tw > st::dlgPhotoSize) {
+		if (th > tw) {
+			th = th * st::dlgPhotoSize / tw;
+			tw = st::dlgPhotoSize;
+		} else if (th > st::dlgPhotoSize) {
+			tw = tw * st::dlgPhotoSize / th;
+			th = st::dlgPhotoSize;
+		}
+	}
+	pixw = tw;
+	pixh = th;
+	if (pixw < 1) pixw = 1;
+	if (pixh < 1) pixh = 1;
 
 	if (page) {
 		title = page->title;
@@ -155,6 +162,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, const
 	, _minHeight(0)
 	, _addToY(0)
 	, _cursor(style::cur_default)
+	, _cursorState(HistoryDefaultCursorState)
 	, _dragAction(NoDrag)
 	, _dragItem(0), _selectedMsgId(0)
 	, _dragItemIndex(-1)
@@ -181,6 +189,8 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, const
 
 	App::contextItem(0);
 
+	_linkTipTimer.setSingleShot(true);
+	connect(&_linkTipTimer, SIGNAL(timeout()), this, SLOT(showLinkTip()));
 	_touchSelectTimer.setSingleShot(true);
 	connect(&_touchSelectTimer, SIGNAL(timeout()), this, SLOT(onTouchSelect()));
 
@@ -348,13 +358,19 @@ OverviewInner::CachedLink *OverviewInner::cachedLink(HistoryItem *item) {
 	return i.value();
 }
 
-QString OverviewInner::urlByIndex(MsgId msgid, int32 index, int32 lnkIndex) const {
+QString OverviewInner::urlByIndex(MsgId msgid, int32 index, int32 lnkIndex, bool *fullShown) const {
 	fixItemIndex(index, msgid);
 	if (index < 0 || !_items[index].link) return QString();
 
-	if (lnkIndex < 0 && _items[index].link->page) {
-		return _items[index].link->page->url;
+	if (lnkIndex < 0) {
+		if (fullShown) *fullShown = (_items[index].link->urls.size() == 1) && (_items[index].link->urls.at(0).width <= _linksWidth - (st::dlgPhotoSize + st::dlgPhotoPadding));
+		if (_items[index].link->page) {
+			return _items[index].link->page->url;
+		} else if (!_items[index].link->urls.isEmpty()) {
+			return _items[index].link->urls.at(0).url;
+		}
 	} else if (lnkIndex > 0 && lnkIndex <= _items[index].link->urls.size()) {
+		if (fullShown) *fullShown = _items[index].link->urls.at(lnkIndex - 1).width <= _linksWidth - (st::dlgPhotoSize + st::dlgPhotoPadding);
 		return _items[index].link->urls.at(lnkIndex - 1).url;
 	}
 	return QString();
@@ -1254,6 +1270,7 @@ void OverviewInner::onUpdateSelected() {
 	HistoryItem *item = 0;
 	int32 index = -1;
 	int32 newsel = 0;
+	HistoryCursorState cursorState = HistoryDefaultCursorState;
 	if (_type == OverviewPhotos) {
 		float64 w = (float64(_width - st::overviewPhotoSkip) / _photosInRow);
 		int32 inRow = int32((m.x() - (st::overviewPhotoSkip / 2)) / w), vsize = (_vsize + st::overviewPhotoSkip);
@@ -1402,7 +1419,6 @@ void OverviewInner::onUpdateSelected() {
 							}
 							left += st::msgPhotoSkip;
 						}
-						HistoryCursorState cursorState = HistoryDefaultCursorState;
 						TextLinkPtr link;
 						media->getState(link, cursorState, m.x() - left, m.y() - y - st::msgMargin.top(), item, w);
 						if (link) lnk = link;
@@ -1427,6 +1443,7 @@ void OverviewInner::onUpdateSelected() {
 		textlnkOver(lnk);
 		App::hoveredLinkItem(lnk ? item : 0);
 		updateMsg(App::hoveredLinkItem());
+		QToolTip::hideText();
 	} else {
 		App::mousedItem(item);
 	}
@@ -1435,6 +1452,16 @@ void OverviewInner::onUpdateSelected() {
 		if (oldMousedItem) updateMsg(App::histItemById(oldMousedItem));
 		_lnkOverIndex = lnkIndex;
 		if (item) updateMsg(item);
+		QToolTip::hideText();
+	}
+	if (_cursorState == HistoryInDateCursorState && cursorState != HistoryInDateCursorState) {
+		QToolTip::hideText();
+	}
+	if (cursorState != _cursorState) {
+		_cursorState = cursorState;
+	}
+	if (lnk || lnkIndex || cursorState == HistoryInDateCursorState) {
+		_linkTipTimer.start(1000);
 	}
 
 	fixItemIndex(_dragItemIndex, _dragItem);
@@ -1577,6 +1604,27 @@ void OverviewInner::onUpdateSelected() {
 
 	if (lnkChanged || cur != _cursor) {
 		setCursor(_cursor = cur);
+	}
+}
+
+
+void OverviewInner::showLinkTip() {
+	TextLinkPtr lnk = textlnkOver();
+	int32 dd = QApplication::startDragDistance();
+	QPoint dp(mapFromGlobal(_dragPos));
+	QRect r(dp.x() - dd, dp.y() - dd, 2 * dd, 2 * dd);
+	if (lnk && !lnk->fullDisplayed()) {
+		QToolTip::showText(_dragPos, lnk->readable(), this, r);
+	} else if (_lnkOverIndex) {
+		bool fullLink = false;
+		QString url = urlByIndex(_mousedItem, _mousedItemIndex, _lnkOverIndex, &fullLink);
+		if (!fullLink) {
+			QToolTip::showText(_dragPos, url, this, r);
+		}
+	} else if (_cursorState == HistoryInDateCursorState && _dragAction == NoDrag && _mousedItem) {
+		if (HistoryItem *item = App::histItemById(_mousedItem)) {
+			QToolTip::showText(_dragPos, item->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)), this, r);
+		}
 	}
 }
 

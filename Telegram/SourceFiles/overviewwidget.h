@@ -78,6 +78,7 @@ public:
 public slots:
 
 	void onUpdateSelected();
+	void showLinkTip();
 
 	void openContextUrl();
 	void copyContextUrl();
@@ -211,8 +212,11 @@ private:
 
 	int32 _width, _height, _minHeight, _addToY;
 
+	QTimer _linkTipTimer;
+
 	// selection support, like in HistoryWidget
 	Qt::CursorShape _cursor;
+	HistoryCursorState _cursorState;
 	typedef QMap<MsgId, uint32> SelectedItems;
 	SelectedItems _selected;
 	enum DragAction {
@@ -232,7 +236,7 @@ private:
 	uint16 _dragSymbol;
 	bool _dragWasInactive;
 
-	QString urlByIndex(MsgId msgid, int32 index, int32 lnkIndex) const;
+	QString urlByIndex(MsgId msgid, int32 index, int32 lnkIndex, bool *fullShown = 0) const;
 	bool urlIsEmail(const QString &url) const;
 
 	QString _contextMenuUrl;

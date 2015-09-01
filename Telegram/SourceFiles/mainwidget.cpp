@@ -2559,7 +2559,9 @@ void MainWidget::onPeerShown(PeerData *peer) {
 		_topBar.hide();
 	}
 	resizeEvent(0);
-	if (animating()) _topBar.hide();
+	if (animating()) {
+		_topBar.hide();
+	}
 }
 
 void MainWidget::searchInPeer(PeerData *peer) {
