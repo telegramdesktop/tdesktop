@@ -82,7 +82,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 		if (_peerUser->blocked == UserIsBlocked) {
 			_blockUser.setText(lang(_peerUser->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user));
 		}
-		_phoneText = App::formatPhone(_peerUser->phone);
+		_phoneText = App::formatPhone(_peerUser->phone.isEmpty() ? App::phoneFromSharedContact(App::userFromPeer(_peerUser->id)) : _peerUser->phone);
 		PhotoData *userPhoto = (_peerUser->photoId && _peerUser->photoId != UnknownPeerPhotoId) ? App::photo(_peerUser->photoId) : 0;
 		if (userPhoto && userPhoto->date) {
 			_photoLink = TextLinkPtr(new PhotoLink(userPhoto, _peer));
@@ -434,7 +434,7 @@ void ProfileInner::peerUpdated(PeerData *data) {
 	if (data == _peer) {
 		PhotoData *photo = 0;
 		if (_peerUser) {
-			_phoneText = App::formatPhone(_peerUser->phone);
+			_phoneText = App::formatPhone(_peerUser->phone.isEmpty() ? App::phoneFromSharedContact(App::userFromPeer(_peerUser->id)) : _peerUser->phone);
 			if (_peerUser->photoId && _peerUser->photoId != UnknownPeerPhotoId) photo = App::photo(_peerUser->photoId);
 			if (_wasBlocked != _peerUser->blocked) {
 				_wasBlocked = _peerUser->blocked;

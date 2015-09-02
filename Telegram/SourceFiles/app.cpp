@@ -70,6 +70,9 @@ namespace {
 	typedef QMap<HistoryItem*, QMap<HistoryReply*, bool> > RepliesTo;
 	RepliesTo repliesTo;
 
+	typedef QMap<int32, QString> SharedContactPhones;
+	SharedContactPhones sharedContactPhones;
+
 	Histories histories;
 
 	typedef QHash<MsgId, HistoryItem*> MsgsData;
@@ -1725,6 +1728,7 @@ namespace App {
 		::audioItems.clear();
 		::documentItems.clear();
 		::webPageItems.clear();
+		::sharedContactPhones.clear();
 		::repliesTo.clear();
 		lastPhotos.clear();
 		lastPhotosMap.clear();
@@ -2115,6 +2119,14 @@ namespace App {
 
 	const WebPageItems &webPageItems() {
 		return ::webPageItems;
+	}
+
+	void regSharedContactPhone(int32 userId, const QString &phone) {
+		::sharedContactPhones[userId] = phone;
+	}
+
+	QString phoneFromSharedContact(int32 userId) {
+		return ::sharedContactPhones.value(userId);
 	}
 
 	void regMuted(PeerData *peer, int32 changeIn) {

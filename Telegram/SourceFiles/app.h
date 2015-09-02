@@ -248,6 +248,9 @@ namespace App {
 	void unregWebPageItem(WebPageData *data, HistoryItem *item);
 	const WebPageItems &webPageItems();
 
+	void regSharedContactPhone(int32 userId, const QString &phone);
+	QString phoneFromSharedContact(int32 userId);
+
 	void regMuted(PeerData *peer, int32 changeIn);
 	void unregMuted(PeerData *peer);
 	void updateMuted();
