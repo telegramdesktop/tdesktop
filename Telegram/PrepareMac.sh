@@ -92,5 +92,6 @@ rm ./../Mac/Release/Telegram.app/Contents/Frameworks/Updater
 rm -rf ./../Mac/Release/Telegram.app/Contents/_CodeSignature
 mv ./../Mac/Release/tmacupd$AppVersion ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
 mv ./../Mac/Release/tsetup.$AppVersionStr$DevPostfix.dmg ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/tsetup.$AppVersionStr$DevPostfix.dmg
+
 echo "Version $AppVersionStr$DevPostfix prepared!";
 
