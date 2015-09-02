@@ -1372,7 +1372,7 @@ void HistoryList::onUpdateSelected() {
 			}
 		}
 		textlnkOver(lnk);
-		QToolTip::showText(_dragPos, QString(), App::wnd());
+		QToolTip::hideText();
 		App::hoveredLinkItem((lnk && !lnkInDesc) ? item : 0);
 		if (textlnkOver()) {
 			if (App::hoveredLinkItem()) {
@@ -1386,7 +1386,7 @@ void HistoryList::onUpdateSelected() {
 		linkTipTimer.start(1000);
 	}
 	if (_dragCursorState == HistoryInDateCursorState && cursorState != HistoryInDateCursorState) {
-		QToolTip::showText(_dragPos, QString(), App::wnd());
+		QToolTip::hideText();
 	}
 
 	if (_dragAction == NoDrag) {
@@ -1549,11 +1549,14 @@ void HistoryList::applyDragSelection(SelectedItems *toItems) const {
 
 void HistoryList::showLinkTip() {
 	TextLinkPtr lnk = textlnkOver();
+	int32 dd = QApplication::startDragDistance();
+	QPoint dp(mapFromGlobal(_dragPos));
+	QRect r(dp.x() - dd, dp.y() - dd, 2 * dd, 2 * dd);
 	if (lnk && !lnk->fullDisplayed()) {
-		QToolTip::showText(_dragPos, lnk->readable(), App::wnd());
+		QToolTip::showText(_dragPos, lnk->readable(), this, r);
 	} else if (_dragCursorState == HistoryInDateCursorState && _dragAction == NoDrag) {
 		if (App::hoveredItem()) {
-			QToolTip::showText(_dragPos, App::hoveredItem()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)), App::wnd());
+			QToolTip::showText(_dragPos, App::hoveredItem()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)), this, r);
 		}
 	}
 }
@@ -1882,7 +1885,10 @@ void BotKeyboard::showCommandTip() {
 	if (_sel >= 0) {
 		int row = (_sel / MatrixRowShift), col = _sel % MatrixRowShift;
 		if (!_btns.at(row).at(col).full) {
-			QToolTip::showText(_lastMousePos, _btns.at(row).at(col).cmd);
+			int32 dd = QApplication::startDragDistance();
+			QPoint dp(mapFromGlobal(_lastMousePos));
+			QRect r(dp.x() - dd, dp.y() - dd, 2 * dd, 2 * dd);
+			QToolTip::showText(_lastMousePos, _btns.at(row).at(col).cmd, this, r);
 		}
 	}
 }
@@ -1908,7 +1914,7 @@ void BotKeyboard::updateSelected() {
 		if (newSel >= 0) break;
 	}
 	if (newSel != _sel) {
-		QToolTip::showText(_lastMousePos, QString(), App::wnd());
+		QToolTip::hideText();
 		if (newSel < 0) {
 			setCursor(style::cur_default);
 		} else if (_sel < 0) {
@@ -2721,19 +2727,17 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 			bool canShowNow = _history->isReadyFor(showAtMsgId, true);
 			if (!canShowNow) {
 				delayedShowAt(showAtMsgId);
-				return;
+			} else {
+				clearDelayedShowAt();
+				if (_replyReturn && _replyReturn->id == showAtMsgId) {
+					calcNextReplyReturn();
+				}
+
+				_showAtMsgId = showAtMsgId;
+				_histInited = false;
+
+				historyLoaded();
 			}
-
-			clearDelayedShowAt();
-			if (_replyReturn && _replyReturn->id == showAtMsgId) {
-				calcNextReplyReturn();
-			}
-
-			_showAtMsgId = showAtMsgId;
-			_histInited = false;
-
-			historyLoaded();
-
 			emit peerShown(_peer);
 			App::main()->topBar()->update();
 			update();

@@ -2559,7 +2559,9 @@ void MainWidget::onPeerShown(PeerData *peer) {
 		_topBar.hide();
 	}
 	resizeEvent(0);
-	if (animating()) _topBar.hide();
+	if (animating()) {
+		_topBar.hide();
+	}
 }
 
 void MainWidget::searchInPeer(PeerData *peer) {
@@ -3412,14 +3414,14 @@ void MainWidget::handleUpdates(const MTPUpdates &updates, uint64 randomId) {
 		const MTPDupdateShortSentMessage &d(updates.c_updateShortSentMessage());
 		HistoryItem *item = 0;
 		if (randomId) {
-			QString text = d.has_entities() ? App::histSentTextByItem(randomId) : QString();
+			QString text = App::histSentTextByItem(randomId);
 			feedUpdate(MTP_updateMessageID(d.vid, MTP_long(randomId))); // ignore real date
 			if (!text.isEmpty()) {
-				LinksInText links(linksFromMTP(d.ventities.c_vector().v));
+				bool hasLinks = d.has_entities() && !d.ventities.c_vector().v.isEmpty();
 				item = App::histItemById(d.vid.v);
-				if (item && !links.isEmpty()) {
+				if (item && ((hasLinks && !item->hasTextLinks()) || (!hasLinks && item->textHasLinks()))) {
 					bool was = item->hasTextLinks();
-					item->setText(text, links);
+					item->setText(text, d.has_entities() ? linksFromMTP(d.ventities.c_vector().v) : LinksInText());
 					item->initDimensions(0);
 					itemResized(item);
 					if (!was && item->hasTextLinks()) {
@@ -3460,6 +3462,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			_byPtsUpdate.insert(ptsKey(SkippedUpdate), update);
 			return;
 		}
+		if (d.vmessage.type() == mtpc_message) { // index forwarded messages to links overview
+			App::checkEntitiesUpdate(d.vmessage.c_message());
+		}
+
 		HistoryItem *item = App::histories().addToBack(d.vmessage);
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);

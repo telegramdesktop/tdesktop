@@ -60,6 +60,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_weekday7_full" = "zondag";
 
 "lng_month_day" = "{day} {month}";
+"lng_month_day_year" = "{day} {month}, {year}";
 
 "lng_cancel" = "Annuleren";
 "lng_continue" = "Doorgaan";
@@ -117,6 +118,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_code_ph" = "Je code";
 "lng_code_desc" = "We hebben een bericht met activatiecode\nverstuurd naar je nummer, geef deze hieronder in.";
+"lng_code_telegram" = "Voer de code in die je zojuist\nhebt ontvangen in je vorige [b]Telegram[/b]-app.";
+"lng_code_no_telegram" = "Verstuur code via SMS";
 "lng_code_call" = "Telegram belt je over {minutes}:{seconds}";
 "lng_code_calling" = "Oproepverzoek versturen naar Telegram";
 "lng_code_called" = "Telegram heeft je nummer gebeld";

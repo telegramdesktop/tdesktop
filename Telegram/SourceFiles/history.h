@@ -786,6 +786,9 @@ public:
 	}
 	virtual void getTextWithLinks(QString &text, LinksInText &links) {
 	}
+	virtual bool textHasLinks() {
+		return false;
+	}
 	virtual QString time() const {
 		return QString();
 	}
@@ -1181,7 +1184,7 @@ public:
 	void unregItem(HistoryItem *item);
 
 	bool hasReplyPreview() const {
-		return data->photo && !data->photo->thumb->isNull();
+		return (data->photo && !data->photo->thumb->isNull()) || (data->doc && !data->doc->thumb->isNull());
 	}
 	ImagePtr replyPreview();
 
@@ -1339,6 +1342,7 @@ public:
 	void setMedia(const MTPMessageMedia *media);
 	void setText(const QString &text, const LinksInText &links);
 	void getTextWithLinks(QString &text, LinksInText &links);
+	bool textHasLinks();
 
 	QString time() const {
 		return _time;

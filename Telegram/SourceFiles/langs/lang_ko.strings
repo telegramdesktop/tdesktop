@@ -60,6 +60,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_weekday7_full" = "일요일";
 
 "lng_month_day" = "{month} {day}일";
+"lng_month_day_year" = "{month} {day}, {year}";
 
 "lng_cancel" = "취소";
 "lng_continue" = "계속";
@@ -117,6 +118,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_code_ph" = "코드번호";
 "lng_code_desc" = "인증코드 메세지를 휴대폰으로 전송하였습니다.\n인증코드를 아래에 입력하여 주세요.";
+"lng_code_telegram" = "[b]텔레그램[/b] 앱으로 부터 방금 수신받은,\n코드를 입력해주세요.";
+"lng_code_no_telegram" = "코드를 SMS로 전송";
 "lng_code_call" = "텔레그램이  {minutes}:{seconds}후에는 전화를 겁니다.";
 "lng_code_calling" = "텔레그램으로부터 전화 요청을 하고 있습니다..";
 "lng_code_called" = "텔레그램이 회원님의 전화번호로 전화를 걸었습니다.";
