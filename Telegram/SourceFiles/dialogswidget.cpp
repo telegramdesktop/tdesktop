@@ -829,22 +829,17 @@ void DialogsListWidget::contactsReceived(const QVector<MTPContact> &contacts) {
 	refresh();
 }
 
-int32 DialogsListWidget::addNewContact(int32 uid, bool select) {
+int32 DialogsListWidget::addNewContact(int32 uid, bool select) { // -2 - err, -1 - don't scroll, >= 0 - scroll
 	PeerId peer = App::peerFromUser(uid);
-	if (!App::peerLoaded(peer)) return -1;
+	if (!App::peerLoaded(peer)) return -2;
 
 	History *history = App::history(peer);
 	contacts.addByName(history);
 	DialogsList::RowByPeer::const_iterator i = dialogs.list.rowByPeer.constFind(peer);
 	if (i == dialogs.list.rowByPeer.cend()) {
 		DialogRow *added = contactsNoDialogs.addByName(history);
-		if (!added) return -1;
-		if (select && false) {
-			sel = added;
-			contactSel = true;
-		}
-//		if (contactsNoDialogs.list.count == 1 && !dialogs.list.count) refresh();
-		return added ? ((dialogs.list.count + added->pos) * st::dlgHeight) : -1;
+		if (!added) return -2;
+		return -1;
 	}
 	if (select) {
 		sel = i.value();
@@ -1842,9 +1837,9 @@ bool DialogsWidget::addNewContact(int32 uid, bool show) {
 	_filter.setText(QString());
 	onFilterUpdate();
 	int32 to = list.addNewContact(uid, true);
-	if (to < 0 || !show) return false;
+	if (to < -1 || !show) return false;
 	list.refresh();
-	scroll.scrollToY(to);
+	if (to >= 0) scroll.scrollToY(to);
 	return true;
 }
 

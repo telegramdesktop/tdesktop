@@ -78,7 +78,7 @@ void TopBarWidget::onInfoClicked() {
 void TopBarWidget::onAddContact() {
 	PeerData *p = App::main() ? App::main()->profilePeer() : 0;
 	UserData *u = (p && !p->chat) ? p->asUser() : 0;
-	if (u) App::wnd()->showLayer(new AddContactBox(u->firstName, u->lastName, u->phone));
+	if (u) App::wnd()->showLayer(new AddContactBox(u->firstName, u->lastName, u->phone.isEmpty() ? App::phoneFromSharedContact(App::userFromPeer(u->id)) : u->phone));
 }
 
 void TopBarWidget::onEdit() {
@@ -278,7 +278,7 @@ void TopBarWidget::showAll() {
         return;
     }
 	PeerData *p = App::main() ? App::main()->profilePeer() : 0, *o = App::main() ? App::main()->overviewPeer() : 0;
-	if (p && (p->chat || p->asUser()->contact >= 0)) {
+	if (p && (p->chat || p->asUser()->contact >= 0 || !App::phoneFromSharedContact(App::userFromPeer(p->id)).isEmpty())) {
 		if (p->chat) {
 			if (p->asChat()->forbidden) {
 				_edit.hide();

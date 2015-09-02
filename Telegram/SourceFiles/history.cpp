@@ -3664,18 +3664,14 @@ HistoryContact::HistoryContact(int32 userId, const QString &first, const QString
 , phone(App::formatPhone(phone))
 , contact(App::userLoaded(userId))
 {
+	App::regSharedContactPhone(userId, phone);
+
 	_maxw = st::mediaMaxWidth;
 	name.setText(st::mediaFont, (first + ' ' + last).trimmed(), _textNameOptions);
 
 	phonew = st::mediaFont->m.width(phone);
 
 	if (contact) {
-		if (contact->phone.isEmpty()) {
-			contact->setPhone(phone);
-		}
-		if (contact->contact < 0) {
-			contact->contact = 0;
-		}
 		contact->photo->load();
 	}
 }
