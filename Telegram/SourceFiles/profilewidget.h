@@ -121,6 +121,7 @@ private:
 	PeerData *_peer;
 	UserData *_peerUser;
 	ChatData *_peerChat;
+	ChannelData *_peerChannel;
 	History *_hist;
 	bool _chatAdmin;
 

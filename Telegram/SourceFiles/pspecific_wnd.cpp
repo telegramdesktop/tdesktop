@@ -2569,7 +2569,8 @@ typedef ABI::Windows::Foundation::ITypedEventHandler<ToastNotification*, ToastFa
 
 class ToastEventHandler : public Implements<DesktopToastActivatedEventHandler, DesktopToastDismissedEventHandler, DesktopToastFailedEventHandler> {
 public:
-	ToastEventHandler::ToastEventHandler(uint64 peer, int32 msg) : _ref(1), _peerId(peer), _msgId(msg) {
+
+	ToastEventHandler::ToastEventHandler(const PeerId &peer, MsgId msg) : _ref(1), _peerId(peer), _msgId(msg) {
 	}
 	~ToastEventHandler() {
 	}
@@ -2584,7 +2585,7 @@ public:
 			}
 		}
 		if (App::wnd()) {
-			History *history = App::history(PeerId(_peerId));
+			History *history = App::history(_peerId);
 
 			App::wnd()->showFromTray();
 			if (App::passcoded()) {
@@ -2592,9 +2593,9 @@ public:
 				App::wnd()->notifyClear();
 			} else {
 				App::wnd()->hideSettings();
-				bool tomsg = history->peer->chat && (_msgId > 0);
+				bool tomsg = !history->peer->isUser() && (_msgId > 0);
 				if (tomsg) {
-					HistoryItem *item = App::histItemById(_msgId);
+					HistoryItem *item = App::histItemById(peerToChannel(_peerId), _msgId);
 					if (!item || !item->notifyByFrom()) {
 						tomsg = false;
 					}
@@ -2673,9 +2674,10 @@ public:
 	}
 
 private:
+
 	ULONG _ref;
-	uint64 _peerId;
-	int32 _msgId;
+	PeerId _peerId;
+	MsgId _msgId;
 };
 
 template<class T>
@@ -2708,7 +2710,7 @@ QString toastImage(const StorageKey &key, PeerData *peer) {
 		if (peer->photo->loaded() && (key.first || key.second)) {
 			peer->photo->pix().save(v.path, "PNG");
 		} else if (!key.first && key.second) {
-			(peer->chat ? chatDefPhoto : userDefPhoto)(peer->colorIndex)->pix().save(v.path, "PNG");
+			(peer->isUser() ? userDefPhoto : chatDefPhoto)(peer->colorIndex)->pix().save(v.path, "PNG");
 		} else {
 			App::wnd()->iconLarge().save(v.path, "PNG");
 		}
@@ -2734,7 +2736,7 @@ bool CreateToast(PeerData *peer, int32 msgId, bool showpix, const QString &title
 	QString imagePath;
 	if (showpix) {
 		if (peer->photoLoc.isNull() || !peer->photo->loaded()) {
-			key = StorageKey(0, (peer->chat ? 0x2000 : 0x1000) | peer->colorIndex);
+			key = StorageKey(0, (peer->isUser() ? 0x1000 : 0x2000) | peer->colorIndex);
 		} else {
 			key = storageKey(peer->photoLoc);
 		}

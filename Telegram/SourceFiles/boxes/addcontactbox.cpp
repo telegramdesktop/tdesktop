@@ -45,8 +45,8 @@ AddContactBox::AddContactBox(PeerData *peer) :
 	_addButton(this, lang(lng_settings_save), st::btnSelectDone),
 	_retryButton(this, lang(lng_try_other_contact), st::btnSelectDone),
 	_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
-    _firstInput(this, st::inpAddContact, lang(peer->chat ? lng_dlg_new_group_name : lng_signup_firstname), peer->chat ? peer->name : peer->asUser()->firstName),
-    _lastInput(this, st::inpAddContact, lang(lng_signup_lastname), peer->chat ? QString() : peer->asUser()->lastName),
+	_firstInput(this, st::inpAddContact, lang(peer->isUser() ? lng_signup_firstname : lng_dlg_new_group_name), peer->isUser() ? peer->asUser()->firstName : peer->name),
+	_lastInput(this, st::inpAddContact, lang(lng_signup_lastname), peer->isUser() ? peer->asUser()->lastName : QString()),
     _phoneInput(this, st::inpAddContact, lang(lng_contact_phone)),
 	_contactId(0), _addRequest(0) {
 
@@ -55,12 +55,16 @@ AddContactBox::AddContactBox(PeerData *peer) :
 
 void AddContactBox::initBox() {
 	if (_peer) {
-		if (_peer->chat) {
-			_boxTitle = lang(lng_edit_group_title);
-			setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 1 * _firstInput.height() + st::addContactPadding.bottom() + _addButton.height());
-		} else {
+		if (_peer->isUser()) {
 			_boxTitle = lang(_peer == App::self() ? lng_edit_self_title : lng_edit_contact_title);
 			setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 2 * _firstInput.height() + 1 * st::addContactDelta + st::addContactPadding.bottom() + _addButton.height());
+		} else if (_peer->isChat()) {
+			_boxTitle = lang(lng_edit_group_title);
+			setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 1 * _firstInput.height() + st::addContactPadding.bottom() + _addButton.height());
+		} else if (_peer->isChannel()) {
+			// CHANNELS_UX
+			_boxTitle = lang(lng_edit_group_title);
+			setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 1 * _firstInput.height() + st::addContactPadding.bottom() + _addButton.height());
 		}
 	} else {
 		bool readyToAdd = !_phoneInput.text().isEmpty() && (!_firstInput.text().isEmpty() || !_lastInput.text().isEmpty());
@@ -87,7 +91,7 @@ void AddContactBox::hideAll() {
 
 void AddContactBox::showAll() {
 	_firstInput.show();
-	if (_peer && _peer->chat) {
+	if (_peer && (_peer->isChat() || _peer->isChannel())) {
 		_lastInput.hide();
 	} else {
 		_lastInput.show();
@@ -112,7 +116,7 @@ void AddContactBox::showDone() {
 void AddContactBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
 		if (_firstInput.hasFocus()) {
-			if (_peer && _peer->chat) {
+			if (_peer && (_peer->isChat() || _peer->isChannel())) {
 				if (_firstInput.text().trimmed().isEmpty()) {
 					_firstInput.setFocus();
 					_firstInput.notaBene();
@@ -206,8 +210,10 @@ void AddContactBox::onSend() {
 	if (_peer == App::self()) {
 		_addRequest = MTP::send(MTPaccount_UpdateProfile(MTP_string(firstName), MTP_string(lastName)), rpcDone(&AddContactBox::onSaveSelfDone), rpcFail(&AddContactBox::onSaveSelfFail));
 	} else if (_peer) {
-		if (_peer->chat) {
-			_addRequest = MTP::send(MTPmessages_EditChatTitle(MTP_int(App::chatFromPeer(_peer->id)), MTP_string(firstName)), rpcDone(&AddContactBox::onSaveChatDone), rpcFail(&AddContactBox::onSaveFail));
+		if (_peer->isChat()) {
+			_addRequest = MTP::send(MTPmessages_EditChatTitle(_peer->asChat()->inputChat, MTP_string(firstName)), rpcDone(&AddContactBox::onSaveChatDone), rpcFail(&AddContactBox::onSaveFail));
+		} else if (_peer->isChannel()) {
+			_addRequest = MTP::send(MTPmessages_EditChatTitle(_peer->asChannel()->inputChat, MTP_string(firstName)), rpcDone(&AddContactBox::onSaveChatDone), rpcFail(&AddContactBox::onSaveFail));
 		} else {
 			_contactId = MTP::nonce<uint64>();
 			QVector<MTPInputContact> v(1, MTP_inputPhoneContact(MTP_long(_contactId), MTP_string(_peer->asUser()->phone), MTP_string(firstName), MTP_string(lastName)));

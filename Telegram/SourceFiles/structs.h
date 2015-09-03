@@ -17,13 +17,98 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+typedef int32 ChannelId;
+static const ChannelId NoChannel = 0;
+
 typedef uint64 PeerId;
+static const uint64 PeerIdMask         = 0xFFFFFFFFULL;
+static const uint64 PeerIdTypeMask     = 0x300000000ULL;
+static const uint64 PeerIdUserShift    = 0x000000000ULL;
+static const uint64 PeerIdChatShift    = 0x100000000ULL;
+static const uint64 PeerIdChannelShift = 0x200000000ULL;
+inline bool peerIsUser(const PeerId &id) {
+	return (id & PeerIdTypeMask) == PeerIdUserShift;
+}
+inline bool peerIsChat(const PeerId &id) {
+	return (id & PeerIdTypeMask) == PeerIdChatShift;
+}
+inline bool peerIsChannel(const PeerId &id) {
+	return (id & PeerIdTypeMask) == PeerIdChannelShift;
+}
+inline PeerId peerFromUser(int32 user_id) {
+	return PeerIdUserShift | uint64(uint32(user_id));
+}
+inline PeerId peerFromChat(int32 chat_id) {
+	return PeerIdChatShift | uint64(uint32(chat_id));
+}
+inline PeerId peerFromChannel(ChannelId channel_id) {
+	return PeerIdChannelShift | uint64(uint32(channel_id));
+}
+inline PeerId peerFromUser(const MTPint &user_id) {
+	return peerFromUser(user_id.v);
+}
+inline PeerId peerFromChat(const MTPint &chat_id) {
+	return peerFromChat(chat_id.v);
+}
+inline PeerId peerFromChannel(const MTPint &channel_id) {
+	return peerFromChannel(channel_id.v);
+}
+inline int32 peerToBareInt(const PeerId &id) {
+	return int32(uint32(id & PeerIdMask));
+}
+inline int32 peerToUser(const PeerId &id) {
+	return peerIsUser(id) ? peerToBareInt(id) : 0;
+}
+inline int32 peerToChat(const PeerId &id) {
+	return peerIsChat(id) ? peerToBareInt(id) : 0;
+}
+inline ChannelId peerToChannel(const PeerId &id) {
+	return peerIsChannel(id) ? peerToBareInt(id) : NoChannel;
+}
+inline MTPint peerToBareMTPInt(const PeerId &id) {
+	return MTP_int(peerToBareInt(id));
+}
+inline PeerId peerFromMTP(const MTPPeer &peer) {
+	switch (peer.type()) {
+	case mtpc_peerUser: return peerFromUser(peer.c_peerUser().vuser_id);
+	case mtpc_peerChat: return peerFromChat(peer.c_peerChat().vchat_id);
+	case mtpc_peerChannel: return peerFromChannel(peer.c_peerChannel().vchannel_id);
+	}
+	return 0;
+}
+inline MTPpeer peerToMTP(const PeerId &id) {
+	if (peerIsUser(id)) {
+		return MTP_peerUser(peerToBareMTPInt(id));
+	} else if (peerIsChat(id)) {
+		return MTP_peerChat(peerToBareMTPInt(id));
+	} else if (peerIsChannel(id)) {
+		return MTP_peerChannel(peerToBareMTPInt(id));
+	}
+	return MTP_peerUser(MTP_int(0));
+}
+
 typedef uint64 PhotoId;
 typedef uint64 VideoId;
 typedef uint64 AudioId;
 typedef uint64 DocumentId;
 typedef uint64 WebPageId;
 typedef int32 MsgId;
+struct FullMsgId {
+	FullMsgId() : channel(NoChannel), msg(0) {
+	}
+	FullMsgId(ChannelId channel, MsgId msg) : channel(channel), msg(msg) {
+	}
+	ChannelId channel;
+	MsgId msg;
+};
+inline bool operator==(const FullMsgId &a, const FullMsgId &b) {
+	return (a.channel == b.channel) && (a.msg == b.msg);
+}
+inline bool operator<(const FullMsgId &a, const FullMsgId &b) {
+	if (a.msg < b.msg) return true;
+	if (a.msg > b.msg) return false;
+	return a.channel < b.channel;
+}
 
 static const MsgId ShowAtTheEndMsgId = -0x40000000;
 static const MsgId ShowAtUnreadMsgId = 0;
@@ -61,10 +146,12 @@ ImagePtr chatDefPhoto(int32 index);
 
 static const PhotoId UnknownPeerPhotoId = 0xFFFFFFFFFFFFFFFFULL;
 
-struct UserData;
-struct ChatData;
-struct PeerData {
-	PeerData(const PeerId &id);
+class UserData;
+class ChatData;
+class ChannelData;
+class PeerData {
+public:
+
 	virtual ~PeerData() {
 		if (notify != UnknownNotifySettings && notify != EmptyNotifySettings) {
 			delete notify;
@@ -72,11 +159,21 @@ struct PeerData {
 		}
 	}
 
+	bool isUser() const {
+		return peerIsUser(id);
+	}
+	bool isChat() const {
+		return peerIsChat(id);
+	}
+	bool isChannel() const {
+		return peerIsChannel(id);
+	}
 	UserData *asUser();
 	const UserData *asUser() const;
-
 	ChatData *asChat();
 	const ChatData *asChat() const;
+	ChannelData *asChannel();
+	const ChannelData *asChannel() const;
 
 	void updateName(const QString &newName, const QString &newNameOrPhone, const QString &newUsername);
 
@@ -85,7 +182,10 @@ struct PeerData {
 	virtual void nameUpdated() {
 	}
 
-	PeerId id;
+	const PeerId id;
+	int32 bareId() const {
+		return int32(uint32(id & 0xFFFFFFFFULL));
+	}
 
 	QString name;
 	QString nameOrPhone;
@@ -95,7 +195,6 @@ struct PeerData {
 	NameFirstChars chars;
 
 	bool loaded;
-	bool chat;
 	MTPinputPeer input;
 
 	int32 colorIndex;
@@ -107,7 +206,15 @@ struct PeerData {
 	int32 nameVersion;
 
 	NotifySettingsPtr notify;
+
+private:
+
+	PeerData(const PeerId &id);
+	friend class UserData;
+	friend class ChatData;
+	friend class ChannelData;
 };
+
 static const uint64 UserNoAccess = 0xFFFFFFFFFFFFFFFFULL;
 
 class PeerLink : public ITextLink {
@@ -174,7 +281,9 @@ enum UserBlockedStatus {
 };
 
 struct PhotoData;
-struct UserData : public PeerData {
+class UserData : public PeerData {
+public:
+
 	UserData(const PeerId &id) : PeerData(id), access(0), lnk(new PeerLink(this)), onlineTill(0), contact(-1), blocked(UserBlockUnknown), photosCount(-1), botInfo(0) {
 	}
 	void setPhoto(const MTPUserProfilePhoto &photo);
@@ -188,7 +297,7 @@ struct UserData : public PeerData {
 
 	uint64 access;
 
-	MTPinputUser inputUser;
+	MTPInputUser inputUser;
 
 	QString firstName;
 	QString lastName;
@@ -207,10 +316,15 @@ struct UserData : public PeerData {
 	BotInfo *botInfo;
 };
 
-struct ChatData : public PeerData {
-	ChatData(const PeerId &id) : PeerData(id), count(0), date(0), version(0), left(false), forbidden(true), botStatus(0) {
+class ChatData : public PeerData {
+public:
+
+	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_inputChat(MTP_int(bareId()))), count(0), date(0), version(0), left(false), forbidden(true), botStatus(0) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
+
+	MTPInputChat inputChat;
+
 	int32 count;
 	int32 date;
 	int32 version;
@@ -228,17 +342,56 @@ struct ChatData : public PeerData {
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 //	ImagePtr photoFull;
 	QString invitationUrl;
-	// geo
 };
 
+class ChannelData : public PeerData {
+public:
+
+	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChat(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), date(0), version(0), left(false), forbidden(true), botStatus(-1) {
+	}
+	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
+
+	uint64 access;
+
+	MTPInputChat inputChat;
+
+	int32 date;
+	int32 version;
+	bool left;
+	bool forbidden;
+
+	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
+//	ImagePtr photoFull;
+	QString invitationUrl;
+};
+
+inline UserData *PeerData::asUser() {
+	return isUser() ? static_cast<UserData*>(this) : 0;
+}
+inline const UserData *PeerData::asUser() const {
+	return isUser() ? static_cast<const UserData*>(this) : 0;
+}
+inline ChatData *PeerData::asChat() {
+	return isChat() ? static_cast<ChatData*>(this) : 0;
+}
+inline const ChatData *PeerData::asChat() const {
+	return isChat() ? static_cast<const ChatData*>(this) : 0;
+}
+inline ChannelData *PeerData::asChannel() {
+	return isChannel() ? static_cast<ChannelData*>(this) : 0;
+}
+inline const ChannelData *PeerData::asChannel() const {
+	return isChannel() ? static_cast<const ChannelData*>(this) : 0;
+}
+
 inline int32 newMessageFlags(PeerData *p) {
-	return (p->input.type() == mtpc_inputPeerSelf) ? 0 : (((p->chat || !p->asUser()->botInfo) ? MTPDmessage_flag_unread : 0) | MTPDmessage_flag_out);
+	return (p->input.type() == mtpc_inputPeerSelf) ? 0 : (((p->isChat() || (p->isUser() && !p->asUser()->botInfo)) ? MTPDmessage_flag_unread : 0) | MTPDmessage_flag_out);
 }
 
 typedef QMap<char, QPixmap> PreparedPhotoThumbs;
 struct PhotoData {
 	PhotoData(const PhotoId &id, const uint64 &access = 0, int32 date = 0, const ImagePtr &thumb = ImagePtr(), const ImagePtr &medium = ImagePtr(), const ImagePtr &full = ImagePtr()) :
-		id(id), access(access), date(date), thumb(thumb), medium(medium), full(full), chat(0) {
+		id(id), access(access), date(date), thumb(thumb), medium(medium), full(full), peer(0) {
 	}
 	void forget() {
 		thumb->forget();
@@ -265,7 +418,8 @@ struct PhotoData {
 	ImagePtr thumb, replyPreview;
 	ImagePtr medium;
 	ImagePtr full;
-	ChatData *chat; // for chat photos connection
+
+	PeerData *peer; // for chat and channel photos connection
 	// geo, caption
 
 	int32 cachew;
@@ -319,7 +473,8 @@ struct VideoData {
 		}
 		location = FileLocation();
 		if (!beforeDownload) {
-			openOnSave = openOnSaveMsgId = 0;
+			openOnSave = 0;
+			openOnSaveMsgId = FullMsgId();
 		}
 	}
 
@@ -347,7 +502,8 @@ struct VideoData {
 	int32 uploadOffset;
 
 	mtpTypeId fileType;
-	int32 openOnSave, openOnSaveMsgId;
+	int32 openOnSave;
+	FullMsgId openOnSaveMsgId;
 	mtpFileLoader *loader;
 	FileLocation location;
 };
@@ -412,7 +568,8 @@ struct AudioData {
 		}
 		location = FileLocation();
 		if (!beforeDownload) {
-			openOnSave = openOnSaveMsgId = 0;
+			openOnSave = 0;
+			openOnSaveMsgId = FullMsgId();
 		}
 	}
 
@@ -439,7 +596,8 @@ struct AudioData {
 	FileStatus status;
 	int32 uploadOffset;
 
-	int32 openOnSave, openOnSaveMsgId;
+	int32 openOnSave;
+	FullMsgId openOnSaveMsgId;
 	mtpFileLoader *loader;
 	FileLocation location;
 	QByteArray data;
@@ -447,15 +605,17 @@ struct AudioData {
 };
 
 struct AudioMsgId {
-	AudioMsgId() : audio(0), msgId(0) {
+	AudioMsgId() : audio(0) {
 	}
-	AudioMsgId(AudioData *audio, MsgId msgId) : audio(audio), msgId(msgId) {
+	AudioMsgId(AudioData *audio, const FullMsgId &msgId) : audio(audio), msgId(msgId) {
+	}
+	AudioMsgId(AudioData *audio, ChannelId channelId, MsgId msgId) : audio(audio), msgId(channelId, msgId) {
 	}
 	operator bool() const {
 		return audio;
 	}
 	AudioData *audio;
-	MsgId msgId;
+	FullMsgId msgId;
 };
 inline bool operator<(const AudioMsgId &a, const AudioMsgId &b) {
 	return quintptr(a.audio) < quintptr(b.audio) || (quintptr(a.audio) == quintptr(b.audio) && a.msgId < b.msgId);
@@ -574,7 +734,8 @@ struct DocumentData {
 		}
 		location = FileLocation();
 		if (!beforeDownload) {
-			openOnSave = openOnSaveMsgId = 0;
+			openOnSave = 0;
+			openOnSaveMsgId = FullMsgId();
 		}
 	}
 
@@ -612,7 +773,8 @@ struct DocumentData {
 	FileStatus status;
 	int32 uploadOffset;
 
-	int32 openOnSave, openOnSaveMsgId;
+	int32 openOnSave;
+	FullMsgId openOnSaveMsgId;
 	mtpFileLoader *loader;
 	FileLocation location;
 
@@ -623,15 +785,17 @@ struct DocumentData {
 };
 
 struct SongMsgId {
-	SongMsgId() : song(0), msgId(0) {
+	SongMsgId() : song(0) {
 	}
-	SongMsgId(DocumentData *song, MsgId msgId) : song(song), msgId(msgId) {
+	SongMsgId(DocumentData *song, const FullMsgId &msgId) : song(song), msgId(msgId) {
+	}
+	SongMsgId(DocumentData *song, ChannelId channelId, MsgId msgId) : song(song), msgId(channelId, msgId) {
 	}
 	operator bool() const {
 		return song;
 	}
 	DocumentData *song;
-	MsgId msgId;
+	FullMsgId msgId;
 };
 inline bool operator<(const SongMsgId &a, const SongMsgId &b) {
 	return quintptr(a.song) < quintptr(b.song) || (quintptr(a.song) == quintptr(b.song) && a.msgId < b.msgId);

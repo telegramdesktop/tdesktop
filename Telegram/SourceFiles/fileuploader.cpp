@@ -18,7 +18,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "fileuploader.h"
 
-FileUploader::FileUploader() : sentSize(0), uploading(0) {
+FileUploader::FileUploader() : sentSize(0) {
 	memset(sentSizes, 0, sizeof(sentSizes));
 	nextTimer.setSingleShot(true);
 	connect(&nextTimer, SIGNAL(timeout()), this, SLOT(sendNext()));
@@ -26,7 +26,7 @@ FileUploader::FileUploader() : sentSize(0), uploading(0) {
 	connect(&killSessionsTimer, SIGNAL(timeout()), this, SLOT(killSessions()));
 }
 
-void FileUploader::uploadMedia(MsgId msgId, const ReadyLocalMedia &media) {
+void FileUploader::uploadMedia(const FullMsgId &msgId, const ReadyLocalMedia &media) {
 	if (media.type == ToPreparePhoto) {
 		App::feedPhoto(media.photo, media.photoThumbs);
 	} else if (media.type == ToPrepareDocument) {
@@ -73,7 +73,7 @@ void FileUploader::currentFailed() {
 	requestsSent.clear();
 	docRequestsSent.clear();
 	dcMap.clear();
-	uploading = 0;
+	uploading = FullMsgId();
 	sentSize = 0;
 	for (int i = 0; i < MTPUploadSessionsCount; ++i) {
 		sentSizes[i] = 0;
@@ -102,8 +102,8 @@ void FileUploader::sendNext() {
 	if (killing) {
 		killSessionsTimer.stop();
 	}
-	Queue::iterator i = uploading ? queue.find(uploading) : queue.begin();
-	if (!uploading) {
+	Queue::iterator i = uploading.msg ? queue.find(uploading) : queue.begin();
+	if (!uploading.msg) {
 		uploading = i.key();
 	} else if (i == queue.end()) {
 		i = queue.begin(); 
@@ -138,7 +138,7 @@ void FileUploader::sendNext() {
 					emit audioReady(uploading, audio);
 				}
 				queue.remove(uploading);
-				uploading = 0;
+				uploading = FullMsgId();
 				sendNext();
 			}
 			return;
@@ -193,7 +193,7 @@ void FileUploader::sendNext() {
 	nextTimer.start(UploadRequestInterval);
 }
 
-void FileUploader::cancel(MsgId msgId) {
+void FileUploader::cancel(const FullMsgId &msgId) {
 	uploaded.remove(msgId);
 	if (uploading == msgId) {
 		currentFailed();
@@ -202,7 +202,7 @@ void FileUploader::cancel(MsgId msgId) {
 	}
 }
 
-void FileUploader::confirm(MsgId msgId) {
+void FileUploader::confirm(const FullMsgId &msgId) {
 }
 
 void FileUploader::clear() {

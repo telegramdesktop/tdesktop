@@ -28,7 +28,7 @@ public:
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 		
-	void requestReplyTo(HistoryReply *reply, MsgId to);
+	void requestReplyTo(HistoryReply *reply, const FullMsgId &to);
 
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
@@ -61,7 +61,7 @@ private:
 		mtpRequestId req;
 		QList<HistoryReply*> replies;
 	};
-	typedef QMap<MsgId, ReplyToRequest> ReplyToRequests;
+	typedef QMap<FullMsgId, ReplyToRequest> ReplyToRequests;
 	ReplyToRequests _replyToRequests;
 	SingleTimer _replyToTimer;
 

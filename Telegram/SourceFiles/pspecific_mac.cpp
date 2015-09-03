@@ -71,7 +71,7 @@ void MacPrivate::notifyClicked(unsigned long long peer, int msgid) {
 		App::wnd()->hideSettings();
 		bool tomsg = history->peer->chat && (msgid > 0);
 		if (tomsg) {
-			HistoryItem *item = App::histItemById(msgid);
+			HistoryItem *item = App::histItemById(peerToChannel(PeerId(peer)), MsgId(msgid));
 			if (!item || !item->notifyByFrom()) {
 				tomsg = false;
 			}

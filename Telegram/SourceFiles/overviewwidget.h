@@ -28,7 +28,7 @@ public:
 	void activate();
 
 	void clear();
-	int32 itemTop(MsgId msgId) const;
+	int32 itemTop(const FullMsgId &msgId) const;
 
 	bool preloadLocal();
 	void preloadMore();
@@ -133,6 +133,7 @@ private:
 	PeerData *_peer;
 	MediaOverviewType _type;
 	History *_hist;
+	ChannelId _channel;
 	
 	// photos
 	int32 _photosInRow, _photosToAdd, _vsize;
@@ -319,7 +320,7 @@ public slots:
 	void onScroll();
 
 	void onScrollTimer();
-	void onPlayerSongChanged(MsgId msgId);
+	void onPlayerSongChanged(const FullMsgId &msgId);
 
 	void onForwardSelected();
 	void onDeleteSelected();

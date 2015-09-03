@@ -160,6 +160,9 @@ class HistoryMessage;
 class HistoryUnreadBar;
 struct History : public QList<HistoryBlock*> {
 	History(const PeerId &peerId);
+	ChannelId channelId() const {
+		return peerToChannel(peer->id);
+	}
 
 	typedef QList<HistoryBlock*> Parent;
 	void clear(bool leaveItems = false);
@@ -774,8 +777,16 @@ public:
     virtual QString notificationText() const = 0;
 	void markRead();
 
-	int32 y, id;
+	int32 y;
+	MsgId id;
 	QDateTime date;
+
+	ChannelId channelId() const {
+		return _history->channelId();
+	}
+	FullMsgId fullId() const {
+		return FullMsgId(channelId(), id);
+	}
 
 	virtual HistoryMedia *getMedia(bool inOverview = false) const {
 		return 0;
@@ -816,6 +827,10 @@ public:
 	}
 	virtual const HistoryReply *toHistoryReply() const { // dynamic_cast optimize
 		return 0;
+	}
+
+	bool displayFromName() const {
+		return !out() && !history()->peer->isUser();
 	}
 
 	virtual ~HistoryItem();

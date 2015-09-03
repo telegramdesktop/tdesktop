@@ -68,10 +68,14 @@ enum {
 	mtpc_inputPeerEmpty = 0x7f3b18ea,
 	mtpc_inputPeerSelf = 0x7da07ec9,
 	mtpc_inputPeerChat = 0x179be863,
+	mtpc_inputPeerUser = 0x7b8e7de6,
+	mtpc_inputPeerChannel = 0x20adaef8,
 	mtpc_inputUserEmpty = 0xb98886cf,
 	mtpc_inputUserSelf = 0xf7c1b13f,
+	mtpc_inputUser = 0xd8292816,
 	mtpc_inputPhoneContact = 0xf392b7f4,
 	mtpc_inputFile = 0xf52ff27f,
+	mtpc_inputFileBig = 0xfa4f0bb5,
 	mtpc_inputMediaEmpty = 0x9664f57f,
 	mtpc_inputMediaUploadedPhoto = 0xf7aff1c0,
 	mtpc_inputMediaPhoto = 0xe9bfb4f3,
@@ -80,6 +84,12 @@ enum {
 	mtpc_inputMediaUploadedVideo = 0x82713fdf,
 	mtpc_inputMediaUploadedThumbVideo = 0x7780ddf9,
 	mtpc_inputMediaVideo = 0x936a4ebd,
+	mtpc_inputMediaUploadedAudio = 0x4e498cab,
+	mtpc_inputMediaAudio = 0x89938781,
+	mtpc_inputMediaUploadedDocument = 0xffe76b78,
+	mtpc_inputMediaUploadedThumbDocument = 0x41481486,
+	mtpc_inputMediaDocument = 0xd184e841,
+	mtpc_inputMediaVenue = 0x2827a81a,
 	mtpc_inputChatPhotoEmpty = 0x1ca48f57,
 	mtpc_inputChatUploadedPhoto = 0x94254732,
 	mtpc_inputChatPhoto = 0xb2e1bf08,
@@ -91,11 +101,15 @@ enum {
 	mtpc_inputVideo = 0xee579652,
 	mtpc_inputFileLocation = 0x14637196,
 	mtpc_inputVideoFileLocation = 0x3d0364ec,
+	mtpc_inputEncryptedFileLocation = 0xf5235d55,
+	mtpc_inputAudioFileLocation = 0x74dc404d,
+	mtpc_inputDocumentFileLocation = 0x4e45abe9,
 	mtpc_inputPhotoCropAuto = 0xade6b004,
 	mtpc_inputPhotoCrop = 0xd9915325,
 	mtpc_inputAppEvent = 0x770656a8,
 	mtpc_peerUser = 0x9db1bc6d,
 	mtpc_peerChat = 0xbad0e5bb,
+	mtpc_peerChannel = 0xbddde532,
 	mtpc_storage_fileUnknown = 0xaa963b05,
 	mtpc_storage_fileJpeg = 0x7efe0e,
 	mtpc_storage_fileGif = 0xcae1aadf,
@@ -109,29 +123,39 @@ enum {
 	mtpc_fileLocationUnavailable = 0x7c596b46,
 	mtpc_fileLocation = 0x53d69076,
 	mtpc_userEmpty = 0x200250ba,
+	mtpc_user = 0x22e49072,
 	mtpc_userProfilePhotoEmpty = 0x4f11bae1,
 	mtpc_userProfilePhoto = 0xd559d8c8,
 	mtpc_userStatusEmpty = 0x9d05049,
 	mtpc_userStatusOnline = 0xedb93949,
 	mtpc_userStatusOffline = 0x8c703f,
+	mtpc_userStatusRecently = 0xe26f42f1,
+	mtpc_userStatusLastWeek = 0x7bf09fc,
+	mtpc_userStatusLastMonth = 0x77ebc742,
 	mtpc_chatEmpty = 0x9ba2d800,
 	mtpc_chat = 0x6e9c9bc7,
 	mtpc_chatForbidden = 0xfb0ccc41,
+	mtpc_channel = 0x8dbb1461,
 	mtpc_chatFull = 0x2e02a614,
+	mtpc_channelFull = 0xeb8a0d68,
 	mtpc_chatParticipant = 0xc8d7493e,
 	mtpc_chatParticipantsForbidden = 0xfd2bb8a,
 	mtpc_chatParticipants = 0x7841b415,
 	mtpc_chatPhotoEmpty = 0x37c1011c,
 	mtpc_chatPhoto = 0x6153276a,
 	mtpc_messageEmpty = 0x83e5de54,
-	mtpc_message = 0x2bebfa86,
-	mtpc_messageService = 0x1d86f70e,
+	mtpc_message = 0xab406723,
+	mtpc_messageService = 0xc06b9607,
 	mtpc_messageMediaEmpty = 0x3ded6320,
 	mtpc_messageMediaPhoto = 0x3d8ce53d,
 	mtpc_messageMediaVideo = 0x5bcf1675,
 	mtpc_messageMediaGeo = 0x56e0d474,
 	mtpc_messageMediaContact = 0x5e7d2f39,
 	mtpc_messageMediaUnsupported = 0x9f84f49e,
+	mtpc_messageMediaDocument = 0x2fda2204,
+	mtpc_messageMediaAudio = 0xc6b68300,
+	mtpc_messageMediaWebPage = 0xa32dd600,
+	mtpc_messageMediaVenue = 0x7912b71f,
 	mtpc_messageActionEmpty = 0xb6aef7b0,
 	mtpc_messageActionChatCreate = 0xa6638b9a,
 	mtpc_messageActionChatEditTitle = 0xb5a1ce5a,
@@ -139,7 +163,10 @@ enum {
 	mtpc_messageActionChatDeletePhoto = 0x95e3fbef,
 	mtpc_messageActionChatAddUser = 0x5e3cfc4b,
 	mtpc_messageActionChatDeleteUser = 0xb2ae9b0c,
+	mtpc_messageActionChatJoinedByLink = 0xf89cf5e8,
+	mtpc_messageActionChannelCreate = 0x95d2ac92,
 	mtpc_dialog = 0xc1dd804a,
+	mtpc_dialogChannel = 0x5b8496b2,
 	mtpc_photoEmpty = 0x2331b22d,
 	mtpc_photo = 0xcded42fe,
 	mtpc_photoSizeEmpty = 0xe17e23c,
@@ -151,6 +178,7 @@ enum {
 	mtpc_geoPoint = 0x2049d70c,
 	mtpc_auth_checkedPhone = 0x811ea28e,
 	mtpc_auth_sentCode = 0xefed51d9,
+	mtpc_auth_sentAppCode = 0xe325edcf,
 	mtpc_auth_authorization = 0xff036af1,
 	mtpc_auth_exportedAuthorization = 0xdf969c2d,
 	mtpc_inputNotifyPeer = 0xb8bc5b0c,
@@ -165,6 +193,7 @@ enum {
 	mtpc_peerNotifySettingsEmpty = 0x70a68512,
 	mtpc_peerNotifySettings = 0x8d5e11ee,
 	mtpc_wallPaper = 0xccb03657,
+	mtpc_wallPaperSolid = 0x63117f24,
 	mtpc_userFull = 0x5a89ac5b,
 	mtpc_contact = 0xf911c994,
 	mtpc_importedContact = 0xd0028438,
@@ -182,6 +211,7 @@ enum {
 	mtpc_messages_dialogsSlice = 0x71e094f3,
 	mtpc_messages_messages = 0x8c718e87,
 	mtpc_messages_messagesSlice = 0xb446ae3,
+	mtpc_messages_channelMessages = 0xbc0f17bc,
 	mtpc_messages_chats = 0x64ff9fd5,
 	mtpc_messages_chatFull = 0xe5d7d19c,
 	mtpc_messages_affectedHistory = 0xb45c69d1,
@@ -206,6 +236,26 @@ enum {
 	mtpc_updateContactRegistered = 0x2575bbb9,
 	mtpc_updateContactLink = 0x9d2e67c5,
 	mtpc_updateNewAuthorization = 0x8f06529a,
+	mtpc_updateNewEncryptedMessage = 0x12bcbd9a,
+	mtpc_updateEncryptedChatTyping = 0x1710f156,
+	mtpc_updateEncryption = 0xb4a2e88d,
+	mtpc_updateEncryptedMessagesRead = 0x38fe25b7,
+	mtpc_updateChatParticipantAdd = 0x3a0eeb22,
+	mtpc_updateChatParticipantDelete = 0x6e5f8c22,
+	mtpc_updateDcOptions = 0x8e5e9873,
+	mtpc_updateUserBlocked = 0x80ece81a,
+	mtpc_updateNotifySettings = 0xbec268ef,
+	mtpc_updateServiceNotification = 0x382dd3e4,
+	mtpc_updatePrivacy = 0xee3b272a,
+	mtpc_updateUserPhone = 0x12b9417b,
+	mtpc_updateReadHistoryInbox = 0x9961fd5c,
+	mtpc_updateReadHistoryOutbox = 0x2f2f21bf,
+	mtpc_updateWebPage = 0x2cc36971,
+	mtpc_updateReadMessagesContents = 0x68c13933,
+	mtpc_updateChannelTooLong = 0x60946422,
+	mtpc_updateNewChannelMessage = 0x62ba04d9,
+	mtpc_updateReadChannelInbox = 0x87b87b7d,
+	mtpc_updateDeleteChannelMessages = 0x11da3046,
 	mtpc_updates_state = 0xa56c2a3e,
 	mtpc_updates_differenceEmpty = 0x5d75a138,
 	mtpc_updates_difference = 0xf49ca0,
@@ -216,6 +266,7 @@ enum {
 	mtpc_updateShort = 0x78d4dec1,
 	mtpc_updatesCombined = 0x725b04c3,
 	mtpc_updates = 0x74ae4240,
+	mtpc_updateShortSentMessage = 0x11f1331c,
 	mtpc_photos_photos = 0x8dca6aa5,
 	mtpc_photos_photosSlice = 0x15051f54,
 	mtpc_photos_photo = 0x20212ca8,
@@ -226,11 +277,6 @@ enum {
 	mtpc_help_appUpdate = 0x8987f311,
 	mtpc_help_noAppUpdate = 0xc45a6536,
 	mtpc_help_inviteText = 0x18cb9f78,
-	mtpc_wallPaperSolid = 0x63117f24,
-	mtpc_updateNewEncryptedMessage = 0x12bcbd9a,
-	mtpc_updateEncryptedChatTyping = 0x1710f156,
-	mtpc_updateEncryption = 0xb4a2e88d,
-	mtpc_updateEncryptedMessagesRead = 0x38fe25b7,
 	mtpc_encryptedChatEmpty = 0xab7ec0a0,
 	mtpc_encryptedChatWaiting = 0x3bf703dc,
 	mtpc_encryptedChatRequested = 0xc878527e,
@@ -242,31 +288,17 @@ enum {
 	mtpc_inputEncryptedFileEmpty = 0x1837c364,
 	mtpc_inputEncryptedFileUploaded = 0x64bd0306,
 	mtpc_inputEncryptedFile = 0x5a17b5e5,
-	mtpc_inputEncryptedFileLocation = 0xf5235d55,
+	mtpc_inputEncryptedFileBigUploaded = 0x2dc173c8,
 	mtpc_encryptedMessage = 0xed18c118,
 	mtpc_encryptedMessageService = 0x23734b06,
 	mtpc_messages_dhConfigNotModified = 0xc0e24635,
 	mtpc_messages_dhConfig = 0x2c221edd,
 	mtpc_messages_sentEncryptedMessage = 0x560f8935,
 	mtpc_messages_sentEncryptedFile = 0x9493ff32,
-	mtpc_inputFileBig = 0xfa4f0bb5,
-	mtpc_inputEncryptedFileBigUploaded = 0x2dc173c8,
-	mtpc_updateChatParticipantAdd = 0x3a0eeb22,
-	mtpc_updateChatParticipantDelete = 0x6e5f8c22,
-	mtpc_updateDcOptions = 0x8e5e9873,
-	mtpc_inputMediaUploadedAudio = 0x4e498cab,
-	mtpc_inputMediaAudio = 0x89938781,
-	mtpc_inputMediaUploadedDocument = 0xffe76b78,
-	mtpc_inputMediaUploadedThumbDocument = 0x41481486,
-	mtpc_inputMediaDocument = 0xd184e841,
-	mtpc_messageMediaDocument = 0x2fda2204,
-	mtpc_messageMediaAudio = 0xc6b68300,
 	mtpc_inputAudioEmpty = 0xd95adc84,
 	mtpc_inputAudio = 0x77d440ff,
 	mtpc_inputDocumentEmpty = 0x72f0eaae,
 	mtpc_inputDocument = 0x18798952,
-	mtpc_inputAudioFileLocation = 0x74dc404d,
-	mtpc_inputDocumentFileLocation = 0x4e45abe9,
 	mtpc_audioEmpty = 0x586988d8,
 	mtpc_audio = 0xf9e35055,
 	mtpc_documentEmpty = 0x36f8c871,
@@ -276,9 +308,6 @@ enum {
 	mtpc_notifyUsers = 0xb4c83b4c,
 	mtpc_notifyChats = 0xc007cec3,
 	mtpc_notifyAll = 0x74d07c60,
-	mtpc_updateUserBlocked = 0x80ece81a,
-	mtpc_updateNotifySettings = 0xbec268ef,
-	mtpc_auth_sentAppCode = 0xe325edcf,
 	mtpc_sendMessageTypingAction = 0x16bf744e,
 	mtpc_sendMessageCancelAction = 0xfd5ec8f5,
 	mtpc_sendMessageRecordVideoAction = 0xa187d66f,
@@ -291,11 +320,6 @@ enum {
 	mtpc_sendMessageChooseContactAction = 0x628cbc6f,
 	mtpc_contactFound = 0xea879f95,
 	mtpc_contacts_found = 0x566000e,
-	mtpc_updateServiceNotification = 0x382dd3e4,
-	mtpc_userStatusRecently = 0xe26f42f1,
-	mtpc_userStatusLastWeek = 0x7bf09fc,
-	mtpc_userStatusLastMonth = 0x77ebc742,
-	mtpc_updatePrivacy = 0xee3b272a,
 	mtpc_inputPrivacyKeyStatusTimestamp = 0x4f96cb18,
 	mtpc_privacyKeyStatusTimestamp = 0xbc2eab30,
 	mtpc_inputPrivacyValueAllowContacts = 0xd09e07b,
@@ -313,7 +337,6 @@ enum {
 	mtpc_account_privacyRules = 0x554abb6f,
 	mtpc_accountDaysTTL = 0xb8d0afdf,
 	mtpc_account_sentChangePhoneCode = 0xa4f58c4c,
-	mtpc_updateUserPhone = 0x12b9417b,
 	mtpc_documentAttributeImageSize = 0x6c37c15c,
 	mtpc_documentAttributeAnimated = 0x11b58939,
 	mtpc_documentAttributeSticker = 0x3a556302,
@@ -326,18 +349,14 @@ enum {
 	mtpc_messages_allStickersNotModified = 0xe86602c3,
 	mtpc_messages_allStickers = 0xd51dafdb,
 	mtpc_disabledFeature = 0xae636f24,
-	mtpc_updateReadHistoryInbox = 0x9961fd5c,
-	mtpc_updateReadHistoryOutbox = 0x2f2f21bf,
 	mtpc_messages_affectedMessages = 0x84d19185,
 	mtpc_contactLinkUnknown = 0x5f4f9247,
 	mtpc_contactLinkNone = 0xfeedd3ad,
 	mtpc_contactLinkHasPhone = 0x268f3f59,
 	mtpc_contactLinkContact = 0xd502c2d0,
-	mtpc_updateWebPage = 0x2cc36971,
 	mtpc_webPageEmpty = 0xeb1477e8,
 	mtpc_webPagePending = 0xc586da1c,
 	mtpc_webPage = 0xca820ed7,
-	mtpc_messageMediaWebPage = 0xa32dd600,
 	mtpc_authorization = 0x7bf2e6f6,
 	mtpc_account_authorizations = 0x1250abde,
 	mtpc_account_noPassword = 0x96dabc18,
@@ -345,21 +364,16 @@ enum {
 	mtpc_account_passwordSettings = 0xb7b72ab3,
 	mtpc_account_passwordInputSettings = 0xbcfc532c,
 	mtpc_auth_passwordRecovery = 0x137948a5,
-	mtpc_inputMediaVenue = 0x2827a81a,
-	mtpc_messageMediaVenue = 0x7912b71f,
 	mtpc_receivedNotifyMessage = 0xa384b779,
 	mtpc_chatInviteEmpty = 0x69df3769,
 	mtpc_chatInviteExported = 0xfc2e05bc,
 	mtpc_chatInviteAlready = 0x5a686d7c,
 	mtpc_chatInvite = 0xce917dcd,
-	mtpc_messageActionChatJoinedByLink = 0xf89cf5e8,
-	mtpc_updateReadMessagesContents = 0x68c13933,
 	mtpc_inputStickerSetEmpty = 0xffb62b95,
 	mtpc_inputStickerSetID = 0x9de7a269,
 	mtpc_inputStickerSetShortName = 0x861cc8a0,
 	mtpc_stickerSet = 0xcd303b41,
 	mtpc_messages_stickerSet = 0xb60a24a6,
-	mtpc_user = 0x22e49072,
 	mtpc_botCommand = 0xc27ac8c7,
 	mtpc_botInfoEmpty = 0xbb2e37ce,
 	mtpc_botInfo = 0x9cf585d,
@@ -368,8 +382,6 @@ enum {
 	mtpc_replyKeyboardHide = 0xa03e5b85,
 	mtpc_replyKeyboardForceReply = 0xf4108aa0,
 	mtpc_replyKeyboardMarkup = 0x3502758c,
-	mtpc_inputPeerUser = 0x7b8e7de6,
-	mtpc_inputUser = 0xd8292816,
 	mtpc_help_appChangelogEmpty = 0xaf7e0394,
 	mtpc_help_appChangelog = 0x4668e6bd,
 	mtpc_messageEntityUnknown = 0xbb92ba95,
@@ -383,9 +395,21 @@ enum {
 	mtpc_messageEntityCode = 0x28a20571,
 	mtpc_messageEntityPre = 0x73924be0,
 	mtpc_messageEntityTextUrl = 0x76a6d327,
-	mtpc_updateShortSentMessage = 0x11f1331c,
+	mtpc_inputChatEmpty = 0xd9ff343c,
+	mtpc_inputChat = 0x43a5b9c3,
+	mtpc_inputChannel = 0x30c6ce73,
+	mtpc_messageRange = 0xae30253,
+	mtpc_messageGroup = 0xe8346f53,
+	mtpc_updates_channelDifferenceEmpty = 0x3e11affb,
+	mtpc_updates_channelDifferenceTooLong = 0x5e167646,
+	mtpc_updates_channelDifference = 0x2064674e,
+	mtpc_channelMessagesFilterEmpty = 0x94d42ee7,
+	mtpc_channelMessagesFilter = 0xcd77d957,
 	mtpc_invokeAfterMsg = 0xcb9f372d,
 	mtpc_invokeAfterMsgs = 0x3dc4b4f0,
+	mtpc_initConnection = 0x69796de9,
+	mtpc_invokeWithLayer = 0xda9b0d0d,
+	mtpc_invokeWithoutUpdates = 0xbf9459b7,
 	mtpc_auth_checkPhone = 0x6fe51dfb,
 	mtpc_auth_sendCode = 0x768d5f4d,
 	mtpc_auth_sendCall = 0x3c51564,
@@ -397,6 +421,11 @@ enum {
 	mtpc_auth_exportAuthorization = 0xe5bfffcd,
 	mtpc_auth_importAuthorization = 0xe3ef9613,
 	mtpc_auth_bindTempAuthKey = 0xcdd42a05,
+	mtpc_auth_sendSms = 0xda9f3e8,
+	mtpc_auth_importBotAuthorization = 0x67a3ff2c,
+	mtpc_auth_checkPassword = 0xa63011e,
+	mtpc_auth_requestPasswordRecovery = 0xd897bc66,
+	mtpc_auth_recoverPassword = 0x4ea56e92,
 	mtpc_account_registerDevice = 0x446c712c,
 	mtpc_account_unregisterDevice = 0x65c55b40,
 	mtpc_account_updateNotifySettings = 0x84be5b93,
@@ -405,6 +434,21 @@ enum {
 	mtpc_account_updateProfile = 0xf0888d68,
 	mtpc_account_updateStatus = 0x6628562c,
 	mtpc_account_getWallPapers = 0xc04cfac2,
+	mtpc_account_checkUsername = 0x2714d86c,
+	mtpc_account_updateUsername = 0x3e0bdd7c,
+	mtpc_account_getPrivacy = 0xdadbc950,
+	mtpc_account_setPrivacy = 0xc9f81ce8,
+	mtpc_account_deleteAccount = 0x418d4e0b,
+	mtpc_account_getAccountTTL = 0x8fc711d,
+	mtpc_account_setAccountTTL = 0x2442485e,
+	mtpc_account_sendChangePhoneCode = 0xa407a8f4,
+	mtpc_account_changePhone = 0x70c32edb,
+	mtpc_account_updateDeviceLocked = 0x38df3532,
+	mtpc_account_getAuthorizations = 0xe320c158,
+	mtpc_account_resetAuthorization = 0xdf77f3bc,
+	mtpc_account_getPassword = 0x548a30f5,
+	mtpc_account_getPasswordSettings = 0xbc8d11bb,
+	mtpc_account_updatePasswordSettings = 0xfa7c4b86,
 	mtpc_users_getUsers = 0xd91a548,
 	mtpc_users_getFullUser = 0xca30a5b1,
 	mtpc_contacts_getStatuses = 0xc4a353ee,
@@ -418,9 +462,11 @@ enum {
 	mtpc_contacts_getBlocked = 0xf57c350f,
 	mtpc_contacts_exportCard = 0x84e53737,
 	mtpc_contacts_importCard = 0x4fe196fe,
+	mtpc_contacts_search = 0x11f812d8,
+	mtpc_contacts_resolveUsername = 0xbf0131c,
 	mtpc_messages_getMessages = 0x4222fa74,
-	mtpc_messages_getDialogs = 0xeccf1df6,
-	mtpc_messages_getHistory = 0x92a1df2f,
+	mtpc_messages_getDialogs = 0x859b3d3c,
+	mtpc_messages_getHistory = 0xe1ded325,
 	mtpc_messages_search = 0x7e9f2ab,
 	mtpc_messages_readHistory = 0xb04f2510,
 	mtpc_messages_deleteHistory = 0xf4f8fb61,
@@ -430,26 +476,13 @@ enum {
 	mtpc_messages_sendMessage = 0xfa88427a,
 	mtpc_messages_sendMedia = 0xc8f16791,
 	mtpc_messages_forwardMessages = 0x55e1728d,
-	mtpc_messages_getChats = 0x3c6aa187,
-	mtpc_messages_getFullChat = 0x3b831c66,
-	mtpc_messages_editChatTitle = 0xdc452855,
-	mtpc_messages_editChatPhoto = 0xca4c79d8,
-	mtpc_messages_addChatUser = 0xf9a0aa09,
-	mtpc_messages_deleteChatUser = 0xe0611f16,
+	mtpc_messages_getChats = 0x27ae65b,
+	mtpc_messages_getFullChat = 0x36a4dfe,
+	mtpc_messages_editChatTitle = 0x6699d506,
+	mtpc_messages_editChatPhoto = 0xdd75758d,
+	mtpc_messages_addChatUser = 0x819183f4,
+	mtpc_messages_deleteChatUser = 0x9392c06f,
 	mtpc_messages_createChat = 0x9cb126e,
-	mtpc_updates_getState = 0xedd4882a,
-	mtpc_updates_getDifference = 0xa041495,
-	mtpc_photos_updateProfilePhoto = 0xeef579a0,
-	mtpc_photos_uploadProfilePhoto = 0xd50f9c88,
-	mtpc_photos_deletePhotos = 0x87cf7f2f,
-	mtpc_upload_saveFilePart = 0xb304a621,
-	mtpc_upload_getFile = 0xe3a6cfb5,
-	mtpc_help_getConfig = 0xc4f9186b,
-	mtpc_help_getNearestDc = 0x1fb33026,
-	mtpc_help_getAppUpdate = 0xc812ac7e,
-	mtpc_help_saveAppLog = 0x6f02f748,
-	mtpc_help_getInviteText = 0xa4a95186,
-	mtpc_photos_getUserPhotos = 0x91cd32a8,
 	mtpc_messages_forwardMessage = 0x33963bf9,
 	mtpc_messages_sendBroadcast = 0xbf73f4da,
 	mtpc_messages_getDhConfig = 0x26cf8950,
@@ -462,44 +495,38 @@ enum {
 	mtpc_messages_sendEncryptedFile = 0x9a901b66,
 	mtpc_messages_sendEncryptedService = 0x32d439a4,
 	mtpc_messages_receivedQueue = 0x55a5bb66,
-	mtpc_upload_saveBigFilePart = 0xde7b673d,
-	mtpc_initConnection = 0x69796de9,
-	mtpc_help_getSupport = 0x9cdf08cd,
-	mtpc_auth_sendSms = 0xda9f3e8,
 	mtpc_messages_readMessageContents = 0x36a73f77,
-	mtpc_account_checkUsername = 0x2714d86c,
-	mtpc_account_updateUsername = 0x3e0bdd7c,
-	mtpc_contacts_search = 0x11f812d8,
-	mtpc_account_getPrivacy = 0xdadbc950,
-	mtpc_account_setPrivacy = 0xc9f81ce8,
-	mtpc_account_deleteAccount = 0x418d4e0b,
-	mtpc_account_getAccountTTL = 0x8fc711d,
-	mtpc_account_setAccountTTL = 0x2442485e,
-	mtpc_invokeWithLayer = 0xda9b0d0d,
-	mtpc_contacts_resolveUsername = 0xbf0131c,
-	mtpc_account_sendChangePhoneCode = 0xa407a8f4,
-	mtpc_account_changePhone = 0x70c32edb,
 	mtpc_messages_getStickers = 0xae22e045,
 	mtpc_messages_getAllStickers = 0xaa3bc868,
-	mtpc_account_updateDeviceLocked = 0x38df3532,
-	mtpc_auth_importBotAuthorization = 0x67a3ff2c,
 	mtpc_messages_getWebPagePreview = 0x25223e24,
-	mtpc_account_getAuthorizations = 0xe320c158,
-	mtpc_account_resetAuthorization = 0xdf77f3bc,
-	mtpc_account_getPassword = 0x548a30f5,
-	mtpc_account_getPasswordSettings = 0xbc8d11bb,
-	mtpc_account_updatePasswordSettings = 0xfa7c4b86,
-	mtpc_auth_checkPassword = 0xa63011e,
-	mtpc_auth_requestPasswordRecovery = 0xd897bc66,
-	mtpc_auth_recoverPassword = 0x4ea56e92,
-	mtpc_invokeWithoutUpdates = 0xbf9459b7,
-	mtpc_messages_exportChatInvite = 0x7d885289,
+	mtpc_messages_exportChatInvite = 0xc26902ba,
 	mtpc_messages_checkChatInvite = 0x3eadb1bb,
 	mtpc_messages_importChatInvite = 0x6c50051c,
 	mtpc_messages_getStickerSet = 0x2619a90e,
 	mtpc_messages_installStickerSet = 0x7b30c3a6,
 	mtpc_messages_uninstallStickerSet = 0xf96e55de,
-	mtpc_messages_startBot = 0x1b3e0ffc,
+	mtpc_messages_startBot = 0xf4cc052d,
+	mtpc_messages_getChannelDialogs = 0x92689583,
+	mtpc_messages_getImportantHistory = 0x25b7f3b2,
+	mtpc_messages_readChannelHistory = 0x36a1210e,
+	mtpc_messages_createChannel = 0xd9bc5fd2,
+	mtpc_messages_deleteChannelMessages = 0x9995a84f,
+	mtpc_updates_getState = 0xedd4882a,
+	mtpc_updates_getDifference = 0xa041495,
+	mtpc_updates_getChannelDifference = 0x248af4f5,
+	mtpc_photos_updateProfilePhoto = 0xeef579a0,
+	mtpc_photos_uploadProfilePhoto = 0xd50f9c88,
+	mtpc_photos_deletePhotos = 0x87cf7f2f,
+	mtpc_photos_getUserPhotos = 0x91cd32a8,
+	mtpc_upload_saveFilePart = 0xb304a621,
+	mtpc_upload_getFile = 0xe3a6cfb5,
+	mtpc_upload_saveBigFilePart = 0xde7b673d,
+	mtpc_help_getConfig = 0xc4f9186b,
+	mtpc_help_getNearestDc = 0x1fb33026,
+	mtpc_help_getAppUpdate = 0xc812ac7e,
+	mtpc_help_saveAppLog = 0x6f02f748,
+	mtpc_help_getInviteText = 0xa4a95186,
+	mtpc_help_getSupport = 0x9cdf08cd,
 	mtpc_help_getAppChangelog = 0x5bab7fb2
 };
 
@@ -581,6 +608,7 @@ class MTPnull;
 class MTPinputPeer;
 class MTPDinputPeerChat;
 class MTPDinputPeerUser;
+class MTPDinputPeerChannel;
 
 class MTPinputUser;
 class MTPDinputUser;
@@ -636,6 +664,7 @@ class MTPDinputAppEvent;
 class MTPpeer;
 class MTPDpeerUser;
 class MTPDpeerChat;
+class MTPDpeerChannel;
 
 class MTPstorage_fileType;
 
@@ -658,9 +687,11 @@ class MTPchat;
 class MTPDchatEmpty;
 class MTPDchat;
 class MTPDchatForbidden;
+class MTPDchannel;
 
 class MTPchatFull;
 class MTPDchatFull;
+class MTPDchannelFull;
 
 class MTPchatParticipant;
 class MTPDchatParticipant;
@@ -694,9 +725,11 @@ class MTPDmessageActionChatEditPhoto;
 class MTPDmessageActionChatAddUser;
 class MTPDmessageActionChatDeleteUser;
 class MTPDmessageActionChatJoinedByLink;
+class MTPDmessageActionChannelCreate;
 
 class MTPdialog;
 class MTPDdialog;
+class MTPDdialogChannel;
 
 class MTPphoto;
 class MTPDphotoEmpty;
@@ -785,6 +818,7 @@ class MTPDmessages_dialogsSlice;
 class MTPmessages_messages;
 class MTPDmessages_messages;
 class MTPDmessages_messagesSlice;
+class MTPDmessages_channelMessages;
 
 class MTPmessages_chats;
 class MTPDmessages_chats;
@@ -826,6 +860,10 @@ class MTPDupdateReadHistoryInbox;
 class MTPDupdateReadHistoryOutbox;
 class MTPDupdateWebPage;
 class MTPDupdateReadMessagesContents;
+class MTPDupdateChannelTooLong;
+class MTPDupdateNewChannelMessage;
+class MTPDupdateReadChannelInbox;
+class MTPDupdateDeleteChannelMessages;
 
 class MTPupdates_state;
 class MTPDupdates_state;
@@ -1052,6 +1090,24 @@ class MTPDmessageEntityCode;
 class MTPDmessageEntityPre;
 class MTPDmessageEntityTextUrl;
 
+class MTPinputChat;
+class MTPDinputChat;
+class MTPDinputChannel;
+
+class MTPmessageRange;
+class MTPDmessageRange;
+
+class MTPmessageGroup;
+class MTPDmessageGroup;
+
+class MTPupdates_channelDifference;
+class MTPDupdates_channelDifferenceEmpty;
+class MTPDupdates_channelDifferenceTooLong;
+class MTPDupdates_channelDifference;
+
+class MTPchannelMessagesFilter;
+class MTPDchannelMessagesFilter;
+
 
 // Boxed types definitions
 typedef MTPBoxed<MTPresPQ> MTPResPQ;
@@ -1197,6 +1253,11 @@ typedef MTPBoxed<MTPkeyboardButtonRow> MTPKeyboardButtonRow;
 typedef MTPBoxed<MTPreplyMarkup> MTPReplyMarkup;
 typedef MTPBoxed<MTPhelp_appChangelog> MTPhelp_AppChangelog;
 typedef MTPBoxed<MTPmessageEntity> MTPMessageEntity;
+typedef MTPBoxed<MTPinputChat> MTPInputChat;
+typedef MTPBoxed<MTPmessageRange> MTPMessageRange;
+typedef MTPBoxed<MTPmessageGroup> MTPMessageGroup;
+typedef MTPBoxed<MTPupdates_channelDifference> MTPupdates_ChannelDifference;
+typedef MTPBoxed<MTPchannelMessagesFilter> MTPChannelMessagesFilter;
 
 // Type classes definitions
 
@@ -2057,6 +2118,18 @@ public:
 		return *(const MTPDinputPeerUser*)data;
 	}
 
+	MTPDinputPeerChannel &_inputPeerChannel() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputPeerChannel) throw mtpErrorWrongTypeId(_type, mtpc_inputPeerChannel);
+		split();
+		return *(MTPDinputPeerChannel*)data;
+	}
+	const MTPDinputPeerChannel &c_inputPeerChannel() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputPeerChannel) throw mtpErrorWrongTypeId(_type, mtpc_inputPeerChannel);
+		return *(const MTPDinputPeerChannel*)data;
+	}
+
 	uint32 innerLength() const;
 	mtpTypeId type() const;
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
@@ -2068,11 +2141,13 @@ private:
 	explicit MTPinputPeer(mtpTypeId type);
 	explicit MTPinputPeer(MTPDinputPeerChat *_data);
 	explicit MTPinputPeer(MTPDinputPeerUser *_data);
+	explicit MTPinputPeer(MTPDinputPeerChannel *_data);
 
 	friend MTPinputPeer MTP_inputPeerEmpty();
 	friend MTPinputPeer MTP_inputPeerSelf();
 	friend MTPinputPeer MTP_inputPeerChat(MTPint _chat_id);
 	friend MTPinputPeer MTP_inputPeerUser(MTPint _user_id, const MTPlong &_access_hash);
+	friend MTPinputPeer MTP_inputPeerChannel(MTPint _channel_id, const MTPlong &_access_hash);
 
 	mtpTypeId _type;
 };
@@ -2765,6 +2840,18 @@ public:
 		return *(const MTPDpeerChat*)data;
 	}
 
+	MTPDpeerChannel &_peerChannel() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_peerChannel) throw mtpErrorWrongTypeId(_type, mtpc_peerChannel);
+		split();
+		return *(MTPDpeerChannel*)data;
+	}
+	const MTPDpeerChannel &c_peerChannel() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_peerChannel) throw mtpErrorWrongTypeId(_type, mtpc_peerChannel);
+		return *(const MTPDpeerChannel*)data;
+	}
+
 	uint32 innerLength() const;
 	mtpTypeId type() const;
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
@@ -2776,9 +2863,11 @@ private:
 	explicit MTPpeer(mtpTypeId type);
 	explicit MTPpeer(MTPDpeerUser *_data);
 	explicit MTPpeer(MTPDpeerChat *_data);
+	explicit MTPpeer(MTPDpeerChannel *_data);
 
 	friend MTPpeer MTP_peerUser(MTPint _user_id);
 	friend MTPpeer MTP_peerChat(MTPint _chat_id);
+	friend MTPpeer MTP_peerChannel(MTPint _channel_id);
 
 	mtpTypeId _type;
 };
@@ -3056,6 +3145,18 @@ public:
 		return *(const MTPDchatForbidden*)data;
 	}
 
+	MTPDchannel &_channel() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_channel) throw mtpErrorWrongTypeId(_type, mtpc_channel);
+		split();
+		return *(MTPDchannel*)data;
+	}
+	const MTPDchannel &c_channel() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_channel) throw mtpErrorWrongTypeId(_type, mtpc_channel);
+		return *(const MTPDchannel*)data;
+	}
+
 	uint32 innerLength() const;
 	mtpTypeId type() const;
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
@@ -3068,10 +3169,12 @@ private:
 	explicit MTPchat(MTPDchatEmpty *_data);
 	explicit MTPchat(MTPDchat *_data);
 	explicit MTPchat(MTPDchatForbidden *_data);
+	explicit MTPchat(MTPDchannel *_data);
 
 	friend MTPchat MTP_chatEmpty(MTPint _id);
 	friend MTPchat MTP_chat(MTPint _id, const MTPstring &_title, const MTPChatPhoto &_photo, MTPint _participants_count, MTPint _date, MTPBool _left, MTPint _version);
 	friend MTPchat MTP_chatForbidden(MTPint _id, const MTPstring &_title, MTPint _date);
+	friend MTPchat MTP_channel(MTPint _flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_title, const MTPChatPhoto &_photo, MTPint _date, MTPint _version);
 
 	mtpTypeId _type;
 };
@@ -3079,32 +3182,52 @@ typedef MTPBoxed<MTPchat> MTPChat;
 
 class MTPchatFull : private mtpDataOwner {
 public:
-	MTPchatFull();
-	MTPchatFull(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_chatFull) : mtpDataOwner(0) {
+	MTPchatFull() : mtpDataOwner(0), _type(0) {
+	}
+	MTPchatFull(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
 		read(from, end, cons);
 	}
 
 	MTPDchatFull &_chatFull() {
 		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_chatFull) throw mtpErrorWrongTypeId(_type, mtpc_chatFull);
 		split();
 		return *(MTPDchatFull*)data;
 	}
 	const MTPDchatFull &c_chatFull() const {
 		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_chatFull) throw mtpErrorWrongTypeId(_type, mtpc_chatFull);
 		return *(const MTPDchatFull*)data;
+	}
+
+	MTPDchannelFull &_channelFull() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_channelFull) throw mtpErrorWrongTypeId(_type, mtpc_channelFull);
+		split();
+		return *(MTPDchannelFull*)data;
+	}
+	const MTPDchannelFull &c_channelFull() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_channelFull) throw mtpErrorWrongTypeId(_type, mtpc_channelFull);
+		return *(const MTPDchannelFull*)data;
 	}
 
 	uint32 innerLength() const;
 	mtpTypeId type() const;
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_chatFull);
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
 	void write(mtpBuffer &to) const;
 
 	typedef void ResponseType;
 
 private:
+	explicit MTPchatFull(mtpTypeId type);
 	explicit MTPchatFull(MTPDchatFull *_data);
+	explicit MTPchatFull(MTPDchannelFull *_data);
 
 	friend MTPchatFull MTP_chatFull(MTPint _id, const MTPChatParticipants &_participants, const MTPPhoto &_chat_photo, const MTPPeerNotifySettings &_notify_settings, const MTPExportedChatInvite &_exported_invite, const MTPVector<MTPBotInfo> &_bot_info);
+	friend MTPchatFull MTP_channelFull(MTPint _id, MTPint _read_inbox_max_id, MTPint _unread_count, MTPint _unread_important_count, const MTPPhoto &_chat_photo, const MTPPeerNotifySettings &_notify_settings, const MTPExportedChatInvite &_exported_invite);
+
+	mtpTypeId _type;
 };
 typedef MTPBoxed<MTPchatFull> MTPChatFull;
 
@@ -3510,6 +3633,18 @@ public:
 		return *(const MTPDmessageActionChatJoinedByLink*)data;
 	}
 
+	MTPDmessageActionChannelCreate &_messageActionChannelCreate() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_messageActionChannelCreate) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChannelCreate);
+		split();
+		return *(MTPDmessageActionChannelCreate*)data;
+	}
+	const MTPDmessageActionChannelCreate &c_messageActionChannelCreate() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_messageActionChannelCreate) throw mtpErrorWrongTypeId(_type, mtpc_messageActionChannelCreate);
+		return *(const MTPDmessageActionChannelCreate*)data;
+	}
+
 	uint32 innerLength() const;
 	mtpTypeId type() const;
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
@@ -3525,6 +3660,7 @@ private:
 	explicit MTPmessageAction(MTPDmessageActionChatAddUser *_data);
 	explicit MTPmessageAction(MTPDmessageActionChatDeleteUser *_data);
 	explicit MTPmessageAction(MTPDmessageActionChatJoinedByLink *_data);
+	explicit MTPmessageAction(MTPDmessageActionChannelCreate *_data);
 
 	friend MTPmessageAction MTP_messageActionEmpty();
 	friend MTPmessageAction MTP_messageActionChatCreate(const MTPstring &_title, const MTPVector<MTPint> &_users);
@@ -3534,6 +3670,7 @@ private:
 	friend MTPmessageAction MTP_messageActionChatAddUser(MTPint _user_id);
 	friend MTPmessageAction MTP_messageActionChatDeleteUser(MTPint _user_id);
 	friend MTPmessageAction MTP_messageActionChatJoinedByLink(MTPint _inviter_id);
+	friend MTPmessageAction MTP_messageActionChannelCreate(const MTPstring &_title);
 
 	mtpTypeId _type;
 };
@@ -3541,32 +3678,52 @@ typedef MTPBoxed<MTPmessageAction> MTPMessageAction;
 
 class MTPdialog : private mtpDataOwner {
 public:
-	MTPdialog();
-	MTPdialog(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_dialog) : mtpDataOwner(0) {
+	MTPdialog() : mtpDataOwner(0), _type(0) {
+	}
+	MTPdialog(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
 		read(from, end, cons);
 	}
 
 	MTPDdialog &_dialog() {
 		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_dialog) throw mtpErrorWrongTypeId(_type, mtpc_dialog);
 		split();
 		return *(MTPDdialog*)data;
 	}
 	const MTPDdialog &c_dialog() const {
 		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_dialog) throw mtpErrorWrongTypeId(_type, mtpc_dialog);
 		return *(const MTPDdialog*)data;
+	}
+
+	MTPDdialogChannel &_dialogChannel() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_dialogChannel) throw mtpErrorWrongTypeId(_type, mtpc_dialogChannel);
+		split();
+		return *(MTPDdialogChannel*)data;
+	}
+	const MTPDdialogChannel &c_dialogChannel() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_dialogChannel) throw mtpErrorWrongTypeId(_type, mtpc_dialogChannel);
+		return *(const MTPDdialogChannel*)data;
 	}
 
 	uint32 innerLength() const;
 	mtpTypeId type() const;
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_dialog);
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
 	void write(mtpBuffer &to) const;
 
 	typedef void ResponseType;
 
 private:
+	explicit MTPdialog(mtpTypeId type);
 	explicit MTPdialog(MTPDdialog *_data);
+	explicit MTPdialog(MTPDdialogChannel *_data);
 
 	friend MTPdialog MTP_dialog(const MTPPeer &_peer, MTPint _top_message, MTPint _read_inbox_max_id, MTPint _unread_count, const MTPPeerNotifySettings &_notify_settings);
+	friend MTPdialog MTP_dialogChannel(const MTPPeer &_peer, MTPint _top_message, MTPint _top_important_message, MTPint _read_inbox_max_id, MTPint _unread_count, MTPint _unread_important_count, const MTPPeerNotifySettings &_notify_settings, MTPint _pts);
+
+	mtpTypeId _type;
 };
 typedef MTPBoxed<MTPdialog> MTPDialog;
 
@@ -4580,6 +4737,18 @@ public:
 		return *(const MTPDmessages_messagesSlice*)data;
 	}
 
+	MTPDmessages_channelMessages &_messages_channelMessages() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_messages_channelMessages) throw mtpErrorWrongTypeId(_type, mtpc_messages_channelMessages);
+		split();
+		return *(MTPDmessages_channelMessages*)data;
+	}
+	const MTPDmessages_channelMessages &c_messages_channelMessages() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_messages_channelMessages) throw mtpErrorWrongTypeId(_type, mtpc_messages_channelMessages);
+		return *(const MTPDmessages_channelMessages*)data;
+	}
+
 	uint32 innerLength() const;
 	mtpTypeId type() const;
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
@@ -4591,9 +4760,11 @@ private:
 	explicit MTPmessages_messages(mtpTypeId type);
 	explicit MTPmessages_messages(MTPDmessages_messages *_data);
 	explicit MTPmessages_messages(MTPDmessages_messagesSlice *_data);
+	explicit MTPmessages_messages(MTPDmessages_channelMessages *_data);
 
 	friend MTPmessages_messages MTP_messages_messages(const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users);
 	friend MTPmessages_messages MTP_messages_messagesSlice(MTPint _count, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users);
+	friend MTPmessages_messages MTP_messages_channelMessages(MTPint _flags, MTPint _pts, MTPint _count, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPMessageGroup> &_collapsed, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users);
 
 	mtpTypeId _type;
 };
@@ -5068,6 +5239,54 @@ public:
 		return *(const MTPDupdateReadMessagesContents*)data;
 	}
 
+	MTPDupdateChannelTooLong &_updateChannelTooLong() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updateChannelTooLong) throw mtpErrorWrongTypeId(_type, mtpc_updateChannelTooLong);
+		split();
+		return *(MTPDupdateChannelTooLong*)data;
+	}
+	const MTPDupdateChannelTooLong &c_updateChannelTooLong() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updateChannelTooLong) throw mtpErrorWrongTypeId(_type, mtpc_updateChannelTooLong);
+		return *(const MTPDupdateChannelTooLong*)data;
+	}
+
+	MTPDupdateNewChannelMessage &_updateNewChannelMessage() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updateNewChannelMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateNewChannelMessage);
+		split();
+		return *(MTPDupdateNewChannelMessage*)data;
+	}
+	const MTPDupdateNewChannelMessage &c_updateNewChannelMessage() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updateNewChannelMessage) throw mtpErrorWrongTypeId(_type, mtpc_updateNewChannelMessage);
+		return *(const MTPDupdateNewChannelMessage*)data;
+	}
+
+	MTPDupdateReadChannelInbox &_updateReadChannelInbox() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updateReadChannelInbox) throw mtpErrorWrongTypeId(_type, mtpc_updateReadChannelInbox);
+		split();
+		return *(MTPDupdateReadChannelInbox*)data;
+	}
+	const MTPDupdateReadChannelInbox &c_updateReadChannelInbox() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updateReadChannelInbox) throw mtpErrorWrongTypeId(_type, mtpc_updateReadChannelInbox);
+		return *(const MTPDupdateReadChannelInbox*)data;
+	}
+
+	MTPDupdateDeleteChannelMessages &_updateDeleteChannelMessages() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updateDeleteChannelMessages) throw mtpErrorWrongTypeId(_type, mtpc_updateDeleteChannelMessages);
+		split();
+		return *(MTPDupdateDeleteChannelMessages*)data;
+	}
+	const MTPDupdateDeleteChannelMessages &c_updateDeleteChannelMessages() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updateDeleteChannelMessages) throw mtpErrorWrongTypeId(_type, mtpc_updateDeleteChannelMessages);
+		return *(const MTPDupdateDeleteChannelMessages*)data;
+	}
+
 	uint32 innerLength() const;
 	mtpTypeId type() const;
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
@@ -5105,6 +5324,10 @@ private:
 	explicit MTPupdate(MTPDupdateReadHistoryOutbox *_data);
 	explicit MTPupdate(MTPDupdateWebPage *_data);
 	explicit MTPupdate(MTPDupdateReadMessagesContents *_data);
+	explicit MTPupdate(MTPDupdateChannelTooLong *_data);
+	explicit MTPupdate(MTPDupdateNewChannelMessage *_data);
+	explicit MTPupdate(MTPDupdateReadChannelInbox *_data);
+	explicit MTPupdate(MTPDupdateDeleteChannelMessages *_data);
 
 	friend MTPupdate MTP_updateNewMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count);
 	friend MTPupdate MTP_updateMessageID(MTPint _id, const MTPlong &_random_id);
@@ -5134,6 +5357,10 @@ private:
 	friend MTPupdate MTP_updateReadHistoryOutbox(const MTPPeer &_peer, MTPint _max_id, MTPint _pts, MTPint _pts_count);
 	friend MTPupdate MTP_updateWebPage(const MTPWebPage &_webpage);
 	friend MTPupdate MTP_updateReadMessagesContents(const MTPVector<MTPint> &_messages, MTPint _pts, MTPint _pts_count);
+	friend MTPupdate MTP_updateChannelTooLong(MTPint _channel_id);
+	friend MTPupdate MTP_updateNewChannelMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count);
+	friend MTPupdate MTP_updateReadChannelInbox(const MTPPeer &_peer, MTPint _max_id);
+	friend MTPupdate MTP_updateDeleteChannelMessages(const MTPPeer &_peer, const MTPVector<MTPint> &_messages, MTPint _pts, MTPint _pts_count);
 
 	mtpTypeId _type;
 };
@@ -7846,6 +8073,223 @@ private:
 };
 typedef MTPBoxed<MTPmessageEntity> MTPMessageEntity;
 
+class MTPinputChat : private mtpDataOwner {
+public:
+	MTPinputChat() : mtpDataOwner(0), _type(0) {
+	}
+	MTPinputChat(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
+		read(from, end, cons);
+	}
+
+	MTPDinputChat &_inputChat() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputChat) throw mtpErrorWrongTypeId(_type, mtpc_inputChat);
+		split();
+		return *(MTPDinputChat*)data;
+	}
+	const MTPDinputChat &c_inputChat() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputChat) throw mtpErrorWrongTypeId(_type, mtpc_inputChat);
+		return *(const MTPDinputChat*)data;
+	}
+
+	MTPDinputChannel &_inputChannel() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputChannel) throw mtpErrorWrongTypeId(_type, mtpc_inputChannel);
+		split();
+		return *(MTPDinputChannel*)data;
+	}
+	const MTPDinputChannel &c_inputChannel() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_inputChannel) throw mtpErrorWrongTypeId(_type, mtpc_inputChannel);
+		return *(const MTPDinputChannel*)data;
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPinputChat(mtpTypeId type);
+	explicit MTPinputChat(MTPDinputChat *_data);
+	explicit MTPinputChat(MTPDinputChannel *_data);
+
+	friend MTPinputChat MTP_inputChatEmpty();
+	friend MTPinputChat MTP_inputChat(MTPint _chat_id);
+	friend MTPinputChat MTP_inputChannel(MTPint _channel_id, const MTPlong &_access_hash);
+
+	mtpTypeId _type;
+};
+typedef MTPBoxed<MTPinputChat> MTPInputChat;
+
+class MTPmessageRange : private mtpDataOwner {
+public:
+	MTPmessageRange();
+	MTPmessageRange(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messageRange) : mtpDataOwner(0) {
+		read(from, end, cons);
+	}
+
+	MTPDmessageRange &_messageRange() {
+		if (!data) throw mtpErrorUninitialized();
+		split();
+		return *(MTPDmessageRange*)data;
+	}
+	const MTPDmessageRange &c_messageRange() const {
+		if (!data) throw mtpErrorUninitialized();
+		return *(const MTPDmessageRange*)data;
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messageRange);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPmessageRange(MTPDmessageRange *_data);
+
+	friend MTPmessageRange MTP_messageRange(MTPint _min_id, MTPint _max_id);
+};
+typedef MTPBoxed<MTPmessageRange> MTPMessageRange;
+
+class MTPmessageGroup : private mtpDataOwner {
+public:
+	MTPmessageGroup();
+	MTPmessageGroup(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messageGroup) : mtpDataOwner(0) {
+		read(from, end, cons);
+	}
+
+	MTPDmessageGroup &_messageGroup() {
+		if (!data) throw mtpErrorUninitialized();
+		split();
+		return *(MTPDmessageGroup*)data;
+	}
+	const MTPDmessageGroup &c_messageGroup() const {
+		if (!data) throw mtpErrorUninitialized();
+		return *(const MTPDmessageGroup*)data;
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messageGroup);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPmessageGroup(MTPDmessageGroup *_data);
+
+	friend MTPmessageGroup MTP_messageGroup(MTPint _min_id, MTPint _max_id, MTPint _count, MTPint _date);
+};
+typedef MTPBoxed<MTPmessageGroup> MTPMessageGroup;
+
+class MTPupdates_channelDifference : private mtpDataOwner {
+public:
+	MTPupdates_channelDifference() : mtpDataOwner(0), _type(0) {
+	}
+	MTPupdates_channelDifference(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
+		read(from, end, cons);
+	}
+
+	MTPDupdates_channelDifferenceEmpty &_updates_channelDifferenceEmpty() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updates_channelDifferenceEmpty) throw mtpErrorWrongTypeId(_type, mtpc_updates_channelDifferenceEmpty);
+		split();
+		return *(MTPDupdates_channelDifferenceEmpty*)data;
+	}
+	const MTPDupdates_channelDifferenceEmpty &c_updates_channelDifferenceEmpty() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updates_channelDifferenceEmpty) throw mtpErrorWrongTypeId(_type, mtpc_updates_channelDifferenceEmpty);
+		return *(const MTPDupdates_channelDifferenceEmpty*)data;
+	}
+
+	MTPDupdates_channelDifferenceTooLong &_updates_channelDifferenceTooLong() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updates_channelDifferenceTooLong) throw mtpErrorWrongTypeId(_type, mtpc_updates_channelDifferenceTooLong);
+		split();
+		return *(MTPDupdates_channelDifferenceTooLong*)data;
+	}
+	const MTPDupdates_channelDifferenceTooLong &c_updates_channelDifferenceTooLong() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updates_channelDifferenceTooLong) throw mtpErrorWrongTypeId(_type, mtpc_updates_channelDifferenceTooLong);
+		return *(const MTPDupdates_channelDifferenceTooLong*)data;
+	}
+
+	MTPDupdates_channelDifference &_updates_channelDifference() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updates_channelDifference) throw mtpErrorWrongTypeId(_type, mtpc_updates_channelDifference);
+		split();
+		return *(MTPDupdates_channelDifference*)data;
+	}
+	const MTPDupdates_channelDifference &c_updates_channelDifference() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updates_channelDifference) throw mtpErrorWrongTypeId(_type, mtpc_updates_channelDifference);
+		return *(const MTPDupdates_channelDifference*)data;
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPupdates_channelDifference(mtpTypeId type);
+	explicit MTPupdates_channelDifference(MTPDupdates_channelDifferenceEmpty *_data);
+	explicit MTPupdates_channelDifference(MTPDupdates_channelDifferenceTooLong *_data);
+	explicit MTPupdates_channelDifference(MTPDupdates_channelDifference *_data);
+
+	friend MTPupdates_channelDifference MTP_updates_channelDifferenceEmpty(MTPint _flags, MTPint _pts, MTPint _timeout);
+	friend MTPupdates_channelDifference MTP_updates_channelDifferenceTooLong(MTPint _flags, MTPint _pts, MTPint _timeout, MTPint _top_message, MTPint _top_important_message, MTPint _read_inbox_max_id, MTPint _unread_count, MTPint _unread_important_count, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users);
+	friend MTPupdates_channelDifference MTP_updates_channelDifference(MTPint _flags, MTPint _pts, MTPint _timeout, const MTPVector<MTPMessage> &_new_messages, const MTPVector<MTPUpdate> &_other_updates, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users);
+
+	mtpTypeId _type;
+};
+typedef MTPBoxed<MTPupdates_channelDifference> MTPupdates_ChannelDifference;
+
+class MTPchannelMessagesFilter : private mtpDataOwner {
+public:
+	MTPchannelMessagesFilter() : mtpDataOwner(0), _type(0) {
+	}
+	MTPchannelMessagesFilter(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : mtpDataOwner(0), _type(0) {
+		read(from, end, cons);
+	}
+
+	MTPDchannelMessagesFilter &_channelMessagesFilter() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_channelMessagesFilter) throw mtpErrorWrongTypeId(_type, mtpc_channelMessagesFilter);
+		split();
+		return *(MTPDchannelMessagesFilter*)data;
+	}
+	const MTPDchannelMessagesFilter &c_channelMessagesFilter() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_channelMessagesFilter) throw mtpErrorWrongTypeId(_type, mtpc_channelMessagesFilter);
+		return *(const MTPDchannelMessagesFilter*)data;
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPchannelMessagesFilter(mtpTypeId type);
+	explicit MTPchannelMessagesFilter(MTPDchannelMessagesFilter *_data);
+
+	friend MTPchannelMessagesFilter MTP_channelMessagesFilterEmpty();
+	friend MTPchannelMessagesFilter MTP_channelMessagesFilter(MTPint _flags, const MTPVector<MTPMessageRange> &_ranges);
+
+	mtpTypeId _type;
+};
+typedef MTPBoxed<MTPchannelMessagesFilter> MTPChannelMessagesFilter;
+
 // Type constructors with data
 
 class MTPDresPQ : public mtpDataImpl<MTPDresPQ> {
@@ -8197,6 +8641,17 @@ public:
 	}
 
 	MTPint vuser_id;
+	MTPlong vaccess_hash;
+};
+
+class MTPDinputPeerChannel : public mtpDataImpl<MTPDinputPeerChannel> {
+public:
+	MTPDinputPeerChannel() {
+	}
+	MTPDinputPeerChannel(MTPint _channel_id, const MTPlong &_access_hash) : vchannel_id(_channel_id), vaccess_hash(_access_hash) {
+	}
+
+	MTPint vchannel_id;
 	MTPlong vaccess_hash;
 };
 
@@ -8562,6 +9017,16 @@ public:
 	MTPint vchat_id;
 };
 
+class MTPDpeerChannel : public mtpDataImpl<MTPDpeerChannel> {
+public:
+	MTPDpeerChannel() {
+	}
+	MTPDpeerChannel(MTPint _channel_id) : vchannel_id(_channel_id) {
+	}
+
+	MTPint vchannel_id;
+};
+
 class MTPDfileLocationUnavailable : public mtpDataImpl<MTPDfileLocationUnavailable> {
 public:
 	MTPDfileLocationUnavailable() {
@@ -8706,6 +9171,22 @@ public:
 	MTPint vdate;
 };
 
+class MTPDchannel : public mtpDataImpl<MTPDchannel> {
+public:
+	MTPDchannel() {
+	}
+	MTPDchannel(MTPint _flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_title, const MTPChatPhoto &_photo, MTPint _date, MTPint _version) : vflags(_flags), vid(_id), vaccess_hash(_access_hash), vtitle(_title), vphoto(_photo), vdate(_date), vversion(_version) {
+	}
+
+	MTPint vflags;
+	MTPint vid;
+	MTPlong vaccess_hash;
+	MTPstring vtitle;
+	MTPChatPhoto vphoto;
+	MTPint vdate;
+	MTPint vversion;
+};
+
 class MTPDchatFull : public mtpDataImpl<MTPDchatFull> {
 public:
 	MTPDchatFull() {
@@ -8719,6 +9200,22 @@ public:
 	MTPPeerNotifySettings vnotify_settings;
 	MTPExportedChatInvite vexported_invite;
 	MTPVector<MTPBotInfo> vbot_info;
+};
+
+class MTPDchannelFull : public mtpDataImpl<MTPDchannelFull> {
+public:
+	MTPDchannelFull() {
+	}
+	MTPDchannelFull(MTPint _id, MTPint _read_inbox_max_id, MTPint _unread_count, MTPint _unread_important_count, const MTPPhoto &_chat_photo, const MTPPeerNotifySettings &_notify_settings, const MTPExportedChatInvite &_exported_invite) : vid(_id), vread_inbox_max_id(_read_inbox_max_id), vunread_count(_unread_count), vunread_important_count(_unread_important_count), vchat_photo(_chat_photo), vnotify_settings(_notify_settings), vexported_invite(_exported_invite) {
+	}
+
+	MTPint vid;
+	MTPint vread_inbox_max_id;
+	MTPint vunread_count;
+	MTPint vunread_important_count;
+	MTPPhoto vchat_photo;
+	MTPPeerNotifySettings vnotify_settings;
+	MTPExportedChatInvite vexported_invite;
 };
 
 class MTPDchatParticipant : public mtpDataImpl<MTPDchatParticipant> {
@@ -8798,6 +9295,7 @@ public:
 	MTPVector<MTPMessageEntity> ventities;
 
 	enum {
+		flag_from_id = (1 << 8),
 		flag_fwd_from_id = (1 << 2),
 		flag_fwd_date = (1 << 2),
 		flag_reply_to_msg_id = (1 << 3),
@@ -8806,6 +9304,7 @@ public:
 		flag_entities = (1 << 7),
 	};
 
+	bool has_from_id() const { return vflags.v & flag_from_id; }
 	bool has_fwd_from_id() const { return vflags.v & flag_fwd_from_id; }
 	bool has_fwd_date() const { return vflags.v & flag_fwd_date; }
 	bool has_reply_to_msg_id() const { return vflags.v & flag_reply_to_msg_id; }
@@ -8827,6 +9326,12 @@ public:
 	MTPPeer vto_id;
 	MTPint vdate;
 	MTPMessageAction vaction;
+
+	enum {
+		flag_from_id = (1 << 8),
+	};
+
+	bool has_from_id() const { return vflags.v & flag_from_id; }
 };
 
 class MTPDmessageMediaPhoto : public mtpDataImpl<MTPDmessageMediaPhoto> {
@@ -8979,6 +9484,16 @@ public:
 	MTPint vinviter_id;
 };
 
+class MTPDmessageActionChannelCreate : public mtpDataImpl<MTPDmessageActionChannelCreate> {
+public:
+	MTPDmessageActionChannelCreate() {
+	}
+	MTPDmessageActionChannelCreate(const MTPstring &_title) : vtitle(_title) {
+	}
+
+	MTPstring vtitle;
+};
+
 class MTPDdialog : public mtpDataImpl<MTPDdialog> {
 public:
 	MTPDdialog() {
@@ -8991,6 +9506,23 @@ public:
 	MTPint vread_inbox_max_id;
 	MTPint vunread_count;
 	MTPPeerNotifySettings vnotify_settings;
+};
+
+class MTPDdialogChannel : public mtpDataImpl<MTPDdialogChannel> {
+public:
+	MTPDdialogChannel() {
+	}
+	MTPDdialogChannel(const MTPPeer &_peer, MTPint _top_message, MTPint _top_important_message, MTPint _read_inbox_max_id, MTPint _unread_count, MTPint _unread_important_count, const MTPPeerNotifySettings &_notify_settings, MTPint _pts) : vpeer(_peer), vtop_message(_top_message), vtop_important_message(_top_important_message), vread_inbox_max_id(_read_inbox_max_id), vunread_count(_unread_count), vunread_important_count(_unread_important_count), vnotify_settings(_notify_settings), vpts(_pts) {
+	}
+
+	MTPPeer vpeer;
+	MTPint vtop_message;
+	MTPint vtop_important_message;
+	MTPint vread_inbox_max_id;
+	MTPint vunread_count;
+	MTPint vunread_important_count;
+	MTPPeerNotifySettings vnotify_settings;
+	MTPint vpts;
 };
 
 class MTPDphotoEmpty : public mtpDataImpl<MTPDphotoEmpty> {
@@ -9404,6 +9936,28 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
+class MTPDmessages_channelMessages : public mtpDataImpl<MTPDmessages_channelMessages> {
+public:
+	MTPDmessages_channelMessages() {
+	}
+	MTPDmessages_channelMessages(MTPint _flags, MTPint _pts, MTPint _count, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPMessageGroup> &_collapsed, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) : vflags(_flags), vpts(_pts), vcount(_count), vmessages(_messages), vcollapsed(_collapsed), vchats(_chats), vusers(_users) {
+	}
+
+	MTPint vflags;
+	MTPint vpts;
+	MTPint vcount;
+	MTPVector<MTPMessage> vmessages;
+	MTPVector<MTPMessageGroup> vcollapsed;
+	MTPVector<MTPChat> vchats;
+	MTPVector<MTPUser> vusers;
+
+	enum {
+		flag_collapsed = (1 << 0),
+	};
+
+	bool has_collapsed() const { return vflags.v & flag_collapsed; }
+};
+
 class MTPDmessages_chats : public mtpDataImpl<MTPDmessages_chats> {
 public:
 	MTPDmessages_chats() {
@@ -9758,6 +10312,52 @@ public:
 	MTPDupdateReadMessagesContents(const MTPVector<MTPint> &_messages, MTPint _pts, MTPint _pts_count) : vmessages(_messages), vpts(_pts), vpts_count(_pts_count) {
 	}
 
+	MTPVector<MTPint> vmessages;
+	MTPint vpts;
+	MTPint vpts_count;
+};
+
+class MTPDupdateChannelTooLong : public mtpDataImpl<MTPDupdateChannelTooLong> {
+public:
+	MTPDupdateChannelTooLong() {
+	}
+	MTPDupdateChannelTooLong(MTPint _channel_id) : vchannel_id(_channel_id) {
+	}
+
+	MTPint vchannel_id;
+};
+
+class MTPDupdateNewChannelMessage : public mtpDataImpl<MTPDupdateNewChannelMessage> {
+public:
+	MTPDupdateNewChannelMessage() {
+	}
+	MTPDupdateNewChannelMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count) : vmessage(_message), vpts(_pts), vpts_count(_pts_count) {
+	}
+
+	MTPMessage vmessage;
+	MTPint vpts;
+	MTPint vpts_count;
+};
+
+class MTPDupdateReadChannelInbox : public mtpDataImpl<MTPDupdateReadChannelInbox> {
+public:
+	MTPDupdateReadChannelInbox() {
+	}
+	MTPDupdateReadChannelInbox(const MTPPeer &_peer, MTPint _max_id) : vpeer(_peer), vmax_id(_max_id) {
+	}
+
+	MTPPeer vpeer;
+	MTPint vmax_id;
+};
+
+class MTPDupdateDeleteChannelMessages : public mtpDataImpl<MTPDupdateDeleteChannelMessages> {
+public:
+	MTPDupdateDeleteChannelMessages() {
+	}
+	MTPDupdateDeleteChannelMessages(const MTPPeer &_peer, const MTPVector<MTPint> &_messages, MTPint _pts, MTPint _pts_count) : vpeer(_peer), vmessages(_messages), vpts(_pts), vpts_count(_pts_count) {
+	}
+
+	MTPPeer vpeer;
 	MTPVector<MTPint> vmessages;
 	MTPint vpts;
 	MTPint vpts_count;
@@ -11081,6 +11681,128 @@ public:
 	MTPstring vurl;
 };
 
+class MTPDinputChat : public mtpDataImpl<MTPDinputChat> {
+public:
+	MTPDinputChat() {
+	}
+	MTPDinputChat(MTPint _chat_id) : vchat_id(_chat_id) {
+	}
+
+	MTPint vchat_id;
+};
+
+class MTPDinputChannel : public mtpDataImpl<MTPDinputChannel> {
+public:
+	MTPDinputChannel() {
+	}
+	MTPDinputChannel(MTPint _channel_id, const MTPlong &_access_hash) : vchannel_id(_channel_id), vaccess_hash(_access_hash) {
+	}
+
+	MTPint vchannel_id;
+	MTPlong vaccess_hash;
+};
+
+class MTPDmessageRange : public mtpDataImpl<MTPDmessageRange> {
+public:
+	MTPDmessageRange() {
+	}
+	MTPDmessageRange(MTPint _min_id, MTPint _max_id) : vmin_id(_min_id), vmax_id(_max_id) {
+	}
+
+	MTPint vmin_id;
+	MTPint vmax_id;
+};
+
+class MTPDmessageGroup : public mtpDataImpl<MTPDmessageGroup> {
+public:
+	MTPDmessageGroup() {
+	}
+	MTPDmessageGroup(MTPint _min_id, MTPint _max_id, MTPint _count, MTPint _date) : vmin_id(_min_id), vmax_id(_max_id), vcount(_count), vdate(_date) {
+	}
+
+	MTPint vmin_id;
+	MTPint vmax_id;
+	MTPint vcount;
+	MTPint vdate;
+};
+
+class MTPDupdates_channelDifferenceEmpty : public mtpDataImpl<MTPDupdates_channelDifferenceEmpty> {
+public:
+	MTPDupdates_channelDifferenceEmpty() {
+	}
+	MTPDupdates_channelDifferenceEmpty(MTPint _flags, MTPint _pts, MTPint _timeout) : vflags(_flags), vpts(_pts), vtimeout(_timeout) {
+	}
+
+	MTPint vflags;
+	MTPint vpts;
+	MTPint vtimeout;
+
+	enum {
+		flag_timeout = (1 << 1),
+	};
+
+	bool has_timeout() const { return vflags.v & flag_timeout; }
+};
+
+class MTPDupdates_channelDifferenceTooLong : public mtpDataImpl<MTPDupdates_channelDifferenceTooLong> {
+public:
+	MTPDupdates_channelDifferenceTooLong() {
+	}
+	MTPDupdates_channelDifferenceTooLong(MTPint _flags, MTPint _pts, MTPint _timeout, MTPint _top_message, MTPint _top_important_message, MTPint _read_inbox_max_id, MTPint _unread_count, MTPint _unread_important_count, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) : vflags(_flags), vpts(_pts), vtimeout(_timeout), vtop_message(_top_message), vtop_important_message(_top_important_message), vread_inbox_max_id(_read_inbox_max_id), vunread_count(_unread_count), vunread_important_count(_unread_important_count), vmessages(_messages), vchats(_chats), vusers(_users) {
+	}
+
+	MTPint vflags;
+	MTPint vpts;
+	MTPint vtimeout;
+	MTPint vtop_message;
+	MTPint vtop_important_message;
+	MTPint vread_inbox_max_id;
+	MTPint vunread_count;
+	MTPint vunread_important_count;
+	MTPVector<MTPMessage> vmessages;
+	MTPVector<MTPChat> vchats;
+	MTPVector<MTPUser> vusers;
+
+	enum {
+		flag_timeout = (1 << 1),
+	};
+
+	bool has_timeout() const { return vflags.v & flag_timeout; }
+};
+
+class MTPDupdates_channelDifference : public mtpDataImpl<MTPDupdates_channelDifference> {
+public:
+	MTPDupdates_channelDifference() {
+	}
+	MTPDupdates_channelDifference(MTPint _flags, MTPint _pts, MTPint _timeout, const MTPVector<MTPMessage> &_new_messages, const MTPVector<MTPUpdate> &_other_updates, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) : vflags(_flags), vpts(_pts), vtimeout(_timeout), vnew_messages(_new_messages), vother_updates(_other_updates), vchats(_chats), vusers(_users) {
+	}
+
+	MTPint vflags;
+	MTPint vpts;
+	MTPint vtimeout;
+	MTPVector<MTPMessage> vnew_messages;
+	MTPVector<MTPUpdate> vother_updates;
+	MTPVector<MTPChat> vchats;
+	MTPVector<MTPUser> vusers;
+
+	enum {
+		flag_timeout = (1 << 1),
+	};
+
+	bool has_timeout() const { return vflags.v & flag_timeout; }
+};
+
+class MTPDchannelMessagesFilter : public mtpDataImpl<MTPDchannelMessagesFilter> {
+public:
+	MTPDchannelMessagesFilter() {
+	}
+	MTPDchannelMessagesFilter(MTPint _flags, const MTPVector<MTPMessageRange> &_ranges) : vflags(_flags), vranges(_ranges) {
+	}
+
+	MTPint vflags;
+	MTPVector<MTPMessageRange> vranges;
+};
+
 // RPC methods
 
 class MTPreq_pq { // RPC method 'req_pq'
@@ -11554,6 +12276,141 @@ public:
 	}
 };
 
+template <class TQueryType>
+class MTPinitConnection { // RPC method 'initConnection'
+public:
+	MTPint vapi_id;
+	MTPstring vdevice_model;
+	MTPstring vsystem_version;
+	MTPstring vapp_version;
+	MTPstring vlang_code;
+	TQueryType vquery;
+
+	MTPinitConnection() {
+	}
+	MTPinitConnection(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_initConnection) {
+		read(from, end, cons);
+	}
+	MTPinitConnection(MTPint _api_id, const MTPstring &_device_model, const MTPstring &_system_version, const MTPstring &_app_version, const MTPstring &_lang_code, const TQueryType &_query) : vapi_id(_api_id), vdevice_model(_device_model), vsystem_version(_system_version), vapp_version(_app_version), vlang_code(_lang_code), vquery(_query) {
+	}
+
+	uint32 innerLength() const {
+		return vapi_id.innerLength() + vdevice_model.innerLength() + vsystem_version.innerLength() + vapp_version.innerLength() + vlang_code.innerLength() + vquery.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_initConnection;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_initConnection) {
+		vapi_id.read(from, end);
+		vdevice_model.read(from, end);
+		vsystem_version.read(from, end);
+		vapp_version.read(from, end);
+		vlang_code.read(from, end);
+		vquery.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vapi_id.write(to);
+		vdevice_model.write(to);
+		vsystem_version.write(to);
+		vapp_version.write(to);
+		vlang_code.write(to);
+		vquery.write(to);
+	}
+
+	typedef typename TQueryType::ResponseType ResponseType;
+};
+template <typename TQueryType>
+class MTPInitConnection : public MTPBoxed<MTPinitConnection<TQueryType> > {
+public:
+	MTPInitConnection() {
+	}
+	MTPInitConnection(const MTPinitConnection<TQueryType> &v) : MTPBoxed<MTPinitConnection<TQueryType> >(v) {
+	}
+	MTPInitConnection(MTPint _api_id, const MTPstring &_device_model, const MTPstring &_system_version, const MTPstring &_app_version, const MTPstring &_lang_code, const TQueryType &_query) : MTPBoxed<MTPinitConnection<TQueryType> >(MTPinitConnection<TQueryType>(_api_id, _device_model, _system_version, _app_version, _lang_code, _query)) {
+	}
+};
+
+template <class TQueryType>
+class MTPinvokeWithLayer { // RPC method 'invokeWithLayer'
+public:
+	MTPint vlayer;
+	TQueryType vquery;
+
+	MTPinvokeWithLayer() {
+	}
+	MTPinvokeWithLayer(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_invokeWithLayer) {
+		read(from, end, cons);
+	}
+	MTPinvokeWithLayer(MTPint _layer, const TQueryType &_query) : vlayer(_layer), vquery(_query) {
+	}
+
+	uint32 innerLength() const {
+		return vlayer.innerLength() + vquery.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_invokeWithLayer;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_invokeWithLayer) {
+		vlayer.read(from, end);
+		vquery.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vlayer.write(to);
+		vquery.write(to);
+	}
+
+	typedef typename TQueryType::ResponseType ResponseType;
+};
+template <typename TQueryType>
+class MTPInvokeWithLayer : public MTPBoxed<MTPinvokeWithLayer<TQueryType> > {
+public:
+	MTPInvokeWithLayer() {
+	}
+	MTPInvokeWithLayer(const MTPinvokeWithLayer<TQueryType> &v) : MTPBoxed<MTPinvokeWithLayer<TQueryType> >(v) {
+	}
+	MTPInvokeWithLayer(MTPint _layer, const TQueryType &_query) : MTPBoxed<MTPinvokeWithLayer<TQueryType> >(MTPinvokeWithLayer<TQueryType>(_layer, _query)) {
+	}
+};
+
+template <class TQueryType>
+class MTPinvokeWithoutUpdates { // RPC method 'invokeWithoutUpdates'
+public:
+	TQueryType vquery;
+
+	MTPinvokeWithoutUpdates() {
+	}
+	MTPinvokeWithoutUpdates(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_invokeWithoutUpdates) {
+		read(from, end, cons);
+	}
+	MTPinvokeWithoutUpdates(const TQueryType &_query) : vquery(_query) {
+	}
+
+	uint32 innerLength() const {
+		return vquery.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_invokeWithoutUpdates;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_invokeWithoutUpdates) {
+		vquery.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vquery.write(to);
+	}
+
+	typedef typename TQueryType::ResponseType ResponseType;
+};
+template <typename TQueryType>
+class MTPInvokeWithoutUpdates : public MTPBoxed<MTPinvokeWithoutUpdates<TQueryType> > {
+public:
+	MTPInvokeWithoutUpdates() {
+	}
+	MTPInvokeWithoutUpdates(const MTPinvokeWithoutUpdates<TQueryType> &v) : MTPBoxed<MTPinvokeWithoutUpdates<TQueryType> >(v) {
+	}
+	MTPInvokeWithoutUpdates(const TQueryType &_query) : MTPBoxed<MTPinvokeWithoutUpdates<TQueryType> >(MTPinvokeWithoutUpdates<TQueryType>(_query)) {
+	}
+};
+
 class MTPauth_checkPhone { // RPC method 'auth.checkPhone'
 public:
 	MTPstring vphone_number;
@@ -12015,6 +12872,205 @@ public:
 	}
 };
 
+class MTPauth_sendSms { // RPC method 'auth.sendSms'
+public:
+	MTPstring vphone_number;
+	MTPstring vphone_code_hash;
+
+	MTPauth_sendSms() {
+	}
+	MTPauth_sendSms(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_sendSms) {
+		read(from, end, cons);
+	}
+	MTPauth_sendSms(const MTPstring &_phone_number, const MTPstring &_phone_code_hash) : vphone_number(_phone_number), vphone_code_hash(_phone_code_hash) {
+	}
+
+	uint32 innerLength() const {
+		return vphone_number.innerLength() + vphone_code_hash.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_auth_sendSms;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_sendSms) {
+		vphone_number.read(from, end);
+		vphone_code_hash.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vphone_number.write(to);
+		vphone_code_hash.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPauth_SendSms : public MTPBoxed<MTPauth_sendSms> {
+public:
+	MTPauth_SendSms() {
+	}
+	MTPauth_SendSms(const MTPauth_sendSms &v) : MTPBoxed<MTPauth_sendSms>(v) {
+	}
+	MTPauth_SendSms(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_sendSms>(from, end, cons) {
+	}
+	MTPauth_SendSms(const MTPstring &_phone_number, const MTPstring &_phone_code_hash) : MTPBoxed<MTPauth_sendSms>(MTPauth_sendSms(_phone_number, _phone_code_hash)) {
+	}
+};
+
+class MTPauth_importBotAuthorization { // RPC method 'auth.importBotAuthorization'
+public:
+	MTPint vflags;
+	MTPint vapi_id;
+	MTPstring vapi_hash;
+	MTPstring vbot_auth_token;
+
+	MTPauth_importBotAuthorization() {
+	}
+	MTPauth_importBotAuthorization(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_importBotAuthorization) {
+		read(from, end, cons);
+	}
+	MTPauth_importBotAuthorization(MTPint _flags, MTPint _api_id, const MTPstring &_api_hash, const MTPstring &_bot_auth_token) : vflags(_flags), vapi_id(_api_id), vapi_hash(_api_hash), vbot_auth_token(_bot_auth_token) {
+	}
+
+	uint32 innerLength() const {
+		return vflags.innerLength() + vapi_id.innerLength() + vapi_hash.innerLength() + vbot_auth_token.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_auth_importBotAuthorization;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_importBotAuthorization) {
+		vflags.read(from, end);
+		vapi_id.read(from, end);
+		vapi_hash.read(from, end);
+		vbot_auth_token.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vflags.write(to);
+		vapi_id.write(to);
+		vapi_hash.write(to);
+		vbot_auth_token.write(to);
+	}
+
+	typedef MTPauth_Authorization ResponseType;
+};
+class MTPauth_ImportBotAuthorization : public MTPBoxed<MTPauth_importBotAuthorization> {
+public:
+	MTPauth_ImportBotAuthorization() {
+	}
+	MTPauth_ImportBotAuthorization(const MTPauth_importBotAuthorization &v) : MTPBoxed<MTPauth_importBotAuthorization>(v) {
+	}
+	MTPauth_ImportBotAuthorization(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_importBotAuthorization>(from, end, cons) {
+	}
+	MTPauth_ImportBotAuthorization(MTPint _flags, MTPint _api_id, const MTPstring &_api_hash, const MTPstring &_bot_auth_token) : MTPBoxed<MTPauth_importBotAuthorization>(MTPauth_importBotAuthorization(_flags, _api_id, _api_hash, _bot_auth_token)) {
+	}
+};
+
+class MTPauth_checkPassword { // RPC method 'auth.checkPassword'
+public:
+	MTPbytes vpassword_hash;
+
+	MTPauth_checkPassword() {
+	}
+	MTPauth_checkPassword(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_checkPassword) {
+		read(from, end, cons);
+	}
+	MTPauth_checkPassword(const MTPbytes &_password_hash) : vpassword_hash(_password_hash) {
+	}
+
+	uint32 innerLength() const {
+		return vpassword_hash.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_auth_checkPassword;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_checkPassword) {
+		vpassword_hash.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vpassword_hash.write(to);
+	}
+
+	typedef MTPauth_Authorization ResponseType;
+};
+class MTPauth_CheckPassword : public MTPBoxed<MTPauth_checkPassword> {
+public:
+	MTPauth_CheckPassword() {
+	}
+	MTPauth_CheckPassword(const MTPauth_checkPassword &v) : MTPBoxed<MTPauth_checkPassword>(v) {
+	}
+	MTPauth_CheckPassword(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_checkPassword>(from, end, cons) {
+	}
+	MTPauth_CheckPassword(const MTPbytes &_password_hash) : MTPBoxed<MTPauth_checkPassword>(MTPauth_checkPassword(_password_hash)) {
+	}
+};
+
+class MTPauth_requestPasswordRecovery { // RPC method 'auth.requestPasswordRecovery'
+public:
+	MTPauth_requestPasswordRecovery() {
+	}
+	MTPauth_requestPasswordRecovery(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_requestPasswordRecovery) {
+		read(from, end, cons);
+	}
+
+	uint32 innerLength() const {
+		return 0;
+	}
+	mtpTypeId type() const {
+		return mtpc_auth_requestPasswordRecovery;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_requestPasswordRecovery) {
+	}
+	void write(mtpBuffer &to) const {
+	}
+
+	typedef MTPauth_PasswordRecovery ResponseType;
+};
+class MTPauth_RequestPasswordRecovery : public MTPBoxed<MTPauth_requestPasswordRecovery> {
+public:
+	MTPauth_RequestPasswordRecovery() {
+	}
+	MTPauth_RequestPasswordRecovery(const MTPauth_requestPasswordRecovery &v) : MTPBoxed<MTPauth_requestPasswordRecovery>(v) {
+	}
+	MTPauth_RequestPasswordRecovery(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_requestPasswordRecovery>(from, end, cons) {
+	}
+};
+
+class MTPauth_recoverPassword { // RPC method 'auth.recoverPassword'
+public:
+	MTPstring vcode;
+
+	MTPauth_recoverPassword() {
+	}
+	MTPauth_recoverPassword(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_recoverPassword) {
+		read(from, end, cons);
+	}
+	MTPauth_recoverPassword(const MTPstring &_code) : vcode(_code) {
+	}
+
+	uint32 innerLength() const {
+		return vcode.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_auth_recoverPassword;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_recoverPassword) {
+		vcode.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vcode.write(to);
+	}
+
+	typedef MTPauth_Authorization ResponseType;
+};
+class MTPauth_RecoverPassword : public MTPBoxed<MTPauth_recoverPassword> {
+public:
+	MTPauth_RecoverPassword() {
+	}
+	MTPauth_RecoverPassword(const MTPauth_recoverPassword &v) : MTPBoxed<MTPauth_recoverPassword>(v) {
+	}
+	MTPauth_RecoverPassword(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_recoverPassword>(from, end, cons) {
+	}
+	MTPauth_RecoverPassword(const MTPstring &_code) : MTPBoxed<MTPauth_recoverPassword>(MTPauth_recoverPassword(_code)) {
+	}
+};
+
 class MTPaccount_registerDevice { // RPC method 'account.registerDevice'
 public:
 	MTPint vtoken_type;
@@ -12335,6 +13391,579 @@ public:
 	MTPaccount_GetWallPapers(const MTPaccount_getWallPapers &v) : MTPBoxed<MTPaccount_getWallPapers>(v) {
 	}
 	MTPaccount_GetWallPapers(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_getWallPapers>(from, end, cons) {
+	}
+};
+
+class MTPaccount_checkUsername { // RPC method 'account.checkUsername'
+public:
+	MTPstring vusername;
+
+	MTPaccount_checkUsername() {
+	}
+	MTPaccount_checkUsername(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_checkUsername) {
+		read(from, end, cons);
+	}
+	MTPaccount_checkUsername(const MTPstring &_username) : vusername(_username) {
+	}
+
+	uint32 innerLength() const {
+		return vusername.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_account_checkUsername;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_checkUsername) {
+		vusername.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vusername.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPaccount_CheckUsername : public MTPBoxed<MTPaccount_checkUsername> {
+public:
+	MTPaccount_CheckUsername() {
+	}
+	MTPaccount_CheckUsername(const MTPaccount_checkUsername &v) : MTPBoxed<MTPaccount_checkUsername>(v) {
+	}
+	MTPaccount_CheckUsername(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_checkUsername>(from, end, cons) {
+	}
+	MTPaccount_CheckUsername(const MTPstring &_username) : MTPBoxed<MTPaccount_checkUsername>(MTPaccount_checkUsername(_username)) {
+	}
+};
+
+class MTPaccount_updateUsername { // RPC method 'account.updateUsername'
+public:
+	MTPstring vusername;
+
+	MTPaccount_updateUsername() {
+	}
+	MTPaccount_updateUsername(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_updateUsername) {
+		read(from, end, cons);
+	}
+	MTPaccount_updateUsername(const MTPstring &_username) : vusername(_username) {
+	}
+
+	uint32 innerLength() const {
+		return vusername.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_account_updateUsername;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_updateUsername) {
+		vusername.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vusername.write(to);
+	}
+
+	typedef MTPUser ResponseType;
+};
+class MTPaccount_UpdateUsername : public MTPBoxed<MTPaccount_updateUsername> {
+public:
+	MTPaccount_UpdateUsername() {
+	}
+	MTPaccount_UpdateUsername(const MTPaccount_updateUsername &v) : MTPBoxed<MTPaccount_updateUsername>(v) {
+	}
+	MTPaccount_UpdateUsername(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_updateUsername>(from, end, cons) {
+	}
+	MTPaccount_UpdateUsername(const MTPstring &_username) : MTPBoxed<MTPaccount_updateUsername>(MTPaccount_updateUsername(_username)) {
+	}
+};
+
+class MTPaccount_getPrivacy { // RPC method 'account.getPrivacy'
+public:
+	MTPInputPrivacyKey vkey;
+
+	MTPaccount_getPrivacy() {
+	}
+	MTPaccount_getPrivacy(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getPrivacy) {
+		read(from, end, cons);
+	}
+	MTPaccount_getPrivacy(const MTPInputPrivacyKey &_key) : vkey(_key) {
+	}
+
+	uint32 innerLength() const {
+		return vkey.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_account_getPrivacy;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getPrivacy) {
+		vkey.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vkey.write(to);
+	}
+
+	typedef MTPaccount_PrivacyRules ResponseType;
+};
+class MTPaccount_GetPrivacy : public MTPBoxed<MTPaccount_getPrivacy> {
+public:
+	MTPaccount_GetPrivacy() {
+	}
+	MTPaccount_GetPrivacy(const MTPaccount_getPrivacy &v) : MTPBoxed<MTPaccount_getPrivacy>(v) {
+	}
+	MTPaccount_GetPrivacy(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_getPrivacy>(from, end, cons) {
+	}
+	MTPaccount_GetPrivacy(const MTPInputPrivacyKey &_key) : MTPBoxed<MTPaccount_getPrivacy>(MTPaccount_getPrivacy(_key)) {
+	}
+};
+
+class MTPaccount_setPrivacy { // RPC method 'account.setPrivacy'
+public:
+	MTPInputPrivacyKey vkey;
+	MTPVector<MTPInputPrivacyRule> vrules;
+
+	MTPaccount_setPrivacy() {
+	}
+	MTPaccount_setPrivacy(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_setPrivacy) {
+		read(from, end, cons);
+	}
+	MTPaccount_setPrivacy(const MTPInputPrivacyKey &_key, const MTPVector<MTPInputPrivacyRule> &_rules) : vkey(_key), vrules(_rules) {
+	}
+
+	uint32 innerLength() const {
+		return vkey.innerLength() + vrules.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_account_setPrivacy;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_setPrivacy) {
+		vkey.read(from, end);
+		vrules.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vkey.write(to);
+		vrules.write(to);
+	}
+
+	typedef MTPaccount_PrivacyRules ResponseType;
+};
+class MTPaccount_SetPrivacy : public MTPBoxed<MTPaccount_setPrivacy> {
+public:
+	MTPaccount_SetPrivacy() {
+	}
+	MTPaccount_SetPrivacy(const MTPaccount_setPrivacy &v) : MTPBoxed<MTPaccount_setPrivacy>(v) {
+	}
+	MTPaccount_SetPrivacy(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_setPrivacy>(from, end, cons) {
+	}
+	MTPaccount_SetPrivacy(const MTPInputPrivacyKey &_key, const MTPVector<MTPInputPrivacyRule> &_rules) : MTPBoxed<MTPaccount_setPrivacy>(MTPaccount_setPrivacy(_key, _rules)) {
+	}
+};
+
+class MTPaccount_deleteAccount { // RPC method 'account.deleteAccount'
+public:
+	MTPstring vreason;
+
+	MTPaccount_deleteAccount() {
+	}
+	MTPaccount_deleteAccount(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_deleteAccount) {
+		read(from, end, cons);
+	}
+	MTPaccount_deleteAccount(const MTPstring &_reason) : vreason(_reason) {
+	}
+
+	uint32 innerLength() const {
+		return vreason.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_account_deleteAccount;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_deleteAccount) {
+		vreason.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vreason.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPaccount_DeleteAccount : public MTPBoxed<MTPaccount_deleteAccount> {
+public:
+	MTPaccount_DeleteAccount() {
+	}
+	MTPaccount_DeleteAccount(const MTPaccount_deleteAccount &v) : MTPBoxed<MTPaccount_deleteAccount>(v) {
+	}
+	MTPaccount_DeleteAccount(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_deleteAccount>(from, end, cons) {
+	}
+	MTPaccount_DeleteAccount(const MTPstring &_reason) : MTPBoxed<MTPaccount_deleteAccount>(MTPaccount_deleteAccount(_reason)) {
+	}
+};
+
+class MTPaccount_getAccountTTL { // RPC method 'account.getAccountTTL'
+public:
+	MTPaccount_getAccountTTL() {
+	}
+	MTPaccount_getAccountTTL(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getAccountTTL) {
+		read(from, end, cons);
+	}
+
+	uint32 innerLength() const {
+		return 0;
+	}
+	mtpTypeId type() const {
+		return mtpc_account_getAccountTTL;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getAccountTTL) {
+	}
+	void write(mtpBuffer &to) const {
+	}
+
+	typedef MTPAccountDaysTTL ResponseType;
+};
+class MTPaccount_GetAccountTTL : public MTPBoxed<MTPaccount_getAccountTTL> {
+public:
+	MTPaccount_GetAccountTTL() {
+	}
+	MTPaccount_GetAccountTTL(const MTPaccount_getAccountTTL &v) : MTPBoxed<MTPaccount_getAccountTTL>(v) {
+	}
+	MTPaccount_GetAccountTTL(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_getAccountTTL>(from, end, cons) {
+	}
+};
+
+class MTPaccount_setAccountTTL { // RPC method 'account.setAccountTTL'
+public:
+	MTPAccountDaysTTL vttl;
+
+	MTPaccount_setAccountTTL() {
+	}
+	MTPaccount_setAccountTTL(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_setAccountTTL) {
+		read(from, end, cons);
+	}
+	MTPaccount_setAccountTTL(const MTPAccountDaysTTL &_ttl) : vttl(_ttl) {
+	}
+
+	uint32 innerLength() const {
+		return vttl.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_account_setAccountTTL;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_setAccountTTL) {
+		vttl.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vttl.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPaccount_SetAccountTTL : public MTPBoxed<MTPaccount_setAccountTTL> {
+public:
+	MTPaccount_SetAccountTTL() {
+	}
+	MTPaccount_SetAccountTTL(const MTPaccount_setAccountTTL &v) : MTPBoxed<MTPaccount_setAccountTTL>(v) {
+	}
+	MTPaccount_SetAccountTTL(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_setAccountTTL>(from, end, cons) {
+	}
+	MTPaccount_SetAccountTTL(const MTPAccountDaysTTL &_ttl) : MTPBoxed<MTPaccount_setAccountTTL>(MTPaccount_setAccountTTL(_ttl)) {
+	}
+};
+
+class MTPaccount_sendChangePhoneCode { // RPC method 'account.sendChangePhoneCode'
+public:
+	MTPstring vphone_number;
+
+	MTPaccount_sendChangePhoneCode() {
+	}
+	MTPaccount_sendChangePhoneCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_sendChangePhoneCode) {
+		read(from, end, cons);
+	}
+	MTPaccount_sendChangePhoneCode(const MTPstring &_phone_number) : vphone_number(_phone_number) {
+	}
+
+	uint32 innerLength() const {
+		return vphone_number.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_account_sendChangePhoneCode;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_sendChangePhoneCode) {
+		vphone_number.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vphone_number.write(to);
+	}
+
+	typedef MTPaccount_SentChangePhoneCode ResponseType;
+};
+class MTPaccount_SendChangePhoneCode : public MTPBoxed<MTPaccount_sendChangePhoneCode> {
+public:
+	MTPaccount_SendChangePhoneCode() {
+	}
+	MTPaccount_SendChangePhoneCode(const MTPaccount_sendChangePhoneCode &v) : MTPBoxed<MTPaccount_sendChangePhoneCode>(v) {
+	}
+	MTPaccount_SendChangePhoneCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_sendChangePhoneCode>(from, end, cons) {
+	}
+	MTPaccount_SendChangePhoneCode(const MTPstring &_phone_number) : MTPBoxed<MTPaccount_sendChangePhoneCode>(MTPaccount_sendChangePhoneCode(_phone_number)) {
+	}
+};
+
+class MTPaccount_changePhone { // RPC method 'account.changePhone'
+public:
+	MTPstring vphone_number;
+	MTPstring vphone_code_hash;
+	MTPstring vphone_code;
+
+	MTPaccount_changePhone() {
+	}
+	MTPaccount_changePhone(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_changePhone) {
+		read(from, end, cons);
+	}
+	MTPaccount_changePhone(const MTPstring &_phone_number, const MTPstring &_phone_code_hash, const MTPstring &_phone_code) : vphone_number(_phone_number), vphone_code_hash(_phone_code_hash), vphone_code(_phone_code) {
+	}
+
+	uint32 innerLength() const {
+		return vphone_number.innerLength() + vphone_code_hash.innerLength() + vphone_code.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_account_changePhone;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_changePhone) {
+		vphone_number.read(from, end);
+		vphone_code_hash.read(from, end);
+		vphone_code.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vphone_number.write(to);
+		vphone_code_hash.write(to);
+		vphone_code.write(to);
+	}
+
+	typedef MTPUser ResponseType;
+};
+class MTPaccount_ChangePhone : public MTPBoxed<MTPaccount_changePhone> {
+public:
+	MTPaccount_ChangePhone() {
+	}
+	MTPaccount_ChangePhone(const MTPaccount_changePhone &v) : MTPBoxed<MTPaccount_changePhone>(v) {
+	}
+	MTPaccount_ChangePhone(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_changePhone>(from, end, cons) {
+	}
+	MTPaccount_ChangePhone(const MTPstring &_phone_number, const MTPstring &_phone_code_hash, const MTPstring &_phone_code) : MTPBoxed<MTPaccount_changePhone>(MTPaccount_changePhone(_phone_number, _phone_code_hash, _phone_code)) {
+	}
+};
+
+class MTPaccount_updateDeviceLocked { // RPC method 'account.updateDeviceLocked'
+public:
+	MTPint vperiod;
+
+	MTPaccount_updateDeviceLocked() {
+	}
+	MTPaccount_updateDeviceLocked(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_updateDeviceLocked) {
+		read(from, end, cons);
+	}
+	MTPaccount_updateDeviceLocked(MTPint _period) : vperiod(_period) {
+	}
+
+	uint32 innerLength() const {
+		return vperiod.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_account_updateDeviceLocked;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_updateDeviceLocked) {
+		vperiod.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vperiod.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPaccount_UpdateDeviceLocked : public MTPBoxed<MTPaccount_updateDeviceLocked> {
+public:
+	MTPaccount_UpdateDeviceLocked() {
+	}
+	MTPaccount_UpdateDeviceLocked(const MTPaccount_updateDeviceLocked &v) : MTPBoxed<MTPaccount_updateDeviceLocked>(v) {
+	}
+	MTPaccount_UpdateDeviceLocked(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_updateDeviceLocked>(from, end, cons) {
+	}
+	MTPaccount_UpdateDeviceLocked(MTPint _period) : MTPBoxed<MTPaccount_updateDeviceLocked>(MTPaccount_updateDeviceLocked(_period)) {
+	}
+};
+
+class MTPaccount_getAuthorizations { // RPC method 'account.getAuthorizations'
+public:
+	MTPaccount_getAuthorizations() {
+	}
+	MTPaccount_getAuthorizations(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getAuthorizations) {
+		read(from, end, cons);
+	}
+
+	uint32 innerLength() const {
+		return 0;
+	}
+	mtpTypeId type() const {
+		return mtpc_account_getAuthorizations;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getAuthorizations) {
+	}
+	void write(mtpBuffer &to) const {
+	}
+
+	typedef MTPaccount_Authorizations ResponseType;
+};
+class MTPaccount_GetAuthorizations : public MTPBoxed<MTPaccount_getAuthorizations> {
+public:
+	MTPaccount_GetAuthorizations() {
+	}
+	MTPaccount_GetAuthorizations(const MTPaccount_getAuthorizations &v) : MTPBoxed<MTPaccount_getAuthorizations>(v) {
+	}
+	MTPaccount_GetAuthorizations(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_getAuthorizations>(from, end, cons) {
+	}
+};
+
+class MTPaccount_resetAuthorization { // RPC method 'account.resetAuthorization'
+public:
+	MTPlong vhash;
+
+	MTPaccount_resetAuthorization() {
+	}
+	MTPaccount_resetAuthorization(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_resetAuthorization) {
+		read(from, end, cons);
+	}
+	MTPaccount_resetAuthorization(const MTPlong &_hash) : vhash(_hash) {
+	}
+
+	uint32 innerLength() const {
+		return vhash.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_account_resetAuthorization;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_resetAuthorization) {
+		vhash.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vhash.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPaccount_ResetAuthorization : public MTPBoxed<MTPaccount_resetAuthorization> {
+public:
+	MTPaccount_ResetAuthorization() {
+	}
+	MTPaccount_ResetAuthorization(const MTPaccount_resetAuthorization &v) : MTPBoxed<MTPaccount_resetAuthorization>(v) {
+	}
+	MTPaccount_ResetAuthorization(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_resetAuthorization>(from, end, cons) {
+	}
+	MTPaccount_ResetAuthorization(const MTPlong &_hash) : MTPBoxed<MTPaccount_resetAuthorization>(MTPaccount_resetAuthorization(_hash)) {
+	}
+};
+
+class MTPaccount_getPassword { // RPC method 'account.getPassword'
+public:
+	MTPaccount_getPassword() {
+	}
+	MTPaccount_getPassword(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getPassword) {
+		read(from, end, cons);
+	}
+
+	uint32 innerLength() const {
+		return 0;
+	}
+	mtpTypeId type() const {
+		return mtpc_account_getPassword;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getPassword) {
+	}
+	void write(mtpBuffer &to) const {
+	}
+
+	typedef MTPaccount_Password ResponseType;
+};
+class MTPaccount_GetPassword : public MTPBoxed<MTPaccount_getPassword> {
+public:
+	MTPaccount_GetPassword() {
+	}
+	MTPaccount_GetPassword(const MTPaccount_getPassword &v) : MTPBoxed<MTPaccount_getPassword>(v) {
+	}
+	MTPaccount_GetPassword(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_getPassword>(from, end, cons) {
+	}
+};
+
+class MTPaccount_getPasswordSettings { // RPC method 'account.getPasswordSettings'
+public:
+	MTPbytes vcurrent_password_hash;
+
+	MTPaccount_getPasswordSettings() {
+	}
+	MTPaccount_getPasswordSettings(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getPasswordSettings) {
+		read(from, end, cons);
+	}
+	MTPaccount_getPasswordSettings(const MTPbytes &_current_password_hash) : vcurrent_password_hash(_current_password_hash) {
+	}
+
+	uint32 innerLength() const {
+		return vcurrent_password_hash.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_account_getPasswordSettings;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getPasswordSettings) {
+		vcurrent_password_hash.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vcurrent_password_hash.write(to);
+	}
+
+	typedef MTPaccount_PasswordSettings ResponseType;
+};
+class MTPaccount_GetPasswordSettings : public MTPBoxed<MTPaccount_getPasswordSettings> {
+public:
+	MTPaccount_GetPasswordSettings() {
+	}
+	MTPaccount_GetPasswordSettings(const MTPaccount_getPasswordSettings &v) : MTPBoxed<MTPaccount_getPasswordSettings>(v) {
+	}
+	MTPaccount_GetPasswordSettings(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_getPasswordSettings>(from, end, cons) {
+	}
+	MTPaccount_GetPasswordSettings(const MTPbytes &_current_password_hash) : MTPBoxed<MTPaccount_getPasswordSettings>(MTPaccount_getPasswordSettings(_current_password_hash)) {
+	}
+};
+
+class MTPaccount_updatePasswordSettings { // RPC method 'account.updatePasswordSettings'
+public:
+	MTPbytes vcurrent_password_hash;
+	MTPaccount_PasswordInputSettings vnew_settings;
+
+	MTPaccount_updatePasswordSettings() {
+	}
+	MTPaccount_updatePasswordSettings(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_updatePasswordSettings) {
+		read(from, end, cons);
+	}
+	MTPaccount_updatePasswordSettings(const MTPbytes &_current_password_hash, const MTPaccount_PasswordInputSettings &_new_settings) : vcurrent_password_hash(_current_password_hash), vnew_settings(_new_settings) {
+	}
+
+	uint32 innerLength() const {
+		return vcurrent_password_hash.innerLength() + vnew_settings.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_account_updatePasswordSettings;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_updatePasswordSettings) {
+		vcurrent_password_hash.read(from, end);
+		vnew_settings.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vcurrent_password_hash.write(to);
+		vnew_settings.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPaccount_UpdatePasswordSettings : public MTPBoxed<MTPaccount_updatePasswordSettings> {
+public:
+	MTPaccount_UpdatePasswordSettings() {
+	}
+	MTPaccount_UpdatePasswordSettings(const MTPaccount_updatePasswordSettings &v) : MTPBoxed<MTPaccount_updatePasswordSettings>(v) {
+	}
+	MTPaccount_UpdatePasswordSettings(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_updatePasswordSettings>(from, end, cons) {
+	}
+	MTPaccount_UpdatePasswordSettings(const MTPbytes &_current_password_hash, const MTPaccount_PasswordInputSettings &_new_settings) : MTPBoxed<MTPaccount_updatePasswordSettings>(MTPaccount_updatePasswordSettings(_current_password_hash, _new_settings)) {
 	}
 };
 
@@ -12835,6 +14464,87 @@ public:
 	}
 };
 
+class MTPcontacts_search { // RPC method 'contacts.search'
+public:
+	MTPstring vq;
+	MTPint vlimit;
+
+	MTPcontacts_search() {
+	}
+	MTPcontacts_search(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_search) {
+		read(from, end, cons);
+	}
+	MTPcontacts_search(const MTPstring &_q, MTPint _limit) : vq(_q), vlimit(_limit) {
+	}
+
+	uint32 innerLength() const {
+		return vq.innerLength() + vlimit.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_contacts_search;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_search) {
+		vq.read(from, end);
+		vlimit.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vq.write(to);
+		vlimit.write(to);
+	}
+
+	typedef MTPcontacts_Found ResponseType;
+};
+class MTPcontacts_Search : public MTPBoxed<MTPcontacts_search> {
+public:
+	MTPcontacts_Search() {
+	}
+	MTPcontacts_Search(const MTPcontacts_search &v) : MTPBoxed<MTPcontacts_search>(v) {
+	}
+	MTPcontacts_Search(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPcontacts_search>(from, end, cons) {
+	}
+	MTPcontacts_Search(const MTPstring &_q, MTPint _limit) : MTPBoxed<MTPcontacts_search>(MTPcontacts_search(_q, _limit)) {
+	}
+};
+
+class MTPcontacts_resolveUsername { // RPC method 'contacts.resolveUsername'
+public:
+	MTPstring vusername;
+
+	MTPcontacts_resolveUsername() {
+	}
+	MTPcontacts_resolveUsername(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_resolveUsername) {
+		read(from, end, cons);
+	}
+	MTPcontacts_resolveUsername(const MTPstring &_username) : vusername(_username) {
+	}
+
+	uint32 innerLength() const {
+		return vusername.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_contacts_resolveUsername;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_resolveUsername) {
+		vusername.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vusername.write(to);
+	}
+
+	typedef MTPUser ResponseType;
+};
+class MTPcontacts_ResolveUsername : public MTPBoxed<MTPcontacts_resolveUsername> {
+public:
+	MTPcontacts_ResolveUsername() {
+	}
+	MTPcontacts_ResolveUsername(const MTPcontacts_resolveUsername &v) : MTPBoxed<MTPcontacts_resolveUsername>(v) {
+	}
+	MTPcontacts_ResolveUsername(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPcontacts_resolveUsername>(from, end, cons) {
+	}
+	MTPcontacts_ResolveUsername(const MTPstring &_username) : MTPBoxed<MTPcontacts_resolveUsername>(MTPcontacts_resolveUsername(_username)) {
+	}
+};
+
 class MTPmessages_getMessages { // RPC method 'messages.getMessages'
 public:
 	MTPVector<MTPint> vid;
@@ -12877,7 +14587,6 @@ public:
 class MTPmessages_getDialogs { // RPC method 'messages.getDialogs'
 public:
 	MTPint voffset;
-	MTPint vmax_id;
 	MTPint vlimit;
 
 	MTPmessages_getDialogs() {
@@ -12885,23 +14594,21 @@ public:
 	MTPmessages_getDialogs(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getDialogs) {
 		read(from, end, cons);
 	}
-	MTPmessages_getDialogs(MTPint _offset, MTPint _max_id, MTPint _limit) : voffset(_offset), vmax_id(_max_id), vlimit(_limit) {
+	MTPmessages_getDialogs(MTPint _offset, MTPint _limit) : voffset(_offset), vlimit(_limit) {
 	}
 
 	uint32 innerLength() const {
-		return voffset.innerLength() + vmax_id.innerLength() + vlimit.innerLength();
+		return voffset.innerLength() + vlimit.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_messages_getDialogs;
 	}
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getDialogs) {
 		voffset.read(from, end);
-		vmax_id.read(from, end);
 		vlimit.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
 		voffset.write(to);
-		vmax_id.write(to);
 		vlimit.write(to);
 	}
 
@@ -12915,7 +14622,7 @@ public:
 	}
 	MTPmessages_GetDialogs(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getDialogs>(from, end, cons) {
 	}
-	MTPmessages_GetDialogs(MTPint _offset, MTPint _max_id, MTPint _limit) : MTPBoxed<MTPmessages_getDialogs>(MTPmessages_getDialogs(_offset, _max_id, _limit)) {
+	MTPmessages_GetDialogs(MTPint _offset, MTPint _limit) : MTPBoxed<MTPmessages_getDialogs>(MTPmessages_getDialogs(_offset, _limit)) {
 	}
 };
 
@@ -12924,6 +14631,7 @@ public:
 	MTPInputPeer vpeer;
 	MTPint voffset;
 	MTPint vmax_id;
+	MTPint vmin_id;
 	MTPint vlimit;
 
 	MTPmessages_getHistory() {
@@ -12931,11 +14639,11 @@ public:
 	MTPmessages_getHistory(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getHistory) {
 		read(from, end, cons);
 	}
-	MTPmessages_getHistory(const MTPInputPeer &_peer, MTPint _offset, MTPint _max_id, MTPint _limit) : vpeer(_peer), voffset(_offset), vmax_id(_max_id), vlimit(_limit) {
+	MTPmessages_getHistory(const MTPInputPeer &_peer, MTPint _offset, MTPint _max_id, MTPint _min_id, MTPint _limit) : vpeer(_peer), voffset(_offset), vmax_id(_max_id), vmin_id(_min_id), vlimit(_limit) {
 	}
 
 	uint32 innerLength() const {
-		return vpeer.innerLength() + voffset.innerLength() + vmax_id.innerLength() + vlimit.innerLength();
+		return vpeer.innerLength() + voffset.innerLength() + vmax_id.innerLength() + vmin_id.innerLength() + vlimit.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_messages_getHistory;
@@ -12944,12 +14652,14 @@ public:
 		vpeer.read(from, end);
 		voffset.read(from, end);
 		vmax_id.read(from, end);
+		vmin_id.read(from, end);
 		vlimit.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
 		vpeer.write(to);
 		voffset.write(to);
 		vmax_id.write(to);
+		vmin_id.write(to);
 		vlimit.write(to);
 	}
 
@@ -12963,7 +14673,7 @@ public:
 	}
 	MTPmessages_GetHistory(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getHistory>(from, end, cons) {
 	}
-	MTPmessages_GetHistory(const MTPInputPeer &_peer, MTPint _offset, MTPint _max_id, MTPint _limit) : MTPBoxed<MTPmessages_getHistory>(MTPmessages_getHistory(_peer, _offset, _max_id, _limit)) {
+	MTPmessages_GetHistory(const MTPInputPeer &_peer, MTPint _offset, MTPint _max_id, MTPint _min_id, MTPint _limit) : MTPBoxed<MTPmessages_getHistory>(MTPmessages_getHistory(_peer, _offset, _max_id, _min_id, _limit)) {
 	}
 };
 
@@ -13410,14 +15120,14 @@ public:
 
 class MTPmessages_getChats { // RPC method 'messages.getChats'
 public:
-	MTPVector<MTPint> vid;
+	MTPVector<MTPInputChat> vid;
 
 	MTPmessages_getChats() {
 	}
 	MTPmessages_getChats(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getChats) {
 		read(from, end, cons);
 	}
-	MTPmessages_getChats(const MTPVector<MTPint> &_id) : vid(_id) {
+	MTPmessages_getChats(const MTPVector<MTPInputChat> &_id) : vid(_id) {
 	}
 
 	uint32 innerLength() const {
@@ -13443,20 +15153,20 @@ public:
 	}
 	MTPmessages_GetChats(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getChats>(from, end, cons) {
 	}
-	MTPmessages_GetChats(const MTPVector<MTPint> &_id) : MTPBoxed<MTPmessages_getChats>(MTPmessages_getChats(_id)) {
+	MTPmessages_GetChats(const MTPVector<MTPInputChat> &_id) : MTPBoxed<MTPmessages_getChats>(MTPmessages_getChats(_id)) {
 	}
 };
 
 class MTPmessages_getFullChat { // RPC method 'messages.getFullChat'
 public:
-	MTPint vchat_id;
+	MTPInputChat vchat_id;
 
 	MTPmessages_getFullChat() {
 	}
 	MTPmessages_getFullChat(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getFullChat) {
 		read(from, end, cons);
 	}
-	MTPmessages_getFullChat(MTPint _chat_id) : vchat_id(_chat_id) {
+	MTPmessages_getFullChat(const MTPInputChat &_chat_id) : vchat_id(_chat_id) {
 	}
 
 	uint32 innerLength() const {
@@ -13482,13 +15192,13 @@ public:
 	}
 	MTPmessages_GetFullChat(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getFullChat>(from, end, cons) {
 	}
-	MTPmessages_GetFullChat(MTPint _chat_id) : MTPBoxed<MTPmessages_getFullChat>(MTPmessages_getFullChat(_chat_id)) {
+	MTPmessages_GetFullChat(const MTPInputChat &_chat_id) : MTPBoxed<MTPmessages_getFullChat>(MTPmessages_getFullChat(_chat_id)) {
 	}
 };
 
 class MTPmessages_editChatTitle { // RPC method 'messages.editChatTitle'
 public:
-	MTPint vchat_id;
+	MTPInputChat vchat_id;
 	MTPstring vtitle;
 
 	MTPmessages_editChatTitle() {
@@ -13496,7 +15206,7 @@ public:
 	MTPmessages_editChatTitle(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_editChatTitle) {
 		read(from, end, cons);
 	}
-	MTPmessages_editChatTitle(MTPint _chat_id, const MTPstring &_title) : vchat_id(_chat_id), vtitle(_title) {
+	MTPmessages_editChatTitle(const MTPInputChat &_chat_id, const MTPstring &_title) : vchat_id(_chat_id), vtitle(_title) {
 	}
 
 	uint32 innerLength() const {
@@ -13524,13 +15234,13 @@ public:
 	}
 	MTPmessages_EditChatTitle(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_editChatTitle>(from, end, cons) {
 	}
-	MTPmessages_EditChatTitle(MTPint _chat_id, const MTPstring &_title) : MTPBoxed<MTPmessages_editChatTitle>(MTPmessages_editChatTitle(_chat_id, _title)) {
+	MTPmessages_EditChatTitle(const MTPInputChat &_chat_id, const MTPstring &_title) : MTPBoxed<MTPmessages_editChatTitle>(MTPmessages_editChatTitle(_chat_id, _title)) {
 	}
 };
 
 class MTPmessages_editChatPhoto { // RPC method 'messages.editChatPhoto'
 public:
-	MTPint vchat_id;
+	MTPInputChat vchat_id;
 	MTPInputChatPhoto vphoto;
 
 	MTPmessages_editChatPhoto() {
@@ -13538,7 +15248,7 @@ public:
 	MTPmessages_editChatPhoto(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_editChatPhoto) {
 		read(from, end, cons);
 	}
-	MTPmessages_editChatPhoto(MTPint _chat_id, const MTPInputChatPhoto &_photo) : vchat_id(_chat_id), vphoto(_photo) {
+	MTPmessages_editChatPhoto(const MTPInputChat &_chat_id, const MTPInputChatPhoto &_photo) : vchat_id(_chat_id), vphoto(_photo) {
 	}
 
 	uint32 innerLength() const {
@@ -13566,13 +15276,13 @@ public:
 	}
 	MTPmessages_EditChatPhoto(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_editChatPhoto>(from, end, cons) {
 	}
-	MTPmessages_EditChatPhoto(MTPint _chat_id, const MTPInputChatPhoto &_photo) : MTPBoxed<MTPmessages_editChatPhoto>(MTPmessages_editChatPhoto(_chat_id, _photo)) {
+	MTPmessages_EditChatPhoto(const MTPInputChat &_chat_id, const MTPInputChatPhoto &_photo) : MTPBoxed<MTPmessages_editChatPhoto>(MTPmessages_editChatPhoto(_chat_id, _photo)) {
 	}
 };
 
 class MTPmessages_addChatUser { // RPC method 'messages.addChatUser'
 public:
-	MTPint vchat_id;
+	MTPInputChat vchat_id;
 	MTPInputUser vuser_id;
 	MTPint vfwd_limit;
 
@@ -13581,7 +15291,7 @@ public:
 	MTPmessages_addChatUser(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_addChatUser) {
 		read(from, end, cons);
 	}
-	MTPmessages_addChatUser(MTPint _chat_id, const MTPInputUser &_user_id, MTPint _fwd_limit) : vchat_id(_chat_id), vuser_id(_user_id), vfwd_limit(_fwd_limit) {
+	MTPmessages_addChatUser(const MTPInputChat &_chat_id, const MTPInputUser &_user_id, MTPint _fwd_limit) : vchat_id(_chat_id), vuser_id(_user_id), vfwd_limit(_fwd_limit) {
 	}
 
 	uint32 innerLength() const {
@@ -13611,13 +15321,13 @@ public:
 	}
 	MTPmessages_AddChatUser(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_addChatUser>(from, end, cons) {
 	}
-	MTPmessages_AddChatUser(MTPint _chat_id, const MTPInputUser &_user_id, MTPint _fwd_limit) : MTPBoxed<MTPmessages_addChatUser>(MTPmessages_addChatUser(_chat_id, _user_id, _fwd_limit)) {
+	MTPmessages_AddChatUser(const MTPInputChat &_chat_id, const MTPInputUser &_user_id, MTPint _fwd_limit) : MTPBoxed<MTPmessages_addChatUser>(MTPmessages_addChatUser(_chat_id, _user_id, _fwd_limit)) {
 	}
 };
 
 class MTPmessages_deleteChatUser { // RPC method 'messages.deleteChatUser'
 public:
-	MTPint vchat_id;
+	MTPInputChat vchat_id;
 	MTPInputUser vuser_id;
 
 	MTPmessages_deleteChatUser() {
@@ -13625,7 +15335,7 @@ public:
 	MTPmessages_deleteChatUser(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_deleteChatUser) {
 		read(from, end, cons);
 	}
-	MTPmessages_deleteChatUser(MTPint _chat_id, const MTPInputUser &_user_id) : vchat_id(_chat_id), vuser_id(_user_id) {
+	MTPmessages_deleteChatUser(const MTPInputChat &_chat_id, const MTPInputUser &_user_id) : vchat_id(_chat_id), vuser_id(_user_id) {
 	}
 
 	uint32 innerLength() const {
@@ -13653,7 +15363,7 @@ public:
 	}
 	MTPmessages_DeleteChatUser(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_deleteChatUser>(from, end, cons) {
 	}
-	MTPmessages_DeleteChatUser(MTPint _chat_id, const MTPInputUser &_user_id) : MTPBoxed<MTPmessages_deleteChatUser>(MTPmessages_deleteChatUser(_chat_id, _user_id)) {
+	MTPmessages_DeleteChatUser(const MTPInputChat &_chat_id, const MTPInputUser &_user_id) : MTPBoxed<MTPmessages_deleteChatUser>(MTPmessages_deleteChatUser(_chat_id, _user_id)) {
 	}
 };
 
@@ -13696,537 +15406,6 @@ public:
 	MTPmessages_CreateChat(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_createChat>(from, end, cons) {
 	}
 	MTPmessages_CreateChat(const MTPVector<MTPInputUser> &_users, const MTPstring &_title) : MTPBoxed<MTPmessages_createChat>(MTPmessages_createChat(_users, _title)) {
-	}
-};
-
-class MTPupdates_getState { // RPC method 'updates.getState'
-public:
-	MTPupdates_getState() {
-	}
-	MTPupdates_getState(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_updates_getState) {
-		read(from, end, cons);
-	}
-
-	uint32 innerLength() const {
-		return 0;
-	}
-	mtpTypeId type() const {
-		return mtpc_updates_getState;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_updates_getState) {
-	}
-	void write(mtpBuffer &to) const {
-	}
-
-	typedef MTPupdates_State ResponseType;
-};
-class MTPupdates_GetState : public MTPBoxed<MTPupdates_getState> {
-public:
-	MTPupdates_GetState() {
-	}
-	MTPupdates_GetState(const MTPupdates_getState &v) : MTPBoxed<MTPupdates_getState>(v) {
-	}
-	MTPupdates_GetState(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPupdates_getState>(from, end, cons) {
-	}
-};
-
-class MTPupdates_getDifference { // RPC method 'updates.getDifference'
-public:
-	MTPint vpts;
-	MTPint vdate;
-	MTPint vqts;
-
-	MTPupdates_getDifference() {
-	}
-	MTPupdates_getDifference(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_updates_getDifference) {
-		read(from, end, cons);
-	}
-	MTPupdates_getDifference(MTPint _pts, MTPint _date, MTPint _qts) : vpts(_pts), vdate(_date), vqts(_qts) {
-	}
-
-	uint32 innerLength() const {
-		return vpts.innerLength() + vdate.innerLength() + vqts.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_updates_getDifference;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_updates_getDifference) {
-		vpts.read(from, end);
-		vdate.read(from, end);
-		vqts.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vpts.write(to);
-		vdate.write(to);
-		vqts.write(to);
-	}
-
-	typedef MTPupdates_Difference ResponseType;
-};
-class MTPupdates_GetDifference : public MTPBoxed<MTPupdates_getDifference> {
-public:
-	MTPupdates_GetDifference() {
-	}
-	MTPupdates_GetDifference(const MTPupdates_getDifference &v) : MTPBoxed<MTPupdates_getDifference>(v) {
-	}
-	MTPupdates_GetDifference(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPupdates_getDifference>(from, end, cons) {
-	}
-	MTPupdates_GetDifference(MTPint _pts, MTPint _date, MTPint _qts) : MTPBoxed<MTPupdates_getDifference>(MTPupdates_getDifference(_pts, _date, _qts)) {
-	}
-};
-
-class MTPphotos_updateProfilePhoto { // RPC method 'photos.updateProfilePhoto'
-public:
-	MTPInputPhoto vid;
-	MTPInputPhotoCrop vcrop;
-
-	MTPphotos_updateProfilePhoto() {
-	}
-	MTPphotos_updateProfilePhoto(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_updateProfilePhoto) {
-		read(from, end, cons);
-	}
-	MTPphotos_updateProfilePhoto(const MTPInputPhoto &_id, const MTPInputPhotoCrop &_crop) : vid(_id), vcrop(_crop) {
-	}
-
-	uint32 innerLength() const {
-		return vid.innerLength() + vcrop.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_photos_updateProfilePhoto;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_updateProfilePhoto) {
-		vid.read(from, end);
-		vcrop.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vid.write(to);
-		vcrop.write(to);
-	}
-
-	typedef MTPUserProfilePhoto ResponseType;
-};
-class MTPphotos_UpdateProfilePhoto : public MTPBoxed<MTPphotos_updateProfilePhoto> {
-public:
-	MTPphotos_UpdateProfilePhoto() {
-	}
-	MTPphotos_UpdateProfilePhoto(const MTPphotos_updateProfilePhoto &v) : MTPBoxed<MTPphotos_updateProfilePhoto>(v) {
-	}
-	MTPphotos_UpdateProfilePhoto(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPphotos_updateProfilePhoto>(from, end, cons) {
-	}
-	MTPphotos_UpdateProfilePhoto(const MTPInputPhoto &_id, const MTPInputPhotoCrop &_crop) : MTPBoxed<MTPphotos_updateProfilePhoto>(MTPphotos_updateProfilePhoto(_id, _crop)) {
-	}
-};
-
-class MTPphotos_uploadProfilePhoto { // RPC method 'photos.uploadProfilePhoto'
-public:
-	MTPInputFile vfile;
-	MTPstring vcaption;
-	MTPInputGeoPoint vgeo_point;
-	MTPInputPhotoCrop vcrop;
-
-	MTPphotos_uploadProfilePhoto() {
-	}
-	MTPphotos_uploadProfilePhoto(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_uploadProfilePhoto) {
-		read(from, end, cons);
-	}
-	MTPphotos_uploadProfilePhoto(const MTPInputFile &_file, const MTPstring &_caption, const MTPInputGeoPoint &_geo_point, const MTPInputPhotoCrop &_crop) : vfile(_file), vcaption(_caption), vgeo_point(_geo_point), vcrop(_crop) {
-	}
-
-	uint32 innerLength() const {
-		return vfile.innerLength() + vcaption.innerLength() + vgeo_point.innerLength() + vcrop.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_photos_uploadProfilePhoto;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_uploadProfilePhoto) {
-		vfile.read(from, end);
-		vcaption.read(from, end);
-		vgeo_point.read(from, end);
-		vcrop.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vfile.write(to);
-		vcaption.write(to);
-		vgeo_point.write(to);
-		vcrop.write(to);
-	}
-
-	typedef MTPphotos_Photo ResponseType;
-};
-class MTPphotos_UploadProfilePhoto : public MTPBoxed<MTPphotos_uploadProfilePhoto> {
-public:
-	MTPphotos_UploadProfilePhoto() {
-	}
-	MTPphotos_UploadProfilePhoto(const MTPphotos_uploadProfilePhoto &v) : MTPBoxed<MTPphotos_uploadProfilePhoto>(v) {
-	}
-	MTPphotos_UploadProfilePhoto(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPphotos_uploadProfilePhoto>(from, end, cons) {
-	}
-	MTPphotos_UploadProfilePhoto(const MTPInputFile &_file, const MTPstring &_caption, const MTPInputGeoPoint &_geo_point, const MTPInputPhotoCrop &_crop) : MTPBoxed<MTPphotos_uploadProfilePhoto>(MTPphotos_uploadProfilePhoto(_file, _caption, _geo_point, _crop)) {
-	}
-};
-
-class MTPphotos_deletePhotos { // RPC method 'photos.deletePhotos'
-public:
-	MTPVector<MTPInputPhoto> vid;
-
-	MTPphotos_deletePhotos() {
-	}
-	MTPphotos_deletePhotos(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_deletePhotos) {
-		read(from, end, cons);
-	}
-	MTPphotos_deletePhotos(const MTPVector<MTPInputPhoto> &_id) : vid(_id) {
-	}
-
-	uint32 innerLength() const {
-		return vid.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_photos_deletePhotos;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_deletePhotos) {
-		vid.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vid.write(to);
-	}
-
-	typedef MTPVector<MTPlong> ResponseType;
-};
-class MTPphotos_DeletePhotos : public MTPBoxed<MTPphotos_deletePhotos> {
-public:
-	MTPphotos_DeletePhotos() {
-	}
-	MTPphotos_DeletePhotos(const MTPphotos_deletePhotos &v) : MTPBoxed<MTPphotos_deletePhotos>(v) {
-	}
-	MTPphotos_DeletePhotos(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPphotos_deletePhotos>(from, end, cons) {
-	}
-	MTPphotos_DeletePhotos(const MTPVector<MTPInputPhoto> &_id) : MTPBoxed<MTPphotos_deletePhotos>(MTPphotos_deletePhotos(_id)) {
-	}
-};
-
-class MTPupload_saveFilePart { // RPC method 'upload.saveFilePart'
-public:
-	MTPlong vfile_id;
-	MTPint vfile_part;
-	MTPbytes vbytes;
-
-	MTPupload_saveFilePart() {
-	}
-	MTPupload_saveFilePart(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_upload_saveFilePart) {
-		read(from, end, cons);
-	}
-	MTPupload_saveFilePart(const MTPlong &_file_id, MTPint _file_part, const MTPbytes &_bytes) : vfile_id(_file_id), vfile_part(_file_part), vbytes(_bytes) {
-	}
-
-	uint32 innerLength() const {
-		return vfile_id.innerLength() + vfile_part.innerLength() + vbytes.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_upload_saveFilePart;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_upload_saveFilePart) {
-		vfile_id.read(from, end);
-		vfile_part.read(from, end);
-		vbytes.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vfile_id.write(to);
-		vfile_part.write(to);
-		vbytes.write(to);
-	}
-
-	typedef MTPBool ResponseType;
-};
-class MTPupload_SaveFilePart : public MTPBoxed<MTPupload_saveFilePart> {
-public:
-	MTPupload_SaveFilePart() {
-	}
-	MTPupload_SaveFilePart(const MTPupload_saveFilePart &v) : MTPBoxed<MTPupload_saveFilePart>(v) {
-	}
-	MTPupload_SaveFilePart(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPupload_saveFilePart>(from, end, cons) {
-	}
-	MTPupload_SaveFilePart(const MTPlong &_file_id, MTPint _file_part, const MTPbytes &_bytes) : MTPBoxed<MTPupload_saveFilePart>(MTPupload_saveFilePart(_file_id, _file_part, _bytes)) {
-	}
-};
-
-class MTPupload_getFile { // RPC method 'upload.getFile'
-public:
-	MTPInputFileLocation vlocation;
-	MTPint voffset;
-	MTPint vlimit;
-
-	MTPupload_getFile() {
-	}
-	MTPupload_getFile(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_upload_getFile) {
-		read(from, end, cons);
-	}
-	MTPupload_getFile(const MTPInputFileLocation &_location, MTPint _offset, MTPint _limit) : vlocation(_location), voffset(_offset), vlimit(_limit) {
-	}
-
-	uint32 innerLength() const {
-		return vlocation.innerLength() + voffset.innerLength() + vlimit.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_upload_getFile;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_upload_getFile) {
-		vlocation.read(from, end);
-		voffset.read(from, end);
-		vlimit.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vlocation.write(to);
-		voffset.write(to);
-		vlimit.write(to);
-	}
-
-	typedef MTPupload_File ResponseType;
-};
-class MTPupload_GetFile : public MTPBoxed<MTPupload_getFile> {
-public:
-	MTPupload_GetFile() {
-	}
-	MTPupload_GetFile(const MTPupload_getFile &v) : MTPBoxed<MTPupload_getFile>(v) {
-	}
-	MTPupload_GetFile(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPupload_getFile>(from, end, cons) {
-	}
-	MTPupload_GetFile(const MTPInputFileLocation &_location, MTPint _offset, MTPint _limit) : MTPBoxed<MTPupload_getFile>(MTPupload_getFile(_location, _offset, _limit)) {
-	}
-};
-
-class MTPhelp_getConfig { // RPC method 'help.getConfig'
-public:
-	MTPhelp_getConfig() {
-	}
-	MTPhelp_getConfig(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getConfig) {
-		read(from, end, cons);
-	}
-
-	uint32 innerLength() const {
-		return 0;
-	}
-	mtpTypeId type() const {
-		return mtpc_help_getConfig;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getConfig) {
-	}
-	void write(mtpBuffer &to) const {
-	}
-
-	typedef MTPConfig ResponseType;
-};
-class MTPhelp_GetConfig : public MTPBoxed<MTPhelp_getConfig> {
-public:
-	MTPhelp_GetConfig() {
-	}
-	MTPhelp_GetConfig(const MTPhelp_getConfig &v) : MTPBoxed<MTPhelp_getConfig>(v) {
-	}
-	MTPhelp_GetConfig(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPhelp_getConfig>(from, end, cons) {
-	}
-};
-
-class MTPhelp_getNearestDc { // RPC method 'help.getNearestDc'
-public:
-	MTPhelp_getNearestDc() {
-	}
-	MTPhelp_getNearestDc(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getNearestDc) {
-		read(from, end, cons);
-	}
-
-	uint32 innerLength() const {
-		return 0;
-	}
-	mtpTypeId type() const {
-		return mtpc_help_getNearestDc;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getNearestDc) {
-	}
-	void write(mtpBuffer &to) const {
-	}
-
-	typedef MTPNearestDc ResponseType;
-};
-class MTPhelp_GetNearestDc : public MTPBoxed<MTPhelp_getNearestDc> {
-public:
-	MTPhelp_GetNearestDc() {
-	}
-	MTPhelp_GetNearestDc(const MTPhelp_getNearestDc &v) : MTPBoxed<MTPhelp_getNearestDc>(v) {
-	}
-	MTPhelp_GetNearestDc(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPhelp_getNearestDc>(from, end, cons) {
-	}
-};
-
-class MTPhelp_getAppUpdate { // RPC method 'help.getAppUpdate'
-public:
-	MTPstring vdevice_model;
-	MTPstring vsystem_version;
-	MTPstring vapp_version;
-	MTPstring vlang_code;
-
-	MTPhelp_getAppUpdate() {
-	}
-	MTPhelp_getAppUpdate(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getAppUpdate) {
-		read(from, end, cons);
-	}
-	MTPhelp_getAppUpdate(const MTPstring &_device_model, const MTPstring &_system_version, const MTPstring &_app_version, const MTPstring &_lang_code) : vdevice_model(_device_model), vsystem_version(_system_version), vapp_version(_app_version), vlang_code(_lang_code) {
-	}
-
-	uint32 innerLength() const {
-		return vdevice_model.innerLength() + vsystem_version.innerLength() + vapp_version.innerLength() + vlang_code.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_help_getAppUpdate;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getAppUpdate) {
-		vdevice_model.read(from, end);
-		vsystem_version.read(from, end);
-		vapp_version.read(from, end);
-		vlang_code.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vdevice_model.write(to);
-		vsystem_version.write(to);
-		vapp_version.write(to);
-		vlang_code.write(to);
-	}
-
-	typedef MTPhelp_AppUpdate ResponseType;
-};
-class MTPhelp_GetAppUpdate : public MTPBoxed<MTPhelp_getAppUpdate> {
-public:
-	MTPhelp_GetAppUpdate() {
-	}
-	MTPhelp_GetAppUpdate(const MTPhelp_getAppUpdate &v) : MTPBoxed<MTPhelp_getAppUpdate>(v) {
-	}
-	MTPhelp_GetAppUpdate(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPhelp_getAppUpdate>(from, end, cons) {
-	}
-	MTPhelp_GetAppUpdate(const MTPstring &_device_model, const MTPstring &_system_version, const MTPstring &_app_version, const MTPstring &_lang_code) : MTPBoxed<MTPhelp_getAppUpdate>(MTPhelp_getAppUpdate(_device_model, _system_version, _app_version, _lang_code)) {
-	}
-};
-
-class MTPhelp_saveAppLog { // RPC method 'help.saveAppLog'
-public:
-	MTPVector<MTPInputAppEvent> vevents;
-
-	MTPhelp_saveAppLog() {
-	}
-	MTPhelp_saveAppLog(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_saveAppLog) {
-		read(from, end, cons);
-	}
-	MTPhelp_saveAppLog(const MTPVector<MTPInputAppEvent> &_events) : vevents(_events) {
-	}
-
-	uint32 innerLength() const {
-		return vevents.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_help_saveAppLog;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_saveAppLog) {
-		vevents.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vevents.write(to);
-	}
-
-	typedef MTPBool ResponseType;
-};
-class MTPhelp_SaveAppLog : public MTPBoxed<MTPhelp_saveAppLog> {
-public:
-	MTPhelp_SaveAppLog() {
-	}
-	MTPhelp_SaveAppLog(const MTPhelp_saveAppLog &v) : MTPBoxed<MTPhelp_saveAppLog>(v) {
-	}
-	MTPhelp_SaveAppLog(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPhelp_saveAppLog>(from, end, cons) {
-	}
-	MTPhelp_SaveAppLog(const MTPVector<MTPInputAppEvent> &_events) : MTPBoxed<MTPhelp_saveAppLog>(MTPhelp_saveAppLog(_events)) {
-	}
-};
-
-class MTPhelp_getInviteText { // RPC method 'help.getInviteText'
-public:
-	MTPstring vlang_code;
-
-	MTPhelp_getInviteText() {
-	}
-	MTPhelp_getInviteText(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getInviteText) {
-		read(from, end, cons);
-	}
-	MTPhelp_getInviteText(const MTPstring &_lang_code) : vlang_code(_lang_code) {
-	}
-
-	uint32 innerLength() const {
-		return vlang_code.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_help_getInviteText;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getInviteText) {
-		vlang_code.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vlang_code.write(to);
-	}
-
-	typedef MTPhelp_InviteText ResponseType;
-};
-class MTPhelp_GetInviteText : public MTPBoxed<MTPhelp_getInviteText> {
-public:
-	MTPhelp_GetInviteText() {
-	}
-	MTPhelp_GetInviteText(const MTPhelp_getInviteText &v) : MTPBoxed<MTPhelp_getInviteText>(v) {
-	}
-	MTPhelp_GetInviteText(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPhelp_getInviteText>(from, end, cons) {
-	}
-	MTPhelp_GetInviteText(const MTPstring &_lang_code) : MTPBoxed<MTPhelp_getInviteText>(MTPhelp_getInviteText(_lang_code)) {
-	}
-};
-
-class MTPphotos_getUserPhotos { // RPC method 'photos.getUserPhotos'
-public:
-	MTPInputUser vuser_id;
-	MTPint voffset;
-	MTPlong vmax_id;
-	MTPint vlimit;
-
-	MTPphotos_getUserPhotos() {
-	}
-	MTPphotos_getUserPhotos(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_getUserPhotos) {
-		read(from, end, cons);
-	}
-	MTPphotos_getUserPhotos(const MTPInputUser &_user_id, MTPint _offset, const MTPlong &_max_id, MTPint _limit) : vuser_id(_user_id), voffset(_offset), vmax_id(_max_id), vlimit(_limit) {
-	}
-
-	uint32 innerLength() const {
-		return vuser_id.innerLength() + voffset.innerLength() + vmax_id.innerLength() + vlimit.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_photos_getUserPhotos;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_getUserPhotos) {
-		vuser_id.read(from, end);
-		voffset.read(from, end);
-		vmax_id.read(from, end);
-		vlimit.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vuser_id.write(to);
-		voffset.write(to);
-		vmax_id.write(to);
-		vlimit.write(to);
-	}
-
-	typedef MTPphotos_Photos ResponseType;
-};
-class MTPphotos_GetUserPhotos : public MTPBoxed<MTPphotos_getUserPhotos> {
-public:
-	MTPphotos_GetUserPhotos() {
-	}
-	MTPphotos_GetUserPhotos(const MTPphotos_getUserPhotos &v) : MTPBoxed<MTPphotos_getUserPhotos>(v) {
-	}
-	MTPphotos_GetUserPhotos(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPphotos_getUserPhotos>(from, end, cons) {
-	}
-	MTPphotos_GetUserPhotos(const MTPInputUser &_user_id, MTPint _offset, const MTPlong &_max_id, MTPint _limit) : MTPBoxed<MTPphotos_getUserPhotos>(MTPphotos_getUserPhotos(_user_id, _offset, _max_id, _limit)) {
 	}
 };
 
@@ -14755,181 +15934,6 @@ public:
 	}
 };
 
-class MTPupload_saveBigFilePart { // RPC method 'upload.saveBigFilePart'
-public:
-	MTPlong vfile_id;
-	MTPint vfile_part;
-	MTPint vfile_total_parts;
-	MTPbytes vbytes;
-
-	MTPupload_saveBigFilePart() {
-	}
-	MTPupload_saveBigFilePart(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_upload_saveBigFilePart) {
-		read(from, end, cons);
-	}
-	MTPupload_saveBigFilePart(const MTPlong &_file_id, MTPint _file_part, MTPint _file_total_parts, const MTPbytes &_bytes) : vfile_id(_file_id), vfile_part(_file_part), vfile_total_parts(_file_total_parts), vbytes(_bytes) {
-	}
-
-	uint32 innerLength() const {
-		return vfile_id.innerLength() + vfile_part.innerLength() + vfile_total_parts.innerLength() + vbytes.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_upload_saveBigFilePart;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_upload_saveBigFilePart) {
-		vfile_id.read(from, end);
-		vfile_part.read(from, end);
-		vfile_total_parts.read(from, end);
-		vbytes.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vfile_id.write(to);
-		vfile_part.write(to);
-		vfile_total_parts.write(to);
-		vbytes.write(to);
-	}
-
-	typedef MTPBool ResponseType;
-};
-class MTPupload_SaveBigFilePart : public MTPBoxed<MTPupload_saveBigFilePart> {
-public:
-	MTPupload_SaveBigFilePart() {
-	}
-	MTPupload_SaveBigFilePart(const MTPupload_saveBigFilePart &v) : MTPBoxed<MTPupload_saveBigFilePart>(v) {
-	}
-	MTPupload_SaveBigFilePart(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPupload_saveBigFilePart>(from, end, cons) {
-	}
-	MTPupload_SaveBigFilePart(const MTPlong &_file_id, MTPint _file_part, MTPint _file_total_parts, const MTPbytes &_bytes) : MTPBoxed<MTPupload_saveBigFilePart>(MTPupload_saveBigFilePart(_file_id, _file_part, _file_total_parts, _bytes)) {
-	}
-};
-
-template <class TQueryType>
-class MTPinitConnection { // RPC method 'initConnection'
-public:
-	MTPint vapi_id;
-	MTPstring vdevice_model;
-	MTPstring vsystem_version;
-	MTPstring vapp_version;
-	MTPstring vlang_code;
-	TQueryType vquery;
-
-	MTPinitConnection() {
-	}
-	MTPinitConnection(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_initConnection) {
-		read(from, end, cons);
-	}
-	MTPinitConnection(MTPint _api_id, const MTPstring &_device_model, const MTPstring &_system_version, const MTPstring &_app_version, const MTPstring &_lang_code, const TQueryType &_query) : vapi_id(_api_id), vdevice_model(_device_model), vsystem_version(_system_version), vapp_version(_app_version), vlang_code(_lang_code), vquery(_query) {
-	}
-
-	uint32 innerLength() const {
-		return vapi_id.innerLength() + vdevice_model.innerLength() + vsystem_version.innerLength() + vapp_version.innerLength() + vlang_code.innerLength() + vquery.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_initConnection;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_initConnection) {
-		vapi_id.read(from, end);
-		vdevice_model.read(from, end);
-		vsystem_version.read(from, end);
-		vapp_version.read(from, end);
-		vlang_code.read(from, end);
-		vquery.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vapi_id.write(to);
-		vdevice_model.write(to);
-		vsystem_version.write(to);
-		vapp_version.write(to);
-		vlang_code.write(to);
-		vquery.write(to);
-	}
-
-	typedef typename TQueryType::ResponseType ResponseType;
-};
-template <typename TQueryType>
-class MTPInitConnection : public MTPBoxed<MTPinitConnection<TQueryType> > {
-public:
-	MTPInitConnection() {
-	}
-	MTPInitConnection(const MTPinitConnection<TQueryType> &v) : MTPBoxed<MTPinitConnection<TQueryType> >(v) {
-	}
-	MTPInitConnection(MTPint _api_id, const MTPstring &_device_model, const MTPstring &_system_version, const MTPstring &_app_version, const MTPstring &_lang_code, const TQueryType &_query) : MTPBoxed<MTPinitConnection<TQueryType> >(MTPinitConnection<TQueryType>(_api_id, _device_model, _system_version, _app_version, _lang_code, _query)) {
-	}
-};
-
-class MTPhelp_getSupport { // RPC method 'help.getSupport'
-public:
-	MTPhelp_getSupport() {
-	}
-	MTPhelp_getSupport(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getSupport) {
-		read(from, end, cons);
-	}
-
-	uint32 innerLength() const {
-		return 0;
-	}
-	mtpTypeId type() const {
-		return mtpc_help_getSupport;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getSupport) {
-	}
-	void write(mtpBuffer &to) const {
-	}
-
-	typedef MTPhelp_Support ResponseType;
-};
-class MTPhelp_GetSupport : public MTPBoxed<MTPhelp_getSupport> {
-public:
-	MTPhelp_GetSupport() {
-	}
-	MTPhelp_GetSupport(const MTPhelp_getSupport &v) : MTPBoxed<MTPhelp_getSupport>(v) {
-	}
-	MTPhelp_GetSupport(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPhelp_getSupport>(from, end, cons) {
-	}
-};
-
-class MTPauth_sendSms { // RPC method 'auth.sendSms'
-public:
-	MTPstring vphone_number;
-	MTPstring vphone_code_hash;
-
-	MTPauth_sendSms() {
-	}
-	MTPauth_sendSms(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_sendSms) {
-		read(from, end, cons);
-	}
-	MTPauth_sendSms(const MTPstring &_phone_number, const MTPstring &_phone_code_hash) : vphone_number(_phone_number), vphone_code_hash(_phone_code_hash) {
-	}
-
-	uint32 innerLength() const {
-		return vphone_number.innerLength() + vphone_code_hash.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_auth_sendSms;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_sendSms) {
-		vphone_number.read(from, end);
-		vphone_code_hash.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vphone_number.write(to);
-		vphone_code_hash.write(to);
-	}
-
-	typedef MTPBool ResponseType;
-};
-class MTPauth_SendSms : public MTPBoxed<MTPauth_sendSms> {
-public:
-	MTPauth_SendSms() {
-	}
-	MTPauth_SendSms(const MTPauth_sendSms &v) : MTPBoxed<MTPauth_sendSms>(v) {
-	}
-	MTPauth_SendSms(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_sendSms>(from, end, cons) {
-	}
-	MTPauth_SendSms(const MTPstring &_phone_number, const MTPstring &_phone_code_hash) : MTPBoxed<MTPauth_sendSms>(MTPauth_sendSms(_phone_number, _phone_code_hash)) {
-	}
-};
-
 class MTPmessages_readMessageContents { // RPC method 'messages.readMessageContents'
 public:
 	MTPVector<MTPint> vid;
@@ -14966,481 +15970,6 @@ public:
 	MTPmessages_ReadMessageContents(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_readMessageContents>(from, end, cons) {
 	}
 	MTPmessages_ReadMessageContents(const MTPVector<MTPint> &_id) : MTPBoxed<MTPmessages_readMessageContents>(MTPmessages_readMessageContents(_id)) {
-	}
-};
-
-class MTPaccount_checkUsername { // RPC method 'account.checkUsername'
-public:
-	MTPstring vusername;
-
-	MTPaccount_checkUsername() {
-	}
-	MTPaccount_checkUsername(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_checkUsername) {
-		read(from, end, cons);
-	}
-	MTPaccount_checkUsername(const MTPstring &_username) : vusername(_username) {
-	}
-
-	uint32 innerLength() const {
-		return vusername.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_account_checkUsername;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_checkUsername) {
-		vusername.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vusername.write(to);
-	}
-
-	typedef MTPBool ResponseType;
-};
-class MTPaccount_CheckUsername : public MTPBoxed<MTPaccount_checkUsername> {
-public:
-	MTPaccount_CheckUsername() {
-	}
-	MTPaccount_CheckUsername(const MTPaccount_checkUsername &v) : MTPBoxed<MTPaccount_checkUsername>(v) {
-	}
-	MTPaccount_CheckUsername(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_checkUsername>(from, end, cons) {
-	}
-	MTPaccount_CheckUsername(const MTPstring &_username) : MTPBoxed<MTPaccount_checkUsername>(MTPaccount_checkUsername(_username)) {
-	}
-};
-
-class MTPaccount_updateUsername { // RPC method 'account.updateUsername'
-public:
-	MTPstring vusername;
-
-	MTPaccount_updateUsername() {
-	}
-	MTPaccount_updateUsername(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_updateUsername) {
-		read(from, end, cons);
-	}
-	MTPaccount_updateUsername(const MTPstring &_username) : vusername(_username) {
-	}
-
-	uint32 innerLength() const {
-		return vusername.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_account_updateUsername;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_updateUsername) {
-		vusername.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vusername.write(to);
-	}
-
-	typedef MTPUser ResponseType;
-};
-class MTPaccount_UpdateUsername : public MTPBoxed<MTPaccount_updateUsername> {
-public:
-	MTPaccount_UpdateUsername() {
-	}
-	MTPaccount_UpdateUsername(const MTPaccount_updateUsername &v) : MTPBoxed<MTPaccount_updateUsername>(v) {
-	}
-	MTPaccount_UpdateUsername(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_updateUsername>(from, end, cons) {
-	}
-	MTPaccount_UpdateUsername(const MTPstring &_username) : MTPBoxed<MTPaccount_updateUsername>(MTPaccount_updateUsername(_username)) {
-	}
-};
-
-class MTPcontacts_search { // RPC method 'contacts.search'
-public:
-	MTPstring vq;
-	MTPint vlimit;
-
-	MTPcontacts_search() {
-	}
-	MTPcontacts_search(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_search) {
-		read(from, end, cons);
-	}
-	MTPcontacts_search(const MTPstring &_q, MTPint _limit) : vq(_q), vlimit(_limit) {
-	}
-
-	uint32 innerLength() const {
-		return vq.innerLength() + vlimit.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_contacts_search;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_search) {
-		vq.read(from, end);
-		vlimit.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vq.write(to);
-		vlimit.write(to);
-	}
-
-	typedef MTPcontacts_Found ResponseType;
-};
-class MTPcontacts_Search : public MTPBoxed<MTPcontacts_search> {
-public:
-	MTPcontacts_Search() {
-	}
-	MTPcontacts_Search(const MTPcontacts_search &v) : MTPBoxed<MTPcontacts_search>(v) {
-	}
-	MTPcontacts_Search(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPcontacts_search>(from, end, cons) {
-	}
-	MTPcontacts_Search(const MTPstring &_q, MTPint _limit) : MTPBoxed<MTPcontacts_search>(MTPcontacts_search(_q, _limit)) {
-	}
-};
-
-class MTPaccount_getPrivacy { // RPC method 'account.getPrivacy'
-public:
-	MTPInputPrivacyKey vkey;
-
-	MTPaccount_getPrivacy() {
-	}
-	MTPaccount_getPrivacy(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getPrivacy) {
-		read(from, end, cons);
-	}
-	MTPaccount_getPrivacy(const MTPInputPrivacyKey &_key) : vkey(_key) {
-	}
-
-	uint32 innerLength() const {
-		return vkey.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_account_getPrivacy;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getPrivacy) {
-		vkey.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vkey.write(to);
-	}
-
-	typedef MTPaccount_PrivacyRules ResponseType;
-};
-class MTPaccount_GetPrivacy : public MTPBoxed<MTPaccount_getPrivacy> {
-public:
-	MTPaccount_GetPrivacy() {
-	}
-	MTPaccount_GetPrivacy(const MTPaccount_getPrivacy &v) : MTPBoxed<MTPaccount_getPrivacy>(v) {
-	}
-	MTPaccount_GetPrivacy(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_getPrivacy>(from, end, cons) {
-	}
-	MTPaccount_GetPrivacy(const MTPInputPrivacyKey &_key) : MTPBoxed<MTPaccount_getPrivacy>(MTPaccount_getPrivacy(_key)) {
-	}
-};
-
-class MTPaccount_setPrivacy { // RPC method 'account.setPrivacy'
-public:
-	MTPInputPrivacyKey vkey;
-	MTPVector<MTPInputPrivacyRule> vrules;
-
-	MTPaccount_setPrivacy() {
-	}
-	MTPaccount_setPrivacy(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_setPrivacy) {
-		read(from, end, cons);
-	}
-	MTPaccount_setPrivacy(const MTPInputPrivacyKey &_key, const MTPVector<MTPInputPrivacyRule> &_rules) : vkey(_key), vrules(_rules) {
-	}
-
-	uint32 innerLength() const {
-		return vkey.innerLength() + vrules.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_account_setPrivacy;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_setPrivacy) {
-		vkey.read(from, end);
-		vrules.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vkey.write(to);
-		vrules.write(to);
-	}
-
-	typedef MTPaccount_PrivacyRules ResponseType;
-};
-class MTPaccount_SetPrivacy : public MTPBoxed<MTPaccount_setPrivacy> {
-public:
-	MTPaccount_SetPrivacy() {
-	}
-	MTPaccount_SetPrivacy(const MTPaccount_setPrivacy &v) : MTPBoxed<MTPaccount_setPrivacy>(v) {
-	}
-	MTPaccount_SetPrivacy(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_setPrivacy>(from, end, cons) {
-	}
-	MTPaccount_SetPrivacy(const MTPInputPrivacyKey &_key, const MTPVector<MTPInputPrivacyRule> &_rules) : MTPBoxed<MTPaccount_setPrivacy>(MTPaccount_setPrivacy(_key, _rules)) {
-	}
-};
-
-class MTPaccount_deleteAccount { // RPC method 'account.deleteAccount'
-public:
-	MTPstring vreason;
-
-	MTPaccount_deleteAccount() {
-	}
-	MTPaccount_deleteAccount(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_deleteAccount) {
-		read(from, end, cons);
-	}
-	MTPaccount_deleteAccount(const MTPstring &_reason) : vreason(_reason) {
-	}
-
-	uint32 innerLength() const {
-		return vreason.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_account_deleteAccount;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_deleteAccount) {
-		vreason.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vreason.write(to);
-	}
-
-	typedef MTPBool ResponseType;
-};
-class MTPaccount_DeleteAccount : public MTPBoxed<MTPaccount_deleteAccount> {
-public:
-	MTPaccount_DeleteAccount() {
-	}
-	MTPaccount_DeleteAccount(const MTPaccount_deleteAccount &v) : MTPBoxed<MTPaccount_deleteAccount>(v) {
-	}
-	MTPaccount_DeleteAccount(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_deleteAccount>(from, end, cons) {
-	}
-	MTPaccount_DeleteAccount(const MTPstring &_reason) : MTPBoxed<MTPaccount_deleteAccount>(MTPaccount_deleteAccount(_reason)) {
-	}
-};
-
-class MTPaccount_getAccountTTL { // RPC method 'account.getAccountTTL'
-public:
-	MTPaccount_getAccountTTL() {
-	}
-	MTPaccount_getAccountTTL(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getAccountTTL) {
-		read(from, end, cons);
-	}
-
-	uint32 innerLength() const {
-		return 0;
-	}
-	mtpTypeId type() const {
-		return mtpc_account_getAccountTTL;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getAccountTTL) {
-	}
-	void write(mtpBuffer &to) const {
-	}
-
-	typedef MTPAccountDaysTTL ResponseType;
-};
-class MTPaccount_GetAccountTTL : public MTPBoxed<MTPaccount_getAccountTTL> {
-public:
-	MTPaccount_GetAccountTTL() {
-	}
-	MTPaccount_GetAccountTTL(const MTPaccount_getAccountTTL &v) : MTPBoxed<MTPaccount_getAccountTTL>(v) {
-	}
-	MTPaccount_GetAccountTTL(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_getAccountTTL>(from, end, cons) {
-	}
-};
-
-class MTPaccount_setAccountTTL { // RPC method 'account.setAccountTTL'
-public:
-	MTPAccountDaysTTL vttl;
-
-	MTPaccount_setAccountTTL() {
-	}
-	MTPaccount_setAccountTTL(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_setAccountTTL) {
-		read(from, end, cons);
-	}
-	MTPaccount_setAccountTTL(const MTPAccountDaysTTL &_ttl) : vttl(_ttl) {
-	}
-
-	uint32 innerLength() const {
-		return vttl.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_account_setAccountTTL;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_setAccountTTL) {
-		vttl.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vttl.write(to);
-	}
-
-	typedef MTPBool ResponseType;
-};
-class MTPaccount_SetAccountTTL : public MTPBoxed<MTPaccount_setAccountTTL> {
-public:
-	MTPaccount_SetAccountTTL() {
-	}
-	MTPaccount_SetAccountTTL(const MTPaccount_setAccountTTL &v) : MTPBoxed<MTPaccount_setAccountTTL>(v) {
-	}
-	MTPaccount_SetAccountTTL(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_setAccountTTL>(from, end, cons) {
-	}
-	MTPaccount_SetAccountTTL(const MTPAccountDaysTTL &_ttl) : MTPBoxed<MTPaccount_setAccountTTL>(MTPaccount_setAccountTTL(_ttl)) {
-	}
-};
-
-template <class TQueryType>
-class MTPinvokeWithLayer { // RPC method 'invokeWithLayer'
-public:
-	MTPint vlayer;
-	TQueryType vquery;
-
-	MTPinvokeWithLayer() {
-	}
-	MTPinvokeWithLayer(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_invokeWithLayer) {
-		read(from, end, cons);
-	}
-	MTPinvokeWithLayer(MTPint _layer, const TQueryType &_query) : vlayer(_layer), vquery(_query) {
-	}
-
-	uint32 innerLength() const {
-		return vlayer.innerLength() + vquery.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_invokeWithLayer;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_invokeWithLayer) {
-		vlayer.read(from, end);
-		vquery.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vlayer.write(to);
-		vquery.write(to);
-	}
-
-	typedef typename TQueryType::ResponseType ResponseType;
-};
-template <typename TQueryType>
-class MTPInvokeWithLayer : public MTPBoxed<MTPinvokeWithLayer<TQueryType> > {
-public:
-	MTPInvokeWithLayer() {
-	}
-	MTPInvokeWithLayer(const MTPinvokeWithLayer<TQueryType> &v) : MTPBoxed<MTPinvokeWithLayer<TQueryType> >(v) {
-	}
-	MTPInvokeWithLayer(MTPint _layer, const TQueryType &_query) : MTPBoxed<MTPinvokeWithLayer<TQueryType> >(MTPinvokeWithLayer<TQueryType>(_layer, _query)) {
-	}
-};
-
-class MTPcontacts_resolveUsername { // RPC method 'contacts.resolveUsername'
-public:
-	MTPstring vusername;
-
-	MTPcontacts_resolveUsername() {
-	}
-	MTPcontacts_resolveUsername(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_resolveUsername) {
-		read(from, end, cons);
-	}
-	MTPcontacts_resolveUsername(const MTPstring &_username) : vusername(_username) {
-	}
-
-	uint32 innerLength() const {
-		return vusername.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_contacts_resolveUsername;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_contacts_resolveUsername) {
-		vusername.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vusername.write(to);
-	}
-
-	typedef MTPUser ResponseType;
-};
-class MTPcontacts_ResolveUsername : public MTPBoxed<MTPcontacts_resolveUsername> {
-public:
-	MTPcontacts_ResolveUsername() {
-	}
-	MTPcontacts_ResolveUsername(const MTPcontacts_resolveUsername &v) : MTPBoxed<MTPcontacts_resolveUsername>(v) {
-	}
-	MTPcontacts_ResolveUsername(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPcontacts_resolveUsername>(from, end, cons) {
-	}
-	MTPcontacts_ResolveUsername(const MTPstring &_username) : MTPBoxed<MTPcontacts_resolveUsername>(MTPcontacts_resolveUsername(_username)) {
-	}
-};
-
-class MTPaccount_sendChangePhoneCode { // RPC method 'account.sendChangePhoneCode'
-public:
-	MTPstring vphone_number;
-
-	MTPaccount_sendChangePhoneCode() {
-	}
-	MTPaccount_sendChangePhoneCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_sendChangePhoneCode) {
-		read(from, end, cons);
-	}
-	MTPaccount_sendChangePhoneCode(const MTPstring &_phone_number) : vphone_number(_phone_number) {
-	}
-
-	uint32 innerLength() const {
-		return vphone_number.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_account_sendChangePhoneCode;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_sendChangePhoneCode) {
-		vphone_number.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vphone_number.write(to);
-	}
-
-	typedef MTPaccount_SentChangePhoneCode ResponseType;
-};
-class MTPaccount_SendChangePhoneCode : public MTPBoxed<MTPaccount_sendChangePhoneCode> {
-public:
-	MTPaccount_SendChangePhoneCode() {
-	}
-	MTPaccount_SendChangePhoneCode(const MTPaccount_sendChangePhoneCode &v) : MTPBoxed<MTPaccount_sendChangePhoneCode>(v) {
-	}
-	MTPaccount_SendChangePhoneCode(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_sendChangePhoneCode>(from, end, cons) {
-	}
-	MTPaccount_SendChangePhoneCode(const MTPstring &_phone_number) : MTPBoxed<MTPaccount_sendChangePhoneCode>(MTPaccount_sendChangePhoneCode(_phone_number)) {
-	}
-};
-
-class MTPaccount_changePhone { // RPC method 'account.changePhone'
-public:
-	MTPstring vphone_number;
-	MTPstring vphone_code_hash;
-	MTPstring vphone_code;
-
-	MTPaccount_changePhone() {
-	}
-	MTPaccount_changePhone(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_changePhone) {
-		read(from, end, cons);
-	}
-	MTPaccount_changePhone(const MTPstring &_phone_number, const MTPstring &_phone_code_hash, const MTPstring &_phone_code) : vphone_number(_phone_number), vphone_code_hash(_phone_code_hash), vphone_code(_phone_code) {
-	}
-
-	uint32 innerLength() const {
-		return vphone_number.innerLength() + vphone_code_hash.innerLength() + vphone_code.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_account_changePhone;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_changePhone) {
-		vphone_number.read(from, end);
-		vphone_code_hash.read(from, end);
-		vphone_code.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vphone_number.write(to);
-		vphone_code_hash.write(to);
-		vphone_code.write(to);
-	}
-
-	typedef MTPUser ResponseType;
-};
-class MTPaccount_ChangePhone : public MTPBoxed<MTPaccount_changePhone> {
-public:
-	MTPaccount_ChangePhone() {
-	}
-	MTPaccount_ChangePhone(const MTPaccount_changePhone &v) : MTPBoxed<MTPaccount_changePhone>(v) {
-	}
-	MTPaccount_ChangePhone(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_changePhone>(from, end, cons) {
-	}
-	MTPaccount_ChangePhone(const MTPstring &_phone_number, const MTPstring &_phone_code_hash, const MTPstring &_phone_code) : MTPBoxed<MTPaccount_changePhone>(MTPaccount_changePhone(_phone_number, _phone_code_hash, _phone_code)) {
 	}
 };
 
@@ -15525,93 +16054,6 @@ public:
 	}
 };
 
-class MTPaccount_updateDeviceLocked { // RPC method 'account.updateDeviceLocked'
-public:
-	MTPint vperiod;
-
-	MTPaccount_updateDeviceLocked() {
-	}
-	MTPaccount_updateDeviceLocked(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_updateDeviceLocked) {
-		read(from, end, cons);
-	}
-	MTPaccount_updateDeviceLocked(MTPint _period) : vperiod(_period) {
-	}
-
-	uint32 innerLength() const {
-		return vperiod.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_account_updateDeviceLocked;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_updateDeviceLocked) {
-		vperiod.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vperiod.write(to);
-	}
-
-	typedef MTPBool ResponseType;
-};
-class MTPaccount_UpdateDeviceLocked : public MTPBoxed<MTPaccount_updateDeviceLocked> {
-public:
-	MTPaccount_UpdateDeviceLocked() {
-	}
-	MTPaccount_UpdateDeviceLocked(const MTPaccount_updateDeviceLocked &v) : MTPBoxed<MTPaccount_updateDeviceLocked>(v) {
-	}
-	MTPaccount_UpdateDeviceLocked(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_updateDeviceLocked>(from, end, cons) {
-	}
-	MTPaccount_UpdateDeviceLocked(MTPint _period) : MTPBoxed<MTPaccount_updateDeviceLocked>(MTPaccount_updateDeviceLocked(_period)) {
-	}
-};
-
-class MTPauth_importBotAuthorization { // RPC method 'auth.importBotAuthorization'
-public:
-	MTPint vflags;
-	MTPint vapi_id;
-	MTPstring vapi_hash;
-	MTPstring vbot_auth_token;
-
-	MTPauth_importBotAuthorization() {
-	}
-	MTPauth_importBotAuthorization(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_importBotAuthorization) {
-		read(from, end, cons);
-	}
-	MTPauth_importBotAuthorization(MTPint _flags, MTPint _api_id, const MTPstring &_api_hash, const MTPstring &_bot_auth_token) : vflags(_flags), vapi_id(_api_id), vapi_hash(_api_hash), vbot_auth_token(_bot_auth_token) {
-	}
-
-	uint32 innerLength() const {
-		return vflags.innerLength() + vapi_id.innerLength() + vapi_hash.innerLength() + vbot_auth_token.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_auth_importBotAuthorization;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_importBotAuthorization) {
-		vflags.read(from, end);
-		vapi_id.read(from, end);
-		vapi_hash.read(from, end);
-		vbot_auth_token.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vflags.write(to);
-		vapi_id.write(to);
-		vapi_hash.write(to);
-		vbot_auth_token.write(to);
-	}
-
-	typedef MTPauth_Authorization ResponseType;
-};
-class MTPauth_ImportBotAuthorization : public MTPBoxed<MTPauth_importBotAuthorization> {
-public:
-	MTPauth_ImportBotAuthorization() {
-	}
-	MTPauth_ImportBotAuthorization(const MTPauth_importBotAuthorization &v) : MTPBoxed<MTPauth_importBotAuthorization>(v) {
-	}
-	MTPauth_ImportBotAuthorization(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_importBotAuthorization>(from, end, cons) {
-	}
-	MTPauth_ImportBotAuthorization(MTPint _flags, MTPint _api_id, const MTPstring &_api_hash, const MTPstring &_bot_auth_token) : MTPBoxed<MTPauth_importBotAuthorization>(MTPauth_importBotAuthorization(_flags, _api_id, _api_hash, _bot_auth_token)) {
-	}
-};
-
 class MTPmessages_getWebPagePreview { // RPC method 'messages.getWebPagePreview'
 public:
 	MTPstring vmessage;
@@ -15651,346 +16093,16 @@ public:
 	}
 };
 
-class MTPaccount_getAuthorizations { // RPC method 'account.getAuthorizations'
-public:
-	MTPaccount_getAuthorizations() {
-	}
-	MTPaccount_getAuthorizations(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getAuthorizations) {
-		read(from, end, cons);
-	}
-
-	uint32 innerLength() const {
-		return 0;
-	}
-	mtpTypeId type() const {
-		return mtpc_account_getAuthorizations;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getAuthorizations) {
-	}
-	void write(mtpBuffer &to) const {
-	}
-
-	typedef MTPaccount_Authorizations ResponseType;
-};
-class MTPaccount_GetAuthorizations : public MTPBoxed<MTPaccount_getAuthorizations> {
-public:
-	MTPaccount_GetAuthorizations() {
-	}
-	MTPaccount_GetAuthorizations(const MTPaccount_getAuthorizations &v) : MTPBoxed<MTPaccount_getAuthorizations>(v) {
-	}
-	MTPaccount_GetAuthorizations(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_getAuthorizations>(from, end, cons) {
-	}
-};
-
-class MTPaccount_resetAuthorization { // RPC method 'account.resetAuthorization'
-public:
-	MTPlong vhash;
-
-	MTPaccount_resetAuthorization() {
-	}
-	MTPaccount_resetAuthorization(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_resetAuthorization) {
-		read(from, end, cons);
-	}
-	MTPaccount_resetAuthorization(const MTPlong &_hash) : vhash(_hash) {
-	}
-
-	uint32 innerLength() const {
-		return vhash.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_account_resetAuthorization;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_resetAuthorization) {
-		vhash.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vhash.write(to);
-	}
-
-	typedef MTPBool ResponseType;
-};
-class MTPaccount_ResetAuthorization : public MTPBoxed<MTPaccount_resetAuthorization> {
-public:
-	MTPaccount_ResetAuthorization() {
-	}
-	MTPaccount_ResetAuthorization(const MTPaccount_resetAuthorization &v) : MTPBoxed<MTPaccount_resetAuthorization>(v) {
-	}
-	MTPaccount_ResetAuthorization(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_resetAuthorization>(from, end, cons) {
-	}
-	MTPaccount_ResetAuthorization(const MTPlong &_hash) : MTPBoxed<MTPaccount_resetAuthorization>(MTPaccount_resetAuthorization(_hash)) {
-	}
-};
-
-class MTPaccount_getPassword { // RPC method 'account.getPassword'
-public:
-	MTPaccount_getPassword() {
-	}
-	MTPaccount_getPassword(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getPassword) {
-		read(from, end, cons);
-	}
-
-	uint32 innerLength() const {
-		return 0;
-	}
-	mtpTypeId type() const {
-		return mtpc_account_getPassword;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getPassword) {
-	}
-	void write(mtpBuffer &to) const {
-	}
-
-	typedef MTPaccount_Password ResponseType;
-};
-class MTPaccount_GetPassword : public MTPBoxed<MTPaccount_getPassword> {
-public:
-	MTPaccount_GetPassword() {
-	}
-	MTPaccount_GetPassword(const MTPaccount_getPassword &v) : MTPBoxed<MTPaccount_getPassword>(v) {
-	}
-	MTPaccount_GetPassword(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_getPassword>(from, end, cons) {
-	}
-};
-
-class MTPaccount_getPasswordSettings { // RPC method 'account.getPasswordSettings'
-public:
-	MTPbytes vcurrent_password_hash;
-
-	MTPaccount_getPasswordSettings() {
-	}
-	MTPaccount_getPasswordSettings(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getPasswordSettings) {
-		read(from, end, cons);
-	}
-	MTPaccount_getPasswordSettings(const MTPbytes &_current_password_hash) : vcurrent_password_hash(_current_password_hash) {
-	}
-
-	uint32 innerLength() const {
-		return vcurrent_password_hash.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_account_getPasswordSettings;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_getPasswordSettings) {
-		vcurrent_password_hash.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vcurrent_password_hash.write(to);
-	}
-
-	typedef MTPaccount_PasswordSettings ResponseType;
-};
-class MTPaccount_GetPasswordSettings : public MTPBoxed<MTPaccount_getPasswordSettings> {
-public:
-	MTPaccount_GetPasswordSettings() {
-	}
-	MTPaccount_GetPasswordSettings(const MTPaccount_getPasswordSettings &v) : MTPBoxed<MTPaccount_getPasswordSettings>(v) {
-	}
-	MTPaccount_GetPasswordSettings(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_getPasswordSettings>(from, end, cons) {
-	}
-	MTPaccount_GetPasswordSettings(const MTPbytes &_current_password_hash) : MTPBoxed<MTPaccount_getPasswordSettings>(MTPaccount_getPasswordSettings(_current_password_hash)) {
-	}
-};
-
-class MTPaccount_updatePasswordSettings { // RPC method 'account.updatePasswordSettings'
-public:
-	MTPbytes vcurrent_password_hash;
-	MTPaccount_PasswordInputSettings vnew_settings;
-
-	MTPaccount_updatePasswordSettings() {
-	}
-	MTPaccount_updatePasswordSettings(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_updatePasswordSettings) {
-		read(from, end, cons);
-	}
-	MTPaccount_updatePasswordSettings(const MTPbytes &_current_password_hash, const MTPaccount_PasswordInputSettings &_new_settings) : vcurrent_password_hash(_current_password_hash), vnew_settings(_new_settings) {
-	}
-
-	uint32 innerLength() const {
-		return vcurrent_password_hash.innerLength() + vnew_settings.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_account_updatePasswordSettings;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_account_updatePasswordSettings) {
-		vcurrent_password_hash.read(from, end);
-		vnew_settings.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vcurrent_password_hash.write(to);
-		vnew_settings.write(to);
-	}
-
-	typedef MTPBool ResponseType;
-};
-class MTPaccount_UpdatePasswordSettings : public MTPBoxed<MTPaccount_updatePasswordSettings> {
-public:
-	MTPaccount_UpdatePasswordSettings() {
-	}
-	MTPaccount_UpdatePasswordSettings(const MTPaccount_updatePasswordSettings &v) : MTPBoxed<MTPaccount_updatePasswordSettings>(v) {
-	}
-	MTPaccount_UpdatePasswordSettings(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPaccount_updatePasswordSettings>(from, end, cons) {
-	}
-	MTPaccount_UpdatePasswordSettings(const MTPbytes &_current_password_hash, const MTPaccount_PasswordInputSettings &_new_settings) : MTPBoxed<MTPaccount_updatePasswordSettings>(MTPaccount_updatePasswordSettings(_current_password_hash, _new_settings)) {
-	}
-};
-
-class MTPauth_checkPassword { // RPC method 'auth.checkPassword'
-public:
-	MTPbytes vpassword_hash;
-
-	MTPauth_checkPassword() {
-	}
-	MTPauth_checkPassword(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_checkPassword) {
-		read(from, end, cons);
-	}
-	MTPauth_checkPassword(const MTPbytes &_password_hash) : vpassword_hash(_password_hash) {
-	}
-
-	uint32 innerLength() const {
-		return vpassword_hash.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_auth_checkPassword;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_checkPassword) {
-		vpassword_hash.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vpassword_hash.write(to);
-	}
-
-	typedef MTPauth_Authorization ResponseType;
-};
-class MTPauth_CheckPassword : public MTPBoxed<MTPauth_checkPassword> {
-public:
-	MTPauth_CheckPassword() {
-	}
-	MTPauth_CheckPassword(const MTPauth_checkPassword &v) : MTPBoxed<MTPauth_checkPassword>(v) {
-	}
-	MTPauth_CheckPassword(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_checkPassword>(from, end, cons) {
-	}
-	MTPauth_CheckPassword(const MTPbytes &_password_hash) : MTPBoxed<MTPauth_checkPassword>(MTPauth_checkPassword(_password_hash)) {
-	}
-};
-
-class MTPauth_requestPasswordRecovery { // RPC method 'auth.requestPasswordRecovery'
-public:
-	MTPauth_requestPasswordRecovery() {
-	}
-	MTPauth_requestPasswordRecovery(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_requestPasswordRecovery) {
-		read(from, end, cons);
-	}
-
-	uint32 innerLength() const {
-		return 0;
-	}
-	mtpTypeId type() const {
-		return mtpc_auth_requestPasswordRecovery;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_requestPasswordRecovery) {
-	}
-	void write(mtpBuffer &to) const {
-	}
-
-	typedef MTPauth_PasswordRecovery ResponseType;
-};
-class MTPauth_RequestPasswordRecovery : public MTPBoxed<MTPauth_requestPasswordRecovery> {
-public:
-	MTPauth_RequestPasswordRecovery() {
-	}
-	MTPauth_RequestPasswordRecovery(const MTPauth_requestPasswordRecovery &v) : MTPBoxed<MTPauth_requestPasswordRecovery>(v) {
-	}
-	MTPauth_RequestPasswordRecovery(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_requestPasswordRecovery>(from, end, cons) {
-	}
-};
-
-class MTPauth_recoverPassword { // RPC method 'auth.recoverPassword'
-public:
-	MTPstring vcode;
-
-	MTPauth_recoverPassword() {
-	}
-	MTPauth_recoverPassword(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_recoverPassword) {
-		read(from, end, cons);
-	}
-	MTPauth_recoverPassword(const MTPstring &_code) : vcode(_code) {
-	}
-
-	uint32 innerLength() const {
-		return vcode.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_auth_recoverPassword;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_auth_recoverPassword) {
-		vcode.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vcode.write(to);
-	}
-
-	typedef MTPauth_Authorization ResponseType;
-};
-class MTPauth_RecoverPassword : public MTPBoxed<MTPauth_recoverPassword> {
-public:
-	MTPauth_RecoverPassword() {
-	}
-	MTPauth_RecoverPassword(const MTPauth_recoverPassword &v) : MTPBoxed<MTPauth_recoverPassword>(v) {
-	}
-	MTPauth_RecoverPassword(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPauth_recoverPassword>(from, end, cons) {
-	}
-	MTPauth_RecoverPassword(const MTPstring &_code) : MTPBoxed<MTPauth_recoverPassword>(MTPauth_recoverPassword(_code)) {
-	}
-};
-
-template <class TQueryType>
-class MTPinvokeWithoutUpdates { // RPC method 'invokeWithoutUpdates'
-public:
-	TQueryType vquery;
-
-	MTPinvokeWithoutUpdates() {
-	}
-	MTPinvokeWithoutUpdates(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_invokeWithoutUpdates) {
-		read(from, end, cons);
-	}
-	MTPinvokeWithoutUpdates(const TQueryType &_query) : vquery(_query) {
-	}
-
-	uint32 innerLength() const {
-		return vquery.innerLength();
-	}
-	mtpTypeId type() const {
-		return mtpc_invokeWithoutUpdates;
-	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_invokeWithoutUpdates) {
-		vquery.read(from, end);
-	}
-	void write(mtpBuffer &to) const {
-		vquery.write(to);
-	}
-
-	typedef typename TQueryType::ResponseType ResponseType;
-};
-template <typename TQueryType>
-class MTPInvokeWithoutUpdates : public MTPBoxed<MTPinvokeWithoutUpdates<TQueryType> > {
-public:
-	MTPInvokeWithoutUpdates() {
-	}
-	MTPInvokeWithoutUpdates(const MTPinvokeWithoutUpdates<TQueryType> &v) : MTPBoxed<MTPinvokeWithoutUpdates<TQueryType> >(v) {
-	}
-	MTPInvokeWithoutUpdates(const TQueryType &_query) : MTPBoxed<MTPinvokeWithoutUpdates<TQueryType> >(MTPinvokeWithoutUpdates<TQueryType>(_query)) {
-	}
-};
-
 class MTPmessages_exportChatInvite { // RPC method 'messages.exportChatInvite'
 public:
-	MTPint vchat_id;
+	MTPInputChat vchat_id;
 
 	MTPmessages_exportChatInvite() {
 	}
 	MTPmessages_exportChatInvite(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_exportChatInvite) {
 		read(from, end, cons);
 	}
-	MTPmessages_exportChatInvite(MTPint _chat_id) : vchat_id(_chat_id) {
+	MTPmessages_exportChatInvite(const MTPInputChat &_chat_id) : vchat_id(_chat_id) {
 	}
 
 	uint32 innerLength() const {
@@ -16016,7 +16128,7 @@ public:
 	}
 	MTPmessages_ExportChatInvite(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_exportChatInvite>(from, end, cons) {
 	}
-	MTPmessages_ExportChatInvite(MTPint _chat_id) : MTPBoxed<MTPmessages_exportChatInvite>(MTPmessages_exportChatInvite(_chat_id)) {
+	MTPmessages_ExportChatInvite(const MTPInputChat &_chat_id) : MTPBoxed<MTPmessages_exportChatInvite>(MTPmessages_exportChatInvite(_chat_id)) {
 	}
 };
 
@@ -16221,7 +16333,7 @@ public:
 class MTPmessages_startBot { // RPC method 'messages.startBot'
 public:
 	MTPInputUser vbot;
-	MTPint vchat_id;
+	MTPInputChat vchat_id;
 	MTPlong vrandom_id;
 	MTPstring vstart_param;
 
@@ -16230,7 +16342,7 @@ public:
 	MTPmessages_startBot(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_startBot) {
 		read(from, end, cons);
 	}
-	MTPmessages_startBot(const MTPInputUser &_bot, MTPint _chat_id, const MTPlong &_random_id, const MTPstring &_start_param) : vbot(_bot), vchat_id(_chat_id), vrandom_id(_random_id), vstart_param(_start_param) {
+	MTPmessages_startBot(const MTPInputUser &_bot, const MTPInputChat &_chat_id, const MTPlong &_random_id, const MTPstring &_start_param) : vbot(_bot), vchat_id(_chat_id), vrandom_id(_random_id), vstart_param(_start_param) {
 	}
 
 	uint32 innerLength() const {
@@ -16262,7 +16374,878 @@ public:
 	}
 	MTPmessages_StartBot(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_startBot>(from, end, cons) {
 	}
-	MTPmessages_StartBot(const MTPInputUser &_bot, MTPint _chat_id, const MTPlong &_random_id, const MTPstring &_start_param) : MTPBoxed<MTPmessages_startBot>(MTPmessages_startBot(_bot, _chat_id, _random_id, _start_param)) {
+	MTPmessages_StartBot(const MTPInputUser &_bot, const MTPInputChat &_chat_id, const MTPlong &_random_id, const MTPstring &_start_param) : MTPBoxed<MTPmessages_startBot>(MTPmessages_startBot(_bot, _chat_id, _random_id, _start_param)) {
+	}
+};
+
+class MTPmessages_getChannelDialogs { // RPC method 'messages.getChannelDialogs'
+public:
+	MTPint voffset;
+	MTPint vlimit;
+
+	MTPmessages_getChannelDialogs() {
+	}
+	MTPmessages_getChannelDialogs(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getChannelDialogs) {
+		read(from, end, cons);
+	}
+	MTPmessages_getChannelDialogs(MTPint _offset, MTPint _limit) : voffset(_offset), vlimit(_limit) {
+	}
+
+	uint32 innerLength() const {
+		return voffset.innerLength() + vlimit.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_messages_getChannelDialogs;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getChannelDialogs) {
+		voffset.read(from, end);
+		vlimit.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		voffset.write(to);
+		vlimit.write(to);
+	}
+
+	typedef MTPmessages_Dialogs ResponseType;
+};
+class MTPmessages_GetChannelDialogs : public MTPBoxed<MTPmessages_getChannelDialogs> {
+public:
+	MTPmessages_GetChannelDialogs() {
+	}
+	MTPmessages_GetChannelDialogs(const MTPmessages_getChannelDialogs &v) : MTPBoxed<MTPmessages_getChannelDialogs>(v) {
+	}
+	MTPmessages_GetChannelDialogs(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getChannelDialogs>(from, end, cons) {
+	}
+	MTPmessages_GetChannelDialogs(MTPint _offset, MTPint _limit) : MTPBoxed<MTPmessages_getChannelDialogs>(MTPmessages_getChannelDialogs(_offset, _limit)) {
+	}
+};
+
+class MTPmessages_getImportantHistory { // RPC method 'messages.getImportantHistory'
+public:
+	MTPInputPeer vpeer;
+	MTPint vmax_id;
+	MTPint vmin_id;
+	MTPint vlimit;
+
+	MTPmessages_getImportantHistory() {
+	}
+	MTPmessages_getImportantHistory(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getImportantHistory) {
+		read(from, end, cons);
+	}
+	MTPmessages_getImportantHistory(const MTPInputPeer &_peer, MTPint _max_id, MTPint _min_id, MTPint _limit) : vpeer(_peer), vmax_id(_max_id), vmin_id(_min_id), vlimit(_limit) {
+	}
+
+	uint32 innerLength() const {
+		return vpeer.innerLength() + vmax_id.innerLength() + vmin_id.innerLength() + vlimit.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_messages_getImportantHistory;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_getImportantHistory) {
+		vpeer.read(from, end);
+		vmax_id.read(from, end);
+		vmin_id.read(from, end);
+		vlimit.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vpeer.write(to);
+		vmax_id.write(to);
+		vmin_id.write(to);
+		vlimit.write(to);
+	}
+
+	typedef MTPmessages_Messages ResponseType;
+};
+class MTPmessages_GetImportantHistory : public MTPBoxed<MTPmessages_getImportantHistory> {
+public:
+	MTPmessages_GetImportantHistory() {
+	}
+	MTPmessages_GetImportantHistory(const MTPmessages_getImportantHistory &v) : MTPBoxed<MTPmessages_getImportantHistory>(v) {
+	}
+	MTPmessages_GetImportantHistory(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_getImportantHistory>(from, end, cons) {
+	}
+	MTPmessages_GetImportantHistory(const MTPInputPeer &_peer, MTPint _max_id, MTPint _min_id, MTPint _limit) : MTPBoxed<MTPmessages_getImportantHistory>(MTPmessages_getImportantHistory(_peer, _max_id, _min_id, _limit)) {
+	}
+};
+
+class MTPmessages_readChannelHistory { // RPC method 'messages.readChannelHistory'
+public:
+	MTPInputPeer vpeer;
+	MTPint vmax_id;
+
+	MTPmessages_readChannelHistory() {
+	}
+	MTPmessages_readChannelHistory(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_readChannelHistory) {
+		read(from, end, cons);
+	}
+	MTPmessages_readChannelHistory(const MTPInputPeer &_peer, MTPint _max_id) : vpeer(_peer), vmax_id(_max_id) {
+	}
+
+	uint32 innerLength() const {
+		return vpeer.innerLength() + vmax_id.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_messages_readChannelHistory;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_readChannelHistory) {
+		vpeer.read(from, end);
+		vmax_id.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vpeer.write(to);
+		vmax_id.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPmessages_ReadChannelHistory : public MTPBoxed<MTPmessages_readChannelHistory> {
+public:
+	MTPmessages_ReadChannelHistory() {
+	}
+	MTPmessages_ReadChannelHistory(const MTPmessages_readChannelHistory &v) : MTPBoxed<MTPmessages_readChannelHistory>(v) {
+	}
+	MTPmessages_ReadChannelHistory(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_readChannelHistory>(from, end, cons) {
+	}
+	MTPmessages_ReadChannelHistory(const MTPInputPeer &_peer, MTPint _max_id) : MTPBoxed<MTPmessages_readChannelHistory>(MTPmessages_readChannelHistory(_peer, _max_id)) {
+	}
+};
+
+class MTPmessages_createChannel { // RPC method 'messages.createChannel'
+public:
+	MTPstring vtitle;
+
+	MTPmessages_createChannel() {
+	}
+	MTPmessages_createChannel(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_createChannel) {
+		read(from, end, cons);
+	}
+	MTPmessages_createChannel(const MTPstring &_title) : vtitle(_title) {
+	}
+
+	uint32 innerLength() const {
+		return vtitle.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_messages_createChannel;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_createChannel) {
+		vtitle.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vtitle.write(to);
+	}
+
+	typedef MTPUpdates ResponseType;
+};
+class MTPmessages_CreateChannel : public MTPBoxed<MTPmessages_createChannel> {
+public:
+	MTPmessages_CreateChannel() {
+	}
+	MTPmessages_CreateChannel(const MTPmessages_createChannel &v) : MTPBoxed<MTPmessages_createChannel>(v) {
+	}
+	MTPmessages_CreateChannel(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_createChannel>(from, end, cons) {
+	}
+	MTPmessages_CreateChannel(const MTPstring &_title) : MTPBoxed<MTPmessages_createChannel>(MTPmessages_createChannel(_title)) {
+	}
+};
+
+class MTPmessages_deleteChannelMessages { // RPC method 'messages.deleteChannelMessages'
+public:
+	MTPInputPeer vpeer;
+	MTPVector<MTPint> vid;
+
+	MTPmessages_deleteChannelMessages() {
+	}
+	MTPmessages_deleteChannelMessages(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_deleteChannelMessages) {
+		read(from, end, cons);
+	}
+	MTPmessages_deleteChannelMessages(const MTPInputPeer &_peer, const MTPVector<MTPint> &_id) : vpeer(_peer), vid(_id) {
+	}
+
+	uint32 innerLength() const {
+		return vpeer.innerLength() + vid.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_messages_deleteChannelMessages;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_deleteChannelMessages) {
+		vpeer.read(from, end);
+		vid.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vpeer.write(to);
+		vid.write(to);
+	}
+
+	typedef MTPmessages_AffectedMessages ResponseType;
+};
+class MTPmessages_DeleteChannelMessages : public MTPBoxed<MTPmessages_deleteChannelMessages> {
+public:
+	MTPmessages_DeleteChannelMessages() {
+	}
+	MTPmessages_DeleteChannelMessages(const MTPmessages_deleteChannelMessages &v) : MTPBoxed<MTPmessages_deleteChannelMessages>(v) {
+	}
+	MTPmessages_DeleteChannelMessages(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_deleteChannelMessages>(from, end, cons) {
+	}
+	MTPmessages_DeleteChannelMessages(const MTPInputPeer &_peer, const MTPVector<MTPint> &_id) : MTPBoxed<MTPmessages_deleteChannelMessages>(MTPmessages_deleteChannelMessages(_peer, _id)) {
+	}
+};
+
+class MTPupdates_getState { // RPC method 'updates.getState'
+public:
+	MTPupdates_getState() {
+	}
+	MTPupdates_getState(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_updates_getState) {
+		read(from, end, cons);
+	}
+
+	uint32 innerLength() const {
+		return 0;
+	}
+	mtpTypeId type() const {
+		return mtpc_updates_getState;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_updates_getState) {
+	}
+	void write(mtpBuffer &to) const {
+	}
+
+	typedef MTPupdates_State ResponseType;
+};
+class MTPupdates_GetState : public MTPBoxed<MTPupdates_getState> {
+public:
+	MTPupdates_GetState() {
+	}
+	MTPupdates_GetState(const MTPupdates_getState &v) : MTPBoxed<MTPupdates_getState>(v) {
+	}
+	MTPupdates_GetState(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPupdates_getState>(from, end, cons) {
+	}
+};
+
+class MTPupdates_getDifference { // RPC method 'updates.getDifference'
+public:
+	MTPint vpts;
+	MTPint vdate;
+	MTPint vqts;
+
+	MTPupdates_getDifference() {
+	}
+	MTPupdates_getDifference(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_updates_getDifference) {
+		read(from, end, cons);
+	}
+	MTPupdates_getDifference(MTPint _pts, MTPint _date, MTPint _qts) : vpts(_pts), vdate(_date), vqts(_qts) {
+	}
+
+	uint32 innerLength() const {
+		return vpts.innerLength() + vdate.innerLength() + vqts.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_updates_getDifference;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_updates_getDifference) {
+		vpts.read(from, end);
+		vdate.read(from, end);
+		vqts.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vpts.write(to);
+		vdate.write(to);
+		vqts.write(to);
+	}
+
+	typedef MTPupdates_Difference ResponseType;
+};
+class MTPupdates_GetDifference : public MTPBoxed<MTPupdates_getDifference> {
+public:
+	MTPupdates_GetDifference() {
+	}
+	MTPupdates_GetDifference(const MTPupdates_getDifference &v) : MTPBoxed<MTPupdates_getDifference>(v) {
+	}
+	MTPupdates_GetDifference(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPupdates_getDifference>(from, end, cons) {
+	}
+	MTPupdates_GetDifference(MTPint _pts, MTPint _date, MTPint _qts) : MTPBoxed<MTPupdates_getDifference>(MTPupdates_getDifference(_pts, _date, _qts)) {
+	}
+};
+
+class MTPupdates_getChannelDifference { // RPC method 'updates.getChannelDifference'
+public:
+	MTPInputPeer vpeer;
+	MTPChannelMessagesFilter vfilter;
+	MTPint vpts;
+	MTPint vlimit;
+
+	MTPupdates_getChannelDifference() {
+	}
+	MTPupdates_getChannelDifference(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_updates_getChannelDifference) {
+		read(from, end, cons);
+	}
+	MTPupdates_getChannelDifference(const MTPInputPeer &_peer, const MTPChannelMessagesFilter &_filter, MTPint _pts, MTPint _limit) : vpeer(_peer), vfilter(_filter), vpts(_pts), vlimit(_limit) {
+	}
+
+	uint32 innerLength() const {
+		return vpeer.innerLength() + vfilter.innerLength() + vpts.innerLength() + vlimit.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_updates_getChannelDifference;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_updates_getChannelDifference) {
+		vpeer.read(from, end);
+		vfilter.read(from, end);
+		vpts.read(from, end);
+		vlimit.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vpeer.write(to);
+		vfilter.write(to);
+		vpts.write(to);
+		vlimit.write(to);
+	}
+
+	typedef MTPupdates_ChannelDifference ResponseType;
+};
+class MTPupdates_GetChannelDifference : public MTPBoxed<MTPupdates_getChannelDifference> {
+public:
+	MTPupdates_GetChannelDifference() {
+	}
+	MTPupdates_GetChannelDifference(const MTPupdates_getChannelDifference &v) : MTPBoxed<MTPupdates_getChannelDifference>(v) {
+	}
+	MTPupdates_GetChannelDifference(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPupdates_getChannelDifference>(from, end, cons) {
+	}
+	MTPupdates_GetChannelDifference(const MTPInputPeer &_peer, const MTPChannelMessagesFilter &_filter, MTPint _pts, MTPint _limit) : MTPBoxed<MTPupdates_getChannelDifference>(MTPupdates_getChannelDifference(_peer, _filter, _pts, _limit)) {
+	}
+};
+
+class MTPphotos_updateProfilePhoto { // RPC method 'photos.updateProfilePhoto'
+public:
+	MTPInputPhoto vid;
+	MTPInputPhotoCrop vcrop;
+
+	MTPphotos_updateProfilePhoto() {
+	}
+	MTPphotos_updateProfilePhoto(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_updateProfilePhoto) {
+		read(from, end, cons);
+	}
+	MTPphotos_updateProfilePhoto(const MTPInputPhoto &_id, const MTPInputPhotoCrop &_crop) : vid(_id), vcrop(_crop) {
+	}
+
+	uint32 innerLength() const {
+		return vid.innerLength() + vcrop.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_photos_updateProfilePhoto;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_updateProfilePhoto) {
+		vid.read(from, end);
+		vcrop.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vid.write(to);
+		vcrop.write(to);
+	}
+
+	typedef MTPUserProfilePhoto ResponseType;
+};
+class MTPphotos_UpdateProfilePhoto : public MTPBoxed<MTPphotos_updateProfilePhoto> {
+public:
+	MTPphotos_UpdateProfilePhoto() {
+	}
+	MTPphotos_UpdateProfilePhoto(const MTPphotos_updateProfilePhoto &v) : MTPBoxed<MTPphotos_updateProfilePhoto>(v) {
+	}
+	MTPphotos_UpdateProfilePhoto(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPphotos_updateProfilePhoto>(from, end, cons) {
+	}
+	MTPphotos_UpdateProfilePhoto(const MTPInputPhoto &_id, const MTPInputPhotoCrop &_crop) : MTPBoxed<MTPphotos_updateProfilePhoto>(MTPphotos_updateProfilePhoto(_id, _crop)) {
+	}
+};
+
+class MTPphotos_uploadProfilePhoto { // RPC method 'photos.uploadProfilePhoto'
+public:
+	MTPInputFile vfile;
+	MTPstring vcaption;
+	MTPInputGeoPoint vgeo_point;
+	MTPInputPhotoCrop vcrop;
+
+	MTPphotos_uploadProfilePhoto() {
+	}
+	MTPphotos_uploadProfilePhoto(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_uploadProfilePhoto) {
+		read(from, end, cons);
+	}
+	MTPphotos_uploadProfilePhoto(const MTPInputFile &_file, const MTPstring &_caption, const MTPInputGeoPoint &_geo_point, const MTPInputPhotoCrop &_crop) : vfile(_file), vcaption(_caption), vgeo_point(_geo_point), vcrop(_crop) {
+	}
+
+	uint32 innerLength() const {
+		return vfile.innerLength() + vcaption.innerLength() + vgeo_point.innerLength() + vcrop.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_photos_uploadProfilePhoto;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_uploadProfilePhoto) {
+		vfile.read(from, end);
+		vcaption.read(from, end);
+		vgeo_point.read(from, end);
+		vcrop.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vfile.write(to);
+		vcaption.write(to);
+		vgeo_point.write(to);
+		vcrop.write(to);
+	}
+
+	typedef MTPphotos_Photo ResponseType;
+};
+class MTPphotos_UploadProfilePhoto : public MTPBoxed<MTPphotos_uploadProfilePhoto> {
+public:
+	MTPphotos_UploadProfilePhoto() {
+	}
+	MTPphotos_UploadProfilePhoto(const MTPphotos_uploadProfilePhoto &v) : MTPBoxed<MTPphotos_uploadProfilePhoto>(v) {
+	}
+	MTPphotos_UploadProfilePhoto(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPphotos_uploadProfilePhoto>(from, end, cons) {
+	}
+	MTPphotos_UploadProfilePhoto(const MTPInputFile &_file, const MTPstring &_caption, const MTPInputGeoPoint &_geo_point, const MTPInputPhotoCrop &_crop) : MTPBoxed<MTPphotos_uploadProfilePhoto>(MTPphotos_uploadProfilePhoto(_file, _caption, _geo_point, _crop)) {
+	}
+};
+
+class MTPphotos_deletePhotos { // RPC method 'photos.deletePhotos'
+public:
+	MTPVector<MTPInputPhoto> vid;
+
+	MTPphotos_deletePhotos() {
+	}
+	MTPphotos_deletePhotos(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_deletePhotos) {
+		read(from, end, cons);
+	}
+	MTPphotos_deletePhotos(const MTPVector<MTPInputPhoto> &_id) : vid(_id) {
+	}
+
+	uint32 innerLength() const {
+		return vid.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_photos_deletePhotos;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_deletePhotos) {
+		vid.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vid.write(to);
+	}
+
+	typedef MTPVector<MTPlong> ResponseType;
+};
+class MTPphotos_DeletePhotos : public MTPBoxed<MTPphotos_deletePhotos> {
+public:
+	MTPphotos_DeletePhotos() {
+	}
+	MTPphotos_DeletePhotos(const MTPphotos_deletePhotos &v) : MTPBoxed<MTPphotos_deletePhotos>(v) {
+	}
+	MTPphotos_DeletePhotos(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPphotos_deletePhotos>(from, end, cons) {
+	}
+	MTPphotos_DeletePhotos(const MTPVector<MTPInputPhoto> &_id) : MTPBoxed<MTPphotos_deletePhotos>(MTPphotos_deletePhotos(_id)) {
+	}
+};
+
+class MTPphotos_getUserPhotos { // RPC method 'photos.getUserPhotos'
+public:
+	MTPInputUser vuser_id;
+	MTPint voffset;
+	MTPlong vmax_id;
+	MTPint vlimit;
+
+	MTPphotos_getUserPhotos() {
+	}
+	MTPphotos_getUserPhotos(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_getUserPhotos) {
+		read(from, end, cons);
+	}
+	MTPphotos_getUserPhotos(const MTPInputUser &_user_id, MTPint _offset, const MTPlong &_max_id, MTPint _limit) : vuser_id(_user_id), voffset(_offset), vmax_id(_max_id), vlimit(_limit) {
+	}
+
+	uint32 innerLength() const {
+		return vuser_id.innerLength() + voffset.innerLength() + vmax_id.innerLength() + vlimit.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_photos_getUserPhotos;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_photos_getUserPhotos) {
+		vuser_id.read(from, end);
+		voffset.read(from, end);
+		vmax_id.read(from, end);
+		vlimit.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vuser_id.write(to);
+		voffset.write(to);
+		vmax_id.write(to);
+		vlimit.write(to);
+	}
+
+	typedef MTPphotos_Photos ResponseType;
+};
+class MTPphotos_GetUserPhotos : public MTPBoxed<MTPphotos_getUserPhotos> {
+public:
+	MTPphotos_GetUserPhotos() {
+	}
+	MTPphotos_GetUserPhotos(const MTPphotos_getUserPhotos &v) : MTPBoxed<MTPphotos_getUserPhotos>(v) {
+	}
+	MTPphotos_GetUserPhotos(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPphotos_getUserPhotos>(from, end, cons) {
+	}
+	MTPphotos_GetUserPhotos(const MTPInputUser &_user_id, MTPint _offset, const MTPlong &_max_id, MTPint _limit) : MTPBoxed<MTPphotos_getUserPhotos>(MTPphotos_getUserPhotos(_user_id, _offset, _max_id, _limit)) {
+	}
+};
+
+class MTPupload_saveFilePart { // RPC method 'upload.saveFilePart'
+public:
+	MTPlong vfile_id;
+	MTPint vfile_part;
+	MTPbytes vbytes;
+
+	MTPupload_saveFilePart() {
+	}
+	MTPupload_saveFilePart(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_upload_saveFilePart) {
+		read(from, end, cons);
+	}
+	MTPupload_saveFilePart(const MTPlong &_file_id, MTPint _file_part, const MTPbytes &_bytes) : vfile_id(_file_id), vfile_part(_file_part), vbytes(_bytes) {
+	}
+
+	uint32 innerLength() const {
+		return vfile_id.innerLength() + vfile_part.innerLength() + vbytes.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_upload_saveFilePart;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_upload_saveFilePart) {
+		vfile_id.read(from, end);
+		vfile_part.read(from, end);
+		vbytes.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vfile_id.write(to);
+		vfile_part.write(to);
+		vbytes.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPupload_SaveFilePart : public MTPBoxed<MTPupload_saveFilePart> {
+public:
+	MTPupload_SaveFilePart() {
+	}
+	MTPupload_SaveFilePart(const MTPupload_saveFilePart &v) : MTPBoxed<MTPupload_saveFilePart>(v) {
+	}
+	MTPupload_SaveFilePart(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPupload_saveFilePart>(from, end, cons) {
+	}
+	MTPupload_SaveFilePart(const MTPlong &_file_id, MTPint _file_part, const MTPbytes &_bytes) : MTPBoxed<MTPupload_saveFilePart>(MTPupload_saveFilePart(_file_id, _file_part, _bytes)) {
+	}
+};
+
+class MTPupload_getFile { // RPC method 'upload.getFile'
+public:
+	MTPInputFileLocation vlocation;
+	MTPint voffset;
+	MTPint vlimit;
+
+	MTPupload_getFile() {
+	}
+	MTPupload_getFile(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_upload_getFile) {
+		read(from, end, cons);
+	}
+	MTPupload_getFile(const MTPInputFileLocation &_location, MTPint _offset, MTPint _limit) : vlocation(_location), voffset(_offset), vlimit(_limit) {
+	}
+
+	uint32 innerLength() const {
+		return vlocation.innerLength() + voffset.innerLength() + vlimit.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_upload_getFile;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_upload_getFile) {
+		vlocation.read(from, end);
+		voffset.read(from, end);
+		vlimit.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vlocation.write(to);
+		voffset.write(to);
+		vlimit.write(to);
+	}
+
+	typedef MTPupload_File ResponseType;
+};
+class MTPupload_GetFile : public MTPBoxed<MTPupload_getFile> {
+public:
+	MTPupload_GetFile() {
+	}
+	MTPupload_GetFile(const MTPupload_getFile &v) : MTPBoxed<MTPupload_getFile>(v) {
+	}
+	MTPupload_GetFile(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPupload_getFile>(from, end, cons) {
+	}
+	MTPupload_GetFile(const MTPInputFileLocation &_location, MTPint _offset, MTPint _limit) : MTPBoxed<MTPupload_getFile>(MTPupload_getFile(_location, _offset, _limit)) {
+	}
+};
+
+class MTPupload_saveBigFilePart { // RPC method 'upload.saveBigFilePart'
+public:
+	MTPlong vfile_id;
+	MTPint vfile_part;
+	MTPint vfile_total_parts;
+	MTPbytes vbytes;
+
+	MTPupload_saveBigFilePart() {
+	}
+	MTPupload_saveBigFilePart(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_upload_saveBigFilePart) {
+		read(from, end, cons);
+	}
+	MTPupload_saveBigFilePart(const MTPlong &_file_id, MTPint _file_part, MTPint _file_total_parts, const MTPbytes &_bytes) : vfile_id(_file_id), vfile_part(_file_part), vfile_total_parts(_file_total_parts), vbytes(_bytes) {
+	}
+
+	uint32 innerLength() const {
+		return vfile_id.innerLength() + vfile_part.innerLength() + vfile_total_parts.innerLength() + vbytes.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_upload_saveBigFilePart;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_upload_saveBigFilePart) {
+		vfile_id.read(from, end);
+		vfile_part.read(from, end);
+		vfile_total_parts.read(from, end);
+		vbytes.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vfile_id.write(to);
+		vfile_part.write(to);
+		vfile_total_parts.write(to);
+		vbytes.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPupload_SaveBigFilePart : public MTPBoxed<MTPupload_saveBigFilePart> {
+public:
+	MTPupload_SaveBigFilePart() {
+	}
+	MTPupload_SaveBigFilePart(const MTPupload_saveBigFilePart &v) : MTPBoxed<MTPupload_saveBigFilePart>(v) {
+	}
+	MTPupload_SaveBigFilePart(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPupload_saveBigFilePart>(from, end, cons) {
+	}
+	MTPupload_SaveBigFilePart(const MTPlong &_file_id, MTPint _file_part, MTPint _file_total_parts, const MTPbytes &_bytes) : MTPBoxed<MTPupload_saveBigFilePart>(MTPupload_saveBigFilePart(_file_id, _file_part, _file_total_parts, _bytes)) {
+	}
+};
+
+class MTPhelp_getConfig { // RPC method 'help.getConfig'
+public:
+	MTPhelp_getConfig() {
+	}
+	MTPhelp_getConfig(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getConfig) {
+		read(from, end, cons);
+	}
+
+	uint32 innerLength() const {
+		return 0;
+	}
+	mtpTypeId type() const {
+		return mtpc_help_getConfig;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getConfig) {
+	}
+	void write(mtpBuffer &to) const {
+	}
+
+	typedef MTPConfig ResponseType;
+};
+class MTPhelp_GetConfig : public MTPBoxed<MTPhelp_getConfig> {
+public:
+	MTPhelp_GetConfig() {
+	}
+	MTPhelp_GetConfig(const MTPhelp_getConfig &v) : MTPBoxed<MTPhelp_getConfig>(v) {
+	}
+	MTPhelp_GetConfig(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPhelp_getConfig>(from, end, cons) {
+	}
+};
+
+class MTPhelp_getNearestDc { // RPC method 'help.getNearestDc'
+public:
+	MTPhelp_getNearestDc() {
+	}
+	MTPhelp_getNearestDc(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getNearestDc) {
+		read(from, end, cons);
+	}
+
+	uint32 innerLength() const {
+		return 0;
+	}
+	mtpTypeId type() const {
+		return mtpc_help_getNearestDc;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getNearestDc) {
+	}
+	void write(mtpBuffer &to) const {
+	}
+
+	typedef MTPNearestDc ResponseType;
+};
+class MTPhelp_GetNearestDc : public MTPBoxed<MTPhelp_getNearestDc> {
+public:
+	MTPhelp_GetNearestDc() {
+	}
+	MTPhelp_GetNearestDc(const MTPhelp_getNearestDc &v) : MTPBoxed<MTPhelp_getNearestDc>(v) {
+	}
+	MTPhelp_GetNearestDc(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPhelp_getNearestDc>(from, end, cons) {
+	}
+};
+
+class MTPhelp_getAppUpdate { // RPC method 'help.getAppUpdate'
+public:
+	MTPstring vdevice_model;
+	MTPstring vsystem_version;
+	MTPstring vapp_version;
+	MTPstring vlang_code;
+
+	MTPhelp_getAppUpdate() {
+	}
+	MTPhelp_getAppUpdate(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getAppUpdate) {
+		read(from, end, cons);
+	}
+	MTPhelp_getAppUpdate(const MTPstring &_device_model, const MTPstring &_system_version, const MTPstring &_app_version, const MTPstring &_lang_code) : vdevice_model(_device_model), vsystem_version(_system_version), vapp_version(_app_version), vlang_code(_lang_code) {
+	}
+
+	uint32 innerLength() const {
+		return vdevice_model.innerLength() + vsystem_version.innerLength() + vapp_version.innerLength() + vlang_code.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_help_getAppUpdate;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getAppUpdate) {
+		vdevice_model.read(from, end);
+		vsystem_version.read(from, end);
+		vapp_version.read(from, end);
+		vlang_code.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vdevice_model.write(to);
+		vsystem_version.write(to);
+		vapp_version.write(to);
+		vlang_code.write(to);
+	}
+
+	typedef MTPhelp_AppUpdate ResponseType;
+};
+class MTPhelp_GetAppUpdate : public MTPBoxed<MTPhelp_getAppUpdate> {
+public:
+	MTPhelp_GetAppUpdate() {
+	}
+	MTPhelp_GetAppUpdate(const MTPhelp_getAppUpdate &v) : MTPBoxed<MTPhelp_getAppUpdate>(v) {
+	}
+	MTPhelp_GetAppUpdate(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPhelp_getAppUpdate>(from, end, cons) {
+	}
+	MTPhelp_GetAppUpdate(const MTPstring &_device_model, const MTPstring &_system_version, const MTPstring &_app_version, const MTPstring &_lang_code) : MTPBoxed<MTPhelp_getAppUpdate>(MTPhelp_getAppUpdate(_device_model, _system_version, _app_version, _lang_code)) {
+	}
+};
+
+class MTPhelp_saveAppLog { // RPC method 'help.saveAppLog'
+public:
+	MTPVector<MTPInputAppEvent> vevents;
+
+	MTPhelp_saveAppLog() {
+	}
+	MTPhelp_saveAppLog(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_saveAppLog) {
+		read(from, end, cons);
+	}
+	MTPhelp_saveAppLog(const MTPVector<MTPInputAppEvent> &_events) : vevents(_events) {
+	}
+
+	uint32 innerLength() const {
+		return vevents.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_help_saveAppLog;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_saveAppLog) {
+		vevents.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vevents.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPhelp_SaveAppLog : public MTPBoxed<MTPhelp_saveAppLog> {
+public:
+	MTPhelp_SaveAppLog() {
+	}
+	MTPhelp_SaveAppLog(const MTPhelp_saveAppLog &v) : MTPBoxed<MTPhelp_saveAppLog>(v) {
+	}
+	MTPhelp_SaveAppLog(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPhelp_saveAppLog>(from, end, cons) {
+	}
+	MTPhelp_SaveAppLog(const MTPVector<MTPInputAppEvent> &_events) : MTPBoxed<MTPhelp_saveAppLog>(MTPhelp_saveAppLog(_events)) {
+	}
+};
+
+class MTPhelp_getInviteText { // RPC method 'help.getInviteText'
+public:
+	MTPstring vlang_code;
+
+	MTPhelp_getInviteText() {
+	}
+	MTPhelp_getInviteText(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getInviteText) {
+		read(from, end, cons);
+	}
+	MTPhelp_getInviteText(const MTPstring &_lang_code) : vlang_code(_lang_code) {
+	}
+
+	uint32 innerLength() const {
+		return vlang_code.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_help_getInviteText;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getInviteText) {
+		vlang_code.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vlang_code.write(to);
+	}
+
+	typedef MTPhelp_InviteText ResponseType;
+};
+class MTPhelp_GetInviteText : public MTPBoxed<MTPhelp_getInviteText> {
+public:
+	MTPhelp_GetInviteText() {
+	}
+	MTPhelp_GetInviteText(const MTPhelp_getInviteText &v) : MTPBoxed<MTPhelp_getInviteText>(v) {
+	}
+	MTPhelp_GetInviteText(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPhelp_getInviteText>(from, end, cons) {
+	}
+	MTPhelp_GetInviteText(const MTPstring &_lang_code) : MTPBoxed<MTPhelp_getInviteText>(MTPhelp_getInviteText(_lang_code)) {
+	}
+};
+
+class MTPhelp_getSupport { // RPC method 'help.getSupport'
+public:
+	MTPhelp_getSupport() {
+	}
+	MTPhelp_getSupport(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getSupport) {
+		read(from, end, cons);
+	}
+
+	uint32 innerLength() const {
+		return 0;
+	}
+	mtpTypeId type() const {
+		return mtpc_help_getSupport;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_help_getSupport) {
+	}
+	void write(mtpBuffer &to) const {
+	}
+
+	typedef MTPhelp_Support ResponseType;
+};
+class MTPhelp_GetSupport : public MTPBoxed<MTPhelp_getSupport> {
+public:
+	MTPhelp_GetSupport() {
+	}
+	MTPhelp_GetSupport(const MTPhelp_getSupport &v) : MTPBoxed<MTPhelp_getSupport>(v) {
+	}
+	MTPhelp_GetSupport(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPhelp_getSupport>(from, end, cons) {
 	}
 };
 
@@ -17262,6 +18245,10 @@ inline uint32 MTPinputPeer::innerLength() const {
 			const MTPDinputPeerUser &v(c_inputPeerUser());
 			return v.vuser_id.innerLength() + v.vaccess_hash.innerLength();
 		}
+		case mtpc_inputPeerChannel: {
+			const MTPDinputPeerChannel &v(c_inputPeerChannel());
+			return v.vchannel_id.innerLength() + v.vaccess_hash.innerLength();
+		}
 	}
 	return 0;
 }
@@ -17285,6 +18272,12 @@ inline void MTPinputPeer::read(const mtpPrime *&from, const mtpPrime *end, mtpTy
 			v.vuser_id.read(from, end);
 			v.vaccess_hash.read(from, end);
 		} break;
+		case mtpc_inputPeerChannel: _type = cons; {
+			if (!data) setData(new MTPDinputPeerChannel());
+			MTPDinputPeerChannel &v(_inputPeerChannel());
+			v.vchannel_id.read(from, end);
+			v.vaccess_hash.read(from, end);
+		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputPeer");
 	}
 }
@@ -17299,6 +18292,11 @@ inline void MTPinputPeer::write(mtpBuffer &to) const {
 			v.vuser_id.write(to);
 			v.vaccess_hash.write(to);
 		} break;
+		case mtpc_inputPeerChannel: {
+			const MTPDinputPeerChannel &v(c_inputPeerChannel());
+			v.vchannel_id.write(to);
+			v.vaccess_hash.write(to);
+		} break;
 	}
 }
 inline MTPinputPeer::MTPinputPeer(mtpTypeId type) : mtpDataOwner(0), _type(type) {
@@ -17307,12 +18305,15 @@ inline MTPinputPeer::MTPinputPeer(mtpTypeId type) : mtpDataOwner(0), _type(type)
 		case mtpc_inputPeerSelf: break;
 		case mtpc_inputPeerChat: setData(new MTPDinputPeerChat()); break;
 		case mtpc_inputPeerUser: setData(new MTPDinputPeerUser()); break;
+		case mtpc_inputPeerChannel: setData(new MTPDinputPeerChannel()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputPeer");
 	}
 }
 inline MTPinputPeer::MTPinputPeer(MTPDinputPeerChat *_data) : mtpDataOwner(_data), _type(mtpc_inputPeerChat) {
 }
 inline MTPinputPeer::MTPinputPeer(MTPDinputPeerUser *_data) : mtpDataOwner(_data), _type(mtpc_inputPeerUser) {
+}
+inline MTPinputPeer::MTPinputPeer(MTPDinputPeerChannel *_data) : mtpDataOwner(_data), _type(mtpc_inputPeerChannel) {
 }
 inline MTPinputPeer MTP_inputPeerEmpty() {
 	return MTPinputPeer(mtpc_inputPeerEmpty);
@@ -17325,6 +18326,9 @@ inline MTPinputPeer MTP_inputPeerChat(MTPint _chat_id) {
 }
 inline MTPinputPeer MTP_inputPeerUser(MTPint _user_id, const MTPlong &_access_hash) {
 	return MTPinputPeer(new MTPDinputPeerUser(_user_id, _access_hash));
+}
+inline MTPinputPeer MTP_inputPeerChannel(MTPint _channel_id, const MTPlong &_access_hash) {
+	return MTPinputPeer(new MTPDinputPeerChannel(_channel_id, _access_hash));
 }
 
 inline uint32 MTPinputUser::innerLength() const {
@@ -18273,6 +19277,10 @@ inline uint32 MTPpeer::innerLength() const {
 			const MTPDpeerChat &v(c_peerChat());
 			return v.vchat_id.innerLength();
 		}
+		case mtpc_peerChannel: {
+			const MTPDpeerChannel &v(c_peerChannel());
+			return v.vchannel_id.innerLength();
+		}
 	}
 	return 0;
 }
@@ -18293,6 +19301,11 @@ inline void MTPpeer::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId 
 			MTPDpeerChat &v(_peerChat());
 			v.vchat_id.read(from, end);
 		} break;
+		case mtpc_peerChannel: _type = cons; {
+			if (!data) setData(new MTPDpeerChannel());
+			MTPDpeerChannel &v(_peerChannel());
+			v.vchannel_id.read(from, end);
+		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPpeer");
 	}
 }
@@ -18306,12 +19319,17 @@ inline void MTPpeer::write(mtpBuffer &to) const {
 			const MTPDpeerChat &v(c_peerChat());
 			v.vchat_id.write(to);
 		} break;
+		case mtpc_peerChannel: {
+			const MTPDpeerChannel &v(c_peerChannel());
+			v.vchannel_id.write(to);
+		} break;
 	}
 }
 inline MTPpeer::MTPpeer(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_peerUser: setData(new MTPDpeerUser()); break;
 		case mtpc_peerChat: setData(new MTPDpeerChat()); break;
+		case mtpc_peerChannel: setData(new MTPDpeerChannel()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPpeer");
 	}
 }
@@ -18319,11 +19337,16 @@ inline MTPpeer::MTPpeer(MTPDpeerUser *_data) : mtpDataOwner(_data), _type(mtpc_p
 }
 inline MTPpeer::MTPpeer(MTPDpeerChat *_data) : mtpDataOwner(_data), _type(mtpc_peerChat) {
 }
+inline MTPpeer::MTPpeer(MTPDpeerChannel *_data) : mtpDataOwner(_data), _type(mtpc_peerChannel) {
+}
 inline MTPpeer MTP_peerUser(MTPint _user_id) {
 	return MTPpeer(new MTPDpeerUser(_user_id));
 }
 inline MTPpeer MTP_peerChat(MTPint _chat_id) {
 	return MTPpeer(new MTPDpeerChat(_chat_id));
+}
+inline MTPpeer MTP_peerChannel(MTPint _channel_id) {
+	return MTPpeer(new MTPDpeerChannel(_channel_id));
 }
 
 inline uint32 MTPstorage_fileType::innerLength() const {
@@ -18702,6 +19725,10 @@ inline uint32 MTPchat::innerLength() const {
 			const MTPDchatForbidden &v(c_chatForbidden());
 			return v.vid.innerLength() + v.vtitle.innerLength() + v.vdate.innerLength();
 		}
+		case mtpc_channel: {
+			const MTPDchannel &v(c_channel());
+			return v.vflags.innerLength() + v.vid.innerLength() + v.vaccess_hash.innerLength() + v.vtitle.innerLength() + v.vphoto.innerLength() + v.vdate.innerLength() + v.vversion.innerLength();
+		}
 	}
 	return 0;
 }
@@ -18735,6 +19762,17 @@ inline void MTPchat::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId 
 			v.vtitle.read(from, end);
 			v.vdate.read(from, end);
 		} break;
+		case mtpc_channel: _type = cons; {
+			if (!data) setData(new MTPDchannel());
+			MTPDchannel &v(_channel());
+			v.vflags.read(from, end);
+			v.vid.read(from, end);
+			v.vaccess_hash.read(from, end);
+			v.vtitle.read(from, end);
+			v.vphoto.read(from, end);
+			v.vdate.read(from, end);
+			v.vversion.read(from, end);
+		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPchat");
 	}
 }
@@ -18760,6 +19798,16 @@ inline void MTPchat::write(mtpBuffer &to) const {
 			v.vtitle.write(to);
 			v.vdate.write(to);
 		} break;
+		case mtpc_channel: {
+			const MTPDchannel &v(c_channel());
+			v.vflags.write(to);
+			v.vid.write(to);
+			v.vaccess_hash.write(to);
+			v.vtitle.write(to);
+			v.vphoto.write(to);
+			v.vdate.write(to);
+			v.vversion.write(to);
+		} break;
 	}
 }
 inline MTPchat::MTPchat(mtpTypeId type) : mtpDataOwner(0), _type(type) {
@@ -18767,6 +19815,7 @@ inline MTPchat::MTPchat(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 		case mtpc_chatEmpty: setData(new MTPDchatEmpty()); break;
 		case mtpc_chat: setData(new MTPDchat()); break;
 		case mtpc_chatForbidden: setData(new MTPDchatForbidden()); break;
+		case mtpc_channel: setData(new MTPDchannel()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPchat");
 	}
 }
@@ -18775,6 +19824,8 @@ inline MTPchat::MTPchat(MTPDchatEmpty *_data) : mtpDataOwner(_data), _type(mtpc_
 inline MTPchat::MTPchat(MTPDchat *_data) : mtpDataOwner(_data), _type(mtpc_chat) {
 }
 inline MTPchat::MTPchat(MTPDchatForbidden *_data) : mtpDataOwner(_data), _type(mtpc_chatForbidden) {
+}
+inline MTPchat::MTPchat(MTPDchannel *_data) : mtpDataOwner(_data), _type(mtpc_channel) {
 }
 inline MTPchat MTP_chatEmpty(MTPint _id) {
 	return MTPchat(new MTPDchatEmpty(_id));
@@ -18785,42 +19836,93 @@ inline MTPchat MTP_chat(MTPint _id, const MTPstring &_title, const MTPChatPhoto 
 inline MTPchat MTP_chatForbidden(MTPint _id, const MTPstring &_title, MTPint _date) {
 	return MTPchat(new MTPDchatForbidden(_id, _title, _date));
 }
-
-inline MTPchatFull::MTPchatFull() : mtpDataOwner(new MTPDchatFull()) {
+inline MTPchat MTP_channel(MTPint _flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_title, const MTPChatPhoto &_photo, MTPint _date, MTPint _version) {
+	return MTPchat(new MTPDchannel(_flags, _id, _access_hash, _title, _photo, _date, _version));
 }
 
 inline uint32 MTPchatFull::innerLength() const {
-	const MTPDchatFull &v(c_chatFull());
-	return v.vid.innerLength() + v.vparticipants.innerLength() + v.vchat_photo.innerLength() + v.vnotify_settings.innerLength() + v.vexported_invite.innerLength() + v.vbot_info.innerLength();
+	switch (_type) {
+		case mtpc_chatFull: {
+			const MTPDchatFull &v(c_chatFull());
+			return v.vid.innerLength() + v.vparticipants.innerLength() + v.vchat_photo.innerLength() + v.vnotify_settings.innerLength() + v.vexported_invite.innerLength() + v.vbot_info.innerLength();
+		}
+		case mtpc_channelFull: {
+			const MTPDchannelFull &v(c_channelFull());
+			return v.vid.innerLength() + v.vread_inbox_max_id.innerLength() + v.vunread_count.innerLength() + v.vunread_important_count.innerLength() + v.vchat_photo.innerLength() + v.vnotify_settings.innerLength() + v.vexported_invite.innerLength();
+		}
+	}
+	return 0;
 }
 inline mtpTypeId MTPchatFull::type() const {
-	return mtpc_chatFull;
+	if (!_type) throw mtpErrorUninitialized();
+	return _type;
 }
 inline void MTPchatFull::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	if (cons != mtpc_chatFull) throw mtpErrorUnexpected(cons, "MTPchatFull");
-
-	if (!data) setData(new MTPDchatFull());
-	MTPDchatFull &v(_chatFull());
-	v.vid.read(from, end);
-	v.vparticipants.read(from, end);
-	v.vchat_photo.read(from, end);
-	v.vnotify_settings.read(from, end);
-	v.vexported_invite.read(from, end);
-	v.vbot_info.read(from, end);
+	if (cons != _type) setData(0);
+	switch (cons) {
+		case mtpc_chatFull: _type = cons; {
+			if (!data) setData(new MTPDchatFull());
+			MTPDchatFull &v(_chatFull());
+			v.vid.read(from, end);
+			v.vparticipants.read(from, end);
+			v.vchat_photo.read(from, end);
+			v.vnotify_settings.read(from, end);
+			v.vexported_invite.read(from, end);
+			v.vbot_info.read(from, end);
+		} break;
+		case mtpc_channelFull: _type = cons; {
+			if (!data) setData(new MTPDchannelFull());
+			MTPDchannelFull &v(_channelFull());
+			v.vid.read(from, end);
+			v.vread_inbox_max_id.read(from, end);
+			v.vunread_count.read(from, end);
+			v.vunread_important_count.read(from, end);
+			v.vchat_photo.read(from, end);
+			v.vnotify_settings.read(from, end);
+			v.vexported_invite.read(from, end);
+		} break;
+		default: throw mtpErrorUnexpected(cons, "MTPchatFull");
+	}
 }
 inline void MTPchatFull::write(mtpBuffer &to) const {
-	const MTPDchatFull &v(c_chatFull());
-	v.vid.write(to);
-	v.vparticipants.write(to);
-	v.vchat_photo.write(to);
-	v.vnotify_settings.write(to);
-	v.vexported_invite.write(to);
-	v.vbot_info.write(to);
+	switch (_type) {
+		case mtpc_chatFull: {
+			const MTPDchatFull &v(c_chatFull());
+			v.vid.write(to);
+			v.vparticipants.write(to);
+			v.vchat_photo.write(to);
+			v.vnotify_settings.write(to);
+			v.vexported_invite.write(to);
+			v.vbot_info.write(to);
+		} break;
+		case mtpc_channelFull: {
+			const MTPDchannelFull &v(c_channelFull());
+			v.vid.write(to);
+			v.vread_inbox_max_id.write(to);
+			v.vunread_count.write(to);
+			v.vunread_important_count.write(to);
+			v.vchat_photo.write(to);
+			v.vnotify_settings.write(to);
+			v.vexported_invite.write(to);
+		} break;
+	}
 }
-inline MTPchatFull::MTPchatFull(MTPDchatFull *_data) : mtpDataOwner(_data) {
+inline MTPchatFull::MTPchatFull(mtpTypeId type) : mtpDataOwner(0), _type(type) {
+	switch (type) {
+		case mtpc_chatFull: setData(new MTPDchatFull()); break;
+		case mtpc_channelFull: setData(new MTPDchannelFull()); break;
+		default: throw mtpErrorBadTypeId(type, "MTPchatFull");
+	}
+}
+inline MTPchatFull::MTPchatFull(MTPDchatFull *_data) : mtpDataOwner(_data), _type(mtpc_chatFull) {
+}
+inline MTPchatFull::MTPchatFull(MTPDchannelFull *_data) : mtpDataOwner(_data), _type(mtpc_channelFull) {
 }
 inline MTPchatFull MTP_chatFull(MTPint _id, const MTPChatParticipants &_participants, const MTPPhoto &_chat_photo, const MTPPeerNotifySettings &_notify_settings, const MTPExportedChatInvite &_exported_invite, const MTPVector<MTPBotInfo> &_bot_info) {
 	return MTPchatFull(new MTPDchatFull(_id, _participants, _chat_photo, _notify_settings, _exported_invite, _bot_info));
+}
+inline MTPchatFull MTP_channelFull(MTPint _id, MTPint _read_inbox_max_id, MTPint _unread_count, MTPint _unread_important_count, const MTPPhoto &_chat_photo, const MTPPeerNotifySettings &_notify_settings, const MTPExportedChatInvite &_exported_invite) {
+	return MTPchatFull(new MTPDchannelFull(_id, _read_inbox_max_id, _unread_count, _unread_important_count, _chat_photo, _notify_settings, _exported_invite));
 }
 
 inline MTPchatParticipant::MTPchatParticipant() : mtpDataOwner(new MTPDchatParticipant()) {
@@ -18982,11 +20084,11 @@ inline uint32 MTPmessage::innerLength() const {
 		}
 		case mtpc_message: {
 			const MTPDmessage &v(c_message());
-			return v.vflags.innerLength() + v.vid.innerLength() + v.vfrom_id.innerLength() + v.vto_id.innerLength() + (v.has_fwd_from_id() ? v.vfwd_from_id.innerLength() : 0) + (v.has_fwd_date() ? v.vfwd_date.innerLength() : 0) + (v.has_reply_to_msg_id() ? v.vreply_to_msg_id.innerLength() : 0) + v.vdate.innerLength() + v.vmessage.innerLength() + (v.has_media() ? v.vmedia.innerLength() : 0) + (v.has_reply_markup() ? v.vreply_markup.innerLength() : 0) + (v.has_entities() ? v.ventities.innerLength() : 0);
+			return v.vflags.innerLength() + v.vid.innerLength() + (v.has_from_id() ? v.vfrom_id.innerLength() : 0) + v.vto_id.innerLength() + (v.has_fwd_from_id() ? v.vfwd_from_id.innerLength() : 0) + (v.has_fwd_date() ? v.vfwd_date.innerLength() : 0) + (v.has_reply_to_msg_id() ? v.vreply_to_msg_id.innerLength() : 0) + v.vdate.innerLength() + v.vmessage.innerLength() + (v.has_media() ? v.vmedia.innerLength() : 0) + (v.has_reply_markup() ? v.vreply_markup.innerLength() : 0) + (v.has_entities() ? v.ventities.innerLength() : 0);
 		}
 		case mtpc_messageService: {
 			const MTPDmessageService &v(c_messageService());
-			return v.vflags.innerLength() + v.vid.innerLength() + v.vfrom_id.innerLength() + v.vto_id.innerLength() + v.vdate.innerLength() + v.vaction.innerLength();
+			return v.vflags.innerLength() + v.vid.innerLength() + (v.has_from_id() ? v.vfrom_id.innerLength() : 0) + v.vto_id.innerLength() + v.vdate.innerLength() + v.vaction.innerLength();
 		}
 	}
 	return 0;
@@ -19008,7 +20110,7 @@ inline void MTPmessage::read(const mtpPrime *&from, const mtpPrime *end, mtpType
 			MTPDmessage &v(_message());
 			v.vflags.read(from, end);
 			v.vid.read(from, end);
-			v.vfrom_id.read(from, end);
+			if (v.has_from_id()) { v.vfrom_id.read(from, end); } else { v.vfrom_id = MTPint(); }
 			v.vto_id.read(from, end);
 			if (v.has_fwd_from_id()) { v.vfwd_from_id.read(from, end); } else { v.vfwd_from_id = MTPint(); }
 			if (v.has_fwd_date()) { v.vfwd_date.read(from, end); } else { v.vfwd_date = MTPint(); }
@@ -19024,7 +20126,7 @@ inline void MTPmessage::read(const mtpPrime *&from, const mtpPrime *end, mtpType
 			MTPDmessageService &v(_messageService());
 			v.vflags.read(from, end);
 			v.vid.read(from, end);
-			v.vfrom_id.read(from, end);
+			if (v.has_from_id()) { v.vfrom_id.read(from, end); } else { v.vfrom_id = MTPint(); }
 			v.vto_id.read(from, end);
 			v.vdate.read(from, end);
 			v.vaction.read(from, end);
@@ -19042,7 +20144,7 @@ inline void MTPmessage::write(mtpBuffer &to) const {
 			const MTPDmessage &v(c_message());
 			v.vflags.write(to);
 			v.vid.write(to);
-			v.vfrom_id.write(to);
+			if (v.has_from_id()) v.vfrom_id.write(to);
 			v.vto_id.write(to);
 			if (v.has_fwd_from_id()) v.vfwd_from_id.write(to);
 			if (v.has_fwd_date()) v.vfwd_date.write(to);
@@ -19057,7 +20159,7 @@ inline void MTPmessage::write(mtpBuffer &to) const {
 			const MTPDmessageService &v(c_messageService());
 			v.vflags.write(to);
 			v.vid.write(to);
-			v.vfrom_id.write(to);
+			if (v.has_from_id()) v.vfrom_id.write(to);
 			v.vto_id.write(to);
 			v.vdate.write(to);
 			v.vaction.write(to);
@@ -19319,6 +20421,10 @@ inline uint32 MTPmessageAction::innerLength() const {
 			const MTPDmessageActionChatJoinedByLink &v(c_messageActionChatJoinedByLink());
 			return v.vinviter_id.innerLength();
 		}
+		case mtpc_messageActionChannelCreate: {
+			const MTPDmessageActionChannelCreate &v(c_messageActionChannelCreate());
+			return v.vtitle.innerLength();
+		}
 	}
 	return 0;
 }
@@ -19362,6 +20468,11 @@ inline void MTPmessageAction::read(const mtpPrime *&from, const mtpPrime *end, m
 			MTPDmessageActionChatJoinedByLink &v(_messageActionChatJoinedByLink());
 			v.vinviter_id.read(from, end);
 		} break;
+		case mtpc_messageActionChannelCreate: _type = cons; {
+			if (!data) setData(new MTPDmessageActionChannelCreate());
+			MTPDmessageActionChannelCreate &v(_messageActionChannelCreate());
+			v.vtitle.read(from, end);
+		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessageAction");
 	}
 }
@@ -19392,6 +20503,10 @@ inline void MTPmessageAction::write(mtpBuffer &to) const {
 			const MTPDmessageActionChatJoinedByLink &v(c_messageActionChatJoinedByLink());
 			v.vinviter_id.write(to);
 		} break;
+		case mtpc_messageActionChannelCreate: {
+			const MTPDmessageActionChannelCreate &v(c_messageActionChannelCreate());
+			v.vtitle.write(to);
+		} break;
 	}
 }
 inline MTPmessageAction::MTPmessageAction(mtpTypeId type) : mtpDataOwner(0), _type(type) {
@@ -19404,6 +20519,7 @@ inline MTPmessageAction::MTPmessageAction(mtpTypeId type) : mtpDataOwner(0), _ty
 		case mtpc_messageActionChatAddUser: setData(new MTPDmessageActionChatAddUser()); break;
 		case mtpc_messageActionChatDeleteUser: setData(new MTPDmessageActionChatDeleteUser()); break;
 		case mtpc_messageActionChatJoinedByLink: setData(new MTPDmessageActionChatJoinedByLink()); break;
+		case mtpc_messageActionChannelCreate: setData(new MTPDmessageActionChannelCreate()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessageAction");
 	}
 }
@@ -19418,6 +20534,8 @@ inline MTPmessageAction::MTPmessageAction(MTPDmessageActionChatAddUser *_data) :
 inline MTPmessageAction::MTPmessageAction(MTPDmessageActionChatDeleteUser *_data) : mtpDataOwner(_data), _type(mtpc_messageActionChatDeleteUser) {
 }
 inline MTPmessageAction::MTPmessageAction(MTPDmessageActionChatJoinedByLink *_data) : mtpDataOwner(_data), _type(mtpc_messageActionChatJoinedByLink) {
+}
+inline MTPmessageAction::MTPmessageAction(MTPDmessageActionChannelCreate *_data) : mtpDataOwner(_data), _type(mtpc_messageActionChannelCreate) {
 }
 inline MTPmessageAction MTP_messageActionEmpty() {
 	return MTPmessageAction(mtpc_messageActionEmpty);
@@ -19443,40 +20561,93 @@ inline MTPmessageAction MTP_messageActionChatDeleteUser(MTPint _user_id) {
 inline MTPmessageAction MTP_messageActionChatJoinedByLink(MTPint _inviter_id) {
 	return MTPmessageAction(new MTPDmessageActionChatJoinedByLink(_inviter_id));
 }
-
-inline MTPdialog::MTPdialog() : mtpDataOwner(new MTPDdialog()) {
+inline MTPmessageAction MTP_messageActionChannelCreate(const MTPstring &_title) {
+	return MTPmessageAction(new MTPDmessageActionChannelCreate(_title));
 }
 
 inline uint32 MTPdialog::innerLength() const {
-	const MTPDdialog &v(c_dialog());
-	return v.vpeer.innerLength() + v.vtop_message.innerLength() + v.vread_inbox_max_id.innerLength() + v.vunread_count.innerLength() + v.vnotify_settings.innerLength();
+	switch (_type) {
+		case mtpc_dialog: {
+			const MTPDdialog &v(c_dialog());
+			return v.vpeer.innerLength() + v.vtop_message.innerLength() + v.vread_inbox_max_id.innerLength() + v.vunread_count.innerLength() + v.vnotify_settings.innerLength();
+		}
+		case mtpc_dialogChannel: {
+			const MTPDdialogChannel &v(c_dialogChannel());
+			return v.vpeer.innerLength() + v.vtop_message.innerLength() + v.vtop_important_message.innerLength() + v.vread_inbox_max_id.innerLength() + v.vunread_count.innerLength() + v.vunread_important_count.innerLength() + v.vnotify_settings.innerLength() + v.vpts.innerLength();
+		}
+	}
+	return 0;
 }
 inline mtpTypeId MTPdialog::type() const {
-	return mtpc_dialog;
+	if (!_type) throw mtpErrorUninitialized();
+	return _type;
 }
 inline void MTPdialog::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	if (cons != mtpc_dialog) throw mtpErrorUnexpected(cons, "MTPdialog");
-
-	if (!data) setData(new MTPDdialog());
-	MTPDdialog &v(_dialog());
-	v.vpeer.read(from, end);
-	v.vtop_message.read(from, end);
-	v.vread_inbox_max_id.read(from, end);
-	v.vunread_count.read(from, end);
-	v.vnotify_settings.read(from, end);
+	if (cons != _type) setData(0);
+	switch (cons) {
+		case mtpc_dialog: _type = cons; {
+			if (!data) setData(new MTPDdialog());
+			MTPDdialog &v(_dialog());
+			v.vpeer.read(from, end);
+			v.vtop_message.read(from, end);
+			v.vread_inbox_max_id.read(from, end);
+			v.vunread_count.read(from, end);
+			v.vnotify_settings.read(from, end);
+		} break;
+		case mtpc_dialogChannel: _type = cons; {
+			if (!data) setData(new MTPDdialogChannel());
+			MTPDdialogChannel &v(_dialogChannel());
+			v.vpeer.read(from, end);
+			v.vtop_message.read(from, end);
+			v.vtop_important_message.read(from, end);
+			v.vread_inbox_max_id.read(from, end);
+			v.vunread_count.read(from, end);
+			v.vunread_important_count.read(from, end);
+			v.vnotify_settings.read(from, end);
+			v.vpts.read(from, end);
+		} break;
+		default: throw mtpErrorUnexpected(cons, "MTPdialog");
+	}
 }
 inline void MTPdialog::write(mtpBuffer &to) const {
-	const MTPDdialog &v(c_dialog());
-	v.vpeer.write(to);
-	v.vtop_message.write(to);
-	v.vread_inbox_max_id.write(to);
-	v.vunread_count.write(to);
-	v.vnotify_settings.write(to);
+	switch (_type) {
+		case mtpc_dialog: {
+			const MTPDdialog &v(c_dialog());
+			v.vpeer.write(to);
+			v.vtop_message.write(to);
+			v.vread_inbox_max_id.write(to);
+			v.vunread_count.write(to);
+			v.vnotify_settings.write(to);
+		} break;
+		case mtpc_dialogChannel: {
+			const MTPDdialogChannel &v(c_dialogChannel());
+			v.vpeer.write(to);
+			v.vtop_message.write(to);
+			v.vtop_important_message.write(to);
+			v.vread_inbox_max_id.write(to);
+			v.vunread_count.write(to);
+			v.vunread_important_count.write(to);
+			v.vnotify_settings.write(to);
+			v.vpts.write(to);
+		} break;
+	}
 }
-inline MTPdialog::MTPdialog(MTPDdialog *_data) : mtpDataOwner(_data) {
+inline MTPdialog::MTPdialog(mtpTypeId type) : mtpDataOwner(0), _type(type) {
+	switch (type) {
+		case mtpc_dialog: setData(new MTPDdialog()); break;
+		case mtpc_dialogChannel: setData(new MTPDdialogChannel()); break;
+		default: throw mtpErrorBadTypeId(type, "MTPdialog");
+	}
+}
+inline MTPdialog::MTPdialog(MTPDdialog *_data) : mtpDataOwner(_data), _type(mtpc_dialog) {
+}
+inline MTPdialog::MTPdialog(MTPDdialogChannel *_data) : mtpDataOwner(_data), _type(mtpc_dialogChannel) {
 }
 inline MTPdialog MTP_dialog(const MTPPeer &_peer, MTPint _top_message, MTPint _read_inbox_max_id, MTPint _unread_count, const MTPPeerNotifySettings &_notify_settings) {
 	return MTPdialog(new MTPDdialog(_peer, _top_message, _read_inbox_max_id, _unread_count, _notify_settings));
+}
+inline MTPdialog MTP_dialogChannel(const MTPPeer &_peer, MTPint _top_message, MTPint _top_important_message, MTPint _read_inbox_max_id, MTPint _unread_count, MTPint _unread_important_count, const MTPPeerNotifySettings &_notify_settings, MTPint _pts) {
+	return MTPdialog(new MTPDdialogChannel(_peer, _top_message, _top_important_message, _read_inbox_max_id, _unread_count, _unread_important_count, _notify_settings, _pts));
 }
 
 inline uint32 MTPphoto::innerLength() const {
@@ -20702,6 +21873,10 @@ inline uint32 MTPmessages_messages::innerLength() const {
 			const MTPDmessages_messagesSlice &v(c_messages_messagesSlice());
 			return v.vcount.innerLength() + v.vmessages.innerLength() + v.vchats.innerLength() + v.vusers.innerLength();
 		}
+		case mtpc_messages_channelMessages: {
+			const MTPDmessages_channelMessages &v(c_messages_channelMessages());
+			return v.vflags.innerLength() + v.vpts.innerLength() + v.vcount.innerLength() + v.vmessages.innerLength() + (v.has_collapsed() ? v.vcollapsed.innerLength() : 0) + v.vchats.innerLength() + v.vusers.innerLength();
+		}
 	}
 	return 0;
 }
@@ -20727,6 +21902,17 @@ inline void MTPmessages_messages::read(const mtpPrime *&from, const mtpPrime *en
 			v.vchats.read(from, end);
 			v.vusers.read(from, end);
 		} break;
+		case mtpc_messages_channelMessages: _type = cons; {
+			if (!data) setData(new MTPDmessages_channelMessages());
+			MTPDmessages_channelMessages &v(_messages_channelMessages());
+			v.vflags.read(from, end);
+			v.vpts.read(from, end);
+			v.vcount.read(from, end);
+			v.vmessages.read(from, end);
+			if (v.has_collapsed()) { v.vcollapsed.read(from, end); } else { v.vcollapsed = MTPVector<MTPMessageGroup>(); }
+			v.vchats.read(from, end);
+			v.vusers.read(from, end);
+		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessages_messages");
 	}
 }
@@ -20745,12 +21931,23 @@ inline void MTPmessages_messages::write(mtpBuffer &to) const {
 			v.vchats.write(to);
 			v.vusers.write(to);
 		} break;
+		case mtpc_messages_channelMessages: {
+			const MTPDmessages_channelMessages &v(c_messages_channelMessages());
+			v.vflags.write(to);
+			v.vpts.write(to);
+			v.vcount.write(to);
+			v.vmessages.write(to);
+			if (v.has_collapsed()) v.vcollapsed.write(to);
+			v.vchats.write(to);
+			v.vusers.write(to);
+		} break;
 	}
 }
 inline MTPmessages_messages::MTPmessages_messages(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 	switch (type) {
 		case mtpc_messages_messages: setData(new MTPDmessages_messages()); break;
 		case mtpc_messages_messagesSlice: setData(new MTPDmessages_messagesSlice()); break;
+		case mtpc_messages_channelMessages: setData(new MTPDmessages_channelMessages()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_messages");
 	}
 }
@@ -20758,11 +21955,16 @@ inline MTPmessages_messages::MTPmessages_messages(MTPDmessages_messages *_data) 
 }
 inline MTPmessages_messages::MTPmessages_messages(MTPDmessages_messagesSlice *_data) : mtpDataOwner(_data), _type(mtpc_messages_messagesSlice) {
 }
+inline MTPmessages_messages::MTPmessages_messages(MTPDmessages_channelMessages *_data) : mtpDataOwner(_data), _type(mtpc_messages_channelMessages) {
+}
 inline MTPmessages_messages MTP_messages_messages(const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
 	return MTPmessages_messages(new MTPDmessages_messages(_messages, _chats, _users));
 }
 inline MTPmessages_messages MTP_messages_messagesSlice(MTPint _count, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
 	return MTPmessages_messages(new MTPDmessages_messagesSlice(_count, _messages, _chats, _users));
+}
+inline MTPmessages_messages MTP_messages_channelMessages(MTPint _flags, MTPint _pts, MTPint _count, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPMessageGroup> &_collapsed, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
+	return MTPmessages_messages(new MTPDmessages_channelMessages(_flags, _pts, _count, _messages, _collapsed, _chats, _users));
 }
 
 inline MTPmessages_chats::MTPmessages_chats() : mtpDataOwner(new MTPDmessages_chats()) {
@@ -21035,6 +22237,22 @@ inline uint32 MTPupdate::innerLength() const {
 			const MTPDupdateReadMessagesContents &v(c_updateReadMessagesContents());
 			return v.vmessages.innerLength() + v.vpts.innerLength() + v.vpts_count.innerLength();
 		}
+		case mtpc_updateChannelTooLong: {
+			const MTPDupdateChannelTooLong &v(c_updateChannelTooLong());
+			return v.vchannel_id.innerLength();
+		}
+		case mtpc_updateNewChannelMessage: {
+			const MTPDupdateNewChannelMessage &v(c_updateNewChannelMessage());
+			return v.vmessage.innerLength() + v.vpts.innerLength() + v.vpts_count.innerLength();
+		}
+		case mtpc_updateReadChannelInbox: {
+			const MTPDupdateReadChannelInbox &v(c_updateReadChannelInbox());
+			return v.vpeer.innerLength() + v.vmax_id.innerLength();
+		}
+		case mtpc_updateDeleteChannelMessages: {
+			const MTPDupdateDeleteChannelMessages &v(c_updateDeleteChannelMessages());
+			return v.vpeer.innerLength() + v.vmessages.innerLength() + v.vpts.innerLength() + v.vpts_count.innerLength();
+		}
 	}
 	return 0;
 }
@@ -21230,6 +22448,32 @@ inline void MTPupdate::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeI
 			v.vpts.read(from, end);
 			v.vpts_count.read(from, end);
 		} break;
+		case mtpc_updateChannelTooLong: _type = cons; {
+			if (!data) setData(new MTPDupdateChannelTooLong());
+			MTPDupdateChannelTooLong &v(_updateChannelTooLong());
+			v.vchannel_id.read(from, end);
+		} break;
+		case mtpc_updateNewChannelMessage: _type = cons; {
+			if (!data) setData(new MTPDupdateNewChannelMessage());
+			MTPDupdateNewChannelMessage &v(_updateNewChannelMessage());
+			v.vmessage.read(from, end);
+			v.vpts.read(from, end);
+			v.vpts_count.read(from, end);
+		} break;
+		case mtpc_updateReadChannelInbox: _type = cons; {
+			if (!data) setData(new MTPDupdateReadChannelInbox());
+			MTPDupdateReadChannelInbox &v(_updateReadChannelInbox());
+			v.vpeer.read(from, end);
+			v.vmax_id.read(from, end);
+		} break;
+		case mtpc_updateDeleteChannelMessages: _type = cons; {
+			if (!data) setData(new MTPDupdateDeleteChannelMessages());
+			MTPDupdateDeleteChannelMessages &v(_updateDeleteChannelMessages());
+			v.vpeer.read(from, end);
+			v.vmessages.read(from, end);
+			v.vpts.read(from, end);
+			v.vpts_count.read(from, end);
+		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPupdate");
 	}
 }
@@ -21392,6 +22636,28 @@ inline void MTPupdate::write(mtpBuffer &to) const {
 			v.vpts.write(to);
 			v.vpts_count.write(to);
 		} break;
+		case mtpc_updateChannelTooLong: {
+			const MTPDupdateChannelTooLong &v(c_updateChannelTooLong());
+			v.vchannel_id.write(to);
+		} break;
+		case mtpc_updateNewChannelMessage: {
+			const MTPDupdateNewChannelMessage &v(c_updateNewChannelMessage());
+			v.vmessage.write(to);
+			v.vpts.write(to);
+			v.vpts_count.write(to);
+		} break;
+		case mtpc_updateReadChannelInbox: {
+			const MTPDupdateReadChannelInbox &v(c_updateReadChannelInbox());
+			v.vpeer.write(to);
+			v.vmax_id.write(to);
+		} break;
+		case mtpc_updateDeleteChannelMessages: {
+			const MTPDupdateDeleteChannelMessages &v(c_updateDeleteChannelMessages());
+			v.vpeer.write(to);
+			v.vmessages.write(to);
+			v.vpts.write(to);
+			v.vpts_count.write(to);
+		} break;
 	}
 }
 inline MTPupdate::MTPupdate(mtpTypeId type) : mtpDataOwner(0), _type(type) {
@@ -21424,6 +22690,10 @@ inline MTPupdate::MTPupdate(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 		case mtpc_updateReadHistoryOutbox: setData(new MTPDupdateReadHistoryOutbox()); break;
 		case mtpc_updateWebPage: setData(new MTPDupdateWebPage()); break;
 		case mtpc_updateReadMessagesContents: setData(new MTPDupdateReadMessagesContents()); break;
+		case mtpc_updateChannelTooLong: setData(new MTPDupdateChannelTooLong()); break;
+		case mtpc_updateNewChannelMessage: setData(new MTPDupdateNewChannelMessage()); break;
+		case mtpc_updateReadChannelInbox: setData(new MTPDupdateReadChannelInbox()); break;
+		case mtpc_updateDeleteChannelMessages: setData(new MTPDupdateDeleteChannelMessages()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPupdate");
 	}
 }
@@ -21482,6 +22752,14 @@ inline MTPupdate::MTPupdate(MTPDupdateReadHistoryOutbox *_data) : mtpDataOwner(_
 inline MTPupdate::MTPupdate(MTPDupdateWebPage *_data) : mtpDataOwner(_data), _type(mtpc_updateWebPage) {
 }
 inline MTPupdate::MTPupdate(MTPDupdateReadMessagesContents *_data) : mtpDataOwner(_data), _type(mtpc_updateReadMessagesContents) {
+}
+inline MTPupdate::MTPupdate(MTPDupdateChannelTooLong *_data) : mtpDataOwner(_data), _type(mtpc_updateChannelTooLong) {
+}
+inline MTPupdate::MTPupdate(MTPDupdateNewChannelMessage *_data) : mtpDataOwner(_data), _type(mtpc_updateNewChannelMessage) {
+}
+inline MTPupdate::MTPupdate(MTPDupdateReadChannelInbox *_data) : mtpDataOwner(_data), _type(mtpc_updateReadChannelInbox) {
+}
+inline MTPupdate::MTPupdate(MTPDupdateDeleteChannelMessages *_data) : mtpDataOwner(_data), _type(mtpc_updateDeleteChannelMessages) {
 }
 inline MTPupdate MTP_updateNewMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count) {
 	return MTPupdate(new MTPDupdateNewMessage(_message, _pts, _pts_count));
@@ -21566,6 +22844,18 @@ inline MTPupdate MTP_updateWebPage(const MTPWebPage &_webpage) {
 }
 inline MTPupdate MTP_updateReadMessagesContents(const MTPVector<MTPint> &_messages, MTPint _pts, MTPint _pts_count) {
 	return MTPupdate(new MTPDupdateReadMessagesContents(_messages, _pts, _pts_count));
+}
+inline MTPupdate MTP_updateChannelTooLong(MTPint _channel_id) {
+	return MTPupdate(new MTPDupdateChannelTooLong(_channel_id));
+}
+inline MTPupdate MTP_updateNewChannelMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count) {
+	return MTPupdate(new MTPDupdateNewChannelMessage(_message, _pts, _pts_count));
+}
+inline MTPupdate MTP_updateReadChannelInbox(const MTPPeer &_peer, MTPint _max_id) {
+	return MTPupdate(new MTPDupdateReadChannelInbox(_peer, _max_id));
+}
+inline MTPupdate MTP_updateDeleteChannelMessages(const MTPPeer &_peer, const MTPVector<MTPint> &_messages, MTPint _pts, MTPint _pts_count) {
+	return MTPupdate(new MTPDupdateDeleteChannelMessages(_peer, _messages, _pts, _pts_count));
 }
 
 inline MTPupdates_state::MTPupdates_state() : mtpDataOwner(new MTPDupdates_state()) {
@@ -25149,6 +26439,307 @@ inline MTPmessageEntity MTP_messageEntityPre(MTPint _offset, MTPint _length, con
 }
 inline MTPmessageEntity MTP_messageEntityTextUrl(MTPint _offset, MTPint _length, const MTPstring &_url) {
 	return MTPmessageEntity(new MTPDmessageEntityTextUrl(_offset, _length, _url));
+}
+
+inline uint32 MTPinputChat::innerLength() const {
+	switch (_type) {
+		case mtpc_inputChat: {
+			const MTPDinputChat &v(c_inputChat());
+			return v.vchat_id.innerLength();
+		}
+		case mtpc_inputChannel: {
+			const MTPDinputChannel &v(c_inputChannel());
+			return v.vchannel_id.innerLength() + v.vaccess_hash.innerLength();
+		}
+	}
+	return 0;
+}
+inline mtpTypeId MTPinputChat::type() const {
+	if (!_type) throw mtpErrorUninitialized();
+	return _type;
+}
+inline void MTPinputChat::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	if (cons != _type) setData(0);
+	switch (cons) {
+		case mtpc_inputChatEmpty: _type = cons; break;
+		case mtpc_inputChat: _type = cons; {
+			if (!data) setData(new MTPDinputChat());
+			MTPDinputChat &v(_inputChat());
+			v.vchat_id.read(from, end);
+		} break;
+		case mtpc_inputChannel: _type = cons; {
+			if (!data) setData(new MTPDinputChannel());
+			MTPDinputChannel &v(_inputChannel());
+			v.vchannel_id.read(from, end);
+			v.vaccess_hash.read(from, end);
+		} break;
+		default: throw mtpErrorUnexpected(cons, "MTPinputChat");
+	}
+}
+inline void MTPinputChat::write(mtpBuffer &to) const {
+	switch (_type) {
+		case mtpc_inputChat: {
+			const MTPDinputChat &v(c_inputChat());
+			v.vchat_id.write(to);
+		} break;
+		case mtpc_inputChannel: {
+			const MTPDinputChannel &v(c_inputChannel());
+			v.vchannel_id.write(to);
+			v.vaccess_hash.write(to);
+		} break;
+	}
+}
+inline MTPinputChat::MTPinputChat(mtpTypeId type) : mtpDataOwner(0), _type(type) {
+	switch (type) {
+		case mtpc_inputChatEmpty: break;
+		case mtpc_inputChat: setData(new MTPDinputChat()); break;
+		case mtpc_inputChannel: setData(new MTPDinputChannel()); break;
+		default: throw mtpErrorBadTypeId(type, "MTPinputChat");
+	}
+}
+inline MTPinputChat::MTPinputChat(MTPDinputChat *_data) : mtpDataOwner(_data), _type(mtpc_inputChat) {
+}
+inline MTPinputChat::MTPinputChat(MTPDinputChannel *_data) : mtpDataOwner(_data), _type(mtpc_inputChannel) {
+}
+inline MTPinputChat MTP_inputChatEmpty() {
+	return MTPinputChat(mtpc_inputChatEmpty);
+}
+inline MTPinputChat MTP_inputChat(MTPint _chat_id) {
+	return MTPinputChat(new MTPDinputChat(_chat_id));
+}
+inline MTPinputChat MTP_inputChannel(MTPint _channel_id, const MTPlong &_access_hash) {
+	return MTPinputChat(new MTPDinputChannel(_channel_id, _access_hash));
+}
+
+inline MTPmessageRange::MTPmessageRange() : mtpDataOwner(new MTPDmessageRange()) {
+}
+
+inline uint32 MTPmessageRange::innerLength() const {
+	const MTPDmessageRange &v(c_messageRange());
+	return v.vmin_id.innerLength() + v.vmax_id.innerLength();
+}
+inline mtpTypeId MTPmessageRange::type() const {
+	return mtpc_messageRange;
+}
+inline void MTPmessageRange::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	if (cons != mtpc_messageRange) throw mtpErrorUnexpected(cons, "MTPmessageRange");
+
+	if (!data) setData(new MTPDmessageRange());
+	MTPDmessageRange &v(_messageRange());
+	v.vmin_id.read(from, end);
+	v.vmax_id.read(from, end);
+}
+inline void MTPmessageRange::write(mtpBuffer &to) const {
+	const MTPDmessageRange &v(c_messageRange());
+	v.vmin_id.write(to);
+	v.vmax_id.write(to);
+}
+inline MTPmessageRange::MTPmessageRange(MTPDmessageRange *_data) : mtpDataOwner(_data) {
+}
+inline MTPmessageRange MTP_messageRange(MTPint _min_id, MTPint _max_id) {
+	return MTPmessageRange(new MTPDmessageRange(_min_id, _max_id));
+}
+
+inline MTPmessageGroup::MTPmessageGroup() : mtpDataOwner(new MTPDmessageGroup()) {
+}
+
+inline uint32 MTPmessageGroup::innerLength() const {
+	const MTPDmessageGroup &v(c_messageGroup());
+	return v.vmin_id.innerLength() + v.vmax_id.innerLength() + v.vcount.innerLength() + v.vdate.innerLength();
+}
+inline mtpTypeId MTPmessageGroup::type() const {
+	return mtpc_messageGroup;
+}
+inline void MTPmessageGroup::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	if (cons != mtpc_messageGroup) throw mtpErrorUnexpected(cons, "MTPmessageGroup");
+
+	if (!data) setData(new MTPDmessageGroup());
+	MTPDmessageGroup &v(_messageGroup());
+	v.vmin_id.read(from, end);
+	v.vmax_id.read(from, end);
+	v.vcount.read(from, end);
+	v.vdate.read(from, end);
+}
+inline void MTPmessageGroup::write(mtpBuffer &to) const {
+	const MTPDmessageGroup &v(c_messageGroup());
+	v.vmin_id.write(to);
+	v.vmax_id.write(to);
+	v.vcount.write(to);
+	v.vdate.write(to);
+}
+inline MTPmessageGroup::MTPmessageGroup(MTPDmessageGroup *_data) : mtpDataOwner(_data) {
+}
+inline MTPmessageGroup MTP_messageGroup(MTPint _min_id, MTPint _max_id, MTPint _count, MTPint _date) {
+	return MTPmessageGroup(new MTPDmessageGroup(_min_id, _max_id, _count, _date));
+}
+
+inline uint32 MTPupdates_channelDifference::innerLength() const {
+	switch (_type) {
+		case mtpc_updates_channelDifferenceEmpty: {
+			const MTPDupdates_channelDifferenceEmpty &v(c_updates_channelDifferenceEmpty());
+			return v.vflags.innerLength() + v.vpts.innerLength() + (v.has_timeout() ? v.vtimeout.innerLength() : 0);
+		}
+		case mtpc_updates_channelDifferenceTooLong: {
+			const MTPDupdates_channelDifferenceTooLong &v(c_updates_channelDifferenceTooLong());
+			return v.vflags.innerLength() + v.vpts.innerLength() + (v.has_timeout() ? v.vtimeout.innerLength() : 0) + v.vtop_message.innerLength() + v.vtop_important_message.innerLength() + v.vread_inbox_max_id.innerLength() + v.vunread_count.innerLength() + v.vunread_important_count.innerLength() + v.vmessages.innerLength() + v.vchats.innerLength() + v.vusers.innerLength();
+		}
+		case mtpc_updates_channelDifference: {
+			const MTPDupdates_channelDifference &v(c_updates_channelDifference());
+			return v.vflags.innerLength() + v.vpts.innerLength() + (v.has_timeout() ? v.vtimeout.innerLength() : 0) + v.vnew_messages.innerLength() + v.vother_updates.innerLength() + v.vchats.innerLength() + v.vusers.innerLength();
+		}
+	}
+	return 0;
+}
+inline mtpTypeId MTPupdates_channelDifference::type() const {
+	if (!_type) throw mtpErrorUninitialized();
+	return _type;
+}
+inline void MTPupdates_channelDifference::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	if (cons != _type) setData(0);
+	switch (cons) {
+		case mtpc_updates_channelDifferenceEmpty: _type = cons; {
+			if (!data) setData(new MTPDupdates_channelDifferenceEmpty());
+			MTPDupdates_channelDifferenceEmpty &v(_updates_channelDifferenceEmpty());
+			v.vflags.read(from, end);
+			v.vpts.read(from, end);
+			if (v.has_timeout()) { v.vtimeout.read(from, end); } else { v.vtimeout = MTPint(); }
+		} break;
+		case mtpc_updates_channelDifferenceTooLong: _type = cons; {
+			if (!data) setData(new MTPDupdates_channelDifferenceTooLong());
+			MTPDupdates_channelDifferenceTooLong &v(_updates_channelDifferenceTooLong());
+			v.vflags.read(from, end);
+			v.vpts.read(from, end);
+			if (v.has_timeout()) { v.vtimeout.read(from, end); } else { v.vtimeout = MTPint(); }
+			v.vtop_message.read(from, end);
+			v.vtop_important_message.read(from, end);
+			v.vread_inbox_max_id.read(from, end);
+			v.vunread_count.read(from, end);
+			v.vunread_important_count.read(from, end);
+			v.vmessages.read(from, end);
+			v.vchats.read(from, end);
+			v.vusers.read(from, end);
+		} break;
+		case mtpc_updates_channelDifference: _type = cons; {
+			if (!data) setData(new MTPDupdates_channelDifference());
+			MTPDupdates_channelDifference &v(_updates_channelDifference());
+			v.vflags.read(from, end);
+			v.vpts.read(from, end);
+			if (v.has_timeout()) { v.vtimeout.read(from, end); } else { v.vtimeout = MTPint(); }
+			v.vnew_messages.read(from, end);
+			v.vother_updates.read(from, end);
+			v.vchats.read(from, end);
+			v.vusers.read(from, end);
+		} break;
+		default: throw mtpErrorUnexpected(cons, "MTPupdates_channelDifference");
+	}
+}
+inline void MTPupdates_channelDifference::write(mtpBuffer &to) const {
+	switch (_type) {
+		case mtpc_updates_channelDifferenceEmpty: {
+			const MTPDupdates_channelDifferenceEmpty &v(c_updates_channelDifferenceEmpty());
+			v.vflags.write(to);
+			v.vpts.write(to);
+			if (v.has_timeout()) v.vtimeout.write(to);
+		} break;
+		case mtpc_updates_channelDifferenceTooLong: {
+			const MTPDupdates_channelDifferenceTooLong &v(c_updates_channelDifferenceTooLong());
+			v.vflags.write(to);
+			v.vpts.write(to);
+			if (v.has_timeout()) v.vtimeout.write(to);
+			v.vtop_message.write(to);
+			v.vtop_important_message.write(to);
+			v.vread_inbox_max_id.write(to);
+			v.vunread_count.write(to);
+			v.vunread_important_count.write(to);
+			v.vmessages.write(to);
+			v.vchats.write(to);
+			v.vusers.write(to);
+		} break;
+		case mtpc_updates_channelDifference: {
+			const MTPDupdates_channelDifference &v(c_updates_channelDifference());
+			v.vflags.write(to);
+			v.vpts.write(to);
+			if (v.has_timeout()) v.vtimeout.write(to);
+			v.vnew_messages.write(to);
+			v.vother_updates.write(to);
+			v.vchats.write(to);
+			v.vusers.write(to);
+		} break;
+	}
+}
+inline MTPupdates_channelDifference::MTPupdates_channelDifference(mtpTypeId type) : mtpDataOwner(0), _type(type) {
+	switch (type) {
+		case mtpc_updates_channelDifferenceEmpty: setData(new MTPDupdates_channelDifferenceEmpty()); break;
+		case mtpc_updates_channelDifferenceTooLong: setData(new MTPDupdates_channelDifferenceTooLong()); break;
+		case mtpc_updates_channelDifference: setData(new MTPDupdates_channelDifference()); break;
+		default: throw mtpErrorBadTypeId(type, "MTPupdates_channelDifference");
+	}
+}
+inline MTPupdates_channelDifference::MTPupdates_channelDifference(MTPDupdates_channelDifferenceEmpty *_data) : mtpDataOwner(_data), _type(mtpc_updates_channelDifferenceEmpty) {
+}
+inline MTPupdates_channelDifference::MTPupdates_channelDifference(MTPDupdates_channelDifferenceTooLong *_data) : mtpDataOwner(_data), _type(mtpc_updates_channelDifferenceTooLong) {
+}
+inline MTPupdates_channelDifference::MTPupdates_channelDifference(MTPDupdates_channelDifference *_data) : mtpDataOwner(_data), _type(mtpc_updates_channelDifference) {
+}
+inline MTPupdates_channelDifference MTP_updates_channelDifferenceEmpty(MTPint _flags, MTPint _pts, MTPint _timeout) {
+	return MTPupdates_channelDifference(new MTPDupdates_channelDifferenceEmpty(_flags, _pts, _timeout));
+}
+inline MTPupdates_channelDifference MTP_updates_channelDifferenceTooLong(MTPint _flags, MTPint _pts, MTPint _timeout, MTPint _top_message, MTPint _top_important_message, MTPint _read_inbox_max_id, MTPint _unread_count, MTPint _unread_important_count, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
+	return MTPupdates_channelDifference(new MTPDupdates_channelDifferenceTooLong(_flags, _pts, _timeout, _top_message, _top_important_message, _read_inbox_max_id, _unread_count, _unread_important_count, _messages, _chats, _users));
+}
+inline MTPupdates_channelDifference MTP_updates_channelDifference(MTPint _flags, MTPint _pts, MTPint _timeout, const MTPVector<MTPMessage> &_new_messages, const MTPVector<MTPUpdate> &_other_updates, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
+	return MTPupdates_channelDifference(new MTPDupdates_channelDifference(_flags, _pts, _timeout, _new_messages, _other_updates, _chats, _users));
+}
+
+inline uint32 MTPchannelMessagesFilter::innerLength() const {
+	switch (_type) {
+		case mtpc_channelMessagesFilter: {
+			const MTPDchannelMessagesFilter &v(c_channelMessagesFilter());
+			return v.vflags.innerLength() + v.vranges.innerLength();
+		}
+	}
+	return 0;
+}
+inline mtpTypeId MTPchannelMessagesFilter::type() const {
+	if (!_type) throw mtpErrorUninitialized();
+	return _type;
+}
+inline void MTPchannelMessagesFilter::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	if (cons != _type) setData(0);
+	switch (cons) {
+		case mtpc_channelMessagesFilterEmpty: _type = cons; break;
+		case mtpc_channelMessagesFilter: _type = cons; {
+			if (!data) setData(new MTPDchannelMessagesFilter());
+			MTPDchannelMessagesFilter &v(_channelMessagesFilter());
+			v.vflags.read(from, end);
+			v.vranges.read(from, end);
+		} break;
+		default: throw mtpErrorUnexpected(cons, "MTPchannelMessagesFilter");
+	}
+}
+inline void MTPchannelMessagesFilter::write(mtpBuffer &to) const {
+	switch (_type) {
+		case mtpc_channelMessagesFilter: {
+			const MTPDchannelMessagesFilter &v(c_channelMessagesFilter());
+			v.vflags.write(to);
+			v.vranges.write(to);
+		} break;
+	}
+}
+inline MTPchannelMessagesFilter::MTPchannelMessagesFilter(mtpTypeId type) : mtpDataOwner(0), _type(type) {
+	switch (type) {
+		case mtpc_channelMessagesFilterEmpty: break;
+		case mtpc_channelMessagesFilter: setData(new MTPDchannelMessagesFilter()); break;
+		default: throw mtpErrorBadTypeId(type, "MTPchannelMessagesFilter");
+	}
+}
+inline MTPchannelMessagesFilter::MTPchannelMessagesFilter(MTPDchannelMessagesFilter *_data) : mtpDataOwner(_data), _type(mtpc_channelMessagesFilter) {
+}
+inline MTPchannelMessagesFilter MTP_channelMessagesFilterEmpty() {
+	return MTPchannelMessagesFilter(mtpc_channelMessagesFilterEmpty);
+}
+inline MTPchannelMessagesFilter MTP_channelMessagesFilter(MTPint _flags, const MTPVector<MTPMessageRange> &_ranges) {
+	return MTPchannelMessagesFilter(new MTPDchannelMessagesFilter(_flags, _ranges));
 }
 
 // Human-readable text serialization

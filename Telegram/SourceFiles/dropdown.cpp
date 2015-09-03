@@ -2746,8 +2746,8 @@ void MentionsDropdown::paintEvent(QPaintEvent *e) {
 }
 
 void MentionsDropdown::showFiltered(PeerData *peer, QString start) {
-	_chat = peer->chat ? peer->asChat() : 0;
-	_user = peer->chat ? 0 : peer->asUser();
+	_chat = peer->asChat();
+	_user = peer->asUser();
 	start = start.toLower();
 	bool toDown = (_filter != start);
 	if (toDown) {

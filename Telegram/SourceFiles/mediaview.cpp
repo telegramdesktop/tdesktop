@@ -64,7 +64,7 @@ _docRadialFirst(0), _docRadialStart(0), _docRadialLast(0), _docRadialOpacity(1),
 _docDownload(this, lang(lng_media_download), st::mvDocLink),
 _docSaveAs(this, lang(lng_mediaview_save_as), st::mvDocLink),
 _docCancel(this, lang(lng_cancel), st::mvDocLink),
-_history(0), _peer(0), _user(0), _from(0), _index(-1), _msgid(0),
+_history(0), _peer(0), _user(0), _from(0), _index(-1), _msgid(0), _channel(NoChannel),
 _loadRequest(0), _over(OverNone), _down(OverNone), _lastAction(-st::mvDeltaFromLastAction, -st::mvDeltaFromLastAction), _ignoringDropdown(false),
 _controlsState(ControlsShown), _controlsAnimStarted(0),
 _menu(0), _dropdown(this, st::mvDropdown), _receiveMouse(true), _touchPress(false), _touchMove(false), _touchRightButton(false),
@@ -266,7 +266,7 @@ void MediaView::updateControls() {
 		d = date(_photo->date);
 	} else if (_doc) {
 		d = date(_doc->date);
-	} else if (HistoryItem *item = App::histItemById(_msgid)) {
+	} else if (HistoryItem *item = App::histItemById(_channel, _msgid)) {
 		d = item->date;
 	}
 	if (d.date() == dNow.date()) {
@@ -315,7 +315,7 @@ void MediaView::updateDropdown() {
 	_btnSaveAs->setVisible(true);
 	_btnCopy->setVisible((_doc && !_current.isNull()) || (_photo && _photo->full->loaded()));
 	_btnForward->setVisible(_msgid > 0);
-	_btnDelete->setVisible(_msgid > 0 || (_photo && App::self() && App::self()->photoId == _photo->id) || (_photo && _photo->chat && _photo->chat->photoId == _photo->id));
+	_btnDelete->setVisible(_msgid > 0 || (_photo && App::self() && App::self()->photoId == _photo->id) || (_photo && _photo->peer && _photo->peer->photoId == _photo->id));
 	_btnViewAll->setVisible((_overview != OverviewCount) && _history);
 	_btnViewAll->setText(lang(_doc ? lng_mediaview_files_all : lng_mediaview_photos_all));
 	_dropdown.updateButtons();
@@ -383,7 +383,7 @@ bool MediaView::animStep(float64 msp) {
 				QString fname(_doc->already(true));
 				QImageReader reader(fname);
 				if (reader.canRead()) {
-					displayDocument(_doc, App::histItemById(_msgid));
+					displayDocument(_doc, App::histItemById(_channel, _msgid));
 				}
 			}
 		} else {
@@ -443,7 +443,7 @@ void MediaView::onDropdownHiding() {
 
 void MediaView::onToMessage() {
 	if (_menu) _menu->fastHide();
-	if (HistoryItem *item = _msgid ? App::histItemById(_msgid) : 0) {
+	if (HistoryItem *item = _msgid ? App::histItemById(_channel, _msgid) : 0) {
 		if (App::wnd()) {
 			close();
 			if (App::main()) App::main()->showPeerHistory(item->history()->peer->id, _msgid);
@@ -581,7 +581,7 @@ void MediaView::onShowInFolder() {
 }
 
 void MediaView::onForward() {
-	HistoryItem *item = App::histItemById(_msgid);
+	HistoryItem *item = App::histItemById(_channel, _msgid);
 	if (!_msgid || !item) return;
 
 	if (App::wnd()) {
@@ -598,11 +598,11 @@ void MediaView::onDelete() {
 	if (!_msgid) {
 		if (App::self() && _photo && App::self()->photoId == _photo->id) {
 			App::app()->peerClearPhoto(App::self()->id);
-		} else if (_photo->chat && _photo->chat->photoId == _photo->id) {
-			App::app()->peerClearPhoto(_photo->chat->id);
+		} else if (_photo->peer && _photo->peer->photoId == _photo->id) {
+			App::app()->peerClearPhoto(_photo->peer->id);
 		}
 	} else {
-		HistoryItem *item = App::histItemById(_msgid);
+		HistoryItem *item = App::histItemById(_channel, _msgid);
 		if (item) {
 			App::contextItem(item);
 			App::main()->deleteLayer();
@@ -654,6 +654,7 @@ void MediaView::showPhoto(PhotoData *photo, HistoryItem *context) {
 
 	_index = -1;
 	_msgid = context ? context->id : 0;
+	_channel = context ? context->channelId() : NoChannel;
 	_photo = photo;
 	if (_history) {
 		_overview = OverviewPhotos;
@@ -668,7 +669,7 @@ void MediaView::showPhoto(PhotoData *photo, HistoryItem *context) {
 void MediaView::showPhoto(PhotoData *photo, PeerData *context) {
 	_history = 0;
 	_peer = context;
-	_user = context->chat ? 0 : context->asUser();
+	_user = context->asUser();
 	_saveMsgStarted = 0;
 	_loadRequest = 0;
 	_over = OverNone;
@@ -680,6 +681,7 @@ void MediaView::showPhoto(PhotoData *photo, PeerData *context) {
 	if (!_animOpacities.isEmpty()) _animOpacities.clear();
 
 	_msgid = 0;
+	_channel = NoChannel;
 	_index = -1;
 	_photo = photo;
 	_overview = OverviewCount;
@@ -722,6 +724,7 @@ void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 
 	_index = -1;
 	_msgid = context ? context->id : 0;
+	_channel = context ? context->channelId() : NoChannel;
 	if (_history) {
 		_overview = OverviewDocuments;
 
@@ -1379,8 +1382,9 @@ void MediaView::moveToNext(int32 delta) {
 	if (_history && _overview != OverviewCount) {
 		if (newIndex >= 0 && newIndex < _history->_overview[_overview].size()) {
 			_index = newIndex;
-			if (HistoryItem *item = App::histItemById(_history->_overview[_overview][_index])) {
+			if (HistoryItem *item = App::histItemById(_history->channelId(), _history->_overview[_overview][_index])) {
 				_msgid = item->id;
+				_channel = item->channelId();
 				if (item->getMedia()) {
 					switch (item->getMedia()->type()) {
 					case MediaTypePhoto: displayPhoto(static_cast<HistoryPhoto*>(item->getMedia())->photo(), item); preloadData(delta); break;
@@ -1416,7 +1420,7 @@ void MediaView::preloadData(int32 delta) {
 	if (_history && _overview != OverviewCount) {
 		for (int32 i = from; i <= to; ++i) {
 			if (i >= 0 && i < _history->_overview[_overview].size() && i != _index) {
-				if (HistoryItem *item = App::histItemById(_history->_overview[_overview][i])) {
+				if (HistoryItem *item = App::histItemById(_history->channelId(), _history->_overview[_overview][i])) {
 					if (HistoryMedia *media = item->getMedia()) {
 						switch (media->type()) {
 						case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->full->load(); break;
@@ -1428,7 +1432,7 @@ void MediaView::preloadData(int32 delta) {
 			}
 		}
 		if (forget >= 0 && forget < _history->_overview[_overview].size() && forget != _index) {
-			if (HistoryItem *item = App::histItemById(_history->_overview[_overview][forget])) {
+			if (HistoryItem *item = App::histItemById(_history->channelId(), _history->_overview[_overview][forget])) {
 				if (HistoryMedia *media = item->getMedia()) {
 					switch (media->type()) {
 					case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->forget(); break;

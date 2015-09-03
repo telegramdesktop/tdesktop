@@ -43,7 +43,7 @@ void LocalImageLoaderPrivate::prepareImages() {
 	ToPrepareMediaType type;
 	bool animated = false;
 	bool ctrlShiftEnter = false;
-	MsgId replyTo = 0;
+	MsgId replyTo;
 	{
 		QMutexLocker lock(loader->toPrepareMutex());
 		ToPrepareMedias &list(loader->toPrepareMedias());

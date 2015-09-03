@@ -232,7 +232,7 @@ public:
 	bool maximizeSize() const;
 	bool singleUse() const;
 
-	MsgId forMsgId() const {
+	FullMsgId forMsgId() const {
 		return _wasForMsgId;
 	}
 
@@ -246,7 +246,7 @@ private:
 	void updateStyle(int32 w = -1);
 	void clearSelection();
 
-	MsgId _wasForMsgId;
+	FullMsgId _wasForMsgId;
 	int32 _height, _maxOuterHeight;
 	bool _maximizeSize, _singleUse, _forceReply;
 	QTimer _cmdTipTimer;
@@ -442,7 +442,7 @@ public:
 
 	MsgId replyToId() const;
 	void updateReplyTo(bool force = false);
-	bool lastForceReplyReplied(MsgId replyTo = -1) const;
+	bool lastForceReplyReplied(const FullMsgId &replyTo = FullMsgId(NoChannel, -1)) const;
 	void cancelReply(bool lastKeyboardUsed = false);
 	void updateForwarding(bool force = false);
 	void cancelForwarding(); // called by MainWidget
@@ -502,18 +502,18 @@ public slots:
 	void peerUpdated(PeerData *data);
 	void onFullPeerUpdated(PeerData *data);
 
-	void onPhotoUploaded(MsgId msgId, const MTPInputFile &file);
-	void onDocumentUploaded(MsgId msgId, const MTPInputFile &file);
-	void onThumbDocumentUploaded(MsgId msgId, const MTPInputFile &file, const MTPInputFile &thumb);
-	void onAudioUploaded(MsgId msgId, const MTPInputFile &file);
+	void onPhotoUploaded(const FullMsgId &msgId, const MTPInputFile &file);
+	void onDocumentUploaded(const FullMsgId &msgId, const MTPInputFile &file);
+	void onThumbDocumentUploaded(const FullMsgId &msgId, const MTPInputFile &file, const MTPInputFile &thumb);
+	void onAudioUploaded(const FullMsgId &msgId, const MTPInputFile &file);
 
-	void onPhotoProgress(MsgId msgId);
-	void onDocumentProgress(MsgId msgId);
-	void onAudioProgress(MsgId msgId);
+	void onPhotoProgress(const FullMsgId &msgId);
+	void onDocumentProgress(const FullMsgId &msgId);
+	void onAudioProgress(const FullMsgId &msgId);
 
-	void onPhotoFailed(MsgId msgId);
-	void onDocumentFailed(MsgId msgId);
-	void onAudioFailed(MsgId msgId);
+	void onPhotoFailed(const FullMsgId &msgId);
+	void onDocumentFailed(const FullMsgId &msgId);
+	void onAudioFailed(const FullMsgId &msgId);
 
 	void onListScroll();
 	void onHistoryToEnd();
@@ -625,6 +625,7 @@ private:
 	void updateDragAreas();
 
 	PeerData *_peer;
+	ChannelId _channel;
 	MsgId _showAtMsgId;
 
 	mtpRequestId _firstLoadRequest, _preloadRequest, _preloadDownRequest;

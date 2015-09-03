@@ -489,7 +489,8 @@ void AudioPlayer::play(const SongMsgId &song, int64 position) {
 			setStoppedState(current);
 			if (!song.song->loader) {
 				DocumentOpenLink::doOpen(song.song);
-				song.song->openOnSave = song.song->openOnSaveMsgId = 0;
+				song.song->openOnSave = 0;
+				song.song->openOnSaveMsgId = FullMsgId();
 				if (song.song->loader) song.song->loader->start(true, true);
 			}
 		} else {

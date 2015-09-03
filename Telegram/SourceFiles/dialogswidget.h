@@ -260,9 +260,8 @@ private:
 	bool searchFailed(const RPCError &error, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
 
-	int32 dlgOffset, dlgCount;
-	mtpRequestId dlgPreloading;
-	mtpRequestId contactsRequest;
+	int32 _dialogsOffset, _dialogsCount;
+	mtpRequestId _dialogsRequest, _channelDialogsRequest, _contactsRequest;
 
 	FlatInput _filter;
 	IconedButton _newGroup, _addContact, _cancelSearch;

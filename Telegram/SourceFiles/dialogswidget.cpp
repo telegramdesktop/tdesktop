@@ -219,7 +219,7 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 				int32 to = ((r.bottom() - skip) / int32(st::dlgHeight)) + 1, w = width();
 				if (to > searchResults.size()) to = searchResults.size();
 				for (; from < to; ++from) {
-					bool active = (searchResults[from]->_item->id == App::main()->activeMsgId());
+					bool active = (searchResults[from]->_item->history()->peer == App::main()->activePeer() && searchResults[from]->_item->id == App::main()->activeMsgId());
 					bool selected = (from == searchedSel);
 					searchResults[from]->paint(p, w, active, selected);
 					p.translate(0, st::dlgHeight);
@@ -242,7 +242,7 @@ void DialogsListWidget::peopleResultPaint(UserData *user, QPainter &p, int32 w, 
 	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop, namewidth, st::msgNameFont->height);
 
 	// draw chat icon
-	if (history->peer->chat) {
+	if (history->peer->isChat()) { // CHANNELS_UI
 		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgLeft, rectForName.top() + st::dlgChatImgTop), App::sprite(), (act ? st::dlgActiveChatImg : st::dlgChatImg));
 		rectForName.setLeft(rectForName.left() + st::dlgChatImgSkip);
 	}
@@ -281,7 +281,7 @@ void DialogsListWidget::searchInPeerPaint(QPainter &p, int32 w) const {
 	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop, namewidth, st::msgNameFont->height);
 
 	// draw chat icon
-	if (_searchInPeer->chat) {
+	if (_searchInPeer->isChat()) { // CHANNELS_UI
 		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgLeft, rectForName.top() + st::dlgChatImgTop), App::sprite(), st::dlgChatImg);
 		rectForName.setLeft(rectForName.left() + st::dlgChatImgSkip);
 	}
@@ -830,7 +830,7 @@ void DialogsListWidget::contactsReceived(const QVector<MTPContact> &contacts) {
 }
 
 int32 DialogsListWidget::addNewContact(int32 uid, bool select) { // -2 - err, -1 - don't scroll, >= 0 - scroll
-	PeerId peer = App::peerFromUser(uid);
+	PeerId peer = peerFromUser(uid);
 	if (!App::peerLoaded(peer)) return -2;
 
 	History *history = App::history(peer);
@@ -942,7 +942,7 @@ void DialogsListWidget::clearFilter() {
 }
 
 void DialogsListWidget::addDialog(const MTPDdialog &dialog) {
-	History *history = App::history(App::peerFromMTP(dialog.vpeer), dialog.vunread_count.v, dialog.vread_inbox_max_id.v);
+	History *history = App::history(peerFromMTP(dialog.vpeer), dialog.vunread_count.v, dialog.vread_inbox_max_id.v);
 	if (history->lastMsg) {
 		SavedPeersByTime &saved(cRefSavedPeersByTime());
 		while (!saved.isEmpty() && history->lastMsg->date < saved.lastKey()) {
@@ -1451,10 +1451,11 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
 , _drawShadow(true)
 , _dragInScroll(false)
 , _dragForward(false)
-, dlgOffset(0)
-, dlgCount(-1)
-, dlgPreloading(0)
-, contactsRequest(0)
+, _dialogsOffset(0)
+, _dialogsCount(-1)
+, _dialogsRequest(0)
+, _channelDialogsRequest(0)
+, _contactsRequest(0)
 , _filter(this, st::dlgFilter, lang(lng_dlg_filter))
 , _newGroup(this, st::btnNewGroup)
 , _addContact(this, st::btnAddContact)
@@ -1585,7 +1586,7 @@ void DialogsWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
 	for (QVector<MTPDialog>::const_iterator i = dialogs.cbegin(), e = dialogs.cend(); i != e; ++i) {
 		const MTPDdialog &d(i->c_dialog());
-		Histories::iterator j = App::histories().find(App::peerFromMTP(d.vpeer));
+		Histories::iterator j = App::histories().find(peerFromMTP(d.vpeer));
 		if (j != App::histories().end()) {
 			App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, j.value());
 			if (d.vunread_count.v >= j.value()->unreadCount) {
@@ -1605,7 +1606,7 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs) {
 		App::feedChats(data.vchats);
 		App::feedMsgs(data.vmessages);
 		dlgList = &data.vdialogs.c_vector().v;
-		dlgCount = dlgList->size();
+		_dialogsCount = dlgList->size();
 	} break;
 	case mtpc_messages_dialogsSlice: {
 		const MTPDmessages_dialogsSlice &data(dialogs.c_messages_dialogsSlice());
@@ -1613,14 +1614,14 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs) {
 		App::feedChats(data.vchats);
 		App::feedMsgs(data.vmessages);
 		dlgList = &data.vdialogs.c_vector().v;
-		dlgCount = data.vcount.v;
+		_dialogsCount = data.vcount.v;
 	} break;
 	}
 
 	unreadCountsReceived(*dlgList);
 
-	if (!contactsRequest) {
-		contactsRequest = MTP::send(MTPcontacts_GetContacts(MTP_string("")), rpcDone(&DialogsWidget::contactsReceived), rpcFail(&DialogsWidget::contactsFailed));
+	if (!_contactsRequest) {
+		_contactsRequest = MTP::send(MTPcontacts_GetContacts(MTP_string("")), rpcDone(&DialogsWidget::contactsReceived), rpcFail(&DialogsWidget::contactsFailed));
 	}
 
 	if (dlgList) {
@@ -1628,15 +1629,15 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs) {
 		onListScroll();
 
 		if (dlgList->size()) {
-			dlgOffset += dlgList->size();
+			_dialogsOffset += dlgList->size();
 		} else {
-			dlgCount = dlgOffset;
+			_dialogsCount = _dialogsOffset;
 		}
 	} else {
-		dlgCount = dlgOffset;
+		_dialogsCount = _dialogsOffset;
 	}
 
-	dlgPreloading = 0;
+	_dialogsRequest = 0;
 	if (dlgList) {
 		loadDialogs();
 	}
@@ -1646,7 +1647,7 @@ bool DialogsWidget::dialogsFailed(const RPCError &error) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
 
 	LOG(("RPC Error: %1 %2: %3").arg(error.code()).arg(error.type()).arg(error.description()));
-	dlgPreloading = 0;
+	_dialogsRequest = 0;
 	return true;
 }
 
@@ -1727,15 +1728,15 @@ void DialogsWidget::onSearchMore(MsgId minMsgId) {
 }
 
 void DialogsWidget::loadDialogs() {
-	if (dlgPreloading) return;
-	if (dlgCount >= 0 && dlgOffset >= dlgCount) {
+	if (_dialogsRequest) return;
+	if (_dialogsCount >= 0 && _dialogsOffset >= _dialogsCount) {
 		list.addAllSavedPeers();
 		cSetDialogsReceived(true);
 		return;
 	}
 
-	int32 loadCount = dlgOffset ? DialogsPerPage : DialogsFirstLoad;
-	dlgPreloading = MTP::send(MTPmessages_GetDialogs(MTP_int(dlgOffset), MTP_int(0), MTP_int(loadCount)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
+	int32 loadCount = _dialogsOffset ? DialogsPerPage : DialogsFirstLoad;
+	_dialogsRequest = MTP::send(MTPmessages_GetDialogs(MTP_int(_dialogsOffset), MTP_int(loadCount)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
 }
 
 void DialogsWidget::contactsReceived(const MTPcontacts_Contacts &contacts) {

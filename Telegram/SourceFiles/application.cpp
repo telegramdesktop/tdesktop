@@ -266,7 +266,7 @@ void Application::onUpdateFailed() {
 }
 #endif
 
-void Application::regPhotoUpdate(const PeerId &peer, MsgId msgId) {
+void Application::regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId) {
 	photoUpdates.insert(msgId, peer);
 }
 
@@ -275,7 +275,7 @@ void Application::clearPhotoUpdates() {
 }
 
 bool Application::isPhotoUpdating(const PeerId &peer) {
-	for (QMap<MsgId, PeerId>::iterator i = photoUpdates.begin(), e = photoUpdates.end(); i != e; ++i) {
+	for (QMap<FullMsgId, PeerId>::iterator i = photoUpdates.begin(), e = photoUpdates.end(); i != e; ++i) {
 		if (i.value() == peer) {
 			return true;
 		}
@@ -284,7 +284,7 @@ bool Application::isPhotoUpdating(const PeerId &peer) {
 }
 
 void Application::cancelPhotoUpdate(const PeerId &peer) {
-	for (QMap<MsgId, PeerId>::iterator i = photoUpdates.begin(), e = photoUpdates.end(); i != e;) {
+	for (QMap<FullMsgId, PeerId>::iterator i = photoUpdates.begin(), e = photoUpdates.end(); i != e;) {
 		if (i.value() == peer) {
 			i = photoUpdates.erase(i);
 		} else {
@@ -333,11 +333,15 @@ bool Application::peerPhotoFail(PeerId peer, const RPCError &error) {
 	return true;
 }
 
-void Application::peerClearPhoto(PeerId peer) {
-	if (App::self() && App::self()->id == peer) {
-		MTP::send(MTPphotos_UpdateProfilePhoto(MTP_inputPhotoEmpty(), MTP_inputPhotoCropAuto()), rpcDone(&Application::selfPhotoCleared), rpcFail(&Application::peerPhotoFail, peer));
-	} else {
-		MTP::send(MTPmessages_EditChatPhoto(MTP_int(int32(peer & 0xFFFFFFFF)), MTP_inputChatPhotoEmpty()), rpcDone(&Application::chatPhotoCleared, peer), rpcFail(&Application::peerPhotoFail, peer));
+void Application::peerClearPhoto(PeerId id) {
+	if (MTP::authedId() && peerToUser(id) == MTP::authedId()) {
+		MTP::send(MTPphotos_UpdateProfilePhoto(MTP_inputPhotoEmpty(), MTP_inputPhotoCropAuto()), rpcDone(&Application::selfPhotoCleared), rpcFail(&Application::peerPhotoFail, id));
+	} else if (peerIsChat(id)) {
+		MTP::send(MTPmessages_EditChatPhoto(MTP_inputChat(peerToBareMTPInt(id)), MTP_inputChatPhotoEmpty()), rpcDone(&Application::chatPhotoCleared, id), rpcFail(&Application::peerPhotoFail, id));
+	} else if (peerIsChannel(id)) {
+		if (ChannelData *channel = App::channelLoaded(id)) {
+			MTP::send(MTPmessages_EditChatPhoto(channel->inputChat, MTP_inputChatPhotoEmpty()), rpcDone(&Application::chatPhotoCleared, id), rpcFail(&Application::peerPhotoFail, id));
+		}
 	}
 }
 
@@ -386,17 +390,17 @@ void Application::killDownloadSessions() {
 	}
 }
 
-void Application::photoUpdated(MsgId msgId, const MTPInputFile &file) {
+void Application::photoUpdated(const FullMsgId &msgId, const MTPInputFile &file) {
 	if (!App::self()) return;
 
-	QMap<MsgId, PeerId>::iterator i = photoUpdates.find(msgId);
+	QMap<FullMsgId, PeerId>::iterator i = photoUpdates.find(msgId);
 	if (i != photoUpdates.end()) {
-		PeerId peer = i.value();
-		if (peer == App::self()->id) {
-			MTP::send(MTPphotos_UploadProfilePhoto(file, MTP_string(""), MTP_inputGeoPointEmpty(), MTP_inputPhotoCrop(MTP_double(0), MTP_double(0), MTP_double(100))), rpcDone(&Application::selfPhotoDone), rpcFail(&Application::peerPhotoFail, peer));
-		} else {
-			History *hist = App::history(peer);
-			hist->sendRequestId = MTP::send(MTPmessages_EditChatPhoto(MTP_int(peer & 0xFFFFFFFF), MTP_inputChatUploadedPhoto(file, MTP_inputPhotoCrop(MTP_double(0), MTP_double(0), MTP_double(100)))), rpcDone(&Application::chatPhotoDone, peer), rpcFail(&Application::peerPhotoFail, peer), 0, 0, hist->sendRequestId);
+		PeerId id = i.value();
+		if (MTP::authedId() && peerToUser(id) == MTP::authedId()) {
+			MTP::send(MTPphotos_UploadProfilePhoto(file, MTP_string(""), MTP_inputGeoPointEmpty(), MTP_inputPhotoCrop(MTP_double(0), MTP_double(0), MTP_double(100))), rpcDone(&Application::selfPhotoDone), rpcFail(&Application::peerPhotoFail, id));
+		} else if (peerIsChat(id) || peerIsChannel(id)) {
+			History *hist = App::history(id);
+			hist->sendRequestId = MTP::send(MTPmessages_EditChatPhoto(hist->peer->isChat() ? hist->peer->asChat()->inputChat : hist->peer->asChannel()->inputChat, MTP_inputChatUploadedPhoto(file, MTP_inputPhotoCrop(MTP_double(0), MTP_double(0), MTP_double(100)))), rpcDone(&Application::chatPhotoDone, id), rpcFail(&Application::peerPhotoFail, id), 0, 0, hist->sendRequestId);
 		}
 	}
 }
@@ -494,9 +498,9 @@ void Application::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId)
 
 	ReadyLocalMedia ready(ToPreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, MTP_audioEmpty(MTP_long(0)), photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false, 0);
 
-	connect(App::uploader(), SIGNAL(photoReady(MsgId, const MTPInputFile &)), App::app(), SLOT(photoUpdated(MsgId, const MTPInputFile &)), Qt::UniqueConnection);
+	connect(App::uploader(), SIGNAL(photoReady(const FullMsgId&, const MTPInputFile&)), App::app(), SLOT(photoUpdated(const FullMsgId&, const MTPInputFile&)), Qt::UniqueConnection);
 
-	MsgId newId = clientMsgId();
+	FullMsgId newId(peerToChannel(peerId), clientMsgId());
 	App::app()->regPhotoUpdate(peerId, newId);
 	App::uploader()->uploadMedia(newId, ready);
 }

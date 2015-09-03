@@ -30,7 +30,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const PeerData *peer) : TWidget(0),
 	_profile(profile), _scroll(scroll), _peer(App::peer(peer->id)),
-	_peerUser(_peer->chat ? 0 : _peer->asUser()), _peerChat(_peer->chat ? _peer->asChat() : 0), _hist(App::history(peer->id)),
+	_peerUser(_peer->asUser()), _peerChat(_peer->asChat()), _peerChannel(_peer->asChannel()), _hist(App::history(peer->id)),
 	_chatAdmin(_peerChat ? (_peerChat->admin == MTP::authedId()) : false),
 
 	// profile
@@ -63,7 +63,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	// actions
 	_searchInPeer(this, lang(lng_profile_search_messages)),
 	_clearHistory(this, lang(lng_profile_clear_history)),
-	_deleteConversation(this, lang(_peer->chat ? lng_profile_clear_and_exit : lng_profile_delete_conversation)),
+	_deleteConversation(this, lang(_peer->isUser() ? lng_profile_delete_conversation : lng_profile_clear_and_exit)),
 	_wasBlocked(_peerUser ? _peerUser->blocked : UserBlockUnknown),
 	_blockRequest(0),
 	_blockUser(this, lang((_peerUser && _peerUser->botInfo) ? lng_profile_block_bot : lng_profile_block_user), st::btnRedLink),
@@ -82,7 +82,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 		if (_peerUser->blocked == UserIsBlocked) {
 			_blockUser.setText(lang(_peerUser->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user));
 		}
-		_phoneText = App::formatPhone(_peerUser->phone.isEmpty() ? App::phoneFromSharedContact(App::userFromPeer(_peerUser->id)) : _peerUser->phone);
+		_phoneText = App::formatPhone(_peerUser->phone.isEmpty() ? App::phoneFromSharedContact(peerToUser(_peerUser->id)) : _peerUser->phone);
 		PhotoData *userPhoto = (_peerUser->photoId && _peerUser->photoId != UnknownPeerPhotoId) ? App::photo(_peerUser->photoId) : 0;
 		if (userPhoto && userPhoto->date) {
 			_photoLink = TextLinkPtr(new PhotoLink(userPhoto, _peer));
@@ -255,7 +255,7 @@ void ProfileInner::onUpdatePhoto() {
 }
 
 void ProfileInner::onClearHistory() {
-	ConfirmBox *box = new ConfirmBox(_peer->chat ? lng_sure_delete_group_history(lt_group, _peer->name) : lng_sure_delete_history(lt_contact, _peer->name));
+	ConfirmBox *box = new ConfirmBox(_peer->isUser() ? lng_sure_delete_history(lt_contact, _peer->name) : lng_sure_delete_group_history(lt_group, _peer->name));
 	connect(box, SIGNAL(confirmed()), this, SLOT(onClearHistorySure()));
 	App::wnd()->showLayer(box);
 }
@@ -266,18 +266,19 @@ void ProfileInner::onClearHistorySure() {
 }
 
 void ProfileInner::onDeleteConversation() {
-	ConfirmBox *box = new ConfirmBox(_peer->chat ? lng_sure_delete_and_exit(lt_group, _peer->name) : lng_sure_delete_history(lt_contact, _peer->name));
+	ConfirmBox *box = new ConfirmBox(_peer->isUser() ? lng_sure_delete_history(lt_contact, _peer->name) : lng_sure_delete_and_exit(lt_group, _peer->name));
 	connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteConversationSure()));
 	App::wnd()->showLayer(box);
 }
 
 void ProfileInner::onDeleteConversationSure() {
-	if (_peer->chat) {
+	if (_peerUser) {
+		App::main()->deleteConversation(_peer);
+	} else if (_peerChat) {
 		App::wnd()->hideLayer();
 		App::main()->showDialogs();
-		MTP::send(MTPmessages_DeleteChatUser(MTP_int(_peer->id & 0xFFFFFFFF), App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _peer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _peer));
-	} else {
-		App::main()->deleteConversation(_peer);
+		MTP::send(MTPmessages_DeleteChatUser(_peerChat->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _peer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _peer));
+	} else if (_peerChannel) { // CHANNELS_UX
 	}
 }
 
@@ -370,7 +371,8 @@ void ProfileInner::onCreateInvitationLink() {
 }
 
 void ProfileInner::onCreateInvitationLinkSure() {
-	MTP::send(MTPmessages_ExportChatInvite(App::peerToMTP(_peerChat->id).c_peerChat().vchat_id), rpcDone(&ProfileInner::chatInviteDone));
+	if (!_peerChat) return;
+	MTP::send(MTPmessages_ExportChatInvite(_peerChat->inputChat), rpcDone(&ProfileInner::chatInviteDone));
 }
 
 void ProfileInner::chatInviteDone(const MTPExportedChatInvite &result) {
@@ -434,7 +436,7 @@ void ProfileInner::peerUpdated(PeerData *data) {
 	if (data == _peer) {
 		PhotoData *photo = 0;
 		if (_peerUser) {
-			_phoneText = App::formatPhone(_peerUser->phone.isEmpty() ? App::phoneFromSharedContact(App::userFromPeer(_peerUser->id)) : _peerUser->phone);
+			_phoneText = App::formatPhone(_peerUser->phone.isEmpty() ? App::phoneFromSharedContact(peerToUser(_peerUser->id)) : _peerUser->phone);
 			if (_peerUser->photoId && _peerUser->photoId != UnknownPeerPhotoId) photo = App::photo(_peerUser->photoId);
 			if (_wasBlocked != _peerUser->blocked) {
 				_wasBlocked = _peerUser->blocked;
@@ -673,7 +675,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 	top += st::profileHeaderSkip;
 
 	top += _searchInPeer.height() + st::setLittleSkip + _clearHistory.height() + st::setLittleSkip + _deleteConversation.height();
-	if (_peerUser && App::userFromPeer(_peerUser->id) != MTP::authedId()) top += st::setSectionSkip + _blockUser.height();
+	if (_peerUser && peerToUser(_peerUser->id) != MTP::authedId()) top += st::setSectionSkip + _blockUser.height();
 
 	// participants
 	if (_peerChat && (_peerChat->count > 0 || !_participants.isEmpty())) {
@@ -944,7 +946,7 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	_searchInPeer.move(_left, top);	top += _searchInPeer.height() + st::setLittleSkip;
 	_clearHistory.move(_left, top); top += _clearHistory.height() + st::setLittleSkip;
 	_deleteConversation.move(_left, top); top += _deleteConversation.height();
-	if (_peerUser && App::userFromPeer(_peerUser->id) != MTP::authedId()) {
+	if (_peerUser && peerToUser(_peerUser->id) != MTP::authedId()) {
 		top += st::setSectionSkip;
 		_blockUser.move(_left, top); top += _blockUser.height();
 	}
@@ -1102,7 +1104,7 @@ void ProfileInner::showAll() {
 			_inviteToGroup.hide();
 		}
 		_clearHistory.show();
-		if (App::userFromPeer(_peerUser->id) != MTP::authedId()) {
+		if (peerToUser(_peerUser->id) != MTP::authedId()) {
 			_blockUser.show();
 		} else {
 			_blockUser.hide();
@@ -1151,7 +1153,7 @@ void ProfileInner::showAll() {
 	reorderParticipants();
 	int32 h;
 	if (_peerUser) {
-		if (App::userFromPeer(_peerUser->id) == MTP::authedId()) {
+		if (peerToUser(_peerUser->id) == MTP::authedId()) {
 			h = _deleteConversation.y() + _deleteConversation.height() + st::profileHeaderSkip;
 		} else {
 			h = _blockUser.y() + _blockUser.height() + st::profileHeaderSkip;
@@ -1269,7 +1271,7 @@ void ProfileWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 		p.drawPixmap(QPoint(st::topBarBackPadding.left(), (st::topBarHeight - st::topBarBackImg.pxHeight()) / 2), App::sprite(), st::topBarBackImg);
 		p.setFont(st::topBarBackFont->f);
 		p.setPen(st::topBarBackColor->p);
-		p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.pxWidth() + st::topBarBackPadding.right(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, lang(peer()->chat ? lng_profile_group_info : lng_profile_info));
+		p.drawText(st::topBarBackPadding.left() + st::topBarBackImg.pxWidth() + st::topBarBackPadding.right(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, lang(peer()->isUser() ? lng_profile_info : lng_profile_group_info));
 	}
 }
 
@@ -1362,7 +1364,7 @@ void ProfileWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type)
 }
 
 void ProfileWidget::clear() {
-	if (_inner.peer() && !_inner.peer()->chat && _inner.peer()->asUser()->botInfo) {
+	if (_inner.peer() && _inner.peer()->isUser() && _inner.peer()->asUser()->botInfo) {
 		_inner.peer()->asUser()->botInfo->startGroupToken = QString();
 	}
 }
