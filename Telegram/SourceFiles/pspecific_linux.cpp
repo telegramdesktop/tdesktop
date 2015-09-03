@@ -1165,6 +1165,7 @@ namespace {
 }
 
 void psRegisterCustomScheme() {
+    #ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
     QString home(_psHomeDir());
     if (home.isEmpty()) return;
 
@@ -1249,6 +1250,7 @@ void psRegisterCustomScheme() {
             LOG(("App Error: Could not open '%1' for write").arg(file));
         }
     }
+    #endif
 }
 
 void psNewVersion() {
