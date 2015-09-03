@@ -3062,24 +3062,6 @@ void HistoryWidget::updateControlsVisibility() {
 			resizeEvent(0);
 			update();
 		}
-	} else {
-		_attachMention.hide();
-		_send.hide();
-		_unblock.hide();
-		_botStart.hide();
-		_attachDocument.hide();
-		_attachPhoto.hide();
-		_attachEmoji.hide();
-		_kbShow.hide();
-		_kbHide.hide();
-		_cmdStart.hide();
-		_attachType.hide();
-		_emojiPan.hide();
-		if (!_field.isHidden()) {
-			_field.hide();
-			resizeEvent(0);
-			update();
-		}
 	}
 }
 

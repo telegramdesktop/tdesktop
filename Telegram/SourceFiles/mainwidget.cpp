@@ -2574,16 +2574,6 @@ void MainWidget::searchInPeer(PeerData *peer) {
 	}
 }
 
-void MainWidget::searchInPeer(PeerData *peer) {
-	dialogs.searchInPeer(peer);
-	if (cWideMode()) {
-		dialogs.activate();
-	} else {
-		dialogsToUp();
-		showDialogs();
-	}
-}
-
 void MainWidget::onUpdateNotifySettings() {
 	if (this != App::main()) return;
 	while (!updateNotifySettingPeers.isEmpty()) {

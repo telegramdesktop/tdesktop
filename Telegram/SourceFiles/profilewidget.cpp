@@ -68,14 +68,6 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	_blockRequest(0),
 	_blockUser(this, lang((_peerUser && _peerUser->botInfo) ? lng_profile_block_bot : lng_profile_block_user), st::btnRedLink),
 
-	// actions
-	_searchInPeer(this, lang(lng_profile_search_messages)),
-	_clearHistory(this, lang(lng_profile_clear_history)),
-	_deleteConversation(this, lang(_peer->chat ? lng_profile_clear_and_exit : lng_profile_delete_conversation)),
-	_wasBlocked(_peerUser ? _peerUser->blocked : UserBlockUnknown),
-	_blockRequest(0),
-	_blockUser(this, lang((_peerUser && _peerUser->botInfo) ? lng_profile_block_bot : lng_profile_block_user), st::btnRedLink),
-
 	// participants
 	_pHeight(st::profileListPhotoSize + st::profileListPadding.height() * 2),
 	_kickWidth(st::linkFont->m.width(lang(lng_profile_kick))),

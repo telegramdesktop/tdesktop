@@ -2389,7 +2389,7 @@ void OverviewInner::itemResized(HistoryItem *item, bool scrollToIt) {
 						_items[j].y += newh;
 					}
 					_height = _items[l - 1].y;
-					_addToY = (_type == OverviewAudioDocuments) ? st::playlistPadding : ((_height < _minHeight) ? (_minHeight - _height) : 0);
+					_addToY = (_height < _minHeight) ? (_minHeight - _height) : 0;
 					resize(width(), _minHeight > _height ? _minHeight : _height);
 					if (scrollToIt) {
 						if (_addToY + _height - from > _scroll->scrollTop() + _scroll->height()) {
@@ -2475,7 +2475,7 @@ void OverviewInner::showAll(bool recountHeights) {
 		newHeight = _height;
 		_addToY = (_height < _minHeight) ? (_minHeight - _height) : 0;
 	}
-	_addToY = (_type == OverviewAudioDocuments) ? st::playlistPadding : ((_height < _minHeight) ? (_minHeight - _height) : 0);
+
 	if (newHeight < _minHeight) {
 		newHeight = _minHeight;
 	}
