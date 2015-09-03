@@ -72,7 +72,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
 then go to **/home/user/TBuild/Libraries/openal-soft/build** and run
 
     sudo apt-get install cmake
-    cmake -D LIBTYPE:STRING=STATIC ..
+    cmake -D LIBTYPE:STRING=STATIC .
     make
     sudo make install
 
