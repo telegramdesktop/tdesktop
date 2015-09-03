@@ -374,6 +374,10 @@ introHeaderFont: font(24px);
 introHeaderSkip: 14px;
 introIconSkip: 54px;
 introFont: font(16px);
+introLink: linkButton(btnDefLink) {
+	font: introFont;
+	overFont: font(16px underline);
+}
 introColor: black;
 introLabel: flatLabel(labelDefFlat) {
 	font: introFont;
@@ -1485,6 +1489,10 @@ dropdownMediaAudios: iconedButton(dropdownMediaDocuments) {
 	icon: sprite(62px, 348px, 24px, 24px);
 	downIcon: sprite(62px, 348px, 24px, 24px);
 }
+dropdownMediaLinks: iconedButton(dropdownMediaDocuments) {
+	icon: sprite(372px, 414px, 24px, 24px);
+	downIcon: sprite(62px, 348px, 24px, 24px);
+}
 
 dragFont: font(28px semibold);
 dragSubfont: font(20px semibold);
@@ -2036,3 +2044,15 @@ playerDuration: 200;
 
 playlistHoverBg: #f2f2f2;
 playlistPadding: 10px;
+
+linksSearchMargin: margins(20px, 20px, 20px, 0px);
+linksMaxWidth: 520px;
+linksLetterFont: font(24px);
+linksMargin: 5px;
+linksBorder: 1px;
+linksBorderColor: #eaeaea;
+linksDateColor: #000;
+linksDateMargin: 15px;
+
+linksPhotoCheck: sprite(184px, 196px, 16px, 16px);
+linksPhotoChecked: sprite(168px, 196px, 16px, 16px);

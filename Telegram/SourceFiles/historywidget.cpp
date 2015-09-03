@@ -559,10 +559,10 @@ void HistoryList::onDragExec() {
 			QDrag *drag = new QDrag(App::wnd());
 			QMimeData *mimeData = new QMimeData;
 
-			if (dragSticker || dragByDate) {
-				mimeData->setData(qsl("application/x-td-forward-pressed"), "1");
-			} else {
+			if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument || lnkContact) {
 				mimeData->setData(qsl("application/x-td-forward-pressed-link"), "1");
+			} else {
+				mimeData->setData(qsl("application/x-td-forward-pressed"), "1");
 			}
 			if (lnkDocument) {
 				QString already = static_cast<DocumentOpenLink*>(textlnkDown().data())->document()->already(true);
@@ -1346,7 +1346,6 @@ void HistoryList::onUpdateSelected() {
 	if (_dragItem && _dragItem->detached()) {
 		dragActionCancel();
 	}
-	linkTipTimer.start(1000);
 
 	Qt::CursorShape cur = style::cur_default;
 	HistoryCursorState cursorState = HistoryDefaultCursorState;
@@ -1373,7 +1372,7 @@ void HistoryList::onUpdateSelected() {
 			}
 		}
 		textlnkOver(lnk);
-		QToolTip::showText(_dragPos, QString(), App::wnd());
+		QToolTip::hideText();
 		App::hoveredLinkItem((lnk && !lnkInDesc) ? item : 0);
 		if (textlnkOver()) {
 			if (App::hoveredLinkItem()) {
@@ -1382,6 +1381,12 @@ void HistoryList::onUpdateSelected() {
 				update(botDescRect);
 			}
 		}
+	}
+	if (lnk || cursorState == HistoryInDateCursorState) {
+		linkTipTimer.start(1000);
+	}
+	if (_dragCursorState == HistoryInDateCursorState && cursorState != HistoryInDateCursorState) {
+		QToolTip::hideText();
 	}
 
 	if (_dragAction == NoDrag) {
@@ -1544,8 +1549,15 @@ void HistoryList::applyDragSelection(SelectedItems *toItems) const {
 
 void HistoryList::showLinkTip() {
 	TextLinkPtr lnk = textlnkOver();
+	int32 dd = QApplication::startDragDistance();
+	QPoint dp(mapFromGlobal(_dragPos));
+	QRect r(dp.x() - dd, dp.y() - dd, 2 * dd, 2 * dd);
 	if (lnk && !lnk->fullDisplayed()) {
-		QToolTip::showText(_dragPos, lnk->readable(), App::wnd());
+		QToolTip::showText(_dragPos, lnk->readable(), this, r);
+	} else if (_dragCursorState == HistoryInDateCursorState && _dragAction == NoDrag) {
+		if (App::hoveredItem()) {
+			QToolTip::showText(_dragPos, App::hoveredItem()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)), this, r);
+		}
 	}
 }
 
@@ -1873,7 +1885,10 @@ void BotKeyboard::showCommandTip() {
 	if (_sel >= 0) {
 		int row = (_sel / MatrixRowShift), col = _sel % MatrixRowShift;
 		if (!_btns.at(row).at(col).full) {
-			QToolTip::showText(_lastMousePos, _btns.at(row).at(col).cmd);
+			int32 dd = QApplication::startDragDistance();
+			QPoint dp(mapFromGlobal(_lastMousePos));
+			QRect r(dp.x() - dd, dp.y() - dd, 2 * dd, 2 * dd);
+			QToolTip::showText(_lastMousePos, _btns.at(row).at(col).cmd, this, r);
 		}
 	}
 }
@@ -1899,7 +1914,7 @@ void BotKeyboard::updateSelected() {
 		if (newSel >= 0) break;
 	}
 	if (newSel != _sel) {
-		QToolTip::showText(_lastMousePos, QString(), App::wnd());
+		QToolTip::hideText();
 		if (newSel < 0) {
 			setCursor(style::cur_default);
 		} else if (_sel < 0) {
@@ -2712,19 +2727,17 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 			bool canShowNow = _history->isReadyFor(showAtMsgId, true);
 			if (!canShowNow) {
 				delayedShowAt(showAtMsgId);
-				return;
+			} else {
+				clearDelayedShowAt();
+				if (_replyReturn && _replyReturn->id == showAtMsgId) {
+					calcNextReplyReturn();
+				}
+
+				_showAtMsgId = showAtMsgId;
+				_histInited = false;
+
+				historyLoaded();
 			}
-
-			clearDelayedShowAt();
-			if (_replyReturn && _replyReturn->id == showAtMsgId) {
-				calcNextReplyReturn();
-			}
-
-			_showAtMsgId = showAtMsgId;
-			_histInited = false;
-
-			historyLoaded();
-
 			emit peerShown(_peer);
 			App::main()->topBar()->update();
 			update();
@@ -3030,6 +3043,24 @@ void HistoryWidget::updateControlsVisibility() {
 			} else {
 				_replyForwardPreviewCancel.hide();
 			}
+		}
+	} else {
+		_attachMention.hide();
+		_send.hide();
+		_unblock.hide();
+		_botStart.hide();
+		_attachDocument.hide();
+		_attachPhoto.hide();
+		_attachEmoji.hide();
+		_kbShow.hide();
+		_kbHide.hide();
+		_cmdStart.hide();
+		_attachType.hide();
+		_emojiPan.hide();
+		if (!_field.isHidden()) {
+			_field.hide();
+			resizeEvent(0);
+			update();
 		}
 	} else {
 		_attachMention.hide();
@@ -3416,7 +3447,7 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 	fastShowAtEnd(h);
 
 	PeerData *p = App::peer(peer);
-	int32 flags = newMessageFlags(p); // unread, out
+	int32 flags = newMessageFlags(p) | MTPDmessage::flag_media; // unread, out
 	
 	bool lastKeyboardUsed = lastForceReplyReplied(replyTo);
 
@@ -4296,14 +4327,15 @@ void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
 
 	fastShowAtEnd(h);
 
-	int32 flags = newMessageFlags(h->peer); // unread, out
+	int32 flags = newMessageFlags(h->peer) | MTPDmessage::flag_media; // unread, out
 	if (img.replyTo) flags |= MTPDmessage::flag_reply_to_msg_id;
 	if (img.type == ToPreparePhoto) {
 		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(img.peer), MTPint(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(img.photo, MTP_string("")), MTPnullMarkup, MTPnullEntities));
 	} else if (img.type == ToPrepareDocument) {
 		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(img.peer), MTPint(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(img.document), MTPnullMarkup, MTPnullEntities));
 	} else if (img.type == ToPrepareAudio) {
-		h->addToBack(MTP_message(MTP_int(flags | MTPDmessage_flag_media_unread), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(img.peer), MTPint(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaAudio(img.audio), MTPnullMarkup, MTPnullEntities));
+		flags |= MTPDmessage_flag_media_unread;
+		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(img.peer), MTPint(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaAudio(img.audio), MTPnullMarkup, MTPnullEntities));
 	}
 
 	if (_peer && img.peer == _peer->id) {
@@ -4902,7 +4934,7 @@ void HistoryWidget::onStickerSend(DocumentData *sticker) {
 	bool lastKeyboardUsed = lastForceReplyReplied();
 
 	bool out = (_peer->input.type() != mtpc_inputPeerSelf), unread = (_peer->input.type() != mtpc_inputPeerSelf);
-	int32 flags = newMessageFlags(_peer); // unread, out
+	int32 flags = newMessageFlags(_peer) | MTPDmessage::flag_media; // unread, out
 	int32 sendFlags = 0;
 	if (replyToId()) {
 		flags |= MTPDmessage::flag_reply_to_msg_id;
@@ -5114,18 +5146,25 @@ void HistoryWidget::updatePreview() {
 				if (_previewData->title.isEmpty()) {
 					if (_previewData->description.isEmpty()) {
 						title = _previewData->author;
-						desc = _previewData->url;
+						desc = ((_previewData->doc && !_previewData->doc->name.isEmpty()) ? _previewData->doc->name : _previewData->url);
 					} else {
 						title = _previewData->description;
-						desc = _previewData->author.isEmpty() ? _previewData->url : _previewData->author;
+						desc = _previewData->author.isEmpty() ? ((_previewData->doc && !_previewData->doc->name.isEmpty()) ? _previewData->doc->name : _previewData->url) : _previewData->author;
 					}
 				} else {
 					title = _previewData->title;
-					desc = _previewData->description.isEmpty() ? (_previewData->author.isEmpty() ? _previewData->url : _previewData->author) : _previewData->description;
+					desc = _previewData->description.isEmpty() ? (_previewData->author.isEmpty() ? ((_previewData->doc && !_previewData->doc->name.isEmpty()) ? _previewData->doc->name : _previewData->url) : _previewData->author) : _previewData->description;
 				}
 			} else {
 				title = _previewData->siteName;
-				desc = _previewData->title.isEmpty() ? (_previewData->description.isEmpty() ? (_previewData->author.isEmpty() ? _previewData->url : _previewData->author) : _previewData->description) : _previewData->title;
+				desc = _previewData->title.isEmpty() ? (_previewData->description.isEmpty() ? (_previewData->author.isEmpty() ? ((_previewData->doc && !_previewData->doc->name.isEmpty()) ? _previewData->doc->name : _previewData->url) : _previewData->author) : _previewData->description) : _previewData->title;
+			}
+			if (title.isEmpty()) {
+				if (_previewData->photo) {
+					title = lang(lng_attach_photo);
+				} else if (_previewData->doc) {
+					title = lang(lng_attach_file);
+				}
 			}
 			_previewTitle.setText(st::msgServiceNameFont, title, _textNameOptions);
 			_previewDescription.setText(st::msgFont, desc, _textDlgOptions);
@@ -5407,8 +5446,8 @@ void HistoryWidget::drawField(Painter &p) {
 	if (drawPreview) {
 		int32 previewLeft = st::replySkip + st::webPageLeft;
 		p.fillRect(st::replySkip, backy + st::msgReplyPadding.top(), st::webPageBar, st::msgReplyBarSize.height(), st::msgInReplyBarColor->b);
-		if (_previewData->photo && !_previewData->photo->thumb->isNull()) {
-			ImagePtr replyPreview = _previewData->photo->makeReplyPreview();
+		if ((_previewData->photo && !_previewData->photo->thumb->isNull()) || (_previewData->doc && !_previewData->doc->thumb->isNull())) {
+			ImagePtr replyPreview = _previewData->photo ? _previewData->photo->makeReplyPreview() : _previewData->doc->makeReplyPreview();
 			if (!replyPreview->isNull()) {
 				QRect to(previewLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
 				if (replyPreview->width() == replyPreview->height()) {

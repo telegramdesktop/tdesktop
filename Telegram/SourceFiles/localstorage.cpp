@@ -730,6 +730,14 @@ namespace {
 			cSetSoundNotify(v == 1);
 		} break;
 
+		case dbiIncludeMuted: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetIncludeMuted(v == 1);
+		} break;
+
 		case dbiDesktopNotify: {
 			qint32 v;
 			stream >> v;
@@ -744,7 +752,9 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			cSetWindowsNotifications(v == 1);
-			cSetCustomNotifies((App::wnd() ? App::wnd()->psHasNativeNotifications() : true) && !cWindowsNotifications());
+			if (cPlatform() == dbipWindows) {
+				cSetCustomNotifies((App::wnd() ? !App::wnd()->psHasNativeNotifications() : true) || !cWindowsNotifications());
+			}
 		} break;
 
 		case dbiWorkMode: {
@@ -1279,7 +1289,7 @@ namespace {
 			_writeMap(WriteMapFast);
 		}
 
-		uint32 size = 13 * (sizeof(quint32) + sizeof(qint32));
+		uint32 size = 14 * (sizeof(quint32) + sizeof(qint32));
 		size += sizeof(quint32) + _stringSize(cAskDownloadPath() ? QString() : cDownloadPath());
 		size += sizeof(quint32) + sizeof(qint32) + (cRecentEmojisPreload().isEmpty() ? cGetRecentEmojis().size() : cRecentEmojisPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 		size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
@@ -1293,6 +1303,7 @@ namespace {
 		data.stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);
 		data.stream << quint32(dbiDefaultAttach) << qint32(cDefaultAttach());
 		data.stream << quint32(dbiSoundNotify) << qint32(cSoundNotify());
+		data.stream << quint32(dbiIncludeMuted) << qint32(cIncludeMuted());
 		data.stream << quint32(dbiDesktopNotify) << qint32(cDesktopNotify());
 		data.stream << quint32(dbiNotifyView) << qint32(cNotifyView());
 		data.stream << quint32(dbiWindowsNotifications) << qint32(cWindowsNotifications());

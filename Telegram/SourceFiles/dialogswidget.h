@@ -35,7 +35,7 @@ public:
 	void activate();
 
 	void contactsReceived(const QVector<MTPContact> &contacts);
-	int32 addNewContact(int32 uid, bool sel = false); // return y of row or -1 if failed
+	int32 addNewContact(int32 uid, bool sel = false); // -2 - err, -1 - don't scroll, >= 0 - scroll
 
 	int32 filteredOffset() const;
 	int32 peopleOffset() const;

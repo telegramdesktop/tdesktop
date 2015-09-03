@@ -25,8 +25,13 @@ public:
 
 	OverviewInner(OverviewWidget *overview, ScrollArea *scroll, const PeerData *peer, MediaOverviewType type);
 
+	void activate();
+
 	void clear();
 	int32 itemTop(MsgId msgId) const;
+
+	bool preloadLocal();
+	void preloadMore();
 
 	bool event(QEvent *e);
 	void touchEvent(QTouchEvent *e);
@@ -73,8 +78,10 @@ public:
 public slots:
 
 	void onUpdateSelected();
+	void showLinkTip();
 
 	void openContextUrl();
+	void copyContextUrl();
 	void cancelContextDownload();
 	void showContextInFolder();
 	void saveContextFile();
@@ -85,11 +92,18 @@ public slots:
 	void forwardMessage();
 	void selectMessage();
 
+	void onSearchUpdate();
+	void onCancel();
+	bool onCancelSearch();
+
 	void onMenuDestroy(QObject *obj);
 	void onTouchSelect();
 	void onTouchScrollTimer();
 
 	void onDragExec();
+
+	bool onSearchMessages(bool searchCache = false);
+	void onNeedSearchMessages();
 
 private:
 
@@ -122,11 +136,11 @@ private:
 	
 	// photos
 	int32 _photosInRow, _photosToAdd, _vsize;
-	typedef struct {
+	struct CachedSize {
 		int32 vsize;
 		bool medium;
 		QPixmap pix;
-	} CachedSize;
+	};
 	typedef QMap<PhotoData*, CachedSize> CachedSizes;
 	CachedSizes _cached;
 	bool _selMode;
@@ -134,23 +148,75 @@ private:
 	// audio documents
 	int32 _audioLeft, _audioWidth, _audioHeight;
 
-	// other
-	typedef struct _CachedItem {
-		_CachedItem() : msgid(0), y(0) {
+	// shared links
+	int32 _linksLeft, _linksWidth;
+	struct Link {
+		Link() : width(0) {
 		}
-		_CachedItem(MsgId msgid, const QDate &date, int32 y) : msgid(msgid), date(date), y(y) {
+		Link(const QString &url, const QString &text) : url(url), text(text), width(st::msgFont->m.width(text)) {
+		}
+		QString url, text;
+		int32 width;
+	};
+	struct CachedLink {
+		CachedLink() : titleWidth(0), page(0), pixw(0), pixh(0), text(st::msgMinWidth) {
+		}
+		CachedLink(HistoryItem *item);
+		int32 countHeight(int32 w);
+
+		QString title, letter;
+		int32 titleWidth;
+		WebPageData *page;
+		int32 pixw, pixh;
+		Text text;
+		QVector<Link> urls;
+	};
+	typedef QMap<MsgId, CachedLink*> CachedLinks;
+	CachedLinks _links;
+	FlatInput _search;
+	IconedButton _cancelSearch;
+	QVector<MsgId> _results;
+	int32 _itemsToBeLoaded;
+
+	QTimer _searchTimer;
+	QString _searchQuery;
+	bool _inSearch, _searchFull;
+	mtpRequestId _searchRequest;
+	History::MediaOverview _searchResults;
+	MsgId _lastSearchId;
+	int32 _searchedCount;
+	void searchReceived(bool fromStart, const MTPmessages_Messages &result, mtpRequestId req);
+	bool searchFailed(const RPCError &error, mtpRequestId req);
+
+	typedef QMap<QString, MTPmessages_Messages> SearchCache;
+	SearchCache _searchCache;
+
+	typedef QMap<mtpRequestId, QString> SearchQueries;
+	SearchQueries _searchQueries;
+
+	CachedLink *cachedLink(HistoryItem *item);
+
+	// other
+	struct CachedItem {
+		CachedItem() : msgid(0), y(0) {
+		}
+		CachedItem(MsgId msgid, const QDate &date, int32 y) : msgid(msgid), date(date), y(y) {
 		}
 		MsgId msgid;
 		QDate date;
 		int32 y;
-	} CachedItem;
+		CachedLink *link;
+	};
 	typedef QVector<CachedItem> CachedItems;
 	CachedItems _items;
 
 	int32 _width, _height, _minHeight, _addToY;
 
+	QTimer _linkTipTimer;
+
 	// selection support, like in HistoryWidget
 	Qt::CursorShape _cursor;
+	HistoryCursorState _cursorState;
 	typedef QMap<MsgId, uint32> SelectedItems;
 	SelectedItems _selected;
 	enum DragAction {
@@ -166,9 +232,14 @@ private:
 	int32 _dragItemIndex;
 	MsgId _mousedItem;
 	int32 _mousedItemIndex;
+	int32 _lnkOverIndex, _lnkDownIndex; // for OverviewLinks, 0 - none, -1 - photo or title, > 0 - lnk index
 	uint16 _dragSymbol;
 	bool _dragWasInactive;
 
+	QString urlByIndex(MsgId msgid, int32 index, int32 lnkIndex, bool *fullShown = 0) const;
+	bool urlIsEmail(const QString &url) const;
+
+	QString _contextMenuUrl;
 	TextLinkPtr _contextMenuLnk;
 
 	MsgId _dragSelFrom, _dragSelTo;
@@ -202,6 +273,7 @@ public:
 	void contextMenuEvent(QContextMenuEvent *e);
 
 	void scrollBy(int32 add);
+	void scrollReset();
 
 	void paintTopBar(QPainter &p, float64 over, int32 decreaseWidth);
 	void topBarShadowParams(int32 &x, float64 &o);

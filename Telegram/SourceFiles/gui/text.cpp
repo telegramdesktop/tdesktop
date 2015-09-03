@@ -20,6 +20,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "lang.h"
 
+#include "pspecific.h"
+
 #include <private/qharfbuzz_p.h>
 
 namespace {
@@ -328,13 +330,13 @@ public:
 	}
 
 	bool checkWaitedLink() {
-		if (waitingLink == linksEnd || ptr < waitingLink->from || links.size() >= 0x7FFF) {
+		if (waitingLink == linksEnd || ptr < start + waitingLink->offset || links.size() >= 0x7FFF) {
 			return true;
 		}
 
 		createBlock();
 
-		QString lnkUrl = QString(waitingLink->from, waitingLink->len), lnkText;
+		QString lnkUrl = QString(start + waitingLink->offset, waitingLink->length), lnkText;
 		int32 fullDisplayed;
 		getLinkData(lnkUrl, lnkText, fullDisplayed);
 
@@ -342,7 +344,7 @@ public:
 		lnkIndex = 0x8000 + links.size();
 
 		_t->_text += lnkText;
-		ptr = waitingLink->from + waitingLink->len;
+		ptr = start + waitingLink->offset + waitingLink->length;
 
 		createBlock();
 		++waitingLink;
@@ -519,8 +521,51 @@ public:
 		emoji = e;
 	}
 
-	TextParser(Text *t, const QString &text, const TextParseOptions &options) : _t(t), src(text),
-		rich(options.flags & TextParseRichText), multiline(options.flags & TextParseMultiline), maxLnkIndex(0), flags(0), lnkIndex(0), stopAfterWidth(QFIXED_MAX) {
+	TextParser(Text *t, const QString &text, const TextParseOptions &options) : _t(t),
+		src(text),
+		rich(options.flags & TextParseRichText),
+		multiline(options.flags & TextParseMultiline),
+		maxLnkIndex(0),
+		flags(0),
+		lnkIndex(0),
+		stopAfterWidth(QFIXED_MAX) {
+		if (options.flags & TextParseLinks) {
+			lnkRanges = textParseLinks(src, options.flags, rich);
+		}
+		parse(options);
+	}
+	TextParser(Text *t, const QString &text, const LinksInText &links, const TextParseOptions &options) : _t(t),
+		src(text),
+		rich(options.flags & TextParseRichText),
+		multiline(options.flags & TextParseMultiline),
+		maxLnkIndex(0),
+		flags(0),
+		lnkIndex(0),
+		stopAfterWidth(QFIXED_MAX) {
+		if ((options.flags & TextParseLinks) && !links.isEmpty()) {
+			bool parseMentions = (options.flags & TextParseMentions);
+			bool parseHashtags = (options.flags & TextParseHashtags);
+			bool parseBotCommands = (options.flags & TextParseBotCommands);
+			if (parseMentions && parseHashtags && parseBotCommands) {
+				lnkRanges = links;
+			} else {
+				int32 i = 0, l = links.size();
+				lnkRanges.reserve(l);
+				const QChar *p = text.constData(), s = text.size();
+				for (; i < l; ++i) {
+					LinkInTextType t = links.at(i).type;
+					if ((t == LinkInTextMention && !parseMentions) ||
+						(t == LinkInTextHashtag && !parseHashtags) ||
+						(t == LinkInTextBotCommand && !parseBotCommands)) {
+						continue;
+					}
+					lnkRanges.push_back(links.at(i));
+				}
+			}
+		}
+		parse(options);
+	}
+	void parse(const TextParseOptions &options) {
 		int flags = options.flags;
 		if (options.maxw > 0 && options.maxh > 0) {
 			stopAfterWidth = ((options.maxh / _t->_font->height) + 1) * options.maxw;
@@ -529,19 +574,16 @@ public:
 		start = src.constData();
 		end = start + src.size();
 
-		if (options.flags & TextParseLinks) {
-			lnkRanges = textParseLinks(src, options.flags, rich);
+		ptr = start;
+		while (ptr != end && chIsTrimmed(*ptr, rich)) {
+			++ptr;
 		}
-
-		while (start != end && chIsTrimmed(*start, rich)) {
-			++start;
-		}
-		while (start != end && chIsTrimmed(*(end - 1), rich)) {
+		while (ptr != end && chIsTrimmed(*(end - 1), rich)) {
 			--end;
 		}
 
 		_t->_text.resize(0);
-		_t->_text.reserve(end - start);
+		_t->_text.reserve(end - ptr);
 
 		diacs = 0;
 		sumWidth = 0;
@@ -552,9 +594,9 @@ public:
 		ch = chInt = 0;
 		lastSkipped = false;
 		lastSpace = true;
-		waitingLink = lnkRanges.isEmpty() ? 0 : lnkRanges.constData();
-		linksEnd = lnkRanges.isEmpty() ? 0 : waitingLink + lnkRanges.size();
-		for (ptr = start; ptr <= end; ++ptr) {
+		waitingLink = lnkRanges.cbegin();
+		linksEnd = lnkRanges.cend();
+		for (; ptr <= end; ++ptr) {
 			if (!checkWaitedLink()) {
 				break;
 			}
@@ -615,8 +657,8 @@ private:
 	const QChar *start, *end, *ptr;
 	bool rich, multiline;
 
-	LinkRanges lnkRanges;
-	const LinkRange *waitingLink, *linksEnd;
+	LinksInText lnkRanges;
+	LinksInText::const_iterator waitingLink, linksEnd;
 
 	struct TextLinkData {
 		TextLinkData(const QString &url = QString(), int32 fullDisplayed = 1) : url(url), fullDisplayed(fullDisplayed) {
@@ -765,6 +807,15 @@ void TextLink::onClick(Qt::MouseButton button) const {
 			App::openLocalUrl(url);
 		} else {
 			QDesktopServices::openUrl(url);
+		}
+	}
+}
+
+void EmailLink::onClick(Qt::MouseButton button) const {
+	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
+		QUrl url(qstr("mailto:") + _email);
+		if (!QDesktopServices::openUrl(url)) {
+			psOpenFile(url.toString(QUrl::FullyEncoded), true);
 		}
 	}
 }
@@ -2299,9 +2350,13 @@ void Text::setText(style::font font, const QString &text, const TextParseOptions
 	{
 		TextParser parser(this, text, options);
 	}
+	recountNaturalSize(true, options.dir);
+}
 
+void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 	NewlineBlock *lastNewline = 0;
 
+	_maxWidth = _minHeight = 0;
 	int32 lineHeight = 0;
 	int32 result = 0, lastNewlineStart = 0;
 	QFixed _width = 0, last_rBearing = 0, last_rPadding = 0;
@@ -2313,14 +2368,16 @@ void Text::setText(style::font font, const QString &text, const TextParseOptions
 
 		if (_btype == TextBlockNewline) {
 			if (!lineHeight) lineHeight = blockHeight;
-			Qt::LayoutDirection dir = options.dir;
-			if (dir == Qt::LayoutDirectionAuto) {
-				dir = TextParser::stringDirection(_text, lastNewlineStart, b->from());
-			}
-			if (lastNewline) {
-				lastNewline->_nextDir = dir;
-			} else {
-				_startDir = dir;
+			if (initial) {
+				Qt::LayoutDirection dir = optionsDir;
+				if (dir == Qt::LayoutDirectionAuto) {
+					dir = TextParser::stringDirection(_text, lastNewlineStart, b->from());
+				}
+				if (lastNewline) {
+					lastNewline->_nextDir = dir;
+				} else {
+					_startDir = dir;
+				}
 			}
 			lastNewlineStart = b->from();
 			lastNewline = static_cast<NewlineBlock*>(b);
@@ -2344,14 +2401,16 @@ void Text::setText(style::font font, const QString &text, const TextParseOptions
 		last_rPadding = b->f_rpadding();
 		continue;
 	}
-	Qt::LayoutDirection dir = options.dir;
-	if (dir == Qt::LayoutDirectionAuto) {
-		dir = TextParser::stringDirection(_text, lastNewlineStart, _text.size());
-	}
-	if (lastNewline) {
-		lastNewline->_nextDir = dir;
-	} else {
-		_startDir = dir;
+	if (initial) {
+		Qt::LayoutDirection dir = optionsDir;
+		if (dir == Qt::LayoutDirectionAuto) {
+			dir = TextParser::stringDirection(_text, lastNewlineStart, _text.size());
+		}
+		if (lastNewline) {
+			lastNewline->_nextDir = dir;
+		} else {
+			_startDir = dir;
+		}
 	}
 	if (_width > 0) {
 		if (!lineHeight) lineHeight = _blockHeight(_blocks.back(), _font);
@@ -2360,6 +2419,16 @@ void Text::setText(style::font font, const QString &text, const TextParseOptions
 			_maxWidth = _width;
 		}
 	}
+}
+
+void Text::setMarkedText(style::font font, const QString &text, const LinksInText &links, const TextParseOptions &options) {
+	if (!_textStyle) _initDefault();
+	_font = font;
+	clean();
+	{
+		TextParser parser(this, text, links, options);
+	}
+	recountNaturalSize(true, options.dir);
 }
 
 void Text::setRichText(style::font font, const QString &text, TextParseOptions options, const TextCustomTagsMap &custom) {
@@ -2447,6 +2516,82 @@ void Text::setLink(uint16 lnkIndex, const TextLinkPtr &lnk) {
 
 bool Text::hasLinks() const {
 	return !_links.isEmpty();
+}
+
+void Text::setSkipBlock(int32 width, int32 height) {
+	if (!_blocks.isEmpty() && _blocks.back()->type() == TextBlockSkip) {
+		SkipBlock *block = static_cast<SkipBlock*>(_blocks.back());
+		if (block->width() == width && block->height() == height) return;
+		_text.resize(block->from());
+		_blocks.pop_back();
+	}
+	_text.push_back('_');
+	_blocks.push_back(new SkipBlock(_font, _text, _text.size() - 1, width, height, 0));
+	recountNaturalSize(false);
+}
+
+void Text::removeSkipBlock() {
+	if (!_blocks.isEmpty() && _blocks.back()->type() == TextBlockSkip) {
+		_text.resize(_blocks.back()->from());
+		_blocks.pop_back();
+		recountNaturalSize(false);
+	}
+}
+
+LinksInText Text::calcLinksInText() const {
+	LinksInText result;
+	int32 lnkFrom = 0, lnkIndex = 0, offset = 0;
+	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); true; ++i) {
+		int32 blockLnkIndex = (i == e) ? 0 : (*i)->lnkIndex();
+		int32 blockFrom = (i == e) ? _text.size() : (*i)->from();
+		if (blockLnkIndex != lnkIndex) {
+			if (lnkIndex) { // write link
+				const TextLinkPtr &lnk(_links.at(lnkIndex - 1));
+				const QString &url(lnk ? lnk->text() : QString());
+
+				int32 rangeFrom = lnkFrom, rangeTo = blockFrom;
+				if (rangeTo > rangeFrom) {
+					QStringRef r = _text.midRef(rangeFrom, rangeTo - rangeFrom);
+					if (url.isEmpty()) {
+						offset += r.size();
+					} else {
+						QUrl u(url);
+						if (r.size() <= 3 || _text.midRef(lnkFrom, r.size() - 3) == (u.isValid() ? u.toDisplayString() : url).midRef(0, r.size() - 3)) { // same link
+							if (url.at(0) == '@') {
+								result.push_back(LinkInText(LinkInTextMention, offset, url.size()));
+							} else if (url.at(0) == '#') {
+								result.push_back(LinkInText(LinkInTextHashtag, offset, url.size()));
+							} else if (url.at(0) == '/') {
+								result.push_back(LinkInText(LinkInTextBotCommand, offset, url.size()));
+							} else if (url.indexOf('@') > 0 && url.indexOf('/') <= 0) {
+								result.push_back(LinkInText(LinkInTextEmail, offset, url.size()));
+							} else {
+								result.push_back(LinkInText(LinkInTextUrl, offset, url.size()));
+							}
+							offset += url.size();
+						} else {
+							result.push_back(LinkInText(LinkInTextCustomUrl, offset, r.size(), url));
+							offset += r.size();
+						}
+					}
+				}
+			}
+			lnkIndex = blockLnkIndex;
+			lnkFrom = blockFrom;
+		}
+		if (i == e) break;
+
+		TextBlockType type = (*i)->type();
+		if (type == TextBlockSkip) continue;
+
+		if (!blockLnkIndex) {
+			int32 rangeFrom = (*i)->from(), rangeTo = uint16((*i)->from() + TextPainter::_blockLength(this, i, e));
+			if (rangeTo > rangeFrom) {
+				offset += rangeTo - rangeFrom;
+			}
+		}
+	}
+	return result;
 }
 
 int32 Text::countHeight(int32 w) const {
@@ -4035,16 +4180,16 @@ QString textSearchKey(const QString &text) {
 bool textSplit(QString &sendingText, QString &leftText, int32 limit) {
 	if (leftText.isEmpty() || !limit) return false;
 
-	LinkRanges lnkRanges = textParseLinks(leftText, TextParseLinks | TextParseMentions | TextParseHashtags);
-	int32 currentLink = 0, lnkCount = lnkRanges.size();
+	LinksInText links = textParseLinks(leftText, TextParseLinks | TextParseMentions | TextParseHashtags);
+	int32 currentLink = 0, lnkCount = links.size();
 
 	int32 s = 0, half = limit / 2, goodLevel = 0;
 	for (const QChar *start = leftText.constData(), *ch = start, *end = leftText.constEnd(), *good = ch; ch != end; ++ch, ++s) {
-		while (currentLink < lnkCount && ch >= lnkRanges[currentLink].from + lnkRanges[currentLink].len) {
+		while (currentLink < lnkCount && ch >= start + links[currentLink].offset + links[currentLink].length) {
 			++currentLink;
 		}
 
-		bool inLink = (currentLink < lnkCount) && (ch > lnkRanges[currentLink].from) && (ch < lnkRanges[currentLink].from + lnkRanges[currentLink].len);
+		bool inLink = (currentLink < lnkCount) && (ch > start + links[currentLink].offset) && (ch < start + links[currentLink].offset + links[currentLink].length);
 		if (s > half) {
 			if (inLink) {
 				if (!goodLevel) good = ch;
@@ -4102,8 +4247,8 @@ bool textSplit(QString &sendingText, QString &leftText, int32 limit) {
 	return true;
 }
 
-LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some code is duplicated in flattextarea.cpp!
-	LinkRanges lnkRanges;
+LinksInText textParseLinks(const QString &text, int32 flags, bool rich) { // some code is duplicated in flattextarea.cpp!
+	LinksInText result;
 
 	bool withHashtags = (flags & TextParseHashtags);
 	bool withMentions = (flags & TextParseMentions);
@@ -4126,7 +4271,8 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 		QRegularExpressionMatch mMention = withMentions ? _reMention.match(text, qMax(mentionSkip, matchOffset)) : QRegularExpressionMatch();
 		QRegularExpressionMatch mBotCommand = withBotCommands ? _reBotCommand.match(text, matchOffset) : QRegularExpressionMatch();
 
-		LinkRange link;
+		LinkInTextType lnkType = LinkInTextUrl;
+		int32 lnkOffset = 0, lnkLength = 0;
 		int32 domainOffset = mDomain.hasMatch() ? mDomain.capturedStart() : INT_MAX,
 			domainEnd = mDomain.hasMatch() ? mDomain.capturedEnd() : INT_MAX,
 			explicitDomainOffset = mExplicitDomain.hasMatch() ? mExplicitDomain.capturedStart() : INT_MAX,
@@ -4191,9 +4337,9 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 					continue;
 				}
 			}
-
-			link.from = start + mentionOffset;
-			link.len = start + mentionEnd - link.from;
+			lnkType = LinkInTextMention;
+			lnkOffset = mentionOffset;
+			lnkLength = mentionEnd - mentionOffset;
 		} else if (hashtagOffset < domainOffset && hashtagOffset < botCommandOffset) {
 			if (hashtagOffset > nextCmd) {
 				const QChar *after = textSkipCommand(start + nextCmd, start + len);
@@ -4203,8 +4349,9 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 				}
 			}
 
-			link.from = start + hashtagOffset;
-			link.len = start + hashtagEnd - link.from;
+			lnkType = LinkInTextHashtag;
+			lnkOffset = hashtagOffset;
+			lnkLength = hashtagEnd - hashtagOffset;
 		} else if (botCommandOffset < domainOffset) {
 			if (botCommandOffset > nextCmd) {
 				const QChar *after = textSkipCommand(start + nextCmd, start + len);
@@ -4214,8 +4361,9 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 				}
 			}
 
-			link.from = start + botCommandOffset;
-			link.len = start + botCommandEnd - link.from;
+			lnkType = LinkInTextBotCommand;
+			lnkOffset = botCommandOffset;
+			lnkLength = botCommandEnd - botCommandOffset;
 		} else {
 			if (domainOffset > nextCmd) {
 				const QChar *after = textSkipCommand(start + nextCmd, start + len);
@@ -4239,16 +4387,17 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 					if (mailOffset < offset) {
 						mailOffset = offset;
 					}
-					link.from = start + mailOffset;
-					link.len = domainEnd - mailOffset;
+					lnkType = LinkInTextEmail;
+					lnkOffset = mailOffset;
+					lnkLength = domainEnd - mailOffset;
 				}
 			}
-			if (!link.from || !link.len) {
+			if (lnkType == LinkInTextUrl && !lnkLength) {
 				if (!isProtocolValid || !isTopDomainValid) {
 					matchOffset = domainEnd;
 					continue;
 				}
-				link.from = start + domainOffset;
+				lnkOffset = domainOffset;
 
 				QStack<const QChar*> parenth;
 				const QChar *domainEnd = start + mDomain.capturedEnd(), *p = domainEnd;
@@ -4283,15 +4432,15 @@ LinkRanges textParseLinks(const QString &text, int32 flags, bool rich) { // some
 						continue;
 					}
 				}
-				link.len = p - link.from;
+				lnkLength = (p - start) - lnkOffset;
 			}
 		}
-		lnkRanges.push_back(link);
+		result.push_back(LinkInText(lnkType, lnkOffset, lnkLength));
 
-		offset = matchOffset = (link.from - start) + link.len;
+		offset = matchOffset = lnkOffset + lnkLength;
 	}
 
-	return lnkRanges;
+	return result;
 }
 
 void emojiDraw(QPainter &p, EmojiPtr e, int x, int y) {

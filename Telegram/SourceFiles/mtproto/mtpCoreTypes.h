@@ -366,7 +366,7 @@ static const mtpTypeId mtpLayers[] = {
 	mtpc_invokeWithLayer17,
 	mtpc_invokeWithLayer18,
 }, mtpLayerMaxSingle = sizeof(mtpLayers) / sizeof(mtpLayers[0]);
-static const mtpPrime mtpCurrentLayer = 34;
+static const mtpPrime mtpCurrentLayer = 36;
 
 template <typename bareT>
 class MTPBoxed : public bareT {

@@ -60,6 +60,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_weekday7_full" = "zondag";
 
 "lng_month_day" = "{day} {month}";
+"lng_month_day_year" = "{day} {month}, {year}";
 
 "lng_cancel" = "Annuleren";
 "lng_continue" = "Doorgaan";
@@ -117,6 +118,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_code_ph" = "Je code";
 "lng_code_desc" = "We hebben een bericht met activatiecode\nverstuurd naar je nummer, geef deze hieronder in.";
+"lng_code_telegram" = "Voer de code in die je zojuist\nhebt ontvangen in je vorige [b]Telegram[/b]-app.";
+"lng_code_no_telegram" = "Verstuur code via SMS";
 "lng_code_call" = "Telegram belt je over {minutes}:{seconds}";
 "lng_code_calling" = "Oproepverzoek versturen naar Telegram";
 "lng_code_called" = "Telegram heeft je nummer gebeld";
@@ -188,6 +191,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_show_preview" = "Voorvertoning weergeven";
 "lng_settings_use_windows" = "Windows-berichtgeving gebruiken";
 "lng_settings_sound_notify" = "Geluiden afspelen";
+"lng_settings_include_muted" = "Stille chats meetellen in ongelezen";
 
 "lng_notification_preview" = "Je hebt een nieuw bericht";
 
@@ -386,6 +390,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_files_header" = "Bestandsoverzicht";
 "lng_profile_audios" = "{count:_not_used_|# spraakbericht|# spraakberichten} »";
 "lng_profile_audios_header" = "Overzicht van spraakberichten";
+"lng_profile_shared_links" = "{count:_not_used_|# gedeelde link|# gedeelde links} »";
+"lng_profile_shared_links_header" = "Overzicht van gedeelde links";
 "lng_profile_audio_files_header" = "Afspeellijst";
 "lng_profile_show_all_types" = "Alles weergeven";
 "lng_profile_copy_phone" = "Telefoonnummer kopiëren";
@@ -443,6 +449,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_type_videos" = "Video's";
 "lng_media_type_files" = "Bestanden";
 "lng_media_type_audios" = "Spraakberichten";
+"lng_media_type_links" = "Gedeelde links";
 
 "lng_media_open_with" = "Openen met";
 "lng_media_download" = "Downloaden";
@@ -641,7 +648,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Blokkeer gebruikers vanaf de profielpagina\n— Ondersteuning voor Windows toast-meldingen\n— Problemen met invoermethodes onder Linux (Fcitx and IBus) opgelost";
+"lng_new_version_text" = "— Stille chats meetellen in ongelezen teller via instellingen\n— Gedeelde links-overzicht en zoeken in gedeelde media\n— Voorvertoning voor links naar GIF-animaties en PDF-bestanden";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

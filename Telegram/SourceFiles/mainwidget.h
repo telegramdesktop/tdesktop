@@ -222,8 +222,10 @@ public:
 
 	void windowShown();
 
-	void sentDataReceived(uint64 randomId, const MTPmessages_SentMessage &data);
-	void sentUpdatesReceived(const MTPUpdates &updates);
+	void sentUpdatesReceived(uint64 randomId, const MTPUpdates &updates);
+	void sentUpdatesReceived(const MTPUpdates &updates) {
+		return sentUpdatesReceived(0, updates);
+	}
 	void msgUpdated(PeerId peer, const HistoryItem *msg);
 	void historyToDown(History *hist);
 	void dialogsToUp();
@@ -429,6 +431,7 @@ public slots:
 	void onVideosSelect();
 	void onDocumentsSelect();
 	void onAudiosSelect();
+	void onLinksSelect();
 
 	void onForwardCancel(QObject *obj = 0);
 
@@ -477,7 +480,7 @@ private:
 	void feedUpdate(const MTPUpdate &update);
 
 	void updateReceived(const mtpPrime *from, const mtpPrime *end);
-	void handleUpdates(const MTPUpdates &updates);
+	void handleUpdates(const MTPUpdates &updates, uint64 randomId = 0);
 	bool updateFail(const RPCError &e);
 
 	void usernameResolveDone(QPair<bool, QString> toProfileStartToken, const MTPUser &result);
@@ -543,7 +546,7 @@ private:
 	enum PtsSkippedQueue {
 		SkippedUpdate,
 		SkippedUpdates,
-		SkippedSentMessage,
+//		SkippedSentMessage,
 		SkippedStatedMessage,
 		SkippedStatedMessages
 	};
@@ -554,7 +557,7 @@ private:
 	QMap<uint64, PtsSkippedQueue> _byPtsQueue;
 	QMap<uint64, MTPUpdate> _byPtsUpdate;
 	QMap<uint64, MTPUpdates> _byPtsUpdates;
-	QMap<uint64, MTPmessages_SentMessage> _byPtsSentMessage;
+//	QMap<uint64, MTPmessages_SentMessage> _byPtsSentMessage;
 	SingleTimer _byPtsTimer;
 
 	QMap<int32, MTPUpdates> _bySeqUpdates;

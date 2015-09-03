@@ -40,6 +40,7 @@ QString gLangErrors;
 QString gDialogLastPath, gDialogHelperPath; // optimize QFileDialog
 
 bool gSoundNotify = true;
+bool gIncludeMuted = true;
 bool gDesktopNotify = true;
 DBINotifyView gNotifyView = dbinvShowPreview;
 bool gWindowsNotifications = true;

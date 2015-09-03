@@ -548,6 +548,19 @@ struct DocumentData {
 		if (sticker()) sticker()->img->forget();
 		replyPreview->forget();
 	}
+	ImagePtr makeReplyPreview() {
+		if (replyPreview->isNull() && !thumb->isNull()) {
+			if (thumb->loaded()) {
+				int w = thumb->width(), h = thumb->height();
+				if (w <= 0) w = 1;
+				if (h <= 0) h = 1;
+				replyPreview = ImagePtr(w > h ? thumb->pix(w * st::msgReplyBarSize.height() / h, st::msgReplyBarSize.height()) : thumb->pix(st::msgReplyBarSize.height()), "PNG");
+			} else {
+				thumb->load();
+			}
+		}
+		return replyPreview;
+	}
 
 	void save(const QString &toFile);
 
@@ -687,7 +700,7 @@ inline WebPageType toWebPageType(const QString &type) {
 }
 
 struct WebPageData {
-	WebPageData(const WebPageId &id, WebPageType type = WebPageArticle, const QString &url = QString(), const QString &displayUrl = QString(), const QString &siteName = QString(), const QString &title = QString(), const QString &description = QString(), PhotoData *photo = 0, int32 duration = 0, const QString &author = QString(), int32 pendingTill = -1);
+	WebPageData(const WebPageId &id, WebPageType type = WebPageArticle, const QString &url = QString(), const QString &displayUrl = QString(), const QString &siteName = QString(), const QString &title = QString(), const QString &description = QString(), PhotoData *photo = 0, DocumentData *doc = 0, int32 duration = 0, const QString &author = QString(), int32 pendingTill = -1);
 	
 	void forget() {
 		if (photo) photo->forget();
@@ -699,6 +712,7 @@ struct WebPageData {
 	int32 duration;
 	QString author;
 	PhotoData *photo;
+	DocumentData *doc;
 	int32 pendingTill;
 };
 

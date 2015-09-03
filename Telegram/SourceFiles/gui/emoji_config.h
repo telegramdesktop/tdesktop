@@ -146,8 +146,8 @@ inline bool emojiEdge(const QChar *ch) {
 
 inline QString replaceEmojis(const QString &text) {
 	QString result;
-	LinkRanges lnkRanges = textParseLinks(text, TextParseLinks | TextParseMentions | TextParseHashtags);
-	int32 currentLink = 0, lnkCount = lnkRanges.size();
+	LinksInText links = textParseLinks(text, TextParseLinks | TextParseMentions | TextParseHashtags);
+	int32 currentLink = 0, lnkCount = links.size();
 	const QChar *emojiStart = text.unicode(), *emojiEnd = emojiStart, *e = text.cend();
 	bool canFindEmoji = true, consumePrevious = false;
 	for (const QChar *ch = emojiEnd; ch != e;) {
@@ -157,14 +157,14 @@ inline QString replaceEmojis(const QString &text) {
 			emojiFind(ch, e, newEmojiEnd, emojiCode);
 		}
 		
-		while (currentLink < lnkCount && ch >= lnkRanges[currentLink].from + lnkRanges[currentLink].len) {
+		while (currentLink < lnkCount && ch >= emojiStart + links[currentLink].offset + links[currentLink].length) {
 			++currentLink;
 		}
 		EmojiPtr emoji = emojiCode ? emojiGet(emojiCode) : 0;
 		if (emoji && emoji != TwoSymbolEmoji &&
 		    (ch == emojiStart || !ch->isLetterOrNumber() || !(ch - 1)->isLetterOrNumber()) &&
 		    (newEmojiEnd == e || !newEmojiEnd->isLetterOrNumber() || newEmojiEnd == emojiStart || !(newEmojiEnd - 1)->isLetterOrNumber()) &&
-			(currentLink >= lnkCount || (ch < lnkRanges[currentLink].from && newEmojiEnd <= lnkRanges[currentLink].from) || (ch >= lnkRanges[currentLink].from + lnkRanges[currentLink].len && newEmojiEnd > lnkRanges[currentLink].from + lnkRanges[currentLink].len))
+			(currentLink >= lnkCount || (ch < emojiStart + links[currentLink].offset && newEmojiEnd <= emojiStart + links[currentLink].offset) || (ch >= emojiStart + links[currentLink].offset + links[currentLink].length && newEmojiEnd > emojiStart + links[currentLink].offset + links[currentLink].length))
 		) {
 //			if (newEmojiEnd < e && newEmojiEnd->unicode() == ' ') ++newEmojiEnd;
 			if (result.isEmpty()) result.reserve(text.size());

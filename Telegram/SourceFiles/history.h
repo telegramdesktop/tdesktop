@@ -107,6 +107,7 @@ enum MediaOverviewType {
 	OverviewDocuments,
 	OverviewAudios,
 	OverviewAudioDocuments,
+	OverviewLinks,
 
 	OverviewCount
 };
@@ -116,7 +117,7 @@ inline MediaOverviewType mediaToOverviewType(HistoryMediaType t) {
 	case MediaTypePhoto: return OverviewPhotos;
 	case MediaTypeVideo: return OverviewVideos;
 	case MediaTypeDocument: return OverviewDocuments;
-		//	case MediaTypeSticker: return OverviewDocuments;
+//	case MediaTypeSticker: return OverviewDocuments;
 	case MediaTypeAudio: return OverviewAudios;
 	}
 	return OverviewCount;
@@ -129,6 +130,7 @@ inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	case OverviewDocuments: return MTP_inputMessagesFilterDocument();
 	case OverviewAudios: return MTP_inputMessagesFilterAudio();
 	case OverviewAudioDocuments: return MTP_inputMessagesFilterAudioDocuments();
+	case OverviewLinks: return MTP_inputMessagesFilterUrl();
 	default: type = OverviewCount; break;
 	}
 	return MTPMessagesFilter();
@@ -183,6 +185,8 @@ struct History : public QList<HistoryBlock*> {
 	void addToBack(const QVector<MTPMessage> &slice);
 	void createInitialDateBlock(const QDateTime &date);
 	HistoryItem *doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *adding, bool newMsg);
+	void addToOverview(HistoryItem *item, MediaOverviewType type);
+	bool addToOverviewFront(HistoryItem *item, MediaOverviewType type);
 
 	void newItemAdded(HistoryItem *item);
 	void unregTyping(UserData *from);
@@ -723,6 +727,9 @@ public:
 	bool hasReplyMarkup() const {
 		return _flags & MTPDmessage::flag_reply_markup;
 	}
+	bool hasTextLinks() const {
+		return _flags & MTPDmessage_flag_HAS_TEXT_LINKS;
+	}
 	virtual bool needCheck() const {
 		return true;
 	}
@@ -773,7 +780,14 @@ public:
 	virtual HistoryMedia *getMedia(bool inOverview = false) const {
 		return 0;
 	}
-	virtual void setMedia(const MTPmessageMedia &media) {
+	virtual void setMedia(const MTPMessageMedia *media) {
+	}
+	virtual void setText(const QString &text, const LinksInText &links) {
+	}
+	virtual void getTextWithLinks(QString &text, LinksInText &links) {
+	}
+	virtual bool textHasLinks() {
+		return false;
 	}
 	virtual QString time() const {
 		return QString();
@@ -989,7 +1003,7 @@ private:
 	Text _caption;
 
 	QString _size;
-	int32 _thumbw, _thumbx, _thumby;
+	int32 _thumbw;
 
 	mutable QString _dldTextCache, _uplTextCache;
 	mutable int32 _dldDone, _uplDone;
@@ -1170,20 +1184,26 @@ public:
 	void unregItem(HistoryItem *item);
 
 	bool hasReplyPreview() const {
-		return data->photo && !data->photo->thumb->isNull();
+		return (data->photo && !data->photo->thumb->isNull()) || (data->doc && !data->doc->thumb->isNull());
 	}
 	ImagePtr replyPreview();
 
+	WebPageData *webpage() {
+		return data;
+	}
+
 private:
 	WebPageData *data;
-	TextLinkPtr _openl, _photol;
+	TextLinkPtr _openl, _attachl;
 	bool _asArticle;
 
 	Text _title, _description;
 	int32 _siteNameWidth;
 
-	QString _duration;
-	int32 _durationWidth;
+	QString _duration, _docName, _docSize;
+	int32 _durationWidth, _docNameWidth, _docThumbWidth;
+	mutable QString _docDownloadTextCache;
+	mutable int32 _docDownloadDone;
 
 	int16 _pixw, _pixh;
 };
@@ -1274,16 +1294,15 @@ class HistoryMessage : public HistoryItem {
 public:
 
 	HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const MTPMessageMedia &media);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, HistoryMedia *media);
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, const MTPMessageMedia *media);
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, HistoryMedia *media);
 	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc);
 
 	void initTime();
-	void initMedia(const MTPMessageMedia &media, QString &currentText);
+	void initMedia(const MTPMessageMedia *media, QString &currentText);
 	void initMediaFromText(QString &currentText);
 	void initMediaFromDocument(DocumentData *doc);
 	void initDimensions(const HistoryItem *parent = 0);
-	void initDimensions(const QString &text);
 	void fromNameUpdated() const;
 
 	bool justMedia() const {
@@ -1317,9 +1336,13 @@ public:
 	}
 
 	QString selectedText(uint32 selection) const;
+	LinksInText textLinks() const;
 	QString inDialogsText() const;
 	HistoryMedia *getMedia(bool inOverview = false) const;
-	void setMedia(const MTPmessageMedia &media);
+	void setMedia(const MTPMessageMedia *media);
+	void setText(const QString &text, const LinksInText &links);
+	void getTextWithLinks(QString &text, LinksInText &links);
+	bool textHasLinks();
 
 	QString time() const {
 		return _time;
@@ -1554,3 +1577,5 @@ protected:
 	QString text;
 	bool freezed;
 };
+
+const TextParseOptions &itemTextParseOptions(History *h, UserData *f);

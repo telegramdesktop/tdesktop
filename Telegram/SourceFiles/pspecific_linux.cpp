@@ -252,8 +252,8 @@ namespace {
 #define GTK_ALPHA 3
 
     QImage _trayIconImageGen() {
-        int32 counter = App::histories().unreadFull, counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
-        bool muted = (App::histories().unreadMuted >= counter);
+		int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted), counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
+		bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
         if (_trayIconImage.isNull() || _trayIconImage.width() != _trayIconSize || muted != _trayIconMuted || counterSlice != _trayIconCount) {
             if (_trayIconImageBack.isNull() || _trayIconImageBack.width() != _trayIconSize) {
                 _trayIconImageBack = App::wnd()->iconLarge().scaled(_trayIconSize, _trayIconSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
@@ -288,8 +288,8 @@ namespace {
     }
 
     QString _trayIconImageFile() {
-        int32 counter = App::histories().unreadFull, counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
-        bool muted = (App::histories().unreadMuted >= counter);
+		int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted), counterSlice = (counter >= 1000) ? (1000 + (counter % 100)) : counter;
+		bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
 
         QString name = cWorkingDir() + qsl("tdata/ticons/ico%1_%2_%3.png").arg(muted ? "mute" : "").arg(_trayIconSize).arg(counterSlice);
         QFileInfo info(name);
@@ -641,7 +641,7 @@ void PsMainWindow::psUpdateIndicator() {
 void PsMainWindow::psUpdateCounter() {
     setWindowIcon(wndIcon);
 
-	int32 counter = App::histories().unreadFull;
+	int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted);
 
     setWindowTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
     if (_psUnityLauncherEntry) {
@@ -665,8 +665,10 @@ void PsMainWindow::psUpdateCounter() {
             ps_gtk_status_icon_set_from_pixbuf(_trayIcon, _trayPixbuf);
         }
     } else if (trayIcon) {
-        int32 counter = App::histories().unreadFull;
-        style::color bg = (App::histories().unreadMuted < counter) ? st::counterBG : st::counterMuteBG;
+		int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted);
+		bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
+		
+		style::color bg = muted ? st::counterMuteBG : st::counterBG;
         QIcon iconSmall;
         iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(16, counter, bg, true), Qt::ColorOnly));
         iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(32, counter, bg, true), Qt::ColorOnly));

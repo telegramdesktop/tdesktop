@@ -285,7 +285,6 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 	}
 	if (uid) {
 		App::main()->addNewContact(uid);
-		App::main()->choosePeer(App::peerFromUser(uid), ShowAtUnreadMsgId);
 		App::wnd()->hideLayer();
 	} else {
 		_addButton.hide();

@@ -58,6 +58,12 @@ enum RoundCorners {
 	BotKeyboardCorners,
 	BotKeyboardOverCorners,
 	BotKeyboardDownCorners,
+	PhotoSelectOverlayCorners,
+	
+	DocRedCorners,
+	DocYellowCorners,
+	DocGreenCorners,
+	DocBlueCorners,
 
 	InShadowCorners, // for photos without bg
 	InSelectedShadowCorners,
@@ -112,6 +118,7 @@ namespace App {
 	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos, bool emitPeerUpdated = true);
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated = true);
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated = true);
+	void checkEntitiesUpdate(const MTPDmessage &m);
 	void feedMsgs(const MTPVector<MTPMessage> &msgs, int msgsState = 0); // 2 - new read message, 1 - new unread message, 0 - not new message, -1 - searched message
 	void feedWereRead(const QVector<MTPint> &msgsIds);
 	void feedInboxRead(const PeerId &peer, int32 upTo);
@@ -166,7 +173,7 @@ namespace App {
 	DocumentData *document(const DocumentId &document);
 	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation);
 	WebPageData *webPage(const WebPageId &webPage);
-	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, int32 duration, const QString &author, int32 pendingTill);
+	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill);
 	ImageLinkData *imageLink(const QString &imageLink);
 	ImageLinkData *imageLinkSet(const QString &imageLink, ImageLinkType type, const QString &url);
 	void forgetMedia();
@@ -188,6 +195,9 @@ namespace App {
 	void historyRegRandom(uint64 randomId, MsgId itemId);
 	void historyUnregRandom(uint64 randomId);
 	MsgId histItemByRandom(uint64 randomId);
+	void historyRegSentText(uint64 itemId, const QString &text);
+	void historyUnregSentText(uint64 itemId);
+	QString histSentTextByItem(uint64 itemId);
 
 	void hoveredItem(HistoryItem *item);
 	HistoryItem *hoveredItem();
@@ -237,6 +247,9 @@ namespace App {
 	void regWebPageItem(WebPageData *data, HistoryItem *item);
 	void unregWebPageItem(WebPageData *data, HistoryItem *item);
 	const WebPageItems &webPageItems();
+
+	void regSharedContactPhone(int32 userId, const QString &phone);
+	QString phoneFromSharedContact(int32 userId);
 
 	void regMuted(PeerData *peer, int32 changeIn);
 	void unregMuted(PeerData *peer);

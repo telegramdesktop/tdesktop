@@ -60,6 +60,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_weekday7_full" = "Sonntag";
 
 "lng_month_day" = "{day}. {month}";
+"lng_month_day_year" = "{day} {month}, {year}";
 
 "lng_cancel" = "Abbrechen";
 "lng_continue" = "Weiter";
@@ -117,6 +118,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_code_ph" = "Dein Code";
 "lng_code_desc" = "Wir haben dir einen Aktivierungscode gesendet.\nBitte Code hier eingeben.";
+"lng_code_telegram" = "Bitte den Code eingeben, den du in der\nzuvor benutzen [b]Telegram[/b]-App erhalten hast.";
+"lng_code_no_telegram" = "Code per SMS senden";
 "lng_code_call" = "Telegram ruft dich an in {minutes}:{seconds}";
 "lng_code_calling" = "Telegram ruft dich an..";
 "lng_code_called" = "Telegram ruft dich gerade an.";
@@ -188,6 +191,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_show_preview" = "Nachrichtenvorschau anzeigen";
 "lng_settings_use_windows" = "Windows Benachrichtigungen";
 "lng_settings_sound_notify" = "Ton abspielen";
+"lng_settings_include_muted" = "Stummgeschaltete Chats mitzählen";
 
 "lng_notification_preview" = "Du hast eine neue Nachricht";
 
@@ -386,6 +390,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_files_header" = "Dateiübersicht";
 "lng_profile_audios" = "{count:_not_used_|# Sprachnachricht|# Sprachnachrichten} »";
 "lng_profile_audios_header" = "Übersicht Sprachnachrichten";
+"lng_profile_shared_links" = "{count:_not_used_|# Link|# Links} »";
+"lng_profile_shared_links_header" = "Linkübersicht";
 "lng_profile_audio_files_header" = "Wiedergabeliste";
 "lng_profile_show_all_types" = "Alle Filter anzeigen";
 "lng_profile_copy_phone" = "Telefonnummer kopieren";
@@ -443,6 +449,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_type_videos" = "Videos";
 "lng_media_type_files" = "Dateien";
 "lng_media_type_audios" = "Sprachnachrichten";
+"lng_media_type_links" = "Links";
 
 "lng_media_open_with" = "Öffnen mit";
 "lng_media_download" = "Download";
@@ -641,7 +648,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Blockiere Nutzer über die Profilseite (im Chat auf den Namen oben tippen)\n— Windows 8, 8.1 und 10: Native Windowsbenachrichtigungen\n— Fehlerbehebung: Eingabemethoden unter Linux (Fcitx und iBus)";
+"lng_new_version_text" = "— Stummgeschaltete Chats können ab sofort optional mitgezählt werden (Einstellungen > Stummgeschaltete Chats mitzählen)\n— Übersicht der im Chat geteilten Links im Bereich 'Geteilte Medien'\n— GIF-Vorschau und PDF-Vorschau von Direktlinks (.pdf und .gif)";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

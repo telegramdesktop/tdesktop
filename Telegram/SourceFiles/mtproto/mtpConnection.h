@@ -25,6 +25,7 @@ enum {
 	MTPDmessage_flag_out = (1 << 1),
 	MTPDmessage_flag_notify_by_from = (1 << 4),
 	MTPDmessage_flag_media_unread = (1 << 5),
+	MTPDmessage_flag_HAS_TEXT_LINKS = (1 << 31), // client side flag for having links
 
 	MTPmessages_SendMessage_flag_skipWebPage = (1 << 1),
 

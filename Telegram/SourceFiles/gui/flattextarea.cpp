@@ -24,7 +24,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(v, parent),
 	_ph(pholder), _oldtext(v), _phVisible(!v.length()),
     a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c),
-    _st(st), _undoAvailable(false), _redoAvailable(false), _fakeMargin(0),
+	_st(st), _undoAvailable(false), _redoAvailable(false), _inDrop(false), _fakeMargin(0),
     _touchPress(false), _touchRightButton(false), _touchMove(false), _replacingEmojis(false) {
 	setAcceptRichText(false);
 	resize(_st.width, _st.font->height);
@@ -530,7 +530,7 @@ QStringList FlatTextarea::linksList() const {
 
 void FlatTextarea::insertFromMimeData(const QMimeData *source) {
 	QTextEdit::insertFromMimeData(source);
-	emit spacedReturnedPasted();
+	if (!_inDrop) emit spacedReturnedPasted();
 }
 
 void FlatTextarea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
@@ -813,4 +813,15 @@ void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 void FlatTextarea::resizeEvent(QResizeEvent *e) {
 	_phelided = _st.font->m.elidedText(_ph, Qt::ElideRight, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1);
 	QTextEdit::resizeEvent(e);
+}
+
+void FlatTextarea::mousePressEvent(QMouseEvent *e) {
+	QTextEdit::mousePressEvent(e);
+}
+
+void FlatTextarea::dropEvent(QDropEvent *e) {
+	_inDrop = true;
+	QTextEdit::dropEvent(e);
+	_inDrop = false;
+	emit spacedReturnedPasted();
 }

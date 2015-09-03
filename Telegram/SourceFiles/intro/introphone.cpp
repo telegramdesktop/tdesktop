@@ -231,7 +231,7 @@ void IntroPhone::phoneCheckDone(const MTPauth_CheckedPhone &result) {
 
 		checkRequest.start(1000);
 
-		sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(0), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Application::language())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
+		sentRequest = MTP::send(MTPauth_SendCode(MTP_string(sentPhone), MTP_int(5), MTP_int(ApiId), MTP_string(ApiHash), MTP_string(Application::language())), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
 	} else {
 		showError(lang(lng_bad_phone_noreg), true);
 		enableAll(true);
@@ -250,6 +250,7 @@ void IntroPhone::phoneSubmitDone(const MTPauth_SentCode &result) {
 		const MTPDauth_sentAppCode &d(result.c_auth_sentAppCode());
 		intro()->setPhone(sentPhone, d.vphone_code_hash.c_string().v.c_str(), d.vphone_registered.v);
 		intro()->setCallTimeout(d.vsend_call_timeout.v);
+		intro()->setCodeByTelegram(true);
 	}
 	intro()->onIntroNext();
 }
