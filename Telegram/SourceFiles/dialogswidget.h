@@ -175,7 +175,7 @@ class DialogsWidget : public QWidget, public Animated, public RPCSender {
 public:
 	DialogsWidget(MainWidget *parent);
 
-	void dialogsReceived(const MTPmessages_Dialogs &dialogs);
+	void dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpRequestId req);
 	void contactsReceived(const MTPcontacts_Contacts &contacts);
 	void searchReceived(bool fromStart, const MTPmessages_Messages &result, mtpRequestId req);
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
@@ -255,7 +255,7 @@ private:
 	QTimer _chooseByDragTimer;
 
 	void unreadCountsReceived(const QVector<MTPDialog> &dialogs);
-	bool dialogsFailed(const RPCError &error);
+	bool dialogsFailed(const RPCError &error, mtpRequestId req);
 	bool contactsFailed(const RPCError &error);
 	bool searchFailed(const RPCError &error, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);

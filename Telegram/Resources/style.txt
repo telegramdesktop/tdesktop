@@ -19,6 +19,7 @@ defaultFontFamily: 'Open Sans';
 semibold: 'Open Sans Semibold';
 
 fsize: 13px;
+normalFont: font(fsize);
 
 spriteFile: ':/gui/art/sprite.png' / 2:':/gui/art/sprite_125x.png' / 3:':/gui/art/sprite_150x.png' / 4:':/gui/art/sprite_200x.png';
 emojiImgSize: 18px; // exceptional value for retina
@@ -32,9 +33,9 @@ counterMacInvColor: #ffffff01;
 
 lineWidth: 1px;
 
-transparent: rgba(255, 255, 255, 0);
-white: rgba(255, 255, 255, 255);
-black: rgba(0, 0, 0, 255);
+transparent: #fff0;
+white: #fff;
+black: #000;
 
 color1: #c03d33; // red
 color2: #4fad2d; // green
@@ -50,13 +51,46 @@ wideModeWidth: 640px;
 wndMinHeight: 480px;
 wndDefWidth: 800px;
 wndDefHeight: 600px;
-wndBG: #FFF;
+wndBG: white;
 wndShadow: sprite(209px, 46px, 19px, 19px);
 wndShadowShift: 1px;
 
 layerAlpha: 0.5;
-layerBG: #000;
+layerBG: black;
 
+defaultInputField: InputField {
+	textFg: black;
+	textMargins: margins(5px, 5px, 5px, 5px);
+	textAlign: align(left);
+
+	placeholderFg: #999;
+	placeholderFgActive: #aaa;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderShift: 50px;
+	duration: 100;
+
+	borderFg: #e0e0e0;
+	borderFgActive: #62c0f7;
+	borderFgError: #e48383;
+
+	border: 1px;
+	borderActive: 2px;
+	borderError: 2px;
+
+	font: normalFont;
+
+	height: 32px;
+}
+dialogsSearchField: InputField(defaultInputField) {
+	textMargins: margins(34px, 7px, 34px, 7px);
+
+	iconSprite: sprite(227px, 21px, 24px, 24px);
+	iconPosition: point(6px, 5px);
+
+	width: 240px;
+	height: 34px;
+}
 titleBG: #6389a8;
 titleColor: #0f8dcc;//rgb(20, 136, 210);
 titleHeight: 39px;
@@ -200,7 +234,7 @@ btnDefBack: flatButton(btnDefFlat) {
 }
 
 linkCropLimit: 360px;
-linkFont: font(fsize);
+linkFont: normalFont;
 linkOverFont: font(fsize underline);
 btnDefLink: linkButton {
 	color: btnYesColor;

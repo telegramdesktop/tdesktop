@@ -63,6 +63,8 @@ public:
 
 	void insertFromMimeData(const QMimeData *source);
 
+	QMimeData *createMimeDataFromSelection() const;
+
 public slots:
 
 	void onTouchTimer();
@@ -110,8 +112,6 @@ private:
 
 	void getSingleEmojiFragment(QString &text, QTextFragment &fragment) const;
 	void processDocumentContentsChange(int position, int charsAdded);
-
-	QMimeData *createMimeDataFromSelection() const;
 
 	QString _ph, _phelided, _oldtext;
 	bool _phVisible;

@@ -1525,7 +1525,7 @@ void DialogsWidget::dlgUpdated(History *row) {
 }
 
 void DialogsWidget::dialogsToUp() {
-	if (_filter.text().trimmed().isEmpty()) {
+	if (_filter.getLastText().trimmed().isEmpty()) {
 		scroll.scrollToY(0);
 	}
 }
@@ -1597,8 +1597,9 @@ void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
 	if (App::wnd()) App::wnd()->updateCounter();
 }
 
-void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs) {
+void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpRequestId req) {
 	const QVector<MTPDialog> *dlgList = 0;
+	int32 count = 0;
 	switch (dialogs.type()) {
 	case mtpc_messages_dialogs: {
 		const MTPDmessages_dialogs &data(dialogs.c_messages_dialogs());
@@ -1606,7 +1607,7 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs) {
 		App::feedChats(data.vchats);
 		App::feedMsgs(data.vmessages);
 		dlgList = &data.vdialogs.c_vector().v;
-		_dialogsCount = dlgList->size();
+		count = dlgList->size();
 	} break;
 	case mtpc_messages_dialogsSlice: {
 		const MTPDmessages_dialogsSlice &data(dialogs.c_messages_dialogsSlice());
@@ -1614,7 +1615,7 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs) {
 		App::feedChats(data.vchats);
 		App::feedMsgs(data.vmessages);
 		dlgList = &data.vdialogs.c_vector().v;
-		_dialogsCount = data.vcount.v;
+		count = data.vcount.v;
 	} break;
 	}
 
@@ -1624,35 +1625,58 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs) {
 		_contactsRequest = MTP::send(MTPcontacts_GetContacts(MTP_string("")), rpcDone(&DialogsWidget::contactsReceived), rpcFail(&DialogsWidget::contactsFailed));
 	}
 
-	if (dlgList) {
-		list.dialogsReceived(*dlgList);
-		onListScroll();
+	if (_dialogsRequest == req) {
+		_dialogsCount = count;
+		if (dlgList) {
+			list.dialogsReceived(*dlgList);
+			onListScroll();
 
-		if (dlgList->size()) {
-			_dialogsOffset += dlgList->size();
+			if (dlgList->size()) {
+				_dialogsOffset += dlgList->size();
+			} else {
+				_dialogsCount = _dialogsOffset;
+			}
 		} else {
 			_dialogsCount = _dialogsOffset;
 		}
-	} else {
-		_dialogsCount = _dialogsOffset;
-	}
 
-	_dialogsRequest = 0;
-	if (dlgList) {
-		loadDialogs();
+		_dialogsRequest = 0;
+		if (dlgList) {
+			loadDialogs();
+		}
+	} else if (_channelDialogsRequest == req) {
+		//_channelDialogsCount = count;
+		if (dlgList) {
+			list.dialogsReceived(*dlgList);
+			onListScroll();
+
+		//	if (dlgList->size()) {
+		//		_channelDialogsOffset += dlgList->size();
+		//	} else {
+		//		_channelDialogsCount = _channelDialogsOffset;
+		//	}
+		//} else {
+		//	_channelDialogsCount = _channelDialogsOffset;
+		}
+
+		//_channelDialogsRequest = 0;
 	}
 }
 
-bool DialogsWidget::dialogsFailed(const RPCError &error) {
+bool DialogsWidget::dialogsFailed(const RPCError &error, mtpRequestId req) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
 
 	LOG(("RPC Error: %1 %2: %3").arg(error.code()).arg(error.type()).arg(error.description()));
-	_dialogsRequest = 0;
+	if (_dialogsRequest == req) {
+		_dialogsRequest = 0;
+	} else if (_channelDialogsRequest == req) {
+		_channelDialogsRequest = 0;
+	}
 	return true;
 }
 
 bool DialogsWidget::onSearchMessages(bool searchCache) {
-	QString q = _filter.text().trimmed();
+	QString q = _filter.getLastText().trimmed();
 	if (q.isEmpty()) {
 		if (_searchRequest) {
 			_searchRequest = 0;
@@ -1707,7 +1731,7 @@ void DialogsWidget::onChooseByDrag() {
 }
 
 void DialogsWidget::searchMessages(const QString &query) {
-	if (_filter.text() != query) {
+	if (_filter.getLastText() != query) {
 		_filter.setText(query);
 		_filter.updatePlaceholder();
 		onFilterUpdate();
@@ -1736,7 +1760,10 @@ void DialogsWidget::loadDialogs() {
 	}
 
 	int32 loadCount = _dialogsOffset ? DialogsPerPage : DialogsFirstLoad;
-	_dialogsRequest = MTP::send(MTPmessages_GetDialogs(MTP_int(_dialogsOffset), MTP_int(loadCount)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
+	_dialogsRequest = MTP::send(MTPmessages_GetDialogs(MTP_int(_dialogsOffset), MTP_int(loadCount)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed), _channelDialogsRequest ? 0 : 5);
+	if (!_channelDialogsRequest) {
+		_channelDialogsRequest = MTP::send(MTPmessages_GetChannelDialogs(MTP_int(0), MTP_int(DialogsPerPage)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
+	}
 }
 
 void DialogsWidget::contactsReceived(const MTPcontacts_Contacts &contacts) {
@@ -1932,7 +1959,7 @@ void DialogsWidget::onListScroll() {
 void DialogsWidget::onFilterUpdate(bool force) {
 	if (animating() && !force) return;
 
-	QString filterText = _filter.text();
+	QString filterText = _filter.getLastText();
 	list.onFilterUpdate(filterText);
 	if (filterText.isEmpty()) {
 		_searchCache.clear();
@@ -1956,12 +1983,12 @@ void DialogsWidget::searchInPeer(PeerData *peer) {
 	_searchInPeer = peer;
 	list.searchInPeer(peer);
 	onFilterUpdate(true);
-	list.onFilterUpdate(_filter.text(), true);
+	list.onFilterUpdate(_filter.getLastText(), true);
 }
 
 void DialogsWidget::onFilterCursorMoved(int from, int to) {
 	if (to < 0) to = _filter.cursorPosition();
-	QString t = _filter.text();
+	QString t = _filter.getLastText();
 	QStringRef r;
 	for (int start = to; start > 0;) {
 		--start;
@@ -1976,7 +2003,7 @@ void DialogsWidget::onFilterCursorMoved(int from, int to) {
 }
 
 void DialogsWidget::onCompleteHashtag(QString tag) {
-	QString t = _filter.text(), r;
+	QString t = _filter.getLastText(), r;
 	int cur = _filter.cursorPosition();
 	for (int start = cur; start > 0;) {
 		--start;
@@ -2116,7 +2143,7 @@ void DialogsWidget::onNewGroup() {
 }
 
 bool DialogsWidget::onCancelSearch() {
-	bool clearing = !_filter.text().isEmpty();
+	bool clearing = !_filter.getLastText().isEmpty();
 	if (_searchInPeer && !clearing) {
 		if (!cWideMode()) {
 			App::main()->showPeerHistory(_searchInPeer->id, ShowAtUnreadMsgId);

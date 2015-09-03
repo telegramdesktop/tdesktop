@@ -951,6 +951,16 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 		_blockUser.move(_left, top); top += _blockUser.height();
 	}
 
+	// actions
+	top += st::profileHeaderSkip;
+	_searchInPeer.move(_left, top);	top += _searchInPeer.height() + st::setLittleSkip;
+	_clearHistory.move(_left, top); top += _clearHistory.height() + st::setLittleSkip;
+	_deleteConversation.move(_left, top); top += _deleteConversation.height();
+	if (_peerUser && peerToUser(_peerUser->id) != MTP::authedId()) {
+		top += st::setSectionSkip;
+		_blockUser.move(_left, top); top += _blockUser.height();
+	}
+
 	// participants
 	if (_peerChat && (_peerChat->count > 0 || !_participants.isEmpty())) {
 		top += st::profileHeaderSkip;

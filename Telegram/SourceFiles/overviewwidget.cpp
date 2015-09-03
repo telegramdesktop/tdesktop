@@ -2476,6 +2476,7 @@ void OverviewInner::showAll(bool recountHeights) {
 		newHeight = _height;
 		_addToY = (_height < _minHeight) ? (_minHeight - _height) : 0;
 	}
+
 	if (newHeight < _minHeight) {
 		newHeight = _minHeight;
 	}

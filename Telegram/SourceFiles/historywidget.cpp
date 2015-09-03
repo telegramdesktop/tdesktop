@@ -1087,7 +1087,7 @@ int32 HistoryList::recountHeight(bool dontRecountText) {
 
 		int32 descH = st::msgMargin.top() + st::msgPadding.top() + st::msgNameFont->height + st::botDescSkip + botDescHeight + st::msgPadding.bottom() + st::msgMargin.bottom();
 		int32 descAtX = (scrollArea->width() - botDescWidth) / 2 - st::msgPadding.left();
-		int32 descAtY = qMin(ySkip - descH, (scrollArea->height() - descH) / 2) + st::msgMargin.top();
+		int32 descAtY = qMin(ySkip - descH, qMax(0, (scrollArea->height() - descH) / 2)) + st::msgMargin.top();
 
 		botDescRect = QRect(descAtX, descAtY, botDescWidth + st::msgPadding.left() + st::msgPadding.right(), descH - st::msgMargin.top() - st::msgMargin.bottom());
 	} else {
@@ -1161,7 +1161,7 @@ void HistoryList::updateSize() {
 	if (botDescHeight > 0) {
 		int32 descH = st::msgMargin.top() + st::msgPadding.top() + st::msgNameFont->height + st::botDescSkip + botDescHeight + st::msgPadding.bottom() + st::msgMargin.bottom();
 		int32 descAtX = (scrollArea->width() - botDescWidth) / 2 - st::msgPadding.left();
-		int32 descAtY = qMin(newYSkip - descH, (scrollArea->height() - descH) / 2) + st::msgMargin.top();
+		int32 descAtY = qMin(newYSkip - descH, qMax(0, (scrollArea->height() - descH) / 2)) + st::msgMargin.top();
 
 		botDescRect = QRect(descAtX, descAtY, botDescWidth + st::msgPadding.left() + st::msgPadding.right(), descH - st::msgMargin.top() - st::msgMargin.bottom());
 	}
