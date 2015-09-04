@@ -267,7 +267,7 @@ void DialogsListWidget::peopleResultPaint(UserData *user, QPainter &p, int32 w, 
 	}
 
 	p.setPen((act ? st::dlgActiveColor : st::dlgNameColor)->p);
-	history->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+	user->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
 void DialogsListWidget::searchInPeerPaint(QPainter &p, int32 w) const {
@@ -292,7 +292,7 @@ void DialogsListWidget::searchInPeerPaint(QPainter &p, int32 w) const {
 	p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->m.elidedText(lang(lng_dlg_search_chat), Qt::ElideRight, tr.width()));
 
 	p.setPen(st::dlgNameColor->p);
-	App::history(_searchInPeer->id)->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+	_searchInPeer->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
 void DialogsListWidget::activate() {
@@ -414,8 +414,6 @@ void DialogsListWidget::onDialogRowReplaced(DialogRow *oldRow, DialogRow *newRow
 }
 
 void DialogsListWidget::createDialogAtTop(History *history, int32 unreadCount) {
-	history->updateNameText();
-
 	History::DialogLinks links = dialogs.addToEnd(history);
 	int32 movedFrom = links[0]->pos * st::dlgHeight;
 	dialogs.bringToTop(links);
@@ -761,8 +759,9 @@ void DialogsListWidget::itemRemoved(HistoryItem *item) {
 
 void DialogsListWidget::dialogsReceived(const QVector<MTPDialog> &added) {
 	for (QVector<MTPDialog>::const_iterator i = added.cbegin(), e = added.cend(); i != e; ++i) {
-		if (i->type() == mtpc_dialog) {
-			addDialog(i->c_dialog());
+		switch (i->type()) {
+		case mtpc_dialog: addDialog(i->c_dialog()); break;
+		case mtpc_dialogChannel: addDialogChannel(i->c_dialogChannel()); break;
 		}
 	}
 	if (App::wnd()) App::wnd()->updateCounter();
@@ -957,6 +956,24 @@ void DialogsListWidget::addDialog(const MTPDdialog &dialog) {
 	contactsNoDialogs.del(history->peer);
 
 	App::main()->applyNotifySetting(MTP_notifyPeer(dialog.vpeer), dialog.vnotify_settings, history);
+}
+
+void DialogsListWidget::addDialogChannel(const MTPDdialogChannel &dialogChannel) {
+	History *history = App::history(peerFromMTP(dialogChannel.vpeer), dialogChannel.vunread_important_count.v, dialogChannel.vread_inbox_max_id.v);
+	if (history->lastMsg) {
+		SavedPeersByTime &saved(cRefSavedPeersByTime());
+		while (!saved.isEmpty() && history->lastMsg->date < saved.lastKey()) {
+			History *history = App::history(saved.last()->id);
+			history->dialogs = dialogs.addToEnd(history);
+			contactsNoDialogs.del(history->peer);
+			saved.remove(saved.lastKey(), saved.last());
+		}
+	}
+	History::DialogLinks links = dialogs.addToEnd(history);
+	history->dialogs = links;
+	contactsNoDialogs.del(history->peer);
+
+	App::main()->applyNotifySetting(MTP_notifyPeer(dialogChannel.vpeer), dialogChannel.vnotify_settings, history);
 }
 
 void DialogsListWidget::selectSkip(int32 direction) {
@@ -1585,13 +1602,27 @@ void DialogsWidget::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 
 void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
 	for (QVector<MTPDialog>::const_iterator i = dialogs.cbegin(), e = dialogs.cend(); i != e; ++i) {
-		const MTPDdialog &d(i->c_dialog());
-		Histories::iterator j = App::histories().find(peerFromMTP(d.vpeer));
-		if (j != App::histories().end()) {
-			App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, j.value());
-			if (d.vunread_count.v >= j.value()->unreadCount) {
-				j.value()->setUnreadCount(d.vunread_count.v, false);
+		switch (i->type()) {
+		case mtpc_dialog: {
+			const MTPDdialog &d(i->c_dialog());
+			Histories::iterator j = App::histories().find(peerFromMTP(d.vpeer));
+			if (j != App::histories().end()) {
+				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, j.value());
+				if (d.vunread_count.v >= j.value()->unreadCount) {
+					j.value()->setUnreadCount(d.vunread_count.v, false);
+				}
 			}
+		} break;
+		case mtpc_dialogChannel: {
+			const MTPDdialogChannel &d(i->c_dialogChannel());
+			Histories::iterator j = App::histories().find(peerFromMTP(d.vpeer));
+			if (j != App::histories().end()) {
+				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, j.value());
+				if (d.vunread_important_count.v >= j.value()->unreadCount) {
+					j.value()->setUnreadCount(d.vunread_important_count.v, false);
+				}
+			}
+		} break;
 		}
 	}
 	if (App::wnd()) App::wnd()->updateCounter();
@@ -1760,7 +1791,7 @@ void DialogsWidget::loadDialogs() {
 	}
 
 	int32 loadCount = _dialogsOffset ? DialogsPerPage : DialogsFirstLoad;
-	_dialogsRequest = MTP::send(MTPmessages_GetDialogs(MTP_int(_dialogsOffset), MTP_int(loadCount)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed), _channelDialogsRequest ? 0 : 5);
+	_dialogsRequest = MTP::send(MTPmessages_GetDialogs(MTP_int(_dialogsOffset), MTP_int(loadCount)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed), 0, _channelDialogsRequest ? 0 : 5);
 	if (!_channelDialogsRequest) {
 		_channelDialogsRequest = MTP::send(MTPmessages_GetChannelDialogs(MTP_int(0), MTP_int(DialogsPerPage)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
 	}
@@ -1792,9 +1823,10 @@ void DialogsWidget::searchReceived(bool fromStart, const MTPmessages_Messages &r
 	if (_searchRequest == req) {
 		switch (result.type()) {
 		case mtpc_messages_messages: {
-			App::feedUsers(result.c_messages_messages().vusers);
-			App::feedChats(result.c_messages_messages().vchats);
-			const QVector<MTPMessage> &msgs(result.c_messages_messages().vmessages.c_vector().v);
+			const MTPDmessages_messages &d(result.c_messages_messages());
+			App::feedUsers(d.vusers);
+			App::feedChats(d.vchats);
+			const QVector<MTPMessage> &msgs(d.vmessages.c_vector().v);
 			list.searchReceived(msgs, fromStart, msgs.size());
 			if (msgs.isEmpty()) {
 				_searchFull = true;
@@ -1802,10 +1834,22 @@ void DialogsWidget::searchReceived(bool fromStart, const MTPmessages_Messages &r
 		} break;
 
 		case mtpc_messages_messagesSlice: {
-			App::feedUsers(result.c_messages_messagesSlice().vusers);
-			App::feedChats(result.c_messages_messagesSlice().vchats);
-			const QVector<MTPMessage> &msgs(result.c_messages_messagesSlice().vmessages.c_vector().v);
-			list.searchReceived(msgs, fromStart, result.c_messages_messagesSlice().vcount.v);
+			const MTPDmessages_messagesSlice &d(result.c_messages_messagesSlice());
+			App::feedUsers(d.vusers);
+			App::feedChats(d.vchats);
+			const QVector<MTPMessage> &msgs(d.vmessages.c_vector().v);
+			list.searchReceived(msgs, fromStart, d.vcount.v);
+			if (msgs.isEmpty()) {
+				_searchFull = true;
+			}
+		} break;
+
+		case mtpc_messages_channelMessages: {
+			const MTPDmessages_channelMessages &d(result.c_messages_channelMessages());
+			App::feedUsers(d.vusers);
+			App::feedChats(d.vchats);
+			const QVector<MTPMessage> &msgs(d.vmessages.c_vector().v);
+			list.searchReceived(msgs, fromStart, d.vcount.v);
 			if (msgs.isEmpty()) {
 				_searchFull = true;
 			}

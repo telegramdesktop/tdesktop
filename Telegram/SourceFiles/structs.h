@@ -179,16 +179,18 @@ public:
 
 	void fillNames();
 
-	virtual void nameUpdated() {
-	}
+	const Text &dialogName() const;
+	const QString &shortName() const;
 
 	const PeerId id;
 	int32 bareId() const {
 		return int32(uint32(id & 0xFFFFFFFFULL));
 	}
 
+	TextLinkPtr lnk;
+
 	QString name;
-	QString nameOrPhone;
+	Text nameText;
 	typedef QSet<QString> Names;
 	Names names; // for filtering
 	typedef QSet<QChar> NameFirstChars;
@@ -284,14 +286,16 @@ struct PhotoData;
 class UserData : public PeerData {
 public:
 
-	UserData(const PeerId &id) : PeerData(id), access(0), lnk(new PeerLink(this)), onlineTill(0), contact(-1), blocked(UserBlockUnknown), photosCount(-1), botInfo(0) {
+	UserData(const PeerId &id) : PeerData(id), access(0), onlineTill(0), contact(-1), blocked(UserBlockUnknown), photosCount(-1), botInfo(0) {
+		setName(QString(), QString(), QString(), QString());
 	}
 	void setPhoto(const MTPUserProfilePhoto &photo);
 	void setName(const QString &first, const QString &last, const QString &phoneName, const QString &username);
 	void setPhone(const QString &newPhone);
 	void setBotInfoVersion(int32 version);
 	void setBotInfo(const MTPBotInfo &info);
-	void nameUpdated();
+
+	void setNameOrPhone(const QString &newNameOrPhone);
 
 	void madeAction(); // pseudo-online
 
@@ -303,8 +307,8 @@ public:
 	QString lastName;
 	QString username;
 	QString phone;
-	Text nameText;
-	TextLinkPtr lnk;
+	QString nameOrPhone;
+	Text phoneText;
 	int32 onlineTill;
 	int32 contact; // -1 - not contact, cant add (self, empty, deleted, foreign), 0 - not contact, can add (request), 1 - contact
 	UserBlockedStatus blocked;
@@ -319,7 +323,7 @@ public:
 class ChatData : public PeerData {
 public:
 
-	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_inputChat(MTP_int(bareId()))), count(0), date(0), version(0), left(false), forbidden(true), botStatus(0) {
+	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_inputChat(MTP_int(bareId()))), count(0), date(0), version(0), admin(0), left(false), forbidden(true), botStatus(0) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
 
@@ -337,7 +341,7 @@ public:
 	CanKick cankick;
 	typedef QList<UserData*> LastAuthors;
 	LastAuthors lastAuthors;
-	typedef QMap<UserData*, bool> MarkupSenders;
+	typedef QMap<PeerData*, bool> MarkupSenders;
 	MarkupSenders markupSenders;
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 //	ImagePtr photoFull;
@@ -347,7 +351,7 @@ public:
 class ChannelData : public PeerData {
 public:
 
-	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChat(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), date(0), version(0), left(false), forbidden(true), botStatus(-1) {
+	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChat(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), date(0), version(0), adminned(false), left(false), forbidden(true), botStatus(-1) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
 
@@ -357,6 +361,7 @@ public:
 
 	int32 date;
 	int32 version;
+	bool adminned;
 	bool left;
 	bool forbidden;
 

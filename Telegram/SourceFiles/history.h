@@ -286,10 +286,6 @@ struct History : public QList<HistoryBlock*> {
 
 	mtpRequestId sendRequestId;
 
-	// for dialog drawing
-	Text nameText;
-	void updateNameText();
-
 	mutable const HistoryItem *textCachedFor; // cache
 	mutable Text lastItemTextCache;
 
@@ -693,7 +689,7 @@ public:
 	const History *history() const {
 		return _history;
 	}
-	UserData *from() const {
+	PeerData *from() const {
 		return _from;
 	}
 	HistoryBlock *block() {
@@ -837,7 +833,7 @@ public:
 
 protected:
 
-	UserData *_from;
+	PeerData *_from;
 	mutable int32 _fromVersion;
 	History *_history;
 	HistoryBlock *_block;
@@ -1372,7 +1368,7 @@ public:
 	virtual QDateTime dateForwarded() const { // dynamic_cast optimize
 		return date;
 	}
-	virtual UserData *fromForwarded() const { // dynamic_cast optimize
+	virtual PeerData *fromForwarded() const { // dynamic_cast optimize
 		return from();
 	}
 
@@ -1419,7 +1415,7 @@ public:
 	QDateTime dateForwarded() const {
 		return fwdDate;
 	}
-	UserData *fromForwarded() const {
+	PeerData *fromForwarded() const {
 		return fwdFrom;
 	}
 	QString selectedText(uint32 selection) const;
@@ -1434,7 +1430,7 @@ public:
 protected:
 
 	QDateTime fwdDate;
-	UserData *fwdFrom;
+	PeerData *fwdFrom;
 	mutable Text fwdFromName;
 	mutable int32 fwdFromVersion;
 	int32 fromWidth;
@@ -1468,7 +1464,7 @@ public:
 	void getStateFromMessageText(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const QRect &r) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
 
-	UserData *replyTo() const {
+	PeerData *replyTo() const {
 		return replyToMsg ? replyToMsg->from() : 0;
 	}
 	QString selectedText(uint32 selection) const;
@@ -1593,4 +1589,4 @@ protected:
 	bool freezed;
 };
 
-const TextParseOptions &itemTextParseOptions(History *h, UserData *f);
+const TextParseOptions &itemTextParseOptions(History *h, PeerData *f);

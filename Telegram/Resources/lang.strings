@@ -93,6 +93,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_chat_status_members" = "{count:no members|# member|# members}";
 "lng_chat_status_members_online" = "{count:_not_used_|# member|# members}, {count_online:_not_used_|# online|# online}";
 
+"lng_channel_status" = "channel";
+
 "lng_server_error" = "Internal server error.";
 "lng_flood_error" = "Too many tries. Please try again later.";
 "lng_deleted" = "Unknown";
@@ -424,6 +426,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_changed_photo" = "{from} changed group photo";
 "lng_action_changed_title" = "{from} changed group name to «{title}»";
 "lng_action_created_chat" = "{from} created group «{title}»";
+"lng_action_created_channel" = "Channel «{title}» created";
 
 "lng_group_invite_bad_link" = "This invite link is broken\nor has expired.";
 "lng_group_invite_want_join" = "Do you want to join the group «{title}»?";

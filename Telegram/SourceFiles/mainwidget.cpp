@@ -305,7 +305,11 @@ void TopBarWidget::showAll() {
 		_forward.hide();
 		_mediaType.hide();
 	} else {
-		_edit.hide();
+		if (p && p->isChannel() && p->asChannel()->adminned) {
+			_edit.show();
+		} else {
+			_edit.hide();
+		}
 		_leaveGroup.hide();
 		_addContact.hide();
 		_deleteContact.hide();
@@ -469,8 +473,8 @@ void MainWidget::updateForwardingTexts() {
 	int32 version = 0;
 	QString from, text;
 	if (!_toForward.isEmpty()) {
-		QMap<UserData*, bool> fromUsersMap;
-		QVector<UserData*> fromUsers;
+		QMap<PeerData*, bool> fromUsersMap;
+		QVector<PeerData*> fromUsers;
 		fromUsers.reserve(_toForward.size());
 		for (SelectedItemSet::const_iterator i = _toForward.cbegin(), e = _toForward.cend(); i != e; ++i) {
 			if (!fromUsersMap.contains(i.value()->from())) {
@@ -480,11 +484,11 @@ void MainWidget::updateForwardingTexts() {
 			version += i.value()->from()->nameVersion;
 		}
 		if (fromUsers.size() > 2) {
-			from = lng_forwarding_from(lt_user, fromUsers.at(0)->firstName, lt_count, fromUsers.size() - 1);
+			from = lng_forwarding_from(lt_user, fromUsers.at(0)->shortName(), lt_count, fromUsers.size() - 1);
 		} else if (fromUsers.size() < 2) {
 			from = fromUsers.at(0)->name;
 		} else {
-			from = lng_forwarding_from_two(lt_user, fromUsers.at(0)->firstName, lt_second_user, fromUsers.at(1)->firstName);
+			from = lng_forwarding_from_two(lt_user, fromUsers.at(0)->shortName(), lt_second_user, fromUsers.at(1)->shortName());
 		}
 
 		if (_toForward.size() < 2) {
@@ -836,21 +840,36 @@ bool MainWidget::kickParticipantFail(ChatData *chat, const RPCError &error) {
 }
 
 void MainWidget::checkPeerHistory(PeerData *peer) {
-	MTP::send(MTPmessages_GetHistory(peer->input, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(1)), rpcDone(&MainWidget::checkedHistory, peer));
+	if (peer->isChannel()) {
+		MTP::send(MTPmessages_GetImportantHistory(peer->input, MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::checkedHistory, peer));
+	} else {
+		MTP::send(MTPmessages_GetHistory(peer->input, MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::checkedHistory, peer));
+	}
 }
 
 void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &result) {
 	const QVector<MTPMessage> *v = 0;
-	if (result.type() == mtpc_messages_messages) {
+	switch (result.type()) {
+	case mtpc_messages_messages: {
 		const MTPDmessages_messages &d(result.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		v = &d.vmessages.c_vector().v;
-	} else if (result.type() == mtpc_messages_messagesSlice) {
+	} break;
+
+	case mtpc_messages_messagesSlice: {
 		const MTPDmessages_messagesSlice &d(result.c_messages_messagesSlice());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		v = &d.vmessages.c_vector().v;
+	} break;
+
+	case mtpc_messages_channelMessages: { // CHANNELS_TODO - all mtpc_messages_channelMessages handle!
+		const MTPDmessages_channelMessages &d(result.c_messages_channelMessages());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		v = &d.vmessages.c_vector().v;
+	} break;
 	}
 	if (!v) return;
 
@@ -1194,6 +1213,13 @@ void MainWidget::overviewPreloaded(PeerData *peer, const MTPmessages_Messages &r
 		h->_overviewCount[type] = d.vcount.v;
 	} break;
 
+	case mtpc_messages_channelMessages: {
+		const MTPDmessages_channelMessages &d(result.c_messages_channelMessages());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		h->_overviewCount[type] = d.vcount.v;
+	} break;
+
 	default: return;
 	}
 
@@ -1381,6 +1407,14 @@ void MainWidget::photosLoaded(History *h, const MTPmessages_Messages &msgs, mtpR
 
 	case mtpc_messages_messagesSlice: {
 		const MTPDmessages_messagesSlice &d(msgs.c_messages_messagesSlice());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		h->_overviewCount[type] = d.vcount.v;
+		v = &d.vmessages.c_vector().v;
+	} break;
+
+	case mtpc_messages_channelMessages: {
+		const MTPDmessages_channelMessages &d(msgs.c_messages_channelMessages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		h->_overviewCount[type] = d.vcount.v;
@@ -1809,17 +1843,26 @@ void MainWidget::serviceNotification(const QString &msg, const MTPMessageMedia &
 
 void MainWidget::serviceHistoryDone(const MTPmessages_Messages &msgs) {
 	switch (msgs.type()) {
-	case mtpc_messages_messages:
-		App::feedUsers(msgs.c_messages_messages().vusers);
-		App::feedChats(msgs.c_messages_messages().vchats);
-		App::feedMsgs(msgs.c_messages_messages().vmessages);
-		break;
+	case mtpc_messages_messages: {
+		const MTPDmessages_messages &d(msgs.c_messages_messages());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		App::feedMsgs(d.vmessages);
+	} break;
 
-	case mtpc_messages_messagesSlice:
-		App::feedUsers(msgs.c_messages_messagesSlice().vusers);
-		App::feedChats(msgs.c_messages_messagesSlice().vchats);
-		App::feedMsgs(msgs.c_messages_messagesSlice().vmessages);
-		break;
+	case mtpc_messages_messagesSlice: {
+		const MTPDmessages_messagesSlice &d(msgs.c_messages_messagesSlice());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		App::feedMsgs(d.vmessages);
+	} break;
+
+	case mtpc_messages_channelMessages: {
+		const MTPDmessages_channelMessages &d(msgs.c_messages_channelMessages());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		App::feedMsgs(d.vmessages);
+	} break;
 	}
 
 	App::wnd()->showDelayedServiceMsgs();
@@ -3464,6 +3507,22 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			_byPtsUpdate.insert(ptsKey(SkippedUpdate), update);
 			return;
 		}
+		if (d.vmessage.type() == mtpc_message) { // index forwarded messages to links overview
+			App::checkEntitiesUpdate(d.vmessage.c_message());
+		}
+
+		HistoryItem *item = App::histories().addToBack(d.vmessage);
+		if (item) {
+			history.peerMessagesUpdated(item->history()->peer->id);
+		}
+	} break;
+
+	case mtpc_updateNewChannelMessage: {
+		const MTPDupdateNewChannelMessage &d(update.c_updateNewChannelMessage());
+		//if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) { // CHANNELS_TODO
+		//	_byPtsUpdate.insert(ptsKey(SkippedUpdate), update);
+		//	return;
+		//}
 		if (d.vmessage.type() == mtpc_message) { // index forwarded messages to links overview
 			App::checkEntitiesUpdate(d.vmessage.c_message());
 		}

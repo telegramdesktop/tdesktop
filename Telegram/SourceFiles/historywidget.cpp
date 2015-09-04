@@ -3139,7 +3139,7 @@ void HistoryWidget::messagesReceived(const MTPmessages_Messages &messages, mtpRe
 	}
 
 	int32 count = 0;
-	const QVector<MTPMessage> *histList = 0;
+	const QVector<MTPMessage> emptyList, *histList = &emptyList;
 	switch (messages.type()) {
 	case mtpc_messages_messages: {
 		const MTPDmessages_messages &data(messages.c_messages_messages());
@@ -3150,6 +3150,13 @@ void HistoryWidget::messagesReceived(const MTPmessages_Messages &messages, mtpRe
 	} break;
 	case mtpc_messages_messagesSlice: {
 		const MTPDmessages_messagesSlice &data(messages.c_messages_messagesSlice());
+		App::feedUsers(data.vusers);
+		App::feedChats(data.vchats);
+		histList = &data.vmessages.c_vector().v;
+		count = data.vcount.v;
+	} break;
+	case mtpc_messages_channelMessages: {
+		const MTPDmessages_channelMessages &data(messages.c_messages_channelMessages());
 		App::feedUsers(data.vusers);
 		App::feedChats(data.vchats);
 		histList = &data.vmessages.c_vector().v;
@@ -3251,7 +3258,11 @@ void HistoryWidget::firstLoadMessages() {
 		offset = -loadCount / 2;
 		from = _showAtMsgId;
 	}
-	_firstLoadRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(offset), MTP_int(from), MTP_int(0), MTP_int(loadCount)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+	if (_peer->isChannel()) {
+		_firstLoadRequest = MTP::send(MTPmessages_GetImportantHistory(_peer->input, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+	} else {
+		_firstLoadRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+	}
 }
 
 void HistoryWidget::loadMessages() {
@@ -3259,7 +3270,11 @@ void HistoryWidget::loadMessages() {
 
 	MsgId min = _history->minMsgId();
 	int32 offset = 0, loadCount = min ? MessagesPerPage : MessagesFirstLoad;
-	_preloadRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(offset), MTP_int(min), MTP_int(0), MTP_int(loadCount)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+	if (_peer->isChannel()) {
+		_preloadRequest = MTP::send(MTPmessages_GetImportantHistory(_peer->input, MTP_int(min), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+	} else {
+		_preloadRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(min), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+	}
 }
 
 void HistoryWidget::loadMessagesDown() {
@@ -3269,7 +3284,11 @@ void HistoryWidget::loadMessagesDown() {
 	if (!max) return;
 
 	int32 loadCount = MessagesPerPage, offset = -loadCount - 1;
-	_preloadDownRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(offset), MTP_int(max + 1), MTP_int(0), MTP_int(loadCount)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+	if (_peer->isChannel()) {
+		_preloadDownRequest = MTP::send(MTPmessages_GetImportantHistory(_peer->input, MTP_int(max + 1), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+	} else {
+		_preloadDownRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(max + 1), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+	}
 }
 
 void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
@@ -3288,7 +3307,11 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 	} else if (_delayedShowAtMsgId > 0) {
 		offset = -loadCount / 2;
 	}
-	_delayedShowAtRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(offset), MTP_int(from), MTP_int(0), MTP_int(loadCount)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+	if (_peer->isChannel()) {
+		_delayedShowAtRequest = MTP::send(MTPmessages_GetImportantHistory(_peer->input, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+	} else {
+		_delayedShowAtRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+	}
 }
 
 void HistoryWidget::onListScroll() {
@@ -3407,7 +3430,7 @@ void HistoryWidget::onBotStart() {
 		sendBotCommand(qsl("/start"), 0);
 	} else {
 		uint64 randomId = MTP::nonce<uint64>();
-		MTP::send(MTPmessages_StartBot(_peer->asUser()->inputUser, MTP_inputChat(MTP_int(0)), MTP_long(randomId), MTP_string(token)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _peer->asUser()));
+		MTP::send(MTPmessages_StartBot(_peer->asUser()->inputUser, MTP_inputChatEmpty(), MTP_long(randomId), MTP_string(token)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _peer->asUser()));
 
 		_peer->asUser()->botInfo->startToken = QString();
 		if (_keyboard.hasMarkup()) {
@@ -3736,8 +3759,9 @@ void HistoryWidget::sendBotCommand(const QString &cmd, MsgId replyTo) { // reply
 	bool lastKeyboardUsed = (_keyboard.forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard.forMsgId() == FullMsgId(_channel, replyTo));
 
 	QString toSend = cmd;
-	UserData *bot = _peer->isUser() ? _peer->asUser() : (App::hoveredLinkItem() ? (App::hoveredLinkItem()->toHistoryForwarded() ? App::hoveredLinkItem()->toHistoryForwarded()->fromForwarded() : App::hoveredLinkItem()->from()) : 0);
-	QString username = (bot && bot->botInfo) ? bot->username : QString();
+	PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? (App::hoveredLinkItem()->toHistoryForwarded() ? App::hoveredLinkItem()->toHistoryForwarded()->fromForwarded() : App::hoveredLinkItem()->from()) : 0);
+	if (!bot->isUser() || !bot->asUser()->botInfo) bot = 0;
+	QString username = bot ? bot->asUser()->username : QString();
 	int32 botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isChannel() ? _peer->asChannel()->botStatus : -1);
 	if (!replyTo && toSend.indexOf('@') < 2 && !username.isEmpty() && (botStatus == 0 || botStatus == 2)) {
 		toSend += '@' + username;
@@ -3759,8 +3783,9 @@ void HistoryWidget::insertBotCommand(const QString &cmd) {
 	if (!_history) return;
 
 	QString toInsert = cmd;
-	UserData *bot = _peer->isUser() ? _peer->asUser() : (App::hoveredLinkItem() ? (App::hoveredLinkItem()->toHistoryForwarded() ? App::hoveredLinkItem()->toHistoryForwarded()->fromForwarded() : App::hoveredLinkItem()->from()) : 0);
-	QString username = (bot && bot->botInfo) ? bot->username : QString();
+	PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? (App::hoveredLinkItem()->toHistoryForwarded() ? App::hoveredLinkItem()->toHistoryForwarded()->fromForwarded() : App::hoveredLinkItem()->from()) : 0);
+	if (!bot->isUser() || !bot->asUser()->botInfo) bot = 0;
+	QString username = bot ? bot->asUser()->username : QString();
 	int32 botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isChannel() ? _peer->asChannel()->botStatus : -1);
 	if (toInsert.indexOf('@') < 2 && !username.isEmpty() && (botStatus == 0 || botStatus == 2)) {
 		toInsert += '@' + username;
@@ -4050,7 +4075,7 @@ void HistoryWidget::paintTopBar(QPainter &p, float64 over, int32 decreaseWidth) 
 	}
 
 	p.setPen(st::dlgNameColor->p);
-	_history->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+	_history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 
 	if (cWideMode()) {
 		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
@@ -4105,7 +4130,7 @@ void HistoryWidget::updateOnlineDisplay(int32 x, int32 w) {
 			}
 		}
 	} else if (_peer->isChannel()) {
-		// CHANNELS_UI
+		text = lang(lng_channel_status);
 	}
 	if (_titlePeerText != text) {
 		_titlePeerText = text;

@@ -308,17 +308,27 @@ void OverviewInner::searchReceived(bool fromStart, const MTPmessages_Messages &r
 		const QVector<MTPMessage> *messages = 0;
 		switch (result.type()) {
 		case mtpc_messages_messages: {
-			App::feedUsers(result.c_messages_messages().vusers);
-			App::feedChats(result.c_messages_messages().vchats);
-			messages = &result.c_messages_messages().vmessages.c_vector().v;
+			const MTPDmessages_messages &d(result.c_messages_messages());
+			App::feedUsers(d.vusers);
+			App::feedChats(d.vchats);
+			messages = &d.vmessages.c_vector().v;
 			_searchedCount = messages->size();
 		} break;
 
 		case mtpc_messages_messagesSlice: {
-			App::feedUsers(result.c_messages_messagesSlice().vusers);
-			App::feedChats(result.c_messages_messagesSlice().vchats);
-			messages = &result.c_messages_messagesSlice().vmessages.c_vector().v;
-			_searchedCount = result.c_messages_messagesSlice().vcount.v;
+			const MTPDmessages_messagesSlice &d(result.c_messages_messagesSlice());
+			App::feedUsers(d.vusers);
+			App::feedChats(d.vchats);
+			messages = &d.vmessages.c_vector().v;
+			_searchedCount = d.vcount.v;
+		} break;
+
+		case mtpc_messages_channelMessages: {
+			const MTPDmessages_channelMessages &d(result.c_messages_channelMessages());
+			App::feedUsers(d.vusers);
+			App::feedChats(d.vchats);
+			messages = &d.vmessages.c_vector().v;
+			_searchedCount = d.vcount.v;
 		} break;
 		}
 		if (messages) {

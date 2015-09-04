@@ -83,7 +83,7 @@ ImagePtr chatDefPhoto(int32 index) {
 NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersPtr = UnknownNotifySettings, globalNotifyChatsPtr = UnknownNotifySettings;
 
-PeerData::PeerData(const PeerId &id) : id(id)
+PeerData::PeerData(const PeerId &id) : id(id), lnk(new PeerLink(this))
 , loaded(false)
 , colorIndex(peerColorIndex(id))
 , color(peerColor(colorIndex))
@@ -92,21 +92,24 @@ PeerData::PeerData(const PeerId &id) : id(id)
 , nameVersion(0)
 , notify(UnknownNotifySettings)
 {
+	if (!peerIsUser(id)) updateName(QString(), QString(), QString());
 }
 
 void PeerData::updateName(const QString &newName, const QString &newNameOrPhone, const QString &newUsername) {
-	if (name == newName && nameOrPhone == newNameOrPhone && (!isUser() || asUser()->username == newUsername) && nameVersion > 0) return;
+	if (name == newName && (!isUser() || (asUser()->nameOrPhone == newNameOrPhone && asUser()->username == newUsername)) && nameVersion > 0) return;
 
 	++nameVersion;
 	name = newName;
-	nameOrPhone = newNameOrPhone;
-	if (isUser()) asUser()->username = newUsername;
+	nameText.setText(st::msgNameFont, name, _textNameOptions);
+	if (isUser()) {
+		asUser()->username = newUsername;
+		asUser()->setNameOrPhone(newNameOrPhone);
+	}
 
 	Names oldNames = names;
 	NameFirstChars oldChars = chars;
 	fillNames();
-	App::history(id)->updateNameText();
-	nameUpdated();
+
 	if (App::main()) {
 		emit App::main()->peerNameChanged(this, oldNames, oldChars);
 	}
@@ -148,11 +151,9 @@ void PeerData::fillNames() {
 	names.clear();
 	chars.clear();
 	QString toIndex = textAccentFold(name);
-	if (nameOrPhone != name) {
-		toIndex += ' ' + textAccentFold(nameOrPhone);
-	}
 	if (isUser()) {
-		toIndex += ' ' + textAccentFold(asUser()->username);
+		if (!asUser()->nameOrPhone.isEmpty() && asUser()->nameOrPhone != name) toIndex += ' ' + textAccentFold(asUser()->nameOrPhone);
+		if (!asUser()->username.isEmpty()) toIndex += ' ' + textAccentFold(asUser()->username);
 	}
 	if (cRussianLetters().match(toIndex).hasMatch()) {
 		toIndex += ' ' + translitRusEng(toIndex);
@@ -166,6 +167,13 @@ void PeerData::fillNames() {
 	}
 }
 
+const Text &PeerData::dialogName() const {
+	return (isUser() && !asUser()->phoneText.isEmpty()) ? asUser()->phoneText : nameText;
+}
+
+const QString &PeerData::shortName() const {
+	return isUser() ? asUser()->firstName : name;
+}
 
 void UserData::setName(const QString &first, const QString &last, const QString &phoneName, const QString &usern) {
 	bool updName = !first.isEmpty() || !last.isEmpty(), updUsername = (username != usern);
@@ -273,8 +281,11 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 	}
 }
 
-void UserData::nameUpdated() {
-	nameText.setText(st::msgNameFont, name, _textNameOptions);
+void UserData::setNameOrPhone(const QString &newNameOrPhone) {
+	if (nameOrPhone != newNameOrPhone) {
+		nameOrPhone = newNameOrPhone;
+		phoneText.setText(st::msgNameFont, nameOrPhone, _textNameOptions);
+	}
 }
 
 void UserData::madeAction() {

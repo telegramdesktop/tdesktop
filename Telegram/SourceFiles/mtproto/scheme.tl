@@ -221,7 +221,7 @@ chatForbidden#fb0ccc41 id:int title:string date:int = Chat;
 channel#8dbb1461 flags:# id:int access_hash:long title:string photo:ChatPhoto date:int version:int = Chat;
 
 chatFull#2e02a614 id:int participants:ChatParticipants chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite bot_info:Vector<BotInfo> = ChatFull;
-channelFull#eb8a0d68 id:int read_inbox_max_id:int unread_count:int unread_important_count:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite = ChatFull;
+channelFull#a09d2902 id:int read_inbox_max_id:int unread_count:int unread_important_count:int inviter_id:int invite_date:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite = ChatFull;
 
 chatParticipant#c8d7493e user_id:int inviter_id:int date:int = ChatParticipant;
 
@@ -376,6 +376,7 @@ updateReadHistoryOutbox#2f2f21bf peer:Peer max_id:int pts:int pts_count:int = Up
 updateWebPage#2cc36971 webpage:WebPage = Update;
 updateReadMessagesContents#68c13933 messages:Vector<int> pts:int pts_count:int = Update;
 updateChannelTooLong#60946422 channel_id:int = Update;
+updateChannelGroup#c36c1e3c channel_id:int group:MessageGroup = Update;
 updateNewChannelMessage#62ba04d9 message:Message pts:int pts_count:int = Update;
 updateReadChannelInbox#87b87b7d peer:Peer max_id:int = Update;
 updateDeleteChannelMessages#11da3046 peer:Peer messages:Vector<int> pts:int pts_count:int = Update;
@@ -594,6 +595,7 @@ updates.channelDifference#2064674e flags:# pts:int timeout:flags.1?int new_messa
 
 channelMessagesFilterEmpty#94d42ee7 = ChannelMessagesFilter;
 channelMessagesFilter#cd77d957 flags:# ranges:Vector<MessageRange> = ChannelMessagesFilter;
+channelMessagesFilterCollapsed#fa01232e = ChannelMessagesFilter;
 
 ---functions---
 
@@ -663,7 +665,7 @@ contacts.resolveUsername#bf0131c username:string = User;
 
 messages.getMessages#4222fa74 id:Vector<int> = messages.Messages;
 messages.getDialogs#859b3d3c offset:int limit:int = messages.Dialogs;
-messages.getHistory#e1ded325 peer:InputPeer offset:int max_id:int min_id:int limit:int = messages.Messages;
+messages.getHistory#8a8ec2da peer:InputPeer offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
 messages.search#7e9f2ab peer:InputPeer q:string filter:MessagesFilter min_date:int max_date:int offset:int max_id:int limit:int = messages.Messages;
 messages.readHistory#b04f2510 peer:InputPeer max_id:int offset:int = messages.AffectedHistory;
 messages.deleteHistory#f4f8fb61 peer:InputPeer offset:int = messages.AffectedHistory;
@@ -704,9 +706,9 @@ messages.installStickerSet#7b30c3a6 stickerset:InputStickerSet disabled:Bool = B
 messages.uninstallStickerSet#f96e55de stickerset:InputStickerSet = Bool;
 messages.startBot#f4cc052d bot:InputUser chat_id:InputChat random_id:long start_param:string = Updates;
 messages.getChannelDialogs#92689583 offset:int limit:int = messages.Dialogs;
-messages.getImportantHistory#25b7f3b2 peer:InputPeer max_id:int min_id:int limit:int = messages.Messages;
+messages.getImportantHistory#24af43a5 peer:InputPeer offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
 messages.readChannelHistory#36a1210e peer:InputPeer max_id:int = Bool;
-messages.createChannel#d9bc5fd2 title:string = Updates;
+messages.createChannel#e830f8cb flags:# title:string users:Vector<InputUser> = Updates;
 messages.deleteChannelMessages#9995a84f peer:InputPeer id:Vector<int> = messages.AffectedMessages;
 
 updates.getState#edd4882a = updates.State;

@@ -114,7 +114,7 @@ namespace {
 	}
 }
 
-const TextParseOptions &itemTextParseOptions(History *h, UserData *f) {
+const TextParseOptions &itemTextParseOptions(History *h, PeerData *f) {
 	if ((h->peer->isUser() && h->peer->asUser()->botInfo) || (f->isUser() && f->asUser()->botInfo) || (h->peer->isChat() && h->peer->asChat()->botStatus >= 0) || (h->peer->isChannel() && h->peer->asChannel()->botStatus >= 0)) {
 		return _historyBotOptions;
 	}
@@ -236,7 +236,7 @@ void DialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
 	}
 
 	p.setPen((act ? st::dlgActiveColor : st::dlgNameColor)->p);
-	history->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+	history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
 void FakeDialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
@@ -297,7 +297,7 @@ void FakeDialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
 	_item->drawInDialog(p, QRect(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, lastWidth, st::dlgFont->height), act, _cacheFor, _cache);
 
 	p.setPen((act ? st::dlgActiveColor : st::dlgNameColor)->p);
-	history->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+	history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
 History::History(const PeerId &peerId) : width(0), height(0)
@@ -335,10 +335,6 @@ void History::clearLastKeyboard() {
 	lastKeyboardInited = true;
 	lastKeyboardId = 0;
 	lastKeyboardFrom = 0;
-}
-
-void History::updateNameText() {
-	nameText.setText(st::msgNameFont, peer->nameOrPhone.isEmpty() ? peer->name : peer->nameOrPhone, _textNameOptions);
 }
 
 bool History::updateTyping(uint64 ms, uint32 dots, bool force) {
@@ -593,19 +589,26 @@ void Histories::remove(const PeerId &peer) {
 	
 }
 
+inline bool isImportantChannelMessage(int32 flags) {
+	return (flags & MTPDmessage_flag_out) || (flags & MTPDmessage_flag_notify_by_from) || !(flags & MTPDmessage::flag_from_id);
+}
+
 HistoryItem *Histories::addToBack(const MTPmessage &msg, int msgState) {
 	PeerId from_id = 0, to_id = 0;
+	int32 flags = 0;
 	switch (msg.type()) {
 	case mtpc_message:
-		from_id = peerFromUser(msg.c_message().vfrom_id);
+		from_id = msg.c_message().has_from_id() ? peerFromUser(msg.c_message().vfrom_id) : 0;
 		to_id = peerFromMTP(msg.c_message().vto_id);
+		flags = msg.c_message().vflags.v;
 	break;
 	case mtpc_messageService:
-		from_id = peerFromUser(msg.c_messageService().vfrom_id);
+		from_id = msg.c_messageService().has_from_id() ? peerFromUser(msg.c_messageService().vfrom_id) : 0;
 		to_id = peerFromMTP(msg.c_messageService().vto_id);
+		flags = msg.c_messageService().vflags.v;
 	break;
 	}
-	PeerId peer = (peerToUser(to_id) == MTP::authedId()) ? from_id : to_id;
+	PeerId peer = (from_id && peerToUser(to_id) == MTP::authedId()) ? from_id : to_id;
 
 	if (!peer) return 0;
 
@@ -613,7 +616,7 @@ HistoryItem *Histories::addToBack(const MTPmessage &msg, int msgState) {
 	if (h == end()) {
 		h = insert(peer, new History(peer));
 	}
-	if (msgState < 0) {
+	if (msgState < 0 || (peerIsChannel(peer) && !isImportantChannelMessage(flags))) {
 		return h.value()->addToHistory(msg);
 	}
 	if (!h.value()->loadedAtBottom()) {
@@ -963,14 +966,14 @@ HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *
 		addToOverview(adding, OverviewLinks);
 	}
 	if (adding->from()->id) {
-		if (peer->isChat()) {
+		if (peer->isChat() && adding->from()->isUser()) {
 			QList<UserData*> *lastAuthors = &(peer->asChat()->lastAuthors);
-			int prev = lastAuthors->indexOf(adding->from());
+			int prev = lastAuthors->indexOf(adding->from()->asUser());
 			if (prev > 0) {
 				lastAuthors->removeAt(prev);
 			}
 			if (prev) {
-				lastAuthors->push_front(adding->from());
+				lastAuthors->push_front(adding->from()->asUser());
 			}
 		}
 		if (adding->hasReplyMarkup()) {
@@ -983,7 +986,7 @@ HistoryItem *History::doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *
 					if (lastKeyboardFrom == adding->from()->id || (!lastKeyboardInited && !peer->isChat() && !adding->out())) {
 						clearLastKeyboard();
 					}
-				} else if (peer->isChat() && (peer->asChat()->count < 1 || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(adding->from())) {
+				} else if (peer->isChat() && adding->from()->isUser() && (peer->asChat()->count < 1 || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(adding->from()->asUser())) {
 					clearLastKeyboard();
 				} else {
 					lastKeyboardInited = true;
@@ -1020,9 +1023,9 @@ void History::unregTyping(UserData *from) {
 
 void History::newItemAdded(HistoryItem *item) {
 	App::checkImageCacheSize();
-	if (item->from()) {
-		unregTyping(item->from());
-		item->from()->madeAction();
+	if (item->from() && item->from()->isUser()) {
+		unregTyping(item->from()->asUser());
+		item->from()->asUser()->madeAction();
 	}
 	if (item->out()) {
 		if (unreadBar) unreadBar->destroy();
@@ -1121,8 +1124,8 @@ void History::addToFront(const QVector<MTPMessage> &slice) {
 				}
 				if (item->from()->id) {
 					if (lastAuthors) { // chats
-						if (!lastAuthors->contains(item->from())) {
-							lastAuthors->push_back(item->from());
+						if (item->from()->isUser() && !lastAuthors->contains(item->from()->asUser())) {
+							lastAuthors->push_back(item->from()->asUser());
 						}
 						if (!lastKeyboardInited && item->hasReplyMarkup() && !item->out()) { // chats with bots
 							int32 markupFlags = App::replyMarkup(channelId(), item->id).flags;
@@ -1133,7 +1136,7 @@ void History::addToFront(const QVector<MTPMessage> &slice) {
 								}
 								if (!(markupFlags & MTPDreplyKeyboardMarkup_flag_ZERO)) {
 									if (!lastKeyboardInited) {
-										if (wasKeyboardHide || ((peer->asChat()->count < 1 || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(item->from()))) {
+										if (wasKeyboardHide || ((peer->asChat()->count < 1 || !peer->asChat()->participants.isEmpty()) && item->from()->isUser() && !peer->asChat()->participants.contains(item->from()->asUser()))) {
 											clearLastKeyboard();
 										} else {
 											lastKeyboardInited = true;
@@ -1755,7 +1758,7 @@ ItemAnimations &itemAnimations() {
 HistoryItem::HistoryItem(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime msgDate, int32 from) : y(0)
 , id(msgId)
 , date(msgDate)
-, _from(App::user(from))
+, _from(from ? App::user(from) : history->peer)
 , _fromVersion(_from->nameVersion)
 , _history(history)
 , _block(block)
@@ -5764,7 +5767,7 @@ void HistoryMessage::drawInDialog(QPainter &p, const QRect &r, bool act, const H
 		if (!_history->peer->isUser() || out()) { // CHANNELS_UI
 			TextCustomTagsMap custom;
 			custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
-			msg = lng_message_with_from(lt_from, textRichPrepare((_from == App::self()) ? lang(lng_from_you) : _from->firstName), lt_message, textRichPrepare(msg));
+			msg = lng_message_with_from(lt_from, textRichPrepare((_from == App::self()) ? lang(lng_from_you) : _from->shortName()), lt_message, textRichPrepare(msg));
 			cache.setRichText(st::dlgHistFont, msg, _textDlgOptions, custom);
 		} else {
 			cache.setText(st::dlgHistFont, msg, _textDlgOptions);
@@ -6337,6 +6340,11 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 		text = lng_action_created_chat(lt_from, from, lt_title, textClean(qs(d.vtitle)));
 	} break;
 
+	case mtpc_messageActionChannelCreate: {
+		const MTPDmessageActionChannelCreate &d(action.c_messageActionChannelCreate());
+		text = lng_action_created_channel(lt_title, textClean(qs(d.vtitle)));
+	} break;
+
 	case mtpc_messageActionChatDeletePhoto: {
 		text = lng_action_removed_photo(lt_from, from);
 	} break;
@@ -6379,7 +6387,7 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 }
 
 HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDmessageService &msg) :
-	HistoryItem(history, block, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.vfrom_id.v)
+	HistoryItem(history, block, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0)
 , _text(st::msgMinWidth)
 , _media(0)
 {

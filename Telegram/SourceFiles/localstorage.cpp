@@ -2775,8 +2775,8 @@ namespace Local {
 		} else if (peer->isChannel()) {
 			ChannelData *channel = peer->asChannel();
 
-			// name + access + date + version + forbidden + left + invitationUrl
-			result += _stringSize(channel->name) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(channel->invitationUrl);
+			// name + access + date + version + adminned + forbidden + left + invitationUrl
+			result += _stringSize(channel->name) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(channel->invitationUrl);
 		}
 		return result;
 	}
@@ -2796,7 +2796,7 @@ namespace Local {
 		} else if (peer->isChannel()) {
 			ChannelData *channel = peer->asChannel();
 
-			stream << channel->name << quint64(channel->access) << qint32(channel->date) << qint32(channel->version);
+			stream << channel->name << quint64(channel->access) << qint32(channel->date) << qint32(channel->version) << qint32(channel->adminned ? 1 : 0);
 			stream << qint32(channel->forbidden ? 1 : 0) << qint32(channel->left ? 1 : 0) << channel->invitationUrl;
 		}
 	}
@@ -2862,13 +2862,14 @@ namespace Local {
 
 			QString name, invitationUrl;
 			quint64 access;
-			qint32 date, version, forbidden, left;
-			from.stream >> name >> access >> date >> version >> forbidden >> left >> invitationUrl;
+			qint32 date, version, adminned, forbidden, left;
+			from.stream >> name >> access >> date >> version >> adminned >> forbidden >> left >> invitationUrl;
 
 			channel->updateName(name, QString(), QString());
 			channel->access = access;
 			channel->date = date;
 			channel->version = version;
+			channel->adminned = (adminned == 1);
 			channel->forbidden = (forbidden == 1);
 			channel->left = (left == 1);
 			channel->invitationUrl = invitationUrl;

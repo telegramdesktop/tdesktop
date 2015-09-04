@@ -155,7 +155,7 @@ private:
 	PeerData *_peer;
 	UserData *_user; // if user profile photos overview
 	
-	UserData *_from;
+	PeerData *_from;
 	Text _fromName;
 
 	int32 _index; // index in photos or files array, -1 if just photo

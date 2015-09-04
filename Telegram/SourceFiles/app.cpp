@@ -521,6 +521,8 @@ namespace App {
 				cdata->access = d.vaccess_hash.v;
 				cdata->setPhoto(d.vphoto);
 				cdata->date = d.vdate.v;
+				cdata->adminned = (d.vflags.v & MTPDchannel_flag_is_admin);
+				
 				cdata->left = false;
 				cdata->forbidden = false;
 				if (cdata->version < d.vversion.v) {
@@ -720,23 +722,23 @@ namespace App {
 
 	void feedMsgs(const MTPVector<MTPMessage> &msgs, int msgsState) {
 		const QVector<MTPMessage> &v(msgs.c_vector().v);
-		QMap<int32, int32> msgsIds;
+		QMap<uint64, int32> msgsIds;
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
 			const MTPMessage &msg(v.at(i));
 			switch (msg.type()) {
 			case mtpc_message: {
 				const MTPDmessage &d(msg.c_message());
-				msgsIds.insert(d.vid.v, i);
+				msgsIds.insert((uint64(uint32(d.vid.v)) << 32) | uint64(i), i);
 				if (msgsState == 1) { // new message, index my forwarded messages to links overview
 					checkEntitiesUpdate(d);
 				}
 			} break;
-			case mtpc_messageEmpty: msgsIds.insert(msg.c_messageEmpty().vid.v, i); break;
-			case mtpc_messageService: msgsIds.insert(msg.c_messageService().vid.v, i); break;
+			case mtpc_messageEmpty: msgsIds.insert((uint64(uint32(msg.c_messageEmpty().vid.v)) << 32) | uint64(i), i); break;
+			case mtpc_messageService: msgsIds.insert((uint64(uint32(msg.c_messageService().vid.v)) << 32) | uint64(i), i); break;
 			}
 		}
-		for (QMap<int32, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-			histories().addToBack(v.at(*i), msgsState);
+		for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
+			histories().addToBack(v.at(i.value()), msgsState);
 		}
 	}
 
@@ -1570,7 +1572,7 @@ namespace App {
 	}
 
 	QString peerName(const PeerData *peer, bool forDialogs) {
-		return peer ? (forDialogs ? peer->nameOrPhone : peer->name) : lang(lng_deleted);
+		return peer ? ((forDialogs && peer->isUser() && !peer->asUser()->nameOrPhone.isEmpty()) ? peer->asUser()->nameOrPhone : peer->name) : lang(lng_deleted);
 	}
 
 	Histories &histories() {
@@ -1704,7 +1706,9 @@ namespace App {
 		}
 		for (ChannelMsgsData::const_iterator j = channelMsgsData.cbegin(), end = channelMsgsData.cend(); j != end; ++j) {
 			for (MsgsData::const_iterator i = j->cbegin(), e = j->cend(); i != e; ++i) {
-				toDelete.push_back(*i);
+				if ((*i)->detached()) {
+					toDelete.push_back(*i);
+				}
 			}
 		}
 		msgsData.clear();

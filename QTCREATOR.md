@@ -119,7 +119,6 @@ building (**make** command) will take really long time.
 * Tools > Options > Build & Run > Qt Versions tab > Add > File System /usr/local/Qt-5.5.0/bin/qmake > **Qt 5.5.0 (Qt-5.5.0)** > Apply
 * Tools > Options > Build & Run > Kits tab > Desktop (default) > change **Qt version** to **Qt 5.5.0 (Qt-5.5.0)** > Apply
 * Open MetaStyle.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateStyle** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateStyle** and build for Debug
-* Open MetaEmoji.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateEmoji** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateEmoji** and build for Debug
 * Open MetaLang.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateLang** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateLang** and build for Debug
 * Open Telegram.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediate** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediate** and build for Debug, if GeneratedFiles are not found click **Run qmake** from **Build** menu and try again
 * Open Updater.pro, configure project with paths **/home/user/TBuild/tdesktop/Linux/DebugIntermediateUpdater** and **/home/user/TBuild/tdesktop/Linux/ReleaseIntermediateUpdater** and build for Debug

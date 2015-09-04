@@ -103,17 +103,26 @@ void ApiWrap::resolveReplyTo() {
 
 void ApiWrap::gotReplyTo(const MTPmessages_Messages &msgs, mtpRequestId req) {
 	switch (msgs.type()) {
-	case mtpc_messages_messages:
-		App::feedUsers(msgs.c_messages_messages().vusers);
-		App::feedChats(msgs.c_messages_messages().vchats);
-		App::feedMsgs(msgs.c_messages_messages().vmessages, -1);
-		break;
+	case mtpc_messages_messages: {
+		const MTPDmessages_messages &d(msgs.c_messages_messages());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		App::feedMsgs(d.vmessages, -1);
+	} break;
 
-	case mtpc_messages_messagesSlice:
-		App::feedUsers(msgs.c_messages_messagesSlice().vusers);
-		App::feedChats(msgs.c_messages_messagesSlice().vchats);
-		App::feedMsgs(msgs.c_messages_messagesSlice().vmessages, -1);
-		break;
+	case mtpc_messages_messagesSlice: {
+		const MTPDmessages_messagesSlice &d(msgs.c_messages_messagesSlice());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		App::feedMsgs(d.vmessages, -1);
+	} break;
+
+	case mtpc_messages_channelMessages: {
+		const MTPDmessages_channelMessages &d(msgs.c_messages_channelMessages());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		App::feedMsgs(d.vmessages, -1);
+	} break;
 	}
 	for (ReplyToRequests::iterator i = _replyToRequests.begin(); i != _replyToRequests.cend();) {
 		if (i.value().req == req) {
@@ -497,32 +506,42 @@ void ApiWrap::resolveWebPages() {
 void ApiWrap::gotWebPages(const MTPmessages_Messages &msgs, mtpRequestId req) {
 	const QVector<MTPMessage> *v = 0;
 	switch (msgs.type()) {
-	case mtpc_messages_messages:
-		App::feedUsers(msgs.c_messages_messages().vusers);
-		App::feedChats(msgs.c_messages_messages().vchats);
-		v = &msgs.c_messages_messages().vmessages.c_vector().v;
-		break;
+	case mtpc_messages_messages: {
+		const MTPDmessages_messages &d(msgs.c_messages_messages());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		v = &d.vmessages.c_vector().v;
+	} break;
 
-	case mtpc_messages_messagesSlice:
-		App::feedUsers(msgs.c_messages_messagesSlice().vusers);
-		App::feedChats(msgs.c_messages_messagesSlice().vchats);
-		v = &msgs.c_messages_messagesSlice().vmessages.c_vector().v;
-		break;
+	case mtpc_messages_messagesSlice: {
+		const MTPDmessages_messagesSlice &d(msgs.c_messages_messagesSlice());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		v = &d.vmessages.c_vector().v;
+	} break;
+
+	case mtpc_messages_channelMessages: {
+		const MTPDmessages_channelMessages &d(msgs.c_messages_channelMessages());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		v = &d.vmessages.c_vector().v;
+	} break;
 	}
 
-	QMap<int32, int32> msgsIds; // copied from feedMsgs
+	if (!v) return;
+	QMap<uint64, int32> msgsIds; // copied from feedMsgs
 	for (int32 i = 0, l = v->size(); i < l; ++i) {
 		const MTPMessage &msg(v->at(i));
 		switch (msg.type()) {
-		case mtpc_message: msgsIds.insert(msg.c_message().vid.v, i); break;
-		case mtpc_messageEmpty: msgsIds.insert(msg.c_messageEmpty().vid.v, i); break;
-		case mtpc_messageService: msgsIds.insert(msg.c_messageService().vid.v, i); break;
+		case mtpc_message: msgsIds.insert((uint64(uint32(msg.c_message().vid.v)) << 32) | uint64(i), i); break;
+		case mtpc_messageEmpty: msgsIds.insert((uint64(uint32(msg.c_messageEmpty().vid.v)) << 32) | uint64(i), i); break;
+		case mtpc_messageService: msgsIds.insert((uint64(uint32(msg.c_messageService().vid.v)) << 32) | uint64(i), i); break;
 		}
 	}
 
 	MainWidget *m = App::main();
-	for (QMap<int32, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-		HistoryItem *item = App::histories().addToBack(v->at(*i), -1);
+	for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
+		HistoryItem *item = App::histories().addToBack(v->at(i.value()), -1);
 		if (item) {
 			item->initDimensions();
 			if (m) m->itemResized(item);

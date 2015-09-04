@@ -322,18 +322,18 @@ private:
 	typedef QMap<History*, NotifyWhenMap> NotifyWhenMaps;
 	NotifyWhenMaps notifyWhenMaps;
 	struct NotifyWaiter {
-		NotifyWaiter(MsgId msg, uint64 when, UserData *notifyByFrom) : msg(msg), when(when), notifyByFrom(notifyByFrom) {
+		NotifyWaiter(MsgId msg, uint64 when, PeerData *notifyByFrom) : msg(msg), when(when), notifyByFrom(notifyByFrom) {
 		}
 		MsgId msg;
 		uint64 when;
-		UserData *notifyByFrom;
+		PeerData *notifyByFrom;
 	};
 	typedef QMap<History*, NotifyWaiter> NotifyWaiters;
 	NotifyWaiters notifyWaiters;
 	NotifyWaiters notifySettingWaiters;
 	SingleTimer notifyWaitTimer;
 
-	typedef QMap<uint64, UserData*> NotifyWhenAlert;
+	typedef QMap<uint64, PeerData*> NotifyWhenAlert;
 	typedef QMap<History*, NotifyWhenAlert> NotifyWhenAlerts;
 	NotifyWhenAlerts notifyWhenAlerts;
 

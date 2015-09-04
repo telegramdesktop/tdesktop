@@ -123,7 +123,7 @@ private:
 	ChatData *_peerChat;
 	ChannelData *_peerChannel;
 	History *_hist;
-	bool _chatAdmin;
+	bool _isAdmin;
 
 	int32 _width, _left;
 

@@ -215,7 +215,7 @@ void NotifyWindow::updateNotifyDisplay() {
 
 		p.setPen(st::dlgNameColor->p);
 		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
-			history->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+			history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 		} else {
 			p.setFont(st::msgNameFont->f);
 			static QString notifyTitle = st::msgNameFont->m.elidedText(qsl("Telegram Desktop"), Qt::ElideRight, rectForName.width());
@@ -609,7 +609,7 @@ void Window::sendServiceHistoryRequest() {
 		int32 userFlags = MTPDuser::flag_first_name | MTPDuser::flag_phone | MTPDuser::flag_status;
 		user = App::feedUsers(MTP_vector<MTPUser>(1, MTP_user(MTP_int(userFlags), MTP_int(ServiceUserId), MTPlong(), MTP_string("Telegram"), MTPstring(), MTPstring(), MTP_string("42777"), MTP_userProfilePhotoEmpty(), MTP_userStatusRecently(), MTPint())));
 	}
-	_serviceHistoryRequest = MTP::send(MTPmessages_GetHistory(user->input, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(1)), main->rpcDone(&MainWidget::serviceHistoryDone), main->rpcFail(&MainWidget::serviceHistoryFail));
+	_serviceHistoryRequest = MTP::send(MTPmessages_GetHistory(user->input, MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), main->rpcDone(&MainWidget::serviceHistoryDone), main->rpcFail(&MainWidget::serviceHistoryFail));
 }
 
 void Window::setupMain(bool anim, const MTPUser *self) {
@@ -1229,7 +1229,7 @@ void Window::quit() {
 void Window::notifySchedule(History *history, HistoryItem *item) {
 	if (App::quiting() || !history->currentNotification() || !main) return;
 
-	UserData *notifyByFrom = (!history->peer->isUser() && item->notifyByFrom()) ? item->from() : 0;
+	PeerData *notifyByFrom = (!history->peer->isUser() && item->notifyByFrom()) ? item->from() : 0;
 
 	bool haveSetting = (history->peer->notify != UnknownNotifySettings);
 	if (haveSetting) {
@@ -1340,7 +1340,7 @@ void Window::notifySettingGot() {
 		} else {
 			if (history->peer->notify == EmptyNotifySettings || history->peer->notify->mute <= t) {
 				notifyWaiters.insert(i.key(), i.value());
-			} else if (UserData *from = i.value().notifyByFrom) {
+			} else if (PeerData *from = i.value().notifyByFrom) {
 				if (from->notify == UnknownNotifySettings) {
 					++i;
 					continue;

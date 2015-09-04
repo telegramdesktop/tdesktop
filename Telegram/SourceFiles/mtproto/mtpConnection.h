@@ -50,6 +50,12 @@ enum {
 	MTPDstickerSet_flag_disabled = (1 << 1),
 	MTPDstickerSet_flag_official = (1 << 2),
 	MTPDstickerSet_flag_NOT_LOADED = (1 << 31), // client side flag for not yet loaded set
+
+	MTPDchannel_flag_is_admin = (1 << 0),
+
+	MTPupdates_ChannelDifference_flag_final = (1 << 0),
+
+	MTPDchannelMessagesFilter_flag_only_important = (1 << 0),
 };
 
 static const MTPReplyMarkup MTPnullMarkup = MTP_replyKeyboardMarkup(MTP_int(0), MTP_vector<MTPKeyboardButtonRow>(0));

@@ -1291,9 +1291,11 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				case 1: to.add("  read_inbox_max_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 2: to.add("  unread_count: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 3: to.add("  unread_important_count: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 4: to.add("  chat_photo: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 5: to.add("  notify_settings: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 6: to.add("  exported_invite: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 4: to.add("  inviter_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 5: to.add("  invite_date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 6: to.add("  chat_photo: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 7: to.add("  notify_settings: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 8: to.add("  exported_invite: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -2742,6 +2744,20 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 				switch (stage) {
 				case 0: to.add("  channel_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_updateChannelGroup:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ updateChannelGroup");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  channel_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  group: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -4626,6 +4642,10 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
+			case mtpc_channelMessagesFilterCollapsed:
+				to.add("{ channelMessagesFilterCollapsed }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+			break;
+
 			case mtpc_req_pq:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
@@ -5638,10 +5658,11 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 				switch (stage) {
 				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  offset: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  max_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  min_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 4: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  offset_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  add_offset: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 3: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 4: to.add("  max_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 5: to.add("  min_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -5675,9 +5696,11 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 				switch (stage) {
 				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  max_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  min_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  offset_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  add_offset: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 3: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 4: to.add("  max_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 5: to.add("  min_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -5983,7 +6006,9 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 					to.add("\n").addSpaces(lev);
 				}
 				switch (stage) {
-				case 0: to.add("  title: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  title: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  users: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
