@@ -33,6 +33,8 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	_peerUser(_peer->asUser()), _peerChat(_peer->asChat()), _peerChannel(_peer->asChannel()), _hist(App::history(peer->id)),
 	_isAdmin(_peerChat ? (_peerChat->admin == MTP::authedId()) : (_peerChannel ? _peerChannel->adminned : false)),
 
+	_width(0), _left(0), _addToHeight(0),
+
 	// profile
 	_nameCache(peer->name),
 	_uploadPhoto(this, lang(lng_profile_set_group_photo), st::btnShareContact),
@@ -57,8 +59,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	_enableNotifications(this, lang(lng_profile_enable_notifications)),
 
 	// shared media
-	_allMediaTypes(false),
-	_mediaShowAll(this, lang(lng_profile_show_all_types)),
+	_notAllMediaLoaded(false),
 
 	// actions
 	_searchInPeer(this, lang(lng_profile_search_messages)),
@@ -106,6 +107,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 		if (_peerChannel->photoId == UnknownPeerPhotoId) {
 			App::api()->requestFullPeer(_peer);
 		}
+//		MTP::send(MTPmessages_UpdateChannelUsername(_peerChannel->inputChat, MTP_string("tdesktop_channel")));
 	}
 
 	// profile
@@ -164,13 +166,12 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	connect(&_enableNotifications, SIGNAL(clicked()), this, SLOT(onEnableNotifications()));
 
 	// shared media
-	connect(&_mediaShowAll, SIGNAL(clicked()), this, SLOT(onMediaShowAll()));
 	connect((_mediaButtons[OverviewPhotos] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaPhotos()));
 	connect((_mediaButtons[OverviewVideos] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaVideos()));
 	connect((_mediaButtons[OverviewDocuments] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaDocuments()));
 	connect((_mediaButtons[OverviewAudios] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaAudios()));
 	connect((_mediaButtons[OverviewLinks] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaLinks()));
-	App::main()->preloadOverviews(_peer);
+	updateMediaLinks();
 
 	// actions
 	connect(&_searchInPeer, SIGNAL(clicked()), this, SLOT(onSearchInPeer()));
@@ -343,12 +344,6 @@ void ProfileInner::onPhotoUpdateDone(PeerId peer) {
 	update();
 }
 
-void ProfileInner::onMediaShowAll() {
-	_allMediaTypes = true;
-	resizeEvent(0);
-	showAll();
-}
-
 void ProfileInner::onMediaPhotos() {
 	App::main()->showMediaOverview(_peer, OverviewPhotos);
 }
@@ -370,29 +365,33 @@ void ProfileInner::onMediaLinks() {
 }
 
 void ProfileInner::onInvitationLink() {
-	if (!_peerChat) return;
+	if (!_peerChat && !_peerChannel) return;
 
-	QApplication::clipboard()->setText(_peerChat->invitationUrl);
+	QApplication::clipboard()->setText(_peerChat ? _peerChat->invitationUrl : (_peerChannel ? _peerChannel->invitationUrl : QString()));
 	App::wnd()->showLayer(new ConfirmBox(lang(lng_group_invite_copied), true));
 }
 
 void ProfileInner::onCreateInvitationLink() {
-	if (!_peerChat) return;
+	if (!_peerChat && !_peerChannel) return;
 
-	ConfirmBox *box = new ConfirmBox(lang(_peerChat->invitationUrl.isEmpty() ? lng_group_invite_about : lng_group_invite_about_new));
+	ConfirmBox *box = new ConfirmBox(lang(((_peerChat && _peerChat->invitationUrl.isEmpty()) || (_peerChannel && _peerChannel->invitationUrl.isEmpty())) ? (_peerChat ? lng_group_invite_about : lng_channel_invite_about) : lng_group_invite_about_new));
 	connect(box, SIGNAL(confirmed()), this, SLOT(onCreateInvitationLinkSure()));
 	App::wnd()->showLayer(box);
 }
 
 void ProfileInner::onCreateInvitationLinkSure() {
-	if (!_peerChat) return;
-	MTP::send(MTPmessages_ExportChatInvite(_peerChat->inputChat), rpcDone(&ProfileInner::chatInviteDone));
+	if (!_peerChat && !_peerChannel) return;
+	MTP::send(MTPmessages_ExportChatInvite(_peerChat ? _peerChat->inputChat : _peerChannel->inputChat), rpcDone(&ProfileInner::chatInviteDone));
 }
 
 void ProfileInner::chatInviteDone(const MTPExportedChatInvite &result) {
-	if (!_peerChat) return;
+	if (!_peerChat && !_peerChannel) return;
 
-	_peerChat->invitationUrl = (result.type() == mtpc_chatInviteExported) ? qs(result.c_chatInviteExported().vlink) : QString();
+	if (_peerChat) {
+		_peerChat->invitationUrl = (result.type() == mtpc_chatInviteExported) ? qs(result.c_chatInviteExported().vlink) : QString();
+	} else {
+		_peerChannel->invitationUrl = (result.type() == mtpc_chatInviteExported) ? qs(result.c_chatInviteExported().vlink) : QString();
+	}
 	updateInvitationLink();
 	showAll();
 	resizeEvent(0);
@@ -666,43 +665,26 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 
 	p.setFont(st::linkFont->f);
 	p.setPen(st::black->p);
-	int oneState = 0; // < 0 - loading, 0 - no media, > 0 - link shown
+	bool mediaFound = false;
 	for (int i = 0; i < OverviewCount; ++i) {
 		if (i == OverviewAudioDocuments) continue;
 
-		int32 count = (_hist->_overviewCount[i] > 0) ? _hist->_overviewCount[i] : (_hist->_overviewCount[i] == 0 ? _hist->_overview[i].size() : -1);
-		if (count < 0) {
-			if (!oneState) oneState = count;
-			if (!_allMediaTypes) {
-				p.drawText(_left, top + st::linkFont->ascent, lang(lng_profile_loading));
-				break;
-			}
-		} else if (count > 0) {
-			oneState = count;
-			if (!_allMediaTypes) {
-				break;
-			}
+		if (!_mediaButtons[i]->isHidden()) {
+			mediaFound = true;
 			top += _mediaButtons[i]->height() + st::setLittleSkip;
 		}
 	}
-	if (_allMediaTypes) {
-		if (oneState > 0) {
-			top -= st::setLittleSkip;
-		} else {
-			p.drawText(_left, top + st::linkFont->ascent, lang(oneState < 0 ? lng_profile_loading : lng_profile_no_media));
-			top += _mediaButtons[OverviewPhotos]->height();
-		}
-	} else {
-		if (!oneState) {
-			p.drawText(_left, top + st::linkFont->ascent, lang(lng_profile_no_media));
-		}
+	if (_notAllMediaLoaded || !mediaFound) {
+		p.drawText(_left, top + st::linkFont->ascent, lang(_notAllMediaLoaded ? lng_profile_loading : lng_profile_no_media));
 		top += _mediaButtons[OverviewPhotos]->height();
+	} else {
+		top -= st::setLittleSkip;
 	}
 
 	// actions
 	p.setFont(st::profileHeaderFont->f);
 	p.setPen(st::profileHeaderColor->p);
-	if (!_peerChannel) p.drawText(_left + st::profileHeaderLeft, top + st::profileHeaderTop + st::profileHeaderFont->ascent, lang(lng_profile_actions_section));
+	p.drawText(_left + st::profileHeaderLeft, top + st::profileHeaderTop + st::profileHeaderFont->ascent, lang(lng_profile_actions_section));
 	top += st::profileHeaderSkip;
 
 	top += _searchInPeer.height() + st::setLittleSkip + _clearHistory.height() + st::setLittleSkip + _deleteConversation.height();
@@ -906,6 +888,87 @@ void ProfileInner::leaveToChildEvent(QEvent *e) {
 	return TWidget::leaveToChildEvent(e);
 }
 
+bool ProfileInner::updateMediaLinks(int32 *addToScroll) {
+	QPoint p(addToScroll ? mapFromGlobal(QCursor::pos()) : QPoint(0, 0));
+	bool oneWasShown = false;
+	for (int i = 0; i < OverviewCount; ++i) {
+		if (i == OverviewAudioDocuments) continue;
+		if (!_mediaButtons[i]->isHidden()) {
+			oneWasShown = true;
+			break;
+		}
+	}
+
+	bool newNotAllMediaLoaded = false, changed = false, substracted = !_notAllMediaLoaded && oneWasShown;
+
+	bool oneIsShown = false;
+	int32 y = _mediaButtons[OverviewPhotos]->y();
+	if (addToScroll) *addToScroll = 0;
+	for (int i = 0; i < OverviewCount; ++i) {
+		if (i == OverviewAudioDocuments) continue;
+
+		int32 addToY = _mediaButtons[i]->height() + st::setLittleSkip;
+
+		int32 count = (_hist->_overviewCount[i] > 0) ? _hist->_overviewCount[i] : (_hist->_overviewCount[i] == 0 ? _hist->_overview[i].size() : -1);
+		if (count > 0) {
+			_mediaButtons[i]->setText(overviewLinkText(i, count));
+			if (_mediaButtons[i]->isHidden()) {
+				_mediaButtons[i]->show();
+				changed = true;
+
+				if (addToScroll && p.y() >= y) {
+					p.setY(p.y() + addToY);
+					*addToScroll += addToY;
+				}
+			}
+			y += addToY;
+			oneIsShown = true;
+		} else {
+			if (!_mediaButtons[i]->isHidden()) {
+				_mediaButtons[i]->hide();
+				changed = true;
+
+				if (addToScroll && p.y() >= y + addToY) {
+					p.setY(p.y() - addToY);
+					*addToScroll -= addToY;
+				}
+			}
+			if (count < 0) {
+				newNotAllMediaLoaded = true;
+			}
+		}
+	}
+	if (newNotAllMediaLoaded != _notAllMediaLoaded) {
+		_notAllMediaLoaded = newNotAllMediaLoaded;
+		changed = true;
+
+		int32 addToY = _mediaButtons[OverviewPhotos]->height();
+		if (_notAllMediaLoaded) {
+			if (addToScroll && p.y() >= y) {
+				p.setY(p.y() + addToY);
+				*addToScroll += addToY;
+			}
+		} else {
+			if (addToScroll && p.y() >= y + addToY) {
+				p.setY(p.y() - addToY);
+				*addToScroll -= addToY;
+			}
+		}
+
+		if (App::main()) App::main()->preloadOverviews(_peer);
+	}
+	bool newSubstracted = !_notAllMediaLoaded && oneIsShown;
+	if (newSubstracted && newSubstracted != substracted) {
+		int32 addToY = st::setLittleSkip;
+		if (addToScroll && p.y() >= y + addToY) {
+			p.setY(p.y() - addToY);
+			*addToScroll -= addToY;
+		}
+	}
+	return changed;
+
+}
+
 void ProfileInner::resizeEvent(QResizeEvent *e) {
 	_width = qMin(width() - st::profilePadding.left() - st::profilePadding.right(), int(st::profileMaxWidth));
 	_left = (width() - _width) / 2;
@@ -960,30 +1023,20 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 	// shared media
 	top += st::profileHeaderSkip;
 
-	_mediaShowAll.move(_left + _width - _mediaShowAll.width(), top);
-	int wasCount = 0; // < 0 - loading, 0 - no media, > 0 - link shown
+	bool mediaFound = false;
 	for (int i = 0; i < OverviewCount; ++i) {
 		if (i == OverviewAudioDocuments) continue;
 
-		if (_allMediaTypes) {
-			int32 count = (_hist->_overviewCount[i] > 0) ? _hist->_overviewCount[i] : (_hist->_overviewCount[i] == 0 ? _hist->_overview[i].size() : -1);
-			if (count > 0) {
-				if (wasCount) top += _mediaButtons[i]->height() + st::setLittleSkip;
-				wasCount = count;
-			}
-		}
 		_mediaButtons[i]->move(_left, top);
+		if (!_mediaButtons[i]->isHidden()) {
+			mediaFound = true;
+			top += _mediaButtons[i]->height() + st::setLittleSkip;
+		}
 	}
-	top += _mediaButtons[OverviewPhotos]->height();
-
-	// actions
-	top += st::profileHeaderSkip;
-	_searchInPeer.move(_left, top);	top += _searchInPeer.height() + st::setLittleSkip;
-	_clearHistory.move(_left, top); top += _clearHistory.height() + st::setLittleSkip;
-	_deleteConversation.move(_left, top); top += _deleteConversation.height();
-	if (_peerUser && peerToUser(_peerUser->id) != MTP::authedId()) {
-		top += st::setSectionSkip;
-		_blockUser.move(_left, top); top += _blockUser.height();
+	if (_notAllMediaLoaded || !mediaFound) {
+		top += _mediaButtons[OverviewPhotos]->height();
+	} else {
+		top -= st::setLittleSkip;
 	}
 
 	// actions
@@ -1062,10 +1115,6 @@ PeerData *ProfileInner::peer() const {
 	return _peer;
 }
 
-bool ProfileInner::allMediaShown() const {
-	return _allMediaTypes;
-}
-
 ProfileInner::~ProfileInner() {
 	for (ParticipantsData::iterator i = _participantsData.begin(), e = _participantsData.end(); i != e; ++i) {
 		delete *i;
@@ -1083,11 +1132,28 @@ void ProfileInner::updateNotifySettings() {
 	_enableNotifications.setChecked(_peer->notify == EmptyNotifySettings || _peer->notify == UnknownNotifySettings || _peer->notify->mute < unixtime());
 }
 
-void ProfileInner::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
+int32 ProfileInner::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
+	int32 result = 0;
 	if (peer == _peer) {
-		resizeEvent(0);
+		if (updateMediaLinks(&result)) {
+			resizeEvent(0);
+			update();
+		}
+	}
+	return result;
+}
+
+void ProfileInner::requestHeight(int32 newHeight) {
+	if (newHeight > height()) {
+		_addToHeight += newHeight - height();
 		showAll();
-		update();
+	}
+}
+
+void ProfileInner::allowDecreaseHeight(int32 decreaseBy) {
+	if (decreaseBy > 0 && _addToHeight > 0) {
+		_addToHeight -= qMin(decreaseBy, _addToHeight);
+		showAll();
 	}
 }
 
@@ -1195,42 +1261,6 @@ void ProfileInner::showAll() {
 	_enableNotifications.show();
 	updateNotifySettings();
 
-	// shared media
-	bool first = false, wasCount = false, manyCounts = false;
-	for (int i = 0; i < OverviewCount; ++i) {
-		if (i == OverviewAudioDocuments) continue;
-
-		int32 count = (_hist->_overviewCount[i] > 0) ? _hist->_overviewCount[i] : (_hist->_overviewCount[i] == 0 ? _hist->_overview[i].size() : -1);
-		if (count > 0) {
-			if (wasCount) {
-				manyCounts = true;
-			} else {
-				wasCount = true;
-			}
-		}
-		if (!first || _allMediaTypes) {
-			if (count > 0 || count < 0) {
-				first = true;
-			} else if (!_allMediaTypes) {
-				_mediaButtons[i]->hide();
-				continue;
-			}
-			if (count > 0) {
-				_mediaButtons[i]->setText(overviewLinkText(i, count));
-				_mediaButtons[i]->show();
-			} else {
-				_mediaButtons[i]->hide();
-			}
-		} else {
-			_mediaButtons[i]->hide();
-		}
-	}
-	if (_allMediaTypes || !manyCounts) {
-		_mediaShowAll.hide();
-	} else {
-		_mediaShowAll.show();
-	}
-
 	// participants
 	reorderParticipants();
 	int32 h;
@@ -1250,17 +1280,17 @@ void ProfileInner::showAll() {
 	} else if (_peerChannel) {
 		h = _deleteConversation.y() + _deleteConversation.height() + st::profileHeaderSkip;
 	}
-	resize(width(), h);
+	resize(width(), h + _addToHeight);
 }
 
 void ProfileInner::updateInvitationLink() {
-	if (!_peerChat) return;
+	if (!_peerChat && !_peerChannel) return;
 
-	if (_peerChat->invitationUrl.isEmpty()) {
+	if ((_peerChat && _peerChat->invitationUrl.isEmpty()) || (_peerChannel && _peerChannel->invitationUrl.isEmpty())) {
 		_createInvitationLink.setText(lang(lng_group_invite_create));
 	} else {
 		_createInvitationLink.setText(lang(lng_group_invite_create_new));
-		_invitationText = _peerChat->invitationUrl;
+		_invitationText = _peerChat ? _peerChat->invitationUrl : _peerChannel->invitationUrl;
 		if (_invitationText.startsWith(qstr("http://"), Qt::CaseInsensitive)) {
 			_invitationText = _invitationText.mid(7);
 		} else if (_invitationText.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
@@ -1312,6 +1342,9 @@ ProfileWidget::ProfileWidget(QWidget *parent, const PeerData *peer) : QWidget(pa
 
 void ProfileWidget::onScroll() {
 	_inner.loadProfilePhotos(_scroll.scrollTop());
+	if (!_scroll.isHidden() && _scroll.scrollTop() < _scroll.scrollTopMax()) {
+		_inner.allowDecreaseHeight(_scroll.scrollTopMax() - _scroll.scrollTop());
+	}
 }
 
 void ProfileWidget::resizeEvent(QResizeEvent *e) {
@@ -1319,8 +1352,13 @@ void ProfileWidget::resizeEvent(QResizeEvent *e) {
 	int32 newScrollY = _scroll.scrollTop() + addToY;
 	_scroll.resize(size());
 	_inner.resize(width(), _inner.height());
-	if (addToY) {
-		_scroll.scrollToY(newScrollY);
+	if (!_scroll.isHidden()) {
+		if (addToY) {
+			_scroll.scrollToY(newScrollY);
+		}
+		if (_scroll.scrollTop() < _scroll.scrollTopMax()) {
+			_inner.allowDecreaseHeight(_scroll.scrollTopMax() - _scroll.scrollTop());
+		}
 	}
 }
 
@@ -1379,15 +1417,10 @@ int32 ProfileWidget::lastScrollTop() const {
 	return _scroll.scrollTop();
 }
 
-bool ProfileWidget::allMediaShown() const {
-	return _inner.allMediaShown();
-}
-
-void ProfileWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back, int32 lastScrollTop, bool allMediaShown) {
+void ProfileWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back, int32 lastScrollTop) {
 	stopGif();
 	_bgAnimCache = bgAnimCache;
 	_bgAnimTopBarCache = bgAnimTopBarCache;
-	if (allMediaShown) _inner.onMediaShowAll();
 	if (lastScrollTop >= 0) _scroll.scrollToY(lastScrollTop);
 	_animCache = myGrab(this, rect());
 	App::main()->topBar()->stopAnim();
@@ -1445,7 +1478,13 @@ void ProfileWidget::updateNotifySettings() {
 }
 
 void ProfileWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
-	_inner.mediaOverviewUpdated(peer, type);
+	int32 addToScroll = _inner.mediaOverviewUpdated(peer, type);
+	if (!_scroll.isHidden() && addToScroll && _scroll.geometry().contains(mapFromGlobal(QCursor::pos()))) {
+		if (addToScroll > 0 && _scroll.scrollTop() + addToScroll > _scroll.scrollTopMax()) {
+			_inner.requestHeight(_scroll.scrollTop() + addToScroll + _scroll.height());
+		}
+		_scroll.scrollToY(_scroll.scrollTop() + addToScroll);
+	}
 }
 
 void ProfileWidget::clear() {

@@ -305,7 +305,7 @@ void ApiWrap::gotChat(PeerData *peer, const MTPmessages_Chats &result) {
 				if (peer->isChat()) {
 					peer->asChat()->version = v.at(0).c_chat().vversion.v;
 				} else if (peer->isChannel()) {
-					peer->asChannel()->version = v.at(0).c_chat().vversion.v;
+					peer->asChannel()->version = v.at(0).c_channel().vversion.v;
 				}
 				requestPeer(peer);
 			}

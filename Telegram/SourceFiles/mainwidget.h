@@ -77,6 +77,7 @@ private:
 	anim::fvalue a_over;
 	bool _drawShadow;
 
+	PeerData *_selPeer;
 	uint32 _selCount;
 	QString _selStr;
 	int32 _selStrLeft, _selStrWidth;
@@ -124,13 +125,12 @@ msgId(msgId), replyReturns(replyReturns), kbWasHidden(kbWasHidden) {
 
 class StackItemProfile : public StackItem {
 public:
-	StackItemProfile(PeerData *peer, int32 lastScrollTop, bool allMediaShown) : StackItem(peer), lastScrollTop(lastScrollTop), allMediaShown(allMediaShown) {
+	StackItemProfile(PeerData *peer, int32 lastScrollTop) : StackItem(peer), lastScrollTop(lastScrollTop) {
 	}
 	StackItemType type() const {
 		return ProfileStackItem;
 	}
 	int32 lastScrollTop;
-	bool allMediaShown;
 };
 
 class StackItemOverview : public StackItem {
@@ -200,7 +200,7 @@ public:
 	void start(const MTPUser &user);
 
 	void openLocalUrl(const QString &str);
-	void openUserByName(const QString &name, bool toProfile = false, const QString &startToken = QString());
+	void openPeerByName(const QString &name, bool toProfile = false, const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
 	void stickersBox(const MTPInputStickerSet &set);
 
@@ -244,7 +244,7 @@ public:
 	PeerData *profilePeer();
 	PeerData *overviewPeer();
 	bool mediaTypeSwitch();
-	void showPeerProfile(PeerData *peer, bool back = false, int32 lastScrollTop = -1, bool allMediaShown = false);
+	void showPeerProfile(PeerData *peer, bool back = false, int32 lastScrollTop = -1);
 	void showMediaOverview(PeerData *peer, MediaOverviewType type, bool back = false, int32 lastScrollTop = -1);
 	void showBackFromStack();
 	void orderWidgets();
@@ -385,7 +385,6 @@ signals:
 	void peerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 	void peerPhotoChanged(PeerData *peer);
 	void dialogRowReplaced(DialogRow *oldRow, DialogRow *newRow);
-	void dialogToTop(const History::DialogLinks &links);
 	void dialogsUpdated();
 	void showPeerAsync(quint64 peerId, qint32 showAtMsgId);
 	void stickersUpdated();
@@ -448,7 +447,12 @@ public slots:
 
 private:
 
+	void sendReadRequest(PeerData *peer, MsgId upTo);
+	void channelWasRead(PeerData *peer, const MTPBool &result);
     void partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result);
+	bool readRequestFail(PeerData *peer, const RPCError &error);
+	void readRequestDone(PeerData *peer);
+
 	void messagesAffected(const MTPmessages_AffectedMessages &result);
 	void photosLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req);
 
@@ -483,7 +487,7 @@ private:
 	void handleUpdates(const MTPUpdates &updates, uint64 randomId = 0);
 	bool updateFail(const RPCError &e);
 
-	void usernameResolveDone(QPair<bool, QString> toProfileStartToken, const MTPUser &result);
+	void usernameResolveDone(QPair<bool, QString> toProfileStartToken, const MTPcontacts_ResolvedPeer &result);
 	bool usernameResolveFail(QString name, const RPCError &error);
 
 	void inviteCheckDone(QString hash, const MTPChatInvite &invite);
@@ -539,6 +543,8 @@ private:
     
     typedef QMap<PeerData*, mtpRequestId> ReadRequests;
     ReadRequests _readRequests;
+	typedef QMap<PeerData*, MsgId> ReadRequestsPending;
+	ReadRequestsPending _readRequestsPending;
 
 	typedef QMap<PeerData*, mtpRequestId> OverviewsPreload;
 	OverviewsPreload _overviewPreload[OverviewCount], _overviewLoad[OverviewCount];

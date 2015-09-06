@@ -539,7 +539,7 @@ void HistoryList::onDragExec() {
 
 		mimeData->setText(sel);
 		if (!urls.isEmpty()) mimeData->setUrls(urls);
-		if (uponSelected && !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel && cWideMode()) {
+		if (uponSelected && !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel && cWideMode() && !hist->peer->isChannel()) {
 			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
 		}
 		drag->setMimeData(mimeData);
@@ -553,16 +553,18 @@ void HistoryList::onDragExec() {
 			lnkAudio = (lnkType == qstr("AudioOpenLink")),
 			lnkDocument = (lnkType == qstr("DocumentOpenLink")),
 			lnkContact = (lnkType == qstr("PeerLink") && dynamic_cast<HistoryContact*>(pressedLnkItem->getMedia())),
-			dragSticker = dynamic_cast<HistorySticker*>(pressedItem ? pressedItem->getMedia() : 0),
-			dragByDate = (_dragCursorState == HistoryInDateCursorState);
+			dragSticker = dynamic_cast<HistorySticker*>(pressedItem ? pressedItem->getMedia() : 0) && !hist->peer->isChannel(),
+			dragByDate = (_dragCursorState == HistoryInDateCursorState) && !hist->peer->isChannel();
 		if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument || lnkContact || dragSticker || dragByDate) {
 			QDrag *drag = new QDrag(App::wnd());
 			QMimeData *mimeData = new QMimeData;
 
-			if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument || lnkContact) {
-				mimeData->setData(qsl("application/x-td-forward-pressed-link"), "1");
-			} else {
-				mimeData->setData(qsl("application/x-td-forward-pressed"), "1");
+			if (!hist->peer->isChannel()) {
+				if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument || lnkContact) {
+					mimeData->setData(qsl("application/x-td-forward-pressed-link"), "1");
+				} else {
+					mimeData->setData(qsl("application/x-td-forward-pressed"), "1");
+				}
 			}
 			if (lnkDocument) {
 				QString already = static_cast<DocumentOpenLink*>(textlnkDown().data())->document()->already(true);
@@ -810,20 +812,20 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_delete_selected), historyWidget, SLOT(onDeleteSelected()));
 			_menu->addAction(lang(lng_context_clear_selection), historyWidget, SLOT(onClearSelected()));
 		} else if (App::hoveredLinkItem()) {
-			if (isUponSelected != -2) {
-				if (dynamic_cast<HistoryMessage*>(App::hoveredLinkItem()) && App::hoveredLinkItem()->id > 0) {
+			if (isUponSelected != -2 && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
+				if (dynamic_cast<HistoryMessage*>(App::hoveredLinkItem()) && App::hoveredLinkItem()->id > 0 && !hist->peer->isChannel()) {
 					_menu->addAction(lang(lng_context_forward_msg), historyWidget, SLOT(forwardMessage()))->setEnabled(true);
 				}
 				_menu->addAction(lang(lng_context_delete_msg), historyWidget, SLOT(deleteMessage()))->setEnabled(true);
 			}
-			if (App::hoveredLinkItem()->id > 0) {
+			if (App::hoveredLinkItem()->id > 0 && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
 				_menu->addAction(lang(lng_context_select_msg), historyWidget, SLOT(selectMessage()))->setEnabled(true);
 			}
 			App::contextItem(App::hoveredLinkItem());
 		}
 	} else { // maybe cursor on some text history item?
-		bool canDelete = (item && item->itemType() == HistoryItem::MsgType);
-		bool canForward = canDelete && (item->id > 0) && !item->serviceMsg();
+		bool canDelete = (item && item->itemType() == HistoryItem::MsgType) && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned);
+		bool canForward = canDelete && (item->id > 0) && !item->serviceMsg() && !hist->peer->isChannel();
 
 		HistoryMessage *msg = dynamic_cast<HistoryMessage*>(item);
 		HistoryServiceMsg *srv = dynamic_cast<HistoryServiceMsg*>(item);
@@ -889,11 +891,11 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(lang((msg && msg->uploading()) ? lng_context_cancel_upload : lng_context_delete_msg), historyWidget, SLOT(deleteMessage()))->setEnabled(true);
 				}
 			}
-			if (item->id > 0) {
+			if (item->id > 0 && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
 				_menu->addAction(lang(lng_context_select_msg), historyWidget, SLOT(selectMessage()))->setEnabled(true);
 			}
 		} else {
-			if (App::mousedItem() && App::mousedItem()->itemType() == HistoryItem::MsgType && App::mousedItem()->id > 0) {
+			if (App::mousedItem() && App::mousedItem()->itemType() == HistoryItem::MsgType && App::mousedItem()->id > 0 && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
 				if (!_menu) _menu = new ContextMenu(this);
 				_menu->addAction(lang(lng_context_select_msg), historyWidget, SLOT(selectMessage()))->setEnabled(true);
 				item = App::mousedItem();
@@ -1264,7 +1266,7 @@ bool HistoryList::canCopySelected() const {
 }
 
 bool HistoryList::canDeleteSelected() const {
-	return !_selected.isEmpty() && (_selected.cbegin().value() == FullItemSel);
+	return !_selected.isEmpty() && (_selected.cbegin().value() == FullItemSel) && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned);
 }
 
 void HistoryList::getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const {
@@ -1409,6 +1411,7 @@ void HistoryList::onUpdateSelected() {
 		}
 		cur = textlnkDown() ? style::cur_pointer : style::cur_default;
 		if (_dragAction == Selecting) {
+			bool canSelectMany = hist && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned);
 			if (item == _dragItem && item == App::hoveredItem() && !_selected.isEmpty() && _selected.cbegin().value() != FullItemSel) {
 				bool afterSymbol, uponSymbol;
 				uint16 second;
@@ -1421,7 +1424,7 @@ void HistoryList::onUpdateSelected() {
 					setFocus();
 				}
 				updateDragSelection(0, 0, false);
-			} else {
+			} else if (canSelectMany) {
 				bool selectingDown = (_dragItem->block()->y < item->block()->y) || ((_dragItem->block() == item->block()) && (_dragItem->y < item->y || (_dragItem == item && _dragStartPos.y() < m.y())));
 				HistoryItem *dragSelFrom = _dragItem, *dragSelTo = item;
 				if (!dragSelFrom->hasPoint(_dragStartPos.x(), _dragStartPos.y())) { // maybe exclude dragSelFrom
@@ -1504,6 +1507,10 @@ void HistoryList::applyDragSelection() {
 }
 
 void HistoryList::applyDragSelection(SelectedItems *toItems) const {
+	if (hist && hist->peer->isChannel() && !hist->peer->asChannel()->adminned) {
+		toItems->clear();
+		return;
+	}
 	if (!toItems->isEmpty() && toItems->cbegin().value() != FullItemSel) {
 		toItems->clear();
 	}
@@ -2942,7 +2949,7 @@ void HistoryWidget::updateControlsVisibility() {
 	} else if (_peer->isChat()) {
 		avail = !_peer->asChat()->forbidden && !_peer->asChat()->left;
 	} else if (_peer->isChannel()) {
-		avail = !_peer->asChannel()->forbidden && !_peer->asChannel()->left;
+		avail = !_peer->asChannel()->forbidden && !_peer->asChannel()->left && _peer->asChannel()->adminned;
 	}
 	if (avail) {
 		checkMentionDropdown();
@@ -3472,7 +3479,13 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 		flags |= MTPDmessage::flag_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 	}
-	h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(MTP::authedId()), peerToMTP(peer), MTPint(), MTPint(), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup, MTPnullEntities));
+	bool fromChannelName = p->isChannel();
+	if (fromChannelName) {
+		sendFlags |= MTPmessages_SendMessage_flag_broadcast;
+	} else {
+		flags |= MTPDmessage::flag_from_id;
+	}
+	h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(peer), MTPint(), MTPint(), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup, MTPnullEntities));
 	h->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), p->input, MTP_int(replyTo), MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, h->sendRequestId);
 
 	App::historyRegRandom(randomId, newId);
@@ -4352,13 +4365,18 @@ void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
 
 	int32 flags = newMessageFlags(h->peer) | MTPDmessage::flag_media; // unread, out
 	if (img.replyTo) flags |= MTPDmessage::flag_reply_to_msg_id;
+	bool fromChannelName = h->peer->isChannel();
+	if (fromChannelName) {
+	} else {
+		flags |= MTPDmessage::flag_from_id;
+	}
 	if (img.type == ToPreparePhoto) {
-		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(MTP::authedId()), peerToMTP(img.peer), MTPint(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(img.photo, MTP_string("")), MTPnullMarkup, MTPnullEntities));
+		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPint(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(img.photo, MTP_string("")), MTPnullMarkup, MTPnullEntities));
 	} else if (img.type == ToPrepareDocument) {
-		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(MTP::authedId()), peerToMTP(img.peer), MTPint(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(img.document), MTPnullMarkup, MTPnullEntities));
+		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPint(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(img.document), MTPnullMarkup, MTPnullEntities));
 	} else if (img.type == ToPrepareAudio) {
 		flags |= MTPDmessage_flag_media_unread;
-		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(MTP::authedId()), peerToMTP(img.peer), MTPint(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaAudio(img.audio), MTPnullMarkup, MTPnullEntities));
+		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPint(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaAudio(img.audio), MTPnullMarkup, MTPnullEntities));
 	}
 
 	if (_peer && img.peer == _peer->id) {
@@ -4386,6 +4404,10 @@ void HistoryWidget::onPhotoUploaded(const FullMsgId &newId, const MTPInputFile &
 		int32 sendFlags = 0;
 		if (replyTo) {
 			sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
+		}
+		bool fromChannelName = hist->peer->isChannel();
+		if (fromChannelName) {
+			sendFlags |= MTPmessages_SendMessage_flag_broadcast;
 		}
 		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedPhoto(file, MTP_string("")), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendPhotoFailed, randomId), 0, 0, hist->sendRequestId);
 	}
@@ -4427,6 +4449,10 @@ void HistoryWidget::onDocumentUploaded(const FullMsgId &newId, const MTPInputFil
 			if (replyTo) {
 				sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 			}
+			bool fromChannelName = hist->peer->isChannel();
+			if (fromChannelName) {
+				sendFlags |= MTPmessages_SendMessage_flag_broadcast;
+			}
 			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedDocument(file, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 		}
 	}
@@ -4451,6 +4477,10 @@ void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, const MTPInp
 			if (replyTo) {
 				sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 			}
+			bool fromChannelName = hist->peer->isChannel();
+			if (fromChannelName) {
+				sendFlags |= MTPmessages_SendMessage_flag_broadcast;
+			}
 			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedThumbDocument(file, thumb, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 		}
 	}
@@ -4472,6 +4502,10 @@ void HistoryWidget::onAudioUploaded(const FullMsgId &newId, const MTPInputFile &
 			int32 sendFlags = 0;
 			if (replyTo) {
 				sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
+			}
+			bool fromChannelName = hist->peer->isChannel();
+			if (fromChannelName) {
+				sendFlags |= MTPmessages_SendMessage_flag_broadcast;
 			}
 			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedAudio(file, MTP_int(audio->duration), MTP_string(audio->mime)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
 		}
@@ -4661,7 +4695,7 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 		} else if (_peer->isChat()) {
 			avail = (!_peer->asChat()->forbidden && !_peer->asChat()->left);
 		} else if (_peer->isChannel()) {
-			avail = (!_peer->asChannel()->forbidden && !_peer->asChannel()->left);
+			avail = (!_peer->asChannel()->forbidden && !_peer->asChannel()->left && _peer->asChannel()->adminned);
 		}
 		if (avail) {
 			newScrollHeight -= (_field.height() + 2 * st::sendPadding);
@@ -4971,7 +5005,11 @@ void HistoryWidget::onStickerSend(DocumentData *sticker) {
 		flags |= MTPDmessage::flag_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 	}
-	_history->addToBackDocument(newId.msg, flags, replyToId(), date(MTP_int(unixtime())), MTP::authedId(), sticker);
+	bool fromChannelName = _history->peer->isChannel();
+	if (fromChannelName) {
+		sendFlags |= MTPmessages_SendMessage_flag_broadcast;
+	}
+	_history->addToBackDocument(newId.msg, flags, replyToId(), date(MTP_int(unixtime())), fromChannelName ? 0 : MTP::authedId(), sticker);
 
 	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaDocument(MTP_inputDocument(MTP_long(sticker->id), MTP_long(sticker->access))), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history);

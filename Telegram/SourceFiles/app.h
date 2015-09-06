@@ -147,7 +147,7 @@ namespace App {
 	ChatData *chat(int32 chat_id);
 	ChannelData *channel(int32 channel_id);
 	UserData *self();
-	UserData *userByName(const QString &username);
+	PeerData *peerByName(const QString &username);
 	QString peerName(const PeerData *peer, bool forDialogs = false);
 	PhotoData *photo(const PhotoId &photo);
 	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full);
@@ -253,7 +253,7 @@ namespace App {
 	void sendBotCommand(const QString &cmd, MsgId replyTo = 0);
 	void insertBotCommand(const QString &cmd);
 	void searchByHashtag(const QString &tag);
-	void openUserByName(const QString &username, bool toProfile = false, const QString &startToken = QString());
+	void openPeerByName(const QString &username, bool toProfile = false, const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
 	void stickersBox(const QString &name);
 	void openLocalUrl(const QString &url);

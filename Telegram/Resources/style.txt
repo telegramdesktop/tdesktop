@@ -1491,7 +1491,7 @@ dropdownMediaAudios: iconedButton(dropdownMediaDocuments) {
 }
 dropdownMediaLinks: iconedButton(dropdownMediaDocuments) {
 	icon: sprite(372px, 414px, 24px, 24px);
-	downIcon: sprite(62px, 348px, 24px, 24px);
+	downIcon: sprite(372px, 414px, 24px, 24px);
 }
 
 dragFont: font(28px semibold);

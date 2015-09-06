@@ -82,6 +82,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
 
     sudo apt-get install xutils-dev bison python-xcbgen
     git clone https://github.com/xkbcommon/libxkbcommon.git
+    cd libxkbcommon
     ./autogen.sh --disable-x11
     make
     sudo make install

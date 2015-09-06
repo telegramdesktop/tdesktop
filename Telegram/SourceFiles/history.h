@@ -194,10 +194,11 @@ struct History : public QList<HistoryBlock*> {
 	void newItemAdded(HistoryItem *item);
 	void unregTyping(UserData *from);
 
-	void inboxRead(int32 upTo);
-	void inboxRead(HistoryItem *wasRead);
-	void outboxRead(int32 upTo);
-	void outboxRead(HistoryItem *wasRead);
+	int32 countUnread(MsgId upTo);
+	MsgId inboxRead(MsgId upTo);
+	MsgId inboxRead(HistoryItem *wasRead);
+	MsgId outboxRead(MsgId upTo);
+	MsgId outboxRead(HistoryItem *wasRead);
 
 	void setUnreadCount(int32 newUnreadCount, bool psUpdate = true);
 	void setMsgCount(int32 newMsgCount);
@@ -211,11 +212,13 @@ struct History : public QList<HistoryBlock*> {
 	bool isReadyFor(MsgId msgId, bool check = false) const; // has messages for showing history at msgId
 	void getReadyFor(MsgId msgId);
 
-	void setLastMessage(HistoryItem *msg);
+	void setLastMessage(HistoryItem *msg, bool updatePosInDialogs = true);
+	void setPosInDialogsDate(const QDateTime &date);
 	void fixLastMessage(bool wasAtBottom);
 
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
+	MsgId msgIdForRead() const;
 
 	int32 geomResize(int32 newWidth, int32 *ytransform = 0, bool dontRecountText = false); // return new size
 	int32 width, height, msgCount, unreadCount;
@@ -293,7 +296,7 @@ struct History : public QList<HistoryBlock*> {
 
 	typedef QMap<QChar, DialogRow*> DialogLinks;
 	DialogLinks dialogs;
-	int32 posInDialogs;
+	uint64 posInDialogs; // like ((unixtime) << 32) | (incremented counter)
 
 	typedef QMap<UserData*, uint64> TypingUsers;
 	TypingUsers typing;
@@ -357,26 +360,21 @@ struct DialogsList {
 		return (pos == current->pos) ? current : 0;
 	}
 
-	DialogRow *addToEnd(History *history, bool updatePos = true) {
+	DialogRow *addToEnd(History *history) {
 		DialogRow *result = new DialogRow(history, end->prev, end, end->pos);
 		end->pos++;
 		if (begin == end) {
 			begin = current = result;
-			if (sortMode == DialogsSortByDate && updatePos) history->posInDialogs = 0;
 		} else {
 			end->prev->next = result;
-			if (sortMode == DialogsSortByDate && updatePos) history->posInDialogs = end->prev->history->posInDialogs + 1;
 		}
 		rowByPeer.insert(history->peer->id, result);
 		++count;
-		return (end->prev = result);
-	}
-
-	void bringToTop(DialogRow *row, bool updatePos = true) {
-		if (sortMode == DialogsSortByDate && updatePos && row != begin) {
-			row->history->posInDialogs = begin->history->posInDialogs - 1;
+		end->prev = result;
+		if (sortMode == DialogsSortByDate) {
+			adjustByPos(result);
 		}
-		insertBefore(row, begin);
+		return result;
 	}
 
 	bool insertBefore(DialogRow *row, DialogRow *before) {
@@ -467,23 +465,19 @@ struct DialogsList {
 		if (sortMode != DialogsSortByDate) return;
 
 		DialogRow *change = row;
-		while (change->prev && change->prev->history->posInDialogs > row->history->posInDialogs) {
+		if (change != begin && begin->history->posInDialogs < row->history->posInDialogs) {
+			change = begin;
+		} else while (change->prev && change->prev->history->posInDialogs < row->history->posInDialogs) {
 			change = change->prev;
 		}
 		if (!insertBefore(row, change)) {
-			while (change->next != end && change->next->history->posInDialogs < row->history->posInDialogs) {
+			if (change->next != end && end->prev->history->posInDialogs > row->history->posInDialogs) {
+				change = end->prev;
+			} else while (change->next != end && change->next->history->posInDialogs > row->history->posInDialogs) {
 				change = change->next;
 			}
 			insertAfter(row, change);
 		}
-	}
-
-	DialogRow *addByPos(History *history) {
-		if (sortMode != DialogsSortByDate) return 0;
-
-		DialogRow *row = addToEnd(history, false);
-		adjustByPos(row);
-		return row;
 	}
 
 	bool del(const PeerId &peerId, DialogRow *replacedBy = 0);
@@ -563,14 +557,14 @@ struct DialogsIndexed {
 		return res;
 	}
 
-	void bringToTop(const History::DialogLinks &links) {
+	void adjustByPos(const History::DialogLinks &links) {
 		for (History::DialogLinks::const_iterator i = links.cbegin(), e = links.cend(); i != e; ++i) {
 			if (i.key() == QChar(0)) {
-				list.bringToTop(i.value());
+				list.adjustByPos(i.value());
 			} else {
 				DialogsIndex::iterator j = index.find(i.key());
 				if (j != index.cend()) {
-					j.value()->bringToTop(i.value());
+					j.value()->adjustByPos(i.value());
 				}
 			}
 		}
@@ -1198,6 +1192,11 @@ public:
 		return (data->photo && !data->photo->thumb->isNull()) || (data->doc && !data->doc->thumb->isNull());
 	}
 	ImagePtr replyPreview();
+
+	virtual bool animating() const {
+		if (_asArticle || !data->photo || data->photo->full->loaded()) return false;
+		return data->photo->full->loading();
+	}
 
 	WebPageData *webpage() {
 		return data;

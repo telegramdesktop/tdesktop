@@ -45,7 +45,6 @@ _addContactLnk(this, lang(lng_add_contact_button)),
 _cancelSearchInPeer(this, st::btnCancelSearch),
 _overDelete(false),
 _searchInPeer(0) {
-	connect(main, SIGNAL(dialogToTop(const History::DialogLinks&)), this, SLOT(onDialogToTop(const History::DialogLinks&)));
 	connect(main, SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)));
 	connect(main, SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(onPeerPhotoChanged(PeerData*)));
 	connect(main, SIGNAL(dialogRowReplaced(DialogRow*,DialogRow*)), this, SLOT(onDialogRowReplaced(DialogRow*,DialogRow*)));
@@ -229,11 +228,11 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void DialogsListWidget::peopleResultPaint(UserData *user, QPainter &p, int32 w, bool act, bool sel) const {
+void DialogsListWidget::peopleResultPaint(PeerData *peer, QPainter &p, int32 w, bool act, bool sel) const {
 	QRect fullRect(0, 0, w, st::dlgHeight);
 	p.fillRect(fullRect, (act ? st::dlgActiveBG : (sel ? st::dlgHoverBG : st::dlgBG))->b);
 
-	History *history = App::history(user->id);
+	History *history = App::history(peer->id);
 
 	p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, history->peer->photo->pix(st::dlgPhotoSize));
 
@@ -249,8 +248,9 @@ void DialogsListWidget::peopleResultPaint(UserData *user, QPainter &p, int32 w, 
 	
 	QRect tr(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth, st::dlgFont->height);
 	p.setFont(st::dlgHistFont->f);
-	if (!act && user->username.toLower().startsWith(peopleQuery)) {
-		QString first = '@' + user->username.mid(0, peopleQuery.size()), second = user->username.mid(peopleQuery.size());
+	QString username = peer->userName();
+	if (!act && username.toLower().startsWith(peopleQuery)) {
+		QString first = '@' + username.mid(0, peopleQuery.size()), second = username.mid(peopleQuery.size());
 		int32 w = st::dlgHistFont->m.width(first);
 		if (w >= tr.width()) {
 			p.setPen(st::dlgSystemColor->p);
@@ -263,11 +263,11 @@ void DialogsListWidget::peopleResultPaint(UserData *user, QPainter &p, int32 w, 
 		}
 	} else {
 		p.setPen((act ? st::dlgActiveColor : st::dlgSystemColor)->p);
-		p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->m.elidedText('@' + user->username, Qt::ElideRight, tr.width()));
+		p.drawText(tr.left(), tr.top() + st::dlgHistFont->ascent, st::dlgHistFont->m.elidedText('@' + username, Qt::ElideRight, tr.width()));
 	}
 
 	p.setPen((act ? st::dlgActiveColor : st::dlgNameColor)->p);
-	user->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+	peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
 void DialogsListWidget::searchInPeerPaint(QPainter &p, int32 w) const {
@@ -414,17 +414,27 @@ void DialogsListWidget::onDialogRowReplaced(DialogRow *oldRow, DialogRow *newRow
 }
 
 void DialogsListWidget::createDialogAtTop(History *history, int32 unreadCount) {
-	History::DialogLinks links = dialogs.addToEnd(history);
-	int32 movedFrom = links[0]->pos * st::dlgHeight;
-	dialogs.bringToTop(links);
-	history->dialogs = links;
+	if (history->dialogs.isEmpty()) {
+		History::DialogLinks links = dialogs.addToEnd(history);
+		int32 movedFrom = links[0]->pos * st::dlgHeight;
+		dialogs.adjustByPos(links);
+		history->dialogs = links;
 
-	contactsNoDialogs.del(history->peer, links[0]);
+		contactsNoDialogs.del(history->peer, links[0]);
 
-	emit dialogToTopFrom(movedFrom);
-	emit App::main()->dialogsUpdated();
+		emit dialogToTopFrom(movedFrom);
+		emit App::main()->dialogsUpdated();
 
-	refresh();
+		refresh();
+	} else {
+		int32 movedFrom = history->dialogs[0]->pos * st::dlgHeight;
+		dialogs.adjustByPos(history->dialogs);
+
+		emit dialogToTopFrom(movedFrom);
+		emit App::main()->dialogsUpdated();
+
+		parentWidget()->update();
+	}
 }
 
 void DialogsListWidget::removePeer(PeerData *peer) {
@@ -541,14 +551,6 @@ void DialogsListWidget::onParentGeometryChanged() {
 		setMouseTracking(true);
 		onUpdateSelected(true);
 	}
-}
-
-void DialogsListWidget::onDialogToTop(const History::DialogLinks &links) {
-	int32 movedFrom = links[0]->pos * st::dlgHeight;
-	dialogs.bringToTop(links);
-	emit dialogToTopFrom(movedFrom);
-	emit App::main()->dialogsUpdated();
-	parentWidget()->update();
 }
 
 void DialogsListWidget::onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
@@ -772,14 +774,19 @@ void DialogsListWidget::dialogsReceived(const QVector<MTPDialog> &added) {
 	refresh();
 }
 
-void DialogsListWidget::addAllSavedPeers() {
+void DialogsListWidget::addSavedPeersAfter(const QDateTime &date) {
 	SavedPeersByTime &saved(cRefSavedPeersByTime());
-	while (!saved.isEmpty()) {
+	while (!saved.isEmpty() && (date.isNull() || date < saved.lastKey())) {
 		History *history = App::history(saved.last()->id);
+		history->setPosInDialogsDate(saved.lastKey());
 		history->dialogs = dialogs.addToEnd(history);
 		contactsNoDialogs.del(history->peer);
 		saved.remove(saved.lastKey(), saved.last());
 	}
+}
+
+void DialogsListWidget::addAllSavedPeers() {
+	addSavedPeersAfter(QDateTime());
 }
 
 void DialogsListWidget::searchReceived(const QVector<MTPMessage> &messages, bool fromStart, int32 fullCount) {
@@ -798,16 +805,16 @@ void DialogsListWidget::searchReceived(const QVector<MTPMessage> &messages, bool
 	refresh();
 }
 
-void DialogsListWidget::peopleReceived(const QString &query, const QVector<MTPContactFound> &people) {
+void DialogsListWidget::peopleReceived(const QString &query, const QVector<MTPPeer> &people) {
 	peopleQuery = query.toLower().trimmed();
 	peopleResults.clear();
 	peopleResults.reserve(people.size());
-	for (QVector<MTPContactFound>::const_iterator i = people.cbegin(), e = people.cend(); i != e; ++i) {
-		int32 uid = i->c_contactFound().vuser_id.v;
-		History *h = App::historyLoaded(uid);
+	for (QVector<MTPPeer>::const_iterator i = people.cbegin(), e = people.cend(); i != e; ++i) {
+		PeerId peerId = peerFromMTP(*i);
+		History *h = App::historyLoaded(peerId);
 		if (h && !h->isEmpty()) continue; // skip dialogs
 
-		peopleResults.push_back(App::user(uid));
+		peopleResults.push_back(App::peer(peerId));
 	}
 	refresh();
 }
@@ -942,15 +949,8 @@ void DialogsListWidget::clearFilter() {
 
 void DialogsListWidget::addDialog(const MTPDdialog &dialog) {
 	History *history = App::history(peerFromMTP(dialog.vpeer), dialog.vunread_count.v, dialog.vread_inbox_max_id.v);
-	if (history->lastMsg) {
-		SavedPeersByTime &saved(cRefSavedPeersByTime());
-		while (!saved.isEmpty() && history->lastMsg->date < saved.lastKey()) {
-			History *history = App::history(saved.last()->id);
-			history->dialogs = dialogs.addToEnd(history);
-			contactsNoDialogs.del(history->peer);
-			saved.remove(saved.lastKey(), saved.last());
-		}
-	}
+
+	if (!history->lastMsgDate.isNull()) addSavedPeersAfter(history->lastMsgDate);
 	History::DialogLinks links = dialogs.addToEnd(history);
 	history->dialogs = links;
 	contactsNoDialogs.del(history->peer);
@@ -960,15 +960,8 @@ void DialogsListWidget::addDialog(const MTPDdialog &dialog) {
 
 void DialogsListWidget::addDialogChannel(const MTPDdialogChannel &dialogChannel) {
 	History *history = App::history(peerFromMTP(dialogChannel.vpeer), dialogChannel.vunread_important_count.v, dialogChannel.vread_inbox_max_id.v);
-	if (history->lastMsg) {
-		SavedPeersByTime &saved(cRefSavedPeersByTime());
-		while (!saved.isEmpty() && history->lastMsg->date < saved.lastKey()) {
-			History *history = App::history(saved.last()->id);
-			history->dialogs = dialogs.addToEnd(history);
-			contactsNoDialogs.del(history->peer);
-			saved.remove(saved.lastKey(), saved.last());
-		}
-	}
+
+	if (!history->lastMsgDate.isNull()) addSavedPeersAfter(history->lastMsgDate);
 	History::DialogLinks links = dialogs.addToEnd(history);
 	history->dialogs = links;
 	contactsNoDialogs.del(history->peer);

@@ -146,6 +146,11 @@ ImagePtr chatDefPhoto(int32 index);
 
 static const PhotoId UnknownPeerPhotoId = 0xFFFFFFFFFFFFFFFFULL;
 
+inline const QString &emptyUsername() {
+	static QString empty;
+	return empty;
+}
+
 class UserData;
 class ChatData;
 class ChannelData;
@@ -181,6 +186,7 @@ public:
 
 	const Text &dialogName() const;
 	const QString &shortName() const;
+	const QString &userName() const;
 
 	const PeerId id;
 	int32 bareId() const {
@@ -352,13 +358,16 @@ class ChannelData : public PeerData {
 public:
 
 	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChat(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), date(0), version(0), adminned(false), left(false), forbidden(true), botStatus(-1) {
+		setName(QString(), QString());
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
+	void setName(const QString &name, const QString &username);
 
 	uint64 access;
 
 	MTPInputChat inputChat;
 
+	QString username;
 	int32 date;
 	int32 version;
 	bool adminned;
@@ -388,6 +397,16 @@ inline ChannelData *PeerData::asChannel() {
 inline const ChannelData *PeerData::asChannel() const {
 	return isChannel() ? static_cast<const ChannelData*>(this) : 0;
 }
+inline const Text &PeerData::dialogName() const {
+	return (isUser() && !asUser()->phoneText.isEmpty()) ? asUser()->phoneText : nameText;
+}
+inline const QString &PeerData::shortName() const {
+	return isUser() ? asUser()->firstName : name;
+}
+inline const QString &PeerData::userName() const {
+	return isUser() ? asUser()->username : (isChannel() ? asChannel()->username : emptyUsername());
+}
+
 
 inline int32 newMessageFlags(PeerData *p) {
 	return (p->input.type() == mtpc_inputPeerSelf) ? 0 : (((p->isChat() || (p->isUser() && !p->asUser()->botInfo)) ? MTPDmessage_flag_unread : 0) | MTPDmessage_flag_out);

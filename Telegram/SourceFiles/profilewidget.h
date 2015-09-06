@@ -53,7 +53,10 @@ public:
 	void loadProfilePhotos(int32 yFrom);
 
 	void updateNotifySettings();
-	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
+	int32 mediaOverviewUpdated(PeerData *peer, MediaOverviewType type); // returns scroll shift
+
+	void requestHeight(int32 newHeight);
+	void allowDecreaseHeight(int32 decreaseBy);
 
 	~ProfileInner();
 	
@@ -87,7 +90,6 @@ public slots:
 
 	void onKickConfirm();
 
-	void onMediaShowAll();
 	void onMediaPhotos();
 	void onMediaVideos();
 	void onMediaDocuments();
@@ -114,6 +116,7 @@ private:
 	void updateBotLinksVisibility();
 
 	void chatInviteDone(const MTPExportedChatInvite &result);
+	bool updateMediaLinks(int32 *addToScroll = 0); // returns if anything changed
 
 	ProfileWidget *_profile;
 	ScrollArea *_scroll;
@@ -125,7 +128,7 @@ private:
 	History *_hist;
 	bool _isAdmin;
 
-	int32 _width, _left;
+	int32 _width, _left, _addToHeight;
 
 	// profile
 	Text _nameText;
@@ -150,8 +153,7 @@ private:
 	FlatCheckbox _enableNotifications;
 
 	// shared media
-	bool _allMediaTypes;
-	LinkButton _mediaShowAll;
+	bool _notAllMediaLoaded;
 	LinkButton *_mediaButtons[OverviewCount];
 	QString overviewLinkText(int32 type, int32 count);
 
@@ -206,9 +208,8 @@ public:
 
 	PeerData *peer() const;
 	int32 lastScrollTop() const;
-	bool allMediaShown() const;
 
-	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1, bool allMediaShown = false);
+	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1);
 	bool animStep(float64 ms);
 
 	void updateOnlineDisplay();

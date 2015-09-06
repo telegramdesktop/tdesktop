@@ -78,7 +78,7 @@ void unixtimeSet(int32 servertime, bool force = false);
 int32 unixtime();
 int32 fromServerTime(const MTPint &serverTime);
 uint64 msgid();
-uint32 reqid();
+int32 reqid();
 
 inline QDateTime date(int32 time = -1) {
 	QDateTime result;

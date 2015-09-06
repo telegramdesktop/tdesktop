@@ -314,7 +314,7 @@ void MediaView::updateDropdown() {
 	_btnShowInFolder->setVisible(_doc && !_doc->already(true).isEmpty());
 	_btnSaveAs->setVisible(true);
 	_btnCopy->setVisible((_doc && !_current.isNull()) || (_photo && _photo->full->loaded()));
-	_btnForward->setVisible(_msgid > 0);
+	_btnForward->setVisible(_msgid > 0 && !_channel);
 	_btnDelete->setVisible(_msgid > 0 || (_photo && App::self() && App::self()->photoId == _photo->id) || (_photo && _photo->peer && _photo->peer->photoId == _photo->id));
 	_btnViewAll->setVisible((_overview != OverviewCount) && _history);
 	_btnViewAll->setText(lang(_doc ? lng_mediaview_files_all : lng_mediaview_photos_all));

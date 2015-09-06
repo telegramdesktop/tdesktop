@@ -783,7 +783,7 @@ void OverviewInner::onDragExec() {
 	QList<QUrl> urls;
 	bool forwardSelected = false;
 	if (uponSelected) {
-		forwardSelected = !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel && cWideMode();
+		forwardSelected = !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel && cWideMode() && !_hist->peer->isChannel();
 	} else if (textlnkDown()) {
 		sel = textlnkDown()->encoded();
 		if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
@@ -827,7 +827,9 @@ void OverviewInner::onDragExec() {
 			QDrag *drag = new QDrag(App::wnd());
 			QMimeData *mimeData = new QMimeData;
 
-			mimeData->setData(qsl("application/x-td-forward-pressed-link"), "1");
+			if (!_hist->peer->isChannel()) {
+				mimeData->setData(qsl("application/x-td-forward-pressed-link"), "1");
+			}
 			if (lnkDocument) {
 				QString already = static_cast<DocumentOpenLink*>(textlnkDown().data())->document()->already(true);
 				if (!already.isEmpty()) {
@@ -1496,12 +1498,13 @@ void OverviewInner::onUpdateSelected() {
 		}
 		cur = (textlnkDown() || _lnkDownIndex) ? style::cur_pointer : style::cur_default;
 		if (_dragAction == Selecting) {
+			bool canSelectMany = _peer && (!_peer->isChannel() || _peer->asChannel()->adminned);
 			if (_mousedItem == _dragItem && (lnk || lnkIndex) && !_selected.isEmpty() && _selected.cbegin().value() != FullItemSel) {
 				bool afterSymbol = false, uponSymbol = false;
 				uint16 second = 0;
 				_selected[_dragItem] = 0;
 				updateDragSelection(0, -1, 0, -1, false);
-			} else {
+			} else if (canSelectMany) {
 				bool selectingDown = ((_type == OverviewPhotos || _type == OverviewAudioDocuments || _type == OverviewLinks) ? (_mousedItemIndex > _dragItemIndex) : (_mousedItemIndex < _dragItemIndex)) || (_mousedItemIndex == _dragItemIndex && (_type == OverviewPhotos ? (_dragStartPos.x() < m.x()) : (_dragStartPos.y() < m.y())));
 				MsgId dragSelFrom = _dragItem, dragSelTo = _mousedItem;
 				int32 dragSelFromIndex = _dragItemIndex, dragSelToIndex = _mousedItemIndex;
@@ -1778,7 +1781,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
 		} else if (App::hoveredLinkItem()) {
 			if (isUponSelected != -2) {
-				if (dynamic_cast<HistoryMessage*>(App::hoveredLinkItem())) {
+				if (dynamic_cast<HistoryMessage*>(App::hoveredLinkItem()) && !_hist->peer->isChannel()) {
 					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
 				}
 				_menu->addAction(lang(lng_context_delete_msg), this, SLOT(deleteMessage()))->setEnabled(true);
@@ -1812,7 +1815,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
 		} else {
 			if (isUponSelected != -2) {
-				if (dynamic_cast<HistoryMessage*>(App::mousedItem())) {
+				if (dynamic_cast<HistoryMessage*>(App::mousedItem()) && !_hist->peer->isChannel()) {
 					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
 				}
 				_menu->addAction(lang(lng_context_delete_msg), this, SLOT(deleteMessage()))->setEnabled(true);

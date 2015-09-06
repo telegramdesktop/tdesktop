@@ -473,14 +473,14 @@ namespace App {
 		for (QVector<MTPChat>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 			const MTPchat &chat(*i);
 			data = 0;
-			QString title;
 			switch (chat.type()) {
 			case mtpc_chat: {
 				const MTPDchat &d(chat.c_chat());
-				title = qs(d.vtitle);
 
 				data = App::chat(peerFromChat(d.vid.v));
 				data->input = MTP_inputPeerChat(d.vid);
+
+				data->updateName(qs(d.vtitle), QString(), QString());
 
 				ChatData *cdata = data->asChat();
 				cdata->setPhoto(d.vphoto);
@@ -496,10 +496,11 @@ namespace App {
 			} break;
 			case mtpc_chatForbidden: {
 				const MTPDchatForbidden &d(chat.c_chatForbidden());
-				title = qs(d.vtitle);
 
 				data = App::chat(peerFromChat(d.vid.v));
 				data->input = MTP_inputPeerChat(d.vid);
+
+				data->updateName(qs(d.vtitle), QString(), QString());
 
 				ChatData *cdata = data->asChat();
 				cdata->setPhoto(MTP_chatPhotoEmpty());
@@ -510,7 +511,6 @@ namespace App {
 			} break;
 			case mtpc_channel: {
 				const MTPDchannel &d(chat.c_channel());
-				title = qs(d.vtitle);
 
 				PeerId peer(peerFromChannel(d.vid.v));
 				data = App::channel(peer);
@@ -518,6 +518,10 @@ namespace App {
 
 				ChannelData *cdata = data->asChannel();
 				cdata->inputChat = MTP_inputChannel(d.vid, d.vaccess_hash);
+				
+				QString uname = d.has_username() ? textOneLine(qs(d.vusername)) : QString();
+				cdata->setName(qs(d.vtitle), uname);
+
 				cdata->access = d.vaccess_hash.v;
 				cdata->setPhoto(d.vphoto);
 				cdata->date = d.vdate.v;
@@ -531,9 +535,6 @@ namespace App {
 			} break;
 			}
 			if (!data) continue;
-
-			data->loaded = true;
-			data->updateName(title.trimmed(), QString(), QString());
 
 			if (App::main()) {
 				if (emitPeerUpdated) {
@@ -1178,9 +1179,9 @@ namespace App {
 		return ::self;
 	}
 
-	UserData *userByName(const QString &username) {
+	PeerData *peerByName(const QString &username) {
 		for (PeersData::const_iterator i = peersData.cbegin(), e = peersData.cend(); i != e; ++i) {
-			if (i.value()->isUser() && !i.value()->asUser()->username.compare(username.trimmed(), Qt::CaseInsensitive)) {
+			if (!i.value()->userName().compare(username.trimmed(), Qt::CaseInsensitive)) {
 				return i.value()->asUser();
 			}
 		}
@@ -1587,6 +1588,8 @@ namespace App {
 			if (maxInboxRead) {
 				i.value()->inboxReadTill = maxInboxRead;
 			}
+		} else if (maxInboxRead) {
+			i.value()->inboxReadTill = qMax(i.value()->inboxReadTill, maxInboxRead);
 		}
 		return i.value();
 	}
@@ -2318,9 +2321,9 @@ namespace App {
 		}
 	}
 
-	void openUserByName(const QString &username, bool toProfile, const QString &startToken) {
+	void openPeerByName(const QString &username, bool toProfile, const QString &startToken) {
 		if (App::main()) {
-			App::main()->openUserByName(username, toProfile, startToken);
+			App::main()->openPeerByName(username, toProfile, startToken);
 		}
 	}
 

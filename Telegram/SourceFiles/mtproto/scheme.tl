@@ -218,10 +218,10 @@ userStatusLastMonth#77ebc742 = UserStatus;
 chatEmpty#9ba2d800 id:int = Chat;
 chat#6e9c9bc7 id:int title:string photo:ChatPhoto participants_count:int date:int left:Bool version:int = Chat;
 chatForbidden#fb0ccc41 id:int title:string date:int = Chat;
-channel#8dbb1461 flags:# id:int access_hash:long title:string photo:ChatPhoto date:int version:int = Chat;
+channel#1bcc63f2 flags:# id:int access_hash:long title:string username:flags.2?string photo:ChatPhoto date:int version:int = Chat;
 
 chatFull#2e02a614 id:int participants:ChatParticipants chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite bot_info:Vector<BotInfo> = ChatFull;
-channelFull#a09d2902 id:int read_inbox_max_id:int unread_count:int unread_important_count:int inviter_id:int invite_date:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite = ChatFull;
+channelFull#5a090258 id:int about:string read_inbox_max_id:int unread_count:int unread_important_count:int inviter_id:int invite_date:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite = ChatFull;
 
 chatParticipant#c8d7493e user_id:int inviter_id:int date:int = ChatParticipant;
 
@@ -468,9 +468,7 @@ sendMessageUploadDocumentAction#aa0cd9e4 progress:int = SendMessageAction;
 sendMessageGeoLocationAction#176f8ba1 = SendMessageAction;
 sendMessageChooseContactAction#628cbc6f = SendMessageAction;
 
-contactFound#ea879f95 user_id:int = ContactFound;
-
-contacts.found#566000e results:Vector<ContactFound> users:Vector<User> = contacts.Found;
+contacts.found#1aa1f784 results:Vector<Peer> chats:Vector<Chat> users:Vector<User> = contacts.Found;
 
 inputPrivacyKeyStatusTimestamp#4f96cb18 = InputPrivacyKey;
 
@@ -597,6 +595,8 @@ channelMessagesFilterEmpty#94d42ee7 = ChannelMessagesFilter;
 channelMessagesFilter#cd77d957 flags:# ranges:Vector<MessageRange> = ChannelMessagesFilter;
 channelMessagesFilterCollapsed#fa01232e = ChannelMessagesFilter;
 
+contacts.resolvedPeer#7f077ad9 peer:Peer chats:Vector<Chat> users:Vector<User> = contacts.ResolvedPeer;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -661,7 +661,7 @@ contacts.getBlocked#f57c350f offset:int limit:int = contacts.Blocked;
 contacts.exportCard#84e53737 = Vector<int>;
 contacts.importCard#4fe196fe export_card:Vector<int> = User;
 contacts.search#11f812d8 q:string limit:int = contacts.Found;
-contacts.resolveUsername#bf0131c username:string = User;
+contacts.resolveUsername#f93ccba3 username:string = contacts.ResolvedPeer;
 
 messages.getMessages#4222fa74 id:Vector<int> = messages.Messages;
 messages.getDialogs#859b3d3c offset:int limit:int = messages.Dialogs;
@@ -710,6 +710,9 @@ messages.getImportantHistory#24af43a5 peer:InputPeer offset_id:int add_offset:in
 messages.readChannelHistory#36a1210e peer:InputPeer max_id:int = Bool;
 messages.createChannel#e830f8cb flags:# title:string users:Vector<InputUser> = Updates;
 messages.deleteChannelMessages#9995a84f peer:InputPeer id:Vector<int> = messages.AffectedMessages;
+messages.editChatAbout#8a969b93 chat_id:InputChat about:string = Bool;
+messages.checkChannelUsername#e6d2d8f4 chat_id:InputChat username:string = Bool;
+messages.updateChannelUsername#ce2e9587 chat_id:InputChat username:string = Bool;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;

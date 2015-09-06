@@ -296,7 +296,7 @@ enum {
 	DefaultChatBackground = 21,
 
 	DialogsFirstLoad = 20, // first dialogs part size requested
-	DialogsPerPage = 200, // next dialogs part size
+	DialogsPerPage = 500, // next dialogs part size
 
 	MessagesFirstLoad = 30, // first history part size requested
 	MessagesPerPage = 50, // next history part size

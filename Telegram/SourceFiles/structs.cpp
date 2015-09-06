@@ -92,7 +92,7 @@ PeerData::PeerData(const PeerId &id) : id(id), lnk(new PeerLink(this))
 , nameVersion(0)
 , notify(UnknownNotifySettings)
 {
-	if (!peerIsUser(id)) updateName(QString(), QString(), QString());
+	if (!peerIsUser(id) && !peerIsChannel(id)) updateName(QString(), QString(), QString());
 }
 
 void PeerData::updateName(const QString &newName, const QString &newNameOrPhone, const QString &newUsername) {
@@ -165,14 +165,6 @@ void PeerData::fillNames() {
 		names.insert(*i);
 		chars.insert(i->at(0));
 	}
-}
-
-const Text &PeerData::dialogName() const {
-	return (isUser() && !asUser()->phoneText.isEmpty()) ? asUser()->phoneText : nameText;
-}
-
-const QString &PeerData::shortName() const {
-	return isUser() ? asUser()->firstName : name;
 }
 
 void UserData::setName(const QString &first, const QString &last, const QString &phoneName, const QString &usern) {
@@ -356,6 +348,17 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 		photo = newPhoto;
 		photoLoc = newPhotoLoc;
 		emit App::main()->peerPhotoChanged(this);
+	}
+}
+
+void ChannelData::setName(const QString &newName, const QString &usern) {
+	bool updName = !newName.isEmpty(), updUsername = (username != usern);
+
+	updateName(newName.isEmpty() ? name : newName, QString(), usern);
+	if (updUsername) {
+		if (App::main()) {
+			App::main()->peerUsernameChanged(this);
+		}
 	}
 }
 

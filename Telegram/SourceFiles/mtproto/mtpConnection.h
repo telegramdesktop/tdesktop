@@ -28,6 +28,7 @@ enum {
 	MTPDmessage_flag_HAS_TEXT_LINKS = (1 << 31), // client side flag for having links
 
 	MTPmessages_SendMessage_flag_skipWebPage = (1 << 1),
+	MTPmessages_SendMessage_flag_broadcast = (1 << 4),
 
 	MTPDdcOption_flag_ipv6 = (1 << 0),
 	MTPDdcOption_flag_files = (1 << 1),
@@ -56,6 +57,8 @@ enum {
 	MTPupdates_ChannelDifference_flag_final = (1 << 0),
 
 	MTPDchannelMessagesFilter_flag_only_important = (1 << 0),
+
+	MTPmessages_CreateChannel_flag_broadcast = (1 << 0),
 };
 
 static const MTPReplyMarkup MTPnullMarkup = MTP_replyKeyboardMarkup(MTP_int(0), MTP_vector<MTPKeyboardButtonRow>(0));

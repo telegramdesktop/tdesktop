@@ -2707,7 +2707,7 @@ void MentionsInner::onParentGeometryChanged() {
 }
 
 MentionsDropdown::MentionsDropdown(QWidget *parent) : QWidget(parent),
-_scroll(this, st::mentionScroll), _inner(this, &_rows, &_hrows, &_crows), _chat(0), _hiding(false), a_opacity(0), _shadow(st::dropdownDef.shadow) {
+_scroll(this, st::mentionScroll), _inner(this, &_rows, &_hrows, &_crows), _chat(0), _user(0), _channel(0), _hiding(false), a_opacity(0), _shadow(st::dropdownDef.shadow) {
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
 	connect(&_inner, SIGNAL(chosen(QString)), this, SIGNAL(chosen(QString)));
@@ -2748,6 +2748,7 @@ void MentionsDropdown::paintEvent(QPaintEvent *e) {
 void MentionsDropdown::showFiltered(PeerData *peer, QString start) {
 	_chat = peer->asChat();
 	_user = peer->asUser();
+	_channel = peer->asChannel();
 	start = start.toLower();
 	bool toDown = (_filter != start);
 	if (toDown) {
@@ -2768,7 +2769,7 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 	MentionRows rows;
 	HashtagRows hrows;
 	BotCommandRows crows;
-	if (_filter.at(0) == '@') {
+	if (_filter.at(0) == '@' && _chat) {
 		QMultiMap<int32, UserData*> ordered;
 		rows.reserve(_chat->participants.isEmpty() ? _chat->lastAuthors.size() : _chat->participants.size());
 		if (_chat->participants.isEmpty()) {

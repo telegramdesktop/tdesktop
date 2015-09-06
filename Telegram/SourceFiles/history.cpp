@@ -500,7 +500,7 @@ void DialogsIndexed::peerNameChanged(PeerData *peer, const PeerData::Names &oldN
 				j = index.insert(*i, new DialogsList(sortMode));
 			}
 			if (sortMode == DialogsSortByDate) {
-				history->dialogs.insert(*i, j.value()->addByPos(history));
+				history->dialogs.insert(*i, j.value()->addToEnd(history));
 			} else {
 				j.value()->addToEnd(history);
 			}
@@ -1033,11 +1033,6 @@ void History::newItemAdded(HistoryItem *item) {
 		notifies.push_back(item);
 		App::main()->newUnreadMsg(this, item);
 	}
-	if (dialogs.isEmpty()) {
-		App::main()->createDialogAtTop(this, unreadCount);
-	} else {
-		emit App::main()->dialogToTop(dialogs);
-	}
 }
 
 void History::addToFront(const QVector<MTPMessage> &slice) {
@@ -1303,35 +1298,53 @@ void History::addToBack(const QVector<MTPMessage> &slice) {
 	}
 }
 
-void History::inboxRead(int32 upTo) {
+int32 History::countUnread(MsgId upTo) {
+	int32 result = 0;
+	for (const_iterator i = cend(), e = cbegin(); i != e;) {
+		--i;
+		for (HistoryBlock::const_iterator j = (*i)->cend(), en = (*i)->cbegin(); j != en;) {
+			--j;
+			if ((*j)->id > 0 && (*j)->id <= upTo) {
+				break;
+			} else if (!(*j)->out() && (*j)->unread() && (*j)->id > upTo) {
+				++result;
+			}
+		}
+	}
+	return result;
+}
+
+MsgId History::inboxRead(MsgId upTo) {
 	if (unreadCount) {
 		if (upTo && loadedAtBottom()) App::main()->historyToDown(this);
-		setUnreadCount(0);
+		setUnreadCount(upTo ? countUnread(upTo) : 0);
 	}
-	if (!isEmpty()) {
-		int32 till = upTo ? upTo : back()->back()->id;
-		if (inboxReadTill < till) inboxReadTill = till;
-	}
+
+	if (!upTo) upTo = msgIdForRead();
+	if (inboxReadTill < upTo) inboxReadTill = upTo;
+
 	if (!dialogs.isEmpty()) {
 		if (App::main()) App::main()->dlgUpdated(dialogs[0]);
 	}
 	showFrom = 0;
 	App::wnd()->notifyClear(this);
 	clearNotifications();
+
+	return upTo;
 }
 
-void History::inboxRead(HistoryItem *wasRead) {
+MsgId History::inboxRead(HistoryItem *wasRead) {
 	return inboxRead(wasRead ? wasRead->id : 0);
 }
 
-void History::outboxRead(int32 upTo) {
-	if (!isEmpty()) {
-		int32 till = upTo ? upTo : back()->back()->id;
-		if (outboxReadTill < till) outboxReadTill = till;
-	}
+MsgId History::outboxRead(int32 upTo) {
+	if (!upTo) upTo = msgIdForRead();
+	if (outboxReadTill < upTo) outboxReadTill = upTo;
+
+	return upTo;
 }
 
-void History::outboxRead(HistoryItem *wasRead) {
+MsgId History::outboxRead(HistoryItem *wasRead) {
 	return outboxRead(wasRead ? wasRead->id : 0);
 }
 
@@ -1450,13 +1463,29 @@ void History::getReadyFor(MsgId msgId) {
 	}
 }
 
-void History::setLastMessage(HistoryItem *msg) {
+namespace {
+	uint32 _dialogsPosToTopShift = 0x80000000UL;
+}
+
+inline uint64 dialogPosFromDate(const QDateTime &date) {
+	return (uint64(date.toTime_t()) << 32) | (++_dialogsPosToTopShift);
+}
+
+void History::setLastMessage(HistoryItem *msg, bool updatePosInDialogs) {
 	if (msg) {
 		if (!lastMsg) Local::removeSavedPeer(peer);
 		lastMsg = msg;
-		lastMsgDate = msg->date;
+		if (updatePosInDialogs) setPosInDialogsDate(msg->date);
 	} else {
 		lastMsg = 0;
+	}
+}
+
+void History::setPosInDialogsDate(const QDateTime &date) {
+	lastMsgDate = date;
+	posInDialogs = dialogPosFromDate(lastMsgDate);
+	if (App::main()) {
+		App::main()->createDialogAtTop(this, unreadCount);
 	}
 }
 
@@ -1465,7 +1494,7 @@ void History::fixLastMessage(bool wasAtBottom) {
 		wasAtBottom = false;
 	}
 	if (wasAtBottom) {
-		setLastMessage(back()->back());
+		setLastMessage(back()->back(), false);
 	} else {
 		setLastMessage(0);
 		if (App::main()) {
@@ -1496,6 +1525,12 @@ MsgId History::maxMsgId() const {
 		}
 	}
 	return 0;
+}
+
+MsgId History::msgIdForRead() const {
+	MsgId result = (lastMsg && lastMsg->id > 0) ? lastMsg->id : 0;
+	if (loadedAtBottom()) result = qMax(result, maxMsgId());
+	return result;
 }
 
 int32 History::geomResize(int32 newWidth, int32 *ytransform, bool dontRecountText) {
@@ -5811,7 +5846,7 @@ HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const 
 	fwdNameUpdated();
 }
 
-HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, HistoryMessage *msg) : HistoryMessage(history, block, id, ((history->peer->input.type() != mtpc_inputPeerSelf) ? (MTPDmessage_flag_out | MTPDmessage_flag_unread) : 0) | (msg->getMedia() && (msg->getMedia()->type() == MediaTypeAudio/* || msg->getMedia()->type() == MediaTypeVideo*/) ? MTPDmessage_flag_media_unread : 0), ::date(unixtime()), MTP::authedId(), msg->justMedia() ? QString() : msg->HistoryMessage::selectedText(FullItemSel), msg->HistoryMessage::textLinks(), msg->getMedia())
+HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, MsgId id, HistoryMessage *msg) : HistoryMessage(history, block, id, newMessageFlags(history->peer) | (msg->getMedia() && (msg->getMedia()->type() == MediaTypeAudio/* || msg->getMedia()->type() == MediaTypeVideo*/) ? MTPDmessage_flag_media_unread : 0), ::date(unixtime()), MTP::authedId(), msg->justMedia() ? QString() : msg->HistoryMessage::selectedText(FullItemSel), msg->HistoryMessage::textLinks(), msg->getMedia())
 , fwdDate(msg->dateForwarded())
 , fwdFrom(msg->fromForwarded())
 , fwdFromVersion(fwdFrom->nameVersion)

@@ -55,7 +55,7 @@ public:
 	void changeCheckState(DialogRow *row);
 	void changeCheckState(ContactData *data, PeerData *peer);
 
-	void peopleReceived(const QString &query, const QVector<MTPContactFound> &people);
+	void peopleReceived(const QString &query, const QVector<MTPPeer> &people);
 
 	void refresh();
 
@@ -116,7 +116,7 @@ private:
 
 	bool _searching;
 	QString _lastQuery;
-	typedef QVector<UserData*> ByUsernameRows;
+	typedef QVector<PeerData*> ByUsernameRows;
 	typedef QVector<ContactData*> ByUsernameDatas;
 	ByUsernameRows _byUsername, _byUsernameFiltered;
 	ByUsernameDatas d_byUsername, d_byUsernameFiltered; // filtered is partly subset of d_byUsername, partly subset of _byUsernameDatas
@@ -146,6 +146,7 @@ public slots:
 	void onScroll();
 
 	void onAdd();
+	void onCreateChannel();
 	void onInvite();
 	void onNext();
 
@@ -163,13 +164,15 @@ private:
 	void init();
 
 	ContactsInner _inner;
-	FlatButton _addContact;
+	FlatButton _addContact, _createChannel;
 	FlatInput _filter;
 
 	FlatButton _next, _cancel;
 
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
+
+	bool _creatingChannel;
 
 	QTimer _searchTimer;
 	QString _peopleQuery;
@@ -188,7 +191,7 @@ class CreateGroupBox : public AbstractBox, public RPCSender {
 
 public:
 
-	CreateGroupBox(const MTPVector<MTPInputUser> &users);
+	CreateGroupBox(const MTPVector<MTPInputUser> &users, bool creatingChannel);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
@@ -209,6 +212,7 @@ private:
 	bool failed(const RPCError &e);
 
 	MTPVector<MTPInputUser> _users;
+	bool _creatingChannel;
 
 	int32 _createRequestId;
 
