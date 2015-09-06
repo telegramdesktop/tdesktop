@@ -1,8 +1,8 @@
-# [Telegram Desktop][telegram_desktop] – Official Telegram Messenger
+# [Telegram Desktop][telegram_desktop] – Official Messenger
 
-This is complete source code and build instructions for alpha version of official desktop client for [Telegram][telegram] messenger, based on [Telegram API][telegram_api] and [MTProto][telegram_proto] secure protocol.
+This is the complete source code and the build instructions for the alpha version of the official desktop client for the [Telegram][telegram] messenger, based on the [Telegram API][telegram_api] and the [MTProto][telegram_proto] secure protocol.
 
-Source code is published under GPL v3, license is available [here][license].
+The source code is published under GPL v3, the license is available [here][license].
 
 ## Supported systems
 
@@ -12,7 +12,7 @@ Source code is published under GPL v3, license is available [here][license].
 * Ubuntu 12.04 - Ubuntu 14.04
 * Fedora 22
 
-## Third-party
+## Third-party libraries
 
 * Qt 5.3.2 and 5.5.0, slightly patched ([LGPL](http://qt-project.org/doc/qt-5/lgpl.html))
 * OpenSSL 1.0.1g ([OpenSSL License](https://www.openssl.org/source/license.html))
@@ -34,67 +34,67 @@ Source code is published under GPL v3, license is available [here][license].
 
 ## Projects in Telegram solution
 
-### Telegram
+* ### Telegram
 
-[Telegram Desktop][telegram_desktop] messenger
+  [Telegram Desktop][telegram_desktop] messenger
 
-### Updater
+* ### Updater
 
-A little app, that is launched by Telegram when update is ready, replaces all files and launches it back.
+  A little app, that is launched by Telegram when update is ready, replaces all files and launches it back.
 
-### Packer
+* ### Packer
 
-Compiles given files to single update file, compresses it with lzma and signs with a private key. It is not built in **Debug** and **Release** configurations of Telegram solution, because private key is inaccessible.
+  Compiles given files to single update file, compresses it with lzma and signs with a private key. It is not built in **Debug** and **Release** configurations of Telegram solution, because private key is inaccessible.
 
-### Prepare
+* ### Prepare
 
-Prepares a release for deployment, puts all current files to deploy/{version} folder.
+  Prepares a release for deployment, puts all current files to deploy/{version} folder.
 
-**Windows**:
-* tsetup{version}.exe installer
-* Telegram.exe
-* Telegram.pdb (debug info for crash minidumps view)
-* tupdate{updversion} binary lzma update archive
+  **Windows**:
+  * tsetup{version}.exe installer
+  * Telegram.exe
+  * Telegram.pdb (debug info for crash minidumps view)
+  * tupdate{updversion} binary lzma update archive
 
-**Mac**:
-* tsetup{version}.dmg
-* Telegram.app
-* tmacupd{updversion} binary lzma update archive
+  **Mac**:
+  * tsetup{version}.dmg
+  * Telegram.app
+  * tmacupd{updversion} binary lzma update archive
 
-### MetaEmoji
+* ### MetaEmoji
 
-Creates four sprites and text2emoji replace code
-* SourceFiles/art/emoji.png
-* SourceFiles/art/emoji_125x.png
-* SourceFiles/art/emoji_150x.png
-* SourceFiles/art/emoji_200x.png
-* SourceFiles/art/emoji_250x.png
-* SourceFiles/gui/emoji_config.cpp
+  Creates four sprites and text2emoji replace code
+  * SourceFiles/art/emoji.png
+  * SourceFiles/art/emoji_125x.png
+  * SourceFiles/art/emoji_150x.png
+  * SourceFiles/art/emoji_200x.png
+  * SourceFiles/art/emoji_250x.png
+  * SourceFiles/gui/emoji_config.cpp
 
-### MetaStyle
+* ### MetaStyle
 
-From two files and two sprites
-* Resources/style_classes.txt
-* Resources/style.txt
-* SourceFiles/art/sprite.png
-* SourceFiles/art/sprite_200x.png
+  From two files and two sprites
+  * Resources/style_classes.txt
+  * Resources/style.txt
+  * SourceFiles/art/sprite.png
+  * SourceFiles/art/sprite_200x.png
 
-Creates two other sprites, four sprite grids and style constants code
-* SourceFiles/art/sprite_125x.png
-* SourceFiles/art/sprite_150x.png
-* SourceFiles/art/grid.png
-* SourceFiles/art/grid_125x.png
-* SourceFiles/art/grid_150x.png
-* SourceFiles/art/grid_200x.png
-* GeneratedFiles/style_classes.h
-* GeneratedFiles/style_auto.h
-* GeneratedFiles/style_auto.cpp
+  Creates two other sprites, four sprite grids and style constants code
+  * SourceFiles/art/sprite_125x.png
+  * SourceFiles/art/sprite_150x.png
+  * SourceFiles/art/grid.png
+  * SourceFiles/art/grid_125x.png
+  * SourceFiles/art/grid_150x.png
+  * SourceFiles/art/grid_200x.png
+  * GeneratedFiles/style_classes.h
+  * GeneratedFiles/style_auto.h
+  * GeneratedFiles/style_auto.cpp
 
-### MetaLang
+* ### MetaLang
 
-Creates from languagepack file `Resources/lang.txt` language constants code and language file parse code:
-* GeneratedFiles/lang.h
-* GeneratedFiles/lang.cpp
+  Creates from languagepack file `Resources/lang.txt` language constants code and language file parse code:
+  * GeneratedFiles/lang.h
+  * GeneratedFiles/lang.cpp
 
 [//]: # (LINKS)
 [telegram]: https://telegram.org
