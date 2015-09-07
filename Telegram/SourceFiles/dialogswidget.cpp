@@ -761,11 +761,29 @@ void DialogsListWidget::itemRemoved(HistoryItem *item) {
 
 void DialogsListWidget::dialogsReceived(const QVector<MTPDialog> &added) {
 	for (QVector<MTPDialog>::const_iterator i = added.cbegin(), e = added.cend(); i != e; ++i) {
+		History *history = 0;
 		switch (i->type()) {
-		case mtpc_dialog: addDialog(i->c_dialog()); break;
-		case mtpc_dialogChannel: addDialogChannel(i->c_dialogChannel()); break;
+		case mtpc_dialog: {
+			const MTPDdialog &d(i->c_dialog());
+			history = App::historyFromDialog(peerFromMTP(d.vpeer), d.vunread_count.v, d.vread_inbox_max_id.v);
+			App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
+		} break;
+
+		case mtpc_dialogChannel: {
+			const MTPDdialogChannel &d(i->c_dialogChannel());
+			History *history = App::historyFromDialog(peerFromMTP(d.vpeer), d.vunread_important_count.v, d.vread_inbox_max_id.v);
+			App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
+		} break;
+		}
+
+		if (history) {
+			if (!history->lastMsgDate.isNull()) addSavedPeersAfter(history->lastMsgDate);
+			History::DialogLinks links = dialogs.addToEnd(history);
+			history->dialogs = links;
+			contactsNoDialogs.del(history->peer);
 		}
 	}
+
 	if (App::wnd()) App::wnd()->updateCounter();
 	if (!sel && dialogs.list.count) {
 		sel = dialogs.list.begin;
@@ -948,7 +966,7 @@ void DialogsListWidget::clearFilter() {
 }
 
 void DialogsListWidget::addDialog(const MTPDdialog &dialog) {
-	History *history = App::history(peerFromMTP(dialog.vpeer), dialog.vunread_count.v, dialog.vread_inbox_max_id.v);
+	History *history = App::historyFromDialog(peerFromMTP(dialog.vpeer), dialog.vunread_count.v, dialog.vread_inbox_max_id.v);
 
 	if (!history->lastMsgDate.isNull()) addSavedPeersAfter(history->lastMsgDate);
 	History::DialogLinks links = dialogs.addToEnd(history);
@@ -959,7 +977,7 @@ void DialogsListWidget::addDialog(const MTPDdialog &dialog) {
 }
 
 void DialogsListWidget::addDialogChannel(const MTPDdialogChannel &dialogChannel) {
-	History *history = App::history(peerFromMTP(dialogChannel.vpeer), dialogChannel.vunread_important_count.v, dialogChannel.vread_inbox_max_id.v);
+	History *history = App::historyFromDialog(peerFromMTP(dialogChannel.vpeer), dialogChannel.vunread_important_count.v, dialogChannel.vread_inbox_max_id.v);
 
 	if (!history->lastMsgDate.isNull()) addSavedPeersAfter(history->lastMsgDate);
 	History::DialogLinks links = dialogs.addToEnd(history);
@@ -1603,6 +1621,7 @@ void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
 				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, j.value());
 				if (d.vunread_count.v >= j.value()->unreadCount) {
 					j.value()->setUnreadCount(d.vunread_count.v, false);
+					j.value()->inboxReadBefore = d.vread_inbox_max_id.v + 1;
 				}
 			}
 		} break;
@@ -1613,6 +1632,7 @@ void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
 				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, j.value());
 				if (d.vunread_important_count.v >= j.value()->unreadCount) {
 					j.value()->setUnreadCount(d.vunread_important_count.v, false);
+					j.value()->inboxReadBefore = d.vread_inbox_max_id.v + 1;
 				}
 			}
 		} break;

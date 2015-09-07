@@ -222,7 +222,7 @@ struct History : public QList<HistoryBlock*> {
 
 	int32 geomResize(int32 newWidth, int32 *ytransform = 0, bool dontRecountText = false); // return new size
 	int32 width, height, msgCount, unreadCount;
-	int32 inboxReadTill, outboxReadTill;
+	int32 inboxReadBefore, outboxReadBefore;
 	HistoryItem *showFrom;
 	HistoryUnreadBar *unreadBar;
 
@@ -705,14 +705,14 @@ public:
 		return _flags & MTPDmessage_flag_out;
 	}
 	bool unread() const {
-		if ((out() && (id > 0 && id <= _history->outboxReadTill)) || (!out() && id > 0 && id <= _history->inboxReadTill)) return false;
+		if ((out() && (id > 0 && id < _history->outboxReadBefore)) || (!out() && id > 0 && id < _history->inboxReadBefore)) return false;
 		return _flags & MTPDmessage_flag_unread;
 	}
 	bool notifyByFrom() const {
 		return _flags & MTPDmessage_flag_notify_by_from;
 	}
 	bool isMediaUnread() const {
-		return _flags & MTPDmessage_flag_media_unread;
+		return (_flags & MTPDmessage_flag_media_unread) && (channelId() == NoChannel); // CHANNELS_UI
 	}
 	void markMediaRead() {
 		_flags &= ~MTPDmessage_flag_media_unread;

@@ -272,7 +272,7 @@ public:
 	void shareContactLayer(UserData *contact);
 	void hiderLayer(HistoryHider *h);
 	void noHider(HistoryHider *destroyed);
-	void onForward(const PeerId &peer, ForwardWhatMessages what);
+	bool onForward(const PeerId &peer, ForwardWhatMessages what);
 	void onShareContact(const PeerId &peer, UserData *contact);
 	void onSendPaths(const PeerId &peer);
 	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);
@@ -285,7 +285,7 @@ public:
 	bool leaveChatFailed(PeerData *peer, const RPCError &e);
 	void deleteHistoryAfterLeave(PeerData *peer, const MTPUpdates &updates);
 	void deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result);
-	void deleteMessages(const QVector<MTPint> &ids);
+	void deleteMessages(PeerData *peer, const QVector<MTPint> &ids);
 	void deletedContact(UserData *user, const MTPcontacts_Link &result);
 	void deleteConversation(PeerData *peer);
 	void clearHistory(PeerData *peer);
@@ -453,7 +453,7 @@ private:
 	bool readRequestFail(PeerData *peer, const RPCError &error);
 	void readRequestDone(PeerData *peer);
 
-	void messagesAffected(const MTPmessages_AffectedMessages &result);
+	void messagesAffected(PeerData *peer, const MTPmessages_AffectedMessages &result);
 	void photosLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req);
 
 	bool _started;

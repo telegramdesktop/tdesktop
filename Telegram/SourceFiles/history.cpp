@@ -303,8 +303,8 @@ void FakeDialogRow::paint(QPainter &p, int32 w, bool act, bool sel) const {
 History::History(const PeerId &peerId) : width(0), height(0)
 , msgCount(0)
 , unreadCount(0)
-, inboxReadTill(0)
-, outboxReadTill(0)
+, inboxReadBefore(1)
+, outboxReadBefore(1)
 , showFrom(0)
 , unreadBar(0)
 , peer(App::peer(peerId))
@@ -1321,7 +1321,7 @@ MsgId History::inboxRead(MsgId upTo) {
 	}
 
 	if (!upTo) upTo = msgIdForRead();
-	if (inboxReadTill < upTo) inboxReadTill = upTo;
+	inboxReadBefore = qMax(inboxReadBefore, upTo + 1);
 
 	if (!dialogs.isEmpty()) {
 		if (App::main()) App::main()->dlgUpdated(dialogs[0]);
@@ -1339,7 +1339,7 @@ MsgId History::inboxRead(HistoryItem *wasRead) {
 
 MsgId History::outboxRead(int32 upTo) {
 	if (!upTo) upTo = msgIdForRead();
-	if (outboxReadTill < upTo) outboxReadTill = upTo;
+	if (outboxReadBefore < upTo + 1) outboxReadBefore = upTo + 1;
 
 	return upTo;
 }
@@ -1350,10 +1350,12 @@ MsgId History::outboxRead(HistoryItem *wasRead) {
 
 void History::setUnreadCount(int32 newUnreadCount, bool psUpdate) {
 	if (unreadCount != newUnreadCount) {
-		if (newUnreadCount == 1 && loadedAtBottom()) {
-			showFrom = isEmpty() ? 0 : back()->back();
+		if (newUnreadCount == 1) {
+			if (loadedAtBottom()) showFrom = isEmpty() ? 0 : back()->back();
+			inboxReadBefore = qMax(inboxReadBefore, msgIdForRead());
 		} else if (!newUnreadCount) {
 			showFrom = 0;
+			inboxReadBefore = qMax(inboxReadBefore, msgIdForRead() + 1);
 		}
 		App::histories().unreadFull += newUnreadCount - unreadCount;
 		if (mute) App::histories().unreadMuted += newUnreadCount - unreadCount;

@@ -166,7 +166,8 @@ namespace App {
 	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo);
 
 	Histories &histories();
-	History *history(const PeerId &peer, int32 unreadCnt = 0, int32 maxInboxRead = 0);
+	History *history(const PeerId &peer);
+	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead);
 	History *historyLoaded(const PeerId &peer);
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
 	inline HistoryItem *histItemById(const FullMsgId &msgId) {

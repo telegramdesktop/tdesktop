@@ -431,7 +431,12 @@ _failDifferenceTimeout(1), _lastUpdateTime(0), _cachedX(0), _cachedY(0), _backgr
 	_api->init();
 }
 
-void MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
+bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
+	PeerData *p = App::peer(peer);
+	if (!peer || p->isChannel() || (p->isChat() && p->asChat()->forbidden) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
+		App::wnd()->showLayer(new ConfirmBox(lang(lng_forward_cant), true));
+		return false;
+	}
 	history.cancelReply();
 	_toForward.clear();
 	if (what == ForwardSelectedMessages) {
@@ -457,6 +462,7 @@ void MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 	showPeerHistory(peer, ShowAtUnreadMsgId);
 	history.onClearSelected();
 	history.updateForwarding();
+	return true;
 }
 
 bool MainWidget::hasForwardingItems() {
@@ -780,8 +786,12 @@ void MainWidget::deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHis
 	MTP::send(MTPmessages_DeleteHistory(peer->input, d.voffset), rpcDone(&MainWidget::deleteHistoryPart, peer));
 }
 
-void MainWidget::deleteMessages(const QVector<MTPint> &ids) {
-	MTP::send(MTPmessages_DeleteMessages(MTP_vector<MTPint>(ids)), rpcDone(&MainWidget::messagesAffected));
+void MainWidget::deleteMessages(PeerData *peer, const QVector<MTPint> &ids) {
+	if (peer->isChannel()) {
+		MTP::send(MTPmessages_DeleteChannelMessages(peer->asChannel()->input, MTP_vector<MTPint>(ids)), rpcDone(&MainWidget::messagesAffected, peer));
+	} else {
+		MTP::send(MTPmessages_DeleteMessages(MTP_vector<MTPint>(ids)), rpcDone(&MainWidget::messagesAffected, peer));
+	}
 }
 
 void MainWidget::deletedContact(UserData *user, const MTPcontacts_Link &result) {
@@ -1012,16 +1022,6 @@ DialogsIndexed &MainWidget::dialogsList() {
 	return dialogs.dialogsList();
 }
 
-inline bool replaceCharBySpace(ushort code) {
-	// \xe2\x80[\xa8 - \xac\xad] // 8232 - 8237
-	// QString from1 = QString::fromUtf8("\xe2\x80\xa8"), to1 = QString::fromUtf8("\xe2\x80\xad");
-	// \xcc[\xb3\xbf\x8a] // 819, 831, 778
-	// QString bad1 = QString::fromUtf8("\xcc\xb3"), bad2 = QString::fromUtf8("\xcc\xbf"), bad3 = QString::fromUtf8("\xcc\x8a");
-	// [\x00\x01\x02\x07\x08\x0b-\x1f] // '\t' = 0x09
-	return (code >= 0x00 && code <= 0x02) || (code >= 0x07 && code <= 0x09) || (code >= 0x0b && code <= 0x1f) ||
-		(code == 819) || (code == 831) || (code == 778) || (code >= 8232 && code <= 8237);
-}
-
 QString cleanMessage(const QString &text) {
 	QString result = text;
 	QChar *_start = result.data(), *_end = _start + result.size(), *start = _start, *end = _end, *ch = start, *copy = 0;
@@ -1029,7 +1029,7 @@ QString cleanMessage(const QString &text) {
 		if (ch->unicode() == '\r') {
 			copy = ch + 1;
 			break;
-		} else if (replaceCharBySpace(ch->unicode())) {
+		} else if (MessageField::replaceCharBySpace(ch->unicode())) {
 			*ch = ' ';
 		}
 	}
@@ -1037,7 +1037,7 @@ QString cleanMessage(const QString &text) {
 		for (; copy != end; ++copy) {
 			if (copy->unicode() == '\r') {
 				continue;
-			} else if (replaceCharBySpace(copy->unicode())) {
+			} else if (MessageField::replaceCharBySpace(copy->unicode())) {
 				*ch++ = ' ';
 			} else {
 				*ch++ = *copy;
@@ -1512,9 +1512,13 @@ void MainWidget::readRequestDone(PeerData *peer) {
 	}
 }
 
-void MainWidget::messagesAffected(const MTPmessages_AffectedMessages &result) {
+void MainWidget::messagesAffected(PeerData *peer, const MTPmessages_AffectedMessages &result) {
 	const MTPDmessages_affectedMessages &d(result.c_messages_affectedMessages());
-	updPtsUpdated(d.vpts.v, d.vpts_count.v);
+	if (peer && peer->isChannel()) {
+		// CHANNELS_TODO
+	} else {
+		updPtsUpdated(d.vpts.v, d.vpts_count.v);
+	}
 }
 
 void MainWidget::videoLoadProgress(mtpFileLoader *loader) {
@@ -1840,7 +1844,7 @@ void MainWidget::mediaMarkRead(const HistoryItemsMap &items) {
 		}
 	}
 	if (!markedIds.isEmpty()) {
-		MTP::send(MTPmessages_ReadMessageContents(MTP_vector<MTPint>(markedIds)), rpcDone(&MainWidget::messagesAffected));
+		MTP::send(MTPmessages_ReadMessageContents(MTP_vector<MTPint>(markedIds)), rpcDone(&MainWidget::messagesAffected, (PeerData*)0));
 	}
 }
 

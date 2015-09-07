@@ -64,7 +64,7 @@ _docRadialFirst(0), _docRadialStart(0), _docRadialLast(0), _docRadialOpacity(1),
 _docDownload(this, lang(lng_media_download), st::mvDocLink),
 _docSaveAs(this, lang(lng_mediaview_save_as), st::mvDocLink),
 _docCancel(this, lang(lng_cancel), st::mvDocLink),
-_history(0), _peer(0), _user(0), _from(0), _index(-1), _msgid(0), _channel(NoChannel),
+_history(0), _peer(0), _user(0), _from(0), _index(-1), _msgid(0), _channel(NoChannel), _canForward(false), _canDelete(false),
 _loadRequest(0), _over(OverNone), _down(OverNone), _lastAction(-st::mvDeltaFromLastAction, -st::mvDeltaFromLastAction), _ignoringDropdown(false),
 _controlsState(ControlsShown), _controlsAnimStarted(0),
 _menu(0), _dropdown(this, st::mvDropdown), _receiveMouse(true), _touchPress(false), _touchMove(false), _touchRightButton(false),
@@ -314,8 +314,8 @@ void MediaView::updateDropdown() {
 	_btnShowInFolder->setVisible(_doc && !_doc->already(true).isEmpty());
 	_btnSaveAs->setVisible(true);
 	_btnCopy->setVisible((_doc && !_current.isNull()) || (_photo && _photo->full->loaded()));
-	_btnForward->setVisible(_msgid > 0 && !_channel);
-	_btnDelete->setVisible(_msgid > 0 || (_photo && App::self() && App::self()->photoId == _photo->id) || (_photo && _photo->peer && _photo->peer->photoId == _photo->id));
+	_btnForward->setVisible(_canForward);
+	_btnDelete->setVisible(_canDelete || (_photo && App::self() && App::self()->photoId == _photo->id) || (_photo && _photo->peer && _photo->peer->photoId == _photo->id));
 	_btnViewAll->setVisible((_overview != OverviewCount) && _history);
 	_btnViewAll->setText(lang(_doc ? lng_mediaview_files_all : lng_mediaview_photos_all));
 	_dropdown.updateButtons();
@@ -655,6 +655,8 @@ void MediaView::showPhoto(PhotoData *photo, HistoryItem *context) {
 	_index = -1;
 	_msgid = context ? context->id : 0;
 	_channel = context ? context->channelId() : NoChannel;
+	_canForward = _msgid > 0 && (_channel == NoChannel);
+	_canDelete = (_channel == NoChannel) || context->history()->peer->asChannel()->adminned;
 	_photo = photo;
 	if (_history) {
 		_overview = OverviewPhotos;
@@ -682,6 +684,7 @@ void MediaView::showPhoto(PhotoData *photo, PeerData *context) {
 
 	_msgid = 0;
 	_channel = NoChannel;
+	_canForward = _canDelete = false;
 	_index = -1;
 	_photo = photo;
 	_overview = OverviewCount;
@@ -725,6 +728,8 @@ void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 	_index = -1;
 	_msgid = context ? context->id : 0;
 	_channel = context ? context->channelId() : NoChannel;
+	_canForward = _msgid > 0 && (_channel == NoChannel);
+	_canDelete = (_channel == NoChannel) || context->history()->peer->asChannel()->adminned;
 	if (_history) {
 		_overview = OverviewDocuments;
 
@@ -1385,6 +1390,8 @@ void MediaView::moveToNext(int32 delta) {
 			if (HistoryItem *item = App::histItemById(_history->channelId(), _history->_overview[_overview][_index])) {
 				_msgid = item->id;
 				_channel = item->channelId();
+				_canForward = _msgid > 0 && (_channel == NoChannel);
+				_canDelete = (_channel == NoChannel) || item->history()->peer->asChannel()->adminned;
 				if (item->getMedia()) {
 					switch (item->getMedia()->type()) {
 					case MediaTypePhoto: displayPhoto(static_cast<HistoryPhoto*>(item->getMedia())->photo(), item); preloadData(delta); break;

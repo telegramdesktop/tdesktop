@@ -245,7 +245,7 @@ namespace {
 			Gdiplus::Status gdiRes = Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 	
 			if (gdiRes != Gdiplus::Ok) {
-				DEBUG_LOG(("Application Error: could not init GDI+, error: %1").arg((int)gdiRes));
+				LOG(("Application Error: could not init GDI+, error: %1").arg((int)gdiRes));
 				return false;
 			}
 			blend.AlphaFormat = AC_SRC_ALPHA;
@@ -254,7 +254,10 @@ namespace {
 			blend.BlendOp = AC_SRC_OVER;
 
 			screenDC = GetDC(0);
-			if (!screenDC) return false;
+			if (!screenDC) {
+				LOG(("Application Error: could not GetDC(0), error: %2").arg(GetLastError()));
+				return false;
+			}
 
 			QRect avail(App::app() ? App::app()->desktop()->availableGeometry() : QDesktopWidget().availableGeometry());
 			max_w = avail.width();
@@ -283,14 +286,14 @@ namespace {
 				wc.lpszClassName = _cn;
 				wc.hIconSm       = 0;
 				if (!RegisterClassEx(&wc)) {
-					DEBUG_LOG(("Application Error: could not register shadow window class %1, error: %2").arg(i).arg(GetLastError()));
+					LOG(("Application Error: could not register shadow window class %1, error: %2").arg(i).arg(GetLastError()));
 					destroy();
 					return false;
 				}
 
 				hwnds[i] = CreateWindowEx(WS_EX_LAYERED | WS_EX_TOOLWINDOW, _cn, 0, WS_POPUP, 0, 0, 0, 0, 0, 0, appinst, 0);
 				if (!hwnds[i]) {
-					DEBUG_LOG(("Application Error: could not create shadow window class %1, error: %2").arg(i).arg(GetLastError()));
+					LOG(("Application Error: could not create shadow window class %1, error: %2").arg(i).arg(GetLastError()));
 					destroy();
 					return false;
 				}
@@ -298,14 +301,14 @@ namespace {
 
 				dcs[i] = CreateCompatibleDC(screenDC);
 				if (!dcs[i]) {
-					DEBUG_LOG(("Application Error: could not create dc for shadow window class %1, error: %2").arg(i).arg(GetLastError()));
+					LOG(("Application Error: could not create dc for shadow window class %1, error: %2").arg(i).arg(GetLastError()));
 					destroy();
 					return false;
 				}
 
 				bitmaps[i] = CreateCompatibleBitmap(screenDC, (i % 2) ? _size : max_w, (i % 2) ? max_h : _size);
 				if (!bitmaps[i]) {
-					DEBUG_LOG(("Application Error: could not create bitmap for shadow window class %1, error: %2").arg(i).arg(GetLastError()));
+					LOG(("Application Error: could not create bitmap for shadow window class %1, error: %2").arg(i).arg(GetLastError()));
 					destroy();
 					return false;
 				}

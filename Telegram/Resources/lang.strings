@@ -584,6 +584,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_send_image_compressed" = "Send compressed image";
 
 "lng_forward_choose" = "Choose recipient..";
+"lng_forward_cant" = "Sorry, no way to forward here :(";
 "lng_forward_confirm" = "Forward to {recipient}?";
 "lng_forward_share_contact" = "Share contact to {recipient}?";
 "lng_forward_send_file_confirm" = "Send «{name}» to {recipient}?";

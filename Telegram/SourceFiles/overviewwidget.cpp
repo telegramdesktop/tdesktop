@@ -856,6 +856,10 @@ void OverviewInner::touchScrollUpdated(const QPoint &screenPos) {
 void OverviewInner::applyDragSelection() {
 	if (_dragSelFromIndex < 0 || _dragSelToIndex < 0) return;
 
+	if (_peer && _peer->isChannel() && !_peer->asChannel()->adminned) {
+		_selected.clear();
+		return;
+	}
 	if (!_selected.isEmpty() && _selected.cbegin().value() != FullItemSel) {
 		_selected.clear();
 	}
@@ -1781,12 +1785,16 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
 		} else if (App::hoveredLinkItem()) {
 			if (isUponSelected != -2) {
-				if (dynamic_cast<HistoryMessage*>(App::hoveredLinkItem()) && !_hist->peer->isChannel()) {
+				if (App::hoveredLinkItem()->toHistoryMessage() && !_peer->isChannel()) {
 					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
 				}
-				_menu->addAction(lang(lng_context_delete_msg), this, SLOT(deleteMessage()))->setEnabled(true);
+				if (!_peer->isChannel() || _peer->asChannel()->adminned) {
+					_menu->addAction(lang(lng_context_delete_msg), this, SLOT(deleteMessage()))->setEnabled(true);
+				}
 			}
-			_menu->addAction(lang(lng_context_select_msg), this, SLOT(selectMessage()))->setEnabled(true);
+			if (App::hoveredLinkItem()->id > 0 && (!_peer->isChannel() || _peer->asChannel()->adminned)) {
+				_menu->addAction(lang(lng_context_select_msg), this, SLOT(selectMessage()))->setEnabled(true);
+			}
 		}
 		App::contextItem(App::hoveredLinkItem());
 		updateMsg(App::contextItem());
@@ -1815,12 +1823,16 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
 		} else {
 			if (isUponSelected != -2) {
-				if (dynamic_cast<HistoryMessage*>(App::mousedItem()) && !_hist->peer->isChannel()) {
+				if (App::mousedItem()->toHistoryMessage() && !_peer->isChannel()) {
 					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
 				}
-				_menu->addAction(lang(lng_context_delete_msg), this, SLOT(deleteMessage()))->setEnabled(true);
+				if (!_peer->isChannel() || _peer->asChannel()->adminned) {
+					_menu->addAction(lang(lng_context_delete_msg), this, SLOT(deleteMessage()))->setEnabled(true);
+				}
 			}
-			_menu->addAction(lang(lng_context_select_msg), this, SLOT(selectMessage()))->setEnabled(true);
+			if (App::mousedItem()->id > 0 && (!_peer->isChannel() || _peer->asChannel()->adminned)) {
+				_menu->addAction(lang(lng_context_select_msg), this, SLOT(selectMessage()))->setEnabled(true);
+			}
 		}
 		App::contextItem(App::mousedItem());
 		updateMsg(App::contextItem());
@@ -1931,7 +1943,7 @@ void OverviewInner::deleteMessage() {
 	HistoryItem *item = App::contextItem();
 	if (!item || item->itemType() != HistoryItem::MsgType) return;
 
-	HistoryMessage *msg = dynamic_cast<HistoryMessage*>(item);
+	HistoryMessage *msg = item->toHistoryMessage();
 	App::main()->deleteLayer((msg && msg->uploading()) ? -2 : -1);
 }
 
@@ -2098,7 +2110,7 @@ void OverviewInner::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
 
 	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
 		HistoryItem *item = App::histItemById(_channel, i.key());
-		if (dynamic_cast<HistoryMessage*>(item) && item->id > 0) {
+		if (item && item->toHistoryMessage() && item->id > 0) {
 			sel.insert(item->id, item);
 		}
 	}
@@ -2924,7 +2936,7 @@ void OverviewWidget::onDeleteSelectedSure() {
 	}
 
 	if (!ids.isEmpty()) {
-		App::main()->deleteMessages(ids);
+		App::main()->deleteMessages(peer(), ids);
 	}
 
 	onClearSelected();
@@ -2944,7 +2956,7 @@ void OverviewWidget::onDeleteContextSure() {
 	}
 
 	if (item->id > 0) {
-		App::main()->deleteMessages(QVector<MTPint>(1, MTP_int(item->id)));
+		App::main()->deleteMessages(item->history()->peer, QVector<MTPint>(1, MTP_int(item->id)));
 	}
 	item->destroy();
 	if (App::main() && App::main()->peer() == peer()) {

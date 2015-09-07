@@ -161,6 +161,7 @@ private:
 	int32 _index; // index in photos or files array, -1 if just photo
 	MsgId _msgid; // msgId of current photo or file
 	ChannelId _channel;
+	bool _canForward, _canDelete;
 
 	mtpRequestId _loadRequest;
 

@@ -1580,16 +1580,20 @@ namespace App {
 		return ::histories;
 	}
 
-	History *history(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead) {
+	History *history(const PeerId &peer) {
+		Histories::const_iterator i = ::histories.constFind(peer);
+		if (i == ::histories.cend()) {
+			i = App::histories().insert(peer, new History(peer));
+		}
+		return i.value();
+	}
+
+	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead) {
 		Histories::const_iterator i = ::histories.constFind(peer);
 		if (i == ::histories.cend()) {
 			i = App::histories().insert(peer, new History(peer));
 			i.value()->setUnreadCount(unreadCnt, false);
-			if (maxInboxRead) {
-				i.value()->inboxReadTill = maxInboxRead;
-			}
-		} else if (maxInboxRead) {
-			i.value()->inboxReadTill = qMax(i.value()->inboxReadTill, maxInboxRead);
+			i.value()->inboxReadBefore = maxInboxRead + 1;
 		}
 		return i.value();
 	}
