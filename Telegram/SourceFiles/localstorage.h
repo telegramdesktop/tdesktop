@@ -147,4 +147,6 @@ namespace Local {
 	void removeSavedPeer(PeerData *peer);
 	void readSavedPeers();
 
+	void writeReportSpamStatuses();
+
 };

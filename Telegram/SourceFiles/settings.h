@@ -317,4 +317,8 @@ typedef QMultiMap<QDateTime, PeerData*> SavedPeersByTime;
 DeclareRefSetting(SavedPeers, SavedPeers);
 DeclareRefSetting(SavedPeersByTime, SavedPeersByTime);
 
+typedef QMap<uint64, bool> ReportSpamButtons;
+DeclareRefSetting(ReportSpamButtons, ShowReportSpamButton);
+DeclareRefSetting(ReportSpamButtons, NoReportSpamButton);
+
 void settingsParseArgs(int argc, char *argv[]);

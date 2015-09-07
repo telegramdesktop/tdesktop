@@ -2944,6 +2944,10 @@ namespace Local {
 		}
 	}
 
+	void writeReportSpamStatuses() {
+
+	}
+
 	struct ClearManagerData {
 		QThread *thread;
 		StorageMap images, stickers, audios;

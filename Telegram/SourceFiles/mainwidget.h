@@ -377,6 +377,8 @@ public:
 	void choosePeer(PeerId peerId, MsgId showAtMsgId); // does offerPeer or showPeerHistory
 	void clearBotStartToken(PeerData *peer);
 
+	void contactsReceived();
+
 	~MainWidget();
 
 signals:

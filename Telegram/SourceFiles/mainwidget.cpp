@@ -1967,6 +1967,10 @@ void MainWidget::clearBotStartToken(PeerData *peer) {
 	}
 }
 
+void MainWidget::contactsReceived() {
+	history.contactsReceived();
+}
+
 void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) {
 	if (!back && (!peerId || (_stack.size() == 1 && _stack[0]->type() == HistoryStackItem && _stack[0]->peer->id == peerId))) {
 		back = true;

@@ -478,6 +478,8 @@ public:
 	void clearDelayedShowAt();
 	void clearAllLoadRequests();
 
+	void contactsReceived();
+
 	~HistoryWidget();
 
 signals:
@@ -584,6 +586,14 @@ private:
 	void drawRecordButton(Painter &p);
 	void drawRecording(Painter &p);
 	void updateField();
+
+	enum ReportSpamStatus {
+		ReportSpamNoButton,
+		ReportSpamUnknown,
+		ReportSpamShowButton,
+	};
+	ReportSpamStatus _reportSpamStatus;
+	void updateReportSpamStatus();
 
 	QString _previewLinks;
 	WebPageData *_previewData;

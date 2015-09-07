@@ -2198,6 +2198,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _replyTo(0)
 , _replyToNameVersion(0)
 , _replyForwardPreviewCancel(this, st::replyCancel)
+, _reportSpamStatus(ReportSpamUnknown)
 , _previewData(0)
 , _previewRequest(0)
 , _previewCancelled(false)
@@ -2905,6 +2906,76 @@ void HistoryWidget::clearAllLoadRequests() {
 	_preloadRequest = _preloadDownRequest = _firstLoadRequest = 0;
 }
 
+void HistoryWidget::contactsReceived() {
+	if (!_peer) return;
+	updateReportSpamStatus();
+	updateControlsVisibility();
+}
+
+void HistoryWidget::updateReportSpamStatus() {
+	if (!_peer || cNoReportSpamButton().contains(_peer->id)) {
+		_reportSpamStatus = ReportSpamNoButton;
+		return;
+	} else if (cShowReportSpamButton().contains(_peer->id)) {
+		_reportSpamStatus = ReportSpamShowButton;
+		return;
+	}
+	if (!cContactsReceived()) {
+		_reportSpamStatus = ReportSpamUnknown;
+	} else if (_peer->chat) {
+		if (_firstLoadRequest && !_peer->asChat()->inviterForSpamReport) {
+			_reportSpamStatus = ReportSpamUnknown;
+		} else if (_peer->asChat()->inviterForSpamReport > 0) {
+			UserData *user = App::userLoaded(_peer->asChat()->inviterForSpamReport);
+			if (user && user->contact > 0) {
+				_reportSpamStatus = ReportSpamNoButton;
+			} else {
+				_reportSpamStatus = ReportSpamShowButton;
+			}
+		} else {
+			_reportSpamStatus = ReportSpamNoButton;
+		}
+	} else {
+		if (_peer->asUser()->contact > 0) {
+			_reportSpamStatus = ReportSpamNoButton;
+		} else {
+			if (_firstLoadRequest) {
+				_reportSpamStatus = ReportSpamUnknown;
+			} else {
+				bool anyFound = false, outFound = false;
+				for (int32 i = 0, l = _history->size(); i < l; ++i) {
+					for (int32 j = 0, c = _history->at(i)->size(); j < c; ++j) {
+						anyFound = true;
+						if (_history->at(i)->at(j)->out()) {
+							outFound = true;
+							break;
+						}
+					}
+				}
+				if (anyFound) {
+					if (outFound) {
+						_reportSpamStatus = ReportSpamNoButton;
+					} else {
+						_reportSpamStatus = ReportSpamShowButton;
+					}
+				} else {
+					_reportSpamStatus = ReportSpamUnknown;
+				}
+			}
+		}
+	}
+	if (_reportSpamStatus == ReportSpamShowButton || _reportSpamStatus == ReportSpamNoButton) {
+		if (_reportSpamStatus == ReportSpamShowButton) {
+			cRefNoReportSpamButton().remove(_peer->id);
+			cRefShowReportSpamButton().insert(_peer->id, true);
+		} else {
+			cRefNoReportSpamButton().insert(_peer->id, true);
+			cRefShowReportSpamButton().remove(_peer->id);
+		}
+		Local::writeReportSpamStatuses();
+	}
+}
+
 void HistoryWidget::updateControlsVisibility() {
 	if (!_history || _showAnim.animating()) {
 		_scroll.hide();
@@ -3519,6 +3590,7 @@ bool HistoryWidget::showStep(float64 ms) {
 }
 
 void HistoryWidget::doneShow() {
+	updateReportSpamStatus();
 	updateBotKeyboard();
 	updateControlsVisibility();
 	updateListSize(0, true);
@@ -5167,6 +5239,7 @@ void HistoryWidget::onFullPeerUpdated(PeerData *data) {
 	int32 newScrollTop = _scroll.scrollTop();
 	if (_list && data == _peer) {
 		checkMentionDropdown();
+		updateReportSpamStatus();
 		int32 lh = _list->height(), st = _scroll.scrollTop();
 		_list->updateBotInfo();
 		newScrollTop = st + _list->height() - lh;
