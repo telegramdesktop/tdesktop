@@ -706,7 +706,7 @@ public:
 	}
 	bool unread() const {
 		if ((out() && (id > 0 && id < _history->outboxReadBefore)) || (!out() && id > 0 && id < _history->inboxReadBefore)) return false;
-		return _flags & MTPDmessage_flag_unread;
+		return (id > 0) ? true : (_flags & MTPDmessage_flag_unread);
 	}
 	bool notifyByFrom() const {
 		return _flags & MTPDmessage_flag_notify_by_from;
@@ -765,7 +765,6 @@ public:
         return QString();
     }
     virtual QString notificationText() const = 0;
-	void markRead();
 
 	int32 y;
 	MsgId id;

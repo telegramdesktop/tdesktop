@@ -326,6 +326,9 @@ History::History(const PeerId &peerId) : width(0), height(0)
 , posInDialogs(0)
 , typingText(st::dlgRichMinWidth)
 {
+	if (peer->isChannel() || (peer->isUser() && peer->asUser()->botInfo)) {
+		outboxReadBefore = INT_MAX;
+	}
 	for (int32 i = 0; i < OverviewCount; ++i) {
 		_overviewCount[i] = -1; // not loaded yet
 	}
@@ -727,7 +730,7 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 		default: badMedia = 1; break;
 		}
 		if (badMedia) {
-			result = new HistoryServiceMsg(this, block, m.vid.v, date(m.vdate), lang((badMedia == 2) ? lng_message_empty : lng_media_unsupported), m.vflags.v, 0, m.vfrom_id.v);
+			result = new HistoryServiceMsg(this, block, m.vid.v, date(m.vdate), lang((badMedia == 2) ? lng_message_empty : lng_media_unsupported), m.vflags.v, 0, m.has_from_id() ? m.vfrom_id.v : 0);
 		} else {
 			if ((m.has_fwd_date() && m.vfwd_date.v > 0) || (m.has_fwd_from_id() && m.vfwd_from_id.v != 0)) {
 				result = new HistoryForwarded(this, block, m);
@@ -1812,20 +1815,7 @@ HistoryItem::HistoryItem(History *history, HistoryBlock *block, MsgId msgId, int
 {
 }
 
-void HistoryItem::markRead() {
-	if (_flags & MTPDmessage_flag_unread) {
-		if (out()) {
-			_history->outboxRead(this);
-		} else {
-			_history->inboxRead(this);
-		}
-		App::main()->msgUpdated(_history->peer->id, this);
-		_flags &= ~int32(MTPDmessage_flag_unread);
-	}
-}
-
 void HistoryItem::destroy() {
-	if (!out()) markRead();
 	bool wasAtBottom = history()->loadedAtBottom();
 	_history->removeNotification(this);
 	detach();
@@ -5283,7 +5273,7 @@ HistoryMedia *HistoryImageLink::clone() const {
 }
 
 HistoryMessage::HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg) :
-	HistoryItem(history, block, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.vfrom_id.v)
+	HistoryItem(history, block, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0)
 , _text(st::msgMinWidth)
 , _textWidth(0)
 , _textHeight(0)
@@ -5848,7 +5838,7 @@ HistoryMessage::~HistoryMessage() {
 	}
 }
 
-HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg) : HistoryMessage(history, block, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.vfrom_id.v, textClean(qs(msg.vmessage)), msg.has_entities() ? linksFromMTP(msg.ventities.c_vector().v) : LinksInText(), msg.has_media() ? (&msg.vmedia) : 0)
+HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg) : HistoryMessage(history, block, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0, textClean(qs(msg.vmessage)), msg.has_entities() ? linksFromMTP(msg.ventities.c_vector().v) : LinksInText(), msg.has_media() ? (&msg.vmedia) : 0)
 , fwdDate(::date(msg.vfwd_date))
 , fwdFrom(App::user(msg.vfwd_from_id.v))
 , fwdFromVersion(fwdFrom->nameVersion)
@@ -6044,7 +6034,7 @@ void HistoryForwarded::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 
 	return HistoryMessage::getSymbol(symbol, after, upon, x, y);
 }
 
-HistoryReply::HistoryReply(History *history, HistoryBlock *block, const MTPDmessage &msg) : HistoryMessage(history, block, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.vfrom_id.v, textClean(qs(msg.vmessage)), msg.has_entities() ? linksFromMTP(msg.ventities.c_vector().v) : LinksInText(), msg.has_media() ? (&msg.vmedia) : 0)
+HistoryReply::HistoryReply(History *history, HistoryBlock *block, const MTPDmessage &msg) : HistoryMessage(history, block, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0, textClean(qs(msg.vmessage)), msg.has_entities() ? linksFromMTP(msg.ventities.c_vector().v) : LinksInText(), msg.has_media() ? (&msg.vmedia) : 0)
 , replyToMsgId(msg.vreply_to_msg_id.v)
 , replyToMsg(0)
 , replyToVersion(0)
