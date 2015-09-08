@@ -208,6 +208,28 @@ private:
 
 };
 
+class HistoryWidget;
+class ReportSpamPanel : public TWidget {
+	Q_OBJECT
+
+public:
+
+	ReportSpamPanel(HistoryWidget *parent);
+
+	void resizeEvent(QResizeEvent *e);
+	void paintEvent(QPaintEvent *e);
+
+signals:
+
+	void hideClicked();
+	void reportClicked();
+
+private:
+
+	FlatButton _report, _hide;
+
+};
+
 class BotKeyboard : public QWidget {
 	Q_OBJECT
 
@@ -656,6 +678,8 @@ private:
 	bool isBotStart() const;
 	bool isBlocked() const;
 	bool updateCmdStartShown();
+
+	ReportSpamPanel _reportSpamPanel;
 
 	FlatButton _send, _unblock, _botStart;
 	mtpRequestId _unblockRequest;

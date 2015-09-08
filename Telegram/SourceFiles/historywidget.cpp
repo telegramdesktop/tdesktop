@@ -1636,6 +1636,29 @@ void MessageField::focusInEvent(QFocusEvent *e) {
 	emit focused();
 }
 
+ReportSpamPanel::ReportSpamPanel(HistoryWidget *parent) : TWidget(parent),
+_report(this, lang(lng_report_spam), st::reportSpamButton), _hide(this, lang(lng_report_spam_hide), st::reportSpamHide) {
+	resize(parent->width(), _hide.height() + st::titleShadow);
+
+	connect(&_report, SIGNAL(clicked()), this, SIGNAL(reportClicked()));
+	connect(&_hide, SIGNAL(clicked()), this, SIGNAL(hideClicked()));
+}
+
+void ReportSpamPanel::resizeEvent(QResizeEvent *e) {
+	_report.moveToLeft(st::reportSpamPadding.width(), st::reportSpamPadding.height(), width());
+	_hide.moveToRight(0, 0, width());
+}
+
+void ReportSpamPanel::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	p.fillRect(QRect(0, 0, width(), height() - st::titleShadow), st::reportSpamBg->b);
+	if (cWideMode()) {
+		p.fillRect(st::titleShadow, height() - st::titleShadow, width() - st::titleShadow, st::titleShadow, st::titleShadowColor->b);
+	} else {
+		p.fillRect(0, height() - st::titleShadow, width(), st::titleShadow, st::titleShadowColor->b);
+	}
+}
+
 BotKeyboard::BotKeyboard() : _wasForMsgId(0), _height(0), _maxOuterHeight(0), _maximizeSize(false), _singleUse(false), _forceReply(false),
 _sel(-1), _down(-1), _hoverAnim(animFunc(this, &BotKeyboard::hoverStep)), _st(&st::botKbButton) {
 	setGeometry(0, 0, _st->margin, _st->margin);
@@ -2217,6 +2240,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _histInited(false)
 , _toHistoryEnd(this, st::historyToEnd)
 , _attachMention(this)
+, _reportSpamPanel(this)
 , _send(this, lang(lng_send_button), st::btnSend)
 , _unblock(this, lang(lng_unblock_button), st::btnUnblock)
 , _botStart(this, lang(lng_bot_start), st::btnSend)
@@ -2328,6 +2352,9 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_send.hide();
 	_unblock.hide();
 	_botStart.hide();
+
+	_reportSpamPanel.move(0, 0);
+	_reportSpamPanel.hide();
 
 	_attachDocument.hide();
 	_attachPhoto.hide();
@@ -2920,12 +2947,10 @@ void HistoryWidget::updateReportSpamStatus() {
 		_reportSpamStatus = ReportSpamShowButton;
 		return;
 	}
-	if (!cContactsReceived()) {
+	if ((!_history->loadedAtTop() && (_history->size() < 2 || _history->size() == 2 && _history->at(1)->size() < 2)) || !cContactsReceived() || _firstLoadRequest) {
 		_reportSpamStatus = ReportSpamUnknown;
 	} else if (_peer->chat) {
-		if (_firstLoadRequest && !_peer->asChat()->inviterForSpamReport) {
-			_reportSpamStatus = ReportSpamUnknown;
-		} else if (_peer->asChat()->inviterForSpamReport > 0) {
+		if (_peer->asChat()->inviterForSpamReport > 0) {
 			UserData *user = App::userLoaded(_peer->asChat()->inviterForSpamReport);
 			if (user && user->contact > 0) {
 				_reportSpamStatus = ReportSpamNoButton;
@@ -2939,28 +2964,24 @@ void HistoryWidget::updateReportSpamStatus() {
 		if (_peer->asUser()->contact > 0) {
 			_reportSpamStatus = ReportSpamNoButton;
 		} else {
-			if (_firstLoadRequest) {
-				_reportSpamStatus = ReportSpamUnknown;
-			} else {
-				bool anyFound = false, outFound = false;
-				for (int32 i = 0, l = _history->size(); i < l; ++i) {
-					for (int32 j = 0, c = _history->at(i)->size(); j < c; ++j) {
-						anyFound = true;
-						if (_history->at(i)->at(j)->out()) {
-							outFound = true;
-							break;
-						}
+			bool anyFound = false, outFound = false;
+			for (int32 i = 0, l = _history->size(); i < l; ++i) {
+				for (int32 j = 0, c = _history->at(i)->size(); j < c; ++j) {
+					anyFound = true;
+					if (_history->at(i)->at(j)->out()) {
+						outFound = true;
+						break;
 					}
 				}
-				if (anyFound) {
-					if (outFound) {
-						_reportSpamStatus = ReportSpamNoButton;
-					} else {
-						_reportSpamStatus = ReportSpamShowButton;
-					}
+			}
+			if (anyFound) {
+				if (outFound) {
+					_reportSpamStatus = ReportSpamNoButton;
 				} else {
-					_reportSpamStatus = ReportSpamUnknown;
+					_reportSpamStatus = ReportSpamShowButton;
 				}
+			} else {
+				_reportSpamStatus = ReportSpamUnknown;
 			}
 		}
 	}
@@ -2978,6 +2999,7 @@ void HistoryWidget::updateReportSpamStatus() {
 
 void HistoryWidget::updateControlsVisibility() {
 	if (!_history || _showAnim.animating()) {
+		_reportSpamPanel.hide();
 		_scroll.hide();
 		_kbScroll.hide();
 		_send.hide();
@@ -3003,6 +3025,11 @@ void HistoryWidget::updateControlsVisibility() {
 		_scroll.hide();
 	} else {
 		_scroll.show();
+	}
+	if (_reportSpamStatus == ReportSpamShowButton) {
+		_reportSpamPanel.show();
+	} else {
+		_reportSpamPanel.hide();
 	}
 	if ((_peer->chat && !_peer->asChat()->forbidden && !_peer->asChat()->left) || (!_peer->chat && _peer->asUser()->access != UserNoAccess)) {
 		checkMentionDropdown();
@@ -3221,6 +3248,10 @@ void HistoryWidget::messagesReceived(const MTPmessages_Messages &messages, mtpRe
 		addMessagesToFront(*histList);
 		_preloadRequest = 0;
 		onListScroll();
+		if (_reportSpamStatus == ReportSpamUnknown) {
+			updateReportSpamStatus();
+			if (_reportSpamStatus != ReportSpamUnknown) updateControlsVisibility();
+		}
 	} else if (_preloadDownRequest == requestId) {
 		addMessagesToBack(*histList);
 		_preloadDownRequest = 0;
@@ -3542,6 +3573,7 @@ void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 	App::main()->topBar()->startAnim();
 	_scroll.hide();
 	_kbScroll.hide();
+	_reportSpamPanel.hide();
 	_toHistoryEnd.hide();
 	_attachDocument.hide();
 	_attachPhoto.hide();
@@ -4588,6 +4620,8 @@ void HistoryWidget::msgUpdated(PeerId peer, const HistoryItem *msg) {
 }
 
 void HistoryWidget::resizeEvent(QResizeEvent *e) {
+	_reportSpamPanel.resize(width(), _reportSpamPanel.height());
+
 	int32 maxKeyboardHeight = int(st::maxFieldHeight) - _field.height();
 	_keyboard.resizeToWidth(width(), maxKeyboardHeight);
 
