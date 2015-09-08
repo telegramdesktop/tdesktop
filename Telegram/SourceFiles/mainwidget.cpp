@@ -760,7 +760,12 @@ void MainWidget::deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHis
 	updPtsUpdated(d.vpts.v, d.vpts_count.v);
 
 	int32 offset = d.voffset.v;
-	if (!MTP::authedId() || offset <= 0) return;
+	if (!MTP::authedId()) return;
+	if (offset <= 0) {
+		cRefReportSpamStatuses().remove(peer->id);
+		Local::writeReportSpamStatuses();
+		return;
+	}
 
 	MTP::send(MTPmessages_DeleteHistory(peer->input, d.voffset), rpcDone(&MainWidget::deleteHistoryPart, peer));
 }

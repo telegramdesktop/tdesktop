@@ -160,8 +160,7 @@ float64 gSongVolume = 0.9;
 SavedPeers gSavedPeers;
 SavedPeersByTime gSavedPeersByTime;
 
-ReportSpamButtons gShowReportSpamButton;
-ReportSpamButtons gNoReportSpamButton;
+ReportSpamStatuses gReportSpamStatuses;
 
 void settingsParseArgs(int argc, char *argv[]) {
 #ifdef Q_OS_MAC

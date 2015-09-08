@@ -1075,18 +1075,6 @@ taMsgField: flatTextarea(taDefFlat) {
 maxFieldHeight: 220px;
 // historyMinHeight: 56px;
 
-reportSpamButton: flatButton(topBarActionButton) {
-	textTop: 6px;
-	overTextTop: 6px;
-	downTextTop: 7px;
-
-	width: -50px;
-	height: 30px;
-
-	bgColor: #888;
-	overBgColor: #7b7b7b;
-	downBgColor: #7b7b7b;
-}
 reportSpamHide: flatButton(topBarButton) {
 	height: 46px;
 
@@ -1098,8 +1086,20 @@ reportSpamHide: flatButton(topBarButton) {
 	overBgColor: transparent;
 	downBgColor: transparent;
 }
-reportSpamPadding: size(12px, 8px);
-reportSpamBg: #ffffffc0;
+reportSpamButton: flatButton(reportSpamHide) {
+	textTop: 6px;
+	overTextTop: 6px;
+	downTextTop: 7px;
+
+	width: -50px;
+	height: 30px;
+
+	bgColor: #888;
+	overBgColor: #7b7b7b;
+	downBgColor: #7b7b7b;
+}
+reportSpamSeparator: 30px;
+reportSpamBg: #fffffff0;
 
 newMsgSound: ':/gui/art/newmsg.wav';
 

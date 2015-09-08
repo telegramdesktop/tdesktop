@@ -6320,6 +6320,11 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 			UserData *u = App::user(App::peerFromUser(d.vuser_id));
 			second = TextLinkPtr(new PeerLink(u));
 			text = lng_action_add_user(lt_from, from, lt_user, textcmdLink(2, u->name));
+			if (d.vuser_id.v == MTP::authedId() && unread()) {
+				if (history()->peer->chat && !history()->peer->asChat()->inviterForSpamReport && !_from->chat) {
+					history()->peer->asChat()->inviterForSpamReport = App::userFromPeer(_from->id);
+				}
+			}
 		}
 	} break;
 
@@ -6337,6 +6342,11 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionChatCreate: {
 		const MTPDmessageActionChatCreate &d(action.c_messageActionChatCreate());
 		text = lng_action_created_chat(lt_from, from, lt_title, textClean(qs(d.vtitle)));
+		if (unread()) {
+			if (history()->peer->chat && !history()->peer->asChat()->inviterForSpamReport && !_from->chat && App::userFromPeer(_from->id) != MTP::authedId()) {
+				history()->peer->asChat()->inviterForSpamReport = App::userFromPeer(_from->id);
+			}
+		}
 	} break;
 
 	case mtpc_messageActionChatDeletePhoto: {

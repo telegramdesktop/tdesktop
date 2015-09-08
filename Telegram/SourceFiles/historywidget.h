@@ -219,14 +219,18 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void paintEvent(QPaintEvent *e);
 
+	void setReported(bool reported);
+
 signals:
 
 	void hideClicked();
 	void reportClicked();
+	void clearClicked();
 
 private:
 
 	FlatButton _report, _hide;
+	LinkButton _clear;
 
 };
 
@@ -539,6 +543,11 @@ public slots:
 	void onDocumentFailed(MsgId msgId);
 	void onAudioFailed(MsgId msgId);
 
+	void onReportSpamClicked();
+	void onReportSpamHide();
+	void onReportSpamClear();
+	void onReportSpamClearSure();
+
 	void onListScroll();
 	void onHistoryToEnd();
 	void onSend(bool ctrlShiftEnter = false, MsgId replyTo = -1);
@@ -609,12 +618,7 @@ private:
 	void drawRecording(Painter &p);
 	void updateField();
 
-	enum ReportSpamStatus {
-		ReportSpamNoButton,
-		ReportSpamUnknown,
-		ReportSpamShowButton,
-	};
-	ReportSpamStatus _reportSpamStatus;
+	DBIPeerReportSpamStatus _reportSpamStatus;
 	void updateReportSpamStatus();
 
 	QString _previewLinks;
@@ -637,8 +641,12 @@ private:
 	void addMessagesToFront(const QVector<MTPMessage> &messages);
 	void addMessagesToBack(const QVector<MTPMessage> &messages);
 
+	void reportSpamDone(PeerData *peer, const MTPBool &result, mtpRequestId request);
+	bool reportSpamFail(const RPCError &error, mtpRequestId request);
+
 	void unblockDone(PeerData *peer, const MTPBool &result);
 	bool unblockFail(const RPCError &error);
+	void blockDone(PeerData *peer, const MTPBool &result);
 
 	void countHistoryShowFrom();
 
@@ -656,7 +664,7 @@ private:
 
 	void updateDragAreas();
 
-	PeerData *_peer;
+	PeerData *_peer, *_clearPeer; // cache _peer in _clearPeer when showing clear history box
 	MsgId _showAtMsgId;
 
 	mtpRequestId _firstLoadRequest, _preloadRequest, _preloadDownRequest;
@@ -682,7 +690,7 @@ private:
 	ReportSpamPanel _reportSpamPanel;
 
 	FlatButton _send, _unblock, _botStart;
-	mtpRequestId _unblockRequest;
+	mtpRequestId _unblockRequest, _reportSpamRequest;
 	IconedButton _attachDocument, _attachPhoto, _attachEmoji, _kbShow, _kbHide, _cmdStart;
 	bool _cmdStartShown;
 	MessageField _field;

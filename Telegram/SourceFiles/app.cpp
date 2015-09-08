@@ -446,6 +446,10 @@ namespace App {
 					data->setBotInfoVersion(-1);
 				}
 				data->contact = (flags & (MTPDuser_flag_contact | MTPDuser_flag_mutual_contact)) ? 1 : (data->phone.isEmpty() ? -1 : 0);
+				if (data->contact == 1 && cReportSpamStatuses().value(data->id, dbiprsNoButton) != dbiprsNoButton) {
+					cRefReportSpamStatuses().insert(data->id, dbiprsNoButton);
+					Local::writeReportSpamStatuses();
+				}
 				if ((flags & MTPDuser_flag_self) && ::self != data) {
 					::self = data;
 					if (App::wnd()) App::wnd()->updateGlobalMenu();
@@ -875,6 +879,10 @@ namespace App {
 			switch (myLink.type()) {
 			case mtpc_contactLinkContact:
 				user->contact = 1;
+				if (user->contact == 1 && cReportSpamStatuses().value(user->id, dbiprsNoButton) != dbiprsNoButton) {
+					cRefReportSpamStatuses().insert(user->id, dbiprsNoButton);
+					Local::writeReportSpamStatuses();
+				}
 			break;
 			case mtpc_contactLinkHasPhone:
 				user->contact = 0;
