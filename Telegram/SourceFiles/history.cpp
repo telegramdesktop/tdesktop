@@ -1446,9 +1446,18 @@ bool History::loadedAtTop() const {
 bool History::isReadyFor(MsgId msgId, bool check) const {
 	if (msgId == ShowAtTheEndMsgId) {
 		return loadedAtBottom();
-	} else if (msgId == ShowAtUnreadMsgId) {
-		return check ? (loadedAtBottom() && (msgCount >= unreadCount)) : !isEmpty();
 	} else if (check) {
+		if (msgId == ShowAtUnreadMsgId) {
+			if (unreadCount) {
+				if (!isEmpty()) {
+					return (loadedAtTop() || minMsgId() <= inboxReadBefore) && (loadedAtBottom() || maxMsgId() >= inboxReadBefore);
+				} else {
+					return false;
+				}
+			} else {
+				return loadedAtBottom();
+			}
+		}
 		HistoryItem *item = App::histItemById(channelId(), msgId);
 		return item && item->history() == this && !item->detached();
 	}

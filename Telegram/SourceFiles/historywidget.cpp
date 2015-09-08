@@ -3260,8 +3260,8 @@ void HistoryWidget::firstLoadMessages() {
 
 	int32 from = 0, offset = 0, loadCount = MessagesPerPage;
 	if (_showAtMsgId == ShowAtUnreadMsgId) {
-		if (_history->unreadCount > loadCount) {
-			_history->getReadyFor(_showAtMsgId)
+		if (_history->unreadCount) {
+			_history->getReadyFor(_showAtMsgId);
 			offset = -loadCount / 2;
 			from = _history->inboxReadBefore;
 		} else {
@@ -3316,8 +3316,13 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 
 	int32 from = _delayedShowAtMsgId, offset = 0, loadCount = MessagesPerPage;
 	if (_delayedShowAtMsgId == ShowAtUnreadMsgId) {
-		offset = qMax(_history->unreadCount - loadCount / 2, 0);
-		from = 0;
+		if (_history->unreadCount) {
+			offset = -loadCount / 2;
+			from = _history->inboxReadBefore;
+		} else {
+			loadCount = MessagesFirstLoad;
+			from = 0;
+		}
 	} else if (_delayedShowAtMsgId == ShowAtTheEndMsgId) {
 		loadCount = MessagesFirstLoad;
 		from = 0;
@@ -4821,14 +4826,15 @@ void HistoryWidget::countHistoryShowFrom() {
 	}
 	if (_history->showFrom) return;
 
-	int32 skip = qMin(MessagesPerPage / 2, _history->unreadCount);
+	bool greaterFound = false;
 	for (History::const_iterator i = _history->cend(); i != _history->cbegin();) {
 		--i;
 		for (HistoryBlock::const_iterator j = (*i)->cend(); j != (*i)->cbegin();) {
 			--j;
-			if ((*j)->itemType() == HistoryItem::MsgType) {
-				if (!--skip) {
+			if ((*j)->itemType() == HistoryItem::MsgType && (*j)->id > 0) {
+				if ((*j)->id >= _history->inboxReadBefore) {
 					_history->showFrom = *j;
+				} else {
 					return;
 				}
 			}

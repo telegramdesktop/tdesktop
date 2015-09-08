@@ -536,6 +536,7 @@ namespace App {
 			}
 			if (!data) continue;
 
+			data->loaded = true;
 			if (App::main()) {
 				if (emitPeerUpdated) {
 					App::main()->peerUpdated(data);

@@ -221,11 +221,11 @@ chatForbidden#fb0ccc41 id:int title:string date:int = Chat;
 channel#1bcc63f2 flags:# id:int access_hash:long title:string username:flags.2?string photo:ChatPhoto date:int version:int = Chat;
 
 chatFull#2e02a614 id:int participants:ChatParticipants chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite bot_info:Vector<BotInfo> = ChatFull;
-channelFull#5a090258 id:int about:string read_inbox_max_id:int unread_count:int unread_important_count:int inviter_id:int invite_date:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite = ChatFull;
+channelFull#b28da8f8 id:int participants:ChatParticipants about:string read_inbox_max_id:int unread_count:int unread_important_count:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite = ChatFull;
 
 chatParticipant#c8d7493e user_id:int inviter_id:int date:int = ChatParticipant;
 
-chatParticipantsForbidden#fd2bb8a chat_id:int = ChatParticipants;
+chatParticipantsForbidden#fc900c2b flags:# chat_id:int self_participant:flags.0?ChatParticipant = ChatParticipants;
 chatParticipants#7841b415 chat_id:int admin_id:int participants:Vector<ChatParticipant> version:int = ChatParticipants;
 
 chatPhotoEmpty#37c1011c = ChatPhoto;
@@ -363,7 +363,7 @@ updateNewEncryptedMessage#12bcbd9a message:EncryptedMessage qts:int = Update;
 updateEncryptedChatTyping#1710f156 chat_id:int = Update;
 updateEncryption#b4a2e88d chat:EncryptedChat date:int = Update;
 updateEncryptedMessagesRead#38fe25b7 chat_id:int max_date:int date:int = Update;
-updateChatParticipantAdd#3a0eeb22 chat_id:int user_id:int inviter_id:int version:int = Update;
+updateChatParticipantAdd#ea4b0e5c chat_id:int user_id:int inviter_id:int date:int version:int = Update;
 updateChatParticipantDelete#6e5f8c22 chat_id:int user_id:int version:int = Update;
 updateDcOptions#8e5e9873 dc_options:Vector<DcOption> = Update;
 updateUserBlocked#80ece81a user_id:int blocked:Bool = Update;

@@ -3687,7 +3687,12 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateChatUserTyping: {
 		const MTPDupdateChatUserTyping &d(update.c_updateChatUserTyping());
-		History *history = App::historyLoaded(peerFromChat(d.vchat_id));
+		History *history = 0;
+		if (PeerData *chat = App::peerLoaded(peerFromChat(d.vchat_id.v))) {
+			history = App::historyLoaded(chat->id);
+		} else if (PeerData *channel = App::peerLoaded(peerFromChannel(d.vchat_id.v))) {
+			history = App::historyLoaded(channel->id);
+		}
 		UserData *user = (d.vuser_id.v == MTP::authedId()) ? 0 : App::userLoaded(d.vuser_id.v);
 		if (history && user) {
 			App::histories().regSendAction(history, user, d.vaction);
