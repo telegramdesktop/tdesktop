@@ -1293,7 +1293,7 @@ bool CreateGroupBox::failed(const RPCError &error) {
 		return true;
 	} else if (error.type() == "PEER_FLOOD") {
 		emit closed();
-		App::wnd()->showLayer(new ConfirmBox(lang(lng_cant_invite_not_contact), true));
+		App::wnd()->showLayer(new ConfirmBox(lng_cant_invite_not_contact(lt_more_info, QString()), true));
 		return true;
 	}
 	return false;
