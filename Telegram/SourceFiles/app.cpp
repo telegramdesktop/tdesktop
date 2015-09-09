@@ -1743,6 +1743,7 @@ namespace App {
 		cSetStickerSets(StickerSets());
 		cSetStickerSetsOrder(StickerSetsOrder());
 		cSetLastStickersUpdate(0);
+		cSetReportSpamStatuses(ReportSpamStatuses());
 		::videoItems.clear();
 		::audioItems.clear();
 		::documentItems.clear();
