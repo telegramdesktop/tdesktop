@@ -822,6 +822,8 @@ bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
 		text = lang(lng_failed_add_not_mutual);
 	} else if (error.type() == "USER_ALREADY_PARTICIPANT" && user->botInfo) {
 		text = lang(lng_bot_already_in_group);
+	} else if (error.type() == "PEER_FLOOD") {
+		text = lang(lng_cant_invite_not_contact);
 	}
 	App::wnd()->showLayer(new ConfirmBox(text, true));
 	return false;
@@ -877,7 +879,7 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 	}
 }
 
-bool MainWidget::sendPhotoFailed(uint64 randomId, const RPCError &error) {
+bool MainWidget::sendPhotoFail(uint64 randomId, const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
 	if (error.type() == qsl("PHOTO_INVALID_DIMENSIONS")) {
@@ -889,6 +891,16 @@ bool MainWidget::sendPhotoFailed(uint64 randomId, const RPCError &error) {
 			App::wnd()->showLayer(box);
 		}
 		_resendImgRandomIds.push_back(randomId);
+		return true;
+	}
+	return sendMessageFail(error);
+}
+
+bool MainWidget::sendMessageFail(const RPCError &error) {
+	if (mtpIsFlood(error)) return false;
+
+	if (error.type() == qsl("PEER_FLOOD")) {
+		App::wnd()->showLayer(new ConfirmBox(lang(lng_cant_send_to_not_contact), true));
 		return true;
 	}
 	return false;
@@ -1073,7 +1085,7 @@ void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId repl
 		}
 		MTPVector<MTPMessageEntity> localEntities = linksToMTP(textParseLinks(sendingText, itemTextParseOptions(hist, App::self()).flags));
 		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTPint(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities));
-		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, localEntities), App::main()->rpcDone(&MainWidget::sentUpdatesReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, localEntities), rpcDone(&MainWidget::sentUpdatesReceived, randomId), rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 	}
 
 	finishForwarding(hist);
@@ -3560,6 +3572,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateWebPage: {
 		const MTPDupdateWebPage &d(update.c_updateWebPage());
+		if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
+			_byPtsUpdate.insert(ptsKey(SkippedUpdate), update);
+			return;
+		}
 		App::feedWebPage(d.vwebpage);
 		history.updatePreview();
 		webPagesUpdate();

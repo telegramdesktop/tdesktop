@@ -1282,7 +1282,7 @@ void CreateGroupBox::created(const MTPUpdates &updates) {
 }
 
 bool CreateGroupBox::failed(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	_createRequestId = 0;
 	if (error.type() == "NO_CHAT_TITLE") {
@@ -1290,6 +1290,10 @@ bool CreateGroupBox::failed(const RPCError &error) {
 		return true;
 	} else if (error.type() == "USERS_TOO_FEW") {
 		emit closed();
+		return true;
+	} else if (error.type() == "PEER_FLOOD") {
+		emit closed();
+		App::wnd()->showLayer(new ConfirmBox(lang(lng_cant_invite_not_contact), true));
 		return true;
 	}
 	return false;

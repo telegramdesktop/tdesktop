@@ -2600,6 +2600,8 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 				switch (stage) {
 				case 0: to.add("  webpage: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  pts: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  pts_count: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -4709,6 +4711,19 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
+			case mtpc_messages_reportSpam:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ messages_reportSpam");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
 			case mtpc_messages_discardEncryption:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
@@ -4773,19 +4788,6 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 				switch (stage) {
 				case 0: to.add("  stickerset: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_messages_reportSpam:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ messages_reportSpam");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;

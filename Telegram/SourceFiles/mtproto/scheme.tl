@@ -126,6 +126,7 @@ register.saveDeveloperInfo#9a5f6e95 name:string email:string phone_number:string
 
 ---types---
 
+
 error#c4b9f9bb code:int text:string = Error;
 
 null#56730bcc = Null;
@@ -366,7 +367,7 @@ updatePrivacy#ee3b272a key:PrivacyKey rules:Vector<PrivacyRule> = Update;
 updateUserPhone#12b9417b user_id:int phone:string = Update;
 updateReadHistoryInbox#9961fd5c peer:Peer max_id:int pts:int pts_count:int = Update;
 updateReadHistoryOutbox#2f2f21bf peer:Peer max_id:int pts:int pts_count:int = Update;
-updateWebPage#2cc36971 webpage:WebPage = Update;
+updateWebPage#7f891213 webpage:WebPage pts:int pts_count:int = Update;
 updateReadMessagesContents#68c13933 messages:Vector<int> pts:int pts_count:int = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
@@ -647,6 +648,7 @@ messages.setTyping#a3825e50 peer:InputPeer action:SendMessageAction = Bool;
 messages.sendMessage#fa88427a flags:# peer:InputPeer reply_to_msg_id:flags.0?int message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> = Updates;
 messages.sendMedia#c8f16791 flags:# peer:InputPeer reply_to_msg_id:flags.0?int media:InputMedia random_id:long reply_markup:flags.2?ReplyMarkup = Updates;
 messages.forwardMessages#55e1728d peer:InputPeer id:Vector<int> random_id:Vector<long> = Updates;
+messages.reportSpam#cf1592db peer:InputPeer = Bool;
 messages.getChats#3c6aa187 id:Vector<int> = messages.Chats;
 messages.getFullChat#3b831c66 chat_id:int = messages.ChatFull;
 messages.editChatTitle#dc452855 chat_id:int title:string = Updates;
@@ -677,7 +679,6 @@ messages.getStickerSet#2619a90e stickerset:InputStickerSet = messages.StickerSet
 messages.installStickerSet#7b30c3a6 stickerset:InputStickerSet disabled:Bool = Bool;
 messages.uninstallStickerSet#f96e55de stickerset:InputStickerSet = Bool;
 messages.startBot#1b3e0ffc bot:InputUser chat_id:int random_id:long start_param:string = Updates;
-messages.reportSpam#cf1592db peer:InputPeer = Bool;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;
