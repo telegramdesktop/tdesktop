@@ -1072,7 +1072,34 @@ textRectMargins: margins(-2px, -1px, -2px, -1px);
 taMsgField: flatTextarea(taDefFlat) {
 	font: msgFont;
 }
-maxFieldHeight: 243px;
+maxFieldHeight: 220px;
+// historyMinHeight: 56px;
+
+reportSpamHide: flatButton(topBarButton) {
+	height: 46px;
+
+	textTop: 15px;
+	overTextTop: 15px;
+	downTextTop: 16px;
+
+	bgColor: transparent;
+	overBgColor: transparent;
+	downBgColor: transparent;
+}
+reportSpamButton: flatButton(reportSpamHide) {
+	textTop: 6px;
+	overTextTop: 6px;
+	downTextTop: 7px;
+
+	width: -50px;
+	height: 30px;
+
+	bgColor: #888;
+	overBgColor: #7b7b7b;
+	downBgColor: #7b7b7b;
+}
+reportSpamSeparator: 30px;
+reportSpamBg: #fffffff0;
 
 newMsgSound: ':/gui/art/newmsg.wav';
 

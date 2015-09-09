@@ -12,7 +12,7 @@ index cfd12d8..8a6f9fb 100644
      return ALC_FALSE;
  }
 diff --git a/Alc/backends/winmm.c b/Alc/backends/winmm.c
-index 03805ab..77212c2 100644
+index 03805ab..5035a36 100644
 --- a/Alc/backends/winmm.c
 +++ b/Alc/backends/winmm.c
 @@ -220,7 +220,7 @@ FORCE_ALIGN static int ALCwinmmPlayback_mixerProc(void *arg)
@@ -20,7 +20,7 @@ index 03805ab..77212c2 100644
      althrd_setname(althrd_current(), MIXER_THREAD_NAME);
  
 -    while(GetMessage(&msg, NULL, 0, 0))
-+	if (!self->killNow) while (GetMessage(&msg, NULL, 0, 0))
++    if (!self->killNow) while(GetMessage(&msg, NULL, 0, 0))
      {
          if(msg.message != WOM_DONE)
              continue;
@@ -29,7 +29,7 @@ index 03805ab..77212c2 100644
      althrd_setname(althrd_current(), RECORD_THREAD_NAME);
  
 -    while(GetMessage(&msg, NULL, 0, 0))
-+    if (!self->killNow) while(GetMessage(&msg, NULL, 0, 0))
++	if (!self->killNow) while (GetMessage(&msg, NULL, 0, 0))
      {
          if(msg.message != WIM_DATA)
              continue;

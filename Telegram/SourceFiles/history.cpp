@@ -2220,8 +2220,11 @@ QString formatSizeText(qint64 size) {
 		qint64 sizeTenthMb = (size * 10 / (1024 * 1024));
 		return QString::number(sizeTenthMb / 10) + '.' + QString::number(sizeTenthMb % 10) + qsl(" MB");
 	}
-	qint64 sizeTenthKb = (size * 10 / 1024);
-	return QString::number(sizeTenthKb / 10) + '.' + QString::number(sizeTenthKb % 10) + qsl(" KB");
+	if (size >= 1024) {
+		qint64 sizeTenthKb = (size * 10 / 1024);
+		return QString::number(sizeTenthKb / 10) + '.' + QString::number(sizeTenthKb % 10) + qsl(" KB");
+	}
+	return QString::number(size) + qsl(" B");
 }
 
 QString formatDownloadText(qint64 ready, qint64 total) {
@@ -2231,11 +2234,15 @@ QString formatDownloadText(qint64 ready, qint64 total) {
 		readyStr = QString::number(readyTenthMb / 10) + '.' + QString::number(readyTenthMb % 10);
 		totalStr = QString::number(totalTenthMb / 10) + '.' + QString::number(totalTenthMb % 10);
 		mb = qsl("MB");
-	} else {
+	} else if (total >= 1024) {
 		qint64 readyKb = (ready / 1024), totalKb = (total / 1024);
 		readyStr = QString::number(readyKb);
 		totalStr = QString::number(totalKb);
 		mb = qsl("KB");
+	} else {
+		readyStr = QString::number(ready);
+		totalStr = QString::number(total);
+		mb = qsl("B");
 	}
 	return lng_save_downloaded(lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
 }
@@ -6313,6 +6320,11 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 			UserData *u = App::user(App::peerFromUser(d.vuser_id));
 			second = TextLinkPtr(new PeerLink(u));
 			text = lng_action_add_user(lt_from, from, lt_user, textcmdLink(2, u->name));
+			if (d.vuser_id.v == MTP::authedId() && unread()) {
+				if (history()->peer->chat && !history()->peer->asChat()->inviterForSpamReport && !_from->chat) {
+					history()->peer->asChat()->inviterForSpamReport = App::userFromPeer(_from->id);
+				}
+			}
 		}
 	} break;
 
@@ -6330,6 +6342,11 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionChatCreate: {
 		const MTPDmessageActionChatCreate &d(action.c_messageActionChatCreate());
 		text = lng_action_created_chat(lt_from, from, lt_title, textClean(qs(d.vtitle)));
+		if (unread()) {
+			if (history()->peer->chat && !history()->peer->asChat()->inviterForSpamReport && !_from->chat && App::userFromPeer(_from->id) != MTP::authedId()) {
+				history()->peer->asChat()->inviterForSpamReport = App::userFromPeer(_from->id);
+			}
+		}
 	} break;
 
 	case mtpc_messageActionChatDeletePhoto: {

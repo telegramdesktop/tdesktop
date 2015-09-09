@@ -485,6 +485,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
 
+"lng_report_spam" = "Report Spam";
+"lng_report_spam_hide" = "Hide";
+"lng_report_spam_thanks" = "Thank you for your report!";
+"lng_cant_send_to_not_contact" = "Sorry, you can only send messages to\nmutual contacts at the moment. {more_info}";
+"lng_cant_invite_not_contact" = "Sorry, you can only add mutual contacts\nto groups at the moment. {more_info}";
+"lng_cant_more_info" = "More info »";
+
 "lng_send_button" = "Send";
 "lng_message_ph" = "Write a message..";
 "lng_record_cancel" = "Release outside this field to cancel";
@@ -648,7 +655,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Include muted chats in unread count in Settings\n— Shared links overview and search in shared media\n— Preview when sending links to GIF animations and PDF files";
+"lng_new_version_text" = "— Spam report buttons in new chats\n— Other fixes and improvements\n— OS X 10.8 notifications fixed";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 
