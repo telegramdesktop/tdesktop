@@ -133,9 +133,10 @@ enum {
 	mtpc_userStatusLastWeek = 0x7bf09fc,
 	mtpc_userStatusLastMonth = 0x77ebc742,
 	mtpc_chatEmpty = 0x9ba2d800,
-	mtpc_chat = 0x6e9c9bc7,
-	mtpc_chatForbidden = 0xfb0ccc41,
+	mtpc_chat = 0xc7c02794,
+	mtpc_chatForbidden = 0x7328bdb,
 	mtpc_channel = 0x1bcc63f2,
+	mtpc_channelForbidden = 0x2d85832c,
 	mtpc_chatFull = 0x2e02a614,
 	mtpc_channelFull = 0xb28da8f8,
 	mtpc_chatParticipant = 0xc8d7493e,
@@ -250,7 +251,7 @@ enum {
 	mtpc_updateUserPhone = 0x12b9417b,
 	mtpc_updateReadHistoryInbox = 0x9961fd5c,
 	mtpc_updateReadHistoryOutbox = 0x2f2f21bf,
-	mtpc_updateWebPage = 0x2cc36971,
+	mtpc_updateWebPage = 0x7f891213,
 	mtpc_updateReadMessagesContents = 0x68c13933,
 	mtpc_updateChannelTooLong = 0x60946422,
 	mtpc_updateChannelGroup = 0xc36c1e3c,
@@ -478,6 +479,7 @@ enum {
 	mtpc_messages_sendMessage = 0xfa88427a,
 	mtpc_messages_sendMedia = 0xc8f16791,
 	mtpc_messages_forwardMessages = 0x55e1728d,
+	mtpc_messages_reportSpam = 0xcf1592db,
 	mtpc_messages_getChats = 0x27ae65b,
 	mtpc_messages_getFullChat = 0x36a4dfe,
 	mtpc_messages_editChatTitle = 0x6699d506,
@@ -693,6 +695,7 @@ class MTPDchatEmpty;
 class MTPDchat;
 class MTPDchatForbidden;
 class MTPDchannel;
+class MTPDchannelForbidden;
 
 class MTPchatFull;
 class MTPDchatFull;
@@ -3163,6 +3166,18 @@ public:
 		return *(const MTPDchannel*)data;
 	}
 
+	MTPDchannelForbidden &_channelForbidden() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_channelForbidden) throw mtpErrorWrongTypeId(_type, mtpc_channelForbidden);
+		split();
+		return *(MTPDchannelForbidden*)data;
+	}
+	const MTPDchannelForbidden &c_channelForbidden() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_channelForbidden) throw mtpErrorWrongTypeId(_type, mtpc_channelForbidden);
+		return *(const MTPDchannelForbidden*)data;
+	}
+
 	uint32 innerLength() const;
 	mtpTypeId type() const;
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
@@ -3176,11 +3191,13 @@ private:
 	explicit MTPchat(MTPDchat *_data);
 	explicit MTPchat(MTPDchatForbidden *_data);
 	explicit MTPchat(MTPDchannel *_data);
+	explicit MTPchat(MTPDchannelForbidden *_data);
 
 	friend MTPchat MTP_chatEmpty(MTPint _id);
-	friend MTPchat MTP_chat(MTPint _id, const MTPstring &_title, const MTPChatPhoto &_photo, MTPint _participants_count, MTPint _date, MTPBool _left, MTPint _version);
-	friend MTPchat MTP_chatForbidden(MTPint _id, const MTPstring &_title, MTPint _date);
+	friend MTPchat MTP_chat(MTPint _id, const MTPstring &_title, const MTPChatPhoto &_photo, MTPint _participants_count, MTPint _date, MTPint _version);
+	friend MTPchat MTP_chatForbidden(MTPint _id, const MTPstring &_title);
 	friend MTPchat MTP_channel(MTPint _flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_title, const MTPstring &_username, const MTPChatPhoto &_photo, MTPint _date, MTPint _version);
+	friend MTPchat MTP_channelForbidden(MTPint _id, const MTPlong &_access_hash, const MTPstring &_title);
 
 	mtpTypeId _type;
 };
@@ -5374,7 +5391,7 @@ private:
 	friend MTPupdate MTP_updateUserPhone(MTPint _user_id, const MTPstring &_phone);
 	friend MTPupdate MTP_updateReadHistoryInbox(const MTPPeer &_peer, MTPint _max_id, MTPint _pts, MTPint _pts_count);
 	friend MTPupdate MTP_updateReadHistoryOutbox(const MTPPeer &_peer, MTPint _max_id, MTPint _pts, MTPint _pts_count);
-	friend MTPupdate MTP_updateWebPage(const MTPWebPage &_webpage);
+	friend MTPupdate MTP_updateWebPage(const MTPWebPage &_webpage, MTPint _pts, MTPint _pts_count);
 	friend MTPupdate MTP_updateReadMessagesContents(const MTPVector<MTPint> &_messages, MTPint _pts, MTPint _pts_count);
 	friend MTPupdate MTP_updateChannelTooLong(MTPint _channel_id);
 	friend MTPupdate MTP_updateChannelGroup(MTPint _channel_id, const MTPMessageGroup &_group);
@@ -9168,7 +9185,7 @@ class MTPDchat : public mtpDataImpl<MTPDchat> {
 public:
 	MTPDchat() {
 	}
-	MTPDchat(MTPint _id, const MTPstring &_title, const MTPChatPhoto &_photo, MTPint _participants_count, MTPint _date, MTPBool _left, MTPint _version) : vid(_id), vtitle(_title), vphoto(_photo), vparticipants_count(_participants_count), vdate(_date), vleft(_left), vversion(_version) {
+	MTPDchat(MTPint _id, const MTPstring &_title, const MTPChatPhoto &_photo, MTPint _participants_count, MTPint _date, MTPint _version) : vid(_id), vtitle(_title), vphoto(_photo), vparticipants_count(_participants_count), vdate(_date), vversion(_version) {
 	}
 
 	MTPint vid;
@@ -9176,7 +9193,6 @@ public:
 	MTPChatPhoto vphoto;
 	MTPint vparticipants_count;
 	MTPint vdate;
-	MTPBool vleft;
 	MTPint vversion;
 };
 
@@ -9184,12 +9200,11 @@ class MTPDchatForbidden : public mtpDataImpl<MTPDchatForbidden> {
 public:
 	MTPDchatForbidden() {
 	}
-	MTPDchatForbidden(MTPint _id, const MTPstring &_title, MTPint _date) : vid(_id), vtitle(_title), vdate(_date) {
+	MTPDchatForbidden(MTPint _id, const MTPstring &_title) : vid(_id), vtitle(_title) {
 	}
 
 	MTPint vid;
 	MTPstring vtitle;
-	MTPint vdate;
 };
 
 class MTPDchannel : public mtpDataImpl<MTPDchannel> {
@@ -9213,6 +9228,18 @@ public:
 	};
 
 	bool has_username() const { return vflags.v & flag_username; }
+};
+
+class MTPDchannelForbidden : public mtpDataImpl<MTPDchannelForbidden> {
+public:
+	MTPDchannelForbidden() {
+	}
+	MTPDchannelForbidden(MTPint _id, const MTPlong &_access_hash, const MTPstring &_title) : vid(_id), vaccess_hash(_access_hash), vtitle(_title) {
+	}
+
+	MTPint vid;
+	MTPlong vaccess_hash;
+	MTPstring vtitle;
 };
 
 class MTPDchatFull : public mtpDataImpl<MTPDchatFull> {
@@ -10338,10 +10365,12 @@ class MTPDupdateWebPage : public mtpDataImpl<MTPDupdateWebPage> {
 public:
 	MTPDupdateWebPage() {
 	}
-	MTPDupdateWebPage(const MTPWebPage &_webpage) : vwebpage(_webpage) {
+	MTPDupdateWebPage(const MTPWebPage &_webpage, MTPint _pts, MTPint _pts_count) : vwebpage(_webpage), vpts(_pts), vpts_count(_pts_count) {
 	}
 
 	MTPWebPage vwebpage;
+	MTPint vpts;
+	MTPint vpts_count;
 };
 
 class MTPDupdateReadMessagesContents : public mtpDataImpl<MTPDupdateReadMessagesContents> {
@@ -15174,6 +15203,45 @@ public:
 	}
 };
 
+class MTPmessages_reportSpam { // RPC method 'messages.reportSpam'
+public:
+	MTPInputPeer vpeer;
+
+	MTPmessages_reportSpam() {
+	}
+	MTPmessages_reportSpam(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_reportSpam) {
+		read(from, end, cons);
+	}
+	MTPmessages_reportSpam(const MTPInputPeer &_peer) : vpeer(_peer) {
+	}
+
+	uint32 innerLength() const {
+		return vpeer.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_messages_reportSpam;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_reportSpam) {
+		vpeer.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vpeer.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPmessages_ReportSpam : public MTPBoxed<MTPmessages_reportSpam> {
+public:
+	MTPmessages_ReportSpam() {
+	}
+	MTPmessages_ReportSpam(const MTPmessages_reportSpam &v) : MTPBoxed<MTPmessages_reportSpam>(v) {
+	}
+	MTPmessages_ReportSpam(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_reportSpam>(from, end, cons) {
+	}
+	MTPmessages_ReportSpam(const MTPInputPeer &_peer) : MTPBoxed<MTPmessages_reportSpam>(MTPmessages_reportSpam(_peer)) {
+	}
+};
+
 class MTPmessages_getChats { // RPC method 'messages.getChats'
 public:
 	MTPVector<MTPInputChat> vid;
@@ -19913,15 +19981,19 @@ inline uint32 MTPchat::innerLength() const {
 		}
 		case mtpc_chat: {
 			const MTPDchat &v(c_chat());
-			return v.vid.innerLength() + v.vtitle.innerLength() + v.vphoto.innerLength() + v.vparticipants_count.innerLength() + v.vdate.innerLength() + v.vleft.innerLength() + v.vversion.innerLength();
+			return v.vid.innerLength() + v.vtitle.innerLength() + v.vphoto.innerLength() + v.vparticipants_count.innerLength() + v.vdate.innerLength() + v.vversion.innerLength();
 		}
 		case mtpc_chatForbidden: {
 			const MTPDchatForbidden &v(c_chatForbidden());
-			return v.vid.innerLength() + v.vtitle.innerLength() + v.vdate.innerLength();
+			return v.vid.innerLength() + v.vtitle.innerLength();
 		}
 		case mtpc_channel: {
 			const MTPDchannel &v(c_channel());
 			return v.vflags.innerLength() + v.vid.innerLength() + v.vaccess_hash.innerLength() + v.vtitle.innerLength() + (v.has_username() ? v.vusername.innerLength() : 0) + v.vphoto.innerLength() + v.vdate.innerLength() + v.vversion.innerLength();
+		}
+		case mtpc_channelForbidden: {
+			const MTPDchannelForbidden &v(c_channelForbidden());
+			return v.vid.innerLength() + v.vaccess_hash.innerLength() + v.vtitle.innerLength();
 		}
 	}
 	return 0;
@@ -19946,7 +20018,6 @@ inline void MTPchat::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId 
 			v.vphoto.read(from, end);
 			v.vparticipants_count.read(from, end);
 			v.vdate.read(from, end);
-			v.vleft.read(from, end);
 			v.vversion.read(from, end);
 		} break;
 		case mtpc_chatForbidden: _type = cons; {
@@ -19954,7 +20025,6 @@ inline void MTPchat::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId 
 			MTPDchatForbidden &v(_chatForbidden());
 			v.vid.read(from, end);
 			v.vtitle.read(from, end);
-			v.vdate.read(from, end);
 		} break;
 		case mtpc_channel: _type = cons; {
 			if (!data) setData(new MTPDchannel());
@@ -19967,6 +20037,13 @@ inline void MTPchat::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId 
 			v.vphoto.read(from, end);
 			v.vdate.read(from, end);
 			v.vversion.read(from, end);
+		} break;
+		case mtpc_channelForbidden: _type = cons; {
+			if (!data) setData(new MTPDchannelForbidden());
+			MTPDchannelForbidden &v(_channelForbidden());
+			v.vid.read(from, end);
+			v.vaccess_hash.read(from, end);
+			v.vtitle.read(from, end);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPchat");
 	}
@@ -19984,14 +20061,12 @@ inline void MTPchat::write(mtpBuffer &to) const {
 			v.vphoto.write(to);
 			v.vparticipants_count.write(to);
 			v.vdate.write(to);
-			v.vleft.write(to);
 			v.vversion.write(to);
 		} break;
 		case mtpc_chatForbidden: {
 			const MTPDchatForbidden &v(c_chatForbidden());
 			v.vid.write(to);
 			v.vtitle.write(to);
-			v.vdate.write(to);
 		} break;
 		case mtpc_channel: {
 			const MTPDchannel &v(c_channel());
@@ -20004,6 +20079,12 @@ inline void MTPchat::write(mtpBuffer &to) const {
 			v.vdate.write(to);
 			v.vversion.write(to);
 		} break;
+		case mtpc_channelForbidden: {
+			const MTPDchannelForbidden &v(c_channelForbidden());
+			v.vid.write(to);
+			v.vaccess_hash.write(to);
+			v.vtitle.write(to);
+		} break;
 	}
 }
 inline MTPchat::MTPchat(mtpTypeId type) : mtpDataOwner(0), _type(type) {
@@ -20012,6 +20093,7 @@ inline MTPchat::MTPchat(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 		case mtpc_chat: setData(new MTPDchat()); break;
 		case mtpc_chatForbidden: setData(new MTPDchatForbidden()); break;
 		case mtpc_channel: setData(new MTPDchannel()); break;
+		case mtpc_channelForbidden: setData(new MTPDchannelForbidden()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPchat");
 	}
 }
@@ -20023,17 +20105,22 @@ inline MTPchat::MTPchat(MTPDchatForbidden *_data) : mtpDataOwner(_data), _type(m
 }
 inline MTPchat::MTPchat(MTPDchannel *_data) : mtpDataOwner(_data), _type(mtpc_channel) {
 }
+inline MTPchat::MTPchat(MTPDchannelForbidden *_data) : mtpDataOwner(_data), _type(mtpc_channelForbidden) {
+}
 inline MTPchat MTP_chatEmpty(MTPint _id) {
 	return MTPchat(new MTPDchatEmpty(_id));
 }
-inline MTPchat MTP_chat(MTPint _id, const MTPstring &_title, const MTPChatPhoto &_photo, MTPint _participants_count, MTPint _date, MTPBool _left, MTPint _version) {
-	return MTPchat(new MTPDchat(_id, _title, _photo, _participants_count, _date, _left, _version));
+inline MTPchat MTP_chat(MTPint _id, const MTPstring &_title, const MTPChatPhoto &_photo, MTPint _participants_count, MTPint _date, MTPint _version) {
+	return MTPchat(new MTPDchat(_id, _title, _photo, _participants_count, _date, _version));
 }
-inline MTPchat MTP_chatForbidden(MTPint _id, const MTPstring &_title, MTPint _date) {
-	return MTPchat(new MTPDchatForbidden(_id, _title, _date));
+inline MTPchat MTP_chatForbidden(MTPint _id, const MTPstring &_title) {
+	return MTPchat(new MTPDchatForbidden(_id, _title));
 }
 inline MTPchat MTP_channel(MTPint _flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_title, const MTPstring &_username, const MTPChatPhoto &_photo, MTPint _date, MTPint _version) {
 	return MTPchat(new MTPDchannel(_flags, _id, _access_hash, _title, _username, _photo, _date, _version));
+}
+inline MTPchat MTP_channelForbidden(MTPint _id, const MTPlong &_access_hash, const MTPstring &_title) {
+	return MTPchat(new MTPDchannelForbidden(_id, _access_hash, _title));
 }
 
 inline uint32 MTPchatFull::innerLength() const {
@@ -22435,7 +22522,7 @@ inline uint32 MTPupdate::innerLength() const {
 		}
 		case mtpc_updateWebPage: {
 			const MTPDupdateWebPage &v(c_updateWebPage());
-			return v.vwebpage.innerLength();
+			return v.vwebpage.innerLength() + v.vpts.innerLength() + v.vpts_count.innerLength();
 		}
 		case mtpc_updateReadMessagesContents: {
 			const MTPDupdateReadMessagesContents &v(c_updateReadMessagesContents());
@@ -22649,6 +22736,8 @@ inline void MTPupdate::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeI
 			if (!data) setData(new MTPDupdateWebPage());
 			MTPDupdateWebPage &v(_updateWebPage());
 			v.vwebpage.read(from, end);
+			v.vpts.read(from, end);
+			v.vpts_count.read(from, end);
 		} break;
 		case mtpc_updateReadMessagesContents: _type = cons; {
 			if (!data) setData(new MTPDupdateReadMessagesContents());
@@ -22845,6 +22934,8 @@ inline void MTPupdate::write(mtpBuffer &to) const {
 		case mtpc_updateWebPage: {
 			const MTPDupdateWebPage &v(c_updateWebPage());
 			v.vwebpage.write(to);
+			v.vpts.write(to);
+			v.vpts_count.write(to);
 		} break;
 		case mtpc_updateReadMessagesContents: {
 			const MTPDupdateReadMessagesContents &v(c_updateReadMessagesContents());
@@ -23063,8 +23154,8 @@ inline MTPupdate MTP_updateReadHistoryInbox(const MTPPeer &_peer, MTPint _max_id
 inline MTPupdate MTP_updateReadHistoryOutbox(const MTPPeer &_peer, MTPint _max_id, MTPint _pts, MTPint _pts_count) {
 	return MTPupdate(new MTPDupdateReadHistoryOutbox(_peer, _max_id, _pts, _pts_count));
 }
-inline MTPupdate MTP_updateWebPage(const MTPWebPage &_webpage) {
-	return MTPupdate(new MTPDupdateWebPage(_webpage));
+inline MTPupdate MTP_updateWebPage(const MTPWebPage &_webpage, MTPint _pts, MTPint _pts_count) {
+	return MTPupdate(new MTPDupdateWebPage(_webpage, _pts, _pts_count));
 }
 inline MTPupdate MTP_updateReadMessagesContents(const MTPVector<MTPint> &_messages, MTPint _pts, MTPint _pts_count) {
 	return MTPupdate(new MTPDupdateReadMessagesContents(_messages, _pts, _pts_count));

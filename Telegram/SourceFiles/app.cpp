@@ -486,7 +486,7 @@ namespace App {
 				cdata->setPhoto(d.vphoto);
 				cdata->date = d.vdate.v;
 				cdata->count = d.vparticipants_count.v;
-				cdata->left = d.vleft.v;
+				cdata->left = false;// d.vflags.v & MTPDchat... d.vleft.v;
 				cdata->forbidden = false;
 				if (cdata->version < d.vversion.v) {
 					cdata->version = d.vversion.v;
