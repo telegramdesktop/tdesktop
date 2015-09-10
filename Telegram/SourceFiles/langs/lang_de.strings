@@ -485,6 +485,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} (Sticker)";
 
+"lng_report_spam" = "Spam melden";
+"lng_report_spam_hide" = "Schließen";
+"lng_report_spam_thanks" = "Danke für die Meldung!";
+"lng_cant_send_to_not_contact" = "Derzeit kannst du nur Personen schreiben, wenn ihr eure Nummern ausgetauscht habt. {more_info}";
+"lng_cant_invite_not_contact" = "Du kannst nur Personen hinzufügen, wenn ihr eure Nummern ausgetauscht habt. {more_info}";
+"lng_cant_more_info" = "Weitere Infos »";
+
 "lng_send_button" = "Senden";
 "lng_message_ph" = "Schreibe deine Nachricht..";
 "lng_record_cancel" = "Zum Abbrechen rausbewegen";
@@ -648,7 +655,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Stummgeschaltete Chats können ab sofort optional mitgezählt werden (Einstellungen > Stummgeschaltete Chats mitzählen)\n— Übersicht der im Chat geteilten Links im Bereich 'Geteilte Medien'\n— GIF-Vorschau und PDF-Vorschau von Direktlinks (.pdf und .gif)";
+"lng_new_version_text" = "— Unerwünschte Nachrichten (Spam) in neuen Chats melden\n— Sonstige Fehlerbehungen und Verbesserungen\n— OS X 10.8 Benachrichtigungen funktionieren wieder";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

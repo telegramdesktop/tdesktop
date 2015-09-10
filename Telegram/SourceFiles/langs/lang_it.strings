@@ -403,7 +403,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_title" = "Nuovo gruppo";
 
 "lng_failed_add_participant" = "Impossibile aggiungere l'utente. Riprova più tardi.";
-"lng_failed_add_not_mutual" = "Se una persona lascia un gruppo, solo\nun contatto in comune può reinvitarla\n(chi ti invita deve avere il tuo\ncontatto su Telegram, e viceversa).";
+"lng_failed_add_not_mutual" = "Spiacenti, se una persona lascia un gruppo,\nsolo un contatto in comune può reinvitarla\n(chi ti invita deve avere il tuo\ncontatto su Telegram, e viceversa).";
 
 "lng_sure_delete_contact" = "Sicuro di volere eliminare {contact} dalla tua lista dei contatti?";
 "lng_sure_delete_history" = "Sicuro di voler eliminare tutta la cronologia dei messaggi con {contact}?\n\nQuesta azione non può essere annullata.";
@@ -484,6 +484,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_file" = "File";
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
+
+"lng_report_spam" = "Segnala spam";
+"lng_report_spam_hide" = "Nascondi";
+"lng_report_spam_thanks" = "Grazie per la tua segnalazione!";
+"lng_cant_send_to_not_contact" = "Spiacenti, ma al momento puoi scrivere\nsolo a contatti in comune. {more_info}";
+"lng_cant_invite_not_contact" = "Spiacenti, ma al momento puoi aggiungere\nai gruppi solo a contatti in comune. {more_info}";
+"lng_cant_more_info" = "Più info »";
 
 "lng_send_button" = "Invia";
 "lng_message_ph" = "Scrivi un messaggio..";
@@ -648,7 +655,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Bug fix e altri miglioramenti minori";
-"lng_new_version_text" = "— Includi chat silenziate nel badge nelle Impostazioni\n— Panoramica dei link condivisi e ricerca nei media condivisi\n— Anteprima quando invii una GIF o un file PDF.";
+"lng_new_version_text" = "— Pulsante per segnalare lo spam nelle nuove chat\n— Altri fix e miglioramenti\n— Risoluzione problema alle notifiche in OS X 10.8";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 
