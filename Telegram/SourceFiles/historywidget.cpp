@@ -2979,7 +2979,7 @@ void HistoryWidget::updateReportSpamStatus() {
 			return;
 		}
 	}
-	if ((!_history->loadedAtTop() && (_history->size() < 2 || _history->size() == 2 && _history->at(1)->size() < 2)) || !cContactsReceived() || _firstLoadRequest) {
+	if ((!_history->loadedAtTop() && (_history->size() < 2 || (_history->size() == 2 && _history->at(1)->size() < 2))) || !cContactsReceived() || _firstLoadRequest) {
 		_reportSpamStatus = dbiprsUnknown;
 	} else if (_peer->chat) {
 		if (_peer->asChat()->inviterForSpamReport > 0) {
