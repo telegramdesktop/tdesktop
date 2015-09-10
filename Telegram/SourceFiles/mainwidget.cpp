@@ -823,7 +823,7 @@ bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
 	} else if (error.type() == "USER_ALREADY_PARTICIPANT" && user->botInfo) {
 		text = lang(lng_bot_already_in_group);
 	} else if (error.type() == "PEER_FLOOD") {
-		text = lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq#can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)));
+		text = lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)));
 	}
 	App::wnd()->showLayer(new ConfirmBox(text, true));
 	return false;
@@ -900,7 +900,7 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
 	if (error.type() == qsl("PEER_FLOOD")) {
-		App::wnd()->showLayer(new ConfirmBox(lng_cant_send_to_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq#can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info))), true));
+		App::wnd()->showLayer(new ConfirmBox(lng_cant_send_to_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info))), true));
 		return true;
 	}
 	return false;
