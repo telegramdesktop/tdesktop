@@ -21,6 +21,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "lang.h"
 
 #include "pspecific.h"
+#include "boxes/confirmbox.h"
+#include "window.h"
 
 #include <private/qharfbuzz_p.h>
 
@@ -58,6 +60,10 @@ const QRegularExpression &reDomain() {
 
 const QRegularExpression &reMailName() {
 	return _reMailName;
+}
+
+const QRegularExpression &reMailStart() {
+	return _reMailStart;
 }
 
 const QRegularExpression &reHashtag() {
@@ -336,9 +342,16 @@ public:
 
 		createBlock();
 
-		QString lnkUrl = QString(start + waitingLink->offset, waitingLink->length), lnkText;
 		int32 fullDisplayed;
-		getLinkData(lnkUrl, lnkText, fullDisplayed);
+		QString lnkUrl, lnkText;
+		if (waitingLink->type == LinkInTextCustomUrl) {
+			lnkUrl = waitingLink->text;
+			lnkText = QString(start + waitingLink->offset, waitingLink->length);
+			fullDisplayed = -5;
+		} else {
+			lnkUrl = QString(start + waitingLink->offset, waitingLink->length);
+			getLinkData(lnkUrl, lnkText, fullDisplayed);
+		}
 
 		links.push_back(TextLinkData(lnkUrl, fullDisplayed));
 		lnkIndex = 0x8000 + links.size();
@@ -617,7 +630,9 @@ public:
 					_t->_links.resize(lnkIndex);
 					const TextLinkData &data(links[lnkIndex - maxLnkIndex - 1]);
 					TextLinkPtr lnk;
-					if (data.fullDisplayed < -3) { // bot command
+					if (data.fullDisplayed < -4) { // hidden link
+						lnk = TextLinkPtr(new CustomTextLink(data.url));
+					} else if (data.fullDisplayed < -3) { // bot command
 						lnk = TextLinkPtr(new BotCommandLink(data.url));
 					} else if (data.fullDisplayed < -2) { // mention
 						if (options.flags & TextTwitterMentions) {
@@ -664,7 +679,7 @@ private:
 		TextLinkData(const QString &url = QString(), int32 fullDisplayed = 1) : url(url), fullDisplayed(fullDisplayed) {
 		}
 		QString url;
-		int32 fullDisplayed; // -4 - bot command, -3 - mention, -2 - hashtag, -1 - email
+		int32 fullDisplayed; // -5 - custom text link, -4 - bot command, -3 - mention, -2 - hashtag, -1 - email
 	};
 	typedef QVector<TextLinkData> TextLinks;
 	TextLinks links;
@@ -818,6 +833,10 @@ void EmailLink::onClick(Qt::MouseButton button) const {
 			psOpenFile(url.toString(QUrl::FullyEncoded), true);
 		}
 	}
+}
+
+void CustomTextLink::onClick(Qt::MouseButton button) const {
+	App::wnd()->showLayer(new ConfirmLinkBox(text()));
 }
 
 void MentionLink::onClick(Qt::MouseButton button) const {

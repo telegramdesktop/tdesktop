@@ -49,7 +49,7 @@ void ConfirmBox::init(const QString &text) {
 	_text.setText(st::boxFont, text, (_infoMsg ? _confirmBoxTextOptions : _textPlainOptions));
 
 	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxPadding.right();
-	_textHeight = _text.countHeight(_textWidth);
+	_textHeight = qMin(_text.countHeight(_textWidth), 16 * st::boxFont->height);
 	setMaxHeight(st::boxPadding.top() + _textHeight + st::boxPadding.bottom() + (_infoMsg ? _close.height() : _confirm.height()));
 
 	if (_infoMsg) {
@@ -171,7 +171,7 @@ void ConfirmBox::paintEvent(QPaintEvent *e) {
 	// draw box title / text
 	p.setFont(st::boxFont->f);
 	p.setPen(st::black->p);
-	_text.draw(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, (_text.maxWidth() < width()) ? style::al_center : style::al_left);
+	_text.drawElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, 16, (_text.maxWidth() < width()) ? style::al_center : style::al_left);
 }
 
 void ConfirmBox::resizeEvent(QResizeEvent *e) {
@@ -181,4 +181,17 @@ void ConfirmBox::resizeEvent(QResizeEvent *e) {
 		_confirm.move(width() - _confirm.width(), st::boxPadding.top() + _textHeight + st::boxPadding.bottom());
 		_cancel.move(0, st::boxPadding.top() + _textHeight + st::boxPadding.bottom());
 	}
+}
+
+ConfirmLinkBox::ConfirmLinkBox(const QString &url) : ConfirmBox(lang(lng_open_this_link) + qsl("\n\n") + url, lang(lng_open_link)), _url(url) {
+	connect(this, SIGNAL(confirmed()), this, SLOT(onOpenLink()));
+}
+
+void ConfirmLinkBox::onOpenLink() {
+	if (reMailStart().match(_url).hasMatch()) {
+		EmailLink(_url).onClick(Qt::LeftButton);
+	} else {
+		TextLink(_url).onClick(Qt::LeftButton);
+	}
+	App::wnd()->hideLayer();
 }
