@@ -2968,7 +2968,7 @@ void HistoryWidget::contactsReceived() {
 }
 
 void HistoryWidget::updateReportSpamStatus() {
-	if (!_peer || App::userFromPeer(_peer->id) == MTP::authedId()) {
+	if (!_peer || !_peer->chat && (App::userFromPeer(_peer->id) == MTP::authedId() || isNotificationsUser(_peer->id) || isServiceUser(_peer->id))) {
 		_reportSpamStatus = dbiprsNoButton;
 		return;
 	} else {
