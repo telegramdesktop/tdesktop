@@ -1063,7 +1063,7 @@ void HistoryList::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-int32 HistoryList::recountHeight(bool dontRecountText) {
+int32 HistoryList::recountHeight(HistoryItem *resizedItem) {
 	int32 st = hist->lastScrollTop;
 
 	int32 ph = scrollArea->height(), minadd = 0;
@@ -1073,7 +1073,7 @@ int32 HistoryList::recountHeight(bool dontRecountText) {
 	}
 	if (wasYSkip < minadd) wasYSkip = minadd;
 
-	hist->geomResize(scrollArea->width(), &st, dontRecountText);
+	hist->geomResize(scrollArea->width(), &st, resizedItem);
 	updateBotInfo(false);
 	if (botInfo && !botInfo->text.isEmpty()) {
 		int32 tw = scrollArea->width() - st::msgMargin.left() - st::msgMargin.right();
@@ -4799,7 +4799,7 @@ MsgId HistoryWidget::replyToId() const {
 void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, HistoryItem *resizedItem, bool scrollToIt) {
 	if (!_history || (initial && _histInited) || (!initial && !_histInited)) return;
 	if (_firstLoadRequest) {
-		if (resizedItem) _list->recountHeight(true);
+		if (resizedItem) _list->recountHeight(resizedItem);
 		return; // scrollTopMax etc are not working after recountHeight()
 	}
 
@@ -4829,7 +4829,7 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 	if (!initial) {
 		_history->lastScrollTop = _scroll.scrollTop();
 	}
-	int32 newSt = _list->recountHeight(!!resizedItem);
+	int32 newSt = _list->recountHeight(resizedItem);
 	bool washidden = _scroll.isHidden();
 	if (washidden) {
 		_scroll.show();

@@ -722,7 +722,7 @@ namespace App {
 			bool hasLinks = m.has_entities() && !m.ventities.c_vector().v.isEmpty();
 			if ((hasLinks && !existing->hasTextLinks()) || (!hasLinks && existing->textHasLinks())) {
 				existing->setText(qs(m.vmessage), m.has_entities() ? linksFromMTP(m.ventities.c_vector().v) : LinksInText());
-				existing->initDimensions(0);
+				existing->initDimensions();
 				if (App::main()) App::main()->itemResized(existing);
 				if (existing->hasTextLinks()) {
 					existing->history()->addToOverview(existing, OverviewLinks);

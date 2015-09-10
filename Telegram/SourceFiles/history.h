@@ -214,7 +214,7 @@ struct History : public QList<HistoryBlock*> {
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
 
-	int32 geomResize(int32 newWidth, int32 *ytransform = 0, bool dontRecountText = false); // return new size
+	int32 geomResize(int32 newWidth, int32 *ytransform = 0, HistoryItem *resizedItem = 0); // return new size
 	int32 width, height, msgCount, unreadCount;
 	int32 inboxReadTill, outboxReadTill;
 	HistoryItem *showFrom;
@@ -614,7 +614,7 @@ struct HistoryBlock : public QVector<HistoryItem*> {
 	}
 	void removeItem(HistoryItem *item);
 
-	int32 geomResize(int32 newWidth, int32 *ytransform, bool dontRecountText); // return new size
+	int32 geomResize(int32 newWidth, int32 *ytransform, HistoryItem *resizedItem); // return new size
 	int32 y, height;
 	History *history;
 };
@@ -624,9 +624,6 @@ public:
 
 	HistoryElem() : _height(0), _maxw(0) {
 	}
-
-	virtual void initDimensions(const HistoryItem *parent = 0) = 0;
-	virtual int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0) = 0; // return new height
 
 	int32 height() const {
 		return _height;
@@ -683,7 +680,10 @@ public:
 		UnreadBarType
 	};
 
+	virtual void initDimensions() = 0;
+	virtual int32 resize(int32 width) = 0; // return new height
 	virtual void draw(QPainter &p, uint32 selection) const = 0;
+
 	History *history() {
 		return _history;
 	}
@@ -869,7 +869,8 @@ public:
 	virtual int32 countHeight(const HistoryItem *parent, int32 width = -1) const {
 		return height();
 	}
-	virtual int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0) {
+	virtual void initDimensions(const HistoryItem *parent) = 0;
+	virtual int32 resize(int32 width, const HistoryItem *parent) { // return new height
 		w = qMin(width, _maxw);
 		return _height;
 	}
@@ -924,7 +925,7 @@ public:
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
-	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
+	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypePhoto;
 	}
@@ -974,7 +975,7 @@ public:
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
-	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
+	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeVideo;
 	}
@@ -1054,7 +1055,7 @@ public:
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
-	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
+	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeDocument;
 	}
@@ -1105,7 +1106,7 @@ public:
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
-	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
+	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeSticker;
 	}
@@ -1170,7 +1171,7 @@ public:
 	bool isDisplayed() const {
 		return !data->pendingTill;
 	}
-	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
+	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeWebPage;
 	}
@@ -1269,7 +1270,7 @@ public:
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
-	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
+	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeImageLink;
 	}
@@ -1302,7 +1303,7 @@ public:
 	void initMedia(const MTPMessageMedia *media, QString &currentText);
 	void initMediaFromText(QString &currentText);
 	void initMediaFromDocument(DocumentData *doc);
-	void initDimensions(const HistoryItem *parent = 0);
+	void initDimensions();
 	void fromNameUpdated() const;
 
 	bool justMedia() const {
@@ -1314,7 +1315,7 @@ public:
 	void draw(QPainter &p, uint32 selection) const;
 	virtual void drawMessageText(QPainter &p, const QRect &trect, uint32 selection) const;
 
-	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
+	int32 resize(int32 width);
 	bool hasPoint(int32 x, int32 y) const;
 
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
@@ -1388,13 +1389,13 @@ public:
 	HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg);
 	HistoryForwarded(History *history, HistoryBlock *block, MsgId id, HistoryMessage *msg);
 
-	void initDimensions(const HistoryItem *parent = 0);
+	void initDimensions();
 	void fwdNameUpdated() const;
 
 	void draw(QPainter &p, uint32 selection) const;
 	void drawForwardedFrom(QPainter &p, int32 x, int32 y, int32 w, bool selected) const;
 	void drawMessageText(QPainter &p, const QRect &trect, uint32 selection) const;
-	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
+	int32 resize(int32 width);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
 	void getStateFromMessageText(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const QRect &r) const;
@@ -1432,7 +1433,7 @@ public:
 	HistoryReply(History *history, HistoryBlock *block, const MTPDmessage &msg);
 	HistoryReply(History *history, HistoryBlock *block, MsgId msgId, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
 
-	void initDimensions(const HistoryItem *parent = 0);
+	void initDimensions();
 
 	bool updateReplyTo(bool force = false);
 	void replyToNameUpdated() const;
@@ -1447,7 +1448,7 @@ public:
 	void draw(QPainter &p, uint32 selection) const;
 	void drawReplyTo(QPainter &p, int32 x, int32 y, int32 w, bool selected, bool likeService = false) const;
 	void drawMessageText(QPainter &p, const QRect &trect, uint32 selection) const;
-	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
+	int32 resize(int32 width);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
 	void getStateFromMessageText(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const QRect &r) const;
@@ -1485,10 +1486,10 @@ public:
 	HistoryServiceMsg(History *history, HistoryBlock *block, const MTPDmessageService &msg);
 	HistoryServiceMsg(History *history, HistoryBlock *block, MsgId msgId, QDateTime date, const QString &msg, int32 flags = 0, HistoryMedia *media = 0, int32 from = 0);
 
-	void initDimensions(const HistoryItem *parent = 0);
+	void initDimensions();
 
 	void draw(QPainter &p, uint32 selection) const;
-	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
+	int32 resize(int32 width);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
@@ -1555,12 +1556,12 @@ public:
 
 	HistoryUnreadBar(History *history, HistoryBlock *block, int32 count, const QDateTime &date);
 
-	void initDimensions(const HistoryItem *parent = 0);
+	void initDimensions();
 
 	void setCount(int32 count);
 
 	void draw(QPainter &p, uint32 selection) const;
-	int32 resize(int32 width, bool dontRecountText = false, const HistoryItem *parent = 0);
+	int32 resize(int32 width);
 
 	void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
     QString notificationText() const;
