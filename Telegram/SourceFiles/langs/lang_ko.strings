@@ -502,6 +502,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bot_description" = "봇이 할 수 있는 일은 무엇일까요?";
 "lng_unblock_button" = "차단해제";
 
+"lng_open_this_link" = "이 링크로 이동하시겠나요?";
+"lng_open_link" = "열기";
+
 "lng_bot_start" = "시작";
 "lng_bot_choose_group" = "그룹 선택";
 "lng_bot_no_groups" = "그룹이 존재하지 않습니다.";

@@ -502,6 +502,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_bot_description" = "Wat kan deze bot? ";
 "lng_unblock_button" = "Deblokkeer";
 
+"lng_open_this_link" = "Link openen?";
+"lng_open_link" = "Openen";
+
 "lng_bot_start" = "Begin";
 "lng_bot_choose_group" = "Groep kiezen";
 "lng_bot_no_groups" = "Je hebt geen groepen";
