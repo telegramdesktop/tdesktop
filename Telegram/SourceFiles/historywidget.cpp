@@ -1063,7 +1063,7 @@ void HistoryList::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-int32 HistoryList::recountHeight(bool dontRecountText) {
+int32 HistoryList::recountHeight(HistoryItem *resizedItem) {
 	int32 st = hist->lastScrollTop;
 
 	int32 ph = scrollArea->height(), minadd = 0;
@@ -1073,7 +1073,7 @@ int32 HistoryList::recountHeight(bool dontRecountText) {
 	}
 	if (wasYSkip < minadd) wasYSkip = minadd;
 
-	hist->geomResize(scrollArea->width(), &st, dontRecountText);
+	hist->geomResize(scrollArea->width(), &st, resizedItem);
 	updateBotInfo(false);
 	if (botInfo && !botInfo->text.isEmpty()) {
 		int32 tw = scrollArea->width() - st::msgMargin.left() - st::msgMargin.right();
@@ -1634,6 +1634,52 @@ void MessageField::insertFromMimeData(const QMimeData *source) {
 void MessageField::focusInEvent(QFocusEvent *e) {
 	FlatTextarea::focusInEvent(e);
 	emit focused();
+}
+
+ReportSpamPanel::ReportSpamPanel(HistoryWidget *parent) : TWidget(parent),
+_report(this, lang(lng_report_spam), st::reportSpamHide),
+_hide(this, lang(lng_report_spam_hide), st::reportSpamHide),
+_clear(this, lang(lng_profile_delete_conversation)) {
+	resize(parent->width(), _hide.height() + st::titleShadow);
+
+	connect(&_report, SIGNAL(clicked()), this, SIGNAL(reportClicked()));
+	connect(&_hide, SIGNAL(clicked()), this, SIGNAL(hideClicked()));
+	connect(&_clear, SIGNAL(clicked()), this, SIGNAL(clearClicked()));
+
+	_clear.hide();
+}
+
+void ReportSpamPanel::resizeEvent(QResizeEvent *e) {
+	_report.resize(width() - (_hide.width() + st::reportSpamSeparator) * 2, _report.height());
+	_report.moveToLeft(_hide.width() + st::reportSpamSeparator, 0, width());
+	_hide.moveToRight(0, 0, width());
+	_clear.move((width() - _clear.width()) / 2, height() - _clear.height() - ((height() - st::msgFont->height - _clear.height()) / 2));
+}
+
+void ReportSpamPanel::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	p.fillRect(QRect(0, 0, width(), height() - st::titleShadow), st::reportSpamBg->b);
+	if (cWideMode()) {
+		p.fillRect(st::titleShadow, height() - st::titleShadow, width() - st::titleShadow, st::titleShadow, st::titleShadowColor->b);
+	} else {
+		p.fillRect(0, height() - st::titleShadow, width(), st::titleShadow, st::titleShadowColor->b);
+	}
+	if (!_clear.isHidden()) {
+		p.setPen(st::black->p);
+		p.setFont(st::msgFont->f);
+		p.drawText(QRect(_report.x(), (_clear.y() - st::msgFont->height) / 2, _report.width(), st::msgFont->height), lang(lng_report_spam_thanks), style::al_top);
+	}
+}
+
+void ReportSpamPanel::setReported(bool reported) {
+	if (reported) {
+		_report.hide();
+		_clear.show();
+	} else {
+		_report.show();
+		_clear.hide();
+	}
+	update();
 }
 
 BotKeyboard::BotKeyboard() : _wasForMsgId(0), _height(0), _maxOuterHeight(0), _maximizeSize(false), _singleUse(false), _forceReply(false),
@@ -2198,6 +2244,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _replyTo(0)
 , _replyToNameVersion(0)
 , _replyForwardPreviewCancel(this, st::replyCancel)
+, _reportSpamStatus(dbiprsUnknown)
 , _previewData(0)
 , _previewRequest(0)
 , _previewCancelled(false)
@@ -2205,6 +2252,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _replyReturn(0)
 , _stickersUpdateRequest(0)
 , _peer(0)
+, _clearPeer(0)
 , _showAtMsgId(0)
 , _preloadRequest(0), _preloadDownRequest(0)
 , _delayedShowAtMsgId(-1)
@@ -2216,10 +2264,12 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _histInited(false)
 , _toHistoryEnd(this, st::historyToEnd)
 , _attachMention(this)
+, _reportSpamPanel(this)
 , _send(this, lang(lng_send_button), st::btnSend)
 , _unblock(this, lang(lng_unblock_button), st::btnUnblock)
 , _botStart(this, lang(lng_bot_start), st::btnSend)
 , _unblockRequest(0)
+, _reportSpamRequest(0)
 , _attachDocument(this, st::btnAttachDocument)
 , _attachPhoto(this, st::btnAttachPhoto)
 , _attachEmoji(this, st::btnAttachEmoji)
@@ -2259,6 +2309,9 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	setAcceptDrops(true);
 
 	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onListScroll()));
+	connect(&_reportSpamPanel, SIGNAL(reportClicked()), this, SLOT(onReportSpamClicked()));
+	connect(&_reportSpamPanel, SIGNAL(hideClicked()), this, SLOT(onReportSpamHide()));
+	connect(&_reportSpamPanel, SIGNAL(clearClicked()), this, SLOT(onReportSpamClear()));
 	connect(&_toHistoryEnd, SIGNAL(clicked()), this, SLOT(onHistoryToEnd()));
 	connect(&_replyForwardPreviewCancel, SIGNAL(clicked()), this, SLOT(onReplyForwardPreviewCancel()));
 	connect(&_send, SIGNAL(clicked()), this, SLOT(onSend()));
@@ -2327,6 +2380,9 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_send.hide();
 	_unblock.hide();
 	_botStart.hide();
+
+	_reportSpamPanel.move(0, 0);
+	_reportSpamPanel.hide();
 
 	_attachDocument.hide();
 	_attachPhoto.hide();
@@ -2795,7 +2851,7 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 	}
 
 	_peer = peerId ? App::peer(peerId) : 0;
-	_unblockRequest = 0;
+	_unblockRequest = _reportSpamRequest = 0;
 
 	_titlePeerText = QString();
 	_titlePeerTextWidth = 0;
@@ -2905,8 +2961,72 @@ void HistoryWidget::clearAllLoadRequests() {
 	_preloadRequest = _preloadDownRequest = _firstLoadRequest = 0;
 }
 
+void HistoryWidget::contactsReceived() {
+	if (!_peer) return;
+	updateReportSpamStatus();
+	updateControlsVisibility();
+}
+
+void HistoryWidget::updateReportSpamStatus() {
+	if (!_peer || App::userFromPeer(_peer->id) == MTP::authedId()) {
+		_reportSpamStatus = dbiprsNoButton;
+		return;
+	} else {
+		ReportSpamStatuses::const_iterator i = cReportSpamStatuses().constFind(_peer->id);
+		if (i != cReportSpamStatuses().cend()) {
+			_reportSpamStatus = i.value();
+			_reportSpamPanel.setReported(_reportSpamStatus == dbiprsReportSent);
+			return;
+		}
+	}
+	if ((!_history->loadedAtTop() && (_history->size() < 2 || _history->size() == 2 && _history->at(1)->size() < 2)) || !cContactsReceived() || _firstLoadRequest) {
+		_reportSpamStatus = dbiprsUnknown;
+	} else if (_peer->chat) {
+		if (_peer->asChat()->inviterForSpamReport > 0) {
+			UserData *user = App::userLoaded(_peer->asChat()->inviterForSpamReport);
+			if (user && user->contact > 0) {
+				_reportSpamStatus = dbiprsNoButton;
+			} else {
+				_reportSpamStatus = dbiprsShowButton;
+			}
+		} else {
+			_reportSpamStatus = dbiprsNoButton;
+		}
+	} else {
+		if (_peer->asUser()->contact > 0) {
+			_reportSpamStatus = dbiprsNoButton;
+		} else {
+			bool anyFound = false, outFound = false;
+			for (int32 i = 0, l = _history->size(); i < l; ++i) {
+				for (int32 j = 0, c = _history->at(i)->size(); j < c; ++j) {
+					anyFound = true;
+					if (_history->at(i)->at(j)->out()) {
+						outFound = true;
+						break;
+					}
+				}
+			}
+			if (anyFound) {
+				if (outFound) {
+					_reportSpamStatus = dbiprsNoButton;
+				} else {
+					_reportSpamStatus = dbiprsShowButton;
+				}
+			} else {
+				_reportSpamStatus = dbiprsUnknown;
+			}
+		}
+	}
+	if (_reportSpamStatus == dbiprsShowButton || _reportSpamStatus == dbiprsNoButton) {
+		_reportSpamPanel.setReported(false);
+		cRefReportSpamStatuses().insert(_peer->id, _reportSpamStatus);
+		Local::writeReportSpamStatuses();
+	}
+}
+
 void HistoryWidget::updateControlsVisibility() {
 	if (!_history || _showAnim.animating()) {
+		_reportSpamPanel.hide();
 		_scroll.hide();
 		_kbScroll.hide();
 		_send.hide();
@@ -2932,6 +3052,11 @@ void HistoryWidget::updateControlsVisibility() {
 		_scroll.hide();
 	} else {
 		_scroll.show();
+	}
+	if (_reportSpamStatus == dbiprsShowButton || _reportSpamStatus == dbiprsReportSent) {
+		_reportSpamPanel.show();
+	} else {
+		_reportSpamPanel.hide();
 	}
 	if ((_peer->chat && !_peer->asChat()->forbidden && !_peer->asChat()->left) || (!_peer->chat && _peer->asUser()->access != UserNoAccess)) {
 		checkMentionDropdown();
@@ -3150,6 +3275,10 @@ void HistoryWidget::messagesReceived(const MTPmessages_Messages &messages, mtpRe
 		addMessagesToFront(*histList);
 		_preloadRequest = 0;
 		onListScroll();
+		if (_reportSpamStatus == dbiprsUnknown) {
+			updateReportSpamStatus();
+			if (_reportSpamStatus != dbiprsUnknown) updateControlsVisibility();
+		}
 	} else if (_preloadDownRequest == requestId) {
 		addMessagesToBack(*histList);
 		_preloadDownRequest = 0;
@@ -3381,8 +3510,16 @@ void HistoryWidget::unblockDone(PeerData *peer, const MTPBool &result) {
 
 bool HistoryWidget::unblockFail(const RPCError &error) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
-//	_unblockRequest = 0;
+
+	_unblockRequest = 0;
 	return false;
+}
+
+void HistoryWidget::blockDone(PeerData *peer, const MTPBool &result) {
+	if (peer->chat) return;
+
+	peer->asUser()->blocked = UserIsBlocked;
+	emit App::main()->peerUpdated(peer);
 }
 
 void HistoryWidget::onBotStart() {
@@ -3439,7 +3576,7 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 		sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 	}
 	h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(peer), MTPint(), MTPint(), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup, MTPnullEntities));
-	h->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), p->input, MTP_int(replyTo), MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, h->sendRequestId);
+	h->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), p->input, MTP_int(replyTo), MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, h->sendRequestId);
 
 	App::historyRegRandom(randomId, newId);
 
@@ -3471,6 +3608,7 @@ void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 	App::main()->topBar()->startAnim();
 	_scroll.hide();
 	_kbScroll.hide();
+	_reportSpamPanel.hide();
 	_toHistoryEnd.hide();
 	_attachDocument.hide();
 	_attachPhoto.hide();
@@ -3519,6 +3657,7 @@ bool HistoryWidget::showStep(float64 ms) {
 }
 
 void HistoryWidget::doneShow() {
+	updateReportSpamStatus();
 	updateBotKeyboard();
 	updateControlsVisibility();
 	updateListSize(0, true);
@@ -4346,7 +4485,7 @@ void HistoryWidget::onPhotoUploaded(MsgId newId, const MTPInputFile &file) {
 		if (replyTo) {
 			sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 		}
-		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedPhoto(file, MTP_string("")), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendPhotoFailed, randomId), 0, 0, hist->sendRequestId);
+		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedPhoto(file, MTP_string("")), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendPhotoFail, randomId), 0, 0, hist->sendRequestId);
 	}
 }
 
@@ -4386,7 +4525,7 @@ void HistoryWidget::onDocumentUploaded(MsgId newId, const MTPInputFile &file) {
 			if (replyTo) {
 				sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 			}
-			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedDocument(file, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedDocument(file, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 		}
 	}
 }
@@ -4410,7 +4549,7 @@ void HistoryWidget::onThumbDocumentUploaded(MsgId newId, const MTPInputFile &fil
 			if (replyTo) {
 				sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 			}
-			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedThumbDocument(file, thumb, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedThumbDocument(file, thumb, MTP_string(document->mime), _composeDocumentAttributes(document)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 		}
 	}
 }
@@ -4432,7 +4571,7 @@ void HistoryWidget::onAudioUploaded(MsgId newId, const MTPInputFile &file) {
 			if (replyTo) {
 				sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 			}
-			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedAudio(file, MTP_int(audio->duration), MTP_string(audio->mime)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), item->history()->peer->input, MTP_int(replyTo), MTP_inputMediaUploadedAudio(file, MTP_int(audio->duration), MTP_string(audio->mime)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 		}
 	}
 }
@@ -4494,6 +4633,60 @@ void HistoryWidget::onAudioFailed(MsgId newId) {
 	}
 }
 
+void HistoryWidget::onReportSpamClicked() {
+	if (_reportSpamRequest) return;
+
+	if (!_peer->chat) MTP::send(MTPcontacts_Block(_peer->asUser()->inputUser), rpcDone(&HistoryWidget::blockDone, _peer), RPCFailHandlerPtr(), 0, 5);
+	_reportSpamRequest = MTP::send(MTPmessages_ReportSpam(_peer->input), rpcDone(&HistoryWidget::reportSpamDone, _peer), rpcFail(&HistoryWidget::reportSpamFail));
+}
+
+void HistoryWidget::reportSpamDone(PeerData *peer, const MTPBool &result, mtpRequestId req) {
+	if (req == _reportSpamRequest) {
+		_reportSpamRequest = 0;
+	}
+	if (peer) {
+		cRefReportSpamStatuses().insert(peer->id, dbiprsReportSent);
+		Local::writeReportSpamStatuses();
+	}
+	_reportSpamStatus = dbiprsReportSent;
+	_reportSpamPanel.setReported(_reportSpamStatus == dbiprsReportSent);
+}
+
+bool HistoryWidget::reportSpamFail(const RPCError &error, mtpRequestId req) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
+	if (req == _reportSpamRequest) {
+		_reportSpamRequest = 0;
+	}
+	return false;
+}
+
+void HistoryWidget::onReportSpamHide() {
+	if (_peer) {
+		cRefReportSpamStatuses().insert(_peer->id, dbiprsNoButton);
+		Local::writeReportSpamStatuses();
+	}
+	_reportSpamStatus = dbiprsNoButton;
+	updateControlsVisibility();
+}
+
+void HistoryWidget::onReportSpamClear() {
+	ConfirmBox *box = new ConfirmBox(_peer->chat ? lng_sure_delete_and_exit(lt_group, _peer->name) : lng_sure_delete_history(lt_contact, _peer->name));
+	connect(box, SIGNAL(confirmed()), this, SLOT(onReportSpamClearSure()));
+	App::wnd()->showLayer(box);
+	_clearPeer = _peer;
+}
+
+void HistoryWidget::onReportSpamClearSure() {
+	if (_clearPeer->chat) {
+		App::wnd()->hideLayer();
+		App::main()->showDialogs();
+		MTP::send(MTPmessages_DeleteChatUser(MTP_int(_clearPeer->id & 0xFFFFFFFF), App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _clearPeer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _clearPeer));
+	} else {
+		App::main()->deleteConversation(_clearPeer);
+	}
+}
+
 void HistoryWidget::peerMessagesUpdated(PeerId peer) {
 	if (_peer && _list && peer == _peer->id) {
 		updateListSize();
@@ -4516,6 +4709,8 @@ void HistoryWidget::msgUpdated(PeerId peer, const HistoryItem *msg) {
 }
 
 void HistoryWidget::resizeEvent(QResizeEvent *e) {
+	_reportSpamPanel.resize(width(), _reportSpamPanel.height());
+
 	int32 maxKeyboardHeight = int(st::maxFieldHeight) - _field.height();
 	_keyboard.resizeToWidth(width(), maxKeyboardHeight);
 
@@ -4604,7 +4799,7 @@ MsgId HistoryWidget::replyToId() const {
 void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, HistoryItem *resizedItem, bool scrollToIt) {
 	if (!_history || (initial && _histInited) || (!initial && !_histInited)) return;
 	if (_firstLoadRequest) {
-		if (resizedItem) _list->recountHeight(true);
+		if (resizedItem) _list->recountHeight(resizedItem);
 		return; // scrollTopMax etc are not working after recountHeight()
 	}
 
@@ -4634,7 +4829,7 @@ void HistoryWidget::updateListSize(int32 addToY, bool initial, bool loadedDown, 
 	if (!initial) {
 		_history->lastScrollTop = _scroll.scrollTop();
 	}
-	int32 newSt = _list->recountHeight(!!resizedItem);
+	int32 newSt = _list->recountHeight(resizedItem);
 	bool washidden = _scroll.isHidden();
 	if (washidden) {
 		_scroll.show();
@@ -4924,7 +5119,7 @@ void HistoryWidget::onStickerSend(DocumentData *sticker) {
 	}
 	_history->addToBackDocument(newId, flags, replyToId(), date(MTP_int(unixtime())), MTP::authedId(), sticker);
 
-	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaDocument(MTP_inputDocument(MTP_long(sticker->id), MTP_long(sticker->access))), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, _history->sendRequestId);
+	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaDocument(MTP_inputDocument(MTP_long(sticker->id), MTP_long(sticker->access))), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history);
 	cancelReply(lastKeyboardUsed);
 
@@ -5167,6 +5362,7 @@ void HistoryWidget::onFullPeerUpdated(PeerData *data) {
 	int32 newScrollTop = _scroll.scrollTop();
 	if (_list && data == _peer) {
 		checkMentionDropdown();
+		updateReportSpamStatus();
 		int32 lh = _list->height(), st = _scroll.scrollTop();
 		_list->updateBotInfo();
 		newScrollTop = st + _list->height() - lh;

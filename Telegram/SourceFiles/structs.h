@@ -208,13 +208,14 @@ struct UserData : public PeerData {
 };
 
 struct ChatData : public PeerData {
-	ChatData(const PeerId &id) : PeerData(id), count(0), date(0), version(0), left(false), forbidden(true), botStatus(0) {
+	ChatData(const PeerId &id) : PeerData(id), count(0), date(0), version(0), inviterForSpamReport(0), left(false), forbidden(true), botStatus(0) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
 	int32 count;
 	int32 date;
 	int32 version;
 	int32 admin;
+	int32 inviterForSpamReport; // > 0 - user who invited me to chat in unread service msg, < 0 - have outgoing message
 	bool left;
 	bool forbidden;
 	typedef QMap<UserData*, int32> Participants;

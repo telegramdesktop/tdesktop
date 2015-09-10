@@ -289,12 +289,16 @@ void PsMacWindowPrivate::showNotify(uint64 peer, int32 msgId, const QPixmap &pix
 	[notification setTitle:QNSString(title).s()];
     [notification setSubtitle:QNSString(subtitle).s()];
     [notification setInformativeText:QNSString(msg).s()];
-	[notification setContentImage:img];
+	if ([notification respondsToSelector:@selector(setContentImage:)]) {
+		[notification setContentImage:img];
+	}
 
-    if (withReply) [notification setHasReplyButton:YES];
+	if (withReply && [notification respondsToSelector:@selector(setHasReplyButton:)]) {
+		[notification setHasReplyButton:YES];
+	}
 
     [notification setSoundName:nil];
-    
+
     NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
     [center deliverNotification:notification];
 

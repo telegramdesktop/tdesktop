@@ -1282,7 +1282,7 @@ void CreateGroupBox::created(const MTPUpdates &updates) {
 }
 
 bool CreateGroupBox::failed(const RPCError &error) {
-	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+	if (mtpIsFlood(error)) return false;
 
 	_createRequestId = 0;
 	if (error.type() == "NO_CHAT_TITLE") {
@@ -1290,6 +1290,10 @@ bool CreateGroupBox::failed(const RPCError &error) {
 		return true;
 	} else if (error.type() == "USERS_TOO_FEW") {
 		emit closed();
+		return true;
+	} else if (error.type() == "PEER_FLOOD") {
+		emit closed();
+		App::wnd()->showLayer(new ConfirmBox(lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))), true);
 		return true;
 	}
 	return false;

@@ -760,7 +760,12 @@ void MainWidget::deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHis
 	updPtsUpdated(d.vpts.v, d.vpts_count.v);
 
 	int32 offset = d.voffset.v;
-	if (!MTP::authedId() || offset <= 0) return;
+	if (!MTP::authedId()) return;
+	if (offset <= 0) {
+		cRefReportSpamStatuses().remove(peer->id);
+		Local::writeReportSpamStatuses();
+		return;
+	}
 
 	MTP::send(MTPmessages_DeleteHistory(peer->input, d.voffset), rpcDone(&MainWidget::deleteHistoryPart, peer));
 }
@@ -817,6 +822,8 @@ bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
 		text = lang(lng_failed_add_not_mutual);
 	} else if (error.type() == "USER_ALREADY_PARTICIPANT" && user->botInfo) {
 		text = lang(lng_bot_already_in_group);
+	} else if (error.type() == "PEER_FLOOD") {
+		text = lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)));
 	}
 	App::wnd()->showLayer(new ConfirmBox(text, true));
 	return false;
@@ -872,7 +879,7 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 	}
 }
 
-bool MainWidget::sendPhotoFailed(uint64 randomId, const RPCError &error) {
+bool MainWidget::sendPhotoFail(uint64 randomId, const RPCError &error) {
 	if (mtpIsFlood(error)) return false;
 
 	if (error.type() == qsl("PHOTO_INVALID_DIMENSIONS")) {
@@ -884,6 +891,16 @@ bool MainWidget::sendPhotoFailed(uint64 randomId, const RPCError &error) {
 			App::wnd()->showLayer(box);
 		}
 		_resendImgRandomIds.push_back(randomId);
+		return true;
+	}
+	return sendMessageFail(error);
+}
+
+bool MainWidget::sendMessageFail(const RPCError &error) {
+	if (mtpIsFlood(error)) return false;
+
+	if (error.type() == qsl("PEER_FLOOD")) {
+		App::wnd()->showLayer(new ConfirmBox(lng_cant_send_to_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info))), true));
 		return true;
 	}
 	return false;
@@ -1068,7 +1085,7 @@ void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId repl
 		}
 		MTPVector<MTPMessageEntity> localEntities = linksToMTP(textParseLinks(sendingText, itemTextParseOptions(hist, App::self()).flags));
 		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId), MTP_int(MTP::authedId()), App::peerToMTP(hist->peer->id), MTPint(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities));
-		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, localEntities), App::main()->rpcDone(&MainWidget::sentUpdatesReceived, randomId), RPCFailHandlerPtr(), 0, 0, hist->sendRequestId);
+		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, localEntities), rpcDone(&MainWidget::sentUpdatesReceived, randomId), rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 	}
 
 	finishForwarding(hist);
@@ -1965,6 +1982,10 @@ void MainWidget::clearBotStartToken(PeerData *peer) {
 	if (peer && !peer->chat && peer->asUser()->botInfo) {
 		peer->asUser()->botInfo->startToken = QString();
 	}
+}
+
+void MainWidget::contactsReceived() {
+	history.contactsReceived();
 }
 
 void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) {
@@ -3422,7 +3443,7 @@ void MainWidget::handleUpdates(const MTPUpdates &updates, uint64 randomId) {
 				if (item && ((hasLinks && !item->hasTextLinks()) || (!hasLinks && item->textHasLinks()))) {
 					bool was = item->hasTextLinks();
 					item->setText(text, d.has_entities() ? linksFromMTP(d.ventities.c_vector().v) : LinksInText());
-					item->initDimensions(0);
+					item->initDimensions();
 					itemResized(item);
 					if (!was && item->hasTextLinks()) {
 						item->history()->addToOverview(item, OverviewLinks);
@@ -3551,6 +3572,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateWebPage: {
 		const MTPDupdateWebPage &d(update.c_updateWebPage());
+		if (!updPtsUpdated(d.vpts.v, d.vpts_count.v)) {
+			_byPtsUpdate.insert(ptsKey(SkippedUpdate), update);
+			return;
+		}
 		App::feedWebPage(d.vwebpage);
 		history.updatePreview();
 		webPagesUpdate();
