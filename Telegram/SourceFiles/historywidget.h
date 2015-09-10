@@ -63,7 +63,7 @@ public:
 	void touchScrollUpdated(const QPoint &screenPos);
 	QPoint mapMouseToItem(QPoint p, HistoryItem *item);
 
-	int32 recountHeight(bool dontRecountText);
+	int32 recountHeight(HistoryItem *resizedItem);
 	void updateSize();
 
 	void updateMsg(const HistoryItem *msg);

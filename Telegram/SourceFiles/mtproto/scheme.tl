@@ -126,7 +126,6 @@ register.saveDeveloperInfo#9a5f6e95 name:string email:string phone_number:string
 
 ---types---
 
-
 error#c4b9f9bb code:int text:string = Error;
 
 null#56730bcc = Null;

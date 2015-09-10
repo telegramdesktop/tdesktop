@@ -1490,8 +1490,9 @@ MsgId History::maxMsgId() const {
 	return 0;
 }
 
-int32 History::geomResize(int32 newWidth, int32 *ytransform, bool dontRecountText) {
-	if (width != newWidth || dontRecountText) {
+int32 History::geomResize(int32 newWidth, int32 *ytransform, HistoryItem *resizedItem) {
+	if (width != newWidth) resizedItem = 0; // recount all items
+	if (width != newWidth || resizedItem) {
 		int32 y = 0;
 		for (iterator i = begin(), e = end(); i != e; ++i) {
 			HistoryBlock *block = *i;
@@ -1500,7 +1501,7 @@ int32 History::geomResize(int32 newWidth, int32 *ytransform, bool dontRecountTex
 			if (block->y != y) {
 				block->y = y;
 			}
-			y += block->geomResize(newWidth, ytransform, dontRecountText);
+			y += block->geomResize(newWidth, ytransform, resizedItem);
 			if (updTransform) {
 				*ytransform += block->y;
 				ytransform = 0;
@@ -1589,14 +1590,18 @@ void History::removeBlock(HistoryBlock *block) {
 	delete block;
 }
 
-int32 HistoryBlock::geomResize(int32 newWidth, int32 *ytransform, bool dontRecountText) {
+int32 HistoryBlock::geomResize(int32 newWidth, int32 *ytransform, HistoryItem *resizedItem) {
 	int32 y = 0;
 	for (iterator i = begin(), e = end(); i != e; ++i) {
 		HistoryItem *item = *i;
 		bool updTransform = ytransform && (*ytransform >= item->y) && (*ytransform < item->y + item->height());
 		if (updTransform) *ytransform -= item->y;
 		item->y = y;
-		y += item->resize(newWidth, dontRecountText);
+		if (!resizedItem || resizedItem == item) {
+			y += item->resize(newWidth);
+		} else {
+			y += item->height();
+		}
 		if (updTransform) {
 			*ytransform += item->y;
 			ytransform = 0;
@@ -1895,7 +1900,7 @@ void HistoryPhoto::initDimensions(const HistoryItem *parent) {
 	}
 }
 
-int32 HistoryPhoto::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+int32 HistoryPhoto::resize(int32 width, const HistoryItem *parent) {
 	const HistoryReply *reply = toHistoryReply(parent);
 	const HistoryForwarded *fwd = reply ? 0 : toHistoryForwarded(parent);
 
@@ -2615,7 +2620,7 @@ void HistoryVideo::draw(QPainter &p, const HistoryItem *parent, bool selected, i
 	}
 }
 
-int32 HistoryVideo::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+int32 HistoryVideo::resize(int32 width, const HistoryItem *parent) {
 	w = qMin(width, _maxw);
 	if (_caption.isEmpty()) return _height;
 
@@ -3349,7 +3354,7 @@ void HistoryDocument::updateFrom(const MTPMessageMedia &media) {
 	}
 }
 
-int32 HistoryDocument::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+int32 HistoryDocument::resize(int32 width, const HistoryItem *parent) {
 	w = qMin(width, _maxw);
 	if (parent == animated.msg) {
 		if (w > st::maxMediaSize) {
@@ -3591,7 +3596,7 @@ void HistorySticker::draw(QPainter &p, const HistoryItem *parent, bool selected,
 	}
 }
 
-int32 HistorySticker::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+int32 HistorySticker::resize(int32 width, const HistoryItem *parent) {
 	w = qMin(width, _maxw);
 	lastw = width;
 	return _height;
@@ -4288,7 +4293,7 @@ void HistoryWebPage::draw(QPainter &p, const HistoryItem *parent, bool selected,
 	p.restore();
 }
 
-int32 HistoryWebPage::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+int32 HistoryWebPage::resize(int32 width, const HistoryItem *parent) {
 	if (data->pendingTill) {
 		w = width;
 		_height = _minh;
@@ -5087,7 +5092,7 @@ void HistoryImageLink::draw(QPainter &p, const HistoryItem *parent, bool selecte
 	}
 }
 
-int32 HistoryImageLink::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+int32 HistoryImageLink::resize(int32 width, const HistoryItem *parent) {
 	const HistoryReply *reply = toHistoryReply(parent);
 	const HistoryForwarded *fwd = toHistoryForwarded(parent);
 
@@ -5373,7 +5378,7 @@ void HistoryMessage::initMediaFromDocument(DocumentData *doc) {
 	_media->regItem(this);
 }
 
-void HistoryMessage::initDimensions(const HistoryItem *parent) {
+void HistoryMessage::initDimensions() {
 	if (justMedia()) {
 		_media->initDimensions(this);
 		_maxw = _media->maxWidth();
@@ -5456,7 +5461,7 @@ void HistoryMessage::setMedia(const MTPMessageMedia *media) {
 		_textWidth = 0;
 		_textHeight = 0;
 	}
-	initDimensions(0);
+	initDimensions();
 	if (App::main()) App::main()->itemResized(this);
 }
 
@@ -5593,15 +5598,13 @@ void HistoryMessage::drawMessageText(QPainter &p, const QRect &trect, uint32 sel
 	textstyleRestore();
 }
 
-int32 HistoryMessage::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+int32 HistoryMessage::resize(int32 width) {
 	if (width < st::msgMinWidth) return _height;
 
 	width -= st::msgMargin.left() + st::msgMargin.right();
 	if (justMedia()) {
-		_height = _media->resize(width, dontRecountText, this);
+		_height = _media->resize(width, this);
 	} else {
-		if (dontRecountText && !_media) return _height;
-
 		if (width < st::msgPadding.left() + st::msgPadding.right() + 1) {
 			width = st::msgPadding.left() + st::msgPadding.right() + 1;
 		} else if (width > st::msgMaxWidth) {
@@ -5614,10 +5617,10 @@ int32 HistoryMessage::resize(int32 width, bool dontRecountText, const HistoryIte
 		}
 		if (width >= _maxw) {
 			_height = _minh;
-			if (_media) _media->resize(_maxw - st::msgPadding.left() - st::msgPadding.right(), dontRecountText, this);
+			if (_media) _media->resize(_maxw - st::msgPadding.left() - st::msgPadding.right(), this);
 		} else {
 			_height = _textHeight;
-			if (_media && _media->isDisplayed()) _height += st::msgPadding.bottom() + _media->resize(nwidth, dontRecountText, this);
+			if (_media && _media->isDisplayed()) _height += st::msgPadding.bottom() + _media->resize(nwidth, this);
 		}
 		if (!out() && _history->peer->chat) {
 			_height += st::msgNameFont->height;
@@ -5827,8 +5830,8 @@ QString HistoryForwarded::selectedText(uint32 selection) const {
 	return result;
 }
 
-void HistoryForwarded::initDimensions(const HistoryItem *parent) {
-	HistoryMessage::initDimensions(parent);
+void HistoryForwarded::initDimensions() {
+	HistoryMessage::initDimensions();
 	fwdNameUpdated();
 }
 
@@ -5871,11 +5874,10 @@ void HistoryForwarded::drawMessageText(QPainter &p, const QRect &trect, uint32 s
 	HistoryMessage::drawMessageText(p, realtrect, selection);
 }
 
-int32 HistoryForwarded::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
-	HistoryMessage::resize(width, dontRecountText, parent);
-	if (!justMedia() && (_media || !dontRecountText)) {
-		_height += st::msgServiceNameFont->height;
-	}
+int32 HistoryForwarded::resize(int32 width) {
+	HistoryMessage::resize(width);
+
+	_height += st::msgServiceNameFont->height;
 	return _height;
 }
 
@@ -6027,11 +6029,11 @@ QString HistoryReply::selectedText(uint32 selection) const {
 	return result;
 }
 
-void HistoryReply::initDimensions(const HistoryItem *parent) {
+void HistoryReply::initDimensions() {
 	if (!replyToMsg) {
 		_maxReplyWidth = st::msgReplyBarSkip + st::msgDateFont->m.width(lang(replyToMsgId ? lng_profile_loading : lng_deleted_message)) + st::msgPadding.left() + st::msgPadding.right();
 	}
-	HistoryMessage::initDimensions(parent);
+	HistoryMessage::initDimensions();
 	if (replyToMsg) {
 		replyToNameUpdated();
 	} else if (!justMedia()) {
@@ -6174,11 +6176,10 @@ void HistoryReply::drawMessageText(QPainter &p, const QRect &trect, uint32 selec
 	HistoryMessage::drawMessageText(p, realtrect, selection);
 }
 
-int32 HistoryReply::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
-	HistoryMessage::resize(width, dontRecountText, parent);
-	if (!justMedia() && (_media || !dontRecountText)) {
-		_height += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-	}
+int32 HistoryReply::resize(int32 width) {
+	HistoryMessage::resize(width);
+
+	_height += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 	return _height;
 }
 
@@ -6405,10 +6406,10 @@ HistoryServiceMsg::HistoryServiceMsg(History *history, HistoryBlock *block, MsgI
 {
 }
 
-void HistoryServiceMsg::initDimensions(const HistoryItem *parent) {
+void HistoryServiceMsg::initDimensions() {
 	_maxw = _text.maxWidth() + st::msgServicePadding.left() + st::msgServicePadding.right();
 	_minh = _text.minHeight();
-	if (_media) _media->initDimensions();
+	if (_media) _media->initDimensions(this);
 }
 
 QString HistoryServiceMsg::selectedText(uint32 selection) const {
@@ -6471,9 +6472,7 @@ void HistoryServiceMsg::draw(QPainter &p, uint32 selection) const {
 	textstyleRestore();
 }
 
-int32 HistoryServiceMsg::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
-	if (dontRecountText) return _height;
-
+int32 HistoryServiceMsg::resize(int32 width) {
 	width -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
 	if (width < st::msgServicePadding.left() + st::msgServicePadding.right() + 1) width = st::msgServicePadding.left() + st::msgServicePadding.right() + 1;
 
@@ -6489,7 +6488,7 @@ int32 HistoryServiceMsg::resize(int32 width, bool dontRecountText, const History
 	}
 	_height += st::msgServicePadding.top() + st::msgServicePadding.bottom() + st::msgServiceMargin.top() + st::msgServiceMargin.bottom();
 	if (_media) {
-		_height += st::msgServiceMargin.top() + _media->resize(_media->currentWidth());
+		_height += st::msgServiceMargin.top() + _media->resize(_media->currentWidth(), this);
 	}
 	return _height;
 }
@@ -6575,7 +6574,7 @@ HistoryUnreadBar::HistoryUnreadBar(History *history, HistoryBlock *block, int32 
 	initDimensions();
 }
 
-void HistoryUnreadBar::initDimensions(const HistoryItem *parent) {
+void HistoryUnreadBar::initDimensions() {
 	_maxw = st::msgPadding.left() + st::msgPadding.right() + 1;
 	_minh = st::unreadBarHeight;
 }
@@ -6594,7 +6593,7 @@ void HistoryUnreadBar::draw(QPainter &p, uint32 selection) const {
 	p.drawText(QRect(0, 0, _history->width, st::unreadBarHeight - st::lineWidth), text, style::al_center);
 }
 
-int32 HistoryUnreadBar::resize(int32 width, bool dontRecountText, const HistoryItem *parent) {
+int32 HistoryUnreadBar::resize(int32 width) {
 	_height = st::unreadBarHeight;
 	return _height;
 }
