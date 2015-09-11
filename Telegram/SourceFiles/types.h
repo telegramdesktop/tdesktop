@@ -357,6 +357,13 @@ enum DBIPlatform {
     dbipLinux32  = 3,
 };
 
+enum DBIPeerReportSpamStatus {
+	dbiprsNoButton,
+	dbiprsUnknown,
+	dbiprsShowButton,
+	dbiprsReportSent,
+};
+
 typedef enum {
 	HitTestNone = 0,
 	HitTestClient,

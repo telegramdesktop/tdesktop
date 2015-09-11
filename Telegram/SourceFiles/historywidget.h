@@ -63,7 +63,7 @@ public:
 	void touchScrollUpdated(const QPoint &screenPos);
 	QPoint mapMouseToItem(QPoint p, HistoryItem *item);
 
-	int32 recountHeight(bool dontRecountText);
+	int32 recountHeight(HistoryItem *resizedItem);
 	void updateSize();
 
 	void updateMsg(const HistoryItem *msg);
@@ -217,6 +217,32 @@ signals:
 private:
 	HistoryWidget *history;
 	int32 _maxHeight;
+
+};
+
+class HistoryWidget;
+class ReportSpamPanel : public TWidget {
+	Q_OBJECT
+
+public:
+
+	ReportSpamPanel(HistoryWidget *parent);
+
+	void resizeEvent(QResizeEvent *e);
+	void paintEvent(QPaintEvent *e);
+
+	void setReported(bool reported);
+
+signals:
+
+	void hideClicked();
+	void reportClicked();
+	void clearClicked();
+
+private:
+
+	FlatButton _report, _hide;
+	LinkButton _clear;
 
 };
 
@@ -490,6 +516,8 @@ public:
 	void clearDelayedShowAt();
 	void clearAllLoadRequests();
 
+	void contactsReceived();
+
 	~HistoryWidget();
 
 signals:
@@ -526,6 +554,11 @@ public slots:
 	void onPhotoFailed(const FullMsgId &msgId);
 	void onDocumentFailed(const FullMsgId &msgId);
 	void onAudioFailed(const FullMsgId &msgId);
+
+	void onReportSpamClicked();
+	void onReportSpamHide();
+	void onReportSpamClear();
+	void onReportSpamClearSure();
 
 	void onListScroll();
 	void onHistoryToEnd();
@@ -597,6 +630,9 @@ private:
 	void drawRecording(Painter &p);
 	void updateField();
 
+	DBIPeerReportSpamStatus _reportSpamStatus;
+	void updateReportSpamStatus();
+
 	QString _previewLinks;
 	WebPageData *_previewData;
 	typedef QMap<QString, WebPageId> PreviewCache;
@@ -617,8 +653,12 @@ private:
 	void addMessagesToFront(const QVector<MTPMessage> &messages);
 	void addMessagesToBack(const QVector<MTPMessage> &messages);
 
+	void reportSpamDone(PeerData *peer, const MTPBool &result, mtpRequestId request);
+	bool reportSpamFail(const RPCError &error, mtpRequestId request);
+
 	void unblockDone(PeerData *peer, const MTPBool &result);
 	bool unblockFail(const RPCError &error);
+	void blockDone(PeerData *peer, const MTPBool &result);
 
 	void countHistoryShowFrom();
 
@@ -639,7 +679,7 @@ private:
 	bool canSendMessages(PeerData *peer);
 	bool readyToForward();
 
-	PeerData *_peer;
+	PeerData *_peer, *_clearPeer; // cache _peer in _clearPeer when showing clear history box
 	ChannelId _channel;
 	bool _canSendMessages;
 	MsgId _showAtMsgId;
@@ -664,8 +704,10 @@ private:
 	bool isBlocked() const;
 	bool updateCmdStartShown();
 
+	ReportSpamPanel _reportSpamPanel;
+
 	FlatButton _send, _unblock, _botStart;
-	mtpRequestId _unblockRequest;
+	mtpRequestId _unblockRequest, _reportSpamRequest;
 	IconedButton _attachDocument, _attachPhoto, _attachEmoji, _kbShow, _kbHide, _cmdStart;
 	bool _cmdStartShown;
 	MessageField _field;

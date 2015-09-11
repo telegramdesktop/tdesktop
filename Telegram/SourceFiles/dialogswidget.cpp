@@ -838,7 +838,6 @@ void DialogsListWidget::peopleReceived(const QString &query, const QVector<MTPPe
 }
 
 void DialogsListWidget::contactsReceived(const QVector<MTPContact> &contacts) {
-	cSetContactsReceived(true);
 	for (QVector<MTPContact>::const_iterator i = contacts.cbegin(), e = contacts.cend(); i != e; ++i) {
 		int32 uid = i->c_contact().vuser_id.v;
 		addNewContact(uid);
@@ -1811,11 +1810,13 @@ void DialogsWidget::loadDialogs() {
 }
 
 void DialogsWidget::contactsReceived(const MTPcontacts_Contacts &contacts) {
+	cSetContactsReceived(true);
 	if (contacts.type() == mtpc_contacts_contacts) {
 		const MTPDcontacts_contacts &d(contacts.c_contacts_contacts());
 		App::feedUsers(d.vusers);
 		list.contactsReceived(d.vcontacts.c_vector().v);
 	}
+	if (App::main()) App::main()->contactsReceived();
 }
 
 bool DialogsWidget::contactsFailed(const RPCError &error) {

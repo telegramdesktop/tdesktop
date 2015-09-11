@@ -206,11 +206,15 @@ void MediaView::updateDocSize() {
 			readyStr = QString::number(readyTenthMb / 10) + '.' + QString::number(readyTenthMb % 10);
 			totalStr = QString::number(totalTenthMb / 10) + '.' + QString::number(totalTenthMb % 10);
 			mb = qsl("MB");
-		} else {
+		} else if (total >= 1024) {
 			qint64 readyKb = (ready / 1024), totalKb = (total / 1024);
 			readyStr = QString::number(readyKb);
 			totalStr = QString::number(totalKb);
 			mb = qsl("KB");
+		} else {
+			readyStr = QString::number(ready);
+			totalStr = QString::number(total);
+			mb = qsl("B");
 		}
 		_docSize = lng_media_save_progress(lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
 	} else {

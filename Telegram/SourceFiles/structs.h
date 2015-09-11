@@ -329,7 +329,7 @@ public:
 class ChatData : public PeerData {
 public:
 
-	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_inputChat(MTP_int(bareId()))), count(0), date(0), version(0), admin(0), left(false), forbidden(true), botStatus(0) {
+	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_inputChat(MTP_int(bareId()))), count(0), date(0), version(0), admin(0), inviterForSpamReport(0), left(false), forbidden(true), botStatus(0) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
 
@@ -339,6 +339,7 @@ public:
 	int32 date;
 	int32 version;
 	int32 admin;
+	int32 inviterForSpamReport; // > 0 - user who invited me to chat in unread service msg, < 0 - have outgoing message
 	bool left;
 	bool forbidden;
 	typedef QMap<UserData*, int32> Participants;

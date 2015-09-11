@@ -423,6 +423,10 @@ namespace App {
 					data->setBotInfoVersion(-1);
 				}
 				data->contact = (flags & (MTPDuser_flag_contact | MTPDuser_flag_mutual_contact)) ? 1 : (data->phone.isEmpty() ? -1 : 0);
+				if (data->contact == 1 && cReportSpamStatuses().value(data->id, dbiprsNoButton) != dbiprsNoButton) {
+					cRefReportSpamStatuses().insert(data->id, dbiprsNoButton);
+					Local::writeReportSpamStatuses();
+				}
 				if ((flags & MTPDuser_flag_self) && ::self != data) {
 					::self = data;
 					if (App::wnd()) App::wnd()->updateGlobalMenu();
@@ -568,10 +572,17 @@ namespace App {
 				int32 pversion = chat->participants.isEmpty() ? 1 : (chat->participants.begin().value() + 1);
 				chat->cankick = ChatData::CanKick();
 				for (QVector<MTPChatParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
-					UserData *user = App::userLoaded(i->c_chatParticipant().vuser_id.v);
+					if (i->type() != mtpc_chatParticipant) continue;
+
+					const MTPDchatParticipant &p(i->c_chatParticipant());
+					//if (p.vuser_id.v == MTP::authedId()) {
+					//	chat->inviter = p.vinviter_id.v; // we use inviter only from service msgs
+					//	chat->inviteDate = p.vdate.v;
+					//}
+					UserData *user = App::userLoaded(p.vuser_id.v);
 					if (user) {
 						chat->participants[user] = pversion;
-						if (i->c_chatParticipant().vinviter_id.v == MTP::authedId()) {
+						if (p.vinviter_id.v == MTP::authedId()) {
 							chat->cankick[user] = true;
 						}
 					} else {
@@ -621,6 +632,10 @@ namespace App {
 		ChatData *chat = App::chat(d.vchat_id.v);
 		if (chat->version <= d.vversion.v && chat->count >= 0) {
 			chat->version = d.vversion.v;
+			//if (d.vuser_id.v == MTP::authedId()) {
+			//	chat->inviter = d.vinviter_id.v; // we use inviter only from service msgs
+			//	chat->inviteDate = unixtime(); // no event date here :(
+			//}
 			UserData *user = App::userLoaded(d.vuser_id.v);
 			if (user) {
 				if (chat->participants.isEmpty() && chat->count) {
@@ -713,7 +728,7 @@ namespace App {
 			bool hasLinks = m.has_entities() && !m.ventities.c_vector().v.isEmpty();
 			if ((hasLinks && !existing->hasTextLinks()) || (!hasLinks && existing->textHasLinks())) {
 				existing->setText(qs(m.vmessage), m.has_entities() ? linksFromMTP(m.ventities.c_vector().v) : LinksInText());
-				existing->initDimensions(0);
+				existing->initDimensions();
 				if (App::main()) App::main()->itemResized(existing);
 				if (existing->hasTextLinks()) {
 					existing->history()->addToOverview(existing, OverviewLinks);
@@ -873,6 +888,10 @@ namespace App {
 			switch (myLink.type()) {
 			case mtpc_contactLinkContact:
 				user->contact = 1;
+				if (user->contact == 1 && cReportSpamStatuses().value(user->id, dbiprsNoButton) != dbiprsNoButton) {
+					cRefReportSpamStatuses().insert(user->id, dbiprsNoButton);
+					Local::writeReportSpamStatuses();
+				}
 			break;
 			case mtpc_contactLinkHasPhone:
 				user->contact = 0;
@@ -1768,6 +1787,7 @@ namespace App {
 		cSetStickerSets(StickerSets());
 		cSetStickerSetsOrder(StickerSetsOrder());
 		cSetLastStickersUpdate(0);
+		cSetReportSpamStatuses(ReportSpamStatuses());
 		::videoItems.clear();
 		::audioItems.clear();
 		::documentItems.clear();

@@ -67,3 +67,20 @@ private:
 	QPoint _lastMousePos;
 	TextLinkPtr _myLink;
 };
+
+class ConfirmLinkBox : public ConfirmBox {
+	Q_OBJECT
+
+public:
+
+	ConfirmLinkBox(const QString &url);
+
+public slots:
+
+	void onOpenLink();
+
+private:
+
+	QString _url;
+
+};

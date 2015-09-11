@@ -300,7 +300,8 @@ public:
 	void checkPeerHistory(PeerData *peer);
 	void checkedHistory(PeerData *peer, const MTPmessages_Messages &result);
 
-	bool sendPhotoFailed(uint64 randomId, const RPCError &e);
+	bool sendPhotoFail(uint64 randomId, const RPCError &e);
+	bool sendMessageFail(const RPCError &error);
 
 	void forwardSelectedItems();
 	void deleteSelectedItems();
@@ -376,6 +377,8 @@ public:
 
 	void choosePeer(PeerId peerId, MsgId showAtMsgId); // does offerPeer or showPeerHistory
 	void clearBotStartToken(PeerData *peer);
+
+	void contactsReceived();
 
 	~MainWidget();
 

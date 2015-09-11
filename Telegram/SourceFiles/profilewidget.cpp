@@ -309,7 +309,8 @@ void ProfileInner::blockDone(bool blocked, const MTPBool &result) {
 
 bool ProfileInner::blockFail(const RPCError &error) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
-	//_blockRequest = 0;
+	
+	_blockRequest = 0;
 	return false;
 }
 

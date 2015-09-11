@@ -485,6 +485,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
 
+"lng_report_spam" = "Spam melden";
+"lng_report_spam_hide" = "Verbergen";
+"lng_report_spam_thanks" = "Bedankt voor je melding!";
+"lng_cant_send_to_not_contact" = "Op dit moment kun je alleen berichten\nversturen naar onderlinge contacten. {more_info}";
+"lng_cant_invite_not_contact" = "Op dit moment kun je alleen onderlinge\ncontacten aan groepen toevoegen.  {more_info}";
+"lng_cant_more_info" = "Meer informatie »";
+
 "lng_send_button" = "Stuur";
 "lng_message_ph" = "Bericht schrijven";
 "lng_record_cancel" = "Annuleren: uit het vak loslaten";
@@ -494,6 +501,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_from_you" = "Jij";
 "lng_bot_description" = "Wat kan deze bot? ";
 "lng_unblock_button" = "Deblokkeer";
+
+"lng_open_this_link" = "Link openen?";
+"lng_open_link" = "Openen";
 
 "lng_bot_start" = "Begin";
 "lng_bot_choose_group" = "Groep kiezen";
@@ -648,7 +658,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Stille chats meetellen in ongelezen teller via instellingen\n— Gedeelde links-overzicht en zoeken in gedeelde media\n— Voorvertoning voor links naar GIF-animaties en PDF-bestanden";
+"lng_new_version_text" = "— 'Spam melden'-optie in nieuwe chats\n— Probleemoplossing en kleine verbeteringen\n— Problemen met OS X 10.8 berichtmeldingen opgelost";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

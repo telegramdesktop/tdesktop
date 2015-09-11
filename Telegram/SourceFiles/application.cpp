@@ -679,8 +679,10 @@ void Application::checkMapVersion() {
 			QString versionFeatures;
 			if (cDevVersion() && Local::oldMapVersion() < 8054) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Preview when sending links to GIF animations and PDF files\n\xe2\x80\x94 Full date and time shown when mouse over message timestamp");// .replace('@', qsl("@") + QChar(0x200D));
-			} else if (!cDevVersion() && Local::oldMapVersion() < 8055) {
+			} else if (Local::oldMapVersion() < 8056) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
+			} else {
+				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromStdWString(AppVersionStr), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));

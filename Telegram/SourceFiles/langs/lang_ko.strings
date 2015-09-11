@@ -485,6 +485,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_sticker" = "스티커";
 "lng_in_dlg_sticker_emoji" = "{emoji} (스티커)";
 
+"lng_report_spam" = "스팸 신고";
+"lng_report_spam_hide" = "숨기기";
+"lng_report_spam_thanks" = "신고해주셔서 감사합니다!";
+"lng_cant_send_to_not_contact" = "죄송하지만, 현재 서로 연락처가 추가된\n회원들끼리만 전송이 가능합니다. {more_info}";
+"lng_cant_invite_not_contact" = "죄송하지만, 현재 서로 연락처가 추가된\n회원들끼리만 추가 가능합니다. {more_info}";
+"lng_cant_more_info" = "자세한 정보 »";
+
 "lng_send_button" = "보내기";
 "lng_message_ph" = "메시지 쓰기";
 "lng_record_cancel" = "이 영역 밖에서 마우스 클릭을 해제하시면 취소가 됩니다.";
@@ -494,6 +501,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_from_you" = "회원님";
 "lng_bot_description" = "봇이 할 수 있는 일은 무엇일까요?";
 "lng_unblock_button" = "차단해제";
+
+"lng_open_this_link" = "이 링크로 이동하시겠나요?";
+"lng_open_link" = "열기";
 
 "lng_bot_start" = "시작";
 "lng_bot_choose_group" = "그룹 선택";
@@ -648,7 +658,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 설정에서 안 읽은 메시지 수에 음소거된 채팅방 포함\n— 공유된 링크 현황과 공유된 미디어 검색 기능\n— GIF 링크 및 PDF 파일 전송시 프리뷰 기능";
+"lng_new_version_text" = "— 스팸 신고 버튼 추가\n— 기타 오류 수정 및 기능 향상\n— OS X 10.8 알림 수정";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

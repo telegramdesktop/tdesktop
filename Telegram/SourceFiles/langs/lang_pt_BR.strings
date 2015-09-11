@@ -454,7 +454,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_open_with" = "Abrir Com";
 "lng_media_download" = "Download";
 "lng_media_cancel" = "Cancelar";
-"lng_media_video" = "Vídeos";
+"lng_media_video" = "Vídeo";
 "lng_media_audio" = "Mensagem de voz";
 
 "lng_emoji_category0" = "Frequentemente usado";
@@ -485,6 +485,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
 
+"lng_report_spam" = "Reportar Spam";
+"lng_report_spam_hide" = "Ocultar";
+"lng_report_spam_thanks" = "Obrigado por reportar!";
+"lng_cant_send_to_not_contact" = "Você só pode enviar mensagens para\ncontatos mútuos no momento. {more_info}";
+"lng_cant_invite_not_contact" = "Você só pode adicionar contatos\nmútuos ao grupo no momento. {more_info}";
+"lng_cant_more_info" = "Informações »";
+
 "lng_send_button" = "Enviar";
 "lng_message_ph" = "Escrever a mensagem..";
 "lng_record_cancel" = "Solte fora desse campo para cancelar";
@@ -494,6 +501,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_from_you" = "Você";
 "lng_bot_description" = "O que esse bot pode fazer?";
 "lng_unblock_button" = "Desbloquear";
+
+"lng_open_this_link" = "Abrir este link?";
+"lng_open_link" = "Abrir";
 
 "lng_bot_start" = "Iniciar";
 "lng_bot_choose_group" = "Escolher Grupo";
@@ -648,7 +658,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras menores melhorias";
-"lng_new_version_text" = "— Incluir chats silenciados no contador de notificações em Configurações\n— Visão geral dos links compartilhados e busca nas mídias compartilhadas\n— Pré-visualização em links com GIF e arquivos em PDF";
+"lng_new_version_text" = "— Botões para reportar spam em novos chats\n— Outras melhorias e resoluções de erros\n— OS X 10.8 problemas com notificações solucionadas";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

@@ -357,6 +357,14 @@ private:
 
 };
 
+class CustomTextLink : public TextLink {
+public:
+
+	CustomTextLink(const QString &url) : TextLink(url, false) {
+	}
+	void onClick(Qt::MouseButton button) const;
+};
+
 class EmailLink : public ITextLink {
 	TEXT_LINK_CLASS(EmailLink)
 
@@ -603,6 +611,7 @@ const QSet<int32> &validProtocols();
 const QSet<int32> &validTopDomains();
 const QRegularExpression &reDomain();
 const QRegularExpression &reMailName();
+const QRegularExpression &reMailStart();
 const QRegularExpression &reHashtag();
 const QRegularExpression &reBotCommand();
 
