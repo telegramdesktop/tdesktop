@@ -28,7 +28,7 @@ public:
 	void itemRemoved(HistoryItem *item);
 	void itemReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 		
-	void requestReplyTo(HistoryReply *reply, const FullMsgId &to);
+	void requestReplyTo(HistoryReply *reply, ChannelData *channel, MsgId id);
 
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
@@ -54,16 +54,21 @@ public slots:
 
 private:
 
-	void gotReplyTo(const MTPmessages_Messages &result, mtpRequestId req);
+	void gotReplyTo(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
 	struct ReplyToRequest {
 		ReplyToRequest() : req(0) {
 		}
 		mtpRequestId req;
 		QList<HistoryReply*> replies;
 	};
-	typedef QMap<FullMsgId, ReplyToRequest> ReplyToRequests;
+	typedef QMap<MsgId, ReplyToRequest> ReplyToRequests;
 	ReplyToRequests _replyToRequests;
+	typedef QMap<ChannelData*, ReplyToRequests> ChannelReplyToRequests;
+	ChannelReplyToRequests _channelReplyToRequests;
 	SingleTimer _replyToTimer;
+	typedef QVector<MTPint> MessageIds;
+	MessageIds collectMessageIds(const ReplyToRequests &requests);
+	ReplyToRequests *replyToRequests(ChannelData *channel, bool onlyExisting = false);
 
 	void gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result);
 	void gotUserFull(PeerData *peer, const MTPUserFull &result);

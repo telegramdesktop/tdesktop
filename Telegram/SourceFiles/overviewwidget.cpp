@@ -942,7 +942,8 @@ int32 OverviewInner::itemTop(const FullMsgId &msgId) const {
 void OverviewInner::preloadMore() {
 	if (_inSearch) {
 		if (!_searchRequest && !_searchFull) {
-			_searchRequest = MTP::send(MTPmessages_Search(_hist->peer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterUrl(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, !_lastSearchId), rpcFail(&OverviewInner::searchFailed));
+			int32 flags = _hist->peer->isChannel() ? MTPmessages_Search_flag_only_important : 0;
+			_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _hist->peer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterUrl(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, !_lastSearchId), rpcFail(&OverviewInner::searchFailed));
 			if (!_lastSearchId) {
 				_searchQueries.insert(_searchRequest, _searchQuery);
 			}
@@ -1785,7 +1786,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
 		} else if (App::hoveredLinkItem()) {
 			if (isUponSelected != -2) {
-				if (App::hoveredLinkItem()->toHistoryMessage() && !_peer->isChannel()) {
+				if (App::hoveredLinkItem()->toHistoryMessage()) {
 					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
 				}
 				if (!_peer->isChannel() || _peer->asChannel()->adminned) {
@@ -1823,7 +1824,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
 		} else {
 			if (isUponSelected != -2) {
-				if (App::mousedItem()->toHistoryMessage() && !_peer->isChannel()) {
+				if (App::mousedItem()->toHistoryMessage()) {
 					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
 				}
 				if (!_peer->isChannel() || _peer->asChannel()->adminned) {
@@ -2015,7 +2016,8 @@ bool OverviewInner::onSearchMessages(bool searchCache) {
 	} else if (_searchQuery != q) {
 		_searchQuery = q;
 		_searchFull = false;
-		_searchRequest = MTP::send(MTPmessages_Search(_hist->peer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterUrl(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, true), rpcFail(&OverviewInner::searchFailed));
+		int32 flags = _hist->peer->isChannel() ? MTPmessages_Search_flag_only_important : 0;
+		_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _hist->peer->input, MTP_string(_searchQuery), MTP_inputMessagesFilterUrl(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, true), rpcFail(&OverviewInner::searchFailed));
 		_searchQueries.insert(_searchRequest, _searchQuery);
 	}
 	return false;

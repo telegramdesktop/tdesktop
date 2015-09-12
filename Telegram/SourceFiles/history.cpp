@@ -732,7 +732,7 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 		if (badMedia) {
 			result = new HistoryServiceMsg(this, block, m.vid.v, date(m.vdate), lang((badMedia == 2) ? lng_message_empty : lng_media_unsupported), m.vflags.v, 0, m.has_from_id() ? m.vfrom_id.v : 0);
 		} else {
-			if ((m.has_fwd_date() && m.vfwd_date.v > 0) || (m.has_fwd_from_id() && m.vfwd_from_id.v != 0)) {
+			if ((m.has_fwd_date() && m.vfwd_date.v > 0) || (m.has_fwd_from_id() && peerFromMTP(m.vfwd_from_id) != 0)) {
 				result = new HistoryForwarded(this, block, m);
 			} else if (m.has_reply_to_msg_id() && m.vreply_to_msg_id.v > 0) {
 				result = new HistoryReply(this, block, m);
@@ -5850,7 +5850,7 @@ HistoryMessage::~HistoryMessage() {
 
 HistoryForwarded::HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg) : HistoryMessage(history, block, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0, textClean(qs(msg.vmessage)), msg.has_entities() ? linksFromMTP(msg.ventities.c_vector().v) : LinksInText(), msg.has_media() ? (&msg.vmedia) : 0)
 , fwdDate(::date(msg.vfwd_date))
-, fwdFrom(App::user(msg.vfwd_from_id.v))
+, fwdFrom(App::peer(peerFromMTP(msg.vfwd_from_id)))
 , fwdFromVersion(fwdFrom->nameVersion)
 , fromWidth(st::msgServiceFont->m.width(lang(lng_forwarded_from)) + st::msgServiceFont->spacew)
 {
@@ -5921,7 +5921,7 @@ void HistoryForwarded::drawMessageText(QPainter &p, const QRect &trect, uint32 s
 int32 HistoryForwarded::resize(int32 width) {
 	HistoryMessage::resize(width);
 
-	_height += st::msgServiceNameFont->height;
+	if (!justMedia()) _height += st::msgServiceNameFont->height;
 	return _height;
 }
 
@@ -6050,7 +6050,7 @@ HistoryReply::HistoryReply(History *history, HistoryBlock *block, const MTPDmess
 , _maxReplyWidth(0)
 {
 	if (!updateReplyTo()) {
-		App::api()->requestReplyTo(this, FullMsgId(history->channelId(), replyToMsgId));
+		App::api()->requestReplyTo(this, history->peer->asChannel(), replyToMsgId);
 	}
 }
 
@@ -6061,7 +6061,7 @@ HistoryReply::HistoryReply(History *history, HistoryBlock *block, MsgId msgId, i
 , _maxReplyWidth(0)
 {
 	if (!updateReplyTo()) {
-		App::api()->requestReplyTo(this, FullMsgId(history->channelId(), replyToMsgId));
+		App::api()->requestReplyTo(this, history->peer->asChannel(), replyToMsgId);
 	}
 }
 
@@ -6223,7 +6223,7 @@ void HistoryReply::drawMessageText(QPainter &p, const QRect &trect, uint32 selec
 int32 HistoryReply::resize(int32 width) {
 	HistoryMessage::resize(width);
 
-	_height += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
+	if (!justMedia()) _height += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 	return _height;
 }
 
@@ -6366,8 +6366,8 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 			second = TextLinkPtr(new PeerLink(u));
 			text = lng_action_add_user(lt_from, from, lt_user, textcmdLink(2, u->name));
 			if (d.vuser_id.v == MTP::authedId() && unread()) {
-				if (history()->peer->chat && !history()->peer->asChat()->inviterForSpamReport && !_from->chat) {
-					history()->peer->asChat()->inviterForSpamReport = App::userFromPeer(_from->id);
+				if (history()->peer->isChat() && !history()->peer->asChat()->inviterForSpamReport && _from->isUser()) {
+					history()->peer->asChat()->inviterForSpamReport = peerToUser(_from->id);
 				}
 			}
 		}
@@ -6388,8 +6388,8 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 		const MTPDmessageActionChatCreate &d(action.c_messageActionChatCreate());
 		text = lng_action_created_chat(lt_from, from, lt_title, textClean(qs(d.vtitle)));
 		if (unread()) {
-			if (history()->peer->chat && !history()->peer->asChat()->inviterForSpamReport && !_from->chat && App::userFromPeer(_from->id) != MTP::authedId()) {
-				history()->peer->asChat()->inviterForSpamReport = App::userFromPeer(_from->id);
+			if (history()->peer->isChat() && !history()->peer->asChat()->inviterForSpamReport && _from->isUser() && peerToUser(_from->id) != MTP::authedId()) {
+				history()->peer->asChat()->inviterForSpamReport = peerToUser(_from->id);
 			}
 		}
 	} break;

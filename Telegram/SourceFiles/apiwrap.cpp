@@ -38,17 +38,24 @@ void ApiWrap::init() {
 
 void ApiWrap::itemRemoved(HistoryItem *item) {
 	if (HistoryReply *reply = item->toHistoryReply()) {
-		ReplyToRequests::iterator i = _replyToRequests.find(FullMsgId(reply->channelId(), reply->replyToId()));
-		if (i != _replyToRequests.cend()) {
-			for (QList<HistoryReply*>::iterator j = i->replies.begin(); j != i->replies.end();) {
-				if ((*j) == reply) {
-					j = i->replies.erase(j);
-				} else {
-					++j;
+		ChannelData *channel = reply->history()->peer->asChannel();
+		ReplyToRequests *requests(replyToRequests(channel, true));
+		if (requests) {
+			ReplyToRequests::iterator i = requests->find(reply->replyToId());
+			if (i != requests->cend()) {
+				for (QList<HistoryReply*>::iterator j = i->replies.begin(); j != i->replies.end();) {
+					if ((*j) == reply) {
+						j = i->replies.erase(j);
+					} else {
+						++j;
+					}
+				}
+				if (i->replies.isEmpty()) {
+					requests->erase(i);
 				}
 			}
-			if (i->replies.isEmpty()) {
-				_replyToRequests.erase(i);
+			if (channel && requests->isEmpty()) {
+				_channelReplyToRequests.remove(channel);
 			}
 		}
 	}
@@ -56,52 +63,91 @@ void ApiWrap::itemRemoved(HistoryItem *item) {
 
 void ApiWrap::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 	if (HistoryReply *reply = oldItem->toHistoryReply()) {
-		ReplyToRequests::iterator i = _replyToRequests.find(FullMsgId(reply->channelId(), reply->replyToId()));
-		if (i != _replyToRequests.cend()) {
-			for (QList<HistoryReply*>::iterator j = i->replies.begin(); j != i->replies.end();) {
-				if ((*j) == reply) {
-					if (HistoryReply *newReply = newItem->toHistoryReply()) {
-						*j = newReply;
-						++j;
+		ChannelData *channel = reply->history()->peer->asChannel();
+		ReplyToRequests *requests(replyToRequests(channel, true));
+		if (requests) {
+			ReplyToRequests::iterator i = requests->find(reply->replyToId());
+			if (i != requests->cend()) {
+				for (QList<HistoryReply*>::iterator j = i->replies.begin(); j != i->replies.end();) {
+					if ((*j) == reply) {
+						if (HistoryReply *newReply = newItem->toHistoryReply()) {
+							*j = newReply;
+							++j;
+						} else {
+							j = i->replies.erase(j);
+						}
 					} else {
-						j = i->replies.erase(j);
+						++j;
 					}
-				} else {
-					++j;
+				}
+				if (i->replies.isEmpty()) {
+					requests->erase(i);
 				}
 			}
-			if (i->replies.isEmpty()) {
-				_replyToRequests.erase(i);
+			if (channel && requests->isEmpty()) {
+				_channelReplyToRequests.remove(channel);
 			}
 		}
 	}
 }
 
-void ApiWrap::requestReplyTo(HistoryReply *reply, const FullMsgId &to) {
-	ReplyToRequest &req(_replyToRequests[to]);
+void ApiWrap::requestReplyTo(HistoryReply *reply, ChannelData *channel, MsgId id) {
+	ReplyToRequest &req(channel ? _channelReplyToRequests[channel][id] : _replyToRequests[id]);
 	req.replies.append(reply);
 	if (!req.req) _replyToTimer.start(1);
 }
 
-void ApiWrap::resolveReplyTo() {
-	if (_replyToRequests.isEmpty()) return;
-
-	QVector<MTPint> ids;
-	ids.reserve(_replyToRequests.size());
-	for (ReplyToRequests::const_iterator i = _replyToRequests.cbegin(), e = _replyToRequests.cend(); i != e; ++i) {
-		if (!i.value().req) {
-			ids.push_back(MTP_int(i.key().msg)); // CHANNELS_TODO
-		}
+ApiWrap::MessageIds ApiWrap::collectMessageIds(const ReplyToRequests &requests) {
+	MessageIds result;
+	result.reserve(requests.size());
+	for (ReplyToRequests::const_iterator i = requests.cbegin(), e = requests.cend(); i != e; ++i) {
+		if (i.value().req > 0) continue;
+		result.push_back(MTP_int(i.key()));
 	}
+	return result;
+}
+
+ApiWrap::ReplyToRequests *ApiWrap::replyToRequests(ChannelData *channel, bool onlyExisting) {
+	if (channel) {
+		ChannelReplyToRequests::iterator i = _channelReplyToRequests.find(channel);
+		if (i == _channelReplyToRequests.cend()) {
+			if (onlyExisting) return 0;
+			i = _channelReplyToRequests.insert(channel, ReplyToRequests());
+		}
+		return &i.value();
+	}
+	return &_replyToRequests;
+}
+
+void ApiWrap::resolveReplyTo() {
+	if (_replyToRequests.isEmpty() && _channelReplyToRequests.isEmpty()) return;
+
+	MessageIds ids = collectMessageIds(_replyToRequests);
 	if (!ids.isEmpty()) {
-		mtpRequestId req = MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotReplyTo));
-		for (ReplyToRequests::iterator i = _replyToRequests.begin(), e = _replyToRequests.end(); i != e; ++i) {
+		mtpRequestId req = MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotReplyTo, (ChannelData*)0), RPCFailHandlerPtr(), 0, 5);
+		for (ReplyToRequests::iterator i = _replyToRequests.begin(); i != _replyToRequests.cend(); ++i) {
+			if (i.value().req > 0) continue;
 			i.value().req = req;
 		}
 	}
+	for (ChannelReplyToRequests::iterator j = _channelReplyToRequests.begin(); j != _channelReplyToRequests.cend();) {
+		if (j->isEmpty()) {
+			j = _channelReplyToRequests.erase(j);
+			continue;
+		}
+		MessageIds ids = collectMessageIds(j.value());
+		if (!ids.isEmpty()) {
+			mtpRequestId req = MTP::send(MTPmessages_GetChannelMessages(j.key()->input, MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotReplyTo, j.key()), RPCFailHandlerPtr(), 0, 5);
+			for (ReplyToRequests::iterator i = j->begin(); i != j->cend(); ++i) {
+				if (i.value().req > 0) continue;
+				i.value().req = req;
+			}
+		}
+		++j;
+	}
 }
 
-void ApiWrap::gotReplyTo(const MTPmessages_Messages &msgs, mtpRequestId req) {
+void ApiWrap::gotReplyTo(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {
 	switch (msgs.type()) {
 	case mtpc_messages_messages: {
 		const MTPDmessages_messages &d(msgs.c_messages_messages());
@@ -124,18 +170,24 @@ void ApiWrap::gotReplyTo(const MTPmessages_Messages &msgs, mtpRequestId req) {
 		App::feedMsgs(d.vmessages, -1);
 	} break;
 	}
-	for (ReplyToRequests::iterator i = _replyToRequests.begin(); i != _replyToRequests.cend();) {
-		if (i.value().req == req) {
-			for (QList<HistoryReply*>::const_iterator j = i.value().replies.cbegin(), e = i.value().replies.cend(); j != e; ++j) {
-				if (*j) {
-					(*j)->updateReplyTo(true);
-				} else {
-					App::main()->updateReplyTo();
+	ReplyToRequests *requests(replyToRequests(channel, true));
+	if (requests) {
+		for (ReplyToRequests::iterator i = requests->begin(); i != requests->cend();) {
+			if (i.value().req == req) {
+				for (QList<HistoryReply*>::const_iterator j = i.value().replies.cbegin(), e = i.value().replies.cend(); j != e; ++j) {
+					if (*j) {
+						(*j)->updateReplyTo(true);
+					} else {
+						App::main()->updateReplyTo();
+					}
 				}
+				i = requests->erase(i);
+			} else {
+				++i;
 			}
-			i = _replyToRequests.erase(i);
-		} else {
-			++i;
+		}
+		if (channel && requests->isEmpty()) {
+			_channelReplyToRequests.remove(channel);
 		}
 	}
 }
@@ -476,30 +528,63 @@ void ApiWrap::clearWebPageRequests() {
 }
 
 void ApiWrap::resolveWebPages() {
-	QVector<MTPint> ids;
+	MessageIds ids; // temp_req_id = -1
+	typedef QPair<int32, MessageIds> IndexAndMessageIds;
+	typedef QMap<ChannelData*, IndexAndMessageIds> MessageIdsByChannel;
+	MessageIdsByChannel idsByChannel; // temp_req_id = -index - 2
+
 	const WebPageItems &items(App::webPageItems());
 	ids.reserve(_webPagesPending.size());
 	int32 t = unixtime(), m = INT_MAX;
-	for (WebPagesPending::const_iterator i = _webPagesPending.cbegin(), e = _webPagesPending.cend(); i != e; ++i) {
-		if (i.value()) continue;
+	for (WebPagesPending::iterator i = _webPagesPending.begin(); i != _webPagesPending.cend(); ++i) {
+		if (i.value() > 0) continue;
 		if (i.key()->pendingTill <= t) {
 			WebPageItems::const_iterator j = items.constFind(i.key());
 			if (j != items.cend() && !j.value().isEmpty()) {
-				ids.push_back(MTP_int(j.value().begin().key()->id));
+				for (HistoryItemsMap::const_iterator it = j.value().cbegin(); it != j.value().cend(); ++it) {
+					HistoryItem *item = j.value().begin().key();
+					if (item->id > 0) {
+						if (item->channelId() == NoChannel) {
+							ids.push_back(MTP_int(item->id));
+							i.value() = -1;
+						} else {
+							ChannelData *channel = item->history()->peer->asChannel();
+							MessageIdsByChannel::iterator channelMap = idsByChannel.find(channel);
+							if (channelMap == idsByChannel.cend()) {
+								channelMap = idsByChannel.insert(channel, IndexAndMessageIds(idsByChannel.size(), MessageIds(1, MTP_int(item->id))));
+							} else {
+								channelMap.value().second.push_back(MTP_int(item->id));
+							}
+							i.value() = -channelMap.value().first - 2;
+						}
+						break;
+					}
+				}
 			}
 		} else {
 			m = qMin(m, i.key()->pendingTill - t);
 		}
 	}
-	if (!ids.isEmpty()) {
-		mtpRequestId req = MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotWebPages));
+
+	mtpRequestId req = ids.isEmpty() ? 0 : MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotWebPages), RPCFailHandlerPtr(), 0, 5);
+	typedef QVector<mtpRequestId> RequestIds;
+	RequestIds reqsByIndex(idsByChannel.size(), 0);
+	for (MessageIdsByChannel::const_iterator i = idsByChannel.cbegin(), e = idsByChannel.cend(); i != e; ++i) {
+		reqsByIndex[i.value().first] = MTP::send(MTPmessages_GetChannelMessages(i.key()->input, MTP_vector<MTPint>(i.value().second)), rpcDone(&ApiWrap::gotWebPages), RPCFailHandlerPtr(), 0, 5);
+	}
+	if (req || !reqsByIndex.isEmpty()) {
 		for (WebPagesPending::iterator i = _webPagesPending.begin(); i != _webPagesPending.cend(); ++i) {
-			if (i.value()) continue;
-			if (i.key()->pendingTill <= t) {
-				i.value() = req;
+			if (i.value() > 0) continue;
+			if (i.value() < 0) {
+				if (i.value() == -1) {
+					i.value() = req;
+				} else {
+					i.value() = reqsByIndex[-i.value() - 2];
+				}
 			}
 		}
 	}
+
 	if (m < INT_MAX) _webPagesTimer.start(m * 1000);
 }
 

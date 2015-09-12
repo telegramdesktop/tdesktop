@@ -539,7 +539,7 @@ void HistoryList::onDragExec() {
 
 		mimeData->setText(sel);
 		if (!urls.isEmpty()) mimeData->setUrls(urls);
-		if (uponSelected && !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel && cWideMode() && !hist->peer->isChannel()) {
+		if (uponSelected && !_selected.isEmpty() && _selected.cbegin().value() == FullItemSel && cWideMode()) {
 			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
 		}
 		drag->setMimeData(mimeData);
@@ -553,18 +553,16 @@ void HistoryList::onDragExec() {
 			lnkAudio = (lnkType == qstr("AudioOpenLink")),
 			lnkDocument = (lnkType == qstr("DocumentOpenLink")),
 			lnkContact = (lnkType == qstr("PeerLink") && dynamic_cast<HistoryContact*>(pressedLnkItem->getMedia())),
-			dragSticker = dynamic_cast<HistorySticker*>(pressedItem ? pressedItem->getMedia() : 0) && !hist->peer->isChannel(),
-			dragByDate = (_dragCursorState == HistoryInDateCursorState) && !hist->peer->isChannel();
+			dragSticker = dynamic_cast<HistorySticker*>(pressedItem ? pressedItem->getMedia() : 0),
+			dragByDate = (_dragCursorState == HistoryInDateCursorState);
 		if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument || lnkContact || dragSticker || dragByDate) {
 			QDrag *drag = new QDrag(App::wnd());
 			QMimeData *mimeData = new QMimeData;
 
-			if (!hist->peer->isChannel()) {
-				if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument || lnkContact) {
-					mimeData->setData(qsl("application/x-td-forward-pressed-link"), "1");
-				} else {
-					mimeData->setData(qsl("application/x-td-forward-pressed"), "1");
-				}
+			if (lnkPhoto || lnkVideo || lnkAudio || lnkDocument || lnkContact) {
+				mimeData->setData(qsl("application/x-td-forward-pressed-link"), "1");
+			} else {
+				mimeData->setData(qsl("application/x-td-forward-pressed"), "1");
 			}
 			if (lnkDocument) {
 				QString already = static_cast<DocumentOpenLink*>(textlnkDown().data())->document()->already(true);
@@ -813,7 +811,7 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_clear_selection), historyWidget, SLOT(onClearSelected()));
 		} else if (App::hoveredLinkItem()) {
 			if (isUponSelected != -2 && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
-				if (dynamic_cast<HistoryMessage*>(App::hoveredLinkItem()) && App::hoveredLinkItem()->id > 0 && !hist->peer->isChannel()) {
+				if (dynamic_cast<HistoryMessage*>(App::hoveredLinkItem()) && App::hoveredLinkItem()->id > 0) {
 					_menu->addAction(lang(lng_context_forward_msg), historyWidget, SLOT(forwardMessage()))->setEnabled(true);
 				}
 				_menu->addAction(lang(lng_context_delete_msg), historyWidget, SLOT(deleteMessage()))->setEnabled(true);
@@ -825,7 +823,7 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	} else { // maybe cursor on some text history item?
 		bool canDelete = (item && item->itemType() == HistoryItem::MsgType) && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned);
-		bool canForward = canDelete && (item->id > 0) && !item->serviceMsg() && !hist->peer->isChannel();
+		bool canForward = canDelete && (item->id > 0) && !item->serviceMsg();
 
 		HistoryMessage *msg = dynamic_cast<HistoryMessage*>(item);
 		HistoryServiceMsg *srv = dynamic_cast<HistoryServiceMsg*>(item);
@@ -2950,7 +2948,7 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 		}
 		if (_replyToId) {
 			updateReplyTo();
-			if (!_replyTo) App::api()->requestReplyTo(0, FullMsgId(_channel, _replyToId));
+			if (!_replyTo) App::api()->requestReplyTo(0, _peer->asChannel(), _replyToId);
 			resizeEvent(0);
 		}
 		if (!_previewCancelled) {
@@ -4068,7 +4066,7 @@ bool HistoryWidget::canSendMessages(PeerData *peer) {
 }
 
 bool HistoryWidget::readyToForward() {
-	return _canSendMessages && !_channel && App::main()->hasForwardingItems();
+	return _canSendMessages && App::main()->hasForwardingItems();
 }
 
 bool HistoryWidget::isBotStart() const {
