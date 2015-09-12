@@ -484,6 +484,20 @@ QT_WARNING_POP
     }
 }
 
+- (BOOL) beforeBeginPaint:(QCocoaBackingStore *)backingStore
+{
+	if (!m_backingStore.isNull() && m_backingStore.constBits() == backingStore->toImage().constBits()) {
+		m_backingStore = QImage();
+		return true;
+	}
+	return false;
+}
+
+- (void) afterEndPaint:(QCocoaBackingStore *)backingStore
+{
+	m_backingStore = backingStore->toImage();
+}
+
 - (BOOL) hasMask
 {
     return m_maskImage != 0;

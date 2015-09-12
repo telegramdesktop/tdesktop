@@ -506,6 +506,8 @@ public:
 
 	void contactsReceived();
 
+	void updateAfterDrag();
+
 	~HistoryWidget();
 
 signals:

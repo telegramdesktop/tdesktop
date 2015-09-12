@@ -380,6 +380,8 @@ public:
 
 	void contactsReceived();
 
+	void updateAfterDrag();
+
 	~MainWidget();
 
 signals:

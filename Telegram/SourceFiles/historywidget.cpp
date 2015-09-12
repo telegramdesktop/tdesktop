@@ -544,6 +544,7 @@ void HistoryList::onDragExec() {
 		}
 		drag->setMimeData(mimeData);
 		drag->exec(Qt::CopyAction);
+		if (App::main()) App::main()->updateAfterDrag();
 		return;
 	} else {
 		HistoryItem *pressedLnkItem = App::pressedLinkItem(), *pressedItem = App::pressedItem();
@@ -575,6 +576,7 @@ void HistoryList::onDragExec() {
 
 			drag->setMimeData(mimeData);
 			drag->exec(Qt::CopyAction);
+			if (App::main()) App::main()->updateAfterDrag();
 			return;
 		}
 	}
@@ -2965,6 +2967,10 @@ void HistoryWidget::contactsReceived() {
 	if (!_peer) return;
 	updateReportSpamStatus();
 	updateControlsVisibility();
+}
+
+void HistoryWidget::updateAfterDrag() {
+	if (_list) _list->dragActionUpdate(QCursor::pos());
 }
 
 void HistoryWidget::updateReportSpamStatus() {
