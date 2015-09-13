@@ -59,6 +59,8 @@ enum {
 	MTPPingSendAfterAuto = 30, // send new ping starting from 30 seconds (add to existing container)
 	MTPPingSendAfter = 45, // send new ping after 45 seconds without ping
 
+	MTPChannelGetDifferenceLimit = 100,
+
 	MaxSelectedItems = 100,
 
 	MaxPhoneTailLength = 18, // rest of the phone number, without country code (seen 12 at least)

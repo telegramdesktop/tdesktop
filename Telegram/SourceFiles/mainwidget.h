@@ -380,6 +380,10 @@ public:
 
 	void contactsReceived();
 
+	void ptsWaiterStartTimerFor(ChannelData *channel, int32 ms); // ms <= 0 - stop timer
+	void handleUpdates(const MTPUpdates &updates, uint64 randomId = 0);
+	void feedUpdate(const MTPUpdate &update);
+
 	~MainWidget();
 
 signals:
@@ -414,8 +418,9 @@ public slots:
 
 	void onParentResize(const QSize &newSize);
 	void getDifference();
+	void onGetDifferenceTimeByPts();
+	void onGetDifferenceTimeAfterFail();
 	void mtpPing();
-	void getDifferenceForce();
 
 	void updateOnline(bool gotOtherOffline = false);
 	void checkIdleFinish();
@@ -476,18 +481,25 @@ private:
 
 	SingleTimer _updateMutedTimer;
 
+	enum GetChannelDifferenceFrom {
+		GetChannelDifferenceFromUnknown,
+		GetChannelDifferenceFromPtsGap,
+		GetChannelDifferenceFromFail,
+	};
+	void getChannelDifference(ChannelData *channel, GetChannelDifferenceFrom from = GetChannelDifferenceFromUnknown);
 	void gotDifference(const MTPupdates_Difference &diff);
 	bool failDifference(const RPCError &e);
 	void feedDifference(const MTPVector<MTPUser> &users, const MTPVector<MTPChat> &chats, const MTPVector<MTPMessage> &msgs, const MTPVector<MTPUpdate> &other);
 	void gotState(const MTPupdates_State &state);
 	void updSetState(int32 pts, int32 date, int32 qts, int32 seq);
+	void gotChannelDifference(ChannelData *channel, const MTPupdates_ChannelDifference &diff);
+	bool failChannelDifference(ChannelData *channel, const RPCError &err);
+	void failDifferenceStartTimerFor(ChannelData *channel);
 
 	void feedUpdates(const MTPVector<MTPUpdate> &updates, bool skipMessageIds = false);
 	void feedMessageIds(const MTPVector<MTPUpdate> &updates);
-	void feedUpdate(const MTPUpdate &update);
 
 	void updateReceived(const mtpPrime *from, const mtpPrime *end);
-	void handleUpdates(const MTPUpdates &updates, uint64 randomId = 0);
 	bool updateFail(const RPCError &e);
 
 	void usernameResolveDone(QPair<bool, QString> toProfileStartToken, const MTPcontacts_ResolvedPeer &result);
@@ -529,11 +541,24 @@ private:
 	Dropdown _mediaType;
 	int32 _mediaTypeMask;
 
-	int updGoodPts, updLastPts, updPtsCount;
-	int updDate, updQts, updSeq;
-	bool updInited;
-	int updSkipPtsUpdateLevel;
+	int32 updDate, updQts, updSeq;
 	SingleTimer noUpdatesTimer;
+
+	bool ptsUpdated(int32 pts, int32 ptsCount);
+	bool ptsUpdated(int32 pts, int32 ptsCount, const MTPUpdates &updates);
+	bool ptsUpdated(int32 pts, int32 ptsCount, const MTPUpdate &update);
+	PtsWaiter _ptsWaiter;
+
+	typedef QMap<ChannelData*, uint64> ChannelGetDifferenceTime;
+	ChannelGetDifferenceTime _channelGetDifferenceTimeByPts, _channelGetDifferenceTimeAfterFail;
+	uint64 _getDifferenceTimeByPts, _getDifferenceTimeAfterFail;
+
+	bool getDifferenceTimeChanged(ChannelData *channel, int32 ms, ChannelGetDifferenceTime &channelCurTime, uint64 &curTime);
+
+	SingleTimer _byPtsTimer;
+
+	QMap<int32, MTPUpdates> _bySeqUpdates;
+	SingleTimer _bySeqTimer;
 
 	mtpRequestId _onlineRequest;
 	SingleTimer _onlineTimer, _onlineUpdater, _idleFinishTimer;
@@ -552,27 +577,9 @@ private:
 	typedef QMap<PeerData*, mtpRequestId> OverviewsPreload;
 	OverviewsPreload _overviewPreload[OverviewCount], _overviewLoad[OverviewCount];
 
-	enum PtsSkippedQueue {
-		SkippedUpdate,
-		SkippedUpdates,
-//		SkippedSentMessage,
-		SkippedStatedMessage,
-		SkippedStatedMessages
-	};
-	uint64 ptsKey(PtsSkippedQueue queue);
-	void applySkippedPtsUpdates();
-	void clearSkippedPtsUpdates();
-	bool updPtsUpdated(int pts, int ptsCount);
-	QMap<uint64, PtsSkippedQueue> _byPtsQueue;
-	QMap<uint64, MTPUpdate> _byPtsUpdate;
-	QMap<uint64, MTPUpdates> _byPtsUpdates;
-//	QMap<uint64, MTPmessages_SentMessage> _byPtsSentMessage;
-	SingleTimer _byPtsTimer;
-
-	QMap<int32, MTPUpdates> _bySeqUpdates;
-	SingleTimer _bySeqTimer;
-
 	int32 _failDifferenceTimeout; // growing timeout for getDifference calls, if it fails
+	typedef QMap<ChannelData*, int32> ChannelFailDifferenceTimeout;
+	ChannelFailDifferenceTimeout _channelFailDifferenceTimeout; // growing timeout for getChannelDifference calls, if it fails
 	SingleTimer _failDifferenceTimer;
 
 	uint64 _lastUpdateTime;

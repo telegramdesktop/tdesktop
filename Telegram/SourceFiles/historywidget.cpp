@@ -3273,7 +3273,7 @@ bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId
 	return true;
 }
 
-void HistoryWidget::messagesReceived(const MTPmessages_Messages &messages, mtpRequestId requestId) {
+void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages &messages, mtpRequestId requestId) {
 	if (!_history) {
 		_preloadRequest = _preloadDownRequest = _firstLoadRequest = _delayedShowAtRequest = 0;
 		return;
@@ -3298,6 +3298,12 @@ void HistoryWidget::messagesReceived(const MTPmessages_Messages &messages, mtpRe
 	} break;
 	case mtpc_messages_channelMessages: {
 		const MTPDmessages_channelMessages &data(messages.c_messages_channelMessages());
+		if (peer && peer->isChannel()) {
+			peer->asChannel()->ptsReceived(data.vpts.v);
+		} else {
+			LOG(("App Error: received messages.channelMessages in HistoryWidget::messagesReceived when no channel was passed!"));
+		}
+
 		App::feedUsers(data.vusers);
 		App::feedChats(data.vchats);
 		histList = &data.vmessages.c_vector().v;
@@ -3405,9 +3411,9 @@ void HistoryWidget::firstLoadMessages() {
 		from = _showAtMsgId;
 	}
 	if (_peer->isChannel()) {
-		_firstLoadRequest = MTP::send(MTPmessages_GetImportantHistory(_peer->input, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+		_firstLoadRequest = MTP::send(MTPmessages_GetImportantHistory(_peer->input, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
 	} else {
-		_firstLoadRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+		_firstLoadRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
 	}
 }
 
@@ -3417,9 +3423,9 @@ void HistoryWidget::loadMessages() {
 	MsgId min = _history->minMsgId();
 	int32 offset = 0, loadCount = min ? MessagesPerPage : MessagesFirstLoad;
 	if (_peer->isChannel()) {
-		_preloadRequest = MTP::send(MTPmessages_GetImportantHistory(_peer->input, MTP_int(min), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+		_preloadRequest = MTP::send(MTPmessages_GetImportantHistory(_peer->input, MTP_int(min), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
 	} else {
-		_preloadRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(min), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+		_preloadRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(min), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
 	}
 }
 
@@ -3431,9 +3437,9 @@ void HistoryWidget::loadMessagesDown() {
 
 	int32 loadCount = MessagesPerPage, offset = -loadCount - 1;
 	if (_peer->isChannel()) {
-		_preloadDownRequest = MTP::send(MTPmessages_GetImportantHistory(_peer->input, MTP_int(max + 1), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+		_preloadDownRequest = MTP::send(MTPmessages_GetImportantHistory(_peer->input, MTP_int(max + 1), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
 	} else {
-		_preloadDownRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(max + 1), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+		_preloadDownRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(max + 1), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
 	}
 }
 
@@ -3459,9 +3465,9 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 		offset = -loadCount / 2;
 	}
 	if (_peer->isChannel()) {
-		_delayedShowAtRequest = MTP::send(MTPmessages_GetImportantHistory(_peer->input, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+		_delayedShowAtRequest = MTP::send(MTPmessages_GetImportantHistory(_peer->input, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
 	} else {
-		_delayedShowAtRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived), rpcFail(&HistoryWidget::messagesFailed));
+		_delayedShowAtRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
 	}
 }
 

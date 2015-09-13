@@ -128,8 +128,6 @@ signals:
 
 private:
 
-	void addDialog(const MTPDdialog &dialog);
-	void addDialogChannel(const MTPDdialogChannel &dialogChannel);
 	void clearSearchResults(bool clearPeople = true);
 
 	DialogsIndexed dialogs;

@@ -362,6 +362,71 @@ void ChannelData::setName(const QString &newName, const QString &usern) {
 	}
 }
 
+uint64 PtsWaiter::ptsKey(PtsSkippedQueue queue) {
+	return _queue.insert(uint64(uint32(_last)) << 32 | uint64(uint32(_count)), queue).key();
+}
+
+void PtsWaiter::applySkippedUpdates(ChannelData *channel) {
+	if (!App::main()) return;
+	App::main()->ptsWaiterStartTimerFor(channel, -1);
+
+	if (_queue.isEmpty()) return;
+	++_applySkippedLevel;
+	for (QMap<uint64, PtsSkippedQueue>::const_iterator i = _queue.cbegin(), e = _queue.cend(); i != e; ++i) {
+		switch (i.value()) {
+		case SkippedUpdate: App::main()->feedUpdate(_updateQueue.value(i.key())); break;
+		case SkippedUpdates: App::main()->handleUpdates(_updatesQueue.value(i.key())); break;
+		}
+	}
+	--_applySkippedLevel;
+	clearSkippedUpdates();
+	App::emitPeerUpdated();
+}
+
+void PtsWaiter::clearSkippedUpdates() {
+	_queue.clear();
+	_updateQueue.clear();
+	_updatesQueue.clear();
+	_applySkippedLevel = 0;
+}
+
+bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count) { // return false if need to save that update and apply later
+	if (_requesting || _applySkippedLevel) return true;
+
+	if (!inited()) {
+		init(pts);
+		return true;
+	}
+	_last = qMax(_last, pts);
+	_count += count;
+	if (_last == _count) {
+		applySkippedUpdates(channel);
+		_good = _last;
+		return true;
+	} else if (_last < _count) {
+		if (App::main()) App::main()->ptsWaiterStartTimerFor(channel, 1);
+	} else {
+		if (App::main()) App::main()->ptsWaiterStartTimerFor(channel, WaitForSkippedTimeout);
+	}
+	return !count;
+}
+
+bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 ptsCount, const MTPUpdates &updates) {
+	if (!updated(channel, pts, ptsCount)) {
+		_updatesQueue.insert(ptsKey(SkippedUpdates), updates);
+		return false;
+	}
+	return true;
+}
+
+bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 ptsCount, const MTPUpdate &update) {
+	if (!updated(channel, pts, ptsCount)) {
+		_updateQueue.insert(ptsKey(SkippedUpdate), update);
+		return false;
+	}
+	return true;
+}
+
 void PhotoLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton) {
 		App::wnd()->showPhoto(this, App::hoveredLinkItem());

@@ -383,7 +383,7 @@ public:
 
 	void start();
 
-	void messagesReceived(const MTPmessages_Messages &messages, mtpRequestId requestId);
+	void messagesReceived(PeerData *peer, const MTPmessages_Messages &messages, mtpRequestId requestId);
 	void historyLoaded();
 
 	void windowShown();
@@ -517,6 +517,7 @@ public:
 	void clearAllLoadRequests();
 
 	void contactsReceived();
+	void updateToEndVisibility();
 
 	~HistoryWidget();
 
@@ -661,8 +662,6 @@ private:
 	void blockDone(PeerData *peer, const MTPBool &result);
 
 	void countHistoryShowFrom();
-
-	void updateToEndVisibility();
 
 	void stickersGot(const MTPmessages_AllStickers &stickers);
 	bool stickersFailed(const RPCError &error);

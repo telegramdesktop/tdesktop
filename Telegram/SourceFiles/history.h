@@ -208,6 +208,7 @@ struct History : public QList<HistoryBlock*> {
 	void clearNotifications();
 
 	bool loadedAtBottom() const; // last message is in the list
+	void setNotLoadedAtBottom();
 	bool loadedAtTop() const; // nothing was added after loading history back
 	bool isReadyFor(MsgId msgId, bool check = false) const; // has messages for showing history at msgId
 	void getReadyFor(MsgId msgId);

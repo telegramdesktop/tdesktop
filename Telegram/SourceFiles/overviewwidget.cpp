@@ -325,6 +325,12 @@ void OverviewInner::searchReceived(bool fromStart, const MTPmessages_Messages &r
 
 		case mtpc_messages_channelMessages: {
 			const MTPDmessages_channelMessages &d(result.c_messages_channelMessages());
+			if (_peer && _peer->isChannel()) {
+				_peer->asChannel()->ptsReceived(d.vpts.v);
+			} else {
+				LOG(("App Error: received messages.channelMessages in OverviewInner::searchReceived when no channel was passed!"));
+			}
+
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
 			messages = &d.vmessages.c_vector().v;

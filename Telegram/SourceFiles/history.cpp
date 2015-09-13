@@ -597,22 +597,8 @@ inline bool isImportantChannelMessage(int32 flags) {
 }
 
 HistoryItem *Histories::addToBack(const MTPmessage &msg, int msgState) {
-	PeerId from_id = 0, to_id = 0;
 	int32 flags = 0;
-	switch (msg.type()) {
-	case mtpc_message:
-		from_id = msg.c_message().has_from_id() ? peerFromUser(msg.c_message().vfrom_id) : 0;
-		to_id = peerFromMTP(msg.c_message().vto_id);
-		flags = msg.c_message().vflags.v;
-	break;
-	case mtpc_messageService:
-		from_id = msg.c_messageService().has_from_id() ? peerFromUser(msg.c_messageService().vfrom_id) : 0;
-		to_id = peerFromMTP(msg.c_messageService().vto_id);
-		flags = msg.c_messageService().vflags.v;
-	break;
-	}
-	PeerId peer = (from_id && peerToUser(to_id) == MTP::authedId()) ? from_id : to_id;
-
+	PeerId peer = peerFromMessage(msg, &flags);
 	if (!peer) return 0;
 
 	iterator h = find(peer);
@@ -1475,6 +1461,10 @@ void History::getReadyFor(MsgId msgId) {
 		lastWidth = 0;
 		lastShowAtMsgId = msgId;
 	}
+}
+
+void History::setNotLoadedAtBottom() {
+	newLoaded = false;
 }
 
 namespace {

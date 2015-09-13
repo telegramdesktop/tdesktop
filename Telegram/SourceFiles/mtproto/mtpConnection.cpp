@@ -1950,6 +1950,8 @@ void MTProtoConnectionPrivate::socketStart(bool afterConfig) {
 }
 
 void MTProtoConnectionPrivate::restart(bool maybeBadKey) {
+	_needSessionReset = true;
+
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData) return;
 

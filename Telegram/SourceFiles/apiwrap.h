@@ -83,7 +83,7 @@ private:
 	bool gotPeerFailed(PeerData *peer, const RPCError &err);
 	PeerRequests _peerRequests;
 
-	void gotWebPages(const MTPmessages_Messages &result, mtpRequestId req);
+	void gotWebPages(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
 	typedef QMap<WebPageData*, mtpRequestId> WebPagesPending;
 	WebPagesPending _webPagesPending;
 	SingleTimer _webPagesTimer;

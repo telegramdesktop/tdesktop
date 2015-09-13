@@ -86,6 +86,22 @@ inline MTPpeer peerToMTP(const PeerId &id) {
 	}
 	return MTP_peerUser(MTP_int(0));
 }
+inline PeerId peerFromMessage(const MTPmessage &msg, int32 *msgFlags = 0) {
+	PeerId from_id = 0, to_id = 0;
+	switch (msg.type()) {
+	case mtpc_message:
+		from_id = msg.c_message().has_from_id() ? peerFromUser(msg.c_message().vfrom_id) : 0;
+		to_id = peerFromMTP(msg.c_message().vto_id);
+		if (msgFlags) *msgFlags = msg.c_message().vflags.v;
+		break;
+	case mtpc_messageService:
+		from_id = msg.c_messageService().has_from_id() ? peerFromUser(msg.c_messageService().vfrom_id) : 0;
+		to_id = peerFromMTP(msg.c_messageService().vto_id);
+		if (msgFlags) *msgFlags = msg.c_messageService().vflags.v;
+		break;
+	}
+	return (from_id && peerToUser(to_id) == MTP::authedId()) ? from_id : to_id;
+}
 
 typedef uint64 PhotoId;
 typedef uint64 VideoId;
@@ -355,6 +371,47 @@ public:
 	QString invitationUrl;
 };
 
+enum PtsSkippedQueue {
+	SkippedUpdate,
+	SkippedUpdates,
+};
+class PtsWaiter {
+public:
+
+	PtsWaiter() : _good(0), _last(0), _count(0), _applySkippedLevel(0), _requesting(false) {
+	}
+	void init(int32 pts) {
+		_good = _last = _count = pts;
+		clearSkippedUpdates();
+	}
+	bool inited() const {
+		return _good > 0;
+	}
+	void setRequesting(bool isRequesting) {
+		_requesting = isRequesting;
+	}
+	bool requesting() const {
+		return _requesting;
+	}
+	int32 current() const{
+		return _good;
+	}
+	bool updated(ChannelData *channel, int32 pts, int32 count);
+	bool updated(ChannelData *channel, int32 pts, int32 count, const MTPUpdates &updates);
+	bool updated(ChannelData *channel, int32 pts, int32 count, const MTPUpdate &update);
+	void applySkippedUpdates(ChannelData *channel);
+	void clearSkippedUpdates();
+
+private:
+	uint64 ptsKey(PtsSkippedQueue queue);
+	QMap<uint64, PtsSkippedQueue> _queue;
+	QMap<uint64, MTPUpdate> _updateQueue;
+	QMap<uint64, MTPUpdates> _updatesQueue;
+	int32 _good, _last, _count;
+	int32 _applySkippedLevel;
+	bool _requesting;
+};
+
 class ChannelData : public PeerData {
 public:
 
@@ -378,6 +435,35 @@ public:
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 //	ImagePtr photoFull;
 	QString invitationUrl;
+
+	void ptsReceived(int32 pts) {
+		_ptsWaiter.updated(this, pts, 0);
+	}
+	bool ptsUpdated(int32 pts, int32 count) {
+		return _ptsWaiter.updated(this, pts, count);
+	}
+	bool ptsUpdated(int32 pts, int32 count, const MTPUpdate &update) {
+		return _ptsWaiter.updated(this, pts, count, update);
+	}
+	int32 pts() const {
+		return _ptsWaiter.current();
+	}
+	bool ptsInited() const {
+		return _ptsWaiter.inited();
+	}
+	bool ptsRequesting() const {
+		return _ptsWaiter.requesting();
+	}
+	void ptsSetRequesting(bool isRequesting) {
+		return _ptsWaiter.setRequesting(isRequesting);
+	}
+	void ptsClearSkippedUpdates() {
+		return _ptsWaiter.clearSkippedUpdates();
+	}
+
+private:
+
+	PtsWaiter _ptsWaiter;
 };
 
 inline UserData *PeerData::asUser() {

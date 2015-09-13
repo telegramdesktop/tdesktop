@@ -48,7 +48,7 @@ _text(100) {
 void ConfirmBox::init(const QString &text) {
 	_text.setText(st::boxFont, text, (_infoMsg ? _confirmBoxTextOptions : _textPlainOptions));
 
-	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxPadding.right();
+	_textWidth = st::boxWidth + 10 - st::boxPadding.left() - st::boxPadding.right();
 	_textHeight = qMin(_text.countHeight(_textWidth), 16 * st::boxFont->height);
 	setMaxHeight(st::boxPadding.top() + _textHeight + st::boxPadding.bottom() + (_infoMsg ? _close.height() : _confirm.height()));
 

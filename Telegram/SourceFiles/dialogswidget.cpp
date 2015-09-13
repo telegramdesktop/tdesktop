@@ -772,6 +772,9 @@ void DialogsListWidget::dialogsReceived(const QVector<MTPDialog> &added) {
 		case mtpc_dialogChannel: {
 			const MTPDdialogChannel &d(i->c_dialogChannel());
 			History *history = App::historyFromDialog(peerFromMTP(d.vpeer), d.vunread_important_count.v, d.vread_inbox_max_id.v);
+			if (history->peer->isChannel()) {
+				history->peer->asChannel()->ptsReceived(d.vpts.v);
+			}
 			App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
 		} break;
 		}
@@ -962,28 +965,6 @@ void DialogsListWidget::clearFilter() {
 		filter = QString();
 		refresh(true);
 	}
-}
-
-void DialogsListWidget::addDialog(const MTPDdialog &dialog) {
-	History *history = App::historyFromDialog(peerFromMTP(dialog.vpeer), dialog.vunread_count.v, dialog.vread_inbox_max_id.v);
-
-	if (!history->lastMsgDate.isNull()) addSavedPeersAfter(history->lastMsgDate);
-	History::DialogLinks links = dialogs.addToEnd(history);
-	history->dialogs = links;
-	contactsNoDialogs.del(history->peer);
-
-	App::main()->applyNotifySetting(MTP_notifyPeer(dialog.vpeer), dialog.vnotify_settings, history);
-}
-
-void DialogsListWidget::addDialogChannel(const MTPDdialogChannel &dialogChannel) {
-	History *history = App::historyFromDialog(peerFromMTP(dialogChannel.vpeer), dialogChannel.vunread_important_count.v, dialogChannel.vread_inbox_max_id.v);
-
-	if (!history->lastMsgDate.isNull()) addSavedPeersAfter(history->lastMsgDate);
-	History::DialogLinks links = dialogs.addToEnd(history);
-	history->dialogs = links;
-	contactsNoDialogs.del(history->peer);
-
-	App::main()->applyNotifySetting(MTP_notifyPeer(dialogChannel.vpeer), dialogChannel.vnotify_settings, history);
 }
 
 void DialogsListWidget::selectSkip(int32 direction) {
@@ -1628,6 +1609,9 @@ void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
 			const MTPDdialogChannel &d(i->c_dialogChannel());
 			Histories::iterator j = App::histories().find(peerFromMTP(d.vpeer));
 			if (j != App::histories().end()) {
+				if (j.value()->peer->isChannel()) {
+					j.value()->peer->asChannel()->ptsReceived(d.vpts.v);
+				}
 				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, j.value());
 				if (d.vunread_important_count.v >= j.value()->unreadCount) {
 					j.value()->setUnreadCount(d.vunread_important_count.v, false);
@@ -1722,9 +1706,11 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 	QString q = _filter.getLastText().trimmed();
 	if (q.isEmpty()) {
 		if (_searchRequest) {
+			MTP::cancel(_searchRequest);
 			_searchRequest = 0;
 		}
 		if (_peopleRequest) {
+			MTP::cancel(_peopleRequest);
 			_peopleRequest = 0;
 		}
 		return true;
@@ -1734,7 +1720,10 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 		if (i != _searchCache.cend()) {
 			_searchQuery = q;
 			_searchFull = false;
-			_searchRequest = 0;
+			if (_searchRequest) {
+				MTP::cancel(_searchRequest);
+				_searchRequest = 0;
+			}
 			searchReceived(true, i.value(), 0);
 			return true;
 		}
@@ -1742,6 +1731,9 @@ bool DialogsWidget::onSearchMessages(bool searchCache) {
 		_searchQuery = q;
 		_searchFull = false;
 		int32 flags = (_searchInPeer && _searchInPeer->isChannel()) ? MTPmessages_Search_flag_only_important : 0;
+		if (_searchRequest) {
+			MTP::cancel(_searchRequest);
+		}
 		_searchRequest = MTP::send(MTPmessages_Search(MTP_int(flags), _searchInPeer ? _searchInPeer->input : MTP_inputPeerEmpty(), MTP_string(_searchQuery), MTP_inputMessagesFilterEmpty(), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&DialogsWidget::searchReceived, true), rpcFail(&DialogsWidget::searchFailed));
 		_searchQueries.insert(_searchRequest, _searchQuery);
 	}
@@ -1862,6 +1854,12 @@ void DialogsWidget::searchReceived(bool fromStart, const MTPmessages_Messages &r
 
 		case mtpc_messages_channelMessages: {
 			const MTPDmessages_channelMessages &d(result.c_messages_channelMessages());
+			if (_searchInPeer && _searchInPeer->isChannel()) {
+				_searchInPeer->asChannel()->ptsReceived(d.vpts.v);
+			} else {
+				LOG(("App Error: received messages.channelMessages in DialogsWidget::searchReceived when no channel was passed!"));
+			}
+
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
 			const QVector<MTPMessage> &msgs(d.vmessages.c_vector().v);
@@ -2204,6 +2202,10 @@ void DialogsWidget::onNewGroup() {
 
 bool DialogsWidget::onCancelSearch() {
 	bool clearing = !_filter.getLastText().isEmpty();
+	if (_searchRequest) {
+		MTP::cancel(_searchRequest);
+		_searchRequest = 0;
+	}
 	if (_searchInPeer && !clearing) {
 		if (!cWideMode()) {
 			App::main()->showPeerHistory(_searchInPeer->id, ShowAtUnreadMsgId);
@@ -2220,6 +2222,10 @@ bool DialogsWidget::onCancelSearch() {
 }
 
 void DialogsWidget::onCancelSearchInPeer() {
+	if (_searchRequest) {
+		MTP::cancel(_searchRequest);
+		_searchRequest = 0;
+	}
 	if (_searchInPeer) {
 		if (!cWideMode()) {
 			App::main()->showPeerHistory(_searchInPeer->id, ShowAtUnreadMsgId);

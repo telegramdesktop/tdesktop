@@ -165,6 +165,12 @@ void ApiWrap::gotReplyTo(ChannelData *channel, const MTPmessages_Messages &msgs,
 
 	case mtpc_messages_channelMessages: {
 		const MTPDmessages_channelMessages &d(msgs.c_messages_channelMessages());
+		if (channel) {
+			channel->ptsReceived(d.vpts.v);
+		} else {
+			LOG(("App Error: received messages.channelMessages in ApiWrap::gotReplyTo when no channel was passed!"));
+		}
+
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		App::feedMsgs(d.vmessages, -1);
@@ -566,11 +572,11 @@ void ApiWrap::resolveWebPages() {
 		}
 	}
 
-	mtpRequestId req = ids.isEmpty() ? 0 : MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotWebPages), RPCFailHandlerPtr(), 0, 5);
+	mtpRequestId req = ids.isEmpty() ? 0 : MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotWebPages, (ChannelData*)0), RPCFailHandlerPtr(), 0, 5);
 	typedef QVector<mtpRequestId> RequestIds;
 	RequestIds reqsByIndex(idsByChannel.size(), 0);
 	for (MessageIdsByChannel::const_iterator i = idsByChannel.cbegin(), e = idsByChannel.cend(); i != e; ++i) {
-		reqsByIndex[i.value().first] = MTP::send(MTPmessages_GetChannelMessages(i.key()->input, MTP_vector<MTPint>(i.value().second)), rpcDone(&ApiWrap::gotWebPages), RPCFailHandlerPtr(), 0, 5);
+		reqsByIndex[i.value().first] = MTP::send(MTPmessages_GetChannelMessages(i.key()->input, MTP_vector<MTPint>(i.value().second)), rpcDone(&ApiWrap::gotWebPages, i.key()), RPCFailHandlerPtr(), 0, 5);
 	}
 	if (req || !reqsByIndex.isEmpty()) {
 		for (WebPagesPending::iterator i = _webPagesPending.begin(); i != _webPagesPending.cend(); ++i) {
@@ -588,7 +594,7 @@ void ApiWrap::resolveWebPages() {
 	if (m < INT_MAX) _webPagesTimer.start(m * 1000);
 }
 
-void ApiWrap::gotWebPages(const MTPmessages_Messages &msgs, mtpRequestId req) {
+void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {
 	const QVector<MTPMessage> *v = 0;
 	switch (msgs.type()) {
 	case mtpc_messages_messages: {
@@ -607,6 +613,12 @@ void ApiWrap::gotWebPages(const MTPmessages_Messages &msgs, mtpRequestId req) {
 
 	case mtpc_messages_channelMessages: {
 		const MTPDmessages_channelMessages &d(msgs.c_messages_channelMessages());
+		if (channel) {
+			channel->ptsReceived(d.vpts.v);
+		} else {
+			LOG(("App Error: received messages.channelMessages in ApiWrap::gotWebPages when no channel was passed!"));
+		}
+
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		v = &d.vmessages.c_vector().v;
