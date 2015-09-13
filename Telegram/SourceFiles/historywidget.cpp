@@ -4640,10 +4640,18 @@ void HistoryWidget::onAudioFailed(MsgId newId) {
 }
 
 void HistoryWidget::onReportSpamClicked() {
+	ConfirmBox *box = new ConfirmBox(lang(_peer->chat ? lng_report_spam_sure_group : lng_report_spam_sure), lang(lng_report_spam_ok));
+	connect(box, SIGNAL(confirmed()), this, SLOT(onReportSpamSure()));
+	App::wnd()->showLayer(box);
+	_clearPeer = _peer;
+}
+
+void HistoryWidget::onReportSpamSure() {
 	if (_reportSpamRequest) return;
 
-	if (!_peer->chat) MTP::send(MTPcontacts_Block(_peer->asUser()->inputUser), rpcDone(&HistoryWidget::blockDone, _peer), RPCFailHandlerPtr(), 0, 5);
-	_reportSpamRequest = MTP::send(MTPmessages_ReportSpam(_peer->input), rpcDone(&HistoryWidget::reportSpamDone, _peer), rpcFail(&HistoryWidget::reportSpamFail));
+	App::wnd()->hideLayer();
+	if (!_clearPeer->chat) MTP::send(MTPcontacts_Block(_clearPeer->asUser()->inputUser), rpcDone(&HistoryWidget::blockDone, _clearPeer), RPCFailHandlerPtr(), 0, 5);
+	_reportSpamRequest = MTP::send(MTPmessages_ReportSpam(_clearPeer->input), rpcDone(&HistoryWidget::reportSpamDone, _clearPeer), rpcFail(&HistoryWidget::reportSpamFail));
 }
 
 void HistoryWidget::reportSpamDone(PeerData *peer, const MTPBool &result, mtpRequestId req) {
@@ -4684,8 +4692,8 @@ void HistoryWidget::onReportSpamClear() {
 }
 
 void HistoryWidget::onReportSpamClearSure() {
+	App::wnd()->hideLayer();
 	if (_clearPeer->chat) {
-		App::wnd()->hideLayer();
 		App::main()->showDialogs();
 		MTP::send(MTPmessages_DeleteChatUser(MTP_int(_clearPeer->id & 0xFFFFFFFF), App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _clearPeer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _clearPeer));
 	} else {
