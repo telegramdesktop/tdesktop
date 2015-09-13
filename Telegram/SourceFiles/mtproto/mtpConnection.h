@@ -60,6 +60,9 @@ enum {
 	MTPDchannel_flag_left = (1 << 3),
 	MTPDchannel_flag_kicked = (1 << 4),
 
+	MTPDchat_flag_left = (1 << 3),
+	MTPDchat_flag_kicked = (1 << 4),
+
 	MTPupdates_ChannelDifference_flag_final = (1 << 0),
 
 	MTPDchannelMessagesFilter_flag_only_important = (1 << 0),

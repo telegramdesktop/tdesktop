@@ -833,7 +833,7 @@ void DialogsListWidget::peopleReceived(const QString &query, const QVector<MTPPe
 	for (QVector<MTPPeer>::const_iterator i = people.cbegin(), e = people.cend(); i != e; ++i) {
 		PeerId peerId = peerFromMTP(*i);
 		History *h = App::historyLoaded(peerId);
-		if (h && !h->isEmpty()) continue; // skip dialogs
+		if (h && !h->dialogs.isEmpty()) continue; // skip dialogs
 
 		peopleResults.push_back(App::peer(peerId));
 	}

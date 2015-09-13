@@ -540,6 +540,30 @@ namespace App {
 					cdata->version = d.vversion.v;
 				}
 			} break;
+			case mtpc_channelForbidden: {
+				const MTPDchannelForbidden &d(chat.c_channelForbidden());
+
+				PeerId peer(peerFromChannel(d.vid.v));
+				data = App::channel(peer);
+				data->input = MTP_inputPeerChannel(d.vid, d.vaccess_hash);
+
+				ChannelData *cdata = data->asChannel();
+				cdata->inputChat = MTP_inputChannel(d.vid, d.vaccess_hash);
+
+				cdata->setName(qs(d.vtitle), QString());
+
+				cdata->access = d.vaccess_hash.v;
+				cdata->setPhoto(MTP_chatPhotoEmpty());
+				cdata->date = 0;
+//				cdata->count = -1;
+				cdata->adminned = false;
+
+				cdata->isBroadcast = false;
+				cdata->isPublic = false;
+
+				cdata->left = false;
+				cdata->forbidden = true;
+			} break;
 			}
 			if (!data) continue;
 

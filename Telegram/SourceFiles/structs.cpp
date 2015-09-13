@@ -104,6 +104,8 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone,
 	if (isUser()) {
 		asUser()->username = newUsername;
 		asUser()->setNameOrPhone(newNameOrPhone);
+	} else if (isChannel()) {
+		asChannel()->username = newUsername;
 	}
 
 	Names oldNames = names;
@@ -154,6 +156,8 @@ void PeerData::fillNames() {
 	if (isUser()) {
 		if (!asUser()->nameOrPhone.isEmpty() && asUser()->nameOrPhone != name) toIndex += ' ' + textAccentFold(asUser()->nameOrPhone);
 		if (!asUser()->username.isEmpty()) toIndex += ' ' + textAccentFold(asUser()->username);
+	} else if (isChannel()) {
+		if (!asChannel()->username.isEmpty()) toIndex += ' ' + textAccentFold(asChannel()->username);
 	}
 	if (cRussianLetters().match(toIndex).hasMatch()) {
 		toIndex += ' ' + translitRusEng(toIndex);
