@@ -96,6 +96,7 @@ DeclareSetting(QPixmapPointer, ChatDogImage);
 DeclareSetting(bool, TileBackground);
 
 DeclareSetting(bool, SoundNotify);
+DeclareSetting(bool, IncludeMuted);
 DeclareSetting(bool, NeedConfigResave);
 DeclareSetting(bool, DesktopNotify);
 DeclareSetting(DBINotifyView, NotifyView);
@@ -315,5 +316,8 @@ typedef QMap<PeerData*, QDateTime> SavedPeers;
 typedef QMultiMap<QDateTime, PeerData*> SavedPeersByTime;
 DeclareRefSetting(SavedPeers, SavedPeers);
 DeclareRefSetting(SavedPeersByTime, SavedPeersByTime);
+
+typedef QMap<uint64, DBIPeerReportSpamStatus> ReportSpamStatuses;
+DeclareRefSetting(ReportSpamStatuses, ReportSpamStatuses);
 
 void settingsParseArgs(int argc, char *argv[]);

@@ -2812,7 +2812,7 @@ int32 MTProtoConnectionPrivate::handleOneReceived(const mtpPrime *from, const mt
 	mtpRequestId fakeRequestId = sessionData->nextFakeRequestId();
 	haveReceived.insert(fakeRequestId, mtpResponse(update)); // notify main process about new updates
 
-	if (cons != mtpc_updatesTooLong && cons != mtpc_updateShortMessage && cons != mtpc_updateShortChatMessage && cons != mtpc_updateShort && cons != mtpc_updatesCombined && cons != mtpc_updates) {
+	if (cons != mtpc_updatesTooLong && cons != mtpc_updateShortMessage && cons != mtpc_updateShortChatMessage && cons != mtpc_updateShortSentMessage && cons != mtpc_updateShort && cons != mtpc_updatesCombined && cons != mtpc_updates) {
 		LOG(("Message Error: unknown constructor %1").arg(cons)); // maybe new api?..
 	}
 

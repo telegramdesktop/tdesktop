@@ -119,6 +119,7 @@ namespace {
 	};
 	typedef QMap<StorageKey, ToastImage> ToastImages;
 	ToastImages toastImages;
+	bool toastImageSaved = false;
 
 	HWND createTaskbarHider() {
 		HINSTANCE appinst = (HINSTANCE)GetModuleHandle(0);
@@ -1116,8 +1117,10 @@ static HICON _qt_createHIcon(const QIcon &icon, int xSize, int ySize) {
 }
 
 void PsMainWindow::psUpdateCounter() {
-	int32 counter = App::histories().unreadFull;
-	style::color bg = (App::histories().unreadMuted < counter) ? st::counterBG : st::counterMuteBG;
+	int32 counter = App::histories().unreadFull - (cIncludeMuted() ? 0 : App::histories().unreadMuted);
+	bool muted = cIncludeMuted() ? (App::histories().unreadMuted >= counter) : false;
+
+	style::color bg = muted ? st::counterMuteBG : st::counterBG;
 	QIcon iconSmall, iconBig;
 	iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(16, counter, bg, true), Qt::ColorOnly));
 	iconSmall.addPixmap(QPixmap::fromImage(iconWithCounter(32, counter, bg, true), Qt::ColorOnly));
@@ -2122,12 +2125,14 @@ bool psShowOpenWithMenu(int x, int y, const QString &file) {
 }
 
 void psOpenFile(const QString &name, bool openWith) {
-	std::wstring wname = QDir::toNativeSeparators(name).toStdWString();
+	bool mailtoScheme = name.startsWith(qstr("mailto:"));
+	std::wstring wname = mailtoScheme ? name.toStdWString() : QDir::toNativeSeparators(name).toStdWString();
 
 	if (openWith && useOpenAs) {
 		if (shOpenWithDialog) {
 			OPENASINFO info;
 			info.oaifInFlags = OAIF_ALLOW_REGISTRATION | OAIF_REGISTER_EXT | OAIF_EXEC;
+			if (mailtoScheme) info.oaifInFlags |= OAIF_FILE_IS_URI | OAIF_URL_PROTOCOL;
 			info.pcszClass = NULL;
 			info.pcszFile = wname.c_str();
 			shOpenWithDialog(0, &info);
@@ -2148,7 +2153,9 @@ void psStart() {
 }
 
 void psFinish() {
-	psDeleteDir(cWorkingDir() + qsl("tdata/temp"));
+	if (toastImageSaved) {
+		psDeleteDir(cWorkingDir() + qsl("tdata/temp"));
+	}
 }
 
 namespace {
@@ -2706,6 +2713,7 @@ QString toastImage(const StorageKey &key, PeerData *peer) {
 			App::wnd()->iconLarge().save(v.path, "PNG");
 		}
 		i = toastImages.insert(key, v);
+		toastImageSaved = true;
 	}
 	return i->path;
 }
@@ -2801,9 +2809,6 @@ bool CreateToast(PeerData *peer, int32 msgId, bool showpix, const QString &title
 		if (j != i->cend()) {
 			toastNotifier->Hide(j->p.Get());
 			i->erase(j);
-			if (i->isEmpty()) {
-				toastNotifications.erase(i);
-			}
 		}
 	}
 	hr = toastNotifier->Show(toast.Get());

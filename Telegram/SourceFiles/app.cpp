@@ -70,6 +70,9 @@ namespace {
 	typedef QMap<HistoryItem*, QMap<HistoryReply*, bool> > RepliesTo;
 	RepliesTo repliesTo;
 
+	typedef QMap<int32, QString> SharedContactPhones;
+	SharedContactPhones sharedContactPhones;
+
 	Histories histories;
 
 	typedef QHash<MsgId, HistoryItem*> MsgsData;
@@ -78,6 +81,9 @@ namespace {
 
 	typedef QMap<uint64, MsgId> RandomData;
 	RandomData randomData;
+
+	typedef QMap<uint64, QString> SentTextData;
+	SentTextData sentTextData;
 
 	HistoryItem *hoveredItem = 0, *pressedItem = 0, *hoveredLinkItem = 0, *pressedLinkItem = 0, *contextItem = 0, *mousedItem = 0;
 
@@ -440,6 +446,10 @@ namespace App {
 					data->setBotInfoVersion(-1);
 				}
 				data->contact = (flags & (MTPDuser_flag_contact | MTPDuser_flag_mutual_contact)) ? 1 : (data->phone.isEmpty() ? -1 : 0);
+				if (data->contact == 1 && cReportSpamStatuses().value(data->id, dbiprsNoButton) != dbiprsNoButton) {
+					cRefReportSpamStatuses().insert(data->id, dbiprsNoButton);
+					Local::writeReportSpamStatuses();
+				}
 				if ((flags & MTPDuser_flag_self) && ::self != data) {
 					::self = data;
 					if (App::wnd()) App::wnd()->updateGlobalMenu();
@@ -523,26 +533,6 @@ namespace App {
 				data->left = false;
 				data->forbidden = true;
 			} break;
-			case mtpc_geoChat: {
-				const MTPDgeoChat &d(chat.c_geoChat());
-				data = 0;
-/*				title = qs(d.vtitle);
-
-				PeerId peer(peerFromChat(d.vid.v));
-				data = App::chat(peer);
-				data->input = MTP_inputPeerChat(d.vid);
-				data->setPhoto(d.vphoto);
-				data->date = d.vdate.v;
-				data->count = d.vparticipants_count.v;
-				data->left = false;
-				data->forbidden = false;
-				data->access = d.vaccess_hash.v;
-				if (data->version < d.vversion.v) {
-					data->version = d.vversion.v;
-					data->participants = ChatData::Participants();
-					data->botStatus = 0;
-				}/**/
-			} break;
 			}
 			if (!data) continue;
 
@@ -580,10 +570,17 @@ namespace App {
 				int32 pversion = chat->participants.isEmpty() ? 1 : (chat->participants.begin().value() + 1);
 				chat->cankick = ChatData::CanKick();
 				for (QVector<MTPChatParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
-					UserData *user = App::userLoaded(i->c_chatParticipant().vuser_id.v);
+					if (i->type() != mtpc_chatParticipant) continue;
+
+					const MTPDchatParticipant &p(i->c_chatParticipant());
+					//if (p.vuser_id.v == MTP::authedId()) {
+					//	chat->inviter = p.vinviter_id.v; // we use inviter only from service msgs
+					//	chat->inviteDate = p.vdate.v;
+					//}
+					UserData *user = App::userLoaded(p.vuser_id.v);
 					if (user) {
 						chat->participants[user] = pversion;
-						if (i->c_chatParticipant().vinviter_id.v == MTP::authedId()) {
+						if (p.vinviter_id.v == MTP::authedId()) {
 							chat->cankick[user] = true;
 						}
 					} else {
@@ -633,6 +630,10 @@ namespace App {
 		ChatData *chat = App::chat(d.vchat_id.v);
 		if (chat->version <= d.vversion.v && chat->count >= 0) {
 			chat->version = d.vversion.v;
+			//if (d.vuser_id.v == MTP::authedId()) {
+			//	chat->inviter = d.vinviter_id.v; // we use inviter only from service msgs
+			//	chat->inviteDate = unixtime(); // no event date here :(
+			//}
 			UserData *user = App::userLoaded(d.vuser_id.v);
 			if (user) {
 				if (chat->participants.isEmpty() && chat->count) {
@@ -716,13 +717,33 @@ namespace App {
 		}
 	}
 
+	void checkEntitiesUpdate(const MTPDmessage &m) {
+		if (HistoryItem *existing = App::histItemById(m.vid.v)) {
+			bool hasLinks = m.has_entities() && !m.ventities.c_vector().v.isEmpty();
+			if ((hasLinks && !existing->hasTextLinks()) || (!hasLinks && existing->textHasLinks())) {
+				existing->setText(qs(m.vmessage), m.has_entities() ? linksFromMTP(m.ventities.c_vector().v) : LinksInText());
+				existing->initDimensions();
+				if (App::main()) App::main()->itemResized(existing);
+				if (existing->hasTextLinks()) {
+					existing->history()->addToOverview(existing, OverviewLinks);
+				}
+			}
+		}
+	}
+
 	void feedMsgs(const MTPVector<MTPMessage> &msgs, int msgsState) {
 		const QVector<MTPMessage> &v(msgs.c_vector().v);
 		QMap<int32, int32> msgsIds;
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
 			const MTPMessage &msg(v.at(i));
 			switch (msg.type()) {
-			case mtpc_message: msgsIds.insert(msg.c_message().vid.v, i); break;
+			case mtpc_message: {
+				const MTPDmessage &d(msg.c_message());
+				msgsIds.insert(d.vid.v, i);
+				if (msgsState == 1) { // new message, index my forwarded messages to links overview
+					checkEntitiesUpdate(d);
+				}
+			} break;
 			case mtpc_messageEmpty: msgsIds.insert(msg.c_messageEmpty().vid.v, i); break;
 			case mtpc_messageService: msgsIds.insert(msg.c_messageService().vid.v, i); break;
 			}
@@ -858,6 +879,10 @@ namespace App {
 			switch (myLink.type()) {
 			case mtpc_contactLinkContact:
 				user->contact = 1;
+				if (user->contact == 1 && cReportSpamStatuses().value(user->id, dbiprsNoButton) != dbiprsNoButton) {
+					cRefReportSpamStatuses().insert(user->id, dbiprsNoButton);
+					Local::writeReportSpamStatuses();
+				}
 			break;
 			case mtpc_contactLinkHasPhone:
 				user->contact = 0;
@@ -1072,11 +1097,11 @@ namespace App {
 	}
 
 	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert) {
-		return App::webPageSet(webpage.vid.v, convert, webpage.has_type() ? qs(webpage.vtype) : qsl("article"), qs(webpage.vurl), qs(webpage.vdisplay_url), webpage.has_site_name() ? qs(webpage.vsite_name) : QString(), webpage.has_title() ? qs(webpage.vtitle) : QString(), webpage.has_description() ? qs(webpage.vdescription) : QString(), webpage.has_photo() ? App::feedPhoto(webpage.vphoto) : 0, webpage.has_duration() ? webpage.vduration.v : 0, webpage.has_author() ? qs(webpage.vauthor) : QString(), 0);
+		return App::webPageSet(webpage.vid.v, convert, webpage.has_type() ? qs(webpage.vtype) : qsl("article"), qs(webpage.vurl), qs(webpage.vdisplay_url), webpage.has_site_name() ? qs(webpage.vsite_name) : QString(), webpage.has_title() ? qs(webpage.vtitle) : QString(), webpage.has_description() ? qs(webpage.vdescription) : QString(), webpage.has_photo() ? App::feedPhoto(webpage.vphoto) : 0, webpage.has_document() ? App::feedDocument(webpage.vdocument) : 0, webpage.has_duration() ? webpage.vduration.v : 0, webpage.has_author() ? qs(webpage.vauthor) : QString(), 0);
 	}
 
 	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert) {
-		return App::webPageSet(webpage.vid.v, convert, QString(), QString(), QString(), QString(), QString(), QString(), 0, 0, QString(), webpage.vdate.v);
+		return App::webPageSet(webpage.vid.v, convert, QString(), QString(), QString(), QString(), QString(), QString(), 0, 0, 0, QString(), webpage.vdate.v);
 	}
 
 	WebPageData *feedWebPage(const MTPWebPage &webpage) {
@@ -1430,7 +1455,7 @@ namespace App {
 		return i.value();
 	}
 
-	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, int32 duration, const QString &author, int32 pendingTill) {
+	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill) {
 		if (convert) {
 			if (convert->id != webPage) {
 				WebPagesData::iterator i = webPagesData.find(convert->id);
@@ -1447,6 +1472,7 @@ namespace App {
 				convert->title = title;
 				convert->description = description;
 				convert->photo = photo;
+				convert->doc = doc;
 				convert->duration = duration;
 				convert->author = author;
 				if (convert->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(convert);
@@ -1460,7 +1486,7 @@ namespace App {
 			if (convert) {
 				result = convert;
 			} else {
-				result = new WebPageData(webPage, toWebPageType(type), url, displayUrl, siteName, title, description, photo, duration, author, (pendingTill >= -1) ? pendingTill : -1);
+				result = new WebPageData(webPage, toWebPageType(type), url, displayUrl, siteName, title, description, photo, doc, duration, author, (pendingTill >= -1) ? pendingTill : -1);
 				if (pendingTill > 0 && api()) {
 					api()->requestWebPageDelayed(result);
 				}
@@ -1477,6 +1503,7 @@ namespace App {
 					result->title = title;
 					result->description = description;
 					result->photo = photo;
+					result->doc = doc;
 					result->duration = duration;
 					result->author = author;
 					if (result->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(result);
@@ -1681,6 +1708,7 @@ namespace App {
 	void historyClearItems() {
 		historyClearMsgs();
 		randomData.clear();
+		sentTextData.clear();
 		mutedPeers.clear();
 		updatedPeers.clear();
 		cSetSavedPeers(SavedPeers());
@@ -1715,10 +1743,12 @@ namespace App {
 		cSetStickerSets(StickerSets());
 		cSetStickerSetsOrder(StickerSetsOrder());
 		cSetLastStickersUpdate(0);
+		cSetReportSpamStatuses(ReportSpamStatuses());
 		::videoItems.clear();
 		::audioItems.clear();
 		::documentItems.clear();
 		::webPageItems.clear();
+		::sharedContactPhones.clear();
 		::repliesTo.clear();
 		lastPhotos.clear();
 		lastPhotosMap.clear();
@@ -1754,6 +1784,18 @@ namespace App {
 			return i.value();
 		}
 		return 0;
+	}
+
+	void historyRegSentText(uint64 randomId, const QString &text) {
+		sentTextData.insert(randomId, text);
+	}
+
+	void historyUnregSentText(uint64 randomId) {
+		sentTextData.remove(randomId);
+	}
+
+	QString histSentTextByItem(uint64 randomId) {
+		return sentTextData.value(randomId);
 	}
 
 	void prepareCorners(RoundCorners index, int32 radius, const style::color &color, const style::color *shadow = 0, QImage *cors = 0) {
@@ -1827,6 +1869,12 @@ namespace App {
 		prepareCorners(BotKeyboardCorners, st::msgRadius, st::botKbBg);
 		prepareCorners(BotKeyboardOverCorners, st::msgRadius, st::botKbOverBg);
 		prepareCorners(BotKeyboardDownCorners, st::msgRadius, st::botKbDownBg);
+		prepareCorners(PhotoSelectOverlayCorners, st::msgRadius, st::overviewPhotoSelectOverlay);
+
+		prepareCorners(DocRedCorners, st::msgRadius, st::mvDocRedColor);
+		prepareCorners(DocYellowCorners, st::msgRadius, st::mvDocYellowColor);
+		prepareCorners(DocGreenCorners, st::msgRadius, st::mvDocGreenColor);
+		prepareCorners(DocBlueCorners, st::msgRadius, st::mvDocBlueColor);
 
 		prepareCorners(MessageInCorners, st::msgRadius, st::msgInBg, &st::msgInShadow);
 		prepareCorners(MessageInSelectedCorners, st::msgRadius, st::msgInSelectBg, &st::msgInSelectShadow);
@@ -2091,6 +2139,14 @@ namespace App {
 
 	const WebPageItems &webPageItems() {
 		return ::webPageItems;
+	}
+
+	void regSharedContactPhone(int32 userId, const QString &phone) {
+		::sharedContactPhones[userId] = phone;
+	}
+
+	QString phoneFromSharedContact(int32 userId) {
+		return ::sharedContactPhones.value(userId);
 	}
 
 	void regMuted(PeerData *peer, int32 changeIn) {

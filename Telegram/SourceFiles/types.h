@@ -275,6 +275,7 @@ enum DataBlockId {
 	dbiTryIPv6              = 0x28,
 	dbiSongVolume           = 0x29,
 	dbiWindowsNotifications = 0x30,
+	dbiIncludeMuted         = 0x31,
 
 	dbiEncryptedWithSalt    = 333,
 	dbiEncrypted            = 444,
@@ -354,6 +355,13 @@ enum DBIPlatform {
     dbipMac      = 1,
     dbipLinux64  = 2,
     dbipLinux32  = 3,
+};
+
+enum DBIPeerReportSpamStatus {
+	dbiprsNoButton,
+	dbiprsUnknown,
+	dbiprsShowButton,
+	dbiprsReportSent,
 };
 
 typedef enum {

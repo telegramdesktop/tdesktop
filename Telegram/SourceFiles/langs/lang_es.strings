@@ -60,6 +60,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_weekday7_full" = "domingo";
 
 "lng_month_day" = "{day} de {month}";
+"lng_month_day_year" = "{day} de {month} de {year}";
 
 "lng_cancel" = "Cancelar";
 "lng_continue" = "Continuar";
@@ -117,6 +118,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_code_ph" = "Tu código";
 "lng_code_desc" = "Hemos enviado un mensaje con un código de \nactivación a tu teléfono. Por favor, ponlo abajo.";
+"lng_code_telegram" = "Por favor, pon el código que acabas\nde recibir en tu otra aplicación de [b]Telegram[/b].";
+"lng_code_no_telegram" = "Enviar el código vía SMS";
 "lng_code_call" = "Telegram marcará tu número en {minutes}:{seconds}";
 "lng_code_calling" = "Solicitando una llamada de Telegram...";
 "lng_code_called" = "Telegram marcó tu número";
@@ -188,6 +191,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_show_preview" = "Mostrar la vista previa del mensaje";
 "lng_settings_use_windows" = "Usar notificaciones de Windows";
 "lng_settings_sound_notify" = "Reproducir sonido";
+"lng_settings_include_muted" = "Incluir los chats silenciados en el conteo de 'no leídos'";
 
 "lng_notification_preview" = "Tienes un nuevo mensaje";
 
@@ -386,6 +390,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_files_header" = "Archivos";
 "lng_profile_audios" = "{count:_not_used_|# mensaje de voz|# mensajes de voz} »";
 "lng_profile_audios_header" = "Mensajes de voz";
+"lng_profile_shared_links" = "{count:_not_used_|# enlace|# enlaces} »";
+"lng_profile_shared_links_header" = "Enlaces";
 "lng_profile_audio_files_header" = "Lista de reproducción";
 "lng_profile_show_all_types" = "Mostrar todos los tipos";
 "lng_profile_copy_phone" = "Copiar número";
@@ -443,6 +449,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_type_videos" = "Vídeos";
 "lng_media_type_files" = "Archivos";
 "lng_media_type_audios" = "Mensajes de voz";
+"lng_media_type_links" = "Enlaces";
 
 "lng_media_open_with" = "Abrir con";
 "lng_media_download" = "Descargar";
@@ -450,7 +457,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_video" = "Vídeo";
 "lng_media_audio" = "Mensaje de voz";
 
-"lng_emoji_category0" = "Usados con frecuencia";
+"lng_emoji_category0" = "Uso frecuente";
 "lng_emoji_category1" = "Personas";
 "lng_emoji_category2" = "Naturaleza";
 "lng_emoji_category3" = "Comida y bebida";
@@ -478,6 +485,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
 
+"lng_report_spam" = "Reportar spam";
+"lng_report_spam_hide" = "Ocultar";
+"lng_report_spam_thanks" = "¡Gracias por tu reporte!";
+"lng_report_spam_sure" = "¿Quieres reportar el\nspam de este usuario?";
+"lng_report_spam_sure_group" = "¿Quieres reportar el\nspam en este grupo?";
+"lng_report_spam_ok" = "Reportar";
+"lng_cant_send_to_not_contact" = "Por ahora, sólo puedes enviar mensajes\na contactos mutuos. {more_info}";
+"lng_cant_invite_not_contact" = "Por ahora, sólo puedes añadir contactos \nmutuos a grupos. {more_info}";
+"lng_cant_more_info" = "Más información »";
+
 "lng_send_button" = "Enviar";
 "lng_message_ph" = "Escribir un mensaje...";
 "lng_record_cancel" = "Suelta fuera de aquí para cancelar";
@@ -487,6 +504,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_from_you" = "Tú";
 "lng_bot_description" = "¿Qué puede hacer este bot?";
 "lng_unblock_button" = "Desbloquear";
+
+"lng_open_this_link" = "¿Abrir este enlace?";
+"lng_open_link" = "Abrir";
 
 "lng_bot_start" = "Iniciar";
 "lng_bot_choose_group" = "Elegir grupo";
@@ -615,7 +635,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_about_text" = "Aplicación oficial basada en [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] y la [a href=\"https://core.telegram.org/api\"]\nAPI de Telegram[/a] para velocidad y seguridad.\n\nSoftware bajo licencia [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versión 3.\nCódigo fuente disponible en [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 "lng_about_done" = "Hecho";
 
-"lng_search_found_results" = "{count:No se encontraron mensajes|Found # mensaje|Found # mensajes}";
+"lng_search_found_results" = "{count:No se encontraron mensajes|# mensaje encontrado|# mensajes encontrados}";
 "lng_search_global_results" = "Resultados de la búsqueda global";
 
 "lng_media_save_progress" = "{ready} de {total} {mb}";
@@ -641,7 +661,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop fue actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Bloquea usuarios desde sus perfiles\n— Añadido el soporte para notificaciones Windows toast\n— Arreglados los métodos de entrada en Linux (Fcitx e IBus)";
+"lng_new_version_text" = "— Botones para reportar spam en los nuevos chats\n— Otras mejoras y correcciones\n— Notificaciones en OS X 10.8 arregladas";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

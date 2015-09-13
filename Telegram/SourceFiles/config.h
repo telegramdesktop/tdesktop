@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 8051;
-static const wchar_t *AppVersionStr = L"0.8.51";
+static const int32 AppVersion = 8057;
+static const wchar_t *AppVersionStr = L"0.8.57";
 static const bool DevVersion = false;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
@@ -81,6 +81,7 @@ enum {
 	AutoSearchTimeout = 900, // 0.9 secs
 	SearchPerPage = 50,
 	SearchManyPerPage = 100,
+	LinksOverviewPerPage = 12,
 	MediaOverviewStartPerPage = 5,
 	MediaOverviewPreloadCount = 4,
 

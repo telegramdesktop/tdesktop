@@ -655,7 +655,8 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				case 1: to.add("  duration: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 2: to.add("  w: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 3: to.add("  h: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 4: to.add("  caption: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 4: to.add("  mime_type: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 5: to.add("  caption: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -673,7 +674,8 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				case 2: to.add("  duration: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 3: to.add("  w: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 4: to.add("  h: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 5: to.add("  caption: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 5: to.add("  mime_type: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 6: to.add("  caption: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -1213,29 +1215,6 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
-			case mtpc_geoChat:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geoChat");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  access_hash: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  title: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  address: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 4: to.add("  venue: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 5: to.add("  geo: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 6: to.add("  photo: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 7: to.add("  participants_count: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 8: to.add("  date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 9: to.add("  checked_in: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 10: to.add("  version: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
 			case mtpc_chatFull:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
@@ -1277,7 +1256,9 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 					to.add("\n").addSpaces(lev);
 				}
 				switch (stage) {
-				case 0: to.add("  chat_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  chat_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  self_participant: "); ++stages.back(); if (flag & MTPDchatParticipantsForbidden::flag_self_participant) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -1346,7 +1327,7 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				case 6: to.add("  reply_to_msg_id: "); ++stages.back(); if (flag & MTPDmessage::flag_reply_to_msg_id) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 3 IN FIELD flags ]"); } break;
 				case 7: to.add("  date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 8: to.add("  message: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 9: to.add("  media: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 9: to.add("  media: "); ++stages.back(); if (flag & MTPDmessage::flag_media) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 9 IN FIELD flags ]"); } break;
 				case 10: to.add("  reply_markup: "); ++stages.back(); if (flag & MTPDmessage::flag_reply_markup) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
 				case 11: to.add("  entities: "); ++stages.back(); if (flag & MTPDmessage::flag_entities) { types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 7 IN FIELD flags ]"); } break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
@@ -1564,24 +1545,6 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				case 0: to.add("  user_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
-			break;
-
-			case mtpc_messageActionGeoChatCreate:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ messageActionGeoChatCreate");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  title: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  address: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_messageActionGeoChatCheckin:
-				to.add("{ messageActionGeoChatCheckin }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 			break;
 
 			case mtpc_messageActionChatJoinedByLink:
@@ -1840,19 +1803,6 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				to.add("{ inputNotifyAll }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 			break;
 
-			case mtpc_inputNotifyGeoChatPeer:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ inputNotifyGeoChatPeer");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
 			case mtpc_inputPeerNotifyEventsEmpty:
 				to.add("{ inputPeerNotifyEventsEmpty }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 			break;
@@ -2025,20 +1975,6 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
-			case mtpc_chatLocated:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ chatLocated");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  chat_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  distance: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
 			case mtpc_contacts_link:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
@@ -2190,43 +2126,6 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				case 1: to.add("  messages: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 2: to.add("  chats: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 3: to.add("  users: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_messages_sentMessage:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ messages_sentMessage");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  media: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  entities: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 4: to.add("  pts: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 5: to.add("  pts_count: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_messages_sentMessageLink:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ messages_sentMessageLink");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  media: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  pts: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 4: to.add("  pts_count: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 5: to.add("  links: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 6: to.add("  seq: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -2487,19 +2386,6 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
-			case mtpc_updateNewGeoChatMessage:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ updateNewGeoChatMessage");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  message: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
 			case mtpc_updateNewEncryptedMessage:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
@@ -2567,7 +2453,8 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				case 0: to.add("  chat_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 1: to.add("  user_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 2: to.add("  inviter_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  version: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 3: to.add("  date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 4: to.add("  version: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -2713,6 +2600,8 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 				switch (stage) {
 				case 0: to.add("  webpage: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  pts: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  pts_count: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -2899,6 +2788,25 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
+			case mtpc_updateShortSentMessage:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ updateShortSentMessage");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  pts: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 3: to.add("  pts_count: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 4: to.add("  date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 5: to.add("  media: "); ++stages.back(); if (flag & MTPDupdateShortSentMessage::flag_media) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 9 IN FIELD flags ]"); } break;
+				case 6: to.add("  entities: "); ++stages.back(); if (flag & MTPDupdateShortSentMessage::flag_entities) { types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 7 IN FIELD flags ]"); } break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
 			case mtpc_photos_photos:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
@@ -3047,132 +2955,6 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 				switch (stage) {
 				case 0: to.add("  message: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_inputGeoChat:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ inputGeoChat");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  chat_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  access_hash: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geoChatMessageEmpty:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geoChatMessageEmpty");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  chat_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geoChatMessage:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geoChatMessage");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  chat_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  from_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 4: to.add("  message: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 5: to.add("  media: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geoChatMessageService:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geoChatMessageService");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  chat_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  from_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 4: to.add("  action: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geochats_statedMessage:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geochats_statedMessage");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  message: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  chats: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  users: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  seq: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geochats_located:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geochats_located");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  results: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  messages: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  chats: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  users: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geochats_messages:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geochats_messages");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  messages: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  chats: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  users: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geochats_messagesSlice:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geochats_messagesSlice");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  count: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  messages: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  chats: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  users: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -4025,6 +3807,7 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				case 12: to.add("  embed_height: "); ++stages.back(); if (flag & MTPDwebPage::flag_embed_height) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 6 IN FIELD flags ]"); } break;
 				case 13: to.add("  duration: "); ++stages.back(); if (flag & MTPDwebPage::flag_duration) { types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 7 IN FIELD flags ]"); } break;
 				case 14: to.add("  author: "); ++stages.back(); if (flag & MTPDwebPage::flag_author) { types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 8 IN FIELD flags ]"); } break;
+				case 15: to.add("  document: "); ++stages.back(); if (flag & MTPDwebPage::flag_document) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 9 IN FIELD flags ]"); } break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -4718,6 +4501,20 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
+			case mtpc_auth_sendSms:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ auth_sendSms");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  phone_number: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  phone_code_hash: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
 			case mtpc_account_registerDevice:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
@@ -4778,172 +4575,6 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 				switch (stage) {
 				case 0: to.add("  offline: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_contacts_deleteContacts:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ contacts_deleteContacts");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  id: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_contacts_block:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ contacts_block");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_contacts_unblock:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ contacts_unblock");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_messages_setTyping:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ messages_setTyping");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  action: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_upload_saveFilePart:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ upload_saveFilePart");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  file_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  file_part: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  bytes: "); ++stages.back(); types.push_back(mtpc_bytes); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_help_saveAppLog:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ help_saveAppLog");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  events: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geochats_setTyping:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geochats_setTyping");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  typing: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_messages_discardEncryption:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ messages_discardEncryption");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  chat_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_messages_setEncryptedTyping:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ messages_setEncryptedTyping");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  typing: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_messages_readEncryptedHistory:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ messages_readEncryptedHistory");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  max_date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_upload_saveBigFilePart:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ upload_saveBigFilePart");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  file_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  file_part: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  file_total_parts: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  bytes: "); ++stages.back(); types.push_back(mtpc_bytes); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_auth_sendSms:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ auth_sendSms");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  phone_number: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  phone_code_hash: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -5027,6 +4658,113 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
+			case mtpc_contacts_deleteContacts:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ contacts_deleteContacts");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  id: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_contacts_block:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ contacts_block");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_contacts_unblock:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ contacts_unblock");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_messages_setTyping:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ messages_setTyping");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  action: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_messages_reportSpam:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ messages_reportSpam");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_messages_discardEncryption:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ messages_discardEncryption");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  chat_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_messages_setEncryptedTyping:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ messages_setEncryptedTyping");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  typing: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_messages_readEncryptedHistory:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ messages_readEncryptedHistory");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  max_date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
 			case mtpc_messages_installStickerSet:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
@@ -5050,6 +4788,50 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 				switch (stage) {
 				case 0: to.add("  stickerset: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_upload_saveFilePart:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ upload_saveFilePart");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  file_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  file_part: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  bytes: "); ++stages.back(); types.push_back(mtpc_bytes); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_upload_saveBigFilePart:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ upload_saveBigFilePart");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  file_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  file_part: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  file_total_parts: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 3: to.add("  bytes: "); ++stages.back(); types.push_back(mtpc_bytes); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_help_saveAppLog:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ help_saveAppLog");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  events: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -5258,6 +5040,10 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
+			case mtpc_auth_requestPasswordRecovery:
+				to.add("{ auth_requestPasswordRecovery }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+			break;
+
 			case mtpc_account_getNotifySettings:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
@@ -5285,37 +5071,11 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
-			case mtpc_contacts_importCard:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ contacts_importCard");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  export_card: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_int); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
 			case mtpc_account_updateUsername:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
 				} else {
 					to.add("{ account_updateUsername");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  username: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_contacts_resolveUsername:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ contacts_resolveUsername");
 					to.add("\n").addSpaces(lev);
 				}
 				switch (stage) {
@@ -5339,8 +5099,99 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
+			case mtpc_contacts_importCard:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ contacts_importCard");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  export_card: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_int); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_contacts_resolveUsername:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ contacts_resolveUsername");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  username: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
 			case mtpc_account_getWallPapers:
 				to.add("{ account_getWallPapers }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+			break;
+
+			case mtpc_account_getPrivacy:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ account_getPrivacy");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  key: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_account_setPrivacy:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ account_setPrivacy");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  key: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  rules: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_account_getAccountTTL:
+				to.add("{ account_getAccountTTL }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+			break;
+
+			case mtpc_account_sendChangePhoneCode:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ account_sendChangePhoneCode");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  phone_number: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_account_getAuthorizations:
+				to.add("{ account_getAuthorizations }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+			break;
+
+			case mtpc_account_getPassword:
+				to.add("{ account_getPassword }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+			break;
+
+			case mtpc_account_getPasswordSettings:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ account_getPasswordSettings");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  current_password_hash: "); ++stages.back(); types.push_back(mtpc_bytes); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
 			break;
 
 			case mtpc_users_getUsers:
@@ -5442,6 +5293,20 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 
 			case mtpc_contacts_exportCard:
 				to.add("{ contacts_exportCard }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+			break;
+
+			case mtpc_contacts_search:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ contacts_search");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  q: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
 			break;
 
 			case mtpc_messages_getMessages:
@@ -5785,315 +5650,6 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
-			case mtpc_geochats_getFullChat:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geochats_getFullChat");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_updates_getState:
-				to.add("{ updates_getState }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
-			break;
-
-			case mtpc_updates_getDifference:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ updates_getDifference");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  pts: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  qts: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_photos_updateProfilePhoto:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ photos_updateProfilePhoto");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  crop: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_photos_uploadProfilePhoto:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ photos_uploadProfilePhoto");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  file: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  caption: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  geo_point: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  crop: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_photos_deletePhotos:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ photos_deletePhotos");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  id: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_messages_receivedQueue:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ messages_receivedQueue");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  max_qts: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_upload_getFile:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ upload_getFile");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  location: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  offset: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_help_getConfig:
-				to.add("{ help_getConfig }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
-			break;
-
-			case mtpc_help_getNearestDc:
-				to.add("{ help_getNearestDc }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
-			break;
-
-			case mtpc_help_getAppUpdate:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ help_getAppUpdate");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  device_model: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  system_version: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  app_version: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  lang_code: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_help_getInviteText:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ help_getInviteText");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  lang_code: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_photos_getUserPhotos:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ photos_getUserPhotos");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  user_id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  offset: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  max_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geochats_getLocated:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geochats_getLocated");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  geo_point: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  radius: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geochats_getRecents:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geochats_getRecents");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  offset: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geochats_search:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geochats_search");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  q: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  filter: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  min_date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 4: to.add("  max_date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 5: to.add("  offset: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 6: to.add("  max_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 7: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geochats_getHistory:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geochats_getHistory");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  offset: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  max_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geochats_checkin:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geochats_checkin");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geochats_editChatTitle:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geochats_editChatTitle");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  title: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  address: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geochats_editChatPhoto:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geochats_editChatPhoto");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  photo: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geochats_sendMessage:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geochats_sendMessage");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  message: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  random_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geochats_sendMedia:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geochats_sendMedia");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  media: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  random_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_geochats_createGeoChat:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ geochats_createGeoChat");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  title: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  geo_point: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  address: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 3: to.add("  venue: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
 			case mtpc_messages_getDhConfig:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
@@ -6184,64 +5740,28 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
-			case mtpc_help_getSupport:
-				to.add("{ help_getSupport }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
-			break;
-
-			case mtpc_contacts_search:
+			case mtpc_messages_receivedQueue:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
 				} else {
-					to.add("{ contacts_search");
+					to.add("{ messages_receivedQueue");
 					to.add("\n").addSpaces(lev);
 				}
 				switch (stage) {
-				case 0: to.add("  q: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 0: to.add("  max_qts: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
 
-			case mtpc_account_getPrivacy:
+			case mtpc_photos_deletePhotos:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
 				} else {
-					to.add("{ account_getPrivacy");
+					to.add("{ photos_deletePhotos");
 					to.add("\n").addSpaces(lev);
 				}
 				switch (stage) {
-				case 0: to.add("  key: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_account_setPrivacy:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ account_setPrivacy");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  key: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  rules: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_account_getAccountTTL:
-				to.add("{ account_getAccountTTL }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
-			break;
-
-			case mtpc_account_sendChangePhoneCode:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ account_sendChangePhoneCode");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  phone_number: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 0: to.add("  id: "); ++stages.back(); types.push_back(00); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -6286,31 +5806,6 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
-			case mtpc_account_getAuthorizations:
-				to.add("{ account_getAuthorizations }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
-			break;
-
-			case mtpc_account_getPassword:
-				to.add("{ account_getPassword }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
-			break;
-
-			case mtpc_account_getPasswordSettings:
-				if (stage) {
-					to.add(",\n").addSpaces(lev);
-				} else {
-					to.add("{ account_getPasswordSettings");
-					to.add("\n").addSpaces(lev);
-				}
-				switch (stage) {
-				case 0: to.add("  current_password_hash: "); ++stages.back(); types.push_back(mtpc_bytes); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
-				}
-			break;
-
-			case mtpc_auth_requestPasswordRecovery:
-				to.add("{ auth_requestPasswordRecovery }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
-			break;
-
 			case mtpc_messages_exportChatInvite:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
@@ -6348,6 +5843,127 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				case 0: to.add("  stickerset: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
+			break;
+
+			case mtpc_updates_getState:
+				to.add("{ updates_getState }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+			break;
+
+			case mtpc_updates_getDifference:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ updates_getDifference");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  pts: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  qts: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_photos_updateProfilePhoto:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ photos_updateProfilePhoto");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  crop: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_photos_uploadProfilePhoto:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ photos_uploadProfilePhoto");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  file: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  caption: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  geo_point: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 3: to.add("  crop: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_photos_getUserPhotos:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ photos_getUserPhotos");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  user_id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  offset: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  max_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 3: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_upload_getFile:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ upload_getFile");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  location: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  offset: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_help_getConfig:
+				to.add("{ help_getConfig }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+			break;
+
+			case mtpc_help_getNearestDc:
+				to.add("{ help_getNearestDc }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+			break;
+
+			case mtpc_help_getAppUpdate:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ help_getAppUpdate");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  device_model: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  system_version: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  app_version: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 3: to.add("  lang_code: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_help_getInviteText:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ help_getInviteText");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  lang_code: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_help_getSupport:
+				to.add("{ help_getSupport }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
 			break;
 
 			case mtpc_help_getAppChangelog:

@@ -340,6 +340,10 @@ introHeaderFont: font(24px);
 introHeaderSkip: 14px;
 introIconSkip: 54px;
 introFont: font(16px);
+introLink: linkButton(btnDefLink) {
+	font: introFont;
+	overFont: font(16px underline);
+}
 introColor: black;
 introLabel: flatLabel(labelDefFlat) {
 	font: introFont;
@@ -1068,7 +1072,34 @@ textRectMargins: margins(-2px, -1px, -2px, -1px);
 taMsgField: flatTextarea(taDefFlat) {
 	font: msgFont;
 }
-maxFieldHeight: 243px;
+maxFieldHeight: 220px;
+// historyMinHeight: 56px;
+
+reportSpamHide: flatButton(topBarButton) {
+	height: 46px;
+
+	textTop: 15px;
+	overTextTop: 15px;
+	downTextTop: 16px;
+
+	bgColor: transparent;
+	overBgColor: transparent;
+	downBgColor: transparent;
+}
+reportSpamButton: flatButton(reportSpamHide) {
+	textTop: 6px;
+	overTextTop: 6px;
+	downTextTop: 7px;
+
+	width: -50px;
+	height: 30px;
+
+	bgColor: #888;
+	overBgColor: #7b7b7b;
+	downBgColor: #7b7b7b;
+}
+reportSpamSeparator: 30px;
+reportSpamBg: #fffffff0;
 
 newMsgSound: ':/gui/art/newmsg.wav';
 
@@ -1449,6 +1480,10 @@ dropdownMediaDocuments: iconedButton(dropdownAttachDocument) {
 }
 dropdownMediaAudios: iconedButton(dropdownMediaDocuments) {
 	icon: sprite(62px, 348px, 24px, 24px);
+	downIcon: sprite(62px, 348px, 24px, 24px);
+}
+dropdownMediaLinks: iconedButton(dropdownMediaDocuments) {
+	icon: sprite(372px, 414px, 24px, 24px);
 	downIcon: sprite(62px, 348px, 24px, 24px);
 }
 
@@ -2002,3 +2037,15 @@ playerDuration: 200;
 
 playlistHoverBg: #f2f2f2;
 playlistPadding: 10px;
+
+linksSearchMargin: margins(20px, 20px, 20px, 0px);
+linksMaxWidth: 520px;
+linksLetterFont: font(24px);
+linksMargin: 5px;
+linksBorder: 1px;
+linksBorderColor: #eaeaea;
+linksDateColor: #000;
+linksDateMargin: 15px;
+
+linksPhotoCheck: sprite(184px, 196px, 16px, 16px);
+linksPhotoChecked: sprite(168px, 196px, 16px, 16px);

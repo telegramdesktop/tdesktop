@@ -11566,6 +11566,22 @@ index da0ba27..1d42b79 100644
  void QWindowsXpFileDialogHelper::selectNameFilter(const QString &f)
  {
      m_data.setSelectedNameFilter(f); // Dialog cannot be updated at run-time.
+diff --git a/qtbase/src/plugins/platforms/windows/qwindowsservices.cpp b/qtbase/src/plugins/platforms/windows/qwindowsservices.cpp
+index cc697ba..8e15e86 100644
+--- a/qtbase/src/plugins/platforms/windows/qwindowsservices.cpp
++++ b/qtbase/src/plugins/platforms/windows/qwindowsservices.cpp
+@@ -125,8 +125,9 @@ static inline bool launchMail(const QUrl &url)
+     }
+     // Pass the url as the parameter. Should use QProcess::startDetached(),
+     // but that cannot handle a Windows command line [yet].
+-    command.replace(QStringLiteral("%1"), url.toString(QUrl::FullyEncoded));
+-    if (debug)
++	if (command.indexOf(QStringLiteral("%1")) < 0) return false;
++	command.replace(QStringLiteral("%1"), url.toString(QUrl::FullyEncoded));
++	if (debug)
+         qDebug() << __FUNCTION__ << "Launching" << command;
+     //start the process
+     PROCESS_INFORMATION pi;
 diff --git a/qtbase/src/plugins/platforms/windows/qwindowswindow.cpp b/qtbase/src/plugins/platforms/windows/qwindowswindow.cpp
 index 543c081..d80429b 100644
 --- a/qtbase/src/plugins/platforms/windows/qwindowswindow.cpp

@@ -59,10 +59,6 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	// shared media
 	_allMediaTypes(false),
 	_mediaShowAll(this, lang(lng_profile_show_all_types)),
-	_mediaPhotos(this, QString()),
-	_mediaVideos(this, QString()),
-	_mediaDocuments(this, QString()),
-	_mediaAudios(this, QString()),
 
 	// actions
 	_searchInPeer(this, lang(lng_profile_search_messages)),
@@ -86,7 +82,7 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 		if (_peerUser->blocked == UserIsBlocked) {
 			_blockUser.setText(lang(_peerUser->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user));
 		}
-		_phoneText = App::formatPhone(_peerUser->phone);
+		_phoneText = App::formatPhone(_peerUser->phone.isEmpty() ? App::phoneFromSharedContact(App::userFromPeer(_peerUser->id)) : _peerUser->phone);
 		PhotoData *userPhoto = (_peerUser->photoId && _peerUser->photoId != UnknownPeerPhotoId) ? App::photo(_peerUser->photoId) : 0;
 		if (userPhoto && userPhoto->date) {
 			_photoLink = TextLinkPtr(new PhotoLink(userPhoto, _peer));
@@ -161,14 +157,11 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 
 	// shared media
 	connect(&_mediaShowAll, SIGNAL(clicked()), this, SLOT(onMediaShowAll()));
-	connect(&_mediaPhotos, SIGNAL(clicked()), this, SLOT(onMediaPhotos()));
-	connect(&_mediaVideos, SIGNAL(clicked()), this, SLOT(onMediaVideos()));
-	connect(&_mediaDocuments, SIGNAL(clicked()), this, SLOT(onMediaDocuments()));
-	connect(&_mediaAudios, SIGNAL(clicked()), this, SLOT(onMediaAudios()));
-	_mediaLinks[OverviewPhotos] = &_mediaPhotos;
-	_mediaLinks[OverviewVideos] = &_mediaVideos;
-	_mediaLinks[OverviewDocuments] = &_mediaDocuments;
-	_mediaLinks[OverviewAudios] = &_mediaAudios;
+	connect((_mediaButtons[OverviewPhotos] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaPhotos()));
+	connect((_mediaButtons[OverviewVideos] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaVideos()));
+	connect((_mediaButtons[OverviewDocuments] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaDocuments()));
+	connect((_mediaButtons[OverviewAudios] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaAudios()));
+	connect((_mediaButtons[OverviewLinks] = new LinkButton(this, QString())), SIGNAL(clicked()), this, SLOT(onMediaLinks()));
 	App::main()->preloadOverviews(_peer);
 
 	// actions
@@ -216,7 +209,7 @@ void ProfileInner::loadProfilePhotos(int32 yFrom) {
 	int32 yTo = yFrom + (parentWidget() ? parentWidget()->height() : App::wnd()->height()) * 5;
 	MTP::clearLoaderPriorities();
 
-	int32 partfrom = _mediaAudios.y() + _mediaAudios.height() + st::profileHeaderSkip;
+	int32 partfrom = _mediaButtons[OverviewAudios]->y() + _mediaButtons[OverviewAudios]->height() + st::profileHeaderSkip;
 	yFrom -= partfrom;
 	yTo -= partfrom;
 
@@ -306,7 +299,8 @@ void ProfileInner::blockDone(bool blocked, const MTPBool &result) {
 
 bool ProfileInner::blockFail(const RPCError &error) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
-	//_blockRequest = 0;
+	
+	_blockRequest = 0;
 	return false;
 }
 
@@ -359,6 +353,10 @@ void ProfileInner::onMediaDocuments() {
 
 void ProfileInner::onMediaAudios() {
 	App::main()->showMediaOverview(_peer, OverviewAudios);
+}
+
+void ProfileInner::onMediaLinks() {
+	App::main()->showMediaOverview(_peer, OverviewLinks);
 }
 
 void ProfileInner::onInvitationLink() {
@@ -437,7 +435,7 @@ void ProfileInner::peerUpdated(PeerData *data) {
 	if (data == _peer) {
 		PhotoData *photo = 0;
 		if (_peerUser) {
-			_phoneText = App::formatPhone(_peerUser->phone);
+			_phoneText = App::formatPhone(_peerUser->phone.isEmpty() ? App::phoneFromSharedContact(App::userFromPeer(_peerUser->id)) : _peerUser->phone);
 			if (_peerUser->photoId && _peerUser->photoId != UnknownPeerPhotoId) photo = App::photo(_peerUser->photoId);
 			if (_wasBlocked != _peerUser->blocked) {
 				_wasBlocked = _peerUser->blocked;
@@ -652,7 +650,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 			if (!_allMediaTypes) {
 				break;
 			}
-			top += _mediaLinks[i]->height() + st::setLittleSkip;
+			top += _mediaButtons[i]->height() + st::setLittleSkip;
 		}
 	}
 	if (_allMediaTypes) {
@@ -660,13 +658,13 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 			top -= st::setLittleSkip;
 		} else {
 			p.drawText(_left, top + st::linkFont->ascent, lang(oneState < 0 ? lng_profile_loading : lng_profile_no_media));
-			top += _mediaLinks[OverviewPhotos]->height();
+			top += _mediaButtons[OverviewPhotos]->height();
 		}
 	} else {
 		if (!oneState) {
 			p.drawText(_left, top + st::linkFont->ascent, lang(lng_profile_no_media));
 		}
-		top += _mediaLinks[OverviewPhotos]->height();
+		top += _mediaButtons[OverviewPhotos]->height();
 	}
 
 	// actions
@@ -934,13 +932,13 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 		if (_allMediaTypes) {
 			int32 count = (_hist->_overviewCount[i] > 0) ? _hist->_overviewCount[i] : (_hist->_overviewCount[i] == 0 ? _hist->_overview[i].size() : -1);
 			if (count > 0) {
-				if (wasCount) top += _mediaLinks[i]->height() + st::setLittleSkip;
+				if (wasCount) top += _mediaButtons[i]->height() + st::setLittleSkip;
 				wasCount = count;
 			}
 		}
-		_mediaLinks[i]->move(_left, top);
+		_mediaButtons[i]->move(_left, top);
 	}
-	top += _mediaLinks[OverviewPhotos]->height();
+	top += _mediaButtons[OverviewPhotos]->height();
 
 	// actions
 	top += st::profileHeaderSkip;
@@ -1131,17 +1129,17 @@ void ProfileInner::showAll() {
 			if (count > 0 || count < 0) {
 				first = true;
 			} else if (!_allMediaTypes) {
-				_mediaLinks[i]->hide();
+				_mediaButtons[i]->hide();
 				continue;
 			}
 			if (count > 0) {
-				_mediaLinks[i]->setText(overviewLinkText(i, count));
-				_mediaLinks[i]->show();
+				_mediaButtons[i]->setText(overviewLinkText(i, count));
+				_mediaButtons[i]->show();
 			} else {
-				_mediaLinks[i]->hide();
+				_mediaButtons[i]->hide();
 			}
 		} else {
-			_mediaLinks[i]->hide();
+			_mediaButtons[i]->hide();
 		}
 	}
 	if (_allMediaTypes || !manyCounts) {
@@ -1208,6 +1206,7 @@ QString ProfileInner::overviewLinkText(int32 type, int32 count) {
 	case OverviewVideos: return lng_profile_videos(lt_count, count);
 	case OverviewDocuments: return lng_profile_files(lt_count, count);
 	case OverviewAudios: return lng_profile_audios(lt_count, count);
+	case OverviewLinks: return lng_profile_shared_links(lt_count, count);
 	}
 	return QString();
 }

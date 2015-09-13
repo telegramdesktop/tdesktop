@@ -43,7 +43,9 @@ namespace {
 			countryForReg = nearest.vcountry.c_string().v.c_str();
 			emit signalEmitOn->countryChanged();
 		}
+		#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 		if (App::app()) App::app()->startUpdateCheck();
+		#endif
 	}
 }
 
@@ -63,6 +65,7 @@ visibilityChanging(0),
 _callTimeout(60),
 _registered(false),
 _hasRecovery(false),
+_codeByTelegram(false),
 _back(this, st::setClose),
 _backFrom(0), _backTo(0) {
 	setGeometry(QRect(0, st::titleHeight, wnd->width(), wnd->height() - st::titleHeight));
@@ -333,6 +336,11 @@ void IntroWidget::setPwdHint(const QString &hint) {
 	_pwdHint = hint;
 }
 
+void IntroWidget::setCodeByTelegram(bool byTelegram) {
+	_codeByTelegram = byTelegram;
+	if (code) code->updateDescText();
+}
+
 void IntroWidget::setCallTimeout(int32 callTimeout) {
 	_callTimeout = callTimeout;
 }
@@ -363,6 +371,10 @@ bool IntroWidget::getHasRecovery() const {
 
 const QString &IntroWidget::getPwdHint() const {
 	return _pwdHint;
+}
+
+bool IntroWidget::codeByTelegram() const {
+	return _codeByTelegram;
 }
 
 void IntroWidget::resizeEvent(QResizeEvent *e) {

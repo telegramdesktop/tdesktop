@@ -60,6 +60,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_weekday7_full" = "zondag";
 
 "lng_month_day" = "{day} {month}";
+"lng_month_day_year" = "{day} {month}, {year}";
 
 "lng_cancel" = "Annuleren";
 "lng_continue" = "Doorgaan";
@@ -117,6 +118,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_code_ph" = "Je code";
 "lng_code_desc" = "We hebben een bericht met activatiecode\nverstuurd naar je nummer, geef deze hieronder in.";
+"lng_code_telegram" = "Voer de code in die je zojuist\nhebt ontvangen in je vorige [b]Telegram[/b]-app.";
+"lng_code_no_telegram" = "Verstuur code via SMS";
 "lng_code_call" = "Telegram belt je over {minutes}:{seconds}";
 "lng_code_calling" = "Oproepverzoek versturen naar Telegram";
 "lng_code_called" = "Telegram heeft je nummer gebeld";
@@ -188,6 +191,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_settings_show_preview" = "Voorvertoning weergeven";
 "lng_settings_use_windows" = "Windows-berichtgeving gebruiken";
 "lng_settings_sound_notify" = "Geluiden afspelen";
+"lng_settings_include_muted" = "Stille chats meetellen in ongelezen";
 
 "lng_notification_preview" = "Je hebt een nieuw bericht";
 
@@ -386,6 +390,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_files_header" = "Bestandsoverzicht";
 "lng_profile_audios" = "{count:_not_used_|# spraakbericht|# spraakberichten} »";
 "lng_profile_audios_header" = "Overzicht van spraakberichten";
+"lng_profile_shared_links" = "{count:_not_used_|# gedeelde link|# gedeelde links} »";
+"lng_profile_shared_links_header" = "Overzicht van gedeelde links";
 "lng_profile_audio_files_header" = "Afspeellijst";
 "lng_profile_show_all_types" = "Alles weergeven";
 "lng_profile_copy_phone" = "Telefoonnummer kopiëren";
@@ -443,6 +449,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_media_type_videos" = "Video's";
 "lng_media_type_files" = "Bestanden";
 "lng_media_type_audios" = "Spraakberichten";
+"lng_media_type_links" = "Gedeelde links";
 
 "lng_media_open_with" = "Openen met";
 "lng_media_download" = "Downloaden";
@@ -478,6 +485,16 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} (sticker)";
 
+"lng_report_spam" = "Spam melden";
+"lng_report_spam_hide" = "Verbergen";
+"lng_report_spam_thanks" = "Bedankt voor je melding!";
+"lng_report_spam_sure" = "Spam van deze\ngebruiker echt melden? ";
+"lng_report_spam_sure_group" = "Spam van deze\ngroep echt melden? ";
+"lng_report_spam_ok" = "Melden";
+"lng_cant_send_to_not_contact" = "Op dit moment kun je alleen berichten\nversturen naar onderlinge contacten. {more_info}";
+"lng_cant_invite_not_contact" = "Op dit moment kun je alleen onderlinge\ncontacten aan groepen toevoegen.  {more_info}";
+"lng_cant_more_info" = "Meer informatie »";
+
 "lng_send_button" = "Stuur";
 "lng_message_ph" = "Bericht schrijven";
 "lng_record_cancel" = "Annuleren: uit het vak loslaten";
@@ -487,6 +504,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_from_you" = "Jij";
 "lng_bot_description" = "Wat kan deze bot? ";
 "lng_unblock_button" = "Deblokkeer";
+
+"lng_open_this_link" = "Link openen?";
+"lng_open_link" = "Openen";
 
 "lng_bot_start" = "Begin";
 "lng_bot_choose_group" = "Groep kiezen";
@@ -641,7 +661,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Blokkeer gebruikers vanaf de profielpagina\n— Ondersteuning voor Windows toast-meldingen\n— Problemen met invoermethodes onder Linux (Fcitx and IBus) opgelost";
+"lng_new_version_text" = "— 'Spam melden'-optie in nieuwe chats\n— Probleemoplossing en kleine verbeteringen\n— Problemen met OS X 10.8 berichtmeldingen opgelost";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

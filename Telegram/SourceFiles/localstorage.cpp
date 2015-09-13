@@ -495,19 +495,20 @@ namespace {
 	FileKey _dataNameKey = 0;
 
 	enum { // Local Storage Keys
-		lskUserMap           = 0x00,
-		lskDraft             = 0x01, // data: PeerId peer
-		lskDraftPosition     = 0x02, // data: PeerId peer
-		lskImages            = 0x03, // data: StorageKey location
-		lskLocations         = 0x04, // no data
-		lskStickerImages     = 0x05, // data: StorageKey location
-		lskAudios            = 0x06, // data: StorageKey location
-		lskRecentStickersOld = 0x07, // no data
-		lskBackground        = 0x08, // no data
-		lskUserSettings      = 0x09, // no data
-		lskRecentHashtags    = 0x0a, // no data
-		lskStickers          = 0x0b, // no data
-		lskSavedPeers        = 0x0c, // no data
+		lskUserMap            = 0x00,
+		lskDraft              = 0x01, // data: PeerId peer
+		lskDraftPosition      = 0x02, // data: PeerId peer
+		lskImages             = 0x03, // data: StorageKey location
+		lskLocations          = 0x04, // no data
+		lskStickerImages      = 0x05, // data: StorageKey location
+		lskAudios             = 0x06, // data: StorageKey location
+		lskRecentStickersOld  = 0x07, // no data
+		lskBackground         = 0x08, // no data
+		lskUserSettings       = 0x09, // no data
+		lskRecentHashtags     = 0x0a, // no data
+		lskStickers           = 0x0b, // no data
+		lskSavedPeers         = 0x0c, // no data
+		lskReportSpamStatuses = 0x0d, // no data
 	};
 
 	typedef QMap<PeerId, FileKey> DraftsMap;
@@ -522,7 +523,7 @@ namespace {
 	FileLocationPairs _fileLocationPairs;
 	typedef QMap<MediaKey, MediaKey> FileLocationAliases;
 	FileLocationAliases _fileLocationAliases;
-	FileKey _locationsKey = 0;
+	FileKey _locationsKey = 0, _reportSpamStatusesKey = 0;
 	
 	FileKey _recentStickersKeyOld = 0, _stickersKey = 0;
 	
@@ -550,7 +551,7 @@ namespace {
 	};
 
 	void _writeMap(WriteMapWhen when = WriteMapSoon);
-		
+
 	void _writeLocations(WriteMapWhen when = WriteMapSoon) {
 		if (when != WriteMapNow) {
 			_manager->writeLocations(when == WriteMapFast);
@@ -643,6 +644,63 @@ namespace {
 		}
 	}
 
+	void _writeReportSpamStatuses() {
+		if (!_working()) return;
+
+		if (cReportSpamStatuses().isEmpty()) {
+			if (_reportSpamStatusesKey) {
+				clearKey(_reportSpamStatusesKey);
+				_reportSpamStatusesKey = 0;
+				_mapChanged = true;
+				_writeMap();
+			}
+		} else {
+			if (!_reportSpamStatusesKey) {
+				_reportSpamStatusesKey = genKey();
+				_mapChanged = true;
+				_writeMap(WriteMapFast);
+			}
+			const ReportSpamStatuses &statuses(cReportSpamStatuses());
+
+			quint32 size = sizeof(qint32);
+			for (ReportSpamStatuses::const_iterator i = statuses.cbegin(), e = statuses.cend(); i != e; ++i) {
+				// peer + status
+				size += sizeof(quint64) + sizeof(qint32);
+			}
+
+			EncryptedDescriptor data(size);
+			data.stream << qint32(statuses.size());
+			for (ReportSpamStatuses::const_iterator i = statuses.cbegin(), e = statuses.cend(); i != e; ++i) {
+				data.stream << quint64(i.key()) << qint32(i.value());
+			}
+
+			FileWriteDescriptor file(_reportSpamStatusesKey);
+			file.writeEncrypted(data);
+		}
+	}
+
+	void _readReportSpamStatuses() {
+		FileReadDescriptor statuses;
+		if (!readEncryptedFile(statuses, _reportSpamStatusesKey)) {
+			clearKey(_reportSpamStatusesKey);
+			_reportSpamStatusesKey = 0;
+			_writeMap();
+			return;
+		}
+
+		ReportSpamStatuses &map(cRefReportSpamStatuses());
+		map.clear();
+
+		qint32 size = 0;
+		statuses.stream >> size;
+		for (int32 i = 0; i < size; ++i) {
+			quint64 peer = 0;
+			qint32 status = 0;
+			statuses.stream >> peer >> status;
+			map.insert(peer, DBIPeerReportSpamStatus(status));
+		}
+	}
+
 	mtpDcOptions *_dcOpts = 0;
 	bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		switch (blockId) {
@@ -730,6 +788,14 @@ namespace {
 			cSetSoundNotify(v == 1);
 		} break;
 
+		case dbiIncludeMuted: {
+			qint32 v;
+			stream >> v;
+			if (!_checkStreamStatus(stream)) return false;
+
+			cSetIncludeMuted(v == 1);
+		} break;
+
 		case dbiDesktopNotify: {
 			qint32 v;
 			stream >> v;
@@ -744,7 +810,9 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			cSetWindowsNotifications(v == 1);
-			cSetCustomNotifies((App::wnd() ? App::wnd()->psHasNativeNotifications() : true) && !cWindowsNotifications());
+			if (cPlatform() == dbipWindows) {
+				cSetCustomNotifies((App::wnd() ? !App::wnd()->psHasNativeNotifications() : true) || !cWindowsNotifications());
+			}
 		} break;
 
 		case dbiWorkMode: {
@@ -1279,7 +1347,7 @@ namespace {
 			_writeMap(WriteMapFast);
 		}
 
-		uint32 size = 13 * (sizeof(quint32) + sizeof(qint32));
+		uint32 size = 14 * (sizeof(quint32) + sizeof(qint32));
 		size += sizeof(quint32) + _stringSize(cAskDownloadPath() ? QString() : cDownloadPath());
 		size += sizeof(quint32) + sizeof(qint32) + (cRecentEmojisPreload().isEmpty() ? cGetRecentEmojis().size() : cRecentEmojisPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 		size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
@@ -1293,6 +1361,7 @@ namespace {
 		data.stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);
 		data.stream << quint32(dbiDefaultAttach) << qint32(cDefaultAttach());
 		data.stream << quint32(dbiSoundNotify) << qint32(cSoundNotify());
+		data.stream << quint32(dbiIncludeMuted) << qint32(cIncludeMuted());
 		data.stream << quint32(dbiDesktopNotify) << qint32(cDesktopNotify());
 		data.stream << quint32(dbiNotifyView) << qint32(cNotifyView());
 		data.stream << quint32(dbiWindowsNotifications) << qint32(cWindowsNotifications());
@@ -1447,7 +1516,7 @@ namespace {
 		DraftsNotReadMap draftsNotReadMap;
 		StorageMap imagesMap, stickerImagesMap, audiosMap;
 		qint64 storageImagesSize = 0, storageStickersSize = 0, storageAudiosSize = 0;
-		quint64 locationsKey = 0, recentStickersKeyOld = 0, stickersKey = 0, backgroundKey = 0, userSettingsKey = 0, recentHashtagsKey = 0, savedPeersKey = 0;
+		quint64 locationsKey = 0, reportSpamStatusesKey = 0, recentStickersKeyOld = 0, stickersKey = 0, backgroundKey = 0, userSettingsKey = 0, recentHashtagsKey = 0, savedPeersKey = 0;
 		while (!map.stream.atEnd()) {
 			quint32 keyType;
 			map.stream >> keyType;
@@ -1512,6 +1581,9 @@ namespace {
 			case lskLocations: {
 				map.stream >> locationsKey;
 			} break;
+			case lskReportSpamStatuses: {
+				map.stream >> reportSpamStatusesKey;
+			} break;
 			case lskRecentStickersOld: {
 				map.stream >> recentStickersKeyOld;
 			} break;
@@ -1551,6 +1623,7 @@ namespace {
 		_storageAudiosSize = storageAudiosSize;
 
 		_locationsKey = locationsKey;
+		_reportSpamStatusesKey = reportSpamStatusesKey;
 		_recentStickersKeyOld = recentStickersKeyOld;
 		_stickersKey = stickersKey;
 		_savedPeersKey = savedPeersKey;
@@ -1567,6 +1640,9 @@ namespace {
 
 		if (_locationsKey) {
 			_readLocations();
+		}
+		if (_reportSpamStatusesKey) {
+			_readReportSpamStatuses();
 		}
 
 		_readUserSettings();
@@ -1619,6 +1695,7 @@ namespace {
 		if (!_stickerImagesMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _stickerImagesMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
 		if (!_audiosMap.isEmpty()) mapSize += sizeof(quint32) * 2 + _audiosMap.size() * (sizeof(quint64) * 3 + sizeof(qint32));
 		if (_locationsKey) mapSize += sizeof(quint32) + sizeof(quint64);
+		if (_reportSpamStatusesKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_recentStickersKeyOld) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_stickersKey) mapSize += sizeof(quint32) + sizeof(quint64);
 		if (_savedPeersKey) mapSize += sizeof(quint32) + sizeof(quint64);
@@ -1658,6 +1735,9 @@ namespace {
 		}
 		if (_locationsKey) {
 			mapData.stream << quint32(lskLocations) << quint64(_locationsKey);
+		}
+		if (_reportSpamStatusesKey) {
+			mapData.stream << quint32(lskReportSpamStatuses) << quint64(_reportSpamStatusesKey);
 		}
 		if (_recentStickersKeyOld) {
 			mapData.stream << quint32(lskRecentStickersOld) << quint64(_recentStickersKeyOld);
@@ -1927,7 +2007,7 @@ namespace Local {
 		_draftsNotReadMap.clear();
 		_stickerImagesMap.clear();
 		_audiosMap.clear();
-		_locationsKey = _recentStickersKeyOld = _stickersKey = _backgroundKey = _userSettingsKey = _recentHashtagsKey = _savedPeersKey = 0;
+		_locationsKey = _reportSpamStatusesKey = _recentStickersKeyOld = _stickersKey = _backgroundKey = _userSettingsKey = _recentHashtagsKey = _savedPeersKey = 0;
 		_mapChanged = true;
 		_writeMap(WriteMapNow);
 
@@ -2933,6 +3013,10 @@ namespace Local {
 		}
 	}
 
+	void writeReportSpamStatuses() {
+		_writeReportSpamStatuses();
+	}
+
 	struct ClearManagerData {
 		QThread *thread;
 		StorageMap images, stickers, audios;
@@ -2978,6 +3062,10 @@ namespace Local {
 			}
 			if (_locationsKey) {
 				_locationsKey = 0;
+				_mapChanged = true;
+			}
+			if (_reportSpamStatusesKey) {
+				_reportSpamStatusesKey = 0;
 				_mapChanged = true;
 			}
 			if (_recentStickersKeyOld) {

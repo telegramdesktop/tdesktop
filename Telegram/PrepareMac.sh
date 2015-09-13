@@ -79,3 +79,6 @@ echo "Version $AppVersionStr prepared!";
 
 cp -rv "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram Desktop.app" ./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
 cp -rv "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram Desktop.app.dSYM" ./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
+
+echo "Version $AppVersionStr$DevPostfix prepared!";
+
