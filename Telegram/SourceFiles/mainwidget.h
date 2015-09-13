@@ -383,6 +383,7 @@ public:
 	void ptsWaiterStartTimerFor(ChannelData *channel, int32 ms); // ms <= 0 - stop timer
 	void handleUpdates(const MTPUpdates &updates, uint64 randomId = 0);
 	void feedUpdate(const MTPUpdate &update);
+	void updateAfterDrag();
 
 	~MainWidget();
 

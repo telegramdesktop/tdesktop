@@ -488,6 +488,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_report_spam" = "스팸 신고";
 "lng_report_spam_hide" = "숨기기";
 "lng_report_spam_thanks" = "신고해주셔서 감사합니다!";
+"lng_report_spam_sure" = "선택한 사용자 메사자를\n스팸으로 신고하겠습니까?";
+"lng_report_spam_sure_group" = "선택한 그룹 메시지를\n스팸으로 신고하시겠습니까?";
+"lng_report_spam_ok" = "신고하기";
 "lng_cant_send_to_not_contact" = "죄송하지만, 현재 서로 연락처가 추가된\n회원들끼리만 전송이 가능합니다. {more_info}";
 "lng_cant_invite_not_contact" = "죄송하지만, 현재 서로 연락처가 추가된\n회원들끼리만 추가 가능합니다. {more_info}";
 "lng_cant_more_info" = "자세한 정보 »";

@@ -488,6 +488,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_report_spam" = "Segnala spam";
 "lng_report_spam_hide" = "Nascondi";
 "lng_report_spam_thanks" = "Grazie per la tua segnalazione!";
+"lng_report_spam_sure" = "Sei sicuro di voler segnalare\nquesto utente come spam?";
+"lng_report_spam_sure_group" = "Sei sicuro di voler segnalare\ndello spam in questo gruppo?";
+"lng_report_spam_ok" = "Segnala";
 "lng_cant_send_to_not_contact" = "Spiacenti, ma al momento puoi scrivere\nsolo a contatti in comune. {more_info}";
 "lng_cant_invite_not_contact" = "Spiacenti, ma al momento puoi aggiungere\nai gruppi solo a contatti in comune. {more_info}";
 "lng_cant_more_info" = "Più info »";

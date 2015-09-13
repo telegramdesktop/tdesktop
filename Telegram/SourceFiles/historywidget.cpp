@@ -544,6 +544,7 @@ void HistoryList::onDragExec() {
 		}
 		drag->setMimeData(mimeData);
 		drag->exec(Qt::CopyAction);
+		if (App::main()) App::main()->updateAfterDrag();
 		return;
 	} else {
 		HistoryItem *pressedLnkItem = App::pressedLinkItem(), *pressedItem = App::pressedItem();
@@ -575,6 +576,7 @@ void HistoryList::onDragExec() {
 
 			drag->setMimeData(mimeData);
 			drag->exec(Qt::CopyAction);
+			if (App::main()) App::main()->updateAfterDrag();
 			return;
 		}
 	}
@@ -2988,6 +2990,10 @@ void HistoryWidget::contactsReceived() {
 	updateControlsVisibility();
 }
 
+void HistoryWidget::updateAfterDrag() {
+	if (_list) _list->dragActionUpdate(QCursor::pos());
+}
+
 void HistoryWidget::updateReportSpamStatus() {
 	if (!_peer || (_peer->isUser() && (peerToUser(_peer->id) == MTP::authedId() || isNotificationsUser(_peer->id) || isServiceUser(_peer->id) || _peer->asUser()->botInfo))) {
 		_reportSpamStatus = dbiprsNoButton;
@@ -4752,10 +4758,18 @@ void HistoryWidget::onAudioFailed(const FullMsgId &newId) {
 }
 
 void HistoryWidget::onReportSpamClicked() {
+	ConfirmBox *box = new ConfirmBox(lang(_peer->isUser() ? lng_report_spam_sure : lng_report_spam_sure_group), lang(lng_report_spam_ok));
+	connect(box, SIGNAL(confirmed()), this, SLOT(onReportSpamSure()));
+	App::wnd()->showLayer(box);
+	_clearPeer = _peer;
+}
+
+void HistoryWidget::onReportSpamSure() {
 	if (_reportSpamRequest) return;
 
-	if (_peer->isUser()) MTP::send(MTPcontacts_Block(_peer->asUser()->inputUser), rpcDone(&HistoryWidget::blockDone, _peer), RPCFailHandlerPtr(), 0, 5);
-	_reportSpamRequest = MTP::send(MTPmessages_ReportSpam(_peer->input), rpcDone(&HistoryWidget::reportSpamDone, _peer), rpcFail(&HistoryWidget::reportSpamFail));
+	App::wnd()->hideLayer();
+	if (_clearPeer->isUser()) MTP::send(MTPcontacts_Block(_clearPeer->asUser()->inputUser), rpcDone(&HistoryWidget::blockDone, _clearPeer), RPCFailHandlerPtr(), 0, 5);
+	_reportSpamRequest = MTP::send(MTPmessages_ReportSpam(_clearPeer->input), rpcDone(&HistoryWidget::reportSpamDone, _clearPeer), rpcFail(&HistoryWidget::reportSpamFail));
 }
 
 void HistoryWidget::reportSpamDone(PeerData *peer, const MTPBool &result, mtpRequestId req) {
@@ -4796,10 +4810,10 @@ void HistoryWidget::onReportSpamClear() {
 }
 
 void HistoryWidget::onReportSpamClearSure() {
+	App::wnd()->hideLayer();
 	if (_clearPeer->isUser()) {
 		App::main()->deleteConversation(_clearPeer);
 	} else if (_clearPeer->isChat()) {
-		App::wnd()->hideLayer();
 		App::main()->showDialogs();
 		MTP::send(MTPmessages_DeleteChatUser(_clearPeer->asChat()->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _clearPeer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _clearPeer));
 	} else if (_clearPeer->isChannel()) { // CHANNELS_UX

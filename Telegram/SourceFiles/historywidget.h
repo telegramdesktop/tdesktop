@@ -519,6 +519,8 @@ public:
 	void contactsReceived();
 	void updateToEndVisibility();
 
+	void updateAfterDrag();
+
 	~HistoryWidget();
 
 signals:
@@ -557,6 +559,7 @@ public slots:
 	void onAudioFailed(const FullMsgId &msgId);
 
 	void onReportSpamClicked();
+	void onReportSpamSure();
 	void onReportSpamHide();
 	void onReportSpamClear();
 	void onReportSpamClearSure();

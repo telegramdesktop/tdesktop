@@ -6091,7 +6091,7 @@ bool HistoryReply::updateReplyTo(bool force) {
 	}
 	if (force) {
 		initDimensions();
-		if (App::main()) App::main()->msgUpdated(history()->peer->id, this);
+		if (App::main()) App::main()->itemResized(this);
 	}
 	return (replyToMsg || !replyToMsgId);
 }
