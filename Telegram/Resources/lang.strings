@@ -421,12 +421,18 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_add_user" = "{from} added {user}";
 "lng_action_kick_user" = "{from} kicked {user}";
 "lng_action_user_left" = "{from} left the group";
+"lng_action_user_left_channel" = "{from} left the channel";
 "lng_action_user_joined" = "{from} joined the group";
+"lng_action_user_joined_channel" = "{from} joined the channel";
 "lng_action_user_joined_by_link" = "{from} joined the group via invite link";
+"lng_action_user_joined_by_link_channel" = "{from} joined the channel via invite link";
 "lng_action_user_registered" = "{from} just joined Telegram";
 "lng_action_removed_photo" = "{from} removed group photo";
+"lng_action_removed_photo_channel" = "Channel photo was removed";
 "lng_action_changed_photo" = "{from} changed group photo";
+"lng_action_changed_photo_channel" = "Channel photo was changed";
 "lng_action_changed_title" = "{from} changed group name to «{title}»";
+"lng_action_changed_title_channel" = "Channel name was changed to «{title}»";
 "lng_action_created_chat" = "{from} created group «{title}»";
 "lng_action_created_channel" = "Channel «{title}» created";
 

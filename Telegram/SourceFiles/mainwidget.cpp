@@ -283,7 +283,7 @@ void TopBarWidget::showAll() {
         resizeEvent(0);
         return;
     }
-	PeerData *p = App::main() ? App::main()->profilePeer() : 0, *o = App::main() ? App::main()->overviewPeer() : 0;
+	PeerData *p = App::main() ? App::main()->profilePeer() : 0, *h = App::main() ? App::main()->historyPeer() : 0, *o = App::main() ? App::main()->overviewPeer() : 0;
 	if (p && (p->isChat() || (p->isUser() && (p->asUser()->contact >= 0 || !App::phoneFromSharedContact(peerToUser(p->id)).isEmpty())))) {
 		if (p->isChat()) {
 			if (p->asChat()->forbidden) {
@@ -321,7 +321,11 @@ void TopBarWidget::showAll() {
 		_deleteContact.hide();
 		if (!p && _selCount) {
 			_clearSelection.show();
-			_delete.show();
+			if ((h && h->isChannel() && !h->asChannel()->adminned) || (o && o->isChannel() && !o->asChannel()->adminned)) {
+				_delete.hide();
+			} else {
+				_delete.show();
+			}
 			_forward.show();
 			_mediaType.hide();
 		} else {
@@ -539,7 +543,7 @@ void MainWidget::finishForwarding(History *hist) {
 			if (genClientSideMessage) {
 				FullMsgId newId(peerToChannel(hist->peer->id), clientMsgId());
 				HistoryMessage *msg = static_cast<HistoryMessage*>(_toForward.cbegin().value());
-				hist->addToBackForwarded(newId.msg, msg);
+				hist->addToBackForwarded(newId.msg, date(MTP_int(unixtime())), hist->peer->isChannel() ? 0 : MTP::authedId(), msg);
 				if (HistorySticker *sticker = dynamic_cast<HistorySticker*>(msg->getMedia())) {
 					App::main()->incrementSticker(sticker->document());
 				}
@@ -2794,7 +2798,7 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 		const MTPDupdates_channelDifferenceEmpty &d(diff.c_updates_channelDifferenceEmpty());
 		if (d.has_timeout()) timeout = d.vtimeout.v;
 		flags = d.vflags.v;
-		channel->ptsReceived(d.vpts.v);
+		channel->ptsInit(d.vpts.v);
 	} break;
 
 	case mtpc_updates_channelDifferenceTooLong: {
@@ -2819,7 +2823,7 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 
 		if (d.has_timeout()) timeout = d.vtimeout.v;
 		flags = d.vflags.v;
-		channel->ptsReceived(d.vpts.v);
+		channel->ptsInit(d.vpts.v);
 	} break;
 
 	case mtpc_updates_channelDifference: {
@@ -2833,17 +2837,17 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 
 		if (d.has_timeout()) timeout = d.vtimeout.v;
 		flags = d.vflags.v;
-		channel->ptsReceived(d.vpts.v);
+		channel->ptsInit(d.vpts.v);
 	} break;
 	}
 
 	channel->ptsSetRequesting(false);
 
-	if (flags & MTPupdates_ChannelDifference_flag_final) {
+	if (!(flags & MTPupdates_ChannelDifference_flag_final)) {
 		MTP_LOG(0, ("getChannelDifference { good - after not final channelDifference was received }%1").arg(cTestMode() ? " TESTMODE" : ""));
 		getChannelDifference(channel);
 	} else if (timeout) {
-		QTimer::singleShot(timeout * 1000, this, SLOT(getDifference()));
+//		QTimer::singleShot(timeout * 1000, this, SLOT(getDifference()));
 	}
 
 	App::emitPeerUpdated();
@@ -3023,10 +3027,10 @@ void MainWidget::onGetDifferenceTimeByPts() {
 	}
 	for (ChannelGetDifferenceTime::iterator i = _channelGetDifferenceTimeByPts.begin(); i != _channelGetDifferenceTimeByPts.cend();) {
 		if (i.value() > now) {
-			wait = qMin(wait, i.value() - now);
+			wait = wait ? qMin(wait, i.value() - now) : (i.value() - now);
 			++i;
 		} else {
-			getChannelDifference(i.key());
+			getChannelDifference(i.key(), GetChannelDifferenceFromPtsGap);
 			i = _channelGetDifferenceTimeByPts.erase(i);
 		}
 	}
@@ -3052,10 +3056,10 @@ void MainWidget::onGetDifferenceTimeAfterFail() {
 	}
 	for (ChannelGetDifferenceTime::iterator i = _channelGetDifferenceTimeAfterFail.begin(); i != _channelGetDifferenceTimeAfterFail.cend();) {
 		if (i.value() > now) {
-			wait = qMin(wait, i.value() - now);
+			wait = wait ? qMin(wait, i.value() - now) : (i.value() - now);
 			++i;
 		} else {
-			getChannelDifference(i.key());
+			getChannelDifference(i.key(), GetChannelDifferenceFromFail);
 			i = _channelGetDifferenceTimeAfterFail.erase(i);
 		}
 	}

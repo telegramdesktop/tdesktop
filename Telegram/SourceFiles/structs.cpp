@@ -868,7 +868,11 @@ id(id), type(type), url(url), displayUrl(displayUrl), siteName(siteName), title(
 
 void PeerLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton && App::main()) {
-		App::main()->showPeerProfile(peer());
+		if (peer() && peer()->isChannel() && App::main()->historyPeer() != peer()) {
+			App::main()->showPeerHistory(peer()->id, ShowAtUnreadMsgId);
+		} else {
+			App::main()->showPeerProfile(peer());
+		}
 	}
 }
 

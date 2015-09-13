@@ -55,6 +55,10 @@ enum {
 	MTPDstickerSet_flag_NOT_LOADED = (1 << 31), // client side flag for not yet loaded set
 
 	MTPDchannel_flag_is_admin = (1 << 0),
+	MTPDchannel_flag_is_broadcast = (1 << 1),
+	MTPDchannel_flag_is_public = (1 << 2),
+	MTPDchannel_flag_left = (1 << 3),
+	MTPDchannel_flag_kicked = (1 << 4),
 
 	MTPupdates_ChannelDifference_flag_final = (1 << 0),
 

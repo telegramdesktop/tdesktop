@@ -419,9 +419,9 @@ bool OverviewInner::itemHasPoint(MsgId msgId, int32 index, int32 x, int32 y) con
 		HistoryMedia *media = item ? item->getMedia(true) : 0;
 		if (media) {
 			int32 w = _width - st::msgMargin.left() - st::msgMargin.right();
-			bool out = item->out();
-			int32 mw = media->maxWidth(), left = (out ? st::msgMargin.right() : st::msgMargin.left()) + (out && mw < w ? (w - mw) : 0);
-			if (item->displayFromName()) {
+			bool out = item->out(), fromChannel = item->fromChannel(), outbg = out && !fromChannel;
+			int32 mw = media->maxWidth(), left = (fromChannel ? (st::msgMargin.left() + st::msgMargin.right()) / 2 : (out ? st::msgMargin.right() : st::msgMargin.left())) + ((mw < w) ? (fromChannel ? (w - mw) / 2 : (out ? w - mw : 0)) : 0);
+			if (item->displayFromPhoto()) {
 				left += st::msgPhotoSkip;
 			}
 			return media->hasPoint(x - left, y - st::msgMargin.top(), item, w);
@@ -862,10 +862,6 @@ void OverviewInner::touchScrollUpdated(const QPoint &screenPos) {
 void OverviewInner::applyDragSelection() {
 	if (_dragSelFromIndex < 0 || _dragSelToIndex < 0) return;
 
-	if (_peer && _peer->isChannel() && !_peer->asChannel()->adminned) {
-		_selected.clear();
-		return;
-	}
 	if (!_selected.isEmpty() && _selected.cbegin().value() != FullItemSel) {
 		_selected.clear();
 	}
@@ -1228,9 +1224,9 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 					HistoryItem *item = App::histItemById(_channel, _items[i].msgid);
 					HistoryMedia *media = item ? item->getMedia(true) : 0;
 					if (media) {
-						bool out = item->out();
-						int32 mw = media->maxWidth(), left = (out ? st::msgMargin.right() : st::msgMargin.left()) + (out && mw < w ? (w - mw) : 0);
-						if (item->displayFromName()) {
+						bool out = item->out(), fromChannel = item->fromChannel(), outbg = out && !fromChannel;
+						int32 mw = media->maxWidth(), left = (fromChannel ? (st::msgMargin.left() + st::msgMargin.right()) / 2 : (out ? st::msgMargin.right() : st::msgMargin.left())) + ((mw < w) ? (fromChannel ? (w - mw) / 2 : (out ? w - mw : 0)) : 0);
+						if (item->displayFromPhoto()) {
 							p.drawPixmap(left, media->countHeight(item, w) - st::msgPhotoSize, item->from()->photo->pixRounded(st::msgPhotoSize));
 							left += st::msgPhotoSkip;
 						}
@@ -1435,9 +1431,9 @@ void OverviewInner::onUpdateSelected() {
 					index = i;
 					HistoryMedia *media = item->getMedia(true);
 					if (media) {
-						bool out = item->out();
-						int32 mw = media->maxWidth(), left = (out ? st::msgMargin.right() : st::msgMargin.left()) + (out && mw < w ? (w - mw) : 0);
-						if (item->displayFromName()) {
+						bool out = item->out(), fromChannel = item->fromChannel(), outbg = out && !fromChannel;
+						int32 mw = media->maxWidth(), left = (fromChannel ? (st::msgMargin.left() + st::msgMargin.right()) / 2 : (out ? st::msgMargin.right() : st::msgMargin.left())) + ((mw < w) ? (fromChannel ? (w - mw) / 2 : (out ? w - mw : 0)) : 0);
+						if (item->displayFromPhoto()) {
 							if (QRect(left, y + st::msgMargin.top() + media->countHeight(item, w) - st::msgPhotoSize, st::msgPhotoSize, st::msgPhotoSize).contains(m)) {
 								lnk = item->from()->lnk;
 							}
@@ -1509,7 +1505,7 @@ void OverviewInner::onUpdateSelected() {
 		}
 		cur = (textlnkDown() || _lnkDownIndex) ? style::cur_pointer : style::cur_default;
 		if (_dragAction == Selecting) {
-			bool canSelectMany = _peer && (!_peer->isChannel() || _peer->asChannel()->adminned);
+			bool canSelectMany = (_peer != 0);
 			if (_mousedItem == _dragItem && (lnk || lnkIndex) && !_selected.isEmpty() && _selected.cbegin().value() != FullItemSel) {
 				bool afterSymbol = false, uponSymbol = false;
 				uint16 second = 0;

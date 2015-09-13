@@ -415,7 +415,7 @@ private:
 class ChannelData : public PeerData {
 public:
 
-	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChat(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), date(0), version(0), adminned(false), left(false), forbidden(true), botStatus(-1) {
+	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChat(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), date(0), version(0), isBroadcast(false), isPublic(false), adminned(false), left(false), forbidden(true), botStatus(-1) {
 		setName(QString(), QString());
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
@@ -428,6 +428,7 @@ public:
 	QString username;
 	int32 date;
 	int32 version;
+	bool isBroadcast, isPublic;
 	bool adminned;
 	bool left;
 	bool forbidden;
@@ -436,6 +437,9 @@ public:
 //	ImagePtr photoFull;
 	QString invitationUrl;
 
+	void ptsInit(int32 pts) {
+		_ptsWaiter.init(pts);
+	}
 	void ptsReceived(int32 pts) {
 		_ptsWaiter.updated(this, pts, 0);
 	}

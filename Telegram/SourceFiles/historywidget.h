@@ -585,6 +585,7 @@ public slots:
 	void onPhotoFailed(quint64 id);
 
 	void activate();
+	void setInnerFocus();
 	void onMentionHashtagOrBotCommandInsert(QString str);
 	void onTextChange();
 

@@ -490,8 +490,8 @@ namespace App {
 				cdata->setPhoto(d.vphoto);
 				cdata->date = d.vdate.v;
 				cdata->count = d.vparticipants_count.v;
-				cdata->left = false;// d.vflags.v & MTPDchat... d.vleft.v;
-				cdata->forbidden = false;
+				cdata->left = (d.vflags.v & MTPDchat_flag_left);
+				cdata->forbidden = (d.vflags.v & MTPDchat_flag_kicked);
 				if (cdata->version < d.vversion.v) {
 					cdata->version = d.vversion.v;
 					cdata->participants = ChatData::Participants();
@@ -531,8 +531,11 @@ namespace App {
 				cdata->date = d.vdate.v;
 				cdata->adminned = (d.vflags.v & MTPDchannel_flag_is_admin);
 				
-				cdata->left = false;
-				cdata->forbidden = false;
+				cdata->isBroadcast = (d.vflags.v & MTPDchannel_flag_is_broadcast);
+				cdata->isPublic = (d.vflags.v & MTPDchannel_flag_is_public);
+
+				cdata->left = (d.vflags.v & MTPDchannel_flag_left);
+				cdata->forbidden = (d.vflags.v & MTPDchannel_flag_kicked);
 				if (cdata->version < d.vversion.v) {
 					cdata->version = d.vversion.v;
 				}

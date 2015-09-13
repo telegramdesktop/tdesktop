@@ -1411,7 +1411,7 @@ void HistoryList::onUpdateSelected() {
 		}
 		cur = textlnkDown() ? style::cur_pointer : style::cur_default;
 		if (_dragAction == Selecting) {
-			bool canSelectMany = hist && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned);
+			bool canSelectMany = (hist != 0);
 			if (item == _dragItem && item == App::hoveredItem() && !_selected.isEmpty() && _selected.cbegin().value() != FullItemSel) {
 				bool afterSymbol, uponSymbol;
 				uint16 second;
@@ -1507,10 +1507,6 @@ void HistoryList::applyDragSelection() {
 }
 
 void HistoryList::applyDragSelection(SelectedItems *toItems) const {
-	if (hist && hist->peer->isChannel() && !hist->peer->asChannel()->adminned) {
-		toItems->clear();
-		return;
-	}
 	if (!toItems->isEmpty() && toItems->cbegin().value() != FullItemSel) {
 		toItems->clear();
 	}
@@ -2578,8 +2574,12 @@ void HistoryWidget::sendActionDone(const MTPBool &result, mtpRequestId req) {
 
 void HistoryWidget::activate() {
 	if (_history) updateListSize(0, true);
+	setInnerFocus();
+}
+
+void HistoryWidget::setInnerFocus() {
 	if (_list) {
-		if (_selCount || (_list && _list->wasSelectedText()) || _recording || isBotStart() || isBlocked()) {
+		if (_selCount || (_list && _list->wasSelectedText()) || _recording || isBotStart() || isBlocked() || !_canSendMessages) {
 			_list->setFocus();
 		} else {
 			_field.setFocus();
@@ -2859,7 +2859,7 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 		_replyForwardPreviewCancel.hide();
 	}
 	_previewCache.clear();
-	_scroll.setWidget(0);
+	_scroll.takeWidget();
 	if (_list) _list->deleteLater();
 	_list = 0;
 	updateTopBarSelection();
@@ -2929,7 +2929,7 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 		
 		if (_history->draftToId > 0 || !_history->draft.isEmpty()) {
 			setFieldText(_history->draft);
-			_field.setFocus();
+			setInnerFocus();
 			_history->draftCursor.applyTo(_field, &_synthedTextUpdate);
 			_replyToId = readyToForward() ? 0 : _history->draftToId;
 			if (_history->draftPreviewCancelled) {
@@ -2938,7 +2938,7 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 		} else {
 			Local::MessageDraft draft = Local::readDraft(_peer->id);
 			setFieldText(draft.text);
-			_field.setFocus();
+			setInnerFocus();
 			if (!draft.text.isEmpty()) {
 				MessageCursor cur = Local::readDraftPositions(_peer->id);
 				cur.applyTo(_field, &_synthedTextUpdate);
@@ -3703,6 +3703,7 @@ void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 	a_bgAlpha = anim::fvalue(1, 0);
 	_showAnim.start();
 	App::main()->topBar()->update();
+	activate();
 }
 
 bool HistoryWidget::showStep(float64 ms) {
@@ -5255,6 +5256,8 @@ void HistoryWidget::onStickerSend(DocumentData *sticker) {
 	bool fromChannelName = _history->peer->isChannel();
 	if (fromChannelName) {
 		sendFlags |= MTPmessages_SendMessage_flag_broadcast;
+	} else {
+		flags |= MTPDmessage::flag_from_id;
 	}
 	_history->addToBackDocument(newId.msg, flags, replyToId(), date(MTP_int(unixtime())), fromChannelName ? 0 : MTP::authedId(), sticker);
 
@@ -5658,7 +5661,7 @@ void HistoryWidget::updateTopBarSelection() {
 	updateControlsVisibility();
 	updateListSize();
 	if (!App::wnd()->layerShown() && !App::passcoded()) {
-		if (_selCount || (_list && _list->wasSelectedText()) || _recording || isBotStart() || isBlocked()) {
+		if (_selCount || (_list && _list->wasSelectedText()) || _recording || isBotStart() || isBlocked() || !_canSendMessages) {
 			_list->setFocus();
 		} else {
 			_field.setFocus();

@@ -175,13 +175,13 @@ struct History : public QList<HistoryBlock*> {
 	}
 
 	HistoryItem *createItem(HistoryBlock *block, const MTPmessage &msg, bool newMsg, bool returnExisting = false);
-	HistoryItem *createItemForwarded(HistoryBlock *block, MsgId id, HistoryMessage *msg);
+	HistoryItem *createItemForwarded(HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg);
 	HistoryItem *createItemDocument(HistoryBlock *block, MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
 
 	HistoryItem *addToBackService(MsgId msgId, QDateTime date, const QString &text, int32 flags = 0, HistoryMedia *media = 0, bool newMsg = true);
 	HistoryItem *addToBack(const MTPmessage &msg, bool newMsg = true);
 	HistoryItem *addToHistory(const MTPmessage &msg);
-	HistoryItem *addToBackForwarded(MsgId id, HistoryMessage *item);
+	HistoryItem *addToBackForwarded(MsgId id, QDateTime date, int32 from, HistoryMessage *item);
 	HistoryItem *addToBackDocument(MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
 
 	void addToFront(const QVector<MTPMessage> &slice);
@@ -724,8 +724,11 @@ public:
 	bool hasTextLinks() const {
 		return _flags & MTPDmessage_flag_HAS_TEXT_LINKS;
 	}
+	bool fromChannel() const {
+		return _from->isChannel();
+	}
 	virtual bool needCheck() const {
-		return true;
+		return out() && !fromChannel();
 	}
 	virtual bool hasPoint(int32 x, int32 y) const {
 		return false;
@@ -820,7 +823,10 @@ public:
 	}
 
 	bool displayFromName() const {
-		return !out() && !history()->peer->isUser();
+		return (!out() || fromChannel()) && !history()->peer->isUser();
+	}
+	bool displayFromPhoto() const {
+		return !out() && !history()->peer->isUser() && !fromChannel();
 	}
 
 	virtual ~HistoryItem();
@@ -1359,7 +1365,15 @@ public:
 		return _time;
 	}
 	int32 timeWidth(bool forText) const {
-		return _timeWidth + (forText ? (st::msgDateSpace + (out() ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) - st::msgDateDelta.x()) : 0);
+		int32 result = _timeWidth;
+		if (forText) {
+			result += st::msgDateSpace - st::msgDateDelta.x();
+			if (fromChannel()) {
+			} else if (out()) {
+				result += st::msgDateCheckSpace + st::msgCheckRect.pxWidth();
+			}
+		}
+		return result;
 	}
 	virtual bool animating() const {
 		return _media ? _media->animating() : false;
@@ -1397,7 +1411,7 @@ class HistoryForwarded : public HistoryMessage {
 public:
 
 	HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg);
-	HistoryForwarded(History *history, HistoryBlock *block, MsgId id, HistoryMessage *msg);
+	HistoryForwarded(History *history, HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg);
 
 	void initDimensions();
 	void fwdNameUpdated() const;
