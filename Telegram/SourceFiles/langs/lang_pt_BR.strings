@@ -488,6 +488,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_report_spam" = "Reportar Spam";
 "lng_report_spam_hide" = "Ocultar";
 "lng_report_spam_thanks" = "Obrigado por reportar!";
+"lng_report_spam_sure" = "Tem certeza que deseja\nreportar spam deste usuário?";
+"lng_report_spam_sure_group" = "Tem certeza que seseja\nreportar por spam nesse grupo?";
+"lng_report_spam_ok" = "Reportar";
 "lng_cant_send_to_not_contact" = "Você só pode enviar mensagens para\ncontatos mútuos no momento. {more_info}";
 "lng_cant_invite_not_contact" = "Você só pode adicionar contatos\nmútuos ao grupo no momento. {more_info}";
 "lng_cant_more_info" = "Informações »";

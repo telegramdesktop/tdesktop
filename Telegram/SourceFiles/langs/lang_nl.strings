@@ -488,6 +488,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_report_spam" = "Spam melden";
 "lng_report_spam_hide" = "Verbergen";
 "lng_report_spam_thanks" = "Bedankt voor je melding!";
+"lng_report_spam_sure" = "Spam van deze\ngebruiker echt melden? ";
+"lng_report_spam_sure_group" = "Spam van deze\ngroep echt melden? ";
+"lng_report_spam_ok" = "Melden";
 "lng_cant_send_to_not_contact" = "Op dit moment kun je alleen berichten\nversturen naar onderlinge contacten. {more_info}";
 "lng_cant_invite_not_contact" = "Op dit moment kun je alleen onderlinge\ncontacten aan groepen toevoegen.  {more_info}";
 "lng_cant_more_info" = "Meer informatie »";
