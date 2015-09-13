@@ -5877,7 +5877,7 @@ void HistoryForwarded::drawMessageText(QPainter &p, const QRect &trect, uint32 s
 int32 HistoryForwarded::resize(int32 width) {
 	HistoryMessage::resize(width);
 
-	_height += st::msgServiceNameFont->height;
+	if (!justMedia()) _height += st::msgServiceNameFont->height;
 	return _height;
 }
 
@@ -6179,7 +6179,7 @@ void HistoryReply::drawMessageText(QPainter &p, const QRect &trect, uint32 selec
 int32 HistoryReply::resize(int32 width) {
 	HistoryMessage::resize(width);
 
-	_height += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
+	if (!justMedia()) _height += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 	return _height;
 }
 
