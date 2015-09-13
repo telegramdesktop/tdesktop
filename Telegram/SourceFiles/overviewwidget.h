@@ -311,6 +311,8 @@ public:
 
 	void updateScrollColors();
 
+	void updateAfterDrag();
+
 	~OverviewWidget();
 
 public slots:

@@ -1312,6 +1312,7 @@ void MainWidget::itemResized(HistoryItem *row, bool scrollToIt) {
 	if (overview) {
 		overview->itemResized(row, scrollToIt);
 	}
+	if (row) msgUpdated(row->history()->peer->id, row);
 }
 
 bool MainWidget::overviewFailed(PeerData *peer, const RPCError &error, mtpRequestId req) {
@@ -1986,6 +1987,14 @@ void MainWidget::clearBotStartToken(PeerData *peer) {
 
 void MainWidget::contactsReceived() {
 	history.contactsReceived();
+}
+
+void MainWidget::updateAfterDrag() {
+	if (overview) {
+		overview->updateAfterDrag();
+	} else {
+		history.updateAfterDrag();
+	}
 }
 
 void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) {

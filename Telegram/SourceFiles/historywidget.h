@@ -506,6 +506,8 @@ public:
 
 	void contactsReceived();
 
+	void updateAfterDrag();
+
 	~HistoryWidget();
 
 signals:
@@ -544,6 +546,7 @@ public slots:
 	void onAudioFailed(MsgId msgId);
 
 	void onReportSpamClicked();
+	void onReportSpamSure();
 	void onReportSpamHide();
 	void onReportSpamClear();
 	void onReportSpamClearSure();

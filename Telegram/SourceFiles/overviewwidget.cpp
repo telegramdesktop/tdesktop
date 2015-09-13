@@ -803,7 +803,7 @@ void OverviewInner::onDragExec() {
 		}
 		drag->setMimeData(mimeData);
 		drag->exec(Qt::CopyAction);
-		dragActionUpdate(QCursor::pos());
+		if (App::main()) App::main()->updateAfterDrag();
 		return;
 	} else {
 		HistoryItem *pressedLnkItem = App::pressedLinkItem(), *pressedItem = App::pressedItem();
@@ -828,7 +828,7 @@ void OverviewInner::onDragExec() {
 
 			drag->setMimeData(mimeData);
 			drag->exec(Qt::CopyAction);
-			dragActionUpdate(QCursor::pos());
+			if (App::main()) App::main()->updateAfterDrag();
 			return;
 		}
 	}
@@ -2818,6 +2818,10 @@ void OverviewWidget::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
 void OverviewWidget::updateScrollColors() {
 	if (!App::historyScrollBarColor()) return;
 	_scroll.updateColors(App::historyScrollBarColor(), App::historyScrollBgColor(), App::historyScrollBarOverColor(), App::historyScrollBgOverColor());
+}
+
+void OverviewWidget::updateAfterDrag() {
+	_inner.dragActionUpdate(QCursor::pos());
 }
 
 OverviewWidget::~OverviewWidget() {

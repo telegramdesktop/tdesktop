@@ -488,6 +488,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_report_spam" = "Reportar spam";
 "lng_report_spam_hide" = "Ocultar";
 "lng_report_spam_thanks" = "¡Gracias por tu reporte!";
+"lng_report_spam_sure" = "¿Quieres reportar el\nspam de este usuario?";
+"lng_report_spam_sure_group" = "¿Quieres reportar el\nspam en este grupo?";
+"lng_report_spam_ok" = "Reportar";
 "lng_cant_send_to_not_contact" = "Por ahora, sólo puedes enviar mensajes\na contactos mutuos. {more_info}";
 "lng_cant_invite_not_contact" = "Por ahora, sólo puedes añadir contactos \nmutuos a grupos. {more_info}";
 "lng_cant_more_info" = "Más información »";
@@ -632,7 +635,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_about_text" = "Aplicación oficial basada en [a href=\"https://core.telegram.org/mtproto\"]MTProto[/a] y la [a href=\"https://core.telegram.org/api\"]\nAPI de Telegram[/a] para velocidad y seguridad.\n\nSoftware bajo licencia [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versión 3.\nCódigo fuente disponible en [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 "lng_about_done" = "Hecho";
 
-"lng_search_found_results" = "{count:No se encontraron mensajes|Found # mensaje|Found # mensajes}";
+"lng_search_found_results" = "{count:No se encontraron mensajes|# mensaje encontrado|# mensajes encontrados}";
 "lng_search_global_results" = "Resultados de la búsqueda global";
 
 "lng_media_save_progress" = "{ready} de {total} {mb}";

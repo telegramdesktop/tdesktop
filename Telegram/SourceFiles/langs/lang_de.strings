@@ -487,7 +487,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_report_spam" = "Spam melden";
 "lng_report_spam_hide" = "Schließen";
-"lng_report_spam_thanks" = "Danke für die Meldung!";
+"lng_report_spam_thanks" = "Danke!";
+"lng_report_spam_sure" = "Möchtest du wirklich Spam\nvon diesem Nutzer melden?";
+"lng_report_spam_sure_group" = "Möchtest du wirklich Spam\nin dieser Gruppe melden?";
+"lng_report_spam_ok" = "Melden";
 "lng_cant_send_to_not_contact" = "Derzeit kannst du nur Personen schreiben, wenn ihr eure Nummern ausgetauscht habt. {more_info}";
 "lng_cant_invite_not_contact" = "Du kannst nur Personen hinzufügen, wenn ihr eure Nummern ausgetauscht habt. {more_info}";
 "lng_cant_more_info" = "Weitere Infos »";
