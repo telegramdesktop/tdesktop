@@ -746,7 +746,7 @@ namespace App {
 		}
 	}
 
-	void checkEntitiesUpdate(const MTPDmessage &m) {
+	void checkEntitiesAndViewsUpdate(const MTPDmessage &m) {
 		PeerId peerId = peerFromMTP(m.vto_id);
 		if (m.has_from_id() && peerToUser(peerId) == MTP::authedId()) {
 			peerId = peerFromUser(m.vfrom_id);
@@ -761,6 +761,8 @@ namespace App {
 					existing->history()->addToOverview(existing, OverviewLinks);
 				}
 			}
+
+			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 		}
 	}
 
@@ -774,7 +776,7 @@ namespace App {
 				const MTPDmessage &d(msg.c_message());
 				msgsIds.insert((uint64(uint32(d.vid.v)) << 32) | uint64(i), i);
 				if (msgsState == 1) { // new message, index my forwarded messages to links overview
-					checkEntitiesUpdate(d);
+					checkEntitiesAndViewsUpdate(d);
 				}
 			} break;
 			case mtpc_messageEmpty: msgsIds.insert((uint64(uint32(msg.c_messageEmpty().vid.v)) << 32) | uint64(i), i); break;

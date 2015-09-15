@@ -1123,11 +1123,12 @@ void MainWidget::sendPreparedText(History *hist, const QString &text, MsgId repl
 		bool fromChannelName = hist->peer->isChannel();
 		if (fromChannelName) {
 			sendFlags |= MTPmessages_SendMessage_flag_broadcast;
+			flags |= MTPDmessage::flag_views;
 		} else {
 			flags |= MTPDmessage::flag_from_id;
 		}
 		MTPVector<MTPMessageEntity> localEntities = linksToMTP(textParseLinks(sendingText, itemTextParseOptions(hist, App::self()).flags));
-		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(hist->peer->id), MTPPeer(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities, MTPint()));
+		hist->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(hist->peer->id), MTPPeer(), MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities, MTP_int(1)));
 		hist->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_int(sendFlags), hist->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, localEntities), rpcDone(&MainWidget::sentUpdatesReceived, randomId), rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 	}
 
@@ -3801,7 +3802,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			return;
 		}
 		if (d.vmessage.type() == mtpc_message) { // index forwarded messages to links overview
-			App::checkEntitiesUpdate(d.vmessage.c_message());
+			App::checkEntitiesAndViewsUpdate(d.vmessage.c_message());
 		}
 
 		HistoryItem *item = App::histories().addToBack(d.vmessage);
@@ -4102,7 +4103,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			}
 		}
 		if (d.vmessage.type() == mtpc_message) { // index forwarded messages to links overview
-			App::checkEntitiesUpdate(d.vmessage.c_message());
+			App::checkEntitiesAndViewsUpdate(d.vmessage.c_message());
 		}
 
 		HistoryItem *item = App::histories().addToBack(d.vmessage);
@@ -4149,7 +4150,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const MTPDupdateChannelMessageViews &d(update.c_updateChannelMessageViews());
 		if (HistoryItem *item = App::histItemById(peerToChannel(peerFromMTP(d.vpeer)), d.vid.v)) {
 			if (item->from()->id == peerFromMTP(d.vpeer) && item->channelId() != NoChannel) {
-				// CHANNELS_TODO
+				item->setViewsCount(d.vviews.v);
 			}
 		}
 	} break;

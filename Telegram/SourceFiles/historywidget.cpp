@@ -99,7 +99,7 @@ void HistoryList::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	bool trivial = (rect() == r);
 
-	QPainter p(this);
+	Painter p(this);
 	if (!trivial) {
 		p.setClipRect(r);
 	}
@@ -809,14 +809,18 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (isUponSelected > 1) {
 			_menu->addAction(lang(lng_context_forward_selected), historyWidget, SLOT(onForwardSelected()));
-			_menu->addAction(lang(lng_context_delete_selected), historyWidget, SLOT(onDeleteSelected()));
+			if ((!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
+				_menu->addAction(lang(lng_context_delete_selected), historyWidget, SLOT(onDeleteSelected()));
+			}
 			_menu->addAction(lang(lng_context_clear_selection), historyWidget, SLOT(onClearSelected()));
 		} else if (App::hoveredLinkItem()) {
-			if (isUponSelected != -2 && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
+			if (isUponSelected != -2) {
 				if (dynamic_cast<HistoryMessage*>(App::hoveredLinkItem()) && App::hoveredLinkItem()->id > 0) {
 					_menu->addAction(lang(lng_context_forward_msg), historyWidget, SLOT(forwardMessage()))->setEnabled(true);
 				}
-				_menu->addAction(lang(lng_context_delete_msg), historyWidget, SLOT(deleteMessage()))->setEnabled(true);
+				if ((!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
+					_menu->addAction(lang(lng_context_delete_msg), historyWidget, SLOT(deleteMessage()))->setEnabled(true);
+				}
 			}
 			if (App::hoveredLinkItem()->id > 0 && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
 				_menu->addAction(lang(lng_context_select_msg), historyWidget, SLOT(selectMessage()))->setEnabled(true);
@@ -825,7 +829,7 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	} else { // maybe cursor on some text history item?
 		bool canDelete = (item && item->itemType() == HistoryItem::MsgType) && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned);
-		bool canForward = canDelete && (item->id > 0) && !item->serviceMsg();
+		bool canForward = (item && item->itemType() == HistoryItem::MsgType) && (item->id > 0) && !item->serviceMsg();
 
 		HistoryMessage *msg = dynamic_cast<HistoryMessage*>(item);
 		HistoryServiceMsg *srv = dynamic_cast<HistoryServiceMsg*>(item);
@@ -878,7 +882,9 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (isUponSelected > 1) {
 			if (!_menu) _menu = new ContextMenu(this);
 			_menu->addAction(lang(lng_context_forward_selected), historyWidget, SLOT(onForwardSelected()));
-			_menu->addAction(lang(lng_context_delete_selected), historyWidget, SLOT(onDeleteSelected()));
+			if ((!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
+				_menu->addAction(lang(lng_context_delete_selected), historyWidget, SLOT(onDeleteSelected()));
+			}
 			_menu->addAction(lang(lng_context_clear_selection), historyWidget, SLOT(onClearSelected()));
 		} else if (item && ((isUponSelected != -2 && (canForward || canDelete)) || item->id > 0)) {
 			if (!_menu) _menu = new ContextMenu(this);
@@ -3647,10 +3653,11 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 	bool fromChannelName = p->isChannel();
 	if (fromChannelName) {
 		sendFlags |= MTPmessages_SendMessage_flag_broadcast;
+		flags |= MTPDmessage::flag_views;
 	} else {
 		flags |= MTPDmessage::flag_from_id;
 	}
-	h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(peer), MTPPeer(), MTPint(), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup, MTPnullEntities, MTPint()));
+	h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(peer), MTPPeer(), MTPint(), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup, MTPnullEntities, MTP_int(1)));
 	h->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), p->input, MTP_int(replyTo), MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, h->sendRequestId);
 
 	App::historyRegRandom(randomId, newId);
@@ -4552,16 +4559,17 @@ void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
 	if (img.replyTo) flags |= MTPDmessage::flag_reply_to_msg_id;
 	bool fromChannelName = h->peer->isChannel();
 	if (fromChannelName) {
+		flags |= MTPDmessage::flag_views;
 	} else {
 		flags |= MTPDmessage::flag_from_id;
 	}
 	if (img.type == ToPreparePhoto) {
-		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPPeer(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(img.photo, MTP_string("")), MTPnullMarkup, MTPnullEntities, MTPint()));
+		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPPeer(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(img.photo, MTP_string("")), MTPnullMarkup, MTPnullEntities, MTP_int(1)));
 	} else if (img.type == ToPrepareDocument) {
-		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPPeer(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(img.document), MTPnullMarkup, MTPnullEntities, MTPint()));
+		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPPeer(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(img.document), MTPnullMarkup, MTPnullEntities, MTP_int(1)));
 	} else if (img.type == ToPrepareAudio) {
 		flags |= MTPDmessage_flag_media_unread;
-		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPPeer(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaAudio(img.audio), MTPnullMarkup, MTPnullEntities, MTPint()));
+		h->addToBack(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPPeer(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaAudio(img.audio), MTPnullMarkup, MTPnullEntities, MTP_int(1)));
 	}
 
 	if (_peer && img.peer == _peer->id) {
@@ -5557,7 +5565,7 @@ void HistoryWidget::onForwardSelected() {
 }
 
 void HistoryWidget::onDeleteSelected() {
-	if (!_list) return;
+	if (!_list || (peer()->isChannel() && !peer()->asChannel()->adminned)) return;
 
 	SelectedItemSet sel;
 	_list->fillSelectedItems(sel);

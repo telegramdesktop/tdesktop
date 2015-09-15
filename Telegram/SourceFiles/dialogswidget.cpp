@@ -241,9 +241,12 @@ void DialogsListWidget::peopleResultPaint(PeerData *peer, QPainter &p, int32 w, 
 	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop, namewidth, st::msgNameFont->height);
 
 	// draw chat icon
-	if (history->peer->isChat()) { // CHANNELS_UI
-		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgLeft, rectForName.top() + st::dlgChatImgTop), App::sprite(), (act ? st::dlgActiveChatImg : st::dlgChatImg));
-		rectForName.setLeft(rectForName.left() + st::dlgChatImgSkip);
+	if (history->peer->isChat()) {
+		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), App::sprite(), (act ? st::dlgActiveChatImg : st::dlgChatImg));
+		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
+	} else if (history->peer->isChannel()) {
+		p.drawPixmap(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), App::sprite(), (act ? st::dlgActiveChannelImg : st::dlgChannelImg));
+		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
 	}
 	
 	QRect tr(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth, st::dlgFont->height);
@@ -281,9 +284,12 @@ void DialogsListWidget::searchInPeerPaint(QPainter &p, int32 w) const {
 	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop, namewidth, st::msgNameFont->height);
 
 	// draw chat icon
-	if (_searchInPeer->isChat()) { // CHANNELS_UI
-		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgLeft, rectForName.top() + st::dlgChatImgTop), App::sprite(), st::dlgChatImg);
-		rectForName.setLeft(rectForName.left() + st::dlgChatImgSkip);
+	if (_searchInPeer->isChat()) {
+		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), App::sprite(), st::dlgChatImg);
+		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
+	} else if (_searchInPeer->isChannel()) {
+		p.drawPixmap(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), App::sprite(), st::dlgChannelImg);
+		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
 	}
 
 	QRect tr(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth, st::dlgFont->height);

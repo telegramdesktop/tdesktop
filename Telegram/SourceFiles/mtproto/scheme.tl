@@ -378,6 +378,7 @@ updateReadHistoryOutbox#2f2f21bf peer:Peer max_id:int pts:int pts_count:int = Up
 updateWebPage#7f891213 webpage:WebPage pts:int pts_count:int = Update;
 updateReadMessagesContents#68c13933 messages:Vector<int> pts:int pts_count:int = Update;
 updateChannelTooLong#60946422 channel_id:int = Update;
+updateChannel#b6d45656 channel_id:int = Update;
 updateChannelGroup#c36c1e3c channel_id:int group:MessageGroup = Update;
 updateNewChannelMessage#62ba04d9 message:Message pts:int pts_count:int = Update;
 updateReadChannelInbox#87b87b7d peer:Peer max_id:int = Update;
@@ -716,7 +717,7 @@ messages.startBot#f4cc052d bot:InputUser chat_id:InputChat random_id:long start_
 messages.getChannelDialogs#92689583 offset:int limit:int = messages.Dialogs;
 messages.getImportantHistory#24af43a5 peer:InputPeer offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
 messages.readChannelHistory#36a1210e peer:InputPeer max_id:int = Bool;
-messages.createChannel#e830f8cb flags:# title:string users:Vector<InputUser> = Updates;
+messages.createChannel#7f44d2c3 flags:# title:string about:string users:Vector<InputUser> = Updates;
 messages.deleteChannelMessages#9995a84f peer:InputPeer id:Vector<int> = messages.AffectedMessages;
 messages.getChannelMessages#5f46b265 peer:InputPeer id:Vector<int> = messages.Messages;
 messages.incrementMessagesViews#91ffd479 peer:InputPeer id:Vector<int> = Bool;

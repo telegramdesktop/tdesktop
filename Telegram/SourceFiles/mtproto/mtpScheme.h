@@ -255,6 +255,7 @@ enum {
 	mtpc_updateWebPage = 0x7f891213,
 	mtpc_updateReadMessagesContents = 0x68c13933,
 	mtpc_updateChannelTooLong = 0x60946422,
+	mtpc_updateChannel = 0xb6d45656,
 	mtpc_updateChannelGroup = 0xc36c1e3c,
 	mtpc_updateNewChannelMessage = 0x62ba04d9,
 	mtpc_updateReadChannelInbox = 0x87b87b7d,
@@ -517,7 +518,7 @@ enum {
 	mtpc_messages_getChannelDialogs = 0x92689583,
 	mtpc_messages_getImportantHistory = 0x24af43a5,
 	mtpc_messages_readChannelHistory = 0x36a1210e,
-	mtpc_messages_createChannel = 0xe830f8cb,
+	mtpc_messages_createChannel = 0x7f44d2c3,
 	mtpc_messages_deleteChannelMessages = 0x9995a84f,
 	mtpc_messages_getChannelMessages = 0x5f46b265,
 	mtpc_messages_incrementMessagesViews = 0x91ffd479,
@@ -878,6 +879,7 @@ class MTPDupdateReadHistoryOutbox;
 class MTPDupdateWebPage;
 class MTPDupdateReadMessagesContents;
 class MTPDupdateChannelTooLong;
+class MTPDupdateChannel;
 class MTPDupdateChannelGroup;
 class MTPDupdateNewChannelMessage;
 class MTPDupdateReadChannelInbox;
@@ -5306,6 +5308,18 @@ public:
 		return *(const MTPDupdateChannelTooLong*)data;
 	}
 
+	MTPDupdateChannel &_updateChannel() {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updateChannel) throw mtpErrorWrongTypeId(_type, mtpc_updateChannel);
+		split();
+		return *(MTPDupdateChannel*)data;
+	}
+	const MTPDupdateChannel &c_updateChannel() const {
+		if (!data) throw mtpErrorUninitialized();
+		if (_type != mtpc_updateChannel) throw mtpErrorWrongTypeId(_type, mtpc_updateChannel);
+		return *(const MTPDupdateChannel*)data;
+	}
+
 	MTPDupdateChannelGroup &_updateChannelGroup() {
 		if (!data) throw mtpErrorUninitialized();
 		if (_type != mtpc_updateChannelGroup) throw mtpErrorWrongTypeId(_type, mtpc_updateChannelGroup);
@@ -5404,6 +5418,7 @@ private:
 	explicit MTPupdate(MTPDupdateWebPage *_data);
 	explicit MTPupdate(MTPDupdateReadMessagesContents *_data);
 	explicit MTPupdate(MTPDupdateChannelTooLong *_data);
+	explicit MTPupdate(MTPDupdateChannel *_data);
 	explicit MTPupdate(MTPDupdateChannelGroup *_data);
 	explicit MTPupdate(MTPDupdateNewChannelMessage *_data);
 	explicit MTPupdate(MTPDupdateReadChannelInbox *_data);
@@ -5439,6 +5454,7 @@ private:
 	friend MTPupdate MTP_updateWebPage(const MTPWebPage &_webpage, MTPint _pts, MTPint _pts_count);
 	friend MTPupdate MTP_updateReadMessagesContents(const MTPVector<MTPint> &_messages, MTPint _pts, MTPint _pts_count);
 	friend MTPupdate MTP_updateChannelTooLong(MTPint _channel_id);
+	friend MTPupdate MTP_updateChannel(MTPint _channel_id);
 	friend MTPupdate MTP_updateChannelGroup(MTPint _channel_id, const MTPMessageGroup &_group);
 	friend MTPupdate MTP_updateNewChannelMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count);
 	friend MTPupdate MTP_updateReadChannelInbox(const MTPPeer &_peer, MTPint _max_id);
@@ -10520,6 +10536,16 @@ public:
 	MTPDupdateChannelTooLong() {
 	}
 	MTPDupdateChannelTooLong(MTPint _channel_id) : vchannel_id(_channel_id) {
+	}
+
+	MTPint vchannel_id;
+};
+
+class MTPDupdateChannel : public mtpDataImpl<MTPDupdateChannel> {
+public:
+	MTPDupdateChannel() {
+	}
+	MTPDupdateChannel(MTPint _channel_id) : vchannel_id(_channel_id) {
 	}
 
 	MTPint vchannel_id;
@@ -16819,6 +16845,7 @@ class MTPmessages_createChannel { // RPC method 'messages.createChannel'
 public:
 	MTPint vflags;
 	MTPstring vtitle;
+	MTPstring vabout;
 	MTPVector<MTPInputUser> vusers;
 
 	MTPmessages_createChannel() {
@@ -16826,11 +16853,11 @@ public:
 	MTPmessages_createChannel(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_createChannel) {
 		read(from, end, cons);
 	}
-	MTPmessages_createChannel(MTPint _flags, const MTPstring &_title, const MTPVector<MTPInputUser> &_users) : vflags(_flags), vtitle(_title), vusers(_users) {
+	MTPmessages_createChannel(MTPint _flags, const MTPstring &_title, const MTPstring &_about, const MTPVector<MTPInputUser> &_users) : vflags(_flags), vtitle(_title), vabout(_about), vusers(_users) {
 	}
 
 	uint32 innerLength() const {
-		return vflags.innerLength() + vtitle.innerLength() + vusers.innerLength();
+		return vflags.innerLength() + vtitle.innerLength() + vabout.innerLength() + vusers.innerLength();
 	}
 	mtpTypeId type() const {
 		return mtpc_messages_createChannel;
@@ -16838,11 +16865,13 @@ public:
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_messages_createChannel) {
 		vflags.read(from, end);
 		vtitle.read(from, end);
+		vabout.read(from, end);
 		vusers.read(from, end);
 	}
 	void write(mtpBuffer &to) const {
 		vflags.write(to);
 		vtitle.write(to);
+		vabout.write(to);
 		vusers.write(to);
 	}
 
@@ -16856,7 +16885,7 @@ public:
 	}
 	MTPmessages_CreateChannel(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPmessages_createChannel>(from, end, cons) {
 	}
-	MTPmessages_CreateChannel(MTPint _flags, const MTPstring &_title, const MTPVector<MTPInputUser> &_users) : MTPBoxed<MTPmessages_createChannel>(MTPmessages_createChannel(_flags, _title, _users)) {
+	MTPmessages_CreateChannel(MTPint _flags, const MTPstring &_title, const MTPstring &_about, const MTPVector<MTPInputUser> &_users) : MTPBoxed<MTPmessages_createChannel>(MTPmessages_createChannel(_flags, _title, _about, _users)) {
 	}
 };
 
@@ -22905,6 +22934,10 @@ inline uint32 MTPupdate::innerLength() const {
 			const MTPDupdateChannelTooLong &v(c_updateChannelTooLong());
 			return v.vchannel_id.innerLength();
 		}
+		case mtpc_updateChannel: {
+			const MTPDupdateChannel &v(c_updateChannel());
+			return v.vchannel_id.innerLength();
+		}
 		case mtpc_updateChannelGroup: {
 			const MTPDupdateChannelGroup &v(c_updateChannelGroup());
 			return v.vchannel_id.innerLength() + v.vgroup.innerLength();
@@ -23128,6 +23161,11 @@ inline void MTPupdate::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeI
 			MTPDupdateChannelTooLong &v(_updateChannelTooLong());
 			v.vchannel_id.read(from, end);
 		} break;
+		case mtpc_updateChannel: _type = cons; {
+			if (!data) setData(new MTPDupdateChannel());
+			MTPDupdateChannel &v(_updateChannel());
+			v.vchannel_id.read(from, end);
+		} break;
 		case mtpc_updateChannelGroup: _type = cons; {
 			if (!data) setData(new MTPDupdateChannelGroup());
 			MTPDupdateChannelGroup &v(_updateChannelGroup());
@@ -23331,6 +23369,10 @@ inline void MTPupdate::write(mtpBuffer &to) const {
 			const MTPDupdateChannelTooLong &v(c_updateChannelTooLong());
 			v.vchannel_id.write(to);
 		} break;
+		case mtpc_updateChannel: {
+			const MTPDupdateChannel &v(c_updateChannel());
+			v.vchannel_id.write(to);
+		} break;
 		case mtpc_updateChannelGroup: {
 			const MTPDupdateChannelGroup &v(c_updateChannelGroup());
 			v.vchannel_id.write(to);
@@ -23393,6 +23435,7 @@ inline MTPupdate::MTPupdate(mtpTypeId type) : mtpDataOwner(0), _type(type) {
 		case mtpc_updateWebPage: setData(new MTPDupdateWebPage()); break;
 		case mtpc_updateReadMessagesContents: setData(new MTPDupdateReadMessagesContents()); break;
 		case mtpc_updateChannelTooLong: setData(new MTPDupdateChannelTooLong()); break;
+		case mtpc_updateChannel: setData(new MTPDupdateChannel()); break;
 		case mtpc_updateChannelGroup: setData(new MTPDupdateChannelGroup()); break;
 		case mtpc_updateNewChannelMessage: setData(new MTPDupdateNewChannelMessage()); break;
 		case mtpc_updateReadChannelInbox: setData(new MTPDupdateReadChannelInbox()); break;
@@ -23458,6 +23501,8 @@ inline MTPupdate::MTPupdate(MTPDupdateWebPage *_data) : mtpDataOwner(_data), _ty
 inline MTPupdate::MTPupdate(MTPDupdateReadMessagesContents *_data) : mtpDataOwner(_data), _type(mtpc_updateReadMessagesContents) {
 }
 inline MTPupdate::MTPupdate(MTPDupdateChannelTooLong *_data) : mtpDataOwner(_data), _type(mtpc_updateChannelTooLong) {
+}
+inline MTPupdate::MTPupdate(MTPDupdateChannel *_data) : mtpDataOwner(_data), _type(mtpc_updateChannel) {
 }
 inline MTPupdate::MTPupdate(MTPDupdateChannelGroup *_data) : mtpDataOwner(_data), _type(mtpc_updateChannelGroup) {
 }
@@ -23555,6 +23600,9 @@ inline MTPupdate MTP_updateReadMessagesContents(const MTPVector<MTPint> &_messag
 }
 inline MTPupdate MTP_updateChannelTooLong(MTPint _channel_id) {
 	return MTPupdate(new MTPDupdateChannelTooLong(_channel_id));
+}
+inline MTPupdate MTP_updateChannel(MTPint _channel_id) {
+	return MTPupdate(new MTPDupdateChannel(_channel_id));
 }
 inline MTPupdate MTP_updateChannelGroup(MTPint _channel_id, const MTPMessageGroup &_group) {
 	return MTPupdate(new MTPDupdateChannelGroup(_channel_id, _group));

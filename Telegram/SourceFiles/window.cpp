@@ -151,7 +151,7 @@ void NotifyWindow::updateNotifyDisplay() {
 	img.fill(st::notifyBG->c);
 
 	{
-		QPainter p(&img);
+		Painter p(&img);
 		p.fillRect(0, 0, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
 		p.fillRect(w - st::notifyBorderWidth, 0, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
 		p.fillRect(st::notifyBorderWidth, h - st::notifyBorderWidth, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
@@ -174,9 +174,12 @@ void NotifyWindow::updateNotifyDisplay() {
 
 		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
 		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
-			if (history->peer->isChat()) { // CHANNELS_UI
-				p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgLeft, rectForName.top() + st::dlgChatImgTop), App::sprite(), st::dlgChatImg);
-				rectForName.setLeft(rectForName.left() + st::dlgChatImgSkip);
+			if (history->peer->isChat()) {
+				p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), App::sprite(), st::dlgChatImg);
+				rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
+			} else if (history->peer->isChannel()) {
+				p.drawPixmap(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), App::sprite(), st::dlgChannelImg);
+				rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
 			}
 		}
 

@@ -68,7 +68,7 @@ struct DialogRow {
 	DialogRow(History *history = 0, DialogRow *prev = 0, DialogRow *next = 0, int32 pos = 0) : prev(prev), next(next), history(history), pos(pos), attached(0) {
 	}
 
-	void paint(QPainter &p, int32 w, bool act, bool sel) const;
+	void paint(Painter &p, int32 w, bool act, bool sel) const;
 
 	DialogRow *prev, *next;
 	History *history;
@@ -80,7 +80,7 @@ struct FakeDialogRow {
 	FakeDialogRow(HistoryItem *item) : _item(item), _cacheFor(0), _cache(st::dlgRichMinWidth) {
 	}
 
-	void paint(QPainter &p, int32 w, bool act, bool sel) const;
+	void paint(Painter &p, int32 w, bool act, bool sel) const;
 
 	HistoryItem *_item;
 	mutable const HistoryItem *_cacheFor;
@@ -293,7 +293,7 @@ struct History : public QList<HistoryBlock*> {
 	mutable const HistoryItem *textCachedFor; // cache
 	mutable Text lastItemTextCache;
 
-	void paintDialog(QPainter &p, int32 w, bool sel) const;
+	void paintDialog(Painter &p, int32 w, bool sel) const;
 
 	typedef QMap<QChar, DialogRow*> DialogLinks;
 	DialogLinks dialogs;
@@ -341,7 +341,7 @@ struct DialogsList {
 		}
 	}
 
-	void paint(QPainter &p, int32 w, int32 hFrom, int32 hTo, PeerData *act, PeerData *sel) const {
+	void paint(Painter &p, int32 w, int32 hFrom, int32 hTo, PeerData *act, PeerData *sel) const {
 		adjustCurrent(hFrom, st::dlgHeight);
 
 		DialogRow *drawFrom = current;
@@ -662,6 +662,11 @@ enum HistoryCursorState {
 	HistoryInDateCursorState
 };
 
+enum InfoDisplayType {
+	InfoDisplayDefault,
+	InfoDisplayOverImage,
+};
+
 class HistoryMedia;
 class HistoryItem : public HistoryElem {
 public:
@@ -676,7 +681,7 @@ public:
 
 	virtual void initDimensions() = 0;
 	virtual int32 resize(int32 width) = 0; // return new height
-	virtual void draw(QPainter &p, uint32 selection) const = 0;
+	virtual void draw(Painter &p, uint32 selection) const = 0;
 
 	History *history() {
 		return _history;
@@ -728,7 +733,7 @@ public:
 		return _from->isChannel();
 	}
 	virtual bool needCheck() const {
-		return out() && !fromChannel();
+		return out() && (!fromChannel() || id <= 0);
 	}
 	virtual bool hasPoint(int32 x, int32 y) const {
 		return false;
@@ -764,7 +769,11 @@ public:
 		return inDialogsText();
 	}
 
-	virtual void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const = 0;
+	virtual void drawInfo(Painter &p, int32 right, int32 bottom, bool selected, InfoDisplayType type) const {
+	}
+	virtual void setViewsCount(int32 count) {
+	}
+	virtual void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const = 0;
     virtual QString notificationHeader() const {
         return QString();
     }
@@ -793,12 +802,39 @@ public:
 	virtual bool textHasLinks() {
 		return false;
 	}
-	virtual QString time() const {
-		return QString();
-	}
-	virtual int32 timeWidth(bool forText) const {
+
+	virtual int32 infoWidth() const {
 		return 0;
 	}
+	virtual int32 timeLeft() const {
+		return 0;
+	}
+	virtual QString timeText() const {
+		return QString();
+	}
+	virtual int32 timeWidth() const {
+		return 0;
+	}
+	virtual QString viewsText() const {
+		return QString();
+	}
+	virtual int32 viewsWidth() const {
+		return 0;
+	}
+	virtual bool pointInTime(int32 right, int32 bottom, int32 x, int32 y, InfoDisplayType type) const {
+		return false;
+	}
+
+	int32 skipBlockWidth() const {
+		return st::msgDateSpace + infoWidth() - st::msgDateDelta.x();
+	}
+	int32 skipBlockHeight() const {
+		return st::msgDateFont->height - st::msgDateDelta.y();
+	}
+	QString skipBlock() const {
+		return textcmdSkipBlock(skipBlockWidth(), skipBlockHeight());
+	}
+
 	virtual bool animating() const {
 		return false;
 	}
@@ -886,7 +922,7 @@ public:
 		return _height;
 	}
 	virtual void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const = 0;
-	virtual void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const = 0;
+	virtual void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const = 0;
 	virtual bool uploading() const {
 		return false;
 	}
@@ -935,7 +971,7 @@ public:
 	void init();
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypePhoto;
@@ -985,7 +1021,7 @@ public:
 	HistoryVideo(const MTPDvideo &video, const QString &caption, HistoryItem *parent);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeVideo;
@@ -1027,7 +1063,7 @@ public:
 	HistoryAudio(const MTPDaudio &audio);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
 	HistoryMediaType type() const {
 		return MediaTypeAudio;
 	}
@@ -1065,7 +1101,7 @@ public:
 	HistoryDocument(DocumentData *document);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeDocument;
@@ -1094,7 +1130,7 @@ public:
 	}
 	ImagePtr replyPreview();
 
-	void drawInPlaylist(QPainter &p, const HistoryItem *parent, bool selected, bool over, int32 width) const;
+	void drawInPlaylist(Painter &p, const HistoryItem *parent, bool selected, bool over, int32 width) const;
 	TextLinkPtr linkInPlaylist();
 
 private:
@@ -1116,7 +1152,7 @@ public:
 	HistorySticker(DocumentData *document);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeSticker;
@@ -1152,7 +1188,7 @@ public:
 	HistoryContact(int32 userId, const QString &first, const QString &last, const QString &phone);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const;
+	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width) const;
 	HistoryMediaType type() const {
 		return MediaTypeContact;
 	}
@@ -1178,7 +1214,7 @@ public:
 	HistoryWebPage(WebPageData *data);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
 	bool isDisplayed() const {
 		return !data->pendingTill;
 	}
@@ -1285,7 +1321,7 @@ public:
 	int32 fullHeight() const;
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeImageLink;
@@ -1311,9 +1347,8 @@ class HistoryMessage : public HistoryItem {
 public:
 
 	HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, const MTPMessageMedia *media);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, HistoryMedia *media);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc);
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, HistoryMedia *media); // local forwarded
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc); // local sticker and reply sticker
 
 	void initTime();
 	void initMedia(const MTPMessageMedia *media, QString &currentText);
@@ -1328,11 +1363,14 @@ public:
 
 	bool uploading() const;
 
-	void draw(QPainter &p, uint32 selection) const;
-	virtual void drawMessageText(QPainter &p, const QRect &trect, uint32 selection) const;
+	void drawInfo(Painter &p, int32 right, int32 bottom, bool selected, InfoDisplayType type) const;
+	void setViewsCount(int32 count);
+	void draw(Painter &p, uint32 selection) const;
+	virtual void drawMessageText(Painter &p, const QRect &trect, uint32 selection) const;
 
 	int32 resize(int32 width);
 	bool hasPoint(int32 x, int32 y) const;
+	bool pointInTime(int32 right, int32 bottom, int32 x, int32 y, InfoDisplayType type) const;
 
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
 	virtual void getStateFromMessageText(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const QRect &r) const;
@@ -1342,7 +1380,7 @@ public:
 		return _text.adjustSelection(from, to, type);
 	}
 
-	void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
+	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
     QString notificationHeader() const;
     QString notificationText() const;
     
@@ -1361,19 +1399,34 @@ public:
 	void getTextWithLinks(QString &text, LinksInText &links);
 	bool textHasLinks();
 
-	QString time() const {
-		return _time;
-	}
-	int32 timeWidth(bool forText) const {
+	int32 infoWidth() const {
 		int32 result = _timeWidth;
-		if (forText) {
-			result += st::msgDateSpace - st::msgDateDelta.x();
-			if (fromChannel()) {
-			} else if (out()) {
-				result += st::msgDateCheckSpace + st::msgCheckRect.pxWidth();
-			}
+		if (!_viewsText.isEmpty()) {
+			result += st::msgDateViewsSpace + _viewsWidth + st::msgDateCheckSpace + st::msgViewsImg.pxWidth();
+		}
+		if (out() && !fromChannel()) {
+			result += st::msgDateCheckSpace + st::msgCheckImg.pxWidth();
 		}
 		return result;
+	}
+	int32 timeLeft() const {
+		int32 result = 0;
+		if (!_viewsText.isEmpty()) {
+			result += st::msgDateViewsSpace + _viewsWidth + st::msgDateCheckSpace + st::msgViewsImg.pxWidth();
+		}
+		return result;
+	}
+	QString timeText() const {
+		return _timeText;
+	}
+	int32 timeWidth() const {
+		return _timeWidth;
+	}
+	QString viewsText() const {
+		return _viewsText;
+	}
+	int32 viewsWidth() const {
+		return _viewsWidth;
 	}
 	virtual bool animating() const {
 		return _media ? _media->animating() : false;
@@ -1402,8 +1455,11 @@ protected:
 	int32 _textWidth, _textHeight;
 
 	HistoryMedia *_media;
-	QString _time;
+	QString _timeText;
 	int32 _timeWidth;
+	
+	QString _viewsText;
+	int32 _views, _viewsWidth;
 
 };
 
@@ -1416,9 +1472,9 @@ public:
 	void initDimensions();
 	void fwdNameUpdated() const;
 
-	void draw(QPainter &p, uint32 selection) const;
-	void drawForwardedFrom(QPainter &p, int32 x, int32 y, int32 w, bool selected) const;
-	void drawMessageText(QPainter &p, const QRect &trect, uint32 selection) const;
+	void draw(Painter &p, uint32 selection) const;
+	void drawForwardedFrom(Painter &p, int32 x, int32 y, int32 w, bool selected) const;
+	void drawMessageText(Painter &p, const QRect &trect, uint32 selection) const;
 	int32 resize(int32 width);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
@@ -1469,9 +1525,9 @@ public:
 	HistoryItem *replyToMessage() const;
 	void replyToReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
-	void draw(QPainter &p, uint32 selection) const;
-	void drawReplyTo(QPainter &p, int32 x, int32 y, int32 w, bool selected, bool likeService = false) const;
-	void drawMessageText(QPainter &p, const QRect &trect, uint32 selection) const;
+	void draw(Painter &p, uint32 selection) const;
+	void drawReplyTo(Painter &p, int32 x, int32 y, int32 w, bool selected, bool likeService = false) const;
+	void drawMessageText(Painter &p, const QRect &trect, uint32 selection) const;
 	int32 resize(int32 width);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
@@ -1512,7 +1568,7 @@ public:
 
 	void initDimensions();
 
-	void draw(QPainter &p, uint32 selection) const;
+	void draw(Painter &p, uint32 selection) const;
 	int32 resize(int32 width);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
@@ -1521,7 +1577,7 @@ public:
 		return _text.adjustSelection(from, to, type);
 	}
 
-	void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
+	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
     QString notificationText() const;
 
 	bool needCheck() const {
@@ -1584,10 +1640,10 @@ public:
 
 	void setCount(int32 count);
 
-	void draw(QPainter &p, uint32 selection) const;
+	void draw(Painter &p, uint32 selection) const;
 	int32 resize(int32 width);
 
-	void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
+	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
     QString notificationText() const;
 
 	QString selectedText(uint32 selection) const {

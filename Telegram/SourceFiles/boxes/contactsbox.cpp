@@ -1285,7 +1285,7 @@ void CreateGroupBox::onCreate() {
 	_create.setDisabled(true);
 	_name.setDisabled(true);
 	if (_creatingChannel) {
-		_createRequestId = MTP::send(MTPmessages_CreateChannel(MTP_int(MTPmessages_CreateChannel_flag_broadcast), MTP_string(_name.text()), _users), rpcDone(&CreateGroupBox::created), rpcFail(&CreateGroupBox::failed));
+		_createRequestId = MTP::send(MTPmessages_CreateChannel(MTP_int(MTPmessages_CreateChannel_flag_broadcast), MTP_string(_name.text()), MTP_string(""), _users), rpcDone(&CreateGroupBox::created), rpcFail(&CreateGroupBox::failed));
 	} else {
 		_createRequestId = MTP::send(MTPmessages_CreateChat(_users, MTP_string(_name.text())), rpcDone(&CreateGroupBox::created), rpcFail(&CreateGroupBox::failed));
 	}

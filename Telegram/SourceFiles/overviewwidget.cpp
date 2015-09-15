@@ -985,7 +985,7 @@ QPixmap OverviewInner::genPix(PhotoData *photo, int32 size) {
 }
 
 void OverviewInner::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 
 	QRect r(e->rect());
 	p.setClipRect(r);
@@ -1784,7 +1784,9 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (isUponSelected > 1) {
 			_menu->addAction(lang(lng_context_forward_selected), _overview, SLOT(onForwardSelected()));
-			_menu->addAction(lang(lng_context_delete_selected), _overview, SLOT(onDeleteSelected()));
+			if (!_peer->isChannel() || _peer->asChannel()->adminned) {
+				_menu->addAction(lang(lng_context_delete_selected), _overview, SLOT(onDeleteSelected()));
+			}
 			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
 		} else if (App::hoveredLinkItem()) {
 			if (isUponSelected != -2) {
@@ -1822,7 +1824,9 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		_menu->addAction(lang(lng_context_to_msg), this, SLOT(goToMessage()))->setEnabled(true);
 		if (isUponSelected > 1) {
 			_menu->addAction(lang(lng_context_forward_selected), _overview, SLOT(onForwardSelected()));
-			_menu->addAction(lang(lng_context_delete_selected), _overview, SLOT(onDeleteSelected()));
+			if (!_peer->isChannel() || _peer->asChannel()->adminned) {
+				_menu->addAction(lang(lng_context_delete_selected), _overview, SLOT(onDeleteSelected()));
+			}
 			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
 		} else {
 			if (isUponSelected != -2) {
