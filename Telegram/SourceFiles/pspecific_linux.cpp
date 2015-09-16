@@ -1195,6 +1195,7 @@ void psRegisterCustomScheme() {
             s << "Exec=" << escapeShell(cExeDir() + cExeName()) << " -- %u\n";
             s << "Icon=" << icon << "\n";
             s << "Terminal=false\n";
+            s << "StartupWMClass=Telegram";
             s << "Type=Application\n";
             s << "Categories=Network;\n";
             s << "MimeType=application/x-xdg-protocol-tg;x-scheme-handler/tg;\n";
