@@ -30,6 +30,10 @@ public:
 	virtual void startHide() {
 	}
 
+	virtual void setInnerFocus() {
+		setFocus();
+	}
+
 	virtual void resizeEvent(QResizeEvent *e) {
 		emit resized();
 	}
@@ -71,6 +75,9 @@ public:
 
 	bool animStep(float64 ms);
 
+	bool canSetFocus() const;
+	void setInnerFocus();
+
 	~BackgroundWidget();
 
 public slots:
@@ -83,7 +90,9 @@ private:
 
 	void startHide();
 
-	LayeredWidget *w, *_hidden;
+	LayeredWidget *w;
+	typedef QList<LayeredWidget*> HiddenLayers;
+	HiddenLayers _hidden;
 	anim::fvalue aBackground;
 	anim::transition aBackgroundFunc;
 	bool hiding;

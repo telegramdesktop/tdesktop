@@ -831,12 +831,14 @@ void MainWidget::removeContact(UserData *user) {
 	dialogs.removeContact(user);
 }
 
-void MainWidget::addParticipants(ChatData *chat, const QVector<UserData*> &users) {
+void MainWidget::addParticipants(PeerData *chatOrChannel, const QVector<UserData*> &users) {
 	for (QVector<UserData*>::const_iterator i = users.cbegin(), e = users.cend(); i != e; ++i) {
-		MTP::send(MTPmessages_AddChatUser(chat->inputChat, (*i)->inputUser, MTP_int(ForwardOnAdd)), rpcDone(&MainWidget::sentUpdatesReceived), rpcFail(&MainWidget::addParticipantFail, *i), 0, 5);
+		if (chatOrChannel->isChat()) {
+			MTP::send(MTPmessages_AddChatUser(chatOrChannel->asChat()->inputChat, (*i)->inputUser, MTP_int(ForwardOnAdd)), rpcDone(&MainWidget::sentUpdatesReceived), rpcFail(&MainWidget::addParticipantFail, *i), 0, 5);
+		} else if (chatOrChannel->isChannel()) {
+			MTP::send(MTPmessages_AddChatUser(chatOrChannel->asChannel()->inputChat, (*i)->inputUser, MTP_int(0)), rpcDone(&MainWidget::sentUpdatesReceived), rpcFail(&MainWidget::addParticipantFail, *i), 0, 5);
+		}
 	}
-	App::wnd()->hideLayer();
-	showPeerHistory(chat->id, ShowAtTheEndMsgId);
 }
 
 bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
@@ -971,7 +973,7 @@ void MainWidget::onResendAsDocument() {
 			item->destroy();
 		}
 	}
-	App::wnd()->layerHidden();
+	App::wnd()->hideLayer(true);
 }
 
 void MainWidget::onCancelResend() {
@@ -2087,7 +2089,7 @@ void MainWidget::setInnerFocus() {
 	} else if (profile) {
 		profile->setFocus();
 	} else {
-		history.activate();
+		history.setInnerFocus();
 	}
 }
 
@@ -2119,6 +2121,10 @@ void MainWidget::updateAfterDrag() {
 	} else {
 		history.updateAfterDrag();
 	}
+}
+
+void MainWidget::ctrlEnterSubmitUpdated() {
+	history.ctrlEnterSubmitUpdated();
 }
 
 void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) {
@@ -2197,8 +2203,8 @@ void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) 
 			if (history.isHidden()) history.show();
 			if (!animCache.isNull()) {
 				history.animShow(animCache, animTopBarCache, back);
-			} else {
-				QTimer::singleShot(0, this, SLOT(setInnerFocus()));
+			} else if (App::wnd()) {
+				QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
 			}
 		}
 	}
@@ -2381,7 +2387,7 @@ void MainWidget::showBackFromStack() {
 	if (selectingPeer()) return;
 	if (_stack.isEmpty()) {
 		showDialogs();
-		QTimer::singleShot(0, this, SLOT(setInnerFocus()));
+		if (App::wnd()) QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
 		return;
 	}
 	StackItem *item = _stack.back();

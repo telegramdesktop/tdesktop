@@ -74,6 +74,10 @@ void FlatInput::customUpDown(bool custom) {
 	_customUpDown = custom;
 }
 
+void FlatInput::setTextMargin(const QMargins &mrg) {
+	_st.textMrg = mrg;
+}
+
 void FlatInput::onTouchTimer() {
 	_touchRightButton = true;
 }
@@ -380,6 +384,34 @@ void CountryCodeInput::correctValue(QKeyEvent *e, const QString &was) {
 	}
 	if (!addToNumber.isEmpty()) {
 		emit addedToNumber(addToNumber);
+	}
+}
+
+UsernameInput::UsernameInput(QWidget *parent, const style::flatInput &st, const QString &ph, const QString &val) : FlatInput(parent, st, ph, val) {
+}
+
+void UsernameInput::correctValue(QKeyEvent *e, const QString &was) {
+	QString oldText(text()), newText;
+	int32 newPos = cursorPosition(), from, len = oldText.size();
+	for (from = 0; from < len; ++from) {
+		if (!oldText.at(from).isSpace()) {
+			break;
+		}
+		if (newPos > 0) --newPos;
+	}
+	len -= from;
+	if (len > MaxUsernameLength) len = MaxUsernameLength + (oldText.at(from) == '@' ? 1 : 0);
+	for (int32 to = from + len; to > from;) {
+		--to;
+		if (!oldText.at(to).isSpace()) {
+			break;
+		}
+		--len;
+	}
+	newText = oldText.mid(from, len);
+	if (newText != oldText) {
+		setText(newText);
+		setCursorPosition(newPos);
 	}
 }
 

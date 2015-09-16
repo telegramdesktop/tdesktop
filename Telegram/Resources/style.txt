@@ -1380,15 +1380,57 @@ contactsFilter: flatInput(dlgFilter) {
 	textMrg: margins(34px, 3px, 5px, 4px);
 	imgPos: point(6px, 7px);
 }
-newGroupName: flatInput(inpDefGray) {
-	width: 340px;
-	height: 44px;
-	font: font(15px);
-	textMrg: margins(12px, 5px, 12px, 5px);
-}
 inpCountry: flatInput(contactsFilter) {
 }
+newGroupName: flatInput(inpDefGray) {
+	width: 340px;
+	height: 42px;
+	font: font(15px);
+	textMrg: margins(12px, 4px, 12px, 4px);
+}
+newGroupLink: flatInput(inpDefFlat) {
+	width: 340px;
+	height: 42px;
+	font: font(15px);
+	textMrg: margins(12px, 4px, 12px, 4px);
+	bgColor: transparent;
+	bgActive: transparent;
+	borderWidth: 2px;
+	borderColor: #f2f2f2;
+	borderActive: #80cff9;
+	borderError: #ed8080;
+	phColor: #828282;
+	phFocusColor: #949494;
+}
+newGroupLimitFg: #a4a4a4;
+newGroupAboutFg: #808080;
 newGroupNamePadding: margins(12px, 15px, 12px, 13px);
+newGroupPadding: margins(26px, 28px, 26px, 24px);
+newGroupSkip: 15px;
+newGroupLinkPadding: margins(26px, 27px, 26px, 27px);
+newGroupLinkTop: -3px;
+newGroupLinkFont: font(16px);
+newGroupPhoto: flatButton(btnDefNext, btnDefBig) {
+	width: 199px;
+	height: 42px;
+
+	textTop: 9px;
+	overTextTop: 9px;
+	downTextTop: 10px;
+
+	font: font(17px);
+	overFont: font(17px);
+}
+newGroupPhotoSize: 96px;
+newGroupPhotoSkip: 18px;
+newGroupDescriptionSkip: 28px;
+newGroupDescription: flatTextarea(taDefFlat) {
+	font: font(15px);
+	bgColor: transparent;
+	phColor: #828282;
+	phFocusColor: #949494;
+}
+newGroupDescriptionPadding: margins(5px, 6px, 5px, 6px);
 
 connectionSkip: 20px;
 inpConnectionHost: flatInput(inpDefGray) {
@@ -1545,10 +1587,6 @@ dragMargin: margins(0px, 10px, 0px, 10px);
 dragPadding: margins(20px, 10px, 20px, 10px);
 
 dragHeight: 72px;
-
-selectedFont: font(fsize);
-selectedColor: #777;
-selectedTop: 14px;
 
 downloadSkip: 20px;
 inpDownloadDir: flatInput(inpDefGray) {

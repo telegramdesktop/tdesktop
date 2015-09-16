@@ -286,7 +286,7 @@ void NotifyWindow::mousePressEvent(QMouseEvent *e) {
 	} else if (history) {
 		App::wnd()->showFromTray();
 		if (App::passcoded()) {
-			App::wnd()->passcodeWidget()->setInnerFocus();
+			App::wnd()->setInnerFocus();
 			App::wnd()->notifyClear();
 		} else {
 			App::wnd()->hideSettings();
@@ -461,7 +461,7 @@ QWidget *Window::filedialogParent() {
 }
 
 void Window::clearWidgets() {
-	layerHidden();
+	hideLayer(true);
 	if (_passcode) {
 		_passcode->hide();
 		_passcode->deleteLater();
@@ -528,7 +528,7 @@ void Window::setupPasscode(bool anim) {
 	if (anim) {
 		_passcode->animShow(bg);
 	} else {
-		_passcode->setInnerFocus();
+		setInnerFocus();
 	}
 	_shouldLockAt = 0;
 	notifyUpdateAll();
@@ -746,31 +746,39 @@ void Window::showPhoto(const PhotoLink *lnk, HistoryItem *item) {
 }
 
 void Window::showPhoto(PhotoData *photo, HistoryItem *item) {
-	layerHidden();
+	hideLayer(true);
 	_mediaView->showPhoto(photo, item);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
 
 void Window::showPhoto(PhotoData *photo, PeerData *peer) {
-	layerHidden();
+	hideLayer(true);
 	_mediaView->showPhoto(photo, peer);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
 
 void Window::showDocument(DocumentData *doc, HistoryItem *item) {
-	layerHidden();
+	hideLayer(true);
 	_mediaView->showDocument(doc, item);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
 
 void Window::showLayer(LayeredWidget *w, bool fast) {
-	layerHidden();
+	hideLayer(true);
 	layerBG = new BackgroundWidget(this, w);
 	if (fast) {
 		layerBG->showFast();
+	}
+}
+
+void Window::replaceLayer(LayeredWidget *w) {
+	if (layerBG) {
+		layerBG->replaceInner(w);
+	} else {
+		layerBG = new BackgroundWidget(this, w);
 	}
 }
 
@@ -798,19 +806,12 @@ void Window::hideConnecting() {
 	if (settings) settings->update();
 }
 
-void Window::replaceLayer(LayeredWidget *w) {
-	if (layerBG) {
-		layerBG->replaceInner(w);
-	} else {
-		layerBG = new BackgroundWidget(this, w);
-	}
-}
-
 void Window::hideLayer(bool fast) {
 	if (layerBG) {
 		layerBG->onClose();
 		if (fast) {
 			layerBG->hide();
+			layerBG->deleteLater();
 			layerBG = 0;
 		}
 	}
@@ -854,7 +855,9 @@ void Window::hideMediaview() {
 }
 
 void Window::setInnerFocus() {
-	if (_passcode) {
+	if (layerBG && layerBG->canSetFocus()) {
+		layerBG->setInnerFocus();
+	} else if (_passcode) {
 		_passcode->setInnerFocus();
 	} else if (settings) {
 		settings->setInnerFocus();

@@ -190,7 +190,6 @@ public:
 	void insertFromMimeData(const QMimeData *source);
 
 	void focusInEvent(QFocusEvent *e);
-	void setMaxHeight(int32 maxHeight);
 
 	bool hasSendText() const;
 
@@ -206,17 +205,14 @@ public:
 
 public slots:
 
-	void onChange();
 	void onEmojiInsert(EmojiPtr emoji);
 
 signals:
 
-	void resized();
 	void focused();
 
 private:
 	HistoryWidget *history;
-	int32 _maxHeight;
 
 };
 
@@ -520,6 +516,9 @@ public:
 	void updateToEndVisibility();
 
 	void updateAfterDrag();
+	void ctrlEnterSubmitUpdated();
+
+	void setInnerFocus();
 
 	~HistoryWidget();
 
@@ -585,7 +584,6 @@ public slots:
 	void onPhotoFailed(quint64 id);
 
 	void activate();
-	void setInnerFocus();
 	void onMentionHashtagOrBotCommandInsert(QString str);
 	void onTextChange();
 

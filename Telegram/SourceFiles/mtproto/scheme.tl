@@ -257,6 +257,7 @@ messageActionChatAddUser#5e3cfc4b user_id:int = MessageAction;
 messageActionChatDeleteUser#b2ae9b0c user_id:int = MessageAction;
 messageActionChatJoinedByLink#f89cf5e8 inviter_id:int = MessageAction;
 messageActionChannelCreate#95d2ac92 title:string = MessageAction;
+messageActionChannelToggleComments#f2863903 enabled:Bool = MessageAction;
 
 dialog#c1dd804a peer:Peer top_message:int read_inbox_max_id:int unread_count:int notify_settings:PeerNotifySettings = Dialog;
 dialogChannel#5b8496b2 peer:Peer top_message:int top_important_message:int read_inbox_max_id:int unread_count:int unread_important_count:int notify_settings:PeerNotifySettings pts:int = Dialog;
@@ -602,6 +603,16 @@ channelMessagesFilterCollapsed#fa01232e = ChannelMessagesFilter;
 contacts.resolvedPeer#7f077ad9 peer:Peer chats:Vector<Chat> users:Vector<User> = contacts.ResolvedPeer;
 
 channelParticipant#506116ea user_id:int inviter_id:int date:int = ChannelParticipant;
+channelParticipantModerator#91057fef user_id:int inviter_id:int date:int = ChannelParticipant;
+channelParticipantPublisher#375d616 user_id:int inviter_id:int date:int = ChannelParticipant;
+channelParticipantCreator#e3e2e1f9 user_id:int = ChannelParticipant;
+
+channelParticipantsRecent#de3f3c79 = ChannelParticipantsFilter;
+channelParticipantsAdmins#b4608969 = ChannelParticipantsFilter;
+
+channelRoleEmpty#b285a0c6 = ChannelParticipantRole;
+channelRoleModerator#9618d975 = ChannelParticipantRole;
+channelRolePublisher#515b5530 = ChannelParticipantRole;
 
 messages.channelParticipants#d6891de1 count:int participants:Vector<ChannelParticipant> users:Vector<User> = messages.ChannelParticipants;
 
@@ -718,12 +729,14 @@ messages.getChannelDialogs#92689583 offset:int limit:int = messages.Dialogs;
 messages.getImportantHistory#24af43a5 peer:InputPeer offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
 messages.readChannelHistory#36a1210e peer:InputPeer max_id:int = Bool;
 messages.createChannel#7f44d2c3 flags:# title:string about:string users:Vector<InputUser> = Updates;
+messages.toggleChannelComments#b405b8af chat_id:InputChat enabled:Bool = Updates;
 messages.deleteChannelMessages#9995a84f peer:InputPeer id:Vector<int> = messages.AffectedMessages;
 messages.getChannelMessages#5f46b265 peer:InputPeer id:Vector<int> = messages.Messages;
 messages.incrementMessagesViews#91ffd479 peer:InputPeer id:Vector<int> = Bool;
 messages.getMessagesViews#9abfbbe1 peer:InputPeer id:Vector<int> = Vector<int>;
 messages.editChatAbout#8a969b93 chat_id:InputChat about:string = Bool;
-messages.getChannelParticipants#4a771976 chat_id:InputChat offset:int limit:int = messages.ChannelParticipants;
+messages.getChannelParticipants#38a1db31 chat_id:InputChat filter:ChannelParticipantsFilter offset:int limit:int = messages.ChannelParticipants;
+messages.editChatAdmin#62394070 chat_id:InputChat user_id:InputUser role:ChannelParticipantRole = Bool;
 messages.checkChannelUsername#e6d2d8f4 chat_id:InputChat username:string = Bool;
 messages.updateChannelUsername#ce2e9587 chat_id:InputChat username:string = Bool;
 

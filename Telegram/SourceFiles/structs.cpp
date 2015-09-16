@@ -96,7 +96,19 @@ PeerData::PeerData(const PeerId &id) : id(id), lnk(new PeerLink(this))
 }
 
 void PeerData::updateName(const QString &newName, const QString &newNameOrPhone, const QString &newUsername) {
-	if (name == newName && (!isUser() || (asUser()->nameOrPhone == newNameOrPhone && asUser()->username == newUsername)) && nameVersion > 0) return;
+	if (name == newName && nameVersion > 0) {
+		if (isUser()) {
+			if (asUser()->nameOrPhone == newNameOrPhone && asUser()->username == newUsername) {
+				return;
+			}
+		} else if (isChannel()) {
+			if (asChannel()->username == newUsername) {
+				return;
+			}
+		} else if (isChat()) {
+			return;
+		}
+	}
 
 	++nameVersion;
 	name = newName;

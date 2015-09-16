@@ -30,6 +30,10 @@ public:
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
+	void setInnerFocus() {
+		_firstInput.setFocus();
+	}
+
 public slots:
 
 	void onSend();

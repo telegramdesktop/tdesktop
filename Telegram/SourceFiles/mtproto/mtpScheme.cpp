@@ -1671,6 +1671,19 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
+			case mtpc_messageActionChannelToggleComments:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ messageActionChannelToggleComments");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  enabled: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
 			case mtpc_dialog:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
@@ -4728,6 +4741,69 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
+			case mtpc_channelParticipantModerator:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ channelParticipantModerator");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  user_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  inviter_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_channelParticipantPublisher:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ channelParticipantPublisher");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  user_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  inviter_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  date: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_channelParticipantCreator:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ channelParticipantCreator");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  user_id: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_channelParticipantsRecent:
+				to.add("{ channelParticipantsRecent }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+			break;
+
+			case mtpc_channelParticipantsAdmins:
+				to.add("{ channelParticipantsAdmins }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+			break;
+
+			case mtpc_channelRoleEmpty:
+				to.add("{ channelRoleEmpty }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+			break;
+
+			case mtpc_channelRoleModerator:
+				to.add("{ channelRoleModerator }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+			break;
+
+			case mtpc_channelRolePublisher:
+				to.add("{ channelRolePublisher }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+			break;
+
 			case mtpc_messages_channelParticipants:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
@@ -5253,6 +5329,21 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				switch (stage) {
 				case 0: to.add("  chat_id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				case 1: to.add("  about: "); ++stages.back(); types.push_back(mtpc_string); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
+			case mtpc_messages_editChatAdmin:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ messages_editChatAdmin");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  chat_id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  user_id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  role: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;
@@ -6211,6 +6302,20 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 			break;
 
+			case mtpc_messages_toggleChannelComments:
+				if (stage) {
+					to.add(",\n").addSpaces(lev);
+				} else {
+					to.add("{ messages_toggleChannelComments");
+					to.add("\n").addSpaces(lev);
+				}
+				switch (stage) {
+				case 0: to.add("  chat_id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  enabled: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+				}
+			break;
+
 			case mtpc_messages_getChats:
 				if (stage) {
 					to.add(",\n").addSpaces(lev);
@@ -6441,8 +6546,9 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 				}
 				switch (stage) {
 				case 0: to.add("  chat_id: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 1: to.add("  offset: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
-				case 2: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 1: to.add("  filter: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 2: to.add("  offset: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+				case 3: to.add("  limit: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
 				default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 				}
 			break;

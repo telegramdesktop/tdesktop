@@ -161,7 +161,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_dlg_filter" = "Search";
 "lng_dlg_new_group_name" = "Group name";
 "lng_dlg_new_channel_name" = "Channel name";
-"lng_dlg_create_group" = "Create";
 "lng_no_contacts" = "You have no contacts";
 "lng_no_chats" = "Your chats will be here";
 "lng_contacts_loading" = "Loading..";
@@ -378,7 +377,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_invite_to_group" = "Add to Group";
 "lng_profile_delete_contact" = "Delete";
 "lng_profile_set_group_photo" = "Set Photo";
-"lng_profile_add_participant" = "Add Member";
+"lng_profile_add_participant" = "Add Members";
 "lng_profile_delete_and_exit" = "Leave";
 "lng_profile_kick" = "Kick";
 "lng_profile_sure_kick" = "Kick {user} from the group?";
@@ -402,9 +401,28 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_participant_invite" = "Invite";
 "lng_create_new_group" = "New Group";
 "lng_create_new_channel" = "New Channel";
+"lng_create_group_back" = "Back";
 "lng_create_group_next" = "Next";
+"lng_create_group_create" = "Create";
 "lng_create_group_title" = "New Group";
+"lng_create_group_about" = "Groups have up to 200 members and are good for smaller communities";
 "lng_create_channel_title" = "New Channel";
+"lng_create_channel_about" = "Channels have unlimited number of members and are good for connecting with large audiences";
+"lng_create_public_channel_title" = "Public Channel";
+"lng_create_public_channel_about" = "Everyone will be able to join your channel";
+"lng_create_private_channel_title" = "Private Channel";
+"lng_create_private_channel_about" = "Only those who have the invitation link will be able to join your channel";
+"lng_create_group_save" = "Save";
+"lng_create_group_skip" = "Skip";
+
+"lng_create_channel_link_invalid" = "This link is invalid";
+"lng_create_channel_link_occupied" = "This link is already occupied";
+"lng_create_channel_link_too_short" = "This link is too short";
+"lng_create_channel_link_bad_symbols" = "This link has bad symbols";
+"lng_create_channel_link_available" = "This link is available";
+
+"lng_create_group_crop" = "Select square area for group photo";
+"lng_create_channel_crop" = "Select square area for channel photo";
 
 "lng_failed_add_participant" = "Could not add user. Try again later.";
 "lng_failed_add_not_mutual" = "Sorry, if a person left a group, only a\nmutual contact can bring them back\n(they need to have your phone\nnumber, and you need theirs).";
@@ -435,6 +453,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_changed_title_channel" = "Channel name was changed to «{title}»";
 "lng_action_created_chat" = "{from} created group «{title}»";
 "lng_action_created_channel" = "Channel «{title}» created";
+"lng_action_comments_disabled" = "Comments were disabled";
+"lng_action_comments_enabled" = "Comments were enabled";
 
 "lng_group_invite_bad_link" = "This invite link is broken\nor has expired.";
 "lng_group_invite_want_join" = "Do you want to join the group «{title}»?";
@@ -509,6 +529,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_send_button" = "Send";
 "lng_message_ph" = "Write a message..";
+"lng_comment_ph" = "Write a comment..";
+"lng_broadcast_ph" = "Broadcast a message..";
 "lng_record_cancel" = "Release outside this field to cancel";
 "lng_empty_history" = "";
 "lng_willbe_history" = "Please select a chat to start messaging";
@@ -627,7 +649,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_contacts_header" = "Contacts";
 "lng_contact_not_joined" = "Unfortunately {name} did not join Telegram yet, but you can send your friend an invitation.\n\nWe will notify you about any of your contacts who is joining Telegram.";
 "lng_try_other_contact" = "Try other";
-"lng_contacts_done" = "Cancel";
+"lng_contacts_done" = "Close";
+"lng_create_group_link" = "Link";
+"lng_create_group_photo" = "Set Photo";
+"lng_create_group_description" = "Description (optional)";
 
 "lng_drag_images_here" = "Drop images here";
 "lng_drag_photos_here" = "Drop photos here";

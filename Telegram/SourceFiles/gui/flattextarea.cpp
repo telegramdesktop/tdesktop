@@ -22,10 +22,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "window.h"
 
 FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(v, parent),
-	_ph(pholder), _oldtext(v), _phVisible(!v.length()),
-    a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c),
-	_st(st), _undoAvailable(false), _redoAvailable(false), _inDrop(false), _fakeMargin(0),
-    _touchPress(false), _touchRightButton(false), _touchMove(false), _replacingEmojis(false) {
+_minHeight(-1), _maxHeight(-1), _ctrlEnterSubmit(true),
+_ph(pholder), _oldtext(v), _phVisible(!v.length()),
+a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c),
+_st(st), _undoAvailable(false), _redoAvailable(false), _inDrop(false), _fakeMargin(0),
+_touchPress(false), _touchRightButton(false), _touchMove(false), _replacingEmojis(false) {
 	setAcceptRichText(false);
 	resize(_st.width, _st.font->height);
 	
@@ -62,6 +63,31 @@ FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const
 	connect(this, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
 	connect(this, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
 	if (App::wnd()) connect(this, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
+}
+
+void FlatTextarea::setMinHeight(int32 minHeight) {
+	_minHeight = minHeight;
+	heightAutoupdated();
+}
+
+void FlatTextarea::setMaxHeight(int32 maxHeight) {
+	_maxHeight = maxHeight;
+	heightAutoupdated();
+}
+
+bool FlatTextarea::heightAutoupdated() {
+	if (_minHeight < 0 || _maxHeight < 0) return false;
+	int newh = ceil(document()->size().height()) + 2 * fakeMargin();
+	if (newh > _maxHeight) {
+		newh = _maxHeight;
+	} else if (newh < _minHeight) {
+		newh = _minHeight;
+	}
+	if (height() != newh) {
+		resize(width(), newh);
+		return true;
+	}
+	return false;
 }
 
 void FlatTextarea::onTouchTimer() {
@@ -555,6 +581,12 @@ QVariant FlatTextarea::loadResource(int type, const QUrl &name) {
 	return QVariant();
 }
 
+void FlatTextarea::checkContentHeight() {
+	if (heightAutoupdated()) {
+		emit resized();
+	}
+}
+
 void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 	int32 emojiPosition = 0, emojiLen = 0;
 	const EmojiData *emoji = 0;
@@ -693,6 +725,7 @@ void FlatTextarea::onDocumentContentsChanged() {
 	if (_oldtext != curText) {
 		_oldtext = curText;
 		emit changed();
+		checkContentHeight();
 	}
 	updatePlaceholder();
 	if (App::wnd()) App::wnd()->updateGlobalMenu();
@@ -753,10 +786,14 @@ QMimeData *FlatTextarea::createMimeDataFromSelection() const {
 	return result;
 }
 
+void FlatTextarea::setCtrlEnterSubmit(bool ctrlEnterSubmit) {
+	_ctrlEnterSubmit = ctrlEnterSubmit;
+}
+
 void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 	bool shift = e->modifiers().testFlag(Qt::ShiftModifier);
 	bool macmeta = (cPlatform() == dbipMac) && e->modifiers().testFlag(Qt::ControlModifier) && !e->modifiers().testFlag(Qt::MetaModifier) && !e->modifiers().testFlag(Qt::AltModifier);
-	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier), ctrlGood = (ctrl && cCtrlEnter()) || (!ctrl && !shift && !cCtrlEnter()) || (ctrl && shift);
+	bool ctrl = e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier), ctrlGood = (ctrl && _ctrlEnterSubmit) || (!ctrl && !shift && !_ctrlEnterSubmit) || (ctrl && shift);
 	bool enter = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return);
 
 	if (macmeta && e->key() == Qt::Key_Backspace) {

@@ -958,6 +958,7 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			cSetCtrlEnter(v == dbiskCtrlEnter);
+			if (App::main()) App::main()->ctrlEnterSubmitUpdated();
 		} break;
 
 		case dbiCatsAndDogs: { // deprecated

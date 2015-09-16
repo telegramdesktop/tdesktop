@@ -412,7 +412,9 @@ void MediaView::showSaveMsgFile() {
 }
 
 void MediaView::close() {
-	if (App::wnd()) App::wnd()->layerHidden();
+	if (App::wnd()) {
+		App::wnd()->hideLayer(true);
+	}
 }
 
 void MediaView::activateControls() {

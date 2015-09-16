@@ -2592,7 +2592,7 @@ public:
 
 			App::wnd()->showFromTray();
 			if (App::passcoded()) {
-				App::wnd()->passcodeWidget()->setInnerFocus();
+				App::wnd()->setInnerFocus();
 				App::wnd()->notifyClear();
 			} else {
 				App::wnd()->hideSettings();

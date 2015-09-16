@@ -2203,7 +2203,7 @@ void DialogsWidget::onAddContact() {
 }
 
 void DialogsWidget::onNewGroup() {
-	App::wnd()->showLayer(new ContactsBox(true));
+	App::wnd()->showLayer(new NewGroupBox());
 }
 
 bool DialogsWidget::onCancelSearch() {

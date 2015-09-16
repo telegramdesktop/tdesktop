@@ -23,6 +23,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 class FlatInput : public QLineEdit, public Animated {
 	Q_OBJECT
+	T_WIDGET
 
 public:
 
@@ -55,6 +56,8 @@ public:
 	QString getLastText() const {
 		return text();
 	}
+
+	void setTextMargin(const QMargins &mrg);
 
 public slots:
 
@@ -128,6 +131,18 @@ protected:
 private:
 
 	bool _nosignal;
+
+};
+
+
+class UsernameInput : public FlatInput {
+public:
+
+	UsernameInput(QWidget *parent, const style::flatInput &st, const QString &ph = QString(), const QString &val = QString());
+
+protected:
+
+	void correctValue(QKeyEvent *e, const QString &was);
 
 };
 

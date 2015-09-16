@@ -695,7 +695,7 @@ void HistoryList::dragActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 			uint32 sel = _selected.cbegin().value();
 			if (sel != FullItemSel && (sel & 0xFFFF) == ((sel >> 16) & 0xFFFF)) {
 				_selected.clear();
-				App::wnd()->setInnerFocus();
+				if (App::wnd()) App::wnd()->setInnerFocus();
 			}
 		}
 	}
@@ -1577,21 +1577,9 @@ void HistoryList::onParentGeometryChanged() {
 	}
 }
 
-MessageField::MessageField(HistoryWidget *history, const style::flatTextarea &st, const QString &ph, const QString &val) : FlatTextarea(history, st, ph, val), history(history), _maxHeight(st::maxFieldHeight) {
-	connect(this, SIGNAL(changed()), this, SLOT(onChange()));
-}
-
-void MessageField::setMaxHeight(int32 maxHeight) {
-	_maxHeight = maxHeight;
-	int newh = ceil(document()->size().height()) + 2 * fakeMargin(), minh = st::btnSend.height - 2 * st::sendPadding;
-	if (newh > _maxHeight) {
-		newh = _maxHeight;
-	} else if (newh < minh) {
-		newh = minh;
-	}
-	if (height() != newh) {
-		resize(width(), newh);
-	}
+MessageField::MessageField(HistoryWidget *history, const style::flatTextarea &st, const QString &ph, const QString &val) : FlatTextarea(history, st, ph, val), history(history) {
+	setMinHeight(st::btnSend.height - 2 * st::sendPadding);
+	setMaxHeight(st::maxFieldHeight);
 }
 
 bool MessageField::hasSendText() const {
@@ -1603,20 +1591,6 @@ bool MessageField::hasSendText() const {
 		}
 	}
 	return false;
-}
-
-void MessageField::onChange() {
-	int newh = ceil(document()->size().height()) + 2 * fakeMargin(), minh = st::btnSend.height - 2 * st::sendPadding;
-	if (newh > _maxHeight) {
-		newh = _maxHeight;
-	} else if (newh < minh) {
-		newh = minh;
-	}
-	
-	if (height() != newh) {
-		resize(width(), newh);
-		emit resized();
-	}
 }
 
 void MessageField::onEmojiInsert(EmojiPtr emoji) {
@@ -1632,7 +1606,7 @@ void MessageField::dropEvent(QDropEvent *e) {
 
 void MessageField::resizeEvent(QResizeEvent *e) {
 	FlatTextarea::resizeEvent(e);
-	onChange();
+	checkContentHeight();
 }
 
 bool MessageField::canInsertFromMimeData(const QMimeData *source) const {
@@ -2396,6 +2370,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_attachMention.hide();
 	connect(&_attachMention, SIGNAL(chosen(QString)), this, SLOT(onMentionHashtagOrBotCommandInsert(QString)));
 	_field.installEventFilter(&_attachMention);
+	_field.setCtrlEnterSubmit(cCtrlEnter());
 
 	_field.hide();
 	_field.resize(width() - _send.width() - _attachDocument.width() - _attachEmoji.width(), _send.height() - 2 * st::sendPadding);
@@ -2580,7 +2555,7 @@ void HistoryWidget::sendActionDone(const MTPBool &result, mtpRequestId req) {
 
 void HistoryWidget::activate() {
 	if (_history) updateListSize(0, true);
-	setInnerFocus();
+	if (App::wnd()) App::wnd()->setInnerFocus();
 }
 
 void HistoryWidget::setInnerFocus() {
@@ -2935,7 +2910,7 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 		
 		if (_history->draftToId > 0 || !_history->draft.isEmpty()) {
 			setFieldText(_history->draft);
-			setInnerFocus();
+			_field.setFocus();
 			_history->draftCursor.applyTo(_field, &_synthedTextUpdate);
 			_replyToId = readyToForward() ? 0 : _history->draftToId;
 			if (_history->draftPreviewCancelled) {
@@ -2944,7 +2919,7 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 		} else {
 			Local::MessageDraft draft = Local::readDraft(_peer->id);
 			setFieldText(draft.text);
-			setInnerFocus();
+			_field.setFocus();
 			if (!draft.text.isEmpty()) {
 				MessageCursor cur = Local::readDraftPositions(_peer->id);
 				cur.applyTo(_field, &_synthedTextUpdate);
@@ -2968,6 +2943,8 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 	} else {
 		doneShow();
 	}
+
+	if (App::wnd()) App::wnd()->setInnerFocus();
 
 	emit peerShown(_peer);
 	App::main()->topBar()->update();
@@ -2998,6 +2975,10 @@ void HistoryWidget::contactsReceived() {
 
 void HistoryWidget::updateAfterDrag() {
 	if (_list) _list->dragActionUpdate(QCursor::pos());
+}
+
+void HistoryWidget::ctrlEnterSubmitUpdated() {
+	_field.setCtrlEnterSubmit(cCtrlEnter());
 }
 
 void HistoryWidget::updateReportSpamStatus() {
@@ -3447,7 +3428,7 @@ void HistoryWidget::loadMessagesDown() {
 	MsgId max = _history->maxMsgId();
 	if (!max) return;
 
-	int32 loadCount = MessagesPerPage, offset = -loadCount - 1;
+	int32 loadCount = MessagesPerPage, offset = -loadCount;
 	if (_peer->isChannel()) {
 		_preloadDownRequest = MTP::send(MTPmessages_GetImportantHistory(_peer->input, MTP_int(max + 1), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
 	} else {
@@ -3745,8 +3726,10 @@ void HistoryWidget::doneShow() {
 	updateControlsVisibility();
 	updateListSize(0, true);
 	onListScroll();
-	if (App::wnd()) App::wnd()->checkHistoryActivation();
-	App::wnd()->setInnerFocus();
+	if (App::wnd()) {
+		App::wnd()->checkHistoryActivation();
+		App::wnd()->setInnerFocus();
+	}
 }
 
 void HistoryWidget::animStop() {

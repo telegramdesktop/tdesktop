@@ -139,7 +139,7 @@ bool PasscodeWidget::animStep(float64 ms) {
 		_animCache = _bgAnimCache = QPixmap();
 
 		showAll();
-		setInnerFocus();
+		if (App::wnd()) App::wnd()->setInnerFocus();
 	} else {
 		a_bgCoord.update(dt1, st::introHideFunc);
 		a_bgAlpha.update(dt1, st::introAlphaHideFunc);

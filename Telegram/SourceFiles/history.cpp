@@ -1461,7 +1461,7 @@ bool History::isReadyFor(MsgId msgId, bool check) const {
 void History::getReadyFor(MsgId msgId) {
 	if (!isReadyFor(msgId, true)) {
 		clear(true);
-		newLoaded = (msgId == ShowAtTheEndMsgId) || (lastMsg && !lastMsg->detached());
+		newLoaded = (msgId == ShowAtTheEndMsgId);
 		oldLoaded = false;
 		lastWidth = 0;
 		lastShowAtMsgId = msgId;
@@ -6384,6 +6384,11 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionChannelCreate: {
 		const MTPDmessageActionChannelCreate &d(action.c_messageActionChannelCreate());
 		text = lng_action_created_channel(lt_title, textClean(qs(d.vtitle)));
+	} break;
+
+	case mtpc_messageActionChannelToggleComments: {
+		const MTPDmessageActionChannelToggleComments &d(action.c_messageActionChannelToggleComments());
+		text = lang(d.venabled.v ? lng_action_comments_enabled : lng_action_comments_disabled);
 	} break;
 
 	case mtpc_messageActionChatDeletePhoto: {

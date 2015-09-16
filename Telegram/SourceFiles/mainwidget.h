@@ -291,7 +291,7 @@ public:
 	void clearHistory(PeerData *peer);
 	void removeContact(UserData *user);
 
-	void addParticipants(ChatData *chat, const QVector<UserData*> &users);
+	void addParticipants(PeerData *chatOrChannel, const QVector<UserData*> &users);
 	bool addParticipantFail(UserData *user, const RPCError &e);
 
 	void kickParticipant(ChatData *chat, UserData *user);
@@ -385,6 +385,9 @@ public:
 	void feedUpdate(const MTPUpdate &update);
 	void updateAfterDrag();
 
+	void ctrlEnterSubmitUpdated();
+	void setInnerFocus();
+
 	~MainWidget();
 
 signals:
@@ -414,7 +417,6 @@ public slots:
 	void documentPlayProgress(const SongMsgId &songId);
 	void hidePlayer();
 
-	void setInnerFocus();
 	void dialogsCancelled();
 
 	void onParentResize(const QSize &newSize);
