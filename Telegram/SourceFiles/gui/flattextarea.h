@@ -39,6 +39,7 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void dropEvent(QDropEvent *e);
 
+	void setMaxLength(int32 maxLength);
 	void setMinHeight(int32 minHeight);
 	void setMaxHeight(int32 maxHeight);
 
@@ -107,6 +108,7 @@ private:
 	bool heightAutoupdated();
 
 	int32 _minHeight, _maxHeight; // < 0 - no autosize
+	int32 _maxLength;
 	bool _ctrlEnterSubmit;
 
 	QString _ph, _phelided, _oldtext;

@@ -3404,7 +3404,7 @@ void HistoryWidget::firstLoadMessages() {
 		from = _showAtMsgId;
 	}
 	if (_peer->isChannel()) {
-		_firstLoadRequest = MTP::send(MTPmessages_GetImportantHistory(_peer->input, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
+		_firstLoadRequest = MTP::send(MTPchannels_GetImportantHistory(_peer->asChannel()->inputChannel, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
 	} else {
 		_firstLoadRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
 	}
@@ -3416,7 +3416,7 @@ void HistoryWidget::loadMessages() {
 	MsgId min = _history->minMsgId();
 	int32 offset = 0, loadCount = min ? MessagesPerPage : MessagesFirstLoad;
 	if (_peer->isChannel()) {
-		_preloadRequest = MTP::send(MTPmessages_GetImportantHistory(_peer->input, MTP_int(min), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
+		_preloadRequest = MTP::send(MTPchannels_GetImportantHistory(_peer->asChannel()->inputChannel, MTP_int(min), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
 	} else {
 		_preloadRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(min), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
 	}
@@ -3430,7 +3430,7 @@ void HistoryWidget::loadMessagesDown() {
 
 	int32 loadCount = MessagesPerPage, offset = -loadCount;
 	if (_peer->isChannel()) {
-		_preloadDownRequest = MTP::send(MTPmessages_GetImportantHistory(_peer->input, MTP_int(max + 1), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
+		_preloadDownRequest = MTP::send(MTPchannels_GetImportantHistory(_peer->asChannel()->inputChannel, MTP_int(max + 1), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
 	} else {
 		_preloadDownRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(max + 1), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
 	}
@@ -3458,7 +3458,7 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 		offset = -loadCount / 2;
 	}
 	if (_peer->isChannel()) {
-		_delayedShowAtRequest = MTP::send(MTPmessages_GetImportantHistory(_peer->input, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
+		_delayedShowAtRequest = MTP::send(MTPchannels_GetImportantHistory(_peer->asChannel()->inputChannel, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
 	} else {
 		_delayedShowAtRequest = MTP::send(MTPmessages_GetHistory(_peer->input, MTP_int(from), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, _peer), rpcFail(&HistoryWidget::messagesFailed));
 	}
@@ -3588,7 +3588,7 @@ void HistoryWidget::onBotStart() {
 		sendBotCommand(qsl("/start"), 0);
 	} else {
 		uint64 randomId = MTP::nonce<uint64>();
-		MTP::send(MTPmessages_StartBot(_peer->asUser()->inputUser, MTP_inputChatEmpty(), MTP_long(randomId), MTP_string(token)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _peer->asUser()));
+		MTP::send(MTPmessages_StartBot(_peer->asUser()->inputUser, MTP_int(0), MTP_long(randomId), MTP_string(token)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _peer->asUser()));
 
 		_peer->asUser()->botInfo->startToken = QString();
 		if (_keyboard.hasMarkup()) {

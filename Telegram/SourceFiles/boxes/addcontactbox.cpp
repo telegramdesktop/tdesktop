@@ -213,7 +213,7 @@ void AddContactBox::onSend() {
 		if (_peer->isChat()) {
 			_addRequest = MTP::send(MTPmessages_EditChatTitle(_peer->asChat()->inputChat, MTP_string(firstName)), rpcDone(&AddContactBox::onSaveChatDone), rpcFail(&AddContactBox::onSaveFail));
 		} else if (_peer->isChannel()) {
-			_addRequest = MTP::send(MTPmessages_EditChatTitle(_peer->asChannel()->inputChat, MTP_string(firstName)), rpcDone(&AddContactBox::onSaveChatDone), rpcFail(&AddContactBox::onSaveFail));
+			_addRequest = MTP::send(MTPchannels_EditTitle(_peer->asChannel()->inputChannel, MTP_string(firstName)), rpcDone(&AddContactBox::onSaveChatDone), rpcFail(&AddContactBox::onSaveFail));
 		} else {
 			_contactId = MTP::nonce<uint64>();
 			QVector<MTPInputContact> v(1, MTP_inputPhoneContact(MTP_long(_contactId), MTP_string(_peer->asUser()->phone), MTP_string(firstName), MTP_string(lastName)));

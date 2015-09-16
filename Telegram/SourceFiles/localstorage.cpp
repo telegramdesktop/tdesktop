@@ -2924,7 +2924,7 @@ namespace Local {
 			chat->invitationUrl = invitationUrl;
 
 			chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));
-			chat->inputChat = MTP_inputChat(MTP_int(peerToChat(chat->id)));
+			chat->inputChat = MTP_int(peerToChat(chat->id));
 
 			chat->photo = photoLoc.isNull() ? ImagePtr(chatDefPhoto(chat->colorIndex)) : ImagePtr(photoLoc);
 		} else if (result->isChannel()) {
@@ -2945,7 +2945,7 @@ namespace Local {
 			channel->invitationUrl = invitationUrl;
 
 			channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
-			channel->inputChat = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
+			channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 
 			channel->photo = photoLoc.isNull() ? ImagePtr(chatDefPhoto(channel->colorIndex)) : ImagePtr(photoLoc);
 		}

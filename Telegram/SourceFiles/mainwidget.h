@@ -293,6 +293,7 @@ public:
 
 	void addParticipants(PeerData *chatOrChannel, const QVector<UserData*> &users);
 	bool addParticipantFail(UserData *user, const RPCError &e);
+	bool addParticipantsFail(const RPCError &e); // for multi invite in channels
 
 	void kickParticipant(ChatData *chat, UserData *user);
 	bool kickParticipantFail(ChatData *chat, const RPCError &e);
@@ -572,7 +573,7 @@ private:
 	QSet<PeerData*> updateNotifySettingPeers;
 	SingleTimer updateNotifySettingTimer;
     
-    typedef QMap<PeerData*, mtpRequestId> ReadRequests;
+    typedef QMap<PeerData*, QPair<mtpRequestId, MsgId> > ReadRequests;
     ReadRequests _readRequests;
 	typedef QMap<PeerData*, MsgId> ReadRequestsPending;
 	ReadRequestsPending _readRequestsPending;

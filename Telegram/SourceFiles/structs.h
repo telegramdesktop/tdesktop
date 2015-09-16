@@ -345,11 +345,11 @@ public:
 class ChatData : public PeerData {
 public:
 
-	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_inputChat(MTP_int(bareId()))), count(0), date(0), version(0), admin(0), inviterForSpamReport(0), left(false), forbidden(true), botStatus(0) {
+	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_int(bareId())), count(0), date(0), version(0), admin(0), inviterForSpamReport(0), left(false), forbidden(true), botStatus(0) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
 
-	MTPInputChat inputChat;
+	MTPint inputChat;
 
 	int32 count;
 	int32 date;
@@ -415,7 +415,7 @@ private:
 class ChannelData : public PeerData {
 public:
 
-	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChat(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), date(0), version(0), isBroadcast(false), isPublic(false), adminned(false), left(false), forbidden(true), botStatus(-1) {
+	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), date(0), version(0), isBroadcast(false), isPublic(false), adminned(false), left(false), forbidden(true), botStatus(-1) {
 		setName(QString(), QString());
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
@@ -423,7 +423,7 @@ public:
 
 	uint64 access;
 
-	MTPInputChat inputChat;
+	MTPinputChannel inputChannel;
 
 	QString username;
 	int32 date;

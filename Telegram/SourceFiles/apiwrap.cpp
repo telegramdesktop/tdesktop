@@ -137,7 +137,7 @@ void ApiWrap::resolveReplyTo() {
 		}
 		MessageIds ids = collectMessageIds(j.value());
 		if (!ids.isEmpty()) {
-			mtpRequestId req = MTP::send(MTPmessages_GetChannelMessages(j.key()->input, MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotReplyTo, j.key()), RPCFailHandlerPtr(), 0, 5);
+			mtpRequestId req = MTP::send(MTPchannels_GetMessages(j.key()->inputChannel, MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotReplyTo, j.key()), RPCFailHandlerPtr(), 0, 5);
 			for (ReplyToRequests::iterator i = j->begin(); i != j->cend(); ++i) {
 				if (i.value().req > 0) continue;
 				i.value().req = req;
@@ -207,7 +207,7 @@ void ApiWrap::requestFullPeer(PeerData *peer) {
 	} else if (peer->isChat()) {
 		req = MTP::send(MTPmessages_GetFullChat(peer->asChat()->inputChat), rpcDone(&ApiWrap::gotChatFull, peer), rpcFail(&ApiWrap::gotPeerFullFailed, peer));
 	} else if (peer->isChannel()) {
-		req = MTP::send(MTPmessages_GetFullChat(peer->asChannel()->inputChat), rpcDone(&ApiWrap::gotChatFull, peer), rpcFail(&ApiWrap::gotPeerFullFailed, peer));
+		req = MTP::send(MTPchannels_GetFullChannel(peer->asChannel()->inputChannel), rpcDone(&ApiWrap::gotChatFull, peer), rpcFail(&ApiWrap::gotPeerFullFailed, peer));
 	}
 	if (req) _fullPeerRequests.insert(peer, req);
 }
@@ -320,17 +320,19 @@ void ApiWrap::requestPeer(PeerData *peer) {
 	if (peer->isUser()) {
 		req = MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(1, peer->asUser()->inputUser)), rpcDone(&ApiWrap::gotUser, peer), rpcFail(&ApiWrap::gotPeerFailed, peer));
 	} else if (peer->isChat()) {
-		req = MTP::send(MTPmessages_GetChats(MTP_vector<MTPInputChat>(1, peer->asChat()->inputChat)), rpcDone(&ApiWrap::gotChat, peer), rpcFail(&ApiWrap::gotPeerFailed, peer));
+		req = MTP::send(MTPmessages_GetChats(MTP_vector<MTPint>(1, peer->asChat()->inputChat)), rpcDone(&ApiWrap::gotChat, peer), rpcFail(&ApiWrap::gotPeerFailed, peer));
 	} else if (peer->isChannel()) {
-		req = MTP::send(MTPmessages_GetChats(MTP_vector<MTPInputChat>(1, peer->asChannel()->inputChat)), rpcDone(&ApiWrap::gotChat, peer), rpcFail(&ApiWrap::gotPeerFailed, peer));
+		req = MTP::send(MTPchannels_GetChannels(MTP_vector<MTPInputChannel>(1, peer->asChannel()->inputChannel)), rpcDone(&ApiWrap::gotChat, peer), rpcFail(&ApiWrap::gotPeerFailed, peer));
 	}
 	if (req) _peerRequests.insert(peer, req);
 }
 
 void ApiWrap::requestPeers(const QList<PeerData*> &peers) {
-	QVector<MTPInputChat> chats;
+	QVector<MTPint> chats;
+	QVector<MTPInputChannel> channels;
 	QVector<MTPInputUser> users;
 	chats.reserve(peers.size());
+	channels.reserve(peers.size());
 	users.reserve(peers.size());
 	for (QList<PeerData*>::const_iterator i = peers.cbegin(), e = peers.cend(); i != e; ++i) {
 		if (!*i || _fullPeerRequests.contains(*i) || _peerRequests.contains(*i)) continue;
@@ -339,10 +341,11 @@ void ApiWrap::requestPeers(const QList<PeerData*> &peers) {
 		} else if ((*i)->isChat()) {
 			chats.push_back((*i)->asChat()->inputChat);
 		} else if ((*i)->isChannel()) {
-			chats.push_back((*i)->asChannel()->inputChat);
+			channels.push_back((*i)->asChannel()->inputChannel);
 		}
 	}
-	if (!chats.isEmpty()) MTP::send(MTPmessages_GetChats(MTP_vector<MTPInputChat>(chats)), rpcDone(&ApiWrap::gotChats));
+	if (!chats.isEmpty()) MTP::send(MTPmessages_GetChats(MTP_vector<MTPint>(chats)), rpcDone(&ApiWrap::gotChats));
+	if (!channels.isEmpty()) MTP::send(MTPchannels_GetChannels(MTP_vector<MTPInputChannel>(channels)), rpcDone(&ApiWrap::gotChats));
 	if (!users.isEmpty()) MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(users)), rpcDone(&ApiWrap::gotUsers));
 }
 
@@ -576,7 +579,7 @@ void ApiWrap::resolveWebPages() {
 	typedef QVector<mtpRequestId> RequestIds;
 	RequestIds reqsByIndex(idsByChannel.size(), 0);
 	for (MessageIdsByChannel::const_iterator i = idsByChannel.cbegin(), e = idsByChannel.cend(); i != e; ++i) {
-		reqsByIndex[i.value().first] = MTP::send(MTPmessages_GetChannelMessages(i.key()->input, MTP_vector<MTPint>(i.value().second)), rpcDone(&ApiWrap::gotWebPages, i.key()), RPCFailHandlerPtr(), 0, 5);
+		reqsByIndex[i.value().first] = MTP::send(MTPchannels_GetMessages(i.key()->inputChannel, MTP_vector<MTPint>(i.value().second)), rpcDone(&ApiWrap::gotWebPages, i.key()), RPCFailHandlerPtr(), 0, 5);
 	}
 	if (req || !reqsByIndex.isEmpty()) {
 		for (WebPagesPending::iterator i = _webPagesPending.begin(); i != _webPagesPending.cend(); ++i) {

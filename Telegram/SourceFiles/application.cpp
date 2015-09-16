@@ -337,10 +337,10 @@ void Application::peerClearPhoto(PeerId id) {
 	if (MTP::authedId() && peerToUser(id) == MTP::authedId()) {
 		MTP::send(MTPphotos_UpdateProfilePhoto(MTP_inputPhotoEmpty(), MTP_inputPhotoCropAuto()), rpcDone(&Application::selfPhotoCleared), rpcFail(&Application::peerPhotoFail, id));
 	} else if (peerIsChat(id)) {
-		MTP::send(MTPmessages_EditChatPhoto(MTP_inputChat(peerToBareMTPInt(id)), MTP_inputChatPhotoEmpty()), rpcDone(&Application::chatPhotoCleared, id), rpcFail(&Application::peerPhotoFail, id));
+		MTP::send(MTPmessages_EditChatPhoto(peerToBareMTPInt(id), MTP_inputChatPhotoEmpty()), rpcDone(&Application::chatPhotoCleared, id), rpcFail(&Application::peerPhotoFail, id));
 	} else if (peerIsChannel(id)) {
 		if (ChannelData *channel = App::channelLoaded(id)) {
-			MTP::send(MTPmessages_EditChatPhoto(channel->inputChat, MTP_inputChatPhotoEmpty()), rpcDone(&Application::chatPhotoCleared, id), rpcFail(&Application::peerPhotoFail, id));
+			MTP::send(MTPchannels_EditPhoto(channel->inputChannel, MTP_inputChatPhotoEmpty()), rpcDone(&Application::chatPhotoCleared, id), rpcFail(&Application::peerPhotoFail, id));
 		}
 	}
 }
@@ -398,9 +398,12 @@ void Application::photoUpdated(const FullMsgId &msgId, const MTPInputFile &file)
 		PeerId id = i.value();
 		if (MTP::authedId() && peerToUser(id) == MTP::authedId()) {
 			MTP::send(MTPphotos_UploadProfilePhoto(file, MTP_string(""), MTP_inputGeoPointEmpty(), MTP_inputPhotoCrop(MTP_double(0), MTP_double(0), MTP_double(100))), rpcDone(&Application::selfPhotoDone), rpcFail(&Application::peerPhotoFail, id));
-		} else if (peerIsChat(id) || peerIsChannel(id)) {
+		} else if (peerIsChat(id)) {
 			History *hist = App::history(id);
-			hist->sendRequestId = MTP::send(MTPmessages_EditChatPhoto(hist->peer->isChat() ? hist->peer->asChat()->inputChat : hist->peer->asChannel()->inputChat, MTP_inputChatUploadedPhoto(file, MTP_inputPhotoCrop(MTP_double(0), MTP_double(0), MTP_double(100)))), rpcDone(&Application::chatPhotoDone, id), rpcFail(&Application::peerPhotoFail, id), 0, 0, hist->sendRequestId);
+			hist->sendRequestId = MTP::send(MTPmessages_EditChatPhoto(hist->peer->asChat()->inputChat, MTP_inputChatUploadedPhoto(file, MTP_inputPhotoCrop(MTP_double(0), MTP_double(0), MTP_double(100)))), rpcDone(&Application::chatPhotoDone, id), rpcFail(&Application::peerPhotoFail, id), 0, 0, hist->sendRequestId);
+		} else if (peerIsChannel(id)) {
+			History *hist = App::history(id);
+			hist->sendRequestId = MTP::send(MTPchannels_EditPhoto(hist->peer->asChannel()->inputChannel, MTP_inputChatUploadedPhoto(file, MTP_inputPhotoCrop(MTP_double(0), MTP_double(0), MTP_double(100)))), rpcDone(&Application::chatPhotoDone, id), rpcFail(&Application::peerPhotoFail, id), 0, 0, hist->sendRequestId);
 		}
 	}
 }

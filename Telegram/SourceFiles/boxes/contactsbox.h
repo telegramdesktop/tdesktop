@@ -317,11 +317,17 @@ public:
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mousePressEvent(QMouseEvent *e);
 
 	void closePressed();
 
 	void setInnerFocus() {
-		_link.setFocus();
+		if (_link.isHidden()) {
+			setFocus();
+		} else {
+			_link.setFocus();
+		}
 	}
 
 public slots:
@@ -340,13 +346,19 @@ protected:
 
 private:
 
+	void updateSelected(const QPoint &cursorGlobalPosition);
+	bool goodAnimStep(float64 ms);
+
 	ChannelData *_channel;
 
 	FlatRadiobutton _public, _private;
+	FlatCheckbox _comments;
 	int32 _aboutPublicWidth, _aboutPublicHeight;
-	Text _aboutPublic, _aboutPrivate;
+	Text _aboutPublic, _aboutPrivate, _aboutComments;
 	QString _linkPlaceholder;
 	UsernameInput _link;
+	QRect _invitationLink;
+	bool _linkOver;
 	FlatButton _save, _skip;
 
 	void onUpdateDone(const MTPBool &result);
@@ -357,6 +369,10 @@ private:
 
 	mtpRequestId _saveRequestId, _checkRequestId;
 	QString _sentUsername, _checkUsername, _errorText, _goodText;
+
+	QString _goodTextLink;
+	anim::fvalue a_goodOpacity;
+	Animation a_good;
 
 	QTimer _checkTimer;
 };

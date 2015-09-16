@@ -733,7 +733,7 @@ public:
 		return _from->isChannel();
 	}
 	virtual bool needCheck() const {
-		return out() && (!fromChannel() || id <= 0);
+		return out();
 	}
 	virtual bool hasPoint(int32 x, int32 y) const {
 		return false;

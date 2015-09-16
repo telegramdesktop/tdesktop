@@ -412,6 +412,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_public_channel_about" = "Everyone will be able to join your channel";
 "lng_create_private_channel_title" = "Private Channel";
 "lng_create_private_channel_about" = "Only those who have the invitation link will be able to join your channel";
+"lng_create_channel_comments" = "Enable Comments";
+"lng_create_channel_comments_about" = "If you enable comments, members will be able to discuss your posts in the channel";
 "lng_create_group_save" = "Save";
 "lng_create_group_skip" = "Skip";
 
@@ -420,6 +422,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_channel_link_too_short" = "This link is too short";
 "lng_create_channel_link_bad_symbols" = "This link has bad symbols";
 "lng_create_channel_link_available" = "This link is available";
+"lng_create_channel_link_copied" = "The link was copied to clipboard";
 
 "lng_create_group_crop" = "Select square area for group photo";
 "lng_create_channel_crop" = "Select square area for channel photo";

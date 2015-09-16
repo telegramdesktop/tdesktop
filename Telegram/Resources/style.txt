@@ -1431,6 +1431,7 @@ newGroupDescription: flatTextarea(taDefFlat) {
 	phFocusColor: #949494;
 }
 newGroupDescriptionPadding: margins(5px, 6px, 5px, 6px);
+newGroupLinkFadeDuration: 5000;
 
 connectionSkip: 20px;
 inpConnectionHost: flatInput(inpDefGray) {

@@ -22,7 +22,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "window.h"
 
 FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(v, parent),
-_minHeight(-1), _maxHeight(-1), _ctrlEnterSubmit(true),
+_minHeight(-1), _maxHeight(-1), _maxLength(-1), _ctrlEnterSubmit(true),
 _ph(pholder), _oldtext(v), _phVisible(!v.length()),
 a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c),
 _st(st), _undoAvailable(false), _redoAvailable(false), _inDrop(false), _fakeMargin(0),
@@ -63,6 +63,10 @@ _touchPress(false), _touchRightButton(false), _touchMove(false), _replacingEmoji
 	connect(this, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
 	connect(this, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
 	if (App::wnd()) connect(this, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
+}
+
+void FlatTextarea::setMaxLength(int32 maxLength) {
+	_maxLength = maxLength;
 }
 
 void FlatTextarea::setMinHeight(int32 minHeight) {
@@ -658,6 +662,30 @@ void FlatTextarea::processDocumentContentsChange(int position, int charsAdded) {
 void FlatTextarea::onDocumentContentsChange(int position, int charsRemoved, int charsAdded) {
 	if (_replacingEmojis) return;
 
+	_replacingEmojis = true;
+	if (_maxLength >= 0) {
+		QTextCursor c(document()->docHandle(), 0);
+		c.movePosition(QTextCursor::End);
+		int32 fullSize = c.position(), toRemove = fullSize - _maxLength;
+		if (toRemove > 0) {
+			if (toRemove > charsAdded) {
+				if (charsAdded) {
+					c.setPosition(position);
+					c.setPosition((position + charsAdded), QTextCursor::KeepAnchor);
+					c.removeSelectedText();
+				}
+				c.setPosition(fullSize - (toRemove - charsAdded));
+				c.setPosition(fullSize, QTextCursor::KeepAnchor);
+				c.removeSelectedText();
+			} else {
+				c.setPosition(position + (charsAdded - toRemove));
+				c.setPosition(position + charsAdded, QTextCursor::KeepAnchor);
+				c.removeSelectedText();
+			}
+		}
+	}
+	_replacingEmojis = false;
+
 	if (!_links.isEmpty()) {
 		bool changed = false;
 		for (LinkRanges::iterator i = _links.begin(); i != _links.end();) {
@@ -688,6 +716,7 @@ void FlatTextarea::onDocumentContentsChange(int position, int charsRemoved, int 
 
 	//	_insertions.push_back(Insertion(position, charsAdded));
 	_replacingEmojis = true;
+
 	QSizeF s = document()->pageSize();
 	processDocumentContentsChange(position, charsAdded);
 	if (document()->pageSize() != s) {

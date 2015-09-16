@@ -1805,7 +1805,7 @@ void DialogsWidget::loadDialogs() {
 	int32 loadCount = _dialogsOffset ? DialogsPerPage : DialogsFirstLoad;
 	_dialogsRequest = MTP::send(MTPmessages_GetDialogs(MTP_int(_dialogsOffset), MTP_int(loadCount)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed), 0, _channelDialogsRequest ? 0 : 5);
 	if (!_channelDialogsRequest) {
-		_channelDialogsRequest = MTP::send(MTPmessages_GetChannelDialogs(MTP_int(0), MTP_int(DialogsPerPage)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
+		_channelDialogsRequest = MTP::send(MTPchannels_GetDialogs(MTP_int(0), MTP_int(DialogsPerPage)), rpcDone(&DialogsWidget::dialogsReceived), rpcFail(&DialogsWidget::dialogsFailed));
 	}
 }
 

@@ -521,7 +521,7 @@ namespace App {
 				data->input = MTP_inputPeerChannel(d.vid, d.vaccess_hash);
 
 				ChannelData *cdata = data->asChannel();
-				cdata->inputChat = MTP_inputChannel(d.vid, d.vaccess_hash);
+				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
 				
 				QString uname = d.has_username() ? textOneLine(qs(d.vusername)) : QString();
 				cdata->setName(qs(d.vtitle), uname);
@@ -529,13 +529,13 @@ namespace App {
 				cdata->access = d.vaccess_hash.v;
 				cdata->setPhoto(d.vphoto);
 				cdata->date = d.vdate.v;
-				cdata->adminned = (d.vflags.v & MTPDchannel_flag_is_admin);
+				cdata->adminned = (d.vflags.v & MTPDchannel_flag_am_admin);
 				
 				cdata->isBroadcast = (d.vflags.v & MTPDchannel_flag_is_broadcast);
-				cdata->isPublic = (d.vflags.v & MTPDchannel_flag_is_public);
+				cdata->isPublic = d.has_username();
 
-				cdata->left = (d.vflags.v & MTPDchannel_flag_left);
-				cdata->forbidden = (d.vflags.v & MTPDchannel_flag_kicked);
+				cdata->left = (d.vflags.v & MTPDchannel_flag_have_left);
+				cdata->forbidden = (d.vflags.v & MTPDchannel_flag_was_kicked);
 				if (cdata->version < d.vversion.v) {
 					cdata->version = d.vversion.v;
 				}
@@ -548,7 +548,7 @@ namespace App {
 				data->input = MTP_inputPeerChannel(d.vid, d.vaccess_hash);
 
 				ChannelData *cdata = data->asChannel();
-				cdata->inputChat = MTP_inputChannel(d.vid, d.vaccess_hash);
+				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
 
 				cdata->setName(qs(d.vtitle), QString());
 

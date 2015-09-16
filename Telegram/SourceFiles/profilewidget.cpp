@@ -104,10 +104,9 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 		if (chatPhoto && chatPhoto->date) {
 			_photoLink = TextLinkPtr(new PhotoLink(chatPhoto, _peer));
 		}
-		if (_peerChannel->photoId == UnknownPeerPhotoId) {
+		if (_peerChannel->photoId == UnknownPeerPhotoId || (_peerChannel->invitationUrl.isEmpty() && _peerChannel->adminned)) {
 			App::api()->requestFullPeer(_peer);
 		}
-//		MTP::send(MTPmessages_UpdateChannelUsername(_peerChannel->inputChat, MTP_string("tdesktop_channel")));
 	}
 
 	// profile
@@ -382,7 +381,11 @@ void ProfileInner::onCreateInvitationLink() {
 
 void ProfileInner::onCreateInvitationLinkSure() {
 	if (!_peerChat && !_peerChannel) return;
-	MTP::send(MTPmessages_ExportChatInvite(_peerChat ? _peerChat->inputChat : _peerChannel->inputChat), rpcDone(&ProfileInner::chatInviteDone));
+	if (_peerChat) {
+		MTP::send(MTPmessages_ExportChatInvite(_peerChat->inputChat), rpcDone(&ProfileInner::chatInviteDone));
+	} else if (_peerChannel) {
+		MTP::send(MTPchannels_ExportInvite(_peerChannel->inputChannel), rpcDone(&ProfileInner::chatInviteDone));
+	}
 }
 
 void ProfileInner::chatInviteDone(const MTPExportedChatInvite &result) {
