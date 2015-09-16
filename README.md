@@ -105,4 +105,4 @@ The source code is published under GPL v3, the license is available [here][licen
 [msvc]: MSVC.md
 [xcode]: XCODE.md
 [xcode_old]: XCODEold.md
-[qtcreator]: qtcreator.md
+[qtcreator]: QTCREATOR.md
