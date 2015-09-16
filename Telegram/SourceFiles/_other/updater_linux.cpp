@@ -106,7 +106,7 @@ bool copyFile(const char *from, const char *to) {
     }
 
     struct stat fst; // from http://stackoverflow.com/questions/5486774/keeping-fileowner-and-permissions-after-copying-file-in-c
-    //let's say this wont fail since you already worked OK on that fp
+    //let's say this won't fail since you already worked OK on that fp
     if (fstat(fileno(ffrom), &fst) != 0) {
         fclose(ffrom);
         fclose(fto);

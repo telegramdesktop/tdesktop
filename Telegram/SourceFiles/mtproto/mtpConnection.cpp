@@ -500,7 +500,7 @@ namespace {
 			DEBUG_LOG(("Fake PQ Error: answer bytes %1").arg(mb(answer, len * sizeof(mtpPrime)).str()));
 			throw Exception("bad pq reply");
 		}
-		if (answer[0] != 0 || answer[1] != 0 || (((uint32)answer[2]) & 0x03) != 1/* || (unixtime() - answer[3] > 300) || (answer[3] - unixtime() > 60)*/) { // didnt sync time yet
+		if (answer[0] != 0 || answer[1] != 0 || (((uint32)answer[2]) & 0x03) != 1/* || (unixtime() - answer[3] > 300) || (answer[3] - unixtime() > 60)*/) { // didn't sync time yet
 			LOG(("Fake PQ Error: bad request answer start (%1 %2 %3)").arg(answer[0]).arg(answer[1]).arg(answer[2]));
 			DEBUG_LOG(("Fake PQ Error: answer bytes %1").arg(mb(answer, len * sizeof(mtpPrime)).str()));
 			throw Exception("bad pq reply");
@@ -801,7 +801,7 @@ void MTPautoConnection::requestFinished(QNetworkReply *reply) {
 						}
 					}
 				} catch (Exception &e) {
-					DEBUG_LOG(("Connection Error: exception in parsing HTTP fake pq-responce, %1").arg(e.what()));
+					DEBUG_LOG(("Connection Error: exception in parsing HTTP fake pq-response, %1").arg(e.what()));
 					if (status == WaitingBoth) {
 						status = WaitingTcp;
 					} else {
@@ -861,7 +861,7 @@ void MTPautoConnection::socketPacket(mtpPrime *packet, uint32 size) {
 				emit connected();
 			}
 		} catch (Exception &e) {
-			DEBUG_LOG(("Connection Error: exception in parsing TCP fake pq-responce, %1").arg(e.what()));
+			DEBUG_LOG(("Connection Error: exception in parsing TCP fake pq-response, %1").arg(e.what()));
 			if (status == WaitingBoth) {
 				status = WaitingHttp;
 				sock.disconnectFromHost();
@@ -1029,7 +1029,7 @@ void MTPtcpConnection::socketPacket(mtpPrime *packet, uint32 size) {
 				emit connected();
 			}
 		} catch (Exception &e) {
-			DEBUG_LOG(("Connection Error: exception in parsing TCP fake pq-responce, %1").arg(e.what()));
+			DEBUG_LOG(("Connection Error: exception in parsing TCP fake pq-response, %1").arg(e.what()));
 			emit error();
 		}
 	}
@@ -1138,7 +1138,7 @@ void MTPhttpConnection::requestFinished(QNetworkReply *reply) {
 						emit connected();
 					}
 				} catch (Exception &e) {
-					DEBUG_LOG(("Connection Error: exception in parsing HTTP fake pq-responce, %1").arg(e.what()));
+					DEBUG_LOG(("Connection Error: exception in parsing HTTP fake pq-response, %1").arg(e.what()));
 					emit error();
 				}
 			}
@@ -3684,7 +3684,7 @@ bool MTProtoConnectionPrivate::readResponseNotSecure(TResponse &response) {
 			DEBUG_LOG(("AuthKey Error: answer bytes %1").arg(mb(answer, len * sizeof(mtpPrime)).str()));
 			return false;
 		}
-		if (answer[0] != 0 || answer[1] != 0 || (((uint32)answer[2]) & 0x03) != 1/* || (unixtime() - answer[3] > 300) || (answer[3] - unixtime() > 60)*/) { // didnt sync time yet
+		if (answer[0] != 0 || answer[1] != 0 || (((uint32)answer[2]) & 0x03) != 1/* || (unixtime() - answer[3] > 300) || (answer[3] - unixtime() > 60)*/) { // didn't sync time yet
 			LOG(("AuthKey Error: bad request answer start (%1 %2 %3)").arg(answer[0]).arg(answer[1]).arg(answer[2]));
 			DEBUG_LOG(("AuthKey Error: answer bytes %1").arg(mb(answer, len * sizeof(mtpPrime)).str()));
 			return false;

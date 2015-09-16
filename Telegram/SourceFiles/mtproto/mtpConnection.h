@@ -434,7 +434,7 @@ private:
 	void doDisconnect();
 
 	void createConn(bool createIPv4, bool createIPv6);
-	void destroyConn(MTPabstractConnection **conn = 0); // 0 - destory all
+	void destroyConn(MTPabstractConnection **conn = 0); // 0 - destroy all
 
 	mtpMsgId placeToContainer(mtpRequest &toSendRequest, mtpMsgId &bigMsgId, mtpMsgId *&haveSentArr, mtpRequest &req);
 	mtpMsgId prepareToSend(mtpRequest &request, mtpMsgId currentLastId);
