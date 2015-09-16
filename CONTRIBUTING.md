@@ -81,7 +81,7 @@ Maybe reference also the related issue in your commit message.
 [msvc]: MSVC.md
 [xcode]: XCODE.md
 [xcode_old]: XCODEold.md
-[qtcreator]: qtcreator.md
+[qtcreator]: QTCREATOR.md
 
 [help_fork_repo]: https://help.github.com/articles/fork-a-repo/
 
