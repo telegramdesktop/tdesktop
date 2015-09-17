@@ -2,7 +2,7 @@
 
 This is the complete source code and the build instructions for the alpha version of the official desktop client for the [Telegram][telegram] messenger, based on the [Telegram API][telegram_api] and the [MTProto][telegram_proto] secure protocol.
 
-The source code is published under GPL v3, the license is available [here][license].
+The source code is published under GPLv3, the license is available [here][license].
 
 ## Supported systems
 
