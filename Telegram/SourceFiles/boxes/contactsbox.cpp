@@ -207,7 +207,7 @@ ContactsInner::ContactData *ContactsInner::contactData(DialogRow *row) {
 					data->online = lng_chat_status_members(lt_count, chat->count);
 				}
 			} else if (peer->isChannel()) {
-				data->online = lang(lng_chat_status_unaccessible); // CHANNELS_UX
+				data->online = lang(lng_channel_status);
 			}
 		} else {
 			data = i.value();
@@ -1623,7 +1623,7 @@ void GroupInfoBox::onNext() {
 	if (_creating == CreatingGroupGroup) {
 		App::wnd()->replaceLayer(new ContactsBox(name, _photoBig));
 	} else {
-		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(MTPmessages_CreateChannel_flag_broadcast), MTP_string(name), MTP_string(_description.getLastText().trimmed()), MTP_vector<MTPInputUser>(0)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
+		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(0), MTP_string(name), MTP_string(_description.getLastText().trimmed()), MTP_vector<MTPInputUser>(0)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
 	}
 }
 
@@ -1804,7 +1804,7 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 
 	p.setPen(st::black);
 	p.setFont(st::newGroupLinkFont);
-	p.drawTextLeft(st::newGroupPadding.left(), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop, width(), lang(lng_create_group_link));
+	p.drawTextLeft(st::newGroupPadding.left(), _link.y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop, width(), lang(_link.isHidden() ? lng_create_group_invite_link : lng_create_group_link));
 
 	if (_link.isHidden()) {
 		QTextOption option(style::al_left);
@@ -1899,8 +1899,8 @@ void SetupChannelBox::closePressed() {
 
 void SetupChannelBox::onSave() {
 	if (!_public.checked()) {
-		if (_comments.checked()) {
-			MTP::send(MTPchannels_ToggleComments(_channel->inputChannel, MTP_bool(true)));
+		if (!_comments.checked()) {
+			MTP::send(MTPchannels_ToggleComments(_channel->inputChannel, MTP_bool(false)));
 		}
 		onClose();
 	}

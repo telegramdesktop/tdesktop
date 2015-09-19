@@ -127,6 +127,7 @@ inline bool operator<(const FullMsgId &a, const FullMsgId &b) {
 }
 
 static const MsgId ShowAtTheEndMsgId = -0x40000000;
+static const MsgId SwitchAtTopMsgId = -0x3FFFFFFF;
 static const MsgId ShowAtUnreadMsgId = 0;
 
 struct NotifySettings {

@@ -168,7 +168,10 @@ void ApiWrap::gotReplyTo(ChannelData *channel, const MTPmessages_Messages &msgs,
 		if (channel) {
 			channel->ptsReceived(d.vpts.v);
 		} else {
-			LOG(("App Error: received messages.channelMessages in ApiWrap::gotReplyTo when no channel was passed!"));
+			LOG(("App Error: received messages.channelMessages when no channel was passed! (ApiWrap::gotReplyTo)"));
+		}
+		if (d.has_collapsed()) { // should not be returned
+			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (ApiWrap::gotReplyTo)"));
 		}
 
 		App::feedUsers(d.vusers);
@@ -619,7 +622,10 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 		if (channel) {
 			channel->ptsReceived(d.vpts.v);
 		} else {
-			LOG(("App Error: received messages.channelMessages in ApiWrap::gotWebPages when no channel was passed!"));
+			LOG(("API Error: received messages.channelMessages when no channel was passed! (ApiWrap::gotWebPages)"));
+		}
+		if (d.has_collapsed()) { // should not be returned
+			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (ApiWrap::gotWebPages)"));
 		}
 
 		App::feedUsers(d.vusers);
@@ -641,7 +647,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 
 	MainWidget *m = App::main();
 	for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-		HistoryItem *item = App::histories().addToBack(v->at(i.value()), -1);
+		HistoryItem *item = App::histories().addNewMessage(v->at(i.value()), -1);
 		if (item) {
 			item->initDimensions();
 			if (m) m->itemResized(item);

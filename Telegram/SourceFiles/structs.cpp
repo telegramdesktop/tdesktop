@@ -902,6 +902,12 @@ void MessageLink::onClick(Qt::MouseButton button) const {
 	}
 }
 
+void CommentsLink::onClick(Qt::MouseButton button) const {
+	if (button == Qt::LeftButton && App::main() && _item->history()->isChannel()) {
+		App::main()->showPeerHistory(_item->history()->peer->id, _item->id);
+	}
+}
+
 MsgId clientMsgId() {
 	static MsgId current = -2000000000;
 	return ++current;

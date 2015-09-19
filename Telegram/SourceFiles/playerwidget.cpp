@@ -246,12 +246,12 @@ void PlayerWidget::updateOverRect(OverState state) {
 void PlayerWidget::updateControls() {
 	_fullAvailable = (_index >= 0);
 	_prevAvailable = _fullAvailable && (_index > 0);
-	_nextAvailable = _fullAvailable && (_index < _history->_overview[OverviewAudioDocuments].size() - 1);
+	_nextAvailable = _fullAvailable && (_index < _history->overview[OverviewAudioDocuments].size() - 1);
 	resizeEvent(0);
 	update();
 
 	if (_index >= 0 && _index < MediaOverviewStartPerPage) {
-		if (_history->_overviewCount[OverviewAudioDocuments] < 0 || _history->_overviewCount[OverviewAudioDocuments] > 0) {
+		if (_history->overviewCount[OverviewAudioDocuments] < 0 || _history->overviewCount[OverviewAudioDocuments] > 0) {
 			if (App::main()) App::main()->loadMediaBack(_history->peer, OverviewAudioDocuments);
 		}
 	}
@@ -261,7 +261,7 @@ void PlayerWidget::findCurrent() {
 	_index = -1;
 	if (!_history) return;
 
-	const History::MediaOverview *o = &_history->_overview[OverviewAudioDocuments];
+	const History::MediaOverview *o = &_history->overview[OverviewAudioDocuments];
 	if (_history->channelId() == _song.msgId.channel) {
 		for (int i = 0, l = o->size(); i < l; ++i) {
 			if (o->at(i) == _song.msgId.msg) {
@@ -307,8 +307,8 @@ void PlayerWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) 
 	if (_history && _history->peer == peer && type == OverviewAudioDocuments) {
 		_index = -1;
 		if (_history->channelId() == _song.msgId.channel) {
-			for (int i = 0, l = _history->_overview[OverviewAudioDocuments].size(); i < l; ++i) {
-				if (_history->_overview[OverviewAudioDocuments].at(i) == _song.msgId.msg) {
+			for (int i = 0, l = _history->overview[OverviewAudioDocuments].size(); i < l; ++i) {
+				if (_history->overview[OverviewAudioDocuments].at(i) == _song.msgId.msg) {
 					_index = i;
 					break;
 				}
@@ -464,7 +464,7 @@ void PlayerWidget::playPausePressed() {
 void PlayerWidget::prevPressed() {
 	if (isHidden()) return;
 
-	const History::MediaOverview *o = _history ? &_history->_overview[OverviewAudioDocuments] : 0;
+	const History::MediaOverview *o = _history ? &_history->overview[OverviewAudioDocuments] : 0;
 	if (audioPlayer() && o && _index > 0 && _index <= o->size() && !o->isEmpty()) {
 		startPlay(FullMsgId(_history->channelId(), o->at(_index - 1)));
 	}
@@ -473,7 +473,7 @@ void PlayerWidget::prevPressed() {
 void PlayerWidget::nextPressed() {
 	if (isHidden()) return;
 
-	const History::MediaOverview *o = _history ? &_history->_overview[OverviewAudioDocuments] : 0;
+	const History::MediaOverview *o = _history ? &_history->overview[OverviewAudioDocuments] : 0;
 	if (audioPlayer() && o && _index >= 0 && _index < o->size() - 1) {
 		startPlay(FullMsgId(_history->channelId(), o->at(_index + 1)));
 	}

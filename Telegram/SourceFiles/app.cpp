@@ -784,7 +784,7 @@ namespace App {
 			}
 		}
 		for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-			histories().addToBack(v.at(i.value()), msgsState);
+			histories().addNewMessage(v.at(i.value()), msgsState);
 		}
 	}
 
@@ -871,18 +871,29 @@ namespace App {
 		MsgsData *data = fetchMsgsData(channelId, false);
 		if (!data) return;
 
+		ChannelHistory *channelHistory = (channelId == NoChannel) ? 0 : App::historyLoaded(peerFromChannel(channelId))->asChannelHistory();
+
+		QMap<History*, bool> historiesToCheck;
 		for (QVector<MTPint>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
 			MsgsData::const_iterator j = data->constFind(i->v);
 			if (j != data->cend()) {
 				History *h = (*j)->history();
-				(*j)->destroy();
-				if (App::main() && h->peer == App::main()->peer()) {
+				if (App::main() && h->peer == App::main()->peer() && !(*j)->detached()) {
 					resized = true;
 				}
+				(*j)->destroy();
+				if (!h->lastMsg) historiesToCheck.insert(h, true);
+			} else if (channelHistory) {
+				channelHistory->messageWithIdDeleted(i->v);
 			}
 		}
 		if (resized) {
 			App::main()->itemResized(0);
+		}
+		if (main()) {
+			for (QMap<History*, bool>::const_iterator i = historiesToCheck.cbegin(), e = historiesToCheck.cend(); i != e; ++i) {
+				main()->checkPeerHistory(i.key()->peer);
+			}
 		}
 	}
 
@@ -1630,26 +1641,15 @@ namespace App {
 	}
 
 	History *history(const PeerId &peer) {
-		Histories::const_iterator i = ::histories.constFind(peer);
-		if (i == ::histories.cend()) {
-			i = App::histories().insert(peer, new History(peer));
-		}
-		return i.value();
+		return ::histories.findOrInsert(peer, 0, 0);
 	}
 
 	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead) {
-		Histories::const_iterator i = ::histories.constFind(peer);
-		if (i == ::histories.cend()) {
-			i = App::histories().insert(peer, new History(peer));
-			i.value()->setUnreadCount(unreadCnt, false);
-			i.value()->inboxReadBefore = maxInboxRead + 1;
-		}
-		return i.value();
+		return ::histories.findOrInsert(peer, unreadCnt, maxInboxRead);
 	}
 	
 	History *historyLoaded(const PeerId &peer) {
-		Histories::const_iterator i = ::histories.constFind(peer);
-		return (i == ::histories.cend()) ? 0 : i.value();
+		return ::histories.find(peer);
 	}
 
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId) {
@@ -2406,7 +2406,7 @@ namespace App {
 		return ::corners[index];
 	}
 
-	void roundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *sh) {
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *sh) {
 		QPixmap **c = ::corners[index];
 		int32 cw = c[0]->width() / cIntRetinaFactor(), ch = c[0]->height() / cIntRetinaFactor();
 		if (w < 2 * cw || h < 2 * ch) return;
@@ -2424,7 +2424,7 @@ namespace App {
 		p.drawPixmap(QPoint(x + w - cw, y + h - ch), *c[3]);
 	}
 
-	void roundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, const style::color &sh, RoundCorners index) {
+	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &sh, RoundCorners index) {
 		QPixmap **c = App::corners(index);
 		int32 cw = c[0]->width() / cIntRetinaFactor(), ch = c[0]->height() / cIntRetinaFactor();
 		p.fillRect(x + cw, y + h, w - 2 * cw, st::msgShadow, sh->b);

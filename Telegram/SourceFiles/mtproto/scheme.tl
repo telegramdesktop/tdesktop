@@ -256,7 +256,6 @@ messageActionChatAddUser#5e3cfc4b user_id:int = MessageAction;
 messageActionChatDeleteUser#b2ae9b0c user_id:int = MessageAction;
 messageActionChatJoinedByLink#f89cf5e8 inviter_id:int = MessageAction;
 messageActionChannelCreate#95d2ac92 title:string = MessageAction;
-messageActionChannelToggleComments#f2863903 enabled:Bool = MessageAction;
 
 dialog#c1dd804a peer:Peer top_message:int read_inbox_max_id:int unread_count:int notify_settings:PeerNotifySettings = Dialog;
 dialogChannel#5b8496b2 peer:Peer top_message:int top_important_message:int read_inbox_max_id:int unread_count:int unread_important_count:int notify_settings:PeerNotifySettings pts:int = Dialog;
@@ -588,7 +587,7 @@ inputChannel#afeb712e channel_id:int access_hash:long = InputChannel;
 
 contacts.resolvedPeer#7f077ad9 peer:Peer chats:Vector<Chat> users:Vector<User> = contacts.ResolvedPeer;
 
-channelParticipants#57d3e762 flags:# channel_id:int self_participant:flags.0?ChannelParticipant = ChannelParticipants;
+channelParticipants#dee6d213 flags:# channel_id:int participants_count:int self_participant:flags.0?ChannelParticipant participants:flags.1?Vector<ChannelParticipant> = ChannelParticipants;
 
 messageRange#ae30253 min_id:int max_id:int = MessageRange;
 
@@ -602,7 +601,8 @@ channelMessagesFilterEmpty#94d42ee7 = ChannelMessagesFilter;
 channelMessagesFilter#cd77d957 flags:# ranges:Vector<MessageRange> = ChannelMessagesFilter;
 channelMessagesFilterCollapsed#fa01232e = ChannelMessagesFilter;
 
-channelParticipant#506116ea user_id:int inviter_id:int date:int = ChannelParticipant;
+channelParticipant#15ebac1d user_id:int date:int = ChannelParticipant;
+channelParticipantSelf#a3289a6d user_id:int inviter_id:int date:int = ChannelParticipant;
 channelParticipantModerator#91057fef user_id:int inviter_id:int date:int = ChannelParticipant;
 channelParticipantEditor#98192d61 user_id:int inviter_id:int date:int = ChannelParticipant;
 channelParticipantKicked#8cc5e69a user_id:int kicked_by:int date:int = ChannelParticipant;

@@ -913,7 +913,7 @@ bool ProfileInner::updateMediaLinks(int32 *addToScroll) {
 
 		int32 addToY = _mediaButtons[i]->height() + st::setLittleSkip;
 
-		int32 count = (_hist->_overviewCount[i] > 0) ? _hist->_overviewCount[i] : (_hist->_overviewCount[i] == 0 ? _hist->_overview[i].size() : -1);
+		int32 count = (_hist->overviewCount[i] > 0) ? _hist->overviewCount[i] : (_hist->overviewCount[i] == 0 ? _hist->overview[i].size() : -1);
 		if (count > 0) {
 			_mediaButtons[i]->setText(overviewLinkText(i, count));
 			if (_mediaButtons[i]->isHidden()) {

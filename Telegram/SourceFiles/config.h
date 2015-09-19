@@ -123,7 +123,7 @@ enum {
 	MaxUsernameLength = 32,
 	UsernameCheckTimeout = 200,
 
-	MaxChannelDescription = 255,
+	MaxChannelDescription = 120,
 
 	MaxMessageSize = 4096,
 	MaxHttpRedirects = 5, // when getting external data/images

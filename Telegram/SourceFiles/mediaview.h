@@ -104,7 +104,6 @@ private:
 	void findCurrent();
 	void loadBack();
 
-	void photosLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req);
 	void userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mtpRequestId req);
 	void filesLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req);
 

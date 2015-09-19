@@ -909,6 +909,24 @@ msgDateImgCheckSpace: 4px;
 msgDogImg: sprite(213px, 93px, 126px, 126px);
 historyPadding: 10px;
 
+collapseButton: flatButton(btnDefFlat) {
+	font: msgServiceFont;
+	overFont: msgServiceFont;
+	width: -24px;
+	bgColor: transparent;
+	downBgColor: transparent;
+	overBgColor: transparent;
+	color: white;
+	overColor: white;
+	downColor: white;
+	textTop: 3px;
+	overTextTop: 3px;
+	downTextTop: 3px;
+	height: 24px;
+}
+collapseHideDuration: 200;
+collapseShowDuration: 200;
+
 defaultTextStyle: textStyle {
 	lnkFlags: font(fsize);
 	lnkOverFlags: font(fsize underline);

@@ -28,6 +28,8 @@ typedef quint32 uint32;
 typedef qint64 int64;
 typedef quint64 uint64;
 
+static const int32 ScrollMax = INT_MAX;
+
 #ifdef Q_OS_WIN
 typedef float float32;
 typedef double float64;

@@ -150,8 +150,8 @@ void MediaView::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 	if (!_photo && !_doc) return;
 	if (_history && _history->peer == peer && type == _overview) {
 		_index = -1;
-		for (int i = 0, l = _history->_overview[_overview].size(); i < l; ++i) {
-			if (_history->_overview[_overview].at(i) == _msgid) {
+		for (int i = 0, l = _history->overview[_overview].size(); i < l; ++i) {
+			if (_history->overview[_overview].at(i) == _msgid) {
 				_index = i;
 				break;
 			}
@@ -290,13 +290,13 @@ void MediaView::updateControls() {
 	}
 	updateHeader();
 	if (_photo || (_history && _overview == OverviewPhotos)) {
-		_leftNavVisible = (_index > 0) || (_index == 0 && _history && _history->_overview[_overview].size() < _history->_overviewCount[_overview]);
+		_leftNavVisible = (_index > 0) || (_index == 0 && _history && _history->overview[_overview].size() < _history->overviewCount[_overview]);
 		_rightNavVisible = (_index >= 0) && (
-			(_history && _index + 1 < _history->_overview[_overview].size()) ||
+			(_history && _index + 1 < _history->overview[_overview].size()) ||
 			(_user && (_index + 1 < _user->photos.size() || _index + 1 < _user->photosCount)));
 	} else if (_history && _overview == OverviewDocuments) {
-		_leftNavVisible = (_index > 0) || (_index == 0 && _history && _history->_overview[_overview].size() < _history->_overviewCount[_overview]);
-		_rightNavVisible = (_index >= 0) && _history && (_index + 1 < _history->_overview[_overview].size());
+		_leftNavVisible = (_index > 0) || (_index == 0 && _history && _history->overview[_overview].size() < _history->overviewCount[_overview]);
+		_rightNavVisible = (_index >= 0) && _history && (_index + 1 < _history->overview[_overview].size());
 	} else {
 		_leftNavVisible = _rightNavVisible = false;
 	}
@@ -739,14 +739,14 @@ void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 	if (_history) {
 		_overview = OverviewDocuments;
 
-		for (int i = 0, l = _history->_overview[_overview].size(); i < l; ++i) {
-			if (_history->_overview[_overview].at(i) == _msgid) {
+		for (int i = 0, l = _history->overview[_overview].size(); i < l; ++i) {
+			if (_history->overview[_overview].at(i) == _msgid) {
 				_index = i;
 				break;
 			}
 		}
 
-		if (_history->_overviewCount[_overview] < 0) {
+		if (_history->overviewCount[_overview] < 0) {
 			loadBack();
 		}
 	}
@@ -1391,9 +1391,9 @@ void MediaView::moveToNext(int32 delta) {
 
 	int32 newIndex = _index + delta;
 	if (_history && _overview != OverviewCount) {
-		if (newIndex >= 0 && newIndex < _history->_overview[_overview].size()) {
+		if (newIndex >= 0 && newIndex < _history->overview[_overview].size()) {
 			_index = newIndex;
-			if (HistoryItem *item = App::histItemById(_history->channelId(), _history->_overview[_overview][_index])) {
+			if (HistoryItem *item = App::histItemById(_history->channelId(), _history->overview[_overview][_index])) {
 				_msgid = item->id;
 				_channel = item->channelId();
 				_canForward = _msgid > 0 && (_channel == NoChannel);
@@ -1432,8 +1432,8 @@ void MediaView::preloadData(int32 delta) {
 	if (from > to) qSwap(from, to);
 	if (_history && _overview != OverviewCount) {
 		for (int32 i = from; i <= to; ++i) {
-			if (i >= 0 && i < _history->_overview[_overview].size() && i != _index) {
-				if (HistoryItem *item = App::histItemById(_history->channelId(), _history->_overview[_overview][i])) {
+			if (i >= 0 && i < _history->overview[_overview].size() && i != _index) {
+				if (HistoryItem *item = App::histItemById(_history->channelId(), _history->overview[_overview][i])) {
 					if (HistoryMedia *media = item->getMedia()) {
 						switch (media->type()) {
 						case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->full->load(); break;
@@ -1444,8 +1444,8 @@ void MediaView::preloadData(int32 delta) {
 				}
 			}
 		}
-		if (forget >= 0 && forget < _history->_overview[_overview].size() && forget != _index) {
-			if (HistoryItem *item = App::histItemById(_history->channelId(), _history->_overview[_overview][forget])) {
+		if (forget >= 0 && forget < _history->overview[_overview].size() && forget != _index) {
+			if (HistoryItem *item = App::histItemById(_history->channelId(), _history->overview[_overview][forget])) {
 				if (HistoryMedia *media = item->getMedia()) {
 					switch (media->type()) {
 					case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->forget(); break;
@@ -1844,14 +1844,14 @@ void MediaView::updateImage() {
 }
 
 void MediaView::findCurrent() {
-	for (int i = 0, l = _history->_overview[_overview].size(); i < l; ++i) {
-		if (_history->_overview[_overview].at(i) == _msgid) {
+	for (int i = 0, l = _history->overview[_overview].size(); i < l; ++i) {
+		if (_history->overview[_overview].at(i) == _msgid) {
 			_index = i;
 			break;
 		}
 	}
 
-	if (_history->_overviewCount[_overview] < 0 || (!_index && _history->_overviewCount[_overview] > 0)) {
+	if (_history->overviewCount[_overview] < 0 || (!_index && _history->overviewCount[_overview] > 0)) {
 		loadBack();
 	}
 }
@@ -1859,7 +1859,7 @@ void MediaView::findCurrent() {
 void MediaView::loadBack() {
 	if (_loadRequest || _index < 0 || (_overview == OverviewCount && !_user)) return;
 
-	if (_history && _overview != OverviewCount && _history->_overviewCount[_overview] != 0) {
+	if (_history && _overview != OverviewCount && _history->overviewCount[_overview] != 0) {
 		if (App::main()) App::main()->loadMediaBack(_history->peer, _overview);
 	} else if (_user && _user->photosCount != 0) {
 		int32 limit = (_index < MediaOverviewStartPerPage && _user->photos.size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
@@ -1907,8 +1907,8 @@ void MediaView::updateHeader() {
 	int32 index = _index, count = 0;
 	if (_history) {
 		if (_overview != OverviewCount) {
-			count = _history->_overviewCount[_overview] ? _history->_overviewCount[_overview] : _history->_overview[_overview].size();
-			if (index >= 0) index += count - _history->_overview[_overview].size();
+			count = _history->overviewCount[_overview] ? _history->overviewCount[_overview] : _history->overview[_overview].size();
+			if (index >= 0) index += count - _history->overview[_overview].size();
 		}
 	} else if (_user) {
 		count = _user->photosCount ? _user->photosCount : _user->photos.size();

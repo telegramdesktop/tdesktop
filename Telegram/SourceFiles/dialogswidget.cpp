@@ -779,8 +779,10 @@ void DialogsListWidget::dialogsReceived(const QVector<MTPDialog> &added) {
 			const MTPDdialogChannel &d(i->c_dialogChannel());
 			History *history = App::historyFromDialog(peerFromMTP(d.vpeer), d.vunread_important_count.v, d.vread_inbox_max_id.v);
 			if (history->peer->isChannel()) {
+				history->asChannelHistory()->unreadCountAll = d.vunread_count.v;
 				history->peer->asChannel()->ptsReceived(d.vpts.v);
 			}
+			if (d.vtop_message.v > d.vtop_important_message.v) history->setNotLoadedAtBottom();
 			App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
 		} break;
 		}
@@ -821,7 +823,7 @@ void DialogsListWidget::searchReceived(const QVector<MTPMessage> &messages, bool
 		clearSearchResults(false);
 	}
 	for (QVector<MTPMessage>::const_iterator i = messages.cbegin(), e = messages.cend(); i != e; ++i) {
-		HistoryItem *item = App::histories().addToBack(*i, -1);
+		HistoryItem *item = App::histories().addNewMessage(*i, -1);
 		searchResults.push_back(new FakeDialogRow(item));
 		_lastSearchId = item->id;
 	}
@@ -1602,26 +1604,28 @@ void DialogsWidget::unreadCountsReceived(const QVector<MTPDialog> &dialogs) {
 		switch (i->type()) {
 		case mtpc_dialog: {
 			const MTPDdialog &d(i->c_dialog());
-			Histories::iterator j = App::histories().find(peerFromMTP(d.vpeer));
-			if (j != App::histories().end()) {
-				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, j.value());
-				if (d.vunread_count.v >= j.value()->unreadCount) {
-					j.value()->setUnreadCount(d.vunread_count.v, false);
-					j.value()->inboxReadBefore = d.vread_inbox_max_id.v + 1;
+			if (History *h = App::historyLoaded(peerFromMTP(d.vpeer))) {
+				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, h);
+				if (d.vunread_count.v >= h->unreadCount) {
+					h->setUnreadCount(d.vunread_count.v, false);
+					h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
 				}
 			}
 		} break;
 		case mtpc_dialogChannel: {
 			const MTPDdialogChannel &d(i->c_dialogChannel());
-			Histories::iterator j = App::histories().find(peerFromMTP(d.vpeer));
-			if (j != App::histories().end()) {
-				if (j.value()->peer->isChannel()) {
-					j.value()->peer->asChannel()->ptsReceived(d.vpts.v);
+			if (History *h = App::historyLoaded(peerFromMTP(d.vpeer))) {
+				if (h->peer->isChannel()) {
+					h->peer->asChannel()->ptsReceived(d.vpts.v);
+					if (d.vunread_count.v >= h->asChannelHistory()->unreadCountAll) {
+						h->asChannelHistory()->unreadCountAll = d.vunread_count.v;
+						h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
+					}
 				}
-				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, j.value());
-				if (d.vunread_important_count.v >= j.value()->unreadCount) {
-					j.value()->setUnreadCount(d.vunread_important_count.v, false);
-					j.value()->inboxReadBefore = d.vread_inbox_max_id.v + 1;
+				App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, h);
+				if (d.vunread_important_count.v >= h->unreadCount) {
+					h->setUnreadCount(d.vunread_important_count.v, false);
+					h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
 				}
 			}
 		} break;
@@ -1863,7 +1867,10 @@ void DialogsWidget::searchReceived(bool fromStart, const MTPmessages_Messages &r
 			if (_searchInPeer && _searchInPeer->isChannel()) {
 				_searchInPeer->asChannel()->ptsReceived(d.vpts.v);
 			} else {
-				LOG(("App Error: received messages.channelMessages in DialogsWidget::searchReceived when no channel was passed!"));
+				LOG(("API Error: received messages.channelMessages when no channel was passed! (DialogsWidget::searchReceived)"));
+			}
+			if (d.has_collapsed()) { // should not be returned
+				LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (DialogsWidget::searchReceived)"));
 			}
 
 			App::feedUsers(d.vusers);

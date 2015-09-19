@@ -389,6 +389,8 @@ public:
 	void ctrlEnterSubmitUpdated();
 	void setInnerFocus();
 
+	HistoryItem *atTopImportantMsg(int32 &bottomUnderScrollTop) const;
+
 	~MainWidget();
 
 signals:
@@ -466,7 +468,7 @@ private:
 	void readRequestDone(PeerData *peer);
 
 	void messagesAffected(PeerData *peer, const MTPmessages_AffectedMessages &result);
-	void photosLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req);
+	void overviewLoaded(History *h, const MTPmessages_Messages &msgs, mtpRequestId req);
 
 	bool _started;
 

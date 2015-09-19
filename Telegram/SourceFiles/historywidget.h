@@ -37,8 +37,8 @@ public:
 
 	HistoryList(HistoryWidget *historyWidget, ScrollArea *scroll, History *history);
 
-	void messagesReceived(const QVector<MTPMessage> &messages);
-	void messagesReceivedDown(const QVector<MTPMessage> &messages);
+	void messagesReceived(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+	void messagesReceivedDown(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 
 	bool event(QEvent *e); // calls touchEvent when necessary
 	void touchEvent(QTouchEvent *e);
@@ -84,6 +84,8 @@ public:
 	bool wasSelectedText() const;
 	void setFirstLoading(bool loading);
 
+	HistoryItem *atTopImportantMsg(int32 top, int32 height, int32 &bottomUnderScrollTop) const;
+
 	~HistoryList();
 	
 public slots:
@@ -115,7 +117,7 @@ private:
 	void touchUpdateSpeed();
 	void touchDeaccelerate(int32 elapsed);
 
-	void adjustCurrent(int32 y);
+	void adjustCurrent(int32 y) const;
 	HistoryItem *prevItem(HistoryItem *item);
 	HistoryItem *nextItem(HistoryItem *item);
 	void updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting, bool force = false);
@@ -129,7 +131,7 @@ private:
 
 	HistoryWidget *historyWidget;
 	ScrollArea *scrollArea;
-	int32 currentBlock, currentItem;
+	mutable int32 currentBlock, currentItem;
 
 	bool _firstLoading;
 
@@ -370,6 +372,14 @@ private:
 
 };
 
+class CollapseButton : public FlatButton {
+public:
+
+	CollapseButton(QWidget *parent);
+	void paintEvent(QPaintEvent *e);
+
+};
+
 class HistoryWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
@@ -449,6 +459,7 @@ public:
 
 	PeerData *peer() const;
 	MsgId msgId() const;
+	HistoryItem *atTopImportantMsg(int32 &bottomUnderScrollTop) const;
 
 	void animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
 	bool showStep(float64 ms);
@@ -514,6 +525,7 @@ public:
 
 	void contactsReceived();
 	void updateToEndVisibility();
+	void updateCollapseCommentsVisibility();
 
 	void updateAfterDrag();
 	void ctrlEnterSubmitUpdated();
@@ -565,6 +577,7 @@ public slots:
 
 	void onListScroll();
 	void onHistoryToEnd();
+	void onCollapseComments();
 	void onSend(bool ctrlShiftEnter = false, MsgId replyTo = -1);
 	void onUnblock();
 	void onBotStart();
@@ -653,8 +666,8 @@ private:
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
 	void updateListSize(int32 addToY = 0, bool initial = false, bool loadedDown = false, HistoryItem *resizedItem = 0, bool scrollToIt = false);
-	void addMessagesToFront(const QVector<MTPMessage> &messages);
-	void addMessagesToBack(const QVector<MTPMessage> &messages);
+	void addMessagesToFront(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+	void addMessagesToBack(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 
 	void reportSpamDone(PeerData *peer, const MTPBool &result, mtpRequestId request);
 	bool reportSpamFail(const RPCError &error, mtpRequestId request);
@@ -683,7 +696,8 @@ private:
 	PeerData *_peer, *_clearPeer; // cache _peer in _clearPeer when showing clear history box
 	ChannelId _channel;
 	bool _canSendMessages;
-	MsgId _showAtMsgId;
+	MsgId _showAtMsgId, _fixedInScrollMsgId;
+	int32 _fixedInScrollMsgTop;
 
 	mtpRequestId _firstLoadRequest, _preloadRequest, _preloadDownRequest;
 
@@ -698,6 +712,7 @@ private:
 	bool _histInited; // initial updateListSize() called
 
 	IconedButton _toHistoryEnd;
+	CollapseButton _collapseComments;
 
 	MentionsDropdown _attachMention;
 
