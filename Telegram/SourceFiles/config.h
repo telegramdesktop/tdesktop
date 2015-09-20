@@ -326,6 +326,7 @@ enum {
 	NoUpdatesTimeout = 60 * 1000, // if nothing is received in 1 min we ping
 	NoUpdatesAfterSleepTimeout = 60 * 1000, // if nothing is received in 1 min when was a sleepmode we ping
 	WaitForSkippedTimeout = 1000, // 1s wait for skipped seq or pts in updates
+	WaitForChannelGetDifference = 1000, // 1s wait after show channel history before sending getChannelDifference
 
 	MemoryForImageCache = 64 * 1024 * 1024, // after 64mb of unpacked images we try to clear some memory
 	NotifyWindowsCount = 3, // 3 desktop notifies at the same time

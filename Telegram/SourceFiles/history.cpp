@@ -303,7 +303,6 @@ void FakeDialogRow::paint(Painter &p, int32 w, bool act, bool sel) const {
 }
 
 History::History(const PeerId &peerId) : width(0), height(0)
-, msgCount(0)
 , unreadCount(0)
 , inboxReadBefore(1)
 , outboxReadBefore(1)
@@ -386,7 +385,7 @@ bool History::updateTyping(uint64 ms, uint32 dots, bool force) {
 			newTypingStr += qsl("...");
 		}
 		if (typingStr != newTypingStr) {
-			typingText.setText(st::dlgHistFont, (typingStr = newTypingStr), _textNameOptions);
+typingText.setText(st::dlgHistFont, (typingStr = newTypingStr), _textNameOptions);
 		}
 	}
 	if (!typingStr.isEmpty()) {
@@ -422,8 +421,7 @@ void History::eraseFromOverview(MediaOverviewType type, MsgId msgId) {
 ChannelHistory::ChannelHistory(const PeerId &peer) : History(peer),
 unreadCountAll(0),
 _onlyImportant(true),
-_otherOldLoaded(false), _otherNewLoaded(false),
-_otherMsgCount(0),
+_otherOldLoaded(false), _otherNewLoaded(true),
 _collapse(0) {
 }
 
@@ -453,7 +451,7 @@ bool ChannelHistory::isSwitchReadyFor(MsgId switchId, MsgId &fixInScrollMsgId, i
 		if (itemType == HistoryItemGroup || itemType == HistoryItemCollapse) {
 			if (itemType == HistoryItemGroup && !_onlyImportant) return true;
 			if (itemType == HistoryItemCollapse && _onlyImportant) return true;
-			bool willNeedCollapse = (itemType  == HistoryItemGroup);
+			bool willNeedCollapse = (itemType == HistoryItemGroup);
 
 			HistoryItem *prev = findPrevItem(item);
 			if (prev) {
@@ -484,18 +482,50 @@ bool ChannelHistory::isSwitchReadyFor(MsgId switchId, MsgId &fixInScrollMsgId, i
 			}
 			return false;
 		}
+		if (item->history() == this) {
+			if (_onlyImportant && !item->isImportant()) {
+				if (_otherList.indexOf(item) >= 0) {
+					switchMode();
+					return true;
+				}
+				return false;
+			} else if (!item->detached()) {
+				return true;
+			}
+		}
+	} else if (switchId < 0) {
+		LOG(("App Error: isSwitchReadyFor() switchId not found!"));
+		switchMode();
+		return true;
 	}
-	LOG(("App Error: isSwitchReadyFor() switchId not found!"));
-	switchMode();
-	return true;
+	return false;
 }
 
 void ChannelHistory::getSwitchReadyFor(MsgId switchId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop) {
 	if (!isSwitchReadyFor(switchId, fixInScrollMsgId, fixInScrollMsgTop)) {
-		_otherList.clear();
-		_otherNewLoaded = _otherOldLoaded = false;
+		if (switchId > 0) {
+			if (HistoryItem *item = App::histItemById(channelId(), switchId)) {
+				if (_onlyImportant && !item->isImportant()) {
+					_otherList.clear();
+					_otherNewLoaded = _otherOldLoaded = false;
 
-		switchMode();
+					switchMode();
+				} else {
+					clear(true);
+					newLoaded = oldLoaded = false;
+					lastWidth = 0;
+				}
+			} else {
+				clear(true);
+				newLoaded = oldLoaded = false;
+				lastWidth = 0;
+			}
+		} else {
+			_otherList.clear();
+			_otherNewLoaded = _otherOldLoaded = false;
+
+			switchMode();
+		}
 	}
 }
 
@@ -520,27 +550,94 @@ void ChannelHistory::insertCollapseItem(MsgId wasMinId) {
 	}
 }
 
+HistoryItem *ChannelHistory::addNewChannelMessage(const MTPMessage &msg, NewMessageType type) {
+	if (type == NewMessageExisting) return addToHistory(msg);
+
+	HistoryItem *result = addNewToBlocks(msg, type);
+	if (result) addNewToOther(result, type);
+	return result;
+}
+
+HistoryItem *ChannelHistory::addNewToBlocks(const MTPMessage &msg, NewMessageType type) {
+	int32 flags = flagsFromMessage(msg);
+	bool isImportant = isChannel() ? isImportantChannelMessage(flags) : true;
+
+	if (!loadedAtBottom()) {
+		HistoryItem *item = addToHistory(msg);
+		if (item && isImportant) {
+			setLastMessage(item);
+			if (type == NewMessageUnread) {
+				newItemAdded(item);
+			}
+		}
+		return item;
+	}
+
+	if (!isImportant && onlyImportant()) {
+		HistoryItem *item = addToHistory(msg), *prev = isEmpty() ? 0 : blocks.back()->items.back();
+		HistoryItem *group = addMessageGroupAfterPrev(item, prev);
+		if (group && group != prev) {
+			height += group->height();
+		}
+		return item;
+	}
+
+	if (!isImportant && !onlyImportant() && !isEmpty() && type == NewMessageLast) {
+		clear(true);
+	}
+
+	HistoryBlock *to = 0;
+	bool newBlock = blocks.isEmpty();
+	if (newBlock) {
+		to = new HistoryBlock(this);
+	} else {
+		to = blocks.back();
+	}
+	return addNewItem(to, newBlock, createItem(to, msg, (type == NewMessageUnread)), (type == NewMessageUnread));
+}
+
+void ChannelHistory::addNewToOther(HistoryItem *item, NewMessageType type) {
+	if (!_otherNewLoaded) return;
+
+	if (!item->isImportant()) {
+		if (onlyImportant()) {
+			if (type == NewMessageLast) {
+				_otherList.clear();
+				_otherOldLoaded = false;
+			}
+		} else {
+			if (_otherList.isEmpty() || _otherList.back()->type() != HistoryItemGroup) {
+				_otherList.push_back(regItem(new HistoryGroup(this, 0, item, _otherList.isEmpty() ? item->date : _otherList.back()->date)));
+			} else {
+				static_cast<HistoryGroup*>(_otherList.back())->uniteWith(item);
+			}
+			return;
+		}
+	}
+	_otherList.push_back(item);
+}
+
 void ChannelHistory::switchMode() {
 	OtherList savedList;
-	savedList.reserve(msgCount);
-	for (Blocks::const_iterator i = blocks.cbegin(), e = blocks.cend(); i != e; ++i) {
-		HistoryBlock *block = *i;
-		for (HistoryBlock::Items::const_iterator j = block->items.cbegin(), end = block->items.cend(); j != end; ++j) {
-			HistoryItem *item = *j;
-			HistoryItemType itemType = item->type();
-			if (itemType == HistoryItemMsg || itemType == HistoryItemGroup) {
-				savedList.push_back(item);
+	if (!blocks.isEmpty()) {
+		savedList.reserve(((blocks.size() - 2) * MessagesPerPage + blocks.back()->items.size()) * (onlyImportant() ? 2 : 1));
+		for (Blocks::const_iterator i = blocks.cbegin(), e = blocks.cend(); i != e; ++i) {
+			HistoryBlock *block = *i;
+			for (HistoryBlock::Items::const_iterator j = block->items.cbegin(), end = block->items.cend(); j != end; ++j) {
+				HistoryItem *item = *j;
+				HistoryItemType itemType = item->type();
+				if (itemType == HistoryItemMsg || itemType == HistoryItemGroup) {
+					savedList.push_back(item);
+				}
 			}
 		}
 	}
-	int32 savedMsgCount = msgCount;
 	bool savedNewLoaded = newLoaded, savedOldLoaded = oldLoaded;
 
 	clear(true);
 
 	newLoaded = _otherNewLoaded;
 	oldLoaded = _otherOldLoaded;
-	msgCount = _otherMsgCount;
 	if (int32 count = _otherList.size()) {
 		blocks.reserve(qCeil(count / float64(MessagesPerPage)) + 1);
 		createInitialDateBlock(_otherList.front()->date);
@@ -564,7 +661,6 @@ void ChannelHistory::switchMode() {
 	_otherList = savedList;
 	_otherNewLoaded = savedNewLoaded;
 	_otherOldLoaded = savedOldLoaded;
-	_otherMsgCount = savedMsgCount;
 
 	_onlyImportant = !_onlyImportant;
 
@@ -909,30 +1005,15 @@ void Histories::remove(const PeerId &peer) {
 	}
 }
 
-HistoryItem *Histories::addNewMessage(const MTPmessage &msg, int msgState) {
+HistoryItem *Histories::addNewMessage(const MTPmessage &msg, NewMessageType type) {
 	int32 flags = 0;
-	PeerId peer = peerFromMessage(msg, &flags);
+	PeerId peer = peerFromMessage(msg);
 	if (!peer) return 0;
 
-	History *h = findOrInsert(peer, 0, 0);
-	bool isImportant = h->isChannel() ? isImportantChannelMessage(flags) : true;
-	if (msgState < 0 || (!isImportant && h->asChannelHistory()->onlyImportant())) {
-		return h->addToHistory(msg);
-	}
-	if (!h->loadedAtBottom()) {
-		HistoryItem *item = h->addToHistory(msg);
-		if (item && isImportant) {
-			h->setLastMessage(item);
-			if (msgState > 0) {
-				h->newItemAdded(item);
-			}
-		}
-		return item;
-	}
-	return h->addNewMessage(msg, msgState > 0);
+	return findOrInsert(peer, 0, 0)->addNewMessage(msg, type);
 }
 
-HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, bool newMsg, bool returnExisting) {
+HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, bool applyServiceAction, bool returnExisting) {
 	HistoryItem *result = 0;
 
 	MsgId msgId = 0;
@@ -1046,7 +1127,7 @@ HistoryItem *History::createItem(HistoryBlock *block, const MTPmessage &msg, boo
 		const MTPDmessageService &d(msg.c_messageService());
 		result = new HistoryServiceMsg(this, block, d);
 
-		if (newMsg) {
+		if (applyServiceAction) {
 			const MTPmessageAction &action(d.vaction);
 			switch (d.vaction.type()) {
 			case mtpc_messageActionChatAddUser: {
@@ -1146,7 +1227,21 @@ HistoryItem *History::addNewService(MsgId msgId, QDateTime date, const QString &
 	return addNewItem(to, newBlock, regItem(new HistoryServiceMsg(this, to, msgId, date, text, flags, media)), newMsg);
 }
 
-HistoryItem *History::addNewMessage(const MTPmessage &msg, bool newMsg) {
+HistoryItem *History::addNewMessage(const MTPmessage &msg, NewMessageType type) {
+	if (isChannel()) return asChannelHistory()->addNewChannelMessage(msg, type);
+
+	if (type == NewMessageExisting) return addToHistory(msg);
+	if (!loadedAtBottom()) {
+		HistoryItem *item = addToHistory(msg);
+		if (item) {
+			setLastMessage(item);
+			if (type == NewMessageUnread) {
+				newItemAdded(item);
+			}
+		}
+		return item;
+	}
+
 	HistoryBlock *to = 0;
 	bool newBlock = blocks.isEmpty();
 	if (newBlock) {
@@ -1154,7 +1249,7 @@ HistoryItem *History::addNewMessage(const MTPmessage &msg, bool newMsg) {
 	} else {
 		to = blocks.back();
 	}
-	return addNewItem(to, newBlock, createItem(to, msg, newMsg), newMsg);
+	return addNewItem(to, newBlock, createItem(to, msg, (type == NewMessageUnread)), (type == NewMessageUnread));
 }
 
 HistoryItem *History::addToHistory(const MTPmessage &msg) {
@@ -1246,7 +1341,6 @@ HistoryItem *History::addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *a
 		to->height += dh;
 		height += dh;
 	}
-	setMsgCount(msgCount + 1);
 	if (newMsg) {
 		newItemAdded(adding);
 	}
@@ -1356,12 +1450,30 @@ HistoryItem *History::addItemAfterPrevToBlock(HistoryItem *item, HistoryItem *pr
 	return item;
 }
 
-HistoryItem *History::addMessageGroupAfterPrevToBlock(const MTPDmessageGroup &group, const QDateTime &date, HistoryItem *prev, HistoryBlock *block) {
+HistoryItem *History::addMessageGroupAfterPrevToBlock(const MTPDmessageGroup &group, HistoryItem *prev, HistoryBlock *block) {
 	if (prev && prev->type() == HistoryItemGroup) {
 		static_cast<HistoryGroup*>(prev)->uniteWith(group.vmin_id.v, group.vmax_id.v, group.vcount.v);
 		return prev;
 	}
-	return addItemAfterPrevToBlock(regItem(new HistoryGroup(this, block, group, date)), prev, block);
+	return addItemAfterPrevToBlock(regItem(new HistoryGroup(this, block, group, prev ? prev->date : date(group.vdate))), prev, block);
+}
+
+HistoryItem *History::addMessageGroupAfterPrev(HistoryItem *newItem, HistoryItem *prev) {
+	if (prev && prev->type() == HistoryItemGroup) {
+		static_cast<HistoryGroup*>(prev)->uniteWith(newItem);
+		return prev;
+	}
+
+	QDateTime date = prev ? prev->date : newItem->date;
+	HistoryBlock *block = prev->block();
+	if (!block) {
+		createInitialDateBlock(date);
+
+		block = new HistoryBlock(this);
+		block->y = height;
+		blocks.push_back(block);
+	}
+	return addItemAfterPrevToBlock(regItem(new HistoryGroup(this, block, newItem, date)), prev, block);
 }
 
 void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPMessageGroup> *collapsed) {
@@ -1393,17 +1505,16 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 			const MTPDmessageGroup &group(groupsIt->c_messageGroup());
 			if (group.vmin_id.v >= adding->id) break;
 
-			prev = addMessageGroupAfterPrevToBlock(group, (prev ? prev : adding)->date, prev, block);
+			prev = addMessageGroupAfterPrevToBlock(group, prev, block);
 		}
 
 		prev = addItemAfterPrevToBlock(adding, prev, block);
-		setMsgCount(msgCount + 1);
 	}
 	for (; groupsIt != groupsEnd; ++groupsIt) {
 		if (groupsIt->type() != mtpc_messageGroup) continue;
 		const MTPDmessageGroup &group(groupsIt->c_messageGroup());
 
-		prev = addMessageGroupAfterPrevToBlock(group, prev ? prev->date : date(group.vdate), prev, block);
+		prev = addMessageGroupAfterPrevToBlock(group, prev, block);
 	}
 
 	while (till && prev && till->type() == HistoryItemGroup && prev->type() == HistoryItemGroup) {
@@ -1551,17 +1662,16 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 			const MTPDmessageGroup &group(groupsIt->c_messageGroup());
 			if (group.vmin_id.v >= adding->id) break;
 
-			prev = addMessageGroupAfterPrevToBlock(group, (prev ? prev : adding)->date, prev, block);
+			prev = addMessageGroupAfterPrevToBlock(group, prev, block);
 		}
 
 		prev = addItemAfterPrevToBlock(adding, prev, block);
-		setMsgCount(msgCount + 1);
 	}
 	for (; groupsIt != groupsEnd; ++groupsIt) {
 		if (groupsIt->type() != mtpc_messageGroup) continue;
 		const MTPDmessageGroup &group(groupsIt->c_messageGroup());
 
-		prev = addMessageGroupAfterPrevToBlock(group, prev ? prev->date : date(group.vdate), prev, block);
+		prev = addMessageGroupAfterPrevToBlock(group, prev, block);
 	}
 
 	bool wasLoadedAtBottom = loadedAtBottom();
@@ -1705,10 +1815,25 @@ MsgId History::outboxRead(HistoryItem *wasRead) {
 	return outboxRead(wasRead ? wasRead->id : 0);
 }
 
+HistoryItem *History::lastImportantMessage() const {
+	if (isEmpty()) return 0;
+	bool channel = isChannel();
+	for (int32 blockIndex = blocks.size(); blockIndex > 0;) {
+		HistoryBlock *block = blocks.at(--blockIndex);
+		for (int32 itemIndex = block->items.size(); itemIndex > 0;) {
+			HistoryItem *item = block->items.at(--itemIndex);
+			if (channel ? item->isImportant() : (item->type() == HistoryItemMsg)) {
+				return item;
+			}
+		}
+	}
+	return 0;
+}
+
 void History::setUnreadCount(int32 newUnreadCount, bool psUpdate) {
 	if (unreadCount != newUnreadCount) {
 		if (newUnreadCount == 1) {
-			if (loadedAtBottom()) showFrom = isEmpty() ? 0 : blocks.back()->items.back();
+			if (loadedAtBottom()) showFrom = lastImportantMessage();
 			inboxReadBefore = qMax(inboxReadBefore, msgIdForRead());
 		} else if (!newUnreadCount) {
 			showFrom = 0;
@@ -1719,12 +1844,6 @@ void History::setUnreadCount(int32 newUnreadCount, bool psUpdate) {
 		unreadCount = newUnreadCount;
 		if (psUpdate && (!mute || cIncludeMuted())) App::wnd()->updateCounter();
 		if (unreadBar) unreadBar->setCount(unreadCount);
-	}
-}
-
-void History::setMsgCount(int32 newMsgCount) {
-	if (msgCount != newMsgCount) {
-		msgCount = newMsgCount;
 	}
 }
 
@@ -1813,7 +1932,7 @@ bool History::loadedAtTop() const {
 }
 
 bool History::isReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop) {
-	if (msgId != ShowAtTheEndMsgId && msgId != ShowAtUnreadMsgId && msgId < 0 && isChannel()) {
+	if (msgId != ShowAtTheEndMsgId && msgId != ShowAtUnreadMsgId && isChannel()) {
 		return asChannelHistory()->isSwitchReadyFor(msgId, fixInScrollMsgId, fixInScrollMsgTop);
 	}
 	fixInScrollMsgId = 0;
@@ -1835,7 +1954,7 @@ bool History::isReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrol
 }
 
 void History::getReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop) {
-	if (msgId != ShowAtTheEndMsgId && msgId != ShowAtUnreadMsgId && msgId < 0 && isChannel()) {
+	if (msgId != ShowAtTheEndMsgId && msgId != ShowAtUnreadMsgId && isChannel()) {
 		return asChannelHistory()->getSwitchReadyFor(msgId, fixInScrollMsgId, fixInScrollMsgTop);
 	}
 	if (!isReadyFor(msgId, fixInScrollMsgId, fixInScrollMsgTop)) {
@@ -1877,14 +1996,7 @@ void History::setPosInDialogsDate(const QDateTime &date) {
 }
 
 void History::fixLastMessage(bool wasAtBottom) {
-	if (wasAtBottom && isEmpty()) {
-		wasAtBottom = false;
-	}
-	if (wasAtBottom) {
-		setLastMessage(blocks.back()->items.back(), false);
-	} else {
-		setLastMessage(0);
-	}
+	setLastMessage(wasAtBottom ? lastImportantMessage() : 0, false);
 }
 
 MsgId History::minMsgId() const {
@@ -1977,7 +2089,6 @@ void History::clear(bool leaveItems) {
 		delete *i;
 	}
 	blocks.clear();
-	setMsgCount(0);
 	if (leaveItems) {
 		lastKeyboardInited = false;
 	} else {
@@ -2173,9 +2284,7 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 		history->setUnreadCount(history->unreadCount - 1);
 	}
 	int32 itemType = item->type();
-	if (itemType == HistoryItemMsg) {
-		history->setMsgCount(history->msgCount - 1);
-	} else if (itemType == HistoryItemUnreadBar) {
+	if (itemType == HistoryItemUnreadBar) {
 		if (history->unreadBar == item) {
 			history->unreadBar = 0;
 		}
@@ -5616,7 +5725,7 @@ HistoryItem(history, block, msgId, flags, date, from)
 }
 
 void HistoryMessage::initTime() {
-	_timeText = date.toString(cTimeFormat()) + qsl(" (%1)").arg(id);
+	_timeText = date.toString(cTimeFormat());// + qsl(" (%1)").arg(id);
 	_timeWidth = st::msgDateFont->m.width(_timeText);
 
 	_viewsText = (_views >= 0) ? QString::number(_views ? _views : 1) : QString();
@@ -5928,14 +6037,14 @@ void HistoryMessage::draw(Painter &p, uint32 selection) const {
 		fromNameUpdated();
 		_fromVersion = _from->nameVersion;
 	}
-	int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.right()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
+	int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.left()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
 	if (justMedia()) {
 		if (_media->maxWidth() > mwidth) mwidth = _media->maxWidth();
 		if (_media->currentWidth() < mwidth) mwidth = _media->currentWidth();
 	}
 	if (width > mwidth) {
 		if (fromChannel()) {
-			left += (width - mwidth) / 2;
+//			left += (width - mwidth) / 2;
 		} else if (out()) {
 			left += width - mwidth;
 		}
@@ -5951,7 +6060,7 @@ void HistoryMessage::draw(Painter &p, uint32 selection) const {
 
 	if (width >= _maxw) {
 		if (fromChannel()) {
-			left += (width - _maxw) / 2;
+//			left += (width - _maxw) / 2;
 		} else if (out()) {
 			left += width - _maxw;
 		}
@@ -6037,14 +6146,14 @@ int32 HistoryMessage::resize(int32 width) {
 }
 
 bool HistoryMessage::hasPoint(int32 x, int32 y) const {
-	int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.right()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
+	int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.left()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
 	if (justMedia()) {
 		if (_media->maxWidth() > mwidth) mwidth = _media->maxWidth();
 		if (_media->currentWidth() < mwidth) mwidth = _media->currentWidth();
 	}
 	if (width > mwidth) {
 		if (fromChannel()) {
-			left += (width - mwidth) / 2;
+//			left += (width - mwidth) / 2;
 		} else if (out()) {
 			left += width - mwidth;
 		}
@@ -6058,7 +6167,7 @@ bool HistoryMessage::hasPoint(int32 x, int32 y) const {
 
 	if (width >= _maxw) {
 		if (fromChannel()) {
-			left += (width - _maxw) / 2;
+//			left += (width - _maxw) / 2;
 		} else if (out()) {
 			left += width - _maxw;
 		}
@@ -6092,14 +6201,14 @@ void HistoryMessage::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32
 	state = HistoryDefaultCursorState;
 	lnk = TextLinkPtr();
 
-	int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.right()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
+	int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.left()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
 	if (justMedia()) {
 		if (_media->maxWidth() > mwidth) mwidth = _media->maxWidth();
 		if (_media->currentWidth() < mwidth) mwidth = _media->currentWidth();
 	}
 	if (width > mwidth) {
 		if (fromChannel()) {
-			left += (width - mwidth) / 2;
+//			left += (width - mwidth) / 2;
 		} else if (out()) {
 			left += width - mwidth;
 		}
@@ -6118,7 +6227,7 @@ void HistoryMessage::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32
 
 	if (width >= _maxw) {
 		if (fromChannel()) {
-			left += (width - _maxw) / 2;
+//			left += (width - _maxw) / 2;
 		} else if (out()) {
 			left += width - _maxw;
 		}
@@ -6171,10 +6280,10 @@ void HistoryMessage::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x,
 	upon = false;
 	if (justMedia()) return;
 
-	int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.right()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
+	int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.left()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
 	if (width > mwidth) {
 		if (fromChannel()) {
-			left += (width - mwidth) / 2;
+//			left += (width - mwidth) / 2;
 		} else if (out()) {
 			left += width - mwidth;
 		}
@@ -6189,7 +6298,7 @@ void HistoryMessage::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x,
 
 	if (width >= _maxw) {
 		if (fromChannel()) {
-			left += (width - _maxw) / 2;
+//			left += (width - _maxw) / 2;
 		} else if (out()) {
 			left += width - _maxw;
 		}
@@ -6328,10 +6437,10 @@ int32 HistoryForwarded::resize(int32 width) {
 
 bool HistoryForwarded::hasPoint(int32 x, int32 y) const {
 	if (!justMedia()) {
-		int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.right()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
+		int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.left()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
 		if (width > mwidth) {
 			if (fromChannel()) {
-				left += (width - mwidth) / 2;
+//f				left += (width - mwidth) / 2;
 			} else if (out()) {
 				left += width - mwidth;
 			}
@@ -6346,7 +6455,7 @@ bool HistoryForwarded::hasPoint(int32 x, int32 y) const {
 
 		if (width >= _maxw) {
 			if (fromChannel()) {
-				left += (width - _maxw) / 2;
+//				left += (width - _maxw) / 2;
 			} else if (out()) {
 				left += width - _maxw;
 			}
@@ -6363,10 +6472,10 @@ void HistoryForwarded::getState(TextLinkPtr &lnk, HistoryCursorState &state, int
 	state = HistoryDefaultCursorState;
 
 	if (!justMedia()) {
-		int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.right()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
+		int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.left()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
 		if (width > mwidth) {
 			if (fromChannel()) {
-				left += (width - mwidth) / 2;
+//				left += (width - mwidth) / 2;
 			} else if (out()) {
 				left += width - mwidth;
 			}
@@ -6384,7 +6493,7 @@ void HistoryForwarded::getState(TextLinkPtr &lnk, HistoryCursorState &state, int
 
 		if (width >= _maxw) {
 			if (fromChannel()) {
-				left += (width - _maxw) / 2;
+//				left += (width - _maxw) / 2;
 			} else if (out()) {
 				left += width - _maxw;
 			}
@@ -6429,10 +6538,10 @@ void HistoryForwarded::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 
 	upon = false;
 
 	if (!justMedia()) {
-		int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.right()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
+		int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.left()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
 		if (width > mwidth) {
 			if (fromChannel()) {
-				left += (width - mwidth) / 2;
+//				left += (width - mwidth) / 2;
 			} else if (out()) {
 				left += width - mwidth;
 			}
@@ -6447,7 +6556,7 @@ void HistoryForwarded::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 
 
 		if (width >= _maxw) {
 			if (fromChannel()) {
-				left += (width - _maxw) / 2;
+//				left += (width - _maxw) / 2;
 			} else if (out()) {
 				left += width - _maxw;
 			}
@@ -6655,10 +6764,10 @@ int32 HistoryReply::resize(int32 width) {
 
 bool HistoryReply::hasPoint(int32 x, int32 y) const {
 	if (!justMedia()) {
-		int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.right()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
+		int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.left()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
 		if (width > mwidth) {
 			if (fromChannel()) {
-				left += (width - mwidth) / 2;
+//				left += (width - mwidth) / 2;
 			} else if (out()) {
 				left += width - mwidth;
 			}
@@ -6673,7 +6782,7 @@ bool HistoryReply::hasPoint(int32 x, int32 y) const {
 
 		if (width >= _maxw) {
 			if (fromChannel()) {
-				left += (width - _maxw) / 2;
+//				left += (width - _maxw) / 2;
 			} else if (out()) {
 				left += width - _maxw;
 			}
@@ -6690,10 +6799,10 @@ void HistoryReply::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 	state = HistoryDefaultCursorState;
 
 	if (!justMedia()) {
-		int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.right()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
+		int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.left()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
 		if (width > mwidth) {
 			if (fromChannel()) {
-				left += (width - mwidth) / 2;
+//				left += (width - mwidth) / 2;
 			} else if (out()) {
 				left += width - mwidth;
 			}
@@ -6711,7 +6820,7 @@ void HistoryReply::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x
 
 		if (width >= _maxw) {
 			if (fromChannel()) {
-				left += (width - _maxw) / 2;
+//				left += (width - _maxw) / 2;
 			} else if (out()) {
 				left += width - _maxw;
 			}
@@ -6753,10 +6862,10 @@ void HistoryReply::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, i
 	upon = false;
 
 	if (!justMedia()) {
-		int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.right()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
+		int32 left = fromChannel() ? (st::msgMargin.left() + st::msgMargin.left()) / 2 : (out() ? st::msgMargin.right() : st::msgMargin.left()), width = _history->width - st::msgMargin.left() - st::msgMargin.right(), mwidth = st::msgMaxWidth;
 		if (width > mwidth) {
 			if (fromChannel()) {
-				left += (width - mwidth) / 2;
+//				left += (width - mwidth) / 2;
 			} else if (out()) {
 				left += width - mwidth;
 			}
@@ -6771,7 +6880,7 @@ void HistoryReply::getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, i
 
 		if (width >= _maxw) {
 			if (fromChannel()) {
-				left += (width - _maxw) / 2;
+//				left += (width - _maxw) / 2;
 			} else if (out()) {
 				left += width - _maxw;
 			}
@@ -7075,8 +7184,13 @@ HistoryItem *createDayServiceMsg(History *history, HistoryBlock *block, QDateTim
 }
 
 HistoryGroup::HistoryGroup(History *history, HistoryBlock *block, const MTPDmessageGroup &group, const QDateTime &date) :
-HistoryServiceMsg(history, block, clientMsgId(), date, lng_channel_comments_count(lt_count, group.vcount.v) + qsl(" (%1 .. %2)").arg(group.vmin_id.v).arg(group.vmax_id.v)),
+HistoryServiceMsg(history, block, clientMsgId(), date, lng_channel_comments_count(lt_count, group.vcount.v)/* + qsl(" (%1 .. %2)").arg(group.vmin_id.v).arg(group.vmax_id.v)*/),
 _minId(group.vmin_id.v), _maxId(group.vmax_id.v), _count(group.vcount.v), _lnk(new CommentsLink(this)) {
+}
+
+HistoryGroup::HistoryGroup(History *history, HistoryBlock *block, HistoryItem *newItem, const QDateTime &date) :
+HistoryServiceMsg(history, block, clientMsgId(), date, lng_channel_comments_count(lt_count, 1)/* + qsl(" (%1 .. %2)").arg(newItem->id - 1).arg(newItem->id + 1)*/),
+_minId(newItem->id - 1), _maxId(newItem->id + 1), _count(1), _lnk(new CommentsLink(this)) {
 }
 
 void HistoryGroup::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const {
@@ -7100,20 +7214,20 @@ void HistoryGroup::uniteWith(MsgId minId, MsgId maxId, int32 count) {
 	if (minId == _minId && maxId == _maxId && count == _count) return;
 
 	if (minId < _minId) {
-		if (maxId <= _minId) {
+		if (maxId <= _minId + 1) {
 			_count += count;
 		} else if (maxId <= _maxId) { // :( smth not precise
-			_count += qMax(0, count - (maxId - _minId));
+			_count += qMax(0, count - (maxId - _minId - 1));
 		} else { // :( smth not precise
 			_count = qMax(count, _count);
 			_maxId = maxId;
 		}
 		_minId = minId;
 	} else if (maxId > _maxId) {
-		if (minId >= _maxId) {
+		if (minId + 1 >= _maxId) {
 			_count += count;
 		} else if (minId >= _minId) { // :( smth not precise
-			_count += qMax(0, count - (_maxId - minId));
+			_count += qMax(0, count - (_maxId - minId - 1));
 		} else { // :( smth not precise
 			_count = qMax(count, _count);
 			_minId = minId;
@@ -7135,7 +7249,7 @@ bool HistoryGroup::decrementCount() {
 }
 
 void HistoryGroup::updateText() {
-	setText(lng_channel_comments_count(lt_count, _count) + qsl(" (%1 .. %2)").arg(_minId).arg(_maxId));
+	setText(lng_channel_comments_count(lt_count, _count)/* + qsl(" (%1 .. %2)").arg(_minId).arg(_maxId)*/);
 }
 
 HistoryCollapse::HistoryCollapse(History *history, HistoryBlock *block, MsgId wasMinId, const QDateTime &date) :

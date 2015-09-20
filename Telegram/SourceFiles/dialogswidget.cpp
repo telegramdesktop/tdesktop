@@ -782,7 +782,9 @@ void DialogsListWidget::dialogsReceived(const QVector<MTPDialog> &added) {
 				history->asChannelHistory()->unreadCountAll = d.vunread_count.v;
 				history->peer->asChannel()->ptsReceived(d.vpts.v);
 			}
-			if (d.vtop_message.v > d.vtop_important_message.v) history->setNotLoadedAtBottom();
+			if (d.vtop_message.v > d.vtop_important_message.v) {
+				history->setNotLoadedAtBottom();
+			}
 			App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
 		} break;
 		}
@@ -823,7 +825,7 @@ void DialogsListWidget::searchReceived(const QVector<MTPMessage> &messages, bool
 		clearSearchResults(false);
 	}
 	for (QVector<MTPMessage>::const_iterator i = messages.cbegin(), e = messages.cend(); i != e; ++i) {
-		HistoryItem *item = App::histories().addNewMessage(*i, -1);
+		HistoryItem *item = App::histories().addNewMessage(*i, NewMessageExisting);
 		searchResults.push_back(new FakeDialogRow(item));
 		_lastSearchId = item->id;
 	}
@@ -1642,7 +1644,7 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 		const MTPDmessages_dialogs &data(dialogs.c_messages_dialogs());
 		App::feedUsers(data.vusers);
 		App::feedChats(data.vchats);
-		App::feedMsgs(data.vmessages);
+		App::feedMsgs(data.vmessages, NewMessageLast);
 		dlgList = &data.vdialogs.c_vector().v;
 		count = dlgList->size();
 	} break;
@@ -1650,7 +1652,7 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 		const MTPDmessages_dialogsSlice &data(dialogs.c_messages_dialogsSlice());
 		App::feedUsers(data.vusers);
 		App::feedChats(data.vchats);
-		App::feedMsgs(data.vmessages);
+		App::feedMsgs(data.vmessages, NewMessageLast);
 		dlgList = &data.vdialogs.c_vector().v;
 		count = data.vcount.v;
 	} break;

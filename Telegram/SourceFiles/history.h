@@ -34,6 +34,12 @@ extern TextParseOptions _textNameOptions, _textDlgOptions, _historyTextOptions, 
 
 #include "structs.h"
 
+enum NewMessageType {
+	NewMessageUnread,
+	NewMessageLast,
+	NewMessageExisting,
+};
+
 class History;
 class Histories : public Animated {
 public:
@@ -56,7 +62,7 @@ public:
 		unreadFull = unreadMuted = 0;
 	}
 
-	HistoryItem *addNewMessage(const MTPmessage &msg, int msgState = 1); // 2 - new read message, 1 - new unread message, 0 - not new message, -1 - searched message
+	HistoryItem *addNewMessage(const MTPmessage &msg, NewMessageType type);
 	//	HistoryItem *addToBack(const MTPgeoChatMessage &msg, bool newMsg = true);
 
 	typedef QMap<History*, uint64> TypingHistories; // when typing in this history started
@@ -187,12 +193,12 @@ public:
 		clear();
 	}
 
-	HistoryItem *createItem(HistoryBlock *block, const MTPmessage &msg, bool newMsg, bool returnExisting = false);
+	HistoryItem *createItem(HistoryBlock *block, const MTPmessage &msg, bool applyServiceAction, bool returnExisting = false);
 	HistoryItem *createItemForwarded(HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg);
 	HistoryItem *createItemDocument(HistoryBlock *block, MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
 
 	HistoryItem *addNewService(MsgId msgId, QDateTime date, const QString &text, int32 flags = 0, HistoryMedia *media = 0, bool newMsg = true);
-	HistoryItem *addNewMessage(const MTPmessage &msg, bool newMsg = true);
+	HistoryItem *addNewMessage(const MTPmessage &msg, NewMessageType type);
 	HistoryItem *addToHistory(const MTPmessage &msg);
 	HistoryItem *addNewForwarded(MsgId id, QDateTime date, int32 from, HistoryMessage *item);
 	HistoryItem *addNewDocument(MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
@@ -212,8 +218,9 @@ public:
 	MsgId outboxRead(MsgId upTo);
 	MsgId outboxRead(HistoryItem *wasRead);
 
+	HistoryItem *lastImportantMessage() const;
+
 	void setUnreadCount(int32 newUnreadCount, bool psUpdate = true);
-	void setMsgCount(int32 newMsgCount);
 	void setMute(bool newMute);
 	void getNextShowFrom(HistoryBlock *block, int32 i);
 	void addUnreadBar();
@@ -334,16 +341,15 @@ public:
 
 private:
 
-	HistoryItem *addMessageGroupAfterPrevToBlock(const MTPDmessageGroup &group, const QDateTime &date, HistoryItem *prev, HistoryBlock *block);
-	HistoryItem *addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *adding, bool newMsg);
-
-protected:
+	friend class HistoryBlock;
+	friend class ChannelHistory;
 
 	void createInitialDateBlock(const QDateTime &date);
 	HistoryItem *addItemAfterPrevToBlock(HistoryItem *item, HistoryItem *prev, HistoryBlock *block);
 	HistoryItem *addNewInTheMiddle(HistoryItem *newItem, int32 blockIndex, int32 itemIndex);
-
-	friend class HistoryBlock;
+	HistoryItem *addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *adding, bool newMsg);
+	HistoryItem *addMessageGroupAfterPrevToBlock(const MTPDmessageGroup &group, HistoryItem *prev, HistoryBlock *block);
+	HistoryItem *addMessageGroupAfterPrev(HistoryItem *newItem, HistoryItem *prev);
 
 };
 
@@ -372,7 +378,18 @@ public:
 		return _collapse;
 	}
 
+	void clearOther() {
+		_otherNewLoaded = true;
+		_otherOldLoaded = false;
+		_otherList.clear();
+	}
+
 private:
+
+	friend class History;
+	HistoryItem* addNewChannelMessage(const MTPMessage &msg, NewMessageType type);
+	HistoryItem *addNewToBlocks(const MTPMessage &msg, NewMessageType type);
+	void addNewToOther(HistoryItem *item, NewMessageType type);
 
 	HistoryGroup *findGroup(MsgId msgId) const;
 	HistoryBlock *findGroupBlock(MsgId msgId) const;
@@ -383,7 +400,6 @@ private:
 	typedef QList<HistoryItem*> OtherList;
 	OtherList _otherList;
 	bool _otherOldLoaded, _otherNewLoaded;
-	int32 _otherMsgCount;
 
 	HistoryCollapse *_collapse;
 
@@ -740,8 +756,8 @@ enum InfoDisplayType {
 };
 
 inline bool isImportantChannelMessage(int32 flags) {
-	/*(flags & MTPDmessage_flag_out) || (flags & MTPDmessage_flag_notify_by_from) || */
-	return !(flags & MTPDmessage::flag_from_id) && (flags != 0); // always has_from_id || has_views
+	/**/
+	return (flags & MTPDmessage_flag_out) || (flags & MTPDmessage_flag_notify_by_from) || (!(flags & MTPDmessage::flag_from_id) && (flags != 0)); // always has_from_id || has_views
 }
 
 enum HistoryItemType {
@@ -1729,6 +1745,7 @@ class HistoryGroup : public HistoryServiceMsg {
 public:
 
 	HistoryGroup(History *history, HistoryBlock *block, const MTPDmessageGroup &group, const QDateTime &date);
+	HistoryGroup(History *history, HistoryBlock *block, HistoryItem *newItem, const QDateTime &date);
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const {
 		symbol = 0xFFFF;
@@ -1742,7 +1759,10 @@ public:
 		return HistoryItemGroup;
 	}
 	void uniteWith(MsgId minId, MsgId maxId, int32 count);
-	void uniteWith(const HistoryGroup *other) {
+	void uniteWith(HistoryItem *item) {
+		uniteWith(item->id - 1, item->id + 1, 1);
+	}
+	void uniteWith(HistoryGroup *other) {
 		uniteWith(other->_minId, other->_maxId, other->_count);
 	}
 

@@ -586,21 +586,21 @@ void Window::getNotifySetting(const MTPInputNotifyPeer &peer, uint32 msWait) {
 	MTP::send(MTPaccount_GetNotifySettings(peer), main->rpcDone(&MainWidget::gotNotifySetting, peer), main->rpcFail(&MainWidget::failNotifySetting, peer), 0, msWait);
 }
 
-void Window::serviceNotification(const QString &msg, bool unread, const MTPMessageMedia &media, bool force) {
+void Window::serviceNotification(const QString &msg, const MTPMessageMedia &media, bool force) {
 	History *h = (main && App::userLoaded(ServiceUserId)) ? App::history(ServiceUserId) : 0;
 	if (!h || (!force && h->isEmpty())) {
-		_delayedServiceMsgs.push_back(DelayedServiceMsg(qMakePair(msg, media), unread));
+		_delayedServiceMsgs.push_back(DelayedServiceMsg(msg, media));
 		return sendServiceHistoryRequest();
 	}
 
-	main->serviceNotification(msg, media, unread);
+	main->serviceNotification(msg, media);
 }
 
 void Window::showDelayedServiceMsgs() {
 	QVector<DelayedServiceMsg> toAdd = _delayedServiceMsgs;
 	_delayedServiceMsgs.clear();
 	for (QVector<DelayedServiceMsg>::const_iterator i = toAdd.cbegin(), e = toAdd.cend(); i != e; ++i) {
-		serviceNotification(i->first.first, i->second, i->first.second, true);
+		serviceNotification(i->first, i->second, true);
 	}
 }
 

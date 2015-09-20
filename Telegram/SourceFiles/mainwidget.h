@@ -50,7 +50,7 @@ public:
 	void startAnim();
     void stopAnim();
 	void showAll();
-	void showSelected(uint32 selCount);
+	void showSelected(uint32 selCount, bool canDelete = false);
 
 	FlatButton *mediaTypeButton();
 
@@ -79,6 +79,7 @@ private:
 
 	PeerData *_selPeer;
 	uint32 _selCount;
+	bool _canDelete;
 	QString _selStr;
 	int32 _selStrLeft, _selStrWidth;
     
@@ -311,8 +312,8 @@ public:
 	DialogsIndexed &contactsList();
 	DialogsIndexed &dialogsList();
     
-    void sendMessage(History *history, const QString &text, MsgId replyTo);
-	void sendPreparedText(History *hist, const QString &text, MsgId replyTo, WebPageId webPageId = 0);
+    void sendMessage(History *history, const QString &text, MsgId replyTo, bool broadcast);
+	void sendPreparedText(History *hist, const QString &text, MsgId replyTo, bool broadcast, WebPageId webPageId = 0);
 	void saveRecentHashtags(const QString &text);
     
     void readServerHistory(History *history, bool force = true);
@@ -338,7 +339,7 @@ public:
 	void showAddContact();
 	void showNewGroup();
 
-	void serviceNotification(const QString &msg, const MTPMessageMedia &media, bool unread);
+	void serviceNotification(const QString &msg, const MTPMessageMedia &media);
 	void serviceHistoryDone(const MTPmessages_Messages &msgs);
 	bool serviceHistoryFail(const RPCError &error);
 

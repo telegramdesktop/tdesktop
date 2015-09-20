@@ -350,7 +350,7 @@ void OverviewInner::searchReceived(bool fromStart, const MTPmessages_Messages &r
 				_itemsToBeLoaded = LinksOverviewPerPage * 2;
 			}
 			for (QVector<MTPMessage>::const_iterator i = messages->cbegin(), e = messages->cend(); i != e; ++i) {
-				HistoryItem *item = App::histories().addNewMessage(*i, -1);
+				HistoryItem *item = App::histories().addNewMessage(*i, NewMessageExisting);
 				_searchResults.push_front(item->id);
 				_lastSearchId = item->id;
 			}
@@ -1745,6 +1745,9 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	}
 
+	int32 selectedForForward, selectedForDelete;
+	getSelectionState(selectedForForward, selectedForDelete);
+
 	// -2 - has full selected items, but not over, 0 - no selection, 2 - over full selected items
 	int32 isUponSelected = 0, hasSelected = 0;
 	if (!_selected.isEmpty()) {
@@ -1787,7 +1790,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (isUponSelected > 1) {
 			_menu->addAction(lang(lng_context_forward_selected), _overview, SLOT(onForwardSelected()));
-			if (!_peer->isChannel() || _peer->asChannel()->adminned) {
+			if (selectedForDelete == selectedForForward) {
 				_menu->addAction(lang(lng_context_delete_selected), _overview, SLOT(onDeleteSelected()));
 			}
 			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
@@ -1796,11 +1799,11 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (App::hoveredLinkItem()->toHistoryMessage()) {
 					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
 				}
-				if (!_peer->isChannel() || _peer->asChannel()->adminned) {
+				if (!_peer->isChannel() || _peer->asChannel()->adminned || App::hoveredLinkItem()->out()) {
 					_menu->addAction(lang(lng_context_delete_msg), this, SLOT(deleteMessage()))->setEnabled(true);
 				}
 			}
-			if (App::hoveredLinkItem()->id > 0 && (!_peer->isChannel() || _peer->asChannel()->adminned)) {
+			if (App::hoveredLinkItem()->id > 0) {
 				_menu->addAction(lang(lng_context_select_msg), this, SLOT(selectMessage()))->setEnabled(true);
 			}
 		}
@@ -1827,7 +1830,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		_menu->addAction(lang(lng_context_to_msg), this, SLOT(goToMessage()))->setEnabled(true);
 		if (isUponSelected > 1) {
 			_menu->addAction(lang(lng_context_forward_selected), _overview, SLOT(onForwardSelected()));
-			if (!_peer->isChannel() || _peer->asChannel()->adminned) {
+			if (selectedForDelete == selectedForForward) {
 				_menu->addAction(lang(lng_context_delete_selected), _overview, SLOT(onDeleteSelected()));
 			}
 			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
@@ -1836,11 +1839,11 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (App::mousedItem()->toHistoryMessage()) {
 					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
 				}
-				if (!_peer->isChannel() || _peer->asChannel()->adminned) {
+				if (!_peer->isChannel() || _peer->asChannel()->adminned || App::mousedItem()->out()) {
 					_menu->addAction(lang(lng_context_delete_msg), this, SLOT(deleteMessage()))->setEnabled(true);
 				}
 			}
-			if (App::mousedItem()->id > 0 && (!_peer->isChannel() || _peer->asChannel()->adminned)) {
+			if (App::mousedItem()->id > 0) {
 				_menu->addAction(lang(lng_context_select_msg), this, SLOT(selectMessage()))->setEnabled(true);
 			}
 		}
@@ -2097,10 +2100,14 @@ void OverviewInner::getSelectionState(int32 &selectedForForward, int32 &selected
 	selectedForForward = selectedForDelete = 0;
 	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
 		if (i.value() == FullItemSel) {
-			++selectedForDelete;
-			if (i.key() > 0) {
-				++selectedForForward;
+			if (!_peer || !_peer->isChannel() || _peer->asChannel()->adminned) {
+				++selectedForDelete;
+			} else if (HistoryItem *item = App::histItemById(_channel, i.key())) {
+				if (item->out()) {
+					++selectedForDelete;
+				}
 			}
+			++selectedForForward;
 		}
 	}
 	if (!selectedForDelete && !selectedForForward && !_selected.isEmpty()) { // text selection
@@ -2719,10 +2726,10 @@ void OverviewWidget::switchType(MediaOverviewType type) {
 void OverviewWidget::updateTopBarSelection() {
 	int32 selectedForForward, selectedForDelete;
 	_inner.getSelectionState(selectedForForward, selectedForDelete);
-	_selCount = selectedForDelete ? selectedForDelete : selectedForForward;
+	_selCount = selectedForForward ? selectedForForward : selectedForDelete;
 	_inner.setSelectMode(_selCount > 0);
 	if (App::main()) {
-		App::main()->topBar()->showSelected(_selCount > 0 ? _selCount : 0);
+		App::main()->topBar()->showSelected(_selCount > 0 ? _selCount : 0, (selectedForDelete == selectedForForward));
 		App::main()->topBar()->update();
 	}
 	if (App::wnd() && !App::wnd()->layerShown()) {

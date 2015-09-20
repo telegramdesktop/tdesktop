@@ -766,7 +766,7 @@ namespace App {
 		}
 	}
 
-	void feedMsgs(const MTPVector<MTPMessage> &msgs, int msgsState) {
+	void feedMsgs(const MTPVector<MTPMessage> &msgs, NewMessageType type) {
 		const QVector<MTPMessage> &v(msgs.c_vector().v);
 		QMap<uint64, int32> msgsIds;
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
@@ -775,7 +775,7 @@ namespace App {
 			case mtpc_message: {
 				const MTPDmessage &d(msg.c_message());
 				msgsIds.insert((uint64(uint32(d.vid.v)) << 32) | uint64(i), i);
-				if (msgsState == 1) { // new message, index my forwarded messages to links overview
+				if (type == NewMessageUnread) { // new message, index my forwarded messages to links overview
 					checkEntitiesAndViewsUpdate(d);
 				}
 			} break;
@@ -784,7 +784,7 @@ namespace App {
 			}
 		}
 		for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-			histories().addNewMessage(v.at(i.value()), msgsState);
+			histories().addNewMessage(v.at(i.value()), type);
 		}
 	}
 

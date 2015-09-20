@@ -450,8 +450,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_user_registered" = "{from} just joined Telegram";
 "lng_action_removed_photo" = "{from} removed group photo";
 "lng_action_removed_photo_channel" = "Channel photo was removed";
-"lng_action_changed_photo" = "{from} changed group photo";
-"lng_action_changed_photo_channel" = "Channel photo was changed";
+"lng_action_changed_photo" = "{from} updated group photo";
+"lng_action_changed_photo_channel" = "Channel photo was updated";
 "lng_action_changed_title" = "{from} changed group name to «{title}»";
 "lng_action_changed_title_channel" = "Channel name was changed to «{title}»";
 "lng_action_created_chat" = "{from} created group «{title}»";

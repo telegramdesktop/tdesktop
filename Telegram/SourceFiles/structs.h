@@ -86,21 +86,26 @@ inline MTPpeer peerToMTP(const PeerId &id) {
 	}
 	return MTP_peerUser(MTP_int(0));
 }
-inline PeerId peerFromMessage(const MTPmessage &msg, int32 *msgFlags = 0) {
+inline PeerId peerFromMessage(const MTPmessage &msg) {
 	PeerId from_id = 0, to_id = 0;
 	switch (msg.type()) {
 	case mtpc_message:
 		from_id = msg.c_message().has_from_id() ? peerFromUser(msg.c_message().vfrom_id) : 0;
 		to_id = peerFromMTP(msg.c_message().vto_id);
-		if (msgFlags) *msgFlags = msg.c_message().vflags.v;
 		break;
 	case mtpc_messageService:
 		from_id = msg.c_messageService().has_from_id() ? peerFromUser(msg.c_messageService().vfrom_id) : 0;
 		to_id = peerFromMTP(msg.c_messageService().vto_id);
-		if (msgFlags) *msgFlags = msg.c_messageService().vflags.v;
 		break;
 	}
 	return (from_id && peerToUser(to_id) == MTP::authedId()) ? from_id : to_id;
+}
+inline int32 flagsFromMessage(const MTPmessage &msg) {
+	switch (msg.type()) {
+	case mtpc_message: return msg.c_message().vflags.v;
+	case mtpc_messageService: return msg.c_messageService().vflags.v;
+	}
+	return 0;
 }
 
 typedef uint64 PhotoId;
@@ -379,7 +384,14 @@ enum PtsSkippedQueue {
 class PtsWaiter {
 public:
 
-	PtsWaiter() : _good(0), _last(0), _count(0), _applySkippedLevel(0), _requesting(false) {
+	PtsWaiter() :
+		_good(0),
+		_last(0),
+		_count(0),
+		_applySkippedLevel(0),
+		_requesting(false),
+		_waitingForSkipped(false),
+		_waitingForShortPoll(false) {
 	}
 	void init(int32 pts) {
 		_good = _last = _count = pts;
@@ -394,6 +406,14 @@ public:
 	bool requesting() const {
 		return _requesting;
 	}
+	bool waitingForSkipped() const {
+		return _waitingForSkipped;
+	}
+	bool waitingForShortPoll() const {
+		return _waitingForShortPoll;
+	}
+	void setWaitingForSkipped(ChannelData *channel, bool waiting);
+	void setWaitingForShortPoll(ChannelData *channel, bool waiting);
 	int32 current() const{
 		return _good;
 	}
@@ -405,12 +425,13 @@ public:
 
 private:
 	uint64 ptsKey(PtsSkippedQueue queue);
+	void checkForWaiting(ChannelData *channel);
 	QMap<uint64, PtsSkippedQueue> _queue;
 	QMap<uint64, MTPUpdate> _updateQueue;
 	QMap<uint64, MTPUpdates> _updatesQueue;
 	int32 _good, _last, _count;
 	int32 _applySkippedLevel;
-	bool _requesting;
+	bool _requesting, _waitingForSkipped, _waitingForShortPoll;
 };
 
 class ChannelData : public PeerData {
@@ -464,6 +485,9 @@ public:
 	}
 	void ptsClearSkippedUpdates() {
 		return _ptsWaiter.clearSkippedUpdates();
+	}
+	void ptsWaitingForShortPoll(bool waiting) {
+		return _ptsWaiter.setWaitingForShortPoll(this, waiting);
 	}
 
 private:

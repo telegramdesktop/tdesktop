@@ -222,7 +222,7 @@ channel#678e9587 flags:# id:int access_hash:long title:string username:flags.6?s
 channelForbidden#2d85832c id:int access_hash:long title:string = Chat;
 
 chatFull#2e02a614 id:int participants:ChatParticipants chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite bot_info:Vector<BotInfo> = ChatFull;
-channelFull#36949a50 id:int participants:ChannelParticipants about:string read_inbox_max_id:int unread_count:int unread_important_count:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite = ChatFull;
+channelFull#fab31aa3 flags:# id:int about:string participants_count:flags.0?int admins_count:flags.1?int kicked_count:flags.2?int read_inbox_max_id:int unread_count:int unread_important_count:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite = ChatFull;
 
 chatParticipant#c8d7493e user_id:int inviter_id:int date:int = ChatParticipant;
 
@@ -586,8 +586,6 @@ inputChannelEmpty#ee8c1e86 = InputChannel;
 inputChannel#afeb712e channel_id:int access_hash:long = InputChannel;
 
 contacts.resolvedPeer#7f077ad9 peer:Peer chats:Vector<Chat> users:Vector<User> = contacts.ResolvedPeer;
-
-channelParticipants#dee6d213 flags:# channel_id:int participants_count:int self_participant:flags.0?ChannelParticipant participants:flags.1?Vector<ChannelParticipant> = ChannelParticipants;
 
 messageRange#ae30253 min_id:int max_id:int = MessageRange;
 

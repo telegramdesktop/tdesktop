@@ -1623,7 +1623,7 @@ void GroupInfoBox::onNext() {
 	if (_creating == CreatingGroupGroup) {
 		App::wnd()->replaceLayer(new ContactsBox(name, _photoBig));
 	} else {
-		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(0), MTP_string(name), MTP_string(_description.getLastText().trimmed()), MTP_vector<MTPInputUser>(0)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
+		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_int(MTPmessages_CreateChannel_flag_broadcast), MTP_string(name), MTP_string(_description.getLastText().trimmed()), MTP_vector<MTPInputUser>(0)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
 	}
 }
 
@@ -1719,7 +1719,7 @@ SetupChannelBox::SetupChannelBox(ChannelData *channel) : AbstractBox(),
 _channel(channel),
 _public(this, qsl("channel_privacy"), 0, lang(lng_create_public_channel_title), true),
 _private(this, qsl("channel_privacy"), 1, lang(lng_create_private_channel_title)),
-_comments(this, lang(lng_create_channel_comments), true),
+_comments(this, lang(lng_create_channel_comments), false),
 _aboutPublicWidth(width() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::rbDefFlat.textLeft),
 _aboutPublic(st::normalFont, lang(lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth),
 _aboutPrivate(st::normalFont, lang(lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth),
@@ -1736,10 +1736,11 @@ a_goodOpacity(0, 0), a_good(animFunc(this, &SetupChannelBox::goodAnimStep)) {
 	_link.setTextMargin(style::margins(st::newGroupLink.textMrg.left() + st::newGroupLink.font->m.width(_linkPlaceholder), st::newGroupLink.textMrg.top(), st::newGroupLink.textMrg.right(), st::newGroupLink.textMrg.bottom()));
 
 	_aboutPublicHeight = _aboutPublic.countHeight(_aboutPublicWidth);
-	setMaxHeight(st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth) + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top() + _link.height() + st::newGroupLinkPadding.bottom() + _save.height());
+	setMaxHeight(st::newGroupPadding.top() + _public.height() + _aboutPublicHeight + st::newGroupSkip + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth)/* + st::newGroupSkip + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth)*/ + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top() + _link.height() + st::newGroupLinkPadding.bottom() + _save.height());
 
 	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
 	connect(&_skip, SIGNAL(clicked()), this, SLOT(onClose()));
+	_comments.hide();
 
 	connect(&_link, SIGNAL(changed()), this, SLOT(onChange()));
 
@@ -1753,12 +1754,18 @@ a_goodOpacity(0, 0), a_good(animFunc(this, &SetupChannelBox::goodAnimStep)) {
 }
 
 void SetupChannelBox::hideAll() {
+	_public.hide();
+	_private.hide();
+	_comments.hide();
 	_link.hide();
 	_save.hide();
 	_skip.hide();
 }
 
 void SetupChannelBox::showAll() {
+	_public.show();
+	_private.show();
+//	_comments.show();
 	if (_public.checked()) {
 		_link.show();
 	} else {
@@ -1799,8 +1806,8 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 	QRect aboutPrivate = rtlrect(st::newGroupPadding.left() + st::rbDefFlat.textLeft, _private.y() + _private.height(), width() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::rbDefFlat.textLeft, _aboutPublicHeight, width());
 	_aboutPrivate.draw(p, aboutPrivate.x(), aboutPrivate.y(), aboutPrivate.width());
 
-	QRect aboutComments = rtlrect(st::newGroupPadding.left() + st::rbDefFlat.textLeft, _comments.y() + _comments.height(), width() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::rbDefFlat.textLeft, _aboutPublicHeight, width());
-	_aboutComments.draw(p, aboutComments.x(), aboutComments.y(), aboutComments.width());
+//	QRect aboutComments = rtlrect(st::newGroupPadding.left() + st::rbDefFlat.textLeft, _comments.y() + _comments.height(), width() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::rbDefFlat.textLeft, _aboutPublicHeight, width());
+//	_aboutComments.draw(p, aboutComments.x(), aboutComments.y(), aboutComments.width());
 
 	p.setPen(st::black);
 	p.setFont(st::newGroupLinkFont);
@@ -1845,9 +1852,10 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 void SetupChannelBox::resizeEvent(QResizeEvent *e) {
 	_public.moveToLeft(st::newGroupPadding.left(), st::newGroupPadding.top(), width());
 	_private.moveToLeft(st::newGroupPadding.left(), _public.y() + _public.height() + _aboutPublicHeight + st::newGroupSkip, width());
-	_comments.moveToLeft(st::newGroupPadding.left(), _private.y() + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip, width());
+//	_comments.moveToLeft(st::newGroupPadding.left(), _private.y() + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip, width());
 
-	_link.setGeometry(st::newGroupLinkPadding.left(), _comments.y() + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth) + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top(), width() - st::newGroupPadding.left() - st::newGroupPadding.right(), _link.height());
+//	_link.setGeometry(st::newGroupLinkPadding.left(), _comments.y() + _comments.height() + _aboutComments.countHeight(_aboutPublicWidth) + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top(), width() - st::newGroupPadding.left() - st::newGroupPadding.right(), _link.height());
+	_link.setGeometry(st::newGroupLinkPadding.left(), _private.y() + _private.height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top(), width() - st::newGroupPadding.left() - st::newGroupPadding.right(), _link.height());
 	_invitationLink = QRect(_link.x(), _link.y() + (_link.height() / 2) - st::newGroupLinkFont->height, _link.width(), 2 * st::newGroupLinkFont->height);
 
 	int32 buttonTop = _link.y() + _link.height() + st::newGroupLinkPadding.bottom();
@@ -1899,8 +1907,8 @@ void SetupChannelBox::closePressed() {
 
 void SetupChannelBox::onSave() {
 	if (!_public.checked()) {
-		if (!_comments.checked()) {
-			MTP::send(MTPchannels_ToggleComments(_channel->inputChannel, MTP_bool(false)));
+		if (_comments.checked()) {
+			MTP::send(MTPchannels_ToggleComments(_channel->inputChannel, MTP_bool(true)));
 		}
 		onClose();
 	}

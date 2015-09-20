@@ -750,6 +750,10 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		dragActionUpdate(e->globalPos());
 	}
 
+	int32 selectedForForward, selectedForDelete;
+	getSelectionState(selectedForForward, selectedForDelete);
+	bool canSendMessages = historyWidget->canSendMessages(hist->peer);
+
 	// -2 - has full selected items, but not over, -1 - has selection, but no over, 0 - no selection, 1 - over text, 2 - over full selected items
 	int32 isUponSelected = 0, hasSelected = 0;;
 	if (!_selected.isEmpty()) {
@@ -789,7 +793,7 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (isUponSelected > 0) {
 			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
 		}
-		if (item && item->id > 0 && isUponSelected != 2 && isUponSelected != -2 && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
+		if (item && item->id > 0 && isUponSelected != 2 && isUponSelected != -2 && canSendMessages) {
 			_menu->addAction(lang(lng_context_reply_msg), historyWidget, SLOT(onReplyToMessage()));
 		}
 		if (lnkPhoto) {
@@ -809,7 +813,7 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (isUponSelected > 1) {
 			_menu->addAction(lang(lng_context_forward_selected), historyWidget, SLOT(onForwardSelected()));
-			if ((!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
+			if (selectedForDelete == selectedForForward) {
 				_menu->addAction(lang(lng_context_delete_selected), historyWidget, SLOT(onDeleteSelected()));
 			}
 			_menu->addAction(lang(lng_context_clear_selection), historyWidget, SLOT(onClearSelected()));
@@ -822,7 +826,7 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(lang(lng_context_delete_msg), historyWidget, SLOT(deleteMessage()))->setEnabled(true);
 				}
 			}
-			if (App::hoveredLinkItem()->id > 0 && !App::hoveredLinkItem()->serviceMsg() && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
+			if (App::hoveredLinkItem()->id > 0 && !App::hoveredLinkItem()->serviceMsg()) {
 				_menu->addAction(lang(lng_context_select_msg), historyWidget, SLOT(selectMessage()))->setEnabled(true);
 			}
 			App::contextItem(App::hoveredLinkItem());
@@ -837,11 +841,11 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (isUponSelected > 0) {
 			if (!_menu) _menu = new ContextMenu(this);
 			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
-			if (item && item->id > 0 && isUponSelected != 2 && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
+			if (item && item->id > 0 && isUponSelected != 2 && canSendMessages) {
 				_menu->addAction(lang(lng_context_reply_msg), historyWidget, SLOT(onReplyToMessage()));
 			}
 		} else {
-			if (item && item->id > 0 && isUponSelected != -2 && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
+			if (item && item->id > 0 && isUponSelected != -2 && canSendMessages) {
 				if (!_menu) _menu = new ContextMenu(this);
 				_menu->addAction(lang(lng_context_reply_msg), historyWidget, SLOT(onReplyToMessage()));
 			}
@@ -882,7 +886,7 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (isUponSelected > 1) {
 			if (!_menu) _menu = new ContextMenu(this);
 			_menu->addAction(lang(lng_context_forward_selected), historyWidget, SLOT(onForwardSelected()));
-			if ((!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
+			if (selectedForDelete == selectedForForward) {
 				_menu->addAction(lang(lng_context_delete_selected), historyWidget, SLOT(onDeleteSelected()));
 			}
 			_menu->addAction(lang(lng_context_clear_selection), historyWidget, SLOT(onClearSelected()));
@@ -897,11 +901,11 @@ void HistoryList::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(lang((msg && msg->uploading()) ? lng_context_cancel_upload : lng_context_delete_msg), historyWidget, SLOT(deleteMessage()))->setEnabled(true);
 				}
 			}
-			if (item->id > 0 && !item->serviceMsg() && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
+			if (item->id > 0 && !item->serviceMsg()) {
 				_menu->addAction(lang(lng_context_select_msg), historyWidget, SLOT(selectMessage()))->setEnabled(true);
 			}
 		} else {
-			if (App::mousedItem() && !App::mousedItem()->serviceMsg() && App::mousedItem()->id > 0 && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned)) {
+			if (App::mousedItem() && !App::mousedItem()->serviceMsg() && App::mousedItem()->id > 0) {
 				if (!_menu) _menu = new ContextMenu(this);
 				_menu->addAction(lang(lng_context_select_msg), historyWidget, SLOT(selectMessage()))->setEnabled(true);
 				item = App::mousedItem();
@@ -1065,7 +1069,11 @@ void HistoryList::keyPressEvent(QKeyEvent *e) {
 	} else if (e == QKeySequence::Copy && !_selected.isEmpty()) {
 		copySelectedText();
 	} else if (e == QKeySequence::Delete) {
-		historyWidget->onDeleteSelected();
+		int32 selectedForForward, selectedForDelete;
+		getSelectionState(selectedForForward, selectedForDelete);
+		if (!_selected.isEmpty() && selectedForDelete == selectedForForward) {
+			historyWidget->onDeleteSelected();
+		}
 	} else {
 		e->ignore();
 	}
@@ -1304,17 +1312,22 @@ bool HistoryList::canCopySelected() const {
 }
 
 bool HistoryList::canDeleteSelected() const {
-	return !_selected.isEmpty() && (_selected.cbegin().value() == FullItemSel) && (!hist->peer->isChannel() || hist->peer->asChannel()->adminned);
+	if (_selected.isEmpty() || _selected.cbegin().value() != FullItemSel) return false;
+	int32 selectedForForward, selectedForDelete;
+	getSelectionState(selectedForForward, selectedForDelete);
+	return (selectedForForward == selectedForDelete);
 }
 
 void HistoryList::getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const {
 	selectedForForward = selectedForDelete = 0;
 	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
 		if (i.key()->type() == HistoryItemMsg && i.value() == FullItemSel) {
-			++selectedForDelete;
-			if (!i.key()->serviceMsg() && i.key()->id > 0) {
-				++selectedForForward;
+			if (!hist || !hist->peer || !hist->peer->isChannel() || hist->peer->asChannel()->adminned) {
+				++selectedForDelete;
+			} else if (i.key()->out()) {
+				++selectedForDelete;
 			}
+			++selectedForForward;
 		}
 	}
 	if (!selectedForDelete && !selectedForForward && !_selected.isEmpty()) { // text selection
@@ -2316,6 +2329,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _kbShow(this, st::btnBotKbShow)
 , _kbHide(this, st::btnBotKbHide)
 , _cmdStart(this, st::btnBotCmdStart)
+, _broadcast(this, QString(), true, st::broadcastToggle)
 , _cmdStartShown(false)
 , _field(this, st::taMsgField, lang(lng_message_ph))
 , _recordAnim(animFunc(this, &HistoryWidget::recordStep))
@@ -2422,7 +2436,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_field.setCtrlEnterSubmit(cCtrlEnter());
 
 	_field.hide();
-	_field.resize(width() - _send.width() - _attachDocument.width() - _attachEmoji.width(), _send.height() - 2 * st::sendPadding);
 	_send.hide();
 	_unblock.hide();
 	_botStart.hide();
@@ -2435,6 +2448,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_attachEmoji.hide();
 	_kbShow.hide();
 	_kbHide.hide();
+	_broadcast.hide();
 	_cmdStart.hide();
 
 	_attachDocument.installEventFilter(&_attachType);
@@ -2992,8 +3006,8 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 		if (_replyToId) {
 			updateReplyTo();
 			if (!_replyTo) App::api()->requestReplyTo(0, _peer->asChannel(), _replyToId);
-			resizeEvent(0);
 		}
+		resizeEvent(0);
 		if (!_previewCancelled) {
 			onPreviewParse();
 		}
@@ -3114,6 +3128,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_attachDocument.hide();
 		_attachPhoto.hide();
 		_attachEmoji.hide();
+		_broadcast.hide();
 		_toHistoryEnd.hide();
 		_collapseComments.hide();
 		_kbShow.hide();
@@ -3152,6 +3167,7 @@ void HistoryWidget::updateControlsVisibility() {
 			_cmdStart.hide();
 			_attachDocument.hide();
 			_attachPhoto.hide();
+			_broadcast.hide();
 			_kbScroll.hide();
 			_replyForwardPreviewCancel.hide();
 		} else if (isBotStart()) {
@@ -3169,6 +3185,7 @@ void HistoryWidget::updateControlsVisibility() {
 			_cmdStart.hide();
 			_attachDocument.hide();
 			_attachPhoto.hide();
+			_broadcast.hide();
 			_kbScroll.hide();
 			_replyForwardPreviewCancel.hide();
 		} else {
@@ -3193,6 +3210,7 @@ void HistoryWidget::updateControlsVisibility() {
 				_cmdStart.hide();
 				_attachDocument.hide();
 				_attachPhoto.hide();
+				_broadcast.hide();
 				if (_kbShown) {
 					_kbScroll.show();
 				} else {
@@ -3235,6 +3253,11 @@ void HistoryWidget::updateControlsVisibility() {
 					_attachDocument.show();
 					_attachPhoto.hide();
 				}
+				if (hasBroadcastToggle()) {
+					_broadcast.show();
+				} else {
+					_broadcast.hide();
+				}
 			}
 			if (_replyToId || readyToForward() || (_previewData && _previewData->pendingTill >= 0) || _kbReplyTo) {
 				if (_replyForwardPreviewCancel.isHidden()) {
@@ -3253,6 +3276,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_botStart.hide();
 		_attachDocument.hide();
 		_attachPhoto.hide();
+		_broadcast.hide();
 		_kbScroll.hide();
 		_replyForwardPreviewCancel.hide();
 		_attachDocument.hide();
@@ -3561,6 +3585,11 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 	} else if (_delayedShowAtMsgId > 0) {
 		offset = -loadCount / 2;
 		from = _delayedShowAtMsgId;
+		if (HistoryItem *item = App::histItemById(_channel, _delayedShowAtMsgId)) {
+			if (!item->isImportant()) {
+				loadImportant = false;
+			}
+		}
 	} else if (_delayedShowAtMsgId < 0 && _history->isChannel()) {
 		if (_delayedShowAtMsgId == SwitchAtTopMsgId) {
 			loadImportant = true;
@@ -3635,7 +3664,19 @@ void HistoryWidget::onHistoryToEnd() {
 }
 
 void HistoryWidget::onCollapseComments() {
-	showPeerHistory(_peer->id, SwitchAtTopMsgId);
+	MsgId switchAt = SwitchAtTopMsgId;
+	bool collapseCommentsVisible = !_showAnim.animating() && _history && !_firstLoadRequest && _history->isChannel() && !_history->asChannelHistory()->onlyImportant();
+	if (collapseCommentsVisible) {
+		if (HistoryItem *collapse = _history->asChannelHistory()->collapse()) {
+			if (!collapse->detached()) {
+				int32 collapseY = (_list->height() - _history->height - st::historyPadding) + collapse->y + collapse->block()->y - _scroll.scrollTop();
+				if (collapseY >= 0 && collapseY < _scroll.height()) {
+					switchAt = collapse->id;
+				}
+			}
+		}
+	}
+	showPeerHistory(_peer->id, switchAt);
 }
 
 void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
@@ -3648,7 +3689,7 @@ void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
 		fastShowAtEnd(_history);
 
 		WebPageId webPageId = _previewCancelled ? 0xFFFFFFFFFFFFFFFFULL : ((_previewData && _previewData->pendingTill >= 0) ? _previewData->id : 0);
-		App::main()->sendPreparedText(_history, text, replyTo, webPageId);
+		App::main()->sendPreparedText(_history, text, replyTo, _broadcast.checked(), webPageId);
 
 		setFieldText(QString());
 		_saveDraftText = true;
@@ -3756,14 +3797,14 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 		sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 	}
 
-	bool fromChannelName = p->isChannel();
+	bool fromChannelName = p->isChannel() && p->asChannel()->adminned && _broadcast.checked();
 	if (fromChannelName) {
 		sendFlags |= MTPmessages_SendMessage_flag_broadcast;
 		flags |= MTPDmessage::flag_views;
 	} else {
 		flags |= MTPDmessage::flag_from_id;
 	}
-	h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(peer), MTPPeer(), MTPint(), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup, MTPnullEntities, MTP_int(1)));
+	h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(peer), MTPPeer(), MTPint(), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
 	h->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_int(sendFlags), p->input, MTP_int(replyTo), MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, h->sendRequestId);
 
 	App::historyRegRandom(randomId, newId);
@@ -3811,6 +3852,7 @@ void HistoryWidget::animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTo
 	_attachPhoto.hide();
 	_attachEmoji.hide();
 	_attachMention.hide();
+	_broadcast.hide();
 	_kbShow.hide();
 	_kbHide.hide();
 	_cmdStart.hide();
@@ -4072,7 +4114,7 @@ void HistoryWidget::sendBotCommand(const QString &cmd, MsgId replyTo) { // reply
 		toSend += '@' + username;
 	}
 
-	App::main()->sendPreparedText(_history, toSend, replyTo ? ((!_peer->isUser()/* && (botStatus == 0 || botStatus == 2)*/) ? replyTo : -1) : 0);
+	App::main()->sendPreparedText(_history, toSend, false, replyTo ? ((!_peer->isUser()/* && (botStatus == 0 || botStatus == 2)*/) ? replyTo : -1) : 0);
 	if (replyTo) {
 		cancelReply();
 		if (_keyboard.singleUse() && _keyboard.hasMarkup() && lastKeyboardUsed) {
@@ -4189,7 +4231,7 @@ void HistoryWidget::updateDragAreas() {
 	resizeEvent(0);
 }
 
-bool HistoryWidget::canSendMessages(PeerData *peer) {
+bool HistoryWidget::canSendMessages(PeerData *peer) const {
 	if (peer) {
 		if (peer->isUser()) {
 			return peer->asUser()->access != UserNoAccess;
@@ -4202,8 +4244,12 @@ bool HistoryWidget::canSendMessages(PeerData *peer) {
 	return false;
 }
 
-bool HistoryWidget::readyToForward() {
+bool HistoryWidget::readyToForward() const {
 	return _canSendMessages && App::main()->hasForwardingItems();
+}
+
+bool HistoryWidget::hasBroadcastToggle() const {
+	return _history && _history->peer->isChannel() && _history->peer->asChannel()->adminned && !_history->peer->asChannel()->isBroadcast;
 }
 
 bool HistoryWidget::isBotStart() const {
@@ -4503,7 +4549,8 @@ void HistoryWidget::onFieldResize() {
 	_botStart.setGeometry(0, _attachDocument.y(), width(), _botStart.height());
 	_unblock.setGeometry(0, _attachDocument.y(), width(), _unblock.height());
 	_send.move(width() - _send.width(), _attachDocument.y());
-	_attachEmoji.move(_send.x() - _attachEmoji.width(), height() - kbh - _attachEmoji.height());
+	_broadcast.move(_send.x() - _broadcast.width(), height() - kbh - _broadcast.height());
+	_attachEmoji.move((hasBroadcastToggle() ? _broadcast.x() : _send.x()) - _attachEmoji.width(), height() - kbh - _attachEmoji.height());
 	_kbShow.move(_attachEmoji.x() - _kbShow.width(), height() - kbh - _kbShow.height());
 	_kbHide.move(_attachEmoji.x(), _attachEmoji.y());
 	_cmdStart.move(_attachEmoji.x() - _cmdStart.width(), height() - kbh - _cmdStart.height());
@@ -4674,19 +4721,19 @@ void HistoryWidget::confirmSendImage(const ReadyLocalMedia &img) {
 
 	int32 flags = newMessageFlags(h->peer) | MTPDmessage::flag_media; // unread, out
 	if (img.replyTo) flags |= MTPDmessage::flag_reply_to_msg_id;
-	bool fromChannelName = h->peer->isChannel();
+	bool fromChannelName = h->peer->isChannel() && h->peer->asChannel()->adminned && _broadcast.checked();
 	if (fromChannelName) {
 		flags |= MTPDmessage::flag_views;
 	} else {
 		flags |= MTPDmessage::flag_from_id;
 	}
 	if (img.type == ToPreparePhoto) {
-		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPPeer(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(img.photo, MTP_string("")), MTPnullMarkup, MTPnullEntities, MTP_int(1)));
+		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPPeer(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(img.photo, MTP_string("")), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
 	} else if (img.type == ToPrepareDocument) {
-		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPPeer(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(img.document), MTPnullMarkup, MTPnullEntities, MTP_int(1)));
+		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPPeer(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(img.document), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
 	} else if (img.type == ToPrepareAudio) {
 		flags |= MTPDmessage_flag_media_unread;
-		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPPeer(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaAudio(img.audio), MTPnullMarkup, MTPnullEntities, MTP_int(1)));
+		h->addNewMessage(MTP_message(MTP_int(flags), MTP_int(newId.msg), MTP_int(fromChannelName ? 0 : MTP::authedId()), peerToMTP(img.peer), MTPPeer(), MTPint(), MTP_int(img.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaAudio(img.audio), MTPnullMarkup, MTPnullEntities, MTP_int(1)), NewMessageUnread);
 	}
 
 	if (_peer && img.peer == _peer->id) {
@@ -4716,7 +4763,7 @@ void HistoryWidget::onPhotoUploaded(const FullMsgId &newId, const MTPInputFile &
 			sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 		}
 
-		bool fromChannelName = hist->peer->isChannel();
+		bool fromChannelName = hist->peer->isChannel() && hist->peer->asChannel()->adminned && item->fromChannel();
 		if (fromChannelName) {
 			sendFlags |= MTPmessages_SendMessage_flag_broadcast;
 		}
@@ -4761,7 +4808,7 @@ void HistoryWidget::onDocumentUploaded(const FullMsgId &newId, const MTPInputFil
 				sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 			}
 
-			bool fromChannelName = hist->peer->isChannel();
+			bool fromChannelName = hist->peer->isChannel() && hist->peer->asChannel()->adminned && item->fromChannel();
 			if (fromChannelName) {
 				sendFlags |= MTPmessages_SendMessage_flag_broadcast;
 			}
@@ -4790,7 +4837,7 @@ void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, const MTPInp
 				sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 			}
 
-			bool fromChannelName = hist->peer->isChannel();
+			bool fromChannelName = hist->peer->isChannel() && hist->peer->asChannel()->adminned && item->fromChannel();
 			if (fromChannelName) {
 				sendFlags |= MTPmessages_SendMessage_flag_broadcast;
 			}
@@ -4817,7 +4864,7 @@ void HistoryWidget::onAudioUploaded(const FullMsgId &newId, const MTPInputFile &
 				sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 			}
 
-			bool fromChannelName = hist->peer->isChannel();
+			bool fromChannelName = hist->peer->isChannel() && hist->peer->asChannel()->adminned && item->fromChannel();
 			if (fromChannelName) {
 				sendFlags |= MTPmessages_SendMessage_flag_broadcast;
 			}
@@ -4988,7 +5035,7 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	updateListSize(App::main() ? App::main()->contentScrollAddToY() : 0);
 
 	bool kbShowShown = _history && !_kbShown && _keyboard.hasMarkup();
-	_field.resize(width() - _send.width() - _attachDocument.width() - _attachEmoji.width() - (kbShowShown ? _kbShow.width() : 0) - (_cmdStartShown ? _cmdStart.width() : 0), _field.height());
+	_field.resize(width() - _send.width() - _attachDocument.width() - _attachEmoji.width() - (kbShowShown ? _kbShow.width() : 0) - (_cmdStartShown ? _cmdStart.width() : 0) - (hasBroadcastToggle() ? _broadcast.width() : 0), _field.height());
 
 	_toHistoryEnd.move((width() - _toHistoryEnd.width()) / 2, _scroll.y() + _scroll.height() - _toHistoryEnd.height() - st::historyToEndSkip);
 	updateCollapseCommentsVisibility();
@@ -4996,7 +5043,8 @@ void HistoryWidget::resizeEvent(QResizeEvent *e) {
 	_send.move(width() - _send.width(), _attachDocument.y());
 	_botStart.setGeometry(0, _attachDocument.y(), width(), _botStart.height());
 	_unblock.setGeometry(0, _attachDocument.y(), width(), _unblock.height());
-	_attachEmoji.move(_send.x() - _attachEmoji.width(), height() - kbh - _attachEmoji.height());
+	_broadcast.move(_send.x() - _broadcast.width(), height() - kbh - _broadcast.height());
+	_attachEmoji.move((hasBroadcastToggle() ? _broadcast.x() : _send.x()) - _attachEmoji.width(), height() - kbh - _attachEmoji.height());
 	_kbShow.move(_attachEmoji.x() - _kbShow.width(), height() - kbh - _kbShow.height());
 	_kbHide.move(_attachEmoji.x(), _attachEmoji.y());
 	_cmdStart.move(_attachEmoji.x() - _cmdStart.width(), height() - kbh - _cmdStart.height());
@@ -5295,11 +5343,13 @@ void HistoryWidget::updateCollapseCommentsVisibility() {
 	bool collapseCommentsVisible = !_showAnim.animating() && _history && !_firstLoadRequest && _history->isChannel() && !_history->asChannelHistory()->onlyImportant();
 	if (collapseCommentsVisible) {
 		if (HistoryItem *collapse = _history->asChannelHistory()->collapse()) {
-			int32 collapseY = (_list->height() - _history->height - st::historyPadding) + collapse->y + collapse->block()->y - _scroll.scrollTop();
-			if (collapseY > _scroll.height()) {
-				collapseCommentsTop += qMin(collapseY - _scroll.height() - collapse->height(), 0);
-			} else {
-				collapseCommentsTop += qMax(collapseY, 0);
+			if (!collapse->detached()) {
+				int32 collapseY = (_list->height() - _history->height - st::historyPadding) + collapse->y + collapse->block()->y - _scroll.scrollTop();
+				if (collapseY > _scroll.height()) {
+					collapseCommentsTop += qMin(collapseY - _scroll.height() - collapse->height(), 0);
+				} else {
+					collapseCommentsTop += qMax(collapseY, 0);
+				}
 			}
 		}
 	}
@@ -5419,7 +5469,7 @@ void HistoryWidget::onStickerSend(DocumentData *sticker) {
 		flags |= MTPDmessage::flag_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendMedia::flag_reply_to_msg_id;
 	}
-	bool fromChannelName = _history->peer->isChannel();
+	bool fromChannelName = _history->peer->isChannel() && _history->peer->asChannel()->adminned && _broadcast.checked();
 	if (fromChannelName) {
 		sendFlags |= MTPmessages_SendMessage_flag_broadcast;
 	} else {
@@ -5462,7 +5512,7 @@ void HistoryWidget::setFieldText(const QString &text) {
 
 void HistoryWidget::onReplyToMessage() {
 	HistoryItem *to = App::contextItem();
-	if (!to || to->id <= 0 || (_peer->isChannel() && !_peer->asChannel()->adminned)) return;
+	if (!to || to->id <= 0 || !_canSendMessages) return;
 
 	App::main()->cancelForwarding();
 
@@ -5723,7 +5773,7 @@ void HistoryWidget::onForwardSelected() {
 }
 
 void HistoryWidget::onDeleteSelected() {
-	if (!_list || (peer()->isChannel() && !peer()->asChannel()->adminned)) return;
+	if (!_list) return;
 
 	SelectedItemSet sel;
 	_list->fillSelectedItems(sel);
@@ -5830,8 +5880,8 @@ void HistoryWidget::updateTopBarSelection() {
 
 	int32 selectedForForward, selectedForDelete;
 	_list->getSelectionState(selectedForForward, selectedForDelete);
-	_selCount = selectedForDelete ? selectedForDelete : selectedForForward;
-	App::main()->topBar()->showSelected(_selCount > 0 ? _selCount : 0);
+	_selCount = selectedForForward ? selectedForForward : selectedForDelete;
+	App::main()->topBar()->showSelected(_selCount > 0 ? _selCount : 0, (selectedForDelete == selectedForForward));
 	updateControlsVisibility();
 	updateListSize();
 	if (!App::wnd()->layerShown() && !App::passcoded()) {

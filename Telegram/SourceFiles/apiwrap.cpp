@@ -153,14 +153,14 @@ void ApiWrap::gotReplyTo(ChannelData *channel, const MTPmessages_Messages &msgs,
 		const MTPDmessages_messages &d(msgs.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		App::feedMsgs(d.vmessages, -1);
+		App::feedMsgs(d.vmessages, NewMessageExisting);
 	} break;
 
 	case mtpc_messages_messagesSlice: {
 		const MTPDmessages_messagesSlice &d(msgs.c_messages_messagesSlice());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		App::feedMsgs(d.vmessages, -1);
+		App::feedMsgs(d.vmessages, NewMessageExisting);
 	} break;
 
 	case mtpc_messages_channelMessages: {
@@ -176,7 +176,7 @@ void ApiWrap::gotReplyTo(ChannelData *channel, const MTPmessages_Messages &msgs,
 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		App::feedMsgs(d.vmessages, -1);
+		App::feedMsgs(d.vmessages, NewMessageExisting);
 	} break;
 	}
 	ReplyToRequests *requests(replyToRequests(channel, true));
@@ -647,7 +647,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 
 	MainWidget *m = App::main();
 	for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-		HistoryItem *item = App::histories().addNewMessage(v->at(i.value()), -1);
+		HistoryItem *item = App::histories().addNewMessage(v->at(i.value()), NewMessageExisting);
 		if (item) {
 			item->initDimensions();
 			if (m) m->itemResized(item);

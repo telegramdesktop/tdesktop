@@ -531,6 +531,7 @@ public:
 	void ctrlEnterSubmitUpdated();
 
 	void setInnerFocus();
+	bool canSendMessages(PeerData *peer) const;
 
 	~HistoryWidget();
 
@@ -690,8 +691,8 @@ private:
 
 	void updateDragAreas();
 
-	bool canSendMessages(PeerData *peer);
-	bool readyToForward();
+	bool readyToForward() const;
+	bool hasBroadcastToggle() const;
 
 	PeerData *_peer, *_clearPeer; // cache _peer in _clearPeer when showing clear history box
 	ChannelId _channel;
@@ -725,6 +726,7 @@ private:
 	FlatButton _send, _unblock, _botStart;
 	mtpRequestId _unblockRequest, _reportSpamRequest;
 	IconedButton _attachDocument, _attachPhoto, _attachEmoji, _kbShow, _kbHide, _cmdStart;
+	FlatCheckbox _broadcast;
 	bool _cmdStartShown;
 	MessageField _field;
 	Animation _recordAnim, _recordingAnim;

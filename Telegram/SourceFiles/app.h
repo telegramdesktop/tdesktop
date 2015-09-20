@@ -103,7 +103,7 @@ namespace App {
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated = true);
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated = true);
 	void checkEntitiesAndViewsUpdate(const MTPDmessage &m);
-	void feedMsgs(const MTPVector<MTPMessage> &msgs, int msgsState = 0); // 2 - new read message, 1 - new unread message, 0 - not new message, -1 - searched message
+	void feedMsgs(const MTPVector<MTPMessage> &msgs, NewMessageType type);
 	void feedInboxRead(const PeerId &peer, MsgId upTo);
 	void feedOutboxRead(const PeerId &peer, MsgId upTo);
 	void feedWereDeleted(ChannelId channelId, const QVector<MTPint> &msgsIds);

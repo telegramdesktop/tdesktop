@@ -1088,8 +1088,28 @@ btnBotKbHide: iconedButton(btnAttachEmoji) {
 	downIcon: sprite(373px, 95px, 23px, 14px);
 	downIconPos: point(5px, 17px);
 }
-broadcastToggle: sprite(40px, 104px, 22px, 21px);
-broadcastToggleOn: sprite(40px, 125px, 22px, 21px);
+broadcastToggle: flatCheckbox {
+	textColor: black;
+	bgColor: white;
+	disColor: black;
+
+	width: 36px;
+	height: 46px;
+	duration: 200;
+	bgFunc: transition(easeOutCirc);
+	cursor: cursor(pointer);
+
+	font: normalFont;
+
+	imageRect: sprite(18px, 125px, 22px, 21px);
+	chkImageRect: sprite(40px, 125px, 22px, 21px);
+	overImageRect: sprite(40px, 104px, 22px, 21px);
+	chkOverImageRect: sprite(40px, 125px, 22px, 21px);
+	disImageRect: sprite(18px, 125px, 22px, 21px);
+	chkDisImageRect: sprite(18px, 125px, 22px, 21px);
+
+	imagePos: point(7px, 12px);
+}
 btnRecordAudio: sprite(379px, 390px, 16px, 24px);
 btnRecordAudioActive: sprite(379px, 366px, 16px, 24px);
 recordSignalColor: #f17077;

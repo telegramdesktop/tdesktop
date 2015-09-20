@@ -151,7 +151,7 @@ public:
 	void setupIntro(bool anim);
 	void setupMain(bool anim, const MTPUser *user = 0);
 	void getNotifySetting(const MTPInputNotifyPeer &peer, uint32 msWait = 0);
-	void serviceNotification(const QString &msg, bool unread = true, const MTPMessageMedia &media = MTP_messageMediaEmpty(), bool force = false);
+	void serviceNotification(const QString &msg, const MTPMessageMedia &media = MTP_messageMediaEmpty(), bool force = false);
 	void sendServiceHistoryRequest();
 	void showDelayedServiceMsgs();
 
@@ -288,7 +288,7 @@ private:
 
 	QWidget *centralwidget;
 
-	typedef QPair<QPair<QString, MTPMessageMedia>, bool> DelayedServiceMsg;
+	typedef QPair<QString, MTPMessageMedia> DelayedServiceMsg;
 	QVector<DelayedServiceMsg> _delayedServiceMsgs;
 	mtpRequestId _serviceHistoryRequest;
 

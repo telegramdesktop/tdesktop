@@ -382,11 +382,27 @@ uint64 PtsWaiter::ptsKey(PtsSkippedQueue queue) {
 	return _queue.insert(uint64(uint32(_last)) << 32 | uint64(uint32(_count)), queue).key();
 }
 
-void PtsWaiter::applySkippedUpdates(ChannelData *channel) {
-	if (!App::main()) return;
-	App::main()->ptsWaiterStartTimerFor(channel, -1);
+void PtsWaiter::setWaitingForSkipped(ChannelData *channel, bool waiting) {
+	_waitingForSkipped = waiting;
+	checkForWaiting(channel);
+}
 
-	if (_queue.isEmpty()) return;
+void PtsWaiter::setWaitingForShortPoll(ChannelData *channel, bool waiting) {
+	_waitingForShortPoll = waiting;
+	checkForWaiting(channel);
+}
+
+void PtsWaiter::checkForWaiting(ChannelData *channel) {
+	if (!_waitingForSkipped && !_waitingForShortPoll && App::main()) {
+		App::main()->ptsWaiterStartTimerFor(channel, -1);
+	}
+}
+
+void PtsWaiter::applySkippedUpdates(ChannelData *channel) {
+	setWaitingForSkipped(channel, false);
+
+	if (!App::main() || _queue.isEmpty()) return;
+
 	++_applySkippedLevel;
 	for (QMap<uint64, PtsSkippedQueue>::const_iterator i = _queue.cbegin(), e = _queue.cend(); i != e; ++i) {
 		switch (i.value()) {
