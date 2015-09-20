@@ -382,14 +382,28 @@ uint64 PtsWaiter::ptsKey(PtsSkippedQueue queue) {
 	return _queue.insert(uint64(uint32(_last)) << 32 | uint64(uint32(_count)), queue).key();
 }
 
-void PtsWaiter::setWaitingForSkipped(ChannelData *channel, bool waiting) {
-	_waitingForSkipped = waiting;
-	checkForWaiting(channel);
+void PtsWaiter::setWaitingForSkipped(ChannelData *channel, int32 ms) {
+	if (ms >= 0) {
+		if (App::main()) {
+			App::main()->ptsWaiterStartTimerFor(channel, ms);
+		}
+		_waitingForSkipped = true;
+	} else {
+		_waitingForSkipped = false;
+		checkForWaiting(channel);
+	}
 }
 
-void PtsWaiter::setWaitingForShortPoll(ChannelData *channel, bool waiting) {
-	_waitingForShortPoll = waiting;
-	checkForWaiting(channel);
+void PtsWaiter::setWaitingForShortPoll(ChannelData *channel, int32 ms) {
+	if (ms >= 0) {
+		if (App::main()) {
+			App::main()->ptsWaiterStartTimerFor(channel, ms);
+		}
+		_waitingForShortPoll = true;
+	} else {
+		_waitingForShortPoll = false;
+		checkForWaiting(channel);
+	}
 }
 
 void PtsWaiter::checkForWaiting(ChannelData *channel) {
@@ -399,7 +413,9 @@ void PtsWaiter::checkForWaiting(ChannelData *channel) {
 }
 
 void PtsWaiter::applySkippedUpdates(ChannelData *channel) {
-	setWaitingForSkipped(channel, false);
+	if (!_waitingForSkipped) return;
+
+	setWaitingForSkipped(channel, -1);
 
 	if (!App::main() || _queue.isEmpty()) return;
 
@@ -412,7 +428,6 @@ void PtsWaiter::applySkippedUpdates(ChannelData *channel) {
 	}
 	--_applySkippedLevel;
 	clearSkippedUpdates();
-	App::emitPeerUpdated();
 }
 
 void PtsWaiter::clearSkippedUpdates() {
@@ -432,13 +447,12 @@ bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count) { // retur
 	_last = qMax(_last, pts);
 	_count += count;
 	if (_last == _count) {
-		applySkippedUpdates(channel);
 		_good = _last;
 		return true;
 	} else if (_last < _count) {
-		if (App::main()) App::main()->ptsWaiterStartTimerFor(channel, 1);
+		setWaitingForSkipped(channel, 1);
 	} else {
-		if (App::main()) App::main()->ptsWaiterStartTimerFor(channel, WaitForSkippedTimeout);
+		setWaitingForSkipped(channel, WaitForSkippedTimeout);
 	}
 	return !count;
 }

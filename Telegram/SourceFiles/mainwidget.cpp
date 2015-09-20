@@ -786,7 +786,10 @@ void MainWidget::deleteHistoryAfterLeave(PeerData *peer, const MTPUpdates &updat
 
 void MainWidget::deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result) {
 	const MTPDmessages_affectedHistory &d(result.c_messages_affectedHistory());
-	ptsUpdated(d.vpts.v, d.vpts_count.v);
+	if (ptsUpdated(d.vpts.v, d.vpts_count.v)) {
+		ptsApplySkippedUpdates();
+		App::emitPeerUpdated();
+	}
 
 	int32 offset = d.voffset.v;
 	if (!MTP::authedId()) return;
@@ -1579,8 +1582,11 @@ void MainWidget::channelWasRead(PeerData *peer, const MTPBool &result) {
 
 void MainWidget::partWasRead(PeerData *peer, const MTPmessages_AffectedHistory &result) {
 	const MTPDmessages_affectedHistory &d(result.c_messages_affectedHistory());
-	ptsUpdated(d.vpts.v, d.vpts_count.v);
-    
+	if (ptsUpdated(d.vpts.v, d.vpts_count.v)) {
+		ptsApplySkippedUpdates();
+		App::emitPeerUpdated();
+	}
+
 	int32 offset = d.voffset.v;
 	if (!MTP::authedId() || offset <= 0) {
 		readRequestDone(peer);
@@ -1608,9 +1614,15 @@ void MainWidget::readRequestDone(PeerData *peer) {
 void MainWidget::messagesAffected(PeerData *peer, const MTPmessages_AffectedMessages &result) {
 	const MTPDmessages_affectedMessages &d(result.c_messages_affectedMessages());
 	if (peer && peer->isChannel()) {
-		peer->asChannel()->ptsUpdated(d.vpts.v, d.vpts_count.v);
+		if (peer->asChannel()->ptsUpdated(d.vpts.v, d.vpts_count.v)) {
+			peer->asChannel()->ptsApplySkippedUpdates();
+			App::emitPeerUpdated();
+		}
 	} else {
-		ptsUpdated(d.vpts.v, d.vpts_count.v);
+		if (ptsUpdated(d.vpts.v, d.vpts_count.v)) {
+			ptsApplySkippedUpdates();
+			App::emitPeerUpdated();
+		}
 	}
 	if (History *h = App::historyLoaded(peer->id)) {
 		if (!h->lastMsg) {
@@ -2263,8 +2275,7 @@ void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) 
 			_topBar.hide();
 			resizeEvent(0);
 		} else if (wasActivePeer != activePeer() && activePeer()->isChannel()) {
-			activePeer()->asChannel()->ptsWaitingForShortPoll(true);
-			ptsWaiterStartTimerFor(history.peer()->asChannel(), WaitForChannelGetDifference);
+			activePeer()->asChannel()->ptsWaitingForShortPoll(WaitForChannelGetDifference);
 		}
 		if (!cWideMode() && !dialogs.isHidden()) dialogs.hide();
 		if (!animating()) {
@@ -2277,7 +2288,7 @@ void MainWidget::showPeerHistory(quint64 peerId, qint32 showAtMsgId, bool back) 
 		}
 	}
 	//if (wasActivePeer && wasActivePeer->isChannel() && activePeer() != wasActivePeer) {
-	//	wasActivePeer->asChannel()->ptsStopShortPoll();
+	//	wasActivePeer->asChannel()->ptsWaitingForShortPoll(false);
 	//}
 
 	if (!dialogs.isHidden()) {
@@ -2934,8 +2945,7 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 		MTP_LOG(0, ("getChannelDifference { good - after not final channelDifference was received }%1").arg(cTestMode() ? " TESTMODE" : ""));
 		getChannelDifference(channel);
 	} else if (activePeer() == channel) {
-		channel->ptsWaitingForShortPoll(true);
-		ptsWaiterStartTimerFor(channel, timeout ? (timeout * 1000) : WaitForChannelGetDifference);
+		channel->ptsWaitingForShortPoll(timeout ? (timeout * 1000) : WaitForChannelGetDifference);
 	}
 
 	App::emitPeerUpdated();
@@ -3084,6 +3094,10 @@ bool MainWidget::ptsUpdated(int32 pts, int32 ptsCount, const MTPUpdate &update) 
 	return _ptsWaiter.updated(0, pts, ptsCount, update);
 }
 
+void MainWidget::ptsApplySkippedUpdates() {
+	return _ptsWaiter.applySkippedUpdates(0);
+}
+
 void MainWidget::feedDifference(const MTPVector<MTPUser> &users, const MTPVector<MTPChat> &chats, const MTPVector<MTPMessage> &msgs, const MTPVector<MTPUpdate> &other) {
 	App::wnd()->checkAutoLock();
 	App::feedUsers(users, false);
@@ -3169,8 +3183,6 @@ void MainWidget::getDifference() {
 	_bySeqUpdates.clear();
 	_bySeqTimer.stop();
 
-	_ptsWaiter.clearSkippedUpdates();
-
 	noUpdatesTimer.stop();
 	_getDifferenceTimeAfterFail = 0;
 
@@ -3190,14 +3202,13 @@ void MainWidget::getChannelDifference(ChannelData *channel, GetChannelDifference
 	LOG(("Getting channel difference!"));
 	if (!channel->ptsInited() || channel->ptsRequesting()) return;
 
-	channel->ptsClearSkippedUpdates();
-
 	if (from != GetChannelDifferenceFromFail) {
 		_channelGetDifferenceTimeAfterFail.remove(channel);
 	}
 
 	LOG(("Getting channel difference for %1").arg(channel->pts()));
 	channel->ptsSetRequesting(true);
+
 	MTPChannelMessagesFilter filter;
 	if (activePeer() == channel) {
 		filter = MTP_channelMessagesFilterEmpty();
@@ -3819,15 +3830,20 @@ void MainWidget::handleUpdates(const MTPUpdates &updates, uint64 randomId) {
 			MTP_LOG(0, ("getDifference { good - getting user for updateShortMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
 			return getDifference();
 		}
+
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, updates)) {
 			return;
 		}
+
+		// update before applying skipped
 		int32 flags = d.vflags.v | MTPDmessage::flag_from_id;
 		bool out = (flags & MTPDmessage_flag_out);
 		HistoryItem *item = App::histories().addNewMessage(MTP_message(MTP_int(flags), d.vid, out ? MTP_int(MTP::authedId()) : d.vuser_id, MTP_peerUser(out ? d.vuser_id : MTP_int(MTP::authedId())), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities, MTPint()), NewMessageUnread);
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
 		}
+
+		ptsApplySkippedUpdates();
 
 		updSetState(0, d.vdate.v, updQts, updSeq);
 	} break;
@@ -3840,15 +3856,20 @@ void MainWidget::handleUpdates(const MTPUpdates &updates, uint64 randomId) {
 			if (noFrom) App::api()->requestFullPeer(App::chatLoaded(d.vchat_id.v));
 			return getDifference();
 		}
+
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, updates)) {
 			return;
 		}
+
+		// update before applying skipped
 		int32 flags = d.vflags.v | MTPDmessage::flag_from_id;
 		bool out = (flags & MTPDmessage_flag_out);
 		HistoryItem *item = App::histories().addNewMessage(MTP_message(MTP_int(flags), d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), d.vfwd_from_id, d.vfwd_date, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities, MTPint()), NewMessageUnread);
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
 		}
+
+		ptsApplySkippedUpdates();
 
 		updSetState(0, d.vdate.v, updQts, updSeq);
 	} break;
@@ -3884,6 +3905,8 @@ void MainWidget::handleUpdates(const MTPUpdates &updates, uint64 randomId) {
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, updates)) {
 			return;
 		}
+		// update before applying skipped
+		ptsApplySkippedUpdates();
 
 		updSetState(0, d.vdate.v, updQts, updSeq);
 	} break;
@@ -3901,17 +3924,21 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	switch (update.type()) {
 	case mtpc_updateNewMessage: {
 		const MTPDupdateNewMessage &d(update.c_updateNewMessage());
+
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
 		}
+
+		// update before applying skipped
 		if (d.vmessage.type() == mtpc_message) { // index forwarded messages to links overview
 			App::checkEntitiesAndViewsUpdate(d.vmessage.c_message());
 		}
-
 		HistoryItem *item = App::histories().addNewMessage(d.vmessage, NewMessageUnread);
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
 		}
+
+		ptsApplySkippedUpdates();
 	} break;
 
 	case mtpc_updateMessageID: {
@@ -3957,9 +3984,12 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateReadMessagesContents: {
 		const MTPDupdateReadMessagesContents &d(update.c_updateReadMessagesContents());
+
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
 		}
+
+		// update before applying skipped
 		const QVector<MTPint> &v(d.vmessages.c_vector().v);
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
 			if (HistoryItem *item = App::histItemById(NoChannel, v.at(i).v)) {
@@ -3972,43 +4002,65 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				}
 			}
 		}
+
+		ptsApplySkippedUpdates();
 	} break;
 
 	case mtpc_updateReadHistoryInbox: {
 		const MTPDupdateReadHistoryInbox &d(update.c_updateReadHistoryInbox());
+
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
 		}
+
+		// update before applying skipped
 		App::feedInboxRead(peerFromMTP(d.vpeer), d.vmax_id.v);
+
+		ptsApplySkippedUpdates();
 	} break;
 
 	case mtpc_updateReadHistoryOutbox: {
 		const MTPDupdateReadHistoryOutbox &d(update.c_updateReadHistoryOutbox());
+
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
 		}
+
+		// update before applying skipped
 		PeerId id = peerFromMTP(d.vpeer);
 		App::feedOutboxRead(id, d.vmax_id.v);
 		if (history.peer() && history.peer()->id == id) history.update();
+
+		ptsApplySkippedUpdates();
 	} break;
 
 	case mtpc_updateWebPage: {
 		const MTPDupdateWebPage &d(update.c_updateWebPage());
+
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
 		}
+
+		// update before applying skipped
 		App::feedWebPage(d.vwebpage);
 		history.updatePreview();
 		webPagesUpdate();
+
+		ptsApplySkippedUpdates();
 	} break;
 
 	case mtpc_updateDeleteMessages: {
 		const MTPDupdateDeleteMessages &d(update.c_updateDeleteMessages());
+
 		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
 			return;
 		}
+
+		// update before applying skipped
 		App::feedWereDeleted(NoChannel, d.vmessages.c_vector().v);
 		history.peerMessagesUpdated();
+
+		ptsApplySkippedUpdates();
 	} break;
 
 	case mtpc_updateUserTyping: {
@@ -4208,19 +4260,23 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateNewChannelMessage: {
 		const MTPDupdateNewChannelMessage &d(update.c_updateNewChannelMessage());
-		PeerId peer = peerFromMessage(d.vmessage);
-		if (ChannelData *channel = App::channelLoaded(peerToChannel(peer))) {
-			if (!channel->ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
-				return;
-			}
+		ChannelData *channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
+
+		if (channel && !channel->ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
+			return;
 		}
+
+		// update before applying skipped
 		if (d.vmessage.type() == mtpc_message) { // index forwarded messages to links overview
 			App::checkEntitiesAndViewsUpdate(d.vmessage.c_message());
 		}
-
 		HistoryItem *item = App::histories().addNewMessage(d.vmessage, NewMessageUnread);
 		if (item) {
 			history.peerMessagesUpdated(item->history()->peer->id);
+		}
+
+		if (channel) {
+			channel->ptsApplySkippedUpdates();
 		}
 	} break;
 
@@ -4231,18 +4287,25 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateDeleteChannelMessages: {
 		const MTPDupdateDeleteChannelMessages &d(update.c_updateDeleteChannelMessages());
-		if (ChannelData *channel = App::channelLoaded(d.vchannel_id.v)) {
-			if (!channel->ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
-				return;
-			}
+		ChannelData *channel = App::channelLoaded(d.vchannel_id.v);
+
+		if (channel && !channel->ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
+			return;
 		}
+
+		// update before applying skipped
 		App::feedWereDeleted(d.vchannel_id.v, d.vmessages.c_vector().v);
 		history.peerMessagesUpdated();
+
+		if (channel) {
+			channel->ptsApplySkippedUpdates();
+		}
 	} break;
 
 	case mtpc_updateChannelGroup: {
 		const MTPDupdateChannelGroup &d(update.c_updateChannelGroup());
-		if (ChannelData *channel = App::channelLoaded(d.vchannel_id.v)) {
+		ChannelData *channel = App::channelLoaded(d.vchannel_id.v);
+		if (channel) {
 			if (d.vgroup.type() == mtpc_messageGroup) {
 				const MTPDmessageGroup &data(d.vgroup.c_messageGroup());
 				// CHANNELS_FULL

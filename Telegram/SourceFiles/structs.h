@@ -402,6 +402,9 @@ public:
 	}
 	void setRequesting(bool isRequesting) {
 		_requesting = isRequesting;
+		if (_requesting) {
+			clearSkippedUpdates();
+		}
 	}
 	bool requesting() const {
 		return _requesting;
@@ -412,8 +415,8 @@ public:
 	bool waitingForShortPoll() const {
 		return _waitingForShortPoll;
 	}
-	void setWaitingForSkipped(ChannelData *channel, bool waiting);
-	void setWaitingForShortPoll(ChannelData *channel, bool waiting);
+	void setWaitingForSkipped(ChannelData *channel, int32 ms); // < 0 - not waiting
+	void setWaitingForShortPoll(ChannelData *channel, int32 ms); // < 0 - not waiting
 	int32 current() const{
 		return _good;
 	}
@@ -463,7 +466,9 @@ public:
 		_ptsWaiter.init(pts);
 	}
 	void ptsReceived(int32 pts) {
-		_ptsWaiter.updated(this, pts, 0);
+		if (_ptsWaiter.updated(this, pts, 0)) {
+			_ptsWaiter.applySkippedUpdates(this);
+		}
 	}
 	bool ptsUpdated(int32 pts, int32 count) {
 		return _ptsWaiter.updated(this, pts, count);
@@ -483,11 +488,11 @@ public:
 	void ptsSetRequesting(bool isRequesting) {
 		return _ptsWaiter.setRequesting(isRequesting);
 	}
-	void ptsClearSkippedUpdates() {
-		return _ptsWaiter.clearSkippedUpdates();
+	void ptsApplySkippedUpdates() {
+		return _ptsWaiter.applySkippedUpdates(this);
 	}
-	void ptsWaitingForShortPoll(bool waiting) {
-		return _ptsWaiter.setWaitingForShortPoll(this, waiting);
+	void ptsWaitingForShortPoll(int32 ms) { // < 0 - not waiting
+		return _ptsWaiter.setWaitingForShortPoll(this, ms);
 	}
 
 private:

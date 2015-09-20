@@ -554,6 +554,7 @@ private:
 	bool ptsUpdated(int32 pts, int32 ptsCount);
 	bool ptsUpdated(int32 pts, int32 ptsCount, const MTPUpdates &updates);
 	bool ptsUpdated(int32 pts, int32 ptsCount, const MTPUpdate &update);
+	void ptsApplySkippedUpdates();
 	PtsWaiter _ptsWaiter;
 
 	typedef QMap<ChannelData*, uint64> ChannelGetDifferenceTime;
