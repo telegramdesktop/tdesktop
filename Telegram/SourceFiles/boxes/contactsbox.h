@@ -245,7 +245,7 @@ class GroupInfoBox : public AbstractBox, public RPCSender {
 
 public:
 
-	GroupInfoBox(CreatingGroupType creating);
+	GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
@@ -313,7 +313,7 @@ class SetupChannelBox : public AbstractBox, public RPCSender {
 
 public:
 
-	SetupChannelBox(ChannelData *channel);
+	SetupChannelBox(ChannelData *channel, bool existing = false);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
@@ -350,6 +350,7 @@ private:
 	bool goodAnimStep(float64 ms);
 
 	ChannelData *_channel;
+	bool _existing;
 
 	FlatRadiobutton _public, _private;
 	FlatCheckbox _comments;
@@ -366,6 +367,9 @@ private:
 
 	void onCheckDone(const MTPBool &result);
 	bool onCheckFail(const RPCError &error);
+	bool onFirstCheckFail(const RPCError &error);
+
+	bool _tooMuchUsernames;
 
 	mtpRequestId _saveRequestId, _checkRequestId;
 	QString _sentUsername, _checkUsername, _errorText, _goodText;

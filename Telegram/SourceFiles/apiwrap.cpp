@@ -274,7 +274,17 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result) {
 		} else {
 			channel->photoId = 0;
 		}
+		channel->about = qs(f.vabout);
+		channel->count = f.has_participants_count() ? f.vparticipants_count.v : 0;
 		channel->invitationUrl = (f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString();
+		if (History *h = App::historyLoaded(channel->id)) {
+			if (h->inboxReadBefore < f.vread_inbox_max_id.v + 1) {
+				h->unreadCount = f.vunread_important_count.v;
+				h->inboxReadBefore = f.vread_inbox_max_id.v + 1;
+				h->asChannelHistory()->unreadCountAll = f.vunread_count.v;
+			}
+		}
+		channel->fullUpdated();
 
 		App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
 	}
@@ -397,6 +407,60 @@ bool ApiWrap::gotPeerFailed(PeerData *peer, const RPCError &error) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
 
 	_peerRequests.remove(peer);
+	return true;
+}
+
+void ApiWrap::requestSelfParticipant(ChannelData *channel) {
+	if (_selfParticipantRequests.contains(channel)) return;
+	_selfParticipantRequests.insert(channel, MTP::send(MTPchannels_GetParticipant(channel->inputChannel, MTP_inputUserSelf()), rpcDone(&ApiWrap::gotSelfParticipant, channel), rpcFail(&ApiWrap::gotSelfParticipantFail, channel), 0, 5));
+}
+
+void ApiWrap::gotSelfParticipant(ChannelData *channel, const MTPchannels_ChannelParticipant &result) {
+	_selfParticipantRequests.remove(channel);
+	if (result.type() != mtpc_channels_channelParticipant) {
+		LOG(("API Error: unknown type in gotSelfParticipant (%1)").arg(result.type()));
+		channel->inviter = -1;
+		if (App::main()) App::main()->onSelfParticipantUpdated(channel);
+		return;
+	}
+
+	const MTPDchannels_channelParticipant &p(result.c_channels_channelParticipant());
+	App::feedUsers(p.vusers);
+
+	switch (p.vparticipant.type()) {
+	case mtpc_channelParticipantSelf: {
+		const MTPDchannelParticipantSelf &d(p.vparticipant.c_channelParticipantSelf());
+		channel->inviter = d.vinviter_id.v;
+		channel->inviteDate = date(d.vdate);
+	} break;
+	case mtpc_channelParticipantCreator: {
+		const MTPDchannelParticipantCreator &d(p.vparticipant.c_channelParticipantCreator());
+		channel->inviter = MTP::authedId();
+		channel->inviteDate = date(MTP_int(channel->date));
+	} break;
+	case mtpc_channelParticipantModerator: {
+		const MTPDchannelParticipantModerator &d(p.vparticipant.c_channelParticipantModerator());
+		channel->inviter = d.vinviter_id.v;
+		channel->inviteDate = date(d.vdate);
+	} break;
+	case mtpc_channelParticipantEditor: {
+		const MTPDchannelParticipantEditor &d(p.vparticipant.c_channelParticipantEditor());
+		channel->inviter = d.vinviter_id.v;
+		channel->inviteDate = date(d.vdate);
+	} break;
+
+	}
+
+	if (App::main()) App::main()->onSelfParticipantUpdated(channel);
+}
+
+bool ApiWrap::gotSelfParticipantFail(ChannelData *channel, const RPCError &error) {
+	if (mtpIsFlood(error)) return false;
+
+	if (error.type() == qstr("USER_NOT_PARTICIPANT")) {
+		channel->inviter = -1;
+	}
+	_selfParticipantRequests.remove(channel);
 	return true;
 }
 

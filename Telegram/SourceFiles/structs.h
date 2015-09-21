@@ -107,6 +107,14 @@ inline int32 flagsFromMessage(const MTPmessage &msg) {
 	}
 	return 0;
 }
+inline int32 idFromMessage(const MTPmessage &msg) {
+	switch (msg.type()) {
+	case mtpc_messageEmpty: return msg.c_messageEmpty().vid.v;
+	case mtpc_message: return msg.c_message().vid.v;
+	case mtpc_messageService: return msg.c_messageService().vid.v;
+	}
+	return 0;
+}
 
 typedef uint64 PhotoId;
 typedef uint64 VideoId;
@@ -351,7 +359,7 @@ public:
 class ChatData : public PeerData {
 public:
 
-	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_int(bareId())), count(0), date(0), version(0), admin(0), inviterForSpamReport(0), left(false), forbidden(true), botStatus(0) {
+	ChatData(const PeerId &id) : PeerData(id), inputChat(MTP_int(bareId())), count(0), date(0), version(0), creator(0), inviterForSpamReport(0), isForbidden(false), haveLeft(true), botStatus(0) {
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
 
@@ -360,10 +368,11 @@ public:
 	int32 count;
 	int32 date;
 	int32 version;
-	int32 admin;
+	int32 creator;
 	int32 inviterForSpamReport; // > 0 - user who invited me to chat in unread service msg, < 0 - have outgoing message
-	bool left;
-	bool forbidden;
+
+	bool isForbidden;
+	bool haveLeft;
 	typedef QMap<UserData*, int32> Participants;
 	Participants participants;
 	typedef QMap<UserData*, bool> CanKick;
@@ -427,6 +436,7 @@ public:
 	void clearSkippedUpdates();
 
 private:
+	bool check(ChannelData *channel, int32 pts, int32 count); // return false if need to save that update and apply later
 	uint64 ptsKey(PtsSkippedQueue queue);
 	void checkForWaiting(ChannelData *channel);
 	QMap<uint64, PtsSkippedQueue> _queue;
@@ -440,27 +450,60 @@ private:
 class ChannelData : public PeerData {
 public:
 
-	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), date(0), version(0), isBroadcast(false), isPublic(false), adminned(false), left(false), forbidden(true), botStatus(-1) {
+	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), count(0), date(0), version(0), isForbidden(true), botStatus(-1), inviter(0), _lastFullUpdate(0) {
 		setName(QString(), QString());
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
 	void setName(const QString &name, const QString &username);
 
+	void updateFull();
+	void fullUpdated();
+
 	uint64 access;
 
 	MTPinputChannel inputChannel;
 
-	QString username;
+	QString username, about;
+
+	int32 count;
 	int32 date;
 	int32 version;
-	bool isBroadcast, isPublic;
-	bool adminned;
-	bool left;
-	bool forbidden;
+	int32 flags;
+	bool isBroadcast() const {
+		return flags & MTPDchannel_flag_is_broadcast;
+	}
+	bool isPublic() const {
+		return flags & MTPDchannel::flag_username;
+	}
+	bool amCreator() const {
+		return flags & MTPDchannel_flag_am_creator;
+	}
+	bool amEditor() const {
+		return flags & MTPDchannel_flag_am_editor;
+	}
+	bool amModerator() const {
+		return flags & MTPDchannel_flag_am_moderator;
+	}
+	bool haveLeft() const {
+		return flags & MTPDchannel_flag_have_left;
+	}
+	bool wasKicked() const {
+		return flags & MTPDchannel_flag_was_kicked;
+	}
+	bool canPublish() const {
+		return amCreator() || amEditor();
+	}
+	bool amParticipant() const {
+		return canPublish() || (!haveLeft() && !wasKicked());
+	}
+	bool isForbidden;
 
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 //	ImagePtr photoFull;
 	QString invitationUrl;
+
+	int32 inviter; // > 0 - user who invited me to channel, < 0 - not in channel
+	QDateTime inviteDate;
 
 	void ptsInit(int32 pts) {
 		_ptsWaiter.init(pts);
@@ -498,6 +541,7 @@ public:
 private:
 
 	PtsWaiter _ptsWaiter;
+	uint64 _lastFullUpdate;
 };
 
 inline UserData *PeerData::asUser() {

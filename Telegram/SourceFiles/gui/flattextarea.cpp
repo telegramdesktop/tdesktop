@@ -21,11 +21,11 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "flattextarea.h"
 #include "window.h"
 
-FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(v, parent),
+FlatTextarea::FlatTextarea(QWidget *parent, const style::flatTextarea &st, const QString &pholder, const QString &v) : QTextEdit(QString(), parent),
 _minHeight(-1), _maxHeight(-1), _maxLength(-1), _ctrlEnterSubmit(true),
-_ph(pholder), _oldtext(v), _phVisible(!v.length()),
+_oldtext(v), _phVisible(!v.length()),
 a_phLeft(_phVisible ? 0 : st.phShift), a_phAlpha(_phVisible ? 1 : 0), a_phColor(st.phColor->c),
-_st(st), _undoAvailable(false), _redoAvailable(false), _inDrop(false), _fakeMargin(0),
+_st(st), _undoAvailable(false), _redoAvailable(false), _inDrop(false), _inHeightCheck(false), _fakeMargin(0),
 _touchPress(false), _touchRightButton(false), _touchMove(false), _replacingEmojis(false) {
 	setAcceptRichText(false);
 	resize(_st.width, _st.font->height);
@@ -33,7 +33,7 @@ _touchPress(false), _touchRightButton(false), _touchMove(false), _replacingEmoji
 	setFont(_st.font->f);
 	setAlignment(_st.align);
 	
-	_phelided = _st.font->m.elidedText(_ph, Qt::ElideRight, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1);
+	setPlaceholder(pholder);
 
 	QPalette p(palette());
 	p.setColor(QPalette::Text, _st.textColor->c);
@@ -63,6 +63,10 @@ _touchPress(false), _touchRightButton(false), _touchMove(false), _replacingEmoji
 	connect(this, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
 	connect(this, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
 	if (App::wnd()) connect(this, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
+
+	if (!v.isEmpty()) {
+		setPlainText(v);
+	}
 }
 
 void FlatTextarea::setMaxLength(int32 maxLength) {
@@ -80,7 +84,11 @@ void FlatTextarea::setMaxHeight(int32 maxHeight) {
 }
 
 bool FlatTextarea::heightAutoupdated() {
-	if (_minHeight < 0 || _maxHeight < 0) return false;
+	if (_minHeight < 0 || _maxHeight < 0 || _inHeightCheck) return false;
+	_inHeightCheck = true;
+
+	myEnsureResized(this);
+
 	int newh = ceil(document()->size().height()) + 2 * fakeMargin();
 	if (newh > _maxHeight) {
 		newh = _maxHeight;
@@ -792,6 +800,12 @@ bool FlatTextarea::animStep(float64 ms) {
 
 const QString &FlatTextarea::getLastText() const {
 	return _oldtext;
+}
+
+void FlatTextarea::setPlaceholder(const QString &ph) {
+	_ph = ph;
+	_phelided = _st.font->m.elidedText(_ph, Qt::ElideRight, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1);
+	if (_phVisible) update();
 }
 
 void FlatTextarea::updatePlaceholder() {

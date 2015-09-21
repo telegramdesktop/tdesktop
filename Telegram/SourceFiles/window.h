@@ -264,6 +264,7 @@ public slots:
 
 	void onShowAddContact();
 	void onShowNewGroup();
+	void onShowNewChannel();
 	void onLogout();
 	void onLogoutSure();
 	void updateGlobalMenu(); // for OS X top menu

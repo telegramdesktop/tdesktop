@@ -54,16 +54,23 @@ enum {
 	MTPDstickerSet_flag_official = (1 << 2),
 	MTPDstickerSet_flag_NOT_LOADED = (1 << 31), // client side flag for not yet loaded set
 
-	MTPDchannel_flag_am_admin = (1 << 0),
+	MTPDchannel_flag_am_creator = (1 << 0),
 	MTPDchannel_flag_was_kicked = (1 << 1),
 	MTPDchannel_flag_have_left = (1 << 2),
-	MTPDchannel_flag_am_publisher = (1 << 3),
+	MTPDchannel_flag_am_editor = (1 << 3),
 	MTPDchannel_flag_am_moderator = (1 << 4),
 	MTPDchannel_flag_is_broadcast = (1 << 5),
+	MTPDchannel_flag_is_verified = (1 << 7),
+
+	MTPDchannelFull_flag_can_view_participants = (1 << 3),
 
 	MTPDchat_flag_creator = (1 << 0),
 	MTPDchat_flag_kicked = (1 << 1),
 	MTPDchat_flag_left = (1 << 2),
+
+	MTPDchatInvite_flag_is_channel = (1 << 0),
+	MTPDchatInvite_flag_is_broadcast = (1 << 1),
+	MTPDchatInvite_flag_is_public = (1 << 2),
 
 	MTPupdates_ChannelDifference_flag_final = (1 << 0),
 

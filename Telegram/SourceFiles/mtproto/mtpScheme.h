@@ -371,7 +371,7 @@ enum {
 	mtpc_chatInviteEmpty = 0x69df3769,
 	mtpc_chatInviteExported = 0xfc2e05bc,
 	mtpc_chatInviteAlready = 0x5a686d7c,
-	mtpc_chatInvite = 0xce917dcd,
+	mtpc_chatInvite = 0x93e99b60,
 	mtpc_inputStickerSetEmpty = 0xffb62b95,
 	mtpc_inputStickerSetID = 0x9de7a269,
 	mtpc_inputStickerSetShortName = 0x861cc8a0,
@@ -547,6 +547,8 @@ enum {
 	mtpc_channels_getImportantHistory = 0xddb929cb,
 	mtpc_channels_readHistory = 0xcc104937,
 	mtpc_channels_deleteMessages = 0x84c1fd4e,
+	mtpc_channels_deleteUserHistory = 0xd10dd71b,
+	mtpc_channels_reportSpam = 0xfe087810,
 	mtpc_channels_getMessages = 0x93d7b347,
 	mtpc_channels_getParticipants = 0x24d98f92,
 	mtpc_channels_getParticipant = 0x546dd7a6,
@@ -7631,7 +7633,7 @@ private:
 	explicit MTPchatInvite(MTPDchatInvite *_data);
 
 	friend MTPchatInvite MTP_chatInviteAlready(const MTPChat &_chat);
-	friend MTPchatInvite MTP_chatInvite(const MTPstring &_title);
+	friend MTPchatInvite MTP_chatInvite(MTPint _flags, const MTPstring &_title);
 
 	mtpTypeId _type;
 };
@@ -11816,9 +11818,10 @@ class MTPDchatInvite : public mtpDataImpl<MTPDchatInvite> {
 public:
 	MTPDchatInvite() {
 	}
-	MTPDchatInvite(const MTPstring &_title) : vtitle(_title) {
+	MTPDchatInvite(MTPint _flags, const MTPstring &_title) : vflags(_flags), vtitle(_title) {
 	}
 
+	MTPint vflags;
 	MTPstring vtitle;
 };
 
@@ -17850,6 +17853,93 @@ public:
 	MTPchannels_DeleteMessages(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPchannels_deleteMessages>(from, end, cons) {
 	}
 	MTPchannels_DeleteMessages(const MTPInputChannel &_channel, const MTPVector<MTPint> &_id) : MTPBoxed<MTPchannels_deleteMessages>(MTPchannels_deleteMessages(_channel, _id)) {
+	}
+};
+
+class MTPchannels_deleteUserHistory { // RPC method 'channels.deleteUserHistory'
+public:
+	MTPInputChannel vchannel;
+	MTPInputUser vuser_id;
+
+	MTPchannels_deleteUserHistory() {
+	}
+	MTPchannels_deleteUserHistory(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_channels_deleteUserHistory) {
+		read(from, end, cons);
+	}
+	MTPchannels_deleteUserHistory(const MTPInputChannel &_channel, const MTPInputUser &_user_id) : vchannel(_channel), vuser_id(_user_id) {
+	}
+
+	uint32 innerLength() const {
+		return vchannel.innerLength() + vuser_id.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_channels_deleteUserHistory;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_channels_deleteUserHistory) {
+		vchannel.read(from, end);
+		vuser_id.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vchannel.write(to);
+		vuser_id.write(to);
+	}
+
+	typedef MTPmessages_AffectedHistory ResponseType;
+};
+class MTPchannels_DeleteUserHistory : public MTPBoxed<MTPchannels_deleteUserHistory> {
+public:
+	MTPchannels_DeleteUserHistory() {
+	}
+	MTPchannels_DeleteUserHistory(const MTPchannels_deleteUserHistory &v) : MTPBoxed<MTPchannels_deleteUserHistory>(v) {
+	}
+	MTPchannels_DeleteUserHistory(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPchannels_deleteUserHistory>(from, end, cons) {
+	}
+	MTPchannels_DeleteUserHistory(const MTPInputChannel &_channel, const MTPInputUser &_user_id) : MTPBoxed<MTPchannels_deleteUserHistory>(MTPchannels_deleteUserHistory(_channel, _user_id)) {
+	}
+};
+
+class MTPchannels_reportSpam { // RPC method 'channels.reportSpam'
+public:
+	MTPInputChannel vchannel;
+	MTPInputUser vuser_id;
+	MTPVector<MTPint> vid;
+
+	MTPchannels_reportSpam() {
+	}
+	MTPchannels_reportSpam(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_channels_reportSpam) {
+		read(from, end, cons);
+	}
+	MTPchannels_reportSpam(const MTPInputChannel &_channel, const MTPInputUser &_user_id, const MTPVector<MTPint> &_id) : vchannel(_channel), vuser_id(_user_id), vid(_id) {
+	}
+
+	uint32 innerLength() const {
+		return vchannel.innerLength() + vuser_id.innerLength() + vid.innerLength();
+	}
+	mtpTypeId type() const {
+		return mtpc_channels_reportSpam;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_channels_reportSpam) {
+		vchannel.read(from, end);
+		vuser_id.read(from, end);
+		vid.read(from, end);
+	}
+	void write(mtpBuffer &to) const {
+		vchannel.write(to);
+		vuser_id.write(to);
+		vid.write(to);
+	}
+
+	typedef MTPBool ResponseType;
+};
+class MTPchannels_ReportSpam : public MTPBoxed<MTPchannels_reportSpam> {
+public:
+	MTPchannels_ReportSpam() {
+	}
+	MTPchannels_ReportSpam(const MTPchannels_reportSpam &v) : MTPBoxed<MTPchannels_reportSpam>(v) {
+	}
+	MTPchannels_ReportSpam(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPchannels_reportSpam>(from, end, cons) {
+	}
+	MTPchannels_ReportSpam(const MTPInputChannel &_channel, const MTPInputUser &_user_id, const MTPVector<MTPint> &_id) : MTPBoxed<MTPchannels_reportSpam>(MTPchannels_reportSpam(_channel, _user_id, _id)) {
 	}
 };
 
@@ -27150,7 +27240,7 @@ inline uint32 MTPchatInvite::innerLength() const {
 		}
 		case mtpc_chatInvite: {
 			const MTPDchatInvite &v(c_chatInvite());
-			return v.vtitle.innerLength();
+			return v.vflags.innerLength() + v.vtitle.innerLength();
 		}
 	}
 	return 0;
@@ -27170,6 +27260,7 @@ inline void MTPchatInvite::read(const mtpPrime *&from, const mtpPrime *end, mtpT
 		case mtpc_chatInvite: _type = cons; {
 			if (!data) setData(new MTPDchatInvite());
 			MTPDchatInvite &v(_chatInvite());
+			v.vflags.read(from, end);
 			v.vtitle.read(from, end);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPchatInvite");
@@ -27183,6 +27274,7 @@ inline void MTPchatInvite::write(mtpBuffer &to) const {
 		} break;
 		case mtpc_chatInvite: {
 			const MTPDchatInvite &v(c_chatInvite());
+			v.vflags.write(to);
 			v.vtitle.write(to);
 		} break;
 	}
@@ -27201,8 +27293,8 @@ inline MTPchatInvite::MTPchatInvite(MTPDchatInvite *_data) : mtpDataOwner(_data)
 inline MTPchatInvite MTP_chatInviteAlready(const MTPChat &_chat) {
 	return MTPchatInvite(new MTPDchatInviteAlready(_chat));
 }
-inline MTPchatInvite MTP_chatInvite(const MTPstring &_title) {
-	return MTPchatInvite(new MTPDchatInvite(_title));
+inline MTPchatInvite MTP_chatInvite(MTPint _flags, const MTPstring &_title) {
+	return MTPchatInvite(new MTPDchatInvite(_flags, _title));
 }
 
 inline uint32 MTPinputStickerSet::innerLength() const {

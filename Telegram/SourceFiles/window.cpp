@@ -30,6 +30,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "layerwidget.h"
 #include "settingswidget.h"
 #include "boxes/confirmbox.h"
+#include "boxes/contactsbox.h"
 
 #include "mediaview.h"
 #include "localstorage.h"
@@ -1030,7 +1031,13 @@ void Window::onShowAddContact() {
 void Window::onShowNewGroup() {
 	if (isHidden()) showFromTray();
 
-	if (main) main->showNewGroup();
+	if (main) replaceLayer(new GroupInfoBox(CreatingGroupGroup, false));
+}
+
+void Window::onShowNewChannel() {
+	if (isHidden()) showFromTray();
+
+	if (main) replaceLayer(new GroupInfoBox(CreatingGroupChannel, false));
 }
 
 void Window::onLogout() {

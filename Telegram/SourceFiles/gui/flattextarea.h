@@ -44,6 +44,7 @@ public:
 	void setMaxHeight(int32 maxHeight);
 
 	const QString &getLastText() const;
+	void setPlaceholder(const QString &ph);
 	void updatePlaceholder();
 
 	QRect getTextRect() const;
@@ -118,7 +119,7 @@ private:
 	anim::cvalue a_phColor;
 	style::flatTextarea _st;
 
-	bool _undoAvailable, _redoAvailable, _inDrop;
+	bool _undoAvailable, _redoAvailable, _inDrop, _inHeightCheck;
 
 	int32 _fakeMargin;
 

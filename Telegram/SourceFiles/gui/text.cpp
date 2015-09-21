@@ -847,7 +847,7 @@ void MentionLink::onClick(Qt::MouseButton button) const {
 
 void HashtagLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		App::searchByHashtag(_tag);
+		App::searchByHashtag(_tag, App::mousedItem() ? App::mousedItem()->history()->peer : 0);
 	}
 }
 

@@ -217,7 +217,7 @@ public:
 
 	void activate();
 
-	void createDialogAtTop(History *history, int32 unreadCount);
+	void createDialog(History *history);
 	void dlgUpdated(DialogRow *row);
 	void dlgUpdated(History *row);
 
@@ -324,7 +324,7 @@ public:
 	void sendBotCommand(const QString &cmd, MsgId msgId);
 	void insertBotCommand(const QString &cmd);
 
-	void searchMessages(const QString &query);
+	void searchMessages(const QString &query, PeerData *inPeer);
 	void preloadOverviews(PeerData *peer);
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
@@ -365,7 +365,7 @@ public:
 	void fillForwardingInfo(Text *&from, Text *&text, bool &serviceColor, ImagePtr &preview);
 	void updateForwardingTexts();
 	void cancelForwarding();
-	void finishForwarding(History *hist); // send them
+	void finishForwarding(History *hist, bool broadcast); // send them
 
 	void audioMarkRead(AudioData *data);
 	void videoMarkRead(VideoData *data);
@@ -383,14 +383,19 @@ public:
 	void contactsReceived();
 
 	void ptsWaiterStartTimerFor(ChannelData *channel, int32 ms); // ms <= 0 - stop timer
-	void handleUpdates(const MTPUpdates &updates, uint64 randomId = 0);
+	void feedUpdates(const MTPUpdates &updates, uint64 randomId = 0);
 	void feedUpdate(const MTPUpdate &update);
 	void updateAfterDrag();
 
 	void ctrlEnterSubmitUpdated();
 	void setInnerFocus();
 
+	void scheduleViewIncrement(HistoryItem *item);
+
 	HistoryItem *atTopImportantMsg(int32 &bottomUnderScrollTop) const;
+
+	void gotRangeDifference(ChannelData *channel, const MTPupdates_ChannelDifference &diff);
+	void onSelfParticipantUpdated(ChannelData *channel);
 
 	~MainWidget();
 
@@ -459,6 +464,9 @@ public slots:
 	void onUpdateMuted();
 
 	void onStickersInstalled(uint64 setId);
+	void onFullPeerUpdated(PeerData *peer);
+
+	void onViewsIncrement();
 
 private:
 
@@ -503,7 +511,7 @@ private:
 	bool failChannelDifference(ChannelData *channel, const RPCError &err);
 	void failDifferenceStartTimerFor(ChannelData *channel);
 
-	void feedUpdates(const MTPVector<MTPUpdate> &updates, bool skipMessageIds = false);
+	void feedUpdateVector(const MTPVector<MTPUpdate> &updates, bool skipMessageIds = false);
 	void feedMessageIds(const MTPVector<MTPUpdate> &updates);
 
 	void updateReceived(const mtpPrime *from, const mtpPrime *end);
@@ -591,11 +599,26 @@ private:
 	SingleTimer _failDifferenceTimer;
 
 	uint64 _lastUpdateTime;
+	bool _handlingChannelDifference;
 
 	QPixmap _cachedBackground;
 	QRect _cachedFor, _willCacheFor;
 	int _cachedX, _cachedY;
 	SingleTimer _cacheBackgroundTimer;
+
+	typedef QMap<ChannelData*, bool> UpdatedChannels;
+	UpdatedChannels _updatedChannels;
+
+	typedef QMap<MsgId, bool> ViewsIncrementMap;
+	typedef QMap<PeerData*, ViewsIncrementMap> ViewsIncrement;
+	ViewsIncrement _viewsIncremented, _viewsToIncrement;
+	typedef QMap<PeerData*, mtpRequestId> ViewsIncrementRequests;
+	ViewsIncrementRequests _viewsIncrementRequests;
+	typedef QMap<mtpRequestId, PeerData*> ViewsIncrementByRequest;
+	ViewsIncrementByRequest _viewsIncrementByRequest;
+	SingleTimer _viewsIncrementTimer;
+	void viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req);
+	bool viewsIncrementFail(const RPCError &error, mtpRequestId req);
 
 	App::WallPaper *_background;
 

@@ -77,7 +77,7 @@ _byUsernameSel(-1),
 _addContactLnk(this, lang(lng_add_contact_button)) {
 	DialogsIndexed &v(App::main()->dialogsList());
 	for (DialogRow *r = v.list.begin; r != v.list.end; r = r->next) {
-		if (r->history->peer->isChat() && !r->history->peer->asChat()->forbidden && !r->history->peer->asChat()->left) {
+		if (r->history->peer->isChat() && !r->history->peer->asChat()->isForbidden && !r->history->peer->asChat()->haveLeft) {
 			_contacts->addToEnd(r->history);
 		}
 	}
@@ -94,10 +94,10 @@ void ContactsInner::init() {
 	_filter = qsl("a");
 	updateFilter();
 
-	connect(App::main(), SIGNAL(dialogRowReplaced(DialogRow *, DialogRow *)), this, SLOT(onDialogRowReplaced(DialogRow *, DialogRow *)));
+	connect(App::main(), SIGNAL(dialogRowReplaced(DialogRow*,DialogRow*)), this, SLOT(onDialogRowReplaced(DialogRow*,DialogRow*)));
 	connect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData *)));
-	connect(App::main(), SIGNAL(peerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)), this, SLOT(onPeerNameChanged(PeerData *, const PeerData::Names &, const PeerData::NameFirstChars &)));
-	connect(App::main(), SIGNAL(peerPhotoChanged(PeerData *)), this, SLOT(peerUpdated(PeerData *)));
+	connect(App::main(), SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)));
+	connect(App::main(), SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
 }
 
 void ContactsInner::onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
@@ -119,7 +119,7 @@ void ContactsInner::onAddBot() {
 
 void ContactsInner::peerUpdated(PeerData *peer) {
 	if (_chat && (!peer || peer == _chat)) {
-		if (_chat->forbidden || _chat->left) {
+		if (_chat->isForbidden || _chat->haveLeft) {
 			App::wnd()->hideLayer();
 		} else if (!_chat->participants.isEmpty() || _chat->count <= 0) {
 			for (ContactsData::iterator i = _contactsData.begin(), e = _contactsData.end(); i != e; ++i) {
@@ -201,7 +201,7 @@ ContactsInner::ContactData *ContactsInner::contactData(DialogRow *row) {
 				data->online = App::onlineText(peer->asUser(), _time);
 			} else if (peer->isChat()) {
 				ChatData *chat = peer->asChat();
-				if (chat->forbidden || chat->left) {
+				if (chat->isForbidden || chat->haveLeft) {
 					data->online = lang(lng_chat_status_unaccessible);
 				} else {
 					data->online = lng_chat_status_members(lt_count, chat->count);
@@ -1096,6 +1096,7 @@ void ContactsBox::peopleReceived(const MTPcontacts_Found &result, mtpRequestId r
 		switch (result.type()) {
 		case mtpc_contacts_found: {
 			App::feedUsers(result.c_contacts_found().vusers);
+			App::feedChats(result.c_contacts_found().vchats);
 			_inner.peopleReceived(q, result.c_contacts_found().vresults.c_vector().v);
 		} break;
 		}
@@ -1390,10 +1391,10 @@ void NewGroupBox::resizeEvent(QResizeEvent *e) {
 }
 
 void NewGroupBox::onNext() {
-	App::wnd()->replaceLayer(new GroupInfoBox(_group.checked() ? CreatingGroupGroup : CreatingGroupChannel));
+	App::wnd()->replaceLayer(new GroupInfoBox(_group.checked() ? CreatingGroupGroup : CreatingGroupChannel, true));
 }
 
-GroupInfoBox::GroupInfoBox(CreatingGroupType creating) : AbstractBox(),
+GroupInfoBox::GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose) : AbstractBox(),
 _creating(creating),
 a_photoOver(0, 0),
 a_photo(animFunc(this, &GroupInfoBox::photoAnimStep)),
@@ -1406,7 +1407,7 @@ _name(this, st::newGroupName, lang(_creating == CreatingGroupChannel ? lng_dlg_n
 _photo(this, lang(lng_create_group_photo), st::newGroupPhoto),
 _description(this, st::newGroupDescription, lang(lng_create_group_description)),
 _next(this, lang(_creating == CreatingGroupChannel ? lng_create_group_create : lng_create_group_next), st::btnSelectDone),
-_cancel(this, lang(lng_create_group_back), st::btnSelectCancel),
+_cancel(this, lang(fromTypeChoose ? lng_create_group_back : lng_cancel), st::btnSelectCancel),
 _creationRequestId(0), _createdChannel(0) {
 
 	setMouseTracking(true);
@@ -1420,6 +1421,7 @@ _creationRequestId(0), _createdChannel(0) {
 	connect(&_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
 	connect(&_description, SIGNAL(submitted(bool)), this, SLOT(onNext()));
 	connect(&_description, SIGNAL(cancelled()), this, SLOT(onClose()));
+	_description.installEventFilter(this);
 
 	connect(&_photo, SIGNAL(clicked()), this, SLOT(onPhoto()));
 
@@ -1523,7 +1525,6 @@ void GroupInfoBox::resizeEvent(QResizeEvent *e) {
 	_photo.moveToLeft(_name.x(), _name.y() + st::newGroupPhotoSize - _photo.height(), width());
 
 	_description.moveToLeft(st::newGroupPadding.left() + st::newGroupDescriptionPadding.left(), _photo.y() + _photo.height() + st::newGroupDescriptionSkip + st::newGroupDescriptionPadding.top(), width());
-	_description.installEventFilter(this);
 
 	int32 buttonTop = (_creating == CreatingGroupChannel) ? (_description.y() + _description.height() + st::newGroupDescriptionPadding.bottom()) : (_photo.y() + _photo.height());
 	buttonTop += st::newGroupPadding.bottom();
@@ -1646,7 +1647,7 @@ bool GroupInfoBox::creationFail(const RPCError &error) {
 		_name.notaBene();
 		return true;
 	} else if (error.type() == "PEER_FLOOD") {
-		App::wnd()->replaceLayer(new ConfirmBox(lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))));
+		App::wnd()->replaceLayer(new ConfirmBox(lng_cant_invite_not_contact_channel(lt_more_info, textcmdLink(qsl("https://telegram.org/faq?_hash=can-39t-send-messages-to-non-contacts"), lang(lng_cant_more_info)))));
 		return true;
 	}
 	return false;
@@ -1715,8 +1716,9 @@ void GroupInfoBox::onPhotoReady(const QImage &img) {
 	_photoSmall.setDevicePixelRatio(cRetinaFactor());
 }
 
-SetupChannelBox::SetupChannelBox(ChannelData *channel) : AbstractBox(),
+SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : AbstractBox(),
 _channel(channel),
+_existing(existing),
 _public(this, qsl("channel_privacy"), 0, lang(lng_create_public_channel_title), true),
 _private(this, qsl("channel_privacy"), 1, lang(lng_create_private_channel_title)),
 _comments(this, lang(lng_create_channel_comments), false),
@@ -1725,13 +1727,16 @@ _aboutPublic(st::normalFont, lang(lng_create_public_channel_about), _defaultOpti
 _aboutPrivate(st::normalFont, lang(lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth),
 _aboutComments(st::normalFont, lang(lng_create_channel_comments_about), _defaultOptions, _aboutPublicWidth),
 _linkPlaceholder(qsl("telegram.me/")),
-_link(this, st::newGroupLink, QString()),
+_link(this, st::newGroupLink, QString(), channel->username),
 _linkOver(false),
 _save(this, lang(lng_create_group_save), st::btnSelectDone),
-_skip(this, lang(lng_create_group_skip), st::btnSelectCancel),
+_skip(this, lang(existing ? lng_cancel : lng_create_group_skip), st::btnSelectCancel),
+_tooMuchUsernames(false),
 _saveRequestId(0), _checkRequestId(0),
 a_goodOpacity(0, 0), a_good(animFunc(this, &SetupChannelBox::goodAnimStep)) {
 	setMouseTracking(true);
+
+	_checkRequestId = MTP::send(MTPchannels_CheckUsername(_channel->inputChannel, MTP_string("preston")), RPCDoneHandlerPtr(), rpcFail(&SetupChannelBox::onFirstCheckFail));
 
 	_link.setTextMargin(style::margins(st::newGroupLink.textMrg.left() + st::newGroupLink.font->m.width(_linkPlaceholder), st::newGroupLink.textMrg.top(), st::newGroupLink.textMrg.right(), st::newGroupLink.textMrg.bottom()));
 
@@ -1902,15 +1907,22 @@ bool SetupChannelBox::goodAnimStep(float64 ms) {
 }
 
 void SetupChannelBox::closePressed() {
-	App::wnd()->showLayer(new ContactsBox(_channel), true);
+	if (!_existing) {
+		App::wnd()->showLayer(new ContactsBox(_channel), true);
+	}
 }
 
 void SetupChannelBox::onSave() {
 	if (!_public.checked()) {
-		if (_comments.checked()) {
+		if (!_existing && !_comments.isHidden() && _comments.checked()) {
 			MTP::send(MTPchannels_ToggleComments(_channel->inputChannel, MTP_bool(true)));
 		}
-		onClose();
+		if (_existing) {
+			_sentUsername = QString();
+			_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
+		} else {
+			onClose();
+		}
 	}
 
 	if (_saveRequestId) return;
@@ -1922,7 +1934,7 @@ void SetupChannelBox::onSave() {
 		return;
 	}
 
-	if (_comments.checked()) {
+	if (!_existing && !_comments.isHidden() && _comments.checked()) {
 		MTP::send(MTPchannels_ToggleComments(_channel->inputChannel, MTP_bool(true)), RPCResponseHandler(), 0, 5);
 	}
 	_sentUsername = link;
@@ -1979,6 +1991,11 @@ void SetupChannelBox::onCheck() {
 
 void SetupChannelBox::onPrivacyChange() {
 	if (_public.checked()) {
+		if (_tooMuchUsernames) {
+			_private.setChecked(true);
+			App::wnd()->replaceLayer(new ConfirmBox(lang(lng_channels_too_much_public)));
+			return;
+		}
 		_link.show();
 		_link.setFocus();
 	} else {
@@ -2035,13 +2052,44 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 
 	_checkRequestId = 0;
 	QString err(error.type());
-	if (err == "USERNAME_INVALID") {
+	if (err == "CHANNELS_ADMIN_PUBLIC_TOO_MUCH") {
+		if (_existing) {
+			App::wnd()->hideLayer(true);
+			App::wnd()->showLayer(new ConfirmBox(lang(lng_channels_too_much_public_existing)), true);
+		} else {
+			_tooMuchUsernames = true;
+			_private.setChecked(true);
+			onPrivacyChange();
+		}
+		return true;
+	} else if (err == "USERNAME_INVALID") {
 		_errorText = lang(lng_create_channel_link_invalid);
 		update();
 		return true;
 	} else if (err == "USERNAME_OCCUPIED" && _checkUsername != _channel->username) {
 		_errorText = lang(lng_create_channel_link_occupied);
 		update();
+		return true;
+	}
+	_goodText = QString();
+	_link.setFocus();
+	return true;
+}
+
+bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
+	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
+
+	_checkRequestId = 0;
+	QString err(error.type());
+	if (err == "CHANNELS_ADMIN_PUBLIC_TOO_MUCH") {
+		if (_existing) {
+			App::wnd()->hideLayer(true);
+			App::wnd()->showLayer(new ConfirmBox(lang(lng_channels_too_much_public_existing)), true);
+		} else {
+			_tooMuchUsernames = true;
+			_private.setChecked(true);
+			onPrivacyChange();
+		}
 		return true;
 	}
 	_goodText = QString();

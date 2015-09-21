@@ -419,7 +419,7 @@ void DialogsListWidget::onDialogRowReplaced(DialogRow *oldRow, DialogRow *newRow
 	}
 }
 
-void DialogsListWidget::createDialogAtTop(History *history, int32 unreadCount) {
+void DialogsListWidget::createDialog(History *history) {
 	if (history->dialogs.isEmpty()) {
 		History::DialogLinks links = dialogs.addToEnd(history);
 		int32 movedFrom = links[0]->pos * st::dlgHeight;
@@ -781,6 +781,13 @@ void DialogsListWidget::dialogsReceived(const QVector<MTPDialog> &added) {
 			if (history->peer->isChannel()) {
 				history->asChannelHistory()->unreadCountAll = d.vunread_count.v;
 				history->peer->asChannel()->ptsReceived(d.vpts.v);
+				if (!history->peer->asChannel()->amCreator()) {
+					if (HistoryItem *top = App::histItemById(history->channelId(), d.vtop_important_message.v)) {
+						if (top->date <= date(history->peer->asChannel()->date)) {
+							App::api()->requestSelfParticipant(history->peer->asChannel());
+						}
+					}
+				}
 			}
 			if (d.vtop_message.v > d.vtop_important_message.v) {
 				history->setNotLoadedAtBottom();
@@ -1530,8 +1537,8 @@ void DialogsWidget::activate() {
 	list.activate();
 }
 
-void DialogsWidget::createDialogAtTop(History *history, int32 unreadCount) {
-	list.createDialogAtTop(history, unreadCount);
+void DialogsWidget::createDialog(History *history) {
+	list.createDialog(history);
 }
 
 void DialogsWidget::dlgUpdated(DialogRow *row) {
@@ -1778,11 +1785,15 @@ void DialogsWidget::onChooseByDrag() {
 	list.choosePeer();
 }
 
-void DialogsWidget::searchMessages(const QString &query) {
-	if (_filter.getLastText() != query) {
+void DialogsWidget::searchMessages(const QString &query, PeerData *inPeer) {
+	if ((_filter.getLastText() != query) || (inPeer && inPeer != _searchInPeer)) {
+		if (inPeer) {
+			_searchInPeer = inPeer;
+			list.searchInPeer(inPeer);
+		}
 		_filter.setText(query);
 		_filter.updatePlaceholder();
-		onFilterUpdate();
+		onFilterUpdate(true);
 		_searchTimer.stop();
 		onSearchMessages();
 
@@ -1905,6 +1916,7 @@ void DialogsWidget::peopleReceived(const MTPcontacts_Found &result, mtpRequestId
 		switch (result.type()) {
 		case mtpc_contacts_found: {
 			App::feedUsers(result.c_contacts_found().vusers);
+			App::feedChats(result.c_contacts_found().vchats);
 			list.peopleReceived(q, result.c_contacts_found().vresults.c_vector().v);
 		} break;
 		}

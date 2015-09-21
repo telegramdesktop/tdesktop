@@ -229,7 +229,7 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void paintEvent(QPaintEvent *e);
 
-	void setReported(bool reported);
+	void setReported(bool reported, PeerData *onPeer);
 
 signals:
 
@@ -533,6 +533,8 @@ public:
 	void setInnerFocus();
 	bool canSendMessages(PeerData *peer) const;
 
+	void updateNotifySettings();
+
 	~HistoryWidget();
 
 signals:
@@ -574,14 +576,17 @@ public slots:
 	void onReportSpamSure();
 	void onReportSpamHide();
 	void onReportSpamClear();
-	void onReportSpamClearSure();
 
 	void onListScroll();
 	void onHistoryToEnd();
 	void onCollapseComments();
 	void onSend(bool ctrlShiftEnter = false, MsgId replyTo = -1);
+
 	void onUnblock();
 	void onBotStart();
+	void onJoinChannel();
+	void onMuteUnmute();
+	void onBroadcastChange();
 
 	void onPhotoSelect();
 	void onDocumentSelect();
@@ -673,9 +678,12 @@ private:
 	void reportSpamDone(PeerData *peer, const MTPBool &result, mtpRequestId request);
 	bool reportSpamFail(const RPCError &error, mtpRequestId request);
 
-	void unblockDone(PeerData *peer, const MTPBool &result);
-	bool unblockFail(const RPCError &error);
+	void unblockDone(PeerData *peer, const MTPBool &result, mtpRequestId req);
+	bool unblockFail(const RPCError &error, mtpRequestId req);
 	void blockDone(PeerData *peer, const MTPBool &result);
+
+	void joinDone(const MTPUpdates &result, mtpRequestId req);
+	bool joinFail(const RPCError &error, mtpRequestId req);
 
 	void countHistoryShowFrom();
 
@@ -719,11 +727,13 @@ private:
 
 	bool isBotStart() const;
 	bool isBlocked() const;
+	bool isJoinChannel() const;
+	bool isMuteUnmute() const;
 	bool updateCmdStartShown();
 
 	ReportSpamPanel _reportSpamPanel;
 
-	FlatButton _send, _unblock, _botStart;
+	FlatButton _send, _unblock, _botStart, _joinChannel, _muteUnmute;
 	mtpRequestId _unblockRequest, _reportSpamRequest;
 	IconedButton _attachDocument, _attachPhoto, _attachEmoji, _kbShow, _kbHide, _cmdStart;
 	FlatCheckbox _broadcast;

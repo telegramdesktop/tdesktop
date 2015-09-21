@@ -490,8 +490,8 @@ namespace App {
 				cdata->setPhoto(d.vphoto);
 				cdata->date = d.vdate.v;
 				cdata->count = d.vparticipants_count.v;
-				cdata->left = (d.vflags.v & MTPDchat_flag_left);
-				cdata->forbidden = (d.vflags.v & MTPDchat_flag_kicked);
+				cdata->isForbidden = (d.vflags.v & MTPDchat_flag_kicked);
+				cdata->haveLeft = (d.vflags.v & MTPDchat_flag_left);
 				if (cdata->version < d.vversion.v) {
 					cdata->version = d.vversion.v;
 					cdata->participants = ChatData::Participants();
@@ -510,8 +510,8 @@ namespace App {
 				cdata->setPhoto(MTP_chatPhotoEmpty());
 				cdata->date = 0;
 				cdata->count = -1;
-				cdata->left = false;
-				cdata->forbidden = true;
+				cdata->isForbidden = true;
+				cdata->haveLeft = false;
 			} break;
 			case mtpc_channel: {
 				const MTPDchannel &d(chat.c_channel());
@@ -529,13 +529,9 @@ namespace App {
 				cdata->access = d.vaccess_hash.v;
 				cdata->setPhoto(d.vphoto);
 				cdata->date = d.vdate.v;
-				cdata->adminned = (d.vflags.v & MTPDchannel_flag_am_admin);
-				
-				cdata->isBroadcast = (d.vflags.v & MTPDchannel_flag_is_broadcast);
-				cdata->isPublic = d.has_username();
+				cdata->flags = d.vflags.v;
+				cdata->isForbidden = false;
 
-				cdata->left = (d.vflags.v & MTPDchannel_flag_have_left);
-				cdata->forbidden = (d.vflags.v & MTPDchannel_flag_was_kicked);
 				if (cdata->version < d.vversion.v) {
 					cdata->version = d.vversion.v;
 				}
@@ -555,14 +551,8 @@ namespace App {
 				cdata->access = d.vaccess_hash.v;
 				cdata->setPhoto(MTP_chatPhotoEmpty());
 				cdata->date = 0;
-//				cdata->count = -1;
-				cdata->adminned = false;
-
-				cdata->isBroadcast = false;
-				cdata->isPublic = false;
-
-				cdata->left = false;
-				cdata->forbidden = true;
+				cdata->count = 0;
+				cdata->isForbidden = true;
 			} break;
 			}
 			if (!data) continue;
@@ -591,7 +581,7 @@ namespace App {
 		case mtpc_chatParticipants: {
 			const MTPDchatParticipants &d(p.c_chatParticipants());
 			chat = App::chat(d.vchat_id.v);
-			chat->admin = d.vadmin_id.v;
+			chat->creator = d.vadmin_id.v;
 			if (!requestBotInfos || chat->version <= d.vversion.v) { // !requestBotInfos is true on getFullChat result
 				chat->version = d.vversion.v;
 				const QVector<MTPChatParticipant> &v(d.vparticipants.c_vector().v);
@@ -757,7 +747,7 @@ namespace App {
 				existing->setText(qs(m.vmessage), m.has_entities() ? linksFromMTP(m.ventities.c_vector().v) : LinksInText());
 				existing->initDimensions();
 				if (App::main()) App::main()->itemResized(existing);
-				if (existing->hasTextLinks()) {
+				if (existing->hasTextLinks() && (!existing->history()->isChannel() || existing->fromChannel())) {
 					existing->history()->addToOverview(existing, OverviewLinks);
 				}
 			}
@@ -2369,9 +2359,9 @@ namespace App {
 		}
 	}
 
-	void searchByHashtag(const QString &tag) {
+	void searchByHashtag(const QString &tag, PeerData *inPeer) {
 		if (App::main()) {
-			App::main()->searchMessages(tag + ' ');
+			App::main()->searchMessages(tag + ' ', (inPeer && inPeer->isChannel()) ? inPeer : 0);
 		}
 	}
 

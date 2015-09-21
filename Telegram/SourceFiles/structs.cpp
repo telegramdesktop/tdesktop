@@ -26,6 +26,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "window.h"
 #include "gui/filedialog.h"
 
+#include "boxes/confirmbox.h"
+
 #include "audio.h"
 #include "localstorage.h"
 
@@ -372,10 +374,26 @@ void ChannelData::setName(const QString &newName, const QString &usern) {
 
 	updateName(newName.isEmpty() ? name : newName, QString(), usern);
 	if (updUsername) {
+		if (usern.isEmpty()) {
+			flags &= ~MTPDchannel::flag_username;
+		} else {
+			flags |= MTPDchannel::flag_username;
+		}
 		if (App::main()) {
 			App::main()->peerUsernameChanged(this);
 		}
 	}
+}
+
+void ChannelData::updateFull() {
+	if (!_lastFullUpdate || getms(true) > _lastFullUpdate + UpdateFullChannelTimeout) {
+		App::api()->requestFullPeer(this);
+		if (!amCreator() && !inviter) App::api()->requestSelfParticipant(this);
+	}
+}
+
+void ChannelData::fullUpdated() {
+	_lastFullUpdate = getms(true);
 }
 
 uint64 PtsWaiter::ptsKey(PtsSkippedQueue queue) {
@@ -423,7 +441,7 @@ void PtsWaiter::applySkippedUpdates(ChannelData *channel) {
 	for (QMap<uint64, PtsSkippedQueue>::const_iterator i = _queue.cbegin(), e = _queue.cend(); i != e; ++i) {
 		switch (i.value()) {
 		case SkippedUpdate: App::main()->feedUpdate(_updateQueue.value(i.key())); break;
-		case SkippedUpdates: App::main()->handleUpdates(_updatesQueue.value(i.key())); break;
+		case SkippedUpdates: App::main()->feedUpdates(_updatesQueue.value(i.key())); break;
 		}
 	}
 	--_applySkippedLevel;
@@ -437,13 +455,45 @@ void PtsWaiter::clearSkippedUpdates() {
 	_applySkippedLevel = 0;
 }
 
-bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count) { // return false if need to save that update and apply later
-	if (_requesting || _applySkippedLevel) return true;
+bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count) {
+	if (_requesting || _applySkippedLevel) {
+		return true;
+	} else if (pts <= _good) {
+		return false;
+	}
+	return check(channel, pts, count);
+}
 
+bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 ptsCount, const MTPUpdates &updates) {
+	if (_requesting || _applySkippedLevel) {
+		return true;
+	} else if (pts <= _good) {
+		return false;
+	} else if (check(channel, pts, ptsCount)) {
+		return true;
+	}
+	_updatesQueue.insert(ptsKey(SkippedUpdates), updates);
+	return false;
+}
+
+bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 ptsCount, const MTPUpdate &update) {
+	if (_requesting || _applySkippedLevel) {
+		return true;
+	} else if (pts <= _good) {
+		return false;
+	} else if (check(channel, pts, ptsCount)) {
+		return true;
+	}
+	_updateQueue.insert(ptsKey(SkippedUpdate), update);
+	return false;
+}
+
+bool PtsWaiter::check(ChannelData *channel, int32 pts, int32 count) { // return false if need to save that update and apply later
 	if (!inited()) {
 		init(pts);
 		return true;
 	}
+
 	_last = qMax(_last, pts);
 	_count += count;
 	if (_last == _count) {
@@ -455,22 +505,6 @@ bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count) { // retur
 		setWaitingForSkipped(channel, WaitForSkippedTimeout);
 	}
 	return !count;
-}
-
-bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 ptsCount, const MTPUpdates &updates) {
-	if (!updated(channel, pts, ptsCount)) {
-		_updatesQueue.insert(ptsKey(SkippedUpdates), updates);
-		return false;
-	}
-	return true;
-}
-
-bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 ptsCount, const MTPUpdate &update) {
-	if (!updated(channel, pts, ptsCount)) {
-		_updateQueue.insert(ptsKey(SkippedUpdate), update);
-		return false;
-	}
-	return true;
 }
 
 void PhotoLink::onClick(Qt::MouseButton button) const {
@@ -915,7 +949,11 @@ id(id), type(type), url(url), displayUrl(displayUrl), siteName(siteName), title(
 void PeerLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton && App::main()) {
 		if (peer() && peer()->isChannel() && App::main()->historyPeer() != peer()) {
-			App::main()->showPeerHistory(peer()->id, ShowAtUnreadMsgId);
+			if (!peer()->asChannel()->isPublic() && (peer()->asChannel()->isForbidden || peer()->asChannel()->haveLeft() || peer()->asChannel()->wasKicked())) {
+				App::wnd()->showLayer(new ConfirmBox(lang(lng_channel_not_accessible), true));
+			} else {
+				App::main()->showPeerHistory(peer()->id, ShowAtUnreadMsgId);
+			}
 		} else {
 			App::main()->showPeerProfile(peer());
 		}

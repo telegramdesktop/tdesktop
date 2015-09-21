@@ -661,8 +661,8 @@ void MediaView::showPhoto(PhotoData *photo, HistoryItem *context) {
 	_index = -1;
 	_msgid = context ? context->id : 0;
 	_channel = context ? context->channelId() : NoChannel;
-	_canForward = _msgid > 0 && (_channel == NoChannel);
-	_canDelete = (_channel == NoChannel) || context->history()->peer->asChannel()->adminned;
+	_canForward = _msgid > 0;
+	_canDelete = context ? context->canDelete() : false;
 	_photo = photo;
 	if (_history) {
 		_overview = OverviewPhotos;
@@ -734,8 +734,8 @@ void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 	_index = -1;
 	_msgid = context ? context->id : 0;
 	_channel = context ? context->channelId() : NoChannel;
-	_canForward = _msgid > 0 && (_channel == NoChannel);
-	_canDelete = (_channel == NoChannel) || context->history()->peer->asChannel()->adminned;
+	_canForward = _msgid > 0;
+	_canDelete = context ? context->canDelete() : false;
 	if (_history) {
 		_overview = OverviewDocuments;
 
@@ -1396,8 +1396,8 @@ void MediaView::moveToNext(int32 delta) {
 			if (HistoryItem *item = App::histItemById(_history->channelId(), _history->overview[_overview][_index])) {
 				_msgid = item->id;
 				_channel = item->channelId();
-				_canForward = _msgid > 0 && (_channel == NoChannel);
-				_canDelete = (_channel == NoChannel) || item->history()->peer->asChannel()->adminned;
+				_canForward = _msgid > 0;
+				_canDelete = item->canDelete();
 				if (item->getMedia()) {
 					switch (item->getMedia()->type()) {
 					case MediaTypePhoto: displayPhoto(static_cast<HistoryPhoto*>(item->getMedia())->photo(), item); preloadData(delta); break;
@@ -1661,10 +1661,21 @@ void MediaView::updateOver(QPoint pos) {
 
 void MediaView::mouseReleaseEvent(QMouseEvent *e) {
 	updateOver(e->pos());
-	if (textlnkDown() && textlnkOver() == textlnkDown()) {
-		textlnkDown()->onClick(e->button());
-	}
+	TextLinkPtr lnk = textlnkDown();
 	textlnkDown(TextLinkPtr());
+	if (lnk && textlnkOver() == lnk) {
+		if (reHashtag().match(lnk->encoded()).hasMatch() && _history && _history->isChannel()) {
+			App::wnd()->hideMediaview();
+			App::searchByHashtag(lnk->encoded(), _history->peer);
+		} else {
+			if (reBotCommand().match(lnk->encoded()).hasMatch() && _history->peer->isUser() && _history->peer->asUser()->botInfo) {
+				App::wnd()->hideMediaview();
+				App::main()->showPeerHistory(_history->peer->id, ShowAtTheEndMsgId);
+			}
+			lnk->onClick(e->button());
+		}
+		return;
+	}
 	if (_over == OverName && _down == OverName) {
 		if (App::wnd() && _from) {
 			close();
@@ -1924,8 +1935,10 @@ void MediaView::updateHeader() {
 			_headerText = _doc->name.isEmpty() ? lang(lng_mediaview_doc_image) : _doc->name;
 		} else if (_user) {
 			_headerText = lang(lng_mediaview_profile_photo);
-		} else if (_peer) {
+		} else if (_channel) {
 			_headerText = lang(lng_mediaview_group_photo);
+		} else if (_peer) {
+			_headerText = lang(lng_mediaview_channel_photo);
 		} else {
 			_headerText = lang(lng_mediaview_single_photo);
 		}

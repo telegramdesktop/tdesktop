@@ -34,6 +34,8 @@ public:
 	void requestPeer(PeerData *peer);
 	void requestPeers(const QList<PeerData*> &peers);
 
+	void requestSelfParticipant(ChannelData *channel);
+
 	void requestWebPageDelayed(WebPageData *page);
 	void clearWebPageRequest(WebPageData *page);
 	void clearWebPageRequests();
@@ -82,6 +84,11 @@ private:
 	void gotUsers(const MTPVector<MTPUser> &result);
 	bool gotPeerFailed(PeerData *peer, const RPCError &err);
 	PeerRequests _peerRequests;
+
+	void gotSelfParticipant(ChannelData *channel, const MTPchannels_ChannelParticipant &result);
+	bool gotSelfParticipantFail(ChannelData *channel, const RPCError &error);
+	typedef QMap<ChannelData*, mtpRequestId> SelfParticipantRequests;
+	SelfParticipantRequests _selfParticipantRequests;
 
 	void gotWebPages(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
 	typedef QMap<WebPageData*, mtpRequestId> WebPagesPending;

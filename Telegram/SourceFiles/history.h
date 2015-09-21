@@ -62,7 +62,7 @@ public:
 		unreadFull = unreadMuted = 0;
 	}
 
-	HistoryItem *addNewMessage(const MTPmessage &msg, NewMessageType type);
+	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
 	//	HistoryItem *addToBack(const MTPgeoChatMessage &msg, bool newMsg = true);
 
 	typedef QMap<History*, uint64> TypingHistories; // when typing in this history started
@@ -193,13 +193,13 @@ public:
 		clear();
 	}
 
-	HistoryItem *createItem(HistoryBlock *block, const MTPmessage &msg, bool applyServiceAction, bool returnExisting = false);
+	HistoryItem *createItem(HistoryBlock *block, const MTPMessage &msg, bool applyServiceAction, bool returnExisting = false);
 	HistoryItem *createItemForwarded(HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg);
 	HistoryItem *createItemDocument(HistoryBlock *block, MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
 
 	HistoryItem *addNewService(MsgId msgId, QDateTime date, const QString &text, int32 flags = 0, HistoryMedia *media = 0, bool newMsg = true);
-	HistoryItem *addNewMessage(const MTPmessage &msg, NewMessageType type);
-	HistoryItem *addToHistory(const MTPmessage &msg);
+	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
+	HistoryItem *addToHistory(const MTPMessage &msg);
 	HistoryItem *addNewForwarded(MsgId id, QDateTime date, int32 from, HistoryMessage *item);
 	HistoryItem *addNewDocument(MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
 
@@ -232,7 +232,7 @@ public:
 	bool isReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop); // has messages for showing history at msgId
 	void getReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop);
 
-	void setLastMessage(HistoryItem *msg, bool updatePosInDialogs = true);
+	void setLastMessage(HistoryItem *msg);
 	void setPosInDialogsDate(const QDateTime &date);
 	void fixLastMessage(bool wasAtBottom);
 
@@ -355,6 +355,7 @@ private:
 
 class HistoryGroup;
 class HistoryCollapse;
+class HistoryJoined;
 class ChannelHistory : public History {
 public:
 
@@ -368,6 +369,10 @@ public:
 	void getSwitchReadyFor(MsgId switchId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop);
 
 	void insertCollapseItem(MsgId wasMinId);
+	void getRangeDifference();
+	void getRangeDifferenceNext(int32 pts);
+
+	void addNewGroup(const MTPMessageGroup &group);
 
 	int32 unreadCountAll;
 	bool onlyImportant() const {
@@ -375,7 +380,7 @@ public:
 	}
 
 	HistoryCollapse *collapse() const {
-		return _collapse;
+		return _collapseMessage;
 	}
 
 	void clearOther() {
@@ -384,6 +389,10 @@ public:
 		_otherList.clear();
 	}
 
+	HistoryJoined *insertJoinedMessage(bool unread);
+	void checkJoinedMessage();
+	const QDateTime &maxReadMessageDate();
+
 private:
 
 	friend class History;
@@ -391,19 +400,30 @@ private:
 	HistoryItem *addNewToBlocks(const MTPMessage &msg, NewMessageType type);
 	void addNewToOther(HistoryItem *item, NewMessageType type);
 
+	void checkMaxReadMessageDate();
+
 	HistoryGroup *findGroup(MsgId msgId) const;
 	HistoryBlock *findGroupBlock(MsgId msgId) const;
 	HistoryGroup *findGroupInOther(MsgId msgId) const;
 	HistoryItem *findPrevItem(HistoryItem *item) const;
+	void switchMode();
+
+	void cleared();
+
 	bool _onlyImportant;
+
+	QDateTime _maxReadMessageDate;
 
 	typedef QList<HistoryItem*> OtherList;
 	OtherList _otherList;
 	bool _otherOldLoaded, _otherNewLoaded;
 
-	HistoryCollapse *_collapse;
+	HistoryCollapse *_collapseMessage;
+	HistoryJoined *_joinedMessage;
 
-	void switchMode();
+	MsgId _rangeDifferenceFromId, _rangeDifferenceToId;
+	int32 _rangeDifferencePts;
+	mtpRequestId _rangeDifferenceRequestId;
 
 };
 
@@ -755,9 +775,8 @@ enum InfoDisplayType {
 	InfoDisplayOverImage,
 };
 
-inline bool isImportantChannelMessage(int32 flags) {
-	/**/
-	return (flags & MTPDmessage_flag_out) || (flags & MTPDmessage_flag_notify_by_from) || (!(flags & MTPDmessage::flag_from_id) && (flags != 0)); // always has_from_id || has_views
+inline bool isImportantChannelMessage(MsgId id, int32 flags) { // client-side important msgs always has_views or has_from_id
+	return (flags & MTPDmessage_flag_out) || (flags & MTPDmessage_flag_notify_by_from) || ((id > 0 || flags != 0) && !(flags & MTPDmessage::flag_from_id));
 }
 
 enum HistoryItemType {
@@ -765,7 +784,8 @@ enum HistoryItemType {
 	HistoryItemDate,
 	HistoryItemUnreadBar,
 	HistoryItemGroup,
-	HistoryItemCollapse
+	HistoryItemCollapse,
+	HistoryItemJoined
 };
 
 class HistoryMedia;
@@ -813,7 +833,7 @@ public:
 		return _flags & MTPDmessage_flag_notify_by_from;
 	}
 	bool isMediaUnread() const {
-		return (_flags & MTPDmessage_flag_media_unread) && (channelId() == NoChannel); // CHANNELS_UI
+		return (_flags & MTPDmessage_flag_media_unread) && (channelId() == NoChannel);
 	}
 	void markMediaRead() {
 		_flags &= ~MTPDmessage_flag_media_unread;
@@ -824,11 +844,14 @@ public:
 	bool hasTextLinks() const {
 		return _flags & MTPDmessage_flag_HAS_TEXT_LINKS;
 	}
+	bool hasViews() const {
+		return _flags & MTPDmessage::flag_views;
+	}
 	bool fromChannel() const {
 		return _from->isChannel();
 	}
 	bool isImportant() const {
-		return _history->isChannel() && isImportantChannelMessage(_flags);
+		return _history->isChannel() && isImportantChannelMessage(id, _flags);
 	}
 	virtual bool needCheck() const {
 		return out();
@@ -876,6 +899,19 @@ public:
         return QString();
     }
     virtual QString notificationText() const = 0;
+
+	bool canDelete() const {
+		ChannelData *channel = _history->peer->asChannel();
+		if (!channel) return true;
+
+		if (id == 1) return false;
+		if (channel->amCreator()) return true;
+		if (fromChannel()) {
+			if (channel->amEditor() && out()) return true;
+			return false;
+		}
+		return (channel->amEditor() || channel->amModerator() || out());
+	}
 
 	int32 y;
 	MsgId id;
@@ -1809,6 +1845,15 @@ public:
 private:
 	MsgId _wasMinId;
 
+};
+
+class HistoryJoined : public HistoryServiceMsg {
+public:
+
+	HistoryJoined(History *history, HistoryBlock *block, const QDateTime &date, UserData *from, int32 flags);
+	HistoryItemType type() const {
+		return HistoryItemJoined;
+	}
 };
 
 HistoryItem *createDayServiceMsg(History *history, HistoryBlock *block, QDateTime date);

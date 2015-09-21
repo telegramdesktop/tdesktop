@@ -1799,7 +1799,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (App::hoveredLinkItem()->toHistoryMessage()) {
 					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
 				}
-				if (!_peer->isChannel() || _peer->asChannel()->adminned || App::hoveredLinkItem()->out()) {
+				if (App::hoveredLinkItem()->canDelete()) {
 					_menu->addAction(lang(lng_context_delete_msg), this, SLOT(deleteMessage()))->setEnabled(true);
 				}
 			}
@@ -1839,7 +1839,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (App::mousedItem()->toHistoryMessage()) {
 					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
 				}
-				if (!_peer->isChannel() || _peer->asChannel()->adminned || App::mousedItem()->out()) {
+				if (App::mousedItem()->canDelete()) {
 					_menu->addAction(lang(lng_context_delete_msg), this, SLOT(deleteMessage()))->setEnabled(true);
 				}
 			}
@@ -2100,10 +2100,8 @@ void OverviewInner::getSelectionState(int32 &selectedForForward, int32 &selected
 	selectedForForward = selectedForDelete = 0;
 	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
 		if (i.value() == FullItemSel) {
-			if (!_peer || !_peer->isChannel() || _peer->asChannel()->adminned) {
-				++selectedForDelete;
-			} else if (HistoryItem *item = App::histItemById(_channel, i.key())) {
-				if (item->out()) {
+			if (HistoryItem *item = App::histItemById(_channel, i.key())) {
+				if (item->canDelete()) {
 					++selectedForDelete;
 				}
 			}

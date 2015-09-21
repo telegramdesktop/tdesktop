@@ -2861,13 +2861,13 @@ namespace Local {
 		} else if (peer->isChat()) {
 			ChatData *chat = peer->asChat();
 
-			stream << chat->name << qint32(chat->count) << qint32(chat->date) << qint32(chat->version) << qint32(chat->admin);
-			stream << qint32(chat->forbidden ? 1 : 0) << qint32(chat->left ? 1 : 0) << chat->invitationUrl;
+			stream << chat->name << qint32(chat->count) << qint32(chat->date) << qint32(chat->version) << qint32(chat->creator);
+			stream << qint32(chat->isForbidden ? 1 : 0) << qint32(chat->haveLeft ? 1 : 0) << chat->invitationUrl;
 		} else if (peer->isChannel()) {
 			ChannelData *channel = peer->asChannel();
 
-			stream << channel->name << quint64(channel->access) << qint32(channel->date) << qint32(channel->version) << qint32(channel->adminned ? 1 : 0);
-			stream << qint32(channel->forbidden ? 1 : 0) << qint32(channel->left ? 1 : 0) << channel->invitationUrl;
+			stream << channel->name << quint64(channel->access) << qint32(channel->date) << qint32(channel->version);
+			stream << qint32(channel->isForbidden ? 1 : 0) << qint32(channel->flags) << channel->invitationUrl;
 		}
 	}
 
@@ -2911,16 +2911,16 @@ namespace Local {
 			ChatData *chat = result->asChat();
 
 			QString name, invitationUrl;
-			qint32 count, date, version, admin, forbidden, left;
-			from.stream >> name >> count >> date >> version >> admin >> forbidden >> left >> invitationUrl;
+			qint32 count, date, version, creator, forbidden, left;
+			from.stream >> name >> count >> date >> version >> creator >> forbidden >> left >> invitationUrl;
 
 			chat->updateName(name, QString(), QString());
 			chat->count = count;
 			chat->date = date;
 			chat->version = version;
-			chat->admin = admin;
-			chat->forbidden = (forbidden == 1);
-			chat->left = (left == 1);
+			chat->creator = creator;
+			chat->isForbidden = (forbidden == 1);
+			chat->haveLeft = (left == 1);
 			chat->invitationUrl = invitationUrl;
 
 			chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));
@@ -2932,16 +2932,15 @@ namespace Local {
 
 			QString name, invitationUrl;
 			quint64 access;
-			qint32 date, version, adminned, forbidden, left;
-			from.stream >> name >> access >> date >> version >> adminned >> forbidden >> left >> invitationUrl;
+			qint32 date, version, adminned, forbidden, flags;
+			from.stream >> name >> access >> date >> version >> forbidden >> flags >> invitationUrl;
 
 			channel->updateName(name, QString(), QString());
 			channel->access = access;
 			channel->date = date;
 			channel->version = version;
-			channel->adminned = (adminned == 1);
-			channel->forbidden = (forbidden == 1);
-			channel->left = (left == 1);
+			channel->isForbidden = (forbidden == 1);
+			channel->flags = flags;
 			channel->invitationUrl = invitationUrl;
 
 			channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));

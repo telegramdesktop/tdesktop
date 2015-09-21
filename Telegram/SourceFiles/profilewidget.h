@@ -27,6 +27,8 @@ public:
 
 	void start();
 
+	void peerUsernameChanged();
+
 	bool event(QEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
@@ -56,6 +58,7 @@ public:
 	int32 mediaOverviewUpdated(PeerData *peer, MediaOverviewType type); // returns scroll shift
 
 	void requestHeight(int32 newHeight);
+	int32 countMinHeight();
 	void allowDecreaseHeight(int32 decreaseBy);
 
 	~ProfileInner();
@@ -78,6 +81,8 @@ public slots:
 	void onClearHistorySure();
 	void onDeleteConversation();
 	void onDeleteConversationSure();
+	void onDeleteChannel();
+	void onDeleteChannelSure();
 	void onBlockUser();
 	void onAddParticipant();
 
@@ -103,11 +108,13 @@ public slots:
 	void onInvitationLink();
 	void onCreateInvitationLink();
 	void onCreateInvitationLinkSure();
+	void onPublicLink();
 
 	void onFullPeerUpdated(PeerData *peer);
 
 	void onBotSettings();
 	void onBotHelp();
+	void onEditPublicLink();
 
 private:
 
@@ -126,7 +133,7 @@ private:
 	ChatData *_peerChat;
 	ChannelData *_peerChannel;
 	History *_hist;
-	bool _isAdmin;
+	bool _amCreator;
 
 	int32 _width, _left, _addToHeight;
 
@@ -139,7 +146,7 @@ private:
 	FlatButton _sendMessage, _shareContact, _inviteToGroup;
 	LinkButton _cancelPhoto, _createInvitationLink, _invitationLink;
 	QString _invitationText;
-	LinkButton _botSettings, _botHelp;
+	LinkButton _botSettings, _botHelp, _username, _editLink;
 
 	Text _about;
 	int32 _aboutTop, _aboutHeight;
@@ -161,7 +168,7 @@ private:
 	LinkButton _searchInPeer, _clearHistory, _deleteConversation;
 	UserBlockedStatus _wasBlocked;
 	mtpRequestId _blockRequest;
-	LinkButton _blockUser;
+	LinkButton _blockUser, _deleteChannel;
 
 	// participants
 	int32 _pHeight;
@@ -214,6 +221,8 @@ public:
 
 	void updateOnlineDisplay();
 	void updateOnlineDisplayTimer();
+
+	void peerUsernameChanged();
 
 	void updateNotifySettings();
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);

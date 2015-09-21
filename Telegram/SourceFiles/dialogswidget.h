@@ -55,7 +55,7 @@ public:
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
 
-	void createDialogAtTop(History *history, int32 unreadCount);
+	void createDialog(History *history);
 	void moveDialogToTop(const History::DialogLinks &links);
 	void dlgUpdated(DialogRow *row);
 	void dlgUpdated(History *row);
@@ -194,7 +194,7 @@ public:
 	void searchInPeer(PeerData *peer);
 
 	void loadDialogs();
-	void createDialogAtTop(History *history, int32 unreadCount);
+	void createDialog(History *history);
 	void dlgUpdated(DialogRow *row);
 	void dlgUpdated(History *row);
 
@@ -217,7 +217,7 @@ public:
 
 	void enableShadow(bool enable = true);
 	
-	void searchMessages(const QString &query);
+	void searchMessages(const QString &query, PeerData *inPeer = 0);
 	void onSearchMore(MsgId minMsgId);
 
 	void itemRemoved(HistoryItem *item);
