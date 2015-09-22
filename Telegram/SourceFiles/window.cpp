@@ -1580,7 +1580,7 @@ void Window::notifyUpdateAllPhotos() {
             (*i)->updatePeerPhoto();
         }
     }
-	if (_mediaView) _mediaView->updateControls();
+	if (_mediaView && !_mediaView->isHidden()) _mediaView->updateControls();
 }
 
 void Window::notifyUpdateAll() {

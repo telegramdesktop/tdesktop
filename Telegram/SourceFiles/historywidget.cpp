@@ -3360,6 +3360,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_cmdStart.hide();
 		_attachType.hide();
 		_emojiPan.hide();
+		_kbScroll.hide();
 		if (!_field.isHidden()) {
 			_field.hide();
 			resizeEvent(0);
