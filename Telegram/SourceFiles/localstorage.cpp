@@ -2946,7 +2946,7 @@ namespace Local {
 			channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 			channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 
-			channel->photo = photoLoc.isNull() ? ImagePtr(chatDefPhoto(channel->colorIndex)) : ImagePtr(photoLoc);
+			channel->photo = photoLoc.isNull() ? ImagePtr(channelDefPhoto(channel->colorIndex)) : ImagePtr(photoLoc);
 		}
 		App::markPeerUpdated(result);
 		emit App::main()->peerPhotoChanged(result);
