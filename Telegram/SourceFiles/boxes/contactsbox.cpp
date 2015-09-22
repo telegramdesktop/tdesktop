@@ -35,7 +35,7 @@ _contacts(&App::main()->contactsList()),
 _sel(0),
 _filteredSel(-1),
 _mouseSel(false),
-_selCount(1),
+_selCount(0),
 _searching(false),
 _byUsernameSel(-1),
 _addContactLnk(this, lang(lng_add_contact_button)) {
@@ -47,7 +47,7 @@ _contacts(&App::main()->contactsList()),
 _sel(0),
 _filteredSel(-1),
 _mouseSel(false),
-_selCount(1),
+_selCount(0),
 _searching(false),
 _byUsernameSel(-1),
 _addContactLnk(this, lang(lng_add_contact_button)) {
@@ -194,7 +194,17 @@ ContactsInner::ContactData *ContactsInner::contactData(DialogRow *row) {
 		ContactsData::const_iterator i = _contactsData.constFind(peer);
 		if (i == _contactsData.cend()) {
 			_contactsData.insert(peer, data = new ContactData());
-			data->inchat = (_chat && peer->isUser()) ? _chat->participants.contains(peer->asUser()) : ((_creating == CreatingGroupGroup || _channel) ? (peer == App::self()) : false);
+			if (peer->isUser()) {
+				if (_chat) {
+					data->inchat = _chat->participants.contains(peer->asUser());
+				} else if (_creating == CreatingGroupGroup || _channel) {
+					data->inchat = (peerToUser(peer->id) == MTP::authedId());
+				} else {
+					data->inchat = false;
+				}
+			} else {
+				data->inchat = false;
+			}
 			data->check = _checkedContacts.contains(peer);
 			data->name.setText(st::profileListNameFont, peer->name, _textNameOptions);
 			if (peer->isUser()) {
@@ -505,7 +515,15 @@ void ContactsInner::changeCheckState(ContactData *data, PeerData *peer) {
 }
 
 int32 ContactsInner::selectedCount() const {
-	return _selCount + ((_chat && _chat->count >= 0) ? _chat->count : 0);
+	int32 result = _selCount;
+	if (_chat) {
+		result += (_chat->count > 0) ? _chat->count : 1;
+	} else if (_channel) {
+		result += (_channel->count > 0) ? _channel->count : 1;
+	} else if (_creating == CreatingGroupGroup) {
+		result += 1;
+	}
+	return result;
 }
 
 void ContactsInner::updateSel() {

@@ -29,7 +29,7 @@ mtpRequestId MTProtoSession::send(const TRequest &request, RPCResponseHandler ca
 
         reqSerialized->msDate = getms(true); // > 0 - can send without container
 		reqSerialized->needsLayer = needsLayer;
-//		if (after) reqSerialized->after = _mtp_internal::getRequest(after);
+		if (after) reqSerialized->after = _mtp_internal::getRequest(after);
 		requestId = _mtp_internal::storeRequest(reqSerialized, callbacks);
 
         sendPrepared(reqSerialized, msCanWait);

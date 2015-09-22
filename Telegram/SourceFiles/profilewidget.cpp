@@ -340,9 +340,9 @@ bool ProfileInner::blockFail(const RPCError &error) {
 }
 
 void ProfileInner::onAddParticipant() {
-	if (!_peerChat) return;
+	if (!_peerChat && !_peerChannel) return;
 
-	App::wnd()->showLayer(new ContactsBox(_peerChat));
+	App::wnd()->showLayer(_peerChat ? (new ContactsBox(_peerChat)) : (new ContactsBox(_peerChannel)));
 }
 
 void ProfileInner::onUpdatePhotoCancel() {
@@ -710,7 +710,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 		}
 		top += _editLink.height();
 	}
-
+	
 	// about
 	if (!_about.isEmpty()) {
 		p.setFont(st::profileHeaderFont->f);
@@ -1409,7 +1409,11 @@ void ProfileInner::showAll() {
 				_createInvitationLink.hide();
 				_invitationLink.hide();
 			}
-			_addParticipant.hide();
+			if (_amCreator) {
+				_addParticipant.show();
+			} else {
+				_addParticipant.hide();
+			}
 		}
 		_blockUser.hide();
 		if (_amCreator) {

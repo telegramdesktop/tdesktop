@@ -1948,6 +1948,7 @@ bool DialogsWidget::peopleFailed(const RPCError &error, mtpRequestId req) {
 
 bool DialogsWidget::addNewContact(int32 uid, bool show) {
 	_filter.setText(QString());
+	_filter.updatePlaceholder();
 	onFilterUpdate();
 	int32 to = list.addNewContact(uid, true);
 	if (to < -1 || !show) return false;
@@ -2201,12 +2202,14 @@ void DialogsWidget::scrollToPeer(const PeerId &peer, MsgId msgId) {
 
 void DialogsWidget::removePeer(PeerData *peer) {
 	_filter.setText(QString());
+	_filter.updatePlaceholder();
 	onFilterUpdate();
 	list.removePeer(peer);
 }
 
 void DialogsWidget::removeContact(UserData *user) {
 	_filter.setText(QString());
+	_filter.updatePlaceholder();
 	onFilterUpdate();
 	list.removeContact(user);
 }

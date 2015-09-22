@@ -97,8 +97,10 @@ bool FlatTextarea::heightAutoupdated() {
 	}
 	if (height() != newh) {
 		resize(width(), newh);
+		_inHeightCheck = false;
 		return true;
 	}
+	_inHeightCheck = false;
 	return false;
 }
 
@@ -893,6 +895,7 @@ void FlatTextarea::keyPressEvent(QKeyEvent *e) {
 void FlatTextarea::resizeEvent(QResizeEvent *e) {
 	_phelided = _st.font->m.elidedText(_ph, Qt::ElideRight, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1);
 	QTextEdit::resizeEvent(e);
+	checkContentHeight();
 }
 
 void FlatTextarea::mousePressEvent(QMouseEvent *e) {

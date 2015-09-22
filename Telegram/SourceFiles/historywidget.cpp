@@ -1654,11 +1654,6 @@ void MessageField::dropEvent(QDropEvent *e) {
 	}
 }
 
-void MessageField::resizeEvent(QResizeEvent *e) {
-	FlatTextarea::resizeEvent(e);
-	checkContentHeight();
-}
-
 bool MessageField::canInsertFromMimeData(const QMimeData *source) const {
 	if (source->hasImage()) return true;
 	return FlatTextarea::canInsertFromMimeData(source);
@@ -3416,8 +3411,8 @@ bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
 
 	if (error.type() == qstr("CHANNEL_PRIVATE")) {
-		App::wnd()->showLayer(new ConfirmBox(lang(lng_channel_not_accessible), true));
 		App::main()->showDialogs();
+		App::wnd()->showLayer(new ConfirmBox(lang(lng_channel_not_accessible), true));
 		return true;
 	}
 
@@ -5893,15 +5888,24 @@ void HistoryWidget::onFullPeerUpdated(PeerData *data) {
 void HistoryWidget::peerUpdated(PeerData *data) {
 	if (data && data == _peer) {
 		updateListSize();
-		if (!_showAnim.animating()) updateControlsVisibility();
 		if (_peer->isChannel()) updateReportSpamStatus();
 		if (data->isChat() && data->asChat()->count > 0 && data->asChat()->participants.isEmpty()) {
 			App::api()->requestFullPeer(data);
 		} else if (data->isUser() && data->asUser()->blocked == UserBlockUnknown) {
 			App::api()->requestFullPeer(data);
-		} else if (!_scroll.isHidden() && (_unblock.isHidden() == isBlocked() || (!isBlocked() && _joinChannel.isHidden() == isJoinChannel()))) {
+		}
+		if (!_showAnim.animating()) {
+			bool resize = (_unblock.isHidden() == isBlocked() || (!isBlocked() && _joinChannel.isHidden() == isJoinChannel()));
+			bool newCanSendMessages = canSendMessages(_peer);
+			if (newCanSendMessages != _canSendMessages) {
+				_canSendMessages = newCanSendMessages;
+				if (!_canSendMessages) {
+					cancelReply();
+				}
+				resize = true;
+			}
 			updateControlsVisibility();
-			resizeEvent(0);
+			if (resize) resizeEvent(0);
 		}
 		App::main()->updateOnlineDisplay();
 	}

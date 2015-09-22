@@ -187,7 +187,6 @@ class MessageField : public FlatTextarea {
 public:
 	MessageField(HistoryWidget *history, const style::flatTextarea &st, const QString &ph = QString(), const QString &val = QString());
 	void dropEvent(QDropEvent *e);
-	void resizeEvent(QResizeEvent *e);
 	bool canInsertFromMimeData(const QMimeData *source) const;
 	void insertFromMimeData(const QMimeData *source);
 

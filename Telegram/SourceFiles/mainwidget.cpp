@@ -4503,6 +4503,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		const MTPDupdateChannel &d(update.c_updateChannel());
 		if (ChannelData *channel = App::channelLoaded(d.vchannel_id.v)) {
 			App::markPeerUpdated(channel);
+			channel->inviter = 0;
 			if (channel->isForbidden || channel->wasKicked() || channel->haveLeft()) {
 				dialogs.removePeer(channel);
 				if (History *h = App::historyLoaded(channel->id)) {
@@ -4510,17 +4511,12 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					h->asChannelHistory()->clearOther();
 				}
 				channel->ptsWaitingForShortPoll(-1);
-				channel->inviter = 0;
 				if (activePeer() == channel) {
 					showDialogs();
 				}
 			} else if (!channel->amCreator() && App::history(channel->id)) { // create history
 				_updatedChannels.insert(channel, true);
-				if (channel->inviter) {
-					checkPeerHistory(channel);
-				} else {
-					App::api()->requestSelfParticipant(channel);
-				}
+				App::api()->requestSelfParticipant(channel);
 			}
 		}
 	} break;
