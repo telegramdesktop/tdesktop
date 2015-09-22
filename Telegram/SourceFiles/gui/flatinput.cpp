@@ -434,8 +434,8 @@ a_placeholderFg(st.placeholderFg->c),
 _placeholderFgAnim(animFunc(this, &InputField::placeholderFgStep)),
 _placeholderShiftAnim(animFunc(this, &InputField::placeholderShiftStep)),
 
-a_borderFg(st.borderFg->c),
 a_borderOpacityActive(0),
+a_borderFg(st.borderFg->c),
 _borderAnim(animFunc(this, &InputField::borderStep)),
 
 _focused(false), _error(false),

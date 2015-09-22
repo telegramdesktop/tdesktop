@@ -734,8 +734,8 @@ void ContactsInner::peopleReceived(const QString &query, const QVector<MTPPeer> 
 			PeerData *p = App::peer(peerId);
 			if (!p) continue;
 
-			if ((!p->isUser() || p->asUser()->botInfo && p->asUser()->botInfo->cantJoinGroups) && (_chat || _creating != CreatingGroupNone)) continue; // skip bot's that can't be invited to groups
-			if (p->isUser() && p->asUser()->botInfo && _creating == CreatingGroupChannel) continue; // skip bots in channels
+			if ((!p->isUser() || (p->asUser()->botInfo && p->asUser()->botInfo->cantJoinGroups)) && (_chat || _creating != CreatingGroupNone)) continue; // skip bot's that can't be invited to groups
+			if (p->isUser() && p->asUser()->botInfo && _channel) continue; // skip bots in channels
 
 			ContactData *d = new ContactData();
 			_byUsernameDatas.push_back(d);

@@ -681,7 +681,7 @@ void Application::checkMapVersion() {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
 			if (cDevVersion() && Local::oldMapVersion() < 8058) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Limited channels support added, see https://telegram.org/blog/channels\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Limited channels support added\n\xe2\x80\x94 Bug fixes and other minor improvements\n\nMore info about channels here:\nhttps://telegram.org/blog/channels");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (Local::oldMapVersion() < 8056) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			} else {

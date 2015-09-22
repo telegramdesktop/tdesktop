@@ -7384,7 +7384,7 @@ QString HistoryServiceMsg::inReplyText() const {
 	return result.trimmed().startsWith(from()->name) ? result.trimmed().mid(from()->name.size()).trimmed() : result;
 }
 
-void HistoryServiceMsg::setText(const QString &text) {
+void HistoryServiceMsg::setServiceText(const QString &text) {
 	_text.setText(st::msgServiceFont, text, _historySrvOptions);
 	initDimensions();
 }
@@ -7600,7 +7600,7 @@ bool HistoryGroup::decrementCount() {
 }
 
 void HistoryGroup::updateText() {
-	setText(lng_channel_comments_count(lt_count, _count)/* + qsl(" (%1 .. %2)").arg(_minId).arg(_maxId)*/);
+	setServiceText(lng_channel_comments_count(lt_count, _count)/* + qsl(" (%1 .. %2)").arg(_minId).arg(_maxId)*/);
 }
 
 HistoryCollapse::HistoryCollapse(History *history, HistoryBlock *block, MsgId wasMinId, const QDateTime &date) :
@@ -7618,7 +7618,7 @@ void HistoryCollapse::getState(TextLinkPtr &lnk, HistoryCursorState &state, int3
 
 HistoryJoined::HistoryJoined(History *history, HistoryBlock *block, const QDateTime &inviteDate, UserData *inviter, int32 flags) :
 HistoryServiceMsg(history, block, clientMsgId(), inviteDate, QString(), flags) {
-	if (inviter->id == MTP::authedId()) {
+	if (peerToUser(inviter->id) == MTP::authedId()) {
 		_text.setText(st::msgServiceFont, lang(lng_action_you_joined), _historySrvOptions);
 	} else {
 		_text.setText(st::msgServiceFont, lng_action_add_you(lt_from, textcmdLink(1, inviter->name)), _historySrvOptions);

@@ -1742,7 +1742,7 @@ public:
 		return _media ? _media->animating() : false;
 	}
 
-	void setText(const QString &text);
+	void setServiceText(const QString &text);
 
 	~HistoryServiceMsg();
 

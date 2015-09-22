@@ -136,7 +136,7 @@ private:
 	mutable QTimer psIdleTimer;
 
 	QMenuBar psMainMenu;
-	QAction *psLogout, *psUndo, *psRedo, *psCut, *psCopy, *psPaste, *psDelete, *psSelectAll, *psContacts, *psAddContact, *psNewGroup, *psShowTelegram;
+	QAction *psLogout, *psUndo, *psRedo, *psCut, *psCopy, *psPaste, *psDelete, *psSelectAll, *psContacts, *psAddContact, *psNewGroup, *psNewChannel, *psShowTelegram;
 
 };
 

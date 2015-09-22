@@ -47,8 +47,8 @@ ProfileInner::ProfileInner(ProfileWidget *profile, ScrollArea *scroll, const Pee
 	_invitationLink(this, qsl("telegram.me/joinchat/")),
 	_botSettings(this, lang(lng_profile_bot_settings)),
 	_botHelp(this, lang(lng_profile_bot_help)),
-	_editLink(this, lang((_peerChannel && _peerChannel->isPublic()) ? lng_profile_edit_public_link : lng_profile_create_public_link)),
 	_username(this, qsl("https://telegram.me/") + (_peerChannel ? _peerChannel->username : QString())),
+	_editLink(this, lang((_peerChannel && _peerChannel->isPublic()) ? lng_profile_edit_public_link : lng_profile_create_public_link)),
 
 	// about
 	_about(st::wndMinWidth - st::profilePadding.left() - st::profilePadding.right()),
