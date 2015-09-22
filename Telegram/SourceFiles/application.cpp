@@ -680,8 +680,8 @@ void Application::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if (cDevVersion() && Local::oldMapVersion() < 8054) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Preview when sending links to GIF animations and PDF files\n\xe2\x80\x94 Full date and time shown when mouse over message timestamp");// .replace('@', qsl("@") + QChar(0x200D));
+			if (cDevVersion() && Local::oldMapVersion() < 8058) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Limited channels support added, see https://telegram.org/blog/channels\n\xe2\x80\x94 Bug fixes and other minor improvements");// .replace('@', qsl("@") + QChar(0x200D));
 			} else if (Local::oldMapVersion() < 8056) {
 				versionFeatures = lang(lng_new_version_text).trimmed();
 			} else {
