@@ -73,7 +73,7 @@ goto eof
 cd ..\..\..
 :error1
 cd ..\..\Telegram
-echo ERROR occured!
+echo ERROR occurred!
 exit /b %errorlevel%
 
 :error_exist1
