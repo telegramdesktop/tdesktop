@@ -172,7 +172,7 @@ void BackgroundInner::resizeEvent(QResizeEvent *e) {
 }
 
 BackgroundBox::BackgroundBox() : ItemListBox(st::boxScroll), _inner(),
-_close(this, lang(lng_contacts_done), st::contactsClose) {
+_close(this, lang(lng_cancel), st::contactsClose) {
 
 	init(&_inner, _close.height(), st::boxFont->height + st::newGroupNamePadding.top() + st::newGroupNamePadding.bottom());
 

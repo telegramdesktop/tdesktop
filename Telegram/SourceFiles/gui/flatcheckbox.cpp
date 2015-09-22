@@ -79,15 +79,17 @@ void FlatCheckbox::paintEvent(QPaintEvent *e) {
 		p.fillRect(rect(), _st.bgColor->b);
 	}
 
-	p.setFont(_st.font->f);
-	p.setRenderHint(QPainter::TextAntialiasing);
-	p.setPen((_state & StateDisabled ? _st.disColor : _st.textColor)->p);
+	if (!_text.isEmpty()) {
+		p.setFont(_st.font->f);
+		p.setRenderHint(QPainter::TextAntialiasing);
+		p.setPen((_state & StateDisabled ? _st.disColor : _st.textColor)->p);
 
-	QRect tRect(rect());
-	tRect.setTop(_st.textTop);
-	tRect.setLeft(_st.textLeft);
-//    p.drawText(_st.textLeft, _st.textTop + _st.font->ascent, _text);
-    p.drawText(tRect, _text, QTextOption(style::al_topleft));
+		QRect tRect(rect());
+		tRect.setTop(_st.textTop);
+		tRect.setLeft(_st.textLeft);
+//		p.drawText(_st.textLeft, _st.textTop + _st.font->ascent, _text);
+		p.drawText(tRect, _text, QTextOption(style::al_topleft));
+	}
 
 	if (_state & StateDisabled) {
 		QRect sRect(_checked ? _st.chkDisImageRect : _st.disImageRect);

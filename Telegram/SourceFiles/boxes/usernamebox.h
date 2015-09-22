@@ -19,17 +19,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 
-class UsernameInput : public FlatInput {
-public:
-
-	UsernameInput(QWidget *parent, const style::flatInput &st, const QString &ph = QString(), const QString &val = QString());
-
-protected:
-
-	void correctValue(QKeyEvent *e, const QString &was);
-
-};
-
 class UsernameBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 

@@ -34,9 +34,17 @@ extern TextParseOptions _textNameOptions, _textDlgOptions, _historyTextOptions, 
 
 #include "structs.h"
 
-struct History;
-struct Histories : public QHash<PeerId, History*>, public Animated {
-	typedef QHash<PeerId, History*> Parent;
+enum NewMessageType {
+	NewMessageUnread,
+	NewMessageLast,
+	NewMessageExisting,
+};
+
+class History;
+class Histories : public Animated {
+public:
+	typedef QHash<PeerId, History*> Map;
+	Map map;
 
 	Histories() : unreadFull(0), unreadMuted(0) {
 	}
@@ -44,16 +52,17 @@ struct Histories : public QHash<PeerId, History*>, public Animated {
 	void regSendAction(History *history, UserData *user, const MTPSendMessageAction &action);
 	bool animStep(float64 ms);
 
+	History *find(const PeerId &peerId);
+	History *findOrInsert(const PeerId &peerId, int32 unreadCount, int32 maxInboxRead);
+
 	void clear();
-	Parent::iterator erase(Parent::iterator i);
 	void remove(const PeerId &peer);
 	~Histories() {
 		clear();
-
 		unreadFull = unreadMuted = 0;
 	}
 
-	HistoryItem *addToBack(const MTPmessage &msg, int msgState = 1); // 2 - new read message, 1 - new unread message, 0 - not new message, -1 - searched message
+	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
 	//	HistoryItem *addToBack(const MTPgeoChatMessage &msg, bool newMsg = true);
 
 	typedef QMap<History*, uint64> TypingHistories; // when typing in this history started
@@ -62,13 +71,13 @@ struct Histories : public QHash<PeerId, History*>, public Animated {
 	int32 unreadFull, unreadMuted;
 };
 
-struct HistoryBlock;
+class HistoryBlock;
 
 struct DialogRow {
 	DialogRow(History *history = 0, DialogRow *prev = 0, DialogRow *next = 0, int32 pos = 0) : prev(prev), next(next), history(history), pos(pos), attached(0) {
 	}
 
-	void paint(QPainter &p, int32 w, bool act, bool sel) const;
+	void paint(Painter &p, int32 w, bool act, bool sel) const;
 
 	DialogRow *prev, *next;
 	History *history;
@@ -80,7 +89,7 @@ struct FakeDialogRow {
 	FakeDialogRow(HistoryItem *item) : _item(item), _cacheFor(0), _cache(st::dlgRichMinWidth) {
 	}
 
-	void paint(QPainter &p, int32 w, bool act, bool sel) const;
+	void paint(Painter &p, int32 w, bool act, bool sel) const;
 
 	HistoryItem *_item;
 	mutable const HistoryItem *_cacheFor;
@@ -158,75 +167,80 @@ struct SendAction {
 class HistoryMedia;
 class HistoryMessage;
 class HistoryUnreadBar;
-struct History : public QList<HistoryBlock*> {
-	History(const PeerId &peerId);
 
-	typedef QList<HistoryBlock*> Parent;
+class ChannelHistory;
+class History {
+public:
+
+	History(const PeerId &peerId);
+	ChannelId channelId() const {
+		return peerToChannel(peer->id);
+	}
+	bool isChannel() const {
+		return peerIsChannel(peer->id);
+	}
+	ChannelHistory *asChannelHistory();
+	const ChannelHistory *asChannelHistory() const;
+
+	bool isEmpty() const {
+		return blocks.isEmpty();
+	}
 	void clear(bool leaveItems = false);
-	Parent::iterator erase(Parent::iterator i);
 	void blockResized(HistoryBlock *block, int32 dh);
 	void removeBlock(HistoryBlock *block);
 
-	~History() {
+	virtual ~History() {
 		clear();
 	}
 
-	HistoryItem *createItem(HistoryBlock *block, const MTPmessage &msg, bool newMsg, bool returnExisting = false);
-	HistoryItem *createItemForwarded(HistoryBlock *block, MsgId id, HistoryMessage *msg);
+	HistoryItem *createItem(HistoryBlock *block, const MTPMessage &msg, bool applyServiceAction, bool returnExisting = false);
+	HistoryItem *createItemForwarded(HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg);
 	HistoryItem *createItemDocument(HistoryBlock *block, MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
 
-	HistoryItem *addToBackService(MsgId msgId, QDateTime date, const QString &text, int32 flags = 0, HistoryMedia *media = 0, bool newMsg = true);
-	HistoryItem *addToBack(const MTPmessage &msg, bool newMsg = true);
-	HistoryItem *addToHistory(const MTPmessage &msg);
-	HistoryItem *addToBackForwarded(MsgId id, HistoryMessage *item);
-	HistoryItem *addToBackDocument(MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
+	HistoryItem *addNewService(MsgId msgId, QDateTime date, const QString &text, int32 flags = 0, HistoryMedia *media = 0, bool newMsg = true);
+	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
+	HistoryItem *addToHistory(const MTPMessage &msg);
+	HistoryItem *addNewForwarded(MsgId id, QDateTime date, int32 from, HistoryMessage *item);
+	HistoryItem *addNewDocument(MsgId id, int32 flags, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc);
 
-	void addToFront(const QVector<MTPMessage> &slice);
-	void addToBack(const QVector<MTPMessage> &slice);
-	void createInitialDateBlock(const QDateTime &date);
-	HistoryItem *doAddToBack(HistoryBlock *to, bool newBlock, HistoryItem *adding, bool newMsg);
+	void addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPMessageGroup> *collapsed);
+	void addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPMessageGroup> *collapsed);
 	void addToOverview(HistoryItem *item, MediaOverviewType type);
 	bool addToOverviewFront(HistoryItem *item, MediaOverviewType type);
 
 	void newItemAdded(HistoryItem *item);
 	void unregTyping(UserData *from);
 
-	void inboxRead(int32 upTo);
-	void inboxRead(HistoryItem *wasRead);
-	void outboxRead(int32 upTo);
-	void outboxRead(HistoryItem *wasRead);
+	int32 countUnread(MsgId upTo);
+	void updateShowFrom();
+	MsgId inboxRead(MsgId upTo);
+	MsgId inboxRead(HistoryItem *wasRead);
+	MsgId outboxRead(MsgId upTo);
+	MsgId outboxRead(HistoryItem *wasRead);
+
+	HistoryItem *lastImportantMessage() const;
 
 	void setUnreadCount(int32 newUnreadCount, bool psUpdate = true);
-	void setMsgCount(int32 newMsgCount);
 	void setMute(bool newMute);
 	void getNextShowFrom(HistoryBlock *block, int32 i);
 	void addUnreadBar();
 	void clearNotifications();
 
 	bool loadedAtBottom() const; // last message is in the list
+	void setNotLoadedAtBottom();
 	bool loadedAtTop() const; // nothing was added after loading history back
-	bool isReadyFor(MsgId msgId, bool check = false) const; // has messages for showing history at msgId
-	void getReadyFor(MsgId msgId);
+	bool isReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop); // has messages for showing history at msgId
+	void getReadyFor(MsgId msgId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop);
 
 	void setLastMessage(HistoryItem *msg);
+	void setPosInDialogsDate(const QDateTime &date);
 	void fixLastMessage(bool wasAtBottom);
 
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
+	MsgId msgIdForRead() const;
 
 	int32 geomResize(int32 newWidth, int32 *ytransform = 0, HistoryItem *resizedItem = 0); // return new size
-	int32 width, height, msgCount, unreadCount;
-	int32 inboxReadTill, outboxReadTill;
-	HistoryItem *showFrom;
-	HistoryUnreadBar *unreadBar;
-
-	PeerData *peer;
-	bool oldLoaded, newLoaded;
-	HistoryItem *lastMsg;
-	QDateTime lastMsgDate;
-
-	typedef QList<HistoryItem*> NotifyQueue;
-	NotifyQueue notifies;
 
 	void removeNotification(HistoryItem *item) {
 		if (!notifies.isEmpty()) {
@@ -268,6 +282,27 @@ struct History : public QList<HistoryBlock*> {
 		// showFrom can't be detached
 	}
 
+	void paintDialog(Painter &p, int32 w, bool sel) const;
+	void eraseFromOverview(MediaOverviewType type, MsgId msgId);
+	bool updateTyping(uint64 ms = 0, uint32 dots = 0, bool force = false);
+	void clearLastKeyboard();
+
+	typedef QList<HistoryBlock*> Blocks;
+	Blocks blocks;
+
+	int32 width, height, msgCount, unreadCount;
+	int32 inboxReadBefore, outboxReadBefore;
+	HistoryItem *showFrom;
+	HistoryUnreadBar *unreadBar;
+
+	PeerData *peer;
+	bool oldLoaded, newLoaded;
+	HistoryItem *lastMsg;
+	QDateTime lastMsgDate;
+
+	typedef QList<HistoryItem*> NotifyQueue;
+	NotifyQueue notifies;
+
 	QString draft;
 	MsgId draftToId;
 	MessageCursor draftCursor;
@@ -279,22 +314,15 @@ struct History : public QList<HistoryBlock*> {
 	bool lastKeyboardInited, lastKeyboardUsed;
 	MsgId lastKeyboardId;
 	PeerId lastKeyboardFrom;
-	void clearLastKeyboard();
 
 	mtpRequestId sendRequestId;
-
-	// for dialog drawing
-	Text nameText;
-	void updateNameText();
 
 	mutable const HistoryItem *textCachedFor; // cache
 	mutable Text lastItemTextCache;
 
-	void paintDialog(QPainter &p, int32 w, bool sel) const;
-
 	typedef QMap<QChar, DialogRow*> DialogLinks;
 	DialogLinks dialogs;
-	int32 posInDialogs;
+	uint64 posInDialogs; // like ((unixtime) << 32) | (incremented counter)
 
 	typedef QMap<UserData*, uint64> TypingUsers;
 	TypingUsers typing;
@@ -303,19 +331,100 @@ struct History : public QList<HistoryBlock*> {
 	QString typingStr;
 	Text typingText;
 	uint32 typingFrame;
-	bool updateTyping(uint64 ms = 0, uint32 dots = 0, bool force = false);
 	QMap<SendActionType, uint64> mySendActions;
 
 	typedef QList<MsgId> MediaOverview;
 	typedef QMap<MsgId, NullType> MediaOverviewIds;
+	MediaOverview overview[OverviewCount];
+	MediaOverviewIds overviewIds[OverviewCount];
+	int32 overviewCount[OverviewCount]; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
 
-	MediaOverview _overview[OverviewCount];
-	MediaOverviewIds _overviewIds[OverviewCount];
-	int32 _overviewCount[OverviewCount]; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
+private:
 
-	void eraseFromOverview(MediaOverviewType type, MsgId msgId);
+	friend class HistoryBlock;
+	friend class ChannelHistory;
 
-	static const int32 ScrollMax = INT_MAX;
+	void createInitialDateBlock(const QDateTime &date);
+	HistoryItem *addItemAfterPrevToBlock(HistoryItem *item, HistoryItem *prev, HistoryBlock *block);
+	HistoryItem *addNewInTheMiddle(HistoryItem *newItem, int32 blockIndex, int32 itemIndex);
+	HistoryItem *addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *adding, bool newMsg);
+	HistoryItem *addMessageGroupAfterPrevToBlock(const MTPDmessageGroup &group, HistoryItem *prev, HistoryBlock *block);
+	HistoryItem *addMessageGroupAfterPrev(HistoryItem *newItem, HistoryItem *prev);
+
+};
+
+class HistoryGroup;
+class HistoryCollapse;
+class HistoryJoined;
+class ChannelHistory : public History {
+public:
+
+	ChannelHistory(const PeerId &peer);
+
+	void messageDetached(HistoryItem *msg);
+	void messageDeleted(HistoryItem *msg);
+	void messageWithIdDeleted(MsgId msgId);
+
+	bool isSwitchReadyFor(MsgId switchId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop); // has messages for showing history after switching mode at switchId
+	void getSwitchReadyFor(MsgId switchId, MsgId &fixInScrollMsgId, int32 &fixInScrollMsgTop);
+
+	void insertCollapseItem(MsgId wasMinId);
+	void getRangeDifference();
+	void getRangeDifferenceNext(int32 pts);
+
+	void addNewGroup(const MTPMessageGroup &group);
+
+	int32 unreadCountAll;
+	bool onlyImportant() const {
+		return _onlyImportant;
+	}
+
+	HistoryCollapse *collapse() const {
+		return _collapseMessage;
+	}
+
+	void clearOther() {
+		_otherNewLoaded = true;
+		_otherOldLoaded = false;
+		_otherList.clear();
+	}
+
+	HistoryJoined *insertJoinedMessage(bool unread);
+	void checkJoinedMessage();
+	const QDateTime &maxReadMessageDate();
+
+private:
+
+	friend class History;
+	HistoryItem* addNewChannelMessage(const MTPMessage &msg, NewMessageType type);
+	HistoryItem *addNewToBlocks(const MTPMessage &msg, NewMessageType type);
+	void addNewToOther(HistoryItem *item, NewMessageType type);
+
+	void checkMaxReadMessageDate();
+
+	HistoryGroup *findGroup(MsgId msgId) const;
+	HistoryBlock *findGroupBlock(MsgId msgId) const;
+	HistoryGroup *findGroupInOther(MsgId msgId) const;
+	HistoryItem *findPrevItem(HistoryItem *item) const;
+	void switchMode();
+
+	void cleared();
+
+	bool _onlyImportant;
+
+	QDateTime _maxReadMessageDate;
+
+	typedef QList<HistoryItem*> OtherList;
+	OtherList _otherList;
+	bool _otherOldLoaded, _otherNewLoaded;
+
+	HistoryCollapse *_collapseMessage;
+	HistoryJoined *_joinedMessage;
+
+	MsgId _rangeDifferenceFromId, _rangeDifferenceToId;
+	int32 _rangeDifferencePts;
+	mtpRequestId _rangeDifferenceRequestId;
+
 };
 
 enum DialogsSortMode {
@@ -338,7 +447,7 @@ struct DialogsList {
 		}
 	}
 
-	void paint(QPainter &p, int32 w, int32 hFrom, int32 hTo, PeerData *act, PeerData *sel) const {
+	void paint(Painter &p, int32 w, int32 hFrom, int32 hTo, PeerData *act, PeerData *sel) const {
 		adjustCurrent(hFrom, st::dlgHeight);
 
 		DialogRow *drawFrom = current;
@@ -358,26 +467,21 @@ struct DialogsList {
 		return (pos == current->pos) ? current : 0;
 	}
 
-	DialogRow *addToEnd(History *history, bool updatePos = true) {
+	DialogRow *addToEnd(History *history) {
 		DialogRow *result = new DialogRow(history, end->prev, end, end->pos);
 		end->pos++;
 		if (begin == end) {
 			begin = current = result;
-			if (sortMode == DialogsSortByDate && updatePos) history->posInDialogs = 0;
 		} else {
 			end->prev->next = result;
-			if (sortMode == DialogsSortByDate && updatePos) history->posInDialogs = end->prev->history->posInDialogs + 1;
 		}
 		rowByPeer.insert(history->peer->id, result);
 		++count;
-		return (end->prev = result);
-	}
-
-	void bringToTop(DialogRow *row, bool updatePos = true) {
-		if (sortMode == DialogsSortByDate && updatePos && row != begin) {
-			row->history->posInDialogs = begin->history->posInDialogs - 1;
+		end->prev = result;
+		if (sortMode == DialogsSortByDate) {
+			adjustByPos(result);
 		}
-		insertBefore(row, begin);
+		return result;
 	}
 
 	bool insertBefore(DialogRow *row, DialogRow *before) {
@@ -468,23 +572,19 @@ struct DialogsList {
 		if (sortMode != DialogsSortByDate) return;
 
 		DialogRow *change = row;
-		while (change->prev && change->prev->history->posInDialogs > row->history->posInDialogs) {
+		if (change != begin && begin->history->posInDialogs < row->history->posInDialogs) {
+			change = begin;
+		} else while (change->prev && change->prev->history->posInDialogs < row->history->posInDialogs) {
 			change = change->prev;
 		}
 		if (!insertBefore(row, change)) {
-			while (change->next != end && change->next->history->posInDialogs < row->history->posInDialogs) {
+			if (change->next != end && end->prev->history->posInDialogs > row->history->posInDialogs) {
+				change = end->prev;
+			} else while (change->next != end && change->next->history->posInDialogs > row->history->posInDialogs) {
 				change = change->next;
 			}
 			insertAfter(row, change);
 		}
-	}
-
-	DialogRow *addByPos(History *history) {
-		if (sortMode != DialogsSortByDate) return 0;
-
-		DialogRow *row = addToEnd(history, false);
-		adjustByPos(row);
-		return row;
 	}
 
 	bool del(const PeerId &peerId, DialogRow *replacedBy = 0);
@@ -564,14 +664,14 @@ struct DialogsIndexed {
 		return res;
 	}
 
-	void bringToTop(const History::DialogLinks &links) {
+	void adjustByPos(const History::DialogLinks &links) {
 		for (History::DialogLinks::const_iterator i = links.cbegin(), e = links.cend(); i != e; ++i) {
 			if (i.key() == QChar(0)) {
-				list.bringToTop(i.value());
+				list.adjustByPos(i.value());
 			} else {
 				DialogsIndex::iterator j = index.find(i.key());
 				if (j != index.cend()) {
-					j.value()->bringToTop(i.value());
+					j.value()->adjustByPos(i.value());
 				}
 			}
 		}
@@ -602,13 +702,15 @@ struct DialogsIndexed {
 	DialogsIndex index;
 };
 
-struct HistoryBlock : public QVector<HistoryItem*> {
+class HistoryBlock {
+public:
 	HistoryBlock(History *hist) : y(0), height(0), history(hist) {
 	}
 
-	typedef QVector<HistoryItem*> Parent;
+	typedef QVector<HistoryItem*> Items;
+	Items items;
+
 	void clear(bool leaveItems = false);
-	Parent::iterator erase(Parent::iterator i);
 	~HistoryBlock() {
 		clear();
 	}
@@ -668,21 +770,33 @@ enum HistoryCursorState {
 	HistoryInDateCursorState
 };
 
+enum InfoDisplayType {
+	InfoDisplayDefault,
+	InfoDisplayOverImage,
+};
+
+inline bool isImportantChannelMessage(MsgId id, int32 flags) { // client-side important msgs always has_views or has_from_id
+	return (flags & MTPDmessage_flag_out) || (flags & MTPDmessage_flag_notify_by_from) || ((id > 0 || flags != 0) && !(flags & MTPDmessage::flag_from_id));
+}
+
+enum HistoryItemType {
+	HistoryItemMsg = 0,
+	HistoryItemDate,
+	HistoryItemUnreadBar,
+	HistoryItemGroup,
+	HistoryItemCollapse,
+	HistoryItemJoined
+};
+
 class HistoryMedia;
 class HistoryItem : public HistoryElem {
 public:
 
 	HistoryItem(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime msgDate, int32 from);
 
-	enum {
-		MsgType = 0,
-		DateType,
-		UnreadBarType
-	};
-
 	virtual void initDimensions() = 0;
 	virtual int32 resize(int32 width) = 0; // return new height
-	virtual void draw(QPainter &p, uint32 selection) const = 0;
+	virtual void draw(Painter &p, uint32 selection) const = 0;
 
 	History *history() {
 		return _history;
@@ -690,7 +804,7 @@ public:
 	const History *history() const {
 		return _history;
 	}
-	UserData *from() const {
+	PeerData *from() const {
 		return _from;
 	}
 	HistoryBlock *block() {
@@ -712,14 +826,14 @@ public:
 		return _flags & MTPDmessage_flag_out;
 	}
 	bool unread() const {
-		if ((out() && (id > 0 && id <= _history->outboxReadTill)) || (!out() && id > 0 && id <= _history->inboxReadTill)) return false;
-		return _flags & MTPDmessage_flag_unread;
+		if ((out() && (id > 0 && id < _history->outboxReadBefore)) || (!out() && id > 0 && id < _history->inboxReadBefore)) return false;
+		return (id > 0) ? true : (_flags & MTPDmessage_flag_unread);
 	}
 	bool notifyByFrom() const {
 		return _flags & MTPDmessage_flag_notify_by_from;
 	}
 	bool isMediaUnread() const {
-		return _flags & MTPDmessage_flag_media_unread;
+		return (_flags & MTPDmessage_flag_media_unread) && (channelId() == NoChannel);
 	}
 	void markMediaRead() {
 		_flags &= ~MTPDmessage_flag_media_unread;
@@ -730,8 +844,17 @@ public:
 	bool hasTextLinks() const {
 		return _flags & MTPDmessage_flag_HAS_TEXT_LINKS;
 	}
+	bool hasViews() const {
+		return _flags & MTPDmessage::flag_views;
+	}
+	bool fromChannel() const {
+		return _from->isChannel();
+	}
+	bool isImportant() const {
+		return _history->isChannel() && isImportantChannelMessage(id, _flags);
+	}
 	virtual bool needCheck() const {
-		return true;
+		return out();
 	}
 	virtual bool hasPoint(int32 x, int32 y) const {
 		return false;
@@ -748,8 +871,8 @@ public:
 	virtual uint32 adjustSelection(uint16 from, uint16 to, TextSelectType type) const {
 		return (from << 16) | to;
 	}
-	virtual int32 itemType() const {
-		return MsgType;
+	virtual HistoryItemType type() const {
+		return HistoryItemMsg;
 	}
 	virtual bool serviceMsg() const {
 		return false;
@@ -767,15 +890,39 @@ public:
 		return inDialogsText();
 	}
 
-	virtual void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const = 0;
+	virtual void drawInfo(Painter &p, int32 right, int32 bottom, bool selected, InfoDisplayType type) const {
+	}
+	virtual void setViewsCount(int32 count) {
+	}
+	virtual void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const = 0;
     virtual QString notificationHeader() const {
         return QString();
     }
     virtual QString notificationText() const = 0;
-	void markRead();
 
-	int32 y, id;
+	bool canDelete() const {
+		ChannelData *channel = _history->peer->asChannel();
+		if (!channel) return true;
+
+		if (id == 1) return false;
+		if (channel->amCreator()) return true;
+		if (fromChannel()) {
+			if (channel->amEditor() && out()) return true;
+			return false;
+		}
+		return (channel->amEditor() || channel->amModerator() || out());
+	}
+
+	int32 y;
+	MsgId id;
 	QDateTime date;
+
+	ChannelId channelId() const {
+		return _history->channelId();
+	}
+	FullMsgId fullId() const {
+		return FullMsgId(channelId(), id);
+	}
 
 	virtual HistoryMedia *getMedia(bool inOverview = false) const {
 		return 0;
@@ -789,12 +936,39 @@ public:
 	virtual bool textHasLinks() {
 		return false;
 	}
-	virtual QString time() const {
-		return QString();
-	}
-	virtual int32 timeWidth(bool forText) const {
+
+	virtual int32 infoWidth() const {
 		return 0;
 	}
+	virtual int32 timeLeft() const {
+		return 0;
+	}
+	virtual QString timeText() const {
+		return QString();
+	}
+	virtual int32 timeWidth() const {
+		return 0;
+	}
+	virtual QString viewsText() const {
+		return QString();
+	}
+	virtual int32 viewsWidth() const {
+		return 0;
+	}
+	virtual bool pointInTime(int32 right, int32 bottom, int32 x, int32 y, InfoDisplayType type) const {
+		return false;
+	}
+
+	int32 skipBlockWidth() const {
+		return st::msgDateSpace + infoWidth() - st::msgDateDelta.x();
+	}
+	int32 skipBlockHeight() const {
+		return st::msgDateFont->height - st::msgDateDelta.y();
+	}
+	QString skipBlock() const {
+		return textcmdSkipBlock(skipBlockWidth(), skipBlockHeight());
+	}
+
 	virtual bool animating() const {
 		return false;
 	}
@@ -818,11 +992,18 @@ public:
 		return 0;
 	}
 
+	bool displayFromName() const {
+		return (!out() || fromChannel()) && !history()->peer->isUser();
+	}
+	bool displayFromPhoto() const {
+		return !out() && !history()->peer->isUser() && !fromChannel();
+	}
+
 	virtual ~HistoryItem();
 
 protected:
 
-	UserData *_from;
+	PeerData *_from;
 	mutable int32 _fromVersion;
 	History *_history;
 	HistoryBlock *_block;
@@ -847,6 +1028,18 @@ public:
 private:
 	PeerId _peer;
 	MsgId _msgid;
+};
+
+class CommentsLink : public ITextLink {
+	TEXT_LINK_CLASS(CommentsLink)
+
+public:
+	CommentsLink(HistoryItem *item) : _item(item) {
+	}
+	void onClick(Qt::MouseButton button) const;
+	
+private:
+	HistoryItem *_item;
 };
 
 HistoryItem *regItem(HistoryItem *item, bool returnExisting = false);
@@ -875,7 +1068,7 @@ public:
 		return _height;
 	}
 	virtual void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const HistoryItem *parent, int32 width = -1) const = 0;
-	virtual void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const = 0;
+	virtual void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const = 0;
 	virtual bool uploading() const {
 		return false;
 	}
@@ -924,7 +1117,7 @@ public:
 	void init();
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypePhoto;
@@ -974,7 +1167,7 @@ public:
 	HistoryVideo(const MTPDvideo &video, const QString &caption, HistoryItem *parent);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeVideo;
@@ -1016,7 +1209,7 @@ public:
 	HistoryAudio(const MTPDaudio &audio);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
 	HistoryMediaType type() const {
 		return MediaTypeAudio;
 	}
@@ -1054,7 +1247,7 @@ public:
 	HistoryDocument(DocumentData *document);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeDocument;
@@ -1083,7 +1276,7 @@ public:
 	}
 	ImagePtr replyPreview();
 
-	void drawInPlaylist(QPainter &p, const HistoryItem *parent, bool selected, bool over, int32 width) const;
+	void drawInPlaylist(Painter &p, const HistoryItem *parent, bool selected, bool over, int32 width) const;
 	TextLinkPtr linkInPlaylist();
 
 private:
@@ -1105,7 +1298,7 @@ public:
 	HistorySticker(DocumentData *document);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeSticker;
@@ -1141,7 +1334,7 @@ public:
 	HistoryContact(int32 userId, const QString &first, const QString &last, const QString &phone);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width) const;
+	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width) const;
 	HistoryMediaType type() const {
 		return MediaTypeContact;
 	}
@@ -1167,7 +1360,7 @@ public:
 	HistoryWebPage(WebPageData *data);
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
 	bool isDisplayed() const {
 		return !data->pendingTill;
 	}
@@ -1188,6 +1381,11 @@ public:
 		return (data->photo && !data->photo->thumb->isNull()) || (data->doc && !data->doc->thumb->isNull());
 	}
 	ImagePtr replyPreview();
+
+	virtual bool animating() const {
+		if (_asArticle || !data->photo || data->photo->full->loaded()) return false;
+		return data->photo->full->loading();
+	}
 
 	WebPageData *webpage() {
 		return data;
@@ -1269,7 +1467,7 @@ public:
 	int32 fullHeight() const;
 	void initDimensions(const HistoryItem *parent);
 
-	void draw(QPainter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
+	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width = -1) const;
 	int32 resize(int32 width, const HistoryItem *parent);
 	HistoryMediaType type() const {
 		return MediaTypeImageLink;
@@ -1295,9 +1493,8 @@ class HistoryMessage : public HistoryItem {
 public:
 
 	HistoryMessage(History *history, HistoryBlock *block, const MTPDmessage &msg);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, const MTPMessageMedia *media);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, HistoryMedia *media);
-	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc);
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, const QString &msg, const LinksInText &links, HistoryMedia *media); // local forwarded
+	HistoryMessage(History *history, HistoryBlock *block, MsgId msgId, int32 flags, QDateTime date, int32 from, DocumentData *doc); // local sticker and reply sticker
 
 	void initTime();
 	void initMedia(const MTPMessageMedia *media, QString &currentText);
@@ -1312,11 +1509,14 @@ public:
 
 	bool uploading() const;
 
-	void draw(QPainter &p, uint32 selection) const;
-	virtual void drawMessageText(QPainter &p, const QRect &trect, uint32 selection) const;
+	void drawInfo(Painter &p, int32 right, int32 bottom, bool selected, InfoDisplayType type) const;
+	void setViewsCount(int32 count);
+	void draw(Painter &p, uint32 selection) const;
+	virtual void drawMessageText(Painter &p, const QRect &trect, uint32 selection) const;
 
 	int32 resize(int32 width);
 	bool hasPoint(int32 x, int32 y) const;
+	bool pointInTime(int32 right, int32 bottom, int32 x, int32 y, InfoDisplayType type) const;
 
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
 	virtual void getStateFromMessageText(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const QRect &r) const;
@@ -1326,7 +1526,7 @@ public:
 		return _text.adjustSelection(from, to, type);
 	}
 
-	void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
+	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
     QString notificationHeader() const;
     QString notificationText() const;
     
@@ -1345,11 +1545,34 @@ public:
 	void getTextWithLinks(QString &text, LinksInText &links);
 	bool textHasLinks();
 
-	QString time() const {
-		return _time;
+	int32 infoWidth() const {
+		int32 result = _timeWidth;
+		if (!_viewsText.isEmpty()) {
+			result += st::msgDateViewsSpace + _viewsWidth + st::msgDateCheckSpace + st::msgViewsImg.pxWidth();
+		}
+		if (out() && !fromChannel()) {
+			result += st::msgDateCheckSpace + st::msgCheckImg.pxWidth();
+		}
+		return result;
 	}
-	int32 timeWidth(bool forText) const {
-		return _timeWidth + (forText ? (st::msgDateSpace + (out() ? st::msgDateCheckSpace + st::msgCheckRect.pxWidth() : 0) - st::msgDateDelta.x()) : 0);
+	int32 timeLeft() const {
+		int32 result = 0;
+		if (!_viewsText.isEmpty()) {
+			result += st::msgDateViewsSpace + _viewsWidth + st::msgDateCheckSpace + st::msgViewsImg.pxWidth();
+		}
+		return result;
+	}
+	QString timeText() const {
+		return _timeText;
+	}
+	int32 timeWidth() const {
+		return _timeWidth;
+	}
+	QString viewsText() const {
+		return _viewsText;
+	}
+	int32 viewsWidth() const {
+		return _viewsWidth;
 	}
 	virtual bool animating() const {
 		return _media ? _media->animating() : false;
@@ -1358,7 +1581,7 @@ public:
 	virtual QDateTime dateForwarded() const { // dynamic_cast optimize
 		return date;
 	}
-	virtual UserData *fromForwarded() const { // dynamic_cast optimize
+	virtual PeerData *fromForwarded() const { // dynamic_cast optimize
 		return from();
 	}
 
@@ -1378,8 +1601,11 @@ protected:
 	int32 _textWidth, _textHeight;
 
 	HistoryMedia *_media;
-	QString _time;
+	QString _timeText;
 	int32 _timeWidth;
+	
+	QString _viewsText;
+	int32 _views, _viewsWidth;
 
 };
 
@@ -1387,14 +1613,14 @@ class HistoryForwarded : public HistoryMessage {
 public:
 
 	HistoryForwarded(History *history, HistoryBlock *block, const MTPDmessage &msg);
-	HistoryForwarded(History *history, HistoryBlock *block, MsgId id, HistoryMessage *msg);
+	HistoryForwarded(History *history, HistoryBlock *block, MsgId id, QDateTime date, int32 from, HistoryMessage *msg);
 
 	void initDimensions();
 	void fwdNameUpdated() const;
 
-	void draw(QPainter &p, uint32 selection) const;
-	void drawForwardedFrom(QPainter &p, int32 x, int32 y, int32 w, bool selected) const;
-	void drawMessageText(QPainter &p, const QRect &trect, uint32 selection) const;
+	void draw(Painter &p, uint32 selection) const;
+	void drawForwardedFrom(Painter &p, int32 x, int32 y, int32 w, bool selected) const;
+	void drawMessageText(Painter &p, const QRect &trect, uint32 selection) const;
 	int32 resize(int32 width);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
@@ -1405,7 +1631,7 @@ public:
 	QDateTime dateForwarded() const {
 		return fwdDate;
 	}
-	UserData *fromForwarded() const {
+	PeerData *fromForwarded() const {
 		return fwdFrom;
 	}
 	QString selectedText(uint32 selection) const;
@@ -1420,7 +1646,7 @@ public:
 protected:
 
 	QDateTime fwdDate;
-	UserData *fwdFrom;
+	PeerData *fwdFrom;
 	mutable Text fwdFromName;
 	mutable int32 fwdFromVersion;
 	int32 fromWidth;
@@ -1445,16 +1671,16 @@ public:
 	HistoryItem *replyToMessage() const;
 	void replyToReplaced(HistoryItem *oldItem, HistoryItem *newItem);
 
-	void draw(QPainter &p, uint32 selection) const;
-	void drawReplyTo(QPainter &p, int32 x, int32 y, int32 w, bool selected, bool likeService = false) const;
-	void drawMessageText(QPainter &p, const QRect &trect, uint32 selection) const;
+	void draw(Painter &p, uint32 selection) const;
+	void drawReplyTo(Painter &p, int32 x, int32 y, int32 w, bool selected, bool likeService = false) const;
+	void drawMessageText(Painter &p, const QRect &trect, uint32 selection) const;
 	int32 resize(int32 width);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
 	void getStateFromMessageText(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y, const QRect &r) const;
 	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const;
 
-	UserData *replyTo() const {
+	PeerData *replyTo() const {
 		return replyToMsg ? replyToMsg->from() : 0;
 	}
 	QString selectedText(uint32 selection) const;
@@ -1488,7 +1714,7 @@ public:
 
 	void initDimensions();
 
-	void draw(QPainter &p, uint32 selection) const;
+	void draw(Painter &p, uint32 selection) const;
 	int32 resize(int32 width);
 	bool hasPoint(int32 x, int32 y) const;
 	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
@@ -1497,7 +1723,7 @@ public:
 		return _text.adjustSelection(from, to, type);
 	}
 
-	void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
+	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
     QString notificationText() const;
 
 	bool needCheck() const {
@@ -1515,6 +1741,8 @@ public:
 	virtual bool animating() const {
 		return _media ? _media->animating() : false;
 	}
+
+	void setServiceText(const QString &text);
 
 	~HistoryServiceMsg();
 
@@ -1544,8 +1772,87 @@ public:
 	QString selectedText(uint32 selection) const {
 		return QString();
 	}
-	int32 itemType() const {
-		return DateType;
+	HistoryItemType type() const {
+		return HistoryItemDate;
+	}
+};
+
+class HistoryGroup : public HistoryServiceMsg {
+public:
+
+	HistoryGroup(History *history, HistoryBlock *block, const MTPDmessageGroup &group, const QDateTime &date);
+	HistoryGroup(History *history, HistoryBlock *block, HistoryItem *newItem, const QDateTime &date);
+	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
+	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const {
+		symbol = 0xFFFF;
+		after = false;
+		upon = false;
+	}
+	QString selectedText(uint32 selection) const {
+		return QString();
+	}
+	HistoryItemType type() const {
+		return HistoryItemGroup;
+	}
+	void uniteWith(MsgId minId, MsgId maxId, int32 count);
+	void uniteWith(HistoryItem *item) {
+		uniteWith(item->id - 1, item->id + 1, 1);
+	}
+	void uniteWith(HistoryGroup *other) {
+		uniteWith(other->_minId, other->_maxId, other->_count);
+	}
+
+	bool decrementCount(); // returns true if result count > 0
+
+	MsgId minId() const {
+		return _minId;
+	}
+	MsgId maxId() const {
+		return _maxId;
+	}
+
+private:
+	MsgId _minId, _maxId;
+	int32 _count;
+
+	TextLinkPtr _lnk;
+
+	void updateText();
+
+};
+
+class HistoryCollapse : public HistoryServiceMsg {
+public:
+
+	HistoryCollapse(History *history, HistoryBlock *block, MsgId wasMinId, const QDateTime &date);
+	void draw(Painter &p, uint32 selection) const;
+	void getState(TextLinkPtr &lnk, HistoryCursorState &state, int32 x, int32 y) const;
+	void getSymbol(uint16 &symbol, bool &after, bool &upon, int32 x, int32 y) const {
+		symbol = 0xFFFF;
+		after = false;
+		upon = false;
+	}
+	QString selectedText(uint32 selection) const {
+		return QString();
+	}
+	HistoryItemType type() const {
+		return HistoryItemCollapse;
+	}
+	MsgId wasMinId() const {
+		return _wasMinId;
+	}
+
+private:
+	MsgId _wasMinId;
+
+};
+
+class HistoryJoined : public HistoryServiceMsg {
+public:
+
+	HistoryJoined(History *history, HistoryBlock *block, const QDateTime &date, UserData *from, int32 flags);
+	HistoryItemType type() const {
+		return HistoryItemJoined;
 	}
 };
 
@@ -1560,17 +1867,17 @@ public:
 
 	void setCount(int32 count);
 
-	void draw(QPainter &p, uint32 selection) const;
+	void draw(Painter &p, uint32 selection) const;
 	int32 resize(int32 width);
 
-	void drawInDialog(QPainter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
+	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
     QString notificationText() const;
 
 	QString selectedText(uint32 selection) const {
 		return QString();
 	}
-	int32 itemType() const {
-		return UnreadBarType;
+	HistoryItemType type() const {
+		return HistoryItemUnreadBar;
 	}
 
 protected:
@@ -1579,4 +1886,4 @@ protected:
 	bool freezed;
 };
 
-const TextParseOptions &itemTextParseOptions(History *h, UserData *f);
+const TextParseOptions &itemTextParseOptions(History *h, PeerData *f);

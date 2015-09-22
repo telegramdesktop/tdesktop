@@ -37,6 +37,10 @@ void FlatButton::setOpacity(float64 o) {
 	update();
 }
 
+float64 FlatButton::opacity() const {
+	return _opacity;
+}
+
 void FlatButton::setText(const QString &text) {
 	_text = text;
 	update();

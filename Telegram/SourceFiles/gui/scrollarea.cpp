@@ -671,6 +671,15 @@ void ScrollArea::updateColors(const style::color &bar, const style::color &bg, c
 	vert.update();
 }
 
+bool ScrollArea::focusNextPrevChild(bool next) {
+	if (QWidget::focusNextPrevChild(next)) {
+//		if (QWidget *fw = focusWidget())
+//			ensureWidgetVisible(fw);
+		return true;
+	}
+	return false;
+}
+
 ScrollArea::~ScrollArea() {
 	takeWidget();
 }

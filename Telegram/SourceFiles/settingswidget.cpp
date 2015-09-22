@@ -1523,6 +1523,7 @@ void SettingsInner::onViewEmojis() {
 void SettingsInner::onEnterSend() {
 	if (_enterSend.checked()) {
 		cSetCtrlEnter(false);
+		if (App::main()) App::main()->ctrlEnterSubmitUpdated();
 		Local::writeUserSettings();
 	}
 }
@@ -1530,6 +1531,7 @@ void SettingsInner::onEnterSend() {
 void SettingsInner::onCtrlEnterSend() {
 	if (_ctrlEnterSend.checked()) {
 		cSetCtrlEnter(true);
+		if (App::main()) App::main()->ctrlEnterSubmitUpdated();
 		Local::writeUserSettings();
 	}
 }

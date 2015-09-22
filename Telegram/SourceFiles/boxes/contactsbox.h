@@ -19,6 +19,12 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 
+enum CreatingGroupType {
+	CreatingGroupNone,
+	CreatingGroupGroup,
+	CreatingGroupChannel,
+};
+
 class ContactsInner : public QWidget, public RPCSender {
 	Q_OBJECT
 
@@ -28,7 +34,8 @@ private:
 
 public:
 
-	ContactsInner(bool creatingChat);
+	ContactsInner(CreatingGroupType creating = CreatingGroupNone);
+	ContactsInner(ChannelData *channel);
 	ContactsInner(ChatData *chat);
 	ContactsInner(UserData *bot);
 	void init();
@@ -55,13 +62,16 @@ public:
 	void changeCheckState(DialogRow *row);
 	void changeCheckState(ContactData *data, PeerData *peer);
 
-	void peopleReceived(const QString &query, const QVector<MTPContactFound> &people);
+	void peopleReceived(const QString &query, const QVector<MTPPeer> &people);
 
 	void refresh();
 
 	ChatData *chat() const;
+	ChannelData *channel() const;
 	UserData *bot() const;
-	bool creatingChat() const;
+	CreatingGroupType creating() const;
+
+	int32 selectedCount() const;
 
 	~ContactsInner();
 
@@ -70,6 +80,7 @@ signals:
 	void mustScrollTo(int ymin, int ymax);
 	void selectAllQuery();
 	void searchByUsername();
+	void chosenChanged();
 
 public slots:
 
@@ -84,8 +95,9 @@ public slots:
 private:
 
 	ChatData *_chat;
+	ChannelData *_channel;
 	UserData *_bot;
-	bool _creatingChat;
+	CreatingGroupType _creating;
 
 	ChatData *_addToChat;
 	
@@ -116,7 +128,7 @@ private:
 
 	bool _searching;
 	QString _lastQuery;
-	typedef QVector<UserData*> ByUsernameRows;
+	typedef QVector<PeerData*> ByUsernameRows;
 	typedef QVector<ContactData*> ByUsernameDatas;
 	ByUsernameRows _byUsername, _byUsernameFiltered;
 	ByUsernameDatas d_byUsername, d_byUsernameFiltered; // filtered is partly subset of d_byUsername, partly subset of _byUsernameDatas
@@ -133,12 +145,20 @@ class ContactsBox : public ItemListBox, public RPCSender {
 
 public:
 
-	ContactsBox(bool creatingChat = false);
+	ContactsBox();
+	ContactsBox(const QString &name, const QImage &photo); // group creation
+	ContactsBox(ChannelData *channel); // channel setup
 	ContactsBox(ChatData *chat);
 	ContactsBox(UserData *bot);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
+
+	void closePressed();
+
+	void setInnerFocus() {
+		_filter.setFocus();
+	}
 
 public slots:
 
@@ -147,7 +167,7 @@ public slots:
 
 	void onAdd();
 	void onInvite();
-	void onNext();
+	void onCreate();
 
 	bool onSearchByUsername(bool searchCache = false);
 	void onNeedSearchByUsername();
@@ -181,21 +201,29 @@ private:
 
 	typedef QMap<mtpRequestId, QString> PeopleQueries;
 	PeopleQueries _peopleQueries;
+
+	// group creation
+	int32 _creationRequestId;
+	QString _creationName;
+	QImage _creationPhoto;
+
+	void creationDone(const MTPUpdates &updates);
+	bool creationFail(const RPCError &e);
 };
 
-class CreateGroupBox : public AbstractBox, public RPCSender {
+class NewGroupBox : public AbstractBox {
 	Q_OBJECT
 
 public:
 
-	CreateGroupBox(const MTPVector<MTPInputUser> &users);
+	NewGroupBox();
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
 public slots:
 
-	void onCreate();
+	void onNext();
 
 protected:
 
@@ -205,13 +233,150 @@ protected:
 
 private:
 
-	void created(const MTPUpdates &updates);
-	bool failed(const RPCError &e);
+	FlatRadiobutton _group, _channel;
+	int32 _aboutGroupWidth, _aboutGroupHeight;
+	Text _aboutGroup, _aboutChannel;
+	FlatButton _next, _cancel;
 
-	MTPVector<MTPInputUser> _users;
+};
 
-	int32 _createRequestId;
+class GroupInfoBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose);
+	void keyPressEvent(QKeyEvent *e);
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mousePressEvent(QMouseEvent *e);
+	void leaveEvent(QEvent *e);
+
+	bool eventFilter(QObject *obj, QEvent *e);
+
+	bool descriptionAnimStep(float64 ms);
+	bool photoAnimStep(float64 ms);
+
+	void setInnerFocus() {
+		_name.setFocus();
+	}
+
+public slots:
+
+	void onPhoto();
+	void onPhotoReady(const QImage &img);
+
+	void onNext();
+	void onDescriptionResized();
+
+protected:
+
+	void hideAll();
+	void showAll();
+	void showDone();
+
+private:
+
+	QRect descriptionRect() const;
+	QRect photoRect() const;
+
+	void updateMaxHeight();
+	void updateSelected(const QPoint &cursorGlobalPosition);
+	CreatingGroupType _creating;
+
+	anim::fvalue a_photoOver;
+	Animation a_photo;
+	bool _photoOver, _descriptionOver;
+
+	anim::cvalue a_descriptionBg, a_descriptionBorder;
+	Animation a_description;
 
 	FlatInput _name;
-	FlatButton _create, _cancel;
+	FlatButton _photo;
+	FlatTextarea _description;
+	QImage _photoBig;
+	QPixmap _photoSmall;
+	FlatButton _next, _cancel;
+
+	// channel creation
+	int32 _creationRequestId;
+	ChannelData *_createdChannel;
+
+	void creationDone(const MTPUpdates &updates);
+	bool creationFail(const RPCError &e);
+	void exportDone(const MTPExportedChatInvite &result);
+};
+
+class SetupChannelBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	SetupChannelBox(ChannelData *channel, bool existing = false);
+	void keyPressEvent(QKeyEvent *e);
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mousePressEvent(QMouseEvent *e);
+
+	void closePressed();
+
+	void setInnerFocus() {
+		if (_link.isHidden()) {
+			setFocus();
+		} else {
+			_link.setFocus();
+		}
+	}
+
+public slots:
+
+	void onSave();
+	void onChange();
+	void onCheck();
+
+	void onPrivacyChange();
+
+protected:
+
+	void hideAll();
+	void showAll();
+	void showDone();
+
+private:
+
+	void updateSelected(const QPoint &cursorGlobalPosition);
+	bool goodAnimStep(float64 ms);
+
+	ChannelData *_channel;
+	bool _existing;
+
+	FlatRadiobutton _public, _private;
+	FlatCheckbox _comments;
+	int32 _aboutPublicWidth, _aboutPublicHeight;
+	Text _aboutPublic, _aboutPrivate, _aboutComments;
+	QString _linkPlaceholder;
+	UsernameInput _link;
+	QRect _invitationLink;
+	bool _linkOver;
+	FlatButton _save, _skip;
+
+	void onUpdateDone(const MTPBool &result);
+	bool onUpdateFail(const RPCError &error);
+
+	void onCheckDone(const MTPBool &result);
+	bool onCheckFail(const RPCError &error);
+	bool onFirstCheckFail(const RPCError &error);
+
+	bool _tooMuchUsernames;
+
+	mtpRequestId _saveRequestId, _checkRequestId;
+	QString _sentUsername, _checkUsername, _errorText, _goodText;
+
+	QString _goodTextLink;
+	anim::fvalue a_goodOpacity;
+	Animation a_good;
+
+	QTimer _checkTimer;
 };

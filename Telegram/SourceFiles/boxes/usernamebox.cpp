@@ -23,34 +23,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "window.h"
 
-UsernameInput::UsernameInput(QWidget *parent, const style::flatInput &st, const QString &ph, const QString &val) : FlatInput(parent, st, ph, val) {
-}
-
-void UsernameInput::correctValue(QKeyEvent *e, const QString &was) {
-	QString oldText(text()), newText;
-	int32 newPos = cursorPosition(), from, len = oldText.size();
-	for (from = 0; from < len; ++from) {
-		if (!oldText.at(from).isSpace()) {
-			break;
-		}
-		if (newPos > 0) --newPos;
-	}
-	len -= from;
-	if (len > MaxUsernameLength) len = MaxUsernameLength + (oldText.at(from) == '@' ? 1 : 0);
-	for (int32 to = from + len; to > from;) {
-		--to;
-		if (!oldText.at(to).isSpace()) {
-			break;
-		}
-		--len;
-	}
-	newText = oldText.mid(from, len);
-	if (newText != oldText) {
-		setText(newText);
-		setCursorPosition(newPos);
-	}
-}
-
 UsernameBox::UsernameBox() :
 _saveButton(this, lang(lng_settings_save), st::usernameDone),
 _cancelButton(this, lang(lng_cancel), st::usernameCancel),
@@ -146,7 +118,7 @@ void UsernameBox::onCheck() {
 	}
 	QString name = getName();
 	if (name.size() >= MinUsernameLength) {
-		_checkUsername = getName();
+		_checkUsername = name;
 		_checkRequest = MTP::send(MTPaccount_CheckUsername(MTP_string(name)), rpcDone(&UsernameBox::onCheckDone), rpcFail(&UsernameBox::onCheckFail));
 	}
 }
@@ -197,9 +169,9 @@ bool UsernameBox::onUpdateFail(const RPCError &error) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
 
 	_saveRequest = 0;
-	QString err(error.type()), name = getName();
+	QString err(error.type());
 	if (err == "USERNAME_NOT_MODIFIED" || _sentUsername == App::self()->username) {
-		App::self()->setName(textOneLine(App::self()->firstName), textOneLine(App::self()->lastName), textOneLine(App::self()->nameOrPhone), textOneLine(name));
+		App::self()->setName(textOneLine(App::self()->firstName), textOneLine(App::self()->lastName), textOneLine(App::self()->nameOrPhone), textOneLine(_sentUsername));
 		emit closed();
 		return true;
 	} else if (err == "USERNAME_INVALID") {

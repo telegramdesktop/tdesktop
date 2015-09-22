@@ -132,6 +132,8 @@ public:
 
 	void updateColors(const style::color &bar, const style::color &bg, const style::color &barOver, const style::color &bgOver);
 
+	bool focusNextPrevChild(bool next);
+
 	~ScrollArea();
 
 public slots:

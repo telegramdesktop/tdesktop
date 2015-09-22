@@ -134,6 +134,7 @@ inputPeerEmpty#7f3b18ea = InputPeer;
 inputPeerSelf#7da07ec9 = InputPeer;
 inputPeerChat#179be863 chat_id:int = InputPeer;
 inputPeerUser#7b8e7de6 user_id:int access_hash:long = InputPeer;
+inputPeerChannel#20adaef8 channel_id:int access_hash:long = InputPeer;
 
 inputUserEmpty#b98886cf = InputUser;
 inputUserSelf#f7c1b13f = InputUser;
@@ -185,6 +186,7 @@ inputAppEvent#770656a8 time:double type:string peer:long data:string = InputAppE
 
 peerUser#9db1bc6d user_id:int = Peer;
 peerChat#bad0e5bb chat_id:int = Peer;
+peerChannel#bddde532 channel_id:int = Peer;
 
 storage.fileUnknown#aa963b05 = storage.FileType;
 storage.fileJpeg#7efe0e = storage.FileType;
@@ -214,10 +216,13 @@ userStatusLastWeek#7bf09fc = UserStatus;
 userStatusLastMonth#77ebc742 = UserStatus;
 
 chatEmpty#9ba2d800 id:int = Chat;
-chat#6e9c9bc7 id:int title:string photo:ChatPhoto participants_count:int date:int left:Bool version:int = Chat;
-chatForbidden#fb0ccc41 id:int title:string date:int = Chat;
+chat#7312bc48 flags:# id:int title:string photo:ChatPhoto participants_count:int date:int version:int = Chat;
+chatForbidden#7328bdb id:int title:string = Chat;
+channel#678e9587 flags:# id:int access_hash:long title:string username:flags.6?string photo:ChatPhoto date:int version:int = Chat;
+channelForbidden#2d85832c id:int access_hash:long title:string = Chat;
 
 chatFull#2e02a614 id:int participants:ChatParticipants chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite bot_info:Vector<BotInfo> = ChatFull;
+channelFull#fab31aa3 flags:# id:int about:string participants_count:flags.0?int admins_count:flags.1?int kicked_count:flags.2?int read_inbox_max_id:int unread_count:int unread_important_count:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite = ChatFull;
 
 chatParticipant#c8d7493e user_id:int inviter_id:int date:int = ChatParticipant;
 
@@ -228,8 +233,8 @@ chatPhotoEmpty#37c1011c = ChatPhoto;
 chatPhoto#6153276a photo_small:FileLocation photo_big:FileLocation = ChatPhoto;
 
 messageEmpty#83e5de54 id:int = Message;
-message#2bebfa86 flags:# id:int from_id:int to_id:Peer fwd_from_id:flags.2?int fwd_date:flags.2?int reply_to_msg_id:flags.3?int date:int message:string media:flags.9?MessageMedia reply_markup:flags.6?ReplyMarkup entities:flags.7?Vector<MessageEntity> = Message;
-messageService#1d86f70e flags:int id:int from_id:int to_id:Peer date:int action:MessageAction = Message;
+message#5ba66c13 flags:# id:int from_id:flags.8?int to_id:Peer fwd_from_id:flags.2?Peer fwd_date:flags.2?int reply_to_msg_id:flags.3?int date:int message:string media:flags.9?MessageMedia reply_markup:flags.6?ReplyMarkup entities:flags.7?Vector<MessageEntity> views:flags.10?int = Message;
+messageService#c06b9607 flags:# id:int from_id:flags.8?int to_id:Peer date:int action:MessageAction = Message;
 
 messageMediaEmpty#3ded6320 = MessageMedia;
 messageMediaPhoto#3d8ce53d photo:Photo caption:string = MessageMedia;
@@ -250,8 +255,10 @@ messageActionChatDeletePhoto#95e3fbef = MessageAction;
 messageActionChatAddUser#5e3cfc4b user_id:int = MessageAction;
 messageActionChatDeleteUser#b2ae9b0c user_id:int = MessageAction;
 messageActionChatJoinedByLink#f89cf5e8 inviter_id:int = MessageAction;
+messageActionChannelCreate#95d2ac92 title:string = MessageAction;
 
 dialog#c1dd804a peer:Peer top_message:int read_inbox_max_id:int unread_count:int notify_settings:PeerNotifySettings = Dialog;
+dialogChannel#5b8496b2 peer:Peer top_message:int top_important_message:int read_inbox_max_id:int unread_count:int unread_important_count:int notify_settings:PeerNotifySettings pts:int = Dialog;
 
 photoEmpty#2331b22d id:long = Photo;
 photo#cded42fe id:long access_hash:long date:int sizes:Vector<PhotoSize> = Photo;
@@ -323,6 +330,7 @@ messages.dialogsSlice#71e094f3 count:int dialogs:Vector<Dialog> messages:Vector<
 
 messages.messages#8c718e87 messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = messages.Messages;
 messages.messagesSlice#b446ae3 count:int messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = messages.Messages;
+messages.channelMessages#bc0f17bc flags:# pts:int count:int messages:Vector<Message> collapsed:flags.0?Vector<MessageGroup> chats:Vector<Chat> users:Vector<User> = messages.Messages;
 
 messages.chats#64ff9fd5 chats:Vector<Chat> = messages.Chats;
 
@@ -368,6 +376,13 @@ updateReadHistoryInbox#9961fd5c peer:Peer max_id:int pts:int pts_count:int = Upd
 updateReadHistoryOutbox#2f2f21bf peer:Peer max_id:int pts:int pts_count:int = Update;
 updateWebPage#7f891213 webpage:WebPage pts:int pts_count:int = Update;
 updateReadMessagesContents#68c13933 messages:Vector<int> pts:int pts_count:int = Update;
+updateChannelTooLong#60946422 channel_id:int = Update;
+updateChannel#b6d45656 channel_id:int = Update;
+updateChannelGroup#c36c1e3c channel_id:int group:MessageGroup = Update;
+updateNewChannelMessage#62ba04d9 message:Message pts:int pts_count:int = Update;
+updateReadChannelInbox#4214f37f channel_id:int max_id:int = Update;
+updateDeleteChannelMessages#c37521c9 channel_id:int messages:Vector<int> pts:int pts_count:int = Update;
+updateChannelMessageViews#98a12b4b channel_id:int id:int views:int = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -376,8 +391,8 @@ updates.difference#f49ca0 new_messages:Vector<Message> new_encrypted_messages:Ve
 updates.differenceSlice#a8fb1981 new_messages:Vector<Message> new_encrypted_messages:Vector<EncryptedMessage> other_updates:Vector<Update> chats:Vector<Chat> users:Vector<User> intermediate_state:updates.State = updates.Difference;
 
 updatesTooLong#e317af7e = Updates;
-updateShortMessage#3f32d858 flags:# id:int user_id:int message:string pts:int pts_count:int date:int fwd_from_id:flags.2?int fwd_date:flags.2?int reply_to_msg_id:flags.3?int entities:flags.7?Vector<MessageEntity> = Updates;
-updateShortChatMessage#f9409b3d flags:# id:int from_id:int chat_id:int message:string pts:int pts_count:int date:int fwd_from_id:flags.2?int fwd_date:flags.2?int reply_to_msg_id:flags.3?int entities:flags.7?Vector<MessageEntity> = Updates;
+updateShortMessage#f7d91a46 flags:# id:int user_id:int message:string pts:int pts_count:int date:int fwd_from_id:flags.2?Peer fwd_date:flags.2?int reply_to_msg_id:flags.3?int entities:flags.7?Vector<MessageEntity> = Updates;
+updateShortChatMessage#cac7fdd2 flags:# id:int from_id:int chat_id:int message:string pts:int pts_count:int date:int fwd_from_id:flags.2?Peer fwd_date:flags.2?int reply_to_msg_id:flags.3?int entities:flags.7?Vector<MessageEntity> = Updates;
 updateShort#78d4dec1 update:Update date:int = Updates;
 updatesCombined#725b04c3 updates:Vector<Update> users:Vector<User> chats:Vector<Chat> date:int seq_start:int seq:int = Updates;
 updates#74ae4240 updates:Vector<Update> users:Vector<User> chats:Vector<Chat> date:int seq:int = Updates;
@@ -456,9 +471,7 @@ sendMessageUploadDocumentAction#aa0cd9e4 progress:int = SendMessageAction;
 sendMessageGeoLocationAction#176f8ba1 = SendMessageAction;
 sendMessageChooseContactAction#628cbc6f = SendMessageAction;
 
-contactFound#ea879f95 user_id:int = ContactFound;
-
-contacts.found#566000e results:Vector<ContactFound> users:Vector<User> = contacts.Found;
+contacts.found#1aa1f784 results:Vector<Peer> chats:Vector<Chat> users:Vector<User> = contacts.Found;
 
 inputPrivacyKeyStatusTimestamp#4f96cb18 = InputPrivacyKey;
 
@@ -531,7 +544,7 @@ chatInviteEmpty#69df3769 = ExportedChatInvite;
 chatInviteExported#fc2e05bc link:string = ExportedChatInvite;
 
 chatInviteAlready#5a686d7c chat:Chat = ChatInvite;
-chatInvite#ce917dcd title:string = ChatInvite;
+chatInvite#93e99b60 flags:# title:string = ChatInvite;
 
 inputStickerSetEmpty#ffb62b95 = InputStickerSet;
 inputStickerSetID#9de7a269 id:long access_hash:long = InputStickerSet;
@@ -568,6 +581,42 @@ messageEntityItalic#826f8b60 offset:int length:int = MessageEntity;
 messageEntityCode#28a20571 offset:int length:int = MessageEntity;
 messageEntityPre#73924be0 offset:int length:int language:string = MessageEntity;
 messageEntityTextUrl#76a6d327 offset:int length:int url:string = MessageEntity;
+
+inputChannelEmpty#ee8c1e86 = InputChannel;
+inputChannel#afeb712e channel_id:int access_hash:long = InputChannel;
+
+contacts.resolvedPeer#7f077ad9 peer:Peer chats:Vector<Chat> users:Vector<User> = contacts.ResolvedPeer;
+
+messageRange#ae30253 min_id:int max_id:int = MessageRange;
+
+messageGroup#e8346f53 min_id:int max_id:int count:int date:int = MessageGroup;
+
+updates.channelDifferenceEmpty#3e11affb flags:# pts:int timeout:flags.1?int = updates.ChannelDifference;
+updates.channelDifferenceTooLong#5e167646 flags:# pts:int timeout:flags.1?int top_message:int top_important_message:int read_inbox_max_id:int unread_count:int unread_important_count:int messages:Vector<Message> chats:Vector<Chat> users:Vector<User> = updates.ChannelDifference;
+updates.channelDifference#2064674e flags:# pts:int timeout:flags.1?int new_messages:Vector<Message> other_updates:Vector<Update> chats:Vector<Chat> users:Vector<User> = updates.ChannelDifference;
+
+channelMessagesFilterEmpty#94d42ee7 = ChannelMessagesFilter;
+channelMessagesFilter#cd77d957 flags:# ranges:Vector<MessageRange> = ChannelMessagesFilter;
+channelMessagesFilterCollapsed#fa01232e = ChannelMessagesFilter;
+
+channelParticipant#15ebac1d user_id:int date:int = ChannelParticipant;
+channelParticipantSelf#a3289a6d user_id:int inviter_id:int date:int = ChannelParticipant;
+channelParticipantModerator#91057fef user_id:int inviter_id:int date:int = ChannelParticipant;
+channelParticipantEditor#98192d61 user_id:int inviter_id:int date:int = ChannelParticipant;
+channelParticipantKicked#8cc5e69a user_id:int kicked_by:int date:int = ChannelParticipant;
+channelParticipantCreator#e3e2e1f9 user_id:int = ChannelParticipant;
+
+channelParticipantsRecent#de3f3c79 = ChannelParticipantsFilter;
+channelParticipantsAdmins#b4608969 = ChannelParticipantsFilter;
+channelParticipantsKicked#3c37bb7a = ChannelParticipantsFilter;
+
+channelRoleEmpty#b285a0c6 = ChannelParticipantRole;
+channelRoleModerator#9618d975 = ChannelParticipantRole;
+channelRoleEditor#820bfe8c = ChannelParticipantRole;
+
+channels.channelParticipants#f56ee2a8 count:int participants:Vector<ChannelParticipant> users:Vector<User> = channels.ChannelParticipants;
+
+channels.channelParticipant#d0d9b163 participant:ChannelParticipant users:Vector<User> = channels.ChannelParticipant;
 
 ---functions---
 
@@ -633,12 +682,12 @@ contacts.getBlocked#f57c350f offset:int limit:int = contacts.Blocked;
 contacts.exportCard#84e53737 = Vector<int>;
 contacts.importCard#4fe196fe export_card:Vector<int> = User;
 contacts.search#11f812d8 q:string limit:int = contacts.Found;
-contacts.resolveUsername#bf0131c username:string = User;
+contacts.resolveUsername#f93ccba3 username:string = contacts.ResolvedPeer;
 
 messages.getMessages#4222fa74 id:Vector<int> = messages.Messages;
-messages.getDialogs#eccf1df6 offset:int max_id:int limit:int = messages.Dialogs;
-messages.getHistory#92a1df2f peer:InputPeer offset:int max_id:int limit:int = messages.Messages;
-messages.search#7e9f2ab peer:InputPeer q:string filter:MessagesFilter min_date:int max_date:int offset:int max_id:int limit:int = messages.Messages;
+messages.getDialogs#859b3d3c offset:int limit:int = messages.Dialogs;
+messages.getHistory#8a8ec2da peer:InputPeer offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+messages.search#d4569248 flags:# peer:InputPeer q:string filter:MessagesFilter min_date:int max_date:int offset:int max_id:int limit:int = messages.Messages;
 messages.readHistory#b04f2510 peer:InputPeer max_id:int offset:int = messages.AffectedHistory;
 messages.deleteHistory#f4f8fb61 peer:InputPeer offset:int = messages.AffectedHistory;
 messages.deleteMessages#a5f18925 id:Vector<int> = messages.AffectedMessages;
@@ -646,7 +695,7 @@ messages.receivedMessages#5a954c0 max_id:int = Vector<ReceivedNotifyMessage>;
 messages.setTyping#a3825e50 peer:InputPeer action:SendMessageAction = Bool;
 messages.sendMessage#fa88427a flags:# peer:InputPeer reply_to_msg_id:flags.0?int message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> = Updates;
 messages.sendMedia#c8f16791 flags:# peer:InputPeer reply_to_msg_id:flags.0?int media:InputMedia random_id:long reply_markup:flags.2?ReplyMarkup = Updates;
-messages.forwardMessages#55e1728d peer:InputPeer id:Vector<int> random_id:Vector<long> = Updates;
+messages.forwardMessages#708e0195 flags:# from_peer:InputPeer id:Vector<int> random_id:Vector<long> to_peer:InputPeer = Updates;
 messages.reportSpam#cf1592db peer:InputPeer = Bool;
 messages.getChats#3c6aa187 id:Vector<int> = messages.Chats;
 messages.getFullChat#3b831c66 chat_id:int = messages.ChatFull;
@@ -678,9 +727,11 @@ messages.getStickerSet#2619a90e stickerset:InputStickerSet = messages.StickerSet
 messages.installStickerSet#7b30c3a6 stickerset:InputStickerSet disabled:Bool = Bool;
 messages.uninstallStickerSet#f96e55de stickerset:InputStickerSet = Bool;
 messages.startBot#1b3e0ffc bot:InputUser chat_id:int random_id:long start_param:string = Updates;
+messages.getMessagesViews#c4c8a55d peer:InputPeer id:Vector<int> increment:Bool = Vector<int>;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#a041495 pts:int date:int qts:int = updates.Difference;
+updates.getChannelDifference#bb32d7c0 channel:InputChannel filter:ChannelMessagesFilter pts:int limit:int = updates.ChannelDifference;
 
 photos.updateProfilePhoto#eef579a0 id:InputPhoto crop:InputPhotoCrop = UserProfilePhoto;
 photos.uploadProfilePhoto#d50f9c88 file:InputFile caption:string geo_point:InputGeoPoint crop:InputPhotoCrop = photos.Photo;
@@ -698,3 +749,29 @@ help.saveAppLog#6f02f748 events:Vector<InputAppEvent> = Bool;
 help.getInviteText#a4a95186 lang_code:string = help.InviteText;
 help.getSupport#9cdf08cd = help.Support;
 help.getAppChangelog#5bab7fb2 device_model:string system_version:string app_version:string lang_code:string = help.AppChangelog;
+
+channels.getDialogs#a9d3d249 offset:int limit:int = messages.Dialogs;
+channels.getImportantHistory#ddb929cb channel:InputChannel offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+channels.readHistory#cc104937 channel:InputChannel max_id:int = Bool;
+channels.deleteMessages#84c1fd4e channel:InputChannel id:Vector<int> = messages.AffectedMessages;
+channels.deleteUserHistory#d10dd71b channel:InputChannel user_id:InputUser = messages.AffectedHistory;
+channels.reportSpam#fe087810 channel:InputChannel user_id:InputUser id:Vector<int> = Bool;
+channels.getMessages#93d7b347 channel:InputChannel id:Vector<int> = messages.Messages;
+channels.getParticipants#24d98f92 channel:InputChannel filter:ChannelParticipantsFilter offset:int limit:int = channels.ChannelParticipants;
+channels.getParticipant#546dd7a6 channel:InputChannel user_id:InputUser = channels.ChannelParticipant;
+channels.getChannels#a7f6bbb id:Vector<InputChannel> = messages.Chats;
+channels.getFullChannel#8736a09 channel:InputChannel = messages.ChatFull;
+channels.createChannel#5521d844 flags:# title:string about:string users:Vector<InputUser> = Updates;
+channels.editAbout#13e27f1e channel:InputChannel about:string = Bool;
+channels.editAdmin#52b16962 channel:InputChannel user_id:InputUser role:ChannelParticipantRole = Bool;
+channels.editTitle#566decd0 channel:InputChannel title:string = Updates;
+channels.editPhoto#f12e57c9 channel:InputChannel photo:InputChatPhoto = Updates;
+channels.toggleComments#aaa29e88 channel:InputChannel enabled:Bool = Updates;
+channels.checkUsername#10e6bd2c channel:InputChannel username:string = Bool;
+channels.updateUsername#3514b3de channel:InputChannel username:string = Bool;
+channels.joinChannel#24b524c5 channel:InputChannel = Updates;
+channels.leaveChannel#f836aa95 channel:InputChannel = Updates;
+channels.inviteToChannel#199f3a6c channel:InputChannel users:Vector<InputUser> = Updates;
+channels.kickFromChannel#a672de14 channel:InputChannel user_id:InputUser kicked:Bool = Updates;
+channels.exportInvite#c7560885 channel:InputChannel = ExportedChatInvite;
+channels.deleteChannel#c0111fe3 channel:InputChannel = Updates;

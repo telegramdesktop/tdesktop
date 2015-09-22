@@ -28,6 +28,8 @@ typedef quint32 uint32;
 typedef qint64 int64;
 typedef quint64 uint64;
 
+static const int32 ScrollMax = INT_MAX;
+
 #ifdef Q_OS_WIN
 typedef float float32;
 typedef double float64;
@@ -78,7 +80,7 @@ void unixtimeSet(int32 servertime, bool force = false);
 int32 unixtime();
 int32 fromServerTime(const MTPint &serverTime);
 uint64 msgid();
-uint32 reqid();
+int32 reqid();
 
 inline QDateTime date(int32 time = -1) {
 	QDateTime result;

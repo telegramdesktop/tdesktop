@@ -151,7 +151,7 @@ public:
 	void setupIntro(bool anim);
 	void setupMain(bool anim, const MTPUser *user = 0);
 	void getNotifySetting(const MTPInputNotifyPeer &peer, uint32 msWait = 0);
-	void serviceNotification(const QString &msg, bool unread = true, const MTPMessageMedia &media = MTP_messageMediaEmpty(), bool force = false);
+	void serviceNotification(const QString &msg, const MTPMessageMedia &media = MTP_messageMediaEmpty(), bool force = false);
 	void sendServiceHistoryRequest();
 	void showDelayedServiceMsgs();
 
@@ -264,6 +264,7 @@ public slots:
 
 	void onShowAddContact();
 	void onShowNewGroup();
+	void onShowNewChannel();
 	void onLogout();
 	void onLogoutSure();
 	void updateGlobalMenu(); // for OS X top menu
@@ -288,7 +289,7 @@ private:
 
 	QWidget *centralwidget;
 
-	typedef QPair<QPair<QString, MTPMessageMedia>, bool> DelayedServiceMsg;
+	typedef QPair<QString, MTPMessageMedia> DelayedServiceMsg;
 	QVector<DelayedServiceMsg> _delayedServiceMsgs;
 	mtpRequestId _serviceHistoryRequest;
 
@@ -322,18 +323,18 @@ private:
 	typedef QMap<History*, NotifyWhenMap> NotifyWhenMaps;
 	NotifyWhenMaps notifyWhenMaps;
 	struct NotifyWaiter {
-		NotifyWaiter(MsgId msg, uint64 when, UserData *notifyByFrom) : msg(msg), when(when), notifyByFrom(notifyByFrom) {
+		NotifyWaiter(MsgId msg, uint64 when, PeerData *notifyByFrom) : msg(msg), when(when), notifyByFrom(notifyByFrom) {
 		}
 		MsgId msg;
 		uint64 when;
-		UserData *notifyByFrom;
+		PeerData *notifyByFrom;
 	};
 	typedef QMap<History*, NotifyWaiter> NotifyWaiters;
 	NotifyWaiters notifyWaiters;
 	NotifyWaiters notifySettingWaiters;
 	SingleTimer notifyWaitTimer;
 
-	typedef QMap<uint64, UserData*> NotifyWhenAlert;
+	typedef QMap<uint64, PeerData*> NotifyWhenAlert;
 	typedef QMap<History*, NotifyWhenAlert> NotifyWhenAlerts;
 	NotifyWhenAlerts notifyWhenAlerts;
 

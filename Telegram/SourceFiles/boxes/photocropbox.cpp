@@ -24,14 +24,22 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "photocropbox.h"
 #include "fileuploader.h"
 
-PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer) : _downState(0),
+PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer, bool upload) : _downState(0),
 	_sendButton(this, lang(lng_settings_save), st::btnSelectDone),
 	_cancelButton(this, lang(lng_cancel), st::btnSelectCancel),
     _img(img), _peerId(peer) {
 
+	if (peerIsChannel(_peerId)) {
+		_title = lang(lng_create_channel_crop);
+	} else if (peerIsChat(_peerId)) {
+		_title = lang(lng_create_group_crop);
+	} else {
+		_title = lang(lng_settings_crop_profile);
+	}
+
 	connect(&_sendButton, SIGNAL(clicked()), this, SLOT(onSend()));
 	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onClose()));
-	if (_peerId) {
+	if (_peerId && upload) {
 		connect(this, SIGNAL(ready(const QImage &)), this, SLOT(onReady(const QImage &)));
 	}
 
@@ -209,7 +217,7 @@ void PhotoCropBox::paintEvent(QPaintEvent *e) {
 	// paint button sep
 	p.fillRect(st::btnSelectCancel.width, height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
 
-	paintGrayTitle(p, lang(lng_settings_crop_profile));
+	paintGrayTitle(p, _title);
 
 	p.translate(_thumbx, _thumby);
 	p.drawPixmap(0, 0, _thumb);
@@ -269,11 +277,11 @@ void PhotoCropBox::onSend() {
 	}
 
 	emit ready(tosend);
+	onClose();
 }
 
 void PhotoCropBox::onReady(const QImage &tosend) {
 	App::app()->uploadProfilePhoto(tosend, _peerId);
-	emit closed();
 }
 
 void PhotoCropBox::hideAll() {

@@ -124,7 +124,7 @@ void PhotoSendBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void PhotoSendBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 	if (paint(p)) return;
 
 	// paint shadow

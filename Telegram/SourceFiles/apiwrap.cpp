@@ -38,17 +38,24 @@ void ApiWrap::init() {
 
 void ApiWrap::itemRemoved(HistoryItem *item) {
 	if (HistoryReply *reply = item->toHistoryReply()) {
-		ReplyToRequests::iterator i = _replyToRequests.find(reply->replyToId());
-		if (i != _replyToRequests.cend()) {
-			for (QList<HistoryReply*>::iterator j = i->replies.begin(); j != i->replies.end();) {
-				if ((*j) == reply) {
-					j = i->replies.erase(j);
-				} else {
-					++j;
+		ChannelData *channel = reply->history()->peer->asChannel();
+		ReplyToRequests *requests(replyToRequests(channel, true));
+		if (requests) {
+			ReplyToRequests::iterator i = requests->find(reply->replyToId());
+			if (i != requests->cend()) {
+				for (QList<HistoryReply*>::iterator j = i->replies.begin(); j != i->replies.end();) {
+					if ((*j) == reply) {
+						j = i->replies.erase(j);
+					} else {
+						++j;
+					}
+				}
+				if (i->replies.isEmpty()) {
+					requests->erase(i);
 				}
 			}
-			if (i->replies.isEmpty()) {
-				_replyToRequests.erase(i);
+			if (channel && requests->isEmpty()) {
+				_channelReplyToRequests.remove(channel);
 			}
 		}
 	}
@@ -56,77 +63,140 @@ void ApiWrap::itemRemoved(HistoryItem *item) {
 
 void ApiWrap::itemReplaced(HistoryItem *oldItem, HistoryItem *newItem) {
 	if (HistoryReply *reply = oldItem->toHistoryReply()) {
-		ReplyToRequests::iterator i = _replyToRequests.find(reply->replyToId());
-		if (i != _replyToRequests.cend()) {
-			for (QList<HistoryReply*>::iterator j = i->replies.begin(); j != i->replies.end();) {
-				if ((*j) == reply) {
-					if (HistoryReply *newReply = newItem->toHistoryReply()) {
-						*j = newReply;
-						++j;
+		ChannelData *channel = reply->history()->peer->asChannel();
+		ReplyToRequests *requests(replyToRequests(channel, true));
+		if (requests) {
+			ReplyToRequests::iterator i = requests->find(reply->replyToId());
+			if (i != requests->cend()) {
+				for (QList<HistoryReply*>::iterator j = i->replies.begin(); j != i->replies.end();) {
+					if ((*j) == reply) {
+						if (HistoryReply *newReply = newItem->toHistoryReply()) {
+							*j = newReply;
+							++j;
+						} else {
+							j = i->replies.erase(j);
+						}
 					} else {
-						j = i->replies.erase(j);
+						++j;
 					}
-				} else {
-					++j;
+				}
+				if (i->replies.isEmpty()) {
+					requests->erase(i);
 				}
 			}
-			if (i->replies.isEmpty()) {
-				_replyToRequests.erase(i);
+			if (channel && requests->isEmpty()) {
+				_channelReplyToRequests.remove(channel);
 			}
 		}
 	}
 }
 
-void ApiWrap::requestReplyTo(HistoryReply *reply, MsgId to) {
-	ReplyToRequest &req(_replyToRequests[to]);
+void ApiWrap::requestReplyTo(HistoryReply *reply, ChannelData *channel, MsgId id) {
+	ReplyToRequest &req(channel ? _channelReplyToRequests[channel][id] : _replyToRequests[id]);
 	req.replies.append(reply);
 	if (!req.req) _replyToTimer.start(1);
 }
 
-void ApiWrap::resolveReplyTo() {
-	if (_replyToRequests.isEmpty()) return;
-
-	QVector<MTPint> ids;
-	ids.reserve(_replyToRequests.size());
-	for (ReplyToRequests::const_iterator i = _replyToRequests.cbegin(), e = _replyToRequests.cend(); i != e; ++i) {
-		if (!i.value().req) {
-			ids.push_back(MTP_int(i.key()));
-		}
+ApiWrap::MessageIds ApiWrap::collectMessageIds(const ReplyToRequests &requests) {
+	MessageIds result;
+	result.reserve(requests.size());
+	for (ReplyToRequests::const_iterator i = requests.cbegin(), e = requests.cend(); i != e; ++i) {
+		if (i.value().req > 0) continue;
+		result.push_back(MTP_int(i.key()));
 	}
+	return result;
+}
+
+ApiWrap::ReplyToRequests *ApiWrap::replyToRequests(ChannelData *channel, bool onlyExisting) {
+	if (channel) {
+		ChannelReplyToRequests::iterator i = _channelReplyToRequests.find(channel);
+		if (i == _channelReplyToRequests.cend()) {
+			if (onlyExisting) return 0;
+			i = _channelReplyToRequests.insert(channel, ReplyToRequests());
+		}
+		return &i.value();
+	}
+	return &_replyToRequests;
+}
+
+void ApiWrap::resolveReplyTo() {
+	if (_replyToRequests.isEmpty() && _channelReplyToRequests.isEmpty()) return;
+
+	MessageIds ids = collectMessageIds(_replyToRequests);
 	if (!ids.isEmpty()) {
-		mtpRequestId req = MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotReplyTo));
-		for (ReplyToRequests::iterator i = _replyToRequests.begin(), e = _replyToRequests.end(); i != e; ++i) {
+		mtpRequestId req = MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotReplyTo, (ChannelData*)0), RPCFailHandlerPtr(), 0, 5);
+		for (ReplyToRequests::iterator i = _replyToRequests.begin(); i != _replyToRequests.cend(); ++i) {
+			if (i.value().req > 0) continue;
 			i.value().req = req;
 		}
 	}
+	for (ChannelReplyToRequests::iterator j = _channelReplyToRequests.begin(); j != _channelReplyToRequests.cend();) {
+		if (j->isEmpty()) {
+			j = _channelReplyToRequests.erase(j);
+			continue;
+		}
+		MessageIds ids = collectMessageIds(j.value());
+		if (!ids.isEmpty()) {
+			mtpRequestId req = MTP::send(MTPchannels_GetMessages(j.key()->inputChannel, MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotReplyTo, j.key()), RPCFailHandlerPtr(), 0, 5);
+			for (ReplyToRequests::iterator i = j->begin(); i != j->cend(); ++i) {
+				if (i.value().req > 0) continue;
+				i.value().req = req;
+			}
+		}
+		++j;
+	}
 }
 
-void ApiWrap::gotReplyTo(const MTPmessages_Messages &msgs, mtpRequestId req) {
+void ApiWrap::gotReplyTo(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {
 	switch (msgs.type()) {
-	case mtpc_messages_messages:
-		App::feedUsers(msgs.c_messages_messages().vusers);
-		App::feedChats(msgs.c_messages_messages().vchats);
-		App::feedMsgs(msgs.c_messages_messages().vmessages, -1);
-		break;
+	case mtpc_messages_messages: {
+		const MTPDmessages_messages &d(msgs.c_messages_messages());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		App::feedMsgs(d.vmessages, NewMessageExisting);
+	} break;
 
-	case mtpc_messages_messagesSlice:
-		App::feedUsers(msgs.c_messages_messagesSlice().vusers);
-		App::feedChats(msgs.c_messages_messagesSlice().vchats);
-		App::feedMsgs(msgs.c_messages_messagesSlice().vmessages, -1);
-		break;
-	}
-	for (ReplyToRequests::iterator i = _replyToRequests.begin(); i != _replyToRequests.cend();) {
-		if (i.value().req == req) {
-			for (QList<HistoryReply*>::const_iterator j = i.value().replies.cbegin(), e = i.value().replies.cend(); j != e; ++j) {
-				if (*j) {
-					(*j)->updateReplyTo(true);
-				} else {
-					App::main()->updateReplyTo();
-				}
-			}
-			i = _replyToRequests.erase(i);
+	case mtpc_messages_messagesSlice: {
+		const MTPDmessages_messagesSlice &d(msgs.c_messages_messagesSlice());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		App::feedMsgs(d.vmessages, NewMessageExisting);
+	} break;
+
+	case mtpc_messages_channelMessages: {
+		const MTPDmessages_channelMessages &d(msgs.c_messages_channelMessages());
+		if (channel) {
+			channel->ptsReceived(d.vpts.v);
 		} else {
-			++i;
+			LOG(("App Error: received messages.channelMessages when no channel was passed! (ApiWrap::gotReplyTo)"));
+		}
+		if (d.has_collapsed()) { // should not be returned
+			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (ApiWrap::gotReplyTo)"));
+		}
+
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		App::feedMsgs(d.vmessages, NewMessageExisting);
+	} break;
+	}
+	ReplyToRequests *requests(replyToRequests(channel, true));
+	if (requests) {
+		for (ReplyToRequests::iterator i = requests->begin(); i != requests->cend();) {
+			if (i.value().req == req) {
+				for (QList<HistoryReply*>::const_iterator j = i.value().replies.cbegin(), e = i.value().replies.cend(); j != e; ++j) {
+					if (*j) {
+						(*j)->updateReplyTo(true);
+					} else {
+						App::main()->updateReplyTo();
+					}
+				}
+				i = requests->erase(i);
+			} else {
+				++i;
+			}
+		}
+		if (channel && requests->isEmpty()) {
+			_channelReplyToRequests.remove(channel);
 		}
 	}
 }
@@ -134,56 +204,98 @@ void ApiWrap::gotReplyTo(const MTPmessages_Messages &msgs, mtpRequestId req) {
 void ApiWrap::requestFullPeer(PeerData *peer) {
 	if (!peer || _fullPeerRequests.contains(peer)) return;
 
-	mtpRequestId req;
-	if (peer->chat) {
-		req = MTP::send(MTPmessages_GetFullChat(MTP_int(App::chatFromPeer(peer->id))), rpcDone(&ApiWrap::gotChatFull, peer), rpcFail(&ApiWrap::gotPeerFullFailed, peer));
-	} else {
+	mtpRequestId req = 0;
+	if (peer->isUser()) {
 		req = MTP::send(MTPusers_GetFullUser(peer->asUser()->inputUser), rpcDone(&ApiWrap::gotUserFull, peer), rpcFail(&ApiWrap::gotPeerFullFailed, peer));
+	} else if (peer->isChat()) {
+		req = MTP::send(MTPmessages_GetFullChat(peer->asChat()->inputChat), rpcDone(&ApiWrap::gotChatFull, peer), rpcFail(&ApiWrap::gotPeerFullFailed, peer));
+	} else if (peer->isChannel()) {
+		req = MTP::send(MTPchannels_GetFullChannel(peer->asChannel()->inputChannel), rpcDone(&ApiWrap::gotChatFull, peer), rpcFail(&ApiWrap::gotPeerFullFailed, peer));
 	}
-	_fullPeerRequests.insert(peer, req);
+	if (req) _fullPeerRequests.insert(peer, req);
 }
 
 void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result) {
 	const MTPDmessages_chatFull &d(result.c_messages_chatFull());
-	const MTPDchatFull &f(d.vfull_chat.c_chatFull());
-
 	const QVector<MTPChat> &vc(d.vchats.c_vector().v);
-	bool badVersion = (!vc.isEmpty() && vc.at(0).type() == mtpc_chat && vc.at(0).c_chat().vversion.v < peer->asChat()->version);
+	bool badVersion = false;
+	if (peer->isChat()) {
+		badVersion = (!vc.isEmpty() && vc.at(0).type() == mtpc_chat && vc.at(0).c_chat().vversion.v < peer->asChat()->version);
+	} else if (peer->isChannel()) {
+		badVersion = (!vc.isEmpty() && vc.at(0).type() == mtpc_channel && vc.at(0).c_channel().vversion.v < peer->asChannel()->version);
+	}
 
 	App::feedUsers(d.vusers, false);
 	App::feedChats(d.vchats, false);
-	App::feedParticipants(f.vparticipants, false, false);
-	const QVector<MTPBotInfo> &v(f.vbot_info.c_vector().v);
-	for (QVector<MTPBotInfo>::const_iterator i = v.cbegin(), e = v.cend(); i < e; ++i) {
-		switch (i->type()) {
-		case mtpc_botInfo: {
-			const MTPDbotInfo &b(i->c_botInfo());
-			UserData *user = App::userLoaded(b.vuser_id.v);
-			if (user) {
-				user->setBotInfo(*i);
-				App::clearPeerUpdated(user);
-				emit fullPeerUpdated(user);
-			}
-		} break;
+
+	if (peer->isChat()) {
+		if (d.vfull_chat.type() != mtpc_chatFull) {
+			LOG(("MTP Error: bad type in gotChatFull for chat: %1").arg(d.vfull_chat.type()));
+			return;
 		}
-	}
-	PhotoData *photo = App::feedPhoto(f.vchat_photo);
-	ChatData *chat = peer->asChat();
-	if (chat) {
+		const MTPDchatFull &f(d.vfull_chat.c_chatFull());
+		App::feedParticipants(f.vparticipants, false, false);
+		const QVector<MTPBotInfo> &v(f.vbot_info.c_vector().v);
+		for (QVector<MTPBotInfo>::const_iterator i = v.cbegin(), e = v.cend(); i < e; ++i) {
+			switch (i->type()) {
+			case mtpc_botInfo: {
+				const MTPDbotInfo &b(i->c_botInfo());
+				UserData *user = App::userLoaded(b.vuser_id.v);
+				if (user) {
+					user->setBotInfo(*i);
+					App::clearPeerUpdated(user);
+					emit fullPeerUpdated(user);
+				}
+			} break;
+			}
+		}
+		PhotoData *photo = App::feedPhoto(f.vchat_photo);
+		ChatData *chat = peer->asChat();
 		if (photo) {
 			chat->photoId = photo->id;
-			photo->chat = chat;
+			photo->peer = chat;
 		} else {
 			chat->photoId = 0;
 		}
 		chat->invitationUrl = (f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString();
-	}
 
-	App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
+		App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
+	} else if (peer->isChannel()) {
+		if (d.vfull_chat.type() != mtpc_channelFull) {
+			LOG(("MTP Error: bad type in gotChatFull for channel: %1").arg(d.vfull_chat.type()));
+			return;
+		}
+		const MTPDchannelFull &f(d.vfull_chat.c_channelFull());
+		PhotoData *photo = App::feedPhoto(f.vchat_photo);
+		ChannelData *channel = peer->asChannel();
+		if (photo) {
+			channel->photoId = photo->id;
+			photo->peer = channel;
+		} else {
+			channel->photoId = 0;
+		}
+		channel->about = qs(f.vabout);
+		channel->count = f.has_participants_count() ? f.vparticipants_count.v : 0;
+		channel->invitationUrl = (f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString();
+		if (History *h = App::historyLoaded(channel->id)) {
+			if (h->inboxReadBefore < f.vread_inbox_max_id.v + 1) {
+				h->unreadCount = f.vunread_important_count.v;
+				h->inboxReadBefore = f.vread_inbox_max_id.v + 1;
+				h->asChannelHistory()->unreadCountAll = f.vunread_count.v;
+			}
+		}
+		channel->fullUpdated();
+
+		App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
+	}
 
 	_fullPeerRequests.remove(peer);
 	if (badVersion) {
-		peer->asChat()->version = vc.at(0).c_chat().vversion.v;
+		if (peer->isChat()) {
+			peer->asChat()->version = vc.at(0).c_chat().vversion.v;
+		} else if (peer->isChannel()) {
+			peer->asChannel()->version = vc.at(0).c_channel().vversion.v;
+		}
 		requestPeer(peer);
 	}
 	App::clearPeerUpdated(peer);
@@ -195,7 +307,7 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result) {
 	const MTPDuserFull &d(result.c_userFull());
 	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser), false);
 	App::feedPhoto(d.vprofile_photo);
-	App::feedUserLink(MTP_int(App::userFromPeer(peer->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link, false);
+	App::feedUserLink(MTP_int(peerToUser(peer->id)), d.vlink.c_contacts_link().vmy_link, d.vlink.c_contacts_link().vforeign_link, false);
 	App::main()->gotNotifySetting(MTP_inputNotifyPeer(peer->input), d.vnotify_settings);
 
 	peer->asUser()->setBotInfo(d.vbot_info);
@@ -217,29 +329,36 @@ bool ApiWrap::gotPeerFullFailed(PeerData *peer, const RPCError &error) {
 void ApiWrap::requestPeer(PeerData *peer) {
 	if (!peer || _fullPeerRequests.contains(peer) || _peerRequests.contains(peer)) return;
 
-	mtpRequestId req;
-	if (peer->chat) {
-		req = MTP::send(MTPmessages_GetChats(MTP_vector<MTPint>(1, MTP_int(App::chatFromPeer(peer->id)))), rpcDone(&ApiWrap::gotChat, peer), rpcFail(&ApiWrap::gotPeerFailed, peer));
-	} else {
+	mtpRequestId req = 0;
+	if (peer->isUser()) {
 		req = MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(1, peer->asUser()->inputUser)), rpcDone(&ApiWrap::gotUser, peer), rpcFail(&ApiWrap::gotPeerFailed, peer));
+	} else if (peer->isChat()) {
+		req = MTP::send(MTPmessages_GetChats(MTP_vector<MTPint>(1, peer->asChat()->inputChat)), rpcDone(&ApiWrap::gotChat, peer), rpcFail(&ApiWrap::gotPeerFailed, peer));
+	} else if (peer->isChannel()) {
+		req = MTP::send(MTPchannels_GetChannels(MTP_vector<MTPInputChannel>(1, peer->asChannel()->inputChannel)), rpcDone(&ApiWrap::gotChat, peer), rpcFail(&ApiWrap::gotPeerFailed, peer));
 	}
-	_peerRequests.insert(peer, req);
+	if (req) _peerRequests.insert(peer, req);
 }
 
 void ApiWrap::requestPeers(const QList<PeerData*> &peers) {
 	QVector<MTPint> chats;
+	QVector<MTPInputChannel> channels;
 	QVector<MTPInputUser> users;
 	chats.reserve(peers.size());
+	channels.reserve(peers.size());
 	users.reserve(peers.size());
 	for (QList<PeerData*>::const_iterator i = peers.cbegin(), e = peers.cend(); i != e; ++i) {
 		if (!*i || _fullPeerRequests.contains(*i) || _peerRequests.contains(*i)) continue;
-		if ((*i)->chat) {
-			chats.push_back(MTP_int(App::chatFromPeer((*i)->id)));
-		} else {
+		if ((*i)->isUser()) {
 			users.push_back((*i)->asUser()->inputUser);
+		} else if ((*i)->isChat()) {
+			chats.push_back((*i)->asChat()->inputChat);
+		} else if ((*i)->isChannel()) {
+			channels.push_back((*i)->asChannel()->inputChannel);
 		}
 	}
 	if (!chats.isEmpty()) MTP::send(MTPmessages_GetChats(MTP_vector<MTPint>(chats)), rpcDone(&ApiWrap::gotChats));
+	if (!channels.isEmpty()) MTP::send(MTPchannels_GetChannels(MTP_vector<MTPInputChannel>(channels)), rpcDone(&ApiWrap::gotChats));
 	if (!users.isEmpty()) MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(users)), rpcDone(&ApiWrap::gotUsers));
 }
 
@@ -248,11 +367,20 @@ void ApiWrap::gotChat(PeerData *peer, const MTPmessages_Chats &result) {
 	
 	if (result.type() == mtpc_messages_chats) {
 		const QVector<MTPChat> &v(result.c_messages_chats().vchats.c_vector().v);
-		bool badVersion = (!v.isEmpty() && v.at(0).type() == mtpc_chat && v.at(0).c_chat().vversion.v < peer->asChat()->version);
-		ChatData *chat = App::feedChats(result.c_messages_chats().vchats);
+		bool badVersion = false;
+		if (peer->isChat()) {
+			badVersion = (!v.isEmpty() && v.at(0).type() == mtpc_chat && v.at(0).c_chat().vversion.v < peer->asChat()->version);
+		} else if (peer->isChannel()) {
+			badVersion = (!v.isEmpty() && v.at(0).type() == mtpc_channel && v.at(0).c_chat().vversion.v < peer->asChannel()->version);
+		}
+		PeerData *chat = App::feedChats(result.c_messages_chats().vchats);
 		if (chat == peer) {
 			if (badVersion) {
-				peer->asChat()->version = v.at(0).c_chat().vversion.v;
+				if (peer->isChat()) {
+					peer->asChat()->version = v.at(0).c_chat().vversion.v;
+				} else if (peer->isChannel()) {
+					peer->asChannel()->version = v.at(0).c_channel().vversion.v;
+				}
 				requestPeer(peer);
 			}
 		}
@@ -279,6 +407,60 @@ bool ApiWrap::gotPeerFailed(PeerData *peer, const RPCError &error) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
 
 	_peerRequests.remove(peer);
+	return true;
+}
+
+void ApiWrap::requestSelfParticipant(ChannelData *channel) {
+	if (_selfParticipantRequests.contains(channel)) return;
+	_selfParticipantRequests.insert(channel, MTP::send(MTPchannels_GetParticipant(channel->inputChannel, MTP_inputUserSelf()), rpcDone(&ApiWrap::gotSelfParticipant, channel), rpcFail(&ApiWrap::gotSelfParticipantFail, channel), 0, 5));
+}
+
+void ApiWrap::gotSelfParticipant(ChannelData *channel, const MTPchannels_ChannelParticipant &result) {
+	_selfParticipantRequests.remove(channel);
+	if (result.type() != mtpc_channels_channelParticipant) {
+		LOG(("API Error: unknown type in gotSelfParticipant (%1)").arg(result.type()));
+		channel->inviter = -1;
+		if (App::main()) App::main()->onSelfParticipantUpdated(channel);
+		return;
+	}
+
+	const MTPDchannels_channelParticipant &p(result.c_channels_channelParticipant());
+	App::feedUsers(p.vusers);
+
+	switch (p.vparticipant.type()) {
+	case mtpc_channelParticipantSelf: {
+		const MTPDchannelParticipantSelf &d(p.vparticipant.c_channelParticipantSelf());
+		channel->inviter = d.vinviter_id.v;
+		channel->inviteDate = date(d.vdate);
+	} break;
+	case mtpc_channelParticipantCreator: {
+		const MTPDchannelParticipantCreator &d(p.vparticipant.c_channelParticipantCreator());
+		channel->inviter = MTP::authedId();
+		channel->inviteDate = date(MTP_int(channel->date));
+	} break;
+	case mtpc_channelParticipantModerator: {
+		const MTPDchannelParticipantModerator &d(p.vparticipant.c_channelParticipantModerator());
+		channel->inviter = d.vinviter_id.v;
+		channel->inviteDate = date(d.vdate);
+	} break;
+	case mtpc_channelParticipantEditor: {
+		const MTPDchannelParticipantEditor &d(p.vparticipant.c_channelParticipantEditor());
+		channel->inviter = d.vinviter_id.v;
+		channel->inviteDate = date(d.vdate);
+	} break;
+
+	}
+
+	if (App::main()) App::main()->onSelfParticipantUpdated(channel);
+}
+
+bool ApiWrap::gotSelfParticipantFail(ChannelData *channel, const RPCError &error) {
+	if (mtpIsFlood(error)) return false;
+
+	if (error.type() == qstr("USER_NOT_PARTICIPANT")) {
+		channel->inviter = -1;
+	}
+	_selfParticipantRequests.remove(channel);
 	return true;
 }
 
@@ -422,62 +604,114 @@ void ApiWrap::clearWebPageRequests() {
 }
 
 void ApiWrap::resolveWebPages() {
-	QVector<MTPint> ids;
+	MessageIds ids; // temp_req_id = -1
+	typedef QPair<int32, MessageIds> IndexAndMessageIds;
+	typedef QMap<ChannelData*, IndexAndMessageIds> MessageIdsByChannel;
+	MessageIdsByChannel idsByChannel; // temp_req_id = -index - 2
+
 	const WebPageItems &items(App::webPageItems());
 	ids.reserve(_webPagesPending.size());
 	int32 t = unixtime(), m = INT_MAX;
-	for (WebPagesPending::const_iterator i = _webPagesPending.cbegin(), e = _webPagesPending.cend(); i != e; ++i) {
-		if (i.value()) continue;
+	for (WebPagesPending::iterator i = _webPagesPending.begin(); i != _webPagesPending.cend(); ++i) {
+		if (i.value() > 0) continue;
 		if (i.key()->pendingTill <= t) {
 			WebPageItems::const_iterator j = items.constFind(i.key());
 			if (j != items.cend() && !j.value().isEmpty()) {
-				ids.push_back(MTP_int(j.value().begin().key()->id));
+				for (HistoryItemsMap::const_iterator it = j.value().cbegin(); it != j.value().cend(); ++it) {
+					HistoryItem *item = j.value().begin().key();
+					if (item->id > 0) {
+						if (item->channelId() == NoChannel) {
+							ids.push_back(MTP_int(item->id));
+							i.value() = -1;
+						} else {
+							ChannelData *channel = item->history()->peer->asChannel();
+							MessageIdsByChannel::iterator channelMap = idsByChannel.find(channel);
+							if (channelMap == idsByChannel.cend()) {
+								channelMap = idsByChannel.insert(channel, IndexAndMessageIds(idsByChannel.size(), MessageIds(1, MTP_int(item->id))));
+							} else {
+								channelMap.value().second.push_back(MTP_int(item->id));
+							}
+							i.value() = -channelMap.value().first - 2;
+						}
+						break;
+					}
+				}
 			}
 		} else {
 			m = qMin(m, i.key()->pendingTill - t);
 		}
 	}
-	if (!ids.isEmpty()) {
-		mtpRequestId req = MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotWebPages));
+
+	mtpRequestId req = ids.isEmpty() ? 0 : MTP::send(MTPmessages_GetMessages(MTP_vector<MTPint>(ids)), rpcDone(&ApiWrap::gotWebPages, (ChannelData*)0), RPCFailHandlerPtr(), 0, 5);
+	typedef QVector<mtpRequestId> RequestIds;
+	RequestIds reqsByIndex(idsByChannel.size(), 0);
+	for (MessageIdsByChannel::const_iterator i = idsByChannel.cbegin(), e = idsByChannel.cend(); i != e; ++i) {
+		reqsByIndex[i.value().first] = MTP::send(MTPchannels_GetMessages(i.key()->inputChannel, MTP_vector<MTPint>(i.value().second)), rpcDone(&ApiWrap::gotWebPages, i.key()), RPCFailHandlerPtr(), 0, 5);
+	}
+	if (req || !reqsByIndex.isEmpty()) {
 		for (WebPagesPending::iterator i = _webPagesPending.begin(); i != _webPagesPending.cend(); ++i) {
-			if (i.value()) continue;
-			if (i.key()->pendingTill <= t) {
-				i.value() = req;
+			if (i.value() > 0) continue;
+			if (i.value() < 0) {
+				if (i.value() == -1) {
+					i.value() = req;
+				} else {
+					i.value() = reqsByIndex[-i.value() - 2];
+				}
 			}
 		}
 	}
+
 	if (m < INT_MAX) _webPagesTimer.start(m * 1000);
 }
 
-void ApiWrap::gotWebPages(const MTPmessages_Messages &msgs, mtpRequestId req) {
+void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {
 	const QVector<MTPMessage> *v = 0;
 	switch (msgs.type()) {
-	case mtpc_messages_messages:
-		App::feedUsers(msgs.c_messages_messages().vusers);
-		App::feedChats(msgs.c_messages_messages().vchats);
-		v = &msgs.c_messages_messages().vmessages.c_vector().v;
-		break;
+	case mtpc_messages_messages: {
+		const MTPDmessages_messages &d(msgs.c_messages_messages());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		v = &d.vmessages.c_vector().v;
+	} break;
 
-	case mtpc_messages_messagesSlice:
-		App::feedUsers(msgs.c_messages_messagesSlice().vusers);
-		App::feedChats(msgs.c_messages_messagesSlice().vchats);
-		v = &msgs.c_messages_messagesSlice().vmessages.c_vector().v;
-		break;
+	case mtpc_messages_messagesSlice: {
+		const MTPDmessages_messagesSlice &d(msgs.c_messages_messagesSlice());
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		v = &d.vmessages.c_vector().v;
+	} break;
+
+	case mtpc_messages_channelMessages: {
+		const MTPDmessages_channelMessages &d(msgs.c_messages_channelMessages());
+		if (channel) {
+			channel->ptsReceived(d.vpts.v);
+		} else {
+			LOG(("API Error: received messages.channelMessages when no channel was passed! (ApiWrap::gotWebPages)"));
+		}
+		if (d.has_collapsed()) { // should not be returned
+			LOG(("API Error: channels.getMessages and messages.getMessages should not return collapsed groups! (ApiWrap::gotWebPages)"));
+		}
+
+		App::feedUsers(d.vusers);
+		App::feedChats(d.vchats);
+		v = &d.vmessages.c_vector().v;
+	} break;
 	}
 
-	QMap<int32, int32> msgsIds; // copied from feedMsgs
+	if (!v) return;
+	QMap<uint64, int32> msgsIds; // copied from feedMsgs
 	for (int32 i = 0, l = v->size(); i < l; ++i) {
 		const MTPMessage &msg(v->at(i));
 		switch (msg.type()) {
-		case mtpc_message: msgsIds.insert(msg.c_message().vid.v, i); break;
-		case mtpc_messageEmpty: msgsIds.insert(msg.c_messageEmpty().vid.v, i); break;
-		case mtpc_messageService: msgsIds.insert(msg.c_messageService().vid.v, i); break;
+		case mtpc_message: msgsIds.insert((uint64(uint32(msg.c_message().vid.v)) << 32) | uint64(i), i); break;
+		case mtpc_messageEmpty: msgsIds.insert((uint64(uint32(msg.c_messageEmpty().vid.v)) << 32) | uint64(i), i); break;
+		case mtpc_messageService: msgsIds.insert((uint64(uint32(msg.c_messageService().vid.v)) << 32) | uint64(i), i); break;
 		}
 	}
 
 	MainWidget *m = App::main();
-	for (QMap<int32, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-		HistoryItem *item = App::histories().addToBack(v->at(*i), -1);
+	for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
+		HistoryItem *item = App::histories().addNewMessage(v->at(i.value()), NewMessageExisting);
 		if (item) {
 			item->initDimensions();
 			if (m) m->itemResized(item);

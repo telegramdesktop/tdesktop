@@ -813,7 +813,7 @@ void TextLink::onClick(Qt::MouseButton button) const {
 					startToken = startParams.captured(3);
 				}
 			}
-			App::openUserByName(telegramMeUser.captured(1), start == qsl("startgroup"), startToken);
+			App::openPeerByName(telegramMeUser.captured(1), start == qsl("startgroup"), startToken);
 		} else if (telegramMeGroup.hasMatch()) {
 			App::joinGroupByHash(telegramMeGroup.captured(1));
 		} else if (telegramMeStickers.hasMatch()) {
@@ -841,13 +841,13 @@ void CustomTextLink::onClick(Qt::MouseButton button) const {
 
 void MentionLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		App::openUserByName(_tag.mid(1), true);
+		App::openPeerByName(_tag.mid(1), true);
 	}
 }
 
 void HashtagLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		App::searchByHashtag(_tag);
+		App::searchByHashtag(_tag, App::mousedItem() ? App::mousedItem()->history()->peer : 0);
 	}
 }
 

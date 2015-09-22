@@ -37,8 +37,8 @@ public:
 
 	HistoryList(HistoryWidget *historyWidget, ScrollArea *scroll, History *history);
 
-	void messagesReceived(const QVector<MTPMessage> &messages);
-	void messagesReceivedDown(const QVector<MTPMessage> &messages);
+	void messagesReceived(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+	void messagesReceivedDown(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 
 	bool event(QEvent *e); // calls touchEvent when necessary
 	void touchEvent(QTouchEvent *e);
@@ -84,6 +84,8 @@ public:
 	bool wasSelectedText() const;
 	void setFirstLoading(bool loading);
 
+	HistoryItem *atTopImportantMsg(int32 top, int32 height, int32 &bottomUnderScrollTop) const;
+
 	~HistoryList();
 	
 public slots:
@@ -115,7 +117,7 @@ private:
 	void touchUpdateSpeed();
 	void touchDeaccelerate(int32 elapsed);
 
-	void adjustCurrent(int32 y);
+	void adjustCurrent(int32 y) const;
 	HistoryItem *prevItem(HistoryItem *item);
 	HistoryItem *nextItem(HistoryItem *item);
 	void updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting, bool force = false);
@@ -129,7 +131,7 @@ private:
 
 	HistoryWidget *historyWidget;
 	ScrollArea *scrollArea;
-	int32 currentBlock, currentItem;
+	mutable int32 currentBlock, currentItem;
 
 	bool _firstLoading;
 
@@ -185,26 +187,33 @@ class MessageField : public FlatTextarea {
 public:
 	MessageField(HistoryWidget *history, const style::flatTextarea &st, const QString &ph = QString(), const QString &val = QString());
 	void dropEvent(QDropEvent *e);
-	void resizeEvent(QResizeEvent *e);
 	bool canInsertFromMimeData(const QMimeData *source) const;
 	void insertFromMimeData(const QMimeData *source);
 
 	void focusInEvent(QFocusEvent *e);
-	void setMaxHeight(int32 maxHeight);
+
+	bool hasSendText() const;
+
+	static bool replaceCharBySpace(ushort code) {
+		// \xe2\x80[\xa8 - \xac\xad] // 8232 - 8237
+		// QString from1 = QString::fromUtf8("\xe2\x80\xa8"), to1 = QString::fromUtf8("\xe2\x80\xad");
+		// \xcc[\xb3\xbf\x8a] // 819, 831, 778
+		// QString bad1 = QString::fromUtf8("\xcc\xb3"), bad2 = QString::fromUtf8("\xcc\xbf"), bad3 = QString::fromUtf8("\xcc\x8a");
+		// [\x00\x01\x02\x07\x08\x0b-\x1f] // '\t' = 0x09
+		return (code >= 0x00 && code <= 0x02) || (code >= 0x07 && code <= 0x09) || (code >= 0x0b && code <= 0x1f) ||
+			(code == 819) || (code == 831) || (code == 778) || (code >= 8232 && code <= 8237);
+	}
 
 public slots:
 
-	void onChange();
 	void onEmojiInsert(EmojiPtr emoji);
 
 signals:
 
-	void resized();
 	void focused();
 
 private:
 	HistoryWidget *history;
-	int32 _maxHeight;
 
 };
 
@@ -219,7 +228,7 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void paintEvent(QPaintEvent *e);
 
-	void setReported(bool reported);
+	void setReported(bool reported, PeerData *onPeer);
 
 signals:
 
@@ -258,7 +267,7 @@ public:
 	bool maximizeSize() const;
 	bool singleUse() const;
 
-	MsgId forMsgId() const {
+	FullMsgId forMsgId() const {
 		return _wasForMsgId;
 	}
 
@@ -272,7 +281,7 @@ private:
 	void updateStyle(int32 w = -1);
 	void clearSelection();
 
-	MsgId _wasForMsgId;
+	FullMsgId _wasForMsgId;
 	int32 _height, _maxOuterHeight;
 	bool _maximizeSize, _singleUse, _forceReply;
 	QTimer _cmdTipTimer;
@@ -362,6 +371,14 @@ private:
 
 };
 
+class CollapseButton : public FlatButton {
+public:
+
+	CollapseButton(QWidget *parent);
+	void paintEvent(QPaintEvent *e);
+
+};
+
 class HistoryWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
@@ -371,7 +388,7 @@ public:
 
 	void start();
 
-	void messagesReceived(const MTPmessages_Messages &messages, mtpRequestId requestId);
+	void messagesReceived(PeerData *peer, const MTPmessages_Messages &messages, mtpRequestId requestId);
 	void historyLoaded();
 
 	void windowShown();
@@ -441,6 +458,7 @@ public:
 
 	PeerData *peer() const;
 	MsgId msgId() const;
+	HistoryItem *atTopImportantMsg(int32 &bottomUnderScrollTop) const;
 
 	void animShow(const QPixmap &bgAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false);
 	bool showStep(float64 ms);
@@ -468,7 +486,7 @@ public:
 
 	MsgId replyToId() const;
 	void updateReplyTo(bool force = false);
-	bool lastForceReplyReplied(MsgId replyTo = -1) const;
+	bool lastForceReplyReplied(const FullMsgId &replyTo = FullMsgId(NoChannel, -1)) const;
 	void cancelReply(bool lastKeyboardUsed = false);
 	void updateForwarding(bool force = false);
 	void cancelForwarding(); // called by MainWidget
@@ -505,8 +523,16 @@ public:
 	void clearAllLoadRequests();
 
 	void contactsReceived();
+	void updateToEndVisibility();
+	void updateCollapseCommentsVisibility();
 
 	void updateAfterDrag();
+	void ctrlEnterSubmitUpdated();
+
+	void setInnerFocus();
+	bool canSendMessages(PeerData *peer) const;
+
+	void updateNotifySettings();
 
 	~HistoryWidget();
 
@@ -532,30 +558,34 @@ public slots:
 	void peerUpdated(PeerData *data);
 	void onFullPeerUpdated(PeerData *data);
 
-	void onPhotoUploaded(MsgId msgId, const MTPInputFile &file);
-	void onDocumentUploaded(MsgId msgId, const MTPInputFile &file);
-	void onThumbDocumentUploaded(MsgId msgId, const MTPInputFile &file, const MTPInputFile &thumb);
-	void onAudioUploaded(MsgId msgId, const MTPInputFile &file);
+	void onPhotoUploaded(const FullMsgId &msgId, const MTPInputFile &file);
+	void onDocumentUploaded(const FullMsgId &msgId, const MTPInputFile &file);
+	void onThumbDocumentUploaded(const FullMsgId &msgId, const MTPInputFile &file, const MTPInputFile &thumb);
+	void onAudioUploaded(const FullMsgId &msgId, const MTPInputFile &file);
 
-	void onPhotoProgress(MsgId msgId);
-	void onDocumentProgress(MsgId msgId);
-	void onAudioProgress(MsgId msgId);
+	void onPhotoProgress(const FullMsgId &msgId);
+	void onDocumentProgress(const FullMsgId &msgId);
+	void onAudioProgress(const FullMsgId &msgId);
 
-	void onPhotoFailed(MsgId msgId);
-	void onDocumentFailed(MsgId msgId);
-	void onAudioFailed(MsgId msgId);
+	void onPhotoFailed(const FullMsgId &msgId);
+	void onDocumentFailed(const FullMsgId &msgId);
+	void onAudioFailed(const FullMsgId &msgId);
 
 	void onReportSpamClicked();
 	void onReportSpamSure();
 	void onReportSpamHide();
 	void onReportSpamClear();
-	void onReportSpamClearSure();
 
 	void onListScroll();
 	void onHistoryToEnd();
+	void onCollapseComments();
 	void onSend(bool ctrlShiftEnter = false, MsgId replyTo = -1);
+
 	void onUnblock();
 	void onBotStart();
+	void onJoinChannel();
+	void onMuteUnmute();
+	void onBroadcastChange();
 
 	void onPhotoSelect();
 	void onDocumentSelect();
@@ -641,19 +671,20 @@ private:
 
 	bool messagesFailed(const RPCError &error, mtpRequestId requestId);
 	void updateListSize(int32 addToY = 0, bool initial = false, bool loadedDown = false, HistoryItem *resizedItem = 0, bool scrollToIt = false);
-	void addMessagesToFront(const QVector<MTPMessage> &messages);
-	void addMessagesToBack(const QVector<MTPMessage> &messages);
+	void addMessagesToFront(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
+	void addMessagesToBack(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 
 	void reportSpamDone(PeerData *peer, const MTPBool &result, mtpRequestId request);
 	bool reportSpamFail(const RPCError &error, mtpRequestId request);
 
-	void unblockDone(PeerData *peer, const MTPBool &result);
-	bool unblockFail(const RPCError &error);
+	void unblockDone(PeerData *peer, const MTPBool &result, mtpRequestId req);
+	bool unblockFail(const RPCError &error, mtpRequestId req);
 	void blockDone(PeerData *peer, const MTPBool &result);
 
-	void countHistoryShowFrom();
+	void joinDone(const MTPUpdates &result, mtpRequestId req);
+	bool joinFail(const RPCError &error, mtpRequestId req);
 
-	void updateToEndVisibility();
+	void countHistoryShowFrom();
 
 	void stickersGot(const MTPmessages_AllStickers &stickers);
 	bool stickersFailed(const RPCError &error);
@@ -667,8 +698,14 @@ private:
 
 	void updateDragAreas();
 
+	bool readyToForward() const;
+	bool hasBroadcastToggle() const;
+
 	PeerData *_peer, *_clearPeer; // cache _peer in _clearPeer when showing clear history box
-	MsgId _showAtMsgId;
+	ChannelId _channel;
+	bool _canSendMessages;
+	MsgId _showAtMsgId, _fixedInScrollMsgId;
+	int32 _fixedInScrollMsgTop;
 
 	mtpRequestId _firstLoadRequest, _preloadRequest, _preloadDownRequest;
 
@@ -683,18 +720,22 @@ private:
 	bool _histInited; // initial updateListSize() called
 
 	IconedButton _toHistoryEnd;
+	CollapseButton _collapseComments;
 
 	MentionsDropdown _attachMention;
 
 	bool isBotStart() const;
 	bool isBlocked() const;
+	bool isJoinChannel() const;
+	bool isMuteUnmute() const;
 	bool updateCmdStartShown();
 
 	ReportSpamPanel _reportSpamPanel;
 
-	FlatButton _send, _unblock, _botStart;
+	FlatButton _send, _unblock, _botStart, _joinChannel, _muteUnmute;
 	mtpRequestId _unblockRequest, _reportSpamRequest;
 	IconedButton _attachDocument, _attachPhoto, _attachEmoji, _kbShow, _kbHide, _cmdStart;
+	FlatCheckbox _broadcast;
 	bool _cmdStartShown;
 	MessageField _field;
 	Animation _recordAnim, _recordingAnim;
