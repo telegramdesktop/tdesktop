@@ -479,7 +479,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_group_invite_link" = "Invite link";
 "lng_group_invite_create" = "Create an invite link";
 "lng_group_invite_about" = "Telegram users will be able to join\nyour group by following this link.";
-"lng_channel_invite_about" = "Telegram users will be able to join\nyour channel by following this link.";
 "lng_group_invite_create_new" = "Revoke invite link";
 "lng_group_invite_about_new" = "Your previous link will be deactivated\nand we'll generate a new invite link for you.";
 "lng_group_invite_copied" = "Invite link copied to clipboard.";
@@ -668,8 +667,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_confirm_contact_data" = "New Contact";
 "lng_add_contact" = "Create";
 "lng_add_contact_button" = "Add Contact";
-"lng_create_channel_button" = "Create Channel";
-"lng_create_group_button" = "Create Group";
 "lng_contacts_header" = "Contacts";
 "lng_contact_not_joined" = "Unfortunately {name} did not join Telegram yet, but you can send your friend an invitation.\n\nWe will notify you about any of your contacts who is joining Telegram.";
 "lng_try_other_contact" = "Try other";
