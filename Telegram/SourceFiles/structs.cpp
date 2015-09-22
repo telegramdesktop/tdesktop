@@ -82,6 +82,16 @@ ImagePtr chatDefPhoto(int32 index) {
 	return chatDefPhotos[index];
 }
 
+ImagePtr channelDefPhoto(int32 index) {
+	static const ImagePtr channelDefPhotos[4] = {
+		ImagePtr(qsl(":/ava/art/channelcolor1.png"), "PNG"),
+		ImagePtr(qsl(":/ava/art/channelcolor2.png"), "PNG"),
+		ImagePtr(qsl(":/ava/art/channelcolor3.png"), "PNG"),
+		ImagePtr(qsl(":/ava/art/channelcolor4.png"), "PNG"),
+	};
+	return channelDefPhotos[index];
+}
+
 NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersPtr = UnknownNotifySettings, globalNotifyChatsPtr = UnknownNotifySettings;
 
@@ -89,7 +99,7 @@ PeerData::PeerData(const PeerId &id) : id(id), lnk(new PeerLink(this))
 , loaded(false)
 , colorIndex(peerColorIndex(id))
 , color(peerColor(colorIndex))
-, photo((isChat() || isChannel()) ? chatDefPhoto(colorIndex) : userDefPhoto(colorIndex))
+, photo(isChat() ? chatDefPhoto(colorIndex) : (isChannel() ? channelDefPhoto(colorIndex) : userDefPhoto(colorIndex)))
 , photoId(UnknownPeerPhotoId)
 , nameVersion(0)
 , notify(UnknownNotifySettings)
@@ -351,13 +361,13 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 			newPhotoId = phId;
 		}
 		newPhotoLoc = App::imageLocation(160, 160, d.vphoto_small);
-		newPhoto = newPhotoLoc.isNull() ? chatDefPhoto(colorIndex) : ImagePtr(newPhotoLoc);
-//		photoFull = ImagePtr(640, 640, d.vphoto_big, chatDefPhoto(colorIndex));
+		newPhoto = newPhotoLoc.isNull() ? channelDefPhoto(colorIndex) : ImagePtr(newPhotoLoc);
+//		photoFull = ImagePtr(640, 640, d.vphoto_big, channelDefPhoto(colorIndex));
 	} break;
 	default: {
 		newPhotoId = 0;
 		newPhotoLoc = StorageImageLocation();
-		newPhoto = chatDefPhoto(colorIndex);
+		newPhoto = channelDefPhoto(colorIndex);
 //		photoFull = ImagePtr();
 	} break;
 	}

@@ -173,6 +173,7 @@ inline bool isNotifyMuted(NotifySettingsPtr settings, int32 *changeIn = 0) {
 style::color peerColor(int32 index);
 ImagePtr userDefPhoto(int32 index);
 ImagePtr chatDefPhoto(int32 index);
+ImagePtr channelDefPhoto(int32 index);
 
 static const PhotoId UnknownPeerPhotoId = 0xFFFFFFFFFFFFFFFFULL;
 

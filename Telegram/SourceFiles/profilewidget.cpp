@@ -645,7 +645,7 @@ void ProfileInner::paintEvent(QPaintEvent *e) {
 
 	// profile
 	top += st::profilePadding.top();
-	if (_photoLink || !_peerChat || _peerChat->isForbidden) {
+	if (_photoLink || _peerUser || (_peerChat && _peerChat->isForbidden) || (_peerChannel && !_amCreator)) {
 		p.drawPixmap(_left, top, _peer->photo->pix(st::profilePhotoSize));
 	} else {
 		if (a_photo.current() < 1) {
@@ -843,12 +843,12 @@ void ProfileInner::mouseMoveEvent(QMouseEvent *e) {
 	bool photoOver = QRect(_left, st::profilePadding.top(), st::setPhotoSize, st::setPhotoSize).contains(e->pos());
 	if (photoOver != _photoOver) {
 		_photoOver = photoOver;
-		if (!_photoLink && _peerChat && !_peerChat->isForbidden) {
+		if (!_photoLink && ((_peerChat && !_peerChat->isForbidden) || (_peerChannel && _amCreator))) {
 			a_photo.start(_photoOver ? 1 : 0);
 			anim::start(this);
 		}
 	}
-	if (!_photoLink && (!_peerChat || _peerChat->isForbidden)) {
+	if (!_photoLink && (_peerUser || (_peerChat && _peerChat->isForbidden) || (_peerChannel && !_amCreator))) {
 		setCursor((_kickOver || _kickDown || textlnkOver()) ? style::cur_pointer : style::cur_default);
 	} else {
 		setCursor((_kickOver || _kickDown || _photoOver || textlnkOver()) ? style::cur_pointer : style::cur_default);
@@ -914,7 +914,7 @@ void ProfileInner::mousePressEvent(QMouseEvent *e) {
 		} else if (QRect(_left, st::profilePadding.top(), st::setPhotoSize, st::setPhotoSize).contains(e->pos())) {
 			if (_photoLink) {
 				_photoLink->onClick(e->button());
-			} else if (_peerChat && !_peerChat->isForbidden) {
+			} else if ((_peerChat && !_peerChat->isForbidden) || (_peerChannel && _amCreator)) {
 				onUpdatePhoto();
 			}
 		}
@@ -946,7 +946,11 @@ void ProfileInner::mouseReleaseEvent(QMouseEvent *e) {
 		}
 	}
 	_kickDown = 0;
-	setCursor((_kickOver || textlnkOver()) ? style::cur_pointer : style::cur_default);
+	if (!_photoLink && (_peerUser || (_peerChat && _peerChat->isForbidden) || (_peerChannel && !_amCreator))) {
+		setCursor((_kickOver || _kickDown || textlnkOver()) ? style::cur_pointer : style::cur_default);
+	} else {
+		setCursor((_kickOver || _kickDown || _photoOver || textlnkOver()) ? style::cur_pointer : style::cur_default);
+	}
 	update();
 }
 
