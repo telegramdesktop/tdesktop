@@ -125,7 +125,6 @@ SOURCES += \
     ./SourceFiles/gui/boxshadow.cpp \
     ./SourceFiles/gui/button.cpp \
     ./SourceFiles/gui/contextmenu.cpp \
-    ./SourceFiles/gui/countrycodeinput.cpp \
     ./SourceFiles/gui/countryinput.cpp \
     ./SourceFiles/gui/emoji_config.cpp \
     ./SourceFiles/gui/filedialog.cpp \
@@ -219,7 +218,6 @@ HEADERS += \
     ./SourceFiles/gui/boxshadow.h \
     ./SourceFiles/gui/button.h \
     ./SourceFiles/gui/contextmenu.h \
-    ./SourceFiles/gui/countrycodeinput.h \
     ./SourceFiles/gui/countryinput.h \
     ./SourceFiles/gui/emoji_config.h \
     ./SourceFiles/gui/filedialog.h \
