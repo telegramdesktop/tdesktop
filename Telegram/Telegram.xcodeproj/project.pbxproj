@@ -489,8 +489,6 @@
 		73737DC91E390C4AB18FB595 /* pspecific_mac_p.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = pspecific_mac_p.mm; path = SourceFiles/pspecific_mac_p.mm; sourceTree = "<absolute>"; };
 		74772222DA764BE4623EAC5D /* moc_pspecific_mac.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_pspecific_mac.cpp; path = GeneratedFiles/Debug/moc_pspecific_mac.cpp; sourceTree = "<absolute>"; };
 		748F1BCCBEEB3675768960FB /* mtpAuthKey.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = mtpAuthKey.h; path = SourceFiles/mtproto/mtpAuthKey.h; sourceTree = "<absolute>"; };
-		74C1C232DFAA71028A0412CA /* /usr/local/Qt-5.5.0/mkspecs/modules/qt_plugin_qtmultimedia_m3u.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.0/mkspecs/modules/qt_plugin_qtmultimedia_m3u.pri"; sourceTree = "<absolute>"; };
->>>>>>> b3cb6fc31785278d3bd15e4d86eb0a7b051d6883
 		763ED3C6815ED6C89E352652 /* flatlabel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = flatlabel.cpp; path = SourceFiles/gui/flatlabel.cpp; sourceTree = "<absolute>"; };
 		77FF486B1F9BCD55A8A3F35D /* /usr/local/Qt-5.3.2/mkspecs/modules/qt_lib_concurrent.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.2/mkspecs/modules/qt_lib_concurrent.pri"; sourceTree = "<absolute>"; };
 		7A94C7168B3FCBE5F04A013B /* /usr/local/Qt-5.3.2/mkspecs/modules/qt_lib_declarative.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.3.2/mkspecs/modules/qt_lib_declarative.pri"; sourceTree = "<absolute>"; };
