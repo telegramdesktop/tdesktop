@@ -64,6 +64,8 @@ private:
 	FlatButton _addButton, _retryButton, _cancelButton;
 	FlatInput _firstInput, _lastInput, _phoneInput;
 
+	bool _invertOrder;
+
 	uint64 _contactId;
 
 	mtpRequestId _addRequest;
@@ -95,8 +97,11 @@ public:
 
 public slots:
 
+	void peerUpdated(PeerData *peer);
+
 	void onSave();
 	void onDescriptionResized();
+	void onPublicLink();
 
 protected:
 
@@ -126,6 +131,8 @@ private:
 	anim::cvalue a_descriptionBg, a_descriptionBorder;
 	Animation a_description;
 	FlatTextarea _description;
+
+	LinkButton _publicLink;
 
 	mtpRequestId _saveTitleRequestId, _saveDescriptionRequestId;
 	QString _sentTitle, _sentDescription;

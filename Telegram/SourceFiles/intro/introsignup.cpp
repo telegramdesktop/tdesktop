@@ -31,12 +31,17 @@ IntroSignup::IntroSignup(IntroWidget *parent) : IntroStage(parent),
 	errorAlpha(0), a_photo(0),
 	next(this, lang(lng_intro_finish), st::btnIntroNext),
 	first(this, st::inpIntroName, lang(lng_signup_firstname)),
-	last(this, st::inpIntroName, lang(lng_signup_lastname)) {
+	last(this, st::inpIntroName, lang(lng_signup_lastname)),
+	_invertOrder(langFirstNameGoesSecond()) {
 	setVisible(false);
 	setGeometry(parent->innerRect());
 
 	connect(&next, SIGNAL(clicked()), this, SLOT(onSubmitName()));
 	connect(&checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
+
+	if (_invertOrder) {
+		setTabOrder(&last, &first);
+	}
 
 	setMouseTracking(true);
 }
@@ -102,7 +107,12 @@ void IntroSignup::paintEvent(QPaintEvent *e) {
 	if (animating() || error.length()) {
 		p.setOpacity(errorAlpha.current());
 
-		QRect errRect((width() - st::introErrWidth) / 2, (last.y() + last.height() + next.y() - st::introErrHeight) / 2, st::introErrWidth, st::introErrHeight);
+		QRect errRect;
+		if (_invertOrder) {
+			errRect = QRect((width() - st::introErrWidth) / 2, (first.y() + first.height() + next.y() - st::introErrHeight) / 2, st::introErrWidth, st::introErrHeight);
+		} else {
+			errRect = QRect((width() - st::introErrWidth) / 2, (last.y() + last.height() + next.y() - st::introErrHeight) / 2, st::introErrWidth, st::introErrHeight);
+		}
 		p.setFont(st::introErrFont->f);
 		p.setPen(st::introErrColor->p);
 		p.drawText(errRect, error, QTextOption(style::al_center));
@@ -135,8 +145,13 @@ void IntroSignup::resizeEvent(QResizeEvent *e) {
 	_phTop = st::introTextTop + st::introTextSize.height() + st::introCountry.top;
 	if (e->oldSize().width() != width()) {
 		next.move((width() - next.width()) / 2, st::introBtnTop);
-		first.move((width() - next.width()) / 2 + next.width() - first.width(), _phTop);
-		last.move((width() - next.width()) / 2 + next.width() - last.width(), first.y() + st::introCountry.height + st::introCountry.ptrSize.height() + st::introPhoneTop);
+		if (_invertOrder) {
+			last.move((width() - next.width()) / 2 + next.width() - last.width(), _phTop);
+			first.move((width() - next.width()) / 2 + next.width() - first.width(), last.y() + st::introCountry.height + st::introCountry.ptrSize.height() + st::introPhoneTop);
+		} else {
+			first.move((width() - next.width()) / 2 + next.width() - first.width(), _phTop);
+			last.move((width() - next.width()) / 2 + next.width() - last.width(), first.y() + st::introCountry.height + st::introCountry.ptrSize.height() + st::introPhoneTop);
+		}
 	}
 	textRect = QRect((width() - st::introTextSize.width()) / 2, st::introTextTop, st::introTextSize.width(), st::introTextSize.height());
 }
@@ -175,7 +190,11 @@ bool IntroSignup::animStep(float64 ms) {
 
 void IntroSignup::activate() {
 	show();
-	first.setFocus();
+	if (_invertOrder) {
+		last.setFocus();
+	} else {
+		first.setFocus();
+	}
 }
 
 void IntroSignup::deactivate() {
@@ -196,7 +215,11 @@ void IntroSignup::onCheckRequest() {
 			if (!first.isEnabled()) {
 				first.setDisabled(false);
 				last.setDisabled(false);
-				last.setFocus();
+				if (_invertOrder) {
+					first.setFocus();
+				} else {
+					last.setFocus();
+				}
 			}
 		}
 	}
@@ -241,7 +264,11 @@ bool IntroSignup::nameSubmitFail(const RPCError &error) {
 		return true;
 	} else if (error.type().startsWith(qsl("FLOOD_WAIT_"))) {
 		showError(lang(lng_flood_error));
-		last.setFocus();
+		if (_invertOrder) {
+			first.setFocus();
+		} else {
+			last.setFocus();
+		}
 		return true;
 	}
 	if (cDebug()) { // internal server error
@@ -249,7 +276,11 @@ bool IntroSignup::nameSubmitFail(const RPCError &error) {
 	} else {
 		showError(lang(lng_server_error));
 	}
-	first.setFocus();
+	if (_invertOrder) {
+		last.setFocus();
+	} else {
+		first.setFocus();
+	}
 	return false;
 }
 
@@ -258,12 +289,22 @@ void IntroSignup::onInputChange() {
 }
 
 void IntroSignup::onSubmitName(bool force) {
-	if ((first.hasFocus() || first.text().trimmed().length()) && !last.text().trimmed().length()) {
-		last.setFocus();
-		return;
-	} else if (!first.text().trimmed().length()) {
-		first.setFocus();
-		return;
+	if (_invertOrder) {
+		if ((last.hasFocus() || last.text().trimmed().length()) && !first.text().trimmed().length()) {
+			first.setFocus();
+			return;
+		} else if (!last.text().trimmed().length()) {
+			last.setFocus();
+			return;
+		}
+	} else {
+		if ((first.hasFocus() || first.text().trimmed().length()) && !last.text().trimmed().length()) {
+			last.setFocus();
+			return;
+		} else if (!first.text().trimmed().length()) {
+			first.setFocus();
+			return;
+		}
 	}
 	if (!force && !first.isEnabled()) return;
 

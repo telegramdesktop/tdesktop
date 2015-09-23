@@ -95,6 +95,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_channel_status" = "channel";
 
+"lng_channel_members_link" = "{count:_not_used_|# member|# members} »";
+"lng_channel_admins_link" = "{count:_not_used_|# administrator|# administrators} »";
+
 "lng_server_error" = "Internal server error.";
 "lng_flood_error" = "Too many tries. Please try again later.";
 "lng_deleted" = "Unknown";
@@ -354,12 +357,13 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_chat_unaccessible" = "Group is unaccessible";
 "lng_topbar_info" = "Info";
 "lng_profile_about_section" = "About";
+"lng_profile_description_section" = "Description";
 "lng_profile_settings_section" = "Settings";
 "lng_profile_actions_section" = "Actions";
 "lng_profile_bot_settings" = "Settings";
 "lng_profile_bot_help" = "Help";
 "lng_profile_create_public_link" = "Create public link";
-"lng_profile_edit_public_link" = "Edit link";
+"lng_profile_edit_public_link" = "Edit public link";
 "lng_profile_participants_section" = "Members";
 "lng_profile_info" = "Contact info";
 "lng_profile_group_info" = "Group info";
@@ -384,8 +388,10 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_set_group_photo" = "Set Photo";
 "lng_profile_add_participant" = "Add Members";
 "lng_profile_delete_and_exit" = "Leave";
-"lng_profile_kick" = "Kick";
-"lng_profile_sure_kick" = "Kick {user} from the group?";
+"lng_profile_kick" = "Remove";
+"lng_profile_sure_kick" = "Remove {user} from the group?";
+"lng_profile_sure_kick_channel" = "Remove {user} from the channel?";
+"lng_profile_sure_kick_admin" = "Remove {user} from administrators?";
 "lng_profile_loading" = "Loading..";
 "lng_profile_shared_media" = "Shared media";
 "lng_profile_no_media" = "No media in this conversation.";
@@ -402,13 +408,20 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_profile_audio_files_header" = "Playlist";
 "lng_profile_copy_phone" = "Copy phone number";
 
+"lng_channel_add_admins" = "Add";
+"lng_channel_members" = "Members";
+"lng_channel_admins" = "Administrators";
+"lng_channel_add_admin" = "Add Administrator";
+"lng_channel_admin_sure" = "Add {user} to administrators?";
+
 "lng_participant_filter" = "Search";
 "lng_participant_invite" = "Invite";
+"lng_participant_invite_sorry" = "Sorry, you can only add the first\n{count} members to a channel personally.\n\nFrom now on, people will need\nto join via your invite link.";
 "lng_create_group_back" = "Back";
 "lng_create_group_next" = "Next";
 "lng_create_group_create" = "Create";
 "lng_create_group_title" = "New Group";
-"lng_create_group_about" = "Groups have up to 200 members and are good for smaller communities";
+"lng_create_group_about" = "Groups have up to {count} members and are good for smaller communities";
 "lng_create_channel_title" = "New Channel";
 "lng_create_channel_about" = "Channels have unlimited number of members and are good for connecting with large audiences";
 "lng_create_public_channel_title" = "Public Channel";
@@ -476,7 +489,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_group_invite_want_join_channel" = "Do you want to join channel «{title}»?";
 "lng_group_invite_join" = "Join";
 
-"lng_group_invite_link" = "Invite link";
+"lng_group_invite_link" = "Invite link:";
 "lng_group_invite_create" = "Create an invite link";
 "lng_group_invite_about" = "Telegram users will be able to join\nyour group by following this link.";
 "lng_channel_invite_about" = "Telegram users will be able to join\nyour channel by following this link.";
@@ -730,6 +743,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_new_version_text" = "— Spam report buttons in new chats\n— Other fixes and improvements\n— OS X 10.8 notifications fixed";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
+
+"lng_full_name" = "{first_name} {last_name}";
 
 // Wnd specific
 

@@ -139,3 +139,19 @@ public:
 	QString translate(const char *context, const char *sourceText, const char *disambiguation = 0, int n = -1) const;
 
 };
+
+inline bool langFirstNameGoesSecond() {
+	QString fullname = lang(lng_full_name__tagged);
+	for (const QChar *s = fullname.constData(), *ch = s, *e = ch + fullname.size(); ch != e;) {
+		if (*ch == TextCommand) {
+			if (ch + 3 < e && (ch + 1)->unicode() == TextCommandLangTag && *(ch + 3) == TextCommand) {
+				if ((ch + 2)->unicode() == 0x0020 + lt_last_name) {
+					return true;
+				} else if ((ch + 2)->unicode() == 0x0020 + lt_first_name) {
+					break;
+				}
+			}
+		}
+	}
+	return false;
+}

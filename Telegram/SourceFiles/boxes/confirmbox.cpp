@@ -22,6 +22,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "window.h"
 
+#include "application.h"
+
 TextParseOptions _confirmBoxTextOptions = {
 	TextParseLinks | TextParseMultiline | TextParseRichText, // flags
 	0, // maxw
@@ -194,4 +196,98 @@ void ConfirmLinkBox::onOpenLink() {
 		TextLink(_url).onClick(Qt::LeftButton);
 	}
 	App::wnd()->hideLayer();
+}
+
+MaxInviteBox::MaxInviteBox(const QString &link) :
+_close(this, lang(lng_close), st::btnInfoClose),
+_text(st::boxFont, lng_participant_invite_sorry(lt_count, QString::number(cMaxGroupCount())), _confirmBoxTextOptions),
+_link(link), _linkOver(false),
+a_goodOpacity(0, 0), a_good(animFunc(this, &MaxInviteBox::goodAnimStep)) {
+	setMouseTracking(true);
+
+	_textWidth = st::boxWidth + 10 - st::boxPadding.left() - st::boxPadding.right();
+	_textHeight = qMin(_text.countHeight(_textWidth), 16 * st::boxFont->height);
+	setMaxHeight(st::boxPadding.top() + _textHeight + st::newGroupLinkPadding.top() + st::newGroupLink.height + st::newGroupLinkPadding.bottom() + _close.height());
+
+	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
+
+	prepare();
+}
+
+void MaxInviteBox::mouseMoveEvent(QMouseEvent *e) {
+	updateSelected(e->globalPos());
+}
+
+void MaxInviteBox::mousePressEvent(QMouseEvent *e) {
+	mouseMoveEvent(e);
+	if (_linkOver) {
+		App::app()->clipboard()->setText(_link);
+		_goodTextLink = lang(lng_create_channel_link_copied);
+		a_goodOpacity = anim::fvalue(1, 0);
+		a_good.start();
+	}
+}
+
+void MaxInviteBox::leaveEvent(QEvent *e) {
+	updateSelected(QCursor::pos());
+}
+
+void MaxInviteBox::updateSelected(const QPoint &cursorGlobalPosition) {
+	QPoint p(mapFromGlobal(cursorGlobalPosition));
+
+	bool linkOver = _invitationLink.contains(p);
+	if (linkOver != _linkOver) {
+		_linkOver = linkOver;
+		update();
+		setCursor(_linkOver ? style::cur_pointer : style::cur_default);
+	}
+}
+
+bool MaxInviteBox::goodAnimStep(float64 ms) {
+	float dt = ms / st::newGroupLinkFadeDuration;
+	bool res = true;
+	if (dt >= 1) {
+		res = false;
+		a_goodOpacity.finish();
+	} else {
+		a_goodOpacity.update(dt, anim::linear);
+	}
+	update();
+	return res;
+}
+
+void MaxInviteBox::hideAll() {
+	_close.hide();
+}
+
+void MaxInviteBox::showAll() {
+	_close.show();
+}
+
+void MaxInviteBox::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	if (paint(p)) return;
+
+	// draw box title / text
+	p.setFont(st::boxFont->f);
+	p.setPen(st::black->p);
+	_text.drawElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, 16, (_text.maxWidth() < width()) ? style::al_center : style::al_left);
+
+	QTextOption option(style::al_left);
+	option.setWrapMode(QTextOption::WrapAnywhere);
+	p.setFont(_linkOver ? st::newGroupLink.font->underline() : st::newGroupLink.font);
+	p.setPen(st::btnDefLink.color);
+	p.drawText(_invitationLink, _link, option);
+	if (!_goodTextLink.isEmpty() && a_goodOpacity.current() > 0) {
+		p.setOpacity(a_goodOpacity.current());
+		p.setPen(st::setGoodColor->p);
+		p.setFont(st::setErrFont->f);
+		p.drawText(QRect(st::newGroupPadding.left(), st::boxPadding.top() + _textHeight + st::newGroupLinkTop + st::newGroupLinkFont->height - st::setErrFont->ascent, width() - st::newGroupPadding.left() - st::newGroupPadding.right(), st::setErrFont->height), _goodTextLink, style::al_top);
+		p.setOpacity(1);
+	}
+}
+
+void MaxInviteBox::resizeEvent(QResizeEvent *e) {
+	_close.move(0, height() - _close.height());
+	_invitationLink = QRect(st::newGroupPadding.left(), st::boxPadding.top() + _textHeight + st::newGroupLinkPadding.top() + (st::newGroupLink.height / 2) - st::newGroupLinkFont->height, width() - st::newGroupPadding.left() - st::newGroupPadding.right(), 2 * st::newGroupLinkFont->height);
 }

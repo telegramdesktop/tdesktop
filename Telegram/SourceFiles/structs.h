@@ -451,13 +451,13 @@ private:
 class ChannelData : public PeerData {
 public:
 
-	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), count(0), date(0), version(0), isForbidden(true), botStatus(-1), inviter(0), _lastFullUpdate(0) {
+	ChannelData(const PeerId &id) : PeerData(id), access(0), inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))), count(1), adminsCount(1), date(0), version(0), isForbidden(true), botStatus(-1), inviter(0), _lastFullUpdate(0) {
 		setName(QString(), QString());
 	}
 	void setPhoto(const MTPChatPhoto &photo, const PhotoId &phId = UnknownPeerPhotoId);
 	void setName(const QString &name, const QString &username);
 
-	void updateFull();
+	void updateFull(bool force = false);
 	void fullUpdated();
 
 	uint64 access;
@@ -466,7 +466,7 @@ public:
 
 	QString username, about;
 
-	int32 count;
+	int32 count, adminsCount;
 	int32 date;
 	int32 version;
 	int32 flags;
@@ -491,13 +491,16 @@ public:
 	bool wasKicked() const {
 		return flags & MTPDchannel_flag_was_kicked;
 	}
+	bool amIn() const {
+		return !isForbidden && !haveLeft() && !wasKicked();
+	}
 	bool canPublish() const {
 		return amCreator() || amEditor();
 	}
-	bool amParticipant() const {
-		return canPublish() || (!haveLeft() && !wasKicked());
-	}
 	bool isForbidden;
+	bool isVerified() const {
+		return flags & MTPDchannel_flag_is_verified;
+	}
 
 	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 //	ImagePtr photoFull;

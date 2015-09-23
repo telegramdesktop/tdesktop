@@ -3867,6 +3867,10 @@ bool HistoryWidget::joinFail(const RPCError &error, mtpRequestId req) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
 
 	if (_unblockRequest == req) _unblockRequest = 0;
+	if (error.type() == qstr("CHANNEL_PRIVATE")) {
+		App::wnd()->showLayer(new ConfirmBox(lang(lng_channel_not_accessible), true));
+		return true;
+	}
 	return false;
 }
 
@@ -4221,7 +4225,7 @@ void HistoryWidget::sendBotCommand(const QString &cmd, MsgId replyTo) { // reply
 
 	QString toSend = cmd;
 	PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? (App::hoveredLinkItem()->toHistoryForwarded() ? App::hoveredLinkItem()->toHistoryForwarded()->fromForwarded() : App::hoveredLinkItem()->from()) : 0);
-	if (!bot->isUser() || !bot->asUser()->botInfo) bot = 0;
+	if (bot && (!bot->isUser() || !bot->asUser()->botInfo)) bot = 0;
 	QString username = bot ? bot->asUser()->username : QString();
 	int32 botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isChannel() ? _peer->asChannel()->botStatus : -1);
 	if (!replyTo && toSend.indexOf('@') < 2 && !username.isEmpty() && (botStatus == 0 || botStatus == 2)) {
@@ -4352,7 +4356,7 @@ bool HistoryWidget::canSendMessages(PeerData *peer) const {
 		} else if (peer->isChat()) {
 			return !peer->asChat()->isForbidden && !peer->asChat()->haveLeft;
 		} else if (peer->isChannel()) {
-			return !peer->asChannel()->isForbidden && !peer->asChannel()->haveLeft() && !peer->asChannel()->wasKicked() && (peer->asChannel()->canPublish() || !peer->asChannel()->isBroadcast());
+			return peer->asChannel()->amIn() && (peer->asChannel()->canPublish() || !peer->asChannel()->isBroadcast());
 		}
 	}
 	return false;
@@ -4376,7 +4380,7 @@ bool HistoryWidget::isBlocked() const {
 }
 
 bool HistoryWidget::isJoinChannel() const {
-	return _peer && _peer->isChannel() && !_peer->asChannel()->amParticipant();
+	return _peer && _peer->isChannel() && !_peer->asChannel()->amIn();
 }
 
 bool HistoryWidget::isMuteUnmute() const {

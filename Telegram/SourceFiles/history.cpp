@@ -647,11 +647,12 @@ void ChannelHistory::addNewGroup(const MTPMessageGroup &group) {
 }
 
 HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
-	if (_joinedMessage || peer->asChannel()->haveLeft() || peer->asChannel()->wasKicked()) return _joinedMessage;
+	if (_joinedMessage || !peer->asChannel()->amIn()) return _joinedMessage;
 
 	UserData *inviter = (peer->asChannel()->inviter > 0) ? App::userLoaded(peer->asChannel()->inviter) : 0;
 	if (!inviter) return 0;
 
+	if (peerToUser(inviter->id) == MTP::authedId()) unread = false;
 	int32 flags = (unread ? MTPDmessage_flag_unread : 0);
 	QDateTime inviteDate = peer->asChannel()->inviteDate;
 	if (unread) _maxReadMessageDate = inviteDate;
@@ -1725,8 +1726,11 @@ void History::newItemAdded(HistoryItem *item) {
 	if (item->out()) {
 		if (unreadBar) unreadBar->destroy();
 	} else if (item->unread()) {
-		notifies.push_back(item);
-		App::main()->newUnreadMsg(this, item);
+		bool skip = false;
+		if (!isChannel() || peer->asChannel()->amIn()) {
+			notifies.push_back(item);
+			App::main()->newUnreadMsg(this, item);
+		}
 	}
 }
 
@@ -2310,7 +2314,7 @@ void History::setLastMessage(HistoryItem *msg) {
 }
 
 void History::setPosInDialogsDate(const QDateTime &date) {
-	bool updateDialog = (App::main() && (!peer->isChannel() || peer->asChannel()->amCreator() || (!peer->asChannel()->haveLeft() && !peer->asChannel()->wasKicked())));
+	bool updateDialog = (App::main() && (!peer->isChannel() || peer->asChannel()->amIn()));
 	if (!lastMsgDate.isNull() && lastMsgDate >= date) {
 		if (!updateDialog || !dialogs.isEmpty()) {
 			return;
@@ -4493,7 +4497,24 @@ HistoryContact::HistoryContact(int32 userId, const QString &first, const QString
 	App::regSharedContactPhone(userId, phone);
 
 	_maxw = st::mediaMaxWidth;
-	name.setText(st::mediaFont, (first + ' ' + last).trimmed(), _textNameOptions);
+	name.setText(st::mediaFont, lng_full_name(lt_first_name, first, lt_last_name, last).trimmed(), _textNameOptions);
+
+	phonew = st::mediaFont->m.width(phone);
+
+	if (contact) {
+		contact->photo->load();
+	}
+}
+
+HistoryContact::HistoryContact(int32 userId, const QString &fullname, const QString &phone) : HistoryMedia(0)
+, userId(userId)
+, phone(App::formatPhone(phone))
+, contact(App::userLoaded(userId))
+{
+	App::regSharedContactPhone(userId, phone);
+
+	_maxw = st::mediaMaxWidth;
+	name.setText(st::mediaFont, fullname.trimmed(), _textNameOptions);
 
 	phonew = st::mediaFont->m.width(phone);
 
@@ -4589,14 +4610,7 @@ void HistoryContact::getState(TextLinkPtr &lnk, HistoryCursorState &state, int32
 }
 
 HistoryMedia *HistoryContact::clone() const {
-	QStringList names = name.original(0, 0xFFFF, false).split(QChar(' '), QString::SkipEmptyParts);
-	if (names.isEmpty()) {
-		names.push_back(QString());
-	}
-	QString fname = names.front();
-	names.pop_front();
-	HistoryContact *result = new HistoryContact(userId, fname, names.join(QChar(' ')), phone);
-	return result;
+	return new HistoryContact(userId, name.original(0, 0xFFFF, false), phone);
 }
 
 void HistoryContact::draw(Painter &p, const HistoryItem *parent, bool selected, int32 width) const {
@@ -5966,7 +5980,7 @@ void HistoryImageLink::getState(TextLinkPtr &lnk, HistoryCursorState &state, int
 		skipx = st::mediaPadding.left();
 		if (reply) {
 			skipy = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
-		} if (fwd) {
+		} else if (fwd) {
 			skipy = st::msgServiceNameFont->height + st::msgPadding.top();
 		}
 		if (parent->displayFromName()) {

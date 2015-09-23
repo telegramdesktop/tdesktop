@@ -20,6 +20,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "application.h"
 #include "addcontactbox.h"
+#include "contactsbox.h"
 #include "mainwidget.h"
 #include "window.h"
 
@@ -31,6 +32,7 @@ AddContactBox::AddContactBox(QString fname, QString lname, QString phone) :
     _firstInput(this, st::inpAddContact, lang(lng_signup_firstname), fname),
     _lastInput(this, st::inpAddContact, lang(lng_signup_lastname), lname),
     _phoneInput(this, st::inpAddContact, lang(lng_contact_phone), phone.isEmpty() ? phone : App::formatPhone(phone)),
+	_invertOrder(langFirstNameGoesSecond()),
 	_contactId(0), _addRequest(0) {
 
 	if (!phone.isEmpty()) {
@@ -48,22 +50,22 @@ AddContactBox::AddContactBox(PeerData *peer) :
 	_firstInput(this, st::inpAddContact, lang(peer->isUser() ? lng_signup_firstname : lng_dlg_new_group_name), peer->isUser() ? peer->asUser()->firstName : peer->name),
 	_lastInput(this, st::inpAddContact, lang(lng_signup_lastname), peer->isUser() ? peer->asUser()->lastName : QString()),
     _phoneInput(this, st::inpAddContact, lang(lng_contact_phone)),
+	_invertOrder((!peer || !peer->isChat()) && langFirstNameGoesSecond()),
 	_contactId(0), _addRequest(0) {
 
 	initBox();
 }
 
 void AddContactBox::initBox() {
+	if (_invertOrder) {
+		setTabOrder(&_lastInput, &_firstInput);
+	}
 	if (_peer) {
 		if (_peer->isUser()) {
 			_boxTitle = lang(_peer == App::self() ? lng_edit_self_title : lng_edit_contact_title);
 			setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 2 * _firstInput.height() + 1 * st::addContactDelta + st::addContactPadding.bottom() + _addButton.height());
 		} else if (_peer->isChat()) {
 			_boxTitle = lang(lng_edit_group_title);
-			setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 1 * _firstInput.height() + st::addContactPadding.bottom() + _addButton.height());
-		} else if (_peer->isChannel()) {
-			// CHANNELS_UX
-			_boxTitle = lang(lng_edit_channel_title);
 			setMaxHeight(st::boxTitleHeight + st::addContactPadding.top() + 1 * _firstInput.height() + st::addContactPadding.bottom() + _addButton.height());
 		}
 	} else {
@@ -107,7 +109,7 @@ void AddContactBox::showAll() {
 
 void AddContactBox::showDone() {
 	if ((_firstInput.text().isEmpty() && _lastInput.text().isEmpty()) || _phoneInput.isHidden() || !_phoneInput.isEnabled()) {
-		_firstInput.setFocus();
+		(_invertOrder ? _lastInput : _firstInput).setFocus();
 	} else {
 		_phoneInput.setFocus();
 	}
@@ -180,9 +182,15 @@ void AddContactBox::paintEvent(QPaintEvent *e) {
 }
 
 void AddContactBox::resizeEvent(QResizeEvent *e) {
-	_firstInput.setGeometry(st::addContactPadding.left(), st::boxTitleHeight + st::addContactPadding.top(), width() - st::addContactPadding.left() - st::addContactPadding.right(), _firstInput.height());
-	_lastInput.setGeometry(st::addContactPadding.left(), _firstInput.y() + _firstInput.height() + st::addContactDelta, _firstInput.width(), _firstInput.height());
-	_phoneInput.setGeometry(st::addContactPadding.left(), _lastInput.y() + _lastInput.height() + st::addContactDelta, _lastInput.width(), _lastInput.height());
+	if (_invertOrder) {
+		_lastInput.setGeometry(st::addContactPadding.left(), st::boxTitleHeight + st::addContactPadding.top(), width() - st::addContactPadding.left() - st::addContactPadding.right(), _lastInput.height());
+		_firstInput.setGeometry(st::addContactPadding.left(), _lastInput.y() + _lastInput.height() + st::addContactDelta, _lastInput.width(), _lastInput.height());
+		_phoneInput.setGeometry(st::addContactPadding.left(), _firstInput.y() + _firstInput.height() + st::addContactDelta, _lastInput.width(), _lastInput.height());
+	} else {
+		_firstInput.setGeometry(st::addContactPadding.left(), st::boxTitleHeight + st::addContactPadding.top(), width() - st::addContactPadding.left() - st::addContactPadding.right(), _firstInput.height());
+		_lastInput.setGeometry(st::addContactPadding.left(), _firstInput.y() + _firstInput.height() + st::addContactDelta, _firstInput.width(), _firstInput.height());
+		_phoneInput.setGeometry(st::addContactPadding.left(), _lastInput.y() + _lastInput.height() + st::addContactDelta, _lastInput.width(), _lastInput.height());
+	}
 
 	_cancelButton.move(0, height() - _cancelButton.height());
 	_addButton.move(width() - _addButton.width(), height() - _addButton.height());
@@ -194,8 +202,13 @@ void AddContactBox::onSend() {
 
 	QString firstName = _firstInput.text().trimmed(), lastName = _lastInput.text().trimmed(), phone = _phoneInput.text().trimmed();
 	if (firstName.isEmpty() && lastName.isEmpty()) {
-		_firstInput.setFocus();
-		_firstInput.notaBene();
+		if (_invertOrder) {
+			_lastInput.setFocus();
+			_lastInput.notaBene();
+		} else {
+			_firstInput.setFocus();
+			_firstInput.notaBene();
+		}
 		return;
 	} else if (!_peer && !App::isValidPhone(phone)) {
 		_phoneInput.setFocus();
@@ -212,8 +225,6 @@ void AddContactBox::onSend() {
 	} else if (_peer) {
 		if (_peer->isChat()) {
 			_addRequest = MTP::send(MTPmessages_EditChatTitle(_peer->asChat()->inputChat, MTP_string(firstName)), rpcDone(&AddContactBox::onSaveChatDone), rpcFail(&AddContactBox::onSaveFail));
-		} else if (_peer->isChannel()) {
-			_addRequest = MTP::send(MTPchannels_EditTitle(_peer->asChannel()->inputChannel, MTP_string(firstName)), rpcDone(&AddContactBox::onSaveChatDone), rpcFail(&AddContactBox::onSaveFail));
 		} else {
 			_contactId = MTP::nonce<uint64>();
 			QVector<MTPInputContact> v(1, MTP_inputPhoneContact(MTP_long(_contactId), MTP_string(_peer->asUser()->phone), MTP_string(firstName), MTP_string(lastName)));
@@ -345,10 +356,13 @@ a_descriptionBg(st::newGroupName.bgColor->c, st::newGroupName.bgColor->c),
 a_descriptionBorder(st::newGroupName.borderColor->c, st::newGroupName.borderColor->c),
 a_description(animFunc(this, &EditChannelBox::descriptionAnimStep)),
 _description(this, st::newGroupDescription, lang(lng_create_group_description), _channel->about),
+_publicLink(this, lang(channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link)),
 _saveTitleRequestId(0), _saveDescriptionRequestId(0) {
 	_boxTitle = lang(lng_edit_channel_title);
 
 	_description.installEventFilter(this);
+
+	connect(App::main(), SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(peerUpdated(PeerData*)));
 
 	setMouseTracking(true);
 
@@ -365,6 +379,8 @@ _saveTitleRequestId(0), _saveDescriptionRequestId(0) {
 	connect(&_saveButton, SIGNAL(clicked()), this, SLOT(onSave()));
 	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onClose()));
 
+	connect(&_publicLink, SIGNAL(clicked()), this, SLOT(onPublicLink()));
+
 	prepare();
 }
 
@@ -373,6 +389,7 @@ void EditChannelBox::hideAll() {
 	_description.hide();
 	_saveButton.hide();
 	_cancelButton.hide();
+	_publicLink.hide();
 }
 
 void EditChannelBox::showAll() {
@@ -380,6 +397,7 @@ void EditChannelBox::showAll() {
 	_description.show();
 	_saveButton.show();
 	_cancelButton.show();
+	_publicLink.show();
 }
 
 void EditChannelBox::showDone() {
@@ -439,6 +457,12 @@ bool EditChannelBox::descriptionAnimStep(float64 ms) {
 	return res;
 }
 
+void EditChannelBox::peerUpdated(PeerData *peer) {
+	if (peer == _channel) {
+		_publicLink.setText(lang(_channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link));
+	}
+}
+
 void EditChannelBox::onDescriptionResized() {
 	updateMaxHeight();
 	update();
@@ -449,8 +473,10 @@ QRect EditChannelBox::descriptionRect() const {
 }
 
 void EditChannelBox::updateMaxHeight() {
-	int32 h = st::boxTitleHeight + st::newGroupPadding.top() + _title.height() + st::newGroupPadding.bottom() + _saveButton.height();
+	int32 h = st::boxTitleHeight + st::newGroupPadding.top() + _title.height();
 	h += st::newGroupDescriptionSkip + st::newGroupDescriptionPadding.top() + _description.height() + st::newGroupDescriptionPadding.bottom();
+	h += st::newGroupPublicLinkSkip + _publicLink.height();
+	h += st::newGroupPadding.bottom() + _saveButton.height();
 	setMaxHeight(h);
 }
 
@@ -475,8 +501,9 @@ void EditChannelBox::resizeEvent(QResizeEvent *e) {
 
 	_description.moveToLeft(st::newGroupPadding.left() + st::newGroupDescriptionPadding.left(), _title.y() + _title.height() + st::newGroupDescriptionSkip + st::newGroupDescriptionPadding.top(), width());
 
-	int32 buttonTop = _description.y() + _description.height() + st::newGroupDescriptionPadding.bottom();
-	buttonTop += st::newGroupPadding.bottom();
+	_publicLink.moveToLeft(st::newGroupPadding.left(), _description.y() + _description.height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkSkip, width());
+
+	int32 buttonTop = _publicLink.y() + _publicLink.height() + st::newGroupPadding.bottom();
 	_cancelButton.move(0, buttonTop);
 	_saveButton.move(width() - _saveButton.width(), buttonTop);
 }
@@ -519,6 +546,10 @@ void EditChannelBox::onSave() {
 	_sentTitle = title;
 	_sentDescription = description;
 	_saveTitleRequestId = MTP::send(MTPchannels_EditTitle(_channel->inputChannel, MTP_string(_sentTitle)), rpcDone(&EditChannelBox::onSaveTitleDone), rpcFail(&EditChannelBox::onSaveFail));
+}
+
+void EditChannelBox::onPublicLink() {
+	App::wnd()->replaceLayer(new SetupChannelBox(_channel, true));
 }
 
 void EditChannelBox::saveDescription() {

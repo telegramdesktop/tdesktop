@@ -49,8 +49,8 @@ public:
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
 
-	void peopleResultPaint(PeerData *peer, QPainter &p, int32 w, bool act, bool sel) const;
-	void searchInPeerPaint(QPainter &p, int32 w) const;
+	void peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool act, bool sel) const;
+	void searchInPeerPaint(Painter &p, int32 w) const;
 
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);

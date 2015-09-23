@@ -72,5 +72,7 @@ private:
 	QString firstName, lastName;
 	mtpRequestId sentRequest;
 
+	bool _invertOrder;
+
 	QTimer checkRequest;
 };
