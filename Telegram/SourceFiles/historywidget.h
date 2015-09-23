@@ -200,7 +200,7 @@ public:
 		// \xcc[\xb3\xbf\x8a] // 819, 831, 778
 		// QString bad1 = QString::fromUtf8("\xcc\xb3"), bad2 = QString::fromUtf8("\xcc\xbf"), bad3 = QString::fromUtf8("\xcc\x8a");
 		// [\x00\x01\x02\x07\x08\x0b-\x1f] // '\t' = 0x09
-		return (code >= 0x00 && code <= 0x02) || (code >= 0x07 && code <= 0x09) || (code >= 0x0b && code <= 0x1f) ||
+        return (/*code >= 0x00 && */code <= 0x02) || (code >= 0x07 && code <= 0x09) || (code >= 0x0b && code <= 0x1f) ||
 			(code == 819) || (code == 831) || (code == 778) || (code >= 8232 && code <= 8237);
 	}
 
