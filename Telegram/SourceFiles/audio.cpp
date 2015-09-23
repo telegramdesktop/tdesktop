@@ -2291,11 +2291,11 @@ public:
 		trySet(_performer, dict, "artist");
 		trySet(_performer, dict, "performer");
 		trySet(_performer, dict, "album_artist");
-		for (AVDictionaryEntry *tag = av_dict_get(dict, "", 0, AV_DICT_IGNORE_SUFFIX); tag; tag = av_dict_get(dict, "", tag, AV_DICT_IGNORE_SUFFIX)) {
-			const char *key = tag->key;
-			const char *value = tag->value;
-			QString tmp = QString::fromUtf8(value);
-		}
+		//for (AVDictionaryEntry *tag = av_dict_get(dict, "", 0, AV_DICT_IGNORE_SUFFIX); tag; tag = av_dict_get(dict, "", tag, AV_DICT_IGNORE_SUFFIX)) {
+		//	const char *key = tag->key;
+		//	const char *value = tag->value;
+		//	QString tmp = QString::fromUtf8(value);
+		//}
 	}
 
 	int64 duration() {

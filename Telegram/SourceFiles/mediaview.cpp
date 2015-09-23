@@ -44,9 +44,14 @@ namespace {
 		MediaView *_view;
 	};
 
-
 	TextParseOptions _captionTextOptions = {
 		TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
+		0, // maxw
+		0, // maxh
+		Qt::LayoutDirectionAuto, // dir
+	};
+	TextParseOptions _captionBotOptions = {
+		TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText | TextParseBotCommands, // flags
 		0, // maxw
 		0, // maxh
 		Qt::LayoutDirectionAuto, // dir
@@ -763,7 +768,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	_caption = Text();
 	if (HistoryMessage *itemMsg = item ? item->toHistoryMessage() : 0) {
 		if (HistoryPhoto *photoMsg = dynamic_cast<HistoryPhoto*>(itemMsg->getMedia())) {
-			_caption.setText(st::mvCaptionFont, photoMsg->captionForClone().original(0, 0xFFFF), _captionTextOptions);
+			_caption.setText(st::mvCaptionFont, photoMsg->captionForClone().original(0, 0xFFFF), (item->from()->isUser() && item->from()->asUser()->botInfo) ? _captionBotOptions : _captionTextOptions);
 		}
 	}
 

@@ -1293,7 +1293,7 @@ profileNameFont: font(20px);
 profileStatusLeft: 22px;
 profileStatusTop: 31px;
 profileStatusFont: font(fsize);
-profilePhoneLeft: 20px;
+profilePhoneLeft: 22px;
 profilePhoneTop: 62px;
 profilePhoneFont: font(16px);
 profileButtonTop: 18px;
@@ -1331,6 +1331,8 @@ btnShareContact: flatButton(btnDefNext, btnDefBig) {
 	overFont: font(17px);
 }
 profileMinBtnPadding: 10px;
+
+membersPadding: margins(0px, 10px, 0px, 10px);
 
 forwardWidth: 364px;
 forwardMargins: margins(30px, 10px, 30px, 10px);
@@ -1462,6 +1464,7 @@ newGroupPhoto: flatButton(btnDefNext, btnDefBig) {
 newGroupPhotoSize: 96px;
 newGroupPhotoSkip: 18px;
 newGroupDescriptionSkip: 28px;
+newGroupPublicLinkSkip: 27px;
 newGroupDescription: flatTextarea(taDefFlat) {
 	font: font(15px);
 	bgColor: transparent;
@@ -1832,7 +1835,7 @@ stickerPanSize: size(64px, 64px);
 stickerPanPadding: 11px;
 stickerPanDelete: sprite(128px, 132px, 12px, 12px);
 stickerPanDeleteOpacity: 0.5;
-stickerIconPadding: 3px;
+stickerIconPadding: 5px;
 stickerIconOpacity: 0.7;
 stickerIconSel: 2px;
 stickerIconSelColor: #58b2ed;
@@ -1840,6 +1843,12 @@ stickerIconRecent: sprite(342px, 50px, 21px, 22px);
 stickerIconLeft: sprite(342px, 72px, 40px, 1px);
 stickerIconRight: sprite(342px, 73px, 40px, 1px);
 stickerIconMove: 400;
+
+verifiedCheckProfile: sprite(285px, 240px, 22px, 22px);
+verifiedCheckProfilePos: point(9px, 4px);
+verifiedCheck: sprite(285px, 221px, 19px, 19px);
+verifiedCheckInv: sprite(304px, 221px, 19px, 19px);
+verifiedCheckPos: point(5px, 0px);
 
 botKbDuration: 200;
 botKbBg: #f7f7f7;

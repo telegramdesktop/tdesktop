@@ -1,10 +1,10 @@
 @echo OFF
 
 set "AppVersionStrMajor=0.8"
-set "AppVersion=8058"
-set "AppVersionStrSmall=0.8.58"
-set "AppVersionStr=0.8.58"
-set "AppVersionStrFull=0.8.58.0"
+set "AppVersion=8059"
+set "AppVersionStrSmall=0.8.59"
+set "AppVersionStr=0.8.59"
+set "AppVersionStrFull=0.8.59.0"
 set "DevChannel=1"
 
 if %DevChannel% neq 0 goto preparedev
@@ -28,19 +28,21 @@ if exist ..\Win32\Deploy\deploy\%AppVersionStrMajor%\%AppVersionStr%\ goto error
 if exist ..\Win32\Deploy\deploy\%AppVersionStrMajor%\%AppVersionStr%.dev\ goto error_exist2
 if exist ..\Win32\Deploy\tupdate%AppVersion% goto error_exist3
 
-copy ./SourceFiles/telegram.qrc /B+ ,,/Y
+cd SourceFiles\
+copy telegram.qrc /B+,,/Y
+cd ..\
 if %errorlevel% neq 0 goto error
 
 cd ..\
 MSBuild Telegram.sln /property:Configuration=Deploy
-if %errorlevel% neq 0 goto error
+if %errorlevel% neq 0 goto error0
 
 echo .
 echo Version %AppVersionStr%%DevPostfix% build successfull! Preparing..
 echo .
 
 set "PATH=%PATH%;C:\Program Files\7-Zip;C:\Program Files (x86)\Inno Setup 5"
-cd ..\Win32\Deploy
+cd Win32\Deploy\
 
 call ..\..\..\TelegramPrivate\Sign.bat Telegram.exe
 if %errorlevel% neq 0 goto error1
@@ -71,7 +73,7 @@ move tsetup.%AppVersionStr%%DevPostfix%.exe deploy\%AppVersionStrMajor%\%AppVers
 move tupdate%AppVersion% deploy\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%\
 if %errorlevel% neq 0 goto error1
 
-cd deploy\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%
+cd deploy\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%\
 7z a -mx9 tportable.%AppVersionStr%%DevPostfix%.zip Telegram\
 if %errorlevel% neq 0 goto error2
 
@@ -97,13 +99,15 @@ xcopy Updater.pdb Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStr%%D
 
 echo Version %AppVersionStr%%DevPostfix% deployed successfully!
 
-cd ..\..\..\..\..\Telegram
+cd ..\..\..\..\..\Telegram\
 goto eof
 
 :error2
-cd ..\..\..
+cd ..\..\..\
 :error1
-cd ..\..\Telegram
+cd ..\..\
+:error0
+cd Telegram\
 goto error
 
 :error_exist1

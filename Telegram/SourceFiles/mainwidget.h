@@ -227,6 +227,7 @@ public:
 	void sentUpdatesReceived(const MTPUpdates &updates) {
 		return sentUpdatesReceived(0, updates);
 	}
+	void inviteToChannelDone(ChannelData *channel, const MTPUpdates &updates);
 	void msgUpdated(PeerId peer, const HistoryItem *msg);
 	void historyToDown(History *hist);
 	void dialogsToUp();

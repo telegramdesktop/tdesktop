@@ -30,7 +30,9 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "confirmbox.h"
 
-ContactsInner::ContactsInner(CreatingGroupType creating) : _chat(0), _channel(0), _bot(0), _creating(creating), _addToChat(0),
+ContactsInner::ContactsInner(CreatingGroupType creating) :
+_chat(0), _channel(0), _channelFilter(MembersFilterRecent), _bot(0), _creating(creating),
+_addToChat(0), _addAdmin(0), _addAdminRequestId(0), _addAdminBox(0),
 _contacts(&App::main()->contactsList()),
 _sel(0),
 _filteredSel(-1),
@@ -42,7 +44,9 @@ _addContactLnk(this, lang(lng_add_contact_button)) {
 	init();
 }
 
-ContactsInner::ContactsInner(ChannelData *channel) : _chat(0), _channel(channel), _bot(0), _creating(CreatingGroupChannel), _addToChat(0),
+ContactsInner::ContactsInner(ChannelData *channel, MembersFilter channelFilter, const MembersAlreadyIn &already) :
+_chat(0), _channel(channel), _channelFilter(channelFilter), _bot(0), _creating(CreatingGroupChannel), _already(already),
+_addToChat(0), _addAdmin(0), _addAdminRequestId(0), _addAdminBox(0),
 _contacts(&App::main()->contactsList()),
 _sel(0),
 _filteredSel(-1),
@@ -54,7 +58,9 @@ _addContactLnk(this, lang(lng_add_contact_button)) {
 	init();
 }
 
-ContactsInner::ContactsInner(ChatData *chat) : _chat(chat), _channel(0), _bot(0), _creating(CreatingGroupNone), _addToChat(0),
+ContactsInner::ContactsInner(ChatData *chat) :
+_chat(chat), _channel(0), _channelFilter(MembersFilterRecent), _bot(0), _creating(CreatingGroupNone),
+_addToChat(0), _addAdmin(0), _addAdminRequestId(0), _addAdminBox(0),
 _contacts(&App::main()->contactsList()),
 _sel(0),
 _filteredSel(-1),
@@ -66,7 +72,9 @@ _addContactLnk(this, lang(lng_add_contact_button)) {
 	init();
 }
 
-ContactsInner::ContactsInner(UserData *bot) : _chat(0), _channel(0), _bot(bot), _creating(CreatingGroupNone), _addToChat(0),
+ContactsInner::ContactsInner(UserData *bot) :
+_chat(0), _channel(0), _channelFilter(MembersFilterRecent), _bot(bot), _creating(CreatingGroupNone),
+_addToChat(0), _addAdmin(0), _addAdminRequestId(0), _addAdminBox(0),
 _contacts(new DialogsIndexed(DialogsSortByAdd)),
 _sel(0),
 _filteredSel(-1),
@@ -115,6 +123,36 @@ void ContactsInner::onAddBot() {
 	}
 	App::wnd()->hideLayer();
 	App::main()->showPeerHistory(_addToChat->id, ShowAtUnreadMsgId);
+}
+
+void ContactsInner::onAddAdmin() {
+	if (_addAdminRequestId) return;
+	_addAdminRequestId = MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, _addAdmin->inputUser, MTP_channelRoleEditor()), rpcDone(&ContactsInner::addAdminDone), rpcFail(&ContactsInner::addAdminFail));
+}
+
+void ContactsInner::onNoAddAdminBox(QObject *obj) {
+	if (obj == _addAdminBox) {
+		_addAdminBox = 0;
+	}
+}
+
+void ContactsInner::addAdminDone(const MTPBool &result, mtpRequestId req) {
+	if (req != _addAdminRequestId) return;
+
+	_addAdminRequestId = 0;
+	if (_addAdminBox) _addAdminBox->onClose();
+	emit adminAdded();
+}
+
+bool ContactsInner::addAdminFail(const RPCError &error, mtpRequestId req) {
+	if (mtpIsFlood(error)) return false;
+
+	if (req != _addAdminRequestId) return true;
+
+	_addAdminRequestId = 0;
+	if (_addAdminBox) _addAdminBox->onClose();
+	emit adminAdded();
+	return true;
 }
 
 void ContactsInner::peerUpdated(PeerData *peer) {
@@ -197,8 +235,10 @@ ContactsInner::ContactData *ContactsInner::contactData(DialogRow *row) {
 			if (peer->isUser()) {
 				if (_chat) {
 					data->inchat = _chat->participants.contains(peer->asUser());
-				} else if (_creating == CreatingGroupGroup || _channel) {
+				} else if (_creating == CreatingGroupGroup) {
 					data->inchat = (peerToUser(peer->id) == MTP::authedId());
+				} else if (_channel) {
+					data->inchat = (peerToUser(peer->id) == MTP::authedId()) || _already.contains(peer->asUser());
 				} else {
 					data->inchat = false;
 				}
@@ -227,7 +267,7 @@ ContactsInner::ContactData *ContactsInner::contactData(DialogRow *row) {
 	return data;
 }
 
-void ContactsInner::paintDialog(QPainter &p, PeerData *peer, ContactData *data, bool sel) {
+void ContactsInner::paintDialog(Painter &p, PeerData *peer, ContactData *data, bool sel) {
 	int32 left = st::profileListPadding.width();
 
 	UserData *user = peer->asUser();
@@ -248,9 +288,18 @@ void ContactsInner::paintDialog(QPainter &p, PeerData *peer, ContactData *data, 
 		p.setPen(st::profileListNameColor->p);
 	}
 	int32 iconw = (_chat || _creating != CreatingGroupNone) ? st::profileCheckRect.pxWidth() : st::contactsImg.pxWidth();
-	data->name.drawElided(p, left + st::profileListPhotoSize + st::participantDelta, st::profileListNameTop, width() - left - st::profileListPhotoSize - st::profileListPadding.width() - st::participantDelta - st::scrollDef.width - iconw);
+	int32 namew = width() - left - st::profileListPhotoSize - st::profileListPadding.width() - st::participantDelta - st::scrollDef.width - iconw;
+	if (peer->isChannel() && peer->asChannel()->isVerified()) {
+		namew -= st::verifiedCheck.pxWidth() + st::verifiedCheckPos.x();
+		p.drawSprite(QPoint(left + st::profileListPhotoSize + st::participantDelta + qMin(data->name.maxWidth(), namew), st::profileListNameTop) + st::verifiedCheckPos, st::verifiedCheck);
+	}
+	data->name.drawElided(p, left + st::profileListPhotoSize + st::participantDelta, st::profileListNameTop, namew);
 
-	if (_chat || _creating !=CreatingGroupNone) {
+	if (_channel && _channelFilter == MembersFilterAdmins) {
+		if (sel) {
+			p.drawPixmap(QPoint(width() - st::contactsImg.pxWidth() - st::profileCheckDeltaX, st::profileListPadding.height() + (st::profileListPhotoSize - st::contactsImg.pxHeight()) / 2 - st::profileCheckDeltaY), App::sprite(), st::contactsImg);
+		}
+	} else if (_chat || _creating != CreatingGroupNone) {
 		if (sel || data->check) {
 			p.drawPixmap(QPoint(width() - st::profileCheckRect.pxWidth() - st::profileCheckDeltaX, st::profileListPadding.height() + (st::profileListPhotoSize - st::profileCheckRect.pxHeight()) / 2 - st::profileCheckDeltaY), App::sprite(), (data->check ? st::profileCheckActiveRect : st::profileCheckRect));
 		}
@@ -287,7 +336,7 @@ void ContactsInner::paintDialog(QPainter &p, PeerData *peer, ContactData *data, 
 
 void ContactsInner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
-	QPainter p(this);
+	Painter p(this);
 
 	_time = unixtime();
 	p.fillRect(r, st::white->b);
@@ -422,7 +471,8 @@ void ContactsInner::mousePressEvent(QMouseEvent *e) {
 }
 
 void ContactsInner::chooseParticipant() {
-	if (_chat || _creating != CreatingGroupNone) {
+	bool addingAdmin = (_channel && _channelFilter == MembersFilterAdmins);
+	if (!addingAdmin && (_chat || _creating != CreatingGroupNone)) {
 		_time = unixtime();
 		int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2, from;
 		if (_filter.isEmpty()) {
@@ -481,7 +531,18 @@ void ContactsInner::chooseParticipant() {
 			}
 		}
 		if (peer) {
-			if (bot() && peer->isChat()) {
+			if (addingAdmin) {
+				_addAdmin = peer->asUser();
+				if (_addAdminRequestId) {
+					MTP::cancel(_addAdminRequestId);
+					_addAdminRequestId = 0;
+				}
+				if (_addAdminBox) _addAdminBox->deleteLater();
+				_addAdminBox = new ConfirmBox(lng_channel_admin_sure(lt_user, _addAdmin->firstName));
+				connect(_addAdminBox, SIGNAL(confirmed()), this, SLOT(onAddAdmin()));
+				connect(_addAdminBox, SIGNAL(destroyed(QObject*)), this, SLOT(onNoAddAdminBox(QObject*)));
+				App::wnd()->replaceLayer(_addAdminBox);
+			} else if (bot() && peer->isChat()) {
 				_addToChat = peer->asChat();
 				ConfirmBox *box = new ConfirmBox(lng_bot_sure_invite(lt_group, peer->name));
 				connect(box, SIGNAL(confirmed()), this, SLOT(onAddBot()));
@@ -519,7 +580,7 @@ int32 ContactsInner::selectedCount() const {
 	if (_chat) {
 		result += (_chat->count > 0) ? _chat->count : 1;
 	} else if (_channel) {
-		result += (_channel->count > 0) ? _channel->count : 1;
+		result += _already.size();
 	} else if (_creating == CreatingGroupGroup) {
 		result += 1;
 	}
@@ -785,6 +846,10 @@ ChannelData *ContactsInner::channel() const {
 	return _channel;
 }
 
+MembersFilter ContactsInner::channelFilter() const {
+	return _channelFilter;
+}
+
 UserData *ContactsInner::bot() const {
 	return _bot;
 }
@@ -1017,6 +1082,15 @@ _creationRequestId(0) {
 	init();
 }
 
+ContactsBox::ContactsBox(ChannelData *channel, MembersFilter filter, const MembersAlreadyIn &already) : ItemListBox(st::boxNoTopScroll), _inner(channel, filter, already),
+_addContact(this, lang(lng_add_contact_button), st::contactsAdd),
+_filter(this, st::contactsFilter, lang(lng_participant_filter)),
+_next(this, lang(lng_participant_invite), st::btnSelectDone),
+_cancel(this, lang(filter == MembersFilterAdmins ? lng_contacts_done : lng_cancel), (filter == MembersFilterAdmins ? st::contactsClose : st::btnSelectCancel)),
+_creationRequestId(0) {
+	init();
+}
+
 ContactsBox::ContactsBox(ChatData *chat) : ItemListBox(st::boxNoTopScroll), _inner(chat),
 _addContact(this, lang(lng_add_contact_button), st::contactsAdd),
 _filter(this, st::contactsFilter, lang(lng_participant_filter)),
@@ -1060,6 +1134,7 @@ void ContactsBox::init() {
 	connect(&_inner, SIGNAL(mustScrollTo(int, int)), &_scroll, SLOT(scrollToY(int, int)));
 	connect(&_inner, SIGNAL(selectAllQuery()), &_filter, SLOT(selectAll()));
 	connect(&_inner, SIGNAL(searchByUsername()), this, SLOT(onNeedSearchByUsername()));
+	connect(&_inner, SIGNAL(adminAdded()), this, SIGNAL(adminAdded()));
 
 	_searchTimer.setSingleShot(true);
 	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchByUsername()));
@@ -1146,7 +1221,10 @@ void ContactsBox::hideAll() {
 void ContactsBox::showAll() {
 	ItemListBox::showAll();
 	_filter.show();
-	if (_inner.chat()) {
+	if (_inner.channel() && _inner.channelFilter() == MembersFilterAdmins) {
+		_next.hide();
+		_addContact.hide();
+	} else if (_inner.chat()) {
 		_next.show();
 		_addContact.hide();
 	} else if (_inner.creating() != CreatingGroupNone) {
@@ -1195,15 +1273,18 @@ void ContactsBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
 
+	bool addingAdmin = _inner.channel() && _inner.channelFilter() == MembersFilterAdmins;
 	if (_inner.chat() || _inner.creating() != CreatingGroupNone) {
-		QString title(lang(lng_profile_add_participant));
+		QString title(lang(addingAdmin ? lng_channel_add_admin : lng_profile_add_participant));
 		paintTitle(p, title, true);
 
-		p.setPen(st::newGroupLimitFg);
-		p.drawTextLeft(st::boxTitlePos.x() + st::boxTitleFont->m.width(title) + st::addContactDelta, st::boxTitlePos.y(), width(), QString("%1 / %2").arg(_inner.selectedCount()).arg(cMaxGroupCount()));
+		if (!addingAdmin) {
+			p.setPen(st::newGroupLimitFg);
+			p.drawTextLeft(st::boxTitlePos.x() + st::boxTitleFont->m.width(title) + st::addContactDelta, st::boxTitlePos.y(), width(), QString("%1 / %2").arg(_inner.selectedCount()).arg(cMaxGroupCount()));
 
-		// paint button sep
-		p.fillRect(st::btnSelectCancel.width, size().height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
+			// paint button sep
+			p.fillRect(st::btnSelectCancel.width, size().height() - st::btnSelectCancel.height, st::lineWidth, st::btnSelectCancel.height, st::btnSelectSep->b);
+		}
 	} else if (_inner.bot()) {
 		paintTitle(p, lang(lng_bot_choose_group), true);
 	} else {
@@ -1221,7 +1302,7 @@ void ContactsBox::resizeEvent(QResizeEvent *e) {
 }
 
 void ContactsBox::closePressed() {
-	if (_inner.channel()) {
+	if (_inner.channel() && !_inner.hasAlreadyMembersInChannel()) {
 		App::main()->showPeerHistory(_inner.channel()->id, ShowAtTheEndMsgId);
 	}
 }
@@ -1335,11 +1416,551 @@ bool ContactsBox::creationFail(const RPCError &error) {
 	return false;
 }
 
+MembersInner::MembersInner(ChannelData *channel, MembersFilter filter) : _channel(channel), _filter(filter),
+_time(0),
+_kickText(lang(lng_profile_kick)),
+_kickWidth(st::normalFont->m.width(_kickText)),
+_sel(-1),
+_kickSel(-1),
+_kickDown(-1),
+_mouseSel(false),
+_kickConfirm(0),
+_kickRequestId(0),
+_kickBox(0),
+_loading(true),
+_loadingRequestId(0) {
+	connect(App::main(), SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)));
+	connect(App::main(), SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
+
+	refresh();
+
+	load();
+}
+
+void MembersInner::load() {
+	if (!_loadingRequestId) {
+		_loadingRequestId = MTP::send(MTPchannels_GetParticipants(_channel->inputChannel, (_filter == MembersFilterRecent) ? MTP_channelParticipantsRecent() : MTP_channelParticipantsAdmins(), MTP_int(0), MTP_int(cMaxGroupCount())), rpcDone(&MembersInner::membersReceived), rpcFail(&MembersInner::membersFailed));
+	}
+}
+
+void MembersInner::paintEvent(QPaintEvent *e) {
+	QRect r(e->rect());
+	Painter p(this);
+
+	_time = unixtime();
+	p.fillRect(r, st::white->b);
+
+	int32 yFrom = r.top(), yTo = r.bottom();
+	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2;
+
+	p.translate(0, st::membersPadding.top());
+	if (_rows.isEmpty()) {
+		p.setFont(st::noContactsFont->f);
+		p.setPen(st::noContactsColor->p);
+		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_contacts_loading), style::al_center);
+	} else {
+		int32 from = (yFrom >= 0) ? (yFrom / rh) : 0;
+		if (from < _rows.size()) {
+			int32 to = (yTo / rh) + 1;
+			if (to > _rows.size()) to = _rows.size();
+
+			p.translate(0, from * rh);
+			for (; from < to; ++from) {
+				bool sel = (from == _sel);
+				bool kickSel = (from == _kickSel && (_kickDown < 0 || from == _kickDown));
+				bool kickDown = kickSel && (from == _kickDown);
+				paintDialog(p, _rows[from], data(from), sel, kickSel, kickDown);
+				p.translate(0, rh);
+			}
+		}
+	}
+}
+
+void MembersInner::enterEvent(QEvent *e) {
+	setMouseTracking(true);
+}
+
+void MembersInner::leaveEvent(QEvent *e) {
+	setMouseTracking(false);
+	if (_sel >= 0) {
+		_sel = -1;
+		parentWidget()->update();
+	}
+}
+
+void MembersInner::mouseMoveEvent(QMouseEvent *e) {
+	_mouseSel = true;
+	_lastMousePos = e->globalPos();
+	updateSel();
+}
+
+void MembersInner::mousePressEvent(QMouseEvent *e) {
+	_mouseSel = true;
+	_lastMousePos = e->globalPos();
+	updateSel();
+	if (e->button() == Qt::LeftButton && _kickSel < 0) {
+		chooseParticipant();
+	}
+	_kickDown = _kickSel;
+	update();
+}
+
+void MembersInner::mouseReleaseEvent(QMouseEvent *e) {
+	_mouseSel = true;
+	_lastMousePos = e->globalPos();
+	updateSel();
+	if (_kickDown >= 0 && _kickDown == _kickSel && !_kickRequestId) {
+		_kickConfirm = _rows.at(_kickSel);
+		if (_kickBox) _kickBox->deleteLater();
+		_kickBox = new ConfirmBox((_filter == MembersFilterRecent ? lng_profile_sure_kick_channel : lng_profile_sure_kick_admin)(lt_user, _kickConfirm->firstName));
+		connect(_kickBox, SIGNAL(confirmed()), this, SLOT(onKickConfirm()));
+		connect(_kickBox, SIGNAL(destroyed(QObject*)), this, SLOT(onKickBoxDestroyed(QObject*)));
+		App::wnd()->replaceLayer(_kickBox);
+	}
+	_kickDown = -1;
+}
+
+void MembersInner::onKickBoxDestroyed(QObject *obj) {
+	if (_kickBox == obj) {
+		_kickBox = 0;
+	}
+}
+
+void MembersInner::onKickConfirm() {
+	if (_filter == MembersFilterRecent) {
+		_kickRequestId = MTP::send(MTPchannels_KickFromChannel(_channel->inputChannel, _kickConfirm->inputUser, MTP_bool(true)), rpcDone(&MembersInner::kickDone), rpcFail(&MembersInner::kickFail));
+	} else {
+		_kickRequestId = MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, _kickConfirm->inputUser, MTP_channelRoleEmpty()), rpcDone(&MembersInner::kickAdminDone), rpcFail(&MembersInner::kickFail));
+	}
+}
+
+void MembersInner::paintDialog(Painter &p, PeerData *peer, MemberData *data, bool sel, bool kickSel, bool kickDown) {
+	int32 left = st::profileListPadding.width();
+
+	UserData *user = peer->asUser();
+	if (sel) {
+		p.fillRect(0, 0, width(), 2 * st::profileListPadding.height() + st::profileListPhotoSize, st::profileHoverBG->b);
+	}
+
+	p.drawPixmap(left, st::profileListPadding.height(), peer->photo->pix(st::profileListPhotoSize));
+
+	p.setPen(st::profileListNameColor->p);
+
+	data->name.drawElided(p, left + st::profileListPhotoSize + st::participantDelta, st::profileListNameTop, width() - left - st::profileListPhotoSize - st::profileListPadding.width() - st::participantDelta - st::scrollDef.width - (data->canKick ? _kickWidth : 0));
+
+	if (data->canKick) {
+		p.setFont((kickSel ? st::linkOverFont : st::linkFont)->f);
+		if (kickDown) {
+			p.setPen(st::btnDefLink.downColor->p);
+		} else {
+			p.setPen(st::btnDefLink.color->p);
+		}
+		p.drawText(width() - _kickWidth - st::profileCheckDeltaX, st::profileListPadding.height() + (st::profileListPhotoSize - st::normalFont->height) / 2 + st::normalFont->ascent, _kickText);
+	}
+
+	p.setFont(st::normalFont);
+	p.setPen(st::profileOfflineColor->p);
+	p.drawText(left + st::profileListPhotoSize + st::profileListPadding.width(), st::profileListPadding.height() + st::profileListPhotoSize - st::profileListStatusBottom, data->online);
+}
+
+void MembersInner::selectSkip(int32 dir) {
+	_time = unixtime();
+	_mouseSel = false;
+	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2, origDir = dir;
+
+	int cur = (_sel >= 0) ? _sel : -1;
+	cur += dir;
+	if (cur <= 0) {
+		_sel = _rows.isEmpty() ? -1 : 0;
+	} else if (cur >= _rows.size()) {
+		_sel = -1;
+	} else {
+		_sel = cur;
+	}
+	if (dir > 0) {
+		if (_sel < 0 || _sel >= _rows.size()) {
+			_sel = -1;
+		}
+	} else {
+		if (!_rows.isEmpty()) {
+			if (_sel < 0) _sel = _rows.size() - 1;
+		}
+	}
+	if (_sel >= 0) {
+		emit mustScrollTo(_sel * rh, (_sel + 1) * rh);
+	}
+
+	parentWidget()->update();
+}
+
+void MembersInner::selectSkipPage(int32 h, int32 dir) {
+	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2;
+	int32 points = h / rh;
+	if (!points) return;
+	selectSkip(points * dir);
+}
+
+void MembersInner::loadProfilePhotos(int32 yFrom) {
+	int32 yTo = yFrom + (parentWidget() ? parentWidget()->height() : App::wnd()->height()) * 5;
+	MTP::clearLoaderPriorities();
+
+	if (yTo < 0) return;
+	if (yFrom < 0) yFrom = 0;
+
+	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2;
+	if (!_rows.isEmpty()) {
+		int32 from = yFrom / rh;
+		if (from < 0) from = 0;
+		if (from < _rows.size()) {
+			int32 to = (yTo / rh) + 1;
+			if (to > _rows.size()) to = _rows.size();
+
+			for (; from < to; ++from) {
+				_rows[from]->photo->load();
+			}
+		}
+	}
+}
+
+void MembersInner::chooseParticipant() {
+	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2, from;
+	if (_sel < 0 || _sel >= _rows.size()) return;
+	if (PeerData *peer = _rows[_sel]) {
+		App::wnd()->hideLayer();
+		App::main()->showPeerProfile(peer, ShowAtUnreadMsgId);
+	}
+}
+
+void MembersInner::refresh() {
+	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2;
+	if (_rows.isEmpty()) {
+		resize(width(), st::membersPadding.top() + st::noContactsHeight + st::membersPadding.bottom());
+	} else {
+		resize(width(), st::membersPadding.top() + _rows.size() * rh + st::membersPadding.bottom());
+	}
+	update();
+}
+
+ChannelData *MembersInner::channel() const {
+	return _channel;
+}
+
+MembersFilter MembersInner::filter() const {
+	return _filter;
+}
+
+QMap<UserData*, bool> MembersInner::already() const {
+	MembersAlreadyIn result;
+	for (int32 i = 0, l = _rows.size(); i < l; ++i) {
+		if (_rows.at(i)->isUser()) {
+			result.insert(_rows.at(i)->asUser(), true);
+		}
+	}
+	return result;
+}
+
+void MembersInner::clearSel() {
+	_sel = _kickSel = _kickDown = -1;
+	_lastMousePos = QCursor::pos();
+	updateSel();
+}
+
+MembersInner::MemberData *MembersInner::data(int32 index) {
+	if (MemberData *result = _datas.at(index)) {
+		return result;
+	}
+	MemberData *result = _datas[index] = new MemberData();
+	result->name.setText(st::profileListNameFont, _rows[index]->name, _textNameOptions);
+	result->online = lng_mediaview_date_time(lt_date, _dates[index].date().toString(qsl("dd.MM.yy")), lt_time, _dates[index].time().toString(cTimeFormat()));
+	if (_filter == MembersFilterRecent) {
+		result->canKick = (_channel->amCreator() || _channel->amEditor() || _channel->amModerator()) ? (_roles[index] == MemberRoleNone) : false;
+	} else if (_filter == MembersFilterAdmins) {
+		result->canKick = _channel->amCreator() ? (_roles[index] == MemberRoleEditor || _roles[index] == MemberRoleModerator) : false;
+	} else {
+		result->canKick = false;
+	}
+	return result;
+}
+
+void MembersInner::clear() {
+	for (int32 i = 0, l = _datas.size(); i < l; ++i) {
+		delete _datas.at(i);
+	}
+	_datas.clear();
+	_rows.clear();
+	_dates.clear();
+	_roles.clear();
+	if (_kickBox) _kickBox->deleteLater();
+	clearSel();
+}
+
+MembersInner::~MembersInner() {
+	clear();
+}
+
+void MembersInner::updateSel() {
+	QPoint p(mapFromGlobal(_lastMousePos));
+	p.setY(p.y() - st::membersPadding.top());
+	bool in = parentWidget()->rect().contains(parentWidget()->mapFromGlobal(_lastMousePos));
+	int32 rh = st::profileListPhotoSize + st::profileListPadding.height() * 2;
+	int32 newSel = (in && p.y() >= 0 && p.y() < _rows.size() * rh) ? (p.y() / rh) : -1;
+	int32 newKickSel = newSel;
+	if (newSel >= 0 && (!data(newSel)->canKick || !QRect(width() - _kickWidth - st::profileCheckDeltaX, newSel * rh + st::profileListPadding.height() + (st::profileListPhotoSize - st::normalFont->height) / 2, _kickWidth, st::normalFont->height).contains(p))) {
+		newKickSel = -1;
+	}
+	if (newSel != _sel || newKickSel != _kickSel) {
+		_sel = newSel;
+		_kickSel = newKickSel;
+		parentWidget()->update();
+		setCursor(_kickSel >= 0 ? style::cur_pointer : style::cur_default);
+	}
+}
+
+void MembersInner::peerUpdated(PeerData *peer) {
+	parentWidget()->update();
+}
+
+void MembersInner::onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
+	for (int32 i = 0, l = _rows.size(); i < l; ++i) {
+		if (_rows.at(i) == peer) {
+			if (_datas.at(i)) {
+				_datas.at(i)->name.setText(st::profileListNameFont, peer->name, _textNameOptions);
+				parentWidget()->update();
+			} else {
+				break;
+			}
+		}
+	}
+}
+
+void MembersInner::membersReceived(const MTPchannels_ChannelParticipants &result, mtpRequestId req) {
+	clear();
+	_loadingRequestId = 0;
+
+	if (result.type() == mtpc_channels_channelParticipants) {
+		const MTPDchannels_channelParticipants &d(result.c_channels_channelParticipants());
+		const QVector<MTPChannelParticipant> &v(d.vparticipants.c_vector().v);
+		_rows.reserve(v.size());
+		_datas.reserve(v.size());
+		_dates.reserve(v.size());
+		_roles.reserve(v.size());
+		if (_filter == MembersFilterRecent && _channel->count != d.vcount.v) {
+			_channel->count = d.vcount.v;
+			if (App::main()) emit App::main()->peerUpdated(_channel);
+		} else if (_filter == MembersFilterAdmins && _channel->adminsCount != d.vcount.v) {
+			_channel->adminsCount = d.vcount.v;
+			if (App::main()) emit App::main()->peerUpdated(_channel);
+		}
+		App::feedUsers(d.vusers);
+		for (QVector<MTPChannelParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
+			int32 userId = 0, addedTime = 0;
+			MemberRole role = MemberRoleNone;
+			switch (i->type()) {
+			case mtpc_channelParticipant:
+				userId = i->c_channelParticipant().vuser_id.v;
+				addedTime = i->c_channelParticipant().vdate.v;
+				break;
+			case mtpc_channelParticipantSelf:
+				role = MemberRoleSelf;
+				userId = i->c_channelParticipantSelf().vuser_id.v;
+				addedTime = i->c_channelParticipantSelf().vdate.v;
+				break;
+			case mtpc_channelParticipantModerator:
+				role = MemberRoleModerator;
+				userId = i->c_channelParticipantModerator().vuser_id.v;
+				addedTime = i->c_channelParticipantModerator().vdate.v;
+				break;
+			case mtpc_channelParticipantEditor:
+				role = MemberRoleEditor;
+				userId = i->c_channelParticipantEditor().vuser_id.v;
+				addedTime = i->c_channelParticipantEditor().vdate.v;
+				break;
+			case mtpc_channelParticipantKicked:
+				userId = i->c_channelParticipantKicked().vuser_id.v;
+				addedTime = i->c_channelParticipantKicked().vdate.v;
+				role = MemberRoleKicked;
+				break;
+			case mtpc_channelParticipantCreator:
+				userId = i->c_channelParticipantCreator().vuser_id.v;
+				addedTime = _channel->date;
+				role = MemberRoleCreator;
+				break;
+			}
+			if (UserData *user = App::userLoaded(userId)) {
+				_rows.push_back(user);
+				_dates.push_back(date(addedTime));
+				_roles.push_back(role);
+				_datas.push_back(0);
+			}
+		}
+	}
+	if (_rows.isEmpty()) {
+		_rows.push_back(App::self());
+		_dates.push_back(date(MTP_int(_channel->date)));
+		_roles.push_back(MemberRoleSelf);
+		_datas.push_back(0);
+	}
+
+	clearSel();
+	_loading = false;
+	refresh();
+
+	emit loaded();
+}
+
+bool MembersInner::membersFailed(const RPCError &error, mtpRequestId req) {
+	if (mtpIsFlood(error)) return false;
+	App::wnd()->hideLayer();
+	return true;
+}
+
+void MembersInner::kickDone(const MTPUpdates &result, mtpRequestId req) {
+	App::main()->sentUpdatesReceived(result);
+
+	if (_kickRequestId != req) return;
+	removeKicked();
+	if (_kickBox) _kickBox->onClose();
+}
+
+void MembersInner::kickAdminDone(const MTPBool &result, mtpRequestId req) {
+	if (_kickRequestId != req) return;
+	removeKicked();
+	if (_kickBox) _kickBox->onClose();
+}
+
+bool MembersInner::kickFail(const RPCError &error, mtpRequestId req) {
+	if (mtpIsFlood(error)) return false;
+	
+	if (_kickBox) _kickBox->onClose();
+	load();
+	return true;
+}
+
+void MembersInner::removeKicked() {
+	_kickRequestId = 0;
+	int32 index = _rows.indexOf(_kickConfirm);
+	if (index >= 0) {
+		_rows.removeAt(index);
+		delete _datas.at(index);
+		_datas.removeAt(index);
+		_dates.removeAt(index);
+		_roles.removeAt(index);
+		clearSel();
+		if (_filter == MembersFilterRecent && _channel->count > 1) {
+			--_channel->count;
+			if (App::main()) emit App::main()->peerUpdated(_channel);
+		} else if (_filter == MembersFilterAdmins && _channel->adminsCount > 1) {
+			--_channel->adminsCount;
+			if (App::main()) emit App::main()->peerUpdated(_channel);
+		}
+	}
+	_kickConfirm = 0;
+}
+
+MembersBox::MembersBox(ChannelData *channel, MembersFilter filter) : ItemListBox(st::boxScroll), _inner(channel, filter),
+_add(this, lang(filter == MembersFilterRecent ? lng_participant_invite : lng_channel_add_admins), st::contactsAdd),
+_done(this, lang(lng_contacts_done), st::contactsClose),
+_addBox(0) {
+	ItemListBox::init(&_inner, _done.height());
+
+	connect(&_add, SIGNAL(clicked()), this, SLOT(onAdd()));
+
+	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(&_scroll, SIGNAL(scrolled()), &_inner, SLOT(updateSel()));
+	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+	connect(&_inner, SIGNAL(mustScrollTo(int, int)), &_scroll, SLOT(scrollToY(int, int)));
+	connect(&_inner, SIGNAL(loaded()), this, SLOT(onLoaded()));
+
+	prepare();
+}
+
+void MembersBox::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Down) {
+		_inner.selectSkip(1);
+	} else if (e->key() == Qt::Key_Up) {
+		_inner.selectSkip(-1);
+	} else if (e->key() == Qt::Key_PageDown) {
+		_inner.selectSkipPage(_scroll.height(), 1);
+	} else if (e->key() == Qt::Key_PageUp) {
+		_inner.selectSkipPage(_scroll.height(), -1);
+	} else {
+		ItemListBox::keyPressEvent(e);
+	}
+}
+
+void MembersBox::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	if (paint(p)) return;
+
+	QString title(lang(_inner.filter() == MembersFilterRecent ? lng_channel_members : lng_channel_admins));
+	paintTitle(p, title, false);
+}
+
+void MembersBox::resizeEvent(QResizeEvent *e) {
+	ItemListBox::resizeEvent(e);
+	_inner.resize(width(), _inner.height());
+	_done.move(0, height() - _done.height());
+	_add.move(width() - _add.width(), 0);
+}
+
+void MembersBox::onLoaded() {
+	if (!_done.isHidden() && _inner.channel()->amCreator() && (_inner.channel()->count < cMaxGroupCount() || !_inner.channel()->isPublic())) {
+		_add.show();
+	}
+}
+
+void MembersBox::onScroll() {
+	_inner.loadProfilePhotos(_scroll.scrollTop());
+}
+
+void MembersBox::onAdd() {
+	if (_inner.filter() == MembersFilterRecent && _inner.channel()->count >= cMaxGroupCount()) {
+		App::wnd()->replaceLayer(new MaxInviteBox(_inner.channel()->invitationUrl));
+		return;
+	}
+	ContactsBox *box = new ContactsBox(_inner.channel(), _inner.filter(), _inner.already());
+	if (_inner.filter() == MembersFilterRecent) {
+		App::wnd()->hideLayer(true);
+		App::wnd()->showLayer(box, true);
+	} else {
+		_addBox = box;
+		connect(_addBox, SIGNAL(adminAdded()), this, SLOT(onAdminAdded()));
+		App::wnd()->replaceLayer(_addBox);
+	}
+}
+
+void MembersBox::onAdminAdded() {
+	if (!_addBox) return;
+	_addBox->onClose();
+	_addBox = 0;
+	_inner.load();
+}
+
+void MembersBox::hideAll() {
+	ItemListBox::hideAll();
+	_add.hide();
+	_done.hide();
+}
+
+void MembersBox::showAll() {
+	ItemListBox::showAll();
+	if (_inner.channel()->amCreator() && _inner.isLoaded() && (_inner.channel()->count < cMaxGroupCount() || !_inner.channel()->isPublic())) {
+		_add.show();
+	} else {
+		_add.hide();
+	}
+	_done.show();
+}
+
+void MembersBox::showDone() {
+	setFocus();
+}
+
 NewGroupBox::NewGroupBox() : AbstractBox(),
 _group(this, qsl("group_type"), 0, lang(lng_create_group_title), true),
 _channel(this, qsl("group_type"), 1, lang(lng_create_channel_title)),
 _aboutGroupWidth(width() - st::newGroupPadding.left() - st::newGroupPadding.right() - st::rbDefFlat.textLeft),
-_aboutGroup(st::normalFont, lang(lng_create_group_about), _defaultOptions, _aboutGroupWidth),
+_aboutGroup(st::normalFont, lng_create_group_about(lt_count, QString::number(cMaxGroupCount())), _defaultOptions, _aboutGroupWidth),
 _aboutChannel(st::normalFont, lang(lng_create_channel_about), _defaultOptions, _aboutGroupWidth),
 _next(this, lang(lng_create_group_next), st::btnSelectDone),
 _cancel(this, lang(lng_cancel), st::btnSelectCancel) {
@@ -1898,6 +2519,10 @@ void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 		a_goodOpacity = anim::fvalue(1, 0);
 		a_good.start();
 	}
+}
+
+void SetupChannelBox::leaveEvent(QEvent *e) {
+	updateSelected(QCursor::pos());
 }
 
 void SetupChannelBox::updateSelected(const QPoint &cursorGlobalPosition) {

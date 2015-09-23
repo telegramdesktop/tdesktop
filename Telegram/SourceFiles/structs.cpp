@@ -129,7 +129,17 @@ void PeerData::updateName(const QString &newName, const QString &newNameOrPhone,
 		asUser()->username = newUsername;
 		asUser()->setNameOrPhone(newNameOrPhone);
 	} else if (isChannel()) {
-		asChannel()->username = newUsername;
+		if (asChannel()->username != newUsername) {
+			asChannel()->username = newUsername;
+			if (newUsername.isEmpty()) {
+				asChannel()->flags &= ~MTPDchannel::flag_username;
+			} else {
+				asChannel()->flags |= MTPDchannel::flag_username;
+			}
+			if (App::main()) {
+				App::main()->peerUsernameChanged(this);
+			}
+		}
 	}
 
 	Names oldNames = names;
@@ -207,7 +217,7 @@ void UserData::setName(const QString &first, const QString &last, const QString 
 			firstName = first;
 			lastName = last;
 		}
-		updateName(lastName.isEmpty() ? firstName : (firstName + ' ' + lastName), phoneName, usern);
+		updateName(lastName.isEmpty() ? firstName : lng_full_name(lt_first_name, firstName, lt_last_name, lastName), phoneName, usern);
 	}
 	if (updUsername) {
 		if (App::main()) {
@@ -383,20 +393,10 @@ void ChannelData::setName(const QString &newName, const QString &usern) {
 	bool updName = !newName.isEmpty(), updUsername = (username != usern);
 
 	updateName(newName.isEmpty() ? name : newName, QString(), usern);
-	if (updUsername) {
-		if (usern.isEmpty()) {
-			flags &= ~MTPDchannel::flag_username;
-		} else {
-			flags |= MTPDchannel::flag_username;
-		}
-		if (App::main()) {
-			App::main()->peerUsernameChanged(this);
-		}
-	}
 }
 
-void ChannelData::updateFull() {
-	if (!_lastFullUpdate || getms(true) > _lastFullUpdate + UpdateFullChannelTimeout) {
+void ChannelData::updateFull(bool force) {
+	if (!_lastFullUpdate || force || getms(true) > _lastFullUpdate + UpdateFullChannelTimeout) {
 		App::api()->requestFullPeer(this);
 		if (!amCreator() && !inviter) App::api()->requestSelfParticipant(this);
 	}
@@ -959,7 +959,7 @@ id(id), type(type), url(url), displayUrl(displayUrl), siteName(siteName), title(
 void PeerLink::onClick(Qt::MouseButton button) const {
 	if (button == Qt::LeftButton && App::main()) {
 		if (peer() && peer()->isChannel() && App::main()->historyPeer() != peer()) {
-			if (!peer()->asChannel()->isPublic() && (peer()->asChannel()->isForbidden || peer()->asChannel()->haveLeft() || peer()->asChannel()->wasKicked())) {
+			if (!peer()->asChannel()->isPublic() && !peer()->asChannel()->amIn()) {
 				App::wnd()->showLayer(new ConfirmBox(lang(lng_channel_not_accessible), true));
 			} else {
 				App::main()->showPeerHistory(peer()->id, ShowAtUnreadMsgId);

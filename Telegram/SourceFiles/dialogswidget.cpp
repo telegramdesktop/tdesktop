@@ -228,25 +228,29 @@ void DialogsListWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void DialogsListWidget::peopleResultPaint(PeerData *peer, QPainter &p, int32 w, bool act, bool sel) const {
+void DialogsListWidget::peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool act, bool sel) const {
 	QRect fullRect(0, 0, w, st::dlgHeight);
 	p.fillRect(fullRect, (act ? st::dlgActiveBG : (sel ? st::dlgHoverBG : st::dlgBG))->b);
 
 	History *history = App::history(peer->id);
 
-	p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, history->peer->photo->pix(st::dlgPhotoSize));
+	p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, peer->photo->pix(st::dlgPhotoSize));
 
 	int32 nameleft = st::dlgPaddingHor + st::dlgPhotoSize + st::dlgPhotoPadding;
 	int32 namewidth = w - nameleft - st::dlgPaddingHor;
 	QRect rectForName(nameleft, st::dlgPaddingVer + st::dlgNameTop, namewidth, st::msgNameFont->height);
 
 	// draw chat icon
-	if (history->peer->isChat()) {
+	if (peer->isChat()) {
 		p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), App::sprite(), (act ? st::dlgActiveChatImg : st::dlgChatImg));
 		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
-	} else if (history->peer->isChannel()) {
+	} else if (peer->isChannel()) {
 		p.drawPixmap(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), App::sprite(), (act ? st::dlgActiveChannelImg : st::dlgChannelImg));
 		rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
+		if (peer->asChannel()->isVerified()) {
+			rectForName.setWidth(rectForName.width() - st::verifiedCheck.pxWidth() - st::verifiedCheckPos.x());
+			p.drawSprite(rectForName.topLeft() + QPoint(qMin(peer->dialogName().maxWidth(), rectForName.width()), 0) + st::verifiedCheckPos, (act ? st::verifiedCheckInv : st::verifiedCheck));
+		}
 	}
 	
 	QRect tr(nameleft, st::dlgPaddingVer + st::dlgFont->height + st::dlgSep, namewidth, st::dlgFont->height);
@@ -273,7 +277,7 @@ void DialogsListWidget::peopleResultPaint(PeerData *peer, QPainter &p, int32 w, 
 	peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
-void DialogsListWidget::searchInPeerPaint(QPainter &p, int32 w) const {
+void DialogsListWidget::searchInPeerPaint(Painter &p, int32 w) const {
 	QRect fullRect(0, 0, w, st::dlgHeight);
 	p.fillRect(fullRect, st::dlgBG->b);
 
@@ -450,6 +454,8 @@ void DialogsListWidget::removePeer(PeerData *peer) {
 	History *history = App::history(peer->id);
 	dialogs.del(peer);
 	history->dialogs = History::DialogLinks();
+	history->clearNotifications();
+	if (App::wnd()) App::wnd()->notifyClear(history);
 	if (contacts.list.rowByPeer.constFind(peer->id) != contacts.list.rowByPeer.cend()) {
 		if (contactsNoDialogs.list.rowByPeer.constFind(peer->id) == contactsNoDialogs.list.rowByPeer.cend()) {
 			contactsNoDialogs.addByName(App::history(peer->id));
@@ -1665,8 +1671,6 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 	} break;
 	}
 
-	unreadCountsReceived(*dlgList);
-
 	if (!_contactsRequest) {
 		_contactsRequest = MTP::send(MTPcontacts_GetContacts(MTP_string("")), rpcDone(&DialogsWidget::contactsReceived), rpcFail(&DialogsWidget::contactsFailed));
 	}
@@ -1674,6 +1678,7 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 	if (_dialogsRequest == req) {
 		_dialogsCount = count;
 		if (dlgList) {
+			unreadCountsReceived(*dlgList);
 			list.dialogsReceived(*dlgList);
 			onListScroll();
 
@@ -1693,6 +1698,7 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 	} else if (_channelDialogsRequest == req) {
 		//_channelDialogsCount = count;
 		if (dlgList) {
+			unreadCountsReceived(*dlgList);
 			list.dialogsReceived(*dlgList);
 			onListScroll();
 

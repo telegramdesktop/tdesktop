@@ -2107,7 +2107,6 @@ bool psShowOpenWithMenu(int x, int y, const QString &file) {
 			if (sel > 0) {
 				if (sel <= handlers.size()) {
 					IDataObject *dataObj = 0;
-					IEnumAssocHandlers *assocHandlers = 0;
 					if (SUCCEEDED(pItem->BindToHandler(nullptr, BHID_DataObject, IID_PPV_ARGS(&dataObj))) && dataObj) {
 						handlers.at(sel - 1).handler->Invoke(dataObj);
 						dataObj->Release();

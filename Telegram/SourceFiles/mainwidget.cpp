@@ -864,7 +864,7 @@ void MainWidget::addParticipants(PeerData *chatOrChannel, const QVector<UserData
 		for (QVector<UserData*>::const_iterator i = users.cbegin(), e = users.cend(); i != e; ++i) {
 			inputUsers.push_back((*i)->inputUser);
 		}
-		MTP::send(MTPchannels_InviteToChannel(chatOrChannel->asChannel()->inputChannel, MTP_vector<MTPInputUser>(inputUsers)), rpcDone(&MainWidget::sentUpdatesReceived), rpcFail(&MainWidget::addParticipantsFail), 0, 5);
+		MTP::send(MTPchannels_InviteToChannel(chatOrChannel->asChannel()->inputChannel, MTP_vector<MTPInputUser>(inputUsers)), rpcDone(&MainWidget::inviteToChannelDone, chatOrChannel->asChannel()), rpcFail(&MainWidget::addParticipantsFail), 0, 5);
 	}
 }
 
@@ -960,15 +960,13 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 				showDialogs();
 			}
 		} else if (peer->isChannel()) {
-			if (peer->asChannel()->inviter > 0) {
-				if (!peer->asChannel()->isForbidden && !peer->asChannel()->haveLeft() && !peer->asChannel()->wasKicked()) {
-					if (UserData *from = App::userLoaded(peer->asChannel()->inviter)) {
-						History *h = App::history(peer->id);
-						h->clear(true);
-						h->addNewerSlice(QVector<MTPMessage>(), 0);
-						h->asChannelHistory()->insertJoinedMessage(true);
-						history.peerMessagesUpdated(h->peer->id);
-					}
+			if (peer->asChannel()->inviter > 0 && peer->asChannel()->amIn()) {
+				if (UserData *from = App::userLoaded(peer->asChannel()->inviter)) {
+					History *h = App::history(peer->id);
+					h->clear(true);
+					h->addNewerSlice(QVector<MTPMessage>(), 0);
+					h->asChannelHistory()->insertJoinedMessage(true);
+					history.peerMessagesUpdated(h->peer->id);
 				}
 			}
 		} else {
@@ -990,12 +988,10 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 			}
 		}
 		if (!h->lastMsgDate.isNull() && h->loadedAtBottom()) {
-			if (peer->isChannel() && peer->asChannel()->inviter > 0 && h->lastMsgDate <= peer->asChannel()->inviteDate) {
-				if (!peer->asChannel()->isForbidden && !peer->asChannel()->haveLeft() && !peer->asChannel()->wasKicked()) {
-					if (UserData *from = App::userLoaded(peer->asChannel()->inviter)) {
-						h->asChannelHistory()->insertJoinedMessage(true);
-						history.peerMessagesUpdated(h->peer->id);
-					}
+			if (peer->isChannel() && peer->asChannel()->inviter > 0 && h->lastMsgDate <= peer->asChannel()->inviteDate && peer->asChannel()->amIn()) {
+				if (UserData *from = App::userLoaded(peer->asChannel()->inviter)) {
+					h->asChannelHistory()->insertJoinedMessage(true);
+					history.peerMessagesUpdated(h->peer->id);
 				}
 			}
 		}
@@ -1264,8 +1260,12 @@ void MainWidget::saveRecentHashtags(const QString &text) {
 void MainWidget::readServerHistory(History *hist, bool force) {
 	if (!hist || (!force && !hist->unreadCount)) return;
     
-    ReadRequests::const_iterator i = _readRequests.constFind(hist->peer);
 	MsgId upTo = hist->inboxRead(0);
+	if (hist->isChannel() && !hist->peer->asChannel()->amIn()) {
+		return; // no read request for channels that I didn't koin
+	}
+
+	ReadRequests::const_iterator i = _readRequests.constFind(hist->peer);
     if (i == _readRequests.cend()) {
 		sendReadRequest(hist->peer, upTo);
 	} else {
@@ -1670,7 +1670,7 @@ void MainWidget::messagesAffected(PeerData *peer, const MTPmessages_AffectedMess
 			App::emitPeerUpdated();
 		}
 	}
-	if (History *h = App::historyLoaded(peer->id)) {
+	if (History *h = App::historyLoaded(peer ? peer->id : 0)) {
 		if (!h->lastMsg) {
 			checkPeerHistory(peer);
 		}
@@ -2651,6 +2651,11 @@ void MainWidget::sentUpdatesReceived(uint64 randomId, const MTPUpdates &result) 
 	App::emitPeerUpdated();
 }
 
+void MainWidget::inviteToChannelDone(ChannelData *channel, const MTPUpdates &updates) {
+	sentUpdatesReceived(updates);
+	channel->updateFull(true);
+}
+
 void MainWidget::msgUpdated(PeerId peer, const HistoryItem *msg) {
 	if (!msg) return;
 	history.msgUpdated(peer, msg);
@@ -3504,6 +3509,8 @@ void MainWidget::openPeerByName(const QString &username, bool toProfile, const Q
 			if (peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
 				peer->asUser()->botInfo->startGroupToken = startToken;
 				App::wnd()->showLayer(new ContactsBox(peer->asUser()));
+			} else if (peer->isChannel()) {
+				showPeerHistory(peer->id, ShowAtUnreadMsgId);
 			} else {
 				showPeerProfile(peer);
 			}
@@ -3574,6 +3581,8 @@ void MainWidget::usernameResolveDone(QPair<bool, QString> toProfileStartToken, c
 		if (peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->cantJoinGroups && !toProfileStartToken.second.isEmpty()) {
 			peer->asUser()->botInfo->startGroupToken = toProfileStartToken.second;
 			App::wnd()->showLayer(new ContactsBox(peer->asUser()));
+		} else if (peer->isChannel()) {
+			showPeerHistory(peer->id, ShowAtUnreadMsgId);
 		} else {
 			showPeerProfile(peer);
 		}
@@ -4504,7 +4513,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (ChannelData *channel = App::channelLoaded(d.vchannel_id.v)) {
 			App::markPeerUpdated(channel);
 			channel->inviter = 0;
-			if (channel->isForbidden || channel->wasKicked() || channel->haveLeft()) {
+			if (!channel->amIn()) {
 				dialogs.removePeer(channel);
 				if (History *h = App::historyLoaded(channel->id)) {
 					h->clear(true);

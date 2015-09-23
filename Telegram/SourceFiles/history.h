@@ -827,7 +827,7 @@ public:
 	}
 	bool unread() const {
 		if ((out() && (id > 0 && id < _history->outboxReadBefore)) || (!out() && id > 0 && id < _history->inboxReadBefore)) return false;
-		return (id > 0) ? true : (_flags & MTPDmessage_flag_unread);
+		return (id > 0 && !out()) ? true : (_flags & MTPDmessage_flag_unread);
 	}
 	bool notifyByFrom() const {
 		return _flags & MTPDmessage_flag_notify_by_from;
@@ -1332,6 +1332,7 @@ class HistoryContact : public HistoryMedia {
 public:
 
 	HistoryContact(int32 userId, const QString &first, const QString &last, const QString &phone);
+	HistoryContact(int32 userId, const QString &fullname, const QString &phone);
 	void initDimensions(const HistoryItem *parent);
 
 	void draw(Painter &p, const HistoryItem *parent, bool selected, int32 width) const;

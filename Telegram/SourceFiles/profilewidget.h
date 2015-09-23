@@ -110,11 +110,13 @@ public slots:
 	void onCreateInvitationLinkSure();
 	void onPublicLink();
 
+	void onMembers();
+	void onAdmins();
+
 	void onFullPeerUpdated(PeerData *peer);
 
 	void onBotSettings();
 	void onBotHelp();
-	void onEditPublicLink();
 
 private:
 
@@ -146,7 +148,7 @@ private:
 	FlatButton _sendMessage, _shareContact, _inviteToGroup;
 	LinkButton _cancelPhoto, _createInvitationLink, _invitationLink;
 	QString _invitationText;
-	LinkButton _botSettings, _botHelp, _username, _editLink;
+	LinkButton _botSettings, _botHelp, _username, _members, _admins;
 
 	Text _about;
 	int32 _aboutTop, _aboutHeight;

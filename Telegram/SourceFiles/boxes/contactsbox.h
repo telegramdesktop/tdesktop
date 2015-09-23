@@ -25,7 +25,14 @@ enum CreatingGroupType {
 	CreatingGroupChannel,
 };
 
-class ContactsInner : public QWidget, public RPCSender {
+enum MembersFilter {
+	MembersFilterRecent,
+	MembersFilterAdmins,
+};
+typedef QMap<UserData*, bool> MembersAlreadyIn;
+
+class ConfirmBox;
+class ContactsInner : public TWidget, public RPCSender {
 	Q_OBJECT
 
 private:
@@ -35,7 +42,7 @@ private:
 public:
 
 	ContactsInner(CreatingGroupType creating = CreatingGroupNone);
-	ContactsInner(ChannelData *channel);
+	ContactsInner(ChannelData *channel, MembersFilter channelFilter = MembersFilterRecent, const MembersAlreadyIn &already = MembersAlreadyIn());
 	ContactsInner(ChatData *chat);
 	ContactsInner(UserData *bot);
 	void init();
@@ -47,7 +54,7 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void resizeEvent(QResizeEvent *e);
 	
-	void paintDialog(QPainter &p, PeerData *peer, ContactData *data, bool sel);
+	void paintDialog(Painter &p, PeerData *peer, ContactData *data, bool sel);
 	void updateFilter(QString filter = QString());
 
 	void selectSkip(int32 dir);
@@ -68,10 +75,14 @@ public:
 
 	ChatData *chat() const;
 	ChannelData *channel() const;
+	MembersFilter channelFilter() const;
 	UserData *bot() const;
 	CreatingGroupType creating() const;
 
 	int32 selectedCount() const;
+	bool hasAlreadyMembersInChannel() const {
+		return !_already.isEmpty();
+	}
 
 	~ContactsInner();
 
@@ -81,6 +92,7 @@ signals:
 	void selectAllQuery();
 	void searchByUsername();
 	void chosenChanged();
+	void adminAdded();
 
 public slots:
 
@@ -91,15 +103,25 @@ public slots:
 	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 
 	void onAddBot();
+	void onAddAdmin();
+	void onNoAddAdminBox(QObject *obj);
 
 private:
 
+	void addAdminDone(const MTPBool &result, mtpRequestId req);
+	bool addAdminFail(const RPCError &error, mtpRequestId req);
+
 	ChatData *_chat;
 	ChannelData *_channel;
+	MembersFilter _channelFilter;
 	UserData *_bot;
 	CreatingGroupType _creating;
+	MembersAlreadyIn _already;
 
 	ChatData *_addToChat;
+	UserData *_addAdmin;
+	mtpRequestId _addAdminRequestId;
+	ConfirmBox *_addAdminBox;
 	
 	int32 _time;
 
@@ -148,6 +170,7 @@ public:
 	ContactsBox();
 	ContactsBox(const QString &name, const QImage &photo); // group creation
 	ContactsBox(ChannelData *channel); // channel setup
+	ContactsBox(ChannelData *channel, MembersFilter filter, const MembersAlreadyIn &already);
 	ContactsBox(ChatData *chat);
 	ContactsBox(UserData *bot);
 	void keyPressEvent(QKeyEvent *e);
@@ -159,6 +182,10 @@ public:
 	void setInnerFocus() {
 		_filter.setFocus();
 	}
+
+signals:
+
+	void adminAdded();
 
 public slots:
 
@@ -187,6 +214,7 @@ private:
 	FlatInput _filter;
 
 	FlatButton _next, _cancel;
+	MembersFilter _membersFilter;
 
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
@@ -209,6 +237,155 @@ private:
 
 	void creationDone(const MTPUpdates &updates);
 	bool creationFail(const RPCError &e);
+};
+
+class MembersInner : public TWidget, public RPCSender {
+	Q_OBJECT
+
+private:
+
+	struct MemberData;
+
+public:
+
+	MembersInner(ChannelData *channel, MembersFilter filter);
+
+	void paintEvent(QPaintEvent *e);
+	void enterEvent(QEvent *e);
+	void leaveEvent(QEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mousePressEvent(QMouseEvent *e);
+	void mouseReleaseEvent(QMouseEvent *e);
+
+	void paintDialog(Painter &p, PeerData *peer, MemberData *data, bool sel, bool kickSel, bool kickDown);
+
+	void selectSkip(int32 dir);
+	void selectSkipPage(int32 h, int32 dir);
+
+	void loadProfilePhotos(int32 yFrom);
+	void chooseParticipant();
+
+	void refresh();
+
+	ChannelData *channel() const;
+	MembersFilter filter() const;
+
+	void load();
+	bool isLoaded() const {
+		return !_loading;
+	}
+
+	QMap<UserData*, bool> already() const;
+
+	~MembersInner();
+
+signals:
+
+	void mustScrollTo(int ymin, int ymax);
+
+	void loaded();
+
+public slots:
+
+	void updateSel();
+	void peerUpdated(PeerData *peer);
+	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
+	void onKickConfirm();
+	void onKickBoxDestroyed(QObject *obj);
+
+private:
+
+	void clearSel();
+	MemberData *data(int32 index);
+
+	void membersReceived(const MTPchannels_ChannelParticipants &result, mtpRequestId req);
+	bool membersFailed(const RPCError &error, mtpRequestId req);
+
+	void kickDone(const MTPUpdates &result, mtpRequestId req);
+	void kickAdminDone(const MTPBool &result, mtpRequestId req);
+	bool kickFail(const RPCError &error, mtpRequestId req);
+	void removeKicked();
+
+	void clear();
+
+	ChannelData *_channel;
+	MembersFilter _filter;
+
+	QString _kickText;
+	int32 _time, _kickWidth;
+
+	int32 _sel, _kickSel, _kickDown;
+	bool _mouseSel;
+
+	UserData *_kickConfirm;
+	mtpRequestId _kickRequestId;
+
+	ConfirmBox *_kickBox;
+
+	enum MemberRole {
+		MemberRoleNone,
+		MemberRoleSelf,
+		MemberRoleCreator,
+		MemberRoleEditor,
+		MemberRoleModerator,
+		MemberRoleKicked
+	};
+
+	struct MemberData {
+		Text name;
+		QString online;
+		bool canKick;
+	};
+
+	bool _loading;
+	mtpRequestId _loadingRequestId;
+	typedef QVector<UserData*> MemberRows;
+	typedef QVector<QDateTime> MemberDates;
+	typedef QVector<MemberRole> MemberRoles;
+	typedef QVector<MemberData*> MemberDatas;
+	MemberRows _rows;
+	MemberDates _dates;
+	MemberRoles _roles;
+	MemberDatas _datas;
+
+	QPoint _lastMousePos;
+
+};
+
+class MembersBox : public ItemListBox {
+	Q_OBJECT
+
+public:
+
+	MembersBox(ChannelData *channel, MembersFilter filter);
+	void keyPressEvent(QKeyEvent *e);
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+
+	void setInnerFocus() {
+		setFocus();
+	}
+
+public slots:
+
+	void onLoaded();
+	void onScroll();
+
+	void onAdd();
+	void onAdminAdded();
+
+protected:
+
+	void hideAll();
+	void showAll();
+	void showDone();
+
+private:
+
+	MembersInner _inner;
+	FlatButton _add, _done;
+
+	ContactsBox *_addBox;
 };
 
 class NewGroupBox : public AbstractBox {
@@ -319,6 +496,7 @@ public:
 	void resizeEvent(QResizeEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
 	void mousePressEvent(QMouseEvent *e);
+	void leaveEvent(QEvent *e);
 
 	void closePressed();
 

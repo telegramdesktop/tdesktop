@@ -276,10 +276,11 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result) {
 		}
 		channel->about = qs(f.vabout);
 		channel->count = f.has_participants_count() ? f.vparticipants_count.v : 0;
+		channel->adminsCount = f.has_admins_count() ? f.vadmins_count.v : 0;
 		channel->invitationUrl = (f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString();
 		if (History *h = App::historyLoaded(channel->id)) {
 			if (h->inboxReadBefore < f.vread_inbox_max_id.v + 1) {
-				h->unreadCount = f.vunread_important_count.v;
+				h->setUnreadCount(f.vunread_important_count.v);
 				h->inboxReadBefore = f.vread_inbox_max_id.v + 1;
 				h->asChannelHistory()->unreadCountAll = f.vunread_count.v;
 			}
