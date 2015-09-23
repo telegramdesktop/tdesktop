@@ -425,7 +425,7 @@ void ProfileInner::onAdmins() {
 void ProfileInner::onCreateInvitationLink() {
 	if (!_peerChat && !_peerChannel) return;
 
-	ConfirmBox *box = new ConfirmBox(lang(((_peerChat && _peerChat->invitationUrl.isEmpty()) || (_peerChannel && _peerChannel->invitationUrl.isEmpty())) ? (_peerChat ? lng_group_invite_about : lng_channel_invite_about) : lng_group_invite_about_new));
+	ConfirmBox *box = new ConfirmBox(lang((_peerChat && _peerChat->invitationUrl.isEmpty()) ? lng_group_invite_about : lng_group_invite_about_new));
 	connect(box, SIGNAL(confirmed()), this, SLOT(onCreateInvitationLinkSure()));
 	App::wnd()->showLayer(box);
 }

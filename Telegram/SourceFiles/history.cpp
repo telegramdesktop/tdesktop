@@ -7282,7 +7282,7 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionChatAddUser: {
 		const MTPDmessageActionChatAddUser &d(action.c_messageActionChatAddUser());
 		if (peerFromUser(d.vuser_id) == _from->id) {
-			text = channelId() ? lng_action_user_joined_channel(lt_from, from) : lng_action_user_joined(lt_from, from);
+			text = lng_action_user_joined(lt_from, from);
 		} else {
 			UserData *u = App::user(peerFromUser(d.vuser_id));
 			second = TextLinkPtr(new PeerLink(u));
@@ -7298,7 +7298,7 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionChatJoinedByLink: {
 		const MTPDmessageActionChatJoinedByLink &d(action.c_messageActionChatJoinedByLink());
 		if (true || peerFromUser(d.vinviter_id) == _from->id) {
-			text = channelId() ? lng_action_user_joined_by_link_channel(lt_from, from) : lng_action_user_joined_by_link(lt_from, from);
+			text = lng_action_user_joined_by_link(lt_from, from);
 		//} else {
 			//UserData *u = App::user(App::peerFromUser(d.vinviter_id));
 			//second = TextLinkPtr(new PeerLink(u));
@@ -7328,7 +7328,7 @@ void HistoryServiceMsg::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionChatDeleteUser: {
 		const MTPDmessageActionChatDeleteUser &d(action.c_messageActionChatDeleteUser());
 		if (peerFromUser(d.vuser_id) == _from->id) {
-			text = channelId() ? lng_action_user_left_channel(lt_from, from) : lng_action_user_left(lt_from, from);
+			text = lng_action_user_left(lt_from, from);
 		} else {
 			UserData *u = App::user(peerFromUser(d.vuser_id));
 			second = TextLinkPtr(new PeerLink(u));

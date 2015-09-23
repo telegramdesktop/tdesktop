@@ -173,7 +173,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_settings_save" = "Save";
 "lng_settings_upload" = "Set Profile Photo";
-"lng_settings_crop_profile" = "Select square area for your profile photo";
+"lng_settings_crop_profile" = "Select a square area for your profile photo";
 "lng_settings_uploading_photo" = "Uploading photo..";
 
 "lng_username_title" = "Change username";
@@ -421,31 +421,31 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_create_group_next" = "Next";
 "lng_create_group_create" = "Create";
 "lng_create_group_title" = "New Group";
-"lng_create_group_about" = "Groups have up to {count} members and are good for smaller communities";
+"lng_create_group_about" = "Groups are ideal for smaller communities, they can have up to {count} members";
 "lng_create_channel_title" = "New Channel";
-"lng_create_channel_about" = "Channels have unlimited number of members and are good for connecting with large audiences";
+"lng_create_channel_about" = "Channels are a tool for broadcasting your messages to unlimited audiences";
 "lng_create_public_channel_title" = "Public Channel";
-"lng_create_public_channel_about" = "Everyone will be able to join your channel";
+"lng_create_public_channel_about" = "Anyone can find the channel in search and join";
 "lng_create_private_channel_title" = "Private Channel";
-"lng_create_private_channel_about" = "Only those who have the invitation link will be able to join your channel";
+"lng_create_private_channel_about" = "Only people with a special invite link may join";
 "lng_create_channel_comments" = "Enable Comments";
 "lng_create_channel_comments_about" = "If you enable comments, members will be able to discuss your posts in the channel";
 "lng_create_group_save" = "Save";
 "lng_create_group_skip" = "Skip";
 
 "lng_create_channel_link_invalid" = "This link is invalid";
-"lng_create_channel_link_occupied" = "This link is already occupied";
-"lng_create_channel_link_too_short" = "This link is too short";
-"lng_create_channel_link_bad_symbols" = "This link has bad symbols";
+"lng_create_channel_link_occupied" = "Sorry, this link is already occupied";
+"lng_create_channel_link_too_short" = "Sorry, this link is too short";
+"lng_create_channel_link_bad_symbols" = "Sorry, this link has bad symbols";
 "lng_create_channel_link_available" = "This link is available";
-"lng_create_channel_link_copied" = "The link was copied to clipboard";
+"lng_create_channel_link_copied" = "Link copied to clipboard";
 
-"lng_create_group_crop" = "Select square area for group photo";
-"lng_create_channel_crop" = "Select square area for channel photo";
+"lng_create_group_crop" = "Select a square area for group photo";
+"lng_create_channel_crop" = "Select a square area for channel photo";
 
-"lng_failed_add_participant" = "Could not add user. Try again later.";
-"lng_failed_add_not_mutual" = "Sorry, if a person left a group, only a\nmutual contact can bring them back\n(they need to have your phone\nnumber, and you need theirs).";
-"lng_failed_add_not_mutual_channel" = "Sorry, if a person left a channel, only a\nmutual contact can bring them back\n(they need to have your phone\nnumber, and you need theirs).";
+"lng_failed_add_participant" = "Could not add user. Please try again later.";
+"lng_failed_add_not_mutual" = "Sorry, if a person leaves a group, only a\nmutual contact can bring them back\n(they need to have your phone\nnumber, and you need theirs).";
+"lng_failed_add_not_mutual_channel" = "Sorry, if a person leaves a channel, only a\nmutual contact can bring them back\n(they need to have your phone\nnumber, and you need theirs).";
 
 "lng_sure_delete_contact" = "Are you sure, you want to delete {contact} from your contact list?";
 "lng_sure_delete_history" = "Are you sure, you want to delete all message history with {contact}?\n\nThis action cannot be undone.";
@@ -460,18 +460,15 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_add_user" = "{from} added {user}";
 "lng_action_add_you" = "{from} added you to this channel";
 "lng_action_you_joined" = "You joined this channel";
-"lng_action_kick_user" = "{from} kicked {user}";
+"lng_action_kick_user" = "{from} removed {user}";
 "lng_action_user_left" = "{from} left the group";
-"lng_action_user_left_channel" = "{from} left the channel";
 "lng_action_user_joined" = "{from} joined the group";
-"lng_action_user_joined_channel" = "{from} joined the channel";
 "lng_action_user_joined_by_link" = "{from} joined the group via invite link";
-"lng_action_user_joined_by_link_channel" = "{from} joined the channel via invite link";
 "lng_action_user_registered" = "{from} just joined Telegram";
 "lng_action_removed_photo" = "{from} removed group photo";
-"lng_action_removed_photo_channel" = "Channel photo was removed";
+"lng_action_removed_photo_channel" = "Channel photo removed";
 "lng_action_changed_photo" = "{from} updated group photo";
-"lng_action_changed_photo_channel" = "Channel photo was updated";
+"lng_action_changed_photo_channel" = "Channel photo updated";
 "lng_action_changed_title" = "{from} changed group name to «{title}»";
 "lng_action_changed_title_channel" = "Channel name was changed to «{title}»";
 "lng_action_created_chat" = "{from} created group «{title}»";
@@ -481,24 +478,23 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_channel_hide_comments" = "Hide comments";
 "lng_channel_not_accessible" = "Sorry, this channel is not accessible.";
 
-"lng_channels_too_much_public_existing" = "Sorry, you have created\ntoo many public channels.\n\nFirst you need to delete one of them.";
+"lng_channels_too_much_public_existing" = "Sorry, you have created\ntoo many public channels already.\n\nPlease delete one first.";
 "lng_channels_too_much_public" = "Sorry, you have created\ntoo many public channels.\n\nYou can either create a private channel\nor delete one of your public channels first.";
 
 "lng_group_invite_bad_link" = "This invite link is broken\nor has expired.";
-"lng_group_invite_want_join" = "Do you want to join group «{title}»?";
-"lng_group_invite_want_join_channel" = "Do you want to join channel «{title}»?";
+"lng_group_invite_want_join" = "Do you want to join the group «{title}»?";
+"lng_group_invite_want_join_channel" = "Do you want to join the channel «{title}»?";
 "lng_group_invite_join" = "Join";
 
 "lng_group_invite_link" = "Invite link:";
 "lng_group_invite_create" = "Create an invite link";
 "lng_group_invite_about" = "Telegram users will be able to join\nyour group by following this link.";
-"lng_channel_invite_about" = "Telegram users will be able to join\nyour channel by following this link.";
 "lng_group_invite_create_new" = "Revoke invite link";
 "lng_group_invite_about_new" = "Your previous link will be deactivated\nand we'll generate a new invite link for you.";
 "lng_group_invite_copied" = "Invite link copied to clipboard.";
 "lng_group_invite_no_room" = "Unable to join this group because there are\ntoo many members in it already.";
 
-"lng_channel_public_link_copied" = "Public channel link copied to clipboard.";
+"lng_channel_public_link_copied" = "Link copied to clipboard.";
 
 "lng_forwarded_from" = "Forwarded from";
 "lng_in_reply_to" = "In reply to";
@@ -681,8 +677,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_confirm_contact_data" = "New Contact";
 "lng_add_contact" = "Create";
 "lng_add_contact_button" = "Add Contact";
-"lng_create_channel_button" = "Create Channel";
-"lng_create_group_button" = "Create Group";
 "lng_contacts_header" = "Contacts";
 "lng_contact_not_joined" = "Unfortunately {name} did not join Telegram yet, but you can send your friend an invitation.\n\nWe will notify you about any of your contacts who is joining Telegram.";
 "lng_try_other_contact" = "Try other";
