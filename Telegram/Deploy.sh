@@ -116,11 +116,11 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$Build
 
     mv -v "$WinDeployPath" "$DropboxPath/"
 
-    cp -v "$DeployPath/$UpdateFile" "$DropboxDeployPath"
-    cp -v "$DeployPath/$SetupFile" "$DropboxDeployPath"
-    cp -rv "$DeployPath/Telegram.app.dSYM" "$DropboxDeployPath"
-    cp -v "$Mac32DeployPath/$Mac32UpdateFile" "$DropboxDeployPath"
-    cp -v "$Mac32DeployPath/$Mac32SetupFile" "$DropboxDeployPath"
+    cp -v "$DeployPath/$UpdateFile" "$DropboxDeployPath/"
+    cp -v "$DeployPath/$SetupFile" "$DropboxDeployPath/"
+    cp -rv "$DeployPath/Telegram.app.dSYM" "$DropboxDeployPath/"
+    cp -v "$Mac32DeployPath/$Mac32UpdateFile" "$DropboxDeployPath/"
+    cp -v "$Mac32DeployPath/$Mac32SetupFile" "$DropboxDeployPath/"
     cp -rv "$DeployPath/Telegram.app.dSYM" "$DropboxDeployPath/Telegram32.app.dSYM"
   fi
 fi
