@@ -734,7 +734,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Spam report buttons in new chats\n— Other fixes and improvements\n— OS X 10.8 notifications fixed";
+"lng_new_version_text" = "— Introducing Channels — a great new way to broadcast your messages to unlimited audiences\n— Other fixes and improvements\n\nMore about channels here: {link}";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

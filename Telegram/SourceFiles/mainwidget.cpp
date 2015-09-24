@@ -767,15 +767,7 @@ bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &error) {
 	if (error.type().startsWith(qsl("FLOOD_WAIT_"))) return false;
 
 	if (error.type() == qstr("USER_NOT_PARTICIPANT") || error.type() == qstr("CHAT_ID_INVALID")) { // left this chat already
-		if ((profile && profile->peer() == peer) || (overview && overview->peer() == peer) || _stack.contains(peer) || history.peer() == peer) {
-			showDialogs();
-		}
-		dialogs.removePeer(peer);
-		if (History *h = App::historyLoaded(peer->id)) {
-			h->clear();
-			h->newLoaded = h->oldLoaded = true;
-		}
-		MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
+		deleteConversation(peer);
 		return true;
 	}
 	return false;
@@ -783,15 +775,7 @@ bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &error) {
 
 void MainWidget::deleteHistoryAfterLeave(PeerData *peer, const MTPUpdates &updates) {
 	sentUpdatesReceived(updates);
-	if ((profile && profile->peer() == peer) || (overview && overview->peer() == peer) || _stack.contains(peer) || history.peer() == peer) {
-		showDialogs();
-	}
-	dialogs.removePeer(peer);
-	if (History *h = App::historyLoaded(peer->id)) {
-		h->clear();
-		h->newLoaded = h->oldLoaded = true;
-	}
-	MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
+	deleteConversation(peer);
 }
 
 void MainWidget::deleteHistoryPart(PeerData *peer, const MTPmessages_AffectedHistory &result) {
@@ -827,14 +811,25 @@ void MainWidget::deletedContact(UserData *user, const MTPcontacts_Link &result) 
 	App::emitPeerUpdated();
 }
 
-void MainWidget::deleteConversation(PeerData *peer) {
+void MainWidget::deleteConversation(PeerData *peer, bool deleteHistory) {
+	if (activePeer() == peer) {
+		showDialogs();
+	}
 	dialogs.removePeer(peer);
 	if (History *h = App::historyLoaded(peer->id)) {
 		h->clear();
-		h->newLoaded = h->oldLoaded = true;
+		h->newLoaded = true;
+		h->oldLoaded = deleteHistory;
+		if (h->isChannel()) {
+			h->asChannelHistory()->clearOther();
+		}
 	}
-	showDialogs();
-	MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
+	if (peer->isChannel()) {
+		peer->asChannel()->ptsWaitingForShortPoll(-1);
+	}
+	if (deleteHistory) {
+		MTP::send(MTPmessages_DeleteHistory(peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, peer));
+	}
 }
 
 void MainWidget::clearHistory(PeerData *peer) {
@@ -955,10 +950,7 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 
 	if (v->isEmpty()) {
 		if (peer->isChat() && peer->asChat()->haveLeft) {
-			dialogs.removePeer(peer);
-			if (history.peer() == peer) {
-				showDialogs();
-			}
+			deleteConversation(peer, false);
 		} else if (peer->isChannel()) {
 			if (peer->asChannel()->inviter > 0 && peer->asChannel()->amIn()) {
 				if (UserData *from = App::userLoaded(peer->asChannel()->inviter)) {
@@ -4514,15 +4506,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			App::markPeerUpdated(channel);
 			channel->inviter = 0;
 			if (!channel->amIn()) {
-				dialogs.removePeer(channel);
-				if (History *h = App::historyLoaded(channel->id)) {
-					h->clear(true);
-					h->asChannelHistory()->clearOther();
-				}
-				channel->ptsWaitingForShortPoll(-1);
-				if (activePeer() == channel) {
-					showDialogs();
-				}
+				deleteConversation(channel, false);
 			} else if (!channel->amCreator() && App::history(channel->id)) { // create history
 				_updatedChannels.insert(channel, true);
 				App::api()->requestSelfParticipant(channel);
