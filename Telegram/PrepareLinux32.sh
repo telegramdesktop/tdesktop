@@ -1,7 +1,8 @@
-AppVersionStrMajor=`./Version.sh | awk -F " " '{print $1}'`
-AppVersion=`./Version.sh | awk -F " " '{print $2}'`
-AppVersionStr=`./Version.sh | awk -F " " '{print $3}'`
-DevChannel=`./Version.sh | awk -F " " '{print $4}'`
+while IFS='' read -r line || [[ -n "$line" ]]; do
+    set $line
+    eval $1="$2"
+done < Version
+
 DevPostfix=''
 DevParam=''
 if [ "$DevChannel" != "0" ]; then

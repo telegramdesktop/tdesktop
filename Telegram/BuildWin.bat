@@ -1,11 +1,6 @@
 @echo OFF
 
-set "AppVersionStrMajor=0.9"
-set "AppVersion=9000"
-set "AppVersionStrSmall=0.9"
-set "AppVersionStr=0.9.0"
-set "AppVersionStrFull=0.9.0.0"
-set "DevChannel=0"
+FOR /F "tokens=1,2* delims= " %i in (Version) do set "%i=%j"
 
 if %DevChannel% neq 0 goto preparedev
 
