@@ -984,7 +984,8 @@ bool objc_execUpdater() {
 }
 
 void objc_execTelegram() {
-	[[NSWorkspace sharedWorkspace] launchApplicationAtURL:[NSURL fileURLWithPath:QNSString(cExeDir() + cExeName()).s()] options:NSWorkspaceLaunchAsync | NSWorkspaceLaunchNewInstance configuration:nil error:0];
+	NSDictionary *conf = [NSDictionary dictionaryWithObject:[NSArray array] forKey:NSWorkspaceLaunchConfigurationArguments];
+	[[NSWorkspace sharedWorkspace] launchApplicationAtURL:[NSURL fileURLWithPath:QNSString(cExeDir() + cExeName()).s()] options:NSWorkspaceLaunchAsync | NSWorkspaceLaunchNewInstance configuration:conf error:0];
 	return;
 
 	_execUpdater(NO);
