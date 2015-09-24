@@ -1,27 +1,22 @@
 @echo OFF
 
-set "AppVersionStrMajor=0.9"
-set "AppVersion=9000"
-set "AppVersionStrSmall=0.9"
-set "AppVersionStr=0.9.0"
-set "AppVersionStrFull=0.9.0.0"
-set "DevChannel=0"
+FOR /F "tokens=1,2* delims= " %i in (Version) do set "%i=%j"
 
 if %DevChannel% neq 0 goto preparedev
 
-set "DevPostfix="
 set "DevParam="
+set "AppVersionStrFull=%AppVersionStr%"
 goto devprepared
 
 :preparedev
 
-set "DevPostfix=.dev"
 set "DevParam=-dev"
+set "AppVersionStrFull=%AppVersionStr%.dev"
 
 :devprepared
 
 echo.
-echo Building version %AppVersionStr%%DevPostfix%..
+echo Building version %AppVersionStrFull%..
 echo.
 
 if exist ..\Win32\Deploy\deploy\%AppVersionStrMajor%\%AppVersionStr%\ goto error_exist1
@@ -38,7 +33,7 @@ MSBuild Telegram.sln /property:Configuration=Deploy
 if %errorlevel% neq 0 goto error0
 
 echo .
-echo Version %AppVersionStr%%DevPostfix% build successfull! Preparing..
+echo Version %AppVersionStrFull% build successfull! Preparing..
 echo .
 
 set "PATH=%PATH%;C:\Program Files\7-Zip;C:\Program Files (x86)\Inno Setup 5"
@@ -50,10 +45,10 @@ if %errorlevel% neq 0 goto error1
 call ..\..\..\TelegramPrivate\Sign.bat Updater.exe
 if %errorlevel% neq 0 goto error1
 
-iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppFullVersion=%AppVersionStrFull% /dMyAppVersionForExe=%AppVersionStr%%DevPostfix% ..\..\Telegram\Setup.iss
+iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% ..\..\Telegram\Setup.iss
 if %errorlevel% neq 0 goto error1
 
-call ..\..\..\TelegramPrivate\Sign.bat tsetup.%AppVersionStr%%DevPostfix%.exe
+call ..\..\..\TelegramPrivate\Sign.bat tsetup.%AppVersionStrFull%.exe
 if %errorlevel% neq 0 goto error1
 
 call Packer.exe -version %AppVersion% -path Telegram.exe -path Updater.exe %DevParam%
@@ -61,43 +56,43 @@ if %errorlevel% neq 0 goto error1
 
 if not exist deploy mkdir deploy
 if not exist deploy\%AppVersionStrMajor% mkdir deploy\%AppVersionStrMajor%
-mkdir deploy\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%
-mkdir deploy\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%\Telegram
+mkdir deploy\%AppVersionStrMajor%\%AppVersionStrFull%
+mkdir deploy\%AppVersionStrMajor%\%AppVersionStrFull%\Telegram
 if %errorlevel% neq 0 goto error1
 
-move Telegram.exe deploy\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%\Telegram\
-move Updater.exe deploy\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%\
-move Telegram.pdb deploy\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%\
-move Updater.pdb deploy\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%\
-move tsetup.%AppVersionStr%%DevPostfix%.exe deploy\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%\
-move tupdate%AppVersion% deploy\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%\
+move Telegram.exe deploy\%AppVersionStrMajor%\%AppVersionStrFull%\Telegram\
+move Updater.exe deploy\%AppVersionStrMajor%\%AppVersionStrFull%\
+move Telegram.pdb deploy\%AppVersionStrMajor%\%AppVersionStrFull%\
+move Updater.pdb deploy\%AppVersionStrMajor%\%AppVersionStrFull%\
+move tsetup.%AppVersionStrFull%.exe deploy\%AppVersionStrMajor%\%AppVersionStrFull%\
+move tupdate%AppVersion% deploy\%AppVersionStrMajor%\%AppVersionStrFull%\
 if %errorlevel% neq 0 goto error1
 
-cd deploy\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%\
-7z a -mx9 tportable.%AppVersionStr%%DevPostfix%.zip Telegram\
+cd deploy\%AppVersionStrMajor%\%AppVersionStrFull%\
+7z a -mx9 tportable.%AppVersionStrFull%.zip Telegram\
 if %errorlevel% neq 0 goto error2
 
 echo .
-echo Version %AppVersionStr%%DevPostfix% is ready for deploy!
+echo Version %AppVersionStrFull% is ready for deploy!
 echo .
 
 if not exist tupdate%AppVersion% goto error2
-if not exist tportable.%AppVersionStr%%DevPostfix%.zip goto error2
-if not exist tsetup.%AppVersionStr%%DevPostfix%.exe goto error2
+if not exist tportable.%AppVersionStrFull%.zip goto error2
+if not exist tsetup.%AppVersionStrFull%.exe goto error2
 if not exist Telegram.pdb goto error2
 if not exist Updater.exe goto error2
 if not exist Updater.pdb goto error2
 if not exist Z:\TBuild\tother\tsetup\%AppVersionStrMajor% mkdir Z:\TBuild\tother\tsetup\%AppVersionStrMajor%
-if not exist Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix% mkdir Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%
+if not exist Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStrFull% mkdir Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStrFull%
 
-xcopy tupdate%AppVersion% Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%\
-xcopy tportable.%AppVersionStr%%DevPostfix%.zip Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%\
-xcopy tsetup.%AppVersionStr%%DevPostfix%.exe Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%\
-xcopy Telegram.pdb Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%\
-xcopy Updater.exe Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%\
-xcopy Updater.pdb Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStr%%DevPostfix%\
+xcopy tupdate%AppVersion% Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStrFull%\
+xcopy tportable.%AppVersionStrFull%.zip Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStrFull%\
+xcopy tsetup.%AppVersionStrFull%.exe Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStrFull%\
+xcopy Telegram.pdb Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStrFull%\
+xcopy Updater.exe Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStrFull%\
+xcopy Updater.pdb Z:\TBuild\tother\tsetup\%AppVersionStrMajor%\%AppVersionStrFull%\
 
-echo Version %AppVersionStr%%DevPostfix% deployed successfully!
+echo Version %AppVersionStrFull% is ready!
 
 cd ..\..\..\..\..\Telegram\
 goto eof
@@ -123,7 +118,7 @@ echo Update file for version %AppVersion% already exists!
 exit /b 1
 
 :error
-echo ERROR occured! 
+echo ERROR occured!
 exit /b %errorlevel%
 
 :eof

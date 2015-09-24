@@ -119,7 +119,7 @@ public slots:
 signals:
 
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
-	void dialogToTopFrom(int movedFrom);
+	void dialogMoved(int movedFrom, int movedTo);
 	void searchMessages();
 	void searchResultChosen();
 	void cancelSearchInPeer();
@@ -241,7 +241,7 @@ public slots:
 	void onFilterCursorMoved(int from = -1, int to = -1);
 	void onCompleteHashtag(QString tag);
 
-	void onDialogToTopFrom(int movedFrom);
+	void onDialogMoved(int movedFrom, int movedTo);
 	bool onSearchMessages(bool searchCache = false);
 	void onNeedSearchMessages();
 

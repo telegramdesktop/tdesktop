@@ -1,16 +1,17 @@
-AppVersionStrMajor=`./Version.sh | awk -F " " '{print $1}'`
-AppVersion=`./Version.sh | awk -F " " '{print $2}'`
-AppVersionStr=`./Version.sh | awk -F " " '{print $3}'`
-DevChannel=`./Version.sh | awk -F " " '{print $4}'`
-DevPostfix=''
+while IFS='' read -r line || [[ -n "$line" ]]; do
+    set $line
+    eval $1="$2"
+done < Version
+
+AppVersionStrFull="$AppVersionStr"
 DevParam=''
 if [ "$DevChannel" != "0" ]; then
-  DevPostfix='.dev'
+  AppVersionStrFull="$AppVersionStr.dev"
   DevParam='-dev'
 fi
 
 echo ""
-echo "Preparing version $AppVersionStr$DevPostfix.."
+echo "Preparing version $AppVersionStrFull.."
 echo ""
 
 if [ -d "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr.dev" ]; then
@@ -70,7 +71,7 @@ temppath=`hdiutil attach -readwrite tsetup.dmg | awk -F "\t" 'END {print $3}'`
 cp -R ./Telegram.app "$temppath/"
 bless --folder "$temppath/" --openfolder "$temppath/"
 hdiutil detach "$temppath"
-hdiutil convert tsetup.dmg -format UDZO -imagekey zlib-level=9 -ov -o tsetup32.$AppVersionStr$DevPostfix.dmg
+hdiutil convert tsetup.dmg -format UDZO -imagekey zlib-level=9 -ov -o tsetup32.$AppVersionStrFull.dmg
 cd ./../../Telegram
 cd ./../Mac/Release && ./Packer.app/Contents/MacOS/Packer -path Telegram.app -version $AppVersion $DevParam && cd ./../../Telegram
 
@@ -83,15 +84,15 @@ if [ ! -d "./../Mac/Release/deploy/$AppVersionStrMajor" ]; then
 fi
 
 echo "Copying Telegram.app and tmac32upd$AppVersion to deploy/$AppVersionStrMajor/$AppVersionStr..";
-mkdir "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix"
-mkdir "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram"
-cp -r ./../Mac/Release/Telegram.app ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram/
-mv ./../Mac/Release/Telegram.app.dSYM ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
+mkdir "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull"
+mkdir "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull/Telegram"
+cp -r ./../Mac/Release/Telegram.app ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull/Telegram/
+mv ./../Mac/Release/Telegram.app.dSYM ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull/
 rm ./../Mac/Release/Telegram.app/Contents/MacOS/Telegram
 rm ./../Mac/Release/Telegram.app/Contents/Frameworks/Updater
 rm -rf ./../Mac/Release/Telegram.app/Contents/_CodeSignature
-mv ./../Mac/Release/tmac32upd$AppVersion ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
-mv ./../Mac/Release/tsetup32.$AppVersionStr$DevPostfix.dmg ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/tsetup32.$AppVersionStr$DevPostfix.dmg
+mv ./../Mac/Release/tmac32upd$AppVersion ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull/
+mv ./../Mac/Release/tsetup32.$AppVersionStrFull.dmg ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull/tsetup32.$AppVersionStrFull.dmg
 
-echo "Version $AppVersionStr$DevPostfix prepared!";
+echo "Version $AppVersionStrFull prepared!";
 
