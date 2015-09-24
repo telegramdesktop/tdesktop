@@ -2806,14 +2806,17 @@ bool CreateToast(PeerData *peer, int32 msgId, bool showpix, const QString &title
 	if (!SUCCEEDED(hr)) return false;
 
 	ToastNotifications::iterator i = toastNotifications.find(peer->id);
-	if (i == toastNotifications.cend()) {
-		i = toastNotifications.insert(peer->id, QMap<MsgId, ToastNotificationPtr>());
-	} else {
+	if (i != toastNotifications.cend()) {
 		QMap<MsgId, ToastNotificationPtr>::iterator j = i->find(msgId);
 		if (j != i->cend()) {
-			toastNotifier->Hide(j->p.Get());
+			ComPtr<IToastNotification> notify = j->p;
 			i->erase(j);
+			toastNotifier->Hide(notify.Get());
+			i = toastNotifications.find(peer->id);
 		}
+	}
+	if (i == toastNotifications.cend()) {
+		i = toastNotifications.insert(peer->id, QMap<MsgId, ToastNotificationPtr>());
 	}
 	hr = toastNotifier->Show(toast.Get());
 	if (!SUCCEEDED(hr)) {

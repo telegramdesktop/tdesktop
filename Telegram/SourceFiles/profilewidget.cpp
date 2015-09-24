@@ -479,7 +479,7 @@ void ProfileInner::onFullPeerUpdated(PeerData *peer) {
 		updateInvitationLink();
 		_members.setText(lng_channel_members_link(lt_count, (_peerChannel->count > 0) ? _peerChannel->count : 1));
 		_admins.setText(lng_channel_admins_link(lt_count, (_peerChannel->adminsCount > 0) ? _peerChannel->adminsCount : 1));
-		_onlineText = lng_chat_status_members(lt_count, _peerChannel->count > 0 ? _peerChannel->count : 1);
+		_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(lng_channel_status);
 		if (_peerChannel->about.isEmpty()) {
 			_about = Text(st::wndMinWidth - st::profilePadding.left() - st::profilePadding.right());
 		} else {
@@ -537,7 +537,7 @@ void ProfileInner::peerUpdated(PeerData *data) {
 			}
 			_members.setText(lng_channel_members_link(lt_count, (_peerChannel->count > 0) ? _peerChannel->count : 1));
 			_admins.setText(lng_channel_admins_link(lt_count, (_peerChannel->adminsCount > 0) ? _peerChannel->adminsCount : 1));
-			_onlineText = lng_chat_status_members(lt_count, _peerChannel->count > 0 ? _peerChannel->count : 1);
+			_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(lng_channel_status);
 		}
 		_photoLink = (photo && photo->date) ? TextLinkPtr(new PhotoLink(photo, _peer)) : TextLinkPtr();
 		if (_peer->name != _nameCache) {
@@ -620,7 +620,7 @@ void ProfileInner::reorderParticipants() {
 		if (_peerUser) {
 			_onlineText = App::onlineText(_peerUser, t, true);
 		} else if (_peerChannel) {
-			_onlineText = lng_chat_status_members(lt_count, _peerChannel->count > 0 ? _peerChannel->count : 1);
+			_onlineText = (_peerChannel->count > 0) ? lng_chat_status_members(lt_count, _peerChannel->count) : lang(lng_channel_status);
 		} else {
 			_onlineText = lang(lng_chat_status_unaccessible);
 		}
@@ -1104,8 +1104,8 @@ void ProfileInner::resizeEvent(QResizeEvent *e) {
 		addbyname = st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
 	}
 	_members.move(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop);
-	addbyname = st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
-	_admins.move(_left + st::profilePhotoSize + st::profileStatusLeft, top + 2 * addbyname + st::profileStatusTop);
+	addbyname += st::profileStatusTop + st::linkFont->ascent - (st::profileNameTop + st::profileNameFont->ascent);
+	_admins.move(_left + st::profilePhotoSize + st::profileStatusLeft, top + addbyname + st::profileStatusTop);
 	if (_amCreator) {
 		_cancelPhoto.move(_left + _width - _cancelPhoto.width(), top + st::profilePhotoSize - st::linkFont->height);
 	} else {
