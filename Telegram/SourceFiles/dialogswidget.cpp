@@ -424,25 +424,22 @@ void DialogsListWidget::onDialogRowReplaced(DialogRow *oldRow, DialogRow *newRow
 }
 
 void DialogsListWidget::createDialog(History *history) {
-	if (history->dialogs.isEmpty()) {
-		History::DialogLinks links = dialogs.addToEnd(history);
-		int32 movedFrom = links[0]->pos * st::dlgHeight;
-		dialogs.adjustByPos(links);
-		history->dialogs = links;
+	bool creating = history->dialogs.isEmpty();
+	if (creating) {
+		history->dialogs = dialogs.addToEnd(history);
+		contactsNoDialogs.del(history->peer, history->dialogs[0]);
+	}
 
-		contactsNoDialogs.del(history->peer, links[0]);
+	History::DialogLinks links = history->dialogs;
+	int32 movedFrom = links[0]->pos * st::dlgHeight;
+	dialogs.adjustByPos(links);
+	int32 movedTo = links[0]->pos * st::dlgHeight;
 
-		emit dialogToTopFrom(movedFrom);
-		emit App::main()->dialogsUpdated();
+	emit dialogMoved(movedFrom, movedTo);
 
+	if (creating) {
 		refresh();
 	} else {
-		int32 movedFrom = history->dialogs[0]->pos * st::dlgHeight;
-		dialogs.adjustByPos(history->dialogs);
-
-		emit dialogToTopFrom(movedFrom);
-		emit App::main()->dialogsUpdated();
-
 		parentWidget()->update();
 	}
 }
@@ -475,8 +472,6 @@ void DialogsListWidget::removeContact(UserData *user) {
 	}
 	contactsNoDialogs.del(user);
 	contacts.del(user);
-
-	emit App::main()->dialogsUpdated();
 
 	refresh();
 }
@@ -823,7 +818,6 @@ void DialogsListWidget::addSavedPeersAfter(const QDateTime &date) {
 	while (!saved.isEmpty() && (date.isNull() || date < saved.lastKey())) {
 		History *history = App::history(saved.last()->id);
 		history->setPosInDialogsDate(saved.lastKey());
-		history->dialogs = dialogs.addToEnd(history);
 		contactsNoDialogs.del(history->peer);
 		saved.remove(saved.lastKey(), saved.last());
 	}
@@ -1499,8 +1493,8 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
 {
 	scroll.setWidget(&list);
 	scroll.setFocusPolicy(Qt::NoFocus);
-	connect(&list, SIGNAL(mustScrollTo(int, int)), &scroll, SLOT(scrollToY(int, int)));
-	connect(&list, SIGNAL(dialogToTopFrom(int)), this, SLOT(onDialogToTopFrom(int)));
+	connect(&list, SIGNAL(mustScrollTo(int,int)), &scroll, SLOT(scrollToY(int,int)));
+	connect(&list, SIGNAL(dialogMoved(int,int)), this, SLOT(onDialogMoved(int,int)));
 	connect(&list, SIGNAL(searchMessages()), this, SLOT(onNeedSearchMessages()));
 	connect(&list, SIGNAL(searchResultChosen()), this, SLOT(onCancel()));
 	connect(&list, SIGNAL(completeHashtag(QString)), this, SLOT(onCompleteHashtag(QString)));
@@ -2278,11 +2272,10 @@ void DialogsWidget::onCancelSearchInPeer() {
 	}
 }
 
-void DialogsWidget::onDialogToTopFrom(int movedFrom) {
-	if (scroll.scrollTop() > 0) {
-		if (movedFrom > scroll.scrollTop()) {
-			scroll.scrollToY(scroll.scrollTop() + st::dlgHeight);
-		}
+void DialogsWidget::onDialogMoved(int movedFrom, int movedTo) {
+	int32 st = scroll.scrollTop();
+	if (st > movedTo && st < movedFrom) {
+		scroll.scrollToY(st + st::dlgHeight);
 	}
 }
 

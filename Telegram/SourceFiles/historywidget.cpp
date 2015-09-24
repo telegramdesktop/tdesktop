@@ -2926,9 +2926,9 @@ void HistoryWidget::showPeerHistory(const PeerId &peerId, MsgId showAtMsgId) {
 		_replyForwardPreviewCancel.hide();
 	}
 	_previewCache.clear();
-	_scroll.takeWidget();
 	if (_list) _list->deleteLater();
 	_list = 0;
+	_scroll.takeWidget();
 	updateTopBarSelection();
 
 	_showAtMsgId = showAtMsgId;

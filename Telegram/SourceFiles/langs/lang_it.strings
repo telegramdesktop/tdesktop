@@ -470,7 +470,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 "lng_action_changed_photo" = "{from} ha aggiornato la foto del gruppo";
 "lng_action_changed_photo_channel" = "Foto del canale aggiornata";
 "lng_action_changed_title" = "{from} ha cambiato il nome del gruppo in «{title}»";
-"lng_action_changed_title_channel" = "Nome del canale cambiato in «{title}»?";
+"lng_action_changed_title_channel" = "Nome del canale cambiato in «{title}»";
 "lng_action_created_chat" = "{from} ha creato il gruppo «{title}»";
 "lng_action_created_channel" = "Canale «{title}» creato";
 

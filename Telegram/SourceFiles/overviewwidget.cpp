@@ -423,7 +423,7 @@ bool OverviewInner::itemHasPoint(MsgId msgId, int32 index, int32 x, int32 y) con
 		if (media) {
 			int32 w = _width - st::msgMargin.left() - st::msgMargin.right();
 			bool out = item->out(), fromChannel = item->fromChannel(), outbg = out && !fromChannel;
-			int32 mw = media->maxWidth(), left = (fromChannel ? (st::msgMargin.left() + st::msgMargin.right()) / 2 : (out ? st::msgMargin.right() : st::msgMargin.left())) + ((mw < w) ? (fromChannel ? (w - mw) / 2 : (out ? w - mw : 0)) : 0);
+			int32 mw = media->maxWidth(), left = (fromChannel ? (st::msgMargin.left() + st::msgMargin.left()) / 2 : (out ? st::msgMargin.right() : st::msgMargin.left())) + ((mw < w) ? (fromChannel ? 0 : (out ? w - mw : 0)) : 0);
 			if (item->displayFromPhoto()) {
 				left += st::msgPhotoSkip;
 			}
@@ -1228,7 +1228,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 					HistoryMedia *media = item ? item->getMedia(true) : 0;
 					if (media) {
 						bool out = item->out(), fromChannel = item->fromChannel(), outbg = out && !fromChannel;
-						int32 mw = media->maxWidth(), left = (fromChannel ? (st::msgMargin.left() + st::msgMargin.right()) / 2 : (out ? st::msgMargin.right() : st::msgMargin.left())) + ((mw < w) ? (fromChannel ? (w - mw) / 2 : (out ? w - mw : 0)) : 0);
+						int32 mw = media->maxWidth(), left = (fromChannel ? (st::msgMargin.left() + st::msgMargin.left()) / 2 : (out ? st::msgMargin.right() : st::msgMargin.left())) + ((mw < w) ? (fromChannel ? 0 : (out ? w - mw : 0)) : 0);
 						if (item->displayFromPhoto()) {
 							p.drawPixmap(left, media->countHeight(item, w) - st::msgPhotoSize, item->from()->photo->pixRounded(st::msgPhotoSize));
 							left += st::msgPhotoSkip;
@@ -1435,7 +1435,7 @@ void OverviewInner::onUpdateSelected() {
 					HistoryMedia *media = item->getMedia(true);
 					if (media) {
 						bool out = item->out(), fromChannel = item->fromChannel(), outbg = out && !fromChannel;
-						int32 mw = media->maxWidth(), left = (fromChannel ? (st::msgMargin.left() + st::msgMargin.right()) / 2 : (out ? st::msgMargin.right() : st::msgMargin.left())) + ((mw < w) ? (fromChannel ? (w - mw) / 2 : (out ? w - mw : 0)) : 0);
+						int32 mw = media->maxWidth(), left = (fromChannel ? (st::msgMargin.left() + st::msgMargin.left()) / 2 : (out ? st::msgMargin.right() : st::msgMargin.left())) + ((mw < w) ? (fromChannel ? 0 : (out ? w - mw : 0)) : 0);
 						if (item->displayFromPhoto()) {
 							if (QRect(left, y + st::msgMargin.top() + media->countHeight(item, w) - st::msgPhotoSize, st::msgPhotoSize, st::msgPhotoSize).contains(m)) {
 								lnk = item->from()->lnk;

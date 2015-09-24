@@ -1,16 +1,17 @@
-AppVersionStrMajor=`./Version.sh | awk -F " " '{print $1}'`
-AppVersion=`./Version.sh | awk -F " " '{print $2}'`
-AppVersionStr=`./Version.sh | awk -F " " '{print $3}'`
-DevChannel=`./Version.sh | awk -F " " '{print $4}'`
-DevPostfix=''
+while IFS='' read -r line || [[ -n "$line" ]]; do
+    set $line
+    eval $1="$2"
+done < Version
+
+AppVersionStrFull="$AppVersionStr"
 DevParam=''
 if [ "$DevChannel" != "0" ]; then
-  DevPostfix='.dev'
+  AppVersionStrFull="$AppVersionStr.dev"
   DevParam='-dev'
 fi
 
 echo ""
-echo "Preparing version $AppVersionStr$DevPostfix.."
+echo "Preparing version $AppVersionStrFull.."
 echo ""
 
 if [ -d "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr.dev" ]; then
@@ -80,5 +81,5 @@ echo "Version $AppVersionStr prepared!";
 cp -rv "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram Desktop.app" ./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
 cp -rv "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram Desktop.app.dSYM" ./../../../Dropbox/Telegram/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
 
-echo "Version $AppVersionStr$DevPostfix prepared!";
+echo "Version $AppVersionStrFull prepared!";
 

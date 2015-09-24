@@ -1956,54 +1956,51 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice, const QVector<MTPM
 }
 
 void History::addNewerSlice(const QVector<MTPMessage> &slice, const QVector<MTPMessageGroup> *collapsed) {
+	bool wasEmpty = isEmpty(), wasLoadedAtBottom = loadedAtBottom();
+
 	if (slice.isEmpty()) {
 		newLoaded = true;
 		if (!lastMsg) setLastMessage(lastImportantMessage());
-		if (!collapsed || collapsed->isEmpty() || !isChannel()) {
-			if (isChannel()) asChannelHistory()->checkJoinedMessage();
-			return;
-		}
 	}
 
-	const MTPMessageGroup *groupsBegin = (isChannel() && collapsed) ? collapsed->constData() : 0, *groupsIt = groupsBegin, *groupsEnd = (isChannel() && collapsed) ? (groupsBegin + collapsed->size()) : 0;
+	if (!slice.isEmpty() || (isChannel() && collapsed && !collapsed->isEmpty())) {
+		const MTPMessageGroup *groupsBegin = (isChannel() && collapsed) ? collapsed->constData() : 0, *groupsIt = groupsBegin, *groupsEnd = (isChannel() && collapsed) ? (groupsBegin + collapsed->size()) : 0;
 
-	bool wasEmpty = isEmpty();
+		HistoryItem *prev = blocks.isEmpty() ? 0 : blocks.back()->items.back();
 
-	HistoryItem *prev = blocks.isEmpty() ? 0 : blocks.back()->items.back();
+		HistoryBlock *block = new HistoryBlock(this);
+		block->items.reserve(slice.size() + (collapsed ? collapsed->size() : 0));
+		for (QVector<MTPmessage>::const_iterator i = slice.cend(), e = slice.cbegin(); i != e;) {
+			--i;
+			HistoryItem *adding = createItem(block, *i, false);
+			if (!adding) continue;
 
-	HistoryBlock *block = new HistoryBlock(this);
-	block->items.reserve(slice.size() + (collapsed ? collapsed->size() : 0));
-	for (QVector<MTPmessage>::const_iterator i = slice.cend(), e = slice.cbegin(); i != e;) {
-		--i;
-		HistoryItem *adding = createItem(block, *i, false);
-		if (!adding) continue;
+			for (; groupsIt != groupsEnd; ++groupsIt) {
+				if (groupsIt->type() != mtpc_messageGroup) continue;
+				const MTPDmessageGroup &group(groupsIt->c_messageGroup());
+				if (group.vmin_id.v >= adding->id) break;
 
+				prev = addMessageGroupAfterPrevToBlock(group, prev, block);
+			}
+
+			prev = addItemAfterPrevToBlock(adding, prev, block);
+		}
 		for (; groupsIt != groupsEnd; ++groupsIt) {
 			if (groupsIt->type() != mtpc_messageGroup) continue;
 			const MTPDmessageGroup &group(groupsIt->c_messageGroup());
-			if (group.vmin_id.v >= adding->id) break;
 
 			prev = addMessageGroupAfterPrevToBlock(group, prev, block);
 		}
 
-		prev = addItemAfterPrevToBlock(adding, prev, block);
-	}
-	for (; groupsIt != groupsEnd; ++groupsIt) {
-		if (groupsIt->type() != mtpc_messageGroup) continue;
-		const MTPDmessageGroup &group(groupsIt->c_messageGroup());
-
-		prev = addMessageGroupAfterPrevToBlock(group, prev, block);
-	}
-
-	bool wasLoadedAtBottom = loadedAtBottom();
-	if (block->items.size()) {
-		block->y = height;
-		blocks.push_back(block);
-		height += block->height;
-	} else {
-		newLoaded = true;
-		setLastMessage(lastImportantMessage());
-		delete block;
+		if (block->items.size()) {
+			block->y = height;
+			blocks.push_back(block);
+			height += block->height;
+		} else {
+			newLoaded = true;
+			setLastMessage(lastImportantMessage());
+			delete block;
+		}
 	}
 	if (!wasLoadedAtBottom && loadedAtBottom()) { // add all loaded photos to overview
 		int32 mask = 0;
