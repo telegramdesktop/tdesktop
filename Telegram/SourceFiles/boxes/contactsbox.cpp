@@ -1417,8 +1417,8 @@ bool ContactsBox::creationFail(const RPCError &error) {
 }
 
 MembersInner::MembersInner(ChannelData *channel, MembersFilter filter) : _channel(channel), _filter(filter),
-_time(0),
 _kickText(lang(lng_profile_kick)),
+_time(0),
 _kickWidth(st::normalFont->m.width(_kickText)),
 _sel(-1),
 _kickSel(-1),
