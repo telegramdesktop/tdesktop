@@ -3,10 +3,10 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
     eval $1="$2"
 done < Version
 
-DevPostfix=''
+AppVersionStrFull="$AppVersionStr"
 DevParam=''
 if [ "$DevChannel" != "0" ]; then
-  DevPostfix='.dev'
+  AppVersionStrFull="$AppVersionStr.dev"
   DevParam='-dev'
 fi
 
@@ -35,7 +35,7 @@ if [ ! -f "./../Linux/Release/Updater" ]; then
   exit 1
 fi
 
-echo "Preparing version $AppVersionStr$DevPostfix, executing Packer.."
+echo "Preparing version $AppVersionStrFull, executing Packer.."
 cd ./../Linux/Release && ./Packer -path Telegram -path Updater -version $AppVersion $DevParam && cd ./../../Telegram
 echo "Packer done!"
 
@@ -47,12 +47,12 @@ if [ ! -d "./../Linux/Release/deploy/$AppVersionStrMajor" ]; then
   mkdir "./../Linux/Release/deploy/$AppVersionStrMajor"
 fi
 
-echo "Copying Telegram, Updater and tlinux32upd$AppVersion to deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix..";
-mkdir "./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix"
-mkdir "./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram"
-mv ./../Linux/Release/Telegram ./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram/
-mv ./../Linux/Release/Updater ./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram/
-mv ./../Linux/Release/tlinux32upd$AppVersion ./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
-cd ./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix && tar -cJvf tsetup32.$AppVersionStr$DevPostfix.tar.xz Telegram/ && cd ./../../../../../Telegram
-echo "Version $AppVersionStr$DevPostfix prepared!";
+echo "Copying Telegram, Updater and tlinux32upd$AppVersion to deploy/$AppVersionStrMajor/$AppVersionStrFull..";
+mkdir "./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull"
+mkdir "./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull/Telegram"
+mv ./../Linux/Release/Telegram ./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull/Telegram/
+mv ./../Linux/Release/Updater ./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull/Telegram/
+mv ./../Linux/Release/tlinux32upd$AppVersion ./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull/
+cd ./../Linux/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull && tar -cJvf tsetup32.$AppVersionStrFull.tar.xz Telegram/ && cd ./../../../../../Telegram
+echo "Version $AppVersionStrFull prepared!";
 

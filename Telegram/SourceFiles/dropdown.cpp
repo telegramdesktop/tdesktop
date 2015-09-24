@@ -2826,7 +2826,7 @@ void MentionsDropdown::updateFiltered(bool toDown) {
 					cnt += user->botInfo->commands.size();
 				}
 			}
-		} else if (_user->botInfo) {
+		} else if (_user && _user->botInfo) {
 			if (!_user->botInfo->inited) App::api()->requestFullPeer(_user);
 			cnt = _user->botInfo->commands.size();
 			bots.insert(_user, true);

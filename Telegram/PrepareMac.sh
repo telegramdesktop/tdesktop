@@ -3,15 +3,15 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
     eval $1="$2"
 done < Version
 
-DevPostfix=''
+AppVersionStrFull="$AppVersionStr"
 DevParam=''
 if [ "$DevChannel" != "0" ]; then
-  DevPostfix='.dev'
+  AppVersionStrFull="$AppVersionStr.dev"
   DevParam='-dev'
 fi
 
 echo ""
-echo "Preparing version $AppVersionStr$DevPostfix.."
+echo "Preparing version $AppVersionStrFull.."
 echo ""
 
 if [ -d "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr.dev" ]; then
@@ -71,7 +71,7 @@ temppath=`hdiutil attach -readwrite tsetup.dmg | awk -F "\t" 'END {print $3}'`
 cp -R ./Telegram.app "$temppath/"
 bless --folder "$temppath/" --openfolder "$temppath/"
 hdiutil detach "$temppath"
-hdiutil convert tsetup.dmg -format UDZO -imagekey zlib-level=9 -ov -o tsetup.$AppVersionStr$DevPostfix.dmg
+hdiutil convert tsetup.dmg -format UDZO -imagekey zlib-level=9 -ov -o tsetup.$AppVersionStrFull.dmg
 cd ./../../Telegram
 cd ./../Mac/Release && ./Packer.app/Contents/MacOS/Packer -path Telegram.app -version $AppVersion $DevParam && cd ./../../Telegram
 
@@ -84,15 +84,15 @@ if [ ! -d "./../Mac/Release/deploy/$AppVersionStrMajor" ]; then
 fi
 
 echo "Copying Telegram.app and tmacupd$AppVersion to deploy/$AppVersionStrMajor/$AppVersionStr..";
-mkdir "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix"
-mkdir "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram"
-cp -r ./../Mac/Release/Telegram.app ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/Telegram/
-mv ./../Mac/Release/Telegram.app.dSYM ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
+mkdir "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull"
+mkdir "./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull/Telegram"
+cp -r ./../Mac/Release/Telegram.app ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull/Telegram/
+mv ./../Mac/Release/Telegram.app.dSYM ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull/
 rm ./../Mac/Release/Telegram.app/Contents/MacOS/Telegram
 rm ./../Mac/Release/Telegram.app/Contents/Frameworks/Updater
 rm -rf ./../Mac/Release/Telegram.app/Contents/_CodeSignature
-mv ./../Mac/Release/tmacupd$AppVersion ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/
-mv ./../Mac/Release/tsetup.$AppVersionStr$DevPostfix.dmg ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStr$DevPostfix/tsetup.$AppVersionStr$DevPostfix.dmg
+mv ./../Mac/Release/tmacupd$AppVersion ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull/
+mv ./../Mac/Release/tsetup.$AppVersionStrFull.dmg ./../Mac/Release/deploy/$AppVersionStrMajor/$AppVersionStrFull/tsetup.$AppVersionStrFull.dmg
 
-echo "Version $AppVersionStr$DevPostfix prepared!";
+echo "Version $AppVersionStrFull prepared!";
 
