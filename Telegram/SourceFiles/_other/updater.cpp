@@ -323,7 +323,7 @@ void updateRegistry() {
 
 #include <ShlObj.h>
 
-int APIENTRY WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdParamarg, int cmdShow) {
+int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdParamarg, int cmdShow) {
 	openLog();
 
 #ifdef _NEED_WIN_GENERATE_DUMP
