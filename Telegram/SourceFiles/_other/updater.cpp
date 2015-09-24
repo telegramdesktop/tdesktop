@@ -27,8 +27,8 @@ bool equal(const wstring &a, const wstring &b) {
 
 void updateError(const WCHAR *msg, DWORD errorCode) {
 	WCHAR errMsg[2048];
-	LPTSTR errorText = NULL, errorTextDefault = L"(Unknown error)";
-	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errorText, 0, 0);
+	LPWSTR errorText = NULL, errorTextDefault = L"(Unknown error)";
+	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&errorText, 0, 0);
 	if (!errorText) {
 		errorText = errorTextDefault;
 	}
