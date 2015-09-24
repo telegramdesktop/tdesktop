@@ -24,7 +24,7 @@ class PhotoCropBox : public AbstractBox {
 
 public:
 
-	PhotoCropBox(const QImage &img, const PeerId &peer);
+	PhotoCropBox(const QImage &img, const PeerId &peer, bool upload = true);
 	void keyPressEvent(QKeyEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
@@ -50,6 +50,7 @@ protected:
 
 private:
 
+	QString _title;
 	int32 _downState;
 	int32 _thumbx, _thumby, _thumbw, _thumbh;
 	int32 _cropx, _cropy, _cropw;

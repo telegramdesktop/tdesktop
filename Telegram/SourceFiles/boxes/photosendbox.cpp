@@ -105,7 +105,7 @@ _phone(phone), _fname(fname), _lname(lname), _replyTo(replyTo) {
 
 	_compressed.hide();
 
-	_name = _fname + QChar(' ') + _lname;
+	_name = lng_full_name(lt_first_name, _fname, lt_last_name, _lname);
 	_namew = st::mediaFont->m.width(_name);
 	_size = _phone;
 	_textw = qMax(_namew, st::mediaFont->m.width(_size));
@@ -124,7 +124,7 @@ void PhotoSendBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void PhotoSendBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 	if (paint(p)) return;
 
 	// paint shadow

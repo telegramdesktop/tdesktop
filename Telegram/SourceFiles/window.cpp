@@ -30,6 +30,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "layerwidget.h"
 #include "settingswidget.h"
 #include "boxes/confirmbox.h"
+#include "boxes/contactsbox.h"
 
 #include "mediaview.h"
 #include "localstorage.h"
@@ -151,7 +152,7 @@ void NotifyWindow::updateNotifyDisplay() {
 	img.fill(st::notifyBG->c);
 
 	{
-		QPainter p(&img);
+		Painter p(&img);
 		p.fillRect(0, 0, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
 		p.fillRect(w - st::notifyBorderWidth, 0, st::notifyBorderWidth, h - st::notifyBorderWidth, st::notifyBorder->b);
 		p.fillRect(st::notifyBorderWidth, h - st::notifyBorderWidth, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
@@ -174,9 +175,12 @@ void NotifyWindow::updateNotifyDisplay() {
 
 		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
 		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
-			if (history->peer->chat) {
-				p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgLeft, rectForName.top() + st::dlgChatImgTop), App::sprite(), st::dlgChatImg);
-				rectForName.setLeft(rectForName.left() + st::dlgChatImgSkip);
+			if (history->peer->isChat()) {
+				p.drawPixmap(QPoint(rectForName.left() + st::dlgChatImgPos.x(), rectForName.top() + st::dlgChatImgPos.y()), App::sprite(), st::dlgChatImg);
+				rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
+			} else if (history->peer->isChannel()) {
+				p.drawPixmap(QPoint(rectForName.left() + st::dlgChannelImgPos.x(), rectForName.top() + st::dlgChannelImgPos.y()), App::sprite(), st::dlgChannelImg);
+				rectForName.setLeft(rectForName.left() + st::dlgImgSkip);
 			}
 		}
 
@@ -198,7 +202,7 @@ void NotifyWindow::updateNotifyDisplay() {
 				item->drawInDialog(p, r, active, textCachedFor, itemTextCache);
 			} else {
 				p.setFont(st::dlgHistFont->f);
-				if (history->peer->chat) {
+				if (item->displayFromName() && !item->fromChannel()) {
 					itemTextCache.setText(st::dlgHistFont, item->from()->name);
 					p.setPen(st::dlgSystemColor->p);
 					itemTextCache.drawElided(p, r.left(), r.top(), r.width(), st::dlgHistFont->height);
@@ -215,7 +219,7 @@ void NotifyWindow::updateNotifyDisplay() {
 
 		p.setPen(st::dlgNameColor->p);
 		if (!App::passcoded() && cNotifyView() <= dbinvShowName) {
-			history->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+			history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 		} else {
 			p.setFont(st::msgNameFont->f);
 			static QString notifyTitle = st::msgNameFont->m.elidedText(qsl("Telegram Desktop"), Qt::ElideRight, rectForName.width());
@@ -283,11 +287,11 @@ void NotifyWindow::mousePressEvent(QMouseEvent *e) {
 	} else if (history) {
 		App::wnd()->showFromTray();
 		if (App::passcoded()) {
-			App::wnd()->passcodeWidget()->setInnerFocus();
+			App::wnd()->setInnerFocus();
 			App::wnd()->notifyClear();
 		} else {
 			App::wnd()->hideSettings();
-			App::main()->showPeerHistory(peer, (history->peer->chat && item && item->notifyByFrom() && item->id > 0) ? item->id : ShowAtUnreadMsgId);
+			App::main()->showPeerHistory(peer, (!history->peer->isUser() && item && item->notifyByFrom() && item->id > 0) ? item->id : ShowAtUnreadMsgId);
 		}
 		e->ignore();
 	}
@@ -458,7 +462,7 @@ QWidget *Window::filedialogParent() {
 }
 
 void Window::clearWidgets() {
-	layerHidden();
+	hideLayer(true);
 	if (_passcode) {
 		_passcode->hide();
 		_passcode->deleteLater();
@@ -525,7 +529,7 @@ void Window::setupPasscode(bool anim) {
 	if (anim) {
 		_passcode->animShow(bg);
 	} else {
-		_passcode->setInnerFocus();
+		setInnerFocus();
 	}
 	_shouldLockAt = 0;
 	notifyUpdateAll();
@@ -583,21 +587,21 @@ void Window::getNotifySetting(const MTPInputNotifyPeer &peer, uint32 msWait) {
 	MTP::send(MTPaccount_GetNotifySettings(peer), main->rpcDone(&MainWidget::gotNotifySetting, peer), main->rpcFail(&MainWidget::failNotifySetting, peer), 0, msWait);
 }
 
-void Window::serviceNotification(const QString &msg, bool unread, const MTPMessageMedia &media, bool force) {
+void Window::serviceNotification(const QString &msg, const MTPMessageMedia &media, bool force) {
 	History *h = (main && App::userLoaded(ServiceUserId)) ? App::history(ServiceUserId) : 0;
 	if (!h || (!force && h->isEmpty())) {
-		_delayedServiceMsgs.push_back(DelayedServiceMsg(qMakePair(msg, media), unread));
+		_delayedServiceMsgs.push_back(DelayedServiceMsg(msg, media));
 		return sendServiceHistoryRequest();
 	}
 
-	main->serviceNotification(msg, media, unread);
+	main->serviceNotification(msg, media);
 }
 
 void Window::showDelayedServiceMsgs() {
 	QVector<DelayedServiceMsg> toAdd = _delayedServiceMsgs;
 	_delayedServiceMsgs.clear();
 	for (QVector<DelayedServiceMsg>::const_iterator i = toAdd.cbegin(), e = toAdd.cend(); i != e; ++i) {
-		serviceNotification(i->first.first, i->second, i->first.second, true);
+		serviceNotification(i->first, i->second, true);
 	}
 }
 
@@ -609,7 +613,7 @@ void Window::sendServiceHistoryRequest() {
 		int32 userFlags = MTPDuser::flag_first_name | MTPDuser::flag_phone | MTPDuser::flag_status;
 		user = App::feedUsers(MTP_vector<MTPUser>(1, MTP_user(MTP_int(userFlags), MTP_int(ServiceUserId), MTPlong(), MTP_string("Telegram"), MTPstring(), MTPstring(), MTP_string("42777"), MTP_userProfilePhotoEmpty(), MTP_userStatusRecently(), MTPint())));
 	}
-	_serviceHistoryRequest = MTP::send(MTPmessages_GetHistory(user->input, MTP_int(0), MTP_int(0), MTP_int(1)), main->rpcDone(&MainWidget::serviceHistoryDone), main->rpcFail(&MainWidget::serviceHistoryFail));
+	_serviceHistoryRequest = MTP::send(MTPmessages_GetHistory(user->input, MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), main->rpcDone(&MainWidget::serviceHistoryDone), main->rpcFail(&MainWidget::serviceHistoryFail));
 }
 
 void Window::setupMain(bool anim, const MTPUser *self) {
@@ -743,31 +747,39 @@ void Window::showPhoto(const PhotoLink *lnk, HistoryItem *item) {
 }
 
 void Window::showPhoto(PhotoData *photo, HistoryItem *item) {
-	layerHidden();
+	hideLayer(true);
 	_mediaView->showPhoto(photo, item);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
 
 void Window::showPhoto(PhotoData *photo, PeerData *peer) {
-	layerHidden();
+	hideLayer(true);
 	_mediaView->showPhoto(photo, peer);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
 
 void Window::showDocument(DocumentData *doc, HistoryItem *item) {
-	layerHidden();
+	hideLayer(true);
 	_mediaView->showDocument(doc, item);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
 
 void Window::showLayer(LayeredWidget *w, bool fast) {
-	layerHidden();
+	hideLayer(true);
 	layerBG = new BackgroundWidget(this, w);
 	if (fast) {
 		layerBG->showFast();
+	}
+}
+
+void Window::replaceLayer(LayeredWidget *w) {
+	if (layerBG) {
+		layerBG->replaceInner(w);
+	} else {
+		layerBG = new BackgroundWidget(this, w);
 	}
 }
 
@@ -795,19 +807,12 @@ void Window::hideConnecting() {
 	if (settings) settings->update();
 }
 
-void Window::replaceLayer(LayeredWidget *w) {
-	if (layerBG) {
-		layerBG->replaceInner(w);
-	} else {
-		layerBG = new BackgroundWidget(this, w);
-	}
-}
-
 void Window::hideLayer(bool fast) {
 	if (layerBG) {
 		layerBG->onClose();
 		if (fast) {
 			layerBG->hide();
+			layerBG->deleteLater();
 			layerBG = 0;
 		}
 	}
@@ -851,7 +856,9 @@ void Window::hideMediaview() {
 }
 
 void Window::setInnerFocus() {
-	if (_passcode) {
+	if (layerBG && layerBG->canSetFocus()) {
+		layerBG->setInnerFocus();
+	} else if (_passcode) {
 		_passcode->setInnerFocus();
 	} else if (settings) {
 		settings->setInnerFocus();
@@ -1024,7 +1031,13 @@ void Window::onShowAddContact() {
 void Window::onShowNewGroup() {
 	if (isHidden()) showFromTray();
 
-	if (main) main->showNewGroup();
+	if (main) replaceLayer(new GroupInfoBox(CreatingGroupGroup, false));
+}
+
+void Window::onShowNewChannel() {
+	if (isHidden()) showFromTray();
+
+	if (main) replaceLayer(new GroupInfoBox(CreatingGroupChannel, false));
 }
 
 void Window::onLogout() {
@@ -1229,7 +1242,7 @@ void Window::quit() {
 void Window::notifySchedule(History *history, HistoryItem *item) {
 	if (App::quiting() || !history->currentNotification() || !main) return;
 
-	UserData *notifyByFrom = (history->peer->chat && item->notifyByFrom()) ? item->from() : 0;
+	PeerData *notifyByFrom = (!history->peer->isUser() && item->notifyByFrom()) ? item->from() : 0;
 
 	bool haveSetting = (history->peer->notify != UnknownNotifySettings);
 	if (haveSetting) {
@@ -1340,7 +1353,7 @@ void Window::notifySettingGot() {
 		} else {
 			if (history->peer->notify == EmptyNotifySettings || history->peer->notify->mute <= t) {
 				notifyWaiters.insert(i.key(), i.value());
-			} else if (UserData *from = i.value().notifyByFrom) {
+			} else if (PeerData *from = i.value().notifyByFrom) {
 				if (from->notify == UnknownNotifySettings) {
 					++i;
 					continue;
@@ -1567,7 +1580,7 @@ void Window::notifyUpdateAllPhotos() {
             (*i)->updatePeerPhoto();
         }
     }
-	if (_mediaView) _mediaView->updateControls();
+	if (_mediaView && !_mediaView->isHidden()) _mediaView->updateControls();
 }
 
 void Window::notifyUpdateAll() {

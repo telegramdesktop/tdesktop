@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 8057;
-static const wchar_t *AppVersionStr = L"0.8.57";
+static const int32 AppVersion = 9000;
+static const wchar_t *AppVersionStr = L"0.9";
 static const bool DevVersion = false;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
@@ -58,6 +58,8 @@ enum {
 	MTPPingDelayDisconnect = 60, // 1 min
 	MTPPingSendAfterAuto = 30, // send new ping starting from 30 seconds (add to existing container)
 	MTPPingSendAfter = 45, // send new ping after 45 seconds without ping
+
+	MTPChannelGetDifferenceLimit = 100,
 
 	MaxSelectedItems = 100,
 
@@ -120,6 +122,8 @@ enum {
 	MinUsernameLength = 5,
 	MaxUsernameLength = 32,
 	UsernameCheckTimeout = 200,
+
+	MaxChannelDescription = 120,
 
 	MaxMessageSize = 4096,
 	MaxHttpRedirects = 5, // when getting external data/images
@@ -296,7 +300,7 @@ enum {
 	DefaultChatBackground = 21,
 
 	DialogsFirstLoad = 20, // first dialogs part size requested
-	DialogsPerPage = 200, // next dialogs part size
+	DialogsPerPage = 500, // next dialogs part size
 
 	MessagesFirstLoad = 30, // first history part size requested
 	MessagesPerPage = 50, // next history part size
@@ -322,6 +326,7 @@ enum {
 	NoUpdatesTimeout = 60 * 1000, // if nothing is received in 1 min we ping
 	NoUpdatesAfterSleepTimeout = 60 * 1000, // if nothing is received in 1 min when was a sleepmode we ping
 	WaitForSkippedTimeout = 1000, // 1s wait for skipped seq or pts in updates
+	WaitForChannelGetDifference = 1000, // 1s wait after show channel history before sending getChannelDifference
 
 	MemoryForImageCache = 64 * 1024 * 1024, // after 64mb of unpacked images we try to clear some memory
 	NotifyWindowsCount = 3, // 3 desktop notifies at the same time
@@ -329,6 +334,9 @@ enum {
 	NotifyDeletePhotoAfter = 60000, // delete notify photo after 1 minute
 	UpdateChunk = 100 * 1024, // 100kb parts when downloading the update
 	IdleMsecs = 60 * 1000, // after 60secs without user input we think we are idle
+
+	UpdateFullChannelTimeout = 5000, // not more than once in 5 seconds
+	SendViewsTimeout = 1000, // send views each second
 
 	ForwardOnAdd = 100, // how many messages from chat history server should forward to user, that was added to this chat
 };

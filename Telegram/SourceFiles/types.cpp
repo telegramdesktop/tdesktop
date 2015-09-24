@@ -80,7 +80,7 @@ namespace {
 	volatile int32 unixtimeDelta = 0;
 	volatile bool unixtimeWasSet = false;
     volatile uint64 _msgIdStart, _msgIdLocal = 0, _msgIdMsStart;
-	uint32 _reqId = 0;
+	int32 _reqId = 0;
 
 	void _initMsgIdConstants() {
 #ifdef Q_OS_WIN
@@ -349,8 +349,11 @@ uint64 msgid() {
 	return result + (_msgIdLocal += 4);
 }
 
-uint32 reqid() {
+int32 reqid() {
 	QWriteLocker locker(&unixtimeLock);
+	if (_reqId == INT_MAX) {
+		_reqId = 0;
+	}
 	return ++_reqId;
 }
 

@@ -27,6 +27,8 @@ public:
 
 	void start();
 
+	void peerUsernameChanged();
+
 	bool event(QEvent *e);
 	void paintEvent(QPaintEvent *e);
 	void mouseMoveEvent(QMouseEvent *e);
@@ -53,7 +55,11 @@ public:
 	void loadProfilePhotos(int32 yFrom);
 
 	void updateNotifySettings();
-	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
+	int32 mediaOverviewUpdated(PeerData *peer, MediaOverviewType type); // returns scroll shift
+
+	void requestHeight(int32 newHeight);
+	int32 countMinHeight();
+	void allowDecreaseHeight(int32 decreaseBy);
 
 	~ProfileInner();
 	
@@ -75,6 +81,8 @@ public slots:
 	void onClearHistorySure();
 	void onDeleteConversation();
 	void onDeleteConversationSure();
+	void onDeleteChannel();
+	void onDeleteChannelSure();
 	void onBlockUser();
 	void onAddParticipant();
 
@@ -87,7 +95,6 @@ public slots:
 
 	void onKickConfirm();
 
-	void onMediaShowAll();
 	void onMediaPhotos();
 	void onMediaVideos();
 	void onMediaDocuments();
@@ -101,6 +108,10 @@ public slots:
 	void onInvitationLink();
 	void onCreateInvitationLink();
 	void onCreateInvitationLinkSure();
+	void onPublicLink();
+
+	void onMembers();
+	void onAdmins();
 
 	void onFullPeerUpdated(PeerData *peer);
 
@@ -114,6 +125,7 @@ private:
 	void updateBotLinksVisibility();
 
 	void chatInviteDone(const MTPExportedChatInvite &result);
+	bool updateMediaLinks(int32 *addToScroll = 0); // returns if anything changed
 
 	ProfileWidget *_profile;
 	ScrollArea *_scroll;
@@ -121,10 +133,11 @@ private:
 	PeerData *_peer;
 	UserData *_peerUser;
 	ChatData *_peerChat;
+	ChannelData *_peerChannel;
 	History *_hist;
-	bool _chatAdmin;
+	bool _amCreator;
 
-	int32 _width, _left;
+	int32 _width, _left, _addToHeight;
 
 	// profile
 	Text _nameText;
@@ -135,7 +148,7 @@ private:
 	FlatButton _sendMessage, _shareContact, _inviteToGroup;
 	LinkButton _cancelPhoto, _createInvitationLink, _invitationLink;
 	QString _invitationText;
-	LinkButton _botSettings, _botHelp;
+	LinkButton _botSettings, _botHelp, _username, _members, _admins;
 
 	Text _about;
 	int32 _aboutTop, _aboutHeight;
@@ -149,8 +162,7 @@ private:
 	FlatCheckbox _enableNotifications;
 
 	// shared media
-	bool _allMediaTypes;
-	LinkButton _mediaShowAll;
+	bool _notAllMediaLoaded;
 	LinkButton *_mediaButtons[OverviewCount];
 	QString overviewLinkText(int32 type, int32 count);
 
@@ -158,7 +170,7 @@ private:
 	LinkButton _searchInPeer, _clearHistory, _deleteConversation;
 	UserBlockedStatus _wasBlocked;
 	mtpRequestId _blockRequest;
-	LinkButton _blockUser;
+	LinkButton _blockUser, _deleteChannel;
 
 	// participants
 	int32 _pHeight;
@@ -205,13 +217,14 @@ public:
 
 	PeerData *peer() const;
 	int32 lastScrollTop() const;
-	bool allMediaShown() const;
 
-	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1, bool allMediaShown = false);
+	void animShow(const QPixmap &oldAnimCache, const QPixmap &bgAnimTopBarCache, bool back = false, int32 lastScrollTop = -1);
 	bool animStep(float64 ms);
 
 	void updateOnlineDisplay();
 	void updateOnlineDisplayTimer();
+
+	void peerUsernameChanged();
 
 	void updateNotifySettings();
 	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);

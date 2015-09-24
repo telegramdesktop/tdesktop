@@ -20,7 +20,6 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include <QtWidgets/QWidget>
 #include "gui/flatbutton.h"
 #include "gui/phoneinput.h"
-#include "gui/countrycodeinput.h"
 #include "gui/countryinput.h"
 #include "intro.h"
 

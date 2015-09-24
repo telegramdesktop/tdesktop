@@ -24,7 +24,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "gui/filedialog.h"
 
-BackgroundWidget::BackgroundWidget(QWidget *parent, LayeredWidget *w) : QWidget(parent), w(w), _hidden(0),
+BackgroundWidget::BackgroundWidget(QWidget *parent, LayeredWidget *w) : QWidget(parent), w(w),
 aBackground(0), aBackgroundFunc(anim::easeOutCirc), hiding(false), shadow(st::boxShadow) {
 	w->setParent(this);
 	setGeometry(0, 0, App::wnd()->width(), App::wnd()->height());
@@ -72,13 +72,13 @@ void BackgroundWidget::onClose() {
 }
 
 bool BackgroundWidget::onInnerClose() {
-	if (!_hidden) {
+	if (_hidden.isEmpty()) {
 		onClose();
 		return true;
 	}
 	w->deleteLater();
-	w = _hidden;
-	_hidden = 0;
+	w = _hidden.back();
+	_hidden.pop_back();
 	w->show();
 	resizeEvent(0);
 	w->animStep(1);
@@ -87,11 +87,22 @@ bool BackgroundWidget::onInnerClose() {
 }
 
 void BackgroundWidget::startHide() {
-	if (App::main()) App::main()->setInnerFocus();
+	if (hiding) return;
 	hiding = true;
+	if (App::wnd()) App::wnd()->setInnerFocus();
 	aBackground.start(0);
 	anim::start(this);
 	w->startHide();
+}
+
+bool BackgroundWidget::canSetFocus() const {
+	return w && !hiding;
+}
+
+void BackgroundWidget::setInnerFocus() {
+	if (w) {
+		w->setInnerFocus();
+	}
 }
 
 void BackgroundWidget::resizeEvent(QResizeEvent *e) {
@@ -103,9 +114,8 @@ void BackgroundWidget::updateWideMode() {
 }
 
 void BackgroundWidget::replaceInner(LayeredWidget *n) {
-	if (_hidden) _hidden->deleteLater();
-	_hidden = w;
-	_hidden->hide();
+	_hidden.push_back(w);
+	w->hide();
 	w = n;
 	w->setParent(this);
 	connect(w, SIGNAL(closed()), this, SLOT(onInnerClose()));
@@ -139,13 +149,18 @@ void BackgroundWidget::boxDestroyed(QObject *obj) {
 	if (obj == w) {
 		if (App::wnd()) App::wnd()->layerFinishedHide(this);
 		w = 0;
-	} else if (_hidden == obj) {
-		_hidden = 0;
+	} else {
+		int32 index = _hidden.indexOf(static_cast<LayeredWidget*>(obj));
+		if (index >= 0) {
+			_hidden.removeAt(index);
+		}
 	}
 }
 
 BackgroundWidget::~BackgroundWidget() {
 	if (App::wnd()) App::wnd()->noBox(this);
 	w->deleteLater();
-	if (_hidden) _hidden->deleteLater();
+	for (HiddenLayers::const_iterator i = _hidden.cbegin(), e = _hidden.cend(); i != e; ++i) {
+		(*i)->deleteLater();
+	}
 }

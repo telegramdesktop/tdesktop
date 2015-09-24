@@ -23,6 +23,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 class FlatTextarea : public QTextEdit, public Animated {
 	Q_OBJECT
+	T_WIDGET
 
 public:
 
@@ -38,7 +39,12 @@ public:
 	void mousePressEvent(QMouseEvent *e);
 	void dropEvent(QDropEvent *e);
 
+	void setMaxLength(int32 maxLength);
+	void setMinHeight(int32 minHeight);
+	void setMaxHeight(int32 maxHeight);
+
 	const QString &getLastText() const;
+	void setPlaceholder(const QString &ph);
 	void updatePlaceholder();
 
 	QRect getTextRect() const;
@@ -63,6 +69,9 @@ public:
 
 	void insertFromMimeData(const QMimeData *source);
 
+	QMimeData *createMimeDataFromSelection() const;
+	void setCtrlEnterSubmit(bool ctrlEnterSubmit);
+
 public slots:
 
 	void onTouchTimer();
@@ -77,6 +86,7 @@ public slots:
 
 signals:
 
+	void resized();
 	void changed();
 	void submitted(bool ctrlShiftEnter);
 	void cancelled();
@@ -87,31 +97,20 @@ signals:
 protected:
 
 	void insertEmoji(EmojiPtr emoji, QTextCursor c);
-	TWidget *tparent() {
-		return qobject_cast<TWidget*>(parentWidget());
-	}
-	const TWidget *tparent() const {
-		return qobject_cast<const TWidget*>(parentWidget());
-	}
-	void enterEvent(QEvent *e) {
-		TWidget *p(tparent());
-		if (p) p->leaveToChildEvent(e);
-		return QTextEdit::enterEvent(e);
-	}
-	void leaveEvent(QEvent *e) {
-		TWidget *p(tparent());
-		if (p) p->enterFromChildEvent(e);
-		return QTextEdit::leaveEvent(e);
-	}
 
 	QVariant loadResource(int type, const QUrl &name);
+
+	void checkContentHeight();
 
 private:
 
 	void getSingleEmojiFragment(QString &text, QTextFragment &fragment) const;
 	void processDocumentContentsChange(int position, int charsAdded);
+	bool heightAutoupdated();
 
-	QMimeData *createMimeDataFromSelection() const;
+	int32 _minHeight, _maxHeight; // < 0 - no autosize
+	int32 _maxLength;
+	bool _ctrlEnterSubmit;
 
 	QString _ph, _phelided, _oldtext;
 	bool _phVisible;
@@ -120,7 +119,7 @@ private:
 	anim::cvalue a_phColor;
 	style::flatTextarea _st;
 
-	bool _undoAvailable, _redoAvailable, _inDrop;
+	bool _undoAvailable, _redoAvailable, _inDrop, _inHeightCheck;
 
 	int32 _fakeMargin;
 

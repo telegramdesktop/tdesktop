@@ -958,6 +958,7 @@ namespace {
 			if (!_checkStreamStatus(stream)) return false;
 
 			cSetCtrlEnter(v == dbiskCtrlEnter);
+			if (App::main()) App::main()->ctrlEnterSubmitUpdated();
 		} break;
 
 		case dbiCatsAndDogs: { // deprecated
@@ -2831,16 +2832,21 @@ namespace Local {
 
 	uint32 _peerSize(PeerData *peer) {
 		uint32 result = sizeof(quint64) + sizeof(quint64) + _storageImageLocationSize();
-		if (peer->chat) {
-			ChatData *chat = peer->asChat();
-
-			// name + count + date + version + admin + forbidden + left + invitationUrl
-			result += _stringSize(chat->name) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(chat->invitationUrl);
-		} else {
+		if (peer->isUser()) {
 			UserData *user = peer->asUser();
 
 			// first + last + phone + username + access + onlineTill + contact + botInfoVersion
 			result += _stringSize(user->firstName) + _stringSize(user->lastName) + _stringSize(user->phone) + _stringSize(user->username) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
+		} else if (peer->isChat()) {
+			ChatData *chat = peer->asChat();
+
+			// name + count + date + version + admin + forbidden + left + invitationUrl
+			result += _stringSize(chat->name) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(chat->invitationUrl);
+		} else if (peer->isChannel()) {
+			ChannelData *channel = peer->asChannel();
+
+			// name + access + date + version + adminned + forbidden + left + invitationUrl
+			result += _stringSize(channel->name) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + _stringSize(channel->invitationUrl);
 		}
 		return result;
 	}
@@ -2848,15 +2854,20 @@ namespace Local {
 	void _writePeer(QDataStream &stream, PeerData *peer) {
 		stream << quint64(peer->id) << quint64(peer->photoId);
 		_writeStorageImageLocation(stream, peer->photoLoc);
-		if (peer->chat) {
-			ChatData *chat = peer->asChat();
-
-			stream << chat->name << qint32(chat->count) << qint32(chat->date) << qint32(chat->version) << qint32(chat->admin);
-			stream << qint32(chat->forbidden ? 1 : 0) << qint32(chat->left ? 1 : 0) << chat->invitationUrl;
-		} else {
+		if (peer->isUser()) {
 			UserData *user = peer->asUser();
 
 			stream << user->firstName << user->lastName << user->phone << user->username << quint64(user->access) << qint32(user->onlineTill) << qint32(user->contact) << qint32(user->botInfo ? user->botInfo->version : -1);
+		} else if (peer->isChat()) {
+			ChatData *chat = peer->asChat();
+
+			stream << chat->name << qint32(chat->count) << qint32(chat->date) << qint32(chat->version) << qint32(chat->creator);
+			stream << qint32(chat->isForbidden ? 1 : 0) << qint32(chat->haveLeft ? 1 : 0) << chat->invitationUrl;
+		} else if (peer->isChannel()) {
+			ChannelData *channel = peer->asChannel();
+
+			stream << channel->name << quint64(channel->access) << qint32(channel->date) << qint32(channel->version);
+			stream << qint32(channel->isForbidden ? 1 : 0) << qint32(channel->flags) << channel->invitationUrl;
 		}
 	}
 
@@ -2869,26 +2880,7 @@ namespace Local {
 
 		result = App::peer(peerId);
 		result->loaded = true;
-		if (result->chat) {
-			ChatData *chat = result->asChat();
-
-			QString name, invitationUrl;
-			qint32 count, date, version, admin, forbidden, left;
-			from.stream >> name >> count >> date >> version >> admin >> forbidden >> left >> invitationUrl;
-
-			chat->updateName(name, QString(), QString());
-			chat->count = count;
-			chat->date = date;
-			chat->version = version;
-			chat->admin = admin;
-			chat->forbidden = (forbidden == 1);
-			chat->left = (left == 1);
-			chat->invitationUrl = invitationUrl;
-
-			chat->input = MTP_inputPeerChat(MTP_int(App::chatFromPeer(chat->id)));
-
-			chat->photo = photoLoc.isNull() ? ImagePtr(chatDefPhoto(chat->colorIndex)) : ImagePtr(photoLoc);
-		} else {
+		if (result->isUser()) {
 			UserData *user = result->asUser();
 
 			QString first, last, phone, username;
@@ -2896,7 +2888,7 @@ namespace Local {
 			qint32 onlineTill, contact, botInfoVersion;
 			from.stream >> first >> last >> phone >> username >> access >> onlineTill >> contact >> botInfoVersion;
 
-			bool showPhone = !isServiceUser(user->id) && (App::userFromPeer(user->id) != MTP::authedId()) && (contact <= 0);
+			bool showPhone = !isServiceUser(user->id) && (peerToUser(user->id) != MTP::authedId()) && (contact <= 0);
 			QString pname = (showPhone && !phone.isEmpty()) ? App::formatPhone(phone) : QString();
 
 			user->setName(first, last, pname, username);
@@ -2906,15 +2898,55 @@ namespace Local {
 			user->contact = contact;
 			user->setBotInfoVersion(botInfoVersion);
 
-			if (App::userFromPeer(user->id) == MTP::authedId()) {
+			if (peerToUser(user->id) == MTP::authedId()) {
 				user->input = MTP_inputPeerSelf();
 				user->inputUser = MTP_inputUserSelf();
 			} else {
-				user->input = MTP_inputPeerUser(MTP_int(App::userFromPeer(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
-				user->inputUser = MTP_inputUser(MTP_int(App::userFromPeer(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
+				user->input = MTP_inputPeerUser(MTP_int(peerToUser(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
+				user->inputUser = MTP_inputUser(MTP_int(peerToUser(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
 			}
 
 			user->photo = photoLoc.isNull() ? ImagePtr(userDefPhoto(user->colorIndex)) : ImagePtr(photoLoc);
+		} else if (result->isChat()) {
+			ChatData *chat = result->asChat();
+
+			QString name, invitationUrl;
+			qint32 count, date, version, creator, forbidden, left;
+			from.stream >> name >> count >> date >> version >> creator >> forbidden >> left >> invitationUrl;
+
+			chat->updateName(name, QString(), QString());
+			chat->count = count;
+			chat->date = date;
+			chat->version = version;
+			chat->creator = creator;
+			chat->isForbidden = (forbidden == 1);
+			chat->haveLeft = (left == 1);
+			chat->invitationUrl = invitationUrl;
+
+			chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));
+			chat->inputChat = MTP_int(peerToChat(chat->id));
+
+			chat->photo = photoLoc.isNull() ? ImagePtr(chatDefPhoto(chat->colorIndex)) : ImagePtr(photoLoc);
+		} else if (result->isChannel()) {
+			ChannelData *channel = result->asChannel();
+
+			QString name, invitationUrl;
+			quint64 access;
+			qint32 date, version, adminned, forbidden, flags;
+			from.stream >> name >> access >> date >> version >> forbidden >> flags >> invitationUrl;
+
+			channel->updateName(name, QString(), QString());
+			channel->access = access;
+			channel->date = date;
+			channel->version = version;
+			channel->isForbidden = (forbidden == 1);
+			channel->flags = flags;
+			channel->invitationUrl = invitationUrl;
+
+			channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
+			channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
+
+			channel->photo = photoLoc.isNull() ? ImagePtr(channelDefPhoto(channel->colorIndex)) : ImagePtr(photoLoc);
 		}
 		App::markPeerUpdated(result);
 		emit App::main()->peerPhotoChanged(result);

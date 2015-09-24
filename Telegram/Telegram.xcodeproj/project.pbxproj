@@ -179,10 +179,8 @@
 		ADE99904299B99EB6135E8D9 /* scrollarea.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 6E1859D714E4471E053D90C9 /* scrollarea.cpp */; settings = {ATTRIBUTES = (); }; };
 		B0B88EFE444C0DE673389418 /* moc_flatbutton.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = C9FFCCE4FCB845744636795F /* moc_flatbutton.cpp */; settings = {ATTRIBUTES = (); }; };
 		B2F5B08BFFBBE7E37D3863BB /* moc_button.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 46292F489228B60010794CE4 /* moc_button.cpp */; settings = {ATTRIBUTES = (); }; };
-		B3CD52E504409DC1B560024F /* countrycodeinput.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 751C8D0E0BE6D16937B77A2C /* countrycodeinput.cpp */; settings = {ATTRIBUTES = (); }; };
 		B460F624007324313696BE86 /* QuartzCore.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 7EC00404ACD5AB0E97726B0E /* QuartzCore.framework */; };
 		B6346B66B0A2228A91D8A5D9 /* mtpDC.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 315C7FACB4A9E18AA95486CA /* mtpDC.cpp */; settings = {ATTRIBUTES = (); }; };
-		B6F50D5FBFAEB16DD0E5B1C3 /* moc_countrycodeinput.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = A1F48DF3E5D0D7C741C1EAC4 /* moc_countrycodeinput.cpp */; settings = {ATTRIBUTES = (); }; };
 		B780F9E21269259B90A1F32A /* moc_mtpDC.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 2C540BAEABD7F9B5FA11008E /* moc_mtpDC.cpp */; settings = {ATTRIBUTES = (); }; };
 		B78304F135DEF1F7A68393A6 /* CoreMedia.framework in Link Binary With Libraries */ = {isa = PBXBuildFile; fileRef = 547CCADBD1CC5050167EF948 /* CoreMedia.framework */; };
 		B8CA3E1E11A7E0E7DF9E1CDE /* mtpFileLoader.cpp in Compile Sources */ = {isa = PBXBuildFile; fileRef = 01D6341DC31FE5997F7BB159 /* mtpFileLoader.cpp */; settings = {ATTRIBUTES = (); }; };
@@ -470,7 +468,6 @@
 		5CEA7A2DB2136425A88D1254 /* /usr/local/Qt-5.5.0/mkspecs/modules/qt_lib_opengl.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.0/mkspecs/modules/qt_lib_opengl.pri"; sourceTree = "<absolute>"; };
 		5F781C7FD8422D359EA1D2FE /* /usr/local/Qt-5.5.0/mkspecs/modules/qt_lib_core_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.0/mkspecs/modules/qt_lib_core_private.pri"; sourceTree = "<absolute>"; };
 		6011DDB120E1B2D4803E129A /* stdafx.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = stdafx.h; path = SourceFiles/stdafx.h; sourceTree = "<absolute>"; };
-		60C0061633AC4244EA634B2A /* countrycodeinput.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = countrycodeinput.h; path = SourceFiles/gui/countrycodeinput.h; sourceTree = "<absolute>"; };
 		6102C69805B6398AF6FA5BEB /* /usr/local/Qt-5.5.0/mkspecs/modules/qt_lib_qml_private.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.0/mkspecs/modules/qt_lib_qml_private.pri"; sourceTree = "<absolute>"; };
 		61C679D8B4B332026BD34200 /* introphone.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = introphone.cpp; path = SourceFiles/intro/introphone.cpp; sourceTree = "<absolute>"; };
 		62807F13DBD204D0716143AD /* Telegram Desktop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Telegram Desktop.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -497,7 +494,6 @@
 		74772222DA764BE4623EAC5D /* moc_pspecific_mac.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_pspecific_mac.cpp; path = GeneratedFiles/Debug/moc_pspecific_mac.cpp; sourceTree = "<absolute>"; };
 		748F1BCCBEEB3675768960FB /* mtpAuthKey.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = mtpAuthKey.h; path = SourceFiles/mtproto/mtpAuthKey.h; sourceTree = "<absolute>"; };
 		74C1C232DFAA71028A0412CA /* /usr/local/Qt-5.5.0/mkspecs/modules/qt_plugin_qtmultimedia_m3u.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.0/mkspecs/modules/qt_plugin_qtmultimedia_m3u.pri"; sourceTree = "<absolute>"; };
-		751C8D0E0BE6D16937B77A2C /* countrycodeinput.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = countrycodeinput.cpp; path = SourceFiles/gui/countrycodeinput.cpp; sourceTree = "<absolute>"; };
 		763ED3C6815ED6C89E352652 /* flatlabel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = flatlabel.cpp; path = SourceFiles/gui/flatlabel.cpp; sourceTree = "<absolute>"; };
 		77FF486B1F9BCD55A8A3F35D /* /usr/local/Qt-5.5.0/mkspecs/modules/qt_lib_concurrent.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.0/mkspecs/modules/qt_lib_concurrent.pri"; sourceTree = "<absolute>"; };
 		7A94C7168B3FCBE5F04A013B /* /usr/local/Qt-5.5.0/mkspecs/modules/qt_lib_declarative.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.0/mkspecs/modules/qt_lib_declarative.pri"; sourceTree = "<absolute>"; };
@@ -568,7 +564,6 @@
 		A022AF919D1977534CA66BB8 /* /usr/local/Qt-5.5.0/mkspecs/modules/qt_lib_widgets.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.0/mkspecs/modules/qt_lib_widgets.pri"; sourceTree = "<absolute>"; };
 		A1479F94376F9732B57C69DB /* moc_animation.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_animation.cpp; path = GeneratedFiles/Debug/moc_animation.cpp; sourceTree = "<absolute>"; };
 		A1A67BEAA744704B29168D39 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = /System/Library/Frameworks/IOKit.framework; sourceTree = "<absolute>"; };
-		A1F48DF3E5D0D7C741C1EAC4 /* moc_countrycodeinput.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_countrycodeinput.cpp; path = GeneratedFiles/Debug/moc_countrycodeinput.cpp; sourceTree = "<absolute>"; };
 		A3622760CEC6D6827A25E710 /* mtpPublicRSA.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = mtpPublicRSA.h; path = SourceFiles/mtproto/mtpPublicRSA.h; sourceTree = "<absolute>"; };
 		A37C7E516201B0264A4CDA38 /* moc_intro.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = moc_intro.cpp; path = GeneratedFiles/Debug/moc_intro.cpp; sourceTree = "<absolute>"; };
 		A4D8AC60897F435C1C3B9D02 /* /usr/local/Qt-5.5.0/mkspecs/modules/qt_plugin_qtsensors_generic.pri */ = {isa = PBXFileReference; lastKnownFileType = text; path = "/usr/local/Qt-5.5.0/mkspecs/modules/qt_plugin_qtsensors_generic.pri"; sourceTree = "<absolute>"; };
@@ -840,7 +835,6 @@
 				08A7682548FB7E671FF03822 /* boxshadow.cpp */,
 				4D55B83DFDFE3D492CDBD27A /* button.cpp */,
 				074FCB8C19D36851004C6EB2 /* contextmenu.cpp */,
-				751C8D0E0BE6D16937B77A2C /* countrycodeinput.cpp */,
 				3E329D4547CC23585307FA32 /* countryinput.cpp */,
 				B3062303CE8F4EB9325CB3DC /* emoji_config.cpp */,
 				DE4C0E3685DDAE58F9397B13 /* filedialog.cpp */,
@@ -860,7 +854,6 @@
 				BDAB6725B830DEE896DC0F55 /* boxshadow.h */,
 				4604687EBA85611C9E8A9CDF /* button.h */,
 				074FCB8D19D36851004C6EB2 /* contextmenu.h */,
-				60C0061633AC4244EA634B2A /* countrycodeinput.h */,
 				6868ADA9E9A9801B2BA92B97 /* countryinput.h */,
 				19618554524B8D928F13940D /* emoji_config.h */,
 				9BD0BE66E93ACE27D00D6D75 /* filedialog.h */,
@@ -1156,7 +1149,6 @@
 				63AF8520023B4EA40306CB03 /* moc_mtpSession.cpp */,
 				A1479F94376F9732B57C69DB /* moc_animation.cpp */,
 				46292F489228B60010794CE4 /* moc_button.cpp */,
-				A1F48DF3E5D0D7C741C1EAC4 /* moc_countrycodeinput.cpp */,
 				9D9F4744B2F9FF22569D4535 /* moc_countryinput.cpp */,
 				C9FFCCE4FCB845744636795F /* moc_flatbutton.cpp */,
 				58E05D0B8B104D83F43F9859 /* moc_flatcheckbox.cpp */,
@@ -1541,7 +1533,6 @@
 				D1FC601FC2F9F3E33F3A14E9 /* animation.cpp in Compile Sources */,
 				8F65F0D95B1F0CEB859F2FB3 /* boxshadow.cpp in Compile Sources */,
 				D7EF8F129FCCE9AB3F3F081F /* button.cpp in Compile Sources */,
-				B3CD52E504409DC1B560024F /* countrycodeinput.cpp in Compile Sources */,
 				07DC42A01B5EA15300B6B888 /* numbers.cpp in Compile Sources */,
 				C03447C9A7D9FF73463B8BB5 /* countryinput.cpp in Compile Sources */,
 				07BE850F1A2093C9008ACB9F /* localstorage.cpp in Compile Sources */,
@@ -1617,7 +1608,6 @@
 				9A523F51135FD4E2464673A6 /* moc_mtpSession.cpp in Compile Sources */,
 				C329997D36D34D568CE16C9A /* moc_animation.cpp in Compile Sources */,
 				B2F5B08BFFBBE7E37D3863BB /* moc_button.cpp in Compile Sources */,
-				B6F50D5FBFAEB16DD0E5B1C3 /* moc_countrycodeinput.cpp in Compile Sources */,
 				6A8BC88AB464B92706EFE6FF /* moc_countryinput.cpp in Compile Sources */,
 				0764D55A1ABAD6F900FBFEED /* apiwrap.cpp in Compile Sources */,
 				07DE92A01AA4923300A18F6F /* passcodewidget.cpp in Compile Sources */,
@@ -1699,7 +1689,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.8.57;
+				CURRENT_PROJECT_VERSION = 0.9;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -1717,7 +1707,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 0.8.57;
+				CURRENT_PROJECT_VERSION = 0.9;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_OPTIMIZATION_LEVEL = fast;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
@@ -1743,10 +1733,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.8.57;
+				CURRENT_PROJECT_VERSION = 0.9;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DYLIB_COMPATIBILITY_VERSION = 0.8;
-				DYLIB_CURRENT_VERSION = 0.8.57;
+				DYLIB_COMPATIBILITY_VERSION = 0.9;
+				DYLIB_CURRENT_VERSION = 0.9;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
@@ -1794,7 +1784,7 @@
 					"/usr/local/Qt-5.5.0/plugins/imageformats",
 					"./../../Libraries/openssl-xcode",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.7;
+				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				OBJROOT = "./../Mac/$(CONFIGURATION)Intermediate";
 				OTHER_CFLAGS = (
 					"-pipe",
@@ -1877,10 +1867,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_IDENTITY = "";
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 0.8.57;
+				CURRENT_PROJECT_VERSION = 0.9;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DYLIB_COMPATIBILITY_VERSION = 0.8;
-				DYLIB_CURRENT_VERSION = 0.8.57;
+				DYLIB_COMPATIBILITY_VERSION = 0.9;
+				DYLIB_CURRENT_VERSION = 0.9;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
@@ -1928,7 +1918,7 @@
 					"/usr/local/Qt-5.5.0/plugins/imageformats",
 					"./../../Libraries/openssl-xcode",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.7;
+				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				OBJROOT = "./../Mac/$(CONFIGURATION)Intermediate";
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CFLAGS = (
@@ -2006,7 +1996,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				LLVM_LTO = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.7;
+				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				OBJROOT = ./../Mac/ReleaseIntermediate;
 				PRODUCT_NAME = "Telegram Desktop";
 				QT_LIBRARY_SUFFIX = "";
@@ -2022,7 +2012,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
-				MACOSX_DEPLOYMENT_TARGET = 10.7;
+				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				OBJROOT = ./../Mac/DebugIntermediate;
 				PRODUCT_NAME = "Telegram Desktop";
 				QT_LIBRARY_SUFFIX = _debug;

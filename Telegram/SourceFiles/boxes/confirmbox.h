@@ -19,7 +19,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 
-class ConfirmBox : public AbstractBox, public RPCSender {
+class ConfirmBox : public AbstractBox {
 	Q_OBJECT
 
 public:
@@ -83,4 +83,42 @@ private:
 
 	QString _url;
 
+};
+
+class MaxInviteBox : public AbstractBox {
+	Q_OBJECT
+
+public:
+
+	MaxInviteBox(const QString &link);
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mousePressEvent(QMouseEvent *e);
+	void leaveEvent(QEvent *e);
+	void updateLink();
+
+protected:
+
+	void hideAll();
+	void showAll();
+
+private:
+
+	void updateSelected(const QPoint &cursorGlobalPosition);
+	bool goodAnimStep(float64 ms);
+
+	BottomButton _close;
+	Text _text;
+	int32 _textWidth, _textHeight;
+
+	QString _link;
+	QRect _invitationLink;
+	bool _linkOver;
+
+	QPoint _lastMousePos;
+
+	QString _goodTextLink;
+	anim::fvalue a_goodOpacity;
+	Animation a_good;
 };

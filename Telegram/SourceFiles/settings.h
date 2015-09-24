@@ -311,7 +311,7 @@ DeclareSetting(int, OtherOnline);
 
 DeclareSetting(float64, SongVolume);
 
-struct PeerData;
+class PeerData;
 typedef QMap<PeerData*, QDateTime> SavedPeers;
 typedef QMultiMap<QDateTime, PeerData*> SavedPeersByTime;
 DeclareRefSetting(SavedPeers, SavedPeers);

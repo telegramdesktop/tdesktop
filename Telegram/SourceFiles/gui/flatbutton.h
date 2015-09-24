@@ -34,6 +34,7 @@ public:
 	bool animStep(float64 ms);
 	void paintEvent(QPaintEvent *e);
 	void setOpacity(float64 o);
+	float64 opacity() const;
 
 	void setText(const QString &text);
 	void setWidth(int32 w);

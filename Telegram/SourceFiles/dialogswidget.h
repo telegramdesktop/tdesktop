@@ -27,9 +27,10 @@ public:
 	DialogsListWidget(QWidget *parent, MainWidget *main);
 
 	void dialogsReceived(const QVector<MTPDialog> &dialogs);
+	void addSavedPeersAfter(const QDateTime &date);
 	void addAllSavedPeers();
 	void searchReceived(const QVector<MTPMessage> &messages, bool fromStart, int32 fullCount);
-	void peopleReceived(const QString &query, const QVector<MTPContactFound> &people);
+	void peopleReceived(const QString &query, const QVector<MTPPeer> &people);
 	void showMore(int32 pixels);
 
 	void activate();
@@ -48,13 +49,14 @@ public:
 	void enterEvent(QEvent *e);
 	void leaveEvent(QEvent *e);
 
-	void peopleResultPaint(UserData *user, QPainter &p, int32 w, bool act, bool sel) const;
-	void searchInPeerPaint(QPainter &p, int32 w) const;
+	void peopleResultPaint(PeerData *peer, Painter &p, int32 w, bool act, bool sel) const;
+	void searchInPeerPaint(Painter &p, int32 w) const;
 
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
 
-	void createDialogAtTop(History *history, int32 unreadCount);
+	void createDialog(History *history);
+	void moveDialogToTop(const History::DialogLinks &links);
 	void dlgUpdated(DialogRow *row);
 	void dlgUpdated(History *row);
 	void removePeer(PeerData *peer);
@@ -74,7 +76,7 @@ public:
 	void scrollToPeer(const PeerId &peer, MsgId msgId);
 
 	typedef QVector<DialogRow*> FilteredDialogs;
-	typedef QVector<UserData*> PeopleResults;
+	typedef QVector<PeerData*> PeopleResults;
 	typedef QVector<FakeDialogRow*> SearchResults;
 
 	DialogsIndexed &contactsList();
@@ -110,7 +112,6 @@ public slots:
 
 	void onUpdateSelected(bool force = false);
 	void onParentGeometryChanged();
-	void onDialogToTop(const History::DialogLinks &links);
 	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 	void onPeerPhotoChanged(PeerData *peer);
 	void onDialogRowReplaced(DialogRow *oldRow, DialogRow *newRow);
@@ -127,7 +128,6 @@ signals:
 
 private:
 
-	void addDialog(const MTPDdialog &dialog);
 	void clearSearchResults(bool clearPeople = true);
 
 	DialogsIndexed dialogs;
@@ -175,7 +175,7 @@ class DialogsWidget : public QWidget, public Animated, public RPCSender {
 public:
 	DialogsWidget(MainWidget *parent);
 
-	void dialogsReceived(const MTPmessages_Dialogs &dialogs);
+	void dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpRequestId req);
 	void contactsReceived(const MTPcontacts_Contacts &contacts);
 	void searchReceived(bool fromStart, const MTPmessages_Messages &result, mtpRequestId req);
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
@@ -194,7 +194,7 @@ public:
 	void searchInPeer(PeerData *peer);
 
 	void loadDialogs();
-	void createDialogAtTop(History *history, int32 unreadCount);
+	void createDialog(History *history);
 	void dlgUpdated(DialogRow *row);
 	void dlgUpdated(History *row);
 
@@ -217,7 +217,7 @@ public:
 
 	void enableShadow(bool enable = true);
 	
-	void searchMessages(const QString &query);
+	void searchMessages(const QString &query, PeerData *inPeer = 0);
 	void onSearchMore(MsgId minMsgId);
 
 	void itemRemoved(HistoryItem *item);
@@ -255,14 +255,13 @@ private:
 	QTimer _chooseByDragTimer;
 
 	void unreadCountsReceived(const QVector<MTPDialog> &dialogs);
-	bool dialogsFailed(const RPCError &error);
+	bool dialogsFailed(const RPCError &error, mtpRequestId req);
 	bool contactsFailed(const RPCError &error);
 	bool searchFailed(const RPCError &error, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
 
-	int32 dlgOffset, dlgCount;
-	mtpRequestId dlgPreloading;
-	mtpRequestId contactsRequest;
+	int32 _dialogsOffset, _dialogsCount;
+	mtpRequestId _dialogsRequest, _channelDialogsRequest, _contactsRequest;
 
 	FlatInput _filter;
 	IconedButton _newGroup, _addContact, _cancelSearch;

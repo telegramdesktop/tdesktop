@@ -92,46 +92,27 @@ namespace App {
 
 	QString formatPhone(QString phone);
 
-	inline bool isChat(const PeerId &peer) {
-		return peer & 0x100000000L;
-	}
-	PeerId peerFromMTP(const MTPPeer &peer_id);
-	PeerId peerFromChat(int32 chat_id);
-	inline PeerId peerFromChat(const MTPint &chat_id) {
-		return peerFromChat(chat_id.v);
-	}
-	PeerId peerFromUser(int32 user_id);
-	inline PeerId peerFromUser(const MTPint &user_id) {
-		return peerFromUser(user_id.v);
-	}
-	MTPpeer peerToMTP(const PeerId &peer_id);
-    int32 userFromPeer(const PeerId &peer_id);
-    int32 chatFromPeer(const PeerId &peer_id);
-
 	int32 onlineForSort(UserData *user, int32 now);
 	int32 onlineWillChangeIn(UserData *user, int32 nowOnServer);
 	QString onlineText(UserData *user, int32 nowOnServer, bool precise = false);
 	bool onlineColorUse(UserData *user, int32 now);
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users, bool emitPeerUpdated = true); // returns last user
-	ChatData *feedChats(const MTPVector<MTPChat> &chats, bool emitPeerUpdated = true); // returns last chat
+	PeerData *feedChats(const MTPVector<MTPChat> &chats, bool emitPeerUpdated = true); // returns last chat
 	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos, bool emitPeerUpdated = true);
 	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated = true);
 	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated = true);
-	void checkEntitiesUpdate(const MTPDmessage &m);
-	void feedMsgs(const MTPVector<MTPMessage> &msgs, int msgsState = 0); // 2 - new read message, 1 - new unread message, 0 - not new message, -1 - searched message
-	void feedWereRead(const QVector<MTPint> &msgsIds);
-	void feedInboxRead(const PeerId &peer, int32 upTo);
-	void feedOutboxRead(const PeerId &peer, int32 upTo);
-	void feedWereDeleted(const QVector<MTPint> &msgsIds);
+	void checkEntitiesAndViewsUpdate(const MTPDmessage &m);
+	void feedMsgs(const MTPVector<MTPMessage> &msgs, NewMessageType type);
+	void feedInboxRead(const PeerId &peer, MsgId upTo);
+	void feedOutboxRead(const PeerId &peer, MsgId upTo);
+	void feedWereDeleted(ChannelId channelId, const QVector<MTPint> &msgsIds);
 	void feedUserLinks(const MTPVector<MTPcontacts_Link> &links, bool emitPeerUpdated = true);
 	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink, bool emitPeerUpdated = true);
 
 	void markPeerUpdated(PeerData *data);
 	void clearPeerUpdated(PeerData *data);
 	void emitPeerUpdated();
-
-	int32 maxMsgId();
 
 	ImagePtr image(const MTPPhotoSize &size);
 	StorageImageLocation imageLocation(int32 w, int32 h, const MTPFileLocation &loc);
@@ -150,19 +131,23 @@ namespace App {
 	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert = 0);
 	WebPageData *feedWebPage(const MTPWebPage &webpage);
 
-	UserData *userLoaded(const PeerId &user);
-	ChatData *chatLoaded(const PeerId &chat);
-	PeerData *peerLoaded(const PeerId &peer);
+	PeerData *peerLoaded(const PeerId &id);
+	UserData *userLoaded(const PeerId &id);
+	ChatData *chatLoaded(const PeerId &id);
+	ChannelData *channelLoaded(const PeerId &id);
 	UserData *userLoaded(int32 user);
 	ChatData *chatLoaded(int32 chat);
+	ChannelData *channelLoaded(int32 channel);
 
-	PeerData *peer(const PeerId &peer);
-	UserData *user(const PeerId &peer);
-	UserData *user(int32 user);
+	PeerData *peer(const PeerId &id);
+	UserData *user(const PeerId &id);
+	ChatData *chat(const PeerId &id);
+	ChannelData *channel(const PeerId &id);
+	UserData *user(int32 user_id);
+	ChatData *chat(int32 chat_id);
+	ChannelData *channel(int32 channel_id);
 	UserData *self();
-	UserData *userByName(const QString &username);
-	ChatData *chat(const PeerId &peer);
-	ChatData *chat(int32 chat);
+	PeerData *peerByName(const QString &username);
 	QString peerName(const PeerData *peer, bool forDialogs = false);
 	PhotoData *photo(const PhotoId &photo);
 	PhotoData *photoSet(const PhotoId &photo, PhotoData *convert, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full);
@@ -181,9 +166,13 @@ namespace App {
 	MTPPhoto photoFromUserPhoto(MTPint userId, MTPint date, const MTPUserProfilePhoto &photo);
 
 	Histories &histories();
-	History *history(const PeerId &peer, int32 unreadCnt = 0, int32 maxInboxRead = 0);
+	History *history(const PeerId &peer);
+	History *historyFromDialog(const PeerId &peer, int32 unreadCnt, int32 maxInboxRead);
 	History *historyLoaded(const PeerId &peer);
-	HistoryItem *histItemById(MsgId itemId);
+	HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
+	inline HistoryItem *histItemById(const FullMsgId &msgId) {
+		return histItemById(msgId.channel, msgId.msg);
+	}
 	HistoryItem *historyRegItem(HistoryItem *item);
 	void historyItemDetached(HistoryItem *item);
 	void historyUnregItem(HistoryItem *item);
@@ -192,12 +181,12 @@ namespace App {
 	void historyRegReply(HistoryReply *reply, HistoryItem *to);
 	void historyUnregReply(HistoryReply *reply, HistoryItem *to);
 
-	void historyRegRandom(uint64 randomId, MsgId itemId);
+	void historyRegRandom(uint64 randomId, const FullMsgId &itemId);
 	void historyUnregRandom(uint64 randomId);
-	MsgId histItemByRandom(uint64 randomId);
-	void historyRegSentText(uint64 itemId, const QString &text);
-	void historyUnregSentText(uint64 itemId);
-	QString histSentTextByItem(uint64 itemId);
+	FullMsgId histItemByRandom(uint64 randomId);
+	void historyRegSentData(uint64 randomId, const PeerId &peerId, const QString &text);
+	void historyUnregSentData(uint64 randomId);
+	void histSentDataByItem(uint64 randomId, PeerId &peerId, QString &text);
 
 	void hoveredItem(HistoryItem *item);
 	HistoryItem *hoveredItem();
@@ -255,29 +244,29 @@ namespace App {
 	void unregMuted(PeerData *peer);
 	void updateMuted();
 
-	void feedReplyMarkup(MsgId msgId, const MTPReplyMarkup &markup);
-	void clearReplyMarkup(MsgId msgId);
-	const ReplyMarkup &replyMarkup(MsgId msgId);
+	void feedReplyMarkup(ChannelId channelId, MsgId msgId, const MTPReplyMarkup &markup);
+	void clearReplyMarkup(ChannelId channelId, MsgId msgId);
+	const ReplyMarkup &replyMarkup(ChannelId channelId, MsgId msgId);
 
 	void setProxySettings(QNetworkAccessManager &manager);
 	void setProxySettings(QTcpSocket &socket);
 
 	void sendBotCommand(const QString &cmd, MsgId replyTo = 0);
 	void insertBotCommand(const QString &cmd);
-	void searchByHashtag(const QString &tag);
-	void openUserByName(const QString &username, bool toProfile = false, const QString &startToken = QString());
+	void searchByHashtag(const QString &tag, PeerData *inPeer);
+	void openPeerByName(const QString &username, bool toProfile = false, const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
 	void stickersBox(const QString &name);
 	void openLocalUrl(const QString &url);
 
 	QImage **cornersMask();
 	QPixmap **corners(RoundCorners index);
-	void roundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *sh = 0);
-	inline void roundRect(QPainter &p, const QRect &rect, const style::color &bg, RoundCorners index, const style::color *sh = 0) {
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *sh = 0);
+	inline void roundRect(Painter &p, const QRect &rect, const style::color &bg, RoundCorners index, const style::color *sh = 0) {
 		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, index, sh);
 	}
-	void roundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, const style::color &sh, RoundCorners index);
-	inline void roundShadow(QPainter &p, const QRect &rect, const style::color &sh, RoundCorners index) {
+	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &sh, RoundCorners index);
+	inline void roundShadow(Painter &p, const QRect &rect, const style::color &sh, RoundCorners index) {
 		return roundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), sh, index);
 	}
 

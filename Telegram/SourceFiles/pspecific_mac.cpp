@@ -65,13 +65,13 @@ void MacPrivate::notifyClicked(unsigned long long peer, int msgid) {
 
     App::wnd()->showFromTray();
 	if (App::passcoded()) {
-		App::wnd()->passcodeWidget()->setInnerFocus();
+		App::wnd()->setInnerFocus();
 		App::wnd()->notifyClear();
 	} else {
 		App::wnd()->hideSettings();
-		bool tomsg = history->peer->chat && (msgid > 0);
+		bool tomsg = !history->peer->isUser() && (msgid > 0);
 		if (tomsg) {
-			HistoryItem *item = App::histItemById(msgid);
+			HistoryItem *item = App::histItemById(peerToChannel(PeerId(peer)), MsgId(msgid));
 			if (!item || !item->notifyByFrom()) {
 				tomsg = false;
 			}
@@ -84,12 +84,12 @@ void MacPrivate::notifyClicked(unsigned long long peer, int msgid) {
 void MacPrivate::notifyReplied(unsigned long long peer, int msgid, const char *str) {
     History *history = App::history(PeerId(peer));
     
-	App::main()->sendMessage(history, QString::fromUtf8(str), (msgid > 0 && history->peer->chat) ? msgid : 0);
+	App::main()->sendMessage(history, QString::fromUtf8(str), (msgid > 0 && !history->peer->isUser()) ? msgid : 0, false);
 }
 
 PsMainWindow::PsMainWindow(QWidget *parent) : QMainWindow(parent),
 posInited(false), trayIcon(0), trayIconMenu(0), icon256(qsl(":/gui/art/icon256.png")), iconbig256(qsl(":/gui/art/iconbig256.png")), wndIcon(QPixmap::fromImage(iconbig256, Qt::ColorOnly)),
-psLogout(0), psUndo(0), psRedo(0), psCut(0), psCopy(0), psPaste(0), psDelete(0), psSelectAll(0), psContacts(0), psAddContact(0), psNewGroup(0), psShowTelegram(0) {
+psLogout(0), psUndo(0), psRedo(0), psCut(0), psCopy(0), psPaste(0), psDelete(0), psSelectAll(0), psContacts(0), psAddContact(0), psNewGroup(0), psNewChannel(0), psShowTelegram(0) {
 	QImage tray(qsl(":/gui/art/osxtray.png"));
 	trayImg = tray.copy(0, cRetina() ? 0 : tray.width() / 2, tray.width() / (cRetina() ? 2 : 4), tray.width() / (cRetina() ? 2 : 4));
 	trayImgSel = tray.copy(tray.width() / (cRetina() ? 2 : 4), cRetina() ? 0 : tray.width() / 2, tray.width() / (cRetina() ? 2 : 4), tray.width() / (cRetina() ? 2 : 4));
@@ -347,6 +347,7 @@ void PsMainWindow::psFirstShow() {
 	psAddContact = window->addAction(lang(lng_mac_menu_add_contact), App::wnd(), SLOT(onShowAddContact()));
 	window->addSeparator();
 	psNewGroup = window->addAction(lang(lng_mac_menu_new_group), App::wnd(), SLOT(onShowNewGroup()));
+	psNewChannel = window->addAction(lang(lng_mac_menu_new_channel), App::wnd(), SLOT(onShowNewChannel()));
 	window->addSeparator();
 	psShowTelegram = window->addAction(lang(lng_mac_menu_show), App::wnd(), SLOT(showFromTray()));
 
@@ -443,6 +444,7 @@ void PsMainWindow::psMacUpdateMenu() {
 	_forceDisabled(psContacts, !isLogged || App::passcoded());
 	_forceDisabled(psAddContact, !isLogged || App::passcoded());
 	_forceDisabled(psNewGroup, !isLogged || App::passcoded());
+	_forceDisabled(psNewChannel, !isLogged || App::passcoded());
 	_forceDisabled(psShowTelegram, App::wnd()->isActive(false));
 }
 

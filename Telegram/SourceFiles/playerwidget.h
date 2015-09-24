@@ -53,7 +53,7 @@ public:
 
 signals:
 
-	void playerSongChanged(MsgId msgId);
+	void playerSongChanged(const FullMsgId &msgId);
 
 private:
 
@@ -77,7 +77,7 @@ private:
 	void updateControls();
 	void findCurrent();
 
-	void startPlay(MsgId msgId);
+	void startPlay(const FullMsgId &msgId);
 
 	QPoint _lastMousePos;
 	void updateSelected();

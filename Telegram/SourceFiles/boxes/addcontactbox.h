@@ -30,6 +30,10 @@ public:
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
+	void setInnerFocus() {
+		_firstInput.setFocus();
+	}
+
 public slots:
 
 	void onSend();
@@ -60,8 +64,76 @@ private:
 	FlatButton _addButton, _retryButton, _cancelButton;
 	FlatInput _firstInput, _lastInput, _phoneInput;
 
+	bool _invertOrder;
+
 	uint64 _contactId;
 
 	mtpRequestId _addRequest;
 	QString _sentName;
+};
+
+class EditChannelBox : public AbstractBox, public RPCSender {
+	Q_OBJECT
+
+public:
+
+	EditChannelBox(ChannelData *channel);
+	void keyPressEvent(QKeyEvent *e);
+	void paintEvent(QPaintEvent *e);
+	void resizeEvent(QResizeEvent *e);
+	void mouseMoveEvent(QMouseEvent *e);
+	void mousePressEvent(QMouseEvent *e);
+	void leaveEvent(QEvent *e);
+
+	bool eventFilter(QObject *obj, QEvent *e);
+
+	bool descriptionAnimStep(float64 ms);
+
+	void setInnerFocus() {
+		if (!_description.hasFocus()) {
+			_title.setFocus();
+		}
+	}
+
+public slots:
+
+	void peerUpdated(PeerData *peer);
+
+	void onSave();
+	void onDescriptionResized();
+	void onPublicLink();
+
+protected:
+
+	void hideAll();
+	void showAll();
+	void showDone();
+
+private:
+
+	QRect descriptionRect() const;
+	void updateMaxHeight();
+	void updateSelected(const QPoint &cursorGlobalPosition);
+
+	void onSaveTitleDone(const MTPUpdates &updates);
+	void onSaveDescriptionDone(const MTPBool &result);
+	bool onSaveFail(const RPCError &e, mtpRequestId req);
+
+	void saveDescription();
+
+	ChannelData *_channel;
+	QString _boxTitle;
+
+	FlatButton _saveButton, _cancelButton;
+	FlatInput _title;
+
+	bool _descriptionOver;
+	anim::cvalue a_descriptionBg, a_descriptionBorder;
+	Animation a_description;
+	FlatTextarea _description;
+
+	LinkButton _publicLink;
+
+	mtpRequestId _saveTitleRequestId, _saveDescriptionRequestId;
+	QString _sentTitle, _sentDescription;
 };

@@ -19,6 +19,7 @@ defaultFontFamily: 'Open Sans';
 semibold: 'Open Sans Semibold';
 
 fsize: 13px;
+normalFont: font(fsize);
 
 spriteFile: ':/gui/art/sprite.png' / 2:':/gui/art/sprite_125x.png' / 3:':/gui/art/sprite_150x.png' / 4:':/gui/art/sprite_200x.png';
 emojiImgSize: 18px; // exceptional value for retina
@@ -32,9 +33,9 @@ counterMacInvColor: #ffffff01;
 
 lineWidth: 1px;
 
-transparent: rgba(255, 255, 255, 0);
-white: rgba(255, 255, 255, 255);
-black: rgba(0, 0, 0, 255);
+transparent: #fff0;
+white: #fff;
+black: #000;
 
 color1: #c03d33; // red
 color2: #4fad2d; // green
@@ -50,13 +51,46 @@ wideModeWidth: 640px;
 wndMinHeight: 480px;
 wndDefWidth: 800px;
 wndDefHeight: 600px;
-wndBG: #FFF;
+wndBG: white;
 wndShadow: sprite(209px, 46px, 19px, 19px);
 wndShadowShift: 1px;
 
 layerAlpha: 0.5;
-layerBG: #000;
+layerBG: black;
 
+defaultInputField: InputField {
+	textFg: black;
+	textMargins: margins(5px, 5px, 5px, 5px);
+	textAlign: align(left);
+
+	placeholderFg: #999;
+	placeholderFgActive: #aaa;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderShift: 50px;
+	duration: 100;
+
+	borderFg: #e0e0e0;
+	borderFgActive: #62c0f7;
+	borderFgError: #e48383;
+
+	border: 1px;
+	borderActive: 2px;
+	borderError: 2px;
+
+	font: normalFont;
+
+	height: 32px;
+}
+dialogsSearchField: InputField(defaultInputField) {
+	textMargins: margins(34px, 7px, 34px, 7px);
+
+	iconSprite: sprite(227px, 21px, 24px, 24px);
+	iconPosition: point(6px, 5px);
+
+	width: 240px;
+	height: 34px;
+}
 titleBG: #6389a8;
 titleColor: #0f8dcc;//rgb(20, 136, 210);
 titleHeight: 39px;
@@ -122,9 +156,9 @@ sysUnlock: sysButton(sysUpd) {
 	img: sprite(207px, 22px, 19px, 19px);
 }
 titleBackButton: iconedButton(btnDefIconed) {
-	icon: sprite(113px, 108px, 13px, 20px);
+	icon: sprite(9px, 104px, 13px, 20px);
 	iconPos: point(5px, 9px);
-	downIcon: sprite(113px, 108px, 13px, 20px);
+	downIcon: sprite(9px, 104px, 13px, 20px);
 	downIconPos: point(5px, 10px);
 
 	bgColor: #c4d8e9;
@@ -200,7 +234,7 @@ btnDefBack: flatButton(btnDefFlat) {
 }
 
 linkCropLimit: 360px;
-linkFont: font(fsize);
+linkFont: normalFont;
 linkOverFont: font(fsize underline);
 btnDefLink: linkButton {
 	color: btnYesColor;
@@ -225,12 +259,12 @@ cbDefFlat: flatCheckbox {
 
 	disabledCursor: cursor(default);
 
-	imageRect: sprite(140px, 68px, 22px, 22px);
-	chkImageRect: sprite(115px, 68px, 22px, 22px);
-	overImageRect: sprite(190px, 68px, 22px, 22px);
-	chkOverImageRect: sprite(115px, 68px, 22px, 22px);
-	disImageRect: sprite(140px, 43px, 22px, 22px);
-	chkDisImageRect: sprite(115px, 43px, 22px, 22px);
+	imageRect: sprite(142px, 43px, 22px, 22px);
+	chkImageRect: sprite(120px, 68px, 22px, 22px);
+	overImageRect: sprite(142px, 68px, 22px, 22px);
+	chkOverImageRect: sprite(120px, 68px, 22px, 22px);
+	disImageRect: sprite(142px, 43px, 22px, 22px);
+	chkDisImageRect: sprite(120px, 43px, 22px, 22px);
 
 	imagePos: point(0px, 0px);
 }
@@ -681,12 +715,14 @@ dlgActiveDblCheckImg: sprite(302px, 36px, 17px, 11px);
 dlgActiveCheckImg: sprite(320px, 36px, 17px, 11px);
 dlgSendImg: sprite(122px, 25px, 17px, 11px);
 dlgActiveSendImg: sprite(142px, 25px, 17px, 11px);
-dlgChatImg: sprite(302px, 51px, 16px, 11px);
-dlgActiveChatImg: sprite(322px, 51px, 16px, 11px);
 
-dlgChatImgLeft: 1px;
-dlgChatImgTop: 4px;
-dlgChatImgSkip: 22px;
+dlgChatImgPos: point(1px, 4px);
+dlgChatImg: sprite(104px, 26px, 16px, 11px);
+dlgActiveChatImg: sprite(104px, 37px, 16px, 11px);
+dlgChannelImgPos: point(2px, 3px);
+dlgChannelImg: sprite(104px, 0px, 14px, 13px);
+dlgActiveChannelImg: sprite(104px, 13px, 14px, 13px);
+dlgImgSkip: 22px;
 
 dlgCheckLeft: 5px;
 dlgCheckTop: 4px;
@@ -723,8 +759,8 @@ topBarBG: white;
 topBarDuration: 200;
 topBarForwardPadding: margins(17px, 8px, 39px, 8px);
 topBarForwardAlpha: 0.6;
-topBarForwardImg: sprite(45px, 112px, 9px, 16px);
-topBarBackwardImg: sprite(35px, 112px, 9px, 16px);
+topBarForwardImg: sprite(31px, 104px, 9px, 16px);
+topBarBackwardImg: sprite(22px, 104px, 9px, 16px);
 topBarBackPadding: margins(15px, 7px, 9px, 7px);
 topBarBackAlpha: 0.8;
 topBarBackImg: sprite(65px, 112px, 9px, 16px);
@@ -839,19 +875,30 @@ msgPtr: 8px;
 msgBG: ':/gui/art/bg.jpg';
 msgBG0: ':/gui/art/bg0.png';
 
-msgSendingRect: sprite(260px, 20px, 20px, 20px);
-msgCheckRect: sprite(320px, 0px, 20px, 20px);
-msgCheckPos: point(5px, 1px);
-msgDblCheckRect: sprite(300px, 0px, 20px, 20px);
-msgSelectCheckRect: sprite(160px, 0px, 20px, 20px);
-msgSelectDblCheckRect: sprite(140px, 0px, 20px, 20px);
+msgCheckPos: point(3px, 1px);
+msgSendingImg: sprite(260px, 20px, 20px, 20px);
+msgCheckImg: sprite(320px, 0px, 20px, 20px);
+msgDblCheckImg: sprite(300px, 0px, 20px, 20px);
+msgSelectCheckImg: sprite(162px, 0px, 20px, 20px);
+msgSelectDblCheckImg: sprite(142px, 0px, 20px, 20px);
+msgViewsPos: point(0px, -4px);
+msgViewsImg: sprite(104px, 48px, 16px, 11px);
+msgSelectViewsImg: sprite(104px, 70px, 16px, 11px);
+msgOutViewsImg: sprite(104px, 81px, 16px, 11px);
+msgSelectOutViewsImg: sprite(104px, 92px, 16px, 11px);
+msgSendingViewsImg: sprite(104px, 103px, 16px, 11px);
+msgSendingOutViewsImg: sprite(104px, 125px, 16px, 11px);
+msgInvSendingImg: sprite(320px, 65px, 20px, 20px);
+msgInvCheckImg: sprite(280px, 20px, 20px, 20px);
+msgInvDblCheckImg: sprite(300px, 65px, 20px, 20px);
+msgInvViewsImg: sprite(104px, 59px, 16px, 11px);
+msgInvSendingViewsImg: sprite(104px, 114px, 16px, 11px);
+
 msgDateSpace: 19px;
 msgDateCheckSpace: 4px;
+msgDateViewsSpace: 11px;
 msgDateDelta: point(2px, 5px);
 
-msgImgSendingRect: sprite(320px, 65px, 20px, 20px);
-msgImgCheckRect: sprite(280px, 20px, 20px, 20px);
-msgImgDblCheckRect: sprite(300px, 65px, 20px, 20px);
 msgDateImgDelta: 4px;
 msgDateImgColor: #fff;
 msgDateImgBg: #00000054;
@@ -861,6 +908,24 @@ msgDateImgCheckSpace: 4px;
 
 msgDogImg: sprite(213px, 93px, 126px, 126px);
 historyPadding: 10px;
+
+collapseButton: flatButton(btnDefFlat) {
+	font: msgServiceFont;
+	overFont: msgServiceFont;
+	width: -24px;
+	bgColor: transparent;
+	downBgColor: transparent;
+	overBgColor: transparent;
+	color: white;
+	overColor: white;
+	downColor: white;
+	textTop: 3px;
+	overTextTop: 3px;
+	downTextTop: 3px;
+	height: 24px;
+}
+collapseHideDuration: 200;
+collapseShowDuration: 200;
 
 defaultTextStyle: textStyle {
 	lnkFlags: font(fsize);
@@ -993,8 +1058,8 @@ btnAttachDocument: iconedButton(btnDefIconed) {
 	height: 46px;
 }
 btnAttachPhoto: iconedButton(btnAttachDocument) {
-	icon: sprite(113px, 0px, 24px, 24px);
-	downIcon: sprite(113px, 0px, 24px, 24px);
+	icon: sprite(118px, 0px, 24px, 24px);
+	downIcon: sprite(118px, 0px, 24px, 24px);
 }
 btnAttachEmoji: iconedButton(btnAttachDocument) {
 	overBgColor: white;
@@ -1022,6 +1087,28 @@ btnBotKbHide: iconedButton(btnAttachEmoji) {
 	iconPos: point(5px, 17px);
 	downIcon: sprite(373px, 95px, 23px, 14px);
 	downIconPos: point(5px, 17px);
+}
+broadcastToggle: flatCheckbox {
+	textColor: black;
+	bgColor: white;
+	disColor: black;
+
+	width: 36px;
+	height: 46px;
+	duration: 200;
+	bgFunc: transition(easeOutCirc);
+	cursor: cursor(pointer);
+
+	font: normalFont;
+
+	imageRect: sprite(18px, 125px, 22px, 21px);
+	chkImageRect: sprite(40px, 125px, 22px, 21px);
+	overImageRect: sprite(40px, 104px, 22px, 21px);
+	chkOverImageRect: sprite(40px, 125px, 22px, 21px);
+	disImageRect: sprite(18px, 125px, 22px, 21px);
+	chkDisImageRect: sprite(18px, 125px, 22px, 21px);
+
+	imagePos: point(7px, 12px);
 }
 btnRecordAudio: sprite(379px, 390px, 16px, 24px);
 btnRecordAudioActive: sprite(379px, 366px, 16px, 24px);
@@ -1206,7 +1293,7 @@ profileNameFont: font(20px);
 profileStatusLeft: 22px;
 profileStatusTop: 31px;
 profileStatusFont: font(fsize);
-profilePhoneLeft: 20px;
+profilePhoneLeft: 22px;
 profilePhoneTop: 62px;
 profilePhoneFont: font(16px);
 profileButtonTop: 18px;
@@ -1224,7 +1311,7 @@ profileListStatusBottom: 6px;
 profileHoverBG: #f5f5f5;
 profileActiveBG: #6294b9;
 profileSubFont: font(fsize);
-profileCheckRect: sprite(88px, 108px, 24px, 24px);
+profileCheckRect: sprite(78px, 114px, 24px, 24px);
 profileCheckActiveRect: sprite(128px, 108px, 24px, 24px);
 profileCheckDeltaX: 18px;
 profileCheckDeltaY: 1px;
@@ -1244,6 +1331,8 @@ btnShareContact: flatButton(btnDefNext, btnDefBig) {
 	overFont: font(17px);
 }
 profileMinBtnPadding: 10px;
+
+membersPadding: margins(0px, 10px, 0px, 10px);
 
 forwardWidth: 364px;
 forwardMargins: margins(30px, 10px, 30px, 10px);
@@ -1331,15 +1420,59 @@ contactsFilter: flatInput(dlgFilter) {
 	textMrg: margins(34px, 3px, 5px, 4px);
 	imgPos: point(6px, 7px);
 }
-newGroupName: flatInput(inpDefGray) {
-	width: 340px;
-	height: 44px;
-	font: font(15px);
-	textMrg: margins(12px, 5px, 12px, 5px);
-}
 inpCountry: flatInput(contactsFilter) {
 }
+newGroupName: flatInput(inpDefGray) {
+	width: 340px;
+	height: 42px;
+	font: font(15px);
+	textMrg: margins(12px, 4px, 12px, 4px);
+}
+newGroupLink: flatInput(inpDefFlat) {
+	width: 340px;
+	height: 42px;
+	font: font(15px);
+	textMrg: margins(12px, 4px, 12px, 4px);
+	bgColor: transparent;
+	bgActive: transparent;
+	borderWidth: 2px;
+	borderColor: #f2f2f2;
+	borderActive: #80cff9;
+	borderError: #ed8080;
+	phColor: #828282;
+	phFocusColor: #949494;
+}
+newGroupLimitFg: #a4a4a4;
+newGroupAboutFg: #808080;
 newGroupNamePadding: margins(12px, 15px, 12px, 13px);
+newGroupPadding: margins(26px, 28px, 26px, 24px);
+newGroupSkip: 15px;
+newGroupLinkPadding: margins(26px, 27px, 26px, 27px);
+newGroupLinkTop: -3px;
+newGroupLinkFont: font(16px);
+newGroupPhoto: flatButton(btnDefNext, btnDefBig) {
+	width: 199px;
+	height: 42px;
+
+	textTop: 9px;
+	overTextTop: 9px;
+	downTextTop: 10px;
+
+	font: font(17px);
+	overFont: font(17px);
+}
+newGroupPhotoSize: 96px;
+newGroupPhotoSkip: 18px;
+newGroupDescriptionSkip: 28px;
+newGroupPublicLinkSkip: 27px;
+newGroupDescription: flatTextarea(taDefFlat) {
+	font: font(15px);
+	bgColor: transparent;
+	phColor: #828282;
+	phFocusColor: #949494;
+}
+newGroupDescriptionPadding: margins(5px, 6px, 5px, 6px);
+newGroupLinkFadeDuration: 5000;
 
 connectionSkip: 20px;
 inpConnectionHost: flatInput(inpDefGray) {
@@ -1385,7 +1518,7 @@ contactsClose: flatButton {
 	font: font(16px);
 	overFont: font(16px);
 }
-contactsImg: sprite(45px, 112px, 9px, 16px);
+contactsImg: sprite(31px, 104px, 9px, 16px);
 contactsAdd: flatButton(topBarButton) {
 	width: -40px;
 	height: 52px;
@@ -1395,7 +1528,7 @@ contactsAdd: flatButton(topBarButton) {
 	downTextTop: 19px;
 }
 
-aboutIcon: sprite(2px, 2px, 104px, 104px);
+aboutIcon: sprite(0px, 0px, 104px, 104px);
 aboutIconTop: 28px;
 aboutWidth: 448px;
 aboutHeight: 441px;
@@ -1465,8 +1598,8 @@ dropdownAttachDocument: iconedButton(btnAttachDocument) {
 	downTextPos: point(50px, 14px);
 }
 dropdownAttachPhoto: iconedButton(dropdownAttachDocument) {
-	icon: sprite(113px, 0px, 24px, 24px);
-	downIcon: sprite(113px, 0px, 24px, 24px);
+	icon: sprite(118px, 0px, 24px, 24px);
+	downIcon: sprite(118px, 0px, 24px, 24px);
 }
 dropdownMediaPhotos: iconedButton(dropdownAttachPhoto) {
 	width: 200px;
@@ -1484,7 +1617,7 @@ dropdownMediaAudios: iconedButton(dropdownMediaDocuments) {
 }
 dropdownMediaLinks: iconedButton(dropdownMediaDocuments) {
 	icon: sprite(372px, 414px, 24px, 24px);
-	downIcon: sprite(62px, 348px, 24px, 24px);
+	downIcon: sprite(372px, 414px, 24px, 24px);
 }
 
 dragFont: font(28px semibold);
@@ -1496,10 +1629,6 @@ dragMargin: margins(0px, 10px, 0px, 10px);
 dragPadding: margins(20px, 10px, 20px, 10px);
 
 dragHeight: 72px;
-
-selectedFont: font(fsize);
-selectedColor: #777;
-selectedTop: 14px;
 
 downloadSkip: 20px;
 inpDownloadDir: flatInput(inpDefGray) {
@@ -1518,7 +1647,7 @@ dpiSlider: slider {
 	thikness: 2px;
 
 	width: 260px;
-	bar: sprite(6px, 110px, 9px, 22px);
+	bar: sprite(0px, 104px, 9px, 22px);
 }
 dpiActive: black;
 dpiInactive: #999;
@@ -1704,9 +1833,9 @@ emojiSwitchColor: #42a8db;
 
 stickerPanSize: size(64px, 64px);
 stickerPanPadding: 11px;
-stickerPanDelete: sprite(123px, 132px, 12px, 12px);
+stickerPanDelete: sprite(128px, 132px, 12px, 12px);
 stickerPanDeleteOpacity: 0.5;
-stickerIconPadding: 3px;
+stickerIconPadding: 5px;
 stickerIconOpacity: 0.7;
 stickerIconSel: 2px;
 stickerIconSelColor: #58b2ed;
@@ -1714,6 +1843,12 @@ stickerIconRecent: sprite(342px, 50px, 21px, 22px);
 stickerIconLeft: sprite(342px, 72px, 40px, 1px);
 stickerIconRight: sprite(342px, 73px, 40px, 1px);
 stickerIconMove: 400;
+
+verifiedCheckProfile: sprite(285px, 240px, 22px, 22px);
+verifiedCheckProfilePos: point(9px, 4px);
+verifiedCheck: sprite(285px, 221px, 19px, 19px);
+verifiedCheckInv: sprite(304px, 221px, 19px, 19px);
+verifiedCheckPos: point(5px, 0px);
 
 botKbDuration: 200;
 botKbBg: #f7f7f7;
@@ -1846,7 +1981,7 @@ medviewSaveMsgShown: 2000;
 medviewSaveMsgHiding: 2500;
 medviewSaveMsg: #000000b2;
 
-mvTransparentBrush: sprite(113px, 128px, 8px, 8px);
+mvTransparentBrush: sprite(9px, 124px, 8px, 8px);
 
 overviewPhotoSkip: 10px;
 overviewPhotoMinSize: 100px;
@@ -1910,7 +2045,7 @@ mediaviewLoader: size(78px, 33px);
 mediaviewLoaderPoint: size(9px, 9px);
 mediaviewLoaderSkip: 9px;
 
-minPhotoSize: 90px;
+minPhotoSize: 100px;
 maxMediaSize: 420px;
 maxStickerSize: 256px;
 

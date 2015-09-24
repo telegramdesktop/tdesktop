@@ -267,3 +267,33 @@ botKeyboardButton {
 	textTop: number;
 	downTextTop: number;
 }
+
+InputField {
+	textFg: color;
+	textMargins: margins;
+	textAlign: align;
+
+	placeholderFg: color;
+	placeholderFgActive: color;
+	placeholderMargins: margins;
+	placeholderAlign: align;
+	placeholderShift: number;
+
+	duration: number;
+
+	borderFg: color;
+	borderFgActive: color;
+	borderFgError: color;
+
+	border: number;
+	borderActive: number;
+	borderError: number;
+
+	font: font;
+
+	width: number;
+	height: number;
+
+	iconSprite: sprite;
+	iconPosition: point;
+}

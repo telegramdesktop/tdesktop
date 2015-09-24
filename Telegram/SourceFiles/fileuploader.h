@@ -25,13 +25,13 @@ class FileUploader : public QObject, public RPCSender {
 public:
 
 	FileUploader();
-	void uploadMedia(MsgId msgId, const ReadyLocalMedia &image);
+	void uploadMedia(const FullMsgId &msgId, const ReadyLocalMedia &image);
 
-	int32 currentOffset(MsgId msgId) const; // -1 means file not found
-	int32 fullSize(MsgId msgId) const;
+	int32 currentOffset(const FullMsgId &msgId) const; // -1 means file not found
+	int32 fullSize(const FullMsgId &msgId) const;
 
-	void cancel(MsgId msgId);
-	void confirm(MsgId msgId);
+	void cancel(const FullMsgId &msgId);
+	void confirm(const FullMsgId &msgId);
 
 	void clear();
 
@@ -42,18 +42,18 @@ public slots:
 
 signals:
 
-	void photoReady(MsgId msgId, const MTPInputFile &file);
-	void documentReady(MsgId msgId, const MTPInputFile &file);
-	void thumbDocumentReady(MsgId msgId, const MTPInputFile &file, const MTPInputFile &thumb);
-	void audioReady(MsgId msgId, const MTPInputFile &file);
+	void photoReady(const FullMsgId &msgId, const MTPInputFile &file);
+	void documentReady(const FullMsgId &msgId, const MTPInputFile &file);
+	void thumbDocumentReady(const FullMsgId &msgId, const MTPInputFile &file, const MTPInputFile &thumb);
+	void audioReady(const FullMsgId &msgId, const MTPInputFile &file);
 
-	void photoProgress(MsgId msgId);
-	void documentProgress(MsgId msgId);
-	void audioProgress(MsgId msgId);
+	void photoProgress(const FullMsgId &msgId);
+	void documentProgress(const FullMsgId &msgId);
+	void audioProgress(const FullMsgId &msgId);
 
-	void photoFailed(MsgId msgId);
-	void documentFailed(MsgId msgId);
-	void audioFailed(MsgId msgId);
+	void photoFailed(const FullMsgId &msgId);
+	void documentFailed(const FullMsgId &msgId);
+	void audioFailed(const FullMsgId &msgId);
 
 private:
 
@@ -94,7 +94,7 @@ private:
 		int32 docPartSize;
 		int32 docPartsCount;
 	};
-	typedef QMap<MsgId, File> Queue;
+	typedef QMap<FullMsgId, File> Queue;
 
 	void partLoaded(const MTPBool &result, mtpRequestId requestId);
 	bool partFailed(const RPCError &err, mtpRequestId requestId);
@@ -107,7 +107,7 @@ private:
 	uint32 sentSize;
 	uint32 sentSizes[MTPUploadSessionsCount];
 	
-	MsgId uploading;
+	FullMsgId uploading;
 	Queue queue;
 	Queue uploaded;
 	QTimer nextTimer, killSessionsTimer;

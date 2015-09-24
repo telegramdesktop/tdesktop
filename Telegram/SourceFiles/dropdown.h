@@ -584,6 +584,7 @@ private:
 
 	ChatData *_chat;
 	UserData *_user;
+	ChannelData *_channel;
 	QString _filter;
 	QRect _boundings;
 

@@ -56,7 +56,7 @@ public:
 
 	FileUploader *uploader();
 	void uploadProfilePhoto(const QImage &tosend, const PeerId &peerId);
-	void regPhotoUpdate(const PeerId &peer, MsgId msgId);
+	void regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId);
 	void clearPhotoUpdates();
 	bool isPhotoUpdating(const PeerId &peer);
 	void cancelPhotoUpdate(const PeerId &peer);
@@ -117,7 +117,7 @@ public slots:
 	void onUpdateFailed();
 	#endif
 
-	void photoUpdated(MsgId msgId, const MTPInputFile &file);
+	void photoUpdated(const FullMsgId &msgId, const MTPInputFile &file);
 
 	void onSwitchDebugMode();
 	void onSwitchTestMode();
@@ -127,7 +127,7 @@ public slots:
 
 private:
 
-	QMap<MsgId, PeerId> photoUpdates;
+	QMap<FullMsgId, PeerId> photoUpdates;
 
 	QMap<int32, uint64> killDownloadSessionTimes;
 	SingleTimer killDownloadSessionsTimer;
