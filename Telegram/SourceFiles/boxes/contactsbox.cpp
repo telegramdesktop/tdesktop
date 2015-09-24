@@ -2636,7 +2636,7 @@ void SetupChannelBox::onPrivacyChange() {
 	if (_public.checked()) {
 		if (_tooMuchUsernames) {
 			_private.setChecked(true);
-			App::wnd()->replaceLayer(new ConfirmBox(lang(lng_channels_too_much_public)));
+			App::wnd()->replaceLayer(new ConfirmBox(lang(lng_channels_too_much_public), true));
 			return;
 		}
 		_link.show();
@@ -2698,7 +2698,7 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 	if (err == "CHANNELS_ADMIN_PUBLIC_TOO_MUCH") {
 		if (_existing) {
 			App::wnd()->hideLayer(true);
-			App::wnd()->showLayer(new ConfirmBox(lang(lng_channels_too_much_public_existing)), true);
+			App::wnd()->showLayer(new ConfirmBox(lang(lng_channels_too_much_public_existing), true), true);
 		} else {
 			_tooMuchUsernames = true;
 			_private.setChecked(true);
@@ -2727,7 +2727,7 @@ bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
 	if (err == "CHANNELS_ADMIN_PUBLIC_TOO_MUCH") {
 		if (_existing) {
 			App::wnd()->hideLayer(true);
-			App::wnd()->showLayer(new ConfirmBox(lang(lng_channels_too_much_public_existing)), true);
+			App::wnd()->showLayer(new ConfirmBox(lang(lng_channels_too_much_public_existing), true), true);
 		} else {
 			_tooMuchUsernames = true;
 			_private.setChecked(true);
