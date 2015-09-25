@@ -1357,16 +1357,7 @@ PeerData *chatOrChannelCreated(const MTPUpdates &updates, const QImage &photo) {
 	switch (updates.type()) {
 	case mtpc_updates: v = &updates.c_updates().vchats.c_vector().v; break;
 	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.c_vector().v; break;
-	case mtpc_updateShort: {
-	} break;
-	case mtpc_updateShortMessage: {
-	} break;
-	case mtpc_updateShortChatMessage: {
-	} break;
-	case mtpc_updateShortSentMessage: {
-	} break;
-	case mtpc_updatesTooLong: {
-	} break;
+	default: LOG(("API Error: unexpected update cons %1 (chatOrChannelCreated)").arg(updates.type())); break;
 	}
 	if (v && !v->isEmpty() && v->front().type() == mtpc_chat) {
 		ChatData *chat = App::chat(v->front().c_chat().vid.v);
@@ -1871,6 +1862,8 @@ _addBox(0) {
 	connect(&_inner, SIGNAL(mustScrollTo(int, int)), &_scroll, SLOT(scrollToY(int, int)));
 	connect(&_inner, SIGNAL(loaded()), this, SLOT(onLoaded()));
 
+	connect(&_loadTimer, SIGNAL(timeout()), &_inner, SLOT(load()));
+
 	prepare();
 }
 
@@ -1933,7 +1926,7 @@ void MembersBox::onAdminAdded() {
 	if (!_addBox) return;
 	_addBox->onClose();
 	_addBox = 0;
-	_inner.load();
+	_loadTimer.start(ReloadChannelMembersTimeout);
 }
 
 void MembersBox::hideAll() {

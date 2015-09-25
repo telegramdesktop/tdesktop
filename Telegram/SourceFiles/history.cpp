@@ -687,7 +687,7 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 					if (lastSeenDateItem && lastSeenDateItem->date.date() == inviteDate.date()) {
 						lastSeenDateItem->destroy();
 					}
-					if (!lastMsgDate.isNull() && inviteDate >= lastMsgDate) {
+					if (lastMsgDate.isNull() || inviteDate >= lastMsgDate) {
 						setLastMessage(_joinedMessage);
 						if (unread) {
 							newItemAdded(_joinedMessage);
@@ -771,11 +771,11 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 	return _joinedMessage;
 }
 
-void ChannelHistory::checkJoinedMessage() {
+void ChannelHistory::checkJoinedMessage(bool createUnread) {
 	if (_joinedMessage || peer->asChannel()->inviter <= 0) return;
 	if (isEmpty()) {
 		if (loadedAtTop() && loadedAtBottom()) {
-			if (insertJoinedMessage(false)) {
+			if (insertJoinedMessage(createUnread)) {
 				setLastMessage(_joinedMessage);
 			}
 			return;
@@ -813,7 +813,8 @@ void ChannelHistory::checkJoinedMessage() {
 	}
 
 	if (!firstDate.isNull() && !lastDate.isNull() && (firstDate <= inviteDate || loadedAtTop()) && (lastDate > inviteDate || loadedAtBottom())) {
-		if (insertJoinedMessage(false) && inviteDate >= lastDate) {
+		bool willBeLastMsg = (inviteDate >= lastDate);
+		if (insertJoinedMessage(createUnread && willBeLastMsg) && willBeLastMsg) {
 			setLastMessage(_joinedMessage);
 		}
 	}
@@ -857,7 +858,13 @@ HistoryItem *ChannelHistory::addNewToBlocks(const MTPMessage &msg, NewMessageTyp
 		if (item && isImportant) {
 			setLastMessage(item);
 			if (type == NewMessageUnread) {
-				newItemAdded(item);
+				if (item->unread()) {
+					newItemAdded(item);
+				} else if (item->out()) {
+					outboxRead(item);
+				} else {
+					inboxRead(item);
+				}
 			}
 		}
 		return item;
@@ -1534,7 +1541,13 @@ HistoryItem *History::addNewMessage(const MTPMessage &msg, NewMessageType type) 
 		if (item) {
 			setLastMessage(item);
 			if (type == NewMessageUnread) {
-				newItemAdded(item);
+				if (item->unread()) {
+					newItemAdded(item);
+				} else if (item->out()) {
+					outboxRead(item);
+				} else {
+					inboxRead(item);
+				}
 			}
 		}
 		return item;
@@ -1640,7 +1653,13 @@ HistoryItem *History::addNewItem(HistoryBlock *to, bool newBlock, HistoryItem *a
 		height += dh;
 	}
 	if (newMsg) {
-		newItemAdded(adding);
+		if (adding->unread()) {
+			newItemAdded(adding);
+		} else if (adding->out()) {
+			outboxRead(adding);
+		} else {
+			inboxRead(adding);
+		}
 	}
 
 	if (!isChannel() || adding->fromChannel()) {
@@ -2105,6 +2124,7 @@ void History::updateShowFrom() {
 }
 
 MsgId History::inboxRead(MsgId upTo) {
+	if (upTo < 0) return upTo;
 	if (unreadCount) {
 		if (upTo && loadedAtBottom()) App::main()->historyToDown(this);
 		setUnreadCount(upTo ? countUnread(upTo) : 0);
@@ -2128,6 +2148,7 @@ MsgId History::inboxRead(HistoryItem *wasRead) {
 }
 
 MsgId History::outboxRead(int32 upTo) {
+	if (upTo < 0) return upTo;
 	if (!upTo) upTo = msgIdForRead();
 	if (outboxReadBefore < upTo + 1) outboxReadBefore = upTo + 1;
 

@@ -17,8 +17,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-static const int32 AppVersion = 9001;
-static const wchar_t *AppVersionStr = L"0.9.1";
+static const int32 AppVersion = 9002;
+static const wchar_t *AppVersionStr = L"0.9.2";
 static const bool DevVersion = false;
 
 static const wchar_t *AppNameOld = L"Telegram Win (Unofficial)";
@@ -147,6 +147,7 @@ enum {
 	SessionsShortPollTimeout = 60000,
 
 	ChoosePeerByDragTimeout = 1000, // 1 second mouse not moved to choose dialog when dragging a file
+	ReloadChannelMembersTimeout = 1000, // 1 second wait before reload members in channel after adding
 };
 
 inline bool isNotificationsUser(uint64 id) {
