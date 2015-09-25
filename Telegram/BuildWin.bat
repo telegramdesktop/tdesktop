@@ -1,5 +1,4 @@
 @echo OFF
-
 FOR /F "tokens=1,2* delims= " %%i in (Version) do set "%%i=%%j"
 
 if %DevChannel% neq 0 goto preparedev

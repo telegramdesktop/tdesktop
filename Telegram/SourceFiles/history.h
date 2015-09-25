@@ -390,7 +390,7 @@ public:
 	}
 
 	HistoryJoined *insertJoinedMessage(bool unread);
-	void checkJoinedMessage();
+	void checkJoinedMessage(bool createUnread = false);
 	const QDateTime &maxReadMessageDate();
 
 private:
@@ -827,7 +827,7 @@ public:
 	}
 	bool unread() const {
 		if ((out() && (id > 0 && id < _history->outboxReadBefore)) || (!out() && id > 0 && id < _history->inboxReadBefore)) return false;
-		return (id > 0 && !out()) ? true : (_flags & MTPDmessage_flag_unread);
+		return (id > 0 && !out() && channelId() != NoChannel) ? true : (_flags & MTPDmessage_flag_unread);
 	}
 	bool notifyByFrom() const {
 		return _flags & MTPDmessage_flag_notify_by_from;

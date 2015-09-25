@@ -270,7 +270,6 @@ public:
 	ChannelData *channel() const;
 	MembersFilter filter() const;
 
-	void load();
 	bool isLoaded() const {
 		return !_loading;
 	}
@@ -286,6 +285,8 @@ signals:
 	void loaded();
 
 public slots:
+
+	void load();
 
 	void updateSel();
 	void peerUpdated(PeerData *peer);
@@ -386,6 +387,8 @@ private:
 	FlatButton _add, _done;
 
 	ContactsBox *_addBox;
+
+	SingleTimer _loadTimer;
 };
 
 class NewGroupBox : public AbstractBox {
