@@ -504,6 +504,10 @@ void MainWidget::updateForwardingTexts() {
 		QVector<PeerData*> fromUsers;
 		fromUsers.reserve(_toForward.size());
 		for (SelectedItemSet::const_iterator i = _toForward.cbegin(), e = _toForward.cend(); i != e; ++i) {
+			PeerData *from = i.value()->from();
+			if (HistoryForwarded *fwd = i.value()->toHistoryForwarded()) {
+				from = fwd->fromForwarded();
+			}
 			if (!fromUsersMap.contains(i.value()->from())) {
 				fromUsersMap.insert(i.value()->from(), true);
 				fromUsers.push_back(i.value()->from());
@@ -2645,7 +2649,13 @@ void MainWidget::sentUpdatesReceived(uint64 randomId, const MTPUpdates &result) 
 
 void MainWidget::inviteToChannelDone(ChannelData *channel, const MTPUpdates &updates) {
 	sentUpdatesReceived(updates);
-	channel->updateFull(true);
+	QTimer::singleShot(ReloadChannelMembersTimeout, this, SLOT(onActiveChannelUpdateFull()));
+}
+
+void MainWidget::onActiveChannelUpdateFull() {
+	if (activePeer() && activePeer()->isChannel()) {
+		activePeer()->asChannel()->updateFull(true);
+	}
 }
 
 void MainWidget::msgUpdated(PeerId peer, const HistoryItem *msg) {
@@ -3549,7 +3559,7 @@ void MainWidget::onSelfParticipantUpdated(ChannelData *channel) {
 		if ((h ? h : App::history(channel->id))->isEmpty()) {
 			checkPeerHistory(channel);
 		} else {
-			h->asChannelHistory()->checkJoinedMessage();
+			h->asChannelHistory()->checkJoinedMessage(true);
 			history.peerMessagesUpdated(channel->id);
 		}
 	} else if (h) {
@@ -3654,16 +3664,7 @@ void MainWidget::inviteImportDone(const MTPUpdates &updates) {
 	switch (updates.type()) {
 	case mtpc_updates: v = &updates.c_updates().vchats.c_vector().v; break;
 	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.c_vector().v; break;
-	case mtpc_updateShort: {
-	} break;
-	case mtpc_updateShortMessage: {
-	} break;
-	case mtpc_updateShortChatMessage: {
-	} break;
-	case mtpc_updateShortSentMessage: {
-	} break;
-	case mtpc_updatesTooLong: {
-	} break;
+	default: LOG(("API Error: unexpected update cons %1 (MainWidget::inviteImportDone)").arg(updates.type())); break;
 	}
 	if (v && !v->isEmpty()) {
 		if (v->front().type() == mtpc_chat) {

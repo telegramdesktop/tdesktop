@@ -468,6 +468,7 @@ public slots:
 	void onFullPeerUpdated(PeerData *peer);
 
 	void onViewsIncrement();
+	void onActiveChannelUpdateFull();
 
 private:
 

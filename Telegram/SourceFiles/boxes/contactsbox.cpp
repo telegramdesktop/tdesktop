@@ -1357,16 +1357,7 @@ PeerData *chatOrChannelCreated(const MTPUpdates &updates, const QImage &photo) {
 	switch (updates.type()) {
 	case mtpc_updates: v = &updates.c_updates().vchats.c_vector().v; break;
 	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.c_vector().v; break;
-	case mtpc_updateShort: {
-	} break;
-	case mtpc_updateShortMessage: {
-	} break;
-	case mtpc_updateShortChatMessage: {
-	} break;
-	case mtpc_updateShortSentMessage: {
-	} break;
-	case mtpc_updatesTooLong: {
-	} break;
+	default: LOG(("API Error: unexpected update cons %1 (chatOrChannelCreated)").arg(updates.type())); break;
 	}
 	if (v && !v->isEmpty() && v->front().type() == mtpc_chat) {
 		ChatData *chat = App::chat(v->front().c_chat().vid.v);
@@ -1744,10 +1735,10 @@ void MembersInner::membersReceived(const MTPchannels_ChannelParticipants &result
 		_datas.reserve(v.size());
 		_dates.reserve(v.size());
 		_roles.reserve(v.size());
-		if (_filter == MembersFilterRecent && _channel->count != d.vcount.v) {
+		if (_filter == MembersFilterRecent && _channel->count < d.vcount.v) {
 			_channel->count = d.vcount.v;
 			if (App::main()) emit App::main()->peerUpdated(_channel);
-		} else if (_filter == MembersFilterAdmins && _channel->adminsCount != d.vcount.v) {
+		} else if (_filter == MembersFilterAdmins && _channel->adminsCount < d.vcount.v) {
 			_channel->adminsCount = d.vcount.v;
 			if (App::main()) emit App::main()->peerUpdated(_channel);
 		}
@@ -1871,6 +1862,8 @@ _addBox(0) {
 	connect(&_inner, SIGNAL(mustScrollTo(int, int)), &_scroll, SLOT(scrollToY(int, int)));
 	connect(&_inner, SIGNAL(loaded()), this, SLOT(onLoaded()));
 
+	connect(&_loadTimer, SIGNAL(timeout()), &_inner, SLOT(load()));
+
 	prepare();
 }
 
@@ -1933,7 +1926,7 @@ void MembersBox::onAdminAdded() {
 	if (!_addBox) return;
 	_addBox->onClose();
 	_addBox = 0;
-	_inner.load();
+	_loadTimer.start(ReloadChannelMembersTimeout);
 }
 
 void MembersBox::hideAll() {
@@ -2636,7 +2629,7 @@ void SetupChannelBox::onPrivacyChange() {
 	if (_public.checked()) {
 		if (_tooMuchUsernames) {
 			_private.setChecked(true);
-			App::wnd()->replaceLayer(new ConfirmBox(lang(lng_channels_too_much_public)));
+			App::wnd()->replaceLayer(new ConfirmBox(lang(lng_channels_too_much_public), true));
 			return;
 		}
 		_link.show();
@@ -2698,7 +2691,7 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 	if (err == "CHANNELS_ADMIN_PUBLIC_TOO_MUCH") {
 		if (_existing) {
 			App::wnd()->hideLayer(true);
-			App::wnd()->showLayer(new ConfirmBox(lang(lng_channels_too_much_public_existing)), true);
+			App::wnd()->showLayer(new ConfirmBox(lang(lng_channels_too_much_public_existing), true), true);
 		} else {
 			_tooMuchUsernames = true;
 			_private.setChecked(true);
@@ -2727,7 +2720,7 @@ bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
 	if (err == "CHANNELS_ADMIN_PUBLIC_TOO_MUCH") {
 		if (_existing) {
 			App::wnd()->hideLayer(true);
-			App::wnd()->showLayer(new ConfirmBox(lang(lng_channels_too_much_public_existing)), true);
+			App::wnd()->showLayer(new ConfirmBox(lang(lng_channels_too_much_public_existing), true), true);
 		} else {
 			_tooMuchUsernames = true;
 			_private.setChecked(true);
