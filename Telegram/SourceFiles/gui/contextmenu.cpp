@@ -269,4 +269,9 @@ void ContextMenu::popup(const QPoint &p) {
 
 ContextMenu::~ContextMenu() {
 	clearActions();
+#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+    if (App::wnd()) {
+        App::wnd()->activateWindow();
+    }
+#endif
 }
