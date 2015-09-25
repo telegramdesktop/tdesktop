@@ -1735,10 +1735,10 @@ void MembersInner::membersReceived(const MTPchannels_ChannelParticipants &result
 		_datas.reserve(v.size());
 		_dates.reserve(v.size());
 		_roles.reserve(v.size());
-		if (_filter == MembersFilterRecent && _channel->count != d.vcount.v) {
+		if (_filter == MembersFilterRecent && _channel->count < d.vcount.v) {
 			_channel->count = d.vcount.v;
 			if (App::main()) emit App::main()->peerUpdated(_channel);
-		} else if (_filter == MembersFilterAdmins && _channel->adminsCount != d.vcount.v) {
+		} else if (_filter == MembersFilterAdmins && _channel->adminsCount < d.vcount.v) {
 			_channel->adminsCount = d.vcount.v;
 			if (App::main()) emit App::main()->peerUpdated(_channel);
 		}
