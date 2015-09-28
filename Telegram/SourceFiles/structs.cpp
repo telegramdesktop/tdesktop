@@ -468,30 +468,30 @@ void PtsWaiter::clearSkippedUpdates() {
 bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count) {
 	if (_requesting || _applySkippedLevel) {
 		return true;
-	} else if (pts <= _good) {
+	} else if (pts <= _good && count > 0) {
 		return false;
 	}
 	return check(channel, pts, count);
 }
 
-bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 ptsCount, const MTPUpdates &updates) {
+bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count, const MTPUpdates &updates) {
 	if (_requesting || _applySkippedLevel) {
 		return true;
-	} else if (pts <= _good) {
+	} else if (pts <= _good && count > 0) {
 		return false;
-	} else if (check(channel, pts, ptsCount)) {
+	} else if (check(channel, pts, count)) {
 		return true;
 	}
 	_updatesQueue.insert(ptsKey(SkippedUpdates), updates);
 	return false;
 }
 
-bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 ptsCount, const MTPUpdate &update) {
+bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count, const MTPUpdate &update) {
 	if (_requesting || _applySkippedLevel) {
 		return true;
-	} else if (pts <= _good) {
+	} else if (pts <= _good && count > 0) {
 		return false;
-	} else if (check(channel, pts, ptsCount)) {
+	} else if (check(channel, pts, count)) {
 		return true;
 	}
 	_updateQueue.insert(ptsKey(SkippedUpdate), update);

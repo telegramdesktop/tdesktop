@@ -4131,20 +4131,19 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 
 			feedUpdate(MTP_updateMessageID(d.vid, MTP_long(randomId))); // ignore real date
 			if (peerId) {
-				HistoryItem *item = App::histItemById(peerToChannel(peerId), d.vid.v);
-				if (!text.isEmpty()) {
-					bool hasLinks = d.has_entities() && !d.ventities.c_vector().v.isEmpty();
-					if (item && ((hasLinks && !item->hasTextLinks()) || (!hasLinks && item->textHasLinks()))) {
-						bool was = item->hasTextLinks();
-						item->setText(text, d.has_entities() ? linksFromMTP(d.ventities.c_vector().v) : LinksInText());
-						item->initDimensions();
-						itemResized(item);
-						if (!was && item->hasTextLinks() && (!item->history()->isChannel() || item->fromChannel())) {
-							item->history()->addToOverview(item, OverviewLinks);
+				if (HistoryItem *item = App::histItemById(peerToChannel(peerId), d.vid.v)) {
+					if (!text.isEmpty()) {
+						bool hasLinks = d.has_entities() && !d.ventities.c_vector().v.isEmpty();
+						if ((hasLinks && !item->hasTextLinks()) || (!hasLinks && item->textHasLinks())) {
+							item->setText(text, d.has_entities() ? linksFromMTP(d.ventities.c_vector().v) : LinksInText());
+							item->initDimensions();
+							itemResized(item);
+							if (item->hasTextLinks() && (!item->history()->isChannel() || item->fromChannel())) {
+								item->history()->addToOverview(item, OverviewLinks);
+							}
 						}
 					}
-				}
-				if (item) {
+
 					item->setMedia(d.has_media() ? (&d.vmedia) : 0);
 				}
 			}
