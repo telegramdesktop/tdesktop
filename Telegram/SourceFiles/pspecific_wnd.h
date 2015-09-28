@@ -113,7 +113,7 @@ private:
 #ifdef _NEED_WIN_GENERATE_DUMP
 extern LPTOP_LEVEL_EXCEPTION_FILTER _oldWndExceptionFilter;
 LONG CALLBACK _exceptionFilter(EXCEPTION_POINTERS* pExceptionPointers);
-#endif _NEED_WIN_GENERATE_DUMP
+#endif
 
 class PsApplication : public QApplication {
 	Q_OBJECT
