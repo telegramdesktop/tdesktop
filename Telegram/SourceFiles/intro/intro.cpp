@@ -285,6 +285,7 @@ void IntroWidget::paintEvent(QPaintEvent *e) {
 	if (!trivial) {
 		p.setClipRect(e->rect());
 	}
+	p.fillRect(e->rect(), st::white->b);
 	if (animating()) {
 		if (visibilityChanging) {
 			p.setOpacity(a_bgAlpha.current());
