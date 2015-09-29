@@ -1365,3 +1365,18 @@ bool linuxMoveFile(const char *from, const char *to) {
 
 	return true;
 }
+
+#ifdef _NEED_LINUX_GENERATE_DUMP
+void _sigsegvHandler(int sig) {
+    void *array[50] = {0};
+    size_t size;
+
+    // get void*'s for all entries on the stack
+    size = backtrace(array, 50);
+
+    // print out all the frames to stderr
+    fprintf(stderr, "Error: signal %d:\n", sig);
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
+    exit(1);
+}
+#endif

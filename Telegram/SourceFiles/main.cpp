@@ -25,6 +25,9 @@ int main(int argc, char *argv[]) {
 #ifdef _NEED_WIN_GENERATE_DUMP
 	_oldWndExceptionFilter = SetUnhandledExceptionFilter(_exceptionFilter);
 #endif
+#ifdef _NEED_LINUX_GENERATE_DUMP
+    //signal(SIGSEGV, _sigsegvHandler);
+#endif
 
 	InitOpenSSL _init;
 
