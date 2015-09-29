@@ -2272,6 +2272,14 @@ namespace Local {
 		}
 	}
 
+	bool startImageLoad(const StorageKey &location) {
+		StorageMap::iterator j = _imagesMap.find(location);
+		if (j == _imagesMap.cend()) {
+			return false;
+		}
+		return true;
+	}
+
 	StorageImageSaved readImage(const StorageKey &location) {
 		StorageMap::iterator j = _imagesMap.find(location);
 		if (j == _imagesMap.cend()) {
@@ -2325,6 +2333,14 @@ namespace Local {
 		}
 	}
 
+	bool startStickerImageLoad(const StorageKey &location) {
+		StorageMap::iterator j = _stickerImagesMap.find(location);
+		if (j == _stickerImagesMap.cend()) {
+			return false;
+		}
+		return true;
+	}
+
 	QByteArray readStickerImage(const StorageKey &location) {
 		StorageMap::iterator j = _stickerImagesMap.find(location);
 		if (j == _stickerImagesMap.cend()) {
@@ -2375,6 +2391,14 @@ namespace Local {
 			_storageAudiosSize -= i.value().second;
 			_audiosMap[location].second = size;
 		}
+	}
+
+	bool startAudioLoad(const StorageKey &location) {
+		StorageMap::iterator j = _audiosMap.find(location);
+		if (j == _audiosMap.cend()) {
+			return false;
+		}
+		return true;
 	}
 
 	QByteArray readAudio(const StorageKey &location) {

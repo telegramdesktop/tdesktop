@@ -646,7 +646,7 @@ id(id), access(access), date(date), duration(duration), w(w), h(h), thumb(thumb)
 
 void VideoData::save(const QString &toFile) {
 	cancel(true);
-	loader = new mtpFileLoader(dc, id, access, mtpc_inputVideoFileLocation, toFile, size);
+	loader = new mtpFileLoader(dc, id, access, VideoFileLocation, toFile, size);
 	loader->connect(loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(videoLoadProgress(mtpFileLoader*)));
 	loader->connect(loader, SIGNAL(failed(mtpFileLoader*, bool)), App::main(), SLOT(videoLoadFailed(mtpFileLoader*, bool)));
 	loader->start();
@@ -754,7 +754,7 @@ id(id), access(access), date(date), mime(mime), duration(duration), dc(dc), size
 
 void AudioData::save(const QString &toFile) {
 	cancel(true);
-	loader = new mtpFileLoader(dc, id, access, mtpc_inputAudioFileLocation, toFile, size, (size < AudioVoiceMsgInMemory));
+	loader = new mtpFileLoader(dc, id, access, AudioFileLocation, toFile, size, (size < AudioVoiceMsgInMemory));
 	loader->connect(loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(audioLoadProgress(mtpFileLoader*)));
 	loader->connect(loader, SIGNAL(failed(mtpFileLoader*, bool)), App::main(), SLOT(audioLoadFailed(mtpFileLoader*, bool)));
 	loader->start();
@@ -940,7 +940,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 void DocumentData::save(const QString &toFile) {
 	cancel(true);
 	bool isSticker = (type == StickerDocument) && (dimensions.width() > 0) && (dimensions.height() > 0) && (size < StickerInMemory);
-	loader = new mtpFileLoader(dc, id, access, mtpc_inputDocumentFileLocation, toFile, size, isSticker);
+	loader = new mtpFileLoader(dc, id, access, DocumentFileLocation, toFile, size, isSticker);
 	loader->connect(loader, SIGNAL(progress(mtpFileLoader*)), App::main(), SLOT(documentLoadProgress(mtpFileLoader*)));
 	loader->connect(loader, SIGNAL(failed(mtpFileLoader*, bool)), App::main(), SLOT(documentLoadFailed(mtpFileLoader*, bool)));
 	loader->start();

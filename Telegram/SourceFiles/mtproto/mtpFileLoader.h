@@ -21,6 +21,38 @@ namespace MTP {
 	void clearLoaderPriorities();
 }
 
+enum LocationType {
+	UnknownFileLocation  = 0,
+	DocumentFileLocation = 0x4e45abe9, // mtpc_inputDocumentFileLocation
+	AudioFileLocation    = 0x74dc404d, // mtpc_inputAudioFileLocation
+	VideoFileLocation    = 0x3d0364ec, // mtpc_inputVideoFileLocation
+};
+inline LocationType mtpToLocationType(mtpTypeId type) {
+	switch (type) {
+		case mtpc_inputDocumentFileLocation: return DocumentFileLocation;
+		case mtpc_inputAudioFileLocation: return AudioFileLocation;
+		case mtpc_inputVideoFileLocation: return VideoFileLocation;
+		default: return UnknownFileLocation;
+	}
+}
+inline mtpTypeId mtpFromLocationType(LocationType type) {
+	switch (type) {
+		case DocumentFileLocation: return mtpc_inputDocumentFileLocation;
+		case AudioFileLocation: return mtpc_inputAudioFileLocation;
+		case VideoFileLocation: return mtpc_inputVideoFileLocation;
+		case UnknownFileLocation:
+		default: return 0;
+	}
+}
+
+enum LocalLoadStatus {
+	LocalNotTried,
+	LocalNotFound,
+	LocalLoading,
+	LocalLoaded,
+	LocalFailed,
+};
+
 struct mtpFileLoaderQueue;
 class mtpFileLoader : public QObject, public RPCSender {
 	Q_OBJECT
@@ -28,8 +60,7 @@ class mtpFileLoader : public QObject, public RPCSender {
 public:
 
 	mtpFileLoader(int32 dc, const uint64 &volume, int32 local, const uint64 &secret, int32 size = 0);
-	mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, mtpTypeId locType, const QString &to, int32 size);
-	mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, mtpTypeId locType, const QString &to, int32 size, bool todata);
+	mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, LocationType type, const QString &to, int32 size, bool todata = false);
 	bool done() const;
 	mtpTypeId fileType() const;
 	const QByteArray &bytes() const;
@@ -60,8 +91,10 @@ signals:
 private:
 
 	mtpFileLoaderQueue *queue;
-	bool inQueue, complete, triedLocal;
-	
+	bool inQueue, complete;
+	LocalLoadStatus _localStatus;
+
+	bool tryLoadLocal();
 	void cancelRequests();
 
 	typedef QMap<mtpRequestId, int32> Requests;
@@ -80,7 +113,7 @@ private:
 	bool partFailed(const RPCError &error);
 
 	int32 dc;
-	mtpTypeId locationType; // 0 or mtpc_inputVideoFileLocation / mtpc_inputAudioFileLocation / mtpc_inputDocumentFileLocation
+	LocationType _locationType;
 
 	uint64 volume; // for photo locations
 	int32 local;

@@ -1340,7 +1340,7 @@
 		6DB9C3763D02B1415CD9D565 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0630;
+				LastUpgradeCheck = 0700;
 				TargetAttributes = {
 					7CCA95B9FCAD34D929431AD6 = {
 						DevelopmentTeam = 63FLR8MQA9;
@@ -1703,6 +1703,7 @@
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				OBJROOT = ./../Mac/DebugIntermediate;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.tdesktop.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = "Meta Compile";
 				QT_LIBRARY_SUFFIX = _debug;
 				SDKROOT = macosx;
@@ -1721,6 +1722,7 @@
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				LLVM_LTO = YES;
 				OBJROOT = ./../Mac/ReleaseIntermediate;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.tdesktop.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = "Meta Compile";
 				QT_LIBRARY_SUFFIX = "";
 				SDKROOT = macosx;
@@ -1880,6 +1882,7 @@
 				DYLIB_COMPATIBILITY_VERSION = 0.9;
 				DYLIB_CURRENT_VERSION = 0.9.2;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
 				FRAMEWORK_SEARCH_PATHS = "";
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GCC_LINK_WITH_DYNAMIC_LIBRARIES = NO;
@@ -2005,6 +2008,7 @@
 				LLVM_LTO = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				OBJROOT = ./../Mac/ReleaseIntermediate;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.tdesktop.$(PRODUCT_NAME:rfc1034identifier)";
 				QT_LIBRARY_SUFFIX = "";
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;
@@ -2020,6 +2024,7 @@
 				GCC_PREFIX_HEADER = ./SourceFiles/stdafx.h;
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				OBJROOT = ./../Mac/DebugIntermediate;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.tdesktop.$(PRODUCT_NAME:rfc1034identifier)";
 				QT_LIBRARY_SUFFIX = _debug;
 				SDKROOT = macosx;
 				SYMROOT = ./../Mac;

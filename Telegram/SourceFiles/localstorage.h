@@ -120,16 +120,19 @@ namespace Local {
 
 	void writeImage(const StorageKey &location, const ImagePtr &img);
 	void writeImage(const StorageKey &location, const StorageImageSaved &jpeg, bool overwrite = true);
+	bool startImageLoad(const StorageKey &location);
 	StorageImageSaved readImage(const StorageKey &location);
 	int32 hasImages();
 	qint64 storageImagesSize();
 
 	void writeStickerImage(const StorageKey &location, const QByteArray &data, bool overwrite = true);
+	bool startStickerImageLoad(const StorageKey &location);
 	QByteArray readStickerImage(const StorageKey &location);
 	int32 hasStickers();
 	qint64 storageStickersSize();
 
 	void writeAudio(const StorageKey &location, const QByteArray &data, bool overwrite = true);
+	bool startAudioLoad(const StorageKey &location);
 	QByteArray readAudio(const StorageKey &location);
 	int32 hasAudios();
 	qint64 storageAudiosSize();

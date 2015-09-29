@@ -327,29 +327,6 @@ inline bool operator!=(const FileLocation &a, const FileLocation &b) {
 	return !(a == b);
 }
 
-enum LocationType {
-	UnknownFileLocation  = 0,
-	DocumentFileLocation = 0x4e45abe9, // mtpc_inputDocumentFileLocation
-	AudioFileLocation    = 0x74dc404d, // mtpc_inputAudioFileLocation
-	VideoFileLocation    = 0x3d0364ec, // mtpc_inputVideoFileLocation
-};
-inline LocationType mtpToLocationType(mtpTypeId type) {
-	switch (type) {
-	case mtpc_inputDocumentFileLocation: return DocumentFileLocation;
-	case mtpc_inputAudioFileLocation: return AudioFileLocation;
-	case mtpc_inputVideoFileLocation: return VideoFileLocation;
-	default: return UnknownFileLocation;
-	}
-}
-inline mtpTypeId mtpFromLocationType(LocationType type) {
-	switch (type) {
-	case DocumentFileLocation: return mtpc_inputDocumentFileLocation;
-	case AudioFileLocation: return mtpc_inputAudioFileLocation;
-	case VideoFileLocation: return mtpc_inputVideoFileLocation;
-	case UnknownFileLocation:
-	default: return 0;
-	}
-}
 typedef QPair<uint64, uint64> MediaKey;
 inline uint64 mediaMix32To64(int32 a, int32 b) {
 	return (uint64(*reinterpret_cast<uint32*>(&a)) << 32) | uint64(*reinterpret_cast<uint32*>(&b));
