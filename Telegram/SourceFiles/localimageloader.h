@@ -151,6 +151,9 @@ public:
 
 	virtual void process() = 0; // is executed in a separate thread
 	virtual void finish() = 0; // is executed in the same as TaskQueue thread
+	virtual ~Task() {
+	}
+
 	TaskId id() const {
 		return TaskId(this);
 	}
@@ -158,6 +161,7 @@ public:
 };
 typedef QSharedPointer<Task> TaskPtr;
 
+class TaskQueueWorker;
 class TaskQueue : public QObject {
 	Q_OBJECT
 

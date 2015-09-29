@@ -414,7 +414,7 @@ LocalImageLoader::~LocalImageLoader() {
 }
 
 
-TaskQueue::TaskQueue(QObject *parent, int32 stopTimeoutMs) : QObject(parent), _worker(0), _thread(0), _stopTimer(0) {
+TaskQueue::TaskQueue(QObject *parent, int32 stopTimeoutMs) : QObject(parent), _thread(0), _worker(0), _stopTimer(0) {
 	if (stopTimeoutMs > 0) {
 		_stopTimer = new QTimer(this);
 		connect(_stopTimer, SIGNAL(timeout()), this, SLOT(stop()));
