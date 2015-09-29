@@ -2661,7 +2661,7 @@ void MainWidget::onActiveChannelUpdateFull() {
 void MainWidget::msgUpdated(PeerId peer, const HistoryItem *msg) {
 	if (!msg) return;
 	history.msgUpdated(peer, msg);
-	if (!msg->history()->dialogs.isEmpty()) dialogs.dlgUpdated(msg->history()->dialogs[0]);
+	if (!msg->history()->dialogs.isEmpty() && msg->history()->lastMsg == msg) dialogs.dlgUpdated(msg->history()->dialogs[0]);
 	if (overview) overview->msgUpdated(peer, msg);
 }
 

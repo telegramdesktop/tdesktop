@@ -149,10 +149,11 @@ void stopGif() {
 	animated.stop();
 }
 
-void DialogRow::paint(Painter &p, int32 w, bool act, bool sel) const {
+void DialogRow::paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const {
 	QRect fullRect(0, 0, w, st::dlgHeight);
 	p.fillRect(fullRect, (act ? st::dlgActiveBG : (sel ? st::dlgHoverBG : st::dlgBG))->b);
-	
+	if (onlyBackground) return;
+
 	p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, history->peer->photo->pix(st::dlgPhotoSize));
 
 	int32 nameleft = st::dlgPaddingHor + st::dlgPhotoSize + st::dlgPhotoPadding;
@@ -240,10 +241,11 @@ void DialogRow::paint(Painter &p, int32 w, bool act, bool sel) const {
 	history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
-void FakeDialogRow::paint(Painter &p, int32 w, bool act, bool sel) const {
+void FakeDialogRow::paint(Painter &p, int32 w, bool act, bool sel, bool onlyBackground) const {
 	QRect fullRect(0, 0, w, st::dlgHeight);
 	p.fillRect(fullRect, (act ? st::dlgActiveBG : (sel ? st::dlgHoverBG : st::dlgBG))->b);
-
+	if (onlyBackground) return;
+	
 	History *history = _item->history();
 
 	p.drawPixmap(st::dlgPaddingHor, st::dlgPaddingVer, history->peer->photo->pix(st::dlgPhotoSize));

@@ -368,7 +368,7 @@ _connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _shoul
 		setObjectName(qsl("MainWindow"));
 	}
 	resize(st::wndDefWidth, st::wndDefHeight);
-	setWindowOpacity(1);
+
 	setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
 	centralwidget = new QWidget(this);
 	centralwidget->setObjectName(qsl("centralwidget"));
@@ -388,6 +388,9 @@ _connecting(0), _clearManager(0), dragging(false), _inactivePress(false), _shoul
 
 	connect(this, SIGNAL(imageLoaded()), this, SLOT(update()));
 	connect(this, SIGNAL(imageLoaded()), this, SLOT(notifyUpdateAllPhotos()));
+
+	setAttribute(Qt::WA_NoSystemBackground);
+	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
 void Window::inactivePress(bool inactive) {

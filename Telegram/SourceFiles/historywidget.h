@@ -30,12 +30,12 @@ enum DragState {
 };
 
 class HistoryWidget;
-class HistoryList : public QWidget {
+class HistoryInner : public QWidget {
 	Q_OBJECT
 
 public:
 
-	HistoryList(HistoryWidget *historyWidget, ScrollArea *scroll, History *history);
+	HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, History *history);
 
 	void messagesReceived(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
 	void messagesReceivedDown(const QVector<MTPMessage> &messages, const QVector<MTPMessageGroup> *collapsed);
@@ -86,7 +86,7 @@ public:
 
 	HistoryItem *atTopImportantMsg(int32 top, int32 height, int32 &bottomUnderScrollTop) const;
 
-	~HistoryList();
+	~HistoryInner();
 	
 public slots:
 
@@ -715,7 +715,7 @@ private:
 	MsgId _activeAnimMsgId;
 
 	ScrollArea _scroll;
-	HistoryList *_list;
+	HistoryInner *_list;
 	History *_history;
 	bool _histInited; // initial updateListSize() called
 

@@ -38,7 +38,7 @@
 QT_BEGIN_NAMESPACE
 
 QCocoaBackingStore::QCocoaBackingStore(QWindow *window)
-    : QPlatformBackingStore(window), m_imageWasEqual(false)
+    : QPlatformBackingStore(window), m_qImageNeedsClear(false), m_imageWasEqual(false)
 {
 }
 
@@ -57,9 +57,10 @@ QPaintDevice *QCocoaBackingStore::paintDevice()
     if (m_qImage.size() != effectiveBufferSize) {
         QImage::Format format = (window()->format().hasAlpha() || cocoaWindow->m_drawContentBorderGradient)
                 ? QImage::Format_ARGB32_Premultiplied : QImage::Format_RGB32;
+		m_qImageNeedsClear = window()->requestedFormat().hasAlpha() || cocoaWindow->m_drawContentBorderGradient;
         m_qImage = QImage(effectiveBufferSize, format);
         m_qImage.setDevicePixelRatio(windowDevicePixelRatio);
-        if (format == QImage::Format_ARGB32_Premultiplied)
+        if (m_qImageNeedsClear)
             m_qImage.fill(Qt::transparent);
     }
     return &m_qImage;
@@ -98,7 +99,7 @@ bool QCocoaBackingStore::scroll(const QRegion &area, int dx, int dy)
 
 void QCocoaBackingStore::beginPaint(const QRegion &region)
 {
-    if (m_qImage.hasAlphaChannel()) {
+    if (m_qImageNeedsClear && m_qImage.hasAlphaChannel()) {
         QPainter p(&m_qImage);
         p.setCompositionMode(QPainter::CompositionMode_Source);
         const QVector<QRect> rects = region.rects();

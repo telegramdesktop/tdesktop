@@ -105,6 +105,10 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
 fi
 
 if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
+
+  touch ./SourceFiles/telegram.qrc or exit 1
+  xcodebuild -project Telegram.xcodeproj -alltargets -configuration Release build or exit 1
+
   if [ ! -d "$ReleasePath/$BinaryName.app" ]; then
     echo "$BinaryName.app not found!"
     exit 1
