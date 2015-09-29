@@ -70,6 +70,7 @@ namespace {
 
 	bool _started = false;
 	_local_inner::Manager *_manager = 0;
+	TaskQueue *_localLoader = 0;
 
 	bool _working() {
 		return _manager && !_basePath.isEmpty();
@@ -1823,6 +1824,7 @@ namespace Local {
 		if (!_started) {
 			_started = true;
 			_manager = new _local_inner::Manager();
+			_localLoader = new TaskQueue(0, 5000);
 		}
 	}
 
@@ -1832,6 +1834,8 @@ namespace Local {
 			_manager->finish();
 			_manager->deleteLater();
 			_manager = 0;
+			delete _localLoader;
+			_localLoader = 0;
 		}
 	}
 
@@ -2001,6 +2005,9 @@ namespace Local {
 	}
 
 	void reset() {
+		if (_localLoader) {
+			_localLoader->stop();
+		}
 		_passKeySalt.clear(); // reset passcode, local key
 		_draftsMap.clear();
 		_draftsPositionsMap.clear();
@@ -2272,12 +2279,75 @@ namespace Local {
 		}
 	}
 
-	bool startImageLoad(const StorageKey &location) {
-		StorageMap::iterator j = _imagesMap.find(location);
-		if (j == _imagesMap.cend()) {
-			return false;
+	class ImageLoadTask : public Task {
+	public:
+
+		ImageLoadTask(const FileKey &key, const StorageKey &location, mtpFileLoader *loader) :
+			_key(key), _location(location), _loader(loader), _result(0) {
 		}
-		return true;
+		void process() {
+			FileReadDescriptor image;
+			if (!readEncryptedFile(image, _key, UserPath)) {
+				return;
+			}
+
+			QByteArray imageData;
+			quint64 locFirst, locSecond;
+			quint32 imageType;
+			image.stream >> locFirst >> locSecond >> imageType >> imageData;
+
+			if (locFirst != _location.first || locSecond != _location.second) {
+				return;
+			}
+
+			_result = new Result(StorageFileType(imageType), imageData);
+		}
+		void finish() {
+			if (_result) {
+				_loader->localLoaded(_result->image, _result->format, _result->pixmap);
+			} else {
+				StorageMap::iterator j = _imagesMap.find(_location);
+				if (j != _imagesMap.cend() && j->first == _key) {
+					clearKey(_key, UserPath);
+					_storageImagesSize -= j->second;
+					_imagesMap.erase(j);
+				}
+				_loader->localLoaded(StorageImageSaved());
+			}
+		}
+
+	private:
+		FileKey _key;
+		StorageKey _location;
+		struct Result {
+			Result(StorageFileType type, const QByteArray &data) : image(type, data) {
+				QByteArray guessFormat;
+				switch (type) {
+				case mtpc_storage_fileGif: guessFormat = "GIF"; break;
+				case mtpc_storage_fileJpeg: guessFormat = "JPG"; break;
+				case mtpc_storage_filePng: guessFormat = "PNG"; break;
+				default: guessFormat = QByteArray(); break;
+				}
+				pixmap = QPixmap::fromImage(App::readImage(data, &guessFormat, false), Qt::ColorOnly);
+				if (!pixmap.isNull()) {
+					format = guessFormat;
+				}
+			}
+			StorageImageSaved image;
+			QByteArray format;
+			QPixmap pixmap;
+		};
+		mtpFileLoader *_loader;
+		Result *_result;
+
+	};
+
+	TaskId startImageLoad(const StorageKey &location, mtpFileLoader *loader) {
+		StorageMap::iterator j = _imagesMap.find(location);
+		if (j == _imagesMap.cend() || !_localLoader) {
+			return 0;
+		}
+		return _localLoader->addTask(new ImageLoadTask(j->first, location, loader));
 	}
 
 	StorageImageSaved readImage(const StorageKey &location) {
@@ -2285,8 +2355,8 @@ namespace Local {
 		if (j == _imagesMap.cend()) {
 			return StorageImageSaved();
 		}
-		FileReadDescriptor draft;
-		if (!readEncryptedFile(draft, j.value().first, UserPath)) {
+		FileReadDescriptor image;
+		if (!readEncryptedFile(image, j.value().first, UserPath)) {
 			clearKey(j.value().first, UserPath);
 			_storageImagesSize -= j.value().second;
 			_imagesMap.erase(j);
@@ -2296,7 +2366,7 @@ namespace Local {
 		QByteArray imageData;
 		quint64 locFirst, locSecond;
 		quint32 imageType;
-		draft.stream >> locFirst >> locSecond >> imageType >> imageData;
+		image.stream >> locFirst >> locSecond >> imageType >> imageData;
 
 		return (locFirst == location.first && locSecond == location.second) ? StorageImageSaved(StorageFileType(imageType), imageData) : StorageImageSaved();
 	}
@@ -2333,12 +2403,12 @@ namespace Local {
 		}
 	}
 
-	bool startStickerImageLoad(const StorageKey &location) {
+	TaskId startStickerImageLoad(const StorageKey &location, mtpFileLoader *loader) {
 		StorageMap::iterator j = _stickerImagesMap.find(location);
 		if (j == _stickerImagesMap.cend()) {
-			return false;
+			return 0;
 		}
-		return true;
+		return 0;
 	}
 
 	QByteArray readStickerImage(const StorageKey &location) {
@@ -2393,12 +2463,12 @@ namespace Local {
 		}
 	}
 
-	bool startAudioLoad(const StorageKey &location) {
+	TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader) {
 		StorageMap::iterator j = _audiosMap.find(location);
 		if (j == _audiosMap.cend()) {
-			return false;
+			return 0;
 		}
-		return true;
+		return 0;
 	}
 
 	QByteArray readAudio(const StorageKey &location) {
@@ -2427,6 +2497,12 @@ namespace Local {
 
 	qint64 storageAudiosSize() {
 		return _storageAudiosSize;
+	}
+
+	void cancelTask(TaskId id) {
+		if (_localLoader) {
+			_localLoader->cancelTask(id);
+		}
 	}
 
 	void _writeStorageImageLocation(QDataStream &stream, const StorageImageLocation &loc) {

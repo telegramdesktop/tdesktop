@@ -1538,6 +1538,7 @@ DialogsWidget::DialogsWidget(MainWidget *parent) : QWidget(parent)
 	connect(&_addContact, SIGNAL(clicked()), this, SLOT(onAddContact()));
 	connect(&_newGroup, SIGNAL(clicked()), this, SLOT(onNewGroup()));
 	connect(&_cancelSearch, SIGNAL(clicked()), this, SLOT(onCancelSearch()));
+	connect(App::wnd(), SIGNAL(imageLoaded()), this, SLOT(update()));
 
 	_chooseByDragTimer.setSingleShot(true);
 	connect(&_chooseByDragTimer, SIGNAL(timeout()), this, SLOT(onChooseByDrag()));

@@ -607,17 +607,12 @@ int32 StorageImage::height() const {
 
 bool StorageImage::check() const {
 	if (loader->done()) {
-		switch (loader->fileType()) {
-		case mtpc_storage_fileGif: format = "GIF"; break;
-		case mtpc_storage_fileJpeg: format = "JPG"; break;
-		case mtpc_storage_filePng: format = "PNG"; break;
-		default: format = QByteArray(); break;
-		}
 		if (!data.isNull()) {
 			globalAquiredSize -= int64(data.width()) * data.height() * 4;
 		}
+		format = loader->imageFormat();
+		data = loader->imagePixmap();
 		QByteArray bytes = loader->bytes();
-		data = QPixmap::fromImage(App::readImage(bytes, &format, false), Qt::ColorOnly);
 		if (!data.isNull()) {
 			globalAquiredSize += int64(data.width()) * data.height() * 4;
 		}

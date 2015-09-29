@@ -87,7 +87,7 @@ class LocalImageLoaderPrivate : public QObject {
 
 public:
 
-	LocalImageLoaderPrivate(int32 currentUser, LocalImageLoader *loader, QThread *thread);
+	LocalImageLoaderPrivate(LocalImageLoader *loader, QThread *thread);
 	~LocalImageLoaderPrivate();
 
 public slots:
@@ -102,7 +102,6 @@ signals:
 private:
 
 	LocalImageLoader *loader;
-	int32 user;
 
 };
 
@@ -144,5 +143,78 @@ private:
 	QMutex readyLock, toPrepareLock;
 	QThread *thread;
 	LocalImageLoaderPrivate *priv;
+
+};
+
+class Task {
+public:
+
+	virtual void process() = 0; // is executed in a separate thread
+	virtual void finish() = 0; // is executed in the same as TaskQueue thread
+	TaskId id() const {
+		return TaskId(this);
+	}
+
+};
+typedef QSharedPointer<Task> TaskPtr;
+
+class TaskQueue : public QObject {
+	Q_OBJECT
+
+public:
+
+	TaskQueue(QObject *parent, int32 stopTimeoutMs = 0); // <= 0 - never stop worker
+
+	TaskId addTask(TaskPtr task);
+	void cancelTask(TaskId id); // this task finish() won't be called
+	
+	template <typename DerivedTask>
+	TaskId addTask(DerivedTask *task) {
+		return addTask(TaskPtr(task));
+	}
+
+	~TaskQueue();
+
+signals:
+
+	void taskAdded();
+
+public slots:
+
+	void onTaskProcessed();
+	void stop();
+
+private:
+
+	typedef QList<TaskPtr> Tasks;
+	friend class TaskQueueWorker;
+
+	Tasks _tasksToProcess, _tasksToFinish;
+	QMutex _tasksToProcessMutex, _tasksToFinishMutex;
+	QThread *_thread;
+	TaskQueueWorker *_worker;
+	QTimer *_stopTimer;
+
+};
+
+class TaskQueueWorker : public QObject {
+	Q_OBJECT
+
+public:
+
+	TaskQueueWorker(TaskQueue *queue) : _queue(queue), _inTaskAdded(false) {
+	}
+
+signals:
+
+	void taskProcessed();
+
+public slots:
+
+	void onTaskAdded();
+
+private:
+	TaskQueue *_queue;
+	bool _inTaskAdded;
 
 };

@@ -21,9 +21,8 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org
 #include "audio.h"
 #include <libexif/exif-data.h>
 
-LocalImageLoaderPrivate::LocalImageLoaderPrivate(int32 currentUser, LocalImageLoader *loader, QThread *thread) : QObject(0)
+LocalImageLoaderPrivate::LocalImageLoaderPrivate(LocalImageLoader *loader, QThread *thread) : QObject(0)
     , loader(loader)
-    , user(currentUser)
 {
 	moveToThread(thread);
 	connect(loader, SIGNAL(needToPrepare()), this, SLOT(prepareImages()));
@@ -295,7 +294,7 @@ void LocalImageLoader::append(const QStringList &files, const PeerId &peer, bool
 	}
 	if (!thread) {
 		thread = new QThread();
-		priv = new LocalImageLoaderPrivate(MTP::authedId(), this, thread);
+		priv = new LocalImageLoaderPrivate(this, thread);
 		thread->start();
 	}
 	emit needToPrepare();
@@ -310,7 +309,7 @@ PhotoId LocalImageLoader::append(const QByteArray &img, const PeerId &peer, bool
 	}
 	if (!thread) {
 		thread = new QThread();
-		priv = new LocalImageLoaderPrivate(MTP::authedId(), this, thread);
+		priv = new LocalImageLoaderPrivate(this, thread);
 		thread->start();
 	}
 	emit needToPrepare();
@@ -326,7 +325,7 @@ AudioId LocalImageLoader::append(const QByteArray &audio, int32 duration, const 
 	}
 	if (!thread) {
 		thread = new QThread();
-		priv = new LocalImageLoaderPrivate(MTP::authedId(), this, thread);
+		priv = new LocalImageLoaderPrivate(this, thread);
 		thread->start();
 	}
 	emit needToPrepare();
@@ -342,7 +341,7 @@ PhotoId LocalImageLoader::append(const QImage &img, const PeerId &peer, bool bro
 	}
 	if (!thread) {
 		thread = new QThread();
-		priv = new LocalImageLoaderPrivate(MTP::authedId(), this, thread);
+		priv = new LocalImageLoaderPrivate(this, thread);
 		thread->start();
 	}
 	emit needToPrepare();
@@ -358,7 +357,7 @@ PhotoId LocalImageLoader::append(const QString &file, const PeerId &peer, bool b
 	}
 	if (!thread) {
 		thread = new QThread();
-		priv = new LocalImageLoaderPrivate(MTP::authedId(), this, thread);
+		priv = new LocalImageLoaderPrivate(this, thread);
 		thread->start();
 	}
 	emit needToPrepare();
@@ -412,4 +411,123 @@ ToPrepareMedias &LocalImageLoader::toPrepareMedias() {
 LocalImageLoader::~LocalImageLoader() {
 	delete priv;
 	delete thread;
+}
+
+
+TaskQueue::TaskQueue(QObject *parent, int32 stopTimeoutMs) : QObject(parent), _worker(0), _thread(0), _stopTimer(0) {
+	if (stopTimeoutMs > 0) {
+		_stopTimer = new QTimer(this);
+		connect(_stopTimer, SIGNAL(timeout()), this, SLOT(stop()));
+		_stopTimer->setSingleShot(true);
+		_stopTimer->setInterval(stopTimeoutMs);
+	}
+}
+
+TaskId TaskQueue::addTask(TaskPtr task) {
+	{
+		QMutexLocker lock(&_tasksToProcessMutex);
+		_tasksToProcess.push_back(task);
+	}
+	if (!_thread) {
+		_thread = new QThread();
+
+		_worker = new TaskQueueWorker(this);
+		_worker->moveToThread(_thread);
+
+		connect(this, SIGNAL(taskAdded()), _worker, SLOT(onTaskAdded()));
+		connect(_worker, SIGNAL(taskProcessed()), this, SLOT(onTaskProcessed()));
+
+		_thread->start();
+	}
+	if (_stopTimer) _stopTimer->stop();
+	emit taskAdded();
+
+	return task->id();
+}
+
+void TaskQueue::cancelTask(TaskId id) {
+	QMutexLocker lock(&_tasksToProcessMutex);
+	for (int32 i = 0, l = _tasksToProcess.size(); i < l; ++i) {
+		if (_tasksToProcess.at(i)->id() == id) {
+			_tasksToProcess.removeAt(i);
+			break;
+		}
+	}
+}
+
+void TaskQueue::onTaskProcessed() {
+	do {
+		TaskPtr task;
+		{
+			QMutexLocker lock(&_tasksToFinishMutex);
+			if (_tasksToFinish.isEmpty()) break;
+			task = _tasksToFinish.front();
+			_tasksToFinish.pop_front();
+		}
+		task->finish();
+	} while (true);
+
+	if (_stopTimer) {
+		QMutexLocker lock(&_tasksToProcessMutex);
+		if (_tasksToProcess.isEmpty()) {
+			_stopTimer->start();
+		}
+	}
+}
+
+void TaskQueue::stop() {
+	if (_thread) {
+		_thread->requestInterruption();
+		_thread->quit();
+		_thread->wait();
+		delete _worker;
+		delete _thread;
+		_worker = 0;
+		_thread = 0;
+	}
+	_tasksToProcess.clear();
+	_tasksToFinish.clear();
+}
+
+TaskQueue::~TaskQueue() {
+	stop();
+	delete _stopTimer;
+}
+
+void TaskQueueWorker::onTaskAdded() {
+	if (_inTaskAdded) return;
+	_inTaskAdded = true;
+	
+	bool someTasksLeft = false;
+	do {
+		TaskPtr task;
+		{
+			QMutexLocker lock(&_queue->_tasksToProcessMutex);
+			if (!_queue->_tasksToProcess.isEmpty()) {
+				task = _queue->_tasksToProcess.front();
+			}
+		}
+
+		if (task) {
+			task->process();
+			bool emitTaskProcessed = false;
+			{
+				QMutexLocker lockToProcess(&_queue->_tasksToProcessMutex);
+				if (!_queue->_tasksToProcess.isEmpty() && _queue->_tasksToProcess.front() == task) {
+					_queue->_tasksToProcess.pop_front();
+					someTasksLeft = !_queue->_tasksToProcess.isEmpty();
+
+					QMutexLocker lockToFinish(&_queue->_tasksToFinishMutex);
+					emitTaskProcessed = _queue->_tasksToFinish.isEmpty();
+					_queue->_tasksToFinish.push_back(task);
+				}
+			}
+			if (emitTaskProcessed) {
+				emit taskProcessed();
+			}
+		}
+		QCoreApplication::processEvents();
+	} while (someTasksLeft && !thread()->isInterruptionRequested());
+
+	_inTaskAdded = false;
 }

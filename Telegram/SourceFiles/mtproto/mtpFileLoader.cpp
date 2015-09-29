@@ -48,7 +48,7 @@ mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &volume, int32 local, const 
 priority(0), inQueue(false), complete(false),
 _localStatus(LocalNotTried), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
 dc(dc), _locationType(UnknownFileLocation), volume(volume), local(local), secret(secret),
-id(0), access(0), fileIsOpen(false), size(size), type(mtpc_storage_fileUnknown) {
+id(0), access(0), fileIsOpen(false), size(size), type(mtpc_storage_fileUnknown), _localTaskId(0) {
 	LoaderQueues::iterator i = queues.find(dc);
 	if (i == queues.cend()) {
 		i = queues.insert(dc, mtpFileLoaderQueue());
@@ -60,7 +60,7 @@ mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, L
 priority(0), inQueue(false), complete(false),
 _localStatus(LocalNotTried), skippedBytes(0), nextRequestOffset(0), lastComplete(false),
 dc(dc), _locationType(type), volume(0), local(0), secret(0),
-id(id), access(access), file(to), fname(to), fileIsOpen(false), duplicateInData(todata), size(size), type(mtpc_storage_fileUnknown) {
+id(id), access(access), file(to), fname(to), fileIsOpen(false), duplicateInData(todata), size(size), type(mtpc_storage_fileUnknown), _localTaskId(0) {
 	LoaderQueues::iterator i = queues.find(MTP::dld[0] + dc);
 	if (i == queues.cend()) {
 		i = queues.insert(MTP::dld[0] + dc, mtpFileLoaderQueue());
@@ -68,20 +68,32 @@ id(id), access(access), file(to), fname(to), fileIsOpen(false), duplicateInData(
 	queue = &i.value();
 }
 
-QString mtpFileLoader::fileName() const {
-	return fname;
+QByteArray mtpFileLoader::imageFormat() const {
+	if (_imageFormat.isEmpty() && _locationType == UnknownFileLocation) {
+		readImage();
+	}
+	return _imageFormat;
 }
 
-bool mtpFileLoader::done() const {
-	return complete;
+QPixmap mtpFileLoader::imagePixmap() const {
+	if (_imagePixmap.isNull() && _locationType == UnknownFileLocation) {
+		readImage();
+	}
+	return _imagePixmap;
 }
 
-mtpTypeId mtpFileLoader::fileType() const {
-	return type;
-}
-
-const QByteArray &mtpFileLoader::bytes() const {
-	return data;
+void mtpFileLoader::readImage() const {
+	QByteArray format;
+	switch (type) {
+	case mtpc_storage_fileGif: format = "GIF"; break;
+	case mtpc_storage_fileJpeg: format = "JPG"; break;
+	case mtpc_storage_filePng: format = "PNG"; break;
+	default: format = QByteArray(); break;
+	}
+	_imagePixmap = QPixmap::fromImage(App::readImage(data, &format, false), Qt::ColorOnly);
+	if (!_imagePixmap.isNull()) {
+		_imageFormat = format;
+	}
 }
 
 float64 mtpFileLoader::currentProgress() const {
@@ -314,10 +326,10 @@ bool mtpFileLoader::tryLoadLocal() {
 	}
 
 	if (_locationType == UnknownFileLocation) {
-		StorageImageSaved cached = Local::readImage(storageKey(dc, volume, local));
-		if (cached.type != StorageFileUnknown) {
-			data = cached.data;
-			type = mtpFromStorageType(cached.type);
+		_localTaskId = Local::startImageLoad(storageKey(dc, volume, local), this);
+		if (_localTaskId) {
+			_localStatus = LocalLoading;
+			return true;
 		}
 	} else {
 		if (duplicateInData) {
@@ -359,6 +371,42 @@ bool mtpFileLoader::tryLoadLocal() {
 	emit progress(this);
 	loadNext();
 	return true;
+}
+
+void mtpFileLoader::localLoaded(const StorageImageSaved &result, const QByteArray &imageFormat, const QPixmap &imagePixmap) {
+	_localTaskId = 0;
+	if (result.type == StorageFileUnknown) {
+		_localStatus = LocalFailed;
+		start(true);
+		return;
+	}
+	data = result.data;
+	type = mtpFromStorageType(result.type);
+	if (_locationType == UnknownFileLocation) { // photo
+		_imageFormat = imageFormat;
+		_imagePixmap = imagePixmap;
+	}
+	_localStatus = LocalLoaded;
+	if (!fname.isEmpty() && duplicateInData) {
+		if (!fileIsOpen) fileIsOpen = file.open(QIODevice::WriteOnly);
+		if (!fileIsOpen) {
+			finishFail();
+			return;
+		}
+		if (file.write(data) != qint64(data.size())) {
+			finishFail();
+			return;
+		}
+	}
+	complete = true;
+	if (fileIsOpen) {
+		file.close();
+		fileIsOpen = false;
+		psPostprocessFile(QFileInfo(file).absoluteFilePath());
+	}
+	emit App::wnd()->imageLoaded();
+	emit progress(this);
+	loadNext();
 }
 
 void mtpFileLoader::start(bool loadFirst, bool prior) {
@@ -502,6 +550,9 @@ void mtpFileLoader::started(bool loadFirst, bool prior) {
 }
 
 mtpFileLoader::~mtpFileLoader() {
+	if (_localTaskId) {
+		Local::cancelTask(_localTaskId);
+	}
 	removeFromQueue();
 	cancelRequests();
 }
